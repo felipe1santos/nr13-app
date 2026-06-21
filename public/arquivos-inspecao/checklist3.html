@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NR-13 – Checklist de Inspeção (Parte 3)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box;
+            -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        :root { --text-dark: #111827; --blue-data: #0033a2; --green-ok: #16a34a;
+                --red-fail: #dc2626; --gray-mid: #6b7280; }
+        body { font-family: 'Inter', sans-serif; color: var(--text-dark); background: #fff;
+               font-size: 10px; line-height: 1.3; }
+        .page { width: 100%; min-height: 297mm; background: #fff; margin: 0;
+                padding: 12mm 15mm 28mm 15mm; position: relative;
+                page-break-after: always; display: flex; flex-direction: column; }
+        .hide-input { display: none; }
+
+        /* CABEÇALHO */
+        .header-table { width: 100%; border-collapse: collapse; border: 1px solid var(--text-dark); margin-bottom: 10px; }
+        .header-table td { border: 1px solid var(--text-dark); vertical-align: middle; padding: 6px 10px; }
+        .col-logo { width: 22%; text-align: center; }
+        .col-logo img { max-width: 100%; max-height: 55px; object-fit: contain; display: block; margin: 0 auto; }
+        .col-title { width: 53%; text-align: center; font-size: 13px; font-weight: 900; line-height: 1.4; }
+        .col-info { width: 25%; padding-left: 10px; }
+        .info-label { font-size: 9px; }
+        .info-value { font-size: 11px; font-weight: 700; color: var(--blue-data); margin-top: 2px; margin-bottom: 5px; }
+        .info-value:last-child { margin-bottom: 0; }
+
+        /* CONTEÚDO */
+        .content { flex: 1; padding-bottom: 36mm; }
+        .section-title { font-size: 10px; font-weight: 900; text-transform: uppercase;
+                         background: #f3f4f6; padding: 4px 8px; margin: 7px 0 4px; }
+
+        /* BLOCO DE PERGUNTA */
+        .q-block { margin-bottom: 6px; padding: 4px 6px; border: 1px solid #e5e7eb; border-radius: 3px; }
+        .q-text { font-size: 10px; font-weight: 700; margin-bottom: 3px; }
+        .q-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .q-options { display: flex; gap: 18px; align-items: center; }
+        .q-opt { display: flex; align-items: center; gap: 5px; font-size: 10px; cursor: pointer;
+                 color: var(--gray-mid); font-weight: 500; user-select: none; }
+        .q-opt.checked { color: var(--blue-data); font-weight: 700; }
+        .q-opt.checked.opt-sim .cb { background: var(--green-ok); border-color: var(--green-ok); }
+        .q-opt.checked.opt-nao .cb { background: var(--red-fail); border-color: var(--red-fail); }
+        .q-opt.checked.opt-out .cb { background: var(--gray-mid); border-color: var(--gray-mid); }
+        .cb { display: inline-flex; align-items: center; justify-content: center;
+              width: 14px; height: 14px; border: 1px solid #9ca3af; border-radius: 2px;
+              background: #fff; flex-shrink: 0; }
+        .q-opt.checked .cb::after { content: '✓'; color: #fff; font-size: 9px; font-weight: 900; }
+
+        /* OBS */
+        .obs-wrap { margin-top: 3px; }
+        .obs-field { width: 100%; border: 1px solid #e5e7eb; background: #fafafa; padding: 3px 6px;
+                     font-family: 'Inter', sans-serif; font-size: 9.5px; color: var(--blue-data);
+                     resize: none; outline: none; min-height: 20px; border-radius: 2px; }
+        .obs-field:focus { background: #fdfad2; }
+
+        /* NOTE */
+        .note { font-size: 8.5px; color: #8a8e97; background: #f9f9f9; padding: 3px 6px;
+                border-radius: 3px; margin-top: 3px; line-height: 1.3; }
+
+        /* ASSINATURAS */
+        .sig-container { position: absolute; bottom: 30mm; left: 15mm; right: 15mm;
+                         display: flex; justify-content: space-between; }
+        .sig-box { display: flex; flex-direction: column; align-items: center; width: 210px; position: relative; }
+        .sig-select-wrap { position: absolute; top: -22px; right: 0; }
+        .sig-select-wrap select { padding: 2px 5px; border-radius: 3px; border: 1px solid #9ca3af;
+                                   font-size: 9px; font-family: 'Inter', sans-serif; background: #f9fafb;
+                                   color: #111827; font-weight: 600; outline: none; cursor: pointer; }
+        .sig-img { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%);
+                   height: 50px; max-width: 100%; object-fit: contain; pointer-events: none; z-index: 1; }
+        .sig-line { width: 100%; border-bottom: 1px solid #000; margin-bottom: 3px; position: relative; z-index: 2; }
+        .sig-data { font-size: 8.5px; text-align: center; width: 100%; }
+        .sig-highlight { color: var(--blue-data); font-weight: 600; }
+        .sig-box.excluida > *:not(.no-print) { display: none !important; }
+
+        /* RODAPÉ */
+        .pgr-footer { position: absolute; bottom: 10mm; left: 15mm; right: 15mm;
+                       display: flex; align-items: flex-start; }
+        .footer-line-wrapper { flex: 1; border-top: 3px solid #000; padding-top: 5px; text-align: center; }
+        .company-details { font-size: 9.5px; color: #000; font-weight: 500; line-height: 1.4; }
+        .footer-page-number { background: #000 !important; color: #fff !important; font-size: 18px;
+                               font-weight: 400; padding: 5px 18px; margin-left: 10px;
+                               display: flex; align-items: center; justify-content: center; }
+
+        .editable-image { cursor: pointer; }
+        @media screen { .editable-image:hover { outline: 2px dashed var(--blue-data); opacity: 0.85; } }
+        @media print {
+            .no-print { display: none !important; }
+            body { background: none; margin: 0; }
+            .page { margin: 0 !important; box-shadow: none !important; padding: 12mm 15mm 28mm 15mm !important; }
+        }
+    </style>
+</head>
+<body>
+
+<input type="file" id="inputLogo" class="hide-input" accept="image/*" onchange="previewImage(this,'imgLogo')">
+
+<div class="page">
+    <table class="header-table">
+        <tr>
+            <td class="col-logo">
+                <div class="editable-image" onclick="document.getElementById('inputLogo').click()">
+                    <img id="imgLogo" src="logo.webp" alt="Logo">
+                </div>
+            </td>
+            <td class="col-title" contenteditable="true" spellcheck="false">
+                RELATÓRIO DE INSPEÇÃO NR-13<br>VASO SOB PRESSÃO
+            </td>
+            <td class="col-info">
+                <div class="info-label">Relatório nº.</div>
+                <div class="info-value" id="hdr-rel-num" contenteditable="true" spellcheck="false">—</div>
+                <div class="info-label">Data:</div>
+                <div class="info-value" id="hdr-rel-data" contenteditable="true" spellcheck="false">—</div>
+            </td>
+        </tr>
+    </table>
+
+    <div class="content">
+
+        <div class="section-title">4. Exame Externo</div>
+
+        <div class="q-block" data-qid="ck-local-inst">
+            <div class="q-text">Local de instalação do vaso:</div>
+            <div class="q-row">
+                <div class="q-options">
+                    <span class="q-opt opt-out" onclick="selOpt(this)"><span class="cb"></span> Ambiente aberto</span>
+                    <span class="q-opt opt-out" onclick="selOpt(this)"><span class="cb"></span> Ambiente fechado</span>
+                    <span class="q-opt opt-out" onclick="selOpt(this)"><span class="cb"></span> Outro</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="q-block" data-qid="ck-exig-local">
+            <div class="q-text">O vaso de pressão atende as exigências para o local de instalação, conforme NR-13?</div>
+            <div class="q-row">
+                <div class="q-options">
+                    <span class="q-opt opt-sim" onclick="selOpt(this)"><span class="cb"></span> Sim</span>
+                    <span class="q-opt opt-nao" onclick="selOpt(this)"><span class="cb"></span> Não</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-title">5. Exame Interno</div>
+
+        <div class="q-block" data-qid="ck-exam-int">
+            <div class="q-text">O vaso de pressão foi examinado internamente?</div>
+            <div class="q-row">
+                <div class="q-options">
+                    <span class="q-opt opt-sim" onclick="selOpt(this)"><span class="cb"></span> Sim</span>
+                    <span class="q-opt opt-nao" onclick="selOpt(this)"><span class="cb"></span> Não</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="q-block" data-qid="ck-int-ok">
+            <div class="q-text">Caso tenha sido inspecionado internamente, o vaso de pressão, depois de limpo, está em ordem e satisfaz a todas as condições de segurança constantes desta Norma NR-13 observáveis nesse exame?</div>
+            <div class="q-row">
+                <div class="q-options">
+                    <span class="q-opt opt-sim" onclick="selOpt(this)"><span class="cb"></span> Sim</span>
+                    <span class="q-opt opt-nao" onclick="selOpt(this)"><span class="cb"></span> Não</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="q-block" data-qid="ck-char-conf">
+            <div class="q-text">A parte de caracterização do vaso de pressão acessível a esse exame confere com o que, sobre este, consta do prontuário?</div>
+            <div class="q-row">
+                <div class="q-options">
+                    <span class="q-opt opt-sim" onclick="selOpt(this)"><span class="cb"></span> Sim</span>
+                    <span class="q-opt opt-nao" onclick="selOpt(this)"><span class="cb"></span> Não</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-title">6. Ensaio Hidrostático</div>
+
+        <div class="q-block" data-qid="ck-th-feito">
+            <div class="q-text">Foi realizado?</div>
+            <div class="q-row">
+                <div class="q-options">
+                    <span class="q-opt opt-sim" onclick="selOpt(this)"><span class="cb"></span> Sim</span>
+                    <span class="q-opt opt-nao" onclick="selOpt(this)"><span class="cb"></span> Não</span>
+                </div>
+            </div>
+            <div class="obs-wrap">
+                <textarea class="obs-field" placeholder="Observação..." rows="1"></textarea>
+            </div>
+            <div class="note">Na falta de comprovação documental de que o Teste Hidrostático tenha sido realizado na fase de fabricação, a contratante deve solicitar a realização do T.H. através de profissional habilitado.</div>
+        </div>
+
+        <div class="q-block" data-qid="ck-psv">
+            <div class="q-text">Possui válvula ou dispositivos de segurança instalados no vaso de pressão?</div>
+            <div class="q-row">
+                <div class="q-options">
+                    <span class="q-opt opt-sim" onclick="selOpt(this)"><span class="cb"></span> Sim</span>
+                    <span class="q-opt opt-nao" onclick="selOpt(this)"><span class="cb"></span> Não</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="q-block" data-qid="ck-lacre">
+            <div class="q-text">O vaso de pressão possui dispositivo físico ou lacre com aviso de advertência para evitar o bloqueio da válvula de segurança ou outro dispositivo de segurança?</div>
+            <div class="q-row">
+                <div class="q-options">
+                    <span class="q-opt opt-sim" onclick="selOpt(this)"><span class="cb"></span> Sim</span>
+                    <span class="q-opt opt-nao" onclick="selOpt(this)"><span class="cb"></span> Não</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="q-block" data-qid="ck-vacuo">
+            <div class="q-text">O vaso de pressão trabalha em condição de vácuo?</div>
+            <div class="q-row">
+                <div class="q-options">
+                    <span class="q-opt opt-sim" onclick="selOpt(this)"><span class="cb"></span> Sim</span>
+                    <span class="q-opt opt-nao" onclick="selOpt(this)"><span class="cb"></span> Não</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="q-block" data-qid="ck-quebra-vac">
+            <div class="q-text">Possui quebra-vácuo?</div>
+            <div class="q-row">
+                <div class="q-options">
+                    <span class="q-opt opt-sim" onclick="selOpt(this)"><span class="cb"></span> Sim</span>
+                    <span class="q-opt opt-nao" onclick="selOpt(this)"><span class="cb"></span> Não</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="q-block" data-qid="ck-psv-exam">
+            <div class="q-text">Foram examinadas todas as válvulas de segurança exigidas?</div>
+            <div class="q-row">
+                <div class="q-options">
+                    <span class="q-opt opt-sim" onclick="selOpt(this)"><span class="cb"></span> Sim</span>
+                    <span class="q-opt opt-nao" onclick="selOpt(this)"><span class="cb"></span> Não</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="q-block" data-qid="ck-anomalia">
+            <div class="q-text">Foi observada alguma anomalia?</div>
+            <div class="q-row">
+                <div class="q-options">
+                    <span class="q-opt opt-sim" onclick="selOpt(this)"><span class="cb"></span> Sim</span>
+                    <span class="q-opt opt-nao" onclick="selOpt(this)"><span class="cb"></span> Não</span>
+                </div>
+            </div>
+            <div class="obs-wrap">
+                <textarea class="obs-field" placeholder="Descrever anomalia observada..." rows="1"></textarea>
+            </div>
+        </div>
+
+        <div class="section-title">7. Instrumentos de Controle e Ensaios Complementares</div>
+
+        <div class="q-block" data-qid="ck-inst-ok">
+            <div class="q-text">Os instrumentos e controles de vasos de pressão são mantidos em boas condições operacionais?</div>
+            <div class="q-row">
+                <div class="q-options">
+                    <span class="q-opt opt-sim" onclick="selOpt(this)"><span class="cb"></span> Sim</span>
+                    <span class="q-opt opt-nao" onclick="selOpt(this)"><span class="cb"></span> Não</span>
+                </div>
+            </div>
+            <div class="note">Conforme NR-13, item 13.5.3.2: os instrumentos e controles de vasos de pressão devem ser mantidos calibrados e em boas condições operacionais.</div>
+        </div>
+
+        <div class="q-block" data-qid="ck-ens-compl">
+            <div class="q-text">Foram realizados ensaios complementares?</div>
+            <div class="q-row">
+                <div class="q-options">
+                    <span class="q-opt opt-sim" onclick="selOpt(this)"><span class="cb"></span> Sim</span>
+                    <span class="q-opt opt-nao" onclick="selOpt(this)"><span class="cb"></span> Não</span>
+                </div>
+            </div>
+            <div class="obs-wrap">
+                <textarea class="obs-field" placeholder="Descrever ensaios complementares..." rows="1"></textarea>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ASSINATURAS -->
+    <div class="sig-container">
+        <div class="sig-box" id="sig-wrapper-tecnico">
+            <div class="no-print sig-select-wrap">
+                <select id="select-tecnico" onchange="atualizarAssinaturaTecnico()">
+                    <option value="">Assinar...</option>
+                </select>
+            </div>
+            <img id="img-assinatura-tecnico" class="sig-img" src="" alt="Assinatura Técnico" style="display:none;">
+            <div class="sig-line"></div>
+            <div class="sig-data">
+                <strong>TÉCNICO RESPONSÁVEL</strong><br>
+                <span id="nome-tecnico" class="sig-highlight" contenteditable="true" spellcheck="false">Nome do Técnico</span><br>
+                Registro: <span id="crea-tecnico" class="sig-highlight" contenteditable="true" spellcheck="false">000000</span>
+            </div>
+        </div>
+        <div class="sig-box" id="sig-wrapper-engenheiro">
+            <div class="no-print sig-select-wrap">
+                <select id="select-ph" onchange="atualizarAssinatura()">
+                    <option value="">Assinar...</option>
+                </select>
+            </div>
+            <img id="img-assinatura-ph" class="sig-img" src="" alt="Assinatura Engenheiro" style="display:none;">
+            <div class="sig-line"></div>
+            <div class="sig-data">
+                <strong>ENGENHEIRO RESPONSÁVEL</strong><br>
+                <span id="nome-ph" class="sig-highlight" contenteditable="true" spellcheck="false">Nome do Engenheiro</span><br>
+                CREA/RNP: <span id="crea-ph" class="sig-highlight" contenteditable="true" spellcheck="false">ES-000000/D</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="pgr-footer">
+        <div class="footer-line-wrapper">
+            <div class="company-details" id="footer-empresa" contenteditable="true" spellcheck="false">
+                <strong>NOME DA EMPRESA LTDA.</strong><br>
+                Endereço • Bairro • Cidade/UF • CNPJ: 00.000.000/0000-00<br>
+                Telef: (00) 0000-0000 • E-mail: contato@empresa.com.br
+            </div>
+        </div>
+        <div class="footer-page-number" contenteditable="true">3</div>
+    </div>
+</div>
+
+<script>
+    var TAG = new URLSearchParams(window.location.search).get('tag') || '';
+
+    function selOpt(el) {
+        var grp = el.closest('.q-options');
+        grp.querySelectorAll('.q-opt').forEach(function(o) { o.classList.remove('checked'); });
+        el.classList.add('checked');
+    }
+
+    function previewImage(input, imgId) {
+        if (input.files && input.files[0]) {
+            var r = new FileReader();
+            r.onload = function(e) { document.getElementById(imgId).src = e.target.result; };
+            r.readAsDataURL(input.files[0]);
+        }
+    }
+
+    function carregarPHsParaSelect() {
+        var sel = document.getElementById('select-ph');
+        if (!sel) return;
+        var lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
+        sel.innerHTML = '<option value="">Assinar...</option>';
+        lista.filter(function(p) { return !p.tipo || p.tipo.startsWith('Engenheiro'); }).forEach(function(ph) {
+            var opt = document.createElement('option');
+            opt.value = ph.id; opt.textContent = ph.nome; sel.appendChild(opt);
+        });
+        var ex = document.createElement('option'); ex.value = 'excluir'; ex.textContent = 'Excluir Assinatura'; ex.style.color = '#dc2626'; ex.style.fontWeight = '700'; sel.appendChild(ex);
+    }
+    function atualizarAssinatura() {
+        var sel = document.getElementById('select-ph');
+        var wrapper = document.getElementById('sig-wrapper-engenheiro');
+        if (sel.value === 'excluir') { if (wrapper) wrapper.classList.add('excluida'); return; }
+        if (wrapper) wrapper.classList.remove('excluida');
+        var lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
+        var ph = lista.find(function(p) { return String(p.id) === String(sel.value); });
+        var img = document.getElementById('img-assinatura-ph');
+        var nome = document.getElementById('nome-ph');
+        var crea = document.getElementById('crea-ph');
+        if (ph) {
+            nome.textContent = ph.nome; crea.textContent = ph.crea || '';
+            if (ph.assinatura) { img.src = ph.assinatura; img.style.display = 'block'; }
+            else { img.style.display = 'none'; img.src = ''; }
+        } else { nome.textContent = 'Nome do Engenheiro'; crea.textContent = 'ES-000000/D'; img.style.display = 'none'; img.src = ''; }
+    }
+    function carregarTecnicosParaSelect() {
+        var sel = document.getElementById('select-tecnico');
+        if (!sel) return;
+        var lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
+        sel.innerHTML = '<option value="">Assinar...</option>';
+        lista.filter(function(p) { return p.tipo && p.tipo.startsWith('Inspetor'); }).forEach(function(ph) {
+            var opt = document.createElement('option');
+            opt.value = ph.id; opt.textContent = ph.nome; sel.appendChild(opt);
+        });
+        var ex = document.createElement('option'); ex.value = 'excluir'; ex.textContent = 'Excluir Assinatura'; ex.style.color = '#dc2626'; ex.style.fontWeight = '700'; sel.appendChild(ex);
+    }
+    function atualizarAssinaturaTecnico() {
+        var sel = document.getElementById('select-tecnico');
+        var wrapper = document.getElementById('sig-wrapper-tecnico');
+        if (sel.value === 'excluir') { if (wrapper) wrapper.classList.add('excluida'); return; }
+        if (wrapper) wrapper.classList.remove('excluida');
+        var lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
+        var ph = lista.find(function(p) { return String(p.id) === String(sel.value); });
+        var img = document.getElementById('img-assinatura-tecnico');
+        var nome = document.getElementById('nome-tecnico');
+        var crea = document.getElementById('crea-tecnico');
+        if (ph) {
+            nome.textContent = ph.nome; crea.textContent = ph.crea || '';
+            if (ph.assinatura) { img.src = ph.assinatura; img.style.display = 'block'; }
+            else { img.style.display = 'none'; img.src = ''; }
+        } else { nome.textContent = 'Nome do Técnico'; crea.textContent = '000000'; img.style.display = 'none'; img.src = ''; }
+    }
+
+    var MAPA_CL3 = {
+        'chk-local-inst':    'ck-local-inst',
+        'chk-exig-inst':     'ck-exig-local',
+        'chk-ex-int':        'ck-exam-int',
+        'chk-int-ok':        'ck-int-ok',
+        'chk-caract-exame':  'ck-char-conf',
+        'chk-th-feito':      'ck-th-feito',
+        'chk-psv':           'ck-psv',
+        'chk-lacre-psv':     'ck-lacre',
+        'chk-vacuo':         'ck-vacuo',
+        'chk-quebra-vacuo':  'ck-quebra-vac',
+        'chk-psv-ok':        'ck-psv-exam',
+        'chk-anomalia':      'ck-anomalia',
+        'chk-inst-ok':       'ck-inst-ok',
+        'chk-ensaios-compl': 'ck-ens-compl'
+    };
+
+    function injetarDadosChecklist3() {
+        try {
+            var dados = JSON.parse(localStorage.getItem('nr13_inspecao_atual') || '{}');
+            var cl = dados.checklist;
+            if (!cl || !cl.respostas) return;
+            var resp = cl.respostas;
+            Object.keys(MAPA_CL3).forEach(function(fid) {
+                var hid = MAPA_CL3[fid];
+                var v = resp[fid];
+                if (!v) return;
+                var block = document.querySelector('[data-qid="' + hid + '"]');
+                if (!block) return;
+                var opts = block.querySelectorAll('.q-opt');
+                opts.forEach(function(opt) {
+                    var txt = opt.textContent.replace(/✓/g,'').trim();
+                    if (txt === v) {
+                        opts.forEach(function(o) { o.classList.remove('checked'); });
+                        opt.classList.add('checked');
+                    }
+                });
+            });
+        } catch(e) {}
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        carregarPHsParaSelect();
+        carregarTecnicosParaSelect();
+        injetarDadosChecklist3();
+
+        // Número da página
+        var pg = new URLSearchParams(window.location.search).get('page');
+        if (pg) { var el = document.querySelector('.footer-page-number'); if (el) el.innerText = pg.trim(); }
+
+        // Empresa
+        try {
+            var salvo = localStorage.getItem('nr13_minha_empresa');
+            if (salvo) {
+                var d = JSON.parse(salvo);
+                if (d.logo) document.getElementById('imgLogo').src = d.logo;
+                var h = '<strong>' + (d.razao || d.fantasia || 'NOME DA EMPRESA') + '</strong><br>';
+                var l2 = [d.endereco, d.bairro, (d.cidade && d.estado ? d.cidade+'/'+d.estado : ''), d.cnpj ? 'CNPJ: '+d.cnpj : ''].filter(Boolean);
+                var l3 = [(d.telefone ? 'Telef: '+d.telefone : ''), (d.email ? 'E-mail: '+d.email : '')].filter(Boolean);
+                if (l2.length) h += l2.join(' • ') + '<br>';
+                if (l3.length) h += l3.join(' • ');
+                document.getElementById('footer-empresa').innerHTML = h;
+            }
+        } catch(e) {}
+
+        // Meta
+        try {
+            var meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}');
+            if (meta.codigo) document.getElementById('hdr-rel-num').textContent = meta.codigo;
+            if (meta.emissao) document.getElementById('hdr-rel-data').textContent = meta.emissao;
+        } catch(e) {}
+    });
+</script>
+</body>
+</html>

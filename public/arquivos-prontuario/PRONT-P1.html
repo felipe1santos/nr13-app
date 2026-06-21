@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prontuário do Vaso de Pressão — Folha 1</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: Arial, Helvetica, sans-serif; background: #fff; color: #000; font-size: 12px; }
+        .a4-page { background: #fff; width: 210mm; height: 297mm; padding: 12mm 15mm; position: relative; overflow: hidden; display: flex; flex-direction: column; }
+        .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-20deg); width: 70%; opacity: 0.07; z-index: 0; pointer-events: none; }
+        .watermark-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-20deg); font-size: 80px; font-weight: 900; color: #003366; opacity: 0.04; z-index: 0; pointer-events: none; white-space: nowrap; text-transform: uppercase; }
+        .content-wrapper { position: relative; z-index: 1; display: flex; flex-direction: column; flex: 1; }
+        .header-container { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+        .header-text { flex: 1; padding-right: 16px; }
+        h1 { font-size: 15px; text-align: center; text-transform: uppercase; margin-bottom: 6px; }
+        .intro-text { text-align: justify; font-size: 9.5px; line-height: 1.35; }
+        .logo-img { max-width: 100px; height: auto; object-fit: contain; }
+        .section { border: 1px solid #000; margin-bottom: 7px; }
+        .section-title { background-color: #003366; color: #fff; border-bottom: 1px solid #000; padding: 4px 6px; font-size: 10px; font-weight: bold; text-transform: uppercase; text-align: center; }
+        .grid-row { display: flex; border-bottom: 1px solid #000; }
+        .grid-row:last-child { border-bottom: none; }
+        .grid-col { flex: 1; border-right: 1px solid #000; display: flex; flex-direction: column; padding: 3px 5px; }
+        .grid-col:last-child { border-right: none; }
+        .col-25 { flex: 0 0 25%; }
+        .col-33 { flex: 0 0 33.33%; }
+        .col-50 { flex: 0 0 50%; }
+        .col-100 { flex: 0 0 100%; }
+        .label { font-weight: bold; font-size: 8.5px; background: #f5f5f5; padding: 1px 4px; display: inline-block; width: fit-content; margin-bottom: 2px; border-radius: 2px; }
+        .value { font-size: 10.5px; padding: 1px 3px; min-height: 14px; color: #222; }
+        .empresa-info { font-size: 9px; line-height: 1.45; padding: 1px 3px; color: #222; min-height: 46px; }
+        .text-block { padding: 4px; font-size: 9.5px; line-height: 1.35; text-align: justify; }
+        .footer-container { display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 8px; border-top: 1px solid #ccc; }
+        .footer-text { flex: 1; text-align: center; font-size: 8.5px; line-height: 1.35; padding-left: 16px; }
+        @media print { body { background: #fff; } .a4-page { box-shadow: none; width: 100%; height: 100%; } }
+    </style>
+</head>
+<body>
+<div class="a4-page">
+    <img id="img-watermark" class="watermark" alt="" style="display:none">
+    <div id="wm-text" class="watermark-text">PRONTUÁRIO</div>
+
+    <div class="content-wrapper">
+        <div class="header-container">
+            <div class="header-text">
+                <h1>Prontuário do Vaso de Pressão</h1>
+                <p class="intro-text">Esse prontuário tem como objetivo compilar as informações referentes ao projeto, fabricação, manutenção do vaso de pressão, bem como informar os cuidados necessários para a correta preservação e manutenção do mesmo.</p>
+            </div>
+            <img id="img-logo" class="logo-img" alt="Logo" style="display:none">
+        </div>
+
+        <!-- Empresas: layout compacto, sem spans individuais -->
+        <div class="section">
+            <div class="section-title">Empresas</div>
+            <div class="grid-row">
+                <div class="grid-col col-50">
+                    <span class="label">Empresa Emissora (Responsável Técnico):</span>
+                    <div class="empresa-info" id="val-minhaEmpresa"></div>
+                </div>
+                <div class="grid-col col-50">
+                    <span class="label">Empresa Proprietária do Equipamento:</span>
+                    <div class="empresa-info" id="val-empresa"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Identificação do Vaso de Pressão</div>
+            <div class="grid-row">
+                <div class="grid-col col-100">
+                    <span class="label">Descrição:</span>
+                    <span class="value" id="val-descricao"></span>
+                </div>
+            </div>
+            <div class="grid-row">
+                <div class="grid-col col-25"><span class="label">Data de Fabricação:</span><span class="value" id="val-dataFab"></span></div>
+                <div class="grid-col col-25"><span class="label">Classe do Fluído:</span><span class="value" id="val-classeFluid"></span></div>
+                <div class="grid-col col-25"><span class="label">Categoria do Vaso:</span><span class="value" id="val-categoria"></span></div>
+                <div class="grid-col col-25"><span class="label">Grupo de Potencial de Risco:</span><span class="value" id="val-grupoPotRisco"></span></div>
+            </div>
+            <div class="grid-row">
+                <div class="grid-col col-100"><span class="label">Modelo:</span><span class="value" id="val-modelo"></span></div>
+            </div>
+            <div class="grid-row">
+                <div class="grid-col col-100"><span class="label">Características Funcionais:</span><span class="value" id="val-caracteristicas"></span></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Dados do Projeto do Vaso de Pressão</div>
+            <div class="grid-row">
+                <div class="grid-col col-33"><span class="label">Código Projeto:</span><span class="value" id="val-codProjeto"></span></div>
+                <div class="grid-col col-33"><span class="label">Ano de Edição:</span><span class="value" id="val-anoEdicao"></span></div>
+                <div class="grid-col col-33"><span class="label">Pressão de Teste Hidrostático:</span><span class="value" id="val-pressaoTH"></span></div>
+            </div>
+            <div class="grid-row">
+                <div class="grid-col col-50"><span class="label">Pressão Máxima de Operação:</span><span class="value" id="val-pressaoMaxOp"></span></div>
+                <div class="grid-col col-50"><span class="label">Pressão de Projeto (PMTA):</span><span class="value" id="val-pressaoProjeto"></span></div>
+            </div>
+            <div class="grid-row">
+                <div class="grid-col col-100"><span class="label">Nº de Série do Eq.:</span><span class="value" id="val-nroSerie"></span></div>
+            </div>
+            <div class="grid-row">
+                <div class="grid-col col-50"><span class="label">Pressão Máxima de Trabalho Admissível (PMTA):</span><span class="value" id="val-pmta"></span></div>
+                <div class="grid-col col-50"><span class="label">Sobreespessura para Corrosão:</span><span class="value" id="val-sobreespessura"></span></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Especificações dos Materiais Utilizados</div>
+            <div class="grid-row">
+                <div class="grid-col col-100"><span class="label">Temperatura de Projeto:</span><span class="value" id="val-tempProjeto"></span></div>
+            </div>
+            <div class="grid-row">
+                <div class="grid-col col-50"><span class="label">Tipo de Tampos:</span><span class="value" id="val-tipoTampos"></span></div>
+                <div class="grid-col col-50"><span class="label">Fundo / Corpo:</span><span class="value" id="val-fundoCorpo"></span></div>
+            </div>
+            <div class="grid-row">
+                <div class="grid-col col-100"><span class="label">Tampa:</span><span class="value" id="val-tampa"></span></div>
+            </div>
+            <div class="grid-row">
+                <div class="grid-col col-50"><span class="label">Manípulos de fechamento:</span><span class="value" id="val-manipulos"></span></div>
+                <div class="grid-col col-50"><span class="label">Prisioneiros de fechamento:</span><span class="value" id="val-prisioneiros"></span></div>
+            </div>
+            <div class="grid-row">
+                <div class="grid-col col-50"><span class="label">Aro:</span><span class="value" id="val-aro"></span></div>
+                <div class="grid-col col-50"><span class="label">Luvas, tubos, conexões:</span><span class="value" id="val-luvConexoes"></span></div>
+            </div>
+            <div class="grid-row">
+                <div class="grid-col col-100"><span class="text-block">Manômetro para indicação da pressão de operação.</span></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Procedimentos Utilizados</div>
+            <div class="grid-row">
+                <div class="grid-col col-100">
+                    <span class="label">Fabricação e montagem:</span>
+                    <div class="text-block">Solda circunferencial do tampo/fundo e solda longitudinal do corpo do tipo topo (ASME UW12 Tipo 1) pelo método TIG. Eficiência 0,85 e 0,70 respectivamente (ASME UW12 Grau de exame C).</div>
+                </div>
+            </div>
+            <div class="grid-row">
+                <div class="grid-col col-100">
+                    <span class="label">Inspeção Final:</span>
+                    <div class="text-block">Inspeção visual das soldas conforme procedimento interno e norma ASME UW12 grau C. Realização de teste hidrostático conforme norma ASME UG 99b. Chapas, tampos e fundidos controlados por meio dos certificados de análise química dos fornecedores dos materiais.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer-container">
+            <img id="img-logo-rodape" class="logo-img" alt="Logo" style="display:none">
+            <div class="footer-text">
+                <p><strong>Obs.:</strong> Esse Prontuário do vaso de pressão é de propriedade da respectiva empresa emissora.</p>
+                <p>É proibida a reprodução e/ou publicação deste sem a devida autorização da empresa.</p>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var raw = localStorage.getItem('nr13_prontuario_atual');
+    if (!raw) return;
+    var d; try { d = JSON.parse(raw); } catch(e) { return; }
+
+    function v(id, val) { var el = document.getElementById(id); if (el && val) el.textContent = val; }
+
+    // Logo
+    var logo = d.logo;
+    if (!logo) { try { var emp = JSON.parse(localStorage.getItem('nr13_minha_empresa')||'{}'); logo = emp.logo; } catch(_){} }
+    if (logo) {
+        [document.getElementById('img-logo'), document.getElementById('img-logo-rodape'), document.getElementById('img-watermark')].forEach(function(img){ if(img){ img.src=logo; img.style.display='block'; } });
+        var wm = document.getElementById('wm-text'); if (wm) wm.style.display='none';
+    }
+
+    // Minha empresa (emissora) — bloco compacto
+    var me = {};
+    try { me = JSON.parse(localStorage.getItem('nr13_minha_empresa')||'{}'); } catch(_) {}
+    var meNome = d.minhaEmpresaNome || me.razao || me.fantasia || '';
+    var meCnpj = d.minhaEmpresaCnpj || me.cnpj || '';
+    var meEnder = d.minhaEmpresaEndereco || me.endereco || '';
+    var meCid   = (d.minhaEmpresaCidade || me.cidade || '') + (d.minhaEmpresaEstado || me.estado ? '/' + (d.minhaEmpresaEstado || me.estado) : '');
+    var meTel   = d.minhaEmpresaTelefone || me.telefone || '';
+    var meLinhas = [meNome ? '<strong>' + meNome + '</strong>' : '', meCnpj ? 'CNPJ: ' + meCnpj : '', meEnder, meCid, meTel].filter(Boolean);
+    var meEl = document.getElementById('val-minhaEmpresa');
+    if (meEl) meEl.innerHTML = meLinhas.join('<br>');
+
+    // Empresa proprietária — bloco compacto
+    var empNome = d.empresaRazaoSocial || '';
+    var empCnpj = d.empresaCnpj || '';
+    var empEnder = d.empresaEndereco || '';
+    var empCid  = (d.empresaCidade || '') + (d.empresaEstado ? '/' + d.empresaEstado : '');
+    var empTel  = d.empresaTelefone || '';
+    var empLinhas = [empNome ? '<strong>' + empNome + '</strong>' : '', empCnpj ? 'CNPJ: ' + empCnpj : '', empEnder, empCid, empTel].filter(Boolean);
+    var empEl = document.getElementById('val-empresa');
+    if (empEl) empEl.innerHTML = empLinhas.join('<br>');
+
+    v('val-descricao', d.descricao);
+    v('val-dataFab', d.dataFabricacao);
+    v('val-classeFluid', d.classeFluid);
+    v('val-categoria', d.categoria);
+    v('val-grupoPotRisco', d.grupoPotencialRisco);
+    v('val-modelo', d.modelo);
+    v('val-caracteristicas', d.caracteristicasFuncionais);
+    v('val-codProjeto', d.codigoProjeto);
+    v('val-anoEdicao', d.anoEdicao);
+    v('val-pressaoTH', d.pressaoTH);
+    v('val-pressaoMaxOp', d.pressaoMaxOp);
+    v('val-pressaoProjeto', d.pressaoProjeto);
+    v('val-nroSerie', d.nroSerie);
+    v('val-pmta', d.pmta);
+    v('val-sobreespessura', d.sobreespessura);
+    v('val-tempProjeto', d.tempProjeto);
+    v('val-tipoTampos', d.tipoTampos);
+    v('val-fundoCorpo', d.fundoCorpo);
+    v('val-tampa', d.tampa);
+    v('val-manipulos', d.manipulos);
+    v('val-prisioneiros', d.prisioneiros);
+    v('val-aro', d.aro);
+    v('val-luvConexoes', d.luvConexoes);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NR-13 – Checklist de Inspeção (Parte 2)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box;
+            -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        :root { --text-dark: #111827; --blue-data: #0033a2; --green-ok: #16a34a;
+                --red-fail: #dc2626; --gray-mid: #6b7280; }
+        body { font-family: 'Inter', sans-serif; color: var(--text-dark); background: #fff;
+               font-size: 10px; line-height: 1.3; }
+        .page { width: 100%; min-height: 297mm; background: #fff; margin: 0;
+                padding: 12mm 15mm 28mm 15mm; position: relative;
+                page-break-after: always; display: flex; flex-direction: column; }
+        .hide-input { display: none; }
+
+        /* CABEÇALHO */
+        .header-table { width: 100%; border-collapse: collapse; border: 1px solid var(--text-dark); margin-bottom: 10px; }
+        .header-table td { border: 1px solid var(--text-dark); vertical-align: middle; padding: 6px 10px; }
+        .col-logo { width: 22%; text-align: center; }
+        .col-logo img { max-width: 100%; max-height: 55px; object-fit: contain; display: block; margin: 0 auto; }
+        .col-title { width: 53%; text-align: center; font-size: 13px; font-weight: 900; line-height: 1.4; }
+        .col-info { width: 25%; padding-left: 10px; }
+        .info-label { font-size: 9px; }
+        .info-value { font-size: 11px; font-weight: 700; color: var(--blue-data); margin-top: 2px; margin-bottom: 5px; }
+        .info-value:last-child { margin-bottom: 0; }
+
+        /* CONTEÚDO */
+        .content { flex: 1; padding-bottom: 26mm; }
+        .section-title { font-size: 10px; font-weight: 900; text-transform: uppercase;
+                         background: #f3f4f6; padding: 4px 8px; margin: 8px 0 5px; }
+
+        /* BLOCO DE PERGUNTA */
+        .q-block { margin-bottom: 7px; padding: 5px 6px; border: 1px solid #e5e7eb; border-radius: 3px; }
+        .q-text { font-size: 10px; font-weight: 700; margin-bottom: 4px; }
+        .q-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .q-options { display: flex; gap: 18px; align-items: center; }
+        .q-opt { display: flex; align-items: center; gap: 5px; font-size: 10px; cursor: pointer;
+                 color: var(--gray-mid); font-weight: 500; user-select: none; }
+        .q-opt.checked { color: var(--blue-data); font-weight: 700; }
+        .q-opt.checked.opt-sim .cb { background: var(--green-ok); border-color: var(--green-ok); }
+        .q-opt.checked.opt-nao .cb { background: var(--red-fail); border-color: var(--red-fail); }
+        .cb { display: inline-flex; align-items: center; justify-content: center;
+              width: 14px; height: 14px; border: 1px solid #9ca3af; border-radius: 2px;
+              background: #fff; flex-shrink: 0; }
+        .q-opt.checked .cb::after { content: '✓'; color: #fff; font-size: 9px; font-weight: 900; }
+
+        /* OBS */
+        .obs-wrap { margin-top: 3px; }
+        .obs-field { width: 100%; border: 1px solid #e5e7eb; background: #fafafa; padding: 3px 6px;
+                     font-family: 'Inter', sans-serif; font-size: 9.5px; color: var(--blue-data);
+                     resize: none; outline: none; min-height: 22px; border-radius: 2px; }
+        .obs-field:focus { background: #fdfad2; }
+
+        /* NOTE */
+        .note { font-size: 8.5px; color: #8a8e97; background: #f9f9f9; padding: 3px 6px;
+                border-radius: 3px; margin-top: 3px; line-height: 1.3; }
+
+        /* RODAPÉ */
+        .pgr-footer { position: absolute; bottom: 10mm; left: 15mm; right: 15mm;
+                       display: flex; align-items: flex-start; }
+        .footer-line-wrapper { flex: 1; border-top: 3px solid #000; padding-top: 5px; text-align: center; }
+        .company-details { font-size: 9.5px; color: #000; font-weight: 500; line-height: 1.4; }
+        .footer-page-number { background: #000 !important; color: #fff !important; font-size: 18px;
+                               font-weight: 400; padding: 5px 18px; margin-left: 10px;
+                               display: flex; align-items: center; justify-content: center; }
+
+        .editable-image { cursor: pointer; }
+        @media screen { .editable-image:hover { outline: 2px dashed var(--blue-data); opacity: 0.85; } }
+        @media print {
+            .no-print { display: none !important; }
+            body { background: none; margin: 0; }
+            .page { margin: 0 !important; box-shadow: none !important; padding: 12mm 15mm 28mm 15mm !important; }
+        }
+    </style>
+</head>
+<body>
+
+<input type="file" id="inputLogo" class="hide-input" accept="image/*" onchange="previewImage(this,'imgLogo')">
+
+<div class="page">
+    <table class="header-table">
+        <tr>
+            <td class="col-logo">
+                <div class="editable-image" onclick="document.getElementById('inputLogo').click()">
+                    <img id="imgLogo" src="logo.webp" alt="Logo">
+                </div>
+            </td>
+            <td class="col-title" contenteditable="true" spellcheck="false">
+                RELATÓRIO DE INSPEÇÃO NR-13<br>VASO SOB PRESSÃO
+            </td>
+            <td class="col-info">
+                <div class="info-label">Relatório nº.</div>
+                <div class="info-value" id="hdr-rel-num" contenteditable="true" spellcheck="false">—</div>
+                <div class="info-label">Data:</div>
+                <div class="info-value" id="hdr-rel-data" contenteditable="true" spellcheck="false">—</div>
+            </td>
+        </tr>
+    </table>
+
+    <div class="content">
+
+        <div class="section-title">2. Resultados da inspeção</div>
+
+        <div class="q-block" data-qid="ck-pv8">
+            <div class="q-text">O vaso possui o produto "P.V." maior do que 8 (oito), onde "P" é a máxima pressão de operação em kPa e "V" é o volume geométrico em m³? Portando se enquadra na NR-13?</div>
+            <div class="q-row">
+                <div class="q-options">
+                    <span class="q-opt opt-sim" onclick="selOpt(this)"><span class="cb"></span> Sim</span>
+                    <span class="q-opt opt-nao" onclick="selOpt(this)"><span class="cb"></span> Não</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="q-block" data-qid="ck-rgi">
+            <div class="q-text">O vaso constitui risco grave e iminente?</div>
+            <div class="q-row">
+                <div class="q-options">
+                    <span class="q-opt opt-sim" onclick="selOpt(this)"><span class="cb"></span> Sim</span>
+                    <span class="q-opt opt-nao" onclick="selOpt(this)"><span class="cb"></span> Não</span>
+                </div>
+            </div>
+            <div class="obs-wrap">
+                <textarea class="obs-field" placeholder="Observação..." rows="1"></textarea>
+            </div>
+            <div class="note">Constitui condição de risco grave e iminente (RGI) o não cumprimento de qualquer item previsto na NR-13 que possa causar acidente ou doença relacionada ao trabalho com lesão grave à integridade física do trabalhador.</div>
+        </div>
+
+        <div class="q-block" data-qid="ck-placa">
+            <div class="q-text">Possui placa de identificação? Possui no mínimo as seguintes informações, conforme a norma NR-13?</div>
+            <div class="q-row">
+                <div class="q-options">
+                    <span class="q-opt opt-sim" onclick="selOpt(this)"><span class="cb"></span> Sim</span>
+                    <span class="q-opt opt-nao" onclick="selOpt(this)"><span class="cb"></span> Não</span>
+                </div>
+            </div>
+            <div class="note">Informações mínimas: a) fabricante; b) número de identificação; c) ano de fabricação; d) pressão máxima de trabalho admissível; e) pressão de teste hidrostático de fabricação; f) código de projeto e ano de edição.</div>
+        </div>
+
+        <div class="q-block" data-qid="ck-categoria">
+            <div class="q-text">Possui em local visível a identificação do vaso e sua categoria?</div>
+            <div class="q-row">
+                <div class="q-options">
+                    <span class="q-opt opt-sim" onclick="selOpt(this)"><span class="cb"></span> Sim</span>
+                    <span class="q-opt opt-nao" onclick="selOpt(this)"><span class="cb"></span> Não</span>
+                </div>
+            </div>
+            <div class="note">É obrigatória a fixação do número ou código de identificação do vaso e sua categoria para visualização fácil e rápida de qualquer pessoa que circule próximo ao vaso de pressão, conforme item 13.5.1.5 da norma.</div>
+        </div>
+
+        <div class="section-title">3. Exame do Prontuário e Registro de Segurança</div>
+
+        <div class="q-block" data-qid="ck-tem-pront">
+            <div class="q-text">O vaso de pressão possui prontuário?</div>
+            <div class="q-row">
+                <div class="q-options">
+                    <span class="q-opt opt-sim" onclick="selOpt(this)"><span class="cb"></span> Sim</span>
+                    <span class="q-opt opt-nao" onclick="selOpt(this)"><span class="cb"></span> Não</span>
+                </div>
+            </div>
+            <div class="note">É obrigatório possuir no estabelecimento onde o vaso estiver instalado Prontuário fornecido pelo fabricante contendo as informações conforme a norma NR-13, item 13.5.1.6. Quando inexistente ou extraviado, o prontuário deve ser reconstituído pelo empregador, com responsabilidade técnica do fabricante ou de PH (NR-13, item 13.5.1.7).</div>
+        </div>
+
+        <div class="q-block" data-qid="ck-conf-pront">
+            <div class="q-text">As características do vaso de pressão conferem com as informações do prontuário?</div>
+            <div class="q-row">
+                <div class="q-options">
+                    <span class="q-opt opt-sim" onclick="selOpt(this)"><span class="cb"></span> Sim</span>
+                    <span class="q-opt opt-nao" onclick="selOpt(this)"><span class="cb"></span> Não</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="q-block" data-qid="ck-livro-reg">
+            <div class="q-text">O vaso de pressão possui livro de registro de segurança conforme a norma NR-13?</div>
+            <div class="q-row">
+                <div class="q-options">
+                    <span class="q-opt opt-sim" onclick="selOpt(this)"><span class="cb"></span> Sim</span>
+                    <span class="q-opt opt-nao" onclick="selOpt(this)"><span class="cb"></span> Não</span>
+                </div>
+            </div>
+            <div class="note">O "Registro de Segurança" deve ser constituído por livro de páginas numeradas, pastas ou sistema informatizado onde serão registradas: todas as ocorrências importantes capazes de influir nas condições de segurança dos vasos de pressão, e as ocorrências de inspeção de segurança inicial, periódica e extraordinária, devendo constar a condição operacional do vaso, o nome legível e assinatura do PH (NR-13, item 13.5.1.8).</div>
+        </div>
+
+    </div>
+
+    <div class="pgr-footer">
+        <div class="footer-line-wrapper">
+            <div class="company-details" id="footer-empresa" contenteditable="true" spellcheck="false">
+                <strong>NOME DA EMPRESA LTDA.</strong><br>
+                Endereço • Bairro • Cidade/UF • CNPJ: 00.000.000/0000-00<br>
+                Telef: (00) 0000-0000 • E-mail: contato@empresa.com.br
+            </div>
+        </div>
+        <div class="footer-page-number" contenteditable="true">2</div>
+    </div>
+</div>
+
+<script>
+    var TAG = new URLSearchParams(window.location.search).get('tag') || '';
+
+    function selOpt(el) {
+        var grp = el.closest('.q-options');
+        grp.querySelectorAll('.q-opt').forEach(function(o) { o.classList.remove('checked'); });
+        el.classList.add('checked');
+    }
+
+    function previewImage(input, imgId) {
+        if (input.files && input.files[0]) {
+            var r = new FileReader();
+            r.onload = function(e) { document.getElementById(imgId).src = e.target.result; };
+            r.readAsDataURL(input.files[0]);
+        }
+    }
+
+    var MAPA_CL2 = {
+        'chk-pv8':               'ck-pv8',
+        'chk-rgi':               'ck-rgi',
+        'chk-placa':             'ck-placa',
+        'chk-categoria':         'ck-categoria',
+        'chk-prontuario':        'ck-tem-pront',
+        'chk-caract-prontuario': 'ck-conf-pront',
+        'chk-livro':             'ck-livro-reg'
+    };
+
+    function injetarDadosChecklist2() {
+        try {
+            var dados = JSON.parse(localStorage.getItem('nr13_inspecao_atual') || '{}');
+            var cl = dados.checklist;
+            if (!cl || !cl.respostas) return;
+            var resp = cl.respostas;
+            Object.keys(MAPA_CL2).forEach(function(fid) {
+                var hid = MAPA_CL2[fid];
+                var v = resp[fid];
+                if (!v) return;
+                var norm = v === 'Sim (RGI)' ? 'Sim' : v;
+                var block = document.querySelector('[data-qid="' + hid + '"]');
+                if (!block) return;
+                var opts = block.querySelectorAll('.q-opt');
+                opts.forEach(function(opt) {
+                    var txt = opt.textContent.replace(/✓/g,'').trim();
+                    if (txt === norm) {
+                        opts.forEach(function(o) { o.classList.remove('checked'); });
+                        opt.classList.add('checked');
+                    }
+                });
+            });
+        } catch(e) {}
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        injetarDadosChecklist2();
+
+        // Número da página
+        var pg = new URLSearchParams(window.location.search).get('page');
+        if (pg) { var el = document.querySelector('.footer-page-number'); if (el) el.innerText = pg.trim(); }
+
+        // Empresa
+        try {
+            var salvo = localStorage.getItem('nr13_minha_empresa');
+            if (salvo) {
+                var d = JSON.parse(salvo);
+                if (d.logo) document.getElementById('imgLogo').src = d.logo;
+                var h = '<strong>' + (d.razao || d.fantasia || 'NOME DA EMPRESA') + '</strong><br>';
+                var l2 = [d.endereco, d.bairro, (d.cidade && d.estado ? d.cidade+'/'+d.estado : ''), d.cnpj ? 'CNPJ: '+d.cnpj : ''].filter(Boolean);
+                var l3 = [(d.telefone ? 'Telef: '+d.telefone : ''), (d.email ? 'E-mail: '+d.email : '')].filter(Boolean);
+                if (l2.length) h += l2.join(' • ') + '<br>';
+                if (l3.length) h += l3.join(' • ');
+                document.getElementById('footer-empresa').innerHTML = h;
+            }
+        } catch(e) {}
+
+        // Meta
+        try {
+            var meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}');
+            if (meta.codigo) document.getElementById('hdr-rel-num').textContent = meta.codigo;
+            if (meta.emissao) document.getElementById('hdr-rel-data').textContent = meta.emissao;
+        } catch(e) {}
+    });
+</script>
+</body>
+</html>

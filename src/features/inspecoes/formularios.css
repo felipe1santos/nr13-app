@@ -1,0 +1,312 @@
+/* Mobile-first: base = 1 coluna, touch-friendly. Desktop é a exceção (@media min-width). */
+
+.formulario-page {
+  padding: 14px;
+  padding-bottom: 90px; /* espaço pro botão fixo no rodapé */
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.formulario-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.formulario-header h1 {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.formulario-corpo {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.formulario-secao {
+  background: var(--bg-card);
+  border: 1px solid var(--border-solid);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+}
+
+.formulario-secao > h3 {
+  font-size: 14px;
+  color: var(--accent-2);
+  font-weight: 600;
+  border-bottom: 1px solid var(--bg-body);
+  padding-bottom: 10px;
+  margin-bottom: 14px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.form-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.form-grid input,
+.form-grid select,
+.form-grid textarea {
+  padding: 12px;
+  min-height: 44px;
+  border: 1px solid var(--border-solid);
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  font-family: inherit;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.form-grid input:disabled,
+.form-grid textarea:disabled {
+  background: var(--bg-body);
+  color: var(--text-muted);
+}
+
+/* Linha de medição/calibração — card empilhado no mobile, vira linha de tabela a partir de 700px */
+.linha-medida-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border-solid);
+  border-radius: var(--radius-md);
+  margin-bottom: 10px;
+}
+
+.linha-medida-titulo {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.linha-medida-campos {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.linha-medida-campos label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.linha-medida-campos input {
+  padding: 10px;
+  min-height: 40px;
+  border: 1px solid var(--border-solid);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.btn-remover-linha {
+  align-self: flex-end;
+  background: var(--status-erro-bg);
+  color: var(--status-erro-text);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* Seções colapsáveis do checklist */
+.formulario-secao-collapse {
+  background: var(--bg-card);
+  border: 1px solid var(--border-solid);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.formulario-secao-collapse summary {
+  padding: 14px 16px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.formulario-secao-collapse summary::-webkit-details-marker {
+  display: none;
+}
+
+.formulario-secao-collapse summary::after {
+  content: '+';
+  font-size: 18px;
+  color: var(--accent);
+}
+
+.formulario-secao-collapse[open] summary::after {
+  content: '−';
+}
+
+.formulario-secao-collapse-body {
+  padding: 0 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-top: 1px solid var(--bg-body);
+  padding-top: 14px;
+}
+
+.pergunta-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pergunta-checklist label {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.pergunta-checklist select {
+  padding: 11px;
+  min-height: 44px;
+  border: 1px solid var(--border-solid);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+}
+
+.instrumento-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--bg-body);
+  flex-wrap: wrap;
+}
+
+.instrumento-item label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+/* Fotos (TH) */
+.fotos-formulario-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.foto-formulario-item {
+  border: 1px solid var(--border-solid);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.foto-formulario-item img {
+  width: 100%;
+  height: 110px;
+  object-fit: cover;
+  display: block;
+}
+
+.foto-formulario-item input[type='text'] {
+  width: 100%;
+  border: none;
+  border-top: 1px solid var(--border-solid);
+  padding: 8px;
+  font-size: 12px;
+  box-sizing: border-box;
+}
+
+.btn-add-foto {
+  border: 1px dashed var(--accent);
+  color: var(--accent);
+  background: none;
+  border-radius: var(--radius-md);
+  padding: 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Status aprovado/reprovado */
+.status-select {
+  padding: 12px;
+  min-height: 44px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-solid);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+/* Botão salvar fixo no rodapé — crítico pra uso em campo no celular */
+.formulario-acoes-fixas {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border-solid);
+  padding: 12px 16px;
+  display: flex;
+  justify-content: center;
+  z-index: 50;
+}
+
+.formulario-acoes-fixas button {
+  width: 100%;
+  max-width: 500px;
+  padding: 14px;
+  font-size: 15px;
+}
+
+@media (min-width: 700px) {
+  .formulario-page {
+    padding: 24px;
+    padding-bottom: 90px;
+  }
+
+  .form-grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  }
+
+  .linha-medida-card {
+    flex-direction: row;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .linha-medida-titulo {
+    flex-shrink: 0;
+    width: 140px;
+  }
+
+  .linha-medida-campos {
+    flex: 1;
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .fotos-formulario-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}

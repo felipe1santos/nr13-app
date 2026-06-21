@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NR-13 - Resumo de Cálculo Final - Sistema</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,600;1,700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --text-dark: #111827;     
+            --border-color: #000;  
+            --border-box: #c7c7c7;
+            --blue-data: #0033a2;     
+            --bg-table-header: #eff0f1;
+            --bg-table-sub: #f9fafb;
+            --highlight-yellow: #fef08a; 
+            --highlight-text: #000000;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        /* =========================================
+           RESET E CONFIGURAÇÕES BÁSICAS
+           ========================================= */
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--text-dark);
+            background-color: #fff; 
+            margin: 0;
+            padding: 0; 
+            line-height: 1.3;
+            font-size: 11px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .page {
+            width: 100%; 
+            min-height: 297mm;
+            background: #fff;
+            margin: 0; 
+            padding: 15mm 15mm 25mm 15mm; 
+            position: relative;
+            page-break-after: always;
+            display: flex;
+            flex-direction: column;
+            border: none;
+            box-shadow: none; 
+        }
+
+        /* =========================================
+           CABEÇALHO
+           ========================================= */
+        .header-table {
+            width: 100%; border-collapse: collapse; border: 1px solid var(--text-dark); margin-bottom: 6px;
+        }
+        .header-table td { border: 1px solid var(--text-dark); vertical-align: middle; }
+        .col-logo { width: 25%; text-align: center; padding: 5px; }
+        .col-logo img { max-width: 100%; max-height: 75px; object-fit: contain; display: block; margin: 0 auto; }
+        .col-title { width: 50%; text-align: center; font-size: 16px; font-weight: 800; color: var(--text-dark); line-height: 1.2; text-transform: uppercase; padding: 5px;}
+        .col-info { width: 25%; text-align: left; padding: 8px 10px; vertical-align: top; }
+        .col-info .info-label { font-size: 10px; color: var(--text-dark); margin-top: 3px; }
+        .col-info .info-label:first-child { margin-top: 0; }
+        .col-info .info-value { font-size: 12px; font-weight: 700; color: var(--blue-data); margin-top: 1px; }
+
+        /* =========================================
+           GRIDS E FORMULÁRIOS
+           ========================================= */
+        .section-title {
+            font-size: 9px; font-weight: 900; margin-top: 8px; margin-bottom: 4px; 
+            text-transform: uppercase; background-color: var(--bg-table-header);
+            padding: 3px 6px; color: var(--text-dark); 
+        }
+        
+        .f-grid { display: grid; gap: 4px; margin-bottom: 4px; }
+        .f-grid-2 { grid-template-columns: 1fr 1fr; }
+        .f-grid-1-2 { grid-template-columns: 1.5fr 1fr; }
+
+        .f { display: flex; align-items: center; border: 1px solid #ededed; background: #fff; padding: 2px 6px; min-height: 22px; }
+        .f-lbl { font-size: 8px; font-weight: 900; color: var(--text-dark); white-space: nowrap; text-transform: uppercase; margin-right: 6px; }
+        .f-val { flex: 1; font-size: 10px; font-weight: 700; color: var(--blue-data); overflow: hidden; white-space: nowrap; }
+        .f-val[contenteditable="true"]:hover { background-color: var(--highlight-yellow); outline: 1px dashed var(--blue-data); cursor: text; }
+
+        /* =========================================
+           ESTRUTURA DOS COMPONENTES (ESQUERDA/DIREITA)
+           ========================================= */
+        .comp-section {
+            display: flex;
+            gap: 15px;
+            margin-top: 5px;
+            margin-bottom: 10px;
+        }
+        .comp-tables {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            gap: 6px;
+        }
+        
+        /* NOVO DESIGN DOS INPUTS: Grid de 2 colunas para colocar lado a lado e economizar espaço vertical */
+        .comp-inputs {
+            flex: 1.2;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+            align-content: start;
+        }
+
+        .res-table { width: 100%; border-collapse: collapse; text-align: center; border: 1px solid #000; }
+        .res-table th { background-color: var(--bg-table-header); border: 1px solid #dfdfdf; font-size: 8.5px; padding: 3px; font-weight: 800; text-transform: uppercase; }
+        .res-table td { border: 1px solid #e0e0e0; font-size: 10px; font-weight: 700; color: var(--blue-data); padding: 4px; }
+        .res-table td[contenteditable="true"]:hover { background-color: var(--highlight-yellow); cursor: text; outline: 1px dashed var(--blue-data); }
+        
+        /* DESTAQUE DOS COMPONENTES LIMITANTES */
+        .bg-highlight { background-color: var(--highlight-yellow) !important; color: var(--highlight-text) !important; font-weight: 900 !important; }
+
+        /* =========================================
+           CAIXA DE CONCLUSÃO (NOVO DESIGN PROFISSIONAL AZUL ESCURO)
+           ========================================= */
+        .conclusion-box {
+           
+            
+            background-color: #f8faff; 
+            padding: 12px 15px;
+            border-radius: 4px; 
+            font-size: 11px; 
+            line-height: 1.1; 
+            margin-top: 0px; 
+            margin-bottom: 15px;
+            color: #1e3a8a; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .conclusion-box strong { color: #172554; font-weight: 900; text-transform: uppercase; }
+        .conclusion-box .hl-text { 
+            color: #000000; 
+            background-color: var(--highlight-yellow); 
+            padding: 5px 5px; 
+            border-radius: 3px; 
+            border: 1px solid #fef08a;
+        }
+
+        /* =========================================
+           RODAPÉ
+           ========================================= */
+        .pgr-footer-new { position: absolute; bottom: 12mm; left: 15mm; right: 15mm; display: flex; align-items: flex-start; }
+        .footer-line-wrapper { flex: 1; border-top: 3px solid #000; padding-top: 8px; text-align: center; }
+        .company-details { font-size: 11px; color: #000; font-weight: 500; line-height: 1.4; }
+        .footer-page-number { background-color: #000 !important; color: #fff !important; font-size: 20px; font-weight: 400; padding: 6px 22px; margin-left: 10px; display: flex; align-items: center; justify-content: center; }
+
+        .hide-input { display: none; }
+        @media print {
+            .no-print { display: none !important; }
+            body { background: none; padding: 0; display: block; }
+            .page { width: 100% !important; margin: 0 !important; padding: 15mm 15mm 25mm 15mm !important; box-shadow: none !important; border: none !important; }
+        }
+
+
+
+
+
+
+
+        /* CAIXAS DE FÓRMULAS SOLTAS */
+        .formula-box {
+            grid-column: span 2;
+            display: flex;
+            gap: 4px;
+            margin-top: 2px;
+        }
+        .f-form {
+            flex: 1;
+            border: 1px solid #ededed;
+            background-color: var(--bg-table-sub);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px;
+            border-radius: 2px;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--blue-data);
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        /* =========================================
+           ASSINATURA E RESPONSABILIDADE (OVERLAY)
+           ========================================= */
+        .sig-overlay-container {
+            position: absolute;
+            bottom: 28mm;
+            left: 15mm;
+            right: 15mm;
+            display: flex;
+            justify-content: flex-end;
+            z-index: 500;
+            pointer-events: none;
+        }
+        .sig-overlay-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 220px;
+            position: relative;
+            pointer-events: auto;
+        }
+        .sig-overlay-line { width: 100%; border-bottom: 1px solid #000; margin-bottom: 4px; position: relative; z-index: 2; }
+        .sig-overlay-data { font-size: 9px; text-align: center; width: 100%; }
+        .sig-overlay-select { position: absolute; top: -24px; right: 0; }
+        .sig-overlay-select select { padding: 3px 6px; border-radius: 4px; border: 1px solid #9CA3AF; font-size: 9px; font-family: 'Inter', sans-serif; cursor: pointer; background-color: #f9fafb; color: #111827; font-weight: 600; outline: none; }
+        .sig-overlay-img { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); height: 55px; max-width: 100%; object-fit: contain; pointer-events: none; z-index: 1; }
+        .data-highlight { color: var(--blue-data); font-weight: 600; }
+        .sig-overlay-box.sig-excluida > *:not(.no-print) { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <input type="file" id="inputLogo" class="hide-input" accept="image/*" onchange="previewImage(this, 'imgLogo')">
+
+    <div class="page">
+        <table class="header-table">
+            <tr>
+                <td rowspan="2" class="col-logo">
+                     <div class="logo-placeholder editable-image" onclick="document.getElementById('inputLogo').click()" title="Clique para alterar a Logo">
+                        <img id="imgLogo" src="logo.webp" alt="Logo">
+                     </div>
+                </td>
+                <td class="col-title" contenteditable="true" spellcheck="false">RESUMO DE CÁLCULOS DA PMTA E ESPESSURA</td>
+                <td rowspan="2" class="col-info">
+                    <div class="info-label">Relatório nº:</div>
+                    <div class="info-value" contenteditable="true" spellcheck="false">REL-000000</div>
+                    <div class="info-label">Data:</div>
+                    <div class="info-value" contenteditable="true" spellcheck="false">DD/MM/AAAA</div>
+                    <div class="info-label">Folha:</div>
+                    <div class="info-value" id="folha-label" contenteditable="true" spellcheck="false">RESUMO</div>
+                </td>
+            </tr>
+        </table>
+
+        <div class="section-title">DADOS GERAIS</div>
+        <div class="f-grid f-grid-1-2">
+            <div class="f"><span class="f-lbl">CONTRATANTE</span><div class="f-val" id="res-cliente" contenteditable="true">--</div></div>
+            <div class="f"><span class="f-lbl">RASTREABILIDADE</span><div class="f-val" id="res-rastreab" contenteditable="true">--</div></div>
+        </div>
+        <div class="f-grid f-grid-1-2">
+            <div class="f"><span class="f-lbl">ENDEREÇO</span><div class="f-val" id="res-endereco" contenteditable="true">--</div></div>
+            <div class="f"><span class="f-lbl">DATA DA INSPEÇÃO</span><div class="f-val" id="res-data-insp" contenteditable="true">--</div></div>
+        </div>
+
+        <div class="section-title">ASPECTOS GERAIS DO EQUIPAMENTO</div>
+        <div class="f-grid f-grid-2">
+            <div class="f"><span class="f-lbl">IDENTIFICAÇÃO</span><div class="f-val" id="res-identificacao" contenteditable="true">--</div></div>
+            <div class="f"><span class="f-lbl">Nº DE SÉRIE</span><div class="f-val" id="res-serie" contenteditable="true">--</div></div>
+        </div>
+        <div class="f-grid">
+            <div class="f"><span class="f-lbl">TIPO DE EQUIPAMENTO</span><div class="f-val" id="res-tipo" contenteditable="true">--</div></div>
+        </div>
+
+        <div class="section-title">PARÂMETROS E RESULTADOS: CASCO PRINCIPAL</div>
+        <div class="comp-section">
+            <div class="comp-tables">
+                <table class="res-table">
+                    <thead><tr><th colspan="2">ESPESSURA MÍN. CALCULADA (t)</th></tr><tr><th>mm</th><th>in</th></tr></thead>
+                    <tbody>
+                        <tr>
+                            <td class="calc-trigger esp-val" data-comp="CASCO PRINCIPAL" contenteditable="true">--</td>
+                            <td class="calc-trigger" contenteditable="true">--</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <table class="res-table">
+                    <thead><tr><th colspan="3">PMTA CALCULADA (P)</th></tr><tr><th>MPa</th><th>psi</th><th>kgf/cm²</th></tr></thead>
+                    <tbody>
+                        <tr>
+                            <td class="calc-trigger pmta-val" data-comp="CASCO PRINCIPAL" contenteditable="true">--</td>
+                            <td class="calc-trigger" contenteditable="true">--</td>
+                            <td class="calc-trigger" contenteditable="true">--</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="comp-inputs">
+                <div class="f"><span class="f-lbl">EFICIÊNCIA DA JUNTA (E)</span><div class="f-val" id="res-casco-e" contenteditable="true">--</div></div>
+                <div class="f"><span class="f-lbl">ESP. MÍN. MEDIDA (t)</span><div class="f-val" id="res-casco-tmed" contenteditable="true">--</div></div>
+                <div class="f"><span class="f-lbl">MARGEM CORROSÃO (c)</span><div class="f-val" id="res-casco-ca" contenteditable="true">--</div></div>
+                <div class="f"><span class="f-lbl">RAIO INTERNO (Ri)</span><div class="f-val" id="res-casco-raio" contenteditable="true">--</div></div>
+                <div class="f"><span class="f-lbl">MATERIAL DO CASCO</span><div class="f-val" id="res-casco-mat" contenteditable="true">--</div></div>
+                <div class="f"><span class="f-lbl">TENSÃO (S)</span><div class="f-val" id="res-casco-s" contenteditable="true">--</div></div>
+                
+                                <div class="formula-box">
+                    <div class="f-form" id="formula-casco-a">--</div>
+                    <div class="f-form" id="formula-casco-b">--</div>
+                </div>
+            </div>
+
+            
+        </div>
+
+        
+
+        <div class="section-title">PARÂMETROS E RESULTADOS: TAMPO SUPERIOR</div>
+        <div class="comp-section">
+            <div class="comp-tables">
+                <table class="res-table">
+                    <thead><tr><th colspan="2">ESPESSURA MÍN. CALCULADA (t)</th></tr><tr><th>mm</th><th>in</th></tr></thead>
+                    <tbody>
+                        <tr>
+                            <td class="calc-trigger esp-val" data-comp="TAMPO SUPERIOR" contenteditable="true">--</td>
+                            <td class="calc-trigger" contenteditable="true">--</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <table class="res-table">
+                    <thead><tr><th colspan="3">PMTA CALCULADA (P)</th></tr><tr><th>MPa</th><th>psi</th><th>kgf/cm²</th></tr></thead>
+                    <tbody>
+                        <tr>
+                            <td class="calc-trigger pmta-val" data-comp="TAMPO SUPERIOR" contenteditable="true">--</td>
+                            <td class="calc-trigger" contenteditable="true">--</td>
+                            <td class="calc-trigger" contenteditable="true">--</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="comp-inputs">
+                <div class="f"><span class="f-lbl">EFICIÊNCIA DA JUNTA (E)</span><div class="f-val" id="res-tsup-e" contenteditable="true">--</div></div>
+                <div class="f"><span class="f-lbl">ESP. MÍN. MEDIDA (t)</span><div class="f-val" id="res-tsup-tmed" contenteditable="true">--</div></div>
+                <div class="f"><span class="f-lbl">MARGEM CORROSÃO (c)</span><div class="f-val" id="res-tsup-ca" contenteditable="true">--</div></div>
+                <div class="f"><span class="f-lbl">RAIO COROA (L)</span><div class="f-val" id="res-tsup-raio" contenteditable="true">--</div></div>
+                <div class="f"><span class="f-lbl">MATERIAL DO TAMPO</span><div class="f-val" id="res-tsup-mat" contenteditable="true">--</div></div>
+                <div class="f"><span class="f-lbl">TENSÃO (S)</span><div class="f-val" id="res-tsup-s" contenteditable="true">--</div></div>
+
+                                <div class="formula-box">
+                    <div class="f-form" id="formula-tsup-a">--</div>
+                    <div class="f-form" id="formula-tsup-b">--</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-title">PARÂMETROS E RESULTADOS: TAMPO INFERIOR</div>
+        <div class="comp-section">
+            <div class="comp-tables">
+                <table class="res-table">
+                    <thead><tr><th colspan="2">ESPESSURA MÍN. CALCULADA (t)</th></tr><tr><th>mm</th><th>in</th></tr></thead>
+                    <tbody>
+                        <tr>
+                            <td class="calc-trigger esp-val" data-comp="TAMPO INFERIOR" contenteditable="true">--</td>
+                            <td class="calc-trigger" contenteditable="true">--</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <table class="res-table">
+                    <thead><tr><th colspan="3">PMTA CALCULADA (P)</th></tr><tr><th>MPa</th><th>psi</th><th>kgf/cm²</th></tr></thead>
+                    <tbody>
+                        <tr>
+                            <td class="calc-trigger pmta-val" data-comp="TAMPO INFERIOR" contenteditable="true">--</td>
+                            <td class="calc-trigger" contenteditable="true">--</td>
+                            <td class="calc-trigger" contenteditable="true">--</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="comp-inputs">
+                <div class="f"><span class="f-lbl">EFICIÊNCIA DA JUNTA (E)</span><div class="f-val" id="res-tinf-e" contenteditable="true">--</div></div>
+                <div class="f"><span class="f-lbl">ESP. MÍN. MEDIDA (t)</span><div class="f-val" id="res-tinf-tmed" contenteditable="true">--</div></div>
+                <div class="f"><span class="f-lbl">MARGEM CORROSÃO (c)</span><div class="f-val" id="res-tinf-ca" contenteditable="true">--</div></div>
+                <div class="f"><span class="f-lbl">RAIO COROA (L)</span><div class="f-val" id="res-tinf-raio" contenteditable="true">--</div></div>
+                <div class="f"><span class="f-lbl">MATERIAL DO TAMPO</span><div class="f-val" id="res-tinf-mat" contenteditable="true">--</div></div>
+                <div class="f"><span class="f-lbl">TENSÃO (S)</span><div class="f-val" id="res-tinf-s" contenteditable="true">--</div></div>
+
+                                <div class="formula-box">
+                    <div class="f-form" id="formula-tinf-a">--</div>
+                    <div class="f-form" id="formula-tinf-b">--</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="conclusion-box">
+            A <strong>Espessura Mínima Requerida</strong> limitante do sistema é de <strong class="hl-text" id="lbl-menor-esp">--</strong> mm, referente ao componente <strong id="lbl-comp-esp">--</strong>.<br><br>
+            A <strong>PMTA</strong> limitante do sistema é de <strong class="hl-text" id="lbl-menor-pmta">--</strong> MPa, determinada pelo componente <strong id="lbl-comp-pmta">--</strong>.
+        </div>
+
+        <div class="sig-overlay-container">
+            <div class="sig-overlay-box" id="sig-wrapper-engenheiro">
+                <div class="no-print sig-overlay-select">
+                    <select id="select-ph" onchange="atualizarAssinatura()">
+                        <option value="">Assinar...</option>
+                    </select>
+                </div>
+                <img id="img-assinatura-ph" class="sig-overlay-img" src="" alt="Assinatura Engenheiro" style="display:none;">
+                <div class="sig-overlay-line"></div>
+                <div class="sig-overlay-data">
+                    <strong>ENGENHEIRO RESPONSÁVEL</strong><br>
+                    <span id="nome-ph" class="data-highlight" contenteditable="true" spellcheck="false">Nome do Engenheiro</span><br>
+                    CREA/RNP: <span id="crea-ph" class="data-highlight" contenteditable="true" spellcheck="false">ES-000000/D</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="pgr-footer-new">
+            <div class="footer-line-wrapper">
+                <div class="company-details" id="footer-empresa" contenteditable="true" spellcheck="false">
+                    <strong>NOME DA EMPRESA LTDA.</strong><br>
+                    Endereço Completo • Bairro • Cidade/UF • CNPJ: 00.000.000/0000-00 • CEP: 00000-000<br>
+                    Telef: (00) 0000-0000 • E-mail: contato@empresa.com.br
+                </div>
+            </div>
+            <div class="footer-page-number">RES</div>
+        </div>
+    </div>
+
+    <script>
+        // Preview de Logo
+        function previewImage(input, imgId) {
+            if (input.files && input.files[0]) {
+                var reader = new FileReader();
+                reader.onload = function(e) { document.getElementById(imgId).src = e.target.result; }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        // Motor de Avaliação de Limitantes (PMTA e Espessura)
+        function calcularLimitantes() {
+            // Remove highlights anteriores
+            document.querySelectorAll('.bg-highlight').forEach(el => el.classList.remove('bg-highlight'));
+
+            let pmtas = [];
+            let espessuras = [];
+
+            // Ler todos os campos de PMTA (em MPa)
+            document.querySelectorAll('.pmta-val').forEach(td => {
+                let val = parseFloat(td.innerText.replace(',', '.'));
+                if(!isNaN(val)) pmtas.push({ val: val, comp: td.getAttribute('data-comp'), cell: td });
+            });
+
+            // Ler todos os campos de Espessura Mínima Calculada (em mm)
+            document.querySelectorAll('.esp-val').forEach(td => {
+                let val = parseFloat(td.innerText.replace(',', '.'));
+                if(!isNaN(val)) espessuras.push({ val: val, comp: td.getAttribute('data-comp'), cell: td });
+            });
+
+            // Achar menor PMTA
+            if (pmtas.length > 0) {
+                let menorPmta = pmtas.reduce((prev, curr) => (prev.val < curr.val) ? prev : curr);
+                // Pinta os TDs da linha vencedora inteira
+                Array.from(menorPmta.cell.parentElement.children).forEach(td => td.classList.add('bg-highlight'));
+                
+                // Preenche o laudo final
+                document.getElementById('lbl-menor-pmta').innerText = menorPmta.val.toFixed(2).replace('.', ',');
+                document.getElementById('lbl-comp-pmta').innerText = menorPmta.comp;
+            }
+
+            // Achar menor Espessura
+            if (espessuras.length > 0) {
+                let menorEsp = espessuras.reduce((prev, curr) => (prev.val < curr.val) ? prev : curr);
+                // Pinta os TDs da linha vencedora inteira
+                Array.from(menorEsp.cell.parentElement.children).forEach(td => td.classList.add('bg-highlight'));
+                
+                // Preenche o laudo final
+                document.getElementById('lbl-menor-esp').innerText = menorEsp.val.toFixed(2).replace('.', ',');
+                document.getElementById('lbl-comp-esp').innerText = menorEsp.comp;
+            }
+        }
+
+        // Injeta os dados reais do equipamento (cabeçalho + parâmetros por componente)
+        function injetarDadosEquipamento() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const tagAtual = urlParams.get('tag');
+            if (!tagAtual) return;
+
+            const setVal = (id, val) => {
+                if (document.getElementById(id) && val !== undefined && val !== null && val !== '') {
+                    document.getElementById(id).innerText = val;
+                }
+            };
+
+            const info = JSON.parse(localStorage.getItem('nr13_info_' + tagAtual) || '{}');
+            const emp = JSON.parse(localStorage.getItem('nr13_emp_' + tagAtual) || '{}');
+            const calc = JSON.parse(localStorage.getItem('nr13_calc_' + tagAtual) || '{}');
+            const vasoStr = localStorage.getItem('nr13_vaso_' + tagAtual);
+            const dados3D = vasoStr ? JSON.parse(vasoStr) : null;
+            const meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}');
+
+            const formatarDataBR = (str) => {
+                if (!str) return null;
+                const partes = str.split('-');
+                if (partes.length === 3) return `${partes[2]}/${partes[1]}/${partes[0]}`;
+                return str;
+            };
+
+            // ===== CABEÇALHO / DADOS GERAIS =====
+            setVal('res-cliente', emp.razaoSocial || emp.nome);
+            let endereco = [];
+            if (emp.endereco) endereco.push(emp.endereco);
+            if (emp.bairro) endereco.push(emp.bairro);
+            if (emp.localidade) endereco.push(emp.localidade);
+            if (endereco.length > 0) setVal('res-endereco', endereco.join(' - '));
+
+            setVal('res-rastreab', meta.codigo);
+            setVal('res-data-insp', formatarDataBR(meta.execucaoInspecao));
+
+            setVal('res-identificacao', info.tag || tagAtual);
+            setVal('res-serie', info.numeroSerie || info.serie);
+            setVal('res-tipo', info.descricao || info.tipo);
+
+            // ===== EXTRAÇÃO DOS RESULTADOS DO MEMORIAL DE CÁLCULO (PMTA e t_req por componente) =====
+            const blocosCalc = {
+                'CASCO PRINCIPAL': { t_req: null, pmta: null },
+                'TAMPO SUPERIOR': { t_req: null, pmta: null },
+                'TAMPO INFERIOR': { t_req: null, pmta: null }
+            };
+
+            if (calc.memorialHTML) {
+                let blocos = calc.memorialHTML.split(/MEMORIAL DE C[ÁA]LCULO:/i);
+                let countTampos = 0;
+                for (let i = 1; i < blocos.length; i++) {
+                    let bloco = blocos[i];
+                    let matchNome = bloco.match(/^\s*([^<]+)/);
+                    let nomePeca = matchNome ? matchNome[1].trim() : '';
+                    let nomeUpper = nomePeca.toUpperCase();
+
+                    if (nomeUpper.includes('BOCAL') || nomeUpper.includes('FLANGE')) continue;
+
+                    let matchPMTA = bloco.match(/PMTA\s*=\s*([\d.,]+)/);
+                    let matchTreq = bloco.match(/t_\{req\}\s*=\s*([\d.,]+)/);
+                    let pmtaVal = matchPMTA ? parseFloat(matchPMTA[1].replace(',', '.')) : null;
+                    let tReqVal = matchTreq ? parseFloat(matchTreq[1].replace(',', '.')) : null;
+
+                    let destino;
+                    if (nomeUpper.includes('CASCO')) {
+                        destino = 'CASCO PRINCIPAL';
+                    } else {
+                        countTampos++;
+                        if (nomeUpper.includes('SUPERIOR') || nomeUpper.includes('DIREITO')) destino = 'TAMPO SUPERIOR';
+                        else if (nomeUpper.includes('INFERIOR') || nomeUpper.includes('ESQUERDO')) destino = 'TAMPO INFERIOR';
+                        else destino = (countTampos === 1) ? 'TAMPO INFERIOR' : 'TAMPO SUPERIOR';
+                    }
+
+                    if (blocosCalc[destino]) {
+                        blocosCalc[destino].t_req = tReqVal;
+                        blocosCalc[destino].pmta = pmtaVal;
+                    }
+                }
+            }
+
+            // ===== RAIO INTERNO / RAIO COROA (R = D/2, comum a casco e tampos) =====
+            const D = dados3D ? parseFloat(dados3D.D) : NaN;
+            const raioTexto = (!isNaN(D)) ? (D / 2).toFixed(2).replace('.', ',') + ' mm' : null;
+
+            const converterPressao = (mpaVal) => ({
+                mpa: mpaVal.toFixed(2).replace('.', ','),
+                psi: (mpaVal * 145.0377).toFixed(2).replace('.', ','),
+                kgf: (mpaVal * 10.19716).toFixed(2).replace('.', ',')
+            });
+
+            // Preenche os resultados calculados (espessura/PMTA) e os dados de entrada (E, t medido, CA, raio, material, S)
+            const preencherComponente = (compKey, dadosComp, prefixo, bloco) => {
+                const espCell = document.querySelector(`.esp-val[data-comp="${compKey}"]`);
+                if (espCell && bloco && bloco.t_req !== null) {
+                    espCell.innerText = bloco.t_req.toFixed(2).replace('.', ',');
+                    const espInCell = espCell.nextElementSibling;
+                    if (espInCell) espInCell.innerText = (bloco.t_req / 25.4).toFixed(2).replace('.', ',');
+                }
+
+                const pmtaCell = document.querySelector(`.pmta-val[data-comp="${compKey}"]`);
+                if (pmtaCell && bloco && bloco.pmta !== null) {
+                    const conv = converterPressao(bloco.pmta);
+                    pmtaCell.innerText = conv.mpa;
+                    const psiCell = pmtaCell.nextElementSibling;
+                    const kgfCell = psiCell ? psiCell.nextElementSibling : null;
+                    if (psiCell) psiCell.innerText = conv.psi;
+                    if (kgfCell) kgfCell.innerText = conv.kgf;
+                }
+
+                if (dadosComp) {
+                    if (dadosComp.E !== undefined) setVal(`res-${prefixo}-e`, parseFloat(dadosComp.E).toFixed(2).replace('.', ','));
+                    if (dadosComp.t_comercial !== undefined) setVal(`res-${prefixo}-tmed`, parseFloat(dadosComp.t_comercial).toFixed(2).replace('.', ',') + ' mm');
+                    if (dadosComp.ca !== undefined) setVal(`res-${prefixo}-ca`, String(dadosComp.ca).replace('.', ',') + ' mm');
+                    if (dadosComp.mat !== undefined) setVal(`res-${prefixo}-mat`, dadosComp.mat);
+                    if (dadosComp.S !== undefined) setVal(`res-${prefixo}-s`, parseFloat(dadosComp.S).toFixed(2).replace('.', ',') + ' MPa');
+                }
+                if (raioTexto) setVal(`res-${prefixo}-raio`, raioTexto);
+            };
+
+            // Componentes ficam em dados3D.componentes (VasoSalvo.componentes)
+            var compsCasco  = null, compsTampo1 = null, compsTampo2 = null;
+            if (dados3D && Array.isArray(dados3D.componentes)) {
+                var cs = dados3D.componentes;
+                var c = cs.find(function(x) { return x.id === 'casco'; });
+                var t1 = cs.find(function(x) { return x.id === 'tampo1'; });
+                var t2 = cs.find(function(x) { return x.id === 'tampo2'; });
+                if (c)  compsCasco  = c.dados;
+                if (t1) compsTampo1 = t1.dados;
+                if (t2) compsTampo2 = t2.dados;
+            }
+            preencherComponente('CASCO PRINCIPAL', compsCasco,  'casco', blocosCalc['CASCO PRINCIPAL']);
+            preencherComponente('TAMPO SUPERIOR',  compsTampo2, 'tsup',  blocosCalc['TAMPO SUPERIOR']);
+            preencherComponente('TAMPO INFERIOR',  compsTampo1, 'tinf',  blocosCalc['TAMPO INFERIOR']);
+
+            // ===== FÓRMULAS DINÂMICAS POR TIPO DE COMPONENTE =====
+            var FORMULAS = {
+                cilindrico:       ['P = S·E·t / (Ri + 0,6·t)',           't = P·Ri / (S·E − 0,6·P)'],
+                eliptico:         ['P = 2·S·E·t / (D + 0,2·t)',          't = P·D / (2·S·E − 0,2·P)'],
+                toroesferico:     ['P = S·E·t / (0,885·L + 0,1·t)',      't = 0,885·P·L / (S·E − 0,1·P)'],
+                esferico:         ['P = 2·S·E·t / (L + 0,2·t)',          't = P·L / (2·S·E − 0,2·P)'],
+                plano:            ['t = d · C · √(P/S)',                  'C = coeficiente junta (UG-34)'],
+                planoAparafusado: ['t = G · √(C·P/S)',                    'G = dist. entre garras (UG-34)'],
+                cone:             ['P = 2·cos(α)·S·E·t / (D + 1,2·t·cos(α))', 't = P·D / (2·cos(α)·(S·E − 0,6·P))']
+            };
+
+            // Tenta ler do vaso principal, depois do autoclave (ac_corpo)
+            var vasoRaw = localStorage.getItem('nr13_vaso_' + tagAtual)
+                       || localStorage.getItem('nr13_vaso_ac_corpo_' + tagAtual);
+            if (vasoRaw) {
+                try {
+                    var vasoData = JSON.parse(vasoRaw);
+                    var comps = vasoData.componentes || [];
+                    var compCasco  = comps.find(function(c) { return c.id === 'casco'; });
+                    var compTampo1 = comps.find(function(c) { return c.id === 'tampo1'; });
+                    var compTampo2 = comps.find(function(c) { return c.id === 'tampo2'; });
+
+                    function setFormula(prefixo, tipo) {
+                        var fs = FORMULAS[tipo];
+                        if (!fs) return;
+                        var a = document.getElementById('formula-' + prefixo + '-a');
+                        var b = document.getElementById('formula-' + prefixo + '-b');
+                        if (a) a.textContent = fs[0];
+                        if (b) b.textContent = fs[1];
+                    }
+
+                    if (compCasco)  setFormula('casco', compCasco.tipo);
+                    if (compTampo2) setFormula('tsup',  compTampo2.tipo);
+                    if (compTampo1) setFormula('tinf',  compTampo1.tipo);
+                } catch(e) {}
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            // 1. CARREGAR DADOS DO SISTEMA (Padrão de injeção)
+            const salvo = localStorage.getItem('nr13_minha_empresa');
+            if (salvo) {
+                const dados = JSON.parse(salvo);
+                if (dados.logo) document.getElementById('imgLogo').src = dados.logo;
+                let footerHTML = `<strong>${dados.razao || dados.fantasia || 'NOME DA EMPRESA NÃO INFORMADO'}</strong><br>`;
+                let linha2 = [];
+                if(dados.endereco) linha2.push(dados.endereco);
+                if(dados.bairro) linha2.push(dados.bairro);
+                if(dados.cidade && dados.estado) linha2.push(`${dados.cidade}/${dados.estado}`);
+                if(dados.cnpj) linha2.push(`CNPJ: ${dados.cnpj}`);
+                if(dados.cep) linha2.push(`CEP: ${dados.cep}`);
+                if (linha2.length > 0) footerHTML += linha2.join(' • ') + `<br>`;
+                let linha3 = [];
+                if(dados.telefone) linha3.push(`Telef: ${dados.telefone}`);
+                if(dados.email) linha3.push(`E-mail: ${dados.email}`);
+                if (linha3.length > 0) footerHTML += linha3.join(' • ');
+                document.getElementById('footer-empresa').innerHTML = footerHTML;
+            }
+
+            // 1.5 INJETAR DADOS REAIS DO EQUIPAMENTO (substitui os dados fictícios fixos)
+            injetarDadosEquipamento();
+
+            // 2. ADICIONA EVENTO DE RECALCULAR AO DIGITAR NOS CAMPOS
+            document.querySelectorAll('.calc-trigger').forEach(el => {
+                el.addEventListener('input', calcularLimitantes);
+            });
+
+            // 3. RODA O CÁLCULO INICIAL PARA DESTACAR NA ABERTURA (já com os dados injetados)
+            calcularLimitantes();
+        });
+    </script>
+
+    <script>
+        // ==========================================
+        // ASSINATURA — ENGENHEIRO RESPONSÁVEL (PH)
+        // ==========================================
+        function carregarPHsParaSelect() {
+            const sel = document.getElementById('select-ph');
+            if (!sel) return;
+            const lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
+            sel.innerHTML = '<option value="">Assinar...</option>';
+            lista.filter(p => !p.tipo || p.tipo.startsWith('Engenheiro')).forEach(ph => {
+                const opt = document.createElement('option');
+                opt.value = ph.id;
+                opt.textContent = ph.nome;
+                sel.appendChild(opt);
+            });
+            const optExcluir = document.createElement('option');
+            optExcluir.value = 'excluir';
+            optExcluir.textContent = 'Excluir Assinatura';
+            optExcluir.style.color = '#dc2626';
+            optExcluir.style.fontWeight = '700';
+            sel.appendChild(optExcluir);
+        }
+
+        function atualizarAssinatura() {
+            const sel = document.getElementById('select-ph');
+            const wrapper = document.getElementById('sig-wrapper-engenheiro');
+            if (sel.value === 'excluir') {
+                if (wrapper) wrapper.classList.add('sig-excluida');
+                return;
+            }
+            if (wrapper) wrapper.classList.remove('sig-excluida');
+            const lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
+            const ph = lista.find(p => String(p.id) === String(sel.value));
+            const img = document.getElementById('img-assinatura-ph');
+            const nome = document.getElementById('nome-ph');
+            const crea = document.getElementById('crea-ph');
+            if (ph) {
+                nome.textContent = ph.nome;
+                crea.textContent = ph.crea || '';
+                if (ph.assinatura) { img.src = ph.assinatura; img.style.display = 'block'; }
+                else { img.style.display = 'none'; img.src = ''; }
+            } else {
+                nome.textContent = 'Nome do Engenheiro';
+                crea.textContent = 'ES-000000/D';
+                img.style.display = 'none'; img.src = '';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            carregarPHsParaSelect();
+        });
+    </script>
+</body>
+</html>

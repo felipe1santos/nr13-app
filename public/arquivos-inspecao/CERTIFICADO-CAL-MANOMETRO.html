@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NR-13 - Certificado de Calibração</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,600;1,700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --text-dark: #111827;     
+            --border-color: #111827;  
+            --blue-data: #0037ad;     
+            --gray-light: #9CA3AF; 
+            --bg-table-header: #eff0f1;
+            --bg-table-sub: rgba(255, 255, 255, 0.771);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        /* =========================================
+           RESET E CONFIGURAÇÕES BÁSICAS
+           ========================================= */
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--text-dark);
+            background-color: #fff; 
+            margin: 0;
+            padding: 0; 
+            line-height: 1.3;
+            font-size: 11px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .page {
+            width: 100%; 
+            min-height: 297mm;
+            background: #fff;
+            margin: 0; 
+            padding: 15mm 15mm 40mm 15mm; 
+            position: relative;
+            page-break-after: always;
+            display: flex;
+            flex-direction: column;
+            border: none;
+            box-shadow: none; 
+        }
+
+        .data-highlight {
+            color: var(--blue-data);
+            font-weight: 500;
+            font-style: normal;
+        }
+
+        /* =========================================
+           CABEÇALHO PADRÃO
+           ========================================= */
+        .header-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid var(--text-dark);
+            margin-bottom: 8px;
+        }
+        .header-table td {
+    border: 1px solid var(--text-dark);
+    vertical-align: middle;
+    padding: 4px 8px; /* ERA 6px 10px */
+}
+        .col-logo { width: 25%; text-align: center; }
+        .col-logo img { max-width: 100%; max-height: 70px; object-fit: contain; display: block; margin: 0 auto; }
+        .col-title { width: 50%; text-align: center; font-size: 14px; font-weight: 900; color: var(--text-dark); line-height: 1.2; text-transform: uppercase; }
+        .col-info { width: 25%; text-align: left; padding-left: 15px; }
+        .col-info .info-label { font-size: 10px; color: var(--text-dark); }
+        .col-info .info-value { font-size: 12px; font-weight: 700; color: var(--blue-data); margin-top: 2px; margin-bottom: 4px; }
+        .col-info .info-value:last-child { margin-bottom: 0; }
+
+        /* =========================================
+           CONTEÚDO E TABELAS
+           ========================================= */
+        .content-container {
+            flex-grow: 1;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .section-title {
+    font-size: 10px;
+    font-weight: 900;
+    margin-top: 4px; /* ERA 6px */
+    margin-bottom: 2px; /* ERA 3px */
+    text-transform: uppercase;
+    background-color: var(--bg-table-header);
+    padding: 3px 6px; /* ERA 4px 6px */
+    text-align: left;
+    border: 1px solid #f1f1f1;
+}
+
+        .content-table { width: 100%; border-collapse: collapse; text-align: center; margin-bottom: 6px; font-size: 9px; border: 1px solid #000; }
+.content-table th, .content-table td { 
+    border: 1px solid #eaeef2; 
+    padding: 2px 4px; /* ERA 3px 5px */
+    vertical-align: middle; 
+}        
+        
+        
+        .bg-light-grey { background-color: var(--bg-table-sub); font-weight: 800; font-size: 8.5px; text-transform: uppercase; }
+        .data-blue { color: var(--blue-data); font-weight: 500; font-size: 10px; }
+
+.text-block { 
+    border: 1px solid #bfbfbf; 
+    padding: 4px 6px; /* ERA 6px */
+    font-size: 9px; 
+    text-align: justify; 
+    margin-bottom: 4px; /* ERA 6px */
+    line-height: 1.3; /* ERA 1.4 */
+}        
+        
+        .text-block ul { margin-left: 15px; margin-top: 4px; margin-bottom: 4px; }
+
+        /* =========================================
+           TABELAS DE RESULTADOS GÊMEAS
+           ========================================= */
+        .results-wrapper {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 6px;
+        }
+        .results-wrapper > div { flex: 1; }
+
+        /* =========================================
+           ASSINATURAS DUPLAS
+           ========================================= */
+        .signatures-container {
+            position: absolute;
+            bottom: 28mm;
+            left: 15mm;
+            right: 15mm;
+            display: flex;
+            justify-content: space-between;
+            z-index: 500;
+        }
+        .signature-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 220px;
+            position: relative;
+        }
+        .signature-line { width: 100%; border-bottom: 1px solid #000; margin-bottom: 4px; position: relative; z-index: 2; }
+        .sig-data { font-size: 11px; line-height: 1.4; text-align: center; }
+        .sig-select-box { position: absolute; top: -24px; right: 0; }
+        .sig-select-box select { padding: 3px 6px; border-radius: 4px; border: 1px solid #9CA3AF; font-size: 9px; font-family: 'Inter', sans-serif; cursor: pointer; background-color: #f9fafb; color: #111827; font-weight: 600; outline: none; }
+        .sig-img { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); height: 55px; max-width: 100%; object-fit: contain; pointer-events: none; z-index: 1; }
+        .signature-box.sig-excluida > *:not(.no-print) { display: none !important; }
+
+        /* ESTILO GERAL DE EDIÇÃO */
+        [contenteditable="true"] { outline: none; transition: background-color 0.2s; }
+        [contenteditable="true"]:hover, [contenteditable="true"]:focus { background-color: #fdfad2; outline: 1px dashed var(--blue-data); cursor: text; }
+
+        /* =========================================
+           RODAPÉ POSICIONAMENTO FIXO
+           ========================================= */
+        .pgr-footer-new {
+            position: absolute;
+            bottom: 12mm;
+            left: 15mm;
+            right: 15mm;
+            display: flex;
+            align-items: flex-start;
+        }
+        .footer-line-wrapper {
+            flex: 1; 
+            border-top: 3px solid #000; 
+            padding-top: 8px; 
+            text-align: center;
+        }
+        .company-details { font-size: 11px; color: #000; font-weight: 500; line-height: 1.4; }
+        .footer-page-number {
+            background-color: #000 !important; color: #fff !important; font-size: 20px; font-weight: 400;
+            padding: 6px 22px; margin-left: 10px; display: flex; align-items: center; justify-content: center;
+            -webkit-print-color-adjust: exact; print-color-adjust: exact;
+        }
+
+        /* =========================================
+           IMPRESSÃO
+           ========================================= */
+        .hide-input { display: none; }
+        
+        @media screen {
+            .editable-image { cursor: pointer; transition: opacity 0.2s; }
+            .editable-image:hover { outline: 2px dashed var(--blue-data); opacity: 0.8; }
+        }
+        
+        @media print {
+            .no-print { display: none !important; }
+            body { background: none; padding: 0; display: block; }
+            .page { 
+                width: 100% !important; margin: 0 !important; 
+                padding: 15mm 15mm 40mm 15mm !important; 
+                box-shadow: none !important; border: none !important; 
+            }
+            [contenteditable="true"]:hover { background-color: transparent !important; outline: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <input type="file" id="inputLogo" class="hide-input" accept="image/*" onchange="previewImage(this, 'imgLogo')">
+
+    <div class="page">
+        
+        <table class="header-table">
+            <tr>
+                <td class="col-logo">
+                     <div class="logo-placeholder editable-image" onclick="document.getElementById('inputLogo').click()" title="Clique para alterar a Logo">
+                        <img id="imgLogo" src="logo.webp" alt="Logo">
+                     </div>
+                </td>
+                <td class="col-title" contenteditable="true" spellcheck="false">
+                    CERTIFICADO DE CALIBRAÇÃO MANOMETRO
+                </td>
+                <td class="col-info">
+                     <div class="info-label">Certificado nº.</div>
+                     <div id="inj-num-cert" class="info-value" contenteditable="true" spellcheck="false">----</div>
+                     <div class="info-label">Data de Emissão:</div>
+                     <div id="inj-data-emissao" class="info-value" contenteditable="true" spellcheck="false">DD/MM/AAAA</div>
+                </td>
+            </tr>
+        </table>
+
+        <div class="content-container">
+            
+            <div class="section-title">1. DADOS DO CLIENTE / SOLICITANTE</div>
+            <table class="content-table">
+                <tr class="bg-light-grey">
+                    <td width="35%">EMPRESA</td>
+                    <td width="65%">ENDEREÇO</td>
+                </tr>
+                <tr>
+                    <td id="inj-empresa" class="data-blue" contenteditable="true" spellcheck="false">----</td>
+                    <td id="inj-endereco" class="data-blue" contenteditable="true" spellcheck="false">----</td>
+                </tr>
+            </table>
+
+            <div class="section-title">2. DADOS DO ITEM CALIBRADO</div>
+            <table class="content-table">
+                <tr class="bg-light-grey">
+                    <td width="25%">INSTRUMENTO</td>
+                    <td width="20%">FABRICANTE</td>
+                    <td width="15%">MODELO</td>
+                    <td width="20%">LOTE / SÉRIE</td>
+                    <td width="20%">REFERÊNCIA</td>
+                </tr>
+                <tr>
+                    <td id="inj-instrumento" class="data-blue" contenteditable="true" spellcheck="false">----</td>
+                    <td id="inj-fabricante"  class="data-blue" contenteditable="true" spellcheck="false">----</td>
+                    <td id="inj-modelo"      class="data-blue" contenteditable="true" spellcheck="false">----</td>
+                    <td id="inj-serie"       class="data-blue" contenteditable="true" spellcheck="false">----</td>
+                    <td id="inj-referencia"  class="data-blue" contenteditable="true" spellcheck="false">----</td>
+                </tr>
+                <tr class="bg-light-grey">
+                    <td colspan="3">DATA DA CALIBRAÇÃO</td>
+                    <td colspan="2">DATA DA PRÓXIMA CALIBRAÇÃO</td>
+                </tr>
+                <tr>
+                    <td id="inj-data-cal"  colspan="3" class="data-blue" contenteditable="true" spellcheck="false">DD/MM/AAAA</td>
+                    <td id="inj-data-prox" colspan="2" class="data-blue" contenteditable="true" spellcheck="false">DD/MM/AAAA</td>
+                </tr>
+            </table>
+
+            <div style="display: flex; gap: 10px; margin-bottom: 6px;">
+                <div style="flex: 1;">
+                    <div class="section-title" style="margin-top: 0;">3. PROCEDIMENTO DE CALIBRAÇÃO</div>
+                    <div class="text-block" style="height: calc(100% - 22px); margin-bottom: 0;" contenteditable="true" spellcheck="false">
+                        A calibração é realizada por comparação direta com o padrão de referência e a leitura do erro indicada no instrumento em calibração.
+                    </div>
+                </div>
+                <div style="flex: 1;">
+                    <div class="section-title" style="margin-top: 0;">4. CONDIÇÕES AMBIENTAIS</div>
+                    <table class="content-table" style="margin-bottom: 0; height: calc(100% - 22px);">
+                        <tr class="bg-light-grey">
+                            <td>TEMPERATURA DO AR</td>
+                            <td>UMIDADE RELATIVA</td>
+                            <td>LOCAL</td>
+                        </tr>
+                        <tr>
+                            <td id="inj-temp-ar" class="data-blue" contenteditable="true" spellcheck="false">----</td>
+                            <td id="inj-umidade"  class="data-blue" contenteditable="true" spellcheck="false">----</td>
+                            <td id="inj-local"    class="data-blue" contenteditable="true" spellcheck="false">----</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="section-title">5. PADRÕES UTILIZADOS E RASTREABILIDADE METROLÓGICA</div>
+            <table class="content-table" style="margin-bottom: 6px; border: 1px solid #d1d5db;">
+                <tr>
+                    <td width="25%" style="border: 1px solid #d1d5db; text-align: left; padding: 4px 6px; vertical-align: top;">
+                        <div style="font-size: 8px; color: #6b7280; text-transform: uppercase; font-weight: 700; margin-bottom: 2px;">INSTRUMENTO PADRÃO</div>
+                        <div id="inj-padrao-inst" class="data-blue" contenteditable="true" spellcheck="false" style="font-size: 10px;">----</div>
+                    </td>
+                    <td width="25%" style="border: 1px solid #d1d5db; text-align: left; padding: 4px 6px; vertical-align: top;">
+                        <div style="font-size: 8px; color: #6b7280; text-transform: uppercase; font-weight: 700; margin-bottom: 2px;">Nº SÉRIE</div>
+                        <div id="inj-padrao-serie" class="data-blue" contenteditable="true" spellcheck="false" style="font-size: 10px;">----</div>
+                    </td>
+                    <td width="25%" style="border: 1px solid #d1d5db; text-align: left; padding: 4px 6px; vertical-align: top;">
+                        <div style="font-size: 8px; color: #6b7280; text-transform: uppercase; font-weight: 700; margin-bottom: 2px;">Nº CERTIFICADO</div>
+                        <div id="inj-padrao-cert" class="data-blue" contenteditable="true" spellcheck="false" style="font-size: 10px;">----</div>
+                    </td>
+                    <td width="25%" style="border: 1px solid #d1d5db; text-align: left; padding: 4px 6px; vertical-align: top;">
+                        <div style="font-size: 8px; color: #6b7280; text-transform: uppercase; font-weight: 700; margin-bottom: 2px;">VALIDADE</div>
+                        <div id="inj-padrao-val" class="data-blue" contenteditable="true" spellcheck="false" style="font-size: 10px;">DD/MM/AAAA</div>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="4" style="text-align: left; padding: 4px; border: 1px solid #d1d5db;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <img src="icon/imetro.PNG" style="height: 30px; object-fit: contain;" alt="Selo Inmetro">
+                            <span style="font-size: 8.5px; line-height: 1.2; color: #111827;">O instrumento de medição padrão utilizado encontra-se calibrado por laboratório pertencente à RBC (Rede Brasileira de Calibração) ou acreditado pelo INMETRO, com certificado válido, garantindo a rastreabilidade metrológica e confiabilidade dos resultados de acordo com o Sistema Internacional de Unidades (SI).</span>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+
+            <div class="section-title">6. RESULTADOS OBTIDOS</div>
+            
+            <div class="results-wrapper">
+                <div>
+                    <table class="content-table" style="margin-bottom: 0;">
+                        <tr><td colspan="3" style="background: #e5e7eb; font-weight: 900; font-size: 10px;">SENTIDO CRESCENTE (Kgf/cm²)</td></tr>
+                        <tr class="bg-light-grey">
+                            <td width="33%">VALOR CONVENCIONAL</td>
+                            <td width="33%">VALOR NOMINAL</td>
+                            <td width="34%">ERRO</td>
+                        </tr>
+                        <tr><td id="inj-vcv-1" class="data-blue" contenteditable="true">----</td><td id="inj-vic-1" class="data-blue" contenteditable="true">----</td><td id="inj-erro-c-1" class="data-blue" contenteditable="true">----</td></tr>
+                        <tr><td id="inj-vcv-2" class="data-blue" contenteditable="true">----</td><td id="inj-vic-2" class="data-blue" contenteditable="true">----</td><td id="inj-erro-c-2" class="data-blue" contenteditable="true">----</td></tr>
+                        <tr><td id="inj-vcv-3" class="data-blue" contenteditable="true">----</td><td id="inj-vic-3" class="data-blue" contenteditable="true">----</td><td id="inj-erro-c-3" class="data-blue" contenteditable="true">----</td></tr>
+                        <tr><td id="inj-vcv-4" class="data-blue" contenteditable="true">----</td><td id="inj-vic-4" class="data-blue" contenteditable="true">----</td><td id="inj-erro-c-4" class="data-blue" contenteditable="true">----</td></tr>
+                        <tr><td id="inj-vcv-5" class="data-blue" contenteditable="true">----</td><td id="inj-vic-5" class="data-blue" contenteditable="true">----</td><td id="inj-erro-c-5" class="data-blue" contenteditable="true">----</td></tr>
+                        <tr><td class="data-blue" contenteditable="true">----</td><td class="data-blue" contenteditable="true">----</td><td class="data-blue" contenteditable="true">----</td></tr>
+                        <tr>
+                            <td colspan="3" style="text-align: left; font-size: 8px; font-weight: bold; padding-top: 5px;">
+                                Incerteza de Medição: <span id="inj-incerteza-c" class="data-highlight" contenteditable="true">----</span> | Coeficiente k: <span id="inj-coef-c" class="data-highlight" contenteditable="true">----</span>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div>
+                    <table class="content-table" style="margin-bottom: 0;">
+                        <tr><td colspan="3" style="background: #e5e7eb; font-weight: 900; font-size: 10px;">SENTIDO DECRESCENTE (Kgf/cm²)</td></tr>
+                        <tr class="bg-light-grey">
+                            <td width="33%">VALOR CONVENCIONAL</td>
+                            <td width="33%">VALOR NOMINAL</td>
+                            <td width="34%">ERRO</td>
+                        </tr>
+                        <tr><td id="inj-vcv-d-1" class="data-blue" contenteditable="true">----</td><td id="inj-vid-1" class="data-blue" contenteditable="true">----</td><td id="inj-erro-d-1" class="data-blue" contenteditable="true">----</td></tr>
+                        <tr><td id="inj-vcv-d-2" class="data-blue" contenteditable="true">----</td><td id="inj-vid-2" class="data-blue" contenteditable="true">----</td><td id="inj-erro-d-2" class="data-blue" contenteditable="true">----</td></tr>
+                        <tr><td id="inj-vcv-d-3" class="data-blue" contenteditable="true">----</td><td id="inj-vid-3" class="data-blue" contenteditable="true">----</td><td id="inj-erro-d-3" class="data-blue" contenteditable="true">----</td></tr>
+                        <tr><td id="inj-vcv-d-4" class="data-blue" contenteditable="true">----</td><td id="inj-vid-4" class="data-blue" contenteditable="true">----</td><td id="inj-erro-d-4" class="data-blue" contenteditable="true">----</td></tr>
+                        <tr><td id="inj-vcv-d-5" class="data-blue" contenteditable="true">----</td><td id="inj-vid-5" class="data-blue" contenteditable="true">----</td><td id="inj-erro-d-5" class="data-blue" contenteditable="true">----</td></tr>
+                        <tr><td class="data-blue" contenteditable="true">----</td><td class="data-blue" contenteditable="true">----</td><td class="data-blue" contenteditable="true">----</td></tr>
+                        <tr>
+                            <td colspan="3" style="text-align: left; font-size: 8px; font-weight: bold; padding-top: 5px;">
+                                Incerteza de Medição: <span id="inj-incerteza-d" class="data-highlight" contenteditable="true">----</span> | Coeficiente k: <span id="inj-coef-d" class="data-highlight" contenteditable="true">----</span>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="section-title">7. DEFINIÇÕES GERAIS</div>
+            <div class="text-block" contenteditable="true" spellcheck="false" style="margin-bottom: 6px;">
+                <ul>
+                    <li><strong>Valor Convencional:</strong> refere-se à indicação no padrão utilizado.</li>
+                    <li><strong>Valor Nominal:</strong> refere-se ao valor referenciado no instrumento sob calibração.</li>
+                    <li><strong>Fator de abrangência k:</strong> corresponde, para uma distribuição normal, a uma probabilidade de abrangência de aproximadamente 95%.</li>
+                    <li><strong>Incerteza da Medição:</strong> é o parâmetro, associado ao resultado de uma medição, que caracteriza a dispersão dos valores que podem ser fundamentalmente atribuídos a um mensurando.</li>
+                </ul>
+            </div>
+
+            <div class="section-title" style="display: flex; justify-content: space-between; align-items: center; padding: 2px 6px;">
+    <span>8. CONCLUSÃO TÉCNICA</span>
+    <div class="no-print select-ph-box" style="margin: 0;">
+        <select id="select-status" onchange="atualizarConclusao()" style="padding: 1px 4px; border-radius: 4px; border: 1px solid #9CA3AF; font-size: 9px; cursor: pointer; background: #fff;">
+            <option value="" selected disabled>Selecione...</option>
+            <option value="aprovado">Aprovado</option>
+            <option value="reprovado">Reprovado</option>
+        </select>
+    </div>
+</div>
+<div class="text-block" style="font-size: 10px; font-weight: 600;">
+    De acordo com os resultados obtidos na calibração, o equipamento no qual este relatório faz referência está <span id="texto-status" style="color: #9CA3AF; font-weight: 900; font-size: 11px;">--</span>, pois durante o processo, o mesmo <span id="texto-motivo" contenteditable="true" spellcheck="false"></span>
+</div>
+
+<div class="signatures-container">
+                <div class="signature-box" id="sig-wrapper-tecnico">
+                    <div class="no-print sig-select-box">
+                        <select id="select-tecnico" onchange="atualizarAssinaturaTecnico()">
+                            <option value="">Assinar...</option>
+                        </select>
+                    </div>
+                    <img id="img-assinatura-tecnico" class="sig-img" src="" alt="Assinatura Técnico" style="display:none;">
+                    <div class="signature-line"></div>
+                    <div class="sig-data">
+                        <strong>TÉCNICO RESPONSÁVEL</strong><br>
+                        <span id="nome-tecnico" class="data-highlight" contenteditable="true" spellcheck="false">Nome do Técnico</span><br>
+                        Registro: <span id="crea-tecnico" class="data-highlight" contenteditable="true" spellcheck="false">000000</span>
+                    </div>
+                </div>
+
+                <div class="signature-box" id="sig-wrapper-engenheiro">
+                    <div class="no-print sig-select-box">
+                        <select id="select-ph" onchange="atualizarAssinatura()">
+                            <option value="">Assinar...</option>
+                        </select>
+                    </div>
+                    <img id="img-assinatura-ph" class="sig-img" src="" alt="Assinatura Engenheiro" style="display:none;">
+                    <div class="signature-line"></div>
+                    <div class="sig-data">
+                        <strong>ENGENHEIRO RESPONSÁVEL</strong><br>
+                        <span id="nome-ph" contenteditable="true" spellcheck="false" class="data-highlight">Nome do Engenheiro</span><br>
+                        CREA/RNP: <span id="crea-ph" class="data-highlight" contenteditable="true" spellcheck="false">ES-000000/D</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="pgr-footer-new">
+            <div class="footer-line-wrapper">
+                <div class="company-details" id="footer-empresa" contenteditable="true" spellcheck="false">
+                    <strong>NOME DA EMPRESA LTDA.</strong><br>
+                    Endereço Completo • Bairro • Cidade/UF • CNPJ: 00.000.000/0000-00 • CEP: 00000-000<br>
+                    Telef: (00) 0000-0000 • E-mail: contato@empresa.com.br
+                </div>
+            </div>
+            <div class="footer-page-number" contenteditable="true">
+                X
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Preview da Logo
+        function previewImage(input, imgId) {
+            if (input.files && input.files[0]) {
+                var reader = new FileReader();
+                reader.onload = function(e) { document.getElementById(imgId).src = e.target.result; }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // ── Injeção por calibId (renderizado via relatório) ──────────────
+            (function() {
+                var calibId = new URLSearchParams(window.location.search).get('calibId');
+                if (!calibId) return;
+                var rawCal = localStorage.getItem('nr13_calibracao_item_' + calibId);
+                if (!rawCal) return;
+                try {
+                    var c = JSON.parse(rawCal);
+                    var inj = function(id, val) { var el = document.getElementById(id); if (el && val != null && val !== '') el.innerText = val; };
+                    inj('inj-num-cert', c.numeroCertificado);
+                    inj('inj-data-emissao', c.dataEmissao);
+                    inj('inj-empresa', c.empresa);
+                    inj('inj-endereco', c.endereco);
+                    inj('inj-instrumento', c.instrumento || c.nome);
+                    inj('inj-fabricante', c.fabricante);
+                    inj('inj-modelo', c.modelo);
+                    inj('inj-serie', c.serie);
+                    inj('inj-referencia', c.referencia);
+                    inj('inj-data-cal', c.dataCalibracao);
+                    inj('inj-data-prox', c.dataProxCalibracao);
+                    inj('inj-temp-ar', c.tempAr);
+                    inj('inj-umidade', c.umidade);
+                    inj('inj-local', c.local);
+                    inj('inj-padrao-inst', c.padraoInst);
+                    inj('inj-padrao-serie', c.padraoSerie);
+                    inj('inj-padrao-cert', c.padraoCert);
+                    inj('inj-padrao-val', c.padraoVal);
+                    if (c.crescente) {
+                        c.crescente.forEach(function(row, i) {
+                            inj('inj-vcv-' + (i+1), row.vc);
+                            inj('inj-vic-' + (i+1), row.vi);
+                            inj('inj-erro-c-' + (i+1), row.erro);
+                        });
+                    }
+                    inj('inj-incerteza-c', c.incertezaC);
+                    inj('inj-coef-c', c.coefC);
+                    if (c.decrescente) {
+                        c.decrescente.forEach(function(row, i) {
+                            inj('inj-vcv-d-' + (i+1), row.vc);
+                            inj('inj-vid-' + (i+1), row.vi);
+                            inj('inj-erro-d-' + (i+1), row.erro);
+                        });
+                    }
+                    inj('inj-incerteza-d', c.incertezaD);
+                    inj('inj-coef-d', c.coefD);
+                    if (c.statusConclusao) {
+                        var spanSt = document.getElementById('texto-status');
+                        var spanMot = document.getElementById('texto-motivo');
+                        if (spanSt) { spanSt.textContent = c.statusConclusao === 'aprovado' ? 'APROVADO' : 'REPROVADO'; spanSt.style.color = c.statusConclusao === 'aprovado' ? 'green' : 'red'; }
+                        if (spanMot) spanMot.textContent = c.textoMotivo || '';
+                    }
+                } catch(e) {}
+            })();
+            // ─────────────────────────────────────────────────────────────────
+            carregarPHsParaSelect();
+            carregarRastreabilidadeManometro(); // Gatilho: Puxa os dados da empresa
+            configurarCalculoErro(); // Gatilho: Automatiza a tabela de erros
+
+            // Paginação Dinâmica (Mesma lógica do TH.html)
+            const paramPagina = new URLSearchParams(window.location.search).get('page');
+            if (paramPagina) {
+                const elPagina = document.querySelector('.footer-page-number');
+                if (elPagina) {
+                    elPagina.innerText = paramPagina.trim();
+                }
+            }
+
+            // Auto-Fill Empresa (Puxando do localStorage)
+            const salvo = localStorage.getItem('nr13_minha_empresa');
+            if (salvo) {
+                const dados = JSON.parse(salvo);
+                if (dados.logo) document.getElementById('imgLogo').src = dados.logo;
+
+                let footerHTML = `<strong>${dados.razao || dados.fantasia || 'NOME DA EMPRESA NÃO INFORMADO'}</strong><br>`;
+                let linha2 = [];
+                if(dados.endereco) linha2.push(dados.endereco);
+                if(dados.bairro) linha2.push(dados.bairro);
+                if(dados.cidade && dados.estado) linha2.push(`${dados.cidade}/${dados.estado}`);
+                if(dados.cnpj) linha2.push(`CNPJ: ${dados.cnpj}`);
+                if(dados.cep) linha2.push(`CEP: ${dados.cep}`);
+                if (linha2.length > 0) footerHTML += linha2.join(' • ') + `<br>`;
+
+                let linha3 = [];
+                if(dados.telefone) linha3.push(`Telef: ${dados.telefone}`);
+                if(dados.email) linha3.push(`E-mail: ${dados.email}`);
+                if (linha3.length > 0) footerHTML += linha3.join(' • ');
+
+                document.getElementById('footer-empresa').innerHTML = footerHTML;
+            }
+        });
+
+
+
+
+
+        // ==========================================
+        // AUTO-PREENCHIMENTO: RASTREABILIDADE
+        // ==========================================
+        // ==========================================
+        // AUTO-PREENCHIMENTO: RASTREABILIDADE (ULTRASSOM)
+        // ==========================================
+        // ==========================================
+        // AUTO-PREENCHIMENTO: RASTREABILIDADE (MANÔMETRO)
+        // ==========================================
+        function carregarRastreabilidadeManometro() {
+            const salvo = localStorage.getItem('nr13_rastreabilidade');
+            if(salvo) {
+                const r = JSON.parse(salvo);
+                if(r.manometro) { // Agora sim, puxando do bloco exclusivo!
+                    const sectionTitle = Array.from(document.querySelectorAll('.section-title')).find(el => el.textContent.includes('5. PADRÕES UTILIZADOS'));
+                    if(sectionTitle) {
+                        const tabelaPadroes = sectionTitle.nextElementSibling;
+                        const celulas = tabelaPadroes.querySelectorAll('.data-blue');
+                        
+                        if(celulas.length >= 4) {
+                            if(r.manometro.modelo) celulas[0].innerText = r.manometro.modelo; 
+                            if(r.manometro.serie) celulas[1].innerText = r.manometro.serie;   
+                            if(r.manometro.validade) {
+                                const partes = r.manometro.validade.split('-');
+                                if(partes.length === 3) celulas[3].innerText = `${partes[2]}/${partes[1]}/${partes[0]}`; 
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ==========================================
+        // AUTO-CÁLCULO: CONVENCIONAL - NOMINAL = ERRO
+        // ==========================================
+        function configurarCalculoErro() {
+            const tabelas = document.querySelectorAll('.results-wrapper .content-table');
+            
+            tabelas.forEach(tabela => {
+                const linhas = tabela.querySelectorAll('tr');
+                
+                linhas.forEach(linha => {
+                    const celulas = linha.querySelectorAll('td.data-blue[contenteditable="true"]');
+                    
+                    // Se a linha tem exatamente 3 colunas editáveis (Convencional, Nominal, Erro)
+                    if(celulas.length === 3) {
+                        const [convencional, nominal, erro] = celulas;
+
+                        const calcular = () => {
+                            // Troca vírgula por ponto para o JavaScript conseguir calcular
+                            let valConv = parseFloat(convencional.innerText.replace(',', '.'));
+                            let valNom = parseFloat(nominal.innerText.replace(',', '.'));
+
+                            // Se os dois campos foram preenchidos com números válidos
+                            if(!isNaN(valConv) && !isNaN(valNom)) {
+                                let resultadoErro = valConv - valNom;
+                                // Devolve o resultado com 2 casas decimais e vírgula padrão BR
+                                erro.innerText = resultadoErro.toFixed(2).replace('.', ',');
+                            } else {
+                                erro.innerText = '----';
+                            }
+                        };
+
+                        // Fica "escutando" qualquer digitação nas duas primeiras colunas
+                        convencional.addEventListener('input', calcular);
+                        nominal.addEventListener('input', calcular);
+                    }
+                });
+            });
+        }
+
+
+
+
+        // Muda o texto e a cor da conclusão técnica
+        function atualizarConclusao() {
+            const select = document.getElementById('select-status');
+            const spanStatus = document.getElementById('texto-status');
+            const spanMotivo = document.getElementById('texto-motivo');
+
+            if (!select.value) return;
+
+            if(select.value === 'aprovado') {
+                spanStatus.textContent = 'APROVADO';
+                spanStatus.style.color = 'green';
+                spanMotivo.textContent = 'apresentou resultados dentro dos critérios de aceitação e parâmetros definidos neste documento.';
+            } else {
+                spanStatus.textContent = 'REPROVADO';
+                spanStatus.style.color = 'red';
+                spanMotivo.textContent = 'apresentou resultados fora dos critérios de aceitação e parâmetros definidos neste documento.';
+            }
+        }
+
+        // Puxa a lista de PHs salvos no sistema
+        function carregarPHsParaSelect() {
+            const selectPH = document.getElementById('select-ph');
+            if(!selectPH) return;
+            const listaPHs = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
+
+            if (listaPHs.length === 0) {
+                selectPH.innerHTML = '<option value="">Nenhum PH cadastrado</option>';
+            } else {
+                listaPHs.forEach(ph => {
+                    const option = document.createElement('option');
+                    option.value = ph.id;
+                    option.textContent = ph.nome + " (" + ph.crea + ")";
+                    selectPH.appendChild(option);
+                });
+            }
+            const optExcluir = document.createElement('option');
+            optExcluir.value = 'excluir';
+            optExcluir.textContent = 'Excluir Assinatura';
+            optExcluir.style.color = '#dc2626';
+            optExcluir.style.fontWeight = '700';
+            selectPH.appendChild(optExcluir);
+        }
+
+        // Bate a assinatura de forma automática
+        function atualizarAssinatura() {
+            const selectPH = document.getElementById('select-ph');
+            const wrapper = document.getElementById('sig-wrapper-engenheiro');
+            if (selectPH.value === 'excluir') {
+                if (wrapper) wrapper.classList.add('sig-excluida');
+                return;
+            }
+            if (wrapper) wrapper.classList.remove('sig-excluida');
+            const idSelecionado = selectPH.value;
+            const listaPHs = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
+
+            const phSelecionado = listaPHs.find(p => p.id == idSelecionado);
+
+            const imgAssinatura = document.getElementById('img-assinatura-ph');
+            const spanNome = document.getElementById('nome-ph');
+            const spanCrea = document.getElementById('crea-ph');
+
+            if (phSelecionado) {
+                spanNome.textContent = phSelecionado.nome;
+                if(spanCrea) spanCrea.textContent = phSelecionado.crea;
+                
+                if (phSelecionado.assinatura) {
+                    imgAssinatura.src = phSelecionado.assinatura;
+                    imgAssinatura.style.display = 'block';
+                } else {
+                    imgAssinatura.style.display = 'none';
+                }
+            } else {
+                spanNome.textContent = '----';
+                if(spanCrea) spanCrea.textContent = '----';
+                imgAssinatura.style.display = 'none';
+                imgAssinatura.src = '';
+            }
+        }
+
+
+
+
+
+
+        // ==========================================
+        // MOTOR DE INJEÇÃO DE DADOS DO AVULSO
+        // ==========================================
+        (function() {
+            function formatarData(str) {
+                if (!str) return '----';
+                const p = str.split('-');
+                return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : str;
+            }
+
+            function inj(id, val) {
+                const el = document.getElementById(id);
+                if (el && val !== undefined && val !== '') el.innerText = val;
+            }
+
+            function executarInjecao() {
+                try {
+                    const raw = localStorage.getItem('nr13_injecao_atual');
+                    if (!raw) return false;
+                    const injecao = JSON.parse(raw);
+                    const calKey = new URLSearchParams(window.location.search).get('cal_key') || 'manometro';
+                    const d = injecao[calKey];
+                    if (!d) return false;
+
+                    // Seção 1 — Cliente
+                    inj('inj-empresa',    d['inp-cliente']);
+                    inj('inj-endereco',   d['inp-endereco']);
+
+                    // Seção 2 — Instrumento calibrado
+                    inj('inj-instrumento', d['inp-inst-nome']);
+                    inj('inj-fabricante',  d['inp-fabricante']);
+                    inj('inj-modelo',      d['inp-modelo']);
+                    inj('inj-serie',       d['inp-serie']);
+                    inj('inj-referencia',  d['inp-tag']);
+                    inj('inj-data-cal',    formatarData(d['inp-data-cal']));
+                    inj('inj-data-prox',   formatarData(d['inp-data-prox']));
+
+                    // Seção 4 — Condições ambientais
+                    inj('inj-temp-ar',  d['inp-temp-ar']);
+                    inj('inj-umidade',  d['inp-umidade']);
+                    inj('inj-local',    d['inp-local']);
+
+                    // Seção 5 — Padrões
+                    inj('inj-padrao-inst',  d['inp-padrao-inst']);
+                    inj('inj-padrao-serie', d['inp-padrao-serie']);
+                    inj('inj-padrao-cert',  d['inp-padrao-cert']);
+                    inj('inj-padrao-val',   formatarData(d['inp-padrao-val']));
+
+                    // Seção 6 — Tabelas crescente / decrescente
+                    if (d.medicoes) {
+                        for (let i = 1; i <= 5; i++) {
+                            inj(`inj-vcv-${i}`,   d.medicoes[`vcv-${i}`]);
+                            inj(`inj-vic-${i}`,   d.medicoes[`vic-${i}`]);
+                            inj(`inj-vcv-d-${i}`, d.medicoes[`vcv-${i}`]); // VCV é o mesmo para ambas direções
+                            inj(`inj-vid-${i}`,   d.medicoes[`vid-${i}`]);
+                            // ERRO já vem calculado do avulso (errc-N / errd-N = VI - VCV)
+                            inj(`inj-erro-c-${i}`, d.medicoes[`errc-${i}`]);
+                            inj(`inj-erro-d-${i}`, d.medicoes[`errd-${i}`]);
+                        }
+                    }
+                    inj('inj-incerteza-c', d['inp-incerteza']);
+                    inj('inj-coef-c',      d['inp-coeficiente']);
+                    inj('inj-incerteza-d', d['inp-incerteza']);
+                    inj('inj-coef-d',      d['inp-coeficiente']);
+
+                    // Conclusão
+                    const spanStatus = document.getElementById('texto-status');
+                    const spanMotivo = document.getElementById('texto-motivo');
+                    if (spanStatus && d['sel-status']) {
+                        if (d['sel-status'] === 'Aprovado') {
+                            spanStatus.textContent = 'APROVADO';
+                            spanStatus.style.color = 'green';
+                            if (spanMotivo) spanMotivo.textContent = 'apresentou resultados dentro dos critérios de aceitação e parâmetros definidos neste documento.';
+                        } else {
+                            spanStatus.textContent = 'REPROVADO';
+                            spanStatus.style.color = 'red';
+                            if (spanMotivo) spanMotivo.textContent = 'apresentou resultados fora dos critérios de aceitação e parâmetros definidos neste documento.';
+                        }
+                    }
+
+                    return true;
+                } catch(e) { return false; }
+            }
+
+            let tentativas = 0;
+            const motor = setInterval(() => {
+                tentativas++;
+                if (executarInjecao() || tentativas > 15) clearInterval(motor);
+            }, 300);
+        })();
+    </script>
+
+    <script>
+        // ==========================================
+        // ASSINATURA — TÉCNICO RESPONSÁVEL
+        // ==========================================
+        function carregarTecnicosParaSelect() {
+            const sel = document.getElementById('select-tecnico');
+            if (!sel) return;
+            const lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
+            sel.innerHTML = '<option value="">Assinar...</option>';
+            lista.filter(p => p.tipo && p.tipo.startsWith('Inspetor')).forEach(ph => {
+                const opt = document.createElement('option');
+                opt.value = ph.id;
+                opt.textContent = ph.nome;
+                sel.appendChild(opt);
+            });
+            const optExcluir = document.createElement('option');
+            optExcluir.value = 'excluir';
+            optExcluir.textContent = 'Excluir Assinatura';
+            optExcluir.style.color = '#dc2626';
+            optExcluir.style.fontWeight = '700';
+            sel.appendChild(optExcluir);
+        }
+
+        function atualizarAssinaturaTecnico() {
+            const sel = document.getElementById('select-tecnico');
+            const wrapper = document.getElementById('sig-wrapper-tecnico');
+            if (sel.value === 'excluir') {
+                if (wrapper) wrapper.classList.add('sig-excluida');
+                return;
+            }
+            if (wrapper) wrapper.classList.remove('sig-excluida');
+            const lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
+            const ph = lista.find(p => String(p.id) === String(sel.value));
+            const img = document.getElementById('img-assinatura-tecnico');
+            const nome = document.getElementById('nome-tecnico');
+            const crea = document.getElementById('crea-tecnico');
+            if (ph) {
+                nome.textContent = ph.nome;
+                crea.textContent = ph.crea || '';
+                if (ph.assinatura) { img.src = ph.assinatura; img.style.display = 'block'; }
+                else { img.style.display = 'none'; img.src = ''; }
+            } else {
+                nome.textContent = 'Nome do Técnico';
+                crea.textContent = '000000';
+                img.style.display = 'none'; img.src = '';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            carregarTecnicosParaSelect();
+        });
+    </script>
+</body>
+</html>

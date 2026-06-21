@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NR-13 - Livro de Registro de Segurança - Sistema</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,600;1,700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --text-dark: #111827;
+            --border-color: #4B5563;
+            --blue-data: #0033a2;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--text-dark);
+            background-color: #fff;
+            margin: 0;
+            padding: 0;
+            line-height: 1.4;
+            font-size: 11px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .page {
+            width: 100%;
+            min-height: 297mm;
+            background: #fff;
+            margin: 0;
+            padding: 15mm 15mm 25mm 15mm;
+            position: relative;
+            page-break-after: always;
+            display: flex;
+            flex-direction: column;
+            border: none;
+            box-shadow: none;
+        }
+
+        /* CABEÇALHO PADRÃO DO SISTEMA */
+        .header-table { width: 100%; border-collapse: collapse; border: 1px solid var(--text-dark); margin-bottom: 12px; }
+        .header-table td { border: 1px solid var(--text-dark); vertical-align: middle; padding: 8px 10px; }
+        .col-logo { width: 25%; text-align: center; }
+        .col-logo img { max-width: 100%; max-height: 65px; object-fit: contain; display: block; margin: 0 auto; }
+        .col-title { width: 50%; text-align: center; font-size: 16px; font-weight: 800; color: var(--text-dark); line-height: 1.5; }
+        .col-info { width: 25%; text-align: left; padding-left: 15px; }
+        .col-info .info-label { font-size: 10px; color: var(--text-dark); }
+        .col-info .info-value { font-size: 13px; font-weight: 700; color: var(--blue-data); margin-top: 4px; margin-bottom: 8px; }
+        .col-info .info-value:last-child { margin-bottom: 0; }
+
+        .content-container { flex-grow: 1; padding: 0 5px; padding-bottom: 12mm; }
+
+        .section-title { font-size: 12px; font-weight: 800; margin-bottom: 4px; text-transform: uppercase; }
+        .subsection-text { font-size: 10px; color: #4B5563; margin-bottom: 14px; }
+
+        /* BLOCO TIPO DE INSPEÇÃO (checkboxes) */
+        .tipo-inspecao-box { border: 1px solid var(--border-color); padding: 12px 14px; margin-bottom: 14px; }
+        .tipo-inspecao-titulo { font-size: 11px; font-weight: 800; margin-bottom: 8px; }
+        .tipo-inspecao-opcoes { display: flex; gap: 22px; flex-wrap: wrap; margin-bottom: 12px; }
+        .tipo-opcao { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+        .tipo-checkbox {
+            width: 16px; height: 16px; border: 1.5px solid var(--text-dark);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 800; font-size: 12px; line-height: 1;
+        }
+
+        .datas-linha { display: flex; gap: 30px; }
+        .data-item { font-size: 11px; }
+        .data-item .data-label { color: #4B5563; margin-right: 6px; }
+        .data-item .data-valor { font-weight: 700; color: var(--blue-data); }
+
+        /* BLOCO TERMO */
+        .termo-box { border: 1px solid var(--border-color); padding: 14px 16px; margin-bottom: 18px; min-height: 110px; }
+        .termo-titulo { font-size: 12px; font-weight: 800; margin-bottom: 8px; text-transform: uppercase; }
+        .termo-texto { font-size: 11.5px; line-height: 1.7; text-align: justify; }
+
+        /* ASSINATURA */
+        .assinatura-box { margin-top: 30px; max-width: 360px; }
+        .assinatura-linha { border-top: 1px solid var(--text-dark); padding-top: 6px; }
+        .assinatura-nome { font-size: 11px; font-weight: 700; }
+        .assinatura-cargo { font-size: 10px; color: #4B5563; }
+        .assinatura-crea { font-size: 10px; color: #4B5563; }
+
+        /* RODAPÉ COM PAGINAÇÃO PADRÃO */
+        .pgr-footer-new { position: absolute; bottom: 12mm; left: 15mm; right: 15mm; display: flex; align-items: flex-start; }
+        .footer-line-wrapper { flex: 1; border-top: 3px solid #000; padding-top: 8px; text-align: center; }
+        .company-details { font-size: 11px; color: #000; font-weight: 500; line-height: 1.4; }
+        .footer-page-number {
+            background-color: #000 !important; color: #fff !important; font-size: 20px; font-weight: 400;
+            padding: 6px 22px; margin-left: 10px; display: flex; align-items: center; justify-content: center;
+            -webkit-print-color-adjust: exact; print-color-adjust: exact;
+        }
+
+        .hide-input { display: none; }
+
+        @media screen {
+            .editable-image { cursor: pointer; transition: opacity 0.2s; }
+            .editable-image:hover { outline: 2px dashed var(--blue-data); opacity: 0.8; }
+        }
+
+        @media print {
+            .no-print { display: none !important; }
+            body { background: none; margin: 0; padding: 0; }
+            .page { width: 100% !important; margin: 0 !important; box-shadow: none !important; border: none !important; padding: 15mm 15mm 25mm 15mm !important; box-sizing: border-box !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="page">
+
+        <div class="content-container">
+
+            <div class="section-title">REGISTRO DE SEGURANÇA — NR-13, ITEM 13.5.1.8 / 13.5.4</div>
+            <div class="subsection-text">Folha individual do Livro de Registro de Segurança do vaso de pressão, para impressão e colagem na folha numerada tipograficamente correspondente do livro físico (caderno de capa dura).</div>
+
+            <div class="tipo-inspecao-box">
+                <div class="tipo-inspecao-titulo">Tipo de Inspeção / Ocorrência:</div>
+                <div class="tipo-inspecao-opcoes">
+                    <div class="tipo-opcao"><span class="tipo-checkbox" id="chk-tipo-0"></span> Inicial</div>
+                    <div class="tipo-opcao"><span class="tipo-checkbox" id="chk-tipo-1"></span> Periódica</div>
+                    <div class="tipo-opcao"><span class="tipo-checkbox" id="chk-tipo-2"></span> Extraordinária</div>
+                    <div class="tipo-opcao"><span class="tipo-checkbox" id="chk-tipo-3"></span> Ocorrência</div>
+                </div>
+                <div class="datas-linha">
+                    <div class="data-item"><span class="data-label">Data de Início:</span><span class="data-valor" id="data-inicio-val">--</span></div>
+                    <div class="data-item"><span class="data-label">Data de Término:</span><span class="data-valor" id="data-fim-val">--</span></div>
+                </div>
+            </div>
+
+            <div class="termo-box">
+                <div class="termo-titulo" id="termo-titulo">Termo de Inspeção:</div>
+                <div class="termo-texto" id="termo-texto" contenteditable="true" spellcheck="false">--</div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // SCRIPT DE PAGINAÇÃO AUTOMÁTICA DINÂMICA (numeração da folha dentro do PDF do relatório)
+        document.addEventListener('DOMContentLoaded', function() {
+            const paramPagina = new URLSearchParams(window.location.search).get('page');
+            if (paramPagina) {
+                const elPagina = document.querySelector('.footer-page-number');
+                if (elPagina) elPagina.innerText = paramPagina.trim();
+            }
+        });
+
+        function previewImage(input, imgId) {
+            if (input.files && input.files[0]) {
+                var reader = new FileReader();
+                reader.onload = function(e) { document.getElementById(imgId).src = e.target.result; }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        let dadosEmpresaInspetoraGlobal = null;
+
+        document.addEventListener("DOMContentLoaded", function() {
+            const salvo = localStorage.getItem('nr13_minha_empresa');
+            if (salvo) {
+                try { dadosEmpresaInspetoraGlobal = JSON.parse(salvo); } catch(e) {}
+            }
+        });
+
+        // ==========================================
+        // MOTOR: RENDERIZA A FOLHA DO LIVRO (1 evento = 1 folha)
+        // Modo A: ?tag=TAG                 -> evento atual do relatório em montagem (nr13_relatorio_meta_atual)
+        // Modo B: ?tag=TAG&entrada=ID      -> reimpressão de um registro já salvo (nr13_livro_<TAG>)
+        // ==========================================
+        (function() {
+            const TIPOS_ORDEM = ['Inspeção Inicial', 'Inspeção Periódica', 'Inspeção Extraordinária', 'Ocorrência'];
+
+            function formatarDataBR(dataISO) {
+                if (!dataISO) return '--';
+                const partes = dataISO.split('-');
+                if (partes.length !== 3) return dataISO;
+                return partes[2] + '/' + partes[1] + '/' + partes[0];
+            }
+
+            function nomeEmpresaInspetora() {
+                if (!dadosEmpresaInspetoraGlobal) return 'NOME DA EMPRESA NÃO INFORMADO';
+                return dadosEmpresaInspetoraGlobal.razao || dadosEmpresaInspetoraGlobal.fantasia || 'NOME DA EMPRESA NÃO INFORMADO';
+            }
+
+            function marcarTipo(tipoSelecionado) {
+                TIPOS_ORDEM.forEach((tipo, idx) => {
+                    const el = document.getElementById('chk-tipo-' + idx);
+                    if (el) el.textContent = (tipo === tipoSelecionado) ? 'X' : '';
+                });
+            }
+
+            function tipoParaTextoDescritivo(tipo) {
+                if (tipo === 'Inspeção Inicial') return 'inicial';
+                if (tipo === 'Inspeção Periódica') return 'periódica';
+                if (tipo === 'Inspeção Extraordinária') return 'extraordinária';
+                return '';
+            }
+
+            function renderizarTermo(tipo, dataInicioBR, dataFimBR, codigoRelatorio, descricao, condicaoOperacional) {
+                const elTitulo = document.getElementById('termo-titulo');
+                const elTexto = document.getElementById('termo-texto');
+
+                if (tipo === 'Ocorrência') {
+                    elTitulo.textContent = 'Termo de Ocorrência:';
+                    elTexto.textContent = `Em ${dataFimBR}, registrou-se a seguinte ocorrência relevante para a segurança do vaso de pressão: ${descricao || '--'}. Condição operacional verificada: ${condicaoOperacional || 'não informada'}.`;
+                } else {
+                    elTitulo.textContent = 'Termo de Inspeção:';
+                    elTexto.textContent = `Em ${dataFimBR}, executou-se inspeção de segurança ${tipoParaTextoDescritivo(tipo)}, conforme item 13.5.4 da NR-13, pela empresa habilitada ${nomeEmpresaInspetora()}, em obediência à Portaria Mtb nº 3.214, onde o equipamento a que se refere o relatório de inspeção n° ${codigoRelatorio || '--'} está apto a operar dentro da PMTA estipulada.`;
+                }
+            }
+
+            function preencherAssinatura(phNome, phCrea) {
+                document.getElementById('assin-nome').textContent = phNome || 'Nome do Engenheiro Responsável';
+                document.getElementById('assin-crea').textContent = phCrea ? ('CREA: ' + phCrea) : 'CREA: --';
+            }
+
+            function carregarLivro(tag) {
+                try { return JSON.parse(localStorage.getItem('nr13_livro_' + tag) || '[]'); }
+                catch (e) { return []; }
+            }
+
+            function renderizarModoHistorico(tag, entradaId) {
+                const livro = carregarLivro(tag);
+                const entrada = livro.find(e => e.id === entradaId);
+                if (!entrada) return;
+
+                const folhaEl = document.getElementById('livro-pg-folha-fisica');
+                if (folhaEl) folhaEl.textContent = entrada.folhaLivro || 'Não atribuída';
+
+                const dataInicio = entrada.dataInicio || entrada.data;
+                const dataFim = entrada.dataFim || entrada.data;
+                marcarTipo(entrada.tipo);
+                document.getElementById('data-inicio-val').textContent = formatarDataBR(dataInicio);
+                document.getElementById('data-fim-val').textContent = formatarDataBR(dataFim);
+                renderizarTermo(entrada.tipo, formatarDataBR(dataInicio), formatarDataBR(dataFim), entrada.relatorioCodigo, entrada.descricao, entrada.condicaoOperacional);
+            }
+
+            function renderizarModoRelatorioAtual(tag) {
+                let meta = {};
+                try { meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}'); } catch (e) {}
+                let listaPHs = [];
+                try { listaPHs = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]'); } catch (e) {}
+                const ph = listaPHs.find(p => String(p.id) === String(meta.phId));
+
+                const livro = carregarLivro(tag);
+                const folhaEl2 = document.getElementById('livro-pg-folha-fisica');
+                if (folhaEl2) folhaEl2.textContent = 'A definir (folha nº ' + (livro.length + 1) + ' do livro)';
+
+                const tipo = meta.tipoInspecao || 'Inspeção Periódica';
+                const dataBR = formatarDataBR(meta.execucaoInspecao);
+                marcarTipo(tipo);
+                document.getElementById('data-inicio-val').textContent = dataBR;
+                document.getElementById('data-fim-val').textContent = dataBR;
+                renderizarTermo(tipo, dataBR, dataBR, meta.codigo, '', '');
+            }
+
+            function renderizar() {
+                const params = new URLSearchParams(window.location.search);
+                const tag = params.get('tag');
+                const entradaId = params.get('entrada');
+
+                if (!tag) return;
+
+                if (entradaId) {
+                    renderizarModoHistorico(tag, entradaId);
+                } else {
+                    renderizarModoRelatorioAtual(tag);
+                }
+            }
+
+            document.addEventListener('DOMContentLoaded', renderizar);
+        })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NR-13 - Classificação do Vaso - Sistema</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --text-dark: #111827;     
+            --border-color: #111827;  
+            --border-light: #e5e7eb;
+            --border-box: #c7c7c7;
+            --blue-data: #0037ad;     
+            --blue-check: #0051ff;
+            --gray-light: #9ca3af; 
+            --bg-gray: #f3f4f6; 
+            --bg-table-header: #eff0f1;
+            --highlight-yellow: #ffc000; 
+        }
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        /* =========================================
+           RESET E CONFIGURAÇÕES BÁSICAS
+           ========================================= */
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--text-dark);
+            background-color: #c8c8c8; 
+            margin: 0;
+            padding: 0; 
+            line-height: 1.2;
+            font-size: 10px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .page {
+            width: 100%;
+            min-height: 297mm;
+            background: #fff;
+            margin: 0;
+            padding: 12mm 15mm 25mm 15mm;
+            position: relative;
+            page-break-after: always;
+            display: flex;
+            flex-direction: column;
+            border: none;
+            box-shadow: 0 3px 18px rgba(0,0,0,0.35); 
+        }
+
+        .hide-input { display: none; }
+
+        /* =========================================
+           CABEÇALHO PADRÃO
+           ========================================= */
+        .header-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid var(--border-color);
+            margin-bottom: 12px;
+        }
+        .header-table td {
+            border: 1px solid var(--border-color);
+            vertical-align: middle;
+            padding: 4px 8px; 
+        }
+        .col-logo { width: 25%; text-align: center; }
+        .col-logo img { max-width: 100%; max-height: 55px; object-fit: contain; display: block; margin: 0 auto; }
+        .col-title { width: 50%; text-align: center; font-size: 14px; font-weight: 900; color: var(--text-dark); line-height: 1.2; text-transform: uppercase; }
+        .col-info { width: 25%; text-align: left; padding-left: 10px; }
+        .col-info .info-label { font-size: 9px; color: var(--text-dark); }
+        .col-info .info-value { font-size: 11px; font-weight: 700; color: var(--blue-data); margin-top: 1px; margin-bottom: 3px; }
+        .col-info .info-value:last-child { margin-bottom: 0; }
+
+        /* =========================================
+           CONTEÚDO E SEÇÕES 
+           ========================================= */
+        .content-container {
+            flex-grow: 1;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .section-title {
+            font-size: 10px;
+            font-weight: 900;
+            margin-top: 8px; 
+            margin-bottom: 4px; 
+            text-transform: uppercase;
+            background-color: var(--bg-gray);
+            padding: 4px 6px; 
+            color: var(--text-dark);
+            text-align: left;
+            border: none;
+        }
+
+        .normal-text {
+            font-size: 10px;
+            margin-bottom: 6px;
+            padding-left: 6px;
+            color: #4B5563;
+        }
+
+        /* =========================================
+           FORMULÁRIOS (CAIXAS E LINHAS - PADRÃO NOVO)
+           ========================================= */
+        .f-row {
+            display: flex;
+            align-items: stretch;
+            gap: 4px;
+            margin-bottom: 4px;
+        }
+        .f {
+            display: flex;
+            align-items: center;
+            border: 1px solid var(--border-box); 
+            flex: 1; 
+            min-height: 22px;
+            background: #fff;
+            padding: 2px 6px;
+        }
+        .f-lbl {
+            font-size: 8.5px;
+            font-weight: 900;
+            color: var(--text-dark);
+            white-space: nowrap;
+            text-transform: uppercase;
+            margin-right: 6px;
+        }
+        .f-val {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--blue-data);
+            overflow: hidden; 
+        }
+
+        /* =========================================
+           TABELA DE MATRIZ DE CATEGORIA
+           ========================================= */
+        .matrix-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: center;
+            margin-bottom: 15px;
+            margin-top: 10px;
+            font-size: 9.5px;
+        }
+
+        .matrix-table th, .matrix-table td {
+            border: 1px solid var(--border-box);
+            padding: 4px 6px;
+            vertical-align: middle;
+        }
+
+        .matrix-table th {
+            font-weight: 900;
+            background-color: var(--bg-table-header);
+        }
+
+        .matrix-table .desc-col {
+            text-align: left;
+            width: 35%;
+            background-color: #fff;
+        }
+
+        .matrix-table .desc-col p {
+            margin: 2px 0;
+            font-size: 8.5px;
+            line-height: 1.2;
+            font-weight: 500;
+            color: #4B5563;
+        }
+
+        .matrix-table .desc-col strong {
+            font-size: 12px;
+            font-weight: 900;
+            color: var(--text-dark);
+        }
+
+        .bg-header-blue {
+            color: var(--blue-data) !important;
+            background-color: var(--bg-table-header) !important;
+        }
+
+        /* Classes de Highlight e Inteligência da Matriz (MANTIDAS INTACTAS) */
+        .matrix-table.has-selection th[id^="col-"]:not(.bg-highlight),
+        .matrix-table.has-selection tbody td:not(.bg-highlight) {
+            color: #9CA3AF !important;
+            font-weight: 400 !important;
+        }
+        .matrix-table.has-selection tbody td:not(.bg-highlight) strong,
+        .matrix-table.has-selection tbody td:not(.bg-highlight) p {
+            color: #9CA3AF !important;
+            font-weight: 400 !important;
+        }
+
+        .bg-highlight {
+            background-color: var(--highlight-yellow) !important;
+            font-weight: 900 !important;
+            color: #000 !important;
+        }
+
+        /* Bordas cruzadas (MANTIDAS INTACTAS) */
+        .l-top { border-top: 3.5px solid var(--blue-data) !important; }
+        .l-bottom { border-bottom: 3.5px solid var(--blue-data) !important; }
+        .l-left { border-left: 3.5px solid var(--blue-data) !important; }
+        .l-right { border-right: 3.5px solid var(--blue-data) !important; }
+
+        .matrix-table.has-selection th[id^="col-"]:not(.bg-highlight):not(.l-left):not(.l-top),
+        .matrix-table.has-selection tbody td:not(.bg-highlight) {
+            color: #9CA3AF !important;
+            font-weight: 400 !important;
+        }
+        .matrix-table.has-selection tbody td:not(.bg-highlight) * {
+            color: #9CA3AF !important;
+            font-weight: 400 !important;
+        }
+
+        .cat-row th { border-left: none; border-right: none; }
+        .cat-row th:first-child { border-left: 1px solid var(--border-box); }
+        .cat-row th:last-child { border-right: 1px solid var(--border-box); }
+
+        /* =========================================
+           CAIXAS DE DESTAQUE (CLASSE / CAT / GRUPO)
+           ========================================= */
+        .highlight-boxes-container {
+            display: flex;
+            justify-content: center;
+            gap: 25px;
+            margin-top: 25px;
+            margin-bottom: 10px;
+        }
+        .highlight-box {
+            border: 2px solid rgb(255, 255, 255);
+            border-radius: 6px;
+            width: 140px;
+            height: 85px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: #fff;
+            /* Um leve sombreamento para destacar */
+            box-shadow: 3px 3px 0px rgba(0,0,0,0.1);
+        }
+        .hb-title {
+            font-size: 11px;
+            font-weight: 900;
+            color: var(--text-dark);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 2px;
+        }
+        .hb-value {
+            font-size: 38px;
+            font-weight: 900;
+            color: #dc2626; /* Vermelho chamativo como no seu desenho */
+            line-height: 1;
+        }
+
+        /* =========================================
+           RODAPÉ POSICIONAMENTO FIXO (PADRÃO NOVO)
+           ========================================= */
+        .pgr-footer-new {
+            position: absolute;
+            bottom: 12mm; 
+            left: 15mm;
+            right: 15mm;
+            display: flex;
+            align-items: flex-start;
+        }
+        .footer-line-wrapper {
+            flex: 1; 
+            border-top: 3px solid #000; 
+            padding-top: 6px; 
+            text-align: center;
+        }
+        .company-details { font-size: 10.5px; color: #000; font-weight: 500; line-height: 1.3; }
+        .footer-page-number {
+            background-color: #000 !important; color: #fff !important; font-size: 18px; font-weight: 400;
+            padding: 4px 18px; margin-left: 10px; display: flex; align-items: center; justify-content: center;
+            -webkit-print-color-adjust: exact; print-color-adjust: exact;
+        }
+
+        /* =========================================
+           IMPRESSÃO E INTERATIVIDADE
+           ========================================= */
+        @media screen {
+            .editable-image { cursor: pointer; transition: opacity 0.2s; }
+            .editable-image:hover { outline: 2px dashed var(--blue-data); opacity: 0.8; }
+            [contenteditable="true"]:hover { background-color: #fdfad2; outline: 1px dashed var(--blue-data); cursor: text; }
+        }
+        
+        @media print {
+            .no-print { display: none !important; }
+            body { background: none; margin: 0; }
+            .page {
+                width: 100% !important; margin: 0 !important;
+                padding: 12mm 15mm 25mm 15mm !important;
+                box-shadow: none !important; border: none !important;
+            }
+            [contenteditable="true"]:hover { background-color: transparent !important; outline: none !important; }
+        }
+
+        /* =========================================
+           ASSINATURA E RESPONSABILIDADE (OVERLAY)
+           ========================================= */
+        .sig-overlay-container {
+            position: absolute;
+            bottom: 28mm;
+            left: 15mm;
+            right: 15mm;
+            display: flex;
+            justify-content: flex-end;
+            z-index: 500;
+            pointer-events: none;
+        }
+        .sig-overlay-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 220px;
+            position: relative;
+            pointer-events: auto;
+        }
+        .sig-overlay-line { width: 100%; border-bottom: 1px solid #000; margin-bottom: 4px; position: relative; z-index: 2; }
+        .sig-overlay-data { font-size: 9px; text-align: center; width: 100%; }
+        .sig-overlay-select { position: absolute; top: -24px; right: 0; }
+        .sig-overlay-select select { padding: 3px 6px; border-radius: 4px; border: 1px solid #9CA3AF; font-size: 9px; font-family: 'Inter', sans-serif; cursor: pointer; background-color: #f9fafb; color: #111827; font-weight: 600; outline: none; }
+        .sig-overlay-img { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); height: 55px; max-width: 100%; object-fit: contain; pointer-events: none; z-index: 1; }
+        .data-highlight { color: var(--blue-data); font-weight: 600; }
+        .sig-overlay-box.sig-excluida > *:not(.no-print) { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <input type="file" id="inputLogo" class="hide-input" accept="image/*" onchange="previewImage(this, 'imgLogo')">
+
+    <div class="page">
+        <table class="header-table">
+            <tr>
+                <td class="col-logo">
+                    <div class="logo-placeholder editable-image" onclick="document.getElementById('inputLogo').click()" title="Clique para alterar a Logo">
+                        <img id="imgLogo" src="logo.webp" alt="Logo">
+                    </div>
+                </td>
+                <td class="col-title" contenteditable="true" spellcheck="false">
+                    RELATÓRIO DE INSPEÇÃO NR-13<br>
+                    CATEGORIA DE RISCO
+                </td>
+                <td class="col-info">
+                    <div class="info-label">Relatório nº.</div>
+                    <div id="header-relatorio" class="info-value" contenteditable="true" spellcheck="false">----</div>
+                    <div class="info-label">Data:</div>
+                    <div id="header-data" class="info-value" contenteditable="true" spellcheck="false">DD/MM/AAAA</div>
+                </td>
+            </tr>
+        </table>
+        
+        <div class="content-container">
+            
+            <div class="section-title" contenteditable="true" spellcheck="false">5.3.6 CLASSIFICAÇÃO DO VASO</div>
+            <div class="normal-text" contenteditable="true" spellcheck="false">Conforme item 13.5.1.2 da norma NR-13.</div>
+
+            <div class="f-row">
+                <div class="f" style="flex:1">
+                    <span class="f-lbl">FLUIDO DE TRABALHO</span>
+                    <div class="f-val"><span id="risk-fluido-trabalho">--</span></div>
+                </div>
+                <div class="f" style="flex:1">
+                    <span class="f-lbl">CÓDIGO DE PROJETO</span>
+                    <div class="f-val"><span>ASME VIII DIV 1</span></div>
+                </div>
+            </div>
+
+            <div class="f-row">
+                <div class="f" style="flex:1">
+                    <span class="f-lbl">PRESSÃO MÁX. ADMISSÍVEL (PMTA)</span>
+                    <div class="f-val"><span id="risk-pressao">--</span> &nbsp;<span style="color:#000;">kPa</span></div>
+                </div>
+                <div class="f" style="flex:1">
+                    <span class="f-lbl">VOLUME GEOMÉTRICO</span>
+                    <div class="f-val"><span id="risk-volume">--</span> &nbsp;<span style="color:#000;">m³</span></div>
+                </div>
+            </div>
+
+            <div class="f-row">
+                <div class="f" style="flex:1">
+                    <span class="f-lbl">PRODUTO P.V. (kPa*m³)</span>
+                    <div class="f-val" id="risk-pv-kpa">--</div>
+                </div>
+                <div class="f" style="flex:1">
+                    <span class="f-lbl">P.V. > 8 (MPa*m³)</span>
+                    <div class="f-val" id="risk-pv8">--</div>
+                </div>
+            </div>
+
+            <div class="f-row">
+                <div class="f" style="flex:1">
+                    <span class="f-lbl">PRODUTO P.V. PARA RISCO (MPa*m³)</span>
+                    <div class="f-val" id="risk-pv-mpa">--</div>
+                </div>
+                <div class="f" style="flex:1">
+                    <span class="f-lbl">NR-13 DEVE SER APLICADA?</span>
+                    <div class="f-val" id="risk-aplicavel">--</div>
+                </div>
+            </div>
+
+            <div class="f-row">
+                <div class="f" style="flex:1">
+                    <span class="f-lbl">CLASSE DO FLUIDO</span>
+                    <div class="f-val" id="risk-classe">--</div>
+                </div>
+                <div class="f" style="flex:1">
+                    <span class="f-lbl">GRUPO POTENCIAL DE RISCO</span>
+                    <div class="f-val" id="risk-grupo">--</div>
+                </div>
+                <div class="f" style="flex:1">
+                    <span class="f-lbl">CATEGORIA DO VASO</span>
+                    <div class="f-val" id="risk-categoria">--</div>
+                </div>
+            </div>
+
+            <div class="normal-text" style="margin-top: 10px;" contenteditable="true" spellcheck="false">Matriz de categoria conforme item 13.5.1.2 da norma NR-13.</div>
+
+            <table class="matrix-table">
+                <thead>
+                    <tr>
+                        <th rowspan="3" class="desc-col bg-header-blue" style="text-align: center; vertical-align: middle;" contenteditable="true" spellcheck="false">
+                            CLASSE DE FLUIDO<br>
+                            <i style="font-size: 8px; font-weight: 500; color: #4B5563;">(CORPO/TUBO)</i>
+                        </th>
+                        <th colspan="5" contenteditable="true" spellcheck="false">GRUPO POTENCIAL DE RISCO</th>
+                    </tr>
+                    <tr>
+                        <th width="13%" id="col-1" contenteditable="true" spellcheck="false">1<br><span style="font-weight: 500; font-size: 8px;">P.V ≥ 100</span></th>
+                        <th width="13%" id="col-2" contenteditable="true" spellcheck="false">2<br><span style="font-weight: 500; font-size: 8px;">P.V < 100<br>P.V ≥ 30</span></th>
+                        <th width="13%" id="col-3" contenteditable="true" spellcheck="false">3<br><span style="font-weight: 500; font-size: 8px;">P.V < 30<br>P.V ≥ 2,5</span></th>
+                        <th width="13%" id="col-4" contenteditable="true" spellcheck="false">4<br><span style="font-weight: 500; font-size: 8px;">P.V < 2,5<br>P.V ≥ 1</span></th>
+                        <th width="13%" id="col-5" contenteditable="true" spellcheck="false">5<br><span style="font-weight: 500; font-size: 8px;">P.V < 1</span></th>
+                    </tr>
+                    <tr class="cat-row">
+                        <th id="cat-1"></th>
+                        <th id="cat-2"></th>
+                        <th id="cat-3" style="white-space: nowrap;" contenteditable="true" spellcheck="false">CATEGORIAS</th>
+                        <th id="cat-4"></th>
+                        <th id="cat-5"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr id="row-A">
+                        <td class="desc-col" contenteditable="true" spellcheck="false">
+                            <strong>A</strong>
+                            <p>- Fluido inflamável, combustível com temperatura igual ou superior a 200 °C.</p>
+                            <p>- Tóxico com limite de tolerância ≤ 20 ppm</p>
+                            <p>- Hidrogênio</p>
+                            <p>- Acetileno</p>
+                        </td>
+                        <td class="cell-1" contenteditable="true" spellcheck="false">I</td>
+                        <td class="cell-2" contenteditable="true" spellcheck="false">I</td>
+                        <td class="cell-3" contenteditable="true" spellcheck="false">II</td>
+                        <td class="cell-4" contenteditable="true" spellcheck="false">III</td>
+                        <td class="cell-5" contenteditable="true" spellcheck="false">III</td>
+                    </tr>
+                    <tr id="row-B">
+                        <td class="desc-col" contenteditable="true" spellcheck="false">
+                            <strong>B</strong>
+                            <p>- Combustível com temperatura menor que 200 °C.</p>
+                            <p>- Tóxico com limite de tolerância > 20 ppm</p>
+                        </td>
+                        <td class="cell-1" contenteditable="true" spellcheck="false">I</td>
+                        <td class="cell-2" contenteditable="true" spellcheck="false">II</td>
+                        <td class="cell-3" contenteditable="true" spellcheck="false">III</td>
+                        <td class="cell-4" contenteditable="true" spellcheck="false">IV</td>
+                        <td class="cell-5" contenteditable="true" spellcheck="false">IV</td>
+                    </tr>
+                    <tr id="row-C">
+                        <td class="desc-col" contenteditable="true" spellcheck="false">
+                            <strong>C</strong>
+                            <p>- Vapor de água</p>
+                            <p>- Gases asfixiantes simples</p>
+                            <p>- Ar comprimido</p>
+                        </td>
+                        <td class="cell-1" contenteditable="true" spellcheck="false">I</td>
+                        <td class="cell-2" contenteditable="true" spellcheck="false">II</td>
+                        <td class="cell-3" contenteditable="true" spellcheck="false">III</td>
+                        <td class="cell-4" contenteditable="true" spellcheck="false">IV</td>
+                        <td class="cell-5" contenteditable="true" spellcheck="false">V</td>
+                    </tr>
+                    <tr id="row-D">
+                        <td class="desc-col" contenteditable="true" spellcheck="false">
+                            <strong>D</strong>
+                            <p>- Outro Fluido</p>
+                        </td>
+                        <td class="cell-1" contenteditable="true" spellcheck="false">II</td>
+                        <td class="cell-2" contenteditable="true" spellcheck="false">III</td>
+                        <td class="cell-3" contenteditable="true" spellcheck="false">IV</td>
+                        <td class="cell-4" contenteditable="true" spellcheck="false">V</td>
+                        <td class="cell-5" contenteditable="true" spellcheck="false">V</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="section-title" contenteditable="true" spellcheck="false">5.3.7 OPERAÇÃO DO VASO DE PRESSÃO:</div>
+            
+            <div class="f-row">
+                <div class="f" style="flex:1">
+                    <span class="f-lbl">CATEGORIA DO VASO</span>
+                    <div class="f-val" id="risk-categoria2">--</div>
+                </div>
+                <div class="f" style="flex:2">
+                    <span class="f-lbl">É OBRIGATÓRIO OPERADOR TREINADO (ANEXO I-B)?</span>
+                    <div class="f-val" id="risk-operador">--</div>
+                </div>
+            </div>
+
+            <div class="normal-text" style="margin-top: 6px; text-align: justify;" contenteditable="true" spellcheck="false">
+                <strong>Nota:</strong> A operação de unidades que possuam vasos de pressão de categorias I ou II deve ser efetuada por profissional capacitado, conforme item "B1.1" do anexo I desta NR.
+            </div>
+
+            <div class="highlight-boxes-container">
+                <div class="highlight-box">
+                    <div class="hb-title">CLASSE</div>
+                    <div class="hb-value" id="box-classe">--</div>
+                </div>
+                <div class="highlight-box">
+                    <div class="hb-title">CATEGORIA</div>
+                    <div class="hb-value" id="box-categoria">--</div>
+                </div>
+                <div class="highlight-box">
+                    <div class="hb-title">GRUPO</div>
+                    <div class="hb-value" id="box-grupo">--</div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="sig-overlay-container">
+            <div class="sig-overlay-box" id="sig-wrapper-engenheiro">
+                <div class="no-print sig-overlay-select">
+                    <select id="select-ph" onchange="atualizarAssinatura()">
+                        <option value="">Assinar...</option>
+                    </select>
+                </div>
+                <img id="img-assinatura-ph" class="sig-overlay-img" src="" alt="Assinatura Engenheiro" style="display:none;">
+                <div class="sig-overlay-line"></div>
+                <div class="sig-overlay-data">
+                    <strong>ENGENHEIRO RESPONSÁVEL</strong><br>
+                    <span id="nome-ph" class="data-highlight" contenteditable="true" spellcheck="false">Nome do Engenheiro</span><br>
+                    CREA/RNP: <span id="crea-ph" class="data-highlight" contenteditable="true" spellcheck="false">ES-000000/D</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="pgr-footer-new">
+            <div class="footer-line-wrapper">
+                <div class="company-details" id="footer-empresa" contenteditable="true" spellcheck="false">
+                    <strong>NOME DA EMPRESA LTDA.</strong><br>
+                    Endereço Completo • Bairro • Cidade/UF • CNPJ: 00.000.000/0000-00 • CEP: 00000-000<br>
+                    Telef: (00) 0000-0000 • E-mail: contato@empresa.com.br
+                </div>
+            </div>
+            <div class="footer-page-number" contenteditable="true" title="Editar número da página">
+                9
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // SCRIPT DE PAGINAÇÃO AUTOMÁTICA
+        document.addEventListener('DOMContentLoaded', function() {
+            const paramPagina = new URLSearchParams(window.location.search).get('page');
+            if (paramPagina) {
+                const elPagina = document.querySelector('.footer-page-number');
+                if (elPagina) {
+                    elPagina.innerText = paramPagina.trim();
+                }
+            }
+        });
+
+        function previewImage(input, imgId) {
+            if (input.files && input.files[0]) {
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById(imgId).src = e.target.result;
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            // SCRIPT PARA PUXAR DADOS DA EMPRESA E LOGO AUTOMATICAMENTE
+            const salvo = localStorage.getItem('nr13_minha_empresa');
+            
+            if (salvo) {
+                const dados = JSON.parse(salvo);
+                if (dados.logo) { document.getElementById('imgLogo').src = dados.logo; }
+
+                let footerHTML = `<strong>${dados.razao || dados.fantasia || 'NOME DA EMPRESA NÃO INFORMADO'}</strong><br>`;
+                let linha2 = [];
+                if(dados.endereco) linha2.push(dados.endereco);
+                if(dados.bairro) linha2.push(dados.bairro);
+                if(dados.cidade && dados.estado) linha2.push(`${dados.cidade}/${dados.estado}`);
+                if(dados.cnpj) linha2.push(`CNPJ: ${dados.cnpj}`);
+                if(dados.cep) linha2.push(`CEP: ${dados.cep}`);
+                
+                if (linha2.length > 0) footerHTML += linha2.join(' • ') + `<br>`;
+
+                let linha3 = [];
+                if(dados.telefone) linha3.push(`Telef: ${dados.telefone}`);
+                if(dados.email) linha3.push(`E-mail: ${dados.email}`);
+                
+                if (linha3.length > 0) footerHTML += linha3.join(' • ');
+
+                document.getElementById('footer-empresa').innerHTML = footerHTML;
+            }
+
+            // =========================================================
+            // SCRIPT PARA PUXAR DADOS DA CLASSIFICAÇÃO NR-13 E DESTACAR MATRIZ
+            // =========================================================
+            const urlParams = new URLSearchParams(window.location.search);
+            const tagAtual = urlParams.get('tag');
+
+            if (tagAtual) {
+                const infoStr = localStorage.getItem('nr13_info_' + tagAtual);
+                const calcStr = localStorage.getItem('nr13_calc_' + tagAtual);
+                const catStr = localStorage.getItem('nr13_cat_' + tagAtual);
+
+                const info = infoStr ? JSON.parse(infoStr) : {};
+                const calc = calcStr ? JSON.parse(calcStr) : {};
+                const cat = catStr ? JSON.parse(catStr) : {};
+                
+                let pmta_mpa = parseFloat(calc.pmta) || 0;
+                let pmta_kpa = pmta_mpa * 1000;
+                let vol_m3 = parseFloat(info.volume) || parseFloat(cat.volInput) || 0;
+
+                // Fluido pode ser exibido isoladamente mesmo sem categorização completa
+                let textFluido = info.fluido || cat.fluidoInput || '--';
+                if(document.getElementById('risk-fluido-trabalho')) {
+                    document.getElementById('risk-fluido-trabalho').innerText = textFluido.toUpperCase();
+                }
+                if(document.getElementById('risk-pressao')) document.getElementById('risk-pressao').innerText = pmta_kpa.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                if(document.getElementById('risk-volume')) document.getElementById('risk-volume').innerText = vol_m3.toLocaleString('pt-BR', {minimumFractionDigits: 3, maximumFractionDigits: 3});
+
+                // CALDEIRA: classificação NR-13 por Categoria A/B (item 13.4), não pela matriz P·V de vaso.
+                if (info.tipo === 'caldeira') {
+                    const categoriaCaldeira = pmta_kpa >= 1960 ? 'A' : (pmta_kpa > 60 ? 'B' : '--');
+                    if(document.getElementById('risk-categoria')) document.getElementById('risk-categoria').innerText = categoriaCaldeira;
+                    if(document.getElementById('risk-categoria2')) document.getElementById('risk-categoria2').innerText = categoriaCaldeira;
+                    if(document.getElementById('box-categoria')) document.getElementById('box-categoria').innerText = categoriaCaldeira;
+                    if(document.getElementById('risk-classe')) document.getElementById('risk-classe').innerText = '—';
+                    if(document.getElementById('box-classe')) document.getElementById('box-classe').innerText = '—';
+                    if(document.getElementById('risk-grupo')) document.getElementById('risk-grupo').innerText = '—';
+                    if(document.getElementById('box-grupo')) document.getElementById('box-grupo').innerText = '—';
+                    if(document.getElementById('risk-operador')) document.getElementById('risk-operador').innerText = categoriaCaldeira === 'A' ? 'Sim' : 'Não';
+                    return;
+                }
+
+                // Só calcula/exibe categorização (matriz, classe, grupo, categoria) se houver dado real.
+                // Sem essa guarda, "classe || 'A'" sempre cairia em A/III mesmo com vaso vazio.
+                const temDadosCategorizacao = !!cat.classe || pmta_mpa > 0 || vol_m3 > 0;
+                if (!temDadosCategorizacao) return;
+
+                let pv_kpa = pmta_kpa * vol_m3;
+                let pv_mpa = pmta_mpa * vol_m3;
+
+                let atendePV = pv_kpa > 8;
+                let classe = cat.classe || 'A';
+                let isNR13 = (atendePV || classe === 'A');
+
+                let grupo = 5;
+                if (pv_mpa >= 100) grupo = 1;
+                else if (pv_mpa >= 30) grupo = 2;
+                else if (pv_mpa >= 2.5) grupo = 3;
+                else if (pv_mpa >= 1) grupo = 4;
+
+                const tab = {
+                    'A': {1:'I',  2:'I',   3:'II',  4:'III', 5:'III'},
+                    'B': {1:'I',  2:'II',  3:'III', 4:'IV',  5:'IV'},
+                    'C': {1:'I',  2:'II',  3:'III', 4:'IV',  5:'V'},
+                    'D': {1:'II', 2:'III', 3:'IV',  4:'V',   5:'V'}
+                };
+                let categoriaFinal = tab[classe] ? tab[classe][grupo] : '--';
+                let reqOp = (categoriaFinal === 'I' || categoriaFinal === 'II') ? "Sim" : "Não";
+
+                if(document.getElementById('risk-pv-kpa')) document.getElementById('risk-pv-kpa').innerText = pv_kpa.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                if(document.getElementById('risk-pv-mpa')) document.getElementById('risk-pv-mpa').innerText = pv_mpa.toLocaleString('pt-BR', {minimumFractionDigits: 3, maximumFractionDigits: 3});
+
+                const elRiskPV8 = document.getElementById('risk-pv8');
+                if(elRiskPV8) {
+                    if(atendePV) { elRiskPV8.innerHTML = `<span style="font-weight: 700; color: #000;">Sim</span>`; }
+                    else { elRiskPV8.innerHTML = `<span style="color: red; font-weight: 900;">NÃO</span>`; }
+                }
+
+                const elRiskAplicavel = document.getElementById('risk-aplicavel');
+                if(elRiskAplicavel) {
+                    if(isNR13) { elRiskAplicavel.innerHTML = `<span style="font-weight: 700; color: #000;">Sim</span>`; }
+                    else { elRiskAplicavel.innerHTML = `<span style="color: red; font-weight: 900;">NÃO</span>`; }
+                }
+
+                if(document.getElementById('risk-classe')) document.getElementById('risk-classe').innerText = classe;
+                if(document.getElementById('risk-grupo')) document.getElementById('risk-grupo').innerText = grupo;
+                if(document.getElementById('risk-categoria')) document.getElementById('risk-categoria').innerText = categoriaFinal;
+                if(document.getElementById('risk-categoria2')) document.getElementById('risk-categoria2').innerText = categoriaFinal;
+                if(document.getElementById('risk-operador')) document.getElementById('risk-operador').innerText = reqOp;
+
+                // INJETANDO NAS NOVAS CAIXAS DE DESTAQUE NO RODAPÉ
+                if(document.getElementById('box-classe')) document.getElementById('box-classe').innerText = classe;
+                if(document.getElementById('box-categoria')) document.getElementById('box-categoria').innerText = categoriaFinal;
+                if(document.getElementById('box-grupo')) document.getElementById('box-grupo').innerText = grupo;
+
+                // DESTACANDO A MATRIZ
+                const targetCol = grupo;
+                if (classe && targetCol) {
+                    document.querySelector('.matrix-table').classList.add('has-selection');
+                    const rows = ['A', 'B', 'C', 'D'];
+                    const rIndex = rows.indexOf(classe);
+
+                    const thCol = document.getElementById('col-' + targetCol);
+                    if (thCol) thCol.classList.add('bg-highlight');
+
+                    const tdDesc = document.querySelector(`#row-${classe} .desc-col`);
+                    if (tdDesc) tdDesc.classList.add('bg-highlight');
+
+                    const intersection = document.querySelector(`#row-${classe} .cell-${targetCol}`);
+                    if (intersection) intersection.classList.add('bg-highlight');
+
+                    if (thCol) thCol.classList.add('l-top', 'l-left', 'l-right');
+
+                    const thCat = document.getElementById('cat-' + targetCol);
+                    if (thCat) thCat.classList.add('l-left', 'l-right');
+
+                    for (let i = 0; i < rIndex; i++) {
+                        const cell = document.querySelector(`#row-${rows[i]} .cell-${targetCol}`);
+                        if (cell) cell.classList.add('l-left', 'l-right');
+                    }
+
+                    if (tdDesc) tdDesc.classList.add('l-left', 'l-top', 'l-bottom');
+
+                    for (let c = 1; c < targetCol; c++) {
+                        const cell = document.querySelector(`#row-${classe} .cell-${c}`);
+                        if (cell) cell.classList.add('l-top', 'l-bottom');
+                    }
+
+                    if (intersection) {
+                        intersection.classList.add('l-right', 'l-bottom');
+                    }
+                }
+            }
+        });
+
+        // CALCULADORA
+        document.addEventListener("DOMContentLoaded", () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const tag = urlParams.get('tag');
+            
+            if (tag) {
+                let pressaoMpa = null;
+                let volumeM3 = null;
+
+                let calcStr = localStorage.getItem('nr13_calc_' + tag);
+                if (calcStr) {
+                    try {
+                        let calc = JSON.parse(calcStr);
+                        if (calc.pmta && calc.pmta !== '--') { pressaoMpa = parseFloat(calc.pmta); }
+                    } catch(e) {}
+                }
+
+                let infoStr = localStorage.getItem('nr13_info_' + tag);
+                if (infoStr) {
+                    try {
+                        let info = JSON.parse(infoStr);
+                        if (info.volume && info.volume !== '--') { volumeM3 = parseFloat(info.volume); }
+                    } catch(e) {}
+                }
+
+                const inputPressao = document.getElementById('ID_DO_INPUT_PRESSAO') || document.querySelector('input[placeholder*="Pressão"]'); 
+                const inputVolume = document.getElementById('ID_DO_INPUT_VOLUME') || document.querySelector('input[placeholder*="Volume"]');
+
+                if (inputPressao && pressaoMpa !== null) {
+                    inputPressao.value = pressaoMpa.toFixed(3);
+                    inputPressao.dispatchEvent(new Event('input')); 
+                    inputPressao.dispatchEvent(new Event('change'));
+                }
+
+                if (inputVolume && volumeM3 !== null) {
+                    inputVolume.value = volumeM3.toFixed(3);
+                    inputVolume.dispatchEvent(new Event('input')); 
+                    inputVolume.dispatchEvent(new Event('change'));
+                }
+            }
+        });
+    </script>
+
+    <script>
+        // ==========================================
+        // ASSINATURA — ENGENHEIRO RESPONSÁVEL (PH)
+        // ==========================================
+        function carregarPHsParaSelect() {
+            const sel = document.getElementById('select-ph');
+            if (!sel) return;
+            const lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
+            sel.innerHTML = '<option value="">Assinar...</option>';
+            lista.filter(p => !p.tipo || p.tipo.startsWith('Engenheiro')).forEach(ph => {
+                const opt = document.createElement('option');
+                opt.value = ph.id;
+                opt.textContent = ph.nome;
+                sel.appendChild(opt);
+            });
+            const optExcluir = document.createElement('option');
+            optExcluir.value = 'excluir';
+            optExcluir.textContent = 'Excluir Assinatura';
+            optExcluir.style.color = '#dc2626';
+            optExcluir.style.fontWeight = '700';
+            sel.appendChild(optExcluir);
+        }
+
+        function atualizarAssinatura() {
+            const sel = document.getElementById('select-ph');
+            const wrapper = document.getElementById('sig-wrapper-engenheiro');
+            if (sel.value === 'excluir') {
+                if (wrapper) wrapper.classList.add('sig-excluida');
+                return;
+            }
+            if (wrapper) wrapper.classList.remove('sig-excluida');
+            const lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
+            const ph = lista.find(p => String(p.id) === String(sel.value));
+            const img = document.getElementById('img-assinatura-ph');
+            const nome = document.getElementById('nome-ph');
+            const crea = document.getElementById('crea-ph');
+            if (ph) {
+                nome.textContent = ph.nome;
+                crea.textContent = ph.crea || '';
+                if (ph.assinatura) { img.src = ph.assinatura; img.style.display = 'block'; }
+                else { img.style.display = 'none'; img.src = ''; }
+            } else {
+                nome.textContent = 'Nome do Engenheiro';
+                crea.textContent = 'ES-000000/D';
+                img.style.display = 'none'; img.src = '';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            carregarPHsParaSelect();
+        });
+    </script>
+</body>
+</html>

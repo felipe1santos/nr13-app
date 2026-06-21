@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Prontuário do Vaso de Pressão — Folha 2</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: Arial, Helvetica, sans-serif; background: #fff; color: #000; font-size: 12px; }
+        .a4-page { background: #fff; width: 210mm; height: 297mm; padding: 15mm; position: relative; overflow: hidden; display: flex; flex-direction: column; }
+        .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-20deg); width: 70%; opacity: 0.07; z-index: 0; pointer-events: none; }
+        .watermark-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-20deg); font-size: 80px; font-weight: 900; color: #003366; opacity: 0.04; z-index: 0; pointer-events: none; white-space: nowrap; text-transform: uppercase; }
+        .content-wrapper { position: relative; z-index: 1; display: flex; flex-direction: column; flex: 1; }
+        .header-container { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+        .header-text { flex: 1; padding-right: 16px; }
+        h1 { font-size: 16px; text-align: center; text-transform: uppercase; margin-bottom: 8px; }
+        .intro-text { text-align: justify; font-size: 10px; line-height: 1.4; }
+        .logo-img { max-width: 110px; height: auto; object-fit: contain; }
+        .section { border: 1px solid #000; margin-bottom: 12px; }
+        .section-title { background-color: #003366; color: #fff; border-bottom: 1px solid #000; padding: 6px 8px; font-size: 12px; font-weight: bold; text-transform: uppercase; text-align: center; }
+        .text-block { padding: 10px 10px; font-size: 11.5px; line-height: 1.65; text-align: justify; }
+        .label { font-weight: bold; font-size: 10.5px; background: #f5f5f5; padding: 1px 4px; display: inline-block; width: fit-content; border-radius: 2px; }
+        .drawing-container { display: flex; align-items: flex-start; justify-content: space-between; padding: 14px 10px; gap: 14px; }
+        .croqui-box { flex: 0 0 36%; text-align: center; }
+        .croqui-img { max-width: 100%; max-height: 220px; object-fit: contain; }
+        .croqui-placeholder { width: 100%; height: 210px; border: 1px dashed #999; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #999; }
+        .table-box { flex: 0 0 62%; }
+        .dimensions-table { width: 100%; border-collapse: collapse; font-size: 10.5px; text-align: center; }
+        .dimensions-table th, .dimensions-table td { border: 1px solid #000; padding: 6px 4px; }
+        .dimensions-table th { background: #f5f5f5; font-weight: bold; }
+        .table-note { text-align: center; font-size: 10.5px; font-weight: bold; margin-top: 6px; }
+        .inspection-list { list-style-type: none; padding: 0; margin-top: 8px; }
+        .inspection-list li { margin-bottom: 10px; text-align: justify; font-size: 11.5px; line-height: 1.65; }
+        .footer-container { display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 10px; border-top: 1px solid #ccc; }
+        .footer-text { flex: 1; text-align: center; font-size: 9px; line-height: 1.4; padding-left: 16px; }
+        @media print { body { background: #fff; } .a4-page { box-shadow: none; width: 100%; height: 100%; } }
+    </style>
+</head>
+<body>
+<div class="a4-page">
+    <img id="img-watermark" class="watermark" alt="" style="display:none">
+    <div id="wm-text" class="watermark-text">PRONTUÁRIO</div>
+
+    <div class="content-wrapper">
+        <div class="header-container">
+            <div class="header-text">
+                <h1>Prontuário do Vaso de Pressão</h1>
+                <p class="intro-text">Esse prontuário tem como objetivo compilar as informações referentes ao projeto, fabricação, manutenção do vaso de pressão, bem como informar os cuidados necessários para a correta preservação e manutenção do mesmo.</p>
+            </div>
+            <img id="img-logo" class="logo-img" alt="Logo" style="display:none">
+        </div>
+
+        <div class="section">
+            <div class="section-title">Dispositivos de Segurança</div>
+            <div class="text-block">
+                <span class="label">Válvula de Segurança:</span> Corpo e demais componentes fabricados em latão, mola fabricada com aço mola e elemento de vedação fabricados em silicone ou neoprene. Com pressão máxima de abertura regulada e dimensionada para que não ultrapasse a PMTA.
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Conjunto de Desenhos e Dimensões</div>
+            <div class="drawing-container">
+                <div class="croqui-box">
+                    <img id="img-croqui" class="croqui-img" alt="Croqui do Vaso" style="display:none">
+                    <div id="croqui-placeholder" class="croqui-placeholder">DESENHO ILUSTRATIVO<br>DO VASO DE PRESSÃO</div>
+                </div>
+                <div class="table-box">
+                    <table class="dimensions-table">
+                        <thead>
+                            <tr>
+                                <th>Modelo</th>
+                                <th>A<br>Diâm. Interno</th>
+                                <th>B<br>Alt. Corpo</th>
+                                <th>Esp. Chapa Corpo</th>
+                                <th>Esp. Chapa Fundo</th>
+                                <th>Esp. Tampa</th>
+                                <th>Vol. Nominal (Lts)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-dimensoes">
+                            <tr><td colspan="7" style="text-align:center;font-size:10px;padding:8px;color:#666;">Dados de dimensões conforme especificação do fabricante.</td></tr>
+                        </tbody>
+                    </table>
+                    <div class="table-note">Medidas em milímetros (mm)</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Verificações, Calibrações e Inspeção de Segurança</div>
+            <div class="text-block">
+                A fim de garantir maior vida útil do vaso de pressão, o proprietário do mesmo deverá seguir as recomendações a seguir, inclusive no que diz respeito às calibrações e verificações necessárias a serem executadas:
+                <ul class="inspection-list">
+                    <li>➤ Verificar o funcionamento da válvula de segurança <strong>mensalmente</strong>, acionando manualmente a sua alavanca ou outro dispositivo de abertura.</li>
+                    <li>➤ Realizar a aferição e/ou calibração dos dispositivos de segurança preferencialmente <strong>a cada ano</strong> e de preferência realizar a troca da válvula de segurança a <strong>cada 2 (dois) anos</strong>.</li>
+                    <li>➤ Recomenda-se fazer <strong>novo teste hidrostático</strong> no vaso de pressão após <strong>5 (cinco) anos</strong> a contar da data de fabricação, ou quando ocorrer avaria mecânica ou química que possa comprometer a resistência do mesmo. O teste deve ser mediante inspeção e aprovação de profissional habilitado conforme descrito na Norma Regulamentadora NR-13.</li>
+                    <li>➤ Os vasos de pressão devem ser submetidos a inspeções de segurança inicial, periódica e extraordinária. Essas inspeções devem ser realizadas por profissional habilitado, conforme descrito na Norma Regulamentadora NR-13.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="footer-container">
+            <img id="img-logo-rodape" class="logo-img" alt="Logo" style="display:none">
+            <div class="footer-text">
+                <p><strong>Obs.:</strong> Esse Prontuário do vaso de pressão é de propriedade da respectiva empresa emissora.</p>
+                <p>É proibida a reprodução e/ou publicação deste sem a devida autorização da empresa.</p>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var raw = localStorage.getItem('nr13_prontuario_atual');
+    if (!raw) return;
+    var d; try { d = JSON.parse(raw); } catch(e) { return; }
+
+    var logo = d.logo;
+    if (!logo) { try { var e = JSON.parse(localStorage.getItem('nr13_minha_empresa')||'{}'); logo = e.logo; } catch(_){} }
+    if (logo) {
+        [document.getElementById('img-logo'), document.getElementById('img-logo-rodape'), document.getElementById('img-watermark')].forEach(function(img){ if(img){ img.src=logo; img.style.display='block'; } });
+        document.getElementById('wm-text').style.display = 'none';
+    }
+
+    if (d.croqui) {
+        var imgCroqui = document.getElementById('img-croqui');
+        imgCroqui.src = d.croqui; imgCroqui.style.display = 'block';
+        document.getElementById('croqui-placeholder').style.display = 'none';
+    }
+
+    if (d.dimensoes && d.dimensoes.length > 0) {
+        var tbody = document.getElementById('tbody-dimensoes');
+        tbody.innerHTML = '';
+        d.dimensoes.forEach(function(row) {
+            var tr = document.createElement('tr');
+            tr.innerHTML = '<td>'+row.modelo+'</td><td>'+row.diametro+'</td><td>'+row.altura+'</td><td>'+row.espCorpo+'</td><td>'+row.espFundo+'</td><td>'+row.espTampa+'</td><td>'+row.volume+'</td>';
+            tbody.appendChild(tr);
+        });
+    }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NR-13 - Termo de Abertura do Livro de Registro - Sistema</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,600;1,700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --text-dark: #111827;
+            --border-color: #4B5563;
+            --blue-data: #0033a2;
+            --bg-table-header: #eff0f1;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--text-dark);
+            background-color: #fff;
+            margin: 0;
+            padding: 0;
+            line-height: 1.4;
+            font-size: 11px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .page {
+            width: 100%;
+            min-height: 297mm;
+            background: #fff;
+            margin: 0;
+            padding: 15mm 15mm 25mm 15mm;
+            position: relative;
+            page-break-after: always;
+            display: flex;
+            flex-direction: column;
+            border: none;
+            box-shadow: none;
+        }
+
+        /* CABEÇALHO PADRÃO DO SISTEMA */
+        .header-table { width: 100%; border-collapse: collapse; border: 1px solid var(--text-dark); margin-bottom: 12px; }
+        .header-table td { border: 1px solid var(--text-dark); vertical-align: middle; padding: 8px 10px; }
+        .col-logo { width: 25%; text-align: center; }
+        .col-logo img { max-width: 100%; max-height: 65px; object-fit: contain; display: block; margin: 0 auto; }
+        .col-title { width: 50%; text-align: center; font-size: 16px; font-weight: 800; color: var(--text-dark); line-height: 1.5; }
+        .col-info { width: 25%; text-align: left; padding-left: 15px; }
+        .col-info .info-label { font-size: 10px; color: var(--text-dark); }
+        .col-info .info-value { font-size: 13px; font-weight: 700; color: var(--blue-data); margin-top: 4px; margin-bottom: 8px; }
+        .col-info .info-value:last-child { margin-bottom: 0; }
+
+        .content-container { flex-grow: 1; padding: 0 5px; padding-bottom: 12mm; }
+
+        .section-title { font-size: 13px; font-weight: 800; margin-bottom: 4px; text-transform: uppercase; text-align: center; }
+        .subsection-text { font-size: 10px; color: #4B5563; margin-bottom: 14px; text-align: center; }
+
+        .termo-box { border: 1px solid var(--border-color); padding: 16px 18px; margin-bottom: 20px; }
+        .termo-texto { font-size: 12px; line-height: 1.9; text-align: justify; }
+        .termo-texto b { color: var(--blue-data); }
+
+        .ident-titulo { font-size: 12px; font-weight: 800; margin-bottom: 8px; text-transform: uppercase; }
+        .ident-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+        .ident-table td { border: 1px solid var(--border-color); padding: 7px 10px; vertical-align: top; }
+        .ident-table td.label { width: 32%; font-weight: 700; color: #4B5563; background-color: var(--bg-table-header); }
+        .ident-table td.valor { color: var(--text-dark); font-weight: 600; }
+
+        .assinatura-box { margin-top: 30px; max-width: 360px; }
+        .assinatura-linha { border-top: 1px solid var(--text-dark); padding-top: 6px; }
+        .assinatura-nome { font-size: 11px; font-weight: 700; }
+        .assinatura-cargo { font-size: 10px; color: #4B5563; }
+        .assinatura-crea { font-size: 10px; color: #4B5563; }
+
+        /* RODAPÉ COM PAGINAÇÃO PADRÃO */
+        .pgr-footer-new { position: absolute; bottom: 12mm; left: 15mm; right: 15mm; display: flex; align-items: flex-start; }
+        .footer-line-wrapper { flex: 1; border-top: 3px solid #000; padding-top: 8px; text-align: center; }
+        .company-details { font-size: 11px; color: #000; font-weight: 500; line-height: 1.4; }
+        .footer-page-number {
+            background-color: #000 !important; color: #fff !important; font-size: 20px; font-weight: 400;
+            padding: 6px 22px; margin-left: 10px; display: flex; align-items: center; justify-content: center;
+            -webkit-print-color-adjust: exact; print-color-adjust: exact;
+        }
+
+        .hide-input { display: none; }
+
+        @media screen {
+            .editable-image { cursor: pointer; transition: opacity 0.2s; }
+            .editable-image:hover { outline: 2px dashed var(--blue-data); opacity: 0.8; }
+        }
+
+        @media print {
+            .no-print { display: none !important; }
+            body { background: none; margin: 0; padding: 0; }
+            .page { width: 100% !important; margin: 0 !important; box-shadow: none !important; border: none !important; padding: 15mm 15mm 25mm 15mm !important; box-sizing: border-box !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="page">
+
+        <div class="content-container">
+
+            <div class="section-title">Termo de Abertura</div>
+            <div class="subsection-text">NR-13, item 13.4.1.9 — Portaria nº 1.082, de 18 de dezembro de 2018</div>
+
+            <div class="termo-box">
+                <div class="termo-texto" id="termo-texto" contenteditable="true" spellcheck="false">--</div>
+            </div>
+
+            <div class="ident-titulo">Identificação do Equipamento</div>
+            <table class="ident-table">
+                <tr>
+                    <td class="label">Empresa</td>
+                    <td class="valor" id="ident-empresa">--</td>
+                </tr>
+                <tr>
+                    <td class="label">Endereço</td>
+                    <td class="valor" id="ident-endereco">--</td>
+                </tr>
+                <tr>
+                    <td class="label">Fabricante</td>
+                    <td class="valor" id="ident-fabricante">--</td>
+                </tr>
+                <tr>
+                    <td class="label">Tipo</td>
+                    <td class="valor" id="ident-tipo">--</td>
+                </tr>
+                <tr>
+                    <td class="label">Nº de Série</td>
+                    <td class="valor" id="ident-serie">--</td>
+                </tr>
+                <tr>
+                    <td class="label">PMTA</td>
+                    <td class="valor" id="ident-pmta">--</td>
+                </tr>
+                <tr>
+                    <td class="label">Pressão de Teste Hidrostático</td>
+                    <td class="valor" id="ident-pth">--</td>
+                </tr>
+                <tr>
+                    <td class="label">Código de Projeto</td>
+                    <td class="valor" id="ident-codigo-projeto">Adotado — ASME VIII Div. 1</td>
+                </tr>
+                <tr>
+                    <td class="label">Fluido</td>
+                    <td class="valor" id="ident-fluido">--</td>
+                </tr>
+            </table>
+
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const paramPagina = new URLSearchParams(window.location.search).get('page');
+            if (paramPagina) {
+                const elPagina = document.querySelector('.footer-page-number');
+                if (elPagina) elPagina.innerText = paramPagina.trim();
+            }
+        });
+
+        function previewImage(input, imgId) {
+            if (input.files && input.files[0]) {
+                var reader = new FileReader();
+                reader.onload = function(e) { document.getElementById(imgId).src = e.target.result; }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+
+        // ==========================================
+        // MOTOR: DADOS DO VASO E DA EMPRESA DONA DO VASO
+        // ==========================================
+        (function() {
+            function converterPressao(valorStr, unidadeStr) {
+                if (!valorStr) return null;
+                let valor = parseFloat(valorStr.toString().replace(',', '.'));
+                if (isNaN(valor)) return null;
+                let unit = (unidadeStr || '').toLowerCase().trim();
+                let mpa;
+                if (unit === 'mpa') mpa = valor;
+                else if (unit === 'kgf/cm²' || unit === 'kgf/cm2' || unit === 'kgf') mpa = valor * 0.0980665;
+                else if (unit === 'bar') mpa = valor * 0.1;
+                else if (unit === 'psi') mpa = valor * 0.00689476;
+                else mpa = valor;
+                return (mpa * 10.19716).toFixed(2).replace('.', ',');
+            }
+
+            function setVal(id, val) {
+                const el = document.getElementById(id);
+                if (el && val !== undefined && val !== null && val !== '') el.textContent = val;
+            }
+
+            function renderizar() {
+                const params = new URLSearchParams(window.location.search);
+                const tag = params.get('tag');
+                if (!tag) return;
+
+                let info = {}, cat = {}, calc = {}, emp = {}, livroConfig = {};
+                try { info = JSON.parse(localStorage.getItem('nr13_info_' + tag) || '{}'); } catch (e) {}
+                try { cat = JSON.parse(localStorage.getItem('nr13_cat_' + tag) || '{}'); } catch (e) {}
+                try { calc = JSON.parse(localStorage.getItem('nr13_calc_' + tag) || '{}'); } catch (e) {}
+                try { emp = JSON.parse(localStorage.getItem('nr13_emp_' + tag) || '{}'); } catch (e) {}
+                try { livroConfig = JSON.parse(localStorage.getItem('nr13_livro_config_' + tag) || '{}'); } catch (e) {}
+
+                const nomeEmpresaVaso = emp.razaoSocial || emp.nomeFantasia || 'EMPRESA NÃO INFORMADA';
+                let enderecoVaso = [];
+                if (emp.endereco) enderecoVaso.push(emp.endereco);
+                if (emp.bairro) enderecoVaso.push(emp.bairro);
+                if (emp.cidade && emp.estado) enderecoVaso.push(`${emp.cidade}/${emp.estado}`);
+                if (emp.cep) enderecoVaso.push(`CEP: ${emp.cep}`);
+                const enderecoVasoTexto = enderecoVaso.length > 0 ? enderecoVaso.join(', ') : 'Endereço não informado';
+
+                const tipoVaso = info.descricao || info.tipo || 'Vaso de Pressão';
+                const serieVaso = info.numeroSerie || info.serie || '--';
+                const cnpjVaso = emp.cnpj || 'CNPJ não informado';
+                const totalFolhas = livroConfig.totalFolhas || 50;
+
+                document.getElementById('termo-texto').textContent =
+                    `Este livro contém ${totalFolhas} (${totalFolhas === 50 ? 'cinquenta' : totalFolhas}) folhas numeradas tipograficamente de 01 a ${String(totalFolhas).padStart(2, '0')} e servirá como Livro de Registro de Segurança do Vaso de Pressão ${tipoVaso}, TAG ${tag}, Número de Série: ${serieVaso}, da Empresa ${nomeEmpresaVaso}, sob o CNPJ: ${cnpjVaso}, ${enderecoVasoTexto}. ` +
+                    `Em atendimento ao item 13.4.1.9 da Norma Regulamentadora Nº 13, Portaria Nº 1.082, de 18 de dezembro de 2018.`;
+
+                setVal('ident-empresa', nomeEmpresaVaso);
+                setVal('ident-endereco', enderecoVasoTexto);
+                setVal('ident-fabricante', info.fabricante);
+                setVal('ident-tipo', tipoVaso);
+                setVal('ident-serie', serieVaso);
+
+                const pmtaInput = info.pmta || calc.pmta;
+                const pmtaUnid = info.pmta ? info.pmtaUnid : 'MPa';
+                const pmtaKgf = converterPressao(pmtaInput, pmtaUnid);
+                setVal('ident-pmta', pmtaKgf ? (pmtaKgf + ' Kgf/cm²') : null);
+
+                const pthInput = info.th || calc.pth;
+                const pthUnid = info.th ? info.thUnid : 'MPa';
+                const pthKgf = converterPressao(pthInput, pthUnid);
+                setVal('ident-pth', pthKgf ? (pthKgf + ' Kgf/cm²') : null);
+
+                setVal('ident-fluido', info.fluido || cat.fluidoInput);
+
+                let listaPHs = [];
+                try { listaPHs = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]'); } catch (e) {}
+                let meta = {};
+                try { meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}'); } catch (e) {}
+                const ph = listaPHs.find(p => String(p.id) === String(meta.phId));
+            }
+
+            document.addEventListener('DOMContentLoaded', renderizar);
+        })();
+    </script>
+</body>
+</html>

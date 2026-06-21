@@ -1,0 +1,445 @@
+.cad-page {
+  padding: 28px 32px;
+  max-width: 900px;
+}
+
+.cad-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.cad-page-titulo {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 0 0 4px;
+}
+
+.cad-page-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.cad-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-solid);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+.cad-secao-titulo {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-solid);
+}
+
+.cad-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.cad-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.cad-campo.cad-full {
+  grid-column: 1 / -1;
+}
+
+.cad-campo label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.cad-campo input,
+.cad-campo select {
+  padding: 8px 10px;
+  border: 1px solid var(--border-solid);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  background: var(--bg-main);
+  color: var(--text-main);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.cad-campo input:focus,
+.cad-campo select:focus {
+  outline: none;
+  border-color: var(--accent-2);
+  box-shadow: 0 0 0 2px var(--accent-bg-light);
+}
+
+/* Logo area */
+.cad-logo-area {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.cad-logo-preview {
+  max-height: 80px;
+  max-width: 240px;
+  border: 1px solid var(--border-solid);
+  border-radius: var(--radius-md);
+  object-fit: contain;
+  background: #fff;
+  padding: 4px;
+}
+
+.cad-sem-logo {
+  width: 120px;
+  height: 60px;
+  border: 1px dashed var(--border-solid);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.cad-logo-acoes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Upload button */
+.cad-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 14px;
+  background: var(--bg-main);
+  border: 1px solid var(--border-solid);
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.cad-upload-btn:hover {
+  background: var(--accent-bg-light);
+  border-color: var(--accent-2);
+  color: var(--accent-2);
+}
+
+/* Success message */
+.cad-salvo-ok {
+  font-size: 13px;
+  font-weight: 600;
+  color: #16a34a;
+}
+
+/* Empty state */
+.cad-vazio {
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-solid);
+  border-radius: var(--radius-lg);
+}
+
+.cad-vazio-sub {
+  font-size: 12px;
+  margin-top: 6px;
+  opacity: 0.7;
+}
+
+/* List */
+.cad-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cad-item-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-solid);
+  border-radius: var(--radius-lg);
+  padding: 16px 20px;
+  transition: box-shadow 0.15s;
+}
+
+.cad-item-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.cad-item-foto {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid var(--border-solid);
+}
+
+.cad-item-foto img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cad-sem-foto {
+  width: 100%;
+  height: 100%;
+  background: var(--accent-bg-light);
+  color: var(--accent-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.cad-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.cad-item-nome {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cad-item-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.cad-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.cad-item-meta span {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--bg-main);
+  border: 1px solid var(--border-solid);
+  border-radius: 4px;
+  padding: 2px 7px;
+}
+
+.cad-item-acoes {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Type selector */
+.cad-tipo-selector {
+  display: flex;
+  gap: 10px;
+}
+
+.cad-tipo-btn {
+  padding: 9px 22px;
+  border: 2px solid var(--border-solid);
+  border-radius: var(--radius-md);
+  background: var(--bg-main);
+  color: var(--text-main);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.cad-tipo-btn:hover {
+  border-color: var(--accent-2);
+  color: var(--accent-2);
+}
+
+.cad-tipo-btn.ativo {
+  background: var(--accent-2);
+  border-color: var(--accent-2);
+  color: #fff;
+  font-weight: 700;
+}
+
+/* Uploads row */
+.cad-uploads-row {
+  display: flex;
+  gap: 32px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.cad-upload-bloco {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.cad-upload-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.cad-foto-preview {
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-solid);
+}
+
+.cad-assinatura-preview {
+  width: 200px;
+  height: 80px;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-solid);
+  background: #fff;
+  padding: 4px;
+}
+
+.cad-img-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-main);
+  border: 1px dashed var(--border-solid);
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+/* Badges */
+.badge-func-tipo {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 99px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.badge-func-tipo.eng {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.badge-func-tipo.tec {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+/* Small buttons */
+.btn-danger-sm {
+  padding: 5px 11px;
+  font-size: 12px;
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.btn-danger-sm:hover {
+  background: #fca5a5;
+}
+
+.btn-secundario-sm {
+  padding: 5px 11px;
+  font-size: 12px;
+  background: var(--bg-main);
+  color: var(--text-muted);
+  border: 1px solid var(--border-solid);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.btn-secundario-sm:hover {
+  background: var(--accent-bg-light);
+}
+
+/* Back button */
+.btn-voltar {
+  background: none;
+  border: none;
+  color: var(--accent-2);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-voltar:hover {
+  text-decoration: underline;
+}
+
+/* Client selector in DadosEmpresa */
+.emp-cliente-selector {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px dashed var(--border-solid);
+}
+
+.emp-cliente-selector label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  display: block;
+  margin-bottom: 6px;
+}
+
+.emp-cliente-selector select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--accent-2);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  background: var(--accent-bg-light);
+  color: var(--text-main);
+  box-sizing: border-box;
+}

@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NR-13 - Relatório de Ultrassom - Sistema</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,600;1,700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --text-dark: #111827;     
+            --border-color: #000;  
+            --blue-data: #0033a2;     
+            --gray-light: #9CA3AF; 
+            --bg-table-header: #e5e7eb;
+            --bg-table-sub: #f9fafb;
+            --highlight-yellow: #fef08a; 
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--text-dark);
+            background-color: #fff; 
+            margin: 0;
+            padding: 0; 
+            line-height: 1.3;
+            font-size: 11px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        /* PADRÃO EXATO DO ARQUIVO 2SUMARIO.HTML */
+        .page {
+            width: 100%;
+            min-height: 297mm;
+            background-color: #fff;
+            margin: 0;
+            padding: 15mm 15mm 30mm 15mm; /* Aumentado para 30mm no fundo */
+            box-sizing: border-box;
+            box-shadow: none;
+            border: none;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            page-break-after: always;
+        }
+
+        /* CABEÇALHO PADRONIZADO */
+        .header-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid var(--text-dark);
+            margin-bottom: 8px;
+        }
+        .header-table td {
+            border: 1px solid var(--text-dark);
+            vertical-align: middle;
+            padding: 6px 10px;
+        }
+        .col-logo { width: 25%; text-align: center; }
+        .col-logo img { max-width: 100%; max-height: 55px; object-fit: contain; display: block; margin: 0 auto; }
+        .col-title { width: 50%; text-align: center; font-size: 15px; font-weight: 800; color: var(--text-dark); line-height: 1.2; }
+        .col-info { width: 25%; text-align: left; padding-left: 15px; }
+        .col-info .info-label { font-size: 10px; color: var(--text-dark); }
+        .col-info .info-value { font-size: 12px; font-weight: 700; color: var(--blue-data); margin-top: 2px; margin-bottom: 4px; }
+        .col-info .info-value:last-child { margin-bottom: 0; }
+
+        /* ESTILOS DO CONTEÚDO */
+        .content-container {
+            flex-grow: 1; 
+            padding: 0; 
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* TABELAS DE DADOS TÉCNICOS */
+        .content-table { width: 100%; border-collapse: collapse; text-align: center; margin-bottom: 6px; font-size: 9px; }
+        .content-table th, .content-table td { border: 1px solid #000; padding: 3px 4px; vertical-align: middle; }
+
+        /* Atualize a borda das tabelas de preto (#000) para cinza claro (#d1d5db) */
+    .content-table th, .content-table td { 
+    border: 1px solid #d1d5db !important; 
+    padding: 3px 4px; 
+    vertical-align: middle; 
+    }
+
+        .section-title {
+            background-color: var(--bg-table-header);
+            font-weight: 900;
+            font-size: 10px;
+            padding: 4px 6px !important; 
+            text-transform: uppercase;
+        }
+
+        .bg-light-grey {
+            background-color: var(--bg-table-sub);
+            font-weight: 800; 
+            font-size: 8.5px;
+            color: #111827;
+            text-transform: uppercase;
+        }
+
+        .left-align { text-align: left; padding-left: 8px !important; }
+        .data-blue { color: var(--blue-data); font-weight: 700; font-size: 10px; }
+        .data-highlight { color: var(--blue-data); font-weight: 700; font-style: normal; }
+
+        /* ESTILO PARA EDIÇÃO */
+        [contenteditable="true"] { outline: none; transition: background-color 0.2s; }
+        [contenteditable="true"]:hover, [contenteditable="true"]:focus {
+            background-color: #fdfad2; 
+            outline: 1px dashed var(--blue-data);
+            cursor: text;
+        }
+        .highlight-min { background-color: var(--highlight-yellow) !important; color: #000 !important; font-weight: 900 !important; }
+
+
+
+
+        /* =========================================
+           ASSINATURA FORMATADA E SELETOR
+           ========================================= */
+        /* =========================================
+           ASSINATURA FORMATADA E SELETOR
+           ========================================= */
+        .signature-wrapper {
+            position: absolute;
+            bottom: 28mm;
+            right: 15mm;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 220px;
+            z-index: 500;
+        }
+        .signature-wrapper-tecnico {
+            position: absolute;
+            bottom: 28mm;
+            left: 15mm;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 220px;
+            z-index: 500;
+        }
+
+        .select-ph-box {
+            position: absolute;
+            right: 0px;
+            top: -35px; /* Joga o botão de seleção para a parte de cima da assinatura */
+            z-index: 9999;
+        }
+
+        .select-ph-box select {
+            padding: 5px 8px;
+            border-radius: 4px;
+            border: 1px solid #9CA3AF;
+            font-size: 10px;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer;
+            background-color: #f9fafb;
+            color: #111827;
+            font-weight: 600;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            outline: none;
+        }
+
+        .signature-line { width: 100%; border-bottom: 1px solid #000; margin-bottom: 4px; }
+        .sig-data {
+            font-size: 11px;
+            line-height: 1.4;
+            text-align: center;
+        }
+        .sig-img { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); height: 55px; max-width: 100%; object-fit: contain; pointer-events: none; z-index: 1; }
+        .signature-wrapper.sig-excluida > *:not(.no-print),
+        .signature-wrapper-tecnico.sig-excluida > *:not(.no-print) { display: none !important; }
+
+
+
+
+
+        /* RODAPÉ E PAGINAÇÃO (EXATAMENTE COMO 2SUMARIO.HTML) */
+        .pgr-footer-new {
+            position: absolute;
+            bottom: 12mm;
+            left: 15mm;
+            right: 15mm;
+            display: flex;
+            align-items: flex-start;
+        }
+        .footer-line-wrapper {
+            flex: 1;
+            border-top: 3px solid #000;
+            padding-top: 8px;
+            text-align: center;
+        }
+        .company-details {
+            font-size: 11px;
+            color: #000;
+            font-weight: 500;
+            line-height: 1.4;
+        }
+        .footer-page-number {
+            background-color: #000 !important; 
+            color: #fff !important;
+            font-size: 20px;
+            font-weight: 400;
+            padding: 6px 22px;
+            margin-left: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        /* CONFIGURAÇÕES DE IMPRESSÃO */
+        .hide-input { display: none; }
+        
+        @media screen {
+            .editable-image { cursor: pointer; transition: opacity 0.2s; }
+            .editable-image:hover { outline: 2px dashed var(--blue-data); opacity: 0.8; }
+        }
+        
+        @media print {
+            .no-print { display: none !important; }
+            body { background: none; padding: 0; display: block; }
+            .page { width: 100% !important; margin: 0 !important; padding: 15mm 15mm 25mm 15mm !important; box-shadow: none !important; border: none !important; }
+            [contenteditable="true"]:hover { background-color: transparent !important; outline: none !important; }
+            .highlight-min { background-color: #fef08a !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        }
+    </style>
+</head>
+<body>
+
+    <input type="file" id="inputLogo" class="hide-input" accept="image/*" onchange="previewImage(this, 'imgLogo')">
+
+    <div class="page">
+        <table class="header-table">
+            <tr>
+                <td class="col-logo">
+                     <div class="logo-placeholder editable-image" onclick="document.getElementById('inputLogo').click()" title="Clique para alterar a Logo">
+                        <img id="imgLogo" src="logo.webp" alt="Logo">
+                     </div>
+                </td>
+                <td class="col-title" contenteditable="true" spellcheck="false">
+                    RELATÓRIO DE ULTRASSOM<br>
+                    MEDIÇÃO DE ESPESSURA
+                </td>
+                <td class="col-info">
+                    <div class="info-label" contenteditable="true" spellcheck="false">Relatório nº.</div>
+                    <div class="info-value" contenteditable="true" spellcheck="false">REL-000000</div>
+                    <div class="info-label" contenteditable="true" spellcheck="false">Data de Emissão:</div>
+                    <div class="info-value" contenteditable="true" spellcheck="false">DD/MM/AAAA</div>
+                    
+                </td>
+            </tr>
+        </table>
+
+        <div class="content-container">
+            
+            
+
+            <table class="content-table">
+                <tr>
+                    <td colspan="6" class="section-title">INFORMAÇÕES DO COMPONENTE AVALIADO</td>
+                </tr>
+                <tr class="bg-light-grey">
+                    <td colspan="2" width="33%">EQUIPAMENTO</td>
+                    <td colspan="2" width="33%">T.A.G</td>
+                    <td colspan="2" width="34%">ÁREA</td>
+                </tr>
+                <tr>
+                    <td colspan="2" id="inp-equipamento" class="data-blue" contenteditable="true" spellcheck="false">VASO DE PRESSÃO</td>
+                    <td colspan="2" id="inp-tag" class="data-blue" contenteditable="true" spellcheck="false">TAG-00</td>
+                    <td colspan="2" id="inp-area" class="data-blue" contenteditable="true" spellcheck="false">ÁREA DO EQUIPAMENTO</td>
+                </tr>
+                <tr class="bg-light-grey">
+                    <td colspan="2" width="33%">ESPESSURA NOMINAL [mm]</td>
+                    <td colspan="2" rowspan="2" width="33%">ANO DE<br>FABRICAÇÃO</td>
+                    <td colspan="2" rowspan="2" width="34%">MATERIAL</td>
+                </tr>
+                <tr class="bg-light-grey">
+                    <td width="16.5%">CASCO</td>
+                    <td width="16.5%">TAMPOS</td>
+                </tr>
+                
+                <tr>
+                    <td id="inp-esp-nom-casco" class="data-blue" contenteditable="true" spellcheck="false">0,00</td>
+                    <td id="inp-esp-nom-tampo" class="data-blue" contenteditable="true" spellcheck="false">0,00</td>
+                    <td colspan="2" id="inp-ano" class="data-blue" contenteditable="true" spellcheck="false">0000</td>
+                    <td colspan="2" id="inp-material" class="data-blue" contenteditable="true" spellcheck="false">MATERIAL DE CONSTRUÇÃO</td>
+                </tr>
+            </table>
+
+            <table class="content-table">
+                <tr>
+                    <td colspan="3" class="section-title">INFORMAÇÕES PARA O ENSAIO</td>
+                </tr>
+                <tr class="bg-light-grey">
+                    <td width="33%">APARELHO/No DE SÉRIE</td>
+                    <td width="33%">ACOPLANTE</td>
+                    <td width="34%">TEMP. DA SUPERFÍCIE (°C)</td>
+                </tr>
+                <tr>
+                    <td id="inp-aparelho" class="data-blue" contenteditable="true" spellcheck="false">APARELHO / SÉRIE</td>
+                    <td id="inp-acoplante" class="data-blue" contenteditable="true" spellcheck="false">MARCA ACOPLANTE</td>
+                    <td id="inp-temp-sup" class="data-blue" contenteditable="true" spellcheck="false">AMBIENTE</td>
+                </tr>
+                <tr class="bg-light-grey">
+                    <td width="33%">ESTADO DA SUPERFÍCIE</td>
+                    <td width="33%">CABEÇOTE</td>
+                    <td width="34%">VELOCIDADE SÔNICA</td>
+                </tr>
+                <tr>
+                    <td id="inp-estado-sup" class="data-blue" contenteditable="true" spellcheck="false">--</td>
+                    <td id="inp-cabecote" class="data-blue" contenteditable="true" spellcheck="false">TIPO CABEÇOTE</td>
+                    <td id="inp-vel-sonica" class="data-blue" contenteditable="true" spellcheck="false">0000m/s</td>
+                </tr>
+            </table>
+
+            <table class="content-table">
+                <tr>
+                    <td class="section-title">LOCALIZAÇÃO DOS PONTOS DE MEDIÇÃO E MEDIDAS ENCONTRADAS (mm)</td>
+                </tr>
+                <tr>
+                    <td style="padding: 16px; vertical-align: middle;">
+                        <table style="width: 60%; margin: 0 auto; border-collapse: collapse;" id="tabela-medicoes">
+                            <tr class="bg-light-grey"><td colspan="4" style="border: 1px solid #000; padding: 4px;">Tampo superior</td></tr>
+                            <tr class="bg-light-grey">
+                                <td width="25%" style="border: 1px solid #000; padding: 4px;">0°</td>
+                                <td width="25%" style="border: 1px solid #000; padding: 4px;">90°</td>
+                                <td width="25%" style="border: 1px solid #000; padding: 4px;">180°</td>
+                                <td width="25%" style="border: 1px solid #000; padding: 4px;">270°</td>
+                            </tr>
+                            <tr>
+                                <td id="linha1-0" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
+                                <td id="linha1-90" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
+                                <td id="linha1-180" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
+                                <td id="linha1-270" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
+                            </tr>
+                            
+                            <tr class="bg-light-grey"><td colspan="4" style="border: 1px solid #000; padding: 4px;">CASCO</td></tr>
+                            <tr>
+                                <td id="linha2-0" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
+                                <td id="linha2-90" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
+                                <td id="linha2-180" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
+                                <td id="linha2-270" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
+                            </tr>
+                            <tr>
+                                <td id="linha3-0" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
+                                <td id="linha3-90" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
+                                <td id="linha3-180" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
+                                <td id="linha3-270" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
+                            </tr>
+                            <tr>
+                                <td id="linha4-0" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
+                                <td id="linha4-90" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
+                                <td id="linha4-180" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
+                                <td id="linha4-270" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
+                            </tr>
+                            <tr>
+                                <td id="linha6-0" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
+                                <td id="linha6-90" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
+                                <td id="linha6-180" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
+                                <td id="linha6-270" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
+                            </tr>
+
+                            <tr class="bg-light-grey"><td colspan="4" style="border: 1px solid #000; padding: 4px;">Tampo inferior</td></tr>
+                            <tr>
+                                <td id="linha5-0" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
+                                <td id="linha5-90" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
+                                <td id="linha5-180" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
+                                <td id="linha5-270" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+
+
+            <!-- NOVA DIV DE INSTRUMENTO DE MEDIÇÃO -->
+                <div class="section-title" style="margin-top: 15px; margin-bottom: 1px; text-align: left; background-color: #e5e7eb; border: 1px solid #d1d5db;">Instrumento de Medição Utilizado</div>
+            <table class="content-table" style="margin-bottom: 10px; border: 1px solid #d1d5db;">
+    <tr>
+        <td width="25%" style="border: 1px solid #d1d5db; text-align: left; padding: 6px 8px; vertical-align: top;">
+            <div style="font-size: 8.5px; color: #6b7280; text-transform: uppercase; font-weight: 700; margin-bottom: 4px;">PADRÃO</div>
+            <div id="rast-us-padrao" class="data-blue" contenteditable="true" spellcheck="false" style="font-size: 11px;">--</div>
+        </td>
+        <td width="25%" style="border: 1px solid #d1d5db; text-align: left; padding: 6px 8px; vertical-align: top;">
+            <div style="font-size: 8.5px; color: #6b7280; text-transform: uppercase; font-weight: 700; margin-bottom: 4px;">Nº SÉRIE</div>
+            <div id="rast-us-serie" class="data-blue" contenteditable="true" spellcheck="false" style="font-size: 11px;">--</div>
+        </td>
+        <td width="25%" style="border: 1px solid #d1d5db; text-align: left; padding: 6px 8px; vertical-align: top;">
+            <div style="font-size: 8.5px; color: #6b7280; text-transform: uppercase; font-weight: 700; margin-bottom: 4px;">Nº CERTIFICADO</div>
+            <div id="rast-us-certificado" class="data-blue" contenteditable="true" spellcheck="false" style="font-size: 11px;">--</div>
+        </td>
+        <td width="25%" style="border: 1px solid #d1d5db; text-align: left; padding: 6px 8px; vertical-align: top;">
+            <div style="font-size: 8.5px; color: #6b7280; text-transform: uppercase; font-weight: 700; margin-bottom: 4px;">VALIDADE</div>
+            <div id="rast-us-validade" class="data-blue" contenteditable="true" spellcheck="false" style="font-size: 11px;">--</div>
+        </td>
+    </tr>
+    <tr>
+        <td colspan="4" style="text-align: left; padding: 6px; border: 1px solid #d1d5db;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <img src="../icon/imetro.png" style="height: 35px; object-fit: contain;" alt="Selo Inmetro">
+                <span style="font-size: 9px; line-height: 1.2; color: #111827;">O instrumento de medição utilizado foi calibrado por laboratório acreditado pelo INMETRO, com certificado de calibração válido, garantindo a rastreabilidade metrológica e a confiabilidade dos resultados.</span>
+            </div>
+        </td>
+    </tr>
+</table>
+
+
+<table class="content-table">
+                <tr><td class="section-title">OBSERVAÇÕES / CONCLUSÕES DO ENSAIO</td></tr>
+                <tr>
+                    <td class="data-blue left-align" contenteditable="true" spellcheck="false" style="height: 70px; vertical-align: top; padding: 10px; font-size: 11px; color: #000 !important;">
+                        INSIRA AQUI O PARECER TÉCNICO
+                    </td>
+                </tr>
+            </table>
+
+
+
+
+
+
+
+
+
+
+
+
+            <div class="signature-wrapper-tecnico" id="sig-wrapper-tecnico">
+
+                <div class="no-print select-ph-box">
+                    <select id="select-tecnico" onchange="atualizarAssinaturaTecnico()">
+                        <option value="">Assinar...</option>
+                    </select>
+                </div>
+
+                <img id="img-assinatura-tecnico" class="sig-img" src="" alt="Assinatura Técnico" style="display:none;">
+
+                <div class="signature-line"></div>
+
+                <div class="sig-data">
+                    <strong>TÉCNICO RESPONSÁVEL</strong><br>
+                    <span id="nome-tecnico" class="data-highlight" contenteditable="true" spellcheck="false">Nome do Técnico</span><br>
+                    Registro: <span id="crea-tecnico" class="data-highlight" contenteditable="true" spellcheck="false">000000</span>
+                </div>
+            </div>
+
+            <div class="signature-wrapper" id="sig-wrapper-engenheiro">
+
+                <div class="no-print select-ph-box">
+                    <select id="select-ph" onchange="atualizarAssinatura()">
+                        <option value="">Assinar...</option>
+                    </select>
+                </div>
+
+                <img id="img-assinatura-ph" class="sig-img" src="" alt="Assinatura PH" style="display:none;">
+
+                <div class="signature-line"></div>
+
+                <div class="sig-data">
+                    <strong>ENGENHEIRO RESPONSÁVEL</strong><br>
+                    <span id="nome-ph" class="data-highlight" contenteditable="true" spellcheck="false">Nome do Engenheiro</span><br>
+                    CREA/RNP: <span id="crea-ph" class="data-highlight" contenteditable="true" spellcheck="false">ES-000000/D</span>
+                </div>
+            </div>
+
+
+
+
+
+
+
+
+
+
+
+        </div> <div class="pgr-footer-new">
+            <div class="footer-line-wrapper">
+                <div class="company-details" id="footer-empresa" contenteditable="true" spellcheck="false">
+                    <strong>NOME DA EMPRESA LTDA.</strong><br>
+                    Endereço Completo • Bairro • Cidade/UF • CNPJ: 00.000.000/0000-00 • CEP: 00000-000<br>
+                    Telef: (00) 0000-0000 • E-mail: contato@empresa.com.br
+                </div>
+            </div>
+            <div class="footer-page-number" contenteditable="true">
+                12
+            </div>
+        </div>
+    </div> 
+
+
+    <script>
+
+        
+    // =========================================================
+    // SCRIPT DE PAGINAÇÃO AUTOMÁTICA DINÂMICA <3
+    // =========================================================
+    document.addEventListener('DOMContentLoaded', function() {
+        // Captura o número da página enviado pela URL do relatorios.js
+        const paramPagina = new URLSearchParams(window.location.search).get('page');
+        
+        if (paramPagina) {
+            // Localiza a div do rodapé
+            const elPagina = document.querySelector('.footer-page-number');
+            if (elPagina) {
+                elPagina.innerText = paramPagina.trim();
+            }
+        }
+    });
+
+
+
+
+
+
+
+        function previewImage(input, imgId) {
+            if (input.files && input.files[0]) {
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById(imgId).src = e.target.result;
+                    if (imgId === 'croqui-img') {
+                        const overlay = document.getElementById('croqui-overlay-svg');
+                        if (overlay) overlay.remove();
+                    }
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        // Gera o overlay SVG (linhas L1-L4 + círculo TAMPOS) sobre o croqui 3D real
+        function gerarOverlayMedicaoSVG(meta) {
+            const azul = '#1a73e8';
+            const cascoStart = meta.cascoStartFrac || 0;
+            const cascoEnd = meta.cascoEndFrac || 0;
+            const vStart = meta.vesselStartFrac || 0;
+            const vEnd = meta.vesselEndFrac || 1;
+            const temCasco = Math.abs(cascoEnd - cascoStart) > 0.02;
+
+            let linhasHTML = '';
+            let circCx, circCy, circR;
+
+            if (meta.orientacao === 'horizontal') {
+                const yTop = vStart * 350;
+                const yBottom = vEnd * 350;
+                const cascoLeft = cascoStart * 500;
+                const cascoRight = cascoEnd * 500;
+
+                if (temCasco) {
+                    for (let i = 0; i < 4; i++) {
+                        const x = cascoLeft + (cascoRight - cascoLeft) * (2 * i + 1) / 8;
+                        linhasHTML += `<line x1="${x.toFixed(1)}" y1="${yTop.toFixed(1)}" x2="${x.toFixed(1)}" y2="${yBottom.toFixed(1)}" stroke="${azul}" stroke-width="1.2" stroke-dasharray="4,3"/>`;
+                        [0, 0.5, 1].forEach(f => {
+                            const y = yTop + (yBottom - yTop) * f;
+                            linhasHTML += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="${azul}"/>`;
+                        });
+                        const labelY = yTop > 18 ? yTop - 8 : yBottom + 14;
+                        linhasHTML += `<text x="${x.toFixed(1)}" y="${labelY.toFixed(1)}" font-family="sans-serif" font-size="11" font-weight="700" fill="${azul}" text-anchor="middle">L${i + 1}</text>`;
+                    }
+                }
+
+                const espacoBaixo = 350 - yBottom;
+                const espacoCima = yTop;
+                const abaixo = espacoBaixo >= espacoCima;
+                circR = Math.max(30, Math.min(80, (abaixo ? espacoBaixo : espacoCima) * 0.42));
+                circCy = abaixo ? (yBottom + espacoBaixo / 2) : (yTop - espacoCima / 2);
+                circCx = (cascoLeft + cascoRight) / 2 || 250;
+            } else {
+                const xLeft = vStart * 500;
+                const xRight = vEnd * 500;
+                const cascoTop = cascoStart * 350;
+                const cascoBottom = cascoEnd * 350;
+
+                if (temCasco) {
+                    for (let i = 0; i < 4; i++) {
+                        const y = cascoTop + (cascoBottom - cascoTop) * (2 * i + 1) / 8;
+                        linhasHTML += `<line x1="${xLeft.toFixed(1)}" y1="${y.toFixed(1)}" x2="${xRight.toFixed(1)}" y2="${y.toFixed(1)}" stroke="${azul}" stroke-width="1.2" stroke-dasharray="4,3"/>`;
+                        [0, 0.5, 1].forEach(f => {
+                            const x = xLeft + (xRight - xLeft) * f;
+                            linhasHTML += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="${azul}"/>`;
+                        });
+                        const labelX = xLeft > 18 ? xLeft - 8 : xRight + 8;
+                        const anchor = xLeft > 18 ? 'end' : 'start';
+                        linhasHTML += `<text x="${labelX.toFixed(1)}" y="${(y + 3).toFixed(1)}" font-family="sans-serif" font-size="11" font-weight="700" fill="${azul}" text-anchor="${anchor}">L${i + 1}</text>`;
+                    }
+                }
+
+                const espacoDir = 500 - xRight;
+                const espacoEsq = xLeft;
+                const aoLado = espacoDir >= espacoEsq;
+                circR = Math.max(30, Math.min(80, (aoLado ? espacoDir : espacoEsq) * 0.42));
+                circCx = aoLado ? (xRight + espacoDir / 2) : (xLeft - espacoEsq / 2);
+                circCy = (cascoTop + cascoBottom) / 2 || 175;
+            }
+
+            let tamposLabelY = circCy + circR + 22;
+            if (tamposLabelY > 345) tamposLabelY = circCy - circR - 16;
+            if (tamposLabelY < 12) tamposLabelY = 12;
+
+            const tamposHTML = `
+                <circle cx="${circCx.toFixed(1)}" cy="${circCy.toFixed(1)}" r="${circR.toFixed(1)}" fill="none" stroke="${azul}" stroke-width="1.2"/>
+                <line x1="${circCx.toFixed(1)}" y1="${(circCy - circR).toFixed(1)}" x2="${circCx.toFixed(1)}" y2="${(circCy + circR).toFixed(1)}" stroke="${azul}" stroke-width="1" stroke-dasharray="4,3"/>
+                <line x1="${(circCx - circR).toFixed(1)}" y1="${circCy.toFixed(1)}" x2="${(circCx + circR).toFixed(1)}" y2="${circCy.toFixed(1)}" stroke="${azul}" stroke-width="1" stroke-dasharray="4,3"/>
+                <circle cx="${circCx.toFixed(1)}" cy="${(circCy - circR / 2).toFixed(1)}" r="3" fill="${azul}"/>
+                <circle cx="${circCx.toFixed(1)}" cy="${(circCy + circR / 2).toFixed(1)}" r="3" fill="${azul}"/>
+                <circle cx="${(circCx + circR / 2).toFixed(1)}" cy="${circCy.toFixed(1)}" r="3" fill="${azul}"/>
+                <circle cx="${(circCx - circR / 2).toFixed(1)}" cy="${circCy.toFixed(1)}" r="3" fill="${azul}"/>
+                <text x="${circCx.toFixed(1)}" y="${(circCy - circR - 5).toFixed(1)}" font-family="sans-serif" font-size="9" font-weight="700" fill="${azul}" text-anchor="middle">0°</text>
+                <text x="${(circCx + circR + 5).toFixed(1)}" y="${(circCy + 3).toFixed(1)}" font-family="sans-serif" font-size="9" font-weight="700" fill="${azul}" text-anchor="start">90°</text>
+                <text x="${circCx.toFixed(1)}" y="${(circCy + circR + 12).toFixed(1)}" font-family="sans-serif" font-size="9" font-weight="700" fill="${azul}" text-anchor="middle">180°</text>
+                <text x="${(circCx - circR - 5).toFixed(1)}" y="${(circCy + 3).toFixed(1)}" font-family="sans-serif" font-size="9" font-weight="700" fill="${azul}" text-anchor="end">270°</text>
+                <text x="${circCx.toFixed(1)}" y="${tamposLabelY.toFixed(1)}" font-family="sans-serif" font-size="10" font-weight="700" fill="${azul}" text-anchor="middle">TAMPOS</text>
+            `;
+
+            return `<svg id="croqui-overlay-svg" viewBox="0 0 500 350" preserveAspectRatio="none" style="position:absolute; inset:0; width:100%; height:100%; pointer-events:none;" xmlns="http://www.w3.org/2000/svg">${linhasHTML}${tamposHTML}</svg>`;
+        }
+
+
+
+
+
+
+
+
+
+        
+       function destacarMenoresEspessuras() {
+            const tabelaMedicoes = document.getElementById('tabela-medicoes');
+            if (!tabelaMedicoes) return;
+
+            const linhas = tabelaMedicoes.querySelectorAll('tr');
+            let gruposDeComponentes = [];
+            let celulasAtuais = [];
+
+            linhas.forEach(linha => {
+                const cabecalhoSecao = linha.querySelector('td[colspan="4"]');
+                if (cabecalhoSecao) {
+                    if (celulasAtuais.length > 0) {
+                        gruposDeComponentes.push(celulasAtuais);
+                        celulasAtuais = [];
+                    }
+                    return;
+                }
+                const celulasDados = linha.querySelectorAll('td[contenteditable="true"]');
+                if (celulasDados.length > 0) {
+                    celulasDados.forEach(celula => celulasAtuais.push(celula));
+                }
+            });
+            
+            if (celulasAtuais.length > 0) {
+                gruposDeComponentes.push(celulasAtuais);
+            }
+
+            // --- NOVO: array para capturar os mínimos absolutos ---
+            let minimos = [];
+
+            gruposDeComponentes.forEach(grupo => {
+                let menorValor = Infinity;
+                grupo.forEach(celula => {
+                    celula.classList.remove('highlight-min');
+                    let valor = parseFloat(celula.innerText.trim().replace(',', '.'));
+                    if (!isNaN(valor) && valor < menorValor) {
+                        menorValor = valor;
+                    }
+                });
+
+                minimos.push(menorValor);
+
+                grupo.forEach(celula => {
+                    let valor = parseFloat(celula.innerText.trim().replace(',', '.'));
+                    if (!isNaN(valor) && valor === menorValor) {
+                        celula.classList.add('highlight-min');
+                    }
+                });
+            });
+
+            // SALVA OS MENORES VALORES NO BANCO DE DADOS PARA A CARACTERIZAÇÃO
+            const urlParams = new URLSearchParams(window.location.search);
+            const tagVaso = urlParams.get('tag') || 'VP-101';
+            
+            if (tagVaso && minimos.length >= 3) {
+                const dadosMedicao = {
+                    sup: minimos[0] !== Infinity ? String(minimos[0]).replace('.', ',') : '',
+                    casco: minimos[1] !== Infinity ? String(minimos[1]).replace('.', ',') : '',
+                    inf: minimos[2] !== Infinity ? String(minimos[2]).replace('.', ',') : ''
+                };
+                localStorage.setItem('nr13_med_esp_' + tagVaso, JSON.stringify(dadosMedicao));
+            }
+        }
+
+
+
+
+
+
+
+
+
+
+        // Puxa o instrumento de medição (Padrão de Espessura) cadastrado em "Sua Empresa"
+        function carregarRastreabilidadeInstrumento() {
+            try {
+                const r = JSON.parse(localStorage.getItem('nr13_rastreabilidade') || '{}');
+                if (r && r.ultrassom) {
+                    if (r.ultrassom.modelo) document.getElementById('rast-us-padrao').innerText = r.ultrassom.modelo;
+                    if (r.ultrassom.serie) document.getElementById('rast-us-serie').innerText = r.ultrassom.serie;
+                    if (r.ultrassom.certificado) document.getElementById('rast-us-certificado').innerText = r.ultrassom.certificado;
+                    if (r.ultrassom.validade) {
+                        const p = r.ultrassom.validade.split('-');
+                        document.getElementById('rast-us-validade').innerText = p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : r.ultrassom.validade;
+                    }
+                }
+            } catch(e) {}
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            destacarMenoresEspessuras();
+            carregarRastreabilidadeInstrumento();
+
+            // Puxa dados da Empresa
+            const salvo = localStorage.getItem('nr13_minha_empresa');
+            if (salvo) {
+                const dados = JSON.parse(salvo);
+                if (dados.logo) document.getElementById('imgLogo').src = dados.logo;
+
+                let footerHTML = `<strong>${dados.razao || dados.fantasia || 'NOME DA EMPRESA NÃO INFORMADO'}</strong><br>`;
+                let linha2 = [];
+                if(dados.endereco) linha2.push(dados.endereco);
+                if(dados.bairro) linha2.push(dados.bairro);
+                if(dados.cidade && dados.estado) linha2.push(`${dados.cidade}/${dados.estado}`);
+                if(dados.cnpj) linha2.push(`CNPJ: ${dados.cnpj}`);
+                if(dados.cep) linha2.push(`CEP: ${dados.cep}`);
+                if (linha2.length > 0) footerHTML += linha2.join(' • ') + `<br>`;
+
+                let linha3 = [];
+                if(dados.telefone) linha3.push(`Telef: ${dados.telefone}`);
+                if(dados.email) linha3.push(`E-mail: ${dados.email}`);
+                if (linha3.length > 0) footerHTML += linha3.join(' • ');
+                
+                document.getElementById('footer-empresa').innerHTML = footerHTML;
+            }
+
+            // Puxa Croqui
+            const urlParams = new URLSearchParams(window.location.search);
+            const tagVaso = urlParams.get('tag');
+
+            if (tagVaso) {
+                const imgElemento = document.getElementById('croqui-img');
+                if (imgElemento) {
+                    const vasoSalvo = JSON.parse(localStorage.getItem('nr13_vaso_' + tagVaso) || "{}");
+
+                    if (vasoSalvo && vasoSalvo.imagemCroqui && vasoSalvo.croquiMeta) {
+                        // Imagem real do vaso (vista frontal, sem cotas) + overlay dos pontos de medição
+                        const wrapperCroqui = document.createElement('div');
+                        wrapperCroqui.id = 'croqui-wrapper';
+                        wrapperCroqui.style.position = 'relative';
+                        wrapperCroqui.style.width = '100%';
+                        wrapperCroqui.style.height = '100%';
+                        wrapperCroqui.style.maxWidth = '100%';
+                        wrapperCroqui.style.maxHeight = '100%';
+                        wrapperCroqui.style.aspectRatio = '500 / 350';
+                        wrapperCroqui.style.margin = '0 auto';
+
+                        imgElemento.style.width = '100%';
+                        imgElemento.style.height = '100%';
+                        imgElemento.style.maxWidth = '100%';
+                        imgElemento.style.maxHeight = '100%';
+                        imgElemento.style.objectFit = 'contain';
+                        imgElemento.style.display = 'block';
+                        imgElemento.src = vasoSalvo.imagemCroqui;
+
+                        imgElemento.parentNode.insertBefore(wrapperCroqui, imgElemento);
+                        wrapperCroqui.appendChild(imgElemento);
+                        wrapperCroqui.insertAdjacentHTML('beforeend', gerarOverlayMedicaoSVG(vasoSalvo.croquiMeta));
+                    }
+                    else if (vasoSalvo && vasoSalvo.imagemPrint) {
+                        imgElemento.src = vasoSalvo.imagemPrint;
+                    }
+                    else {
+                        const infoStr = localStorage.getItem('nr13_info_' + tagVaso);
+                        let ehVertical = true; 
+                        if (infoStr) {
+                            const dadosVaso = JSON.parse(infoStr);
+                            const posicao = (dadosVaso.posicao || '').toLowerCase();
+                            if (posicao.includes('hor')) ehVertical = false;
+                        }
+
+                        let croquiSVG = '';
+                        if (ehVertical) {
+                            croquiSVG = `
+                            <svg viewBox="0 0 200 220" xmlns="http://www.w3.org/2000/svg">
+                                <rect width="100%" height="100%" fill="#ffffff"/>
+                                <path d="M0 20 H200 M0 40 H200 M0 60 H200 M0 80 H200 M0 100 H200 M0 120 H200 M0 140 H200 M0 160 H200 M0 180 H200 M0 200 H200" stroke="#f3f4f6" stroke-width="1"/>
+                                <path d="M20 0 V220 M40 0 V220 M60 0 V220 M80 0 V220 M100 0 V220 M120 0 V220 M140 0 V220 M160 0 V220 M180 0 V220" stroke="#f3f4f6" stroke-width="1"/>
+                                <rect x="70" y="50" width="60" height="110" fill="none" stroke="#1e3a8a" stroke-width="2"/>
+                                <path d="M70 50 C70 20, 130 20, 130 50" fill="none" stroke="#1e3a8a" stroke-width="2"/>
+                                <path d="M70 160 C70 190, 130 190, 130 160" fill="none" stroke="#1e3a8a" stroke-width="2"/>
+                                <line x1="75" y1="168" x2="65" y2="200" stroke="#1e3a8a" stroke-width="2"/>
+                                <line x1="125" y1="168" x2="135" y2="200" stroke="#1e3a8a" stroke-width="2"/>
+                                <line x1="58" y1="200" x2="72" y2="200" stroke="#1e3a8a" stroke-width="2"/>
+                                <line x1="128" y1="200" x2="142" y2="200" stroke="#1e3a8a" stroke-width="2"/>
+                                <rect x="96" y="12" width="8" height="10" fill="none" stroke="#1e3a8a" stroke-width="1.5"/>
+                                <circle cx="100" cy="8" r="4" fill="none" stroke="#1e3a8a" stroke-width="1.5"/>
+                                <circle cx="100" cy="35" r="4" fill="#ef4444"/>
+                                <text x="108" y="38" font-family="sans-serif" font-size="10" font-weight="700" fill="#ef4444">T1</text>
+                                <circle cx="70" cy="75" r="4" fill="#1877f2"/>
+                                <text x="52" y="79" font-family="sans-serif" font-size="10" font-weight="700" fill="#1877f2">C1</text>
+                                <circle cx="130" cy="75" r="4" fill="#1877f2"/>
+                                <text x="138" y="79" font-family="sans-serif" font-size="10" font-weight="700" fill="#1877f2">C2</text>
+                                <circle cx="70" cy="135" r="4" fill="#1877f2"/>
+                                <text x="52" y="139" font-family="sans-serif" font-size="10" font-weight="700" fill="#1877f2">C3</text>
+                                <circle cx="130" cy="135" r="4" fill="#1877f2"/>
+                                <text x="138" y="139" font-family="sans-serif" font-size="10" font-weight="700" fill="#1877f2">C4</text>
+                                <circle cx="100" cy="175" r="4" fill="#ef4444"/>
+                                <text x="108" y="179" font-family="sans-serif" font-size="10" font-weight="700" fill="#ef4444">T2</text>
+                                <text x="100" y="215" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#4b5563" font-weight="700">CROQUI TÉCNICO VERTICAL - ${tagVaso}</text>
+                            </svg>`;
+                        } else {
+                            croquiSVG = `
+                            <svg viewBox="0 0 220 200" xmlns="http://www.w3.org/2000/svg">
+                                <rect width="100%" height="100%" fill="#ffffff"/>
+                                <path d="M0 20 H220 M0 40 H220 M0 60 H220 M0 80 H220 M0 100 H220 M0 120 H220 M0 140 H220 M0 160 H220 M0 180 H220" stroke="#f3f4f6" stroke-width="1"/>
+                                <path d="M20 0 V200 M40 0 V200 M60 0 V200 M80 0 V200 M100 0 V200 M120 0 V200 M140 0 V200 M160 0 V200 M180 0 V200 M200 0 V200" stroke="#f3f4f6" stroke-width="1"/>
+                                <rect x="50" y="65" width="120" height="60" fill="none" stroke="#1e3a8a" stroke-width="2"/>
+                                <path d="M50 65 C20 65, 20 125, 50 125" fill="none" stroke="#1e3a8a" stroke-width="2"/>
+                                <path d="M170 65 C200 65, 200 125, 170 125" fill="none" stroke="#1e3a8a" stroke-width="2"/>
+                                <path d="M 70 125 L 65 155 L 85 155 Z" fill="none" stroke="#1e3a8a" stroke-width="1.5"/>
+                                <path d="M 150 125 L 145 155 L 165 155 Z" fill="none" stroke="#1e3a8a" stroke-width="1.5"/>
+                                <rect x="58" y="155" width="30" height="4" fill="#1e3a8a"/>
+                                <rect x="138" y="155" width="30" height="4" fill="#1e3a8a"/>
+                                <circle cx="32" cy="95" r="4" fill="#ef4444"/>
+                                <text x="20" y="85" font-family="sans-serif" font-size="10" font-weight="700" fill="#ef4444">T1</text>
+                                <circle cx="80" cy="65" r="4" fill="#1877f2"/>
+                                <text x="76" y="55" font-family="sans-serif" font-size="10" font-weight="700" fill="#1877f2">C1</text>
+                                <circle cx="80" cy="125" r="4" fill="#1877f2"/>
+                                <text x="76" y="140" font-family="sans-serif" font-size="10" font-weight="700" fill="#1877f2">C3</text>
+                                <circle cx="140" cy="65" r="4" fill="#1877f2"/>
+                                <text x="136" y="55" font-family="sans-serif" font-size="10" font-weight="700" fill="#1877f2">C2</text>
+                                <circle cx="140" cy="125" r="4" fill="#1877f2"/>
+                                <text x="136" y="140" font-family="sans-serif" font-size="10" font-weight="700" fill="#1877f2">C4</text>
+                                <circle cx="188" cy="95" r="4" fill="#ef4444"/>
+                                <text x="184" y="85" font-family="sans-serif" font-size="10" font-weight="700" fill="#ef4444">T2</text>
+                                <text x="110" y="185" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#4b5563" font-weight="700">CROQUI TÉCNICO HORIZONTAL - ${tagVaso}</text>
+                            </svg>`;
+                        }
+                        imgElemento.src = 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(croquiSVG);
+                    }
+                }
+            }
+            carregarPHsParaSelect();
+        });
+
+        document.addEventListener('input', function(e) {
+            if (e.target && e.target.hasAttribute('contenteditable')) {
+                destacarMenoresEspessuras();
+            }
+        });
+
+        function carregarPHsParaSelect() {
+            const selectPH = document.getElementById('select-ph');
+            const listaPHs = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
+
+            if (listaPHs.length === 0) {
+                selectPH.innerHTML = '<option value="">Nenhum PH cadastrado em Sua Empresa</option>';
+            } else {
+                listaPHs.forEach(ph => {
+                    const option = document.createElement('option');
+                    option.value = ph.id;
+                    option.textContent = ph.nome + " (" + ph.crea + ")";
+                    selectPH.appendChild(option);
+                });
+            }
+            const optExcluir = document.createElement('option');
+            optExcluir.value = 'excluir';
+            optExcluir.textContent = 'Excluir Assinatura';
+            optExcluir.style.color = '#dc2626';
+            optExcluir.style.fontWeight = '700';
+            selectPH.appendChild(optExcluir);
+        }
+
+        function atualizarAssinatura() {
+            const selectPH = document.getElementById('select-ph');
+            const wrapper = document.getElementById('sig-wrapper-engenheiro');
+            if (selectPH.value === 'excluir') {
+                if (wrapper) wrapper.classList.add('sig-excluida');
+                return;
+            }
+            if (wrapper) wrapper.classList.remove('sig-excluida');
+            const idSelecionado = selectPH.value;
+            const listaPHs = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
+
+            const phSelecionado = listaPHs.find(p => p.id == idSelecionado);
+
+            const imgAssinatura = document.getElementById('img-assinatura-ph');
+            const spanNome = document.getElementById('nome-ph');
+            const spanCrea = document.getElementById('crea-ph');
+
+            if (phSelecionado) {
+                spanNome.textContent = phSelecionado.nome;
+                spanCrea.textContent = phSelecionado.crea;
+                
+                if (phSelecionado.assinatura) {
+                    imgAssinatura.src = phSelecionado.assinatura;
+                    imgAssinatura.style.display = 'block';
+                } else {
+                    imgAssinatura.style.display = 'none';
+                }
+            } else {
+                spanNome.textContent = 'Nome do Engenheiro';
+                spanCrea.textContent = 'ES-123456/D';
+                imgAssinatura.style.display = 'none';
+                imgAssinatura.src = '';
+            }
+        }
+
+
+
+
+        
+        // ==============================================================
+        // MOTOR RECEPTOR DE AUTO-INJEÇÃO DE DADOS (COM TRADUTOR DE IDs)
+        // ==============================================================
+       
+        // ==============================================================
+        // MOTOR RECEPTOR DE AUTO-INJEÇÃO DE DADOS (CORRIGIDO E DEFINITIVO)
+        // ==============================================================
+        document.addEventListener('DOMContentLoaded', () => {
+            let tentativas = 0;
+            let motorInjecao = setInterval(() => {
+                tentativas++;
+                if (tentativas > 10) clearInterval(motorInjecao); 
+                
+                try {
+                    let injecaoStr = localStorage.getItem('nr13_injecao_atual');
+                    if (injecaoStr) {
+                        let injecao = JSON.parse(injecaoStr);
+                        
+                        if (injecao.ultrassom) {
+                            let dados = injecao.ultrassom;
+                            let injetouAlgo = false;
+
+                            // Função inteligente: Injeta do jeito certo seja Input ou Texto normal
+                            function injetarValor(idElemento, valor) {
+                                let el = document.getElementById(idElemento);
+                                if (el) {
+                                    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
+                                        el.value = valor;
+                                    } else {
+                                        el.innerText = valor;
+                                    }
+                                    injetouAlgo = true;
+                                }
+                            }
+                            
+                            // 1. TRADUTOR DE CAMPOS GERAIS (Tenta o ID traduzido e o ID original)
+                            const mapaCampos = {
+                                'inp-equipamento': ['equipamento-us', 'inp-equipamento'],
+                                'inp-area': ['us-area', 'inp-area'],
+                                'inp-esp-nom-casco': ['us-espessura-nominal', 'inp-esp-nom-casco'],
+                                'inp-ano': ['us-ano', 'inp-ano'],
+                                'inp-material': ['us-material', 'inp-material'],
+                                'inp-acoplante': ['us-acoplante', 'inp-acoplante'],
+                                'inp-estado-sup': ['us-estado-superficie', 'inp-estado-sup'],
+                                'inp-cabecote': ['us-cabecote', 'inp-cabecote'],
+                                'inp-temp-sup': ['us-temp', 'inp-temp-sup'],
+                                'inp-vel-sonica': ['us-vel-sonica', 'inp-vel-sonica']
+                            };
+
+                            for (let chaveAvulso in mapaCampos) {
+                                if (dados[chaveAvulso]) {
+                                    let idsPossiveis = mapaCampos[chaveAvulso];
+                                    // Tenta injetar em todas as variações de nome de ID conhecidas
+                                    idsPossiveis.forEach(id => injetarValor(id, dados[chaveAvulso]));
+                                }
+                            }
+
+                            // Tratamento do Aparelho / Série
+                            if (dados['inp-aparelho']) {
+                                let partes = dados['inp-aparelho'].split('/');
+                                if (partes[0]) {
+                                    injetarValor('aparelho-us', partes[0].trim());
+                                    injetarValor('inp-aparelho', partes[0].trim());
+                                }
+                                if (partes[1]) {
+                                    injetarValor('aparelho-serie', partes[1].trim());
+                                }
+                            }
+
+                            // 2. TABELA DE MEDIDAS (Tenta injetar na classe original 'c1-0' e na traduzida 'linha1-0')
+                            if (dados.medicoes) {
+                                for (let key in dados.medicoes) {
+                                    if (dados.medicoes[key] !== '') {
+                                        let idTraduzido = key
+    .replace('ts', 'linha1').replace('t1', 'linha1') // Tampo Superior
+    .replace('c1', 'linha2')                         // Casco (Linha 1)
+    .replace('c2', 'linha3')                         // Casco (Linha 2)
+    .replace('c3', 'linha4')                         // Casco (Linha 3)
+    .replace('c4', 'linha6')                         // Casco (Linha 4)
+    .replace('ti', 'linha5').replace('t2', 'linha5'); // Tampo Inferior
+                                        
+                                        injetarValor(key, dados.medicoes[key]); // Tenta no ID idêntico ao avulso
+                                        if (key !== idTraduzido) {
+                                            injetarValor(idTraduzido, dados.medicoes[key]); // Tenta no ID estilo relatório
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Finaliza e avisa os croquis
+                            if (injetouAlgo) {
+                                if (typeof calcularTodasMedias === 'function') calcularTodasMedias();
+                                if (typeof aplicarCoresTabelaECroqui === 'function') aplicarCoresTabelaECroqui();
+                                if (typeof destacarMenoresEspessuras === 'function') destacarMenoresEspessuras();
+                                clearInterval(motorInjecao); // Sucesso! Desliga o motor de repetição.
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error("Erro na auto-injeção do Ultrassom:", e);
+                }
+            }, 500); // Tenta a cada meio segundo até a tabela renderizar
+        });
+    
+    
+
+
+
+
+
+
+
+
+
+
+    </script>
+
+    <script>
+        // ==========================================
+        // ASSINATURA — TÉCNICO RESPONSÁVEL
+        // ==========================================
+        function carregarTecnicosParaSelect() {
+            const sel = document.getElementById('select-tecnico');
+            if (!sel) return;
+            const lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
+            sel.innerHTML = '<option value="">Assinar...</option>';
+            lista.filter(p => p.tipo && p.tipo.startsWith('Inspetor')).forEach(ph => {
+                const opt = document.createElement('option');
+                opt.value = ph.id;
+                opt.textContent = ph.nome + (ph.crea ? " (" + ph.crea + ")" : "");
+                sel.appendChild(opt);
+            });
+            const optExcluir = document.createElement('option');
+            optExcluir.value = 'excluir';
+            optExcluir.textContent = 'Excluir Assinatura';
+            optExcluir.style.color = '#dc2626';
+            optExcluir.style.fontWeight = '700';
+            sel.appendChild(optExcluir);
+        }
+
+        function atualizarAssinaturaTecnico() {
+            const sel = document.getElementById('select-tecnico');
+            const wrapper = document.getElementById('sig-wrapper-tecnico');
+            if (sel.value === 'excluir') {
+                if (wrapper) wrapper.classList.add('sig-excluida');
+                return;
+            }
+            if (wrapper) wrapper.classList.remove('sig-excluida');
+            const lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
+            const ph = lista.find(p => String(p.id) === String(sel.value));
+            const img = document.getElementById('img-assinatura-tecnico');
+            const nome = document.getElementById('nome-tecnico');
+            const crea = document.getElementById('crea-tecnico');
+            if (ph) {
+                nome.textContent = ph.nome;
+                crea.textContent = ph.crea || '';
+                if (ph.assinatura) { img.src = ph.assinatura; img.style.display = 'block'; }
+                else { img.style.display = 'none'; img.src = ''; }
+            } else {
+                nome.textContent = 'Nome do Técnico';
+                crea.textContent = '000000';
+                img.style.display = 'none'; img.src = '';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            carregarTecnicosParaSelect();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NR-13 - Checklist Documentação - Sistema</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,600;1,700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --text-dark: #111827;     
+            --border-color: #000;  
+            --border-box: #c7c7c7;
+            --blue-data: #0033a2; /* Azul padrão do sistema */    
+            --bg-table-header: #eff0f1;
+            --bg-table-sub: #f9fafb;
+            --highlight-yellow: #fdfad2; 
+            --highlight-text: #000000;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--text-dark);
+            background-color: #fff; 
+            margin: 0;
+            padding: 0;
+            line-height: 1.4;
+            font-size: 11px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        /* Estrutura de Página Padrão */
+        .page {
+            width: 100%; 
+            min-height: 297mm;
+            background: #fff;
+            margin: 0;
+            padding: 15mm 15mm 25mm 15mm;
+            position: relative;
+            page-break-after: always;
+            display: flex;
+            flex-direction: column;
+            border: none;
+            box-shadow: none;
+        }
+
+        /* CABEÇALHO PADRÃO DO SISTEMA */
+        .header-table {
+            width: 100%; border-collapse: collapse; border: 1px solid var(--text-dark); margin-bottom: 6px;
+        }
+        .header-table td { border: 1px solid var(--text-dark); vertical-align: middle; }
+        .col-logo { width: 25%; text-align: center; padding: 5px; }
+        .col-logo img { max-width: 100%; max-height: 75px; object-fit: contain; display: block; margin: 0 auto; }
+        .col-title { width: 50%; text-align: center; font-size: 18px; font-weight: 800; color: var(--text-dark); line-height: 1.3; text-transform: uppercase; padding: 5px;}
+        .col-info { width: 25%; text-align: left; padding: 8px 10px; vertical-align: top; }
+        .col-info .info-label { font-size: 10px; color: var(--text-dark); margin-top: 3px; }
+        .col-info .info-label:first-child { margin-top: 0; }
+        .col-info .info-value { font-size: 12px; font-weight: 700; color: var(--blue-data); margin-top: 1px; }
+
+        .tag-location-row {
+            text-align: center;
+            padding: 5px;
+            border-top: 1px solid #000;
+            background-color: var(--bg-table-sub);
+        }
+
+        /* ESTILOS DO CONTEÚDO */
+        .content-container {
+            flex-grow: 1;
+            padding: 0;
+        }
+
+        .section-title {
+            font-size: 10px; 
+            font-weight: 900; 
+            margin-top: 8px; 
+            margin-bottom: 6px; 
+            text-transform: uppercase; 
+            background-color: #053e76;
+            padding: 4px 6px; 
+            color: white; 
+            border-bottom: 1px solid #000;
+        }
+
+        /* TABELA DE CHECKLIST (NOVO DESIGN) */
+        .checklist-table {
+            width: 100%;
+            table-layout: fixed;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+            border: 1px solid #000;
+        }
+
+        .checklist-table th, .checklist-table td {
+            border: 1px solid #000;
+            padding: 6px 8px; 
+            font-size: 12px;
+            vertical-align: middle;
+        }
+
+        .checklist-table th {
+            background-color: var(--bg-table-header);
+            font-weight: 800;
+            text-align: center;
+            font-size: 9px;
+            text-transform: uppercase;
+        }
+
+        .checklist-table .sub-header th { font-weight: 700; background-color: var(--bg-table-sub); }
+
+        .checklist-table .col-desc {
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+
+        /* =========================================
+           CHECKBOXES VISUAIS (DESIGN DA IMAGEM)
+           ========================================= */
+        .col-check {
+            text-align: center;
+            cursor: pointer;
+            width: 15%;
+            transition: background-color 0.2s;
+        }
+        
+        .custom-chk {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: 100%;
+        }
+
+        .chk-square {
+            width: 16px;
+            height: 16px;
+            border: 1.5px solid #9CA3AF;
+            border-radius: 3px;
+            background-color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        /* Estado Marcado (Simulando a imagem com azul e tick branco) */
+        .custom-chk.active .chk-square {
+            background-color: var(--blue-data);
+            border-color: var(--blue-data);
+        }
+
+        .custom-chk.active .chk-square::after {
+            content: '';
+            width: 4px;
+            height: 8px;
+            border: solid white;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+            margin-bottom: 2px;
+        }
+
+        td.comment-box {
+            height: 90px;
+            text-align: left;
+            vertical-align: top;
+            padding: 8px !important;
+            color: var(--blue-data);
+            font-weight: 600;
+            font-style: italic;
+            white-space: normal;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
+        }
+
+        /* =========================================
+           ASSINATURAS E RESPONSABILIDADE
+           ========================================= */
+        .signatures-container {
+            position: absolute;
+            bottom: 28mm;
+            left: 15mm;
+            right: 15mm;
+            display: flex;
+            justify-content: space-between;
+            z-index: 500;
+        }
+        .signature-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 220px;
+            position: relative;
+        }
+        .signature-line { width: 100%; border-bottom: 1px solid #000; margin-bottom: 4px; position: relative; z-index: 2; }
+        .sig-data { font-size: 9px; text-align: center; width: 100%; }
+        .sig-select-box { position: absolute; top: -24px; right: 0; }
+        .sig-select-box select { padding: 3px 6px; border-radius: 4px; border: 1px solid #9CA3AF; font-size: 9px; font-family: 'Inter', sans-serif; cursor: pointer; background-color: #f9fafb; color: #111827; font-weight: 600; outline: none; }
+        .sig-img { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); height: 55px; max-width: 100%; object-fit: contain; pointer-events: none; z-index: 1; }
+        .data-highlight { color: var(--blue-data); font-weight: 600; }
+        .signature-box.sig-excluida > *:not(.no-print) { display: none !important; }
+
+        /* RODAPÉ COM PAGINAÇÃO PADRÃO */
+        .pgr-footer-new {
+            position: absolute;
+            bottom: 12mm;
+            left: 15mm;
+            right: 15mm;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .footer-line-wrapper {
+            flex: 1;
+            border-top: 3px solid #000;
+            padding-top: 8px;
+            text-align: center;
+        }
+        
+        .company-details {
+            font-size: 11px;
+            color: #000;
+            font-weight: 500;
+            line-height: 1.4;
+        }
+
+        .footer-page-number {
+            background-color: #000 !important; 
+            color: #fff !important;
+            font-size: 20px;
+            font-weight: 400;
+            padding: 6px 22px;
+            margin-left: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        /* CONFIGURAÇÕES DE EDIÇÃO E IMPRESSÃO */
+        .hide-input { display: none; }
+        
+        @media screen {
+            [contenteditable="true"]:hover {
+                background-color: var(--highlight-yellow);
+                outline: 1px dashed var(--blue-data);
+                cursor: text;
+            }
+            .editable-image { cursor: pointer; transition: opacity 0.2s; }
+            .editable-image:hover { outline: 2px dashed var(--blue-data); opacity: 0.8; }
+        }
+        
+        @media print {
+            .no-print { display: none !important; }
+            body { background: none; }
+            .page { margin: 0 !important; padding: 15mm 15mm 25mm 15mm !important; box-shadow: none !important; border: none !important; }
+            [contenteditable="true"]:hover { background-color: transparent !important; outline: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <input type="file" id="inputLogo" class="hide-input" accept="image/*" onchange="previewImage(this, 'imgLogo')">
+
+    <div class="page">
+        <table class="header-table">
+            <tr>
+                <td rowspan="2" class="col-logo">
+                     <div class="logo-placeholder editable-image" onclick="document.getElementById('inputLogo').click()" title="Clique para alterar a Logo">
+                        <img id="imgLogo" src="logo.webp" alt="Logo">
+                     </div>
+                </td>
+                <td class="col-title" contenteditable="true" spellcheck="false">
+                    RELATÓRIO DE INSPEÇÃO NR-13<br>VERIFICAÇÃO DA DOCUMENTAÇÃO
+                </td>
+                <td rowspan="2" class="col-info">
+                    <div class="info-label">Relatório nº:</div>
+                    <div class="info-value" id="hdr-rel-num" contenteditable="true" spellcheck="false">—</div>
+                    <div class="info-label">Data:</div>
+                    <div class="info-value" id="hdr-rel-data" contenteditable="true" spellcheck="false">—</div>
+                    
+                </td>
+            </tr>
+            <tr>
+                
+            </tr>
+        </table>
+        
+        <div class="content-container">
+            
+            <div class="section-title" contenteditable="true" spellcheck="false">VERIFICAÇÃO DA DOCUMENTAÇÃO EXISTENTE NA DATA DA INSPEÇÃO</div>
+            
+            <table class="checklist-table">
+                <thead>
+                    <tr>
+                        <th rowspan="2" style="width: 55%;">Descrição</th>
+                        <th colspan="3" style="width: 45%;">Situação</th>
+                    </tr>
+                    <tr class="sub-header">
+                        <th>Existe</th>
+                        <th>Não identificado</th>
+                        <th>Não aplica</th>
+                    </tr>
+                </thead>
+                <tbody id="corpo-verif-doc">
+                    <tr>
+                        <td class="col-desc" contenteditable="true" spellcheck="false">Registro de segurança</td>
+                        <td id="v51-registro-seguranca-1" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                        <td id="v51-registro-seguranca-2" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                        <td id="v51-registro-seguranca-3" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                    </tr>
+                    <tr>
+                        <td class="col-desc" contenteditable="true" spellcheck="false">Desenho do conjunto geral</td>
+                        <td id="v51-desenho-conjunto-1" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                        <td id="v51-desenho-conjunto-2" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                        <td id="v51-desenho-conjunto-3" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                    </tr>
+                    <tr>
+                        <td class="col-desc" contenteditable="true" spellcheck="false">Prontuário</td>
+                        <td id="v51-prontuario-1" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                        <td id="v51-prontuario-2" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                        <td id="v51-prontuario-3" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                    </tr>
+                    <tr>
+                        <td class="col-desc" contenteditable="true" spellcheck="false">Memória de cálculo da PMTA das partes do vaso de pressão</td>
+                        <td id="v51-memoria-calculo-1" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                        <td id="v51-memoria-calculo-2" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                        <td id="v51-memoria-calculo-3" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                    </tr>
+                    <tr>
+                        <td class="col-desc" contenteditable="true" spellcheck="false">Relatório de inspeção inicial</td>
+                        <td id="v51-relatorio-insp-inicial-1" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                        <td id="v51-relatorio-insp-inicial-2" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                        <td id="v51-relatorio-insp-inicial-3" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                    </tr>
+                    <tr>
+                        <td class="col-desc" contenteditable="true" spellcheck="false">Projeto de instalação do vaso de pressão</td>
+                        <td id="v51-projeto-instalacao-1" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                        <td id="v51-projeto-instalacao-2" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                        <td id="v51-projeto-instalacao-3" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                    </tr>
+                    <tr>
+                        <td class="col-desc" contenteditable="true" spellcheck="false">Manual de operação para vasos de categoria I e II</td>
+                        <td id="v51-manual-operacao-1" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                        <td id="v51-manual-operacao-2" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                        <td id="v51-manual-operacao-3" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                    </tr>
+                    <tr>
+                        <td class="col-desc" contenteditable="true" spellcheck="false">Operador qualificado para operação de vasos de categoria I e II</td>
+                        <td id="v51-operador-qualificado-1" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                        <td id="v51-operador-qualificado-2" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                        <td id="v51-operador-qualificado-3" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                    </tr>
+                    <tr>
+                        <td class="col-desc" contenteditable="true" spellcheck="false">Comprovante de estágio supervisionado</td>
+                        <td id="v51-comprovante-estagio-1" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                        <td id="v51-comprovante-estagio-2" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                        <td id="v51-comprovante-estagio-3" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                    </tr>
+                    <tr>
+                        <td class="col-desc" contenteditable="true" spellcheck="false">Laudo de teste hidrostático/pneumático</td>
+                        <td id="v51-laudo-th-1" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                        <td id="v51-laudo-th-2" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                        <td id="v51-laudo-th-3" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                    </tr>
+                    <tr>
+                        <td class="col-desc" contenteditable="true" spellcheck="false">Certificados de calibração dos dispositivos de segurança, onde aplicável</td>
+                        <td id="v51-cert-calibracao-1" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                        <td id="v51-cert-calibracao-2" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                        <td id="v51-cert-calibracao-3" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                    </tr>
+                    <tr>
+                        <td class="col-desc" contenteditable="true" spellcheck="false">Programa de inspeções com suas datas limites</td>
+                        <td id="v51-programa-inspecoes-1" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                        <td id="v51-programa-inspecoes-2" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                        <td id="v51-programa-inspecoes-3" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                    </tr>
+                    <tr>
+                        <td class="col-desc" contenteditable="true" spellcheck="false">Recomendações de inspeções anteriores e que não foram realizadas</td>
+                        <td id="v51-recomendacoes-anteriores-1" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                        <td id="v51-recomendacoes-anteriores-2" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                        <td id="v51-recomendacoes-anteriores-3" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                    </tr>
+                    <tr>
+                        <td class="col-desc" contenteditable="true" spellcheck="false">Mapa de medição de espessuras por ultrassom</td>
+                        <td id="v51-mapa-espessuras-1" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                        <td id="v51-mapa-espessuras-2" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                        <td id="v51-mapa-espessuras-3" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                    </tr>
+                    <tr>
+                        <td class="col-desc" contenteditable="true" spellcheck="false">A.R.T assinada (Anotação de Responsabilidade Técnica) do profissional<br>habilitado responsável pela documentação/ensaios descritos acima.</td>
+                        <td id="v51-art-assinada-1" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                        <td id="v51-art-assinada-2" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                        <td id="v51-art-assinada-3" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
+                    </tr>
+                    <tr>
+                        <th colspan="4" style="padding: 6px;" contenteditable="true" spellcheck="false">Comentários sobre a documentação</th>
+                    </tr>
+                    <tr><td colspan="4" class="comment-box" contenteditable="true" spellcheck="false"></td></tr>
+                </tbody>
+            </table>
+
+            <div class="signatures-container">
+                <div class="signature-box" id="sig-wrapper-tecnico">
+                    <div class="no-print sig-select-box">
+                        <select id="select-tecnico" onchange="atualizarAssinaturaTecnico()">
+                            <option value="">Assinar...</option>
+                        </select>
+                    </div>
+                    <img id="img-assinatura-tecnico" class="sig-img" src="" alt="Assinatura Técnico" style="display:none;">
+                    <div class="signature-line"></div>
+                    <div class="sig-data">
+                        <strong>TÉCNICO RESPONSÁVEL</strong><br>
+                        <span id="nome-tecnico" class="data-highlight" contenteditable="true" spellcheck="false">Nome do Técnico</span><br>
+                        Registro: <span id="crea-tecnico" class="data-highlight" contenteditable="true" spellcheck="false">000000</span>
+                    </div>
+                </div>
+                <div class="signature-box" id="sig-wrapper-engenheiro">
+                    <div class="no-print sig-select-box">
+                        <select id="select-ph" onchange="atualizarAssinatura()">
+                            <option value="">Assinar...</option>
+                        </select>
+                    </div>
+                    <img id="img-assinatura-ph" class="sig-img" src="" alt="Assinatura Engenheiro" style="display:none;">
+                    <div class="signature-line"></div>
+                    <div class="sig-data">
+                        <strong>ENGENHEIRO RESPONSÁVEL</strong><br>
+                        <span id="nome-ph" class="data-highlight" contenteditable="true" spellcheck="false">Nome do Engenheiro</span><br>
+                        CREA/RNP: <span id="crea-ph" class="data-highlight" contenteditable="true" spellcheck="false">ES-000000/D</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="pgr-footer-new">
+            <div class="footer-line-wrapper">
+                <div class="company-details" id="footer-empresa" contenteditable="true" spellcheck="false">
+                    <strong>NOME DA EMPRESA LTDA.</strong><br>
+                    Endereço Completo • Bairro • Cidade/UF • CNPJ: 00.000.000/0000-00 • CEP: 00000-000<br>
+                    Telef: (00) 0000-0000 • E-mail: contato@empresa.com.br
+                </div>
+            </div>
+            <div class="footer-page-number">
+                4
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // SCRIPT DE PAGINAÇÃO AUTOMÁTICA
+        document.addEventListener('DOMContentLoaded', function() {
+            const paramPagina = new URLSearchParams(window.location.search).get('page');
+            if (paramPagina) {
+                const elPagina = document.querySelector('.footer-page-number');
+                if (elPagina) {
+                    elPagina.innerText = paramPagina.trim();
+                }
+            }
+        });
+
+        // PREVIEW DE LOGO
+        function previewImage(input, imgId) {
+            if (input.files && input.files[0]) {
+                var reader = new FileReader();
+                reader.onload = function(e) { document.getElementById(imgId).src = e.target.result; }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            // SCRIPT DOS CHECKBOXES VIRTUAIS
+            const botoesCheck = document.querySelectorAll('.col-check');
+            
+            botoesCheck.forEach(celula => {
+                celula.title = "Clique para marcar/desmarcar";
+                
+                celula.addEventListener('click', function() {
+                    const chk = this.querySelector('.custom-chk');
+                    if (chk.classList.contains('active')) {
+                        chk.classList.remove('active'); 
+                    } else {
+                        const linhaCompleta = this.parentElement;
+                        linhaCompleta.querySelectorAll('.custom-chk').forEach(c => c.classList.remove('active'));
+                        chk.classList.add('active');
+                    }
+                });
+
+                // Efeito Hover suave
+                celula.addEventListener('mouseover', function() {
+                    const chk = this.querySelector('.custom-chk');
+                    if(!chk.classList.contains('active')) this.style.backgroundColor = 'var(--highlight-yellow)';
+                });
+                celula.addEventListener('mouseout', function() {
+                    this.style.backgroundColor = '';
+                });
+            });
+
+            // SCRIPT PARA PUXAR DADOS DA EMPRESA AUTOMATICAMENTE E TAG
+            const params = new URLSearchParams(window.location.search);
+            const tag = params.get('tag');
+            if(tag) {
+                const elTag = document.getElementById('tag-label');
+                if(elTag) elTag.innerText = tag;
+            }
+
+            const salvo = localStorage.getItem('nr13_minha_empresa');
+            if (salvo) {
+                const dados = JSON.parse(salvo);
+                if (dados.logo) document.getElementById('imgLogo').src = dados.logo;
+
+                let footerHTML = `<strong>${dados.razao || dados.fantasia || 'NOME DA EMPRESA NÃO INFORMADO'}</strong><br>`;
+                let linha2 = [];
+                if(dados.endereco) linha2.push(dados.endereco);
+                if(dados.bairro) linha2.push(dados.bairro);
+                if(dados.cidade && dados.estado) linha2.push(`${dados.cidade}/${dados.estado}`);
+                if(dados.cnpj) linha2.push(`CNPJ: ${dados.cnpj}`);
+                if(dados.cep) linha2.push(`CEP: ${dados.cep}`);
+                if (linha2.length > 0) footerHTML += linha2.join(' • ') + `<br>`;
+
+                let linha3 = [];
+                if(dados.telefone) linha3.push(`Telef: ${dados.telefone}`);
+                if(dados.email) linha3.push(`E-mail: ${dados.email}`);
+                if (linha3.length > 0) footerHTML += linha3.join(' • ');
+
+                document.getElementById('footer-empresa').innerHTML = footerHTML;
+            }
+
+            // Preenche cabeçalho com dados do relatório atual
+            try {
+                var metaRaw = localStorage.getItem('nr13_relatorio_meta_atual');
+                if (metaRaw) {
+                    var meta = JSON.parse(metaRaw);
+                    if (meta.codigo) document.getElementById('hdr-rel-num').textContent = meta.codigo;
+                    if (meta.emissao) document.getElementById('hdr-rel-data').textContent = meta.emissao;
+                }
+            } catch(e) {}
+        });
+
+        // ==========================================================
+        // MOTOR DE INJEÇÃO: VERIFICAÇÃO DA DOCUMENTAÇÃO
+        // ==========================================================
+        (function() {
+            const ITENS_51 = [
+                'registro-seguranca', 'desenho-conjunto', 'prontuario', 'memoria-calculo',
+                'relatorio-insp-inicial', 'projeto-instalacao', 'manual-operacao',
+                'operador-qualificado', 'comprovante-estagio', 'laudo-th',
+                'cert-calibracao', 'programa-inspecoes', 'recomendacoes-anteriores',
+                'mapa-espessuras', 'art-assinada'
+            ];
+
+            const COLUNA_POR_VALOR = { 'Existe': 1, 'Não identificado': 2, 'Não aplica': 3 };
+
+            function marcarLinha51(chave, valor) {
+                const coluna = COLUNA_POR_VALOR[valor];
+                if (!coluna) return;
+                for (let c = 1; c <= 3; c++) {
+                    const celula = document.getElementById(`v51-${chave}-${c}`);
+                    if (celula) {
+                        const chk = celula.querySelector('.custom-chk');
+                        if (chk) {
+                            if (c === coluna) chk.classList.add('active');
+                            else chk.classList.remove('active');
+                        }
+                    }
+                }
+            }
+
+            function executarInjecao51() {
+                try {
+                    const raw = localStorage.getItem('nr13_inspecao_atual');
+                    if (!raw) return false;
+                    const injecao = JSON.parse(raw);
+                    const d = injecao['checklist'];
+                    if (!d) return false;
+                    const r = d.respostas || d;
+
+                    let injetouAlgo = false;
+                    ITENS_51.forEach(chave => {
+                        const valor = r[`v51-${chave}`];
+                        if (valor) {
+                            marcarLinha51(chave, valor);
+                            injetouAlgo = true;
+                        }
+                    });
+
+                    return injetouAlgo;
+                } catch(e) { return false; }
+            }
+
+            let tentativas51 = 0;
+            const motor51 = setInterval(() => {
+                tentativas51++;
+                if (executarInjecao51() || tentativas51 > 15) clearInterval(motor51);
+            }, 300);
+        })();
+    </script>
+
+    <script>
+        // ==========================================
+        // ASSINATURAS — ENGENHEIRO (PH) E TÉCNICO
+        // ==========================================
+        function carregarPHsParaSelect() {
+            const sel = document.getElementById('select-ph');
+            if (!sel) return;
+            const lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
+            sel.innerHTML = '<option value="">Assinar...</option>';
+            lista.filter(p => !p.tipo || p.tipo.startsWith('Engenheiro')).forEach(ph => {
+                const opt = document.createElement('option');
+                opt.value = ph.id;
+                opt.textContent = ph.nome;
+                sel.appendChild(opt);
+            });
+            const optExcluir = document.createElement('option');
+            optExcluir.value = 'excluir';
+            optExcluir.textContent = 'Excluir Assinatura';
+            optExcluir.style.color = '#dc2626';
+            optExcluir.style.fontWeight = '700';
+            sel.appendChild(optExcluir);
+        }
+
+        function atualizarAssinatura() {
+            const sel = document.getElementById('select-ph');
+            const wrapper = document.getElementById('sig-wrapper-engenheiro');
+            if (sel.value === 'excluir') {
+                if (wrapper) wrapper.classList.add('sig-excluida');
+                return;
+            }
+            if (wrapper) wrapper.classList.remove('sig-excluida');
+            const lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
+            const ph = lista.find(p => String(p.id) === String(sel.value));
+            const img = document.getElementById('img-assinatura-ph');
+            const nome = document.getElementById('nome-ph');
+            const crea = document.getElementById('crea-ph');
+            if (ph) {
+                nome.textContent = ph.nome;
+                crea.textContent = ph.crea || '';
+                if (ph.assinatura) { img.src = ph.assinatura; img.style.display = 'block'; }
+                else { img.style.display = 'none'; img.src = ''; }
+            } else {
+                nome.textContent = 'Nome do Engenheiro';
+                crea.textContent = 'ES-000000/D';
+                img.style.display = 'none'; img.src = '';
+            }
+        }
+
+        function carregarTecnicosParaSelect() {
+            const sel = document.getElementById('select-tecnico');
+            if (!sel) return;
+            const lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
+            sel.innerHTML = '<option value="">Assinar...</option>';
+            lista.filter(p => p.tipo && p.tipo.startsWith('Inspetor')).forEach(ph => {
+                const opt = document.createElement('option');
+                opt.value = ph.id;
+                opt.textContent = ph.nome;
+                sel.appendChild(opt);
+            });
+            const optExcluir = document.createElement('option');
+            optExcluir.value = 'excluir';
+            optExcluir.textContent = 'Excluir Assinatura';
+            optExcluir.style.color = '#dc2626';
+            optExcluir.style.fontWeight = '700';
+            sel.appendChild(optExcluir);
+        }
+
+        function atualizarAssinaturaTecnico() {
+            const sel = document.getElementById('select-tecnico');
+            const wrapper = document.getElementById('sig-wrapper-tecnico');
+            if (sel.value === 'excluir') {
+                if (wrapper) wrapper.classList.add('sig-excluida');
+                return;
+            }
+            if (wrapper) wrapper.classList.remove('sig-excluida');
+            const lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
+            const ph = lista.find(p => String(p.id) === String(sel.value));
+            const img = document.getElementById('img-assinatura-tecnico');
+            const nome = document.getElementById('nome-tecnico');
+            const crea = document.getElementById('crea-tecnico');
+            if (ph) {
+                nome.textContent = ph.nome;
+                crea.textContent = ph.crea || '';
+                if (ph.assinatura) { img.src = ph.assinatura; img.style.display = 'block'; }
+                else { img.style.display = 'none'; img.src = ''; }
+            } else {
+                nome.textContent = 'Nome do Técnico';
+                crea.textContent = '000000';
+                img.style.display = 'none'; img.src = '';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            carregarPHsParaSelect();
+            carregarTecnicosParaSelect();
+        });
+    </script>
+</body>
+</html>

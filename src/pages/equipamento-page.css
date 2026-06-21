@@ -1,0 +1,300 @@
+.equipamento-page {
+  padding: 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.equipamento-subtitulo {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.seletor-unidade {
+  background: transparent;
+  border: none;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  outline: none;
+  cursor: pointer;
+}
+
+.equipamento-secao {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header do equipamento — TAG + seletor de unidade + excluir + quick-info + galeria, com a foto
+   de capa à direita. Visual exato do detalhes.html legado. */
+.equipamento-header-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.equipamento-header-info {
+  flex: 1;
+  min-width: 280px;
+}
+
+.equipamento-header-topo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.equipamento-tag-linha {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.equipamento-tag-titulo {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--accent-2);
+}
+
+.seletor-unidade-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-soft);
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-solid);
+}
+
+.seletor-unidade-box label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.btn-excluir-equip {
+  background: none;
+  border: none;
+  color: var(--status-erro-text);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 12px;
+  padding: 0;
+}
+
+.btn-excluir-equip:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.equipamento-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-solid);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  margin-bottom: 0;
+}
+
+.quick-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.quick-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+}
+
+.quick-valor {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.quick-valor.ok {
+  color: var(--status-ok-text);
+}
+
+.quick-valor.erro {
+  color: var(--status-erro-text);
+}
+
+.equipamento-foto-principal {
+  flex-shrink: 0;
+}
+
+.equipamento-foto-principal img,
+.equipamento-foto-vazia {
+  width: 180px;
+  height: 180px;
+  object-fit: contain;
+  border: 1px solid var(--border-solid);
+  border-radius: var(--radius-sm);
+  padding: 5px;
+  background: var(--bg-card);
+}
+
+.equipamento-foto-vazia {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-faint);
+  font-size: 12px;
+  box-sizing: border-box;
+}
+
+/* Memorial de Cálculo */
+.bloco-memorial-resumo .btn-secundario-claro {
+  display: inline-block;
+  background: var(--menu-hover);
+  color: var(--text-main);
+  border: 1px solid var(--border-solid);
+  padding: 9px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  margin-bottom: 16px;
+}
+
+.bloco-memorial-resumo .btn-secundario-claro:hover {
+  background: var(--border-solid);
+}
+
+.memorial-resumo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  background: var(--bg-soft);
+  padding: 15px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--menu-hover);
+  margin-bottom: 16px;
+}
+
+.val-view.val-erro {
+  color: var(--status-erro-text);
+}
+
+.bloco-memorial-resumo .btn-ver-memorial {
+  display: block;
+  text-align: center;
+  background: var(--accent-bg-light);
+  color: var(--accent);
+  border: 1px solid #c6dafc;
+  width: 100%;
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.bloco-memorial-resumo .btn-ver-memorial:hover {
+  background: #d7e8fd;
+}
+
+/* Modal memorial */
+.modal-memorial-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.modal-memorial-box {
+  background: #fff;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  width: min(860px, 95vw);
+  height: min(88vh, 960px);
+  overflow: hidden;
+}
+
+.modal-memorial-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border-solid);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-main);
+  flex-shrink: 0;
+}
+
+.modal-memorial-fechar {
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: var(--text-muted);
+  cursor: pointer;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: var(--radius-md);
+  transition: background 0.15s;
+}
+
+.modal-memorial-fechar:hover {
+  background: var(--bg-main);
+  color: var(--text-main);
+}
+
+.modal-memorial-corpo {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 28px;
+  background: #fff;
+}
+
+.modal-memorial-sem-log {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 48px 24px;
+}
+
+@media (max-width: 600px) {
+  .equipamento-page {
+    padding: 14px;
+  }
+
+  .equipamento-header-card {
+    flex-direction: column-reverse;
+    align-items: center;
+    text-align: center;
+  }
+
+  .equipamento-header-topo {
+    flex-direction: column;
+  }
+}

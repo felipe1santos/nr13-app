@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prontuário de Reconstituição - Página 4</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,600;1,700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --text-dark: #111827;
+            --blue-data: #0037ad;
+            --gray-light: #9CA3AF;
+            --bg-table-header: #eff0f1;
+            --primary-blue: #0066a1;
+            --light-blue: #e6f3fb;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--text-dark);
+            background-color: #fff;
+            line-height: 1.4;
+            font-size: 11px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .page {
+            width: 100%;
+            height: 297mm;
+            background: #fff;
+            padding: 12mm 15mm 26mm 15mm;
+            position: relative;
+            page-break-after: always;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* ===== CABEÇALHO / LETTERHEAD ===== */
+        .ph-header-table { width: 100%; border-collapse: collapse; border: 1.5px solid var(--text-dark); margin-bottom: 5px; }
+        .ph-header-table td { border: 1.5px solid var(--text-dark); vertical-align: middle; padding: 6px 10px; }
+        .ph-col-logo { width: 20%; text-align: center; padding: 6px !important; }
+        .ph-col-logo img { max-height: 48px; max-width: 100%; object-fit: contain; }
+        .ph-col-title { width: 58%; text-align: center; }
+        .ph-col-title .t-pt { font-size: 13px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dark); }
+        .ph-col-title .t-en { font-size: 9px; font-style: italic; color: #666; margin-top: 2px; }
+        .ph-col-info { width: 22%; padding: 5px 10px !important; }
+        .ph-col-info .info-label { font-size: 8.5px; font-weight: 700; text-transform: uppercase; color: var(--text-dark); }
+        .ph-col-info .info-value { font-size: 10.5px; font-weight: 700; color: var(--blue-data); margin-bottom: 4px; }
+        .ph-col-info .info-value:last-child { margin-bottom: 0; }
+
+        /* ===== BANNER DE SEÇÃO ===== */
+        .ph-banner { background-color: var(--light-blue); border-left: 4px solid var(--primary-blue); border-radius: 4px; padding: 4px 10px; margin: 7px 0 4px 0; }
+        .ph-banner .pt { font-size: 11.5px; font-weight: 900; text-transform: uppercase; color: var(--primary-blue); letter-spacing: 0.5px; }
+        .ph-banner .en { font-size: 9px; font-weight: 500; color: #4a7fa5; font-style: italic; margin-top: 1px; }
+
+        /* ===== LISTA DE INFORMAÇÕES IMPORTANTES ===== */
+        .ph-info-item { border: 1px solid #ccc; border-radius: 4px; padding: 6px 8px; margin-bottom: 5px; }
+        .ph-info-item .titulo { font-size: 10.5px; font-weight: 700; color: var(--text-dark); text-transform: uppercase; margin-bottom: 2px; }
+        .ph-info-item .texto-pt { font-size: 10px; color: var(--text-dark); text-align: justify; line-height: 1.4; }
+        .ph-info-item .texto-en { font-size: 8.5px; font-style: italic; color: #777; text-align: justify; margin-top: 3px; line-height: 1.35; }
+
+        /* ===== RESPONSABILIDADE TÉCNICA ===== */
+        .ph-resp-box { display: flex; gap: 14px; border: 1px solid #888; border-radius: 4px; padding: 10px; margin-top: 6px; }
+        .ph-resp-left { flex: 1; font-size: 10px; text-align: justify; line-height: 1.5; }
+        .ph-resp-left .en { font-size: 8.5px; font-style: italic; color: #777; margin-top: 4px; }
+        .ph-resp-left .info-label { font-size: 8.5px; font-weight: 700; text-transform: uppercase; color: var(--text-dark); margin-top: 6px; }
+        .ph-resp-left .info-value { font-size: 10.5px; font-weight: 700; color: var(--blue-data); }
+        .ph-resp-right { flex: 0 0 200px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; min-height: 100px; }
+        .ph-resp-right img { max-height: 55px; max-width: 100%; object-fit: contain; margin-bottom: 4px; }
+        .ph-resp-right .sig-line { width: 100%; border-bottom: 1px solid #000; margin-bottom: 4px; }
+        .ph-resp-right .sig-data { font-size: 9px; text-align: center; width: 100%; line-height: 1.5; }
+        .ph-resp-right .sig-data strong { font-size: 9px; text-transform: uppercase; }
+        .ph-resp-right .sig-data .data-highlight { color: var(--blue-data); font-weight: 600; }
+
+        /* ===== MARCA D'ÁGUA ===== */
+        .watermark-img {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 78%; max-width: 78%;
+            opacity: 0.045; z-index: 0;
+            pointer-events: none;
+            -webkit-print-color-adjust: exact; print-color-adjust: exact;
+        }
+        .page-content { position: relative; z-index: 1; }
+
+        /* ===== RODAPÉ ===== */
+        .pgr-footer-new { position: absolute; bottom: 10mm; left: 15mm; right: 15mm; display: flex; align-items: center; gap: 10px; z-index: 1; }
+        .footer-line-wrapper { flex: 1; border-top: 3px solid #000; padding-top: 5px; text-align: center; }
+        .company-details { font-size: 9px; color: #000; font-weight: 500; line-height: 1.4; }
+        .company-details .codigo-pront { font-weight: 700; color: var(--blue-data); }
+        .footer-page-number {
+            background-color: #000 !important; color: #fff !important;
+            font-size: 14px; font-weight: 400; padding: 5px 16px; margin-left: 6px;
+            display: flex; align-items: center; justify-content: center;
+            -webkit-print-color-adjust: exact; print-color-adjust: exact;
+        }
+
+        @media print {
+            .no-print { display: none !important; }
+            body { background: none; padding: 0; }
+            .page { width: 100% !important; margin: 0 !important; padding: 12mm 15mm 26mm 15mm !important; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="page">
+    <img id="watermark-logo" class="watermark-img" src="" alt="" onerror="this.style.display='none'">
+    <div class="page-content">
+
+    <!-- ========== CABEÇALHO ========== -->
+    <table class="ph-header-table">
+        <tr>
+            <td class="ph-col-logo"><img id="logo-empresa" src="" alt="Logo" onerror="this.style.display='none'"></td>
+            <td class="ph-col-title">
+                <div class="t-pt">Prontuário de Reconstituição do Vaso de Pressão</div>
+                <div class="t-en">Records of Pressure Vessel (Reconstitution)</div>
+            </td>
+            <td class="ph-col-info">
+                <div class="info-label">Código / Code</div>
+                <div class="info-value" id="ph-codigo">—</div>
+                <div class="info-label">TAG</div>
+                <div class="info-value" id="ph-tag">—</div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- ========== INFORMAÇÕES IMPORTANTES ========== -->
+    <div class="ph-banner">
+        <div class="pt">Informações Importantes</div>
+        <div class="en">Important Information</div>
+    </div>
+
+    <div class="ph-info-item">
+        <div class="titulo">1. Validade do Prontuário / Validity of the Record</div>
+        <div class="texto-pt">O presente Prontuário de Reconstituição reflete os dados técnicos, dimensionais e operacionais do equipamento na data de sua emissão, devendo ser revisado sempre que houver alteração de projeto, reparo ou reclassificação de categoria conforme a NR-13.</div>
+        <div class="texto-en">This Reconstitution Record reflects the equipment's technical, dimensional and operational data as of its issue date and must be reviewed whenever there are design changes, repairs or category reclassification in accordance with NR-13.</div>
+    </div>
+
+    <div class="ph-info-item">
+        <div class="titulo">2. Documentação do Vaso / Vessel Documentation</div>
+        <div class="texto-pt">Este documento integra o Prontuário do Vaso de Pressão, conforme item 13.4 da NR-13, e deve ser mantido junto à documentação de projeto, ao Plano de Inspeção e aos registros das inspeções de segurança anteriores.</div>
+        <div class="texto-en">This document is part of the Pressure Vessel Records, in accordance with NR-13 item 13.4, and must be kept together with the design documentation, the Inspection Plan and the records of previous safety inspections.</div>
+    </div>
+
+    <div class="ph-info-item">
+        <div class="titulo">3. Placa de Identificação / Nameplate</div>
+        <div class="texto-pt">Os dados constantes neste documento devem ser compatíveis com a placa de identificação fixada no equipamento. Qualquer divergência deve ser investigada e regularizada antes da próxima inspeção.</div>
+        <div class="texto-en">The data presented in this document must be consistent with the nameplate affixed to the equipment. Any discrepancy must be investigated and corrected before the next inspection.</div>
+    </div>
+
+    <div class="ph-info-item">
+        <div class="titulo">4. Inspeções Periódicas / Periodic Inspections</div>
+        <div class="texto-pt">As inspeções de segurança (interna, externa e teste hidrostático) devem ser realizadas dentro dos prazos máximos estabelecidos pela NR-13, observando a categoria do equipamento e as condições de operação.</div>
+        <div class="texto-en">Safety inspections (internal, external and hydrostatic test) must be performed within the maximum intervals established by NR-13, taking into account the equipment category and operating conditions.</div>
+    </div>
+
+    <div class="ph-info-item">
+        <div class="titulo">5. Alterações ou Reparos / Alterations or Repairs</div>
+        <div class="texto-pt">Qualquer alteração ou reparo que modifique as características de projeto do equipamento deve ser precedido de projeto específico, executado por profissional habilitado, e devidamente registrado neste Prontuário.</div>
+        <div class="texto-en">Any alteration or repair that changes the equipment's design characteristics must be preceded by a specific design, performed by a qualified professional, and duly recorded in this Record.</div>
+    </div>
+
+    <!-- ========== RESPONSABILIDADE TÉCNICA ========== -->
+    <div class="ph-banner">
+        <div class="pt">Responsabilidade Técnica</div>
+        <div class="en">Technical Responsibility</div>
+    </div>
+    <div class="ph-resp-box">
+        <div class="ph-resp-left">
+            O profissional abaixo identificado declara ser o responsável técnico pela elaboração deste Prontuário de Reconstituição, com base nos dados técnicos, de projeto e de inspeção disponibilizados pelo proprietário do equipamento.
+            <div class="en">The professional identified below declares to be the technical responsible for the preparation of this Reconstitution Record, based on the technical, design and inspection data provided by the equipment owner.</div>
+            <div class="info-label">Código do Prontuário / Record Code</div>
+            <div class="info-value" id="ph-codigo2">--</div>
+            <div class="info-label">Data de Emissão / Issue Date</div>
+            <div class="info-value" id="ph-data-emissao">--</div>
+        </div>
+        <div class="ph-resp-right">
+            <img id="img-assinatura-ph" src="" alt="Assinatura" style="display:none;">
+            <div class="sig-line"></div>
+            <div class="sig-data">
+                <strong>ENGENHEIRO RESPONSÁVEL</strong><br>
+                <span id="ph-nome-eng" class="data-highlight">--</span><br>
+                CREA/RNP: <span id="ph-crea-eng" class="data-highlight">--</span>
+            </div>
+        </div>
+    </div>
+
+    </div>
+
+    <!-- ========== RODAPÉ ========== -->
+    <div class="pgr-footer-new">
+        <div class="footer-line-wrapper">
+            <div class="company-details" id="ph-footer-empresa">--</div>
+        </div>
+        <div class="footer-page-number">4 / 4</div>
+    </div>
+
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const tag = urlParams.get('tag');
+        if (!tag) return;
+
+        const setVal = (id, val) => {
+            const el = document.getElementById(id);
+            if (el && val !== undefined && val !== null && val !== '') el.innerText = val;
+        };
+        const setSrc = (id, src) => {
+            const el = document.getElementById(id);
+            if (el && src) el.src = src;
+        };
+
+        const info = JSON.parse(localStorage.getItem('nr13_info_' + tag) || '{}');
+        const minhaEmpresa = JSON.parse(localStorage.getItem('nr13_minha_empresa') || '{}');
+        const meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}');
+        const listaPhs = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
+
+        // ===== CABEÇALHO / LOGO =====
+        setSrc('logo-empresa', minhaEmpresa.logo);
+        setSrc('watermark-logo', minhaEmpresa.logo);
+        setVal('ph-codigo', meta.codigo || 'A gerar após confirmação / To be generated upon confirmation');
+        setVal('ph-tag', info.tag || tag);
+
+        // ===== RESPONSABILIDADE TÉCNICA =====
+        setVal('ph-codigo2', meta.codigo || 'A gerar após confirmação / To be generated upon confirmation');
+        if (meta.dataGeracaoProntuario) {
+            setVal('ph-data-emissao', meta.dataGeracaoProntuario);
+        } else {
+            const hoje = new Date();
+            setVal('ph-data-emissao', hoje.toLocaleDateString('pt-BR'));
+        }
+
+        const engenheiro = listaPhs.find(p => p.tipo && p.tipo.startsWith('Engenheiro'));
+        if (engenheiro) {
+            setVal('ph-nome-eng', engenheiro.nome);
+            setVal('ph-crea-eng', engenheiro.crea);
+            if (engenheiro.assinatura) {
+                const img = document.getElementById('img-assinatura-ph');
+                img.src = engenheiro.assinatura;
+                img.style.display = 'block';
+            }
+        }
+
+        // ===== RODAPÉ =====
+        let footerHtml = '<strong>' + (minhaEmpresa.razao || minhaEmpresa.fantasia || '--') + '</strong><br>';
+        let endParts = [];
+        if (minhaEmpresa.endereco) endParts.push(minhaEmpresa.endereco);
+        if (minhaEmpresa.bairro) endParts.push(minhaEmpresa.bairro);
+        if (minhaEmpresa.cidade) endParts.push(minhaEmpresa.cidade + (minhaEmpresa.estado ? '/' + minhaEmpresa.estado : ''));
+        if (endParts.length) footerHtml += endParts.join(' - ') + '<br>';
+        footerHtml += 'Prontuário Nº <span class="codigo-pront">' + (meta.codigo || '—') + '</span>';
+        document.getElementById('ph-footer-empresa').innerHTML = footerHtml;
+    });
+</script>
+
+<script>
+    // =========================================================
+    // SCRIPT DE PAGINAÇÃO AUTOMÁTICA
+    // =========================================================
+    document.addEventListener('DOMContentLoaded', function() {
+        const paramPagina = new URLSearchParams(window.location.search).get('page');
+        if (paramPagina) {
+            const elPagina = document.querySelector('.footer-page-number');
+            if (elPagina) elPagina.innerText = paramPagina.trim() + ' / 4';
+        }
+    });
+</script>
+
+</body>
+</html>

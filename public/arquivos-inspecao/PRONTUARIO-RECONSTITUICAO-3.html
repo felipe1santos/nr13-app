@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prontuário de Reconstituição - Página 3</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,600;1,700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --text-dark: #111827;
+            --blue-data: #0037ad;
+            --gray-light: #9CA3AF;
+            --bg-table-header: #eff0f1;
+            --primary-blue: #0066a1;
+            --light-blue: #e6f3fb;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--text-dark);
+            background-color: #fff;
+            line-height: 1.4;
+            font-size: 11px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .page {
+            width: 100%;
+            height: 297mm;
+            background: #fff;
+            padding: 12mm 15mm 26mm 15mm;
+            position: relative;
+            page-break-after: always;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* ===== CABEÇALHO / LETTERHEAD ===== */
+        .ph-header-table { width: 100%; border-collapse: collapse; border: 1.5px solid var(--text-dark); margin-bottom: 5px; }
+        .ph-header-table td { border: 1.5px solid var(--text-dark); vertical-align: middle; padding: 6px 10px; }
+        .ph-col-logo { width: 20%; text-align: center; padding: 6px !important; }
+        .ph-col-logo img { max-height: 48px; max-width: 100%; object-fit: contain; }
+        .ph-col-title { width: 58%; text-align: center; }
+        .ph-col-title .t-pt { font-size: 13px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dark); }
+        .ph-col-title .t-en { font-size: 9px; font-style: italic; color: #666; margin-top: 2px; }
+        .ph-col-info { width: 22%; padding: 5px 10px !important; }
+        .ph-col-info .info-label { font-size: 8.5px; font-weight: 700; text-transform: uppercase; color: var(--text-dark); }
+        .ph-col-info .info-value { font-size: 10.5px; font-weight: 700; color: var(--blue-data); margin-bottom: 4px; }
+        .ph-col-info .info-value:last-child { margin-bottom: 0; }
+
+        /* ===== BANNER DE SEÇÃO ===== */
+        .ph-banner { background-color: var(--light-blue); border-left: 4px solid var(--primary-blue); border-radius: 4px; padding: 4px 10px; margin: 7px 0 4px 0; }
+        .ph-banner .pt { font-size: 11.5px; font-weight: 900; text-transform: uppercase; color: var(--primary-blue); letter-spacing: 0.5px; }
+        .ph-banner .en { font-size: 9px; font-weight: 500; color: #4a7fa5; font-style: italic; margin-top: 1px; }
+
+        /* ===== TEXTO EXPLICATIVO ===== */
+        .ph-paragrafo { font-size: 10.5px; color: var(--text-dark); text-align: justify; margin-bottom: 6px; line-height: 1.5; }
+        .ph-paragrafo .en { display: block; font-size: 9px; font-style: italic; color: #666; margin-top: 4px; }
+
+        /* ===== TABELAS ===== */
+        .content-table { width: 100%; border-collapse: collapse; text-align: center; margin-bottom: 4px; font-size: 11px; border: 1px solid #888; }
+        .content-table td { border: 1px solid #aaa; padding: 5px 7px; vertical-align: middle; }
+        .label-cell { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-dark); background-color: var(--bg-table-header); text-align: left; padding: 5px 7px !important; white-space: normal; }
+        .value-cell { font-size: 11px; font-weight: 500; color: var(--blue-data); text-align: left; padding: 5px 7px !important; }
+        .en-sub { display: block; font-size: 8px; font-style: italic; font-weight: 400; color: #888; text-transform: none; }
+
+        /* ===== STATUS (CORES SEMÂNTICAS) ===== */
+        .status-aprovado { background-color: #e6f4ea; color: #137333; font-weight: 700; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; font-size: 9.5px; }
+        .status-reprovado { background-color: #fce8e6; color: #c5221f; font-weight: 700; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; font-size: 9.5px; }
+
+        /* ===== PRESSÃO (PMTA/PTH) ===== */
+        .pressure-wrapper { display: flex; gap: 8px; margin-bottom: 4px; }
+        .pressure-block { flex: 1; border: 1px solid #888; }
+        .pressure-block table { width: 100%; border-collapse: collapse; }
+        .pressure-block .pres-title { background-color: var(--bg-table-header); font-size: 11px; font-weight: 900; text-align: center; padding: 4px; border-bottom: 1px solid #aaa; text-transform: uppercase; }
+        .pressure-block td { border: 1px solid #aaa; text-align: center; padding: 5px 6px; font-size: 11px; }
+        .col-hdr { background-color: var(--bg-table-header); font-size: 10px; font-weight: 700; text-transform: uppercase; }
+        .col-val { color: var(--blue-data); font-weight: 600; }
+
+        /* ===== MARCA D'ÁGUA ===== */
+        .watermark-img {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 78%; max-width: 78%;
+            opacity: 0.045; z-index: 0;
+            pointer-events: none;
+            -webkit-print-color-adjust: exact; print-color-adjust: exact;
+        }
+        .page-content { position: relative; z-index: 1; }
+
+        /* ===== RODAPÉ ===== */
+        .pgr-footer-new { position: absolute; bottom: 10mm; left: 15mm; right: 15mm; display: flex; align-items: center; gap: 10px; z-index: 1; }
+        .footer-line-wrapper { flex: 1; border-top: 3px solid #000; padding-top: 5px; text-align: center; }
+        .company-details { font-size: 9px; color: #000; font-weight: 500; line-height: 1.4; }
+        .company-details .codigo-pront { font-weight: 700; color: var(--blue-data); }
+        .footer-page-number {
+            background-color: #000 !important; color: #fff !important;
+            font-size: 14px; font-weight: 400; padding: 5px 16px; margin-left: 6px;
+            display: flex; align-items: center; justify-content: center;
+            -webkit-print-color-adjust: exact; print-color-adjust: exact;
+        }
+
+        @media print {
+            .no-print { display: none !important; }
+            body { background: none; padding: 0; }
+            .page { width: 100% !important; margin: 0 !important; padding: 12mm 15mm 26mm 15mm !important; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="page">
+    <img id="watermark-logo" class="watermark-img" src="" alt="" onerror="this.style.display='none'">
+    <div class="page-content">
+
+    <!-- ========== CABEÇALHO ========== -->
+    <table class="ph-header-table">
+        <tr>
+            <td class="ph-col-logo"><img id="logo-empresa" src="" alt="Logo" onerror="this.style.display='none'"></td>
+            <td class="ph-col-title">
+                <div class="t-pt">Prontuário de Reconstituição do Vaso de Pressão</div>
+                <div class="t-en">Records of Pressure Vessel (Reconstitution)</div>
+            </td>
+            <td class="ph-col-info">
+                <div class="info-label">Código / Code</div>
+                <div class="info-value" id="ph-codigo">—</div>
+                <div class="info-label">TAG</div>
+                <div class="info-value" id="ph-tag">—</div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- ========== METODOLOGIA PMTA ========== -->
+    <div class="ph-banner">
+        <div class="pt">Metodologia para Estabelecimento da PMTA</div>
+        <div class="en">Methodology for Establishment of MAWP</div>
+    </div>
+
+    <div class="ph-paragrafo">
+        A Pressão Máxima de Trabalho Admissível (PMTA) corresponde à maior pressão manométrica admissível no topo do vaso de pressão, em sua condição de operação, considerando a espessura nominal de cada componente (casco e tampos) menos as tolerâncias de fabricação e a sobrespessura de corrosão. A PMTA é calculada para cada componente pressurizado de acordo com as fórmulas do Código ASME Seção VIII, Divisão 1 (cascos cilíndricos conforme UG-27, tampos conforme UG-32/UG-34, e bocais conforme UG-37), sendo adotado como PMTA do vaso o menor valor obtido entre todos os componentes analisados. A Pressão de Teste Hidrostático (PTH) é definida como 1,3 vezes a PMTA, conforme item UG-99 do mesmo Código, e ambos os valores constituem referência para a calibração e o ajuste dos dispositivos de alívio de pressão (PSV) instalados no equipamento.
+        <span class="en">The Maximum Allowable Working Pressure (MAWP) is the maximum gauge pressure permissible at the top of the pressure vessel in its operating condition, considering the nominal thickness of each component (shell and heads) less manufacturing tolerances and corrosion allowance. The MAWP is calculated for each pressurized component in accordance with the ASME Section VIII, Division 1 Code (cylindrical shells per UG-27, heads per UG-32/UG-34, and nozzles per UG-37), and the lowest value obtained among all analyzed components is adopted as the vessel's MAWP. The Hydrostatic Test Pressure (PTH) is defined as 1.3 times the MAWP, per UG-99 of the same Code, and both values are used as reference for calibrating and setting the pressure relief devices (PSV) installed on the equipment.</span>
+    </div>
+
+    <!-- ========== RESUMO DE ESPESSURAS ========== -->
+    <div class="ph-banner">
+        <div class="pt">Resumo de Espessuras — Requerida vs. Comercial</div>
+        <div class="en">Thickness Summary — Required vs. Nominal</div>
+    </div>
+    <table class="content-table">
+        <thead>
+            <tr>
+                <td class="label-cell" style="width:34%;">COMPONENTE<span class="en-sub">Component</span></td>
+                <td class="label-cell" style="width:22%;">ESPESSURA REQUERIDA (mm)<span class="en-sub">Required Thickness</span></td>
+                <td class="label-cell" style="width:22%;">ESPESSURA COMERCIAL (mm)<span class="en-sub">Nominal Thickness</span></td>
+                <td class="label-cell" style="width:22%;">SITUAÇÃO<span class="en-sub">Status</span></td>
+            </tr>
+        </thead>
+        <tbody id="ph-resumo-corpo">
+            <tr><td class="value-cell" colspan="4" style="text-align:center;">--</td></tr>
+        </tbody>
+    </table>
+
+    <!-- ========== PRESSÕES FINAIS ========== -->
+    <div class="ph-banner">
+        <div class="pt">Pressões de Referência</div>
+        <div class="en">Reference Pressures</div>
+    </div>
+    <div class="pressure-wrapper">
+        <div class="pressure-block">
+            <div class="pres-title">PMTA</div>
+            <table>
+                <tr><td class="col-hdr">MPa</td><td class="col-hdr">psi</td><td class="col-hdr">kgf/cm²</td></tr>
+                <tr><td class="col-val" id="ph-pmta-mpa">--</td><td class="col-val" id="ph-pmta-psi">--</td><td class="col-val" id="ph-pmta-kgf">--</td></tr>
+            </table>
+        </div>
+        <div class="pressure-block">
+            <div class="pres-title">PTH</div>
+            <table>
+                <tr><td class="col-hdr">MPa</td><td class="col-hdr">psi</td><td class="col-hdr">kgf/cm²</td></tr>
+                <tr><td class="col-val" id="ph-pth-mpa">--</td><td class="col-val" id="ph-pth-psi">--</td><td class="col-val" id="ph-pth-kgf">--</td></tr>
+            </table>
+        </div>
+    </div>
+
+    <!-- ========== ESPECIFICAÇÃO DOS MATERIAIS ========== -->
+    <div class="ph-banner">
+        <div class="pt">Especificação dos Materiais</div>
+        <div class="en">Materials Specification</div>
+    </div>
+    <table class="content-table">
+        <thead>
+            <tr>
+                <td class="label-cell" style="width:24%;">COMPONENTE<span class="en-sub">Component</span></td>
+                <td class="label-cell" style="width:24%;">MATERIAL</td>
+                <td class="label-cell" style="width:13%;">S (MPa)</td>
+                <td class="label-cell" style="width:13%;">E</td>
+                <td class="label-cell" style="width:13%;">C.A. (mm)</td>
+                <td class="label-cell" style="width:13%;">ESP. COMERCIAL (mm)<span class="en-sub">Nominal Thickness</span></td>
+            </tr>
+        </thead>
+        <tbody id="ph-materiais-corpo"></tbody>
+    </table>
+
+    </div>
+
+    <!-- ========== RODAPÉ ========== -->
+    <div class="pgr-footer-new">
+        <div class="footer-line-wrapper">
+            <div class="company-details" id="ph-footer-empresa">--</div>
+        </div>
+        <div class="footer-page-number">3 / 4</div>
+    </div>
+
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const tag = urlParams.get('tag');
+        if (!tag) return;
+
+        const setVal = (id, val) => {
+            const el = document.getElementById(id);
+            if (el && val !== undefined && val !== null && val !== '') el.innerText = val;
+        };
+        const setSrc = (id, src) => {
+            const el = document.getElementById(id);
+            if (el && src) el.src = src;
+        };
+
+        const info = JSON.parse(localStorage.getItem('nr13_info_' + tag) || '{}');
+        const calc = JSON.parse(localStorage.getItem('nr13_calc_' + tag) || '{}');
+        const vasoStr = localStorage.getItem('nr13_vaso_' + tag);
+        const dados3D = vasoStr ? JSON.parse(vasoStr) : null;
+        // Shim: mapeia VasoSalvo.componentes para o formato legado estadoConstrucao
+        var _comps = (dados3D && Array.isArray(dados3D.componentes)) ? dados3D.componentes : [];
+        var _cc  = _comps.find(function(c) { return c.id === 'casco'; });
+        var _ct1 = _comps.find(function(c) { return c.id === 'tampo1'; });
+        var _ct2 = _comps.find(function(c) { return c.id === 'tampo2'; });
+        var ec = dados3D ? {
+            hasCasco: !!_cc, dadosCasco: _cc ? _cc.dados : null,
+            hasTampo1: !!_ct1, dadosTampo1: _ct1 ? _ct1.dados : null,
+            hasTampo2: !!_ct2, dadosTampo2: _ct2 ? _ct2.dados : null,
+            orientacao: dados3D.orientacao || null, bocais: {}
+        } : null;
+        const minhaEmpresa = JSON.parse(localStorage.getItem('nr13_minha_empresa') || '{}');
+        const meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}');
+
+        // Conversor de pressão a partir de um valor base em MPa (mesma lógica do PRONTUARIO.html)
+        const converterPressao = (mpaVal) => {
+            let v = parseFloat(mpaVal);
+            if (isNaN(v)) return { mpa: '--', psi: '--', kgf: '--' };
+            return {
+                mpa: v.toFixed(2).replace('.', ','),
+                psi: (v * 145.0377).toFixed(2).replace('.', ','),
+                kgf: (v * 10.19716).toFixed(2).replace('.', ',')
+            };
+        };
+
+        // ===== CABEÇALHO / LOGO =====
+        setSrc('logo-empresa', minhaEmpresa.logo);
+        setSrc('watermark-logo', minhaEmpresa.logo);
+        setVal('ph-codigo', meta.codigo || 'A gerar após confirmação / To be generated upon confirmation');
+        setVal('ph-tag', info.tag || tag);
+
+        // ===== RESUMO DE ESPESSURAS =====
+        const corpo = document.getElementById('ph-resumo-corpo');
+        let temLinha = false;
+        const addLinha = (nomePt, nomeEn, reqVal, dadosComp) => {
+            if (!dadosComp) return;
+            const req = parseFloat(reqVal);
+            const com = parseFloat(dadosComp.t_comercial);
+            let situacaoHtml = '--';
+            if (!isNaN(req) && !isNaN(com)) {
+                const aprovado = com >= req;
+                situacaoHtml = `<span class="${aprovado ? 'status-aprovado' : 'status-reprovado'}">${aprovado ? 'Aprovado / Approved' : 'Reprovado / Not Approved'}</span>`;
+            }
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="label-cell">${nomePt}<span class="en-sub">${nomeEn}</span></td>
+                <td class="value-cell" style="text-align:center;">${!isNaN(req) ? req.toFixed(2).replace('.', ',') + ' mm' : '--'}</td>
+                <td class="value-cell" style="text-align:center;">${!isNaN(com) ? com.toFixed(2).replace('.', ',') + ' mm' : '--'}</td>
+                <td style="text-align:center; padding:5px 7px; border:1px solid #aaa;">${situacaoHtml}</td>
+            `;
+            corpo.appendChild(tr);
+            temLinha = true;
+        };
+
+        if (ec) {
+            if (ec.hasCasco) addLinha('CASCO', 'Shell', calc.ecasco, ec.dadosCasco);
+            if (ec.hasTampo1) addLinha('TAMPO 1', 'Head 1', calc.etampo, ec.dadosTampo1);
+            if (ec.hasTampo2) addLinha('TAMPO 2', 'Head 2', calc.etampo, ec.dadosTampo2);
+        }
+        if (temLinha) {
+            // Remove a linha de placeholder "--" assim que ao menos um componente for adicionado
+            const placeholder = corpo.querySelector('tr td[colspan="4"]');
+            if (placeholder) placeholder.closest('tr').remove();
+        }
+
+        // ===== PRESSÕES FINAIS =====
+        const pmtaMpa = parseFloat(calc.pmta) || 0;
+        const pthMpa = parseFloat(calc.pth) || (pmtaMpa * 1.3);
+
+        if (pmtaMpa) {
+            const conv = converterPressao(pmtaMpa);
+            setVal('ph-pmta-mpa', conv.mpa);
+            setVal('ph-pmta-psi', conv.psi);
+            setVal('ph-pmta-kgf', conv.kgf);
+        }
+        if (pthMpa) {
+            const conv = converterPressao(pthMpa);
+            setVal('ph-pth-mpa', conv.mpa);
+            setVal('ph-pth-psi', conv.psi);
+            setVal('ph-pth-kgf', conv.kgf);
+        }
+
+        // ===== ESPECIFICAÇÃO DOS MATERIAIS =====
+        const corpoMat = document.getElementById('ph-materiais-corpo');
+        const addLinhaMaterial = (nomePt, nomeEn, dados) => {
+            if (!dados) return;
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="label-cell">${nomePt}<span class="en-sub">${nomeEn}</span></td>
+                <td class="value-cell">${dados.mat || '--'}</td>
+                <td class="value-cell" style="text-align:center;">${dados.S !== undefined ? String(dados.S).replace('.', ',') : '--'}</td>
+                <td class="value-cell" style="text-align:center;">${dados.E !== undefined ? String(dados.E).replace('.', ',') : '--'}</td>
+                <td class="value-cell" style="text-align:center;">${dados.ca !== undefined ? String(dados.ca).replace('.', ',') : '--'}</td>
+                <td class="value-cell" style="text-align:center;">${dados.t_comercial !== undefined && dados.t_comercial !== '' ? String(dados.t_comercial).replace('.', ',') : '--'}</td>
+            `;
+            corpoMat.appendChild(tr);
+        };
+
+        if (ec) {
+            if (ec.hasCasco) addLinhaMaterial('CASCO', 'Shell', ec.dadosCasco);
+            if (ec.hasTampo1) addLinhaMaterial('TAMPO 1', 'Head 1', ec.dadosTampo1);
+            if (ec.hasTampo2) addLinhaMaterial('TAMPO 2', 'Head 2', ec.dadosTampo2);
+            if (ec.bocais) {
+                Object.values(ec.bocais).forEach(b => addLinhaMaterial((b.nome || 'BOCAL').toUpperCase(), 'Nozzle', b));
+            }
+        }
+
+        // ===== RODAPÉ =====
+        let footerHtml = '<strong>' + (minhaEmpresa.razao || minhaEmpresa.fantasia || '--') + '</strong><br>';
+        let endParts = [];
+        if (minhaEmpresa.endereco) endParts.push(minhaEmpresa.endereco);
+        if (minhaEmpresa.bairro) endParts.push(minhaEmpresa.bairro);
+        if (minhaEmpresa.cidade) endParts.push(minhaEmpresa.cidade + (minhaEmpresa.estado ? '/' + minhaEmpresa.estado : ''));
+        if (endParts.length) footerHtml += endParts.join(' - ') + '<br>';
+        footerHtml += 'Prontuário Nº <span class="codigo-pront">' + (meta.codigo || '—') + '</span>';
+        document.getElementById('ph-footer-empresa').innerHTML = footerHtml;
+    });
+</script>
+
+<script>
+    // =========================================================
+    // SCRIPT DE PAGINAÇÃO AUTOMÁTICA
+    // =========================================================
+    document.addEventListener('DOMContentLoaded', function() {
+        const paramPagina = new URLSearchParams(window.location.search).get('page');
+        if (paramPagina) {
+            const elPagina = document.querySelector('.footer-page-number');
+            if (elPagina) elPagina.innerText = paramPagina.trim() + ' / 4';
+        }
+    });
+</script>
+
+</body>
+</html>

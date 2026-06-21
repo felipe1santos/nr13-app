@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NR-13 – Fotos do Checklist de Inspeção</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box;
+            -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        :root { --text-dark: #111827; --blue-data: #0033a2; --gray-mid: #6b7280; }
+        body { font-family: 'Inter', sans-serif; color: var(--text-dark); background: #fff;
+               font-size: 10px; line-height: 1.3; }
+        .page { width: 100%; min-height: 297mm; background: #fff; margin: 0;
+                padding: 12mm 15mm 28mm 15mm; position: relative;
+                page-break-after: always; display: flex; flex-direction: column; }
+        .hide-input { display: none; }
+
+        /* CABEÇALHO */
+        .header-table { width: 100%; border-collapse: collapse; border: 1px solid var(--text-dark); margin-bottom: 10px; }
+        .header-table td { border: 1px solid var(--text-dark); vertical-align: middle; padding: 6px 10px; }
+        .col-logo { width: 22%; text-align: center; }
+        .col-logo img { max-width: 100%; max-height: 55px; object-fit: contain; display: block; margin: 0 auto; }
+        .col-title { width: 53%; text-align: center; font-size: 13px; font-weight: 900; line-height: 1.4; }
+        .col-info { width: 25%; padding-left: 10px; }
+        .info-label { font-size: 9px; }
+        .info-value { font-size: 11px; font-weight: 700; color: var(--blue-data); margin-top: 2px; margin-bottom: 5px; }
+        .info-value:last-child { margin-bottom: 0; }
+
+        /* CONTEÚDO */
+        .content { flex: 1; padding-bottom: 26mm; }
+        .section-title { font-size: 10px; font-weight: 900; text-transform: uppercase;
+                         background: #f3f4f6; padding: 4px 8px; margin: 0 0 12px; }
+
+        /* GRID DE FOTOS — 2 colunas × 2 linhas = 4 por página */
+        .fotos-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-auto-rows: 310px;
+            gap: 10px 14px;
+            align-content: start;
+        }
+
+        .foto-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            break-inside: avoid;
+            page-break-inside: avoid;
+            height: 310px;
+        }
+        .foto-label {
+            font-size: 8.5px; font-weight: 800; text-transform: uppercase;
+            letter-spacing: 0.03em; color: var(--text-dark); background: #f9fafb;
+            padding: 4px 8px; border-bottom: 1px solid #e5e7eb;
+            flex-shrink: 0;
+        }
+        .foto-img-wrap {
+            flex: 1;
+            background: #f3f4f6;
+            padding: 4px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .foto-img-wrap img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 2px; }
+        .foto-desc-wrap { padding: 4px 6px; border-top: 1px solid #e5e7eb; flex-shrink: 0; }
+        .foto-desc-lbl { font-size: 8px; font-weight: 700; text-transform: uppercase; color: var(--gray-mid);
+                         display: block; margin-bottom: 2px; }
+        .foto-desc { width: 100%; border: none; background: transparent; resize: none; outline: none;
+                     font-family: 'Inter', sans-serif; font-size: 9px; color: var(--blue-data);
+                     height: 32px; line-height: 1.4; }
+        .foto-desc:focus { background: #fdfad2; }
+        @media print { .foto-desc:focus { background: transparent; } }
+
+        /* VAZIO */
+        .fotos-vazio { text-align: center; color: var(--gray-mid); font-size: 11px; font-weight: 500;
+                       padding: 40px 20px; border: 2px dashed #e5e7eb; border-radius: 6px; margin-top: 20px; }
+
+        /* RODAPÉ */
+        .pgr-footer { position: absolute; bottom: 10mm; left: 15mm; right: 15mm;
+                       display: flex; align-items: flex-start; }
+        .footer-line-wrapper { flex: 1; border-top: 3px solid #000; padding-top: 5px; text-align: center; }
+        .company-details { font-size: 9.5px; color: #000; font-weight: 500; line-height: 1.4; }
+        .footer-page-number { background: #000 !important; color: #fff !important; font-size: 18px;
+                               font-weight: 400; padding: 5px 18px; margin-left: 10px;
+                               display: flex; align-items: center; justify-content: center; }
+
+        .editable-image { cursor: pointer; }
+        @media screen { .editable-image:hover { outline: 2px dashed var(--blue-data); opacity: 0.85; } }
+        @media print {
+            .no-print { display: none !important; }
+            body { background: none; margin: 0; }
+            .page { margin: 0 !important; box-shadow: none !important; padding: 12mm 15mm 28mm 15mm !important; }
+            .foto-desc { color: var(--blue-data); }
+        }
+    </style>
+</head>
+<body>
+
+<input type="file" id="inputLogo" class="hide-input" accept="image/*" onchange="previewImage(this,'imgLogo')">
+
+<div id="pages-container"></div>
+
+<script>
+    var TAG = new URLSearchParams(window.location.search).get('tag') || '';
+    var PAGE_PARAM = parseInt(new URLSearchParams(window.location.search).get('page') || '1', 10);
+
+    var FOTOS_POR_PAGINA = 4;
+
+    function getFotosArray() {
+        try {
+            var dados = JSON.parse(localStorage.getItem('nr13_inspecao_atual') || '{}');
+            var cl = dados.checklist;
+            if (cl && Array.isArray(cl.fotos)) return cl.fotos;
+        } catch(e) {}
+        return [];
+    }
+
+    function previewImage(input, imgId) {
+        if (input.files && input.files[0]) {
+            var r = new FileReader();
+            r.onload = function(e) { document.getElementById(imgId).src = e.target.result; };
+            r.readAsDataURL(input.files[0]);
+        }
+    }
+
+    function escHTML(s) {
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function buildHeader(pageNum) {
+        return '<table class="header-table"><tr>' +
+            '<td class="col-logo"><div class="editable-image" onclick="document.getElementById(\'inputLogo\').click()"><img id="imgLogo' + pageNum + '" src="logo.webp" alt="Logo"></div></td>' +
+            '<td class="col-title">RELATÓRIO DE INSPEÇÃO NR-13<br>VASO SOB PRESSÃO</td>' +
+            '<td class="col-info">' +
+                '<div class="info-label">Relatório nº.</div>' +
+                '<div class="info-value" id="hdr-rel-num-' + pageNum + '">—</div>' +
+                '<div class="info-label">Data:</div>' +
+                '<div class="info-value" id="hdr-rel-data-' + pageNum + '">—</div>' +
+            '</td></tr></table>';
+    }
+
+    function buildFotoCard(foto, num) {
+        var dataUrl = foto.base64 || '';
+        var descricao = foto.descricao || '';
+        return '<div class="foto-card">' +
+            '<div class="foto-label">Foto ' + num + '</div>' +
+            '<div class="foto-img-wrap">' +
+                (dataUrl ? '<img src="' + dataUrl + '" alt="Foto ' + num + '">' : '<span style="color:#9ca3af;font-size:9px;">Sem foto</span>') +
+            '</div>' +
+            '<div class="foto-desc-wrap">' +
+                '<span class="foto-desc-lbl">Descrição</span>' +
+                '<textarea class="foto-desc" rows="2">' + escHTML(descricao) + '</textarea>' +
+            '</div>' +
+        '</div>';
+    }
+
+    function buildFooter(pageNum, idx) {
+        return '<div class="pgr-footer">' +
+            '<div class="footer-line-wrapper">' +
+                '<div class="company-details" id="footer-empresa-' + idx + '" contenteditable="true" spellcheck="false">' +
+                    '<strong>NOME DA EMPRESA LTDA.</strong><br>' +
+                    'Endereço • Bairro • Cidade/UF • CNPJ: 00.000.000/0000-00<br>' +
+                    'Telef: (00) 0000-0000 • E-mail: contato@empresa.com.br' +
+                '</div>' +
+            '</div>' +
+            '<div class="footer-page-number">' + pageNum + '</div>' +
+        '</div>';
+    }
+
+    function buildPages() {
+        var fotos = getFotosArray();
+        var container = document.getElementById('pages-container');
+
+        if (fotos.length === 0) {
+            var pg = document.createElement('div');
+            pg.className = 'page';
+            pg.innerHTML = buildHeader(1) +
+                '<div class="content"><div class="section-title">Fotos do Checklist de Inspeção</div>' +
+                '<div class="fotos-vazio">Nenhuma foto adicionada ao checklist de inspeção.<br><small>Para adicionar fotos, utilize o formulário de Checklist na seção de Inspeções.</small></div></div>' +
+                buildFooter('—', 1);
+            container.appendChild(pg);
+        } else {
+            var totalPags = Math.ceil(fotos.length / FOTOS_POR_PAGINA);
+            for (var p = 0; p < totalPags; p++) {
+                var slice = fotos.slice(p * FOTOS_POR_PAGINA, (p + 1) * FOTOS_POR_PAGINA);
+                var gridHTML = '<div class="fotos-grid">';
+                slice.forEach(function(foto, i) { gridHTML += buildFotoCard(foto, p * FOTOS_POR_PAGINA + i + 1); });
+                gridHTML += '</div>';
+                var pg = document.createElement('div');
+                pg.className = 'page';
+                pg.innerHTML = buildHeader(p + 1) +
+                    '<div class="content"><div class="section-title">Fotos do Checklist de Inspeção</div>' +
+                    gridHTML + '</div>' +
+                    buildFooter(PAGE_PARAM + p, p + 1);
+                container.appendChild(pg);
+            }
+        }
+
+        try {
+            var empresa = localStorage.getItem('nr13_minha_empresa');
+            var meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}');
+            document.querySelectorAll('[id^="imgLogo"]').forEach(function(el) {
+                if (empresa) { var d = JSON.parse(empresa); if (d.logo) el.src = d.logo; }
+            });
+            document.querySelectorAll('[id^="hdr-rel-num-"]').forEach(function(el) {
+                if (meta.codigo) el.textContent = meta.codigo;
+            });
+            document.querySelectorAll('[id^="hdr-rel-data-"]').forEach(function(el) {
+                if (meta.emissao) el.textContent = meta.emissao;
+            });
+            document.querySelectorAll('[id^="footer-empresa-"]').forEach(function(el) {
+                if (empresa) {
+                    var d = JSON.parse(empresa);
+                    var h = '<strong>' + (d.razao || d.fantasia || 'NOME DA EMPRESA') + '</strong><br>';
+                    var l2 = [d.endereco, d.bairro, (d.cidade && d.estado ? d.cidade+'/'+d.estado : ''), d.cnpj ? 'CNPJ: '+d.cnpj : ''].filter(Boolean);
+                    var l3 = [(d.telefone ? 'Telef: '+d.telefone : ''), (d.email ? 'E-mail: '+d.email : '')].filter(Boolean);
+                    if (l2.length) h += l2.join(' • ') + '<br>';
+                    if (l3.length) h += l3.join(' • ');
+                    el.innerHTML = h;
+                }
+            });
+        } catch(e) {}
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        buildPages();
+    });
+</script>
+</body>
+</html>

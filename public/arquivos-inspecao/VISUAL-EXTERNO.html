@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NR-13 - Inspeção Visual Externa</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,600;1,700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --text-dark: #111827;
+            --border-color: #000;
+            --border-box: #c7c7c7;
+            --blue-data: #0033a2;
+            --bg-table-header: #eff0f1;
+            --bg-table-sub: #f9fafb;
+            --highlight-yellow: #fdfad2;
+            --highlight-text: #000000;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--text-dark);
+            background-color: #fff;
+            margin: 0; padding: 0;
+            line-height: 1.3;
+            font-size: 11px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .page {
+            width: 100%;
+            min-height: 297mm;
+            background: #fff;
+            margin: 0;
+            padding: 15mm 15mm 30mm 15mm;
+            position: relative;
+            page-break-after: always;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── CABEÇALHO ─────────────────────────────── */
+        .header-table { width: 100%; border-collapse: collapse; border: 1px solid var(--text-dark); margin-bottom: 6px; }
+        .header-table td { border: 1px solid var(--text-dark); vertical-align: middle; }
+        .col-logo { width: 25%; text-align: center; padding: 5px; }
+        .col-logo img { max-width: 100%; max-height: 75px; object-fit: contain; display: block; margin: 0 auto; cursor: pointer; }
+        .col-title { width: 50%; text-align: center; font-size: 16px; font-weight: 800; color: var(--text-dark); line-height: 1.2; text-transform: uppercase; padding: 5px; }
+        .col-info { width: 25%; text-align: left; padding: 8px 10px; vertical-align: top; }
+        .col-info .info-label { font-size: 10px; color: var(--text-dark); margin-top: 3px; }
+        .col-info .info-label:first-child { margin-top: 0; }
+        .col-info .info-value { font-size: 12px; font-weight: 700; color: var(--blue-data); margin-top: 1px; }
+
+        /* ── GRIDS ──────────────────────────────────── */
+        .section-title {
+            font-size: 9px; font-weight: 900; margin-top: 6px; margin-bottom: 4px;
+            text-transform: uppercase; background-color: var(--bg-table-header);
+            padding: 3px 6px; color: var(--text-dark);
+        }
+
+        .f-grid { display: grid; gap: 4px; margin-bottom: 4px; }
+        .f-grid-2 { grid-template-columns: 1fr 1fr; }
+        .f-grid-3 { grid-template-columns: repeat(3, 1fr); }
+        .f-grid-4 { grid-template-columns: repeat(4, 1fr); }
+        .f-grid-1-2 { grid-template-columns: 1.5fr 1fr; }
+
+        .f { display: flex; align-items: center; border: 1px solid #ededed; background: #fff; padding: 2px 6px; min-height: 22px; }
+        .f-lbl { font-size: 8px; font-weight: 900; color: var(--text-dark); white-space: nowrap; text-transform: uppercase; margin-right: 6px; }
+        .f-val { flex: 1; font-size: 10px; font-weight: 700; color: var(--blue-data); overflow: hidden; white-space: nowrap; }
+        .f-val[contenteditable="true"]:hover { background-color: var(--highlight-yellow); outline: 1px dashed var(--blue-data); cursor: text; }
+
+        /* ── CHECKLIST TABLE ────────────────────────── */
+        .checklist-table {
+            width: 100%; border-collapse: collapse;
+            margin-bottom: 5px; font-size: 10px;
+        }
+        .checklist-table th {
+            background-color: var(--bg-table-header);
+            border: 1px solid #c7c7c7;
+            font-size: 8.5px; font-weight: 900;
+            text-transform: uppercase; padding: 3px 5px;
+            text-align: center; vertical-align: middle;
+        }
+        .checklist-table td {
+            border: 1px solid #e0e0e0;
+            padding: 0; vertical-align: middle;
+        }
+        .cl-num { text-align: center; font-weight: 700; font-size: 9px; width: 28px; padding: 2px 3px; color: #555; }
+        .cl-desc { padding: 3px 7px; font-size: 9.5px; font-weight: 500; line-height: 1.3; }
+        .cl-check { text-align: center; width: 40px; }
+        .cl-obs { padding: 2px 5px; }
+        .cl-obs-input {
+            font-family: 'Inter', sans-serif;
+            width: 100%; border: none; outline: none;
+            font-size: 9px; font-weight: 500; color: #374151;
+            background: transparent; padding: 2px 0;
+        }
+        .cl-obs-input:hover, .cl-obs-input:focus { background: var(--highlight-yellow); }
+
+        .cl-row-even { background: var(--bg-table-sub); }
+        .cl-row-odd  { background: #fff; }
+
+        /* Checkbox estilizado */
+        .chk { width: 14px; height: 14px; cursor: pointer; accent-color: var(--blue-data); }
+
+        /* ── OBSERVAÇÕES / CONCLUSÃO ────────────────── */
+        .obs-box {
+            border: 1px solid #e0e0e0; min-height: 38px;
+            padding: 4px 7px; margin-bottom: 4px; flex-shrink: 0;
+        }
+        .obs-textarea {
+            font-family: 'Inter', sans-serif;
+            width: 100%; min-height: 34px; resize: vertical;
+            border: none; outline: none;
+            font-size: 10px; font-weight: 500; color: #111827;
+            line-height: 1.5; background: transparent;
+        }
+        .obs-textarea:hover, .obs-textarea:focus { background: var(--highlight-yellow); }
+
+        .conclusao-box {
+            border: 1px solid #e0e0e0; min-height: 34px;
+            padding: 4px 7px; margin-bottom: 4px; flex-shrink: 0;
+        }
+
+        /* ── ASSINATURAS ────────────────────────────── */
+        .signature-wrapper {
+            position: absolute;
+            bottom: 28mm; right: 15mm;
+            display: flex; flex-direction: column; align-items: center;
+            width: 220px; z-index: 500;
+        }
+        .signature-wrapper-tecnico {
+            position: absolute;
+            bottom: 28mm; left: 15mm;
+            display: flex; flex-direction: column; align-items: center;
+            width: 220px; z-index: 500;
+        }
+        .select-ph-box { position: absolute; right: 0; top: -25px; z-index: 9999; }
+        .select-ph-box select { padding: 5px 8px; border-radius: 4px; border: 1px solid #9CA3AF; font-size: 10px; font-family: 'Inter', sans-serif; cursor: pointer; background-color: #f9fafb; color: #111827; font-weight: 600; outline: none; }
+        .signature-line { width: 100%; border-bottom: 1px solid #000; margin-bottom: 4px; }
+        .sig-data { font-size: 11px; line-height: 1.4; text-align: center; }
+        .data-highlight { color: var(--blue-data); font-weight: 700; font-style: normal; }
+        .sig-img { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); height: 55px; max-width: 100%; object-fit: contain; pointer-events: none; z-index: 1; }
+        .signature-wrapper.sig-excluida > *:not(.no-print),
+        .signature-wrapper-tecnico.sig-excluida > *:not(.no-print) { display: none !important; }
+
+        /* ── RODAPÉ ─────────────────────────────────── */
+        .pgr-footer-new { position: absolute; bottom: 12mm; left: 15mm; right: 15mm; display: flex; align-items: flex-start; }
+        .footer-line-wrapper { flex: 1; border-top: 3px solid #000; padding-top: 8px; text-align: center; }
+        .company-details { font-size: 11px; color: #000; font-weight: 500; line-height: 1.4; }
+        .footer-page-number { background-color: #000 !important; color: #fff !important; font-size: 20px; font-weight: 400; padding: 6px 22px; margin-left: 10px; display: flex; align-items: center; justify-content: center; }
+
+        [contenteditable="true"] { outline: none; transition: background-color 0.2s; }
+        [contenteditable="true"]:hover, [contenteditable="true"]:focus { background-color: var(--highlight-yellow); outline: 1px dashed var(--blue-data); cursor: text; }
+
+        .hide-input { display: none; }
+
+        @media print {
+            .no-print { display: none !important; }
+            body { background: none; padding: 0; display: block; }
+            .page { width: 100% !important; margin: 0 !important; padding: 15mm 15mm 30mm 15mm !important; box-shadow: none !important; border: none !important; }
+            [contenteditable="true"]:hover, textarea:hover { background-color: transparent !important; outline: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+<input type="file" id="inputLogo" class="hide-input" accept="image/*" onchange="previewLogo(this)">
+
+<div class="page">
+
+    <!-- CABEÇALHO -->
+    <table class="header-table">
+        <tr>
+            <td rowspan="2" class="col-logo">
+                <img id="imgLogo" src="logo.webp" alt="Logo" onclick="document.getElementById('inputLogo').click()" title="Clique para trocar o logo">
+            </td>
+            <td class="col-title" contenteditable="true" spellcheck="false">
+                INSPEÇÃO VISUAL EXTERNA
+            </td>
+            <td rowspan="2" class="col-info">
+                <div class="info-label">Relatório nº:</div>
+                <div class="info-value" contenteditable="true" spellcheck="false">REL-000000</div>
+                <div class="info-label">Data:</div>
+                <div class="info-value" contenteditable="true" spellcheck="false">DD/MM/AAAA</div>
+                <div class="info-label">Folha:</div>
+                <div class="info-value" contenteditable="true" spellcheck="false">1/2</div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- DADOS GERAIS -->
+    <div class="section-title">DADOS GERAIS</div>
+    <div class="f-grid f-grid-1-2">
+        <div class="f"><span class="f-lbl">CONTRATANTE</span><div class="f-val" id="inp-contratante" contenteditable="true">--</div></div>
+        <div class="f"><span class="f-lbl">RASTREABILIDADE</span><div class="f-val" id="inp-rastreabilidade" contenteditable="true">--</div></div>
+    </div>
+    <div class="f-grid f-grid-2">
+        <div class="f"><span class="f-lbl">ENDEREÇO</span><div class="f-val" id="inp-endereco" contenteditable="true">--</div></div>
+        <div class="f"><span class="f-lbl">DATA DA INSPEÇÃO</span><div class="f-val" id="inp-data" contenteditable="true">--</div></div>
+    </div>
+
+    <!-- ASPECTOS GERAIS -->
+    <div class="section-title">ASPECTOS GERAIS DO EQUIPAMENTO</div>
+    <div class="f-grid f-grid-2">
+        <div class="f"><span class="f-lbl">T.A.G. / IDENTIFICAÇÃO</span><div class="f-val" id="inp-tag" contenteditable="true">--</div></div>
+        <div class="f"><span class="f-lbl">Nº DE SÉRIE</span><div class="f-val" id="inp-serie" contenteditable="true">--</div></div>
+    </div>
+    <div class="f-grid f-grid-2">
+        <div class="f"><span class="f-lbl">TIPO DE EQUIPAMENTO</span><div class="f-val" id="inp-tipo" contenteditable="true">--</div></div>
+        <div class="f"><span class="f-lbl">FABRICANTE</span><div class="f-val" id="inp-fabricante" contenteditable="true">--</div></div>
+    </div>
+
+    <!-- CHECKLIST -->
+    <div class="section-title">ITENS DE VERIFICAÇÃO</div>
+    <table class="checklist-table">
+        <thead>
+            <tr>
+                <th style="width:28px">Nº</th>
+                <th style="text-align:left;padding-left:7px">ITEM DE VERIFICAÇÃO</th>
+                <th style="width:42px">SIM</th>
+                <th style="width:42px">NÃO</th>
+                <th style="width:160px;text-align:left;padding-left:5px">OBSERVAÇÃO</th>
+            </tr>
+        </thead>
+        <tbody id="cl-body">
+        </tbody>
+    </table>
+
+    <!-- OBSERVAÇÕES -->
+    <div class="section-title">OBSERVAÇÕES GERAIS</div>
+    <div class="obs-box">
+        <textarea class="obs-textarea" rows="3" placeholder="Registre aqui observações complementares sobre a inspeção visual externa..." spellcheck="false"></textarea>
+    </div>
+
+    <!-- CONCLUSÃO -->
+    <div class="section-title">CONCLUSÃO TÉCNICA</div>
+    <div class="conclusao-box">
+        <textarea class="obs-textarea" rows="2" placeholder="Conclusão técnica sobre as condições do equipamento inspecionado..." spellcheck="false"></textarea>
+    </div>
+
+    <!-- ASSINATURA TÉCNICO (esquerda) -->
+    <div class="signature-wrapper-tecnico" id="sig-wrapper-tecnico">
+        <div class="no-print select-ph-box">
+            <select id="select-tecnico" onchange="atualizarAssinaturaTecnico()">
+                <option value="">Assinar...</option>
+            </select>
+        </div>
+        <img id="img-assinatura-tecnico" class="sig-img" src="" alt="Assinatura Técnico" style="display:none;">
+        <div class="signature-line"></div>
+        <div class="sig-data">
+            <strong>TÉCNICO RESPONSÁVEL</strong><br>
+            <span id="nome-tecnico" class="data-highlight" contenteditable="true" spellcheck="false">Nome do Técnico</span><br>
+            Registro: <span id="crea-tecnico" class="data-highlight" contenteditable="true" spellcheck="false">000000</span>
+        </div>
+    </div>
+
+    <!-- ASSINATURA ENGENHEIRO (direita) -->
+    <div class="signature-wrapper" id="sig-wrapper-engenheiro">
+        <div class="no-print select-ph-box">
+            <select id="select-ph" onchange="atualizarAssinatura()">
+                <option value="">Assinar...</option>
+            </select>
+        </div>
+        <img id="img-assinatura-ph" class="sig-img" src="" alt="Assinatura PH" style="display:none;">
+        <div class="signature-line"></div>
+        <div class="sig-data">
+            <strong>ENGENHEIRO RESPONSÁVEL</strong><br>
+            <span id="nome-ph" class="data-highlight" contenteditable="true" spellcheck="false">Nome do Engenheiro</span><br>
+            CREA/RNP: <span id="crea-ph" class="data-highlight" contenteditable="true" spellcheck="false">ES-000000/D</span>
+        </div>
+    </div>
+
+    <!-- RODAPÉ -->
+    <div class="pgr-footer-new">
+        <div class="footer-line-wrapper">
+            <div class="company-details" id="footer-empresa" contenteditable="true" spellcheck="false">
+                <strong>NOME DA EMPRESA LTDA.</strong><br>
+                Endereço Completo • Bairro • Cidade/UF • CNPJ: 00.000.000/0000-00 • CEP: 00000-000<br>
+                Telef: (00) 0000-0000 • E-mail: contato@empresa.com.br
+            </div>
+        </div>
+        <div class="footer-page-number" contenteditable="true">13</div>
+    </div>
+</div>
+
+<script>
+    /* ── ITENS DO CHECKLIST ──────────────────────────── */
+    const ITENS = [
+        'Juntas, conexões e vedações',
+        'Elementos de fixação',
+        'Cordões de solda',
+        'Estruturas de apoio, suporte e içamento',
+        'Estrutura física do equipamento',
+        'Dispositivo(s) de drenagem',
+        'Acúmulo residual ou material',
+        'Proteção contra eletricidade estática',
+        'Iluminação',
+        'Dispositivo(s) de alívio de pressão',
+        'Indicador(es) de pressão',
+        'Sistema contra bloqueio inadvertido de dispositivo(s) de segurança',
+        'Placa de identificação',
+        'Acessibilidade e localização do equipamento',
+        'Ventilação'
+    ];
+
+    function gerarChecklist() {
+        const tbody = document.getElementById('cl-body');
+        tbody.innerHTML = '';
+        ITENS.forEach(function(item, i) {
+            const n = i + 1;
+            const cls = (i % 2 === 0) ? 'cl-row-even' : 'cl-row-odd';
+            const tr = document.createElement('tr');
+            tr.className = cls;
+            tr.innerHTML =
+                '<td class="cl-num">' + n + '</td>' +
+                '<td class="cl-desc">' + item + '</td>' +
+                '<td class="cl-check"><input type="checkbox" class="chk" id="sim-' + n + '"></td>' +
+                '<td class="cl-check"><input type="checkbox" class="chk" id="nao-' + n + '"></td>' +
+                '<td class="cl-obs"><input type="text" class="cl-obs-input" id="obs-' + n + '" placeholder="..." spellcheck="false"></td>';
+            tbody.appendChild(tr);
+
+            // SIM/NÃO mutuamente exclusivos
+            tr.querySelector('#sim-' + n).addEventListener('change', function() {
+                if (this.checked) tr.querySelector('#nao-' + n).checked = false;
+            });
+            tr.querySelector('#nao-' + n).addEventListener('change', function() {
+                if (this.checked) tr.querySelector('#sim-' + n).checked = false;
+            });
+        });
+    }
+
+    /* ── LOGO ──────────────────────────────────────── */
+    function previewLogo(input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) { document.getElementById('imgLogo').src = e.target.result; };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    /* ── AUTO-FILL EMPRESA ─────────────────────────── */
+    function preencherEmpresa() {
+        const raw = localStorage.getItem('nr13_minha_empresa');
+        if (!raw) return;
+        try {
+            const d = JSON.parse(raw);
+            if (d.logo) document.getElementById('imgLogo').src = d.logo;
+            let h = '<strong>' + (d.razao || d.fantasia || 'NOME DA EMPRESA') + '</strong><br>';
+            const l2 = [];
+            if (d.endereco) l2.push(d.endereco);
+            if (d.bairro)   l2.push(d.bairro);
+            if (d.cidade && d.estado) l2.push(d.cidade + '/' + d.estado);
+            if (d.cnpj)     l2.push('CNPJ: ' + d.cnpj);
+            if (d.cep)      l2.push('CEP: ' + d.cep);
+            if (l2.length)  h += l2.join(' • ') + '<br>';
+            const l3 = [];
+            if (d.telefone) l3.push('Telef: ' + d.telefone);
+            if (d.email)    l3.push('E-mail: ' + d.email);
+            if (l3.length)  h += l3.join(' • ');
+            document.getElementById('footer-empresa').innerHTML = h;
+        } catch(e) {}
+    }
+
+    /* ── ASSINATURA ENGENHEIRO ─────────────────────── */
+    function carregarPHsParaSelect() {
+        const sel = document.getElementById('select-ph');
+        const lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
+        if (lista.length === 0) {
+            sel.innerHTML = '<option value="">Nenhum PH cadastrado</option>';
+        } else {
+            lista.forEach(function(ph) {
+                const opt = document.createElement('option');
+                opt.value = ph.id;
+                opt.textContent = ph.nome + ' (' + ph.crea + ')';
+                sel.appendChild(opt);
+            });
+        }
+        const optEx = document.createElement('option');
+        optEx.value = 'excluir'; optEx.textContent = 'Excluir Assinatura';
+        optEx.style.color = '#dc2626'; optEx.style.fontWeight = '700';
+        sel.appendChild(optEx);
+    }
+
+    function atualizarAssinatura() {
+        const sel = document.getElementById('select-ph');
+        const wrapper = document.getElementById('sig-wrapper-engenheiro');
+        if (sel.value === 'excluir') { wrapper.classList.add('sig-excluida'); return; }
+        wrapper.classList.remove('sig-excluida');
+        const lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
+        const ph = lista.find(function(p) { return p.id == sel.value; });
+        const img = document.getElementById('img-assinatura-ph');
+        if (ph) {
+            document.getElementById('nome-ph').textContent = ph.nome;
+            document.getElementById('crea-ph').textContent = ph.crea;
+            if (ph.assinatura) { img.src = ph.assinatura; img.style.display = 'block'; }
+            else { img.style.display = 'none'; img.src = ''; }
+        } else {
+            document.getElementById('nome-ph').textContent = 'Nome do Engenheiro';
+            document.getElementById('crea-ph').textContent = 'ES-000000/D';
+            img.style.display = 'none'; img.src = '';
+        }
+    }
+
+    /* ── ASSINATURA TÉCNICO ────────────────────────── */
+    function carregarTecnicosParaSelect() {
+        const sel = document.getElementById('select-tecnico');
+        sel.innerHTML = '<option value="">Assinar...</option>';
+        const lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
+        lista.filter(function(p) { return p.tipo && p.tipo.startsWith('Inspetor'); }).forEach(function(ph) {
+            const opt = document.createElement('option');
+            opt.value = ph.id;
+            opt.textContent = ph.nome + (ph.crea ? ' (' + ph.crea + ')' : '');
+            sel.appendChild(opt);
+        });
+        const optEx = document.createElement('option');
+        optEx.value = 'excluir'; optEx.textContent = 'Excluir Assinatura';
+        optEx.style.color = '#dc2626'; optEx.style.fontWeight = '700';
+        sel.appendChild(optEx);
+    }
+
+    function atualizarAssinaturaTecnico() {
+        const sel = document.getElementById('select-tecnico');
+        const wrapper = document.getElementById('sig-wrapper-tecnico');
+        if (sel.value === 'excluir') { wrapper.classList.add('sig-excluida'); return; }
+        wrapper.classList.remove('sig-excluida');
+        const lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
+        const ph = lista.find(function(p) { return String(p.id) === String(sel.value); });
+        const img = document.getElementById('img-assinatura-tecnico');
+        if (ph) {
+            document.getElementById('nome-tecnico').textContent = ph.nome;
+            document.getElementById('crea-tecnico').textContent = ph.crea || '';
+            if (ph.assinatura) { img.src = ph.assinatura; img.style.display = 'block'; }
+            else { img.style.display = 'none'; img.src = ''; }
+        } else {
+            document.getElementById('nome-tecnico').textContent = 'Nome do Técnico';
+            document.getElementById('crea-tecnico').textContent = '000000';
+            img.style.display = 'none'; img.src = '';
+        }
+    }
+
+    /* ── AUTO-FILL TAG (URL) ────────────────────────── */
+    (function preencherTag() {
+        const tag = new URLSearchParams(window.location.search).get('tag');
+        if (tag) document.getElementById('inp-tag').textContent = tag;
+    })();
+
+    /* ── INJEÇÃO DE DADOS DO CONTAINER ──────────────── */
+    function injetarDadosVE() {
+        try {
+            var raw = localStorage.getItem('nr13_injecao_atual');
+            if (!raw) return;
+            var injecao = JSON.parse(raw);
+            var dados = injecao['visual_externo'];
+            if (!dados) return;
+
+            function inj(id, val) {
+                if (!val) return;
+                var el = document.getElementById(id);
+                if (!el) return;
+                if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') el.value = val;
+                else el.textContent = val;
+            }
+
+            inj('inp-contratante', dados.contratante);
+            inj('inp-rastreabilidade', dados.rastreabilidade);
+            inj('inp-endereco', dados.endereco);
+            inj('inp-data', dados.dataInspecao);
+            var tagVal = dados.tag || new URLSearchParams(window.location.search).get('tag') || '';
+            var tagEl = document.getElementById('inp-tag');
+            if (tagEl && tagVal) tagEl.textContent = tagVal;
+            inj('inp-serie', dados.serie);
+            inj('inp-tipo', dados.tipoEquipamento);
+            inj('inp-fabricante', dados.fabricante);
+
+            if (dados.itens) {
+                for (var n = 1; n <= 15; n++) {
+                    var val = dados.itens[String(n)];
+                    var simEl = document.getElementById('sim-' + n);
+                    var naoEl = document.getElementById('nao-' + n);
+                    var obsEl = document.getElementById('obs-' + n);
+                    if (simEl) simEl.checked = (val === 'sim');
+                    if (naoEl) naoEl.checked = (val === 'nao');
+                    if (obsEl && dados.itemObs && dados.itemObs[String(n)]) obsEl.value = dados.itemObs[String(n)];
+                }
+            }
+
+            var textareas = document.querySelectorAll('.obs-textarea');
+            if (textareas[0] && dados.observacoes) textareas[0].value = dados.observacoes;
+            if (textareas[1] && dados.conclusao) textareas[1].value = dados.conclusao;
+        } catch(e) {
+            console.error('Injeção VE falhou:', e);
+        }
+    }
+
+    /* ── INIT ───────────────────────────────────────── */
+    document.addEventListener('DOMContentLoaded', function() {
+        gerarChecklist();
+        preencherEmpresa();
+        carregarPHsParaSelect();
+        carregarTecnicosParaSelect();
+        injetarDadosVE();
+    });
+</script>
+</body>
+</html>

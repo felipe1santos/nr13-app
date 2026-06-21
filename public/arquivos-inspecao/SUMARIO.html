@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NR-13 - Sumário - Sistema Editável</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,600;1,700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --text-dark: #111827;     
+            --text-muted: #4B5563;    
+            --bg-grey: #F3F4F6;       
+            --bg-dark-grey: #E5E7EB;
+            --border-color: #4B5563;  
+            --blue-data: #0051ff;     
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        /* =========================================
+           RESET PADRÃO (EXATAMENTE COMO A CAPA)
+           ========================================= */
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--text-dark);
+            background-color: #fff;
+            margin: 0;
+            padding: 0;
+            line-height: 1.4;
+            font-size: 11px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .page {
+            width: 100%; 
+            min-height: 297mm;
+            background-color: #fff;
+            margin: 0; 
+            padding: 15mm 15mm 25mm 15mm; 
+            box-sizing: border-box;
+            box-shadow: none; 
+            border: none; 
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .data-highlight {
+            color: var(--blue-data);
+            font-weight: 700;
+            font-style: normal;
+        }
+
+        /* =========================================
+           CABEÇALHO REORGANIZADO
+           ========================================= */
+        .header-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid var(--text-dark);
+            margin-bottom: 40px; 
+        }
+        .header-table td {
+            border: 1px solid var(--text-dark);
+            vertical-align: middle;
+        }
+        
+        .td-logo { 
+            width: 25%; 
+            text-align: center; 
+            padding: 10px; 
+        }
+        .td-logo img {
+            max-width: 100%;
+            max-height: 75px; 
+            object-fit: contain; 
+            display: block;
+            margin: 0 auto; 
+        }
+
+        .td-title { 
+            text-align: center; 
+            font-size: 16px; 
+            font-weight: 900; 
+            padding: 12px 10px; 
+            text-transform: uppercase; 
+            color: var(--text-dark);
+        }
+
+        .td-info { 
+            padding: 5px 10px; 
+            text-align: center; 
+        }
+        
+        .td-info-right {
+            width: 25%;
+            padding: 6px 15px;
+            text-align: left;
+        }
+
+        .info-label { 
+            font-size: 11px; 
+            color: var(--text-dark); 
+            font-weight: 400; 
+        }
+        .info-value { 
+            font-size: 12px; 
+            font-weight: 700; 
+            color: var(--blue-data); 
+            margin-top: 1px;
+        }
+        
+        .right-info-block {
+            margin-bottom: 4px;
+        }
+        .right-info-block:last-child {
+            margin-bottom: 0;
+        }
+
+        /* =========================================
+           CONTEÚDO ESPECÍFICO DO SUMÁRIO
+           ========================================= */
+        .content-container { flex-grow: 1; padding: 0 5px; }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 900;
+            margin-top: 10px;
+            margin-bottom: 30px;
+            text-align: center;
+            text-transform: uppercase;
+            text-decoration: underline;
+        }
+
+        .toc-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .toc-item {
+            display: flex;
+            align-items: flex-end;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .toc-text {
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
+        .toc-dots {
+            flex-grow: 1;
+            border-bottom: 1px dotted #000;
+            margin: 0 5px;
+            position: relative;
+            top: -4px;
+        }
+
+        .toc-page {
+            white-space: nowrap;
+            min-width: 20px;
+            text-align: right;
+        }
+
+        /* =========================================
+           RODAPÉ COM PAGINAÇÃO
+           ========================================= */
+        .pgr-footer-new {
+            position: absolute;
+            bottom: 12mm;
+            left: 15mm;
+            right: 15mm;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .footer-line-wrapper {
+            flex: 1;
+            border-top: 3px solid #000;
+            padding-top: 8px;
+            text-align: center;
+        }
+        
+        .company-details {
+            font-size: 11px;
+            color: #000;
+            font-weight: 500;
+            line-height: 1.4;
+        }
+
+        .footer-page-number {
+            background-color: #000 !important; 
+            color: #fff !important;
+            font-size: 20px;
+            font-weight: 400;
+            padding: 6px 22px;
+            margin-left: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        /* =========================================
+           CONFIGURAÇÕES DE IMPRESSÃO E EDIÇÃO
+           ========================================= */
+        .hide-input { display: none; }
+        
+        @media screen {
+            [contenteditable="true"]:hover {
+                outline: 1px dashed var(--blue-data);
+                background-color: #f7d720; 
+                cursor: text;
+            }
+            .editable-image {
+                cursor: pointer;
+                transition: opacity 0.2s;
+            }
+            .editable-image:hover {
+                outline: 2px dashed var(--blue-data);
+                opacity: 0.8;
+            }
+        }
+        
+        @media print {
+            .no-print { display: none !important; }
+            @page { margin: 0; }
+            body { 
+                background: none; 
+                margin: 0;
+                padding: 0;
+            }
+            .page { 
+                width: 100% !important; 
+                margin: 0 !important; 
+                padding: 15mm 15mm 25mm 15mm !important; 
+                box-shadow: none !important; 
+                border: none !important; 
+            }
+            [contenteditable="true"]:hover { background-color: transparent !important; color: inherit !important; font-weight: inherit !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <input type="file" id="inputLogo" class="hide-input" accept="image/*" onchange="previewImage(this, 'imgLogo')">
+
+    <div class="page">
+        <table class="header-table">
+            <tr>
+                <td rowspan="2" class="td-logo">
+                     <div class="logo-placeholder editable-image" onclick="document.getElementById('inputLogo').click()" title="Clique para alterar a Logo">
+                        <img id="imgLogo" src="logo.webp" alt="Logo da Empresa">
+                     </div>
+                </td>
+                <td class="td-title" contenteditable="true">
+                    RELATÓRIO DE INSPEÇÃO NR-13<br>SUMÁRIO GERAL
+                </td>
+                <td rowspan="2" class="td-info-right">
+                    <div class="right-info-block">
+                        <div class="info-label">Relatório nº.</div>
+                        <div class="info-value" contenteditable="true">ME 2204173</div>
+                    </div>
+                    <div class="right-info-block">
+                        <div class="info-label">Data de Emissão:</div>
+                        <div class="info-value" contenteditable="true">05/04/2026</div>
+                    </div>
+                    <div class="right-info-block">
+                        <div class="info-label">Validade:</div>
+                        <div class="info-value" contenteditable="true">05/04/2028</div>
+                    </div>
+                </td>
+            </tr>
+            <tr>
+                <td class="td-info">
+                    <span class="info-label" style="text-transform: uppercase; font-weight: 800;">TAG:</span>
+                    <span class="info-value" contenteditable="true" style="margin-right: 8px;">--</span>
+                    <span style="font-weight: 800; color: var(--text-dark); margin-right: 8px;">/</span>
+                    <span class="info-label" style="text-transform: uppercase; font-weight: 800;">Local:</span>
+                    <span class="info-value" contenteditable="true">--</span>
+                </td>
+            </tr>
+        </table>
+        
+        <div class="content-container">
+            <div class="section-title" contenteditable="true">SUMÁRIO</div>
+
+            <div class="toc-container">
+                <div class="toc-item"><span class="toc-text" contenteditable="true">1 OBJETIVO</span><span class="toc-dots"></span><span class="toc-page" contenteditable="true">3</span></div>
+                <div class="toc-item"><span class="toc-text" contenteditable="true">2 DOCUMENTOS DE REFERÊNCIA</span><span class="toc-dots"></span><span class="toc-page" contenteditable="true">3</span></div>
+                <div class="toc-item"><span class="toc-text" contenteditable="true">3 IDENTIFICAÇÃO DO EQUIPAMENTO</span><span class="toc-dots"></span><span class="toc-page" contenteditable="true">4</span></div>
+                <div class="toc-item"><span class="toc-text" contenteditable="true">4 DADOS TÉCNICOS DO EQUIPAMENTO</span><span class="toc-dots"></span><span class="toc-page" contenteditable="true">4</span></div>
+                <div class="toc-item"><span class="toc-text" contenteditable="true">5 EXAMES REALIZADOS</span><span class="toc-dots"></span><span class="toc-page" contenteditable="true">5</span></div>
+                <div class="toc-item"><span class="toc-text" contenteditable="true">5.1 VERIFICAÇÃO DA DOCUMENTAÇÃO</span><span class="toc-dots"></span><span class="toc-page" contenteditable="true">5</span></div>
+                <div class="toc-item"><span class="toc-text" contenteditable="true">5.2 EXAME EXTERNO</span><span class="toc-dots"></span><span class="toc-page" contenteditable="true">6</span></div>
+                <div class="toc-item"><span class="toc-text" contenteditable="true">5.3 EXAME INTERNO</span><span class="toc-dots"></span><span class="toc-page" contenteditable="true">8</span></div>
+                <div class="toc-item"><span class="toc-text" contenteditable="true">5.4 MEDIÇÃO DE ESPESSURAS POR ULTRASSOM</span><span class="toc-dots"></span><span class="toc-page" contenteditable="true">10</span></div>
+                <div class="toc-item"><span class="toc-text" contenteditable="true">5.5 MEMÓRIA DE CÁLCULO DA PMTA</span><span class="toc-dots"></span><span class="toc-page" contenteditable="true">12</span></div>
+                <div class="toc-item"><span class="toc-text" contenteditable="true">6 REGISTROS FOTOGRÁFICOS</span><span class="toc-dots"></span><span class="toc-page" contenteditable="true">14</span></div>
+                <div class="toc-item"><span class="toc-text" contenteditable="true">8 RECOMENDAÇÕES FINAIS - PROVIDÊNCIAS NECESSÁRIAS</span><span class="toc-dots"></span><span class="toc-page" contenteditable="true">15</span></div>
+                <div class="toc-item"><span class="toc-text" contenteditable="true">9 SUGESTÕES DE ADEQUAÇÕES – NÃO OBRIGATÓRIAS</span><span class="toc-dots"></span><span class="toc-page" contenteditable="true">15</span></div>
+                <div class="toc-item"><span class="toc-text" contenteditable="true">10 PARECER TÉCNICO CONCLUSIVO</span><span class="toc-dots"></span><span class="toc-page" contenteditable="true">16</span></div>
+                <div class="toc-item"><span class="toc-text" contenteditable="true">11 DATA PARA PRÓXIMA INSPEÇÃO</span><span class="toc-dots"></span><span class="toc-page" contenteditable="true">16</span></div>
+                <div class="toc-item"><span class="toc-text" contenteditable="true">12 ANEXO I - PLACA DE IDENTIFICAÇÃO</span><span class="toc-dots"></span><span class="toc-page" contenteditable="true">17</span></div>
+            </div>
+        </div>
+
+        <div class="pgr-footer-new">
+            <div class="footer-line-wrapper">
+                <div class="company-details" id="footer-empresa" contenteditable="true">
+                    <strong>NOME DA EMPRESA LTDA.</strong><br>
+                    Endereço Completo • Bairro • Cidade/UF • CNPJ: 00.000.000/0000-00 • CEP: 00000-000<br>
+                    Telef: (00) 0000-0000 • E-mail: contato@empresa.com.br
+                </div>
+            </div>
+            <div class="footer-page-number">
+                2
+            </div>
+        </div>
+    </div>
+
+    <script>
+
+        // =========================================================
+    // SCRIPT DE PAGINAÇÃO AUTOMÁTICA DINÂMICA <3
+    // =========================================================
+    document.addEventListener('DOMContentLoaded', function() {
+        // Captura o número da página enviado pela URL do relatorios.js
+        const paramPagina = new URLSearchParams(window.location.search).get('page');
+        
+        if (paramPagina) {
+            // Localiza a div do rodapé
+            const elPagina = document.querySelector('.footer-page-number');
+            if (elPagina) {
+                elPagina.innerText = paramPagina.trim();
+            }
+        }
+    });
+
+        // Função original para o usuário trocar a logo manualmente se quiser
+        function previewImage(input, imgId) {
+            if (input.files && input.files[0]) {
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById(imgId).src = e.target.result;
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        // =========================================================
+        // SCRIPT PARA PUXAR DADOS DA EMPRESA AUTOMATICAMENTE
+        // =========================================================
+        document.addEventListener("DOMContentLoaded", function() {
+            // Busca os dados salvos no localStorage (vindos da tela de configuração)
+            const salvo = localStorage.getItem('nr13_minha_empresa');
+            
+            if (salvo) {
+                const dados = JSON.parse(salvo);
+
+                // 1. Preenche a Logo (se existir)
+                if (dados.logo) {
+                    document.getElementById('imgLogo').src = dados.logo;
+                }
+
+                // 2. Prepara e preenche o texto do rodapé
+                let footerHTML = `<strong>${dados.razao || dados.fantasia || 'NOME DA EMPRESA NÃO INFORMADO'}</strong><br>`;
+                
+                // Monta a segunda linha: Endereço • Bairro • Cidade/Estado • CNPJ • CEP
+                let linha2 = [];
+                if(dados.endereco) linha2.push(dados.endereco);
+                if(dados.bairro) linha2.push(dados.bairro);
+                if(dados.cidade && dados.estado) linha2.push(`${dados.cidade}/${dados.estado}`);
+                if(dados.cnpj) linha2.push(`CNPJ: ${dados.cnpj}`);
+                if(dados.cep) linha2.push(`CEP: ${dados.cep}`);
+                
+                if (linha2.length > 0) {
+                    footerHTML += linha2.join(' • ') + `<br>`;
+                }
+
+                // Monta a terceira linha: Telefone e Email
+                let linha3 = [];
+                if(dados.telefone) linha3.push(`Telef: ${dados.telefone}`);
+                if(dados.email) linha3.push(`E-mail: ${dados.email}`);
+                
+                if (linha3.length > 0) {
+                    footerHTML += linha3.join(' • ');
+                }
+
+                // Injeta o HTML no rodapé
+                document.getElementById('footer-empresa').innerHTML = footerHTML;
+            }
+        });
+
+
+
+
+
+
+
+
+
+
+
+        // =========================================================
+        // SUMÁRIO DINÂMICO — gera TOC a partir dos docs selecionados
+        // =========================================================
+        (function() {
+            const MAPA_DOCS = {
+                'CAPA.html':                        'Capa',
+                'SUMARIO.html':                     'Sumário',
+                'PLACA.html':                       'Anexo I — Placa de Identificação',
+                'PRONTUARIO.html':                  'Prontuário',
+                'CLASSIFICACAO-RISCO.html':         'Classificação de Risco',
+                'RESUMO-MEMORIAL.html':             'Resumo do Memorial de Cálculo',
+                'MEMORIAL1.html':                   'Memória de Cálculo — Parte 1',
+                'MEMORIAL2.html':                   'Memória de Cálculo — Parte 2',
+                'MEMORIAL3.html':                   'Memória de Cálculo — Parte 3',
+                'INSPECOES.html':                   'Resultado das Inspeções',
+                'VERIFICACAO-DOCUMENTACAO.html':    'Verificação da Documentação',
+                'checklist1.html':                  'Checklist — Parte 1',
+                'checklist2.html':                  'Checklist — Parte 2',
+                'checklist3.html':                  'Checklist — Parte 3',
+                'CONCLUSAO.html':                   'Parecer Técnico Conclusivo',
+                'ULTRASSOM.html':                   'Ensaio de Espessura por Ultrassom',
+                'TESTE-HIDROSTATICO.html':          'Teste Hidrostático',
+                'CERTIFICADO-CAL-MANOMETRO.html':   'Anexo II — Calibração de Manômetro',
+                'CERTIIFCADO-CAL-PSV.html':         'Anexo III — Calibração PSV',
+                'LIVRO-REGISTRO.html':              'Livro de Registro de Segurança',
+                'TERMO-ABERTURA.html':              'Termo de Abertura do Livro de Registro',
+            };
+
+            function gerarTOC() {
+                const metaRaw = localStorage.getItem('nr13_relatorio_meta_atual');
+                if (!metaRaw) return;
+                const meta = JSON.parse(metaRaw);
+                const docs = meta.documentos;
+                if (!docs || docs.length === 0) return;
+
+                const tocContainer = document.querySelector('.toc-container');
+                if (!tocContainer) return;
+
+                tocContainer.innerHTML = '';
+                docs.forEach((entry, idx) => {
+                    const base = entry.split('?')[0];
+                    let label = MAPA_DOCS[base] || base;
+                    const matchLivro = entry.match(/livro_pagina=(\d+)&livro_total=(\d+)/);
+                    if (matchLivro) label += ' (Página ' + matchLivro[1] + ' de ' + matchLivro[2] + ')';
+                    const pagina = idx + 1;
+
+                    const item = document.createElement('div');
+                    item.className = 'toc-item';
+                    item.innerHTML = '<span class="toc-text">' + label.toUpperCase() + '</span><span class="toc-dots"></span><span class="toc-page">' + pagina + '</span>';
+                    tocContainer.appendChild(item);
+                });
+            }
+
+            document.addEventListener('DOMContentLoaded', gerarTOC);
+        })();
+
+    </script>
+</body>
+</html>

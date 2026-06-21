@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Prontuário do Vaso de Pressão — Folha 3</title>
+    <!-- KaTeX para renderizar as fórmulas do memorial -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: Arial, Helvetica, sans-serif; background: #fff; color: #000; font-size: 12px; }
+        .a4-page { background: #fff; width: 210mm; height: 297mm; padding: 12mm 15mm; position: relative; overflow: hidden; display: flex; flex-direction: column; }
+        .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-20deg); width: 70%; opacity: 0.07; z-index: 0; pointer-events: none; }
+        .watermark-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-20deg); font-size: 80px; font-weight: 900; color: #003366; opacity: 0.04; z-index: 0; pointer-events: none; white-space: nowrap; text-transform: uppercase; }
+        .content-wrapper { position: relative; z-index: 1; display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+        .header-container { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; flex-shrink: 0; }
+        .header-text { flex: 1; padding-right: 16px; }
+        h1 { font-size: 15px; text-align: center; text-transform: uppercase; margin-bottom: 6px; }
+        .intro-text { text-align: justify; font-size: 9.5px; line-height: 1.35; }
+        .logo-img { max-width: 100px; height: auto; object-fit: contain; }
+
+        .section-title { background-color: #003366; color: #fff; padding: 5px 8px; font-size: 11px; font-weight: bold; text-align: center; margin-bottom: 8px; flex-shrink: 0; }
+        .intro-metodologia { font-size: 9.5px; line-height: 1.4; text-align: justify; margin-bottom: 6px; flex-shrink: 0; }
+
+        /* Container do cálculo dinâmico */
+        .calc-scroll { flex: 1; overflow: hidden; column-count: 2; column-gap: 18px; }
+
+        /* Estilos das linhas do log */
+        .log-secao { break-inside: avoid; margin-bottom: 6px; }
+        .log-secao-titulo { font-weight: bold; font-size: 9.5px; color: #003366; background: #e8eef5; padding: 3px 6px; border-left: 3px solid #003366; margin-bottom: 4px; }
+        .log-norma { font-size: 7.5px; color: #666; font-style: italic; margin-bottom: 2px; padding-left: 4px; }
+        .log-params { font-size: 8px; font-family: 'Courier New', monospace; color: #333; line-height: 1.45; margin-bottom: 4px; padding-left: 4px; }
+        .log-param-linha { display: block; }
+        .log-katex { text-align: center; margin: 3px 0; break-inside: avoid; }
+        .log-katex .katex { font-size: 0.82em; }
+        .log-katex .katex-display { margin: 2px 0; }
+        .log-divider { border: 0; border-top: 1px solid #ddd; margin: 5px 0; }
+        .log-resultado { font-size: 9px; padding: 3px 6px; border-radius: 2px; margin: 3px 0; break-inside: avoid; }
+        .log-resultado.ok { background: #e6f4ea; color: #188038; border-left: 3px solid #188038; }
+        .log-resultado.erro { background: #fce8e6; color: #d93025; border-left: 3px solid #d93025; }
+        .log-pmta-final { font-size: 11px; font-weight: bold; color: #003366; text-decoration: underline; padding: 4px 6px; break-inside: avoid; column-span: all; text-align: center; margin-top: 6px; border-top: 1px solid #003366; }
+        .log-html-line { font-size: 8.5px; margin: 2px 0; }
+        .sem-calculo { font-size: 10px; color: #888; font-style: italic; text-align: center; padding: 20px; }
+
+        .footer-container { display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 8px; border-top: 1px solid #ccc; flex-shrink: 0; }
+        .footer-text { flex: 1; text-align: center; font-size: 8.5px; line-height: 1.35; padding-left: 16px; }
+        @media print { body { background: #fff; } .a4-page { box-shadow: none; width: 100%; height: 100%; } }
+    </style>
+</head>
+<body>
+<div class="a4-page">
+    <img id="img-watermark" class="watermark" alt="" style="display:none">
+    <div id="wm-text" class="watermark-text">PRONTUÁRIO</div>
+
+    <div class="content-wrapper">
+        <div class="header-container">
+            <div class="header-text">
+                <h1>Prontuário do Vaso de Pressão</h1>
+                <p class="intro-text">Memorial de cálculo conforme ASME Seção VIII Divisão 1 — Metodologia para estabelecimento da Pressão Máxima de Trabalho Admissível (PMTA) e verificação das espessuras mínimas requeridas.</p>
+            </div>
+            <img id="img-logo" class="logo-img" alt="Logo" style="display:none">
+        </div>
+
+        <div class="section-title">Metodologia para Estabelecimento da PMTA e Espessuras Mínimas</div>
+
+        <p class="intro-metodologia">
+            O código de projeto define a PMTA como o maior valor permissível para a pressão, medida no topo do vaso, na sua posição normal de trabalho. Será o menor valor das PMTA's calculadas para as diversas partes do vaso. As espessuras mínimas requeridas são calculadas conforme ASME Sec. VIII Div. 1. Equipamento TAG: <strong id="val-tag">—</strong> | Pressão de Projeto: <strong id="val-pressaoProjeto">—</strong>
+        </p>
+
+        <!-- Container do cálculo — preenchido dinamicamente -->
+        <div class="calc-scroll" id="memorial-calc-container">
+            <div class="sem-calculo">Nenhum cálculo encontrado para este equipamento. Acesse o Memorial de Cálculo e execute o cálculo para que ele seja exibido aqui.</div>
+        </div>
+
+        <div class="footer-container">
+            <img id="img-logo-rodape" class="logo-img" alt="Logo" style="display:none">
+            <div class="footer-text">
+                <p><strong>Obs.:</strong> Esse Prontuário do vaso de pressão é de propriedade da respectiva empresa emissora.</p>
+                <p>É proibida a reprodução e/ou publicação deste sem a devida autorização da empresa.</p>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var raw = localStorage.getItem('nr13_prontuario_atual');
+    if (!raw) return;
+    var d; try { d = JSON.parse(raw); } catch(e) { return; }
+
+    // Logo
+    var logo = d.logo;
+    if (!logo) { try { var emp = JSON.parse(localStorage.getItem('nr13_minha_empresa')||'{}'); logo = emp.logo; } catch(_){} }
+    if (logo) {
+        [document.getElementById('img-logo'), document.getElementById('img-logo-rodape'), document.getElementById('img-watermark')].forEach(function(img){ if(img){ img.src=logo; img.style.display='block'; } });
+        var wm = document.getElementById('wm-text'); if (wm) wm.style.display='none';
+    }
+
+    function vt(id, val) { var el = document.getElementById(id); if (el && val) el.textContent = val; }
+    vt('val-tag', d.tag);
+    vt('val-pressaoProjeto', d.pressaoProjeto);
+
+    // Carregar logCalculo do cálculo salvo
+    if (!d.tag) return;
+    var calcRaw = localStorage.getItem('nr13_calc_' + d.tag);
+    if (!calcRaw) return;
+    var calc; try { calc = JSON.parse(calcRaw); } catch(_) { return; }
+    if (!calc || !calc.logCalculo || calc.logCalculo.length === 0) return;
+
+    var container = document.getElementById('memorial-calc-container');
+    if (!container) return;
+    container.innerHTML = '';
+
+    renderLog(calc.logCalculo, container, calc.pmta);
+});
+
+function renderLog(log, container, pmtaFinal) {
+    var linhasParam = [];
+    var secaoAtual = null;
+    var linhasKatex = [];
+
+    function flushSecao() {
+        if (!secaoAtual && linhasParam.length === 0 && linhasKatex.length === 0) return;
+        var bloco = document.createElement('div');
+        bloco.className = 'log-secao';
+
+        if (secaoAtual) {
+            var titulo = document.createElement('div');
+            titulo.className = 'log-secao-titulo';
+            titulo.textContent = secaoAtual.titulo;
+            bloco.appendChild(titulo);
+            if (secaoAtual.norma) {
+                var norma = document.createElement('div');
+                norma.className = 'log-norma';
+                norma.textContent = secaoAtual.norma;
+                bloco.appendChild(norma);
+            }
+        }
+
+        if (linhasParam.length > 0) {
+            var params = document.createElement('div');
+            params.className = 'log-params';
+            linhasParam.forEach(function(l) {
+                var s = document.createElement('span');
+                s.className = 'log-param-linha';
+                s.textContent = l;
+                params.appendChild(s);
+            });
+            bloco.appendChild(params);
+        }
+
+        linhasKatex.forEach(function(item) {
+            bloco.appendChild(item);
+        });
+
+        container.appendChild(bloco);
+        secaoAtual = null;
+        linhasParam = [];
+        linhasKatex = [];
+    }
+
+    log.forEach(function(linha) {
+        var trimmed = linha.trim();
+
+        // Linha vazia
+        if (trimmed === '' || trimmed === ' ') return;
+
+        // Fórmula KaTeX $$...$$
+        if (trimmed.startsWith('$$') && trimmed.endsWith('$$')) {
+            var latex = trimmed.slice(2, -2).trim();
+            var katexEl = document.createElement('div');
+            katexEl.className = 'log-katex';
+            try {
+                katexEl.innerHTML = window.katex ? window.katex.renderToString(latex, { throwOnError: false, displayMode: true }) : '<code>' + latex + '</code>';
+            } catch(_) {
+                katexEl.innerHTML = '<code>' + latex + '</code>';
+            }
+            linhasKatex.push(katexEl);
+            return;
+        }
+
+        // Comentário //
+        if (trimmed.startsWith('//')) {
+            var texto = trimmed.slice(2).trim();
+
+            // Divisor ====
+            if (/^=+$/.test(texto)) {
+                flushSecao();
+                return;
+            }
+
+            // Título de seção
+            if (texto.startsWith('MEMORIAL DE CÁLCULO:') || texto.startsWith('CÁLCULO:')) {
+                flushSecao();
+                secaoAtual = { titulo: texto.replace(/^MEMORIAL DE CÁLCULO:\s*/, '').replace(/^CÁLCULO:\s*/, ''), norma: '' };
+                return;
+            }
+
+            // Norma base
+            if (texto.startsWith('Norma Base:')) {
+                if (secaoAtual) secaoAtual.norma = texto;
+                else linhasParam.push(texto);
+                return;
+            }
+
+            // Linha de traços ----
+            if (/^-+$/.test(texto)) return;
+
+            // Parâmetros de entrada / outros comentários
+            if (texto.startsWith('PARÂMETROS') || texto.length === 0) return;
+            linhasParam.push(texto);
+            return;
+        }
+
+        // HTML de resultado (APROVADO / REPROVADO / PMTA / etc)
+        if (linha.includes('msg-aprovado') || linha.includes('background-color: #e6f4ea')) {
+            flushSecao();
+            var resEl = document.createElement('div');
+            resEl.className = 'log-resultado ok';
+            var tmp = document.createElement('div'); tmp.innerHTML = linha;
+            resEl.textContent = tmp.textContent || 'APROVADO';
+            container.appendChild(resEl);
+            return;
+        }
+        if (linha.includes('msg-reprovado') || linha.includes('background-color: #fce8e6')) {
+            flushSecao();
+            var resElErr = document.createElement('div');
+            resElErr.className = 'log-resultado erro';
+            var tmpErr = document.createElement('div'); tmpErr.innerHTML = linha;
+            resElErr.textContent = tmpErr.textContent || 'REPROVADO';
+            container.appendChild(resElErr);
+            return;
+        }
+
+        // Outras linhas HTML (avisos, etc.)
+        if (linha.trim().startsWith('<')) {
+            flushSecao();
+            var htmlEl = document.createElement('div');
+            htmlEl.className = 'log-html-line';
+            var tmp2 = document.createElement('div'); tmp2.innerHTML = linha;
+            htmlEl.textContent = tmp2.textContent;
+            container.appendChild(htmlEl);
+            return;
+        }
+
+        // Texto simples
+        linhasParam.push(linha);
+    });
+
+    flushSecao();
+
+    // PMTA final em destaque (span toda a coluna)
+    if (pmtaFinal) {
+        var pmtaEl = document.createElement('div');
+        pmtaEl.className = 'log-pmta-final';
+        pmtaEl.textContent = 'PMTA = ' + pmtaFinal + ' MPa';
+        container.appendChild(pmtaEl);
+    }
+}
+</script>
+</body>
+</html>

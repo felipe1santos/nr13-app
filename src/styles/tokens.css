@@ -1,0 +1,56 @@
+/* Design tokens portados de style.css/detalhes.css/relatorios.css do sistema original.
+   Mantém a identidade visual atual; o objetivo aqui é estrutura/tecnologia, não aparência. */
+:root {
+  --bg-body: #f1f3f4;
+  --bg-card: #ffffff;
+  --text-main: #202124;
+  --text-muted: #5f6368;
+  --border-solid: #dadce0;
+  --border-dashed: #cccccc;
+  --highlight-bg: #e0e0e0;
+  --menu-hover: #e8eaed;
+  --active-color: #000000;
+  --top-bar-bg: #000442;
+
+  --accent: #1a73e8;
+  --accent-2: #038dbc;
+  --accent-bg-light: #e6f4f9;
+
+  /* Tons extras do detalhes.html/detalhes.css legado — usados nos cards de equipamento */
+  --text-faint: #80868b;
+  --bg-faint: #fafbfc;
+  --bg-soft: #f8f9fa;
+  --status-sucesso-icone: #01a538;
+  --status-pendente-icone: #fbbc04;
+
+  /* Tags de tipo de equipamento (vaso/autoclave/caldeira) */
+  --tipo-vaso-bg: #f3e8fd;
+  --tipo-vaso-text: #7c3aed;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  --status-ok-bg: #e6f4ea;
+  --status-ok-text: #188038;
+  --status-erro-bg: #fce8e6;
+  --status-erro-text: #d93025;
+  --status-aviso-bg: #fef7e0;
+  --status-aviso-text: #b06000;
+
+  --font-base: 'Geist', 'Helvetica Neue', Arial, sans-serif;
+  --font-size-base: 12px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-base);
+  font-size: var(--font-size-base);
+  background-color: var(--bg-body);
+  color: var(--text-main);
+}

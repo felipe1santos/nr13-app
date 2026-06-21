@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prontuário de Reconstituição - Página 2</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,600;1,700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --text-dark: #111827;
+            --blue-data: #0037ad;
+            --gray-light: #9CA3AF;
+            --bg-table-header: #eff0f1;
+            --primary-blue: #0066a1;
+            --light-blue: #e6f3fb;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--text-dark);
+            background-color: #fff;
+            line-height: 1.4;
+            font-size: 11px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .page {
+            width: 100%;
+            height: 297mm;
+            background: #fff;
+            padding: 12mm 15mm 26mm 15mm;
+            position: relative;
+            page-break-after: always;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* ===== CABEÇALHO / LETTERHEAD ===== */
+        .ph-header-table { width: 100%; border-collapse: collapse; border: 1.5px solid var(--text-dark); margin-bottom: 5px; }
+        .ph-header-table td { border: 1.5px solid var(--text-dark); vertical-align: middle; padding: 6px 10px; }
+        .ph-col-logo { width: 20%; text-align: center; padding: 6px !important; }
+        .ph-col-logo img { max-height: 48px; max-width: 100%; object-fit: contain; }
+        .ph-col-title { width: 58%; text-align: center; }
+        .ph-col-title .t-pt { font-size: 13px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dark); }
+        .ph-col-title .t-en { font-size: 9px; font-style: italic; color: #666; margin-top: 2px; }
+        .ph-col-info { width: 22%; padding: 5px 10px !important; }
+        .ph-col-info .info-label { font-size: 8.5px; font-weight: 700; text-transform: uppercase; color: var(--text-dark); }
+        .ph-col-info .info-value { font-size: 10.5px; font-weight: 700; color: var(--blue-data); margin-bottom: 4px; }
+        .ph-col-info .info-value:last-child { margin-bottom: 0; }
+
+        /* ===== BANNER DE SEÇÃO ===== */
+        .ph-banner { background-color: var(--light-blue); border-left: 4px solid var(--primary-blue); border-radius: 4px; padding: 4px 10px; margin: 7px 0 4px 0; }
+        .ph-banner .pt { font-size: 11.5px; font-weight: 900; text-transform: uppercase; color: var(--primary-blue); letter-spacing: 0.5px; }
+        .ph-banner .en { font-size: 9px; font-weight: 500; color: #4a7fa5; font-style: italic; margin-top: 1px; }
+
+        /* ===== TABELAS ===== */
+        .content-table { width: 100%; border-collapse: collapse; text-align: center; margin-bottom: 4px; font-size: 11px; border: 1px solid #888; }
+        .content-table td { border: 1px solid #aaa; padding: 5px 7px; vertical-align: middle; }
+        .label-cell { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-dark); background-color: var(--bg-table-header); text-align: left; padding: 5px 7px !important; white-space: normal; }
+        .value-cell { font-size: 11px; font-weight: 500; color: var(--blue-data); text-align: left; padding: 5px 7px !important; }
+        .en-sub { display: block; font-size: 8px; font-style: italic; font-weight: 400; color: #888; text-transform: none; }
+
+        /* ===== LAYOUT CROQUIS: 3D PERSPECTIVA + 2D TÉCNICO ===== */
+        .ph-croqui-row { display: flex; gap: 10px; margin-bottom: 6px; }
+        .ph-croqui-box { flex: 1; }
+        .croqui-wrapper {
+            position: relative; width: 100%; aspect-ratio: 500 / 350;
+            border: 1px solid #aaa; border-radius: 4px; overflow: hidden; background: #f4f5f7;
+        }
+        .croqui-wrapper img { width: 100%; height: 100%; object-fit: contain; display: block; }
+        .croqui-placeholder {
+            display: flex; align-items: center; justify-content: center; text-align: center;
+            height: 100%; font-size: 10px; color: #888; padding: 10px; line-height: 1.5;
+        }
+        .croqui-caption { font-size: 9px; color: #777; text-align: center; margin-top: 3px; font-style: italic; }
+
+        /* ===== MARCA D'ÁGUA ===== */
+        .watermark-img {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 78%; max-width: 78%;
+            opacity: 0.045; z-index: 0;
+            pointer-events: none;
+            -webkit-print-color-adjust: exact; print-color-adjust: exact;
+        }
+        .page-content { position: relative; z-index: 1; }
+
+        /* ===== RODAPÉ ===== */
+        .pgr-footer-new { position: absolute; bottom: 10mm; left: 15mm; right: 15mm; display: flex; align-items: center; gap: 10px; z-index: 1; }
+        .footer-line-wrapper { flex: 1; border-top: 3px solid #000; padding-top: 5px; text-align: center; }
+        .company-details { font-size: 9px; color: #000; font-weight: 500; line-height: 1.4; }
+        .company-details .codigo-pront { font-weight: 700; color: var(--blue-data); }
+        .footer-page-number {
+            background-color: #000 !important; color: #fff !important;
+            font-size: 14px; font-weight: 400; padding: 5px 16px; margin-left: 6px;
+            display: flex; align-items: center; justify-content: center;
+            -webkit-print-color-adjust: exact; print-color-adjust: exact;
+        }
+
+        @media print {
+            .no-print { display: none !important; }
+            body { background: none; padding: 0; }
+            .page { width: 100% !important; margin: 0 !important; padding: 12mm 15mm 26mm 15mm !important; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="page">
+    <img id="watermark-logo" class="watermark-img" src="" alt="" onerror="this.style.display='none'">
+    <div class="page-content">
+
+    <!-- ========== CABEÇALHO ========== -->
+    <table class="ph-header-table">
+        <tr>
+            <td class="ph-col-logo"><img id="logo-empresa" src="" alt="Logo" onerror="this.style.display='none'"></td>
+            <td class="ph-col-title">
+                <div class="t-pt">Prontuário de Reconstituição do Vaso de Pressão</div>
+                <div class="t-en">Records of Pressure Vessel (Reconstitution)</div>
+            </td>
+            <td class="ph-col-info">
+                <div class="info-label">Código / Code</div>
+                <div class="info-value" id="ph-codigo">—</div>
+                <div class="info-label">TAG</div>
+                <div class="info-value" id="ph-tag">—</div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- ========== CONJUNTO DE DESENHOS E DIMENSÕES ========== -->
+    <div class="ph-banner">
+        <div class="pt">Conjunto de Desenhos e Dimensões</div>
+        <div class="en">Group of Drawings and Dimensions</div>
+    </div>
+
+    <div class="ph-croqui-row">
+        <div class="ph-croqui-box">
+            <div class="croqui-wrapper" id="croqui-persp-wrapper">
+                <img id="croqui-persp-img" src="" alt="Croqui 3D em Perspectiva" style="display:none;">
+                <div class="croqui-placeholder" id="croqui-persp-placeholder">
+                    Croqui 3D em perspectiva não disponível para este equipamento.<br>
+                    <span style="font-style:italic; color:#aaa;">3D perspective sketch not available for this equipment.</span>
+                </div>
+            </div>
+            <div class="croqui-caption">Vista isométrica do equipamento (3D) / Isometric view of the equipment (3D)</div>
+        </div>
+        <div class="ph-croqui-box">
+            <div class="croqui-wrapper" id="croqui-wrapper">
+                <img id="croqui-img" src="" alt="Croqui Técnico 2D" style="display:none;">
+                <div class="croqui-placeholder" id="croqui-placeholder">
+                    Croqui 2D não disponível para este equipamento.<br>
+                    <span style="font-style:italic; color:#aaa;">2D sketch not available for this equipment.</span>
+                </div>
+            </div>
+            <div class="croqui-caption">Vista técnica com cotas (D = Diâmetro Interno / Internal Diameter; L = Comprimento do Casco / Shell Length)</div>
+        </div>
+    </div>
+
+    <table class="content-table">
+        <tr>
+            <td class="label-cell">DIÂMETRO INTERNO (D)<span class="en-sub">Internal Diameter</span></td>
+            <td class="value-cell" id="ph-dim-d">--</td>
+            <td class="label-cell">COMPRIMENTO DO CASCO (L)<span class="en-sub">Shell Length</span></td>
+            <td class="value-cell" id="ph-dim-l">--</td>
+        </tr>
+        <tr>
+            <td class="label-cell">ESPESSURA DO CASCO<span class="en-sub">Shell Thickness</span></td>
+            <td class="value-cell" id="ph-dim-t-casco">--</td>
+            <td class="label-cell">ESPESSURA TAMPO 1<span class="en-sub">Head 1 Thickness</span></td>
+            <td class="value-cell" id="ph-dim-t-tampo1">--</td>
+        </tr>
+        <tr>
+            <td class="label-cell">ESPESSURA TAMPO 2<span class="en-sub">Head 2 Thickness</span></td>
+            <td class="value-cell" id="ph-dim-t-tampo2">--</td>
+            <td class="label-cell">VOLUME INTERNO<span class="en-sub">Internal Volume</span></td>
+            <td class="value-cell" id="ph-dim-volume">--</td>
+        </tr>
+        <tr>
+            <td class="label-cell">ORIENTAÇÃO<span class="en-sub">Orientation</span></td>
+            <td class="value-cell" id="ph-dim-orientacao">--</td>
+            <td class="label-cell">&nbsp;</td>
+            <td class="value-cell">&nbsp;</td>
+        </tr>
+    </table>
+
+    <!-- ========== BOCAIS E CONEXÕES ========== -->
+    <div class="ph-banner">
+        <div class="pt">Bocais e Conexões</div>
+        <div class="en">Nozzles and Connections</div>
+    </div>
+    <table class="content-table">
+        <thead>
+            <tr>
+                <td class="label-cell" style="width:34%;">IDENTIFICAÇÃO<span class="en-sub">Identification</span></td>
+                <td class="label-cell" style="width:22%;">DIÂMETRO (mm)<span class="en-sub">Diameter</span></td>
+                <td class="label-cell" style="width:22%;">POSIÇÃO LONGITUDINAL (mm)<span class="en-sub">Longitudinal Position</span></td>
+                <td class="label-cell" style="width:22%;">MATERIAL</td>
+            </tr>
+        </thead>
+        <tbody id="ph-bocais-corpo">
+            <tr><td class="value-cell" colspan="4" style="text-align:center;">--</td></tr>
+        </tbody>
+    </table>
+
+    </div>
+
+    <!-- ========== RODAPÉ ========== -->
+    <div class="pgr-footer-new">
+        <div class="footer-line-wrapper">
+            <div class="company-details" id="ph-footer-empresa">--</div>
+        </div>
+        <div class="footer-page-number">2 / 4</div>
+    </div>
+
+</div>
+
+<script>
+    // Gera o overlay SVG de cotas (D e L) sobre o croqui 3D real, usando o
+    // enquadramento calculado em script.js (gerarImagemCroqui/calcularFramingFrontal)
+    function gerarOverlayCotasSVG(meta, dados) {
+        const azul = '#0066a1';
+        const cascoStart = meta.cascoStartFrac ?? 0;
+        const cascoEnd = meta.cascoEndFrac ?? 0;
+        const vStart = meta.vesselStartFrac ?? 0;
+        const vEnd = meta.vesselEndFrac ?? 1;
+
+        const fmt = (v) => Math.round(parseFloat(v) || 0).toLocaleString('pt-BR');
+        const labelD = `D = ${fmt(dados.D)} mm`;
+        const labelL = `L = ${fmt(dados.L)} mm`;
+
+        const linha = (x1, y1, x2, y2) => `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${azul}" stroke-width="1.2"/>`;
+
+        let svgContent = '';
+
+        if (meta.orientacao === 'horizontal') {
+            // L (comprimento do casco) ao longo do eixo X
+            const xL1 = cascoStart * 500, xL2 = cascoEnd * 500;
+            const yL = Math.min(340, vEnd * 350 + 16);
+            svgContent += linha(xL1, yL - 5, xL1, yL + 5);
+            svgContent += linha(xL2, yL - 5, xL2, yL + 5);
+            svgContent += linha(xL1, yL, xL2, yL);
+            svgContent += `<text x="${((xL1 + xL2) / 2).toFixed(1)}" y="${(yL - 7).toFixed(1)}" font-family="sans-serif" font-size="12" font-weight="700" fill="${azul}" text-anchor="middle">${labelL}</text>`;
+
+            // D (diâmetro) ao longo do eixo Y
+            const yD1 = vStart * 350, yD2 = vEnd * 350;
+            const xD = Math.max(8, xL1 - 18);
+            svgContent += linha(xD - 5, yD1, xD + 5, yD1);
+            svgContent += linha(xD - 5, yD2, xD + 5, yD2);
+            svgContent += linha(xD, yD1, xD, yD2);
+            const yDmid = (yD1 + yD2) / 2;
+            svgContent += `<text x="${(xD - 7).toFixed(1)}" y="${yDmid.toFixed(1)}" font-family="sans-serif" font-size="12" font-weight="700" fill="${azul}" text-anchor="middle" transform="rotate(-90 ${(xD - 7).toFixed(1)} ${yDmid.toFixed(1)})">${labelD}</text>`;
+        } else {
+            // L (comprimento do casco) ao longo do eixo Y
+            const yL1 = cascoStart * 350, yL2 = cascoEnd * 350;
+            const xL = Math.max(8, vStart * 500 - 18);
+            svgContent += linha(xL - 5, yL1, xL + 5, yL1);
+            svgContent += linha(xL - 5, yL2, xL + 5, yL2);
+            svgContent += linha(xL, yL1, xL, yL2);
+            const yLmid = (yL1 + yL2) / 2;
+            svgContent += `<text x="${(xL - 7).toFixed(1)}" y="${yLmid.toFixed(1)}" font-family="sans-serif" font-size="12" font-weight="700" fill="${azul}" text-anchor="middle" transform="rotate(-90 ${(xL - 7).toFixed(1)} ${yLmid.toFixed(1)})">${labelL}</text>`;
+
+            // D (diâmetro) ao longo do eixo X
+            const xD1 = vStart * 500, xD2 = vEnd * 500;
+            const yD = Math.min(340, yL2 + 16);
+            svgContent += linha(xD1, yD - 5, xD1, yD + 5);
+            svgContent += linha(xD2, yD - 5, xD2, yD + 5);
+            svgContent += linha(xD1, yD, xD2, yD);
+            svgContent += `<text x="${((xD1 + xD2) / 2).toFixed(1)}" y="${(yD - 7).toFixed(1)}" font-family="sans-serif" font-size="12" font-weight="700" fill="${azul}" text-anchor="middle">${labelD}</text>`;
+        }
+
+        return `<svg id="croqui-overlay-svg" viewBox="0 0 500 350" preserveAspectRatio="none" style="position:absolute; inset:0; width:100%; height:100%; pointer-events:none;" xmlns="http://www.w3.org/2000/svg">${svgContent}</svg>`;
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const tag = urlParams.get('tag');
+        if (!tag) return;
+
+        const setVal = (id, val) => {
+            const el = document.getElementById(id);
+            if (el && val !== undefined && val !== null && val !== '') el.innerText = val;
+        };
+        const setSrc = (id, src) => {
+            const el = document.getElementById(id);
+            if (el && src) el.src = src;
+        };
+
+        const info = JSON.parse(localStorage.getItem('nr13_info_' + tag) || '{}');
+        const vasoStr = localStorage.getItem('nr13_vaso_' + tag);
+        const dados3D = vasoStr ? JSON.parse(vasoStr) : null;
+        // Shim: mapeia VasoSalvo.componentes para o formato legado estadoConstrucao
+        var _comps = (dados3D && Array.isArray(dados3D.componentes)) ? dados3D.componentes : [];
+        var _cc  = _comps.find(function(c) { return c.id === 'casco'; });
+        var _ct1 = _comps.find(function(c) { return c.id === 'tampo1'; });
+        var _ct2 = _comps.find(function(c) { return c.id === 'tampo2'; });
+        var ec = dados3D ? {
+            hasCasco: !!_cc, dadosCasco: _cc ? _cc.dados : null,
+            hasTampo1: !!_ct1, dadosTampo1: _ct1 ? _ct1.dados : null,
+            hasTampo2: !!_ct2, dadosTampo2: _ct2 ? _ct2.dados : null,
+            orientacao: dados3D.orientacao || null, bocais: {}
+        } : null;
+        const minhaEmpresa = JSON.parse(localStorage.getItem('nr13_minha_empresa') || '{}');
+        const meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}');
+
+        // ===== CABEÇALHO / LOGO =====
+        setSrc('logo-empresa', minhaEmpresa.logo);
+        setSrc('watermark-logo', minhaEmpresa.logo);
+        setVal('ph-codigo', meta.codigo || 'A gerar após confirmação / To be generated upon confirmation');
+        setVal('ph-tag', info.tag || tag);
+
+        // ===== CROQUI 3D EM PERSPECTIVA =====
+        if (dados3D && dados3D.imagemCroquiPerspectiva) {
+            const imgP = document.getElementById('croqui-persp-img');
+            const placeholderP = document.getElementById('croqui-persp-placeholder');
+            imgP.src = dados3D.imagemCroquiPerspectiva;
+            imgP.style.display = 'block';
+            placeholderP.style.display = 'none';
+        }
+
+        // ===== CROQUI + COTAS =====
+        const D = dados3D ? (parseFloat(dados3D.D) || parseFloat(dados3D.diametro) || 0) : 0;
+        const L = (ec && ec.dadosCasco && ec.dadosCasco.L !== undefined) ? parseFloat(ec.dadosCasco.L) || 0 : 0;
+
+        if (dados3D && dados3D.imagemCroqui && dados3D.croquiMeta) {
+            const img = document.getElementById('croqui-img');
+            const placeholder = document.getElementById('croqui-placeholder');
+            const wrapper = document.getElementById('croqui-wrapper');
+            img.src = dados3D.imagemCroqui;
+            img.style.display = 'block';
+            placeholder.style.display = 'none';
+            wrapper.insertAdjacentHTML('beforeend', gerarOverlayCotasSVG(dados3D.croquiMeta, { D, L }));
+        }
+
+        // ===== TABELA DIMENSIONAL =====
+        setVal('ph-dim-d', D ? D.toLocaleString('pt-BR') + ' mm' : '--');
+        setVal('ph-dim-l', L ? L.toLocaleString('pt-BR') + ' mm' : '--');
+
+        if (ec) {
+            if (ec.hasCasco && ec.dadosCasco && ec.dadosCasco.t_comercial !== undefined && ec.dadosCasco.t_comercial !== '') {
+                setVal('ph-dim-t-casco', String(ec.dadosCasco.t_comercial).replace('.', ',') + ' mm');
+            }
+            if (ec.hasTampo1 && ec.dadosTampo1 && ec.dadosTampo1.t_comercial !== undefined && ec.dadosTampo1.t_comercial !== '') {
+                setVal('ph-dim-t-tampo1', String(ec.dadosTampo1.t_comercial).replace('.', ',') + ' mm');
+            }
+            if (ec.hasTampo2 && ec.dadosTampo2 && ec.dadosTampo2.t_comercial !== undefined && ec.dadosTampo2.t_comercial !== '') {
+                setVal('ph-dim-t-tampo2', String(ec.dadosTampo2.t_comercial).replace('.', ',') + ' mm');
+            }
+
+            const orientacaoMap = { horizontal: 'Horizontal', vertical: 'Vertical' };
+            setVal('ph-dim-orientacao', orientacaoMap[ec.orientacao] || ec.orientacao);
+
+            if (D && ec.dadosCasco && ec.dadosCasco.L) {
+                const r = (D / 2) / 1000;
+                const Lm = L / 1000;
+                const vol = Math.PI * Math.pow(r, 2) * Lm;
+                setVal('ph-dim-volume', vol.toFixed(3).replace('.', ',') + ' m³');
+            }
+        }
+
+        // ===== BOCAIS E CONEXÕES =====
+        if (ec && ec.bocais && Object.keys(ec.bocais).length > 0) {
+            const corpo = document.getElementById('ph-bocais-corpo');
+            corpo.innerHTML = '';
+            Object.values(ec.bocais).forEach(b => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="value-cell">${b.nome || '--'}</td>
+                    <td class="value-cell" style="text-align:center;">${b.d !== undefined ? String(b.d).replace('.', ',') : '--'}</td>
+                    <td class="value-cell" style="text-align:center;">${b.posL !== undefined ? String(b.posL).replace('.', ',') : '--'}</td>
+                    <td class="value-cell">${b.mat || '--'}</td>
+                `;
+                corpo.appendChild(tr);
+            });
+        }
+
+        // ===== RODAPÉ =====
+        let footerHtml = '<strong>' + (minhaEmpresa.razao || minhaEmpresa.fantasia || '--') + '</strong><br>';
+        let endParts = [];
+        if (minhaEmpresa.endereco) endParts.push(minhaEmpresa.endereco);
+        if (minhaEmpresa.bairro) endParts.push(minhaEmpresa.bairro);
+        if (minhaEmpresa.cidade) endParts.push(minhaEmpresa.cidade + (minhaEmpresa.estado ? '/' + minhaEmpresa.estado : ''));
+        if (endParts.length) footerHtml += endParts.join(' - ') + '<br>';
+        footerHtml += 'Prontuário Nº <span class="codigo-pront">' + (meta.codigo || '—') + '</span>';
+        document.getElementById('ph-footer-empresa').innerHTML = footerHtml;
+    });
+</script>
+
+<script>
+    // =========================================================
+    // SCRIPT DE PAGINAÇÃO AUTOMÁTICA
+    // =========================================================
+    document.addEventListener('DOMContentLoaded', function() {
+        const paramPagina = new URLSearchParams(window.location.search).get('page');
+        if (paramPagina) {
+            const elPagina = document.querySelector('.footer-page-number');
+            if (elPagina) elPagina.innerText = paramPagina.trim() + ' / 4';
+        }
+    });
+</script>
+
+</body>
+</html>

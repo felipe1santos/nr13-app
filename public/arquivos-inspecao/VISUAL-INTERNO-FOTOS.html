@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NR-13 - Inspeção Visual Interna - Registro Fotográfico</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --azul:       #0033a2;
+            --preto:      #111827;
+            --borda:      #000;
+            --fundo-cab:  #eff0f1;
+            --highlight:  #fdfad2;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--preto);
+            background: #fff;
+            font-size: 11px;
+            line-height: 1.3;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        /* ── PÁGINA A4 ─────────────────────────────── */
+        .pagina {
+            width: 100%;
+            min-height: 297mm;
+            background: #fff;
+            padding: 13mm 15mm 32mm 15mm;
+            position: relative;
+            page-break-after: always;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── CABEÇALHO ─────────────────────────────── */
+        .cabecalho { width: 100%; border-collapse: collapse; border: 1px solid var(--borda); margin-bottom: 5px; flex-shrink: 0; }
+        .cabecalho td { border: 1px solid var(--borda); vertical-align: middle; }
+        .col-logo { width: 23%; text-align: center; padding: 5px; }
+        .col-logo img { max-width: 100%; max-height: 70px; object-fit: contain; display: block; margin: 0 auto; cursor: pointer; }
+        .col-titulo { width: 52%; text-align: center; padding: 5px; font-size: 13px; font-weight: 900; text-transform: uppercase; line-height: 1.25; }
+        .col-titulo .subtitulo { display: block; font-size: 9px; font-weight: 600; color: #4b5563; margin-top: 3px; }
+        .col-info { width: 25%; padding: 7px 9px; vertical-align: top; }
+        .col-info .rot { font-size: 9px; color: var(--preto); margin-top: 3px; }
+        .col-info .rot:first-child { margin-top: 0; }
+        .col-info .val { font-size: 11px; font-weight: 700; color: var(--azul); margin-top: 1px; }
+        .col-info .val[contenteditable]:hover { background: var(--highlight); outline: 1px dashed var(--azul); cursor: text; }
+
+        /* ── BARRA DE IDENTIFICAÇÃO ─────────────────── */
+        .id-bar {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1.2fr 1fr;
+            gap: 3px; margin-bottom: 5px; flex-shrink: 0;
+        }
+        .id-cel { display: flex; align-items: center; border: 1px solid #e5e7eb; padding: 2px 5px; min-height: 21px; }
+        .id-lbl { font-size: 7.5px; font-weight: 900; text-transform: uppercase; margin-right: 4px; white-space: nowrap; }
+        .id-val { font-size: 10px; font-weight: 700; color: var(--azul); flex: 1; min-width: 0; }
+        .id-val[contenteditable]:hover { background: var(--highlight); outline: 1px dashed var(--azul); cursor: text; }
+
+        /* ── TÍTULO DE SEÇÃO ────────────────────────── */
+        .sec { font-size: 8.5px; font-weight: 900; text-transform: uppercase; background: var(--fundo-cab); padding: 3px 6px; margin-bottom: 6px; flex-shrink: 0; }
+
+        /* ── GRADE 2×2 ──────────────────────────────── */
+        .grade-fotos {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 8px;
+            flex: 1; min-height: 0;
+        }
+
+        .foto-card { display: flex; flex-direction: column; gap: 0; min-height: 0; }
+
+        /* Cabeçalho da célula (FOTO N) */
+        .foto-header {
+            background: var(--fundo-cab);
+            font-size: 8px; font-weight: 900;
+            text-transform: uppercase; text-align: center;
+            padding: 2px 5px; border: 1px solid #c7c7c7;
+            border-bottom: none; flex-shrink: 0;
+            color: var(--preto);
+        }
+
+        /* Área clicável */
+        .foto-area {
+            flex: 1; border: 1px solid #c7c7c7;
+            background: #f9fafb;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            cursor: pointer; position: relative;
+            overflow: hidden; min-height: 0;
+            transition: background 0.15s;
+        }
+        .foto-area:hover { background: #f3f4f6; border-color: var(--azul); }
+        .foto-area.preenchida { background: #fff; border-color: #d1d5db; }
+
+        .foto-area img { max-width: 100%; max-height: 100%; object-fit: contain; display: none; }
+        .foto-area.preenchida img { display: block; }
+
+        .foto-ph { display: flex; flex-direction: column; align-items: center; gap: 5px; color: #9ca3af; font-size: 8px; font-weight: 700; text-align: center; padding: 10px; pointer-events: none; }
+        .foto-ph svg { opacity: 0.5; }
+        .foto-area.preenchida .foto-ph { display: none; }
+
+        /* Botão remover */
+        .foto-del { position: absolute; top: 3px; right: 3px; background: #ef4444; color: #fff; border: none; border-radius: 50%; width: 17px; height: 17px; font-size: 9px; font-weight: 900; cursor: pointer; display: none; align-items: center; justify-content: center; z-index: 5; }
+        .foto-area.preenchida:hover .foto-del { display: flex; }
+
+        .foto-input { display: none; }
+
+        /* Legenda */
+        .foto-leg {
+            font-family: 'Inter', sans-serif;
+            width: 100%; height: 24px;
+            border: 1px solid #e5e7eb; border-top: none;
+            resize: none; outline: none;
+            font-size: 9.5px; font-style: italic; font-weight: 600;
+            color: var(--azul); text-align: center; padding: 2px 6px;
+            background: #fff; flex-shrink: 0;
+        }
+        .foto-leg:hover, .foto-leg:focus { background: var(--highlight); outline: 1px dashed var(--azul); }
+
+        /* ── BOTÃO ADICIONAR ────────────────────────── */
+        #btn-add { display: block; margin: 7px auto 0; background: var(--azul); color: #fff; border: none; padding: 5px 16px; border-radius: 4px; font-size: 9px; font-weight: 700; cursor: pointer; font-family: 'Inter', sans-serif; }
+        #btn-add:hover { background: #002080; }
+
+        /* ── RODAPÉ ─────────────────────────────────── */
+        .rodape { position: absolute; bottom: 11mm; left: 15mm; right: 15mm; display: flex; align-items: flex-start; }
+        .rodape-linha { flex: 1; border-top: 3px solid #000; padding-top: 7px; text-align: center; }
+        .rodape-texto { font-size: 10px; color: #000; font-weight: 500; line-height: 1.4; }
+        .rodape-num { background: #000 !important; color: #fff !important; font-size: 18px; font-weight: 400; padding: 5px 19px; margin-left: 8px; display: flex; align-items: center; justify-content: center; min-width: 54px; }
+        .rodape-num[contenteditable]:hover { opacity: .85; cursor: text; }
+
+        [contenteditable] { outline: none; transition: background .15s; }
+        [contenteditable]:focus { background: var(--highlight); outline: 1px dashed var(--azul); }
+
+        @media print {
+            .no-print { display: none !important; }
+            body { background: none; }
+            .pagina { min-height: 0; page-break-after: always; }
+            .foto-area { border-style: solid; border-color: #d1d5db; background: transparent !important; }
+            .foto-ph { display: none !important; }
+            .foto-leg:hover, .foto-leg:focus { background: transparent; outline: none; }
+            [contenteditable]:hover, [contenteditable]:focus { background: transparent; outline: none; }
+        }
+    </style>
+</head>
+<body>
+
+<input type="file" id="inp-logo" accept="image/*" style="display:none" onchange="trocarLogo(event)">
+
+<div class="pagina" id="pagina-1">
+
+    <!-- CABEÇALHO -->
+    <table class="cabecalho">
+        <tr>
+            <td rowspan="2" class="col-logo">
+                <img id="img-logo" src="logo.webp" alt="Logo" title="Clique para trocar o logo" onclick="document.getElementById('inp-logo').click()">
+            </td>
+            <td class="col-titulo">
+                INSPEÇÃO VISUAL INTERNA
+                <span class="subtitulo">REGISTRO FOTOGRÁFICO</span>
+            </td>
+            <td rowspan="2" class="col-info">
+                <div class="rot">Relatório nº:</div>
+                <div class="val" contenteditable="true" spellcheck="false">REL-000000</div>
+                <div class="rot">Data:</div>
+                <div class="val" contenteditable="true" spellcheck="false">DD/MM/AAAA</div>
+                <div class="rot">Folha:</div>
+                <div class="val" id="rel-folha-1" contenteditable="true" spellcheck="false">2/2</div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- IDENTIFICAÇÃO -->
+    <div class="id-bar">
+        <div class="id-cel"><span class="id-lbl">Contratante</span><span class="id-val" contenteditable="true" spellcheck="false" id="id-contratante">—</span></div>
+        <div class="id-cel"><span class="id-lbl">T.A.G.</span><span class="id-val" contenteditable="true" spellcheck="false" id="id-tag">—</span></div>
+        <div class="id-cel"><span class="id-lbl">Equipamento</span><span class="id-val" contenteditable="true" spellcheck="false" id="id-equip">—</span></div>
+        <div class="id-cel"><span class="id-lbl">Data da Inspeção</span><span class="id-val" contenteditable="true" spellcheck="false" id="id-data">—</span></div>
+    </div>
+
+    <!-- FOTOS -->
+    <div class="sec">REGISTRO FOTOGRÁFICO</div>
+    <div class="grade-fotos" id="grade-fotos-1"><!-- slots JS --></div>
+
+    <button id="btn-add" class="no-print" onclick="adicionarSlot()">+ Adicionar Foto</button>
+
+    <!-- RODAPÉ -->
+    <div class="rodape">
+        <div class="rodape-linha">
+            <div class="rodape-texto" id="txt-empresa" contenteditable="true" spellcheck="false">
+                <strong>NOME DA EMPRESA LTDA.</strong><br>
+                Endereço Completo • Bairro • Cidade/UF • CNPJ: 00.000.000/0000-00 • CEP: 00000-000<br>
+                Telef: (00) 0000-0000 • E-mail: contato@empresa.com.br
+            </div>
+        </div>
+        <div class="rodape-num" contenteditable="true" spellcheck="false">15</div>
+    </div>
+
+</div><!-- /pagina-1 -->
+
+<script>
+    /* ── ESTADO ─────────────────────────────────────── */
+    let totalSlots   = 0;
+    let paginaAtual  = 1;
+    const FOTOS_PAG  = 4;
+
+    /* ── ADICIONAR SLOT ─────────────────────────────── */
+    function adicionarSlot(src, legenda) {
+        totalSlots++;
+        const idx = totalSlots;
+
+        if (idx > FOTOS_PAG && (idx - 1) % FOTOS_PAG === 0) {
+            criarNovaPagina();
+        }
+
+        const numeroPagina = Math.ceil(idx / FOTOS_PAG);
+        const grade = document.getElementById('grade-fotos-' + numeroPagina);
+        if (!grade) return;
+
+        const card = document.createElement('div');
+        card.className = 'foto-card';
+        card.id = 'card-' + idx;
+        card.innerHTML =
+            '<div class="foto-header">FOTO ' + idx + '</div>' +
+            '<div class="foto-area' + (src ? ' preenchida' : '') + '" id="area-' + idx + '"' +
+            '     onclick="clicarArea(' + idx + ')">' +
+            '    <button class="foto-del no-print" onclick="removerFoto(event,' + idx + ')" title="Remover">✕</button>' +
+            '    <div class="foto-ph">' +
+            '        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">' +
+            '            <rect x="3" y="3" width="18" height="18" rx="2"/>' +
+            '            <circle cx="8.5" cy="8.5" r="1.5"/>' +
+            '            <polyline points="21,15 16,10 5,21"/>' +
+            '        </svg>' +
+            '        CLIQUE PARA INSERIR FOTO' +
+            '    </div>' +
+            '    <img id="img-' + idx + '" src="' + (src || '') + '" alt="Foto ' + idx + '">' +
+            '    <input type="file" class="foto-input" id="inp-' + idx + '"' +
+            '           accept="image/*" onchange="carregarFoto(event,' + idx + ')">' +
+            '</div>' +
+            '<textarea class="foto-leg" id="leg-' + idx + '"' +
+            '          placeholder="Descrição / legenda da Foto ' + idx + '…"' +
+            '          spellcheck="false">' + (legenda || '') + '</textarea>';
+
+        grade.appendChild(card);
+    }
+
+    /* ── CRIAR NOVA PÁGINA ──────────────────────────── */
+    function criarNovaPagina() {
+        paginaAtual++;
+        const num = paginaAtual;
+
+        const pagina = document.createElement('div');
+        pagina.className = 'pagina';
+        pagina.id = 'pagina-' + num;
+        pagina.innerHTML =
+            '<table class="cabecalho">' +
+            '  <tr>' +
+            '    <td rowspan="2" class="col-logo">' +
+            '      <img src="' + document.getElementById('img-logo').src + '" alt="Logo">' +
+            '    </td>' +
+            '    <td class="col-titulo">INSPEÇÃO VISUAL INTERNA<span class="subtitulo">REGISTRO FOTOGRÁFICO</span></td>' +
+            '    <td rowspan="2" class="col-info">' +
+            '      <div class="rot">Relatório nº:</div>' +
+            '      <div class="val" contenteditable="true" spellcheck="false">REL-000000</div>' +
+            '      <div class="rot">Data:</div>' +
+            '      <div class="val" contenteditable="true" spellcheck="false">DD/MM/AAAA</div>' +
+            '      <div class="rot">Folha:</div>' +
+            '      <div class="val" id="rel-folha-' + num + '" contenteditable="true" spellcheck="false">' + num + '/' + num + '</div>' +
+            '    </td>' +
+            '  </tr>' +
+            '</table>' +
+            '<div class="id-bar">' +
+            '  <div class="id-cel"><span class="id-lbl">Contratante</span><span class="id-val" contenteditable="true" spellcheck="false">' + (document.getElementById('id-contratante').textContent || '—') + '</span></div>' +
+            '  <div class="id-cel"><span class="id-lbl">T.A.G.</span><span class="id-val" contenteditable="true" spellcheck="false">' + (document.getElementById('id-tag').textContent || '—') + '</span></div>' +
+            '  <div class="id-cel"><span class="id-lbl">Equipamento</span><span class="id-val" contenteditable="true" spellcheck="false">' + (document.getElementById('id-equip').textContent || '—') + '</span></div>' +
+            '  <div class="id-cel"><span class="id-lbl">Data da Inspeção</span><span class="id-val" contenteditable="true" spellcheck="false">' + (document.getElementById('id-data').textContent || '—') + '</span></div>' +
+            '</div>' +
+            '<div class="sec">REGISTRO FOTOGRÁFICO</div>' +
+            '<div class="grade-fotos" id="grade-fotos-' + num + '"></div>' +
+            '<div class="rodape">' +
+            '  <div class="rodape-linha">' +
+            '    <div class="rodape-texto">' + document.getElementById('txt-empresa').innerHTML + '</div>' +
+            '  </div>' +
+            '  <div class="rodape-num" contenteditable="true" spellcheck="false">' + (15 + num - 1) + '</div>' +
+            '</div>';
+
+        document.body.appendChild(pagina);
+    }
+
+    /* ── AÇÕES DE FOTO ──────────────────────────────── */
+    function clicarArea(idx) {
+        document.getElementById('inp-' + idx).click();
+    }
+
+    function carregarFoto(event, idx) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('img-' + idx).src = e.target.result;
+            document.getElementById('area-' + idx).classList.add('preenchida');
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function removerFoto(event, idx) {
+        event.stopPropagation();
+        const img  = document.getElementById('img-'  + idx);
+        const area = document.getElementById('area-' + idx);
+        const leg  = document.getElementById('leg-'  + idx);
+        img.src = '';
+        area.classList.remove('preenchida');
+        if (leg) leg.value = '';
+    }
+
+    /* ── LOGO ──────────────────────────────────────── */
+    function trocarLogo(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) { document.getElementById('img-logo').src = e.target.result; };
+        reader.readAsDataURL(file);
+    }
+
+    /* ── AUTO-FILL EMPRESA ─────────────────────────── */
+    (function preencherEmpresa() {
+        const raw = localStorage.getItem('nr13_minha_empresa');
+        if (!raw) return;
+        try {
+            const d = JSON.parse(raw);
+            if (d.logo) document.getElementById('img-logo').src = d.logo;
+            let h = '<strong>' + (d.razao || d.fantasia || 'NOME DA EMPRESA') + '</strong><br>';
+            const l2 = [];
+            if (d.endereco) l2.push(d.endereco);
+            if (d.bairro)   l2.push(d.bairro);
+            if (d.cidade && d.estado) l2.push(d.cidade + '/' + d.estado);
+            if (d.cnpj)     l2.push('CNPJ: ' + d.cnpj);
+            if (d.cep)      l2.push('CEP: ' + d.cep);
+            if (l2.length)  h += l2.join(' • ') + '<br>';
+            const l3 = [];
+            if (d.telefone) l3.push('Telef: ' + d.telefone);
+            if (d.email)    l3.push('E-mail: ' + d.email);
+            if (l3.length)  h += l3.join(' • ');
+            document.getElementById('txt-empresa').innerHTML = h;
+        } catch(e) {}
+    })();
+
+    /* ── AUTO-FILL TAG (URL) ────────────────────────── */
+    (function preencherTag() {
+        const tag = new URLSearchParams(window.location.search).get('tag');
+        if (tag) document.getElementById('id-tag').textContent = tag;
+    })();
+
+    /* ── INIT: injeta fotos salvas ou 4 slots vazios ── */
+    document.addEventListener('DOMContentLoaded', function() {
+        var fotosInjetadas = [];
+        try {
+            var raw = localStorage.getItem('nr13_injecao_atual');
+            if (raw) {
+                var inj = JSON.parse(raw);
+                fotosInjetadas = (inj && inj['visual_interno'] && inj['visual_interno'].fotos) || [];
+            }
+        } catch(e) {}
+        if (fotosInjetadas.length > 0) {
+            fotosInjetadas.forEach(function(f) { adicionarSlot(f.base64, f.descricao); });
+        } else {
+            adicionarSlot(); adicionarSlot(); adicionarSlot(); adicionarSlot();
+        }
+    });
+</script>
+</body>
+</html>

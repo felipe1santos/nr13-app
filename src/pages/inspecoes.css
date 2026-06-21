@@ -1,0 +1,45 @@
+.inspecoes-page {
+  padding: 24px;
+  max-width: 1000px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.lista-containers {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.container-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border-solid);
+  border-radius: var(--radius-md);
+  flex-wrap: wrap;
+}
+
+.badge-tipo.preenchido {
+  background: var(--status-ok-bg);
+  color: var(--status-ok-text);
+}
+
+.container-ensaios {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+@media (max-width: 600px) {
+  .inspecoes-page {
+    padding: 14px;
+  }
+}

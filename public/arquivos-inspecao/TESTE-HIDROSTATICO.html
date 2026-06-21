@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NR-13 - Teste Hidrostático - Sistema</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,600;1,700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+
+    <style>
+        :root {
+            --text-dark: #111827;     
+            --border-color: #000;  
+            --border-box: #c7c7c7;
+            --blue-data: #0033a2;     
+            --bg-table-header: #eff0f1;
+            --bg-table-sub: #f9fafb;
+            --highlight-yellow: #fdfad2; 
+            --highlight-text: #000000;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        /* =========================================
+           RESET E CONFIGURAÇÕES BÁSICAS
+           ========================================= */
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--text-dark);
+            background-color: #fff; 
+            margin: 0;
+            padding: 0; 
+            line-height: 1.3;
+            font-size: 11px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .page {
+            width: 100%; 
+            min-height: 297mm;
+            background: #fff;
+            margin: 0; 
+            padding: 15mm 15mm 30mm 15mm; 
+            position: relative;
+            page-break-after: always;
+            display: flex;
+            flex-direction: column;
+            border: none;
+            box-shadow: none; 
+        }
+
+        .data-highlight {
+            color: var(--blue-data);
+            font-weight: 700;
+            font-style: normal;
+        }
+
+        /* =========================================
+           CABEÇALHO
+           ========================================= */
+        .header-table {
+            width: 100%; border-collapse: collapse; border: 1px solid var(--text-dark); margin-bottom: 6px;
+        }
+        .header-table td { border: 1px solid var(--text-dark); vertical-align: middle; }
+        .col-logo { width: 25%; text-align: center; padding: 5px; }
+        .col-logo img { max-width: 100%; max-height: 75px; object-fit: contain; display: block; margin: 0 auto; }
+        .col-title { width: 50%; text-align: center; font-size: 16px; font-weight: 800; color: var(--text-dark); line-height: 1.2; text-transform: uppercase; padding: 5px;}
+        .col-info { width: 25%; text-align: left; padding: 8px 10px; vertical-align: top; }
+        .col-info .info-label { font-size: 10px; color: var(--text-dark); margin-top: 3px; }
+        .col-info .info-label:first-child { margin-top: 0; }
+        .col-info .info-value { font-size: 12px; font-weight: 700; color: var(--blue-data); margin-top: 1px; }
+
+        /* =========================================
+           GRIDS E FORMULÁRIOS
+           ========================================= */
+        .section-title {
+            font-size: 9px; font-weight: 900; margin-top: 6px; margin-bottom: 4px; 
+            text-transform: uppercase; background-color: var(--bg-table-header);
+            padding: 3px 6px; color: var(--text-dark); 
+        }
+        
+        .f-grid { display: grid; gap: 4px; margin-bottom: 4px; }
+        .f-grid-2 { grid-template-columns: 1fr 1fr; }
+        .f-grid-3 { grid-template-columns: repeat(3, 1fr); }
+        .f-grid-4 { grid-template-columns: repeat(4, 1fr); }
+        .f-grid-1-2 { grid-template-columns: 1.5fr 1fr; }
+
+        .f { display: flex; align-items: center; border: 1px solid #ededed; background: #fff; padding: 2px 6px; min-height: 22px; }
+        .f-lbl { font-size: 8px; font-weight: 900; color: var(--text-dark); white-space: nowrap; text-transform: uppercase; margin-right: 6px; }
+        .f-val { flex: 1; font-size: 10px; font-weight: 700; color: var(--blue-data); overflow: hidden; white-space: nowrap; }
+        .f-val[contenteditable="true"]:hover { background-color: var(--highlight-yellow); outline: 1px dashed var(--blue-data); cursor: text; }
+
+        /* =========================================
+           GRÁFICO — TABELA OCULTA, CHART FULL WIDTH
+           ========================================= */
+        .chart-table-wrapper {
+            display: block;
+            min-height: 230px;
+            margin-bottom: 4px;
+        }
+        .chart-container {
+            width: 100%;
+            height: 230px;
+            position: relative;
+            border: 1px solid #e5e7eb;
+            padding: 8px 5px;
+            border-radius: 4px;
+        }
+        /* Tabela de pontos mantida no DOM (para injeção de dados), porém invisível */
+        .table-container { display: none; }
+        
+        .res-table { width: 100%; height: 100%; border-collapse: collapse; text-align: center; border: 1px solid #000; }
+        .res-table th { background-color: var(--bg-table-header); border: 1px solid #dfdfdf; font-size: 8.5px; padding: 3px; font-weight: 800; text-transform: uppercase; }
+        .res-table td { border: 1px solid #e0e0e0; padding: 0;}
+        
+        .input-group { display: flex; justify-content: center; align-items: center; gap: 3px; height: 100%; width: 100%; padding: 2px;}
+        .input-group input { font-family: 'Inter', sans-serif; font-weight: 800; font-size: 10px; text-align: right; width: 40px; border: 1px dashed transparent; outline: none; color: var(--blue-data); background: transparent;}
+        .input-group input:hover, .input-group input:focus { background-color: var(--highlight-yellow); outline: 1px dashed var(--blue-data); }
+        input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; } 
+        .unit-label { font-size: 8px; color: #6b7280; font-weight: bold; pointer-events: none; }
+
+        /* =========================================
+           REGISTRO FOTOGRÁFICO
+           ========================================= */
+        #images-wrapper { display: flex; flex-direction: column; margin-top: 5px; }
+        .images-grid { display: flex; gap: 10px; justify-content: center; margin-bottom: 2px; }
+        .image-card { width: calc(50% - 5px); display: flex; flex-direction: column; gap: 3px; position: relative; }
+        .image-section {
+            padding: 2px;
+            text-align: center;
+            height: 115px;
+            background: transparent; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            align-items: center; 
+            cursor: pointer; 
+            border: 1px solid #d1d5db; 
+            transition: background 0.2s; 
+        }
+        .image-section:hover { background-color: #f3f4f6; }
+        .image-section img { max-width: 100%; max-height: 100%; object-fit: contain; display: none; }
+        .img-desc-input { font-family: 'Inter', sans-serif; width: 100%; text-align: center; font-style: italic; font-weight: 600; font-size: 10px; padding: 2px; border: 1px dashed transparent; resize: none; height: 25px; outline: none; color: var(--blue-data); }
+        .btn-delete { position: absolute; top: -8px; right: -8px; background: #ef4444; color: #fff; border: none; border-radius: 50%; width: 18px; height: 18px; font-weight: bold; cursor: pointer; z-index: 10; display: flex; align-items: center; justify-content: center; font-size: 9px; }
+        #btn-add-img { background: var(--blue-data); color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 10px; font-weight: bold; align-self: center; margin-top: 5px; }
+
+        /* =========================================
+           PARECER TÉCNICO
+           ========================================= */
+        .parecer-container { display: flex; flex-direction: column; flex-grow: 1; }
+        .parecer-section { flex-grow: 1; display: flex; min-height: 35px; }
+        .parecer-section textarea { font-family: 'Inter', sans-serif; color: #111827; font-weight: 600; width: 100%; height: 100%; resize: none; font-size: 11px; line-height: 1.5; border: 1px dashed transparent; outline: none; overflow: hidden; }
+
+        /* =========================================
+           ASSINATURA FORMATADA E SELETOR
+           ========================================= */
+        .signature-wrapper {
+            position: absolute;
+            bottom: 28mm;
+            right: 15mm;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 220px;
+            z-index: 500;
+        }
+        .signature-wrapper-tecnico {
+            position: absolute;
+            bottom: 28mm;
+            left: 15mm;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 220px;
+            z-index: 500;
+        }
+
+        .select-ph-box { position: absolute; right: 0px; top: -25px; z-index: 9999; }
+        .select-ph-box select { padding: 5px 8px; border-radius: 4px; border: 1px solid #9CA3AF; font-size: 10px; font-family: 'Inter', sans-serif; cursor: pointer; background-color: #f9fafb; color: #111827; font-weight: 600; outline: none; }
+        .signature-line { width: 100%; border-bottom: 1px solid #000; margin-bottom: 4px; }
+        .sig-data { font-size: 11px; line-height: 1.4; text-align: center; }
+        .sig-img { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); height: 55px; max-width: 100%; object-fit: contain; pointer-events: none; z-index: 1; }
+        .signature-wrapper.sig-excluida > *:not(.no-print),
+        .signature-wrapper-tecnico.sig-excluida > *:not(.no-print) { display: none !important; }
+
+        /* ESTILO GERAL DE EDIÇÃO */
+        [contenteditable="true"] { outline: none; transition: background-color 0.2s; }
+        [contenteditable="true"]:hover, [contenteditable="true"]:focus,
+        .img-desc-input:hover, .img-desc-input:focus,
+        .parecer-section textarea:hover, .parecer-section textarea:focus { background-color: var(--highlight-yellow); outline: 1px dashed var(--blue-data); cursor: text; }
+
+        /* =========================================
+           RODAPÉ POSICIONAMENTO FIXO
+           ========================================= */
+        .pgr-footer-new { position: absolute; bottom: 12mm; left: 15mm; right: 15mm; display: flex; align-items: flex-start; }
+        .footer-line-wrapper { flex: 1; border-top: 3px solid #000; padding-top: 8px; text-align: center; }
+        .company-details { font-size: 11px; color: #000; font-weight: 500; line-height: 1.4; }
+        .footer-page-number { background-color: #000 !important; color: #fff !important; font-size: 20px; font-weight: 400; padding: 6px 22px; margin-left: 10px; display: flex; align-items: center; justify-content: center; }
+
+        .hide-input { display: none; }
+        @media print {
+            .no-print { display: none !important; }
+            body { background: none; padding: 0; display: block; }
+            .page { width: 100% !important; margin: 0 !important; padding: 15mm 15mm 30mm 15mm !important; box-shadow: none !important; border: none !important; }
+            [contenteditable="true"]:hover, input:hover, textarea:hover { background-color: transparent !important; outline: none !important; }
+            .image-section { background: transparent !important; border: 1px solid #cdcdcd; }
+            .placeholder-text { display: none; }
+            .chart-container { border: 1px solid #e5e7eb !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <input type="file" id="inputLogo" class="hide-input" accept="image/*" onchange="previewImage(this, 'imgLogo')">
+
+    <div class="page">
+        <table class="header-table">
+            <tr>
+                <td rowspan="2" class="col-logo">
+                     <div class="logo-placeholder editable-image" onclick="document.getElementById('inputLogo').click()" title="Clique para alterar a Logo">
+                        <img id="imgLogo" src="logo.webp" alt="Logo">
+                     </div>
+                </td>
+                <td class="col-title" contenteditable="true" spellcheck="false">
+                    REGISTRO DE TESTE HIDROSTÁTICO
+                </td>
+                <td rowspan="2" class="col-info">
+                    <div class="info-label">Relatório nº:</div>
+                    <div class="info-value" contenteditable="true" spellcheck="false">REL-000000</div>
+                    <div class="info-label">Data:</div>
+                    <div class="info-value" contenteditable="true" spellcheck="false">DD/MM/AAAA</div>
+                    <div class="info-label">Folha:</div>
+                    <div class="info-value" id="folha-label" contenteditable="true" spellcheck="false">1/2</div>
+                </td>
+            </tr>
+        </table>
+
+        <div class="section-title">DADOS GERAIS</div>
+        <div class="f-grid f-grid-1-2">
+            <div class="f"><span class="f-lbl">CLIENTE</span><div class="f-val" id="inp-cliente" contenteditable="true">--</div></div>
+            <div class="f"><span class="f-lbl">DOC Nº</span><div class="f-val" id="inp-doc-num" contenteditable="true">--</div></div>
+        </div>
+        <div class="f-grid f-grid-2">
+            <div class="f"><span class="f-lbl">T.A.G.</span><div class="f-val" id="inp-tag" contenteditable="true">--</div></div>
+            <div class="f"><span class="f-lbl">EQUIPAMENTO</span><div class="f-val" id="inp-equipamento" contenteditable="true">--</div></div>
+        </div>
+        <div class="f-grid f-grid-3">
+            <div class="f"><span class="f-lbl">DATA DA INSPEÇÃO</span><div class="f-val" id="inp-data-teste" contenteditable="true">--</div></div>
+            <div class="f"><span class="f-lbl">PRESSÃO DE PROJETO</span><div class="f-val" id="inp-pressao-proj" contenteditable="true">--</div></div>
+            <div class="f"><span class="f-lbl">PRESSÃO DE TRABALHO</span><div class="f-val" contenteditable="true">--</div></div>
+        </div>
+
+        <div class="section-title">DADOS DO TESTE</div>
+        <div class="f-grid f-grid-3">
+            <div class="f"><span class="f-lbl">FLUIDO DE TESTE</span><div class="f-val" id="inp-fluido" contenteditable="true">--</div></div>
+            <div class="f"><span class="f-lbl">PRESSÃO DE TESTE</span><div class="f-val" id="inp-pressao-teste" contenteditable="true">--</div></div>
+            <div class="f"><span class="f-lbl">VALIDADE DO LAUDO</span><div class="f-val" contenteditable="true">--</div></div>
+        </div>
+        <div class="f-grid f-grid-3">
+            <div class="f"><span class="f-lbl">DURAÇÃO DO TESTE</span><div class="f-val" contenteditable="true">--</div></div>
+            <div class="f"><span class="f-lbl">TEMP. DO FLUIDO</span><div class="f-val" contenteditable="true">--</div></div>
+            <div class="f"><span class="f-lbl">NORMAS REFERÊNCIA</span><div class="f-val" contenteditable="true">ASME VIII DIV1 / NR13</div></div>
+        </div>
+        <div class="f-grid">
+            <div class="f"><span class="f-lbl">PROCEDIMENTO</span><div class="f-val" contenteditable="true">--</div></div>
+        </div>
+
+        <div class="section-title">GRÁFICO DE PRESSURIZAÇÃO E ESTABILIZAÇÃO</div>
+        
+        <div class="chart-table-wrapper">
+            <!-- Gráfico ocupa toda a largura -->
+            <div class="chart-container">
+                <canvas id="pressureChart"></canvas>
+            </div>
+            
+            <!-- Tabela oculta: mantida no DOM para que a injeção de dados continue funcionando -->
+            <div class="table-container">
+                <table class="res-table" id="points-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 50%;">TEMPO (min)</th>
+                            <th style="width: 50%;">PRESSÃO (kgf)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="section-title">INSTRUMENTO DE MEDIÇÃO UTILIZADO</div>
+        <div class="f-grid f-grid-4">
+            <div class="f"><span class="f-lbl">PADRÃO</span><div class="f-val" contenteditable="true">--</div></div>
+            <div class="f"><span class="f-lbl">Nº SÉRIE</span><div class="f-val" contenteditable="true">--</div></div>
+            <div class="f"><span class="f-lbl">Nº CERTIFICADO</span><div class="f-val" contenteditable="true">--</div></div>
+            <div class="f"><span class="f-lbl">VALIDADE</span><div class="f-val" contenteditable="true">--</div></div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; border: 1px solid #ededed; padding: 4px; margin-bottom: 4px; background: #fff;">
+            <img src="../icon/imetro.png" style="height: 25px; object-fit: contain;" alt="Selo Inmetro">
+            <span style="font-size: 8.5px; line-height: 1.1; color: #111827;">O instrumento de medição utilizado foi calibrado por laboratório acreditado pelo INMETRO, com certificado de calibração válido, garantindo a rastreabilidade metrológica e a confiabilidade dos resultados.</span>
+        </div>
+
+        <div class="parecer-container">
+            <div class="section-title">PARECER TÉCNICO</div>
+            <div class="parecer-section">
+                <textarea maxlength="400" placeholder="Clique aqui para digitar o parecer técnico e a conclusão do teste hidrostático..." spellcheck="false"></textarea>
+            </div>
+        </div>
+
+        <div class="signature-wrapper-tecnico" id="sig-wrapper-tecnico">
+            <div class="no-print select-ph-box">
+                <select id="select-tecnico" onchange="atualizarAssinaturaTecnico()">
+                    <option value="">Assinar...</option>
+                </select>
+            </div>
+            <img id="img-assinatura-tecnico" class="sig-img" src="" alt="Assinatura Técnico" style="display:none;">
+            <div class="signature-line"></div>
+            <div class="sig-data">
+                <strong>TÉCNICO RESPONSÁVEL</strong><br>
+                <span id="nome-tecnico" class="data-highlight" contenteditable="true" spellcheck="false">Nome do Técnico</span><br>
+                Registro: <span id="crea-tecnico" class="data-highlight" contenteditable="true" spellcheck="false">000000</span>
+            </div>
+        </div>
+
+        <div class="signature-wrapper" id="sig-wrapper-engenheiro">
+            <div class="no-print select-ph-box">
+                <select id="select-ph" onchange="atualizarAssinatura()">
+                    <option value="">Assinar...</option>
+                </select>
+            </div>
+            <img id="img-assinatura-ph" class="sig-img" src="" alt="Assinatura PH" style="display:none;">
+            <div class="signature-line"></div>
+            <div class="sig-data">
+                <strong>ENGENHEIRO RESPONSÁVEL</strong><br>
+                <span id="nome-ph" class="data-highlight" contenteditable="true" spellcheck="false">Nome do Engenheiro</span><br>
+                CREA/RNP: <span id="crea-ph" class="data-highlight" contenteditable="true" spellcheck="false">ES-000000/D</span>
+            </div>
+        </div>
+
+        <div class="pgr-footer-new">
+            <div class="footer-line-wrapper">
+                <div class="company-details" id="footer-empresa" contenteditable="true" spellcheck="false">
+                    <strong>NOME DA EMPRESA LTDA.</strong><br>
+                    Endereço Completo • Bairro • Cidade/UF • CNPJ: 00.000.000/0000-00 • CEP: 00000-000<br>
+                    Telef: (00) 0000-0000 • E-mail: contato@empresa.com.br
+                </div>
+            </div>
+            <div class="footer-page-number" contenteditable="true">
+                13
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Registrar Plugin de DataLabels do Chart.js
+        Chart.register(ChartDataLabels);
+
+        let chartInstance = null;
+        let imageCount = 0;
+        const MAX_IMAGES = 2;
+
+        // Preview da Logo
+        function previewImage(input, imgId) {
+            if (input.files && input.files[0]) {
+                var reader = new FileReader();
+                reader.onload = function(e) { document.getElementById(imgId).src = e.target.result; }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        // ==========================================
+        // 1. GERAR TABELA PREENCHIDA (TEMPO E PRESSÃO)
+        // ==========================================
+        function generateTableRows(count) {
+            count = count || 8;
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '';
+            for (let i = 1; i <= count; i++) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>
+                        <div class="input-group">
+                            <input type="number" step="any" id="th-tempo-${i}" class="input-time" oninput="updateChart()">
+                            <span class="unit-label">min</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="input-group">
+                            <input type="number" step="any" id="th-min-${i}" class="input-pressure" oninput="updateChart()">
+                            <span class="unit-label">kgf</span>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            }
+        }
+
+        // ==========================================
+        // 2. HELPER: COR DE CALOR POR RATIO (0=frio/azul → 1=quente/vermelho)
+        // ==========================================
+        function getHeatColor(ratio) {
+            if (ratio <= 0)    return '#2563eb'; // Azul   – pressão baixa
+            if (ratio <= 0.30) return '#16a34a'; // Verde
+            if (ratio <= 0.55) return '#ca8a04'; // Amarelo
+            if (ratio <= 0.75) return '#ea580c'; // Laranja
+            return '#dc2626';                    // Vermelho – zona crítica
+        }
+
+        // ==========================================
+        // 3. GRÁFICO COM GRADIENTE TÉRMICO
+        // ==========================================
+        function initChart() {
+            const ctx = document.getElementById('pressureChart').getContext('2d');
+
+            // ---- Plugin: zonas de fundo + gradiente da linha/preenchimento ----
+            const pressurePlugin = {
+                id: 'pressurePlugin',
+
+                beforeDraw(chart) {
+                    if (!chart.chartArea) return;
+                    const { ctx: c, chartArea: { top, bottom, left, right }, scales: { y } } = chart;
+
+                    // Lê pressão de teste do campo (ex: "18.0 kgf/cm²")
+                    const ptEl = document.getElementById('inp-pressao-teste');
+                    const ptText = ptEl ? (ptEl.innerText || ptEl.textContent || '') : '';
+                    const ptMatch = ptText.match(/[\d.]+/);
+                    const testPressure = ptMatch ? parseFloat(ptMatch[0]) : (y.max * 0.9);
+
+                    // Pixels correspondentes aos limiares das zonas
+                    const yCrit    = Math.max(top,    y.getPixelForValue(testPressure * 0.80));
+                    const yWarn    = Math.max(top,    y.getPixelForValue(testPressure * 0.50));
+                    const yPtLine  = Math.max(top - 1, y.getPixelForValue(testPressure));
+
+                    // Zona crítica — vermelho leve (acima de 80% PT)
+                    c.fillStyle = 'rgba(220, 38, 38, 0.07)';
+                    c.fillRect(left, top, right - left, yCrit - top);
+
+                    // Zona de atenção — amarelo leve (50–80% PT)
+                    c.fillStyle = 'rgba(202, 138, 4, 0.06)';
+                    c.fillRect(left, yCrit, right - left, yWarn - yCrit);
+
+                    // Zona normal — verde leve (0–50% PT)
+                    c.fillStyle = 'rgba(22, 163, 74, 0.05)';
+                    c.fillRect(left, yWarn, right - left, bottom - yWarn);
+
+                    // Gradiente da linha (vermelho no topo → azul na base)
+                    const lineGrad = c.createLinearGradient(0, top, 0, bottom);
+                    lineGrad.addColorStop(0.00, '#dc2626'); // Vermelho
+                    lineGrad.addColorStop(0.22, '#ea580c'); // Laranja
+                    lineGrad.addColorStop(0.46, '#ca8a04'); // Amarelo
+                    lineGrad.addColorStop(0.72, '#16a34a'); // Verde
+                    lineGrad.addColorStop(1.00, '#2563eb'); // Azul
+
+                    // Gradiente do preenchimento (mesmo mapa, semitransparente)
+                    const fillGrad = c.createLinearGradient(0, top, 0, bottom);
+                    fillGrad.addColorStop(0.00, 'rgba(220,  38,  38, 0.42)');
+                    fillGrad.addColorStop(0.22, 'rgba(234,  88,  12, 0.30)');
+                    fillGrad.addColorStop(0.46, 'rgba(202, 138,   4, 0.20)');
+                    fillGrad.addColorStop(0.72, 'rgba( 22, 163,  74, 0.12)');
+                    fillGrad.addColorStop(1.00, 'rgba( 37,  99, 235, 0.06)');
+
+                    chart.data.datasets[0].borderColor     = lineGrad;
+                    chart.data.datasets[0].backgroundColor = fillGrad;
+                },
+
+                afterDraw(chart) {
+                    if (!chart.chartArea) return;
+                    const { ctx: c, chartArea: { top, bottom, left, right }, scales: { y } } = chart;
+
+                    // Lê pressão de teste para desenhar a linha de referência
+                    const ptEl = document.getElementById('inp-pressao-teste');
+                    const ptText = ptEl ? (ptEl.innerText || ptEl.textContent || '') : '';
+                    const ptMatch = ptText.match(/[\d.]+/);
+                    if (!ptMatch) return;
+                    const testPressure = parseFloat(ptMatch[0]);
+
+                    const yPtLine = y.getPixelForValue(testPressure);
+                    if (yPtLine < top || yPtLine > bottom) return;
+
+                    c.save();
+                    c.strokeStyle = 'rgba(220, 38, 38, 0.75)';
+                    c.lineWidth = 1.2;
+                    c.setLineDash([6, 4]);
+                    c.beginPath();
+                    c.moveTo(left, yPtLine);
+                    c.lineTo(right, yPtLine);
+                    c.stroke();
+
+                    // Label da linha de pressão de teste
+                    c.setLineDash([]);
+                    c.fillStyle = 'rgba(220, 38, 38, 0.85)';
+                    c.fillRect(left + 4, yPtLine - 13, 78, 12);
+                    c.fillStyle = '#ffffff';
+                    c.font = 'bold 7.5px Inter, sans-serif';
+                    c.fillText('PT: ' + testPressure.toFixed(1) + ' kgf/cm²', left + 7, yPtLine - 4);
+                    c.restore();
+                }
+            };
+
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                plugins: [pressurePlugin],
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Pressão (kgf/cm²)',
+                        data: [],
+                        borderColor: '#dc2626',       // placeholder — sobrescrito pelo plugin
+                        backgroundColor: 'transparent', // placeholder — sobrescrito pelo plugin
+                        borderWidth: 3,
+                        pointBackgroundColor: '#ffffff',
+                        pointBorderColor: function(context) {
+                            const val = context.parsed?.y;
+                            if (val == null) return '#2563eb';
+                            const ch = context.chart;
+                            const ys = ch.scales?.y;
+                            if (!ys || !ch.chartArea) return '#2563eb';
+                            const ratio = 1 - (ys.getPixelForValue(val) - ch.chartArea.top)
+                                            / (ch.chartArea.bottom - ch.chartArea.top);
+                            return getHeatColor(Math.min(Math.max(ratio, 0), 1));
+                        },
+                        pointBorderWidth: 2.5,
+                        pointRadius: 5,
+                        pointHoverRadius: 7,
+                        fill: true,
+                        tension: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: { padding: { top: 32, right: 15, left: 15 } },
+                    plugins: {
+                        legend: { display: false },
+                        datalabels: {
+                            backgroundColor: '#ffffff',
+                            borderColor: function(context) {
+                                const val = context.dataset.data[context.dataIndex];
+                                if (val == null) return '#2563eb';
+                                const ys = context.chart.scales?.y;
+                                if (!ys || !context.chart.chartArea) return '#2563eb';
+                                const ratio = 1 - (ys.getPixelForValue(val) - context.chart.chartArea.top)
+                                                / (context.chart.chartArea.bottom - context.chart.chartArea.top);
+                                return getHeatColor(Math.min(Math.max(ratio, 0), 1));
+                            },
+                            borderRadius: 6,
+                            borderWidth: 1.5,
+                            color: function(context) {
+                                const val = context.dataset.data[context.dataIndex];
+                                if (val == null) return '#2563eb';
+                                const ys = context.chart.scales?.y;
+                                if (!ys || !context.chart.chartArea) return '#2563eb';
+                                const ratio = 1 - (ys.getPixelForValue(val) - context.chart.chartArea.top)
+                                                / (context.chart.chartArea.bottom - context.chart.chartArea.top);
+                                return getHeatColor(Math.min(Math.max(ratio, 0), 1));
+                            },
+                            font: { weight: '900', size: 9, family: 'Inter' },
+                            padding: 4,
+                            formatter: function(value) {
+                                return value != null ? value.toFixed(2) + ' kgf/cm²' : null;
+                            },
+                            display: function(ctx) { return ctx.dataset.data[ctx.dataIndex] != null; },
+                            align: 'top',
+                            offset: 8
+                        }
+                    },
+                    scales: {
+                        x: { title: { display: true, text: 'Tempo (minutos)', font: { weight: 'bold', size: 10, family: 'Inter' } } },
+                        y: {
+                            title: { display: true, text: 'Pressão (kgf/cm²)', font: { weight: 'bold', size: 10, family: 'Inter' } },
+                            beginAtZero: true,
+                            grace: '20%'
+                        }
+                    }
+                }
+            });
+
+            updateChart();
+        }
+
+        function updateChart() {
+            const timeInputs     = document.querySelectorAll('.input-time');
+            const pressureInputs = document.querySelectorAll('.input-pressure');
+            let newTimes     = [];
+            let newPressures = [];
+
+            for (let i = 0; i < timeInputs.length; i++) {
+                let t = timeInputs[i].value;
+                let p = pressureInputs[i].value;
+                if (t !== "") {
+                    newTimes.push(t);
+                    newPressures.push(p !== "" ? parseFloat(p) : null);
+                }
+            }
+
+            if (typeof chartInstance !== 'undefined' && chartInstance) {
+                chartInstance.data.labels = newTimes;
+                chartInstance.data.datasets[0].data = newPressures;
+                chartInstance.update();
+            }
+        }
+
+        // ==========================================
+        // 4. CONTROLE DE IMAGENS
+        // ==========================================
+        function addImageBox() {
+            if (imageCount >= MAX_IMAGES) return;
+
+            const grid = document.getElementById('images-grid');
+            const card = document.createElement('div');
+            card.className = 'image-card';
+            card.innerHTML = `
+                <button class="btn-delete no-print" onclick="removeImageBox(this)" title="Excluir imagem">X</button>
+                <div class="image-section" onclick="this.querySelector('.file-upload').click()">
+                    <span class="placeholder-text" style="color: #9CA3AF; font-size: 9px; font-weight: bold;">(CLIQUE PARA INSERIR FOTO)</span>
+                    <img class="img-preview" src="" alt="Evidência do Teste">
+                    <input type="file" class="file-upload no-print" accept="image/*" style="display: none;" onchange="loadImagePreview(event, this)">
+                </div>
+                <textarea class="img-desc-input" placeholder="Digite a descrição da imagem..." spellcheck="false"></textarea>
+            `;
+            
+            grid.appendChild(card);
+            imageCount++;
+            atualizarVisibilidadeImagens();
+        }
+
+        function removeImageBox(buttonElement) {
+            buttonElement.parentElement.remove();
+            imageCount--;
+            atualizarVisibilidadeImagens();
+        }
+
+        function atualizarVisibilidadeImagens() {
+            const btnAdd = document.getElementById('btn-add-img');
+            const titleFotos = document.getElementById('title-fotos');
+            
+            btnAdd.style.display = (imageCount >= MAX_IMAGES) ? 'none' : 'block';
+            titleFotos.style.display = (imageCount === 0) ? 'none' : 'block';
+        }
+
+        function loadImagePreview(event, inputElement) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const card = inputElement.parentElement;
+                    const imgElement = card.querySelector('.img-preview');
+                    const placeholder = card.querySelector('.placeholder-text');
+                    
+                    imgElement.src = e.target.result;
+                    imgElement.style.display = 'block';
+                    placeholder.style.display = 'none';
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // ==========================================
+        // 5. AUTO-ASSINATURA E INJEÇÃO
+        // ==========================================
+        function carregarPHsParaSelect() {
+            const selectPH = document.getElementById('select-ph');
+            const listaPHs = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
+
+            if (listaPHs.length === 0) {
+                selectPH.innerHTML = '<option value="">Nenhum PH cadastrado no Sistema</option>';
+            } else {
+                listaPHs.forEach(ph => {
+                    const option = document.createElement('option');
+                    option.value = ph.id;
+                    option.textContent = ph.nome + " (" + ph.crea + ")";
+                    selectPH.appendChild(option);
+                });
+            }
+            const optExcluir = document.createElement('option');
+            optExcluir.value = 'excluir';
+            optExcluir.textContent = 'Excluir Assinatura';
+            optExcluir.style.color = '#dc2626';
+            optExcluir.style.fontWeight = '700';
+            selectPH.appendChild(optExcluir);
+        }
+
+        function atualizarAssinatura() {
+            const selectPH = document.getElementById('select-ph');
+            const wrapper = document.getElementById('sig-wrapper-engenheiro');
+            if (selectPH.value === 'excluir') {
+                if (wrapper) wrapper.classList.add('sig-excluida');
+                return;
+            }
+            if (wrapper) wrapper.classList.remove('sig-excluida');
+            const idSelecionado = selectPH.value;
+            const listaPHs = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
+
+            const phSelecionado = listaPHs.find(p => p.id == idSelecionado);
+            const imgAssinatura = document.getElementById('img-assinatura-ph');
+            const spanNome = document.getElementById('nome-ph');
+            const spanCrea = document.getElementById('crea-ph');
+
+            if (phSelecionado) {
+                spanNome.textContent = phSelecionado.nome;
+                spanCrea.textContent = phSelecionado.crea;
+                
+                if (phSelecionado.assinatura) {
+                    imgAssinatura.src = phSelecionado.assinatura;
+                    imgAssinatura.style.display = 'block';
+                } else {
+                    imgAssinatura.style.display = 'none';
+                }
+            } else {
+                spanNome.textContent = 'Nome do Engenheiro';
+                spanCrea.textContent = 'ES-000000/D';
+                imgAssinatura.style.display = 'none';
+                imgAssinatura.src = '';
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            generateTableRows();
+            initChart();
+            carregarPHsParaSelect();
+            addImageBox();
+            addImageBox();
+
+            // Auto-Fill Empresa
+            const salvo = localStorage.getItem('nr13_minha_empresa');
+            if (salvo) {
+                const dados = JSON.parse(salvo);
+                if (dados.logo) document.getElementById('imgLogo').src = dados.logo;
+                let footerHTML = `<strong>${dados.razao || dados.fantasia || 'NOME DA EMPRESA NÃO INFORMADO'}</strong><br>`;
+                let linha2 = [];
+                if(dados.endereco) linha2.push(dados.endereco);
+                if(dados.bairro) linha2.push(dados.bairro);
+                if(dados.cidade && dados.estado) linha2.push(`${dados.cidade}/${dados.estado}`);
+                if(dados.cnpj) linha2.push(`CNPJ: ${dados.cnpj}`);
+                if(dados.cep) linha2.push(`CEP: ${dados.cep}`);
+                if (linha2.length > 0) footerHTML += linha2.join(' • ') + `<br>`;
+                let linha3 = [];
+                if(dados.telefone) linha3.push(`Telef: ${dados.telefone}`);
+                if(dados.email) linha3.push(`E-mail: ${dados.email}`);
+                if (linha3.length > 0) footerHTML += linha3.join(' • ');
+                document.getElementById('footer-empresa').innerHTML = footerHTML;
+            }
+        });
+
+        // Motor Receptor (Mantido integralmente)
+        document.addEventListener('DOMContentLoaded', () => {
+            let tentativas = 0;
+            let motorInjecao = setInterval(() => {
+                tentativas++;
+                if (tentativas > 10) clearInterval(motorInjecao); 
+                
+                try {
+                    let injecaoStr = localStorage.getItem('nr13_injecao_atual');
+                    if (injecaoStr) {
+                        let injecao = JSON.parse(injecaoStr);
+                        
+                        if (injecao.th) {
+                            let dados = injecao.th;
+                            let injetouAlgo = false;
+
+                            // Regera a tabela com o número correto de linhas antes de injetar
+                            if (dados.total_rows) {
+                                generateTableRows(parseInt(dados.total_rows));
+                            }
+
+                            // Injeta fotos salvas do th-avulso
+                            if (dados.fotos && dados.fotos.length > 0) {
+                                const cards = document.querySelectorAll('.image-card');
+                                dados.fotos.forEach(function(foto, i) {
+                                    if (i < cards.length && foto.base64) {
+                                        const img = cards[i].querySelector('.img-preview');
+                                        const ph = cards[i].querySelector('.placeholder-text');
+                                        const desc = cards[i].querySelector('.img-desc-input');
+                                        if (img) { img.src = foto.base64; img.style.display = 'block'; }
+                                        if (ph) ph.style.display = 'none';
+                                        if (desc && foto.descricao) desc.value = foto.descricao;
+                                        injetouAlgo = true;
+                                    }
+                                });
+                            }
+
+                            function injetarValor(idElemento, valor) {
+                                let el = document.getElementById(idElemento);
+                                if (el) {
+                                    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
+                                        el.value = valor;
+                                    } else {
+                                        el.innerText = valor;
+                                    }
+                                    injetouAlgo = true;
+                                }
+                            }
+
+                            // Campos salvos por FormularioTH: cliente, docNum, equipamento, dataTeste, pressaoProj, pressaoTeste, fluido
+                            const mapa = {
+                                'inp-cliente':       dados.cliente,
+                                'inp-doc-num':       dados.docNum,
+                                'inp-tag':           dados.tag || (new URLSearchParams(window.location.search)).get('tag') || '',
+                                'inp-equipamento':   dados.equipamento,
+                                'inp-data-teste':    dados.dataTeste,
+                                'inp-pressao-proj':  dados.pressaoProj  ? dados.pressaoProj  + ' kgf/cm²' : '',
+                                'inp-pressao-teste': dados.pressaoTeste ? dados.pressaoTeste + ' kgf/cm²' : '',
+                                'inp-fluido':        dados.fluido,
+                            };
+                            for (const [id, valor] of Object.entries(mapa)) {
+                                if (valor !== undefined && valor !== '') injetarValor(id, valor);
+                            }
+
+                            // Curva: dados.curva = [{tempo, pressao}, ...]
+                            if (dados.curva && dados.curva.length > 0) {
+                                if (dados.curva.length !== document.querySelectorAll('.input-time').length) {
+                                    generateTableRows(dados.curva.length);
+                                }
+                                dados.curva.forEach(function(pt, i) {
+                                    injetarValor('th-tempo-' + (i + 1), pt.tempo || '');
+                                    injetarValor('th-min-'   + (i + 1), pt.pressao || '');
+                                });
+                            }
+
+                            if (injetouAlgo) {
+                                if (typeof updateChart === 'function') updateChart();
+                                clearInterval(motorInjecao);
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error("Erro na auto-injeção do TH:", e);
+                }
+            }, 500);
+        });
+    </script>
+
+    <script>
+        // ==========================================
+        // ASSINATURA — TÉCNICO RESPONSÁVEL
+        // ==========================================
+        function carregarTecnicosParaSelect() {
+            const sel = document.getElementById('select-tecnico');
+            if (!sel) return;
+            const lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
+            sel.innerHTML = '<option value="">Assinar...</option>';
+            lista.filter(p => p.tipo && p.tipo.startsWith('Inspetor')).forEach(ph => {
+                const opt = document.createElement('option');
+                opt.value = ph.id;
+                opt.textContent = ph.nome + (ph.crea ? " (" + ph.crea + ")" : "");
+                sel.appendChild(opt);
+            });
+            const optExcluir = document.createElement('option');
+            optExcluir.value = 'excluir';
+            optExcluir.textContent = 'Excluir Assinatura';
+            optExcluir.style.color = '#dc2626';
+            optExcluir.style.fontWeight = '700';
+            sel.appendChild(optExcluir);
+        }
+
+        function atualizarAssinaturaTecnico() {
+            const sel = document.getElementById('select-tecnico');
+            const wrapper = document.getElementById('sig-wrapper-tecnico');
+            if (sel.value === 'excluir') {
+                if (wrapper) wrapper.classList.add('sig-excluida');
+                return;
+            }
+            if (wrapper) wrapper.classList.remove('sig-excluida');
+            const lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
+            const ph = lista.find(p => String(p.id) === String(sel.value));
+            const img = document.getElementById('img-assinatura-tecnico');
+            const nome = document.getElementById('nome-tecnico');
+            const crea = document.getElementById('crea-tecnico');
+            if (ph) {
+                nome.textContent = ph.nome;
+                crea.textContent = ph.crea || '';
+                if (ph.assinatura) { img.src = ph.assinatura; img.style.display = 'block'; }
+                else { img.style.display = 'none'; img.src = ''; }
+            } else {
+                nome.textContent = 'Nome do Técnico';
+                crea.textContent = '000000';
+                img.style.display = 'none'; img.src = '';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            carregarTecnicosParaSelect();
+        });
+    </script>
+</body>
+</html>

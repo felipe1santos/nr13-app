@@ -1,0 +1,271 @@
+.calibracoes-page {
+  padding: 24px;
+  max-width: 1000px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.cal-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+  background: #e9e9e9;
+  padding: 20px;
+  border-radius: var(--radius-lg);
+}
+
+.cal-form-secao {
+  border: 1px solid var(--border-solid);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+
+.cal-form-secao-titulo {
+  background: var(--bg-body);
+  border-bottom: 1px solid var(--border-solid);
+  padding: 10px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent-2);
+}
+
+.cal-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  padding: 14px;
+}
+
+.cal-form-grid.cols-1 { grid-template-columns: 1fr; }
+.cal-form-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+.cal-form-grid.cols-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+
+.cal-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cal-campo label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.cal-campo input,
+.cal-campo select,
+.cal-campo textarea {
+  border: 1px solid var(--border-solid);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  background: var(--bg-card);
+  color: var(--text-main);
+  width: 100%;
+}
+
+.cal-campo input:focus,
+.cal-campo select:focus,
+.cal-campo textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.cal-campo-full { grid-column: 1 / -1; }
+
+.cal-tabela-resultados {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin: 0;
+}
+
+.cal-tabela-resultados th,
+.cal-tabela-resultados td {
+  border: 1px solid var(--border-solid);
+  padding: 5px 8px;
+  text-align: center;
+}
+
+.cal-tabela-resultados th {
+  background: var(--bg-body);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.cal-tabela-resultados td input {
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--text-main);
+  width: 100%;
+  text-align: center;
+  padding: 2px;
+}
+
+.cal-tabela-resultados td input:focus {
+  outline: 1px solid var(--accent);
+  border-radius: 2px;
+}
+
+.cal-tabela-resultados td.erro-calc {
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: 11px;
+}
+
+.cal-tabelas-duplas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 14px;
+}
+
+.cal-subtabela-titulo {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  padding: 4px 6px;
+  background: var(--bg-body);
+  border-radius: var(--radius-sm);
+}
+
+.cal-historico-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 14px;
+}
+
+.cal-historico-table th {
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  background: var(--bg-body);
+  border-bottom: 2px solid var(--border-solid);
+}
+
+.cal-historico-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-solid);
+  font-size: 13px;
+  color: var(--text-main);
+}
+
+.cal-historico-table tr:hover td {
+  background: var(--bg-body);
+}
+
+.badge-cal-tipo {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+}
+
+.badge-cal-tipo.manometro {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.badge-cal-tipo.psv {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.badge-cal-status {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+}
+
+.badge-cal-status.aprovado {
+  background: var(--status-ok-bg);
+  color: var(--status-ok-text);
+}
+
+.badge-cal-status.reprovado {
+  background: var(--status-erro-bg);
+  color: var(--status-erro-text);
+}
+
+.badge-cal-status.pendente {
+  background: var(--menu-hover);
+  color: var(--text-muted);
+}
+
+.cal-acoes-form {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.cal-tipo-selector {
+  display: flex;
+  gap: 12px;
+  padding: 14px;
+}
+
+.cal-tipo-btn {
+  flex: 1;
+  padding: 14px;
+  border: 2px solid var(--border-solid);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  cursor: pointer;
+  text-align: center;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.cal-tipo-btn:hover {
+  border-color: var(--accent);
+}
+
+.cal-tipo-btn.ativo {
+  border-color: var(--accent);
+  background: var(--accent-bg-light);
+}
+
+.cal-tipo-btn-titulo {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 4px;
+}
+
+.cal-tipo-btn-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+@media (max-width: 600px) {
+  .calibracoes-page { padding: 14px; }
+  .cal-form-grid,
+  .cal-form-grid.cols-3,
+  .cal-form-grid.cols-4 { grid-template-columns: 1fr; }
+  .cal-tabelas-duplas { grid-template-columns: 1fr; }
+  .cal-tipo-selector { flex-direction: column; }
+}

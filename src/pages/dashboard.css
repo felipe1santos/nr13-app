@@ -1,0 +1,31 @@
+.dashboard-page {
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.dashboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.dashboard-header h1 {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.dashboard-vazio {
+  color: var(--text-muted);
+  padding: 40px 0;
+  text-align: center;
+}
+
+@media (max-width: 600px) {
+  .dashboard-page {
+    padding: 14px;
+  }
+}

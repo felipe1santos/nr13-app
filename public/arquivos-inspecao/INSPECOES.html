@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatório de Inspeção – Folha 1</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --text-dark: #111827;     
+            --border-color: #111827;  
+            --border-light: #e5e7eb;
+            --border-box: #c7c7c7;
+            --blue-data: #0037ad;     
+            --blue-check: #053e76;
+            --gray-light: #9ca3af; 
+            --bg-gray: #f3f4f6; 
+            
+            /* Cores de status Aprovado/Reprovado */
+            --green-ok: #16a34a;
+            --red-fail: #dc2626;
+        }
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        /* =========================================
+           RESET E CONFIGURAÇÕES BÁSICAS
+           ========================================= */
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--text-dark);
+            background-color: #c8c8c8; 
+            margin: 0;
+            padding: 0; 
+            line-height: 1.2;
+            font-size: 10px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .page {
+            width: 100%;
+            min-height: 297mm;
+            background: #fff;
+            margin: 0;
+            padding: 12mm 15mm 30mm 15mm;
+            position: relative;
+            page-break-after: always;
+            display: flex;
+            flex-direction: column;
+            border: none;
+            box-shadow: 0 3px 18px rgba(0,0,0,0.35); 
+        }
+
+        .hide-input { display: none; }
+
+        /* =========================================
+           CABEÇALHO PADRÃO
+           ========================================= */
+        .header-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid var(--border-color);
+            margin-bottom: 6px; /* COMPACTADO */
+        }
+        .header-table td {
+            border: 1px solid var(--border-color);
+            vertical-align: middle;
+            padding: 4px 6px; 
+        }
+        .col-logo { width: 25%; text-align: center; }
+        .col-logo img { max-width: 100%; max-height: 55px; object-fit: contain; display: block; margin: 0 auto; }
+        .col-title { width: 50%; text-align: center; font-size: 14px; font-weight: 900; color: var(--text-dark); line-height: 1.2; text-transform: uppercase; }
+        .col-info { width: 25%; text-align: left; padding-left: 10px; }
+        .col-info .info-label { font-size: 9px; color: var(--text-dark); }
+        .col-info .info-value { font-size: 11px; font-weight: 700; color: var(--blue-data); margin-top: 1px; margin-bottom: 3px; }
+        .col-info .info-value:last-child { margin-bottom: 0; }
+
+        /* =========================================
+           CONTEÚDO E SEÇÕES 
+           ========================================= */
+        .content-container {
+            flex-grow: 1;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .section-title {
+            font-size: 9.5px; /* COMPACTADO */
+            font-weight: 900;
+            margin-top: 6px; 
+            margin-bottom: 8px; 
+            text-transform: uppercase;
+            background-color: var(--bg-gray);
+            padding: 3px 6px; 
+            color: var(--text-dark);
+            text-align: left;
+            border: none;
+        }
+
+        /* =========================================
+           FORMULÁRIOS (CAIXAS E LINHAS)
+           ========================================= */
+        .f-row {
+            display: flex;
+            align-items: stretch;
+            gap: 2px; /* COMPACTADO */
+            margin-bottom: 2px; /* COMPACTADO */
+        }
+        .f {
+            display: flex;
+            align-items: center;
+            border: 1px solid #f3f4f6; 
+            flex: 1; 
+            min-height: 20px; /* COMPACTADO */
+            background: #fff;
+            padding: 1px 6px;
+        }
+        .f-lbl {
+            font-size: 8.5px; /* COMPACTADO */
+            font-weight: 900;
+            color: var(--text-dark);
+            white-space: nowrap;
+            text-transform: uppercase;
+            margin-right: 6px;
+        }
+        .f-val {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            overflow: hidden; 
+        }
+        .f-val input[type="text"] {
+            font-family: 'Inter', sans-serif;
+            font-size: 11px; /* COMPACTADO */
+            font-weight: 650;
+            color: var(--blue-data);
+            width: 100%;
+            border: none;
+            outline: none;
+            background: transparent;
+        }
+        .f-val input[type="text"]::placeholder {
+            color: var(--gray-light);
+            font-weight: 500;
+        }
+        .f-val input[type="text"]:focus {
+            background-color: #fdfad2;
+        }
+
+        /* =========================================
+           CHECKBOXES (AZUL, VERDE E VERMELHO)
+           ========================================= */
+        .group-lbl {
+            font-size: 9px;
+            font-weight: 900;
+            margin-top: 4px;
+            margin-bottom: 2px;
+            text-transform: uppercase;
+            color: var(--text-dark);
+        }
+        .cb-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-bottom: 4px;
+        }
+        .cb-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 9px; /* COMPACTADO */
+            font-weight: 600;
+            padding: 3px 6px;
+            border: 1px solid var(--border-light); 
+            background: #fff;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.2s ease;
+            color: var(--text-dark);
+            text-transform: uppercase;
+        }
+        .cb-box {
+            width: 12px; /* COMPACTADO */
+            height: 12px;
+            border: 1px solid var(--gray-light); 
+            border-radius: 2px;
+            flex-shrink: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #fff;
+            transition: all 0.2s ease;
+        }
+        
+        /* Padrão Azul (Para Ensaios e Marcas Comuns) */
+        .cb-item.is-checked { border-color: var(--blue-check); color: var(--blue-check); background-color: #f0f5ff; }
+        .cb-item.is-checked .cb-box { background-color: var(--blue-check); border-color: var(--blue-check); color: #fff; }
+        .cb-item.is-checked .cb-box::after { content: "✓"; font-size: 9px; font-weight: 900; }
+
+        /* Aprovado (Verde) */
+        .cb-item.opt-aprovado.is-checked { border-color: var(--green-ok); color: var(--green-ok); background-color: #f0fdf4; }
+        .cb-item.opt-aprovado.is-checked .cb-box { background-color: var(--green-ok); border-color: var(--green-ok); color: #fff; }
+
+        /* Reprovado (Vermelho) */
+        .cb-item.opt-reprovado.is-checked { border-color: var(--red-fail); color: var(--red-fail); background-color: #fef2f2; }
+        .cb-item.opt-reprovado.is-checked .cb-box { background-color: var(--red-fail); border-color: var(--red-fail); color: #fff; }
+
+
+        /* =========================================
+           TABELAS DE PRESSÃO E ENSAIOS
+           ========================================= */
+        .pressure-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 8.5px;
+            margin-top: 2px;
+            border: 1px solid var(--border-box);
+            text-align: center;
+        }
+        .pressure-table th, .pressure-table td {
+            border: 1px solid var(--border-box);
+            padding: 2px 4px;
+            vertical-align: middle;
+        }
+        .pressure-table thead tr:first-child th { background-color: var(--bg-gray); font-size: 9px; font-weight: 900; }
+        .pressure-table thead tr:nth-child(2) th { background-color: #f9fafb; font-size: 7.5px; font-weight: 800; text-transform: uppercase; }
+        .pressure-table td input {
+            width: 100%;
+            text-align: center;
+            border: none;
+            outline: none;
+            font-family: 'Inter', sans-serif;
+            font-size: 9.5px;
+            font-weight: 600;
+            color: var(--blue-data);
+            background: transparent;
+        }
+        .pressure-table td input:focus { background-color: #fdfad2; }
+
+        .vis-row {
+            display: flex;
+            align-items: center;
+            border: 1px solid var(--border-box);
+            padding: 2px 6px;
+            margin-bottom: 2px;
+            min-height: 22px; /* COMPACTADO */
+        }
+        .vis-name { font-size: 8.5px; font-weight: 900; flex: 1; text-transform: uppercase; }
+        .res-opts { display: flex; gap: 8px; align-items: center; }
+        
+        .ensaio-table { width: 100%; border-collapse: collapse; border: 1px solid var(--border-box); }
+        .ensaio-table td { border: 1px solid var(--border-box); padding: 2px 6px; }
+        .ensaio-table .td-name input { width: 100%; border: none; outline: none; font-family: 'Inter', sans-serif; font-size: 9.5px; font-weight: 600; color: var(--blue-data); background: transparent; }
+        .ensaio-table .td-name input:focus { background-color: #fdfad2; }
+
+        /* =========================================
+           OBSERVAÇÕES
+           ========================================= */
+        .obs-box {
+            border: 1px solid var(--border-box);
+            padding: 4px;
+        }
+        .obs-box textarea {
+            width: 100%;
+            min-height: 35px; /* COMPACTADO */
+            border: none;
+            outline: none;
+            background: transparent;
+            font-family: 'Inter', sans-serif;
+            font-size: 9.5px;
+            font-weight: 500;
+            color: var(--blue-data);
+            resize: none;
+            line-height: 1.3;
+        }
+        .obs-box textarea:focus { background-color: #fdfad2; }
+
+        /* =========================================
+           ASSINATURAS E RESPONSABILIDADE
+           ========================================= */
+        .signatures-container {
+            position: absolute;
+            bottom: 28mm;
+            left: 15mm;
+            right: 15mm;
+            display: flex;
+            justify-content: space-between;
+            z-index: 500;
+        }
+        .signature-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 220px;
+            position: relative;
+        }
+        .signature-line { width: 100%; border-bottom: 1px solid #000; margin-bottom: 4px; position: relative; z-index: 2; }
+        .sig-data { font-size: 9px; text-align: center; width: 100%; }
+        .sig-select-box { position: absolute; top: -24px; right: 0; }
+        .sig-select-box select { padding: 3px 6px; border-radius: 4px; border: 1px solid #9CA3AF; font-size: 9px; font-family: 'Inter', sans-serif; cursor: pointer; background-color: #f9fafb; color: #111827; font-weight: 600; outline: none; }
+        .sig-img { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); height: 55px; max-width: 100%; object-fit: contain; pointer-events: none; z-index: 1; }
+        .data-highlight { color: var(--blue-data); font-weight: 600; }
+        .signature-box.sig-excluida > *:not(.no-print) { display: none !important; }
+
+        /* =========================================
+           RODAPÉ POSICIONAMENTO FIXO (PADRÃO PSV)
+           ========================================= */
+        .pgr-footer-new {
+            position: absolute;
+            bottom: 12mm; /* COMPACTADO */
+            left: 15mm;
+            right: 15mm;
+            display: flex;
+            align-items: flex-start;
+        }
+        .footer-line-wrapper {
+            flex: 1; 
+            border-top: 3px solid #000; 
+            padding-top: 6px; 
+            text-align: center;
+        }
+        .company-details { font-size: 10.5px; color: #000; font-weight: 500; line-height: 1.3; }
+        .footer-page-number {
+            background-color: #000 !important; color: #fff !important; font-size: 18px; font-weight: 400;
+            padding: 4px 18px; margin-left: 10px; display: flex; align-items: center; justify-content: center;
+            -webkit-print-color-adjust: exact; print-color-adjust: exact;
+        }
+
+        /* =========================================
+           IMPRESSÃO E INTERATIVIDADE
+           ========================================= */
+        @media screen {
+            .editable-image { cursor: pointer; transition: opacity 0.2s; }
+            .editable-image:hover { outline: 2px dashed var(--blue-data); opacity: 0.8; }
+            [contenteditable="true"]:hover { background-color: #fdfad2; outline: 1px dashed var(--blue-data); cursor: text; }
+        }
+        
+        @media print {
+            .no-print { display: none !important; }
+            body { background: none; margin: 0; }
+            .page { 
+                width: 100% !important; margin: 0 !important; 
+                padding: 12mm 15mm 25mm 15mm !important; /* COMPACTADO */
+                box-shadow: none !important; border: none !important; 
+            }
+            [contenteditable="true"]:hover { background-color: transparent !important; outline: none !important; }
+            .f-val input[type="text"]:focus, .pressure-table td input:focus, .ensaio-table .td-name input:focus, .obs-box textarea:focus { background-color: transparent; }
+        }
+    </style>
+</head>
+<body>
+
+    <input type="file" id="inputLogo" class="hide-input" accept="image/*" onchange="previewImage(this, 'imgLogo')">
+
+    <div class="page">
+
+        <table class="header-table">
+            <tr>
+                <td class="col-logo">
+                     <div class="logo-placeholder editable-image" onclick="document.getElementById('inputLogo').click()" title="Clique para alterar a Logo">
+                        <img id="imgLogo" src="logo.webp" alt="Logo">
+                     </div>
+                </td>
+                <td class="col-title" contenteditable="true" spellcheck="false">
+                    RELATÓRIO DE INSPEÇÃO
+                </td>
+                <td class="col-info">
+                     <div class="info-label">Relatório nº.</div>
+                     <div class="info-value" contenteditable="true" spellcheck="false">----</div>
+                     <div class="info-label">Data de Emissão:</div>
+                     <div class="info-value" contenteditable="true" spellcheck="false">DD/MM/AAAA</div>
+                </td>
+            </tr>
+        </table>
+
+        <div class="content-container">
+
+            <div class="section-title">DADOS GERAIS</div>
+
+            <div class="f-row">
+                <div class="f" style="flex:2.2">
+                    <span class="f-lbl">CONTRATANTE</span>
+                    <div class="f-val"><input type="text" id="insp-contratante" placeholder="..."></div>
+                </div>
+                <div class="f" style="flex:0.95">
+                    <span class="f-lbl">RASTREABILIDADE</span>
+                    <div class="f-val"><input type="text" placeholder="..."></div>
+                </div>
+            </div>
+            <div class="f-row">
+                <div class="f">
+                    <span class="f-lbl">ENDEREÇO</span>
+                    <div class="f-val"><input type="text" id="insp-endereco" placeholder="..."></div>
+                </div>
+            </div>
+
+            <div class="section-title">ASPECTOS GERAIS DO EQUIPAMENTO</div>
+
+            <div class="f-row">
+                <div class="f">
+                    <span class="f-lbl">IDENTIFICAÇÃO</span>
+                    <div class="f-val"><input type="text" id="insp-identificacao" placeholder="..."></div>
+                </div>
+                <div class="f">
+                    <span class="f-lbl">Nº DE SÉRIE</span>
+                    <div class="f-val"><input type="text" id="insp-serie" placeholder="..."></div>
+                </div>
+            </div>
+
+            <div class="f-row">
+                <div class="f">
+                    <span class="f-lbl">TIPO DE EQUIPAMENTO</span>
+                    <div class="f-val"><input type="text" id="insp-tipo" placeholder="..."></div>
+                </div>
+                <div class="f">
+                    <span class="f-lbl">FABRICANTE</span>
+                    <div class="f-val"><input type="text" id="insp-fabricante" placeholder="..."></div>
+                </div>
+            </div>
+
+            <div class="f-row">
+                <div class="f">
+                    <span class="f-lbl">CÓDIGO DE PROJETO</span>
+                    <div class="f-val"><input type="text" id="insp-cod-proj" placeholder="..."></div>
+                </div>
+                <div class="f">
+                    <span class="f-lbl">ANO DE FABRICAÇÃO</span>
+                    <div class="f-val"><input type="text" id="insp-ano" placeholder="..."></div>
+                </div>
+            </div>
+
+            <div class="f-row">
+                <div class="f">
+                    <span class="f-lbl">EDIÇÃO</span>
+                    <div class="f-val"><input type="text" placeholder="..."></div>
+                </div>
+                <div class="f">
+                    <span class="f-lbl">ADENDA</span>
+                    <div class="f-val"><input type="text" placeholder="..."></div>
+                </div>
+            </div>
+
+            <div class="f-row">
+                <div class="f">
+                    <span class="f-lbl">FLUIDO DE OPERAÇÃO</span>
+                    <div class="f-val"><input type="text" id="insp-fluido" placeholder="..."></div>
+                </div>
+                <div class="f">
+                    <span class="f-lbl">CLASSE DO FLUIDO</span>
+                    <div class="f-val"><input type="text" id="insp-classe-fluido" placeholder="..."></div>
+                </div>
+            </div>
+
+            <div class="f-row">
+                <div class="f">
+                    <span class="f-lbl">CATEGORIA</span>
+                    <div class="f-val"><input type="text" id="insp-categoria" placeholder="..."></div>
+                </div>
+                <div class="f">
+                    <span class="f-lbl">GRUPO POT. DE RISCO</span>
+                    <div class="f-val"><input type="text" id="insp-grupo-risco" placeholder="..."></div>
+                </div>
+            </div>
+
+            <div class="f-row">
+                <div class="f">
+                    <span class="f-lbl">LOCALIZAÇÃO</span>
+                    <div class="f-val"><input type="text" placeholder="..."></div>
+                </div>
+                <div class="f">
+                    <span class="f-lbl">VOLUME (m³)</span>
+                    <div class="f-val"><input type="text" id="insp-volume" placeholder="..."></div>
+                </div>
+            </div>
+
+            <table class="pressure-table">
+                <thead>
+                    <tr>
+                        <th colspan="3">PMO</th>
+                        <th colspan="3">PMTA</th>
+                        <th colspan="3">PTH</th>
+                    </tr>
+                    <tr>
+                        <th>MPa</th><th>psi</th><th>kgf/cm²</th>
+                        <th>MPa</th><th>psi</th><th>kgf/cm²</th>
+                        <th>MPa</th><th>psi</th><th>kgf/cm²</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><input type="text" id="insp-pmo-mpa"></td>
+                        <td><input type="text" id="insp-pmo-psi"></td>
+                        <td><input type="text" id="insp-pmo-kgf"></td>
+                        <td><input type="text" id="insp-pmta-mpa"></td>
+                        <td><input type="text" id="insp-pmta-psi"></td>
+                        <td><input type="text" id="insp-pmta-kgf"></td>
+                        <td><input type="text" id="insp-pth-mpa"></td>
+                        <td><input type="text" id="insp-pth-psi"></td>
+                        <td><input type="text" id="insp-pth-kgf"></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="section-title">DADOS E ASPECTOS GERAIS DA INSPEÇÃO</div>
+
+            <div class="f-row">
+                <div class="f">
+                    <span class="f-lbl">DATA DE INÍCIO DA INSPEÇÃO</span>
+                    <div class="f-val"><input type="text" placeholder="DD/MM/AAAA"></div>
+                </div>
+                <div class="f">
+                    <span class="f-lbl">DATA DE TÉRMINO DA INSPEÇÃO</span>
+                    <div class="f-val"><input type="text" placeholder="DD/MM/AAAA"></div>
+                </div>
+            </div>
+
+            <div class="section-title">QUAIS ENSAIOS FORAM REALIZADOS</div>
+
+            <div class="group-lbl">NATUREZA:</div>
+            <div class="cb-row">
+                <div class="cb-item" data-natureza="inicial" onclick="toggleCb(this)">
+                    <span class="cb-box"></span>INICIAL
+                </div>
+                <div class="cb-item" data-natureza="periodica" onclick="toggleCb(this)">
+                    <span class="cb-box"></span>PERIÓDICA
+                </div>
+                <div class="cb-item" data-natureza="extraordinaria" onclick="toggleCb(this)">
+                    <span class="cb-box"></span>EXTRAORDINÁRIA
+                </div>
+            </div>
+
+            <div class="group-lbl">TIPO:</div>
+            <div class="cb-row">
+                <div class="cb-item" onclick="toggleCb(this)">
+                    <span class="cb-box"></span>EXAME INTERNO
+                </div>
+                <div class="cb-item" onclick="toggleCb(this)">
+                    <span class="cb-box"></span>EXAME EXTERNO
+                </div>
+                <div class="cb-item" data-tipo="th" onclick="toggleCb(this)">
+                    <span class="cb-box"></span>TESTE HIDROSTÁTICO
+                </div>
+                <div class="cb-item" data-tipo="us" onclick="toggleCb(this)">
+                    <span class="cb-box"></span>ULTRASSOM
+                </div>
+                <div class="cb-item" data-tipo="lp" onclick="toggleCb(this)">
+                    <span class="cb-box"></span>LÍQUIDO PENETRANTE
+                </div>
+                <div class="cb-item" data-tipo="pm" onclick="toggleCb(this)">
+                    <span class="cb-box"></span>PARTÍCULA MAGNÉTICA
+                </div>
+            </div>
+
+            <div class="section-title">RESULTADO EXAME VISUAL</div>
+
+            <div class="vis-row">
+                <span class="vis-name">VISUAL INTERNA</span>
+                <div class="res-opts">
+                    <div class="cb-item res-opt opt-aprovado" onclick="selectResult(this, 'vi')">
+                        <span class="cb-box"></span>APROVADO
+                    </div>
+                    <div class="cb-item res-opt opt-reprovado" onclick="selectResult(this, 'vi')">
+                        <span class="cb-box"></span>REPROVADO
+                    </div>
+                </div>
+            </div>
+
+            <div class="vis-row">
+                <span class="vis-name">VISUAL EXTERNO</span>
+                <div class="res-opts">
+                    <div class="cb-item res-opt opt-aprovado" onclick="selectResult(this, 've')">
+                        <span class="cb-box"></span>APROVADO
+                    </div>
+                    <div class="cb-item res-opt opt-reprovado" onclick="selectResult(this, 've')">
+                        <span class="cb-box"></span>REPROVADO
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-title">RESULTADO DOS ENSAIOS REALIZADOS</div>
+
+            <table class="ensaio-table">
+                <tbody id="ensaios-tbody">
+                    </tbody>
+            </table>
+
+            <div class="section-title">OBSERVAÇÕES</div>
+            <div class="obs-box">
+                <textarea placeholder="Insira observações relevantes aqui..."></textarea>
+            </div>
+
+            <div class="signatures-container">
+                <div class="signature-box" id="sig-wrapper-tecnico">
+                    <div class="no-print sig-select-box">
+                        <select id="select-tecnico" onchange="atualizarAssinaturaTecnico()">
+                            <option value="">Assinar...</option>
+                        </select>
+                    </div>
+                    <img id="img-assinatura-tecnico" class="sig-img" src="" alt="Assinatura Técnico" style="display:none;">
+                    <div class="signature-line"></div>
+                    <div class="sig-data">
+                        <strong>TÉCNICO RESPONSÁVEL</strong><br>
+                        <span id="nome-tecnico" class="data-highlight" contenteditable="true" spellcheck="false">Nome do Técnico</span><br>
+                        Registro: <span id="crea-tecnico" class="data-highlight" contenteditable="true" spellcheck="false">000000</span>
+                    </div>
+                </div>
+
+                <div class="signature-box" id="sig-wrapper-engenheiro">
+                    <div class="no-print sig-select-box">
+                        <select id="select-ph" onchange="atualizarAssinatura()">
+                            <option value="">Assinar...</option>
+                        </select>
+                    </div>
+                    <img id="img-assinatura-ph" class="sig-img" src="" alt="Assinatura Engenheiro" style="display:none;">
+                    <div class="signature-line"></div>
+                    <div class="sig-data">
+                        <strong>ENGENHEIRO RESPONSÁVEL</strong><br>
+                        <span id="nome-ph" class="data-highlight" contenteditable="true" spellcheck="false">Nome do Engenheiro</span><br>
+                        CREA/RNP: <span id="crea-ph" class="data-highlight" contenteditable="true" spellcheck="false">ES-000000/D</span>
+                    </div>
+                </div>
+            </div>
+
+        </div> 
+        
+        <div class="pgr-footer-new">
+            <div class="footer-line-wrapper">
+                <div class="company-details" id="footer-empresa" contenteditable="true" spellcheck="false">
+                    <strong>NOME DA EMPRESA LTDA.</strong><br>
+                    Endereço Completo • Bairro • Cidade/UF • CNPJ: 00.000.000/0000-00 • CEP: 00000-000<br>
+                    Telef: (00) 0000-0000 • E-mail: contato@empresa.com.br
+                </div>
+            </div>
+            <div class="footer-page-number" contenteditable="true">1</div>
+        </div>
+
+    </div> 
+    
+    <script>
+        // Imagem Preview (Logo)
+        function previewImage(input, imgId) {
+            if (input.files && input.files[0]) {
+                var reader = new FileReader();
+                reader.onload = function(e) { document.getElementById(imgId).src = e.target.result; }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        // Checkbox Toggle (Multipla Seleção)
+        function toggleCb(item) {
+            item.classList.toggle('is-checked');
+        }
+
+        // Result Selection (Exclusivo por Grupo - Aprovado/Reprovado)
+        function selectResult(opt, group) {
+            const parent = opt.closest('.res-opts');
+            parent.querySelectorAll('.res-opt').forEach(el => el.classList.remove('is-checked'));
+            opt.classList.add('is-checked');
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // =========================================================
+            // DADOS DO RELATÓRIO ATUAL (Natureza e Ensaios Selecionados em "+ Gerar Relatório")
+            // =========================================================
+            const meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}');
+            const tipoInspecao = (meta.tipoInspecao || '').toLowerCase();
+            const documentos = meta.documentos || [];
+
+            // Marca a NATUREZA da inspeção (Inicial/Periódica/Extraordinária)
+            let natureza = null;
+            if (tipoInspecao.includes('inicial')) natureza = 'inicial';
+            else if (tipoInspecao.includes('periódica') || tipoInspecao.includes('periodica')) natureza = 'periodica';
+            else if (tipoInspecao.includes('extraordinária') || tipoInspecao.includes('extraordinaria')) natureza = 'extraordinaria';
+
+            if (natureza) {
+                const elNatureza = document.querySelector('.cb-item[data-natureza="' + natureza + '"]');
+                if (elNatureza) elNatureza.classList.add('is-checked');
+            }
+
+            // Marca os TIPOS de ensaio realizados e monta a lista de nomes para a tabela de resultados
+            const ENSAIOS_MAP = [
+                { match: 'teste-hidrostatico', tipo: 'th', nome: 'TESTE HIDROSTÁTICO' },
+                { match: 'ultrassom', tipo: 'us', nome: 'ULTRASSOM DE ESPESSURA' }
+                // PARTÍCULA MAGNÉTICA (pm) e LÍQUIDO PENETRANTE (lp) entram aqui quando os
+                // respectivos documentos forem criados no módulo de relatórios
+            ];
+
+            const ensaiosRealizados = [];
+            ENSAIOS_MAP.forEach(item => {
+                const selecionado = documentos.some(d => d.toLowerCase().includes(item.match));
+                if (selecionado) {
+                    const elTipo = document.querySelector('.cb-item[data-tipo="' + item.tipo + '"]');
+                    if (elTipo) elTipo.classList.add('is-checked');
+                    ensaiosRealizados.push(item.nome);
+                }
+            });
+
+            // Construção das linhas da Tabela de Resultados dos Ensaios (com as classes verde/vermelho)
+            function criarLinhaEnsaio(idx, nome) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="td-name" width="45%">
+                        <input type="text" placeholder="Nome do ensaio (ex: Ultrassom)" value="${nome || ''}">
+                    </td>
+                    <td class="td-res" width="55%">
+                        <div class="res-opts">
+                            <div class="cb-item res-opt opt-aprovado" onclick="selectResult(this,'e${idx}')">
+                                <span class="cb-box"></span>APROVADO
+                            </div>
+                            <div class="cb-item res-opt opt-reprovado" onclick="selectResult(this,'e${idx}')">
+                                <span class="cb-box"></span>REPROVADO
+                            </div>
+                        </div>
+                    </td>
+                `;
+                return tr;
+            }
+
+            const ensaioTbody = document.getElementById('ensaios-tbody');
+            const linhasEnsaios = ensaiosRealizados.length > 0 ? ensaiosRealizados : ['', '', '', ''];
+            linhasEnsaios.forEach((nome, i) => ensaioTbody.appendChild(criarLinhaEnsaio(i, nome)));
+
+            // Puxar número da página da URL
+            const paramPagina = new URLSearchParams(window.location.search).get('page');
+            if (paramPagina) {
+                const elPagina = document.querySelector('.footer-page-number');
+                if (elPagina) {
+                    elPagina.innerText = paramPagina.trim();
+                }
+            }
+
+            // Auto-Fill Empresa e Logo (Puxando do localStorage)
+            const salvo = localStorage.getItem('nr13_minha_empresa');
+            if (salvo) {
+                const dados = JSON.parse(salvo);
+                if (dados.logo) document.getElementById('imgLogo').src = dados.logo;
+
+                let footerHTML = `<strong>${dados.razao || dados.fantasia || 'NOME DA EMPRESA NÃO INFORMADO'}</strong><br>`;
+                let linha2 = [];
+                if(dados.endereco) linha2.push(dados.endereco);
+                if(dados.bairro) linha2.push(dados.bairro);
+                if(dados.cidade && dados.estado) linha2.push(`${dados.cidade}/${dados.estado}`);
+                if(dados.cnpj) linha2.push(`CNPJ: ${dados.cnpj}`);
+                if(dados.cep) linha2.push(`CEP: ${dados.cep}`);
+                if (linha2.length > 0) footerHTML += linha2.join(' • ') + `<br>`;
+
+                let linha3 = [];
+                if(dados.telefone) linha3.push(`Telef: ${dados.telefone}`);
+                if(dados.email) linha3.push(`E-mail: ${dados.email}`);
+                if (linha3.length > 0) footerHTML += linha3.join(' • ');
+
+                document.getElementById('footer-empresa').innerHTML = footerHTML;
+            }
+
+            // Auto-Fill Dados do Cliente e do Equipamento (Puxando dados salvos em detalhes.html)
+            const tag = new URLSearchParams(window.location.search).get('tag');
+            if (tag) {
+                const setVal = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
+
+                const empStr = localStorage.getItem('nr13_emp_' + tag);
+                if (empStr) {
+                    const emp = JSON.parse(empStr);
+                    setVal('insp-contratante', emp.razaoSocial || emp.nome);
+
+                    let enderecoCompleto = [];
+                    if(emp.endereco) enderecoCompleto.push(emp.endereco);
+                    if(emp.bairro) enderecoCompleto.push(emp.bairro);
+                    if(emp.cidade && emp.estado) enderecoCompleto.push(`${emp.cidade}/${emp.estado}`);
+                    if (enderecoCompleto.length > 0) setVal('insp-endereco', enderecoCompleto.join(' - '));
+                }
+
+                const infoStr = localStorage.getItem('nr13_info_' + tag);
+                const info = infoStr ? JSON.parse(infoStr) : {};
+                setVal('insp-identificacao', info.tag || tag);
+                setVal('insp-serie', info.numeroSerie || info.serie);
+                setVal('insp-tipo', info.descricao);
+                setVal('insp-fabricante', info.fabricante);
+                setVal('insp-cod-proj', info.codProj);
+                setVal('insp-ano', info.ano);
+                setVal('insp-volume', info.volume);
+
+                const catStr = localStorage.getItem('nr13_cat_' + tag);
+                if (catStr) {
+                    const cat = JSON.parse(catStr);
+                    setVal('insp-fluido', cat.fluidoInput);
+                    setVal('insp-classe-fluido', cat.classe);
+                    setVal('insp-categoria', cat.catFinal);
+                    setVal('insp-grupo-risco', cat.grupo);
+                    if (!info.volume) setVal('insp-volume', cat.volInput);
+                }
+
+                // ===== TABELA DE PRESSÕES (PMO / PMTA / PTH) — MPa, psi, kgf/cm² =====
+                const converterPressaoMult = (mpaStr) => {
+                    let v = parseFloat(mpaStr);
+                    if (isNaN(v)) return { mpa: '', psi: '', kgf: '' };
+                    return {
+                        mpa: v.toFixed(2).replace('.', ','),
+                        psi: (v * 145.0377).toFixed(2).replace('.', ','),
+                        kgf: (v * 10.19716).toFixed(2).replace('.', ',')
+                    };
+                };
+
+                const calcStr = localStorage.getItem('nr13_calc_' + tag);
+                const calc = calcStr ? JSON.parse(calcStr) : {};
+                const pmtaMpa = parseFloat(calc.pmta) || 0;
+                const pthMpa = parseFloat(calc.pth) || (pmtaMpa * 1.3);
+
+                if (pmtaMpa) {
+                    const convPmta = converterPressaoMult(pmtaMpa);
+                    // PMO assume o mesmo valor da PMTA (não há campo de Pressão de Operação separado)
+                    setVal('insp-pmo-mpa', convPmta.mpa);
+                    setVal('insp-pmo-psi', convPmta.psi);
+                    setVal('insp-pmo-kgf', convPmta.kgf);
+                    setVal('insp-pmta-mpa', convPmta.mpa);
+                    setVal('insp-pmta-psi', convPmta.psi);
+                    setVal('insp-pmta-kgf', convPmta.kgf);
+                }
+                if (pthMpa) {
+                    const convPth = converterPressaoMult(pthMpa);
+                    setVal('insp-pth-mpa', convPth.mpa);
+                    setVal('insp-pth-psi', convPth.psi);
+                    setVal('insp-pth-kgf', convPth.kgf);
+                }
+            }
+        });
+    </script>
+
+    <script>
+        // ==========================================
+        // ASSINATURAS — ENGENHEIRO (PH) E TÉCNICO
+        // ==========================================
+        function carregarPHsParaSelect() {
+            const sel = document.getElementById('select-ph');
+            if (!sel) return;
+            const lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
+            sel.innerHTML = '<option value="">Assinar...</option>';
+            lista.filter(p => !p.tipo || p.tipo.startsWith('Engenheiro')).forEach(ph => {
+                const opt = document.createElement('option');
+                opt.value = ph.id;
+                opt.textContent = ph.nome;
+                sel.appendChild(opt);
+            });
+            const optExcluir = document.createElement('option');
+            optExcluir.value = 'excluir';
+            optExcluir.textContent = 'Excluir Assinatura';
+            optExcluir.style.color = '#dc2626';
+            optExcluir.style.fontWeight = '700';
+            sel.appendChild(optExcluir);
+        }
+
+        function atualizarAssinatura() {
+            const sel = document.getElementById('select-ph');
+            const wrapper = document.getElementById('sig-wrapper-engenheiro');
+            if (sel.value === 'excluir') {
+                if (wrapper) wrapper.classList.add('sig-excluida');
+                return;
+            }
+            if (wrapper) wrapper.classList.remove('sig-excluida');
+            const lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
+            const ph = lista.find(p => String(p.id) === String(sel.value));
+            const img = document.getElementById('img-assinatura-ph');
+            const nome = document.getElementById('nome-ph');
+            const crea = document.getElementById('crea-ph');
+            if (ph) {
+                nome.textContent = ph.nome;
+                crea.textContent = ph.crea || '';
+                if (ph.assinatura) { img.src = ph.assinatura; img.style.display = 'block'; }
+                else { img.style.display = 'none'; img.src = ''; }
+            } else {
+                nome.textContent = 'Nome do Engenheiro';
+                crea.textContent = 'ES-000000/D';
+                img.style.display = 'none'; img.src = '';
+            }
+        }
+
+        function carregarTecnicosParaSelect() {
+            const sel = document.getElementById('select-tecnico');
+            if (!sel) return;
+            const lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
+            sel.innerHTML = '<option value="">Assinar...</option>';
+            lista.filter(p => p.tipo && p.tipo.startsWith('Inspetor')).forEach(ph => {
+                const opt = document.createElement('option');
+                opt.value = ph.id;
+                opt.textContent = ph.nome;
+                sel.appendChild(opt);
+            });
+            const optExcluir = document.createElement('option');
+            optExcluir.value = 'excluir';
+            optExcluir.textContent = 'Excluir Assinatura';
+            optExcluir.style.color = '#dc2626';
+            optExcluir.style.fontWeight = '700';
+            sel.appendChild(optExcluir);
+        }
+
+        function atualizarAssinaturaTecnico() {
+            const sel = document.getElementById('select-tecnico');
+            const wrapper = document.getElementById('sig-wrapper-tecnico');
+            if (sel.value === 'excluir') {
+                if (wrapper) wrapper.classList.add('sig-excluida');
+                return;
+            }
+            if (wrapper) wrapper.classList.remove('sig-excluida');
+            const lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
+            const ph = lista.find(p => String(p.id) === String(sel.value));
+            const img = document.getElementById('img-assinatura-tecnico');
+            const nome = document.getElementById('nome-tecnico');
+            const crea = document.getElementById('crea-tecnico');
+            if (ph) {
+                nome.textContent = ph.nome;
+                crea.textContent = ph.crea || '';
+                if (ph.assinatura) { img.src = ph.assinatura; img.style.display = 'block'; }
+                else { img.style.display = 'none'; img.src = ''; }
+            } else {
+                nome.textContent = 'Nome do Técnico';
+                crea.textContent = '000000';
+                img.style.display = 'none'; img.src = '';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            carregarPHsParaSelect();
+            carregarTecnicosParaSelect();
+        });
+    </script>
+</body>
+</html>

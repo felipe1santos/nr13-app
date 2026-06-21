@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Prontuário do Vaso de Pressão — Folha 4</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: Arial, Helvetica, sans-serif; background: #fff; color: #000; font-size: 12px; }
+        .a4-page { background: #fff; width: 210mm; height: 297mm; padding: 15mm; position: relative; overflow: hidden; display: flex; flex-direction: column; }
+        .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-20deg); width: 70%; opacity: 0.07; z-index: 0; pointer-events: none; }
+        .watermark-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-20deg); font-size: 80px; font-weight: 900; color: #003366; opacity: 0.04; z-index: 0; pointer-events: none; white-space: nowrap; text-transform: uppercase; }
+        .content-wrapper { position: relative; z-index: 1; display: flex; flex-direction: column; flex: 1; }
+        .header-container { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+        .header-text { flex: 1; padding-right: 16px; }
+        h1 { font-size: 16px; text-align: center; text-transform: uppercase; margin-bottom: 8px; }
+        .intro-text { text-align: justify; font-size: 10px; line-height: 1.4; }
+        .logo-img { max-width: 110px; height: auto; object-fit: contain; }
+        .section { margin-bottom: 14px; }
+        .section-info { flex: 1; margin-bottom: 14px; border: 1px solid #000; }
+        .section-title { background-color: #e6e9ef; color: #003366; padding: 8px 10px; font-size: 13px; font-weight: bold; text-align: center; margin-bottom: 12px; }
+        .info-list { list-style-type: none; padding: 4px 12px 8px; }
+        .info-list li { font-size: 12px; line-height: 1.7; text-align: justify; margin-bottom: 10px; }
+        .responsibility-container { display: flex; justify-content: space-between; align-items: flex-end; padding: 18px 20px; margin-top: 10px; gap: 16px; }
+        .resp-dados { flex: 1; font-size: 13px; line-height: 1.8; }
+        .resp-nome { font-style: italic; display: block; }
+        .resp-crea { font-weight: bold; display: block; }
+        .signature-box { flex: 1; text-align: center; }
+        .signature-img { max-width: 200px; height: auto; min-height: 80px; }
+        .assin-placeholder { min-height: 80px; border-bottom: 1px solid #000; display: flex; align-items: flex-end; justify-content: center; font-size: 10px; color: #999; padding-bottom: 4px; }
+        .resp-data { flex: 1; text-align: right; font-size: 13px; line-height: 1.8; }
+        .footer-container { display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 10px; border-top: 1px solid #ccc; }
+        .footer-text { flex: 1; text-align: center; font-size: 9px; line-height: 1.4; padding-left: 16px; }
+        @media print { body { background: #fff; } .a4-page { box-shadow: none; width: 100%; height: 100%; } }
+    </style>
+</head>
+<body>
+<div class="a4-page">
+    <img id="img-watermark" class="watermark" alt="" style="display:none">
+    <div id="wm-text" class="watermark-text">PRONTUÁRIO</div>
+
+    <div class="content-wrapper">
+        <div class="header-container">
+            <div class="header-text">
+                <h1>Prontuário do Vaso de Pressão</h1>
+                <p class="intro-text">Esse prontuário tem como objetivo compilar as informações referentes ao projeto, fabricação, manutenção do vaso de pressão, bem como informar os cuidados necessários para a correta preservação e manutenção do mesmo.</p>
+            </div>
+            <img id="img-logo" class="logo-img" alt="Logo" style="display:none">
+        </div>
+
+        <div class="section-info">
+            <div class="section-title">Informações Importantes</div>
+            <ul class="info-list">
+                <li>➤ Este prontuário foi elaborado com base na Norma Regulamentadora NR 13.</li>
+                <li>➤ Este prontuário perde sua validade se o vaso de pressão sofrer qualquer alteração de suas características originais.</li>
+                <li>➤ O proprietário do vaso de pressão deve possuir documentação específica do mesmo, conforme Norma Regulamentadora NR 13.</li>
+                <li>➤ Os documentos: Registro de Segurança, Projeto de Instalação, Projeto de Alteração ou Reparo e Relatórios de Inspeção devem ser providenciados pelo proprietário do vaso de pressão.</li>
+                <li>➤ Não jogue fora ou rasure esse prontuário. No caso de perda do mesmo, solicite uma cópia ao fabricante.</li>
+                <li>➤ Leia atentamente o manual do usuário da Autoclave para a correta utilização e manutenção da mesma e do vaso de pressão.</li>
+                <li>➤ Não retirar ou rasurar a placa de identificação fixada no vaso de pressão. Se resultados da inspeção determinarem alterações dos dados da placa de identificação, a mesma deve ser atualizada.</li>
+                <li>➤ A instalação, manutenção e a operação do vaso de pressão devem ser realizadas conforme Norma Regulamentadora NR 13.</li>
+                <li>➤ O vaso de pressão deve ser operado por pessoas treinadas conforme descrito na Norma Regulamentadora NR 13.</li>
+                <li>➤ Nunca abra o vaso de pressão se o mesmo estiver pressurizado. Certifique-se que o manômetro esteja na posição 0 (zero).</li>
+                <li>➤ Sempre abra a válvula de purga manual ao termino do dia de trabalho, se possível, abra a tampa do equipamento.</li>
+                <li>➤ Nunca retire ou obstrua a válvula de segurança e o manômetro instalado no vaso de pressão.</li>
+                <li>➤ Possíveis reparos ou alterações devem ser realizados conforme Norma Regulamentadora NR 13.</li>
+                <li>➤ Recomenda-se a <strong>troca do vaso de pressão a cada 10 (dez) anos</strong> ou a critério do profissional habilitado (PH) pelo local onde o vaso de pressão está instalado.</li>
+            </ul>
+        </div>
+
+        <div class="section" style="border:1px solid #000;">
+            <div class="section-title">Responsabilidade</div>
+            <div class="responsibility-container">
+                <div class="resp-dados">
+                    <span class="resp-nome">Eng. <span id="val-engNome"></span></span>
+                    <span class="resp-crea">CREA/SP nº.: <span id="val-engCrea"></span></span>
+                </div>
+                <div class="signature-box">
+                    <img id="img-assinatura" class="signature-img" alt="Assinatura do Engenheiro Responsável" style="display:none">
+                    <div id="assin-placeholder" class="assin-placeholder">Assinatura do Engenheiro Responsável</div>
+                </div>
+                <div class="resp-data">
+                    Rev. <span id="val-revisao"></span><br>
+                    <span id="val-dataRevisao"></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer-container">
+            <img id="img-logo-rodape" class="logo-img" alt="Logo" style="display:none">
+            <div class="footer-text">
+                <p><strong>Obs.:</strong> Esse Prontuário do vaso de pressão é de propriedade da respectiva empresa emissora.</p>
+                <p>É proibida a reprodução e/ou publicação deste sem a devida autorização da empresa.</p>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var raw = localStorage.getItem('nr13_prontuario_atual');
+    if (!raw) return;
+    var d; try { d = JSON.parse(raw); } catch(e) { return; }
+
+    var logo = d.logo;
+    if (!logo) { try { var emp = JSON.parse(localStorage.getItem('nr13_minha_empresa')||'{}'); logo = emp.logo; } catch(_){} }
+    if (logo) {
+        [document.getElementById('img-logo'), document.getElementById('img-logo-rodape'), document.getElementById('img-watermark')].forEach(function(img){ if(img){ img.src=logo; img.style.display='block'; } });
+        document.getElementById('wm-text').style.display = 'none';
+    }
+
+    function v(id, val) { var el = document.getElementById(id); if (el && val) el.textContent = val; }
+
+    v('val-engNome', d.engNome);
+    v('val-engCrea', d.engCrea);
+    v('val-revisao', d.revisao);
+    v('val-dataRevisao', d.dataRevisao);
+
+    if (d.engAssinatura) {
+        var imgAssin = document.getElementById('img-assinatura');
+        imgAssin.src = d.engAssinatura;
+        imgAssin.style.display = 'block';
+        document.getElementById('assin-placeholder').style.display = 'none';
+    }
+});
+</script>
+</body>
+</html>
