@@ -31,7 +31,12 @@ export default function Equipamento() {
 function EquipamentoView({ tag }: { tag: string }) {
   const navigate = useNavigate();
   const [info, setInfo] = useState<InfoEquipamento | null>(() => carregarInfo(tag));
+  // `unidade` = unidade em PRÉ-VISUALIZAÇÃO (converte toda a ficha ao vivo).
+  // `unidadeSalva` = unidade fixada/persistida. Só persiste ao clicar em "Salvar".
   const [unidade, setUnidade] = useState<SistemaUnidade>(() => carregarUnidade(tag));
+  const [unidadeSalva, setUnidadeSalva] = useState<SistemaUnidade>(() => carregarUnidade(tag));
+  const [salvandoUnidade, setSalvandoUnidade] = useState(false);
+  const [unidadeToast, setUnidadeToast] = useState(false);
   const [excluindo, setExcluindo] = useState(false);
   const [modalMemorial, setModalMemorial] = useState(false);
   const [calculo, setCalculo] = useState<CalculoSalvo | null>(() => ler<CalculoSalvo>(`nr13_calc_${tag}`));
@@ -51,9 +56,21 @@ function EquipamentoView({ tag }: { tag: string }) {
     return () => window.removeEventListener('focus', atualizarCalculo);
   }, [tag]);
 
-  async function trocarUnidade(u: SistemaUnidade) {
+  // Trocar a unidade só pré-visualiza (converte toda a ficha ao vivo). Não persiste até "Salvar".
+  function trocarUnidade(u: SistemaUnidade) {
     setUnidade(u);
-    await salvarUnidade(tag, u);
+  }
+
+  async function salvarUnidadeSelecionada() {
+    setSalvandoUnidade(true);
+    try {
+      await salvarUnidade(tag, unidade);
+      setUnidadeSalva(unidade);
+      setUnidadeToast(true);
+      window.setTimeout(() => setUnidadeToast(false), 1800);
+    } finally {
+      setSalvandoUnidade(false);
+    }
   }
 
   async function excluirEquipamento() {
@@ -69,7 +86,8 @@ function EquipamentoView({ tag }: { tag: string }) {
 
   if (!info) return <p>Carregando...</p>;
 
-  const pmtaMpa = calculo ? parseFloat(calculo.pmta) : null;
+  const pmtaMpaRaw = calculo ? parseFloat(calculo.pmta) : NaN;
+  const pmtaMpa = Number.isFinite(pmtaMpaRaw) ? pmtaMpaRaw : null;
   const rotuloTipo = ROTULO_TIPO[info.tipo] + (info.subtipo && info.subtipo !== 'flamotubular' ? ` (${info.subtipo})` : '');
 
   return (
@@ -86,6 +104,17 @@ function EquipamentoView({ tag }: { tag: string }) {
             <div className="seletor-unidade-box">
               <label>Unidade de Medida:</label>
               <SeletorUnidade unidade={unidade} onChange={trocarUnidade} />
+              {unidade !== unidadeSalva && (
+                <button
+                  type="button"
+                  className={`btn-primario btn-salvar-unidade ${salvandoUnidade ? 'is-loading' : ''}`}
+                  onClick={salvarUnidadeSelecionada}
+                  disabled={salvandoUnidade}
+                >
+                  {salvandoUnidade ? 'Salvando...' : '💾 Salvar'}
+                </button>
+              )}
+              {unidadeToast && <span className="unidade-salva-ok">✓ Unidade fixada</span>}
             </div>
           </div>
 
@@ -129,7 +158,9 @@ function EquipamentoView({ tag }: { tag: string }) {
       </div>
 
       <section className="equipamento-secao">
-        <CategoriaNR13 tag={tag} unidade={unidade} />
+        {/* Categoria de risco NUNCA segue o preview de unidade — usa a unidade fixada (regra NR-13:
+            o enquadramento exige a base de unidade própria). */}
+        <CategoriaNR13 tag={tag} unidade={unidadeSalva} />
       </section>
 
       <section className="equipamento-secao">

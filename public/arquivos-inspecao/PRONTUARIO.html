@@ -563,24 +563,6 @@
         </tr>
     </table>
 
-    <!-- ========== RESPONSABILIDADE TÉCNICA ========== -->
-    <div class="sig-overlay-container">
-        <div class="sig-overlay-box" id="sig-wrapper-engenheiro">
-            <div class="no-print sig-overlay-select">
-                <select id="select-ph" onchange="atualizarAssinatura()">
-                    <option value="">Assinar...</option>
-                </select>
-            </div>
-            <img id="img-assinatura-ph" class="sig-overlay-img" src="" alt="Assinatura Engenheiro" style="display:none;">
-            <div class="sig-overlay-line"></div>
-            <div class="sig-overlay-data">
-                <strong>ENGENHEIRO RESPONSÁVEL</strong><br>
-                <span id="nome-ph" class="data-highlight" contenteditable="true" spellcheck="false">Nome do Engenheiro</span><br>
-                CREA/RNP: <span id="crea-ph" class="data-highlight" contenteditable="true" spellcheck="false">ES-000000/D</span>
-            </div>
-        </div>
-    </div>
-
     <!-- ========== RODAPÉ ========== -->
     <div class="pgr-footer-new">
         <div class="footer-line-wrapper">
@@ -644,8 +626,40 @@
         const emp = JSON.parse(localStorage.getItem('nr13_emp_' + tagAtual) || '{}');
         const cat = JSON.parse(localStorage.getItem('nr13_cat_' + tagAtual) || '{}');
         const calc = JSON.parse(localStorage.getItem('nr13_calc_' + tagAtual) || '{}');
-        const vasoStr = localStorage.getItem('nr13_vaso_' + tagAtual);
-        const dados3D = vasoStr ? JSON.parse(vasoStr) : null;
+
+        // Aspectos Construtivos puxam do memorial. A estrutura {P, componentes:[casco/tampo1/tampo2]}
+        // só existe para vaso em nr13_vaso_<TAG>; autoclave cilíndrica/gerador salvam o corpo em
+        // nr13_vaso_ac_corpo_/nr13_vaso_gv_, e caldeira usa chaves próprias. Resolvemos todos aqui
+        // para que a seção funcione igual em vaso, autoclave e caldeira.
+        function lerJSON(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
+        function resolverVaso(tag) {
+            const keys = ['nr13_vaso_' + tag, 'nr13_vaso_ac_corpo_' + tag, 'nr13_vaso_gv_' + tag];
+            for (let i = 0; i < keys.length; i++) {
+                const o = lerJSON(keys[i]);
+                if (o && Array.isArray(o.componentes) && o.componentes.length) return o;
+            }
+            return null;
+        }
+        function sintetizarCaldeira(tag, info) {
+            if (info.subtipo === 'aquatubular') {
+                const sup = lerJSON('nr13_caldeira_aqua_tubulaoSup_' + tag) || {};
+                const fundo = lerJSON('nr13_caldeira_aqua_fundoEliptico_' + tag) || {};
+                return { P: sup.pressao, componentes: [
+                    { id: 'casco', dados: { mat: sup.material, ca: sup.ca, temp: sup.temperatura, t_comercial: sup.t_comercial } },
+                    { id: 'tampo1', dados: { mat: fundo.material } },
+                ] };
+            }
+            const cost = lerJSON('nr13_caldeira_dados_costado_' + tag) || {};
+            const tampo = lerJSON('nr13_caldeira_dados_tampo_' + tag) || {};
+            const espelho = lerJSON('nr13_caldeira_dados_espelho_' + tag) || {};
+            return { P: cost.pressao, componentes: [
+                { id: 'casco', dados: { mat: cost.material, ca: cost.ca, temp: cost.temperatura, t_comercial: cost.t_comercial } },
+                { id: 'tampo1', dados: { mat: tampo.material } },
+                { id: 'tampo2', dados: { mat: espelho.material } },
+            ] };
+        }
+        let dados3D = resolverVaso(tagAtual);
+        if (!dados3D && info.tipo === 'caldeira') dados3D = sintetizarCaldeira(tagAtual, info);
         const meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}');
 
         // Conversor de pressão a partir de um valor base em MPa
@@ -729,14 +743,25 @@
         const pmtaMpa = parseFloat(calc.pmta) || 0;
         const pthMpa = parseFloat(calc.pth) || (pmtaMpa * 1.3);
 
+        // PMO (Pressão Máxima de Operação) = pressão de operação informada na categorização,
+        // convertida da unidade de entrada (cat.unidInput) para MPa. Fallback p/ PMTA se não houver.
+        const FATOR_UNID = { SI: 1, TECNICO: 10.19716, PETROBRAS: 10 };
+        let pmoMpa = 0;
+        if (cat.presInput) {
+            const f = FATOR_UNID[cat.unidInput] || 1;
+            pmoMpa = parseFloat(cat.presInput) / f;
+        }
+        if (!pmoMpa) pmoMpa = pmtaMpa;
+
+        if (pmoMpa) {
+            const convPmo = converterPressaoMult(pmoMpa);
+            setVal('pront-pmo-mpa', convPmo.mpa);
+            setVal('pront-pmo-psi', convPmo.psi);
+            setVal('pront-pmo-kgf', convPmo.kgf);
+        }
         if (pmtaMpa) {
             const convPmta = converterPressaoMult(pmtaMpa);
             setVal('pront-pressao-proj', convPmta.psi);
-
-            // PMO assume o mesmo valor da PMTA (não há campo de Pressão de Operação separado)
-            setVal('pront-pmo-mpa', convPmta.mpa);
-            setVal('pront-pmo-psi', convPmta.psi);
-            setVal('pront-pmo-kgf', convPmta.kgf);
             setVal('pront-pmta-mpa', convPmta.mpa);
             setVal('pront-pmta-psi', convPmta.psi);
             setVal('pront-pmta-kgf', convPmta.kgf);
@@ -789,58 +814,6 @@
     });
 </script>
 
-<script>
-    // ==========================================
-    // ASSINATURA — ENGENHEIRO RESPONSÁVEL (PH)
-    // ==========================================
-    function carregarPHsParaSelect() {
-        const sel = document.getElementById('select-ph');
-        if (!sel) return;
-        const lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
-        sel.innerHTML = '<option value="">Assinar...</option>';
-        lista.filter(p => !p.tipo || p.tipo.startsWith('Engenheiro')).forEach(ph => {
-            const opt = document.createElement('option');
-            opt.value = ph.id;
-            opt.textContent = ph.nome;
-            sel.appendChild(opt);
-        });
-        const optExcluir = document.createElement('option');
-        optExcluir.value = 'excluir';
-        optExcluir.textContent = 'Excluir Assinatura';
-        optExcluir.style.color = '#dc2626';
-        optExcluir.style.fontWeight = '700';
-        sel.appendChild(optExcluir);
-    }
-
-    function atualizarAssinatura() {
-        const sel = document.getElementById('select-ph');
-        const wrapper = document.getElementById('sig-wrapper-engenheiro');
-        if (sel.value === 'excluir') {
-            if (wrapper) wrapper.classList.add('sig-excluida');
-            return;
-        }
-        if (wrapper) wrapper.classList.remove('sig-excluida');
-        const lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
-        const ph = lista.find(p => String(p.id) === String(sel.value));
-        const img = document.getElementById('img-assinatura-ph');
-        const nome = document.getElementById('nome-ph');
-        const crea = document.getElementById('crea-ph');
-        if (ph) {
-            nome.textContent = ph.nome;
-            crea.textContent = ph.crea || '';
-            if (ph.assinatura) { img.src = ph.assinatura; img.style.display = 'block'; }
-            else { img.style.display = 'none'; img.src = ''; }
-        } else {
-            nome.textContent = 'Nome do Engenheiro';
-            crea.textContent = 'ES-000000/D';
-            img.style.display = 'none'; img.src = '';
-        }
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-        carregarPHsParaSelect();
-    });
-</script>
 
 </body>
 </html>

@@ -627,3 +627,10 @@
   .calc-card-body { grid-template-columns: 1fr; }
   .calc-equip-section { display: none; }
 }
+
+.memorial-dica-salvar {
+  font-size: 12px;
+  color: var(--text-muted, #6b7280);
+  font-style: italic;
+  align-self: center;
+}

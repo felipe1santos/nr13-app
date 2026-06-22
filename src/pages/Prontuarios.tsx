@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { listarEquipamentos } from '../features/equipamento/equipamentoService';
 import type { EquipamentoResumo } from '../features/equipamento/tipos';
 import { formatarValor } from '../calc/unidades';
@@ -10,13 +10,14 @@ import {
 } from '../features/prontuarios/prontuarioService';
 import type { DimensaoProntuario, ProntuarioDados } from '../features/prontuarios/tipos';
 import { PAGINAS_PRONTUARIO } from '../features/prontuarios/tipos';
-import { comprimirImagem } from '../services/imagem';
-import { carregarMinhaEmpresa, listarFuncionarios } from '../features/cadastros/cadastroService';
+import { carregarMinhaEmpresa, listarClientes } from '../features/cadastros/cadastroService';
+import type { Cliente } from '../features/cadastros/tipos';
 import { carregarVaso } from '../features/memorial/vasoMemorialService';
 import { carregarDadosCaldeira, carregarDadosAqua, carregarTiposCaldeira } from '../features/memorial/caldeiraMemorialService';
 import { carregarDadosAutoclave } from '../features/memorial/autoclaveMemorialService';
-import type { Funcionario } from '../features/cadastros/tipos';
-import { ler } from '../services/storage';
+import { ler, salvar } from '../services/storage';
+import { listarContainers } from '../features/inspecoes/inspecaoService';
+import type { ContainerInspecao } from '../features/inspecoes/tipos';
 import type { EmpresaEquipamento, CategoriaSalva } from '../features/equipamento/tipos';
 import CroquiVaso3D from '../features/prontuarios/CroquiVaso3D';
 import '../pages/relatorios.css';
@@ -58,8 +59,6 @@ function dadosPadrao(tag: string): ProntuarioDados {
     aro: '',
     luvConexoes: '',
     dimensoes: [linhaVazia()],
-    engNome: '',
-    engCrea: '',
     revisao: '',
     dataRevisao: '',
   };
@@ -67,6 +66,49 @@ function dadosPadrao(tag: string): ProntuarioDados {
 
 function linhaVazia(): DimensaoProntuario {
   return { modelo: '', diametro: '', altura: '', espCorpo: '', espFundo: '', espTampa: '', volume: '' };
+}
+
+// ── Ensaio de espessura: extrai a grade de pontos + mínimos de um container e grava nas chaves
+// que as folhas do prontuário leem (nr13_med_grid_<TAG> e nr13_med_esp_<TAG>). ──────────────
+type MedidasUS = Record<string, Record<string, string>>;
+const ANG_US = ['0', '90', '180', '270'];
+
+function construirGridMinima(medidas: MedidasUS | undefined) {
+  const med = medidas ?? {};
+  const linha = (id: string) => ANG_US.map((a) => med[id]?.[a] ?? '');
+  const grid = {
+    ts: [linha('ts')],
+    casco: [linha('c1'), linha('c2'), linha('c3'), linha('c4')],
+    ti: [linha('ti')],
+  };
+  const minOf = (rows: string[][]) => {
+    let m = Infinity;
+    rows.forEach((r) =>
+      r.forEach((v) => {
+        const n = parseFloat(String(v).replace(',', '.'));
+        if (Number.isFinite(n) && n > 0 && n < m) m = n;
+      }),
+    );
+    return m === Infinity ? '' : String(m).replace('.', ',');
+  };
+  const minima = { sup: minOf(grid.ts), casco: minOf(grid.casco), inf: minOf(grid.ti) };
+  return { grid, minima };
+}
+
+async function aplicarEnsaioEspessura(tag: string, container: ContainerInspecao | null): Promise<void> {
+  const us = (container?.dados?.ultrassom as { medidas?: MedidasUS } | undefined) ?? undefined;
+  const { grid, minima } = construirGridMinima(us?.medidas);
+  await salvar(`nr13_med_grid_${tag}`, grid);
+  await salvar(`nr13_med_esp_${tag}`, minima);
+}
+
+function containerTemEspessura(c: ContainerInspecao): boolean {
+  return c.ensaios.includes('ultrassom');
+}
+
+function rotuloContainer(c: ContainerInspecao): string {
+  const preenchido = !!(c.dados?.ultrassom as { medidas?: MedidasUS } | undefined)?.medidas;
+  return `Inspeção de ${c.criadoEm}${preenchido ? '' : ' (vazio)'}`;
 }
 
 function getLabelsDimensoes(tipo: string, subtipo: string): Record<keyof DimensaoProntuario, string> {
@@ -122,13 +164,12 @@ export default function Prontuarios() {
   const [versao, setVersao] = useState(0);
   const [confirmandoExcluir, setConfirmandoExcluir] = useState(false);
   const [salvando, setSalvando] = useState(false);
-  const [engenheiros, setEngenheiros] = useState<Funcionario[]>([]);
-  const [engSelecionado, setEngSelecionado] = useState('');
   const [mostrarCroqui3D, setMostrarCroqui3D] = useState(false);
   const [tipoEquip, setTipoEquip] = useState('vaso');
   const [subtipoEquip, setSubtipoEquip] = useState('');
   const [visualizandoSemSalvar, setVisualizandoSemSalvar] = useState(false);
-  const inputAssinaturaRef = useRef<HTMLInputElement>(null);
+  const [containers, setContainers] = useState<ContainerInspecao[]>([]);
+  const [clientes, setClientes] = useState<Cliente[]>([]);
 
   const carregarEquipamentos = useCallback(async () => {
     setEquipamentos(await listarEquipamentos());
@@ -137,7 +178,8 @@ export default function Prontuarios() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount padrão
     carregarEquipamentos();
-    setEngenheiros(listarFuncionarios().filter((f) => f.tipo.startsWith('Engenheiro')));
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount padrão
+    setClientes(listarClientes());
   }, [carregarEquipamentos]);
 
   function abrirEquipamento(eq: EquipamentoResumo) {
@@ -146,15 +188,14 @@ export default function Prontuarios() {
     setTipoEquip(eq.info.tipo);
     setSubtipoEquip(eq.info.subtipo || '');
     setConfirmandoExcluir(false);
-    setEngSelecionado('');
+    const conts = listarContainers(eq.tag);
+    setContainers(conts);
 
-    if (existente) {
-      setDados(existente);
-      gravarProntuarioAtual(existente);
-      setVersao((v) => v + 1);
-      setVisualizandoSemSalvar(false);
-      setTela('visualizador');
-    } else {
+    {
+      // O prefill do memorial roda SEMPRE (novo ou existente) para que os campos derivados do
+      // memorial/equipamento (materiais, espessuras, pressões, categoria…) sejam puxados mesmo em
+      // prontuários antigos salvos com o memorial vazio/quebrado. Edições manuais do usuário são
+      // preservadas no merge abaixo (o valor salvo vence; o memorial só preenche o que está vazio).
       const base = dadosPadrao(eq.tag);
       const preenchidos = new Set<string>();
       const dimPreenh = new Set<string>();
@@ -244,23 +285,26 @@ export default function Prontuarios() {
         pb('codigoProjeto', 'ASME Seção VIII Divisão 1');
         pb('anoEdicao', '2021');
         if (eq.info.subtipo === 'cilindrica') {
-          const dac = carregarDadosAutoclave(eq.tag, 'cilindrica');
-          if (dac.diametro) pd('diametro', str(dac.diametro));
-          if (dac.espessura) pd('espCorpo', str(dac.espessura));
-          if (dac.ca) pb('sobreespessura', str(dac.ca) + ' mm');
+          // O memorial da autoclave cilíndrica é, na prática, o MemorialVaso salvo em ac_corpo —
+          // fonte primária. nr13_autoclave_dados_cilindrica só é fallback (pode ser default).
           const v = carregarVaso(eq.tag, 'ac_corpo');
-          if (v.componentes.length > 0) {
-            const casco = v.componentes.find((c) => c.id === 'casco');
-            const t1 = v.componentes.find((c) => c.id === 'tampo1');
-            const t2 = v.componentes.find((c) => c.id === 'tampo2');
-            if (casco?.dados.mat) pb('fundoCorpo', casco.dados.mat);
-            if (casco?.dados.temp) pb('tempProjeto', str(casco.dados.temp) + ' °C');
-            if (t1?.dados.t_comercial) pd('espFundo', str(t1.dados.t_comercial));
-            if (t2?.dados.t_comercial) pd('espTampa', str(t2.dados.t_comercial));
-            const rots = [t1, t2].filter(Boolean).map((c) => ROTULO_TAMPO_VASO[c!.tipo] || c!.tipo);
-            if (rots.length) pb('tipoTampos', rots.join(' / '));
-            if (t1?.dados.mat) pb('tampa', t1.dados.mat);
-          }
+          const dac = carregarDadosAutoclave(eq.tag, 'cilindrica');
+          const casco = v.componentes.find((c) => c.id === 'casco');
+          const t1 = v.componentes.find((c) => c.id === 'tampo1');
+          const t2 = v.componentes.find((c) => c.id === 'tampo2');
+          if (v.D) pd('diametro', str(v.D));
+          else if (dac.diametro) pd('diametro', str(dac.diametro));
+          if (casco?.dados.t_comercial) pd('espCorpo', str(casco.dados.t_comercial));
+          else if (dac.espessura) pd('espCorpo', str(dac.espessura));
+          if (casco?.dados.ca) pb('sobreespessura', str(casco.dados.ca) + ' mm');
+          else if (dac.ca) pb('sobreespessura', str(dac.ca) + ' mm');
+          if (casco?.dados.mat) pb('fundoCorpo', casco.dados.mat);
+          if (casco?.dados.temp) pb('tempProjeto', str(casco.dados.temp) + ' °C');
+          if (t1?.dados.t_comercial) pd('espFundo', str(t1.dados.t_comercial));
+          if (t2?.dados.t_comercial) pd('espTampa', str(t2.dados.t_comercial));
+          const rots = [t1, t2].filter(Boolean).map((c) => ROTULO_TAMPO_VASO[c!.tipo] || c!.tipo);
+          if (rots.length) pb('tipoTampos', rots.join(' / '));
+          if (t1?.dados.mat) pb('tampa', t1.dados.mat);
         } else {
           const dac = carregarDadosAutoclave(eq.tag, 'retangular');
           if (dac.espessura) { pd('espCorpo', str(dac.espessura)); pd('espFundo', str(dac.espessura)); pd('espTampa', str(dac.espessura)); }
@@ -304,6 +348,7 @@ export default function Prontuarios() {
       // ─── Empresa proprietária ───
       const empTag = ler<EmpresaEquipamento>(`nr13_emp_${eq.tag}`);
       if (empTag) {
+        if (empTag.clienteId) base.empresaClienteId = empTag.clienteId;
         pb('empresaRazaoSocial', empTag.razaoSocial || '');
         pb('empresaCnpj', empTag.cnpj || '');
         pb('empresaEndereco', empTag.endereco || '');
@@ -312,23 +357,36 @@ export default function Prontuarios() {
         pb('empresaTelefone', empTag.telefone || '');
       }
 
-      setDados(base);
-      setMostrarCroqui3D(false);
-      setTela('formulario');
-    }
-  }
+      // Merge gap-fill: parte do memorial (base) e sobrepõe os valores não-vazios já salvos pelo
+      // usuário (existente vence). Assim campos vazios recebem o memorial sem apagar edições.
+      let finais = base;
+      if (existente) {
+        finais = { ...base };
+        (Object.keys(existente) as (keyof ProntuarioDados)[]).forEach((k) => {
+          if (k === 'dimensoes') return;
+          const val = existente[k];
+          if (val != null && val !== '') (finais as unknown as Record<string, unknown>)[k] = val;
+        });
+        const dimsTemDado = existente.dimensoes?.some((l) =>
+          Object.values(l).some((c) => c !== '' && c != null),
+        );
+        finais.dimensoes = dimsTemDado ? existente.dimensoes : base.dimensoes;
+      }
 
-  function aplicarEngenheiro(id: string) {
-    setEngSelecionado(id);
-    if (!id) return;
-    const eng = engenheiros.find((f) => f.id === id);
-    if (!eng) return;
-    setDados((d) => ({
-      ...d,
-      engNome: eng.nome,
-      engCrea: eng.crea,
-      engAssinatura: eng.assinatura || d.engAssinatura,
-    }));
+      setDados(finais);
+      setMostrarCroqui3D(false);
+      gravarProntuarioAtual(finais);
+      // Re-aplica a grade de espessura do ensaio escolhido (ou limpa se nenhum) para os iframes.
+      const contSel = finais.containerEnsaioId ? conts.find((c) => c.id === finais.containerEnsaioId) ?? null : null;
+      void aplicarEnsaioEspessura(eq.tag, contSel);
+      if (existente) {
+        setVersao((v) => v + 1);
+        setVisualizandoSemSalvar(false);
+        setTela('visualizador');
+      } else {
+        setTela('formulario');
+      }
+    }
   }
 
   function set<K extends keyof ProntuarioDados>(campo: K, valor: ProntuarioDados[K]) {
@@ -344,9 +402,27 @@ export default function Prontuarios() {
     });
   }
 
-  async function uploadAssinatura(file: File) {
-    const b64 = await comprimirImagem(file, 800);
-    set('engAssinatura', b64);
+  function preencherEmpresaProprietaria(clienteId: string) {
+    const c = clientes.find((x) => x.id === clienteId);
+    const novo: ProntuarioDados = { ...dados, empresaClienteId: clienteId || undefined };
+    if (c) {
+      novo.empresaRazaoSocial = c.razaoSocial || c.nomeFantasia || '';
+      novo.empresaCnpj = c.cnpj || '';
+      novo.empresaEndereco = [c.endereco, c.bairro].filter(Boolean).join(' - ');
+      novo.empresaCidade = c.cidade || '';
+      novo.empresaEstado = c.estado || '';
+      novo.empresaTelefone = c.telefone || '';
+    }
+    setDados(novo);
+    gravarProntuarioAtual(novo);
+  }
+
+  function selecionarEnsaio(id: string) {
+    set('containerEnsaioId', id || undefined);
+    const cont = id ? containers.find((c) => c.id === id) ?? null : null;
+    const novo = { ...dados, containerEnsaioId: id || undefined };
+    gravarProntuarioAtual(novo);
+    void aplicarEnsaioEspessura(tag, cont);
   }
 
   function visualizar() {
@@ -444,6 +520,28 @@ export default function Prontuarios() {
           {/* Empresa Proprietária — editável */}
           <div className="pront-form-secao">
             <div className="pront-form-secao-titulo">Empresa Proprietária</div>
+            <div className="pront-form-grid cols-1">
+              <div className="pront-campo">
+                <label>Selecionar Empresa Cadastrada (preenche automático)</label>
+                {clientes.length > 0 ? (
+                  <select
+                    value={dados.empresaClienteId ?? ''}
+                    onChange={(e) => preencherEmpresaProprietaria(e.target.value)}
+                  >
+                    <option value="">— Selecione um cliente cadastrado —</option>
+                    {clientes.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.razaoSocial || c.nomeFantasia || c.cnpj || c.id}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="dashboard-vazio" style={{ margin: 0, fontSize: 13 }}>
+                    Nenhum cliente cadastrado. Cadastre em "Clientes" para puxar automaticamente.
+                  </p>
+                )}
+              </div>
+            </div>
             <div className="pront-form-grid">
               <div className="pront-campo pront-campo-full">
                 <label>Razão Social</label>
@@ -468,6 +566,34 @@ export default function Prontuarios() {
               <div className="pront-campo">
                 <label>Telefone</label>
                 <input value={dados.empresaTelefone ?? ''} onChange={(e) => set('empresaTelefone', e.target.value)} />
+              </div>
+            </div>
+          </div>
+
+          {/* Ensaios / Containers de Inspeção — fonte da medição de espessura */}
+          <div className="pront-form-secao">
+            <div className="pront-form-secao-titulo">Ensaios / Containers Salvos</div>
+            <div className="pront-form-grid cols-1">
+              <div className="pront-campo">
+                <label>Medição de Espessura (Ultrassom) — puxar do container de inspeção</label>
+                {containers.filter(containerTemEspessura).length > 0 ? (
+                  <select
+                    value={dados.containerEnsaioId ?? ''}
+                    onChange={(e) => selecionarEnsaio(e.target.value)}
+                  >
+                    <option value="">— Nenhum (não puxar espessura) —</option>
+                    {containers.filter(containerTemEspessura).map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {rotuloContainer(c)}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="dashboard-vazio" style={{ margin: 0, fontSize: 13 }}>
+                    Nenhum container com Medição de Espessura salvo para este equipamento. Crie a
+                    inspeção em "Inspeções" e preencha o Ultrassom.
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -656,35 +782,10 @@ export default function Prontuarios() {
             </div>
           </div>
 
-          {/* Responsabilidade */}
+          {/* Revisão */}
           <div className="pront-form-secao">
-            <div className="pront-form-secao-titulo">Responsabilidade Técnica</div>
-
-            {engenheiros.length > 0 && (
-              <div className="pront-form-grid cols-1" style={{ marginBottom: 12 }}>
-                <div className="pront-campo">
-                  <label>Selecionar Engenheiro Responsável</label>
-                  <select value={engSelecionado} onChange={(e) => aplicarEngenheiro(e.target.value)}>
-                    <option value="">— Selecionar cadastrado —</option>
-                    {engenheiros.map((f) => (
-                      <option key={f.id} value={f.id}>
-                        {f.nome}{f.crea ? ` — CREA: ${f.crea}` : ''}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            )}
-
+            <div className="pront-form-secao-titulo">Revisão</div>
             <div className="pront-form-grid">
-              <div className="pront-campo">
-                <label>Nome do Engenheiro</label>
-                <input value={dados.engNome} onChange={(e) => set('engNome', e.target.value)} />
-              </div>
-              <div className="pront-campo">
-                <label>CREA</label>
-                <input value={dados.engCrea} onChange={(e) => set('engCrea', e.target.value)} />
-              </div>
               <div className="pront-campo">
                 <label>Revisão</label>
                 <input value={dados.revisao} onChange={(e) => set('revisao', e.target.value)} />
@@ -693,27 +794,6 @@ export default function Prontuarios() {
                 <label>Data de Revisão</label>
                 <input value={dados.dataRevisao} onChange={(e) => set('dataRevisao', e.target.value)} placeholder="DD/MM/AAAA" />
               </div>
-            </div>
-            <div className="pront-upload-area">
-              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>ASSINATURA DO ENGENHEIRO</span>
-              <div className="pront-upload-preview">
-                {dados.engAssinatura && <img src={dados.engAssinatura} alt="Assinatura" />}
-                <button type="button" className="btn-secundario" onClick={() => inputAssinaturaRef.current?.click()}>
-                  {dados.engAssinatura ? 'Trocar imagem' : 'Enviar imagem'}
-                </button>
-                {dados.engAssinatura && (
-                  <button type="button" className="btn-remover" onClick={() => set('engAssinatura', undefined)}>
-                    Remover
-                  </button>
-                )}
-              </div>
-              <input
-                ref={inputAssinaturaRef}
-                type="file"
-                accept="image/*"
-                style={{ display: 'none' }}
-                onChange={(e) => { if (e.target.files?.[0]) uploadAssinatura(e.target.files[0]); }}
-              />
             </div>
           </div>
 
@@ -724,7 +804,7 @@ export default function Prontuarios() {
             <button type="button" className="btn-secundario" onClick={visualizar}>
               Pré-visualizar
             </button>
-            <button type="button" className="btn-primario" onClick={salvar} disabled={salvando}>
+            <button type="button" className={`btn-primario ${salvando ? 'is-loading' : ''}`} onClick={salvar} disabled={salvando}>
               {salvando ? 'Salvando...' : 'Salvar Prontuário'}
             </button>
           </div>
@@ -748,7 +828,7 @@ export default function Prontuarios() {
               <h3>Prontuário — {tag}</h3>
               <div className="pront-visualizador-acoes">
                 {visualizandoSemSalvar ? (
-                  <button type="button" className="btn-primario" onClick={salvar} disabled={salvando}>
+                  <button type="button" className={`btn-primario ${salvando ? 'is-loading' : ''}`} onClick={salvar} disabled={salvando}>
                     {salvando ? 'Salvando...' : 'Salvar Definitivamente'}
                   </button>
                 ) : (

@@ -234,6 +234,7 @@
             .highlight-min { background-color: #fef08a !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         }
     </style>
+    <script src="/sb-storage.js"></script>
 </head>
 <body>
 
@@ -435,43 +436,6 @@
 
 
 
-            <div class="signature-wrapper-tecnico" id="sig-wrapper-tecnico">
-
-                <div class="no-print select-ph-box">
-                    <select id="select-tecnico" onchange="atualizarAssinaturaTecnico()">
-                        <option value="">Assinar...</option>
-                    </select>
-                </div>
-
-                <img id="img-assinatura-tecnico" class="sig-img" src="" alt="Assinatura Técnico" style="display:none;">
-
-                <div class="signature-line"></div>
-
-                <div class="sig-data">
-                    <strong>TÉCNICO RESPONSÁVEL</strong><br>
-                    <span id="nome-tecnico" class="data-highlight" contenteditable="true" spellcheck="false">Nome do Técnico</span><br>
-                    Registro: <span id="crea-tecnico" class="data-highlight" contenteditable="true" spellcheck="false">000000</span>
-                </div>
-            </div>
-
-            <div class="signature-wrapper" id="sig-wrapper-engenheiro">
-
-                <div class="no-print select-ph-box">
-                    <select id="select-ph" onchange="atualizarAssinatura()">
-                        <option value="">Assinar...</option>
-                    </select>
-                </div>
-
-                <img id="img-assinatura-ph" class="sig-img" src="" alt="Assinatura PH" style="display:none;">
-
-                <div class="signature-line"></div>
-
-                <div class="sig-data">
-                    <strong>ENGENHEIRO RESPONSÁVEL</strong><br>
-                    <span id="nome-ph" class="data-highlight" contenteditable="true" spellcheck="false">Nome do Engenheiro</span><br>
-                    CREA/RNP: <span id="crea-ph" class="data-highlight" contenteditable="true" spellcheck="false">ES-000000/D</span>
-                </div>
-            </div>
 
 
 
@@ -693,7 +657,24 @@
                     casco: minimos[1] !== Infinity ? String(minimos[1]).replace('.', ',') : '',
                     inf: minimos[2] !== Infinity ? String(minimos[2]).replace('.', ',') : ''
                 };
-                localStorage.setItem('nr13_med_esp_' + tagVaso, JSON.stringify(dadosMedicao));
+                sbSalvar('nr13_med_esp_' + tagVaso, JSON.stringify(dadosMedicao));
+
+                // Persiste a GRADE COMPLETA de pontos por TAG (para o Prontuário — folha 3)
+                try {
+                    var ROWS = { ts: [1], casco: [2, 3, 4, 6], ti: [5] };
+                    var ANG = ['0', '90', '180', '270'];
+                    function celVal(n, a) {
+                        var el = document.getElementById('linha' + n + '-' + a);
+                        return el ? el.innerText.trim() : '';
+                    }
+                    var grid = { ts: [], casco: [], ti: [] };
+                    Object.keys(ROWS).forEach(function (sec) {
+                        ROWS[sec].forEach(function (n) {
+                            grid[sec].push(ANG.map(function (a) { return celVal(n, a); }));
+                        });
+                    });
+                    sbSalvar('nr13_med_grid_' + tagVaso, JSON.stringify(grid));
+                } catch (e) {}
             }
         }
 
@@ -856,7 +837,6 @@
                     }
                 }
             }
-            carregarPHsParaSelect();
         });
 
         document.addEventListener('input', function(e) {
@@ -937,92 +917,63 @@
             let tentativas = 0;
             let motorInjecao = setInterval(() => {
                 tentativas++;
-                if (tentativas > 10) clearInterval(motorInjecao); 
-                
+                if (tentativas > 10) clearInterval(motorInjecao);
+
                 try {
                     let injecaoStr = localStorage.getItem('nr13_injecao_atual');
-                    if (injecaoStr) {
-                        let injecao = JSON.parse(injecaoStr);
-                        
-                        if (injecao.ultrassom) {
-                            let dados = injecao.ultrassom;
-                            let injetouAlgo = false;
+                    if (!injecaoStr) return;
+                    let injecao = JSON.parse(injecaoStr);
+                    let dados = injecao.ultrassom;
+                    if (!dados) return;
 
-                            // Função inteligente: Injeta do jeito certo seja Input ou Texto normal
-                            function injetarValor(idElemento, valor) {
-                                let el = document.getElementById(idElemento);
-                                if (el) {
-                                    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
-                                        el.value = valor;
-                                    } else {
-                                        el.innerText = valor;
-                                    }
-                                    injetouAlgo = true;
-                                }
-                            }
-                            
-                            // 1. TRADUTOR DE CAMPOS GERAIS (Tenta o ID traduzido e o ID original)
-                            const mapaCampos = {
-                                'inp-equipamento': ['equipamento-us', 'inp-equipamento'],
-                                'inp-area': ['us-area', 'inp-area'],
-                                'inp-esp-nom-casco': ['us-espessura-nominal', 'inp-esp-nom-casco'],
-                                'inp-ano': ['us-ano', 'inp-ano'],
-                                'inp-material': ['us-material', 'inp-material'],
-                                'inp-acoplante': ['us-acoplante', 'inp-acoplante'],
-                                'inp-estado-sup': ['us-estado-superficie', 'inp-estado-sup'],
-                                'inp-cabecote': ['us-cabecote', 'inp-cabecote'],
-                                'inp-temp-sup': ['us-temp', 'inp-temp-sup'],
-                                'inp-vel-sonica': ['us-vel-sonica', 'inp-vel-sonica']
-                            };
+                    let injetouAlgo = false;
+                    function injetarValor(idElemento, valor) {
+                        if (valor === undefined || valor === null || valor === '') return;
+                        let el = document.getElementById(idElemento);
+                        if (!el) return;
+                        if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') el.value = valor;
+                        else el.innerText = valor;
+                        injetouAlgo = true;
+                    }
 
-                            for (let chaveAvulso in mapaCampos) {
-                                if (dados[chaveAvulso]) {
-                                    let idsPossiveis = mapaCampos[chaveAvulso];
-                                    // Tenta injetar em todas as variações de nome de ID conhecidas
-                                    idsPossiveis.forEach(id => injetarValor(id, dados[chaveAvulso]));
-                                }
-                            }
+                    // 1. CAMPOS GERAIS — chaves reais do FormularioUltrassom → IDs reais do template
+                    const MAPA = {
+                        equipamento: 'inp-equipamento',
+                        area:        'inp-area',
+                        espNomCasco: 'inp-esp-nom-casco',
+                        ano:         'inp-ano',
+                        material:    'inp-material',
+                        aparelho:    'inp-aparelho',
+                        acoplante:   'inp-acoplante',
+                        estadoSup:   'inp-estado-sup',
+                        cabecote:    'inp-cabecote',
+                        tempSup:     'inp-temp-sup',
+                        velSonica:   'inp-vel-sonica'
+                    };
+                    for (let chave in MAPA) injetarValor(MAPA[chave], dados[chave]);
 
-                            // Tratamento do Aparelho / Série
-                            if (dados['inp-aparelho']) {
-                                let partes = dados['inp-aparelho'].split('/');
-                                if (partes[0]) {
-                                    injetarValor('aparelho-us', partes[0].trim());
-                                    injetarValor('inp-aparelho', partes[0].trim());
+                    // 2. TABELA DE MEDIDAS — medidas[componente][angulo] → célula linha{N}-{angulo}
+                    // Mapa componente→linha do template: ts=1, c1=2, c2=3, c3=4, c4=6, ti=5.
+                    const COMP_PARA_LINHA = { ts: 1, c1: 2, c2: 3, c3: 4, c4: 6, ti: 5 };
+                    const ANGULOS = ['0', '90', '180', '270'];
+                    if (dados.medidas) {
+                        for (let comp in COMP_PARA_LINHA) {
+                            let linha = dados.medidas[comp];
+                            if (!linha) continue;
+                            ANGULOS.forEach(function(ang) {
+                                let v = linha[ang];
+                                if (v !== undefined && v !== '') {
+                                    injetarValor('linha' + COMP_PARA_LINHA[comp] + '-' + ang, String(v).replace('.', ','));
                                 }
-                                if (partes[1]) {
-                                    injetarValor('aparelho-serie', partes[1].trim());
-                                }
-                            }
-
-                            // 2. TABELA DE MEDIDAS (Tenta injetar na classe original 'c1-0' e na traduzida 'linha1-0')
-                            if (dados.medicoes) {
-                                for (let key in dados.medicoes) {
-                                    if (dados.medicoes[key] !== '') {
-                                        let idTraduzido = key
-    .replace('ts', 'linha1').replace('t1', 'linha1') // Tampo Superior
-    .replace('c1', 'linha2')                         // Casco (Linha 1)
-    .replace('c2', 'linha3')                         // Casco (Linha 2)
-    .replace('c3', 'linha4')                         // Casco (Linha 3)
-    .replace('c4', 'linha6')                         // Casco (Linha 4)
-    .replace('ti', 'linha5').replace('t2', 'linha5'); // Tampo Inferior
-                                        
-                                        injetarValor(key, dados.medicoes[key]); // Tenta no ID idêntico ao avulso
-                                        if (key !== idTraduzido) {
-                                            injetarValor(idTraduzido, dados.medicoes[key]); // Tenta no ID estilo relatório
-                                        }
-                                    }
-                                }
-                            }
-
-                            // Finaliza e avisa os croquis
-                            if (injetouAlgo) {
-                                if (typeof calcularTodasMedias === 'function') calcularTodasMedias();
-                                if (typeof aplicarCoresTabelaECroqui === 'function') aplicarCoresTabelaECroqui();
-                                if (typeof destacarMenoresEspessuras === 'function') destacarMenoresEspessuras();
-                                clearInterval(motorInjecao); // Sucesso! Desliga o motor de repetição.
-                            }
+                            });
                         }
+                    }
+
+                    if (injetouAlgo) {
+                        if (typeof calcularTodasMedias === 'function') calcularTodasMedias();
+                        if (typeof aplicarCoresTabelaECroqui === 'function') aplicarCoresTabelaECroqui();
+                        if (typeof destacarMenoresEspessuras === 'function') destacarMenoresEspessuras();
+                        clearInterval(motorInjecao);
                     }
                 } catch (e) {
                     console.error("Erro na auto-injeção do Ultrassom:", e);
@@ -1091,9 +1042,6 @@
             }
         }
 
-        document.addEventListener('DOMContentLoaded', function() {
-            carregarTecnicosParaSelect();
-        });
     </script>
 </body>
 </html>

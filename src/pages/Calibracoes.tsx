@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { listarEquipamentos } from '../features/equipamento/equipamentoService';
-import type { EquipamentoResumo } from '../features/equipamento/tipos';
+import type { EmpresaEquipamento, EquipamentoResumo, TipoEquipamento } from '../features/equipamento/tipos';
 import { formatarValor } from '../calc/unidades';
+import { ler } from '../services/storage';
 import {
   arquivoCalibracao,
   calcularErro,
@@ -10,10 +11,16 @@ import {
   salvarCalibracao,
 } from '../features/calibracoes/calibracaoService';
 import type { DadosCalibracao, DadosManometro, DadosPSV } from '../features/calibracoes/tipos';
+import VisualizadorCalibracao from '../features/calibracoes/VisualizadorCalibracao';
 import '../pages/relatorios.css';
 import './calibracoes.css';
 
-type Tela = 'equipamentos' | 'historico' | 'formulario' | 'visualizador';
+type Tela = 'equipamentos' | 'historico' | 'selecionarTipo' | 'formulario' | 'visualizador' | 'verDados';
+
+function proprietarioDe(tag: string): string {
+  const emp = ler<EmpresaEquipamento>(`nr13_emp_${tag}`);
+  return emp?.razaoSocial || emp?.nomeFantasia || '';
+}
 
 const ROTULO_TIPO: Record<string, string> = {
   vaso: 'Vaso de Pressão',
@@ -172,6 +179,24 @@ export default function Calibracoes() {
   const [form, setForm] = useState<FormDados>(formPadrao());
   const [confirmandoId, setConfirmandoId] = useState<string | null>(null);
   const [versao, setVersao] = useState(0);
+  const [filtroTipo, setFiltroTipo] = useState<'todos' | TipoEquipamento>('todos');
+  const [filtroProp, setFiltroProp] = useState('');
+  const [toast, setToast] = useState('');
+
+  const proprietarios = useMemo(
+    () => [...new Set(equipamentos.map((e) => proprietarioDe(e.tag)).filter(Boolean))].sort(),
+    [equipamentos],
+  );
+
+  const equipamentosFiltrados = useMemo(
+    () =>
+      equipamentos.filter(
+        (e) =>
+          (filtroTipo === 'todos' || e.info.tipo === filtroTipo) &&
+          (filtroProp === '' || proprietarioDe(e.tag) === filtroProp),
+      ),
+    [equipamentos, filtroTipo, filtroProp],
+  );
 
   const carregarEquipamentos = useCallback(async () => {
     setEquipamentos(await listarEquipamentos());
@@ -199,6 +224,11 @@ export default function Calibracoes() {
     setCalAtual(cal);
     setVersao((v) => v + 1);
     setTela('visualizador');
+  }
+
+  function abrirVerDados(cal: DadosCalibracao) {
+    setCalAtual(cal);
+    setTela('verDados');
   }
 
   function excluir(id: string) {
@@ -229,14 +259,22 @@ export default function Calibracoes() {
     });
   }
 
-  function salvar(addOutro = false) {
+  function mostrarToast(msg: string) {
+    setToast(msg);
+    window.setTimeout(() => setToast(''), 2600);
+  }
+
+  function salvar(voltarParaLista = false) {
     const id = `cal-${Date.now()}`;
     const dados = converterForm(form, tag, id);
     salvarCalibracao(tag, dados);
     const lista = listarCalibracoes(tag);
     setCals([...lista].sort((a, b) => parseDateBR(b.dataCalibracao || b.criadoEm) - parseDateBR(a.dataCalibracao || a.criadoEm)));
-    if (addOutro) {
-      setForm(formPadrao(form.tipo));
+    if (voltarParaLista) {
+      // confirma o salvamento, fecha o formulário e volta à lista — usuário adiciona outro manualmente
+      const nome = dados.nome || (dados.tipo === 'manometro' ? 'Manômetro' : 'PSV');
+      mostrarToast(`✓ "${nome}" salvo com sucesso`);
+      setTela('historico');
     } else {
       setCalAtual(dados);
       setVersao((v) => v + 1);
@@ -257,13 +295,45 @@ export default function Calibracoes() {
       {/* ── EQUIPAMENTOS ─────────────────────────────── */}
       {tela === 'equipamentos' && (
         <div className="bloco-dados">
-          <h3>Equipamentos Cadastrados</h3>
+          <div className="meta-card-header">
+            <h3>Selecione o Equipamento</h3>
+          </div>
+
+          <div className="cal-filtros">
+            <div className="cal-filtro-campo">
+              <label>Tipo de Equipamento</label>
+              <select value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value as 'todos' | TipoEquipamento)}>
+                <option value="todos">Todos os tipos</option>
+                <option value="vaso">Vaso de Pressão</option>
+                <option value="autoclave">Autoclave</option>
+                <option value="caldeira">Caldeira</option>
+              </select>
+            </div>
+            <div className="cal-filtro-campo">
+              <label>Proprietário (Empresa Dona)</label>
+              <select value={filtroProp} onChange={(e) => setFiltroProp(e.target.value)}>
+                <option value="">Todos os proprietários</option>
+                {proprietarios.map((p) => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+            </div>
+            {(filtroTipo !== 'todos' || filtroProp !== '') && (
+              <button type="button" className="btn-secundario cal-filtro-limpar" onClick={() => { setFiltroTipo('todos'); setFiltroProp(''); }}>
+                Limpar filtros
+              </button>
+            )}
+          </div>
+
           {equipamentos.length === 0 ? (
             <p className="dashboard-vazio">Nenhum equipamento cadastrado ainda.</p>
+          ) : equipamentosFiltrados.length === 0 ? (
+            <p className="dashboard-vazio">Nenhum equipamento corresponde aos filtros.</p>
           ) : (
             <div className="lista-cards-horiz">
-              {equipamentos.map((eq) => {
+              {equipamentosFiltrados.map((eq) => {
                 const qtd = listarCalibracoes(eq.tag).length;
+                const prop = proprietarioDe(eq.tag);
                 return (
                   <button
                     type="button"
@@ -275,6 +345,10 @@ export default function Calibracoes() {
                       <div className="eq-col">
                         <span className="eq-tag">{eq.tag}</span>
                         <span className="eq-tipo">{ROTULO_TIPO[eq.info.tipo]}</span>
+                      </div>
+                      <div className="eq-col">
+                        <span className="eq-label">Proprietário</span>
+                        <span className="eq-value">{prop || '—'}</span>
                       </div>
                       <div className="eq-col">
                         <span className="eq-label">Categoria</span>
@@ -309,14 +383,9 @@ export default function Calibracoes() {
           </div>
           <div className="meta-card-header">
             <h3>Calibrações — {tag}</h3>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button type="button" className="btn-secundario" onClick={() => novaForm('manometro')}>
-                + Manômetro
-              </button>
-              <button type="button" className="btn-primario" onClick={() => novaForm('psv')}>
-                + Válvula (PSV)
-              </button>
-            </div>
+            <button type="button" className="btn-primario" onClick={() => setTela('selecionarTipo')}>
+              + Nova Calibração
+            </button>
           </div>
 
           {cals.length === 0 ? (
@@ -336,20 +405,20 @@ export default function Calibracoes() {
               <tbody>
                 {cals.map((c) => (
                   <tr key={c.id}>
-                    <td style={{ fontWeight: 600 }}>{c.nome}</td>
-                    <td>
+                    <td data-label="Item" style={{ fontWeight: 600 }}>{c.nome}</td>
+                    <td data-label="Tipo">
                       <span className={`badge-cal-tipo ${c.tipo}`}>
                         {c.tipo === 'manometro' ? 'Manômetro' : 'PSV'}
                       </span>
                     </td>
-                    <td>{c.dataCalibracao || '—'}</td>
-                    <td>{c.dataProxCalibracao || '—'}</td>
-                    <td>
+                    <td data-label="Data Calibração">{c.dataCalibracao || '—'}</td>
+                    <td data-label="Próx. Calibração">{c.dataProxCalibracao || '—'}</td>
+                    <td data-label="Status">
                       <span className={`badge-cal-status ${c.statusConclusao || 'pendente'}`}>
                         {statusLabel(c.statusConclusao)}
                       </span>
                     </td>
-                    <td className="acoes-relatorio-icones">
+                    <td data-label="Ações" className="acoes-relatorio-icones">
                       {confirmandoId === c.id ? (
                         <>
                           <button type="button" className="btn-remover" onClick={() => excluir(c.id)}>
@@ -361,9 +430,14 @@ export default function Calibracoes() {
                         </>
                       ) : (
                         <>
-                          <button type="button" className="btn-icone cor-azul" title="Visualizar" onClick={() => abrirVisualizador(c)}>
+                          <button type="button" className="btn-icone cor-azul" title="Ver o que foi preenchido" onClick={() => abrirVerDados(c)}>
                             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                               <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z" /><circle cx="12" cy="12" r="3" />
+                            </svg>
+                          </button>
+                          <button type="button" className="btn-icone cor-azul" title="Ver como fica o documento" onClick={() => abrirVisualizador(c)}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /><path d="M8 13h8M8 17h8M8 9h2" />
                             </svg>
                           </button>
                           <button type="button" className="btn-icone cor-vermelho" title="Excluir" onClick={() => setConfirmandoId(c.id)}>
@@ -382,6 +456,44 @@ export default function Calibracoes() {
         </div>
       )}
 
+      {/* ── SELECIONAR TIPO (2 cards grandes) ────────── */}
+      {tela === 'selecionarTipo' && (
+        <div className="bloco-dados">
+          <div className="meta-breadcrumb">
+            <button type="button" className="btn-secundario" onClick={() => setTela('historico')}>
+              ← Voltar
+            </button>
+            <strong>{tag}</strong>
+          </div>
+          <div className="meta-card-header" style={{ marginBottom: 4 }}>
+            <h3>O que você quer calibrar?</h3>
+          </div>
+          <p className="texto-ajuda-modal" style={{ marginBottom: 14 }}>
+            Escolha o instrumento para abrir o formulário de calibração.
+          </p>
+
+          <div className="cal-add-cards">
+            <button type="button" className="cal-add-card psv" onClick={() => novaForm('psv')}>
+              <span className="cal-add-card-icone" aria-hidden="true">🛡️</span>
+              <span className="cal-add-card-titulo">Válvula de Segurança (PSV)</span>
+              <span className="cal-add-card-desc">
+                Certificado com pressão de abertura, ajuste e fechamento.
+              </span>
+              <span className="cal-add-card-cta">Calibrar PSV →</span>
+            </button>
+
+            <button type="button" className="cal-add-card manometro" onClick={() => novaForm('manometro')}>
+              <span className="cal-add-card-icone" aria-hidden="true">🎚️</span>
+              <span className="cal-add-card-titulo">Manômetro</span>
+              <span className="cal-add-card-desc">
+                Certificado com tabela de medição crescente e decrescente.
+              </span>
+              <span className="cal-add-card-cta">Calibrar Manômetro →</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── FORMULÁRIO ───────────────────────────────── */}
       {tela === 'formulario' && (
         <div className="bloco-dados">
@@ -393,29 +505,6 @@ export default function Calibracoes() {
           </div>
           <div className="meta-card-header" style={{ marginBottom: 16 }}>
             <h3>Nova Calibração — {form.tipo === 'manometro' ? 'Manômetro' : 'Válvula de Segurança (PSV)'}</h3>
-          </div>
-
-          {/* Tipo selector */}
-          <div className="cal-form-secao">
-            <div className="cal-form-secao-titulo">Tipo de Instrumento</div>
-            <div className="cal-tipo-selector">
-              <button
-                type="button"
-                className={`cal-tipo-btn ${form.tipo === 'manometro' ? 'ativo' : ''}`}
-                onClick={() => set('tipo', 'manometro')}
-              >
-                <div className="cal-tipo-btn-titulo">Manômetro</div>
-                <div className="cal-tipo-btn-desc">Certificado de calibração com tabela crescente/decrescente</div>
-              </button>
-              <button
-                type="button"
-                className={`cal-tipo-btn ${form.tipo === 'psv' ? 'ativo' : ''}`}
-                onClick={() => set('tipo', 'psv')}
-              >
-                <div className="cal-tipo-btn-titulo">Válvula de Segurança (PSV)</div>
-                <div className="cal-tipo-btn-desc">Certificado com pressão de abertura, ajuste e fechamento</div>
-              </button>
-            </div>
           </div>
 
           {/* Identificação */}
@@ -643,7 +732,7 @@ export default function Calibracoes() {
               Cancelar
             </button>
             <button type="button" className="btn-secundario" onClick={() => salvar(true)}>
-              Salvar e Adicionar Outro
+              Salvar e Voltar à Lista
             </button>
             <button type="button" className="btn-primario" onClick={() => salvar(false)}>
               Salvar e Visualizar
@@ -668,7 +757,13 @@ export default function Calibracoes() {
               <h3>
                 {calAtual.tipo === 'manometro' ? 'Certificado de Calibração — Manômetro' : 'Certificado de Calibração — PSV'}
               </h3>
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button type="button" className="btn-secundario" onClick={() => abrirVerDados(calAtual)}>
+                  👁 Ver preenchido
+                </button>
+                <button type="button" className="btn-primario" onClick={() => setTela('selecionarTipo')}>
+                  + Nova Calibração
+                </button>
                 <button type="button" className="btn-secundario" onClick={() => window.print()}>
                   Imprimir
                 </button>
@@ -700,6 +795,35 @@ export default function Calibracoes() {
             </div>
           </div>
         </>
+      )}
+
+      {/* ── VER PREENCHIDO (dados salvos, sem campos de edição) ── */}
+      {tela === 'verDados' && calAtual && (
+        <div className="bloco-dados">
+          <div className="meta-breadcrumb">
+            <button type="button" className="btn-secundario" onClick={() => setTela('historico')}>
+              ← Voltar
+            </button>
+            <strong>{tag}</strong>
+            <span className="breadcrumb-chevron">›</span>
+            <span>{calAtual.nome}</span>
+          </div>
+          <div className="meta-card-header">
+            <h3>
+              {calAtual.tipo === 'manometro' ? 'Calibração — Manômetro' : 'Calibração — PSV'} (dados preenchidos)
+            </h3>
+            <button type="button" className="btn-primario" onClick={() => abrirVisualizador(calAtual)}>
+              📄 Ver como fica o documento
+            </button>
+          </div>
+          <VisualizadorCalibracao dados={calAtual} />
+        </div>
+      )}
+
+      {toast && (
+        <div className="toast-sucesso" role="status">
+          {toast}
+        </div>
       )}
     </div>
   );

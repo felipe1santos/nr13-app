@@ -3,9 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <title>Prontuário do Vaso de Pressão — Folha 2</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: Arial, Helvetica, sans-serif; background: #fff; color: #000; font-size: 12px; }
+        body { font-family: 'Inter', sans-serif; background: #fff; color: #000; font-size: 12px; }
         .a4-page { background: #fff; width: 210mm; height: 297mm; padding: 15mm; position: relative; overflow: hidden; display: flex; flex-direction: column; }
         .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-20deg); width: 70%; opacity: 0.07; z-index: 0; pointer-events: none; }
         .watermark-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-20deg); font-size: 80px; font-weight: 900; color: #003366; opacity: 0.04; z-index: 0; pointer-events: none; white-space: nowrap; text-transform: uppercase; }
@@ -19,21 +22,49 @@
         .section-title { background-color: #003366; color: #fff; border-bottom: 1px solid #000; padding: 6px 8px; font-size: 12px; font-weight: bold; text-transform: uppercase; text-align: center; }
         .text-block { padding: 10px 10px; font-size: 11.5px; line-height: 1.65; text-align: justify; }
         .label { font-weight: bold; font-size: 10.5px; background: #f5f5f5; padding: 1px 4px; display: inline-block; width: fit-content; border-radius: 2px; }
-        .drawing-container { display: flex; align-items: flex-start; justify-content: space-between; padding: 14px 10px; gap: 14px; }
-        .croqui-box { flex: 0 0 36%; text-align: center; }
-        .croqui-img { max-width: 100%; max-height: 220px; object-fit: contain; }
-        .croqui-placeholder { width: 100%; height: 210px; border: 1px dashed #999; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #999; }
-        .table-box { flex: 0 0 62%; }
-        .dimensions-table { width: 100%; border-collapse: collapse; font-size: 10.5px; text-align: center; }
-        .dimensions-table th, .dimensions-table td { border: 1px solid #000; padding: 6px 4px; }
-        .dimensions-table th { background: #f5f5f5; font-weight: bold; }
-        .table-note { text-align: center; font-size: 10.5px; font-weight: bold; margin-top: 6px; }
+        .drawing-container { display: flex; align-items: stretch; justify-content: space-between; padding: 14px 10px; gap: 18px; }
+        .croqui-box { flex: 0 0 42%; text-align: center; display: flex; flex-direction: column; }
+        .croqui-img { max-width: 100%; max-height: 240px; object-fit: contain; }
+        .croqui-placeholder { width: 100%; min-height: 230px; flex: 1; border: 2px dashed #9bb0c9; border-radius: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 10.5px; color: #5b6b80; line-height: 1.5; cursor: pointer; background: #f7f9fc; transition: background .15s, border-color .15s; text-align: center; padding: 10px; }
+        .croqui-placeholder:hover { background: #eef3fa; border-color: #003366; color: #003366; }
+        .croqui-plus { font-size: 30px; font-weight: 700; line-height: 1; margin-bottom: 8px; }
+        .table-box { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+        .dim-list { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 26px; }
+        .dim-item { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 7px 2px; border-bottom: 1px dotted #c8c8c8; font-size: 11.5px; }
+        .dim-item .dim-lbl { font-weight: bold; color: #222; }
+        .dim-item .dim-val { color: #003366; font-weight: 700; white-space: nowrap; }
+        .table-note { text-align: center; font-size: 10.5px; font-weight: bold; margin-top: 12px; color: #555; }
+        /* Comparação de espessuras */
+        .comp-list { padding: 8px 6px 2px; }
+        .comp-head, .comp-row { display: grid; grid-template-columns: 2fr 1.3fr 1.3fr 1fr; gap: 10px; align-items: center; }
+        .comp-head { font-size: 9px; font-weight: 700; color: #003366; text-transform: uppercase; letter-spacing: .3px; padding: 0 2px 6px; border-bottom: 1.5px solid #003366; }
+        .comp-head span:nth-child(n+2), .comp-row .comp-c:nth-child(n+2) { text-align: center; }
+        .comp-row { padding: 8px 2px; border-bottom: 1px dotted #c8c8c8; font-size: 11.5px; }
+        .comp-row .comp-nome { font-weight: 700; color: #222; }
+        .comp-row .comp-c { color: #003366; font-weight: 600; }
+        .comp-status { font-weight: 800; text-transform: uppercase; font-size: 11px; text-align: center; }
+        .comp-status.ok { color: #188038; }
+        .comp-status.no { color: #d93025; }
+        .comp-empty { font-size: 10.5px; color: #888; font-style: italic; text-align: center; padding: 12px; }
+        /* Grade de pontos de medição (estilo planilha) */
+        .med-grid-table { width: 78%; margin: 7px auto 2px; border-collapse: collapse; font-size: 11px; }
+        .med-grid-table td { border: 1px solid #6b7280; padding: 4px 6px; text-align: center; }
+        .med-grid-sec { background: #eef0f3; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: .3px; }
+        .med-grid-ang { background: #f6f7f9; font-weight: 700; font-size: 10px; }
+        .med-grid-val { color: #0037ad; font-weight: 600; }
+        .med-grid-val.min { background: #ffd800; color: #000; font-weight: 800; }
+        /* Resumo da comparação (limitante) */
+        .comp-resumo { margin: 8px 6px 0; padding: 8px 12px; border: 1.5px solid #003366; border-radius: 4px; background: #f4f7fb; font-size: 11.5px; line-height: 1.55; }
+        .comp-resumo b { color: #003366; }
+        .comp-resumo .res-ok { color: #188038; font-weight: 800; }
+        .comp-resumo .res-no { color: #d93025; font-weight: 800; }
         .inspection-list { list-style-type: none; padding: 0; margin-top: 8px; }
         .inspection-list li { margin-bottom: 10px; text-align: justify; font-size: 11.5px; line-height: 1.65; }
         .footer-container { display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 10px; border-top: 1px solid #ccc; }
         .footer-text { flex: 1; text-align: center; font-size: 9px; line-height: 1.4; padding-left: 16px; }
         @media print { body { background: #fff; } .a4-page { box-shadow: none; width: 100%; height: 100%; } }
     </style>
+    <script src="/sb-storage.js"></script>
 </head>
 <body>
 <div class="a4-page">
@@ -50,91 +81,238 @@
         </div>
 
         <div class="section">
-            <div class="section-title">Dispositivos de Segurança</div>
-            <div class="text-block">
-                <span class="label">Válvula de Segurança:</span> Corpo e demais componentes fabricados em latão, mola fabricada com aço mola e elemento de vedação fabricados em silicone ou neoprene. Com pressão máxima de abertura regulada e dimensionada para que não ultrapasse a PMTA.
-            </div>
-        </div>
-
-        <div class="section">
             <div class="section-title">Conjunto de Desenhos e Dimensões</div>
             <div class="drawing-container">
                 <div class="croqui-box">
+                    <input type="file" id="input-croqui" accept="image/*" style="display:none">
                     <img id="img-croqui" class="croqui-img" alt="Croqui do Vaso" style="display:none">
-                    <div id="croqui-placeholder" class="croqui-placeholder">DESENHO ILUSTRATIVO<br>DO VASO DE PRESSÃO</div>
+                    <div id="croqui-placeholder" class="croqui-placeholder">
+                        <span class="croqui-plus">+</span>
+                        CLIQUE PARA ADICIONAR<br>O CROQUI / IMAGEM DO EQUIPAMENTO
+                    </div>
                 </div>
                 <div class="table-box">
-                    <table class="dimensions-table">
-                        <thead>
-                            <tr>
-                                <th>Modelo</th>
-                                <th>A<br>Diâm. Interno</th>
-                                <th>B<br>Alt. Corpo</th>
-                                <th>Esp. Chapa Corpo</th>
-                                <th>Esp. Chapa Fundo</th>
-                                <th>Esp. Tampa</th>
-                                <th>Vol. Nominal (Lts)</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tbody-dimensoes">
-                            <tr><td colspan="7" style="text-align:center;font-size:10px;padding:8px;color:#666;">Dados de dimensões conforme especificação do fabricante.</td></tr>
-                        </tbody>
-                    </table>
+                    <div class="dim-list" id="dim-list"></div>
                     <div class="table-note">Medidas em milímetros (mm)</div>
                 </div>
             </div>
         </div>
 
         <div class="section">
-            <div class="section-title">Verificações, Calibrações e Inspeção de Segurança</div>
-            <div class="text-block">
-                A fim de garantir maior vida útil do vaso de pressão, o proprietário do mesmo deverá seguir as recomendações a seguir, inclusive no que diz respeito às calibrações e verificações necessárias a serem executadas:
-                <ul class="inspection-list">
-                    <li>➤ Verificar o funcionamento da válvula de segurança <strong>mensalmente</strong>, acionando manualmente a sua alavanca ou outro dispositivo de abertura.</li>
-                    <li>➤ Realizar a aferição e/ou calibração dos dispositivos de segurança preferencialmente <strong>a cada ano</strong> e de preferência realizar a troca da válvula de segurança a <strong>cada 2 (dois) anos</strong>.</li>
-                    <li>➤ Recomenda-se fazer <strong>novo teste hidrostático</strong> no vaso de pressão após <strong>5 (cinco) anos</strong> a contar da data de fabricação, ou quando ocorrer avaria mecânica ou química que possa comprometer a resistência do mesmo. O teste deve ser mediante inspeção e aprovação de profissional habilitado conforme descrito na Norma Regulamentadora NR-13.</li>
-                    <li>➤ Os vasos de pressão devem ser submetidos a inspeções de segurança inicial, periódica e extraordinária. Essas inspeções devem ser realizadas por profissional habilitado, conforme descrito na Norma Regulamentadora NR-13.</li>
-                </ul>
-            </div>
+            <div class="section-title">Localização dos Pontos de Medição e Medidas Encontradas (mm)</div>
+            <table class="med-grid-table" id="med-grid"></table>
+            <div class="comp-empty" id="grid-empty">Sem grade de medição de espessura para este equipamento.</div>
         </div>
 
-        <div class="footer-container">
-            <img id="img-logo-rodape" class="logo-img" alt="Logo" style="display:none">
-            <div class="footer-text">
-                <p><strong>Obs.:</strong> Esse Prontuário do vaso de pressão é de propriedade da respectiva empresa emissora.</p>
-                <p>É proibida a reprodução e/ou publicação deste sem a devida autorização da empresa.</p>
+        <div class="section">
+            <div class="section-title">Comparação de Espessuras — Encontrada × Mínima Requerida</div>
+            <div class="comp-list" id="comp-list">
+                <div class="comp-head">
+                    <span>Componente</span>
+                    <span>Esp. Encontrada (mm)</span>
+                    <span>Esp. Mín. Requerida (mm)</span>
+                    <span>Resultado</span>
+                </div>
+                <div class="comp-empty" id="comp-empty">Sem dados de medição de espessura ou de cálculo para este equipamento.</div>
             </div>
+            <div class="comp-resumo" id="comp-resumo" style="display:none"></div>
         </div>
+
     </div>
 </div>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    var raw = localStorage.getItem('nr13_prontuario_atual');
-    if (!raw) return;
-    var d; try { d = JSON.parse(raw); } catch(e) { return; }
+    var d = {};
+    try { d = JSON.parse(localStorage.getItem('nr13_prontuario_atual') || '{}') || {}; } catch(e) { d = {}; }
 
     var logo = d.logo;
     if (!logo) { try { var e = JSON.parse(localStorage.getItem('nr13_minha_empresa')||'{}'); logo = e.logo; } catch(_){} }
     if (logo) {
         [document.getElementById('img-logo'), document.getElementById('img-logo-rodape'), document.getElementById('img-watermark')].forEach(function(img){ if(img){ img.src=logo; img.style.display='block'; } });
-        document.getElementById('wm-text').style.display = 'none';
+        var wm = document.getElementById('wm-text'); if (wm) wm.style.display = 'none';
     }
 
-    if (d.croqui) {
-        var imgCroqui = document.getElementById('img-croqui');
-        imgCroqui.src = d.croqui; imgCroqui.style.display = 'block';
-        document.getElementById('croqui-placeholder').style.display = 'none';
+    // ===== CROQUI: exibe salvo + clique para adicionar/trocar imagem =====
+    var imgCroqui = document.getElementById('img-croqui');
+    var placeholder = document.getElementById('croqui-placeholder');
+    var inputCroqui = document.getElementById('input-croqui');
+
+    function mostrarCroqui(src) {
+        if (!src) return;
+        imgCroqui.src = src; imgCroqui.style.display = 'block';
+        placeholder.style.display = 'none';
+    }
+    function persistirCroqui(src) {
+        var atual = {};
+        try { atual = JSON.parse(localStorage.getItem('nr13_prontuario_atual') || '{}') || {}; } catch(_) { atual = {}; }
+        atual.croqui = src;
+        try { sbSalvar('nr13_prontuario_atual', JSON.stringify(atual)); } catch(_) {}
     }
 
-    if (d.dimensoes && d.dimensoes.length > 0) {
-        var tbody = document.getElementById('tbody-dimensoes');
-        tbody.innerHTML = '';
-        d.dimensoes.forEach(function(row) {
-            var tr = document.createElement('tr');
-            tr.innerHTML = '<td>'+row.modelo+'</td><td>'+row.diametro+'</td><td>'+row.altura+'</td><td>'+row.espCorpo+'</td><td>'+row.espFundo+'</td><td>'+row.espTampa+'</td><td>'+row.volume+'</td>';
-            tbody.appendChild(tr);
+    if (d.croqui) mostrarCroqui(d.croqui);
+
+    function abrirSeletor(ev) { if (ev) { ev.preventDefault(); ev.stopPropagation(); } inputCroqui.click(); }
+    placeholder.addEventListener('click', abrirSeletor);
+    imgCroqui.addEventListener('click', abrirSeletor);
+    inputCroqui.addEventListener('change', function() {
+        var file = this.files && this.files[0];
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            var src = e.target.result;
+            mostrarCroqui(src);
+            persistirCroqui(src);
+        };
+        reader.readAsDataURL(file);
+    });
+
+    // ===== DIMENSÕES: duas colunas em texto, sem células =====
+    var dim = (d.dimensoes && d.dimensoes.length > 0) ? d.dimensoes[0] : {};
+    var itens = [
+        { lbl: 'Ø Diâmetro Interno', val: dim.diametro },
+        { lbl: 'Altura do Corpo',    val: dim.altura },
+        { lbl: 'Esp. Chapa Corpo',   val: dim.espCorpo },
+        { lbl: 'Esp. Chapa Fundo',   val: dim.espFundo },
+        { lbl: 'Esp. Tampa',         val: dim.espTampa },
+        { lbl: 'Volume Nominal (L)', val: dim.volume },
+    ];
+    var lista = document.getElementById('dim-list');
+    if (lista) {
+        lista.innerHTML = '';
+        itens.forEach(function(it) {
+            var div = document.createElement('div');
+            div.className = 'dim-item';
+            var v = (it.val !== undefined && it.val !== null && String(it.val).trim() !== '') ? it.val : '—';
+            div.innerHTML = '<span class="dim-lbl">' + it.lbl + '</span><span class="dim-val" contenteditable="true" spellcheck="false">' + v + '</span>';
+            lista.appendChild(div);
         });
     }
+
+    // ===== MEDIÇÃO DE ESPESSURA: grade, comparação e componente limitante =====
+    (function() {
+        var params = new URLSearchParams(window.location.search);
+        var tag = params.get('tag') || d.tag;
+        if (!tag) return;
+
+        var num = function(v) { var n = parseFloat(String(v).replace(',', '.')); return Number.isFinite(n) ? n : null; };
+        var fmt = function(v) { return v == null ? '—' : v.toFixed(2).replace('.', ','); };
+
+        var calc = {}, med = {}, grid = null;
+        try { calc = JSON.parse(localStorage.getItem('nr13_calc_' + tag) || '{}') || {}; } catch(_) {}
+        try { med  = JSON.parse(localStorage.getItem('nr13_med_esp_' + tag) || '{}') || {}; } catch(_) {}
+        try { grid = JSON.parse(localStorage.getItem('nr13_med_grid_' + tag) || 'null'); } catch(_) {}
+
+        // ---------- 1) GRADE DE PONTOS (estilo planilha) ----------
+        var ANG = ['0°', '90°', '180°', '270°'];
+        var SECOES = [
+            { key: 'ts', titulo: 'Tampo Superior' },
+            { key: 'casco', titulo: 'Casco' },
+            { key: 'ti', titulo: 'Tampo Inferior' },
+        ];
+        var minPorSecao = {}; // menor medida por seção (a partir da grade)
+
+        function temGrade(g) {
+            if (!g) return false;
+            return ['ts', 'casco', 'ti'].some(function(k) {
+                return Array.isArray(g[k]) && g[k].some(function(row) {
+                    return row.some(function(v) { return num(v) != null && num(v) > 0; });
+                });
+            });
+        }
+
+        var tabela = document.getElementById('med-grid');
+        var gridVazio = document.getElementById('grid-empty');
+        if (temGrade(grid) && tabela) {
+            if (gridVazio) gridVazio.style.display = 'none';
+            var html = '';
+            SECOES.forEach(function(sec) {
+                var rows = Array.isArray(grid[sec.key]) ? grid[sec.key] : [];
+                // menor da seção
+                var menor = Infinity;
+                rows.forEach(function(r) { r.forEach(function(v) { var n = num(v); if (n != null && n > 0 && n < menor) menor = n; }); });
+                minPorSecao[sec.key] = (menor === Infinity) ? null : menor;
+
+                html += '<tr><td class="med-grid-sec" colspan="4">' + sec.titulo + '</td></tr>';
+                html += '<tr>' + ANG.map(function(a){ return '<td class="med-grid-ang">' + a + '</td>'; }).join('') + '</tr>';
+                rows.forEach(function(r) {
+                    html += '<tr>' + r.map(function(v) {
+                        var n = num(v);
+                        var isMin = (n != null && minPorSecao[sec.key] != null && n === minPorSecao[sec.key]);
+                        var txt = (n != null) ? String(v).replace('.', ',') : '—';
+                        return '<td class="med-grid-val' + (isMin ? ' min' : '') + '" contenteditable="true" spellcheck="false">' + txt + '</td>';
+                    }).join('') + '</tr>';
+                });
+            });
+            tabela.innerHTML = html;
+        } else {
+            if (tabela) tabela.style.display = 'none';
+            // fallback: usa os mínimos salvos por seção
+            minPorSecao = { ts: num(med.sup), casco: num(med.casco), ti: num(med.inf) };
+        }
+
+        // ---------- 2) COMPARAÇÃO POR COMPONENTE ----------
+        var box = document.getElementById('comp-list');
+        var vazio = document.getElementById('comp-empty');
+        var comps = Array.isArray(calc.componentes) ? calc.componentes : [];
+
+        function medidaDe(nome, tampoIdx) {
+            var n = (nome || '').toLowerCase();
+            if (n.indexOf('casco') >= 0 || n.indexOf('corpo') >= 0 || n.indexOf('costado') >= 0 || n.indexOf('tubul') >= 0) return minPorSecao.casco;
+            return tampoIdx === 0 ? minPorSecao.ts : minPorSecao.ti;
+        }
+
+        var linhas = [], tampoIdx = 0;
+        comps.forEach(function(c) {
+            var nome = c.nome || 'Componente';
+            var req = num(c.tReqMm);
+            var nl = nome.toLowerCase();
+            var ehTampo = !(nl.indexOf('casco') >= 0 || nl.indexOf('corpo') >= 0 || nl.indexOf('costado') >= 0 || nl.indexOf('tubul') >= 0);
+            var medida = medidaDe(nome, ehTampo ? tampoIdx : -1);
+            if (ehTampo) tampoIdx++;
+            if (req == null && medida == null) return;
+            linhas.push({ nome: nome, medida: medida, req: req });
+        });
+
+        if (linhas.length > 0 && box) {
+            if (vazio) vazio.style.display = 'none';
+            linhas.forEach(function(l) {
+                var aprovado = (l.medida != null && l.req != null) ? (l.medida >= l.req) : null;
+                var statusTxt = aprovado == null ? '—' : (aprovado ? 'Aprovado' : 'Reprovado');
+                var statusCls = aprovado == null ? '' : (aprovado ? 'ok' : 'no');
+                var row = document.createElement('div');
+                row.className = 'comp-row';
+                row.innerHTML =
+                    '<span class="comp-c comp-nome">' + l.nome + '</span>' +
+                    '<span class="comp-c" contenteditable="true" spellcheck="false">' + fmt(l.medida) + '</span>' +
+                    '<span class="comp-c" contenteditable="true" spellcheck="false">' + fmt(l.req) + '</span>' +
+                    '<span class="comp-status ' + statusCls + '">' + statusTxt + '</span>';
+                box.appendChild(row);
+            });
+
+            // ---------- 3) MENOR ESPESSURA ENCONTRADA + COMPONENTE LIMITANTE ----------
+            // Limitante = menor margem (medida − requerida). Empate/sem req → menor medida absoluta.
+            var limitante = null;
+            linhas.forEach(function(l) {
+                if (l.medida == null) return;
+                var margem = (l.req != null) ? (l.medida - l.req) : l.medida;
+                if (limitante == null || margem < limitante.margem) {
+                    limitante = { nome: l.nome, medida: l.medida, req: l.req, margem: margem };
+                }
+            });
+
+            if (limitante) {
+                var aprov = (limitante.req != null) ? (limitante.medida >= limitante.req) : null;
+                var resumo = document.getElementById('comp-resumo');
+                var statusHTML = aprov == null ? '<b>—</b>'
+                    : (aprov ? '<span class="res-ok">APROVADO</span>' : '<span class="res-no">REPROVADO</span>');
+                resumo.innerHTML =
+                    'Menor espessura encontrada: <b>' + fmt(limitante.medida) + ' mm</b> &nbsp;|&nbsp; ' +
+                    'Mínima requerida: <b>' + fmt(limitante.req) + ' mm</b><br>' +
+                    'Componente limitante: <b>' + limitante.nome + '</b> &nbsp;→&nbsp; Resultado: ' + statusHTML;
+                resumo.style.display = 'block';
+            }
+        }
+    })();
 });
 </script>
 </body>

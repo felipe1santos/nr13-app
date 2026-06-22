@@ -11,12 +11,10 @@ export const DOCUMENTOS_DISPONIVEIS = [
   'CLASSIFICACAO-RISCO.html', // Caracterização — vem ANTES do Prontuário (markdown)
   'PRONTUARIO.html',
   'RESUMO-MEMORIAL.html',
-  'MEMORIAL1.html',
-  'MEMORIAL2.html',
-  'MEMORIAL3.html',
+  'MEMORIAL.html', // folha única auto-paginada: gera N folhas internas conforme o tamanho do cálculo
   'INSPECOES.html',
   'VERIFICACAO-DOCUMENTACAO.html',
-  'checklist1.html',
+  // checklist1.html removido: era duplicata exata da VERIFICACAO-DOCUMENTACAO (mesmos 15 itens v51-*)
   'checklist2.html',
   'checklist3.html',
   'VISUAL-EXTERNO.html',
@@ -41,6 +39,10 @@ export interface RelatorioMeta {
   tecnicoNome: string;
   // id do container de inspeção (nr13_docs_<TAG>) cujos dados de campo foram injetados nesse relatório.
   containerOrigemId?: string;
+  // Lista final de documentos do relatório (na ordem montada). Gravada na meta pra que os
+  // templates que dependem da composição — SUMARIO (TOC) e INSPECOES (ensaios realizados) —
+  // saibam quais folhas existem. Sem isso o TOC e a tabela de ensaios saem vazios.
+  documentos?: string[];
 }
 
 export interface RelatorioSalvo {

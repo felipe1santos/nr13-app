@@ -28,24 +28,3 @@ export interface Cliente {
   contato: string;
 }
 
-export type TipoFuncionario = 'Engenheiro PH' | 'Inspetor Técnico';
-
-export interface Funcionario {
-  id: string;
-  tipo: TipoFuncionario;
-  nome: string;
-  profissao: string;
-  crea: string;
-  registro: string;
-  cpf: string;
-  rg: string;
-  endereco: string;
-  bairro: string;
-  cep: string;
-  cidade: string;
-  uf: string;
-  telefone: string;
-  email: string;
-  foto?: string;
-  assinatura?: string;
-}

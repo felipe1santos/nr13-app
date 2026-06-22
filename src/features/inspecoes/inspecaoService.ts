@@ -9,10 +9,12 @@ export function listarContainers(tag: string): ContainerInspecao[] {
   return ler<ContainerInspecao[]>(chave(tag)) || [];
 }
 
-export async function criarContainer(tag: string, ensaios: TipoEnsaio[]): Promise<ContainerInspecao> {
+export async function criarContainer(tag: string, ensaios: TipoEnsaio[], nome?: string): Promise<ContainerInspecao> {
+  const criadoEm = new Date().toLocaleDateString('pt-BR');
   const novo: ContainerInspecao = {
     id: `cont${Date.now()}`,
-    criadoEm: new Date().toLocaleDateString('pt-BR'),
+    nome: (nome ?? '').trim() || `Inspeção de ${criadoEm}`,
+    criadoEm,
     ensaios,
     dados: {},
   };

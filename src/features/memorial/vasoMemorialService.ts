@@ -1,4 +1,6 @@
 import { ler, salvar } from '../../services/storage';
+import { atualizarCategoriaComPmta } from '../categoria/categoriaService';
+import type { ComponenteResumo } from './caldeiraMemorialService';
 import { formatarMemorialHTML } from './formatarMemorialHTML';
 import { calcularComponenteVaso } from '../../calc/vaso';
 import type { DadosComponenteVaso, TipoComponenteVaso } from '../../calc/vaso';
@@ -71,14 +73,52 @@ export function calcularResumoVaso(vaso: VasoSalvo): ResumoMemorialVaso {
 const TIPOS_CASCO: TipoComponenteVaso[] = ['cilindrico', 'esferico'];
 const TIPOS_TAMPO: TipoComponenteVaso[] = ['eliptico', 'toroesferico', 'esferico', 'plano', 'planoAparafusado', 'cone'];
 
+const FORMULAS_VASO: Record<string, [string, string]> = {
+  cilindrico: ['t = P·Ri / (S·E − 0,6·P)', 'PMTA = S·E·t / (Ri + 0,6·t)'],
+  eliptico: ['t = P·D / (2·S·E − 0,2·P)', 'PMTA = 2·S·E·t / (D + 0,2·t)'],
+  toroesferico: ['t = 0,885·P·L / (S·E − 0,1·P)', 'PMTA = S·E·t / (0,885·L + 0,1·t)'],
+  esferico: ['t = P·L / (2·S·E − 0,2·P)', 'PMTA = 2·S·E·t / (L + 0,2·t)'],
+  plano: ['t = d·C·√(P/S)', 'PMTA = S·(t/d)²/C'],
+  planoAparafusado: ['t = G·√(C·P/S)', 'PMTA = S·(t/G)²/C'],
+  cone: ['t = P·D / (2·cos α·(S·E − 0,6·P))', 'PMTA = 2·cos α·S·E·t / (D + 1,2·t·cos α)'],
+};
+
+function numV(v: unknown): number | null {
+  const n = parseFloat(String(v));
+  return Number.isFinite(n) ? n : null;
+}
+
 export async function salvarResumoVaso(tag: string, resumo: ResumoMemorialVaso, sufixo = ''): Promise<void> {
   const primeiroCasco = resumo.porComponente.find((c) => TIPOS_CASCO.includes(c.tipo));
   const primeiroTampo = resumo.porComponente.find((c) => TIPOS_TAMPO.includes(c.tipo));
+  const vaso = carregarVaso(tag, sufixo);
+  const D = numV(vaso.D);
+  const componentes: ComponenteResumo[] = resumo.porComponente
+    .filter((c) => c.tipo !== 'bocal' && c.tipo !== 'flange')
+    .map((c) => {
+      const dadosComp = vaso.componentes.find((x) => x.id === c.id)?.dados ?? {};
+      const f = FORMULAS_VASO[c.tipo] ?? ['', ''];
+      return {
+        nome: c.nome,
+        pmtaMpa: numV(c.resultado.pmta),
+        tReqMm: numV(c.resultado.t_min),
+        tNom: numV(dadosComp.t_comercial),
+        E: numV(dadosComp.E),
+        S: numV(dadosComp.S),
+        D,
+        raio: D != null ? D / 2 : null,
+        ca: numV(dadosComp.ca),
+        material: dadosComp.mat || null,
+        formulaT: f[0],
+        formulaP: f[1],
+      };
+    });
   const payload = {
     pmta: resumo.pmtaFinal != null ? resumo.pmtaFinal.toFixed(2) : '',
     pth: resumo.pthFinal != null ? resumo.pthFinal.toFixed(2) : '',
     ecasco: primeiroCasco?.resultado.t_min,
     etampo: primeiroTampo?.resultado.t_min,
+    componentes,
     memorialHTML: formatarMemorialHTML(resumo.logCompleto),
     logCalculo: resumo.logCompleto,
     resultado: resumo.resultado,
@@ -89,4 +129,5 @@ export async function salvarResumoVaso(tag: string, resumo: ResumoMemorialVaso, 
   if (sufixo) {
     await salvar(`nr13_calc_${tag}`, payload);
   }
+  await atualizarCategoriaComPmta(tag, resumo.pmtaFinal);
 }

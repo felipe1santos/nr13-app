@@ -39,7 +39,7 @@ Tudo que o usuário salva pode ser fonte de injeção. Chaves por TAG do equipam
 | Chave | Conteúdo | Origem (onde o usuário salva) |
 |---|---|---|
 | `nr13_info_<TAG>` | Dados cadastrais do equipamento | Ficha em "Equipamentos" |
-| `nr13_calc_<TAG>` | Resultados do memorial (PMTA, PTH, etc.) | "Ver Memorial Completo" |
+| `nr13_calc_<TAG>` | Resultados do memorial: `pmta`, `pth` (MPa), `memorialHTML`, `logCalculo` e `componentes[]` (array estruturado por componente: nome, pmtaMpa, tReqMm, tNom, E, S, D, raio, ca, material, fórmulas) consumido pelo RESUMO-MEMORIAL | "Salvar Memorial Completo" |
 | `nr13_vaso_<TAG>` / `nr13_vaso_ac_corpo_<TAG>` | Componentes/cálculo do memorial | Memorial |
 | `nr13_cat_<TAG>` | Categoria de risco | Calculadora de categoria |
 | `nr13_emp_<TAG>` | Empresa/cliente do equipamento | Cadastro de cliente |

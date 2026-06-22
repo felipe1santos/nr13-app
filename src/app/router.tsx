@@ -11,7 +11,6 @@ import Prontuarios from '../pages/Prontuarios';
 import Calibracoes from '../pages/Calibracoes';
 import MinhaEmpresa from '../pages/MinhaEmpresa';
 import Empresas from '../pages/Empresas';
-import Funcionarios from '../pages/Funcionarios';
 import RotaProtegida from './RotaProtegida';
 import Layout from './Layout';
 
@@ -35,7 +34,6 @@ export const router = createBrowserRouter([
           { path: '/calibracoes', element: <Calibracoes /> },
           { path: '/minha-empresa', element: <MinhaEmpresa /> },
           { path: '/empresas', element: <Empresas /> },
-          { path: '/funcionarios', element: <Funcionarios /> },
         ],
       },
     ],

@@ -1,27 +1,26 @@
 import type { DadosCalibracao } from './tipos';
+import { ler, salvar, excluirChave } from '../../services/storage';
 
 const chaveListar = (tag: string) => `nr13_calibracoes_${tag}`;
 const chaveItem = (id: string) => `nr13_calibracao_item_${id}`;
 
 export function listarCalibracoes(tag: string): DadosCalibracao[] {
-  try {
-    return JSON.parse(localStorage.getItem(chaveListar(tag)) || '[]') as DadosCalibracao[];
-  } catch { return []; }
+  return ler<DadosCalibracao[]>(chaveListar(tag)) ?? [];
 }
 
-export function salvarCalibracao(tag: string, dados: DadosCalibracao): void {
+export async function salvarCalibracao(tag: string, dados: DadosCalibracao): Promise<void> {
   const lista = listarCalibracoes(tag);
   const idx = lista.findIndex((c) => c.id === dados.id);
   if (idx >= 0) lista[idx] = dados;
   else lista.push(dados);
-  localStorage.setItem(chaveListar(tag), JSON.stringify(lista));
-  localStorage.setItem(chaveItem(dados.id), JSON.stringify(dados));
+  await salvar(chaveListar(tag), lista);
+  await salvar(chaveItem(dados.id), dados);
 }
 
-export function excluirCalibracao(tag: string, id: string): void {
+export async function excluirCalibracao(tag: string, id: string): Promise<void> {
   const lista = listarCalibracoes(tag).filter((c) => c.id !== id);
-  localStorage.setItem(chaveListar(tag), JSON.stringify(lista));
-  localStorage.removeItem(chaveItem(id));
+  await salvar(chaveListar(tag), lista);
+  await excluirChave(chaveItem(id));
 }
 
 export function arquivoCalibracao(tipo: 'manometro' | 'psv'): string {

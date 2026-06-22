@@ -1,6 +1,6 @@
 import { ler, salvar } from '../../services/storage';
 import { calcularCategoriaNR13 } from '../../calc/categoria';
-import { paraMpa, type SistemaUnidade } from '../../calc/unidades';
+import { paraExibicao, paraMpa, type SistemaUnidade } from '../../calc/unidades';
 import type { CategoriaSalva } from '../equipamento/tipos';
 
 export function carregarCategoria(tag: string): CategoriaSalva | null {
@@ -31,4 +31,16 @@ export async function calcularESalvarCategoria(
   };
   await salvar(`nr13_cat_${tag}`, salvo);
   return salvo;
+}
+
+// Conexão memorial → ficha: ao salvar o memorial (qualquer tipo de equipamento), a PMTA recém
+// calculada (MPa) realimenta a Categoria NR-13 já existente, mantendo volume/fluido/unidade e
+// recomputando classe/grupo/categoria. Sem categoria salva ainda, não faz nada (o usuário ainda vai
+// informar volume/fluido) — a CategoriaNR13 prepara o campo Pressão com essa mesma PMTA.
+export async function atualizarCategoriaComPmta(tag: string, pmtaMpa: number | null): Promise<void> {
+  if (pmtaMpa == null || !Number.isFinite(pmtaMpa)) return;
+  const atual = carregarCategoria(tag);
+  if (!atual) return;
+  const presExibida = paraExibicao(pmtaMpa, atual.unidInput);
+  await calcularESalvarCategoria(tag, atual.volInput, presExibida, atual.unidInput, atual.fluidoInput);
 }

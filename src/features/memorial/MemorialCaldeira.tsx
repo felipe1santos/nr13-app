@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Campo from './Campo';
 import MemorialLog from './MemorialLog';
 import {
@@ -36,6 +36,8 @@ const ABAS_FLAMO: { value: AbaCaldeira; label: string }[] = [
 export default function MemorialCaldeira({ tag, subtipo }: { tag: string; subtipo: 'flamotubular' | 'aquatubular' }) {
   const tipoCaldeira = subtipo;
   const [salvando, setSalvando] = useState(false);
+  // "sujo" = há edições não persistidas no memorial salvo (nr13_calc). Avisa antes de sair.
+  const [dirty, setDirty] = useState(false);
 
   // flamotubular state
   const [abaFlamo, setAbaFlamo] = useState<AbaCaldeira>('costado');
@@ -46,17 +48,40 @@ export default function MemorialCaldeira({ tag, subtipo }: { tag: string; subtip
   const [abaAqua, setAbaAqua] = useState<AbaAquatubular>('tubulaoSup');
   const [resumoAqua, setResumoAqua] = useState<ResumoMemorialAqua | null>(null);
 
+  // Avisa ao tentar fechar/recarregar com memorial não salvo.
+  useEffect(() => {
+    function aviso(e: BeforeUnloadEvent) {
+      if (!dirty) return;
+      e.preventDefault();
+      e.returnValue = '';
+    }
+    window.addEventListener('beforeunload', aviso);
+    return () => window.removeEventListener('beforeunload', aviso);
+  }, [dirty]);
+
+  const marcarTipos: React.Dispatch<React.SetStateAction<TiposCaldeira>> = (acao) => {
+    setTipos((t) => {
+      const novo = typeof acao === 'function' ? (acao as (p: TiposCaldeira) => TiposCaldeira)(t) : acao;
+      salvarTiposCaldeira(tag, novo); // persiste local (sync) p/ "Gerar" ler atualizado
+      return novo;
+    });
+    setDirty(true);
+  };
+
   function gerarFlamo() {
+    // lê os dados já auto-persistidos de cada aba (não há mais dado preso em estado local de aba)
     setResumoFlamo(calcularResumoCaldeira(tag, tipos));
   }
 
+  // Botão único: persiste as abas (já estão no localStorage), recalcula e salva o memorial completo.
   async function salvarFlamo() {
-    if (!resumoFlamo) return;
-    if (!window.confirm('Salvar o memorial completo da caldeira? Os dados ficarão disponíveis em "Ver Memorial".')) return;
     setSalvando(true);
     try {
       await salvarTiposCaldeira(tag, tipos);
-      await salvarResumoCaldeira(tag, resumoFlamo);
+      const resumo = calcularResumoCaldeira(tag, tipos);
+      setResumoFlamo(resumo);
+      await salvarResumoCaldeira(tag, resumo, tipos);
+      setDirty(false);
       window.alert('Memorial salvo com sucesso!');
     } finally {
       setSalvando(false);
@@ -68,11 +93,12 @@ export default function MemorialCaldeira({ tag, subtipo }: { tag: string; subtip
   }
 
   async function salvarAqua() {
-    if (!resumoAqua) return;
-    if (!window.confirm('Salvar o memorial completo da caldeira aquatubular? Os dados ficarão disponíveis em "Ver Memorial".')) return;
     setSalvando(true);
     try {
-      await salvarResumoAqua(tag, resumoAqua);
+      const resumo = calcularResumoAqua(tag);
+      setResumoAqua(resumo);
+      await salvarResumoAqua(tag, resumo);
+      setDirty(false);
       window.alert('Memorial salvo com sucesso!');
     } finally {
       setSalvando(false);
@@ -97,14 +123,14 @@ export default function MemorialCaldeira({ tag, subtipo }: { tag: string; subtip
             ))}
           </div>
 
-          <PainelAbaFlamo key={abaFlamo} tag={tag} aba={abaFlamo} tipos={tipos} setTipos={setTipos} />
+          <PainelAbaFlamo key={abaFlamo} tag={tag} aba={abaFlamo} tipos={tipos} setTipos={marcarTipos} onMudou={() => setDirty(true)} />
 
           <div className="memorial-acoes" style={{ marginTop: 18 }}>
-            <button type="button" className="btn-primario" onClick={gerarFlamo}>
-              Gerar Memorial Completo (5 componentes)
+            <button type="button" className="btn-secundario" onClick={gerarFlamo}>
+              Pré-visualizar (5 componentes)
             </button>
-            <button type="button" className="btn-primario" onClick={salvarFlamo} disabled={!resumoFlamo || salvando} style={{ opacity: resumoFlamo ? 1 : 0.4 }}>
-              {salvando ? 'Salvando...' : 'Salvar Memorial'}
+            <button type="button" className="btn-primario" onClick={salvarFlamo} disabled={salvando}>
+              {salvando ? 'Salvando...' : 'Salvar Memorial Completo'}
             </button>
           </div>
 
@@ -139,14 +165,14 @@ export default function MemorialCaldeira({ tag, subtipo }: { tag: string; subtip
             ))}
           </div>
 
-          <PainelAbaAqua key={abaAqua} tag={tag} aba={abaAqua} />
+          <PainelAbaAqua key={abaAqua} tag={tag} aba={abaAqua} onMudou={() => setDirty(true)} />
 
           <div className="memorial-acoes" style={{ marginTop: 18 }}>
-            <button type="button" className="btn-primario" onClick={gerarAqua}>
-              Gerar Memorial Completo (8 componentes)
+            <button type="button" className="btn-secundario" onClick={gerarAqua}>
+              Pré-visualizar (8 componentes)
             </button>
-            <button type="button" className="btn-primario" onClick={salvarAqua} disabled={!resumoAqua || salvando} style={{ opacity: resumoAqua ? 1 : 0.4 }}>
-              {salvando ? 'Salvando...' : 'Salvar Memorial'}
+            <button type="button" className="btn-primario" onClick={salvarAqua} disabled={salvando}>
+              {salvando ? 'Salvando...' : 'Salvar Memorial Completo'}
             </button>
           </div>
 
@@ -194,28 +220,31 @@ function PainelAbaFlamo({
   aba,
   tipos,
   setTipos,
+  onMudou,
 }: {
   tag: string;
   aba: AbaCaldeira;
   tipos: TiposCaldeira;
   setTipos: React.Dispatch<React.SetStateAction<TiposCaldeira>>;
+  onMudou: () => void;
 }) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [dados, setDados] = useState<Record<string, any>>(() => carregarDadosCaldeira(tag, aba));
   const [resultadoAba, setResultadoAba] = useState<ResultadoCalculo | null>(null);
 
+  // Auto-persiste a aba a cada edição: assim trocar de aba não perde dados e "Gerar/Salvar"
+  // sempre leem os valores atuais (corrige o memorial que vinha vazio/desatualizado).
   function set(chave: string, valor: unknown) {
-    setDados((d) => ({ ...d, [chave]: valor }));
+    setDados((d) => {
+      const novo = { ...d, [chave]: valor };
+      salvarDadosCaldeira(tag, aba, novo);
+      return novo;
+    });
+    onMudou();
   }
 
   function calcularAba() {
     setResultadoAba(calcularAbaCaldeira(aba, tipos, dados));
-  }
-
-  async function salvarAba() {
-    if (!resultadoAba) return;
-    if (!window.confirm(`Salvar os dados e resultado da aba "${aba}"?`)) return;
-    await salvarDadosCaldeira(tag, aba, dados);
   }
 
   return (
@@ -257,9 +286,7 @@ function PainelAbaFlamo({
           <button type="button" className="btn-secundario" onClick={calcularAba}>
             Calcular esta aba
           </button>
-          <button type="button" className="btn-secundario" onClick={salvarAba} disabled={!resultadoAba} style={{ opacity: resultadoAba ? 1 : 0.4 }}>
-            Salvar esta aba
-          </button>
+          <span className="memorial-dica-salvar">Dados salvos automaticamente ao digitar. Use “Salvar Memorial Completo” no final.</span>
         </div>
 
         {resultadoAba && (
@@ -374,23 +401,22 @@ function CamposAbaFlamo({
 
 // ── Painel aquatubular ───────────────────────────────────────────────────────
 
-function PainelAbaAqua({ tag, aba }: { tag: string; aba: AbaAquatubular }) {
+function PainelAbaAqua({ tag, aba, onMudou }: { tag: string; aba: AbaAquatubular; onMudou: () => void }) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [dados, setDados] = useState<Record<string, any>>(() => carregarDadosAqua(tag, aba));
   const [resultado, setResultado] = useState<ResultadoCalculo | null>(null);
 
   function set(chave: string, valor: unknown) {
-    setDados((d) => ({ ...d, [chave]: valor }));
+    setDados((d) => {
+      const novo = { ...d, [chave]: valor };
+      salvarDadosAqua(tag, aba, novo);
+      return novo;
+    });
+    onMudou();
   }
 
   function calcularAba() {
     setResultado(calcularAbaAqua(aba, dados));
-  }
-
-  async function salvarAba() {
-    if (!resultado) return;
-    if (!window.confirm(`Salvar os dados e resultado da aba "${aba}"?`)) return;
-    await salvarDadosAqua(tag, aba, dados);
   }
 
   return (
@@ -402,9 +428,7 @@ function PainelAbaAqua({ tag, aba }: { tag: string; aba: AbaAquatubular }) {
           <button type="button" className="btn-secundario" onClick={calcularAba}>
             Calcular esta aba
           </button>
-          <button type="button" className="btn-secundario" onClick={salvarAba} disabled={!resultado} style={{ opacity: resultado ? 1 : 0.4 }}>
-            Salvar esta aba
-          </button>
+          <span className="memorial-dica-salvar">Dados salvos automaticamente ao digitar. Use “Salvar Memorial Completo” no final.</span>
         </div>
 
         {resultado && (

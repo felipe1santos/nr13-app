@@ -545,23 +545,6 @@
 
         </div>
 
-        <div class="sig-overlay-container">
-            <div class="sig-overlay-box" id="sig-wrapper-engenheiro">
-                <div class="no-print sig-overlay-select">
-                    <select id="select-ph" onchange="atualizarAssinatura()">
-                        <option value="">Assinar...</option>
-                    </select>
-                </div>
-                <img id="img-assinatura-ph" class="sig-overlay-img" src="" alt="Assinatura Engenheiro" style="display:none;">
-                <div class="sig-overlay-line"></div>
-                <div class="sig-overlay-data">
-                    <strong>ENGENHEIRO RESPONSÁVEL</strong><br>
-                    <span id="nome-ph" class="data-highlight" contenteditable="true" spellcheck="false">Nome do Engenheiro</span><br>
-                    CREA/RNP: <span id="crea-ph" class="data-highlight" contenteditable="true" spellcheck="false">ES-000000/D</span>
-                </div>
-            </div>
-        </div>
-
         <div class="pgr-footer-new">
             <div class="footer-line-wrapper">
                 <div class="company-details" id="footer-empresa" contenteditable="true" spellcheck="false">
@@ -652,19 +635,9 @@
                 if(document.getElementById('risk-pressao')) document.getElementById('risk-pressao').innerText = pmta_kpa.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                 if(document.getElementById('risk-volume')) document.getElementById('risk-volume').innerText = vol_m3.toLocaleString('pt-BR', {minimumFractionDigits: 3, maximumFractionDigits: 3});
 
-                // CALDEIRA: classificação NR-13 por Categoria A/B (item 13.4), não pela matriz P·V de vaso.
-                if (info.tipo === 'caldeira') {
-                    const categoriaCaldeira = pmta_kpa >= 1960 ? 'A' : (pmta_kpa > 60 ? 'B' : '--');
-                    if(document.getElementById('risk-categoria')) document.getElementById('risk-categoria').innerText = categoriaCaldeira;
-                    if(document.getElementById('risk-categoria2')) document.getElementById('risk-categoria2').innerText = categoriaCaldeira;
-                    if(document.getElementById('box-categoria')) document.getElementById('box-categoria').innerText = categoriaCaldeira;
-                    if(document.getElementById('risk-classe')) document.getElementById('risk-classe').innerText = '—';
-                    if(document.getElementById('box-classe')) document.getElementById('box-classe').innerText = '—';
-                    if(document.getElementById('risk-grupo')) document.getElementById('risk-grupo').innerText = '—';
-                    if(document.getElementById('box-grupo')) document.getElementById('box-grupo').innerText = '—';
-                    if(document.getElementById('risk-operador')) document.getElementById('risk-operador').innerText = categoriaCaldeira === 'A' ? 'Sim' : 'Não';
-                    return;
-                }
+                // Classificação por matriz P·V (classe × grupo) — usada para vaso e também para
+                // caldeira, lendo classe/grupo salvos em nr13_cat. Acende a categoria, classe, grupo
+                // e a célula da matriz em amarelo a partir do que está salvo na ficha.
 
                 // Só calcula/exibe categorização (matriz, classe, grupo, categoria) se houver dado real.
                 // Sem essa guarda, "classe || 'A'" sempre cairia em A/III mesmo com vaso vazio.
@@ -802,57 +775,5 @@
         });
     </script>
 
-    <script>
-        // ==========================================
-        // ASSINATURA — ENGENHEIRO RESPONSÁVEL (PH)
-        // ==========================================
-        function carregarPHsParaSelect() {
-            const sel = document.getElementById('select-ph');
-            if (!sel) return;
-            const lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
-            sel.innerHTML = '<option value="">Assinar...</option>';
-            lista.filter(p => !p.tipo || p.tipo.startsWith('Engenheiro')).forEach(ph => {
-                const opt = document.createElement('option');
-                opt.value = ph.id;
-                opt.textContent = ph.nome;
-                sel.appendChild(opt);
-            });
-            const optExcluir = document.createElement('option');
-            optExcluir.value = 'excluir';
-            optExcluir.textContent = 'Excluir Assinatura';
-            optExcluir.style.color = '#dc2626';
-            optExcluir.style.fontWeight = '700';
-            sel.appendChild(optExcluir);
-        }
-
-        function atualizarAssinatura() {
-            const sel = document.getElementById('select-ph');
-            const wrapper = document.getElementById('sig-wrapper-engenheiro');
-            if (sel.value === 'excluir') {
-                if (wrapper) wrapper.classList.add('sig-excluida');
-                return;
-            }
-            if (wrapper) wrapper.classList.remove('sig-excluida');
-            const lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
-            const ph = lista.find(p => String(p.id) === String(sel.value));
-            const img = document.getElementById('img-assinatura-ph');
-            const nome = document.getElementById('nome-ph');
-            const crea = document.getElementById('crea-ph');
-            if (ph) {
-                nome.textContent = ph.nome;
-                crea.textContent = ph.crea || '';
-                if (ph.assinatura) { img.src = ph.assinatura; img.style.display = 'block'; }
-                else { img.style.display = 'none'; img.src = ''; }
-            } else {
-                nome.textContent = 'Nome do Engenheiro';
-                crea.textContent = 'ES-000000/D';
-                img.style.display = 'none'; img.src = '';
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', function() {
-            carregarPHsParaSelect();
-        });
-    </script>
 </body>
 </html>

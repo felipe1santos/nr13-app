@@ -1,22 +1,21 @@
 import type { ProntuarioDados } from './tipos';
+import { ler, salvar, excluirChave } from '../../services/storage';
 
 const CHAVE_ATUAL = 'nr13_prontuario_atual';
 const chave = (tag: string) => `nr13_prontuario_${tag}`;
 
-export function salvarProntuario(tag: string, dados: ProntuarioDados): void {
-  localStorage.setItem(chave(tag), JSON.stringify(dados));
+export async function salvarProntuario(tag: string, dados: ProntuarioDados): Promise<void> {
+  await salvar(chave(tag), dados);
 }
 
 export function carregarProntuario(tag: string): ProntuarioDados | null {
-  const raw = localStorage.getItem(chave(tag));
-  if (!raw) return null;
-  try { return JSON.parse(raw) as ProntuarioDados; } catch { return null; }
+  return ler<ProntuarioDados>(chave(tag));
 }
 
-export function excluirProntuario(tag: string): void {
-  localStorage.removeItem(chave(tag));
+export async function excluirProntuario(tag: string): Promise<void> {
+  await excluirChave(chave(tag));
 }
 
-export function gravarProntuarioAtual(dados: ProntuarioDados): void {
-  localStorage.setItem(CHAVE_ATUAL, JSON.stringify(dados));
+export async function gravarProntuarioAtual(dados: ProntuarioDados): Promise<void> {
+  await salvar(CHAVE_ATUAL, dados);
 }

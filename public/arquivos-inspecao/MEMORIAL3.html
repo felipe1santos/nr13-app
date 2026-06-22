@@ -323,22 +323,6 @@
 
         <div id="calculos-area" class="calc-area"></div>
 
-        <div class="sig-overlay-container">
-            <div class="sig-overlay-box" id="sig-wrapper-engenheiro">
-                <div class="no-print sig-overlay-select">
-                    <select id="select-ph" onchange="atualizarAssinatura()">
-                        <option value="">Assinar...</option>
-                    </select>
-                </div>
-                <img id="img-assinatura-ph" class="sig-overlay-img" src="" alt="Assinatura Engenheiro" style="display:none;">
-                <div class="sig-overlay-line"></div>
-                <div class="sig-overlay-data">
-                    <strong>ENGENHEIRO RESPONSÁVEL</strong><br>
-                    <span id="nome-ph" class="data-highlight" contenteditable="true" spellcheck="false">Nome do Engenheiro</span><br>
-                    CREA/RNP: <span id="crea-ph" class="data-highlight" contenteditable="true" spellcheck="false">ES-000000/D</span>
-                </div>
-            </div>
-        </div>
 
         <div class="pgr-footer-new">
             <div class="footer-line-wrapper">
@@ -550,57 +534,5 @@
         });
     </script>
 
-    <script>
-        // ==========================================
-        // ASSINATURA — ENGENHEIRO RESPONSÁVEL (PH)
-        // ==========================================
-        function carregarPHsParaSelect() {
-            const sel = document.getElementById('select-ph');
-            if (!sel) return;
-            const lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
-            sel.innerHTML = '<option value="">Assinar...</option>';
-            lista.filter(p => !p.tipo || p.tipo.startsWith('Engenheiro')).forEach(ph => {
-                const opt = document.createElement('option');
-                opt.value = ph.id;
-                opt.textContent = ph.nome;
-                sel.appendChild(opt);
-            });
-            const optExcluir = document.createElement('option');
-            optExcluir.value = 'excluir';
-            optExcluir.textContent = 'Excluir Assinatura';
-            optExcluir.style.color = '#dc2626';
-            optExcluir.style.fontWeight = '700';
-            sel.appendChild(optExcluir);
-        }
-
-        function atualizarAssinatura() {
-            const sel = document.getElementById('select-ph');
-            const wrapper = document.getElementById('sig-wrapper-engenheiro');
-            if (sel.value === 'excluir') {
-                if (wrapper) wrapper.classList.add('sig-excluida');
-                return;
-            }
-            if (wrapper) wrapper.classList.remove('sig-excluida');
-            const lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
-            const ph = lista.find(p => String(p.id) === String(sel.value));
-            const img = document.getElementById('img-assinatura-ph');
-            const nome = document.getElementById('nome-ph');
-            const crea = document.getElementById('crea-ph');
-            if (ph) {
-                nome.textContent = ph.nome;
-                crea.textContent = ph.crea || '';
-                if (ph.assinatura) { img.src = ph.assinatura; img.style.display = 'block'; }
-                else { img.style.display = 'none'; img.src = ''; }
-            } else {
-                nome.textContent = 'Nome do Engenheiro';
-                crea.textContent = 'ES-000000/D';
-                img.style.display = 'none'; img.src = '';
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', function() {
-            carregarPHsParaSelect();
-        });
-    </script>
 </body>
 </html>

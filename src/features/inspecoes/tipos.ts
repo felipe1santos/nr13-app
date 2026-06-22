@@ -38,7 +38,20 @@ export const ROTULO_FORMULARIO: Record<FormularioEnsaio, string> = {
 // técnico abrir e salvar o formulário em campo.
 export interface ContainerInspecao {
   id: string;
+  nome: string;
   criadoEm: string;
   ensaios: TipoEnsaio[];
   dados: Partial<Record<FormularioEnsaio, unknown>>;
 }
+
+// Folhas do relatório geradas a partir de cada formulário de campo — usado na pré-visualização
+// "como o documento ficará" (renderiza os mesmos templates de public/arquivos-inspecao/).
+export const DOCS_POR_FORMULARIO: Record<FormularioEnsaio, string[]> = {
+  checklist:      ['VERIFICACAO-DOCUMENTACAO.html', 'checklist2.html', 'checklist3.html', 'FOTOS-DOCUMENTACAO.html', 'CHECKLIST-FOTOS.html'],
+  visual_externo: ['VISUAL-EXTERNO.html', 'VISUAL-EXTERNO-FOTOS.html'],
+  visual_interno: ['VISUAL-INTERNO.html', 'VISUAL-INTERNO-FOTOS.html'],
+  ultrassom:      ['ULTRASSOM.html'],
+  th:             ['TESTE-HIDROSTATICO.html', 'TESTE-HIDROSTATICO-FOTOS.html'],
+  manometro:      ['CERTIFICADO-CAL-MANOMETRO.html'],
+  psv:            ['CERTIIFCADO-CAL-PSV.html'],
+};

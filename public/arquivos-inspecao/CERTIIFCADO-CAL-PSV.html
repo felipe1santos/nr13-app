@@ -29,9 +29,9 @@
             color: var(--text-dark);
             background-color: #fff; 
             margin: 0;
-            padding: 0; 
-            line-height: 1.3;
-            font-size: 11px;
+            padding: 0;
+            line-height: 1.5;
+            font-size: 13px;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
@@ -41,7 +41,7 @@
             min-height: 297mm;
             background: #fff;
             margin: 0; 
-            padding: 15mm 15mm 40mm 15mm; 
+            padding: 15mm 15mm 16mm 15mm;
             position: relative;
             page-break-after: always;
             display: flex;
@@ -89,36 +89,36 @@
         }
 
         .section-title {
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 900;
-    margin-top: 4px; /* ERA 6px */
-    margin-bottom: 2px; /* ERA 3px */
+    margin-top: 6px;
+    margin-bottom: 3px;
     text-transform: uppercase;
     background-color: var(--bg-table-header);
-    padding: 3px 6px; /* ERA 4px 6px */
+    padding: 4px 8px;
     text-align: left;
     border: 1px solid #f1f1f1;
 }
 
-        .content-table { width: 100%; border-collapse: collapse; text-align: center; margin-bottom: 6px; font-size: 9px; border: 1px solid #000; }
-.content-table th, .content-table td { 
-    border: 1px solid #eaeef2; 
-    padding: 2px 4px; /* ERA 3px 5px */
+        .content-table { width: 100%; border-collapse: collapse; text-align: center; margin-bottom: 6px; font-size: 11px; border: 1px solid #000; }
+.content-table th, .content-table td {
+    border: 1px solid #eaeef2;
+    padding: 4px 6px;
     vertical-align: middle;
-}        
-        
-        
-        .bg-light-grey { background-color: var(--bg-table-sub); font-weight: 800; font-size: 8.5px; text-transform: uppercase; }
-        .data-blue { color: var(--blue-data); font-weight: 500; font-size: 10px; }
+}
 
-.text-block { 
-    border: 1px solid #bfbfbf; 
-    padding: 4px 6px; /* ERA 6px */
-    font-size: 9px; 
-    text-align: justify; 
-    margin-bottom: 4px; /* ERA 6px */
-    line-height: 1.3; /* ERA 1.4 */
-}        
+
+        .bg-light-grey { background-color: var(--bg-table-sub); font-weight: 800; font-size: 9px; text-transform: uppercase; }
+        .data-blue { color: var(--blue-data); font-weight: 500; font-size: 11px; }
+
+.text-block {
+    border: 1px solid #bfbfbf;
+    padding: 5px 8px;
+    font-size: 11px;
+    text-align: justify;
+    margin-bottom: 9px;
+    line-height: 1.55;
+}
         
         .text-block ul { margin-left: 15px; margin-top: 4px; margin-bottom: 4px; }
 
@@ -128,7 +128,7 @@
         .results-wrapper {
             display: flex;
             gap: 10px;
-            margin-bottom: 6px;
+            margin-bottom: 11px;
         }
         .results-wrapper > div { flex: 1; }
 
@@ -201,7 +201,7 @@
             body { background: none; padding: 0; display: block; }
             .page { 
                 width: 100% !important; margin: 0 !important; 
-                padding: 15mm 15mm 40mm 15mm !important; 
+                padding: 15mm 15mm 16mm 15mm !important;
                 box-shadow: none !important; border: none !important; 
             }
             [contenteditable="true"]:hover { background-color: transparent !important; outline: none !important; }
@@ -301,27 +301,27 @@
             <table class="content-table" style="margin-bottom: 6px; border: 1px solid #d1d5db;">
                 <tr>
                     <td width="25%" style="border: 1px solid #d1d5db; text-align: left; padding: 4px 6px; vertical-align: top;">
-                        <div style="font-size: 8px; color: #6b7280; text-transform: uppercase; font-weight: 700; margin-bottom: 2px;">INSTRUMENTO PADRÃO</div>
-                        <div id="inj-padrao-inst" class="data-blue" contenteditable="true" spellcheck="false" style="font-size: 10px;">----</div>
+                        <div style="font-size: 9px; color: #6b7280; text-transform: uppercase; font-weight: 700; margin-bottom: 2px;">INSTRUMENTO PADRÃO</div>
+                        <div id="inj-padrao-inst" class="data-blue" contenteditable="true" spellcheck="false" style="font-size: 11px;">----</div>
                     </td>
                     <td width="25%" style="border: 1px solid #d1d5db; text-align: left; padding: 4px 6px; vertical-align: top;">
-                        <div style="font-size: 8px; color: #6b7280; text-transform: uppercase; font-weight: 700; margin-bottom: 2px;">Nº SÉRIE</div>
-                        <div id="inj-padrao-serie" class="data-blue" contenteditable="true" spellcheck="false" style="font-size: 10px;">----</div>
+                        <div style="font-size: 9px; color: #6b7280; text-transform: uppercase; font-weight: 700; margin-bottom: 2px;">Nº SÉRIE</div>
+                        <div id="inj-padrao-serie" class="data-blue" contenteditable="true" spellcheck="false" style="font-size: 11px;">----</div>
                     </td>
                     <td width="25%" style="border: 1px solid #d1d5db; text-align: left; padding: 4px 6px; vertical-align: top;">
-                        <div style="font-size: 8px; color: #6b7280; text-transform: uppercase; font-weight: 700; margin-bottom: 2px;">Nº CERTIFICADO</div>
-                        <div id="inj-padrao-cert" class="data-blue" contenteditable="true" spellcheck="false" style="font-size: 10px;">----</div>
+                        <div style="font-size: 9px; color: #6b7280; text-transform: uppercase; font-weight: 700; margin-bottom: 2px;">Nº CERTIFICADO</div>
+                        <div id="inj-padrao-cert" class="data-blue" contenteditable="true" spellcheck="false" style="font-size: 11px;">----</div>
                     </td>
                     <td width="25%" style="border: 1px solid #d1d5db; text-align: left; padding: 4px 6px; vertical-align: top;">
-                        <div style="font-size: 8px; color: #6b7280; text-transform: uppercase; font-weight: 700; margin-bottom: 2px;">VALIDADE</div>
-                        <div id="inj-padrao-val" class="data-blue" contenteditable="true" spellcheck="false" style="font-size: 10px;">DD/MM/AAAA</div>
+                        <div style="font-size: 9px; color: #6b7280; text-transform: uppercase; font-weight: 700; margin-bottom: 2px;">VALIDADE</div>
+                        <div id="inj-padrao-val" class="data-blue" contenteditable="true" spellcheck="false" style="font-size: 11px;">DD/MM/AAAA</div>
                     </td>
                 </tr>
                 <tr>
                     <td colspan="4" style="text-align: left; padding: 4px; border: 1px solid #d1d5db;">
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <img src="imetro.PNG" style="height: 30px; object-fit: contain;" alt="Selo Inmetro">
-                            <span style="font-size: 8.5px; line-height: 1.2; color: #111827;">O instrumento de medição padrão utilizado encontra-se calibrado por laboratório pertencente à RBC (Rede Brasileira de Calibração) ou acreditado pelo INMETRO, com certificado válido, garantindo a rastreabilidade metrológica e confiabilidade dos resultados de acordo com o Sistema Internacional de Unidades (SI).</span>
+                            <img src="../icon/imetro.webp" style="height: 30px; object-fit: contain;" alt="Selo Inmetro">
+                            <span style="font-size: 9px; line-height: 1.2; color: #111827;">O instrumento de medição padrão utilizado encontra-se calibrado por laboratório pertencente à RBC (Rede Brasileira de Calibração) ou acreditado pelo INMETRO, com certificado válido, garantindo a rastreabilidade metrológica e confiabilidade dos resultados de acordo com o Sistema Internacional de Unidades (SI).</span>
                         </div>
                     </td>
                 </tr>
@@ -342,7 +342,7 @@
                         <td id="inj-fechamento" class="data-blue" contenteditable="true">----</td>
                     </tr>
                     <tr>
-                        <td colspan="3" style="text-align: left; font-size: 8px; font-weight: bold; padding-top: 5px; border-top: none;">
+                        <td colspan="3" style="text-align: left; font-size: 9px; font-weight: bold; padding-top: 5px; border-top: none;">
                             Incerteza de Medição: <span id="inj-incerteza" class="data-highlight" contenteditable="true">----</span> | Coeficiente k: <span id="inj-coef" class="data-highlight" contenteditable="true">----</span>
                         </td>
                     </tr>
@@ -369,41 +369,10 @@
         </select>
     </div>
 </div>
-<div class="text-block" style="font-size: 10px; font-weight: 600;">
+<div class="text-block" style="font-size: 11px; font-weight: 600;">
     De acordo com os resultados obtidos na calibração, o equipamento no qual este relatório faz referência está <span id="texto-status" style="color: #9CA3AF; font-weight: 900; font-size: 11px;">--</span>, pois durante o processo, o mesmo <span id="texto-motivo" contenteditable="true" spellcheck="false"></span>
 </div>
 
-<div class="signatures-container">
-                <div class="signature-box" id="sig-wrapper-tecnico">
-                    <div class="no-print sig-select-box">
-                        <select id="select-tecnico" onchange="atualizarAssinaturaTecnico()">
-                            <option value="">Assinar...</option>
-                        </select>
-                    </div>
-                    <img id="img-assinatura-tecnico" class="sig-img" src="" alt="Assinatura Técnico" style="display:none;">
-                    <div class="signature-line"></div>
-                    <div class="sig-data">
-                        <strong>TÉCNICO RESPONSÁVEL</strong><br>
-                        <span id="nome-tecnico" class="data-highlight" contenteditable="true" spellcheck="false">Nome do Técnico</span><br>
-                        Registro: <span id="crea-tecnico" class="data-highlight" contenteditable="true" spellcheck="false">000000</span>
-                    </div>
-                </div>
-
-                <div class="signature-box" id="sig-wrapper-engenheiro">
-                    <div class="no-print sig-select-box">
-                        <select id="select-ph" onchange="atualizarAssinatura()">
-                            <option value="">Assinar...</option>
-                        </select>
-                    </div>
-                    <img id="img-assinatura-ph" class="sig-img" src="" alt="Assinatura Engenheiro" style="display:none;">
-                    <div class="signature-line"></div>
-                    <div class="sig-data">
-                        <strong>ENGENHEIRO RESPONSÁVEL</strong><br>
-                        <span id="nome-ph" contenteditable="true" spellcheck="false" class="data-highlight">Nome do Engenheiro</span><br>
-                        CREA/RNP: <span id="crea-ph" class="data-highlight" contenteditable="true" spellcheck="false">ES-000000/D</span>
-                    </div>
-                </div>
-            </div>
 
         </div>
 
@@ -473,7 +442,6 @@
                 } catch(e) {}
             })();
             // ─────────────────────────────────────────────────────────────────
-            carregarPHsParaSelect();
             // Paginação Dinâmica (Mesma lógica do TH.html)
             const paramPagina = new URLSearchParams(window.location.search).get('page');
             if (paramPagina) {
@@ -529,67 +497,6 @@
                 spanMotivo.textContent = 'apresentou resultados fora dos critérios de aceitação e parâmetros definidos neste documento.';
             }
         }
-
-        // Puxa a lista de PHs salvos no sistema
-        function carregarPHsParaSelect() {
-            const selectPH = document.getElementById('select-ph');
-            if(!selectPH) return;
-            const listaPHs = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
-
-            if (listaPHs.length === 0) {
-                selectPH.innerHTML = '<option value="">Nenhum PH cadastrado</option>';
-            } else {
-                listaPHs.forEach(ph => {
-                    const option = document.createElement('option');
-                    option.value = ph.id;
-                    option.textContent = ph.nome + " (" + ph.crea + ")";
-                    selectPH.appendChild(option);
-                });
-            }
-            const optExcluir = document.createElement('option');
-            optExcluir.value = 'excluir';
-            optExcluir.textContent = 'Excluir Assinatura';
-            optExcluir.style.color = '#dc2626';
-            optExcluir.style.fontWeight = '700';
-            selectPH.appendChild(optExcluir);
-        }
-
-        // Bate a assinatura de forma automática
-        function atualizarAssinatura() {
-            const selectPH = document.getElementById('select-ph');
-            const wrapper = document.getElementById('sig-wrapper-engenheiro');
-            if (selectPH.value === 'excluir') {
-                if (wrapper) wrapper.classList.add('sig-excluida');
-                return;
-            }
-            if (wrapper) wrapper.classList.remove('sig-excluida');
-            const idSelecionado = selectPH.value;
-            const listaPHs = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
-
-            const phSelecionado = listaPHs.find(p => p.id == idSelecionado);
-
-            const imgAssinatura = document.getElementById('img-assinatura-ph');
-            const spanNome = document.getElementById('nome-ph');
-            const spanCrea = document.getElementById('crea-ph');
-
-            if (phSelecionado) {
-                spanNome.textContent = phSelecionado.nome;
-                if(spanCrea) spanCrea.textContent = phSelecionado.crea;
-                
-                if (phSelecionado.assinatura) {
-                    imgAssinatura.src = phSelecionado.assinatura;
-                    imgAssinatura.style.display = 'block';
-                } else {
-                    imgAssinatura.style.display = 'none';
-                }
-            } else {
-                spanNome.textContent = '----';
-                if(spanCrea) spanCrea.textContent = '----';
-                imgAssinatura.style.display = 'none';
-                imgAssinatura.src = '';
-            }
-        }
-
 
 
 
@@ -679,57 +586,5 @@
         })();
     </script>
 
-    <script>
-        // ==========================================
-        // ASSINATURA — TÉCNICO RESPONSÁVEL
-        // ==========================================
-        function carregarTecnicosParaSelect() {
-            const sel = document.getElementById('select-tecnico');
-            if (!sel) return;
-            const lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
-            sel.innerHTML = '<option value="">Assinar...</option>';
-            lista.filter(p => p.tipo && p.tipo.startsWith('Inspetor')).forEach(ph => {
-                const opt = document.createElement('option');
-                opt.value = ph.id;
-                opt.textContent = ph.nome;
-                sel.appendChild(opt);
-            });
-            const optExcluir = document.createElement('option');
-            optExcluir.value = 'excluir';
-            optExcluir.textContent = 'Excluir Assinatura';
-            optExcluir.style.color = '#dc2626';
-            optExcluir.style.fontWeight = '700';
-            sel.appendChild(optExcluir);
-        }
-
-        function atualizarAssinaturaTecnico() {
-            const sel = document.getElementById('select-tecnico');
-            const wrapper = document.getElementById('sig-wrapper-tecnico');
-            if (sel.value === 'excluir') {
-                if (wrapper) wrapper.classList.add('sig-excluida');
-                return;
-            }
-            if (wrapper) wrapper.classList.remove('sig-excluida');
-            const lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
-            const ph = lista.find(p => String(p.id) === String(sel.value));
-            const img = document.getElementById('img-assinatura-tecnico');
-            const nome = document.getElementById('nome-tecnico');
-            const crea = document.getElementById('crea-tecnico');
-            if (ph) {
-                nome.textContent = ph.nome;
-                crea.textContent = ph.crea || '';
-                if (ph.assinatura) { img.src = ph.assinatura; img.style.display = 'block'; }
-                else { img.style.display = 'none'; img.src = ''; }
-            } else {
-                nome.textContent = 'Nome do Técnico';
-                crea.textContent = '000000';
-                img.style.display = 'none'; img.src = '';
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', function() {
-            carregarTecnicosParaSelect();
-        });
-    </script>
 </body>
 </html>

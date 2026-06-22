@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { gerarBlocoComponenteVaso } from '../vaso';
+import { calcularComponenteVaso, gerarBlocoComponenteVaso } from '../vaso';
 
 describe('vaso — cascos e tampos (ASME VIII Div.1, verbatim do math.js)', () => {
   it('casco cilíndrico UG-27(c)(1): aprova quando t_util >= t_req', () => {
@@ -21,6 +21,30 @@ describe('vaso — cascos e tampos (ASME VIII Div.1, verbatim do math.js)', () =
   it('tampo cônico UG-32(g) — novo, usa meio-ângulo alfa', () => {
     const log = gerarBlocoComponenteVaso('Tampo Cônico', 'cone', { t_comercial: 12, ca: 1.5, S: 137.9, E: 0.85, alfa: 30 }, 1000, 1.5);
     expect(log.join('\n')).toMatch(/msg-(aprovado|reprovado)/);
+  });
+});
+
+describe('vaso — extração de pmta/t_min (calcularComponenteVaso)', () => {
+  // Regressão: a linha de resultado emite `\text{ mm}`/`\text{ MPa}` (sem espaço antes do `}`) e o
+  // regex exigia espaço, então pmta/t_min vinham '' para cilíndrico/elíptico/etc — quebrava a
+  // injeção na ficha (PMTA 0.00, card mostrando "—") apesar de resultado APROVADO.
+  it('elíptico: pmta e t_min são numéricos, não vazios', () => {
+    const r = calcularComponenteVaso('Tampo', 'eliptico', { t_comercial: 10, ca: 1.5, S: 137.9, E: 0.85, temp: 100 }, 1000, 1.5);
+    expect(r.pmta).not.toBe('');
+    expect(r.t_min).not.toBe('');
+    expect(Number.isFinite(parseFloat(r.pmta))).toBe(true);
+    expect(parseFloat(r.pmta)).toBeGreaterThan(0);
+  });
+
+  it('cilíndrico: pmta e t_min são numéricos, não vazios', () => {
+    const r = calcularComponenteVaso('Casco', 'cilindrico', { t_comercial: 12, ca: 1.5, S: 137.9, E: 0.85, temp: 100 }, 1000, 1.5);
+    expect(parseFloat(r.pmta)).toBeGreaterThan(0);
+    expect(parseFloat(r.t_min)).toBeGreaterThan(0);
+  });
+
+  it('planoAparafusado (linha com espaço final): continua extraindo', () => {
+    const r = calcularComponenteVaso('Tampa', 'planoAparafusado', { t_comercial: 20, ca: 1.5, S: 137.9, E: 1, N_parafusos: 8, d_parafuso: 25, S_parafuso: 137.9 }, 600, 1.5);
+    expect(parseFloat(r.pmta)).toBeGreaterThan(0);
   });
 });
 

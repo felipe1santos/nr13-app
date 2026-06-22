@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NR-13 - Memória de Cálculo</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,600;1,700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+
+    <style>
+        :root { --text-dark: #111827; --border-box: #c7c7c7; --blue-data: #0051ff; --bg-table-header: #eff0f1; --bg-table-sub: #f9fafb; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; color: var(--text-dark); background:#fff; line-height: 1.3; font-size: 11px;
+               -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .page { width: 100%; min-height: 297mm; background:#fff; margin:0; padding: 15mm 15mm 50mm 15mm;
+                position: relative; display: flex; flex-direction: column; }
+
+        .header-table { width: 100%; border-collapse: collapse; border: 1px solid var(--text-dark); margin-bottom: 6px; }
+        .header-table td { border: 1px solid var(--text-dark); vertical-align: middle; }
+        .col-logo { width: 25%; text-align: center; padding: 5px; }
+        .col-logo img { max-width: 100%; max-height: 75px; object-fit: contain; display: block; margin: 0 auto; }
+        .col-title { width: 50%; text-align: center; font-size: 16px; font-weight: 800; line-height: 1.2; text-transform: uppercase; padding: 5px; }
+        .col-info { width: 25%; text-align: left; padding: 8px 10px; vertical-align: top; }
+        .col-info .info-label { font-size: 10px; margin-top: 3px; }
+        .col-info .info-label:first-child { margin-top: 0; }
+        .col-info .info-value { font-size: 12px; font-weight: 700; color: var(--blue-data); margin-top: 1px; }
+        .tag-location-row { text-align: center; padding: 5px; border-top: 1px solid #000; background: var(--bg-table-sub); }
+
+        .section-title { font-size: 9.5px; font-weight: 900; margin-top: 6px; margin-bottom: 4px;
+            text-transform: uppercase; background: var(--bg-table-header); padding: 3px 6px; text-align: left; }
+
+        .f-row { display: flex; align-items: stretch; gap: 4px; margin-bottom: 4px; }
+        .f { display: flex; align-items: center; border: 1px solid var(--border-box); flex: 1; min-height: 22px; padding: 2px 6px; }
+        .f-lbl { font-size: 8.5px; font-weight: 900; white-space: nowrap; text-transform: uppercase; margin-right: 6px; }
+        .f-val { flex: 1; display: flex; align-items: center; font-size: 10px; font-weight: 700; color: var(--blue-data); overflow: hidden; }
+
+        .calc-area { flex: 1; font-family: "Courier New", Courier, monospace; font-size: 12px; line-height: 1.15; padding: 0 5px; overflow: hidden; }
+        .calc-area .katex-display { color: #0b5394; margin: 2px 0; }
+        .calc-area .katex { font-size: 12.5px; font-weight: bold; }
+        .calc-line { margin: 1px 0; }
+
+        .pgr-footer-new { position: absolute; bottom: 12mm; left: 15mm; right: 15mm; display: flex; align-items: flex-start; }
+        .footer-line-wrapper { flex: 1; border-top: 3px solid #000; padding-top: 8px; text-align: center; }
+        .company-details { font-size: 11px; color: #000; font-weight: 500; line-height: 1.4; }
+        .footer-page-number { background:#000 !important; color:#fff !important; font-size: 20px; font-weight: 400;
+            padding: 6px 22px; margin-left: 10px; display: flex; align-items: center; justify-content: center; }
+
+        .hide-input { display: none; }
+        @media screen {
+            .editable-image { cursor: pointer; }
+            .editable-image:hover { outline: 2px dashed var(--blue-data); opacity: 0.8; }
+            [contenteditable="true"]:hover, [contenteditable="true"]:focus { background: #fdfad2; outline: 1px dashed var(--blue-data); cursor: text; }
+        }
+        @media print {
+            .no-print { display: none !important; }
+            body { background: none; padding: 0; }
+            .page { width: 100% !important; margin: 0 !important; box-shadow: none !important; }
+            [contenteditable="true"]:hover { background: transparent !important; outline: none !important; }
+        }
+
+        .sig-overlay-container { position: absolute; bottom: 28mm; left: 15mm; right: 15mm; display: flex; justify-content: flex-end; z-index: 500; pointer-events: none; }
+        .sig-overlay-box { display: flex; flex-direction: column; align-items: center; width: 220px; position: relative; pointer-events: auto; }
+        .sig-overlay-line { width: 100%; border-bottom: 1px solid #000; margin-bottom: 4px; position: relative; z-index: 2; }
+        .sig-overlay-data { font-size: 9px; text-align: center; width: 100%; }
+        .sig-overlay-select { position: absolute; top: -24px; right: 0; }
+        .sig-overlay-select select { padding: 3px 6px; border-radius: 4px; border: 1px solid #9CA3AF; font-size: 9px; font-family: 'Inter', sans-serif; cursor: pointer; background: #f9fafb; color: #111827; font-weight: 600; outline: none; }
+        .sig-overlay-img { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); height: 55px; max-width: 100%; object-fit: contain; pointer-events: none; z-index: 1; }
+        .data-highlight { color: var(--blue-data); font-weight: 600; }
+        .sig-overlay-box.sig-excluida > *:not(.no-print) { display: none !important; }
+    </style>
+</head>
+<body>
+
+<input type="file" id="inputLogo" class="hide-input" accept="image/*" onchange="previewImage(this,'imgLogo')">
+
+<div class="page">
+    <table class="header-table">
+        <tr>
+            <td rowspan="2" class="col-logo">
+                <div class="editable-image" onclick="document.getElementById('inputLogo').click()" title="Clique para alterar a Logo">
+                    <img id="imgLogo" src="logo.webp" alt="Logo">
+                </div>
+            </td>
+            <td class="col-title" contenteditable="true" spellcheck="false">MEMÓRIA DE CÁLCULO</td>
+            <td rowspan="2" class="col-info">
+                <div class="info-label">Relatório nº:</div><div class="info-value" id="mem-rel-num" contenteditable="true" spellcheck="false">REL-000000</div>
+                <div class="info-label">Data:</div><div class="info-value" id="mem-rel-data" contenteditable="true" spellcheck="false">DD/MM/AAAA</div>
+                <div class="info-label">Folha:</div><div class="info-value" id="folha-label" contenteditable="true" spellcheck="false">1/1</div>
+            </td>
+        </tr>
+        <tr>
+            <td class="tag-location-row">
+                <span style="font-size:10px;font-weight:600;text-transform:uppercase;">TAG:</span>
+                <span class="data-highlight" id="tag-label" contenteditable="true" spellcheck="false" style="font-size:12px;font-weight:800;margin-right:20px;">--</span>
+                <span style="font-size:10px;font-weight:600;text-transform:uppercase;">LOCALIZAÇÃO:</span>
+                <span class="data-highlight" contenteditable="true" spellcheck="false" style="font-size:12px;font-weight:800;">--</span>
+            </td>
+        </tr>
+    </table>
+
+    <div id="bloco-dados"></div>
+    <div class="section-title" id="titulo-calc" style="margin-top:10px;">MEMORIAL DE CÁLCULO DA PMTA E ESPESSURA MÍNIMA</div>
+    <div id="calculos-area" class="calc-area"></div>
+
+    <div id="bloco-assinatura"></div>
+
+    <div class="pgr-footer-new">
+        <div class="footer-line-wrapper">
+            <div class="company-details" id="footer-empresa" contenteditable="true" spellcheck="false">
+                <strong>NOME DA EMPRESA LTDA.</strong><br>
+                Endereço Completo • Bairro • Cidade/UF • CNPJ: 00.000.000/0000-00 • CEP: 00000-000<br>
+                Telef: (00) 0000-0000 • E-mail: contato@empresa.com.br
+            </div>
+        </div>
+        <div class="footer-page-number" id="footer-page">1</div>
+    </div>
+</div>
+
+<script>
+    function previewImage(input, imgId) {
+        if (input.files && input.files[0]) {
+            var r = new FileReader();
+            r.onload = function(e) { document.getElementById(imgId).src = e.target.result; };
+            r.readAsDataURL(input.files[0]);
+        }
+    }
+
+    var FATORES = { SI: { mult: 1, lbl: 'MPa' }, TECNICO: { mult: 10.19716, lbl: 'kgf/cm²' }, PETROBRAS: { mult: 10, lbl: 'bar' } };
+
+    // Extrai as linhas estilizadas do memorial salvo (mesmo contrato do MEMORIAL1/2/3 antigo).
+    function extrairLinhas(calc, pref) {
+        if (!calc || !calc.memorialHTML) return { linhas: [], isKatex: false };
+        var tmp = document.createElement('div');
+        tmp.innerHTML = calc.memorialHTML;
+        var unid = FATORES[pref] || FATORES.SI;
+        function converterMPa(str) {
+            if (pref === 'SI') return str;
+            return str.replace(/([\d.,]+)\s*MPa/g, function(m, v) { return (parseFloat(v.replace(',', '.')) * unid.mult).toFixed(3) + ' ' + unid.lbl; });
+        }
+        function isCabecalho(txt) {
+            var t = txt.toUpperCase().trim();
+            return t.includes('MEMÓRIA DE CÁLCULO COMPLETA') || t.includes('AVALIAÇÃO DE INTEGRIDADE ESTRUTURAL') ||
+                   (t.startsWith('PRESSÃO DE PROJETO') && t.includes('(P):')) || (t.startsWith('DIÂMETRO INTERNO') && t.includes('(D):')) || /^={4,}$/.test(t);
+        }
+        function estilizar(item) {
+            if (item.text.includes('STATUS: APROVADO'))
+                return '<div style="background:#beffd6;color:#155724;padding:4px 15px;border-left:5px solid #027c2f;font-family:Arial,sans-serif;font-style:italic;font-weight:bold;margin:4px 0;">' + item.text + '</div>';
+            if (item.text.includes('STATUS: REPROVADO'))
+                return '<div style="background:rgb(255,211,211);color:#721c24;padding:4px 15px;border-left:5px solid #ff0400;font-family:Arial,sans-serif;font-style:italic;font-weight:bold;margin:4px 0;">' + item.text + '</div>';
+            if (/^-{10,}$/.test(item.text.trim())) return '<hr style="border:0;border-top:1px dashed #ccc;margin:4px 0;">';
+            return item.html;
+        }
+        var isKatex = !!tmp.querySelector('.katex-render');
+        var linhas = [];
+        if (isKatex) {
+            var txt = converterMPa(tmp.querySelector('.katex-render').innerHTML);
+            linhas = txt.split(/<br\s*\/?>/i)
+                .map(function(l) { return { html: l.trim(), text: l.replace(/<[^>]+>/g, '').trim() }; })
+                .filter(function(l) { return l.text && l.text !== '&nbsp;' && !isCabecalho(l.text); });
+        } else {
+            var pEls = Array.prototype.slice.call(tmp.querySelectorAll('p.terminal-line'));
+            linhas = pEls.map(function(p) {
+                var t = p.textContent.trim();
+                return { text: t, html: p.classList.contains('calc-math') ? converterMPa(p.innerHTML) : converterMPa(t) };
+            }).filter(function(l) { return l.text && !isCabecalho(l.text); });
+        }
+        return { linhas: linhas.map(estilizar), isKatex: isKatex };
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        var p = new URLSearchParams(window.location.search);
+        var tag = p.get('tag') || '';
+        var part = parseInt(p.get('part') || '1', 10);
+        var of = parseInt(p.get('of') || '1', 10);
+        var basePage = parseInt(p.get('page') || '1', 10);
+        var from = p.get('from'); var to = p.get('to'); // intervalo de linhas desta folha (paginação por bloco)
+        if (part < 1) part = 1; if (of < 1) of = 1;
+
+        var empresa = JSON.parse(localStorage.getItem('nr13_minha_empresa') || '{}');
+        var meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}');
+        var emp = JSON.parse(localStorage.getItem('nr13_emp_' + tag) || '{}');
+        var info = JSON.parse(localStorage.getItem('nr13_info_' + tag) || '{}');
+        var calc = JSON.parse(localStorage.getItem('nr13_calc_' + tag) || '{}');
+        var pref = localStorage.getItem('nr13_pref_unidade_' + tag) || 'SI';
+
+        // Cabeçalho
+        if (empresa.logo) document.getElementById('imgLogo').src = empresa.logo;
+        if (meta.codigo) document.getElementById('mem-rel-num').textContent = meta.codigo;
+        if (meta.emissao) document.getElementById('mem-rel-data').textContent = meta.emissao;
+        document.getElementById('tag-label').textContent = info.tag || tag || '--';
+        document.getElementById('folha-label').textContent = part + '/' + of;
+        document.getElementById('footer-page').textContent = String(basePage);
+
+        // Rodapé empresa
+        (function() {
+            var d = empresa; if (!d || !d.razao && !d.fantasia && !d.endereco) return;
+            var h = '<strong>' + (d.razao || d.fantasia || 'NOME DA EMPRESA') + '</strong><br>';
+            var l2 = [d.endereco, d.bairro, (d.cidade && d.estado ? d.cidade + '/' + d.estado : ''), d.cnpj ? 'CNPJ: ' + d.cnpj : '', d.cep ? 'CEP: ' + d.cep : ''].filter(Boolean);
+            var l3 = [d.telefone ? 'Telef: ' + d.telefone : '', d.email ? 'E-mail: ' + d.email : ''].filter(Boolean);
+            if (l2.length) h += l2.join(' • ') + '<br>';
+            if (l3.length) h += l3.join(' • ');
+            document.getElementById('footer-empresa').innerHTML = h;
+        })();
+
+        // Seção de dados do cliente/equipamento — só na 1ª folha
+        if (part === 1) {
+            var cliente = emp.razaoSocial || emp.nome || emp.nomeFantasia || '--';
+            var endereco = [emp.endereco, emp.bairro, (emp.localidade || emp.cidade)].filter(Boolean).join(' - ') || '--';
+            document.getElementById('bloco-dados').innerHTML =
+                '<div class="section-title">1. DADOS DO CLIENTE E EQUIPAMENTO</div>' +
+                '<div class="f-row"><div class="f" style="flex:1.5;"><span class="f-lbl">CLIENTE</span><div class="f-val" contenteditable="true">' + cliente + '</div></div>' +
+                '<div class="f" style="flex:2;"><span class="f-lbl">ENDEREÇO</span><div class="f-val" contenteditable="true">' + endereco + '</div></div></div>' +
+                '<div class="f-row"><div class="f"><span class="f-lbl">IDENTIFICAÇÃO</span><div class="f-val" contenteditable="true">' + (info.tag || tag || '--') + '</div></div>' +
+                '<div class="f"><span class="f-lbl">Nº DE SÉRIE</span><div class="f-val" contenteditable="true">' + (info.numeroSerie || info.serie || '--') + '</div></div></div>' +
+                '<div class="f-row"><div class="f"><span class="f-lbl">TIPO</span><div class="f-val" contenteditable="true">' + (info.descricao || info.tipo || '--') + '</div></div>' +
+                '<div class="f"><span class="f-lbl">FABRICANTE</span><div class="f-val" contenteditable="true">' + (info.fabricante || '--') + '</div></div></div>';
+            document.getElementById('titulo-calc').textContent = '2. MEMORIAL DE CÁLCULO DA PMTA E ESPESSURA MÍNIMA';
+        } else {
+            document.getElementById('titulo-calc').textContent = 'MEMORIAL DE CÁLCULO (CONTINUAÇÃO)';
+        }
+
+        // Fatia das linhas desta folha (mesma divisão por contagem que React usou pra criar N folhas)
+        var res = extrairLinhas(calc, pref);
+        var linhas = res.linhas;
+        var area = document.getElementById('calculos-area');
+
+        if (linhas.length === 0) {
+            area.innerHTML = "<br><br><p style='text-align:center;color:gray;font-style:italic;font-family:Arial,sans-serif;'>--- Sem memorial de cálculo salvo para este equipamento ---</p>";
+        } else {
+            // Intervalo de linhas desta folha vem da montagem (React), que empacota blocos inteiros
+            // sem cortar. Fallback p/ fatia uniforme se from/to não vierem (compatibilidade).
+            var fatia;
+            if (from !== null && to !== null) {
+                fatia = linhas.slice(parseInt(from, 10), parseInt(to, 10));
+            } else {
+                var porParte = Math.ceil(linhas.length / of);
+                fatia = linhas.slice((part - 1) * porParte, part * porParte);
+            }
+            area.innerHTML = fatia.join('');
+            if (res.isKatex && typeof renderMathInElement === 'function') {
+                try { renderMathInElement(area, { delimiters: [{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}], throwOnError: false }); } catch(e) {}
+            }
+            // Reduz a fonte até caber (garante que nunca corta a documentação)
+            var fs = 12;
+            while (area.scrollHeight > area.clientHeight && fs > 6) { fs -= 0.5; area.style.fontSize = fs + 'px'; }
+        }
+
+    });
+</script>
+</body>
+</html>

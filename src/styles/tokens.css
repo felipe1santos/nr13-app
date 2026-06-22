@@ -1,45 +1,81 @@
-/* Design tokens portados de style.css/detalhes.css/relatorios.css do sistema original.
-   Mantém a identidade visual atual; o objetivo aqui é estrutura/tecnologia, não aparência. */
+/* ============================================================================
+   NR-13 — Design System (premium enterprise)
+   Identidade: leveza + seriedade + poder. Paleta índigo/slate, tipografia Inter +
+   Sora (display), sombras em camadas, cantos suaves. Tudo via tokens → cascata
+   global. Os nomes de tokens são preservados (compatibilidade com o CSS existente).
+   ============================================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@600;700;800&display=swap');
+
 :root {
-  --bg-body: #f1f3f4;
+  /* ── Superfícies ── */
+  --bg-body: #eef1f8;
   --bg-card: #ffffff;
-  --text-main: #202124;
-  --text-muted: #5f6368;
-  --border-solid: #dadce0;
-  --border-dashed: #cccccc;
-  --highlight-bg: #e0e0e0;
-  --menu-hover: #e8eaed;
-  --active-color: #000000;
-  --top-bar-bg: #000442;
+  --bg-faint: #f8fafc;
+  --bg-soft: #f1f5f9;
 
-  --accent: #1a73e8;
-  --accent-2: #038dbc;
-  --accent-bg-light: #e6f4f9;
+  /* ── Texto ── */
+  --text-main: #0f172a;   /* slate-900 */
+  --text-muted: #64748b;  /* slate-500 */
+  --text-faint: #94a3b8;  /* slate-400 */
 
-  /* Tons extras do detalhes.html/detalhes.css legado — usados nos cards de equipamento */
-  --text-faint: #80868b;
-  --bg-faint: #fafbfc;
-  --bg-soft: #f8f9fa;
-  --status-sucesso-icone: #01a538;
-  --status-pendente-icone: #fbbc04;
+  /* ── Linhas / divisores ── */
+  --border-solid: #e2e8f0;
+  --border-dashed: #cbd5e1;
+  --highlight-bg: #eef2ff;
+  --menu-hover: #eef2ff;
+  --active-color: #4f46e5;
 
-  /* Tags de tipo de equipamento (vaso/autoclave/caldeira) */
+  /* ── Chrome (topbar / sidebar) ── */
+  --top-bar-bg: #0b1437;
+  --top-bar-grad: linear-gradient(120deg, #0b1437 0%, #1e2a6b 60%, #312e81 100%);
+  --sidebar-bg: #ffffff;
+  --sidebar-grad: linear-gradient(180deg, #ffffff 0%, #f6f8fe 100%);
+
+  /* ── Marca / acento ── */
+  --accent: #4f46e5;          /* indigo-600 */
+  --accent-2: #4338ca;        /* indigo-700 (hover) */
+  --accent-soft: #6366f1;     /* indigo-500 */
+  --accent-grad: linear-gradient(120deg, #4f46e5 0%, #6366f1 100%);
+  --accent-bg-light: #eef2ff;
+  --accent-ring: rgba(79, 70, 229, 0.35);
+
+  /* ── Status ── */
+  --status-sucesso-icone: #16a34a;
+  --status-pendente-icone: #f59e0b;
+  --status-ok-bg: #ecfdf5;
+  --status-ok-text: #15803d;
+  --status-erro-bg: #fef2f2;
+  --status-erro-text: #dc2626;
+  --status-aviso-bg: #fffbeb;
+  --status-aviso-text: #b45309;
+
+  /* ── Tags de tipo de equipamento ── */
   --tipo-vaso-bg: #f3e8fd;
   --tipo-vaso-text: #7c3aed;
 
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
+  /* ── Raios ── */
+  --radius-sm: 7px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
 
-  --status-ok-bg: #e6f4ea;
-  --status-ok-text: #188038;
-  --status-erro-bg: #fce8e6;
-  --status-erro-text: #d93025;
-  --status-aviso-bg: #fef7e0;
-  --status-aviso-text: #b06000;
+  /* ── Sombras (escala de elevação) ── */
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 4px 14px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 12px 34px rgba(15, 23, 42, 0.14);
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 6px 20px rgba(15, 23, 42, 0.06);
+  --shadow-accent: 0 6px 18px rgba(79, 70, 229, 0.30);
 
-  --font-base: 'Geist', 'Helvetica Neue', Arial, sans-serif;
-  --font-size-base: 12px;
+  /* ── Transições ── */
+  --t-fast: 0.14s cubic-bezier(0.4, 0, 0.2, 1);
+  --t-base: 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ── Tipografia ── */
+  --font-base: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  --font-display: 'Sora', 'Inter', sans-serif;
+  --font-size-base: 12.5px;
 }
 
 * {
@@ -48,9 +84,189 @@
   box-sizing: border-box;
 }
 
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
 body {
   font-family: var(--font-base);
   font-size: var(--font-size-base);
-  background-color: var(--bg-body);
   color: var(--text-main);
+  line-height: 1.5;
+  letter-spacing: -0.005em;
+  background-color: var(--bg-body);
+  /* fundo sutil: gradiente frio + brilhos radiais discretos */
+  background-image:
+    radial-gradient(1200px 600px at 8% -10%, rgba(99, 102, 241, 0.10), transparent 60%),
+    radial-gradient(1000px 500px at 110% 0%, rgba(56, 189, 248, 0.08), transparent 55%);
+  background-attachment: fixed;
+}
+
+/* Títulos com a fonte display (autoridade) */
+h1, h2, h3, h4, .titulo-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+  color: var(--text-main);
+}
+
+/* ── Foco acessível e premium em toda a app ── */
+:where(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-ring);
+  border-radius: var(--radius-sm);
+}
+
+/* ── Inputs / selects / textarea — base coerente ── */
+:where(input, select, textarea) {
+  font-family: inherit;
+  color: var(--text-main);
+  transition: border-color var(--t-fast), box-shadow var(--t-fast), background var(--t-fast);
+}
+:where(input, select, textarea):focus {
+  outline: none;
+}
+
+/* ── Seleção de texto ── */
+::selection {
+  background: var(--accent-soft);
+  color: #fff;
+}
+
+/* ── Scrollbar refinada ── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #c3cad9 transparent;
+}
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: #c3cad9;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover { background: #9aa6bd; background-clip: padding-box; }
+
+/* ============================================================================
+   UTILITÁRIOS GLOBAIS — animações de entrada + spinner de carregamento
+   ============================================================================ */
+
+@keyframes nr-fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes nr-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes nr-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Entrada suave ao trocar de seção/página.
+   IMPORTANTE: só opacity (sem transform). Um transform persistente neste wrapper criaria um
+   "containing block" que prenderia modais position:fixed dentro dele (quebrando overlays/centro). */
+.nr-anim-in {
+  animation: nr-fade-in 0.26s ease both;
+}
+
+/* spinner reutilizável */
+.spinner {
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: nr-spin 0.6s linear infinite;
+  vertical-align: -2px;
+}
+
+/* botão em estado de carregamento: mostra spinner antes do texto */
+.btn-primario.is-loading,
+.btn-secundario.is-loading,
+.btn-loading {
+  position: relative;
+  pointer-events: none;
+}
+.btn-primario.is-loading::before,
+.btn-secundario.is-loading::before,
+.btn-loading::before {
+  content: '';
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 8px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: nr-spin 0.6s linear infinite;
+  vertical-align: -2px;
+}
+
+/* overlay de salvamento (tela toda) */
+.nr-save-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(3px);
+  animation: nr-fade-in 0.15s ease;
+}
+.nr-save-overlay .spinner {
+  width: 38px;
+  height: 38px;
+  border-width: 3px;
+  color: #fff;
+}
+.nr-save-overlay span {
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.01em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nr-anim-in, .spinner, .btn-loading::before,
+  .btn-primario.is-loading::before, .btn-secundario.is-loading::before { animation: none; }
+}
+
+/* ============================================================================
+   POLISH RESPONSIVO GLOBAL (mobile-first) — aplica às classes compartilhadas
+   ============================================================================ */
+@media (max-width: 640px) {
+  /* containers das páginas: menos respiro lateral no celular */
+  .calibracoes-page,
+  .relatorios-page,
+  .prontuarios-page,
+  .inspecoes-page,
+  .dashboard-page,
+  .equipamento-page,
+  .cad-page {
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+  }
+
+  .bloco-dados { padding: 16px; }
+
+  /* cabeçalhos "título + ações" empilham e ações ocupam a largura */
+  .meta-card-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .meta-card-header > div { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  /* grids de formulário de cadastro empilham */
+  .cad-grid { grid-template-columns: 1fr !important; }
+
+  /* barras de navegação quebram linha */
+  .meta-breadcrumb { flex-wrap: wrap; }
 }

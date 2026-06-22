@@ -14,13 +14,14 @@
   overflow: hidden;
   text-decoration: none;
   color: var(--text-main);
-  transition: box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+  box-shadow: var(--shadow-card);
+  transition: box-shadow var(--t-base), transform var(--t-base), border-color var(--t-base);
 }
 
 .card-equipamento:hover {
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
-  transform: translateY(-2px);
-  border-color: var(--accent);
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-4px);
+  border-color: var(--accent-soft);
 }
 
 .card-capa-container {
@@ -319,32 +320,65 @@
 
 .btn-primario,
 .btn-secundario {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
   padding: 10px 18px;
   border-radius: var(--radius-md);
+  font-family: var(--font-base);
   font-size: 13px;
   font-weight: 600;
+  letter-spacing: -0.01em;
   cursor: pointer;
   border: 1px solid transparent;
-  transition: background 0.15s ease;
+  transition: transform var(--t-fast), box-shadow var(--t-fast), background var(--t-fast), border-color var(--t-fast), filter var(--t-fast);
 }
 
 .btn-primario {
-  background: var(--accent);
+  background: var(--accent-grad);
   color: #fff;
+  box-shadow: var(--shadow-accent);
 }
 
 .btn-primario:hover:not(:disabled) {
-  background: var(--accent-2);
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(79, 70, 229, 0.38);
+}
+
+.btn-primario:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
 }
 
 .btn-primario:disabled {
-  opacity: 0.6;
+  opacity: 0.55;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .btn-secundario {
-  background: var(--menu-hover);
+  background: var(--bg-card);
   color: var(--text-main);
+  border-color: var(--border-solid);
+  box-shadow: var(--shadow-xs);
+}
+
+.btn-secundario:hover:not(:disabled) {
+  background: var(--bg-soft);
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-secundario:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-secundario:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .erro-form {
@@ -444,14 +478,17 @@
   background: var(--bg-card);
   border: 1px solid var(--border-solid);
   border-radius: var(--radius-lg);
-  padding: 18px;
+  padding: 20px;
+  box-shadow: var(--shadow-card);
 }
 
 .bloco-dados h3 {
+  font-family: var(--font-display);
   font-size: 15px;
-  color: var(--accent-2);
-  font-weight: 600;
-  border-bottom: 1px solid var(--bg-body);
+  color: var(--text-main);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  border-bottom: 1px solid var(--border-solid);
   padding-bottom: 10px;
   margin-bottom: 16px;
 }

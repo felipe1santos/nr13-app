@@ -3,12 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <title>Prontuário do Vaso de Pressão — Folha 3</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <!-- KaTeX para renderizar as fórmulas do memorial -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: Arial, Helvetica, sans-serif; background: #fff; color: #000; font-size: 12px; }
+        body { font-family: 'Inter', sans-serif; background: #fff; color: #000; font-size: 12px; }
         .a4-page { background: #fff; width: 210mm; height: 297mm; padding: 12mm 15mm; position: relative; overflow: hidden; display: flex; flex-direction: column; }
         .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-20deg); width: 70%; opacity: 0.07; z-index: 0; pointer-events: none; }
         .watermark-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-20deg); font-size: 80px; font-weight: 900; color: #003366; opacity: 0.04; z-index: 0; pointer-events: none; white-space: nowrap; text-transform: uppercase; }
@@ -72,13 +75,6 @@
             <div class="sem-calculo">Nenhum cálculo encontrado para este equipamento. Acesse o Memorial de Cálculo e execute o cálculo para que ele seja exibido aqui.</div>
         </div>
 
-        <div class="footer-container">
-            <img id="img-logo-rodape" class="logo-img" alt="Logo" style="display:none">
-            <div class="footer-text">
-                <p><strong>Obs.:</strong> Esse Prontuário do vaso de pressão é de propriedade da respectiva empresa emissora.</p>
-                <p>É proibida a reprodução e/ou publicação deste sem a devida autorização da empresa.</p>
-            </div>
-        </div>
     </div>
 </div>
 <script>
@@ -110,10 +106,20 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!container) return;
     container.innerHTML = '';
 
-    renderLog(calc.logCalculo, container, calc.pmta);
+    // Componente limitante = o de menor PMTA (governa a PMTA final)
+    var compLimitante = '';
+    if (Array.isArray(calc.componentes)) {
+        var menorP = Infinity;
+        calc.componentes.forEach(function(c) {
+            var p = parseFloat(c.pmtaMpa);
+            if (isFinite(p) && p < menorP) { menorP = p; compLimitante = c.nome || ''; }
+        });
+    }
+
+    renderLog(calc.logCalculo, container, calc.pmta, compLimitante);
 });
 
-function renderLog(log, container, pmtaFinal) {
+function renderLog(log, container, pmtaFinal, compLimitante) {
     var linhasParam = [];
     var secaoAtual = null;
     var linhasKatex = [];
@@ -252,7 +258,7 @@ function renderLog(log, container, pmtaFinal) {
     if (pmtaFinal) {
         var pmtaEl = document.createElement('div');
         pmtaEl.className = 'log-pmta-final';
-        pmtaEl.textContent = 'PMTA = ' + pmtaFinal + ' MPa';
+        pmtaEl.textContent = 'PMTA = ' + pmtaFinal + ' MPa' + (compLimitante ? ' — Limitado pelo ' + compLimitante : '');
         container.appendChild(pmtaEl);
     }
 }

@@ -5,7 +5,7 @@ import type { EquipamentoResumo } from '../features/equipamento/tipos';
 import { formatarValor } from '../calc/unidades';
 import ModalNovaInspecaoContainer from '../features/inspecoes/ModalNovaInspecaoContainer';
 import { criarContainer, formulariosDoContainer, listarContainers, removerContainer } from '../features/inspecoes/inspecaoService';
-import { ENSAIOS_DISPONIVEIS, ROTULO_FORMULARIO, type ContainerInspecao, type TipoEnsaio } from '../features/inspecoes/tipos';
+import { ENSAIOS_DISPONIVEIS, type ContainerInspecao, type TipoEnsaio } from '../features/inspecoes/tipos';
 import '../features/inspecoes/visualizador.css';
 import '../pages/relatorios.css';
 import './inspecoes.css';
@@ -29,31 +29,45 @@ function ContainerCard({
   const formularios = formulariosDoContainer(container);
   const [confirmando, setConfirmando] = useState(false);
 
-  function handleExcluir() {
+  function handleExcluir(ev: React.MouseEvent) {
+    ev.stopPropagation();
     if (!confirmando) { setConfirmando(true); return; }
     onExcluir();
   }
 
+  function abrir() {
+    navigate(`/inspecoes/${tag}/${container.id}`);
+  }
+
   return (
-    <div className="container-card">
+    <div
+      className="container-card container-card-clicavel"
+      onClick={abrir}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === 'Enter') abrir(); }}
+    >
       <div className="container-card-header">
         <div>
-          <div className="container-card-titulo">Inspeção de {container.criadoEm}</div>
+          <div className="container-card-titulo">{container.nome || `Inspeção de ${container.criadoEm}`}</div>
+          <div className="container-card-meta">
+            {container.criadoEm} • {formularios.length} {formularios.length === 1 ? 'item' : 'itens'}
+          </div>
           <div className="container-card-badges">
             {container.ensaios.map((e) => (
-              <span key={e} className="badge-tipo">
+              <span key={e} className="badge-item-ensaio">
                 {ENSAIOS_DISPONIVEIS.find((d) => d.value === e)?.label ?? e}
               </span>
             ))}
           </div>
         </div>
-        <div className="container-card-acoes">
+        <div className="container-card-acoes" onClick={(e) => e.stopPropagation()}>
           {confirmando ? (
             <>
               <button type="button" className="btn-remover" onClick={handleExcluir}>
                 Confirmar
               </button>
-              <button type="button" className="btn-secundario" onClick={() => setConfirmando(false)}>
+              <button type="button" className="btn-secundario" onClick={(e) => { e.stopPropagation(); setConfirmando(false); }}>
                 Cancelar
               </button>
             </>
@@ -62,41 +76,8 @@ function ContainerCard({
               Excluir
             </button>
           )}
+          <span className="container-card-seta" aria-hidden>›</span>
         </div>
-      </div>
-
-      <div className="container-form-lista">
-        {formularios.map((f) => {
-          const preenchido = container.dados[f] != null;
-          return (
-            <div key={f} className="container-form-row">
-              <div className="container-form-info">
-                <span className="container-form-nome">{ROTULO_FORMULARIO[f]}</span>
-                <span className={`badge-tipo ${preenchido ? 'preenchido' : ''}`}>
-                  {preenchido ? 'Preenchido' : 'Pendente'}
-                </span>
-              </div>
-              <div className="container-form-acoes">
-                {preenchido && (
-                  <button
-                    type="button"
-                    className="btn-visualizar"
-                    onClick={() => navigate(`/inspecoes/${tag}/${container.id}/${f}?visualizar=1`)}
-                  >
-                    Visualizar
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className="btn-preencher"
-                  onClick={() => navigate(`/inspecoes/${tag}/${container.id}/${f}`)}
-                >
-                  {preenchido ? 'Editar' : 'Preencher'}
-                </button>
-              </div>
-            </div>
-          );
-        })}
       </div>
     </div>
   );
@@ -133,8 +114,8 @@ export default function Inspecoes() {
     navigate('/inspecoes', { replace: true });
   }
 
-  async function criar(ensaios: TipoEnsaio[]) {
-    await criarContainer(tag, ensaios);
+  async function criar(ensaios: TipoEnsaio[], nome: string) {
+    await criarContainer(tag, ensaios, nome);
     setContainers(listarContainers(tag));
     setModalAberto(false);
   }
@@ -202,7 +183,9 @@ export default function Inspecoes() {
             <strong>{tag}</strong>
           </div>
           <div className="meta-card-header">
-            <h3>Containers de Inspeção — {tag}</h3>
+            <h3>
+              Containers de Inspeção <span className="tag-equipamento-roxa">{tag}</span>
+            </h3>
             <button type="button" className="btn-primario" onClick={() => setModalAberto(true)}>
               + Nova Inspeção
             </button>

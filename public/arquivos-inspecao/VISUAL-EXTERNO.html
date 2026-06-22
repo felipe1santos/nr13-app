@@ -92,7 +92,7 @@
             padding: 0; vertical-align: middle;
         }
         .cl-num { text-align: center; font-weight: 700; font-size: 9px; width: 28px; padding: 2px 3px; color: #555; }
-        .cl-desc { padding: 3px 7px; font-size: 9.5px; font-weight: 500; line-height: 1.3; }
+        .cl-desc { padding: 3px 7px; font-size: 11px; font-weight: 500; line-height: 1.3; }
         .cl-check { text-align: center; width: 40px; }
         .cl-obs { padding: 2px 5px; }
         .cl-obs-input {
@@ -110,13 +110,16 @@
         .chk { width: 14px; height: 14px; cursor: pointer; accent-color: var(--blue-data); }
 
         /* ── OBSERVAÇÕES / CONCLUSÃO ────────────────── */
+        /* Os dois quadros crescem (flex-grow) para absorver o espaço livre da folha,
+           encostando o conteúdo perto do rodapé sem deixar vazio grande. */
         .obs-box {
-            border: 1px solid #e0e0e0; min-height: 38px;
-            padding: 4px 7px; margin-bottom: 4px; flex-shrink: 0;
+            border: 1px solid #e0e0e0; min-height: 48px;
+            padding: 4px 7px; margin-bottom: 4px;
+            flex: 1 1 0; display: flex;
         }
         .obs-textarea {
             font-family: 'Inter', sans-serif;
-            width: 100%; min-height: 34px; resize: vertical;
+            width: 100%; height: 100%; min-height: 40px; resize: none;
             border: none; outline: none;
             font-size: 10px; font-weight: 500; color: #111827;
             line-height: 1.5; background: transparent;
@@ -124,8 +127,9 @@
         .obs-textarea:hover, .obs-textarea:focus { background: var(--highlight-yellow); }
 
         .conclusao-box {
-            border: 1px solid #e0e0e0; min-height: 34px;
-            padding: 4px 7px; margin-bottom: 4px; flex-shrink: 0;
+            border: 1px solid #e0e0e0; min-height: 48px;
+            padding: 4px 7px; margin-bottom: 4px;
+            flex: 1.4 1 0; display: flex;
         }
 
         /* ── ASSINATURAS ────────────────────────────── */
@@ -245,38 +249,6 @@
         <textarea class="obs-textarea" rows="2" placeholder="Conclusão técnica sobre as condições do equipamento inspecionado..." spellcheck="false"></textarea>
     </div>
 
-    <!-- ASSINATURA TÉCNICO (esquerda) -->
-    <div class="signature-wrapper-tecnico" id="sig-wrapper-tecnico">
-        <div class="no-print select-ph-box">
-            <select id="select-tecnico" onchange="atualizarAssinaturaTecnico()">
-                <option value="">Assinar...</option>
-            </select>
-        </div>
-        <img id="img-assinatura-tecnico" class="sig-img" src="" alt="Assinatura Técnico" style="display:none;">
-        <div class="signature-line"></div>
-        <div class="sig-data">
-            <strong>TÉCNICO RESPONSÁVEL</strong><br>
-            <span id="nome-tecnico" class="data-highlight" contenteditable="true" spellcheck="false">Nome do Técnico</span><br>
-            Registro: <span id="crea-tecnico" class="data-highlight" contenteditable="true" spellcheck="false">000000</span>
-        </div>
-    </div>
-
-    <!-- ASSINATURA ENGENHEIRO (direita) -->
-    <div class="signature-wrapper" id="sig-wrapper-engenheiro">
-        <div class="no-print select-ph-box">
-            <select id="select-ph" onchange="atualizarAssinatura()">
-                <option value="">Assinar...</option>
-            </select>
-        </div>
-        <img id="img-assinatura-ph" class="sig-img" src="" alt="Assinatura PH" style="display:none;">
-        <div class="signature-line"></div>
-        <div class="sig-data">
-            <strong>ENGENHEIRO RESPONSÁVEL</strong><br>
-            <span id="nome-ph" class="data-highlight" contenteditable="true" spellcheck="false">Nome do Engenheiro</span><br>
-            CREA/RNP: <span id="crea-ph" class="data-highlight" contenteditable="true" spellcheck="false">ES-000000/D</span>
-        </div>
-    </div>
-
     <!-- RODAPÉ -->
     <div class="pgr-footer-new">
         <div class="footer-line-wrapper">
@@ -368,83 +340,6 @@
         } catch(e) {}
     }
 
-    /* ── ASSINATURA ENGENHEIRO ─────────────────────── */
-    function carregarPHsParaSelect() {
-        const sel = document.getElementById('select-ph');
-        const lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
-        if (lista.length === 0) {
-            sel.innerHTML = '<option value="">Nenhum PH cadastrado</option>';
-        } else {
-            lista.forEach(function(ph) {
-                const opt = document.createElement('option');
-                opt.value = ph.id;
-                opt.textContent = ph.nome + ' (' + ph.crea + ')';
-                sel.appendChild(opt);
-            });
-        }
-        const optEx = document.createElement('option');
-        optEx.value = 'excluir'; optEx.textContent = 'Excluir Assinatura';
-        optEx.style.color = '#dc2626'; optEx.style.fontWeight = '700';
-        sel.appendChild(optEx);
-    }
-
-    function atualizarAssinatura() {
-        const sel = document.getElementById('select-ph');
-        const wrapper = document.getElementById('sig-wrapper-engenheiro');
-        if (sel.value === 'excluir') { wrapper.classList.add('sig-excluida'); return; }
-        wrapper.classList.remove('sig-excluida');
-        const lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
-        const ph = lista.find(function(p) { return p.id == sel.value; });
-        const img = document.getElementById('img-assinatura-ph');
-        if (ph) {
-            document.getElementById('nome-ph').textContent = ph.nome;
-            document.getElementById('crea-ph').textContent = ph.crea;
-            if (ph.assinatura) { img.src = ph.assinatura; img.style.display = 'block'; }
-            else { img.style.display = 'none'; img.src = ''; }
-        } else {
-            document.getElementById('nome-ph').textContent = 'Nome do Engenheiro';
-            document.getElementById('crea-ph').textContent = 'ES-000000/D';
-            img.style.display = 'none'; img.src = '';
-        }
-    }
-
-    /* ── ASSINATURA TÉCNICO ────────────────────────── */
-    function carregarTecnicosParaSelect() {
-        const sel = document.getElementById('select-tecnico');
-        sel.innerHTML = '<option value="">Assinar...</option>';
-        const lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
-        lista.filter(function(p) { return p.tipo && p.tipo.startsWith('Inspetor'); }).forEach(function(ph) {
-            const opt = document.createElement('option');
-            opt.value = ph.id;
-            opt.textContent = ph.nome + (ph.crea ? ' (' + ph.crea + ')' : '');
-            sel.appendChild(opt);
-        });
-        const optEx = document.createElement('option');
-        optEx.value = 'excluir'; optEx.textContent = 'Excluir Assinatura';
-        optEx.style.color = '#dc2626'; optEx.style.fontWeight = '700';
-        sel.appendChild(optEx);
-    }
-
-    function atualizarAssinaturaTecnico() {
-        const sel = document.getElementById('select-tecnico');
-        const wrapper = document.getElementById('sig-wrapper-tecnico');
-        if (sel.value === 'excluir') { wrapper.classList.add('sig-excluida'); return; }
-        wrapper.classList.remove('sig-excluida');
-        const lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
-        const ph = lista.find(function(p) { return String(p.id) === String(sel.value); });
-        const img = document.getElementById('img-assinatura-tecnico');
-        if (ph) {
-            document.getElementById('nome-tecnico').textContent = ph.nome;
-            document.getElementById('crea-tecnico').textContent = ph.crea || '';
-            if (ph.assinatura) { img.src = ph.assinatura; img.style.display = 'block'; }
-            else { img.style.display = 'none'; img.src = ''; }
-        } else {
-            document.getElementById('nome-tecnico').textContent = 'Nome do Técnico';
-            document.getElementById('crea-tecnico').textContent = '000000';
-            img.style.display = 'none'; img.src = '';
-        }
-    }
-
     /* ── AUTO-FILL TAG (URL) ────────────────────────── */
     (function preencherTag() {
         const tag = new URLSearchParams(window.location.search).get('tag');
@@ -503,8 +398,6 @@
     document.addEventListener('DOMContentLoaded', function() {
         gerarChecklist();
         preencherEmpresa();
-        carregarPHsParaSelect();
-        carregarTecnicosParaSelect();
         injetarDadosVE();
     });
 </script>

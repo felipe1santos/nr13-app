@@ -183,15 +183,6 @@
             <div class="info-label">Data de Emissão / Issue Date</div>
             <div class="info-value" id="ph-data-emissao">--</div>
         </div>
-        <div class="ph-resp-right">
-            <img id="img-assinatura-ph" src="" alt="Assinatura" style="display:none;">
-            <div class="sig-line"></div>
-            <div class="sig-data">
-                <strong>ENGENHEIRO RESPONSÁVEL</strong><br>
-                <span id="ph-nome-eng" class="data-highlight">--</span><br>
-                CREA/RNP: <span id="ph-crea-eng" class="data-highlight">--</span>
-            </div>
-        </div>
     </div>
 
     </div>
@@ -224,7 +215,6 @@
         const info = JSON.parse(localStorage.getItem('nr13_info_' + tag) || '{}');
         const minhaEmpresa = JSON.parse(localStorage.getItem('nr13_minha_empresa') || '{}');
         const meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}');
-        const listaPhs = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
 
         // ===== CABEÇALHO / LOGO =====
         setSrc('logo-empresa', minhaEmpresa.logo);
@@ -239,17 +229,6 @@
         } else {
             const hoje = new Date();
             setVal('ph-data-emissao', hoje.toLocaleDateString('pt-BR'));
-        }
-
-        const engenheiro = listaPhs.find(p => p.tipo && p.tipo.startsWith('Engenheiro'));
-        if (engenheiro) {
-            setVal('ph-nome-eng', engenheiro.nome);
-            setVal('ph-crea-eng', engenheiro.crea);
-            if (engenheiro.assinatura) {
-                const img = document.getElementById('img-assinatura-ph');
-                img.src = engenheiro.assinatura;
-                img.style.display = 'block';
-            }
         }
 
         // ===== RODAPÉ =====

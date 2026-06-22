@@ -110,3 +110,83 @@ export async function adicionarEntradaLivroAuto(relatorio: RelatorioSalvo): Prom
 export function listaPadraoDocumentos(): string[] {
   return [...DOCUMENTOS_DISPONIVEIS];
 }
+
+// ── Memorial de cálculo: folhas automáticas ────────────────────────────────────
+// MEMORIAL.html é UMA folha que renderiza a fatia "part de N". Como cada slot do relatório é uma
+// folha A4 fixa (uma iframe = uma página), a quantidade de folhas é decidida AQUI, no momento da
+// montagem, conforme o tamanho do cálculo salvo — caldeira gera mais folhas que autoclave.
+const LINHAS_POR_FOLHA_MEMORIAL = 24; // folha de continuação
+const LINHAS_PRIMEIRA_FOLHA = 15; // 1ª folha tem a seção "Dados do Cliente/Equipamento"
+
+function ehCabecalhoMemorial(t: string): boolean {
+  const u = t.toUpperCase();
+  return (
+    u.includes('MEMÓRIA DE CÁLCULO COMPLETA') ||
+    u.includes('AVALIAÇÃO DE INTEGRIDADE ESTRUTURAL') ||
+    (u.startsWith('PRESSÃO DE PROJETO') && u.includes('(P):')) ||
+    (u.startsWith('DIÂMETRO INTERNO') && u.includes('(D):')) ||
+    /^={4,}$/.test(u)
+  );
+}
+
+// Mesmo filtro de linhas do template MEMORIAL.html (1:1 por índice) — base da paginação.
+function linhasMemorial(tag: string): string[] {
+  const calc = ler<{ memorialHTML?: string }>(`nr13_calc_${tag}`);
+  const html = calc?.memorialHTML;
+  if (!html) return [];
+  const m = html.match(/<div class="katex-render">([\s\S]*)<\/div>/i);
+  const corpo = m ? m[1] : html;
+  return corpo
+    .split(/<br\s*\/?>/i)
+    .map((l) => l.replace(/<[^>]+>/g, '').trim())
+    .filter((t) => t && t !== '&nbsp;' && !ehCabecalhoMemorial(t));
+}
+
+// Início de um bloco de componente: linha "MEMORIAL DE CÁLCULO - <nome>".
+function ehInicioBloco(t: string): boolean {
+  return /^MEMORIAL DE C[ÁA]LCULO\b/i.test(t.trim());
+}
+
+// Troca 'MEMORIAL.html' por N entradas 'MEMORIAL.html?part=k&of=N&from=a&to=b'.
+// Empacota BLOCOS inteiros por folha (header + parâmetros + fórmulas + resultado ficam juntos,
+// nunca cortados entre folhas) e preenche cada folha o máximo possível (menos espaço em branco).
+export function expandirMemorial(tag: string, docs: string[]): string[] {
+  const idx = docs.findIndex((d) => d.split('?')[0] === 'MEMORIAL.html');
+  if (idx < 0) return docs;
+
+  const linhas = linhasMemorial(tag);
+  if (linhas.length === 0) {
+    return [...docs.slice(0, idx), 'MEMORIAL.html?part=1&of=1&from=0&to=0', ...docs.slice(idx + 1)];
+  }
+
+  // Agrupa em blocos [início,fim) delimitados pelos headers de componente.
+  const inicios: number[] = [];
+  linhas.forEach((l, i) => { if (ehInicioBloco(l)) inicios.push(i); });
+  if (inicios.length === 0 || inicios[0] !== 0) inicios.unshift(0);
+  const blocos: { ini: number; fim: number }[] = inicios.map((ini, k) => ({
+    ini,
+    fim: k + 1 < inicios.length ? inicios[k + 1] : linhas.length,
+  }));
+
+  // Empacota blocos em folhas respeitando o orçamento de linhas (sem dividir bloco).
+  const ranges: { from: number; to: number }[] = [];
+  let from = 0;
+  let count = 0;
+  let primeira = true;
+  for (const b of blocos) {
+    const tam = b.fim - b.ini;
+    const orcamento = primeira ? LINHAS_PRIMEIRA_FOLHA : LINHAS_POR_FOLHA_MEMORIAL;
+    if (count > 0 && count + tam > orcamento) {
+      ranges.push({ from, to: b.ini });
+      from = b.ini;
+      count = 0;
+      primeira = false;
+    }
+    count += tam;
+  }
+  ranges.push({ from, to: linhas.length });
+
+  const n = ranges.length;
+  const partes = ranges.map((r, k) => `MEMORIAL.html?part=${k + 1}&of=${n}&from=${r.from}&to=${r.to}`);
+  return [...docs.slice(0, idx), ...partes, ...docs.slice(idx + 1)];
+}

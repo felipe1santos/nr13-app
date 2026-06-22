@@ -1,42 +1,56 @@
-// Wrapper para api_storage.php — contrato preservado verbatim (ver api_storage.php na raiz).
-// Toda gravação grava no localStorage e no servidor. Toda leitura cai pro cache local se offline.
+// "Banco" do sistema = tabela key-value `app_storage` no Supabase, isolada por usuário (RLS).
+// REGRA: toda gravação grava no localStorage (cache lido pelos templates HTML em iframe) E no
+// Supabase. Toda leitura sai do cache local (já hidratado por lerTudo). Offline = cai no cache.
+import { supabase, idUsuarioAtual, TABELA_STORAGE } from './supabase';
 
-const API_BASE = '';
-
-function emailUsuario(): string {
-  return localStorage.getItem('nr13_usuario_logado') || '';
-}
-
-export async function lerTudo(email = emailUsuario()): Promise<Record<string, string>> {
-  if (!email) return {};
+// Puxa todas as chaves do usuário logado e hidrata o localStorage (cache p/ os iframes).
+// Chamar no login e ao abrir o app. Sem sessão, devolve vazio (mantém o que houver em cache).
+export async function lerTudo(): Promise<Record<string, string>> {
+  const userId = await idUsuarioAtual();
+  if (!userId) return {};
   try {
-    const resp = await fetch(`${API_BASE}/api_storage.php?acao=ler_tudo&email=${encodeURIComponent(email)}`);
-    const json = await resp.json();
-    if (!json.sucesso) return {};
-    const dados: Record<string, string> = json.dados ?? {};
-    for (const [chave, valor] of Object.entries(dados)) {
-      localStorage.setItem(chave, valor);
+    const { data, error } = await supabase
+      .from(TABELA_STORAGE)
+      .select('chave, valor')
+      .eq('user_id', userId);
+    if (error || !data) return {};
+    const dados: Record<string, string> = {};
+    for (const row of data as { chave: string; valor: string | null }[]) {
+      if (row.valor != null) {
+        dados[row.chave] = row.valor;
+        localStorage.setItem(row.chave, row.valor);
+      }
     }
     return dados;
   } catch {
-    // offline: cai pro cache local já existente, não há lista de chaves a varrer aqui
+    // offline: usa o cache local já existente
     return {};
   }
 }
 
 export async function salvar(chave: string, objeto: unknown): Promise<void> {
   const valor = JSON.stringify(objeto);
-  localStorage.setItem(chave, valor);
-  const email = emailUsuario();
-  if (!email) return;
+  localStorage.setItem(chave, valor); // cache imediato (iframe lê na hora)
+  const userId = await idUsuarioAtual();
+  if (!userId) return;
   try {
-    await fetch(`${API_BASE}/api_storage.php`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ acao: 'salvar', email, chave, valor }),
-    });
+    await supabase
+      .from(TABELA_STORAGE)
+      .upsert({ user_id: userId, chave, valor }, { onConflict: 'user_id,chave' });
   } catch {
-    // offline: já está no localStorage, sincroniza depois
+    // offline: já está no cache local, sincroniza na próxima gravação online
+  }
+}
+
+// Remove UMA chave do Supabase e do cache local.
+export async function excluirChave(chave: string): Promise<void> {
+  localStorage.removeItem(chave);
+  const userId = await idUsuarioAtual();
+  if (!userId) return;
+  try {
+    await supabase.from(TABELA_STORAGE).delete().eq('user_id', userId).eq('chave', chave);
+  } catch {
+    // offline: já removido do cache, ressincroniza depois
   }
 }
 
@@ -61,16 +75,25 @@ export function listarChavesComPrefixo(prefixo: string): string[] {
 }
 
 export async function excluirVaso(tag: string): Promise<void> {
-  const email = emailUsuario();
-  if (!email) return;
-  await fetch(`${API_BASE}/api_storage.php`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ acao: 'excluir_vaso', email, tag }),
-  });
-  // remove do cache local tudo que termina em "_<TAG>"
-  for (let i = localStorage.length - 1; i >= 0; i--) {
+  // coleta no cache local todas as chaves que terminam em "_<TAG>"
+  const chavesDoVaso: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
     const chave = localStorage.key(i);
-    if (chave && chave.endsWith(`_${tag}`)) localStorage.removeItem(chave);
+    if (chave && chave.endsWith(`_${tag}`)) chavesDoVaso.push(chave);
   }
+
+  const userId = await idUsuarioAtual();
+  if (userId && chavesDoVaso.length > 0) {
+    try {
+      await supabase
+        .from(TABELA_STORAGE)
+        .delete()
+        .eq('user_id', userId)
+        .in('chave', chavesDoVaso);
+    } catch {
+      // offline: remove do cache local mesmo assim, ressincroniza depois
+    }
+  }
+
+  for (const chave of chavesDoVaso) localStorage.removeItem(chave);
 }

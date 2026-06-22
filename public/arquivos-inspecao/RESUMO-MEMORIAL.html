@@ -260,6 +260,10 @@
             <div class="f"><span class="f-lbl">TIPO DE EQUIPAMENTO</span><div class="f-val" id="res-tipo" contenteditable="true">--</div></div>
         </div>
 
+        <!-- Seções de componentes geradas dinamicamente (vaso/caldeira/autoclave) a partir de
+             calc.componentes. As seções fixas abaixo (#legacy-comps) são fallback p/ memoriais antigos. -->
+        <div id="comp-container"></div>
+        <div id="legacy-comps">
         <div class="section-title">PARÂMETROS E RESULTADOS: CASCO PRINCIPAL</div>
         <div class="comp-section">
             <div class="comp-tables">
@@ -377,27 +381,11 @@
                 </div>
             </div>
         </div>
+        </div><!-- /#legacy-comps -->
 
         <div class="conclusion-box">
             A <strong>Espessura Mínima Requerida</strong> limitante do sistema é de <strong class="hl-text" id="lbl-menor-esp">--</strong> mm, referente ao componente <strong id="lbl-comp-esp">--</strong>.<br><br>
             A <strong>PMTA</strong> limitante do sistema é de <strong class="hl-text" id="lbl-menor-pmta">--</strong> MPa, determinada pelo componente <strong id="lbl-comp-pmta">--</strong>.
-        </div>
-
-        <div class="sig-overlay-container">
-            <div class="sig-overlay-box" id="sig-wrapper-engenheiro">
-                <div class="no-print sig-overlay-select">
-                    <select id="select-ph" onchange="atualizarAssinatura()">
-                        <option value="">Assinar...</option>
-                    </select>
-                </div>
-                <img id="img-assinatura-ph" class="sig-overlay-img" src="" alt="Assinatura Engenheiro" style="display:none;">
-                <div class="sig-overlay-line"></div>
-                <div class="sig-overlay-data">
-                    <strong>ENGENHEIRO RESPONSÁVEL</strong><br>
-                    <span id="nome-ph" class="data-highlight" contenteditable="true" spellcheck="false">Nome do Engenheiro</span><br>
-                    CREA/RNP: <span id="crea-ph" class="data-highlight" contenteditable="true" spellcheck="false">ES-000000/D</span>
-                </div>
-            </div>
         </div>
 
         <div class="pgr-footer-new">
@@ -659,8 +647,10 @@
                 document.getElementById('footer-empresa').innerHTML = footerHTML;
             }
 
-            // 1.5 INJETAR DADOS REAIS DO EQUIPAMENTO (substitui os dados fictícios fixos)
-            injetarDadosEquipamento();
+            // 1.5 RENDERIZA COMPONENTES DINAMICAMENTE (calc.componentes) — serve vaso, caldeira e
+            // autoclave. Se o memorial salvo não tiver o array (memorial antigo), usa o layout fixo.
+            const usouDinamico = buildResumoDinamico();
+            if (!usouDinamico) injetarDadosEquipamento();
 
             // 2. ADICIONA EVENTO DE RECALCULAR AO DIGITAR NOS CAMPOS
             document.querySelectorAll('.calc-trigger').forEach(el => {
@@ -670,59 +660,59 @@
             // 3. RODA O CÁLCULO INICIAL PARA DESTACAR NA ABERTURA (já com os dados injetados)
             calcularLimitantes();
         });
-    </script>
 
-    <script>
-        // ==========================================
-        // ASSINATURA — ENGENHEIRO RESPONSÁVEL (PH)
-        // ==========================================
-        function carregarPHsParaSelect() {
-            const sel = document.getElementById('select-ph');
-            if (!sel) return;
-            const lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
-            sel.innerHTML = '<option value="">Assinar...</option>';
-            lista.filter(p => !p.tipo || p.tipo.startsWith('Engenheiro')).forEach(ph => {
-                const opt = document.createElement('option');
-                opt.value = ph.id;
-                opt.textContent = ph.nome;
-                sel.appendChild(opt);
+        // Constrói uma seção de componente por item de calc.componentes (mesmas classes do layout
+        // fixo, então o motor de limitantes/destaque continua funcionando).
+        function buildResumoDinamico() {
+            var tag = new URLSearchParams(window.location.search).get('tag');
+            if (!tag) return false;
+            var calc = {};
+            try { calc = JSON.parse(localStorage.getItem('nr13_calc_' + tag) || '{}'); } catch(e) { return false; }
+            var comps = calc.componentes;
+            if (!Array.isArray(comps) || comps.length === 0) return false;
+
+            var legacy = document.getElementById('legacy-comps');
+            if (legacy) legacy.style.display = 'none';
+            var cont = document.getElementById('comp-container');
+            if (!cont) return false;
+            cont.innerHTML = '';
+
+            function fmt(v, dec) { return (v == null || isNaN(v)) ? '--' : Number(v).toFixed(dec).replace('.', ','); }
+            function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+            function row(lbl, val) { return '<div class="f"><span class="f-lbl">' + lbl + '</span><div class="f-val" contenteditable="true">' + esc(val) + '</div></div>'; }
+
+            comps.forEach(function(c) {
+                var pmtaMpa = (c.pmtaMpa != null) ? Number(c.pmtaMpa) : null;
+                var psi = pmtaMpa != null ? pmtaMpa * 145.0377 : null;
+                var kgf = pmtaMpa != null ? pmtaMpa * 10.19716 : null;
+                var tIn = (c.tReqMm != null) ? c.tReqMm / 25.4 : null;
+                var nome = esc(c.nome || 'COMPONENTE');
+                var html =
+                    '<div class="section-title">PARÂMETROS E RESULTADOS: ' + nome.toUpperCase() + '</div>' +
+                    '<div class="comp-section"><div class="comp-tables">' +
+                        '<table class="res-table"><thead><tr><th colspan="2">ESPESSURA MÍN. CALCULADA (t)</th></tr><tr><th>mm</th><th>in</th></tr></thead><tbody><tr>' +
+                            '<td class="esp-val" data-comp="' + nome + '" contenteditable="true">' + fmt(c.tReqMm, 2) + '</td>' +
+                            '<td contenteditable="true">' + fmt(tIn, 2) + '</td>' +
+                        '</tr></tbody></table>' +
+                        '<table class="res-table"><thead><tr><th colspan="3">PMTA CALCULADA (P)</th></tr><tr><th>MPa</th><th>psi</th><th>kgf/cm²</th></tr></thead><tbody><tr>' +
+                            '<td class="pmta-val" data-comp="' + nome + '" contenteditable="true">' + fmt(pmtaMpa, 2) + '</td>' +
+                            '<td contenteditable="true">' + fmt(psi, 2) + '</td>' +
+                            '<td contenteditable="true">' + fmt(kgf, 2) + '</td>' +
+                        '</tr></tbody></table>' +
+                    '</div><div class="comp-inputs">' +
+                        row('EFICIÊNCIA DA JUNTA (E)', fmt(c.E, 2)) +
+                        row('ESP. COMERCIAL (Tnom)', c.tNom != null ? fmt(c.tNom, 2) + ' mm' : '--') +
+                        row('MARGEM CORROSÃO (c)', c.ca != null ? fmt(c.ca, 2) + ' mm' : '--') +
+                        row('RAIO / DIÂMETRO', c.raio != null ? fmt(c.raio, 2) + ' mm' : '--') +
+                        row('MATERIAL', c.material || '--') +
+                        row('TENSÃO (S)', c.S != null ? fmt(c.S, 2) + ' MPa' : '--') +
+                        '<div class="formula-box"><div class="f-form">' + esc(c.formulaT || '') + '</div><div class="f-form">' + esc(c.formulaP || '') + '</div></div>' +
+                    '</div></div>';
+                cont.insertAdjacentHTML('beforeend', html);
             });
-            const optExcluir = document.createElement('option');
-            optExcluir.value = 'excluir';
-            optExcluir.textContent = 'Excluir Assinatura';
-            optExcluir.style.color = '#dc2626';
-            optExcluir.style.fontWeight = '700';
-            sel.appendChild(optExcluir);
+            return true;
         }
-
-        function atualizarAssinatura() {
-            const sel = document.getElementById('select-ph');
-            const wrapper = document.getElementById('sig-wrapper-engenheiro');
-            if (sel.value === 'excluir') {
-                if (wrapper) wrapper.classList.add('sig-excluida');
-                return;
-            }
-            if (wrapper) wrapper.classList.remove('sig-excluida');
-            const lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
-            const ph = lista.find(p => String(p.id) === String(sel.value));
-            const img = document.getElementById('img-assinatura-ph');
-            const nome = document.getElementById('nome-ph');
-            const crea = document.getElementById('crea-ph');
-            if (ph) {
-                nome.textContent = ph.nome;
-                crea.textContent = ph.crea || '';
-                if (ph.assinatura) { img.src = ph.assinatura; img.style.display = 'block'; }
-                else { img.style.display = 'none'; img.src = ''; }
-            } else {
-                nome.textContent = 'Nome do Engenheiro';
-                crea.textContent = 'ES-000000/D';
-                img.style.display = 'none'; img.src = '';
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', function() {
-            carregarPHsParaSelect();
-        });
     </script>
+
 </body>
 </html>

@@ -92,8 +92,8 @@
         .f-grid-1-2 { grid-template-columns: 1.5fr 1fr; }
 
         .f { display: flex; align-items: center; border: 1px solid #ededed; background: #fff; padding: 2px 6px; min-height: 22px; }
-        .f-lbl { font-size: 8px; font-weight: 900; color: var(--text-dark); white-space: nowrap; text-transform: uppercase; margin-right: 6px; }
-        .f-val { flex: 1; font-size: 10px; font-weight: 700; color: var(--blue-data); overflow: hidden; white-space: nowrap; }
+        .f-lbl { font-size: 9px; font-weight: 900; color: var(--text-dark); white-space: nowrap; text-transform: uppercase; margin-right: 6px; }
+        .f-val { flex: 1; font-size: 11px; font-weight: 700; color: var(--blue-data); overflow: hidden; white-space: nowrap; }
         .f-val[contenteditable="true"]:hover { background-color: var(--highlight-yellow); outline: 1px dashed var(--blue-data); cursor: text; }
 
         /* =========================================
@@ -155,8 +155,8 @@
            PARECER TÉCNICO
            ========================================= */
         .parecer-container { display: flex; flex-direction: column; flex-grow: 1; }
-        .parecer-section { flex-grow: 1; display: flex; min-height: 35px; }
-        .parecer-section textarea { font-family: 'Inter', sans-serif; color: #111827; font-weight: 600; width: 100%; height: 100%; resize: none; font-size: 11px; line-height: 1.5; border: 1px dashed transparent; outline: none; overflow: hidden; }
+        .parecer-section { flex-grow: 1; display: flex; flex-direction: column; min-height: 35px; border: 1px solid #e0e0e0; padding: 4px 6px; }
+        .parecer-section textarea { font-family: 'Inter', sans-serif; color: #111827; font-weight: 600; width: 100%; flex: 1 1 auto; min-height: 0; height: 100%; resize: none; font-size: 11px; line-height: 1.5; border: 1px dashed transparent; outline: none; overflow-y: auto; }
 
         /* =========================================
            ASSINATURA FORMATADA E SELETOR
@@ -303,44 +303,14 @@
             <div class="f"><span class="f-lbl">VALIDADE</span><div class="f-val" contenteditable="true">--</div></div>
         </div>
         <div style="display: flex; align-items: center; gap: 8px; border: 1px solid #ededed; padding: 4px; margin-bottom: 4px; background: #fff;">
-            <img src="../icon/imetro.png" style="height: 25px; object-fit: contain;" alt="Selo Inmetro">
-            <span style="font-size: 8.5px; line-height: 1.1; color: #111827;">O instrumento de medição utilizado foi calibrado por laboratório acreditado pelo INMETRO, com certificado de calibração válido, garantindo a rastreabilidade metrológica e a confiabilidade dos resultados.</span>
+            <img src="../icon/imetro.webp" style="height: 25px; object-fit: contain;" alt="Selo Inmetro">
+            <span style="font-size: 9px; line-height: 1.15; color: #111827;">O instrumento de medição utilizado foi calibrado por laboratório acreditado pelo INMETRO, com certificado de calibração válido, garantindo a rastreabilidade metrológica e a confiabilidade dos resultados.</span>
         </div>
 
         <div class="parecer-container">
             <div class="section-title">PARECER TÉCNICO</div>
             <div class="parecer-section">
-                <textarea maxlength="400" placeholder="Clique aqui para digitar o parecer técnico e a conclusão do teste hidrostático..." spellcheck="false"></textarea>
-            </div>
-        </div>
-
-        <div class="signature-wrapper-tecnico" id="sig-wrapper-tecnico">
-            <div class="no-print select-ph-box">
-                <select id="select-tecnico" onchange="atualizarAssinaturaTecnico()">
-                    <option value="">Assinar...</option>
-                </select>
-            </div>
-            <img id="img-assinatura-tecnico" class="sig-img" src="" alt="Assinatura Técnico" style="display:none;">
-            <div class="signature-line"></div>
-            <div class="sig-data">
-                <strong>TÉCNICO RESPONSÁVEL</strong><br>
-                <span id="nome-tecnico" class="data-highlight" contenteditable="true" spellcheck="false">Nome do Técnico</span><br>
-                Registro: <span id="crea-tecnico" class="data-highlight" contenteditable="true" spellcheck="false">000000</span>
-            </div>
-        </div>
-
-        <div class="signature-wrapper" id="sig-wrapper-engenheiro">
-            <div class="no-print select-ph-box">
-                <select id="select-ph" onchange="atualizarAssinatura()">
-                    <option value="">Assinar...</option>
-                </select>
-            </div>
-            <img id="img-assinatura-ph" class="sig-img" src="" alt="Assinatura PH" style="display:none;">
-            <div class="signature-line"></div>
-            <div class="sig-data">
-                <strong>ENGENHEIRO RESPONSÁVEL</strong><br>
-                <span id="nome-ph" class="data-highlight" contenteditable="true" spellcheck="false">Nome do Engenheiro</span><br>
-                CREA/RNP: <span id="crea-ph" class="data-highlight" contenteditable="true" spellcheck="false">ES-000000/D</span>
+                <textarea placeholder="Clique aqui para digitar o parecer técnico e a conclusão do teste hidrostático..." spellcheck="false"></textarea>
             </div>
         </div>
 
@@ -438,9 +408,13 @@
                     const yWarn    = Math.max(top,    y.getPixelForValue(testPressure * 0.50));
                     const yPtLine  = Math.max(top - 1, y.getPixelForValue(testPressure));
 
-                    // Zona crítica — vermelho leve (acima de 80% PT)
+                    // Topo das zonas = linha de Pressão de Teste. Acima da PT é campo em branco
+                    // (sem cor), pois ali não há mais pressurização representada.
+                    const yTopo = Math.max(top, yPtLine);
+
+                    // Zona crítica — vermelho leve (PT até 80% PT)
                     c.fillStyle = 'rgba(220, 38, 38, 0.07)';
-                    c.fillRect(left, top, right - left, yCrit - top);
+                    c.fillRect(left, yTopo, right - left, yCrit - yTopo);
 
                     // Zona de atenção — amarelo leve (50–80% PT)
                     c.fillStyle = 'rgba(202, 138, 4, 0.06)';
@@ -724,9 +698,6 @@
         document.addEventListener("DOMContentLoaded", function() {
             generateTableRows();
             initChart();
-            carregarPHsParaSelect();
-            addImageBox();
-            addImageBox();
 
             // Auto-Fill Empresa
             const salvo = localStorage.getItem('nr13_minha_empresa');
@@ -885,9 +856,6 @@
             }
         }
 
-        document.addEventListener('DOMContentLoaded', function() {
-            carregarTecnicosParaSelect();
-        });
     </script>
 </body>
 </html>

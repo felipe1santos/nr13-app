@@ -37,11 +37,14 @@ const ICONES: Record<TipoEnsaio, React.ReactNode> = {
 
 interface Props {
   onClose: () => void;
-  onCriar: (ensaios: TipoEnsaio[]) => void;
+  onCriar: (ensaios: TipoEnsaio[], nome: string) => void;
+  // ao só adicionar ensaios a um container existente, o nome já existe — não pedir de novo
+  pedirNome?: boolean;
 }
 
-export default function ModalNovaInspecaoContainer({ onClose, onCriar }: Props) {
+export default function ModalNovaInspecaoContainer({ onClose, onCriar, pedirNome = true }: Props) {
   const [marcados, setMarcados] = useState<TipoEnsaio[]>([]);
+  const [nome, setNome] = useState('');
 
   function toggle(ensaio: TipoEnsaio) {
     setMarcados((m) => (m.includes(ensaio) ? m.filter((e) => e !== ensaio) : [...m, ensaio]));
@@ -57,6 +60,18 @@ export default function ModalNovaInspecaoContainer({ onClose, onCriar }: Props) 
           </button>
         </div>
         <div className="modal-body">
+          {pedirNome && (
+            <label className="campo-nome-container" style={{ display: 'block', marginBottom: 14 }}>
+              <span style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Nome do container</span>
+              <input
+                type="text"
+                value={nome}
+                onChange={(e) => setNome(e.target.value)}
+                placeholder="Ex.: Inspeção periódica 2026"
+                style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid var(--border-solid)', fontSize: 14 }}
+              />
+            </label>
+          )}
           <fieldset className="tipo-equipamento-fieldset">
             <legend>Ensaios a atribuir a este container</legend>
             {ENSAIOS_DISPONIVEIS.map((e) => (
@@ -74,8 +89,8 @@ export default function ModalNovaInspecaoContainer({ onClose, onCriar }: Props) 
             <button type="button" className="btn-secundario" onClick={onClose}>
               Cancelar
             </button>
-            <button type="button" className="btn-primario" onClick={() => onCriar(marcados)} disabled={marcados.length === 0}>
-              Criar Container
+            <button type="button" className="btn-primario" onClick={() => onCriar(marcados, nome)} disabled={marcados.length === 0}>
+              {pedirNome ? 'Criar Container' : 'Adicionar'}
             </button>
           </div>
         </div>

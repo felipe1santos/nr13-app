@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prontuário do Vaso de Pressão — Caracterização</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --azul: #003366;
+            --text-dark: #111827;
+            --blue-data: #003366;
+            --bg-table-header: #f5f5f5;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', sans-serif; background: #fff; color: #000; font-size: 12px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+        .a4-page { background: #fff; width: 210mm; height: 297mm; padding: 12mm 15mm; position: relative; overflow: hidden; display: flex; flex-direction: column; }
+        .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-20deg); width: 70%; opacity: 0.07; z-index: 0; pointer-events: none; }
+        .watermark-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-20deg); font-size: 80px; font-weight: 900; color: var(--azul); opacity: 0.04; z-index: 0; pointer-events: none; white-space: nowrap; text-transform: uppercase; }
+        .content-wrapper { position: relative; z-index: 1; display: flex; flex-direction: column; flex: 1; }
+
+        /* ===== CABEÇALHO (padrão das folhas do prontuário) ===== */
+        .header-container { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+        .header-text { flex: 1; padding-right: 16px; }
+        h1 { font-size: 15px; text-align: center; text-transform: uppercase; margin-bottom: 6px; }
+        .intro-text { text-align: justify; font-size: 9.5px; line-height: 1.35; }
+        .logo-img { max-width: 100px; height: auto; object-fit: contain; }
+
+        /* ===== TÍTULO DE SEÇÃO (barra azul padrão) ===== */
+        .section-title { background-color: var(--azul); color: #fff; padding: 5px 8px; font-size: 11px; font-weight: bold; text-align: center; text-transform: uppercase; margin: 8px 0 4px; }
+
+        /* ===== TABELAS GERAIS ===== */
+        .content-table { width: 100%; border-collapse: collapse; text-align: center; margin-bottom: 4px; font-size: 11px; border: 1px solid #888; }
+        .content-table td { border: 1px solid #aaa; padding: 5px 7px; vertical-align: middle; }
+        .label-cell { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-dark); background-color: var(--bg-table-header); text-align: left; padding: 5px 7px !important; white-space: nowrap; }
+        .value-cell { font-size: 11px; font-weight: 600; color: var(--blue-data); text-align: left; padding: 5px 7px !important; }
+
+        /* ===== PRESSÃO (PMO/PMTA/PTH) ===== */
+        .pressure-wrapper { display: flex; gap: 8px; margin-bottom: 4px; }
+        .pressure-block { flex: 1; border: 1px solid #888; }
+        .pressure-block table { width: 100%; border-collapse: collapse; }
+        .pressure-block .pres-title { background-color: var(--bg-table-header); font-size: 11px; font-weight: 900; text-align: center; padding: 4px; border-bottom: 1px solid #aaa; text-transform: uppercase; }
+        .pressure-block td { border: 1px solid #aaa; text-align: center; padding: 5px 6px; font-size: 11px; }
+        .col-hdr { background-color: var(--bg-table-header); font-size: 10px; font-weight: 700; text-transform: uppercase; }
+        .col-val { color: var(--blue-data); font-weight: 600; }
+
+        /* ===== CATEGORIZAÇÃO ===== */
+        .cat-table { width: 100%; border-collapse: collapse; margin-bottom: 4px; font-size: 11px; border: 1px solid #888; }
+        .cat-table td { border: 1px solid #aaa; padding: 5px 7px; vertical-align: middle; }
+        .cat-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; background-color: var(--bg-table-header); white-space: nowrap; }
+        .cat-val { color: var(--blue-data); font-weight: 600; text-align: center; }
+        .cat-result { font-size: 10px; font-weight: 700; text-transform: uppercase; text-align: center; }
+        .cat-destacado { font-size: 12px; font-weight: 900; text-align: center; color: var(--text-dark); border: 1px solid #555 !important; }
+
+        /* ===== LEGENDA ===== */
+        .legend-table { width: 100%; border-collapse: collapse; margin-bottom: 4px; font-size: 10.5px; }
+        .legend-table td { border: 1px solid #aaa; padding: 5px 8px; text-align: center; font-weight: 500; color: var(--text-dark); }
+        .legend-table td strong { font-weight: 700; text-transform: uppercase; }
+
+        [contenteditable="true"] { outline: none; transition: background-color 0.2s; }
+        [contenteditable="true"]:hover, [contenteditable="true"]:focus { background-color: #fdfad2; outline: 1px dashed var(--azul); cursor: text; }
+
+        @media print { body { background: #fff; } .a4-page { box-shadow: none; width: 100%; height: 100%; } [contenteditable="true"]:hover { background-color: transparent !important; outline: none !important; } }
+    </style>
+</head>
+<body>
+<div class="a4-page">
+    <img id="img-watermark" class="watermark" alt="" style="display:none">
+    <div id="wm-text" class="watermark-text">PRONTUÁRIO</div>
+
+    <div class="content-wrapper">
+        <!-- ========== CABEÇALHO ========== -->
+        <div class="header-container">
+            <div class="header-text">
+                <h1>Prontuário do Vaso de Pressão</h1>
+                <p class="intro-text">Caracterização do equipamento — dados gerais, aspectos construtivos e operacionais, pressões de trabalho e categorização conforme Norma Regulamentadora NR-13.</p>
+            </div>
+            <img id="img-logo" class="logo-img" alt="Logo" style="display:none">
+        </div>
+
+        <!-- ========== DADOS GERAIS ========== -->
+        <div class="section-title">Dados Gerais</div>
+        <table class="content-table">
+            <tr>
+                <td class="label-cell" style="width:22%;">CONTRATANTE</td>
+                <td class="value-cell" colspan="3" id="pront-contratante" contenteditable="true" spellcheck="false">--</td>
+            </tr>
+            <tr>
+                <td class="label-cell">ENDEREÇO</td>
+                <td class="value-cell" colspan="3" id="pront-endereco" contenteditable="true" spellcheck="false">--</td>
+            </tr>
+        </table>
+
+        <!-- ========== ASPECTOS GERAIS DO EQUIPAMENTO ========== -->
+        <div class="section-title">Aspectos Gerais do Equipamento</div>
+        <table class="content-table">
+            <tr>
+                <td class="label-cell" style="width:22%;">IDENTIFICAÇÃO</td>
+                <td class="value-cell" style="width:28%;" id="pront-identificacao" contenteditable="true" spellcheck="false">--</td>
+                <td class="label-cell" style="width:22%;">Nº DE SÉRIE</td>
+                <td class="value-cell" style="width:28%;" id="pront-serie" contenteditable="true" spellcheck="false">--</td>
+            </tr>
+            <tr>
+                <td class="label-cell">TIPO DE EQUIPAMENTO</td>
+                <td class="value-cell" colspan="3" id="pront-tipo" contenteditable="true" spellcheck="false">--</td>
+            </tr>
+            <tr>
+                <td class="label-cell">FABRICANTE</td>
+                <td class="value-cell" colspan="3" id="pront-fabricante" contenteditable="true" spellcheck="false">--</td>
+            </tr>
+            <tr>
+                <td class="label-cell">CÓDIGO DE PROJETO</td>
+                <td class="value-cell" colspan="3" contenteditable="true" spellcheck="false">--</td>
+            </tr>
+            <tr>
+                <td class="label-cell">ANO DE FABRICAÇÃO</td>
+                <td class="value-cell" id="pront-ano" contenteditable="true" spellcheck="false">--</td>
+                <td class="label-cell">EDIÇÃO</td>
+                <td class="value-cell" contenteditable="true" spellcheck="false">--</td>
+            </tr>
+        </table>
+
+        <!-- ========== ASPECTOS CONSTRUTIVOS ========== -->
+        <div class="section-title">Aspectos Construtivos</div>
+        <table class="content-table">
+            <tr>
+                <td class="label-cell" style="width:26%;">MATERIAL DO CORPO</td>
+                <td class="value-cell" style="width:24%;" id="pront-mat-corpo" contenteditable="true" spellcheck="false">--</td>
+                <td class="label-cell" style="width:26%;">MATERIAL DO TAMPO 1</td>
+                <td class="value-cell" style="width:24%;" id="pront-mat-tampo1" contenteditable="true" spellcheck="false">--</td>
+            </tr>
+            <tr>
+                <td class="label-cell">TIPO DE CONSTRUÇÃO</td>
+                <td class="value-cell" contenteditable="true" spellcheck="false">--</td>
+                <td class="label-cell">MATERIAL DO TAMPO 2</td>
+                <td class="value-cell" id="pront-mat-tampo2" contenteditable="true" spellcheck="false">--</td>
+            </tr>
+            <tr>
+                <td class="label-cell">VOLUME (m³)</td>
+                <td class="value-cell" id="pront-volume" contenteditable="true" spellcheck="false">--</td>
+                <td class="label-cell">PRESSÃO DE PROJETO (psi)</td>
+                <td class="value-cell" id="pront-pressao-proj" contenteditable="true" spellcheck="false">--</td>
+            </tr>
+            <tr>
+                <td class="label-cell">MARGEM DE CORROSÃO (mm)</td>
+                <td class="value-cell" id="pront-margem-corrosao" contenteditable="true" spellcheck="false">--</td>
+                <td class="label-cell">TEMPERATURA DE PROJETO (°C)</td>
+                <td class="value-cell" id="pront-temp-proj" contenteditable="true" spellcheck="false">--</td>
+            </tr>
+            <tr>
+                <td class="label-cell">DESCRIÇÃO RESUMIDA</td>
+                <td class="value-cell" colspan="3" contenteditable="true" spellcheck="false">--</td>
+            </tr>
+        </table>
+
+        <!-- ========== ASPECTOS OPERACIONAIS ========== -->
+        <div class="section-title">Aspectos Operacionais</div>
+        <table class="content-table" style="margin-bottom:6px;">
+            <tr>
+                <td class="label-cell" style="width:26%;">FLUIDO DE OPERAÇÃO</td>
+                <td class="value-cell" colspan="3" id="pront-fluido" contenteditable="true" spellcheck="false">--</td>
+            </tr>
+        </table>
+
+        <div class="pressure-wrapper">
+            <div class="pressure-block">
+                <div class="pres-title">PMO</div>
+                <table>
+                    <tr><td class="col-hdr">MPa</td><td class="col-hdr">psi</td><td class="col-hdr">kgf/cm²</td></tr>
+                    <tr>
+                        <td class="col-val" id="pront-pmo-mpa" contenteditable="true" spellcheck="false">--</td>
+                        <td class="col-val" id="pront-pmo-psi" contenteditable="true" spellcheck="false">--</td>
+                        <td class="col-val" id="pront-pmo-kgf" contenteditable="true" spellcheck="false">--</td>
+                    </tr>
+                </table>
+            </div>
+            <div class="pressure-block">
+                <div class="pres-title">PMTA</div>
+                <table>
+                    <tr><td class="col-hdr">MPa</td><td class="col-hdr">psi</td><td class="col-hdr">kgf/cm²</td></tr>
+                    <tr>
+                        <td class="col-val" id="pront-pmta-mpa" contenteditable="true" spellcheck="false">--</td>
+                        <td class="col-val" id="pront-pmta-psi" contenteditable="true" spellcheck="false">--</td>
+                        <td class="col-val" id="pront-pmta-kgf" contenteditable="true" spellcheck="false">--</td>
+                    </tr>
+                </table>
+            </div>
+            <div class="pressure-block">
+                <div class="pres-title">PTH</div>
+                <table>
+                    <tr><td class="col-hdr">MPa</td><td class="col-hdr">psi</td><td class="col-hdr">kgf/cm²</td></tr>
+                    <tr>
+                        <td class="col-val" id="pront-pth-mpa" contenteditable="true" spellcheck="false">--</td>
+                        <td class="col-val" id="pront-pth-psi" contenteditable="true" spellcheck="false">--</td>
+                        <td class="col-val" id="pront-pth-kgf" contenteditable="true" spellcheck="false">--</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- ========== CATEGORIZAÇÃO DO EQUIPAMENTO ========== -->
+        <div class="section-title">Categorização do Equipamento</div>
+        <table class="cat-table">
+            <tr>
+                <td class="cat-lbl" style="width:29%;">RELAÇÃO: P (kPa) x V (m³)</td>
+                <td class="cat-val" style="width:12%;" id="pront-pv-kpa" contenteditable="true" spellcheck="false">--</td>
+                <td class="cat-lbl" style="width:12%;">RESULTADO</td>
+                <td class="cat-result" style="width:33%;" id="pront-result-kpa" contenteditable="true" spellcheck="false">--</td>
+                <td class="cat-destacado" style="width:14%;" rowspan="2" id="pront-categorizado" contenteditable="true" spellcheck="false">--</td>
+            </tr>
+            <tr>
+                <td class="cat-lbl">RELAÇÃO: P (MPa) x V (m³)</td>
+                <td class="cat-val" id="pront-pv-mpa" contenteditable="true" spellcheck="false">--</td>
+                <td class="cat-lbl">RESULTADO</td>
+                <td class="cat-result" id="pront-result-mpa" contenteditable="true" spellcheck="false">--</td>
+            </tr>
+            <tr>
+                <td class="cat-lbl">CLASSIFICAÇÃO DO FLUIDO</td>
+                <td class="cat-val" id="pront-classe-fluido" contenteditable="true" spellcheck="false">--</td>
+                <td class="cat-lbl">GRUPO POTENCIAL DE RISCO</td>
+                <td class="cat-val" id="pront-grupo" contenteditable="true" spellcheck="false">--</td>
+                <td style="text-align:center; font-weight:700;">
+                    <span style="font-size:10px;font-weight:700;text-transform:uppercase;">CATEGORIA</span>&nbsp;
+                    <span style="color:var(--blue-data);font-size:13px;font-weight:900;" id="pront-categoria" contenteditable="true" spellcheck="false">--</span>
+                </td>
+            </tr>
+        </table>
+
+        <!-- ========== LEGENDA ========== -->
+        <div class="section-title">Legenda</div>
+        <table class="legend-table">
+            <tr>
+                <td style="width:33.3%;" contenteditable="true" spellcheck="false"><strong>PMO</strong> &mdash; Pressão Máxima de Operação</td>
+                <td style="width:33.3%;" contenteditable="true" spellcheck="false"><strong>PMTA</strong> &mdash; Pressão Máxima de Trabalho Admissível</td>
+                <td style="width:33.3%;" contenteditable="true" spellcheck="false"><strong>PTH</strong> &mdash; Pressão de Teste Hidrostático</td>
+            </tr>
+        </table>
+    </div>
+</div>
+
+<script>
+    // ===== LOGO + MARCA D'ÁGUA (padrão das folhas do prontuário) =====
+    document.addEventListener("DOMContentLoaded", function() {
+        var logo = null;
+        try { logo = (JSON.parse(localStorage.getItem('nr13_prontuario_atual') || '{}')).logo; } catch (_) {}
+        if (!logo) { try { logo = (JSON.parse(localStorage.getItem('nr13_minha_empresa') || '{}')).logo; } catch (_) {} }
+        if (logo) {
+            [document.getElementById('img-logo'), document.getElementById('img-watermark')].forEach(function(img){ if (img) { img.src = logo; img.style.display = 'block'; } });
+            var wm = document.getElementById('wm-text'); if (wm) wm.style.display = 'none';
+        }
+    });
+</script>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const tagAtual = urlParams.get('tag');
+        if (!tagAtual) return;
+
+        const setVal = (id, val) => {
+            if (document.getElementById(id) && val !== undefined && val !== null && val !== '') {
+                document.getElementById(id).innerText = val;
+            }
+        };
+
+        const info = JSON.parse(localStorage.getItem('nr13_info_' + tagAtual) || '{}');
+        const emp = JSON.parse(localStorage.getItem('nr13_emp_' + tagAtual) || '{}');
+        const cat = JSON.parse(localStorage.getItem('nr13_cat_' + tagAtual) || '{}');
+        const calc = JSON.parse(localStorage.getItem('nr13_calc_' + tagAtual) || '{}');
+
+        function lerJSON(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
+        function resolverVaso(tag) {
+            const keys = ['nr13_vaso_' + tag, 'nr13_vaso_ac_corpo_' + tag, 'nr13_vaso_gv_' + tag];
+            for (let i = 0; i < keys.length; i++) {
+                const o = lerJSON(keys[i]);
+                if (o && Array.isArray(o.componentes) && o.componentes.length) return o;
+            }
+            return null;
+        }
+        function sintetizarCaldeira(tag, info) {
+            if (info.subtipo === 'aquatubular') {
+                const sup = lerJSON('nr13_caldeira_aqua_tubulaoSup_' + tag) || {};
+                const fundo = lerJSON('nr13_caldeira_aqua_fundoEliptico_' + tag) || {};
+                return { P: sup.pressao, componentes: [
+                    { id: 'casco', dados: { mat: sup.material, ca: sup.ca, temp: sup.temperatura, t_comercial: sup.t_comercial } },
+                    { id: 'tampo1', dados: { mat: fundo.material } },
+                ] };
+            }
+            const cost = lerJSON('nr13_caldeira_dados_costado_' + tag) || {};
+            const tampo = lerJSON('nr13_caldeira_dados_tampo_' + tag) || {};
+            const espelho = lerJSON('nr13_caldeira_dados_espelho_' + tag) || {};
+            return { P: cost.pressao, componentes: [
+                { id: 'casco', dados: { mat: cost.material, ca: cost.ca, temp: cost.temperatura, t_comercial: cost.t_comercial } },
+                { id: 'tampo1', dados: { mat: tampo.material } },
+                { id: 'tampo2', dados: { mat: espelho.material } },
+            ] };
+        }
+        let dados3D = resolverVaso(tagAtual);
+        if (!dados3D && info.tipo === 'caldeira') dados3D = sintetizarCaldeira(tagAtual, info);
+
+        const converterPressaoMult = (mpaStr) => {
+            let v = parseFloat(mpaStr);
+            if (isNaN(v)) return { mpa: '--', psi: '--', kgf: '--' };
+            return {
+                mpa: v.toFixed(2).replace('.', ','),
+                psi: (v * 145.0377).toFixed(2).replace('.', ','),
+                kgf: (v * 10.19716).toFixed(2).replace('.', ',')
+            };
+        };
+
+        // ===== DADOS GERAIS =====
+        setVal('pront-contratante', emp.razaoSocial || emp.nome);
+        let endereco = [];
+        if (emp.endereco) endereco.push(emp.endereco);
+        if (emp.bairro) endereco.push(emp.bairro);
+        if (emp.localidade) endereco.push(emp.localidade);
+        if (endereco.length > 0) setVal('pront-endereco', endereco.join(' - '));
+
+        // ===== ASPECTOS GERAIS DO EQUIPAMENTO =====
+        setVal('pront-identificacao', info.tag || tagAtual);
+        setVal('pront-serie', info.numeroSerie || info.serie);
+        setVal('pront-tipo', info.descricao || info.tipo);
+        setVal('pront-fabricante', info.fabricante);
+        setVal('pront-ano', info.ano);
+
+        // ===== ASPECTOS CONSTRUTIVOS =====
+        if (dados3D && Array.isArray(dados3D.componentes)) {
+            var compCasco  = dados3D.componentes.find(function(c) { return c.id === 'casco'; });
+            var compTampo1 = dados3D.componentes.find(function(c) { return c.id === 'tampo1'; });
+            var compTampo2 = dados3D.componentes.find(function(c) { return c.id === 'tampo2'; });
+
+            if (compCasco && compCasco.dados) {
+                setVal('pront-mat-corpo', compCasco.dados.mat);
+                if (compCasco.dados.ca !== undefined) setVal('pront-margem-corrosao', String(compCasco.dados.ca).replace('.', ','));
+                if (compCasco.dados.temp !== undefined) setVal('pront-temp-proj', parseFloat(compCasco.dados.temp).toFixed(0));
+            }
+            if (compTampo1 && compTampo1.dados) setVal('pront-mat-tampo1', compTampo1.dados.mat);
+            if (compTampo2 && compTampo2.dados) setVal('pront-mat-tampo2', compTampo2.dados.mat);
+        }
+
+        if (dados3D && dados3D.P) {
+            setVal('pront-pressao-proj', (parseFloat(dados3D.P) * 145.0377).toFixed(2).replace('.', ','));
+        }
+        if (cat.volInput) setVal('pront-volume', String(cat.volInput).replace('.', ','));
+
+        // ===== ASPECTOS OPERACIONAIS (FLUIDO + PMO/PMTA/PTH) =====
+        setVal('pront-fluido', cat.fluidoInput || info.fluido);
+
+        const pmtaMpa = parseFloat(calc.pmta) || 0;
+        const pthMpa = parseFloat(calc.pth) || (pmtaMpa * 1.3);
+
+        const FATOR_UNID = { SI: 1, TECNICO: 10.19716, PETROBRAS: 10 };
+        let pmoMpa = 0;
+        if (cat.presInput) {
+            const f = FATOR_UNID[cat.unidInput] || 1;
+            pmoMpa = parseFloat(cat.presInput) / f;
+        }
+        if (!pmoMpa) pmoMpa = pmtaMpa;
+
+        if (pmoMpa) {
+            const convPmo = converterPressaoMult(pmoMpa);
+            setVal('pront-pmo-mpa', convPmo.mpa);
+            setVal('pront-pmo-psi', convPmo.psi);
+            setVal('pront-pmo-kgf', convPmo.kgf);
+        }
+        if (pmtaMpa) {
+            const convPmta = converterPressaoMult(pmtaMpa);
+            setVal('pront-pressao-proj', convPmta.psi);
+            setVal('pront-pmta-mpa', convPmta.mpa);
+            setVal('pront-pmta-psi', convPmta.psi);
+            setVal('pront-pmta-kgf', convPmta.kgf);
+        }
+        if (pthMpa) {
+            const convPth = converterPressaoMult(pthMpa);
+            setVal('pront-pth-mpa', convPth.mpa);
+            setVal('pront-pth-psi', convPth.psi);
+            setVal('pront-pth-kgf', convPth.kgf);
+        }
+
+        // ===== CATEGORIZAÇÃO DO EQUIPAMENTO (NR-13) =====
+        const vol_m3 = parseFloat(info.volume) || parseFloat(cat.volInput) || 0;
+        const temDadosCategorizacao = !!cat.classe || pmtaMpa > 0 || vol_m3 > 0;
+
+        if (temDadosCategorizacao) {
+            const pv_kpa = pmtaMpa * 1000 * vol_m3;
+            const pv_mpa = pmtaMpa * vol_m3;
+            const atendePV = pv_kpa > 8;
+            const classe = cat.classe || 'A';
+            const isNR13 = (atendePV || classe === 'A');
+
+            let grupo = 5;
+            if (pv_mpa >= 100) grupo = 1;
+            else if (pv_mpa >= 30) grupo = 2;
+            else if (pv_mpa >= 2.5) grupo = 3;
+            else if (pv_mpa >= 1) grupo = 4;
+
+            const tabCategoria = {
+                'A': {1:'I',  2:'I',   3:'II',  4:'III', 5:'III'},
+                'B': {1:'I',  2:'II',  3:'III', 4:'IV',  5:'IV'},
+                'C': {1:'I',  2:'II',  3:'III', 4:'IV',  5:'V'},
+                'D': {1:'II', 2:'III', 3:'IV',  4:'V',   5:'V'}
+            };
+            const categoriaFinal = (tabCategoria[classe] && tabCategoria[classe][grupo]) || cat.catFinal || '--';
+
+            const faixaGrupo = { 1: 'PV ≥ 100', 2: '30 ≤ PV < 100', 3: '2,5 ≤ PV < 30', 4: '1 ≤ PV < 2,5', 5: 'PV < 1' };
+
+            setVal('pront-pv-kpa', pv_kpa.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+            setVal('pront-pv-mpa', pv_mpa.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+            setVal('pront-result-kpa', atendePV ? 'P (kPa) x V (m³) > 8' : 'P (kPa) x V (m³) ≤ 8');
+            setVal('pront-result-mpa', faixaGrupo[grupo]);
+            setVal('pront-categorizado', isNR13 ? 'CATEGORIZADO' : 'NÃO CATEGORIZADO');
+            setVal('pront-classe-fluido', classe);
+            setVal('pront-grupo', grupo);
+            setVal('pront-categoria', categoriaFinal);
+        }
+    });
+</script>
+</body>
+</html>

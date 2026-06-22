@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Campo from './Campo';
 import MemorialLog from './MemorialLog';
 import MemorialVaso from './MemorialVaso';
@@ -46,6 +46,23 @@ function MemorialAutoclaveInner({ tag, subtipo }: Props) {
   const [resultado, setResultado] = useState<ResultadoCalculo | null>(null);
   const [calcCount, setCalcCount] = useState(0);
   const [salvando, setSalvando] = useState(false);
+  const [dirty, setDirty] = useState(false);
+
+  const montou = useRef(false);
+  useEffect(() => {
+    if (montou.current) setDirty(true);
+    else montou.current = true;
+  }, [dados]);
+
+  useEffect(() => {
+    function aviso(e: BeforeUnloadEvent) {
+      if (!dirty) return;
+      e.preventDefault();
+      e.returnValue = '';
+    }
+    window.addEventListener('beforeunload', aviso);
+    return () => window.removeEventListener('beforeunload', aviso);
+  }, [dirty]);
 
   function set(chave: keyof DadosAutoclave, valor: number) {
     setDados((d) => ({ ...d, [chave]: valor }));
@@ -73,6 +90,7 @@ function MemorialAutoclaveInner({ tag, subtipo }: Props) {
     try {
       await salvarDadosAutoclave(tag, subtipo, dados);
       await salvarResultadoAutoclave(tag, resultado);
+      setDirty(false);
       window.alert('Memorial salvo com sucesso!');
     } finally {
       setSalvando(false);
@@ -147,7 +165,7 @@ function MemorialAutoclaveInner({ tag, subtipo }: Props) {
             <span className="calc-terminal-label">Memória de Cálculo — {abaLabel}</span>
             <button
               type="button"
-              className="btn-primario"
+              className={`btn-primario ${salvando ? 'is-loading' : ''}`}
               onClick={salvar}
               disabled={!resultado || salvando}
               style={{ opacity: resultado ? 1 : 0.4, fontSize: 12 }}

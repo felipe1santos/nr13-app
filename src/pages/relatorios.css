@@ -211,10 +211,18 @@
   font-weight: 500;
 }
 
+.meta-table-wrap {
+  margin-top: 14px;
+  overflow-x: auto;
+  border: 1px solid var(--border-solid);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
+}
+
 .meta-table {
   width: 100%;
+  min-width: 880px;
   border-collapse: collapse;
-  margin-top: 14px;
 }
 
 .meta-table thead {
@@ -292,25 +300,32 @@
 .acoes-relatorio-icones {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   white-space: nowrap;
 }
 
 .btn-icone {
-  width: 30px;
-  height: 30px;
-  display: flex;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: none;
+  flex-shrink: 0;
+  border: 1px solid transparent;
   background: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: background var(--t-fast), border-color var(--t-fast), transform var(--t-fast);
 }
 
 .btn-icone:hover {
-  background: var(--bg-body);
+  background: var(--bg-soft);
+  border-color: var(--border-solid);
+  transform: translateY(-1px);
+}
+
+.btn-icone svg {
+  display: block;
 }
 
 .btn-icone.cor-cinza {
@@ -362,18 +377,167 @@
   letter-spacing: 0.02em;
 }
 
+/* ── Toolbar de ações (4 botões) ── */
+.meta-barra-fixa .barra-btn {
+  height: 34px;
+  font-size: 13px;
+  padding: 0 16px;
+  white-space: nowrap;
+}
+
+/* ── Modo "pré-visualização da impressão" (preview em tela cheia) ── */
+.preview-impressao-ativa {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  overflow: auto;
+  background: #4b4b4b;
+  padding: 70px 20px 20px;
+  margin: 0;
+  border-radius: 0;
+}
+
+.impressao-acoes {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1300;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 18px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-solid);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.impressao-titulo {
+  font-weight: 700;
+  font-size: 14px;
+  margin-right: auto;
+}
+
+/* ── Modal genérico (Configurações) ── */
+.rel-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.rel-modal {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+
+.rel-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-solid);
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.rel-modal-fechar {
+  border: none;
+  background: transparent;
+  font-size: 18px;
+  cursor: pointer;
+  color: var(--text-muted);
+  line-height: 1;
+}
+
+.rel-modal-corpo {
+  padding: 18px;
+  overflow-y: auto;
+}
+
+.rel-config-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.rel-config-grid .meta-barra-campo input {
+  max-width: none;
+  width: 100%;
+}
+
+.rel-modal-acoes {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--border-solid);
+}
+
+@media (max-width: 600px) {
+  .rel-config-grid { grid-template-columns: 1fr; }
+}
+
 @media print {
   .sidebar,
   .top-bar-system,
   .no-print,
+  .btn-collapse-sidebar,
   .meta-breadcrumb,
   .bloco-dados {
     display: none !important;
   }
 
-  .relatorio-preview {
-    background: #fff;
-    padding: 0;
+  /* imprime SÓ as folhas do relatório: esconde título da página, barra de ações e demais chrome */
+  .relatorios-page > *:not(.relatorio-preview) {
+    display: none !important;
+  }
+
+  /* deixa o conteúdo fluir por todas as páginas (sem clip de scroll/posição fixa) */
+  html, body, .app-layout, .app-body, .main-content, .route-wrapper {
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  .relatorios-page {
+    padding: 0 !important;
+    max-width: none !important;
+    margin: 0 !important;
+  }
+
+  .relatorio-preview,
+  .preview-impressao-ativa {
+    background: #fff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    gap: 0 !important;
+    position: static !important;
+    inset: auto !important;
+    overflow: visible !important;
+    border-radius: 0 !important;
+  }
+
+  .pagina-relatorio-a4 {
+    box-shadow: none !important;
+    border: none !important;
+    break-inside: avoid;
+    page-break-after: always;
+  }
+
+  .pagina-relatorio-a4:last-child {
+    page-break-after: auto;
   }
 }
 

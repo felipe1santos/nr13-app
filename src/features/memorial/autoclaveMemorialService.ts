@@ -1,4 +1,5 @@
 import { ler, salvar } from '../../services/storage';
+import { atualizarCategoriaComPmta } from '../categoria/categoriaService';
 import { formatarMemorialHTML } from './formatarMemorialHTML';
 import { cilindrica, retangular, type DadosAutoclaveCilindrica, type DadosAutoclaveRetangular } from '../../calc/autoclave';
 import type { ResultadoCalculo } from '../../calc/tipos';
@@ -48,8 +49,10 @@ export async function salvarResultadoAutoclave(tag: string, resultado: Resultado
   await salvar(`nr13_calc_${tag}`, {
     pmta: resultado.pmta,
     pth: Number.isFinite(pmta) ? (pmta * 1.3).toFixed(2) : '',
+    ecasco: resultado.t_min,
     memorialHTML: formatarMemorialHTML(resultado.log),
     logCalculo: resultado.log,
     resultado: resultado.resultado,
   });
+  await atualizarCategoriaComPmta(tag, Number.isFinite(pmta) ? pmta : null);
 }

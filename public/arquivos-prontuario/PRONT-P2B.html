@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Prontuário do Vaso de Pressão — Folha 2B</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', sans-serif; background: #fff; color: #000; font-size: 12px; }
+        .a4-page { background: #fff; width: 210mm; height: 297mm; padding: 12mm 15mm; position: relative; overflow: hidden; display: flex; flex-direction: column; }
+        .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-20deg); width: 70%; opacity: 0.07; z-index: 0; pointer-events: none; }
+        .watermark-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-20deg); font-size: 80px; font-weight: 900; color: #003366; opacity: 0.04; z-index: 0; pointer-events: none; white-space: nowrap; text-transform: uppercase; }
+        .content-wrapper { position: relative; z-index: 1; display: flex; flex-direction: column; flex: 1; }
+        .header-container { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+        .header-text { flex: 1; padding-right: 16px; }
+        h1 { font-size: 16px; text-align: center; text-transform: uppercase; margin-bottom: 8px; }
+        .intro-text { text-align: justify; font-size: 10px; line-height: 1.4; }
+        .logo-img { max-width: 110px; height: auto; object-fit: contain; }
+        .section { border: 1px solid #000; margin-bottom: 12px; }
+        .section-title { background-color: #003366; color: #fff; border-bottom: 1px solid #000; padding: 6px 8px; font-size: 12px; font-weight: bold; text-transform: uppercase; text-align: center; }
+        .text-block { padding: 10px 10px; font-size: 11.5px; line-height: 1.65; text-align: justify; }
+        .label { font-weight: bold; font-size: 10.5px; background: #f5f5f5; padding: 1px 4px; display: inline-block; width: fit-content; border-radius: 2px; }
+        .inspection-list { list-style-type: none; padding: 0; margin-top: 8px; }
+        .inspection-list li { margin-bottom: 10px; text-align: justify; font-size: 11.5px; line-height: 1.65; }
+        @media print { body { background: #fff; } .a4-page { box-shadow: none; width: 100%; height: 100%; } }
+    </style>
+</head>
+<body>
+<div class="a4-page">
+    <img id="img-watermark" class="watermark" alt="" style="display:none">
+    <div id="wm-text" class="watermark-text">PRONTUÁRIO</div>
+
+    <div class="content-wrapper">
+        <div class="header-container">
+            <div class="header-text">
+                <h1>Prontuário do Vaso de Pressão</h1>
+                <p class="intro-text">Esse prontuário tem como objetivo compilar as informações referentes ao projeto, fabricação, manutenção do vaso de pressão, bem como informar os cuidados necessários para a correta preservação e manutenção do mesmo.</p>
+            </div>
+            <img id="img-logo" class="logo-img" alt="Logo" style="display:none">
+        </div>
+
+        <div class="section">
+            <div class="section-title">Dispositivos de Segurança</div>
+            <div class="text-block">
+                <span class="label">Válvula de Segurança:</span> Corpo e demais componentes fabricados em latão, mola fabricada com aço mola e elemento de vedação fabricados em silicone ou neoprene. Com pressão máxima de abertura regulada e dimensionada para que não ultrapasse a PMTA.
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Verificações, Calibrações e Inspeção de Segurança</div>
+            <div class="text-block">
+                A fim de garantir maior vida útil do vaso de pressão, o proprietário do mesmo deverá seguir as recomendações a seguir, inclusive no que diz respeito às calibrações e verificações necessárias a serem executadas:
+                <ul class="inspection-list">
+                    <li>➤ Verificar o funcionamento da válvula de segurança <strong>mensalmente</strong>, acionando manualmente a sua alavanca ou outro dispositivo de abertura.</li>
+                    <li>➤ Realizar a aferição e/ou calibração dos dispositivos de segurança preferencialmente <strong>a cada ano</strong> e de preferência realizar a troca da válvula de segurança a <strong>cada 2 (dois) anos</strong>.</li>
+                    <li>➤ Recomenda-se fazer <strong>novo teste hidrostático</strong> no vaso de pressão após <strong>5 (cinco) anos</strong> a contar da data de fabricação, ou quando ocorrer avaria mecânica ou química que possa comprometer a resistência do mesmo. O teste deve ser mediante inspeção e aprovação de profissional habilitado conforme descrito na Norma Regulamentadora NR-13.</li>
+                    <li>➤ Os vasos de pressão devem ser submetidos a inspeções de segurança inicial, periódica e extraordinária. Essas inspeções devem ser realizadas por profissional habilitado, conforme descrito na Norma Regulamentadora NR-13.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var logo = null;
+    try { logo = (JSON.parse(localStorage.getItem('nr13_prontuario_atual') || '{}')).logo; } catch(_) {}
+    if (!logo) { try { logo = (JSON.parse(localStorage.getItem('nr13_minha_empresa') || '{}')).logo; } catch(_) {} }
+    if (logo) {
+        [document.getElementById('img-logo'), document.getElementById('img-watermark')].forEach(function(img){ if(img){ img.src=logo; img.style.display='block'; } });
+        var wm = document.getElementById('wm-text'); if (wm) wm.style.display='none';
+    }
+});
+</script>
+</body>
+</html>

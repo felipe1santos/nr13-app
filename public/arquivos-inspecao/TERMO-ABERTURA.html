@@ -244,12 +244,6 @@
                 setVal('ident-pth', pthKgf ? (pthKgf + ' Kgf/cm²') : null);
 
                 setVal('ident-fluido', info.fluido || cat.fluidoInput);
-
-                let listaPHs = [];
-                try { listaPHs = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]'); } catch (e) {}
-                let meta = {};
-                try { meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}'); } catch (e) {}
-                const ph = listaPHs.find(p => String(p.id) === String(meta.phId));
             }
 
             document.addEventListener('DOMContentLoaded', renderizar);

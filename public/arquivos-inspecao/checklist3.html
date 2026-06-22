@@ -31,13 +31,16 @@
         .info-value:last-child { margin-bottom: 0; }
 
         /* CONTEÚDO */
-        .content { flex: 1; padding-bottom: 36mm; }
+        /* Conteúdo em 2 colunas: perguntas curtas lado a lado; títulos ocupam a largura toda. */
+        .content { flex: 1; padding-bottom: 8mm; column-count: 2; column-gap: 16px; }
         .section-title { font-size: 10px; font-weight: 900; text-transform: uppercase;
-                         background: #f3f4f6; padding: 4px 8px; margin: 7px 0 4px; }
+                         background: #f3f4f6; padding: 4px 8px; margin: 5px 0 5px;
+                         column-span: all; }
 
         /* BLOCO DE PERGUNTA */
-        .q-block { margin-bottom: 6px; padding: 4px 6px; border: 1px solid #e5e7eb; border-radius: 3px; }
-        .q-text { font-size: 10px; font-weight: 700; margin-bottom: 3px; }
+        .q-block { margin-bottom: 6px; padding: 4px 6px; border: none; border-radius: 3px;
+                   break-inside: avoid; }
+        .q-text { font-size: 11px; font-weight: 700; margin-bottom: 3px; }
         .q-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
         .q-options { display: flex; gap: 18px; align-items: center; }
         .q-opt { display: flex; align-items: center; gap: 5px; font-size: 10px; cursor: pointer;
@@ -59,7 +62,7 @@
         .obs-field:focus { background: #fdfad2; }
 
         /* NOTE */
-        .note { font-size: 8.5px; color: #8a8e97; background: #f9f9f9; padding: 3px 6px;
+        .note { font-size: 9px; color: #8a8e97; background: #f9f9f9; padding: 3px 6px;
                 border-radius: 3px; margin-top: 3px; line-height: 1.3; }
 
         /* ASSINATURAS */
@@ -283,38 +286,6 @@
 
     </div>
 
-    <!-- ASSINATURAS -->
-    <div class="sig-container">
-        <div class="sig-box" id="sig-wrapper-tecnico">
-            <div class="no-print sig-select-wrap">
-                <select id="select-tecnico" onchange="atualizarAssinaturaTecnico()">
-                    <option value="">Assinar...</option>
-                </select>
-            </div>
-            <img id="img-assinatura-tecnico" class="sig-img" src="" alt="Assinatura Técnico" style="display:none;">
-            <div class="sig-line"></div>
-            <div class="sig-data">
-                <strong>TÉCNICO RESPONSÁVEL</strong><br>
-                <span id="nome-tecnico" class="sig-highlight" contenteditable="true" spellcheck="false">Nome do Técnico</span><br>
-                Registro: <span id="crea-tecnico" class="sig-highlight" contenteditable="true" spellcheck="false">000000</span>
-            </div>
-        </div>
-        <div class="sig-box" id="sig-wrapper-engenheiro">
-            <div class="no-print sig-select-wrap">
-                <select id="select-ph" onchange="atualizarAssinatura()">
-                    <option value="">Assinar...</option>
-                </select>
-            </div>
-            <img id="img-assinatura-ph" class="sig-img" src="" alt="Assinatura Engenheiro" style="display:none;">
-            <div class="sig-line"></div>
-            <div class="sig-data">
-                <strong>ENGENHEIRO RESPONSÁVEL</strong><br>
-                <span id="nome-ph" class="sig-highlight" contenteditable="true" spellcheck="false">Nome do Engenheiro</span><br>
-                CREA/RNP: <span id="crea-ph" class="sig-highlight" contenteditable="true" spellcheck="false">ES-000000/D</span>
-            </div>
-        </div>
-    </div>
-
     <div class="pgr-footer">
         <div class="footer-line-wrapper">
             <div class="company-details" id="footer-empresa" contenteditable="true" spellcheck="false">
@@ -342,61 +313,6 @@
             r.onload = function(e) { document.getElementById(imgId).src = e.target.result; };
             r.readAsDataURL(input.files[0]);
         }
-    }
-
-    function carregarPHsParaSelect() {
-        var sel = document.getElementById('select-ph');
-        if (!sel) return;
-        var lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
-        sel.innerHTML = '<option value="">Assinar...</option>';
-        lista.filter(function(p) { return !p.tipo || p.tipo.startsWith('Engenheiro'); }).forEach(function(ph) {
-            var opt = document.createElement('option');
-            opt.value = ph.id; opt.textContent = ph.nome; sel.appendChild(opt);
-        });
-        var ex = document.createElement('option'); ex.value = 'excluir'; ex.textContent = 'Excluir Assinatura'; ex.style.color = '#dc2626'; ex.style.fontWeight = '700'; sel.appendChild(ex);
-    }
-    function atualizarAssinatura() {
-        var sel = document.getElementById('select-ph');
-        var wrapper = document.getElementById('sig-wrapper-engenheiro');
-        if (sel.value === 'excluir') { if (wrapper) wrapper.classList.add('excluida'); return; }
-        if (wrapper) wrapper.classList.remove('excluida');
-        var lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
-        var ph = lista.find(function(p) { return String(p.id) === String(sel.value); });
-        var img = document.getElementById('img-assinatura-ph');
-        var nome = document.getElementById('nome-ph');
-        var crea = document.getElementById('crea-ph');
-        if (ph) {
-            nome.textContent = ph.nome; crea.textContent = ph.crea || '';
-            if (ph.assinatura) { img.src = ph.assinatura; img.style.display = 'block'; }
-            else { img.style.display = 'none'; img.src = ''; }
-        } else { nome.textContent = 'Nome do Engenheiro'; crea.textContent = 'ES-000000/D'; img.style.display = 'none'; img.src = ''; }
-    }
-    function carregarTecnicosParaSelect() {
-        var sel = document.getElementById('select-tecnico');
-        if (!sel) return;
-        var lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
-        sel.innerHTML = '<option value="">Assinar...</option>';
-        lista.filter(function(p) { return p.tipo && p.tipo.startsWith('Inspetor'); }).forEach(function(ph) {
-            var opt = document.createElement('option');
-            opt.value = ph.id; opt.textContent = ph.nome; sel.appendChild(opt);
-        });
-        var ex = document.createElement('option'); ex.value = 'excluir'; ex.textContent = 'Excluir Assinatura'; ex.style.color = '#dc2626'; ex.style.fontWeight = '700'; sel.appendChild(ex);
-    }
-    function atualizarAssinaturaTecnico() {
-        var sel = document.getElementById('select-tecnico');
-        var wrapper = document.getElementById('sig-wrapper-tecnico');
-        if (sel.value === 'excluir') { if (wrapper) wrapper.classList.add('excluida'); return; }
-        if (wrapper) wrapper.classList.remove('excluida');
-        var lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
-        var ph = lista.find(function(p) { return String(p.id) === String(sel.value); });
-        var img = document.getElementById('img-assinatura-tecnico');
-        var nome = document.getElementById('nome-tecnico');
-        var crea = document.getElementById('crea-tecnico');
-        if (ph) {
-            nome.textContent = ph.nome; crea.textContent = ph.crea || '';
-            if (ph.assinatura) { img.src = ph.assinatura; img.style.display = 'block'; }
-            else { img.style.display = 'none'; img.src = ''; }
-        } else { nome.textContent = 'Nome do Técnico'; crea.textContent = '000000'; img.style.display = 'none'; img.src = ''; }
     }
 
     var MAPA_CL3 = {
@@ -441,8 +357,6 @@
     }
 
     document.addEventListener('DOMContentLoaded', function() {
-        carregarPHsParaSelect();
-        carregarTecnicosParaSelect();
         injetarDadosChecklist3();
 
         // Número da página

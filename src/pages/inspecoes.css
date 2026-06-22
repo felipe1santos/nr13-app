@@ -38,8 +38,142 @@
   margin-top: 6px;
 }
 
+/* Tag roxa de destaque do equipamento (topo da lista de containers) */
+.tag-equipamento-roxa {
+  display: inline-block;
+  background: #ede9fe;
+  color: #6d28d9;
+  font-weight: 700;
+  font-size: 0.82em;
+  letter-spacing: 0.02em;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid #ddd6fe;
+  vertical-align: middle;
+}
+
+/* Card de container (colapsado, clicável) */
+.container-card-clicavel {
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.container-card-clicavel:hover {
+  border-color: var(--accent);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+}
+
+.container-card-meta {
+  display: block;
+  font-size: 12px;
+  color: var(--text-faint);
+  margin: 4px 0 8px;
+}
+
+.container-card-badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* Tags dos itens dentro do container — bg #eef2ff na mesma linha */
+.badge-item-ensaio {
+  background: #eef2ff;
+  color: #4338ca;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.container-card-acoes {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.container-card-seta {
+  font-size: 26px;
+  line-height: 1;
+  color: var(--text-faint);
+}
+
+/* Detalhe do container (lista de itens) */
+.container-detalhe-titulo {
+  margin-bottom: 14px;
+}
+
+.container-detalhe-titulo h3 {
+  margin: 0;
+}
+
+.lista-itens-container {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.item-container-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--border-solid);
+  border-radius: var(--radius-md);
+  flex-wrap: wrap;
+}
+
+.item-container-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.item-container-info strong {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.item-status-dot {
+  font-size: 14px;
+}
+
+.item-status-dot.ok {
+  color: var(--status-sucesso-icone, #16a34a);
+}
+
+.item-status-dot.pendente {
+  color: var(--status-pendente-icone, #d97706);
+}
+
+.item-container-acoes {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-ver-doc {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
 @media (max-width: 600px) {
   .inspecoes-page {
     padding: 14px;
+  }
+
+  .item-container-row {
+    align-items: flex-start;
+  }
+
+  .item-container-acoes {
+    width: 100%;
   }
 }

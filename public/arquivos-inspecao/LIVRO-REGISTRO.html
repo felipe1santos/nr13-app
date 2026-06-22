@@ -217,10 +217,6 @@
                 }
             }
 
-            function preencherAssinatura(phNome, phCrea) {
-                document.getElementById('assin-nome').textContent = phNome || 'Nome do Engenheiro Responsável';
-                document.getElementById('assin-crea').textContent = phCrea ? ('CREA: ' + phCrea) : 'CREA: --';
-            }
 
             function carregarLivro(tag) {
                 try { return JSON.parse(localStorage.getItem('nr13_livro_' + tag) || '[]'); }
@@ -246,9 +242,6 @@
             function renderizarModoRelatorioAtual(tag) {
                 let meta = {};
                 try { meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}'); } catch (e) {}
-                let listaPHs = [];
-                try { listaPHs = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]'); } catch (e) {}
-                const ph = listaPHs.find(p => String(p.id) === String(meta.phId));
 
                 const livro = carregarLivro(tag);
                 const folhaEl2 = document.getElementById('livro-pg-folha-fisica');

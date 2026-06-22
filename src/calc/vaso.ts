@@ -455,8 +455,11 @@ export function gerarBlocoComponenteVaso(
 // componentes. t_min/pmta são extraídos das linhas de resultado do próprio log (mesmo texto que
 // aparece no memorial) — só cascos/tampos têm essas linhas; bocal/flange são checagens de
 // área/momento (aprovado/reprovado), sem PMTA, então ficam com t_min/pmta vazios.
-const RE_TREQ = /\$\$ t_\{req\} = ([\d.]+) \\text\{ mm \} \$\$/;
-const RE_PMTA = /\$\$ PMTA = ([\d.]+) \\text\{ MPa \} \$\$/;
+// Tolerante ao espaço antes do `}`: o branch principal (cilíndrico/elíptico/etc) emite
+// `\text{ mm}`/`\text{ MPa}` (sem espaço final) e o planoAparafusado emite `\text{ mm }`/`\text{ MPa }`
+// (com espaço). Sem o ` ?` o regex só casava o planoAparafusado e os demais ficavam com pmta/t_min ''.
+const RE_TREQ = /t_\{req\} = ([\d.]+) \\text\{ mm ?\}/;
+const RE_PMTA = /PMTA = ([\d.]+) \\text\{ MPa ?\}/;
 
 export function calcularComponenteVaso(
   nomeDaPeca: string,

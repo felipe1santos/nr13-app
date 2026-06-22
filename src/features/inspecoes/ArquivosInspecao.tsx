@@ -21,8 +21,8 @@ export default function ArquivosInspecao({ tag }: { tag: string }) {
     setContainers(listarContainers(tag));
   }
 
-  async function criarNovo(ensaios: TipoEnsaio[]) {
-    await criarContainer(tag, ensaios);
+  async function criarNovo(ensaios: TipoEnsaio[], nome: string) {
+    await criarContainer(tag, ensaios, nome);
     recarregar();
     setModalNovoAberto(false);
   }
@@ -61,7 +61,7 @@ export default function ArquivosInspecao({ tag }: { tag: string }) {
                   <div className="container-doc-titulo">
                     <span className="container-doc-lock">🔒</span>
                     <div>
-                      <strong>Container de Inspeção</strong>
+                      <strong>{c.nome || `Inspeção de ${c.criadoEm}`}</strong>
                       <span className="container-doc-meta">
                         Criado em {c.criadoEm} • {formularios.length} {formularios.length === 1 ? 'item' : 'itens'}
                       </span>
@@ -111,7 +111,7 @@ export default function ArquivosInspecao({ tag }: { tag: string }) {
 
       {modalNovoAberto && <ModalNovaInspecaoContainer onClose={() => setModalNovoAberto(false)} onCriar={criarNovo} />}
       {containerAdicionando && (
-        <ModalNovaInspecaoContainer onClose={() => setContainerAdicionando(null)} onCriar={adicionarAoContainer} />
+        <ModalNovaInspecaoContainer onClose={() => setContainerAdicionando(null)} onCriar={adicionarAoContainer} pedirNome={false} />
       )}
     </div>
   );

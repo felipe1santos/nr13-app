@@ -8,6 +8,7 @@ import { carregarContainer } from '../features/inspecoes/inspecaoService';
 import {
   adicionarEntradaLivroAuto,
   excluirDoHistorico,
+  expandirMemorial,
   filtrarDocumentosValidos,
   gravarInspecaoOrigemAtual,
   gravarMetaAtual,
@@ -88,7 +89,6 @@ function metaPadrao(tipo: TipoInspecao): RelatorioMeta {
   };
 }
 
-interface PHItem { id: string; nome: string; crea: string; registro: string; tipo: string; }
 
 export default function Relatorios() {
   const [tela, setTela] = useState<Tela>('equipamentos');
@@ -105,11 +105,10 @@ export default function Relatorios() {
   const [exportando, setExportando] = useState(false);
   const [toastSalvo, setToastSalvo] = useState(false);
   const [renomeandoId, setRenomeandoId] = useState<string | null>(null);
-  const [listaPHs] = useState<PHItem[]>(() => {
-    try { return JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]') as PHItem[]; } catch { return []; }
-  });
   const [nomeRenomeando, setNomeRenomeando] = useState('');
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
+  const [modalConfig, setModalConfig] = useState(false);
+  const [modalImprimir, setModalImprimir] = useState(false);
 
   const carregarEquipamentos = useCallback(async () => {
     setEquipamentos(await listarEquipamentos());
@@ -154,8 +153,9 @@ export default function Relatorios() {
     if (!pendente) return;
     setEtapaModal('nenhuma');
     const validos = filtrarDocumentosValidos(pendente.docs);
-    const comTermo = montarListaComTermoAbertura(tag, validos);
+    const comTermo = expandirMemorial(tag, montarListaComTermoAbertura(tag, validos));
     const novaMeta = metaPadrao(pendente.tipo);
+    novaMeta.documentos = comTermo; // SUMARIO/INSPECOES leem isto pra montar TOC e ensaios
     if (containerId) {
       novaMeta.containerOrigemId = containerId;
       const container = carregarContainer(tag, containerId);
@@ -173,7 +173,8 @@ export default function Relatorios() {
   // Re-hidrata as chaves "atuais" que os templates leem do localStorage ANTES de remontar os
   // iframes, senão um relatório reaberto exibe a meta/dados de campo do último relatório gerado.
   async function visualizar(r: RelatorioSalvo) {
-    await gravarMetaAtual(r.meta);
+    // garante documentos na meta mesmo p/ relatórios salvos antes desse campo existir
+    await gravarMetaAtual({ ...r.meta, documentos: r.meta.documentos ?? r.documentos });
     if (r.meta.containerOrigemId) {
       const container = carregarContainer(r.tagVaso, r.meta.containerOrigemId);
       await gravarInspecaoOrigemAtual(container?.dados ?? {});
@@ -191,7 +192,7 @@ export default function Relatorios() {
   }
 
   async function duplicar(r: RelatorioSalvo) {
-    const novaMeta: RelatorioMeta = { ...r.meta, codigo: `REL-${Date.now()}`, emissao: hoje() };
+    const novaMeta: RelatorioMeta = { ...r.meta, codigo: `REL-${Date.now()}`, emissao: hoje(), documentos: r.meta.documentos ?? r.documentos };
     await gravarMetaAtual(novaMeta);
     setDocumentos(r.documentos);
     setMeta(novaMeta);
@@ -354,6 +355,7 @@ export default function Relatorios() {
           {historico.length === 0 ? (
             <p className="dashboard-vazio">Nenhum relatório salvo ainda para este equipamento.</p>
           ) : (
+            <div className="meta-table-wrap">
             <table className="meta-table">
               <thead>
                 <tr>
@@ -432,96 +434,34 @@ export default function Relatorios() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       )}
 
       {tela === 'visualizador' && meta && documentos && (
         <>
-          {/* Barra sticky horizontal de metadados */}
-          <div className="meta-barra-fixa">
-            <button type="button" className="btn-secundario" style={{ height: 30, fontSize: 12, padding: '0 10px', alignSelf: 'flex-end' }} onClick={voltarParaHistorico}>
+          {/* Barra de ações — só 4 botões */}
+          <div className="meta-barra-fixa no-print">
+            <button type="button" className="btn-secundario barra-btn" onClick={voltarParaHistorico}>
               ← Voltar
             </button>
-
-            <div className="meta-barra-campo">
-              <label>Código</label>
-              <input value={meta.codigo} disabled style={{ width: 130 }} />
-            </div>
-            <div className="meta-barra-campo">
-              <label>Emissão</label>
-              <input value={meta.emissao} readOnly={somenteLeitura} onChange={(e) => setCampoMeta('emissao', e.target.value)} style={{ width: 90 }} />
-            </div>
-            <div className="meta-barra-campo">
-              <label>Validade</label>
-              <input placeholder="DD/MM/AAAA" value={meta.validade} readOnly={somenteLeitura} onChange={(e) => setCampoMeta('validade', e.target.value)} style={{ width: 90 }} />
-            </div>
-            <div className="meta-barra-campo">
-              <label>Execução Insp.</label>
-              <input value={meta.execucaoInspecao} readOnly={somenteLeitura} onChange={(e) => setCampoMeta('execucaoInspecao', e.target.value)} style={{ width: 90 }} />
-            </div>
-            <div className="meta-barra-campo">
-              <label>Próx. Interna</label>
-              <input placeholder="DD/MM/AAAA" value={meta.proximaInspecaoInterna} readOnly={somenteLeitura} onChange={(e) => setCampoMeta('proximaInspecaoInterna', e.target.value)} style={{ width: 90 }} />
-            </div>
-            <div className="meta-barra-campo">
-              <label>Próx. Externa</label>
-              <input placeholder="DD/MM/AAAA" value={meta.proximaInspecaoExterna} readOnly={somenteLeitura} onChange={(e) => setCampoMeta('proximaInspecaoExterna', e.target.value)} style={{ width: 90 }} />
-            </div>
-            <div className="meta-barra-campo">
-              <label>Valid. Válvula</label>
-              <input placeholder="DD/MM/AAAA" value={meta.validadeValvula} readOnly={somenteLeitura} onChange={(e) => setCampoMeta('validadeValvula', e.target.value)} style={{ width: 90 }} />
-            </div>
-            <div className="meta-barra-campo">
-              <label>PH Responsável</label>
-              {somenteLeitura ? (
-                <input value={meta.phNome} readOnly style={{ width: 130 }} />
-              ) : (
-                <select
-                  value={listaPHs.find((p) => p.nome === meta.phNome)?.id ?? ''}
-                  onChange={(e) => {
-                    const ph = listaPHs.find((p) => p.id === e.target.value);
-                    if (ph) { setCampoMeta('phNome', ph.nome); setCampoMeta('phCrea', ph.crea || ph.registro || ''); }
-                  }}
-                  style={{ height: 30, fontSize: 12, minWidth: 130, border: '1px solid var(--border-solid)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-body)', color: 'var(--text-main)', padding: '0 6px' }}
-                >
-                  <option value="">Selecione PH...</option>
-                  {listaPHs.filter((p) => !p.tipo || p.tipo.startsWith('Engenheiro')).map((ph) => (
-                    <option key={ph.id} value={ph.id}>{ph.nome}</option>
-                  ))}
-                </select>
-              )}
-            </div>
-            <div className="meta-barra-campo">
-              <label>CREA do PH</label>
-              <input value={meta.phCrea} readOnly style={{ width: 90 }} />
-            </div>
-            <div className="meta-barra-campo">
-              <label>Técnico</label>
-              <input value={meta.tecnicoNome} readOnly={somenteLeitura} onChange={(e) => setCampoMeta('tecnicoNome', e.target.value)} style={{ width: 100 }} />
-            </div>
-
             <div className="meta-barra-acoes">
               {!somenteLeitura && (
-                <button type="button" className="btn-secundario" onClick={atualizarMetadados}>
-                  Atualizar
+                <button type="button" className={`btn-primario barra-btn ${salvando ? 'is-loading' : ''}`} onClick={salvarHistorico} disabled={salvando}>
+                  {salvando ? 'Salvando...' : '💾 Salvar'}
                 </button>
               )}
-              <button type="button" className="btn-secundario" onClick={() => window.print()}>
-                Imprimir
+              <button type="button" className="btn-secundario barra-btn" onClick={() => setModalImprimir(true)}>
+                🖨 Imprimir
               </button>
-              <button type="button" className="btn-primario" onClick={baixarPdf} disabled={exportando}>
-                {exportando ? 'PDF...' : 'Baixar PDF'}
+              <button type="button" className="btn-secundario barra-btn" onClick={() => setModalConfig(true)}>
+                ⚙ Configurações
               </button>
-              {!somenteLeitura && (
-                <button type="button" className="btn-primario" onClick={salvarHistorico} disabled={salvando}>
-                  {salvando ? 'Salvando...' : 'Salvar no Histórico'}
-                </button>
-              )}
             </div>
           </div>
 
-          <div className="relatorio-preview">
+          <div className={`relatorio-preview ${modalImprimir ? 'preview-impressao-ativa' : ''}`}>
             {documentos.map((doc, i) => {
               const sep = doc.includes('?') ? '&' : '?';
               return (
@@ -531,6 +471,77 @@ export default function Relatorios() {
               );
             })}
           </div>
+
+          {/* Modal de impressão: o preview acima vira tela cheia; esta barra flutuante não imprime */}
+          {modalImprimir && (
+            <div className="impressao-acoes no-print">
+              <span className="impressao-titulo">Pré-visualização da impressão</span>
+              <button type="button" className="btn-primario barra-btn" onClick={() => window.print()}>
+                🖨 Imprimir
+              </button>
+              <button type="button" className="btn-secundario barra-btn" onClick={() => setModalImprimir(false)}>
+                Fechar
+              </button>
+            </div>
+          )}
+
+          {/* Modal de configurações: todas as datas/campos + Atualizar + Baixar PDF */}
+          {modalConfig && (
+            <div className="rel-modal-overlay no-print" onClick={() => setModalConfig(false)}>
+              <div className="rel-modal" onClick={(e) => e.stopPropagation()}>
+                <div className="rel-modal-header">
+                  <span>Configurações do Relatório</span>
+                  <button type="button" className="rel-modal-fechar" onClick={() => setModalConfig(false)}>✕</button>
+                </div>
+                <div className="rel-modal-corpo">
+                  <div className="rel-config-grid">
+                    <div className="meta-barra-campo">
+                      <label>Código</label>
+                      <input value={meta.codigo} disabled />
+                    </div>
+                    <div className="meta-barra-campo">
+                      <label>Emissão</label>
+                      <input value={meta.emissao} readOnly={somenteLeitura} onChange={(e) => setCampoMeta('emissao', e.target.value)} />
+                    </div>
+                    <div className="meta-barra-campo">
+                      <label>Validade</label>
+                      <input placeholder="DD/MM/AAAA" value={meta.validade} readOnly={somenteLeitura} onChange={(e) => setCampoMeta('validade', e.target.value)} />
+                    </div>
+                    <div className="meta-barra-campo">
+                      <label>Execução Insp.</label>
+                      <input placeholder="DD/MM/AAAA" value={meta.execucaoInspecao} readOnly={somenteLeitura} onChange={(e) => setCampoMeta('execucaoInspecao', e.target.value)} />
+                    </div>
+                    <div className="meta-barra-campo">
+                      <label>Próx. Interna</label>
+                      <input placeholder="DD/MM/AAAA" value={meta.proximaInspecaoInterna} readOnly={somenteLeitura} onChange={(e) => setCampoMeta('proximaInspecaoInterna', e.target.value)} />
+                    </div>
+                    <div className="meta-barra-campo">
+                      <label>Próx. Externa</label>
+                      <input placeholder="DD/MM/AAAA" value={meta.proximaInspecaoExterna} readOnly={somenteLeitura} onChange={(e) => setCampoMeta('proximaInspecaoExterna', e.target.value)} />
+                    </div>
+                    <div className="meta-barra-campo">
+                      <label>Valid. Válvula</label>
+                      <input placeholder="DD/MM/AAAA" value={meta.validadeValvula} readOnly={somenteLeitura} onChange={(e) => setCampoMeta('validadeValvula', e.target.value)} />
+                    </div>
+                    <div className="meta-barra-campo">
+                      <label>Técnico</label>
+                      <input value={meta.tecnicoNome} readOnly={somenteLeitura} onChange={(e) => setCampoMeta('tecnicoNome', e.target.value)} />
+                    </div>
+                  </div>
+                </div>
+                <div className="rel-modal-acoes">
+                  {!somenteLeitura && (
+                    <button type="button" className="btn-secundario" onClick={() => { atualizarMetadados(); }}>
+                      Atualizar
+                    </button>
+                  )}
+                  <button type="button" className="btn-primario" onClick={baixarPdf} disabled={exportando}>
+                    {exportando ? 'PDF...' : 'Baixar PDF'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
 

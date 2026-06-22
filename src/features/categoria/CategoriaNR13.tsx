@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { calcularESalvarCategoria, carregarCategoria } from './categoriaService';
-import { FATORES_CONVERSAO, type SistemaUnidade } from '../../calc/unidades';
-import type { CategoriaSalva } from '../equipamento/tipos';
+import { FATORES_CONVERSAO, paraExibicao, type SistemaUnidade } from '../../calc/unidades';
+import type { CalculoSalvo, CategoriaSalva } from '../equipamento/tipos';
+import { ler } from '../../services/storage';
 import Campo from '../memorial/Campo';
 import '../equipamento/equipamento.css';
 import './categoria.css';
@@ -52,10 +53,19 @@ function resolverDefault(salvo: string | undefined): string {
   return todas.includes(salvo) ? salvo : DEFAULT_FLUIDO;
 }
 
+// PMTA salva pelo memorial (MPa) convertida para a unidade de exibição, para alimentar o campo
+// Pressão da categoria quando ainda não houve cálculo de categoria.
+function pmtaExibida(tag: string, unidade: SistemaUnidade): number | null {
+  const calc = ler<CalculoSalvo>(`nr13_calc_${tag}`);
+  const mpa = calc ? parseFloat(calc.pmta) : NaN;
+  if (!Number.isFinite(mpa)) return null;
+  return Number(paraExibicao(mpa, unidade).toFixed(2));
+}
+
 export default function CategoriaNR13({ tag, unidade }: { tag: string; unidade: SistemaUnidade }) {
   const [salva, setSalva] = useState<CategoriaSalva | null>(() => carregarCategoria(tag));
   const [volume, setVolume] = useState(() => salva?.volInput ?? 1);
-  const [pressao, setPressao] = useState(() => salva?.presInput ?? 1);
+  const [pressao, setPressao] = useState(() => salva?.presInput ?? pmtaExibida(tag, unidade) ?? 1);
   const [fluido, setFluido] = useState(() => resolverDefault(salva?.fluidoInput));
 
   async function calcular() {

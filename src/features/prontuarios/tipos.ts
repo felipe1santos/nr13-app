@@ -40,10 +40,9 @@ export interface ProntuarioDados {
   // Dimensões (opcional)
   croqui?: string;
   dimensoes?: DimensaoProntuario[];
-  // Responsabilidade
-  engNome: string;
-  engCrea: string;
-  engAssinatura?: string;
+  // Ensaio de espessura puxado (container de inspeção)
+  containerEnsaioId?: string;
+  // Revisão
   revisao: string;
   dataRevisao: string;
   // Empresa emissora (minha empresa)
@@ -55,6 +54,7 @@ export interface ProntuarioDados {
   minhaEmpresaEstado?: string;
   minhaEmpresaTelefone?: string;
   // Empresa proprietária do equipamento
+  empresaClienteId?: string;
   empresaRazaoSocial?: string;
   empresaCnpj?: string;
   empresaEndereco?: string;
@@ -65,7 +65,9 @@ export interface ProntuarioDados {
 
 export const PAGINAS_PRONTUARIO = [
   'PRONT-P1.html',
+  'PRONT-CARACTERIZACAO.html',
   'PRONT-P2.html',
+  'PRONT-P2B.html',
   'PRONT-P3.html',
   'PRONT-P4.html',
 ] as const;

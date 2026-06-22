@@ -1,4 +1,5 @@
 import { ler, salvar } from '../../services/storage';
+import { atualizarCategoriaComPmta } from '../categoria/categoriaService';
 import { formatarMemorialHTML } from './formatarMemorialHTML';
 import {
   costado,
@@ -108,7 +109,83 @@ export function calcularResumoCaldeira(tag: string, tipos: TiposCaldeira): Resum
   };
 }
 
-export async function salvarResumoCaldeira(tag: string, resumo: ResumoMemorialCaldeira): Promise<void> {
+// Dados estruturados por componente — consumidos pela folha RESUMO-MEMORIAL.html (linhas dinâmicas),
+// evitando parse frágil do log. Vale para caldeira, vaso e autoclave (cada serviço monta o seu).
+export interface ComponenteResumo {
+  nome: string;
+  pmtaMpa: number | null;
+  tReqMm: number | null;
+  tNom: number | null;
+  E: number | null;
+  S: number | null;
+  D: number | null;
+  raio: number | null;
+  ca: number | null;
+  material: string | null;
+  formulaT: string;
+  formulaP: string;
+}
+
+function num(v: unknown): number | null {
+  const n = parseFloat(String(v));
+  return Number.isFinite(n) ? n : null;
+}
+
+const ROTULO_ABA_FLAMO: Record<string, string> = {
+  costado: 'Costado',
+  fornalha: 'Fornalha Ondulada',
+  tubo: 'Tubos de Fogo',
+  tampoAbaulado: 'Tampo Abaulado',
+  tampoElipsoidal: 'Tampo Elipsoidal 2:1',
+  tampoPlano: 'Tampo Plano',
+  espelhoEstaiado: 'Espelho Estaiado',
+  espelhoNaoEstaiado: 'Espelho Não-Estaiado',
+};
+
+// Fórmulas (texto) por tipo de componente de caldeira — ASME Sec. I.
+const FORMULAS_FLAMO: Record<string, [string, string]> = {
+  costado: ['t = P·D / (2·S·E + 2·y·P) + C', 'PMTA = 2·S·E·t / (D − 2·y·t)'],
+  tubo: ['t = P·D / (2·S + P) + 0,005·D + e', 'PMTA = S·(2·t − 0,01·D − 2·e) / D'],
+  fornalha: ['t = (P·D + 1,03) / 14,0 (Fox/Adamson)', 'PMTA conforme C do tipo de fornalha'],
+  tampoAbaulado: ['t = 5·P·L / (4,8·S·w)', 'PMTA = 4,8·S·w·t / (5·L)'],
+  tampoElipsoidal: ['t = P·D / (2·S·E + 2·y·P) + C', 'PMTA = 2·S·E·t / (D − 2·y·t)'],
+  tampoPlano: ['t = d·√(C·P/S)', 'PMTA = S·(t/d)²/C'],
+  espelhoEstaiado: ['t = p·√(C·P/S)', 'PMTA = S·(t/p)²/C'],
+  espelhoNaoEstaiado: ['t = d·√(C·P/S)', 'PMTA = S·(t/d)²/C'],
+};
+
+function chaveTipoFlamo(aba: AbaCaldeira, tipos: TiposCaldeira): string {
+  if (aba === 'tampo') return tipos.tampo;
+  if (aba === 'espelho') return tipos.espelho;
+  return aba; // costado | fornalha | tubo
+}
+
+function componentesFlamo(tag: string, tipos: TiposCaldeira, resumo: ResumoMemorialCaldeira): ComponenteResumo[] {
+  return resumo.porAba.map(({ aba, resultado }) => {
+    const d = carregarDadosCaldeira(tag, aba);
+    const chave = chaveTipoFlamo(aba, tipos);
+    const D = num(d.diametro_externo) ?? num(d.diametro_medio) ?? num((d as Record<string, unknown>).diametro);
+    const raio = num(d.raio_crown) ?? (D != null ? D / 2 : null);
+    const f = FORMULAS_FLAMO[chave] ?? ['', ''];
+    return {
+      nome: ROTULO_ABA_FLAMO[chave] ?? aba,
+      pmtaMpa: num(resultado.pmta),
+      tReqMm: num(resultado.t_min),
+      tNom: num(d.t_comercial),
+      E: num(d.eficiencia),
+      S: num(d.tensao),
+      D,
+      raio,
+      ca: num(d.ca),
+      material: (d.material as string) || null,
+      formulaT: f[0],
+      formulaP: f[1],
+    };
+  });
+}
+
+export async function salvarResumoCaldeira(tag: string, resumo: ResumoMemorialCaldeira, tipos?: TiposCaldeira): Promise<void> {
+  const tiposEf = tipos ?? carregarTiposCaldeira(tag);
   const costadoResultado = resumo.porAba.find((c) => c.aba === 'costado')?.resultado;
   const tampoResultado = resumo.porAba.find((c) => c.aba === 'tampo')?.resultado;
   await salvar(`nr13_calc_${tag}`, {
@@ -116,10 +193,12 @@ export async function salvarResumoCaldeira(tag: string, resumo: ResumoMemorialCa
     pth: resumo.pthFinal != null ? resumo.pthFinal.toFixed(2) : '',
     ecasco: costadoResultado?.t_min,
     etampo: tampoResultado?.t_min,
+    componentes: componentesFlamo(tag, tiposEf, resumo),
     memorialHTML: formatarMemorialHTML(resumo.logCompleto),
     logCalculo: resumo.logCompleto,
     resultado: resumo.resultado,
   });
+  await atualizarCategoriaComPmta(tag, resumo.pmtaFinal);
 }
 
 // ─── CALDEIRA AQUATUBULAR ─────────────────────────────────────────────────────
@@ -243,14 +322,51 @@ export function calcularResumoAqua(tag: string): ResumoMemorialAqua {
   };
 }
 
+const FORMULAS_AQUA: Record<string, [string, string]> = {
+  cilindro: ['t = P·D / (2·S·E + 2·y·P) + C', 'PMTA = 2·S·E·t / (D − 2·y·t)'],
+  fundo: ['t = P·D / (2·S·E − 0,2·P) + C', 'PMTA = 2·S·E·t / (D + 0,2·t)'],
+  tubo: ['t = P·D / (2·S + P) + 0,005·D + e', 'PMTA = S·(2·t − 0,01·D) / D'],
+};
+
+function tipoAqua(aba: AbaAquatubular): 'cilindro' | 'fundo' | 'tubo' {
+  if (aba === 'tubulaoSup' || aba === 'tubulaoInf' || aba === 'coletor') return 'cilindro';
+  if (aba === 'fundoEliptico' || aba === 'fundoTorisferico') return 'fundo';
+  return 'tubo';
+}
+
+function componentesAqua(tag: string, resumo: ResumoMemorialAqua): ComponenteResumo[] {
+  return resumo.porAba.map(({ aba, resultado }) => {
+    const d = carregarDadosAqua(tag, aba);
+    const D = num(d.diametro_externo) ?? num((d as Record<string, unknown>).diametro);
+    const raio = num(d.raio_crown) ?? (D != null ? D / 2 : null);
+    const f = FORMULAS_AQUA[tipoAqua(aba)];
+    return {
+      nome: ROTULOS_AQUATUBULAR[aba],
+      pmtaMpa: num(resultado.pmta),
+      tReqMm: num(resultado.t_min),
+      tNom: num(d.t_comercial),
+      E: num(d.eficiencia),
+      S: num(d.tensao),
+      D,
+      raio,
+      ca: num(d.ca),
+      material: (d.material as string) || null,
+      formulaT: f[0],
+      formulaP: f[1],
+    };
+  });
+}
+
 export async function salvarResumoAqua(tag: string, resumo: ResumoMemorialAqua): Promise<void> {
   const tubulao = resumo.porAba.find((c) => c.aba === 'tubulaoSup')?.resultado;
   await salvar(`nr13_calc_${tag}`, {
     pmta: resumo.pmtaFinal != null ? resumo.pmtaFinal.toFixed(2) : '',
     pth: resumo.pthFinal != null ? resumo.pthFinal.toFixed(2) : '',
     ecasco: tubulao?.t_min,
+    componentes: componentesAqua(tag, resumo),
     memorialHTML: formatarMemorialHTML(resumo.logCompleto),
     logCalculo: resumo.logCompleto,
     resultado: resumo.resultado,
   });
+  await atualizarCategoriaComPmta(tag, resumo.pmtaFinal);
 }

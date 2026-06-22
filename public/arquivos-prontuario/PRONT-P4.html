@@ -3,9 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <title>Prontuário do Vaso de Pressão — Folha 4</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: Arial, Helvetica, sans-serif; background: #fff; color: #000; font-size: 12px; }
+        body { font-family: 'Inter', sans-serif; background: #fff; color: #000; font-size: 12px; }
         .a4-page { background: #fff; width: 210mm; height: 297mm; padding: 15mm; position: relative; overflow: hidden; display: flex; flex-direction: column; }
         .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-20deg); width: 70%; opacity: 0.07; z-index: 0; pointer-events: none; }
         .watermark-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-20deg); font-size: 80px; font-weight: 900; color: #003366; opacity: 0.04; z-index: 0; pointer-events: none; white-space: nowrap; text-transform: uppercase; }
@@ -68,16 +71,8 @@
         </div>
 
         <div class="section" style="border:1px solid #000;">
-            <div class="section-title">Responsabilidade</div>
+            <div class="section-title">Revisão</div>
             <div class="responsibility-container">
-                <div class="resp-dados">
-                    <span class="resp-nome">Eng. <span id="val-engNome"></span></span>
-                    <span class="resp-crea">CREA/SP nº.: <span id="val-engCrea"></span></span>
-                </div>
-                <div class="signature-box">
-                    <img id="img-assinatura" class="signature-img" alt="Assinatura do Engenheiro Responsável" style="display:none">
-                    <div id="assin-placeholder" class="assin-placeholder">Assinatura do Engenheiro Responsável</div>
-                </div>
                 <div class="resp-data">
                     Rev. <span id="val-revisao"></span><br>
                     <span id="val-dataRevisao"></span>
@@ -85,13 +80,6 @@
             </div>
         </div>
 
-        <div class="footer-container">
-            <img id="img-logo-rodape" class="logo-img" alt="Logo" style="display:none">
-            <div class="footer-text">
-                <p><strong>Obs.:</strong> Esse Prontuário do vaso de pressão é de propriedade da respectiva empresa emissora.</p>
-                <p>É proibida a reprodução e/ou publicação deste sem a devida autorização da empresa.</p>
-            </div>
-        </div>
     </div>
 </div>
 <script>
@@ -109,17 +97,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function v(id, val) { var el = document.getElementById(id); if (el && val) el.textContent = val; }
 
-    v('val-engNome', d.engNome);
-    v('val-engCrea', d.engCrea);
     v('val-revisao', d.revisao);
     v('val-dataRevisao', d.dataRevisao);
-
-    if (d.engAssinatura) {
-        var imgAssin = document.getElementById('img-assinatura');
-        imgAssin.src = d.engAssinatura;
-        imgAssin.style.display = 'block';
-        document.getElementById('assin-placeholder').style.display = 'none';
-    }
 });
 </script>
 </body>

@@ -3,89 +3,147 @@
   justify-content: center;
   align-items: center;
   height: 100vh;
-  background: var(--bg-body);
+  position: relative;
+  overflow: hidden;
+  background: #0b1437;
+  background-image:
+    radial-gradient(900px 600px at 15% 10%, rgba(99, 102, 241, 0.45), transparent 55%),
+    radial-gradient(900px 600px at 90% 90%, rgba(56, 189, 248, 0.30), transparent 55%),
+    linear-gradient(135deg, #0b1437 0%, #1e2a6b 55%, #312e81 100%);
+}
+
+/* malha sutil de luz */
+.login-page::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 26px 26px;
+  pointer-events: none;
 }
 
 .login-box {
-  background: var(--bg-card);
-  padding: 40px;
-  border-radius: var(--radius-lg);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  position: relative;
+  z-index: 1;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(8px);
+  padding: 44px 40px;
+  border-radius: var(--radius-xl);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 24px 70px rgba(2, 6, 23, 0.55);
   width: 100%;
-  max-width: 350px;
+  max-width: 380px;
   text-align: center;
+  animation: nr-fade-up 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .login-logo {
-  margin-bottom: 10px;
+  margin-bottom: 14px;
+}
+
+/* selo/marca acima do título */
+.login-box::before {
+  content: 'NR-13';
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  font-size: 15px;
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 12px;
+  margin-bottom: 18px;
+  background: var(--accent-grad);
+  box-shadow: var(--shadow-accent);
 }
 
 .login-box h2 {
-  margin: 0 0 10px 0;
+  margin: 0 0 8px 0;
   color: var(--text-main);
-  font-size: 22px;
+  font-family: var(--font-display);
+  font-size: 23px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 .login-desc {
   font-size: 13px;
   color: var(--text-muted);
-  margin-bottom: 25px;
-  line-height: 1.5;
+  margin-bottom: 26px;
+  line-height: 1.55;
 }
 
 .login-box .input-group {
   text-align: left;
-  margin-bottom: 15px;
+  margin-bottom: 16px;
 }
 
 .login-box .input-group label {
   display: block;
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--text-muted);
-  margin-bottom: 5px;
-  font-weight: 500;
+  margin-bottom: 6px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .login-box .input-group input {
   width: 100%;
-  padding: 10px;
+  padding: 12px 14px;
   border: 1px solid var(--border-solid);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   box-sizing: border-box;
   font-size: 14px;
+  background: var(--bg-faint);
   outline: none;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast), background var(--t-fast);
 }
 
 .login-box .input-group input:focus {
   border-color: var(--accent);
+  background: #fff;
+  box-shadow: 0 0 0 3px var(--accent-ring);
 }
 
 .btn-login {
-  background: var(--accent);
+  background: var(--accent-grad);
   color: #fff;
   border: none;
   width: 100%;
-  padding: 12px;
-  border-radius: var(--radius-sm);
+  padding: 13px;
+  border-radius: var(--radius-md);
+  font-family: var(--font-base);
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 700;
+  letter-spacing: 0.01em;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: transform var(--t-fast), box-shadow var(--t-fast), filter var(--t-fast);
   margin-top: 10px;
+  box-shadow: var(--shadow-accent);
 }
 
 .btn-login:hover:not(:disabled) {
-  background: var(--accent-2);
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px rgba(79, 70, 229, 0.42);
+}
+
+.btn-login:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .btn-login:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .login-erro {
   color: var(--status-erro-text);
   font-size: 13px;
   margin-top: 15px;
-  font-weight: 500;
+  font-weight: 600;
 }

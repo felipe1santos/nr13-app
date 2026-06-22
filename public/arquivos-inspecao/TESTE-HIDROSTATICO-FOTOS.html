@@ -258,8 +258,6 @@
         <!-- slots inseridos pelo JS -->
     </div>
 
-    <button id="btn-add" class="no-print" onclick="adicionarSlot()">+ Adicionar Foto</button>
-
     <!-- RODAPÉ -->
     <div class="rodape">
         <div class="rodape-linha">
@@ -386,12 +384,52 @@
         if (tag) document.getElementById('id-tag').textContent = tag;
     })();
 
-    /* ── INIT: 4 slots vazios por padrão ───────────────────── */
+    /* ── AUTO-FILL CABEÇALHO/RODAPÉ (meta do relatório) ────── */
+    (function preencherMeta() {
+        try {
+            var meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}');
+            if (meta.codigo) document.getElementById('rel-num').textContent = meta.codigo;
+            if (meta.emissao) document.getElementById('rel-data').textContent = meta.emissao;
+        } catch(e) {}
+        var page = new URLSearchParams(window.location.search).get('page');
+        if (page) {
+            var num = document.querySelector('.rodape-num');
+            if (num) num.textContent = page.trim();
+        }
+    })();
+
+    /* ── INIT: injeta fotos + dados do TH salvos em campo ──── */
+    // Lê o formulário de teste hidrostático (chave 'th') do container de inspeção. As fotos viram
+    // os cards desta folha; se não houver nenhuma, mostra 4 slots vazios pro preenchimento manual.
     document.addEventListener('DOMContentLoaded', function() {
-        adicionarSlot();
-        adicionarSlot();
-        adicionarSlot();
-        adicionarSlot();
+        var th = null;
+        try {
+            var injecao = JSON.parse(localStorage.getItem('nr13_injecao_atual') || '{}');
+            th = injecao.th || null;
+        } catch(e) {}
+
+        function fmtData(s) {
+            if (!s) return '';
+            var p = String(s).split('-');
+            return p.length === 3 ? (p[2] + '/' + p[1] + '/' + p[0]) : s;
+        }
+
+        if (th) {
+            var setTxt = function(id, val) { var el = document.getElementById(id); if (el && val) el.textContent = val; };
+            setTxt('id-cliente', th.cliente);
+            setTxt('id-equip', th.equipamento);
+            setTxt('id-data', fmtData(th.dataTeste));
+            if (th.pressaoTeste) document.getElementById('id-pt').textContent = th.pressaoTeste + ' kgf/cm²';
+        }
+
+        var fotos = (th && Array.isArray(th.fotos)) ? th.fotos : [];
+        if (fotos.length > 0) {
+            // só as fotos realmente inseridas — sem slots vazios de preenchimento
+            fotos.forEach(function(f) { adicionarSlot(f.base64 || '', f.descricao || ''); });
+        } else {
+            // sem fotos de campo: 4 slots vazios pro preenchimento manual
+            adicionarSlot(); adicionarSlot(); adicionarSlot(); adicionarSlot();
+        }
     });
 </script>
 

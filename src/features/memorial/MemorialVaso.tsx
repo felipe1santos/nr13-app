@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { TipoComponenteVaso } from '../../calc/vaso';
 import Campo from './Campo';
 import MemorialLog from './MemorialLog';
@@ -90,6 +90,25 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
   const [resumo, setResumo] = useState<ResumoMemorialVaso | null>(null);
   const [calcCount, setCalcCount] = useState(0);
   const [salvando, setSalvando] = useState(false);
+  const [dirty, setDirty] = useState(false);
+
+  // marca "não salvo" a cada alteração do vaso (ignora a montagem inicial)
+  const montou = useRef(false);
+  useEffect(() => {
+    if (montou.current) setDirty(true);
+    else montou.current = true;
+  }, [vaso]);
+
+  // avisa ao tentar fechar/recarregar com memorial não salvo
+  useEffect(() => {
+    function aviso(e: BeforeUnloadEvent) {
+      if (!dirty) return;
+      e.preventDefault();
+      e.returnValue = '';
+    }
+    window.addEventListener('beforeunload', aviso);
+    return () => window.removeEventListener('beforeunload', aviso);
+  }, [dirty]);
 
   function escolherOrientacao(orientacao: OrientacaoVaso) {
     setVaso((v) => ({
@@ -141,6 +160,7 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
     try {
       await salvarVaso(tag, vaso, sufixo);
       await salvarResumoVaso(tag, resumo, sufixo);
+      setDirty(false);
       window.alert('Memorial salvo com sucesso!');
     } finally {
       setSalvando(false);
@@ -283,7 +303,7 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
         <span className="calc-terminal-label">Memória de Cálculo — {titulo}</span>
         <button
           type="button"
-          className="btn-primario"
+          className={`btn-primario ${salvando ? 'is-loading' : ''}`}
           onClick={salvar}
           disabled={!resumo || salvando}
           style={{ opacity: resumo ? 1 : 0.4, fontSize: 12 }}
