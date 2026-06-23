@@ -2,7 +2,7 @@
 // Mantém as chaves localStorage usadas pela UI (nr13_usuario_logado, nr13_plano, nr13_ultimo_acesso,
 // nr13_role) para leitura síncrona no render.
 import { supabase } from './supabase';
-import { lerTudo } from './storage';
+import { lerTudo, limparCacheDados } from './storage';
 
 export const VIP_USERS = [
   'perone.fs@gmail.com',
@@ -149,6 +149,9 @@ export async function logout(): Promise<void> {
   localStorage.removeItem('nr13_plano');
   localStorage.removeItem('nr13_role');
   localStorage.removeItem('nr13_sessao_id');
+  localStorage.removeItem('nr13_cache_owner');
+  // Zera os dados em cache para não vazarem ao próximo login (mesmo navegador).
+  limparCacheDados();
 }
 
 export function usuarioLogado(): string | null {

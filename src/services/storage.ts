@@ -3,11 +3,39 @@
 // Supabase. Toda leitura sai do cache local (já hidratado por lerTudo). Offline = cai no cache.
 import { supabase, idUsuarioAtual, TABELA_STORAGE } from './supabase';
 
+// Chaves de sessão/preferência que NÃO são dados de equipamento — não devem ser apagadas ao
+// trocar de usuário (são re-gravadas pelo login).
+const CHAVES_PRESERVADAS = new Set([
+  'nr13_usuario_logado',
+  'nr13_plano',
+  'nr13_role',
+  'nr13_sessao_id',
+  'nr13_ultimo_acesso',
+  'nr13_cache_owner',
+]);
+
+// Remove do localStorage TODAS as chaves de dados do app (prefixo nr13_), preservando as de
+// sessão. Usado ao trocar de usuário e no logout — impede que dados de um usuário vazem para
+// outro pelo cache local.
+export function limparCacheDados(): void {
+  const remover: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const chave = localStorage.key(i);
+    if (chave && chave.startsWith('nr13_') && !CHAVES_PRESERVADAS.has(chave)) remover.push(chave);
+  }
+  for (const chave of remover) localStorage.removeItem(chave);
+}
+
 // Puxa todas as chaves do usuário logado e hidrata o localStorage (cache p/ os iframes).
 // Chamar no login e ao abrir o app. Sem sessão, devolve vazio (mantém o que houver em cache).
 export async function lerTudo(): Promise<Record<string, string>> {
   const userId = await idUsuarioAtual();
   if (!userId) return {};
+  // Se o cache pertence a OUTRO usuário (ou está sem dono), zera os dados antes de hidratar.
+  // Sem isso, chaves do usuário anterior permaneceriam visíveis para o novo (vazamento de dados).
+  if (localStorage.getItem('nr13_cache_owner') !== userId) {
+    limparCacheDados();
+  }
   try {
     const { data, error } = await supabase
       .from(TABELA_STORAGE)
@@ -21,6 +49,8 @@ export async function lerTudo(): Promise<Record<string, string>> {
         localStorage.setItem(row.chave, row.valor);
       }
     }
+    // Marca o cache como pertencente a este usuário (só após hidratar com sucesso).
+    localStorage.setItem('nr13_cache_owner', userId);
     return dados;
   } catch {
     // offline: usa o cache local já existente
