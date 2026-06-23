@@ -83,6 +83,29 @@ Deno.serve(async (req) => {
       return json({ metas });
     }
 
+    if (action === 'create_user') {
+      const email = String(body.email ?? '').trim().toLowerCase();
+      const senha = String(body.senha ?? '');
+      const liberar = body.liberar !== false; // default: já liberado
+      if (!email || senha.length < 6)
+        return json({ erro: 'email e senha (mín. 6) obrigatórios' }, 400);
+      // Cria já confirmado (sem precisar de e-mail de confirmação).
+      const { data: novo, error } = await admin.auth.admin.createUser({
+        email,
+        password: senha,
+        email_confirm: true,
+      });
+      if (error) return json({ erro: error.message }, 400);
+      // Garante o perfil liberado (o trigger cria com ativo=false; aqui liberamos).
+      if (novo.user) {
+        await admin
+          .from('profiles')
+          .update({ ativo: liberar, email })
+          .eq('id', novo.user.id);
+      }
+      return json({ ok: true, id: novo.user?.id });
+    }
+
     if (action === 'reset_password') {
       const userId = body.user_id as string;
       const novaSenha = body.nova_senha as string;

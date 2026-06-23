@@ -111,6 +111,9 @@ export default function Admin() {
   const [aviso, setAviso] = useState<string | null>(null);
   const [busca, setBusca] = useState('');
   const [acaoEmAndamento, setAcaoEmAndamento] = useState<string | null>(null);
+  const [novoEmail, setNovoEmail] = useState('');
+  const [novaSenhaUser, setNovaSenhaUser] = useState('');
+  const [criando, setCriando] = useState(false);
   const navigate = useNavigate();
 
   async function sair() {
@@ -168,6 +171,33 @@ export default function Admin() {
     ).size;
     return { total, pendentes, ativosHoje };
   }, [profiles, eventos]);
+
+  async function criarUsuario(e: React.FormEvent) {
+    e.preventDefault();
+    const email = novoEmail.trim().toLowerCase();
+    if (!email || novaSenhaUser.length < 6) {
+      setErro('Informe e-mail e senha de no mínimo 6 caracteres.');
+      return;
+    }
+    setCriando(true);
+    setErro(null);
+    setAviso(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('admin', {
+        body: { action: 'create_user', email, senha: novaSenhaUser, liberar: true },
+      });
+      if (error) throw error;
+      if (data?.erro) throw new Error(data.erro);
+      setAviso(`Usuário ${email} criado e liberado.`);
+      setNovoEmail('');
+      setNovaSenhaUser('');
+      await carregar();
+    } catch (err: unknown) {
+      setErro(err instanceof Error ? err.message : 'Falha ao criar usuário.');
+    } finally {
+      setCriando(false);
+    }
+  }
 
   // ---- Ações ----
   async function atualizarPerfil(id: string, patch: Partial<Profile>, msg: string) {
@@ -312,6 +342,27 @@ export default function Admin() {
 
       {erro && <p className="admin-erro">{erro}</p>}
       {aviso && <p className="admin-aviso">{aviso}</p>}
+
+      <form className="admin-novo" onSubmit={criarUsuario}>
+        <span className="admin-novo-titulo">Criar novo usuário</span>
+        <input
+          type="email"
+          placeholder="e-mail do usuário"
+          value={novoEmail}
+          onChange={(e) => setNovoEmail(e.target.value)}
+          autoComplete="off"
+        />
+        <input
+          type="text"
+          placeholder="senha (mín. 6)"
+          value={novaSenhaUser}
+          onChange={(e) => setNovaSenhaUser(e.target.value)}
+          autoComplete="new-password"
+        />
+        <button type="submit" className="admin-novo-btn" disabled={criando}>
+          {criando ? 'Criando…' : '+ Criar e liberar'}
+        </button>
+      </form>
 
       <input
         className="admin-busca"
