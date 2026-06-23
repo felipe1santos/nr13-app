@@ -28,28 +28,48 @@ export function limparCacheDados(): void {
 
 // Puxa todas as chaves do usuário logado e hidrata o localStorage (cache p/ os iframes).
 // Chamar no login e ao abrir o app. Sem sessão, devolve vazio (mantém o que houver em cache).
+const PAGINA_TAMANHO = 1000; // limite padrão de linhas por consulta do PostgREST/Supabase
+
 export async function lerTudo(): Promise<Record<string, string>> {
   const userId = await idUsuarioAtual();
   if (!userId) return {};
-  // Se o cache pertence a OUTRO usuário (ou está sem dono), zera os dados antes de hidratar.
-  // Sem isso, chaves do usuário anterior permaneceriam visíveis para o novo (vazamento de dados).
-  if (localStorage.getItem('nr13_cache_owner') !== userId) {
-    limparCacheDados();
-  }
   try {
-    const { data, error } = await supabase
-      .from(TABELA_STORAGE)
-      .select('chave, valor')
-      .eq('user_id', userId);
-    if (error || !data) return {};
+    // Busca TODAS as linhas paginando: o Supabase limita ~1000 linhas por consulta; sem paginar,
+    // chaves além desse limite (ex.: fotos em base64) não voltariam e ficariam faltando.
     const dados: Record<string, string> = {};
-    for (const row of data as { chave: string; valor: string | null }[]) {
-      if (row.valor != null) {
-        dados[row.chave] = row.valor;
-        localStorage.setItem(row.chave, row.valor);
+    for (let inicio = 0; ; inicio += PAGINA_TAMANHO) {
+      const { data, error } = await supabase
+        .from(TABELA_STORAGE)
+        .select('chave, valor')
+        .eq('user_id', userId)
+        .range(inicio, inicio + PAGINA_TAMANHO - 1);
+      // Erro de rede em qualquer página: aborta SEM mexer no cache (offline-safe).
+      if (error) return {};
+      if (!data || data.length === 0) break;
+      for (const row of data as { chave: string; valor: string | null }[]) {
+        if (row.valor != null) dados[row.chave] = row.valor;
+      }
+      if (data.length < PAGINA_TAMANHO) break;
+    }
+
+    // Hidratação completa e bem-sucedida → agora sim sincroniza o cache:
+    // remove chaves de dados que NÃO pertencem a este usuário (isolamento entre contas)
+    // e grava as do usuário atual. Só zera DEPOIS de ter os dados, nunca antes.
+    const chavesValidas = new Set(Object.keys(dados));
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const chave = localStorage.key(i);
+      if (
+        chave &&
+        chave.startsWith('nr13_') &&
+        !CHAVES_PRESERVADAS.has(chave) &&
+        !chavesValidas.has(chave)
+      ) {
+        localStorage.removeItem(chave);
       }
     }
-    // Marca o cache como pertencente a este usuário (só após hidratar com sucesso).
+    for (const [chave, valor] of Object.entries(dados)) {
+      localStorage.setItem(chave, valor);
+    }
     localStorage.setItem('nr13_cache_owner', userId);
     return dados;
   } catch {
