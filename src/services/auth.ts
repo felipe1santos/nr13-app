@@ -37,10 +37,16 @@ function normalizar(email: string): string {
 }
 
 // Busca perfil; grava plano/role no cache local p/ isDemo()/isAdmin().
+// Filtra pelo próprio id: a RLS de admin retorna TODOS os perfis, então sem o filtro
+// o maybeSingle() quebraria (várias linhas) para o usuário admin.
 async function carregarPerfil(): Promise<Perfil> {
+  const { data: sess } = await supabase.auth.getSession();
+  const uid = sess.session?.user?.id;
+  if (!uid) return { plano: '', ativo: false, role: 'user', acessoExpiraEm: null };
   const { data } = await supabase
     .from('profiles')
     .select('plano, ativo, role, acesso_expira_em')
+    .eq('id', uid)
     .maybeSingle();
   const plano = data?.plano ?? '';
   const ativo = data?.ativo ?? false;
