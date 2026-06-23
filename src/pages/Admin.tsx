@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
+import { logout } from '../services/auth';
 import './admin.css';
 
 interface Profile {
@@ -109,6 +111,12 @@ export default function Admin() {
   const [aviso, setAviso] = useState<string | null>(null);
   const [busca, setBusca] = useState('');
   const [acaoEmAndamento, setAcaoEmAndamento] = useState<string | null>(null);
+  const navigate = useNavigate();
+
+  async function sair() {
+    await logout();
+    navigate('/login');
+  }
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -269,13 +277,23 @@ export default function Admin() {
   }
 
   return (
-    <div className="admin-page">
-      <div className="admin-header">
-        <h1>Painel de Administração</h1>
-        <button type="button" className="admin-btn-refresh" onClick={carregar} disabled={carregando}>
-          {carregando ? 'Carregando…' : '↻ Atualizar'}
-        </button>
-      </div>
+    <div className="admin-standalone">
+      <header className="admin-topbar">
+        <span className="admin-topbar-logo">NR-13 · Admin</span>
+        <div className="admin-topbar-right">
+          <span className="admin-topbar-email">{localStorage.getItem('nr13_usuario_logado')}</span>
+          <button type="button" className="admin-topbar-sair" onClick={sair}>
+            Sair
+          </button>
+        </div>
+      </header>
+      <div className="admin-page">
+        <div className="admin-header">
+          <h1>Painel de Administração</h1>
+          <button type="button" className="admin-btn-refresh" onClick={carregar} disabled={carregando}>
+            {carregando ? 'Carregando…' : '↻ Atualizar'}
+          </button>
+        </div>
 
       <div className="admin-cards">
         <div className="admin-card">
@@ -375,6 +393,7 @@ export default function Admin() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

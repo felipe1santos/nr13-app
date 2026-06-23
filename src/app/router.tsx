@@ -14,6 +14,7 @@ import Empresas from '../pages/Empresas';
 import Admin from '../pages/Admin';
 import RotaProtegida from './RotaProtegida';
 import RotaAdmin from './RotaAdmin';
+import RotaUsuario from './RotaUsuario';
 import Layout from './Layout';
 
 export const router = createBrowserRouter([
@@ -21,24 +22,31 @@ export const router = createBrowserRouter([
   {
     element: <RotaProtegida />,
     children: [
+      // Painel admin: standalone, FORA do Layout (sem barra do sistema). Só admin entra.
       {
-        element: <Layout />,
+        element: <RotaAdmin />,
+        children: [{ path: '/admin', element: <Admin /> }],
+      },
+      // Sistema: telas normais. Admin é redirecionado para /admin (não vê o sistema).
+      {
+        element: <RotaUsuario />,
         children: [
-          { path: '/', element: <Navigate to="/dashboard" replace /> },
-          { path: '/dashboard', element: <Dashboard /> },
-          { path: '/equipamento/:tag', element: <Equipamento /> },
-          { path: '/equipamento/:tag/memorial', element: <Memorial /> },
-          { path: '/relatorios', element: <Relatorios /> },
-          { path: '/inspecoes', element: <Inspecoes /> },
-          { path: '/inspecoes/:tag/:containerId', element: <InspecaoContainer /> },
-          { path: '/inspecoes/:tag/:containerId/:formulario', element: <InspecaoFormulario /> },
-          { path: '/prontuarios', element: <Prontuarios /> },
-          { path: '/calibracoes', element: <Calibracoes /> },
-          { path: '/minha-empresa', element: <MinhaEmpresa /> },
-          { path: '/empresas', element: <Empresas /> },
           {
-            element: <RotaAdmin />,
-            children: [{ path: '/admin', element: <Admin /> }],
+            element: <Layout />,
+            children: [
+              { path: '/', element: <Navigate to="/dashboard" replace /> },
+              { path: '/dashboard', element: <Dashboard /> },
+              { path: '/equipamento/:tag', element: <Equipamento /> },
+              { path: '/equipamento/:tag/memorial', element: <Memorial /> },
+              { path: '/relatorios', element: <Relatorios /> },
+              { path: '/inspecoes', element: <Inspecoes /> },
+              { path: '/inspecoes/:tag/:containerId', element: <InspecaoContainer /> },
+              { path: '/inspecoes/:tag/:containerId/:formulario', element: <InspecaoFormulario /> },
+              { path: '/prontuarios', element: <Prontuarios /> },
+              { path: '/calibracoes', element: <Calibracoes /> },
+              { path: '/minha-empresa', element: <MinhaEmpresa /> },
+              { path: '/empresas', element: <Empresas /> },
+            ],
           },
         ],
       },

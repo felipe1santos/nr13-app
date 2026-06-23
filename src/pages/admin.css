@@ -1,3 +1,46 @@
+/* Página standalone (fora do sistema): ocupa a tela toda, fundo próprio */
+.admin-standalone {
+  min-height: 100vh;
+  background: #f4f6f9;
+}
+
+.admin-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #1e2a44;
+  color: #fff;
+  padding: 12px 24px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.admin-topbar-logo {
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+.admin-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.admin-topbar-email {
+  font-size: 13px;
+  opacity: 0.85;
+}
+.admin-topbar-sair {
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: transparent;
+  color: #fff;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.admin-topbar-sair:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
 .admin-page {
   padding: 24px;
   max-width: 1500px;
