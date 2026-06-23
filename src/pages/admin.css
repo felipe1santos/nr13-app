@@ -28,6 +28,22 @@
   font-size: 13px;
   opacity: 0.85;
 }
+.admin-instalar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: transparent;
+  color: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.admin-instalar:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
 .admin-topbar-sair {
   border: 1px solid rgba(255, 255, 255, 0.4);
   background: transparent;

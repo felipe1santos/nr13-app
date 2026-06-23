@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { logout, usuarioLogado } from '../services/auth';
 import { useNavigate } from 'react-router-dom';
+import BotaoInstalarPWA from './BotaoInstalarPWA';
 import './layout.css';
 
 const ICONE_EQUIPAMENTOS = (
@@ -99,6 +100,7 @@ export default function Layout() {
               <span className="user-email">{email}</span>
             </span>
           )}
+          <BotaoInstalarPWA />
           <button type="button" className="btn-logout" onClick={handleLogout}>
             Sair
           </button>

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { logout } from '../services/auth';
+import BotaoInstalarPWA from '../app/BotaoInstalarPWA';
 import './admin.css';
 
 interface Profile {
@@ -312,6 +313,7 @@ export default function Admin() {
         <span className="admin-topbar-logo">NR-13 · Admin</span>
         <div className="admin-topbar-right">
           <span className="admin-topbar-email">{localStorage.getItem('nr13_usuario_logado')}</span>
+          <BotaoInstalarPWA className="admin-instalar" />
           <button type="button" className="admin-topbar-sair" onClick={sair}>
             Sair
           </button>
