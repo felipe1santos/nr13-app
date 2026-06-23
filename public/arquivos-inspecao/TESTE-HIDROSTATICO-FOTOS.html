@@ -427,8 +427,9 @@
             // só as fotos realmente inseridas — sem slots vazios de preenchimento
             fotos.forEach(function(f) { adicionarSlot(f.base64 || '', f.descricao || ''); });
         } else {
-            // sem fotos de campo: 4 slots vazios pro preenchimento manual
-            adicionarSlot(); adicionarSlot(); adicionarSlot(); adicionarSlot();
+            // sem fotos de campo: não mostra quadros vazios — esconde a folha inteira
+            var pag = document.getElementById('pagina-1');
+            if (pag) pag.style.display = 'none';
         }
     });
 </script>

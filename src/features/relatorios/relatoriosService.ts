@@ -24,32 +24,74 @@ function chaveLivro(tag: string): string {
 // NR-13 13.4.1.9 — injeta TERMO-ABERTURA.html antes de LIVRO-REGISTRO.html só quando é a
 // 1ª inspeção do livro daquele equipamento (livro vazio).
 // Também injeta automaticamente TESTE-HIDROSTATICO-FOTOS.html após TESTE-HIDROSTATICO.html.
-export function montarListaComTermoAbertura(tag: string, docsSelecionados: string[]): string[] {
+export function montarListaComTermoAbertura(
+  tag: string,
+  docsSelecionados: string[],
+  dadosContainer?: unknown,
+): string[] {
   const precisaAbertura =
     docsSelecionados.includes('LIVRO-REGISTRO.html') &&
     (ler<LivroEntrada[]>(chaveLivro(tag)) || []).length === 0;
 
-  const precisaFotosTH = docsSelecionados.includes('TESTE-HIDROSTATICO.html');
-  const precisaFotosVE = docsSelecionados.includes('VISUAL-EXTERNO.html');
-  const precisaFotosVI = docsSelecionados.includes('VISUAL-INTERNO.html');
-  const precisaFotosCL = docsSelecionados.includes('checklist3.html');
+  // Só injeta a folha de fotos (VE/VI/TH) quando há fotos de campo no container — sem fotos,
+  // nada de slots vazios na folha (decisão do usuário: "se não anexou imagem, não aparece nada").
+  const d = (dadosContainer ?? {}) as Record<string, { fotos?: unknown[] } | undefined>;
+  const temFotos = (etapa: string): boolean => {
+    const arr = d?.[etapa]?.fotos;
+    return Array.isArray(arr) && arr.length > 0;
+  };
+  // Fotos da documentação e do checklist vivem em checklist.fotosDocumentacao / checklist.fotos.
+  const checklist = (d?.['checklist'] ?? {}) as { fotos?: unknown[]; fotosDocumentacao?: unknown[] };
+  const temFotosDoc = Array.isArray(checklist.fotosDocumentacao) && checklist.fotosDocumentacao.length > 0;
+  const temFotosCL = Array.isArray(checklist.fotos) && checklist.fotos.length > 0;
 
-  if (!precisaAbertura && !precisaFotosTH && !precisaFotosVE && !precisaFotosVI && !precisaFotosCL) return docsSelecionados;
+  const precisaFotosTH = docsSelecionados.includes('TESTE-HIDROSTATICO.html') && temFotos('th');
+  const precisaFotosVE = docsSelecionados.includes('VISUAL-EXTERNO.html') && temFotos('visual_externo');
+  const precisaFotosVI = docsSelecionados.includes('VISUAL-INTERNO.html') && temFotos('visual_interno');
+  const precisaFotosDoc = docsSelecionados.includes('checklist3.html') && temFotosDoc;
+  const precisaFotosCL = docsSelecionados.includes('checklist3.html') && temFotosCL;
+
+  if (!precisaAbertura && !precisaFotosTH && !precisaFotosVE && !precisaFotosVI && !precisaFotosDoc && !precisaFotosCL)
+    return docsSelecionados;
 
   const resultado: string[] = [];
   for (const doc of docsSelecionados) {
     if (doc === 'LIVRO-REGISTRO.html' && precisaAbertura) resultado.push('TERMO-ABERTURA.html');
     resultado.push(doc);
-    if (doc === 'TESTE-HIDROSTATICO.html') resultado.push('TESTE-HIDROSTATICO-FOTOS.html');
-    if (doc === 'VISUAL-EXTERNO.html') resultado.push('VISUAL-EXTERNO-FOTOS.html');
-    if (doc === 'VISUAL-INTERNO.html') resultado.push('VISUAL-INTERNO-FOTOS.html');
-    // markdown #11 e #12: "Fotos da documentação" vem ANTES de "Fotos do checklist".
+    if (doc === 'TESTE-HIDROSTATICO.html' && precisaFotosTH) resultado.push('TESTE-HIDROSTATICO-FOTOS.html');
+    if (doc === 'VISUAL-EXTERNO.html' && precisaFotosVE) resultado.push('VISUAL-EXTERNO-FOTOS.html');
+    if (doc === 'VISUAL-INTERNO.html' && precisaFotosVI) resultado.push('VISUAL-INTERNO-FOTOS.html');
+    // markdown #11 e #12: "Fotos da documentação" vem ANTES de "Fotos do checklist". Cada uma só
+    // entra se houver foto da sua etapa — sem foto, a folha não aparece.
     if (doc === 'checklist3.html') {
-      resultado.push('FOTOS-DOCUMENTACAO.html');
-      resultado.push('CHECKLIST-FOTOS.html');
+      if (precisaFotosDoc) resultado.push('FOTOS-DOCUMENTACAO.html');
+      if (precisaFotosCL) resultado.push('CHECKLIST-FOTOS.html');
     }
   }
   return resultado;
+}
+
+// Remove as folhas de fotos (VE/VI/TH) da lista quando o container não tem fotos daquela etapa.
+// Usado ao REABRIR um relatório salvo: a lista já vem montada (r.documentos) e não passa pela
+// auto-injeção de montarListaComTermoAbertura, então a folha de fotos vazia precisa ser filtrada
+// aqui — senão o usuário vê quadros de foto em branco (decisão: "sem imagem, não aparece nada").
+const FOTO_PAGE_ETAPA: Record<string, string> = {
+  'TESTE-HIDROSTATICO-FOTOS.html': 'th',
+  'VISUAL-EXTERNO-FOTOS.html': 'visual_externo',
+  'VISUAL-INTERNO-FOTOS.html': 'visual_interno',
+};
+
+export function filtrarFolhasFotoVazias(documentos: string[], dadosContainer?: unknown): string[] {
+  const d = (dadosContainer ?? {}) as Record<string, { fotos?: unknown[] } | undefined>;
+  const checklist = (d?.['checklist'] ?? {}) as { fotos?: unknown[]; fotosDocumentacao?: unknown[] };
+  const naoVazio = (arr: unknown): boolean => Array.isArray(arr) && arr.length > 0;
+  return documentos.filter((doc) => {
+    if (doc === 'FOTOS-DOCUMENTACAO.html') return naoVazio(checklist.fotosDocumentacao);
+    if (doc === 'CHECKLIST-FOTOS.html') return naoVazio(checklist.fotos);
+    const etapa = FOTO_PAGE_ETAPA[doc];
+    if (!etapa) return true;
+    return naoVazio(d?.[etapa]?.fotos);
+  });
 }
 
 // Escreve os metadados que os templates leem diretamente de localStorage (nr13_relatorio_meta_atual)

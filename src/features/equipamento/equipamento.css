@@ -311,6 +311,24 @@
   flex-shrink: 0;
 }
 
+/* Selo de "ensaio importado": triângulo de exclamação + bolinha amarela, alinhado à direita */
+.ensaio-selo {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #d97706;
+  flex-shrink: 0;
+}
+
+.ensaio-bolinha {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #facc15;
+  border: 1px solid #d97706;
+}
+
 .modal-actions {
   display: flex;
   justify-content: flex-end;

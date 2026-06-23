@@ -5,6 +5,15 @@ import '../equipamento/equipamento.css';
 
 const TIPOS: TipoInspecao[] = ['Inspeção Inicial', 'Inspeção Periódica', 'Inspeção Extraordinária'];
 
+// Ensaios importados da inspeção de campo: começam DESMARCADOS para o usuário escolher o que imprimir.
+// Recebem o selo (⚠ + bolinha amarela) indicando que o conteúdo vem importado da inspeção.
+const ENSAIOS = new Set<string>([
+  'VISUAL-EXTERNO.html',
+  'VISUAL-INTERNO.html',
+  'ULTRASSOM.html',
+  'TESTE-HIDROSTATICO.html',
+]);
+
 const ROTULOS: Record<string, string> = {
   'CAPA.html': 'Capa',
   'SUMARIO.html': 'Sumário',
@@ -34,7 +43,9 @@ interface Props {
 
 export default function ModalNovaInspecao({ onClose, onGerar, tag = '' }: Props) {
   const [tipo, setTipo] = useState<TipoInspecao>('Inspeção Periódica');
-  const [marcados, setMarcados] = useState<string[]>([...DOCUMENTOS_DISPONIVEIS]);
+  const [marcados, setMarcados] = useState<string[]>(
+    DOCUMENTOS_DISPONIVEIS.filter((d) => !ENSAIOS.has(d)),
+  );
   const calibracoes = tag ? listarCalibracoes(tag) : [];
   const [calibSelecionados, setCalibSelecionados] = useState<Set<string>>(new Set());
 
@@ -89,6 +100,16 @@ export default function ModalNovaInspecao({ onClose, onGerar, tag = '' }: Props)
                 <label key={doc} className="item-documento-check">
                   <input type="checkbox" checked={marcados.includes(doc)} onChange={() => toggle(doc)} />
                   {(ROTULOS[doc] || doc).toUpperCase()}
+                  {ENSAIOS.has(doc) && (
+                    <span className="ensaio-selo" title="Ensaio importado da inspeção de campo — marque para incluir no relatório">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                        <line x1="12" y1="9" x2="12" y2="13" />
+                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                      </svg>
+                      <span className="ensaio-bolinha" />
+                    </span>
+                  )}
                 </label>
               ))}
               {calibracoes.length > 0 && (

@@ -10,6 +10,7 @@ import {
   excluirDoHistorico,
   expandirMemorial,
   filtrarDocumentosValidos,
+  filtrarFolhasFotoVazias,
   gravarInspecaoOrigemAtual,
   gravarMetaAtual,
   listarHistorico,
@@ -153,13 +154,15 @@ export default function Relatorios() {
     if (!pendente) return;
     setEtapaModal('nenhuma');
     const validos = filtrarDocumentosValidos(pendente.docs);
-    const comTermo = expandirMemorial(tag, montarListaComTermoAbertura(tag, validos));
+    // Carrega o container ANTES de montar: a auto-injeção das folhas de fotos depende de haver
+    // fotos de campo (VE/VI/TH) — sem fotos, a folha não entra.
+    const dadosContainer = containerId ? (carregarContainer(tag, containerId)?.dados ?? {}) : {};
+    const comTermo = expandirMemorial(tag, montarListaComTermoAbertura(tag, validos, dadosContainer));
     const novaMeta = metaPadrao(pendente.tipo);
     novaMeta.documentos = comTermo; // SUMARIO/INSPECOES leem isto pra montar TOC e ensaios
     if (containerId) {
       novaMeta.containerOrigemId = containerId;
-      const container = carregarContainer(tag, containerId);
-      await gravarInspecaoOrigemAtual(container?.dados ?? {});
+      await gravarInspecaoOrigemAtual(dadosContainer);
     }
     await gravarMetaAtual(novaMeta);
     setDocumentos(comTermo);
@@ -173,13 +176,17 @@ export default function Relatorios() {
   // Re-hidrata as chaves "atuais" que os templates leem do localStorage ANTES de remontar os
   // iframes, senão um relatório reaberto exibe a meta/dados de campo do último relatório gerado.
   async function visualizar(r: RelatorioSalvo) {
-    // garante documentos na meta mesmo p/ relatórios salvos antes desse campo existir
-    await gravarMetaAtual({ ...r.meta, documentos: r.meta.documentos ?? r.documentos });
+    let dadosContainer: unknown = {};
     if (r.meta.containerOrigemId) {
       const container = carregarContainer(r.tagVaso, r.meta.containerOrigemId);
-      await gravarInspecaoOrigemAtual(container?.dados ?? {});
+      dadosContainer = container?.dados ?? {};
+      await gravarInspecaoOrigemAtual(dadosContainer);
     }
-    setDocumentos(r.documentos);
+    // Filtra folhas de fotos sem imagem (a lista salva não passa pela auto-injeção que gateia isso).
+    const docsFiltrados = filtrarFolhasFotoVazias(r.documentos, dadosContainer);
+    // garante documentos na meta mesmo p/ relatórios salvos antes desse campo existir
+    await gravarMetaAtual({ ...r.meta, documentos: r.meta.documentos ?? docsFiltrados });
+    setDocumentos(docsFiltrados);
     setMeta(r.meta);
     setSomenteLeitura(true);
     setVersao((v) => v + 1);

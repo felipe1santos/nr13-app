@@ -863,7 +863,7 @@ export default function Prontuarios() {
             {PAGINAS_PRONTUARIO.map((doc, i) => (
               <div key={`${doc}-${i}-${versao}`} className="pagina-relatorio-a4">
                 <iframe
-                  src={`/arquivos-prontuario/${doc}?tag=${tag}&page=${i + 1}`}
+                  src={`/arquivos-prontuario/${doc}?tag=${tag}&page=${i + 1}&total=${PAGINAS_PRONTUARIO.length}`}
                   scrolling="no"
                   title={doc}
                   onLoad={(e) => {

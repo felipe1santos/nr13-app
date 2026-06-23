@@ -647,6 +647,13 @@
                 document.getElementById('footer-empresa').innerHTML = footerHTML;
             }
 
+            // Paginação: usa o nº de página sequencial do relatório (param ?page=N), igual às demais folhas.
+            const pageParam = new URLSearchParams(window.location.search).get('page');
+            if (pageParam) {
+                const fpn = document.querySelector('.footer-page-number');
+                if (fpn) fpn.textContent = pageParam.trim();
+            }
+
             // 1.5 RENDERIZA COMPONENTES DINAMICAMENTE (calc.componentes) — serve vaso, caldeira e
             // autoclave. Se o memorial salvo não tiver o array (memorial antigo), usa o layout fixo.
             const usouDinamico = buildResumoDinamico();

@@ -359,6 +359,7 @@
     <table class="header-table">
         <tr>
             <td class="col-logo">
+                <img id="pront-logo-img" alt="Logo" style="display:none; max-width:100%; max-height:60px; object-fit:contain; margin:0 auto;">
                 <div class="logo-text" id="pront-logo-text" contenteditable="true" spellcheck="false">NOME DA EMPRESA</div>
                 <div class="logo-sub" id="pront-logo-sub" contenteditable="true" spellcheck="false"></div>
             </td>
@@ -589,6 +590,16 @@
                 logoText.textContent = dados.nomeFantasia || dados.razao;
             }
 
+            // Logo da empresa: se houver imagem salva, mostra ela e esconde o texto (igual às demais folhas).
+            const logoImg = document.getElementById('pront-logo-img');
+            if (logoImg && dados.logo) {
+                logoImg.src = dados.logo;
+                logoImg.style.display = 'block';
+                if (logoText) logoText.style.display = 'none';
+                const logoSub = document.getElementById('pront-logo-sub');
+                if (logoSub) logoSub.style.display = 'none';
+            }
+
             let footerHTML = `<strong>${dados.razao || dados.fantasia || 'NOME DA EMPRESA NÃO INFORMADO'}</strong><br>`;
 
             let linha2 = [];
@@ -613,6 +624,14 @@
 <script>
     document.addEventListener("DOMContentLoaded", function() {
         const urlParams = new URLSearchParams(window.location.search);
+
+        // Paginação: usa o nº sequencial do relatório (param ?page=N), igual às demais folhas.
+        const pageParam = urlParams.get('page');
+        if (pageParam) {
+            const fpn = document.querySelector('.footer-page-number');
+            if (fpn) fpn.textContent = pageParam.trim();
+        }
+
         const tagAtual = urlParams.get('tag');
         if (!tagAtual) return;
 

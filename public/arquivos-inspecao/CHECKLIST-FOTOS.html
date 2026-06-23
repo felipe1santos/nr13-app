@@ -179,13 +179,8 @@
         var container = document.getElementById('pages-container');
 
         if (fotos.length === 0) {
-            var pg = document.createElement('div');
-            pg.className = 'page';
-            pg.innerHTML = buildHeader(1) +
-                '<div class="content"><div class="section-title">Fotos do Checklist de Inspeção</div>' +
-                '<div class="fotos-vazio">Nenhuma foto adicionada ao checklist de inspeção.<br><small>Para adicionar fotos, utilize o formulário de Checklist na seção de Inspeções.</small></div></div>' +
-                buildFooter('—', 1);
-            container.appendChild(pg);
+            // Sem fotos: não renderiza folha vazia — o relatório não deve exibir esta página.
+            return;
         } else {
             var totalPags = Math.ceil(fotos.length / FOTOS_POR_PAGINA);
             for (var p = 0; p < totalPags; p++) {
