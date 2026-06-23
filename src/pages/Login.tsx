@@ -24,6 +24,9 @@ export default function Login() {
       } else if (resultado.precisaConfirmarEmail) {
         setAviso('Conta criada! Confirme o e-mail pelo link enviado e depois entre.');
         setModo('entrar');
+      } else if (resultado.aguardandoLiberacao) {
+        setAviso('Conta criada! Aguarde a liberação do administrador para acessar o sistema.');
+        setModo('entrar');
       } else {
         setErro(resultado.erro || 'Falha na operação.');
       }

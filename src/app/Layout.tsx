@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { logout, usuarioLogado } from '../services/auth';
+import { logout, usuarioLogado, isAdmin } from '../services/auth';
 import { useNavigate } from 'react-router-dom';
 import './layout.css';
 
@@ -57,6 +57,13 @@ const ICONE_MINHA_EMPRESA = (
   </svg>
 );
 
+const ICONE_ADMIN = (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M12 2 4 5v6c0 5 3.5 8.5 8 11 4.5-2.5 8-6 8-11V5l-8-3Z" />
+    <path d="M9 12l2 2 4-4" />
+  </svg>
+);
+
 const MENU = [
   { to: '/dashboard', label: 'Equipamentos', icone: ICONE_EQUIPAMENTOS },
   { to: '/inspecoes', label: 'Inspeções', icone: ICONE_INSPECOES },
@@ -72,6 +79,7 @@ export default function Layout() {
   const [colapsada, setColapsada] = useState(false);
   const [menuAberto, setMenuAberto] = useState(false);
   const email = usuarioLogado();
+  const menu = isAdmin() ? [...MENU, { to: '/admin', label: 'Admin', icone: ICONE_ADMIN }] : MENU;
 
   async function handleLogout() {
     await logout();
@@ -117,7 +125,7 @@ export default function Layout() {
             <span className="menu-text">Minha Empresa</span>
           </NavLink>
           <div className="sidebar-divider" />
-          {MENU.map((item) => (
+          {menu.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}

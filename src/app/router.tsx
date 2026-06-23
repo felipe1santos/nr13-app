@@ -11,7 +11,9 @@ import Prontuarios from '../pages/Prontuarios';
 import Calibracoes from '../pages/Calibracoes';
 import MinhaEmpresa from '../pages/MinhaEmpresa';
 import Empresas from '../pages/Empresas';
+import Admin from '../pages/Admin';
 import RotaProtegida from './RotaProtegida';
+import RotaAdmin from './RotaAdmin';
 import Layout from './Layout';
 
 export const router = createBrowserRouter([
@@ -34,6 +36,10 @@ export const router = createBrowserRouter([
           { path: '/calibracoes', element: <Calibracoes /> },
           { path: '/minha-empresa', element: <MinhaEmpresa /> },
           { path: '/empresas', element: <Empresas /> },
+          {
+            element: <RotaAdmin />,
+            children: [{ path: '/admin', element: <Admin /> }],
+          },
         ],
       },
     ],

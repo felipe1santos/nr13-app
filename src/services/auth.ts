@@ -1,6 +1,6 @@
 // Autenticação via Supabase Auth (multi-usuário, e-mail/senha) + perfil em public.profiles.
-// Mantém as chaves localStorage usadas pela UI (nr13_usuario_logado, nr13_plano, nr13_ultimo_acesso)
-// para leitura síncrona no render.
+// Mantém as chaves localStorage usadas pela UI (nr13_usuario_logado, nr13_plano, nr13_ultimo_acesso,
+// nr13_role) para leitura síncrona no render.
 import { supabase } from './supabase';
 import { lerTudo } from './storage';
 
@@ -16,6 +16,8 @@ export interface LoginResultado {
   erro?: string;
   // signup com confirmação de e-mail ativada: conta criada, falta confirmar
   precisaConfirmarEmail?: boolean;
+  // cadastro criado mas aguardando liberação do admin (aviso, não erro)
+  aguardandoLiberacao?: boolean;
 }
 
 export interface VerificaAcessoResultado {
@@ -23,20 +25,35 @@ export interface VerificaAcessoResultado {
   plano?: string;
 }
 
+interface Perfil {
+  plano: string;
+  ativo: boolean;
+  role: string;
+  acessoExpiraEm: string | null;
+}
+
 function normalizar(email: string): string {
   return email.trim().toLowerCase();
 }
 
-// Busca plano/ativo do perfil; grava plano no cache local p/ isDemo().
-async function carregarPerfil(): Promise<{ plano: string; ativo: boolean }> {
+// Busca perfil; grava plano/role no cache local p/ isDemo()/isAdmin().
+async function carregarPerfil(): Promise<Perfil> {
   const { data } = await supabase
     .from('profiles')
-    .select('plano, ativo')
+    .select('plano, ativo, role, acesso_expira_em')
     .maybeSingle();
   const plano = data?.plano ?? '';
-  const ativo = data?.ativo ?? true;
+  const ativo = data?.ativo ?? false;
+  const role = data?.role ?? 'user';
+  const acessoExpiraEm = data?.acesso_expira_em ?? null;
   if (plano) localStorage.setItem('nr13_plano', plano);
-  return { plano, ativo };
+  localStorage.setItem('nr13_role', role);
+  return { plano, ativo, role, acessoExpiraEm };
+}
+
+function expirado(acessoExpiraEm: string | null): boolean {
+  if (!acessoExpiraEm) return false;
+  return new Date(acessoExpiraEm).getTime() < Date.now();
 }
 
 async function aposEntrar(email: string): Promise<string> {
@@ -47,6 +64,32 @@ async function aposEntrar(email: string): Promise<string> {
   return plano;
 }
 
+// ---- Eventos de uso (login/logout) p/ métricas do painel admin ----
+function obterSessaoId(): string {
+  let id = localStorage.getItem('nr13_sessao_id');
+  if (!id) {
+    id = (crypto.randomUUID?.() ?? String(Date.now()) + Math.random().toString(36).slice(2));
+    localStorage.setItem('nr13_sessao_id', id);
+  }
+  return id;
+}
+
+async function registrarEvento(tipo: 'login' | 'logout'): Promise<void> {
+  try {
+    const { data } = await supabase.auth.getSession();
+    const user = data.session?.user;
+    if (!user) return;
+    await supabase.from('login_events').insert({
+      user_id: user.id,
+      email: user.email ?? null,
+      tipo,
+      sessao_id: obterSessaoId(),
+    });
+  } catch {
+    // métricas são best-effort; nunca bloqueiam o fluxo
+  }
+}
+
 export async function login(email: string, senha: string): Promise<LoginResultado> {
   const { error } = await supabase.auth.signInWithPassword({
     email: normalizar(email),
@@ -55,7 +98,20 @@ export async function login(email: string, senha: string): Promise<LoginResultad
   if (error) {
     return { sucesso: false, erro: traduzErro(error.message) };
   }
+  // Gate de liberação/expiração: lê o perfil antes de liberar a entrada.
+  const perfil = await carregarPerfil();
+  if (!perfil.ativo) {
+    await supabase.auth.signOut();
+    return { sucesso: false, erro: 'Acesso ainda não liberado pelo administrador.' };
+  }
+  if (expirado(perfil.acessoExpiraEm)) {
+    await supabase.auth.signOut();
+    return { sucesso: false, erro: 'Seu acesso expirou. Contate o administrador.' };
+  }
+  // Nova sessão de uso → novo sessao_id.
+  localStorage.removeItem('nr13_sessao_id');
   const plano = await aposEntrar(email);
+  await registrarEvento('login');
   return { sucesso: true, plano };
 }
 
@@ -71,14 +127,22 @@ export async function cadastrar(email: string, senha: string): Promise<LoginResu
   if (!data.session) {
     return { sucesso: false, precisaConfirmarEmail: true };
   }
-  const plano = await aposEntrar(email);
-  return { sucesso: true, plano };
-}
-
-export async function logout(): Promise<void> {
+  // Conta criada com sessão, mas o acesso depende de liberação do admin (perfil nasce ativo=false).
+  // Encerra a sessão: usuário só entra após o admin liberar.
   await supabase.auth.signOut();
   localStorage.removeItem('nr13_usuario_logado');
   localStorage.removeItem('nr13_plano');
+  localStorage.removeItem('nr13_role');
+  return { sucesso: false, aguardandoLiberacao: true };
+}
+
+export async function logout(): Promise<void> {
+  await registrarEvento('logout');
+  await supabase.auth.signOut();
+  localStorage.removeItem('nr13_usuario_logado');
+  localStorage.removeItem('nr13_plano');
+  localStorage.removeItem('nr13_role');
+  localStorage.removeItem('nr13_sessao_id');
 }
 
 export function usuarioLogado(): string | null {
@@ -89,11 +153,15 @@ export function isVip(email: string | null): boolean {
   return !!email && VIP_USERS.includes(email.toLowerCase());
 }
 
+export function isAdmin(): boolean {
+  return (localStorage.getItem('nr13_role') || '').toLowerCase() === 'admin';
+}
+
 export function isDemo(): boolean {
   return (localStorage.getItem('nr13_plano') || '').toLowerCase().includes('demonstra');
 }
 
-// Confirma no Supabase se a sessão segue válida e o perfil ativo. Limpa sessão se revogado.
+// Confirma no Supabase se a sessão segue válida e o perfil ativo/não expirado. Limpa sessão se revogado.
 export async function verificarAcesso(): Promise<VerificaAcessoResultado> {
   try {
     const { data } = await supabase.auth.getSession();
@@ -101,12 +169,12 @@ export async function verificarAcesso(): Promise<VerificaAcessoResultado> {
       await logout();
       return { ativo: false };
     }
-    const { plano, ativo } = await carregarPerfil();
-    if (!ativo) {
+    const perfil = await carregarPerfil();
+    if (!perfil.ativo || expirado(perfil.acessoExpiraEm)) {
       await logout();
       return { ativo: false };
     }
-    return { ativo: true, plano };
+    return { ativo: true, plano: perfil.plano };
   } catch {
     // offline: mantém sessão local, não força logout
     return { ativo: true };

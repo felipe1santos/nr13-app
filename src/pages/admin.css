@@ -1,0 +1,258 @@
+.admin-page {
+  padding: 24px;
+  max-width: 1500px;
+  margin: 0 auto;
+}
+
+.admin-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.admin-header h1 {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.admin-btn-refresh {
+  border: 1px solid #d0d7de;
+  background: #fff;
+  color: #1a73e8;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.admin-btn-refresh:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Cards-resumo */
+.admin-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(120px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.admin-card {
+  background: #fff;
+  border: 1px solid #e6e8eb;
+  border-left: 4px solid #1a73e8;
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.admin-card.pendente {
+  border-left-color: #d97706;
+}
+.admin-card.ativo {
+  border-left-color: #1a7f37;
+}
+.admin-card-num {
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1;
+}
+.admin-card-label {
+  font-size: 13px;
+  color: var(--text-muted, #6b7280);
+}
+
+.admin-erro,
+.admin-aviso {
+  padding: 10px 14px;
+  border-radius: 8px;
+  margin-bottom: 14px;
+  font-size: 14px;
+}
+.admin-erro {
+  background: #fdecea;
+  color: #b71c1c;
+}
+.admin-aviso {
+  background: #e6f4ea;
+  color: #1a7f37;
+}
+
+.admin-busca {
+  width: 100%;
+  max-width: 360px;
+  padding: 9px 12px;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.admin-tabela-wrap {
+  overflow-x: auto;
+  border: 1px solid #e6e8eb;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.admin-tabela {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.admin-tabela th,
+.admin-tabela td {
+  padding: 10px 12px;
+  text-align: left;
+  white-space: nowrap;
+  border-bottom: 1px solid #f0f1f3;
+}
+.admin-tabela thead th {
+  background: #f7f8fa;
+  font-weight: 700;
+  color: #444;
+  position: sticky;
+  top: 0;
+}
+.admin-tabela tbody tr:hover {
+  background: #fafbfc;
+}
+.admin-tabela tr.ocupado {
+  opacity: 0.55;
+}
+.admin-email {
+  font-weight: 600;
+}
+.admin-vazio {
+  text-align: center;
+  color: var(--text-muted, #6b7280);
+  padding: 30px 0;
+}
+
+.admin-badge {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.admin-badge.ativo {
+  background: #e6f4ea;
+  color: #1a7f37;
+}
+.admin-badge.pendente {
+  background: #fff3e0;
+  color: #c05600;
+}
+.admin-badge.expirado {
+  background: #fdecea;
+  color: #b71c1c;
+}
+
+.admin-acoes {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.admin-acoes .b {
+  border: 1px solid #d0d7de;
+  background: #fff;
+  color: #333;
+  border-radius: 6px;
+  padding: 5px 9px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.admin-acoes .b:hover {
+  background: #f3f4f6;
+}
+.admin-acoes .b:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.admin-acoes .b-lib {
+  border-color: #1a7f37;
+  color: #1a7f37;
+}
+.admin-acoes .b-bloq {
+  border-color: #d97706;
+  color: #d97706;
+}
+.admin-acoes .b-del {
+  border-color: #c62828;
+  color: #c62828;
+}
+
+/* Mobile: tabela vira cartões empilhados */
+@media (max-width: 860px) {
+  .admin-cards {
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+  }
+  .admin-card {
+    padding: 12px;
+  }
+  .admin-card-num {
+    font-size: 22px;
+  }
+  .admin-tabela-wrap {
+    border: none;
+    background: transparent;
+    overflow: visible;
+  }
+  .admin-tabela,
+  .admin-tabela thead,
+  .admin-tabela tbody,
+  .admin-tabela th,
+  .admin-tabela td,
+  .admin-tabela tr {
+    display: block;
+  }
+  .admin-tabela thead {
+    display: none;
+  }
+  .admin-tabela tr {
+    background: #fff;
+    border: 1px solid #e6e8eb;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    padding: 8px 12px;
+  }
+  .admin-tabela td {
+    border: none;
+    white-space: normal;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 6px 0;
+  }
+  .admin-tabela td::before {
+    content: attr(data-label);
+    font-weight: 700;
+    color: #555;
+    flex-shrink: 0;
+  }
+  .admin-tabela td.admin-acoes {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .admin-tabela td.admin-acoes::before {
+    margin-bottom: 4px;
+  }
+  .admin-acoes .b {
+    width: 100%;
+    padding: 9px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 600px) {
+  .admin-page {
+    padding: 14px;
+  }
+}
