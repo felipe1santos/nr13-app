@@ -18,6 +18,7 @@ import {
   salvarNoHistorico,
 } from '../features/relatorios/relatoriosService';
 import { exportarPdf } from '../features/relatorios/pdfService';
+import { imprimirRelatorio } from '../features/relatorios/printService';
 import type { RelatorioMeta, RelatorioSalvo, TipoInspecao } from '../features/relatorios/tipos';
 import './relatorios.css';
 
@@ -110,6 +111,16 @@ export default function Relatorios() {
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
   const [modalConfig, setModalConfig] = useState(false);
   const [modalImprimir, setModalImprimir] = useState(false);
+  const [imprimindo, setImprimindo] = useState(false);
+
+  async function prepararEImprimir() {
+    setImprimindo(true);
+    try {
+      await imprimirRelatorio('.relatorio-preview');
+    } finally {
+      setImprimindo(false);
+    }
+  }
 
   const carregarEquipamentos = useCallback(async () => {
     setEquipamentos(await listarEquipamentos());
@@ -195,7 +206,10 @@ export default function Relatorios() {
 
   async function imprimir(r: RelatorioSalvo) {
     await visualizar(r);
-    setTimeout(() => window.print(), 700);
+    // Aguarda os iframes carregarem antes de rasterizar (html2canvas precisa do conteúdo).
+    setTimeout(() => {
+      void prepararEImprimir();
+    }, 1200);
   }
 
   async function duplicar(r: RelatorioSalvo) {
@@ -483,8 +497,8 @@ export default function Relatorios() {
           {modalImprimir && (
             <div className="impressao-acoes no-print">
               <span className="impressao-titulo">Pré-visualização da impressão</span>
-              <button type="button" className="btn-primario barra-btn" onClick={() => window.print()}>
-                🖨 Imprimir
+              <button type="button" className="btn-primario barra-btn" onClick={prepararEImprimir} disabled={imprimindo}>
+                {imprimindo ? 'Preparando…' : '🖨 Imprimir'}
               </button>
               <button type="button" className="btn-secundario barra-btn" onClick={() => setModalImprimir(false)}>
                 Fechar
