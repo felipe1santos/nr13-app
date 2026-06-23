@@ -1,0 +1,9 @@
+:80 {
+	root * /srv
+	encode gzip
+
+	# SPA: arquivos reais (assets, /arquivos-inspecao/*.html, etc) servem direto;
+	# rotas do react-router que não existem em disco caem no index.html.
+	try_files {path} /index.html
+	file_server
+}
