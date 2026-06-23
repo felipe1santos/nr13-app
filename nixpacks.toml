@@ -1,0 +1,6 @@
+# Build estático Vite (SPA) servido por Caddy no Coolify/Nixpacks.
+# `npm install` (não `npm ci`) para resolver as optional deps nativas do
+# rolldown na plataforma de build (linux-x64-gnu) — o lockfile gerado no
+# Windows + bug npm #4828 faz o `npm ci` pular o binding nativo e quebrar o build.
+[phases.install]
+cmds = ["npm install"]
