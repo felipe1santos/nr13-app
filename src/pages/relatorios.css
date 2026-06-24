@@ -1,10 +1,16 @@
 .relatorios-page {
   padding: 24px;
-  max-width: 1000px;
+  width: 100%;
+  max-width: 1400px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: 18px;
+}
+
+/* Histórico/tabela ocupa toda a largura disponível; preview A4 já se centraliza sozinho. */
+.relatorios-page .meta-table-wrap {
+  width: 100%;
 }
 
 /* ── Barra de metadados fixa (sticky) ── */
