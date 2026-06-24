@@ -20,6 +20,7 @@ import { listarContainers } from '../features/inspecoes/inspecaoService';
 import type { ContainerInspecao } from '../features/inspecoes/tipos';
 import type { EmpresaEquipamento, CategoriaSalva } from '../features/equipamento/tipos';
 import CroquiVaso3D from '../features/prontuarios/CroquiVaso3D';
+import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
 import '../pages/relatorios.css';
 import './prontuarios.css';
 
@@ -170,6 +171,43 @@ export default function Prontuarios() {
   const [visualizandoSemSalvar, setVisualizandoSemSalvar] = useState(false);
   const [containers, setContainers] = useState<ContainerInspecao[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [imprimindo, setImprimindo] = useState(false);
+
+  async function prepararEImprimir() {
+    setImprimindo(true);
+    try {
+      await imprimirRelatorio('.prontuario-preview');
+    } finally {
+      setImprimindo(false);
+    }
+  }
+
+  // Pré-rasteriza as folhas do prontuário em #print-root assim que o visualizador carrega (e a cada
+  // nova versão). Assim o Ctrl+P nativo e o botão imprimem as imagens prontas — 1 folha por A4, sem
+  // o navegador quebrar os iframes. Limpa ao sair do visualizador.
+  useEffect(() => {
+    if (tela !== 'visualizador') return;
+    let cancelado = false;
+    const preview = document.querySelector<HTMLElement>('.prontuario-preview');
+    if (!preview) return;
+    const iframes = Array.from(preview.querySelectorAll('iframe'));
+    const aguardarIframes = Promise.all(
+      iframes.map((f) =>
+        f.contentDocument && f.contentDocument.readyState === 'complete'
+          ? Promise.resolve()
+          : new Promise<void>((res) => f.addEventListener('load', () => res(), { once: true })),
+      ),
+    );
+    aguardarIframes
+      .then(() => new Promise((r) => setTimeout(r, 500))) // deixa imagens/croqui/fontes assentarem
+      .then(() => {
+        if (!cancelado) void prepararFolhasImpressao('.prontuario-preview');
+      });
+    return () => {
+      cancelado = true;
+      limparFolhasImpressao();
+    };
+  }, [tela, versao]);
 
   const carregarEquipamentos = useCallback(async () => {
     setEquipamentos(await listarEquipamentos());
@@ -836,8 +874,8 @@ export default function Prontuarios() {
                     <button type="button" className="btn-secundario" onClick={() => setTela('formulario')}>
                       Editar
                     </button>
-                    <button type="button" className="btn-secundario" onClick={() => window.print()}>
-                      Imprimir
+                    <button type="button" className="btn-secundario" onClick={prepararEImprimir} disabled={imprimindo}>
+                      {imprimindo ? 'Preparando…' : 'Imprimir'}
                     </button>
                     {confirmandoExcluir ? (
                       <>
