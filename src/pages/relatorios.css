@@ -530,6 +530,9 @@
   background: #fff;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   overflow: hidden;
+  /* O preview é flex column; em preview-impressao-ativa vira fixed (altura travada).
+     Sem flex-shrink:0 as folhas de altura fixa (297mm) são esmagadas em tiras finas. */
+  flex: 0 0 auto;
 }
 
 .pagina-relatorio-a4 iframe {
