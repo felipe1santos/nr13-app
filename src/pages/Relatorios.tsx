@@ -18,7 +18,7 @@ import {
   salvarNoHistorico,
 } from '../features/relatorios/relatoriosService';
 import { exportarPdf } from '../features/relatorios/pdfService';
-import { imprimirRelatorio } from '../features/relatorios/printService';
+import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
 import type { RelatorioMeta, RelatorioSalvo, TipoInspecao } from '../features/relatorios/tipos';
 import './relatorios.css';
 
@@ -110,7 +110,6 @@ export default function Relatorios() {
   const [nomeRenomeando, setNomeRenomeando] = useState('');
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
   const [modalConfig, setModalConfig] = useState(false);
-  const [modalImprimir, setModalImprimir] = useState(false);
   const [imprimindo, setImprimindo] = useState(false);
 
   async function prepararEImprimir() {
@@ -121,6 +120,33 @@ export default function Relatorios() {
       setImprimindo(false);
     }
   }
+
+  // Pré-rasteriza as folhas em #print-root assim que o relatório carrega, e mantém atualizado a
+  // cada nova versão. Assim o Ctrl+P nativo já imprime as imagens prontas (1 folha por A4), sem
+  // pré-visualização e sem quebrar os iframes. Limpa ao sair do visualizador.
+  useEffect(() => {
+    if (tela !== 'visualizador' || !documentos) return;
+    let cancelado = false;
+    const preview = document.querySelector<HTMLElement>('.relatorio-preview');
+    if (!preview) return;
+    const iframes = Array.from(preview.querySelectorAll('iframe'));
+    const aguardarIframes = Promise.all(
+      iframes.map((f) =>
+        f.contentDocument && f.contentDocument.readyState === 'complete'
+          ? Promise.resolve()
+          : new Promise<void>((res) => f.addEventListener('load', () => res(), { once: true })),
+      ),
+    );
+    aguardarIframes
+      .then(() => new Promise((r) => setTimeout(r, 500))) // deixa imagens/fontes dos templates assentarem
+      .then(() => {
+        if (!cancelado) void prepararFolhasImpressao('.relatorio-preview');
+      });
+    return () => {
+      cancelado = true;
+      limparFolhasImpressao();
+    };
+  }, [tela, documentos, versao]);
 
   const carregarEquipamentos = useCallback(async () => {
     setEquipamentos(await listarEquipamentos());
@@ -473,8 +499,8 @@ export default function Relatorios() {
                   {salvando ? 'Salvando...' : '💾 Salvar'}
                 </button>
               )}
-              <button type="button" className="btn-secundario barra-btn" onClick={() => setModalImprimir(true)}>
-                🖨 Imprimir
+              <button type="button" className="btn-secundario barra-btn" onClick={prepararEImprimir} disabled={imprimindo}>
+                {imprimindo ? 'Preparando…' : '🖨 Imprimir'}
               </button>
               <button type="button" className="btn-secundario barra-btn" onClick={() => setModalConfig(true)}>
                 ⚙ Configurações
@@ -482,7 +508,7 @@ export default function Relatorios() {
             </div>
           </div>
 
-          <div className={`relatorio-preview ${modalImprimir ? 'preview-impressao-ativa' : ''}`}>
+          <div className="relatorio-preview">
             {documentos.map((doc, i) => {
               const sep = doc.includes('?') ? '&' : '?';
               return (
@@ -492,19 +518,6 @@ export default function Relatorios() {
               );
             })}
           </div>
-
-          {/* Modal de impressão: o preview acima vira tela cheia; esta barra flutuante não imprime */}
-          {modalImprimir && (
-            <div className="impressao-acoes no-print">
-              <span className="impressao-titulo">Pré-visualização da impressão</span>
-              <button type="button" className="btn-primario barra-btn" onClick={prepararEImprimir} disabled={imprimindo}>
-                {imprimindo ? 'Preparando…' : '🖨 Imprimir'}
-              </button>
-              <button type="button" className="btn-secundario barra-btn" onClick={() => setModalImprimir(false)}>
-                Fechar
-              </button>
-            </div>
-          )}
 
           {/* Modal de configurações: todas as datas/campos + Atualizar + Baixar PDF */}
           {modalConfig && (

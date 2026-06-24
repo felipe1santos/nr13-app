@@ -385,39 +385,6 @@
   white-space: nowrap;
 }
 
-/* ── Modo "pré-visualização da impressão" (preview em tela cheia) ── */
-.preview-impressao-ativa {
-  position: fixed;
-  inset: 0;
-  z-index: 1200;
-  overflow: auto;
-  background: #4b4b4b;
-  padding: 70px 20px 20px;
-  margin: 0;
-  border-radius: 0;
-}
-
-.impressao-acoes {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 1300;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 18px;
-  background: var(--bg-card);
-  border-bottom: 1px solid var(--border-solid);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-}
-
-.impressao-titulo {
-  font-weight: 700;
-  font-size: 14px;
-  margin-right: auto;
-}
-
 /* ── Modal genérico (Configurações) ── */
 .rel-modal-overlay {
   position: fixed;
@@ -495,8 +462,15 @@
 }
 
 @media print {
-  /* Impressão própria via imagens (printService.imprimirRelatorio): esconde TODO o app e
-     mostra só as folhas rasterizadas — 1 imagem A4 por página, sem quebra/corte de iframe. */
+  /* Impressão própria via imagens (printService): esconde TODO o app e mostra só as folhas
+     rasterizadas — 1 imagem A4 por página, sem quebra/corte de iframe e sem scrollbar. Vale
+     tanto pelo botão quanto pelo Ctrl+P nativo (folhas pré-rasterizadas no #print-root). */
+  body.imprimindo-relatorio,
+  html:has(body.imprimindo-relatorio) {
+    overflow: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
   body.imprimindo-relatorio > * {
     display: none !important;
   }
@@ -530,8 +504,8 @@
   background: #fff;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   overflow: hidden;
-  /* O preview é flex column; em preview-impressao-ativa vira fixed (altura travada).
-     Sem flex-shrink:0 as folhas de altura fixa (297mm) são esmagadas em tiras finas. */
+  /* O preview é flex column; sem flex-shrink:0 as folhas de altura fixa (297mm) podem ser
+     esmagadas em tiras finas quando o container ganha altura travada. */
   flex: 0 0 auto;
 }
 
