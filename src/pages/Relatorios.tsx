@@ -40,14 +40,6 @@ const IconeOlho = (
   </svg>
 );
 
-const IconeImpressora = (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M6 9V2h12v7" />
-    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-    <rect x="6" y="14" width="12" height="8" />
-  </svg>
-);
-
 const IconeDuplicar = (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <rect x="9" y="9" width="13" height="13" rx="2" />
@@ -228,14 +220,6 @@ export default function Relatorios() {
     setSomenteLeitura(true);
     setVersao((v) => v + 1);
     setTela('visualizador');
-  }
-
-  async function imprimir(r: RelatorioSalvo) {
-    await visualizar(r);
-    // Aguarda os iframes carregarem antes de rasterizar (html2canvas precisa do conteúdo).
-    setTimeout(() => {
-      void prepararEImprimir();
-    }, 1200);
   }
 
   async function duplicar(r: RelatorioSalvo) {
@@ -464,9 +448,6 @@ export default function Relatorios() {
                           </button>
                           <button type="button" className="btn-icone cor-azul" title="Visualizar" onClick={() => visualizar(r)}>
                             {IconeOlho}
-                          </button>
-                          <button type="button" className="btn-icone cor-verde" title="Imprimir" onClick={() => imprimir(r)}>
-                            {IconeImpressora}
                           </button>
                           <button type="button" className="btn-icone cor-roxo" title="Duplicar" onClick={() => duplicar(r)}>
                             {IconeDuplicar}

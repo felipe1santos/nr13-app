@@ -114,7 +114,7 @@
   flex-direction: column;
   gap: 16px;
   align-items: center;
-  background: #e9e9e9;
+  background: #eaedf6;
   padding: 20px;
   border-radius: var(--radius-lg);
 }
