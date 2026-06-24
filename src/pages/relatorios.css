@@ -522,6 +522,13 @@
   display: block;
 }
 
+/* Zoom-out confortável do preview do relatório (A4 cheio = 793px fica grande/perto demais).
+   Só visual de tela; a impressão usa #print-root (imagens), então não é afetada. O html2canvas
+   rasteriza o body do iframe no tamanho real, independente do zoom do host -> qualidade mantida. */
+.relatorio-preview .pagina-relatorio-a4 {
+  zoom: 0.8;
+}
+
 @media (max-width: 600px) {
   .relatorios-page {
     padding: 14px;
