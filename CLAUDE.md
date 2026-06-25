@@ -173,6 +173,14 @@ a **logo e dados da empresa** (`nr13_minha_empresa`), e os dados do **engenheiro
 
 ## 9. Pendências conhecidas (gaps vs. esta estrutura)
 
+> **PRÓXIMA ETAPA DO PROJETO:** Controle de Acesso multi-papel + Portal do Cliente + Sessão Única.
+> Plano completo em **`PLANO-CONTROLE-DE-ACESSO.md`** (raiz do projeto). Resumo: introduzir
+> organização (tenant) para sub-logins compartilharem os dados (`app_storage` por `org_id`, não mais
+> só por `user_id`); papéis `mestre`/`gerente`/`funcionario`/`cliente` (≠ `role` admin da plataforma);
+> botão **"Acesso"** no painel (só mestre) p/ criar sub-logins; **portal do cliente** somente-leitura
+> (filtra ativos por `nr13_emp_<TAG>.clienteId`); e **sessão única** por heartbeat (bloqueia login
+> simultâneo na mesma conta, inclusive a do mestre). Implementar em fases (ver §9–11 do plano).
+
 Nenhuma pendência estrutural aberta. Itens já resolvidos:
 - ✅ "Fotos da documentação" (folha #11): grupo `fotosDocumentacao` no `FormularioChecklist` +
   `FOTOS-DOCUMENTACAO.html`, auto-injetado após `checklist3` e antes de `CHECKLIST-FOTOS`.
