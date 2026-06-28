@@ -229,7 +229,8 @@
                 <th style="text-align:left;padding-left:7px">ITEM DE VERIFICAÇÃO</th>
                 <th style="width:42px">SIM</th>
                 <th style="width:42px">NÃO</th>
-                <th style="width:160px;text-align:left;padding-left:5px">OBSERVAÇÃO</th>
+                <th style="width:42px">N.A.</th>
+                <th style="width:150px;text-align:left;padding-left:5px">OBSERVAÇÃO</th>
             </tr>
         </thead>
         <tbody id="cl-body">
@@ -294,15 +295,16 @@
                 '<td class="cl-desc">' + item + '</td>' +
                 '<td class="cl-check"><input type="checkbox" class="chk" id="sim-' + n + '"></td>' +
                 '<td class="cl-check"><input type="checkbox" class="chk" id="nao-' + n + '"></td>' +
+                '<td class="cl-check"><input type="checkbox" class="chk" id="na-' + n + '"></td>' +
                 '<td class="cl-obs"><input type="text" class="cl-obs-input" id="obs-' + n + '" placeholder="..." spellcheck="false"></td>';
             tbody.appendChild(tr);
 
-            // SIM/NÃO mutuamente exclusivos
-            tr.querySelector('#sim-' + n).addEventListener('change', function() {
-                if (this.checked) tr.querySelector('#nao-' + n).checked = false;
-            });
-            tr.querySelector('#nao-' + n).addEventListener('change', function() {
-                if (this.checked) tr.querySelector('#sim-' + n).checked = false;
+            // SIM/NÃO/N.A. mutuamente exclusivos
+            var _ids = ['sim-', 'nao-', 'na-'];
+            _ids.forEach(function(pref) {
+                tr.querySelector('#' + pref + n).addEventListener('change', function() {
+                    if (this.checked) _ids.forEach(function(o) { if (o !== pref) tr.querySelector('#' + o + n).checked = false; });
+                });
             });
         });
     }
@@ -378,9 +380,11 @@
                     var val = dados.itens[String(n)];
                     var simEl = document.getElementById('sim-' + n);
                     var naoEl = document.getElementById('nao-' + n);
+                    var naEl = document.getElementById('na-' + n);
                     var obsEl = document.getElementById('obs-' + n);
                     if (simEl) simEl.checked = (val === 'sim');
                     if (naoEl) naoEl.checked = (val === 'nao');
+                    if (naEl) naEl.checked = (val === 'na');
                     if (obsEl && dados.itemObs && dados.itemObs[String(n)]) obsEl.value = dados.itemObs[String(n)];
                 }
             }
@@ -398,6 +402,8 @@
         gerarChecklist();
         preencherEmpresa();
         injetarDadosVI();
+        var _pg = new URLSearchParams(window.location.search).get('page');
+        if (_pg) { var _el = document.querySelector('.footer-page-number'); if (_el) _el.innerText = _pg.trim(); }
     });
 </script>
 </body>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { carregarMinhaEmpresa, salvarMinhaEmpresa } from '../features/cadastros/cadastroService';
 import type { MinhaEmpresaDados } from '../features/cadastros/tipos';
+import { comprimirImagem } from '../services/imagem';
 import './cadastros.css';
 
 export default function MinhaEmpresa() {
@@ -23,12 +24,18 @@ export default function MinhaEmpresa() {
     setRascunho((d) => ({ ...d, [chave]: valor }));
   }
 
-  function handleLogo(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleLogo(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => set('logo', ev.target?.result as string);
-    reader.readAsDataURL(file);
+    // Comprime antes de gravar: logo em resolução cheia (vários MB em base64) estoura a cota do
+    // localStorage e impede a hidratação dos dados no PC do escritório — a logo some dos documentos.
+    try {
+      set('logo', await comprimirImagem(file, 300));
+    } catch {
+      const reader = new FileReader();
+      reader.onload = (ev) => set('logo', ev.target?.result as string);
+      reader.readAsDataURL(file);
+    }
   }
 
   async function salvar() {

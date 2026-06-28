@@ -232,3 +232,42 @@ export function expandirMemorial(tag: string, docs: string[]): string[] {
   const partes = ranges.map((r, k) => `MEMORIAL.html?part=${k + 1}&of=${n}&from=${r.from}&to=${r.to}`);
   return [...docs.slice(0, idx), ...partes, ...docs.slice(idx + 1)];
 }
+
+// ── Folhas de foto: expansão em 1 slot por folha A4 ────────────────────────────
+// Cada folha de foto rende no máximo 4 fotos por A4 (§5). Como cada slot do relatório é UMA folha
+// (1 iframe = 1 imagem A4 na impressão), aqui pré-expandimos a folha em N entradas — 1 por página —
+// igual ao expandirMemorial. Sem isto, >4 fotos viravam várias .page dentro de um único iframe e
+// eram cortadas na tela / esmagadas na impressão. Cada template renderiza só sua fatia via ?fpag.
+const FOTOS_POR_FOLHA = 4;
+const FOLHA_FOTO_FONTE: Record<string, (d: Record<string, { fotos?: unknown[]; fotosDocumentacao?: unknown[] } | undefined>) => unknown[] | undefined> = {
+  'CHECKLIST-FOTOS.html': (d) => d?.['checklist']?.fotos,
+  'FOTOS-DOCUMENTACAO.html': (d) => d?.['checklist']?.fotosDocumentacao,
+  'VISUAL-EXTERNO-FOTOS.html': (d) => d?.['visual_externo']?.fotos,
+  'VISUAL-INTERNO-FOTOS.html': (d) => d?.['visual_interno']?.fotos,
+  'TESTE-HIDROSTATICO-FOTOS.html': (d) => d?.['th']?.fotos,
+};
+
+export function expandirFolhasFoto(docs: string[], dadosContainer?: unknown): string[] {
+  const d = (dadosContainer ?? {}) as Record<string, { fotos?: unknown[]; fotosDocumentacao?: unknown[] } | undefined>;
+  const out: string[] = [];
+  for (const doc of docs) {
+    const base = doc.split('?')[0];
+    const fonte = FOLHA_FOTO_FONTE[base];
+    // Idempotente: se já expandido (?fpag=) ou não é folha de foto, mantém como está.
+    if (!fonte || doc.includes('fpag=')) {
+      out.push(doc);
+      continue;
+    }
+    const arr = fonte(d);
+    const n = Array.isArray(arr) ? arr.length : 0;
+    const total = Math.max(1, Math.ceil(n / FOTOS_POR_FOLHA));
+    if (total <= 1) {
+      // ≤4 fotos: 1 página — comportamento idêntico ao de hoje (sem ?fpag).
+      out.push(doc);
+      continue;
+    }
+    const sep = doc.includes('?') ? '&' : '?';
+    for (let k = 1; k <= total; k++) out.push(`${doc}${sep}fpag=${k}&fof=${total}`);
+  }
+  return out;
+}

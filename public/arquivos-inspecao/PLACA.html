@@ -471,7 +471,7 @@
                 setVal('plate-serie', info.numeroSerie || info.serie);
                 setVal('plate-ano', info.ano);
                 setVal('plate-norma', 'ASME');
-                setVal('plate-fluido', info.fluido || cat.fluidoInput);
+                setVal('plate-fluido', (info.fluido || cat.fluidoInput || '').replace(/^[A-D]\s*-\s*/, ''));
 
                 // Categoria e Classe NR-13
                 setVal('plate-classe', cat.classe || '-');

@@ -12,7 +12,7 @@ export function listarContainers(tag: string): ContainerInspecao[] {
 export async function criarContainer(tag: string, ensaios: TipoEnsaio[], nome?: string): Promise<ContainerInspecao> {
   const criadoEm = new Date().toLocaleDateString('pt-BR');
   const novo: ContainerInspecao = {
-    id: `cont${Date.now()}`,
+    id: `cont${Date.now()}_${crypto.randomUUID().slice(0, 8)}`,
     nome: (nome ?? '').trim() || `Inspeção de ${criadoEm}`,
     criadoEm,
     ensaios,
@@ -39,9 +39,8 @@ export async function adicionarEnsaiosContainer(tag: string, containerId: string
   await salvar(chave(tag), atualizados);
 }
 
-// Remove do container todos os ensaios que apontam pro formulário indicado (ex.: remover o
-// "item" Checklist remove visual_interno E visual_externo, já que os dois compartilham o mesmo
-// formulário — ver FORM_POR_ENSAIO).
+// Remove do container todos os ensaios cujo FORM_POR_ENSAIO aponta pro formulário indicado.
+// (visual_externo e visual_interno têm formulários distintos; cada um é removido pelo seu próprio.)
 export async function removerFormularioContainer(tag: string, containerId: string, formulario: FormularioEnsaio): Promise<void> {
   const atuais = listarContainers(tag);
   const atualizados = atuais.map((c) =>
@@ -77,6 +76,12 @@ export async function salvarDadosFormulario(
   dados: unknown,
 ): Promise<void> {
   const atuais = listarContainers(tag);
+  // Se o container alvo não está na lista carregada (ex.: cache ainda não hidratado / offline no
+  // 1º load), NÃO grava: senão escreveríamos a lista sem ele (ou []) e apagaríamos os containers
+  // reais no Supabase ao ressincronizar.
+  if (!atuais.some((c) => c.id === containerId)) {
+    throw new Error('Container de inspeção não encontrado no cache — recarregue antes de salvar.');
+  }
   const atualizados = atuais.map((c) => (c.id === containerId ? { ...c, dados: { ...c.dados, [formulario]: dados } } : c));
   await salvar(chave(tag), atualizados);
 }

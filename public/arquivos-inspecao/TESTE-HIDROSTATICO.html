@@ -699,6 +699,10 @@
             generateTableRows();
             initChart();
 
+            // Número da página vem da montagem do relatório (?page=N), não fixo.
+            var _pg = new URLSearchParams(window.location.search).get('page');
+            if (_pg) { var _el = document.querySelector('.footer-page-number'); if (_el) _el.innerText = _pg.trim(); }
+
             // Auto-Fill Empresa
             const salvo = localStorage.getItem('nr13_minha_empresa');
             if (salvo) {

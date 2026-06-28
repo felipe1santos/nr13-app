@@ -458,8 +458,8 @@ export function gerarBlocoComponenteVaso(
 // Tolerante ao espaço antes do `}`: o branch principal (cilíndrico/elíptico/etc) emite
 // `\text{ mm}`/`\text{ MPa}` (sem espaço final) e o planoAparafusado emite `\text{ mm }`/`\text{ MPa }`
 // (com espaço). Sem o ` ?` o regex só casava o planoAparafusado e os demais ficavam com pmta/t_min ''.
-const RE_TREQ = /t_\{req\} = ([\d.]+) \\text\{ mm ?\}/;
-const RE_PMTA = /PMTA = ([\d.]+) \\text\{ MPa ?\}/;
+const RE_TREQ = /t_\{req\} = ([-\d.]+) \\text\{ mm ?\}/;
+const RE_PMTA = /PMTA = ([-\d.]+) \\text\{ MPa ?\}/;
 
 export function calcularComponenteVaso(
   nomeDaPeca: string,

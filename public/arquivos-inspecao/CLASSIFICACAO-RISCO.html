@@ -622,13 +622,16 @@
                 const info = infoStr ? JSON.parse(infoStr) : {};
                 const calc = calcStr ? JSON.parse(calcStr) : {};
                 const cat = catStr ? JSON.parse(catStr) : {};
-                
+                const meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}');
+                if (meta.codigo && document.getElementById('header-relatorio')) document.getElementById('header-relatorio').innerText = meta.codigo;
+                if (meta.emissao && document.getElementById('header-data')) document.getElementById('header-data').innerText = meta.emissao;
+
                 let pmta_mpa = parseFloat(calc.pmta) || 0;
                 let pmta_kpa = pmta_mpa * 1000;
                 let vol_m3 = parseFloat(info.volume) || parseFloat(cat.volInput) || 0;
 
                 // Fluido pode ser exibido isoladamente mesmo sem categorização completa
-                let textFluido = info.fluido || cat.fluidoInput || '--';
+                let textFluido = (info.fluido || cat.fluidoInput || '--').replace(/^[A-D]\s*-\s*/, '');
                 if(document.getElementById('risk-fluido-trabalho')) {
                     document.getElementById('risk-fluido-trabalho').innerText = textFluido.toUpperCase();
                 }
@@ -651,19 +654,21 @@
                 let classe = cat.classe || 'A';
                 let isNR13 = (atendePV || classe === 'A');
 
-                let grupo = 5;
-                if (pv_mpa >= 100) grupo = 1;
-                else if (pv_mpa >= 30) grupo = 2;
-                else if (pv_mpa >= 2.5) grupo = 3;
-                else if (pv_mpa >= 1) grupo = 4;
-
                 const tab = {
                     'A': {1:'I',  2:'I',   3:'II',  4:'III', 5:'III'},
                     'B': {1:'I',  2:'II',  3:'III', 4:'IV',  5:'IV'},
                     'C': {1:'I',  2:'II',  3:'III', 4:'IV',  5:'V'},
                     'D': {1:'II', 2:'III', 3:'IV',  4:'V',   5:'V'}
                 };
-                let categoriaFinal = tab[classe] ? tab[classe][grupo] : '--';
+                // Prefere grupo/categoria salvos na ficha (fonte de verdade); recalcula só como fallback.
+                let grupo = cat.grupo || 5;
+                if (!cat.grupo) {
+                    if (pv_mpa >= 100) grupo = 1;
+                    else if (pv_mpa >= 30) grupo = 2;
+                    else if (pv_mpa >= 2.5) grupo = 3;
+                    else if (pv_mpa >= 1) grupo = 4;
+                }
+                let categoriaFinal = cat.catFinal || (tab[classe] ? tab[classe][grupo] : '--');
                 let reqOp = (categoriaFinal === 'I' || categoriaFinal === 'II') ? "Sim" : "Não";
 
                 if(document.getElementById('risk-pv-kpa')) document.getElementById('risk-pv-kpa').innerText = pv_kpa.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});

@@ -8,6 +8,7 @@ import { carregarContainer } from '../features/inspecoes/inspecaoService';
 import {
   adicionarEntradaLivroAuto,
   excluirDoHistorico,
+  expandirFolhasFoto,
   expandirMemorial,
   filtrarDocumentosValidos,
   filtrarFolhasFotoVazias,
@@ -186,13 +187,16 @@ export default function Relatorios() {
     // Carrega o container ANTES de montar: a auto-injeção das folhas de fotos depende de haver
     // fotos de campo (VE/VI/TH) — sem fotos, a folha não entra.
     const dadosContainer = containerId ? (carregarContainer(tag, containerId)?.dados ?? {}) : {};
-    const comTermo = expandirMemorial(tag, montarListaComTermoAbertura(tag, validos, dadosContainer));
+    const comTermo = expandirFolhasFoto(
+      expandirMemorial(tag, montarListaComTermoAbertura(tag, validos, dadosContainer)),
+      dadosContainer,
+    );
     const novaMeta = metaPadrao(pendente.tipo);
     novaMeta.documentos = comTermo; // SUMARIO/INSPECOES leem isto pra montar TOC e ensaios
-    if (containerId) {
-      novaMeta.containerOrigemId = containerId;
-      await gravarInspecaoOrigemAtual(dadosContainer);
-    }
+    if (containerId) novaMeta.containerOrigemId = containerId;
+    // Sempre regrava (limpa quando não há container): sem isto, um relatório sem container exibe
+    // os dados de campo do ÚLTIMO relatório gerado (chaves nr13_inspecao_atual/nr13_injecao_atual).
+    await gravarInspecaoOrigemAtual(dadosContainer);
     await gravarMetaAtual(novaMeta);
     setDocumentos(comTermo);
     setMeta(novaMeta);
@@ -209,12 +213,15 @@ export default function Relatorios() {
     if (r.meta.containerOrigemId) {
       const container = carregarContainer(r.tagVaso, r.meta.containerOrigemId);
       dadosContainer = container?.dados ?? {};
-      await gravarInspecaoOrigemAtual(dadosContainer);
     }
+    // Sempre regrava (limpa quando o relatório não tem container): senão um relatório reaberto sem
+    // container exibe os dados de campo do último relatório gerado.
+    await gravarInspecaoOrigemAtual(dadosContainer);
     // Filtra folhas de fotos sem imagem (a lista salva não passa pela auto-injeção que gateia isso).
-    const docsFiltrados = filtrarFolhasFotoVazias(r.documentos, dadosContainer);
-    // garante documentos na meta mesmo p/ relatórios salvos antes desse campo existir
-    await gravarMetaAtual({ ...r.meta, documentos: r.meta.documentos ?? docsFiltrados });
+    const docsFiltrados = expandirFolhasFoto(filtrarFolhasFotoVazias(r.documentos, dadosContainer), dadosContainer);
+    // meta.documentos (lido pelo SUMARIO p/ o TOC e numeração) deve casar com a lista renderizada
+    // já expandida — senão o sumário conta páginas diferente das folhas exibidas.
+    await gravarMetaAtual({ ...r.meta, documentos: docsFiltrados });
     setDocumentos(docsFiltrados);
     setMeta(r.meta);
     setSomenteLeitura(true);
@@ -224,6 +231,12 @@ export default function Relatorios() {
 
   async function duplicar(r: RelatorioSalvo) {
     const novaMeta: RelatorioMeta = { ...r.meta, codigo: `REL-${Date.now()}`, emissao: hoje(), documentos: r.meta.documentos ?? r.documentos };
+    // Regrava as chaves de campo do container de origem (ou limpa): senão o duplicado renderiza os
+    // dados de ensaio do último relatório que esteve nas chaves nr13_inspecao_atual/nr13_injecao_atual.
+    const dadosContainer = r.meta.containerOrigemId
+      ? (carregarContainer(r.tagVaso, r.meta.containerOrigemId)?.dados ?? {})
+      : {};
+    await gravarInspecaoOrigemAtual(dadosContainer);
     await gravarMetaAtual(novaMeta);
     setDocumentos(r.documentos);
     setMeta(novaMeta);

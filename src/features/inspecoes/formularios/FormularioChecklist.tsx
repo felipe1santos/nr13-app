@@ -191,6 +191,7 @@ export default function FormularioChecklist({ tag, containerId }: { tag: string;
   );
   const [salvando, setSalvando] = useState(false);
   const [salvoOk, setSalvoOk] = useState(false);
+  const [erroSalvar, setErroSalvar] = useState(false);
   const inputFotoRef = useRef<HTMLInputElement>(null);
   const inputFotoDocRef = useRef<HTMLInputElement>(null);
 
@@ -222,10 +223,15 @@ export default function FormularioChecklist({ tag, containerId }: { tag: string;
 
   async function salvar() {
     setSalvando(true);
+    setErroSalvar(false);
     try {
       await salvarDadosFormulario(tag, containerId, 'checklist', dados);
       setSalvoOk(true);
       setTimeout(() => setSalvoOk(false), 2500);
+    } catch {
+      // Falha ao salvar (ex.: cota do localStorage estourada por excesso de fotos) precisa avisar
+      // o usuário — senão ele acha que salvou e perde o preenchimento.
+      setErroSalvar(true);
     } finally {
       setSalvando(false);
     }
@@ -369,6 +375,11 @@ export default function FormularioChecklist({ tag, containerId }: { tag: string;
         >
           {salvando ? 'Salvando...' : salvoOk ? 'Salvo!' : 'Salvar Checklist'}
         </button>
+        {erroSalvar && (
+          <div style={{ color: '#dc2626', fontSize: 13, marginTop: 8, fontWeight: 600 }}>
+            Falha ao salvar. Verifique o espaço de armazenamento (muitas fotos?) e tente novamente.
+          </div>
+        )}
       </div>
     </>
   );

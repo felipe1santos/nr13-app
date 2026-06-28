@@ -8,6 +8,7 @@ interface DadosChecklist {
   respostas: Record<string, string>;
   instrumentos: Record<string, boolean>;
   fotos: { base64: string; descricao: string }[];
+  fotosDocumentacao?: { base64: string; descricao: string }[];
 }
 
 interface DadosVisual {
@@ -73,10 +74,10 @@ function SecaoViz({ titulo, children }: { titulo: string; children: React.ReactN
   );
 }
 
-function GaleriaFotos({ fotos }: { fotos: { base64: string; descricao: string }[] }) {
+function GaleriaFotos({ fotos, titulo = 'Registro Fotográfico' }: { fotos: { base64: string; descricao: string }[]; titulo?: string }) {
   if (!fotos || fotos.length === 0) return null;
   return (
-    <SecaoViz titulo="Registro Fotográfico">
+    <SecaoViz titulo={titulo}>
       <div className="fotos-formulario-grid">
         {fotos.map((f, i) => (
           <div key={i} className="foto-formulario-item">
@@ -218,6 +219,7 @@ function ViewChecklist({ dados }: { dados: DadosChecklist }) {
         </SecaoViz>
       )}
 
+      <GaleriaFotos fotos={dados.fotosDocumentacao ?? []} titulo="Registro Fotográfico da Documentação" />
       <GaleriaFotos fotos={dados.fotos ?? []} />
     </>
   );

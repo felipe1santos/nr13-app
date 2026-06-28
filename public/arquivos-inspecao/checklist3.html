@@ -49,6 +49,7 @@
         .q-opt.checked.opt-sim .cb { background: var(--green-ok); border-color: var(--green-ok); }
         .q-opt.checked.opt-nao .cb { background: var(--red-fail); border-color: var(--red-fail); }
         .q-opt.checked.opt-out .cb { background: var(--gray-mid); border-color: var(--gray-mid); }
+        .q-opt.checked.opt-na .cb { background: var(--gray-mid); border-color: var(--gray-mid); }
         .cb { display: inline-flex; align-items: center; justify-content: center;
               width: 14px; height: 14px; border: 1px solid #9ca3af; border-radius: 2px;
               background: #fff; flex-shrink: 0; }
@@ -155,6 +156,7 @@
                 <div class="q-options">
                     <span class="q-opt opt-sim" onclick="selOpt(this)"><span class="cb"></span> Sim</span>
                     <span class="q-opt opt-nao" onclick="selOpt(this)"><span class="cb"></span> Não</span>
+                    <span class="q-opt opt-na" onclick="selOpt(this)"><span class="cb"></span> N/A</span>
                 </div>
             </div>
         </div>
@@ -165,6 +167,7 @@
                 <div class="q-options">
                     <span class="q-opt opt-sim" onclick="selOpt(this)"><span class="cb"></span> Sim</span>
                     <span class="q-opt opt-nao" onclick="selOpt(this)"><span class="cb"></span> Não</span>
+                    <span class="q-opt opt-na" onclick="selOpt(this)"><span class="cb"></span> N/A</span>
                 </div>
             </div>
         </div>
@@ -241,6 +244,7 @@
                 <div class="q-options">
                     <span class="q-opt opt-sim" onclick="selOpt(this)"><span class="cb"></span> Sim</span>
                     <span class="q-opt opt-nao" onclick="selOpt(this)"><span class="cb"></span> Não</span>
+                    <span class="q-opt opt-na" onclick="selOpt(this)"><span class="cb"></span> N/A</span>
                 </div>
             </div>
         </div>
@@ -266,6 +270,7 @@
                 <div class="q-options">
                     <span class="q-opt opt-sim" onclick="selOpt(this)"><span class="cb"></span> Sim</span>
                     <span class="q-opt opt-nao" onclick="selOpt(this)"><span class="cb"></span> Não</span>
+                    <span class="q-opt opt-na" onclick="selOpt(this)"><span class="cb"></span> N/A</span>
                 </div>
             </div>
             <div class="note">Conforme NR-13, item 13.5.3.2: os instrumentos e controles de vasos de pressão devem ser mantidos calibrados e em boas condições operacionais.</div>

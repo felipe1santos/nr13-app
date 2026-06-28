@@ -137,7 +137,10 @@ export function cilindrica(dados: DadosAutoclaveCilindrica): ResultadoCalculo {
   const pmta_circ = (S * E * t_util) / (R + 0.6 * t_util);
 
   const t_min_long = (P * R) / (2 * S * E + 0.4 * P);
-  const pmta_long = (2 * S * E * t_util) / (R - 0.4 * t_util);
+  // UG-27(c) é válido só p/ parede fina (D/t > 20). Em parede grossa R − 0,4·t_util ≤ 0 produziria
+  // PMTA negativa/infinita que contaminaria o min — guarda: nesse caso a junta long. não governa.
+  const denom_long = R - 0.4 * t_util;
+  const pmta_long = denom_long > 0 ? (2 * S * E * t_util) / denom_long : Infinity;
 
   const t_min = Math.max(t_min_circ, t_min_long);
   const pmta = Math.min(pmta_circ, pmta_long);

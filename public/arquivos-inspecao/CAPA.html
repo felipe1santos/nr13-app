@@ -309,7 +309,7 @@
 
                 // Preenche Descrição (Fluido/Equipamento)
                 if(document.getElementById('capa-subtitulo')) {
-                    const textoFluido = cat.fluidoInput ? cat.fluidoInput : 'VISÃO GERAL DO EQUIPAMENTO';
+                    const textoFluido = cat.fluidoInput ? cat.fluidoInput.replace(/^[A-D]\s*-\s*/, '') : 'VISÃO GERAL DO EQUIPAMENTO';
                     document.getElementById('capa-subtitulo').innerText = textoFluido;
                 }
 
@@ -333,24 +333,30 @@
                 // =====================================================
                 // CLASSIFICAÇÃO NR-13 (Grupo / Categoria / Classe)
                 // =====================================================
-                let pmta_mpa = parseFloat(calc.pmta) || 0;
-                let vol_m3 = parseFloat(info.volume) || parseFloat(cat.volInput) || 0;
-                let pv_mpa = pmta_mpa * vol_m3;
-
                 let classe = cat.classe || 'A';
-                let grupo = 5;
-                if (pv_mpa >= 100) grupo = 1;
-                else if (pv_mpa >= 30) grupo = 2;
-                else if (pv_mpa >= 2.5) grupo = 3;
-                else if (pv_mpa >= 1) grupo = 4;
-
-                const tabCategoria = {
-                    'A': {1:'I',  2:'I',   3:'II',  4:'III', 5:'III'},
-                    'B': {1:'I',  2:'II',  3:'III', 4:'IV',  5:'IV'},
-                    'C': {1:'I',  2:'II',  3:'III', 4:'IV',  5:'V'},
-                    'D': {1:'II', 2:'III', 3:'IV',  4:'V',   5:'V'}
-                };
-                let categoriaFinal = tabCategoria[classe] ? tabCategoria[classe][grupo] : '--';
+                let grupo, categoriaFinal;
+                // Fonte de verdade = categoria já calculada e salva na ficha. Só recalcula como
+                // fallback (relatório antigo sem cat.grupo/cat.catFinal) a partir de PMTA×Volume.
+                if (cat.grupo && cat.catFinal) {
+                    grupo = cat.grupo;
+                    categoriaFinal = cat.catFinal;
+                } else {
+                    let pmta_mpa = parseFloat(calc.pmta) || 0;
+                    let vol_m3 = parseFloat(info.volume) || parseFloat(cat.volInput) || 0;
+                    let pv_mpa = pmta_mpa * vol_m3;
+                    grupo = 5;
+                    if (pv_mpa >= 100) grupo = 1;
+                    else if (pv_mpa >= 30) grupo = 2;
+                    else if (pv_mpa >= 2.5) grupo = 3;
+                    else if (pv_mpa >= 1) grupo = 4;
+                    const tabCategoria = {
+                        'A': {1:'I',  2:'I',   3:'II',  4:'III', 5:'III'},
+                        'B': {1:'I',  2:'II',  3:'III', 4:'IV',  5:'IV'},
+                        'C': {1:'I',  2:'II',  3:'III', 4:'IV',  5:'V'},
+                        'D': {1:'II', 2:'III', 3:'IV',  4:'V',   5:'V'}
+                    };
+                    categoriaFinal = tabCategoria[classe] ? tabCategoria[classe][grupo] : '--';
+                }
 
                 setVal('box-grupo', grupo);
                 setVal('box-categoria', categoriaFinal);

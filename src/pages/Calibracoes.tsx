@@ -12,6 +12,7 @@ import {
 } from '../features/calibracoes/calibracaoService';
 import type { DadosCalibracao, DadosManometro, DadosPSV } from '../features/calibracoes/tipos';
 import VisualizadorCalibracao from '../features/calibracoes/VisualizadorCalibracao';
+import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
 import '../pages/relatorios.css';
 import './calibracoes.css';
 
@@ -206,6 +207,32 @@ export default function Calibracoes() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     carregarEquipamentos();
   }, [carregarEquipamentos]);
+
+  // Pré-rasteriza o certificado em #print-root (1 imagem A4) quando o preview abre — igual ao
+  // relatório/prontuário. Sem isto, o Ctrl+P/botão Imprimir cairia no print nativo do iframe
+  // (sai em tiras / só 1 página). Limpa ao sair do visualizador.
+  useEffect(() => {
+    if (tela !== 'visualizador') return;
+    let cancelado = false;
+    const preview = document.querySelector<HTMLElement>('.cal-preview');
+    if (!preview) return;
+    const iframes = Array.from(preview.querySelectorAll('iframe'));
+    Promise.all(
+      iframes.map((f) =>
+        f.contentDocument && f.contentDocument.readyState === 'complete'
+          ? Promise.resolve()
+          : new Promise<void>((res) => f.addEventListener('load', () => res(), { once: true })),
+      ),
+    )
+      .then(() => new Promise((r) => setTimeout(r, 500)))
+      .then(() => {
+        if (!cancelado) void prepararFolhasImpressao('.cal-preview');
+      });
+    return () => {
+      cancelado = true;
+      limparFolhasImpressao();
+    };
+  }, [tela, calAtual, versao]);
 
   function abrirEquipamento(eq: EquipamentoResumo) {
     setTag(eq.tag);
@@ -764,7 +791,7 @@ export default function Calibracoes() {
                 <button type="button" className="btn-primario" onClick={() => setTela('selecionarTipo')}>
                   + Nova Calibração
                 </button>
-                <button type="button" className="btn-secundario" onClick={() => window.print()}>
+                <button type="button" className="btn-secundario" onClick={() => void imprimirRelatorio('.cal-preview')}>
                   Imprimir
                 </button>
                 {confirmandoId === calAtual.id ? (

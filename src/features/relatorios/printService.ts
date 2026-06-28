@@ -36,6 +36,23 @@ export async function prepararFolhasImpressao(containerSelector = '.relatorio-pr
     for (const pag of paginas) {
       const iframe = pag.querySelector('iframe');
       const alvo = iframe?.contentDocument?.body || pag;
+      // Garante que as imagens (logo/fotos base64) e fontes DENTRO do iframe estejam decodificadas
+      // antes do html2canvas — senão a folha rasterizada pode sair com foto/logo em branco.
+      const doc = iframe?.contentDocument;
+      if (doc) {
+        await Promise.all(
+          Array.from(doc.images).map((img) =>
+            img.complete && img.naturalWidth > 0
+              ? Promise.resolve()
+              : img.decode().catch(() => undefined),
+          ),
+        );
+        try {
+          await (doc as Document & { fonts?: FontFaceSet }).fonts?.ready;
+        } catch {
+          /* fonts API indisponível — segue */
+        }
+      }
       const canvas = await html2canvas(alvo, {
         scale: 2,
         useCORS: true,

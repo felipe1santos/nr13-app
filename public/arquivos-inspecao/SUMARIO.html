@@ -267,15 +267,15 @@
                 <td rowspan="2" class="td-info-right">
                     <div class="right-info-block">
                         <div class="info-label">Relatório nº.</div>
-                        <div class="info-value" contenteditable="true">ME 2204173</div>
+                        <div class="info-value" id="sum-rel" contenteditable="true">ME 2204173</div>
                     </div>
                     <div class="right-info-block">
                         <div class="info-label">Data de Emissão:</div>
-                        <div class="info-value" contenteditable="true">05/04/2026</div>
+                        <div class="info-value" id="sum-data" contenteditable="true">05/04/2026</div>
                     </div>
                     <div class="right-info-block">
                         <div class="info-label">Validade:</div>
-                        <div class="info-value" contenteditable="true">05/04/2028</div>
+                        <div class="info-value" id="sum-validade" contenteditable="true">05/04/2028</div>
                     </div>
                 </td>
             </tr>
@@ -434,6 +434,9 @@
                 const metaRaw = localStorage.getItem('nr13_relatorio_meta_atual');
                 if (!metaRaw) return;
                 const meta = JSON.parse(metaRaw);
+                if (meta.codigo && document.getElementById('sum-rel')) document.getElementById('sum-rel').innerText = meta.codigo;
+                if (meta.emissao && document.getElementById('sum-data')) document.getElementById('sum-data').innerText = meta.emissao;
+                if (meta.validade && document.getElementById('sum-validade')) document.getElementById('sum-validade').innerText = meta.validade;
                 const docs = meta.documentos;
                 if (!docs || docs.length === 0) return;
 
@@ -442,6 +445,9 @@
 
                 tocContainer.innerHTML = '';
                 docs.forEach((entry, idx) => {
+                    // Folha de foto expandida (?fpag): mostra UMA linha no sumário (a 1ª página), mas
+                    // o nº de página segue idx+1 — a lista já é 1 entrada por folha A4.
+                    if (/fpag=/.test(entry) && !/fpag=1(&|$)/.test(entry)) return;
                     const base = entry.split('?')[0];
                     let label = MAPA_DOCS[base] || base;
                     const matchLivro = entry.match(/livro_pagina=(\d+)&livro_total=(\d+)/);

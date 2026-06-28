@@ -187,7 +187,14 @@
             return;
         } else {
             var totalPags = Math.ceil(fotos.length / FOTOS_POR_PAGINA);
-            for (var p = 0; p < totalPags; p++) {
+            // fpag/fof: montagem expande esta folha em 1 slot por página A4. Com ?fpag renderiza só
+            // aquela página; sem (legado), todas.
+            var FPAG = parseInt(new URLSearchParams(window.location.search).get('fpag') || '0', 10);
+            var indices = [];
+            if (FPAG > 0) { indices.push(FPAG - 1); }
+            else { for (var k = 0; k < totalPags; k++) indices.push(k); }
+            indices.forEach(function(p) {
+                if (p < 0 || p >= totalPags) return;
                 var slice = fotos.slice(p * FOTOS_POR_PAGINA, (p + 1) * FOTOS_POR_PAGINA);
                 var gridHTML = '<div class="fotos-grid">';
                 slice.forEach(function(foto, i) { gridHTML += buildFotoCard(foto, p * FOTOS_POR_PAGINA + i + 1); });
@@ -197,9 +204,9 @@
                 pg.innerHTML = buildHeader(p + 1) +
                     '<div class="content"><div class="section-title">' + TITULO + '</div>' +
                     gridHTML + '</div>' +
-                    buildFooter(PAGE_PARAM + p, p + 1);
+                    buildFooter(FPAG > 0 ? PAGE_PARAM : (PAGE_PARAM + p), p + 1);
                 container.appendChild(pg);
-            }
+            });
         }
 
         try {

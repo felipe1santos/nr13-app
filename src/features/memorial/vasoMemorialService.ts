@@ -77,7 +77,7 @@ const FORMULAS_VASO: Record<string, [string, string]> = {
   cilindrico: ['t = P·Ri / (S·E − 0,6·P)', 'PMTA = S·E·t / (Ri + 0,6·t)'],
   eliptico: ['t = P·D / (2·S·E − 0,2·P)', 'PMTA = 2·S·E·t / (D + 0,2·t)'],
   toroesferico: ['t = 0,885·P·L / (S·E − 0,1·P)', 'PMTA = S·E·t / (0,885·L + 0,1·t)'],
-  esferico: ['t = P·L / (2·S·E − 0,2·P)', 'PMTA = 2·S·E·t / (L + 0,2·t)'],
+  esferico: ['t = P·R / (2·S·E − 0,2·P)', 'PMTA = 2·S·E·t / (R + 0,2·t)'],
   plano: ['t = d·C·√(P/S)', 'PMTA = S·(t/d)²/C'],
   planoAparafusado: ['t = G·√(C·P/S)', 'PMTA = S·(t/G)²/C'],
   cone: ['t = P·D / (2·cos α·(S·E − 0,6·P))', 'PMTA = 2·cos α·S·E·t / (D + 1,2·t·cos α)'],

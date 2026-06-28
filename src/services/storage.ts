@@ -42,6 +42,7 @@ export async function lerTudo(): Promise<Record<string, string>> {
         .from(TABELA_STORAGE)
         .select('chave, valor')
         .eq('user_id', userId)
+        .order('chave', { ascending: true })
         .range(inicio, inicio + PAGINA_TAMANHO - 1);
       // Erro de rede em qualquer página: aborta SEM mexer no cache (offline-safe).
       if (error) return {};
@@ -68,7 +69,13 @@ export async function lerTudo(): Promise<Record<string, string>> {
       }
     }
     for (const [chave, valor] of Object.entries(dados)) {
-      localStorage.setItem(chave, valor);
+      // Guarda individual: um valor grande demais (ex.: logo/foto) que estoure a cota não pode
+      // abortar a hidratação das demais chaves — senão dados como nr13_minha_empresa somem.
+      try {
+        localStorage.setItem(chave, valor);
+      } catch {
+        // cota excedida nesta chave: pula e continua hidratando o resto
+      }
     }
     localStorage.setItem('nr13_cache_owner', userId);
     return dados;
@@ -80,7 +87,11 @@ export async function lerTudo(): Promise<Record<string, string>> {
 
 export async function salvar(chave: string, objeto: unknown): Promise<void> {
   const valor = JSON.stringify(objeto);
-  localStorage.setItem(chave, valor); // cache imediato (iframe lê na hora)
+  try {
+    localStorage.setItem(chave, valor); // cache imediato (iframe lê na hora)
+  } catch {
+    // cota local estourada: ainda assim persiste no Supabase abaixo, sem derrubar a gravação
+  }
   const userId = await idUsuarioAtual();
   if (!userId) return;
   try {

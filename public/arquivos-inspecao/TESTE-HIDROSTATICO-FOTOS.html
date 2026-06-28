@@ -275,10 +275,13 @@
 <script>
     /* ── CONTROLE DE SLOTS ─────────────────────────────────── */
     let contSlots = 0;
+    // ?fpag: a montagem expande a folha em 1 página A4 por 4 fotos; o nº da Foto segue absoluto.
+    let FOTO_OFFSET = 0;
 
     function adicionarSlot(src, legenda) {
         contSlots++;
         const idx = contSlots;
+        const rotulo = idx + FOTO_OFFSET;
         const grade = document.getElementById('grade-fotos');
 
         const card = document.createElement('div');
@@ -287,7 +290,7 @@
         card.innerHTML = `
             <div class="foto-area${src ? ' preenchida' : ''}" id="area-${idx}"
                  onclick="clicarArea(${idx})">
-                <span class="foto-num">Foto ${idx}</span>
+                <span class="foto-num">Foto ${rotulo}</span>
                 <button class="foto-del no-print" onclick="removerFoto(event,${idx})" title="Remover">✕</button>
                 <div class="foto-ph">
                     <svg width="30" height="30" viewBox="0 0 24 24" fill="none"
@@ -298,12 +301,12 @@
                     </svg>
                     CLIQUE PARA INSERIR FOTO
                 </div>
-                <img id="img-${idx}" src="${src || ''}" alt="Foto ${idx}">
+                <img id="img-${idx}" src="${src || ''}" alt="Foto ${rotulo}">
                 <input type="file" class="foto-input" id="inp-${idx}"
                        accept="image/*" onchange="carregarFoto(event,${idx})">
             </div>
             <textarea class="foto-leg" id="leg-${idx}"
-                      placeholder="Descrição / legenda da Foto ${idx}…"
+                      placeholder="Descrição / legenda da Foto ${rotulo}…"
                       spellcheck="false">${legenda || ''}</textarea>
         `;
         grade.appendChild(card);
@@ -423,6 +426,9 @@
         }
 
         var fotos = (th && Array.isArray(th.fotos)) ? th.fotos : [];
+        // ?fpag: só as 4 fotos desta página A4 (1 iframe = 1 folha). Sem fpag, todas.
+        var FPAG = parseInt(new URLSearchParams(window.location.search).get('fpag') || '0', 10);
+        if (FPAG > 0) { FOTO_OFFSET = (FPAG - 1) * 4; fotos = fotos.slice((FPAG - 1) * 4, FPAG * 4); }
         if (fotos.length > 0) {
             // só as fotos realmente inseridas — sem slots vazios de preenchimento
             fotos.forEach(function(f) { adicionarSlot(f.base64 || '', f.descricao || ''); });

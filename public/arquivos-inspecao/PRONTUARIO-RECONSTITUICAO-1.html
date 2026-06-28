@@ -315,9 +315,10 @@
         var _ct1 = _comps.find(function(c) { return c.id === 'tampo1'; });
         var _ct2 = _comps.find(function(c) { return c.id === 'tampo2'; });
         var ec = dados3D ? {
+            P: dados3D.P,
             hasCasco: !!_cc, dadosCasco: _cc ? _cc.dados : null,
-            hasTampo1: !!_ct1, dadosTampo1: _ct1 ? _ct1.dados : null,
-            hasTampo2: !!_ct2, dadosTampo2: _ct2 ? _ct2.dados : null,
+            hasTampo1: !!_ct1, dadosTampo1: _ct1 ? _ct1.dados : null, tipoTampo1: _ct1 ? _ct1.tipo : null,
+            hasTampo2: !!_ct2, dadosTampo2: _ct2 ? _ct2.dados : null, tipoTampo2: _ct2 ? _ct2.tipo : null,
             orientacao: dados3D.orientacao || null, bocais: {}
         } : null;
         const minhaEmpresa = JSON.parse(localStorage.getItem('nr13_minha_empresa') || '{}');
@@ -361,7 +362,7 @@
         setVal('ph-ano', info.ano);
 
         setVal('ph-categoria', cat.catFinal);
-        setVal('ph-fluido', cat.fluidoInput);
+        setVal('ph-fluido', (cat.fluidoInput || '').replace(/^[A-D]\s*-\s*/, ''));
 
         // ===== PARTES ENVOLVIDAS =====
         setVal('ph-cli-razao', nomeCliente);
@@ -395,7 +396,7 @@
 
         // ===== DADOS DO PROJETO =====
         if (ec) {
-            if (ec.P !== undefined) setVal('ph-pressao-projeto', ec.P.toFixed(2).replace('.', ',') + ' MPa');
+            if (ec.P !== undefined && ec.P !== null) setVal('ph-pressao-projeto', parseFloat(ec.P).toFixed(2).replace('.', ',') + ' MPa');
             if (ec.dadosCasco) {
                 if (ec.dadosCasco.temp !== undefined) setVal('ph-temp-projeto', parseFloat(ec.dadosCasco.temp).toFixed(2).replace('.', ',') + ' °C');
                 if (ec.dadosCasco.ca !== undefined) setVal('ph-ca', String(ec.dadosCasco.ca).replace('.', ',') + ' mm');
@@ -406,11 +407,14 @@
                 eliptico: 'Elíptico 2:1 (UG-32(c))',
                 toroesferico: 'Toroesférico (UG-32(e))',
                 esferico: 'Esférico/Hemisférico (UG-27(d))',
-                plano: 'Plano Circular (UG-34)'
+                plano: 'Plano Circular (UG-34)',
+                planoAparafusado: 'Plano Aparafusado (UG-34)',
+                cone: 'Cônico (UG-32(g))'
             };
+            // Geometria do tampo vem de componente.tipo (não existe campo .geo em dados).
             let tampos = [];
-            if (ec.hasTampo1 && ec.dadosTampo1) tampos.push('Tampo 1: ' + (geoLabels[ec.dadosTampo1.geo] || ec.dadosTampo1.geo || '--'));
-            if (ec.hasTampo2 && ec.dadosTampo2) tampos.push('Tampo 2: ' + (geoLabels[ec.dadosTampo2.geo] || ec.dadosTampo2.geo || '--'));
+            if (ec.hasTampo1 && ec.dadosTampo1) tampos.push('Tampo 1: ' + (geoLabels[ec.tipoTampo1] || ec.tipoTampo1 || '--'));
+            if (ec.hasTampo2 && ec.dadosTampo2) tampos.push('Tampo 2: ' + (geoLabels[ec.tipoTampo2] || ec.tipoTampo2 || '--'));
             setVal('ph-tampos', tampos.join('  |  '));
         }
 

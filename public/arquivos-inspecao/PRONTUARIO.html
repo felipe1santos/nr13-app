@@ -586,8 +586,8 @@
             const dados = JSON.parse(salvo);
 
             const logoText = document.getElementById('pront-logo-text');
-            if (logoText && (dados.nomeFantasia || dados.razao)) {
-                logoText.textContent = dados.nomeFantasia || dados.razao;
+            if (logoText && (dados.fantasia || dados.razao)) {
+                logoText.textContent = dados.fantasia || dados.razao;
             }
 
             // Logo da empresa: se houver imagem salva, mostra ela e esconde o texto (igual às demais folhas).
@@ -757,7 +757,7 @@
         if (cat.volInput) setVal('pront-volume', String(cat.volInput).replace('.', ','));
 
         // ===== ASPECTOS OPERACIONAIS (FLUIDO + PMO/PMTA/PTH) =====
-        setVal('pront-fluido', cat.fluidoInput || info.fluido);
+        setVal('pront-fluido', (cat.fluidoInput || info.fluido || '').replace(/^[A-D]\s*-\s*/, ''));
 
         const pmtaMpa = parseFloat(calc.pmta) || 0;
         const pthMpa = parseFloat(calc.pth) || (pmtaMpa * 1.3);
@@ -780,7 +780,8 @@
         }
         if (pmtaMpa) {
             const convPmta = converterPressaoMult(pmtaMpa);
-            setVal('pront-pressao-proj', convPmta.psi);
+            // NÃO sobrescrever pront-pressao-proj aqui: ele é a PRESSÃO DE PROJETO (dados3D.P),
+            // não a PMTA. A PMTA tem seu próprio campo (pront-pmta-*).
             setVal('pront-pmta-mpa', convPmta.mpa);
             setVal('pront-pmta-psi', convPmta.psi);
             setVal('pront-pmta-kgf', convPmta.kgf);

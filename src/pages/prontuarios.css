@@ -12,7 +12,7 @@
   flex-direction: column;
   gap: 16px;
   align-items: center;
-  background: #eaedf6;
+  background: #ebeef8;
   padding: 20px;
   border-radius: var(--radius-lg);
 }

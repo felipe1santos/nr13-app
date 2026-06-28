@@ -1,8 +1,9 @@
 import { ler, salvar } from '../../services/storage';
-import type { MinhaEmpresaDados, Cliente } from './tipos';
+import type { MinhaEmpresaDados, Cliente, Funcionario } from './tipos';
 
 const KEY_MINHA_EMPRESA = 'nr13_minha_empresa';
 const KEY_CLIENTES = 'nr13_clientes';
+const KEY_FUNCIONARIOS = 'nr13_lista_phs';
 
 export function carregarMinhaEmpresa(): MinhaEmpresaDados {
   return ler<MinhaEmpresaDados>(KEY_MINHA_EMPRESA) || {};
@@ -26,4 +27,20 @@ export function salvarCliente(cliente: Cliente): void {
 
 export function excluirCliente(id: string): void {
   salvar(KEY_CLIENTES, listarClientes().filter((c) => c.id !== id));
+}
+
+export function listarFuncionarios(): Funcionario[] {
+  return ler<Funcionario[]>(KEY_FUNCIONARIOS) || [];
+}
+
+export function salvarFuncionario(funcionario: Funcionario): void {
+  const lista = listarFuncionarios();
+  const idx = lista.findIndex((f) => f.id === funcionario.id);
+  if (idx >= 0) lista[idx] = funcionario;
+  else lista.push(funcionario);
+  salvar(KEY_FUNCIONARIOS, lista);
+}
+
+export function excluirFuncionario(id: string): void {
+  salvar(KEY_FUNCIONARIOS, listarFuncionarios().filter((f) => f.id !== id));
 }

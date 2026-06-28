@@ -211,6 +211,11 @@
     let totalSlots   = 0;   // total de slots criados (índice global da foto)
     let paginaAtual  = 1;   // última página criada
     const FOTOS_PAG  = 4;   // fotos por página
+    // Página inicial vem da montagem do relatório (?page=N); páginas extras seguem em sequência.
+    const PAGE_PARAM = parseInt(new URLSearchParams(window.location.search).get('page') || '14', 10);
+    // Quando a montagem expande esta folha (?fpag), só as 4 fotos da fatia entram, e o nº da FOTO
+    // continua a contagem absoluta (página 2 = FOTO 5..8).
+    let FOTO_OFFSET = 0;
 
     /* ── ADICIONAR SLOT ─────────────────────────────── */
     function adicionarSlot(src, legenda) {
@@ -230,7 +235,7 @@
         card.className = 'foto-card';
         card.id = 'card-' + idx;
         card.innerHTML =
-            '<div class="foto-header">FOTO ' + idx + '</div>' +
+            '<div class="foto-header">FOTO ' + (idx + FOTO_OFFSET) + '</div>' +
             '<div class="foto-area' + (src ? ' preenchida' : '') + '" id="area-' + idx + '"' +
             '     onclick="clicarArea(' + idx + ')">' +
             '    <button class="foto-del no-print" onclick="removerFoto(event,' + idx + ')" title="Remover">✕</button>' +
@@ -290,7 +295,7 @@
             '  <div class="rodape-linha">' +
             '    <div class="rodape-texto">' + document.getElementById('txt-empresa').innerHTML + '</div>' +
             '  </div>' +
-            '  <div class="rodape-num" contenteditable="true" spellcheck="false">' + (14 + num - 1) + '</div>' +
+            '  <div class="rodape-num" contenteditable="true" spellcheck="false">' + (PAGE_PARAM + num - 1) + '</div>' +
             '</div>';
 
         document.body.appendChild(pagina);
@@ -370,8 +375,14 @@
                 fotosInjetadas = (inj && inj['visual_externo'] && inj['visual_externo'].fotos) || [];
             }
         } catch(e) {}
-        if (fotosInjetadas.length > 0) {
-            fotosInjetadas.forEach(function(f) { adicionarSlot(f.base64, f.descricao); });
+        var _r1 = document.querySelector('#pagina-1 .rodape-num');
+        if (_r1) _r1.innerText = PAGE_PARAM;
+        // ?fpag: renderiza só as 4 fotos desta página A4 (1 iframe = 1 folha). Sem fpag, todas.
+        var FPAG = parseInt(new URLSearchParams(window.location.search).get('fpag') || '0', 10);
+        var lista = fotosInjetadas;
+        if (FPAG > 0) { lista = fotosInjetadas.slice((FPAG - 1) * FOTOS_PAG, FPAG * FOTOS_PAG); FOTO_OFFSET = (FPAG - 1) * FOTOS_PAG; }
+        if (lista.length > 0) {
+            lista.forEach(function(f) { adicionarSlot(f.base64, f.descricao); });
         } else {
             // sem fotos de campo: não mostra quadros vazios — esconde a folha inteira
             var pag = document.getElementById('pagina-1');

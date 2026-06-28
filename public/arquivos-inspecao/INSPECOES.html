@@ -749,14 +749,14 @@
                 setVal('insp-serie', info.numeroSerie || info.serie);
                 setVal('insp-tipo', info.descricao);
                 setVal('insp-fabricante', info.fabricante);
-                setVal('insp-cod-proj', info.codProj);
+                setVal('insp-cod-proj', info.codProj || 'ASME VIII Div. 1');
                 setVal('insp-ano', info.ano);
                 setVal('insp-volume', info.volume);
 
                 const catStr = localStorage.getItem('nr13_cat_' + tag);
                 const cat = catStr ? JSON.parse(catStr) : {};
                 if (catStr) {
-                    setVal('insp-fluido', cat.fluidoInput);
+                    setVal('insp-fluido', (cat.fluidoInput || '').replace(/^[A-D]\s*-\s*/, ''));
                     setVal('insp-classe-fluido', cat.classe);
                     setVal('insp-categoria', cat.catFinal);
                     setVal('insp-grupo-risco', cat.grupo);

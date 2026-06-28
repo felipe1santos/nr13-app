@@ -375,9 +375,9 @@
                 </td>
                 <td class="col-info">
                      <div class="info-label">Relatório nº.</div>
-                     <div class="info-value" contenteditable="true" spellcheck="false">----</div>
+                     <div class="info-value" id="concl-rel" contenteditable="true" spellcheck="false">----</div>
                      <div class="info-label">Data de Emissão:</div>
-                     <div class="info-value" contenteditable="true" spellcheck="false">DD/MM/AAAA</div>
+                     <div class="info-value" id="concl-data" contenteditable="true" spellcheck="false">DD/MM/AAAA</div>
                 </td>
             </tr>
         </table>
@@ -494,6 +494,13 @@
         }
 
         document.addEventListener('DOMContentLoaded', function() {
+            // Cabeçalho: nº do relatório e data de emissão vêm da meta do relatório em montagem.
+            try {
+                var _meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}');
+                if (_meta.codigo && document.getElementById('concl-rel')) document.getElementById('concl-rel').innerText = _meta.codigo;
+                if (_meta.emissao && document.getElementById('concl-data')) document.getElementById('concl-data').innerText = _meta.emissao;
+            } catch (e) {}
+
             // Construção das linhas da Tabela de Recomendações
             const recTbody = document.getElementById('rec-tbody');
             for (let i = 1; i <= 6; i++) {

@@ -578,11 +578,15 @@
                 } catch(e) { return false; }
             }
 
-            let tentativas = 0;
-            const motor = setInterval(() => {
-                tentativas++;
-                if (executarInjecao() || tentativas > 15) clearInterval(motor);
-            }, 300);
+            // Se veio por calibId, o bloco calibId já injetou o certificado — não rodar o motor de
+            // nr13_injecao_atual (sobrescreveria com dados de um certificado avulso anterior).
+            if (!new URLSearchParams(window.location.search).get('calibId')) {
+                let tentativas = 0;
+                const motor = setInterval(() => {
+                    tentativas++;
+                    if (executarInjecao() || tentativas > 15) clearInterval(motor);
+                }, 300);
+            }
         })();
     </script>
 

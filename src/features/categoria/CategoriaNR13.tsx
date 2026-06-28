@@ -101,7 +101,7 @@ export default function CategoriaNR13({ tag, unidade }: { tag: string; unidade: 
       {salva && (
         <div className="categoria-resultado">
           <div className={`categoria-enquadramento ${salva.isEnquadrado ? 'ok' : 'nao'}`}>
-            <span className="lbl-view">Enquadramento da Norma — P(kPa) × V(m³) ≥ 8</span>
+            <span className="lbl-view">Enquadramento da Norma — P(kPa) × V(m³) &gt; 8</span>
             <span className="val-view">
               {salva.isEnquadrado
                 ? `ENQUADRA (P×V = ${salva.PV_enq} kPa·m³ > 8)`
