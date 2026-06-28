@@ -19,6 +19,7 @@ export interface DadosAutoclaveRetangular {
   espessura: NumLike; // t_real
   diametro_tirante: NumLike; // d
   sigma_escoamento?: NumLike;
+  material?: string; // material da chapa — só p/ documentação (injetado no RESUMO), não entra no cálculo
 }
 
 export interface DadosAutoclaveCilindrica {
@@ -29,6 +30,7 @@ export interface DadosAutoclaveCilindrica {
   espessura: NumLike;
   ca: NumLike;
   sigma_escoamento?: NumLike;
+  material?: string; // material do casco — só p/ documentação (injetado no RESUMO), não entra no cálculo
 }
 
 const PASSO_MAX_UG47 = 215.0; // mm — mesmo limite geométrico do PG-46.5/UG-47 (salvo estais soldados, 15×d)

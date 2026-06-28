@@ -68,6 +68,11 @@ function MemorialAutoclaveInner({ tag, subtipo }: Props) {
     setDados((d) => ({ ...d, [chave]: valor }));
   }
 
+  // Material é texto livre (vai para componentes[].material no RESUMO), não entra no cálculo.
+  function setMaterial(valor: string) {
+    setDados((d) => ({ ...d, material: valor }));
+  }
+
   function handleCalcular() {
     playClick();
     setResultado(calcularAutoclave(subtipo, dados));
@@ -89,7 +94,7 @@ function MemorialAutoclaveInner({ tag, subtipo }: Props) {
     setSalvando(true);
     try {
       await salvarDadosAutoclave(tag, subtipo, dados);
-      await salvarResultadoAutoclave(tag, resultado);
+      await salvarResultadoAutoclave(tag, subtipo, dados, resultado);
       setDirty(false);
       window.alert('Memorial salvo com sucesso!');
     } finally {
@@ -136,6 +141,7 @@ function MemorialAutoclaveInner({ tag, subtipo }: Props) {
                 <Campo label="t_real — Espessura real (mm)" value={dados.espessura ?? ''} warn={!dados.espessura || Number(dados.espessura) <= 0} onChange={(v) => set('espessura', Number(v))} />
                 <Campo label="d — Diâmetro do tirante (mm)" value={dados.diametro_tirante ?? ''} onChange={(v) => set('diametro_tirante', Number(v))} />
                 <Campo label="Tensão de escoamento (MPa, opcional)" value={dados.sigma_escoamento ?? 0} onChange={(v) => set('sigma_escoamento', Number(v))} />
+                <Campo label="Material" type="text" value={dados.material ?? ''} onChange={setMaterial} />
               </div>
             </div>
 

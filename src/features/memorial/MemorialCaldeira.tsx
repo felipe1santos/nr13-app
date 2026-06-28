@@ -320,6 +320,8 @@ function CamposAbaFlamo({
       <Campo label="P — Pressão de Projeto (MPa)" value={dados.pressao ?? ''} onChange={(v) => set('pressao', Number(v))} />
       <Campo label="CA — Corrosão Adm. (mm)" value={dados.ca ?? ''} onChange={(v) => set('ca', Number(v))} />
       <Campo label="Tnom — Esp. Comercial (mm)" value={dados.t_comercial ?? ''} onChange={(v) => set('t_comercial', Number(v))} />
+      {/* Material é texto livre — injetado em componentes[].material no RESUMO, não entra no cálculo. */}
+      <Campo label="Material" type="text" value={(dados.material as string) ?? ''} onChange={(v) => set('material', v)} />
     </>
   );
 
@@ -464,6 +466,8 @@ function CamposAbaAqua({
       <Campo label="Tnom — Esp. Comercial (mm)" value={dados.t_comercial ?? ''} onChange={(v) => set('t_comercial', Number(v))} />
       <Campo label="CA — Corrosão Adm. (mm)" value={dados.ca ?? ''} onChange={(v) => set('ca', Number(v))} />
       <Campo label="Temperatura de Projeto (°C)" value={dados.temperatura ?? ''} onChange={(v) => set('temperatura', Number(v))} />
+      {/* Material é texto livre — injetado em componentes[].material no RESUMO, não entra no cálculo. */}
+      <Campo label="Material" type="text" value={(dados.material as string) ?? ''} onChange={(v) => set('material', v)} />
     </>
   );
 
@@ -475,6 +479,8 @@ function CamposAbaAqua({
       <Campo label="D — Diâmetro Interno (mm)" value={dados.diametro ?? ''} onChange={(v) => set('diametro', Number(v))} />
       <Campo label="Tnom — Esp. Comercial (mm)" value={dados.t_comercial ?? ''} onChange={(v) => set('t_comercial', Number(v))} />
       <Campo label="CA — Corrosão Adm. (mm)" value={dados.ca ?? ''} onChange={(v) => set('ca', Number(v))} />
+      {/* Material é texto livre — injetado em componentes[].material no RESUMO, não entra no cálculo. */}
+      <Campo label="Material" type="text" value={(dados.material as string) ?? ''} onChange={(v) => set('material', v)} />
     </>
   );
 
@@ -508,6 +514,8 @@ function CamposAbaAqua({
       <Campo label="D — Diâmetro Externo do tubo (mm)" value={dados.diametro_externo ?? ''} onChange={(v) => set('diametro_externo', Number(v))} />
       <Campo label="Tnom — Esp. Comercial (mm)" value={dados.t_comercial ?? ''} onChange={(v) => set('t_comercial', Number(v))} />
       <Campo label="CA — Corrosão Adm. (mm)" value={dados.ca ?? ''} onChange={(v) => set('ca', Number(v))} />
+      {/* Material é texto livre — injetado em componentes[].material no RESUMO, não entra no cálculo. */}
+      <Campo label="Material" type="text" value={(dados.material as string) ?? ''} onChange={(v) => set('material', v)} />
     </div>
   );
 }

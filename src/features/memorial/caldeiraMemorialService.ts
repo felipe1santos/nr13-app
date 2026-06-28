@@ -31,11 +31,11 @@ export interface TiposCaldeira {
 }
 
 const PADROES: Record<AbaCaldeira, Record<string, unknown>> = {
-  costado: { pressao: 0.78, tensao: 108, eficiencia: 0.7, diametro_externo: 1100, t_comercial: 8.68, ca: 1.5, temperatura: 300 },
-  tampo: { pressao: 0.78, tensao: 108, raio_crown: 1100, w_solda: 1, t_comercial: 10, ca: 1.5, eficiencia: 1, diametro_medicao: 600, c_flat: 0.33 },
-  espelho: { pressao: 0.78, tensao: 108, passo: 150, c_stay: 2.1, t_comercial: 10, ca: 1.5, diametro_medicao: 600, eficiencia: 1, c_flat: 0.33 },
-  fornalha: { pressao: 0.78, diametro_medio: 800, t_comercial: 10, ca: 1.5, tipo_fornalha: 'fox' },
-  tubo: { pressao: 0.78, tensao: 108, diametro_externo: 100, t_comercial: 6, ca: 1, e_fator: 0 },
+  costado: { pressao: 0.78, tensao: 108, eficiencia: 0.7, diametro_externo: 1100, t_comercial: 8.68, ca: 1.5, temperatura: 300, material: 'SA-516-70' },
+  tampo: { pressao: 0.78, tensao: 108, raio_crown: 1100, w_solda: 1, t_comercial: 10, ca: 1.5, eficiencia: 1, diametro_medicao: 600, c_flat: 0.33, material: 'SA-516-70' },
+  espelho: { pressao: 0.78, tensao: 108, passo: 150, c_stay: 2.1, t_comercial: 10, ca: 1.5, diametro_medicao: 600, eficiencia: 1, c_flat: 0.33, material: 'SA-516-70' },
+  fornalha: { pressao: 0.78, diametro_medio: 800, t_comercial: 10, ca: 1.5, tipo_fornalha: 'fox', material: 'SA-285-C' },
+  tubo: { pressao: 0.78, tensao: 108, diametro_externo: 100, t_comercial: 6, ca: 1, e_fator: 0, material: 'SA-178-A' },
 };
 
 export function chaveDadosCaldeira(tag: string, aba: AbaCaldeira): string {
@@ -238,14 +238,14 @@ export const ROTULOS_AQUATUBULAR: Record<AbaAquatubular, string> = {
 };
 
 const PADROES_AQUATUBULAR: Record<AbaAquatubular, Record<string, unknown>> = {
-  tubulaoSup:     { pressao: 3, tensao: 108, eficiencia: 0.85, diametro_externo: 400, t_comercial: 12, ca: 1.5, temperatura: 300 },
-  tubulaoInf:     { pressao: 3, tensao: 108, eficiencia: 0.85, diametro_externo: 350, t_comercial: 10, ca: 1.5, temperatura: 300 },
-  fundoEliptico:  { pressao: 3, tensao: 108, eficiencia: 0.85, diametro: 400, t_comercial: 12, ca: 1.5 },
-  fundoTorisferico:{ pressao: 3, tensao: 108, eficiencia: 0.85, diametro: 400, raio_crown: 400, t_comercial: 12, ca: 1.5 },
-  tuboGerador:    { pressao: 3, tensao: 108, eficiencia: 1.0, diametro_externo: 38, t_comercial: 3, ca: 0.5 },
-  superaquecedor: { pressao: 3, tensao: 108, eficiencia: 1.0, diametro_externo: 38, t_comercial: 3, ca: 0.5 },
-  economizador:   { pressao: 3, tensao: 108, eficiencia: 1.0, diametro_externo: 38, t_comercial: 3, ca: 0.5 },
-  coletor:        { pressao: 3, tensao: 108, eficiencia: 0.85, diametro_externo: 150, t_comercial: 8, ca: 1.5, temperatura: 300 },
+  tubulaoSup:     { pressao: 3, tensao: 108, eficiencia: 0.85, diametro_externo: 400, t_comercial: 12, ca: 1.5, temperatura: 300, material: 'SA-516-70' },
+  tubulaoInf:     { pressao: 3, tensao: 108, eficiencia: 0.85, diametro_externo: 350, t_comercial: 10, ca: 1.5, temperatura: 300, material: 'SA-516-70' },
+  fundoEliptico:  { pressao: 3, tensao: 108, eficiencia: 0.85, diametro: 400, t_comercial: 12, ca: 1.5, material: 'SA-516-70' },
+  fundoTorisferico:{ pressao: 3, tensao: 108, eficiencia: 0.85, diametro: 400, raio_crown: 400, t_comercial: 12, ca: 1.5, material: 'SA-516-70' },
+  tuboGerador:    { pressao: 3, tensao: 108, eficiencia: 1.0, diametro_externo: 38, t_comercial: 3, ca: 0.5, material: 'SA-178-A' },
+  superaquecedor: { pressao: 3, tensao: 108, eficiencia: 1.0, diametro_externo: 38, t_comercial: 3, ca: 0.5, material: 'SA-213-T11' },
+  economizador:   { pressao: 3, tensao: 108, eficiencia: 1.0, diametro_externo: 38, t_comercial: 3, ca: 0.5, material: 'SA-178-A' },
+  coletor:        { pressao: 3, tensao: 108, eficiencia: 0.85, diametro_externo: 150, t_comercial: 8, ca: 1.5, temperatura: 300, material: 'SA-106-B' },
 };
 
 const NOMES_COMPONENTE: Record<AbaAquatubular, string> = {
