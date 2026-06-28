@@ -228,9 +228,6 @@
                 const entrada = livro.find(e => e.id === entradaId);
                 if (!entrada) return;
 
-                const folhaEl = document.getElementById('livro-pg-folha-fisica');
-                if (folhaEl) folhaEl.textContent = entrada.folhaLivro || 'Não atribuída';
-
                 const dataInicio = entrada.dataInicio || entrada.data;
                 const dataFim = entrada.dataFim || entrada.data;
                 marcarTipo(entrada.tipo);
@@ -242,10 +239,6 @@
             function renderizarModoRelatorioAtual(tag) {
                 let meta = {};
                 try { meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}'); } catch (e) {}
-
-                const livro = carregarLivro(tag);
-                const folhaEl2 = document.getElementById('livro-pg-folha-fisica');
-                if (folhaEl2) folhaEl2.textContent = 'A definir (folha nº ' + (livro.length + 1) + ' do livro)';
 
                 const tipo = meta.tipoInspecao || 'Inspeção Periódica';
                 const dataBR = formatarDataBR(meta.execucaoInspecao);
