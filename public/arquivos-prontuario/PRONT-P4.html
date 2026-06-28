@@ -73,6 +73,16 @@
         <div class="section" style="border:1px solid #000;">
             <div class="section-title">Revisão</div>
             <div class="responsibility-container">
+                <!-- Assinatura do engenheiro responsável (CLAUDE.md §8) — puxada de nr13_lista_phs -->
+                <div class="signature-box">
+                    <div class="assin-placeholder" id="assin-line">
+                        <img id="img-assinatura" class="signature-img" alt="Assinatura" style="display:none">
+                        <span id="assin-label">Assinatura</span>
+                    </div>
+                    <span id="resp-nome" class="resp-nome"></span>
+                    <span id="resp-crea" class="resp-crea"></span>
+                    <span style="display:block; font-size:10px; color:#555; margin-top:2px;">Engenheiro Responsável</span>
+                </div>
                 <div class="resp-data">
                     Rev. <span id="val-revisao"></span><br>
                     <span id="val-dataRevisao"></span>
@@ -99,6 +109,29 @@ document.addEventListener('DOMContentLoaded', function() {
 
     v('val-revisao', d.revisao);
     v('val-dataRevisao', d.dataRevisao);
+
+    // Assinatura do engenheiro responsável (CLAUDE.md §8).
+    // Ordem de preferência: (a) responsável apontado no prontuário, se existir;
+    // (b) 1º PH com tipo 'Engenheiro' em nr13_lista_phs; (c) nenhum → linha em branco.
+    try {
+        var phs = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
+        var eng = null;
+        if (d.responsavelPhId) {
+            eng = phs.find(function(p){ return String(p.id) === String(d.responsavelPhId); });
+        }
+        if (!eng) eng = phs.find(function(p){ return p.tipo === 'Engenheiro'; });
+        if (eng) {
+            v('resp-nome', eng.nome);
+            v('resp-crea', eng.crea ? 'CREA: ' + eng.crea : '');
+            if (eng.assinatura) {
+                var imgAss = document.getElementById('img-assinatura');
+                imgAss.src = eng.assinatura;
+                imgAss.style.display = 'block';
+                var lbl = document.getElementById('assin-label');
+                if (lbl) lbl.style.display = 'none';
+            }
+        }
+    } catch (e) { /* sem PH cadastrado: mantém linha de assinatura em branco */ }
 });
 </script>
 <script src="/pront-footer.js"></script>
