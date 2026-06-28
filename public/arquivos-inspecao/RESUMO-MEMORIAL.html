@@ -657,6 +657,10 @@
             // 1.5 RENDERIZA COMPONENTES DINAMICAMENTE (calc.componentes) — serve vaso, caldeira e
             // autoclave. Se o memorial salvo não tiver o array (memorial antigo), usa o layout fixo.
             const usouDinamico = buildResumoDinamico();
+            // Cabeçalho (Dados Gerais / Contratante / Identificação) precisa rodar SEMPRE — antes só
+            // rodava no caminho legado, então o memorial moderno (com componentes[]) ficava sem
+            // contratante/endereço/identificação.
+            injetarCabecalhoResumo();
             if (!usouDinamico) injetarDadosEquipamento();
 
             // 2. ADICIONA EVENTO DE RECALCULAR AO DIGITAR NOS CAMPOS
@@ -718,6 +722,29 @@
                 cont.insertAdjacentHTML('beforeend', html);
             });
             return true;
+        }
+
+        // Cabeçalho do resumo (independente do modo dinâmico/legado): contratante (nr13_emp_<TAG>),
+        // rastreabilidade/data (meta) e identificação do equipamento (nr13_info_<TAG>).
+        function injetarCabecalhoResumo() {
+            var tagAtual = new URLSearchParams(window.location.search).get('tag') || '';
+            var setVal = function(id, val) { var el = document.getElementById(id); if (el && val != null && val !== '') el.innerText = val; };
+            var info = {}, emp = {}, meta = {};
+            try { info = JSON.parse(localStorage.getItem('nr13_info_' + tagAtual) || '{}'); } catch(e) {}
+            try { emp = JSON.parse(localStorage.getItem('nr13_emp_' + tagAtual) || '{}'); } catch(e) {}
+            try { meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}'); } catch(e) {}
+            var fmtData = function(str) { if (!str) return null; var p = String(str).split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : str; };
+            setVal('res-cliente', emp.razaoSocial || emp.nome);
+            var endereco = [];
+            if (emp.endereco) endereco.push(emp.endereco);
+            if (emp.bairro) endereco.push(emp.bairro);
+            if (emp.localidade) endereco.push(emp.localidade);
+            if (endereco.length) setVal('res-endereco', endereco.join(' - '));
+            setVal('res-rastreab', meta.codigo);
+            setVal('res-data-insp', fmtData(meta.execucaoInspecao));
+            setVal('res-identificacao', info.tag || tagAtual);
+            setVal('res-serie', info.numeroSerie || info.serie);
+            setVal('res-tipo', info.descricao || info.tipo);
         }
     </script>
 
