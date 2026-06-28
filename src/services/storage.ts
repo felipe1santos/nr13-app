@@ -122,6 +122,15 @@ const PAGINA_TAMANHO = 1000; // limite padrão de linhas por consulta do PostgRE
 export async function lerTudo(): Promise<Record<string, string>> {
   const userId = await idUsuarioAtual();
   if (!userId) return {};
+  // BUG #8b — guarda de isolamento entre contas: se o cache em disco pertence a OUTRO usuário
+  // (ex.: logout interrompido antes de limpar), zera ANTES de servir/hidratar para não vazar
+  // dados do usuário A ao usuário B. Só limpa com CERTEZA de mismatch: owner salvo não-nulo E
+  // diferente do userId atual (não-nulo, já garantido acima). Owner ausente = primeiro uso e
+  // userId nulo = offline/sem sessão NÃO limpam nada. Quando owner == userId (caso comum) é no-op.
+  const ownerCache = localStorage.getItem('nr13_cache_owner');
+  if (ownerCache && ownerCache !== userId) {
+    limparCacheDados();
+  }
   // Antes de ler o servidor, drena a fila offline: assim escritas/deletes pendentes chegam ao
   // Supabase ANTES do reconcile e não são apagados (escritas) nem ressuscitados (deletes).
   await flushFila();

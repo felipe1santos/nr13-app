@@ -142,9 +142,10 @@ export async function cadastrar(email: string, senha: string): Promise<LoginResu
   return { sucesso: false, aguardandoLiberacao: true };
 }
 
-export async function logout(): Promise<void> {
-  await registrarEvento('logout');
-  await supabase.auth.signOut();
+// Faxina LOCAL da sessão (chaves de sessão + cache de dados), SEM ida à rede. Compartilhada
+// entre o logout() normal e o listener de onAuthStateChange (BUG #8a): quando a sessão é
+// perdida no meio do uso, a sessão do Supabase já caiu — não há signOut a fazer, só limpeza.
+export function encerrarSessaoLocal(): void {
   localStorage.removeItem('nr13_usuario_logado');
   localStorage.removeItem('nr13_plano');
   localStorage.removeItem('nr13_role');
@@ -152,6 +153,12 @@ export async function logout(): Promise<void> {
   localStorage.removeItem('nr13_cache_owner');
   // Zera os dados em cache para não vazarem ao próximo login (mesmo navegador).
   limparCacheDados();
+}
+
+export async function logout(): Promise<void> {
+  await registrarEvento('logout');
+  await supabase.auth.signOut();
+  encerrarSessaoLocal();
 }
 
 export function usuarioLogado(): string | null {
