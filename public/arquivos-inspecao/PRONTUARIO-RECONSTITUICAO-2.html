@@ -152,7 +152,7 @@
             </div>
             <div class="croqui-caption">Vista isométrica do equipamento (3D) / Isometric view of the equipment (3D)</div>
         </div>
-        <div class="ph-croqui-box">
+        <div class="ph-croqui-box" id="croqui-2d-box">
             <div class="croqui-wrapper" id="croqui-wrapper">
                 <img id="croqui-img" src="" alt="Croqui Técnico 2D" style="display:none;">
                 <div class="croqui-placeholder" id="croqui-placeholder">
@@ -317,18 +317,30 @@
         setVal('ph-tag', info.tag || tag);
 
         // ===== CROQUI 3D EM PERSPECTIVA =====
-        if (dados3D && dados3D.imagemCroquiPerspectiva) {
+        // O croqui salvo é UMA imagem única (captura do CroquiVaso3D ou upload manual), gravada em
+        // 'nr13_prontuario_atual.croqui' (preview ao vivo) e persistida por-TAG em
+        // 'nr13_prontuario_<TAG>.croqui' (salvarProntuario). Os campos legados 'dados3D.imagemCroqui*'
+        // nunca foram gravados — ficam apenas como fallback. Lê na ordem: atual -> por-TAG -> legado.
+        let prontAtual = {}, prontTag = {};
+        try { prontAtual = JSON.parse(localStorage.getItem('nr13_prontuario_atual') || '{}') || {}; } catch (e) { prontAtual = {}; }
+        try { prontTag = JSON.parse(localStorage.getItem('nr13_prontuario_' + tag) || '{}') || {}; } catch (e) { prontTag = {}; }
+        const croquiImg = prontAtual.croqui || prontTag.croqui || (dados3D && dados3D.imagemCroquiPerspectiva) || '';
+
+        if (croquiImg) {
             const imgP = document.getElementById('croqui-persp-img');
             const placeholderP = document.getElementById('croqui-persp-placeholder');
-            imgP.src = dados3D.imagemCroquiPerspectiva;
+            imgP.src = croquiImg;
             imgP.style.display = 'block';
             placeholderP.style.display = 'none';
         }
 
-        // ===== CROQUI + COTAS =====
+        // ===== CROQUI 2D TÉCNICO + COTAS =====
         const D = dados3D ? (parseFloat(dados3D.D) || parseFloat(dados3D.diametro) || 0) : 0;
         const L = (ec && ec.dadosCasco && ec.dadosCasco.L !== undefined) ? parseFloat(ec.dadosCasco.L) || 0 : 0;
 
+        // A caixa 2D depende de uma imagem técnica + metadados de cotas (croquiMeta) que NÃO são
+        // gerados em lugar nenhum hoje. Sem fonte de dados real, esconde a caixa inteira (em vez de
+        // deixar placeholder) para a folha não ficar com buraco — a caixa de perspectiva ocupa a linha.
         if (dados3D && dados3D.imagemCroqui && dados3D.croquiMeta) {
             const img = document.getElementById('croqui-img');
             const placeholder = document.getElementById('croqui-placeholder');
@@ -337,6 +349,9 @@
             img.style.display = 'block';
             placeholder.style.display = 'none';
             wrapper.insertAdjacentHTML('beforeend', gerarOverlayCotasSVG(dados3D.croquiMeta, { D, L }));
+        } else {
+            const box2d = document.getElementById('croqui-2d-box');
+            if (box2d) box2d.style.display = 'none';
         }
 
         // ===== TABELA DIMENSIONAL =====
