@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { carregarDadosFormulario, salvarDadosFormulario } from '../inspecaoService';
+import { useAutosaveFormulario } from '../useAutosaveFormulario';
 import { comprimirImagem } from '../../../services/imagem';
 
 interface LinhaCurva {
@@ -40,6 +41,7 @@ function dadosPadrao(): DadosTH {
 
 export default function FormularioTH({ tag, containerId }: { tag: string; containerId: string }) {
   const [dados, setDados] = useState<DadosTH>(() => carregarDadosFormulario<DadosTH>(tag, containerId, 'th') ?? dadosPadrao());
+  useAutosaveFormulario(tag, containerId, 'th', dados);
   const [salvando, setSalvando] = useState(false);
   const [salvoOk, setSalvoOk] = useState(false);
   const [erroSalvar, setErroSalvar] = useState('');

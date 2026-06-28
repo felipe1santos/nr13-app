@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { comprimirImagem } from '../../../services/imagem';
 import { carregarDadosFormulario, salvarDadosFormulario } from '../inspecaoService';
+import { useAutosaveFormulario } from '../useAutosaveFormulario';
 
 const ITENS = [
   'Juntas, conexões e vedações',
@@ -56,6 +57,7 @@ export default function FormularioVisualExterno({ tag, containerId }: { tag: str
   const [dados, setDados] = useState<DadosVisual>(
     () => carregarDadosFormulario<DadosVisual>(tag, containerId, 'visual_externo') ?? dadosPadrao(),
   );
+  useAutosaveFormulario(tag, containerId, 'visual_externo', dados);
   const [salvando, setSalvando] = useState(false);
   const [salvoOk, setSalvoOk] = useState(false);
   const [erroSalvar, setErroSalvar] = useState('');

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { comprimirImagem } from '../../../services/imagem';
 import { carregarDadosFormulario, salvarDadosFormulario } from '../inspecaoService';
+import { useAutosaveFormulario } from '../useAutosaveFormulario';
 
 const ITENS = [
   'Condição geral das paredes internas',
@@ -56,6 +57,7 @@ export default function FormularioVisualInterno({ tag, containerId }: { tag: str
   const [dados, setDados] = useState<DadosVisual>(
     () => carregarDadosFormulario<DadosVisual>(tag, containerId, 'visual_interno') ?? dadosPadrao(),
   );
+  useAutosaveFormulario(tag, containerId, 'visual_interno', dados);
   const [salvando, setSalvando] = useState(false);
   const [salvoOk, setSalvoOk] = useState(false);
   const [erroSalvar, setErroSalvar] = useState('');

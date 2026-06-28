@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { comprimirImagem } from '../../../services/imagem';
 import { carregarDadosFormulario, salvarDadosFormulario } from '../inspecaoService';
+import { useAutosaveFormulario } from '../useAutosaveFormulario';
 
 const OPCOES_EXISTE = ['Existe', 'Não identificado', 'Não aplica'];
 const OPCOES_SIM_NAO = ['Sim', 'Não'];
@@ -189,6 +190,7 @@ export default function FormularioChecklist({ tag, containerId }: { tag: string;
     // Merge com o padrão pra inspeções antigas (sem `fotosDocumentacao`) não quebrarem.
     () => ({ ...dadosPadrao(), ...(carregarDadosFormulario<DadosChecklist>(tag, containerId, 'checklist') ?? {}) }),
   );
+  useAutosaveFormulario(tag, containerId, 'checklist', dados);
   const [salvando, setSalvando] = useState(false);
   const [salvoOk, setSalvoOk] = useState(false);
   const [erroSalvar, setErroSalvar] = useState(false);

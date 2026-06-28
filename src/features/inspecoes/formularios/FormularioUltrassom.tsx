@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { carregarDadosFormulario, salvarDadosFormulario } from '../inspecaoService';
+import { useAutosaveFormulario } from '../useAutosaveFormulario';
 
 const COMPONENTES = [
   { id: 'ts', nome: 'Tampo Superior' },
@@ -56,6 +57,7 @@ export default function FormularioUltrassom({ tag, containerId }: { tag: string;
   const [dados, setDados] = useState<Dados>(
     () => carregarDadosFormulario<Dados>(tag, containerId, 'ultrassom') ?? dadosPadrao(),
   );
+  useAutosaveFormulario(tag, containerId, 'ultrassom', dados);
   const [salvando, setSalvando] = useState(false);
 
   function set(chave: keyof Dados, valor: string) {
