@@ -25,25 +25,29 @@
         .section-title { background-color: #003366; color: #fff; padding: 5px 8px; font-size: 11px; font-weight: bold; text-align: center; margin-bottom: 8px; flex-shrink: 0; }
         .intro-metodologia { font-size: 9.5px; line-height: 1.4; text-align: justify; margin-bottom: 6px; flex-shrink: 0; }
 
-        /* Container do cálculo dinâmico */
-        .calc-scroll { flex: 1; overflow: hidden; column-count: 2; column-gap: 18px; }
+        /* Container do cálculo dinâmico.
+           font-size aqui é a BASE do auto-shrink (teto 12px). Os filhos usam "em"
+           relativo a esta base, então reduzir esta fonte encolhe todo o memorial junto
+           até caber na folha (ver ajustarFonteParaCaber() no script). 12px = exatamente
+           os tamanhos px originais, logo a aparência não muda no teto. */
+        .calc-scroll { flex: 1; overflow: hidden; column-count: 2; column-gap: 18px; font-size: 12px; }
 
-        /* Estilos das linhas do log */
+        /* Estilos das linhas do log — tamanhos em "em" (base 12px) p/ encolher no auto-shrink */
         .log-secao { break-inside: avoid; margin-bottom: 6px; }
-        .log-secao-titulo { font-weight: bold; font-size: 9.5px; color: #003366; background: #e8eef5; padding: 3px 6px; border-left: 3px solid #003366; margin-bottom: 4px; }
-        .log-norma { font-size: 7.5px; color: #666; font-style: italic; margin-bottom: 2px; padding-left: 4px; }
-        .log-params { font-size: 8px; font-family: 'Courier New', monospace; color: #333; line-height: 1.45; margin-bottom: 4px; padding-left: 4px; }
+        .log-secao-titulo { font-weight: bold; font-size: 0.79167em; color: #003366; background: #e8eef5; padding: 3px 6px; border-left: 3px solid #003366; margin-bottom: 4px; }
+        .log-norma { font-size: 0.625em; color: #666; font-style: italic; margin-bottom: 2px; padding-left: 4px; }
+        .log-params { font-size: 0.66667em; font-family: 'Courier New', monospace; color: #333; line-height: 1.45; margin-bottom: 4px; padding-left: 4px; }
         .log-param-linha { display: block; }
         .log-katex { text-align: center; margin: 3px 0; break-inside: avoid; }
         .log-katex .katex { font-size: 0.82em; }
         .log-katex .katex-display { margin: 2px 0; }
         .log-divider { border: 0; border-top: 1px solid #ddd; margin: 5px 0; }
-        .log-resultado { font-size: 9px; padding: 3px 6px; border-radius: 2px; margin: 3px 0; break-inside: avoid; }
+        .log-resultado { font-size: 0.75em; padding: 3px 6px; border-radius: 2px; margin: 3px 0; break-inside: avoid; }
         .log-resultado.ok { background: #e6f4ea; color: #188038; border-left: 3px solid #188038; }
         .log-resultado.erro { background: #fce8e6; color: #d93025; border-left: 3px solid #d93025; }
-        .log-pmta-final { font-size: 11px; font-weight: bold; color: #003366; text-decoration: underline; padding: 4px 6px; break-inside: avoid; column-span: all; text-align: center; margin-top: 6px; border-top: 1px solid #003366; }
-        .log-html-line { font-size: 8.5px; margin: 2px 0; }
-        .sem-calculo { font-size: 10px; color: #888; font-style: italic; text-align: center; padding: 20px; }
+        .log-pmta-final { font-size: 0.91667em; font-weight: bold; color: #003366; text-decoration: underline; padding: 4px 6px; break-inside: avoid; column-span: all; text-align: center; margin-top: 6px; border-top: 1px solid #003366; }
+        .log-html-line { font-size: 0.70833em; margin: 2px 0; }
+        .sem-calculo { font-size: 0.83333em; color: #888; font-style: italic; text-align: center; padding: 20px; }
 
         .footer-container { display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 8px; border-top: 1px solid #ccc; flex-shrink: 0; }
         .footer-text { flex: 1; text-align: center; font-size: 8.5px; line-height: 1.35; padding-left: 16px; }
@@ -117,7 +121,28 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     renderLog(calc.logCalculo, container, calc.pmta, compLimitante);
+
+    // Auto-shrink: encolhe a fonte-base do container até o memorial caber sem corte.
+    // Espelha a técnica do MEMORIAL.html. Roda DEPOIS da injeção e da renderização do
+    // KaTeX (síncrona), quando o layout já está medível.
+    ajustarFonteParaCaber(container);
 });
+
+// Reduz a fonte-base do container (e, via "em", todo o memorial) até caber na folha.
+// Espelho do MEMORIAL.html, porém aqui o conteúdo flui em 2 colunas (column-count): um
+// memorial grande estoura na HORIZONTAL (gera 3ª coluna clipada por overflow:hidden) e/ou
+// na VERTICAL — por isso checamos scrollWidth E scrollHeight. Teto 12px, piso 6.5px,
+// passo 0.5px. Se nem no piso couber (memorial gigante), aceita o melhor encaixe (piso)
+// sem quebrar o layout nem empurrar o rodapé.
+function ajustarFonteParaCaber(el) {
+    if (!el) return;
+    var fonte = 12;                 // teto (px) — base; .calc-scroll já nasce com 12px
+    el.style.fontSize = fonte + 'px';
+    while ((el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1) && fonte > 6.5) {
+        fonte -= 0.5;
+        el.style.fontSize = fonte + 'px';
+    }
+}
 
 function renderLog(log, container, pmtaFinal, compLimitante) {
     var linhasParam = [];
