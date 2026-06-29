@@ -37,14 +37,15 @@
         }
 
         .page {
-            width: 100%; 
-            min-height: 297mm;
+            width: 100%;
+            height: 297mm;            /* altura LIMITADA (antes min-height): dá clientHeight real p/ o auto-shrink */
+            overflow: hidden;          /* clipa sobra em vez de empurrar/sobrepor o rodapé */
             background-color: #fff;
-            margin: 0; 
-            padding: 15mm 15mm 25mm 15mm; 
+            margin: 0;
+            padding: 15mm 15mm 25mm 15mm; /* mantém a reserva do rodapé (25mm) */
             box-sizing: border-box;
-            box-shadow: none; 
-            border: none; 
+            box-shadow: none;
+            border: none;
             position: relative;
             display: flex;
             flex-direction: column;
@@ -125,13 +126,15 @@
         /* =========================================
            CONTEÚDO ESPECÍFICO DO SUMÁRIO
            ========================================= */
-        .content-container { flex-grow: 1; padding: 0 5px; }
+        /* content-container = container que cresce (lista de docs). overflow:hidden dá clientHeight real
+           e font-size:11px é a BASE do auto-shrink; section-title/toc abaixo usam "em" p/ encolher juntos. */
+        .content-container { flex-grow: 1; padding: 0 5px; overflow: hidden; font-size: 11px; }
 
         .section-title {
-            font-size: 16px;
+            font-size: 1.455em;
             font-weight: 900;
-            margin-top: 10px;
-            margin-bottom: 30px;
+            margin-top: 0.909em;
+            margin-bottom: 2.727em;
             text-align: center;
             text-transform: uppercase;
             text-decoration: underline;
@@ -140,13 +143,13 @@
         .toc-container {
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 1.091em;
         }
 
         .toc-item {
             display: flex;
             align-items: flex-end;
-            font-size: 11px;
+            font-size: 1em;
             font-weight: 600;
         }
 
@@ -238,12 +241,14 @@
                 margin: 0;
                 padding: 0;
             }
-            .page { 
-                width: 100% !important; 
-                margin: 0 !important; 
-                padding: 15mm 15mm 25mm 15mm !important; 
-                box-shadow: none !important; 
-                border: none !important; 
+            .page {
+                width: 100% !important;
+                height: 297mm !important;
+                overflow: hidden !important;
+                margin: 0 !important;
+                padding: 15mm 15mm 25mm 15mm !important;
+                box-shadow: none !important;
+                border: none !important;
             }
             [contenteditable="true"]:hover { background-color: transparent !important; color: inherit !important; font-weight: inherit !important; }
         }
@@ -461,7 +466,24 @@
                 });
             }
 
-            document.addEventListener('DOMContentLoaded', gerarTOC);
+            // Reduz a fonte-base do .content-container (e, via "em", section-title + itens do TOC e o
+            // gap entre eles) até a lista inteira caber na folha, sem cortar linhas nem sobrepor o rodapé.
+            // Espelho do ajustarFonteParaCaber() do PRONT-P3: teto 11px, piso 6.5px, passo 0.5px.
+            function ajustarFonteParaCaber(el) {
+                if (!el) return;
+                var fonte = 11;
+                el.style.fontSize = fonte + 'px';
+                while ((el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1) && fonte > 6.5) {
+                    fonte -= 0.5;
+                    el.style.fontSize = fonte + 'px';
+                }
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+                gerarTOC();
+                // Roda DEPOIS de montar o TOC (estático ou dinâmico) p/ caber a lista completa.
+                ajustarFonteParaCaber(document.querySelector('.content-container'));
+            });
         })();
 
     </script>

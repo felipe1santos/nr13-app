@@ -18,7 +18,10 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', sans-serif; color: var(--text-dark); background:#fff; line-height: 1.3; font-size: 11px;
                -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        .page { width: 100%; min-height: 297mm; background:#fff; margin:0; padding: 15mm 15mm 50mm 15mm;
+        /* height fixo (antes min-height): com min-height + .calc-area flex:1, o clientHeight
+           acompanhava o conteúdo e o laço de auto-shrink nunca disparava. overflow:hidden clipa
+           a sobra em vez de empurrar/sobrepor o rodapé. */
+        .page { width: 100%; height: 297mm; overflow: hidden; background:#fff; margin:0; padding: 15mm 15mm 50mm 15mm;
                 position: relative; display: flex; flex-direction: column; }
 
         .header-table { width: 100%; border-collapse: collapse; border: 1px solid var(--text-dark); margin-bottom: 6px; }
@@ -42,7 +45,7 @@
 
         .calc-area { flex: 1; font-family: "Courier New", Courier, monospace; font-size: 12px; line-height: 1.15; padding: 0 5px; overflow: hidden; }
         .calc-area .katex-display { color: #0b5394; margin: 2px 0; }
-        .calc-area .katex { font-size: 12.5px; font-weight: bold; }
+        .calc-area .katex { font-size: 1.0417em; font-weight: bold; } /* em (base .calc-area 12px) p/ encolher junto no auto-shrink */
         .calc-line { margin: 1px 0; }
 
         .pgr-footer-new { position: absolute; bottom: 12mm; left: 15mm; right: 15mm; display: flex; align-items: flex-start; }
@@ -60,7 +63,7 @@
         @media print {
             .no-print { display: none !important; }
             body { background: none; padding: 0; }
-            .page { width: 100% !important; margin: 0 !important; box-shadow: none !important; }
+            .page { width: 100% !important; height: 297mm !important; overflow: hidden !important; margin: 0 !important; box-shadow: none !important; }
             [contenteditable="true"]:hover { background: transparent !important; outline: none !important; }
         }
 
@@ -173,6 +176,18 @@
         return { linhas: linhas.map(estilizar), isKatex: isKatex };
     }
 
+    // Reduz a fonte-base do container (e, via "em", o KaTeX) até caber na folha.
+    // Espelho do ajustarFonteParaCaber() do PRONT-P3: teto 12px (= layout original), piso 6.5px, passo 0.5px.
+    function ajustarFonteParaCaber(el) {
+        if (!el) return;
+        var fonte = 12;
+        el.style.fontSize = fonte + 'px';
+        while ((el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1) && fonte > 6.5) {
+            fonte -= 0.5;
+            el.style.fontSize = fonte + 'px';
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         var p = new URLSearchParams(window.location.search);
         var tag = p.get('tag') || '';
@@ -246,9 +261,10 @@
             if (res.isKatex && typeof renderMathInElement === 'function') {
                 try { renderMathInElement(area, { delimiters: [{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}], throwOnError: false }); } catch(e) {}
             }
-            // Reduz a fonte até caber (garante que nunca corta a documentação)
-            var fs = 12;
-            while (area.scrollHeight > area.clientHeight && fs > 6) { fs -= 0.5; area.style.fontSize = fs + 'px'; }
+            // AUTO-SHRINK: encolhe a fonte-base da .calc-area (e, via "em", o KaTeX) até a fatia caber
+            // sem corte. Roda DEPOIS do KaTeX renderizar (síncrono). Agora a .page tem altura fixa, logo
+            // o clientHeight é real e o laço de fato dispara. Espelho do PRONT-P3 (checa largura E altura).
+            ajustarFonteParaCaber(area);
         }
 
     });

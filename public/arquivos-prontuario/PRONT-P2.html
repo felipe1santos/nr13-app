@@ -12,49 +12,52 @@
         .a4-page { background: #fff; width: 210mm; height: 297mm; padding: 15mm; position: relative; overflow: hidden; display: flex; flex-direction: column; }
         .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-20deg); width: 70%; opacity: 0.07; z-index: 0; pointer-events: none; }
         .watermark-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-20deg); font-size: 80px; font-weight: 900; color: #003366; opacity: 0.04; z-index: 0; pointer-events: none; white-space: nowrap; text-transform: uppercase; }
-        .content-wrapper { position: relative; z-index: 1; display: flex; flex-direction: column; flex: 1; }
-        .header-container { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+        /* content-wrapper = container do conteúdo que cresce. overflow:hidden dá clientHeight real
+           e font-size:12px é a BASE do auto-shrink (teto = layout original). Os tamanhos internos
+           abaixo viram "em" p/ encolherem juntos até med-grid + comparação + resumo caberem. */
+        .content-wrapper { position: relative; z-index: 1; display: flex; flex-direction: column; flex: 1; overflow: hidden; font-size: 12px; }
+        .header-container { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.167em; }
         .header-text { flex: 1; padding-right: 16px; }
-        h1 { font-size: 16px; text-align: center; text-transform: uppercase; margin-bottom: 8px; }
-        .intro-text { text-align: justify; font-size: 10px; line-height: 1.4; }
+        h1 { font-size: 1.333em; text-align: center; text-transform: uppercase; margin-bottom: 0.667em; }
+        .intro-text { text-align: justify; font-size: 0.833em; line-height: 1.4; }
         .logo-img { max-width: 110px; height: auto; object-fit: contain; }
-        .section { border: 1px solid #000; margin-bottom: 12px; }
-        .section-title { background-color: #003366; color: #fff; border-bottom: 1px solid #000; padding: 6px 8px; font-size: 12px; font-weight: bold; text-transform: uppercase; text-align: center; }
-        .text-block { padding: 10px 10px; font-size: 11.5px; line-height: 1.65; text-align: justify; }
-        .label { font-weight: bold; font-size: 10.5px; background: #f5f5f5; padding: 1px 4px; display: inline-block; width: fit-content; border-radius: 2px; }
-        .drawing-container { display: flex; align-items: stretch; justify-content: space-between; padding: 14px 10px; gap: 18px; }
+        .section { border: 1px solid #000; margin-bottom: 1em; }
+        .section-title { background-color: #003366; color: #fff; border-bottom: 1px solid #000; padding: 0.5em 0.667em; font-size: 1em; font-weight: bold; text-transform: uppercase; text-align: center; }
+        .text-block { padding: 0.833em 0.833em; font-size: 0.958em; line-height: 1.65; text-align: justify; }
+        .label { font-weight: bold; font-size: 0.875em; background: #f5f5f5; padding: 1px 4px; display: inline-block; width: fit-content; border-radius: 2px; }
+        .drawing-container { display: flex; align-items: stretch; justify-content: space-between; padding: 1.167em 0.833em; gap: 1.5em; }
         .croqui-box { flex: 0 0 42%; text-align: center; display: flex; flex-direction: column; }
-        .croqui-img { max-width: 100%; max-height: 240px; object-fit: contain; }
-        .croqui-placeholder { width: 100%; min-height: 230px; flex: 1; border: 2px dashed #9bb0c9; border-radius: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 10.5px; color: #5b6b80; line-height: 1.5; cursor: pointer; background: #f7f9fc; transition: background .15s, border-color .15s; text-align: center; padding: 10px; }
+        .croqui-img { max-width: 100%; max-height: 20em; object-fit: contain; }
+        .croqui-placeholder { width: 100%; min-height: 19.17em; flex: 1; border: 2px dashed #9bb0c9; border-radius: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.875em; color: #5b6b80; line-height: 1.5; cursor: pointer; background: #f7f9fc; transition: background .15s, border-color .15s; text-align: center; padding: 10px; }
         .croqui-placeholder:hover { background: #eef3fa; border-color: #003366; color: #003366; }
-        .croqui-plus { font-size: 30px; font-weight: 700; line-height: 1; margin-bottom: 8px; }
+        .croqui-plus { font-size: 2.5em; font-weight: 700; line-height: 1; margin-bottom: 8px; }
         .table-box { flex: 1; display: flex; flex-direction: column; justify-content: center; }
-        .dim-list { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 26px; }
-        .dim-item { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 7px 2px; border-bottom: 1px dotted #c8c8c8; font-size: 11.5px; }
+        .dim-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0.167em 2.167em; }
+        .dim-item { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 0.583em 0.167em; border-bottom: 1px dotted #c8c8c8; font-size: 0.958em; }
         .dim-item .dim-lbl { font-weight: bold; color: #222; }
         .dim-item .dim-val { color: #003366; font-weight: 700; white-space: nowrap; }
-        .table-note { text-align: center; font-size: 10.5px; font-weight: bold; margin-top: 12px; color: #555; }
+        .table-note { text-align: center; font-size: 0.875em; font-weight: bold; margin-top: 1em; color: #555; }
         /* Comparação de espessuras */
-        .comp-list { padding: 8px 6px 2px; }
+        .comp-list { padding: 0.667em 0.5em 0.167em; }
         .comp-head, .comp-row { display: grid; grid-template-columns: 2fr 1.3fr 1.3fr 1fr; gap: 10px; align-items: center; }
-        .comp-head { font-size: 9px; font-weight: 700; color: #003366; text-transform: uppercase; letter-spacing: .3px; padding: 0 2px 6px; border-bottom: 1.5px solid #003366; }
+        .comp-head { font-size: 0.75em; font-weight: 700; color: #003366; text-transform: uppercase; letter-spacing: .3px; padding: 0 2px 6px; border-bottom: 1.5px solid #003366; }
         .comp-head span:nth-child(n+2), .comp-row .comp-c:nth-child(n+2) { text-align: center; }
-        .comp-row { padding: 8px 2px; border-bottom: 1px dotted #c8c8c8; font-size: 11.5px; }
+        .comp-row { padding: 0.667em 0.167em; border-bottom: 1px dotted #c8c8c8; font-size: 0.958em; }
         .comp-row .comp-nome { font-weight: 700; color: #222; }
         .comp-row .comp-c { color: #003366; font-weight: 600; }
-        .comp-status { font-weight: 800; text-transform: uppercase; font-size: 11px; text-align: center; }
+        .comp-status { font-weight: 800; text-transform: uppercase; font-size: 0.917em; text-align: center; }
         .comp-status.ok { color: #188038; }
         .comp-status.no { color: #d93025; }
-        .comp-empty { font-size: 10.5px; color: #888; font-style: italic; text-align: center; padding: 12px; }
+        .comp-empty { font-size: 0.875em; color: #888; font-style: italic; text-align: center; padding: 1em; }
         /* Grade de pontos de medição (estilo planilha) */
-        .med-grid-table { width: 78%; margin: 7px auto 2px; border-collapse: collapse; font-size: 11px; }
-        .med-grid-table td { border: 1px solid #6b7280; padding: 4px 6px; text-align: center; }
-        .med-grid-sec { background: #eef0f3; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: .3px; }
-        .med-grid-ang { background: #f6f7f9; font-weight: 700; font-size: 10px; }
+        .med-grid-table { width: 78%; margin: 0.583em auto 0.167em; border-collapse: collapse; font-size: 0.917em; }
+        .med-grid-table td { border: 1px solid #6b7280; padding: 0.333em 0.5em; text-align: center; }
+        .med-grid-sec { background: #eef0f3; font-weight: 700; text-transform: uppercase; font-size: 0.833em; letter-spacing: .3px; }
+        .med-grid-ang { background: #f6f7f9; font-weight: 700; font-size: 0.833em; }
         .med-grid-val { color: #0037ad; font-weight: 600; }
         .med-grid-val.min { background: #ffd800; color: #000; font-weight: 800; }
         /* Resumo da comparação (limitante) */
-        .comp-resumo { margin: 8px 6px 0; padding: 8px 12px; border: 1.5px solid #003366; border-radius: 4px; background: #f4f7fb; font-size: 11.5px; line-height: 1.55; }
+        .comp-resumo { margin: 0.667em 0.5em 0; padding: 0.667em 1em; border: 1.5px solid #003366; border-radius: 4px; background: #f4f7fb; font-size: 0.958em; line-height: 1.55; }
         .comp-resumo b { color: #003366; }
         .comp-resumo .res-ok { color: #188038; font-weight: 800; }
         .comp-resumo .res-no { color: #d93025; font-weight: 800; }
@@ -313,7 +316,27 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     })();
+
+    // AUTO-SHRINK: encolhe a fonte-base do .content-wrapper até a grade de medição + a comparação +
+    // o resumo (e o rodapé, que é injetado dentro do wrapper) caberem na folha de altura fixa.
+    // Deferido em requestAnimationFrame porque o rodapé (pront-footer.js) é injetado em outro
+    // listener de DOMContentLoaded que roda DEPOIS deste — assim ele já está medível.
+    requestAnimationFrame(function() {
+        ajustarFonteParaCaber(document.querySelector('.content-wrapper'));
+    });
 });
+
+// Reduz a fonte-base do container (e, via "em", todo o conteúdo) até caber na folha.
+// Espelho do ajustarFonteParaCaber() do PRONT-P3: teto 12px (= layout original), piso 6.5px, passo 0.5px.
+function ajustarFonteParaCaber(el) {
+    if (!el) return;
+    var fonte = 12;
+    el.style.fontSize = fonte + 'px';
+    while ((el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1) && fonte > 6.5) {
+        fonte -= 0.5;
+        el.style.fontSize = fonte + 'px';
+    }
+}
 </script>
 <script src="/pront-footer.js"></script>
 </body>

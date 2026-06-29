@@ -40,8 +40,8 @@
             width: 100%; 
             min-height: 297mm;
             background: #fff;
-            margin: 0; 
-            padding: 15mm 15mm 16mm 15mm;
+            margin: 0;
+            padding: 15mm 15mm 28mm 15mm; /* Reserva maior p/ o rodape absoluto (bottom:12mm) nao invadir o conteudo */
             position: relative;
             page-break-after: always;
             display: flex;
@@ -201,7 +201,7 @@
             body { background: none; padding: 0; display: block; }
             .page { 
                 width: 100% !important; margin: 0 !important; 
-                padding: 15mm 15mm 16mm 15mm !important;
+                padding: 15mm 15mm 28mm 15mm !important; /* Reserva maior p/ o rodape absoluto nao invadir o conteudo */
                 box-shadow: none !important; border: none !important; 
             }
             [contenteditable="true"]:hover { background-color: transparent !important; outline: none !important; }

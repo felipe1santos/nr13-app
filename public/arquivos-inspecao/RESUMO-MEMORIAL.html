@@ -39,18 +39,24 @@
         }
 
         .page {
-            width: 100%; 
-            min-height: 297mm;
+            width: 100%;
+            height: 297mm;            /* altura LIMITADA (antes min-height): dá clientHeight real p/ o auto-shrink medir */
+            overflow: hidden;          /* clipa sobra em vez de empurrar/sobrepor o rodapé */
             background: #fff;
-            margin: 0; 
-            padding: 15mm 15mm 25mm 15mm; 
+            margin: 0;
+            padding: 15mm 15mm 25mm 15mm; /* mantém a reserva do rodapé (25mm) */
             position: relative;
             page-break-after: always;
             display: flex;
             flex-direction: column;
             border: none;
-            box-shadow: none; 
+            box-shadow: none;
         }
+
+        /* Container do conteúdo que cresce (DADOS GERAIS → conclusão). flex:1 + overflow:hidden
+           dão altura limitada; font-size aqui é a BASE do auto-shrink (teto 11px = layout original).
+           Os tamanhos internos abaixo viram "em" p/ encolherem juntos até caber. */
+        .resumo-body { flex: 1; overflow: hidden; font-size: 11px; }
 
         /* =========================================
            CABEÇALHO
@@ -70,19 +76,20 @@
         /* =========================================
            GRIDS E FORMULÁRIOS
            ========================================= */
+        /* tamanhos em "em" (base = .resumo-body 11px) p/ encolherem no auto-shrink */
         .section-title {
-            font-size: 9px; font-weight: 900; margin-top: 8px; margin-bottom: 4px; 
+            font-size: 0.818em; font-weight: 900; margin-top: 0.727em; margin-bottom: 0.364em;
             text-transform: uppercase; background-color: var(--bg-table-header);
-            padding: 3px 6px; color: var(--text-dark); 
+            padding: 0.273em 0.545em; color: var(--text-dark);
         }
-        
-        .f-grid { display: grid; gap: 4px; margin-bottom: 4px; }
+
+        .f-grid { display: grid; gap: 0.364em; margin-bottom: 0.364em; }
         .f-grid-2 { grid-template-columns: 1fr 1fr; }
         .f-grid-1-2 { grid-template-columns: 1.5fr 1fr; }
 
-        .f { display: flex; align-items: center; border: 1px solid #ededed; background: #fff; padding: 2px 6px; min-height: 22px; }
-        .f-lbl { font-size: 8px; font-weight: 900; color: var(--text-dark); white-space: nowrap; text-transform: uppercase; margin-right: 6px; }
-        .f-val { flex: 1; font-size: 10px; font-weight: 700; color: var(--blue-data); overflow: hidden; white-space: nowrap; }
+        .f { display: flex; align-items: center; border: 1px solid #ededed; background: #fff; padding: 0.182em 0.545em; min-height: 2em; }
+        .f-lbl { font-size: 0.727em; font-weight: 900; color: var(--text-dark); white-space: nowrap; text-transform: uppercase; margin-right: 0.545em; }
+        .f-val { flex: 1; font-size: 0.909em; font-weight: 700; color: var(--blue-data); overflow: hidden; white-space: nowrap; }
         .f-val[contenteditable="true"]:hover { background-color: var(--highlight-yellow); outline: 1px dashed var(--blue-data); cursor: text; }
 
         /* =========================================
@@ -90,16 +97,16 @@
            ========================================= */
         .comp-section {
             display: flex;
-            gap: 15px;
-            margin-top: 5px;
-            margin-bottom: 10px;
+            gap: 1.364em;
+            margin-top: 0.455em;
+            margin-bottom: 0.909em;
         }
         .comp-tables {
             flex: 1;
             display: flex;
             flex-direction: column;
             justify-content: flex-start;
-            gap: 6px;
+            gap: 0.545em;
         }
         
         /* NOVO DESIGN DOS INPUTS: Grid de 2 colunas para colocar lado a lado e economizar espaço vertical */
@@ -107,13 +114,13 @@
             flex: 1.2;
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 4px;
+            gap: 0.364em;
             align-content: start;
         }
 
         .res-table { width: 100%; border-collapse: collapse; text-align: center; border: 1px solid #000; }
-        .res-table th { background-color: var(--bg-table-header); border: 1px solid #dfdfdf; font-size: 8.5px; padding: 3px; font-weight: 800; text-transform: uppercase; }
-        .res-table td { border: 1px solid #e0e0e0; font-size: 10px; font-weight: 700; color: var(--blue-data); padding: 4px; }
+        .res-table th { background-color: var(--bg-table-header); border: 1px solid #dfdfdf; font-size: 0.773em; padding: 0.273em; font-weight: 800; text-transform: uppercase; }
+        .res-table td { border: 1px solid #e0e0e0; font-size: 0.909em; font-weight: 700; color: var(--blue-data); padding: 0.364em; }
         .res-table td[contenteditable="true"]:hover { background-color: var(--highlight-yellow); cursor: text; outline: 1px dashed var(--blue-data); }
         
         /* DESTAQUE DOS COMPONENTES LIMITANTES */
@@ -125,13 +132,13 @@
         .conclusion-box {
            
             
-            background-color: #f8faff; 
-            padding: 12px 15px;
-            border-radius: 4px; 
-            font-size: 11px; 
-            line-height: 1.1; 
-            margin-top: 0px; 
-            margin-bottom: 15px;
+            background-color: #f8faff;
+            padding: 1.091em 1.364em;
+            border-radius: 4px;
+            font-size: 1em;
+            line-height: 1.1;
+            margin-top: 0px;
+            margin-bottom: 1.364em;
             color: #1e3a8a; 
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
@@ -156,7 +163,7 @@
         @media print {
             .no-print { display: none !important; }
             body { background: none; padding: 0; display: block; }
-            .page { width: 100% !important; margin: 0 !important; padding: 15mm 15mm 25mm 15mm !important; box-shadow: none !important; border: none !important; }
+            .page { width: 100% !important; height: 297mm !important; overflow: hidden !important; margin: 0 !important; padding: 15mm 15mm 25mm 15mm !important; box-shadow: none !important; border: none !important; }
         }
 
 
@@ -169,8 +176,8 @@
         .formula-box {
             grid-column: span 2;
             display: flex;
-            gap: 4px;
-            margin-top: 2px;
+            gap: 0.364em;
+            margin-top: 0.182em;
         }
         .f-form {
             flex: 1;
@@ -179,9 +186,9 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 6px;
+            padding: 0.545em;
             border-radius: 2px;
-            font-size: 11px;
+            font-size: 1em;
             font-weight: 700;
             color: var(--blue-data);
             font-family: 'Courier New', Courier, monospace;
@@ -241,6 +248,8 @@
             </tr>
         </table>
 
+        <!-- Wrapper do conteúdo que cresce: altura limitada (flex:1 + overflow:hidden) p/ o auto-shrink medir -->
+        <div class="resumo-body" id="resumo-body">
         <div class="section-title">DADOS GERAIS</div>
         <div class="f-grid f-grid-1-2">
             <div class="f"><span class="f-lbl">CONTRATANTE</span><div class="f-val" id="res-cliente" contenteditable="true">--</div></div>
@@ -387,6 +396,7 @@
             A <strong>Espessura Mínima Requerida</strong> limitante do sistema é de <strong class="hl-text" id="lbl-menor-esp">--</strong> mm, referente ao componente <strong id="lbl-comp-esp">--</strong>.<br><br>
             A <strong>PMTA</strong> limitante do sistema é de <strong class="hl-text" id="lbl-menor-pmta">--</strong> MPa, determinada pelo componente <strong id="lbl-comp-pmta">--</strong>.
         </div>
+        </div><!-- /#resumo-body -->
 
         <div class="pgr-footer-new">
             <div class="footer-line-wrapper">
@@ -670,7 +680,25 @@
 
             // 3. RODA O CÁLCULO INICIAL PARA DESTACAR NA ABERTURA (já com os dados injetados)
             calcularLimitantes();
+
+            // 4. AUTO-SHRINK: encolhe a fonte-base do #resumo-body até todos os componentes + a
+            //    conclusão caberem na folha de altura fixa, sem corte nem sobreposição do rodapé.
+            //    Roda DEPOIS de toda a injeção (dinâmica/legada + limitantes).
+            ajustarFonteParaCaber(document.getElementById('resumo-body'));
         });
+
+        // Reduz a fonte-base do container (e, via "em", todo o conteúdo) até caber na folha.
+        // Espelho do ajustarFonteParaCaber() do PRONT-P3: teto 11px (= layout original),
+        // piso 6.5px, passo 0.5px. Checa largura E altura (overflow:hidden dá clientHeight real).
+        function ajustarFonteParaCaber(el) {
+            if (!el) return;
+            var fonte = 11;
+            el.style.fontSize = fonte + 'px';
+            while ((el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1) && fonte > 6.5) {
+                fonte -= 0.5;
+                el.style.fontSize = fonte + 'px';
+            }
+        }
 
         // Constrói uma seção de componente por item de calc.componentes (mesmas classes do layout
         // fixo, então o motor de limitantes/destaque continua funcionando).

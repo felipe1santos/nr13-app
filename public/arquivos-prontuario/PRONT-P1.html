@@ -13,25 +13,28 @@
         .a4-page { background: #fff; width: 210mm; height: 297mm; padding: 12mm 15mm; position: relative; overflow: hidden; display: flex; flex-direction: column; }
         .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-20deg); width: 70%; opacity: 0.07; z-index: 0; pointer-events: none; }
         .watermark-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-20deg); font-size: 80px; font-weight: 900; color: #003366; opacity: 0.04; z-index: 0; pointer-events: none; white-space: nowrap; text-transform: uppercase; }
-        .content-wrapper { position: relative; z-index: 1; display: flex; flex-direction: column; flex: 1; }
-        .header-container { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+        /* content-wrapper = container do conteúdo que cresce. overflow:hidden dá clientHeight real
+           e font-size:12px é a BASE do auto-shrink; as seções abaixo usam "em" p/ encolher juntas
+           caso os textos longos clipem o rodapé. */
+        .content-wrapper { position: relative; z-index: 1; display: flex; flex-direction: column; flex: 1; overflow: hidden; font-size: 12px; }
+        .header-container { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.833em; }
         .header-text { flex: 1; padding-right: 16px; }
-        h1 { font-size: 15px; text-align: center; text-transform: uppercase; margin-bottom: 6px; }
-        .intro-text { text-align: justify; font-size: 9.5px; line-height: 1.35; }
+        h1 { font-size: 1.25em; text-align: center; text-transform: uppercase; margin-bottom: 0.5em; }
+        .intro-text { text-align: justify; font-size: 0.792em; line-height: 1.35; }
         .logo-img { max-width: 100px; height: auto; object-fit: contain; }
-        .section { margin-bottom: 9px; }
-        .section-title { background-color: #003366; color: #fff; padding: 5px 8px; font-size: 10px; font-weight: bold; text-transform: uppercase; text-align: center; letter-spacing: .4px; }
-        .info-grid { display: grid; gap: 6px 22px; padding: 8px 6px 2px; }
+        .section { margin-bottom: 0.75em; }
+        .section-title { background-color: #003366; color: #fff; padding: 0.417em 0.667em; font-size: 0.833em; font-weight: bold; text-transform: uppercase; text-align: center; letter-spacing: .4px; }
+        .info-grid { display: grid; gap: 0.5em 1.833em; padding: 0.667em 0.5em 0.167em; }
         .cols-1 { grid-template-columns: 1fr; }
         .cols-2 { grid-template-columns: 1fr 1fr; }
         .cols-3 { grid-template-columns: 1fr 1fr 1fr; }
         .cols-4 { grid-template-columns: repeat(4, 1fr); }
         .info-cell { display: flex; flex-direction: column; }
         .span-all { grid-column: 1 / -1; }
-        .label { font-weight: bold; font-size: 11px; color: #003366; text-transform: uppercase; letter-spacing: .3px; margin-bottom: 2px; }
-        .value { font-size: 11.5px; min-height: 15px; color: #222; line-height: 1.35; }
-        .empresa-info { font-size: 11px; line-height: 1.55; color: #222; }
-        .text-block { font-size: 11px; line-height: 1.45; text-align: justify; padding-top: 2px; }
+        .label { font-weight: bold; font-size: 0.917em; color: #003366; text-transform: uppercase; letter-spacing: .3px; margin-bottom: 0.167em; }
+        .value { font-size: 0.958em; min-height: 1.25em; color: #222; line-height: 1.35; }
+        .empresa-info { font-size: 0.917em; line-height: 1.55; color: #222; }
+        .text-block { font-size: 0.917em; line-height: 1.45; text-align: justify; padding-top: 2px; }
         .footer-container { display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 8px; border-top: 1px solid #ccc; }
         .footer-text { flex: 1; text-align: center; font-size: 8.5px; line-height: 1.35; padding-left: 16px; }
         @media print { body { background: #fff; } .a4-page { box-shadow: none; width: 100%; height: 100%; } }
@@ -185,7 +188,26 @@ document.addEventListener('DOMContentLoaded', function() {
     v('val-prisioneiros', d.prisioneiros);
     v('val-aro', d.aro);
     v('val-luvConexoes', d.luvConexoes);
+
+    // AUTO-SHRINK: encolhe a fonte-base do .content-wrapper até todas as seções (e o rodapé, injetado
+    // dentro do wrapper) caberem na folha de altura fixa. Deferido em requestAnimationFrame porque o
+    // rodapé (pront-footer.js) é injetado em outro listener de DOMContentLoaded que roda DEPOIS deste.
+    requestAnimationFrame(function() {
+        ajustarFonteParaCaber(document.querySelector('.content-wrapper'));
+    });
 });
+
+// Reduz a fonte-base do container (e, via "em", todo o conteúdo) até caber na folha.
+// Espelho do ajustarFonteParaCaber() do PRONT-P3: teto 12px (= layout original), piso 6.5px, passo 0.5px.
+function ajustarFonteParaCaber(el) {
+    if (!el) return;
+    var fonte = 12;
+    el.style.fontSize = fonte + 'px';
+    while ((el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1) && fonte > 6.5) {
+        fonte -= 0.5;
+        el.style.fontSize = fonte + 'px';
+    }
+}
 </script>
 <script src="/pront-footer.js"></script>
 </body>
