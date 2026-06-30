@@ -108,6 +108,7 @@
 
         /* Checkbox estilizado */
         .chk { width: 14px; height: 14px; cursor: pointer; accent-color: var(--blue-data); }
+        .chk.chk-neg { accent-color: var(--red-fail); }
 
         /* ── OBSERVAÇÕES / CONCLUSÃO ────────────────── */
         /* Quadros crescem (flex-grow) p/ preencher o espaço livre e encostar perto do rodapé. */
@@ -294,8 +295,8 @@
                 '<td class="cl-num">' + n + '</td>' +
                 '<td class="cl-desc">' + item + '</td>' +
                 '<td class="cl-check"><input type="checkbox" class="chk" id="sim-' + n + '"></td>' +
-                '<td class="cl-check"><input type="checkbox" class="chk" id="nao-' + n + '"></td>' +
-                '<td class="cl-check"><input type="checkbox" class="chk" id="na-' + n + '"></td>' +
+                '<td class="cl-check"><input type="checkbox" class="chk chk-neg" id="nao-' + n + '"></td>' +
+                '<td class="cl-check"><input type="checkbox" class="chk chk-neg" id="na-' + n + '"></td>' +
                 '<td class="cl-obs"><input type="text" class="cl-obs-input" id="obs-' + n + '" placeholder="..." spellcheck="false"></td>';
             tbody.appendChild(tr);
 
