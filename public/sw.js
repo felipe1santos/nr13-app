@@ -1,7 +1,7 @@
 // Service worker mínimo do NR-13 — necessário para o app ser instalável (PWA) e abrir offline.
 // Estratégia: network-first para navegação E para as folhas de relatório/prontuário (HTML sempre
 // fresco, com fallback ao cache); cache-first para assets estáticos com hash (rápido e offline).
-const CACHE = 'nr13-cache-v2';
+const CACHE = 'nr13-cache-v3';
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png', '/favicon.svg'];
 
 self.addEventListener('install', (event) => {
