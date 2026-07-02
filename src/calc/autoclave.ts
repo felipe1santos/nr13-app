@@ -124,6 +124,142 @@ export function retangular(dados: DadosAutoclaveRetangular): ResultadoCalculo {
   return { t_min: t_min.toFixed(2), pmta: pmta.toFixed(2), resultado: resultadoFinal, log: logTerminal };
 }
 
+export interface DadosAutoclaveVertical {
+  pressao: NumLike; // P (MPa)
+  diametro: NumLike; // D interno (mm)
+  tensao: NumLike; // S (MPa)
+  eficiencia?: NumLike; // E — default 1
+  ca?: NumLike; // corrosão (mm)
+  c_fator?: NumLike; // C do UG-34 — default 0.33 (planilha de referência)
+  t_tampo: NumLike;
+  t_costado: NumLike;
+  t_fundo: NumLike;
+  tipo_fundo?: 'plano' | 'conico'; // default 'plano'
+  alfa?: NumLike; // semiângulo do cone (graus) — só p/ fundo cônico
+  n_travas: NumLike;
+  d_trava: NumLike; // diâmetro da trava/parafuso (mm)
+  tensao_trava: NumLike; // S admissível da trava (MPa)
+  sigma_escoamento?: NumLike;
+  material?: string; // só p/ documentação (RESUMO), não entra no cálculo
+}
+
+// Autoclave vertical com tampo plano removível (UG-34) travado por parafusos/travas radiais,
+// costado cilíndrico (UG-27(c)(1)) e fundo plano ou cônico (UG-32(g)). Estrutura validada
+// contra Autoclave_vertical_corrigida_ASME (1).xlsx — a planilha original tinha um fator /10
+// espúrio (mistura cm×mm) no tampo, NÃO replicado aqui; a fórmula usada é a mesma da planilha
+// standalone do UG-34 (Planilha_Tampo_Plano_UG34_ASME_Status.xlsx), que não tem o fator.
+export function vertical(dados: DadosAutoclaveVertical): ResultadoCalculo {
+  const P = num(dados.pressao);
+  const D = num(dados.diametro);
+  const R = D / 2;
+  const S = num(dados.tensao);
+  const E = numOuPadrao(dados.eficiencia, 1);
+  const CA = numOuPadrao(dados.ca, 0);
+  const C = numOuPadrao(dados.c_fator, 0.33);
+  const tipoFundo = dados.tipo_fundo ?? 'plano';
+
+  // 1) TAMPO PLANO APARAFUSADO — UG-34
+  const tuTampo = num(dados.t_tampo) - CA;
+  const treqTampo = D * Math.sqrt((C * P) / (S * E));
+  const pmtaTampo = ((S * E) / C) * Math.pow(tuTampo / D, 2);
+  const tampo_ok = num(dados.t_tampo) >= treqTampo;
+
+  // 2) COSTADO CILÍNDRICO — UG-27(c)(1)
+  const tuCost = num(dados.t_costado) - CA;
+  const treqCost = (P * R) / (S * E - 0.6 * P);
+  const pmtaCost = (S * E * tuCost) / (R + 0.6 * tuCost);
+  const costado_ok = tuCost >= treqCost;
+
+  // 3) FUNDO — plano (UG-34, mesmo critério da tampa) ou cônico (UG-32(g))
+  const tuFundo = num(dados.t_fundo) - CA;
+  let treqFundo: number;
+  let pmtaFundo: number;
+  let linhasFundo: string[];
+  if (tipoFundo === 'conico') {
+    const alfaGraus = numOuPadrao(dados.alfa, 15);
+    const alfaRad = (alfaGraus * Math.PI) / 180;
+    const cosA = Math.cos(alfaRad);
+    treqFundo = (P * D) / (2 * cosA * (S * E - 0.6 * P));
+    pmtaFundo = (tuFundo * S * E) / (D / (2 * cosA) + 0.6 * tuFundo);
+    linhasFundo = [
+      `// 3. FUNDO CÔNICO — ASME VIII Div.1 UG-32(g) (α = ${alfaGraus.toFixed(2)}°)`,
+      `$$t_{req} = \\frac{P \\cdot D}{2 \\cdot \\cos\\alpha \\cdot (S \\cdot E - 0.6 \\cdot P)} = ${treqFundo.toFixed(4)} \\text{ mm}$$`,
+      `$$PMTA_{fundo} = \\frac{t_{util} \\cdot S \\cdot E}{\\frac{D}{2\\cos\\alpha} + 0.6 \\cdot t_{util}} = ${pmtaFundo.toFixed(4)} \\text{ MPa}$$`,
+    ];
+  } else {
+    treqFundo = treqTampo; // planilha de referência: fundo plano dimensionado como a tampa UG-34
+    pmtaFundo = ((S * E) / C) * Math.pow(tuFundo / D, 2);
+    linhasFundo = [
+      '// 3. FUNDO PLANO — UG-34 (mesmo critério da tampa)',
+      `$$t_{req} = ${treqFundo.toFixed(4)} \\text{ mm} \\quad PMTA_{fundo} = ${pmtaFundo.toFixed(4)} \\text{ MPa}$$`,
+    ];
+  }
+  const fundo_ok = tuFundo >= treqFundo;
+
+  // 4) TRAVAS — força de separação P·A dividida pelas travas (mesma checagem da planilha)
+  const N = num(dados.n_travas);
+  const dTrava = num(dados.d_trava);
+  const Strava = num(dados.tensao_trava);
+  const areaTampa = (Math.PI * D * D) / 4;
+  const forcaTotal = P * areaTampa;
+  const cargaPorTrava = N > 0 ? forcaTotal / N : Infinity;
+  const areaTrava = (Math.PI * dTrava * dTrava) / 4;
+  const cargaAdm = areaTrava * Strava;
+  const travas_ok = cargaAdm >= cargaPorTrava;
+
+  const pmta = Math.min(pmtaTampo, pmtaCost, pmtaFundo);
+  const pmta_ok = pmta >= P;
+  const resultadoFinal = tampo_ok && costado_ok && fundo_ok && travas_ok && pmta_ok ? 'APROVADO' : 'REPROVADO';
+
+  const FATOR_TESTE = 1.3;
+  const p_teste = pmta * FATOR_TESTE;
+
+  const logTerminal = [
+    '// ====================================================',
+    '// MEMORIAL DE CÁLCULO - AUTOCLAVE VERTICAL (NR-13)',
+    '// Modelo: tampo plano removível com travas (UG-34) + costado cilíndrico (UG-27) + fundo',
+    '// ====================================================',
+    '// PARÂMETROS DE ENTRADA:',
+    `// P = ${P.toFixed(4)} MPa | D = ${D.toFixed(2)} mm | S = ${S.toFixed(2)} MPa | E = ${E.toFixed(2)} | CA = ${CA.toFixed(2)} mm | C = ${C}`,
+    `// t_tampo = ${num(dados.t_tampo).toFixed(2)} mm | t_costado = ${num(dados.t_costado).toFixed(2)} mm | t_fundo = ${num(dados.t_fundo).toFixed(2)} mm`,
+    `// Travas: N = ${N} | d = ${dTrava.toFixed(2)} mm | S_trava = ${Strava.toFixed(2)} MPa`,
+    ' ',
+    '// 1. TAMPO PLANO APARAFUSADO — UG-34',
+    `$$t_{req} = D\\sqrt{\\frac{C \\cdot P}{S \\cdot E}} = ${D.toFixed(2)}\\sqrt{\\frac{${C} \\cdot ${P}}{${S} \\cdot ${E}}} = ${treqTampo.toFixed(4)} \\text{ mm}$$`,
+    `$$PMTA_{tampo} = \\frac{S \\cdot E}{C}\\left(\\frac{t_{util}}{D}\\right)^2 = ${pmtaTampo.toFixed(4)} \\text{ MPa}$$`,
+    tampo_ok
+      ? `<div style="${CSS_OK}"><b>OK:</b> t_tampo (${num(dados.t_tampo).toFixed(2)} mm) ≥ requerida (${treqTampo.toFixed(3)} mm).</div>`
+      : `<div style="${CSS_ERRO}"><b>REPROVADO:</b> t_tampo (${num(dados.t_tampo).toFixed(2)} mm) < requerida (${treqTampo.toFixed(3)} mm).</div>`,
+    ' ',
+    '// 2. COSTADO CILÍNDRICO — UG-27(c)(1)',
+    `$$t_{req} = \\frac{P \\cdot R}{S \\cdot E - 0.6 \\cdot P} = ${treqCost.toFixed(4)} \\text{ mm} \\quad PMTA_{costado} = ${pmtaCost.toFixed(4)} \\text{ MPa}$$`,
+    costado_ok
+      ? `<div style="${CSS_OK}"><b>OK:</b> espessura útil do costado (${tuCost.toFixed(2)} mm) ≥ requerida (${treqCost.toFixed(3)} mm).</div>`
+      : `<div style="${CSS_ERRO}"><b>REPROVADO:</b> espessura útil do costado (${tuCost.toFixed(2)} mm) < requerida (${treqCost.toFixed(3)} mm).</div>`,
+    ' ',
+    ...linhasFundo,
+    fundo_ok
+      ? `<div style="${CSS_OK}"><b>OK:</b> espessura útil do fundo (${tuFundo.toFixed(2)} mm) ≥ requerida (${treqFundo.toFixed(3)} mm).</div>`
+      : `<div style="${CSS_ERRO}"><b>REPROVADO:</b> espessura útil do fundo (${tuFundo.toFixed(2)} mm) < requerida (${treqFundo.toFixed(3)} mm).</div>`,
+    ' ',
+    '// 4. VERIFICAÇÃO DAS TRAVAS',
+    `$$A_{tampa} = \\frac{\\pi D^2}{4} = ${areaTampa.toFixed(2)} \\text{ mm}^2 \\quad F = P \\cdot A = ${forcaTotal.toFixed(2)} \\text{ N}$$`,
+    `$$F_{trava} = F/N = ${cargaPorTrava.toFixed(2)} \\text{ N} \\quad F_{adm} = A_{trava} \\cdot S_{trava} = ${cargaAdm.toFixed(2)} \\text{ N}$$`,
+    travas_ok
+      ? `<div style="${CSS_OK}"><b>OK:</b> carga por trava (${cargaPorTrava.toFixed(2)} N) ≤ admissível (${cargaAdm.toFixed(2)} N).</div>`
+      : `<div style="${CSS_ERRO}"><b>REPROVADO:</b> carga por trava (${cargaPorTrava.toFixed(2)} N) > admissível (${cargaAdm.toFixed(2)} N).</div>`,
+    ' ',
+    '// 5. PMTA DO CONJUNTO E TESTE HIDROSTÁTICO',
+    `$$PMTA = \\min(PMTA_{tampo}, PMTA_{costado}, PMTA_{fundo}) = ${pmta.toFixed(4)} \\text{ MPa}$$`,
+    `$$P_{teste} = 1.3 \\cdot PMTA = ${p_teste.toFixed(4)} \\text{ MPa}$$`,
+    ' ',
+    '// ====================================================',
+    `// RESULTADO FINAL: ${resultadoFinal}`,
+  ];
+
+  return { t_min: treqTampo.toFixed(4), pmta: pmta.toFixed(4), resultado: resultadoFinal, log: logTerminal };
+}
+
 export function cilindrica(dados: DadosAutoclaveCilindrica): ResultadoCalculo {
   const P = num(dados.pressao);
   const S = num(dados.tensao);

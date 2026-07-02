@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cilindrica, retangular } from '../autoclave';
+import { cilindrica, retangular, vertical } from '../autoclave';
 
 describe('autoclave.retangular — fórmula corrigida (ASME UG-47, ver plano de refatoração)', () => {
   // A fórmula mudou de 0.51*K*P/(S*E) (ad-hoc, sem base normativa) para a fórmula real de
@@ -43,5 +43,38 @@ describe('autoclave.cilindrica — UG-27(c), verbatim', () => {
     const R = 500;
     const tCirc = (1.5 * R) / (137.9 * 0.85 - 0.6 * 1.5);
     expect(Number(r.t_min)).toBeCloseTo(tCirc, 2);
+  });
+});
+
+describe('autoclave vertical', () => {
+  // Autoclave_vertical_corrigida_ASME (1).xlsx — fórmula padrão UG-34/UG-27
+  // (sem o fator /10 espúrio da planilha, que era bug de unidade cm×mm)
+  const base = {
+    pressao: 0.2, diametro: 400, tensao: 138, eficiencia: 1, ca: 1, c_fator: 0.33,
+    t_tampo: 8, t_costado: 4, t_fundo: 6, n_travas: 6, d_trava: 12, tensao_trava: 120,
+  };
+
+  it('tampo reprova (t_req 8.7477 > 8), travas aprovam, geral REPROVADO', () => {
+    const r = vertical(base);
+    expect(parseFloat(r.t_min)).toBeCloseTo(8.7477, 3);
+    expect(r.resultado).toBe('REPROVADO');
+    expect(r.log.join('\n')).toContain('TRAVAS');
+  });
+
+  it('costado aprova no caso da planilha (t_req 0.2901)', () => {
+    const r = vertical(base);
+    expect(r.log.join('\n')).toMatch(/0\.2901/);
+    expect(r.log.join('\n')).toMatch(/4188\.79/); // carga por trava (N)
+  });
+
+  it('fundo cônico bate com a planilha do cone (α=15°, D=680, P=0.69, S=108, E=0.8, t=6.51)', () => {
+    const r = vertical({
+      pressao: 0.69, diametro: 680, tensao: 108, eficiencia: 0.8, ca: 0, c_fator: 0.3,
+      t_tampo: 30, t_costado: 10, t_fundo: 6.51, tipo_fundo: 'conico', alfa: 15,
+      n_travas: 8, d_trava: 20, tensao_trava: 138,
+    });
+    // t_req cone = P·D/(2·cosα·(S·E − 0.6·P)) = 2.8246 mm; PMTA cone = t·S·E/((D/2cosα)+0.6t) = 1.5804
+    expect(r.log.join('\n')).toMatch(/2.8246/);
+    expect(r.log.join('\n')).toMatch(/1\.5804/);
   });
 });
