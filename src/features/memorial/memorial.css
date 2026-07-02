@@ -634,3 +634,25 @@
   font-style: italic;
   align-self: center;
 }
+
+/* ── Legenda do aviso laranja + banner PENDENTE ── */
+.memorial-legenda-aviso {
+  font-size: 0.85rem;
+  color: #9a5b00;
+  margin: 4px 0 12px;
+}
+
+.memorial-banner-pendente {
+  background: #fff4e5;
+  border: 1px solid #f0a44b;
+  border-left: 4px solid #e8830c;
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin: 12px 0;
+  color: #7a4a00;
+  font-size: 0.9rem;
+}
+
+.memorial-banner-pendente ul {
+  margin: 6px 0 0 18px;
+}

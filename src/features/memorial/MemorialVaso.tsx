@@ -239,6 +239,10 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
       {/* ── Card body: campos + equipment panel ── */}
       <div className="calc-card-body">
         <div className="calc-campos-section">
+          <p className="memorial-legenda-aviso">
+            <span className="campo-aviso-icon">⚠</span> = campo obrigatório sem valor válido. O cálculo usa
+            valores padrão nesses campos e o memorial sai como <b>PENDENTE</b> até você preencher.
+          </p>
           {/* Global P and D */}
           <div className="memorial-campos-grid">
             <Campo
@@ -279,6 +283,24 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
           )}
         </div>
       </div>
+
+      {/* ── Banner de campos faltantes (PENDENTE) ── */}
+      {resumo && resumo.resultado === 'PENDENTE' && (
+        <div className="memorial-banner-pendente">
+          <b>Cálculo PENDENTE — campos obrigatórios sem valor:</b>
+          <ul>
+            {resumo.porComponente
+              .filter((c) => (c.resultado.faltantes ?? []).length > 0)
+              .map((c) => (
+                <li key={c.id}>
+                  {c.nome}: {(c.resultado.faltantes ?? []).join(', ')}
+                </li>
+              ))}
+            {(!vaso.P || vaso.P <= 0) && <li>Dados gerais: P — Pressão de Projeto</li>}
+            {(!vaso.D || vaso.D <= 0) && <li>Dados gerais: D — Diâmetro Interno</li>}
+          </ul>
+        </div>
+      )}
 
       {/* ── PMTA bar ── */}
       <div className="calc-pmta-bar">

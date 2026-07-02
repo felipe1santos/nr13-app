@@ -133,6 +133,10 @@ function MemorialAutoclaveInner({ tag, subtipo }: Props) {
 
           <div className="calc-card-body">
             <div className="calc-campos-section">
+              <p className="memorial-legenda-aviso">
+                <span className="campo-aviso-icon">⚠</span> = campo obrigatório sem valor válido. O cálculo usa
+                valores padrão nesses campos até você preencher.
+              </p>
               <div className="memorial-campos-grid">
                 <Campo label="P — Pressão de Projeto (MPa)" value={dados.pressao ?? ''} warn={!dados.pressao || Number(dados.pressao) <= 0} onChange={(v) => set('pressao', Number(v))} />
                 <Campo label="S — Tensão Adm. (MPa)" value={dados.tensao ?? ''} warn={!dados.tensao || Number(dados.tensao) <= 0} onChange={(v) => set('tensao', Number(v))} />
