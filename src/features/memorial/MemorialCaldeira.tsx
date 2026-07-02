@@ -272,9 +272,10 @@ function PainelAbaFlamo({
                       { value: 'espelhoNaoEstaiado', label: 'Espelho Não-Estaiado (PG-31)' },
                     ]
                   : [
-                      { value: 'fox', label: 'Fox (C=97)' },
-                      { value: 'morison', label: 'Morison (C=108)' },
-                      { value: 'leeds', label: 'Leeds (C=119)' },
+                      { value: 'lisa', label: 'Cilíndrica Lisa' },
+                      { value: 'fox', label: 'Ondulada Fox (C=97)' },
+                      { value: 'morison', label: 'Ondulada Morison (C=108)' },
+                      { value: 'leeds', label: 'Ondulada Leeds (C=119)' },
                     ]
             }
           />
@@ -382,10 +383,21 @@ function CamposAbaFlamo({
   }
 
   if (aba === 'fornalha') {
+    const ehLisa = dados.tipo_fornalha === 'lisa';
     return (
       <div className="memorial-campos-grid">
         {comuns}
-        <Campo label="D — Diâmetro Médio (mm)" value={dados.diametro_medio ?? ''} onChange={(v) => set('diametro_medio', Number(v))} />
+        <Campo
+          label={ehLisa ? 'D — Diâmetro Interno (mm)' : 'D — Diâmetro Médio (mm)'}
+          value={dados.diametro_medio ?? ''}
+          onChange={(v) => set('diametro_medio', Number(v))}
+        />
+        {ehLisa && (
+          <>
+            <Campo label="S — Tensão Adm. (MPa)" value={dados.tensao ?? ''} onChange={(v) => set('tensao', Number(v))} />
+            <Campo label="E — Eficiência de Junta" value={dados.eficiencia ?? 1} onChange={(v) => set('eficiencia', Number(v))} />
+          </>
+        )}
       </div>
     );
   }

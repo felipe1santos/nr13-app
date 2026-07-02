@@ -5,6 +5,7 @@ import {
   costado,
   espelhoEstaiado,
   espelhoNaoEstaiado,
+  fornalhaLisa,
   fornalhaOndulada,
   fundoElipticoVIII,
   fundoTorisfericoVIII,
@@ -34,7 +35,7 @@ const PADROES: Record<AbaCaldeira, Record<string, unknown>> = {
   costado: { pressao: 0.78, tensao: 108, eficiencia: 0.7, diametro_externo: 1100, t_comercial: 8.68, ca: 1.5, temperatura: 300, material: 'SA-516-70' },
   tampo: { pressao: 0.78, tensao: 108, raio_crown: 1100, w_solda: 1, t_comercial: 10, ca: 1.5, eficiencia: 1, diametro_medicao: 600, c_flat: 0.33, material: 'SA-516-70' },
   espelho: { pressao: 0.78, tensao: 108, passo: 150, c_stay: 2.1, t_comercial: 10, ca: 1.5, diametro_medicao: 600, eficiencia: 1, c_flat: 0.33, material: 'SA-516-70' },
-  fornalha: { pressao: 0.78, diametro_medio: 800, t_comercial: 10, ca: 1.5, tipo_fornalha: 'fox', material: 'SA-285-C' },
+  fornalha: { pressao: 0.78, diametro_medio: 800, t_comercial: 10, ca: 1.5, tipo_fornalha: 'fox', tensao: 108, eficiencia: 1, material: 'SA-285-C' },
   tubo: { pressao: 0.78, tensao: 108, diametro_externo: 100, t_comercial: 6, ca: 1, e_fator: 0, material: 'SA-178-A' },
 };
 
@@ -63,7 +64,21 @@ export async function salvarTiposCaldeira(tag: string, tipos: TiposCaldeira): Pr
 export function calcularAbaCaldeira(aba: AbaCaldeira, tipos: TiposCaldeira, dados: any): ResultadoCalculo {
   if (aba === 'costado') return costado(dados);
   if (aba === 'tubo') return tubo(dados);
-  if (aba === 'fornalha') return fornalhaOndulada(dados);
+  if (aba === 'fornalha') {
+    // 'lisa' = fornalha cilíndrica sem ondulação (planilha de referência); demais valores
+    // (fox/morison/leeds) seguem no modelo ondulado PFT-19.
+    if (dados.tipo_fornalha === 'lisa') {
+      return fornalhaLisa({
+        pressao: dados.pressao,
+        tensao: dados.tensao,
+        eficiencia: dados.eficiencia ?? 1,
+        raio_interno: Number(dados.diametro_medio ?? 0) / 2,
+        t_comercial: dados.t_comercial,
+        ca: dados.ca,
+      });
+    }
+    return fornalhaOndulada(dados);
+  }
   if (aba === 'tampo') {
     if (tipos.tampo === 'tampoAbaulado') return tampoAbaulado(dados);
     if (tipos.tampo === 'tampoElipsoidal') return tampoElipsoidal(dados);
@@ -134,6 +149,7 @@ function num(v: unknown): number | null {
 const ROTULO_ABA_FLAMO: Record<string, string> = {
   costado: 'Costado',
   fornalha: 'Fornalha Ondulada',
+  fornalhaLisa: 'Fornalha Cilíndrica Lisa',
   tubo: 'Tubos de Fogo',
   tampoAbaulado: 'Tampo Abaulado',
   tampoElipsoidal: 'Tampo Elipsoidal 2:1',
@@ -147,6 +163,7 @@ const FORMULAS_FLAMO: Record<string, [string, string]> = {
   costado: ['t = P·D / (2·S·E + 2·y·P) + C', 'PMTA = 2·S·E·t / (D − 2·y·t)'],
   tubo: ['t = P·D / (2·S + P) + 0,005·D + e', 'PMTA = S·(2·t − 0,01·D − 2·e) / D'],
   fornalha: ['t = (P·D + 1,03) / 14,0 (Fox/Adamson)', 'PMTA conforme C do tipo de fornalha'],
+  fornalhaLisa: ['t = P·R / (S·E − 0,6·P)', 'PMTA = S·E·t / (R + 0,6·t)'],
   tampoAbaulado: ['t = 5·P·L / (4,8·S·w)', 'PMTA = 4,8·S·w·t / (5·L)'],
   tampoElipsoidal: ['t = P·D / (2·S·E + 2·y·P) + C', 'PMTA = 2·S·E·t / (D − 2·y·t)'],
   tampoPlano: ['t = d·√(C·P/S)', 'PMTA = S·(t/d)²/C'],
@@ -163,7 +180,8 @@ function chaveTipoFlamo(aba: AbaCaldeira, tipos: TiposCaldeira): string {
 function componentesFlamo(tag: string, tipos: TiposCaldeira, resumo: ResumoMemorialCaldeira): ComponenteResumo[] {
   return resumo.porAba.map(({ aba, resultado }) => {
     const d = carregarDadosCaldeira(tag, aba);
-    const chave = chaveTipoFlamo(aba, tipos);
+    const chaveBase = chaveTipoFlamo(aba, tipos);
+    const chave = aba === 'fornalha' && d.tipo_fornalha === 'lisa' ? 'fornalhaLisa' : chaveBase;
     const D = num(d.diametro_externo) ?? num(d.diametro_medio) ?? num((d as Record<string, unknown>).diametro);
     const raio = num(d.raio_crown) ?? (D != null ? D / 2 : null);
     const f = FORMULAS_FLAMO[chave] ?? ['', ''];
