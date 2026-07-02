@@ -340,6 +340,139 @@ export function calcularResumoAqua(tag: string): ResumoMemorialAqua {
   };
 }
 
+// ─── CALDEIRA MISTA (componentes aqua + flamo, abas ativáveis) ────────────────
+
+export interface AbaMista {
+  familia: 'flamo' | 'aqua';
+  aba: AbaCaldeira | AbaAquatubular;
+}
+
+// Composição típica de caldeira mista: circuito aquatubular (tubulões, parede d'água,
+// coletores) + corpo fogotubular (costado, fornalha, espelhos, tubos de fogo). O usuário
+// desliga as abas que o equipamento dele não tem.
+export const ABAS_MISTA: AbaMista[] = [
+  { familia: 'aqua', aba: 'tubulaoSup' },
+  { familia: 'aqua', aba: 'tubulaoInf' },
+  { familia: 'aqua', aba: 'tuboGerador' },
+  { familia: 'aqua', aba: 'coletor' },
+  { familia: 'flamo', aba: 'costado' },
+  { familia: 'flamo', aba: 'tampo' },
+  { familia: 'flamo', aba: 'espelho' },
+  { familia: 'flamo', aba: 'fornalha' },
+  { familia: 'flamo', aba: 'tubo' },
+];
+
+export function chaveAbaMista(m: AbaMista): string {
+  return `${m.familia}:${m.aba}`;
+}
+
+export function carregarAtivasMista(tag: string): Record<string, boolean> {
+  const salvo = ler<Record<string, boolean>>(`nr13_caldeira_mista_ativas_${tag}`) || {};
+  const ativas: Record<string, boolean> = {};
+  for (const m of ABAS_MISTA) ativas[chaveAbaMista(m)] = salvo[chaveAbaMista(m)] ?? true;
+  return ativas;
+}
+
+export async function salvarAtivasMista(tag: string, ativas: Record<string, boolean>): Promise<void> {
+  await salvar(`nr13_caldeira_mista_ativas_${tag}`, ativas);
+}
+
+export interface ResumoMemorialMista {
+  porAba: { chave: string; rotulo: string; resultado: ResultadoCalculo }[];
+  pmtaFinal: number | null;
+  pthFinal: number | null;
+  resultado: 'APROVADO' | 'REPROVADO';
+  logCompleto: string[];
+}
+
+export function calcularResumoMista(tag: string, tipos: TiposCaldeira): ResumoMemorialMista {
+  const ativas = carregarAtivasMista(tag);
+  const abas = ABAS_MISTA.filter((m) => ativas[chaveAbaMista(m)]);
+
+  const porAba = abas.map((m) => {
+    if (m.familia === 'flamo') {
+      const aba = m.aba as AbaCaldeira;
+      const dados = carregarDadosCaldeira(tag, aba);
+      const chaveRotulo =
+        aba === 'fornalha' && dados.tipo_fornalha === 'lisa' ? 'fornalhaLisa' : chaveTipoFlamo(aba, tipos);
+      return {
+        chave: chaveAbaMista(m),
+        rotulo: ROTULO_ABA_FLAMO[chaveRotulo] ?? aba,
+        resultado: calcularAbaCaldeira(aba, tipos, dados),
+      };
+    }
+    const aba = m.aba as AbaAquatubular;
+    return {
+      chave: chaveAbaMista(m),
+      rotulo: ROTULOS_AQUATUBULAR[aba],
+      resultado: calcularAbaAqua(aba, carregarDadosAqua(tag, aba)),
+    };
+  });
+
+  const pmtas = porAba.map((c) => parseFloat(c.resultado.pmta)).filter((n) => Number.isFinite(n));
+  const pmtaFinal = pmtas.length > 0 ? Math.min(...pmtas) : null;
+
+  const limitante = porAba.find((c) => parseFloat(c.resultado.pmta) === pmtaFinal);
+  let tensaoLimitante = 0;
+  if (limitante) {
+    const [fam, aba] = limitante.chave.split(':');
+    const d =
+      fam === 'flamo' ? carregarDadosCaldeira(tag, aba as AbaCaldeira) : carregarDadosAqua(tag, aba as AbaAquatubular);
+    tensaoLimitante = parseFloat(String(d.tensao ?? 0));
+  }
+  const teste =
+    pmtaFinal != null ? testeHidrostatico({ pmta: pmtaFinal, tensao_componente_limitante: tensaoLimitante }) : null;
+
+  const resultado = porAba.every((c) => c.resultado.resultado === 'APROVADO') ? 'APROVADO' : 'REPROVADO';
+  const logCompleto = porAba.flatMap((c) => c.resultado.log).concat(teste ? teste.log : []);
+
+  return {
+    porAba,
+    pmtaFinal,
+    pthFinal: teste ? parseFloat(teste.p_teste) : pmtaFinal != null ? pmtaFinal * 1.5 : null,
+    resultado,
+    logCompleto,
+  };
+}
+
+export async function salvarResumoMista(tag: string, resumo: ResumoMemorialMista, tipos?: TiposCaldeira): Promise<void> {
+  const tiposEf = tipos ?? carregarTiposCaldeira(tag);
+  // Reusa os montadores de componentes das duas famílias com "resumos" parciais só das abas ativas.
+  const resumoFlamoParcial: ResumoMemorialCaldeira = {
+    porAba: resumo.porAba
+      .filter((c) => c.chave.startsWith('flamo:'))
+      .map((c) => ({ aba: c.chave.split(':')[1] as AbaCaldeira, resultado: c.resultado })),
+    pmtaFinal: resumo.pmtaFinal,
+    pthFinal: resumo.pthFinal,
+    resultado: resumo.resultado,
+    logCompleto: [],
+  };
+  const resumoAquaParcial: ResumoMemorialAqua = {
+    porAba: resumo.porAba
+      .filter((c) => c.chave.startsWith('aqua:'))
+      .map((c) => ({ aba: c.chave.split(':')[1] as AbaAquatubular, resultado: c.resultado })),
+    pmtaFinal: resumo.pmtaFinal,
+    pthFinal: resumo.pthFinal,
+    resultado: resumo.resultado,
+    logCompleto: [],
+  };
+  const componentes = [...componentesAqua(tag, resumoAquaParcial), ...componentesFlamo(tag, tiposEf, resumoFlamoParcial)];
+
+  await salvar(`nr13_calc_${tag}`, {
+    pmta: resumo.pmtaFinal != null ? resumo.pmtaFinal.toFixed(2) : '',
+    pth: resumo.pthFinal != null ? resumo.pthFinal.toFixed(2) : '',
+    ecasco:
+      resumo.porAba.find((c) => c.chave === 'aqua:tubulaoSup')?.resultado.t_min ??
+      resumo.porAba.find((c) => c.chave === 'flamo:costado')?.resultado.t_min,
+    etampo: resumo.porAba.find((c) => c.chave === 'flamo:tampo')?.resultado.t_min,
+    componentes,
+    memorialHTML: formatarMemorialHTML(resumo.logCompleto),
+    logCalculo: resumo.logCompleto,
+    resultado: resumo.resultado,
+  });
+  await atualizarCategoriaComPmta(tag, resumo.pmtaFinal);
+}
+
 const FORMULAS_AQUA: Record<string, [string, string]> = {
   cilindro: ['t = P·D / (2·S·E + 2·y·P) + C', 'PMTA = 2·S·E·t / (D − 2·y·t)'],
   fundo: ['t = P·D / (2·S·E − 0,2·P) + C', 'PMTA = 2·S·E·t / (D + 0,2·t)'],

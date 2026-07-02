@@ -18,10 +18,18 @@ import {
   salvarTiposCaldeira,
   ABAS_AQUATUBULAR,
   ROTULOS_AQUATUBULAR,
+  ABAS_MISTA,
+  calcularResumoMista,
+  carregarAtivasMista,
+  chaveAbaMista,
+  salvarAtivasMista,
+  salvarResumoMista,
   type AbaCaldeira,
   type AbaAquatubular,
+  type AbaMista,
   type ResumoMemorialCaldeira,
   type ResumoMemorialAqua,
+  type ResumoMemorialMista,
   type TiposCaldeira,
 } from './caldeiraMemorialService';
 import type { ResultadoCalculo } from '../../calc/tipos';
@@ -62,6 +70,11 @@ export default function MemorialCaldeira({ tag, subtipo }: { tag: string; subtip
   // aquatubular state
   const [abaAqua, setAbaAqua] = useState<AbaAquatubular>('tubulaoSup');
   const [resumoAqua, setResumoAqua] = useState<ResumoMemorialAqua | null>(null);
+
+  // mista state
+  const [ativasMista, setAtivasMista] = useState<Record<string, boolean>>(() => carregarAtivasMista(tag));
+  const [abaMista, setAbaMista] = useState<string>('aqua:tubulaoSup');
+  const [resumoMista, setResumoMista] = useState<ResumoMemorialMista | null>(null);
 
   // Caldeira vertical: fornalha nasce como "lisa" na primeira abertura (sem dados salvos).
   useEffect(() => {
@@ -115,6 +128,31 @@ export default function MemorialCaldeira({ tag, subtipo }: { tag: string; subtip
     setResumoAqua(calcularResumoAqua(tag));
   }
 
+  function alternarAbaMista(m: AbaMista, ligada: boolean) {
+    const novo = { ...ativasMista, [chaveAbaMista(m)]: ligada };
+    setAtivasMista(novo);
+    void salvarAtivasMista(tag, novo);
+    setDirty(true);
+  }
+
+  function gerarMista() {
+    setResumoMista(calcularResumoMista(tag, tipos));
+  }
+
+  async function salvarMista() {
+    setSalvando(true);
+    try {
+      await salvarTiposCaldeira(tag, tipos);
+      const resumo = calcularResumoMista(tag, tipos);
+      setResumoMista(resumo);
+      await salvarResumoMista(tag, resumo, tipos);
+      setDirty(false);
+      window.alert('Memorial salvo com sucesso!');
+    } finally {
+      setSalvando(false);
+    }
+  }
+
   async function salvarAqua() {
     setSalvando(true);
     try {
@@ -126,6 +164,96 @@ export default function MemorialCaldeira({ tag, subtipo }: { tag: string; subtip
     } finally {
       setSalvando(false);
     }
+  }
+
+  const abasMistaAtivas = ABAS_MISTA.filter((m) => ativasMista[chaveAbaMista(m)]);
+  const abaMistaEfetiva = abasMistaAtivas.some((m) => chaveAbaMista(m) === abaMista)
+    ? abaMista
+    : abasMistaAtivas.length > 0
+      ? chaveAbaMista(abasMistaAtivas[0])
+      : '';
+  const abaMistaObj = abasMistaAtivas.find((m) => chaveAbaMista(m) === abaMistaEfetiva) ?? null;
+
+  function rotuloMista(m: AbaMista): string {
+    return m.familia === 'aqua'
+      ? ROTULOS_AQUATUBULAR[m.aba as AbaAquatubular]
+      : (ABAS_FLAMO.find((a) => a.value === m.aba)?.label ?? m.aba);
+  }
+
+  if (subtipo === 'mista') {
+    return (
+      <div>
+        <p className="memorial-dica-salvar" style={{ margin: '4px 0 8px' }}>
+          Caldeira mista: ative apenas os componentes que o equipamento possui. Circuito aquatubular
+          (tubulões, tubos geradores, coletores) + corpo fogotubular (costado, tampo, espelho, fornalha, tubos de fogo).
+        </p>
+        <div className="mista-toggles">
+          {ABAS_MISTA.map((m) => {
+            const chave = chaveAbaMista(m);
+            return (
+              <label key={chave} className={`mista-chip${ativasMista[chave] ? ' ativo' : ''}`}>
+                <input type="checkbox" checked={!!ativasMista[chave]} onChange={(e) => alternarAbaMista(m, e.target.checked)} />
+                {rotuloMista(m)}
+              </label>
+            );
+          })}
+        </div>
+
+        <div className="abas-caldeira">
+          {abasMistaAtivas.map((m) => {
+            const chave = chaveAbaMista(m);
+            return (
+              <button
+                key={chave}
+                type="button"
+                className={`aba-caldeira-btn ${abaMistaEfetiva === chave ? 'ativa' : ''}`}
+                onClick={() => setAbaMista(chave)}
+              >
+                {rotuloMista(m)}
+              </button>
+            );
+          })}
+        </div>
+
+        {abaMistaObj && abaMistaObj.familia === 'flamo' && (
+          <PainelAbaFlamo
+            key={abaMistaEfetiva}
+            tag={tag}
+            aba={abaMistaObj.aba as AbaCaldeira}
+            tipos={tipos}
+            setTipos={marcarTipos}
+            onMudou={() => setDirty(true)}
+          />
+        )}
+        {abaMistaObj && abaMistaObj.familia === 'aqua' && (
+          <PainelAbaAqua key={abaMistaEfetiva} tag={tag} aba={abaMistaObj.aba as AbaAquatubular} onMudou={() => setDirty(true)} />
+        )}
+
+        <div className="memorial-acoes" style={{ marginTop: 18 }}>
+          <button type="button" className="btn-secundario" onClick={gerarMista}>
+            Pré-visualizar ({abasMistaAtivas.length} componentes)
+          </button>
+          <button type="button" className="btn-primario" onClick={salvarMista} disabled={salvando}>
+            {salvando ? 'Salvando...' : 'Salvar Memorial Completo'}
+          </button>
+        </div>
+
+        {resumoMista && (
+          <div style={{ marginTop: 14 }}>
+            <p>
+              <strong>PMTA do equipamento:</strong>{' '}
+              {resumoMista.pmtaFinal != null ? `${resumoMista.pmtaFinal.toFixed(2)} MPa` : '—'} &nbsp;|&nbsp;{' '}
+              <strong>Pressão de Teste (1.5×, PG-99):</strong>{' '}
+              {resumoMista.pthFinal != null ? `${resumoMista.pthFinal.toFixed(2)} MPa` : '—'}
+            </p>
+            <span className={`resultado-final-badge ${resumoMista.resultado === 'APROVADO' ? 'aprovado' : 'reprovado'}`}>
+              {resumoMista.resultado}
+            </span>
+            <MemorialLog log={resumoMista.logCompleto} />
+          </div>
+        )}
+      </div>
+    );
   }
 
   return (

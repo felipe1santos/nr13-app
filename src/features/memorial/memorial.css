@@ -656,3 +656,31 @@
 .memorial-banner-pendente ul {
   margin: 6px 0 0 18px;
 }
+
+/* ── Caldeira mista: chips de componentes ativos ── */
+.mista-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 14px;
+}
+
+.mista-chip {
+  border: 1px solid #ccc;
+  border-radius: 16px;
+  padding: 4px 12px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  opacity: 0.55;
+  user-select: none;
+}
+
+.mista-chip.ativo {
+  border-color: #0b62c4;
+  color: #0b62c4;
+  opacity: 1;
+}
+
+.mista-chip input {
+  display: none;
+}
