@@ -37,7 +37,7 @@ export default function Memorial() {
 
       {info.tipo === 'vaso' && <MemorialVaso tag={tag} />}
       {info.tipo === 'autoclave' && (
-        <MemorialAutoclave tag={tag} subtipo={(info.subtipo as 'retangular' | 'cilindrica') || 'cilindrica'} />
+        <MemorialAutoclave tag={tag} subtipo={(info.subtipo as 'retangular' | 'cilindrica' | 'vertical') || 'cilindrica'} />
       )}
       {info.tipo === 'caldeira' && info.subtipo === 'eletrica' && (
         <MemorialVaso tag={tag} sufixo="celetrica" titulo="Caldeira Elétrica — Memorial (ASME VIII)" />
