@@ -118,3 +118,17 @@ describe('planoAparafusado com C configurável', () => {
     expect(r1.t_min).toBe(r2.t_min);
   });
 });
+
+describe('campos vazios → faltantes + aviso no log', () => {
+  it('lista campos vazios e injeta aviso de valor padrão no log', () => {
+    const r = calcularComponenteVaso('CASCO', 'cilindrico', { t_comercial: 8, ca: 0 }, 1000, 1.5);
+    expect(r.faltantes).toEqual(['S — Tensão Admissível', 'E — Eficiência de Junta']);
+    expect(r.log.some((l) => l.includes('ATENÇÃO: valor padrão adotado'))).toBe(true);
+  });
+
+  it('sem campos vazios não há faltantes nem aviso', () => {
+    const r = calcularComponenteVaso('CASCO', 'cilindrico', { t_comercial: 8, ca: 0, S: 138, E: 1, temp: 25 }, 1000, 1.5);
+    expect(r.faltantes ?? []).toEqual([]);
+    expect(r.log.some((l) => l.includes('ATENÇÃO'))).toBe(false);
+  });
+});

@@ -5,7 +5,7 @@
 //      (`tipo !== 'bocal'`) já é verdadeira para 'flange' e consome o fluxo — flange nunca
 //      calculava nada de útil em produção. Aqui o dispatch é por switch, então flange funciona.
 //   2. NOVO: tipo 'cone' (tampo cônico, UG-32(g)), pedido como adição — não existia no math.js.
-import { num, numOuPadrao } from './format';
+import { CSS_AVISO, num, numOuPadrao } from './format';
 import type { NumLike, ResultadoCalculo } from './tipos';
 
 export type TipoComponenteVaso =
@@ -78,6 +78,21 @@ function normaRefPara(tipo: TipoComponenteVaso): string {
   }
 }
 
+// Campos obrigatórios sem valor válido (vazio, não-numérico ou ≤ 0). O cálculo segue com
+// defaults (numOuPadrao), mas o resultado não é confiável — o serviço marca PENDENTE.
+export function camposFaltantesVaso(tipo: TipoComponenteVaso, dados: DadosComponenteVaso): string[] {
+  const vazio = (v: NumLike | undefined) =>
+    v === undefined || v === null || v === '' || !Number.isFinite(Number(v)) || Number(v) <= 0;
+  const faltantes: string[] = [];
+  // bocal/flange têm conjuntos próprios de entrada; S é comum a todos
+  if (vazio(dados.S)) faltantes.push('S — Tensão Admissível');
+  if (tipo !== 'flange') {
+    if (vazio(dados.E)) faltantes.push('E — Eficiência de Junta');
+    if (vazio(dados.t_comercial)) faltantes.push('Tnom — Espessura Comercial');
+  }
+  return faltantes;
+}
+
 export function gerarBlocoComponenteVaso(
   nomeDaPeca: string,
   tipo: TipoComponenteVaso,
@@ -119,6 +134,14 @@ export function gerarBlocoComponenteVaso(
     `// ----------------------------------------------------`,
     ` `,
   ];
+
+  const faltantes = camposFaltantesVaso(tipo, dados);
+  for (const f of faltantes) {
+    blocoOutput.push(
+      `<div style="${CSS_AVISO}"><b>ATENÇÃO: valor padrão adotado</b> para "${f}" — campo não preenchido. Preencha para validar o cálculo.</div>`,
+    );
+  }
+  if (faltantes.length > 0) blocoOutput.push(' ');
 
   switch (tipo) {
     case 'cilindrico':
@@ -477,5 +500,6 @@ export function calcularComponenteVaso(
   const t_min = linhaTreq ? RE_TREQ.exec(linhaTreq)![1] : '';
   const pmta = linhaPmta ? RE_PMTA.exec(linhaPmta)![1] : '';
 
-  return { t_min, pmta, resultado: aprovado ? 'APROVADO' : 'REPROVADO', log };
+  const faltantes = camposFaltantesVaso(tipo, dados);
+  return { t_min, pmta, resultado: aprovado ? 'APROVADO' : 'REPROVADO', log, faltantes };
 }

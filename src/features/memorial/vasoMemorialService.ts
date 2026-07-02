@@ -27,7 +27,7 @@ export interface ResumoMemorialVaso {
   porComponente: { id: string; nome: string; tipo: TipoComponenteVaso; resultado: ResultadoCalculo }[];
   pmtaFinal: number | null;
   pthFinal: number | null;
-  resultado: 'APROVADO' | 'REPROVADO';
+  resultado: 'APROVADO' | 'REPROVADO' | 'PENDENTE';
   logCompleto: string[];
 }
 
@@ -64,7 +64,17 @@ export function calcularResumoVaso(vaso: VasoSalvo): ResumoMemorialVaso {
   const pmtaFinal = pmtas.length > 0 ? Math.min(...pmtas) : null;
   const pthFinal = pmtaFinal != null ? pmtaFinal * 1.3 : null;
 
-  const resultado = porComponente.every((c) => c.resultado.resultado === 'APROVADO') ? 'APROVADO' : 'REPROVADO';
+  // PENDENTE = algum campo obrigatório vazio (o cálculo saiu com valores padrão) — resultado
+  // não confiável até o usuário preencher. Detalhes em c.resultado.faltantes (banner na UI).
+  const temFaltantes =
+    !Number.isFinite(Number(vaso.P)) || Number(vaso.P) <= 0 ||
+    !Number.isFinite(Number(vaso.D)) || Number(vaso.D) <= 0 ||
+    porComponente.some((c) => (c.resultado.faltantes ?? []).length > 0);
+  const resultado = temFaltantes
+    ? 'PENDENTE'
+    : porComponente.every((c) => c.resultado.resultado === 'APROVADO')
+      ? 'APROVADO'
+      : 'REPROVADO';
   const logCompleto = porComponente.flatMap((c) => c.resultado.log);
 
   return { porComponente, pmtaFinal, pthFinal, resultado, logCompleto };

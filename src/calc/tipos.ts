@@ -11,6 +11,8 @@ export interface ResultadoCalculo {
   pmta: string;
   resultado: Resultado;
   log: string[];
+  /** Rótulos de campos obrigatórios sem valor — cálculo saiu com defaults; resultado não confiável. */
+  faltantes?: string[];
 }
 
 export interface ResultadoTeste {
