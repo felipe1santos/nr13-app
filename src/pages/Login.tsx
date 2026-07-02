@@ -39,7 +39,7 @@ export default function Login() {
   return (
     <div className="login-page">
       <form className="login-box" onSubmit={handleSubmit}>
-        <svg className="login-logo" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#1a73e8" strokeWidth="2">
+        <svg className="login-logo" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2">
           <path d="M12 2 4 5v6c0 5 3.5 8.5 8 11 4.5-2.5 8-6 8-11V5l-8-3Z" />
         </svg>
         <h2>{modo === 'entrar' ? 'Acesso ao Sistema' : 'Criar Conta'}</h2>
@@ -88,7 +88,7 @@ export default function Login() {
             setAviso(null);
             setModo((m) => (m === 'entrar' ? 'cadastrar' : 'entrar'));
           }}
-          style={{ marginTop: 12, background: 'none', border: 'none', color: '#1a73e8', cursor: 'pointer' }}
+          style={{ marginTop: 12, background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer' }}
         >
           {modo === 'entrar' ? 'Não tem conta? Criar conta' : 'Já tem conta? Entrar'}
         </button>

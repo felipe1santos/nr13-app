@@ -29,7 +29,7 @@
   padding: 44px 40px;
   border-radius: var(--radius-xl);
   border: 1px solid var(--border-solid, #e8e6df);
-  box-shadow: 0 24px 70px rgba(2, 6, 23, 0.55);
+  box-shadow: 0 20px 60px rgba(26, 22, 12, 0.14);
   width: 100%;
   max-width: 380px;
   text-align: center;
