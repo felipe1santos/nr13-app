@@ -85,3 +85,36 @@ describe('vaso — bocal UG-37', () => {
     expect(log.join('\n')).toMatch(/msg-(aprovado|reprovado)/);
   });
 });
+
+describe('planoAparafusado com C configurável', () => {
+  // Planilha_Tampo_Plano_UG34_ASME_Status.xlsx: d=300, P=0.7, S=138, E=1, C=0.3, CA=0, t=8
+  it('bate com a planilha UG-34 (C=0.3)', () => {
+    const r = calcularComponenteVaso(
+      'TAMPA',
+      'planoAparafusado',
+      { t_comercial: 8, ca: 0, S: 138, E: 1, C_fator: 0.3, N_parafusos: 8, d_parafuso: 20, S_parafuso: 138 },
+      300,
+      0.7,
+    );
+    expect(parseFloat(r.t_min)).toBeCloseTo(11.7028, 3);
+    expect(r.resultado).toBe('REPROVADO'); // t 8 < 11.70
+  });
+
+  it('default de C para aparafusado é 0.3', () => {
+    const r1 = calcularComponenteVaso(
+      'TAMPA',
+      'planoAparafusado',
+      { t_comercial: 8, ca: 0, S: 138, E: 1, N_parafusos: 8, d_parafuso: 20, S_parafuso: 138 },
+      300,
+      0.7,
+    );
+    const r2 = calcularComponenteVaso(
+      'TAMPA',
+      'planoAparafusado',
+      { t_comercial: 8, ca: 0, S: 138, E: 1, C_fator: 0.3, N_parafusos: 8, d_parafuso: 20, S_parafuso: 138 },
+      300,
+      0.7,
+    );
+    expect(r1.t_min).toBe(r2.t_min);
+  });
+});

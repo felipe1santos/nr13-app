@@ -368,6 +368,7 @@ function ComponenteCampos({
 
         {componente.tipo === 'planoAparafusado' && (
           <>
+            <Campo label="C — Fator UG-34 (0.3 aparafusado)" value={d.C_fator ?? 0.3} onChange={(v) => onDadoChange('C_fator', Number(v))} />
             <Campo label="N — Nº de parafusos/travas" value={d.N_parafusos ?? 8} onChange={(v) => onDadoChange('N_parafusos', Number(v))} />
             <Campo label="d_par — Diâm. raiz parafuso (mm)" value={d.d_parafuso ?? 25} onChange={(v) => onDadoChange('d_parafuso', Number(v))} />
             <Campo label="S_par — Tensão adm. parafuso (MPa)" value={d.S_parafuso ?? 137.9} onChange={(v) => onDadoChange('S_parafuso', Number(v))} />

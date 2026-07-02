@@ -37,6 +37,7 @@ export interface DadosComponenteVaso {
   t_reforco?: NumLike;
   S_reforco?: NumLike;
   // planoAparafusado — parafusos/travas (UG-34 + verificação)
+  C_fator?: NumLike; // UG-34: 0.3 aparafusado (default), 0.33 soldado — planilha de referência
   N_parafusos?: NumLike;
   d_parafuso?: NumLike;
   S_parafuso?: NumLike;
@@ -225,7 +226,7 @@ export function gerarBlocoComponenteVaso(
     }
 
     case 'planoAparafusado': {
-      const C_ap = 0.33;
+      const C_ap = numOuPadrao(dados.C_fator, 0.3);
       const t_req_placa = diametro * Math.sqrt((C_ap * pressao) / (S * E));
       const PMTA_placa = (S * E * Math.pow(t_util, 2)) / (C_ap * Math.pow(diametro, 2));
 
