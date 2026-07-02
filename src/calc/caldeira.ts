@@ -420,6 +420,67 @@ export function fornalhaOndulada(dados: DadosFornalhaOndulada): ResultadoCalculo
   return { t_min: t_min.toFixed(2), pmta: pmta.toFixed(2), resultado: resultadoFinal, log: logTerminal };
 }
 
+export interface DadosFornalhaLisa {
+  pressao: NumLike;
+  tensao: NumLike;
+  eficiencia?: NumLike;
+  raio_interno: NumLike;
+  t_comercial: NumLike;
+  ca?: NumLike;
+}
+
+// Fornalha cilíndrica lisa — modelo simplificado da planilha de referência do engenheiro
+// (mesma forma do UG-27(c)(1); pressão externa tratada de forma conservadora conforme
+// Planilha_Caldeira_Flamotubular_ASME_NR13.xlsx, aba Fornalha).
+export function fornalhaLisa(dados: DadosFornalhaLisa, nomeComponente = 'FORNALHA CILÍNDRICA LISA'): ResultadoCalculo {
+  const P = num(dados.pressao);
+  const S = num(dados.tensao);
+  const E = numOuPadrao(dados.eficiencia, 1);
+  const R = num(dados.raio_interno);
+  const t_nom = num(dados.t_comercial);
+  const CA = numOuPadrao(dados.ca, 0);
+  const t_util = t_nom - CA;
+
+  const t_min = (P * R) / (S * E - 0.6 * P);
+  const pmta = (S * E * t_util) / (R + 0.6 * t_util);
+
+  const espessura_ok = t_util >= t_min;
+  const pmta_ok = pmta >= P;
+  const resultadoFinal = espessura_ok && pmta_ok ? 'APROVADO' : 'REPROVADO';
+
+  const logTerminal = [
+    '// ====================================================',
+    `// MEMORIAL DE CÁLCULO - ${nomeComponente} (NR-13)`,
+    '// Método: cilindro sob pressão (forma UG-27(c)(1)) — planilha de referência flamotubular',
+    '// ====================================================',
+    '// PARÂMETROS DE ENTRADA:',
+    `// P = ${P.toFixed(4)} MPa (Pressão de Projeto)`,
+    `// R = ${R.toFixed(4)} mm (Raio Interno da fornalha)`,
+    `// S = ${S.toFixed(4)} MPa (Tensão Admissível do material)`,
+    `// E = ${E.toFixed(4)} (Eficiência de junta)`,
+    `// Tnom = ${t_nom.toFixed(4)} mm | CA = ${CA.toFixed(4)} mm | Tútil = ${t_util.toFixed(4)} mm`,
+    '// ----------------------------------------------------',
+    ' ',
+    '// 1. ESPESSURA MÍNIMA REQUERIDA',
+    `$$t_{min} = \\frac{P \\cdot R}{S \\cdot E - 0.6 \\cdot P}$$`,
+    `$$t_{min} = \\frac{${P} \\cdot ${R}}{${S} \\cdot ${E} - 0.6 \\cdot ${P}} = ${t_min.toFixed(3)} \\text{ mm}$$`,
+    espessura_ok
+      ? `<div style="${CSS_OK}"><b>OK:</b> Espessura útil (${t_util.toFixed(2)} mm) ≥ requerida (${t_min.toFixed(3)} mm).</div>`
+      : `<div style="${CSS_ERRO}"><b>REPROVADO:</b> Espessura útil (${t_util.toFixed(2)} mm) < requerida (${t_min.toFixed(3)} mm).</div>`,
+    ' ',
+    '// 2. PRESSÃO MÁXIMA DE TRABALHO ADMISSÍVEL (PMTA)',
+    `$$PMTA = \\frac{S \\cdot E \\cdot t_{util}}{R + 0.6 \\cdot t_{util}}$$`,
+    `$$PMTA = \\frac{${S} \\cdot ${E} \\cdot ${t_util.toFixed(4)}}{${R} + 0.6 \\cdot ${t_util.toFixed(4)}} = ${pmta.toFixed(3)} \\text{ MPa}$$`,
+    pmta_ok
+      ? `<div style="${CSS_OK}"><b>OK:</b> PMTA (${pmta.toFixed(3)} MPa) ≥ Pressão de Projeto (${P} MPa).</div>`
+      : `<div style="${CSS_ERRO}"><b>REPROVADO:</b> PMTA (${pmta.toFixed(3)} MPa) < Pressão de Projeto (${P} MPa).</div>`,
+    ' ',
+    `// RESULTADO: ${resultadoFinal}`,
+  ];
+
+  return { t_min: t_min.toFixed(3), pmta: pmta.toFixed(3), resultado: resultadoFinal, log: logTerminal };
+}
+
 // ─── CALDEIRA AQUATUBULAR — ASME VIII Div.1 ────────────────────────────────
 
 // UG-32(d) — Fundo elíptico 2:1 (diâmetro interno)

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { costado, espelhoEstaiado, fornalhaOndulada } from '../caldeira';
+import { costado, espelhoEstaiado, fornalhaLisa, fornalhaOndulada } from '../caldeira';
 
 describe('caldeira.costado — PG-27.2.2', () => {
   // Caso de referência do plano de refatoração (mesmos números do math.js original):
@@ -66,6 +66,22 @@ describe('caldeira.espelhoEstaiado — PG-46.1 (mesma física do UG-47 usado no 
     // recalcula PMTA usando o próprio t_min como t_util — deve devolver a pressão original
     const r2 = espelhoEstaiado({ ...dados, t_comercial: Number(r.t_min) });
     expect(Number(r2.pmta)).toBeCloseTo(dados.pressao, 2);
+  });
+});
+
+describe('caldeira.fornalhaLisa — cilindro liso (planilha de referência flamotubular)', () => {
+  // Planilha_Caldeira_Flamotubular_ASME_NR13.xlsx, aba Fornalha:
+  // t = P·R/(S·E − 0.6·P); PMTA = t_util·S·E/(R + 0.6·t_util)
+  it('bate com a planilha de referência (P=0.7, S=108, E=0.85, R=200, t=8)', () => {
+    const r = fornalhaLisa({ pressao: 0.7, tensao: 108, eficiencia: 0.85, raio_interno: 200, t_comercial: 8, ca: 0 });
+    expect(parseFloat(r.t_min)).toBeCloseTo(1.532, 3);
+    expect(parseFloat(r.pmta)).toBeCloseTo(3.5859, 3);
+    expect(r.resultado).toBe('APROVADO');
+  });
+
+  it('reprova quando espessura útil < requerida', () => {
+    const r = fornalhaLisa({ pressao: 0.7, tensao: 108, eficiencia: 0.85, raio_interno: 200, t_comercial: 1.2, ca: 0 });
+    expect(r.resultado).toBe('REPROVADO');
   });
 });
 
