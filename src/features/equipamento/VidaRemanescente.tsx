@@ -5,6 +5,7 @@ import { calcularVidaRemanescente, parseDataBR, type ResultadoVidaRemanescente }
 import type { Categoria } from '../../calc/categoria';
 import MemorialLog from '../memorial/MemorialLog';
 import type { InfoEquipamento } from './tipos';
+import { comLoadingGlobal } from '../../app/loadingGlobal';
 
 type MedidasUS = Record<string, Record<string, string>>;
 
@@ -97,7 +98,7 @@ export default function VidaRemanescente({ tag, info }: { tag: string; info: Inf
     if (!r) return;
     setSalvando(true);
     try {
-      await salvar(`nr13_vida_${tag}`, {
+      await comLoadingGlobal('Salvando vida remanescente...', () => salvar(`nr13_vida_${tag}`, {
         entrada: { tAtual: num(tAtual), dataAtual, tAnterior: num(tAnterior), dataAnterior, tRequerida: num(tRequerida) },
         taxaMmAno: r.taxaMmAno,
         sobremetalMm: r.sobremetalMm,
@@ -106,7 +107,7 @@ export default function VidaRemanescente({ tag, info }: { tag: string; info: Inf
         proximaInspecaoAnos: r.proximaInspecaoAnos,
         avisos: r.avisos,
         calculadoEm: new Date().toLocaleDateString('pt-BR'),
-      });
+      }));
       alert('Vida remanescente salva.');
     } finally {
       setSalvando(false);

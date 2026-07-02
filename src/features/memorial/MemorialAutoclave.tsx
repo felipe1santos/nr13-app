@@ -10,6 +10,7 @@ import {
   type DadosAutoclave,
 } from './autoclaveMemorialService';
 import type { ResultadoCalculo } from '../../calc/tipos';
+import { comLoadingGlobal } from '../../app/loadingGlobal';
 import './memorial.css';
 
 interface Props {
@@ -106,8 +107,10 @@ function MemorialAutoclaveInner({ tag, subtipo }: Props) {
     if (!window.confirm('Salvar o cálculo do memorial? Os dados ficarão disponíveis em "Ver Memorial".')) return;
     setSalvando(true);
     try {
-      await salvarDadosAutoclave(tag, subtipo, dados);
-      await salvarResultadoAutoclave(tag, subtipo, dados, resultado);
+      await comLoadingGlobal('Salvando memorial...', async () => {
+        await salvarDadosAutoclave(tag, subtipo, dados);
+        await salvarResultadoAutoclave(tag, subtipo, dados, resultado);
+      });
       setDirty(false);
       window.alert('Memorial salvo com sucesso!');
     } finally {

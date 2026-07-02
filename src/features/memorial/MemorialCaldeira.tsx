@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import Campo from './Campo';
 import MemorialLog from './MemorialLog';
 import { ler } from '../../services/storage';
+import { comLoadingGlobal } from '../../app/loadingGlobal';
 import {
   calcularAbaCaldeira,
   calcularResumoCaldeira,
@@ -113,10 +114,12 @@ export default function MemorialCaldeira({ tag, subtipo }: { tag: string; subtip
   async function salvarFlamo() {
     setSalvando(true);
     try {
-      await salvarTiposCaldeira(tag, tipos);
       const resumo = calcularResumoCaldeira(tag, tipos);
       setResumoFlamo(resumo);
-      await salvarResumoCaldeira(tag, resumo, tipos);
+      await comLoadingGlobal('Salvando memorial...', async () => {
+        await salvarTiposCaldeira(tag, tipos);
+        await salvarResumoCaldeira(tag, resumo, tipos);
+      });
       setDirty(false);
       window.alert('Memorial salvo com sucesso!');
     } finally {
@@ -142,10 +145,12 @@ export default function MemorialCaldeira({ tag, subtipo }: { tag: string; subtip
   async function salvarMista() {
     setSalvando(true);
     try {
-      await salvarTiposCaldeira(tag, tipos);
       const resumo = calcularResumoMista(tag, tipos);
       setResumoMista(resumo);
-      await salvarResumoMista(tag, resumo, tipos);
+      await comLoadingGlobal('Salvando memorial...', async () => {
+        await salvarTiposCaldeira(tag, tipos);
+        await salvarResumoMista(tag, resumo, tipos);
+      });
       setDirty(false);
       window.alert('Memorial salvo com sucesso!');
     } finally {
@@ -158,7 +163,7 @@ export default function MemorialCaldeira({ tag, subtipo }: { tag: string; subtip
     try {
       const resumo = calcularResumoAqua(tag);
       setResumoAqua(resumo);
-      await salvarResumoAqua(tag, resumo);
+      await comLoadingGlobal('Salvando memorial...', () => salvarResumoAqua(tag, resumo));
       setDirty(false);
       window.alert('Memorial salvo com sucesso!');
     } finally {

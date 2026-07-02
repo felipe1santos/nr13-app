@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { RouterProvider } from 'react-router-dom';
 import { router } from './app/router';
+import LoadingGlobalOverlay from './app/LoadingGlobalOverlay';
 import { supabase } from './services/supabase';
 import { encerrarSessaoLocal } from './services/auth';
 
@@ -29,7 +30,12 @@ function App() {
     return () => data.subscription.unsubscribe();
   }, []);
 
-  return <RouterProvider router={router} />;
+  return (
+    <>
+      <RouterProvider router={router} />
+      <LoadingGlobalOverlay />
+    </>
+  );
 }
 
 export default App;

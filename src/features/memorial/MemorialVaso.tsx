@@ -12,6 +12,7 @@ import {
   type ResumoMemorialVaso,
   type VasoSalvo,
 } from './vasoMemorialService';
+import { comLoadingGlobal } from '../../app/loadingGlobal';
 import './memorial.css';
 
 const ROTULO_CASCO = 'Casco Cilíndrico (UG-27c)';
@@ -158,8 +159,10 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
     if (!window.confirm('Salvar o cálculo do memorial? Os dados ficarão disponíveis em "Ver Memorial".')) return;
     setSalvando(true);
     try {
-      await salvarVaso(tag, vaso, sufixo);
-      await salvarResumoVaso(tag, resumo, sufixo);
+      await comLoadingGlobal('Salvando memorial...', async () => {
+        await salvarVaso(tag, vaso, sufixo);
+        await salvarResumoVaso(tag, resumo, sufixo);
+      });
       setDirty(false);
       window.alert('Memorial salvo com sucesso!');
     } finally {
