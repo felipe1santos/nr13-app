@@ -10,6 +10,7 @@ import Galeria from '../features/equipamento/Galeria';
 import CategoriaNR13 from '../features/categoria/CategoriaNR13';
 import BadgeTipoEquipamento from '../features/equipamento/BadgeTipoEquipamento';
 import ArquivosInspecao from '../features/inspecoes/ArquivosInspecao';
+import VidaRemanescente from '../features/equipamento/VidaRemanescente';
 import { formatarValor } from '../calc/unidades';
 import type { SistemaUnidade } from '../calc/unidades';
 import MemorialLog from '../features/memorial/MemorialLog';
@@ -217,6 +218,10 @@ function EquipamentoView({ tag }: { tag: string }) {
             </span>
           )}
         </div>
+      </section>
+
+      <section className="equipamento-secao">
+        <VidaRemanescente tag={tag} info={info} />
       </section>
 
       <section className="equipamento-secao">

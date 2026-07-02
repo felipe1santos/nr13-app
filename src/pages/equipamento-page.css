@@ -319,3 +319,32 @@
     flex-direction: column;
   }
 }
+
+/* ── Vida Remanescente ── */
+.vida-hint {
+  font-size: 0.85rem;
+  color: #667;
+  margin: 4px 0 10px;
+}
+
+.vida-campos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.vida-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: #445;
+}
+
+.vida-campo input {
+  padding: 8px 10px;
+  border: 1px solid #ccd;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  min-height: 40px;
+}
