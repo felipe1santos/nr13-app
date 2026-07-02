@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { comprimirImagem } from '../../../services/imagem';
 import { carregarDadosFormulario, salvarDadosFormulario } from '../inspecaoService';
 import { useAutosaveFormulario } from '../useAutosaveFormulario';
+import RespostaSegmentada from './RespostaSegmentada';
 
 const ITENS = [
   'Juntas, conexões e vedações',
@@ -145,16 +146,15 @@ export default function FormularioVisualExterno({ tag, containerId }: { tag: str
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 11, color: 'var(--text-muted)', minWidth: 22, paddingTop: 4, fontWeight: 700 }}>{n}.</span>
                 <span style={{ flex: 1, fontSize: 13, fontWeight: 500, lineHeight: 1.4 }}>{item}</span>
-                <select
-                  value={val}
-                  onChange={(e) => setItem(n, e.target.value as 'sim' | 'nao' | 'na' | '')}
-                  style={{ minWidth: 85, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border-solid)', fontSize: 13, fontWeight: 600 }}
-                >
-                  <option value="">—</option>
-                  <option value="sim">SIM</option>
-                  <option value="nao">NÃO</option>
-                  <option value="na">N.A.</option>
-                </select>
+                <RespostaSegmentada
+                  opcoes={[
+                    { value: 'sim', label: 'SIM' },
+                    { value: 'nao', label: 'NÃO' },
+                    { value: 'na', label: 'N.A.' },
+                  ]}
+                  valor={val}
+                  onChange={(v) => setItem(n, v as 'sim' | 'nao' | 'na' | '')}
+                />
               </div>
               <input
                 type="text"

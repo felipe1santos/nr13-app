@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { comprimirImagem } from '../../../services/imagem';
 import { carregarDadosFormulario, salvarDadosFormulario } from '../inspecaoService';
 import { useAutosaveFormulario } from '../useAutosaveFormulario';
+import RespostaSegmentada from './RespostaSegmentada';
 
 const OPCOES_EXISTE = ['Existe', 'Não identificado', 'Não aplica'];
 const OPCOES_SIM_NAO = ['Sim', 'Não'];
@@ -170,14 +171,7 @@ function Secao({
         {perguntas.map((p) => (
           <div key={p.id} className="pergunta-checklist">
             <label>{p.texto}</label>
-            <select value={respostas[p.id] ?? ''} onChange={(e) => onResposta(p.id, e.target.value)}>
-              <option value="">Selecione...</option>
-              {p.opcoes.map((o) => (
-                <option key={o} value={o}>
-                  {o}
-                </option>
-              ))}
-            </select>
+            <RespostaSegmentada opcoes={p.opcoes} valor={respostas[p.id] ?? ''} onChange={(v) => onResposta(p.id, v)} />
           </div>
         ))}
       </div>
@@ -298,14 +292,7 @@ export default function FormularioChecklist({ tag, containerId }: { tag: string;
           {SECAO_FINAL.map((p) => (
             <div key={p.id} className="pergunta-checklist">
               <label>{p.texto}</label>
-              <select value={dados.respostas[p.id] ?? ''} onChange={(e) => setResposta(p.id, e.target.value)}>
-                <option value="">Selecione...</option>
-                {p.opcoes.map((o) => (
-                  <option key={o} value={o}>
-                    {o}
-                  </option>
-                ))}
-              </select>
+              <RespostaSegmentada opcoes={p.opcoes} valor={dados.respostas[p.id] ?? ''} onChange={(v) => setResposta(p.id, v)} />
             </div>
           ))}
         </div>

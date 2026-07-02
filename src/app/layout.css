@@ -328,3 +328,35 @@
   .user-email { display: none; }
   .sidebar { width: 86vw; }
 }
+
+/* ── Indicador de sincronização (topbar) ── */
+.sync-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border-solid);
+  background: var(--bg-faint);
+  color: var(--text-muted);
+}
+
+.sync-status.ok { color: #15803d; border-color: #cde9d6; background: #f0faf3; }
+.sync-status.offline { color: #b45309; border-color: #f3ddba; background: #fff8ec; }
+
+.sync-status.pendente {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-bg-light);
+  cursor: pointer;
+}
+.sync-status.pendente:disabled { opacity: 0.6; cursor: default; }
+
+.sync-status .girando { animation: nr-spin 0.9s linear infinite; }
+
+@media (max-width: 560px) {
+  .sync-status-txt { display: none; } /* só o ícone no celular */
+  .sync-status { padding: 6px 8px; }
+}

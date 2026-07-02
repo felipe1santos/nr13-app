@@ -13,6 +13,7 @@ import {
 import { logout, usuarioLogado } from '../services/auth';
 import { useNavigate } from 'react-router-dom';
 import BotaoInstalarPWA from './BotaoInstalarPWA';
+import SyncStatus from './SyncStatus';
 import './layout.css';
 
 // Ícones profissionais (lucide-react) — traço 1.9 casa com a estética Firecrawl.
@@ -58,6 +59,7 @@ export default function Layout() {
           <span className="logo">NR-13</span>
         </div>
         <div className="top-bar-right">
+          <SyncStatus />
           {email && (
             <span className="user-info-top">
               <span className="user-email">{email}</span>

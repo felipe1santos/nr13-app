@@ -310,3 +310,42 @@
     grid-template-columns: repeat(4, 1fr);
   }
 }
+
+/* ── Respostas segmentadas (botões grandes p/ campo, substituem <select>) ── */
+.resposta-segmentada {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.resposta-seg-btn {
+  flex: 1 1 auto;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1.5px solid var(--border-solid);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  color: var(--text-main);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--t-fast), background var(--t-fast), color var(--t-fast);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.resposta-seg-btn:active {
+  transform: scale(0.98);
+}
+
+.resposta-seg-btn.ativa {
+  border-color: var(--accent);
+  background: var(--accent-bg-light);
+  color: var(--accent);
+}
+
+/* nos cards de item do V.E./V.I., os botões ocupam a linha inteira no mobile */
+@media (max-width: 700px) {
+  .resposta-segmentada {
+    width: 100%;
+  }
+}
