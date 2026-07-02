@@ -15,6 +15,7 @@ import VisualizadorCalibracao from '../features/calibracoes/VisualizadorCalibrac
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
 import '../pages/relatorios.css';
 import './calibracoes.css';
+import PaginaA4 from '../components/PaginaA4';
 
 type Tela = 'equipamentos' | 'historico' | 'selecionarTipo' | 'formulario' | 'visualizador' | 'verDados';
 
@@ -813,13 +814,13 @@ export default function Calibracoes() {
           </div>
 
           <div className="cal-preview">
-            <div key={`${calAtual.id}-${versao}`} className="pagina-relatorio-a4">
+            <PaginaA4 key={`${calAtual.id}-${versao}`}>
               <iframe
                 src={`/arquivos-inspecao/${arquivoCalibracao(calAtual.tipo)}?calibId=${calAtual.id}&tag=${tag}&page=1`}
                 scrolling="no"
                 title="Certificado de Calibração"
               />
-            </div>
+            </PaginaA4>
           </div>
         </>
       )}

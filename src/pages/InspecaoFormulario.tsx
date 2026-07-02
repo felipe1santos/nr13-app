@@ -12,6 +12,7 @@ import { gravarInspecaoOrigemAtual } from '../features/relatorios/relatoriosServ
 import '../features/inspecoes/formularios.css';
 import '../features/inspecoes/visualizador.css';
 import './relatorios.css';
+import PaginaA4 from '../components/PaginaA4';
 
 // Pré-visualização "como o documento ficará": grava os dados de campo do container nas chaves que
 // os templates de public/arquivos-inspecao/ leem e renderiza os mesmos iframes do relatório.
@@ -30,9 +31,9 @@ function PreviewDocumento({ tag, containerId, formulario }: { tag: string; conta
   return (
     <div className="relatorio-preview">
       {docs.map((doc, i) => (
-        <div key={`${doc}-${i}`} className="pagina-relatorio-a4">
+        <PaginaA4 key={`${doc}-${i}`}>
           <iframe src={`/arquivos-inspecao/${doc}?tag=${tag}&page=${i + 1}`} scrolling="no" title={doc} />
-        </div>
+        </PaginaA4>
       ))}
     </div>
   );

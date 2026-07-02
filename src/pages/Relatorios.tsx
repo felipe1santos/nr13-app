@@ -22,6 +22,7 @@ import { exportarPdf } from '../features/relatorios/pdfService';
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
 import type { RelatorioMeta, RelatorioSalvo, TipoInspecao } from '../features/relatorios/tipos';
 import './relatorios.css';
+import PaginaA4 from '../components/PaginaA4';
 
 type Tela = 'equipamentos' | 'historico' | 'visualizador';
 type EtapaModal = 'nenhuma' | 'documentos' | 'container';
@@ -506,9 +507,9 @@ export default function Relatorios() {
             {documentos.map((doc, i) => {
               const sep = doc.includes('?') ? '&' : '?';
               return (
-                <div key={`${doc}-${i}-${versao}`} className="pagina-relatorio-a4">
+                <PaginaA4 key={`${doc}-${i}-${versao}`}>
                   <iframe src={`/arquivos-inspecao/${doc}${sep}tag=${tag}&page=${i + 1}`} scrolling="no" title={doc} />
-                </div>
+                </PaginaA4>
               );
             })}
           </div>

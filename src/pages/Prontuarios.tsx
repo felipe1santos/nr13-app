@@ -23,6 +23,7 @@ import CroquiVaso3D from '../features/prontuarios/CroquiVaso3D';
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
 import '../pages/relatorios.css';
 import './prontuarios.css';
+import PaginaA4 from '../components/PaginaA4';
 
 type Tela = 'equipamentos' | 'formulario' | 'visualizador';
 
@@ -899,7 +900,7 @@ export default function Prontuarios() {
 
           <div className="prontuario-preview">
             {PAGINAS_PRONTUARIO.map((doc, i) => (
-              <div key={`${doc}-${i}-${versao}`} className="pagina-relatorio-a4">
+              <PaginaA4 key={`${doc}-${i}-${versao}`}>
                 <iframe
                   src={`/arquivos-prontuario/${doc}?tag=${tag}&page=${i + 1}&total=${PAGINAS_PRONTUARIO.length}`}
                   scrolling="no"
@@ -909,7 +910,7 @@ export default function Prontuarios() {
                     if (ifrDoc) ifrDoc.designMode = 'on';
                   }}
                 />
-              </div>
+              </PaginaA4>
             ))}
           </div>
         </>
