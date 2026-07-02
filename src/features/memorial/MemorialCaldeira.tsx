@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import Campo from './Campo';
 import MemorialLog from './MemorialLog';
+import { ler } from '../../services/storage';
 import {
   calcularAbaCaldeira,
   calcularResumoCaldeira,
@@ -9,6 +10,7 @@ import {
   carregarDadosCaldeira,
   carregarDadosAqua,
   carregarTiposCaldeira,
+  chaveDadosCaldeira,
   salvarDadosCaldeira,
   salvarDadosAqua,
   salvarResumoCaldeira,
@@ -33,8 +35,21 @@ const ABAS_FLAMO: { value: AbaCaldeira; label: string }[] = [
   { value: 'tubo', label: 'Tubos de Fogo' },
 ];
 
-export default function MemorialCaldeira({ tag, subtipo }: { tag: string; subtipo: 'flamotubular' | 'aquatubular' }) {
-  const tipoCaldeira = subtipo;
+// Caldeira vertical fogotubular: mesmos 5 componentes/cálculos do flamotubular, só muda a
+// nomenclatura (fornalha interna, espelho = placa tubular) e o default da fornalha (lisa).
+const ABAS_VERTICAL: { value: AbaCaldeira; label: string }[] = [
+  { value: 'costado', label: 'Costado' },
+  { value: 'tampo', label: 'Tampo Superior' },
+  { value: 'espelho', label: 'Espelho/Placa Tubular' },
+  { value: 'fornalha', label: 'Fornalha Interna' },
+  { value: 'tubo', label: 'Tubos de Fogo' },
+];
+
+export type SubtipoCaldeiraMemorial = 'flamotubular' | 'aquatubular' | 'vertical' | 'mista';
+
+export default function MemorialCaldeira({ tag, subtipo }: { tag: string; subtipo: SubtipoCaldeiraMemorial }) {
+  const ehFlamoLike = subtipo === 'flamotubular' || subtipo === 'vertical';
+  const abasFlamoRotulos = subtipo === 'vertical' ? ABAS_VERTICAL : ABAS_FLAMO;
   const [salvando, setSalvando] = useState(false);
   // "sujo" = há edições não persistidas no memorial salvo (nr13_calc). Avisa antes de sair.
   const [dirty, setDirty] = useState(false);
@@ -47,6 +62,14 @@ export default function MemorialCaldeira({ tag, subtipo }: { tag: string; subtip
   // aquatubular state
   const [abaAqua, setAbaAqua] = useState<AbaAquatubular>('tubulaoSup');
   const [resumoAqua, setResumoAqua] = useState<ResumoMemorialAqua | null>(null);
+
+  // Caldeira vertical: fornalha nasce como "lisa" na primeira abertura (sem dados salvos).
+  useEffect(() => {
+    if (subtipo !== 'vertical') return;
+    if (ler(chaveDadosCaldeira(tag, 'fornalha')) == null) {
+      void salvarDadosCaldeira(tag, 'fornalha', { tipo_fornalha: 'lisa' });
+    }
+  }, [subtipo, tag]);
 
   // Avisa ao tentar fechar/recarregar com memorial não salvo.
   useEffect(() => {
@@ -107,11 +130,11 @@ export default function MemorialCaldeira({ tag, subtipo }: { tag: string; subtip
 
   return (
     <div>
-      {tipoCaldeira === 'flamotubular' ? (
-        /* ── FLAMOTUBULAR ── */
+      {ehFlamoLike ? (
+        /* ── FLAMOTUBULAR / VERTICAL ── */
         <div>
           <div className="abas-caldeira">
-            {ABAS_FLAMO.map((a) => (
+            {abasFlamoRotulos.map((a) => (
               <button
                 key={a.value}
                 type="button"

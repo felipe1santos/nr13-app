@@ -1,13 +1,14 @@
 import type { SistemaUnidade } from '../../calc/unidades';
 
 export type TipoEquipamento = 'vaso' | 'autoclave' | 'caldeira';
-export type SubtipoAutoclave = 'retangular' | 'cilindrica';
+export type SubtipoAutoclave = 'retangular' | 'cilindrica' | 'vertical';
+export type SubtipoCaldeira = 'flamotubular' | 'aquatubular' | 'vertical' | 'mista' | 'eletrica';
 
 // nr13_info_<TAG>
 export interface InfoEquipamento {
   tag: string;
   tipo: TipoEquipamento;
-  subtipo: SubtipoAutoclave | 'flamotubular' | 'aquatubular' | '';
+  subtipo: SubtipoAutoclave | SubtipoCaldeira | '';
   descricao?: string;
   fabricante?: string;
   ano?: string;

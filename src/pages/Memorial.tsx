@@ -26,7 +26,11 @@ export default function Memorial() {
         <div>
           <h1>{tag} — Calculadora de Memorial</h1>
           <p className="equipamento-subtitulo">
-            {info.tipo === 'vaso' ? 'Vaso de Pressão' : info.tipo === 'autoclave' ? `Autoclave (${info.subtipo})` : 'Caldeira'}
+            {info.tipo === 'vaso'
+              ? 'Vaso de Pressão'
+              : info.tipo === 'autoclave'
+                ? `Autoclave (${info.subtipo})`
+                : `Caldeira (${info.subtipo || 'flamotubular'})`}
           </p>
         </div>
       </div>
@@ -35,10 +39,17 @@ export default function Memorial() {
       {info.tipo === 'autoclave' && (
         <MemorialAutoclave tag={tag} subtipo={(info.subtipo as 'retangular' | 'cilindrica') || 'cilindrica'} />
       )}
-      {info.tipo === 'caldeira' && (
+      {info.tipo === 'caldeira' && info.subtipo === 'eletrica' && (
+        <MemorialVaso tag={tag} sufixo="celetrica" titulo="Caldeira Elétrica — Memorial (ASME VIII)" />
+      )}
+      {info.tipo === 'caldeira' && info.subtipo !== 'eletrica' && (
         <MemorialCaldeira
           tag={tag}
-          subtipo={(info.subtipo === 'aquatubular' ? 'aquatubular' : 'flamotubular')}
+          subtipo={
+            info.subtipo === 'aquatubular' || info.subtipo === 'vertical' || info.subtipo === 'mista'
+              ? info.subtipo
+              : 'flamotubular'
+          }
         />
       )}
     </div>

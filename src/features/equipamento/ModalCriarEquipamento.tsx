@@ -1,9 +1,7 @@
 import { useState } from 'react';
-import type { SubtipoAutoclave, TipoEquipamento } from './tipos';
+import type { SubtipoAutoclave, SubtipoCaldeira, TipoEquipamento } from './tipos';
 import { criarEquipamento, tagJaExiste } from './equipamentoService';
 import './equipamento.css';
-
-type SubtipoCaldeira = 'flamotubular' | 'aquatubular';
 
 interface Props {
   onClose: () => void;
@@ -103,6 +101,15 @@ export default function ModalCriarEquipamento({ onClose, onCriado }: Props) {
                 />
                 Retangular
               </label>
+              <label className="radio-card">
+                <input
+                  type="radio"
+                  name="subtipo"
+                  checked={subtipoAutoclave === 'vertical'}
+                  onChange={() => setSubtipoAutoclave('vertical')}
+                />
+                Vertical (tampo removível)
+              </label>
             </fieldset>
           )}
 
@@ -126,6 +133,33 @@ export default function ModalCriarEquipamento({ onClose, onCriado }: Props) {
                   onChange={() => setSubtipoCaldeira('aquatubular')}
                 />
                 Aquatubular (ASME VIII Div. 1)
+              </label>
+              <label className="radio-card">
+                <input
+                  type="radio"
+                  name="subtipoCaldeira"
+                  checked={subtipoCaldeira === 'mista'}
+                  onChange={() => setSubtipoCaldeira('mista')}
+                />
+                Mista (aqua + flamo)
+              </label>
+              <label className="radio-card">
+                <input
+                  type="radio"
+                  name="subtipoCaldeira"
+                  checked={subtipoCaldeira === 'vertical'}
+                  onChange={() => setSubtipoCaldeira('vertical')}
+                />
+                Vertical (fogotubular)
+              </label>
+              <label className="radio-card">
+                <input
+                  type="radio"
+                  name="subtipoCaldeira"
+                  checked={subtipoCaldeira === 'eletrica'}
+                  onChange={() => setSubtipoCaldeira('eletrica')}
+                />
+                Elétrica (ASME VIII, sem fornalha)
               </label>
             </fieldset>
           )}
