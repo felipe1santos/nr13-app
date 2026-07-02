@@ -13,6 +13,7 @@ export const VIP_USERS = [
 export interface LoginResultado {
   sucesso: boolean;
   plano?: string;
+  papel?: PapelOrg | '';
   erro?: string;
   // signup com confirmação de e-mail ativada: conta criada, falta confirmar
   precisaConfirmarEmail?: boolean;
@@ -25,11 +26,19 @@ export interface VerificaAcessoResultado {
   plano?: string;
 }
 
+export type PapelOrg = 'mestre' | 'gerente' | 'funcionario' | 'cliente';
+
 interface Perfil {
   plano: string;
   ativo: boolean;
   role: string;
   acessoExpiraEm: string | null;
+  // Controle de acesso multi-papel (null/'' antes da migração acesso_setup.sql)
+  papel: PapelOrg | '';
+  orgId: string | null;
+  clienteId: string | null;
+  sessaoToken: string | null;
+  sessaoVistoEm: string | null;
 }
 
 function normalizar(email: string): string {
@@ -39,22 +48,51 @@ function normalizar(email: string): string {
 // Busca perfil; grava plano/role no cache local p/ isDemo()/isAdmin().
 // Filtra pelo próprio id: a RLS de admin retorna TODOS os perfis, então sem o filtro
 // o maybeSingle() quebraria (várias linhas) para o usuário admin.
+const PERFIL_VAZIO: Perfil = {
+  plano: '', ativo: false, role: 'user', acessoExpiraEm: null,
+  papel: '', orgId: null, clienteId: null, sessaoToken: null, sessaoVistoEm: null,
+};
+
 async function carregarPerfil(): Promise<Perfil> {
   const { data: sess } = await supabase.auth.getSession();
   const uid = sess.session?.user?.id;
-  if (!uid) return { plano: '', ativo: false, role: 'user', acessoExpiraEm: null };
-  const { data } = await supabase
+  if (!uid) return { ...PERFIL_VAZIO };
+  // Tenta com as colunas do controle de acesso; se a migração acesso_setup.sql
+  // ainda não rodou (coluna inexistente), cai no select legado — deploy seguro.
+  let data: Record<string, unknown> | null = null;
+  const res = await supabase
     .from('profiles')
-    .select('plano, ativo, role, acesso_expira_em')
+    .select('plano, ativo, role, acesso_expira_em, papel, org_id, cliente_id, sessao_token, sessao_visto_em')
     .eq('id', uid)
     .maybeSingle();
-  const plano = data?.plano ?? '';
-  const ativo = data?.ativo ?? false;
-  const role = data?.role ?? 'user';
-  const acessoExpiraEm = data?.acesso_expira_em ?? null;
+  if (!res.error) {
+    data = res.data as Record<string, unknown> | null;
+  } else {
+    const legado = await supabase
+      .from('profiles')
+      .select('plano, ativo, role, acesso_expira_em')
+      .eq('id', uid)
+      .maybeSingle();
+    data = legado.data as Record<string, unknown> | null;
+  }
+  const plano = (data?.plano as string) ?? '';
+  const ativo = (data?.ativo as boolean) ?? false;
+  const role = (data?.role as string) ?? 'user';
+  const acessoExpiraEm = (data?.acesso_expira_em as string) ?? null;
+  const papel = ((data?.papel as string) ?? '') as Perfil['papel'];
+  const orgId = (data?.org_id as string) ?? null;
+  const clienteId = (data?.cliente_id as string) ?? null;
   if (plano) localStorage.setItem('nr13_plano', plano);
   localStorage.setItem('nr13_role', role);
-  return { plano, ativo, role, acessoExpiraEm };
+  if (papel) localStorage.setItem('nr13_papel', papel);
+  if (orgId) localStorage.setItem('nr13_org_id', orgId);
+  if (clienteId) localStorage.setItem('nr13_cliente_id', clienteId);
+  else localStorage.removeItem('nr13_cliente_id');
+  return {
+    plano, ativo, role, acessoExpiraEm, papel, orgId, clienteId,
+    sessaoToken: (data?.sessao_token as string) ?? null,
+    sessaoVistoEm: (data?.sessao_visto_em as string) ?? null,
+  };
 }
 
 function expirado(acessoExpiraEm: string | null): boolean {
@@ -114,11 +152,99 @@ export async function login(email: string, senha: string): Promise<LoginResultad
     await supabase.auth.signOut();
     return { sucesso: false, erro: 'Seu acesso expirou. Contate o administrador.' };
   }
+  // ── Sessão única (todos os papéis, inclusive o mestre): se a conta tem uma
+  // sessão viva (heartbeat < LIMITE), bloqueia o segundo login. Heartbeat velho
+  // = sessão abandonada e o lock é assumido. Antes da migração SQL, campos nulos.
+  const bloqueio = await assumirSessaoUnica(perfil);
+  if (!bloqueio.ok) {
+    await supabase.auth.signOut();
+    return { sucesso: false, erro: 'Esta conta já está em uso em outro dispositivo. Saia lá ou aguarde ~2 minutos.' };
+  }
   // Nova sessão de uso → novo sessao_id.
   localStorage.removeItem('nr13_sessao_id');
   const plano = await aposEntrar(email);
   await registrarEvento('login');
-  return { sucesso: true, plano };
+  return { sucesso: true, plano, papel: perfil.papel };
+}
+
+// ── Sessão única: lock por heartbeat em profiles (ver PLANO-CONTROLE-DE-ACESSO §7) ──
+export const SESSAO_LIMITE_MS = 90_000; // heartbeat mais velho que isso = sessão abandonada
+export const SESSAO_HEARTBEAT_MS = 30_000;
+
+async function assumirSessaoUnica(perfil: Perfil): Promise<{ ok: boolean }> {
+  try {
+    const { data: sess } = await supabase.auth.getSession();
+    const uid = sess.session?.user?.id;
+    if (!uid) return { ok: false };
+    const vivo =
+      !!perfil.sessaoToken &&
+      !!perfil.sessaoVistoEm &&
+      Date.now() - new Date(perfil.sessaoVistoEm).getTime() < SESSAO_LIMITE_MS;
+    if (vivo) return { ok: false };
+    const meuToken = crypto.randomUUID?.() ?? String(Date.now()) + Math.random().toString(36).slice(2);
+    const { error } = await supabase
+      .from('profiles')
+      .update({ sessao_token: meuToken, sessao_visto_em: new Date().toISOString() })
+      .eq('id', uid);
+    if (error) return { ok: true }; // migração ainda não rodou: não bloqueia o login
+    localStorage.setItem('nr13_sessao_token', meuToken);
+    return { ok: true };
+  } catch {
+    return { ok: true }; // best-effort: falha de rede não pode trancar o login
+  }
+}
+
+// Heartbeat periódico + detecção de tomada de sessão. Chamar 1x no boot do app logado.
+// onKick é chamado quando OUTRO dispositivo assumiu a conta.
+export function iniciarHeartbeatSessao(onKick: () => void): () => void {
+  let parado = false;
+  async function bater() {
+    if (parado) return;
+    const meuToken = localStorage.getItem('nr13_sessao_token');
+    if (!meuToken) return;
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const uid = sess.session?.user?.id;
+      if (!uid) return;
+      // update condicionado ao MEU token: se outro assumiu, atualiza 0 linhas.
+      await supabase
+        .from('profiles')
+        .update({ sessao_visto_em: new Date().toISOString() })
+        .eq('id', uid)
+        .eq('sessao_token', meuToken);
+      const { data } = await supabase.from('profiles').select('sessao_token').eq('id', uid).maybeSingle();
+      const tokenServidor = (data as { sessao_token?: string } | null)?.sessao_token ?? null;
+      if (tokenServidor && tokenServidor !== meuToken) {
+        parado = true;
+        onKick();
+      }
+    } catch {
+      // offline: tenta no próximo tick
+    }
+  }
+  const timer = window.setInterval(bater, SESSAO_HEARTBEAT_MS);
+  void bater();
+  return () => {
+    parado = true;
+    window.clearInterval(timer);
+  };
+}
+
+async function liberarSessaoUnica(): Promise<void> {
+  try {
+    const meuToken = localStorage.getItem('nr13_sessao_token');
+    if (!meuToken) return;
+    const { data: sess } = await supabase.auth.getSession();
+    const uid = sess.session?.user?.id;
+    if (!uid) return;
+    await supabase
+      .from('profiles')
+      .update({ sessao_token: null, sessao_visto_em: null })
+      .eq('id', uid)
+      .eq('sessao_token', meuToken);
+  } catch {
+    // best-effort
+  }
 }
 
 export async function cadastrar(email: string, senha: string): Promise<LoginResultado> {
@@ -151,14 +277,44 @@ export function encerrarSessaoLocal(): void {
   localStorage.removeItem('nr13_role');
   localStorage.removeItem('nr13_sessao_id');
   localStorage.removeItem('nr13_cache_owner');
+  localStorage.removeItem('nr13_papel');
+  localStorage.removeItem('nr13_org_id');
+  localStorage.removeItem('nr13_cliente_id');
+  localStorage.removeItem('nr13_sessao_token');
   // Zera os dados em cache para não vazarem ao próximo login (mesmo navegador).
   limparCacheDados();
 }
 
 export async function logout(): Promise<void> {
   await registrarEvento('logout');
+  await liberarSessaoUnica();
   await supabase.auth.signOut();
   encerrarSessaoLocal();
+}
+
+// ── Papéis da organização (≠ role admin da plataforma) ──
+export function papelAtual(): PapelOrg | '' {
+  return (localStorage.getItem('nr13_papel') || '') as PapelOrg | '';
+}
+export function isMestre(): boolean {
+  // Contas antigas (pré-migração) não têm papel gravado: tratadas como mestre (dona da org).
+  const p = papelAtual();
+  return p === 'mestre' || p === '';
+}
+export function isGerente(): boolean { return papelAtual() === 'gerente'; }
+export function isFuncionario(): boolean { return papelAtual() === 'funcionario'; }
+export function isCliente(): boolean { return papelAtual() === 'cliente'; }
+export function clienteIdAtual(): string | null { return localStorage.getItem('nr13_cliente_id'); }
+
+// Matriz de escrita por papel e prefixo de chave (PLANO §8). RLS dá o piso
+// (org + não-cliente); aqui refinamos gerente/funcionário na aplicação.
+export function podeEscrever(chave: string): boolean {
+  const p = papelAtual();
+  if (p === '' || p === 'mestre') return true;
+  if (p === 'cliente') return false;
+  if (p === 'gerente') return !chave.startsWith('nr13_minha_empresa');
+  // funcionário: só dados de campo (inspeções e formulários dos containers)
+  return chave.startsWith('nr13_docs_') || chave.startsWith('nr13_inspecao') || chave.startsWith('nr13_injecao');
 }
 
 export function usuarioLogado(): string | null {

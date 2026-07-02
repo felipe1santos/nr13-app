@@ -8,9 +8,10 @@ import {
   FileText,
   Gauge,
   BookOpenText,
+  KeyRound,
   Users,
 } from 'lucide-react';
-import { logout, usuarioLogado } from '../services/auth';
+import { isMestre, logout, usuarioLogado } from '../services/auth';
 import { useNavigate } from 'react-router-dom';
 import BotaoInstalarPWA from './BotaoInstalarPWA';
 import SyncStatus from './SyncStatus';
@@ -30,6 +31,9 @@ const MENU = [
   { to: '/empresas', label: 'Empresas', icone: <Building2 size={TAM_ICONE} strokeWidth={1.9} /> },
   { to: '/funcionarios', label: 'Funcionários', icone: <Users size={TAM_ICONE} strokeWidth={1.9} /> },
 ];
+
+// "Acesso" (gestão de sub-logins): só a conta principal (mestre) enxerga.
+const ITEM_ACESSO = { to: '/acesso', label: 'Acesso', icone: <KeyRound size={TAM_ICONE} strokeWidth={1.9} /> };
 
 export default function Layout() {
   const navigate = useNavigate();
@@ -84,7 +88,7 @@ export default function Layout() {
             <span className="menu-text">Minha Empresa</span>
           </NavLink>
           <div className="sidebar-divider" />
-          {MENU.map((item) => (
+          {(isMestre() ? [...MENU, ITEM_ACESSO] : MENU).map((item) => (
             <NavLink
               key={item.to}
               to={item.to}

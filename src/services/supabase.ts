@@ -24,3 +24,20 @@ export async function idUsuarioAtual(): Promise<string | null> {
   const { data } = await supabase.auth.getSession();
   return data.session?.user?.id ?? null;
 }
+
+// Escopo de dados no app_storage. Após a migração de controle de acesso
+// (supabase/acesso_setup.sql + login que grava nr13_org_id), os dados são
+// isolados por ORGANIZAÇÃO (org_id) — sub-logins compartilham o mesmo escopo.
+// Antes da migração (nr13_org_id ausente), mantém o comportamento antigo por
+// user_id — o deploy do código é seguro antes do SQL.
+export interface EscopoStorage {
+  coluna: 'org_id' | 'user_id';
+  id: string;
+}
+
+export async function escopoStorageAtual(): Promise<EscopoStorage | null> {
+  const orgId = localStorage.getItem('nr13_org_id');
+  if (orgId) return { coluna: 'org_id', id: orgId };
+  const uid = await idUsuarioAtual();
+  return uid ? { coluna: 'user_id', id: uid } : null;
+}

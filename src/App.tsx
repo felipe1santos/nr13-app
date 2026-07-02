@@ -3,7 +3,7 @@ import { RouterProvider } from 'react-router-dom';
 import { router } from './app/router';
 import LoadingGlobalOverlay from './app/LoadingGlobalOverlay';
 import { supabase } from './services/supabase';
-import { encerrarSessaoLocal } from './services/auth';
+import { encerrarSessaoLocal, iniciarHeartbeatSessao, usuarioLogado } from './services/auth';
 
 function App() {
   // BUG #8a — detecta perda de sessão DURANTE o uso (sessão revogada/expirada/refresh falho).
@@ -28,6 +28,18 @@ function App() {
       }
     });
     return () => data.subscription.unsubscribe();
+  }, []);
+
+  // Sessão única: heartbeat mantém o lock; se OUTRO dispositivo assumir a conta,
+  // derruba esta sessão com aviso (PLANO-CONTROLE-DE-ACESSO §7).
+  useEffect(() => {
+    if (!usuarioLogado()) return;
+    const parar = iniciarHeartbeatSessao(() => {
+      encerrarSessaoLocal();
+      window.alert('Sua sessão foi encerrada: a conta foi aberta em outro dispositivo.');
+      window.location.assign('/login');
+    });
+    return parar;
   }, []);
 
   return (

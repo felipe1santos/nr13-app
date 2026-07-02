@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { login, cadastrar, isAdmin } from '../services/auth';
+import { login, cadastrar, isAdmin, isCliente } from '../services/auth';
 import './login.css';
 
 export default function Login() {
@@ -20,8 +20,9 @@ export default function Login() {
     try {
       const resultado = modo === 'entrar' ? await login(email, senha) : await cadastrar(email, senha);
       if (resultado.sucesso) {
-        // Admin entra direto no painel (fora do sistema); usuário comum vai pro sistema.
-        navigate(isAdmin() ? '/admin' : '/dashboard');
+        // Redireciona por papel: admin da plataforma → painel; cliente final → portal;
+        // mestre/gerente/funcionário → sistema.
+        navigate(isAdmin() ? '/admin' : isCliente() ? '/portal' : '/dashboard');
       } else if (resultado.precisaConfirmarEmail) {
         setAviso('Conta criada! Confirme o e-mail pelo link enviado e depois entre.');
         setModo('entrar');

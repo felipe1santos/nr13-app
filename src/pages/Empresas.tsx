@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { listarClientes, salvarCliente, excluirCliente } from '../features/cadastros/cadastroService';
 import type { Cliente } from '../features/cadastros/tipos';
+import { criarAcessoCliente } from '../services/orgAdmin';
+import { isMestre } from '../services/auth';
 import './cadastros.css';
 
 type Tela = 'lista' | 'formulario';
@@ -17,6 +19,12 @@ export default function Empresas() {
   const [form, setForm] = useState<Cliente>({ id: '', ...VAZIO });
   const [confirmarExcluir, setConfirmarExcluir] = useState<string | null>(null);
   const [editandoExistente, setEditandoExistente] = useState(false);
+
+  // Acesso ao portal do cliente (criado via Edge Function org_admin — só mestre)
+  const [portalEmail, setPortalEmail] = useState('');
+  const [portalSenha, setPortalSenha] = useState('');
+  const [portalMsg, setPortalMsg] = useState<string | null>(null);
+  const [criandoPortal, setCriandoPortal] = useState(false);
 
   function set(chave: keyof Cliente, valor: string) {
     setForm((f) => ({ ...f, [chave]: valor }));
@@ -122,6 +130,52 @@ export default function Empresas() {
               <input type="text" value={form.estado} onChange={(e) => set('estado', e.target.value)} maxLength={2} placeholder="UF" />
             </div>
           </div>
+
+          {editandoExistente && isMestre() && (
+            <>
+              <div className="cad-secao-titulo" style={{ marginTop: 24 }}>Acesso ao Portal do Cliente</div>
+              <p className="cad-page-sub" style={{ marginBottom: 10 }}>
+                Crie um login para esta empresa acompanhar os próprios equipamentos e documentos num
+                portal somente-leitura. Requer a migração de controle de acesso aplicada no banco.
+              </p>
+              <div className="cad-grid" style={{ alignItems: 'end' }}>
+                <div className="cad-campo">
+                  <label>E-mail de acesso</label>
+                  <input type="email" value={portalEmail} onChange={(e) => setPortalEmail(e.target.value)} placeholder="cliente@empresa.com" />
+                </div>
+                <div className="cad-campo">
+                  <label>Senha (mín. 6)</label>
+                  <input type="text" value={portalSenha} onChange={(e) => setPortalSenha(e.target.value)} />
+                </div>
+                <button
+                  type="button"
+                  className="btn-secundario"
+                  disabled={criandoPortal}
+                  onClick={async () => {
+                    setPortalMsg(null);
+                    if (!portalEmail.trim() || portalSenha.length < 6) {
+                      setPortalMsg('Informe e-mail e senha com pelo menos 6 caracteres.');
+                      return;
+                    }
+                    setCriandoPortal(true);
+                    try {
+                      await criarAcessoCliente(portalEmail.trim(), portalSenha, form.id);
+                      setPortalMsg(`Acesso do portal criado para ${portalEmail.trim()}.`);
+                      setPortalEmail('');
+                      setPortalSenha('');
+                    } catch (er) {
+                      setPortalMsg(er instanceof Error ? er.message : String(er));
+                    } finally {
+                      setCriandoPortal(false);
+                    }
+                  }}
+                >
+                  {criandoPortal ? 'Criando...' : 'Criar acesso do cliente'}
+                </button>
+              </div>
+              {portalMsg && <p style={{ marginTop: 8, fontWeight: 600 }}>{portalMsg}</p>}
+            </>
+          )}
 
           <div style={{ marginTop: 24, display: 'flex', gap: 12 }}>
             <button type="button" className="btn-primario" onClick={salvar}>

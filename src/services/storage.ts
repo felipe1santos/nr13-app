@@ -1,7 +1,7 @@
 // "Banco" do sistema = tabela key-value `app_storage` no Supabase, isolada por usuário (RLS).
 // REGRA: toda gravação grava no localStorage (cache lido pelos templates HTML em iframe) E no
 // Supabase. Toda leitura sai do cache local (já hidratado por lerTudo). Offline = cai no cache.
-import { supabase, idUsuarioAtual, TABELA_STORAGE } from './supabase';
+import { supabase, escopoStorageAtual, idUsuarioAtual, TABELA_STORAGE } from './supabase';
 
 // Chaves de sessão/preferência que NÃO são dados de equipamento — não devem ser apagadas ao
 // trocar de usuário (são re-gravadas pelo login).
@@ -12,6 +12,11 @@ const CHAVES_PRESERVADAS = new Set([
   'nr13_sessao_id',
   'nr13_ultimo_acesso',
   'nr13_cache_owner',
+  // Controle de acesso multi-papel (org/tenant) — gravadas no login:
+  'nr13_papel',
+  'nr13_org_id',
+  'nr13_cliente_id',
+  'nr13_sessao_token',
   // Fila de sincronização offline: NÃO pode ser apagada pelo reconcile/limparCacheDados,
   // senão perderíamos as operações pendentes (escritas/deletes feitos offline).
   'nr13_fila_sync',
@@ -64,21 +69,27 @@ function enfileirar(op: Op): void {
 export async function flushFila(): Promise<void> {
   let fila = lerFila();
   if (fila.length === 0) return; // invariante: fila vazia ⇒ não toca em rede nem storage
+  const escopo = await escopoStorageAtual();
+  if (!escopo) return;
   const userId = await idUsuarioAtual();
-  if (!userId) return;
   while (fila.length > 0) {
     const op = fila[0];
     try {
       if (op.op === 'set') {
         const { error } = await supabase
           .from(TABELA_STORAGE)
-          .upsert({ user_id: userId, chave: op.chave, valor: op.valor }, { onConflict: 'user_id,chave' });
+          .upsert(
+            escopo.coluna === 'org_id'
+              ? { user_id: userId, org_id: escopo.id, chave: op.chave, valor: op.valor }
+              : { user_id: escopo.id, chave: op.chave, valor: op.valor },
+            { onConflict: escopo.coluna + ',chave' },
+          );
         if (error) break; // ainda offline/erro: para e preserva o restante
       } else {
         const { error } = await supabase
           .from(TABELA_STORAGE)
           .delete()
-          .eq('user_id', userId)
+          .eq(escopo.coluna, escopo.id)
           .eq('chave', op.chave);
         if (error) break;
       }
@@ -120,15 +131,17 @@ export function limparCacheDados(): void {
 const PAGINA_TAMANHO = 1000; // limite padrão de linhas por consulta do PostgREST/Supabase
 
 export async function lerTudo(): Promise<Record<string, string>> {
-  const userId = await idUsuarioAtual();
-  if (!userId) return {};
+  const escopo = await escopoStorageAtual();
+  if (!escopo) return {};
   // BUG #8b — guarda de isolamento entre contas: se o cache em disco pertence a OUTRO usuário
   // (ex.: logout interrompido antes de limpar), zera ANTES de servir/hidratar para não vazar
   // dados do usuário A ao usuário B. Só limpa com CERTEZA de mismatch: owner salvo não-nulo E
   // diferente do userId atual (não-nulo, já garantido acima). Owner ausente = primeiro uso e
   // userId nulo = offline/sem sessão NÃO limpam nada. Quando owner == userId (caso comum) é no-op.
+  // O dono do cache é o ESCOPO (org após a migração; user antes) — sub-logins da
+  // mesma org compartilham o cache sem zerar um ao outro.
   const ownerCache = localStorage.getItem('nr13_cache_owner');
-  if (ownerCache && ownerCache !== userId) {
+  if (ownerCache && ownerCache !== escopo.id) {
     limparCacheDados();
   }
   // Antes de ler o servidor, drena a fila offline: assim escritas/deletes pendentes chegam ao
@@ -147,7 +160,7 @@ export async function lerTudo(): Promise<Record<string, string>> {
       const { data, error } = await supabase
         .from(TABELA_STORAGE)
         .select('chave, valor')
-        .eq('user_id', userId)
+        .eq(escopo.coluna, escopo.id)
         .order('chave', { ascending: true })
         .range(inicio, inicio + PAGINA_TAMANHO - 1);
       // Erro de rede em qualquer página: aborta SEM mexer no cache (offline-safe).
@@ -189,7 +202,7 @@ export async function lerTudo(): Promise<Record<string, string>> {
         // cota excedida nesta chave: pula e continua hidratando o resto
       }
     }
-    localStorage.setItem('nr13_cache_owner', userId);
+    localStorage.setItem('nr13_cache_owner', escopo.id);
     return dados;
   } catch {
     // offline: usa o cache local já existente
@@ -204,12 +217,18 @@ export async function salvar(chave: string, objeto: unknown): Promise<void> {
   } catch {
     // cota local estourada: ainda assim persiste no Supabase abaixo, sem derrubar a gravação
   }
-  const userId = await idUsuarioAtual();
-  if (!userId) return;
+  const escopo = await escopoStorageAtual();
+  if (!escopo) return;
   try {
+    const userId = await idUsuarioAtual();
     await supabase
       .from(TABELA_STORAGE)
-      .upsert({ user_id: userId, chave, valor }, { onConflict: 'user_id,chave' });
+      .upsert(
+        escopo.coluna === 'org_id'
+          ? { user_id: userId, org_id: escopo.id, chave, valor }
+          : { user_id: escopo.id, chave, valor },
+        { onConflict: escopo.coluna + ',chave' },
+      );
   } catch {
     // offline: o upsert lançou → enfileira a escrita para não ser perdida no próximo reconcile
     enfileirar({ op: 'set', chave, valor });
@@ -219,10 +238,10 @@ export async function salvar(chave: string, objeto: unknown): Promise<void> {
 // Remove UMA chave do Supabase e do cache local.
 export async function excluirChave(chave: string): Promise<void> {
   localStorage.removeItem(chave);
-  const userId = await idUsuarioAtual();
-  if (!userId) return;
+  const escopo = await escopoStorageAtual();
+  if (!escopo) return;
   try {
-    await supabase.from(TABELA_STORAGE).delete().eq('user_id', userId).eq('chave', chave);
+    await supabase.from(TABELA_STORAGE).delete().eq(escopo.coluna, escopo.id).eq('chave', chave);
   } catch {
     // offline: o delete lançou → enfileira o tombstone para o registro não ressuscitar
     enfileirar({ op: 'del', chave });
@@ -257,13 +276,13 @@ export async function excluirVaso(tag: string): Promise<void> {
     if (chave && chave.endsWith(`_${tag}`)) chavesDoVaso.push(chave);
   }
 
-  const userId = await idUsuarioAtual();
-  if (userId && chavesDoVaso.length > 0) {
+  const escopo = await escopoStorageAtual();
+  if (escopo && chavesDoVaso.length > 0) {
     try {
       await supabase
         .from(TABELA_STORAGE)
         .delete()
-        .eq('user_id', userId)
+        .eq(escopo.coluna, escopo.id)
         .in('chave', chavesDoVaso);
     } catch {
       // offline: o delete em lote lançou → enfileira um tombstone por chave do vaso

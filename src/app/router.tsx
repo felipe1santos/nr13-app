@@ -13,9 +13,14 @@ import MinhaEmpresa from '../pages/MinhaEmpresa';
 import Empresas from '../pages/Empresas';
 import Funcionarios from '../pages/Funcionarios';
 import Admin from '../pages/Admin';
+import Acesso from '../pages/Acesso';
+import PortalLayout from '../pages/portal/PortalLayout';
+import PortalAtivos from '../pages/portal/PortalAtivos';
+import PortalAtivo from '../pages/portal/PortalAtivo';
 import RotaProtegida from './RotaProtegida';
 import RotaAdmin from './RotaAdmin';
 import RotaUsuario from './RotaUsuario';
+import RotaCliente from './RotaCliente';
 import Layout from './Layout';
 
 export const router = createBrowserRouter([
@@ -27,6 +32,19 @@ export const router = createBrowserRouter([
       {
         element: <RotaAdmin />,
         children: [{ path: '/admin', element: <Admin /> }],
+      },
+      // Portal do cliente: árvore própria, FORA do Layout do sistema (somente leitura).
+      {
+        element: <RotaCliente />,
+        children: [
+          {
+            element: <PortalLayout />,
+            children: [
+              { path: '/portal', element: <PortalAtivos /> },
+              { path: '/portal/ativo/:tag', element: <PortalAtivo /> },
+            ],
+          },
+        ],
       },
       // Sistema: telas normais. Admin é redirecionado para /admin (não vê o sistema).
       {
@@ -48,6 +66,7 @@ export const router = createBrowserRouter([
               { path: '/minha-empresa', element: <MinhaEmpresa /> },
               { path: '/empresas', element: <Empresas /> },
               { path: '/funcionarios', element: <Funcionarios /> },
+              { path: '/acesso', element: <Acesso /> },
             ],
           },
         ],
