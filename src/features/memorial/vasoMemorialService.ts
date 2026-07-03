@@ -17,8 +17,9 @@ export type OrientacaoVaso = 'vertical' | 'horizontal';
 
 export interface VasoSalvo {
   tag: string;
-  P: number;
-  D: number;
+  // '' = ainda não preenchido — inputs nascem vazios, o usuário digita os valores
+  P: number | '';
+  D: number | '';
   componentes: ComponenteVasoSalvo[];
   orientacao?: OrientacaoVaso;
 }
@@ -40,7 +41,7 @@ function chaveCalc(tag: string, sufixo: string): string {
 }
 
 export function carregarVaso(tag: string, sufixo = ''): VasoSalvo {
-  return ler<VasoSalvo>(chaveVaso(tag, sufixo)) || { tag, P: 1.5, D: 1000, componentes: [] };
+  return ler<VasoSalvo>(chaveVaso(tag, sufixo)) || { tag, P: '', D: '', componentes: [] };
 }
 
 export async function salvarVaso(tag: string, vaso: VasoSalvo, sufixo = ''): Promise<void> {

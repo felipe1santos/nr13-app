@@ -28,8 +28,12 @@ const OPCOES_TAMPO: { value: TipoComponenteVaso; label: string }[] = [
   { value: 'cone', label: 'Tampo Cônico / Helicoidal (UG-32g)' },
 ];
 
-const DADOS_PADRAO = { S: 137.9, E: 0.85, t_comercial: 10, ca: 1.5, mat: 'SA-516-70', temp: 100, alfa: 30 };
+// Inputs nascem VAZIOS — o usuário cadastra os valores manualmente (sem defaults
+// pré-preenchidos). O motor de cálculo marca PENDENTE enquanto faltar valor.
+const DADOS_VAZIOS = { S: '', E: '', t_comercial: '', ca: '', mat: '', temp: '' };
 
+// Ordem de preenchimento (stepper): tampo 1 → casco → tampo 2.
+// Tampo 1 = Inferior (vertical) / Esquerdo (horizontal); tampo 2 = Superior / Direito.
 function rotuloTampo(orientacao: OrientacaoVaso, posicao: 'tampo1' | 'tampo2'): string {
   if (orientacao === 'vertical') return posicao === 'tampo1' ? 'Tampo Inferior' : 'Tampo Superior';
   return posicao === 'tampo1' ? 'Tampo Esquerdo' : 'Tampo Direito';
@@ -37,28 +41,34 @@ function rotuloTampo(orientacao: OrientacaoVaso, posicao: 'tampo1' | 'tampo2'): 
 
 function novoComponentes(orientacao: OrientacaoVaso): ComponenteVasoSalvo[] {
   return [
-    { id: 'tampo1', nome: rotuloTampo(orientacao, 'tampo1'), tipo: 'eliptico', dados: { ...DADOS_PADRAO } },
-    { id: 'casco', nome: ROTULO_CASCO, tipo: 'cilindrico', dados: { ...DADOS_PADRAO } },
-    { id: 'tampo2', nome: rotuloTampo(orientacao, 'tampo2'), tipo: 'eliptico', dados: { ...DADOS_PADRAO } },
+    { id: 'tampo1', nome: rotuloTampo(orientacao, 'tampo1'), tipo: 'eliptico', dados: { ...DADOS_VAZIOS } },
+    { id: 'casco', nome: ROTULO_CASCO, tipo: 'cilindrico', dados: { ...DADOS_VAZIOS } },
+    { id: 'tampo2', nome: rotuloTampo(orientacao, 'tampo2'), tipo: 'eliptico', dados: { ...DADOS_VAZIOS } },
   ];
 }
 
-function playClick() {
+// Som de CONCLUSÃO ao gerar o memorial: dois tons ascendentes suaves (C5 → G5),
+// sensação de tarefa concluída — substitui o estalo antigo.
+function playSucesso() {
   try {
     const Ctx = (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext);
     const ctx = new Ctx();
-    const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.04), ctx.sampleRate);
-    const data = buf.getChannelData(0);
-    const decay = ctx.sampleRate * 0.005;
-    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / decay);
-    const src = ctx.createBufferSource();
-    src.buffer = buf;
-    const gain = ctx.createGain();
-    gain.gain.value = 0.3;
-    src.connect(gain);
-    gain.connect(ctx.destination);
-    src.start();
-    src.onended = () => ctx.close();
+    const notas = [523.25, 783.99];
+    notas.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      const t0 = ctx.currentTime + i * 0.13;
+      gain.gain.setValueAtTime(0.0001, t0);
+      gain.gain.exponentialRampToValueAtTime(0.22, t0 + 0.025);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.38);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(t0);
+      osc.stop(t0 + 0.42);
+    });
+    setTimeout(() => { void ctx.close(); }, 900);
   } catch { /* silently ignore */ }
 }
 
@@ -75,8 +85,8 @@ export default function MemorialVaso(props: Props) {
 
 function validarCamposVaso(vaso: VasoSalvo): string[] {
   const erros: string[] = [];
-  if (!vaso.P || vaso.P <= 0) erros.push('Pressão de Projeto (P)');
-  if (!vaso.D || vaso.D <= 0) erros.push('Diâmetro Interno (D)');
+  if (!vaso.P || Number(vaso.P) <= 0) erros.push('Pressão de Projeto (P)');
+  if (!vaso.D || Number(vaso.D) <= 0) erros.push('Diâmetro Interno (D)');
   for (const comp of vaso.componentes) {
     const d = comp.dados;
     if (!d.S || Number(d.S) <= 0) erros.push(`${comp.nome}: Tensão Admissível (S)`);
@@ -94,6 +104,10 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
   const [calcCount, setCalcCount] = useState(0);
   const [salvando, setSalvando] = useState(false);
   const [dirty, setDirty] = useState(false);
+  // etapas confirmadas (botão OK) — verde no stepper, barra de progresso
+  const [confirmados, setConfirmados] = useState<Record<string, boolean>>({});
+  // filtro do terminal: 'full' = memorial completo | id do componente = só aquela etapa
+  const [filtro, setFiltro] = useState<string>('full');
 
   // marca "não salvo" a cada alteração do vaso (ignora a montagem inicial)
   const montou = useRef(false);
@@ -131,11 +145,18 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
     }));
   }
 
+  // editar um componente desfaz a confirmação daquela etapa
+  function invalidarConfirmacao(id: string) {
+    setConfirmados((m) => (m[id] ? { ...m, [id]: false } : m));
+  }
+
   function atualizarTipoTampo(id: 'tampo1' | 'tampo2', tipo: TipoComponenteVaso) {
+    // troca só o tipo — preserva S/E/Tnom/CA já digitados pelo usuário
     setVaso((v) => ({
       ...v,
-      componentes: v.componentes.map((c) => (c.id === id ? { ...c, tipo, dados: { ...DADOS_PADRAO } } : c)),
+      componentes: v.componentes.map((c) => (c.id === id ? { ...c, tipo } : c)),
     }));
+    invalidarConfirmacao(id);
   }
 
   function atualizarDado(id: string, chave: string, valor: unknown) {
@@ -143,10 +164,11 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
       ...v,
       componentes: v.componentes.map((c) => (c.id === id ? { ...c, dados: { ...c.dados, [chave]: valor } } : c)),
     }));
+    invalidarConfirmacao(id);
   }
 
   function handleCalcular() {
-    playClick();
+    playSucesso();
     setResumo(calcularResumoVaso(vaso));
     setCalcCount((c) => c + 1);
   }
@@ -192,87 +214,161 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
   }
 
   const componenteAtivo = vaso.componentes.find((c) => c.id === abaId)!;
+  const idxAtivo = vaso.componentes.findIndex((c) => c.id === abaId);
+  const ehUltimo = idxAtivo === vaso.componentes.length - 1;
   const resultadoPorComp = resumo?.porComponente ?? [];
   const resultadoAtivo = resultadoPorComp.find((c) => c.id === abaId)?.resultado ?? null;
+
+  const qtdConfirmados = vaso.componentes.filter((c) => confirmados[c.id]).length;
+  const todosConfirmados = qtdConfirmados === vaso.componentes.length;
+  const progresso = vaso.componentes.length > 0 ? (qtdConfirmados / vaso.componentes.length) * 100 : 0;
+
+  function irPara(idx: number) {
+    const c = vaso.componentes[idx];
+    if (c) setAbaId(c.id as 'tampo1' | 'casco' | 'tampo2');
+  }
+
+  function confirmarEtapa() {
+    setConfirmados((m) => ({ ...m, [abaId]: true }));
+    // avança suavemente pra próxima etapa
+    if (!ehUltimo) setTimeout(() => irPara(idxAtivo + 1), 450);
+  }
 
   const pmtaDisplay = resumo?.pmtaFinal != null ? `${resumo.pmtaFinal.toFixed(2)} MPa` : '0.00 MPa';
   const tMinDisplay = resultadoAtivo?.t_min ?? '--';
   const pthDisplay = resumo?.pthFinal != null ? `${resumo.pthFinal.toFixed(2)} MPa` : '--';
   const statusFinal = resumo?.resultado ?? null;
 
-  const logParaMostrar = resumo?.logCompleto ?? [];
+  const logParaMostrar =
+    filtro === 'full'
+      ? resumo?.logCompleto ?? []
+      : resultadoPorComp.find((c) => c.id === filtro)?.resultado.log ?? [];
+
+  const filtrosTerminal = [
+    { id: 'full', label: 'Completo' },
+    ...vaso.componentes.map((c) => ({ id: c.id, label: c.nome.replace(/\s*\(.*\)$/, '') })),
+  ];
 
   return (
     <div className="calc-calculadora">
-      {/* ── Top bar: title + tabs + orientation ── */}
+      {/* ── Top bar: título + stepper (tampo 1 → casco → tampo 2) + orientação ── */}
       <div className="calc-card-top-bar">
-        <span className="calc-card-title">{titulo}</span>
-        <div className="calc-card-tabs">
-          {vaso.componentes.map((c) => {
-            const res = resultadoPorComp.find((r) => r.id === c.id);
-            return (
-              <button
-                key={c.id}
-                type="button"
-                className={`calc-tab ${c.id === abaId ? 'ativa' : ''}`}
-                onClick={() => setAbaId(c.id as 'tampo1' | 'casco' | 'tampo2')}
-              >
-                {c.nome}
-                {res && <span className={`calc-tab-dot ${res.resultado.resultado === 'APROVADO' ? 'ok' : 'err'}`} />}
-              </button>
-            );
-          })}
+        <div className="calc-top-row">
+          <span className="calc-card-title">{titulo}</span>
+          <div className="calc-stepper">
+            {vaso.componentes.map((c, i) => {
+              const done = !!confirmados[c.id];
+              const res = resultadoPorComp.find((r) => r.id === c.id);
+              return (
+                <span key={c.id} className="calc-step-item">
+                  <button
+                    type="button"
+                    className={`calc-step ${c.id === abaId ? 'ativa' : ''} ${done ? 'done' : ''}`}
+                    onClick={() => irPara(i)}
+                  >
+                    <span className="num">
+                      {done ? (
+                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+                      ) : (
+                        i + 1
+                      )}
+                    </span>
+                    <span className="calc-step-nome">{c.nome.replace(/\s*\(.*\)$/, '')}</span>
+                    {res && <span className={`calc-tab-dot ${res.resultado.resultado === 'APROVADO' ? 'ok' : 'err'}`} />}
+                  </button>
+                  {i < vaso.componentes.length - 1 && (
+                    <span className={`calc-step-arrow ${done ? 'filled' : ''}`}>
+                      <Icone nome="chevright" tam={15} />
+                    </span>
+                  )}
+                </span>
+              );
+            })}
+          </div>
+          <div className="calc-orientacao-toggle">
+            <button
+              type="button"
+              className={`calc-orientacao-btn ${vaso.orientacao === 'vertical' ? 'ativa' : ''}`}
+              onClick={() => trocarOrientacao('vertical')}
+            >
+              Vertical
+            </button>
+            <button
+              type="button"
+              className={`calc-orientacao-btn ${vaso.orientacao === 'horizontal' ? 'ativa' : ''}`}
+              onClick={() => trocarOrientacao('horizontal')}
+            >
+              Horizontal
+            </button>
+          </div>
         </div>
-        <div className="calc-orientacao-toggle">
-          <button
-            type="button"
-            className={`calc-orientacao-btn ${vaso.orientacao === 'vertical' ? 'ativa' : ''}`}
-            onClick={() => trocarOrientacao('vertical')}
-          >
-            Vertical
-          </button>
-          <button
-            type="button"
-            className={`calc-orientacao-btn ${vaso.orientacao === 'horizontal' ? 'ativa' : ''}`}
-            onClick={() => trocarOrientacao('horizontal')}
-          >
-            Horizontal
-          </button>
-        </div>
+        <div className="calc-progress"><i style={{ width: `${progresso}%` }} /></div>
       </div>
 
-      {/* ── Card body: campos + equipment panel ── */}
+      {/* ── Card body: campos + painel do equipamento ── */}
       <div className="calc-card-body">
         <div className="calc-campos-section">
           <p className="memorial-legenda-aviso">
             <span className="campo-aviso-icon">⚠</span> = campo obrigatório sem valor válido. O cálculo usa
             valores padrão nesses campos e o memorial sai como <b>PENDENTE</b> até você preencher.
           </p>
-          {/* Global P and D */}
+          {/* P e D globais */}
           <div className="memorial-campos-grid">
             <Campo
               label="Pressão de Projeto P (MPa)"
               value={vaso.P}
-              warn={!vaso.P || vaso.P <= 0}
-              onChange={(v) => setVaso((s) => ({ ...s, P: Number(v) }))}
+              warn={!vaso.P || Number(vaso.P) <= 0}
+              onChange={(v) => setVaso((s) => ({ ...s, P: v === '' ? '' : Number(v) }))}
             />
             <Campo
               label="Diâmetro Interno D (mm)"
               value={vaso.D}
-              warn={!vaso.D || vaso.D <= 0}
-              onChange={(v) => setVaso((s) => ({ ...s, D: Number(v) }))}
+              warn={!vaso.D || Number(vaso.D) <= 0}
+              onChange={(v) => setVaso((s) => ({ ...s, D: v === '' ? '' : Number(v) }))}
             />
           </div>
 
-          {/* Per-component fields */}
+          {/* Campos do componente ativo */}
           <ComponenteCampos
             componente={componenteAtivo}
             onTipoChange={(tipo) => atualizarTipoTampo(componenteAtivo.id as 'tampo1' | 'tampo2', tipo)}
             onDadoChange={(chave, valor) => atualizarDado(componenteAtivo.id, chave, valor)}
           />
+
+          {/* Navegação sequencial: Voltar | OK (confirma etapa) | Próximo */}
+          <div className="calc-nav-row">
+            <button type="button" className="btn-nav-ghost" disabled={idxAtivo === 0} onClick={() => irPara(idxAtivo - 1)}>
+              <Icone nome="chevleft" tam={15} />
+              Voltar
+            </button>
+            <div className="calc-nav-right">
+              <button
+                type="button"
+                className={`btn-ok ${confirmados[abaId] ? 'confirmed' : ''}`}
+                onClick={confirmarEtapa}
+              >
+                {confirmados[abaId] ? (
+                  <>
+                    <Icone nome="check" tam={14} />
+                    Salvo
+                  </>
+                ) : (
+                  'OK'
+                )}
+              </button>
+              {ehUltimo ? (
+                <span className="calc-nav-nota">Último componente</span>
+              ) : (
+                <button type="button" className="btn-nav-next" onClick={() => irPara(idxAtivo + 1)}>
+                  Próximo
+                  <Icone nome="chevright" tam={15} />
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* Equipment panel */}
+        {/* Painel do equipamento */}
         <div className="calc-equip-section">
           {imagemSrc ? (
             <img src={imagemSrc} alt={componenteAtivo.nome} />
@@ -301,8 +397,8 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
                   {c.nome}: {(c.resultado.faltantes ?? []).join(', ')}
                 </li>
               ))}
-            {(!vaso.P || vaso.P <= 0) && <li>Dados gerais: P — Pressão de Projeto</li>}
-            {(!vaso.D || vaso.D <= 0) && <li>Dados gerais: D — Diâmetro Interno</li>}
+            {(!vaso.P || Number(vaso.P) <= 0) && <li>Dados gerais: P — Pressão de Projeto</li>}
+            {(!vaso.D || Number(vaso.D) <= 0) && <li>Dados gerais: D — Diâmetro Interno</li>}
           </ul>
         </div>
       )}
@@ -324,7 +420,7 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
 
       {/* ── Actions bar ── */}
       <div className="calc-acoes-bar">
-        <button type="button" className="btn-gerar-calculo" onClick={handleCalcular}>
+        <button type="button" className={`btn-gerar-calculo ${todosConfirmados ? 'ready' : ''}`} onClick={handleCalcular}>
           Σ GERAR CÁLCULO
         </button>
         <span className="calc-terminal-label">Memória de Cálculo — {titulo}</span>
@@ -339,7 +435,7 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
         </button>
       </div>
 
-      {/* ── Terminal (coluna direita no desktop) ── */}
+      {/* ── Terminal (coluna direita no desktop) com filtro Completo/por etapa ── */}
       <TerminalMemorial
         arquivo={`memorial_${tag.toLowerCase().replace(/\s+/g, '_')}.log`}
         status={
@@ -348,9 +444,12 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
               : statusFinal === 'PENDENTE' ? 'pendente'
                 : 'aguardando'
         }
+        filtros={filtrosTerminal}
+        filtroAtivo={filtro}
+        onFiltro={setFiltro}
       >
         <MemorialLog
-          key={calcCount}
+          key={`${calcCount}-${filtro}`}
           log={logParaMostrar}
           animado={calcCount > 0}
           showPlaceholder={calcCount === 0}
@@ -390,23 +489,23 @@ function ComponenteCampos({
       )}
 
       <div className="memorial-campos-grid" style={{ marginTop: 10 }}>
-        <Campo label="S — Tensão Adm. (MPa)" value={d.S ?? ''} warn={!d.S || Number(d.S) <= 0} onChange={(v) => onDadoChange('S', Number(v))} />
-        <Campo label="E — Eficiência Junta" value={d.E ?? ''} warn={!d.E || Number(d.E) <= 0} onChange={(v) => onDadoChange('E', Number(v))} />
-        <Campo label="Tnom — Esp. Comercial (mm)" value={d.t_comercial ?? ''} warn={!d.t_comercial || Number(d.t_comercial) <= 0} onChange={(v) => onDadoChange('t_comercial', Number(v))} />
-        <Campo label="CA — Corrosão Adm. (mm)" value={d.ca ?? ''} onChange={(v) => onDadoChange('ca', Number(v))} />
+        <Campo label="S — Tensão Adm. (MPa)" value={d.S ?? ''} warn={!d.S || Number(d.S) <= 0} onChange={(v) => onDadoChange('S', v === '' ? '' : Number(v))} />
+        <Campo label="E — Eficiência Junta" value={d.E ?? ''} warn={!d.E || Number(d.E) <= 0} onChange={(v) => onDadoChange('E', v === '' ? '' : Number(v))} />
+        <Campo label="Tnom — Esp. Comercial (mm)" value={d.t_comercial ?? ''} warn={!d.t_comercial || Number(d.t_comercial) <= 0} onChange={(v) => onDadoChange('t_comercial', v === '' ? '' : Number(v))} />
+        <Campo label="CA — Corrosão Adm. (mm)" value={d.ca ?? ''} onChange={(v) => onDadoChange('ca', v === '' ? '' : Number(v))} />
         <Campo label="Material" type="text" value={d.mat ?? ''} onChange={(v) => onDadoChange('mat', v)} />
-        <Campo label="Temp. Projeto (°C)" value={d.temp ?? ''} warn={d.temp === undefined || d.temp === null || d.temp === ''} onChange={(v) => onDadoChange('temp', Number(v))} />
+        <Campo label="Temp. Projeto (°C)" value={d.temp ?? ''} warn={d.temp === undefined || d.temp === null || d.temp === ''} onChange={(v) => onDadoChange('temp', v === '' ? '' : Number(v))} />
 
         {componente.tipo === 'cone' && (
-          <Campo label="α — Meio-ângulo do cone (°)" value={d.alfa ?? 30} onChange={(v) => onDadoChange('alfa', Number(v))} />
+          <Campo label="α — Meio-ângulo do cone (°)" value={d.alfa ?? ''} onChange={(v) => onDadoChange('alfa', v === '' ? '' : Number(v))} />
         )}
 
         {componente.tipo === 'planoAparafusado' && (
           <>
-            <Campo label="C — Fator UG-34 (0.3 aparafusado)" value={d.C_fator ?? 0.3} onChange={(v) => onDadoChange('C_fator', Number(v))} />
-            <Campo label="N — Nº de parafusos/travas" value={d.N_parafusos ?? 8} onChange={(v) => onDadoChange('N_parafusos', Number(v))} />
-            <Campo label="d_par — Diâm. raiz parafuso (mm)" value={d.d_parafuso ?? 25} onChange={(v) => onDadoChange('d_parafuso', Number(v))} />
-            <Campo label="S_par — Tensão adm. parafuso (MPa)" value={d.S_parafuso ?? 137.9} onChange={(v) => onDadoChange('S_parafuso', Number(v))} />
+            <Campo label="C — Fator UG-34 (0.3 aparafusado)" value={d.C_fator ?? 0.3} onChange={(v) => onDadoChange('C_fator', v === '' ? '' : Number(v))} />
+            <Campo label="N — Nº de parafusos/travas" value={d.N_parafusos ?? ''} onChange={(v) => onDadoChange('N_parafusos', v === '' ? '' : Number(v))} />
+            <Campo label="d_par — Diâm. raiz parafuso (mm)" value={d.d_parafuso ?? ''} onChange={(v) => onDadoChange('d_parafuso', v === '' ? '' : Number(v))} />
+            <Campo label="S_par — Tensão adm. parafuso (MPa)" value={d.S_parafuso ?? ''} onChange={(v) => onDadoChange('S_parafuso', v === '' ? '' : Number(v))} />
           </>
         )}
       </div>

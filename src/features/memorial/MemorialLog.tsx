@@ -44,10 +44,20 @@ export default function MemorialLog({ log, animado = false, placeholder, showPla
           const texto = trimmed.slice(2).trim();
           // Linhas de moldura (====/----) viram divisor visual discreto.
           if (/^[=\-─]{6,}$/.test(texto)) return { tipo: 'hr' as const, key: i };
-          // Cabeçalho de componente (azul escuro, padrão Forja): identifica qual
+          // Cabeçalho de componente (barra azul, padrão painel_pmta): identifica qual
           // componente do equipamento está sendo calculado.
           if (/^MEMORIAL DE C[ÁA]LCULO[:.]/i.test(texto)) return { tipo: 'compHeader' as const, key: i, texto };
           if (/^Norma Base[:.]/i.test(texto)) return { tipo: 'compSub' as const, key: i, texto };
+          // "PARÂMETROS DE ENTRADA:" e afins — legenda pequena de grupo
+          if (/^PAR[ÂA]METROS[^:]*:$/i.test(texto)) return { tipo: 'caption' as const, key: i, texto };
+          // "1. CÁLCULO DA ESPESSURA..." — título de etapa com quadrado laranja
+          if (/^\d+\.\s/.test(texto)) return { tipo: 'secao' as const, key: i, texto };
+          // "Tútil = Tnom - CA = ..." — linha da espessura útil, itálico
+          if (/^T[úu]til\s*=/.test(texto)) return { tipo: 'util' as const, key: i, texto };
+          // "P = 1.5000 MPa (Pressão de Projeto estipulada)" — parâmetro em grade:
+          // símbolo escuro, valor violeta, descrição cinza
+          const mParam = texto.match(/^([A-Za-zÀ-ú][\w.ÀàáâãéêíóôõúüçÇ]{0,7})\s*=\s*(.+?)\s*\((.+)\)$/);
+          if (mParam) return { tipo: 'param' as const, key: i, sym: mParam[1], val: mParam[2], desc: mParam[3] };
           return { tipo: 'comentario' as const, key: i, texto };
         }
         if (trimmed.startsWith('$$') && trimmed.endsWith('$$')) {
@@ -58,7 +68,9 @@ export default function MemorialLog({ log, animado = false, placeholder, showPla
           } catch {
             html = latex;
           }
-          return { tipo: 'katex' as const, key: i, html };
+          // Resultado direto (sem fração) — "t_req = 6,4433 mm" — destaca em laranja
+          const resultado = !latex.includes('\\frac') && /=\s*-?[\d.]/.test(latex);
+          return { tipo: 'katex' as const, key: i, html, resultado };
         }
         return { tipo: 'html' as const, key: i, html: linha };
       }),
@@ -92,6 +104,32 @@ export default function MemorialLog({ log, animado = false, placeholder, showPla
               {l.texto}
             </div>
           );
+        if (l.tipo === 'caption')
+          return (
+            <div key={l.key} className="memorial-log-caption">
+              {l.texto}
+            </div>
+          );
+        if (l.tipo === 'secao')
+          return (
+            <div key={l.key} className="memorial-log-secao">
+              {l.texto}
+            </div>
+          );
+        if (l.tipo === 'param')
+          return (
+            <div key={l.key} className="memorial-log-param">
+              <span className="p-sym">{l.sym}</span>
+              <span className="p-val">= {l.val}</span>
+              <span className="p-desc">{l.desc}</span>
+            </div>
+          );
+        if (l.tipo === 'util')
+          return (
+            <div key={l.key} className="memorial-log-util">
+              {l.texto}
+            </div>
+          );
         if (l.tipo === 'comentario')
           return (
             <div key={l.key} className="memorial-log-comentario">
@@ -99,7 +137,13 @@ export default function MemorialLog({ log, animado = false, placeholder, showPla
             </div>
           );
         if (l.tipo === 'katex')
-          return <div key={l.key} className="memorial-log-katex" dangerouslySetInnerHTML={{ __html: l.html }} />;
+          return (
+            <div
+              key={l.key}
+              className={`memorial-log-katex${l.resultado ? ' memorial-log-resultado' : ''}`}
+              dangerouslySetInnerHTML={{ __html: l.html }}
+            />
+          );
         return <div key={l.key} dangerouslySetInnerHTML={{ __html: l.html }} />;
       })}
     </div>
