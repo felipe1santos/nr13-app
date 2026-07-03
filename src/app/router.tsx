@@ -1,6 +1,8 @@
 import { Navigate, createBrowserRouter } from 'react-router-dom';
 import Login from '../pages/Login';
 import Dashboard from '../pages/Dashboard';
+import Equipamentos from '../pages/Equipamentos';
+import Vencimentos from '../pages/Vencimentos';
 import Equipamento from '../pages/Equipamento';
 import Memorial from '../pages/Memorial';
 import Relatorios from '../pages/Relatorios';
@@ -55,6 +57,8 @@ export const router = createBrowserRouter([
             children: [
               { path: '/', element: <Navigate to="/dashboard" replace /> },
               { path: '/dashboard', element: <Dashboard /> },
+              { path: '/equipamentos', element: <Equipamentos /> },
+              { path: '/vencimentos', element: <Vencimentos /> },
               { path: '/equipamento/:tag', element: <Equipamento /> },
               { path: '/equipamento/:tag/memorial', element: <Memorial /> },
               { path: '/relatorios', element: <Relatorios /> },

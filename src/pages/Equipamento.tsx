@@ -46,7 +46,7 @@ function EquipamentoView({ tag }: { tag: string }) {
   const fotoCapa = fotos.find((f) => f.isCapa) || fotos[0] || null;
 
   useEffect(() => {
-    if (!info) navigate('/dashboard');
+    if (!info) navigate('/equipamentos');
   }, [info, navigate]);
 
   useEffect(() => {
@@ -79,7 +79,7 @@ function EquipamentoView({ tag }: { tag: string }) {
     setExcluindo(true);
     try {
       await excluirVaso(tag);
-      navigate('/dashboard');
+      navigate('/equipamentos');
     } finally {
       setExcluindo(false);
     }

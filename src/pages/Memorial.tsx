@@ -12,7 +12,7 @@ export default function Memorial() {
   const info = carregarInfo(tag);
 
   useEffect(() => {
-    if (!info) navigate('/dashboard');
+    if (!info) navigate('/equipamentos');
   }, [info, navigate]);
 
   if (!info) return <p>Carregando...</p>;
