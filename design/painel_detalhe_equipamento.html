@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Forja — VASO A23</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#14181C; --ink-soft:#1E252B;
+    --steel:#F6F5F2; --panel:#FFFFFF; --line:#E4E1D8;
+    --text:#2D3339; --muted:#7A8790;
+    --amber:#FF7A1A; --amber-deep:#D9640C;
+    --ok:#1FA971; --ok-bg:#E7F6EF;
+    --warn:#B8860B; --warn-bg:#FBF1DC;
+    --crit:#D5453D; --crit-bg:#FBEAE9;
+    --purple:#7C5CFC; --purple-bg:#F1EDFF;
+    --blue:#457DC1; --blue-deep:#35639C; --blue-bg:#EAF2FB; --blue-line:#C9DCF0;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--steel); color:var(--text); font-family:'IBM Plex Sans',sans-serif; font-size:14px; -webkit-font-smoothing:antialiased;}
+  .mono{font-family:'IBM Plex Mono', monospace;}
+  .shell{display:flex; min-height:100vh;}
+
+  /* Sidebar */
+  .sidebar{width:242px; flex-shrink:0; background:var(--ink); color:#C9CDD2; padding:22px 16px 20px; display:flex; flex-direction:column;}
+  .brand{display:flex; align-items:center; gap:9px; padding:0 6px 20px; border-bottom:1px solid #2A3138; margin-bottom:16px;}
+  .brand-mark{width:26px;height:26px;border-radius:5px; background:linear-gradient(135deg,var(--amber),var(--amber-deep)); display:flex;align-items:center;justify-content:center; color:var(--ink); font-weight:700; font-size:13px; font-family:'Space Grotesk',sans-serif;}
+  .brand-name{color:#fff; font-weight:600; font-size:15.5px;}
+  .brand-sub{font-size:10.5px; color:#7C8792;}
+  .nav-label{font-size:10px; letter-spacing:1px; color:#5B646D; text-transform:uppercase; font-weight:600; margin:14px 10px 8px;}
+  .nav-item{display:flex; align-items:center; justify-content:space-between; padding:8px 10px; border-radius:7px; font-size:13px; color:#B7BEC5; font-weight:500; cursor:pointer; margin-bottom:1px;}
+  .nav-item:hover{background:var(--ink-soft); color:#fff;}
+  .nav-item.active{background:var(--ink-soft); color:#fff; box-shadow:inset 2px 0 0 var(--amber);}
+  .nav-count{font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:#828C96; background:#242B32; padding:1px 6px; border-radius:20px;}
+  .sidebar-foot{margin-top:auto; padding-top:14px; border-top:1px solid #2A3138; display:flex; align-items:center; gap:9px; padding-left:6px;}
+  .avatar{width:28px;height:28px;border-radius:50%; background:#3A4149; color:#E5E7E9; display:flex;align-items:center;justify-content:center; font-size:11.5px; font-weight:600;}
+  .foot-name{color:#E5E7E9; font-size:12.5px; font-weight:500;}
+  .foot-role{font-size:10.5px; color:#7C8792;}
+
+  /* Main */
+  .main{flex:1; min-width:0;}
+  .topbar{display:flex; align-items:center; justify-content:space-between; padding:16px 30px; background:var(--panel); border-bottom:1px solid var(--line); gap:20px;}
+  .breadcrumb{font-size:12.5px; color:var(--muted);}
+  .breadcrumb b{color:var(--text); font-weight:600;}
+  .topbar h1{font-family:'Space Grotesk',sans-serif; font-size:19px; font-weight:600; margin:0; letter-spacing:-0.2px;}
+  .btn{border:none; border-radius:8px; font-weight:600; font-size:12.5px; padding:9px 15px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; font-family:'IBM Plex Sans',sans-serif;}
+  .btn-ghost{background:transparent; color:var(--text); border:1px solid var(--line);}
+  .btn-ghost:hover{background:var(--steel);}
+  .btn-primary{background:var(--amber); color:#241505;}
+  .btn-primary:hover{background:var(--amber-deep);}
+
+  .content{padding:24px 30px 70px; max-width:1220px;}
+
+  .panel{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); margin-bottom:18px; overflow:hidden;}
+  .panel-head{padding:16px 20px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; gap:12px;}
+  .eyebrow{font-size:10.5px; letter-spacing:1.1px; color:var(--muted); font-weight:600; text-transform:uppercase;}
+  .panel-head h2{font-family:'Space Grotesk',sans-serif; font-size:16px; margin:4px 0 0; font-weight:600;}
+  .edit-ic{color:var(--muted); cursor:pointer; font-size:14px;}
+  .edit-ic:hover{color:var(--text);}
+
+  /* ===== Equipment header ===== */
+  .eq-header{padding:20px 22px 22px;}
+  .eq-top-row{display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:16px; flex-wrap:wrap;}
+  .eq-tag-block{display:flex; flex-direction:column; gap:8px;}
+  .eq-tag-row{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  .eq-tag{
+    font-family:'IBM Plex Mono',monospace; font-weight:700; font-size:21px; color:var(--blue);
+    background:var(--blue-bg); border:1px solid var(--blue-line); padding:5px 14px; border-radius:8px; letter-spacing:0.3px;
+  }
+  .type-badge{font-size:10.5px; font-weight:700; letter-spacing:0.3px; padding:6px 12px; border-radius:20px; text-transform:uppercase;}
+  .delete-link{font-size:12px; color:var(--crit); font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:5px; width:fit-content;}
+  .delete-link:hover{text-decoration:underline;}
+  .uom-select{display:flex; align-items:center; gap:8px; font-size:10.5px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:0.5px;}
+  .uom-select select{
+    border:1px solid var(--line); background:var(--steel); border-radius:8px; padding:7px 11px; font-size:12.5px;
+    color:var(--text); font-weight:600; font-family:'IBM Plex Mono',monospace; cursor:pointer;
+  }
+
+  .eq-body-grid{display:grid; grid-template-columns:1fr 176px; gap:20px;}
+  .eq-stats-grid{display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-bottom:18px;}
+  .stat-k{font-size:9.5px; text-transform:uppercase; letter-spacing:0.5px; color:var(--muted); font-weight:600;}
+  .stat-v{font-family:'IBM Plex Mono',monospace; font-size:14px; color:var(--text); margin-top:4px; font-weight:600;}
+  .stat-v.accent{color:var(--amber-deep);}
+
+  .thumbs-row{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  .thumb{
+    width:64px; height:64px; border-radius:8px; border:1px solid var(--line); background:#EFEDE6;
+    display:flex; align-items:center; justify-content:center; overflow:hidden; position:relative;
+  }
+  .thumb.selected{border:2px solid var(--amber);}
+  .thumb svg{max-width:80%; max-height:80%;}
+  .thumb-remove{
+    position:absolute; top:2px; right:2px; width:16px;height:16px; border-radius:50%; background:rgba(20,24,28,0.75);
+    color:#fff; font-size:10px; display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .thumb-add{
+    width:64px; height:64px; border-radius:8px; border:1.5px dashed #E3A480; background:#FFF8F3;
+    display:flex; align-items:center; justify-content:center; color:var(--amber-deep); font-size:11px; font-weight:600;
+    text-align:center; line-height:1.2; cursor:pointer; padding:4px;
+  }
+  .thumb-add:hover{background:#FFEEE1;}
+
+  .eq-photo-main{
+    border:1px solid var(--line); border-radius:10px; background:#EFEDE6; display:flex; align-items:center; justify-content:center;
+    height:176px; overflow:hidden;
+  }
+  .eq-photo-main svg{max-width:78%; max-height:82%; object-fit:contain;}
+
+  /* ===== Categoria NR-13 ===== */
+  .cat-body{padding:18px 20px 20px;}
+  .cat-form-row{display:grid; grid-template-columns:1fr 1fr 1.3fr; gap:12px; margin-bottom:14px;}
+  .field label{font-size:10.5px; text-transform:uppercase; letter-spacing:0.5px; color:var(--muted); font-weight:600; display:block; margin-bottom:6px;}
+  .field input, .field select{
+    width:100%; border:1px solid var(--line); border-radius:8px; padding:9px 11px; font-size:13px;
+    font-family:'IBM Plex Mono',monospace; color:var(--text); background:var(--steel);
+  }
+  .field input:focus, .field select:focus{outline:2px solid var(--amber); outline-offset:0; border-color:var(--amber);}
+
+  .result-banner{
+    background:var(--ok-bg); border:1px solid #BFE9D6; border-radius:9px; padding:12px 16px; margin:6px 0 16px;
+    font-family:'IBM Plex Mono',monospace; font-size:12.5px; color:var(--ok); display:none;
+  }
+  .result-banner.show{display:block;}
+  .result-banner .l1{font-weight:700; margin-bottom:2px;}
+  .result-banner .l2{color:#1B8F60; opacity:0.9;}
+
+  .cat-result-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:14px;}
+  .cat-result-grid .box{background:var(--steel); border:1px solid var(--line); border-radius:9px; padding:12px 14px;}
+  .cat-result-grid .box .k{font-size:9.5px; text-transform:uppercase; letter-spacing:0.5px; color:var(--muted); font-weight:600;}
+  .cat-result-grid .box .v{font-family:'Space Grotesk',sans-serif; font-size:19px; font-weight:700; margin-top:4px;}
+  .cat-result-grid .box .v.hl{color:var(--amber-deep);}
+  .cat-result-grid .box .sub{font-size:11px; color:var(--muted); margin-top:1px;}
+
+  .cat-result-grid2{display:grid; grid-template-columns:repeat(3,1fr); gap:14px;}
+  .cat-result-grid2 .box .v{font-size:14px; font-family:'IBM Plex Mono',monospace; font-weight:600; color:var(--text);}
+
+  .disclaimer{font-size:10.5px; color:var(--muted); margin-top:14px; line-height:1.5;}
+
+  /* ===== Memorial de Cálculo ===== */
+  .memorial-body{display:flex; gap:18px; padding:18px 20px 20px; align-items:stretch;}
+  .btn-mem-edit{
+    flex-shrink:0; width:158px; background:var(--amber); color:#241505; border:none; border-radius:12px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; text-align:center;
+    padding:20px 12px; cursor:pointer; box-shadow:0 8px 20px rgba(255,122,26,0.28);
+  }
+  .btn-mem-edit:hover{background:var(--amber-deep);}
+  .btn-mem-edit .ic{font-size:26px;}
+  .btn-mem-edit .txt{font-weight:700; font-size:13.5px; line-height:1.3;}
+  .btn-mem-edit .sub{font-size:10px; font-weight:500; opacity:0.85; text-transform:uppercase; letter-spacing:0.4px;}
+
+  .mem-stats-wrap{flex:1; display:flex; flex-direction:column; justify-content:space-between;}
+  .mem-stats-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:12px;}
+  .mem-stats-grid .box{background:var(--steel); border:1px solid var(--line); border-radius:9px; padding:12px 14px;}
+  .mem-stats-grid .box .k{font-size:9.5px; text-transform:uppercase; letter-spacing:0.5px; color:var(--muted); font-weight:600;}
+  .mem-stats-grid .box .v{font-family:'IBM Plex Mono',monospace; font-size:15px; font-weight:700; margin-top:4px;}
+  .mem-stats-grid .box .v.hl{color:var(--amber-deep);}
+  .mem-stats-grid .box .v.pass{color:var(--ok);}
+
+  .ver-memorial{
+    margin-top:14px; text-align:center; background:#FFF1E6; color:var(--amber-deep); font-weight:600; font-size:12.5px;
+    padding:10px; border-radius:8px; cursor:pointer;
+  }
+  .ver-memorial:hover{background:#FFE4D0;}
+
+  /* ===== Vida remanescente ===== */
+  .life-body{padding:18px 20px 20px;}
+  .life-note{font-size:12px; color:var(--muted); font-style:italic; margin-bottom:14px;}
+  .life-form-row{display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:14px;}
+  .life-actions{display:flex; gap:10px;}
+  .life-result{
+    margin-top:14px; background:var(--ok-bg); border:1px solid #BFE9D6; border-radius:9px; padding:12px 16px;
+    font-size:12.5px; color:var(--ok); display:none;
+  }
+  .life-result.show{display:block;}
+  .life-result.warn{background:var(--warn-bg); border-color:#F0DBA6; color:var(--warn);}
+  .life-result.crit{background:var(--crit-bg); border-color:#F3C6C3; color:var(--crit);}
+  .life-result b{font-weight:700;}
+
+  /* ===== Dados equipamento / empresa ===== */
+  .data-grid{display:grid; grid-template-columns:1fr 1fr; gap:0;}
+  .data-col{padding:18px 20px 20px;}
+  .data-col:first-child{border-right:1px solid var(--line);}
+  .data-col-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;}
+  .data-col-head h3{font-family:'Space Grotesk',sans-serif; font-size:13.5px; font-weight:700; margin:0; text-transform:uppercase; letter-spacing:0.4px;}
+  .rd-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px 12px;}
+  .rd-grid .full{grid-column:1/-1;}
+  .rd-k{font-size:9.5px; text-transform:uppercase; letter-spacing:0.5px; color:var(--muted); font-weight:600; margin-bottom:5px;}
+  .rd-v{background:var(--steel); border:1px solid var(--line); border-radius:8px; padding:9px 11px; font-size:12.5px; color:var(--text); font-family:'IBM Plex Mono',monospace;}
+
+  @media (max-width:980px){
+    .eq-body-grid{grid-template-columns:1fr;}
+    .eq-photo-main{order:-1; height:150px;}
+    .eq-stats-grid{grid-template-columns:repeat(2,1fr);}
+    .cat-form-row{grid-template-columns:1fr;}
+    .cat-result-grid, .cat-result-grid2, .mem-stats-grid{grid-template-columns:1fr 1fr;}
+    .memorial-body{flex-direction:column;}
+    .btn-mem-edit{width:100%; flex-direction:row; padding:16px;}
+    .life-form-row{grid-template-columns:1fr 1fr;}
+    .data-grid{grid-template-columns:1fr;}
+    .data-col:first-child{border-right:none; border-bottom:1px solid var(--line);}
+  }
+  @media (max-width:720px){
+    .sidebar{display:none;} .content{padding:20px 16px 50px;} .topbar{padding:14px 16px;}
+    .eq-stats-grid{grid-template-columns:1fr 1fr;}
+  }
+  a:focus-visible, .nav-item:focus-visible, .btn:focus-visible, .btn-mem-edit:focus-visible{outline:2px solid var(--amber); outline-offset:2px;}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">Fj</div>
+      <div><div class="brand-name">Forja</div><div class="brand-sub">Engenharia &amp; Ativos</div></div>
+    </div>
+    <div class="nav-label">Visão geral</div>
+    <div class="nav-item"><span>Painel</span></div>
+    <div class="nav-item"><span>Vencimentos &amp; inspeções</span><span class="nav-count">32</span></div>
+    <div class="nav-item active"><span>Equipamentos</span><span class="nav-count">1.248</span></div>
+    <div class="nav-label">Engenharia</div>
+    <div class="nav-item"><span>Cálculo PMTA / NR13</span></div>
+    <div class="nav-item"><span>Memoriais salvos</span><span class="nav-count">86</span></div>
+    <div class="sidebar-foot">
+      <div class="avatar">RM</div>
+      <div><div class="foot-name">Eng. Rafael Martins</div><div class="foot-role">Administrador</div></div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="breadcrumb">Equipamentos / <b>VASO A23</b></div>
+      <button class="btn btn-ghost">← Voltar</button>
+    </div>
+
+    <div class="content">
+
+      <!-- EQUIPMENT HEADER -->
+      <div class="panel">
+        <div class="eq-header">
+          <div class="eq-top-row">
+            <div class="eq-tag-block">
+              <div class="eq-tag-row">
+                <span class="eq-tag">TAG: VASO A23</span>
+                <span class="type-badge" style="background:var(--purple-bg); color:var(--purple);">Vaso de Pressão</span>
+              </div>
+              <span class="delete-link">🗑 Excluir</span>
+            </div>
+            <div class="uom-select">Unidade de medida
+              <select><option>SI (MPa)</option><option>Técnico (kgf/cm²)</option></select>
+            </div>
+          </div>
+
+          <div class="eq-body-grid">
+            <div>
+              <div class="eq-stats-grid">
+                <div><div class="stat-k">Tipo</div><div class="stat-v">Vaso de Pressão</div></div>
+                <div><div class="stat-k">Fabricante</div><div class="stat-v">AJP Equip. Industriais</div></div>
+                <div><div class="stat-k">Categoria</div><div class="stat-v">IV</div></div>
+                <div><div class="stat-k">Volume</div><div class="stat-v">1 m³</div></div>
+                <div><div class="stat-k">PMTA</div><div class="stat-v accent">1,97 MPa</div></div>
+              </div>
+
+              <div class="thumbs-row">
+                <div class="thumb selected">
+                  <svg viewBox="0 0 200 220"><defs><linearGradient id="b1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#D9A868"/><stop offset="1" stop-color="#A9793F"/></linearGradient></defs>
+                    <rect x="70" y="10" width="60" height="16" rx="3" fill="#2B2E31"/><rect x="80" y="26" width="40" height="24" fill="url(#b1)"/>
+                    <rect x="60" y="50" width="80" height="30" rx="6" fill="url(#b1)"/><rect x="75" y="80" width="50" height="70" fill="url(#b1)"/>
+                    <rect x="55" y="150" width="90" height="26" rx="6" fill="#8C6534"/><rect x="40" y="176" width="120" height="18" rx="4" fill="#6E4E26"/>
+                    <line x1="130" y1="60" x2="175" y2="15" stroke="#2B2E31" stroke-width="7" stroke-linecap="round"/></svg>
+                  <span class="thumb-remove">✕</span>
+                </div>
+                <div class="thumb">
+                  <svg viewBox="0 0 100 100"><rect x="20" y="30" width="60" height="45" rx="4" fill="#C9C5B8"/><circle cx="50" cy="52" r="12" fill="#8B8676"/></svg>
+                  <span class="thumb-remove">✕</span>
+                </div>
+                <div class="thumb-add">+ Adicionar<br>foto</div>
+              </div>
+            </div>
+
+            <div class="eq-photo-main">
+              <svg viewBox="0 0 200 220" xmlns="http://www.w3.org/2000/svg">
+                <defs><linearGradient id="b2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#D9A868"/><stop offset="1" stop-color="#A9793F"/></linearGradient></defs>
+                <rect x="70" y="10" width="60" height="16" rx="3" fill="#2B2E31"/><rect x="80" y="26" width="40" height="24" fill="url(#b2)"/>
+                <rect x="60" y="50" width="80" height="30" rx="6" fill="url(#b2)"/><rect x="75" y="80" width="50" height="70" fill="url(#b2)"/>
+                <rect x="55" y="150" width="90" height="26" rx="6" fill="#8C6534"/><rect x="40" y="176" width="120" height="18" rx="4" fill="#6E4E26"/>
+                <line x1="130" y1="60" x2="175" y2="15" stroke="#2B2E31" stroke-width="7" stroke-linecap="round"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CATEGORIA NR-13 -->
+      <div class="panel">
+        <div class="panel-head">
+          <div><div class="eyebrow">Classificação</div><h2>Categoria NR-13</h2></div>
+        </div>
+        <div class="cat-body">
+          <div class="cat-form-row">
+            <div class="field"><label>Volume (m³)</label><input type="number" step="0.01" id="catVolume" value="1"></div>
+            <div class="field"><label>Pressão (MPa)</label><input type="number" step="0.01" id="catPressao" value="1.97"></div>
+            <div class="field">
+              <label>Fluido de operação</label>
+              <select id="catFluido">
+                <option value="A" data-nome="Gás combustível">A · Gás combustível</option>
+                <option value="B" data-nome="Ar comprimido">B · Ar comprimido</option>
+                <option value="C" data-nome="Vapor de água" selected>C · Vapor de água</option>
+                <option value="D" data-nome="Líquido em geral">D · Líquido em geral</option>
+              </select>
+            </div>
+          </div>
+
+          <button class="btn btn-primary" id="btnCalcCategoria">▸ Calcular Categoria</button>
+
+          <div class="result-banner" id="catBanner">
+            <div class="l1" id="catBannerL1">ENQUADRAMENTO NR-13 — P (kPa) × V (m³) = K</div>
+            <div class="l2" id="catBannerL2">P × V = 1.970,00 kPa·m³ → Categoria IV</div>
+          </div>
+
+          <div class="cat-result-grid">
+            <div class="box"><div class="k">Classe do fluido</div><div class="v" id="outClasse">C</div><div class="sub" id="outClasseNome">Vapor de água</div></div>
+            <div class="box"><div class="k">Grupo de potencial de risco</div><div class="v" id="outGrupo">4</div><div class="sub">P(kPa) × V(m³)</div></div>
+            <div class="box"><div class="k">Categoria final</div><div class="v hl" id="outCategoria">IV</div></div>
+          </div>
+
+          <div class="cat-result-grid2">
+            <div class="box"><div class="k">Volume geométrico</div><div class="v" id="outVolGeo">1 m³</div></div>
+            <div class="box"><div class="k">Pressão base (PMTA)</div><div class="v" id="outPBase">1,97 MPa</div></div>
+            <div class="box"><div class="k">P×V enquadramento</div><div class="v" id="outPV">1.970,0000 kPa·m³</div></div>
+          </div>
+
+          <div class="disclaimer">Classificação simplificada de referência conforme critérios da NR-13 (Anexo II). Para fins de laudo, confirme o enquadramento na tabela oficial vigente.</div>
+        </div>
+      </div>
+
+      <!-- MEMORIAL DE CÁLCULO -->
+      <div class="panel">
+        <div class="panel-head">
+          <div><div class="eyebrow">Engenharia</div><h2>Memorial de Cálculo</h2></div>
+        </div>
+        <div class="memorial-body">
+          <button class="btn-mem-edit" id="btnEditMemorial">
+            <span class="ic">🧮</span>
+            <span class="txt">Editar Memorial<br>de Cálculo</span>
+            <span class="sub">Abrir calculadora</span>
+          </button>
+
+          <div class="mem-stats-wrap">
+            <div class="mem-stats-grid">
+              <div class="box"><div class="k">PMTA final</div><div class="v hl">1,97 MPa</div></div>
+              <div class="box"><div class="k">PTH (1,3×PMTA)</div><div class="v">2,56 MPa</div></div>
+              <div class="box"><div class="k">Resultado</div><div class="v pass">Aprovado</div></div>
+              <div class="box"><div class="k">Volume</div><div class="v">1 m³</div></div>
+              <div class="box"><div class="k">Esp. mín. casco (mm)</div><div class="v">6,4488</div></div>
+              <div class="box"><div class="k">Esp. mín. tampo (mm)</div><div class="v">6,4867</div></div>
+            </div>
+            <div class="ver-memorial">Ver Memorial Completo →</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIDA REMANESCENTE -->
+      <div class="panel">
+        <div class="panel-head">
+          <div><div class="eyebrow">Integridade</div><h2>Vida Remanescente (taxa de corrosão)</h2></div>
+        </div>
+        <div class="life-body">
+          <div class="life-note">Nenhuma medição de espessura salva nas inspeções — preencha manualmente.</div>
+
+          <div class="life-form-row">
+            <div class="field"><label>Esp. anterior (mm)</label><input type="number" step="0.01" id="lifeEspAnt" placeholder="Ex: 7.10"></div>
+            <div class="field"><label>Data anterior</label><input type="date" id="lifeDataAnt"></div>
+            <div class="field"><label>Esp. atual (mm)</label><input type="number" step="0.01" id="lifeEspAtual" placeholder="Ex: 6.95"></div>
+            <div class="field"><label>Data atual</label><input type="date" id="lifeDataAtual" value="2026-07-02"></div>
+            <div class="field"><label>Esp. mín. requerida (mm)</label><input type="number" step="0.01" id="lifeEspMin" value="6.41"></div>
+          </div>
+
+          <div class="life-actions">
+            <button class="btn btn-ghost" id="btnCalcularVida">Calcular</button>
+            <button class="btn btn-primary" id="btnCalcularSalvarVida">Calcular e Salvar</button>
+          </div>
+
+          <div class="life-result" id="lifeResult"></div>
+        </div>
+      </div>
+
+      <!-- DADOS DO EQUIPAMENTO E EMPRESA -->
+      <div class="panel">
+        <div class="panel-head">
+          <div><div class="eyebrow">Cadastro</div><h2>Dados do Equipamento e Empresa</h2></div>
+        </div>
+        <div class="data-grid">
+          <div class="data-col">
+            <div class="data-col-head"><h3>Dados do equipamento</h3><span class="edit-ic">✎</span></div>
+            <div class="rd-grid">
+              <div><div class="rd-k">Tag</div><div class="rd-v">VASO A23</div></div>
+              <div><div class="rd-k">Nº de série</div><div class="rd-v">AJ-2291</div></div>
+              <div class="full"><div class="rd-k">Descrição</div><div class="rd-v">Vaso de pressão para armazenamento de vapor saturado</div></div>
+              <div><div class="rd-k">Fabricante</div><div class="rd-v">AJP Equip. Industriais</div></div>
+              <div><div class="rd-k">Ano fab.</div><div class="rd-v">2019</div></div>
+            </div>
+          </div>
+          <div class="data-col">
+            <div class="data-col-head"><h3>Dados da empresa</h3><span class="edit-ic">✎</span></div>
+            <div class="rd-grid">
+              <div class="full"><div class="rd-k">Razão social</div><div class="rd-v">Vale Mineração S.A.</div></div>
+              <div><div class="rd-k">CNPJ</div><div class="rd-v">32.918.400/0001-77</div></div>
+              <div><div class="rd-k">Nome fantasia</div><div class="rd-v">Vale Mineração</div></div>
+              <div class="full"><div class="rd-k">Atividade principal</div><div class="rd-v">Extração e beneficiamento de minério de ferro</div></div>
+              <div class="full"><div class="rd-k">Endereço</div><div class="rd-v">Rod. do Minério, km 12 · s/n</div></div>
+              <div><div class="rd-k">Bairro</div><div class="rd-v">Distrito Industrial</div></div>
+              <div><div class="rd-k">CEP</div><div class="rd-v">29.160-000</div></div>
+              <div><div class="rd-k">Cidade</div><div class="rd-v">Serra</div></div>
+              <div><div class="rd-k">Estado</div><div class="rd-v">ES</div></div>
+              <div><div class="rd-k">Telefone</div><div class="rd-v">(27) 3232-5510</div></div>
+              <div><div class="rd-k">Contato</div><div class="rd-v">Eng. Marina Costa</div></div>
+              <div><div class="rd-k">E-mail</div><div class="rd-v">manutencao@valemineracao.com.br</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  // ===== Categoria NR-13 (classificação simplificada) =====
+  const classMultiplier = { A: 1, B: 100, C: 10000, D: 1000000 };
+  function fmt(n, d=2){ return Number(n).toLocaleString('pt-BR', {minimumFractionDigits:d, maximumFractionDigits:d}); }
+
+  function calcularCategoria(){
+    const V = parseFloat(document.getElementById('catVolume').value);
+    const Pmpa = parseFloat(document.getElementById('catPressao').value);
+    const fluidoSel = document.getElementById('catFluido');
+    const classe = fluidoSel.value;
+    const nomeFluido = fluidoSel.selectedOptions[0].dataset.nome;
+    if(isNaN(V) || isNaN(Pmpa)) return;
+
+    const Pkpa = Pmpa * 1000;
+    const K = Pkpa * V;
+    const m = classMultiplier[classe];
+
+    let categoria, grupo;
+    if(K > 100*m){ categoria='I'; grupo=1; }
+    else if(K > 10*m){ categoria='II'; grupo=2; }
+    else if(K > 1*m){ categoria='III'; grupo=3; }
+    else if(K > 0.1*m){ categoria='IV'; grupo=4; }
+    else { categoria='V'; grupo=5; }
+
+    document.getElementById('catBannerL1').textContent = 'ENQUADRAMENTO NR-13 — P (kPa) × V (m³) = K';
+    document.getElementById('catBannerL2').textContent = `P × V = ${fmt(K,2)} kPa·m³  →  Categoria ${categoria}`;
+    document.getElementById('catBanner').classList.add('show');
+
+    document.getElementById('outClasse').textContent = classe;
+    document.getElementById('outClasseNome').textContent = nomeFluido;
+    document.getElementById('outGrupo').textContent = grupo;
+    document.getElementById('outCategoria').textContent = categoria;
+    document.getElementById('outVolGeo').textContent = `${fmt(V,0).replace(/,00$/,'')} m³`;
+    document.getElementById('outPBase').textContent = `${fmt(Pmpa,2)} MPa`;
+    document.getElementById('outPV').textContent = `${fmt(K,4)} kPa·m³`;
+  }
+  document.getElementById('btnCalcCategoria').addEventListener('click', calcularCategoria);
+  calcularCategoria();
+
+  // ===== Vida remanescente =====
+  function calcularVida(save){
+    const espAnt = parseFloat(document.getElementById('lifeEspAnt').value);
+    const dataAnt = document.getElementById('lifeDataAnt').value;
+    const espAtual = parseFloat(document.getElementById('lifeEspAtual').value);
+    const dataAtual = document.getElementById('lifeDataAtual').value;
+    const espMin = parseFloat(document.getElementById('lifeEspMin').value);
+    const box = document.getElementById('lifeResult');
+
+    if(isNaN(espAnt) || isNaN(espAtual) || isNaN(espMin) || !dataAnt || !dataAtual){
+      box.className = 'life-result show warn';
+      box.innerHTML = '⚠ Preencha espessura anterior, espessura atual, ambas as datas e a espessura mínima requerida.';
+      return;
+    }
+
+    const d1 = new Date(dataAnt), d2 = new Date(dataAtual);
+    const anos = (d2 - d1) / (1000*60*60*24*365.25);
+    if(anos <= 0){
+      box.className = 'life-result show warn';
+      box.innerHTML = '⚠ A data atual deve ser posterior à data anterior.';
+      return;
+    }
+
+    const taxa = (espAnt - espAtual) / anos;
+    let html, cls;
+    if(taxa <= 0){
+      cls = 'life-result show';
+      html = `Taxa de corrosão calculada: <b>${fmt(taxa,4)} mm/ano</b> (sem perda detectada no período) · espessura estável acima do mínimo requerido (${fmt(espMin,2)} mm).`;
+    } else {
+      const vidaAnos = (espAtual - espMin) / taxa;
+      cls = vidaAnos > 5 ? 'life-result show' : (vidaAnos > 2 ? 'life-result show warn' : 'life-result show crit');
+      html = `Taxa de corrosão: <b>${fmt(taxa,4)} mm/ano</b> · Vida remanescente estimada: <b>${fmt(vidaAnos,2)} anos</b> até atingir a espessura mínima requerida (${fmt(espMin,2)} mm).`;
+    }
+    if(save) html += ' <br><span style="opacity:.75;">✓ Registro salvo no histórico do equipamento.</span>';
+    box.className = cls;
+    box.innerHTML = html;
+  }
+  document.getElementById('btnCalcularVida').addEventListener('click', () => calcularVida(false));
+  document.getElementById('btnCalcularSalvarVida').addEventListener('click', () => calcularVida(true));
+
+  document.getElementById('btnEditMemorial').addEventListener('click', () => {
+    alert('Abrindo memorial de cálculo completo para edição…');
+  });
+</script>
+</body>
+</html>

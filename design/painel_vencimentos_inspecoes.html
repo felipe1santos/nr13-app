@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Forja — Vencimentos e Inspeções</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#14181C;
+    --ink-soft:#1E252B;
+    --steel:#F6F5F2;
+    --panel:#FFFFFF;
+    --line:#E4E1D8;
+    --text:#2D3339;
+    --muted:#7A8790;
+    --amber:#FF7A1A;
+    --amber-deep:#D9640C;
+    --ok:#1FA971;
+    --ok-bg:#E7F6EF;
+    --warn:#B8860B;
+    --warn-bg:#FBF1DC;
+    --crit:#D5453D;
+    --crit-bg:#FBEAE9;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--steel); color:var(--text);
+    font-family:'IBM Plex Sans', sans-serif; font-size:14px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:'IBM Plex Mono', monospace;}
+  .display{font-family:'Space Grotesk', sans-serif;}
+
+  .shell{display:flex; min-height:100vh;}
+
+  /* Sidebar */
+  .sidebar{width:242px; flex-shrink:0; background:var(--ink); color:#C9CDD2; padding:22px 16px 20px; display:flex; flex-direction:column;}
+  .brand{display:flex; align-items:center; gap:9px; padding:0 6px 20px; border-bottom:1px solid #2A3138; margin-bottom:16px;}
+  .brand-mark{width:26px;height:26px;border-radius:5px; background:linear-gradient(135deg,var(--amber),var(--amber-deep)); display:flex;align-items:center;justify-content:center; color:var(--ink); font-weight:700; font-size:13px; font-family:'Space Grotesk', sans-serif; flex-shrink:0;}
+  .brand-name{color:#fff; font-weight:600; font-size:15.5px;}
+  .brand-sub{font-size:10.5px; color:#7C8792;}
+  .nav-label{font-size:10px; letter-spacing:1px; color:#5B646D; text-transform:uppercase; font-weight:600; margin:14px 10px 8px;}
+  .nav-item{display:flex; align-items:center; justify-content:space-between; padding:8px 10px; border-radius:7px; font-size:13px; color:#B7BEC5; font-weight:500; cursor:pointer; margin-bottom:1px;}
+  .nav-item:hover{background:var(--ink-soft); color:#fff;}
+  .nav-item.active{background:var(--ink-soft); color:#fff; box-shadow:inset 2px 0 0 var(--amber);}
+  .nav-count{font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:#828C96; background:#242B32; padding:1px 6px; border-radius:20px;}
+  .nav-item.active .nav-count{color:var(--amber); background:#2E2620;}
+  .nav-count.hot{color:var(--crit); background:#3A211F;}
+  .sidebar-foot{margin-top:auto; padding-top:14px; border-top:1px solid #2A3138; display:flex; align-items:center; gap:9px; padding-left:6px;}
+  .avatar{width:28px;height:28px;border-radius:50%; background:#3A4149; color:#E5E7E9; display:flex;align-items:center;justify-content:center; font-size:11.5px; font-weight:600; flex-shrink:0;}
+  .foot-name{color:#E5E7E9; font-size:12.5px; font-weight:500;}
+  .foot-role{font-size:10.5px; color:#7C8792;}
+
+  /* Main */
+  .main{flex:1; min-width:0;}
+  .topbar{display:flex; align-items:center; justify-content:space-between; padding:16px 30px; background:var(--panel); border-bottom:1px solid var(--line); gap:20px;}
+  .topbar h1{font-family:'Space Grotesk', sans-serif; font-size:19px; font-weight:600; margin:0; letter-spacing:-0.2px;}
+  .topbar .path{color:var(--muted); font-size:12.5px; margin-top:2px;}
+  .search{
+    flex:1; max-width:420px; display:flex; align-items:center; gap:8px;
+    background:var(--steel); border:1px solid var(--line); border-radius:9px; padding:9px 12px; color:var(--muted); font-size:12.5px;
+  }
+  .search kbd{margin-left:auto; font-family:'IBM Plex Mono', monospace; font-size:10px; background:var(--panel); border:1px solid var(--line); border-radius:5px; padding:1px 5px; color:var(--muted);}
+  .top-actions{display:flex; align-items:center; gap:14px; flex-shrink:0;}
+  .btn{border:none; border-radius:8px; font-weight:600; font-size:12.5px; padding:9px 15px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; font-family:'IBM Plex Sans', sans-serif;}
+  .btn-primary{background:var(--amber); color:#241505;}
+  .btn-primary:hover{background:var(--amber-deep);}
+  .btn-ghost{background:transparent; color:var(--text); border:1px solid var(--line);}
+  .btn-ghost:hover{background:var(--steel);}
+  .bell{width:34px;height:34px;border-radius:8px;border:1px solid var(--line); display:flex;align-items:center;justify-content:center; position:relative; cursor:pointer; flex-shrink:0;}
+  .bell.hot::after{content:''; position:absolute; top:7px; right:8px; width:6px;height:6px; border-radius:50%; background:var(--crit);}
+
+  .content{padding:26px 30px 60px; max-width:1360px;}
+
+  /* KPI row */
+  .kpi-row{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px;}
+  .kpi{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:16px 18px; display:flex; align-items:flex-start; justify-content:space-between; gap:10px;}
+  .kpi-icon{width:38px;height:38px;border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0;}
+  .kpi-label{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.6px; font-weight:600;}
+  .kpi-value{font-family:'Space Grotesk', sans-serif; font-size:26px; font-weight:700; margin-top:6px; letter-spacing:-0.5px;}
+  .kpi-delta{font-size:11.5px; margin-top:5px; font-weight:500;}
+  .kpi-delta.up{color:var(--ok);}
+  .kpi-delta.down{color:var(--crit);}
+  .kpi-delta.flat{color:var(--muted);}
+
+  /* Two-col layout */
+  .grid-2{display:grid; grid-template-columns:1.55fr 1fr; gap:18px; align-items:start;}
+
+  .panel{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); margin-bottom:18px; overflow:hidden;}
+  .panel-head{padding:16px 20px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; gap:12px;}
+  .panel-head .eyebrow{font-size:10.5px; letter-spacing:1.1px; color:var(--muted); font-weight:600; text-transform:uppercase;}
+  .panel-head h2{font-family:'Space Grotesk', sans-serif; font-size:16px; margin:4px 0 0; font-weight:600;}
+
+  /* Expiring equipment table */
+  table{width:100%; border-collapse:collapse;}
+  thead th{
+    text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:0.5px; color:var(--muted);
+    font-weight:600; padding:10px 20px; border-bottom:1px solid var(--line); background:#FBFAF7;
+  }
+  tbody td{padding:13px 20px; border-bottom:1px solid var(--line); font-size:13px; vertical-align:middle;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:#FBFAF7;}
+  .tag-cell{display:flex; align-items:center; gap:10px;}
+  .tag-ico{width:30px;height:30px;border-radius:7px; background:var(--steel); display:flex;align-items:center;justify-content:center; font-size:13px; flex-shrink:0;}
+  .tag-code{font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:12.5px;}
+  .eq-name{color:var(--muted); font-size:11.5px; margin-top:1px;}
+  .badge{font-size:10.5px; font-weight:700; padding:3px 9px; border-radius:20px; text-transform:uppercase; letter-spacing:0.3px; white-space:nowrap;}
+  .badge.crit{background:var(--crit-bg); color:var(--crit);}
+  .badge.warn{background:var(--warn-bg); color:var(--warn);}
+  .badge.ok{background:var(--ok-bg); color:var(--ok);}
+  .days-left{font-family:'IBM Plex Mono', monospace; font-size:12px;}
+  .days-left.crit{color:var(--crit); font-weight:600;}
+  .days-left.warn{color:var(--warn); font-weight:600;}
+  .row-more{color:var(--muted); cursor:pointer; text-align:center;}
+  .panel-foot{padding:13px 20px; text-align:center; border-top:1px solid var(--line);}
+  .link{color:var(--amber-deep); font-size:12.5px; font-weight:600; text-decoration:none; cursor:pointer;}
+  .link:hover{text-decoration:underline;}
+
+  /* Calendar */
+  .cal-nav{display:flex; align-items:center; gap:10px;}
+  .cal-arrow{width:26px;height:26px;border-radius:6px;border:1px solid var(--line); display:flex;align-items:center;justify-content:center; cursor:pointer; color:var(--muted); font-size:12px;}
+  .cal-arrow:hover{background:var(--steel);}
+  .cal-month{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:13.5px; width:110px; text-align:center;}
+  .cal-body{padding:16px 18px 6px;}
+  .cal-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:4px; text-align:center;}
+  .cal-dow{font-size:10px; color:var(--muted); font-weight:600; padding-bottom:6px;}
+  .cal-day{
+    position:relative; aspect-ratio:1; display:flex; align-items:center; justify-content:center;
+    border-radius:7px; font-size:12.5px; color:var(--text); font-family:'IBM Plex Mono', monospace; cursor:pointer;
+  }
+  .cal-day:hover{background:var(--steel);}
+  .cal-day.muted{color:#C9C5B8;}
+  .cal-day.today{background:var(--ink); color:#fff; font-weight:600;}
+  .cal-day .mk{position:absolute; bottom:4px; left:50%; transform:translateX(-50%); width:4px;height:4px;border-radius:50%;}
+  .cal-day.today .mk{background:var(--amber);}
+  .cal-day .mk.warn{background:var(--warn);}
+  .cal-day .mk.crit{background:var(--crit);}
+  .cal-day .mk.ok{background:var(--ok);}
+
+  .agenda-list{padding:6px 20px 18px;}
+  .agenda-group{font-size:10.5px; text-transform:uppercase; letter-spacing:0.5px; color:var(--muted); font-weight:600; margin:14px 0 8px;}
+  .agenda-group:first-child{margin-top:4px;}
+  .agenda-item{display:flex; align-items:flex-start; gap:10px; padding:9px 0; border-bottom:1px solid var(--line);}
+  .agenda-item:last-child{border-bottom:none;}
+  .ag-time{font-family:'IBM Plex Mono', monospace; font-size:11.5px; color:var(--muted); width:38px; flex-shrink:0; padding-top:1px;}
+  .ag-bar{width:3px; border-radius:3px; align-self:stretch; flex-shrink:0;}
+  .ag-bar.warn{background:var(--warn);}
+  .ag-bar.crit{background:var(--crit);}
+  .ag-bar.ok{background:var(--ok);}
+  .ag-main{flex:1; min-width:0;}
+  .ag-title{font-size:12.5px; font-weight:600; color:var(--text);}
+  .ag-sub{font-size:11.5px; color:var(--muted); margin-top:1px;}
+  .ag-pill{font-size:9.5px; font-weight:700; text-transform:uppercase; color:var(--muted); background:var(--steel); padding:2px 7px; border-radius:20px; flex-shrink:0; align-self:flex-start;}
+
+  /* Modal expanded calendar */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(20,24,28,0.55); display:none;
+    align-items:center; justify-content:center; padding:30px; z-index:50;
+  }
+  .modal-overlay.open{display:flex;}
+  .modal-box{
+    background:var(--panel); border-radius:14px; width:100%; max-width:880px; max-height:88vh;
+    overflow:auto; box-shadow:0 20px 60px rgba(20,24,28,0.35);
+  }
+  .modal-head{display:flex; align-items:center; justify-content:space-between; padding:18px 24px; border-bottom:1px solid var(--line);}
+  .modal-head h2{font-family:'Space Grotesk',sans-serif; font-size:18px; margin:0;}
+  .modal-close{width:30px;height:30px;border-radius:8px;border:1px solid var(--line); background:transparent; cursor:pointer; color:var(--muted); font-size:15px;}
+  .modal-close:hover{background:var(--steel);}
+  .modal-cal{padding:22px 24px;}
+  .modal-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:6px;}
+  .modal-dow{font-size:11px; color:var(--muted); font-weight:600; text-align:center; padding-bottom:8px;}
+  .modal-day{
+    min-height:88px; border:1px solid var(--line); border-radius:8px; padding:7px; font-size:12px;
+    font-family:'IBM Plex Mono', monospace; color:var(--text); display:flex; flex-direction:column; gap:4px;
+  }
+  .modal-day.muted{color:#C9C5B8; background:#FBFAF7;}
+  .modal-day.today{border-color:var(--amber); box-shadow:0 0 0 1px var(--amber);}
+  .modal-ev{font-family:'IBM Plex Sans',sans-serif; font-size:9.5px; font-weight:600; padding:2px 5px; border-radius:4px; line-height:1.3;}
+  .modal-ev.warn{background:var(--warn-bg); color:var(--warn);}
+  .modal-ev.crit{background:var(--crit-bg); color:var(--crit);}
+  .modal-ev.ok{background:var(--ok-bg); color:var(--ok);}
+  .legend{display:flex; gap:16px; padding:14px 24px 20px; border-top:1px solid var(--line);}
+  .legend-item{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted);}
+  .legend-dot{width:8px;height:8px;border-radius:50%;}
+
+  @media (max-width: 1080px){
+    .grid-2{grid-template-columns:1fr;}
+    .kpi-row{grid-template-columns:repeat(2,1fr);}
+  }
+  @media (max-width: 780px){
+    .sidebar{display:none;}
+    .search{display:none;}
+    .kpi-row{grid-template-columns:1fr 1fr;}
+    .content{padding:20px 16px 50px;}
+    .topbar{padding:14px 16px;}
+    .modal-grid, .modal-dow{display:none;}
+  }
+
+  a:focus-visible, .nav-item:focus-visible, .btn:focus-visible, .cal-arrow:focus-visible, .modal-close:focus-visible{
+    outline:2px solid var(--amber); outline-offset:2px;
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">Fj</div>
+      <div>
+        <div class="brand-name">Forja</div>
+        <div class="brand-sub">Engenharia &amp; Ativos</div>
+      </div>
+    </div>
+
+    <div class="nav-label">Visão geral</div>
+    <div class="nav-item"><span>Painel</span></div>
+    <div class="nav-item active"><span>Vencimentos &amp; inspeções</span><span class="nav-count hot">32</span></div>
+    <div class="nav-item"><span>Equipamentos</span><span class="nav-count">1.248</span></div>
+    <div class="nav-item"><span>Ordens de serviço</span><span class="nav-count">12</span></div>
+
+    <div class="nav-label">Relatórios</div>
+    <div class="nav-item"><span>Conformidade</span></div>
+    <div class="nav-item"><span>Histórico de laudos</span></div>
+
+    <div class="sidebar-foot">
+      <div class="avatar">RM</div>
+      <div>
+        <div class="foot-name">Eng. Rafael Martins</div>
+        <div class="foot-role">Administrador</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <h1>Vencimentos &amp; inspeções</h1>
+        <div class="path">Visão geral de prazos e conformidade</div>
+      </div>
+      <div class="search">
+        🔍&nbsp; Buscar projetos, equipamentos, inspeções…
+        <kbd>⌘K</kbd>
+      </div>
+      <div class="top-actions">
+        <div class="bell hot">🔔</div>
+        <button class="btn btn-primary">+ Nova inspeção</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- KPIs -->
+      <div class="kpi-row">
+        <div class="kpi">
+          <div>
+            <div class="kpi-label">Equipamentos cadastrados</div>
+            <div class="kpi-value">1.248</div>
+            <div class="kpi-delta up">▲ 8,2% vs. mês anterior</div>
+          </div>
+          <div class="kpi-icon" style="background:var(--ok-bg); color:var(--ok);">🗂</div>
+        </div>
+        <div class="kpi">
+          <div>
+            <div class="kpi-label">Próximos a vencer <span class="mono" style="font-size:10px;">(30 dias)</span></div>
+            <div class="kpi-value" style="color:var(--warn);">32</div>
+            <div class="kpi-delta down">▲ 11,4% vs. mês anterior</div>
+          </div>
+          <div class="kpi-icon" style="background:var(--warn-bg); color:var(--warn);">⏱</div>
+        </div>
+        <div class="kpi">
+          <div>
+            <div class="kpi-label">Vencidos</div>
+            <div class="kpi-value" style="color:var(--crit);">7</div>
+            <div class="kpi-delta down">▲ 2 nas últimas 24h</div>
+          </div>
+          <div class="kpi-icon" style="background:var(--crit-bg); color:var(--crit);">⚠</div>
+        </div>
+        <div class="kpi">
+          <div>
+            <div class="kpi-label">Taxa de conformidade</div>
+            <div class="kpi-value">96,7<span style="font-size:14px; font-weight:500; color:var(--muted);">%</span></div>
+            <div class="kpi-delta up">▲ 3,1% vs. mês anterior</div>
+          </div>
+          <div class="kpi-icon" style="background:var(--ok-bg); color:var(--ok);">✓</div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <!-- LEFT: expiring equipment -->
+        <div>
+          <div class="panel">
+            <div class="panel-head">
+              <div>
+                <div class="eyebrow">Prazos</div>
+                <h2>Equipamentos próximos do vencimento</h2>
+              </div>
+              <span class="badge crit">7 vencidos</span>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Tag</th>
+                  <th>Tipo</th>
+                  <th>Última inspeção</th>
+                  <th>Vencimento</th>
+                  <th>Prazo</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <div class="tag-cell"><div class="tag-ico">🛢</div>
+                      <div><div class="tag-code">VP-03</div><div class="eq-name">Vaso de Pressão</div></div>
+                    </div>
+                  </td>
+                  <td>Integridade</td>
+                  <td class="mono">20/03/2024</td>
+                  <td class="mono">20/05/2024</td>
+                  <td class="days-left crit">Vencido há 2 dias</td>
+                  <td><span class="badge crit">Crítico</span></td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="tag-cell"><div class="tag-ico">🔥</div>
+                      <div><div class="tag-code">CB-204</div><div class="eq-name">Caldeira</div></div>
+                    </div>
+                  </td>
+                  <td>Segurança</td>
+                  <td class="mono">10/04/2024</td>
+                  <td class="mono">23/05/2024</td>
+                  <td class="days-left warn">Vence em 3 dias</td>
+                  <td><span class="badge warn">Atenção</span></td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="tag-cell"><div class="tag-ico">🌀</div>
+                      <div><div class="tag-code">CP-301</div><div class="eq-name">Compressor</div></div>
+                    </div>
+                  </td>
+                  <td>Mecânica</td>
+                  <td class="mono">05/04/2024</td>
+                  <td class="mono">22/05/2024</td>
+                  <td class="days-left warn">Vence em 2 dias</td>
+                  <td><span class="badge warn">Atenção</span></td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="tag-cell"><div class="tag-ico">🧯</div>
+                      <div><div class="tag-code">LP-045</div><div class="eq-name">Laudo Pressurizado</div></div>
+                    </div>
+                  </td>
+                  <td>Laudo técnico</td>
+                  <td class="mono">27/12/2023</td>
+                  <td class="mono">27/04/2024</td>
+                  <td class="days-left crit">Vencido há 5 dias</td>
+                  <td><span class="badge crit">Crítico</span></td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="tag-cell"><div class="tag-ico">🛠</div>
+                      <div><div class="tag-code">TR-501</div><div class="eq-name">Trocador de Calor</div></div>
+                    </div>
+                  </td>
+                  <td>Integridade</td>
+                  <td class="mono">12/04/2024</td>
+                  <td class="mono">12/06/2024</td>
+                  <td class="days-left warn">Vence em 23 dias</td>
+                  <td><span class="badge ok">Operacional</span></td>
+                </tr>
+                <tr>
+                  <td>
+                    <div class="tag-cell"><div class="tag-ico">🧊</div>
+                      <div><div class="tag-code">TQ-101</div><div class="eq-name">Tanque de Armazenamento</div></div>
+                    </div>
+                  </td>
+                  <td>Integridade</td>
+                  <td class="mono">15/04/2024</td>
+                  <td class="mono">22/05/2024</td>
+                  <td class="days-left warn">Vence em 2 dias</td>
+                  <td><span class="badge ok">Operacional</span></td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="panel-foot"><a class="link">Ver todos os equipamentos a vencer (32)</a></div>
+          </div>
+        </div>
+
+        <!-- RIGHT: calendar -->
+        <div>
+          <div class="panel">
+            <div class="panel-head">
+              <div>
+                <div class="eyebrow">Agenda</div>
+                <h2>Próximas inspeções</h2>
+              </div>
+              <div class="cal-nav">
+                <div class="cal-arrow" id="prevMonth">‹</div>
+                <div class="cal-month" id="calMonthLabel">Maio 2024</div>
+                <div class="cal-arrow" id="nextMonth">›</div>
+              </div>
+            </div>
+
+            <div class="cal-body">
+              <div class="cal-grid">
+                <div class="cal-dow">D</div><div class="cal-dow">S</div><div class="cal-dow">T</div><div class="cal-dow">Q</div><div class="cal-dow">Q</div><div class="cal-dow">S</div><div class="cal-dow">S</div>
+                <div class="cal-day muted">28</div><div class="cal-day muted">29</div><div class="cal-day muted">30</div>
+                <div class="cal-day">1</div><div class="cal-day">2</div><div class="cal-day">3</div><div class="cal-day">4</div>
+                <div class="cal-day">5</div><div class="cal-day">6</div><div class="cal-day">7</div><div class="cal-day">8</div><div class="cal-day">9</div><div class="cal-day">10</div><div class="cal-day">11</div>
+                <div class="cal-day">12</div><div class="cal-day">13</div><div class="cal-day">14</div><div class="cal-day">15</div><div class="cal-day">16</div><div class="cal-day">17</div><div class="cal-day">18</div>
+                <div class="cal-day">19</div><div class="cal-day">20</div><div class="cal-day">21</div>
+                <div class="cal-day today">22<span class="mk"></span></div>
+                <div class="cal-day">23<span class="mk warn"></span></div>
+                <div class="cal-day">24</div><div class="cal-day">25</div>
+                <div class="cal-day">26</div><div class="cal-day">27</div><div class="cal-day">28</div><div class="cal-day">29<span class="mk crit"></span></div><div class="cal-day">30</div><div class="cal-day">31</div>
+                <div class="cal-day muted">1</div>
+              </div>
+            </div>
+
+            <div class="agenda-list">
+              <div class="agenda-group">Hoje · 22/05 · 3 inspeções</div>
+              <div class="agenda-item">
+                <span class="ag-time">10:00</span>
+                <span class="ag-bar ok"></span>
+                <div class="ag-main">
+                  <div class="ag-title">TQ-101 · Tanque de Armazenamento</div>
+                  <div class="ag-sub">Inspeção de integridade</div>
+                </div>
+                <span class="ag-pill">Planejada</span>
+              </div>
+              <div class="agenda-item">
+                <span class="ag-time">14:00</span>
+                <span class="ag-bar warn"></span>
+                <div class="ag-main">
+                  <div class="ag-title">CB-204 · Caldeira</div>
+                  <div class="ag-sub">Inspeção de segurança</div>
+                </div>
+                <span class="ag-pill">Planejada</span>
+              </div>
+              <div class="agenda-item">
+                <span class="ag-time">16:30</span>
+                <span class="ag-bar ok"></span>
+                <div class="ag-main">
+                  <div class="ag-title">CP-301 · Compressor</div>
+                  <div class="ag-sub">Inspeção mecânica</div>
+                </div>
+                <span class="ag-pill">Planejada</span>
+              </div>
+
+              <div class="agenda-group">Amanhã · 23/05 · 2 inspeções</div>
+              <div class="agenda-item">
+                <span class="ag-time">09:00</span>
+                <span class="ag-bar warn"></span>
+                <div class="ag-main">
+                  <div class="ag-title">VP-05 · Vaso de Pressão</div>
+                  <div class="ag-sub">Inspeção de integridade</div>
+                </div>
+                <span class="ag-pill">Planejada</span>
+              </div>
+              <div class="agenda-item">
+                <span class="ag-time">13:00</span>
+                <span class="ag-bar ok"></span>
+                <div class="ag-main">
+                  <div class="ag-title">M-118 · Motor de Indução</div>
+                  <div class="ag-sub">Inspeção elétrica</div>
+                </div>
+                <span class="ag-pill">Planejada</span>
+              </div>
+            </div>
+
+            <div class="panel-foot"><a class="link" id="openCalendar">Expandir calendário completo →</a></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: full calendar -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div>
+        <div class="eyebrow" style="font-size:10.5px; letter-spacing:1.1px; color:var(--muted); font-weight:600; text-transform:uppercase;">Calendário completo</div>
+        <h2>Maio 2024 · Todas as inspeções</h2>
+      </div>
+      <button class="modal-close" id="closeCalendar">✕</button>
+    </div>
+    <div class="modal-cal">
+      <div class="modal-grid">
+        <div class="modal-dow">Dom</div><div class="modal-dow">Seg</div><div class="modal-dow">Ter</div><div class="modal-dow">Qua</div><div class="modal-dow">Qui</div><div class="modal-dow">Sex</div><div class="modal-dow">Sáb</div>
+
+        <div class="modal-day muted">28</div><div class="modal-day muted">29</div><div class="modal-day muted">30</div>
+        <div class="modal-day">1</div><div class="modal-day">2</div><div class="modal-day">3</div><div class="modal-day">4</div>
+
+        <div class="modal-day">5</div><div class="modal-day">6</div><div class="modal-day">7</div><div class="modal-day">8</div>
+        <div class="modal-day">9</div><div class="modal-day">10<div class="modal-ev ok">CB-204 · Óleo</div></div><div class="modal-day">11</div>
+
+        <div class="modal-day">12<div class="modal-ev ok">TR-501 · Elétrica</div></div><div class="modal-day">13</div><div class="modal-day">14<div class="modal-ev ok">P-101 · Alinhamento</div></div>
+        <div class="modal-day">15</div><div class="modal-day">16</div><div class="modal-day">17</div><div class="modal-day">18</div>
+
+        <div class="modal-day">19</div><div class="modal-day">20<div class="modal-ev crit">VP-03 · Integridade</div></div><div class="modal-day">21<div class="modal-ev ok">M-118 · Elétrica</div></div>
+        <div class="modal-day today">22
+          <div class="modal-ev ok">TQ-101 · 10:00</div>
+          <div class="modal-ev warn">CB-204 · 14:00</div>
+          <div class="modal-ev ok">CP-301 · 16:30</div>
+        </div>
+        <div class="modal-day">23
+          <div class="modal-ev warn">VP-05 · 09:00</div>
+          <div class="modal-ev ok">M-118 · 13:00</div>
+        </div>
+        <div class="modal-day">24</div><div class="modal-day">25</div>
+
+        <div class="modal-day">26</div><div class="modal-day">27<div class="modal-ev crit">LP-045 · Laudo</div></div><div class="modal-day">28</div>
+        <div class="modal-day">29<div class="modal-ev crit">V-310 · Vibração</div></div><div class="modal-day">30</div><div class="modal-day">31</div>
+        <div class="modal-day muted">1</div>
+      </div>
+    </div>
+    <div class="legend">
+      <div class="legend-item"><span class="legend-dot" style="background:var(--ok);"></span> Planejada / operacional</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--warn);"></span> Vence em breve</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--crit);"></span> Vencida / crítica</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const overlay = document.getElementById('modalOverlay');
+  const openBtn = document.getElementById('openCalendar');
+  const closeBtn = document.getElementById('closeCalendar');
+  function openModal(){ overlay.classList.add('open'); }
+  function closeModal(){ overlay.classList.remove('open'); }
+  openBtn.addEventListener('click', openModal);
+  closeBtn.addEventListener('click', closeModal);
+  overlay.addEventListener('click', (e)=>{ if(e.target === overlay) closeModal(); });
+  document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') closeModal(); });
+</script>
+</body>
+</html>

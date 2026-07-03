@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Forja — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#14181C; --ink-soft:#1E252B; --ink-soft2:#242B32;
+    --steel:#F6F5F2; --panel:#FFFFFF; --line:#E4E1D8;
+    --text:#2D3339; --muted:#7A8790;
+    --amber:#FF7A1A; --amber-deep:#D9640C;
+    --ok:#1FA971; --ok-bg:#E7F6EF;
+    --warn:#B8860B; --warn-bg:#FBF1DC;
+    --crit:#D5453D; --crit-deep:#B93A33; --crit-bg:#FBEAE9;
+    --purple:#7C5CFC; --purple-bg:#F1EDFF;
+    --blue:#457DC1; --blue-deep:#35639C; --blue-bg:#EAF2FB;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--steel); color:var(--text); font-family:'IBM Plex Sans',sans-serif; font-size:14px; -webkit-font-smoothing:antialiased;}
+  .mono{font-family:'IBM Plex Mono', monospace;}
+  .icon{width:17px; height:17px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; display:block;}
+  .shell{display:flex; min-height:100vh;}
+
+  /* ===== Sidebar ===== */
+  .sidebar{width:246px; flex-shrink:0; background:var(--ink); color:#C9CDD2; padding:20px 14px 16px; display:flex; flex-direction:column;}
+  .brand{display:flex; align-items:center; gap:9px; padding:0 8px 18px; border-bottom:1px solid #2A3138; margin-bottom:14px;}
+  .brand-mark{width:26px;height:26px;border-radius:5px; background:linear-gradient(135deg,var(--amber),var(--amber-deep)); display:flex;align-items:center;justify-content:center; color:var(--ink); font-weight:700; font-size:13px; font-family:'Space Grotesk',sans-serif;}
+  .brand-name{color:#fff; font-weight:600; font-size:15.5px;}
+  .brand-sub{font-size:10.5px; color:#7C8792;}
+
+  .nav-list{display:flex; flex-direction:column; gap:1px;}
+  .nav-item{
+    display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:7px;
+    font-size:13px; color:#B7BEC5; font-weight:500; cursor:pointer; justify-content:space-between;
+  }
+  .nav-item .left{display:flex; align-items:center; gap:10px;}
+  .nav-item:hover{background:var(--ink-soft); color:#fff;}
+  .nav-item.active{background:var(--ink-soft); color:#fff; box-shadow:inset 2px 0 0 var(--amber);}
+  .nav-item .chev{transition:transform .18s ease; opacity:0.7;}
+  .nav-item.expanded .chev{transform:rotate(180deg);}
+  .nav-count{font-family:'IBM Plex Mono', monospace; font-size:10px; color:#828C96; background:#242B32; padding:1px 6px; border-radius:20px;}
+  .nav-item.active .nav-count{color:var(--amber); background:#2E2620;}
+
+  .subnav{max-height:0; overflow:hidden; transition:max-height .2s ease; display:flex; flex-direction:column;}
+  .subnav.open{max-height:120px;}
+  .subnav .nav-item{padding-left:32px; font-size:12.5px;}
+
+  .nav-spacer{flex:1;}
+  .nav-divider{border-top:1px solid #2A3138; margin:12px 4px 10px;}
+  .nav-item.danger:hover{background:#2E1E1D; color:#F0A19B;}
+
+  .sidebar-foot{display:flex; align-items:center; gap:9px; padding:10px 8px 2px;}
+  .avatar{width:28px;height:28px;border-radius:50%; background:#3A4149; color:#E5E7E9; display:flex;align-items:center;justify-content:center; font-size:11.5px; font-weight:600; flex-shrink:0;}
+  .foot-name{color:#E5E7E9; font-size:12.5px; font-weight:500;}
+  .foot-role{font-size:10.5px; color:#7C8792;}
+
+  /* ===== Main ===== */
+  .main{flex:1; min-width:0;}
+  .topbar{display:flex; align-items:center; justify-content:space-between; padding:14px 30px; background:var(--panel); border-bottom:1px solid var(--line); gap:20px;}
+  .topbar h1{font-family:'Space Grotesk',sans-serif; font-size:19px; font-weight:600; margin:0; letter-spacing:-0.2px;}
+  .topbar .path{color:var(--muted); font-size:12.5px; margin-top:2px;}
+
+  .top-status{display:flex; align-items:center; gap:14px; flex-shrink:0;}
+  .sync-pill{display:flex; align-items:center; gap:6px; background:var(--ok-bg); color:var(--ok); font-size:12px; font-weight:600; padding:6px 13px 6px 11px; border-radius:20px;}
+  .sync-pill .icon{width:14px; height:14px;}
+  .login-info{display:flex; align-items:center; gap:6px; color:var(--muted); font-size:12px;}
+  .login-info .icon{width:14px; height:14px;}
+  .divider-v{width:1px; height:20px; background:var(--line);}
+  .bell-wrap{position:relative; width:34px;height:34px;border-radius:9px; border:1px solid var(--line); display:flex;align-items:center;justify-content:center; cursor:pointer; color:var(--muted);}
+  .bell-wrap:hover{background:var(--steel); color:var(--text);}
+  .bell-dot{position:absolute; top:7px; right:8px; width:7px;height:7px;border-radius:50%; background:var(--crit); border:1.5px solid var(--panel);}
+  .user-chip{display:flex; align-items:center; gap:8px; cursor:pointer; padding:4px 8px 4px 4px; border-radius:20px;}
+  .user-chip:hover{background:var(--steel);}
+  .user-chip .name{font-size:12.5px; font-weight:600; color:var(--text);}
+  .user-chip .role{font-size:10.5px; color:var(--muted);}
+
+  .content{padding:22px 30px 60px; max-width:1440px;}
+
+  /* ===== Critical alert banner ===== */
+  .alert-banner{
+    background:linear-gradient(135deg, var(--crit) 0%, var(--crit-deep) 100%); color:#fff; border-radius:12px;
+    padding:15px 18px; display:flex; align-items:center; gap:14px; margin-bottom:22px;
+    box-shadow:0 10px 24px rgba(213,69,61,0.25);
+  }
+  .alert-ic-wrap{width:38px;height:38px;border-radius:10px; background:rgba(255,255,255,0.16); display:flex;align-items:center;justify-content:center; flex-shrink:0; position:relative;}
+  .alert-ic-wrap .icon{width:20px;height:20px; stroke:#fff;}
+  .pulse-dot{position:absolute; top:-3px; right:-3px; width:10px;height:10px;border-radius:50%; background:#fff;}
+  .pulse-dot::after{content:''; position:absolute; inset:0; border-radius:50%; background:#fff; animation:pulse 1.8s ease-out infinite;}
+  @keyframes pulse{0%{transform:scale(1); opacity:.8;} 100%{transform:scale(2.6); opacity:0;}}
+  .alert-body{flex:1; min-width:0;}
+  .alert-title{font-weight:700; font-size:14px;}
+  .alert-sub{font-size:12.5px; opacity:0.92; margin-top:2px;}
+  .alert-sub b{font-family:'IBM Plex Mono',monospace;}
+  .alert-actions{display:flex; align-items:center; gap:8px; flex-shrink:0;}
+  .btn-alert{background:#fff; color:var(--crit-deep); border:none; border-radius:8px; padding:9px 15px; font-weight:700; font-size:12.5px; cursor:pointer; display:flex; align-items:center; gap:6px;}
+  .btn-alert:hover{background:#FFEDEC;}
+  .btn-alert-ghost{background:rgba(255,255,255,0.14); color:#fff; border:1px solid rgba(255,255,255,0.35); border-radius:8px; padding:9px 12px; cursor:pointer; display:flex; align-items:center; justify-content:center;}
+  .btn-alert-ghost:hover{background:rgba(255,255,255,0.22);}
+  .btn-alert-ghost .icon{width:15px;height:15px; stroke:#fff;}
+
+  /* ===== KPI ===== */
+  .kpi-row{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px;}
+  .kpi{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:16px 18px; display:flex; align-items:flex-start; justify-content:space-between; gap:10px;}
+  .kpi-icon{width:38px;height:38px;border-radius:9px; display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+  .kpi-icon .icon{width:18px;height:18px;}
+  .kpi-label{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.6px; font-weight:600;}
+  .kpi-value{font-family:'Space Grotesk', sans-serif; font-size:25px; font-weight:700; margin-top:6px; letter-spacing:-0.5px;}
+  .kpi-delta{
+    font-size:11px; margin-top:8px; font-weight:600; display:inline-flex; align-items:center; gap:4px;
+    padding:3px 8px 3px 6px; border-radius:20px; width:fit-content;
+  }
+  .kpi-delta .icon{width:11px;height:11px;}
+  .kpi-delta.up{color:var(--ok); background:var(--ok-bg);}
+  .kpi-delta.down{color:var(--crit); background:var(--crit-bg);}
+
+  /* ===== Panels ===== */
+  .grid-2{display:grid; grid-template-columns:1.65fr 1fr; gap:16px; margin-bottom:16px; align-items:start;}
+  .panel{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;}
+  .panel-head{padding:16px 20px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; gap:12px;}
+  .eyebrow{font-size:10.5px; letter-spacing:1.1px; color:var(--muted); font-weight:600; text-transform:uppercase;}
+  .panel-head h2{font-family:'Space Grotesk',sans-serif; font-size:16px; margin:4px 0 0; font-weight:600;}
+  .link{color:var(--amber-deep); font-size:12px; font-weight:600; text-decoration:none; cursor:pointer; display:flex; align-items:center; gap:4px;}
+  .link:hover{text-decoration:underline;}
+  .btn{border:none; border-radius:8px; font-weight:600; font-size:12px; padding:8px 13px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; font-family:'IBM Plex Sans',sans-serif;}
+  .btn-primary{background:var(--amber); color:#241505;}
+  .btn-primary:hover{background:var(--amber-deep);}
+  .btn .icon{width:14px;height:14px;}
+
+  /* Equipamentos a vencer table */
+  table{width:100%; border-collapse:collapse;}
+  thead th{text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:0.5px; color:var(--muted); font-weight:600; padding:10px 20px; border-bottom:1px solid var(--line); background:#FBFAF7;}
+  tbody td{padding:12px 20px; border-bottom:1px solid var(--line); font-size:13px; vertical-align:middle;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:#FBFAF7;}
+  .tag-cell{display:flex; align-items:center; gap:10px;}
+  .tag-ico{width:30px;height:30px;border-radius:7px; background:var(--steel); display:flex;align-items:center;justify-content:center; flex-shrink:0; color:var(--muted);}
+  .tag-ico .icon{width:15px;height:15px;}
+  .tag-code{font-family:'IBM Plex Mono', monospace; font-weight:600; font-size:12.5px;}
+  .eq-name{color:var(--muted); font-size:11.5px; margin-top:1px;}
+  .badge{font-size:10.5px; font-weight:700; padding:3px 9px; border-radius:20px; text-transform:uppercase; letter-spacing:0.3px; white-space:nowrap;}
+  .badge.crit{background:var(--crit-bg); color:var(--crit);}
+  .badge.warn{background:var(--warn-bg); color:var(--warn);}
+  .badge.ok{background:var(--ok-bg); color:var(--ok);}
+  .days-left{font-family:'IBM Plex Mono', monospace; font-size:12px;}
+  .days-left.crit{color:var(--crit); font-weight:600;}
+  .days-left.warn{color:var(--warn); font-weight:600;}
+  .panel-foot{padding:13px 20px; text-align:center; border-top:1px solid var(--line);}
+
+  /* Alerts list */
+  .alist{padding:6px 18px 14px;}
+  .alist-item{display:flex; align-items:flex-start; gap:11px; padding:12px 0; border-bottom:1px solid var(--line);}
+  .alist-item:last-child{border-bottom:none;}
+  .alist-ic{width:32px;height:32px;border-radius:8px; display:flex;align-items:center;justify-content:center; flex-shrink:0;}
+  .alist-ic .icon{width:16px;height:16px;}
+  .alist-main{flex:1; min-width:0;}
+  .alist-title{font-size:12.5px; font-weight:600; color:var(--text);}
+  .alist-sub{font-size:11.5px; color:var(--muted); margin-top:1px;}
+  .alist-badge{font-size:10px; font-weight:700; padding:3px 8px; border-radius:20px; white-space:nowrap; text-transform:uppercase;}
+
+  /* Plant map placeholder */
+  .plant-placeholder{
+    position:relative; padding:36px 24px 30px; text-align:center; background:
+      repeating-linear-gradient(135deg, #FBFAF7, #FBFAF7 12px, #F2EFE7 12px, #F2EFE7 24px);
+    min-height:230px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;
+  }
+  .dev-ribbon{
+    position:absolute; top:14px; right:-32px; background:var(--amber); color:#241505; font-size:10px; font-weight:700;
+    letter-spacing:0.5px; padding:5px 38px; transform:rotate(40deg); box-shadow:0 2px 6px rgba(0,0,0,.15);
+  }
+  .plant-ic-wrap{width:52px;height:52px;border-radius:14px; background:var(--panel); border:1px solid var(--line); display:flex;align-items:center;justify-content:center; box-shadow:0 4px 10px rgba(20,24,28,.06);}
+  .plant-ic-wrap .icon{width:24px;height:24px; color:var(--muted);}
+  .plant-title{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:14.5px; color:var(--text);}
+  .plant-sub{font-size:12px; color:var(--muted); max-width:320px; line-height:1.5;}
+
+  /* Calendar panel */
+  .cal-nav{display:flex; align-items:center; gap:10px;}
+  .cal-arrow{width:24px;height:24px;border-radius:6px;border:1px solid var(--line); display:flex;align-items:center;justify-content:center; cursor:pointer; color:var(--muted);}
+  .cal-arrow:hover{background:var(--steel);}
+  .cal-arrow .icon{width:13px;height:13px;}
+  .cal-month{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:13px; width:100px; text-align:center;}
+  .cal-body{padding:14px 16px 4px;}
+  .cal-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:3px; text-align:center;}
+  .cal-dow{font-size:9.5px; color:var(--muted); font-weight:600; padding-bottom:5px;}
+  .cal-day{position:relative; aspect-ratio:1; display:flex; align-items:center; justify-content:center; border-radius:6px; font-size:11.5px; color:var(--text); font-family:'IBM Plex Mono', monospace; cursor:pointer;}
+  .cal-day:hover{background:var(--steel);}
+  .cal-day.muted{color:#C9C5B8;}
+  .cal-day.today{background:var(--ink); color:#fff; font-weight:600;}
+  .cal-day .mk{position:absolute; bottom:3px; left:50%; transform:translateX(-50%); width:4px;height:4px;border-radius:50%;}
+  .cal-day.today .mk{background:var(--amber);}
+  .cal-day .mk.warn{background:var(--warn);}
+  .cal-day .mk.crit{background:var(--crit);}
+  .cal-day .mk.ok{background:var(--ok);}
+
+  .agenda-list{padding:6px 18px 6px;}
+  .agenda-group{font-size:10px; text-transform:uppercase; letter-spacing:0.5px; color:var(--muted); font-weight:600; margin:12px 0 6px;}
+  .agenda-group:first-child{margin-top:2px;}
+  .agenda-item{display:flex; align-items:flex-start; gap:9px; padding:8px 0; border-bottom:1px solid var(--line);}
+  .agenda-item:last-child{border-bottom:none;}
+  .ag-time{font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--muted); width:36px; flex-shrink:0; padding-top:1px;}
+  .ag-bar{width:3px; border-radius:3px; align-self:stretch; flex-shrink:0;}
+  .ag-bar.warn{background:var(--warn);}
+  .ag-bar.ok{background:var(--ok);}
+  .ag-main{flex:1; min-width:0;}
+  .ag-title{font-size:12px; font-weight:600; color:var(--text);}
+  .ag-sub{font-size:10.5px; color:var(--muted); margin-top:1px;}
+
+  /* Modal expanded calendar */
+  .modal-overlay{position:fixed; inset:0; background:rgba(20,24,28,0.55); display:none; align-items:center; justify-content:center; padding:30px; z-index:50;}
+  .modal-overlay.open{display:flex;}
+  .modal-box{background:var(--panel); border-radius:14px; width:100%; max-width:880px; max-height:88vh; overflow:auto; box-shadow:0 20px 60px rgba(20,24,28,0.35);}
+  .modal-head{display:flex; align-items:center; justify-content:space-between; padding:18px 24px; border-bottom:1px solid var(--line);}
+  .modal-head h2{font-family:'Space Grotesk',sans-serif; font-size:18px; margin:0;}
+  .modal-close{width:30px;height:30px;border-radius:8px;border:1px solid var(--line); background:transparent; cursor:pointer; color:var(--muted); display:flex; align-items:center; justify-content:center;}
+  .modal-close:hover{background:var(--steel);}
+  .modal-cal{padding:22px 24px;}
+  .modal-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:6px;}
+  .modal-dow{font-size:11px; color:var(--muted); font-weight:600; text-align:center; padding-bottom:8px;}
+  .modal-day{min-height:82px; border:1px solid var(--line); border-radius:8px; padding:7px; font-size:12px; font-family:'IBM Plex Mono', monospace; color:var(--text); display:flex; flex-direction:column; gap:4px;}
+  .modal-day.muted{color:#C9C5B8; background:#FBFAF7;}
+  .modal-day.today{border-color:var(--amber); box-shadow:0 0 0 1px var(--amber);}
+  .modal-ev{font-family:'IBM Plex Sans',sans-serif; font-size:9.5px; font-weight:600; padding:2px 5px; border-radius:4px; line-height:1.3;}
+  .modal-ev.warn{background:var(--warn-bg); color:var(--warn);}
+  .modal-ev.crit{background:var(--crit-bg); color:var(--crit);}
+  .modal-ev.ok{background:var(--ok-bg); color:var(--ok);}
+  .legend{display:flex; gap:16px; padding:14px 24px 20px; border-top:1px solid var(--line);}
+  .legend-item{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted);}
+  .legend-dot{width:8px;height:8px;border-radius:50%;}
+
+  @media (max-width:1180px){ .grid-2{grid-template-columns:1fr;} .kpi-row{grid-template-columns:repeat(2,1fr);} }
+  @media (max-width:720px){
+    .sidebar{display:none;} .content{padding:18px 16px 50px;} .topbar{padding:12px 16px; flex-wrap:wrap;}
+    .login-info, .divider-v{display:none;} .alert-banner{flex-wrap:wrap;}
+    .modal-grid, .modal-dow{display:none;}
+  }
+  a:focus-visible, .nav-item:focus-visible, button:focus-visible{outline:2px solid var(--amber); outline-offset:2px;}
+</style>
+</head>
+<body>
+
+<!-- ============ ICON SPRITE ============ -->
+<svg style="display:none">
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.2"/><rect x="14" y="3" width="7" height="7" rx="1.2"/><rect x="14" y="14" width="7" height="7" rx="1.2"/><rect x="3" y="14" width="7" height="7" rx="1.2"/></symbol>
+  <symbol id="i-box" viewBox="0 0 24 24"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></symbol>
+  <symbol id="i-userplus" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+  <symbol id="i-briefcase" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></symbol>
+  <symbol id="i-barchart" viewBox="0 0 24 24"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></symbol>
+  <symbol id="i-clipboard" viewBox="0 0 24 24"><rect x="6" y="4" width="12" height="18" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="15" y2="15"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><circle cx="4" cy="12" r="2"/><circle cx="12" cy="10" r="2"/><circle cx="20" cy="14" r="2"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.8 12.2L20 3"/><path d="M16 7l3 3"/><path d="M13.2 9.8l3 3"/></symbol>
+  <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></symbol>
+  <symbol id="i-chevdown" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></symbol>
+  <symbol id="i-chevleft" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></symbol>
+  <symbol id="i-chevright" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></symbol>
+  <symbol id="i-cloudcheck" viewBox="0 0 24 24"><path d="M17.5 19H7a5 5 0 0 1-1-9.9A6 6 0 0 1 17.6 8h.2A4.4 4.4 0 0 1 22 12.4a4.4 4.4 0 0 1-1 2.8"/><polyline points="9.5 15.5 11.3 17.3 15 13.5"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></symbol>
+  <symbol id="i-alerttri" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13.5"/><line x1="12" y1="16.5" x2="12" y2="16.6"/></symbol>
+  <symbol id="i-arrowright" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></symbol>
+  <symbol id="i-trendup" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></symbol>
+  <symbol id="i-map" viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></symbol>
+  <symbol id="i-checkcircle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="16 9 11 14 8 11"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
+  <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 2s-6 6-6 12a6 6 0 0 0 12 0c0-2-1-3-1-3s-1 2-2 2c1-3-1-5-1-7 0 2-2 3-2 5-1-1-1-3 0-5-1 1-2 3-2 5 0 1 .3 2 1 3-2 0-3-2-3-4 0-4 4-8 4-8z"/></symbol>
+  <symbol id="i-fan" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><path d="M12 2a4 4 0 0 1 4 4c0 2-2 3-2 6"/><path d="M12 22a4 4 0 0 1-4-4c0-2 2-3 2-6"/><path d="M2 12a4 4 0 0 1 4-4c2 0 3 2 6 2"/><path d="M22 12a4 4 0 0 1-4 4c-2 0-3-2-6-2"/></symbol>
+  <symbol id="i-cylinder" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14a8 3 0 0 0 16 0V5"/></symbol>
+  <symbol id="i-tool" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.5-3.5a6 6 0 0 1-8 8L6.4 20.6a2.1 2.1 0 0 1-3-3L10.2 10.8a6 6 0 0 1 8-8l-3.5 3.5z"/></symbol>
+</svg>
+
+<div class="shell">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">Fj</div>
+      <div><div class="brand-name">Forja</div><div class="brand-sub">Engenharia &amp; Ativos</div></div>
+    </div>
+
+    <div class="nav-list">
+      <div class="nav-item active"><span class="left"><svg class="icon"><use href="#i-grid"/></svg>Dashboard</span></div>
+      <div class="nav-item"><span class="left"><svg class="icon"><use href="#i-box"/></svg>Equipamentos</span><span class="nav-count">1.248</span></div>
+
+      <div class="nav-item" id="cadastrarToggle">
+        <span class="left"><svg class="icon"><use href="#i-userplus"/></svg>Cadastrar</span>
+        <svg class="icon chev"><use href="#i-chevdown"/></svg>
+      </div>
+      <div class="subnav" id="cadastrarSub">
+        <div class="nav-item"><span class="left"><svg class="icon"><use href="#i-users"/></svg>Funcionários</span></div>
+        <div class="nav-item"><span class="left"><svg class="icon"><use href="#i-briefcase"/></svg>Clientes</span></div>
+      </div>
+
+      <div class="nav-item"><span class="left"><svg class="icon"><use href="#i-barchart"/></svg>Relatórios</span></div>
+      <div class="nav-item"><span class="left"><svg class="icon"><use href="#i-clipboard"/></svg>Prontuários</span></div>
+      <div class="nav-item"><span class="left"><svg class="icon"><use href="#i-sliders"/></svg>Calibrações</span></div>
+      <div class="nav-item"><span class="left"><svg class="icon"><use href="#i-key"/></svg>Acessos</span></div>
+    </div>
+
+    <div class="nav-spacer"></div>
+    <div class="nav-divider"></div>
+    <div class="nav-item danger"><span class="left"><svg class="icon"><use href="#i-logout"/></svg>Sair</span></div>
+
+    <div class="sidebar-foot">
+      <div class="avatar">RM</div>
+      <div><div class="foot-name">Eng. Rafael Martins</div><div class="foot-role">Administrador</div></div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <h1>Dashboard</h1>
+        <div class="path">Visão geral da operação e indicadores-chave</div>
+      </div>
+
+      <div class="top-status">
+        <div class="sync-pill"><svg class="icon"><use href="#i-cloudcheck"/></svg>Sincronizado</div>
+        <div class="login-info"><svg class="icon"><use href="#i-clock"/></svg>Último login: hoje às 14:32</div>
+        <div class="divider-v"></div>
+        <div class="bell-wrap"><svg class="icon" style="width:17px;height:17px;"><use href="#i-bell"/></svg><span class="bell-dot"></span></div>
+        <div class="user-chip">
+          <div class="avatar">RM</div>
+          <div><div class="name">Rafael Martins</div><div class="role">Administrador</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- CRITICAL ALERT -->
+      <div class="alert-banner">
+        <div class="alert-ic-wrap"><svg class="icon"><use href="#i-alerttri"/></svg><span class="pulse-dot"></span></div>
+        <div class="alert-body">
+          <div class="alert-title">1 equipamento vencido requer atenção imediata</div>
+          <div class="alert-sub"><b>VP-03</b> · Vaso de Pressão · Unidade Vitória · inspeção de integridade vencida há <b>2 dias</b></div>
+        </div>
+        <div class="alert-actions">
+          <button class="btn-alert">Ver equipamento <svg class="icon" style="width:13px;height:13px; stroke:var(--crit-deep);"><use href="#i-arrowright"/></svg></button>
+          <button class="btn-alert-ghost" title="Dispensar"><svg class="icon"><use href="#i-x"/></svg></button>
+        </div>
+      </div>
+
+      <!-- KPIs -->
+      <div class="kpi-row">
+        <div class="kpi">
+          <div>
+            <div class="kpi-label">Equipamentos cadastrados</div>
+            <div class="kpi-value">1.248</div>
+            <div class="kpi-delta up"><svg class="icon"><use href="#i-trendup"/></svg>8,2% vs. mês anterior</div>
+          </div>
+          <div class="kpi-icon" style="background:var(--blue-bg); color:var(--blue);"><svg class="icon"><use href="#i-box"/></svg></div>
+        </div>
+        <div class="kpi">
+          <div>
+            <div class="kpi-label">Próximos a vencer <span class="mono" style="font-size:10px;">(30d)</span></div>
+            <div class="kpi-value" style="color:var(--warn);">32</div>
+            <div class="kpi-delta down"><svg class="icon"><use href="#i-trendup"/></svg>11,4% vs. mês anterior</div>
+          </div>
+          <div class="kpi-icon" style="background:var(--warn-bg); color:var(--warn);"><svg class="icon"><use href="#i-calendar"/></svg></div>
+        </div>
+        <div class="kpi">
+          <div>
+            <div class="kpi-label">Vencidos</div>
+            <div class="kpi-value" style="color:var(--crit);">7</div>
+            <div class="kpi-delta down"><svg class="icon"><use href="#i-trendup"/></svg>2 nas últimas 24h</div>
+          </div>
+          <div class="kpi-icon" style="background:var(--crit-bg); color:var(--crit);"><svg class="icon"><use href="#i-alerttri"/></svg></div>
+        </div>
+        <div class="kpi">
+          <div>
+            <div class="kpi-label">Taxa de conformidade</div>
+            <div class="kpi-value">96,7<span style="font-size:14px; font-weight:500; color:var(--muted);">%</span></div>
+            <div class="kpi-delta up"><svg class="icon"><use href="#i-trendup"/></svg>3,1% vs. mês anterior</div>
+          </div>
+          <div class="kpi-icon" style="background:var(--ok-bg); color:var(--ok);"><svg class="icon"><use href="#i-checkcircle"/></svg></div>
+        </div>
+      </div>
+
+      <!-- EQUIPAMENTOS A VENCER + ALERTAS -->
+      <div class="grid-2">
+        <div class="panel">
+          <div class="panel-head">
+            <div><div class="eyebrow">Prazos</div><h2>Equipamentos próximos do vencimento</h2></div>
+            <span class="badge crit">7 vencidos</span>
+          </div>
+          <table>
+            <thead>
+              <tr><th>Tag</th><th>Tipo</th><th>Última inspeção</th><th>Vencimento</th><th>Prazo</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><div class="tag-cell"><div class="tag-ico"><svg class="icon"><use href="#i-cylinder"/></svg></div><div><div class="tag-code">VP-03</div><div class="eq-name">Vaso de Pressão</div></div></div></td>
+                <td>Integridade</td><td class="mono">30/04/2026</td><td class="mono">30/06/2026</td>
+                <td class="days-left crit">Vencido há 2 dias</td><td><span class="badge crit">Crítico</span></td>
+              </tr>
+              <tr>
+                <td><div class="tag-cell"><div class="tag-ico"><svg class="icon"><use href="#i-flame"/></svg></div><div><div class="tag-code">CB-204</div><div class="eq-name">Caldeira</div></div></div></td>
+                <td>Segurança</td><td class="mono">10/05/2026</td><td class="mono">05/07/2026</td>
+                <td class="days-left warn">Vence em 3 dias</td><td><span class="badge warn">Atenção</span></td>
+              </tr>
+              <tr>
+                <td><div class="tag-cell"><div class="tag-ico"><svg class="icon"><use href="#i-fan"/></svg></div><div><div class="tag-code">CP-301</div><div class="eq-name">Compressor</div></div></div></td>
+                <td>Mecânica</td><td class="mono">05/05/2026</td><td class="mono">04/07/2026</td>
+                <td class="days-left warn">Vence em 2 dias</td><td><span class="badge warn">Atenção</span></td>
+              </tr>
+              <tr>
+                <td><div class="tag-cell"><div class="tag-ico"><svg class="icon"><use href="#i-clipboard"/></svg></div><div><div class="tag-code">LP-045</div><div class="eq-name">Laudo Pressurizado</div></div></div></td>
+                <td>Laudo técnico</td><td class="mono">27/01/2026</td><td class="mono">27/06/2026</td>
+                <td class="days-left crit">Vencido há 5 dias</td><td><span class="badge crit">Crítico</span></td>
+              </tr>
+              <tr>
+                <td><div class="tag-cell"><div class="tag-ico"><svg class="icon"><use href="#i-tool"/></svg></div><div><div class="tag-code">TR-501</div><div class="eq-name">Trocador de Calor</div></div></div></td>
+                <td>Integridade</td><td class="mono">12/05/2026</td><td class="mono">25/07/2026</td>
+                <td class="days-left warn">Vence em 23 dias</td><td><span class="badge ok">Operacional</span></td>
+              </tr>
+              <tr>
+                <td><div class="tag-cell"><div class="tag-ico"><svg class="icon"><use href="#i-box"/></svg></div><div><div class="tag-code">TQ-101</div><div class="eq-name">Tanque de Armazenamento</div></div></div></td>
+                <td>Integridade</td><td class="mono">15/05/2026</td><td class="mono">04/07/2026</td>
+                <td class="days-left warn">Vence em 2 dias</td><td><span class="badge ok">Operacional</span></td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="panel-foot"><a class="link" style="justify-content:center;">Ver todos os equipamentos a vencer (32)</a></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <div><div class="eyebrow">Prioridade</div><h2>Alertas críticos</h2></div>
+            <span class="link">Ver todos (12)</span>
+          </div>
+          <div class="alist">
+            <div class="alist-item">
+              <div class="alist-ic" style="background:var(--crit-bg); color:var(--crit);"><svg class="icon"><use href="#i-alerttri"/></svg></div>
+              <div class="alist-main"><div class="alist-title">Vencimento de inspeção</div><div class="alist-sub">VP-03 · Vaso de Pressão</div></div>
+              <span class="alist-badge" style="background:var(--crit-bg); color:var(--crit);">Atrasado</span>
+            </div>
+            <div class="alist-item">
+              <div class="alist-ic" style="background:var(--warn-bg); color:var(--warn);"><svg class="icon"><use href="#i-alerttri"/></svg></div>
+              <div class="alist-main"><div class="alist-title">Não conformidade crítica</div><div class="alist-sub">CB-204 · Caldeira</div></div>
+              <span class="alist-badge" style="background:var(--warn-bg); color:var(--warn);">Alta</span>
+            </div>
+            <div class="alist-item">
+              <div class="alist-ic" style="background:var(--crit-bg); color:var(--crit);"><svg class="icon"><use href="#i-alerttri"/></svg></div>
+              <div class="alist-main"><div class="alist-title">Manutenção corretiva pendente</div><div class="alist-sub">CP-301 · Compressor</div></div>
+              <span class="alist-badge" style="background:var(--crit-bg); color:var(--crit);">Atrasado</span>
+            </div>
+            <div class="alist-item">
+              <div class="alist-ic" style="background:var(--warn-bg); color:var(--warn);"><svg class="icon"><use href="#i-clipboard"/></svg></div>
+              <div class="alist-main"><div class="alist-title">Laudo técnico vencido</div><div class="alist-sub">LP-2026-045</div></div>
+              <span class="alist-badge" style="background:var(--warn-bg); color:var(--warn);">Alta</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PLANT MAP + CALENDAR -->
+      <div class="grid-2" style="grid-template-columns:1fr 1.25fr;">
+        <div class="panel">
+          <div class="panel-head">
+            <div><div class="eyebrow">Planta industrial</div><h2>Mapa da planta baixa</h2></div>
+          </div>
+          <div class="plant-placeholder">
+            <span class="dev-ribbon">EM DESENVOLVIMENTO</span>
+            <div class="plant-ic-wrap"><svg class="icon"><use href="#i-map"/></svg></div>
+            <div class="plant-title">Visualização da planta industrial</div>
+            <div class="plant-sub">Em breve você poderá localizar cada equipamento diretamente na planta baixa da unidade, com status por área em tempo real.</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <div><div class="eyebrow">Agenda</div><h2>Próximas inspeções</h2></div>
+            <button class="btn btn-primary" id="btnNovaInspecao"><svg class="icon"><use href="#i-plus"/></svg>Nova Inspeção</button>
+          </div>
+
+          <div style="display:flex; align-items:center; justify-content:center; gap:10px; padding:12px 16px 0;">
+            <div class="cal-arrow"><svg class="icon"><use href="#i-chevleft"/></svg></div>
+            <div class="cal-month">Julho 2026</div>
+            <div class="cal-arrow"><svg class="icon"><use href="#i-chevright"/></svg></div>
+          </div>
+
+          <div class="cal-body">
+            <div class="cal-grid">
+              <div class="cal-dow">D</div><div class="cal-dow">S</div><div class="cal-dow">T</div><div class="cal-dow">Q</div><div class="cal-dow">Q</div><div class="cal-dow">S</div><div class="cal-dow">S</div>
+              <div class="cal-day muted">28</div><div class="cal-day muted">29</div><div class="cal-day muted">30</div>
+              <div class="cal-day">1</div><div class="cal-day today">2<span class="mk"></span></div><div class="cal-day">3<span class="mk warn"></span></div><div class="cal-day">4<span class="mk crit"></span></div>
+              <div class="cal-day">5<span class="mk warn"></span></div><div class="cal-day">6</div><div class="cal-day">7</div><div class="cal-day">8</div><div class="cal-day">9</div><div class="cal-day">10</div><div class="cal-day">11</div>
+              <div class="cal-day">12</div><div class="cal-day">13</div><div class="cal-day">14</div><div class="cal-day">15</div><div class="cal-day">16</div><div class="cal-day">17</div><div class="cal-day">18</div>
+              <div class="cal-day">19</div><div class="cal-day">20</div><div class="cal-day">21</div><div class="cal-day">22</div><div class="cal-day">23</div><div class="cal-day">24</div><div class="cal-day">25</div>
+              <div class="cal-day">26</div><div class="cal-day">27</div><div class="cal-day">28</div><div class="cal-day">29</div><div class="cal-day">30</div><div class="cal-day">31</div><div class="cal-day muted">1</div>
+            </div>
+          </div>
+
+          <div class="agenda-list">
+            <div class="agenda-group">Hoje · 02/07 · 3 inspeções</div>
+            <div class="agenda-item">
+              <span class="ag-time">10:00</span><span class="ag-bar ok"></span>
+              <div class="ag-main"><div class="ag-title">TQ-101 · Tanque de Armazenamento</div><div class="ag-sub">Inspeção de integridade</div></div>
+            </div>
+            <div class="agenda-item">
+              <span class="ag-time">14:00</span><span class="ag-bar warn"></span>
+              <div class="ag-main"><div class="ag-title">CB-204 · Caldeira</div><div class="ag-sub">Inspeção de segurança</div></div>
+            </div>
+            <div class="agenda-item">
+              <span class="ag-time">16:30</span><span class="ag-bar ok"></span>
+              <div class="ag-main"><div class="ag-title">CP-301 · Compressor</div><div class="ag-sub">Inspeção mecânica</div></div>
+            </div>
+            <div class="agenda-group">Amanhã · 03/07 · 2 inspeções</div>
+            <div class="agenda-item">
+              <span class="ag-time">09:00</span><span class="ag-bar warn"></span>
+              <div class="ag-main"><div class="ag-title">VP-05 · Vaso de Pressão</div><div class="ag-sub">Inspeção de integridade</div></div>
+            </div>
+          </div>
+
+          <div class="panel-foot"><a class="link" id="openCalendar" style="justify-content:center;">Ver todas as inspeções no calendário →</a></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: full calendar -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div>
+        <div class="eyebrow">Calendário completo</div>
+        <h2>Julho 2026 · Todas as inspeções</h2>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <button class="btn btn-primary" id="btnNovaInspecaoModal"><svg class="icon"><use href="#i-plus"/></svg>Nova Inspeção</button>
+        <button class="modal-close" id="closeCalendar"><svg class="icon"><use href="#i-x"/></svg></button>
+      </div>
+    </div>
+    <div class="modal-cal">
+      <div class="modal-grid">
+        <div class="modal-dow">Dom</div><div class="modal-dow">Seg</div><div class="modal-dow">Ter</div><div class="modal-dow">Qua</div><div class="modal-dow">Qui</div><div class="modal-dow">Sex</div><div class="modal-dow">Sáb</div>
+        <div class="modal-day muted">28</div><div class="modal-day muted">29</div><div class="modal-day muted">30</div>
+        <div class="modal-day">1</div>
+        <div class="modal-day today">2<div class="modal-ev ok">TQ-101 · 10:00</div><div class="modal-ev warn">CB-204 · 14:00</div><div class="modal-ev ok">CP-301 · 16:30</div></div>
+        <div class="modal-day">3<div class="modal-ev warn">VP-05 · 09:00</div></div>
+        <div class="modal-day">4<div class="modal-ev crit">CP-301 · vencimento</div><div class="modal-ev crit">TQ-101 · vencimento</div></div>
+
+        <div class="modal-day">5<div class="modal-ev warn">CB-204 · vencimento</div></div>
+        <div class="modal-day">6</div><div class="modal-day">7</div><div class="modal-day">8</div><div class="modal-day">9</div><div class="modal-day">10</div><div class="modal-day">11</div>
+
+        <div class="modal-day">12</div><div class="modal-day">13</div><div class="modal-day">14</div><div class="modal-day">15</div><div class="modal-day">16</div><div class="modal-day">17</div><div class="modal-day">18</div>
+
+        <div class="modal-day">19</div><div class="modal-day">20</div><div class="modal-day">21</div><div class="modal-day">22</div><div class="modal-day">23</div><div class="modal-day">24</div><div class="modal-day">25</div>
+
+        <div class="modal-day">26</div><div class="modal-day">27</div><div class="modal-day">28</div><div class="modal-day">29</div><div class="modal-day">30</div>
+        <div class="modal-day">31<div class="modal-ev ok">TR-501 · vencimento</div></div>
+        <div class="modal-day muted">1</div>
+      </div>
+    </div>
+    <div class="legend">
+      <div class="legend-item"><span class="legend-dot" style="background:var(--ok);"></span> Planejada / operacional</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--warn);"></span> Vence em breve</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--crit);"></span> Vencida / crítica</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const toggle = document.getElementById('cadastrarToggle');
+  const sub = document.getElementById('cadastrarSub');
+  toggle.addEventListener('click', () => { toggle.classList.toggle('expanded'); sub.classList.toggle('open'); });
+
+  document.querySelector('.btn-alert-ghost').addEventListener('click', (e) => {
+    e.currentTarget.closest('.alert-banner').style.display = 'none';
+  });
+
+  const overlay = document.getElementById('modalOverlay');
+  document.getElementById('openCalendar').addEventListener('click', () => overlay.classList.add('open'));
+  document.getElementById('closeCalendar').addEventListener('click', () => overlay.classList.remove('open'));
+  overlay.addEventListener('click', (e) => { if(e.target === overlay) overlay.classList.remove('open'); });
+  document.addEventListener('keydown', (e) => { if(e.key === 'Escape') overlay.classList.remove('open'); });
+
+  function novaInspecao(){ alert('Abrindo formulário de nova inspeção…'); }
+  document.getElementById('btnNovaInspecao').addEventListener('click', novaInspecao);
+  document.getElementById('btnNovaInspecaoModal').addEventListener('click', novaInspecao);
+</script>
+</body>
+</html>

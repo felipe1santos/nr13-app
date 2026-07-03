@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Forja — Cálculo PMTA / Espessura Mínima (NR13)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#14181C; --ink-soft:#1E252B;
+    --steel:#F6F5F2; --panel:#FFFFFF; --line:#E4E1D8;
+    --text:#2D3339; --muted:#7A8790;
+    --amber:#FF7A1A; --amber-deep:#D9640C;
+    --ok:#1FA971; --ok-bg:#E7F6EF;
+    --warn:#B8860B; --warn-bg:#FBF1DC;
+    --crit:#D5453D; --crit-bg:#FBEAE9;
+    --blue:#457DC1; --blue-bg:#EAF2FB; --blue-line:#C9DCF0;
+    --blue2:#0C4F9B; --blue2-bg:#E4EDF9; --blue2-line:#C4D9F0;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--steel); color:var(--text); font-family:'IBM Plex Sans',sans-serif; font-size:14px; -webkit-font-smoothing:antialiased;}
+  .mono{font-family:'IBM Plex Mono', monospace;}
+  .shell{display:flex; min-height:100vh;}
+
+  /* Sidebar */
+  .sidebar{width:242px; flex-shrink:0; background:var(--ink); color:#C9CDD2; padding:22px 16px 20px; display:flex; flex-direction:column;}
+  .brand{display:flex; align-items:center; gap:9px; padding:0 6px 20px; border-bottom:1px solid #2A3138; margin-bottom:16px;}
+  .brand-mark{width:26px;height:26px;border-radius:5px; background:linear-gradient(135deg,var(--amber),var(--amber-deep)); display:flex;align-items:center;justify-content:center; color:var(--ink); font-weight:700; font-size:13px; font-family:'Space Grotesk',sans-serif;}
+  .brand-name{color:#fff; font-weight:600; font-size:15.5px;}
+  .brand-sub{font-size:10.5px; color:#7C8792;}
+  .nav-label{font-size:10px; letter-spacing:1px; color:#5B646D; text-transform:uppercase; font-weight:600; margin:14px 10px 8px;}
+  .nav-item{display:flex; align-items:center; justify-content:space-between; padding:8px 10px; border-radius:7px; font-size:13px; color:#B7BEC5; font-weight:500; cursor:pointer; margin-bottom:1px;}
+  .nav-item:hover{background:var(--ink-soft); color:#fff;}
+  .nav-item.active{background:var(--ink-soft); color:#fff; box-shadow:inset 2px 0 0 var(--amber);}
+  .nav-count{font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:#828C96; background:#242B32; padding:1px 6px; border-radius:20px;}
+  .sidebar-foot{margin-top:auto; padding-top:14px; border-top:1px solid #2A3138; display:flex; align-items:center; gap:9px; padding-left:6px;}
+  .avatar{width:28px;height:28px;border-radius:50%; background:#3A4149; color:#E5E7E9; display:flex;align-items:center;justify-content:center; font-size:11.5px; font-weight:600;}
+  .foot-name{color:#E5E7E9; font-size:12.5px; font-weight:500;}
+  .foot-role{font-size:10.5px; color:#7C8792;}
+
+  .main{flex:1; min-width:0;}
+  .topbar{display:flex; align-items:center; justify-content:space-between; padding:16px 30px; background:var(--panel); border-bottom:1px solid var(--line);}
+  .topbar h1{font-family:'Space Grotesk',sans-serif; font-size:19px; font-weight:600; margin:0; letter-spacing:-0.2px;}
+  .topbar .path{color:var(--muted); font-size:12.5px; margin-top:2px;}
+  .top-actions{display:flex; align-items:center; gap:10px;}
+  .pill-norm{font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600; color:var(--amber-deep); background:#FFF1E6; border:1px solid #FFD9B8; padding:5px 10px; border-radius:20px;}
+
+  .content{padding:26px 30px 70px; max-width:1320px;}
+
+  .grid-2{display:grid; grid-template-columns:1fr 1.45fr; gap:18px; align-items:start;}
+
+  .panel{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;}
+  .panel-head{padding:16px 20px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; gap:12px;}
+  .eyebrow{font-size:10.5px; letter-spacing:1.1px; color:var(--muted); font-weight:600; text-transform:uppercase;}
+  .panel-head h2{font-family:'Space Grotesk',sans-serif; font-size:16px; margin:4px 0 0; font-weight:600;}
+  .tag-chip-mini{
+    font-family:'IBM Plex Mono',monospace; font-weight:700; font-size:12px; color:var(--blue);
+    background:var(--blue-bg); border:1px solid var(--blue-line); padding:5px 11px; border-radius:20px;
+  }
+
+  /* Form */
+  .form-body{padding:18px 20px 22px;}
+  .fgroup-label{font-size:10.5px; text-transform:uppercase; letter-spacing:0.6px; color:var(--muted); font-weight:600; margin:18px 0 10px;}
+  .fgroup-label:first-child{margin-top:0;}
+  .frow{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;}
+  .field{display:flex; flex-direction:column; gap:5px;}
+  .field.full{grid-column:1 / -1;}
+  .field label{font-size:12px; font-weight:600; color:var(--text);}
+  .field .hint{font-size:10.5px; color:var(--muted); font-weight:400;}
+  .field input, .field select{
+    border:1px solid var(--line); border-radius:8px; padding:9px 11px; font-size:13px;
+    font-family:'IBM Plex Mono', monospace; color:var(--text); background:var(--steel);
+  }
+  .field input:focus, .field select:focus{outline:2px solid var(--amber); outline-offset:0; border-color:var(--amber);}
+  .field input::placeholder{color:#AEB4B9; font-family:'IBM Plex Sans',sans-serif;}
+
+  .btn{border:none; border-radius:8px; font-weight:600; font-size:13px; padding:11px 18px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:7px; font-family:'IBM Plex Sans',sans-serif; width:100%;}
+  .btn-primary{background:var(--amber); color:#241505;}
+  .btn-primary:hover{background:var(--amber-deep);}
+  .btn-primary:disabled{background:#E8C7A6; cursor:not-allowed;}
+
+  /* Terminal / memorial cascade */
+  .term-wrap{display:flex; flex-direction:column; height:100%;}
+  .term-topbar{display:flex; align-items:center; gap:8px; padding:12px 16px; border-bottom:1px solid var(--line); background:#FBFAF7;}
+  .term-dot{width:9px;height:9px;border-radius:50%; background:#DCD8CC;}
+  .term-filename{font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--muted); margin-left:6px;}
+  .term-status{margin-left:auto; font-size:10.5px; font-family:'IBM Plex Mono',monospace; font-weight:600; padding:3px 9px; border-radius:20px;}
+  .term-status.idle{background:var(--steel); color:var(--muted);}
+  .term-status.running{background:var(--warn-bg); color:var(--warn);}
+  .term-status.pass{background:var(--ok-bg); color:var(--ok);}
+  .term-status.fail{background:var(--crit-bg); color:var(--crit);}
+
+  .term-body{
+    padding:20px 24px 28px; font-family:'IBM Plex Mono', monospace; font-size:12.6px; line-height:1.7;
+    min-height:460px; max-height:680px; overflow-y:auto; background:var(--panel);
+  }
+  .term-empty{color:var(--muted); font-family:'IBM Plex Sans',sans-serif; font-size:13px; padding:40px 10px; text-align:center;}
+  .term-empty .ic{font-size:26px; display:block; margin-bottom:10px;}
+
+  .tl{opacity:0; animation:tlin .25s ease forwards; white-space:pre-wrap; word-break:break-word;}
+  @keyframes tlin{from{opacity:0; transform:translateY(3px);} to{opacity:1; transform:translateY(0);}}
+  .tl.hr{color:#D9D5C8;}
+  .tl.doc-title{font-family:'Space Grotesk',sans-serif; font-size:16.5px; font-weight:700; color:var(--ink); display:block; margin-bottom:2px;}
+  .tl.doc-sub{color:var(--muted); font-size:11.5px; display:block; margin-bottom:6px;}
+  .tl.section{color:var(--ink); font-weight:600; margin-top:14px; display:block;}
+  .tl.section::before{content:'▍ '; color:var(--amber);}
+  .tl.comp-header{
+    display:block; margin-top:20px; padding:9px 12px; background:var(--blue2-bg);
+    border-left:3px solid var(--blue2); border-radius:6px; color:var(--blue2);
+    font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:13.5px; letter-spacing:0.1px;
+  }
+  .tl.comp-sub{color:var(--blue2); opacity:0.8; font-style:italic; font-size:11.5px; display:block; margin:4px 2px 6px;}
+  .tl.label{color:var(--muted);}
+  .tl.val{color:var(--text); font-weight:600;}
+  .tl.formula{color:var(--amber-deep); font-weight:500;}
+  .tl.sub{color:var(--text);}
+  .tl.comment{color:var(--muted); font-style:italic;}
+  .tl.ok{color:var(--ok); font-weight:600;}
+  .tl.bad{color:var(--crit); font-weight:600;}
+  .tl.result-pass{color:var(--ok); font-weight:700; font-size:13.5px;}
+  .tl.result-fail{color:var(--crit); font-weight:700; font-size:13.5px;}
+  .tl.prompt{color:var(--muted);}
+
+  /* fraction / formula rendering */
+  .formula-block{display:flex; align-items:center; justify-content:center; gap:9px; padding:10px 4px; flex-wrap:wrap;}
+  .fvar{font-family:'IBM Plex Mono',monospace; font-weight:700; font-size:13.5px; color:var(--ink);}
+  .feq{color:var(--muted); font-size:13.5px;}
+  .frac{display:inline-flex; flex-direction:column; align-items:center; font-family:'IBM Plex Mono',monospace; font-size:12.5px; line-height:1.4;}
+  .fnum{padding:0 7px 3px; border-bottom:1.6px solid var(--ink); white-space:nowrap;}
+  .fden{padding:3px 7px 0; white-space:nowrap;}
+  .fresult{font-weight:700; color:var(--amber-deep); font-size:14px;}
+
+  .result-banner{
+    margin:10px 0 4px; border-radius:9px; padding:11px 15px; display:block;
+    font-size:12px; line-height:1.5;
+  }
+  .result-banner.pass{background:var(--ok-bg); border:1px solid #BFE9D6; color:var(--ok);}
+  .result-banner.fail{background:var(--crit-bg); border:1px solid #F3C6C3; color:var(--crit);}
+  .result-banner b{font-weight:700;}
+
+  .final-banner{
+    margin-top:16px; border-radius:10px; padding:16px 18px; display:none; align-items:center; gap:14px;
+    opacity:0; animation:tlin .3s ease forwards;
+  }
+  .final-banner.show{display:flex;}
+  .final-banner.pass{background:var(--ok-bg); border:1px solid #BFE9D6;}
+  .final-banner.fail{background:var(--crit-bg); border:1px solid #F3C6C3;}
+  .rb-ic{font-size:22px;}
+  .rb-title{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:15px;}
+  .rb-title.pass{color:var(--ok);}
+  .rb-title.fail{color:var(--crit);}
+  .rb-sub{font-size:12px; color:var(--muted); margin-top:2px;}
+
+  @media (max-width: 1020px){ .grid-2{grid-template-columns:1fr;} }
+  @media (max-width: 780px){
+    .sidebar{display:none;} .content{padding:20px 16px 50px;} .topbar{padding:14px 16px;}
+    .frow{grid-template-columns:1fr;}
+  }
+  a:focus-visible, .nav-item:focus-visible, .btn:focus-visible{outline:2px solid var(--amber); outline-offset:2px;}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">Fj</div>
+      <div><div class="brand-name">Forja</div><div class="brand-sub">Engenharia &amp; Ativos</div></div>
+    </div>
+    <div class="nav-label">Visão geral</div>
+    <div class="nav-item"><span>Painel</span></div>
+    <div class="nav-item"><span>Vencimentos &amp; inspeções</span><span class="nav-count">32</span></div>
+    <div class="nav-item"><span>Equipamentos</span><span class="nav-count">1.248</span></div>
+    <div class="nav-label">Engenharia</div>
+    <div class="nav-item active"><span>Cálculo PMTA / NR13</span></div>
+    <div class="nav-item"><span>Memoriais salvos</span><span class="nav-count">86</span></div>
+    <div class="sidebar-foot">
+      <div class="avatar">RM</div>
+      <div><div class="foot-name">Eng. Rafael Martins</div><div class="foot-role">Administrador</div></div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <h1>Cálculo de PMTA e espessura mínima</h1>
+        <div class="path">Engenharia / Memorial de cálculo</div>
+      </div>
+      <div class="top-actions">
+        <span class="pill-norm">NR13 · ASME VIII Div.1</span>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="grid-2">
+
+        <!-- FORM -->
+        <div class="panel">
+          <div class="panel-head">
+            <div><div class="eyebrow">Dados de entrada</div><h2>Parâmetros do equipamento</h2></div>
+            <span class="tag-chip-mini" id="tagPreview">TAG: VASO A23</span>
+          </div>
+          <div class="form-body">
+
+            <div class="fgroup-label">Identificação</div>
+            <div class="frow">
+              <div class="field"><label>Tag do equipamento</label><input type="text" id="fTag" placeholder="Ex: VP-03" value="VASO A23"></div>
+              <div class="field">
+                <label>Tipo de tampo</label>
+                <select id="fTampo">
+                  <option value="elliptical" selected>Elíptico 2:1</option>
+                  <option value="torispherical">Toriesférico</option>
+                  <option value="hemispherical">Hemisférico</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="fgroup-label">Condições de projeto</div>
+            <div class="frow">
+              <div class="field">
+                <label>Pressão de projeto (P)</label>
+                <input type="number" step="0.01" id="fP" placeholder="Ex: 1.72" value="1.5">
+                <span class="hint">em MPa · 1 kgf/cm² ≈ 0,0981 MPa</span>
+              </div>
+              <div class="field">
+                <label>Temperatura de projeto (T)</label>
+                <input type="number" step="1" id="fT" placeholder="Ex: 180" value="100">
+                <span class="hint">em °C</span>
+              </div>
+            </div>
+
+            <div class="fgroup-label">Geometria</div>
+            <div class="frow">
+              <div class="field full">
+                <label>Diâmetro interno (D)</label>
+                <input type="number" step="1" id="fD" placeholder="Ex: 1200" value="1000">
+                <span class="hint">em mm — usado no casco e no tampo</span>
+              </div>
+            </div>
+
+            <div class="fgroup-label">Material e junta</div>
+            <div class="frow">
+              <div class="field">
+                <label>Material do casco/tampo</label>
+                <select id="fMaterial">
+                  <option value="SA516-70" data-base="138" selected>SA-516 Gr.70</option>
+                  <option value="SA516-60" data-base="129">SA-516 Gr.60</option>
+                  <option value="SA283-C" data-base="92">SA-283 Gr.C</option>
+                  <option value="SA106-B" data-base="118">SA-106 Gr.B (tubo)</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Eficiência de junta (E)</label>
+                <select id="fE">
+                  <option value="1.0">1,00 — Radiografia total</option>
+                  <option value="0.85" selected>0,85 — Radiografia parcial</option>
+                  <option value="0.7">0,70 — Sem radiografia</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="fgroup-label">Espessuras</div>
+            <div class="frow">
+              <div class="field">
+                <label>Sobrespessura de corrosão (C.A.)</label>
+                <input type="number" step="0.1" id="fCA" placeholder="Ex: 3.0" value="1.5">
+                <span class="hint">em mm</span>
+              </div>
+              <div class="field">
+                <label>Espessura nominal medida (t)</label>
+                <input type="number" step="0.01" id="fTnom" placeholder="Ex: 12.5" value="10">
+                <span class="hint">em mm — aplicada ao casco e ao tampo</span>
+              </div>
+            </div>
+
+            <button class="btn btn-primary" id="btnGerar" style="margin-top:6px;">▸ Gerar memorial de cálculo</button>
+          </div>
+        </div>
+
+        <!-- TERMINAL / MEMORIAL -->
+        <div class="panel">
+          <div class="term-wrap">
+            <div class="term-topbar">
+              <span class="term-dot"></span><span class="term-dot"></span><span class="term-dot"></span>
+              <span class="term-filename">memorial_calculo_nr13.log</span>
+              <span class="term-status idle" id="termStatus">aguardando</span>
+            </div>
+            <div class="term-body" id="termBody">
+              <div class="term-empty" id="termEmpty">
+                <span class="ic">🧮</span>
+                Preencha os dados ao lado e clique em<br><b>"Gerar memorial de cálculo"</b> para ver o passo a passo.
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const materials = {
+  'SA516-70': 'SA-516 Gr.70',
+  'SA516-60': 'SA-516 Gr.60',
+  'SA283-C' : 'SA-283 Gr.C',
+  'SA106-B' : 'SA-106 Gr.B (tubo)'
+};
+const tampoNames = {
+  elliptical:'Tampo Elíptico 2:1',
+  torispherical:'Tampo Toriesférico',
+  hemispherical:'Tampo Hemisférico'
+};
+const tampoNorma = {
+  elliptical:'ASME Sec. VIII Div.1 — Parágrafo UG-32(d) — Tampo Elíptico 2:1',
+  torispherical:'ASME Sec. VIII Div.1 — Parágrafo UG-32(e) — Tampo Toriesférico',
+  hemispherical:'ASME Sec. VIII Div.1 — Parágrafo UG-32(f) — Tampo Hemisférico'
+};
+
+function deratingFactor(T){
+  if(T <= 200) return 1.00;
+  if(T <= 300) return 0.93;
+  if(T <= 400) return 0.85;
+  return 0.70;
+}
+function fmt(n, d=2){ return Number(n).toFixed(d).replace('.', ','); }
+
+function frac(numHtml, denHtml){
+  return `<span class="frac"><span class="fnum">${numHtml}</span><span class="fden">${denHtml}</span></span>`;
+}
+function formulaLine(label, numHtml, denHtml){
+  return `<div class="formula-block"><span class="fvar">${label}</span><span class="feq">=</span>${frac(numHtml, denHtml)}</div>`;
+}
+function resultLine(label, value, unit){
+  return `<div class="formula-block"><span class="fvar">${label}</span><span class="feq">=</span><span class="fresult">${value} ${unit}</span></div>`;
+}
+
+function buildLines(){
+  const tag = document.getElementById('fTag').value.trim() || 'SEM-TAG';
+  const tampoTipo = document.getElementById('fTampo').value;
+  const P = parseFloat(document.getElementById('fP').value);
+  const T = parseFloat(document.getElementById('fT').value);
+  const D = parseFloat(document.getElementById('fD').value);
+  const matSel = document.getElementById('fMaterial');
+  const matKey = matSel.value;
+  const base = parseFloat(matSel.selectedOptions[0].dataset.base);
+  const E = parseFloat(document.getElementById('fE').value);
+  const CA = parseFloat(document.getElementById('fCA').value);
+  const tnom = parseFloat(document.getElementById('fTnom').value);
+
+  if([P,T,D,base,E,CA,tnom].some(v => isNaN(v))){
+    return {error:true};
+  }
+
+  const R = D/2;
+  const factor = deratingFactor(T);
+  const S = base*factor;
+  const tutil = tnom - CA;
+
+  const lines = [];
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+
+  lines.push({t:`Memorial de Cálculo — TAG: ${tag}`, c:'doc-title'});
+  lines.push({t:`Gerado em ${dateStr} · Material ${materials[matKey]} · NR-13 / ASME VIII Div.1`, c:'doc-sub'});
+  lines.push({t:'──────────────────────────────────────────────────', c:'hr'});
+  lines.push({t:'PARÂMETROS GERAIS DE ENTRADA', c:'section'});
+  lines.push({t:`  P     = ${fmt(P)} MPa   (Pressão de Projeto estipulada)`, c:'sub'});
+  lines.push({t:`  T     = ${fmt(T,0)} °C   (Temperatura de Projeto do elemento)`, c:'sub'});
+  lines.push({t:`  D     = ${fmt(D,1)} mm   (Diâmetro Interno livre do equipamento)`, c:'sub'});
+  lines.push({t:`  R     = ${fmt(R,1)} mm   (Raio Interno do equipamento)`, c:'sub'});
+  lines.push({t:`  S     = ${fmt(S)} MPa   (Tensão Máxima Admissível — ${materials[matKey]} @ ${fmt(T,0)}°C)`, c:'sub'});
+  lines.push({t:`  E     = ${fmt(E,2)}   (Eficiência de Junta da Solda / Grau de Raio-X)`, c:'sub'});
+  lines.push({t:`  Tnom  = ${fmt(tnom,2)} mm   (Espessura nominal / medida atual)`, c:'sub'});
+  lines.push({t:`  C.A.  = ${fmt(CA,1)} mm   (Margem de corrosão definida para desgaste)`, c:'sub'});
+  lines.push({t:'──────────────────────────────────────────────────', c:'hr'});
+  lines.push({t:`  Tútil = Tnom − C.A. = ${fmt(tnom,2)} − ${fmt(CA,1)} = ${fmt(tutil,2)} mm   (Espessura útil que resistirá à pressão)`, c:'comment'});
+
+  // ===== CASCO CILÍNDRICO =====
+  lines.push({t:'MEMORIAL DE CÁLCULO: CASCO CILÍNDRICO (UG-27c)', c:'comp-header'});
+  lines.push({t:'Norma Base: ASME Sec. VIII Div.1 — Parágrafo UG-27(c) — Tensão Circunferencial', c:'comp-sub'});
+
+  lines.push({t:'1. ESPESSURA MÍNIMA REQUERIDA (t_req)', c:'section'});
+  lines.push({t: formulaLine('t_req', 'P · R', 'S · E − 0,6 · P'), c:'sub', html:true});
+  const casco_treq_num = P*R, casco_treq_den = (S*E)-(0.6*P);
+  const casco_treq = casco_treq_num/casco_treq_den;
+  lines.push({t: formulaLine('t_req', `${fmt(P)} · ${fmt(R,1)}`, `${fmt(S)} · ${fmt(E,2)} − 0,6 · ${fmt(P)}`), c:'sub', html:true});
+  lines.push({t: resultLine('t_req', fmt(casco_treq,4), 'mm'), c:'ok', html:true});
+
+  lines.push({t:'2. CÁLCULO DA PRESSÃO MÁXIMA DE TRABALHO ADMISSÍVEL (PMTA)', c:'section'});
+  lines.push({t:'Observação da Norma: o cálculo da PMTA utiliza a Espessura Útil (Tnom − C.A. = Tútil) e não a Espessura Requerida.', c:'comment'});
+  lines.push({t: formulaLine('PMTA', 'S · E · Tútil', 'R + 0,6 · Tútil'), c:'sub', html:true});
+  const casco_pnum = S*E*tutil, casco_pden = R + 0.6*tutil;
+  const pmta_casco = casco_pnum/casco_pden;
+  lines.push({t: formulaLine('PMTA', `${fmt(S)} · ${fmt(E,2)} · ${fmt(tutil,2)}`, `${fmt(R,1)} + 0,6(${fmt(tutil,2)})`), c:'sub', html:true});
+  lines.push({t: resultLine('PMTA', fmt(pmta_casco,4), 'MPa'), c:'ok', html:true});
+
+  const casco_okT = tnom >= casco_treq;
+  const casco_okP = pmta_casco >= P;
+  const casco_ok = casco_okT && casco_okP;
+  lines.push({
+    t:`<b>STATUS:</b> ${casco_ok ? 'APROVADO' : 'REPROVADO'}. A PMTA calculada ( ${fmt(pmta_casco,4)} MPa ) ${casco_okP ? 'atende' : 'não atende'} à Pressão de Projeto ( ${fmt(P)} MPa ).`,
+    c: casco_ok ? 'banner-pass' : 'banner-fail', html:true
+  });
+
+  // ===== TAMPO =====
+  lines.push({t:`MEMORIAL DE CÁLCULO: ${tampoNames[tampoTipo].toUpperCase()}`, c:'comp-header'});
+  lines.push({t:`Norma Base: ${tampoNorma[tampoTipo]}`, c:'comp-sub'});
+
+  let treq, pmta_tampo;
+  if(tampoTipo === 'elliptical'){
+    treq = (P*D) / ((2*S*E) - (0.2*P));
+    lines.push({t:'1. CÁLCULO DA ESPESSURA MÍNIMA REQUERIDA (t_req)', c:'section'});
+    lines.push({t: formulaLine('t_req', 'P · D', '2 · S · E − 0,2 · P'), c:'sub', html:true});
+    lines.push({t: formulaLine('t_req', `${fmt(P)} · ${fmt(D,1)}`, `2 · ${fmt(S)} · ${fmt(E,2)} − 0,2 · ${fmt(P)}`), c:'sub', html:true});
+    lines.push({t: resultLine('t_req', fmt(treq,4), 'mm'), c:'ok', html:true});
+
+    pmta_tampo = (2*S*E*tutil) / (D + 0.2*tutil);
+    lines.push({t:'2. CÁLCULO DA PMTA DO TAMPO', c:'section'});
+    lines.push({t: formulaLine('PMTA', '2 · S · E · Tútil', 'D + 0,2 · Tútil'), c:'sub', html:true});
+    lines.push({t: formulaLine('PMTA', `2 · ${fmt(S)} · ${fmt(E,2)} · ${fmt(tutil,2)}`, `${fmt(D,1)} + 0,2(${fmt(tutil,2)})`), c:'sub', html:true});
+    lines.push({t: resultLine('PMTA', fmt(pmta_tampo,4), 'MPa'), c:'ok', html:true});
+  } else if(tampoTipo === 'torispherical'){
+    const L = D;
+    treq = (0.885*P*L) / ((S*E) - (0.1*P));
+    lines.push({t:'1. CÁLCULO DA ESPESSURA MÍNIMA REQUERIDA (t_req)  [L = D]', c:'section'});
+    lines.push({t: formulaLine('t_req', '0,885 · P · L', 'S · E − 0,1 · P'), c:'sub', html:true});
+    lines.push({t: formulaLine('t_req', `0,885 · ${fmt(P)} · ${fmt(L,1)}`, `${fmt(S)} · ${fmt(E,2)} − 0,1 · ${fmt(P)}`), c:'sub', html:true});
+    lines.push({t: resultLine('t_req', fmt(treq,4), 'mm'), c:'ok', html:true});
+
+    pmta_tampo = (S*E*tutil) / (0.885*L + 0.1*tutil);
+    lines.push({t:'2. CÁLCULO DA PMTA DO TAMPO', c:'section'});
+    lines.push({t: formulaLine('PMTA', 'S · E · Tútil', '0,885 · L + 0,1 · Tútil'), c:'sub', html:true});
+    lines.push({t: formulaLine('PMTA', `${fmt(S)} · ${fmt(E,2)} · ${fmt(tutil,2)}`, `0,885(${fmt(L,1)}) + 0,1(${fmt(tutil,2)})`), c:'sub', html:true});
+    lines.push({t: resultLine('PMTA', fmt(pmta_tampo,4), 'MPa'), c:'ok', html:true});
+  } else {
+    treq = (P*R) / ((2*S*E) - (0.2*P));
+    lines.push({t:'1. CÁLCULO DA ESPESSURA MÍNIMA REQUERIDA (t_req)', c:'section'});
+    lines.push({t: formulaLine('t_req', 'P · R', '2 · S · E − 0,2 · P'), c:'sub', html:true});
+    lines.push({t: formulaLine('t_req', `${fmt(P)} · ${fmt(R,1)}`, `2 · ${fmt(S)} · ${fmt(E,2)} − 0,2 · ${fmt(P)}`), c:'sub', html:true});
+    lines.push({t: resultLine('t_req', fmt(treq,4), 'mm'), c:'ok', html:true});
+
+    pmta_tampo = (2*S*E*tutil) / (R + 0.2*tutil);
+    lines.push({t:'2. CÁLCULO DA PMTA DO TAMPO', c:'section'});
+    lines.push({t: formulaLine('PMTA', '2 · S · E · Tútil', 'R + 0,2 · Tútil'), c:'sub', html:true});
+    lines.push({t: formulaLine('PMTA', `2 · ${fmt(S)} · ${fmt(E,2)} · ${fmt(tutil,2)}`, `${fmt(R,1)} + 0,2(${fmt(tutil,2)})`), c:'sub', html:true});
+    lines.push({t: resultLine('PMTA', fmt(pmta_tampo,4), 'MPa'), c:'ok', html:true});
+  }
+
+  const tampo_okT = tnom >= treq;
+  const tampo_okP = pmta_tampo >= P;
+  const tampo_ok = tampo_okT && tampo_okP;
+  lines.push({
+    t:`<b>STATUS:</b> ${tampo_ok ? 'APROVADO' : 'REPROVADO'}. A PMTA calculada ( ${fmt(pmta_tampo,4)} MPa ) ${tampo_okP ? 'atende' : 'não atende'} à Pressão de Projeto ( ${fmt(P)} MPa ).`,
+    c: tampo_ok ? 'banner-pass' : 'banner-fail', html:true
+  });
+
+  // ===== VEREDITO FINAL =====
+  const pmtaFinal = Math.min(pmta_casco, pmta_tampo);
+  const governCasco = pmtaFinal === pmta_casco;
+  const aprovado = casco_ok && tampo_ok;
+
+  lines.push({t:'──────────────────────────────────────────────────', c:'hr'});
+  lines.push({t:'3. VEREDITO FINAL DO EQUIPAMENTO', c:'section'});
+  lines.push({t:`  PMTA do equipamento = mín ( PMTA casco ; PMTA tampo ) = mín ( ${fmt(pmta_casco,4)} ; ${fmt(pmta_tampo,4)} ) = ${fmt(pmtaFinal,4)} MPa`, c:'sub'});
+  lines.push({t:`  Componente governante: ${governCasco ? 'Casco cilíndrico' : tampoNames[tampoTipo]}`, c:'comment'});
+  lines.push({t:`  ${casco_okT ? '✓' : '✗'} Espessura casco: Tnom (${fmt(tnom,2)} mm) ${casco_okT ? '≥' : '<'} t_req casco (${fmt(casco_treq,2)} mm)`, c: casco_okT ? 'ok':'bad'});
+  lines.push({t:`  ${tampo_okT ? '✓' : '✗'} Espessura tampo: Tnom (${fmt(tnom,2)} mm) ${tampo_okT ? '≥' : '<'} t_req tampo (${fmt(treq,2)} mm)`, c: tampo_okT ? 'ok':'bad'});
+  lines.push({t:`  ${pmtaFinal >= P ? '✓' : '✗'} PMTA do equipamento (${fmt(pmtaFinal,4)} MPa) ${pmtaFinal >= P ? '≥' : '<'} P projeto (${fmt(P)} MPa)`, c: pmtaFinal>=P ? 'ok':'bad'});
+  lines.push({t:'──────────────────────────────────────────────────', c:'hr'});
+  lines.push({t: aprovado ? '  RESULTADO: ▓▓ EQUIPAMENTO APROVADO ▓▓' : '  RESULTADO: ▓▓ EQUIPAMENTO REPROVADO ▓▓', c: aprovado ? 'result-pass' : 'result-fail'});
+  lines.push({t: aprovado
+      ? `  Equipamento apto a operar em P = ${fmt(P)} MPa conforme NR13 / ASME VIII Div.1`
+      : `  Equipamento NÃO apto a operar em P = ${fmt(P)} MPa — reavaliar espessura, MOC ou reduzir PMTA`,
+    c:'comment'});
+  lines.push({t:'$ memorial_finalizado ✓', c:'prompt'});
+
+  return {error:false, lines, aprovado, pmtaFinal, tag, P, treqCasco: casco_treq, treqTampo: treq};
+}
+
+function typeLines(lines, onDone, instant){
+  const body = document.getElementById('termBody');
+  document.getElementById('termEmpty')?.remove();
+  body.innerHTML = '';
+  let i = 0;
+  function next(){
+    if(i >= lines.length){ onDone(); return; }
+    const ln = lines[i];
+    let div;
+    if(ln.c === 'banner-pass' || ln.c === 'banner-fail'){
+      div = document.createElement('div');
+      div.className = 'tl result-banner ' + (ln.c === 'banner-pass' ? 'pass' : 'fail');
+      div.innerHTML = ln.t;
+    } else {
+      div = document.createElement('div');
+      div.className = 'tl ' + ln.c;
+      if(ln.html){ div.innerHTML = ln.t; } else { div.textContent = ln.t; }
+    }
+    body.appendChild(div);
+    body.scrollTop = body.scrollHeight;
+    i++;
+    if(instant){ next(); return; }
+    const delay = ln.c === 'hr' ? 50 : (ln.c === 'comp-header' ? 180 : (ln.html ? 90 : 45));
+    setTimeout(next, delay);
+  }
+  next();
+}
+
+function gerar(instant){
+  const btn = document.getElementById('btnGerar');
+  const status = document.getElementById('termStatus');
+  const data = buildLines();
+
+  document.querySelectorAll('.final-banner').forEach(b => b.remove());
+
+  if(data.error){
+    const body = document.getElementById('termBody');
+    body.innerHTML = '<div class="term-empty"><span class="ic">⚠</span>Preencha todos os campos numéricos para gerar o memorial.</div>';
+    status.className = 'term-status idle';
+    status.textContent = 'aguardando';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '▸ Calculando…';
+  status.className = 'term-status running';
+  status.textContent = 'calculando';
+
+  typeLines(data.lines, () => {
+    btn.disabled = false;
+    btn.textContent = '▸ Gerar memorial de cálculo';
+    status.className = 'term-status ' + (data.aprovado ? 'pass' : 'fail');
+    status.textContent = data.aprovado ? 'aprovado' : 'reprovado';
+
+    const banner = document.createElement('div');
+    banner.className = 'final-banner show ' + (data.aprovado ? 'pass' : 'fail');
+    banner.innerHTML = `
+      <div class="rb-ic">${data.aprovado ? '✅' : '⛔'}</div>
+      <div>
+        <div class="rb-title ${data.aprovado ? 'pass' : 'fail'}">${data.aprovado ? 'Equipamento APROVADO' : 'Equipamento REPROVADO'}</div>
+        <div class="rb-sub">${data.tag} · PMTA do equipamento ${fmt(data.pmtaFinal,3)} MPa</div>
+      </div>`;
+    document.getElementById('termBody').after(banner);
+  }, instant);
+}
+
+document.getElementById('btnGerar').addEventListener('click', () => gerar(false));
+
+document.getElementById('fTag').addEventListener('input', (e) => {
+  document.getElementById('tagPreview').textContent = 'TAG: ' + (e.target.value.trim() || '—');
+});
+
+// Gera automaticamente um exemplo ao carregar a página
+window.addEventListener('DOMContentLoaded', () => { gerar(true); });
+</script>
+</body>
+</html>

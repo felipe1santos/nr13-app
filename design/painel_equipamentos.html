@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Forja — Equipamentos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#14181C; --ink-soft:#1E252B;
+    --steel:#F6F5F2; --panel:#FFFFFF; --line:#E4E1D8;
+    --text:#2D3339; --muted:#7A8790;
+    --amber:#FF7A1A; --amber-deep:#D9640C;
+    --ok:#1FA971; --ok-bg:#E7F6EF;
+    --warn:#B8860B; --warn-bg:#FBF1DC;
+    --crit:#D5453D; --crit-bg:#FBEAE9;
+    --purple:#7C5CFC; --purple-bg:#F1EDFF;
+    --blue:#3B82C4; --blue-bg:#E8F1FA;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--steel); color:var(--text); font-family:'IBM Plex Sans',sans-serif; font-size:14px; -webkit-font-smoothing:antialiased;}
+  .mono{font-family:'IBM Plex Mono', monospace;}
+  .shell{display:flex; min-height:100vh;}
+
+  /* Sidebar */
+  .sidebar{width:242px; flex-shrink:0; background:var(--ink); color:#C9CDD2; padding:22px 16px 20px; display:flex; flex-direction:column;}
+  .brand{display:flex; align-items:center; gap:9px; padding:0 6px 20px; border-bottom:1px solid #2A3138; margin-bottom:16px;}
+  .brand-mark{width:26px;height:26px;border-radius:5px; background:linear-gradient(135deg,var(--amber),var(--amber-deep)); display:flex;align-items:center;justify-content:center; color:var(--ink); font-weight:700; font-size:13px; font-family:'Space Grotesk',sans-serif;}
+  .brand-name{color:#fff; font-weight:600; font-size:15.5px;}
+  .brand-sub{font-size:10.5px; color:#7C8792;}
+  .nav-label{font-size:10px; letter-spacing:1px; color:#5B646D; text-transform:uppercase; font-weight:600; margin:14px 10px 8px;}
+  .nav-item{display:flex; align-items:center; justify-content:space-between; padding:8px 10px; border-radius:7px; font-size:13px; color:#B7BEC5; font-weight:500; cursor:pointer; margin-bottom:1px;}
+  .nav-item:hover{background:var(--ink-soft); color:#fff;}
+  .nav-item.active{background:var(--ink-soft); color:#fff; box-shadow:inset 2px 0 0 var(--amber);}
+  .nav-count{font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:#828C96; background:#242B32; padding:1px 6px; border-radius:20px;}
+  .nav-item.active .nav-count{color:var(--amber); background:#2E2620;}
+  .sidebar-foot{margin-top:auto; padding-top:14px; border-top:1px solid #2A3138; display:flex; align-items:center; gap:9px; padding-left:6px;}
+  .avatar{width:28px;height:28px;border-radius:50%; background:#3A4149; color:#E5E7E9; display:flex;align-items:center;justify-content:center; font-size:11.5px; font-weight:600;}
+  .foot-name{color:#E5E7E9; font-size:12.5px; font-weight:500;}
+  .foot-role{font-size:10.5px; color:#7C8792;}
+
+  /* Main */
+  .main{flex:1; min-width:0;}
+  .topbar{display:flex; align-items:center; justify-content:space-between; padding:16px 30px; background:var(--panel); border-bottom:1px solid var(--line); gap:20px;}
+  .topbar h1{font-family:'Space Grotesk',sans-serif; font-size:19px; font-weight:600; margin:0; letter-spacing:-0.2px;}
+  .topbar .path{color:var(--muted); font-size:12.5px; margin-top:2px;}
+  .top-actions{display:flex; align-items:center; gap:14px; flex-shrink:0;}
+  .btn{border:none; border-radius:8px; font-weight:600; font-size:12.5px; padding:9px 15px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; font-family:'IBM Plex Sans',sans-serif;}
+  .btn-primary{background:var(--amber); color:#241505;}
+  .btn-primary:hover{background:var(--amber-deep);}
+  .btn-ghost{background:transparent; color:var(--text); border:1px solid var(--line);}
+  .btn-ghost:hover{background:var(--steel);}
+
+  .content{padding:26px 30px 60px; max-width:1400px;}
+
+  .page-head{display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:18px; gap:16px; flex-wrap:wrap;}
+  .page-head .sub{color:var(--muted); font-size:12.5px; margin-top:3px;}
+
+  .toolbar{
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:14px 16px;
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:16px;
+  }
+  .search-box{display:flex; align-items:center; gap:8px; background:var(--steel); border:1px solid var(--line); border-radius:8px; padding:8px 12px; min-width:220px; flex:1;}
+  .search-box input{border:none; background:transparent; outline:none; font-size:13px; color:var(--text); width:100%; font-family:'IBM Plex Sans',sans-serif;}
+  .search-box input::placeholder{color:#AEB4B9;}
+  .fselect{border:1px solid var(--line); background:var(--steel); border-radius:8px; padding:8px 12px; font-size:12.5px; color:var(--text); font-weight:500; cursor:pointer;}
+  .fselect:focus{outline:2px solid var(--amber); outline-offset:0;}
+  .clear-link{font-size:12px; color:var(--amber-deep); font-weight:600; cursor:pointer; white-space:nowrap; padding:8px 4px;}
+  .clear-link:hover{text-decoration:underline;}
+  .result-count{font-size:12px; color:var(--muted); margin-bottom:14px;}
+
+  .grid{display:grid; grid-template-columns:repeat(3,1fr); gap:18px;}
+  @media (max-width:1180px){ .grid{grid-template-columns:repeat(2,1fr);} }
+  @media (max-width:720px){ .grid{grid-template-columns:1fr;} .sidebar{display:none;} .content{padding:20px 16px 50px;} .topbar{padding:14px 16px;} }
+
+  .plate-card{background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden; transition:box-shadow .15s ease, transform .15s ease;}
+  .plate-card:hover{box-shadow:0 10px 26px rgba(20,24,28,.08); transform:translateY(-2px);}
+
+  .photo{
+    height:180px; position:relative; display:flex; align-items:center; justify-content:center;
+    background:#EFEDE6; border-bottom:1px solid var(--line); overflow:hidden;
+  }
+  .photo img, .photo svg.equip-illustration{max-width:84%; max-height:84%; object-fit:contain;}
+  .photo-empty{color:#A9A296; font-size:12.5px; font-weight:500;}
+  .tag-chip{
+    position:absolute; top:11px; left:11px; background:rgba(20,24,28,0.85); color:#F0EDE6;
+    padding:4px 10px; border-radius:20px; font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:11px; letter-spacing:0.4px;
+  }
+
+  .plate-body{padding:15px 16px 16px;}
+  .uom-row{display:flex; align-items:center; justify-content:space-between; margin-bottom:11px;}
+  .uom-label{font-size:9.5px; letter-spacing:0.6px; color:var(--muted); font-weight:600; text-transform:uppercase;}
+  .uom-value{background:#FFF1E6; color:var(--amber-deep); font-size:11px; font-weight:700; padding:3px 9px; border-radius:20px;}
+
+  .equip-name{font-family:'Space Grotesk',sans-serif; font-size:16px; font-weight:700; margin-bottom:2px;}
+  .equip-empresa{font-size:11.5px; color:var(--muted); margin-bottom:13px;}
+
+  .meta-grid{display:grid; grid-template-columns:1fr 1fr; gap:9px 14px; margin-bottom:13px; padding-top:11px; border-top:1px dashed var(--line);}
+  .meta-k{font-size:9.5px; text-transform:uppercase; letter-spacing:0.5px; color:var(--muted); font-weight:600;}
+  .meta-v{font-family:'IBM Plex Mono',monospace; font-size:12.5px; color:var(--text); margin-top:2px; font-weight:600;}
+  .meta-v.dash{color:#C9C5B8; font-weight:400;}
+  .meta-v.pass{color:var(--ok);}
+  .meta-v.fail{color:var(--crit);}
+
+  .life-block{margin-bottom:13px;}
+  .life-top{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:6px;}
+  .life-label{font-size:9.5px; letter-spacing:0.5px; color:var(--muted); font-weight:600; text-transform:uppercase;}
+  .life-val{font-family:'IBM Plex Mono',monospace; font-size:11.5px; font-weight:700;}
+  .life-track{height:6px; border-radius:6px; background:var(--steel); overflow:hidden;}
+  .life-fill{height:100%; border-radius:6px;}
+
+  .plate-foot{display:flex; align-items:center; justify-content:space-between; gap:10px;}
+  .type-badge{font-size:10px; font-weight:700; letter-spacing:0.3px; padding:5px 10px; border-radius:7px; text-transform:uppercase;}
+  .btn-acessar{background:var(--steel); border:1px solid var(--line); border-radius:8px; padding:7px 13px; font-size:11.5px; font-weight:600; color:var(--amber-deep); cursor:pointer; white-space:nowrap;}
+  .btn-acessar:hover{background:#FFF1E6;}
+
+  .empty-state{grid-column:1/-1; text-align:center; padding:60px 20px; color:var(--muted);}
+  .empty-state .ic{font-size:28px; display:block; margin-bottom:10px;}
+
+  a:focus-visible, .nav-item:focus-visible, .btn:focus-visible{outline:2px solid var(--amber); outline-offset:2px;}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">Fj</div>
+      <div><div class="brand-name">Forja</div><div class="brand-sub">Engenharia &amp; Ativos</div></div>
+    </div>
+    <div class="nav-label">Visão geral</div>
+    <div class="nav-item"><span>Painel</span></div>
+    <div class="nav-item"><span>Vencimentos &amp; inspeções</span><span class="nav-count">32</span></div>
+    <div class="nav-item active"><span>Equipamentos</span><span class="nav-count">1.248</span></div>
+    <div class="nav-label">Engenharia</div>
+    <div class="nav-item"><span>Cálculo PMTA / NR13</span></div>
+    <div class="nav-item"><span>Memoriais salvos</span><span class="nav-count">86</span></div>
+    <div class="sidebar-foot">
+      <div class="avatar">RM</div>
+      <div><div class="foot-name">Eng. Rafael Martins</div><div class="foot-role">Administrador</div></div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <h1>Equipamentos</h1>
+        <div class="path">Cadastro geral de ativos sob NR13</div>
+      </div>
+      <div class="top-actions">
+        <button class="btn btn-ghost">Exportar</button>
+        <button class="btn btn-primary">+ Criar equipamento</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <div class="page-head">
+        <div class="sub" id="subCount">1.248 equipamentos cadastrados</div>
+      </div>
+
+      <div class="toolbar">
+        <div class="search-box">
+          🔍 <input type="text" id="fSearch" placeholder="Buscar por tag ou nome do equipamento…">
+        </div>
+        <select class="fselect" id="fEmpresa">
+          <option value="">Empresa · Todas</option>
+          <option>Petroquímica Sul</option>
+          <option>Vale Mineração</option>
+          <option>Metalúrgica Aço Forte</option>
+        </select>
+        <select class="fselect" id="fTipo">
+          <option value="">Tipo · Todos</option>
+          <option>Caldeira</option>
+          <option>Vaso de Pressão</option>
+          <option>Tubulação</option>
+        </select>
+        <select class="fselect" id="fCategoria">
+          <option value="">Categoria · Todas</option>
+          <option>I</option><option>II</option><option>III</option><option>IV</option>
+        </select>
+        <select class="fselect" id="fResultado">
+          <option value="">Resultado · Todos</option>
+          <option>Aprovado</option>
+          <option>Reprovado</option>
+          <option>Pendente</option>
+        </select>
+        <span class="clear-link" id="clearFilters">Limpar filtros</span>
+      </div>
+
+      <div class="result-count" id="resultCount">8 de 8 equipamentos</div>
+
+      <div class="grid" id="grid">
+
+        <!-- CARD 1 -->
+        <div class="plate-card" data-name="Caldeira (aquatubular) CF-01" data-empresa="Petroquímica Sul" data-tipo="Caldeira" data-categoria="" data-resultado="Reprovado">
+          <div class="photo"><span class="tag-chip">CF-01</span><span class="photo-empty">Sem foto</span></div>
+          <div class="plate-body">
+            <div class="uom-row"><span class="uom-label">Unidade de medida</span><span class="uom-value">SI (MPa)</span></div>
+            <div class="equip-name">Caldeira (aquatubular)</div>
+            <div class="equip-empresa">Petroquímica Sul · Unidade Vitória</div>
+            <div class="meta-grid">
+              <div><div class="meta-k">PMTA</div><div class="meta-v">2,71 MPa</div></div>
+              <div><div class="meta-k">Categoria</div><div class="meta-v dash">—</div></div>
+              <div><div class="meta-k">Volume</div><div class="meta-v dash">—</div></div>
+              <div><div class="meta-k">Fluido</div><div class="meta-v dash">—</div></div>
+              <div><div class="meta-k">PTH (1,3×)</div><div class="meta-v">4,06 MPa</div></div>
+              <div><div class="meta-k">Resultado</div><div class="meta-v fail">Reprovado</div></div>
+            </div>
+            <div class="life-block">
+              <div class="life-top"><span class="life-label">Vida remanescente</span><span class="life-val" style="color:var(--crit);">2,1 anos · 18%</span></div>
+              <div class="life-track"><div class="life-fill" style="width:18%; background:var(--crit);"></div></div>
+            </div>
+            <div class="plate-foot">
+              <span class="type-badge" style="background:var(--crit-bg); color:var(--crit);">Caldeira (aquatubular)</span>
+              <button class="btn-acessar">Acessar →</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- CARD 2 -->
+        <div class="plate-card" data-name="Caldeira CF-02" data-empresa="Petroquímica Sul" data-tipo="Caldeira" data-categoria="" data-resultado="Pendente">
+          <div class="photo"><span class="tag-chip">CF-02</span><span class="photo-empty">Sem foto</span></div>
+          <div class="plate-body">
+            <div class="uom-row"><span class="uom-label">Unidade de medida</span><span class="uom-value">SI (MPa)</span></div>
+            <div class="equip-name">Caldeira</div>
+            <div class="equip-empresa">Petroquímica Sul · Unidade Vitória</div>
+            <div class="meta-grid">
+              <div><div class="meta-k">PMTA</div><div class="meta-v dash">—</div></div>
+              <div><div class="meta-k">Categoria</div><div class="meta-v dash">—</div></div>
+              <div><div class="meta-k">Volume</div><div class="meta-v dash">—</div></div>
+              <div><div class="meta-k">Fluido</div><div class="meta-v dash">—</div></div>
+              <div><div class="meta-k">PTH (1,3×)</div><div class="meta-v dash">—</div></div>
+              <div><div class="meta-k">Resultado</div><div class="meta-v dash">Pendente</div></div>
+            </div>
+            <div class="life-block">
+              <div class="life-top"><span class="life-label">Vida remanescente</span><span class="life-val" style="color:#AEB4B9;">Não calculado</span></div>
+              <div class="life-track"><div class="life-fill" style="width:0%; background:#AEB4B9;"></div></div>
+            </div>
+            <div class="plate-foot">
+              <span class="type-badge" style="background:var(--crit-bg); color:var(--crit);">Caldeira</span>
+              <button class="btn-acessar">Acessar →</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- CARD 3 (com foto) -->
+        <div class="plate-card" data-name="koio VP-09" data-empresa="Vale Mineração" data-tipo="Vaso de Pressão" data-categoria="IV" data-resultado="Aprovado">
+          <div class="photo">
+            <span class="tag-chip">VP-09</span>
+            <svg class="equip-illustration" viewBox="0 0 200 220" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="brass" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stop-color="#D9A868"/><stop offset="1" stop-color="#A9793F"/>
+                </linearGradient>
+              </defs>
+              <rect x="70" y="10" width="60" height="16" rx="3" fill="#2B2E31"/>
+              <rect x="80" y="26" width="40" height="24" fill="url(#brass)"/>
+              <rect x="60" y="50" width="80" height="30" rx="6" fill="url(#brass)"/>
+              <rect x="75" y="80" width="50" height="70" fill="url(#brass)"/>
+              <rect x="55" y="150" width="90" height="26" rx="6" fill="#8C6534"/>
+              <rect x="40" y="176" width="120" height="18" rx="4" fill="#6E4E26"/>
+              <line x1="130" y1="60" x2="175" y2="15" stroke="#2B2E31" stroke-width="7" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="plate-body">
+            <div class="uom-row"><span class="uom-label">Unidade de medida</span><span class="uom-value">SI (MPa)</span></div>
+            <div class="equip-name">koio</div>
+            <div class="equip-empresa">Vale Mineração · Unidade Serra</div>
+            <div class="meta-grid">
+              <div><div class="meta-k">PMTA</div><div class="meta-v">1,97 MPa</div></div>
+              <div><div class="meta-k">Categoria</div><div class="meta-v">IV</div></div>
+              <div><div class="meta-k">Volume</div><div class="meta-v">1 m³</div></div>
+              <div><div class="meta-k">Fluido</div><div class="meta-v">C · Vapor de água</div></div>
+              <div><div class="meta-k">PTH (1,3×)</div><div class="meta-v">2,56 MPa</div></div>
+              <div><div class="meta-k">Resultado</div><div class="meta-v pass">Aprovado</div></div>
+            </div>
+            <div class="life-block">
+              <div class="life-top"><span class="life-label">Vida remanescente</span><span class="life-val" style="color:var(--ok);">8,4 anos · 84%</span></div>
+              <div class="life-track"><div class="life-fill" style="width:84%; background:var(--ok);"></div></div>
+            </div>
+            <div class="plate-foot">
+              <span class="type-badge" style="background:var(--purple-bg); color:var(--purple);">Vaso de Pressão</span>
+              <button class="btn-acessar">Acessar →</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- CARD 4 -->
+        <div class="plate-card" data-name="Vaso de Pressão VP-05" data-empresa="Vale Mineração" data-tipo="Vaso de Pressão" data-categoria="III" data-resultado="Aprovado">
+          <div class="photo"><span class="tag-chip">VP-05</span><span class="photo-empty">Sem foto</span></div>
+          <div class="plate-body">
+            <div class="uom-row"><span class="uom-label">Unidade de medida</span><span class="uom-value">SI (MPa)</span></div>
+            <div class="equip-name">Vaso de Pressão</div>
+            <div class="equip-empresa">Vale Mineração · Unidade Serra</div>
+            <div class="meta-grid">
+              <div><div class="meta-k">PMTA</div><div class="meta-v">3,42 MPa</div></div>
+              <div><div class="meta-k">Categoria</div><div class="meta-v">III</div></div>
+              <div><div class="meta-k">Volume</div><div class="meta-v">2,5 m³</div></div>
+              <div><div class="meta-k">Fluido</div><div class="meta-v">A · Gás combustível</div></div>
+              <div><div class="meta-k">PTH (1,3×)</div><div class="meta-v">4,45 MPa</div></div>
+              <div><div class="meta-k">Resultado</div><div class="meta-v pass">Aprovado</div></div>
+            </div>
+            <div class="life-block">
+              <div class="life-top"><span class="life-label">Vida remanescente</span><span class="life-val" style="color:var(--warn);">5,7 anos · 57%</span></div>
+              <div class="life-track"><div class="life-fill" style="width:57%; background:var(--warn);"></div></div>
+            </div>
+            <div class="plate-foot">
+              <span class="type-badge" style="background:var(--purple-bg); color:var(--purple);">Vaso de Pressão</span>
+              <button class="btn-acessar">Acessar →</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- CARD 5 -->
+        <div class="plate-card" data-name="Tubulação Linha-12" data-empresa="Petroquímica Sul" data-tipo="Tubulação" data-categoria="II" data-resultado="Aprovado">
+          <div class="photo"><span class="tag-chip">TL-12</span><span class="photo-empty">Sem foto</span></div>
+          <div class="plate-body">
+            <div class="uom-row"><span class="uom-label">Unidade de medida</span><span class="uom-value">SI (MPa)</span></div>
+            <div class="equip-name">Tubulação Linha-12</div>
+            <div class="equip-empresa">Petroquímica Sul · Unidade Vitória</div>
+            <div class="meta-grid">
+              <div><div class="meta-k">PMTA</div><div class="meta-v">1,15 MPa</div></div>
+              <div><div class="meta-k">Categoria</div><div class="meta-v">II</div></div>
+              <div><div class="meta-k">Volume</div><div class="meta-v dash">—</div></div>
+              <div><div class="meta-k">Fluido</div><div class="meta-v">B · Vapor saturado</div></div>
+              <div><div class="meta-k">PTH (1,3×)</div><div class="meta-v">1,50 MPa</div></div>
+              <div><div class="meta-k">Resultado</div><div class="meta-v pass">Aprovado</div></div>
+            </div>
+            <div class="life-block">
+              <div class="life-top"><span class="life-label">Vida remanescente</span><span class="life-val" style="color:var(--crit);">1,4 anos · 12%</span></div>
+              <div class="life-track"><div class="life-fill" style="width:12%; background:var(--crit);"></div></div>
+            </div>
+            <div class="plate-foot">
+              <span class="type-badge" style="background:var(--blue-bg); color:var(--blue);">Tubulação</span>
+              <button class="btn-acessar">Acessar →</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- CARD 6 -->
+        <div class="plate-card" data-name="Caldeira flamotubular CF-03" data-empresa="Metalúrgica Aço Forte" data-tipo="Caldeira" data-categoria="" data-resultado="Reprovado">
+          <div class="photo"><span class="tag-chip">CF-03</span><span class="photo-empty">Sem foto</span></div>
+          <div class="plate-body">
+            <div class="uom-row"><span class="uom-label">Unidade de medida</span><span class="uom-value">SI (MPa)</span></div>
+            <div class="equip-name">Caldeira (flamotubular)</div>
+            <div class="equip-empresa">Metalúrgica Aço Forte · Unidade Norte</div>
+            <div class="meta-grid">
+              <div><div class="meta-k">PMTA</div><div class="meta-v">1,86 MPa</div></div>
+              <div><div class="meta-k">Categoria</div><div class="meta-v dash">—</div></div>
+              <div><div class="meta-k">Volume</div><div class="meta-v">6 m³</div></div>
+              <div><div class="meta-k">Fluido</div><div class="meta-v">C · Vapor de água</div></div>
+              <div><div class="meta-k">PTH (1,3×)</div><div class="meta-v">2,42 MPa</div></div>
+              <div><div class="meta-k">Resultado</div><div class="meta-v fail">Reprovado</div></div>
+            </div>
+            <div class="life-block">
+              <div class="life-top"><span class="life-label">Vida remanescente</span><span class="life-val" style="color:var(--warn);">3,0 anos · 30%</span></div>
+              <div class="life-track"><div class="life-fill" style="width:30%; background:var(--warn);"></div></div>
+            </div>
+            <div class="plate-foot">
+              <span class="type-badge" style="background:var(--crit-bg); color:var(--crit);">Caldeira (flamotubular)</span>
+              <button class="btn-acessar">Acessar →</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- CARD 7 -->
+        <div class="plate-card" data-name="Vaso de Pressão VP-11" data-empresa="Metalúrgica Aço Forte" data-tipo="Vaso de Pressão" data-categoria="I" data-resultado="Aprovado">
+          <div class="photo"><span class="tag-chip">VP-11</span><span class="photo-empty">Sem foto</span></div>
+          <div class="plate-body">
+            <div class="uom-row"><span class="uom-label">Unidade de medida</span><span class="uom-value">SI (MPa)</span></div>
+            <div class="equip-name">Vaso de Pressão</div>
+            <div class="equip-empresa">Metalúrgica Aço Forte · Unidade Norte</div>
+            <div class="meta-grid">
+              <div><div class="meta-k">PMTA</div><div class="meta-v">2,10 MPa</div></div>
+              <div><div class="meta-k">Categoria</div><div class="meta-v">I</div></div>
+              <div><div class="meta-k">Volume</div><div class="meta-v">0,8 m³</div></div>
+              <div><div class="meta-k">Fluido</div><div class="meta-v">D · Ar comprimido</div></div>
+              <div><div class="meta-k">PTH (1,3×)</div><div class="meta-v">2,73 MPa</div></div>
+              <div><div class="meta-k">Resultado</div><div class="meta-v pass">Aprovado</div></div>
+            </div>
+            <div class="life-block">
+              <div class="life-top"><span class="life-label">Vida remanescente</span><span class="life-val" style="color:var(--ok);">9,2 anos · 92%</span></div>
+              <div class="life-track"><div class="life-fill" style="width:92%; background:var(--ok);"></div></div>
+            </div>
+            <div class="plate-foot">
+              <span class="type-badge" style="background:var(--purple-bg); color:var(--purple);">Vaso de Pressão</span>
+              <button class="btn-acessar">Acessar →</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- CARD 8 -->
+        <div class="plate-card" data-name="Tubulação Linha Vapor-04" data-empresa="Vale Mineração" data-tipo="Tubulação" data-categoria="III" data-resultado="Aprovado">
+          <div class="photo"><span class="tag-chip">LV-04</span><span class="photo-empty">Sem foto</span></div>
+          <div class="plate-body">
+            <div class="uom-row"><span class="uom-label">Unidade de medida</span><span class="uom-value">SI (MPa)</span></div>
+            <div class="equip-name">Tubulação Linha Vapor-04</div>
+            <div class="equip-empresa">Vale Mineração · Unidade Serra</div>
+            <div class="meta-grid">
+              <div><div class="meta-k">PMTA</div><div class="meta-v">0,98 MPa</div></div>
+              <div><div class="meta-k">Categoria</div><div class="meta-v">III</div></div>
+              <div><div class="meta-k">Volume</div><div class="meta-v dash">—</div></div>
+              <div><div class="meta-k">Fluido</div><div class="meta-v">B · Vapor saturado</div></div>
+              <div><div class="meta-k">PTH (1,3×)</div><div class="meta-v">1,27 MPa</div></div>
+              <div><div class="meta-k">Resultado</div><div class="meta-v pass">Aprovado</div></div>
+            </div>
+            <div class="life-block">
+              <div class="life-top"><span class="life-label">Vida remanescente</span><span class="life-val" style="color:var(--ok);">6,6 anos · 66%</span></div>
+              <div class="life-track"><div class="life-fill" style="width:66%; background:var(--ok);"></div></div>
+            </div>
+            <div class="plate-foot">
+              <span class="type-badge" style="background:var(--blue-bg); color:var(--blue);">Tubulação</span>
+              <button class="btn-acessar">Acessar →</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const cards = Array.from(document.querySelectorAll('.plate-card'));
+  const total = cards.length;
+  const fSearch = document.getElementById('fSearch');
+  const fEmpresa = document.getElementById('fEmpresa');
+  const fTipo = document.getElementById('fTipo');
+  const fCategoria = document.getElementById('fCategoria');
+  const fResultado = document.getElementById('fResultado');
+  const resultCount = document.getElementById('resultCount');
+  const grid = document.getElementById('grid');
+
+  function applyFilters(){
+    const q = fSearch.value.trim().toLowerCase();
+    const empresa = fEmpresa.value;
+    const tipo = fTipo.value;
+    const categoria = fCategoria.value;
+    const resultado = fResultado.value;
+    let visible = 0;
+
+    cards.forEach(c => {
+      const matchQ = !q || c.dataset.name.toLowerCase().includes(q);
+      const matchEmpresa = !empresa || c.dataset.empresa === empresa;
+      const matchTipo = !tipo || c.dataset.tipo === tipo;
+      const matchCategoria = !categoria || c.dataset.categoria === categoria;
+      const matchResultado = !resultado || c.dataset.resultado === resultado;
+      const show = matchQ && matchEmpresa && matchTipo && matchCategoria && matchResultado;
+      c.style.display = show ? '' : 'none';
+      if(show) visible++;
+    });
+
+    resultCount.textContent = `${visible} de ${total} equipamentos`;
+
+    let emptyEl = document.getElementById('emptyState');
+    if(visible === 0){
+      if(!emptyEl){
+        emptyEl = document.createElement('div');
+        emptyEl.className = 'empty-state';
+        emptyEl.id = 'emptyState';
+        emptyEl.innerHTML = '<span class="ic">🔎</span>Nenhum equipamento encontrado com esses filtros.';
+        grid.appendChild(emptyEl);
+      }
+    } else if(emptyEl){
+      emptyEl.remove();
+    }
+  }
+
+  [fSearch, fEmpresa, fTipo, fCategoria, fResultado].forEach(el => {
+    el.addEventListener('input', applyFilters);
+    el.addEventListener('change', applyFilters);
+  });
+
+  document.getElementById('clearFilters').addEventListener('click', () => {
+    fSearch.value=''; fEmpresa.value=''; fTipo.value=''; fCategoria.value=''; fResultado.value='';
+    applyFilters();
+  });
+</script>
+</body>
+</html>
