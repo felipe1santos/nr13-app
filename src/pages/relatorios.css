@@ -232,8 +232,8 @@
 }
 
 .meta-table thead {
-  background: var(--bg-body);
-  border-bottom: 2px solid var(--border-solid);
+  background: #FBFAF7;
+  border-bottom: 1px solid var(--line);
 }
 
 .meta-table th {
@@ -339,7 +339,11 @@
 }
 
 .btn-icone.cor-azul {
-  color: var(--accent);
+  color: var(--blue2);
+}
+.btn-icone.cor-azul:hover {
+  background: var(--blue2-bg);
+  border-color: var(--blue2-line);
 }
 
 .btn-icone.cor-verde {
@@ -361,26 +365,36 @@
 }
 
 .icone-pdf-cel {
-  color: var(--status-erro-text);
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  background: var(--crit-bg);
+  color: var(--crit);
   flex-shrink: 0;
   display: flex;
+  align-items: center;
+  justify-content: center;
 }
+.icone-pdf-cel svg { width: 15px; height: 15px; }
 
 .tag-cel-link {
-  color: var(--accent);
-  font-weight: 600;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--blue);
 }
 
 .badge-tipo-inspecao {
   display: inline-block;
-  background: var(--accent-bg-light);
-  color: var(--accent-2);
-  font-size: 11px;
+  background: var(--blue2-bg);
+  color: var(--blue2);
+  font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
-  padding: 4px 10px;
-  border-radius: var(--radius-md);
-  letter-spacing: 0.02em;
+  padding: 5px 10px;
+  border-radius: 7px;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
 }
 
 /* ── Toolbar de ações (4 botões) ── */
@@ -547,3 +561,49 @@
   }
 
 }
+
+/* ── Forja: chip de TAG no breadcrumb + dropdown de filtro ── */
+.crumb-tag-chip {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--blue);
+  background: var(--blue-bg);
+  border: 1px solid var(--blue-line);
+  padding: 5px 12px;
+  border-radius: 8px;
+}
+
+.btn-filtrar { display: inline-flex; align-items: center; gap: 6px; }
+
+.filter-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 14px 30px rgba(20, 24, 28, 0.12);
+  padding: 12px;
+  width: 230px;
+  z-index: 30;
+}
+.filter-menu .fm-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+  font-weight: 600;
+  margin: 6px 4px;
+}
+.filter-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 6px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.filter-opt:hover { background: var(--steel); }
+.filter-opt input { accent-color: var(--amber); }

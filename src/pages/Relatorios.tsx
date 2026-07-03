@@ -21,11 +21,14 @@ import {
 import { exportarPdf } from '../features/relatorios/pdfService';
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
 import type { RelatorioMeta, RelatorioSalvo, TipoInspecao } from '../features/relatorios/tipos';
+import { Icone } from '../components/Icone';
 import './relatorios.css';
 import PaginaA4 from '../components/PaginaA4';
 
 type Tela = 'equipamentos' | 'historico' | 'visualizador';
 type EtapaModal = 'nenhuma' | 'documentos' | 'container';
+
+const TIPOS_INSPECAO: TipoInspecao[] = ['Inspeção Inicial', 'Inspeção Periódica', 'Inspeção Extraordinária'];
 
 const hoje = () => new Date().toLocaleDateString('pt-BR');
 
@@ -105,6 +108,10 @@ export default function Relatorios() {
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
   const [modalConfig, setModalConfig] = useState(false);
   const [imprimindo, setImprimindo] = useState(false);
+  const [filtroAberto, setFiltroAberto] = useState(false);
+  const [filtroTipos, setFiltroTipos] = useState<Set<TipoInspecao>>(() => new Set(TIPOS_INSPECAO));
+
+  const historicoVisivel = historico.filter((r) => filtroTipos.has(r.tipo));
 
   async function prepararEImprimir() {
     setImprimindo(true);
@@ -379,19 +386,41 @@ export default function Relatorios() {
               ← Voltar
             </button>
             <span className="breadcrumb-chevron">›</span>
-            <strong>{tag}</strong>
+            <span className="crumb-tag-chip">{tag}</span>
           </div>
           <div className="meta-card-header">
             <h3>Histórico de Inspeções</h3>
-            <div style={{ display: 'flex', gap: 10 }}>
+            <div style={{ display: 'flex', gap: 10, position: 'relative' }}>
               {selecionados.size > 0 && (
                 <button type="button" className="btn-secundario" onClick={excluirSelecionados}>
                   Excluir Selecionados ({selecionados.size})
                 </button>
               )}
-              <button type="button" className="btn-filtrar">
-                ▾ Filtrar
+              <button type="button" className="btn-filtrar" onClick={() => setFiltroAberto((a) => !a)}>
+                <Icone nome="filter" tam={14} /> Filtrar <Icone nome="chevdown" tam={12} />
               </button>
+              {filtroAberto && (
+                <div className="filter-menu">
+                  <div className="fm-label">Tipo de inspeção</div>
+                  {TIPOS_INSPECAO.map((t) => (
+                    <label key={t} className="filter-opt">
+                      <input
+                        type="checkbox"
+                        checked={filtroTipos.has(t)}
+                        onChange={() =>
+                          setFiltroTipos((s) => {
+                            const novo = new Set(s);
+                            if (novo.has(t)) novo.delete(t);
+                            else novo.add(t);
+                            return novo;
+                          })
+                        }
+                      />
+                      {t}
+                    </label>
+                  ))}
+                </div>
+              )}
               <button type="button" className="btn-primario" onClick={abrirEtapaDocumentos}>
                 + Criar Relatório
               </button>
@@ -419,7 +448,7 @@ export default function Relatorios() {
                 </tr>
               </thead>
               <tbody>
-                {historico.map((r) => (
+                {historicoVisivel.map((r) => (
                   <tr key={r.id}>
                     <td>
                       <input type="checkbox" checked={selecionados.has(r.id)} onChange={() => toggleSelecionado(r.id)} />
@@ -491,14 +520,14 @@ export default function Relatorios() {
             <div className="meta-barra-acoes">
               {!somenteLeitura && (
                 <button type="button" className={`btn-primario barra-btn ${salvando ? 'is-loading' : ''}`} onClick={salvarHistorico} disabled={salvando}>
-                  {salvando ? 'Salvando...' : '💾 Salvar'}
+                  {salvando ? 'Salvando...' : 'Salvar'}
                 </button>
               )}
               <button type="button" className="btn-secundario barra-btn" onClick={prepararEImprimir} disabled={imprimindo}>
-                {imprimindo ? 'Preparando…' : '🖨 Imprimir'}
+                {imprimindo ? 'Preparando…' : 'Imprimir'}
               </button>
               <button type="button" className="btn-secundario barra-btn" onClick={() => setModalConfig(true)}>
-                ⚙ Configurações
+                <Icone nome="sliders" tam={14} /> Configurações
               </button>
             </div>
           </div>
