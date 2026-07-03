@@ -55,14 +55,18 @@ export async function excluirPermissoes(userId: string): Promise<void> {
 }
 
 /**
- * Módulos do usuário logado. null = sem restrição (mestre, ou sub-login antigo
- * sem permissões configuradas — mantém o comportamento por papel).
+ * Módulos do usuário logado. null = sem restrição (mestre/gerente sem config).
+ * REGRA DE SEGURANÇA: funcionário (inspetor) SEM permissões configuradas cai no
+ * padrão "só inspeções" — nunca no acesso total (fail-safe se a chave de
+ * permissões ainda não sincronizou até o aparelho dele).
  */
 export function modulosDoUsuarioAtual(): Modulo[] | null {
   if (isMestre()) return null;
   const papel = papelAtual();
   if (papel === 'cliente') return null; // cliente tem árvore própria (/portal)
   const uid = localStorage.getItem('nr13_uid');
-  if (!uid) return null;
-  return carregarPermissoes(uid);
+  const salvas = uid ? carregarPermissoes(uid) : null;
+  if (salvas && salvas.length > 0) return salvas;
+  if (papel === 'funcionario') return PRESET_INSPETOR;
+  return null; // gerente sem config = comportamento padrão do papel (vê tudo menos áreas do mestre)
 }

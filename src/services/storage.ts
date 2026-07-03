@@ -223,7 +223,7 @@ export async function salvar(chave: string, objeto: unknown): Promise<void> {
   if (!escopo) return;
   try {
     const userId = await idUsuarioAtual();
-    await supabase
+    const { error } = await supabase
       .from(TABELA_STORAGE)
       .upsert(
         escopo.coluna === 'org_id'
@@ -231,6 +231,9 @@ export async function salvar(chave: string, objeto: unknown): Promise<void> {
           : { user_id: escopo.id, chave, valor },
         { onConflict: escopo.coluna + ',chave' },
       );
+    // supabase-js NÃO lança em erro de RLS/constraint — devolve { error }. Sem esta
+    // checagem a escrita se perdia em silêncio (ficava só no localStorage local).
+    if (error) enfileirar({ op: 'set', chave, valor });
   } catch {
     // offline: o upsert lançou → enfileira a escrita para não ser perdida no próximo reconcile
     enfileirar({ op: 'set', chave, valor });
