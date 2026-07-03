@@ -162,6 +162,8 @@ export async function login(email: string, senha: string): Promise<LoginResultad
   }
   // Nova sessão de uso → novo sessao_id.
   localStorage.removeItem('nr13_sessao_id');
+  // Registro local do último login (exibido na topbar) — não sincroniza.
+  localStorage.setItem('nr13_ultimo_login', new Date().toISOString());
   const plano = await aposEntrar(email);
   await registrarEvento('login');
   return { sucesso: true, plano, papel: perfil.papel };

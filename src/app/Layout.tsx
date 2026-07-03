@@ -1,118 +1,209 @@
-import { useState } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import {
-  Boxes,
-  Briefcase,
-  Building2,
-  ClipboardCheck,
-  FileText,
-  Gauge,
-  BookOpenText,
-  KeyRound,
-  Users,
-} from 'lucide-react';
-import { isMestre, logout, usuarioLogado } from '../services/auth';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Icone } from '../components/Icone';
+import { isMestre, logout, papelAtual, usuarioLogado } from '../services/auth';
+import { listarChavesComPrefixo } from '../services/storage';
+import { ITENS_TOPO, ITENS_CADASTRAR, ITENS_BAIXO, ITEM_ACESSOS, tituloDaRota } from './menu';
+import type { ItemMenu } from './menu';
 import BotaoInstalarPWA from './BotaoInstalarPWA';
 import SyncStatus from './SyncStatus';
 import './layout.css';
 
-// Ícones profissionais (lucide-react) — traço 1.9 casa com a estética Firecrawl.
-const TAM_ICONE = 19;
+const ROTULO_PAPEL: Record<string, string> = {
+  mestre: 'Administrador',
+  gerente: 'Gerente',
+  funcionario: 'Inspetor',
+  cliente: 'Cliente',
+  '': 'Administrador',
+};
 
-const ICONE_MINHA_EMPRESA = <Briefcase size={TAM_ICONE} strokeWidth={1.9} />;
+function iniciais(email: string | null): string {
+  if (!email) return '·';
+  const nome = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, ' ').trim();
+  const partes = nome.split(/\s+/).filter(Boolean);
+  if (partes.length >= 2) return (partes[0][0] + partes[1][0]).toUpperCase();
+  return nome.slice(0, 2).toUpperCase() || '·';
+}
 
-const MENU = [
-  { to: '/dashboard', label: 'Equipamentos', icone: <Boxes size={TAM_ICONE} strokeWidth={1.9} /> },
-  { to: '/inspecoes', label: 'Inspeções', icone: <ClipboardCheck size={TAM_ICONE} strokeWidth={1.9} /> },
-  { to: '/relatorios', label: 'Relatórios', icone: <FileText size={TAM_ICONE} strokeWidth={1.9} /> },
-  { to: '/prontuarios', label: 'Prontuários', icone: <BookOpenText size={TAM_ICONE} strokeWidth={1.9} /> },
-  { to: '/calibracoes', label: 'Calibrações', icone: <Gauge size={TAM_ICONE} strokeWidth={1.9} /> },
-  { to: '/empresas', label: 'Empresas', icone: <Building2 size={TAM_ICONE} strokeWidth={1.9} /> },
-  { to: '/funcionarios', label: 'Funcionários', icone: <Users size={TAM_ICONE} strokeWidth={1.9} /> },
-];
-
-// "Acesso" (gestão de sub-logins): só a conta principal (mestre) enxerga.
-const ITEM_ACESSO = { to: '/acesso', label: 'Acesso', icone: <KeyRound size={TAM_ICONE} strokeWidth={1.9} /> };
+function ultimoLoginTexto(): string | null {
+  const raw = localStorage.getItem('nr13_ultimo_login');
+  if (!raw) return null;
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return null;
+  const hoje = new Date();
+  const mesmaData = d.toDateString() === hoje.toDateString();
+  const hora = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  return mesmaData ? `hoje às ${hora}` : `${d.toLocaleDateString('pt-BR')} às ${hora}`;
+}
 
 export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [colapsada, setColapsada] = useState(false);
   const [menuAberto, setMenuAberto] = useState(false);
+  const [cadastrarAberto, setCadastrarAberto] = useState(
+    () => location.pathname.startsWith('/funcionarios') || location.pathname.startsWith('/empresas'),
+  );
+  const [temAlerta, setTemAlerta] = useState(false);
   const email = usuarioLogado();
+  const papel = ROTULO_PAPEL[papelAtual()] ?? 'Administrador';
+  const nEquip = listarChavesComPrefixo('nr13_info_').length;
+  const { titulo, sub } = tituloDaRota(location.pathname);
+
+  useEffect(() => {
+    // Sino: acende quando o motor de vencimentos encontra item vencido.
+    let vivo = true;
+    import('../services/vencimentos')
+      .then((m) => {
+        if (!vivo) return;
+        const itens = m.listarVencimentos();
+        setTemAlerta(itens.some((i) => i.status === 'crit'));
+      })
+      .catch(() => {});
+    return () => {
+      vivo = false;
+    };
+  }, [location.pathname]);
 
   async function handleLogout() {
     await logout();
     navigate('/login');
   }
 
+  function fecharDrawer() {
+    setMenuAberto(false);
+  }
+
+  function NavItem({ item, sub: isSub }: { item: ItemMenu; sub?: boolean }) {
+    return (
+      <NavLink
+        to={item.to}
+        className={({ isActive }) => `nav-item${isActive ? ' active' : ''}${isSub ? ' subitem' : ''}`}
+        onClick={fecharDrawer}
+      >
+        <span className="left">
+          <Icone nome={item.icone} />
+          <span className="menu-text">{item.label}</span>
+        </span>
+        {item.id === 'equipamentos' && nEquip > 0 && <span className="nav-count">{nEquip}</span>}
+      </NavLink>
+    );
+  }
+
   return (
     <div className="app-layout">
-      <header className="top-bar-system">
-        <div className="top-bar-left">
-          <button
-            type="button"
-            className="btn-hamburguer"
-            onClick={() => setMenuAberto((a) => !a)}
-            aria-label="Abrir menu"
-            aria-expanded={menuAberto}
-          >
-            <span /><span /><span />
-          </button>
-          <span className="logo">NR-13</span>
-        </div>
-        <div className="top-bar-right">
-          <SyncStatus />
-          {email && (
-            <span className="user-info-top">
-              <span className="user-email">{email}</span>
-            </span>
-          )}
-          <BotaoInstalarPWA />
-          <button type="button" className="btn-logout" onClick={handleLogout}>
-            Sair
-          </button>
-        </div>
-      </header>
-      <div className="app-body">
-        {menuAberto && <div className="sidebar-backdrop" onClick={() => setMenuAberto(false)} />}
-        <nav className={`sidebar ${colapsada ? 'collapsed' : ''} ${menuAberto ? 'aberta' : ''}`}>
-          <NavLink
-            to="/minha-empresa"
-            className={({ isActive }) => `sidebar-minha-empresa${isActive ? ' active' : ''}`}
-            title="Minha Empresa"
-            onClick={() => setMenuAberto(false)}
-          >
-            <span className="menu-icon">{ICONE_MINHA_EMPRESA}</span>
-            <span className="menu-text">Minha Empresa</span>
-          </NavLink>
-          <div className="sidebar-divider" />
-          {(isMestre() ? [...MENU, ITEM_ACESSO] : MENU).map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) => `menu-item${isActive ? ' active' : ''}`}
-              onClick={() => setMenuAberto(false)}
-            >
-              <span className="menu-icon">{item.icone}</span>
-              <span className="menu-text">{item.label}</span>
-            </NavLink>
-          ))}
-          <button
-            type="button"
-            className="btn-collapse-sidebar"
-            onClick={() => setColapsada((c) => !c)}
-            aria-label={colapsada ? 'Expandir menu' : 'Recolher menu'}
-          >
-            {colapsada ? '›' : '‹'}
-          </button>
-        </nav>
-        <main className="main-content">
-          <div key={location.pathname} className="nr-anim-in route-wrapper">
-            <Outlet />
+      <div className="shell">
+        {menuAberto && <div className="sidebar-backdrop" onClick={fecharDrawer} />}
+
+        {/* ===== SIDEBAR (escura, Forja) ===== */}
+        <aside className={`sidebar${menuAberto ? ' aberta' : ''}`}>
+          <div className="brand">
+            <div className="brand-mark">Fj</div>
+            <div>
+              <div className="brand-name">Forja</div>
+              <div className="brand-sub">Engenharia &amp; Ativos</div>
+            </div>
           </div>
-        </main>
+
+          <nav className="nav-list">
+            {ITENS_TOPO.map((item) => (
+              <NavItem key={item.id} item={item} />
+            ))}
+
+            <button
+              type="button"
+              className={`nav-item nav-toggle${cadastrarAberto ? ' expanded' : ''}`}
+              onClick={() => setCadastrarAberto((a) => !a)}
+            >
+              <span className="left">
+                <Icone nome="userplus" />
+                <span className="menu-text">Cadastrar</span>
+              </span>
+              <Icone nome="chevdown" className="chev" tam={15} />
+            </button>
+            <div className={`subnav${cadastrarAberto ? ' open' : ''}`}>
+              {ITENS_CADASTRAR.map((item) => (
+                <NavItem key={item.id} item={item} sub />
+              ))}
+            </div>
+
+            {ITENS_BAIXO.map((item) => (
+              <NavItem key={item.id} item={item} />
+            ))}
+            {isMestre() && <NavItem item={ITEM_ACESSOS} />}
+          </nav>
+
+          <div className="nav-spacer" />
+          <div className="nav-divider" />
+          <button type="button" className="nav-item danger" onClick={handleLogout}>
+            <span className="left">
+              <Icone nome="logout" />
+              <span className="menu-text">Sair</span>
+            </span>
+          </button>
+
+          <div className="sidebar-foot">
+            <div className="avatar">{iniciais(email)}</div>
+            <div className="foot-info">
+              <div className="foot-name" title={email ?? ''}>{email ?? '—'}</div>
+              <div className="foot-role">{papel}</div>
+            </div>
+          </div>
+        </aside>
+
+        {/* ===== MAIN ===== */}
+        <div className="main">
+          <header className="topbar">
+            <div className="topbar-left">
+              <button
+                type="button"
+                className="btn-hamburguer"
+                onClick={() => setMenuAberto((a) => !a)}
+                aria-label="Abrir menu"
+                aria-expanded={menuAberto}
+              >
+                <span /><span /><span />
+              </button>
+              <div>
+                <h1>{titulo}</h1>
+                {sub && <div className="path">{sub}</div>}
+              </div>
+            </div>
+
+            <div className="top-status">
+              <SyncStatus />
+              {ultimoLoginTexto() && (
+                <span className="login-info">
+                  <Icone nome="clock" tam={14} />
+                  Último login: {ultimoLoginTexto()}
+                </span>
+              )}
+              <span className="divider-v" />
+              <button
+                type="button"
+                className="bell-wrap"
+                title={temAlerta ? 'Há equipamentos vencidos — ver Dashboard' : 'Sem alertas críticos'}
+                onClick={() => navigate('/dashboard')}
+              >
+                <Icone nome="bell" />
+                {temAlerta && <span className="bell-dot" />}
+              </button>
+              <BotaoInstalarPWA />
+              <div className="user-chip" title={email ?? ''}>
+                <div className="avatar">{iniciais(email)}</div>
+                <div className="user-chip-txt">
+                  <div className="name">{email ? email.split('@')[0] : '—'}</div>
+                  <div className="role">{papel}</div>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          <main className="main-content">
+            <div key={location.pathname} className="nr-anim-in route-wrapper">
+              <Outlet />
+            </div>
+          </main>
+        </div>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Cloud, CloudOff, RefreshCw } from 'lucide-react';
+import { Icone } from '../components/Icone';
 import { flushFila } from '../services/storage';
 
 // Indicador de sincronização offline (topbar). Mostra:
@@ -49,7 +49,7 @@ export default function SyncStatus() {
   if (!online) {
     return (
       <span className="sync-status offline" title="Sem internet — os dados são salvos no aparelho e sincronizam quando a conexão voltar.">
-        <CloudOff size={15} strokeWidth={2} />
+        <Icone nome="cloudoff" tam={14} />
         <span className="sync-status-txt">Offline — salvo no aparelho{pendencias > 0 ? ` (${pendencias})` : ''}</span>
       </span>
     );
@@ -64,7 +64,7 @@ export default function SyncStatus() {
         disabled={sincronizando}
         title="Há dados salvos no aparelho aguardando envio à nuvem. Toque para sincronizar agora."
       >
-        <RefreshCw size={15} strokeWidth={2} className={sincronizando ? 'girando' : ''} />
+        <Icone nome="refresh" tam={14} className={sincronizando ? "girando" : undefined} />
         <span className="sync-status-txt">{sincronizando ? 'Sincronizando...' : `Sincronizar (${pendencias})`}</span>
       </button>
     );
@@ -72,7 +72,7 @@ export default function SyncStatus() {
 
   return (
     <span className="sync-status ok" title="Todos os dados sincronizados com a nuvem.">
-      <Cloud size={15} strokeWidth={2} />
+      <Icone nome="cloudcheck" tam={14} />
       <span className="sync-status-txt">Sincronizado</span>
     </span>
   );
