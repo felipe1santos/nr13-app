@@ -13,6 +13,7 @@ import {
 } from '../features/calibracoes/calibracaoService';
 import type { DadosCalibracao, DadosManometro, DadosPSV } from '../features/calibracoes/tipos';
 import VisualizadorCalibracao from '../features/calibracoes/VisualizadorCalibracao';
+import AbaRastreabilidade from '../features/calibracoes/AbaRastreabilidade';
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
 import '../pages/relatorios.css';
 import './calibracoes.css';
@@ -174,6 +175,7 @@ function parseDateBR(d: string): number {
 }
 
 export default function Calibracoes() {
+  const [abaPrincipal, setAbaPrincipal] = useState<'certificados' | 'rastreabilidade'>('certificados');
   const [tela, setTela] = useState<Tela>('equipamentos');
   const [equipamentos, setEquipamentos] = useState<EquipamentoResumo[]>([]);
   const [tag, setTag] = useState('');
@@ -321,8 +323,28 @@ export default function Calibracoes() {
     <div className="calibracoes-page">
       <h1>Calibrações</h1>
 
+      {/* Abas principais: Certificados (fluxo atual) | Rastreabilidade (padrões + PDF) */}
+      <div className="cal-abas-principais">
+        <button
+          type="button"
+          className={`cal-aba-principal${abaPrincipal === 'certificados' ? ' ativa' : ''}`}
+          onClick={() => setAbaPrincipal('certificados')}
+        >
+          Certificados
+        </button>
+        <button
+          type="button"
+          className={`cal-aba-principal${abaPrincipal === 'rastreabilidade' ? ' ativa' : ''}`}
+          onClick={() => setAbaPrincipal('rastreabilidade')}
+        >
+          Rastreabilidade
+        </button>
+      </div>
+
+      {abaPrincipal === 'rastreabilidade' && <AbaRastreabilidade />}
+
       {/* ── EQUIPAMENTOS ─────────────────────────────── */}
-      {tela === 'equipamentos' && (
+      {abaPrincipal === 'certificados' && tela === 'equipamentos' && (
         <div className="bloco-dados">
           <div className="meta-card-header">
             <h3>Selecione o Equipamento</h3>
@@ -402,7 +424,7 @@ export default function Calibracoes() {
       )}
 
       {/* ── HISTÓRICO ────────────────────────────────── */}
-      {tela === 'historico' && (
+      {abaPrincipal === 'certificados' && tela === 'historico' && (
         <div className="bloco-dados">
           <div className="meta-breadcrumb">
             <button type="button" className="btn-secundario" onClick={() => setTela('equipamentos')}>
@@ -486,7 +508,7 @@ export default function Calibracoes() {
       )}
 
       {/* ── SELECIONAR TIPO (2 cards grandes) ────────── */}
-      {tela === 'selecionarTipo' && (
+      {abaPrincipal === 'certificados' && tela === 'selecionarTipo' && (
         <div className="bloco-dados">
           <div className="meta-breadcrumb">
             <button type="button" className="btn-secundario" onClick={() => setTela('historico')}>
@@ -524,7 +546,7 @@ export default function Calibracoes() {
       )}
 
       {/* ── FORMULÁRIO ───────────────────────────────── */}
-      {tela === 'formulario' && (
+      {abaPrincipal === 'certificados' && tela === 'formulario' && (
         <div className="bloco-dados">
           <div className="meta-breadcrumb">
             <button type="button" className="btn-secundario" onClick={() => setTela('historico')}>
@@ -771,7 +793,7 @@ export default function Calibracoes() {
       )}
 
       {/* ── VISUALIZADOR ─────────────────────────────── */}
-      {tela === 'visualizador' && calAtual && (
+      {abaPrincipal === 'certificados' && tela === 'visualizador' && calAtual && (
         <>
           <div className="bloco-dados">
             <div className="meta-breadcrumb">
@@ -827,7 +849,7 @@ export default function Calibracoes() {
       )}
 
       {/* ── VER PREENCHIDO (dados salvos, sem campos de edição) ── */}
-      {tela === 'verDados' && calAtual && (
+      {abaPrincipal === 'certificados' && tela === 'verDados' && calAtual && (
         <div className="bloco-dados">
           <div className="meta-breadcrumb">
             <button type="button" className="btn-secundario" onClick={() => setTela('historico')}>
