@@ -40,7 +40,16 @@ export default function MemorialLog({ log, animado = false, placeholder, showPla
       log.map((linha, i) => {
         const trimmed = linha.trim();
         if (trimmed === '') return { tipo: 'espaco' as const, key: i };
-        if (trimmed.startsWith('//')) return { tipo: 'comentario' as const, key: i, texto: trimmed.slice(2).trim() };
+        if (trimmed.startsWith('//')) {
+          const texto = trimmed.slice(2).trim();
+          // Linhas de moldura (====/----) viram divisor visual discreto.
+          if (/^[=\-─]{6,}$/.test(texto)) return { tipo: 'hr' as const, key: i };
+          // Cabeçalho de componente (azul escuro, padrão Forja): identifica qual
+          // componente do equipamento está sendo calculado.
+          if (/^MEMORIAL DE C[ÁA]LCULO[:.]/i.test(texto)) return { tipo: 'compHeader' as const, key: i, texto };
+          if (/^Norma Base[:.]/i.test(texto)) return { tipo: 'compSub' as const, key: i, texto };
+          return { tipo: 'comentario' as const, key: i, texto };
+        }
         if (trimmed.startsWith('$$') && trimmed.endsWith('$$')) {
           const latex = trimmed.slice(2, -2);
           let html: string;
@@ -70,6 +79,19 @@ export default function MemorialLog({ log, animado = false, placeholder, showPla
     <div className={`memorial-log ${className ?? ''}`} ref={containerRef}>
       {linhasVisiveis.map((l) => {
         if (l.tipo === 'espaco') return <div key={l.key} className="memorial-log-spacer" />;
+        if (l.tipo === 'hr') return <div key={l.key} className="memorial-log-hr" />;
+        if (l.tipo === 'compHeader')
+          return (
+            <div key={l.key} className="memorial-log-comp-header">
+              {l.texto}
+            </div>
+          );
+        if (l.tipo === 'compSub')
+          return (
+            <div key={l.key} className="memorial-log-comp-sub">
+              {l.texto}
+            </div>
+          );
         if (l.tipo === 'comentario')
           return (
             <div key={l.key} className="memorial-log-comentario">
