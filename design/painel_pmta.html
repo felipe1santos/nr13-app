@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cálculo de PMTA e espessura mínima</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* neutros */
+    --bg:#F2F3F5;
+    --card:#FFFFFF;
+    --line:#E7E7E3;
+    --line-soft:#EFEFEC;
+    --ink:#1E2330;
+    --ink-2:#4B5162;
+    --muted:#6B7280;
+    --soft:#9AA1AD;
+
+    /* violeta da caneta — passos + unidades */
+    --violet:#5B45E0;
+    --violet-ink:#4A37C4;
+    --violet-tint:#EEEBFB;
+    --violet-tint-2:#F6F4FE;
+
+    /* confirmação / status */
+    --green:#12A150;
+    --green-tint:#DCF5E7;
+    --green-ink:#0C7C3D;
+
+    /* acento herdado do log (usado com parcimônia) */
+    --orange:#DE7C39;
+    --orange-soft:#FBEDE1;
+
+    /* terminal */
+    --term-bg:#FFFFFF;
+    --term-head:#F7F7F4;
+    --term-blue-bg:#EAF2FB;
+    --term-blue:#2C6CB0;
+
+    /* CTA profissional (grafite) */
+    --cta:#20242E;
+    --cta-hover:#141821;
+
+    --radius:12px;
+    --radius-sm:9px;
+    --shadow:0 1px 2px rgba(24,28,38,.04), 0 6px 22px -12px rgba(24,28,38,.14);
+    --shadow-sm:0 1px 2px rgba(24,28,38,.05);
+    --mono:"JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --sans:"Inter", -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:var(--sans);
+    background:var(--bg);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+    font-size:14px;
+    line-height:1.45;
+  }
+  button{font-family:inherit;cursor:pointer;}
+  :focus-visible{outline:2px solid var(--violet);outline-offset:2px;border-radius:6px;}
+
+  /* ---------- TOPBAR ---------- */
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;gap:24px;
+    padding:16px 28px;background:var(--card);border-bottom:1px solid var(--line);
+  }
+  .title-block h1{font-size:19px;font-weight:700;letter-spacing:-.01em;margin:0;color:var(--ink);}
+  .title-block .crumb{margin:2px 0 0;font-size:12.5px;color:var(--soft);font-weight:500;}
+  .topbar-right{display:flex;align-items:center;gap:14px;}
+
+  .badge-norm{
+    font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.02em;
+    color:var(--orange);background:var(--orange-soft);
+    border:1px solid #F1D9C6;border-radius:999px;padding:5px 11px;white-space:nowrap;
+  }
+  .pill-sync{
+    display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
+    color:var(--green-ink);background:var(--green-tint);border-radius:999px;padding:5px 11px;
+  }
+  .login-info{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);white-space:nowrap;}
+  .icon-btn{
+    width:34px;height:34px;display:grid;place-items:center;border:1px solid var(--line);
+    background:var(--card);border-radius:9px;color:var(--ink-2);transition:.15s;
+  }
+  .icon-btn:hover{background:#FAFAF8;border-color:#DEDEDA;}
+  .divider-v{width:1px;height:24px;background:var(--line);}
+  .user{display:flex;align-items:center;gap:9px;}
+  .avatar{
+    width:34px;height:34px;border-radius:9px;background:var(--ink);color:#fff;
+    display:grid;place-items:center;font-size:12px;font-weight:600;letter-spacing:.02em;
+  }
+  .user .u-name{font-size:13px;font-weight:600;color:var(--ink);line-height:1.1;}
+  .user .u-role{font-size:11px;color:var(--soft);line-height:1.2;}
+
+  /* ---------- WORKSPACE ---------- */
+  .workspace{
+    display:grid;grid-template-columns:minmax(400px,460px) 1fr;gap:22px;
+    padding:22px 28px;height:calc(100vh - 71px);
+  }
+  .card{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);display:flex;flex-direction:column;min-height:0;overflow:hidden;
+  }
+
+  /* ---------- PAINEL ESQUERDO ---------- */
+  .panel-head{
+    display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
+    padding:20px 22px 14px;border-bottom:1px solid var(--line-soft);
+  }
+  .eyebrow{font-size:10.5px;font-weight:600;letter-spacing:.09em;color:var(--soft);margin:0 0 4px;}
+  .panel-head h2{font-size:16.5px;font-weight:700;letter-spacing:-.01em;margin:0;}
+  .tag-badge{
+    font-family:var(--mono);font-size:11px;font-weight:600;color:#2E6FB0;
+    background:#E9F1FA;border:1px solid #D3E3F3;border-radius:999px;padding:5px 10px;white-space:nowrap;
+  }
+
+  /* stepper (violeta) */
+  .stepper-wrap{padding:16px 22px 6px;}
+  .stepper{display:flex;align-items:center;gap:6px;}
+  .step{
+    flex:1;display:flex;align-items:center;justify-content:center;gap:8px;
+    background:transparent;border:1.5px solid var(--line);border-radius:10px;
+    padding:9px 8px;color:var(--soft);font-weight:600;font-size:12.5px;
+    transition:.16s ease;white-space:nowrap;
+  }
+  .step .num{
+    width:20px;height:20px;border-radius:50%;display:grid;place-items:center;
+    font-size:11px;font-weight:700;background:var(--line-soft);color:var(--soft);
+    transition:.16s ease;flex:0 0 auto;
+  }
+  .step:hover{border-color:#D9D6F3;color:var(--violet-ink);}
+  .step.active{
+    border-color:var(--violet);background:var(--violet-tint);color:var(--violet-ink);
+    box-shadow:0 2px 10px -6px var(--violet);
+  }
+  .step.active .num{background:var(--violet);color:#fff;}
+  .step.done{border-color:#BEEAD0;background:#F0FBF4;color:var(--green-ink);}
+  .step.done .num{background:var(--green);color:#fff;}
+  .step.active.done{border-color:var(--violet);background:var(--violet-tint);color:var(--violet-ink);}
+  .step-arrow{color:#C9CAC5;flex:0 0 auto;display:grid;place-items:center;}
+  .step-arrow svg{width:15px;height:15px;}
+  .step-arrow.filled{color:var(--violet);}
+
+  .progress{height:3px;background:var(--line-soft);border-radius:999px;margin:14px 2px 0;overflow:hidden;}
+  .progress > i{display:block;height:100%;width:0;background:var(--violet);border-radius:999px;transition:width .35s ease;}
+
+  /* formulário */
+  .form-scroll{flex:1;overflow-y:auto;padding:8px 22px 4px;min-height:0;}
+  .comp-caption{
+    display:flex;align-items:center;gap:8px;margin:10px 0 4px;
+    font-size:12px;color:var(--violet-ink);font-weight:600;
+  }
+  .comp-caption .dot{width:7px;height:7px;border-radius:50%;background:var(--violet);}
+
+  .group{margin-top:16px;}
+  .group-label{font-size:10.5px;font-weight:600;letter-spacing:.09em;color:var(--soft);margin:0 0 9px;}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .field{display:flex;flex-direction:column;gap:6px;}
+  .field label{font-size:12.5px;font-weight:600;color:var(--ink-2);}
+  .field-input{position:relative;display:flex;}
+  .field-input input,
+  .field-input select{
+    width:100%;font-family:var(--sans);font-size:13.5px;color:var(--ink);
+    background:#FCFCFB;border:1.5px solid var(--line);border-radius:var(--radius-sm);
+    padding:10px 12px;transition:.15s;appearance:none;
+  }
+  .field-input.has-unit input{padding-right:52px;}
+  .field-input input:hover,.field-input select:hover{border-color:#DBDBD6;}
+  .field-input input:focus,.field-input select:focus{
+    outline:none;border-color:var(--violet);background:#fff;box-shadow:0 0 0 3px var(--violet-tint);
+  }
+  .field-input select{padding-right:34px;cursor:pointer;}
+  .sel-caret{position:absolute;right:12px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--soft);}
+  /* unidade em violeta */
+  .unit{
+    position:absolute;right:12px;top:50%;transform:translateY(-50%);pointer-events:none;
+    font-family:var(--mono);font-size:12px;font-weight:600;color:var(--violet);
+  }
+  .hint{font-size:11px;color:var(--soft);margin:2px 0 0;line-height:1.35;}
+  .fixed-pill{
+    display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--ink-2);
+    background:#F7F7F4;border:1.5px dashed var(--line);border-radius:var(--radius-sm);padding:10px 12px;
+  }
+  .fixed-pill .g{width:7px;height:7px;border-radius:2px;background:var(--violet);}
+
+  /* ações */
+  .actions{padding:14px 22px 18px;border-top:1px solid var(--line-soft);background:#FCFCFB;}
+  .nav-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;}
+  .nav-right{display:flex;align-items:center;gap:10px;}
+  .btn{
+    display:inline-flex;align-items:center;gap:7px;border-radius:var(--radius-sm);
+    font-weight:600;font-size:13px;padding:10px 15px;border:1.5px solid transparent;transition:.16s ease;
+  }
+  .btn svg{width:15px;height:15px;}
+  .btn-ghost{background:transparent;color:var(--ink-2);border-color:var(--line);}
+  .btn-ghost:hover:not(:disabled){background:#F4F4F1;border-color:#DCDCD7;}
+  .btn-ghost:disabled{opacity:.4;cursor:not-allowed;}
+  .btn-next{background:var(--violet);color:#fff;border-color:var(--violet);}
+  .btn-next:hover:not(:disabled){background:var(--violet-ink);}
+  .btn-next:disabled{opacity:.4;cursor:not-allowed;}
+
+  /* botão OK — acende verde */
+  .btn-ok{background:#fff;color:var(--violet-ink);border-color:var(--violet);}
+  .btn-ok:hover:not(.confirmed){background:var(--violet-tint);}
+  .btn-ok .check{display:none;}
+  .btn-ok.confirmed{
+    background:var(--green);color:#fff;border-color:var(--green);
+    animation:pop .32s ease;
+  }
+  .btn-ok.confirmed .check{display:inline-flex;}
+  .btn-ok.confirmed .lbl-default{display:none;}
+  @keyframes pop{0%{transform:scale(1)}45%{transform:scale(1.06)}100%{transform:scale(1)}}
+
+  /* CTA principal (grafite) */
+  .btn-primary{
+    width:100%;justify-content:center;background:var(--cta);color:#fff;border-color:var(--cta);
+    padding:13px;font-size:14px;font-weight:600;box-shadow:0 6px 16px -10px rgba(20,24,33,.7);
+  }
+  .btn-primary:hover{background:var(--cta-hover);}
+  .btn-primary.ready{box-shadow:0 0 0 3px var(--violet-tint),0 6px 16px -10px rgba(20,24,33,.7);}
+  .last-note{font-size:11.5px;color:var(--soft);font-style:normal;}
+
+  /* ---------- TERMINAL (direita) ---------- */
+  .term-head{
+    display:flex;align-items:center;gap:12px;padding:12px 16px;
+    background:var(--term-head);border-bottom:1px solid var(--line-soft);
+  }
+  .dots{display:flex;gap:7px;}
+  .dots span{width:11px;height:11px;border-radius:50%;background:#E2E2DD;}
+  .dots span:nth-child(1){background:#F0A9A0;}
+  .dots span:nth-child(2){background:#F3D08A;}
+  .dots span:nth-child(3){background:#A7DBA9;}
+  .term-file{font-family:var(--mono);font-size:12.5px;color:var(--muted);font-weight:500;}
+  .term-head-right{margin-left:auto;display:flex;align-items:center;gap:10px;}
+  .badge-approved{
+    font-size:11px;font-weight:600;color:var(--green-ink);background:var(--green-tint);
+    border-radius:999px;padding:4px 11px;transition:.2s;
+  }
+  .badge-approved.pending{color:var(--soft);background:#F0F0EC;}
+
+  /* alternador de visão (canto superior direito) */
+  .term-toolbar{
+    display:flex;align-items:center;justify-content:flex-end;gap:8px;
+    padding:12px 20px 0;
+  }
+  .term-toolbar .tl-label{margin-right:auto;font-size:11px;font-weight:600;letter-spacing:.06em;color:var(--soft);}
+  .view-toggle{display:inline-flex;background:#F4F4F1;border:1px solid var(--line);border-radius:9px;padding:3px;gap:2px;}
+  .vt{
+    background:transparent;border:none;border-radius:6px;font-size:12px;font-weight:600;
+    color:var(--muted);padding:6px 11px;transition:.14s;white-space:nowrap;
+  }
+  .vt:hover{color:var(--ink);}
+  .vt.active{background:#fff;color:var(--violet-ink);box-shadow:var(--shadow-sm);}
+
+  .term-body{
+    flex:1;overflow-y:auto;padding:18px 22px 26px;font-family:var(--mono);
+    font-size:12.5px;line-height:1.65;color:#2A2F3A;min-height:0;
+  }
+
+  /* conteúdo do memorial */
+  .mc-title{font-size:16px;font-weight:600;color:var(--ink);margin:2px 0 4px;font-family:var(--sans);letter-spacing:-.01em;}
+  .mc-sub{font-family:var(--mono);font-size:11.5px;color:var(--soft);margin:0 0 16px;}
+  .mc-hr{border:none;border-top:1px solid var(--line-soft);margin:16px 0;}
+  .mc-h{display:flex;align-items:center;gap:9px;font-weight:600;color:var(--ink);margin:18px 0 10px;letter-spacing:.01em;}
+  .mc-h .sq{width:9px;height:9px;background:var(--orange);border-radius:2px;flex:0 0 auto;}
+  .mc-params{display:flex;flex-direction:column;gap:3px;margin:0 0 6px;}
+  .pline{display:grid;grid-template-columns:52px 130px 1fr;gap:6px;align-items:baseline;}
+  .pline .sym{color:var(--ink);font-weight:600;}
+  .pline .val{color:var(--violet-ink);font-weight:600;}
+  .pline .desc{color:var(--soft);}
+  .mc-util{color:var(--soft);font-style:italic;margin:10px 0 4px;}
+  .mc-util b{color:var(--ink);font-style:normal;}
+
+  .mc-bar{
+    display:block;background:var(--term-blue-bg);color:var(--term-blue);
+    border-left:3px solid var(--term-blue);border-radius:6px;
+    padding:11px 14px;font-weight:600;font-size:12px;letter-spacing:.02em;margin:22px 0 6px;
+  }
+  .mc-bar-final{background:var(--violet-tint);color:var(--violet-ink);border-left-color:var(--violet);}
+  .mc-norm{color:var(--term-blue);font-style:italic;font-size:11.5px;margin:0 0 10px;}
+  .mc-line{margin:6px 0;color:#2A2F3A;}
+  .mc-line b{color:var(--ink);}
+  .mc-res{margin:10px 0 2px;color:var(--ink);}
+  .mc-res b{color:var(--orange);font-size:14px;font-weight:600;}
+  .mc-res-final{margin:12px 0 2px;color:var(--ink);font-size:13px;}
+  .mc-res-final b{color:var(--violet-ink);font-size:15px;}
+
+  .verdict{
+    display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;
+    border-radius:999px;padding:3px 9px;margin-left:8px;vertical-align:middle;
+  }
+  .verdict.ok{color:var(--green-ink);background:var(--green-tint);}
+  .verdict.no{color:#B4442F;background:#FBE6E1;}
+
+  /* fração */
+  .frac{display:flex;align-items:center;gap:12px;margin:12px 0;padding-left:6px;}
+  .frac-lhs{font-weight:600;color:var(--ink);}
+  .frac-stack{display:inline-flex;flex-direction:column;align-items:center;}
+  .frac-num,.frac-den{padding:0 8px;white-space:nowrap;color:#33384a;}
+  .frac-bar{height:1.5px;background:#33384a;width:100%;margin:3px 0;border-radius:2px;}
+
+  /* scrollbars */
+  .form-scroll::-webkit-scrollbar,.term-body::-webkit-scrollbar{width:10px;}
+  .form-scroll::-webkit-scrollbar-thumb,.term-body::-webkit-scrollbar-thumb{
+    background:#DFDFDA;border-radius:99px;border:3px solid var(--card);
+  }
+  .term-body::-webkit-scrollbar-thumb{border-color:var(--term-bg);}
+  .form-scroll::-webkit-scrollbar-thumb:hover,.term-body::-webkit-scrollbar-thumb:hover{background:#CFCFC9;}
+
+  /* responsivo */
+  @media (max-width:1040px){
+    .workspace{grid-template-columns:1fr;height:auto;}
+    .card{min-height:520px;}
+    .login-info,.divider-v{display:none;}
+  }
+  @media (max-width:560px){
+    .topbar{flex-wrap:wrap;gap:12px;}
+    .badge-norm{display:none;}
+    .grid-2{grid-template-columns:1fr;}
+    .workspace{padding:16px;}
+  }
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;}}
+</style>
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="title-block">
+      <h1>Cálculo de PMTA e espessura mínima</h1>
+      <p class="crumb">Engenharia / Memorial de cálculo</p>
+    </div>
+    <div class="topbar-right">
+      <span class="badge-norm">NR-13 · ASME VIII Div.1</span>
+      <span class="pill-sync">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
+        Sincronizado
+      </span>
+      <span class="login-info">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        Último login: hoje às 03:53
+      </span>
+      <button class="icon-btn" aria-label="Notificações">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+      </button>
+      <button class="icon-btn" aria-label="Baixar">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+      </button>
+      <div class="divider-v"></div>
+      <div class="user">
+        <div class="avatar">TE</div>
+        <div>
+          <div class="u-name">teste</div>
+          <div class="u-role">Administrador</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="workspace">
+
+    <!-- ESQUERDA -->
+    <section class="card">
+      <div class="panel-head">
+        <div>
+          <p class="eyebrow">DADOS DE ENTRADA</p>
+          <h2>Parâmetros do equipamento</h2>
+        </div>
+        <span class="tag-badge">TAG: VASO A23</span>
+      </div>
+
+      <div class="stepper-wrap">
+        <div class="stepper" id="stepper"></div>
+        <div class="progress"><i id="progressBar"></i></div>
+      </div>
+
+      <div class="form-scroll" id="formArea"></div>
+
+      <div class="actions">
+        <div class="nav-row">
+          <button class="btn btn-ghost" id="btnBack">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+            Voltar
+          </button>
+          <div class="nav-right">
+            <button class="btn btn-ok" id="btnOk">
+              <span class="lbl-default">OK</span>
+              <span class="check">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                Salvo
+              </span>
+            </button>
+            <button class="btn btn-next" id="btnNext">
+              Próximo
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+            <span class="last-note" id="lastNote" style="display:none">Último componente</span>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="btnCalc">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5v14l11-7z"/></svg>
+          Gerar memorial de cálculo
+        </button>
+      </div>
+    </section>
+
+    <!-- DIREITA -->
+    <section class="card">
+      <div class="term-head">
+        <div class="dots"><span></span><span></span><span></span></div>
+        <span class="term-file">memorial_calculo_nr13.log</span>
+        <div class="term-head-right">
+          <span class="badge-approved" id="approvedBadge">aprovado</span>
+        </div>
+      </div>
+      <div class="term-toolbar">
+        <span class="tl-label">MEMORIAL</span>
+        <div class="view-toggle" id="viewToggle">
+          <button class="vt active" data-view="full">Completo</button>
+          <button class="vt" data-view="head-sup">Tampo Sup.</button>
+          <button class="vt" data-view="shell">Casco</button>
+          <button class="vt" data-view="head-inf">Tampo Inf.</button>
+        </div>
+      </div>
+      <div class="term-body" id="termBody"></div>
+    </section>
+
+  </main>
+
+<script>
+(function(){
+  "use strict";
+
+  /* -------- estado -------- */
+  const baseData = { tag:"VASO A23", P:1.5, T:100, D:1000, material:"SA-516 Gr.70", S:138, E:0.85, CA:1.5, t:10 };
+  const S_MAP = { "SA-516 Gr.70":138, "SA-516 Gr.60":118, "SA-285 Gr.C":108 };
+
+  const steps = [
+    { id:"head-sup", label:"Tampo Sup.", kind:"head",  headType:"Elíptico 2:1", confirmed:false, data:Object.assign({}, baseData, {t:10}) },
+    { id:"shell",    label:"Casco",      kind:"shell", headType:"Cilíndrico",  confirmed:false, data:Object.assign({}, baseData, {t:10}) },
+    { id:"head-inf", label:"Tampo Inf.", kind:"head",  headType:"Elíptico 2:1", confirmed:false, data:Object.assign({}, baseData, {t:10}) },
+  ];
+  let current = 0;
+  let view = "full";
+
+  /* -------- helpers -------- */
+  const $ = s => document.querySelector(s);
+  const fmt = (n,d=2)=> Number(n).toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d});
+  const caret = '<svg class="sel-caret" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
+  const arrowSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>';
+
+  /* -------- stepper -------- */
+  function renderStepper(){
+    const el = $("#stepper");
+    let html = "";
+    steps.forEach((s,i)=>{
+      const cls = ["step", i===current?"active":"", s.confirmed?"done":""].filter(Boolean).join(" ");
+      const inner = s.confirmed
+        ? '<span class="num"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span>'
+        : '<span class="num">'+(i+1)+'</span>';
+      html += '<button class="'+cls+'" data-step="'+i+'">'+inner+'<span>'+s.label+'</span></button>';
+      if(i<steps.length-1){
+        const filled = steps[i].confirmed ? "filled":"";
+        html += '<span class="step-arrow '+filled+'">'+arrowSvg+'</span>';
+      }
+    });
+    el.innerHTML = html;
+    el.querySelectorAll(".step").forEach(b=>{
+      b.addEventListener("click",()=>{ current = +b.dataset.step; renderForm(); renderStepper(); syncNav(); });
+    });
+    const done = steps.filter(s=>s.confirmed).length;
+    $("#progressBar").style.width = (done/steps.length*100)+"%";
+  }
+
+  /* -------- formulário -------- */
+  function field(label,name,val,unit,hint){
+    const u = unit ? ' has-unit' : '';
+    const unitEl = unit ? '<span class="unit">'+unit+'</span>' : '';
+    const hintEl = hint ? '<p class="hint">'+hint+'</p>' : '';
+    return '<div class="field"><label>'+label+'</label><div class="field-input'+u+'">'+
+      '<input type="text" inputmode="decimal" data-field="'+name+'" value="'+val+'">'+unitEl+'</div>'+hintEl+'</div>';
+  }
+  function select(label,name,options,val){
+    let opts = options.map(o=>{
+      const parts = String(o).split("|");
+      const v = parts[0], lbl = parts[1]||parts[0];
+      return '<option value="'+v+'"'+(v===String(val)?" selected":"")+'>'+lbl+'</option>';
+    }).join("");
+    return '<div class="field"><label>'+label+'</label><div class="field-input">'+
+      '<select data-field="'+name+'">'+opts+'</select>'+caret+'</div></div>';
+  }
+
+  function renderForm(){
+    const s = steps[current];
+    const d = s.data;
+    let firstField;
+    if(s.kind==="head"){
+      firstField = select("Tipo de tampo","headType",["Elíptico 2:1","Torisférico 10%","Hemisférico"], s.headType);
+    } else {
+      firstField = '<div class="field"><label>Geometria do casco</label><div class="fixed-pill"><span class="g"></span>Cilíndrico</div></div>';
+    }
+
+    const html =
+      '<div class="comp-caption"><span class="dot"></span>Componente '+(current+1)+' de 3 · '+s.label+'</div>'+
+
+      '<div class="group"><p class="group-label">IDENTIFICAÇÃO</p><div class="grid-2">'+
+        '<div class="field"><label>Tag do equipamento</label><div class="field-input"><input type="text" data-field="tag" value="'+d.tag+'"></div></div>'+
+        firstField+
+      '</div></div>'+
+
+      '<div class="group"><p class="group-label">CONDIÇÕES DE PROJETO</p><div class="grid-2">'+
+        field("Pressão de projeto (P)","P",d.P,"MPa","1 kgf/cm² ≈ 0,0981 MPa")+
+        field("Temperatura de projeto (T)","T",d.T,"°C","")+
+      '</div></div>'+
+
+      '<div class="group"><p class="group-label">GEOMETRIA</p>'+
+        field("Diâmetro interno (D)","D",d.D,"mm","usado no casco e no tampo")+
+      '</div>'+
+
+      '<div class="group"><p class="group-label">MATERIAL E JUNTA</p><div class="grid-2">'+
+        select("Material do casco/tampo","material",["SA-516 Gr.70","SA-516 Gr.60","SA-285 Gr.C"], d.material)+
+        select("Eficiência de junta (E)","E",["0.85|0,85 — Radiografia parcial","1.00|1,00 — Radiografia total","0.70|0,70 — Sem radiografia"], String(d.E))+
+      '</div></div>'+
+
+      '<div class="group"><p class="group-label">ESPESSURAS</p><div class="grid-2">'+
+        field("Sobrespessura de corrosão (C.A.)","CA",d.CA,"mm","")+
+        field("Espessura nominal medida (t)","t",d.t,"mm","aplicada a este componente")+
+      '</div></div>';
+
+    $("#formArea").innerHTML = html;
+    $("#formArea").scrollTop = 0;
+
+    // listeners
+    $("#formArea").querySelectorAll("[data-field]").forEach(inp=>{
+      inp.addEventListener("input",()=>onEdit(inp));
+      inp.addEventListener("change",()=>onEdit(inp));
+    });
+  }
+
+  function onEdit(inp){
+    const s = steps[current], f = inp.dataset.field, raw = inp.value;
+    if(f==="tag"){ s.data.tag = raw; }
+    else if(f==="headType"){ s.headType = raw; }
+    else if(f==="material"){ s.data.material = raw; s.data.S = S_MAP[raw] || s.data.S; }
+    else if(f==="E"){ s.data.E = parseFloat(raw); }
+    else { const v = parseFloat(String(raw).replace(",",".")); if(!isNaN(v)) s.data[f]=v; }
+
+    // editar desfaz a confirmação
+    if(s.confirmed){ s.confirmed=false; renderStepper(); }
+    syncNav();
+  }
+
+  /* -------- navegação / botões -------- */
+  const btnOk = $("#btnOk"), btnBack = $("#btnBack"), btnNext = $("#btnNext"), lastNote = $("#lastNote"), btnCalc = $("#btnCalc");
+
+  function syncNav(){
+    btnBack.disabled = current===0;
+    const isLast = current===steps.length-1;
+    btnNext.style.display = isLast ? "none":"inline-flex";
+    lastNote.style.display = isLast ? "inline":"none";
+
+    const s = steps[current];
+    btnOk.classList.toggle("confirmed", s.confirmed);
+
+    const allDone = steps.every(x=>x.confirmed);
+    btnCalc.classList.toggle("ready", allDone);
+  }
+
+  btnBack.addEventListener("click",()=>{ if(current>0){ current--; renderForm(); renderStepper(); syncNav(); }});
+  btnNext.addEventListener("click",()=>{ if(current<steps.length-1){ current++; renderForm(); renderStepper(); syncNav(); }});
+
+  btnOk.addEventListener("click",()=>{
+    const s = steps[current];
+    s.confirmed = true;
+    btnOk.classList.remove("confirmed"); void btnOk.offsetWidth; // reinicia animação
+    btnOk.classList.add("confirmed");
+    renderStepper(); syncNav();
+    // avança suavemente se ainda houver etapa
+    if(current<steps.length-1){ setTimeout(()=>{ current++; renderForm(); renderStepper(); syncNav(); }, 480); }
+  });
+
+  btnCalc.addEventListener("click",()=>{
+    btnCalc.disabled = true;
+    const body = $("#termBody");
+    body.style.opacity = ".35";
+    setTimeout(()=>{
+      renderMemorial();
+      body.style.opacity = "1";
+      btnCalc.disabled = false;
+      $("#termBody").scrollTop = 0;
+    }, 260);
+  });
+
+  /* -------- cálculo -------- */
+  function calcHead(d){
+    const tutil = d.t - d.CA;
+    const treq = (d.P*d.D)/(2*d.S*d.E - 0.2*d.P);
+    const pmta = (2*d.S*d.E*tutil)/(d.D + 0.2*tutil);
+    return {tutil, treq, pmta};
+  }
+  function calcShell(d){
+    const R = d.D/2, tutil = d.t - d.CA;
+    const treq = (d.P*R)/(d.S*d.E - 0.6*d.P);
+    const pmta = (d.S*d.E*tutil)/(R + 0.6*tutil);
+    return {R, tutil, treq, pmta};
+  }
+  function result(s){ return s.kind==="head" ? calcHead(s.data) : calcShell(s.data); }
+
+  /* -------- memorial (HTML) -------- */
+  function frac(lhs,num,den){
+    return '<div class="frac"><span class="frac-lhs">'+lhs+'</span><span class="frac-stack">'+
+      '<span class="frac-num">'+num+'</span><span class="frac-bar"></span><span class="frac-den">'+den+'</span></span></div>';
+  }
+  function verdict(ok){ return '<span class="verdict '+(ok?"ok":"no")+'">'+(ok?"ATENDE":"VERIFICAR")+'</span>'; }
+
+  function paramsBlock(d){
+    return '<p class="mc-h"><span class="sq"></span>PARÂMETROS GERAIS DE ENTRADA</p>'+
+    '<div class="mc-params">'+
+      pl("P","= "+fmt(d.P,2)+" MPa","Pressão de Projeto estipulada")+
+      pl("T","= "+fmt(d.T,0)+" °C","Temperatura de Projeto do elemento")+
+      pl("D","= "+fmt(d.D,1)+" mm","Diâmetro Interno livre do equipamento")+
+      pl("R","= "+fmt(d.D/2,1)+" mm","Raio Interno do equipamento")+
+      pl("S","= "+fmt(d.S,2)+" MPa","Tensão Máx. Admissível — "+d.material+" @ "+fmt(d.T,0)+"°C")+
+      pl("E","= "+fmt(d.E,2),"Eficiência de Junta / Grau de Raio-X")+
+      pl("Tnom","= "+fmt(d.t,2)+" mm","Espessura nominal / medida atual")+
+      pl("C.A.","= "+fmt(d.CA,2)+" mm","Margem de corrosão para desgaste")+
+    '</div>'+
+    '<p class="mc-util">Tútil = Tnom − C.A. = '+fmt(d.t,2)+' − '+fmt(d.CA,2)+' = <b>'+fmt(d.t-d.CA,2)+' mm</b>&nbsp;&nbsp;(Espessura útil que resiste à pressão)</p>';
+  }
+  function pl(sym,val,desc){ return '<div class="pline"><span class="sym">'+sym+'</span><span class="val">'+val+'</span><span class="desc">'+desc+'</span></div>'; }
+
+  function headBlock(s){
+    const d = s.data, r = calcHead(d);
+    const ok = r.tutil >= r.treq && r.pmta >= d.P;
+    return ''+
+    '<div class="mc-bar">MEMORIAL DE CÁLCULO: '+s.label.toUpperCase()+' — TAMPO '+s.headType.toUpperCase()+' (UG-32 d)</div>'+
+    '<p class="mc-norm">Norma Base: ASME Sec. VIII Div.1 — Parágrafo UG-32(d) · Tampo Elíptico 2:1</p>'+
+
+    '<p class="mc-h"><span class="sq"></span>1. ESPESSURA MÍNIMA REQUERIDA (t_req)</p>'+
+    frac("t_req =","P · D","2 · S · E − 0,2 · P")+
+    frac("t_req =",fmt(d.P,2)+" · "+fmt(d.D,1), "2 · "+fmt(d.S,2)+" · "+fmt(d.E,2)+" − 0,2 · "+fmt(d.P,2))+
+    '<p class="mc-res">t_req = <b>'+fmt(r.treq,4)+' mm</b></p>'+
+
+    '<p class="mc-h"><span class="sq"></span>2. VERIFICAÇÃO DA ESPESSURA ÚTIL</p>'+
+    '<p class="mc-line">Tútil = '+fmt(r.tutil,2)+' mm &nbsp;≥&nbsp; t_req = '+fmt(r.treq,4)+' mm '+verdict(r.tutil>=r.treq)+'</p>'+
+    '<p class="mc-line">Folga disponível = '+fmt(r.tutil - r.treq,4)+' mm</p>'+
+
+    '<p class="mc-h"><span class="sq"></span>3. PMTA DO COMPONENTE</p>'+
+    frac("PMTA =","2 · S · E · t","D + 0,2 · t")+
+    frac("PMTA =","2 · "+fmt(d.S,2)+" · "+fmt(d.E,2)+" · "+fmt(r.tutil,2), fmt(d.D,1)+" + 0,2 · "+fmt(r.tutil,2))+
+    '<p class="mc-res">PMTA = <b>'+fmt(r.pmta,4)+' MPa</b>'+verdict2(ok)+'</p>';
+  }
+
+  function shellBlock(s){
+    const d = s.data, r = calcShell(d);
+    const ok = r.tutil >= r.treq && r.pmta >= d.P;
+    return ''+
+    '<div class="mc-bar">MEMORIAL DE CÁLCULO: CASCO CILÍNDRICO (UG-27 c)</div>'+
+    '<p class="mc-norm">Norma Base: ASME Sec. VIII Div.1 — Parágrafo UG-27(c) — Tensão Circunferencial</p>'+
+
+    '<p class="mc-h"><span class="sq"></span>1. ESPESSURA MÍNIMA REQUERIDA (t_req)</p>'+
+    frac("t_req =","P · R","S · E − 0,6 · P")+
+    frac("t_req =",fmt(d.P,2)+" · "+fmt(r.R,1), fmt(d.S,2)+" · "+fmt(d.E,2)+" − 0,6 · "+fmt(d.P,2))+
+    '<p class="mc-res">t_req = <b>'+fmt(r.treq,4)+' mm</b></p>'+
+
+    '<p class="mc-h"><span class="sq"></span>2. VERIFICAÇÃO DA ESPESSURA ÚTIL</p>'+
+    '<p class="mc-line">Tútil = '+fmt(r.tutil,2)+' mm &nbsp;≥&nbsp; t_req = '+fmt(r.treq,4)+' mm '+verdict(r.tutil>=r.treq)+'</p>'+
+    '<p class="mc-line">Folga disponível = '+fmt(r.tutil - r.treq,4)+' mm</p>'+
+
+    '<p class="mc-h"><span class="sq"></span>3. PMTA DO COMPONENTE</p>'+
+    frac("PMTA =","S · E · t","R + 0,6 · t")+
+    frac("PMTA =",fmt(d.S,2)+" · "+fmt(d.E,2)+" · "+fmt(r.tutil,2), fmt(r.R,1)+" + 0,6 · "+fmt(r.tutil,2))+
+    '<p class="mc-res">PMTA = <b>'+fmt(r.pmta,4)+' MPa</b>'+verdict2(ok)+'</p>';
+  }
+
+  function verdict2(ok){ return '<span class="verdict '+(ok?"ok":"no")+'">'+(ok?"APROVADO":"REPROVADO")+'</span>'; }
+
+  function conclusion(){
+    const rs = steps.map(result);
+    const pmtas = rs.map(r=>r.pmta);
+    const min = Math.min.apply(null, pmtas);
+    const idx = pmtas.indexOf(min);
+    const P = steps[0].data.P;
+    const ok = min >= P;
+    return ''+
+    '<div class="mc-bar mc-bar-final">CONCLUSÃO — PMTA DO EQUIPAMENTO</div>'+
+    '<p class="mc-line">PMTA_equip = mín( '+fmt(pmtas[0],4)+' ; '+fmt(pmtas[1],4)+' ; '+fmt(pmtas[2],4)+' ) MPa</p>'+
+    '<p class="mc-line">Componente limitante: <b>'+steps[idx].label+'</b></p>'+
+    '<p class="mc-res-final">PMTA = <b>'+fmt(min,4)+' MPa</b> &nbsp;≥&nbsp; P = '+fmt(P,2)+' MPa &nbsp;→&nbsp; '+verdict2(ok)+'</p>';
+  }
+
+  function header(d){
+    const now = new Date();
+    const dd = String(now.getDate()).padStart(2,"0"), mm = String(now.getMonth()+1).padStart(2,"0");
+    const hh = String(now.getHours()).padStart(2,"0"), mi = String(now.getMinutes()).padStart(2,"0");
+    return '<p class="mc-title">Memorial de Cálculo — TAG: '+d.tag+'</p>'+
+      '<p class="mc-sub">Gerado em '+dd+'/'+mm+'/'+now.getFullYear()+' '+hh+':'+mi+' · Material '+d.material+' · NR-13 / ASME VIII Div.1</p><hr class="mc-hr">';
+  }
+
+  function renderMemorial(){
+    const d = steps[0].data; // parâmetros gerais
+    let html = header(d) + paramsBlock(d);
+
+    if(view==="full"){
+      html += headBlock(steps[0]) + shellBlock(steps[1]) + headBlock(steps[2]) + conclusion();
+      setApproved(steps.every(s=>{ const r=result(s); return r.tutil>=r.treq && r.pmta>=s.data.P; }));
+    } else {
+      const s = steps.find(x=>x.id===view);
+      html += (s.kind==="head" ? headBlock(s) : shellBlock(s));
+      const r = result(s); setApproved(r.tutil>=r.treq && r.pmta>=s.data.P);
+    }
+    $("#termBody").innerHTML = html;
+  }
+
+  function setApproved(ok){
+    const b = $("#approvedBadge");
+    b.textContent = ok ? "aprovado" : "reprovado";
+    b.classList.toggle("pending", !ok);
+    b.style.color = ok ? "" : "#B4442F";
+    b.style.background = ok ? "" : "#FBE6E1";
+  }
+
+  /* -------- alternador de visão -------- */
+  $("#viewToggle").querySelectorAll(".vt").forEach(b=>{
+    b.addEventListener("click",()=>{
+      $("#viewToggle").querySelectorAll(".vt").forEach(x=>x.classList.remove("active"));
+      b.classList.add("active");
+      view = b.dataset.view;
+      renderMemorial();
+      $("#termBody").scrollTop = 0;
+    });
+  });
+
+  /* -------- init -------- */
+  renderStepper();
+  renderForm();
+  syncNav();
+  renderMemorial();
+})();
+</script>
+</body>
+</html>

@@ -1,309 +1,48 @@
-/* Terminal de cálculo — fundo claro, texto escuro, igual ao sistema original (legado). */
-.memorial-log {
-  background: #ffffff;
-  color: #1e293b;
-  border: 1px solid var(--border-solid);
-  border-radius: var(--radius-lg);
-  padding: 16px;
-  font-family: var(--font-mono);
-  font-size: 12.5px;
-  line-height: 1.7;
-  overflow-x: auto;
+/* ============================================================================
+   MEMORIAL DE CÁLCULO — design de design/painel_pmta.html
+   Paleta: neutros frios (#F2F3F5 / #1E2330), violeta #5B45E0 (ação/valores),
+   verde #12A150 (aprovado), azul #2C6CB0 (barras do memorial), CTA grafite
+   #20242E. Fontes: Inter (sans) + JetBrains Mono (mono), importadas em
+   src/pages/Memorial.tsx. Vale para vaso, caldeira, autoclave e elétrica —
+   todos os painéis usam estas classes.
+   ============================================================================ */
+
+.memorial-page {
+  --pm-bg: #F2F3F5;
+  --pm-card: #FFFFFF;
+  --pm-line: #E7E7E3;
+  --pm-line-soft: #EFEFEC;
+  --pm-ink: #1E2330;
+  --pm-ink2: #4B5162;
+  --pm-muted: #6B7280;
+  --pm-soft: #9AA1AD;
+  --pm-violet: #5B45E0;
+  --pm-violet-ink: #4A37C4;
+  --pm-violet-tint: #EEEBFB;
+  --pm-violet-tint2: #F6F4FE;
+  --pm-green: #12A150;
+  --pm-green-tint: #DCF5E7;
+  --pm-green-ink: #0C7C3D;
+  --pm-orange: #DE7C39;
+  --pm-orange-soft: #FBEDE1;
+  --pm-blue: #2C6CB0;
+  --pm-blue-bg: #EAF2FB;
+  --pm-red: #B4442F;
+  --pm-red-bg: #FBE6E1;
+  --pm-cta: #20242E;
+  --pm-cta-hover: #141821;
+  --pm-radius: 12px;
+  --pm-radius-sm: 9px;
+  --pm-shadow: 0 1px 2px rgba(24, 28, 38, .04), 0 6px 22px -12px rgba(24, 28, 38, .14);
+  --pm-sans: 'Inter Variable', 'Inter', -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --pm-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  font-family: var(--pm-sans);
+  color: var(--pm-ink);
+  -webkit-font-smoothing: antialiased;
 }
 
-.memorial-log-comentario {
-  color: #475569;
-  font-style: italic;
-  white-space: pre-wrap;
-}
-
-.memorial-log-spacer {
-  height: 8px;
-}
-
-.memorial-log-katex {
-  overflow-x: auto;
-  padding: 6px 0;
-  color: #003858;
-}
-
-.memorial-log-katex .katex {
-  color: #003858;
-}
-
-.msg-aprovado,
-.msg-reprovado {
-  display: block;
-  font-weight: 700;
-  font-style: normal;
-  padding: 8px 12px;
-  border-radius: var(--radius-sm);
-  margin: 4px 0;
-}
-
-.msg-aprovado {
-  background: var(--status-ok-bg);
-  color: var(--status-ok-text);
-}
-
-.msg-reprovado {
-  background: var(--status-erro-bg);
-  color: var(--status-erro-text);
-}
-
-.memorial-painel {
-  display: grid;
-  grid-template-columns: 1fr 200px;
-  gap: 20px;
-  align-items: start;
-}
-
-.memorial-painel-campos {
-  background: var(--bg-card);
-  border: 1px solid var(--border-solid);
-  border-radius: var(--radius-lg);
-  padding: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.memorial-painel-label {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  background: var(--bg-card);
-  border: 1px solid var(--border-solid);
-  border-radius: var(--radius-lg);
-  min-height: 100px;
-  padding: 18px;
-  font-weight: 700;
-  font-size: 13px;
-  color: var(--text-main);
-}
-
-.memorial-campos-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 10px;
-}
-
-.memorial-campo {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 13px;
-}
-
-.memorial-campo label {
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
-}
-
-.memorial-campo input,
-.memorial-campo select {
-  padding: 8px 10px;
-  border: 1px solid var(--border-solid);
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  font-family: inherit;
-}
-
-.memorial-acoes {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.memorial-componente-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 10px;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.memorial-componente-titulo {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--text-main);
-}
-
-.memorial-tipo-fixo {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--accent-2);
-  background: var(--accent-bg-light);
-  padding: 9px 12px;
-  border-radius: var(--radius-sm);
-}
-
-/* Select de tipo (ex.: Tipo de Tampo) fica marcado em azul depois de escolhido — mesmo visual
-   do rótulo fixo do casco (.memorial-tipo-fixo), só que aqui ainda é editável. */
-.campo-tipo-selecionado select {
-  background: var(--accent-bg-light) !important;
-  color: var(--accent-2) !important;
-  font-weight: 600;
-  border-color: var(--accent-2) !important;
-}
-
-.aba-status-dot {
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  margin-left: 6px;
-}
-
-.aba-status-dot.aprovado {
-  background: var(--status-ok-text);
-}
-
-.aba-status-dot.reprovado {
-  background: var(--status-erro-text);
-}
-
-.btn-remover {
-  background: var(--status-erro-bg);
-  color: var(--status-erro-text);
-  border: none;
-  border-radius: var(--radius-sm);
-  padding: 6px 10px;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-/* Gate de orientação — obriga escolher antes de liberar o resto do formulário */
-.orientacao-gate {
-  background: var(--bg-card);
-  border: 1px solid var(--border-solid);
-  border-radius: var(--radius-lg);
-  padding: 32px;
-  text-align: center;
-}
-
-.orientacao-gate p {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-main);
-  margin-bottom: 18px;
-}
-
-.orientacao-opcoes {
-  display: flex;
-  justify-content: center;
-  gap: 14px;
-  flex-wrap: wrap;
-}
-
-.btn-orientacao {
-  padding: 16px 28px;
-  font-size: 14px;
-  font-weight: 700;
-  border: 2px solid var(--border-solid);
-  border-radius: var(--radius-md);
-  background: var(--bg-body);
-  color: var(--text-main);
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.btn-orientacao:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: var(--accent-bg-light);
-}
-
-.memorial-cabecalho-linha {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  flex-wrap: wrap;
-  margin-bottom: 14px;
-}
-
-.orientacao-toggle {
-  display: flex;
-  border: 1px solid var(--border-solid);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-}
-
-.orientacao-toggle-btn {
-  padding: 7px 14px;
-  font-size: 12px;
-  font-weight: 700;
-  border: none;
-  background: var(--bg-card);
-  color: var(--text-muted);
-  cursor: pointer;
-}
-
-.orientacao-toggle-btn.ativa {
-  background: var(--accent-2);
-  color: #fff;
-}
-
-.abas-caldeira {
-  display: flex;
-  gap: 6px;
-  border-bottom: 1px solid var(--border-solid);
-  margin-bottom: 16px;
-  overflow-x: auto;
-}
-
-.aba-caldeira-btn {
-  padding: 10px 16px;
-  border: none;
-  background: none;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-muted);
-  cursor: pointer;
-  border-bottom: 3px solid transparent;
-  white-space: nowrap;
-}
-
-.aba-caldeira-btn.ativa {
-  color: var(--accent-2);
-  border-bottom-color: var(--accent-2);
-}
-
-.aba-caldeira-btn.aba-add {
-  color: var(--accent);
-  font-weight: 700;
-}
-
-.resultado-final-badge {
-  display: inline-block;
-  padding: 6px 14px;
-  border-radius: var(--radius-md);
-  font-weight: 700;
-  font-size: 13px;
-}
-
-.resultado-final-badge.aprovado {
-  background: var(--status-ok-bg);
-  color: var(--status-ok-text);
-}
-
-.resultado-final-badge.reprovado {
-  background: var(--status-erro-bg);
-  color: var(--status-erro-text);
-}
-
-@media (max-width: 700px) {
-  .memorial-painel {
-    grid-template-columns: 1fr;
-  }
-}
-
+/* ── Página / cabeçalho ── */
 .memorial-page {
   padding: 24px;
   max-width: 1300px;
@@ -320,29 +59,35 @@
 }
 
 .btn-voltar-memorial {
-  background: var(--menu-hover);
-  color: var(--text-main);
-  border: none;
-  border-radius: var(--radius-md);
-  padding: 8px 14px;
+  background: var(--pm-card);
+  color: var(--pm-ink2);
+  border: 1.5px solid var(--pm-line);
+  border-radius: var(--pm-radius-sm);
+  padding: 9px 14px;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   text-decoration: none;
+  transition: .15s;
 }
 
 .btn-voltar-memorial:hover {
-  background: var(--border-solid);
+  background: #F4F4F1;
+  border-color: #DCDCD7;
 }
 
 .memorial-page-header h1 {
-  font-size: 20px;
+  font-family: var(--pm-sans);
+  font-size: 19px;
   font-weight: 700;
+  letter-spacing: -.01em;
+  color: var(--pm-ink);
 }
 
 .memorial-page-header .equipamento-subtitulo {
-  color: var(--text-muted);
-  font-size: 13px;
+  color: var(--pm-soft);
+  font-size: 12.5px;
+  font-weight: 500;
 }
 
 @media (max-width: 600px) {
@@ -351,20 +96,415 @@
   }
 }
 
-/* ── Calculadora redesign ── */
+/* ── Terminal de cálculo (log) ── */
+.memorial-log {
+  background: #ffffff;
+  color: #2A2F3A;
+  border: 1px solid #E7E7E3;
+  border-radius: 12px;
+  padding: 16px;
+  font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.65;
+  overflow-x: auto;
+}
+
+/* dentro do terminal com moldura própria (term-wrap), o log não repete borda */
+.calc-terminal-section .memorial-log {
+  border: none;
+  border-radius: 0;
+  padding: 0;
+}
+
+.memorial-log-comentario {
+  color: #6B7280;
+  font-style: italic;
+  white-space: pre-wrap;
+}
+
+.memorial-log-spacer {
+  height: 8px;
+}
+
+.memorial-log-katex {
+  overflow-x: auto;
+  padding: 6px 0;
+  color: #33384A;
+}
+
+.memorial-log-katex .katex {
+  color: #33384A;
+}
+
+.msg-aprovado,
+.msg-reprovado {
+  display: block;
+  font-weight: 600;
+  font-style: normal;
+  padding: 9px 12px;
+  border-radius: 6px;
+  margin: 4px 0;
+}
+
+.msg-aprovado {
+  background: #DCF5E7;
+  color: #0C7C3D;
+}
+
+.msg-reprovado {
+  background: #FBE6E1;
+  color: #B4442F;
+}
+
+/* ── Painéis genéricos (autoclave/caldeira) ── */
+.memorial-painel {
+  display: grid;
+  grid-template-columns: 1fr 200px;
+  gap: 20px;
+  align-items: start;
+}
+
+.memorial-painel-campos {
+  background: var(--pm-card, #fff);
+  border: 1px solid #E7E7E3;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(24, 28, 38, .04), 0 6px 22px -12px rgba(24, 28, 38, .14);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.memorial-painel-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: var(--pm-card, #fff);
+  border: 1px solid #E7E7E3;
+  border-radius: 12px;
+  min-height: 100px;
+  padding: 18px;
+  font-weight: 700;
+  font-size: 13px;
+  color: #1E2330;
+}
+
+.memorial-campos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.memorial-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.memorial-campo label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #4B5162;
+}
+
+.memorial-campo input,
+.memorial-campo select {
+  padding: 10px 12px;
+  background: #FCFCFB;
+  border: 1.5px solid #E7E7E3;
+  border-radius: 9px;
+  font-size: 13.5px;
+  color: #1E2330;
+  font-family: inherit;
+  transition: .15s;
+}
+
+.memorial-campo input:hover,
+.memorial-campo select:hover {
+  border-color: #DBDBD6;
+}
+
+.memorial-campo input:focus,
+.memorial-campo select:focus {
+  outline: none;
+  border-color: #5B45E0;
+  background: #fff;
+  box-shadow: 0 0 0 3px #EEEBFB;
+}
+
+.memorial-acoes {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* botões globais dentro do memorial seguem o design: primário violeta, secundário ghost */
+.memorial-page .btn-primario {
+  background: #5B45E0;
+  color: #fff;
+  border: 1.5px solid #5B45E0;
+  border-radius: 9px;
+  font-weight: 600;
+  transition: .16s ease;
+}
+
+.memorial-page .btn-primario:hover:not(:disabled) {
+  background: #4A37C4;
+  border-color: #4A37C4;
+}
+
+.memorial-page .btn-secundario {
+  background: transparent;
+  color: #4B5162;
+  border: 1.5px solid #E7E7E3;
+  border-radius: 9px;
+  font-weight: 600;
+  transition: .16s ease;
+}
+
+.memorial-page .btn-secundario:hover {
+  background: #F4F4F1;
+  border-color: #DCDCD7;
+}
+
+.memorial-componente-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.memorial-componente-titulo {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -.01em;
+  color: #1E2330;
+}
+
+/* rótulo fixo do casco — pílula tracejada com quadradinho violeta (fixed-pill) */
+.memorial-tipo-fixo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #4B5162;
+  background: #F7F7F4;
+  border: 1.5px dashed #E7E7E3;
+  padding: 10px 12px;
+  border-radius: 9px;
+}
+
+.memorial-tipo-fixo::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: #5B45E0;
+  flex: 0 0 auto;
+}
+
+/* Select de tipo escolhido fica marcado em violeta (ainda editável) */
+.campo-tipo-selecionado select {
+  background: #EEEBFB !important;
+  color: #4A37C4 !important;
+  font-weight: 600;
+  border-color: #5B45E0 !important;
+}
+
+.aba-status-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-left: 6px;
+}
+
+.aba-status-dot.aprovado {
+  background: #12A150;
+}
+
+.aba-status-dot.reprovado {
+  background: #B4442F;
+}
+
+.btn-remover {
+  background: #FBE6E1;
+  color: #B4442F;
+  border: none;
+  border-radius: 9px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* ── Gate de orientação ── */
+.orientacao-gate {
+  background: #fff;
+  border: 1px solid #E7E7E3;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(24, 28, 38, .04), 0 6px 22px -12px rgba(24, 28, 38, .14);
+  padding: 32px;
+  text-align: center;
+}
+
+.orientacao-gate p {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1E2330;
+  margin-bottom: 18px;
+}
+
+.orientacao-opcoes {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.btn-orientacao {
+  padding: 16px 28px;
+  font-size: 14px;
+  font-weight: 700;
+  border: 1.5px solid #E7E7E3;
+  border-radius: 10px;
+  background: #FCFCFB;
+  color: #4B5162;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+
+.btn-orientacao:hover {
+  border-color: #5B45E0;
+  color: #4A37C4;
+  background: #EEEBFB;
+}
+
+.memorial-cabecalho-linha {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.orientacao-toggle {
+  display: flex;
+  background: #F4F4F1;
+  border: 1px solid #E7E7E3;
+  border-radius: 9px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.orientacao-toggle-btn {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #6B7280;
+  cursor: pointer;
+  transition: .14s;
+}
+
+.orientacao-toggle-btn.ativa {
+  background: #fff;
+  color: #4A37C4;
+  box-shadow: 0 1px 2px rgba(24, 28, 38, .05);
+}
+
+/* ── Abas de caldeira (pílulas tipo stepper) ── */
+.abas-caldeira {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.aba-caldeira-btn {
+  padding: 9px 14px;
+  border: 1.5px solid #E7E7E3;
+  border-radius: 10px;
+  background: transparent;
+  font-size: 12.5px;
+  font-weight: 600;
+  font-family: inherit;
+  color: #9AA1AD;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: .16s ease;
+}
+
+.aba-caldeira-btn:hover {
+  border-color: #D9D6F3;
+  color: #4A37C4;
+}
+
+.aba-caldeira-btn.ativa {
+  border-color: #5B45E0;
+  background: #EEEBFB;
+  color: #4A37C4;
+  box-shadow: 0 2px 10px -6px #5B45E0;
+}
+
+.aba-caldeira-btn.aba-add {
+  color: #5B45E0;
+  font-weight: 700;
+}
+
+.resultado-final-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.resultado-final-badge.aprovado {
+  background: #DCF5E7;
+  color: #0C7C3D;
+}
+
+.resultado-final-badge.reprovado {
+  background: #FBE6E1;
+  color: #B4442F;
+}
+
+@media (max-width: 700px) {
+  .memorial-painel {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Calculadora (card principal) ── */
 .calc-calculadora {
   display: flex;
   flex-direction: column;
   gap: 0;
-  border: 1px solid var(--border-solid);
-  border-radius: var(--radius-lg);
+  background: #fff;
+  border: 1px solid #E7E7E3;
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 2px 16px rgba(0,0,0,0.07);
+  box-shadow: 0 1px 2px rgba(24, 28, 38, .04), 0 6px 22px -12px rgba(24, 28, 38, .14);
 }
 
+/* barra do topo — cabeçalho claro (panel-head do design) */
 .calc-card-top-bar {
-  background: var(--ink);
-  padding: 10px 18px;
+  background: #fff;
+  border-bottom: 1px solid #EFEFEC;
+  padding: 14px 18px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -372,45 +512,49 @@
 }
 
 .calc-card-title {
-  color: var(--amber);
-  font-size: 13px;
+  color: #1E2330;
+  font-size: 15px;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  letter-spacing: -.01em;
   white-space: nowrap;
   margin-right: 8px;
 }
 
+/* abas dos componentes — passos do stepper violeta */
 .calc-card-tabs {
   display: flex;
-  gap: 4px;
+  gap: 6px;
   flex-wrap: wrap;
   flex: 1;
 }
 
 .calc-tab {
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.18);
-  color: rgba(255,255,255,0.55);
-  border-radius: var(--radius-sm);
-  padding: 5px 13px;
-  font-size: 12px;
+  background: transparent;
+  border: 1.5px solid #E7E7E3;
+  color: #9AA1AD;
+  border-radius: 10px;
+  padding: 8px 13px;
+  font-size: 12.5px;
   font-weight: 600;
+  font-family: inherit;
   cursor: pointer;
-  transition: all 0.13s;
+  transition: .16s ease;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
+  white-space: nowrap;
 }
 
 .calc-tab:hover {
-  background: rgba(255,255,255,0.14);
-  color: rgba(255,255,255,0.9);
+  border-color: #D9D6F3;
+  color: #4A37C4;
 }
 
 .calc-tab.ativa {
-  background: var(--ink-soft2);
-  border-color: var(--amber);
-  color: #fff;
+  border-color: #5B45E0;
+  background: #EEEBFB;
+  color: #4A37C4;
+  box-shadow: 0 2px 10px -6px #5B45E0;
 }
 
 .calc-tab-dot {
@@ -421,38 +565,49 @@
   flex-shrink: 0;
 }
 
-.calc-tab-dot.ok { background: var(--ok); }
-.calc-tab-dot.err { background: var(--crit); }
+.calc-tab-dot.ok { background: #12A150; }
+.calc-tab-dot.err { background: #B4442F; }
 
+/* alternador Vertical/Horizontal — view-toggle do design */
 .calc-orientacao-toggle {
   display: flex;
-  border: 1px solid rgba(255,255,255,0.25);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
+  background: #F4F4F1;
+  border: 1px solid #E7E7E3;
+  border-radius: 9px;
+  padding: 3px;
+  gap: 2px;
   margin-left: auto;
 }
 
 .calc-orientacao-btn {
-  padding: 5px 12px;
+  padding: 6px 11px;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   border: none;
+  border-radius: 6px;
   background: transparent;
-  color: rgba(255,255,255,0.5);
+  color: #6B7280;
   cursor: pointer;
-  letter-spacing: 0.04em;
+  font-family: inherit;
+  letter-spacing: .04em;
   text-transform: uppercase;
+  transition: .14s;
+}
+
+.calc-orientacao-btn:hover {
+  color: #1E2330;
 }
 
 .calc-orientacao-btn.ativa {
-  background: var(--amber);
-  color: var(--amber-txt);
+  background: #fff;
+  color: #4A37C4;
+  box-shadow: 0 1px 2px rgba(24, 28, 38, .05);
 }
 
 .calc-card-body {
   display: grid;
   grid-template-columns: 1fr 170px;
-  background: var(--bg-card);
+  background: #fff;
 }
 
 .calc-campos-section {
@@ -460,7 +615,7 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
-  border-right: 1px solid var(--border-solid);
+  border-right: 1px solid #EFEFEC;
 }
 
 .calc-equip-section {
@@ -470,7 +625,7 @@
   justify-content: center;
   padding: 18px 14px;
   gap: 10px;
-  background: var(--bg-body);
+  background: #FCFCFB;
 }
 
 .calc-equip-section img {
@@ -482,87 +637,98 @@
 
 .calc-equip-label {
   font-size: 11px;
-  font-weight: 700;
-  color: var(--text-muted);
+  font-weight: 600;
+  color: #9AA1AD;
   text-align: center;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   line-height: 1.4;
 }
 
 .calc-tipo-selector {
-  background: var(--accent-bg-light);
-  border: 1px solid var(--accent-2);
-  border-radius: var(--radius-sm);
-  padding: 9px 12px;
-  font-size: 12px;
+  background: #EEEBFB;
+  border: 1.5px solid #5B45E0;
+  border-radius: 9px;
+  padding: 10px 12px;
+  font-size: 12.5px;
   font-weight: 600;
-  color: var(--accent-2);
+  color: #4A37C4;
   font-family: inherit;
   cursor: pointer;
   width: 100%;
+  transition: .15s;
 }
 
+.calc-tipo-selector:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px #EEEBFB;
+}
+
+/* barra de resultados PMTA */
 .calc-pmta-bar {
-  background: #FBFAF7;
-  border-top: 1px solid var(--line);
-  padding: 9px 18px;
+  background: #FCFCFB;
+  border-top: 1px solid #EFEFEC;
+  padding: 10px 18px;
   display: flex;
   gap: 16px;
   flex-wrap: wrap;
   align-items: center;
   font-size: 12.5px;
   font-weight: 600;
-  color: var(--text);
+  color: #4B5162;
 }
 
 .calc-pmta-valor {
-  color: var(--amber-deep);
-  font-weight: 700;
-  font-family: var(--font-mono);
+  color: #4A37C4;
+  font-weight: 600;
+  font-family: 'JetBrains Mono', ui-monospace, Consolas, monospace;
 }
 
 .calc-pmta-sep {
-  color: var(--line);
+  color: #E7E7E3;
 }
 
-.calc-pmta-status-ok { color: var(--ok); font-weight: 700; }
-.calc-pmta-status-err { color: var(--crit); font-weight: 700; }
+.calc-pmta-status-ok { color: #0C7C3D; font-weight: 700; }
+.calc-pmta-status-err { color: #B4442F; font-weight: 700; }
 
+/* barra de ações */
 .calc-acoes-bar {
-  background: var(--bg-card);
-  border-top: 1px solid var(--border-solid);
-  padding: 9px 18px;
+  background: #FCFCFB;
+  border-top: 1px solid #EFEFEC;
+  padding: 12px 18px;
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
 }
 
+/* CTA principal — grafite profissional do design */
 .btn-gerar-calculo {
-  background: var(--ink);
-  color: var(--amber);
-  border: none;
-  border-radius: var(--radius-sm);
-  padding: 9px 18px;
+  background: #20242E;
+  color: #fff;
+  border: 1.5px solid #20242E;
+  border-radius: 9px;
+  padding: 11px 18px;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
+  font-family: inherit;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 7px;
-  letter-spacing: 0.03em;
-  transition: background 0.13s;
+  letter-spacing: 0.02em;
+  transition: background 0.16s ease;
   white-space: nowrap;
+  box-shadow: 0 6px 16px -10px rgba(20, 24, 33, .7);
 }
 
-.btn-gerar-calculo:hover { background: var(--amber-deep); }
+.btn-gerar-calculo:hover { background: #141821; }
 .btn-gerar-calculo:active { transform: scale(0.98); }
 
 .calc-terminal-label {
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
-  color: var(--text-muted);
+  color: #9AA1AD;
   flex: 1;
   white-space: nowrap;
   overflow: hidden;
@@ -570,38 +736,48 @@
 }
 
 .btn-expandir-terminal {
-  background: none;
-  border: 1px solid var(--border-solid);
-  color: var(--text-muted);
-  border-radius: var(--radius-sm);
-  padding: 6px 12px;
+  background: transparent;
+  border: 1.5px solid #E7E7E3;
+  color: #4B5162;
+  border-radius: 9px;
+  padding: 7px 12px;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+  transition: .15s;
 }
 
-.btn-expandir-terminal:hover { background: var(--bg-body); }
+.btn-expandir-terminal:hover { background: #F4F4F1; border-color: #DCDCD7; }
 
 .calc-terminal-section {
   background: #fff;
-  border-top: 1px solid var(--border-solid);
+  border-top: 1px solid #EFEFEC;
   min-height: 200px;
   max-height: 600px;
   overflow-y: auto;
-  padding: 14px 18px;
-  font-family: var(--font-mono);
+  padding: 18px 22px;
+  font-family: 'JetBrains Mono', ui-monospace, Consolas, monospace;
   font-size: 12.5px;
-  line-height: 1.75;
+  line-height: 1.65;
+  color: #2A2F3A;
 }
 
+.calc-terminal-section::-webkit-scrollbar { width: 10px; }
+.calc-terminal-section::-webkit-scrollbar-thumb {
+  background: #DFDFDA;
+  border-radius: 99px;
+  border: 3px solid #fff;
+}
+.calc-terminal-section::-webkit-scrollbar-thumb:hover { background: #CFCFC9; }
+
 .calc-terminal-prompt {
-  color: var(--blue2);
+  color: #2C6CB0;
   opacity: 0.85;
   white-space: pre-wrap;
 }
 
-/* Campo warning state */
+/* Campo em aviso (obrigatório sem valor) — mantém âmbar de alerta */
 .memorial-campo.campo-aviso .memorial-campo-label-row {
   display: flex;
   align-items: center;
@@ -630,12 +806,12 @@
 
 .memorial-dica-salvar {
   font-size: 12px;
-  color: var(--text-muted, #6b7280);
+  color: #9AA1AD;
   font-style: italic;
   align-self: center;
 }
 
-/* ── Legenda do aviso laranja + banner PENDENTE ── */
+/* ── Legenda do aviso + banner PENDENTE ── */
 .memorial-legenda-aviso {
   font-size: 0.85rem;
   color: #9a5b00;
@@ -643,9 +819,9 @@
 }
 
 .memorial-banner-pendente {
-  background: #fff4e5;
-  border: 1px solid #f0a44b;
-  border-left: 4px solid #e8830c;
+  background: #FBEDE1;
+  border: 1px solid #F1D9C6;
+  border-left: 4px solid #DE7C39;
   border-radius: 6px;
   padding: 10px 14px;
   margin: 12px 0;
@@ -666,74 +842,79 @@
 }
 
 .mista-chip {
-  border: 1px solid #ccc;
-  border-radius: 16px;
-  padding: 4px 12px;
+  border: 1.5px solid #E7E7E3;
+  border-radius: 999px;
+  padding: 5px 13px;
   font-size: 0.85rem;
+  font-weight: 600;
+  color: #9AA1AD;
   cursor: pointer;
-  opacity: 0.55;
   user-select: none;
+  transition: .15s;
 }
 
 .mista-chip.ativo {
-  border-color: #0b62c4;
-  color: #0b62c4;
-  opacity: 1;
+  border-color: #5B45E0;
+  background: #EEEBFB;
+  color: #4A37C4;
 }
 
 .mista-chip input {
   display: none;
 }
 
-/* ── Forja: cabeçalho azul-escuro por componente + divisor no terminal ── */
+/* ── Cabeçalho azul por componente + divisor no terminal (mc-bar do design) ── */
 .memorial-log-comp-header {
   display: block;
-  margin: 18px 0 2px;
-  padding: 9px 12px;
-  background: var(--blue2-bg);
-  border-left: 3px solid var(--blue2);
+  margin: 22px 0 4px;
+  padding: 11px 14px;
+  background: #EAF2FB;
+  border-left: 3px solid #2C6CB0;
   border-radius: 6px;
-  color: var(--blue2);
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 13.5px;
-  letter-spacing: 0.1px;
+  color: #2C6CB0;
+  font-family: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: .02em;
 }
 .memorial-log-comp-sub {
-  color: var(--blue2);
-  opacity: 0.8;
+  color: #2C6CB0;
   font-style: italic;
   font-size: 11.5px;
-  margin: 2px 2px 6px;
+  margin: 2px 2px 8px;
 }
 .memorial-log-hr {
-  border-top: 1px solid var(--line);
-  margin: 8px 0;
+  border-top: 1px solid #EFEFEC;
+  margin: 10px 0;
 }
 
 /* ============================================================================
-   FORJA — memorial em 2 colunas (design/painel_calculo_pmta_nr13.html):
-   formulário à esquerda, terminal à direita com barra de dots + status.
+   Terminal em coluna (2 colunas no desktop): barra com dots coloridos +
+   nome do arquivo + pill de status — term-head do design.
    ============================================================================ */
 .term-wrap {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid #E7E7E3;
 }
 .term-topbar {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   padding: 12px 16px;
-  border-bottom: 1px solid var(--line);
-  background: #FBFAF7;
+  border-bottom: 1px solid #EFEFEC;
+  background: #F7F7F4;
 }
-.term-dot { width: 9px; height: 9px; border-radius: 50%; background: #DCD8CC; flex-shrink: 0; }
+.term-dot { width: 11px; height: 11px; border-radius: 50%; background: #E2E2DD; flex-shrink: 0; }
+.term-dot:nth-of-type(1) { background: #F0A9A0; }
+.term-dot:nth-of-type(2) { background: #F3D08A; }
+.term-dot:nth-of-type(3) { background: #A7DBA9; }
 .term-filename {
-  font-family: var(--font-mono);
-  font-size: 11.5px;
-  color: var(--muted);
+  font-family: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 500;
+  color: #6B7280;
   margin-left: 6px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -741,17 +922,16 @@
 }
 .term-status {
   margin-left: auto;
-  font-size: 10.5px;
-  font-family: var(--font-mono);
+  font-size: 11px;
   font-weight: 600;
-  padding: 3px 9px;
-  border-radius: 20px;
+  padding: 4px 11px;
+  border-radius: 999px;
   flex-shrink: 0;
 }
-.term-status.idle { background: var(--steel); color: var(--muted); }
-.term-status.pass { background: var(--ok-bg); color: var(--ok); }
-.term-status.fail { background: var(--crit-bg); color: var(--crit); }
-.term-status.warn { background: var(--warn-bg); color: var(--warn); }
+.term-status.idle { background: #F0F0EC; color: #9AA1AD; }
+.term-status.pass { background: #DCF5E7; color: #0C7C3D; }
+.term-status.fail { background: #FBE6E1; color: #B4442F; }
+.term-status.warn { background: #FBEDE1; color: #B65C1F; }
 
 @media (min-width: 1021px) {
   .calc-calculadora {
@@ -774,7 +954,7 @@
   .term-wrap {
     grid-area: terminal;
     border-top: none;
-    border-left: 1px solid var(--line);
+    border-left: 1px solid #E7E7E3;
     max-height: 720px;
   }
   .term-wrap .calc-terminal-section { flex: 1; max-height: none; }

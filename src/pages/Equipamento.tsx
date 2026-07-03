@@ -174,7 +174,9 @@ function EquipamentoView({ tag }: { tag: string }) {
           <h3>Memorial de Cálculo</h3>
           <div className="memorial-body">
             <Link to={`/equipamento/${tag}/memorial`} className="btn-mem-edit">
-              <Icone nome="calculator" tam={26} />
+              <span className="btn-mem-edit-icone">
+                <Icone nome="sigma" tam={24} />
+              </span>
               <span className="txt">Editar Memorial<br />de Cálculo</span>
               <span className="sub">Abrir calculadora</span>
             </Link>

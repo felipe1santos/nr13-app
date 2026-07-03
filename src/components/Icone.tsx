@@ -13,10 +13,11 @@ export type NomeIcone =
   | 'flame' | 'fan' | 'cylinder' | 'tool' | 'filetext' | 'pencil' | 'eye' | 'copy'
   | 'trash' | 'filter' | 'search' | 'book' | 'camera' | 'upload' | 'check'
   | 'building' | 'gauge' | 'refresh' | 'calculator' | 'download' | 'shield'
-  | 'valvula-psv' | 'manometro' | 'link';
+  | 'valvula-psv' | 'manometro' | 'link' | 'sigma';
 
 const PATHS: Record<NomeIcone, ReactNode> = {
   grid: (<><rect x="3" y="3" width="7" height="7" rx="1.2" /><rect x="14" y="3" width="7" height="7" rx="1.2" /><rect x="14" y="14" width="7" height="7" rx="1.2" /><rect x="3" y="14" width="7" height="7" rx="1.2" /></>),
+  sigma: (<><path d="M17 5.5V4H7l6.5 8L7 20h10v-1.5" /></>),
   box: (<><path d="M21 8l-9-5-9 5 9 5 9-5z" /><path d="M3 8v8l9 5 9-5V8" /><path d="M12 13v8" /></>),
   userplus: (<><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><line x1="19" y1="8" x2="19" y2="14" /><line x1="16" y1="11" x2="22" y2="11" /></>),
   users: (<><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></>),
