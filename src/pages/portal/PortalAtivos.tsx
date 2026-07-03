@@ -1,4 +1,5 @@
 import { Link, useOutletContext } from 'react-router-dom';
+import { Icone } from '../../components/Icone';
 import { montarAtivos } from '../../features/portal/portalService';
 import type { ContextoPortal } from './PortalLayout';
 
@@ -25,7 +26,7 @@ export default function PortalAtivos() {
         {ativos.map((a) => (
           <Link key={a.tag} to={`/portal/ativo/${a.tag}`} className="portal-card-ativo">
             <div className="portal-card-foto">
-              {a.fotoCapa ? <img src={a.fotoCapa} alt={a.tag} /> : <span className="portal-card-sem-foto">⚙</span>}
+              {a.fotoCapa ? <img src={a.fotoCapa} alt={a.tag} /> : <span className="portal-card-sem-foto"><Icone nome="box" tam={22} /></span>}
             </div>
             <div className="portal-card-info">
               <span className="portal-card-tag">{a.tag}</span>

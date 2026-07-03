@@ -338,7 +338,7 @@
   font-size: 40px;
   line-height: 1;
   margin-bottom: 4px;
-  filter: drop-shadow(0 4px 10px rgba(79, 70, 229, 0.25));
+  filter: drop-shadow(0 4px 10px rgba(255, 122, 26, 0.25));
 }
 
 .cal-add-card-titulo {

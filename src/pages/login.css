@@ -127,7 +127,7 @@
 .btn-login:hover:not(:disabled) {
   filter: brightness(1.06);
   transform: translateY(-1px);
-  box-shadow: 0 12px 28px rgba(79, 70, 229, 0.42);
+  box-shadow: 0 12px 28px rgba(255, 122, 26, 0.30);
 }
 
 .btn-login:active:not(:disabled) {

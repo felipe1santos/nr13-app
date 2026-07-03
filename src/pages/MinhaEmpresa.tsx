@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Icone } from '../components/Icone';
 import { carregarMinhaEmpresa, salvarMinhaEmpresa } from '../features/cadastros/cadastroService';
 import type { MinhaEmpresaDados } from '../features/cadastros/tipos';
 import { comprimirImagem } from '../services/imagem';
@@ -156,7 +157,7 @@ export default function MinhaEmpresa() {
           <p className="cad-page-sub">Dados injetados automaticamente em toda documentação gerada</p>
         </div>
         <button type="button" className="btn-editar-pencil" onClick={iniciarEdicao} title="Editar">
-          ✏️
+          <Icone nome="pencil" tam={14} />
         </button>
       </div>
 

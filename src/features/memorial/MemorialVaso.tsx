@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Icone } from '../../components/Icone';
 import type { TipoComponenteVaso } from '../../calc/vaso';
 import Campo from './Campo';
 import MemorialLog from './MemorialLog';
@@ -275,7 +276,7 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
           {imagemSrc ? (
             <img src={imagemSrc} alt={componenteAtivo.nome} />
           ) : (
-            <div style={{ fontSize: 48, opacity: 0.15 }}>⚙</div>
+            <Icone nome="calculator" tam={44} />
           )}
           <span className="calc-equip-label">{componenteAtivo.nome}</span>
           {resultadoAtivo && (
@@ -333,7 +334,7 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
           disabled={!resumo || salvando}
           style={{ opacity: resumo ? 1 : 0.4, fontSize: 12 }}
         >
-          {salvando ? 'Salvando...' : '💾 Salvar'}
+          {salvando ? 'Salvando...' : 'Salvar'}
         </button>
       </div>
 

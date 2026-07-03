@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Icone } from '../../components/Icone';
 import { Link } from 'react-router-dom';
 import ModalNovaInspecaoContainer from './ModalNovaInspecaoContainer';
 import {
@@ -92,7 +93,7 @@ export default function ArquivosInspecao({ tag }: { tag: string }) {
                             Preencher
                           </Link>
                           <button type="button" className="btn-remover-item" onClick={() => excluirItem(c.id, f)} title="Remover item">
-                            🗑
+                            <Icone nome="trash" tam={14} />
                           </button>
                         </div>
                       </div>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Icone } from '../components/Icone';
 import { listarFuncionarios, salvarFuncionario, excluirFuncionario } from '../features/cadastros/cadastroService';
 import type { Funcionario } from '../features/cadastros/tipos';
 import { comprimirImagem } from '../services/imagem';
@@ -160,7 +161,7 @@ export default function Funcionarios() {
               </div>
               <div className="cad-item-acoes">
                 <button type="button" className="btn-editar-pencil" onClick={() => editarFuncionario(f)} title="Editar">
-                  ✏️
+                  <Icone nome="pencil" tam={14} />
                 </button>
                 {confirmarExcluir === f.id ? (
                   <>

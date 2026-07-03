@@ -354,15 +354,13 @@
 }
 
 .btn-primario {
-  background: var(--accent-grad);
-  color: #fff;
-  box-shadow: var(--shadow-accent);
+  background: var(--amber);
+  color: var(--amber-txt);
+  box-shadow: none;
 }
 
 .btn-primario:hover:not(:disabled) {
-  filter: brightness(1.06);
-  transform: translateY(-1px);
-  box-shadow: 0 10px 24px rgba(79, 70, 229, 0.38);
+  background: var(--amber-deep);
 }
 
 .btn-primario:active:not(:disabled) {

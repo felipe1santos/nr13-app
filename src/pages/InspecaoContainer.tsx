@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { Icone } from '../components/Icone';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { carregarContainer, formulariosDoContainer } from '../features/inspecoes/inspecaoService';
 import { ROTULO_FORMULARIO } from '../features/inspecoes/tipos';
@@ -56,7 +57,7 @@ export default function InspecaoContainer() {
                         👁 Ver preenchido
                       </button>
                       <button type="button" className="btn-visualizar btn-ver-doc" onClick={() => navigate(`${base}/${f}?documento=1`)}>
-                        📄 Ver documento
+                        <Icone nome="eye" tam={14} /> Ver documento
                       </button>
                     </>
                   )}

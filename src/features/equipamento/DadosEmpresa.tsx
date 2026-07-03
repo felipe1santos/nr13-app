@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Icone } from '../../components/Icone';
 import { ler, salvar } from '../../services/storage';
 import type { EmpresaEquipamento } from './tipos';
 import Campo from '../memorial/Campo';
@@ -77,7 +78,7 @@ export default function DadosEmpresa({ tag }: { tag: string }) {
         <h4>Dados da Empresa</h4>
         {!editando && (
           <button type="button" className="btn-editar-pencil" onClick={() => setEditando(true)} title="Editar">
-            ✏️
+            <Icone nome="pencil" tam={14} />
           </button>
         )}
       </div>

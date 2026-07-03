@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Icone } from '../components/Icone';
 import { listarClientes, salvarCliente, excluirCliente } from '../features/cadastros/cadastroService';
 import type { Cliente } from '../features/cadastros/tipos';
 import { criarAcessoCliente } from '../services/orgAdmin';
@@ -231,7 +232,7 @@ export default function Empresas() {
               </div>
               <div className="cad-item-acoes">
                 <button type="button" className="btn-editar-pencil" onClick={() => editarCliente(c)} title="Editar">
-                  ✏️
+                  <Icone nome="pencil" tam={14} />
                 </button>
                 {confirmarExcluir === c.id ? (
                   <>

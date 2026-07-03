@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Icone } from '../../components/Icone';
 import type { InfoEquipamento } from './tipos';
 import { salvarInfo } from './equipamentoService';
 import Campo from '../memorial/Campo';
@@ -25,7 +26,7 @@ export default function DadosEquipamento({ info, onSalvo }: { info: InfoEquipame
         <h4>Dados do Equipamento</h4>
         {!editando && (
           <button type="button" className="btn-editar-pencil" onClick={() => setEditando(true)} title="Editar">
-            ✏️
+            <Icone nome="pencil" tam={14} />
           </button>
         )}
       </div>

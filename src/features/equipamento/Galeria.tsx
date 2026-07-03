@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { Icone } from '../../components/Icone';
 import { ler, salvar } from '../../services/storage';
 import { comprimirImagem } from '../../services/imagem';
 import type { FotoEquipamento } from './tipos';
@@ -55,7 +56,7 @@ export default function Galeria({ tag }: { tag: string }) {
         </div>
       ))}
       <label className="gallery-add-dropzone">
-        <span className="gallery-add-icone">📷</span>
+        <span className="gallery-add-icone"><Icone nome="camera" tam={20} /></span>
         <span>Anexar Foto</span>
         <input ref={inputRef} type="file" accept="image/*" multiple onChange={handleUpload} style={{ display: 'none' }} />
       </label>

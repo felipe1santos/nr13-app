@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Icone } from '../components/Icone';
 import { listarEquipamentos } from '../features/equipamento/equipamentoService';
 import type { EmpresaEquipamento, EquipamentoResumo, TipoEquipamento } from '../features/equipamento/tipos';
 import { formatarValor } from '../calc/unidades';
@@ -841,7 +842,7 @@ export default function Calibracoes() {
               {calAtual.tipo === 'manometro' ? 'Calibração — Manômetro' : 'Calibração — PSV'} (dados preenchidos)
             </h3>
             <button type="button" className="btn-primario" onClick={() => abrirVisualizador(calAtual)}>
-              📄 Ver como fica o documento
+              <Icone nome="eye" tam={14} /> Ver como fica o documento
             </button>
           </div>
           <VisualizadorCalibracao dados={calAtual} />

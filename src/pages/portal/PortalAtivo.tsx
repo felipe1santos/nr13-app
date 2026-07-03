@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Icone } from '../../components/Icone';
 import { Link, useParams } from 'react-router-dom';
 import { ler } from '../../services/storage';
 import { listarHistorico } from '../../features/relatorios/relatoriosService';
@@ -75,7 +76,7 @@ export default function PortalAtivo() {
         {/* ── Resumo do ativo (esquerda) ── */}
         <aside className="portal-resumo">
           <div className="portal-resumo-foto">
-            {capa ? <img src={capa.src} alt={tag} /> : <span className="portal-card-sem-foto">⚙</span>}
+            {capa ? <img src={capa.src} alt={tag} /> : <span className="portal-card-sem-foto"><Icone nome="box" tam={22} /></span>}
           </div>
           <h2>{tag}</h2>
           {info?.descricao && <p className="portal-card-desc">{info.descricao}</p>}

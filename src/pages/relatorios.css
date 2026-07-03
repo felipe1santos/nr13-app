@@ -351,7 +351,7 @@
 }
 
 .btn-icone.cor-roxo {
-  color: #7c3aed;
+  color: var(--purple);
 }
 
 .btn-icone.cor-vermelho {

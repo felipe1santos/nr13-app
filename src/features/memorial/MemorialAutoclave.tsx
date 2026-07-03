@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Icone } from '../../components/Icone';
 import Campo from './Campo';
 import MemorialLog from './MemorialLog';
 import MemorialVaso from './MemorialVaso';
@@ -184,7 +185,7 @@ function MemorialAutoclaveInner({ tag, subtipo }: Props) {
             </div>
 
             <div className="calc-equip-section">
-              <div style={{ fontSize: 48, opacity: 0.15 }}>⚙</div>
+              <Icone nome="calculator" tam={44} />
               <span className="calc-equip-label">Autoclave Vertical</span>
               {resultado && (
                 <span className={`resultado-final-badge ${resultado.resultado === 'APROVADO' ? 'aprovado' : 'reprovado'}`} style={{ fontSize: 11 }}>
@@ -214,7 +215,7 @@ function MemorialAutoclaveInner({ tag, subtipo }: Props) {
               disabled={!resultado || salvando}
               style={{ opacity: resultado ? 1 : 0.4, fontSize: 12 }}
             >
-              {salvando ? 'Salvando...' : '💾 Salvar'}
+              {salvando ? 'Salvando...' : 'Salvar'}
             </button>
           </div>
 
@@ -284,7 +285,7 @@ function MemorialAutoclaveInner({ tag, subtipo }: Props) {
               disabled={!resultado || salvando}
               style={{ opacity: resultado ? 1 : 0.4, fontSize: 12 }}
             >
-              {salvando ? 'Salvando...' : '💾 Salvar'}
+              {salvando ? 'Salvando...' : 'Salvar'}
             </button>
           </div>
 
