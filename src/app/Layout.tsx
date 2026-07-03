@@ -138,9 +138,9 @@ export default function Layout() {
         {/* ===== SIDEBAR (escura, Forja) ===== */}
         <aside className={`sidebar${menuAberto ? ' aberta' : ''}`}>
           <div className="brand">
-            <div className="brand-mark">Fj</div>
+            <div className="brand-mark">13</div>
             <div>
-              <div className="brand-name">Forja</div>
+              <div className="brand-name">NR13</div>
               <div className="brand-sub">Engenharia &amp; Ativos</div>
             </div>
           </div>

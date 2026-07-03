@@ -710,3 +710,75 @@
   border-top: 1px solid var(--line);
   margin: 8px 0;
 }
+
+/* ============================================================================
+   FORJA — memorial em 2 colunas (design/painel_calculo_pmta_nr13.html):
+   formulário à esquerda, terminal à direita com barra de dots + status.
+   ============================================================================ */
+.term-wrap {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-top: 1px solid var(--line);
+}
+.term-topbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+  background: #FBFAF7;
+}
+.term-dot { width: 9px; height: 9px; border-radius: 50%; background: #DCD8CC; flex-shrink: 0; }
+.term-filename {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-left: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.term-status {
+  margin-left: auto;
+  font-size: 10.5px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 20px;
+  flex-shrink: 0;
+}
+.term-status.idle { background: var(--steel); color: var(--muted); }
+.term-status.pass { background: var(--ok-bg); color: var(--ok); }
+.term-status.fail { background: var(--crit-bg); color: var(--crit); }
+.term-status.warn { background: var(--warn-bg); color: var(--warn); }
+
+@media (min-width: 1021px) {
+  .calc-calculadora {
+    display: grid;
+    grid-template-columns: 1fr 1.45fr;
+    grid-template-areas:
+      'topbar   terminal'
+      'body     terminal'
+      'pendente terminal'
+      'pmta     terminal'
+      'acoes    terminal';
+    grid-template-rows: auto 1fr auto auto auto;
+    align-items: stretch;
+  }
+  .calc-card-top-bar { grid-area: topbar; }
+  .calc-card-body { grid-area: body; grid-template-columns: 1fr; }
+  .memorial-banner-pendente { grid-area: pendente; }
+  .calc-pmta-bar { grid-area: pmta; }
+  .calc-acoes-bar { grid-area: acoes; }
+  .term-wrap {
+    grid-area: terminal;
+    border-top: none;
+    border-left: 1px solid var(--line);
+    max-height: 720px;
+  }
+  .term-wrap .calc-terminal-section { flex: 1; max-height: none; }
+  /* painel de ilustração do equipamento sai — a referência não tem essa coluna */
+  .calc-equip-section { display: none; }
+  .calc-campos-section { border-right: none; }
+}

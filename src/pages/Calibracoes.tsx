@@ -525,7 +525,7 @@ export default function Calibracoes() {
 
           <div className="cal-add-cards">
             <button type="button" className="cal-add-card psv" onClick={() => novaForm('psv')}>
-              <span className="cal-add-card-icone" aria-hidden="true">🛡️</span>
+              <span className="cal-add-card-icone" aria-hidden="true"><Icone nome="valvula-psv" tam={46} /></span>
               <span className="cal-add-card-titulo">Válvula de Segurança (PSV)</span>
               <span className="cal-add-card-desc">
                 Certificado com pressão de abertura, ajuste e fechamento.
@@ -534,7 +534,7 @@ export default function Calibracoes() {
             </button>
 
             <button type="button" className="cal-add-card manometro" onClick={() => novaForm('manometro')}>
-              <span className="cal-add-card-icone" aria-hidden="true">🎚️</span>
+              <span className="cal-add-card-icone" aria-hidden="true"><Icone nome="manometro" tam={46} /></span>
               <span className="cal-add-card-titulo">Manômetro</span>
               <span className="cal-add-card-desc">
                 Certificado com tabela de medição crescente e decrescente.

@@ -12,7 +12,8 @@ export type NomeIcone =
   | 'arrowleft' | 'trendup' | 'map' | 'checkcircle' | 'calendar' | 'plus' | 'x'
   | 'flame' | 'fan' | 'cylinder' | 'tool' | 'filetext' | 'pencil' | 'eye' | 'copy'
   | 'trash' | 'filter' | 'search' | 'book' | 'camera' | 'upload' | 'check'
-  | 'building' | 'gauge' | 'refresh' | 'calculator' | 'download' | 'shield';
+  | 'building' | 'gauge' | 'refresh' | 'calculator' | 'download' | 'shield'
+  | 'valvula-psv' | 'manometro';
 
 const PATHS: Record<NomeIcone, ReactNode> = {
   grid: (<><rect x="3" y="3" width="7" height="7" rx="1.2" /><rect x="14" y="3" width="7" height="7" rx="1.2" /><rect x="14" y="14" width="7" height="7" rx="1.2" /><rect x="3" y="14" width="7" height="7" rx="1.2" /></>),
@@ -63,6 +64,34 @@ const PATHS: Record<NomeIcone, ReactNode> = {
   calculator: (<><rect x="4" y="2" width="16" height="20" rx="2" /><line x1="8" y1="6" x2="16" y2="6" /><line x1="8" y1="11" x2="8" y2="11.01" /><line x1="12" y1="11" x2="12" y2="11.01" /><line x1="16" y1="11" x2="16" y2="11.01" /><line x1="8" y1="15" x2="8" y2="15.01" /><line x1="12" y1="15" x2="12" y2="15.01" /><line x1="16" y1="15" x2="16" y2="15.01" /><line x1="8" y1="19" x2="8" y2="19.01" /><line x1="12" y1="19" x2="12" y2="19.01" /><line x1="16" y1="19" x2="16" y2="19.01" /></>),
   download: (<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></>),
   shield: <path d="M12 2 4 5v6c0 5 3.5 8.5 8 11 4.5-2.5 8-6 8-11V5l-8-3Z" />,
+  // Válvula de segurança (PSV): flange de entrada, corpo, saída lateral,
+  // castelo com mola e alavanca de teste — traço fino, estilo line-icon.
+  'valvula-psv': (
+    <>
+      <line x1="7.5" y1="22" x2="16.5" y2="22" />
+      <path d="M9.5 22v-5h5v5" />
+      <path d="M14.5 18.5H20" />
+      <line x1="20" y1="16.5" x2="20" y2="20.5" />
+      <polyline points="9.5 15.5 14.5 14.2 9.5 12.9 14.5 11.6 9.5 10.3 14.5 9" />
+      <path d="M10 9V6.5h4V9" />
+      <line x1="12" y1="6.5" x2="12" y2="5" />
+      <line x1="12" y1="5" x2="17.5" y2="3" />
+    </>
+  ),
+  // Manômetro: mostrador com escala, ponteiro e conexão roscada inferior.
+  manometro: (
+    <>
+      <circle cx="12" cy="10" r="7.5" />
+      <line x1="12" y1="10" x2="15.8" y2="6.6" />
+      <circle cx="12" cy="10" r="0.9" />
+      <line x1="6" y1="8" x2="7.3" y2="8.6" />
+      <line x1="12" y1="3.6" x2="12" y2="5" />
+      <line x1="18" y1="8" x2="16.7" y2="8.6" />
+      <path d="M10.5 17.3V19h3v-1.7" />
+      <line x1="9.5" y1="20.5" x2="14.5" y2="20.5" />
+      <line x1="12" y1="19" x2="12" y2="22" />
+    </>
+  ),
 };
 
 export function Icone({

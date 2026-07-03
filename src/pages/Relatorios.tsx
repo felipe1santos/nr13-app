@@ -336,8 +336,6 @@ export default function Relatorios() {
 
   return (
     <div className="relatorios-page">
-      <h1>Relatórios</h1>
-
       {tela === 'equipamentos' && (
         <div className="bloco-dados">
           <h3>Equipamentos Cadastrados</h3>
@@ -519,7 +517,7 @@ export default function Relatorios() {
             </button>
             <div className="meta-barra-acoes">
               {!somenteLeitura && (
-                <button type="button" className={`btn-primario barra-btn ${salvando ? 'is-loading' : ''}`} onClick={salvarHistorico} disabled={salvando}>
+                <button type="button" className={`barra-btn barra-btn-salvar ${salvando ? 'is-loading' : ''}`} onClick={salvarHistorico} disabled={salvando}>
                   {salvando ? 'Salvando...' : 'Salvar'}
                 </button>
               )}

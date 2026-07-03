@@ -607,3 +607,16 @@
 }
 .filter-opt:hover { background: var(--steel); }
 .filter-opt input { accent-color: var(--amber); }
+
+/* Botão Salvar do visualizador (só este) — azul, pedido do usuário */
+.barra-btn-salvar {
+  background: var(--blue2);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-base);
+}
+.barra-btn-salvar:hover:not(:disabled) { background: #0A4181; }
+.barra-btn-salvar:disabled { opacity: 0.65; cursor: not-allowed; }

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Icone } from '../../components/Icone';
 import Campo from './Campo';
 import MemorialLog from './MemorialLog';
+import TerminalMemorial from './TerminalMemorial';
 import MemorialVaso from './MemorialVaso';
 import {
   calcularAutoclave,
@@ -219,7 +220,10 @@ function MemorialAutoclaveInner({ tag, subtipo }: Props) {
             </button>
           </div>
 
-          <div className="calc-terminal-section expandido">
+          <TerminalMemorial
+            arquivo={`memorial_${tag.toLowerCase().replace(/\s+/g, '_')}.log`}
+            status={resultado?.resultado === 'APROVADO' ? 'aprovado' : resultado?.resultado === 'REPROVADO' ? 'reprovado' : 'aguardando'}
+          >
             <MemorialLog
               key={calcCount}
               log={resultado?.log ?? []}
@@ -227,7 +231,7 @@ function MemorialAutoclaveInner({ tag, subtipo }: Props) {
               showPlaceholder={calcCount === 0}
               placeholder={'>> Insira os dados estruturais e clique em "Gerar Cálculo"...'}
             />
-          </div>
+          </TerminalMemorial>
         </div>
       ) : (
         /* ── Retangular ── */
@@ -289,7 +293,10 @@ function MemorialAutoclaveInner({ tag, subtipo }: Props) {
             </button>
           </div>
 
-          <div className="calc-terminal-section expandido">
+          <TerminalMemorial
+            arquivo={`memorial_${tag.toLowerCase().replace(/\s+/g, '_')}.log`}
+            status={resultado?.resultado === 'APROVADO' ? 'aprovado' : resultado?.resultado === 'REPROVADO' ? 'reprovado' : 'aguardando'}
+          >
             <MemorialLog
               key={calcCount}
               log={resultado?.log ?? []}
@@ -297,7 +304,7 @@ function MemorialAutoclaveInner({ tag, subtipo }: Props) {
               showPlaceholder={calcCount === 0}
               placeholder={'>> Insira os dados estruturais e clique em "Gerar Cálculo"...'}
             />
-          </div>
+          </TerminalMemorial>
         </div>
       )}
     </div>

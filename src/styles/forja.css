@@ -443,3 +443,9 @@
   .fj-modal-overlay { padding: 12px; }
   .fj-table thead th, .fj-table tbody td { padding-left: 12px; padding-right: 12px; }
 }
+
+/* botão Filtrar com filtro ativo */
+.fj-btn-ghost.filtro-ativo {
+  border-color: var(--amber);
+  color: var(--amber-deep);
+}

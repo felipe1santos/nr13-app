@@ -3,6 +3,7 @@ import { Icone } from '../../components/Icone';
 import type { TipoComponenteVaso } from '../../calc/vaso';
 import Campo from './Campo';
 import MemorialLog from './MemorialLog';
+import TerminalMemorial from './TerminalMemorial';
 import {
   calcularResumoVaso,
   carregarVaso,
@@ -338,8 +339,16 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
         </button>
       </div>
 
-      {/* ── Terminal ── */}
-      <div className="calc-terminal-section expandido">
+      {/* ── Terminal (coluna direita no desktop) ── */}
+      <TerminalMemorial
+        arquivo={`memorial_${tag.toLowerCase().replace(/\s+/g, '_')}.log`}
+        status={
+          statusFinal === 'APROVADO' ? 'aprovado'
+            : statusFinal === 'REPROVADO' ? 'reprovado'
+              : statusFinal === 'PENDENTE' ? 'pendente'
+                : 'aguardando'
+        }
+      >
         <MemorialLog
           key={calcCount}
           log={logParaMostrar}
@@ -347,7 +356,7 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
           showPlaceholder={calcCount === 0}
           placeholder={'>> Insira os dados estruturais e clique em "Gerar Cálculo"...'}
         />
-      </div>
+      </TerminalMemorial>
     </div>
   );
 }

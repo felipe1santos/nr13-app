@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import Campo from './Campo';
 import MemorialLog from './MemorialLog';
+import TerminalMemorial from './TerminalMemorial';
 import { ler } from '../../services/storage';
 import { comLoadingGlobal } from '../../app/loadingGlobal';
 import {
@@ -254,7 +255,7 @@ export default function MemorialCaldeira({ tag, subtipo }: { tag: string; subtip
             <span className={`resultado-final-badge ${resumoMista.resultado === 'APROVADO' ? 'aprovado' : 'reprovado'}`}>
               {resumoMista.resultado}
             </span>
-            <MemorialLog log={resumoMista.logCompleto} />
+            <TerminalMemorial arquivo="memorial_caldeira.log" status={resumoMista.resultado === 'APROVADO' ? 'aprovado' : resumoMista.resultado === 'REPROVADO' ? 'reprovado' : 'pendente'}><MemorialLog log={resumoMista.logCompleto} /></TerminalMemorial>
           </div>
         )}
       </div>
@@ -301,7 +302,7 @@ export default function MemorialCaldeira({ tag, subtipo }: { tag: string; subtip
               <span className={`resultado-final-badge ${resumoFlamo.resultado === 'APROVADO' ? 'aprovado' : 'reprovado'}`}>
                 {resumoFlamo.resultado}
               </span>
-              <MemorialLog log={resumoFlamo.logCompleto} />
+              <TerminalMemorial arquivo="memorial_caldeira.log" status={resumoFlamo.resultado === 'APROVADO' ? 'aprovado' : resumoFlamo.resultado === 'REPROVADO' ? 'reprovado' : 'pendente'}><MemorialLog log={resumoFlamo.logCompleto} /></TerminalMemorial>
             </div>
           )}
         </div>
@@ -343,7 +344,7 @@ export default function MemorialCaldeira({ tag, subtipo }: { tag: string; subtip
               <span className={`resultado-final-badge ${resumoAqua.resultado === 'APROVADO' ? 'aprovado' : 'reprovado'}`}>
                 {resumoAqua.resultado}
               </span>
-              <MemorialLog log={resumoAqua.logCompleto} />
+              <TerminalMemorial arquivo="memorial_caldeira.log" status={resumoAqua.resultado === 'APROVADO' ? 'aprovado' : resumoAqua.resultado === 'REPROVADO' ? 'reprovado' : 'pendente'}><MemorialLog log={resumoAqua.logCompleto} /></TerminalMemorial>
             </div>
           )}
         </div>
@@ -451,7 +452,7 @@ function PainelAbaFlamo({
             <span className={`resultado-final-badge ${resultadoAba.resultado === 'APROVADO' ? 'aprovado' : 'reprovado'}`}>
               {resultadoAba.resultado}
             </span>
-            <MemorialLog log={resultadoAba.log} />
+            <TerminalMemorial arquivo="memorial_caldeira.log" status={resultadoAba.resultado === 'APROVADO' ? 'aprovado' : resultadoAba.resultado === 'REPROVADO' ? 'reprovado' : 'pendente'}><MemorialLog log={resultadoAba.log} /></TerminalMemorial>
           </div>
         )}
       </div>
@@ -606,7 +607,7 @@ function PainelAbaAqua({ tag, aba, onMudou }: { tag: string; aba: AbaAquatubular
             <span className={`resultado-final-badge ${resultado.resultado === 'APROVADO' ? 'aprovado' : 'reprovado'}`}>
               {resultado.resultado}
             </span>
-            <MemorialLog log={resultado.log} />
+            <TerminalMemorial arquivo="memorial_caldeira.log" status={resultado.resultado === 'APROVADO' ? 'aprovado' : resultado.resultado === 'REPROVADO' ? 'reprovado' : 'pendente'}><MemorialLog log={resultado.log} /></TerminalMemorial>
           </div>
         )}
       </div>

@@ -30,6 +30,7 @@ export default function Equipamentos() {
   const [equipamentos, setEquipamentos] = useState<EquipamentoResumo[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [modalAberto, setModalAberto] = useState(false);
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [busca, setBusca] = useState('');
   const [fEmpresa, setFEmpresa] = useState('');
   const [fTipo, setFTipo] = useState('');
@@ -98,49 +99,60 @@ export default function Equipamentos() {
         <div className="sub">
           {equipamentos.length} equipamento{equipamentos.length !== 1 ? 's' : ''} cadastrado{equipamentos.length !== 1 ? 's' : ''}
         </div>
-        <button type="button" className="fj-btn fj-btn-primary" onClick={() => setModalAberto(true)}>
-          <Icone nome="plus" tam={14} /> Criar equipamento
-        </button>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <button
+            type="button"
+            className={`fj-btn fj-btn-ghost${temFiltro ? ' filtro-ativo' : ''}`}
+            onClick={() => setFiltrosAbertos((a) => !a)}
+          >
+            <Icone nome="filter" tam={14} /> Filtrar{temFiltro ? ' •' : ''} <Icone nome={filtrosAbertos ? 'chevup' : 'chevdown'} tam={12} />
+          </button>
+          <button type="button" className="fj-btn fj-btn-primary" onClick={() => setModalAberto(true)}>
+            <Icone nome="plus" tam={14} /> Criar equipamento
+          </button>
+        </div>
       </div>
 
-      <div className="fj-toolbar">
-        <div className="fj-search-box">
-          <Icone nome="search" tam={15} />
-          <input
-            type="text"
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            placeholder="Buscar por tag ou nome do equipamento…"
-          />
+      {filtrosAbertos && (
+        <div className="fj-toolbar">
+          <div className="fj-search-box">
+            <Icone nome="search" tam={15} />
+            <input
+              type="text"
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Buscar por tag ou nome do equipamento…"
+            />
+          </div>
+          <select className="fj-fselect" value={fEmpresa} onChange={(e) => setFEmpresa(e.target.value)}>
+            <option value="">Empresa · Todas</option>
+            {empresas.map((emp) => (
+              <option key={emp} value={emp}>{emp}</option>
+            ))}
+          </select>
+          <select className="fj-fselect" value={fTipo} onChange={(e) => setFTipo(e.target.value)}>
+            <option value="">Tipo · Todos</option>
+            <option value="vaso">Vaso de Pressão</option>
+            <option value="caldeira">Caldeira</option>
+            <option value="autoclave">Autoclave</option>
+          </select>
+          <select className="fj-fselect" value={fCategoria} onChange={(e) => setFCategoria(e.target.value)}>
+            <option value="">Categoria · Todas</option>
+            {categorias.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+          <select className="fj-fselect" value={fResultado} onChange={(e) => setFResultado(e.target.value)}>
+            <option value="">Resultado · Todos</option>
+            <option>Aprovado</option>
+            <option>Reprovado</option>
+            <option>Pendente</option>
+          </select>
+          {temFiltro && (
+            <button type="button" className="fj-link" onClick={limparFiltros}>Limpar filtros</button>
+          )}
         </div>
-        <select className="fj-fselect" value={fEmpresa} onChange={(e) => setFEmpresa(e.target.value)}>
-          <option value="">Empresa · Todas</option>
-          {empresas.map((emp) => (
-            <option key={emp} value={emp}>{emp}</option>
-          ))}
-        </select>
-        <select className="fj-fselect" value={fTipo} onChange={(e) => setFTipo(e.target.value)}>
-          <option value="">Tipo · Todos</option>
-          <option value="vaso">Vaso de Pressão</option>
-          <option value="caldeira">Caldeira</option>
-          <option value="autoclave">Autoclave</option>
-        </select>
-        <select className="fj-fselect" value={fCategoria} onChange={(e) => setFCategoria(e.target.value)}>
-          <option value="">Categoria · Todas</option>
-          {categorias.map((c) => (
-            <option key={c} value={c}>{c}</option>
-          ))}
-        </select>
-        <select className="fj-fselect" value={fResultado} onChange={(e) => setFResultado(e.target.value)}>
-          <option value="">Resultado · Todos</option>
-          <option>Aprovado</option>
-          <option>Reprovado</option>
-          <option>Pendente</option>
-        </select>
-        {temFiltro && (
-          <button type="button" className="fj-link" onClick={limparFiltros}>Limpar filtros</button>
-        )}
-      </div>
+      )}
 
       {!carregando && equipamentos.length > 0 && (
         <div className="equip-result-count">{filtrados.length} de {equipamentos.length} equipamentos</div>
