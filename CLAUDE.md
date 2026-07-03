@@ -215,6 +215,14 @@ a **logo e dados da empresa** (`nr13_minha_empresa`), e os dados do **engenheiro
 > 3. No painel do Google Cloud, ativar as APIs **Places API (New)** e **Maps Embed API** no
 >    projeto da chave (sem isso a busca retorna erro 403).
 
+> **Painel Admin robusto (03/07/2026): PENDÊNCIA DE DEPLOY (manual)**
+> Rodar `supabase/admin_stats.sql` no SQL Editor do Supabase (idempotente). Cria a função
+> `admin_usage_stats()` (SECURITY DEFINER, só role admin) que agrega por usuário: equipamentos
+> por tipo, inspeções, relatórios salvos, PDFs/impressões (contador `nr13_uso_contadores`,
+> incrementado em Relatórios) e sub-logins criados. Sem o SQL, o painel funciona e essas
+> colunas mostram "—". O aviso vermelho de expiração (≤30 dias) usa `nr13_acesso_expira_em`
+> gravada no login — não depende do SQL.
+
 Nenhuma pendência estrutural aberta. Itens já resolvidos:
 - ✅ "Fotos da documentação" (folha #11): grupo `fotosDocumentacao` no `FormularioChecklist` +
   `FOTOS-DOCUMENTACAO.html`, auto-injetado após `checklist3` e antes de `CHECKLIST-FOTOS`.

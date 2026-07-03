@@ -84,6 +84,9 @@ async function carregarPerfil(): Promise<Perfil> {
   const clienteId = (data?.cliente_id as string) ?? null;
   if (plano) localStorage.setItem('nr13_plano', plano);
   localStorage.setItem('nr13_role', role);
+  // Persistido para o aviso de expiração no Layout (banner "faltam X dias").
+  if (acessoExpiraEm) localStorage.setItem('nr13_acesso_expira_em', acessoExpiraEm);
+  else localStorage.removeItem('nr13_acesso_expira_em');
   localStorage.setItem('nr13_uid', uid); // usado pelas permissões por sub-login
   if (papel) localStorage.setItem('nr13_papel', papel);
   if (orgId) localStorage.setItem('nr13_org_id', orgId);
@@ -284,6 +287,7 @@ export function encerrarSessaoLocal(): void {
   localStorage.removeItem('nr13_org_id');
   localStorage.removeItem('nr13_cliente_id');
   localStorage.removeItem('nr13_sessao_token');
+  localStorage.removeItem('nr13_acesso_expira_em');
   // Zera os dados em cache para não vazarem ao próximo login (mesmo navegador).
   limparCacheDados();
 }

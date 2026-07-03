@@ -19,6 +19,8 @@ const CHAVES_PRESERVADAS = new Set([
   'nr13_sessao_token',
   'nr13_ultimo_login',
   'nr13_uid',
+  'nr13_acesso_expira_em', // aviso de expiração no Layout — regravada no login
+
   // Fila de sincronização offline: NÃO pode ser apagada pelo reconcile/limparCacheDados,
   // senão perderíamos as operações pendentes (escritas/deletes feitos offline).
   'nr13_fila_sync',

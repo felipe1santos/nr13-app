@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { logout } from '../services/auth';
@@ -36,6 +36,19 @@ interface Metricas {
   duracaoMediaMin: number | null;
 }
 
+// Métricas de uso vindas da função SQL admin_usage_stats (supabase/admin_stats.sql).
+interface UsoStats {
+  escopo: string;
+  equip_vaso: number;
+  equip_caldeira: number;
+  equip_autoclave: number;
+  inspecoes: number;
+  relatorios: number;
+  pdf_gerados: number;
+  impressoes: number;
+  subusuarios: number;
+}
+
 function fmtData(iso: string | null): string {
   if (!iso) return '—';
   const d = new Date(iso);
@@ -54,6 +67,14 @@ function ehHoje(iso: string): boolean {
   const d = new Date(iso);
   const h = new Date();
   return d.getFullYear() === h.getFullYear() && d.getMonth() === h.getMonth() && d.getDate() === h.getDate();
+}
+
+// Dias restantes do acesso (null = sem expiração; negativo = expirado).
+function diasRestantes(acessoExpiraEm: string | null): number | null {
+  if (!acessoExpiraEm) return null;
+  const d = new Date(acessoExpiraEm);
+  if (isNaN(d.getTime())) return null;
+  return Math.ceil((d.getTime() - Date.now()) / 86_400_000);
 }
 
 // Calcula métricas de uso por usuário a partir dos eventos login/logout.
@@ -103,10 +124,19 @@ function statusUsuario(p: Profile): { label: string; cls: string } {
   return { label: 'Ativo', cls: 'ativo' };
 }
 
+function BadgeDias({ expiraEm }: { expiraEm: string | null }) {
+  const dias = diasRestantes(expiraEm);
+  if (dias === null) return <span className="admin-dias sem">—</span>;
+  if (dias < 0) return <span className="admin-dias expirado">Expirado</span>;
+  if (dias <= 30) return <span className="admin-dias critico">{dias} dia{dias === 1 ? '' : 's'}</span>;
+  return <span className="admin-dias ok">{dias} dias</span>;
+}
+
 export default function Admin() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [eventos, setEventos] = useState<LoginEvent[]>([]);
   const [metas, setMetas] = useState<Map<string, AuthMeta>>(new Map());
+  const [uso, setUso] = useState<Map<string, UsoStats>>(new Map());
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
@@ -114,8 +144,15 @@ export default function Admin() {
   const [acaoEmAndamento, setAcaoEmAndamento] = useState<string | null>(null);
   const [novoEmail, setNovoEmail] = useState('');
   const [novaSenhaUser, setNovaSenhaUser] = useState('');
+  const [novoDias, setNovoDias] = useState('');
   const [criando, setCriando] = useState(false);
+  // Menu "Ações": posição fixa (viewport) para não ser cortado pelo overflow da tabela.
+  const [menuAcoes, setMenuAcoes] = useState<{ id: string; x: number; y: number } | null>(null);
+  const [superAberto, setSuperAberto] = useState(false);
+  const superRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+
+  const emailLogado = (localStorage.getItem('nr13_usuario_logado') ?? '').toLowerCase();
 
   async function sair() {
     await logout();
@@ -143,6 +180,15 @@ export default function Admin() {
         for (const meta of metaData.metas as AuthMeta[]) m.set(meta.id, meta);
         setMetas(m);
       }
+
+      // Métricas de uso (equipamentos/inspeções/relatórios/PDF/sub-logins) via RPC.
+      // Antes de rodar supabase/admin_stats.sql a função não existe: colunas ficam "—".
+      const { data: usoData, error: usoErr } = await supabase.rpc('admin_usage_stats');
+      if (!usoErr && Array.isArray(usoData)) {
+        const m = new Map<string, UsoStats>();
+        for (const s of usoData as UsoStats[]) m.set(s.escopo, s);
+        setUso(m);
+      }
     } catch (e: unknown) {
       setErro(e instanceof Error ? e.message : 'Falha ao carregar dados.');
     } finally {
@@ -156,26 +202,56 @@ export default function Admin() {
     carregar();
   }, [carregar]);
 
+  // Fecha o painel do superadmin / menus de ações ao clicar fora.
+  useEffect(() => {
+    function aoClicarFora(e: MouseEvent) {
+      if (superRef.current && !superRef.current.contains(e.target as Node)) setSuperAberto(false);
+      if (!(e.target as HTMLElement).closest('.admin-acoes-drop')) setMenuAcoes(null);
+    }
+    function aoRolar() {
+      setMenuAcoes(null); // menu é position:fixed — fecha ao rolar para não ficar deslocado
+    }
+    document.addEventListener('mousedown', aoClicarFora);
+    document.addEventListener('scroll', aoRolar, true);
+    return () => {
+      document.removeEventListener('mousedown', aoClicarFora);
+      document.removeEventListener('scroll', aoRolar, true);
+    };
+  }, []);
+
   const metricas = useMemo(() => calcularMetricas(eventos), [eventos]);
+
+  // Superadmin (a conta logada, role admin) sai da tabela — dados dela ficam no canto superior.
+  const meuPerfil = useMemo(
+    () => profiles.find((p) => (p.email ?? '').toLowerCase() === emailLogado) ?? null,
+    [profiles, emailLogado],
+  );
 
   const filtrados = useMemo(() => {
     const q = busca.trim().toLowerCase();
-    if (!q) return profiles;
-    return profiles.filter((p) => (p.email ?? '').toLowerCase().includes(q));
+    const semAdmins = profiles.filter((p) => p.role !== 'admin');
+    if (!q) return semAdmins;
+    return semAdmins.filter((p) => (p.email ?? '').toLowerCase().includes(q));
   }, [profiles, busca]);
 
   const resumo = useMemo(() => {
-    const total = profiles.length;
-    const pendentes = profiles.filter((p) => !p.ativo).length;
+    const visiveis = profiles.filter((p) => p.role !== 'admin');
+    const total = visiveis.length;
+    const pendentes = visiveis.filter((p) => !p.ativo).length;
+    const vencendo = visiveis.filter((p) => {
+      const d = diasRestantes(p.acesso_expira_em);
+      return d !== null && d >= 0 && d <= 30;
+    }).length;
     const ativosHoje = new Set(
       eventos.filter((e) => e.tipo === 'login' && ehHoje(e.criado_em)).map((e) => e.user_id),
     ).size;
-    return { total, pendentes, ativosHoje };
+    return { total, pendentes, ativosHoje, vencendo };
   }, [profiles, eventos]);
 
   async function criarUsuario(e: React.FormEvent) {
     e.preventDefault();
     const email = novoEmail.trim().toLowerCase();
+    const dias = parseInt(novoDias, 10);
     if (!email || novaSenhaUser.length < 6) {
       setErro('Informe e-mail e senha de no mínimo 6 caracteres.');
       return;
@@ -189,9 +265,21 @@ export default function Admin() {
       });
       if (error) throw error;
       if (data?.erro) throw new Error(data.erro);
-      setAviso(`Usuário ${email} criado e liberado.`);
+      // Dias de acesso definidos já no cadastro (campo opcional).
+      if (data?.id && !isNaN(dias) && dias > 0) {
+        const expira = new Date();
+        expira.setDate(expira.getDate() + dias);
+        expira.setHours(23, 59, 59, 0);
+        await supabase.from('profiles').update({ acesso_expira_em: expira.toISOString() }).eq('id', data.id);
+      }
+      setAviso(
+        !isNaN(dias) && dias > 0
+          ? `Usuário ${email} criado com ${dias} dias de acesso.`
+          : `Usuário ${email} criado e liberado (sem expiração).`,
+      );
       setNovoEmail('');
       setNovaSenhaUser('');
+      setNovoDias('');
       await carregar();
     } catch (err: unknown) {
       setErro(err instanceof Error ? err.message : 'Falha ao criar usuário.');
@@ -233,11 +321,12 @@ export default function Admin() {
     void atualizarPerfil(p.id, { ativo: false }, `Acesso bloqueado para ${p.email}.`);
   }
 
-  function definirExpiracao(p: Profile) {
-    const atual = p.acesso_expira_em ? p.acesso_expira_em.slice(0, 10) : '';
+  // Validade em DIAS a partir de hoje (vazio = remove a expiração).
+  function definirValidade(p: Profile) {
+    const atual = diasRestantes(p.acesso_expira_em);
     const entrada = window.prompt(
-      `Data de expiração do acesso de ${p.email} (AAAA-MM-DD). Vazio = sem expiração:`,
-      atual,
+      `Quantos DIAS de acesso ${p.email} deve ter a partir de hoje?\n(vazio = acesso sem expiração)`,
+      atual !== null && atual > 0 ? String(atual) : '',
     );
     if (entrada === null) return;
     const valor = entrada.trim();
@@ -245,22 +334,19 @@ export default function Admin() {
       void atualizarPerfil(p.id, { acesso_expira_em: null }, 'Expiração removida.');
       return;
     }
-    const d = new Date(valor + 'T23:59:59');
-    if (isNaN(d.getTime())) {
-      setErro('Data inválida. Use o formato AAAA-MM-DD.');
+    const dias = parseInt(valor, 10);
+    if (isNaN(dias) || dias <= 0) {
+      setErro('Informe um número de dias válido (maior que zero).');
       return;
     }
+    const d = new Date();
+    d.setDate(d.getDate() + dias);
+    d.setHours(23, 59, 59, 0);
     void atualizarPerfil(
       p.id,
       { acesso_expira_em: d.toISOString() },
-      `Expiração definida para ${fmtSomenteData(d.toISOString())}.`,
+      `Acesso de ${p.email} válido por ${dias} dias (até ${fmtSomenteData(d.toISOString())}).`,
     );
-  }
-
-  function alternarAdmin(p: Profile) {
-    const novo = p.role === 'admin' ? 'user' : 'admin';
-    if (!window.confirm(`Tornar ${p.email} ${novo === 'admin' ? 'ADMIN' : 'usuário comum'}?`)) return;
-    void atualizarPerfil(p.id, { role: novo }, `Papel alterado para ${novo}.`);
   }
 
   async function resetarSenha(p: Profile) {
@@ -307,12 +393,70 @@ export default function Admin() {
     }
   }
 
+  // Célula "Equipamentos": total + composição por tipo (V=vaso, C=caldeira, A=autoclave).
+  function celEquip(s: UsoStats | undefined): string {
+    if (!s) return '—';
+    const total = s.equip_vaso + s.equip_caldeira + s.equip_autoclave;
+    if (total === 0) return '0';
+    const partes = [
+      s.equip_vaso > 0 ? `${s.equip_vaso}V` : '',
+      s.equip_caldeira > 0 ? `${s.equip_caldeira}C` : '',
+      s.equip_autoclave > 0 ? `${s.equip_autoclave}A` : '',
+    ].filter(Boolean);
+    return `${total} (${partes.join(' · ')})`;
+  }
+
+  const meuMeta = meuPerfil ? metas.get(meuPerfil.id) : undefined;
+  const minhasMetricas = meuPerfil ? metricas.get(meuPerfil.id) : undefined;
+
   return (
     <div className="admin-standalone">
       <header className="admin-topbar">
         <span className="admin-topbar-logo">NR-13 · Admin</span>
         <div className="admin-topbar-right">
-          <span className="admin-topbar-email">{localStorage.getItem('nr13_usuario_logado')}</span>
+          {/* Superadmin: dados só aqui (fora da tabela), com troca de senha e sem excluir */}
+          <div className="admin-super" ref={superRef}>
+            <button
+              type="button"
+              className="admin-super-btn"
+              onClick={() => setSuperAberto((a) => !a)}
+              title="Dados do superadmin"
+            >
+              <span className="admin-super-avatar">{emailLogado.slice(0, 2).toUpperCase()}</span>
+              <span className="admin-super-email">{emailLogado}</span>
+              <span className="admin-super-chev">▾</span>
+            </button>
+            {superAberto && (
+              <div className="admin-super-panel">
+                <div className="admin-super-panel-head">
+                  <span className="admin-super-avatar grande">{emailLogado.slice(0, 2).toUpperCase()}</span>
+                  <div>
+                    <strong>{emailLogado}</strong>
+                    <span className="admin-super-papel">👑 Superadmin</span>
+                  </div>
+                </div>
+                <div className="admin-super-dados">
+                  <div><span>Status</span><strong>{meuPerfil ? statusUsuario(meuPerfil).label : '—'}</strong></div>
+                  <div><span>Cadastro</span><strong>{fmtSomenteData(meuPerfil?.criado_em ?? null)}</strong></div>
+                  <div><span>Último login</span><strong>{fmtData(meuMeta?.last_sign_in_at ?? null)}</strong></div>
+                  <div><span>Sessões hoje</span><strong>{minhasMetricas?.sessoesHoje ?? 0}</strong></div>
+                  <div><span>Sessões total</span><strong>{minhasMetricas?.sessoesTotal ?? 0}</strong></div>
+                  <div><span>Expira em</span><strong>{meuPerfil?.acesso_expira_em ? fmtSomenteData(meuPerfil.acesso_expira_em) : 'Nunca'}</strong></div>
+                </div>
+                <button
+                  type="button"
+                  className="admin-super-trocar"
+                  disabled={!meuPerfil}
+                  onClick={() => {
+                    setSuperAberto(false);
+                    if (meuPerfil) void resetarSenha(meuPerfil);
+                  }}
+                >
+                  Trocar minha senha
+                </button>
+              </div>
+            )}
+          </div>
           <BotaoInstalarPWA className="admin-instalar" />
           <button type="button" className="admin-topbar-sair" onClick={sair}>
             Sair
@@ -340,6 +484,10 @@ export default function Admin() {
           <span className="admin-card-num">{resumo.ativosHoje}</span>
           <span className="admin-card-label">Ativos hoje</span>
         </div>
+        <div className="admin-card vencendo">
+          <span className="admin-card-num">{resumo.vencendo}</span>
+          <span className="admin-card-label">Vencendo em 30 dias</span>
+        </div>
       </div>
 
       {erro && <p className="admin-erro">{erro}</p>}
@@ -361,6 +509,14 @@ export default function Admin() {
           onChange={(e) => setNovaSenhaUser(e.target.value)}
           autoComplete="new-password"
         />
+        <input
+          type="number"
+          min={1}
+          className="admin-novo-dias"
+          placeholder="dias de acesso (vazio = sem prazo)"
+          value={novoDias}
+          onChange={(e) => setNovoDias(e.target.value)}
+        />
         <button type="submit" className="admin-novo-btn" disabled={criando}>
           {criando ? 'Criando…' : '+ Criar e liberar'}
         </button>
@@ -380,14 +536,16 @@ export default function Admin() {
             <tr>
               <th>E-mail</th>
               <th>Status</th>
-              <th>Papel</th>
+              <th>Dias restantes</th>
               <th>Cadastro</th>
               <th>Último login</th>
-              <th>Confirmado</th>
-              <th>Sessões hoje</th>
-              <th>Sessões total</th>
-              <th>Duração média</th>
-              <th>Expira em</th>
+              <th>Sessões (hoje/total)</th>
+              <th>Equipamentos</th>
+              <th>Inspeções</th>
+              <th>Relatórios</th>
+              <th>PDFs</th>
+              <th>Impressões</th>
+              <th>Acessos criados</th>
               <th>Ações</th>
             </tr>
           </thead>
@@ -396,6 +554,7 @@ export default function Admin() {
               const st = statusUsuario(p);
               const m = metricas.get(p.id);
               const meta = metas.get(p.id);
+              const s = uso.get(p.id);
               const ocupado = acaoEmAndamento === p.id;
               return (
                 <tr key={p.id} className={ocupado ? 'ocupado' : ''}>
@@ -403,50 +562,77 @@ export default function Admin() {
                   <td data-label="Status">
                     <span className={`admin-badge ${st.cls}`}>{st.label}</span>
                   </td>
-                  <td data-label="Papel">{p.role === 'admin' ? '👑 admin' : 'usuário'}</td>
+                  <td data-label="Dias restantes"><BadgeDias expiraEm={p.acesso_expira_em} /></td>
                   <td data-label="Cadastro">{fmtSomenteData(p.criado_em)}</td>
                   <td data-label="Último login">{fmtData(meta?.last_sign_in_at ?? null)}</td>
-                  <td data-label="Confirmado">{meta?.email_confirmed_at ? '✓' : '—'}</td>
-                  <td data-label="Sessões hoje">{m?.sessoesHoje ?? 0}</td>
-                  <td data-label="Sessões total">{m?.sessoesTotal ?? 0}</td>
-                  <td data-label="Duração média">
-                    {m?.duracaoMediaMin != null ? `${m.duracaoMediaMin} min` : '—'}
+                  <td data-label="Sessões">
+                    {m ? `${m.sessoesHoje} / ${m.sessoesTotal}` : '0 / 0'}
+                    {m?.duracaoMediaMin != null ? ` · ${m.duracaoMediaMin} min` : ''}
                   </td>
-                  <td data-label="Expira em">{fmtSomenteData(p.acesso_expira_em)}</td>
+                  <td data-label="Equipamentos">{celEquip(s)}</td>
+                  <td data-label="Inspeções">{s ? s.inspecoes : '—'}</td>
+                  <td data-label="Relatórios">{s ? s.relatorios : '—'}</td>
+                  <td data-label="PDFs">{s ? s.pdf_gerados : '—'}</td>
+                  <td data-label="Impressões">{s ? s.impressoes : '—'}</td>
+                  <td data-label="Acessos criados">{s ? s.subusuarios : '—'}</td>
                   <td data-label="Ações" className="admin-acoes">
-                    {p.ativo ? (
-                      <button type="button" className="b b-bloq" onClick={() => bloquear(p)} disabled={ocupado}>
-                        Bloquear
+                    <div className="admin-acoes-drop">
+                      <button
+                        type="button"
+                        className="b b-acoes"
+                        disabled={ocupado}
+                        onClick={(e) => {
+                          if (menuAcoes?.id === p.id) {
+                            setMenuAcoes(null);
+                            return;
+                          }
+                          const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                          setMenuAcoes({ id: p.id, x: r.right, y: r.bottom + 4 });
+                        }}
+                      >
+                        Ações ▾
                       </button>
-                    ) : (
-                      <button type="button" className="b b-lib" onClick={() => liberar(p)} disabled={ocupado}>
-                        Liberar
-                      </button>
-                    )}
-                    <button type="button" className="b" onClick={() => definirExpiracao(p)} disabled={ocupado}>
-                      Expiração
-                    </button>
-                    <button type="button" className="b" onClick={() => resetarSenha(p)} disabled={ocupado}>
-                      Resetar senha
-                    </button>
-                    <button type="button" className="b" onClick={() => alternarAdmin(p)} disabled={ocupado}>
-                      {p.role === 'admin' ? 'Remover admin' : 'Tornar admin'}
-                    </button>
-                    <button type="button" className="b b-del" onClick={() => excluir(p)} disabled={ocupado}>
-                      Excluir
-                    </button>
+                      {menuAcoes?.id === p.id && (
+                        <div className="admin-menu" style={{ top: menuAcoes.y, left: menuAcoes.x - 190 }}>
+                          {p.ativo ? (
+                            <button type="button" onClick={() => { setMenuAcoes(null); bloquear(p); }}>
+                              Bloquear acesso
+                            </button>
+                          ) : (
+                            <button type="button" className="destaque" onClick={() => { setMenuAcoes(null); liberar(p); }}>
+                              Liberar acesso
+                            </button>
+                          )}
+                          <button type="button" onClick={() => { setMenuAcoes(null); definirValidade(p); }}>
+                            Definir validade (dias)
+                          </button>
+                          <button type="button" onClick={() => { setMenuAcoes(null); void resetarSenha(p); }}>
+                            Resetar senha
+                          </button>
+                          <button type="button" className="perigo" onClick={() => { setMenuAcoes(null); void excluir(p); }}>
+                            Excluir usuário
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );
             })}
             {filtrados.length === 0 && !carregando && (
               <tr>
-                <td colSpan={11} className="admin-vazio">Nenhum usuário encontrado.</td>
+                <td colSpan={13} className="admin-vazio">Nenhum usuário encontrado.</td>
               </tr>
             )}
           </tbody>
         </table>
         </div>
+        {uso.size === 0 && !carregando && (
+          <p className="admin-nota">
+            Métricas de uso (equipamentos, inspeções, relatórios…) exibem "—" até rodar
+            <code> supabase/admin_stats.sql</code> no SQL Editor do Supabase.
+          </p>
+        )}
       </div>
     </div>
   );

@@ -19,6 +19,7 @@ import {
   salvarNoHistorico,
 } from '../features/relatorios/relatoriosService';
 import { validadesPorRelatorio, vincularLotesPendentes } from '../features/calibracoes/componentesService';
+import { registrarUso } from '../services/usoMetricas';
 import { exportarPdf } from '../features/relatorios/pdfService';
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
 import type { RelatorioMeta, RelatorioSalvo, TipoInspecao } from '../features/relatorios/tipos';
@@ -121,6 +122,7 @@ export default function Relatorios() {
     setImprimindo(true);
     try {
       await imprimirRelatorio('.relatorio-preview');
+      registrarUso('impressao');
     } finally {
       setImprimindo(false);
     }
@@ -304,6 +306,7 @@ export default function Relatorios() {
     setExportando(true);
     try {
       await exportarPdf('.relatorio-preview', `Relatorio_${meta.tipoInspecao.replace(/ /g, '_')}_${tag}.pdf`);
+      registrarUso('pdf');
     } finally {
       setExportando(false);
     }

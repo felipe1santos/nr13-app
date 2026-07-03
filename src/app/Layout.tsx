@@ -26,6 +26,16 @@ function iniciais(email: string | null): string {
   return nome.slice(0, 2).toUpperCase() || '·';
 }
 
+// Dias até o acesso do usuário expirar (nr13_acesso_expira_em gravada no login).
+// null = sem expiração cadastrada.
+function diasParaExpirar(): number | null {
+  const raw = localStorage.getItem('nr13_acesso_expira_em');
+  if (!raw) return null;
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return null;
+  return Math.ceil((d.getTime() - Date.now()) / 86_400_000);
+}
+
 function ultimoLoginTexto(): string | null {
   const raw = localStorage.getItem('nr13_ultimo_login');
   if (!raw) return null;
@@ -244,6 +254,18 @@ export default function Layout() {
           </header>
 
           <main className="main-content">
+            {(() => {
+              const dias = diasParaExpirar();
+              if (dias === null || dias > 30 || dias < 0) return null;
+              return (
+                <div className="aviso-expiracao" role="alert">
+                  <Icone nome="alerttri" tam={16} />
+                  {dias === 0
+                    ? 'Seu acesso ao sistema vence HOJE. Contate o administrador para renovar.'
+                    : `Faltam ${dias} dia${dias === 1 ? '' : 's'} para o seu acesso ao sistema vencer. Contate o administrador para renovar.`}
+                </div>
+              );
+            })()}
             <div key={location.pathname} className="nr-anim-in route-wrapper">
               <Outlet />
             </div>

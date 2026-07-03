@@ -357,3 +357,117 @@
     padding: 14px;
   }
 }
+
+/* ── Superadmin no canto superior direito ── */
+.admin-super { position: relative; }
+.admin-super-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  padding: 5px 12px 5px 5px;
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+}
+.admin-super-btn:hover { background: rgba(255, 255, 255, 0.14); }
+.admin-super-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #f54a00;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.admin-super-avatar.grande { width: 38px; height: 38px; font-size: 14px; }
+.admin-super-chev { font-size: 10px; opacity: 0.8; }
+.admin-super-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 60;
+  width: 300px;
+  background: #fff;
+  color: #24292f;
+  border: 1px solid #e6e8eb;
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+  padding: 14px;
+}
+.admin-super-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f0f1f3;
+  margin-bottom: 10px;
+}
+.admin-super-panel-head strong { display: block; font-size: 13px; word-break: break-all; }
+.admin-super-papel { font-size: 11px; color: #6b7280; }
+.admin-super-dados { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; }
+.admin-super-dados > div { display: flex; flex-direction: column; }
+.admin-super-dados span { font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: #6b7280; font-weight: 600; }
+.admin-super-dados strong { font-size: 12.5px; }
+.admin-super-trocar {
+  width: 100%;
+  margin-top: 12px;
+  padding: 8px 0;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  background: #f7f8fa;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.admin-super-trocar:hover { background: #eef1f4; }
+
+/* ── Dias restantes ── */
+.admin-dias { font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 999px; }
+.admin-dias.ok { background: #e6f4ea; color: #1a7f37; }
+.admin-dias.critico { background: #b3261e; color: #fff; }
+.admin-dias.expirado { background: #fdecea; color: #b71c1c; }
+.admin-dias.sem { background: transparent; color: #9aa1a9; font-weight: 400; }
+
+/* ── Card "vencendo" ── */
+.admin-card.vencendo { border-left: 4px solid #b3261e; }
+.admin-card.vencendo .admin-card-num { color: #b3261e; }
+
+/* ── Form criar usuário: campo dias ── */
+.admin-novo-dias { max-width: 220px; }
+
+/* ── Menu Ações (position: fixed — escapa do overflow da tabela) ── */
+.admin-menu {
+  position: fixed;
+  z-index: 80;
+  width: 190px;
+  background: #fff;
+  border: 1px solid #e6e8eb;
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.16);
+  padding: 5px;
+  display: flex;
+  flex-direction: column;
+}
+.admin-menu button {
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  cursor: pointer;
+  color: #24292f;
+}
+.admin-menu button:hover { background: #f2f4f7; }
+.admin-menu button.destaque { color: #1a7f37; font-weight: 600; }
+.admin-menu button.perigo { color: #b71c1c; }
+.b-acoes { font-weight: 600; }
+
+.admin-nota { font-size: 12px; color: #6b7280; margin-top: 8px; }
+.admin-nota code { background: #f2f4f7; padding: 1px 5px; border-radius: 4px; }
