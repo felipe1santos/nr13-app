@@ -94,6 +94,26 @@ create policy app_storage_delete_org on public.app_storage
 create unique index if not exists app_storage_org_chave_uidx
   on public.app_storage (org_id, chave);
 
+-- ── 5b. Toda conta NOVA nasce dona da própria organização ───────────────────
+-- Sem isto, contas criadas APÓS a migração ficam com org_id nulo e a tela
+-- "Acesso"/org_admin recusa (403). O trigger roda antes do insert do profile;
+-- a Edge Function org_admin sobrescreve depois com a org correta nos sub-logins.
+update public.profiles set org_id = id where org_id is null;
+
+create or replace function public.definir_org_padrao()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if new.org_id is null then
+    new.org_id := new.id;
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists trg_definir_org_padrao on public.profiles;
+create trigger trg_definir_org_padrao
+  before insert on public.profiles
+  for each row execute function public.definir_org_padrao();
+
 -- ── 6. Trigger handle_new_user: preservar org/papel definidos pela Edge Fn ──
 -- A função org_admin (service_role) cria o profile do sub-login ANTES/JUNTO do
 -- signup com org_id/papel/cliente_id corretos. O trigger não pode sobrescrever.
