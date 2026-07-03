@@ -51,6 +51,8 @@ Tudo que o usuário salva pode ser fonte de injeção. Chaves por TAG do equipam
 | `nr13_calibracao_item_<id>` | Certificado de calibração | Calibrações |
 | `nr13_livro_<TAG>` / `nr13_livro_config_<TAG>` | Livro de registro de segurança | Auto + config |
 | `nr13_vida_<TAG>` | Vida remanescente (taxa de corrosão, vida, próxima inspeção) | Card "Vida Remanescente" na ficha |
+| `nr13_rastreab_<id>` | Rastreabilidade do padrão (PDF base64 + flag injetar no relatório) | Calibrações → aba Rastreabilidade |
+| `nr13_permissoes_<userId>` | Módulos permitidos do sub-login ({ modulos: string[] }) | Acessos (mestre) |
 | `nr13_relatorio_meta_atual` | Metadados do relatório em montagem | Gravado na geração |
 | `nr13_inspecao_atual` **e** `nr13_injecao_atual` | Dados de campo do container escolhido | Gravado na geração |
 
@@ -184,6 +186,14 @@ a **logo e dados da empresa** (`nr13_minha_empresa`), e os dados do **engenheiro
 > O frontend tem fallback: antes do SQL, tudo segue por `user_id` (deploy do código é seguro).
 > Peças: `src/services/{auth,storage,orgAdmin}.ts`, `src/pages/Acesso.tsx`, `src/pages/portal/*`,
 > guards em `src/app/Rota*.tsx`, seção "Acesso ao Portal" em Empresas.
+
+> **Redesign "Forja" (03/07/2026):** design system em `design/` (fonte da verdade visual) —
+> paleta steel/âmbar, sidebar escura, Space Grotesk/IBM Plex (self-hosted), sprite SVG próprio
+> (`src/components/Icone.tsx`, sem lucide/emoji). Novidades: Dashboard com vencimentos
+> (`src/services/vencimentos.ts`), rota `/equipamentos` (lista; `/dashboard` é o painel),
+> `/vencimentos`, `/livro-registro`, Calibrações→Rastreabilidade (merge de PDF no relatório via
+> pdf-lib em `rastreabilidadeService.ts`), Acessos com permissões por módulo
+> (`src/services/permissoes.ts`, aplicadas no menu/rotas do Layout).
 
 Nenhuma pendência estrutural aberta. Itens já resolvidos:
 - ✅ "Fotos da documentação" (folha #11): grupo `fotosDocumentacao` no `FormularioChecklist` +
