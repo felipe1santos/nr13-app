@@ -18,6 +18,7 @@ import {
   montarListaComTermoAbertura,
   salvarNoHistorico,
 } from '../features/relatorios/relatoriosService';
+import { validadesPorRelatorio, vincularLotesPendentes } from '../features/calibracoes/componentesService';
 import { exportarPdf } from '../features/relatorios/pdfService';
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
 import type { RelatorioMeta, RelatorioSalvo, TipoInspecao } from '../features/relatorios/tipos';
@@ -112,6 +113,9 @@ export default function Relatorios() {
   const [filtroTipos, setFiltroTipos] = useState<Set<TipoInspecao>>(() => new Set(TIPOS_INSPECAO));
 
   const historicoVisivel = historico.filter((r) => filtroTipos.has(r.tipo));
+
+  // Validades de válvula/manômetro derivadas dos lotes de calibração vinculados a cada relatório.
+  const validadesCal = validadesPorRelatorio(tag);
 
   async function prepararEImprimir() {
     setImprimindo(true);
@@ -321,6 +325,8 @@ export default function Relatorios() {
       };
       await salvarNoHistorico(relatorio);
       await adicionarEntradaLivroAuto(relatorio);
+      // Lotes de calibração marcados "vincular ao próximo relatório" capturam este relatório.
+      await vincularLotesPendentes(tag, relatorio.id);
       setHistorico(listarHistorico(tag));
       setSomenteLeitura(true);
       setToastSalvo(true);
@@ -442,6 +448,7 @@ export default function Relatorios() {
                   <th>Próx. Insp. Interna</th>
                   <th>Próx. Insp. Externa</th>
                   <th>Validade Válvula</th>
+                  <th>Validade Manômetro</th>
                   <th>Ações</th>
                 </tr>
               </thead>
@@ -476,7 +483,9 @@ export default function Relatorios() {
                     <td>{r.meta.validade || '-'}</td>
                     <td>{r.meta.proximaInspecaoInterna || '-'}</td>
                     <td>{r.meta.proximaInspecaoExterna || '-'}</td>
-                    <td>{r.meta.validadeValvula || '-'}</td>
+                    {/* Derivado do lote de calibração vinculado; fallback: valor manual antigo */}
+                    <td>{validadesCal.get(r.id)?.valvula || r.meta.validadeValvula || '-'}</td>
+                    <td>{validadesCal.get(r.id)?.manometro || '-'}</td>
                     <td className="acoes-relatorio-icones">
                       {renomeandoId === r.id ? (
                         <button type="button" className="btn-secundario" onClick={() => confirmarRenome(r)}>
@@ -577,10 +586,6 @@ export default function Relatorios() {
                     <div className="meta-barra-campo">
                       <label>Próx. Externa</label>
                       <input placeholder="DD/MM/AAAA" value={meta.proximaInspecaoExterna} readOnly={somenteLeitura} onChange={(e) => setCampoMeta('proximaInspecaoExterna', e.target.value)} />
-                    </div>
-                    <div className="meta-barra-campo">
-                      <label>Valid. Válvula</label>
-                      <input placeholder="DD/MM/AAAA" value={meta.validadeValvula} readOnly={somenteLeitura} onChange={(e) => setCampoMeta('validadeValvula', e.target.value)} />
                     </div>
                     <div className="meta-barra-campo">
                       <label>Técnico</label>

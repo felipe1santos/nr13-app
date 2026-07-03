@@ -13,7 +13,7 @@ export type NomeIcone =
   | 'flame' | 'fan' | 'cylinder' | 'tool' | 'filetext' | 'pencil' | 'eye' | 'copy'
   | 'trash' | 'filter' | 'search' | 'book' | 'camera' | 'upload' | 'check'
   | 'building' | 'gauge' | 'refresh' | 'calculator' | 'download' | 'shield'
-  | 'valvula-psv' | 'manometro';
+  | 'valvula-psv' | 'manometro' | 'link';
 
 const PATHS: Record<NomeIcone, ReactNode> = {
   grid: (<><rect x="3" y="3" width="7" height="7" rx="1.2" /><rect x="14" y="3" width="7" height="7" rx="1.2" /><rect x="14" y="14" width="7" height="7" rx="1.2" /><rect x="3" y="14" width="7" height="7" rx="1.2" /></>),
@@ -58,6 +58,7 @@ const PATHS: Record<NomeIcone, ReactNode> = {
   camera: (<><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" /></>),
   upload: (<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></>),
   check: <polyline points="20 6 9 17 4 12" />,
+  link: (<><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></>),
   building: (<><rect x="4" y="2" width="16" height="20" rx="2" /><line x1="9" y1="7" x2="10" y2="7" /><line x1="14" y1="7" x2="15" y2="7" /><line x1="9" y1="11" x2="10" y2="11" /><line x1="14" y1="11" x2="15" y2="11" /><line x1="9" y1="15" x2="10" y2="15" /><line x1="14" y1="15" x2="15" y2="15" /><path d="M10 22v-3h4v3" /></>),
   gauge: (<><path d="M12 15l3.5-5.5" /><path d="M20.2 17a9 9 0 1 0-16.4 0" /><circle cx="12" cy="15" r="1.5" /></>),
   refresh: (<><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10" /><path d="M1 14l4.6 4.4A9 9 0 0 0 20.5 15" /></>),

@@ -197,6 +197,24 @@ a **logo e dados da empresa** (`nr13_minha_empresa`), e os dados do **engenheiro
 > pdf-lib em `rastreabilidadeService.ts`), Acessos com permissões por módulo
 > (`src/services/permissoes.ts`, aplicadas no menu/rotas do Layout).
 
+> **Google Maps/Places nos clientes (03/07/2026): PENDÊNCIAS DE DEPLOY (manuais, pelo dono do projeto)**
+> A tela "Empresas" usa a chave `VITE_GOOGLE_MAPS_KEY` (arquivo `.env`, NÃO commitado) para a
+> busca de empresas (Places API New, REST) e o mapa do detalhe do cliente (Maps Embed API).
+> 1. **Criar a variável `VITE_GOOGLE_MAPS_KEY` no ambiente de deploy** (Vercel/Netlify/etc. →
+>    Environment Variables). O `.env` local não vai no push; sem a variável no build de produção,
+>    busca e mapa ficam desativados (o resto da tela funciona normal).
+> 2. **Restringir a chave no Google Cloud Console** (APIs & Services → Credentials → a chave):
+>    - Application restrictions: **HTTP referrers**, com os domínios do app
+>      (ex.: `https://SEU-DOMINIO/*` e `http://localhost:*` para dev).
+>    - API restrictions: permitir SOMENTE **Places API (New)** e **Maps Embed API**.
+>    **Por quê:** chaves `VITE_*` ficam embutidas no bundle JavaScript público — qualquer pessoa
+>    que abrir o site consegue ler a chave. Sem restrição, ela pode ser usada por terceiros em
+>    outros sites/apps, consumindo sua cota e **gerando cobrança no seu cartão do Google Cloud**.
+>    Com a restrição por referrer, a chave só funciona a partir do seu domínio; com a restrição
+>    de APIs, mesmo vazada não serve para outros serviços do Google.
+> 3. No painel do Google Cloud, ativar as APIs **Places API (New)** e **Maps Embed API** no
+>    projeto da chave (sem isso a busca retorna erro 403).
+
 Nenhuma pendência estrutural aberta. Itens já resolvidos:
 - ✅ "Fotos da documentação" (folha #11): grupo `fotosDocumentacao` no `FormularioChecklist` +
   `FOTOS-DOCUMENTACAO.html`, auto-injetado após `checklist3` e antes de `CHECKLIST-FOTOS`.

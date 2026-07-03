@@ -21,9 +21,12 @@ import {
   listarComponentes,
   listarLotes,
   salvarComponente,
+  salvarLote,
   type ComponenteCal,
   type LoteCal,
 } from '../features/calibracoes/componentesService';
+import { listarHistorico } from '../features/relatorios/relatoriosService';
+import type { RelatorioSalvo } from '../features/relatorios/tipos';
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
 import '../pages/relatorios.css';
 import './calibracoes.css';
@@ -203,6 +206,9 @@ export default function Calibracoes() {
   const [lotes, setLotes] = useState<LoteCal[]>([]);
   const [compForm, setCompForm] = useState<ComponenteCal | null>(null);
   const [loteAberto, setLoteAberto] = useState<string | null>(null);
+  // Vínculo lote ↔ relatório: relatórios salvos do equipamento + menu aberto
+  const [relsEquip, setRelsEquip] = useState<RelatorioSalvo[]>([]);
+  const [vinculoMenu, setVinculoMenu] = useState<string | null>(null);
   const compFotoRef = useRef<HTMLInputElement>(null);
   const vinculoCalibracao = useRef<{ componenteId: string; loteId: string } | null>(null);
 
@@ -263,8 +269,15 @@ export default function Calibracoes() {
     setCals([...lista].sort((a, b) => parseDateBR(b.dataCalibracao || b.criadoEm) - parseDateBR(a.dataCalibracao || a.criadoEm)));
     setComponentes(listarComponentes(eq.tag));
     setLotes(listarLotes(eq.tag));
+    setRelsEquip(listarHistorico(eq.tag));
     setConfirmandoId(null);
     setTela('historico');
+  }
+
+  async function definirVinculo(lote: LoteCal, mudanca: Pick<LoteCal, 'relatorioId' | 'vincularProximoRelatorio'>) {
+    await salvarLote(tag, { ...lote, ...mudanca });
+    setLotes(listarLotes(tag));
+    setVinculoMenu(null);
   }
 
   // Calibração SEMPRE parte de um componente cadastrado dentro de um lote:
@@ -630,20 +643,76 @@ export default function Calibracoes() {
               lotes.map((lote) => {
                 const calsDoLote = cals.filter((c) => c.loteId === lote.id);
                 const aberto = loteAberto === lote.id;
+                const relVinculado = relsEquip.find((r) => r.id === lote.relatorioId);
                 return (
                   <div key={lote.id} className="cal-lote">
-                    <button type="button" className="cal-lote-head" onClick={() => setLoteAberto(aberto ? null : lote.id)}>
-                      <Icone nome={aberto ? 'chevdown' : 'chevright'} tam={14} />
-                      <strong>{lote.descricao}</strong>
-                      <span className="cal-lote-meta">
-                        {calsDoLote.length}/{componentes.length} calibrado{calsDoLote.length !== 1 ? 's' : ''}
-                      </span>
-                      {calsDoLote.length >= componentes.length && componentes.length > 0 ? (
-                        <span className="badge-cal-status aprovado">Completo</span>
-                      ) : (
-                        <span className="badge-cal-status pendente">Em andamento</span>
-                      )}
-                    </button>
+                    <div className="cal-lote-head-row">
+                      <button type="button" className="cal-lote-head" onClick={() => setLoteAberto(aberto ? null : lote.id)}>
+                        <Icone nome={aberto ? 'chevdown' : 'chevright'} tam={14} />
+                        <strong>{lote.descricao}</strong>
+                        <span className="cal-lote-meta">
+                          {calsDoLote.length}/{componentes.length} calibrado{calsDoLote.length !== 1 ? 's' : ''}
+                        </span>
+                        {calsDoLote.length >= componentes.length && componentes.length > 0 ? (
+                          <span className="badge-cal-status aprovado">Completo</span>
+                        ) : (
+                          <span className="badge-cal-status pendente">Em andamento</span>
+                        )}
+                      </button>
+                      <div className="cal-lote-vinculo">
+                        {lote.relatorioId ? (
+                          <span className="badge-vinculo tem" title={relVinculado?.nome ?? lote.relatorioId}>
+                            <Icone nome="link" tam={11} /> {relVinculado?.nome ?? lote.relatorioId}
+                          </span>
+                        ) : lote.vincularProximoRelatorio ? (
+                          <span className="badge-vinculo fila">
+                            <Icone nome="clock" tam={11} /> Aguardando próximo relatório
+                          </span>
+                        ) : (
+                          <span className="badge-vinculo sem">Sem vínculo</span>
+                        )}
+                        <button
+                          type="button"
+                          className="btn-secundario btn-vincular"
+                          onClick={() => setVinculoMenu(vinculoMenu === lote.id ? null : lote.id)}
+                        >
+                          Vincular <Icone nome="chevdown" tam={11} />
+                        </button>
+                        {vinculoMenu === lote.id && (
+                          <div className="cal-vinculo-menu">
+                            <button
+                              type="button"
+                              onClick={() => definirVinculo(lote, { relatorioId: undefined, vincularProximoRelatorio: true })}
+                            >
+                              <Icone nome="clock" tam={13} /> Vincular ao próximo relatório gerado
+                            </button>
+                            <div className="cal-vinculo-menu-label">Relatório existente</div>
+                            {relsEquip.length === 0 ? (
+                              <div className="cal-vinculo-menu-vazio">Nenhum relatório salvo para {tag}</div>
+                            ) : (
+                              relsEquip.map((r) => (
+                                <button
+                                  type="button"
+                                  key={r.id}
+                                  onClick={() => definirVinculo(lote, { relatorioId: r.id, vincularProximoRelatorio: false })}
+                                >
+                                  <Icone nome="filetext" tam={13} /> {r.nome} <em>({r.data})</em>
+                                </button>
+                              ))
+                            )}
+                            {(lote.relatorioId || lote.vincularProximoRelatorio) && (
+                              <button
+                                type="button"
+                                className="remover"
+                                onClick={() => definirVinculo(lote, { relatorioId: undefined, vincularProximoRelatorio: false })}
+                              >
+                                <Icone nome="x" tam={13} /> Remover vínculo
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                     {aberto && (
                       <div className="cal-lote-corpo">
                         {componentes.map((c) => {

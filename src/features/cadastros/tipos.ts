@@ -37,5 +37,14 @@ export interface Cliente {
   telefone: string;
   email: string;
   contato: string;
+  // Enriquecimento via Google Places (todos opcionais — clientes antigos seguem válidos)
+  website?: string;
+  logoUrl?: string;   // favicon do site (google s2 favicons)
+  placeId?: string;   // usado no mapa embed da tela de detalhe
+  lat?: number;
+  lng?: number;
+  anotacoes?: string;
+  /** E-mail do acesso ao portal do cliente (gravado ao criar o acesso). */
+  portalEmail?: string;
 }
 
