@@ -1,0 +1,445 @@
+/* ============================================================================
+   FORJA — classes base compartilhadas (copiadas de design/*.html)
+   Painéis, botões, badges, campos, tabelas, KPIs, modal. Usadas por todas as
+   telas re-skinnadas. NÃO estilizar folhas A4 aqui (templates são intocados).
+   ============================================================================ */
+
+.mono { font-family: var(--font-mono); }
+.display { font-family: var(--font-display); }
+
+/* ícone base (componente <Icone>) */
+.icone {
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
+  display: block;
+}
+
+/* ===== Painel ===== */
+.fj-panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 18px;
+}
+.fj-panel-head {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.fj-eyebrow {
+  font-size: 10.5px;
+  letter-spacing: 1.1px;
+  color: var(--muted);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.fj-panel-head h2 {
+  font-family: var(--font-display);
+  font-size: 16px;
+  margin: 4px 0 0;
+  font-weight: 600;
+}
+.fj-panel-foot {
+  padding: 13px 20px;
+  text-align: center;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+}
+.fj-link {
+  color: var(--amber-deep);
+  font-size: 12.5px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  font-family: var(--font-base);
+}
+.fj-link:hover { text-decoration: underline; }
+
+/* ===== Botões ===== */
+.fj-btn {
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 12.5px;
+  padding: 9px 15px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: var(--font-base);
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.fj-btn-primary { background: var(--amber); color: var(--amber-txt); }
+.fj-btn-primary:hover { background: var(--amber-deep); }
+.fj-btn-primary:disabled { background: #E8C7A6; cursor: not-allowed; }
+.fj-btn-ghost { background: var(--panel); color: var(--text); border: 1px solid var(--line); }
+.fj-btn-ghost:hover { background: var(--steel); }
+.fj-btn-danger { background: var(--crit-bg); color: var(--crit); }
+.fj-btn-danger:hover { background: var(--crit); color: #fff; }
+
+/* ===== Badges ===== */
+.fj-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  display: inline-block;
+}
+.fj-badge.crit { background: var(--crit-bg); color: var(--crit); }
+.fj-badge.warn { background: var(--warn-bg); color: var(--warn); }
+.fj-badge.ok { background: var(--ok-bg); color: var(--ok); }
+.fj-badge.neutro { background: var(--steel); color: var(--muted); }
+
+/* badge de tipo (equipamento / inspeção) — cantos 7px, não pill */
+.fj-type-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  padding: 5px 10px;
+  border-radius: 7px;
+  text-transform: uppercase;
+  display: inline-block;
+  white-space: nowrap;
+}
+.fj-type-badge.vaso { background: var(--purple-bg); color: var(--purple); }
+.fj-type-badge.caldeira { background: var(--crit-bg); color: var(--crit); }
+.fj-type-badge.tubulacao { background: var(--blue-bg); color: var(--blue); }
+.fj-type-badge.autoclave { background: var(--warn-bg); color: var(--warn); }
+.fj-type-badge.periodica { background: var(--blue2-bg); color: var(--blue2); }
+.fj-type-badge.externa { background: var(--purple-bg); color: var(--purple); }
+.fj-type-badge.hidro { background: var(--warn-bg); color: var(--warn); }
+
+/* chip de TAG (azul) */
+.fj-tag-chip {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--blue);
+  background: var(--blue-bg);
+  border: 1px solid var(--blue-line);
+  padding: 5px 11px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.fj-tag-mini {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--blue);
+}
+
+/* ===== Campos ===== */
+.fj-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.fj-field > label {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.fj-field .hint { font-size: 10.5px; color: var(--muted); font-weight: 400; text-transform: none; letter-spacing: 0; }
+.fj-field input,
+.fj-field select,
+.fj-field textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 11px;
+  font-size: 13px;
+  font-family: var(--font-mono);
+  color: var(--text);
+  background: var(--steel);
+}
+.fj-field input::placeholder { color: #AEB4B9; font-family: var(--font-base); }
+.fj-field input:focus, .fj-field select:focus, .fj-field textarea:focus {
+  outline: 2px solid var(--amber);
+  outline-offset: 0;
+  border-color: var(--amber);
+  box-shadow: none;
+}
+.fj-fgroup-label {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--muted);
+  font-weight: 600;
+  margin: 18px 0 10px;
+}
+.fj-fgroup-label:first-child { margin-top: 0; }
+
+/* select de filtro (toolbar) */
+.fj-fselect {
+  border: 1px solid var(--line);
+  background: var(--steel);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12.5px;
+  color: var(--text);
+  font-weight: 500;
+  cursor: pointer;
+  font-family: var(--font-base);
+}
+.fj-fselect:focus { outline: 2px solid var(--amber); outline-offset: 0; }
+
+/* busca */
+.fj-search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--steel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 12px;
+  min-width: 200px;
+  flex: 1;
+  color: var(--muted);
+}
+.fj-search-box input {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 13px;
+  color: var(--text);
+  width: 100%;
+  font-family: var(--font-base);
+}
+.fj-search-box input::placeholder { color: #AEB4B9; }
+
+/* toolbar de filtros */
+.fj-toolbar {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+/* ===== Tabela ===== */
+.fj-table-wrap { overflow-x: auto; }
+.fj-table { width: 100%; border-collapse: collapse; }
+.fj-table thead th {
+  text-align: left;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+  font-weight: 600;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--line);
+  background: #FBFAF7;
+  white-space: nowrap;
+}
+.fj-table tbody td {
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+  vertical-align: middle;
+}
+.fj-table tbody tr:last-child td { border-bottom: none; }
+.fj-table tbody tr:hover { background: #FBFAF7; }
+.fj-dash { color: #C9C5B8; }
+
+.fj-tag-cell { display: flex; align-items: center; gap: 10px; }
+.fj-tag-ico {
+  width: 30px; height: 30px;
+  border-radius: 7px;
+  background: var(--steel);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.fj-tag-code { font-family: var(--font-mono); font-weight: 600; font-size: 12.5px; }
+.fj-eq-name { color: var(--muted); font-size: 11.5px; margin-top: 1px; }
+.fj-days { font-family: var(--font-mono); font-size: 12px; }
+.fj-days.crit { color: var(--crit); font-weight: 600; }
+.fj-days.warn { color: var(--warn); font-weight: 600; }
+
+/* ===== KPI ===== */
+.fj-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.fj-kpi {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.fj-kpi-icon {
+  width: 38px; height: 38px;
+  border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.fj-kpi-label {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  font-weight: 600;
+}
+.fj-kpi-value {
+  font-family: var(--font-display);
+  font-size: 25px;
+  font-weight: 700;
+  margin-top: 6px;
+  letter-spacing: -0.5px;
+}
+.fj-kpi-delta {
+  font-size: 11px;
+  margin-top: 8px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  width: fit-content;
+}
+.fj-kpi-delta.up { color: var(--ok); background: var(--ok-bg); }
+.fj-kpi-delta.down { color: var(--crit); background: var(--crit-bg); }
+.fj-kpi-delta.flat { color: var(--muted); background: var(--steel); }
+
+/* ===== Banner de resultado (mono, verde/vermelho/amarelo) ===== */
+.fj-result-banner {
+  border-radius: 9px;
+  padding: 12px 16px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.fj-result-banner.pass { background: var(--ok-bg); border: 1px solid var(--ok-line); color: var(--ok); }
+.fj-result-banner.fail { background: var(--crit-bg); border: 1px solid var(--crit-line); color: var(--crit); }
+.fj-result-banner.warn { background: var(--warn-bg); border: 1px solid var(--warn-line); color: var(--warn); }
+
+/* ===== Modal ===== */
+.fj-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 24, 28, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 30px;
+  z-index: 1000;
+  animation: nr-fade-in 0.15s ease;
+}
+.fj-modal-box {
+  background: var(--panel);
+  border-radius: 14px;
+  width: 100%;
+  max-width: 880px;
+  max-height: 88vh;
+  overflow: auto;
+  box-shadow: var(--shadow-lg);
+}
+.fj-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--line);
+  gap: 12px;
+}
+.fj-modal-head h2 { font-family: var(--font-display); font-size: 18px; margin: 0; }
+.fj-modal-close {
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: transparent;
+  cursor: pointer;
+  color: var(--muted);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.fj-modal-close:hover { background: var(--steel); }
+
+/* ===== Estado vazio ===== */
+.fj-empty {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.fj-empty .fj-empty-ic {
+  width: 52px; height: 52px;
+  border-radius: 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 12px;
+  color: var(--muted);
+}
+.fj-empty .fj-empty-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 14.5px;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+/* ===== Cabeçalho de página (dentro do conteúdo) ===== */
+.fj-page-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 18px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.fj-page-head h1 {
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: -0.2px;
+}
+.fj-page-head .sub { color: var(--muted); font-size: 12.5px; margin-top: 3px; }
+
+/* foco acessível âmbar em elementos interativos Forja */
+.fj-btn:focus-visible,
+.fj-link:focus-visible,
+.fj-fselect:focus-visible,
+.fj-modal-close:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+@media (max-width: 1180px) {
+  .fj-kpi-row { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 640px) {
+  .fj-kpi-row { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .fj-modal-overlay { padding: 12px; }
+  .fj-table thead th, .fj-table tbody td { padding-left: 12px; padding-right: 12px; }
+}

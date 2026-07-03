@@ -1,82 +1,112 @@
 /* ============================================================================
-   NR-13 — Design System (premium enterprise, estética Firecrawl)
-   Identidade: fundo creme quente, superfícies brancas, bordas finas, acento
-   laranja incandescente, tipografia Inter (variable) + JetBrains Mono para
-   valores/terminal. Os nomes de tokens são preservados (compatibilidade com o
-   CSS existente). Fontes são self-hosted via @fontsource (importadas no main.tsx)
-   — nada de Google Fonts em runtime, o PWA funciona offline.
+   NR-13 — Design System "Forja" (fonte da verdade: pasta design/ na raiz)
+   Identidade: fundo steel #F6F5F2, painéis brancos, bordas #E4E1D8, sidebar
+   escura #14181C, acento âmbar #FF7A1A, tipografia Space Grotesk (títulos) +
+   IBM Plex Sans (texto) + IBM Plex Mono (dados técnicos). Os nomes de tokens
+   antigos são preservados como aliases (compatibilidade com CSS existente).
+   Fontes self-hosted via @fontsource (main.tsx) — PWA funciona offline.
    ============================================================================ */
 
 :root {
-  /* ── Superfícies (neutros quentes, estilo Firecrawl) ── */
-  --bg-body: #faf9f5;
-  --bg-card: #ffffff;
-  --bg-faint: #f7f6f2;
-  --bg-soft: #f1efe9;
+  /* ── Paleta Forja (copiada de design/painel_dashboard.html) ── */
+  --ink: #14181C;
+  --ink-soft: #1E252B;
+  --ink-soft2: #242B32;
+  --steel: #F6F5F2;
+  --panel: #FFFFFF;
+  --line: #E4E1D8;
+  --text: #2D3339;
+  --muted: #7A8790;
+  --amber: #FF7A1A;
+  --amber-deep: #D9640C;
+  --amber-txt: #241505;      /* texto sobre âmbar */
+  --amber-bg: #FFF1E6;
+  --ok: #1FA971;
+  --ok-bg: #E7F6EF;
+  --ok-line: #BFE9D6;
+  --warn: #B8860B;
+  --warn-bg: #FBF1DC;
+  --warn-line: #F0DBA6;
+  --crit: #D5453D;
+  --crit-deep: #B93A33;
+  --crit-bg: #FBEAE9;
+  --crit-line: #F3C6C3;
+  --purple: #7C5CFC;
+  --purple-bg: #F1EDFF;
+  --blue: #457DC1;
+  --blue-deep: #35639C;
+  --blue-bg: #EAF2FB;
+  --blue-line: #C9DCF0;
+  --blue2: #0C4F9B;
+  --blue2-bg: #E4EDF9;
+  --blue2-line: #C4D9F0;
+  --radius: 10px;
 
-  /* ── Texto ── */
-  --text-main: #1a1a1a;
-  --text-muted: #6b6b6b;
-  --text-faint: #9c9a94;
+  /* ── Aliases legados (mapeados para a paleta Forja) ── */
+  --bg-body: #F6F5F2;
+  --bg-card: #FFFFFF;
+  --bg-faint: #FBFAF7;
+  --bg-soft: #F2EFE7;
 
-  /* ── Linhas / divisores ── */
-  --border-solid: #e8e6df;
-  --border-dashed: #d8d5cc;
-  --highlight-bg: #fff1ea;
-  --menu-hover: #f5f3ed;
-  --active-color: #f54a00;
+  --text-main: #2D3339;
+  --text-muted: #7A8790;
+  --text-faint: #AEB4B9;
 
-  /* ── Chrome (topbar / sidebar) ── */
+  --border-solid: #E4E1D8;
+  --border-dashed: #D8D5CC;
+  --highlight-bg: #FFF1E6;
+  --menu-hover: #F2EFE7;
+  --active-color: #FF7A1A;
+
   --top-bar-bg: #ffffff;
   --top-bar-grad: #ffffff;
-  --sidebar-bg: #faf9f5;
-  --sidebar-grad: #faf9f5;
+  --sidebar-bg: #14181C;
+  --sidebar-grad: #14181C;
 
-  /* ── Marca / acento (laranja Firecrawl) ── */
-  --accent: #f54a00;
-  --accent-2: #d93f00;        /* hover */
-  --accent-soft: #ff6a2a;
-  --accent-grad: linear-gradient(120deg, #f54a00 0%, #ff6a2a 100%);
-  --accent-bg-light: #fff1ea;
-  --accent-ring: rgba(245, 74, 0, 0.30);
+  --accent: #FF7A1A;
+  --accent-2: #D9640C;        /* hover */
+  --accent-soft: #FF9247;
+  --accent-grad: linear-gradient(135deg, #FF7A1A 0%, #D9640C 100%);
+  --accent-bg-light: #FFF1E6;
+  --accent-ring: rgba(255, 122, 26, 0.35);
 
-  /* ── Status ── */
-  --status-sucesso-icone: #16a34a;
-  --status-pendente-icone: #f59e0b;
-  --status-ok-bg: #ecfdf5;
-  --status-ok-text: #15803d;
-  --status-erro-bg: #fef2f2;
-  --status-erro-text: #dc2626;
-  --status-aviso-bg: #fffbeb;
-  --status-aviso-text: #b45309;
+  /* ── Status (aliases → Forja) ── */
+  --status-sucesso-icone: #1FA971;
+  --status-pendente-icone: #B8860B;
+  --status-ok-bg: #E7F6EF;
+  --status-ok-text: #1FA971;
+  --status-erro-bg: #FBEAE9;
+  --status-erro-text: #D5453D;
+  --status-aviso-bg: #FBF1DC;
+  --status-aviso-text: #B8860B;
 
   /* ── Tags de tipo de equipamento ── */
-  --tipo-vaso-bg: #f3e8fd;
-  --tipo-vaso-text: #7c3aed;
+  --tipo-vaso-bg: #F1EDFF;
+  --tipo-vaso-text: #7C5CFC;
 
   /* ── Raios ── */
   --radius-sm: 7px;
   --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 20px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
 
-  /* ── Sombras (escala de elevação, tom quente e discreto) ── */
-  --shadow-xs: 0 1px 2px rgba(26, 22, 12, 0.05);
-  --shadow-sm: 0 1px 3px rgba(26, 22, 12, 0.07), 0 1px 2px rgba(26, 22, 12, 0.04);
-  --shadow-md: 0 4px 14px rgba(26, 22, 12, 0.07);
-  --shadow-lg: 0 12px 34px rgba(26, 22, 12, 0.12);
-  --shadow-card: 0 1px 2px rgba(26, 22, 12, 0.04), 0 6px 20px rgba(26, 22, 12, 0.05);
-  --shadow-accent: 0 6px 18px rgba(245, 74, 0, 0.28);
+  /* ── Sombras (leves; pesada só em hover/modal) ── */
+  --shadow-xs: 0 1px 2px rgba(20, 24, 28, 0.05);
+  --shadow-sm: 0 1px 3px rgba(20, 24, 28, 0.06);
+  --shadow-md: 0 10px 26px rgba(20, 24, 28, 0.08);
+  --shadow-lg: 0 20px 60px rgba(20, 24, 28, 0.35);
+  --shadow-card: none;
+  --shadow-accent: 0 8px 20px rgba(255, 122, 26, 0.28);
 
   /* ── Transições ── */
   --t-fast: 0.14s cubic-bezier(0.4, 0, 0.2, 1);
   --t-base: 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 
   /* ── Tipografia ── */
-  --font-base: 'Inter Variable', 'Inter', 'Helvetica Neue', Arial, sans-serif;
-  --font-display: 'Inter Variable', 'Inter', sans-serif;
-  --font-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
-  --font-size-base: 13px;
+  --font-base: 'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif;
+  --font-display: 'Space Grotesk', 'IBM Plex Sans', sans-serif;
+  --font-mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+  --font-size-base: 13.5px;
 }
 
 * {
@@ -96,19 +126,14 @@ body {
   font-size: var(--font-size-base);
   color: var(--text-main);
   line-height: 1.5;
-  letter-spacing: -0.005em;
   background-color: var(--bg-body);
-  /* fundo quente com brilho laranja bem discreto no topo (estética Firecrawl) */
-  background-image:
-    radial-gradient(1100px 500px at 50% -12%, rgba(245, 74, 0, 0.05), transparent 60%);
-  background-attachment: fixed;
 }
 
-/* Títulos: mesma família, peso alto e tracking apertado (estética Firecrawl) */
+/* Títulos: Space Grotesk, peso alto, tracking levemente apertado (Forja) */
 h1, h2, h3, h4, .titulo-display {
   font-family: var(--font-display);
-  font-weight: 700;
-  letter-spacing: -0.025em;
+  font-weight: 600;
+  letter-spacing: -0.2px;
   color: var(--text-main);
 }
 
@@ -139,24 +164,24 @@ h1, h2, h3, h4, .titulo-display {
 
 /* ── Seleção de texto ── */
 ::selection {
-  background: var(--accent-soft);
-  color: #fff;
+  background: var(--amber);
+  color: var(--amber-txt);
 }
 
 /* ── Scrollbar refinada ── */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #c3cad9 transparent;
+  scrollbar-color: #C9C5B8 transparent;
 }
 *::-webkit-scrollbar { width: 10px; height: 10px; }
 *::-webkit-scrollbar-track { background: transparent; }
 *::-webkit-scrollbar-thumb {
-  background: #c3cad9;
+  background: #C9C5B8;
   border-radius: 8px;
   border: 2px solid transparent;
   background-clip: padding-box;
 }
-*::-webkit-scrollbar-thumb:hover { background: #9aa6bd; background-clip: padding-box; }
+*::-webkit-scrollbar-thumb:hover { background: #AEA995; background-clip: padding-box; }
 
 /* ============================================================================
    UTILITÁRIOS GLOBAIS — animações de entrada + spinner de carregamento
