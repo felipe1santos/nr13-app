@@ -58,10 +58,18 @@
   flex-wrap: wrap;
 }
 
+/* TAG em destaque azul (design/painel_detalhe_equipamento.html .eq-tag) */
 .equipamento-tag-titulo {
-  font-size: 24px;
+  font-family: var(--font-mono);
   font-weight: 700;
-  color: var(--accent-2);
+  font-size: 21px;
+  color: var(--blue);
+  background: var(--blue-bg);
+  border: 1px solid var(--blue-line);
+  padding: 5px 14px;
+  border-radius: 8px;
+  letter-spacing: 0.3px;
+  margin: 0;
 }
 
 .seletor-unidade-box {
@@ -105,17 +113,18 @@
 .btn-excluir-equip {
   background: none;
   border: none;
-  color: var(--status-erro-text);
-  font-size: 13px;
-  font-weight: 700;
+  color: var(--crit);
+  font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
-  text-decoration: underline;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   margin-bottom: 12px;
   padding: 0;
+  font-family: var(--font-base);
 }
+.btn-excluir-equip:hover { text-decoration: underline; }
 
 .btn-excluir-equip:disabled {
   opacity: 0.6;
@@ -184,58 +193,103 @@
   box-sizing: border-box;
 }
 
-/* Memorial de Cálculo */
-.bloco-memorial-resumo .btn-secundario-claro {
-  display: inline-block;
-  background: var(--menu-hover);
-  color: var(--text-main);
-  border: 1px solid var(--border-solid);
-  padding: 9px 16px;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  font-weight: 600;
+/* Memorial de Cálculo — botão vertical âmbar de destaque máximo (Forja) */
+.memorial-body {
+  display: flex;
+  gap: 18px;
+  align-items: stretch;
+}
+.btn-mem-edit {
+  flex-shrink: 0;
+  width: 158px;
+  background: var(--amber);
+  color: var(--amber-txt);
+  border: none;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+  padding: 20px 12px;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(255, 122, 26, 0.28);
   text-decoration: none;
-  margin-bottom: 16px;
+  font-family: var(--font-base);
+}
+.btn-mem-edit:hover { background: var(--amber-deep); }
+.btn-mem-edit .txt { font-weight: 700; font-size: 13.5px; line-height: 1.3; color: var(--amber-txt); }
+.btn-mem-edit .sub {
+  font-size: 10px;
+  font-weight: 500;
+  opacity: 0.85;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--amber-txt);
 }
 
-.bloco-memorial-resumo .btn-secundario-claro:hover {
-  background: var(--border-solid);
+.mem-stats-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-width: 0;
 }
-
 .memorial-resumo-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
-  background: var(--bg-soft);
-  padding: 15px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--menu-hover);
-  margin-bottom: 16px;
 }
+.memorial-resumo-grid .resultado-item {
+  background: var(--steel);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.memorial-resumo-grid .lbl-view {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.memorial-resumo-grid .val-view {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 700;
+}
+.memorial-resumo-grid .val-view.accent { color: var(--amber-deep); }
 
-.val-view.val-erro {
-  color: var(--status-erro-text);
-}
+.val-view.val-erro { color: var(--crit); }
 
 .bloco-memorial-resumo .btn-ver-memorial {
   display: block;
   text-align: center;
-  background: var(--accent-bg-light);
-  color: var(--accent);
-  border: 1px solid #c6dafc;
+  background: #FFF1E6;
+  color: var(--amber-deep);
+  border: none;
   width: 100%;
+  margin-top: 14px;
   padding: 10px;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
+  border-radius: 8px;
+  font-size: 12.5px;
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
-  font-family: inherit;
+  font-family: var(--font-base);
   box-sizing: border-box;
 }
 
-.bloco-memorial-resumo .btn-ver-memorial:hover {
-  background: #d7e8fd;
+.bloco-memorial-resumo .btn-ver-memorial:hover { background: #FFE4D0; }
+
+@media (max-width: 700px) {
+  .memorial-body { flex-direction: column; }
+  .btn-mem-edit { width: 100%; flex-direction: row; padding: 16px; }
+  .memorial-resumo-grid { grid-template-columns: 1fr 1fr; }
 }
 
 /* Modal memorial */

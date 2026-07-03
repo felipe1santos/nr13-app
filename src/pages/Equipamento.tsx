@@ -14,6 +14,7 @@ import VidaRemanescente from '../features/equipamento/VidaRemanescente';
 import { formatarValor } from '../calc/unidades';
 import type { SistemaUnidade } from '../calc/unidades';
 import MemorialLog from '../features/memorial/MemorialLog';
+import { Icone } from '../components/Icone';
 import './equipamento-page.css';
 
 const ROTULO_TIPO: Record<string, string> = {
@@ -112,7 +113,7 @@ function EquipamentoView({ tag }: { tag: string }) {
                   onClick={salvarUnidadeSelecionada}
                   disabled={salvandoUnidade}
                 >
-                  {salvandoUnidade ? 'Salvando...' : '💾 Salvar'}
+                  {salvandoUnidade ? 'Salvando...' : 'Salvar'}
                 </button>
               )}
               {unidadeToast && <span className="unidade-salva-ok">✓ Unidade fixada</span>}
@@ -120,7 +121,7 @@ function EquipamentoView({ tag }: { tag: string }) {
           </div>
 
           <button type="button" className="btn-excluir-equip" onClick={excluirEquipamento} disabled={excluindo}>
-            🗑 {excluindo ? 'Excluindo...' : 'Excluir'}
+            <Icone nome="trash" tam={13} /> {excluindo ? 'Excluindo...' : 'Excluir'}
           </button>
 
           <div className="equipamento-quick-grid">
@@ -171,11 +172,15 @@ function EquipamentoView({ tag }: { tag: string }) {
       <section className="equipamento-secao">
         <div className="bloco-dados bloco-memorial-resumo">
           <h3>Memorial de Cálculo</h3>
-          <Link to={`/equipamento/${tag}/memorial`} className="btn-secundario-claro">
-            Editar Memorial de Cálculo
-          </Link>
+          <div className="memorial-body">
+            <Link to={`/equipamento/${tag}/memorial`} className="btn-mem-edit">
+              <Icone nome="calculator" tam={26} />
+              <span className="txt">Editar Memorial<br />de Cálculo</span>
+              <span className="sub">Abrir calculadora</span>
+            </Link>
 
-          <div className="memorial-resumo-grid">
+            <div className="mem-stats-wrap">
+              <div className="memorial-resumo-grid">
             <div className="resultado-item">
               <span className="lbl-view">PMTA Final</span>
               <span className="val-view accent" style={{ fontSize: 16 }}>
@@ -206,17 +211,19 @@ function EquipamentoView({ tag }: { tag: string }) {
               <span className="lbl-view">Esp. Mín. Tampo</span>
               <span className="val-view">{calculo?.etampo ? `${calculo.etampo} mm` : '—'}</span>
             </div>
-          </div>
+              </div>
 
-          {calculo?.memorialHTML ? (
-            <button type="button" className="btn-ver-memorial" onClick={() => setModalMemorial(true)}>
-              Ver Memorial Completo
-            </button>
-          ) : (
-            <span className="btn-ver-memorial" style={{ opacity: 0.4, cursor: 'not-allowed' }}>
-              Ver Memorial Completo
-            </span>
-          )}
+              {calculo?.memorialHTML ? (
+                <button type="button" className="btn-ver-memorial" onClick={() => setModalMemorial(true)}>
+                  Ver Memorial Completo →
+                </button>
+              ) : (
+                <span className="btn-ver-memorial" style={{ opacity: 0.4, cursor: 'not-allowed' }}>
+                  Ver Memorial Completo →
+                </span>
+              )}
+            </div>
+          </div>
         </div>
       </section>
 
