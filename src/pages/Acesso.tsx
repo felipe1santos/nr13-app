@@ -50,8 +50,30 @@ const PRESETS: Record<Perfil, { papel: 'gerente' | 'funcionario'; modulos: Modul
   },
 };
 
-// Painel "Acessos" — só o MESTRE. Cria e gerencia sub-logins da organização com
-// permissões por módulo; acessos de cliente são criados em "Empresas".
+const MS_DIA = 86_400_000;
+
+// "Último acesso em ..." — azul para acessos recentes (≤ 7 dias), cinza para antigos.
+function UltimoAcesso({ iso }: { iso: string | null }) {
+  if (!iso) return <span className="acesso-ultimo antigo">Nunca acessou</span>;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return <span className="acesso-ultimo antigo">Nunca acessou</span>;
+  const dias = Math.floor((Date.now() - d.getTime()) / MS_DIA);
+  const recente = dias <= 7;
+  const quando =
+    dias <= 0
+      ? `hoje às ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+      : dias === 1
+        ? 'ontem'
+        : `${d.toLocaleDateString('pt-BR')}`;
+  return (
+    <span className={`acesso-ultimo ${recente ? 'recente' : 'antigo'}`}>
+      Último acesso {dias <= 1 ? '' : 'em '}{quando}
+    </span>
+  );
+}
+
+// Painel "Acessos" — só o MESTRE. Tela inicial: instrução + lista de acessos;
+// o formulário de criação só aparece ao clicar em "Cadastrar novo acesso".
 export default function Acesso() {
   const navigate = useNavigate();
   const [usuarios, setUsuarios] = useState<SubUsuario[]>([]);
@@ -59,6 +81,7 @@ export default function Acesso() {
   const [erro, setErro] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
 
+  const [formAberto, setFormAberto] = useState(false);
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [perfil, setPerfil] = useState<Perfil>('inspetor');
@@ -114,6 +137,7 @@ export default function Acesso() {
       setAviso(`Acesso ${perfil === 'inspetor' ? 'Inspetor' : perfil === 'gerente' ? 'Gerente' : 'Personalizado'} criado para ${email.trim()}.`);
       setEmail('');
       setSenha('');
+      setFormAberto(false);
       setUsuarios(lista);
     } catch (er) {
       setErro(er instanceof Error ? er.message : String(er));
@@ -154,72 +178,91 @@ export default function Acesso() {
         Todos os papéis têm sessão única: a mesma conta não abre em dois aparelhos ao mesmo tempo.
       </p>
 
-      {erro && <p className="erro-form" style={{ color: 'var(--crit)', fontWeight: 600 }}>{erro}</p>}
+      {erro && <p style={{ color: 'var(--crit)', fontWeight: 600 }}>{erro}</p>}
       {aviso && <p style={{ color: 'var(--ok)', fontWeight: 600 }}>{aviso}</p>}
 
-      {/* ── Criar acesso ── */}
-      <div className="bloco-dados" style={{ marginBottom: 20 }}>
-        <h3><Icone nome="userplus" tam={15} style={{ display: 'inline-block', verticalAlign: -2 }} /> Criar novo acesso</h3>
+      {/* ── Formulário (só quando aberto) ── */}
+      {formAberto && (
+        <div className="bloco-dados" style={{ marginBottom: 20 }}>
+          <h3><Icone nome="userplus" tam={15} style={{ display: 'inline-block', verticalAlign: -2 }} /> Cadastrar novo acesso</h3>
 
-        <div className="acesso-perfis">
-          {(Object.keys(PRESETS) as Perfil[]).map((p) => (
-            <button
-              key={p}
-              type="button"
-              className={`acesso-perfil-card${perfil === p ? ' ativo' : ''}`}
-              onClick={() => escolherPerfil(p)}
-            >
-              <span className="acesso-perfil-nome">
-                {p === 'gerente' ? 'Gerente' : p === 'inspetor' ? 'Inspetor' : 'Personalizado'}
-              </span>
-              <span className="acesso-perfil-desc">{PRESETS[p].descricao}</span>
+          <div className="acesso-perfis">
+            {(Object.keys(PRESETS) as Perfil[]).map((p) => (
+              <button
+                key={p}
+                type="button"
+                className={`acesso-perfil-card${perfil === p ? ' ativo' : ''}`}
+                onClick={() => escolherPerfil(p)}
+              >
+                <span className="acesso-perfil-nome">
+                  {p === 'gerente' ? 'Gerente' : p === 'inspetor' ? 'Inspetor' : 'Personalizado'}
+                </span>
+                <span className="acesso-perfil-desc">{PRESETS[p].descricao}</span>
+              </button>
+            ))}
+            <button type="button" className="acesso-perfil-card" onClick={() => navigate('/empresas')}>
+              <span className="acesso-perfil-nome">Cliente <Icone nome="arrowright" tam={12} style={{ display: 'inline-block', verticalAlign: -1 }} /></span>
+              <span className="acesso-perfil-desc">Criado em Clientes → editar empresa → Acesso ao Portal.</span>
             </button>
-          ))}
-          <button type="button" className="acesso-perfil-card" onClick={() => navigate('/empresas')}>
-            <span className="acesso-perfil-nome">Cliente <Icone nome="arrowright" tam={12} style={{ display: 'inline-block', verticalAlign: -1 }} /></span>
-            <span className="acesso-perfil-desc">Criado em Clientes → editar empresa → Acesso ao Portal.</span>
-          </button>
+          </div>
+
+          <form onSubmit={handleCriar}>
+            <div className="cad-grid" style={{ alignItems: 'end', marginBottom: 14 }}>
+              <div className="cad-campo">
+                <label>E-mail</label>
+                <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="acesso@suaequipe.com" />
+              </div>
+              <div className="cad-campo">
+                <label>Senha (mín. 6)</label>
+                <input type="text" required minLength={6} value={senha} onChange={(e) => setSenha(e.target.value)} />
+              </div>
+            </div>
+
+            <div className="acesso-permissoes-label">O que este acesso pode ver e usar:</div>
+            <div className="acesso-permissoes-grid">
+              {MODULOS.map((m) => (
+                <label key={m} className="acesso-permissao-opt">
+                  <input
+                    type="checkbox"
+                    checked={modulos.includes(m)}
+                    onChange={() => setModulos((l) => toggleModulo(l, m))}
+                  />
+                  {ROTULO_MODULO[m]}
+                </label>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+              <button type="submit" className="btn-primario" disabled={criando}>
+                {criando ? 'Criando...' : 'Criar acesso'}
+              </button>
+              <button type="button" className="btn-secundario" onClick={() => { setFormAberto(false); setErro(null); }}>
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* ── Lista (tela inicial) ── */}
+      <div className="bloco-dados">
+        <div className="meta-card-header" style={{ marginBottom: 12 }}>
+          <h3 style={{ margin: 0, border: 'none', padding: 0 }}>Acessos criados ({usuarios.length})</h3>
+          {!formAberto && (
+            <button type="button" className="btn-primario" onClick={() => { setFormAberto(true); setAviso(null); }}>
+              + Cadastrar novo acesso
+            </button>
+          )}
         </div>
 
-        <form onSubmit={handleCriar}>
-          <div className="cad-grid" style={{ alignItems: 'end', marginBottom: 14 }}>
-            <div className="cad-campo">
-              <label>E-mail</label>
-              <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="acesso@suaequipe.com" />
-            </div>
-            <div className="cad-campo">
-              <label>Senha (mín. 6)</label>
-              <input type="text" required minLength={6} value={senha} onChange={(e) => setSenha(e.target.value)} />
-            </div>
-          </div>
-
-          <div className="acesso-permissoes-label">O que este acesso pode ver e usar:</div>
-          <div className="acesso-permissoes-grid">
-            {MODULOS.map((m) => (
-              <label key={m} className="acesso-permissao-opt">
-                <input
-                  type="checkbox"
-                  checked={modulos.includes(m)}
-                  onChange={() => setModulos((l) => toggleModulo(l, m))}
-                />
-                {ROTULO_MODULO[m]}
-              </label>
-            ))}
-          </div>
-
-          <button type="submit" className="btn-primario" disabled={criando} style={{ marginTop: 14 }}>
-            {criando ? 'Criando...' : 'Criar acesso'}
-          </button>
-        </form>
-      </div>
-
-      {/* ── Lista ── */}
-      <div className="bloco-dados">
-        <h3>Sub-logins ({usuarios.length})</h3>
         {carregando ? (
           <p>Carregando...</p>
         ) : usuarios.length === 0 ? (
-          <p style={{ color: 'var(--text-muted)' }}>Nenhum sub-login criado ainda.</p>
+          <div className="fj-empty">
+            <div className="fj-empty-ic"><Icone nome="key" tam={22} /></div>
+            <div className="fj-empty-title">Nenhum acesso criado ainda</div>
+            Clique em "Cadastrar novo acesso" para criar o login do seu gerente ou inspetor.
+          </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table className="cad-tabela" style={{ width: '100%' }}>
@@ -227,6 +270,7 @@ export default function Acesso() {
                 <tr>
                   <th>E-mail</th>
                   <th>Papel</th>
+                  <th>Último acesso</th>
                   <th>Status</th>
                   <th>Sessão</th>
                   <th>Ações</th>
@@ -235,7 +279,7 @@ export default function Acesso() {
               <tbody>
                 {usuarios.map((u) => (
                   <tr key={u.id}>
-                    <td>{u.email}</td>
+                    <td style={{ fontWeight: 600 }}>{u.email}</td>
                     <td>
                       {u.papel === 'cliente' ? (
                         ROTULO_PAPEL.cliente
@@ -254,51 +298,54 @@ export default function Acesso() {
                         </select>
                       )}
                     </td>
+                    <td><UltimoAcesso iso={u.ultimo_acesso ?? null} /></td>
                     <td>
                       {u.ativo ? <span className="fj-badge ok">Liberado</span> : <span className="fj-badge crit">Bloqueado</span>}
                     </td>
                     <td>
                       {u.sessao_ativa ? <span className="fj-badge warn">Em uso</span> : <span className="fj-badge neutro">Livre</span>}
                     </td>
-                    <td style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                      {u.papel !== 'cliente' && (
-                        <button type="button" className="btn-secundario" title="Permissões" onClick={() => abrirPermissoes(u)}>
-                          <Icone nome="sliders" tam={13} />
+                    <td>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        {u.papel !== 'cliente' && (
+                          <button type="button" className="btn-secundario" title="Permissões" onClick={() => abrirPermissoes(u)}>
+                            <Icone nome="sliders" tam={13} />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className="btn-secundario"
+                          title="Resetar senha"
+                          onClick={() => {
+                            const nova = window.prompt(`Nova senha para ${u.email} (mín. 6):`);
+                            if (nova && nova.length >= 6) void acao(() => resetarSenhaSub(u.id, nova), 'Senha atualizada.');
+                          }}
+                        >
+                          <Icone nome="key" tam={13} />
                         </button>
-                      )}
-                      <button
-                        type="button"
-                        className="btn-secundario"
-                        title="Resetar senha"
-                        onClick={() => {
-                          const nova = window.prompt(`Nova senha para ${u.email} (mín. 6):`);
-                          if (nova && nova.length >= 6) void acao(() => resetarSenhaSub(u.id, nova), 'Senha atualizada.');
-                        }}
-                      >
-                        <Icone nome="key" tam={13} />
-                      </button>
-                      <button
-                        type="button"
-                        className="btn-secundario"
-                        title={u.ativo ? 'Bloquear' : 'Liberar'}
-                        onClick={() => acao(() => definirAtivoSub(u.id, !u.ativo), u.ativo ? 'Acesso bloqueado.' : 'Acesso liberado.')}
-                      >
-                        <Icone nome="shield" tam={13} />
-                      </button>
-                      <button
-                        type="button"
-                        className="btn-secundario"
-                        title="Excluir"
-                        onClick={() => {
-                          if (window.confirm(`Excluir o acesso de ${u.email}? Essa ação não tem volta.`))
-                            void acao(async () => {
-                              await excluirSub(u.id);
-                              await excluirPermissoes(u.id);
-                            }, 'Acesso excluído.');
-                        }}
-                      >
-                        <Icone nome="trash" tam={13} />
-                      </button>
+                        <button
+                          type="button"
+                          className="btn-secundario"
+                          title={u.ativo ? 'Bloquear' : 'Liberar'}
+                          onClick={() => acao(() => definirAtivoSub(u.id, !u.ativo), u.ativo ? 'Acesso bloqueado.' : 'Acesso liberado.')}
+                        >
+                          <Icone nome="shield" tam={13} />
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-secundario"
+                          title="Excluir"
+                          onClick={() => {
+                            if (window.confirm(`Excluir o acesso de ${u.email}? Essa ação não tem volta.`))
+                              void acao(async () => {
+                                await excluirSub(u.id);
+                                await excluirPermissoes(u.id);
+                              }, 'Acesso excluído.');
+                          }}
+                        >
+                          <Icone nome="trash" tam={13} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

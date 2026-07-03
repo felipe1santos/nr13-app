@@ -496,3 +496,8 @@
 }
 .acesso-permissao-opt:hover { background: var(--steel); }
 .acesso-permissao-opt input { accent-color: var(--amber); width: 15px; height: 15px; }
+
+/* "Último acesso": azul para recentes (≤7 dias), cinza para antigos */
+.acesso-ultimo { font-size: 12px; font-weight: 600; white-space: nowrap; }
+.acesso-ultimo.recente { color: var(--blue2); }
+.acesso-ultimo.antigo { color: var(--muted); font-weight: 400; }

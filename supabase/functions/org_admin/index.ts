@@ -93,6 +93,7 @@ Deno.serve(async (req) => {
         ativo: p.ativo,
         sessao_ativa:
           !!p.sessao_token && !!p.sessao_visto_em && agora - new Date(p.sessao_visto_em).getTime() < SESSAO_LIMITE_MS,
+        ultimo_acesso: p.sessao_visto_em ?? null,
         criado_em: p.created_at ?? null,
       }));
       return json({ usuarios });
@@ -107,29 +108,60 @@ Deno.serve(async (req) => {
       if (!['gerente', 'funcionario', 'cliente'].includes(papel)) return json({ erro: 'papel inválido' }, 400);
       if (papel === 'cliente' && !clienteId) return json({ erro: 'cliente_id obrigatório' }, 400);
 
+      let userId: string | null = null;
       const { data: novo, error } = await admin.auth.admin.createUser({
         email,
         password: senha,
         email_confirm: true,
       });
-      if (error) return json({ erro: error.message }, 400);
-      if (novo.user) {
+      if (error) {
+        // Caso comum: tentativa anterior criou o usuário no Auth mas falhou no perfil
+        // ("A user with this email address has already been registered"). Recupera o
+        // usuário existente — mas SÓ adota se for órfão ou já da própria org (nunca
+        // sequestra conta de outra organização).
+        const jaExiste = /already (been )?registered|already exists/i.test(error.message);
+        if (!jaExiste) return json({ erro: error.message }, 400);
+        const { data: lista, error: listErr } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+        if (listErr) return json({ erro: listErr.message }, 400);
+        const existente = lista.users.find((u) => (u.email ?? '').toLowerCase() === email);
+        if (!existente) return json({ erro: 'E-mail já registrado, mas usuário não encontrado. Tente outro e-mail.' }, 400);
+        const { data: perfilExist } = await admin
+          .from('profiles')
+          .select('org_id, criado_por, papel')
+          .eq('id', existente.id)
+          .maybeSingle();
+        const adotavel =
+          !perfilExist ||
+          perfilExist.org_id === orgId ||
+          (perfilExist.criado_por === null && perfilExist.org_id === existente.id && perfilExist.papel === 'mestre');
+        if (!adotavel) return json({ erro: 'Este e-mail já pertence a outra conta. Use outro e-mail.' }, 400);
+        const { error: pwErr } = await admin.auth.admin.updateUserById(existente.id, { password: senha, email_confirm: true });
+        if (pwErr) return json({ erro: pwErr.message }, 400);
+        userId = existente.id;
+      } else {
+        userId = novo.user?.id ?? null;
+      }
+
+      if (userId) {
         // upsert: o trigger handle_new_user pode já ter criado a linha do profile.
-        const { error: upErr } = await admin.from('profiles').upsert(
-          {
-            id: novo.user.id,
-            email,
-            ativo: true,
-            org_id: orgId,
-            papel,
-            cliente_id: clienteId,
-            criado_por: userData.user.id,
-          },
-          { onConflict: 'id' },
-        );
+        const linha: Record<string, unknown> = {
+          id: userId,
+          email,
+          ativo: true,
+          org_id: orgId,
+          papel,
+          cliente_id: clienteId,
+          criado_por: userData.user.id,
+        };
+        let { error: upErr } = await admin.from('profiles').upsert(linha, { onConflict: 'id' });
+        if (upErr && /email/i.test(upErr.message)) {
+          // instalações sem coluna email em profiles: regrava sem ela
+          delete linha.email;
+          ({ error: upErr } = await admin.from('profiles').upsert(linha, { onConflict: 'id' }));
+        }
         if (upErr) return json({ erro: upErr.message }, 400);
       }
-      return json({ ok: true, id: novo.user?.id });
+      return json({ ok: true, id: userId });
     }
 
     if (action === 'resetar_senha') {

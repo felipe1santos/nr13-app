@@ -9,12 +9,26 @@ export interface SubUsuario {
   cliente_id: string | null;
   ativo: boolean;
   sessao_ativa: boolean;
+  ultimo_acesso: string | null;
   criado_em: string | null;
 }
 
 async function chamar<T>(body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke('org_admin', { body });
-  if (error) throw new Error(error.message || 'Falha na função org_admin');
+  if (error) {
+    // FunctionsHttpError esconde o motivo real no corpo da resposta — extrai o
+    // { erro } devolvido pela função em vez do genérico "non-2xx status code".
+    const ctx = (error as { context?: Response }).context;
+    if (ctx && typeof ctx.json === 'function') {
+      try {
+        const corpo = await ctx.clone().json();
+        if (corpo?.erro) throw new Error(String(corpo.erro));
+      } catch (e) {
+        if (e instanceof Error && e.message && !/json/i.test(e.message)) throw e;
+      }
+    }
+    throw new Error(error.message || 'Falha na função org_admin');
+  }
   if (data?.erro) throw new Error(String(data.erro));
   return data as T;
 }
