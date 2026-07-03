@@ -18,6 +18,7 @@ const CHAVES_PRESERVADAS = new Set([
   'nr13_cliente_id',
   'nr13_sessao_token',
   'nr13_ultimo_login',
+  'nr13_uid',
   // Fila de sincronização offline: NÃO pode ser apagada pelo reconcile/limparCacheDados,
   // senão perderíamos as operações pendentes (escritas/deletes feitos offline).
   'nr13_fila_sync',

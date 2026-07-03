@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Icone } from '../components/Icone';
 import { isMestre, logout, papelAtual, usuarioLogado } from '../services/auth';
 import { listarChavesComPrefixo } from '../services/storage';
+import { modulosDoUsuarioAtual } from '../services/permissoes';
 import { ITENS_TOPO, ITENS_CADASTRAR, ITENS_BAIXO, ITEM_ACESSOS, tituloDaRota } from './menu';
 import type { ItemMenu } from './menu';
 import BotaoInstalarPWA from './BotaoInstalarPWA';
@@ -48,6 +49,46 @@ export default function Layout() {
   const papel = ROTULO_PAPEL[papelAtual()] ?? 'Administrador';
   const nEquip = listarChavesComPrefixo('nr13_info_').length;
   const { titulo, sub } = tituloDaRota(location.pathname);
+
+  // Permissões por sub-login (tela Acessos): null = sem restrição (mestre/legado).
+  const modulosPermitidos = useMemo(() => modulosDoUsuarioAtual(), []);
+  const permitido = (id: string) => modulosPermitidos === null || modulosPermitidos.includes(id as never);
+  const itensTopo = ITENS_TOPO.filter((i) => permitido(i.id));
+  const itensCadastrar = ITENS_CADASTRAR.filter((i) => permitido(i.id));
+  const itensBaixo = ITENS_BAIXO.filter((i) => permitido(i.id));
+
+  // Guard leve de rota: usuário com permissões restritas que cair numa rota
+  // não permitida é levado ao primeiro módulo permitido.
+  useEffect(() => {
+    if (modulosPermitidos === null) return;
+    const mapa: [string, string][] = [
+      ['/dashboard', 'dashboard'],
+      ['/vencimentos', 'vencimentos'],
+      ['/equipamento', 'equipamentos'],
+      ['/inspecoes', 'inspecoes'],
+      ['/relatorios', 'relatorios'],
+      ['/prontuarios', 'prontuarios'],
+      ['/calibracoes', 'calibracoes'],
+      ['/livro-registro', 'livro'],
+      ['/funcionarios', 'funcionarios'],
+      ['/empresas', 'clientes'],
+      ['/minha-empresa', '__mestre__'],
+      ['/acesso', '__mestre__'],
+    ];
+    const hit = mapa.find(([prefixo]) => location.pathname.startsWith(prefixo));
+    if (!hit) return;
+    const ok = hit[1] !== '__mestre__' && modulosPermitidos.includes(hit[1] as never);
+    if (!ok) {
+      const destinos: Record<string, string> = {
+        dashboard: '/dashboard', vencimentos: '/vencimentos', equipamentos: '/equipamentos',
+        inspecoes: '/inspecoes', relatorios: '/relatorios', prontuarios: '/prontuarios',
+        calibracoes: '/calibracoes', livro: '/livro-registro', funcionarios: '/funcionarios',
+        clientes: '/empresas',
+      };
+      const primeiro = modulosPermitidos[0];
+      navigate(primeiro ? destinos[primeiro] : '/inspecoes', { replace: true });
+    }
+  }, [location.pathname, modulosPermitidos, navigate]);
 
   useEffect(() => {
     // Sino: acende quando o motor de vencimentos encontra item vencido.
@@ -105,28 +146,32 @@ export default function Layout() {
           </div>
 
           <nav className="nav-list">
-            {ITENS_TOPO.map((item) => (
+            {itensTopo.map((item) => (
               <NavItem key={item.id} item={item} />
             ))}
 
-            <button
-              type="button"
-              className={`nav-item nav-toggle${cadastrarAberto ? ' expanded' : ''}`}
-              onClick={() => setCadastrarAberto((a) => !a)}
-            >
-              <span className="left">
-                <Icone nome="userplus" />
-                <span className="menu-text">Cadastrar</span>
-              </span>
-              <Icone nome="chevdown" className="chev" tam={15} />
-            </button>
-            <div className={`subnav${cadastrarAberto ? ' open' : ''}`}>
-              {ITENS_CADASTRAR.map((item) => (
-                <NavItem key={item.id} item={item} sub />
-              ))}
-            </div>
+            {itensCadastrar.length > 0 && (
+              <>
+                <button
+                  type="button"
+                  className={`nav-item nav-toggle${cadastrarAberto ? ' expanded' : ''}`}
+                  onClick={() => setCadastrarAberto((a) => !a)}
+                >
+                  <span className="left">
+                    <Icone nome="userplus" />
+                    <span className="menu-text">Cadastrar</span>
+                  </span>
+                  <Icone nome="chevdown" className="chev" tam={15} />
+                </button>
+                <div className={`subnav${cadastrarAberto ? ' open' : ''}`}>
+                  {itensCadastrar.map((item) => (
+                    <NavItem key={item.id} item={item} sub />
+                  ))}
+                </div>
+              </>
+            )}
 
-            {ITENS_BAIXO.map((item) => (
+            {itensBaixo.map((item) => (
               <NavItem key={item.id} item={item} />
             ))}
             {isMestre() && <NavItem item={ITEM_ACESSOS} />}

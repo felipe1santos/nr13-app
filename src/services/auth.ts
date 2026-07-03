@@ -84,6 +84,7 @@ async function carregarPerfil(): Promise<Perfil> {
   const clienteId = (data?.cliente_id as string) ?? null;
   if (plano) localStorage.setItem('nr13_plano', plano);
   localStorage.setItem('nr13_role', role);
+  localStorage.setItem('nr13_uid', uid); // usado pelas permissões por sub-login
   if (papel) localStorage.setItem('nr13_papel', papel);
   if (orgId) localStorage.setItem('nr13_org_id', orgId);
   if (clienteId) localStorage.setItem('nr13_cliente_id', clienteId);
