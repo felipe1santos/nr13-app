@@ -15,6 +15,9 @@ interface Profile {
   criado_em: string | null;
   aprovado_em: string | null;
   aprovado_por: string | null;
+  // Controle de acesso multi-papel (null/'' = conta pagante pré-migração ou mestre)
+  papel?: string | null;
+  org_id?: string | null;
 }
 
 interface LoginEvent {
@@ -54,6 +57,18 @@ function fmtData(iso: string | null): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return '—';
   return d.toLocaleString('pt-BR');
+}
+
+// "Último acesso em ..." — fuso de São Paulo, horário AM/PM (pedido do dono do painel).
+function fmtUltimoAcessoSP(iso: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  const data = d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  const hora = d
+    .toLocaleTimeString('en-US', { timeZone: 'America/Sao_Paulo', hour: 'numeric', minute: '2-digit', hour12: true })
+    .toUpperCase();
+  return `Último acesso em ${data}, ${hora}`;
 }
 
 function fmtSomenteData(iso: string | null): string {
@@ -149,6 +164,7 @@ export default function Admin() {
   // Menu "Ações": posição fixa (viewport) para não ser cortado pelo overflow da tabela.
   const [menuAcoes, setMenuAcoes] = useState<{ id: string; x: number; y: number } | null>(null);
   const [superAberto, setSuperAberto] = useState(false);
+  const [aba, setAba] = useState<'clientes' | 'acessos'>('clientes');
   const superRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
@@ -227,15 +243,34 @@ export default function Admin() {
     [profiles, emailLogado],
   );
 
+  // E-mail da conta pagante dona de cada org (para a aba de sub-logins).
+  const emailPorId = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const p of profiles) if (p.email) m.set(p.id, p.email);
+    return m;
+  }, [profiles]);
+
+  // Aba "Clientes": contas pagantes (mestres/pré-migração), ordenadas por atividade —
+  // frequência de acesso + relatórios gerados; empate: último login mais recente primeiro.
   const filtrados = useMemo(() => {
     const q = busca.trim().toLowerCase();
-    const semAdmins = profiles.filter((p) => p.role !== 'admin');
-    if (!q) return semAdmins;
-    return semAdmins.filter((p) => (p.email ?? '').toLowerCase().includes(q));
-  }, [profiles, busca]);
+    const ehSubLogin = (p: Profile) => !!p.papel && p.papel !== 'mestre';
+    let lista = profiles.filter(
+      (p) => p.role !== 'admin' && (aba === 'acessos' ? ehSubLogin(p) : !ehSubLogin(p)),
+    );
+    if (q) lista = lista.filter((p) => (p.email ?? '').toLowerCase().includes(q));
+    const score = (p: Profile) =>
+      (metricas.get(p.id)?.sessoesTotal ?? 0) + (uso.get(p.id)?.relatorios ?? 0);
+    const ultimoLogin = (p: Profile) => {
+      const iso = metas.get(p.id)?.last_sign_in_at;
+      return iso ? new Date(iso).getTime() : 0;
+    };
+    return [...lista].sort((a, b) => score(b) - score(a) || ultimoLogin(b) - ultimoLogin(a));
+  }, [profiles, busca, aba, metricas, uso, metas]);
 
   const resumo = useMemo(() => {
-    const visiveis = profiles.filter((p) => p.role !== 'admin');
+    // Cards focam os clientes PAGANTES (sub-logins ficam na aba própria).
+    const visiveis = profiles.filter((p) => p.role !== 'admin' && (!p.papel || p.papel === 'mestre'));
     const total = visiveis.length;
     const pendentes = visiveis.filter((p) => !p.ativo).length;
     const vencendo = visiveis.filter((p) => {
@@ -522,6 +557,24 @@ export default function Admin() {
         </button>
       </form>
 
+      {/* Abas: clientes pagantes (foco) × acessos criados pelos clientes (sub-logins/portal) */}
+      <div className="admin-abas">
+        <button
+          type="button"
+          className={`admin-aba${aba === 'clientes' ? ' ativa' : ''}`}
+          onClick={() => setAba('clientes')}
+        >
+          Clientes pagantes
+        </button>
+        <button
+          type="button"
+          className={`admin-aba${aba === 'acessos' ? ' ativa' : ''}`}
+          onClick={() => setAba('acessos')}
+        >
+          Acessos dos clientes (sub-logins)
+        </button>
+      </div>
+
       <input
         className="admin-busca"
         type="search"
@@ -533,12 +586,13 @@ export default function Admin() {
       <div className="admin-tabela-wrap">
         <table className="admin-tabela">
           <thead>
+            {aba === 'clientes' ? (
             <tr>
               <th>E-mail</th>
               <th>Status</th>
               <th>Dias restantes</th>
               <th>Cadastro</th>
-              <th>Último login</th>
+              <th>Último acesso</th>
               <th>Sessões (hoje/total)</th>
               <th>Equipamentos</th>
               <th>Inspeções</th>
@@ -548,6 +602,16 @@ export default function Admin() {
               <th>Acessos criados</th>
               <th>Ações</th>
             </tr>
+            ) : (
+            <tr>
+              <th>E-mail</th>
+              <th>Papel</th>
+              <th>Conta pagante (dona)</th>
+              <th>Status</th>
+              <th>Último acesso</th>
+              <th>Ações</th>
+            </tr>
+            )}
           </thead>
           <tbody>
             {filtrados.map((p) => {
@@ -556,6 +620,68 @@ export default function Admin() {
               const meta = metas.get(p.id);
               const s = uso.get(p.id);
               const ocupado = acaoEmAndamento === p.id;
+              const ultimoAcesso = fmtUltimoAcessoSP(meta?.last_sign_in_at ?? null);
+              const celAcoes = (
+                <td data-label="Ações" className="admin-acoes">
+                  <div className="admin-acoes-drop">
+                    <button
+                      type="button"
+                      className="b b-acoes"
+                      disabled={ocupado}
+                      onClick={(e) => {
+                        if (menuAcoes?.id === p.id) {
+                          setMenuAcoes(null);
+                          return;
+                        }
+                        const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                        setMenuAcoes({ id: p.id, x: r.right, y: r.bottom + 4 });
+                      }}
+                    >
+                      Ações ▾
+                    </button>
+                    {menuAcoes?.id === p.id && (
+                      <div className="admin-menu" style={{ top: menuAcoes.y, left: menuAcoes.x - 190 }}>
+                        {p.ativo ? (
+                          <button type="button" onClick={() => { setMenuAcoes(null); bloquear(p); }}>
+                            Bloquear acesso
+                          </button>
+                        ) : (
+                          <button type="button" className="destaque" onClick={() => { setMenuAcoes(null); liberar(p); }}>
+                            Liberar acesso
+                          </button>
+                        )}
+                        <button type="button" onClick={() => { setMenuAcoes(null); definirValidade(p); }}>
+                          Definir validade (dias)
+                        </button>
+                        <button type="button" onClick={() => { setMenuAcoes(null); void resetarSenha(p); }}>
+                          Resetar senha
+                        </button>
+                        <button type="button" className="perigo" onClick={() => { setMenuAcoes(null); void excluir(p); }}>
+                          Excluir usuário
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </td>
+              );
+              if (aba === 'acessos') {
+                const rotulo =
+                  p.papel === 'cliente' ? 'Cliente (portal)' : p.papel === 'gerente' ? 'Gerente' : 'Inspetor';
+                return (
+                  <tr key={p.id} className={ocupado ? 'ocupado' : ''}>
+                    <td data-label="E-mail" className="admin-email">{p.email}</td>
+                    <td data-label="Papel"><span className={`admin-badge-papel ${p.papel}`}>{rotulo}</span></td>
+                    <td data-label="Conta pagante">{(p.org_id && emailPorId.get(p.org_id)) ?? '—'}</td>
+                    <td data-label="Status">
+                      <span className={`admin-badge ${st.cls}`}>{st.label}</span>
+                    </td>
+                    <td data-label="Último acesso">
+                      {ultimoAcesso ? <span className="admin-ultimo-acesso">{ultimoAcesso}</span> : '—'}
+                    </td>
+                    {celAcoes}
+                  </tr>
+                );
+              }
               return (
                 <tr key={p.id} className={ocupado ? 'ocupado' : ''}>
                   <td data-label="E-mail" className="admin-email">{p.email}</td>
@@ -564,7 +690,9 @@ export default function Admin() {
                   </td>
                   <td data-label="Dias restantes"><BadgeDias expiraEm={p.acesso_expira_em} /></td>
                   <td data-label="Cadastro">{fmtSomenteData(p.criado_em)}</td>
-                  <td data-label="Último login">{fmtData(meta?.last_sign_in_at ?? null)}</td>
+                  <td data-label="Último acesso">
+                    {ultimoAcesso ? <span className="admin-ultimo-acesso">{ultimoAcesso}</span> : '—'}
+                  </td>
                   <td data-label="Sessões">
                     {m ? `${m.sessoesHoje} / ${m.sessoesTotal}` : '0 / 0'}
                     {m?.duracaoMediaMin != null ? ` · ${m.duracaoMediaMin} min` : ''}
@@ -575,53 +703,15 @@ export default function Admin() {
                   <td data-label="PDFs">{s ? s.pdf_gerados : '—'}</td>
                   <td data-label="Impressões">{s ? s.impressoes : '—'}</td>
                   <td data-label="Acessos criados">{s ? s.subusuarios : '—'}</td>
-                  <td data-label="Ações" className="admin-acoes">
-                    <div className="admin-acoes-drop">
-                      <button
-                        type="button"
-                        className="b b-acoes"
-                        disabled={ocupado}
-                        onClick={(e) => {
-                          if (menuAcoes?.id === p.id) {
-                            setMenuAcoes(null);
-                            return;
-                          }
-                          const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                          setMenuAcoes({ id: p.id, x: r.right, y: r.bottom + 4 });
-                        }}
-                      >
-                        Ações ▾
-                      </button>
-                      {menuAcoes?.id === p.id && (
-                        <div className="admin-menu" style={{ top: menuAcoes.y, left: menuAcoes.x - 190 }}>
-                          {p.ativo ? (
-                            <button type="button" onClick={() => { setMenuAcoes(null); bloquear(p); }}>
-                              Bloquear acesso
-                            </button>
-                          ) : (
-                            <button type="button" className="destaque" onClick={() => { setMenuAcoes(null); liberar(p); }}>
-                              Liberar acesso
-                            </button>
-                          )}
-                          <button type="button" onClick={() => { setMenuAcoes(null); definirValidade(p); }}>
-                            Definir validade (dias)
-                          </button>
-                          <button type="button" onClick={() => { setMenuAcoes(null); void resetarSenha(p); }}>
-                            Resetar senha
-                          </button>
-                          <button type="button" className="perigo" onClick={() => { setMenuAcoes(null); void excluir(p); }}>
-                            Excluir usuário
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </td>
+                  {celAcoes}
                 </tr>
               );
             })}
             {filtrados.length === 0 && !carregando && (
               <tr>
-                <td colSpan={13} className="admin-vazio">Nenhum usuário encontrado.</td>
+                <td colSpan={13} className="admin-vazio">
+                  {aba === 'acessos' ? 'Nenhum sub-login criado pelos clientes ainda.' : 'Nenhum usuário encontrado.'}
+                </td>
               </tr>
             )}
           </tbody>
