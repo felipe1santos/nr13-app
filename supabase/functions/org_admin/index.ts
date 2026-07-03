@@ -78,9 +78,10 @@ Deno.serve(async (req) => {
 
   try {
     if (action === 'listar_subusuarios') {
+      // Obs.: sem created_at no select — a tabela profiles desta instalação não tem essa coluna.
       const { data, error } = await admin
         .from('profiles')
-        .select('id, email, papel, cliente_id, ativo, sessao_token, sessao_visto_em, created_at')
+        .select('id, email, papel, cliente_id, ativo, sessao_token, sessao_visto_em')
         .eq('org_id', orgId)
         .neq('id', userData.user.id);
       if (error) return json({ erro: error.message }, 400);
@@ -94,7 +95,7 @@ Deno.serve(async (req) => {
         sessao_ativa:
           !!p.sessao_token && !!p.sessao_visto_em && agora - new Date(p.sessao_visto_em).getTime() < SESSAO_LIMITE_MS,
         ultimo_acesso: p.sessao_visto_em ?? null,
-        criado_em: p.created_at ?? null,
+        criado_em: null,
       }));
       return json({ usuarios });
     }
