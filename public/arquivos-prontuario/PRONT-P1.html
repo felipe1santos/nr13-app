@@ -12,7 +12,7 @@
         body { font-family: 'Inter', sans-serif; background: #fff; color: #000; font-size: 12px; }
         .a4-page { background: #fff; width: 210mm; height: 297mm; padding: 12mm 15mm; position: relative; overflow: hidden; display: flex; flex-direction: column; }
         .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-20deg); width: 70%; opacity: 0.07; z-index: 0; pointer-events: none; }
-        .watermark-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-20deg); font-size: 80px; font-weight: 900; color: #003366; opacity: 0.04; z-index: 0; pointer-events: none; white-space: nowrap; text-transform: uppercase; }
+        .watermark-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-20deg); font-size: 80px; font-weight: 900; color: #0033a2; opacity: 0.04; z-index: 0; pointer-events: none; white-space: nowrap; text-transform: uppercase; }
         /* content-wrapper = container do conteúdo que cresce. overflow:hidden dá clientHeight real
            e font-size:12px é a BASE do auto-shrink; as seções abaixo usam "em" p/ encolher juntas
            caso os textos longos clipem o rodapé. */
@@ -21,9 +21,9 @@
         .header-text { flex: 1; padding-right: 16px; }
         h1 { font-size: 1.25em; text-align: center; text-transform: uppercase; margin-bottom: 0.5em; }
         .intro-text { text-align: justify; font-size: 0.792em; line-height: 1.35; }
-        .logo-img { max-width: 110px; height: auto; object-fit: contain; }
+        .logo-img { max-height: 75px; max-width: 140px; width: auto; height: auto; object-fit: contain; }
         .section { margin-bottom: 0.75em; }
-        .section-title { background-color: #003366; color: #fff; padding: 0.417em 0.667em; font-size: 0.833em; font-weight: bold; text-transform: uppercase; text-align: center; letter-spacing: .4px; }
+        .section-title { background-color: #0033a2; color: #fff; padding: 0.417em 0.667em; font-size: 0.833em; font-weight: bold; text-transform: uppercase; text-align: center; letter-spacing: .4px; }
         .info-grid { display: grid; gap: 0.5em 1.833em; padding: 0.667em 0.5em 0.167em; }
         .cols-1 { grid-template-columns: 1fr; }
         .cols-2 { grid-template-columns: 1fr 1fr; }
@@ -31,7 +31,7 @@
         .cols-4 { grid-template-columns: repeat(4, 1fr); }
         .info-cell { display: flex; flex-direction: column; }
         .span-all { grid-column: 1 / -1; }
-        .label { font-weight: bold; font-size: 0.917em; color: #003366; text-transform: uppercase; letter-spacing: .3px; margin-bottom: 0.167em; }
+        .label { font-weight: bold; font-size: 0.917em; color: #0033a2; text-transform: uppercase; letter-spacing: .3px; margin-bottom: 0.167em; }
         .value { font-size: 0.958em; min-height: 1.25em; color: #222; line-height: 1.35; }
         .empresa-info { font-size: 0.917em; line-height: 1.55; color: #222; }
         .text-block { font-size: 0.917em; line-height: 1.45; text-align: justify; padding-top: 2px; }

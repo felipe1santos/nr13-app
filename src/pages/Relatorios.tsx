@@ -524,6 +524,9 @@ export default function Relatorios() {
               <button type="button" className="btn-secundario barra-btn" onClick={prepararEImprimir} disabled={imprimindo}>
                 {imprimindo ? 'Preparando…' : 'Imprimir'}
               </button>
+              <button type="button" className="barra-btn barra-btn-pdf" onClick={baixarPdf} disabled={exportando}>
+                <Icone nome="download" tam={14} /> {exportando ? 'Gerando PDF…' : 'Baixar PDF'}
+              </button>
               <button type="button" className="btn-secundario barra-btn" onClick={() => setModalConfig(true)}>
                 <Icone nome="sliders" tam={14} /> Configurações
               </button>
@@ -591,9 +594,6 @@ export default function Relatorios() {
                       Atualizar
                     </button>
                   )}
-                  <button type="button" className="btn-primario" onClick={baixarPdf} disabled={exportando}>
-                    {exportando ? 'PDF...' : 'Baixar PDF'}
-                  </button>
                 </div>
               </div>
             </div>

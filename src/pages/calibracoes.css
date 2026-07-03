@@ -459,3 +459,99 @@
   color: var(--amber-deep);
   border-bottom-color: var(--amber);
 }
+
+/* ── Cabeçalho com foto do equipamento ── */
+.cal-eq-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.cal-eq-foto {
+  width: 96px;
+  height: 96px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: #EFEDE6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.cal-eq-foto img { width: 100%; height: 100%; object-fit: cover; }
+.cal-eq-info { min-width: 0; }
+.cal-eq-sub { color: var(--muted); font-size: 12px; margin-top: 4px; line-height: 1.5; }
+
+/* ── Componentes (válvulas/manômetros) ── */
+.cal-comp-form {
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 12px;
+  background: #FBFAF7;
+}
+.cal-comp-lista { display: flex; flex-direction: column; gap: 8px; }
+.cal-comp-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 12px;
+  background: var(--panel);
+}
+.cal-comp-foto {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--steel);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.cal-comp-foto img { width: 100%; height: 100%; object-fit: cover; }
+.cal-comp-nome { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.cal-comp-nome strong { font-size: 13px; }
+.cal-comp-nome span { font-size: 11px; color: var(--muted); }
+
+/* ── Lotes de calibração ── */
+.cal-lote {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+.cal-lote-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  background: #FBFAF7;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-base);
+  font-size: 13px;
+  text-align: left;
+  color: var(--text);
+}
+.cal-lote-head:hover { background: var(--steel); }
+.cal-lote-head strong { flex: 0 1 auto; }
+.cal-lote-meta { color: var(--muted); font-size: 11.5px; margin-left: auto; }
+.cal-lote-corpo {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 640px) {
+  .cal-eq-header { flex-direction: column; align-items: flex-start; }
+  .cal-comp-item { flex-wrap: wrap; }
+}

@@ -85,7 +85,18 @@ export function listarVencimentos(hoje: Date = new Date()): ItemVencimento[] {
       }
 
       // ── Acessórios do equipamento (calibrações) ──
-      const cals = ler<DadosCalibracao[]>(`nr13_calibracoes_${tag}`) ?? [];
+      // Com lotes, o mesmo componente acumula certificados a cada inspeção:
+      // só a calibração MAIS RECENTE de cada componente conta para o prazo.
+      const todas = ler<DadosCalibracao[]>(`nr13_calibracoes_${tag}`) ?? [];
+      const porComponente = new Map<string, DadosCalibracao>();
+      for (const cal of todas) {
+        const chaveComp = (cal as { componenteId?: string }).componenteId ?? `nome:${cal.nome ?? cal.id}`;
+        const atual = porComponente.get(chaveComp);
+        const dNova = parseDataFlex(cal.dataProxCalibracao)?.getTime() ?? 0;
+        const dAtual = atual ? (parseDataFlex(atual.dataProxCalibracao)?.getTime() ?? 0) : -1;
+        if (!atual || dNova >= dAtual) porComponente.set(chaveComp, cal);
+      }
+      const cals = [...porComponente.values()];
       for (const cal of cals) {
         try {
           const venc = parseDataFlex(cal.dataProxCalibracao);

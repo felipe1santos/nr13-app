@@ -14,15 +14,15 @@
         body { font-family: 'Inter', sans-serif; background: #fff; color: #000; font-size: 12px; }
         .a4-page { background: #fff; width: 210mm; height: 297mm; padding: 12mm 15mm; position: relative; overflow: hidden; display: flex; flex-direction: column; }
         .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-20deg); width: 70%; opacity: 0.07; z-index: 0; pointer-events: none; }
-        .watermark-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-20deg); font-size: 80px; font-weight: 900; color: #003366; opacity: 0.04; z-index: 0; pointer-events: none; white-space: nowrap; text-transform: uppercase; }
+        .watermark-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-20deg); font-size: 80px; font-weight: 900; color: #0033a2; opacity: 0.04; z-index: 0; pointer-events: none; white-space: nowrap; text-transform: uppercase; }
         .content-wrapper { position: relative; z-index: 1; display: flex; flex-direction: column; flex: 1; overflow: hidden; }
         .header-container { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; flex-shrink: 0; }
         .header-text { flex: 1; padding-right: 16px; }
         h1 { font-size: 15px; text-align: center; text-transform: uppercase; margin-bottom: 6px; }
         .intro-text { text-align: justify; font-size: 9.5px; line-height: 1.35; }
-        .logo-img { max-width: 110px; height: auto; object-fit: contain; }
+        .logo-img { max-height: 75px; max-width: 140px; width: auto; height: auto; object-fit: contain; }
 
-        .section-title { background-color: #003366; color: #fff; padding: 5px 8px; font-size: 11px; font-weight: bold; text-align: center; margin-bottom: 8px; flex-shrink: 0; }
+        .section-title { background-color: #0033a2; color: #fff; padding: 5px 8px; font-size: 11px; font-weight: bold; text-align: center; margin-bottom: 8px; flex-shrink: 0; }
         .intro-metodologia { font-size: 9.5px; line-height: 1.4; text-align: justify; margin-bottom: 6px; flex-shrink: 0; }
 
         /* Container do cálculo dinâmico.
@@ -34,7 +34,7 @@
 
         /* Estilos das linhas do log — tamanhos em "em" (base 12px) p/ encolher no auto-shrink */
         .log-secao { break-inside: avoid; margin-bottom: 6px; }
-        .log-secao-titulo { font-weight: bold; font-size: 0.79167em; color: #003366; background: #e8eef5; padding: 3px 6px; border-left: 3px solid #003366; margin-bottom: 4px; }
+        .log-secao-titulo { font-weight: bold; font-size: 0.79167em; color: #0033a2; background: #e8eef5; padding: 3px 6px; border-left: 3px solid #0033a2; margin-bottom: 4px; }
         .log-norma { font-size: 0.625em; color: #666; font-style: italic; margin-bottom: 2px; padding-left: 4px; }
         .log-params { font-size: 0.66667em; font-family: 'Courier New', monospace; color: #333; line-height: 1.45; margin-bottom: 4px; padding-left: 4px; }
         .log-param-linha { display: block; }
@@ -45,7 +45,7 @@
         .log-resultado { font-size: 0.75em; padding: 3px 6px; border-radius: 2px; margin: 3px 0; break-inside: avoid; }
         .log-resultado.ok { background: #e6f4ea; color: #188038; border-left: 3px solid #188038; }
         .log-resultado.erro { background: #fce8e6; color: #d93025; border-left: 3px solid #d93025; }
-        .log-pmta-final { font-size: 0.91667em; font-weight: bold; color: #003366; text-decoration: underline; padding: 4px 6px; break-inside: avoid; column-span: all; text-align: center; margin-top: 6px; border-top: 1px solid #003366; }
+        .log-pmta-final { font-size: 0.91667em; font-weight: bold; color: #0033a2; text-decoration: underline; padding: 4px 6px; break-inside: avoid; column-span: all; text-align: center; margin-top: 6px; border-top: 1px solid #0033a2; }
         .log-html-line { font-size: 0.70833em; margin: 2px 0; }
         .sem-calculo { font-size: 0.83333em; color: #888; font-style: italic; text-align: center; padding: 20px; }
 

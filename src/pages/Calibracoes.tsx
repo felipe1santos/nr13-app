@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Icone } from '../components/Icone';
 import { listarEquipamentos } from '../features/equipamento/equipamentoService';
 import type { EmpresaEquipamento, EquipamentoResumo, TipoEquipamento } from '../features/equipamento/tipos';
@@ -14,12 +14,22 @@ import {
 import type { DadosCalibracao, DadosManometro, DadosPSV } from '../features/calibracoes/tipos';
 import VisualizadorCalibracao from '../features/calibracoes/VisualizadorCalibracao';
 import AbaRastreabilidade from '../features/calibracoes/AbaRastreabilidade';
+import {
+  criarLote,
+  excluirComponente,
+  excluirLote,
+  listarComponentes,
+  listarLotes,
+  salvarComponente,
+  type ComponenteCal,
+  type LoteCal,
+} from '../features/calibracoes/componentesService';
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
 import '../pages/relatorios.css';
 import './calibracoes.css';
 import PaginaA4 from '../components/PaginaA4';
 
-type Tela = 'equipamentos' | 'historico' | 'selecionarTipo' | 'formulario' | 'visualizador' | 'verDados';
+type Tela = 'equipamentos' | 'historico' | 'formulario' | 'visualizador' | 'verDados';
 
 function proprietarioDe(tag: string): string {
   const emp = ler<EmpresaEquipamento>(`nr13_emp_${tag}`);
@@ -187,6 +197,14 @@ export default function Calibracoes() {
   const [filtroTipo, setFiltroTipo] = useState<'todos' | TipoEquipamento>('todos');
   const [filtroProp, setFiltroProp] = useState('');
   const [toast, setToast] = useState('');
+  // Componentes (válvulas/manômetros) + lotes de calibração do equipamento aberto
+  const [eqAtual, setEqAtual] = useState<EquipamentoResumo | null>(null);
+  const [componentes, setComponentes] = useState<ComponenteCal[]>([]);
+  const [lotes, setLotes] = useState<LoteCal[]>([]);
+  const [compForm, setCompForm] = useState<ComponenteCal | null>(null);
+  const [loteAberto, setLoteAberto] = useState<string | null>(null);
+  const compFotoRef = useRef<HTMLInputElement>(null);
+  const vinculoCalibracao = useRef<{ componenteId: string; loteId: string } | null>(null);
 
   const proprietarios = useMemo(
     () => [...new Set(equipamentos.map((e) => proprietarioDe(e.tag)).filter(Boolean))].sort(),
@@ -240,14 +258,28 @@ export default function Calibracoes() {
 
   function abrirEquipamento(eq: EquipamentoResumo) {
     setTag(eq.tag);
+    setEqAtual(eq);
     const lista = listarCalibracoes(eq.tag);
     setCals([...lista].sort((a, b) => parseDateBR(b.dataCalibracao || b.criadoEm) - parseDateBR(a.dataCalibracao || a.criadoEm)));
+    setComponentes(listarComponentes(eq.tag));
+    setLotes(listarLotes(eq.tag));
     setConfirmandoId(null);
     setTela('historico');
   }
 
-  function novaForm(tipo: 'manometro' | 'psv' = 'manometro') {
-    setForm(formPadrao(tipo));
+  // Calibração SEMPRE parte de um componente cadastrado dentro de um lote:
+  // pré-preenche o formulário com os dados do instrumento e vincula os ids.
+  function novaForm(tipo: 'manometro' | 'psv', comp?: ComponenteCal, loteId?: string) {
+    const base = formPadrao(tipo);
+    if (comp) {
+      base.nome = comp.nome;
+      base.instrumento = comp.nome;
+      base.fabricante = comp.fabricante ?? '';
+      base.modelo = comp.modelo ?? '';
+      base.serie = comp.serie ?? '';
+    }
+    vinculoCalibracao.current = comp && loteId ? { componenteId: comp.id, loteId } : null;
+    setForm(base);
     setTela('formulario');
   }
 
@@ -297,7 +329,7 @@ export default function Calibracoes() {
 
   function salvar(voltarParaLista = false) {
     const id = `cal-${Date.now()}`;
-    const dados = converterForm(form, tag, id);
+    const dados: DadosCalibracao = { ...converterForm(form, tag, id), ...(vinculoCalibracao.current ?? {}) };
     salvarCalibracao(tag, dados);
     const lista = listarCalibracoes(tag);
     setCals([...lista].sort((a, b) => parseDateBR(b.dataCalibracao || b.criadoEm) - parseDateBR(a.dataCalibracao || a.criadoEm)));
@@ -423,126 +455,325 @@ export default function Calibracoes() {
         </div>
       )}
 
-      {/* ── HISTÓRICO ────────────────────────────────── */}
+      {/* ── HISTÓRICO (componentes + lotes) ─────────── */}
       {abaPrincipal === 'certificados' && tela === 'historico' && (
-        <div className="bloco-dados">
-          <div className="meta-breadcrumb">
+        <>
+          {/* Voltar FORA do card (pedido do usuário) */}
+          <div className="meta-breadcrumb" style={{ marginBottom: 12 }}>
             <button type="button" className="btn-secundario" onClick={() => setTela('equipamentos')}>
               ← Voltar
             </button>
-            <strong>{tag}</strong>
-          </div>
-          <div className="meta-card-header">
-            <h3>Calibrações — {tag}</h3>
-            <button type="button" className="btn-primario" onClick={() => setTela('selecionarTipo')}>
-              + Nova Calibração
-            </button>
           </div>
 
-          {cals.length === 0 ? (
-            <p className="dashboard-vazio">Nenhuma calibração registrada ainda para este equipamento.</p>
-          ) : (
-            <table className="cal-historico-table">
-              <thead>
-                <tr>
-                  <th>Nome do Item</th>
-                  <th>Tipo</th>
-                  <th>Data Calibração</th>
-                  <th>Próx. Calibração</th>
-                  <th>Status</th>
-                  <th>Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {cals.map((c) => (
-                  <tr key={c.id}>
-                    <td data-label="Item" style={{ fontWeight: 600 }}>{c.nome}</td>
-                    <td data-label="Tipo">
-                      <span className={`badge-cal-tipo ${c.tipo}`}>
-                        {c.tipo === 'manometro' ? 'Manômetro' : 'PSV'}
-                      </span>
-                    </td>
-                    <td data-label="Data Calibração">{c.dataCalibracao || '—'}</td>
-                    <td data-label="Próx. Calibração">{c.dataProxCalibracao || '—'}</td>
-                    <td data-label="Status">
-                      <span className={`badge-cal-status ${c.statusConclusao || 'pendente'}`}>
-                        {statusLabel(c.statusConclusao)}
-                      </span>
-                    </td>
-                    <td data-label="Ações" className="acoes-relatorio-icones">
-                      {confirmandoId === c.id ? (
-                        <>
-                          <button type="button" className="btn-remover" onClick={() => excluir(c.id)}>
-                            Confirmar
-                          </button>
-                          <button type="button" className="btn-secundario" onClick={() => setConfirmandoId(null)}>
-                            Cancelar
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button type="button" className="btn-icone cor-azul" title="Ver o que foi preenchido" onClick={() => abrirVerDados(c)}>
-                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z" /><circle cx="12" cy="12" r="3" />
-                            </svg>
-                          </button>
-                          <button type="button" className="btn-icone cor-azul" title="Ver como fica o documento" onClick={() => abrirVisualizador(c)}>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /><path d="M8 13h8M8 17h8M8 9h2" />
-                            </svg>
-                          </button>
-                          <button type="button" className="btn-icone cor-vermelho" title="Excluir" onClick={() => setConfirmandoId(c.id)}>
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6" />
-                            </svg>
-                          </button>
-                        </>
-                      )}
-                    </td>
-                  </tr>
+          <div className="bloco-dados">
+            {/* Cabeçalho com a FOTO do equipamento */}
+            <div className="cal-eq-header">
+              <div className="cal-eq-foto">
+                {eqAtual?.fotoCapa ? (
+                  <img src={eqAtual.fotoCapa} alt={`Foto de ${tag}`} />
+                ) : (
+                  <Icone nome="cylinder" tam={34} />
+                )}
+              </div>
+              <div className="cal-eq-info">
+                <h3 style={{ margin: 0, border: 'none', padding: 0 }}>Calibrações — {tag}</h3>
+                <p className="cal-eq-sub">
+                  Cadastre as válvulas e manômetros do equipamento uma única vez; a cada inspeção,
+                  abra um novo lote e calibre os mesmos componentes.
+                </p>
+              </div>
+            </div>
+
+            {/* ── COMPONENTES DO EQUIPAMENTO ── */}
+            <div className="meta-card-header" style={{ marginTop: 16 }}>
+              <h3 style={{ margin: 0, border: 'none', padding: 0, fontSize: 14 }}>Componentes do equipamento</h3>
+              {!compForm && (
+                <button
+                  type="button"
+                  className="btn-secundario"
+                  onClick={() =>
+                    setCompForm({
+                      id: `comp-${Date.now()}`,
+                      tipo: 'manometro',
+                      nome: '',
+                      criadoEm: new Date().toLocaleDateString('pt-BR'),
+                    })
+                  }
+                >
+                  + Adicionar componente
+                </button>
+              )}
+            </div>
+
+            {compForm && (
+              <div className="cal-comp-form">
+                <div className="cal-form-grid cols-4" style={{ padding: 0, marginBottom: 10 }}>
+                  <div className="cal-campo">
+                    <label>Tipo</label>
+                    <select
+                      value={compForm.tipo}
+                      onChange={(e) => setCompForm({ ...compForm, tipo: e.target.value as 'manometro' | 'psv' })}
+                    >
+                      <option value="manometro">Manômetro</option>
+                      <option value="psv">Válvula de Segurança (PSV)</option>
+                    </select>
+                  </div>
+                  <div className="cal-campo">
+                    <label>Nome / identificação *</label>
+                    <input value={compForm.nome} onChange={(e) => setCompForm({ ...compForm, nome: e.target.value })} placeholder="Ex: PSV-01" />
+                  </div>
+                  <div className="cal-campo">
+                    <label>Fabricante</label>
+                    <input value={compForm.fabricante ?? ''} onChange={(e) => setCompForm({ ...compForm, fabricante: e.target.value })} />
+                  </div>
+                  <div className="cal-campo">
+                    <label>Nº de série</label>
+                    <input value={compForm.serie ?? ''} onChange={(e) => setCompForm({ ...compForm, serie: e.target.value })} />
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <input
+                    ref={compFotoRef}
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = (ev) => setCompForm((f) => (f ? { ...f, foto: String(ev.target?.result ?? '') } : f));
+                      reader.readAsDataURL(file);
+                    }}
+                  />
+                  <button type="button" className="btn-secundario" onClick={() => compFotoRef.current?.click()}>
+                    <Icone nome="camera" tam={13} /> {compForm.foto ? 'Trocar foto' : 'Foto (opcional)'}
+                  </button>
+                  {compForm.foto && <img src={compForm.foto} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--line)' }} />}
+                  <button
+                    type="button"
+                    className="btn-primario"
+                    onClick={async () => {
+                      if (!compForm.nome.trim()) return;
+                      await salvarComponente(tag, compForm);
+                      setComponentes(listarComponentes(tag));
+                      setCompForm(null);
+                    }}
+                  >
+                    Salvar componente
+                  </button>
+                  <button type="button" className="btn-secundario" onClick={() => setCompForm(null)}>Cancelar</button>
+                </div>
+              </div>
+            )}
+
+            {componentes.length === 0 && !compForm ? (
+              <p className="dashboard-vazio" style={{ padding: '14px 0' }}>
+                Nenhum componente cadastrado. Adicione as válvulas e manômetros deste equipamento para poder calibrá-los.
+              </p>
+            ) : (
+              <div className="cal-comp-lista">
+                {componentes.map((c) => (
+                  <div key={c.id} className="cal-comp-item">
+                    <div className="cal-comp-foto">
+                      {c.foto ? <img src={c.foto} alt={c.nome} /> : <Icone nome={c.tipo === 'psv' ? 'valvula-psv' : 'manometro'} tam={26} />}
+                    </div>
+                    <div className="cal-comp-nome">
+                      <strong>{c.nome}</strong>
+                      <span>{[c.fabricante, c.serie && `S/N ${c.serie}`].filter(Boolean).join(' · ') || '—'}</span>
+                    </div>
+                    <span className={`badge-cal-tipo ${c.tipo}`}>{c.tipo === 'manometro' ? 'Manômetro' : 'PSV'}</span>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button type="button" className="btn-icone cor-cinza" title="Editar" onClick={() => setCompForm({ ...c })}>
+                        <Icone nome="pencil" tam={14} />
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-icone cor-vermelho"
+                        title="Excluir componente"
+                        onClick={async () => {
+                          if (!window.confirm(`Excluir o componente ${c.nome}? Os certificados já emitidos continuam no histórico.`)) return;
+                          await excluirComponente(tag, c.id);
+                          setComponentes(listarComponentes(tag));
+                        }}
+                      >
+                        <Icone nome="trash" tam={14} />
+                      </button>
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
+              </div>
+            )}
 
-      {/* ── SELECIONAR TIPO (2 cards grandes) ────────── */}
-      {abaPrincipal === 'certificados' && tela === 'selecionarTipo' && (
-        <div className="bloco-dados">
-          <div className="meta-breadcrumb">
-            <button type="button" className="btn-secundario" onClick={() => setTela('historico')}>
-              ← Voltar
-            </button>
-            <strong>{tag}</strong>
-          </div>
-          <div className="meta-card-header" style={{ marginBottom: 4 }}>
-            <h3>O que você quer calibrar?</h3>
-          </div>
-          <p className="texto-ajuda-modal" style={{ marginBottom: 14 }}>
-            Escolha o instrumento para abrir o formulário de calibração.
-          </p>
+            {/* ── LOTES DE CALIBRAÇÃO ── */}
+            <div className="meta-card-header" style={{ marginTop: 22 }}>
+              <h3 style={{ margin: 0, border: 'none', padding: 0, fontSize: 14 }}>Lotes de calibração</h3>
+              <button
+                type="button"
+                className="btn-primario"
+                disabled={componentes.length === 0}
+                title={componentes.length === 0 ? 'Cadastre os componentes primeiro' : undefined}
+                onClick={async () => {
+                  const lote = await criarLote(tag);
+                  setLotes(listarLotes(tag));
+                  setLoteAberto(lote.id);
+                }}
+              >
+                + Novo lote de calibração
+              </button>
+            </div>
 
-          <div className="cal-add-cards">
-            <button type="button" className="cal-add-card psv" onClick={() => novaForm('psv')}>
-              <span className="cal-add-card-icone" aria-hidden="true"><Icone nome="valvula-psv" tam={46} /></span>
-              <span className="cal-add-card-titulo">Válvula de Segurança (PSV)</span>
-              <span className="cal-add-card-desc">
-                Certificado com pressão de abertura, ajuste e fechamento.
-              </span>
-              <span className="cal-add-card-cta">Calibrar PSV →</span>
-            </button>
+            {lotes.length === 0 ? (
+              <p className="dashboard-vazio" style={{ padding: '14px 0' }}>
+                Nenhum lote ainda. Cada inspeção gera um lote com a calibração de todos os componentes.
+              </p>
+            ) : (
+              lotes.map((lote) => {
+                const calsDoLote = cals.filter((c) => c.loteId === lote.id);
+                const aberto = loteAberto === lote.id;
+                return (
+                  <div key={lote.id} className="cal-lote">
+                    <button type="button" className="cal-lote-head" onClick={() => setLoteAberto(aberto ? null : lote.id)}>
+                      <Icone nome={aberto ? 'chevdown' : 'chevright'} tam={14} />
+                      <strong>{lote.descricao}</strong>
+                      <span className="cal-lote-meta">
+                        {calsDoLote.length}/{componentes.length} calibrado{calsDoLote.length !== 1 ? 's' : ''}
+                      </span>
+                      {calsDoLote.length >= componentes.length && componentes.length > 0 ? (
+                        <span className="badge-cal-status aprovado">Completo</span>
+                      ) : (
+                        <span className="badge-cal-status pendente">Em andamento</span>
+                      )}
+                    </button>
+                    {aberto && (
+                      <div className="cal-lote-corpo">
+                        {componentes.map((c) => {
+                          const cal = calsDoLote.find((x) => x.componenteId === c.id);
+                          return (
+                            <div key={c.id} className="cal-comp-item">
+                              <div className="cal-comp-foto">
+                                {c.foto ? <img src={c.foto} alt={c.nome} /> : <Icone nome={c.tipo === 'psv' ? 'valvula-psv' : 'manometro'} tam={24} />}
+                              </div>
+                              <div className="cal-comp-nome">
+                                <strong>{c.nome}</strong>
+                                <span>{cal ? `Calibrado em ${cal.dataCalibracao || cal.criadoEm}` : 'Aguardando calibração neste lote'}</span>
+                              </div>
+                              {cal ? (
+                                <>
+                                  <span className={`badge-cal-status ${cal.statusConclusao || 'pendente'}`}>{statusLabel(cal.statusConclusao)}</span>
+                                  <div style={{ display: 'flex', gap: 6 }}>
+                                    <button type="button" className="btn-icone cor-azul" title="Ver o que foi preenchido" onClick={() => abrirVerDados(cal)}>
+                                      <Icone nome="eye" tam={15} />
+                                    </button>
+                                    <button type="button" className="btn-icone cor-azul" title="Ver o certificado" onClick={() => abrirVisualizador(cal)}>
+                                      <Icone nome="filetext" tam={15} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="btn-icone cor-vermelho"
+                                      title="Excluir certificado"
+                                      onClick={() => window.confirm('Excluir este certificado?') && excluir(cal.id)}
+                                    >
+                                      <Icone nome="trash" tam={14} />
+                                    </button>
+                                  </div>
+                                </>
+                              ) : (
+                                <button type="button" className="btn-primario" onClick={() => novaForm(c.tipo, c, lote.id)}>
+                                  Calibrar
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                        <div style={{ textAlign: 'right', marginTop: 8 }}>
+                          <button
+                            type="button"
+                            className="btn-secundario"
+                            onClick={async () => {
+                              if (calsDoLote.length > 0) {
+                                window.alert('Este lote tem certificados emitidos — exclua os certificados primeiro.');
+                                return;
+                              }
+                              if (!window.confirm('Excluir este lote vazio?')) return;
+                              await excluirLote(tag, lote.id);
+                              setLotes(listarLotes(tag));
+                            }}
+                          >
+                            Excluir lote
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
 
-            <button type="button" className="cal-add-card manometro" onClick={() => novaForm('manometro')}>
-              <span className="cal-add-card-icone" aria-hidden="true"><Icone nome="manometro" tam={46} /></span>
-              <span className="cal-add-card-titulo">Manômetro</span>
-              <span className="cal-add-card-desc">
-                Certificado com tabela de medição crescente e decrescente.
-              </span>
-              <span className="cal-add-card-cta">Calibrar Manômetro →</span>
-            </button>
+            {/* ── CALIBRAÇÕES AVULSAS (antes dos lotes) ── */}
+            {cals.some((c) => !c.loteId) && (
+              <>
+                <div className="meta-card-header" style={{ marginTop: 22 }}>
+                  <h3 style={{ margin: 0, border: 'none', padding: 0, fontSize: 14 }}>Calibrações avulsas (antigas)</h3>
+                </div>
+                <table className="cal-historico-table">
+                  <thead>
+                    <tr>
+                      <th>Nome do Item</th>
+                      <th>Tipo</th>
+                      <th>Data Calibração</th>
+                      <th>Próx. Calibração</th>
+                      <th>Status</th>
+                      <th>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cals.filter((c) => !c.loteId).map((c) => (
+                      <tr key={c.id}>
+                        <td data-label="Item" style={{ fontWeight: 600 }}>{c.nome}</td>
+                        <td data-label="Tipo">
+                          <span className={`badge-cal-tipo ${c.tipo}`}>
+                            {c.tipo === 'manometro' ? 'Manômetro' : 'PSV'}
+                          </span>
+                        </td>
+                        <td data-label="Data Calibração">{c.dataCalibracao || '—'}</td>
+                        <td data-label="Próx. Calibração">{c.dataProxCalibracao || '—'}</td>
+                        <td data-label="Status">
+                          <span className={`badge-cal-status ${c.statusConclusao || 'pendente'}`}>
+                            {statusLabel(c.statusConclusao)}
+                          </span>
+                        </td>
+                        <td data-label="Ações" className="acoes-relatorio-icones">
+                          {confirmandoId === c.id ? (
+                            <>
+                              <button type="button" className="btn-remover" onClick={() => excluir(c.id)}>
+                                Confirmar
+                              </button>
+                              <button type="button" className="btn-secundario" onClick={() => setConfirmandoId(null)}>
+                                Cancelar
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button type="button" className="btn-icone cor-azul" title="Ver o que foi preenchido" onClick={() => abrirVerDados(c)}>
+                                <Icone nome="eye" tam={15} />
+                              </button>
+                              <button type="button" className="btn-icone cor-azul" title="Ver como fica o documento" onClick={() => abrirVisualizador(c)}>
+                                <Icone nome="filetext" tam={15} />
+                              </button>
+                              <button type="button" className="btn-icone cor-vermelho" title="Excluir" onClick={() => setConfirmandoId(c.id)}>
+                                <Icone nome="trash" tam={14} />
+                              </button>
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )}
           </div>
-        </div>
+        </>
       )}
 
       {/* ── FORMULÁRIO ───────────────────────────────── */}
@@ -810,10 +1041,7 @@ export default function Calibracoes() {
               </h3>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <button type="button" className="btn-secundario" onClick={() => abrirVerDados(calAtual)}>
-                  👁 Ver preenchido
-                </button>
-                <button type="button" className="btn-primario" onClick={() => setTela('selecionarTipo')}>
-                  + Nova Calibração
+                  Ver preenchido
                 </button>
                 <button type="button" className="btn-secundario" onClick={() => void imprimirRelatorio('.cal-preview')}>
                   Imprimir

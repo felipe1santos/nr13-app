@@ -10,6 +10,10 @@ interface DadosCalibracaoBase {
   tipo: 'manometro' | 'psv';
   nome: string;
   criadoEm: string;
+  /** Componente cadastrado que originou esta calibração (agrupamento por instrumento). */
+  componenteId?: string;
+  /** Lote/rodada de calibração a que este certificado pertence (agrupamento por inspeção). */
+  loteId?: string;
   numeroCertificado: string;
   dataEmissao: string;
   empresa: string;

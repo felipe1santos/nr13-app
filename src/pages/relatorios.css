@@ -620,3 +620,23 @@
 }
 .barra-btn-salvar:hover:not(:disabled) { background: #0A4181; }
 .barra-btn-salvar:disabled { opacity: 0.65; cursor: not-allowed; }
+
+/* Baixar PDF: branco normal, laranja no hover (pedido do usuário) */
+.barra-btn-pdf {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-base);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.barra-btn-pdf:hover:not(:disabled) {
+  background: var(--amber);
+  color: var(--amber-txt);
+  border-color: var(--amber);
+}
+.barra-btn-pdf:disabled { opacity: 0.65; cursor: not-allowed; }
