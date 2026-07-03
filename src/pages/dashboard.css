@@ -29,3 +29,6 @@
     padding: 14px;
   }
 }
+
+/* contador de resultados da toolbar Forja */
+.equip-result-count { font-size: 12px; color: var(--muted); margin-bottom: 14px; }

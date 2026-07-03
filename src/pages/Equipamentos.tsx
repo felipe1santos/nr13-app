@@ -1,16 +1,40 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import CardEquipamento from '../features/equipamento/CardEquipamento';
 import ModalCriarEquipamento from '../features/equipamento/ModalCriarEquipamento';
 import { listarEquipamentos } from '../features/equipamento/equipamentoService';
-import type { EquipamentoResumo } from '../features/equipamento/tipos';
+import type { EmpresaEquipamento, EquipamentoResumo } from '../features/equipamento/tipos';
+import { ler } from '../services/storage';
+import { Icone } from '../components/Icone';
 import '../features/equipamento/equipamento.css';
 import './dashboard.css';
+
+const ROTULO_TIPO: Record<string, string> = {
+  vaso: 'Vaso de Pressão',
+  autoclave: 'Autoclave',
+  caldeira: 'Caldeira',
+};
+
+function empresaDe(tag: string): string {
+  const emp = ler<EmpresaEquipamento>(`nr13_emp_${tag}`);
+  return emp?.razaoSocial || emp?.nomeFantasia || '';
+}
+
+function resultadoDe(e: EquipamentoResumo): string {
+  if (e.calculo?.resultado === 'APROVADO') return 'Aprovado';
+  if (e.calculo?.resultado === 'REPROVADO') return 'Reprovado';
+  return 'Pendente';
+}
 
 export default function Equipamentos() {
   const [equipamentos, setEquipamentos] = useState<EquipamentoResumo[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [modalAberto, setModalAberto] = useState(false);
+  const [busca, setBusca] = useState('');
+  const [fEmpresa, setFEmpresa] = useState('');
+  const [fTipo, setFTipo] = useState('');
+  const [fCategoria, setFCategoria] = useState('');
+  const [fResultado, setFResultado] = useState('');
   const navigate = useNavigate();
 
   const carregar = useCallback(async () => {
@@ -29,6 +53,40 @@ export default function Equipamentos() {
     carregar();
   }, [carregar]);
 
+  const empresas = useMemo(
+    () => [...new Set(equipamentos.map((e) => empresaDe(e.tag)).filter(Boolean))].sort(),
+    [equipamentos],
+  );
+  const categorias = useMemo(
+    () => [...new Set(equipamentos.map((e) => e.categoria?.catFinal).filter(Boolean) as string[])].sort(),
+    [equipamentos],
+  );
+
+  const filtrados = useMemo(
+    () =>
+      equipamentos.filter((e) => {
+        const q = busca.trim().toLowerCase();
+        const nome = `${e.tag} ${e.info.descricao ?? ''} ${ROTULO_TIPO[e.info.tipo] ?? ''}`.toLowerCase();
+        if (q && !nome.includes(q)) return false;
+        if (fEmpresa && empresaDe(e.tag) !== fEmpresa) return false;
+        if (fTipo && e.info.tipo !== fTipo) return false;
+        if (fCategoria && e.categoria?.catFinal !== fCategoria) return false;
+        if (fResultado && resultadoDe(e) !== fResultado) return false;
+        return true;
+      }),
+    [equipamentos, busca, fEmpresa, fTipo, fCategoria, fResultado],
+  );
+
+  const temFiltro = busca || fEmpresa || fTipo || fCategoria || fResultado;
+
+  function limparFiltros() {
+    setBusca('');
+    setFEmpresa('');
+    setFTipo('');
+    setFCategoria('');
+    setFResultado('');
+  }
+
   function handleCriado(tag: string) {
     setModalAberto(false);
     navigate(`/equipamento/${tag}`);
@@ -36,20 +94,75 @@ export default function Equipamentos() {
 
   return (
     <div className="dashboard-page">
-      <div className="dashboard-header">
-        <h1>Equipamentos</h1>
-        <button type="button" className="btn-primario" onClick={() => setModalAberto(true)}>
-          + Criar Equipamento
+      <div className="fj-page-head">
+        <div className="sub">
+          {equipamentos.length} equipamento{equipamentos.length !== 1 ? 's' : ''} cadastrado{equipamentos.length !== 1 ? 's' : ''}
+        </div>
+        <button type="button" className="fj-btn fj-btn-primary" onClick={() => setModalAberto(true)}>
+          <Icone nome="plus" tam={14} /> Criar equipamento
         </button>
       </div>
 
+      <div className="fj-toolbar">
+        <div className="fj-search-box">
+          <Icone nome="search" tam={15} />
+          <input
+            type="text"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Buscar por tag ou nome do equipamento…"
+          />
+        </div>
+        <select className="fj-fselect" value={fEmpresa} onChange={(e) => setFEmpresa(e.target.value)}>
+          <option value="">Empresa · Todas</option>
+          {empresas.map((emp) => (
+            <option key={emp} value={emp}>{emp}</option>
+          ))}
+        </select>
+        <select className="fj-fselect" value={fTipo} onChange={(e) => setFTipo(e.target.value)}>
+          <option value="">Tipo · Todos</option>
+          <option value="vaso">Vaso de Pressão</option>
+          <option value="caldeira">Caldeira</option>
+          <option value="autoclave">Autoclave</option>
+        </select>
+        <select className="fj-fselect" value={fCategoria} onChange={(e) => setFCategoria(e.target.value)}>
+          <option value="">Categoria · Todas</option>
+          {categorias.map((c) => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
+        <select className="fj-fselect" value={fResultado} onChange={(e) => setFResultado(e.target.value)}>
+          <option value="">Resultado · Todos</option>
+          <option>Aprovado</option>
+          <option>Reprovado</option>
+          <option>Pendente</option>
+        </select>
+        {temFiltro && (
+          <button type="button" className="fj-link" onClick={limparFiltros}>Limpar filtros</button>
+        )}
+      </div>
+
+      {!carregando && equipamentos.length > 0 && (
+        <div className="equip-result-count">{filtrados.length} de {equipamentos.length} equipamentos</div>
+      )}
+
       {carregando ? (
-        <p>Carregando...</p>
+        <p style={{ color: 'var(--muted)' }}>Carregando...</p>
       ) : equipamentos.length === 0 ? (
-        <p className="dashboard-vazio">Nenhum equipamento cadastrado ainda. Clique em "Criar Equipamento" para começar.</p>
+        <div className="fj-empty">
+          <div className="fj-empty-ic"><Icone nome="box" tam={22} /></div>
+          <div className="fj-empty-title">Nenhum equipamento cadastrado ainda</div>
+          Clique em "Criar equipamento" para começar.
+        </div>
+      ) : filtrados.length === 0 ? (
+        <div className="fj-empty">
+          <div className="fj-empty-ic"><Icone nome="search" tam={22} /></div>
+          <div className="fj-empty-title">Nenhum equipamento encontrado</div>
+          Ajuste ou limpe os filtros para ver os equipamentos.
+        </div>
       ) : (
         <div className="vasos-grid">
-          {equipamentos.map((item) => (
+          {filtrados.map((item) => (
             <CardEquipamento key={item.tag} item={item} />
           ))}
         </div>
