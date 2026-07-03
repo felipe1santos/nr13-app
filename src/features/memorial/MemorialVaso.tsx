@@ -173,6 +173,23 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
     setCalcCount((c) => c + 1);
   }
 
+  // Zera os campos na tela (dados salvos só mudam quando clicar em Salvar).
+  // Útil quando a TAG tem memorial antigo gravado com os defaults de fábrica.
+  function limparCampos() {
+    if (!window.confirm('Limpar todos os campos da calculadora? Os dados salvos só serão substituídos quando você clicar em Salvar.')) return;
+    setVaso((v) => ({
+      tag: v.tag,
+      P: '',
+      D: '',
+      orientacao: v.orientacao,
+      componentes: novoComponentes(v.orientacao ?? 'vertical'),
+    }));
+    setConfirmados({});
+    setResumo(null);
+    setCalcCount(0);
+    setFiltro('full');
+  }
+
   async function salvar() {
     if (!resumo) { alert('Gere o cálculo antes de salvar.'); return; }
     const erros = validarCamposVaso(vaso);
@@ -254,7 +271,6 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
       {/* ── Top bar: título + stepper (tampo 1 → casco → tampo 2) + orientação ── */}
       <div className="calc-card-top-bar">
         <div className="calc-top-row">
-          <span className="calc-card-title">{titulo}</span>
           <div className="calc-stepper">
             {vaso.componentes.map((c, i) => {
               const done = !!confirmados[c.id];
@@ -422,6 +438,9 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
       <div className="calc-acoes-bar">
         <button type="button" className={`btn-gerar-calculo ${todosConfirmados ? 'ready' : ''}`} onClick={handleCalcular}>
           Σ GERAR CÁLCULO
+        </button>
+        <button type="button" className="btn-limpar-campos" onClick={limparCampos} title="Zera os campos na tela — o salvo só muda ao clicar em Salvar">
+          Limpar
         </button>
         <span className="calc-terminal-label">Memória de Cálculo — {titulo}</span>
         <button
