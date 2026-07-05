@@ -13,7 +13,6 @@ import { PAGINAS_PRONTUARIO } from '../features/prontuarios/tipos';
 import { carregarMinhaEmpresa, listarClientes } from '../features/cadastros/cadastroService';
 import type { Cliente } from '../features/cadastros/tipos';
 import { carregarVaso } from '../features/memorial/vasoMemorialService';
-import { carregarDadosCaldeira, carregarDadosAqua, carregarTiposCaldeira } from '../features/memorial/caldeiraMemorialService';
 import { carregarDadosAutoclave } from '../features/memorial/autoclaveMemorialService';
 import { ler, salvar } from '../services/storage';
 import { listarContainers } from '../features/inspecoes/inspecaoService';
@@ -350,37 +349,7 @@ export default function Prontuarios() {
         }
       }
 
-      if (eq.info.tipo === 'caldeira') {
-        pb('codigoProjeto', 'ASME Seção I — Power Boilers');
-        pb('anoEdicao', '2021');
-        const ROTULO_TAMPO_CALD: Record<string, string> = {
-          tampoAbaulado: 'Abaulado (PG-29.1)', tampoElipsoidal: 'Elipsoidal 2:1 (PG-29.7)',
-          tampoPlano: 'Plano (PG-31)', espelhoEstaiado: 'Espelho Estaiado (PG-46.1)',
-          espelhoNaoEstaiado: 'Espelho Não-Estaiado (PG-31)',
-        };
-        if (eq.info.subtipo === 'aquatubular') {
-          const tubSup = carregarDadosAqua(eq.tag, 'tubulaoSup');
-          if (tubSup.diametro_externo) pd('diametro', str(tubSup.diametro_externo));
-          if (tubSup.t_comercial) pd('espCorpo', str(tubSup.t_comercial));
-          if (tubSup.temperatura) pb('tempProjeto', str(tubSup.temperatura) + ' °C');
-          if (tubSup.ca) pb('sobreespessura', str(tubSup.ca) + ' mm');
-          const fundoElip = carregarDadosAqua(eq.tag, 'fundoEliptico');
-          if (fundoElip.t_comercial) pd('espFundo', str(fundoElip.t_comercial));
-          pb('tipoTampos', 'Fundo Elíptico 2:1 / Torisférico ASME F&D');
-        } else {
-          const tipos = carregarTiposCaldeira(eq.tag);
-          const costado = carregarDadosCaldeira(eq.tag, 'costado');
-          const tampo = carregarDadosCaldeira(eq.tag, 'tampo');
-          const espelho = carregarDadosCaldeira(eq.tag, 'espelho');
-          if (costado.diametro_externo) pd('diametro', str(costado.diametro_externo));
-          if (costado.t_comercial) pd('espCorpo', str(costado.t_comercial));
-          if (costado.temperatura) pb('tempProjeto', str(costado.temperatura) + ' °C');
-          if (costado.ca) pb('sobreespessura', str(costado.ca) + ' mm');
-          if (tampo.t_comercial) pd('espFundo', str(tampo.t_comercial));
-          if (espelho.t_comercial) pd('espTampa', str(espelho.t_comercial));
-          pb('tipoTampos', [ROTULO_TAMPO_CALD[tipos.tampo] || tipos.tampo, ROTULO_TAMPO_CALD[tipos.espelho] || tipos.espelho].join(' / '));
-        }
-      }
+      // Caldeira: injeção do memorial desativada (cálculos em revisão de engenharia).
 
       base.dimensoes = [dimLine];
 

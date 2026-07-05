@@ -1,6 +1,6 @@
 import { ler, salvar } from '../../services/storage';
 import { atualizarCategoriaComPmta } from '../categoria/categoriaService';
-import type { ComponenteResumo } from './caldeiraMemorialService';
+import type { ComponenteResumo } from './tiposMemorial';
 import { formatarMemorialHTML } from './formatarMemorialHTML';
 import {
   cilindrica,
