@@ -1,7 +1,11 @@
 // Service worker mínimo do NR-13 — necessário para o app ser instalável (PWA) e abrir offline.
 // Estratégia: network-first para navegação E para as folhas de relatório/prontuário (HTML sempre
-// fresco, com fallback ao cache); cache-first para assets estáticos com hash (rápido e offline).
-const CACHE = 'nr13-cache-v5';
+// fresco, com fallback ao cache); cache-first SÓ para assets com hash no nome (/assets/ do build).
+// v6: o v5 fazia cache-first de QUALQUER asset da origem — inclusive os módulos do dev server do
+// Vite (sem hash), então edições de código/CSS nunca chegavam ao navegador (ficavam presas no
+// cache do SW). Agora só /assets/ (nomes com hash, imutáveis) é cache-first; o resto é rede
+// primeiro com fallback ao cache (continua funcionando offline).
+const CACHE = 'nr13-cache-v6';
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png', '/favicon.svg'];
 
 self.addEventListener('install', (event) => {
@@ -59,18 +63,35 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Assets com hash (JS/CSS/fontes): cache primeiro, busca na rede se não tiver e guarda.
+  // Assets com hash no nome (/assets/ do build Vite): imutáveis — cache primeiro.
+  if (url.pathname.startsWith('/assets/')) {
+    event.respondWith(
+      caches.match(req).then(
+        (cached) =>
+          cached ||
+          fetch(req).then((resp) => {
+            if (resp.ok && resp.type === 'basic') {
+              const copia = resp.clone();
+              caches.open(CACHE).then((c) => c.put(req, copia));
+            }
+            return resp;
+          }),
+      ),
+    );
+    return;
+  }
+
+  // Qualquer outro asset (módulos do dev server, ícones, imagens sem hash): rede primeiro,
+  // cache só como fallback offline — garante que edições apareçam no próximo reload.
   event.respondWith(
-    caches.match(req).then(
-      (cached) =>
-        cached ||
-        fetch(req).then((resp) => {
-          if (resp.ok && resp.type === 'basic') {
-            const copia = resp.clone();
-            caches.open(CACHE).then((c) => c.put(req, copia));
-          }
-          return resp;
-        }),
-    ),
+    fetch(req)
+      .then((resp) => {
+        if (resp.ok && resp.type === 'basic') {
+          const copia = resp.clone();
+          caches.open(CACHE).then((c) => c.put(req, copia));
+        }
+        return resp;
+      })
+      .catch(() => caches.match(req)),
   );
 });
