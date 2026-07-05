@@ -1410,6 +1410,26 @@
   font-size: 12px;
 }
 
+/* equação linearizada (raiz/fração aninhada: √( ), (a) / (b)) — centrada, valor laranja */
+.memorial-log-linha {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  text-align: center;
+  margin: 10px 0;
+}
+
+.memorial-log-linha .l-meio {
+  color: #2D3339;
+}
+
+.memorial-log-linha .r-val {
+  color: #EC6000;
+  font-weight: 700;
+}
+
 /* resultado que não casa com o padrão simples (fallback KaTeX) — mesmo laranja */
 .memorial-log-resultado .katex {
   color: #EC6000;

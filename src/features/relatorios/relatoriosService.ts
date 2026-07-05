@@ -157,8 +157,24 @@ export function listaPadraoDocumentos(): string[] {
 // MEMORIAL.html é UMA folha que renderiza a fatia "part de N". Como cada slot do relatório é uma
 // folha A4 fixa (uma iframe = uma página), a quantidade de folhas é decidida AQUI, no momento da
 // montagem, conforme o tamanho do cálculo salvo — caldeira gera mais folhas que autoclave.
-const LINHAS_POR_FOLHA_MEMORIAL = 24; // folha de continuação
-const LINHAS_PRIMEIRA_FOLHA = 15; // 1ª folha tem a seção "Dados do Cliente/Equipamento"
+// Orçamento em UNIDADES DE ALTURA (1 = uma linha de texto simples no design novo do memorial —
+// frações empilhadas, banners e caixas de status ocupam mais que uma linha, ver pesoLinha()).
+const UNIDADES_POR_FOLHA_MEMORIAL = 42; // folha de continuação
+const UNIDADES_PRIMEIRA_FOLHA = 30; // 1ª folha tem a seção "Dados do Cliente/Equipamento"
+// Bloco até ~15% acima do orçamento ainda cabe inteiro numa folha (o auto-shrink do template
+// reduz a fonte de 12px para ~11px) — só subdivide em seções blocos maiores que isso.
+const LIMIAR_SUBDIVISAO = 48;
+
+// Altura estimada de cada linha do log no design novo (memorial-calc-novo.css).
+function pesoLinha(texto: string): number {
+  const s = texto.trim();
+  if (s.startsWith('$$')) return s.includes('\\frac') ? 3.5 : 1.8; // fração empilhada / equação linear
+  if (/STATUS:|^OK:|^REPROVADO:|^FALHA:|N[ÃA]O VERIFICADO|^RESULTADO FINAL:|ATEN[ÇC][ÃA]O/i.test(s)) return 2.6; // caixa de status
+  if (/^MEMORIAL DE C[ÁA]LCULO\b/i.test(s)) return 2.6; // banner azul
+  if (/^-{6,}$/.test(s)) return 0.8; // divisor
+  if (/^(\d+\.\s|PAR[ÂA]METROS)/i.test(s)) return 1.6; // título de seção
+  return 1.15; // parâmetro / comentário
+}
 
 function ehCabecalhoMemorial(t: string): boolean {
   const u = t.toUpperCase();
@@ -205,19 +221,34 @@ export function expandirMemorial(tag: string, docs: string[]): string[] {
   const inicios: number[] = [];
   linhas.forEach((l, i) => { if (ehInicioBloco(l)) inicios.push(i); });
   if (inicios.length === 0 || inicios[0] !== 0) inicios.unshift(0);
-  const blocos: { ini: number; fim: number }[] = inicios.map((ini, k) => ({
+  const brutos: { ini: number; fim: number }[] = inicios.map((ini, k) => ({
     ini,
     fim: k + 1 < inicios.length ? inicios[k + 1] : linhas.length,
   }));
 
-  // Empacota blocos em folhas respeitando o orçamento de linhas (sem dividir bloco).
+  const pesoBloco = (b: { ini: number; fim: number }) =>
+    linhas.slice(b.ini, b.fim).reduce((soma, l) => soma + pesoLinha(l), 0);
+
+  // Bloco maior que uma folha inteira (ex.: autoclave = um componente só) seria espremido pelo
+  // auto-shrink até fonte ilegível — subdivide nos títulos de seção ("1. ...", "2. ...") para o
+  // empacotador poder quebrar em mais folhas.
+  const blocos: { ini: number; fim: number }[] = [];
+  for (const b of brutos) {
+    if (pesoBloco(b) <= LIMIAR_SUBDIVISAO) { blocos.push(b); continue; }
+    const cortes = [b.ini];
+    for (let i = b.ini + 1; i < b.fim; i++) if (/^\d+\.\s/.test(linhas[i])) cortes.push(i);
+    cortes.push(b.fim);
+    for (let k = 0; k + 1 < cortes.length; k++) blocos.push({ ini: cortes[k], fim: cortes[k + 1] });
+  }
+
+  // Empacota blocos em folhas respeitando o orçamento de altura (sem dividir bloco).
   const ranges: { from: number; to: number }[] = [];
   let from = 0;
   let count = 0;
   let primeira = true;
   for (const b of blocos) {
-    const tam = b.fim - b.ini;
-    const orcamento = primeira ? LINHAS_PRIMEIRA_FOLHA : LINHAS_POR_FOLHA_MEMORIAL;
+    const tam = pesoBloco(b);
+    const orcamento = primeira ? UNIDADES_PRIMEIRA_FOLHA : UNIDADES_POR_FOLHA_MEMORIAL;
     if (count > 0 && count + tam > orcamento) {
       ranges.push({ from, to: b.ini });
       from = b.ini;

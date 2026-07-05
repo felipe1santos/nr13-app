@@ -19,7 +19,7 @@ function ptBR(texto: string): string {
 
 // Converte LaTeX simples em texto mono (padrão do design painel_pmta: fórmulas
 // na própria fonte do terminal). Devolve null quando a expressão usa construções
-// que só o KaTeX renderiza bem (raiz, subscrito aninhado etc.) — aí cai no fallback.
+// que só o KaTeX renderiza bem — aí cai no fallback.
 function latexParaTexto(latex: string): string | null {
   let t = latex
     .replace(/\\cdot/g, '·')
@@ -33,6 +33,47 @@ function latexParaTexto(latex: string): string | null {
   if (t.includes('\\')) return null;
   t = t.replace(/\s+/g, ' ').trim();
   return ptBR(t).replace(/ - /g, ' − ');
+}
+
+// Lineariza LaTeX com raiz/fração aninhada em texto mono: \sqrt → √( ), \frac → (a) / (b),
+// expoentes ² ³. Cobre as fórmulas do autoclave (UG-47, tirantes) e dos bocais/flanges que a
+// pilha simples não pega. Devolve null se sobrar comando não traduzível (fallback KaTeX).
+function linearizarLatex(latex: string): string | null {
+  let t = latex
+    .replace(/\\left\s*/g, '')
+    .replace(/\\right\s*/g, '')
+    .replace(/\\cdot/g, '·')
+    .replace(/\\times/g, '×')
+    .replace(/\\pi/g, 'π')
+    .replace(/\\alpha/g, 'α')
+    .replace(/\\sigma/g, 'σ')
+    .replace(/\\cos/g, 'cos')
+    .replace(/\\quad/g, '   ')
+    .replace(/\\text\{([^{}]*)\}/g, '$1')
+    .replace(/\\_/g, '_');
+  // resolve de dentro pra fora (argumentos internos não têm chaves)
+  for (let i = 0; i < 6 && /[\\{]/.test(t); i++) {
+    t = t
+      .replace(/\\frac\{([^{}]*)\}\{([^{}]*)\}/g, '($1) / ($2)')
+      .replace(/\\sqrt\{([^{}]*)\}/g, '√($1)')
+      .replace(/_\{([^{}]*)\}/g, '_$1')
+      .replace(/\^\{([^{}]*)\}/g, '^$1');
+  }
+  if (/[\\{}]/.test(t)) return null;
+  t = t.replace(/\^2/g, '²').replace(/\^3/g, '³').replace(/\s+/g, ' ').trim();
+  return ptBR(t).replace(/ - /g, ' − ');
+}
+
+// Divide uma equação linearizada em lhs / meio / valor final (valor numérico + unidade
+// no fim da cadeia de "=" vira destaque laranja).
+function partesEquacao(linear: string): { lhs: string; meio: string; val: string } {
+  const partes = linear.split('=').map((s) => s.trim());
+  if (partes.length === 1) return { lhs: '', meio: linear, val: '' };
+  const ult = partes[partes.length - 1];
+  if (/^-?[\d.,]+(?:\s*\S{1,8})?$/.test(ult)) {
+    return { lhs: partes[0], meio: partes.slice(1, -1).join(' = '), val: ult };
+  }
+  return { lhs: partes[0], meio: partes.slice(1).join(' = '), val: '' };
 }
 
 export default function MemorialLog({ log, animado = false, placeholder, showPlaceholder = false, className }: Props) {
@@ -70,8 +111,12 @@ export default function MemorialLog({ log, animado = false, placeholder, showPla
           if (/^[=\-─]{6,}$/.test(texto)) return { tipo: 'hr' as const, key: i };
           // Cabeçalho de componente (barra azul, padrão painel_pmta): identifica qual
           // componente do equipamento está sendo calculado.
-          if (/^MEMORIAL DE C[ÁA]LCULO[:.]/i.test(texto)) return { tipo: 'compHeader' as const, key: i, texto };
-          if (/^Norma Base[:.]/i.test(texto)) return { tipo: 'compSub' as const, key: i, texto: texto.replace(/ - /g, ' — ') };
+          // aceita "MEMORIAL DE CÁLCULO: X", "... - X" e "... — X" (vaso usa ":", autoclave "-")
+          if (/^MEMORIAL DE C[ÁA]LCULO\b/i.test(texto)) return { tipo: 'compHeader' as const, key: i, texto };
+          if (/^(Norma Base|M[ée]todo)[:.]/i.test(texto)) return { tipo: 'compSub' as const, key: i, texto: texto.replace(/ - /g, ' — ') };
+          // "RESULTADO FINAL: APROVADO/REPROVADO" (autoclave) — caixa de status
+          const mFinal = texto.match(/^RESULTADO FINAL:\s*(APROVADO|REPROVADO)/i);
+          if (mFinal) return { tipo: 'resfinal' as const, key: i, texto, ok: /APROVADO/i.test(mFinal[1]) };
           // "PARÂMETROS GERAIS DE ENTRADA" e afins — mesmo título de seção com
           // retângulo laranja das etapas numeradas (padrão do design)
           if (/^PAR[ÂA]METROS[^=()]*:?$/i.test(texto)) return { tipo: 'secao' as const, key: i, texto: texto.replace(/:$/, '') };
@@ -102,6 +147,12 @@ export default function MemorialLog({ log, animado = false, placeholder, showPla
           if (mRes) {
             const lhs = latexParaTexto(mRes[1]);
             if (lhs != null) return { tipo: 'res' as const, key: i, lhs, val: ptBR(mRes[2]), unidade: mRes[3] };
+          }
+          // Demais equações (raiz, fração aninhada, cadeia "A = B = valor") — texto mono linear
+          const linear = linearizarLatex(latex);
+          if (linear != null) {
+            const eq = partesEquacao(linear);
+            return { tipo: 'linha' as const, key: i, lhs: eq.lhs, meio: eq.meio, val: eq.val };
           }
           let html: string;
           try {
@@ -180,6 +231,25 @@ export default function MemorialLog({ log, animado = false, placeholder, showPla
                 {l.val} <span className="r-un">{l.unidade}</span>
               </span>
             </div>
+          );
+        if (l.tipo === 'linha')
+          return (
+            <div key={l.key} className="memorial-log-linha">
+              {l.lhs !== '' && <span className="f-lhs">{l.lhs}</span>}
+              {l.meio !== '' && <span className="l-meio">{l.lhs !== '' ? `= ${l.meio}` : l.meio}</span>}
+              {l.val !== '' && (
+                <>
+                  <span className="f-eq">=</span>
+                  <span className="r-val">{l.val}</span>
+                </>
+              )}
+            </div>
+          );
+        if (l.tipo === 'resfinal')
+          return (
+            <span key={l.key} className={l.ok ? 'msg-aprovado' : 'msg-reprovado'}>
+              {l.texto}
+            </span>
           );
         if (l.tipo === 'util')
           return (

@@ -1,0 +1,161 @@
+/* ============================================================================
+   Memorial de cálculo nas folhas do relatório — MESMO design do terminal da
+   calculadora (IBM Plex Mono, retângulo laranja vertical, banner azul #005AB9,
+   resultado #EC6000, status #008F3F/#E3FFEF e #DE2300/#FFECE8).
+   Tamanhos em "em" para acompanhar o auto-shrink da .calc-area (base 12px:
+   .92em de padding vertical = 11px, como no terminal).
+   ============================================================================ */
+.calc-area {
+  font-family: 'IBM Plex Mono', 'Courier New', Courier, monospace;
+  color: #2D3339;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+.calc-area .mc-secao {
+  display: flex;
+  align-items: center;
+  gap: .7em;
+  font-weight: 700;
+  color: #14181C;
+  margin: .9em 0 .45em;
+}
+
+.calc-area .mc-secao::before {
+  content: '';
+  width: .38em;
+  height: 1.15em;
+  background: #FF7A1A;
+  border-radius: 2px;
+  flex: 0 0 auto;
+}
+
+.calc-area .mc-banner {
+  background: #E4EDF9;
+  border-left: .32em solid #005AB9;
+  border-radius: .5em;
+  color: #005AB9;
+  font-family: 'Space Grotesk', 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: 1.04em;
+  padding: .92em 1.1em;
+  margin: 1em 0 .4em;
+}
+
+.calc-area .mc-norma {
+  color: #005AB9;
+  font-style: italic;
+  margin: .2em 0 .6em;
+}
+
+.calc-area .mc-param {
+  display: grid;
+  grid-template-columns: 5.2em max-content 1fr;
+  gap: 0 1.1em;
+  align-items: baseline;
+  margin: .12em 0 .12em .3em;
+}
+
+.calc-area .mc-util {
+  color: #7A8790;
+  font-style: italic;
+  margin: .7em 0 .3em;
+}
+
+.calc-area .mc-frac {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .9em;
+  margin: .9em 0;
+}
+
+.calc-area .mc-frac .lhs,
+.calc-area .mc-res .lhs,
+.calc-area .mc-linha .lhs {
+  font-weight: 700;
+  color: #14181C;
+}
+
+.calc-area .mc-frac .eq,
+.calc-area .mc-res .eq,
+.calc-area .mc-linha .eq {
+  color: #7A8790;
+}
+
+.calc-area .mc-stack {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.calc-area .mc-num,
+.calc-area .mc-den {
+  padding: 0 .8em;
+  white-space: nowrap;
+  color: #2D3339;
+}
+
+.calc-area .mc-fbar {
+  height: 1.5px;
+  background: #2D3339;
+  width: 100%;
+  margin: .22em 0;
+  border-radius: 2px;
+}
+
+.calc-area .mc-res {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: .7em;
+  margin: 1em 0 .5em;
+}
+
+.calc-area .mc-res .val,
+.calc-area .mc-linha .val {
+  color: #EC6000;
+  font-weight: 700;
+}
+
+.calc-area .mc-res .val {
+  font-size: 1.08em;
+}
+
+.calc-area .mc-linha {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: .5em;
+  text-align: center;
+  margin: .7em 0;
+}
+
+.calc-area .mc-ok,
+.calc-area .mc-erro,
+.calc-area .mc-aviso {
+  font-weight: 600;
+  padding: .92em 1em;
+  border-radius: .5em;
+  margin: .4em 0;
+}
+
+.calc-area .mc-ok { background: #E3FFEF; color: #008F3F; }
+.calc-area .mc-erro { background: #FFECE8; color: #DE2300; }
+.calc-area .mc-aviso { background: #FBF1DC; color: #B8860B; }
+
+.calc-area .mc-coment {
+  color: #7A8790;
+  font-style: italic;
+}
+
+.calc-area .mc-hr {
+  border: 0;
+  border-top: 1px solid #E7E4DC;
+  width: 52%;
+  margin: .7em 0;
+}
+
+/* fallback KaTeX (equações que a linearização não cobre) — cor neutra do terminal */
+.calc-area .katex-display { color: #2D3339 !important; margin: .3em 0; }
