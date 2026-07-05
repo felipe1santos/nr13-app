@@ -13,6 +13,7 @@ import {
 } from './autoclaveMemorialService';
 import type { ResultadoCalculo } from '../../calc/tipos';
 import { comLoadingGlobal } from '../../app/loadingGlobal';
+import { useAvisoSairSemSalvar } from './useAvisoSairSemSalvar';
 import './memorial.css';
 
 interface Props {
@@ -48,6 +49,8 @@ function MemorialAutoclaveInner({ tag, subtipo }: Props) {
   const [dados, setDados] = useState<DadosAutoclave>(() => carregarDadosAutoclave(tag, subtipo));
   const [resultado, setResultado] = useState<ResultadoCalculo | null>(null);
   const [calcCount, setCalcCount] = useState(0);
+  // instante do último "Gerar Cálculo" — linha "Gerado em ..." no topo do terminal
+  const [geradoEm, setGeradoEm] = useState<Date | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [dirty, setDirty] = useState(false);
 
@@ -57,15 +60,8 @@ function MemorialAutoclaveInner({ tag, subtipo }: Props) {
     else montou.current = true;
   }, [dados]);
 
-  useEffect(() => {
-    function aviso(e: BeforeUnloadEvent) {
-      if (!dirty) return;
-      e.preventDefault();
-      e.returnValue = '';
-    }
-    window.addEventListener('beforeunload', aviso);
-    return () => window.removeEventListener('beforeunload', aviso);
-  }, [dirty]);
+  // avisa ao sair (navegação interna ou fechar/recarregar) com memorial não salvo
+  useAvisoSairSemSalvar(dirty);
 
   function set(chave: keyof DadosAutoclave, valor: number) {
     setDados((d) => ({ ...d, [chave]: valor }));
@@ -84,8 +80,23 @@ function MemorialAutoclaveInner({ tag, subtipo }: Props) {
   function handleCalcular() {
     playClick();
     setResultado(calcularAutoclave(subtipo, dados));
+    setGeradoEm(new Date());
     setCalcCount((c) => c + 1);
+    // cálculo gerado e ainda não salvo → alerta ao sair sem Salvar
+    setDirty(true);
   }
+
+  // Cabeçalho do terminal (padrão design/painel_pmta)
+  const cabecalhoTerminal =
+    resultado && geradoEm
+      ? {
+          titulo: `Memorial de Cálculo — TAG: ${tag}`,
+          sub:
+            `Gerado em ${geradoEm.toLocaleDateString('pt-BR')} ` +
+            `${geradoEm.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` +
+            `${dados.material ? ` · Material ${dados.material}` : ''} · NR-13 / ASME VIII Div.1`,
+        }
+      : undefined;
 
   async function salvar() {
     if (!resultado) { alert('Gere o cálculo antes de salvar.'); return; }
@@ -223,6 +234,7 @@ function MemorialAutoclaveInner({ tag, subtipo }: Props) {
           <TerminalMemorial
             arquivo={`memorial_${tag.toLowerCase().replace(/\s+/g, '_')}.log`}
             status={resultado?.resultado === 'APROVADO' ? 'aprovado' : resultado?.resultado === 'REPROVADO' ? 'reprovado' : 'aguardando'}
+            cabecalho={cabecalhoTerminal}
           >
             <MemorialLog
               key={calcCount}
@@ -296,6 +308,7 @@ function MemorialAutoclaveInner({ tag, subtipo }: Props) {
           <TerminalMemorial
             arquivo={`memorial_${tag.toLowerCase().replace(/\s+/g, '_')}.log`}
             status={resultado?.resultado === 'APROVADO' ? 'aprovado' : resultado?.resultado === 'REPROVADO' ? 'reprovado' : 'aguardando'}
+            cabecalho={cabecalhoTerminal}
           >
             <MemorialLog
               key={calcCount}

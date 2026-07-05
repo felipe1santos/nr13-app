@@ -117,20 +117,21 @@ export function gerarBlocoComponenteVaso(
 
   let blocoOutput: string[] = [
     `// ====================================================`,
-    `// MEMORIAL DE CÁLCULO: ${nomeDaPeca.toUpperCase()}`,
+    // Nome em caixa alta, preservando a letra minúscula das referências de norma "(UG-27c)" etc.
+    `// MEMORIAL DE CÁLCULO: ${nomeDaPeca.toUpperCase().replace(/\(UG-(\d+)\s*([A-Z])\)/g, (_m, n: string, l: string) => `(UG-${n}${l.toLowerCase()})`)}`,
     `// Norma Base: ${normaRef}`,
     `// ====================================================`,
-    `// PARÂMETROS DE ENTRADA:`,
+    `// PARÂMETROS GERAIS DE ENTRADA`,
     `// P = ${pressao.toFixed(4)} MPa (Pressão de Projeto estipulada)`,
     `// T = ${temp.toFixed(2)} °C (Temperatura de Projeto do elemento)`,
-    `// D = ${diametro.toFixed(4)} mm (Diâmetro Interno Livre do equipamento)`,
+    `// D = ${diametro.toFixed(4)} mm (Diâmetro Interno livre do equipamento)`,
     `// R = ${R.toFixed(4)} mm (Raio Interno do equipamento)`,
-    `// S = ${S.toFixed(4)} MPa (Tensão Máxima Admissível para o material ${mat})`,
+    `// S = ${S.toFixed(4)} MPa (Tensão Máxima Admissível — ${mat} @ ${temp.toFixed(0)}°C)`,
     `// E = ${E.toFixed(4)} (Eficiência de Junta da Solda / Grau de Raio-X)`,
-    `// Tnom = ${t_nom.toFixed(4)} mm (Espessura Comercial / Nominal adotada na fabricação)`,
-    `// CA = ${ca.toFixed(4)} mm (Margem de Corrosão definida para desgaste)`,
+    `// Tnom = ${t_nom.toFixed(4)} mm (Espessura nominal / medida atual)`,
+    `// C.A. = ${ca.toFixed(4)} mm (Margem de corrosão definida para desgaste)`,
     `// ----------------------------------------------------`,
-    `// Tútil = Tnom - CA = ${t_nom.toFixed(4)} - ${ca.toFixed(4)} = ${t_util.toFixed(4)} mm (Espessura Útil que resistirá à pressão)`,
+    `// Tútil = Tnom - C.A. = ${t_nom.toFixed(4)} - ${ca.toFixed(4)} = ${t_util.toFixed(4)} mm (Espessura útil que resistirá à pressão)`,
     `// ----------------------------------------------------`,
     ` `,
   ];
@@ -230,7 +231,7 @@ export function gerarBlocoComponenteVaso(
         : `STATUS: REPROVADO! A PMTA do componente ( ${PMTA.toFixed(4)} MPa ) é inferior à Pressão de Projeto ( ${pressao.toFixed(4)} MPa ). Risco de ruptura!`;
 
       blocoOutput = blocoOutput.concat([
-        `// 1. CÁLCULO DA ESPESSURA MÍNIMA REQUERIDA (Treq)`,
+        `// 1. ESPESSURA MÍNIMA REQUERIDA (t_req)`,
         eq_t,
         sub_t,
         result_t,

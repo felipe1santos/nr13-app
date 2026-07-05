@@ -3,9 +3,22 @@
    Paleta: neutros frios (#F2F3F5 / #1E2330), violeta #5B45E0 (ação/valores),
    verde #12A150 (aprovado), azul #2C6CB0 (barras do memorial), CTA grafite
    #20242E. Fontes: Inter (sans) + JetBrains Mono (mono), importadas em
-   src/pages/Memorial.tsx. Vale para vaso, caldeira, autoclave e elétrica —
-   todos os painéis usam estas classes.
+   src/pages/Memorial.tsx. Vale para vaso e autoclave — todos os painéis usam
+   estas classes.
    ============================================================================ */
+
+/* Aviso de memorial desativado (caldeira — fórmulas em revisão) */
+.memorial-aviso-desativado {
+  max-width: 720px;
+  margin: 24px auto;
+  padding: 20px 24px;
+  background: #FBEDE1;
+  border: 1px solid #DE7C39;
+  border-radius: 10px;
+  color: #1E2330;
+  font-size: 15px;
+  line-height: 1.5;
+}
 
 .memorial-page {
   --pm-bg: #F2F3F5;
@@ -96,16 +109,16 @@
   }
 }
 
-/* ── Terminal de cálculo (log) ── */
+/* ── Terminal de cálculo (log) — fonte e cores do design (IBM Plex Mono / Forja) ── */
 .memorial-log {
   background: #ffffff;
-  color: #2A2F3A;
+  color: #2D3339;
   border: 1px solid #E7E7E3;
   border-radius: 12px;
   padding: 16px;
-  font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-family: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   font-size: 12.5px;
-  line-height: 1.65;
+  line-height: 1.7;
   overflow-x: auto;
 }
 
@@ -117,7 +130,7 @@
 }
 
 .memorial-log-comentario {
-  color: #6B7280;
+  color: #7A8790;
   font-style: italic;
   white-space: pre-wrap;
 }
@@ -141,19 +154,19 @@
   display: block;
   font-weight: 600;
   font-style: normal;
-  padding: 9px 12px;
+  padding: 11px 12px;
   border-radius: 6px;
   margin: 4px 0;
 }
 
 .msg-aprovado {
-  background: #DCF5E7;
-  color: #0C7C3D;
+  background: #E3FFEF;
+  color: #008F3F;
 }
 
 .msg-reprovado {
-  background: #FBE6E1;
-  color: #B4442F;
+  background: #FFECE8;
+  color: #DE2300;
 }
 
 /* ── Painéis genéricos (autoclave/caldeira) ── */
@@ -1141,29 +1154,40 @@
   display: none;
 }
 
-/* ── Cabeçalho azul por componente + divisor no terminal (mc-bar do design) ── */
+/* ── Cabeçalho azul por componente + divisor no terminal (imagem de referência:
+   texto azul #0C4F9B em Space Grotesk bold sobre fundo azul claro #E4EDF9,
+   barra vertical azul à esquerda) ── */
 .memorial-log-comp-header {
   display: block;
-  margin: 22px 0 4px;
-  padding: 11px 14px;
-  background: #EAF2FB;
-  border-left: 3px solid #2C6CB0;
-  border-radius: 6px;
-  color: #2C6CB0;
-  font-family: 'JetBrains Mono', ui-monospace, Consolas, monospace;
-  font-weight: 600;
-  font-size: 12px;
-  letter-spacing: .02em;
+  margin: 24px 0 6px;
+  padding: 11px 15px;
+  background: #E4EDF9;
+  border-left: 4px solid #005AB9;
+  border-radius: 8px;
+  color: #005AB9;
+  font-family: 'Space Grotesk', 'IBM Plex Sans', sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: .01em;
 }
 .memorial-log-comp-sub {
-  color: #2C6CB0;
+  color: #005AB9;
   font-style: italic;
-  font-size: 11.5px;
-  margin: 2px 2px 8px;
+  font-size: 12px;
+  margin: 4px 2px 10px;
 }
 .memorial-log-hr {
-  border-top: 1px solid #EFEFEC;
-  margin: 10px 0;
+  border-top: 1px solid #E7E4DC;
+  margin: 12px 0;
+  width: 52%;
+  min-width: 220px;
+}
+
+/* dedupe visual (imagem de referência): sem hr duplicado logo abaixo do
+   cabeçalho "Gerado em ...", nem entre a linha "Norma Base" e a 1ª seção */
+.term-mc-head + .memorial-log > .memorial-log-hr:first-child,
+.memorial-log-comp-sub + .memorial-log-hr {
+  display: none;
 }
 
 /* ============================================================================
@@ -1189,7 +1213,7 @@
 .term-dot:nth-of-type(2) { background: #F3D08A; }
 .term-dot:nth-of-type(3) { background: #A7DBA9; }
 .term-filename {
-  font-family: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+  font-family: 'IBM Plex Mono', ui-monospace, Consolas, monospace;
   font-size: 12px;
   font-weight: 500;
   color: #6B7280;
@@ -1264,57 +1288,48 @@
   box-shadow: 0 1px 2px rgba(24, 28, 38, .05);
 }
 
-/* ── Tipografia do memorial no terminal (cores do design painel_pmta) ── */
-/* legenda de grupo: "PARÂMETROS DE ENTRADA:" */
-.memorial-log-caption {
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: .09em;
-  color: #9AA1AD;
-  margin: 14px 0 6px;
-}
-
-/* título de etapa: "1. ESPESSURA MÍNIMA REQUERIDA" com quadrado laranja */
+/* ── Tipografia do memorial no terminal (imagem de referência / tokens Forja) ── */
+/* título de seção: "PARÂMETROS GERAIS DE ENTRADA" / "1. ESPESSURA MÍNIMA
+   REQUERIDA (t_req)" — retângulo VERTICAL laranja âmbar + texto mono bold ink */
 .memorial-log-secao {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
   font-weight: 600;
-  color: #1E2330;
-  margin: 18px 0 10px;
+  color: #14181C;
+  margin: 20px 0 10px;
   letter-spacing: .01em;
 }
 
 .memorial-log-secao::before {
   content: '';
-  width: 9px;
-  height: 9px;
-  background: #DE7C39;
+  width: 5px;
+  height: 15px;
+  background: #FF7A1A;
   border-radius: 2px;
   flex: 0 0 auto;
 }
 
-/* parâmetro em grade: símbolo escuro | valor violeta | descrição cinza */
+/* parâmetro em linha: símbolo | = valor | (descrição) — tudo na cor de texto do
+   terminal, como na imagem (sem coloração de valor) */
 .memorial-log-param {
   display: grid;
-  grid-template-columns: 56px minmax(130px, auto) 1fr;
-  gap: 6px;
+  grid-template-columns: 52px max-content 1fr;
+  gap: 0 14px;
   align-items: baseline;
-  margin: 2px 0;
+  margin: 2px 0 2px 4px;
 }
 
 .memorial-log-param .p-sym {
-  color: #1E2330;
-  font-weight: 600;
+  color: #2D3339;
 }
 
 .memorial-log-param .p-val {
-  color: #2C6CB0;
-  font-weight: 700;
+  color: #2D3339;
 }
 
 .memorial-log-param .p-desc {
-  color: #9AA1AD;
+  color: #2D3339;
 }
 
 @media (max-width: 700px) {
@@ -1328,17 +1343,101 @@
   }
 }
 
-/* linha da espessura útil (Tútil = Tnom − CA = ...) */
+/* linha da espessura útil (Tútil = Tnom − C.A. = ...) — itálico cinza */
 .memorial-log-util {
-  color: #6B7280;
+  color: #7A8790;
   font-style: italic;
-  margin: 10px 0 4px;
+  margin: 12px 0 4px;
 }
 
-/* resultado direto (t_req = X mm / PMTA = Y MPa) — laranja, variável calculada em negrito */
-.memorial-log-resultado .katex {
-  color: #DE7C39;
+/* fração empilhada na fonte do terminal (imagem: t_req = P·R sobre S·E − 0,6·P) */
+.memorial-log-frac {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.memorial-log-frac .f-lhs,
+.memorial-log-res .f-lhs {
   font-weight: 700;
+  color: #14181C;
+}
+
+.memorial-log-frac .f-eq,
+.memorial-log-res .f-eq {
+  color: #7A8790;
+}
+
+.memorial-log-frac .f-stack {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.memorial-log-frac .f-num,
+.memorial-log-frac .f-den {
+  padding: 0 10px;
+  white-space: nowrap;
+  color: #2D3339;
+}
+
+.memorial-log-frac .f-bar {
+  height: 1.5px;
+  background: #2D3339;
+  width: 100%;
+  margin: 3px 0;
+  border-radius: 2px;
+}
+
+/* resultado direto (t_req = 6,4433 mm) — valor em laranja escuro bold */
+.memorial-log-res {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 10px;
+  margin: 18px 0 10px;
+}
+
+.memorial-log-res .r-val {
+  color: #EC6000;
+  font-weight: 700;
+  font-size: 13.5px;
+}
+
+.memorial-log-res .r-un {
+  font-size: 12px;
+}
+
+/* resultado que não casa com o padrão simples (fallback KaTeX) — mesmo laranja */
+.memorial-log-resultado .katex {
+  color: #EC6000;
+  font-weight: 700;
+}
+
+/* ── Cabeçalho do memorial dentro do terminal (título + "Gerado em ...") ── */
+.term-mc-head .term-mc-title {
+  font-family: 'Space Grotesk', 'IBM Plex Sans', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -.01em;
+  color: #14181C;
+  margin: 2px 0 4px;
+}
+
+.term-mc-head .term-mc-sub {
+  font-family: 'IBM Plex Mono', ui-monospace, Consolas, monospace;
+  font-size: 11.5px;
+  color: #7A8790;
+  margin: 0 0 16px;
+}
+
+.term-mc-head .term-mc-hr {
+  border-top: 1px solid #E7E4DC;
+  width: 52%;
+  min-width: 220px;
+  margin: 0 0 4px;
 }
 
 @media (min-width: 1021px) {

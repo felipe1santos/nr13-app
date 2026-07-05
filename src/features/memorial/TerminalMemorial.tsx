@@ -20,12 +20,18 @@ export interface FiltroTerminal {
   label: string;
 }
 
+export interface CabecalhoTerminal {
+  titulo: string;
+  sub: string;
+}
+
 export default function TerminalMemorial({
   arquivo,
   status,
   filtros,
   filtroAtivo,
   onFiltro,
+  cabecalho,
   children,
 }: {
   arquivo: string;
@@ -33,6 +39,8 @@ export default function TerminalMemorial({
   filtros?: FiltroTerminal[];
   filtroAtivo?: string;
   onFiltro?: (id: string) => void;
+  /** título + linha "Gerado em ..." no topo do corpo (padrão design/painel_pmta) */
+  cabecalho?: CabecalhoTerminal;
   children: ReactNode;
 }) {
   return (
@@ -61,7 +69,16 @@ export default function TerminalMemorial({
           </div>
         </div>
       )}
-      <div className="calc-terminal-section expandido">{children}</div>
+      <div className="calc-terminal-section expandido">
+        {cabecalho && (
+          <div className="term-mc-head">
+            <p className="term-mc-title">{cabecalho.titulo}</p>
+            <p className="term-mc-sub">{cabecalho.sub}</p>
+            <div className="term-mc-hr" />
+          </div>
+        )}
+        {children}
+      </div>
     </div>
   );
 }

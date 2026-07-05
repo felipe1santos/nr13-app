@@ -15,6 +15,7 @@ import {
   type VasoSalvo,
 } from './vasoMemorialService';
 import { comLoadingGlobal } from '../../app/loadingGlobal';
+import { useAvisoSairSemSalvar } from './useAvisoSairSemSalvar';
 import './memorial.css';
 
 const ROTULO_CASCO = 'Casco Cilíndrico (UG-27c)';
@@ -108,6 +109,8 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
   const [confirmados, setConfirmados] = useState<Record<string, boolean>>({});
   // filtro do terminal: 'full' = memorial completo | id do componente = só aquela etapa
   const [filtro, setFiltro] = useState<string>('full');
+  // instante do último "Gerar Cálculo" — linha "Gerado em ..." no topo do terminal
+  const [geradoEm, setGeradoEm] = useState<Date | null>(null);
 
   // marca "não salvo" a cada alteração do vaso (ignora a montagem inicial)
   const montou = useRef(false);
@@ -116,16 +119,8 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
     else montou.current = true;
   }, [vaso]);
 
-  // avisa ao tentar fechar/recarregar com memorial não salvo
-  useEffect(() => {
-    function aviso(e: BeforeUnloadEvent) {
-      if (!dirty) return;
-      e.preventDefault();
-      e.returnValue = '';
-    }
-    window.addEventListener('beforeunload', aviso);
-    return () => window.removeEventListener('beforeunload', aviso);
-  }, [dirty]);
+  // avisa ao sair (navegação interna ou fechar/recarregar) com memorial não salvo
+  useAvisoSairSemSalvar(dirty);
 
   function escolherOrientacao(orientacao: OrientacaoVaso) {
     setVaso((v) => ({
@@ -170,7 +165,10 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
   function handleCalcular() {
     playSucesso();
     setResumo(calcularResumoVaso(vaso));
+    setGeradoEm(new Date());
     setCalcCount((c) => c + 1);
+    // cálculo gerado e ainda não salvo → alerta ao sair sem Salvar
+    setDirty(true);
   }
 
   // Zera os campos na tela (dados salvos só mudam quando clicar em Salvar).
@@ -186,6 +184,7 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
     }));
     setConfirmados({});
     setResumo(null);
+    setGeradoEm(null);
     setCalcCount(0);
     setFiltro('full');
   }
@@ -250,6 +249,22 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
     // avança suavemente pra próxima etapa
     if (!ehUltimo) setTimeout(() => irPara(idxAtivo + 1), 450);
   }
+
+  // Cabeçalho do terminal (padrão design/painel_pmta): título com a TAG e a
+  // linha "Gerado em dd/mm/aaaa hh:mm · Material X · NR-13 / ASME VIII Div.1"
+  const materialMemorial = vaso.componentes
+    .map((c) => String(c.dados.mat ?? '').trim())
+    .find((m) => m !== '');
+  const cabecalhoTerminal =
+    resumo && geradoEm
+      ? {
+          titulo: `Memorial de Cálculo — TAG: ${tag}`,
+          sub:
+            `Gerado em ${geradoEm.toLocaleDateString('pt-BR')} ` +
+            `${geradoEm.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` +
+            `${materialMemorial ? ` · Material ${materialMemorial}` : ''} · NR-13 / ASME VIII Div.1`,
+        }
+      : undefined;
 
   const pmtaDisplay = resumo?.pmtaFinal != null ? `${resumo.pmtaFinal.toFixed(2)} MPa` : '0.00 MPa';
   const tMinDisplay = resultadoAtivo?.t_min ?? '--';
@@ -466,6 +481,7 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
         filtros={filtrosTerminal}
         filtroAtivo={filtro}
         onFiltro={setFiltro}
+        cabecalho={cabecalhoTerminal}
       >
         <MemorialLog
           key={`${calcCount}-${filtro}`}
