@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Icone } from '../components/Icone';
 import PaginaA4 from '../components/PaginaA4';
 import { ler, listarChavesComPrefixo } from '../services/storage';
@@ -22,7 +21,6 @@ interface LinhaLivro {
   tag: string;
   nomeEquip: string;
   entradas: LivroEntrada[];
-  temTermoAbertura: boolean;
   ultimaData: string;
   categoria: string;
 }
@@ -55,7 +53,6 @@ function montarLinhas(): LinhaLivro[] {
         tag,
         nomeEquip: info.descricao?.trim() || ROTULO_TIPO[info.tipo] || 'Equipamento',
         entradas,
-        temTermoAbertura: entradas.length > 0,
         ultimaData: entradas.length > 0 ? entradas[entradas.length - 1].data : '',
         categoria: cat?.catFinal || '',
       });
@@ -80,7 +77,6 @@ type DocPreview =
   | { arquivo: 'LIVRO-REGISTRO.html'; titulo: string; entradaId: string };
 
 export default function LivroRegistro() {
-  const navigate = useNavigate();
   const linhas = useMemo(() => montarLinhas(), []);
   const [tagAberta, setTagAberta] = useState<string | null>(null);
   const [preview, setPreview] = useState<{ tag: string; doc: DocPreview } | null>(null);
@@ -208,14 +204,12 @@ export default function LivroRegistro() {
                       <div className="livro-timeline-meta">
                         {entrada.relatorioCodigo && <span>Relatório {entrada.relatorioCodigo}</span>}
                         {entrada.phNome && <span>{entrada.phNome}</span>}
-                      </div>
-                      <div className="livro-timeline-selos">
-                        <span className="fj-badge crypto" title="Selo de integridade — recurso em desenvolvimento">
+                        <span className="selo-flat crypto" title="Selo de integridade — recurso em desenvolvimento">
                           <Icone nome="shield" tam={10} style={{ display: 'inline-block', verticalAlign: -1, marginRight: 3 }} />
                           Criptografia {cripto}
                         </span>
-                        <span className="fj-badge info2">Registro nº {numeroRegistro}</span>
-                        <span className="fj-badge ok">
+                        <span className="selo-flat info2">Registro nº {numeroRegistro}</span>
+                        <span className="selo-flat ok">
                           <Icone nome="check" tam={10} style={{ display: 'inline-block', verticalAlign: -1, marginRight: 3 }} />
                           Íntegro
                         </span>
@@ -284,10 +278,12 @@ export default function LivroRegistro() {
           <span className="fj-badge neutro">{comLivro.length} livro{comLivro.length !== 1 ? 's' : ''} gerado{comLivro.length !== 1 ? 's' : ''}</span>
         </div>
 
-        {linhas.length === 0 ? (
+        {comLivro.length === 0 ? (
           <div className="fj-empty">
             <div className="fj-empty-ic"><Icone nome="book" tam={22} /></div>
-            <div className="fj-empty-title">Nenhum equipamento cadastrado</div>
+            <div className="fj-empty-title">
+              {linhas.length === 0 ? 'Nenhum equipamento cadastrado' : 'Nenhum livro de registro gerado ainda'}
+            </div>
             O livro de registro de cada equipamento é criado automaticamente na primeira inspeção
             (com termo de abertura) e recebe uma anotação a cada relatório salvo.
           </div>
@@ -299,18 +295,13 @@ export default function LivroRegistro() {
                   <th>Tag</th>
                   <th>Categoria</th>
                   <th>Registros</th>
-                  <th>Termo de abertura</th>
                   <th>Último registro</th>
                   <th>Ações</th>
                 </tr>
               </thead>
               <tbody>
-                {linhas.map((l) => (
-                  <tr
-                    key={l.tag}
-                    className={l.entradas.length > 0 ? 'linha-clicavel' : undefined}
-                    onClick={() => l.entradas.length > 0 && setTagAberta(l.tag)}
-                  >
+                {comLivro.map((l) => (
+                  <tr key={l.tag} className="linha-clicavel" onClick={() => setTagAberta(l.tag)}>
                     <td>
                       <div className="fj-tag-cell">
                         <div className="fj-tag-ico"><Icone nome="book" tam={15} /></div>
@@ -321,25 +312,12 @@ export default function LivroRegistro() {
                       </div>
                     </td>
                     <td>{l.categoria ? <span className="fj-badge neutro">Cat. {l.categoria}</span> : <span className="fj-dash">—</span>}</td>
-                    <td className="mono">{l.entradas.length > 0 ? l.entradas.length : <span className="fj-dash">—</span>}</td>
-                    <td>
-                      {l.temTermoAbertura ? (
-                        <span className="fj-badge ok">Gerado</span>
-                      ) : (
-                        <span className="fj-badge neutro">Na 1ª inspeção</span>
-                      )}
-                    </td>
+                    <td className="mono">{l.entradas.length}</td>
                     <td className="mono">{l.ultimaData || <span className="fj-dash">—</span>}</td>
                     <td onClick={(e) => e.stopPropagation()}>
-                      {l.entradas.length > 0 ? (
-                        <button type="button" className="fj-btn fj-btn-ghost" onClick={() => setTagAberta(l.tag)}>
-                          <Icone nome="chevright" tam={13} /> Abrir livro
-                        </button>
-                      ) : (
-                        <button type="button" className="fj-btn fj-btn-ghost" onClick={() => navigate(`/equipamento/${l.tag}`)}>
-                          Abrir equipamento
-                        </button>
-                      )}
+                      <button type="button" className="fj-btn fj-btn-ghost" onClick={() => setTagAberta(l.tag)}>
+                        <Icone nome="chevright" tam={13} /> Abrir livro
+                      </button>
                     </td>
                   </tr>
                 ))}
