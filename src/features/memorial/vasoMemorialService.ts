@@ -135,9 +135,16 @@ export async function salvarResumoVaso(tag: string, resumo: ResumoMemorialVaso, 
     resultado: resumo.resultado,
   };
   await salvar(chaveCalc(tag, sufixo), payload);
-  // Sub-componentes (ac_corpo, gv) também atualizam a chave principal para que
+  // Sub-componente do CORPO PRINCIPAL (ac_corpo — casco/tampos da autoclave cilíndrica; e
+  // futuros sufixos de corpo, ex. celetrica) também atualiza a chave geral para que
   // Equipamento.tsx mostre o botão "Ver Memorial" e a PMTA corretos.
-  if (sufixo) {
+  // BUG CORRIGIDO: "gv" (Gerador de Vapor) é um sub-equipamento À PARTE, não o corpo principal.
+  // Antes, salvar o memorial do GV sobrescrevia incondicionalmente `nr13_calc_<TAG>` com os
+  // dados do GV — apagando o memorial do corpo principal (ac_corpo ou autoclave vertical/
+  // retangular) que o usuário já tinha salvo, fazendo "Ver Memorial Completo" na ficha exibir
+  // dados errados ou parecer que nada foi salvo. RESUMO-MEMORIAL.html só cai para ac_corpo como
+  // fallback do vaso principal — nunca para gv — confirmando que gv não deve tocar a chave geral.
+  if (sufixo && sufixo !== 'gv') {
     await salvar(`nr13_calc_${tag}`, payload);
   }
   await atualizarCategoriaComPmta(tag, resumo.pmtaFinal);
