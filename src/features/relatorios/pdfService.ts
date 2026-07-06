@@ -1,6 +1,7 @@
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { anexarRastreabilidades } from './rastreabilidadeService';
+import { ALTURA_A4_PX, aguardarRecursosIframe } from './printService';
 
 // Mesmos parâmetros do relatorios.js original: jsPDF('p','mm','a4'), html2canvas scale:2,
 // JPEG 0.95, addImage cobrindo a folha A4 inteira (0,0,210,297mm).
@@ -12,7 +13,17 @@ export async function exportarPdf(containerSelector: string, nomeArquivo: string
     const iframe = paginas[i].querySelector('iframe');
     const alvo = iframe?.contentDocument?.body || paginas[i];
 
-    const canvas = await html2canvas(alvo, { scale: 2, useCORS: true, allowTaint: true, logging: false });
+    // Mesmas garantias do printService: fontes/imagens prontas e corte na altura do A4 —
+    // sem isso o PDF saía com cabeçalho em fonte de fallback e folha transbordada espremida.
+    await aguardarRecursosIframe(iframe?.contentDocument);
+    const canvas = await html2canvas(alvo, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+      height: ALTURA_A4_PX,
+      windowHeight: ALTURA_A4_PX,
+    });
     const imgData = canvas.toDataURL('image/jpeg', 0.95);
 
     if (i > 0) pdf.addPage();

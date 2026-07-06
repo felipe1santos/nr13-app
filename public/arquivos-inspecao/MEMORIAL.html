@@ -269,6 +269,12 @@
             // sem corte. Roda DEPOIS do KaTeX renderizar (síncrono). Agora a .page tem altura fixa, logo
             // o clientHeight é real e o laço de fato dispara. Espelho do PRONT-P3 (checa largura E altura).
             ajustarFonteParaCaber(area);
+            // Re-ajusta quando as fontes externas (IBM Plex Mono/KaTeX) terminam de carregar: a medição
+            // no DOMContentLoaded usa a fonte de fallback e o reflow posterior podia estourar/cortar a
+            // folha na impressão (o printService captura só depois de fonts.ready, já re-ajustada).
+            if (document.fonts && document.fonts.ready) {
+                document.fonts.ready.then(function() { ajustarFonteParaCaber(area); });
+            }
         }
 
     });

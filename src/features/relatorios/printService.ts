@@ -8,6 +8,28 @@ import html2canvas from 'html2canvas';
 
 let gerando = false;
 
+// Altura de UMA folha A4 em px CSS (297mm @ 96dpi). A captura corta o body do iframe nessa
+// altura para a impressão sair exatamente como o preview — que também corta em 297mm via
+// overflow:hidden (relatorios.css). Sem o corte, um body que transborda o A4 (folhas com
+// min-height, conteúdo que cresceu) era fotografado inteiro e ESPREMIDO na folha impressa.
+export const ALTURA_A4_PX = Math.ceil((297 * 96) / 25.4);
+
+// Espera imagens (logo/fotos base64) decodificarem e as fontes externas carregarem DENTRO do
+// iframe antes do html2canvas — senão a folha sai com logo em branco / cabeçalho em fonte errada.
+export async function aguardarRecursosIframe(doc: Document | null | undefined): Promise<void> {
+  if (!doc) return;
+  await Promise.all(
+    Array.from(doc.images).map((img) =>
+      img.complete && img.naturalWidth > 0 ? Promise.resolve() : img.decode().catch(() => undefined),
+    ),
+  );
+  try {
+    await (doc as Document & { fonts?: FontFaceSet }).fonts?.ready;
+  } catch {
+    /* fonts API indisponível — segue */
+  }
+}
+
 function aguardarImagens(root: HTMLElement): Promise<void> {
   return Promise.all(
     Array.from(root.querySelectorAll('img')).map((img) =>
@@ -36,28 +58,15 @@ export async function prepararFolhasImpressao(containerSelector = '.relatorio-pr
     for (const pag of paginas) {
       const iframe = pag.querySelector('iframe');
       const alvo = iframe?.contentDocument?.body || pag;
-      // Garante que as imagens (logo/fotos base64) e fontes DENTRO do iframe estejam decodificadas
-      // antes do html2canvas — senão a folha rasterizada pode sair com foto/logo em branco.
-      const doc = iframe?.contentDocument;
-      if (doc) {
-        await Promise.all(
-          Array.from(doc.images).map((img) =>
-            img.complete && img.naturalWidth > 0
-              ? Promise.resolve()
-              : img.decode().catch(() => undefined),
-          ),
-        );
-        try {
-          await (doc as Document & { fonts?: FontFaceSet }).fonts?.ready;
-        } catch {
-          /* fonts API indisponível — segue */
-        }
-      }
+      await aguardarRecursosIframe(iframe?.contentDocument);
       const canvas = await html2canvas(alvo, {
         scale: 2,
         useCORS: true,
         allowTaint: true,
         logging: false,
+        // Corta na altura de 1 folha A4 — igual ao preview (overflow:hidden em 297mm).
+        height: ALTURA_A4_PX,
+        windowHeight: ALTURA_A4_PX,
       });
       imagens.push(canvas.toDataURL('image/jpeg', 0.95));
     }

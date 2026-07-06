@@ -173,7 +173,9 @@ function pesoLinha(texto: string): number {
   if (/^MEMORIAL DE C[ÁA]LCULO\b/i.test(s)) return 2.6; // banner azul
   if (/^-{6,}$/.test(s)) return 0.8; // divisor
   if (/^(\d+\.\s|PAR[ÂA]METROS)/i.test(s)) return 1.6; // título de seção
-  return 1.15; // parâmetro / comentário
+  // Comentário longo (observações da revisão de engenharia) quebra em 2+ linhas na folha —
+  // subestimar aqui estourava a folha e o auto-shrink batia no piso de fonte cortando o fim.
+  return s.length > 90 ? 2.2 : 1.15; // parâmetro / comentário
 }
 
 function ehCabecalhoMemorial(t: string): boolean {
