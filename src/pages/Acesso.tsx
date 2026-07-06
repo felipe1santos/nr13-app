@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icone } from '../components/Icone';
-import { listarClientes } from '../features/cadastros/cadastroService';
+import { listarClientes, salvarCliente } from '../features/cadastros/cadastroService';
 import {
   criarSubUsuario,
   definirAtivoSub,
@@ -414,6 +414,11 @@ export default function Acesso() {
                               void acao(async () => {
                                 await excluirSub(u.id);
                                 await excluirPermissoes(u.id);
+                                // Login excluído aqui não pode continuar aparecendo em Clientes (portalEmail é cache local).
+                                if (u.papel === 'cliente' && u.cliente_id) {
+                                  const cliente = listarClientes().find((c) => c.id === u.cliente_id);
+                                  if (cliente?.portalEmail) salvarCliente({ ...cliente, portalEmail: undefined });
+                                }
                               }, 'Acesso excluído.');
                           }}
                         >

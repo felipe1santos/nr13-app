@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { Icone } from '../components/Icone';
 import { listarClientes, salvarCliente, excluirCliente } from '../features/cadastros/cadastroService';
 import type { Cliente } from '../features/cadastros/tipos';
-import { criarAcessoCliente, listarSubUsuarios, type SubUsuario } from '../services/orgAdmin';
+import { criarAcessoCliente, excluirSub, listarSubUsuarios, resetarSenhaSub, type SubUsuario } from '../services/orgAdmin';
 import { isMestre } from '../services/auth';
+import { excluirPermissoes } from '../services/permissoes';
 import { buscarEmpresas, faviconDe, urlMapaEmbed, GOOGLE_MAPS_KEY, type ResultadoPlace } from '../services/googlePlaces';
 import './cadastros.css';
 
@@ -83,15 +84,53 @@ export default function Empresas() {
     setTela('formulario');
   }
 
+  function recarregarLoginsPortal(clienteId: string) {
+    listarSubUsuarios()
+      .then((subs) => setLoginsPortal(subs.filter((s) => s.papel === 'cliente' && s.cliente_id === clienteId)))
+      .catch(() => setLoginsPortal(null)); // sem migração/offline: fica só o portalEmail gravado
+  }
+
   function abrirDetalhe(c: Cliente) {
     setClienteDet(c);
     setLoginsPortal(null);
     setTela('detalhe');
-    if (isMestre()) {
-      listarSubUsuarios()
-        .then((subs) => setLoginsPortal(subs.filter((s) => s.papel === 'cliente' && s.cliente_id === c.id)))
-        .catch(() => setLoginsPortal(null)); // sem migração/offline: fica só o portalEmail gravado
+    if (isMestre()) recarregarLoginsPortal(c.id);
+  }
+
+  async function resetarSenhaAcesso(login: SubUsuario) {
+    const nova = window.prompt(`Nova senha para ${login.email} (mín. 6):`);
+    if (!nova || nova.length < 6) return;
+    try {
+      await resetarSenhaSub(login.id, nova);
+      window.alert('Senha atualizada.');
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : String(e));
     }
+  }
+
+  async function excluirAcessoPortal(login: SubUsuario, cliente: Cliente) {
+    if (!window.confirm(`Excluir o acesso de ${login.email}? Essa ação não tem volta. Os dados do cliente continuam salvos.`)) return;
+    try {
+      await excluirSub(login.id);
+      await excluirPermissoes(login.id);
+      if (cliente.portalEmail) {
+        const atualizado = { ...cliente, portalEmail: undefined };
+        salvarCliente(atualizado);
+        setClientes(listarClientes());
+        setClienteDet(atualizado);
+      }
+      recarregarLoginsPortal(cliente.id);
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  function apagarLoginLegado(cliente: Cliente) {
+    if (!window.confirm(`Remover o login "${cliente.portalEmail}" deste cliente?`)) return;
+    const atualizado = { ...cliente, portalEmail: undefined };
+    salvarCliente(atualizado);
+    setClientes(listarClientes());
+    setClienteDet(atualizado);
   }
 
   async function buscarNoGoogle() {
@@ -196,9 +235,19 @@ export default function Empresas() {
               {emailsPortal.map((s) => (
                 <div key={s.id} className="cli-det-portal-item ativo">
                   <Icone nome="key" tam={14} />
-                  <strong>{s.email}</strong>
+                  <strong style={{ color: '#1e3a8a' }}>{s.email}</strong>
                   <span className={`badge-func-tipo ${s.ativo ? 'tec' : ''}`}>{s.ativo ? 'Ativo' : 'Desativado'}</span>
                   {s.ultimo_acesso && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Último acesso: {new Date(s.ultimo_acesso).toLocaleString('pt-BR')}</span>}
+                  {isMestre() && (
+                    <div style={{ display: 'flex', gap: 6, marginLeft: 'auto' }}>
+                      <button type="button" className="btn-secundario-sm" title="Trocar senha" onClick={() => resetarSenhaAcesso(s)}>
+                        <Icone nome="key" tam={12} />
+                      </button>
+                      <button type="button" className="btn-danger-sm" title="Excluir acesso" onClick={() => excluirAcessoPortal(s, c)}>
+                        <Icone nome="trash" tam={12} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -206,8 +255,13 @@ export default function Empresas() {
             <div className="cli-det-portal">
               <div className="cli-det-portal-item ativo">
                 <Icone nome="key" tam={14} />
-                <strong>{c.portalEmail}</strong>
+                <strong style={{ color: '#1e3a8a' }}>{c.portalEmail}</strong>
                 <span className="badge-func-tipo tec">Login do portal</span>
+                {isMestre() && (
+                  <button type="button" className="btn-danger-sm" title="Remover login" style={{ marginLeft: 'auto' }} onClick={() => apagarLoginLegado(c)}>
+                    <Icone nome="trash" tam={12} />
+                  </button>
+                )}
               </div>
             </div>
           ) : (
@@ -499,7 +553,11 @@ export default function Empresas() {
                     </span>
                   )}
                   {c.contato && <span>Contato: {c.contato}</span>}
-                  {c.portalEmail && <span>Portal: {c.portalEmail}</span>}
+                  {c.portalEmail && (
+                    <span>
+                      Portal: <strong style={{ color: '#1e3a8a' }}>{c.portalEmail}</strong>
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="cad-item-acoes" onClick={(e) => e.stopPropagation()}>
