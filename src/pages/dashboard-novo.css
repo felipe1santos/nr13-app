@@ -171,3 +171,75 @@
   .dash-page { padding: 18px 16px 50px; }
   .alert-banner { flex-wrap: wrap; }
 }
+
+/* ── Livro de Registro: linha clicável na lista de equipamentos ── */
+.linha-clicavel { cursor: pointer; }
+
+/* Capa + Termo fixos no topo do livro do equipamento */
+.livro-fixos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  padding: 18px 20px 4px;
+}
+
+.livro-doc-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.livro-doc-card:hover { border-color: var(--blue2); box-shadow: 0 4px 12px rgba(12, 79, 155, 0.1); }
+.livro-doc-card strong { display: block; font-size: 13.5px; }
+.livro-doc-card span { display: block; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+
+.livro-doc-ic {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.livro-doc-ic.capa { background: var(--purple-bg); color: var(--purple); }
+.livro-doc-ic.termo { background: var(--ok-bg); color: var(--ok); }
+
+/* Linha do tempo cronológica das entradas do livro */
+.livro-timeline { list-style: none; margin: 0; padding: 8px 20px 20px; }
+
+.livro-timeline-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+.livro-timeline-item:last-child { border-bottom: none; }
+
+.livro-timeline-marco {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--blue2);
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+
+.livro-timeline-corpo { flex: 1; min-width: 0; }
+
+.livro-timeline-topo { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+.livro-timeline-data { font-size: 11.5px; color: var(--muted); font-family: var(--font-mono); }
+
+.livro-timeline-desc { font-size: 13px; margin-top: 6px; }
+
+.livro-timeline-meta { display: flex; gap: 14px; flex-wrap: wrap; font-size: 11.5px; color: var(--muted); margin-top: 4px; }
+
+.livro-timeline-selos { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }

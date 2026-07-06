@@ -108,6 +108,9 @@
 .fj-badge.warn { background: var(--warn-bg); color: var(--warn); }
 .fj-badge.ok { background: var(--ok-bg); color: var(--ok); }
 .fj-badge.neutro { background: var(--steel); color: var(--muted); }
+.fj-badge.info { background: var(--blue-bg); color: var(--blue); }
+.fj-badge.info2 { background: var(--blue2-bg); color: var(--blue2); }
+.fj-badge.crypto { background: var(--purple-bg); color: var(--purple); }
 
 /* badge de tipo (equipamento / inspeção) — cantos 7px, não pill */
 .fj-type-badge {

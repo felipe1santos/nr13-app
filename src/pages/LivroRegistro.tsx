@@ -22,14 +22,24 @@ interface LinhaLivro {
   tag: string;
   nomeEquip: string;
   entradas: LivroEntrada[];
-  temTermoAbertura: boolean; // livro com 1ª inspeção registrada → termo foi gerado
+  temTermoAbertura: boolean;
   ultimaData: string;
+  categoria: string;
 }
 
 const ROTULO_TIPO: Record<string, string> = {
   vaso: 'Vaso de Pressão',
   caldeira: 'Caldeira',
   autoclave: 'Autoclave',
+};
+
+// Cor do badge por tipo de entrada — mesma paleta de badges do sistema (fj-badge), só varia
+// a cor por tipo pra dar leitura rápida rolando a linha do tempo.
+const COR_TIPO: Record<string, string> = {
+  'Inspeção Inicial': 'ok',
+  'Inspeção Periódica': 'info',
+  'Inspeção Extraordinária': 'warn',
+  'Ocorrência': 'crit',
 };
 
 function montarLinhas(): LinhaLivro[] {
@@ -40,12 +50,14 @@ function montarLinhas(): LinhaLivro[] {
       const info = ler<InfoEquipamento>(chave);
       if (!info) continue;
       const entradas = ler<LivroEntrada[]>(`nr13_livro_${tag}`) ?? [];
+      const cat = ler<{ catFinal?: string }>(`nr13_cat_${tag}`);
       linhas.push({
         tag,
         nomeEquip: info.descricao?.trim() || ROTULO_TIPO[info.tipo] || 'Equipamento',
         entradas,
         temTermoAbertura: entradas.length > 0,
         ultimaData: entradas.length > 0 ? entradas[entradas.length - 1].data : '',
+        categoria: cat?.catFinal || '',
       });
     } catch { /* chave malformada: ignora */ }
   }
@@ -54,14 +66,29 @@ function montarLinhas(): LinhaLivro[] {
   return linhas;
 }
 
+// Código fictício "de criptografia" — só visual por enquanto (não há assinatura/blockchain
+// real ainda). Determinístico a partir do id da entrada pra não mudar a cada render.
+function criptografiaFicticia(seed: string): string {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  return h.toString(16).toUpperCase().padStart(8, '0');
+}
+
+type DocPreview =
+  | { arquivo: 'CAPA-LIVRO-REGISTRO.html'; titulo: string }
+  | { arquivo: 'TERMO-ABERTURA.html'; titulo: string }
+  | { arquivo: 'LIVRO-REGISTRO.html'; titulo: string; entradaId: string };
+
 export default function LivroRegistro() {
   const navigate = useNavigate();
   const linhas = useMemo(() => montarLinhas(), []);
-  const [preview, setPreview] = useState<{ tag: string; doc: 'LIVRO-REGISTRO.html' | 'TERMO-ABERTURA.html' | 'CAPA-LIVRO-REGISTRO.html' } | null>(null);
+  const [tagAberta, setTagAberta] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{ tag: string; doc: DocPreview } | null>(null);
   const [imprimindo, setImprimindo] = useState(false);
   const [exportando, setExportando] = useState(false);
 
   const comLivro = linhas.filter((l) => l.entradas.length > 0);
+  const linhaAberta = linhas.find((l) => l.tag === tagAberta) ?? null;
 
   // Pré-rasteriza a folha em #print-root assim que o preview abre (mesmo padrão de
   // Relatorios.tsx), pra que Imprimir/Baixar PDF funcionem igual ao resto do sistema.
@@ -98,16 +125,154 @@ export default function LivroRegistro() {
     if (!preview) return;
     setExportando(true);
     try {
-      const nome =
-        preview.doc === 'TERMO-ABERTURA.html' ? 'Termo_Abertura'
-        : preview.doc === 'CAPA-LIVRO-REGISTRO.html' ? 'Capa_Livro_Registro'
-        : 'Livro_Registro';
-      await exportarPdf('.relatorio-preview', `${nome}_${preview.tag}.pdf`);
+      await exportarPdf('.relatorio-preview', `${preview.doc.titulo.replace(/\s+/g, '_')}_${preview.tag}.pdf`);
     } finally {
       setExportando(false);
     }
   }
 
+  const srcPreview = preview
+    ? `/arquivos-inspecao/${preview.doc.arquivo}?tag=${encodeURIComponent(preview.tag)}${
+        preview.doc.arquivo === 'LIVRO-REGISTRO.html' ? `&entrada=${encodeURIComponent(preview.doc.entradaId)}` : ''
+      }`
+    : '';
+
+  /* ── Detalhe do equipamento: capa + termo fixos no topo, depois a timeline ── */
+  if (linhaAberta) {
+    return (
+      <div className="dash-page">
+        <div className="fj-panel">
+          <div className="fj-panel-head">
+            <div>
+              <button type="button" className="btn-secundario" style={{ marginBottom: 10 }} onClick={() => setTagAberta(null)}>
+                ← Todos os equipamentos
+              </button>
+              <div className="fj-eyebrow">NR-13 · 13.4.1.9 · Livro de Registro de Segurança</div>
+              <h2>
+                {linhaAberta.tag} <span className="fj-eq-name" style={{ fontWeight: 400 }}>— {linhaAberta.nomeEquip}</span>
+              </h2>
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              {linhaAberta.categoria && <span className="fj-badge neutro">Cat. {linhaAberta.categoria}</span>}
+              <span className="fj-badge info2">{linhaAberta.entradas.length} registro(s)</span>
+            </div>
+          </div>
+
+          {/* Capa e Termo — sempre no topo, fixos */}
+          <div className="livro-fixos">
+            <button
+              type="button"
+              className="livro-doc-card"
+              onClick={() => setPreview({ tag: linhaAberta.tag, doc: { arquivo: 'CAPA-LIVRO-REGISTRO.html', titulo: 'Capa do Livro de Registro' } })}
+            >
+              <span className="livro-doc-ic capa"><Icone nome="filetext" tam={16} /></span>
+              <div>
+                <strong>Capa do Livro</strong>
+                <span>Identificação e classificação NR-13</span>
+              </div>
+            </button>
+            <button
+              type="button"
+              className="livro-doc-card"
+              onClick={() => setPreview({ tag: linhaAberta.tag, doc: { arquivo: 'TERMO-ABERTURA.html', titulo: 'Termo de Abertura' } })}
+            >
+              <span className="livro-doc-ic termo"><Icone nome="book" tam={16} /></span>
+              <div>
+                <strong>Termo de Abertura</strong>
+                <span>NR-13, item 13.4.1.9</span>
+              </div>
+            </button>
+          </div>
+
+          <div className="fj-panel-head" style={{ marginTop: 22, marginBottom: 6 }}>
+            <h3 style={{ margin: 0, border: 'none', padding: 0, fontSize: 14 }}>Linha do tempo — ordem cronológica</h3>
+          </div>
+
+          {linhaAberta.entradas.length === 0 ? (
+            <p className="dashboard-vazio" style={{ padding: '14px 0' }}>Nenhum registro lançado ainda neste livro.</p>
+          ) : (
+            <ul className="livro-timeline">
+              {linhaAberta.entradas.map((entrada, i) => {
+                const cor = COR_TIPO[entrada.tipo] ?? 'neutro';
+                const cripto = criptografiaFicticia(entrada.id || `${linhaAberta.tag}-${i}`);
+                const numeroRegistro = String(i + 1).padStart(6, '0');
+                return (
+                  <li key={entrada.id ?? i} className="livro-timeline-item">
+                    <span className="livro-timeline-marco" />
+                    <div className="livro-timeline-corpo">
+                      <div className="livro-timeline-topo">
+                        <span className={`fj-badge ${cor}`}>{entrada.tipo}</span>
+                        <span className="livro-timeline-data">{entrada.data}</span>
+                      </div>
+                      <div className="livro-timeline-desc">{entrada.descricao}</div>
+                      <div className="livro-timeline-meta">
+                        {entrada.relatorioCodigo && <span>Relatório {entrada.relatorioCodigo}</span>}
+                        {entrada.phNome && <span>{entrada.phNome}</span>}
+                      </div>
+                      <div className="livro-timeline-selos">
+                        <span className="fj-badge crypto" title="Selo de integridade — recurso em desenvolvimento">
+                          <Icone nome="shield" tam={10} style={{ display: 'inline-block', verticalAlign: -1, marginRight: 3 }} />
+                          Criptografia {cripto}
+                        </span>
+                        <span className="fj-badge info2">Registro nº {numeroRegistro}</span>
+                        <span className="fj-badge ok">
+                          <Icone nome="check" tam={10} style={{ display: 'inline-block', verticalAlign: -1, marginRight: 3 }} />
+                          Íntegro
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="fj-btn fj-btn-ghost"
+                      onClick={() =>
+                        setPreview({
+                          tag: linhaAberta.tag,
+                          doc: { arquivo: 'LIVRO-REGISTRO.html', titulo: `Registro_${entrada.data.replace(/\//g, '-')}`, entradaId: entrada.id ?? '' },
+                        })
+                      }
+                    >
+                      <Icone nome="eye" tam={13} /> Ver / Imprimir
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        {preview && (
+          <div className="fj-modal-overlay" onClick={(e) => e.target === e.currentTarget && setPreview(null)}>
+            <div className="fj-modal-box" style={{ maxWidth: 900 }}>
+              <div className="fj-modal-head">
+                <div>
+                  <div className="fj-eyebrow">{preview.doc.titulo}</div>
+                  <h2>{preview.tag}</h2>
+                </div>
+                <button type="button" className="fj-modal-close" onClick={() => setPreview(null)} aria-label="Fechar">
+                  <Icone nome="x" tam={15} />
+                </button>
+              </div>
+              <div className="no-print" style={{ display: 'flex', gap: 8, padding: '0 16px' }}>
+                <button type="button" className="btn-secundario" onClick={() => void imprimirPreview()} disabled={imprimindo}>
+                  {imprimindo ? 'Preparando…' : 'Imprimir'}
+                </button>
+                <button type="button" className="barra-btn barra-btn-pdf" onClick={() => void baixarPreview()} disabled={exportando}>
+                  <Icone nome="download" tam={13} /> {exportando ? 'Gerando PDF…' : 'Baixar PDF'}
+                </button>
+              </div>
+              <div style={{ padding: 16 }} className="relatorio-preview">
+                <PaginaA4>
+                  <iframe src={srcPreview} scrolling="no" title={preview.doc.titulo} />
+                </PaginaA4>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  /* ── Lista de equipamentos ── */
   return (
     <div className="dash-page">
       <div className="fj-panel">
@@ -132,6 +297,7 @@ export default function LivroRegistro() {
               <thead>
                 <tr>
                   <th>Tag</th>
+                  <th>Categoria</th>
                   <th>Registros</th>
                   <th>Termo de abertura</th>
                   <th>Último registro</th>
@@ -140,7 +306,11 @@ export default function LivroRegistro() {
               </thead>
               <tbody>
                 {linhas.map((l) => (
-                  <tr key={l.tag}>
+                  <tr
+                    key={l.tag}
+                    className={l.entradas.length > 0 ? 'linha-clicavel' : undefined}
+                    onClick={() => l.entradas.length > 0 && setTagAberta(l.tag)}
+                  >
                     <td>
                       <div className="fj-tag-cell">
                         <div className="fj-tag-ico"><Icone nome="book" tam={15} /></div>
@@ -150,6 +320,7 @@ export default function LivroRegistro() {
                         </div>
                       </div>
                     </td>
+                    <td>{l.categoria ? <span className="fj-badge neutro">Cat. {l.categoria}</span> : <span className="fj-dash">—</span>}</td>
                     <td className="mono">{l.entradas.length > 0 ? l.entradas.length : <span className="fj-dash">—</span>}</td>
                     <td>
                       {l.temTermoAbertura ? (
@@ -159,42 +330,16 @@ export default function LivroRegistro() {
                       )}
                     </td>
                     <td className="mono">{l.ultimaData || <span className="fj-dash">—</span>}</td>
-                    <td>
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        {l.entradas.length > 0 ? (
-                          <>
-                            <button
-                              type="button"
-                              className="fj-btn fj-btn-ghost"
-                              onClick={() => setPreview({ tag: l.tag, doc: 'CAPA-LIVRO-REGISTRO.html' })}
-                            >
-                              <Icone nome="filetext" tam={13} style={{ color: '#1e3a8a' }} /> Capa
-                            </button>
-                            <button
-                              type="button"
-                              className="fj-btn fj-btn-ghost"
-                              onClick={() => setPreview({ tag: l.tag, doc: 'TERMO-ABERTURA.html' })}
-                            >
-                              <Icone nome="filetext" tam={13} /> Termo
-                            </button>
-                            <button
-                              type="button"
-                              className="fj-btn fj-btn-ghost"
-                              onClick={() => setPreview({ tag: l.tag, doc: 'LIVRO-REGISTRO.html' })}
-                            >
-                              <Icone nome="eye" tam={13} style={{ color: 'var(--blue2)' }} /> Livro
-                            </button>
-                          </>
-                        ) : (
-                          <button
-                            type="button"
-                            className="fj-btn fj-btn-ghost"
-                            onClick={() => navigate(`/equipamento/${l.tag}`)}
-                          >
-                            Abrir equipamento
-                          </button>
-                        )}
-                      </div>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      {l.entradas.length > 0 ? (
+                        <button type="button" className="fj-btn fj-btn-ghost" onClick={() => setTagAberta(l.tag)}>
+                          <Icone nome="chevright" tam={13} /> Abrir livro
+                        </button>
+                      ) : (
+                        <button type="button" className="fj-btn fj-btn-ghost" onClick={() => navigate(`/equipamento/${l.tag}`)}>
+                          Abrir equipamento
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -206,45 +351,6 @@ export default function LivroRegistro() {
           O livro é preenchido automaticamente: cada relatório salvo adiciona a anotação de inspeção correspondente.
         </div>
       </div>
-
-      {preview && (
-        <div className="fj-modal-overlay" onClick={(e) => e.target === e.currentTarget && setPreview(null)}>
-          <div className="fj-modal-box" style={{ maxWidth: 900 }}>
-            <div className="fj-modal-head">
-              <div>
-                <div className="fj-eyebrow">
-                  {preview.doc === 'TERMO-ABERTURA.html'
-                    ? 'Termo de abertura'
-                    : preview.doc === 'CAPA-LIVRO-REGISTRO.html'
-                      ? 'Capa do livro de registro'
-                      : 'Livro de registro'}
-                </div>
-                <h2>{preview.tag}</h2>
-              </div>
-              <button type="button" className="fj-modal-close" onClick={() => setPreview(null)} aria-label="Fechar">
-                <Icone nome="x" tam={15} />
-              </button>
-            </div>
-            <div className="no-print" style={{ display: 'flex', gap: 8, padding: '0 16px' }}>
-              <button type="button" className="btn-secundario" onClick={() => void imprimirPreview()} disabled={imprimindo}>
-                {imprimindo ? 'Preparando…' : 'Imprimir'}
-              </button>
-              <button type="button" className="barra-btn barra-btn-pdf" onClick={() => void baixarPreview()} disabled={exportando}>
-                <Icone nome="download" tam={13} /> {exportando ? 'Gerando PDF…' : 'Baixar PDF'}
-              </button>
-            </div>
-            <div style={{ padding: 16 }} className="relatorio-preview">
-              <PaginaA4>
-                <iframe
-                  src={`/arquivos-inspecao/${preview.doc}?tag=${encodeURIComponent(preview.tag)}`}
-                  scrolling="no"
-                  title={preview.doc}
-                />
-              </PaginaA4>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
