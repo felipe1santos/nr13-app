@@ -56,7 +56,7 @@ export function montarListaComTermoAbertura(
 
   const resultado: string[] = [];
   for (const doc of docsSelecionados) {
-    if (doc === 'LIVRO-REGISTRO.html' && precisaAbertura) resultado.push('TERMO-ABERTURA.html');
+    if (doc === 'LIVRO-REGISTRO.html' && precisaAbertura) resultado.push('CAPA-LIVRO-REGISTRO.html', 'TERMO-ABERTURA.html');
     resultado.push(doc);
     if (doc === 'TESTE-HIDROSTATICO.html' && precisaFotosTH) resultado.push('TESTE-HIDROSTATICO-FOTOS.html');
     if (doc === 'VISUAL-EXTERNO.html' && precisaFotosVE) resultado.push('VISUAL-EXTERNO-FOTOS.html');

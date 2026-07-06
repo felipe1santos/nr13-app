@@ -57,7 +57,7 @@ function montarLinhas(): LinhaLivro[] {
 export default function LivroRegistro() {
   const navigate = useNavigate();
   const linhas = useMemo(() => montarLinhas(), []);
-  const [preview, setPreview] = useState<{ tag: string; doc: 'LIVRO-REGISTRO.html' | 'TERMO-ABERTURA.html' } | null>(null);
+  const [preview, setPreview] = useState<{ tag: string; doc: 'LIVRO-REGISTRO.html' | 'TERMO-ABERTURA.html' | 'CAPA-LIVRO-REGISTRO.html' } | null>(null);
   const [imprimindo, setImprimindo] = useState(false);
   const [exportando, setExportando] = useState(false);
 
@@ -68,7 +68,7 @@ export default function LivroRegistro() {
   useEffect(() => {
     if (!preview) return;
     let cancelado = false;
-    const container = document.querySelector<HTMLElement>('.livro-preview');
+    const container = document.querySelector<HTMLElement>('.relatorio-preview');
     if (!container) return;
     const iframe = container.querySelector('iframe');
     const aguardar = iframe?.contentDocument && iframe.contentDocument.readyState === 'complete'
@@ -77,7 +77,7 @@ export default function LivroRegistro() {
     aguardar
       .then(() => new Promise((r) => setTimeout(r, 400)))
       .then(() => {
-        if (!cancelado) void prepararFolhasImpressao('.livro-preview');
+        if (!cancelado) void prepararFolhasImpressao('.relatorio-preview');
       });
     return () => {
       cancelado = true;
@@ -88,7 +88,7 @@ export default function LivroRegistro() {
   async function imprimirPreview() {
     setImprimindo(true);
     try {
-      await imprimirRelatorio('.livro-preview');
+      await imprimirRelatorio('.relatorio-preview');
     } finally {
       setImprimindo(false);
     }
@@ -98,8 +98,11 @@ export default function LivroRegistro() {
     if (!preview) return;
     setExportando(true);
     try {
-      const nome = preview.doc === 'TERMO-ABERTURA.html' ? 'Termo_Abertura' : 'Livro_Registro';
-      await exportarPdf('.livro-preview', `${nome}_${preview.tag}.pdf`);
+      const nome =
+        preview.doc === 'TERMO-ABERTURA.html' ? 'Termo_Abertura'
+        : preview.doc === 'CAPA-LIVRO-REGISTRO.html' ? 'Capa_Livro_Registro'
+        : 'Livro_Registro';
+      await exportarPdf('.relatorio-preview', `${nome}_${preview.tag}.pdf`);
     } finally {
       setExportando(false);
     }
@@ -163,9 +166,9 @@ export default function LivroRegistro() {
                             <button
                               type="button"
                               className="fj-btn fj-btn-ghost"
-                              onClick={() => setPreview({ tag: l.tag, doc: 'LIVRO-REGISTRO.html' })}
+                              onClick={() => setPreview({ tag: l.tag, doc: 'CAPA-LIVRO-REGISTRO.html' })}
                             >
-                              <Icone nome="eye" tam={13} style={{ color: 'var(--blue2)' }} /> Livro
+                              <Icone nome="filetext" tam={13} style={{ color: '#1e3a8a' }} /> Capa
                             </button>
                             <button
                               type="button"
@@ -173,6 +176,13 @@ export default function LivroRegistro() {
                               onClick={() => setPreview({ tag: l.tag, doc: 'TERMO-ABERTURA.html' })}
                             >
                               <Icone nome="filetext" tam={13} /> Termo
+                            </button>
+                            <button
+                              type="button"
+                              className="fj-btn fj-btn-ghost"
+                              onClick={() => setPreview({ tag: l.tag, doc: 'LIVRO-REGISTRO.html' })}
+                            >
+                              <Icone nome="eye" tam={13} style={{ color: 'var(--blue2)' }} /> Livro
                             </button>
                           </>
                         ) : (
@@ -202,7 +212,13 @@ export default function LivroRegistro() {
           <div className="fj-modal-box" style={{ maxWidth: 900 }}>
             <div className="fj-modal-head">
               <div>
-                <div className="fj-eyebrow">{preview.doc === 'TERMO-ABERTURA.html' ? 'Termo de abertura' : 'Livro de registro'}</div>
+                <div className="fj-eyebrow">
+                  {preview.doc === 'TERMO-ABERTURA.html'
+                    ? 'Termo de abertura'
+                    : preview.doc === 'CAPA-LIVRO-REGISTRO.html'
+                      ? 'Capa do livro de registro'
+                      : 'Livro de registro'}
+                </div>
                 <h2>{preview.tag}</h2>
               </div>
               <button type="button" className="fj-modal-close" onClick={() => setPreview(null)} aria-label="Fechar">
@@ -217,7 +233,7 @@ export default function LivroRegistro() {
                 <Icone nome="download" tam={13} /> {exportando ? 'Gerando PDF…' : 'Baixar PDF'}
               </button>
             </div>
-            <div style={{ padding: 16 }} className="livro-preview">
+            <div style={{ padding: 16 }} className="relatorio-preview">
               <PaginaA4>
                 <iframe
                   src={`/arquivos-inspecao/${preview.doc}?tag=${encodeURIComponent(preview.tag)}`}

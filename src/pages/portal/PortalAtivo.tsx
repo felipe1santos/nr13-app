@@ -73,12 +73,12 @@ export default function PortalAtivo() {
   const itensRegistros = useMemo(() => {
     const itens: { titulo: string; doc: string; meta?: string }[] = [];
     if (livro.length > 0) {
-      itens.push({ titulo: 'Livro de Registro de Segurança', doc: 'LIVRO-REGISTRO.html', meta: `${livro.length} registro(s)` });
+      itens.push({ titulo: 'Capa do Livro de Registro', doc: 'CAPA-LIVRO-REGISTRO.html' });
       itens.push({ titulo: 'Termo de Abertura', doc: 'TERMO-ABERTURA.html' });
+      itens.push({ titulo: 'Livro de Registro de Segurança', doc: 'LIVRO-REGISTRO.html', meta: `${livro.length} registro(s)` });
     }
-    if (capa) itens.push({ titulo: 'Capa do Equipamento', doc: 'CAPA.html' });
     return itens;
-  }, [livro, capa]);
+  }, [livro]);
 
   const eventosHistorico = useMemo<EventoHistorico[]>(() => {
     const out: EventoHistorico[] = [];
