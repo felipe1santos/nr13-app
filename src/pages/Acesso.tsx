@@ -193,7 +193,7 @@ export default function Acesso() {
   }
 
   return (
-    <div className="cad-page">
+    <div className="cad-page acesso-page-larga">
       <p style={{ color: 'var(--text-muted)', marginBottom: 18 }}>
         Crie logins para sua equipe e marque o que cada um pode acessar. Acessos de <b>cliente</b>{' '}
         (portal somente-leitura) são criados na tela <b>Clientes</b>, dentro da empresa do cliente.
@@ -350,7 +350,12 @@ export default function Acesso() {
                     <td style={{ fontWeight: 600 }}>{u.email}</td>
                     <td>
                       {u.papel === 'cliente' ? (
-                        nomesClientes.get(u.cliente_id ?? '') || ROTULO_PAPEL.cliente
+                        <span
+                          className="acesso-empresa-nome"
+                          title={nomesClientes.get(u.cliente_id ?? '') || ROTULO_PAPEL.cliente}
+                        >
+                          {nomesClientes.get(u.cliente_id ?? '') || ROTULO_PAPEL.cliente}
+                        </span>
                       ) : (
                         <select
                           value={u.papel}

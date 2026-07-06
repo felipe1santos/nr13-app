@@ -514,6 +514,18 @@
 .acesso-ultimo.recente { color: var(--blue2); }
 .acesso-ultimo.antigo { color: var(--muted); font-weight: 400; }
 
+/* Acessos: tela larga — a tabela (7 colunas) comprime no limite de 900px do .cad-page */
+.cad-page.acesso-page-larga { max-width: none; }
+
+/* Coluna Empresa: razões sociais longas em 1 linha com reticências (texto completo no hover) */
+.acesso-empresa-nome {
+  display: block;
+  max-width: 240px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* Abas Equipe × Clientes (mesmo padrão das abas de Calibrações) */
 .acesso-abas {
   display: flex;
