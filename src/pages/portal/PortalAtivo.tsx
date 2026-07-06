@@ -9,6 +9,8 @@ import { listarContainers, carregarContainer } from '../../features/inspecoes/in
 import { listarComponentes } from '../../features/calibracoes/componentesService';
 import { listarCalibracoes } from '../../features/calibracoes/calibracaoService';
 import type { DadosCalibracao } from '../../features/calibracoes/tipos';
+import { carregarProntuario, gravarProntuarioAtual } from '../../features/prontuarios/prontuarioService';
+import { PAGINAS_PRONTUARIO } from '../../features/prontuarios/tipos';
 import { parseDataFlex, statusPrazo } from '../../services/vencimentos';
 import type { InfoEquipamento } from '../../features/equipamento/tipos';
 import type { RelatorioSalvo } from '../../features/relatorios/tipos';
@@ -17,13 +19,6 @@ import '../relatorios.css';
 import '../calibracoes.css';
 
 type Aba = 'documentacao' | 'prontuario' | 'registros' | 'historico' | 'acessorios';
-
-const DOCS_PRONTUARIO = ['PRONTUARIO.html'];
-const DOCS_REGISTROS = ['LIVRO-REGISTRO.html', 'TERMO-ABERTURA.html', 'CAPA.html'];
-
-function contemDoc(r: RelatorioSalvo, alvos: string[]): boolean {
-  return r.documentos.some((d) => alvos.includes(d.split('?')[0]));
-}
 
 interface LivroEntradaView {
   data: string;
@@ -42,6 +37,13 @@ interface EventoHistorico {
   aoClicar?: () => void;
 }
 
+// Documento simples (Prontuário / Livro / Termo / Capa): já não depende de um relatório
+// salvo — igual ao padrão de LivroRegistro.tsx e Prontuarios.tsx (visualizador própria).
+interface DocumentoSimples {
+  titulo: string;
+  paginas: string[]; // URLs prontas do iframe (já com ?tag=...&page=...)
+}
+
 // Detalhe do ativo no portal: resumo à esquerda, abas à direita (Documentação /
 // Prontuário / Registros / Histórico / Acessórios). Tudo somente leitura.
 export default function PortalAtivo() {
@@ -49,6 +51,7 @@ export default function PortalAtivo() {
   const [aba, setAba] = useState<Aba>('documentacao');
   const [relatorioAberto, setRelatorioAberto] = useState<RelatorioSalvo | null>(null);
   const [docsVisiveis, setDocsVisiveis] = useState<string[]>([]);
+  const [documentoSimples, setDocumentoSimples] = useState<DocumentoSimples | null>(null);
   const [imprimindo, setImprimindo] = useState(false);
   const [exportando, setExportando] = useState(false);
 
@@ -63,9 +66,19 @@ export default function PortalAtivo() {
   const containers = useMemo(() => listarContainers(tag), [tag]);
   const componentes = useMemo(() => listarComponentes(tag), [tag]);
   const calibracoes = useMemo(() => listarCalibracoes(tag), [tag]);
+  const prontuario = useMemo(() => carregarProntuario(tag), [tag]);
 
-  const docsProntuario = useMemo(() => relatorios.filter((r) => contemDoc(r, DOCS_PRONTUARIO)), [relatorios]);
-  const docsRegistros = useMemo(() => relatorios.filter((r) => contemDoc(r, DOCS_REGISTROS)), [relatorios]);
+  // Itens da aba Registros: só os que realmente existem pra este equipamento (mesma
+  // condição de LivroRegistro.tsx — termo de abertura nasce junto com a 1ª entrada do livro).
+  const itensRegistros = useMemo(() => {
+    const itens: { titulo: string; doc: string; meta?: string }[] = [];
+    if (livro.length > 0) {
+      itens.push({ titulo: 'Livro de Registro de Segurança', doc: 'LIVRO-REGISTRO.html', meta: `${livro.length} registro(s)` });
+      itens.push({ titulo: 'Termo de Abertura', doc: 'TERMO-ABERTURA.html' });
+    }
+    if (capa) itens.push({ titulo: 'Capa do Equipamento', doc: 'CAPA.html' });
+    return itens;
+  }, [livro, capa]);
 
   const eventosHistorico = useMemo<EventoHistorico[]>(() => {
     const out: EventoHistorico[] = [];
@@ -117,6 +130,30 @@ export default function PortalAtivo() {
     setRelatorioAberto(r);
   }
 
+  // Livro/Termo/Capa: documentos que dependem só da TAG (sem relatório escolhido),
+  // igual ao preview usado em LivroRegistro.tsx.
+  function abrirRegistro(titulo: string, doc: string) {
+    setDocumentoSimples({ titulo, paginas: [`/arquivos-inspecao/${doc}?tag=${encodeURIComponent(tag)}&page=1`] });
+  }
+
+  // Prontuário: registro único por equipamento (nr13_prontuario_<TAG>), independente
+  // do histórico de relatórios — mesmo fluxo de Prontuarios.tsx (gravarProntuarioAtual
+  // antes de montar os iframes de /arquivos-prontuario/).
+  async function abrirProntuario() {
+    if (!prontuario) return;
+    await gravarProntuarioAtual(prontuario);
+    const n = PAGINAS_PRONTUARIO.length;
+    setDocumentoSimples({
+      titulo: 'Prontuário',
+      paginas: PAGINAS_PRONTUARIO.map((doc, i) => `/arquivos-prontuario/${doc}?tag=${encodeURIComponent(tag)}&page=${i + 1}&total=${n}`),
+    });
+  }
+
+  function fecharVisualizador() {
+    setRelatorioAberto(null);
+    setDocumentoSimples(null);
+  }
+
   async function imprimirDocumento() {
     setImprimindo(true);
     try {
@@ -127,19 +164,28 @@ export default function PortalAtivo() {
   }
 
   async function baixarDocumento() {
-    if (!relatorioAberto) return;
+    const titulo = relatorioAberto?.nome ?? documentoSimples?.titulo;
+    if (!titulo) return;
     setExportando(true);
     try {
-      await exportarPdf('.relatorio-preview', `${relatorioAberto.nome.replace(/\s+/g, '_')}_${tag}.pdf`);
+      await exportarPdf('.relatorio-preview', `${titulo.replace(/\s+/g, '_')}_${tag}.pdf`);
     } finally {
       setExportando(false);
     }
   }
 
+  const paginasAtivas = relatorioAberto
+    ? docsVisiveis.map((doc, i) => {
+        const sep = doc.includes('?') ? '&' : '?';
+        return `/arquivos-inspecao/${doc}${sep}tag=${encodeURIComponent(tag)}&page=${i + 1}`;
+      })
+    : documentoSimples?.paginas ?? null;
+  const tituloAtivo = relatorioAberto?.nome ?? documentoSimples?.titulo ?? '';
+
   // Pré-rasteriza as folhas em #print-root assim que o documento abre (mesmo padrão de
   // Relatorios.tsx), pra que o Ctrl+P nativo já imprima as imagens prontas.
   useEffect(() => {
-    if (!relatorioAberto) return;
+    if (!paginasAtivas) return;
     let cancelado = false;
     const preview = document.querySelector<HTMLElement>('.relatorio-preview');
     if (!preview) return;
@@ -159,13 +205,14 @@ export default function PortalAtivo() {
       cancelado = true;
       limparFolhasImpressao();
     };
-  }, [relatorioAberto, docsVisiveis]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- paginasAtivas é recriado a cada render; comparar pelo conteúdo via join evita loop
+  }, [paginasAtivas?.join('|')]);
 
-  if (relatorioAberto) {
+  if (paginasAtivas) {
     return (
       <div className="portal-pagina">
         <div className="meta-barra-fixa no-print">
-          <button type="button" className="btn-secundario barra-btn" onClick={() => setRelatorioAberto(null)}>
+          <button type="button" className="btn-secundario barra-btn" onClick={fecharVisualizador}>
             ← Voltar para {tag}
           </button>
           <div className="meta-barra-acoes">
@@ -177,16 +224,13 @@ export default function PortalAtivo() {
             </button>
           </div>
         </div>
-        <h2 style={{ margin: '12px 0' }}>{relatorioAberto.nome}</h2>
+        <h2 style={{ margin: '12px 0' }}>{tituloAtivo}</h2>
         <div className="relatorio-preview portal-preview-doc">
-          {docsVisiveis.map((doc, i) => {
-            const sep = doc.includes('?') ? '&' : '?';
-            return (
-              <PaginaA4 key={`${doc}-${i}`}>
-                <iframe src={`/arquivos-inspecao/${doc}${sep}tag=${tag}&page=${i + 1}`} scrolling="no" title={doc} />
-              </PaginaA4>
-            );
-          })}
+          {paginasAtivas.map((src, i) => (
+            <PaginaA4 key={`${src}-${i}`}>
+              <iframe src={src} scrolling="no" title={tituloAtivo} />
+            </PaginaA4>
+          ))}
         </div>
       </div>
     );
@@ -267,13 +311,49 @@ export default function PortalAtivo() {
 
           {aba === 'prontuario' && (
             <div className="portal-aba-corpo">
-              <ListaDocumentos lista={docsProntuario} vazio="Nenhum prontuário publicado para este equipamento ainda." />
+              {!prontuario ? (
+                <p className="portal-hint">Nenhum prontuário elaborado para este equipamento ainda.</p>
+              ) : (
+                <ul className="portal-lista-docs">
+                  <li>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <Icone nome="filetext" tam={18} style={{ color: '#1e3a8a' }} />
+                      <div>
+                        <b>Prontuário do Equipamento</b>
+                        <span className="portal-doc-meta">Atualizado em {prontuario.criadoEm}</span>
+                      </div>
+                    </div>
+                    <button type="button" className="btn-primario" onClick={() => void abrirProntuario()}>
+                      Visualizar
+                    </button>
+                  </li>
+                </ul>
+              )}
             </div>
           )}
 
           {aba === 'registros' && (
             <div className="portal-aba-corpo">
-              <ListaDocumentos lista={docsRegistros} vazio="Nenhum livro de registro, termo de abertura ou capa publicado ainda." />
+              {itensRegistros.length === 0 ? (
+                <p className="portal-hint">Nenhum livro de registro, termo de abertura ou capa publicado ainda.</p>
+              ) : (
+                <ul className="portal-lista-docs">
+                  {itensRegistros.map((item) => (
+                    <li key={item.doc}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <Icone nome="filetext" tam={18} style={{ color: '#1e3a8a' }} />
+                        <div>
+                          <b>{item.titulo}</b>
+                          {item.meta && <span className="portal-doc-meta">{item.meta}</span>}
+                        </div>
+                      </div>
+                      <button type="button" className="btn-primario" onClick={() => abrirRegistro(item.titulo, item.doc)}>
+                        Visualizar
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
 
