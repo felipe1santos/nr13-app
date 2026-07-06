@@ -10,6 +10,7 @@ export interface SubUsuario {
   ativo: boolean;
   sessao_ativa: boolean;
   ultimo_acesso: string | null;
+  ultima_sync: string | null;
   criado_em: string | null;
 }
 

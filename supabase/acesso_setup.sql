@@ -18,6 +18,9 @@ alter table public.profiles add column if not exists criado_por      uuid;      
 -- Sessão única (heartbeat):
 alter table public.profiles add column if not exists sessao_token    text;
 alter table public.profiles add column if not exists sessao_visto_em timestamptz;
+-- Última sincronização de dados (app atualiza após gravação bem-sucedida em app_storage;
+-- exibida na tela Acessos para saber quem conseguiu enviar os dados de campo):
+alter table public.profiles add column if not exists ultima_sync     timestamptz;
 
 -- Backfill: contas existentes viram mestre e org de si mesmas.
 update public.profiles set org_id = id       where org_id is null;

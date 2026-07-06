@@ -125,14 +125,23 @@ export default function DadosEmpresa({ tag }: { tag: string }) {
           </div>
         </>
       ) : (
-        <div className="dash-grid-4">
-          {CAMPOS_VIEW.map((c) => (
-            <div key={c.chave} className={`resultado-item ${c.span2 ? 'span-2' : ''}`}>
-              <span className="lbl-view">{c.label}</span>
-              <span className="val-view">{empresa[c.chave] || '—'}</span>
-            </div>
-          ))}
-        </div>
+        <>
+          {!empresa.clienteId && (
+            <p className="emp-aviso-sem-cliente">
+              <Icone nome="alerttri" tam={13} style={{ display: 'inline-block', verticalAlign: -2, marginRight: 5 }} />
+              Sem cliente vinculado — selecione uma empresa cadastrada em "Editar" para este
+              equipamento aparecer no portal do cliente.
+            </p>
+          )}
+          <div className="dash-grid-4">
+            {CAMPOS_VIEW.map((c) => (
+              <div key={c.chave} className={`resultado-item ${c.span2 ? 'span-2' : ''}`}>
+                <span className="lbl-view">{c.label}</span>
+                <span className="val-view">{empresa[c.chave] || '—'}</span>
+              </div>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

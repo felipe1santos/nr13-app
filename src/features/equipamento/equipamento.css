@@ -714,6 +714,8 @@
   margin-bottom: 2px;
 }
 .plate-empresa { font-size: 11.5px; color: var(--muted); margin-bottom: 13px; }
+/* Equipamento sem cliente vinculado: não aparece no portal do cliente — aviso âmbar. */
+.plate-empresa.sem-cliente { color: var(--amber-deep); font-weight: 600; }
 
 .plate-meta-grid {
   display: grid;

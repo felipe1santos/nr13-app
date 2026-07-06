@@ -67,6 +67,35 @@ function enfileirar(op: Op): void {
   escreverFila(fila);
 }
 
+// ---------------------------------------------------------------------------
+// Última sincronização (profiles.ultima_sync)
+// ---------------------------------------------------------------------------
+// Após uma gravação bem-sucedida em app_storage, marca no perfil do usuário quando ele
+// conseguiu enviar dados ao servidor (exibido na tela Acessos). Best-effort: falha (offline,
+// coluna ainda não criada pelo acesso_setup.sql, RLS) é ignorada em silêncio. Throttle de
+// 60s em memória para não dobrar as requisições em salvamentos em sequência.
+const SYNC_THROTTLE_MS = 60_000;
+let ultimaSyncRegistradaEm = 0;
+
+function registrarSync(): void {
+  const agora = Date.now();
+  if (agora - ultimaSyncRegistradaEm < SYNC_THROTTLE_MS) return;
+  ultimaSyncRegistradaEm = agora;
+  void (async () => {
+    try {
+      const userId = await idUsuarioAtual();
+      if (!userId) return;
+      await supabase
+        .from('profiles')
+        .update({ ultima_sync: new Date().toISOString() })
+        .eq('id', userId);
+    } catch {
+      // best-effort: no próximo salvamento tenta de novo
+      ultimaSyncRegistradaEm = 0;
+    }
+  })();
+}
+
 // Drena a fila contra o Supabase. Fila vazia → retorna IMEDIATAMENTE (custo zero no caminho
 // online). Aplica as ops EM ORDEM; cada sucesso sai da fila. Se uma falhar (ainda offline),
 // PARA e mantém o restante (preservando a ordem). Sem userId, retorna sem mexer na fila.
@@ -76,6 +105,7 @@ export async function flushFila(): Promise<void> {
   const escopo = await escopoStorageAtual();
   if (!escopo) return;
   const userId = await idUsuarioAtual();
+  let drenouAlguma = false;
   while (fila.length > 0) {
     const op = fila[0];
     try {
@@ -103,7 +133,9 @@ export async function flushFila(): Promise<void> {
     // sucesso desta op: remove da frente e persiste o que sobrou
     fila = fila.slice(1);
     escreverFila(fila);
+    drenouAlguma = true;
   }
+  if (drenouAlguma) registrarSync();
 }
 
 // Drena a fila ao reconectar (registrado UMA única vez no carregamento do módulo).
@@ -236,6 +268,7 @@ export async function salvar(chave: string, objeto: unknown): Promise<void> {
     // supabase-js NÃO lança em erro de RLS/constraint — devolve { error }. Sem esta
     // checagem a escrita se perdia em silêncio (ficava só no localStorage local).
     if (error) enfileirar({ op: 'set', chave, valor });
+    else registrarSync();
   } catch {
     // offline: o upsert lançou → enfileira a escrita para não ser perdida no próximo reconcile
     enfileirar({ op: 'set', chave, valor });

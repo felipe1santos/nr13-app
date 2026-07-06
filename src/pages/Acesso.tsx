@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icone } from '../components/Icone';
+import { listarClientes } from '../features/cadastros/cadastroService';
 import {
   criarSubUsuario,
   definirAtivoSub,
@@ -52,11 +53,12 @@ const PRESETS: Record<Perfil, { papel: 'gerente' | 'funcionario'; modulos: Modul
 
 const MS_DIA = 86_400_000;
 
-// "Último acesso em ..." — azul para acessos recentes (≤ 7 dias), cinza para antigos.
-function UltimoAcesso({ iso }: { iso: string | null }) {
-  if (!iso) return <span className="acesso-ultimo antigo">Nunca acessou</span>;
+// Carimbo de tempo relativo — azul para recentes (≤ 7 dias), cinza para antigos.
+// Usado em "Último acesso" e "Última sincronização".
+function CarimboTempo({ iso, rotulo, vazio }: { iso: string | null; rotulo: string; vazio: string }) {
+  if (!iso) return <span className="acesso-ultimo antigo">{vazio}</span>;
   const d = new Date(iso);
-  if (isNaN(d.getTime())) return <span className="acesso-ultimo antigo">Nunca acessou</span>;
+  if (isNaN(d.getTime())) return <span className="acesso-ultimo antigo">{vazio}</span>;
   const dias = Math.floor((Date.now() - d.getTime()) / MS_DIA);
   const recente = dias <= 7;
   const quando =
@@ -67,7 +69,7 @@ function UltimoAcesso({ iso }: { iso: string | null }) {
         : `${d.toLocaleDateString('pt-BR')}`;
   return (
     <span className={`acesso-ultimo ${recente ? 'recente' : 'antigo'}`}>
-      Último acesso {dias <= 1 ? '' : 'em '}{quando}
+      {rotulo} {dias <= 1 ? '' : 'em '}{quando}
     </span>
   );
 }
@@ -80,6 +82,26 @@ export default function Acesso() {
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
+  const [aba, setAba] = useState<'equipe' | 'clientes'>('equipe');
+  const [busca, setBusca] = useState('');
+
+  // cliente_id → nome da empresa cliente (lista local de Cadastrar → Clientes).
+  const nomesClientes = useMemo(() => {
+    const mapa = new Map<string, string>();
+    for (const c of listarClientes()) mapa.set(c.id, c.razaoSocial || c.nomeFantasia || '');
+    return mapa;
+  }, []);
+
+  const equipe = usuarios.filter((u) => u.papel !== 'cliente');
+  const clientesLogins = usuarios.filter((u) => u.papel === 'cliente');
+  const termo = busca.trim().toLowerCase();
+  const clientesFiltrados = termo
+    ? clientesLogins.filter(
+        (u) =>
+          (u.email ?? '').toLowerCase().includes(termo) ||
+          (nomesClientes.get(u.cliente_id ?? '') ?? '').toLowerCase().includes(termo),
+      )
+    : clientesLogins;
 
   const [formAberto, setFormAberto] = useState(false);
   const [email, setEmail] = useState('');
@@ -246,43 +268,89 @@ export default function Acesso() {
 
       {/* ── Lista (tela inicial) ── */}
       <div className="bloco-dados">
+        {/* Abas: acessos da equipe (gerente/inspetor) × acessos de clientes (portal). */}
+        <div className="acesso-abas">
+          <button
+            type="button"
+            className={`acesso-aba${aba === 'equipe' ? ' ativa' : ''}`}
+            onClick={() => setAba('equipe')}
+          >
+            Equipe ({equipe.length})
+          </button>
+          <button
+            type="button"
+            className={`acesso-aba${aba === 'clientes' ? ' ativa' : ''}`}
+            onClick={() => setAba('clientes')}
+          >
+            Clientes ({clientesLogins.length})
+          </button>
+        </div>
+
         <div className="meta-card-header" style={{ marginBottom: 12 }}>
-          <h3 style={{ margin: 0, border: 'none', padding: 0 }}>Acessos criados ({usuarios.length})</h3>
-          {!formAberto && (
+          <h3 style={{ margin: 0, border: 'none', padding: 0 }}>
+            {aba === 'equipe' ? `Acessos da equipe (${equipe.length})` : `Acessos de clientes (${clientesLogins.length})`}
+          </h3>
+          {aba === 'equipe' && !formAberto && (
             <button type="button" className="btn-primario" onClick={() => { setFormAberto(true); setAviso(null); }}>
               + Cadastrar novo acesso
             </button>
           )}
+          {aba === 'clientes' && (
+            <button type="button" className="btn-secundario" onClick={() => navigate('/empresas')}>
+              Criar acesso em Clientes <Icone nome="arrowright" tam={12} style={{ display: 'inline-block', verticalAlign: -1 }} />
+            </button>
+          )}
         </div>
+
+        {aba === 'clientes' && clientesLogins.length > 0 && (
+          <div className="cad-campo" style={{ maxWidth: 340, marginBottom: 12 }}>
+            <input
+              type="search"
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Buscar por e-mail ou empresa..."
+              aria-label="Buscar acesso de cliente"
+            />
+          </div>
+        )}
 
         {carregando ? (
           <p>Carregando...</p>
-        ) : usuarios.length === 0 ? (
+        ) : aba === 'equipe' && equipe.length === 0 ? (
           <div className="fj-empty">
             <div className="fj-empty-ic"><Icone nome="key" tam={22} /></div>
             <div className="fj-empty-title">Nenhum acesso criado ainda</div>
             Clique em "Cadastrar novo acesso" para criar o login do seu gerente ou inspetor.
           </div>
+        ) : aba === 'clientes' && clientesLogins.length === 0 ? (
+          <div className="fj-empty">
+            <div className="fj-empty-ic"><Icone nome="key" tam={22} /></div>
+            <div className="fj-empty-title">Nenhum acesso de cliente ainda</div>
+            O login do cliente é criado em Clientes → editar a empresa → "Acesso ao Portal".
+          </div>
+        ) : aba === 'clientes' && clientesFiltrados.length === 0 ? (
+          <p style={{ color: 'var(--text-muted)' }}>Nenhum acesso de cliente encontrado para "{busca}".</p>
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table className="cad-tabela" style={{ width: '100%' }}>
               <thead>
                 <tr>
                   <th>E-mail</th>
-                  <th>Papel</th>
+                  {aba === 'equipe' ? <th>Papel</th> : <th>Empresa</th>}
                   <th>Último acesso</th>
+                  <th>Última sincronização</th>
                   <th>Status</th>
                   <th>Sessão</th>
                   <th>Ações</th>
                 </tr>
               </thead>
               <tbody>
-                {usuarios.map((u) => (
+                {(aba === 'equipe' ? equipe : clientesFiltrados).map((u) => (
                   <tr key={u.id}>
                     <td style={{ fontWeight: 600 }}>{u.email}</td>
                     <td>
                       {u.papel === 'cliente' ? (
-                        ROTULO_PAPEL.cliente
+                        nomesClientes.get(u.cliente_id ?? '') || ROTULO_PAPEL.cliente
                       ) : (
                         <select
                           value={u.papel}
@@ -298,7 +366,8 @@ export default function Acesso() {
                         </select>
                       )}
                     </td>
-                    <td><UltimoAcesso iso={u.ultimo_acesso ?? null} /></td>
+                    <td><CarimboTempo iso={u.ultimo_acesso ?? null} rotulo="Último acesso" vazio="Nunca acessou" /></td>
+                    <td><CarimboTempo iso={u.ultima_sync ?? null} rotulo="Sincronizou" vazio="Nunca sincronizou" /></td>
                     <td>
                       {u.ativo ? <span className="fj-badge ok">Liberado</span> : <span className="fj-badge crit">Bloqueado</span>}
                     </td>

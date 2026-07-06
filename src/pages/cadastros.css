@@ -423,6 +423,18 @@
   border-bottom: 1px dashed var(--border-solid);
 }
 
+/* Ficha sem cliente vinculado (equipamento fora do portal do cliente) */
+.emp-aviso-sem-cliente {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--amber-deep);
+  background: #FFF6EC;
+  border: 1px solid var(--amber);
+  border-radius: 8px;
+  padding: 9px 12px;
+  margin: 0 0 14px;
+}
+
 .emp-cliente-selector label {
   font-size: 11px;
   font-weight: 700;
@@ -497,10 +509,34 @@
 .acesso-permissao-opt:hover { background: var(--steel); }
 .acesso-permissao-opt input { accent-color: var(--amber); width: 15px; height: 15px; }
 
-/* "Último acesso": azul para recentes (≤7 dias), cinza para antigos */
+/* "Último acesso" / "Última sincronização": azul para recentes (≤7 dias), cinza para antigos */
 .acesso-ultimo { font-size: 12px; font-weight: 600; white-space: nowrap; }
 .acesso-ultimo.recente { color: var(--blue2); }
 .acesso-ultimo.antigo { color: var(--muted); font-weight: 400; }
+
+/* Abas Equipe × Clientes (mesmo padrão das abas de Calibrações) */
+.acesso-abas {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 16px;
+}
+.acesso-aba {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: var(--font-base);
+}
+.acesso-aba:hover { color: var(--text); }
+.acesso-aba.ativa {
+  color: var(--amber-deep);
+  border-bottom-color: var(--amber);
+}
 
 /* ── Clientes: cards estilo resultado Google + detalhe com mapa ── */
 .cli-card-clicavel { cursor: pointer; }

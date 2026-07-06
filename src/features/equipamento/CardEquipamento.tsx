@@ -5,6 +5,7 @@ import type { SistemaUnidade } from '../../calc/unidades';
 import { FATORES_CONVERSAO, formatarValor } from '../../calc/unidades';
 import { salvarUnidade } from './equipamentoService';
 import { ler } from '../../services/storage';
+import { Icone } from '../../components/Icone';
 import './equipamento.css';
 
 const ROTULO_TIPO: Record<string, string> = {
@@ -84,7 +85,15 @@ export default function CardEquipamento({ item }: { item: EquipamentoResumo }) {
         </div>
 
         <div className="plate-name">{info.descricao || rotuloTipo}</div>
-        <div className="plate-empresa">{empresaTxt || 'Empresa não vinculada'}</div>
+        {/* Sem clienteId o equipamento não aparece no portal do cliente — aviso âmbar. */}
+        {emp?.clienteId ? (
+          <div className="plate-empresa">{empresaTxt}</div>
+        ) : (
+          <div className="plate-empresa sem-cliente">
+            <Icone nome="alerttri" tam={12} style={{ display: 'inline-block', verticalAlign: -2, marginRight: 4 }} />
+            Sem cliente vinculado{empresaTxt ? ` · ${empresaTxt}` : ''}
+          </div>
+        )}
 
         <div className="plate-meta-grid">
           <div>
