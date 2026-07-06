@@ -9,6 +9,7 @@
 // confirmada em múltiplas fontes (ver plano de refatoração). PMTA, verificação de tirante e teste
 // hidrostático (1.3×PMTA, UG-99(b)) seguem a mesma estrutura de antes.
 import { CSS_AVISO, CSS_ERRO, CSS_OK, num, numOuPadrao } from './format';
+import { areaResistenteParafuso } from './vaso';
 import type { NumLike, ResultadoCalculo } from './tipos';
 
 export interface DadosAutoclaveRetangular {
@@ -203,7 +204,8 @@ export function vertical(dados: DadosAutoclaveVertical): ResultadoCalculo {
   const areaTampa = (Math.PI * D * D) / 4;
   const forcaTotal = P * areaTampa;
   const cargaPorTrava = N > 0 ? forcaTotal / N : Infinity;
-  const areaTrava = (Math.PI * dTrava * dTrava) / 4;
+  // Área resistente da rosca (stress area) — nunca π·d²/4 (revisão de engenharia).
+  const areaTrava = areaResistenteParafuso(dTrava);
   const cargaAdm = areaTrava * Strava;
   const travas_ok = cargaAdm >= cargaPorTrava;
 
@@ -218,6 +220,7 @@ export function vertical(dados: DadosAutoclaveVertical): ResultadoCalculo {
     '// ====================================================',
     '// MEMORIAL DE CÁLCULO - AUTOCLAVE VERTICAL (NR-13)',
     '// Modelo: tampo plano removível com travas (UG-34) + costado cilíndrico (UG-27) + fundo',
+    '// Conforme ASME VIII Div.1 – UG-34, UG-27 e UG-32',
     '// ====================================================',
     '// PARÂMETROS DE ENTRADA:',
     `// P = ${P.toFixed(4)} MPa | D = ${D.toFixed(2)} mm | S = ${S.toFixed(2)} MPa | E = ${E.toFixed(2)} | CA = ${CA.toFixed(2)} mm | C = ${C}`,
@@ -243,6 +246,7 @@ export function vertical(dados: DadosAutoclaveVertical): ResultadoCalculo {
       : `<div style="${CSS_ERRO}"><b>REPROVADO:</b> espessura útil do fundo (${tuFundo.toFixed(2)} mm) < requerida (${treqFundo.toFixed(3)} mm).</div>`,
     ' ',
     '// 4. VERIFICAÇÃO DAS TRAVAS',
+    `// A_trava = área resistente da rosca (stress area) = ${areaTrava.toFixed(2)} mm² — nunca π·d²/4.`,
     `$$A_{tampa} = \\frac{\\pi D^2}{4} = ${areaTampa.toFixed(2)} \\text{ mm}^2 \\quad F = P \\cdot A = ${forcaTotal.toFixed(2)} \\text{ N}$$`,
     `$$F_{trava} = F/N = ${cargaPorTrava.toFixed(2)} \\text{ N} \\quad F_{adm} = A_{trava} \\cdot S_{trava} = ${cargaAdm.toFixed(2)} \\text{ N}$$`,
     travas_ok
@@ -275,10 +279,13 @@ export function cilindrica(dados: DadosAutoclaveCilindrica): ResultadoCalculo {
   const pmta_circ = (S * E * t_util) / (R + 0.6 * t_util);
 
   const t_min_long = (P * R) / (2 * S * E + 0.4 * P);
-  // UG-27(c) é válido só p/ parede fina (D/t > 20). Em parede grossa R − 0,4·t_util ≤ 0 produziria
-  // PMTA negativa/infinita que contaminaria o min — guarda: nesse caso a junta long. não governa.
+  // Limite de aplicação (revisão de engenharia): a equação da UG-27(c)(2) é válida somente quando
+  // R − 0,4·t_util > 0. Fora dessa condição a equação está fora do domínio de aplicação e os
+  // resultados não são válidos para determinação da espessura mínima ou da PMTA — nesse caso a
+  // junta longitudinal não governa (Infinity mantém o min() na junta circunferencial).
   const denom_long = R - 0.4 * t_util;
-  const pmta_long = denom_long > 0 ? (2 * S * E * t_util) / denom_long : Infinity;
+  const long_aplicavel = denom_long > 0;
+  const pmta_long = long_aplicavel ? (2 * S * E * t_util) / denom_long : Infinity;
 
   const t_min = Math.max(t_min_circ, t_min_long);
   const pmta = Math.min(pmta_circ, pmta_long);
@@ -328,7 +335,12 @@ export function cilindrica(dados: DadosAutoclaveCilindrica): ResultadoCalculo {
     ' ',
     '// 3. CÁLCULO DA PRESSÃO MÁXIMA (PMTA) — menor entre as duas juntas',
     `$$PMTA_{circ} = \\frac{S \\cdot E \\cdot t_{util}}{R + 0.6 \\cdot t_{util}} = ${pmta_circ.toFixed(3)} \\text{ MPa}$$`,
-    `$$PMTA_{long} = \\frac{2 \\cdot S \\cdot E \\cdot t_{util}}{R - 0.4 \\cdot t_{util}} = ${pmta_long.toFixed(3)} \\text{ MPa}$$`,
+    ...(long_aplicavel
+      ? [`$$PMTA_{long} = \\frac{2 \\cdot S \\cdot E \\cdot t_{util}}{R - 0.4 \\cdot t_{util}} = ${pmta_long.toFixed(3)} \\text{ MPa}$$`]
+      : [
+          `// PMTA_long (UG-27(c)(2)): NÃO APLICÁVEL — R − 0,4·t_util = ${denom_long.toFixed(3)} mm ≤ 0.`,
+          `<div style="${CSS_AVISO}"><b>Limite de aplicação:</b> A equação da UG-27(c)(2) é válida somente quando R − 0,4·t_util &gt; 0. Caso essa condição não seja atendida, a equação encontra-se fora do seu domínio de aplicação e os resultados obtidos não são válidos para determinação da espessura mínima ou da PMTA.</div>`,
+        ]),
     `$$PMTA = \\min(PMTA_{circ}, PMTA_{long}) = ${pmta.toFixed(3)} \\text{ MPa}$$`,
     pmta_ok
       ? `<div style="${CSS_OK}"><b>OK:</b> A PMTA calculada do cilindro (${pmta.toFixed(3)} MPa) é maior ou igual à Pressão de Projeto (${P} MPa). Operação validada.</div>`

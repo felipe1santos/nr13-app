@@ -53,6 +53,17 @@ export interface DadosComponenteVaso {
   y?: NumLike;
 }
 
+// Área resistente da rosca (stress area, ISO 898-1 — rosca métrica grossa), em mm².
+// Revisão de engenharia: nos parafusos utiliza-se SEMPRE a área resistente da rosca,
+// nunca π·d²/4. Fora da tabela, aproxima por 0,78·π·d²/4 (razão As/A_nominal da rosca grossa).
+const AS_ROSCA_METRICA: Record<number, number> = {
+  6: 20.1, 8: 36.6, 10: 58.0, 12: 84.3, 14: 115, 16: 157, 18: 192, 20: 245,
+  22: 303, 24: 353, 27: 459, 30: 561, 33: 694, 36: 817, 39: 976, 42: 1121, 48: 1473,
+};
+export function areaResistenteParafuso(d: number): number {
+  return AS_ROSCA_METRICA[d] ?? 0.78 * ((Math.PI * d * d) / 4);
+}
+
 function normaRefPara(tipo: TipoComponenteVaso): string {
   switch (tipo) {
     case 'cilindrico':
@@ -70,7 +81,7 @@ function normaRefPara(tipo: TipoComponenteVaso): string {
     case 'cone':
       return 'ASME Sec. VIII Div. 1 - Parágrafo UG-32(g) - Tampo Cônico';
     case 'bocal':
-      return 'ASME Sec. VIII Div. 1 - Parágrafo UG-37 - Aberturas e Reforços (Bocais)';
+      return 'ASME Sec. VIII Div. 1 - Parágrafos UG-37, UG-40 e UG-41 - Aberturas e Reforços (Bocais)';
     case 'flange':
       return 'ASME Sec. VIII Div. 1 - Apêndice 2 - Flanges Circulares';
     default:
@@ -258,10 +269,12 @@ export function gerarBlocoComponenteVaso(
       const d_par = numOuPadrao(dados.d_parafuso, 25);
       const S_par = numOuPadrao(dados.S_parafuso, S);
       const A_total = (Math.PI * Math.pow(diametro, 2)) / 4;
-      const A_par = (Math.PI * Math.pow(d_par, 2)) / 4;
-      const F_por_par = A_total > 0 && N_par > 0 ? (pressao * A_total) / N_par : 0;
-      const sigma_par = A_par > 0 ? F_por_par / A_par : Infinity;
-      const PMTA_par = A_total > 0 ? (N_par * A_par * S_par) / A_total : 0;
+      // Área resistente da rosca (stress area) — nunca π·d²/4 (revisão de engenharia).
+      const As_par = areaResistenteParafuso(d_par);
+      const Ab = N_par * As_par;
+      const F_total = pressao * A_total;
+      const sigma_par = Ab > 0 ? F_total / Ab : Infinity;
+      const PMTA_par = A_total > 0 ? (Ab * S_par) / A_total : 0;
       const PMTA_final = Math.min(PMTA_placa, PMTA_par);
 
       const isAprovadoT = t_util >= t_req_placa;
@@ -273,7 +286,7 @@ export function gerarBlocoComponenteVaso(
 
       blocoOutput = blocoOutput.concat([
         `// PARÂMETROS DOS PARAFUSOS/TRAVAS:`,
-        `// N = ${N_par} | d_par = ${d_par.toFixed(2)} mm | S_par = ${S_par.toFixed(4)} MPa`,
+        `// N = ${N_par} | d_par = ${d_par.toFixed(2)} mm | As = ${As_par.toFixed(2)} mm² (área resistente da rosca) | Sb = ${S_par.toFixed(4)} MPa`,
         ` `,
         `// 1. ESPESSURA MÍNIMA DA TAMPA (UG-34, C = ${C_ap})`,
         `$$ t_{req} = D \\sqrt{\\frac{C \\cdot P}{S \\cdot E}} $$`,
@@ -282,16 +295,20 @@ export function gerarBlocoComponenteVaso(
         `<span class="${cssT}">${isAprovadoT ? `STATUS: APROVADO. Tútil (${t_util.toFixed(4)} mm) ≥ Treq (${t_req_placa.toFixed(4)} mm).` : `STATUS: REPROVADO! Tútil (${t_util.toFixed(4)} mm) < Treq (${t_req_placa.toFixed(4)} mm).`}</span>`,
         ` `,
         `// 2. VERIFICAÇÃO DOS PARAFUSOS/TRAVAS`,
-        `$$ A_{total} = \\frac{\\pi \\cdot D^2}{4} = ${A_total.toFixed(2)} \\text{ mm}^2 $$`,
-        `$$ F_{par} = \\frac{P \\cdot A_{total}}{N} = \\frac{${pressao.toFixed(4)} \\cdot ${A_total.toFixed(2)}}{${N_par}} = ${F_por_par.toFixed(2)} \\text{ N} $$`,
-        `$$ A_{par} = \\frac{\\pi \\cdot d_{par}^2}{4} = ${A_par.toFixed(2)} \\text{ mm}^2 $$`,
-        `$$ \\sigma_{par} = \\frac{F_{par}}{A_{par}} = ${sigma_par.toFixed(4)} \\text{ MPa } $$`,
-        `<span class="${cssPar}">${isAprovadoPar ? `STATUS: APROVADO. σ_par (${sigma_par.toFixed(4)} MPa) ≤ S_par (${S_par.toFixed(4)} MPa).` : `STATUS: REPROVADO! σ_par (${sigma_par.toFixed(4)} MPa) > S_par (${S_par.toFixed(4)} MPa).`}</span>`,
+        `// Utiliza-se sempre a área resistente da rosca (stress area), nunca π·d²/4.`,
+        `$$ A_b = N \\cdot A_s = ${N_par} \\cdot ${As_par.toFixed(2)} = ${Ab.toFixed(2)} \\text{ mm}^2 $$`,
+        `$$ F = P \\cdot \\frac{\\pi \\cdot D^2}{4} = ${pressao.toFixed(4)} \\cdot ${A_total.toFixed(2)} = ${F_total.toFixed(2)} \\text{ N} $$`,
+        `$$ \\sigma = \\frac{F}{A_b} = \\frac{${F_total.toFixed(2)}}{${Ab.toFixed(2)}} = ${sigma_par.toFixed(4)} \\text{ MPa } $$`,
+        `<span class="${cssPar}">${isAprovadoPar ? `STATUS: APROVADO. σ (${sigma_par.toFixed(4)} MPa) ≤ Sb (${S_par.toFixed(4)} MPa).` : `STATUS: REPROVADO! σ (${sigma_par.toFixed(4)} MPa) > Sb (${S_par.toFixed(4)} MPa).`}</span>`,
         ` `,
         `// 3. PMTA DO CONJUNTO (menor entre tampa UG-34 e parafusos)`,
         `$$ PMTA_{tampa} = ${PMTA_placa.toFixed(4)} \\text{ MPa } \\quad PMTA_{par} = ${PMTA_par.toFixed(4)} \\text{ MPa } $$`,
         `$$ PMTA = ${PMTA_final.toFixed(4)} \\text{ MPa } $$`,
         `<span class="${cssP}">${isPmtaOk ? `STATUS: APROVADO. PMTA (${PMTA_final.toFixed(4)} MPa) ≥ P (${pressao.toFixed(4)} MPa).` : `STATUS: REPROVADO! PMTA (${PMTA_final.toFixed(4)} MPa) < P (${pressao.toFixed(4)} MPa).`}</span>`,
+        ` `,
+        `// Observação Técnica: Esta metodologia é adequada para verificação mecânica simplificada de`,
+        `// tampo plano aparafusado em software de inspeção. Não representa a implementação completa do`,
+        `// Mandatory Appendix 2 da ASME, que inclui verificação de flange, junta de vedação, momentos e rigidez.`,
         ` `,
       ]);
       break;
@@ -319,19 +336,25 @@ export function gerarBlocoComponenteVaso(
       const S_casco = numOuPadrao(casco.S, S);
       const E_casco = numOuPadrao(casco.E, E);
 
-      const tr_casco = (pressao * R) / (S_casco * E_casco - 0.6 * pressao);
-      const trn_bocal = (pressao * (d_corroido / 2)) / (S * 1.0 - 0.6 * pressao);
+      // Eficiência de junta do próprio bocal (revisão de engenharia): bocal sem solda → E = 1,0.
+      const E_bocal = numOuPadrao(dados.E, 1.0);
 
+      const tr_casco = (pressao * R) / (S_casco * E_casco - 0.6 * pressao);
+      const trn_bocal = (pressao * (d_corroido / 2)) / (S * E_bocal - 0.6 * pressao);
+
+      // Limites de reforço (UG-40): X paralelo à parede do casco, Y normal a ela.
       const limit_X = d_corroido;
       const limit_Y = Math.min(2.5 * ts_corroido, 2.5 * tn_corroido);
 
       const A_req = d_corroido * tr_casco;
-      const A1 = limit_X * Math.max(0, ts_corroido - tr_casco);
+      const A1 = limit_X * Math.max(0, ts_corroido - tr_casco); // considerada somente se positiva
       const A2 = 2 * limit_Y * Math.max(0, tn_corroido - trn_bocal);
-      const A3 = 2 * h_corroido * tn_corroido;
+      // UG-40: a projeção interna só conta dentro do limite de reforço — o excedente é descartado.
+      const h_efetivo = Math.min(h_corroido, limit_Y);
+      const A3 = 2 * h_efetivo * tn_corroido;
 
-      let A5 = 0;
-      let arr_A5: string[] = [];
+      let A4 = 0;
+      let arr_A4: string[] = [];
 
       if (dados.temReforco) {
         const w_ref = numOuPadrao(dados.w_reforco, 0.0);
@@ -342,59 +365,80 @@ export function gerarBlocoComponenteVaso(
         if (fr > 1.0) fr = 1.0;
 
         if (w_ref > d_bocal) {
-          A5 = (w_ref - d_bocal - 2 * t_nom_bocal) * t_ref * fr;
-          arr_A5 = [
-            `// Área A5 (Disponível na Chapa de Reforço / Pad Adicional):`,
+          A4 = (w_ref - d_bocal - 2 * t_nom_bocal) * t_ref * fr;
+          arr_A4 = [
+            `// Área A4 (Disponível na Chapa de Reforço / Pad Adicional):`,
             `// Fator de Redução de Resistência (fr): $f_r = \\min(S_p / S_v, 1.0)$ = ${fr.toFixed(4)}`,
-            `$$ A_5 = (W - d - 2 \\cdot Tnom) \\cdot t_e \\cdot f_r $$`,
-            `$$ A_5 = (${w_ref.toFixed(4)} - ${d_bocal.toFixed(4)} - 2 \\cdot ${t_nom_bocal.toFixed(4)}) \\cdot ${t_ref.toFixed(4)} \\cdot ${fr.toFixed(4)} = ${A5.toFixed(4)} \\text{ mm}^2 $$`,
+            `$$ A_4 = (W - d - 2 \\cdot Tnom) \\cdot t_e \\cdot f_r $$`,
+            `$$ A_4 = (${w_ref.toFixed(4)} - ${d_bocal.toFixed(4)} - 2 \\cdot ${t_nom_bocal.toFixed(4)}) \\cdot ${t_ref.toFixed(4)} \\cdot ${fr.toFixed(4)} = ${A4.toFixed(4)} \\text{ mm}^2 $$`,
           ];
         }
       } else {
-        arr_A5 = [`// Área A5 (Chapa de Reforço): Componente não possui reforço externo. A5 = 0.0000 mm²`];
+        arr_A4 = [`// Área A4 (Chapa de Reforço): Componente não possui reforço externo. A4 = 0.0000 mm²`];
       }
 
-      const A_disp = A1 + A2 + A3 + A5;
+      const A_disp = A1 + A2 + A3 + A4;
       const isBocalAprovado = A_disp >= A_req;
       const css_valida_A = isBocalAprovado ? 'msg-aprovado' : 'msg-reprovado';
       const txt_valida_A = isBocalAprovado
-        ? `STATUS: APROVADO. A soma das áreas disponíveis ( ${A_disp.toFixed(4)} mm² ) é maior ou igual à área requerida ( ${A_req.toFixed(4)} mm² ).`
-        : `STATUS: REPROVADO! O furo não possui reforço suficiente. Área Disponível ( ${A_disp.toFixed(4)} mm² ) < Área Requerida ( ${A_req.toFixed(4)} mm² ).`;
+        ? `STATUS: CONFORME. A soma das áreas efetivas de reforço disponíveis ( ${A_disp.toFixed(4)} mm² ) é igual ou superior à área requerida pela UG-37 ( ${A_req.toFixed(4)} mm² ).`
+        : `STATUS: NÃO CONFORME! A área de reforço disponível ( ${A_disp.toFixed(4)} mm² ) é inferior à área requerida pela UG-37 ( ${A_req.toFixed(4)} mm² ).`;
 
       blocoOutput = blocoOutput
         .concat([
           `// Parâmetros Auxiliares do Casco furado: Tnom Casco = ${t_nom_casco.toFixed(4)} mm | CA Casco = ${ca_casco.toFixed(4)} mm`,
+          `// E_bocal = ${E_bocal.toFixed(4)} (Eficiência de junta do bocal — bocal sem solda: E = 1,0)`,
           ` `,
           `// ----------------------------------------------------`,
-          `// 1. ÁREA REQUERIDA DE COMPENSAÇÃO (A_req)`,
+          `// 1. DIMENSÕES CORROÍDAS`,
+          `$$ d_{corr} = d + 2 \\cdot CA_{bocal} = ${d_bocal.toFixed(4)} + 2 \\cdot ${ca_bocal.toFixed(4)} = ${d_corroido.toFixed(4)} \\text{ mm} $$`,
+          `$$ t_{n,corr} = Tnom_{bocal} - CA_{bocal} = ${tn_corroido.toFixed(4)} \\text{ mm} \\quad t_{s,corr} = Tnom_{casco} - CA_{casco} = ${ts_corroido.toFixed(4)} \\text{ mm} $$`,
+          ` `,
+          `// ----------------------------------------------------`,
+          `// 2. ESPESSURAS REQUERIDAS`,
+          `// Casco:`,
+          `$$ t_{r,casco} = \\frac{P \\cdot R}{S_{casco} \\cdot E_{casco} - 0.6 \\cdot P} = ${tr_casco.toFixed(4)} \\text{ mm} $$`,
+          `// Bocal (com eficiência de junta; caso o bocal seja sem solda, E_bocal = 1,0):`,
+          `$$ t_{r,bocal} = \\frac{P \\cdot d_{corr}/2}{S_{bocal} \\cdot E_{bocal} - 0.6 \\cdot P} = ${trn_bocal.toFixed(4)} \\text{ mm} $$`,
+          ` `,
+          `// ----------------------------------------------------`,
+          `// 3. ÁREA REQUERIDA DE COMPENSAÇÃO (A_req)`,
           `// Regra ASME UG-37: O aço que foi cortado para fazer o furo no vaso deve ser matematicamente reposto ao redor do bocal.`,
-          `$$ A_{req} = d_{corroido} \\cdot t_{r\\_casco} $$`,
+          `$$ A_{req} = d_{corr} \\cdot t_{r,casco} $$`,
           `$$ A_{req} = ${d_corroido.toFixed(4)} \\cdot ${tr_casco.toFixed(4)} = ${A_req.toFixed(4)} \\text{ mm}^2 $$`,
           ` `,
           `// ----------------------------------------------------`,
-          `// 2. ÁREAS DISPONÍVEIS PARA SACRIFÍCIO (A_disp)`,
-          `// Área A1 (Material que "sobrou" na parede do Casco):`,
-          `$$ A_1 = d_{corroido} \\cdot (T_{util\\_casco} - t_{r\\_casco}) $$`,
+          `// 4. ÁREAS DISPONÍVEIS DE REFORÇO (A_disp)`,
+          `// Área A1 (excedente na parede do Casco — considerada somente se positiva):`,
+          `$$ A_1 = d_{corr} \\cdot (t_{s,corr} - t_{r,casco}) $$`,
           `$$ A_1 = ${limit_X.toFixed(4)} \\cdot (${ts_corroido.toFixed(4)} - ${tr_casco.toFixed(4)}) = ${A1.toFixed(4)} \\text{ mm}^2 $$`,
           ` `,
-          `// Área A2 (Material que "sobrou" no Pescoço do Bocal):`,
-          `$$ A_2 = 2 \\cdot Y \\cdot (T_{util\\_bocal} - t_{rn\\_bocal}) $$`,
+          `// Área A2 (excedente no Pescoço do Bocal):`,
+          `// Y = altura efetiva de reforço conforme UG-40 = min(2,5·t_s,corr ; 2,5·t_n,corr) = ${limit_Y.toFixed(4)} mm`,
+          `$$ A_2 = 2 \\cdot Y \\cdot (t_{n,corr} - t_{r,bocal}) $$`,
           `$$ A_2 = 2 \\cdot ${limit_Y.toFixed(4)} \\cdot (${tn_corroido.toFixed(4)} - ${trn_bocal.toFixed(4)}) = ${A2.toFixed(4)} \\text{ mm}^2 $$`,
           ` `,
-          `// Área A3 (Material projetado para o lado de dentro do equipamento):`,
-          `$$ A_3 = 2 \\cdot h_{corroido} \\cdot T_{util\\_bocal} $$`,
-          `$$ A_3 = 2 \\cdot ${h_corroido.toFixed(4)} \\cdot ${tn_corroido.toFixed(4)} = ${A3.toFixed(4)} \\text{ mm}^2 $$`,
+          `// Área A3 (parte interna do bocal localizada dentro do limite de reforço definido pela UG-40):`,
+          `// h_corr = altura efetiva disponível no interior do vaso (limitada ao limite de reforço) = ${h_efetivo.toFixed(4)} mm`,
+          `$$ A_3 = 2 \\cdot h_{corr} \\cdot t_{n,corr} = 2 \\cdot ${h_efetivo.toFixed(4)} \\cdot ${tn_corroido.toFixed(4)} = ${A3.toFixed(4)} \\text{ mm}^2 $$`,
           ` `,
         ])
-        .concat(arr_A5)
+        .concat(arr_A4)
         .concat([
           ` `,
           `// ----------------------------------------------------`,
-          `// 3. VERIFICAÇÃO FINAL DE COMPENSAÇÃO DE ÁREA`,
+          `// LIMITES DE REFORÇO (UG-40): as áreas consideradas são limitadas automaticamente ao limite`,
+          `// de reforço estabelecido pela ASME. Área excedente localizada fora do limite de reforço`,
+          `// não é considerada no cálculo.`,
           `// ----------------------------------------------------`,
-          `$$ A_{disp} = A_1 + A_2 + A_3 + A_5 $$`,
-          `$$ A_{disp} = ${A1.toFixed(4)} + ${A2.toFixed(4)} + ${A3.toFixed(4)} + ${A5.toFixed(4)} = ${A_disp.toFixed(4)} \\text{ mm}^2 $$`,
+          `// 5. CRITÉRIO — VERIFICAÇÃO FINAL DE COMPENSAÇÃO DE ÁREA`,
+          `$$ A_1 + A_2 + A_3 + A_4 \\geq A_{req} $$`,
+          `$$ A_{disp} = ${A1.toFixed(4)} + ${A2.toFixed(4)} + ${A3.toFixed(4)} + ${A4.toFixed(4)} = ${A_disp.toFixed(4)} \\text{ mm}^2 $$`,
           `<span class="${css_valida_A}">${txt_valida_A}</span>`,
+          ` `,
+          `// Observação: A UG-37 estabelece apenas a verificação da compensação de área da abertura.`,
+          `// O bocal não possui PMTA independente; a pressão máxima admissível permanece limitada pelo`,
+          `// componente principal (casco, tampo ou cone) e pelas demais verificações aplicáveis da ASME.`,
           ` `,
         ]);
       break;
@@ -467,6 +511,16 @@ export function gerarBlocoComponenteVaso(
         `$$ t_{req} = \\sqrt{\\frac{M_{max} \\cdot Y}{S \\cdot B}} $$`,
         `$$ t_{req} = \\sqrt{\\frac{${M_max.toFixed(2)} \\cdot ${Y_factor.toFixed(4)}}{${S_f.toFixed(2)} \\cdot ${B_flange.toFixed(2)}}} = ${t_req.toFixed(4)} \\text{ mm} $$`,
         `<span class="${css_valida}">${txt_valida}</span>`,
+        ` `,
+        `// Critério: Flange verificada conforme momento máximo. A PMTA permanece limitada pelo componente principal.`,
+        ` `,
+        `// Observação: Esta rotina corresponde a uma verificação simplificada da espessura da flange,`,
+        `// baseada no momento fletor máximo atuante. O procedimento é destinado à avaliação de flanges`,
+        `// em equipamentos existentes e não substitui o dimensionamento completo previsto na ASME`,
+        `// Section VIII, Division 1 – Mandatory Appendix 2. Para projetos de novos flanges ou`,
+        `// reavaliações completas de projeto, devem ser aplicadas as verificações integrais da norma,`,
+        `// incluindo as tensões na flange, no cubo (hub), nos parafusos, na junta de vedação e os`,
+        `// fatores geométricos aplicáveis ao tipo de flange.`,
         ` `,
       ]);
       break;

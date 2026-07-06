@@ -44,6 +44,15 @@ describe('autoclave.cilindrica — UG-27(c), verbatim', () => {
     const tCirc = (1.5 * R) / (137.9 * 0.85 - 0.6 * 1.5);
     expect(Number(r.t_min)).toBeCloseTo(tCirc, 2);
   });
+
+  it('parede grossa (R − 0,4·t_util ≤ 0): aviso de limite de aplicação da UG-27(c)(2)', () => {
+    const r = cilindrica({ pressao: 1, tensao: 138, eficiencia: 1, diametro: 100, espessura: 130, ca: 0 });
+    const log = r.log.join('\n');
+    expect(log).toContain('Limite de aplicação');
+    expect(log).toContain('NÃO APLICÁVEL');
+    expect(Number(r.pmta)).toBeGreaterThan(0); // min() fica na junta circunferencial, não Infinity
+    expect(Number.isFinite(Number(r.pmta))).toBe(true);
+  });
 });
 
 describe('autoclave vertical', () => {

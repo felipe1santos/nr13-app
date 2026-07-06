@@ -119,6 +119,68 @@ describe('planoAparafusado com C configurável', () => {
   });
 });
 
+describe('correções da revisão de engenharia (calculos-corretos-sistema)', () => {
+  const cascoRef = { t_comercial: 12, ca: 1.5, S: 137.9, E: 0.85 };
+
+  it('bocal: t_r,bocal usa a eficiência de junta do bocal (E_bocal)', () => {
+    const semSolda = gerarBlocoComponenteVaso(
+      'Bocal N1', 'bocal',
+      { d: 150, t_comercial: 10, ca: 1.5, proj_int: 0, E: 1, S: 137.9, dadosCascoRef: cascoRef }, 1000, 1.5,
+    ).join('\n');
+    const comSolda = gerarBlocoComponenteVaso(
+      'Bocal N1', 'bocal',
+      { d: 150, t_comercial: 10, ca: 1.5, proj_int: 0, E: 0.7, S: 137.9, dadosCascoRef: cascoRef }, 1000, 1.5,
+    ).join('\n');
+    expect(semSolda).toContain('E_bocal = 1.0000');
+    expect(comSolda).toContain('E_bocal = 0.7000');
+    // E menor → t_r,bocal maior → A2 menor: os logs precisam divergir nos números
+    expect(semSolda).not.toBe(comSolda);
+  });
+
+  it('bocal: nomenclatura ASME A1..A4 e critério com A4', () => {
+    const log = gerarBlocoComponenteVaso(
+      'Bocal N1', 'bocal',
+      { d: 150, t_comercial: 10, ca: 1.5, proj_int: 0, E: 1, S: 137.9, dadosCascoRef: cascoRef }, 1000, 1.5,
+    ).join('\n');
+    expect(log).toContain('Área A4');
+    expect(log).not.toContain('A_5');
+    expect(log).toContain('A_1 + A_2 + A_3 + A_4');
+    expect(log).toContain('LIMITES DE REFORÇO (UG-40)');
+    expect(log).toMatch(/CONFORME|NÃO CONFORME/);
+  });
+
+  it('bocal: A3 limitado à altura efetiva de reforço da UG-40', () => {
+    // proj_int gigante (500 mm) não pode inflar A3 além de 2·limit_Y·tn
+    const log = gerarBlocoComponenteVaso(
+      'Bocal N1', 'bocal',
+      { d: 150, t_comercial: 10, ca: 1.5, proj_int: 500, E: 1, S: 137.9, dadosCascoRef: cascoRef }, 1000, 1.5,
+    ).join('\n');
+    // limit_Y = min(2.5·10.5, 2.5·8.5) = 21.25 → h_efetivo clampado em 21.25, nunca 498.5
+    expect(log).toContain('21.2500');
+    expect(log).not.toContain('498.5000');
+  });
+
+  it('planoAparafusado: usa área resistente da rosca (M20 → 245 mm²), nunca π·d²/4', () => {
+    const log = gerarBlocoComponenteVaso(
+      'TAMPA', 'planoAparafusado',
+      { t_comercial: 8, ca: 0, S: 138, E: 1, C_fator: 0.3, N_parafusos: 8, d_parafuso: 20, S_parafuso: 138 },
+      300, 0.7,
+    ).join('\n');
+    expect(log).toContain('245.00'); // As de M20, não 314.16 (π·20²/4)
+    expect(log).not.toContain('314.16');
+    expect(log).toContain('stress area');
+  });
+
+  it('flange: observação da verificação simplificada + critério do momento máximo', () => {
+    const log = gerarBlocoComponenteVaso(
+      'Flange Casco', 'flange',
+      { A: 600, D: 500, C: 560, t: 40, S: 137.9, P: 1.5, G: 480, b: 10, m: 2, y: 20 }, 1000, 1.5,
+    ).join('\n');
+    expect(log).toContain('verificação simplificada');
+    expect(log).toContain('Flange verificada conforme momento máximo');
+  });
+});
+
 describe('campos vazios → faltantes + aviso no log', () => {
   it('lista campos vazios e injeta aviso de valor padrão no log', () => {
     const r = calcularComponenteVaso('CASCO', 'cilindrico', { t_comercial: 8, ca: 0 }, 1000, 1.5);
