@@ -1,10 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icone } from '../components/Icone';
 import PaginaA4 from '../components/PaginaA4';
 import { ler, listarChavesComPrefixo } from '../services/storage';
 import type { InfoEquipamento } from '../features/equipamento/tipos';
+import { exportarPdf } from '../features/relatorios/pdfService';
+import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
 import './dashboard-novo.css';
+import './relatorios.css';
 
 interface LivroEntrada {
   id?: string;
@@ -55,8 +58,52 @@ export default function LivroRegistro() {
   const navigate = useNavigate();
   const linhas = useMemo(() => montarLinhas(), []);
   const [preview, setPreview] = useState<{ tag: string; doc: 'LIVRO-REGISTRO.html' | 'TERMO-ABERTURA.html' } | null>(null);
+  const [imprimindo, setImprimindo] = useState(false);
+  const [exportando, setExportando] = useState(false);
 
   const comLivro = linhas.filter((l) => l.entradas.length > 0);
+
+  // Pré-rasteriza a folha em #print-root assim que o preview abre (mesmo padrão de
+  // Relatorios.tsx), pra que Imprimir/Baixar PDF funcionem igual ao resto do sistema.
+  useEffect(() => {
+    if (!preview) return;
+    let cancelado = false;
+    const container = document.querySelector<HTMLElement>('.livro-preview');
+    if (!container) return;
+    const iframe = container.querySelector('iframe');
+    const aguardar = iframe?.contentDocument && iframe.contentDocument.readyState === 'complete'
+      ? Promise.resolve()
+      : new Promise<void>((res) => iframe?.addEventListener('load', () => res(), { once: true }));
+    aguardar
+      .then(() => new Promise((r) => setTimeout(r, 400)))
+      .then(() => {
+        if (!cancelado) void prepararFolhasImpressao('.livro-preview');
+      });
+    return () => {
+      cancelado = true;
+      limparFolhasImpressao();
+    };
+  }, [preview]);
+
+  async function imprimirPreview() {
+    setImprimindo(true);
+    try {
+      await imprimirRelatorio('.livro-preview');
+    } finally {
+      setImprimindo(false);
+    }
+  }
+
+  async function baixarPreview() {
+    if (!preview) return;
+    setExportando(true);
+    try {
+      const nome = preview.doc === 'TERMO-ABERTURA.html' ? 'Termo_Abertura' : 'Livro_Registro';
+      await exportarPdf('.livro-preview', `${nome}_${preview.tag}.pdf`);
+    } finally {
+      setExportando(false);
+    }
+  }
 
   return (
     <div className="dash-page">
@@ -162,7 +209,15 @@ export default function LivroRegistro() {
                 <Icone nome="x" tam={15} />
               </button>
             </div>
-            <div style={{ padding: 16 }}>
+            <div className="no-print" style={{ display: 'flex', gap: 8, padding: '0 16px' }}>
+              <button type="button" className="btn-secundario" onClick={() => void imprimirPreview()} disabled={imprimindo}>
+                {imprimindo ? 'Preparando…' : 'Imprimir'}
+              </button>
+              <button type="button" className="barra-btn barra-btn-pdf" onClick={() => void baixarPreview()} disabled={exportando}>
+                <Icone nome="download" tam={13} /> {exportando ? 'Gerando PDF…' : 'Baixar PDF'}
+              </button>
+            </div>
+            <div style={{ padding: 16 }} className="livro-preview">
               <PaginaA4>
                 <iframe
                   src={`/arquivos-inspecao/${preview.doc}?tag=${encodeURIComponent(preview.tag)}`}
