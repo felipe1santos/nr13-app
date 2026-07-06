@@ -100,10 +100,10 @@
            ========================================= */
         .plate-wrapper {
             width: 100%;
-            max-width: 660px;
+            max-width: 540px;
             margin: 10px auto 8px;
             border: 2px solid #000;
-            padding: 10px 12px 12px;
+            padding: 8px 10px 10px;
             background-color: #fff;
             font-family: Arial, sans-serif;
         }
@@ -112,37 +112,37 @@
         .plate-header {
             display: flex;
             align-items: center;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             border-bottom: 1.5px solid #000;
-            padding-bottom: 8px;
+            padding-bottom: 6px;
         }
         .plate-header-logo {
-            width: 130px;
+            width: 105px;
             flex-shrink: 0;
             cursor: pointer;
             display: flex;
             align-items: center;
         }
         .plate-header-logo img {
-            max-height: 50px;
-            max-width: 130px;
+            max-height: 40px;
+            max-width: 105px;
             object-fit: contain;
         }
         .plate-header-title {
             flex: 1;
             text-align: center;
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 900;
             text-transform: uppercase;
             letter-spacing: 2px;
             color: #000;
-            padding-right: 130px; /* equilibra a largura da logo para centralizar de verdade */
+            padding-right: 105px; /* equilibra a largura da logo para centralizar de verdade */
         }
 
         .p-row {
             display: flex;
-            gap: 8px;
-            margin-bottom: 10px;
+            gap: 7px;
+            margin-bottom: 7px;
             width: 100%;
         }
 
@@ -155,11 +155,11 @@
         .p-box {
             border: 1.5px solid #000;
             text-align: center;
-            padding: 5px 10px;
+            padding: 3px 8px;
             font-weight: 800;
-            font-size: 24px;
+            font-size: 16px;
             color: #000;
-            min-height: 36px;
+            min-height: 28px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -168,17 +168,17 @@
 
         .p-caption {
             text-align: center;
-            font-size: 12px;
+            font-size: 9px;
             font-weight: 500;
             text-transform: uppercase;
-            margin-top: 3px;
+            margin-top: 2px;
             color: #000;
         }
 
         .p-box.giant {
-            font-size: 144px;
+            font-size: 72px;
             font-weight: 900;
-            height: 156px;
+            height: 84px;
             padding: 0;
             line-height: 1;
         }
@@ -203,13 +203,13 @@
         }
 
         .p-table th {
-            font-size: 12px;
+            font-size: 10px;
             font-weight: 800;
             background-color: #e5e7eb;
         }
 
         .p-table td {
-            font-size: 13px;
+            font-size: 11px;
             font-weight: 800;
         }
 
@@ -286,7 +286,7 @@
 
                 <div class="p-row">
                     <div class="p-col">
-                        <div class="p-box" style="font-size: 24px;" id="plate-equip" contenteditable="true" spellcheck="false">--</div>
+                        <div class="p-box" id="plate-equip" contenteditable="true" spellcheck="false">--</div>
                         <div class="p-caption">IDENTIFICAÇÃO DO EQUIPAMENTO</div>
                     </div>
                 </div>
@@ -356,6 +356,25 @@
                             </tr>
                         </table>
                         <div class="p-caption">PTH</div>
+                    </div>
+                </div>
+
+                <div class="p-row">
+                    <div class="p-col">
+                        <div class="p-box" id="plate-volume" contenteditable="true" spellcheck="false">--</div>
+                        <div class="p-caption">VOLUME (m³)</div>
+                    </div>
+                    <div class="p-col">
+                        <div class="p-box" id="plate-grupo" contenteditable="true" spellcheck="false">--</div>
+                        <div class="p-caption">GRUPO DE RISCO</div>
+                    </div>
+                    <div class="p-col">
+                        <div class="p-box" id="plate-data-insp" contenteditable="true" spellcheck="false">--/--/----</div>
+                        <div class="p-caption">EXECUÇÃO DA INSPEÇÃO</div>
+                    </div>
+                    <div class="p-col">
+                        <div class="p-box" id="plate-validade" contenteditable="true" spellcheck="false">--/----</div>
+                        <div class="p-caption">VALIDADE</div>
                     </div>
                 </div>
 
@@ -476,6 +495,32 @@
                 // Categoria e Classe NR-13
                 setVal('plate-classe', cat.classe || '-');
                 setVal('plate-cat', cat.catFinal || '-');
+
+                // Volume (m³) e Grupo de Risco — vêm da calculadora de categoria
+                const vol = parseFloat(String(cat.volInput ?? '').replace(',', '.'));
+                if (!isNaN(vol)) setVal('plate-volume', vol.toFixed(2).replace('.', ','));
+                if (cat.grupo) setVal('plate-grupo', String(cat.grupo));
+
+                // Datas da inspeção — metadados do relatório em montagem (ISO aaaa-mm-dd ou dd/mm/aaaa)
+                const meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}');
+                const paraBR = (s) => {
+                    if (!s) return null;
+                    const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(s.trim());
+                    if (iso) return `${iso[3]}/${iso[2]}/${iso[1]}`;
+                    return s;
+                };
+                const paraMesAno = (s) => {
+                    if (!s) return null;
+                    const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(s.trim());
+                    if (iso) return `${iso[2]}/${iso[1]}`;
+                    const br = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s.trim());
+                    if (br) return `${br[2]}/${br[3]}`;
+                    return s;
+                };
+                const dataInsp = paraBR(meta.execucaoInspecao);
+                if (dataInsp) setVal('plate-data-insp', dataInsp);
+                const validade = paraMesAno(meta.validade);
+                if (validade) setVal('plate-validade', validade);
 
                 // Conversor Inteligente de Unidades para a Tabela Tripla (MPa | psi | kgf/cm²)
                 const converterPressaoMult = (valorStr, unidadeStr) => {
