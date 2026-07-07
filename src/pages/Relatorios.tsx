@@ -244,15 +244,18 @@ export default function Relatorios() {
   }
 
   async function duplicar(r: RelatorioSalvo) {
-    const novaMeta: RelatorioMeta = { ...r.meta, codigo: `REL-${Date.now()}`, emissao: hoje(), documentos: r.meta.documentos ?? r.documentos };
     // Regrava as chaves de campo do container de origem (ou limpa): senão o duplicado renderiza os
     // dados de ensaio do último relatório que esteve nas chaves nr13_inspecao_atual/nr13_injecao_atual.
     const dadosContainer = r.meta.containerOrigemId
       ? (carregarContainer(r.tagVaso, r.meta.containerOrigemId)?.dados ?? {})
       : {};
+    // Filtra folhas de fotos sem imagem e reexpande conforme a contagem ATUAL do container (a lista
+    // salva não passa pela auto-injeção que gateia isso — mesmo motivo de visualizar()).
+    const docsFiltrados = expandirFolhasFoto(filtrarFolhasFotoVazias(r.documentos, dadosContainer), dadosContainer);
+    const novaMeta: RelatorioMeta = { ...r.meta, codigo: `REL-${Date.now()}`, emissao: hoje(), documentos: docsFiltrados };
     await gravarInspecaoOrigemAtual(dadosContainer);
     await gravarMetaAtual(novaMeta);
-    setDocumentos(r.documentos);
+    setDocumentos(docsFiltrados);
     setMeta(novaMeta);
     setSomenteLeitura(false);
     setVersao((v) => v + 1);

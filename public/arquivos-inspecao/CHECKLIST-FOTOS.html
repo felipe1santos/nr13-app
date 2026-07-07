@@ -47,6 +47,12 @@
             min-height: 0;
         }
 
+        /* Menos de 4 fotos na página: o grid se reajusta para ocupar a folha inteira, sem espaço vazio. */
+        .fotos-grid--1 { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+        .fotos-grid--2 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; }
+        .fotos-grid--3 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+        .fotos-grid--3 .foto-card:nth-child(3) { grid-column: 1 / span 2; }
+
         .foto-card {
             border: 1px solid #e5e7eb;
             border-radius: 4px;
@@ -196,7 +202,8 @@
             indices.forEach(function(p) {
                 if (p < 0 || p >= totalPags) return;
                 var slice = fotos.slice(p * FOTOS_POR_PAGINA, (p + 1) * FOTOS_POR_PAGINA);
-                var gridHTML = '<div class="fotos-grid">';
+                var gridClass = 'fotos-grid' + (slice.length > 0 && slice.length < 4 ? ' fotos-grid--' + slice.length : '');
+                var gridHTML = '<div class="' + gridClass + '">';
                 slice.forEach(function(foto, i) { gridHTML += buildFotoCard(foto, p * FOTOS_POR_PAGINA + i + 1); });
                 gridHTML += '</div>';
                 var pg = document.createElement('div');

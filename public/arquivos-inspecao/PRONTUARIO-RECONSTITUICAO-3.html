@@ -294,10 +294,24 @@
             temLinha = true;
         };
 
+        // Busca a espessura requerida (tReqMm) do PRÓPRIO componente em calc.componentes[]
+        // (mesma fonte usada pelo RESUMO-MEMORIAL.html), casando pelo nome salvo junto ao
+        // vaso (VasoSalvo.componentes[].nome === ComponenteResumo.nome). Evita reaproveitar o
+        // valor legado (calc.ecasco/calc.etampo, calculado a partir de só o 1º casco/tampo
+        // encontrado) para o 2º tampo, que pode ter material/tipo diferente do 1º.
+        const buscarTreqPorNome = (nome) => {
+            if (!nome || !Array.isArray(calc.componentes)) return null;
+            const comp = calc.componentes.find(function(c) { return c.nome === nome; });
+            return (comp && comp.tReqMm !== undefined && comp.tReqMm !== null) ? comp.tReqMm : null;
+        };
+        const treqCasco = buscarTreqPorNome(_cc && _cc.nome);
+        const treqTampo1 = buscarTreqPorNome(_ct1 && _ct1.nome);
+        const treqTampo2 = buscarTreqPorNome(_ct2 && _ct2.nome);
+
         if (ec) {
-            if (ec.hasCasco) addLinha('CASCO', 'Shell', calc.ecasco, ec.dadosCasco);
-            if (ec.hasTampo1) addLinha('TAMPO 1', 'Head 1', calc.etampo, ec.dadosTampo1);
-            if (ec.hasTampo2) addLinha('TAMPO 2', 'Head 2', calc.etampo, ec.dadosTampo2);
+            if (ec.hasCasco) addLinha('CASCO', 'Shell', (treqCasco !== null ? treqCasco : calc.ecasco), ec.dadosCasco);
+            if (ec.hasTampo1) addLinha('TAMPO 1', 'Head 1', (treqTampo1 !== null ? treqTampo1 : calc.etampo), ec.dadosTampo1);
+            if (ec.hasTampo2) addLinha('TAMPO 2', 'Head 2', (treqTampo2 !== null ? treqTampo2 : calc.etampo), ec.dadosTampo2);
         }
         if (temLinha) {
             // Remove a linha de placeholder "--" assim que ao menos um componente for adicionado

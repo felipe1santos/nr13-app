@@ -233,9 +233,9 @@
                 </td>
                 <td rowspan="2" class="col-info">
                     <div class="info-label">Relatório nº:</div>
-                    <div class="info-value" contenteditable="true" spellcheck="false">REL-000000</div>
+                    <div class="info-value" id="hdr-rel-num" contenteditable="true" spellcheck="false">REL-000000</div>
                     <div class="info-label">Data:</div>
-                    <div class="info-value" contenteditable="true" spellcheck="false">DD/MM/AAAA</div>
+                    <div class="info-value" id="hdr-rel-data" contenteditable="true" spellcheck="false">DD/MM/AAAA</div>
                     <div class="info-label">Folha:</div>
                     <div class="info-value" id="folha-label" contenteditable="true" spellcheck="false">1/2</div>
                 </td>
@@ -702,6 +702,15 @@
             // Número da página vem da montagem do relatório (?page=N), não fixo.
             var _pg = new URLSearchParams(window.location.search).get('page');
             if (_pg) { var _el = document.querySelector('.footer-page-number'); if (_el) _el.innerText = _pg.trim(); }
+
+            // Meta do relatório (Relatório nº / Data) — vem da montagem do relatório
+            try {
+                var meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}');
+                if (meta.codigo) { var _relNum = document.getElementById('hdr-rel-num'); if (_relNum) _relNum.textContent = meta.codigo; }
+                if (meta.emissao) { var _relData = document.getElementById('hdr-rel-data'); if (_relData) _relData.textContent = meta.emissao; }
+            } catch (e) {
+                console.error("Erro ao injetar meta do relatório no TH:", e);
+            }
 
             // Auto-Fill Empresa
             const salvo = localStorage.getItem('nr13_minha_empresa');

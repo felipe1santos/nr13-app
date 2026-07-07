@@ -172,9 +172,9 @@
             </td>
             <td rowspan="2" class="col-info">
                 <div class="rot">Relatório nº:</div>
-                <div class="val" contenteditable="true" spellcheck="false">REL-000000</div>
+                <div class="val" id="hdr-rel-num-1" contenteditable="true" spellcheck="false">REL-000000</div>
                 <div class="rot">Data:</div>
-                <div class="val" contenteditable="true" spellcheck="false">DD/MM/AAAA</div>
+                <div class="val" id="hdr-rel-data-1" contenteditable="true" spellcheck="false">DD/MM/AAAA</div>
                 <div class="rot">Folha:</div>
                 <div class="val" id="rel-folha-1" contenteditable="true" spellcheck="false">2/2</div>
             </td>
@@ -218,6 +218,10 @@
     // continua a contagem absoluta (página 2 = FOTO 5..8).
     let FOTO_OFFSET = 0;
 
+    function escHTML(s) {
+        return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
     /* ── ADICIONAR SLOT ─────────────────────────────── */
     function adicionarSlot(src, legenda) {
         totalSlots++;
@@ -254,7 +258,7 @@
             '</div>' +
             '<textarea class="foto-leg" id="leg-' + idx + '"' +
             '          placeholder="Descrição / legenda da Foto ' + idx + '…"' +
-            '          spellcheck="false">' + (legenda || '') + '</textarea>';
+            '          spellcheck="false">' + escHTML(legenda || '') + '</textarea>';
 
         grade.appendChild(card);
     }
@@ -276,9 +280,9 @@
             '    <td class="col-titulo">INSPEÇÃO VISUAL EXTERNA<span class="subtitulo">REGISTRO FOTOGRÁFICO</span></td>' +
             '    <td rowspan="2" class="col-info">' +
             '      <div class="rot">Relatório nº:</div>' +
-            '      <div class="val" contenteditable="true" spellcheck="false">REL-000000</div>' +
+            '      <div class="val" id="hdr-rel-num-' + num + '" contenteditable="true" spellcheck="false">REL-000000</div>' +
             '      <div class="rot">Data:</div>' +
-            '      <div class="val" contenteditable="true" spellcheck="false">DD/MM/AAAA</div>' +
+            '      <div class="val" id="hdr-rel-data-' + num + '" contenteditable="true" spellcheck="false">DD/MM/AAAA</div>' +
             '      <div class="rot">Folha:</div>' +
             '      <div class="val" id="rel-folha-' + num + '" contenteditable="true" spellcheck="false">' + num + '/' + num + '</div>' +
             '    </td>' +
@@ -366,6 +370,41 @@
         if (tag) document.getElementById('id-tag').textContent = tag;
     })();
 
+    /* ── AUTO-FILL Relatório nº / Data (meta do relatório) ── */
+    function aplicarMetaRelatorio() {
+        try {
+            var meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}');
+            document.querySelectorAll('[id^="hdr-rel-num-"]').forEach(function(el) {
+                if (meta.codigo) el.textContent = meta.codigo;
+            });
+            document.querySelectorAll('[id^="hdr-rel-data-"]').forEach(function(el) {
+                if (meta.emissao) el.textContent = meta.emissao;
+            });
+        } catch(e) {}
+    }
+
+    /* ── Folha atual/total: considera ?fpag/?fof gerados pela montagem ── */
+    function atualizarFolhas() {
+        var params = new URLSearchParams(window.location.search);
+        var FPAGq = parseInt(params.get('fpag') || '0', 10);
+        var FOFq  = parseInt(params.get('fof')  || '0', 10);
+        var elems = document.querySelectorAll('[id^="rel-folha-"]');
+        if (FPAGq > 0) {
+            // Folha expandida pela montagem (1 página de fotos por iframe): a folha de perguntas
+            // (VISUAL-EXTERNO.html) é a folha 1, então esta soma +1.
+            var atual = FPAGq + 1;
+            var total = (FOFq || FPAGq) + 1;
+            elems.forEach(function(el) { el.textContent = atual + '/' + total; });
+        } else {
+            // Legado: todas as páginas de fotos são renderizadas neste mesmo iframe.
+            var total = paginaAtual + 1;
+            elems.forEach(function(el) {
+                var idx = parseInt(el.id.replace('rel-folha-', ''), 10) || 1;
+                el.textContent = (idx + 1) + '/' + total;
+            });
+        }
+    }
+
     /* ── INIT: injeta fotos salvas ou 4 slots vazios ── */
     document.addEventListener('DOMContentLoaded', function() {
         var fotosInjetadas = [];
@@ -373,7 +412,16 @@
             var raw = localStorage.getItem('nr13_injecao_atual');
             if (raw) {
                 var inj = JSON.parse(raw);
-                fotosInjetadas = (inj && inj['visual_externo'] && inj['visual_externo'].fotos) || [];
+                var dados = inj && inj['visual_externo'];
+                fotosInjetadas = (dados && dados.fotos) || [];
+                if (dados) {
+                    var idContratante = document.getElementById('id-contratante');
+                    var idEquip       = document.getElementById('id-equip');
+                    var idData        = document.getElementById('id-data');
+                    if (idContratante && dados.contratante)   idContratante.textContent = dados.contratante;
+                    if (idEquip && dados.tipoEquipamento)      idEquip.textContent = dados.tipoEquipamento;
+                    if (idData && dados.dataInspecao)          idData.textContent = dados.dataInspecao;
+                }
             }
         } catch(e) {}
         var _r1 = document.querySelector('#pagina-1 .rodape-num');
@@ -389,6 +437,8 @@
             var pag = document.getElementById('pagina-1');
             if (pag) pag.style.display = 'none';
         }
+        aplicarMetaRelatorio();
+        atualizarFolhas();
     });
 </script>
 </body>

@@ -391,11 +391,14 @@
             const classe = cat.classe || 'A';
             const isNR13 = (atendePV || classe === 'A');
 
-            let grupo = 5;
-            if (pv_mpa >= 100) grupo = 1;
-            else if (pv_mpa >= 30) grupo = 2;
-            else if (pv_mpa >= 2.5) grupo = 3;
-            else if (pv_mpa >= 1) grupo = 4;
+            // Prefere grupo/categoria salvos na ficha (fonte de verdade); recalcula só como fallback.
+            let grupo = cat.grupo || 5;
+            if (!cat.grupo) {
+                if (pv_mpa >= 100) grupo = 1;
+                else if (pv_mpa >= 30) grupo = 2;
+                else if (pv_mpa >= 2.5) grupo = 3;
+                else if (pv_mpa >= 1) grupo = 4;
+            }
 
             const tabCategoria = {
                 'A': {1:'I',  2:'I',   3:'II',  4:'III', 5:'III'},
@@ -403,7 +406,7 @@
                 'C': {1:'I',  2:'II',  3:'III', 4:'IV',  5:'V'},
                 'D': {1:'II', 2:'III', 3:'IV',  4:'V',   5:'V'}
             };
-            const categoriaFinal = (tabCategoria[classe] && tabCategoria[classe][grupo]) || cat.catFinal || '--';
+            const categoriaFinal = cat.catFinal || (tabCategoria[classe] && tabCategoria[classe][grupo]) || '--';
 
             const faixaGrupo = { 1: 'PV ≥ 100', 2: '30 ≤ PV < 100', 3: '2,5 ≤ PV < 30', 4: '1 ≤ PV < 2,5', 5: 'PV < 1' };
 

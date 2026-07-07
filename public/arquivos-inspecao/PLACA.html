@@ -480,7 +480,8 @@
                 const info = JSON.parse(localStorage.getItem('nr13_info_' + tagAtual) || '{}');
                 const cat = JSON.parse(localStorage.getItem('nr13_cat_' + tagAtual) || '{}');
                 const calc = JSON.parse(localStorage.getItem('nr13_calc_' + tagAtual) || '{}');
-                
+                const prontuario = JSON.parse(localStorage.getItem('nr13_prontuario_' + tagAtual) || '{}');
+
                 const setVal = (id, val) => { if(document.getElementById(id) && val !== undefined && val !== '') document.getElementById(id).innerText = val; };
 
                 // Dados Básicos
@@ -489,7 +490,7 @@
                 setVal('plate-fab-nome', info.fabricante);
                 setVal('plate-serie', info.numeroSerie || info.serie);
                 setVal('plate-ano', info.ano);
-                setVal('plate-norma', 'ASME');
+                setVal('plate-norma', prontuario.codigoProjeto || 'ASME');
                 setVal('plate-fluido', (info.fluido || cat.fluidoInput || '').replace(/^[A-D]\s*-\s*/, ''));
 
                 // Categoria e Classe NR-13

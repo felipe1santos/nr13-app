@@ -368,7 +368,7 @@
                 setVal('capa-num-relatorio', meta.codigo);
                 setVal('capa-data-inspecao', formatarDataBR(meta.execucaoInspecao));
                 setVal('capa-validade', formatarDataBR(meta.validade));
-                setVal('capa-solicitante', emp.razaoSocial || emp.nome);
+                setVal('capa-solicitante', emp.razaoSocial || emp.nomeFantasia);
 
                 let enderecoCliente = [];
                 if (emp.endereco) enderecoCliente.push(emp.endereco);

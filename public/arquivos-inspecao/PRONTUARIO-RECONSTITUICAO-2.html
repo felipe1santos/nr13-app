@@ -1,3 +1,12 @@
+<!--
+    STATUS: este arquivo (série PRONTUARIO-RECONSTITUICAO-1..4) NAO esta ligado a nenhum ponto de
+    montagem do sistema. `src/features/relatorios/tipos.ts` (DOCUMENTOS_DISPONIVEIS) usa apenas
+    'PRONTUARIO.html' para a folha de Prontuario do relatorio, e `src/features/prontuarios/tipos.ts`
+    (PAGINAS_PRONTUARIO) monta o Prontuario com o conjunto 'PRONT-P1/CARACTERIZACAO/P2/P2B/P3/P4.html'
+    (servidos de /arquivos-prontuario/), que ja cobre o conteudo de "Conjunto de Desenhos e Dimensões"
+    desta pagina (ver PRONT-P2.html). Nao referenciar/gerar esta pagina em nenhum fluxo novo; se for
+    reativada, wire-la em PAGINAS_PRONTUARIO e remova a duplicidade com PRONT-P2.html antes.
+-->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -191,24 +200,10 @@
         </tr>
     </table>
 
-    <!-- ========== BOCAIS E CONEXÕES ========== -->
-    <div class="ph-banner">
-        <div class="pt">Bocais e Conexões</div>
-        <div class="en">Nozzles and Connections</div>
-    </div>
-    <table class="content-table">
-        <thead>
-            <tr>
-                <td class="label-cell" style="width:34%;">IDENTIFICAÇÃO<span class="en-sub">Identification</span></td>
-                <td class="label-cell" style="width:22%;">DIÂMETRO (mm)<span class="en-sub">Diameter</span></td>
-                <td class="label-cell" style="width:22%;">POSIÇÃO LONGITUDINAL (mm)<span class="en-sub">Longitudinal Position</span></td>
-                <td class="label-cell" style="width:22%;">MATERIAL</td>
-            </tr>
-        </thead>
-        <tbody id="ph-bocais-corpo">
-            <tr><td class="value-cell" colspan="4" style="text-align:center;">--</td></tr>
-        </tbody>
-    </table>
+    <!-- Seção "Bocais e Conexões" removida: nenhuma fonte de dados no sistema grava bocais/conexões
+         no formato { nome, d, posL, mat } (ver VasoSalvo/ComponenteVasoSalvo em
+         src/features/memorial/vasoMemorialService.ts), então a tabela nunca teria conteúdo real além
+         do placeholder "--". Reintroduzir aqui só quando houver captura real desses dados. -->
 
     </div>
 
@@ -305,7 +300,7 @@
             hasCasco: !!_cc, dadosCasco: _cc ? _cc.dados : null,
             hasTampo1: !!_ct1, dadosTampo1: _ct1 ? _ct1.dados : null,
             hasTampo2: !!_ct2, dadosTampo2: _ct2 ? _ct2.dados : null,
-            orientacao: dados3D.orientacao || null, bocais: {}
+            orientacao: dados3D.orientacao || null
         } : null;
         const minhaEmpresa = JSON.parse(localStorage.getItem('nr13_minha_empresa') || '{}');
         const meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}');
@@ -378,22 +373,6 @@
                 const vol = Math.PI * Math.pow(r, 2) * Lm;
                 setVal('ph-dim-volume', vol.toFixed(3).replace('.', ',') + ' m³');
             }
-        }
-
-        // ===== BOCAIS E CONEXÕES =====
-        if (ec && ec.bocais && Object.keys(ec.bocais).length > 0) {
-            const corpo = document.getElementById('ph-bocais-corpo');
-            corpo.innerHTML = '';
-            Object.values(ec.bocais).forEach(b => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="value-cell">${b.nome || '--'}</td>
-                    <td class="value-cell" style="text-align:center;">${b.d !== undefined ? String(b.d).replace('.', ',') : '--'}</td>
-                    <td class="value-cell" style="text-align:center;">${b.posL !== undefined ? String(b.posL).replace('.', ',') : '--'}</td>
-                    <td class="value-cell">${b.mat || '--'}</td>
-                `;
-                corpo.appendChild(tr);
-            });
         }
 
         // ===== RODAPÉ =====

@@ -105,6 +105,19 @@
 
     <div class="page">
 
+        <table class="header-table">
+            <tr>
+                <td class="col-logo"><img id="imgLogo" src="logo.webp" alt="Logo"></td>
+                <td class="col-title">TERMO DE ABERTURA<br>LIVRO DE REGISTRO DE SEGURANÇA — NR-13</td>
+                <td class="col-info">
+                    <div class="info-label">Relatório nº.</div>
+                    <div class="info-value" id="hdr-rel-num">—</div>
+                    <div class="info-label">Data:</div>
+                    <div class="info-value" id="hdr-rel-data">—</div>
+                </td>
+            </tr>
+        </table>
+
         <div class="content-container">
 
             <div class="section-title">Termo de Abertura</div>
@@ -154,6 +167,25 @@
                 </tr>
             </table>
 
+            <div class="assinatura-box">
+                <div class="assinatura-linha">
+                    <div class="assinatura-nome" id="assinatura-nome">Nome do Engenheiro Responsável</div>
+                    <div class="assinatura-cargo" id="assinatura-cargo">Engenheiro Responsável</div>
+                    <div class="assinatura-crea" id="assinatura-crea">CREA: --</div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="pgr-footer-new">
+            <div class="footer-line-wrapper">
+                <div class="company-details" id="footer-empresa" contenteditable="true" spellcheck="false">
+                    <strong>NOME DA EMPRESA LTDA.</strong><br>
+                    Endereço • Bairro • Cidade/UF • CNPJ: 00.000.000/0000-00<br>
+                    Telef: (00) 0000-0000 • E-mail: contato@empresa.com.br
+                </div>
+            </div>
+            <div class="footer-page-number">1</div>
         </div>
     </div>
 
@@ -164,6 +196,48 @@
                 const elPagina = document.querySelector('.footer-page-number');
                 if (elPagina) elPagina.innerText = paramPagina.trim();
             }
+        });
+
+        // CABEÇALHO (logo/Relatório nº/Data), RODAPÉ (dados da empresa) E ASSINATURA (PH Engenheiro)
+        // PADRÃO DO SISTEMA — ver CLAUDE.md §2 (nr13_relatorio_meta_atual, nr13_minha_empresa, nr13_lista_phs)
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                const meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}');
+                const elNum = document.getElementById('hdr-rel-num');
+                const elData = document.getElementById('hdr-rel-data');
+                if (elNum && meta.codigo) elNum.textContent = meta.codigo;
+                if (elData && meta.emissao) elData.textContent = meta.emissao;
+            } catch (e) {}
+
+            try {
+                const empresaRaw = localStorage.getItem('nr13_minha_empresa');
+                if (empresaRaw) {
+                    const d = JSON.parse(empresaRaw);
+                    const imgLogo = document.getElementById('imgLogo');
+                    if (imgLogo && d.logo) imgLogo.src = d.logo;
+
+                    const elEmpresa = document.getElementById('footer-empresa');
+                    if (elEmpresa) {
+                        let h = '<strong>' + (d.razao || d.fantasia || 'NOME DA EMPRESA') + '</strong><br>';
+                        const l2 = [d.endereco, d.bairro, (d.cidade && d.estado ? d.cidade + '/' + d.estado : ''), d.cnpj ? 'CNPJ: ' + d.cnpj : ''].filter(Boolean);
+                        const l3 = [(d.telefone ? 'Telef: ' + d.telefone : ''), (d.email ? 'E-mail: ' + d.email : '')].filter(Boolean);
+                        if (l2.length) h += l2.join(' • ') + '<br>';
+                        if (l3.length) h += l3.join(' • ');
+                        elEmpresa.innerHTML = h;
+                    }
+                }
+            } catch (e) {}
+
+            try {
+                const listaPHs = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
+                const engenheiro = listaPHs.find(function(p) { return p.tipo === 'Engenheiro'; });
+                if (engenheiro) {
+                    const elNome = document.getElementById('assinatura-nome');
+                    const elCrea = document.getElementById('assinatura-crea');
+                    if (elNome) elNome.textContent = engenheiro.nome || 'Nome do Engenheiro Responsável';
+                    if (elCrea) elCrea.textContent = 'CREA: ' + (engenheiro.crea || '--');
+                }
+            } catch (e) {}
         });
 
         function previewImage(input, imgId) {
@@ -198,6 +272,46 @@
                 if (el && val !== undefined && val !== null && val !== '') el.textContent = val;
             }
 
+            // Conversão número → extenso (pt-BR), suficiente para quantidades de folhas do livro
+            // (dezenas/centenas/milhares). Ex.: 50 -> "cinquenta", 100 -> "cem", 101 -> "cento e um".
+            function numeroPorExtenso(n) {
+                n = parseInt(n, 10);
+                if (isNaN(n)) return String(n);
+                if (n === 0) return 'zero';
+
+                const unidades = ['', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove'];
+                const dez19 = ['dez', 'onze', 'doze', 'treze', 'catorze', 'quinze', 'dezesseis', 'dezessete', 'dezoito', 'dezenove'];
+                const dezenas = ['', '', 'vinte', 'trinta', 'quarenta', 'cinquenta', 'sessenta', 'setenta', 'oitenta', 'noventa'];
+                const centenas = ['', 'cento', 'duzentos', 'trezentos', 'quatrocentos', 'quinhentos', 'seiscentos', 'setecentos', 'oitocentos', 'novecentos'];
+
+                function tresDigitos(num) {
+                    if (num === 0) return '';
+                    if (num === 100) return 'cem';
+                    const c = Math.floor(num / 100);
+                    const resto = num % 100;
+                    const partes = [];
+                    if (c > 0) partes.push(centenas[c]);
+                    if (resto > 0) {
+                        if (resto < 10) partes.push(unidades[resto]);
+                        else if (resto < 20) partes.push(dez19[resto - 10]);
+                        else {
+                            const d = Math.floor(resto / 10);
+                            const u = resto % 10;
+                            partes.push(u > 0 ? (dezenas[d] + ' e ' + unidades[u]) : dezenas[d]);
+                        }
+                    }
+                    return partes.join(' e ');
+                }
+
+                if (n < 1000) return tresDigitos(n);
+
+                const milhar = Math.floor(n / 1000);
+                const resto = n % 1000;
+                let s = (milhar === 1 ? 'mil' : tresDigitos(milhar) + ' mil');
+                if (resto > 0) s += ' e ' + tresDigitos(resto);
+                return s;
+            }
+
             function renderizar() {
                 const params = new URLSearchParams(window.location.search);
                 const tag = params.get('tag');
@@ -224,7 +338,7 @@
                 const totalFolhas = livroConfig.totalFolhas || 50;
 
                 document.getElementById('termo-texto').textContent =
-                    `Este livro contém ${totalFolhas} (${totalFolhas === 50 ? 'cinquenta' : totalFolhas}) folhas numeradas tipograficamente de 01 a ${String(totalFolhas).padStart(2, '0')} e servirá como Livro de Registro de Segurança do Vaso de Pressão ${tipoVaso}, TAG ${tag}, Número de Série: ${serieVaso}, da Empresa ${nomeEmpresaVaso}, sob o CNPJ: ${cnpjVaso}, ${enderecoVasoTexto}. ` +
+                    `Este livro contém ${totalFolhas} (${numeroPorExtenso(totalFolhas)}) folhas numeradas tipograficamente de 01 a ${String(totalFolhas).padStart(2, '0')} e servirá como Livro de Registro de Segurança do Vaso de Pressão ${tipoVaso}, TAG ${tag}, Número de Série: ${serieVaso}, da Empresa ${nomeEmpresaVaso}, sob o CNPJ: ${cnpjVaso}, ${enderecoVasoTexto}. ` +
                     `Em atendimento ao item 13.4.1.9 da Norma Regulamentadora Nº 13, Portaria Nº 1.082, de 18 de dezembro de 2018.`;
 
                 setVal('ident-empresa', nomeEmpresaVaso);

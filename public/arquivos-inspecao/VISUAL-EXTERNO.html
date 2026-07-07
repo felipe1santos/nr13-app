@@ -19,6 +19,7 @@
             --bg-table-sub: #f9fafb;
             --highlight-yellow: #fdfad2;
             --highlight-text: #000000;
+            --red-fail: #dc2626;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -191,9 +192,9 @@
             </td>
             <td rowspan="2" class="col-info">
                 <div class="info-label">Relatório nº:</div>
-                <div class="info-value" contenteditable="true" spellcheck="false">REL-000000</div>
+                <div class="info-value" id="hdr-rel-num" contenteditable="true" spellcheck="false">REL-000000</div>
                 <div class="info-label">Data:</div>
-                <div class="info-value" contenteditable="true" spellcheck="false">DD/MM/AAAA</div>
+                <div class="info-value" id="hdr-rel-data" contenteditable="true" spellcheck="false">DD/MM/AAAA</div>
                 <div class="info-label">Folha:</div>
                 <div class="info-value" contenteditable="true" spellcheck="false">1/2</div>
             </td>
@@ -343,6 +344,17 @@
         } catch(e) {}
     }
 
+    /* ── AUTO-FILL META (Relatório nº / Data) ───────── */
+    function preencherMeta() {
+        try {
+            var meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}');
+            var elNum = document.getElementById('hdr-rel-num');
+            if (elNum && meta.codigo) elNum.textContent = meta.codigo;
+            var elData = document.getElementById('hdr-rel-data');
+            if (elData && meta.emissao) elData.textContent = meta.emissao;
+        } catch(e) {}
+    }
+
     /* ── AUTO-FILL TAG (URL) ────────────────────────── */
     (function preencherTag() {
         const tag = new URLSearchParams(window.location.search).get('tag');
@@ -403,6 +415,7 @@
     document.addEventListener('DOMContentLoaded', function() {
         gerarChecklist();
         preencherEmpresa();
+        preencherMeta();
         injetarDadosVE();
         var _pg = new URLSearchParams(window.location.search).get('page');
         if (_pg) { var _el = document.querySelector('.footer-page-number'); if (_el) _el.innerText = _pg.trim(); }

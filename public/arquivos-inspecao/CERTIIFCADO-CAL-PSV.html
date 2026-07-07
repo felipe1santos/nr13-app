@@ -526,44 +526,45 @@
                     const d = injecao[calKey];
                     if (!d) return false;
 
-                    // Seção 1 — Cliente
-                    inj('inj-empresa',    d['inp-cliente']);
-                    inj('inj-endereco',   d['inp-endereco']);
+                    const tagUrl = new URLSearchParams(window.location.search).get('tag') || '';
 
-                    // Seção 2 — Instrumento calibrado
-                    inj('inj-instrumento', d['inp-inst-nome']);
-                    inj('inj-fabricante',  d['inp-fabricante']);
-                    inj('inj-modelo',      d['inp-modelo']);
-                    inj('inj-serie',       d['inp-serie']);
-                    inj('inj-referencia',  d['inp-tag']);
-                    inj('inj-data-cal',    formatarData(d['inp-data-cal']));
-                    inj('inj-data-prox',   formatarData(d['inp-data-prox']));
+                    // Seção 1 — Cliente
+                    inj('inj-empresa',    d.cliente);
+                    inj('inj-endereco',   d.endereco);
+
+                    // Seção 2 — Instrumento calibrado (nome do instrumento e TAG não existem no
+                    // objeto salvo por FormularioPSV.tsx — usa literal + TAG da URL)
+                    inj('inj-instrumento', 'PSV');
+                    inj('inj-fabricante',  d.fabricante);
+                    inj('inj-modelo',      d.modelo);
+                    inj('inj-serie',       d.serie);
+                    inj('inj-referencia',  tagUrl);
+                    inj('inj-data-cal',    formatarData(d.dataCal));
+                    inj('inj-data-prox',   formatarData(d.dataProx));
 
                     // Seção 4 — Condições ambientais
-                    inj('inj-temp-ar',  d['inp-temp-ar']);
-                    inj('inj-umidade',  d['inp-umidade']);
-                    inj('inj-local',    d['inp-local']);
+                    inj('inj-temp-ar',  d.tempAr);
+                    inj('inj-umidade',  d.umidade);
+                    inj('inj-local',    d.local);
 
                     // Seção 5 — Padrões
-                    inj('inj-padrao-inst',  d['inp-padrao-inst']);
-                    inj('inj-padrao-serie', d['inp-padrao-serie']);
-                    inj('inj-padrao-cert',  d['inp-padrao-cert']);
-                    inj('inj-padrao-val',   formatarData(d['inp-padrao-val']));
+                    inj('inj-padrao-inst',  d.padraoInst);
+                    inj('inj-padrao-serie', d.padraoSerie);
+                    inj('inj-padrao-cert',  d.padraoCert);
+                    inj('inj-padrao-val',   formatarData(d.padraoVal));
 
                     // Seção 6 — Resultados
-                    if (d.medicoes) {
-                        inj('inj-abertura',  d.medicoes['psv-abertura']);
-                        inj('inj-ajuste',    d.medicoes['psv-ajuste']);
-                        inj('inj-fechamento', d.medicoes['psv-fechamento']);
-                    }
-                    inj('inj-incerteza', d['inp-incerteza']);
-                    inj('inj-coef',      d['inp-coeficiente']);
+                    inj('inj-abertura',   d.abertura);
+                    inj('inj-ajuste',     d.ajuste);
+                    inj('inj-fechamento', d.fechamento);
+                    inj('inj-incerteza', d.incerteza);
+                    inj('inj-coef',      d.coeficiente);
 
                     // Conclusão
                     const spanStatus = document.getElementById('texto-status');
                     const spanMotivo = document.getElementById('texto-motivo');
-                    if (spanStatus && d['sel-status']) {
-                        if (d['sel-status'] === 'Aprovado') {
+                    if (spanStatus && d.status) {
+                        if (d.status === 'Aprovado') {
                             spanStatus.textContent = 'APROVADO';
                             spanStatus.style.color = 'green';
                             if (spanMotivo) spanMotivo.textContent = 'apresentou resultados dentro dos critérios de aceitação e parâmetros definidos neste documento.';

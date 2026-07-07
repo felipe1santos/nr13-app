@@ -395,9 +395,17 @@
             // =========================================================
             const params = new URLSearchParams(window.location.search);
             const tag = params.get('tag');
-            
+            // Paginação por conteúdo (mesmo contrato do MEMORIAL.html): quando quem monta o
+            // relatório sabe o intervalo real de linhas desta folha, ele manda via from/to (e
+            // part/of para o rótulo). Sem esses params (relatórios legados), cai no corte fixo
+            // em terços de compatibilidade.
+            const from = params.get('from');
+            const to = params.get('to');
+            const part = params.get('part');
+            const of = params.get('of');
+
             document.getElementById('tag-label').innerText = tag || '--';
-            document.getElementById('folha-label').innerText = '2/3';
+            document.getElementById('folha-label').innerText = (part && of) ? (part + '/' + of) : '2/3';
 
             if(!tag) return;
 
@@ -499,10 +507,18 @@
                     }
                 }
 
-                // CORTE: divide o memorial em 3 partes iguais (evita acúmulo de bocais na última folha)
+                // CORTE: usa o intervalo real (from/to) mandado por quem montou o relatório, que
+                // conhece o tamanho de fato do cálculo (CLAUDE.md §7: "folhas conforme tamanho do
+                // cálculo"). Só cai no corte fixo em terços (compatibilidade) quando from/to não
+                // vierem, ex.: relatórios antigos já salvos com este template legado.
                 const totalLinhas = linhas.length;
-                const porPagina = Math.ceil(totalLinhas / 3);
-                let fatias = linhas.slice(porPagina, porPagina * 2);
+                let fatias;
+                if (from !== null && to !== null) {
+                    fatias = linhas.slice(parseInt(from, 10), parseInt(to, 10));
+                } else {
+                    const porPagina = Math.ceil(totalLinhas / 3);
+                    fatias = linhas.slice(porPagina, porPagina * 2);
+                }
 
                 if (fatias.length > 0) {
                     area.innerHTML = fatias.map(estilizar).join('');

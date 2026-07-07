@@ -642,9 +642,12 @@
                 // caldeira, lendo classe/grupo salvos em nr13_cat. Acende a categoria, classe, grupo
                 // e a célula da matriz em amarelo a partir do que está salvo na ficha.
 
-                // Só calcula/exibe categorização (matriz, classe, grupo, categoria) se houver dado real.
-                // Sem essa guarda, "classe || 'A'" sempre cairia em A/III mesmo com vaso vazio.
-                const temDadosCategorizacao = !!cat.classe || pmta_mpa > 0 || vol_m3 > 0;
+                // Só calcula/exibe categorização (matriz, classe, grupo, categoria) se a classificação
+                // realmente foi feita (nr13_cat_<TAG> salvo com classe definida). PMTA/volume sozinhos
+                // não bastam: eles existem assim que o memorial/ficha são salvos, antes de o usuário
+                // rodar a Calculadora de Categoria — sem essa guarda, "classe || 'A'" fabricava um
+                // resultado Classe A/III mesmo sem categorização real.
+                const temDadosCategorizacao = !!cat.classe;
                 if (!temDadosCategorizacao) return;
 
                 let pv_kpa = pmta_kpa * vol_m3;

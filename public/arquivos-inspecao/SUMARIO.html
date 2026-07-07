@@ -280,7 +280,7 @@
                     </div>
                     <div class="right-info-block">
                         <div class="info-label">Validade:</div>
-                        <div class="info-value" id="sum-validade" contenteditable="true">05/04/2028</div>
+                        <div class="info-value" id="sum-validade" contenteditable="true">—</div>
                     </div>
                 </td>
             </tr>
@@ -426,12 +426,20 @@
                 'checklist1.html':                  'Checklist — Parte 1',
                 'checklist2.html':                  'Checklist — Parte 2',
                 'checklist3.html':                  'Checklist — Parte 3',
+                'FOTOS-DOCUMENTACAO.html':          'Registros Fotográficos — Documentação',
+                'CHECKLIST-FOTOS.html':             'Registros Fotográficos — Checklist',
+                'VISUAL-EXTERNO.html':              'Exame Externo',
+                'VISUAL-EXTERNO-FOTOS.html':        'Registro Fotográfico — Exame Externo',
+                'VISUAL-INTERNO.html':              'Exame Interno',
+                'VISUAL-INTERNO-FOTOS.html':        'Registro Fotográfico — Exame Interno',
                 'CONCLUSAO.html':                   'Parecer Técnico Conclusivo',
                 'ULTRASSOM.html':                   'Ensaio de Espessura por Ultrassom',
                 'TESTE-HIDROSTATICO.html':          'Teste Hidrostático',
+                'TESTE-HIDROSTATICO-FOTOS.html':    'Registro Fotográfico — Teste Hidrostático',
                 'CERTIFICADO-CAL-MANOMETRO.html':   'Anexo II — Calibração de Manômetro',
                 'CERTIIFCADO-CAL-PSV.html':         'Anexo III — Calibração PSV',
                 'LIVRO-REGISTRO.html':              'Livro de Registro de Segurança',
+                'CAPA-LIVRO-REGISTRO.html':         'Capa do Livro de Registro de Segurança',
                 'TERMO-ABERTURA.html':              'Termo de Abertura do Livro de Registro',
             };
 
@@ -441,7 +449,7 @@
                 const meta = JSON.parse(metaRaw);
                 if (meta.codigo && document.getElementById('sum-rel')) document.getElementById('sum-rel').innerText = meta.codigo;
                 if (meta.emissao && document.getElementById('sum-data')) document.getElementById('sum-data').innerText = meta.emissao;
-                if (meta.validade && document.getElementById('sum-validade')) document.getElementById('sum-validade').innerText = meta.validade;
+                if (document.getElementById('sum-validade')) document.getElementById('sum-validade').innerText = meta.validade || '—';
                 const docs = meta.documentos;
                 if (!docs || docs.length === 0) return;
 

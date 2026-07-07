@@ -339,8 +339,8 @@
         setSrc('logo-empresa', minhaEmpresa.logo);
         setSrc('watermark-logo', minhaEmpresa.logo);
         setVal('ph-codigo', meta.codigo || 'A gerar após confirmação / To be generated upon confirmation');
-        if (meta.dataGeracaoProntuario) {
-            setVal('ph-data-emissao', meta.dataGeracaoProntuario);
+        if (meta.emissao) {
+            setVal('ph-data-emissao', meta.emissao);
         } else {
             const hoje = new Date();
             setVal('ph-data-emissao', hoje.toLocaleDateString('pt-BR'));
@@ -422,13 +422,11 @@
         if (pmtaMpa) {
             const conv = converterPressao(pmtaMpa);
             setVal('ph-pmta-mpa', conv.mpa);
-            setVal('ph-pmta-psi', conv.psi);
             setVal('ph-pmta-kgf', conv.kgf);
         }
         if (pthMpa) {
             const conv = converterPressao(pthMpa);
             setVal('ph-pth-mpa', conv.mpa);
-            setVal('ph-pth-psi', conv.psi);
             setVal('ph-pth-kgf', conv.kgf);
         }
 

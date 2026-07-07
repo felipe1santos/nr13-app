@@ -481,7 +481,6 @@
                 } catch(e) {}
             })();
             // ─────────────────────────────────────────────────────────────────
-            carregarRastreabilidadeManometro(); // Gatilho: Puxa os dados da empresa
             configurarCalculoErro(); // Gatilho: Automatiza a tabela de erros
 
             // Paginação Dinâmica (Mesma lógica do TH.html)
@@ -524,34 +523,11 @@
         // ==========================================
         // AUTO-PREENCHIMENTO: RASTREABILIDADE
         // ==========================================
-        // ==========================================
-        // AUTO-PREENCHIMENTO: RASTREABILIDADE (ULTRASSOM)
-        // ==========================================
-        // ==========================================
-        // AUTO-PREENCHIMENTO: RASTREABILIDADE (MANÔMETRO)
-        // ==========================================
-        function carregarRastreabilidadeManometro() {
-            const salvo = localStorage.getItem('nr13_rastreabilidade');
-            if(salvo) {
-                const r = JSON.parse(salvo);
-                if(r.manometro) { // Agora sim, puxando do bloco exclusivo!
-                    const sectionTitle = Array.from(document.querySelectorAll('.section-title')).find(el => el.textContent.includes('5. PADRÕES UTILIZADOS'));
-                    if(sectionTitle) {
-                        const tabelaPadroes = sectionTitle.nextElementSibling;
-                        const celulas = tabelaPadroes.querySelectorAll('.data-blue');
-                        
-                        if(celulas.length >= 4) {
-                            if(r.manometro.modelo) celulas[0].innerText = r.manometro.modelo; 
-                            if(r.manometro.serie) celulas[1].innerText = r.manometro.serie;   
-                            if(r.manometro.validade) {
-                                const partes = r.manometro.validade.split('-');
-                                if(partes.length === 3) celulas[3].innerText = `${partes[2]}/${partes[1]}/${partes[0]}`; 
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        // NOTA: o preenchimento do bloco "5. PADRÕES UTILIZADOS" já é feito pelos motores de
+        // injeção reais deste arquivo (bloco calibId → c.padraoInst/padraoSerie/padraoCert/padraoVal
+        // e o MOTOR DE INJEÇÃO DO AVULSO → d.padraoInst/padraoSerie/padraoCert/padraoVal). A antiga
+        // função `carregarRastreabilidadeManometro()` lia a chave 'nr13_rastreabilidade', que nunca é
+        // gravada em nenhum lugar do sistema (código morto) — removida.
 
         // ==========================================
         // AUTO-CÁLCULO: CONVENCIONAL - NOMINAL = ERRO
@@ -632,6 +608,13 @@
                 if (el && val !== undefined && val !== '') el.innerText = val;
             }
 
+            function calcErro(vi, vcv) {
+                const a = parseFloat(String(vi).replace(',', '.'));
+                const b = parseFloat(String(vcv).replace(',', '.'));
+                if (isNaN(a) || isNaN(b)) return undefined;
+                return (a - b).toFixed(2).replace('.', ',');
+            }
+
             function executarInjecao() {
                 try {
                     const raw = localStorage.getItem('nr13_injecao_atual');
@@ -641,52 +624,56 @@
                     const d = injecao[calKey];
                     if (!d) return false;
 
-                    // Seção 1 — Cliente
-                    inj('inj-empresa',    d['inp-cliente']);
-                    inj('inj-endereco',   d['inp-endereco']);
+                    const tagUrl = new URLSearchParams(window.location.search).get('tag') || '';
 
-                    // Seção 2 — Instrumento calibrado
-                    inj('inj-instrumento', d['inp-inst-nome']);
-                    inj('inj-fabricante',  d['inp-fabricante']);
-                    inj('inj-modelo',      d['inp-modelo']);
-                    inj('inj-serie',       d['inp-serie']);
-                    inj('inj-referencia',  d['inp-tag']);
-                    inj('inj-data-cal',    formatarData(d['inp-data-cal']));
-                    inj('inj-data-prox',   formatarData(d['inp-data-prox']));
+                    // Seção 1 — Cliente
+                    inj('inj-empresa',    d.cliente);
+                    inj('inj-endereco',   d.endereco);
+
+                    // Seção 2 — Instrumento calibrado (nome do instrumento e TAG não existem no
+                    // objeto salvo por FormularioManometro.tsx — usa literal + TAG da URL)
+                    inj('inj-instrumento', 'Manômetro');
+                    inj('inj-fabricante',  d.fabricante);
+                    inj('inj-modelo',      d.modelo);
+                    inj('inj-serie',       d.serie);
+                    inj('inj-referencia',  tagUrl);
+                    inj('inj-data-cal',    formatarData(d.dataCal));
+                    inj('inj-data-prox',   formatarData(d.dataProx));
 
                     // Seção 4 — Condições ambientais
-                    inj('inj-temp-ar',  d['inp-temp-ar']);
-                    inj('inj-umidade',  d['inp-umidade']);
-                    inj('inj-local',    d['inp-local']);
+                    inj('inj-temp-ar',  d.tempAr);
+                    inj('inj-umidade',  d.umidade);
+                    inj('inj-local',    d.local);
 
                     // Seção 5 — Padrões
-                    inj('inj-padrao-inst',  d['inp-padrao-inst']);
-                    inj('inj-padrao-serie', d['inp-padrao-serie']);
-                    inj('inj-padrao-cert',  d['inp-padrao-cert']);
-                    inj('inj-padrao-val',   formatarData(d['inp-padrao-val']));
+                    inj('inj-padrao-inst',  d.padraoInst);
+                    inj('inj-padrao-serie', d.padraoSerie);
+                    inj('inj-padrao-cert',  d.padraoCert);
+                    inj('inj-padrao-val',   formatarData(d.padraoVal));
 
-                    // Seção 6 — Tabelas crescente / decrescente
-                    if (d.medicoes) {
-                        for (let i = 1; i <= 5; i++) {
-                            inj(`inj-vcv-${i}`,   d.medicoes[`vcv-${i}`]);
-                            inj(`inj-vic-${i}`,   d.medicoes[`vic-${i}`]);
-                            inj(`inj-vcv-d-${i}`, d.medicoes[`vcv-${i}`]); // VCV é o mesmo para ambas direções
-                            inj(`inj-vid-${i}`,   d.medicoes[`vid-${i}`]);
-                            // ERRO já vem calculado do avulso (errc-N / errd-N = VI - VCV)
-                            inj(`inj-erro-c-${i}`, d.medicoes[`errc-${i}`]);
-                            inj(`inj-erro-d-${i}`, d.medicoes[`errd-${i}`]);
-                        }
+                    // Seção 6 — Tabelas crescente / decrescente (d.linhas[] = {vcv, vic, vid};
+                    // erro não vem calculado — calcula aqui como VI - VCV)
+                    if (Array.isArray(d.linhas)) {
+                        d.linhas.forEach(function(linha, idx) {
+                            const i = idx + 1;
+                            inj(`inj-vcv-${i}`,   linha.vcv);
+                            inj(`inj-vic-${i}`,   linha.vic);
+                            inj(`inj-vcv-d-${i}`, linha.vcv); // VCV é o mesmo para ambas direções
+                            inj(`inj-vid-${i}`,   linha.vid);
+                            inj(`inj-erro-c-${i}`, calcErro(linha.vic, linha.vcv));
+                            inj(`inj-erro-d-${i}`, calcErro(linha.vid, linha.vcv));
+                        });
                     }
-                    inj('inj-incerteza-c', d['inp-incerteza']);
-                    inj('inj-coef-c',      d['inp-coeficiente']);
-                    inj('inj-incerteza-d', d['inp-incerteza']);
-                    inj('inj-coef-d',      d['inp-coeficiente']);
+                    inj('inj-incerteza-c', d.incerteza);
+                    inj('inj-coef-c',      d.coeficiente);
+                    inj('inj-incerteza-d', d.incerteza);
+                    inj('inj-coef-d',      d.coeficiente);
 
                     // Conclusão
                     const spanStatus = document.getElementById('texto-status');
                     const spanMotivo = document.getElementById('texto-motivo');
-                    if (spanStatus && d['sel-status']) {
-                        if (d['sel-status'] === 'Aprovado') {
+                    if (spanStatus && d.status) {
+                        if (d.status === 'Aprovado') {
                             spanStatus.textContent = 'APROVADO';
                             spanStatus.style.color = 'green';
                             if (spanMotivo) spanMotivo.textContent = 'apresentou resultados dentro dos critérios de aceitação e parâmetros definidos neste documento.';

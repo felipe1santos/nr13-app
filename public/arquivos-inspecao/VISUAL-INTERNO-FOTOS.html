@@ -172,9 +172,9 @@
             </td>
             <td rowspan="2" class="col-info">
                 <div class="rot">Relatório nº:</div>
-                <div class="val" contenteditable="true" spellcheck="false">REL-000000</div>
+                <div class="val" id="rel-num-1" contenteditable="true" spellcheck="false">REL-000000</div>
                 <div class="rot">Data:</div>
-                <div class="val" contenteditable="true" spellcheck="false">DD/MM/AAAA</div>
+                <div class="val" id="rel-data-1" contenteditable="true" spellcheck="false">DD/MM/AAAA</div>
                 <div class="rot">Folha:</div>
                 <div class="val" id="rel-folha-1" contenteditable="true" spellcheck="false">2/2</div>
             </td>
@@ -212,6 +212,9 @@
     let totalSlots   = 0;
     let paginaAtual  = 1;
     const FOTOS_PAG  = 4;
+    // Meta do relatório (Relatório nº / Data), lida abaixo e reaplicada em cada página nova
+    let META_CODIGO  = '';
+    let META_EMISSAO = '';
     // Página inicial vem da montagem do relatório (?page=N); páginas extras seguem em sequência.
     const PAGE_PARAM = parseInt(new URLSearchParams(window.location.search).get('page') || '15', 10);
     // Quando a montagem expande esta folha (?fpag), só as 4 fotos da fatia entram, e o nº da FOTO
@@ -275,9 +278,9 @@
             '    <td class="col-titulo">INSPEÇÃO VISUAL INTERNA<span class="subtitulo">REGISTRO FOTOGRÁFICO</span></td>' +
             '    <td rowspan="2" class="col-info">' +
             '      <div class="rot">Relatório nº:</div>' +
-            '      <div class="val" contenteditable="true" spellcheck="false">REL-000000</div>' +
+            '      <div class="val" id="rel-num-' + num + '" contenteditable="true" spellcheck="false">' + (META_CODIGO || 'REL-000000') + '</div>' +
             '      <div class="rot">Data:</div>' +
-            '      <div class="val" contenteditable="true" spellcheck="false">DD/MM/AAAA</div>' +
+            '      <div class="val" id="rel-data-' + num + '" contenteditable="true" spellcheck="false">' + (META_EMISSAO || 'DD/MM/AAAA') + '</div>' +
             '      <div class="rot">Folha:</div>' +
             '      <div class="val" id="rel-folha-' + num + '" contenteditable="true" spellcheck="false">' + num + '/' + num + '</div>' +
             '    </td>' +
@@ -365,16 +368,41 @@
         if (tag) document.getElementById('id-tag').textContent = tag;
     })();
 
+    /* ── AUTO-FILL CABEÇALHO (meta do relatório) ────── */
+    (function preencherMeta() {
+        try {
+            var meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}');
+            META_CODIGO  = meta.codigo  || '';
+            META_EMISSAO = meta.emissao || '';
+        } catch(e) {}
+        if (META_CODIGO)  document.getElementById('rel-num-1').textContent  = META_CODIGO;
+        if (META_EMISSAO) document.getElementById('rel-data-1').textContent = META_EMISSAO;
+    })();
+
     /* ── INIT: injeta fotos salvas ou 4 slots vazios ── */
     document.addEventListener('DOMContentLoaded', function() {
         var fotosInjetadas = [];
+        var vi = null;
         try {
             var raw = localStorage.getItem('nr13_injecao_atual');
             if (raw) {
                 var inj = JSON.parse(raw);
-                fotosInjetadas = (inj && inj['visual_interno'] && inj['visual_interno'].fotos) || [];
+                vi = (inj && inj['visual_interno']) || null;
+                fotosInjetadas = (vi && vi.fotos) || [];
             }
         } catch(e) {}
+
+        function fmtData(s) {
+            if (!s) return '';
+            var p = String(s).split('-');
+            return p.length === 3 ? (p[2] + '/' + p[1] + '/' + p[0]) : s;
+        }
+
+        if (vi) {
+            if (vi.contratante)  document.getElementById('id-contratante').textContent = vi.contratante;
+            if (vi.dataInspecao) document.getElementById('id-data').textContent = fmtData(vi.dataInspecao);
+        }
+
         var _r1 = document.querySelector('#pagina-1 .rodape-num');
         if (_r1) _r1.innerText = PAGE_PARAM;
         // ?fpag: renderiza só as 4 fotos desta página A4 (1 iframe = 1 folha). Sem fpag, todas.

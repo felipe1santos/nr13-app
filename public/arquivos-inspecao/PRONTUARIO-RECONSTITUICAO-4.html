@@ -183,6 +183,15 @@
             <div class="info-label">Data de Emissão / Issue Date</div>
             <div class="info-value" id="ph-data-emissao">--</div>
         </div>
+        <!-- Assinatura do engenheiro responsável (CLAUDE.md §8) — puxada de nr13_lista_phs -->
+        <div class="ph-resp-right">
+            <img id="ph-assinatura" src="" alt="Assinatura" style="display:none">
+            <div class="sig-line"></div>
+            <div class="sig-data">
+                <strong id="ph-nome">—</strong><br>
+                CREA: <span id="ph-crea" class="data-highlight">—</span>
+            </div>
+        </div>
     </div>
 
     </div>
@@ -224,12 +233,46 @@
 
         // ===== RESPONSABILIDADE TÉCNICA =====
         setVal('ph-codigo2', meta.codigo || 'A gerar após confirmação / To be generated upon confirmation');
-        if (meta.dataGeracaoProntuario) {
-            setVal('ph-data-emissao', meta.dataGeracaoProntuario);
+        if (meta.emissao) {
+            setVal('ph-data-emissao', meta.emissao);
         } else {
             const hoje = new Date();
             setVal('ph-data-emissao', hoje.toLocaleDateString('pt-BR'));
         }
+
+        // ===== ASSINATURA DO ENGENHEIRO RESPONSÁVEL =====
+        // Ordem de preferência: (a) PH de nr13_lista_phs cujo nome/CREA batem com meta.phNome/phCrea
+        // (dados digitados na montagem do relatório); (b) 1º PH do tipo 'Engenheiro' cadastrado;
+        // (c) apenas o texto de meta.phNome/phCrea, sem assinatura; (d) nada (linha em branco).
+        try {
+            const listaPHs = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
+            let eng = null;
+            if (meta.phNome) {
+                const alvoNome = String(meta.phNome).trim().toLowerCase();
+                eng = listaPHs.find(function(p) {
+                    return p && p.nome && String(p.nome).trim().toLowerCase() === alvoNome;
+                });
+            }
+            if (!eng && meta.phCrea) {
+                const alvoCrea = String(meta.phCrea).trim().toLowerCase();
+                eng = listaPHs.find(function(p) {
+                    return p && p.crea && String(p.crea).trim().toLowerCase() === alvoCrea;
+                });
+            }
+            if (!eng) {
+                eng = listaPHs.find(function(p) { return p && p.tipo === 'Engenheiro'; });
+            }
+
+            const nomeFinal = meta.phNome || (eng && eng.nome) || '';
+            const creaFinal = meta.phCrea || (eng && eng.crea) || '';
+            setVal('ph-nome', nomeFinal || 'Engenheiro Responsável');
+            setVal('ph-crea', creaFinal || '—');
+
+            if (eng && eng.assinatura) {
+                const imgAss = document.getElementById('ph-assinatura');
+                if (imgAss) { imgAss.src = eng.assinatura; imgAss.style.display = 'block'; }
+            }
+        } catch (e) { /* sem PH cadastrado: mantém apenas nome/CREA da meta, sem assinatura */ }
 
         // ===== RODAPÉ =====
         let footerHtml = '<strong>' + (minhaEmpresa.razao || minhaEmpresa.fantasia || '--') + '</strong><br>';

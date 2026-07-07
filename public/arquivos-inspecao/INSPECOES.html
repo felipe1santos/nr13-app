@@ -372,9 +372,9 @@
                 </td>
                 <td class="col-info">
                      <div class="info-label">Relatório nº.</div>
-                     <div class="info-value" contenteditable="true" spellcheck="false">----</div>
+                     <div class="info-value" id="hdr-rel-num" contenteditable="true" spellcheck="false">----</div>
                      <div class="info-label">Data de Emissão:</div>
-                     <div class="info-value" contenteditable="true" spellcheck="false">DD/MM/AAAA</div>
+                     <div class="info-value" id="hdr-rel-data" contenteditable="true" spellcheck="false">DD/MM/AAAA</div>
                 </td>
             </tr>
         </table>
@@ -640,6 +640,16 @@
             const tipoInspecao = (meta.tipoInspecao || '').toLowerCase();
             const documentos = meta.documentos || [];
 
+            // Cabeçalho: Nº do relatório e Data de Emissão (nr13_relatorio_meta_atual)
+            if (meta.codigo) {
+                const elRelNum = document.getElementById('hdr-rel-num');
+                if (elRelNum) elRelNum.textContent = meta.codigo;
+            }
+            if (meta.emissao) {
+                const elRelData = document.getElementById('hdr-rel-data');
+                if (elRelData) elRelData.textContent = meta.emissao;
+            }
+
             // Marca a NATUREZA da inspeção (Inicial/Periódica/Extraordinária)
             let natureza = null;
             if (tipoInspecao.includes('inicial')) natureza = 'inicial';
@@ -734,7 +744,7 @@
                 const empStr = localStorage.getItem('nr13_emp_' + tag);
                 if (empStr) {
                     const emp = JSON.parse(empStr);
-                    setVal('insp-contratante', emp.razaoSocial || emp.nome);
+                    setVal('insp-contratante', emp.razaoSocial || emp.nomeFantasia || emp.nome);
 
                     let enderecoCompleto = [];
                     if(emp.endereco) enderecoCompleto.push(emp.endereco);
@@ -749,7 +759,7 @@
                 setVal('insp-serie', info.numeroSerie || info.serie);
                 setVal('insp-tipo', info.descricao);
                 setVal('insp-fabricante', info.fabricante);
-                setVal('insp-cod-proj', info.codProj || 'ASME VIII Div. 1');
+                setVal('insp-cod-proj', info.codProj);
                 setVal('insp-ano', info.ano);
                 setVal('insp-volume', info.volume);
 

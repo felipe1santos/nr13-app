@@ -220,7 +220,7 @@ export default function Prontuarios() {
     setClientes(listarClientes());
   }, [carregarEquipamentos]);
 
-  function abrirEquipamento(eq: EquipamentoResumo) {
+  async function abrirEquipamento(eq: EquipamentoResumo) {
     const existente = carregarProntuario(eq.tag);
     setTag(eq.tag);
     setTipoEquip(eq.info.tipo);
@@ -386,7 +386,7 @@ export default function Prontuarios() {
       gravarProntuarioAtual(finais);
       // Re-aplica a grade de espessura do ensaio escolhido (ou limpa se nenhum) para os iframes.
       const contSel = finais.containerEnsaioId ? conts.find((c) => c.id === finais.containerEnsaioId) ?? null : null;
-      void aplicarEnsaioEspessura(eq.tag, contSel);
+      await aplicarEnsaioEspessura(eq.tag, contSel);
       if (existente) {
         setVersao((v) => v + 1);
         setVisualizandoSemSalvar(false);
@@ -484,7 +484,7 @@ export default function Prontuarios() {
                     type="button"
                     key={eq.tag}
                     className="card-equipamento-horiz"
-                    onClick={() => abrirEquipamento(eq)}
+                    onClick={() => void abrirEquipamento(eq)}
                   >
                     <div className="card-eq-info" style={{ flex: 1 }}>
                       <div className="eq-col">

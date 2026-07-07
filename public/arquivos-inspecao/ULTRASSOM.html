@@ -254,10 +254,10 @@
                 </td>
                 <td class="col-info">
                     <div class="info-label" contenteditable="true" spellcheck="false">Relatório nº.</div>
-                    <div class="info-value" contenteditable="true" spellcheck="false">REL-000000</div>
+                    <div class="info-value" id="hdr-rel-num" contenteditable="true" spellcheck="false">REL-000000</div>
                     <div class="info-label" contenteditable="true" spellcheck="false">Data de Emissão:</div>
-                    <div class="info-value" contenteditable="true" spellcheck="false">DD/MM/AAAA</div>
-                    
+                    <div class="info-value" id="hdr-rel-data" contenteditable="true" spellcheck="false">DD/MM/AAAA</div>
+
                 </td>
             </tr>
         </table>
@@ -471,7 +471,7 @@
     document.addEventListener('DOMContentLoaded', function() {
         // Captura o número da página enviado pela URL do relatorios.js
         const paramPagina = new URLSearchParams(window.location.search).get('page');
-        
+
         if (paramPagina) {
             // Localiza a div do rodapé
             const elPagina = document.querySelector('.footer-page-number');
@@ -479,6 +479,15 @@
                 elPagina.innerText = paramPagina.trim();
             }
         }
+
+        // Cabeçalho: Relatório nº. / Data de Emissão vêm do relatório em montagem
+        try {
+            const meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}');
+            const elNum = document.getElementById('hdr-rel-num');
+            const elData = document.getElementById('hdr-rel-data');
+            if (elNum && meta.codigo) elNum.textContent = meta.codigo;
+            if (elData && meta.emissao) elData.textContent = meta.emissao;
+        } catch (e) {}
     });
 
 
@@ -690,6 +699,8 @@
         // Puxa o instrumento de medição (Padrão de Espessura) cadastrado em "Sua Empresa"
         function carregarRastreabilidadeInstrumento() {
             try {
+                // Fonte legada (nenhum lugar do sistema grava nr13_rastreabilidade hoje, mas
+                // mantemos a leitura para compatibilidade caso venha a existir um gravador).
                 const r = JSON.parse(localStorage.getItem('nr13_rastreabilidade') || '{}');
                 if (r && r.ultrassom) {
                     if (r.ultrassom.modelo) document.getElementById('rast-us-padrao').innerText = r.ultrassom.modelo;
@@ -698,6 +709,30 @@
                     if (r.ultrassom.validade) {
                         const p = r.ultrassom.validade.split('-');
                         document.getElementById('rast-us-validade').innerText = p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : r.ultrassom.validade;
+                    }
+                    return;
+                }
+
+                // Fonte real hoje (Calibrações → aba Rastreabilidade): nr13_rastreab_<id>,
+                // ver src/features/relatorios/rastreabilidadeService.ts. Procura a entrada cujo
+                // nome identifique o padrão de ultrassom/medição de espessura.
+                const candidatos = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const chave = localStorage.key(i);
+                    if (!chave || chave.indexOf('nr13_rastreab_') !== 0) continue;
+                    try {
+                        const item = JSON.parse(localStorage.getItem(chave) || 'null');
+                        if (item && item.nome) candidatos.push(item);
+                    } catch (e2) {}
+                }
+                const nomeMatch = (n) => /ultra.?s?om|espessura/i.test(n || '');
+                const escolhido = candidatos.find((c) => nomeMatch(c.nome)) || null;
+                if (escolhido) {
+                    if (escolhido.nome) document.getElementById('rast-us-padrao').innerText = escolhido.nome;
+                    if (escolhido.certificadoPadrao) document.getElementById('rast-us-certificado').innerText = escolhido.certificadoPadrao;
+                    if (escolhido.validade) {
+                        const p = String(escolhido.validade).split('-');
+                        document.getElementById('rast-us-validade').innerText = p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : escolhido.validade;
                     }
                 }
             } catch(e) {}

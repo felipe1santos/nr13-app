@@ -190,9 +190,9 @@
             </td>
             <td rowspan="2" class="col-info">
                 <div class="info-label">Relatório nº:</div>
-                <div class="info-value" contenteditable="true" spellcheck="false">REL-000000</div>
+                <div class="info-value" id="hdr-rel-num" contenteditable="true" spellcheck="false">REL-000000</div>
                 <div class="info-label">Data:</div>
-                <div class="info-value" contenteditable="true" spellcheck="false">DD/MM/AAAA</div>
+                <div class="info-value" id="hdr-rel-data" contenteditable="true" spellcheck="false">DD/MM/AAAA</div>
                 <div class="info-label">Folha:</div>
                 <div class="info-value" contenteditable="true" spellcheck="false">1/2</div>
             </td>
@@ -398,10 +398,26 @@
         }
     }
 
+    /* ── AUTO-FILL META DO RELATÓRIO ─────────────────── */
+    function preencherMetaRelatorio() {
+        try {
+            var meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}');
+            if (meta.codigo) {
+                var elNum = document.getElementById('hdr-rel-num');
+                if (elNum) elNum.textContent = meta.codigo;
+            }
+            if (meta.emissao) {
+                var elData = document.getElementById('hdr-rel-data');
+                if (elData) elData.textContent = meta.emissao;
+            }
+        } catch(e) {}
+    }
+
     /* ── INIT ───────────────────────────────────────── */
     document.addEventListener('DOMContentLoaded', function() {
         gerarChecklist();
         preencherEmpresa();
+        preencherMetaRelatorio();
         injetarDadosVI();
         var _pg = new URLSearchParams(window.location.search).get('page');
         if (_pg) { var _el = document.querySelector('.footer-page-number'); if (_el) _el.innerText = _pg.trim(); }

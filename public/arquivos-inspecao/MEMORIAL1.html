@@ -499,10 +499,65 @@
                     }
                 }
 
-                // CORTE: divide o memorial em 3 partes iguais (evita acúmulo de bocais na última folha)
-                const totalLinhas = linhas.length;
-                const porPagina = Math.ceil(totalLinhas / 3);
-                let fatias = linhas.slice(0, porPagina);
+                // CORTE: divide o memorial em 3 folhas por PESO estimado de altura (não por
+                // contagem de linhas) e nunca corta um bloco de componente ("MEMORIAL DE CÁLCULO -
+                // X") ao meio. Mesma lógica de empacotamento de expandirMemorial() em
+                // relatoriosService.ts (pesoLinha/ehInicioBloco/orçamento por folha), adaptada para
+                // as 3 folhas fixas deste template legado — garante que cada terço realmente caiba
+                // na folha em vez de depender só do encolhimento de fonte (que antes podia cortar
+                // o final do texto silenciosamente quando batia no piso de 7px).
+                function pesoLinha(t) {
+                    const s = t.trim();
+                    if (s.startsWith('$$')) return s.includes('\\frac') ? 3.5 : 1.8;
+                    if (/STATUS:|^OK:|^REPROVADO:|^FALHA:|N[ÃA]O VERIFICADO|^RESULTADO FINAL:|ATEN[ÇC][ÃA]O/i.test(s)) return 2.6;
+                    if (/^MEMORIAL DE C[ÁA]LCULO\b/i.test(s)) return 2.6;
+                    if (/^-{6,}$/.test(s)) return 0.8;
+                    if (/^(\d+\.\s|PAR[ÂA]METROS)/i.test(s)) return 1.6;
+                    return s.length > 90 ? 2.2 : 1.15;
+                }
+                function ehInicioBloco(t) { return /^MEMORIAL DE C[ÁA]LCULO\b/i.test(t.trim()); }
+
+                const textos = linhas.map(l => l.text);
+                const inicios = [];
+                textos.forEach((t, i) => { if (ehInicioBloco(t)) inicios.push(i); });
+                if (inicios.length === 0 || inicios[0] !== 0) inicios.unshift(0);
+                const brutos = inicios.map((ini, k) => ({ ini, fim: k + 1 < inicios.length ? inicios[k + 1] : textos.length }));
+
+                const pesoBloco = (b) => textos.slice(b.ini, b.fim).reduce((soma, t) => soma + pesoLinha(t), 0);
+                const LIMIAR_SUBDIVISAO = 48;
+                const blocos = [];
+                brutos.forEach((b) => {
+                    if (pesoBloco(b) <= LIMIAR_SUBDIVISAO) { blocos.push(b); return; }
+                    // Bloco maior que uma folha (ex.: autoclave com um componente só): subdivide
+                    // nos títulos de seção ("1. ...", "2. ...") para poder quebrar em mais folhas.
+                    const cortes = [b.ini];
+                    for (let i = b.ini + 1; i < b.fim; i++) if (/^\d+\.\s/.test(textos[i])) cortes.push(i);
+                    cortes.push(b.fim);
+                    for (let k = 0; k + 1 < cortes.length; k++) blocos.push({ ini: cortes[k], fim: cortes[k + 1] });
+                });
+
+                // Orçamentos iguais aos usados por MEMORIAL.html/expandirMemorial para a mesma
+                // fonte/CSS (memorial-calc-novo.css): 1ª folha tem menos espaço (seção de dados do
+                // cliente ocupa parte dela); a 3ª folha (esta é a última das 3) fica com o restante.
+                const ORCAMENTOS_FOLHA = [30, 42]; // folha 1 e folha 2; folha 3 recebe o restante
+                const ranges = [];
+                let from = 0, acc = 0, pagina = 0;
+                for (const b of blocos) {
+                    const tam = pesoBloco(b);
+                    const orcamento = pagina < ORCAMENTOS_FOLHA.length ? ORCAMENTOS_FOLHA[pagina] : Infinity;
+                    if (pagina < ORCAMENTOS_FOLHA.length && acc > 0 && acc + tam > orcamento) {
+                        ranges.push({ from, to: b.ini });
+                        from = b.ini;
+                        acc = 0;
+                        pagina++;
+                    }
+                    acc += tam;
+                }
+                ranges.push({ from, to: textos.length });
+                while (ranges.length < 3) ranges.push({ from: textos.length, to: textos.length });
+
+                const minhaFaixa = ranges[0]; // MEMORIAL1.html = folha 1/3
+                let fatias = linhas.slice(minhaFaixa.from, minhaFaixa.to);
 
                 if (fatias.length > 0) {
                     area.innerHTML = fatias.map(estilizar).join('');

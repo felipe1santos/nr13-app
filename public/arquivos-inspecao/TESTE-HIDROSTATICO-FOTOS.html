@@ -400,6 +400,13 @@
             var num = document.querySelector('.rodape-num');
             if (num) num.textContent = page.trim();
         }
+        var qp = new URLSearchParams(window.location.search);
+        var fpag = parseInt(qp.get('fpag') || '0', 10);
+        var fof  = parseInt(qp.get('fof')  || '0', 10);
+        if (fpag > 0 && fof > 0) {
+            var folha = document.getElementById('rel-folha');
+            if (folha) folha.textContent = fpag + ' / ' + fof;
+        }
     })();
 
     /* ── INIT: injeta fotos + dados do TH salvos em campo ──── */
