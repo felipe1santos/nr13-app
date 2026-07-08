@@ -8,6 +8,7 @@ import { ITENS_TOPO, ITENS_CADASTRAR, ITENS_BAIXO, ITEM_ACESSOS, tituloDaRota } 
 import type { ItemMenu } from './menu';
 import BotaoInstalarPWA from './BotaoInstalarPWA';
 import SyncStatus from './SyncStatus';
+import ModalTrocarSenha from '../components/ModalTrocarSenha';
 import './layout.css';
 
 const ROTULO_PAPEL: Record<string, string> = {
@@ -55,6 +56,7 @@ export default function Layout() {
     () => location.pathname.startsWith('/funcionarios') || location.pathname.startsWith('/empresas'),
   );
   const [temAlerta, setTemAlerta] = useState(false);
+  const [modalSenha, setModalSenha] = useState(false);
   const email = usuarioLogado();
   const papel = ROTULO_PAPEL[papelAtual()] ?? 'Administrador';
   const nEquip = listarChavesComPrefixo('nr13_info_').length;
@@ -189,6 +191,19 @@ export default function Layout() {
 
           <div className="nav-spacer" />
           <div className="nav-divider" />
+          <button
+            type="button"
+            className="nav-item"
+            onClick={() => {
+              setModalSenha(true);
+              fecharDrawer();
+            }}
+          >
+            <span className="left">
+              <Icone nome="key" />
+              <span className="menu-text">Trocar Senha</span>
+            </span>
+          </button>
           <button type="button" className="nav-item danger" onClick={handleLogout}>
             <span className="left">
               <Icone nome="logout" />
@@ -272,6 +287,8 @@ export default function Layout() {
           </main>
         </div>
       </div>
+
+      {modalSenha && email && <ModalTrocarSenha email={email} onClose={() => setModalSenha(false)} />}
     </div>
   );
 }

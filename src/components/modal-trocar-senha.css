@@ -1,0 +1,79 @@
+/* Modal de troca de senha (código por e-mail ou senha atual) */
+.mts-box { max-width: 460px; }
+
+.mts-corpo { padding: 16px 24px 20px; display: flex; flex-direction: column; gap: 12px; }
+
+.mts-tabs {
+  display: flex;
+  gap: 6px;
+  background: var(--steel);
+  border-radius: 10px;
+  padding: 4px;
+}
+.mts-tab {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-base);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.mts-tab.ativo {
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 1px 4px rgba(20, 24, 28, 0.12);
+}
+
+.mts-desc { font-size: 12.5px; color: var(--muted); margin: 0; }
+.mts-desc b { color: var(--text); overflow-wrap: anywhere; }
+
+.mts-linha-codigo { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.mts-enviado {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  color: var(--ok);
+  font-weight: 600;
+}
+
+.mts-campo { display: flex; flex-direction: column; gap: 4px; }
+.mts-campo label { font-size: 11.5px; font-weight: 600; color: var(--muted); }
+.mts-campo input {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 9px 12px;
+  font-size: 13.5px;
+  font-family: var(--font-base);
+  background: var(--panel);
+  color: var(--text);
+}
+.mts-campo input:disabled { background: var(--steel); color: var(--muted); }
+.mts-campo input:focus-visible { outline: 2px solid var(--amber); outline-offset: 1px; }
+
+.mts-erro {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--crit);
+  background: var(--crit-bg);
+  border: 1px solid var(--crit-line);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.mts-acoes { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
+.mts-btn-enviar, .mts-btn-salvar { white-space: nowrap; }
+
+.mts-sucesso {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 36px 24px;
+  color: var(--ok);
+}
+.mts-sucesso p { margin: 0; font-weight: 700; font-size: 14px; color: var(--text); }

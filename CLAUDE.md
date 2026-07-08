@@ -223,6 +223,26 @@ a **logo e dados da empresa** (`nr13_minha_empresa`), e os dados do **engenheiro
 > colunas mostram "—". O aviso vermelho de expiração (≤30 dias) usa `nr13_acesso_expira_em`
 > gravada no login — não depende do SQL.
 
+> **Troca de senha pelo usuário (08/07/2026): PENDÊNCIA DE DEPLOY (manual, no painel Supabase)**
+> O usuário troca a própria senha em duas frentes: botão **"Trocar Senha"** na sidebar (logado;
+> código por e-mail OU senha atual) e **"Esqueci minha senha"** na tela de login (código por
+> e-mail). Superadmin segue resetando pelo painel Admin (`reset_password`) e o mestre pelo
+> Acessos (`resetar_senha` da org_admin) — nada disso depende de e-mail.
+> Para o **código por e-mail** funcionar, configurar no Supabase Dashboard:
+> 1. **Authentication → Email Templates → "Reset Password"**: o corpo do e-mail PRECISA conter
+>    `{{ .Token }}` (código de 6 dígitos). O template padrão só tem `{{ .ConfirmationURL }}`
+>    (link) — sem o `{{ .Token }}` o fluxo de código falha. Exemplo de corpo:
+>    `<h2>Troca de senha</h2><p>Seu código de confirmação: <b>{{ .Token }}</b></p><p>Ele expira em 1 hora. Se você não pediu a troca, ignore este e-mail.</p>`
+> 2. **SMTP próprio (recomendado p/ produção)**: Authentication → SMTP Settings. O e-mail
+>    embutido do Supabase tem limite de ~2 mensagens/hora (só para testes) — em produção,
+>    configurar um SMTP (Resend/Brevo/etc.) senão os códigos param de chegar.
+> 3. Rate limit no app: 1 envio por minuto por usuário (cooldown de 60s na UI); código expira
+>    em 1h (padrão "Email OTP Expiration" em Auth → Providers → Email).
+> Enquanto o template não for ajustado, o usuário logado ainda troca a senha pela aba
+> **"Senha atual"** do modal — esse caminho não usa e-mail nenhum.
+> Código: `enviarCodigoTrocaSenha`/`trocarSenhaComCodigo`/`trocarSenhaComSenhaAtual` em
+> `src/services/auth.ts`, `src/components/ModalTrocarSenha.tsx`, modo "recuperar" em Login.tsx.
+
 Nenhuma pendência estrutural aberta. Itens já resolvidos:
 - ✅ "Fotos da documentação" (folha #11): grupo `fotosDocumentacao` no `FormularioChecklist` +
   `FOTOS-DOCUMENTACAO.html`, auto-injetado após `checklist3` e antes de `CHECKLIST-FOTOS`.

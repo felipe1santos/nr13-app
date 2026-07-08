@@ -299,6 +299,66 @@ export async function logout(): Promise<void> {
   encerrarSessaoLocal();
 }
 
+// ── Troca de senha pelo próprio usuário ──────────────────────────────────────
+// Fluxo com código por e-mail (Supabase recovery OTP):
+//   1. enviarCodigoTrocaSenha(email)  → Supabase envia e-mail do template "Reset Password"
+//      (o template PRECISA conter {{ .Token }} — ver CLAUDE.md §9, pendência de deploy).
+//   2. trocarSenhaComCodigo(email, codigo, novaSenha) → verifyOtp(type 'recovery') valida o
+//      código e cria sessão; updateUser grava a nova senha.
+// Fluxo alternativo (logado, sem depender de e-mail): trocarSenhaComSenhaAtual().
+
+export interface TrocaSenhaResultado {
+  sucesso: boolean;
+  erro?: string;
+}
+
+export async function enviarCodigoTrocaSenha(email: string): Promise<TrocaSenhaResultado> {
+  const { error } = await supabase.auth.resetPasswordForEmail(normalizar(email));
+  if (error) return { sucesso: false, erro: traduzErro(error.message) };
+  return { sucesso: true };
+}
+
+// encerrarSessao=true: usado no fluxo "esqueci minha senha" da tela de login — o verifyOtp
+// cria sessão SEM passar pelos gates de login (ativo/expiração/sessão única), então
+// derrubamos a sessão e obrigamos o login normal com a senha nova.
+export async function trocarSenhaComCodigo(
+  email: string,
+  codigo: string,
+  novaSenha: string,
+  encerrarSessao = false,
+): Promise<TrocaSenhaResultado> {
+  const { error: otpErr } = await supabase.auth.verifyOtp({
+    email: normalizar(email),
+    token: codigo.trim(),
+    type: 'recovery',
+  });
+  if (otpErr) return { sucesso: false, erro: traduzErro(otpErr.message) };
+  const { error } = await supabase.auth.updateUser({ password: novaSenha });
+  if (error) {
+    if (encerrarSessao) await supabase.auth.signOut();
+    return { sucesso: false, erro: traduzErro(error.message) };
+  }
+  if (encerrarSessao) await supabase.auth.signOut();
+  return { sucesso: true };
+}
+
+export async function trocarSenhaComSenhaAtual(
+  senhaAtual: string,
+  novaSenha: string,
+): Promise<TrocaSenhaResultado> {
+  const email = usuarioLogado();
+  if (!email) return { sucesso: false, erro: 'Sessão expirada. Entre novamente.' };
+  // Reautentica para confirmar a senha atual (mesmo usuário: não afeta a sessão única).
+  const { error: confErr } = await supabase.auth.signInWithPassword({
+    email: normalizar(email),
+    password: senhaAtual,
+  });
+  if (confErr) return { sucesso: false, erro: 'Senha atual incorreta.' };
+  const { error } = await supabase.auth.updateUser({ password: novaSenha });
+  if (error) return { sucesso: false, erro: traduzErro(error.message) };
+  return { sucesso: true };
+}
+
 // ── Papéis da organização (≠ role admin da plataforma) ──
 export function papelAtual(): PapelOrg | '' {
   return (localStorage.getItem('nr13_papel') || '') as PapelOrg | '';
@@ -367,5 +427,11 @@ function traduzErro(msg: string): string {
     return 'Este e-mail já possui cadastro.';
   if (m.includes('password should be')) return 'A senha é muito curta (mínimo 6 caracteres).';
   if (m.includes('email not confirmed')) return 'Confirme seu e-mail antes de entrar.';
+  if (m.includes('token has expired') || m.includes('otp_expired') || (m.includes('invalid') && m.includes('token')))
+    return 'Código inválido ou expirado. Solicite um novo código.';
+  if (m.includes('security purposes') || m.includes('rate limit') || m.includes('too many requests'))
+    return 'Muitas tentativas. Aguarde um minuto e tente novamente.';
+  if (m.includes('should be different') || m.includes('same_password') || m.includes('different from the old'))
+    return 'A nova senha precisa ser diferente da senha atual.';
   return msg;
 }
