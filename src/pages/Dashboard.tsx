@@ -31,6 +31,7 @@ export default function Dashboard() {
   );
   const [listaExpandida, setListaExpandida] = useState(false);
   const [modalTag, setModalTag] = useState<string | null>(null);
+  const [filtroPrazo, setFiltroPrazo] = useState<'todos' | 5 | 30 | 60 | 'vencidos'>('todos');
 
   // Recalcula ao montar e sempre que a janela volta ao foco: um relatório novo gerado em
   // Relatórios muda o prazo do equipamento e o painel reflete na hora, sem F5.
@@ -50,7 +51,12 @@ export default function Dashboard() {
   const vencidos = itens.filter((i) => i.status === 'crit');
   const alertas = itens.filter((i) => i.status === 'crit' || i.status === 'warn').slice(0, 5);
   const comPrazo = itens.filter((i) => i.status !== 'semPrazo');
-  const tabela = listaExpandida ? comPrazo : comPrazo.slice(0, 6);
+  const filtrados = comPrazo.filter((i) => {
+    if (filtroPrazo === 'todos') return true;
+    if (filtroPrazo === 'vencidos') return (i.dias ?? 0) < 0;
+    return (i.dias ?? -1) >= 0 && (i.dias ?? Infinity) <= filtroPrazo;
+  });
+  const tabela = listaExpandida ? filtrados : filtrados.slice(0, 6);
   const primeiroVencido = vencidos[0];
 
   function dispensarAlerta() {
@@ -193,11 +199,35 @@ export default function Dashboard() {
             </div>
             {kpis.vencidos > 0 && <span className="fj-badge crit">{kpis.vencidos} vencido{kpis.vencidos > 1 ? 's' : ''}</span>}
           </div>
-          {tabela.length === 0 ? (
+          <div className="prazo-filtros">
+            {([
+              ['todos', 'Todos'],
+              [5, '5 dias'],
+              [30, '30 dias'],
+              [60, '60 dias'],
+              ['vencidos', 'Vencidos'],
+            ] as const).map(([valor, rotulo]) => (
+              <button
+                key={String(valor)}
+                type="button"
+                className={`prazo-chip${filtroPrazo === valor ? ' ativo' : ''}${valor === 'vencidos' ? ' venc' : ''}`}
+                onClick={() => setFiltroPrazo(valor)}
+              >
+                {rotulo}
+              </button>
+            ))}
+          </div>
+          {comPrazo.length === 0 ? (
             <div className="fj-empty">
               <div className="fj-empty-ic"><Icone nome="calendar" tam={22} /></div>
               <div className="fj-empty-title">Nenhum prazo cadastrado</div>
               Calcule a Vida Remanescente na ficha do equipamento ou cadastre calibrações para acompanhar os vencimentos aqui.
+            </div>
+          ) : tabela.length === 0 ? (
+            <div className="fj-empty">
+              <div className="fj-empty-ic"><Icone nome="filter" tam={22} /></div>
+              <div className="fj-empty-title">Nada neste filtro</div>
+              Nenhum item {filtroPrazo === 'vencidos' ? 'vencido' : `vencendo em até ${filtroPrazo} dias`}.
             </div>
           ) : (
             <div className="fj-table-wrap">
@@ -233,7 +263,7 @@ export default function Dashboard() {
           )}
           <div className="fj-panel-foot">
             <button type="button" className="fj-link" onClick={() => setListaExpandida((v) => !v)}>
-              {listaExpandida ? 'Recolher lista' : `Ver todos os vencimentos (${comPrazo.length})`}
+              {listaExpandida ? 'Recolher lista' : `Ver todos os vencimentos (${filtrados.length})`}
               <Icone nome={listaExpandida ? 'chevup' : 'chevdown'} tam={13} />
             </button>
           </div>

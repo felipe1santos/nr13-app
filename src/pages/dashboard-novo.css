@@ -105,6 +105,35 @@
   margin-bottom: 16px;
   align-items: start;
 }
+/* chips de filtro do card de prazos */
+.prazo-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 20px 2px;
+}
+.prazo-chip {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--muted);
+  font-family: var(--font-base);
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 4px 11px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.prazo-chip:hover { border-color: var(--muted); color: var(--text); }
+.prazo-chip.ativo {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
+}
+.prazo-chip.venc.ativo {
+  background: var(--crit);
+  border-color: var(--crit);
+}
+
 /* lista de alertas */
 .alist { padding: 6px 18px 14px; }
 .alist-item {
