@@ -131,7 +131,58 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ===== TABELA + ALERTAS ===== */}
+      {/* ===== MINHA EMPRESA + CALENDÁRIO (mockup: primeira linha) ===== */}
+      <div className="dash-grid-2">
+        <div className="fj-panel">
+          <div className="fj-panel-head">
+            <div>
+              <div className="fj-eyebrow">Empresa executante</div>
+              <h2>Minha Empresa</h2>
+            </div>
+            <button type="button" className="fj-btn fj-btn-ghost" onClick={() => navigate('/minha-empresa')}>
+              <Icone nome="pencil" tam={13} /> Editar dados
+            </button>
+          </div>
+          <div className="minha-emp-body">
+            <div className="minha-emp-logo">
+              {empresa.logo ? <img src={empresa.logo} alt="Logo da empresa" /> : <Icone nome="briefcase" tam={26} />}
+            </div>
+            {empresa.razao || empresa.fantasia ? (
+              <div className="minha-emp-info">
+                <div className="minha-emp-nome">{empresa.razao || empresa.fantasia}</div>
+                {empresa.fantasia && empresa.razao && <div className="minha-emp-sub">{empresa.fantasia}</div>}
+                <div className="minha-emp-meta">
+                  {empresa.cnpj && <span className="mono">CNPJ {empresa.cnpj}</span>}
+                  {empresa.cidade && <span>{empresa.cidade}{empresa.estado ? `/${empresa.estado}` : ''}</span>}
+                  {empresa.telefone && <span>{empresa.telefone}</span>}
+                  {empresa.email && <span>{empresa.email}</span>}
+                </div>
+                <div className="minha-emp-nota">Estes dados assinam a documentação gerada (relatórios e prontuários).</div>
+              </div>
+            ) : (
+              <div className="minha-emp-info">
+                <div className="minha-emp-nome" style={{ color: 'var(--muted)' }}>Dados não preenchidos</div>
+                <div className="minha-emp-nota">Preencha os dados e a logo da sua empresa — eles vão para dentro da documentação.</div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="fj-panel">
+          <div className="fj-panel-head">
+            <div>
+              <div className="fj-eyebrow">Agenda</div>
+              <h2>Próximas inspeções</h2>
+            </div>
+            <button type="button" className="fj-btn fj-btn-primary" onClick={() => navigate('/inspecoes')}>
+              <Icone nome="plus" tam={14} /> Nova Inspeção
+            </button>
+          </div>
+          <CalendarioVencimentos itens={itens} />
+        </div>
+      </div>
+
+      {/* ===== TABELA + ALERTAS (mockup: segunda linha) ===== */}
       <div className="dash-grid-2">
         <div className="fj-panel">
           <div className="fj-panel-head">
@@ -222,56 +273,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ===== MINHA EMPRESA + CALENDÁRIO ===== */}
-      <div className="dash-grid-2 inverso">
-        <div className="fj-panel">
-          <div className="fj-panel-head">
-            <div>
-              <div className="fj-eyebrow">Empresa executante</div>
-              <h2>Minha Empresa</h2>
-            </div>
-            <button type="button" className="fj-btn fj-btn-ghost" onClick={() => navigate('/minha-empresa')}>
-              <Icone nome="pencil" tam={13} /> Editar dados
-            </button>
-          </div>
-          <div className="minha-emp-body">
-            <div className="minha-emp-logo">
-              {empresa.logo ? <img src={empresa.logo} alt="Logo da empresa" /> : <Icone nome="briefcase" tam={26} />}
-            </div>
-            {empresa.razao || empresa.fantasia ? (
-              <div className="minha-emp-info">
-                <div className="minha-emp-nome">{empresa.razao || empresa.fantasia}</div>
-                {empresa.fantasia && empresa.razao && <div className="minha-emp-sub">{empresa.fantasia}</div>}
-                <div className="minha-emp-meta">
-                  {empresa.cnpj && <span className="mono">CNPJ {empresa.cnpj}</span>}
-                  {empresa.cidade && <span>{empresa.cidade}{empresa.estado ? `/${empresa.estado}` : ''}</span>}
-                  {empresa.telefone && <span>{empresa.telefone}</span>}
-                  {empresa.email && <span>{empresa.email}</span>}
-                </div>
-                <div className="minha-emp-nota">Estes dados assinam a documentação gerada (relatórios e prontuários).</div>
-              </div>
-            ) : (
-              <div className="minha-emp-info">
-                <div className="minha-emp-nome" style={{ color: 'var(--muted)' }}>Dados não preenchidos</div>
-                <div className="minha-emp-nota">Preencha os dados e a logo da sua empresa — eles vão para dentro da documentação.</div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="fj-panel">
-          <div className="fj-panel-head">
-            <div>
-              <div className="fj-eyebrow">Agenda</div>
-              <h2>Próximas inspeções</h2>
-            </div>
-            <button type="button" className="fj-btn fj-btn-primary" onClick={() => navigate('/inspecoes')}>
-              <Icone nome="plus" tam={14} /> Nova Inspeção
-            </button>
-          </div>
-          <CalendarioVencimentos itens={itens} />
-        </div>
-      </div>
     </div>
   );
 }

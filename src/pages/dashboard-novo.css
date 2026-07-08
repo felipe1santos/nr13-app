@@ -90,8 +90,6 @@
   margin-bottom: 16px;
   align-items: start;
 }
-.dash-grid-2.inverso { grid-template-columns: 1fr 1.25fr; }
-
 /* lista de alertas */
 .alist { padding: 6px 18px 14px; }
 .alist-item {
@@ -165,7 +163,7 @@
 }
 
 @media (max-width: 1180px) {
-  .dash-grid-2, .dash-grid-2.inverso { grid-template-columns: 1fr; }
+  .dash-grid-2 { grid-template-columns: 1fr; }
 }
 @media (max-width: 720px) {
   .dash-page { padding: 18px 16px 50px; }
