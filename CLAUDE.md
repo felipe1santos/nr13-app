@@ -224,10 +224,11 @@ a **logo e dados da empresa** (`nr13_minha_empresa`), e os dados do **engenheiro
 > gravada no login — não depende do SQL.
 
 > **Troca de senha pelo usuário (08/07/2026): PENDÊNCIA DE DEPLOY (manual, no painel Supabase)**
-> O usuário troca a própria senha em duas frentes: botão **"Trocar Senha"** na sidebar (logado;
-> código por e-mail OU senha atual) e **"Esqueci minha senha"** na tela de login (código por
-> e-mail). Superadmin segue resetando pelo painel Admin (`reset_password`) e o mestre pelo
-> Acessos (`resetar_senha` da org_admin) — nada disso depende de e-mail.
+> O usuário troca a própria senha em três frentes: **"Trocar minha senha"** na tela de login
+> (e-mail + senha atual + nova — SEM e-mail/SMTP, funciona sem nenhuma config), botão
+> **"Trocar Senha"** na sidebar (logado; código por e-mail OU senha atual) e **"Esqueci minha
+> senha"** na tela de login (código por e-mail). Superadmin segue resetando pelo painel Admin
+> (`reset_password`) e o mestre pelo Acessos (`resetar_senha` da org_admin) — sem e-mail.
 > Para o **código por e-mail** funcionar, configurar no Supabase Dashboard:
 > 1. **Authentication → Email Templates → "Reset Password"**: o corpo do e-mail PRECISA conter
 >    `{{ .Token }}` (código de 6 dígitos). O template padrão só tem `{{ .ConfirmationURL }}`

@@ -359,6 +359,25 @@ export async function trocarSenhaComSenhaAtual(
   return { sucesso: true };
 }
 
+// Troca de senha DIRETO NA TELA DE LOGIN (deslogado), sem e-mail: a prova de identidade
+// é a senha atual. A sessão criada pelo signInWithPassword não passa pelos gates de
+// liberação/expiração/sessão única, então é derrubada — o usuário entra pelo login normal.
+export async function trocarSenhaNaTelaDeLogin(
+  email: string,
+  senhaAtual: string,
+  novaSenha: string,
+): Promise<TrocaSenhaResultado> {
+  const { error: confErr } = await supabase.auth.signInWithPassword({
+    email: normalizar(email),
+    password: senhaAtual,
+  });
+  if (confErr) return { sucesso: false, erro: 'E-mail ou senha atual incorretos.' };
+  const { error } = await supabase.auth.updateUser({ password: novaSenha });
+  await supabase.auth.signOut();
+  if (error) return { sucesso: false, erro: traduzErro(error.message) };
+  return { sucesso: true };
+}
+
 // ── Papéis da organização (≠ role admin da plataforma) ──
 export function papelAtual(): PapelOrg | '' {
   return (localStorage.getItem('nr13_papel') || '') as PapelOrg | '';

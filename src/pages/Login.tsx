@@ -1,12 +1,20 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { login, cadastrar, isAdmin, isCliente, enviarCodigoTrocaSenha, trocarSenhaComCodigo } from '../services/auth';
+import {
+  login,
+  cadastrar,
+  isAdmin,
+  isCliente,
+  enviarCodigoTrocaSenha,
+  trocarSenhaComCodigo,
+  trocarSenhaNaTelaDeLogin,
+} from '../services/auth';
 import './login.css';
 
 const REENVIO_SEGUNDOS = 60; // rate limit do Supabase: 1 e-mail de recuperação por minuto
 
 export default function Login() {
-  const [modo, setModo] = useState<'entrar' | 'cadastrar' | 'recuperar'>('entrar');
+  const [modo, setModo] = useState<'entrar' | 'cadastrar' | 'recuperar' | 'trocar'>('entrar');
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [erro, setErro] = useState<string | null>(null);
@@ -26,7 +34,7 @@ export default function Login() {
     return () => window.clearTimeout(t);
   }, [cooldown]);
 
-  function irPara(m: 'entrar' | 'cadastrar' | 'recuperar') {
+  function irPara(m: 'entrar' | 'cadastrar' | 'recuperar' | 'trocar') {
     setErro(null);
     setAviso(null);
     setCodigoEnviado(false);
@@ -52,6 +60,33 @@ export default function Login() {
       setCodigoEnviado(true);
       setCooldown(REENVIO_SEGUNDOS);
       setAviso('Código enviado! Confira seu e-mail (e a caixa de spam).');
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  async function handleTrocar(e: React.FormEvent) {
+    e.preventDefault();
+    if (novaSenha.length < 6) {
+      setErro('A nova senha precisa ter no mínimo 6 caracteres.');
+      return;
+    }
+    if (novaSenha !== confirmar) {
+      setErro('A confirmação não confere com a nova senha.');
+      return;
+    }
+    setErro(null);
+    setAviso(null);
+    setCarregando(true);
+    try {
+      const r = await trocarSenhaNaTelaDeLogin(email, senha, novaSenha);
+      if (!r.sucesso) {
+        setErro(r.erro || 'Falha ao trocar a senha.');
+        return;
+      }
+      setSenha('');
+      irPara('entrar');
+      setAviso('Senha alterada! Entre com a nova senha.');
     } finally {
       setCarregando(false);
     }
@@ -108,6 +143,83 @@ export default function Login() {
     } finally {
       setCarregando(false);
     }
+  }
+
+  if (modo === 'trocar') {
+    return (
+      <div className="login-page">
+        <form className="login-box" onSubmit={handleTrocar}>
+          <svg className="login-logo" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2">
+            <path d="M12 2 4 5v6c0 5 3.5 8.5 8 11 4.5-2.5 8-6 8-11V5l-8-3Z" />
+          </svg>
+          <h2>Trocar Senha</h2>
+          <p className="login-desc">
+            Confirme seu e-mail e a senha atual para definir uma nova senha.
+          </p>
+          <div className="input-group">
+            <label htmlFor="tro-email">E-mail de acesso</label>
+            <input
+              id="tro-email"
+              type="email"
+              placeholder="seu@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+          <div className="input-group">
+            <label htmlFor="tro-atual">Senha atual</label>
+            <input
+              id="tro-atual"
+              type="password"
+              autoComplete="current-password"
+              placeholder="••••••••"
+              value={senha}
+              onChange={(e) => setSenha(e.target.value)}
+              minLength={6}
+              required
+            />
+          </div>
+          <div className="input-group">
+            <label htmlFor="tro-nova">Nova senha (mín. 6 caracteres)</label>
+            <input
+              id="tro-nova"
+              type="password"
+              autoComplete="new-password"
+              minLength={6}
+              value={novaSenha}
+              onChange={(e) => setNovaSenha(e.target.value)}
+              required
+            />
+          </div>
+          <div className="input-group">
+            <label htmlFor="tro-confirmar">Confirmar nova senha</label>
+            <input
+              id="tro-confirmar"
+              type="password"
+              autoComplete="new-password"
+              minLength={6}
+              value={confirmar}
+              onChange={(e) => setConfirmar(e.target.value)}
+              required
+            />
+          </div>
+          {erro && <p className="login-erro">{erro}</p>}
+          {aviso && <p className="login-erro" style={{ color: '#1a7f37' }}>{aviso}</p>}
+          <button type="submit" className="btn-login" disabled={carregando}>
+            {carregando ? 'Aguarde...' : 'Trocar senha'}
+          </button>
+          <button
+            type="button"
+            className="btn-trocar-modo"
+            onClick={() => irPara('entrar')}
+            style={{ marginTop: 12, background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer' }}
+          >
+            ← Voltar para o login
+          </button>
+        </form>
+      </div>
+    );
   }
 
   if (modo === 'recuperar') {
@@ -251,14 +363,24 @@ export default function Login() {
               : 'Criar Conta'}
         </button>
         {modo === 'entrar' && (
-          <button
-            type="button"
-            className="btn-trocar-modo"
-            onClick={() => irPara('recuperar')}
-            style={{ marginTop: 12, background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer' }}
-          >
-            Esqueci minha senha
-          </button>
+          <>
+            <button
+              type="button"
+              className="btn-trocar-modo"
+              onClick={() => irPara('trocar')}
+              style={{ marginTop: 12, background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer' }}
+            >
+              Trocar minha senha
+            </button>
+            <button
+              type="button"
+              className="btn-trocar-modo"
+              onClick={() => irPara('recuperar')}
+              style={{ marginTop: 4, background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer' }}
+            >
+              Esqueci minha senha
+            </button>
+          </>
         )}
         <button
           type="button"
