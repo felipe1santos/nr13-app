@@ -12,8 +12,8 @@ const ICONE_TIPO: Record<string, Parameters<typeof Icone>[0]['nome']> = {
   'Vaso de Pressão': 'cylinder',
   Caldeira: 'flame',
   Autoclave: 'box',
-  'Manômetro': 'gauge',
-  'Válvula de Segurança': 'tool',
+  'Manômetro': 'manometro',
+  'Válvula de Segurança': 'valvula-psv',
 };
 
 function BadgeStatus({ status }: { status: ItemVencimento['status'] }) {
@@ -28,6 +28,7 @@ export default function Dashboard() {
   const [alertaDispensado, setAlertaDispensado] = useState(
     () => sessionStorage.getItem('nr13_alerta_dispensado') === '1',
   );
+  const [listaExpandida, setListaExpandida] = useState(false);
 
   const itens = useMemo(() => listarVencimentos(), []);
   const totalEquip = listarChavesComPrefixo('nr13_info_').length;
@@ -36,7 +37,8 @@ export default function Dashboard() {
 
   const vencidos = itens.filter((i) => i.status === 'crit');
   const alertas = itens.filter((i) => i.status === 'crit' || i.status === 'warn').slice(0, 5);
-  const tabela = itens.filter((i) => i.status !== 'semPrazo').slice(0, 6);
+  const comPrazo = itens.filter((i) => i.status !== 'semPrazo');
+  const tabela = listaExpandida ? comPrazo : comPrazo.slice(0, 6);
   const primeiroVencido = vencidos[0];
 
   function dispensarAlerta() {
@@ -131,8 +133,11 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ===== MINHA EMPRESA + CALENDÁRIO (mockup: primeira linha) ===== */}
-      <div className="dash-grid-2">
+      {/* ===== COLUNAS (mockup): esquerda = Minha Empresa + Prazos; direita = Agenda + Alertas.
+           Cada coluna empilha seus painéis de forma independente — sem buraco quando o
+           calendário é mais alto que o card da empresa. ===== */}
+      <div className="dash-cols">
+        <div className="dash-col">
         <div className="fj-panel">
           <div className="fj-panel-head">
             <div>
@@ -168,22 +173,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="fj-panel">
-          <div className="fj-panel-head">
-            <div>
-              <div className="fj-eyebrow">Agenda</div>
-              <h2>Próximas inspeções</h2>
-            </div>
-            <button type="button" className="fj-btn fj-btn-primary" onClick={() => navigate('/inspecoes')}>
-              <Icone nome="plus" tam={14} /> Nova Inspeção
-            </button>
-          </div>
-          <CalendarioVencimentos itens={itens} />
-        </div>
-      </div>
-
-      {/* ===== TABELA + ALERTAS (mockup: segunda linha) ===== */}
-      <div className="dash-grid-2">
         <div className="fj-panel">
           <div className="fj-panel-head">
             <div>
@@ -231,10 +220,26 @@ export default function Dashboard() {
             </div>
           )}
           <div className="fj-panel-foot">
-            <button type="button" className="fj-link" onClick={() => navigate('/vencimentos')}>
-              Ver todos os vencimentos ({itens.filter((i) => i.status !== 'semPrazo').length})
+            <button type="button" className="fj-link" onClick={() => setListaExpandida((v) => !v)}>
+              {listaExpandida ? 'Recolher lista' : `Ver todos os vencimentos (${comPrazo.length})`}
+              <Icone nome={listaExpandida ? 'chevup' : 'chevdown'} tam={13} />
             </button>
           </div>
+        </div>
+        </div>
+
+        <div className="dash-col">
+        <div className="fj-panel">
+          <div className="fj-panel-head">
+            <div>
+              <div className="fj-eyebrow">Agenda</div>
+              <h2>Próximas inspeções</h2>
+            </div>
+            <button type="button" className="fj-btn fj-btn-primary" onClick={() => navigate('/inspecoes')}>
+              <Icone nome="plus" tam={14} /> Nova Inspeção
+            </button>
+          </div>
+          <CalendarioVencimentos itens={itens} />
         </div>
 
         <div className="fj-panel">
@@ -271,8 +276,8 @@ export default function Dashboard() {
             )}
           </div>
         </div>
+        </div>
       </div>
-
     </div>
   );
 }

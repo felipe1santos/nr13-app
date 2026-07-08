@@ -82,7 +82,22 @@
 }
 .btn-alert-ghost:hover { background: rgba(255, 255, 255, 0.22); }
 
-/* grids */
+/* grids: duas colunas independentes — cada uma empilha seus painéis, sem buraco
+   quando um painel da outra coluna é mais alto */
+.dash-cols {
+  display: grid;
+  grid-template-columns: 1.65fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+  align-items: start;
+}
+.dash-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+/* grade simples de 2 painéis lado a lado (usada em Vencimentos) */
 .dash-grid-2 {
   display: grid;
   grid-template-columns: 1.65fr 1fr;
@@ -163,7 +178,7 @@
 }
 
 @media (max-width: 1180px) {
-  .dash-grid-2 { grid-template-columns: 1fr; }
+  .dash-cols, .dash-grid-2 { grid-template-columns: 1fr; }
 }
 @media (max-width: 720px) {
   .dash-page { padding: 18px 16px 50px; }
