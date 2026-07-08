@@ -23,6 +23,9 @@ describe('parseDataFlex', () => {
   it('aceita aaaa-mm-dd', () => {
     expect(parseDataFlex('2026-07-02')?.getTime()).toBe(new Date(2026, 6, 2).getTime());
   });
+  it('aceita ddmmaaaa sem barras (dado antigo digitado sem máscara)', () => {
+    expect(parseDataFlex('09072026')?.getTime()).toBe(new Date(2026, 6, 9).getTime());
+  });
   it('rejeita lixo', () => {
     expect(parseDataFlex('banana')).toBeNull();
     expect(parseDataFlex('')).toBeNull();
@@ -96,6 +99,51 @@ describe('listarVencimentos (localStorage)', () => {
     expect(textoPrazo(ac)).toMatch(/^Vencido há \d+ dias$/);
     // vencido ordena antes do semPrazo
     expect(itens[0].origem).toBe('calibracao');
+  });
+
+  it('sem vida, relatório salvo com próx. interna gera vencimento do equipamento', () => {
+    localStorage.setItem('nr13_info_V1', JSON.stringify({ tag: 'V1', tipo: 'vaso', subtipo: '' }));
+    localStorage.setItem('nr13_historico_relatorios', JSON.stringify([{
+      id: 'REL-1', tagVaso: 'V1', nome: 'r', tipo: 'Inspeção Periódica', data: '08/07/2026',
+      documentos: [], status: 'Aprovado',
+      meta: { codigo: 'REL-1', emissao: '08/07/2026', execucaoInspecao: '08/07/2026', proximaInspecaoInterna: '09/07/2026', proximaInspecaoExterna: '' },
+    }]));
+    const itens = listarVencimentos(HOJE);
+    const v1 = itens.find((i) => i.tag === 'V1')!;
+    expect(v1.status).toBe('warn'); // 6 dias
+    expect(v1.vencimento?.getDate()).toBe(9);
+    expect(v1.vencimento?.getMonth()).toBe(6);
+  });
+
+  it('vale o relatório mais recente; e entre interna/externa vale a mais próxima', () => {
+    localStorage.setItem('nr13_info_V1', JSON.stringify({ tag: 'V1', tipo: 'vaso', subtipo: '' }));
+    localStorage.setItem('nr13_historico_relatorios', JSON.stringify([
+      { id: 'REL-1', tagVaso: 'V1', nome: 'r', tipo: 'Inspeção Periódica', data: '01/01/2025', documentos: [], status: 'Aprovado',
+        meta: { codigo: 'REL-1', emissao: '01/01/2025', proximaInspecaoInterna: '01/02/2025', proximaInspecaoExterna: '' } },
+      { id: 'REL-2', tagVaso: 'V1', nome: 'r', tipo: 'Inspeção Periódica', data: '01/07/2026', documentos: [], status: 'Aprovado',
+        meta: { codigo: 'REL-2', emissao: '01/07/2026', proximaInspecaoInterna: '01/07/2027', proximaInspecaoExterna: '09072026' } },
+    ]));
+    const itens = listarVencimentos(HOJE);
+    const v1 = itens.find((i) => i.tag === 'V1')!;
+    // REL-2 manda; externa 09/07/2026 (sem barras) vence antes da interna
+    expect(v1.vencimento?.getFullYear()).toBe(2026);
+    expect(v1.vencimento?.getDate()).toBe(9);
+    expect(v1.status).toBe('warn');
+  });
+
+  it('vida e relatório juntos: vence o prazo mais próximo', () => {
+    localStorage.setItem('nr13_info_V1', JSON.stringify({ tag: 'V1', tipo: 'vaso', subtipo: '' }));
+    localStorage.setItem('nr13_vida_V1', JSON.stringify({
+      entrada: { dataAtual: '02/07/2026' }, proximaInspecaoAnos: 2, // 02/07/2028
+    }));
+    localStorage.setItem('nr13_historico_relatorios', JSON.stringify([{
+      id: 'REL-1', tagVaso: 'V1', nome: 'r', tipo: 'Inspeção Periódica', data: '02/07/2026', documentos: [], status: 'Aprovado',
+      meta: { codigo: 'REL-1', emissao: '02/07/2026', proximaInspecaoInterna: '09/07/2026', proximaInspecaoExterna: '' },
+    }]));
+    const itens = listarVencimentos(HOJE);
+    const v1 = itens.find((i) => i.tag === 'V1')!;
+    expect(v1.vencimento?.getDate()).toBe(9); // relatório vence antes da vida
+    expect(v1.vencimento?.getFullYear()).toBe(2026);
   });
 
   it('chave malformada não derruba a listagem', () => {

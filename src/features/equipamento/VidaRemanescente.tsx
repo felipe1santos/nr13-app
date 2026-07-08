@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { ler, salvar } from '../../services/storage';
+import { mascararData } from '../../services/mascaras';
 import { listarContainers } from '../inspecoes/inspecaoService';
 import { calcularVidaRemanescente, parseDataBR, type ResultadoVidaRemanescente } from '../../calc/vidaRemanescente';
 import type { Categoria } from '../../calc/categoria';
@@ -135,7 +136,7 @@ export default function VidaRemanescente({ tag, info }: { tag: string; info: Inf
         </label>
         <label className="vida-campo">
           <span>Data anterior</span>
-          <input value={dataAnterior} onChange={(e) => setDataAnterior(e.target.value)} placeholder="dd/mm/aaaa" />
+          <input value={dataAnterior} onChange={(e) => setDataAnterior(mascararData(e.target.value))} placeholder="dd/mm/aaaa" inputMode="numeric" />
         </label>
         <label className="vida-campo">
           <span>Esp. atual (mm)</span>
@@ -143,7 +144,7 @@ export default function VidaRemanescente({ tag, info }: { tag: string; info: Inf
         </label>
         <label className="vida-campo">
           <span>Data atual</span>
-          <input value={dataAtual} onChange={(e) => setDataAtual(e.target.value)} placeholder="dd/mm/aaaa" />
+          <input value={dataAtual} onChange={(e) => setDataAtual(mascararData(e.target.value))} placeholder="dd/mm/aaaa" inputMode="numeric" />
         </label>
         <label className="vida-campo">
           <span>Esp. mín. requerida (mm)</span>

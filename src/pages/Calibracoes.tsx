@@ -4,6 +4,7 @@ import { listarEquipamentos } from '../features/equipamento/equipamentoService';
 import type { EmpresaEquipamento, EquipamentoResumo, TipoEquipamento } from '../features/equipamento/tipos';
 import { formatarValor } from '../calc/unidades';
 import { ler } from '../services/storage';
+import { mascararData } from '../services/mascaras';
 import {
   arquivoCalibracao,
   calcularErro,
@@ -876,7 +877,7 @@ export default function Calibracoes() {
               </div>
               <div className="cal-campo">
                 <label>Data de Emissão</label>
-                <input value={form.dataEmissao} onChange={(e) => set('dataEmissao', e.target.value)} placeholder="DD/MM/AAAA" />
+                <input value={form.dataEmissao} onChange={(e) => set('dataEmissao', mascararData(e.target.value))} placeholder="DD/MM/AAAA" inputMode="numeric" />
               </div>
             </div>
           </div>
@@ -908,11 +909,11 @@ export default function Calibracoes() {
               <div className="cal-campo" />
               <div className="cal-campo">
                 <label>Data da Calibração</label>
-                <input value={form.dataCalibracao} onChange={(e) => set('dataCalibracao', e.target.value)} placeholder="DD/MM/AAAA" />
+                <input value={form.dataCalibracao} onChange={(e) => set('dataCalibracao', mascararData(e.target.value))} placeholder="DD/MM/AAAA" inputMode="numeric" />
               </div>
               <div className="cal-campo">
                 <label>Data da Próxima Calibração</label>
-                <input value={form.dataProxCalibracao} onChange={(e) => set('dataProxCalibracao', e.target.value)} placeholder="DD/MM/AAAA" />
+                <input value={form.dataProxCalibracao} onChange={(e) => set('dataProxCalibracao', mascararData(e.target.value))} placeholder="DD/MM/AAAA" inputMode="numeric" />
               </div>
             </div>
           </div>
@@ -954,7 +955,7 @@ export default function Calibracoes() {
               </div>
               <div className="cal-campo">
                 <label>Validade</label>
-                <input value={form.padraoVal} onChange={(e) => set('padraoVal', e.target.value)} placeholder="DD/MM/AAAA" />
+                <input value={form.padraoVal} onChange={(e) => set('padraoVal', mascararData(e.target.value))} placeholder="DD/MM/AAAA" inputMode="numeric" />
               </div>
             </div>
           </div>

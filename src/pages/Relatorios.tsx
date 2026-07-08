@@ -20,6 +20,7 @@ import {
 } from '../features/relatorios/relatoriosService';
 import { validadesPorRelatorio, vincularLotesPendentes } from '../features/calibracoes/componentesService';
 import { registrarUso } from '../services/usoMetricas';
+import { mascararData } from '../services/mascaras';
 import { exportarPdf } from '../features/relatorios/pdfService';
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
 import type { RelatorioMeta, RelatorioSalvo, TipoInspecao } from '../features/relatorios/tipos';
@@ -346,6 +347,11 @@ export default function Relatorios() {
     setMeta((m) => (m ? { ...m, [chave]: valor } : m));
   }
 
+  // Campos de data do modal: máscara dd/mm/aaaa (o usuário digita só os números).
+  function setCampoData(chave: keyof RelatorioMeta, valor: string) {
+    setCampoMeta(chave, mascararData(valor));
+  }
+
   return (
     <div className="relatorios-page">
       {tela === 'equipamentos' && (
@@ -575,23 +581,23 @@ export default function Relatorios() {
                     </div>
                     <div className="meta-barra-campo">
                       <label>Emissão</label>
-                      <input value={meta.emissao} readOnly={somenteLeitura} onChange={(e) => setCampoMeta('emissao', e.target.value)} />
+                      <input placeholder="DD/MM/AAAA" inputMode="numeric" value={meta.emissao} readOnly={somenteLeitura} onChange={(e) => setCampoData('emissao', e.target.value)} />
                     </div>
                     <div className="meta-barra-campo">
                       <label>Validade</label>
-                      <input placeholder="DD/MM/AAAA" value={meta.validade} readOnly={somenteLeitura} onChange={(e) => setCampoMeta('validade', e.target.value)} />
+                      <input placeholder="DD/MM/AAAA" inputMode="numeric" value={meta.validade} readOnly={somenteLeitura} onChange={(e) => setCampoData('validade', e.target.value)} />
                     </div>
                     <div className="meta-barra-campo">
                       <label>Execução Insp.</label>
-                      <input placeholder="DD/MM/AAAA" value={meta.execucaoInspecao} readOnly={somenteLeitura} onChange={(e) => setCampoMeta('execucaoInspecao', e.target.value)} />
+                      <input placeholder="DD/MM/AAAA" inputMode="numeric" value={meta.execucaoInspecao} readOnly={somenteLeitura} onChange={(e) => setCampoData('execucaoInspecao', e.target.value)} />
                     </div>
                     <div className="meta-barra-campo">
                       <label>Próx. Interna</label>
-                      <input placeholder="DD/MM/AAAA" value={meta.proximaInspecaoInterna} readOnly={somenteLeitura} onChange={(e) => setCampoMeta('proximaInspecaoInterna', e.target.value)} />
+                      <input placeholder="DD/MM/AAAA" inputMode="numeric" value={meta.proximaInspecaoInterna} readOnly={somenteLeitura} onChange={(e) => setCampoData('proximaInspecaoInterna', e.target.value)} />
                     </div>
                     <div className="meta-barra-campo">
                       <label>Próx. Externa</label>
-                      <input placeholder="DD/MM/AAAA" value={meta.proximaInspecaoExterna} readOnly={somenteLeitura} onChange={(e) => setCampoMeta('proximaInspecaoExterna', e.target.value)} />
+                      <input placeholder="DD/MM/AAAA" inputMode="numeric" value={meta.proximaInspecaoExterna} readOnly={somenteLeitura} onChange={(e) => setCampoData('proximaInspecaoExterna', e.target.value)} />
                     </div>
                     <div className="meta-barra-campo">
                       <label>Técnico</label>

@@ -23,10 +23,10 @@ export interface ItemVencimento {
 
 const MS_DIA = 86_400_000;
 
-/** Aceita 'dd/mm/aaaa' e 'aaaa-mm-dd' (formatos usados nos dados salvos). */
+/** Aceita 'dd/mm/aaaa', 'aaaa-mm-dd' e 'ddmmaaaa' (dado antigo digitado sem máscara). */
 export function parseDataFlex(s: string | undefined | null): Date | null {
   if (!s) return null;
-  const br = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s.trim());
+  const br = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s.trim()) ?? /^(\d{2})(\d{2})(\d{4})$/.exec(s.trim());
   if (br) {
     const d = new Date(Number(br[3]), Number(br[2]) - 1, Number(br[1]));
     return isNaN(d.getTime()) ? null : d;
@@ -58,6 +58,41 @@ interface VidaSalva {
   calculadoEm?: string;
 }
 
+interface RelSalvoMin {
+  tagVaso?: string;
+  data?: string;
+  meta?: {
+    emissao?: string;
+    execucaoInspecao?: string;
+    proximaInspecaoInterna?: string;
+    proximaInspecaoExterna?: string;
+  };
+}
+
+/**
+ * Prazo do equipamento vindo do RELATÓRIO salvo mais recente (Configurações do
+ * Relatório → Próx. Interna / Próx. Externa): vale a data mais próxima das duas.
+ * Complementa a Vida Remanescente — em listarVencimentos vence o prazo menor.
+ */
+function prazoPorRelatorio(tag: string): { ultima?: Date; vencimento: Date } | null {
+  const todos = ler<RelSalvoMin[]>('nr13_historico_relatorios') ?? [];
+  const doTag = todos.filter((r) => r?.tagVaso === tag);
+  let recente: RelSalvoMin | null = null;
+  let tRecente = -Infinity;
+  for (const r of doTag) {
+    const t = (parseDataFlex(r.meta?.emissao) ?? parseDataFlex(r.data))?.getTime() ?? -Infinity;
+    if (t >= tRecente) { tRecente = t; recente = r; }
+  }
+  if (!recente) return null;
+  const candidatas = [recente.meta?.proximaInspecaoInterna, recente.meta?.proximaInspecaoExterna]
+    .map(parseDataFlex)
+    .filter((d): d is Date => d !== null);
+  if (candidatas.length === 0) return null;
+  const vencimento = candidatas.reduce((a, b) => (a.getTime() <= b.getTime() ? a : b));
+  const ultima = parseDataFlex(recente.meta?.execucaoInspecao) ?? parseDataFlex(recente.meta?.emissao) ?? undefined;
+  return { ultima, vencimento };
+}
+
 export function listarVencimentos(hoje: Date = new Date()): ItemVencimento[] {
   const itens: ItemVencimento[] = [];
   const hojeZero = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
@@ -75,11 +110,23 @@ export function listarVencimentos(hoje: Date = new Date()): ItemVencimento[] {
       const base = parseDataFlex(vida?.entrada?.dataAtual) ?? parseDataFlex(vida?.calculadoEm);
       const anos = vida?.proximaInspecaoAnos;
 
+      // Dois prazos possíveis pro equipamento: Vida Remanescente (ficha) e Próx. Interna/Externa
+      // do relatório salvo mais recente. Vale o que vencer PRIMEIRO.
+      let prazoVida: { ultima?: Date; vencimento: Date } | null = null;
       if (vida && base && typeof anos === 'number' && anos >= 0) {
         const venc = new Date(base);
         venc.setMonth(venc.getMonth() + Math.round(anos * 12));
-        const { dias, status } = statusPrazo(venc, hojeZero);
-        itens.push({ tag, nome, tipoEquip, origem: 'inspecao', ultima: base, vencimento: venc, dias, status });
+        prazoVida = { ultima: base, vencimento: venc };
+      }
+      const prazoRel = prazoPorRelatorio(tag);
+      const prazo =
+        prazoVida && prazoRel
+          ? (prazoVida.vencimento.getTime() <= prazoRel.vencimento.getTime() ? prazoVida : prazoRel)
+          : (prazoVida ?? prazoRel);
+
+      if (prazo) {
+        const { dias, status } = statusPrazo(prazo.vencimento, hojeZero);
+        itens.push({ tag, nome, tipoEquip, origem: 'inspecao', ultima: prazo.ultima, vencimento: prazo.vencimento, dias, status });
       } else {
         itens.push({ tag, nome, tipoEquip, origem: 'inspecao', status: 'semPrazo' });
       }
