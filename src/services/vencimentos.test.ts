@@ -131,10 +131,10 @@ describe('listarVencimentos (localStorage)', () => {
     expect(v1.status).toBe('warn');
   });
 
-  it('vida e relatório juntos: vence o prazo mais próximo', () => {
+  it('vida e relatório juntos: o relatório manda (mesmo com vida vencendo antes)', () => {
     localStorage.setItem('nr13_info_V1', JSON.stringify({ tag: 'V1', tipo: 'vaso', subtipo: '' }));
     localStorage.setItem('nr13_vida_V1', JSON.stringify({
-      entrada: { dataAtual: '02/07/2026' }, proximaInspecaoAnos: 2, // 02/07/2028
+      entrada: { dataAtual: '02/07/2026' }, proximaInspecaoAnos: 0, // 02/07/2026 — já vencida
     }));
     localStorage.setItem('nr13_historico_relatorios', JSON.stringify([{
       id: 'REL-1', tagVaso: 'V1', nome: 'r', tipo: 'Inspeção Periódica', data: '02/07/2026', documentos: [], status: 'Aprovado',
@@ -142,8 +142,9 @@ describe('listarVencimentos (localStorage)', () => {
     }]));
     const itens = listarVencimentos(HOJE);
     const v1 = itens.find((i) => i.tag === 'V1')!;
-    expect(v1.vencimento?.getDate()).toBe(9); // relatório vence antes da vida
+    expect(v1.vencimento?.getDate()).toBe(9); // prazo do relatório, não o da vida
     expect(v1.vencimento?.getFullYear()).toBe(2026);
+    expect(v1.status).toBe('warn');
   });
 
   it('chave malformada não derruba a listagem', () => {

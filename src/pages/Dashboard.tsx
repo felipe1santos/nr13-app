@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icone } from '../components/Icone';
 import CalendarioVencimentos from '../components/CalendarioVencimentos';
+import ModalDetalheEquipamento from '../components/ModalDetalheEquipamento';
 import { listarVencimentos, resumoKpis, textoPrazo } from '../services/vencimentos';
 import type { ItemVencimento } from '../services/vencimentos';
 import { listarChavesComPrefixo } from '../services/storage';
@@ -29,8 +30,19 @@ export default function Dashboard() {
     () => sessionStorage.getItem('nr13_alerta_dispensado') === '1',
   );
   const [listaExpandida, setListaExpandida] = useState(false);
+  const [modalTag, setModalTag] = useState<string | null>(null);
 
-  const itens = useMemo(() => listarVencimentos(), []);
+  // Recalcula ao montar e sempre que a janela volta ao foco: um relatório novo gerado em
+  // Relatórios muda o prazo do equipamento e o painel reflete na hora, sem F5.
+  const [versaoDados, setVersaoDados] = useState(0);
+  useEffect(() => {
+    const atualizar = () => setVersaoDados((v) => v + 1);
+    window.addEventListener('focus', atualizar);
+    return () => window.removeEventListener('focus', atualizar);
+  }, []);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- versaoDados força a releitura do localStorage
+  const itens = useMemo(() => listarVencimentos(), [versaoDados]);
   const totalEquip = listarChavesComPrefixo('nr13_info_').length;
   const kpis = useMemo(() => resumoKpis(itens, totalEquip), [itens, totalEquip]);
   const empresa = carregarMinhaEmpresa();
@@ -195,7 +207,7 @@ export default function Dashboard() {
                 </thead>
                 <tbody>
                   {tabela.map((it, i) => (
-                    <tr key={`${it.tag}${i}`} style={{ cursor: 'pointer' }} onClick={() => irParaItem(it)}>
+                    <tr key={`${it.tag}${i}`} style={{ cursor: 'pointer' }} onClick={() => setModalTag(it.pertenceA ?? it.tag)}>
                       <td>
                         <div className="fj-tag-cell">
                           <div className="fj-tag-ico"><Icone nome={ICONE_TIPO[it.tipoEquip] ?? 'box'} tam={15} /></div>
@@ -278,6 +290,10 @@ export default function Dashboard() {
         </div>
         </div>
       </div>
+
+      {modalTag && (
+        <ModalDetalheEquipamento tag={modalTag} itens={itens} onClose={() => setModalTag(null)} />
+      )}
     </div>
   );
 }

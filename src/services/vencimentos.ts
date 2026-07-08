@@ -110,19 +110,15 @@ export function listarVencimentos(hoje: Date = new Date()): ItemVencimento[] {
       const base = parseDataFlex(vida?.entrada?.dataAtual) ?? parseDataFlex(vida?.calculadoEm);
       const anos = vida?.proximaInspecaoAnos;
 
-      // Dois prazos possíveis pro equipamento: Vida Remanescente (ficha) e Próx. Interna/Externa
-      // do relatório salvo mais recente. Vale o que vencer PRIMEIRO.
+      // Regra do painel (decisão do usuário): o prazo do equipamento é o do ÚLTIMO RELATÓRIO
+      // feito (Próx. Interna/Externa). Vida Remanescente só entra como fallback sem relatório.
       let prazoVida: { ultima?: Date; vencimento: Date } | null = null;
       if (vida && base && typeof anos === 'number' && anos >= 0) {
         const venc = new Date(base);
         venc.setMonth(venc.getMonth() + Math.round(anos * 12));
         prazoVida = { ultima: base, vencimento: venc };
       }
-      const prazoRel = prazoPorRelatorio(tag);
-      const prazo =
-        prazoVida && prazoRel
-          ? (prazoVida.vencimento.getTime() <= prazoRel.vencimento.getTime() ? prazoVida : prazoRel)
-          : (prazoVida ?? prazoRel);
+      const prazo = prazoPorRelatorio(tag) ?? prazoVida;
 
       if (prazo) {
         const { dias, status } = statusPrazo(prazo.vencimento, hojeZero);
