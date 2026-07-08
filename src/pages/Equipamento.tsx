@@ -9,7 +9,6 @@ import DadosEmpresa from '../features/equipamento/DadosEmpresa';
 import Galeria from '../features/equipamento/Galeria';
 import CategoriaNR13 from '../features/categoria/CategoriaNR13';
 import BadgeTipoEquipamento from '../features/equipamento/BadgeTipoEquipamento';
-import ArquivosInspecao from '../features/inspecoes/ArquivosInspecao';
 import VidaRemanescente from '../features/equipamento/VidaRemanescente';
 import { formatarValor } from '../calc/unidades';
 import type { SistemaUnidade } from '../calc/unidades';
@@ -163,10 +162,6 @@ function EquipamentoView({ tag }: { tag: string }) {
         {/* Categoria de risco NUNCA segue o preview de unidade — usa a unidade fixada (regra NR-13:
             o enquadramento exige a base de unidade própria). */}
         <CategoriaNR13 tag={tag} unidade={unidadeSalva} />
-      </section>
-
-      <section className="equipamento-secao">
-        <ArquivosInspecao tag={tag} />
       </section>
 
       <section className="equipamento-secao">
