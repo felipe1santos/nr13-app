@@ -195,6 +195,7 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
       delete copia[id];
       return copia;
     });
+    if (filtro === id) setFiltro('full');
     if (abaId === id) setAbaId('casco');
   }
 
@@ -227,6 +228,7 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
     setGeradoEm(null);
     setCalcCount(0);
     setFiltro('full');
+    setAbaId('casco');
   }
 
   async function salvar() {
