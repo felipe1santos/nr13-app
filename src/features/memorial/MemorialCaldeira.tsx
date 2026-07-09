@@ -309,6 +309,7 @@ function EtapaCampos({ etapa, cald, onChange }: { etapa: EtapaId; cald: Caldeira
           <Campo label="Esp. de Projeto (mm)" value={d.espProjeto ?? ''} warn={false} onChange={(v) => onChange('espProjeto', num(v))} />
           <Campo label="Esp. Encontrada (mm)" value={d.espEncontrada ?? ''} warn={falta(d.espEncontrada)} onChange={(v) => onChange('espEncontrada', num(v))} />
         </div>
+        <p className="memorial-bocal-nota">e vazio = 0 (sem fator de espessura).</p>
       </div>
     );
   }
