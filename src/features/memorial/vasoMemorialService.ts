@@ -52,11 +52,20 @@ export async function salvarVaso(tag: string, vaso: VasoSalvo, sufixo = ''): Pro
 // valor entre os componentes (cascos/tampos), PTH = 1.3 x PMTA (UG-99(b), mesmo teste do vaso/
 // autoclave), aprovado só se TODOS os componentes (incluindo bocal/flange) estiverem aprovados.
 export function calcularResumoVaso(vaso: VasoSalvo): ResumoMemorialVaso {
+  // Bocais (UG-37) precisam dos dados do casco furado — injeta a referência na hora do
+  // cálculo (não muta o estado salvo). Vale pro vaso e pro reuso no autoclave.
+  const casco = vaso.componentes.find((c) => c.id === 'casco');
   const porComponente = vaso.componentes.map((c) => ({
     id: c.id,
     nome: c.nome,
     tipo: c.tipo,
-    resultado: calcularComponenteVaso(c.nome, c.tipo, c.dados, vaso.D, vaso.P),
+    resultado: calcularComponenteVaso(
+      c.nome,
+      c.tipo,
+      c.tipo === 'bocal' && casco ? { ...c.dados, dadosCascoRef: casco.dados } : c.dados,
+      vaso.D,
+      vaso.P,
+    ),
   }));
 
   const pmtas = porComponente
