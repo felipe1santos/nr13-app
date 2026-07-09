@@ -81,14 +81,19 @@ Tudo que o usuário salva pode ser fonte de injeção. Chaves por TAG do equipam
 
 ### Memorial de caldeira (ASME I-2004) e bocais opcionais
 
-- **Caldeira (boiler)** segue ASME I-2004: cálculo de costado (PG-27.2.2), tubo (PG-27.2.1) e espelho
-  (PG-46.1). Resultados salvos em `nr13_vaso_cald_<TAG>` com estrutura igual a vaso. PMTA = P convertida
-  para kgf/cm² (×10,19716); TH = 1,5×PMTA.
-- **Bocais opcionais (UG-37):** definem nós de enfraquecimento no costado/tubo. Entram como componentes
-  com id `bocal<N>` em `nr13_vaso_<TAG>.componentes`; o memorial calcula espessura requerida via fórmula
-  de enfraquecimento.
-- **Steam generators (GV):** folhas MEMORIAL/RESUMO-MEMORIAL mesclam dados de `nr13_calc_gv_<TAG>` **na
-  leitura** (templates em `DOMContentLoaded`), exibindo cálculo separado abaixo do memorial principal.
+- **Caldeira** segue ASME I-2004: costado (PG-27.2.2: `e = P·D/(2·S·E+2·y·P) + C`), tubo
+  (PG-27.2.1: `e = P·D/(2S+P) + 0,005·D + e`) e espelho (PG-46.1: `e = p·√(P/(S·C))`). Dados em
+  `nr13_vaso_cald_<TAG>`; payload padrão (pmta/pth em MPa, componentes, memorialHTML) em
+  `nr13_calc_<TAG>`. **PMTA = P de projeto convertida** (kgf/cm² = P×10,19716) e **TH = 1,5×PMTA**
+  (não inverter a fórmula pela espessura; caldeira usa 1,5, vaso usa 1,3). Aprovação por etapa:
+  espessura encontrada ≥ e calculada. NÃO chamar `atualizarCategoriaComPmta` para caldeira.
+- **Bocais opcionais (UG-37/UG-40):** entram como componentes com id `bocal<N>` e tipo `'bocal'` em
+  `nr13_vaso_<TAG>.componentes` — verificação de compensação de área (A1+A2+A3+A4 ≥ A_req). O bocal
+  não tem PMTA própria, não entra no min() da PMTA nem nos `componentes[]` do RESUMO; reprovado
+  derruba o resultado geral. `calcularResumoVaso` injeta `dadosCascoRef` do casco automaticamente.
+- **GV do autoclave:** folhas MEMORIAL/RESUMO-MEMORIAL e `relatoriosService.linhasMemorial` mesclam
+  `nr13_calc_gv_<TAG>` **na leitura** (nunca na gravação — ver bug documentado em
+  `vasoMemorialService.ts`), exibindo o cálculo do GV logo abaixo do memorial principal.
 
 ---
 
