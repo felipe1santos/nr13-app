@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calcularComponenteVaso, gerarBlocoComponenteVaso } from '../vaso';
+import { calcularComponenteVaso, gerarBlocoComponenteVaso, camposFaltantesVaso } from '../vaso';
 
 describe('vaso — cascos e tampos (ASME VIII Div.1, verbatim do math.js)', () => {
   it('casco cilíndrico UG-27(c)(1): aprova quando t_util >= t_req', () => {
@@ -192,5 +192,20 @@ describe('campos vazios → faltantes + aviso no log', () => {
     const r = calcularComponenteVaso('CASCO', 'cilindrico', { t_comercial: 8, ca: 0, S: 138, E: 1, temp: 25 }, 1000, 1.5);
     expect(r.faltantes ?? []).toEqual([]);
     expect(r.log.some((l) => l.includes('ATENÇÃO'))).toBe(false);
+  });
+});
+
+describe('camposFaltantesVaso — bocal', () => {
+  it('bocal exige d, S e Tnom; E não é obrigatório', () => {
+    const f = camposFaltantesVaso('bocal', { S: 137.9, t_comercial: 10 });
+    expect(f).toEqual(['d — Diâmetro do Bocal']);
+  });
+  it('bocal com reforço exige W e te', () => {
+    const f = camposFaltantesVaso('bocal', { S: 137.9, t_comercial: 10, d: 150, temReforco: true });
+    expect(f).toContain('W — Largura da Chapa de Reforço');
+    expect(f).toContain('te — Espessura da Chapa de Reforço');
+  });
+  it('bocal completo sem reforço: nada faltante', () => {
+    expect(camposFaltantesVaso('bocal', { S: 137.9, t_comercial: 10, d: 150 })).toEqual([]);
   });
 });

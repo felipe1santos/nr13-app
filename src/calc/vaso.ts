@@ -97,6 +97,16 @@ export function camposFaltantesVaso(tipo: TipoComponenteVaso, dados: DadosCompon
   const faltantes: string[] = [];
   // bocal/flange têm conjuntos próprios de entrada; S é comum a todos
   if (vazio(dados.S)) faltantes.push('S — Tensão Admissível');
+  if (tipo === 'bocal') {
+    // E do bocal é OPCIONAL (default 1,0 — bocal sem solda, ver caso 'bocal' do motor)
+    if (vazio(dados.t_comercial)) faltantes.push('Tnom — Espessura Comercial');
+    if (vazio(dados.d)) faltantes.push('d — Diâmetro do Bocal');
+    if (dados.temReforco) {
+      if (vazio(dados.w_reforco)) faltantes.push('W — Largura da Chapa de Reforço');
+      if (vazio(dados.t_reforco)) faltantes.push('te — Espessura da Chapa de Reforço');
+    }
+    return faltantes;
+  }
   if (tipo !== 'flange') {
     if (vazio(dados.E)) faltantes.push('E — Eficiência de Junta');
     if (vazio(dados.t_comercial)) faltantes.push('Tnom — Espessura Comercial');
