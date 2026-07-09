@@ -41,6 +41,7 @@ Tudo que o usuário salva pode ser fonte de injeção. Chaves por TAG do equipam
 | `nr13_info_<TAG>` | Dados cadastrais do equipamento | Ficha em "Equipamentos" |
 | `nr13_calc_<TAG>` | Resultados do memorial: `pmta`, `pth` (MPa), `memorialHTML`, `logCalculo` e `componentes[]` (array estruturado por componente: nome, pmtaMpa, tReqMm, tNom, E, S, D, raio, ca, material, fórmulas) consumido pelo RESUMO-MEMORIAL | "Salvar Memorial Completo" |
 | `nr13_vaso_<TAG>` / `nr13_vaso_ac_corpo_<TAG>` | Componentes/cálculo do memorial | Memorial |
+| `nr13_vaso_cald_<TAG>` | Dados do memorial de caldeira (ASME I: costado/tubo/espelho) | Memorial da caldeira |
 | `nr13_cat_<TAG>` | Categoria de risco | Calculadora de categoria |
 | `nr13_emp_<TAG>` | Empresa/cliente do equipamento | Cadastro de cliente |
 | `nr13_fotos_<TAG>` | Fotos da capa/equipamento | Ficha |
@@ -77,6 +78,17 @@ Tudo que o usuário salva pode ser fonte de injeção. Chaves por TAG do equipam
   espessura mínima requerida, Volume, etc.
 - **Inserção manual:** dados do equipamento e a **espessura da parede de teste** (espessura "dona do
   vaso") que o memorial não calcula são preenchidos pelo usuário na ficha em "Equipamentos".
+
+### Memorial de caldeira (ASME I-2004) e bocais opcionais
+
+- **Caldeira (boiler)** segue ASME I-2004: cálculo de costado (PG-27.2.2), tubo (PG-27.2.1) e espelho
+  (PG-46.1). Resultados salvos em `nr13_vaso_cald_<TAG>` com estrutura igual a vaso. PMTA = P convertida
+  para kgf/cm² (×10,19716); TH = 1,5×PMTA.
+- **Bocais opcionais (UG-37):** definem nós de enfraquecimento no costado/tubo. Entram como componentes
+  com id `bocal<N>` em `nr13_vaso_<TAG>.componentes`; o memorial calcula espessura requerida via fórmula
+  de enfraquecimento.
+- **Steam generators (GV):** folhas MEMORIAL/RESUMO-MEMORIAL mesclam dados de `nr13_calc_gv_<TAG>` **na
+  leitura** (templates em `DOMContentLoaded`), exibindo cálculo separado abaixo do memorial principal.
 
 ---
 
