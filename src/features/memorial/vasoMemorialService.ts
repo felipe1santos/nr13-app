@@ -156,5 +156,10 @@ export async function salvarResumoVaso(tag: string, resumo: ResumoMemorialVaso, 
   if (sufixo && sufixo !== 'gv') {
     await salvar(`nr13_calc_${tag}`, payload);
   }
-  await atualizarCategoriaComPmta(tag, resumo.pmtaFinal);
+  // GV é sub-equipamento do autoclave (não o corpo principal): a categoria de risco do
+  // equipamento pertence ao corpo, então salvar o memorial do GV não pode sobrescrevê-la
+  // com a PMTA do GV (mesma razão do bloco acima, que já não grava a chave geral para 'gv').
+  if (sufixo !== 'gv') {
+    await atualizarCategoriaComPmta(tag, resumo.pmtaFinal);
+  }
 }

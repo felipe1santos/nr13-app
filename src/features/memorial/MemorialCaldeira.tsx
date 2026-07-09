@@ -170,11 +170,13 @@ function MemorialCaldeiraInner({ tag }: Props) {
             <span className="campo-aviso-icon">⚠</span> = campo obrigatório sem valor válido. O cálculo usa
             valores padrão nesses campos e o memorial sai como <b>PENDENTE</b> até você preencher.
           </p>
+          {/* P e temp são globais: toda etapa depende delas, então mudar qualquer uma invalida
+              todas as confirmações já feitas (não só a etapa aberta no momento). */}
           <div className="memorial-campos-grid">
             <Campo label="Pressão de Projeto P (MPa)" value={cald.P} warn={!cald.P || Number(cald.P) <= 0}
-              onChange={(v) => setCald((s) => ({ ...s, P: v === '' ? '' : Number(v) }))} />
+              onChange={(v) => { setCald((s) => ({ ...s, P: v === '' ? '' : Number(v) })); setConfirmados({}); }} />
             <Campo label="Temp. de Projeto (°C)" value={cald.temp} warn={cald.temp === '' || cald.temp === null || cald.temp === undefined}
-              onChange={(v) => setCald((s) => ({ ...s, temp: v === '' ? '' : Number(v) }))} />
+              onChange={(v) => { setCald((s) => ({ ...s, temp: v === '' ? '' : Number(v) })); setConfirmados({}); }} />
           </div>
 
           <EtapaCampos etapa={abaId} cald={cald} onChange={(chave, valor) => atualizarEtapa(abaId, chave, valor)} />

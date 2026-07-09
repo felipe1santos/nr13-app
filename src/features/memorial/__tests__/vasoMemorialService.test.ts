@@ -1,5 +1,19 @@
-import { describe, expect, it } from 'vitest';
-import { calcularResumoVaso, type VasoSalvo, type ComponenteVasoSalvo } from '../vasoMemorialService';
+import { describe, expect, it, vi } from 'vitest';
+
+// salvarResumoVaso toca localStorage (via services/storage) e Supabase (via categoriaService).
+// Ambiente de teste é 'node' (sem DOM/localStorage), então mockamos os dois módulos como spies
+// simples — não é preciso simular Supabase/RLS pra observar SE atualizarCategoriaComPmta foi
+// chamada, só QUANTAS vezes e com quê.
+vi.mock('../../../services/storage', () => ({
+  salvar: vi.fn().mockResolvedValue(undefined),
+  ler: vi.fn().mockReturnValue(null),
+}));
+vi.mock('../../categoria/categoriaService', () => ({
+  atualizarCategoriaComPmta: vi.fn().mockResolvedValue(undefined),
+}));
+
+import { atualizarCategoriaComPmta } from '../../categoria/categoriaService';
+import { calcularResumoVaso, salvarResumoVaso, type VasoSalvo, type ComponenteVasoSalvo } from '../vasoMemorialService';
 
 const fixos: ComponenteVasoSalvo[] = [
   { id: 'tampo1', nome: 'Tampo Inferior', tipo: 'eliptico', dados: { S: 137.9, E: 1, t_comercial: 10, ca: 1, temp: 50, mat: 'SA-516-70' } },
@@ -47,5 +61,28 @@ describe('calcularResumoVaso — bocais opcionais', () => {
     const bocalVazio: ComponenteVasoSalvo = { ...bocalOk, dados: { S: 137.9 } };
     const r = calcularResumoVaso({ ...base, componentes: [...fixos, bocalVazio] });
     expect(r.resultado).toBe('PENDENTE');
+  });
+});
+
+describe('salvarResumoVaso — GV não pode sobrescrever a categoria do corpo principal', () => {
+  it('sufixo "gv" NÃO chama atualizarCategoriaComPmta', async () => {
+    vi.mocked(atualizarCategoriaComPmta).mockClear();
+    const resumo = calcularResumoVaso(base);
+    await salvarResumoVaso('T1', resumo, 'gv');
+    expect(atualizarCategoriaComPmta).not.toHaveBeenCalled();
+  });
+
+  it('sufixo "" (corpo principal) chama atualizarCategoriaComPmta com a PMTA final', async () => {
+    vi.mocked(atualizarCategoriaComPmta).mockClear();
+    const resumo = calcularResumoVaso(base);
+    await salvarResumoVaso('T1', resumo, '');
+    expect(atualizarCategoriaComPmta).toHaveBeenCalledWith('T1', resumo.pmtaFinal);
+  });
+
+  it('sufixo "ac_corpo" também chama atualizarCategoriaComPmta (continua atualizando)', async () => {
+    vi.mocked(atualizarCategoriaComPmta).mockClear();
+    const resumo = calcularResumoVaso(base);
+    await salvarResumoVaso('T1', resumo, 'ac_corpo');
+    expect(atualizarCategoriaComPmta).toHaveBeenCalledWith('T1', resumo.pmtaFinal);
   });
 });

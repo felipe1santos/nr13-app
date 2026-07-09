@@ -228,7 +228,7 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
     setGeradoEm(null);
     setCalcCount(0);
     setFiltro('full');
-    setAbaId('casco');
+    setAbaId('tampo1');
   }
 
   async function salvar() {
