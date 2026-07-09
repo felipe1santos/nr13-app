@@ -14,6 +14,7 @@ import { carregarMinhaEmpresa, listarClientes } from '../features/cadastros/cada
 import type { Cliente } from '../features/cadastros/tipos';
 import { carregarVaso } from '../features/memorial/vasoMemorialService';
 import { carregarDadosAutoclave } from '../features/memorial/autoclaveMemorialService';
+import { carregarCaldeira } from '../features/memorial/caldeiraMemorialService';
 import { ler, salvar } from '../services/storage';
 import { listarContainers } from '../features/inspecoes/inspecaoService';
 import type { ContainerInspecao } from '../features/inspecoes/tipos';
@@ -349,7 +350,21 @@ export default function Prontuarios() {
         }
       }
 
-      // Caldeira: injeção do memorial desativada (cálculos em revisão de engenharia).
+      if (eq.info.tipo === 'caldeira') {
+        pb('codigoProjeto', 'ASME Seção I');
+        pb('anoEdicao', '2004');
+        const cald = carregarCaldeira(eq.tag);
+        if (cald.costado.D) pd('diametro', str(cald.costado.D));
+        if (cald.costado.espEncontrada) pd('espCorpo', str(cald.costado.espEncontrada));
+        if (cald.costado.C) pb('sobreespessura', str(cald.costado.C) + ' mm');
+        if (cald.temp !== '' && cald.temp != null) pb('tempProjeto', str(cald.temp) + ' °C');
+        if (cald.costado.mat) pb('fundoCorpo', cald.costado.mat);
+        if (cald.espelho.espEncontrada) {
+          pd('espFundo', str(cald.espelho.espEncontrada));
+          pd('espTampa', str(cald.espelho.espEncontrada));
+        }
+        if (cald.espelho.mat) pb('tampa', cald.espelho.mat);
+      }
 
       base.dimensoes = [dimLine];
 
