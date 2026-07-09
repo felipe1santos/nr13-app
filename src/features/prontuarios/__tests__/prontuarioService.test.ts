@@ -1,7 +1,18 @@
-/// <reference types="vitest" />
-/// <reference lib="dom" />
 import { beforeEach, describe, expect, it } from 'vitest';
 import { obterOuCriarMeta, gravarCroqui3d, excluirProntuario } from '../prontuarioService';
+
+// vitest roda em node (sem DOM): shim mínimo de localStorage p/ o motor de prontuário.
+if (typeof globalThis.localStorage === 'undefined') {
+  const store = new Map<string, string>();
+  (globalThis as Record<string, unknown>).localStorage = {
+    getItem: (k: string) => (store.has(k) ? store.get(k)! : null),
+    setItem: (k: string, v: string) => void store.set(k, String(v)),
+    removeItem: (k: string) => void store.delete(k),
+    clear: () => void store.clear(),
+    key: (i: number) => [...store.keys()][i] ?? null,
+    get length() { return store.size; },
+  };
+}
 
 describe('meta do prontuário', () => {
   beforeEach(() => localStorage.clear());
