@@ -41,6 +41,8 @@ function EquipamentoView({ tag }: { tag: string }) {
   const [excluindo, setExcluindo] = useState(false);
   const [modalMemorial, setModalMemorial] = useState(false);
   const [calculo, setCalculo] = useState<CalculoSalvo | null>(() => ler<CalculoSalvo>(`nr13_calc_${tag}`));
+  // GV do autoclave: memorial salvo à parte (nr13_calc_gv_<TAG>) — exibido junto no modal.
+  const [calculoGv, setCalculoGv] = useState<CalculoSalvo | null>(() => ler<CalculoSalvo>(`nr13_calc_gv_${tag}`));
   const categoria = ler<CategoriaSalva>(`nr13_cat_${tag}`);
   const fotos = ler<FotoEquipamento[]>(`nr13_fotos_${tag}`) || [];
   const fotoCapa = fotos.find((f) => f.isCapa) || fotos[0] || null;
@@ -52,6 +54,7 @@ function EquipamentoView({ tag }: { tag: string }) {
   useEffect(() => {
     function atualizarCalculo() {
       setCalculo(ler<CalculoSalvo>(`nr13_calc_${tag}`));
+      setCalculoGv(ler<CalculoSalvo>(`nr13_calc_gv_${tag}`));
     }
     window.addEventListener('focus', atualizarCalculo);
     return () => window.removeEventListener('focus', atualizarCalculo);
@@ -210,7 +213,7 @@ function EquipamentoView({ tag }: { tag: string }) {
             </div>
               </div>
 
-              {calculo?.memorialHTML ? (
+              {calculo?.memorialHTML || calculoGv?.memorialHTML ? (
                 <button type="button" className="btn-ver-memorial" onClick={() => setModalMemorial(true)}>
                   Ver Memorial Completo →
                 </button>
@@ -238,7 +241,7 @@ function EquipamentoView({ tag }: { tag: string }) {
         </div>
       </section>
 
-      {modalMemorial && calculo && (
+      {modalMemorial && (calculo || calculoGv) && (
         <div className="modal-memorial-overlay" onClick={() => setModalMemorial(false)}>
           <div className="modal-memorial-box" onClick={(e) => e.stopPropagation()}>
             <div className="modal-memorial-header">
@@ -248,13 +251,29 @@ function EquipamentoView({ tag }: { tag: string }) {
               </button>
             </div>
             <div className="modal-memorial-corpo">
-              {calculo.logCalculo && calculo.logCalculo.length > 0 ? (
-                <MemorialLog log={calculo.logCalculo} />
-              ) : (
-                <div className="modal-memorial-sem-log">
-                  Recalcule o memorial para exibir as expressões algébricas.
-                </div>
-              )}
+              {(() => {
+                // Corpo principal + GV do autoclave (quando salvo) — o GV entra logo abaixo,
+                // com um banner separador, igual à ordem das folhas MEMORIAL do relatório.
+                const logGv = calculoGv?.logCalculo ?? [];
+                const logCombinado = [
+                  ...(calculo?.logCalculo ?? []),
+                  ...(logGv.length > 0
+                    ? [
+                        '// ====================================================',
+                        '// MEMORIAL DE CÁLCULO: GERADOR DE VAPOR (GV)',
+                        '// ====================================================',
+                        ...logGv,
+                      ]
+                    : []),
+                ];
+                return logCombinado.length > 0 ? (
+                  <MemorialLog log={logCombinado} />
+                ) : (
+                  <div className="modal-memorial-sem-log">
+                    Recalcule o memorial para exibir as expressões algébricas.
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>

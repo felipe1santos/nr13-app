@@ -145,9 +145,14 @@ function MemorialAutoclaveInner({ tag, subtipo }: Props) {
         </button>
       </div>
 
-      {aba === 'geradorVapor' ? (
+      {/* As DUAS abas ficam sempre montadas (display:none na inativa): trocar de aba não pode
+          descartar campos digitados nem o cálculo gerado e ainda não salvo — o MemorialVaso
+          (GV e corpo cilíndrico) guarda esse estado internamente e o unmount o perdia. */}
+      <div style={{ display: aba === 'geradorVapor' ? undefined : 'none' }}>
         <MemorialVaso tag={tag} sufixo="gv" titulo="Memorial do Gerador de Vapor (ASME VIII — tratado como vaso)" />
-      ) : subtipo === 'cilindrica' ? (
+      </div>
+      <div style={{ display: aba === 'principal' ? undefined : 'none' }}>
+      {subtipo === 'cilindrica' ? (
         <MemorialVaso
           tag={tag}
           sufixo="ac_corpo"
@@ -320,6 +325,7 @@ function MemorialAutoclaveInner({ tag, subtipo }: Props) {
           </TerminalMemorial>
         </div>
       )}
+      </div>
     </div>
   );
 }
