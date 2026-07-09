@@ -428,14 +428,18 @@
             let pmtas = [];
             let espessuras = [];
 
-            // Ler todos os campos de PMTA (em MPa)
+            // Ler todos os campos de PMTA (em MPa). Linhas do GV (data-gv="1") ficam de fora:
+            // o GV é sub-equipamento do autoclave e não pode rebaixar o laudo do corpo principal
+            // (PLACA/PRONTUARIO usam nr13_calc_<TAG>.pmta, só do corpo).
             document.querySelectorAll('.pmta-val').forEach(td => {
+                if (td.getAttribute('data-gv') === '1') return;
                 let val = parseFloat(td.innerText.replace(',', '.'));
                 if(!isNaN(val)) pmtas.push({ val: val, comp: td.getAttribute('data-comp'), cell: td });
             });
 
-            // Ler todos os campos de Espessura Mínima Calculada (em mm)
+            // Ler todos os campos de Espessura Mínima Calculada (em mm), exceto GV (idem acima).
             document.querySelectorAll('.esp-val').forEach(td => {
+                if (td.getAttribute('data-gv') === '1') return;
                 let val = parseFloat(td.innerText.replace(',', '.'));
                 if(!isNaN(val)) espessuras.push({ val: val, comp: td.getAttribute('data-comp'), cell: td });
             });
@@ -716,6 +720,10 @@
                     var n = String(c.nome || 'COMPONENTE');
                     var copia = {}; for (var k in c) copia[k] = c[k];
                     copia.nome = /^GV\b/i.test(n) ? n : 'GV — ' + n;
+                    // Marca a origem GV: essas linhas renderizam normalmente, mas não podem
+                    // disputar o laudo de "menor PMTA/menor espessura" com o corpo principal
+                    // (ver data-gv nas células e calcularLimitantes()).
+                    copia._isGv = true;
                     return copia;
                 });
                 comps = (Array.isArray(comps) ? comps : []).concat(gvComps);
@@ -738,15 +746,16 @@
                 var kgf = pmtaMpa != null ? pmtaMpa * 10.19716 : null;
                 var tIn = (c.tReqMm != null) ? c.tReqMm / 25.4 : null;
                 var nome = esc(c.nome || 'COMPONENTE');
+                var gvAttr = c._isGv ? ' data-gv="1"' : '';
                 var html =
                     '<div class="section-title">PARÂMETROS E RESULTADOS: ' + nome.toUpperCase() + '</div>' +
                     '<div class="comp-section"><div class="comp-tables">' +
                         '<table class="res-table"><thead><tr><th colspan="2">ESPESSURA MÍN. CALCULADA (t)</th></tr><tr><th>mm</th><th>in</th></tr></thead><tbody><tr>' +
-                            '<td class="esp-val" data-comp="' + nome + '" contenteditable="true">' + fmt(c.tReqMm, 2) + '</td>' +
+                            '<td class="esp-val" data-comp="' + nome + '"' + gvAttr + ' contenteditable="true">' + fmt(c.tReqMm, 2) + '</td>' +
                             '<td contenteditable="true">' + fmt(tIn, 2) + '</td>' +
                         '</tr></tbody></table>' +
                         '<table class="res-table"><thead><tr><th colspan="3">PMTA CALCULADA (P)</th></tr><tr><th>MPa</th><th>psi</th><th>kgf/cm²</th></tr></thead><tbody><tr>' +
-                            '<td class="pmta-val" data-comp="' + nome + '" contenteditable="true">' + fmt(pmtaMpa, 2) + '</td>' +
+                            '<td class="pmta-val" data-comp="' + nome + '"' + gvAttr + ' contenteditable="true">' + fmt(pmtaMpa, 2) + '</td>' +
                             '<td contenteditable="true">' + fmt(psi, 2) + '</td>' +
                             '<td contenteditable="true">' + fmt(kgf, 2) + '</td>' +
                         '</tr></tbody></table>' +
