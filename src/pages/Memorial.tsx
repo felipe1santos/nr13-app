@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { carregarInfo } from '../features/equipamento/equipamentoService';
 import MemorialVaso from '../features/memorial/MemorialVaso';
 import MemorialAutoclave from '../features/memorial/MemorialAutoclave';
+import MemorialCaldeira from '../features/memorial/MemorialCaldeira';
 import '../features/memorial/memorial.css';
 
 export default function Memorial() {
@@ -38,15 +39,7 @@ export default function Memorial() {
       {info.tipo === 'autoclave' && (
         <MemorialAutoclave tag={tag} subtipo={(info.subtipo as 'retangular' | 'cilindrica' | 'vertical') || 'cilindrica'} />
       )}
-      {info.tipo === 'caldeira' && (
-        <div className="memorial-aviso-desativado">
-          <p>
-            O cálculo de memorial para caldeiras está temporariamente desativado enquanto as
-            fórmulas passam por revisão de engenharia. Utilize o memorial apenas para vasos de
-            pressão e autoclaves.
-          </p>
-        </div>
-      )}
+      {info.tipo === 'caldeira' && <MemorialCaldeira tag={tag} />}
     </div>
   );
 }

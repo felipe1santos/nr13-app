@@ -7,19 +7,6 @@
    estas classes.
    ============================================================================ */
 
-/* Aviso de memorial desativado (caldeira — fórmulas em revisão) */
-.memorial-aviso-desativado {
-  max-width: 720px;
-  margin: 24px auto;
-  padding: 20px 24px;
-  background: #FBEDE1;
-  border: 1px solid #DE7C39;
-  border-radius: 10px;
-  color: #1E2330;
-  font-size: 15px;
-  line-height: 1.5;
-}
-
 .memorial-page {
   --pm-bg: #F2F3F5;
   --pm-card: #FFFFFF;
