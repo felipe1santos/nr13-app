@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { SubtipoAutoclave, TipoEquipamento } from './tipos';
+import type { SubtipoAutoclave, SubtipoCaldeira, TipoEquipamento } from './tipos';
 import { criarEquipamento, tagJaExiste } from './equipamentoService';
 import './equipamento.css';
 
@@ -12,11 +12,13 @@ export default function ModalCriarEquipamento({ onClose, onCriado }: Props) {
   const [tag, setTag] = useState('');
   const [tipo, setTipo] = useState<TipoEquipamento>('vaso');
   const [subtipoAutoclave, setSubtipoAutoclave] = useState<SubtipoAutoclave>('cilindrica');
+  const [subtipoCaldeira, setSubtipoCaldeira] = useState<SubtipoCaldeira>('flamotubular');
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
 
-  function resolverSubtipo(): SubtipoAutoclave | '' {
+  function resolverSubtipo(): SubtipoAutoclave | SubtipoCaldeira | '' {
     if (tipo === 'autoclave') return subtipoAutoclave;
+    if (tipo === 'caldeira') return subtipoCaldeira;
     return '';
   }
 
@@ -72,6 +74,10 @@ export default function ModalCriarEquipamento({ onClose, onCriado }: Props) {
               <input type="radio" name="tipo" checked={tipo === 'autoclave'} onChange={() => setTipo('autoclave')} />
               Autoclave
             </label>
+            <label className="radio-card">
+              <input type="radio" name="tipo" checked={tipo === 'caldeira'} onChange={() => setTipo('caldeira')} />
+              Caldeira
+            </label>
           </fieldset>
 
           {tipo === 'autoclave' && (
@@ -103,6 +109,57 @@ export default function ModalCriarEquipamento({ onClose, onCriado }: Props) {
                   onChange={() => setSubtipoAutoclave('vertical')}
                 />
                 Vertical (tampo removível)
+              </label>
+            </fieldset>
+          )}
+
+          {tipo === 'caldeira' && (
+            <fieldset className="tipo-equipamento-fieldset">
+              <legend>Tipo de Caldeira</legend>
+              <label className="radio-card">
+                <input
+                  type="radio"
+                  name="subtipoCaldeira"
+                  checked={subtipoCaldeira === 'flamotubular'}
+                  onChange={() => setSubtipoCaldeira('flamotubular')}
+                />
+                Flamotubular (ASME Sec. I)
+              </label>
+              <label className="radio-card">
+                <input
+                  type="radio"
+                  name="subtipoCaldeira"
+                  checked={subtipoCaldeira === 'aquatubular'}
+                  onChange={() => setSubtipoCaldeira('aquatubular')}
+                />
+                Aquatubular (ASME VIII Div. 1)
+              </label>
+              <label className="radio-card">
+                <input
+                  type="radio"
+                  name="subtipoCaldeira"
+                  checked={subtipoCaldeira === 'mista'}
+                  onChange={() => setSubtipoCaldeira('mista')}
+                />
+                Mista (aqua + flamo)
+              </label>
+              <label className="radio-card">
+                <input
+                  type="radio"
+                  name="subtipoCaldeira"
+                  checked={subtipoCaldeira === 'vertical'}
+                  onChange={() => setSubtipoCaldeira('vertical')}
+                />
+                Vertical (fogotubular)
+              </label>
+              <label className="radio-card">
+                <input
+                  type="radio"
+                  name="subtipoCaldeira"
+                  checked={subtipoCaldeira === 'eletrica'}
+                  onChange={() => setSubtipoCaldeira('eletrica')}
+                />
+                Elétrica (ASME VIII, sem fornalha)
               </label>
             </fieldset>
           )}
