@@ -205,6 +205,7 @@
         var emp = JSON.parse(localStorage.getItem('nr13_emp_' + tag) || '{}');
         var info = JSON.parse(localStorage.getItem('nr13_info_' + tag) || '{}');
         var calc = JSON.parse(localStorage.getItem('nr13_calc_' + tag) || '{}');
+        var calcGv = JSON.parse(localStorage.getItem('nr13_calc_gv_' + tag) || '{}');
         var pref = localStorage.getItem('nr13_pref_unidade_' + tag) || 'SI';
 
         // Cabeçalho
@@ -246,6 +247,11 @@
         // Fatia das linhas desta folha (mesma divisão por contagem que React usou pra criar N folhas)
         var res = extrairLinhas(calc, pref);
         var linhas = res.linhas;
+        // GV do autoclave: mescla na LEITURA, na mesma ordem/filtragem do relatoriosService
+        // (linhasMemorial) — os índices from/to da paginação são 1:1 com esta lista.
+        if (calcGv && calcGv.memorialHTML) {
+            linhas = linhas.concat(extrairLinhas(calcGv, pref).linhas);
+        }
         var area = document.getElementById('calculos-area');
 
         if (linhas.length === 0) {

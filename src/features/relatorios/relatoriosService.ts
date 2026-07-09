@@ -189,17 +189,24 @@ function ehCabecalhoMemorial(t: string): boolean {
   );
 }
 
-// Mesmo filtro de linhas do template MEMORIAL.html (1:1 por índice) — base da paginação.
-function linhasMemorial(tag: string): string[] {
-  const calc = ler<{ memorialHTML?: string }>(`nr13_calc_${tag}`);
-  const html = calc?.memorialHTML;
-  if (!html) return [];
+function linhasDeMemorialHTML(html: string): string[] {
   const m = html.match(/<div class="katex-render">([\s\S]*)<\/div>/i);
   const corpo = m ? m[1] : html;
   return corpo
     .split(/<br\s*\/?>/i)
     .map((l) => l.replace(/<[^>]+>/g, '').trim())
     .filter((t) => t && t !== '&nbsp;' && !ehCabecalhoMemorial(t));
+}
+
+// Mesmo filtro de linhas do template MEMORIAL.html (1:1 por índice) — base da paginação.
+// GV do autoclave (nr13_calc_gv_<TAG>) é mesclado APÓS o principal, na LEITURA — o template
+// MEMORIAL.html faz a mesma concatenação, mantendo o contrato de índices from/to.
+function linhasMemorial(tag: string): string[] {
+  const calc = ler<{ memorialHTML?: string }>(`nr13_calc_${tag}`);
+  const linhas = calc?.memorialHTML ? linhasDeMemorialHTML(calc.memorialHTML) : [];
+  const gv = ler<{ memorialHTML?: string }>(`nr13_calc_gv_${tag}`);
+  if (gv?.memorialHTML) linhas.push(...linhasDeMemorialHTML(gv.memorialHTML));
+  return linhas;
 }
 
 // Início de um bloco de componente: linha "MEMORIAL DE CÁLCULO - <nome>".

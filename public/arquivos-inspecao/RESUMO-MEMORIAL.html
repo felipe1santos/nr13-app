@@ -708,6 +708,18 @@
             var calc = {};
             try { calc = JSON.parse(localStorage.getItem('nr13_calc_' + tag) || '{}'); } catch(e) { return false; }
             var comps = calc.componentes;
+            // GV do autoclave: componentes do gerador de vapor entram logo abaixo dos do corpo principal.
+            var gvCalc = {};
+            try { gvCalc = JSON.parse(localStorage.getItem('nr13_calc_gv_' + tag) || '{}'); } catch (e) {}
+            if (Array.isArray(gvCalc.componentes) && gvCalc.componentes.length > 0) {
+                var gvComps = gvCalc.componentes.map(function (c) {
+                    var n = String(c.nome || 'COMPONENTE');
+                    var copia = {}; for (var k in c) copia[k] = c[k];
+                    copia.nome = /^GV\b/i.test(n) ? n : 'GV — ' + n;
+                    return copia;
+                });
+                comps = (Array.isArray(comps) ? comps : []).concat(gvComps);
+            }
             if (!Array.isArray(comps) || comps.length === 0) return false;
 
             var legacy = document.getElementById('legacy-comps');
