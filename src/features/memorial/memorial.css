@@ -1490,3 +1490,51 @@
   .calc-equip-section { display: none; }
   .calc-campos-section { border-right: none; }
 }
+
+/* ── Bocais opcionais (UG-37) ── */
+.calc-step-add-bocal {
+  flex: 0 0 auto;
+  border-style: dashed;
+  color: #9AA1AD;
+  opacity: 0.85;
+}
+
+.calc-step-add-bocal:hover {
+  opacity: 1;
+  border-color: #D9D6F3;
+  color: #4A37C4;
+}
+
+.memorial-bocal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.btn-remover-bocal {
+  background: #FBE6E1;
+  color: #B4442F;
+  border: none;
+  border-radius: 9px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.memorial-check-reforco {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: 13px;
+  color: #4B5162;
+  cursor: pointer;
+}
+
+.memorial-bocal-nota {
+  font-size: 11px;
+  color: #9AA1AD;
+  margin: 6px 0 0;
+}

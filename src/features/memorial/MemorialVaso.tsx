@@ -90,6 +90,17 @@ function validarCamposVaso(vaso: VasoSalvo): string[] {
   if (!vaso.D || Number(vaso.D) <= 0) erros.push('Diâmetro Interno (D)');
   for (const comp of vaso.componentes) {
     const d = comp.dados;
+    if (comp.tipo === 'bocal') {
+      if (!d.d || Number(d.d) <= 0) erros.push(`${comp.nome}: d — Diâmetro do Bocal`);
+      if (!d.S || Number(d.S) <= 0) erros.push(`${comp.nome}: Tensão Admissível (S)`);
+      if (!d.t_comercial || Number(d.t_comercial) <= 0) erros.push(`${comp.nome}: Espessura do Pescoço (Tnom)`);
+      if (d.temp === undefined || d.temp === null || d.temp === '') erros.push(`${comp.nome}: Temperatura`);
+      if (d.temReforco) {
+        if (!d.w_reforco || Number(d.w_reforco) <= 0) erros.push(`${comp.nome}: W — Largura da Chapa de Reforço`);
+        if (!d.t_reforco || Number(d.t_reforco) <= 0) erros.push(`${comp.nome}: te — Espessura da Chapa de Reforço`);
+      }
+      continue;
+    }
     if (!d.S || Number(d.S) <= 0) erros.push(`${comp.nome}: Tensão Admissível (S)`);
     if (!d.E || Number(d.E) <= 0) erros.push(`${comp.nome}: Eficiência (E)`);
     if (!d.t_comercial || Number(d.t_comercial) <= 0) erros.push(`${comp.nome}: Espessura Nominal (Tnom)`);
@@ -100,7 +111,7 @@ function validarCamposVaso(vaso: VasoSalvo): string[] {
 
 function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', imagemSrc }: Props) {
   const [vaso, setVaso] = useState<VasoSalvo>(() => carregarVaso(tag, sufixo));
-  const [abaId, setAbaId] = useState<'tampo1' | 'casco' | 'tampo2'>('tampo1');
+  const [abaId, setAbaId] = useState<string>('tampo1');
   const [resumo, setResumo] = useState<ResumoMemorialVaso | null>(null);
   const [calcCount, setCalcCount] = useState(0);
   const [salvando, setSalvando] = useState(false);
@@ -126,7 +137,7 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
     setVaso((v) => ({
       ...v,
       orientacao,
-      componentes: v.componentes.length === 3 ? v.componentes : novoComponentes(orientacao),
+      componentes: v.componentes.length >= 3 ? v.componentes : novoComponentes(orientacao),
     }));
   }
 
@@ -160,6 +171,35 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
       componentes: v.componentes.map((c) => (c.id === id ? { ...c, dados: { ...c.dados, [chave]: valor } } : c)),
     }));
     invalidarConfirmacao(id);
+  }
+
+  function adicionarBocal() {
+    const seq = vaso.componentes
+      .filter((c) => c.tipo === 'bocal')
+      .reduce((m, c) => Math.max(m, Number(String(c.id).replace('bocal', '')) || 0), 0) + 1;
+    const novo: ComponenteVasoSalvo = {
+      id: `bocal${seq}`,
+      nome: `Bocal N${seq}`,
+      tipo: 'bocal',
+      dados: { ...DADOS_VAZIOS },
+    };
+    setVaso((v) => ({ ...v, componentes: [...v.componentes, novo] }));
+    setAbaId(`bocal${seq}`);
+  }
+
+  function removerBocal(id: string) {
+    if (!window.confirm('Remover este bocal do memorial?')) return;
+    setVaso((v) => ({ ...v, componentes: v.componentes.filter((c) => c.id !== id) }));
+    setConfirmados((m) => {
+      const copia = { ...m };
+      delete copia[id];
+      return copia;
+    });
+    if (abaId === id) setAbaId('casco');
+  }
+
+  function atualizarNome(id: string, nome: string) {
+    setVaso((v) => ({ ...v, componentes: v.componentes.map((c) => (c.id === id ? { ...c, nome } : c)) }));
   }
 
   function handleCalcular() {
@@ -241,7 +281,7 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
 
   function irPara(idx: number) {
     const c = vaso.componentes[idx];
-    if (c) setAbaId(c.id as 'tampo1' | 'casco' | 'tampo2');
+    if (c) setAbaId(c.id);
   }
 
   function confirmarEtapa() {
@@ -315,6 +355,15 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
                 </span>
               );
             })}
+            <button
+              type="button"
+              className="calc-step calc-step-add-bocal"
+              onClick={adicionarBocal}
+              title="Adicionar bocal (opcional — abertura e reforço UG-37)"
+            >
+              <span className="num">+</span>
+              <span className="calc-step-nome">Bocal</span>
+            </button>
           </div>
           <div className="calc-orientacao-toggle">
             <button
@@ -364,6 +413,8 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
             componente={componenteAtivo}
             onTipoChange={(tipo) => atualizarTipoTampo(componenteAtivo.id as 'tampo1' | 'tampo2', tipo)}
             onDadoChange={(chave, valor) => atualizarDado(componenteAtivo.id, chave, valor)}
+            onNomeChange={(nome) => atualizarNome(componenteAtivo.id, nome)}
+            onRemover={componenteAtivo.tipo === 'bocal' ? () => removerBocal(componenteAtivo.id) : undefined}
           />
 
           {/* Navegação sequencial: Voltar | OK (confirma etapa) | Próximo */}
@@ -499,13 +550,55 @@ function ComponenteCampos({
   componente,
   onTipoChange,
   onDadoChange,
+  onNomeChange,
+  onRemover,
 }: {
   componente: ComponenteVasoSalvo;
   onTipoChange: (tipo: TipoComponenteVaso) => void;
   onDadoChange: (chave: string, valor: unknown) => void;
+  onNomeChange: (nome: string) => void;
+  onRemover?: () => void;
 }) {
   const d = componente.dados;
   const ehCasco = componente.id === 'casco';
+
+  if (componente.tipo === 'bocal') {
+    return (
+      <div>
+        <div className="memorial-bocal-header">
+          <p className="memorial-tipo-fixo">Bocal — Abertura e Reforço (ASME UG-37 / UG-40)</p>
+          {onRemover && (
+            <button type="button" className="btn-remover-bocal" onClick={onRemover}>
+              Remover bocal
+            </button>
+          )}
+        </div>
+        <div className="memorial-campos-grid" style={{ marginTop: 10 }}>
+          <Campo label="Nome do Bocal" type="text" value={componente.nome} warn={false} onChange={onNomeChange} />
+          <Campo label="d — Diâm. Interno do Bocal (mm)" value={d.d ?? ''} warn={!d.d || Number(d.d) <= 0} onChange={(v) => onDadoChange('d', v === '' ? '' : Number(v))} />
+          <Campo label="Tnom — Esp. do Pescoço (mm)" value={d.t_comercial ?? ''} warn={!d.t_comercial || Number(d.t_comercial) <= 0} onChange={(v) => onDadoChange('t_comercial', v === '' ? '' : Number(v))} />
+          <Campo label="CA — Corrosão Adm. (mm)" value={d.ca ?? ''} warn={false} onChange={(v) => onDadoChange('ca', v === '' ? '' : Number(v))} />
+          <Campo label="S — Tensão Adm. do Bocal (MPa)" value={d.S ?? ''} warn={!d.S || Number(d.S) <= 0} onChange={(v) => onDadoChange('S', v === '' ? '' : Number(v))} />
+          <Campo label="E — Efic. Junta do Bocal" value={d.E ?? ''} warn={false} onChange={(v) => onDadoChange('E', v === '' ? '' : Number(v))} />
+          <Campo label="Material" type="text" value={d.mat ?? ''} warn={false} onChange={(v) => onDadoChange('mat', v)} />
+          <Campo label="Temp. Projeto (°C)" value={d.temp ?? ''} warn={d.temp === undefined || d.temp === null || d.temp === ''} onChange={(v) => onDadoChange('temp', v === '' ? '' : Number(v))} />
+          <Campo label="h — Projeção Interna (mm)" value={d.proj_int ?? ''} warn={false} onChange={(v) => onDadoChange('proj_int', v === '' ? '' : Number(v))} />
+        </div>
+        <p className="memorial-bocal-nota">E vazio = 1,0 (bocal sem solda). Projeção interna vazia = 0.</p>
+        <label className="memorial-check-reforco">
+          <input type="checkbox" checked={!!d.temReforco} onChange={(e) => onDadoChange('temReforco', e.target.checked)} />
+          Possui chapa de reforço (pad)
+        </label>
+        {!!d.temReforco && (
+          <div className="memorial-campos-grid" style={{ marginTop: 10 }}>
+            <Campo label="W — Largura da Chapa (mm)" value={d.w_reforco ?? ''} warn={!d.w_reforco || Number(d.w_reforco) <= 0} onChange={(v) => onDadoChange('w_reforco', v === '' ? '' : Number(v))} />
+            <Campo label="te — Esp. da Chapa (mm)" value={d.t_reforco ?? ''} warn={!d.t_reforco || Number(d.t_reforco) <= 0} onChange={(v) => onDadoChange('t_reforco', v === '' ? '' : Number(v))} />
+            <Campo label="Sp — Tensão Adm. da Chapa (MPa)" value={d.S_reforco ?? ''} warn={false} onChange={(v) => onDadoChange('S_reforco', v === '' ? '' : Number(v))} />
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div>
