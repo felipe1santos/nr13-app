@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NR-13 - Prontuario - Continuacao (Procedimentos, Dispositivos e Atencao)</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,600;1,700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --text-dark: #111827;
+            --border-color: #000;
+            --blue-data: #0033a2;
+            --gray-light: #9CA3AF;
+            --bg-table-header: #e5e7eb;
+            --bg-table-sub: #f9fafb;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--text-dark);
+            background-color: #fff;
+            margin: 0;
+            padding: 0;
+            line-height: 1.3;
+            font-size: 11px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        /* A4 EXATO — sem paginacao, rodape com margin-top:auto */
+        .page {
+            width: 100%;
+            height: 297mm;
+            overflow: hidden;
+            background-color: #fff;
+            margin: 0;
+            padding: 15mm 15mm 8mm;
+            box-sizing: border-box;
+            box-shadow: none;
+            border: none;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* CABECALHO CANONICO */
+        .header-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid var(--text-dark);
+            margin-bottom: 8px;
+        }
+        .header-table td {
+            border: 1px solid var(--text-dark);
+            vertical-align: middle;
+            padding: 6px 10px;
+        }
+        .col-logo { width: 25%; text-align: center; }
+        .col-logo img { max-width: 100%; max-height: 75px; object-fit: contain; display: block; margin: 0 auto; }
+        .col-title { width: 50%; text-align: center; font-size: 15px; font-weight: 800; color: var(--text-dark); line-height: 1.2; }
+        .col-info { width: 25%; text-align: left; padding-left: 15px; }
+        .col-info .info-label { font-size: 10px; color: var(--text-dark); }
+        .col-info .info-value { font-size: 12px; font-weight: 700; color: var(--blue-data); margin-top: 2px; margin-bottom: 4px; }
+        .col-info .info-value:last-child { margin-bottom: 0; }
+
+        /* CONTEUDO */
+        .content-container {
+            flex-grow: 1;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        /* Wrapper que cresce (secoes 6/7/8) e é medido/encolhido pelo auto-shrink. flex:1 +
+           overflow:hidden dao altura limitada; font-size aqui e a BASE (teto 8.5px) — o bloco
+           "Responsavel" e o .rodape ficam FORA deste wrapper (siblings em .content-container) e
+           por isso NUNCA encolhem (espelha .folha-body de PRONT-FOLHA-DADOS.html). Os tamanhos
+           abaixo viram "em" relativos a esta base p/ encolherem junto quando o JS reduz o
+           font-size deste wrapper. */
+        .cont-body { flex: 1; overflow: hidden; font-size: 8.5px; min-height: 0; }
+
+        .section-title-band {
+            background-color: var(--bg-table-header);
+            font-weight: 800;
+            font-size: 1.06em; /* 9/8.5 — filho direto de .cont-body */
+            padding: 4px 6px;
+            text-transform: uppercase;
+            text-align: left;
+            border: 1px solid #d1d5db;
+            margin: 8px 0 4px;
+        }
+        .section-title-band:first-child { margin-top: 0; }
+
+        .texto-secao {
+            font-size: 1em; /* filho direto de .cont-body */
+            text-align: justify;
+            padding: 2px 4px 6px;
+            line-height: 1.55;
+        }
+
+        table.tbl-disp { width: 100%; border-collapse: collapse; font-size: 1em; margin-bottom: 4px; } /* filho direto de .cont-body */
+        table.tbl-disp td { border: 1px solid #d1d5db; padding: 4px 6px; vertical-align: middle; }
+        table.tbl-disp td.disp-num { width: 6%; text-align: center; font-weight: 800; background: var(--bg-table-sub); }
+        table.tbl-disp td.disp-label { width: 30%; font-weight: 700; background: var(--bg-table-sub); text-transform: uppercase; }
+        table.tbl-disp td.disp-val { color: var(--blue-data); font-weight: 700; }
+
+        .lista-atencao {
+            list-style: none;
+            counter-reset: atencao;
+            font-size: 1em; /* filho direto de .cont-body */
+            padding: 2px 4px 6px;
+            line-height: 1.5;
+        }
+        .lista-atencao li {
+            counter-increment: atencao;
+            padding: 1.5px 0;
+            text-align: justify;
+        }
+        .lista-atencao li::before {
+            content: "8." counter(atencao) " — ";
+            font-weight: 800;
+        }
+
+        /* LINHA "RESPONSAVEL" — 1 coluna (assinatura) + celula CREA a direita (igual ao print antigo) */
+        .linha-responsavel {
+            display: flex;
+            align-items: stretch;
+            border: 1px solid #000;
+            margin-top: 8px;
+            font-size: 10px;
+        }
+        .lr-assinatura {
+            flex: 1;
+            display: flex;
+            align-items: flex-end;
+            gap: 10px;
+            padding: 6px 10px;
+            min-height: 46px;
+        }
+        .lr-label { font-weight: 800; white-space: nowrap; }
+        .lr-rubrica-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; }
+        .lr-rubrica-wrap .rubrica { height: 34px; }
+        .lr-rubrica-wrap .resp-linha { width: 100%; }
+        .lr-crea {
+            border-left: 1px solid #000;
+            padding: 6px 12px;
+            font-weight: 800;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            background: var(--bg-table-sub);
+        }
+
+        /* RESPONSABILIDADE TECNICA (elementos canonicos reaproveitados: rubrica + linha) */
+        .resp-linha { border-top: 2px solid #111; margin: 2px 0 0; }
+        .rubrica { display: block; margin: 0 auto; }
+
+        /* RODAPE CANONICO — sem paginacao */
+        .rodape { margin-top: auto; text-align: center; font-size: 9px; padding-top: 6px; }
+        .rodape-linha { border-top: 3px solid #111; margin: 3px 0; }
+        .rodape-nome { font-weight: 900; }
+        .rodape-info { color: #7a5c00; font-weight: 600; }
+
+        @media print {
+            body { background: none; padding: 0; display: block; }
+            .page { width: 100% !important; margin: 0 !important; box-shadow: none !important; border: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="page">
+        <table class="header-table"><tr>
+          <td class="col-logo"><img id="img-logo" alt="Logo" style="display:none"></td>
+          <td class="col-title">PRONTUÁRIO<br>CONTINUAÇÃO</td>
+          <td class="col-info">
+            <div class="info-label">Relatório nº.</div><div class="info-value" id="meta-numero">—</div>
+            <div class="info-label">Data de Emissão:</div><div class="info-value" id="meta-data">—</div>
+          </td>
+        </tr></table>
+
+        <div class="content-container">
+            <div class="cont-body" id="cont-body">
+
+                <div class="section-title-band">6 - PROCEDIMENTOS DE INSPEÇÃO</div>
+                <div class="texto-secao" contenteditable="true">Certificamos que o equipamento foi inspecionado em conformidade com a norma regulamentadora NR-13 do Ministério do Trabalho e Emprego, e demais normas aplicáveis. As inspeções de segurança periódicas devem ser realizadas nos prazos máximos estabelecidos pela NR-13 conforme a categoria do equipamento, por Profissional Legalmente Habilitado, compreendendo exames externo, interno e teste hidrostático quando aplicável. Os resultados devem ser registrados no Livro de Registro de Segurança e no relatório de inspeção correspondente.</div>
+
+                <div class="section-title-band">7 - DISPOSITIVOS DE SEGURANÇA</div>
+                <table class="tbl-disp">
+                    <tr>
+                        <td class="disp-num">7.1</td>
+                        <td class="disp-label">Válvula de Segurança</td>
+                        <td class="disp-val" contenteditable="true">Calibrada para abertura na pressão indicada, aferida por empresa competente</td>
+                    </tr>
+                    <tr>
+                        <td class="disp-num">7.2</td>
+                        <td class="disp-label">Material de Construção / Corpo</td>
+                        <td class="disp-val" contenteditable="true">—</td>
+                    </tr>
+                    <tr>
+                        <td class="disp-num">7.3</td>
+                        <td class="disp-label">Pressão Máxima de Abertura</td>
+                        <td class="disp-val" id="val-pressao-abertura" contenteditable="true">—</td>
+                    </tr>
+                </table>
+
+                <div class="section-title-band">8 - ATENÇÃO</div>
+                <ol class="lista-atencao" contenteditable="true">
+                    <li>Os dados assinalados neste prontuário foram obtidos em conformidade com a NR-13 do Ministério do Trabalho e Emprego.</li>
+                    <li>Verifique semanalmente o funcionamento da válvula de segurança.</li>
+                    <li>Realize anualmente a aferição do manômetro e da válvula de segurança por empresa competente; esta operação deve ser realizada em dispositivo não previsto ao seu uso normal.</li>
+                    <li>É de responsabilidade do usuário final realizar novo teste hidrostático do vaso de pressão e outro após cinco anos da data de fabricação, mediante a inspeção e aprovação de um engenheiro responsável (Profissional Legalmente Habilitado), de acordo com a NR-13. Os períodos subsequentes serão determinados pelo próprio engenheiro responsável.</li>
+                    <li>Nunca efetue reparos ou serviços de solda no Vaso de Pressão.</li>
+                    <li>A instalação, manutenção e a operação do vaso devem ser realizadas somente por pessoal treinado, conforme a norma NR-13 MTE.</li>
+                    <li>O usuário final deve possuir documentação especificada do vaso de pressão, de acordo com a norma NR-13 MTE.</li>
+                    <li>Este documento perde a validade se o vaso de pressão tiver sofrido ou vir a sofrer qualquer alteração das suas características originais.</li>
+                    <li>O vaso de pressão com compressor/motor montados sobre o mesmo deve ser instalado com amortecedores de vibração e não deve ser chumbado rigidamente ao piso.</li>
+                    <li>Nunca opere o equipamento acima da PMTA indicada neste prontuário.</li>
+                </ol>
+
+                <!-- Fica dentro do wrapper encolhivel (#cont-body): se sobrar espaco (texto padrao
+                     mais curto que a folha), o vazio aparece DEPOIS desta linha e ANTES do rodape —
+                     mesmo padrao ja aceito em PRONT-ULTRASSOM.html (.resp-tecnica seguido de
+                     .rodape com margin-top:auto), nunca entre as secoes de texto. Tamanhos aqui
+                     sao em px fixo (nao em em), entao NAO encolhem junto com o texto acima caso o
+                     auto-shrink dispare — a assinatura mantem tamanho legivel sempre. -->
+                <div class="linha-responsavel">
+                    <div class="lr-assinatura">
+                        <span class="lr-label">Responsável:</span>
+                        <div class="lr-rubrica-wrap">
+                            <svg class="rubrica" viewBox="0 0 160 50" aria-hidden="true"><path d="M8 38 C 30 8, 44 44, 60 22 S 92 10, 104 30 S 138 18, 152 26" fill="none" stroke="#1a2f8a" stroke-width="2.2" stroke-linecap="round"/></svg>
+                            <div class="resp-linha"></div>
+                        </div>
+                    </div>
+                    <div class="lr-crea">CREA nº: PR-166121/D</div>
+                </div>
+
+            </div><!-- /#cont-body -->
+
+            <div class="rodape">
+              <div class="rodape-linha"></div>
+              <div class="rodape-nome" id="rod-nome">—</div>
+              <div class="rodape-info"><span id="rod-endereco">—</span> • CNPJ: <span id="rod-cnpj">—</span> • CEP: <span id="rod-cep">—</span></div>
+              <div class="rodape-info">Telef: <span id="rod-tel">—</span> • E-mail: <span id="rod-email">—</span></div>
+              <div class="rodape-linha"></div>
+            </div>
+
+        </div>
+    </div>
+
+<script>
+function lerJSON(chave) { try { return JSON.parse(localStorage.getItem(chave) || 'null'); } catch (_) { return null; } }
+function lerTexto(chave) { var v = localStorage.getItem(chave); if (!v) return ''; try { var p = JSON.parse(v); return typeof p === 'string' ? p : v; } catch (_) { return v; } }
+function texto(id, v) { var el = document.getElementById(id); if (el) el.textContent = (v === null || v === undefined || v === '') ? '—' : String(v); }
+
+function mpaParaKgfComUnidade(mpaValor) {
+  if (mpaValor === null || mpaValor === undefined || mpaValor === '') return '—';
+  var n = Number(mpaValor);
+  if (!isFinite(n)) return '—';
+  return (n * 10.19716).toFixed(2).replace('.', ',') + ' kgf/cm²';
+}
+
+// Auto-shrink: reduz a fonte-base do #cont-body (secoes 6/7/8) ate o conteudo caber na folha
+// A4 de altura fixa (sem cortar nem empurrar o rodape/linha do responsavel). Espelha
+// ajustarFonteParaCaber() de PRONT-FOLHA-DADOS.html / RESUMO-MEMORIAL.html.
+function ajustarFonteParaCaber(el) {
+  if (!el) return;
+  var fonte = 8.5;
+  el.style.fontSize = fonte + 'px';
+  while ((el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1) && fonte > 6) {
+    fonte -= 0.25;
+    el.style.fontSize = fonte + 'px';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  var pront = lerJSON('nr13_prontuario_atual') || {};
+  var tag = pront.tag || new URLSearchParams(location.search).get('tag') || '';
+  var meta = lerJSON('nr13_prontuario_meta_' + tag) || {};
+  var minhaEmp = lerJSON('nr13_minha_empresa') || {};
+
+  texto('meta-numero', meta.numero);
+  texto('meta-data', meta.emissao);
+
+  var logo = pront.logo || minhaEmp.logo;
+  if (logo) { var imgLogo = document.getElementById('img-logo'); imgLogo.src = logo; imgLogo.style.display = 'block'; }
+
+  // ───────────────────────── Pressão máxima de abertura (7.3) ─────────────────────────
+  var calc = lerJSON('nr13_calc_' + tag) || {};
+  var elPressao = document.getElementById('val-pressao-abertura');
+  if (elPressao) elPressao.textContent = mpaParaKgfComUnidade(calc.pmta);
+
+  // ───────────────────────── Rodapé (dados da empresa executante) ─────────────────────────
+  var nomeEmp = pront.minhaEmpresaNome || minhaEmp.razao || minhaEmp.fantasia;
+  var enderecoEmp = pront.minhaEmpresaEndereco || minhaEmp.endereco;
+  var cnpjEmp = pront.minhaEmpresaCnpj || minhaEmp.cnpj;
+  var cepEmp = minhaEmp.cep;
+  var telEmp = pront.minhaEmpresaTelefone || minhaEmp.telefone;
+  var emailEmp = minhaEmp.email;
+
+  texto('rod-nome', nomeEmp);
+  texto('rod-endereco', enderecoEmp);
+  texto('rod-cnpj', cnpjEmp);
+  texto('rod-cep', cepEmp);
+  texto('rod-tel', telEmp);
+  texto('rod-email', emailEmp);
+
+  // AUTO-SHRINK: encolhe a fonte-base de #cont-body (secoes 6/7/8) se o texto padrao (ou
+  // editado pelo usuario) nao couber na folha A4. Roda DEPOIS de toda a injecao de dados.
+  ajustarFonteParaCaber(document.getElementById('cont-body'));
+});
+</script>
+</body>
+</html>
