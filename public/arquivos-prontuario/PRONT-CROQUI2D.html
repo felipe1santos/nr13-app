@@ -122,7 +122,12 @@
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 10px;
-            flex: 0 0 118px;
+            /* 240px totais ≈ 19px de título + 221px de área útil p/ o SVG (viewBox 360×360 e
+               360×300) — bate no alvo de ~200-230px de altura renderizada (CLAUDE.md §5, sem
+               vazio). O croqui-grid (vista longitudinal) é flex:1 dentro do mesmo .croqui-col,
+               então absorve automaticamente a diferença (antes 118px) sem estourar a página A4
+               nem empurrar o rodapé — nenhuma outra medida da folha muda. */
+            flex: 0 0 240px;
             min-height: 0;
         }
         .extra-col { display: flex; flex-direction: column; min-height: 0; }
@@ -585,9 +590,23 @@ document.addEventListener('DOMContentLoaded', function () {
   var cat = lerJSON('nr13_cat_' + tag) || {};
   var dim0 = (pront.dimensoes && pront.dimensoes[0]) || {};
 
-  var diametroMM = numMM(dim0.diametro);
-  var alturaMM = numMM(dim0.altura);
-  var comprimentoMM = numMM(dim0.comprimento);
+  // Modelo 3D do Modelador de Vaso (fase 2) — fonte de FALLBACK para A/B/C/espessuras quando a
+  // ficha (dim0, digitada manualmente) não tem o campo preenchido. Prioridade: valor digitado na
+  // ficha sempre vence; o modelo só entra quando o campo da ficha está vazio (CLAUDE.md §2/§10).
+  var modelo3d = lerJSON('nr13_modelo3d_' + tag);
+  var fd = lerJSON('nr13_folha_dados_' + tag);
+  var orientacaoModelo = (fd && fd.orientacao) || (modelo3d && modelo3d.orientacao) || '';
+
+  var diametroRaw = numMM(dim0.diametro) !== null ? dim0.diametro : (modelo3d ? modelo3d.diametroInterno : null);
+  var comprimentoRaw = numMM(dim0.comprimento) !== null ? dim0.comprimento : (modelo3d ? modelo3d.comprimentoCilindro : null);
+  // C (altura) só cai pro modelo em vasos verticais — na horizontal o modelo não tem "altura"
+  // própria (é o diâmetro do costado deitado), então mantém o comportamento de sempre (dimensoes
+  // ou "—").
+  var alturaRaw = numMM(dim0.altura) !== null ? dim0.altura : ((orientacaoModelo === 'vertical' && fd) ? fd.comprimentoTotalMm : null);
+
+  var diametroMM = numMM(diametroRaw);
+  var alturaMM = numMM(alturaRaw);
+  var comprimentoMM = numMM(comprimentoRaw);
   var tipoInfo = String(info.tipo || '').toLowerCase();
   var subtipoInfo = String(info.subtipo || '').toLowerCase();
 
@@ -596,7 +615,6 @@ document.addEventListener('DOMContentLoaded', function () {
   // (vista longitudinal/transversal/detalhe do tampo) substituem o desenho genérico abaixo. Sem
   // a chave, mantém o comportamento de sempre (fallback intacto — CLAUDE.md §2/§10).
   var c2d = lerJSON('nr13_croqui2d_' + tag);
-  var fd = lerJSON('nr13_folha_dados_' + tag);
 
   var wrap = document.getElementById('croqui-wrap');
   if (c2d && c2d.longitudinal) {
@@ -617,12 +635,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // Tabela de dimensões reais — sempre em formato pt-BR (vírgula decimal, 2 casas; ",00" some
   // nos valores "inteiros" de Ø/comprimento/altura/capacidade).
-  texto('dim-a', diametroMM !== null ? fmtNumPtBRCompacto(dim0.diametro) : null);
-  texto('dim-b', comprimentoMM !== null ? fmtNumPtBRCompacto(dim0.comprimento) : null);
-  texto('dim-c', alturaMM !== null ? fmtNumPtBRCompacto(dim0.altura) : null);
+  texto('dim-a', diametroMM !== null ? fmtNumPtBRCompacto(diametroRaw) : null);
+  texto('dim-b', comprimentoMM !== null ? fmtNumPtBRCompacto(comprimentoRaw) : null);
+  texto('dim-c', alturaMM !== null ? fmtNumPtBRCompacto(alturaRaw) : null);
 
-  var espCasco = (dim0.espCorpo && String(dim0.espCorpo).trim()) || calc.ecasco || null;
-  var espTampo = (dim0.espTampa && String(dim0.espTampa).trim()) || (dim0.espFundo && String(dim0.espFundo).trim()) || calc.etampo || null;
+  var espCasco = (dim0.espCorpo && String(dim0.espCorpo).trim()) || calc.ecasco || (modelo3d && modelo3d.espessuraCasco) || null;
+  var espTampo = (dim0.espTampa && String(dim0.espTampa).trim()) || (dim0.espFundo && String(dim0.espFundo).trim()) || calc.etampo || (modelo3d && modelo3d.tampo1 && modelo3d.tampo1.espessura) || null;
   texto('dim-esp-casco', fmtNumPtBR(espCasco));
   texto('dim-esp-tampo', fmtNumPtBR(espTampo));
 
