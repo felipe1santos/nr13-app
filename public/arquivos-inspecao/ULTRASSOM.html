@@ -661,11 +661,16 @@
             const tagVaso = urlParams.get('tag') || 'VP-101';
             
             if (tagVaso && minimos.length >= 3) {
-                const dadosMedicao = {
+                // Lê o objeto existente para preservar campos do ensaio (aparelho, acoplante, etc.)
+                var atualMedEsp = {};
+                try { atualMedEsp = JSON.parse(localStorage.getItem('nr13_med_esp_' + tagVaso) || '{}') || {}; } catch (_) {}
+
+                // Mescla preservando outros campos, atualizando apenas sup/casco/inf
+                var dadosMedicao = Object.assign({}, atualMedEsp, {
                     sup: minimos[0] !== Infinity ? String(minimos[0]).replace('.', ',') : '',
                     casco: minimos[1] !== Infinity ? String(minimos[1]).replace('.', ',') : '',
                     inf: minimos[2] !== Infinity ? String(minimos[2]).replace('.', ',') : ''
-                };
+                });
                 sbSalvar('nr13_med_esp_' + tagVaso, JSON.stringify(dadosMedicao));
 
                 // Persiste a GRADE COMPLETA de pontos por TAG (para o Prontuário — folha 3)
