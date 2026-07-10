@@ -409,7 +409,7 @@ function svgVertical(diametroMM, alturaMM) {
   var skirtH = 30;
   var rectHeight = Math.max(Cpx - headBulge - skirtH, 50);
 
-  var rectTop = 90;
+  var rectTop = Math.max(90, headBulge * 1.5 + 35);
   var rectBottom = rectTop + rectHeight;
   var skirtBottom = rectBottom + skirtH;
   var domeTop = rectTop - headBulge * 1.5;
