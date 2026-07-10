@@ -15,9 +15,10 @@
 // - Raio de casco/tampos = D/2 (diâmetro interno; espessura do casco não altera a geometria 3D,
 //   só entra nos cálculos de peso/folha de dados — mesma simplificação visual do brief).
 // - Bocal em 'casco': `posicaoAxial` em mm a partir do início do cilindro (lado do tampo1),
-//   crescendo em direção ao tampo2; `angulo` em graus com a MESMA fórmula do croqui2dService
-//   (`rad = (angulo-90)·π/180`, 0°="topo"/referência, sentido horário); bocal aponta radialmente
-//   para fora, na superfície do casco.
+//   crescendo em direção ao tampo2; `angulo` em graus na MESMA convenção do croqui2dService
+//   (0°="topo"/referência, sentido horário visto de cima) — ver `direcaoBocalLocal` em
+//   `geometriaVaso.ts` para a derivação matricial completa e a direção local (x,z) resultante;
+//   bocal aponta radialmente para fora, na superfície do casco.
 // - Bocal em 'tampo1'/'tampo2': NÃO depende de `posicaoAxial` (mesma regra do croqui2dService —
 //   um bocal de tampo não tem posição ao longo do comprimento); fica a 0,8×raio do centro do
 //   tampo, na direção do ângulo, apontando axialmente para fora do vaso.
@@ -25,7 +26,7 @@ import { useEffect, useRef } from 'react';
 import type { MutableRefObject } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { comprimentoTotalMm, dimensoesTampo, num } from './geometriaVaso';
+import { comprimentoTotalMm, dimensoesTampo, direcaoBocalLocal, num } from './geometriaVaso';
 import type { BocalModelo, ModeloVaso, SuporteModelo, TampoModelo } from './tiposModelador';
 
 interface Props {
@@ -153,8 +154,13 @@ function construirBocal(bocal: BocalModelo, ctx: ContextoBocal, translucido: boo
   const espCena = espessura !== null && espessura > 0 ? mm(espessura) : mm(ESPESSURA_PADRAO_MM);
 
   const angulo = num(bocal.angulo) ?? 0;
-  // Mesma convenção do croqui2dService: 0° = referência "topo", sentido horário.
-  const rad = ((angulo - 90) * Math.PI) / 180;
+  // direcaoBocalLocal(angulo) devolve a direção local (x,z) — mesma convenção do croqui2dService
+  // (0°=topo, sentido horário visto de cima; ver derivação em geometriaVaso.ts). `pivot.rotation.y`
+  // é uma rotação em torno de Y pela regra da mão direita: aplicada ao ponto local (1,0,0) produz
+  // (cosθ, 0, −sinθ). Para que o resultado seja (dirLocal.x, dirLocal.z) resolvemos
+  // cosθ=dirLocal.x e −sinθ=dirLocal.z ⇒ θ = atan2(−dirLocal.z, dirLocal.x).
+  const dirLocal = direcaoBocalLocal(angulo);
+  const rad = Math.atan2(-dirLocal.z, dirLocal.x);
 
   // Corpo local aponta ao longo de +X (base em x=0, ponta em x=projCena) + flange na ponta.
   // A reorientação para "radial" (bocal de casco) ou "axial" (bocal de tampo) acontece a seguir,

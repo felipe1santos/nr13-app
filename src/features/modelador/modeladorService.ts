@@ -2,7 +2,7 @@
 // (`nr13_vaso_<TAG>` / `nr13_vaso_ac_corpo_<TAG>`), gravação do modelo (`nr13_modelo3d_<TAG>`),
 // da folha de dados derivada (`nr13_folha_dados_<TAG>`) e dos croquis 2D (`nr13_croqui2d_<TAG>`).
 // O croqui 3D (PNG) usa a mesma chave/serviço do prontuário (`gravarCroqui3d`).
-import { ler, salvar } from '../../services/storage';
+import { excluirChave, ler, salvar } from '../../services/storage';
 import type { VasoSalvo } from '../memorial/vasoMemorialService';
 import { gravarCroqui3d } from '../prontuarios/prontuarioService';
 import { circunferenciaMm, comprimentoTotalMm, dimensoesTampo, num, pesosKg } from './geometriaVaso';
@@ -174,14 +174,26 @@ export function montarFolhaDados(m: ModeloVaso): FolhaDadosDerivada {
   const L = num(m.comprimentoCilindro);
   const tCasco = num(m.espessuraCasco);
 
-  const bocais = m.bocais.map((b) => ({
-    id: b.id,
-    servico: b.servico,
-    dn: b.dn,
-    flange: b.flange,
-    obs: b.posicaoAxial !== '' && b.posicaoAxial != null ? `${b.local} @ ${b.posicaoAxial}mm` : '',
-    anguloGraus: num(b.angulo),
-  }));
+  const bocais = m.bocais.map((b) => {
+    const angulo = num(b.angulo);
+    const posAxial = num(b.posicaoAxial);
+    let obs = '';
+    if (b.local === 'tampo1' || b.local === 'tampo2') {
+      // Bocal de tampo não tem posicaoAxial (não se aplica) — a posição/ângulo dele vai na OBS.
+      const nomeTampo = b.local === 'tampo1' ? 'tampo 1' : 'tampo 2';
+      obs = angulo !== null ? `${nomeTampo} @ ${fmtNum(angulo, 1)}°` : nomeTampo;
+    } else if (posAxial !== null) {
+      obs = `${b.local} @ ${fmtNum(posAxial, 1)}mm`; // fmtNum formata pt-BR (vírgula decimal)
+    }
+    return {
+      id: b.id,
+      servico: b.servico,
+      dn: b.dn,
+      flange: b.flange,
+      obs,
+      anguloGraus: angulo,
+    };
+  });
 
   const pesos = pesosKg(m);
 
@@ -227,6 +239,14 @@ export async function salvarModelo(
 ): Promise<void> {
   await salvar(chaveModelo3d(tag), m);
   await salvar(chaveFolhaDados(tag), montarFolhaDados(m));
-  if (croquis2d) await salvar(chaveCroqui2d(tag), croquis2d);
+  if (croquis2d) {
+    await salvar(chaveCroqui2d(tag), croquis2d);
+  } else {
+    // null explícito (usuário limpou os dados mínimos do croqui): remove a chave em vez de deixar
+    // o SVG antigo obsoleto — o croqui2d precisa ficar consistente com a folha_dados atual.
+    await excluirChave(chaveCroqui2d(tag));
+  }
+  // png3d null NÃO remove o croqui3d salvo: o usuário pode ter uma captura antiga intencional
+  // (o viewport pode estar temporariamente sem dados/captura, sem que isso invalide a anterior).
   if (png3d) await gravarCroqui3d(tag, png3d);
 }

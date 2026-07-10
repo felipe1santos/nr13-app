@@ -48,6 +48,42 @@ export function dimensoesTampo(tipo: TipoTampoModelo, D: number, t: number): {
 }
 
 /**
+ * Direção radial local (no plano XZ, ANTES de qualquer rotação de orientação do vaso) de um bocal
+ * dado seu ângulo em graus — fonte única de verdade da convenção de ângulo, compartilhada entre
+ * `Viewport3D.tsx` (3D) e `croqui2dService.ts` (2D: `svgTransversal`/`anguloParaXY`, que usa
+ * `rad = (angulo-90)·π/180`, x=cx+r·cos(rad), y=cy+r·sin(rad) em coordenadas de TELA (y para
+ * baixo) ⇒ 0°=topo, sentido horário visto de cima).
+ *
+ * DERIVAÇÃO (prova geométrica — ver revisão de branch que motivou este helper):
+ * 1. Defina φ = ânguloGraus em radianos, medido no sentido horário a partir do "topo" — mesma
+ *    referência do compasso 2D. Numa parametrização (direita, cima) de um círculo percorrido no
+ *    sentido horário a partir do topo: direita = sin(φ), cima = cos(φ). Prova: φ=0 → (0,1) = topo;
+ *    φ=90° → (1,0) = direita; φ=180° → (0,−1) = baixo; φ=270° → (−1,0) = esquerda — exatamente as
+ *    4 posições do mostrador de um relógio, confirmando o sentido horário.
+ *    (Equivalência com a fórmula do croqui2d: cos(φ−90°) = sin(φ) e −sin(φ−90°) = cos(φ), e como o
+ *    SVG usa y PARA BAIXO, "−sin(φ−90°)" para cima em tela equivale a "cima"=cos(φ) acima — mesma
+ *    parametrização, dois sistemas de coordenadas diferentes.)
+ * 2. No Viewport3D, o casco/tampos são construídos com o eixo do vaso = Y local; o bocal nasce
+ *    apontando ao longo de +X local (ver `construirBocal`), ou seja, a referência "0°" do corpo
+ *    do bocal É o eixo local X. Quando o vaso está deitado (`orientacao='horizontal'`), o grupo
+ *    inteiro gira `rotation.z = +90°` — sob essa rotação (R_z, mão direita): novo_x = x·cosψ−y·sinψ,
+ *    novo_y = x·sinψ+y·cosψ (z inalterado); com ψ=90°, o eixo local +X (1,0,0) mapeia para
+ *    mundo (0,1,0) = +Y do mundo, que é "para cima" na cena (câmera trata Y como vertical).
+ *    Logo, para "0°=topo" quando horizontal, a direção local ANTES da rotação de orientação
+ *    precisa ser +X local — daí `direcaoBocalLocal(0) = (x:1, z:0)`.
+ * 3. Tomando local-X como "cima" e local-Z como "direita" (consistente com olhar o vaso pelo eixo
+ *    Y, i.e. a MESMA vista de topo/transversal do croqui2d) e aplicando o passo 1
+ *    (direita=sin φ, cima=cos φ): x_local = cos(φ), z_local = sin(φ).
+ *
+ * Resultado: 0°→(1,0) [topo local]; 90°→(0,+1); 180°→(−1,0); 270°→(0,−1) — sentido horário visto
+ * de cima, igual ao croqui2d.
+ */
+export function direcaoBocalLocal(anguloGraus: number): { x: number; z: number } {
+  const rad = (anguloGraus * Math.PI) / 180;
+  return { x: Math.cos(rad), z: Math.sin(rad) };
+}
+
+/**
  * Total length in mm: cylinder length + depth of head1 + depth of head2.
  * Uses the thickness from each head (espessura) to calculate its depth.
  * Returns null if any required field is empty.
@@ -252,13 +288,16 @@ export function pesosKg(m: ModeloVaso): {
   const pesoOp = num(m.pesoOperacao);
 
   if (volAco === null) {
-    return { vazioKg: null, cheioDaguaKg: null, operacaoKg: null };
+    // Sem volume de aço calculável (faltam dados do casco/tampos) — ainda assim, se o usuário
+    // digitou o peso de operação manualmente, ele não pode ser forçado a null (nunca descartar
+    // dado que o usuário digitou).
+    return { vazioKg: null, cheioDaguaKg: null, operacaoKg: pesoOp };
   }
 
   const vazioKg = volAco * m.densidadeAco;
 
   if (volInterno === null) {
-    return { vazioKg, cheioDaguaKg: null, operacaoKg: null };
+    return { vazioKg, cheioDaguaKg: null, operacaoKg: pesoOp };
   }
 
   const cheioDaguaKg = vazioKg + volInterno * 1000; // water density = 1000 kg/m³

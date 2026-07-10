@@ -77,4 +77,47 @@ describe('salvarModelo e folha de dados', () => {
     expect(fd.bocais[0]).toMatchObject({ id: 'N1', servico: 'Dreno', dn: '1"', anguloGraus: 180 });
     expect(fd.dimensoes.some((d) => d.componente.includes('Casco'))).toBe(true);
   });
+
+  it('obs do bocal de casco formata o número em pt-BR (vírgula decimal)', () => {
+    const m = modeloVazio('V4b');
+    m.diametroInterno = 1000; m.comprimentoCilindro = 2000; m.espessuraCasco = 10;
+    m.bocais = [{ id: 'N1', doMemorial: false, servico: '', dn: '', diametro: 25, espessura: 4, flange: '', local: 'casco', posicaoAxial: 800.5, angulo: 0, projecao: 120 }];
+    const fd = montarFolhaDados(m);
+    expect(fd.bocais[0].obs).toBe('casco @ 800,5mm');
+    expect(fd.bocais[0].obs).not.toContain('.');
+  });
+
+  it('obs do bocal de tampo traz o nome do tampo e o ângulo (posicaoAxial não se aplica)', () => {
+    const m = modeloVazio('V4c');
+    m.diametroInterno = 1000; m.comprimentoCilindro = 2000; m.espessuraCasco = 10;
+    m.bocais = [
+      { id: 'N1', doMemorial: false, servico: '', dn: '', diametro: 50, espessura: 6, flange: '', local: 'tampo1', posicaoAxial: '', angulo: 90, projecao: 100 },
+      { id: 'N2', doMemorial: false, servico: '', dn: '', diametro: 50, espessura: 6, flange: '', local: 'tampo2', posicaoAxial: '', angulo: '', projecao: 100 },
+    ];
+    const fd = montarFolhaDados(m);
+    expect(fd.bocais[0].obs).toBe('tampo 1 @ 90°');
+    expect(fd.bocais[1].obs).toBe('tampo 2'); // sem ângulo informado: só o nome do tampo
+  });
+});
+
+describe('salvarModelo remove chave de croqui2d obsoleta quando croquis2d===null', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('save com croquis, depois save com null → chave nr13_croqui2d_<TAG> some', async () => {
+    const m = modeloVazio('V7');
+    m.diametroInterno = 1000; m.comprimentoCilindro = 2000; m.espessuraCasco = 10;
+    await salvarModelo('V7', m, { longitudinal: '<svg/>', transversal: '<svg/>', detalheTampo: '<svg/>' }, null);
+    expect(localStorage.getItem('nr13_croqui2d_V7')).toBeTruthy();
+
+    await salvarModelo('V7', m, null, null);
+    expect(localStorage.getItem('nr13_croqui2d_V7')).toBeNull();
+  });
+
+  it('png3d===null NÃO remove um croqui3d salvo anteriormente (mantém captura antiga intencional)', async () => {
+    const m = modeloVazio('V8');
+    m.diametroInterno = 1000; m.comprimentoCilindro = 2000; m.espessuraCasco = 10;
+    localStorage.setItem('nr13_croqui3d_V8', JSON.stringify('data:image/png;base64,antigo'));
+    await salvarModelo('V8', m, null, null);
+    expect(localStorage.getItem('nr13_croqui3d_V8')).toBeTruthy();
+  });
 });

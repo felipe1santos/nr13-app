@@ -31,6 +31,22 @@ function clamp(v: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, v));
 }
 
+/**
+ * Escapa `& < > " '` antes de interpolar uma string EDITÁVEL PELO USUÁRIO (ex.: `b.id`, o
+ * identificador do bocal) dentro de um SVG que depois é injetado via `innerHTML` nas folhas do
+ * relatório/prontuário. Sem isto, um id como `N<2&"x"` quebra a tag/atributo XML ou injeta markup
+ * arbitrário. `&` precisa ser escapado PRIMEIRO (senão o `&amp;` gerado pelos escapes seguintes
+ * seria re-escapado).
+ */
+function esc(s: string): string {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 /** Ponta de seta triangular (path 'd'), mesmo formato de `seta()` do PRONT-CROQUI2D.html. */
 function seta(px: number, py: number, ang: number, tam = 6): string {
   const a1 = ang - 0.4;
@@ -221,6 +237,7 @@ function svgLongitudinalHorizontal(m: ModeloVaso, d: DadosBase): string {
   // Bocais: casco → stub retangular na posição axial (ângulo 0-180° = em cima, 180-360° = embaixo);
   // tampo1/tampo2 → stub no polo do tampo correspondente, deslocado pelo ângulo projetado
   // (não depende de posicaoAxial: o bocal de tampo não tem posição ao longo do comprimento).
+  let idxCotaAxial = 0; // índice só dos bocais de casco com cota de posição axial (stagger abaixo)
   for (const b of m.bocais) {
     const angulo = num(b.angulo);
     const anguloEfetivo = angulo === null ? 0 : angulo;
@@ -239,7 +256,7 @@ function svgLongitudinalHorizontal(m: ModeloVaso, d: DadosBase): string {
       parts.push(`<rect x="${rectX.toFixed(1)}" y="${(yBocal - stubThick / 2).toFixed(1)}" width="${stubLen.toFixed(1)}" height="${stubThick.toFixed(1)}" fill="${FILL_CASCO}" stroke="${STROKE}" stroke-width="1"/>`);
       const labelX = clamp(isTampo1 ? rectX - 4 : rectX + stubLen + 4, MARGIN + 14, VB_W - MARGIN - 14);
       const labelY = clamp(yBocal + 3, MARGIN + 10, VB_H - MARGIN);
-      parts.push(`<text x="${labelX.toFixed(1)}" y="${labelY.toFixed(1)}" font-size="8" text-anchor="${isTampo1 ? 'end' : 'start'}" fill="#333">${b.id}</text>`);
+      parts.push(`<text x="${labelX.toFixed(1)}" y="${labelY.toFixed(1)}" font-size="8" text-anchor="${isTampo1 ? 'end' : 'start'}" fill="#333">${esc(b.id)}</text>`);
       continue;
     }
 
@@ -257,18 +274,22 @@ function svgLongitudinalHorizontal(m: ModeloVaso, d: DadosBase): string {
       parts.push(`<rect x="${(xBocal - stubW / 2).toFixed(1)}" y="${yStubTop.toFixed(1)}" width="${stubW.toFixed(1)}" height="${stubH.toFixed(1)}" fill="${FILL_CASCO}" stroke="${STROKE}" stroke-width="1"/>`);
       const labelY = clamp(yStubTop - 4, MARGIN + 10, VB_H - MARGIN);
       parts.push(`<line x1="${xBocal.toFixed(1)}" y1="${yStubTop.toFixed(1)}" x2="${xBocal.toFixed(1)}" y2="${labelY.toFixed(1)}" stroke="#555" stroke-width="0.6"/>`);
-      parts.push(`<text x="${clamp(xBocal, MARGIN + 14, VB_W - MARGIN - 14).toFixed(1)}" y="${clamp(labelY - 2, MARGIN + 10, VB_H - MARGIN).toFixed(1)}" font-size="8" text-anchor="middle" fill="#333">${b.id}</text>`);
+      parts.push(`<text x="${clamp(xBocal, MARGIN + 14, VB_W - MARGIN - 14).toFixed(1)}" y="${clamp(labelY - 2, MARGIN + 10, VB_H - MARGIN).toFixed(1)}" font-size="8" text-anchor="middle" fill="#333">${esc(b.id)}</text>`);
     } else {
       const yStubBottom = clamp(yBottom + stubH, yBottom, VB_H - MARGIN);
       parts.push(`<rect x="${(xBocal - stubW / 2).toFixed(1)}" y="${yBottom.toFixed(1)}" width="${stubW.toFixed(1)}" height="${stubH.toFixed(1)}" fill="${FILL_CASCO}" stroke="${STROKE}" stroke-width="1"/>`);
       const labelY = clamp(yStubBottom + 10, MARGIN, VB_H - MARGIN - 4);
       parts.push(`<line x1="${xBocal.toFixed(1)}" y1="${yStubBottom.toFixed(1)}" x2="${xBocal.toFixed(1)}" y2="${labelY.toFixed(1)}" stroke="#555" stroke-width="0.6"/>`);
-      parts.push(`<text x="${clamp(xBocal, MARGIN + 14, VB_W - MARGIN - 14).toFixed(1)}" y="${clamp(labelY + 8, MARGIN + 10, VB_H - MARGIN).toFixed(1)}" font-size="8" text-anchor="middle" fill="#333">${b.id}</text>`);
+      parts.push(`<text x="${clamp(xBocal, MARGIN + 14, VB_W - MARGIN - 14).toFixed(1)}" y="${clamp(labelY + 8, MARGIN + 10, VB_H - MARGIN).toFixed(1)}" font-size="8" text-anchor="middle" fill="#333">${esc(b.id)}</text>`);
     }
 
     // Cota da posição axial (se preenchida) — linha fina até a base, rótulo abaixo do casco.
-    const cotaY = clamp(yBottom + 44, MARGIN, VB_H - MARGIN);
-    cota(parts, xCascoEsq, cotaY, xBocal, cotaY, `${b.id}: ${fmt(posAxial, 0)}`, VB_W);
+    // Múltiplos bocais no casco: escalona a altura por índice (14px cada) p/ não sobrepor;
+    // clampada dentro do viewBox — com muitos bocais as últimas cotas colam no limite inferior
+    // (sobreposição residual aceitável em troca de nunca vazar da folha).
+    const cotaY = clamp(yBottom + 44 + idxCotaAxial * 14, MARGIN, VB_H - MARGIN);
+    cota(parts, xCascoEsq, cotaY, xBocal, cotaY, `${esc(b.id)}: ${fmt(posAxial, 0)}`, VB_W);
+    idxCotaAxial++;
   }
 
   // Cotas principais: Ø interno, comprimento do cilindro, comprimento total.
@@ -347,6 +368,7 @@ function svgLongitudinalVertical(m: ModeloVaso, d: DadosBase): string {
   // Bocais: casco → stub radial (direita/esquerda) na posição axial vertical (ângulo 0-180° =
   // direita, 180-360° = esquerda); tampo1/tampo2 → stub no polo do tampo, deslocado pelo ângulo
   // projetado (não depende de posicaoAxial).
+  let idxCotaAxialV = 0; // índice só dos bocais de casco com cota de posição axial (stagger à esquerda)
   for (const b of m.bocais) {
     const angulo = num(b.angulo);
     const anguloEfetivo = angulo === null ? 0 : angulo;
@@ -366,7 +388,7 @@ function svgLongitudinalVertical(m: ModeloVaso, d: DadosBase): string {
       const labelY = isTampo1
         ? clamp(rectY - 4, MARGIN + 10, VB_H - MARGIN)
         : clamp(rectY + stubLen + 10, MARGIN + 10, VB_H - MARGIN);
-      parts.push(`<text x="${clamp(xBocal, MARGIN + 14, VB_W - MARGIN - 14).toFixed(1)}" y="${labelY.toFixed(1)}" font-size="8" text-anchor="middle" fill="#333">${b.id}</text>`);
+      parts.push(`<text x="${clamp(xBocal, MARGIN + 14, VB_W - MARGIN - 14).toFixed(1)}" y="${labelY.toFixed(1)}" font-size="8" text-anchor="middle" fill="#333">${esc(b.id)}</text>`);
       continue;
     }
 
@@ -384,18 +406,21 @@ function svgLongitudinalVertical(m: ModeloVaso, d: DadosBase): string {
       parts.push(`<rect x="${xStub.toFixed(1)}" y="${(yBocal - stubThick / 2).toFixed(1)}" width="${stubLen.toFixed(1)}" height="${stubThick.toFixed(1)}" fill="${FILL_CASCO}" stroke="${STROKE}" stroke-width="1"/>`);
       const labelX = clamp(xStub + stubLen + 4, MARGIN + 14, VB_W - MARGIN - 14);
       parts.push(`<line x1="${(xStub + stubLen).toFixed(1)}" y1="${yBocal.toFixed(1)}" x2="${labelX.toFixed(1)}" y2="${yBocal.toFixed(1)}" stroke="#555" stroke-width="0.6"/>`);
-      parts.push(`<text x="${labelX.toFixed(1)}" y="${(yBocal + 3).toFixed(1)}" font-size="8" text-anchor="start" fill="#333">${b.id}</text>`);
+      parts.push(`<text x="${labelX.toFixed(1)}" y="${(yBocal + 3).toFixed(1)}" font-size="8" text-anchor="start" fill="#333">${esc(b.id)}</text>`);
     } else {
       const xStub = clamp(xEsq - stubLen, MARGIN, VB_W - MARGIN - stubLen);
       parts.push(`<rect x="${xStub.toFixed(1)}" y="${(yBocal - stubThick / 2).toFixed(1)}" width="${stubLen.toFixed(1)}" height="${stubThick.toFixed(1)}" fill="${FILL_CASCO}" stroke="${STROKE}" stroke-width="1"/>`);
       const labelX = clamp(xStub - 4, MARGIN + 14, VB_W - MARGIN - 14);
       parts.push(`<line x1="${xStub.toFixed(1)}" y1="${yBocal.toFixed(1)}" x2="${labelX.toFixed(1)}" y2="${yBocal.toFixed(1)}" stroke="#555" stroke-width="0.6"/>`);
-      parts.push(`<text x="${labelX.toFixed(1)}" y="${(yBocal + 3).toFixed(1)}" font-size="8" text-anchor="end" fill="#333">${b.id}</text>`);
+      parts.push(`<text x="${labelX.toFixed(1)}" y="${(yBocal + 3).toFixed(1)}" font-size="8" text-anchor="end" fill="#333">${esc(b.id)}</text>`);
     }
 
-    // Cota da posição axial — linha vertical à esquerda, rótulo ao lado.
-    const cotaX = clamp(xEsq - 44, MARGIN, VB_W - MARGIN);
-    cota(parts, cotaX, yCascoTop, cotaX, yBocal, `${b.id}: ${fmt(posAxial, 0)}`, VB_W);
+    // Cota da posição axial — linha vertical à esquerda, rótulo ao lado. Múltiplos bocais no
+    // casco: escalona a distância à esquerda por índice (14px cada) p/ não sobrepor; clampada
+    // dentro do viewBox (mesma lógica de stagger da vista horizontal).
+    const cotaX = clamp(xEsq - 44 - idxCotaAxialV * 14, MARGIN, VB_W - MARGIN);
+    cota(parts, cotaX, yCascoTop, cotaX, yBocal, `${esc(b.id)}: ${fmt(posAxial, 0)}`, VB_W);
+    idxCotaAxialV++;
   }
 
   // Cotas principais: Ø interno (horizontal, embaixo), comprimento do cilindro e comprimento
@@ -471,7 +496,7 @@ function svgTransversal(m: ModeloVaso, d: DadosBase): string {
     parts.push(`<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${STROKE}" stroke-width="2"/>`);
     const lx = clamp(cx + (r + stubLen + 10) * Math.cos(rad), 14, VB_W - 14);
     const ly = clamp(cy + (r + stubLen + 10) * Math.sin(rad), 14, VB_H - 14);
-    parts.push(`<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" font-size="8" text-anchor="middle" fill="#333">${b.id}</text>`);
+    parts.push(`<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" font-size="8" text-anchor="middle" fill="#333">${esc(b.id)}</text>`);
   }
 
   // Circunferência anotada embaixo.

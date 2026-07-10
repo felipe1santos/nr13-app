@@ -41,4 +41,60 @@ describe('gerarCroquis2d', () => {
   it('circunferência anotada na transversal', () => {
     expect(gerarCroquis2d(modeloCompleto())!.transversal).toMatch(/Circunf/);
   });
+
+  it('escapa id de bocal com caracteres especiais nos 3 SVGs (evita quebra de tag/injeção de markup)', () => {
+    const m = modeloCompleto();
+    const idPerigoso = 'N<2&"x\'';
+    m.bocais = [
+      { id: idPerigoso, doMemorial: false, servico: '', dn: '', diametro: 100, espessura: 8, flange: '', local: 'casco', posicaoAxial: 800, angulo: 0, projecao: 150 },
+    ];
+    const c = gerarCroquis2d(m)!;
+    const escapado = 'N&lt;2&amp;&quot;x&#39;';
+    for (const svg of [c.longitudinal, c.transversal]) {
+      expect(svg).toContain(escapado);
+      expect(svg).not.toContain('N<2');
+      expect(svg).not.toContain('"x\'');
+    }
+  });
+
+  it('cotas de posição axial de múltiplos bocais no casco escalonam (não sobrepõem) e ficam dentro do viewBox — horizontal', () => {
+    const m = modeloVazio('V5');
+    m.diametroInterno = 300; m.comprimentoCilindro = 3000; m.espessuraCasco = 6;
+    m.tampo1 = { tipo: 'eliptico', espessura: 6 }; m.tampo2 = { tipo: 'eliptico', espessura: 6 };
+    m.bocais = [0, 1, 2, 3].map((i) => ({
+      id: `N${i + 1}`, doMemorial: false, servico: '', dn: '', diametro: 50, espessura: 4, flange: '',
+      local: 'casco' as const, posicaoAxial: 400 + i * 600, angulo: 0, projecao: 100,
+    }));
+    const c = gerarCroquis2d(m)!;
+    const cotas = [...c.longitudinal.matchAll(/<text x="[\d.]+" y="([\d.]+)" font-size="9" font-weight="700" text-anchor="middle" fill="#111">N\d+: [\d.]+<\/text>/g)];
+    expect(cotas).toHaveLength(4);
+    const ys = cotas.map((match) => Number(match[1]));
+    expect(new Set(ys).size).toBe(4); // 4 alturas distintas: nenhuma sobreposição
+    for (const y of ys) {
+      expect(Number.isFinite(y)).toBe(true);
+      expect(y).toBeGreaterThanOrEqual(0);
+      expect(y).toBeLessThanOrEqual(420); // VB_H da vista longitudinal horizontal
+    }
+  });
+
+  it('cotas de posição axial de múltiplos bocais no casco escalonam (não sobrepõem) e ficam dentro do viewBox — vertical', () => {
+    const m = modeloVazio('V6');
+    m.orientacao = 'vertical';
+    m.diametroInterno = 300; m.comprimentoCilindro = 3000; m.espessuraCasco = 6;
+    m.tampo1 = { tipo: 'eliptico', espessura: 6 }; m.tampo2 = { tipo: 'eliptico', espessura: 6 };
+    m.bocais = [0, 1, 2, 3].map((i) => ({
+      id: `N${i + 1}`, doMemorial: false, servico: '', dn: '', diametro: 50, espessura: 4, flange: '',
+      local: 'casco' as const, posicaoAxial: 400 + i * 600, angulo: 0, projecao: 100,
+    }));
+    const c = gerarCroquis2d(m)!;
+    const cotas = [...c.longitudinal.matchAll(/<text x="([\d.]+)" y="[\d.]+" font-size="9" font-weight="700" text-anchor="middle" fill="#111">N\d+: [\d.]+<\/text>/g)];
+    expect(cotas).toHaveLength(4);
+    const xs = cotas.map((match) => Number(match[1]));
+    expect(new Set(xs).size).toBe(4); // 4 posições x distintas: nenhuma sobreposição
+    for (const x of xs) {
+      expect(Number.isFinite(x)).toBe(true);
+      expect(x).toBeGreaterThanOrEqual(0);
+      expect(x).toBeLessThanOrEqual(420); // VB_W da vista longitudinal vertical
+    }
+  });
 });
