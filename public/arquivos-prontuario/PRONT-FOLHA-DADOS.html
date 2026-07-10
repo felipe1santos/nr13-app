@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NR-13 - Prontuario - Folha de Dados (Anexo Tecnico)</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,600;1,700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --text-dark: #111827;
+            --border-color: #000;
+            --blue-data: #0033a2;
+            --gray-light: #9CA3AF;
+            --bg-table-header: #e5e7eb;
+            --bg-table-sub: #f9fafb;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--text-dark);
+            background-color: #fff;
+            margin: 0;
+            padding: 0;
+            line-height: 1.3;
+            font-size: 11px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        /* A4 EXATO — sem paginacao, rodape com margin-top:auto */
+        .page {
+            width: 100%;
+            height: 297mm;
+            overflow: hidden;
+            background-color: #fff;
+            margin: 0;
+            padding: 15mm 15mm 8mm;
+            box-sizing: border-box;
+            box-shadow: none;
+            border: none;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* CABECALHO CANONICO */
+        .header-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid var(--text-dark);
+            margin-bottom: 8px;
+        }
+        .header-table td {
+            border: 1px solid var(--text-dark);
+            vertical-align: middle;
+            padding: 6px 10px;
+        }
+        .col-logo { width: 25%; text-align: center; }
+        .col-logo img { max-width: 100%; max-height: 75px; object-fit: contain; display: block; margin: 0 auto; }
+        .col-title { width: 50%; text-align: center; font-size: 15px; font-weight: 800; color: var(--text-dark); line-height: 1.2; }
+        .col-info { width: 25%; text-align: left; padding-left: 15px; }
+        .col-info .info-label { font-size: 10px; color: var(--text-dark); }
+        .col-info .info-value { font-size: 12px; font-weight: 700; color: var(--blue-data); margin-top: 2px; margin-bottom: 4px; }
+        .col-info .info-value:last-child { margin-bottom: 0; }
+
+        /* CONTEUDO */
+        .content-container {
+            flex-grow: 1;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        /* GRADE ESTILO PRANCHA (PVElite) — coluna esquerda 60% / direita 40% */
+        .folha-grid {
+            display: grid;
+            grid-template-columns: 60% 40%;
+            gap: 8px;
+            flex: 1;
+            min-height: 0;
+        }
+        .col-esq, .col-dir { display: flex; flex-direction: column; min-width: 0; }
+
+        /* BLOCO com faixa preta de titulo (estilo prancha tecnica) */
+        .bloco { border: 1px solid #999; margin-bottom: 6px; }
+        .bloco-titulo {
+            background: #111;
+            color: #fff;
+            font-size: 8px;
+            font-weight: 800;
+            padding: 2px 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .bloco-corpo { padding: 4px 6px; font-size: 8px; }
+        .bloco-sub {
+            background: var(--bg-table-header);
+            font-weight: 800;
+            font-size: 7.5px;
+            padding: 2px 6px;
+            text-transform: uppercase;
+            border-top: 1px solid #999;
+            border-bottom: 1px solid #999;
+        }
+
+        .linha-dado { display: flex; justify-content: space-between; padding: 1px 0; border-bottom: 1px dotted #ccc; }
+        .linha-dado:last-child { border-bottom: none; }
+        .linha-dado .rot { color: #333; }
+        .linha-dado .val { font-weight: 700; color: var(--blue-data); text-align: right; }
+
+        .lista-comp { font-size: 7.5px; padding: 1px 0; border-bottom: 1px dotted #ddd; }
+        .lista-comp:last-child { border-bottom: none; }
+
+        table.tbl-prancha { width: 100%; border-collapse: collapse; font-size: 7.5px; text-align: center; }
+        table.tbl-prancha th, table.tbl-prancha td { border: 1px solid #ccc; padding: 2px 3px; }
+        table.tbl-prancha th { background: var(--bg-table-sub); font-weight: 800; text-transform: uppercase; font-size: 7px; }
+        table.tbl-prancha td.esq { text-align: left; }
+
+        /* ORIENTACAO DE BOCAIS — SVG vista de topo */
+        .bloco-orientacao { display: flex; align-items: center; justify-content: center; padding: 6px; }
+
+        /* CARIMBO (title block) */
+        .carimbo { border: 1px solid #999; margin-top: auto; }
+        .carimbo table { width: 100%; border-collapse: collapse; font-size: 7px; }
+        .carimbo th, .carimbo td { border: 1px solid #999; padding: 2px 4px; text-align: left; }
+        .carimbo th { background: var(--bg-table-header); font-weight: 800; text-transform: uppercase; font-size: 6.5px; text-align: center; }
+        .carimbo .lbl { background: var(--bg-table-sub); font-weight: 800; font-size: 6.5px; text-transform: uppercase; width: 34%; }
+        .carimbo .val { color: var(--blue-data); font-weight: 700; }
+        .carimbo-cliente-tag { display: flex; }
+        .carimbo-cliente-tag > div { flex: 1; }
+
+        .selo-as-built {
+            border: 2px solid #c1121f;
+            color: #c1121f;
+            font-weight: 800;
+            font-size: 9px;
+            text-align: center;
+            padding: 3px 4px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        /* NOTAS TECNICAS */
+        .notas-lista { list-style: none; counter-reset: nota; font-size: 7.5px; padding: 2px 4px; }
+        .notas-lista li { counter-increment: nota; padding: 1px 0; }
+        .notas-lista li::before { content: counter(nota) ". "; font-weight: 700; }
+
+        /* RODAPE CANONICO — sem paginacao */
+        .rodape { margin-top: auto; text-align: center; font-size: 9px; }
+        .rodape-linha { border-top: 3px solid #111; margin: 3px 0; }
+        .rodape-nome { font-weight: 900; }
+        .rodape-info { color: #7a5c00; font-weight: 600; }
+
+        @media print {
+            body { background: none; padding: 0; display: block; }
+            .page { width: 100% !important; margin: 0 !important; box-shadow: none !important; border: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="page">
+        <table class="header-table"><tr>
+          <td class="col-logo"><img id="img-logo" alt="Logo" style="display:none"></td>
+          <td class="col-title">FOLHA DE DADOS<br>ANEXO TÉCNICO</td>
+          <td class="col-info">
+            <div class="info-label">Relatório nº.</div><div class="info-value" id="meta-numero">—</div>
+            <div class="info-label">Data de Emissão:</div><div class="info-value" id="meta-data">—</div>
+          </td>
+        </tr></table>
+
+        <div class="content-container">
+            <div class="folha-grid">
+
+                <!-- ===================== COLUNA ESQUERDA (60%) ===================== -->
+                <div class="col-esq">
+
+                    <div class="bloco">
+                        <div class="bloco-titulo">Lista de Soldas</div>
+                        <table class="tbl-prancha">
+                            <thead><tr><th>Nº</th><th>Tipo</th><th>Pos</th><th>E(%)</th><th>Obs</th></tr></thead>
+                            <tbody id="tbl-soldas-body"></tbody>
+                        </table>
+                    </div>
+
+                    <div class="bloco">
+                        <div class="bloco-titulo">Orientação de Bocais — Vista de Topo</div>
+                        <div class="bloco-orientacao">
+                            <svg width="150" height="150" viewBox="0 0 150 150" aria-hidden="true">
+                                <line x1="75" y1="8" x2="75" y2="142" stroke="#999" stroke-width="1" stroke-dasharray="3,3"/>
+                                <line x1="8" y1="75" x2="142" y2="75" stroke="#999" stroke-width="1" stroke-dasharray="3,3"/>
+                                <circle cx="75" cy="75" r="58" fill="none" stroke="#111" stroke-width="1.4"/>
+                                <text x="75" y="14" text-anchor="middle" font-size="8" font-weight="700">0°</text>
+                                <text x="141" y="78" text-anchor="start" font-size="8" font-weight="700">90°</text>
+                                <text x="75" y="146" text-anchor="middle" font-size="8" font-weight="700">180°</text>
+                                <text x="9" y="78" text-anchor="end" font-size="8" font-weight="700">270°</text>
+                                <g transform="translate(126,16)">
+                                    <line x1="0" y1="10" x2="0" y2="0" stroke="#111" stroke-width="1.2"/>
+                                    <polygon points="0,-4 3,3 -3,3" fill="#111"/>
+                                    <text x="0" y="20" text-anchor="middle" font-size="8" font-weight="800">N</text>
+                                </g>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <div class="bloco">
+                        <div class="bloco-titulo">Tabela de Pesos</div>
+                        <table class="tbl-prancha">
+                            <thead><tr><th class="esq">Condição</th><th>Peso (kg)</th></tr></thead>
+                            <tbody>
+                                <tr><td class="esq">Peso vazio</td><td>—</td></tr>
+                                <tr><td class="esq">Peso em operação</td><td>—</td></tr>
+                                <tr><td class="esq">Peso cheio d'água</td><td>—</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="bloco">
+                        <div class="bloco-titulo">Espessuras por Componente</div>
+                        <table class="tbl-prancha">
+                            <thead><tr><th class="esq">Componente</th><th>t Nominal (mm)</th><th>t Requerida (mm)</th><th>CA (mm)</th></tr></thead>
+                            <tbody id="tbl-espessuras-body"></tbody>
+                        </table>
+                    </div>
+
+                </div>
+
+                <!-- ===================== COLUNA DIREITA (40%) ===================== -->
+                <div class="col-dir">
+
+                    <div class="bloco">
+                        <div class="bloco-titulo">Dados Técnicos do Equipamento</div>
+                        <div class="bloco-corpo">
+                            <div class="linha-dado"><span class="rot">Pressão (kgf/cm²)</span><span class="val" id="dt-pressao">—</span></div>
+                            <div class="linha-dado"><span class="rot">Temperatura (°C)</span><span class="val" id="dt-temp">—</span></div>
+                            <div class="linha-dado"><span class="rot">Sobr. corrosão (mm)</span><span class="val" id="dt-ca">—</span></div>
+                            <div class="linha-dado"><span class="rot">Ø interno (mm)</span><span class="val" id="dt-diam">—</span></div>
+                            <div class="linha-dado"><span class="rot">Material</span><span class="val" id="dt-material">—</span></div>
+                            <div class="linha-dado"><span class="rot">CG/corr</span><span class="val">—</span></div>
+                        </div>
+                        <div class="bloco-sub">Resultados</div>
+                        <div class="bloco-corpo">
+                            <div class="linha-dado"><span class="rot">PMTA conjunto (kgf/cm²)</span><span class="val" id="dt-pmta">—</span></div>
+                            <div class="linha-dado"><span class="rot">Teste hidro (kgf/cm²)</span><span class="val" id="dt-pth">—</span></div>
+                            <div class="linha-dado"><span class="rot">Peso vazio</span><span class="val">—</span></div>
+                        </div>
+                        <div class="bloco-sub">Componentes</div>
+                        <div class="bloco-corpo" id="dt-componentes"></div>
+                    </div>
+
+                    <div class="bloco">
+                        <div class="bloco-titulo">Lista de Bocais</div>
+                        <table class="tbl-prancha">
+                            <thead><tr><th>Tag</th><th>Serviço</th><th>Qtd</th><th>DN</th><th>Flange</th><th>Obs</th></tr></thead>
+                            <tbody id="tbl-bocais-body"></tbody>
+                        </table>
+                    </div>
+
+                    <div class="bloco">
+                        <div class="bloco-titulo">Notas Técnicas</div>
+                        <ol class="notas-lista" contenteditable="true">
+                            <li>Cotas em milímetros, salvo indicação contrária.</li>
+                            <li>Soldas conforme ASME IX — qualificação WPS/PQR em anexo.</li>
+                            <li>Tratamento térmico de alívio de tensões conforme UW-40.</li>
+                            <li>Radiografia: conforme percentual de eficiência de junta adotado no memorial (RT-1).</li>
+                            <li>Teste hidrostático conforme UG-99.</li>
+                            <li>Material certificado — CCMs em anexo.</li>
+                            <li>Datum Line: face inferior do tampo inferior.</li>
+                            <li>Desenho AS-BUILT — dimensões verificadas em campo.</li>
+                        </ol>
+                    </div>
+
+                    <div class="carimbo">
+                        <table>
+                            <tr><th>Rev</th><th>Descrição</th><th>Data</th><th>Por</th></tr>
+                            <tr>
+                                <td>00</td>
+                                <td>Emissão inicial</td>
+                                <td id="car-data-emissao">—</td>
+                                <td>—</td>
+                            </tr>
+                        </table>
+                        <table>
+                            <tr><td class="lbl">Cliente</td><td class="val" id="car-cliente" colspan="1">—</td>
+                                <td class="lbl">Tag Equip.</td><td class="val" id="car-tag">—</td></tr>
+                            <tr><td class="lbl">Nº Desenho</td><td class="val" id="car-desenho">—</td>
+                                <td class="lbl">Fabricante</td><td class="val" id="car-fabricante">—</td></tr>
+                            <tr><td class="lbl">Código Projeto</td><td class="val" id="car-codigo">ASME VIII Div.1 + NR-13</td>
+                                <td class="lbl">Escala</td><td class="val" id="car-escala">s/ escala</td></tr>
+                            <tr><td class="lbl">Data</td><td class="val" id="car-data">—</td>
+                                <td class="lbl">Formato</td><td class="val" id="car-formato">A4</td></tr>
+                        </table>
+                        <div class="selo-as-built">AS-BUILT</div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="rodape">
+              <div class="rodape-linha"></div>
+              <div class="rodape-nome" id="rod-nome">—</div>
+              <div class="rodape-info"><span id="rod-endereco">—</span> • CNPJ: <span id="rod-cnpj">—</span> • CEP: <span id="rod-cep">—</span></div>
+              <div class="rodape-info">Telef: <span id="rod-tel">—</span> • E-mail: <span id="rod-email">—</span></div>
+              <div class="rodape-linha"></div>
+            </div>
+
+        </div>
+    </div>
+
+<script>
+function lerJSON(chave) { try { return JSON.parse(localStorage.getItem(chave) || 'null'); } catch (_) { return null; } }
+function lerTexto(chave) { var v = localStorage.getItem(chave); if (!v) return ''; try { var p = JSON.parse(v); return typeof p === 'string' ? p : v; } catch (_) { return v; } }
+function texto(id, v) { var el = document.getElementById(id); if (el) el.textContent = (v === null || v === undefined || v === '') ? '—' : String(v); }
+
+// ───────────────────────── Helpers numéricos (pt-BR: vírgula decimal) ─────────────────────────
+function numOuTraco(v, casas) {
+  if (v === null || v === undefined || v === '') return '—';
+  var n = Number(v);
+  if (!isFinite(n)) return String(v);
+  return n.toFixed(casas === undefined ? 2 : casas).replace('.', ',');
+}
+function mpaParaKgf(mpaValor) {
+  if (mpaValor === null || mpaValor === undefined || mpaValor === '') return '—';
+  var n = Number(mpaValor);
+  if (!isFinite(n)) return '—';
+  return (n * 10.19716).toFixed(2).replace('.', ',');
+}
+
+// GV do autoclave (nr13_calc_gv_<TAG>) é mesclado APENAS NA LEITURA — nunca gravado — com o nome
+// prefixado "GV — " (CLAUDE.md §3). Mesmo contrato usado em RESUMO-MEMORIAL.html.
+function componentesComGV(calc, gv) {
+  var comps = (calc && Array.isArray(calc.componentes)) ? calc.componentes.slice() : [];
+  var gvComps = (gv && Array.isArray(gv.componentes)) ? gv.componentes : [];
+  gvComps.forEach(function (c) {
+    var nome = String((c && c.nome) || 'COMPONENTE');
+    var copia = {};
+    for (var k in c) { if (Object.prototype.hasOwnProperty.call(c, k)) copia[k] = c[k]; }
+    copia.nome = /^GV\b/i.test(nome) ? nome : ('GV — ' + nome);
+    comps.push(copia);
+  });
+  return comps;
+}
+
+function acharComponente(comps, regex) {
+  for (var i = 0; i < comps.length; i++) {
+    if (regex.test(String((comps[i] && comps[i].nome) || ''))) return comps[i];
+  }
+  return null;
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  var pront = lerJSON('nr13_prontuario_atual') || {};
+  var tag = pront.tag || new URLSearchParams(location.search).get('tag') || '';
+  var meta = lerJSON('nr13_prontuario_meta_' + tag) || {};
+  var minhaEmp = lerJSON('nr13_minha_empresa') || {};
+
+  texto('meta-numero', meta.numero);
+  texto('meta-data', meta.emissao);
+
+  var logo = pront.logo || minhaEmp.logo;
+  if (logo) { var imgLogo = document.getElementById('img-logo'); imgLogo.src = logo; imgLogo.style.display = 'block'; }
+
+  // ───────────────────────── Fontes de dados ─────────────────────────
+  var info = lerJSON('nr13_info_' + tag) || {};
+  var calc = lerJSON('nr13_calc_' + tag) || {};
+  var gv = lerJSON('nr13_calc_gv_' + tag) || {};
+  var emp = lerJSON('nr13_emp_' + tag) || {};
+  var vaso = lerJSON('nr13_vaso_' + tag) || {};
+
+  var comps = componentesComGV(calc, gv);
+  var compCasco = acharComponente(comps, /casc/i) || comps[0] || null;
+
+  // ───────────────────────── Dados Técnicos do Equipamento ─────────────────────────
+  texto('dt-pressao', mpaParaKgf(calc.pmta));
+  var temperatura = info.temperatura || info.temp;
+  if ((temperatura === undefined || temperatura === null || temperatura === '') && vaso && Array.isArray(vaso.componentes)) {
+    var vCasco = null;
+    for (var i = 0; i < vaso.componentes.length; i++) {
+      if (vaso.componentes[i] && vaso.componentes[i].id === 'casco') { vCasco = vaso.componentes[i]; break; }
+    }
+    if (vCasco && vCasco.dados && vCasco.dados.temp !== undefined && vCasco.dados.temp !== null && vCasco.dados.temp !== '') {
+      temperatura = vCasco.dados.temp;
+    }
+  }
+  texto('dt-temp', temperatura);
+  texto('dt-ca', comps.length ? numOuTraco(comps[0].ca) : '—');
+  texto('dt-diam', compCasco ? numOuTraco(compCasco.D) : '—');
+  texto('dt-material', compCasco ? compCasco.material : null);
+  texto('dt-pmta', mpaParaKgf(calc.pmta));
+  texto('dt-pth', mpaParaKgf(calc.pth));
+
+  var compLinhasHtml = '';
+  comps.forEach(function (c) {
+    var nome = (c && c.nome) ? c.nome : 'COMPONENTE';
+    var d = numOuTraco(c ? c.D : null);
+    var t = numOuTraco(c ? c.tNom : null);
+    compLinhasHtml += '<div class="lista-comp">' + nome + ' — Ø' + d + ' mm t=' + t + '</div>';
+  });
+  document.getElementById('dt-componentes').innerHTML = compLinhasHtml || '<div class="lista-comp">—</div>';
+
+  // ───────────────────────── Lista de Bocais (8 linhas vazias) ─────────────────────────
+  var bocaisHtml = '';
+  for (var b = 0; b < 8; b++) {
+    bocaisHtml += '<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>';
+  }
+  document.getElementById('tbl-bocais-body').innerHTML = bocaisHtml;
+
+  // ───────────────────────── Lista de Soldas (linhas padrão) ─────────────────────────
+  var SOLDAS = [
+    ['1', 'Tampo → Casco (circunf.)', '—'],
+    ['2', 'Longitudinal', '—'],
+    ['3', 'Casco → Casco (circunf.)', '—'],
+    ['4', 'Bocais', '—'],
+  ];
+  var soldasHtml = '';
+  SOLDAS.forEach(function (s) {
+    soldasHtml += '<tr><td>' + s[0] + '</td><td class="esq">' + s[1] + '</td><td>' + s[2] + '</td><td>—</td><td>—</td></tr>';
+  });
+  document.getElementById('tbl-soldas-body').innerHTML = soldasHtml;
+
+  // ───────────────────────── Espessuras por Componente ─────────────────────────
+  var espessurasHtml = '';
+  comps.forEach(function (c) {
+    var nome = (c && c.nome) ? c.nome : 'COMPONENTE';
+    espessurasHtml += '<tr><td class="esq">' + nome + '</td><td>' + numOuTraco(c ? c.tNom : null) +
+      '</td><td>' + numOuTraco(c ? c.tReqMm : null) + '</td><td>' + numOuTraco(c ? c.ca : null) + '</td></tr>';
+  });
+  document.getElementById('tbl-espessuras-body').innerHTML = espessurasHtml || '<tr><td colspan="4">—</td></tr>';
+
+  // ───────────────────────── Carimbo (title block) ─────────────────────────
+  texto('car-data-emissao', meta.emissao);
+  texto('car-cliente', emp.razaoSocial || emp.nomeFantasia);
+  texto('car-tag', tag);
+  texto('car-desenho', tag ? (tag + '-FD-R00') : null);
+  texto('car-fabricante', info.fabricante);
+  texto('car-data', meta.emissao);
+
+  // ───────────────────────── Rodapé (dados da empresa executante) ─────────────────────────
+  var nomeEmp = pront.minhaEmpresaNome || minhaEmp.razao || minhaEmp.fantasia;
+  var enderecoEmp = pront.minhaEmpresaEndereco || minhaEmp.endereco;
+  var cnpjEmp = pront.minhaEmpresaCnpj || minhaEmp.cnpj;
+  var cepEmp = minhaEmp.cep;
+  var telEmp = pront.minhaEmpresaTelefone || minhaEmp.telefone;
+  var emailEmp = minhaEmp.email;
+
+  texto('rod-nome', nomeEmp);
+  texto('rod-endereco', enderecoEmp);
+  texto('rod-cnpj', cnpjEmp);
+  texto('rod-cep', cepEmp);
+  texto('rod-tel', telEmp);
+  texto('rod-email', emailEmp);
+});
+</script>
+</body>
+</html>
