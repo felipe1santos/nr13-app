@@ -803,7 +803,7 @@ export default function Prontuarios() {
                 <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
                   Croqui
                 </span>
-                {tipoEquip === 'vaso' ? (
+                {tipoEquip === 'vaso' || tipoEquip === 'autoclave' ? (
                   <button type="button" className="btn-secundario" style={{ fontSize: 12 }} onClick={() => setMostrarModelador(true)}>
                     ⬡ Abrir Modelador
                   </button>
