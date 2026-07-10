@@ -314,7 +314,6 @@ function svgLongitudinalVertical(m: ModeloVaso, d: DadosBase): string {
   const yCascoTop = clamp(yTop + prof1Px, MARGIN, VB_H - MARGIN);
   const yCascoBottom = clamp(yCascoTop + cilPx, MARGIN, VB_H - MARGIN - 90);
   const yBottom = clamp(yCascoBottom + prof2Px, MARGIN, VB_H - MARGIN - 70);
-  const yCentro = (yCascoTop + yCascoBottom) / 2;
 
   const parts: string[] = [];
 
