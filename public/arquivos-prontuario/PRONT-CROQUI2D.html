@@ -257,6 +257,50 @@ function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
 function rot(n) { return String(Math.round(n)); }
 function labelOrLetra(valorMM, letra) { return (valorMM !== null && valorMM !== undefined) ? rot(valorMM) : letra; }
 
+// Formata número em pt-BR (vírgula decimal); aceita entrada com vírgula OU ponto.
+function fmtNumPtBR(v, casas) {
+  if (v === null || v === undefined || v === '') return null;
+  var n = parseFloat(String(v).replace(',', '.'));
+  if (!isFinite(n)) return String(v);
+  return n.toFixed(casas === undefined ? 2 : casas).replace('.', ',');
+}
+// Mesma formatação, mas remove ",00" final (valores "inteiros" ficam sem casas decimais).
+function fmtNumPtBRCompacto(v) {
+  var s = fmtNumPtBR(v, 2);
+  return (s !== null) ? s.replace(/,00$/, '') : null;
+}
+
+// Calcula a extensão vertical real do desenho (min/max de y/cy/y1/y2 e y+height dos <rect>) para
+// poder centralizar o grupo no viewBox e distribuir o espaço em branco igualmente acima/abaixo
+// (evita a "banda vazia" no topo ou na base da caixa do croqui). Extrai direto da string SVG já
+// montada, então cobre qualquer elemento (ícones/callouts/cotas) sem precisar listar cada um.
+function extentoVerticalSVG(svgInnerStr, margem) {
+  margem = (margem === undefined) ? 8 : margem;
+  var min = Infinity, max = -Infinity, m;
+  var reCoord = /\s(?:y|cy|y1|y2)="(-?[\d.]+)"/g;
+  while ((m = reCoord.exec(svgInnerStr))) {
+    var v = parseFloat(m[1]);
+    if (v < min) min = v;
+    if (v > max) max = v;
+  }
+  var reRect = /\sy="(-?[\d.]+)"[^>]*\sheight="([\d.]+)"/g;
+  while ((m = reRect.exec(svgInnerStr))) {
+    var fundo = parseFloat(m[1]) + parseFloat(m[2]);
+    if (fundo > max) max = fundo;
+  }
+  if (!isFinite(min) || !isFinite(max)) return { min: 0, max: 0 };
+  return { min: min - margem, max: max + margem };
+}
+
+// Desloca (translate Y) o grupo desenhado para centralizar verticalmente no viewBox. Clamp de
+// segurança: nunca deixa nenhuma coordenada sair de [0, alturaViewBox] mesmo se a extensão
+// calculada for imprecisa (mantém as folgas do fix de clipping da boca de inspeção intactas).
+function centralizarGrupoY(innerStr, alturaViewBox) {
+  var ext = extentoVerticalSVG(innerStr);
+  var dy = (alturaViewBox - ext.max - ext.min) / 2;
+  return clamp(dy, -ext.min, alturaViewBox - ext.max);
+}
+
 // ───────────────────────── Construção do croqui 2D (SVG por string) ─────────────────────────
 function seta(px, py, ang, tam) {
   tam = tam || 6;
@@ -391,7 +435,9 @@ function svgHorizontal(diametroMM, alturaMM, comprimentoMM) {
   cota(parts, assemblyRight + 20, valveTopY - 4, assemblyRight + 20, groundY, labelOrLetra(alturaMM, 'C'));
   cota(parts, nozzleX + 16, nozzleTopY, nozzleX + 16, bodyTop, 'D');
 
-  return '<svg viewBox="0 0 520 380" xmlns="http://www.w3.org/2000/svg" font-family="Inter, sans-serif">' + parts.join('') + '</svg>';
+  var inner = parts.join('');
+  var dy = centralizarGrupoY(inner, 380);
+  return '<svg viewBox="0 0 520 380" xmlns="http://www.w3.org/2000/svg" font-family="Inter, sans-serif"><g transform="translate(0,' + dy.toFixed(1) + ')">' + inner + '</g></svg>';
 }
 
 // Variante VERTICAL: corpo em pé, tampo superior elíptico, saia/base.
@@ -454,7 +500,9 @@ function svgVertical(diametroMM, alturaMM) {
   cota(parts, bodyLeft, skirtBottom + 20, bodyRight, skirtBottom + 20, labelOrLetra(diametroMM, 'A'));
   cota(parts, bodyRight + 35, domeTop, bodyRight + 35, skirtBottom, labelOrLetra(alturaMM, 'C'));
 
-  return '<svg viewBox="0 0 520 380" xmlns="http://www.w3.org/2000/svg" font-family="Inter, sans-serif">' + parts.join('') + '</svg>';
+  var inner = parts.join('');
+  var dy = centralizarGrupoY(inner, 380);
+  return '<svg viewBox="0 0 520 380" xmlns="http://www.w3.org/2000/svg" font-family="Inter, sans-serif"><g transform="translate(0,' + dy.toFixed(1) + ')">' + inner + '</g></svg>';
 }
 
 function montarCroqui(diametroMM, alturaMM, comprimentoMM, tipoInfo, subtipoInfo) {
@@ -502,17 +550,18 @@ document.addEventListener('DOMContentLoaded', function () {
   var svgHTML = montarCroqui(diametroMM, alturaMM, comprimentoMM, tipoInfo, subtipoInfo);
   wrap.insertAdjacentHTML('afterbegin', svgHTML);
 
-  // Tabela de dimensões reais
-  texto('dim-a', diametroMM !== null ? dim0.diametro : null);
-  texto('dim-b', comprimentoMM !== null ? dim0.comprimento : null);
-  texto('dim-c', alturaMM !== null ? dim0.altura : null);
+  // Tabela de dimensões reais — sempre em formato pt-BR (vírgula decimal, 2 casas; ",00" some
+  // nos valores "inteiros" de Ø/comprimento/altura/capacidade).
+  texto('dim-a', diametroMM !== null ? fmtNumPtBRCompacto(dim0.diametro) : null);
+  texto('dim-b', comprimentoMM !== null ? fmtNumPtBRCompacto(dim0.comprimento) : null);
+  texto('dim-c', alturaMM !== null ? fmtNumPtBRCompacto(dim0.altura) : null);
 
   var espCasco = (dim0.espCorpo && String(dim0.espCorpo).trim()) || calc.ecasco || null;
   var espTampo = (dim0.espTampa && String(dim0.espTampa).trim()) || (dim0.espFundo && String(dim0.espFundo).trim()) || calc.etampo || null;
-  texto('dim-esp-casco', espCasco);
-  texto('dim-esp-tampo', espTampo);
+  texto('dim-esp-casco', fmtNumPtBR(espCasco));
+  texto('dim-esp-tampo', fmtNumPtBR(espTampo));
 
-  var capacidade = (dim0.volume && String(dim0.volume).trim()) || null;
+  var capacidade = (dim0.volume && String(dim0.volume).trim()) ? fmtNumPtBRCompacto(dim0.volume) : null;
   if (!capacidade && cat && cat.volInput > 0) capacidade = fmtLitros(cat.volInput * 1000);
   texto('dim-capacidade', capacidade);
 

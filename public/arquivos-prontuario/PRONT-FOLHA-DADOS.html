@@ -210,7 +210,7 @@
                     <div class="bloco">
                         <div class="bloco-titulo">Orientação de Bocais — Vista de Topo</div>
                         <div class="bloco-orientacao">
-                            <svg width="150" height="150" viewBox="0 0 150 150" aria-hidden="true">
+                            <svg width="150" height="150" viewBox="-20 -20 190 190" aria-hidden="true">
                                 <line x1="75" y1="8" x2="75" y2="142" stroke="#999" stroke-width="1" stroke-dasharray="3,3"/>
                                 <line x1="8" y1="75" x2="142" y2="75" stroke="#999" stroke-width="1" stroke-dasharray="3,3"/>
                                 <circle cx="75" cy="75" r="58" fill="none" stroke="#111" stroke-width="1.4"/>
@@ -374,15 +374,41 @@ function acharComponente(comps, regex) {
   return null;
 }
 
-// Auto-shrink: reduz a fonte-base do container até o conteúdo caber na folha de altura fixa
-// (sem corte nem sobreposição do rodapé). Espelho do ajustarFonteParaCaber() em RESUMO-MEMORIAL.html.
+// Auto-fit (cresce-depois-encolhe): ajusta a fonte-base do container até o conteúdo ocupar bem
+// a folha de altura fixa, sem corte nem sobreposição do rodapé e sem deixar "banda vazia"
+// grande (CLAUDE.md §5). Passo 1 CRESCE a fonte enquanto ainda cabe e o conteúdo estiver bem
+// abaixo da altura disponível; passo 2 ENCOLHE como rede de segurança caso ainda transborde
+// (mesma lógica de sempre, agora com teto de iterações explícito para garantir término).
+// Espelho de ajustarFonteParaCaber() em RESUMO-MEMORIAL.html, com o passo de crescimento a mais.
 function ajustarFonteParaCaber(el) {
   if (!el) return;
-  var fonte = 11;
+  var FONTE_BASE = 11, FONTE_MAX = 15, FONTE_MIN = 6.5, PASSO = 0.5, MAX_ITER = 40;
+  var fonte = FONTE_BASE;
   el.style.fontSize = fonte + 'px';
-  while ((el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1) && fonte > 6.5) {
-    fonte -= 0.5;
+
+  function cabe() { return el.scrollWidth <= el.clientWidth + 1 && el.scrollHeight <= el.clientHeight + 1; }
+
+  // Passo 1 — CRESCE: se sobrar espaço (conteúdo bem abaixo da altura disponível), aumenta a
+  // fonte-base até quase preencher a folha, respeitando o teto de 15px.
+  var alturaDisponivel = el.clientHeight;
+  var iter = 0;
+  while (cabe() && fonte < FONTE_MAX && el.scrollHeight < alturaDisponivel * 0.85 && iter < MAX_ITER) {
+    fonte += PASSO;
     el.style.fontSize = fonte + 'px';
+    iter++;
+  }
+  // Se o último passo do crescimento estourou a folha, volta um passo.
+  if (!cabe() && fonte > FONTE_BASE) {
+    fonte -= PASSO;
+    el.style.fontSize = fonte + 'px';
+  }
+
+  // Passo 2 — ENCOLHE (rede de segurança): reduz até caber, caso ainda transborde.
+  iter = 0;
+  while (!cabe() && fonte > FONTE_MIN && iter < MAX_ITER) {
+    fonte -= PASSO;
+    el.style.fontSize = fonte + 'px';
+    iter++;
   }
 }
 
