@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NR-13 - Prontuario - Folha de Dados e Croqui Detalhado</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,600;1,700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --text-dark: #111827;
+            --border-color: #000;
+            --blue-data: #0033a2;
+            --gray-light: #9CA3AF;
+            --bg-table-header: #e5e7eb;
+            --bg-table-sub: #f9fafb;
+            --highlight-yellow: #fef08a;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--text-dark);
+            background-color: #fff;
+            margin: 0;
+            padding: 0;
+            line-height: 1.3;
+            font-size: 11px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        /* A4 EXATO — sem paginacao, rodape com margin-top:auto */
+        .page {
+            width: 100%;
+            height: 297mm;
+            overflow: hidden;
+            background-color: #fff;
+            margin: 0;
+            padding: 15mm 15mm 8mm;
+            box-sizing: border-box;
+            box-shadow: none;
+            border: none;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* CABECALHO CANONICO */
+        .header-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid var(--text-dark);
+            margin-bottom: 8px;
+        }
+        .header-table td {
+            border: 1px solid var(--text-dark);
+            vertical-align: middle;
+            padding: 6px 10px;
+        }
+        .col-logo { width: 25%; text-align: center; }
+        .col-logo img { max-width: 100%; max-height: 75px; object-fit: contain; display: block; margin: 0 auto; }
+        .col-title { width: 50%; text-align: center; font-size: 15px; font-weight: 800; color: var(--text-dark); line-height: 1.2; }
+        .col-info { width: 25%; text-align: left; padding-left: 15px; }
+        .col-info .info-label { font-size: 10px; color: var(--text-dark); }
+        .col-info .info-value { font-size: 12px; font-weight: 700; color: var(--blue-data); margin-top: 2px; margin-bottom: 4px; }
+        .col-info .info-value:last-child { margin-bottom: 0; }
+
+        /* CONTEUDO */
+        .content-container {
+            flex-grow: 1;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .section-title-band {
+            background-color: var(--bg-table-header);
+            font-weight: 900;
+            font-size: 10px;
+            padding: 4px 6px;
+            text-transform: uppercase;
+            text-align: center;
+            border: 1px solid #d1d5db;
+            margin-bottom: 6px;
+        }
+
+        /* CROQUI 2D + TABELA DE DIMENSOES */
+        .croqui-grid {
+            display: grid;
+            grid-template-columns: 1fr 240px;
+            gap: 10px;
+            flex: 1;
+            min-height: 0;
+            margin-bottom: 8px;
+        }
+
+        .croqui-wrap {
+            position: relative;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #fff;
+        }
+        .croqui-wrap svg { width: 100%; height: 100%; }
+
+        .nota-lateral {
+            position: absolute;
+            left: 6px;
+            bottom: 6px;
+            width: 118px;
+            font-size: 7px;
+            font-style: italic;
+            color: #374151;
+            line-height: 1.3;
+            background: rgba(255,255,255,0.85);
+            padding: 2px 3px;
+        }
+
+        .tabela-dim-wrap { display: flex; flex-direction: column; }
+        .tabela-dim-titulo {
+            background-color: var(--bg-table-header);
+            font-weight: 900;
+            font-size: 9.5px;
+            padding: 4px 6px;
+            text-transform: uppercase;
+            text-align: center;
+            border: 1px solid #d1d5db;
+            border-bottom: none;
+        }
+        table.tabela-dim { width: 100%; border-collapse: collapse; font-size: 9.5px; }
+        table.tabela-dim td {
+            border: 1px solid #d1d5db;
+            padding: 5px 6px;
+            vertical-align: middle;
+        }
+        table.tabela-dim td.lbl {
+            background: var(--bg-table-sub);
+            font-weight: 700;
+            font-size: 8.5px;
+            width: 62%;
+        }
+        table.tabela-dim td.val {
+            color: var(--blue-data);
+            font-weight: 700;
+            font-size: 11px;
+            text-align: center;
+        }
+
+        /* RESPONSABILIDADE TECNICA (assinatura canonica) */
+        .resp-tecnica { margin-top: 8px; margin-bottom: 6px; font-size: 10px; }
+        .resp-titulo { font-weight: 800; border-bottom: 1px solid #999; margin-bottom: 10px; }
+        .resp-grid { display: flex; justify-content: space-around; gap: 40px; }
+        .resp-col { text-align: center; min-width: 220px; }
+        .rubrica { height: 44px; display: block; margin: 0 auto; }
+        .resp-espaco { height: 44px; }
+        .resp-linha { border-top: 2px solid #111; margin: 2px 20px 4px; }
+        .resp-nome { font-weight: 800; }
+        .resp-cargo, .resp-crea { font-size: 9px; color: #333; }
+
+        /* RODAPE CANONICO — sem paginacao */
+        .rodape { margin-top: auto; text-align: center; font-size: 9px; }
+        .rodape-linha { border-top: 3px solid #111; margin: 3px 0; }
+        .rodape-nome { font-weight: 900; }
+        .rodape-info { color: #7a5c00; font-weight: 600; }
+
+        @media print {
+            body { background: none; padding: 0; display: block; }
+            .page { width: 100% !important; margin: 0 !important; box-shadow: none !important; border: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="page">
+        <table class="header-table"><tr>
+          <td class="col-logo"><img id="img-logo" alt="Logo" style="display:none"></td>
+          <td class="col-title">FOLHA DE DADOS E<br>CROQUI DETALHADO</td>
+          <td class="col-info">
+            <div class="info-label">Relatório nº.</div><div class="info-value" id="meta-numero">—</div>
+            <div class="info-label">Data de Emissão:</div><div class="info-value" id="meta-data">—</div>
+          </td>
+        </tr></table>
+
+        <div class="content-container">
+
+            <div class="section-title-band">CROQUI DIMENSIONAL DO VASO DE PRESSÃO</div>
+
+            <div class="croqui-grid">
+                <div class="croqui-wrap" id="croqui-wrap">
+                    <div class="nota-lateral">A rede industrial fornece os vasos de pressão com furação para fixação dos mesmos.</div>
+                </div>
+                <div class="tabela-dim-wrap">
+                    <div class="tabela-dim-titulo">Dimensão do Vaso de Pressão</div>
+                    <table class="tabela-dim">
+                        <tr><td class="lbl">A — Ø Interno (mm)</td><td class="val" id="dim-a">—</td></tr>
+                        <tr><td class="lbl">B — Comprimento (mm)</td><td class="val" id="dim-b">—</td></tr>
+                        <tr><td class="lbl">C — Altura (mm)</td><td class="val" id="dim-c">—</td></tr>
+                        <tr><td class="lbl">Espessura do Casco (mm)</td><td class="val" id="dim-esp-casco">—</td></tr>
+                        <tr><td class="lbl">Espessura dos Tampos (mm)</td><td class="val" id="dim-esp-tampo">—</td></tr>
+                        <tr><td class="lbl">Capacidade (L)</td><td class="val" id="dim-capacidade">—</td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="resp-tecnica">
+                <div class="resp-titulo">Responsabilidade Tecnica:</div>
+                <div class="resp-grid">
+                    <div class="resp-col">
+                        <svg class="rubrica" viewBox="0 0 160 50" aria-hidden="true"><path d="M8 38 C 30 8, 44 44, 60 22 S 92 10, 104 30 S 138 18, 152 26" fill="none" stroke="#1a2f8a" stroke-width="2.2" stroke-linecap="round"/></svg>
+                        <div class="resp-linha"></div>
+                        <div class="resp-nome">Fulano Da Silva</div>
+                        <div class="resp-cargo">Engenheiro De Equipamentos</div>
+                        <div class="resp-crea">CREA: 12151566</div>
+                    </div>
+                    <div class="resp-col">
+                        <div class="resp-espaco"></div>
+                        <div class="resp-linha"></div>
+                        <div class="resp-nome">Fulano Da Silva</div>
+                        <div class="resp-cargo">Tecnico em Mecanica</div>
+                        <div class="resp-crea">CREA: 12151566</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="rodape">
+              <div class="rodape-linha"></div>
+              <div class="rodape-nome" id="rod-nome">—</div>
+              <div class="rodape-info"><span id="rod-endereco">—</span> • CNPJ: <span id="rod-cnpj">—</span> • CEP: <span id="rod-cep">—</span></div>
+              <div class="rodape-info">Telef: <span id="rod-tel">—</span> • E-mail: <span id="rod-email">—</span></div>
+              <div class="rodape-linha"></div>
+            </div>
+
+        </div>
+    </div>
+
+<script>
+function lerJSON(chave) { try { return JSON.parse(localStorage.getItem(chave) || 'null'); } catch (_) { return null; } }
+function lerTexto(chave) { var v = localStorage.getItem(chave); if (!v) return ''; try { var p = JSON.parse(v); return typeof p === 'string' ? p : v; } catch (_) { return v; } }
+function texto(id, v) { var el = document.getElementById(id); if (el) el.textContent = (v === null || v === undefined || v === '') ? '—' : String(v); }
+
+// ───────────────────────── Helpers numéricos ─────────────────────────
+function numMM(v) {
+  if (v === undefined || v === null || v === '') return null;
+  var n = parseFloat(String(v).replace(',', '.'));
+  return (isFinite(n) && n > 0) ? n : null;
+}
+function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+function rot(n) { return String(Math.round(n)); }
+function labelOrLetra(valorMM, letra) { return (valorMM !== null && valorMM !== undefined) ? rot(valorMM) : letra; }
+
+// ───────────────────────── Construção do croqui 2D (SVG por string) ─────────────────────────
+function seta(px, py, ang, tam) {
+  tam = tam || 6;
+  var a1 = ang - 0.4, a2 = ang + 0.4;
+  var x1 = px - tam * Math.cos(a1), y1 = py - tam * Math.sin(a1);
+  var x2 = px - tam * Math.cos(a2), y2 = py - tam * Math.sin(a2);
+  return 'M' + px + ',' + py + ' L' + x1.toFixed(1) + ',' + y1.toFixed(1) + ' L' + x2.toFixed(1) + ',' + y2.toFixed(1) + ' Z';
+}
+
+// Cota: linha com setas triangulares nas duas pontas + rótulo centralizado sobre fundo branco.
+function cota(parts, x1, y1, x2, y2, label) {
+  parts.push('<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke="#444" stroke-width="1.1"/>');
+  var ang = Math.atan2(y2 - y1, x2 - x1);
+  parts.push('<path d="' + seta(x2, y2, ang) + '" fill="#444"/>');
+  parts.push('<path d="' + seta(x1, y1, ang + Math.PI) + '" fill="#444"/>');
+  var mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+  var texto2 = String(label);
+  var w = Math.max(15, texto2.length * 6 + 6);
+  parts.push('<rect x="' + (mx - w / 2).toFixed(1) + '" y="' + (my - 6.5).toFixed(1) + '" width="' + w.toFixed(1) + '" height="13" fill="#fff"/>');
+  parts.push('<text x="' + mx.toFixed(1) + '" y="' + (my + 3.3).toFixed(1) + '" font-size="9" font-weight="700" text-anchor="middle" fill="#111">' + texto2 + '</text>');
+}
+
+// Callout: linha fina + rótulo 7px apontando para um ponto do desenho.
+function callout(parts, px, py, tx, ty, label, anchor) {
+  parts.push('<line x1="' + px.toFixed(1) + '" y1="' + py.toFixed(1) + '" x2="' + tx.toFixed(1) + '" y2="' + ty.toFixed(1) + '" stroke="#555" stroke-width="0.6"/>');
+  parts.push('<circle cx="' + px.toFixed(1) + '" cy="' + py.toFixed(1) + '" r="1.3" fill="#555"/>');
+  parts.push('<text x="' + tx.toFixed(1) + '" y="' + ty.toFixed(1) + '" font-size="7" text-anchor="' + (anchor || 'start') + '" fill="#333">' + label + '</text>');
+}
+
+// Ícone: boca de inspeção (bocal + flange) montado em (cx, superficieY), apontando para cima.
+function iconBocal(parts, cx, superficieY, altura, largura) {
+  var h = altura || 24, w = largura || 10;
+  parts.push('<rect x="' + (cx - w / 2).toFixed(1) + '" y="' + (superficieY - h).toFixed(1) + '" width="' + w + '" height="' + h + '" fill="#f3f4f6" stroke="#444" stroke-width="1"/>');
+  parts.push('<rect x="' + (cx - w).toFixed(1) + '" y="' + (superficieY - h - 7).toFixed(1) + '" width="' + (w * 2) + '" height="7" fill="#e5e7eb" stroke="#444" stroke-width="1"/>');
+  return superficieY - h - 7;
+}
+
+// Ícone: válvula de segurança (haste + corpo + tampa) montado em (cx, superficieY).
+function iconValvula(parts, cx, superficieY) {
+  parts.push('<rect x="' + (cx - 2.5).toFixed(1) + '" y="' + (superficieY - 18).toFixed(1) + '" width="5" height="18" fill="#d1d5db" stroke="#444" stroke-width="0.8"/>');
+  parts.push('<rect x="' + (cx - 6).toFixed(1) + '" y="' + (superficieY - 30).toFixed(1) + '" width="12" height="12" fill="#f3f4f6" stroke="#444" stroke-width="1"/>');
+  parts.push('<circle cx="' + cx.toFixed(1) + '" cy="' + (superficieY - 33).toFixed(1) + '" r="4" fill="#e5e7eb" stroke="#444" stroke-width="1"/>');
+  return superficieY - 33;
+}
+
+// Ícone: placa de identificação (retângulo raso, quase embutido na superfície).
+function iconPlaca(parts, cx, superficieY) {
+  parts.push('<rect x="' + (cx - 7).toFixed(1) + '" y="' + (superficieY - 9).toFixed(1) + '" width="14" height="9" fill="#fff" stroke="#444" stroke-width="0.9"/>');
+  parts.push('<line x1="' + (cx - 5).toFixed(1) + '" y1="' + (superficieY - 6).toFixed(1) + '" x2="' + (cx + 5).toFixed(1) + '" y2="' + (superficieY - 6).toFixed(1) + '" stroke="#999" stroke-width="0.6"/>');
+  parts.push('<line x1="' + (cx - 5).toFixed(1) + '" y1="' + (superficieY - 3).toFixed(1) + '" x2="' + (cx + 5).toFixed(1) + '" y2="' + (superficieY - 3).toFixed(1) + '" stroke="#999" stroke-width="0.6"/>');
+  return superficieY - 9;
+}
+
+// Ícone: manômetro (círculo com ponteiro) preso à lateral do costado por uma pequena haste.
+function iconManometro(parts, cx, cy, presoX) {
+  parts.push('<line x1="' + presoX.toFixed(1) + '" y1="' + cy.toFixed(1) + '" x2="' + (cx + 7).toFixed(1) + '" y2="' + cy.toFixed(1) + '" stroke="#444" stroke-width="1"/>');
+  parts.push('<circle cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="7" fill="#f3f4f6" stroke="#444" stroke-width="1"/>');
+  parts.push('<line x1="' + cx.toFixed(1) + '" y1="' + cy.toFixed(1) + '" x2="' + (cx + 3.5).toFixed(1) + '" y2="' + (cy - 3.5).toFixed(1) + '" stroke="#444" stroke-width="0.8"/>');
+}
+
+// Variante HORIZONTAL (padrão): corpo deitado, 2 tampos elípticos, 2 pernas, bocal no topo.
+function svgHorizontal(diametroMM, alturaMM) {
+  var D = diametroMM || 600;
+  var C = alturaMM || D; // nota: sem altura conhecida, C ≈ diâmetro (proporção genérica)
+  var B = D * 2.6; // não há campo de comprimento neste modelo — proporção genérica para desenho
+
+  var AREA_W = 300, AREA_H = 150;
+  var scale = clamp(Math.min(AREA_W / B, AREA_H / C), 0.02, 3);
+  var Bpx = clamp(B * scale, 150, AREA_W);
+  var Cpx = clamp(C * scale, 80, AREA_H);
+  var Dpx = clamp(D * scale, 45, Cpx - 18);
+  var legPx = Cpx - Dpx;
+
+  var bodyTop = 150;
+  var assemblyLeft = 110;
+  var assemblyRight = assemblyLeft + Bpx;
+  var bodyBottom = bodyTop + Dpx;
+
+  var capRx = clamp(Dpx * 0.32, 12, (Bpx - 40) / 2);
+  var rectLeft = assemblyLeft + capRx;
+  var rectRight = assemblyRight - capRx;
+  var rectWidth = rectRight - rectLeft;
+
+  var legW = clamp(Dpx * 0.22, 14, 34);
+  var leg1X = rectLeft + rectWidth * 0.22 - legW / 2;
+  var leg2X = rectLeft + rectWidth * 0.78 - legW / 2;
+  var legY = bodyBottom;
+  var groundY = bodyBottom + legPx + 3;
+
+  var parts = [];
+
+  // Tampos (bezier aproximando elipse) + costado
+  parts.push('<path d="M' + rectLeft.toFixed(1) + ',' + bodyTop.toFixed(1) + ' C' + assemblyLeft.toFixed(1) + ',' + bodyTop.toFixed(1) + ' ' + assemblyLeft.toFixed(1) + ',' + bodyBottom.toFixed(1) + ' ' + rectLeft.toFixed(1) + ',' + bodyBottom.toFixed(1) + ' Z" fill="#f3f4f6" stroke="#444" stroke-width="1.2"/>');
+  parts.push('<path d="M' + rectRight.toFixed(1) + ',' + bodyTop.toFixed(1) + ' C' + assemblyRight.toFixed(1) + ',' + bodyTop.toFixed(1) + ' ' + assemblyRight.toFixed(1) + ',' + bodyBottom.toFixed(1) + ' ' + rectRight.toFixed(1) + ',' + bodyBottom.toFixed(1) + ' Z" fill="#f3f4f6" stroke="#444" stroke-width="1.2"/>');
+  parts.push('<rect x="' + rectLeft.toFixed(1) + '" y="' + bodyTop.toFixed(1) + '" width="' + rectWidth.toFixed(1) + '" height="' + Dpx.toFixed(1) + '" fill="#f3f4f6" stroke="#444" stroke-width="1.2"/>');
+
+  // Linha de centro (CL) tracejada
+  var centerY = bodyTop + Dpx / 2;
+  parts.push('<line x1="' + (assemblyLeft - 20).toFixed(1) + '" y1="' + centerY.toFixed(1) + '" x2="' + (assemblyRight + 20).toFixed(1) + '" y2="' + centerY.toFixed(1) + '" stroke="#888" stroke-width="0.7" stroke-dasharray="7,3,2,3"/>');
+  parts.push('<text x="' + (assemblyRight + 26).toFixed(1) + '" y="' + (centerY + 2.5).toFixed(1) + '" font-size="7" fill="#888">CL</text>');
+
+  // Pernas de suporte
+  parts.push('<rect x="' + leg1X.toFixed(1) + '" y="' + legY.toFixed(1) + '" width="' + legW.toFixed(1) + '" height="' + legPx.toFixed(1) + '" fill="#e5e7eb" stroke="#444" stroke-width="1"/>');
+  parts.push('<rect x="' + leg2X.toFixed(1) + '" y="' + legY.toFixed(1) + '" width="' + legW.toFixed(1) + '" height="' + legPx.toFixed(1) + '" fill="#e5e7eb" stroke="#444" stroke-width="1"/>');
+  parts.push('<line x1="' + (leg1X - 10).toFixed(1) + '" y1="' + groundY.toFixed(1) + '" x2="' + (leg2X + legW + 10).toFixed(1) + '" y2="' + groundY.toFixed(1) + '" stroke="#444" stroke-width="1.4"/>');
+
+  // Bocal de inspeção (topo, centro-direita)
+  var nozzleX = rectLeft + rectWidth * 0.56;
+  var nozzleTopY = iconBocal(parts, nozzleX, bodyTop, 26, 10);
+
+  // Válvula de segurança (topo, esquerda)
+  var valveX = rectLeft + rectWidth * 0.16;
+  var valveTopY = iconValvula(parts, valveX, bodyTop);
+
+  // Placa de identificação (topo, entre a válvula e o bocal)
+  var plateX = rectLeft + rectWidth * 0.34;
+  iconPlaca(parts, plateX, bodyTop);
+
+  // Manômetro (lateral esquerda, preso ao tampo)
+  var manoCx = rectLeft - 3, manoCy = bodyTop + Dpx * 0.42;
+  iconManometro(parts, manoCx, manoCy, rectLeft + 5);
+
+  // Callouts
+  callout(parts, valveX, valveTopY, 34, 20, 'VÁLVULA SEGURANÇA', 'start');
+  callout(parts, plateX, bodyTop - 9, 150, 20, 'PLACA IDENTIFICAÇÃO', 'start');
+  callout(parts, nozzleX, nozzleTopY, nozzleX + 26, 34, 'BOCA DE INSPEÇÃO', 'start');
+  callout(parts, manoCx, manoCy, 14, manoCy + 34, 'MANÔMETRO', 'start');
+
+  // Cotas
+  cota(parts, assemblyLeft - 18, bodyTop, assemblyLeft - 18, bodyBottom, labelOrLetra(diametroMM, 'A'));
+  cota(parts, assemblyLeft, groundY + 18, assemblyRight, groundY + 18, 'B');
+  cota(parts, assemblyRight + 20, valveTopY - 4, assemblyRight + 20, groundY, labelOrLetra(alturaMM, 'C'));
+  cota(parts, nozzleX + 16, nozzleTopY, nozzleX + 16, bodyTop, 'D');
+
+  return '<svg viewBox="0 0 520 380" xmlns="http://www.w3.org/2000/svg" font-family="Inter, sans-serif">' + parts.join('') + '</svg>';
+}
+
+// Variante VERTICAL: corpo em pé, tampo superior elíptico, saia/base.
+function svgVertical(diametroMM, alturaMM) {
+  var D = diametroMM || 600;
+  var C = alturaMM || (D * 2.2);
+
+  var AREA_W = 180, AREA_H = 260;
+  var scale = clamp(Math.min(AREA_W / D, AREA_H / C), 0.02, 3);
+  var Dpx = clamp(D * scale, 70, AREA_W);
+  var Cpx = clamp(C * scale, 140, AREA_H);
+
+  var centerX = 260;
+  var headBulge = clamp(Dpx * 0.32, 16, 50);
+  var skirtH = 30;
+  var rectHeight = Math.max(Cpx - headBulge - skirtH, 50);
+
+  var rectTop = 90;
+  var rectBottom = rectTop + rectHeight;
+  var skirtBottom = rectBottom + skirtH;
+  var domeTop = rectTop - headBulge * 1.5;
+  var bodyLeft = centerX - Dpx / 2;
+  var bodyRight = centerX + Dpx / 2;
+
+  var parts = [];
+
+  // Tampo superior (bezier aproximando elipse) + costado + saia
+  parts.push('<path d="M' + bodyLeft.toFixed(1) + ',' + rectTop.toFixed(1) + ' C' + bodyLeft.toFixed(1) + ',' + domeTop.toFixed(1) + ' ' + bodyRight.toFixed(1) + ',' + domeTop.toFixed(1) + ' ' + bodyRight.toFixed(1) + ',' + rectTop.toFixed(1) + ' Z" fill="#f3f4f6" stroke="#444" stroke-width="1.2"/>');
+  parts.push('<rect x="' + bodyLeft.toFixed(1) + '" y="' + rectTop.toFixed(1) + '" width="' + Dpx.toFixed(1) + '" height="' + rectHeight.toFixed(1) + '" fill="#f3f4f6" stroke="#444" stroke-width="1.2"/>');
+  var skirtW = Dpx * 0.7;
+  parts.push('<rect x="' + (centerX - skirtW / 2).toFixed(1) + '" y="' + rectBottom.toFixed(1) + '" width="' + skirtW.toFixed(1) + '" height="' + skirtH.toFixed(1) + '" fill="#e5e7eb" stroke="#444" stroke-width="1"/>');
+  parts.push('<line x1="' + (centerX - skirtW / 2 - 10).toFixed(1) + '" y1="' + skirtBottom.toFixed(1) + '" x2="' + (centerX + skirtW / 2 + 10).toFixed(1) + '" y2="' + skirtBottom.toFixed(1) + '" stroke="#444" stroke-width="1.4"/>');
+
+  // Linha de centro (CL) tracejada
+  parts.push('<line x1="' + centerX.toFixed(1) + '" y1="' + (domeTop - 6).toFixed(1) + '" x2="' + centerX.toFixed(1) + '" y2="' + (skirtBottom + 6).toFixed(1) + '" stroke="#888" stroke-width="0.7" stroke-dasharray="7,3,2,3"/>');
+  parts.push('<text x="' + (centerX + 6).toFixed(1) + '" y="' + (domeTop - 8).toFixed(1) + '" font-size="7" fill="#888">CL</text>');
+
+  // Bocal de inspeção no topo
+  var nozzleTopY = iconBocal(parts, centerX, domeTop, 20, 10);
+
+  // Válvula de segurança no ombro esquerdo do tampo
+  var valveX = centerX - Dpx * 0.28;
+  var valveTopY = iconValvula(parts, valveX, rectTop + headBulge * 0.35);
+
+  // Placa de identificação no costado
+  var plateY = rectTop + rectHeight * 0.4;
+  iconPlaca(parts, bodyRight - 10, plateY);
+
+  // Manômetro na lateral do costado
+  var manoCx = bodyLeft - 10, manoCy = rectTop + rectHeight * 0.6;
+  iconManometro(parts, manoCx, manoCy, bodyLeft);
+
+  // Callouts
+  callout(parts, centerX, nozzleTopY, centerX + 20, nozzleTopY - 6, 'BOCA DE INSPEÇÃO', 'start');
+  callout(parts, valveX, valveTopY, 40, 30, 'VÁLVULA SEGURANÇA', 'start');
+  callout(parts, bodyRight - 4, plateY - 4, bodyRight + 30, plateY - 20, 'PLACA IDENTIFICAÇÃO', 'start');
+  callout(parts, manoCx, manoCy, 14, manoCy + 24, 'MANÔMETRO', 'start');
+
+  // Cotas
+  cota(parts, bodyLeft, skirtBottom + 20, bodyRight, skirtBottom + 20, labelOrLetra(diametroMM, 'A'));
+  cota(parts, bodyRight + 35, domeTop, bodyRight + 35, skirtBottom, labelOrLetra(alturaMM, 'C'));
+
+  return '<svg viewBox="0 0 520 380" xmlns="http://www.w3.org/2000/svg" font-family="Inter, sans-serif">' + parts.join('') + '</svg>';
+}
+
+function montarCroqui(diametroMM, alturaMM, tipoInfo, subtipoInfo) {
+  var vertical;
+  if (tipoInfo === 'autoclave' && subtipoInfo !== 'retangular') vertical = true;
+  else if (tipoInfo === 'caldeira' && subtipoInfo === 'aquatubular') vertical = true;
+  else if (tipoInfo === 'caldeira' || tipoInfo === 'autoclave') vertical = false;
+  else vertical = !!(diametroMM && alturaMM && alturaMM > diametroMM * 1.6);
+
+  return vertical ? svgVertical(diametroMM, alturaMM) : svgHorizontal(diametroMM, alturaMM);
+}
+
+// ───────────────────────── Tabela de dimensões reais ─────────────────────────
+function fmtLitros(litros) {
+  if (!isFinite(litros)) return null;
+  if (Math.abs(litros - Math.round(litros)) < 0.05) return String(Math.round(litros));
+  return litros.toFixed(1).replace('.', ',');
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  var pront = lerJSON('nr13_prontuario_atual') || {};
+  var tag = pront.tag || new URLSearchParams(location.search).get('tag') || '';
+  var meta = lerJSON('nr13_prontuario_meta_' + tag) || {};
+  var minhaEmp = lerJSON('nr13_minha_empresa') || {};
+
+  texto('meta-numero', meta.numero);
+  texto('meta-data', meta.emissao);
+
+  var logo = pront.logo || minhaEmp.logo;
+  if (logo) { var imgLogo = document.getElementById('img-logo'); imgLogo.src = logo; imgLogo.style.display = 'block'; }
+
+  // ───────────────────────── Dados dimensionais ─────────────────────────
+  var info = lerJSON('nr13_info_' + tag) || {};
+  var calc = lerJSON('nr13_calc_' + tag) || {};
+  var cat = lerJSON('nr13_cat_' + tag) || {};
+  var dim0 = (pront.dimensoes && pront.dimensoes[0]) || {};
+
+  var diametroMM = numMM(dim0.diametro);
+  var alturaMM = numMM(dim0.altura);
+  var tipoInfo = String(info.tipo || '').toLowerCase();
+  var subtipoInfo = String(info.subtipo || '').toLowerCase();
+
+  var wrap = document.getElementById('croqui-wrap');
+  var svgHTML = montarCroqui(diametroMM, alturaMM, tipoInfo, subtipoInfo);
+  wrap.insertAdjacentHTML('afterbegin', svgHTML);
+
+  // Tabela de dimensões reais
+  texto('dim-a', diametroMM !== null ? dim0.diametro : null);
+  texto('dim-b', null); // sem campo de comprimento neste modelo de dados
+  texto('dim-c', alturaMM !== null ? dim0.altura : null);
+
+  var espCasco = (dim0.espCorpo && String(dim0.espCorpo).trim()) || calc.ecasco || null;
+  var espTampo = (dim0.espTampa && String(dim0.espTampa).trim()) || (dim0.espFundo && String(dim0.espFundo).trim()) || calc.etampo || null;
+  texto('dim-esp-casco', espCasco);
+  texto('dim-esp-tampo', espTampo);
+
+  var capacidade = (dim0.volume && String(dim0.volume).trim()) || null;
+  if (!capacidade && cat && cat.volInput > 0) capacidade = fmtLitros(cat.volInput * 1000);
+  texto('dim-capacidade', capacidade);
+
+  // ───────────────────────── Rodapé (dados da empresa executante) ─────────────────────────
+  var nomeEmp = pront.minhaEmpresaNome || minhaEmp.razao || minhaEmp.fantasia;
+  var enderecoEmp = pront.minhaEmpresaEndereco || minhaEmp.endereco;
+  var cnpjEmp = pront.minhaEmpresaCnpj || minhaEmp.cnpj;
+  var cepEmp = minhaEmp.cep;
+  var telEmp = pront.minhaEmpresaTelefone || minhaEmp.telefone;
+  var emailEmp = minhaEmp.email;
+
+  texto('rod-nome', nomeEmp);
+  texto('rod-endereco', enderecoEmp);
+  texto('rod-cnpj', cnpjEmp);
+  texto('rod-cep', cepEmp);
+  texto('rod-tel', telEmp);
+  texto('rod-email', emailEmp);
+});
+</script>
+</body>
+</html>
