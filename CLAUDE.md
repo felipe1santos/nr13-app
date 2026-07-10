@@ -60,6 +60,9 @@ Tudo que o usuário salva pode ser fonte de injeção. Chaves por TAG do equipam
 | `nr13_inspecao_atual` **e** `nr13_injecao_atual` | Dados de campo do container escolhido | Gravado na geração |
 | `nr13_prontuario_meta_<TAG>` | Nº do relatório (`REL-<timestamp>`) + data de emissão do prontuário; reusado entre reimpressões (`obterOuCriarMeta`) | Gravado ao abrir o visualizador do prontuário |
 | `nr13_croqui3d_<TAG>` | Imagem base64 do croqui 3D (`CroquiVaso3D`), para a folha de ultrassom (PRONT-ULTRASSOM.html) | Gravado ao capturar o croqui e ao abrir o visualizador do prontuário |
+| `nr13_modelo3d_<TAG>` | Modelo do Modelador de Vaso (`ModeloVaso`: diâmetro, comprimento, casco, tampos, bocais, suporte) — fonte de verdade do modelo 3D | Modelador de Vaso (Prontuários → Abrir Modelador) |
+| `nr13_croqui2d_<TAG>` | SVGs 2D gerados no save do modelador: `{ longitudinal, transversal, detalheTampo }` | Modelador de Vaso (save) → PRONT-CROQUI2D.html |
+| `nr13_folha_dados_<TAG>` | Payload derivado do modelo (`FolhaDadosDerivada`: bocais, pesos, dimensões por componente, comprimento total, circunferência) para a folha de dados | Modelador de Vaso (save) → PRONT-FOLHA-DADOS.html |
 
 > **REGRA CRÍTICA DE INJEÇÃO:** os dados de campo do container **devem ser gravados nas duas chaves**
 > `nr13_inspecao_atual` **e** `nr13_injecao_atual` (ver `gravarInspecaoOrigemAtual`). Os templates não
@@ -213,6 +216,12 @@ Ao abrir o visualizador do prontuário (`Prontuarios.tsx`, antes de montar os if
 entre reimpressões) e, se houver croqui, `gravarCroqui3d(tag, dados.croqui)` em
 `nr13_croqui3d_<TAG>` — o mesmo acontece no callback `onCaptura` do `CroquiVaso3D` assim que o croqui
 é gerado, para já ficar disponível caso o usuário pré-visualize sem salvar.
+
+**Modelador de Vaso (Prontuários → Abrir Modelador):** ao salvar o modelo 3D, alimenta a folha 1 (PNG
+do croqui 3D via `gravarCroqui3d`), a folha 2 (`nr13_croqui2d_<TAG>` — SVGs 2D substituem o desenho
+genérico do `PRONT-CROQUI2D.html`) e a folha 3 (`nr13_folha_dados_<TAG>` — bocais, pesos e dimensões
+reais do `PRONT-FOLHA-DADOS.html`). Sem o modelo salvo, as duas folhas mantêm o comportamento
+genérico/vazio de sempre (fallback).
 
 ---
 

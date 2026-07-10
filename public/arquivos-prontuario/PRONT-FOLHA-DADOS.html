@@ -163,6 +163,10 @@
             text-transform: uppercase;
         }
 
+        /* Nota do Modelador (fase 2) sob a Tabela de Pesos — só aparece quando
+           fd.pesos.notaSuporte é true (suporte tipo pés/selas, cujo peso o modelador não soma). */
+        .nota-peso { font-size: 6.5px; font-style: italic; color: #555; padding: 2px 6px; }
+
         /* NOTAS TECNICAS */
         .notas-lista { list-style: none; counter-reset: nota; font-size: 0.682em; padding: 2px 4px; } /* 7.5/11 — filho direto de .bloco */
         .notas-lista li { counter-increment: nota; padding: 1px 0; }
@@ -210,7 +214,7 @@
                     <div class="bloco">
                         <div class="bloco-titulo">Orientação de Bocais — Vista de Topo</div>
                         <div class="bloco-orientacao">
-                            <svg width="150" height="150" viewBox="-20 -20 190 190" aria-hidden="true">
+                            <svg id="svg-orientacao" width="150" height="150" viewBox="-20 -20 190 190" aria-hidden="true">
                                 <line x1="75" y1="8" x2="75" y2="142" stroke="#999" stroke-width="1" stroke-dasharray="3,3"/>
                                 <line x1="8" y1="75" x2="142" y2="75" stroke="#999" stroke-width="1" stroke-dasharray="3,3"/>
                                 <circle cx="75" cy="75" r="58" fill="none" stroke="#111" stroke-width="1.4"/>
@@ -227,14 +231,14 @@
                         </div>
                     </div>
 
-                    <div class="bloco">
+                    <div class="bloco" id="bloco-pesos">
                         <div class="bloco-titulo">Tabela de Pesos</div>
                         <table class="tbl-prancha">
                             <thead><tr><th class="esq">Condição</th><th>Peso (kg)</th></tr></thead>
                             <tbody>
-                                <tr><td class="esq">Peso vazio</td><td>—</td></tr>
-                                <tr><td class="esq">Peso em operação</td><td>—</td></tr>
-                                <tr><td class="esq">Peso cheio d'água</td><td>—</td></tr>
+                                <tr><td class="esq">Peso vazio</td><td id="pw-vazio">—</td></tr>
+                                <tr><td class="esq">Peso em operação</td><td id="pw-operacao">—</td></tr>
+                                <tr><td class="esq">Peso cheio d'água</td><td id="pw-cheio">—</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -352,6 +356,21 @@ function mpaParaKgf(mpaValor) {
   return (n * 10.19716).toFixed(2).replace('.', ',');
 }
 
+// ───────────────────────── Helpers do Modelador de Vaso (fase 2, nr13_folha_dados_<TAG>) ─────
+function escapeHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+function campoOuTraco(v) {
+  return (v !== null && v !== undefined && String(v).trim() !== '') ? escapeHtml(String(v)) : '—';
+}
+// 0° = topo (norte), sentido horário — mesma convenção de svgTransversal() em croqui2dService.ts.
+function anguloParaXY(anguloGraus, raio, cx, cy) {
+  var rad = ((anguloGraus - 90) * Math.PI) / 180;
+  return { x: cx + raio * Math.cos(rad), y: cy + raio * Math.sin(rad) };
+}
+// Mantém rótulos ≥14px da borda do viewBox "-20 -20 190 190" (lição de clipping da bússola, fase 1).
+function clampCompasso(v) { return Math.max(-6, Math.min(156, v)); }
+
 // GV do autoclave (nr13_calc_gv_<TAG>) é mesclado APENAS NA LEITURA — nunca gravado — com o nome
 // prefixado "GV — " (CLAUDE.md §3). Mesmo contrato usado em RESUMO-MEMORIAL.html.
 function componentesComGV(calc, gv) {
@@ -438,6 +457,7 @@ document.addEventListener('DOMContentLoaded', function () {
   var gv = lerJSON('nr13_calc_gv_' + tag) || {};
   var emp = lerJSON('nr13_emp_' + tag) || {};
   var vaso = lerJSON('nr13_vaso_' + tag) || {};
+  var fd = lerJSON('nr13_folha_dados_' + tag);
 
   var comps = componentesComGV(calc, gv);
   var compCasco = acharComponente(comps, /casc/i) || comps[0] || null;
@@ -470,12 +490,66 @@ document.addEventListener('DOMContentLoaded', function () {
   });
   document.getElementById('dt-componentes').innerHTML = compLinhasHtml || '<div class="lista-comp">—</div>';
 
-  // ───────────────────────── Lista de Bocais (8 linhas vazias) ─────────────────────────
+  // Modelador de Vaso (fase 2): quando há folha de dados derivada do modelo, o bloco
+  // COMPONENTES passa a refletir as dimensões reais do modelo (mais precisas que o memorial
+  // "cru" acima) — uma linha por item de fd.dimensoes. Sem a chave, mantém o comportamento
+  // de sempre (comps do memorial, já preenchido acima).
+  if (fd && Array.isArray(fd.dimensoes) && fd.dimensoes.length) {
+    var dimLinhasHtml = '';
+    fd.dimensoes.forEach(function (d) {
+      dimLinhasHtml += '<div class="lista-comp">' + escapeHtml((d && d.texto) || '—') + '</div>';
+    });
+    document.getElementById('dt-componentes').innerHTML = dimLinhasHtml;
+  }
+
+  // ───────────────────────── Lista de Bocais ─────────────────────────
+  // Com nr13_folha_dados_<TAG>, as linhas reais dos bocais modelados (id/serviço/DN/flange/obs)
+  // entram no topo e o restante até 8 linhas fica vazio, como hoje. Sem a chave, 8 linhas vazias.
   var bocaisHtml = '';
-  for (var b = 0; b < 8; b++) {
+  var bocaisFd = (fd && Array.isArray(fd.bocais)) ? fd.bocais : [];
+  bocaisFd.forEach(function (b) {
+    bocaisHtml += '<tr><td>' + campoOuTraco(b.id) + '</td><td class="esq">' + campoOuTraco(b.servico) +
+      '</td><td>1</td><td>' + campoOuTraco(b.dn) + '</td><td>' + campoOuTraco(b.flange) +
+      '</td><td class="esq">' + campoOuTraco(b.obs) + '</td></tr>';
+  });
+  for (var b = bocaisFd.length; b < 8; b++) {
     bocaisHtml += '<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>';
   }
   document.getElementById('tbl-bocais-body').innerHTML = bocaisHtml;
+
+  // ───────────────────────── Tabela de Pesos (Modelador, fase 2) ─────────────────────────
+  if (fd && fd.pesos) {
+    texto('pw-vazio', numOuTraco(fd.pesos.vazioKg, 1));
+    texto('pw-operacao', numOuTraco(fd.pesos.operacaoKg, 1));
+    texto('pw-cheio', numOuTraco(fd.pesos.cheioDaguaKg, 1));
+    if (fd.pesos.notaSuporte) {
+      var densidade = numOuTraco(fd.pesos.densidade || 7850, 0);
+      var blocoPesos = document.getElementById('bloco-pesos');
+      if (blocoPesos) {
+        blocoPesos.insertAdjacentHTML('beforeend',
+          '<div class="nota-peso">Pesos calculados do modelo (aço ' + densidade + ' kg/m³); suporte tipo pés/selas não incluído.</div>');
+      }
+    }
+  }
+
+  // ───────────────────────── Orientação de Bocais — marcadores no círculo ─────────────────────
+  if (fd && Array.isArray(fd.bocais) && fd.bocais.length) {
+    var svgOrientacao = document.getElementById('svg-orientacao');
+    if (svgOrientacao) {
+      var marcadoresHtml = '';
+      fd.bocais.forEach(function (b) {
+        var angulo = (b && typeof b.anguloGraus === 'number') ? b.anguloGraus : null;
+        if (angulo === null || !isFinite(angulo)) return;
+        var pRim = anguloParaXY(angulo, 58, 75, 75);
+        var pLbl = anguloParaXY(angulo, 72, 75, 75);
+        var lx = clampCompasso(pLbl.x);
+        var ly = clampCompasso(pLbl.y);
+        marcadoresHtml += '<circle cx="' + pRim.x.toFixed(1) + '" cy="' + pRim.y.toFixed(1) + '" r="3.2" fill="#c1121f" stroke="#111" stroke-width="0.6"/>' +
+          '<text x="' + lx.toFixed(1) + '" y="' + (ly + 2.8).toFixed(1) + '" font-size="7" font-weight="700" text-anchor="middle" fill="#111">' + escapeHtml(b.id) + '</text>';
+      });
+      if (marcadoresHtml) svgOrientacao.insertAdjacentHTML('beforeend', marcadoresHtml);
+    }
+  }
 
   // ───────────────────────── Lista de Soldas (linhas padrão) ─────────────────────────
   var SOLDAS = [

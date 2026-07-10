@@ -110,7 +110,44 @@
             justify-content: center;
             background: #fff;
         }
-        .croqui-wrap svg { width: 100%; height: 100%; }
+        .croqui-wrap svg { width: 100%; height: 100%; max-height: 100%; }
+
+        /* Coluna que agrupa o croqui principal + a linha extra (transversal/detalhe do tampo)
+           quando o Modelador de Vaso (fase 2) forneceu nr13_croqui2d_<TAG>. Sem essa chave, a
+           linha extra nunca é criada e esta coluna se comporta como um passthrough de layout
+           (mesmo espaço que .croqui-grid já ocupava sozinha) — fallback visual idêntico. */
+        .croqui-col { display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 8px; }
+
+        .croqui-extra-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            flex: 0 0 118px;
+            min-height: 0;
+        }
+        .extra-col { display: flex; flex-direction: column; min-height: 0; }
+        .extra-titulo {
+            background-color: var(--bg-table-header);
+            font-weight: 900;
+            font-size: 8.5px;
+            padding: 3px 6px;
+            text-transform: uppercase;
+            text-align: center;
+            border: 1px solid #d1d5db;
+            border-bottom: none;
+        }
+        .extra-wrap {
+            flex: 1;
+            min-height: 0;
+            border: 1px solid #d1d5db;
+            border-top: none;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #fff;
+        }
+        .extra-wrap svg { width: 100%; height: 100%; max-height: 100%; }
 
         .nota-lateral {
             position: absolute;
@@ -154,6 +191,12 @@
             font-size: 11px;
             text-align: center;
         }
+        /* Quando o Modelador (fase 2) acrescenta as 4 linhas derivadas (comprimento total,
+           circunferência, pesos), reduz um pouco a fonte p/ a tabela de 10 linhas continuar
+           cabendo na coluna de 240px sem estourar a altura do croqui-grid (CLAUDE.md §5). */
+        table.tabela-dim.compacta td { padding: 3px 6px; }
+        table.tabela-dim.compacta td.lbl { font-size: 7.5px; }
+        table.tabela-dim.compacta td.val { font-size: 9px; }
 
         /* RESPONSABILIDADE TECNICA (assinatura canonica) */
         .resp-tecnica { margin-top: 8px; margin-bottom: 6px; font-size: 10px; }
@@ -194,13 +237,14 @@
 
             <div class="section-title-band">CROQUI DIMENSIONAL DO VASO DE PRESSÃO</div>
 
+            <div class="croqui-col" id="croqui-col">
             <div class="croqui-grid">
                 <div class="croqui-wrap" id="croqui-wrap">
                     <div class="nota-lateral">A rede industrial fornece os vasos de pressão com furação para fixação dos mesmos.</div>
                 </div>
                 <div class="tabela-dim-wrap">
                     <div class="tabela-dim-titulo">Dimensão do Vaso de Pressão</div>
-                    <table class="tabela-dim">
+                    <table class="tabela-dim" id="tabela-dim">
                         <tr><td class="lbl">A — Ø Interno (mm)</td><td class="val" id="dim-a">—</td></tr>
                         <tr><td class="lbl">B — Comprimento (mm)</td><td class="val" id="dim-b">—</td></tr>
                         <tr><td class="lbl">C — Altura (mm)</td><td class="val" id="dim-c">—</td></tr>
@@ -209,6 +253,7 @@
                         <tr><td class="lbl">Capacidade (L)</td><td class="val" id="dim-capacidade">—</td></tr>
                     </table>
                 </div>
+            </div>
             </div>
 
             <div class="resp-tecnica">
@@ -546,9 +591,29 @@ document.addEventListener('DOMContentLoaded', function () {
   var tipoInfo = String(info.tipo || '').toLowerCase();
   var subtipoInfo = String(info.subtipo || '').toLowerCase();
 
+  // ───────────────────────── Croqui 2D do Modelador de Vaso (fase 2) ─────────────────────────
+  // Quando o usuário gerou o modelo no Modelador (Prontuários → Abrir Modelador), os SVGs reais
+  // (vista longitudinal/transversal/detalhe do tampo) substituem o desenho genérico abaixo. Sem
+  // a chave, mantém o comportamento de sempre (fallback intacto — CLAUDE.md §2/§10).
+  var c2d = lerJSON('nr13_croqui2d_' + tag);
+  var fd = lerJSON('nr13_folha_dados_' + tag);
+
   var wrap = document.getElementById('croqui-wrap');
-  var svgHTML = montarCroqui(diametroMM, alturaMM, comprimentoMM, tipoInfo, subtipoInfo);
-  wrap.insertAdjacentHTML('afterbegin', svgHTML);
+  if (c2d && c2d.longitudinal) {
+    wrap.innerHTML = c2d.longitudinal;
+
+    if (c2d.transversal || c2d.detalheTampo) {
+      var extraHTML = '<div class="croqui-extra-row" id="croqui-extra-row">' +
+        '<div class="extra-col"><div class="extra-titulo">VISTA TRANSVERSAL</div><div class="extra-wrap">' + (c2d.transversal || '') + '</div></div>' +
+        '<div class="extra-col"><div class="extra-titulo">DETALHE DO TAMPO</div><div class="extra-wrap">' + (c2d.detalheTampo || '') + '</div></div>' +
+        '</div>';
+      var croquiCol = document.getElementById('croqui-col');
+      if (croquiCol) croquiCol.insertAdjacentHTML('beforeend', extraHTML);
+    }
+  } else {
+    var svgHTML = montarCroqui(diametroMM, alturaMM, comprimentoMM, tipoInfo, subtipoInfo);
+    wrap.insertAdjacentHTML('afterbegin', svgHTML);
+  }
 
   // Tabela de dimensões reais — sempre em formato pt-BR (vírgula decimal, 2 casas; ",00" some
   // nos valores "inteiros" de Ø/comprimento/altura/capacidade).
@@ -564,6 +629,28 @@ document.addEventListener('DOMContentLoaded', function () {
   var capacidade = (dim0.volume && String(dim0.volume).trim()) ? fmtNumPtBRCompacto(dim0.volume) : null;
   if (!capacidade && cat && cat.volInput > 0) capacidade = fmtLitros(cat.volInput * 1000);
   texto('dim-capacidade', capacidade);
+
+  // ───────────────────────── Dimensões/pesos derivados do Modelador (fase 2) ─────────────────
+  // Linhas extras na tabela de dimensões — só existem quando nr13_folha_dados_<TAG> foi gravado
+  // (independente de c2d: o usuário pode ter salvo o modelo sem os SVGs, embora hoje as duas
+  // chaves sejam sempre gravadas juntas por salvarModelo()). Sem a chave, tabela fica com as
+  // 6 linhas originais (fallback intacto).
+  if (fd) {
+    var tabelaDim = document.getElementById('tabela-dim');
+    if (tabelaDim) {
+      tabelaDim.classList.add('compacta');
+      tabelaDim.insertAdjacentHTML('beforeend',
+        '<tr><td class="lbl">Comprimento total (mm)</td><td class="val" id="dim-compr-total">—</td></tr>' +
+        '<tr><td class="lbl">Circunferência (mm)</td><td class="val" id="dim-circunf">—</td></tr>' +
+        '<tr><td class="lbl">Peso vazio (kg)</td><td class="val" id="dim-peso-vazio">—</td></tr>' +
+        '<tr><td class="lbl">Peso cheio d\'água (kg)</td><td class="val" id="dim-peso-cheio">—</td></tr>'
+      );
+      texto('dim-compr-total', fmtNumPtBRCompacto(fd.comprimentoTotalMm));
+      texto('dim-circunf', fmtNumPtBRCompacto(fd.circunferenciaMm));
+      texto('dim-peso-vazio', fmtNumPtBRCompacto(fd.pesos && fd.pesos.vazioKg));
+      texto('dim-peso-cheio', fmtNumPtBRCompacto(fd.pesos && fd.pesos.cheioDaguaKg));
+    }
+  }
 
   // ───────────────────────── Rodapé (dados da empresa executante) ─────────────────────────
   var nomeEmp = pront.minhaEmpresaNome || minhaEmp.razao || minhaEmp.fantasia;
