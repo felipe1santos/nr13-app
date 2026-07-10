@@ -2,6 +2,7 @@ export interface DimensaoProntuario {
   modelo: string;
   diametro: string;
   altura: string;
+  comprimento: string;
   espCorpo: string;
   espFundo: string;
   espTampa: string;
@@ -64,10 +65,10 @@ export interface ProntuarioDados {
 }
 
 export const PAGINAS_PRONTUARIO = [
-  'PRONT-P1.html',
-  'PRONT-CARACTERIZACAO.html',
-  'PRONT-P2.html',
-  'PRONT-P2B.html',
-  'PRONT-P3.html',
-  'PRONT-P4.html',
+  'PRONT-ULTRASSOM.html',
+  'PRONT-CROQUI2D.html',
+  'PRONT-FOLHA-DADOS.html',
+  'PRONT-PRONTUARIO.html',
+  'PRONT-CONTINUACAO.html',
+  'PRONT-MEMORIAL.html',
 ] as const;

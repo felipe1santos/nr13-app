@@ -318,10 +318,10 @@ function iconManometro(parts, cx, cy, presoX) {
 }
 
 // Variante HORIZONTAL (padrão): corpo deitado, 2 tampos elípticos, 2 pernas, bocal no topo.
-function svgHorizontal(diametroMM, alturaMM) {
+function svgHorizontal(diametroMM, alturaMM, comprimentoMM) {
   var D = diametroMM || 600;
   var C = alturaMM || D; // nota: sem altura conhecida, C ≈ diâmetro (proporção genérica)
-  var B = D * 2.6; // não há campo de comprimento neste modelo — proporção genérica para desenho
+  var B = comprimentoMM || (D * 2.6); // usa o comprimento real (dimensoes[0].comprimento) quando informado; senão proporção genérica
 
   var AREA_W = 300, AREA_H = 150;
   var scale = clamp(Math.min(AREA_W / B, AREA_H / C), 0.02, 3);
@@ -387,7 +387,7 @@ function svgHorizontal(diametroMM, alturaMM) {
 
   // Cotas
   cota(parts, assemblyLeft - 18, bodyTop, assemblyLeft - 18, bodyBottom, labelOrLetra(diametroMM, 'A'));
-  cota(parts, assemblyLeft, groundY + 18, assemblyRight, groundY + 18, 'B');
+  cota(parts, assemblyLeft, groundY + 18, assemblyRight, groundY + 18, labelOrLetra(comprimentoMM, 'B'));
   cota(parts, assemblyRight + 20, valveTopY - 4, assemblyRight + 20, groundY, labelOrLetra(alturaMM, 'C'));
   cota(parts, nozzleX + 16, nozzleTopY, nozzleX + 16, bodyTop, 'D');
 
@@ -457,14 +457,14 @@ function svgVertical(diametroMM, alturaMM) {
   return '<svg viewBox="0 0 520 380" xmlns="http://www.w3.org/2000/svg" font-family="Inter, sans-serif">' + parts.join('') + '</svg>';
 }
 
-function montarCroqui(diametroMM, alturaMM, tipoInfo, subtipoInfo) {
+function montarCroqui(diametroMM, alturaMM, comprimentoMM, tipoInfo, subtipoInfo) {
   var vertical;
   if (tipoInfo === 'autoclave' && subtipoInfo !== 'retangular') vertical = true;
   else if (tipoInfo === 'caldeira' && subtipoInfo === 'aquatubular') vertical = true;
   else if (tipoInfo === 'caldeira' || tipoInfo === 'autoclave') vertical = false;
   else vertical = !!(diametroMM && alturaMM && alturaMM > diametroMM * 1.6);
 
-  return vertical ? svgVertical(diametroMM, alturaMM) : svgHorizontal(diametroMM, alturaMM);
+  return vertical ? svgVertical(diametroMM, alturaMM) : svgHorizontal(diametroMM, alturaMM, comprimentoMM);
 }
 
 // ───────────────────────── Tabela de dimensões reais ─────────────────────────
@@ -494,16 +494,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
   var diametroMM = numMM(dim0.diametro);
   var alturaMM = numMM(dim0.altura);
+  var comprimentoMM = numMM(dim0.comprimento);
   var tipoInfo = String(info.tipo || '').toLowerCase();
   var subtipoInfo = String(info.subtipo || '').toLowerCase();
 
   var wrap = document.getElementById('croqui-wrap');
-  var svgHTML = montarCroqui(diametroMM, alturaMM, tipoInfo, subtipoInfo);
+  var svgHTML = montarCroqui(diametroMM, alturaMM, comprimentoMM, tipoInfo, subtipoInfo);
   wrap.insertAdjacentHTML('afterbegin', svgHTML);
 
   // Tabela de dimensões reais
   texto('dim-a', diametroMM !== null ? dim0.diametro : null);
-  texto('dim-b', null); // sem campo de comprimento neste modelo de dados
+  texto('dim-b', comprimentoMM !== null ? dim0.comprimento : null);
   texto('dim-c', alturaMM !== null ? dim0.altura : null);
 
   var espCasco = (dim0.espCorpo && String(dim0.espCorpo).trim()) || calc.ecasco || null;

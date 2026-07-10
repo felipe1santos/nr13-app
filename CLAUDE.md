@@ -58,6 +58,8 @@ Tudo que o usuário salva pode ser fonte de injeção. Chaves por TAG do equipam
 | `nr13_lotes_cal_<TAG>` | Lotes/rodadas de calibração (certificados ganham loteId/componenteId) | Calibrações → Lotes |
 | `nr13_relatorio_meta_atual` | Metadados do relatório em montagem | Gravado na geração |
 | `nr13_inspecao_atual` **e** `nr13_injecao_atual` | Dados de campo do container escolhido | Gravado na geração |
+| `nr13_prontuario_meta_<TAG>` | Nº do relatório (`REL-<timestamp>`) + data de emissão do prontuário; reusado entre reimpressões (`obterOuCriarMeta`) | Gravado ao abrir o visualizador do prontuário |
+| `nr13_croqui3d_<TAG>` | Imagem base64 do croqui 3D (`CroquiVaso3D`), para a folha de ultrassom (PRONT-ULTRASSOM.html) | Gravado ao capturar o croqui e ao abrir o visualizador do prontuário |
 
 > **REGRA CRÍTICA DE INJEÇÃO:** os dados de campo do container **devem ser gravados nas duas chaves**
 > `nr13_inspecao_atual` **e** `nr13_injecao_atual` (ver `gravarInspecaoOrigemAtual`). Os templates não
@@ -188,8 +190,29 @@ e a auto-injeção insere as folhas de fotos/termo nas posições indicadas.
 
 O prontuário deve puxar automaticamente: o **cálculo** (memorial), o **croqui** (`CroquiVaso3D`),
 a **logo e dados da empresa** (`nr13_minha_empresa`), e os dados do **engenheiro responsável** para
-**assinar** (`nr13_lista_phs`). Folhas: `PRONTUARIO.html` e `PRONT-P1..4` /
-`PRONTUARIO-RECONSTITUICAO-1..4`.
+**assinar** (`nr13_lista_phs`). `PAGINAS_PRONTUARIO` (`src/features/prontuarios/tipos.ts`) define as
+6 folhas, nesta ordem fixa:
+
+1. `PRONT-ULTRASSOM.html` — grade de espessuras (ultrassom) + croqui 3D + rastreabilidade dos
+   instrumentos + responsabilidade técnica.
+2. `PRONT-CROQUI2D.html` — croqui 2D cotado (SVG gerado em runtime) + tabela de dimensões reais.
+3. `PRONT-FOLHA-DADOS.html` — prancha técnica do equipamento.
+4. `PRONT-PRONTUARIO.html` — dados construtivos + categorização de risco.
+5. `PRONT-CONTINUACAO.html` — procedimentos, dispositivos de segurança e pontos de atenção.
+6. `PRONT-MEMORIAL.html` — resumo dos cálculos do memorial.
+
+Rodapés das 6 folhas são **sem paginação** (nº de página/total não impresso). A assinatura em
+"Responsabilidade Técnica" é **fictícia** (nome/CREA de exemplo) até existir um motor de assinatura
+real no sistema — não ler de `nr13_lista_phs` nessas folhas enquanto isso não for implementado.
+
+`PRONTUARIO-RECONSTITUICAO-1..4` **não fazem parte** do prontuário — seguem como folhas do
+**relatório** (ver §7).
+
+Ao abrir o visualizador do prontuário (`Prontuarios.tsx`, antes de montar os iframes), o app grava:
+`obterOuCriarMeta(tag)` em `nr13_prontuario_meta_<TAG>` (nº do relatório + data de emissão, reusado
+entre reimpressões) e, se houver croqui, `gravarCroqui3d(tag, dados.croqui)` em
+`nr13_croqui3d_<TAG>` — o mesmo acontece no callback `onCaptura` do `CroquiVaso3D` assim que o croqui
+é gerado, para já ficar disponível caso o usuário pré-visualize sem salvar.
 
 ---
 

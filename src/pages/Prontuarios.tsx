@@ -5,7 +5,9 @@ import { formatarValor } from '../calc/unidades';
 import {
   carregarProntuario,
   excluirProntuario,
+  gravarCroqui3d,
   gravarProntuarioAtual,
+  obterOuCriarMeta,
   salvarProntuario,
 } from '../features/prontuarios/prontuarioService';
 import type { DimensaoProntuario, ProntuarioDados } from '../features/prontuarios/tipos';
@@ -67,7 +69,16 @@ function dadosPadrao(tag: string): ProntuarioDados {
 }
 
 function linhaVazia(): DimensaoProntuario {
-  return { modelo: '', diametro: '', altura: '', espCorpo: '', espFundo: '', espTampa: '', volume: '' };
+  return {
+    modelo: '',
+    diametro: '',
+    altura: '',
+    comprimento: '',
+    espCorpo: '',
+    espFundo: '',
+    espTampa: '',
+    volume: '',
+  };
 }
 
 // ── Ensaio de espessura: extrai a grade de pontos + mínimos de um container e grava nas chaves
@@ -97,11 +108,32 @@ function construirGridMinima(medidas: MedidasUS | undefined) {
   return { grid, minima };
 }
 
+interface DadosUltrassomContainer {
+  medidas?: MedidasUS;
+  aparelho?: string;
+  acoplante?: string;
+  tempSup?: string;
+  estadoSup?: string;
+  cabecote?: string;
+  velSonica?: string;
+}
+
 async function aplicarEnsaioEspessura(tag: string, container: ContainerInspecao | null): Promise<void> {
-  const us = (container?.dados?.ultrassom as { medidas?: MedidasUS } | undefined) ?? undefined;
+  const us = (container?.dados?.ultrassom as DadosUltrassomContainer | undefined) ?? undefined;
   const { grid, minima } = construirGridMinima(us?.medidas);
   await salvar(`nr13_med_grid_${tag}`, grid);
-  await salvar(`nr13_med_esp_${tag}`, minima);
+  // Além dos mínimos (sup/casco/inf), grava os campos de "Informações para o Ensaio" preenchidos
+  // no FormularioUltrassom — PRONT-ULTRASSOM.html lê essas mesmas chaves (aparelho/acoplante/
+  // tempSup/estadoSup/cabecote/velSonica) de nr13_med_esp_<TAG>.
+  await salvar(`nr13_med_esp_${tag}`, {
+    ...minima,
+    aparelho: us?.aparelho ?? '',
+    acoplante: us?.acoplante ?? '',
+    tempSup: us?.tempSup ?? '',
+    estadoSup: us?.estadoSup ?? '',
+    cabecote: us?.cabecote ?? '',
+    velSonica: us?.velSonica ?? '',
+  });
 }
 
 function containerTemEspessura(c: ContainerInspecao): boolean {
@@ -119,6 +151,7 @@ function getLabelsDimensoes(tipo: string, subtipo: string): Record<keyof Dimensa
       modelo: 'Modelo / Fabricante',
       diametro: 'Largura interna (mm)',
       altura: 'Altura interna (mm)',
+      comprimento: 'Comprimento interno (mm)',
       espCorpo: 'Esp. Corpo (mm)',
       espFundo: 'Profundidade (mm)',
       espTampa: 'Esp. Porta/Tampa (mm)',
@@ -130,6 +163,7 @@ function getLabelsDimensoes(tipo: string, subtipo: string): Record<keyof Dimensa
       modelo: 'Modelo / Fabricante',
       diametro: 'Ø Câmara (mm)',
       altura: 'Compr. Câmara (mm)',
+      comprimento: 'Comprimento (mm)',
       espCorpo: 'Esp. Corpo (mm)',
       espFundo: 'Esp. Fundo (mm)',
       espTampa: 'Esp. Tampa/Porta (mm)',
@@ -141,6 +175,7 @@ function getLabelsDimensoes(tipo: string, subtipo: string): Record<keyof Dimensa
       modelo: 'Modelo / Fabricante',
       diametro: 'Ø Externo Corpo (mm)',
       altura: 'Comprimento Total (mm)',
+      comprimento: 'Comprimento (mm)',
       espCorpo: 'Esp. Costado (mm)',
       espFundo: 'Esp. Tampo (mm)',
       espTampa: 'Esp. Espelho (mm)',
@@ -151,6 +186,7 @@ function getLabelsDimensoes(tipo: string, subtipo: string): Record<keyof Dimensa
     modelo: 'Modelo / Fabricante',
     diametro: 'Ø Diâm. Interno (mm)',
     altura: 'Alt. Corpo (mm)',
+    comprimento: 'Comprimento (mm)',
     espCorpo: 'Esp. Chapa Corpo (mm)',
     espFundo: 'Esp. Chapa Fundo (mm)',
     espTampa: 'Esp. Tampa (mm)',
@@ -399,6 +435,10 @@ export default function Prontuarios() {
       setDados(finais);
       setMostrarCroqui3D(false);
       gravarProntuarioAtual(finais);
+      // Grava/reusa a meta (nº do relatório + data de emissão) e o croqui 3D nas chaves por TAG
+      // que as folhas PRONT-*.html leem — precisa acontecer antes de montar os iframes.
+      await obterOuCriarMeta(eq.tag);
+      if (finais.croqui) await gravarCroqui3d(eq.tag, finais.croqui);
       // Re-aplica a grade de espessura do ensaio escolhido (ou limpa se nenhum) para os iframes.
       const contSel = finais.containerEnsaioId ? conts.find((c) => c.id === finais.containerEnsaioId) ?? null : null;
       await aplicarEnsaioEspessura(eq.tag, contSel);
@@ -448,8 +488,10 @@ export default function Prontuarios() {
     void aplicarEnsaioEspessura(tag, cont);
   }
 
-  function visualizar() {
+  async function visualizar() {
     gravarProntuarioAtual(dados);
+    await obterOuCriarMeta(tag);
+    if (dados.croqui) await gravarCroqui3d(tag, dados.croqui);
     setVersao((v) => v + 1);
     setVisualizandoSemSalvar(true);
     setTela('visualizador');
@@ -460,6 +502,8 @@ export default function Prontuarios() {
     try {
       salvarProntuario(tag, dados);
       gravarProntuarioAtual(dados);
+      await obterOuCriarMeta(tag);
+      if (dados.croqui) await gravarCroqui3d(tag, dados.croqui);
       setVersao((v) => v + 1);
       setVisualizandoSemSalvar(false);
       setTela('visualizador');
@@ -744,7 +788,7 @@ export default function Prontuarios() {
             {(() => {
               const lbls = getLabelsDimensoes(tipoEquip, subtipoEquip);
               const dim = dados.dimensoes?.[0] ?? linhaVazia();
-              const campos = ['modelo', 'diametro', 'altura', 'espCorpo', 'espFundo', 'espTampa', 'volume'] as const;
+              const campos = ['modelo', 'diametro', 'comprimento', 'altura', 'espCorpo', 'espFundo', 'espTampa', 'volume'] as const;
               return (
                 <div className="pront-form-grid pront-dim-linha" style={{ padding: '4px 14px 12px' }}>
                   {campos.map((c) => (
@@ -799,6 +843,7 @@ export default function Prontuarios() {
                   onCaptura={(b64) => {
                     set('croqui', b64);
                     setMostrarCroqui3D(false);
+                    void gravarCroqui3d(tag, b64);
                   }}
                 />
               )}
