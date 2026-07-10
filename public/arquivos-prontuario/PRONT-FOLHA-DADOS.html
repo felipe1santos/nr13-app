@@ -89,7 +89,7 @@
         /* GRADE ESTILO PRANCHA (PVElite) — coluna esquerda 60% / direita 40% */
         .folha-grid {
             display: grid;
-            grid-template-columns: 60% 40%;
+            grid-template-columns: 6fr 4fr;
             gap: 8px;
             height: 100%;
             min-height: 0;
@@ -386,26 +386,34 @@ function ajustarFonteParaCaber(el) {
   var fonte = FONTE_BASE;
   el.style.fontSize = fonte + 'px';
 
-  function cabe() { return el.scrollWidth <= el.clientWidth + 1 && el.scrollHeight <= el.clientHeight + 1; }
+  var grid = el.querySelector('.folha-grid');
+  function alturaConteudo() {
+    if (!grid) return el.scrollHeight;
+    var prev = grid.style.height;
+    grid.style.height = 'auto';
+    var h = grid.offsetHeight;
+    grid.style.height = prev;
+    return h;
+  }
 
   // Passo 1 — CRESCE: se sobrar espaço (conteúdo bem abaixo da altura disponível), aumenta a
   // fonte-base até quase preencher a folha, respeitando o teto de 15px.
   var alturaDisponivel = el.clientHeight;
   var iter = 0;
-  while (cabe() && fonte < FONTE_MAX && el.scrollHeight < alturaDisponivel * 0.85 && iter < MAX_ITER) {
+  while (fonte < FONTE_MAX && alturaConteudo() < el.clientHeight * 0.92 && iter < MAX_ITER) {
     fonte += PASSO;
     el.style.fontSize = fonte + 'px';
     iter++;
   }
   // Se o último passo do crescimento estourou a folha, volta um passo.
-  if (!cabe() && fonte > FONTE_BASE) {
+  if (alturaConteudo() > el.clientHeight && fonte > FONTE_BASE) {
     fonte -= PASSO;
     el.style.fontSize = fonte + 'px';
   }
 
   // Passo 2 — ENCOLHE (rede de segurança): reduz até caber, caso ainda transborde.
   iter = 0;
-  while (!cabe() && fonte > FONTE_MIN && iter < MAX_ITER) {
+  while (fonte > FONTE_MIN && alturaConteudo() > el.clientHeight && iter < MAX_ITER) {
     fonte -= PASSO;
     el.style.fontSize = fonte + 'px';
     iter++;
