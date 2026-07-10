@@ -78,32 +78,46 @@
             min-height: 0;
         }
 
+        /* Wrapper que cresce (folha-grid) e é medido/encolhido pelo auto-shrink. flex:1 +
+           overflow:hidden dão altura limitada; font-size aqui é a BASE (teto 11px = layout
+           original) — .rodape fica FORA deste wrapper (sibling em .content-container) e por
+           isso NUNCA encolhe, mantendo o rodapé canônico (espelha .resumo-body do
+           RESUMO-MEMORIAL.html). Os tamanhos abaixo viram "em" relativos a esta base p/
+           encolherem junto quando o JS reduz este font-size. */
+        .folha-body { flex: 1; overflow: hidden; font-size: 11px; min-height: 0; }
+
         /* GRADE ESTILO PRANCHA (PVElite) — coluna esquerda 60% / direita 40% */
         .folha-grid {
             display: grid;
             grid-template-columns: 60% 40%;
             gap: 8px;
-            flex: 1;
+            height: 100%;
             min-height: 0;
         }
         .col-esq, .col-dir { display: flex; flex-direction: column; min-width: 0; }
+
+        /* Tamanhos abaixo em "em" (base = .folha-body, teto 11px) p/ encolherem no auto-shrink.
+           Onde o elemento fica ANINHADO dentro de outro que já tem font-size próprio (ex.:
+           .lista-comp dentro de .bloco-corpo, th dentro de table.tbl-prancha/.carimbo table),
+           o em é a razão em relação ao PAI real (não à base 11px) — senão o encolhimento
+           composto (em × em) ficaria menor que o desenho original. */
 
         /* BLOCO com faixa preta de titulo (estilo prancha tecnica) */
         .bloco { border: 1px solid #999; margin-bottom: 6px; }
         .bloco-titulo {
             background: #111;
             color: #fff;
-            font-size: 8px;
+            font-size: 0.727em; /* 8/11 — filho direto de .bloco (herda a base) */
             font-weight: 800;
             padding: 2px 6px;
             text-transform: uppercase;
             letter-spacing: 0.3px;
         }
-        .bloco-corpo { padding: 4px 6px; font-size: 8px; }
+        .bloco-corpo { padding: 4px 6px; font-size: 0.727em; } /* 8/11 — filho direto de .bloco */
         .bloco-sub {
             background: var(--bg-table-header);
             font-weight: 800;
-            font-size: 7.5px;
+            font-size: 0.682em; /* 7.5/11 — filho direto de .bloco */
             padding: 2px 6px;
             text-transform: uppercase;
             border-top: 1px solid #999;
@@ -115,12 +129,15 @@
         .linha-dado .rot { color: #333; }
         .linha-dado .val { font-weight: 700; color: var(--blue-data); text-align: right; }
 
-        .lista-comp { font-size: 7.5px; padding: 1px 0; border-bottom: 1px dotted #ddd; }
+        /* .lista-comp vive dentro de #dt-componentes (.bloco-corpo, já em 0.727em da base):
+           razao real 7.5/8 = 0.9375em em relacao ao pai, p/ nao encolher em dobro. */
+        .lista-comp { font-size: 0.9375em; padding: 1px 0; border-bottom: 1px dotted #ddd; }
         .lista-comp:last-child { border-bottom: none; }
 
-        table.tbl-prancha { width: 100%; border-collapse: collapse; font-size: 7.5px; text-align: center; }
+        table.tbl-prancha { width: 100%; border-collapse: collapse; font-size: 0.682em; text-align: center; } /* 7.5/11 — filho direto de .bloco */
         table.tbl-prancha th, table.tbl-prancha td { border: 1px solid #ccc; padding: 2px 3px; }
-        table.tbl-prancha th { background: var(--bg-table-sub); font-weight: 800; text-transform: uppercase; font-size: 7px; }
+        /* th aninhado dentro da propria table (0.682em da base): razao real 7/7.5 = 0.9333em em relacao a table */
+        table.tbl-prancha th { background: var(--bg-table-sub); font-weight: 800; text-transform: uppercase; font-size: 0.9333em; }
         table.tbl-prancha td.esq { text-align: left; }
 
         /* ORIENTACAO DE BOCAIS — SVG vista de topo */
@@ -128,17 +145,18 @@
 
         /* CARIMBO (title block) */
         .carimbo { border: 1px solid #999; margin-top: auto; }
-        .carimbo table { width: 100%; border-collapse: collapse; font-size: 7px; }
+        .carimbo table { width: 100%; border-collapse: collapse; font-size: 0.636em; } /* 7/11 — filho direto de .carimbo (herda a base) */
         .carimbo th, .carimbo td { border: 1px solid #999; padding: 2px 4px; text-align: left; }
-        .carimbo th { background: var(--bg-table-header); font-weight: 800; text-transform: uppercase; font-size: 6.5px; text-align: center; }
-        .carimbo .lbl { background: var(--bg-table-sub); font-weight: 800; font-size: 6.5px; text-transform: uppercase; width: 34%; }
+        /* th/.lbl aninhados dentro da propria table (0.636em da base): razao real 6.5/7 = 0.9286em em relacao a table */
+        .carimbo th { background: var(--bg-table-header); font-weight: 800; text-transform: uppercase; font-size: 0.9286em; text-align: center; }
+        .carimbo .lbl { background: var(--bg-table-sub); font-weight: 800; font-size: 0.9286em; text-transform: uppercase; width: 34%; }
         .carimbo .val { color: var(--blue-data); font-weight: 700; }
 
         .selo-as-built {
             border: 2px solid #c1121f;
             color: #c1121f;
             font-weight: 800;
-            font-size: 9px;
+            font-size: 0.818em; /* 9/11 — filho direto de .carimbo (herda a base, nao aninhado na table) */
             text-align: center;
             padding: 3px 4px;
             letter-spacing: 1px;
@@ -146,7 +164,7 @@
         }
 
         /* NOTAS TECNICAS */
-        .notas-lista { list-style: none; counter-reset: nota; font-size: 7.5px; padding: 2px 4px; }
+        .notas-lista { list-style: none; counter-reset: nota; font-size: 0.682em; padding: 2px 4px; } /* 7.5/11 — filho direto de .bloco */
         .notas-lista li { counter-increment: nota; padding: 1px 0; }
         .notas-lista li::before { content: counter(nota) ". "; font-weight: 700; }
 
@@ -175,6 +193,7 @@
         </tr></table>
 
         <div class="content-container">
+            <div class="folha-body" id="folha-body">
             <div class="folha-grid">
 
                 <!-- ===================== COLUNA ESQUERDA (60%) ===================== -->
@@ -301,6 +320,7 @@
                 </div>
 
             </div>
+            </div><!-- /#folha-body -->
 
             <div class="rodape">
               <div class="rodape-linha"></div>
@@ -468,10 +488,11 @@ document.addEventListener('DOMContentLoaded', function () {
   texto('rod-tel', telEmp);
   texto('rod-email', emailEmp);
 
-  // AUTO-SHRINK: encolhe a fonte-base do .content-container até componentes + tabelas caberem
-  // na folha A4 (297mm, overflow:hidden) sem cortar o carimbo/rodapé.
-  // Roda DEPOIS de toda a injeção de dados.
-  ajustarFonteParaCaber(document.querySelector('.content-container'));
+  // AUTO-SHRINK: encolhe a fonte-base do #folha-body (grade de blocos/tabelas) até caber na
+  // folha A4 (297mm, overflow:hidden). O rodapé fica FORA de #folha-body (sibling em
+  // .content-container) e por isso mantém tamanho canônico, nunca encolhe — espelha
+  // .resumo-body do RESUMO-MEMORIAL.html. Roda DEPOIS de toda a injeção de dados.
+  ajustarFonteParaCaber(document.getElementById('folha-body'));
 });
 </script>
 </body>
