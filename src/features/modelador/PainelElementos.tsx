@@ -94,7 +94,7 @@ function CampoNumero({
     const n = parseFloat(texto.replace(',', '.'));
     if (Number.isFinite(n)) {
       onChange(n);
-      setDraft(String(n));
+      setDraft(String(n).replace('.', ','));
     } else {
       setDraft(value === '' ? '' : String(value));
     }
@@ -275,7 +275,7 @@ export default function PainelElementos({ modelo, onChange }: Props) {
         <div className="modelador-secao-corpo modelador-bocais">
           {modelo.bocais.length === 0 && <p className="modelador-vazio">Nenhum bocal cadastrado.</p>}
           {modelo.bocais.map((b, idx) => (
-            <div key={`${b.id}-${idx}`} className="modelador-bocal-item">
+            <div key={b.id} className="modelador-bocal-item">
               <div className="modelador-bocal-cabecalho">
                 <CampoTexto
                   label="ID"
