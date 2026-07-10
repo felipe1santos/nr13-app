@@ -352,7 +352,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     return null;
   }
-  var compCasco = acharComponente(/casco|casc/i);
+  var compCasco = acharComponente(/casc/i);
   var compTampo = acharComponente(/tampo/i);
 
   texto('inp-esp-nom-casco', compCasco ? numOuTexto(compCasco.tNom) : null);
@@ -384,13 +384,15 @@ document.addEventListener('DOMContentLoaded', function () {
   var ANGULOS = ['0°', '90°', '180°', '270°'];
 
   var htmlGrid = '';
-  SECOES.forEach(function (sec) {
+  SECOES.forEach(function (sec, sectionIndex) {
     var linhas = (grid && Array.isArray(grid[sec.key]) && grid[sec.key].length) ? grid[sec.key] : linhasVazias(sec.linhas);
     var menor = null;
     linhas.forEach(function (r) { r.forEach(function (v) { var n = numVal(v); if (n !== null && (menor === null || n < menor)) menor = n; }); });
 
     htmlGrid += '<tr><td class="med-bloco" colspan="4">' + sec.titulo + '</td></tr>';
-    htmlGrid += '<tr>' + ANGULOS.map(function (a) { return '<td class="med-ang">' + a + '</td>'; }).join('') + '</tr>';
+    if (sectionIndex === 0) {
+      htmlGrid += '<tr>' + ANGULOS.map(function (a) { return '<td class="med-ang">' + a + '</td>'; }).join('') + '</tr>';
+    }
     linhas.forEach(function (r) {
       htmlGrid += '<tr>' + r.map(function (v) {
         var n = numVal(v);
