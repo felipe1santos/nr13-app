@@ -133,8 +133,6 @@
         .carimbo th { background: var(--bg-table-header); font-weight: 800; text-transform: uppercase; font-size: 6.5px; text-align: center; }
         .carimbo .lbl { background: var(--bg-table-sub); font-weight: 800; font-size: 6.5px; text-transform: uppercase; width: 34%; }
         .carimbo .val { color: var(--blue-data); font-weight: 700; }
-        .carimbo-cliente-tag { display: flex; }
-        .carimbo-cliente-tag > div { flex: 1; }
 
         .selo-as-built {
             border: 2px solid #c1121f;
@@ -288,7 +286,7 @@
                             </tr>
                         </table>
                         <table>
-                            <tr><td class="lbl">Cliente</td><td class="val" id="car-cliente" colspan="1">—</td>
+                            <tr><td class="lbl">Cliente</td><td class="val" id="car-cliente">—</td>
                                 <td class="lbl">Tag Equip.</td><td class="val" id="car-tag">—</td></tr>
                             <tr><td class="lbl">Nº Desenho</td><td class="val" id="car-desenho">—</td>
                                 <td class="lbl">Fabricante</td><td class="val" id="car-fabricante">—</td></tr>
@@ -354,6 +352,18 @@ function acharComponente(comps, regex) {
     if (regex.test(String((comps[i] && comps[i].nome) || ''))) return comps[i];
   }
   return null;
+}
+
+// Auto-shrink: reduz a fonte-base do container até o conteúdo caber na folha de altura fixa
+// (sem corte nem sobreposição do rodapé). Espelho do ajustarFonteParaCaber() em RESUMO-MEMORIAL.html.
+function ajustarFonteParaCaber(el) {
+  if (!el) return;
+  var fonte = 11;
+  el.style.fontSize = fonte + 'px';
+  while ((el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1) && fonte > 6.5) {
+    fonte -= 0.5;
+    el.style.fontSize = fonte + 'px';
+  }
 }
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -457,6 +467,11 @@ document.addEventListener('DOMContentLoaded', function () {
   texto('rod-cep', cepEmp);
   texto('rod-tel', telEmp);
   texto('rod-email', emailEmp);
+
+  // AUTO-SHRINK: encolhe a fonte-base do .content-container até componentes + tabelas caberem
+  // na folha A4 (297mm, overflow:hidden) sem cortar o carimbo/rodapé.
+  // Roda DEPOIS de toda a injeção de dados.
+  ajustarFonteParaCaber(document.querySelector('.content-container'));
 });
 </script>
 </body>
