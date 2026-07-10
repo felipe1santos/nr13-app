@@ -227,6 +227,11 @@ genérico/vazio de sempre (fallback).
 
 ## 9. Pendências conhecidas (gaps vs. esta estrutura)
 
+> **LISTA VIVA: `PENDENCIAS.md` na raiz do repo** — checklist atual de pendências (deploy manual,
+> fase do motor de assinatura, polimentos). REGRA: ao concluir um item de lá, REMOVER o item do
+> arquivo e commitar (o arquivo encolhe até ser deletado). Os blocos abaixo são histórico
+> detalhado; a lista viva é a fonte do que ainda falta.
+
 > **Controle de Acesso multi-papel + Portal do Cliente + Sessão Única: CÓDIGO IMPLEMENTADO**
 > (plano em `PLANO-CONTROLE-DE-ACESSO.md`). Pendências de DEPLOY (manuais, pelo dono do projeto):
 > 1. Rodar `supabase/acesso_setup.sql` no SQL Editor do Supabase (idempotente; backfill
