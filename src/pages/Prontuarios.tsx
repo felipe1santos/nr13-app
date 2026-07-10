@@ -21,7 +21,7 @@ import { ler, salvar } from '../services/storage';
 import { listarContainers } from '../features/inspecoes/inspecaoService';
 import type { ContainerInspecao } from '../features/inspecoes/tipos';
 import type { EmpresaEquipamento, CategoriaSalva } from '../features/equipamento/tipos';
-import CroquiVaso3D from '../features/prontuarios/CroquiVaso3D';
+import ModeladorVaso from '../features/modelador/ModeladorVaso';
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
 import '../pages/relatorios.css';
 import './prontuarios.css';
@@ -202,7 +202,7 @@ export default function Prontuarios() {
   const [versao, setVersao] = useState(0);
   const [confirmandoExcluir, setConfirmandoExcluir] = useState(false);
   const [salvando, setSalvando] = useState(false);
-  const [mostrarCroqui3D, setMostrarCroqui3D] = useState(false);
+  const [mostrarModelador, setMostrarModelador] = useState(false);
   const [tipoEquip, setTipoEquip] = useState('vaso');
   const [subtipoEquip, setSubtipoEquip] = useState('');
   const [visualizandoSemSalvar, setVisualizandoSemSalvar] = useState(false);
@@ -433,7 +433,7 @@ export default function Prontuarios() {
       }
 
       setDados(finais);
-      setMostrarCroqui3D(false);
+      setMostrarModelador(false);
       gravarProntuarioAtual(finais);
       // Grava/reusa a meta (nº do relatório + data de emissão) e o croqui 3D nas chaves por TAG
       // que as folhas PRONT-*.html leem — precisa acontecer antes de montar os iframes.
@@ -520,10 +520,6 @@ export default function Prontuarios() {
     setTela('formulario');
   }
 
-  // Dimensões do primeiro elemento para croqui 3D
-  const dim0 = dados.dimensoes?.[0];
-  const croquiD = parseFloat(dim0?.diametro || '0');
-  const croquiH = parseFloat(dim0?.altura || '0');
 
   return (
     <div className="prontuarios-page">
@@ -801,51 +797,32 @@ export default function Prontuarios() {
               );
             })()}
 
-            {/* Croqui 3D */}
+            {/* Croqui 3D / Modelador */}
             <div style={{ padding: '12px 14px 0' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
                 <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
                   Croqui
                 </span>
                 {tipoEquip === 'vaso' ? (
-                  <button
-                    type="button"
-                    className="btn-secundario"
-                    style={{ fontSize: 12 }}
-                    onClick={() => setMostrarCroqui3D((v) => !v)}
-                  >
-                    {mostrarCroqui3D ? 'Ocultar Gerador 3D' : '⬡ Gerar Croqui 3D'}
+                  <button type="button" className="btn-secundario" style={{ fontSize: 12 }} onClick={() => setMostrarModelador(true)}>
+                    ⬡ Abrir Modelador
                   </button>
                 ) : (
                   <span style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                    ⬡ Gerador 3D — Em Breve
+                    ⬡ Modelador — Em Breve
                   </span>
                 )}
-                {dados.croqui && !mostrarCroqui3D && (
+                {dados.croqui && (
                   <button type="button" className="btn-remover" style={{ fontSize: 11 }} onClick={() => set('croqui', undefined)}>
                     Remover croqui
                   </button>
                 )}
               </div>
 
-              {dados.croqui && !mostrarCroqui3D && (
+              {dados.croqui && (
                 <div className="pront-upload-preview">
                   <img src={dados.croqui} alt="Croqui" />
                 </div>
-              )}
-
-              {tipoEquip === 'vaso' && mostrarCroqui3D && (
-                <CroquiVaso3D
-                  tipo={tipoEquip}
-                  subtipo={subtipoEquip}
-                  diametro={croquiD}
-                  altura={croquiH}
-                  onCaptura={(b64) => {
-                    set('croqui', b64);
-                    setMostrarCroqui3D(false);
-                    void gravarCroqui3d(tag, b64);
-                  }}
-                />
               )}
             </div>
           </div>
@@ -943,6 +920,14 @@ export default function Prontuarios() {
             ))}
           </div>
         </>
+      )}
+
+      {mostrarModelador && (
+        <ModeladorVaso
+          tag={tag}
+          onFechar={() => setMostrarModelador(false)}
+          onSalvo={(png) => set('croqui', png ?? dados.croqui)}
+        />
       )}
     </div>
   );

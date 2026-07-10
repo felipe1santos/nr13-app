@@ -1,0 +1,358 @@
+/* Modelador de Vaso (fase 2) — overlay full-screen estilo PVElite: painel de elementos + viewport
+   3D. Segue o design system "Forja" (tokens em src/styles/tokens.css: --amber, --bg-card,
+   --border-solid, --radius-*, --shadow-*, --text-main/--text-muted). */
+
+.modelador-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  background: rgba(20, 24, 28, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.modelador-box {
+  width: 95vw;
+  height: 92vh;
+  max-width: 1500px;
+  background: var(--bg-body);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modelador-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-solid);
+  flex-shrink: 0;
+}
+
+.modelador-header h2 {
+  font-size: 16px;
+  margin: 0;
+}
+
+.modelador-header-acoes {
+  display: flex;
+  gap: 10px;
+}
+
+.modelador-corpo {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(300px, 380px) 1fr;
+}
+
+.modelador-painel {
+  overflow-y: auto;
+  border-right: 1px solid var(--border-solid);
+  background: var(--bg-card);
+  padding: 10px 14px 24px;
+}
+
+.modelador-painel-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.modelador-secao {
+  border: 1px solid var(--border-solid);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg-card);
+}
+
+.modelador-secao summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--accent-2);
+  background: var(--bg-body);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modelador-secao summary::-webkit-details-marker {
+  display: none;
+}
+
+.modelador-secao-seta {
+  transition: transform var(--t-fast);
+  flex-shrink: 0;
+}
+
+.modelador-secao:not([open]) .modelador-secao-seta {
+  transform: rotate(-90deg);
+}
+
+.modelador-secao-corpo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 12px;
+}
+
+.modelador-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.modelador-campo select,
+.modelador-campo input[type='text'] {
+  border: 1px solid var(--border-solid);
+  border-radius: var(--radius-sm);
+  padding: 7px 9px;
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+  background: var(--bg-card);
+  color: var(--text-main);
+  width: 100%;
+}
+
+.modelador-campo select:focus,
+.modelador-campo input[type='text']:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.modelador-campo select:disabled,
+.modelador-campo input:disabled {
+  background: var(--bg-body);
+  color: var(--text-faint);
+  cursor: not-allowed;
+}
+
+.modelador-campo-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.modelador-campo-input.has-unit input {
+  padding-right: 40px;
+}
+
+.modelador-campo-unit {
+  position: absolute;
+  right: 9px;
+  font-size: 11px;
+  color: var(--text-faint);
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.modelador-campo-ro output {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-main);
+  padding: 7px 0 2px;
+}
+
+.modelador-vazio {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.modelador-bocais {
+  grid-template-columns: 1fr;
+}
+
+.modelador-bocal-item {
+  border: 1px dashed var(--border-dashed);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.modelador-bocal-cabecalho {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.modelador-bocal-cabecalho .modelador-campo {
+  flex: 1;
+}
+
+.modelador-badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--accent-2);
+  background: var(--accent-bg-light);
+  border-radius: 999px;
+  padding: 4px 9px;
+  margin-bottom: 4px;
+  white-space: nowrap;
+}
+
+.modelador-bocal-remover {
+  flex-shrink: 0;
+  margin-bottom: 2px;
+}
+
+.modelador-bocal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.modelador-bocal-add {
+  align-self: flex-start;
+}
+
+.modelador-viewport {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 12px 16px 16px;
+}
+
+.modelador-viewport-toggles {
+  display: flex;
+  gap: 18px;
+  padding-bottom: 10px;
+  flex-shrink: 0;
+}
+
+.modelador-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-main);
+  cursor: pointer;
+  user-select: none;
+}
+
+.modelador-toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.modelador-toggle-caixa {
+  position: relative;
+  width: 34px;
+  height: 19px;
+  border-radius: 999px;
+  background: var(--border-solid);
+  transition: background var(--t-fast);
+  flex-shrink: 0;
+}
+
+.modelador-toggle-caixa::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: var(--shadow-xs);
+  transition: transform var(--t-fast);
+}
+
+.modelador-toggle input:checked + .modelador-toggle-caixa {
+  background: var(--amber);
+}
+
+.modelador-toggle input:checked + .modelador-toggle-caixa::after {
+  transform: translateX(15px);
+}
+
+.modelador-toggle input:focus-visible + .modelador-toggle-caixa {
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+.modelador-viewport-canvas {
+  flex: 1;
+  min-height: 0;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--border-solid);
+}
+
+.modelador-toast {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--ok);
+  color: #fff;
+  padding: 9px 22px;
+  border-radius: 24px;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: var(--shadow-md);
+  pointer-events: none;
+  max-width: 90%;
+  text-align: center;
+}
+
+/* Mobile (CLAUDE.md §5): painel vira accordion acima do viewport, colunas empilham. */
+@media (max-width: 860px) {
+  .modelador-overlay {
+    padding: 0;
+  }
+
+  .modelador-box {
+    width: 100vw;
+    height: 100vh;
+    border-radius: 0;
+  }
+
+  .modelador-corpo {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 46vh) 1fr;
+    overflow-y: auto;
+  }
+
+  .modelador-painel {
+    border-right: none;
+    border-bottom: 1px solid var(--border-solid);
+  }
+
+  .modelador-secao-corpo,
+  .modelador-bocal-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .modelador-viewport {
+    padding: 12px;
+  }
+}
