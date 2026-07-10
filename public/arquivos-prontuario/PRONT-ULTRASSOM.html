@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NR-13 - Prontuario - Relatorio de Ultrassom</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,600;1,700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --text-dark: #111827;
+            --border-color: #000;
+            --blue-data: #0033a2;
+            --gray-light: #9CA3AF;
+            --bg-table-header: #e5e7eb;
+            --bg-table-sub: #f9fafb;
+            --highlight-yellow: #fef08a;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--text-dark);
+            background-color: #fff;
+            margin: 0;
+            padding: 0;
+            line-height: 1.3;
+            font-size: 11px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        /* A4 EXATO — sem paginacao, rodape com margin-top:auto */
+        .page {
+            width: 100%;
+            height: 297mm;
+            overflow: hidden;
+            background-color: #fff;
+            margin: 0;
+            padding: 15mm 15mm 8mm;
+            box-sizing: border-box;
+            box-shadow: none;
+            border: none;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* CABECALHO CANONICO */
+        .header-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid var(--text-dark);
+            margin-bottom: 8px;
+        }
+        .header-table td {
+            border: 1px solid var(--text-dark);
+            vertical-align: middle;
+            padding: 6px 10px;
+        }
+        .col-logo { width: 25%; text-align: center; }
+        .col-logo img { max-width: 100%; max-height: 75px; object-fit: contain; display: block; margin: 0 auto; }
+        .col-title { width: 50%; text-align: center; font-size: 15px; font-weight: 800; color: var(--text-dark); line-height: 1.2; }
+        .col-info { width: 25%; text-align: left; padding-left: 15px; }
+        .col-info .info-label { font-size: 10px; color: var(--text-dark); }
+        .col-info .info-value { font-size: 12px; font-weight: 700; color: var(--blue-data); margin-top: 2px; margin-bottom: 4px; }
+        .col-info .info-value:last-child { margin-bottom: 0; }
+
+        /* CONTEUDO */
+        .content-container {
+            flex-grow: 1;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .content-table { width: 100%; border-collapse: collapse; text-align: center; margin-bottom: 6px; font-size: 9px; }
+        .content-table th, .content-table td { border: 1px solid #d1d5db; padding: 3px 4px; vertical-align: middle; }
+
+        .section-title {
+            background-color: var(--bg-table-header);
+            font-weight: 900;
+            font-size: 10px;
+            padding: 4px 6px !important;
+            text-transform: uppercase;
+        }
+
+        .section-title-band {
+            background-color: var(--bg-table-header);
+            font-weight: 900;
+            font-size: 10px;
+            padding: 4px 6px;
+            text-transform: uppercase;
+            text-align: center;
+            border: 1px solid #d1d5db;
+            margin-bottom: 6px;
+        }
+
+        .bg-light-grey {
+            background-color: var(--bg-table-sub);
+            font-weight: 800;
+            font-size: 8.5px;
+            color: #111827;
+            text-transform: uppercase;
+        }
+
+        .data-blue { color: var(--blue-data); font-weight: 700; font-size: 10px; }
+
+        .highlight-min { background-color: var(--highlight-yellow) !important; color: #000 !important; font-weight: 900 !important; }
+
+        /* GRADE DE MEDICAO + CROQUI 3D */
+        .grid-medicao {
+            display: grid;
+            grid-template-columns: 1fr 200px;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+        .tabela-medicao { width: 100%; border-collapse: collapse; text-align: center; font-size: 9px; }
+        .tabela-medicao td { border: 1px solid #d1d5db; padding: 3px 4px; }
+        .tabela-medicao .med-bloco { background: var(--bg-table-sub); font-weight: 800; font-size: 8.5px; text-transform: uppercase; }
+        .tabela-medicao .med-ang { background: var(--bg-table-header); font-weight: 700; font-size: 8.5px; }
+        .tabela-medicao .med-val { color: #000; font-weight: 800; background: var(--highlight-yellow); }
+        .tabela-medicao .med-val.highlight-min { background: #ffd54f; font-weight: 900; border: 2px solid #b45309; }
+
+        .croqui-wrap {
+            width: 200px;
+            min-height: 140px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #d1d5db;
+        }
+        .croqui-wrap img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        .croqui-vazio {
+            width: 100%;
+            height: 100%;
+            min-height: 138px;
+            border: 2px dashed var(--gray-light);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: #6b7280;
+            text-align: center;
+            padding: 10px;
+        }
+
+        /* NOTA DE RASTREABILIDADE */
+        .nota-rastreab {
+            font-size: 7.5px;
+            border: 1px solid #d1d5db;
+            padding: 4px 6px;
+            margin: 2px 0 10px;
+            text-align: justify;
+            color: #374151;
+            line-height: 1.4;
+        }
+
+        /* RESPONSABILIDADE TECNICA (assinatura canonica) */
+        .resp-tecnica { margin-top: 8px; margin-bottom: 6px; font-size: 10px; }
+        .resp-titulo { font-weight: 800; border-bottom: 1px solid #999; margin-bottom: 10px; }
+        .resp-grid { display: flex; justify-content: space-around; gap: 40px; }
+        .resp-col { text-align: center; min-width: 220px; }
+        .rubrica { height: 44px; display: block; margin: 0 auto; }
+        .resp-espaco { height: 44px; }
+        .resp-linha { border-top: 2px solid #111; margin: 2px 20px 4px; }
+        .resp-nome { font-weight: 800; }
+        .resp-cargo, .resp-crea { font-size: 9px; color: #333; }
+
+        /* RODAPE CANONICO — sem paginacao */
+        .rodape { margin-top: auto; text-align: center; font-size: 9px; }
+        .rodape-linha { border-top: 3px solid #111; margin: 3px 0; }
+        .rodape-nome { font-weight: 900; }
+        .rodape-info { color: #7a5c00; font-weight: 600; }
+
+        @media print {
+            body { background: none; padding: 0; display: block; }
+            .page { width: 100% !important; margin: 0 !important; box-shadow: none !important; border: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="page">
+        <table class="header-table"><tr>
+          <td class="col-logo"><img id="img-logo" alt="Logo" style="display:none"></td>
+          <td class="col-title">RELATÓRIO DE ULTRASSOM<br>MEDIÇÃO DE ESPESSURA</td>
+          <td class="col-info">
+            <div class="info-label">Relatório nº.</div><div class="info-value" id="meta-numero">—</div>
+            <div class="info-label">Data de Emissão:</div><div class="info-value" id="meta-data">—</div>
+          </td>
+        </tr></table>
+
+        <div class="content-container">
+
+            <table class="content-table">
+                <tr>
+                    <td colspan="6" class="section-title">INFORMAÇÕES DO COMPONENTE AVALIADO</td>
+                </tr>
+                <tr class="bg-light-grey">
+                    <td colspan="2" width="33%">EQUIPAMENTO</td>
+                    <td colspan="2" width="33%">T.A.G</td>
+                    <td colspan="2" width="34%">ÁREA</td>
+                </tr>
+                <tr>
+                    <td colspan="2" id="inp-equipamento" class="data-blue">—</td>
+                    <td colspan="2" id="inp-tag" class="data-blue">—</td>
+                    <td colspan="2" id="inp-area" class="data-blue">—</td>
+                </tr>
+                <tr class="bg-light-grey">
+                    <td colspan="2" width="33%">ESPESSURA NOMINAL (MM)</td>
+                    <td colspan="2" rowspan="2" width="33%">ANO DE<br>FABRICAÇÃO</td>
+                    <td colspan="2" rowspan="2" width="34%">MATERIAL DE<br>CONSTRUÇÃO</td>
+                </tr>
+                <tr class="bg-light-grey">
+                    <td width="16.5%">CASCO</td>
+                    <td width="16.5%">TAMPOS</td>
+                </tr>
+                <tr>
+                    <td id="inp-esp-nom-casco" class="data-blue">—</td>
+                    <td id="inp-esp-nom-tampo" class="data-blue">—</td>
+                    <td colspan="2" id="inp-ano" class="data-blue">—</td>
+                    <td colspan="2" id="inp-material" class="data-blue">—</td>
+                </tr>
+            </table>
+
+            <table class="content-table">
+                <tr>
+                    <td colspan="3" class="section-title">INFORMAÇÕES PARA O ENSAIO</td>
+                </tr>
+                <tr class="bg-light-grey">
+                    <td width="33%">APARELHO/Nº DE SÉRIE</td>
+                    <td width="33%">ACOPLANTE</td>
+                    <td width="34%">TEMP. DA SUPERFÍCIE (°C)</td>
+                </tr>
+                <tr>
+                    <td id="inp-aparelho" class="data-blue">—</td>
+                    <td id="inp-acoplante" class="data-blue">—</td>
+                    <td id="inp-temp-sup" class="data-blue">—</td>
+                </tr>
+                <tr class="bg-light-grey">
+                    <td width="33%">ESTADO DA SUPERFÍCIE</td>
+                    <td width="33%">TIPO CABEÇOTE</td>
+                    <td width="34%">VELOCIDADE SÔNICA</td>
+                </tr>
+                <tr>
+                    <td id="inp-estado-sup" class="data-blue">—</td>
+                    <td id="inp-cabecote" class="data-blue">—</td>
+                    <td id="inp-vel-sonica" class="data-blue">—</td>
+                </tr>
+            </table>
+
+            <div class="section-title-band">LOCALIZAÇÃO DOS PONTOS DE MEDIÇÃO E MEDIDAS ENCONTRADAS (MM)</div>
+            <div class="grid-medicao">
+                <table class="tabela-medicao"><tbody id="tabela-medicao-body"></tbody></table>
+                <div class="croqui-wrap">
+                    <img id="img-croqui3d" alt="Croqui 3D" style="display:none">
+                    <div id="croqui-vazio" class="croqui-vazio">Croqui não gerado</div>
+                </div>
+            </div>
+
+            <table class="content-table">
+                <tr>
+                    <td colspan="4" class="section-title">INSTRUMENTO DE MEDIÇÃO UTILIZADO</td>
+                </tr>
+                <tr class="bg-light-grey">
+                    <td width="30%">PADRÃO</td>
+                    <td width="20%">Nº SÉRIE</td>
+                    <td width="25%">Nº CERTIFICADO</td>
+                    <td width="25%">VALIDADE</td>
+                </tr>
+                <tbody id="tabela-rastreab-body"></tbody>
+            </table>
+            <div class="nota-rastreab">O instrumento de medição utilizado foi calibrado por laboratório acreditado pela RBC/INMETRO, com certificado de calibração válido, garantindo a rastreabilidade metrológica e a confiabilidade dos resultados.</div>
+
+            <div class="resp-tecnica">
+                <div class="resp-titulo">Responsabilidade Tecnica:</div>
+                <div class="resp-grid">
+                    <div class="resp-col">
+                        <svg class="rubrica" viewBox="0 0 160 50" aria-hidden="true"><path d="M8 38 C 30 8, 44 44, 60 22 S 92 10, 104 30 S 138 18, 152 26" fill="none" stroke="#1a2f8a" stroke-width="2.2" stroke-linecap="round"/></svg>
+                        <div class="resp-linha"></div>
+                        <div class="resp-nome">Fulano Da Silva</div>
+                        <div class="resp-cargo">Engenheiro De Equipamentos</div>
+                        <div class="resp-crea">CREA: 12151566</div>
+                    </div>
+                    <div class="resp-col">
+                        <div class="resp-espaco"></div>
+                        <div class="resp-linha"></div>
+                        <div class="resp-nome">Fulano Da Silva</div>
+                        <div class="resp-cargo">Tecnico em Mecanica</div>
+                        <div class="resp-crea">CREA: 12151566</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="rodape">
+              <div class="rodape-linha"></div>
+              <div class="rodape-nome" id="rod-nome">—</div>
+              <div class="rodape-info"><span id="rod-endereco">—</span> • CNPJ: <span id="rod-cnpj">—</span> • CEP: <span id="rod-cep">—</span></div>
+              <div class="rodape-info">Telef: <span id="rod-tel">—</span> • E-mail: <span id="rod-email">—</span></div>
+              <div class="rodape-linha"></div>
+            </div>
+
+        </div>
+    </div>
+
+<script>
+function lerJSON(chave) { try { return JSON.parse(localStorage.getItem(chave) || 'null'); } catch (_) { return null; } }
+function lerTexto(chave) { var v = localStorage.getItem(chave); if (!v) return ''; try { var p = JSON.parse(v); return typeof p === 'string' ? p : v; } catch (_) { return v; } }
+function texto(id, v) { var el = document.getElementById(id); if (el) el.textContent = (v === null || v === undefined || v === '') ? '—' : String(v); }
+
+document.addEventListener('DOMContentLoaded', function () {
+  var pront = lerJSON('nr13_prontuario_atual') || {};
+  var tag = pront.tag || new URLSearchParams(location.search).get('tag') || '';
+  var meta = lerJSON('nr13_prontuario_meta_' + tag) || {};
+  var minhaEmp = lerJSON('nr13_minha_empresa') || {};
+
+  texto('meta-numero', meta.numero);
+  texto('meta-data', meta.emissao);
+
+  var logo = pront.logo || minhaEmp.logo;
+  if (logo) { var imgLogo = document.getElementById('img-logo'); imgLogo.src = logo; imgLogo.style.display = 'block'; }
+
+  // ───────────────────────── Dados do equipamento / memorial ─────────────────────────
+  var info = lerJSON('nr13_info_' + tag) || {};
+  var calc = lerJSON('nr13_calc_' + tag) || {};
+  var med = lerJSON('nr13_med_esp_' + tag) || {};
+  var grid = lerJSON('nr13_med_grid_' + tag) || {};
+
+  var TIPOS_EXT = { vaso: 'Vaso de Pressão', autoclave: 'Autoclave', caldeira: 'Caldeira' };
+  texto('inp-equipamento', TIPOS_EXT[info.tipo] || info.tipo);
+  texto('inp-tag', tag);
+  texto('inp-area', info.area);
+  texto('inp-ano', info.anoFabricacao || info.ano);
+
+  function numOuTexto(v) {
+    if (v === null || v === undefined || v === '') return null;
+    var n = Number(v);
+    if (!isFinite(n)) return String(v);
+    return n.toFixed(2).replace('.', ',');
+  }
+
+  var comps = Array.isArray(calc.componentes) ? calc.componentes : [];
+  function acharComponente(regex) {
+    for (var i = 0; i < comps.length; i++) {
+      if (regex.test(String(comps[i].nome || ''))) return comps[i];
+    }
+    return null;
+  }
+  var compCasco = acharComponente(/casco|casc/i);
+  var compTampo = acharComponente(/tampo/i);
+
+  texto('inp-esp-nom-casco', compCasco ? numOuTexto(compCasco.tNom) : null);
+  texto('inp-esp-nom-tampo', compTampo ? numOuTexto(compTampo.tNom) : null);
+  texto('inp-material', (compCasco && compCasco.material) || (compTampo && compTampo.material));
+
+  // ───────────────────────── Informações para o ensaio ─────────────────────────
+  texto('inp-aparelho', med.aparelho);
+  texto('inp-acoplante', med.acoplante);
+  texto('inp-temp-sup', (med.tempSup !== undefined && med.tempSup !== null && med.tempSup !== '') ? med.tempSup : 'AMBIENTE');
+  texto('inp-estado-sup', med.estadoSup);
+  texto('inp-cabecote', med.cabecote);
+  var vel = med.velSonica;
+  texto('inp-vel-sonica', (vel !== undefined && vel !== null && vel !== '') ? (vel + ' m/s') : null);
+
+  // ───────────────────────── Grade de pontos de medição ─────────────────────────
+  function numVal(v) {
+    if (v === undefined || v === null || v === '') return null;
+    var n = parseFloat(String(v).replace(',', '.'));
+    return (isFinite(n) && n > 0) ? n : null;
+  }
+  function linhasVazias(n) { var out = []; for (var i = 0; i < n; i++) out.push(['', '', '', '']); return out; }
+
+  var SECOES = [
+    { key: 'ts', titulo: 'TAMPO SUPERIOR', linhas: 1 },
+    { key: 'casco', titulo: 'CASCO', linhas: 4 },
+    { key: 'ti', titulo: 'TAMPO INFERIOR', linhas: 1 },
+  ];
+  var ANGULOS = ['0°', '90°', '180°', '270°'];
+
+  var htmlGrid = '';
+  SECOES.forEach(function (sec) {
+    var linhas = (grid && Array.isArray(grid[sec.key]) && grid[sec.key].length) ? grid[sec.key] : linhasVazias(sec.linhas);
+    var menor = null;
+    linhas.forEach(function (r) { r.forEach(function (v) { var n = numVal(v); if (n !== null && (menor === null || n < menor)) menor = n; }); });
+
+    htmlGrid += '<tr><td class="med-bloco" colspan="4">' + sec.titulo + '</td></tr>';
+    htmlGrid += '<tr>' + ANGULOS.map(function (a) { return '<td class="med-ang">' + a + '</td>'; }).join('') + '</tr>';
+    linhas.forEach(function (r) {
+      htmlGrid += '<tr>' + r.map(function (v) {
+        var n = numVal(v);
+        var isMin = (n !== null && menor !== null && n === menor);
+        var txt = (n !== null) ? String(v) : '—';
+        return '<td class="med-val' + (isMin ? ' highlight-min' : '') + '">' + txt + '</td>';
+      }).join('') + '</tr>';
+    });
+  });
+  var corpoGrid = document.getElementById('tabela-medicao-body');
+  if (corpoGrid) corpoGrid.innerHTML = htmlGrid;
+
+  // ───────────────────────── Croqui 3D ─────────────────────────
+  var croqui = lerTexto('nr13_croqui3d_' + tag) || pront.croqui;
+  var imgCroqui = document.getElementById('img-croqui3d');
+  var croquiVazio = document.getElementById('croqui-vazio');
+  if (croqui) {
+    imgCroqui.src = croqui;
+    imgCroqui.style.display = 'block';
+    if (croquiVazio) croquiVazio.style.display = 'none';
+  }
+
+  // ───────────────────────── Instrumento de medição (rastreabilidade) ─────────────────────────
+  var itensRastreab = [];
+  try {
+    for (var i = 0; i < localStorage.length; i++) {
+      var chave = localStorage.key(i);
+      if (chave && chave.indexOf('nr13_rastreab_') === 0) {
+        var item = lerJSON(chave);
+        if (item) itensRastreab.push(item);
+      }
+    }
+  } catch (_) {}
+
+  var corpoRastreab = document.getElementById('tabela-rastreab-body');
+  if (corpoRastreab) {
+    if (itensRastreab.length === 0) {
+      corpoRastreab.innerHTML = '<tr><td>—</td><td>—</td><td>—</td><td>—</td></tr>';
+    } else {
+      var htmlRastreab = '';
+      itensRastreab.forEach(function (it) {
+        htmlRastreab += '<tr>' +
+          '<td class="data-blue">' + ((it.nome !== undefined && it.nome !== null && it.nome !== '') ? it.nome : '—') + '</td>' +
+          '<td>—</td>' +
+          '<td class="data-blue">' + ((it.certificadoPadrao !== undefined && it.certificadoPadrao !== null && it.certificadoPadrao !== '') ? it.certificadoPadrao : '—') + '</td>' +
+          '<td class="data-blue">' + ((it.validade !== undefined && it.validade !== null && it.validade !== '') ? it.validade : '—') + '</td>' +
+          '</tr>';
+      });
+      corpoRastreab.innerHTML = htmlRastreab;
+    }
+  }
+
+  // ───────────────────────── Rodapé (dados da empresa executante) ─────────────────────────
+  var nomeEmp = pront.minhaEmpresaNome || minhaEmp.razao || minhaEmp.fantasia;
+  var enderecoEmp = pront.minhaEmpresaEndereco || minhaEmp.endereco;
+  var cnpjEmp = pront.minhaEmpresaCnpj || minhaEmp.cnpj;
+  var cepEmp = minhaEmp.cep;
+  var telEmp = pront.minhaEmpresaTelefone || minhaEmp.telefone;
+  var emailEmp = minhaEmp.email;
+
+  texto('rod-nome', nomeEmp);
+  texto('rod-endereco', enderecoEmp);
+  texto('rod-cnpj', cnpjEmp);
+  texto('rod-cep', cepEmp);
+  texto('rod-tel', telEmp);
+  texto('rod-email', emailEmp);
+});
+</script>
+</body>
+</html>
