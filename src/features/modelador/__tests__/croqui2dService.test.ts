@@ -68,9 +68,8 @@ describe('gerarCroquis2d', () => {
   });
 
   it('modelo sem o campo virolas (salvo antes da migração) → 1 virola, só as 2 tangências', () => {
-    const m = modeloCompleto() as Record<string, unknown>;
-    delete m.virolas;
-    const c = gerarCroquis2d(m as ReturnType<typeof modeloCompleto>)!;
+    const { virolas: _virolas, ...semVirolas } = modeloCompleto();
+    const c = gerarCroquis2d(semVirolas as ReturnType<typeof modeloCompleto>)!;
     expect([...c.longitudinal.matchAll(/stroke-dasharray="8,3"/g)]).toHaveLength(2);
   });
 
