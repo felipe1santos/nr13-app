@@ -48,6 +48,7 @@ export function modeloVazio(tag: string): ModeloVaso {
     diametroInterno: '',
     comprimentoCilindro: '',
     espessuraCasco: '',
+    virolas: 1,
     tampo1: { tipo: 'eliptico', espessura: '' },
     tampo2: { tipo: 'eliptico', espessura: '' },
     bocais: [],
@@ -77,7 +78,8 @@ function tipoTampoDoMemorial(tipo: string): TipoTampoModelo | null {
 
 export function carregarOuPreCarregar(tag: string): ModeloVaso {
   const existente = ler<ModeloVaso>(chaveModelo3d(tag));
-  if (existente) return existente;
+  // Migração: modelos salvos antes do campo `virolas` (fase 2) não o têm — tratar como 1 virola.
+  if (existente) return { ...existente, virolas: existente.virolas === undefined ? 1 : existente.virolas };
 
   const vaso = ler<VasoSalvo>(`nr13_vaso_${tag}`) ?? ler<VasoSalvo>(`nr13_vaso_ac_corpo_${tag}`);
   if (!vaso) return modeloVazio(tag);

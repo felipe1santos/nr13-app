@@ -261,6 +261,11 @@ export default function PainelElementos({ modelo, onChange }: Props) {
             value={modelo.espessuraCasco}
             onChange={(v) => onChange({ ...modelo, espessuraCasco: v })}
           />
+          <CampoNumero
+            label="Nº de virolas"
+            value={modelo.virolas}
+            onChange={(v) => onChange({ ...modelo, virolas: v })}
+          />
         </div>
       </details>
 

@@ -5,7 +5,7 @@ import type { ModeloVaso } from '../tiposModelador';
 function modeloBase(): ModeloVaso {
   return {
     tag: 'T1', orientacao: 'horizontal', diametroInterno: 1000, comprimentoCilindro: 2000,
-    espessuraCasco: 10, tampo1: { tipo: 'eliptico', espessura: 10 }, tampo2: { tipo: 'eliptico', espessura: 10 },
+    espessuraCasco: 10, virolas: 1, tampo1: { tipo: 'eliptico', espessura: 10 }, tampo2: { tipo: 'eliptico', espessura: 10 },
     bocais: [], suporte: { tipo: 'nenhum', altura: '', quantidade: '' }, densidadeAco: 7850,
     pesoOperacao: '', material: 'SA-516-70',
   };

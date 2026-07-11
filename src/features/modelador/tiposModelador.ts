@@ -31,6 +31,8 @@ export interface ModeloVaso {
   diametroInterno: number | '';
   comprimentoCilindro: number | '';
   espessuraCasco: number | '';
+  /** Nº de virolas (seções soldadas) do casco — gera n−1 costuras circunferenciais no croqui 2D. */
+  virolas: number | '';
   tampo1: TampoModelo;
   tampo2: TampoModelo;
   bocais: BocalModelo[];
