@@ -147,6 +147,13 @@
   border-color: var(--accent);
 }
 
+/* Exemplo de preenchimento (placeholder): cinza claro, some ao digitar. */
+.modelador-campo input[type='text']::placeholder {
+  color: var(--text-faint);
+  font-style: italic;
+  opacity: 1;
+}
+
 .modelador-campo select:disabled,
 .modelador-campo input:disabled {
   background: var(--bg-body);

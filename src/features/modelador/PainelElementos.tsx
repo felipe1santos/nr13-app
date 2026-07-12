@@ -199,6 +199,7 @@ function CampoNumero({
   unidade,
   disabled,
   dica,
+  exemplo,
 }: {
   label: string;
   value: number | '';
@@ -206,6 +207,8 @@ function CampoNumero({
   unidade?: string;
   disabled?: boolean;
   dica?: string;
+  /** Exemplo de preenchimento exibido em cinza no campo vazio (placeholder nativo). */
+  exemplo?: string;
 }) {
   const [draft, setDraft] = useState(value === '' ? '' : String(value));
   const focadoRef = useRef(false);
@@ -239,6 +242,7 @@ function CampoNumero({
           inputMode="decimal"
           value={draft}
           disabled={disabled}
+          placeholder={exemplo}
           onFocus={() => {
             focadoRef.current = true;
           }}
@@ -260,17 +264,20 @@ function CampoTexto({
   onChange,
   disabled,
   dica,
+  exemplo,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   disabled?: boolean;
   dica?: string;
+  /** Exemplo de preenchimento exibido em cinza no campo vazio (placeholder nativo). */
+  exemplo?: string;
 }) {
   return (
     <label className="modelador-campo">
       <RotuloCampo label={label} dica={dica} />
-      <input type="text" value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} />
+      <input type="text" value={value} disabled={disabled} placeholder={exemplo} onChange={(e) => onChange(e.target.value)} />
     </label>
   );
 }
@@ -318,6 +325,7 @@ function SecaoTampo({
         <CampoNumero
           label="Espessura (mm)"
           dica={DICAS.tampoEspessura}
+          exemplo="Ex.: 4,5"
           value={tampo.espessura}
           onChange={(v) => onChange({ ...tampo, espessura: v })}
         />
@@ -375,12 +383,14 @@ export default function PainelElementos({ modelo, onChange }: Props) {
           <CampoNumero
             label="Ø Interno (mm)"
             dica={DICAS.diametroInterno}
+            exemplo="Ex.: 1000"
             value={modelo.diametroInterno}
             onChange={(v) => onChange({ ...modelo, diametroInterno: v })}
           />
           <CampoNumero
             label="Comprimento do Cilindro (mm)"
             dica={DICAS.comprimentoCilindro}
+            exemplo="Ex.: 2000"
             value={modelo.comprimentoCilindro}
             onChange={(v) => onChange({ ...modelo, comprimentoCilindro: v })}
           />
@@ -390,6 +400,7 @@ export default function PainelElementos({ modelo, onChange }: Props) {
           <CampoNumero
             label="Densidade do Aço (kg/m³)"
             dica={DICAS.densidadeAco}
+            exemplo="Ex.: 7850"
             value={modelo.densidadeAco}
             onChange={(v) => onChange({ ...modelo, densidadeAco: v === '' ? 7850 : v })}
           />
@@ -405,12 +416,14 @@ export default function PainelElementos({ modelo, onChange }: Props) {
           <CampoNumero
             label="Espessura (mm)"
             dica={DICAS.espessuraCasco}
+            exemplo="Ex.: 4,5"
             value={modelo.espessuraCasco}
             onChange={(v) => onChange({ ...modelo, espessuraCasco: v })}
           />
           <CampoNumero
             label="Nº de virolas"
             dica={DICAS.virolas}
+            exemplo="Ex.: 2"
             value={modelo.virolas}
             onChange={(v) => onChange({ ...modelo, virolas: v })}
           />
@@ -433,6 +446,7 @@ export default function PainelElementos({ modelo, onChange }: Props) {
                 <CampoTexto
                   label="ID"
                   dica={DICAS.bocalId}
+                  exemplo="Ex.: N1"
                   value={b.id}
                   disabled={b.doMemorial}
                   onChange={(v) => atualizarBocal(idx, { id: v })}
@@ -450,16 +464,17 @@ export default function PainelElementos({ modelo, onChange }: Props) {
                 )}
               </div>
               <div className="modelador-bocal-grid">
-                <CampoTexto label="Serviço" dica={DICAS.bocalServico} value={b.servico} onChange={(v) => atualizarBocal(idx, { servico: v })} />
-                <CampoTexto label="DN" dica={DICAS.bocalDn} value={b.dn} onChange={(v) => atualizarBocal(idx, { dn: v })} />
-                <CampoNumero label="Ø (mm)" dica={DICAS.bocalDiametro} value={b.diametro} onChange={(v) => atualizarBocal(idx, { diametro: v })} />
+                <CampoTexto label="Serviço" dica={DICAS.bocalServico} exemplo="Ex.: Entrada de ar, dreno" value={b.servico} onChange={(v) => atualizarBocal(idx, { servico: v })} />
+                <CampoTexto label="DN" dica={DICAS.bocalDn} exemplo={'Ex.: 2" ou DN50'} value={b.dn} onChange={(v) => atualizarBocal(idx, { dn: v })} />
+                <CampoNumero label="Ø (mm)" dica={DICAS.bocalDiametro} exemplo="Ex.: 60" value={b.diametro} onChange={(v) => atualizarBocal(idx, { diametro: v })} />
                 <CampoNumero
                   label="Espessura (mm)"
                   dica={DICAS.bocalEspessura}
+                  exemplo="Ex.: 5"
                   value={b.espessura}
                   onChange={(v) => atualizarBocal(idx, { espessura: v })}
                 />
-                <CampoTexto label="Flange" dica={DICAS.bocalFlange} value={b.flange} onChange={(v) => atualizarBocal(idx, { flange: v })} />
+                <CampoTexto label="Flange" dica={DICAS.bocalFlange} exemplo="Ex.: SO #150" value={b.flange} onChange={(v) => atualizarBocal(idx, { flange: v })} />
                 <label className="modelador-campo">
                   <RotuloCampo label="Local" dica={DICAS.bocalLocal} />
                   <select value={b.local} onChange={(e) => atualizarBocal(idx, { local: e.target.value as BocalModelo['local'] })}>
@@ -473,12 +488,13 @@ export default function PainelElementos({ modelo, onChange }: Props) {
                 <CampoNumero
                   label="Posição Axial (mm)"
                   dica={DICAS.bocalPosicaoAxial}
+                  exemplo="Ex.: 590"
                   value={b.posicaoAxial}
                   disabled={b.local !== 'casco'}
                   onChange={(v) => atualizarBocal(idx, { posicaoAxial: v })}
                 />
-                <CampoNumero label="Ângulo (0-360°)" dica={DICAS.bocalAngulo} value={b.angulo} onChange={(v) => atualizarBocal(idx, { angulo: v })} />
-                <CampoNumero label="Projeção (mm)" dica={DICAS.bocalProjecao} value={b.projecao} onChange={(v) => atualizarBocal(idx, { projecao: v })} />
+                <CampoNumero label="Ângulo (0-360°)" dica={DICAS.bocalAngulo} exemplo="Ex.: 90" value={b.angulo} onChange={(v) => atualizarBocal(idx, { angulo: v })} />
+                <CampoNumero label="Projeção (mm)" dica={DICAS.bocalProjecao} exemplo="Ex.: 150" value={b.projecao} onChange={(v) => atualizarBocal(idx, { projecao: v })} />
               </div>
             </div>
           ))}
@@ -510,6 +526,7 @@ export default function PainelElementos({ modelo, onChange }: Props) {
           <CampoNumero
             label="Altura (mm)"
             dica={DICAS.suporteAltura}
+            exemplo="Ex.: 340"
             value={modelo.suporte.altura}
             disabled={modelo.suporte.tipo === 'nenhum'}
             onChange={(v) => onChange({ ...modelo, suporte: { ...modelo.suporte, altura: v } })}
@@ -517,6 +534,7 @@ export default function PainelElementos({ modelo, onChange }: Props) {
           <CampoNumero
             label="Quantidade"
             dica={DICAS.suporteQuantidade}
+            exemplo="Ex.: 2"
             value={modelo.suporte.quantidade}
             disabled={modelo.suporte.tipo === 'nenhum'}
             onChange={(v) => onChange({ ...modelo, suporte: { ...modelo.suporte, quantidade: v } })}
@@ -539,6 +557,7 @@ export default function PainelElementos({ modelo, onChange }: Props) {
           <CampoNumero
             label="Operação (kg)"
             dica={DICAS.pesoOperacao}
+            exemplo="Ex.: 1500"
             value={modelo.pesoOperacao}
             onChange={(v) => onChange({ ...modelo, pesoOperacao: v })}
           />
