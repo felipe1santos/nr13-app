@@ -567,6 +567,20 @@ function montarCroqui(diametroMM, alturaMM, comprimentoMM, tipoInfo, subtipoInfo
   return vertical ? svgVertical(diametroMM, alturaMM) : svgHorizontal(diametroMM, alturaMM, comprimentoMM);
 }
 
+// Fit-to-content: os SVGs do modelador têm viewBox fixo por vista — vaso pequeno/curto ocupa só
+// o centro e sobra branco. Reescreve o viewBox para o bbox real do conteúdo (getBBox exige o
+// elemento já renderizado no DOM visível; se falhar, mantém o viewBox original).
+function ajustarViewBoxAoConteudo(svgEl) {
+  if (!svgEl) return;
+  try {
+    var b = svgEl.getBBox();
+    if (b && b.width > 1 && b.height > 1) {
+      var pad = Math.max(b.width, b.height) * 0.02 + 4;
+      svgEl.setAttribute('viewBox', (b.x - pad) + ' ' + (b.y - pad) + ' ' + (b.width + 2 * pad) + ' ' + (b.height + 2 * pad));
+    }
+  } catch (e) { /* getBBox falha se display:none */ }
+}
+
 // ───────────────────────── Tabela de dimensões reais ─────────────────────────
 function fmtLitros(litros) {
   if (!isFinite(litros)) return null;
@@ -621,6 +635,7 @@ document.addEventListener('DOMContentLoaded', function () {
   var wrap = document.getElementById('croqui-wrap');
   if (c2d && c2d.longitudinal) {
     wrap.innerHTML = c2d.longitudinal;
+    ajustarViewBoxAoConteudo(wrap.querySelector('svg'));
 
     if (c2d.transversal || c2d.detalheTampo) {
       var extraHTML = '<div class="croqui-extra-row" id="croqui-extra-row">' +
@@ -628,7 +643,11 @@ document.addEventListener('DOMContentLoaded', function () {
         '<div class="extra-col"><div class="extra-titulo">DETALHE DO TAMPO</div><div class="extra-wrap">' + (c2d.detalheTampo || '') + '</div></div>' +
         '</div>';
       var croquiCol = document.getElementById('croqui-col');
-      if (croquiCol) croquiCol.insertAdjacentHTML('beforeend', extraHTML);
+      if (croquiCol) {
+        croquiCol.insertAdjacentHTML('beforeend', extraHTML);
+        var svgsExtra = croquiCol.querySelectorAll('.extra-wrap svg');
+        for (var ie = 0; ie < svgsExtra.length; ie++) ajustarViewBoxAoConteudo(svgsExtra[ie]);
+      }
     }
   } else {
     var svgHTML = montarCroqui(diametroMM, alturaMM, comprimentoMM, tipoInfo, subtipoInfo);

@@ -86,15 +86,20 @@
            encolherem junto quando o JS reduz este font-size. */
         .folha-body { flex: 1; overflow: hidden; font-size: 11px; min-height: 0; }
 
-        /* GRADE ESTILO PRANCHA (PVElite) — coluna esquerda 60% / direita 40% */
+        /* GRADE ESTILO PRANCHA (PVElite) — coluna esquerda 60% / direita 40%.
+           grid-template-rows OBRIGATÓRIO: sem ele a linha é `auto` (altura = conteúdo) e o
+           preenchimento dinâmico da lista de bocais cresce a coluna esquerda sem limite,
+           arrastando a direita junto e empurrando o carimbo para fora da folha (overflow
+           hidden corta). minmax(0,1fr) trava a linha na altura do container. */
         .folha-grid {
             display: grid;
             grid-template-columns: 6fr 4fr;
+            grid-template-rows: minmax(0, 1fr);
             gap: 8px;
             height: 100%;
             min-height: 0;
         }
-        .col-esq, .col-dir { display: flex; flex-direction: column; min-width: 0; }
+        .col-esq, .col-dir { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
 
         /* Tamanhos abaixo em "em" (base = .folha-body, teto 11px) p/ encolherem no auto-shrink.
            Onde o elemento fica ANINHADO dentro de outro que já tem font-size próprio (ex.:
@@ -104,6 +109,8 @@
 
         /* BLOCO com faixa preta de titulo (estilo prancha tecnica) */
         .bloco { border: 1px solid #999; margin-bottom: 6px; }
+        /* Ultimo bloco da coluna esquerda alinha a base com o carimbo da direita */
+        .col-esq > .bloco:last-child { margin-bottom: 0; }
         .bloco-titulo {
             background: #111;
             color: #fff;
@@ -140,28 +147,18 @@
         table.tbl-prancha th { background: var(--bg-table-sub); font-weight: 800; text-transform: uppercase; font-size: 0.9333em; }
         table.tbl-prancha td.esq { text-align: left; }
 
-        /* ORIENTACAO DE BOCAIS — SVG vista de topo */
-        .bloco-orientacao { display: flex; align-items: center; justify-content: center; padding: 6px; }
+        /* Blocos que CRESCEM para absorver a altura livre da coluna (sem grandes vazios,
+           CLAUDE.md §5): LISTA DE BOCAIS (esq — ganha linhas vazias extras via JS depois do
+           auto-fit) e NOTAS TECNICAS (dir — a moldura se estende ate o carimbo). */
+        .bloco-crescer { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
 
-        /* CARIMBO (title block) */
+        /* CARIMBO (title block) enxuto: so o que informa — Cliente, Tag, Norma, Data */
         .carimbo { border: 1px solid #999; margin-top: auto; }
         .carimbo table { width: 100%; border-collapse: collapse; font-size: 0.636em; } /* 7/11 — filho direto de .carimbo (herda a base) */
-        .carimbo th, .carimbo td { border: 1px solid #999; padding: 2px 4px; text-align: left; }
-        /* th/.lbl aninhados dentro da propria table (0.636em da base): razao real 6.5/7 = 0.9286em em relacao a table */
-        .carimbo th { background: var(--bg-table-header); font-weight: 800; text-transform: uppercase; font-size: 0.9286em; text-align: center; }
-        .carimbo .lbl { background: var(--bg-table-sub); font-weight: 800; font-size: 0.9286em; text-transform: uppercase; width: 34%; }
+        .carimbo td { border: 1px solid #999; padding: 2px 4px; text-align: left; }
+        /* .lbl aninhado dentro da propria table (0.636em da base): razao real 6.5/7 = 0.9286em em relacao a table */
+        .carimbo .lbl { background: var(--bg-table-sub); font-weight: 800; font-size: 0.9286em; text-transform: uppercase; width: 18%; }
         .carimbo .val { color: var(--blue-data); font-weight: 700; }
-
-        .selo-as-built {
-            border: 2px solid #c1121f;
-            color: #c1121f;
-            font-weight: 800;
-            font-size: 0.818em; /* 9/11 — filho direto de .carimbo (herda a base, nao aninhado na table) */
-            text-align: center;
-            padding: 3px 4px;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-        }
 
         /* Nota do Modelador (fase 2) sob a Tabela de Pesos — só aparece quando
            fd.pesos.notaSuporte é true (suporte tipo pés/selas, cujo peso o modelador não soma). */
@@ -212,23 +209,11 @@
                     </div>
 
                     <div class="bloco">
-                        <div class="bloco-titulo">Orientação de Bocais — Vista de Topo</div>
-                        <div class="bloco-orientacao">
-                            <svg id="svg-orientacao" width="150" height="150" viewBox="-20 -20 190 190" aria-hidden="true">
-                                <line x1="75" y1="8" x2="75" y2="142" stroke="#999" stroke-width="1" stroke-dasharray="3,3"/>
-                                <line x1="8" y1="75" x2="142" y2="75" stroke="#999" stroke-width="1" stroke-dasharray="3,3"/>
-                                <circle cx="75" cy="75" r="58" fill="none" stroke="#111" stroke-width="1.4"/>
-                                <text x="75" y="14" text-anchor="middle" font-size="8" font-weight="700">0°</text>
-                                <text x="141" y="78" text-anchor="start" font-size="8" font-weight="700">90°</text>
-                                <text x="75" y="146" text-anchor="middle" font-size="8" font-weight="700">180°</text>
-                                <text x="9" y="78" text-anchor="end" font-size="8" font-weight="700">270°</text>
-                                <g transform="translate(126,16)">
-                                    <line x1="0" y1="10" x2="0" y2="0" stroke="#111" stroke-width="1.2"/>
-                                    <polygon points="0,-4 3,3 -3,3" fill="#111"/>
-                                    <text x="0" y="20" text-anchor="middle" font-size="8" font-weight="800">N</text>
-                                </g>
-                            </svg>
-                        </div>
+                        <div class="bloco-titulo">Espessuras por Componente</div>
+                        <table class="tbl-prancha">
+                            <thead><tr><th class="esq">Componente</th><th>t Nominal (mm)</th><th>t Requerida (mm)</th><th>CA (mm)</th></tr></thead>
+                            <tbody id="tbl-espessuras-body"></tbody>
+                        </table>
                     </div>
 
                     <div class="bloco" id="bloco-pesos">
@@ -243,11 +228,11 @@
                         </table>
                     </div>
 
-                    <div class="bloco">
-                        <div class="bloco-titulo">Espessuras por Componente</div>
+                    <div class="bloco bloco-crescer" id="bloco-bocais">
+                        <div class="bloco-titulo">Lista de Bocais</div>
                         <table class="tbl-prancha">
-                            <thead><tr><th class="esq">Componente</th><th>t Nominal (mm)</th><th>t Requerida (mm)</th><th>CA (mm)</th></tr></thead>
-                            <tbody id="tbl-espessuras-body"></tbody>
+                            <thead><tr><th>Tag</th><th>Serviço</th><th>Qtd</th><th>DN</th><th>Flange</th><th>Obs</th></tr></thead>
+                            <tbody id="tbl-bocais-body"></tbody>
                         </table>
                     </div>
 
@@ -264,27 +249,17 @@
                             <div class="linha-dado"><span class="rot">Sobr. corrosão (mm)</span><span class="val" id="dt-ca">—</span></div>
                             <div class="linha-dado"><span class="rot">Ø interno (mm)</span><span class="val" id="dt-diam">—</span></div>
                             <div class="linha-dado"><span class="rot">Material</span><span class="val" id="dt-material">—</span></div>
-                            <div class="linha-dado"><span class="rot">CG/corr</span><span class="val">—</span></div>
                         </div>
                         <div class="bloco-sub">Resultados</div>
                         <div class="bloco-corpo">
                             <div class="linha-dado"><span class="rot">PMTA conjunto (kgf/cm²)</span><span class="val" id="dt-pmta">—</span></div>
                             <div class="linha-dado"><span class="rot">Teste hidro (kgf/cm²)</span><span class="val" id="dt-pth">—</span></div>
-                            <div class="linha-dado"><span class="rot">Peso vazio</span><span class="val">—</span></div>
                         </div>
                         <div class="bloco-sub">Componentes</div>
                         <div class="bloco-corpo" id="dt-componentes"></div>
                     </div>
 
-                    <div class="bloco">
-                        <div class="bloco-titulo">Lista de Bocais</div>
-                        <table class="tbl-prancha">
-                            <thead><tr><th>Tag</th><th>Serviço</th><th>Qtd</th><th>DN</th><th>Flange</th><th>Obs</th></tr></thead>
-                            <tbody id="tbl-bocais-body"></tbody>
-                        </table>
-                    </div>
-
-                    <div class="bloco">
+                    <div class="bloco bloco-crescer">
                         <div class="bloco-titulo">Notas Técnicas</div>
                         <ol class="notas-lista" contenteditable="true">
                             <li>Cotas em milímetros, salvo indicação contrária.</li>
@@ -294,31 +269,17 @@
                             <li>Teste hidrostático conforme UG-99.</li>
                             <li>Material certificado — CCMs em anexo.</li>
                             <li>Datum Line: face inferior do tampo inferior.</li>
-                            <li>Desenho AS-BUILT — dimensões verificadas em campo.</li>
+                            <li>Dimensões verificadas em campo na inspeção.</li>
                         </ol>
                     </div>
 
                     <div class="carimbo">
                         <table>
-                            <tr><th>Rev</th><th>Descrição</th><th>Data</th><th>Por</th></tr>
-                            <tr>
-                                <td>00</td>
-                                <td>Emissão inicial</td>
-                                <td id="car-data-emissao">—</td>
-                                <td>—</td>
-                            </tr>
-                        </table>
-                        <table>
                             <tr><td class="lbl">Cliente</td><td class="val" id="car-cliente">—</td>
                                 <td class="lbl">Tag Equip.</td><td class="val" id="car-tag">—</td></tr>
-                            <tr><td class="lbl">Nº Desenho</td><td class="val" id="car-desenho">—</td>
-                                <td class="lbl">Fabricante</td><td class="val" id="car-fabricante">—</td></tr>
-                            <tr><td class="lbl">Código Projeto</td><td class="val" id="car-codigo">ASME VIII Div.1 + NR-13</td>
-                                <td class="lbl">Escala</td><td class="val" id="car-escala">s/ escala</td></tr>
-                            <tr><td class="lbl">Data</td><td class="val" id="car-data">—</td>
-                                <td class="lbl">Formato</td><td class="val" id="car-formato">A4</td></tr>
+                            <tr><td class="lbl">Norma</td><td class="val">ASME VIII Div.1 + NR-13</td>
+                                <td class="lbl">Data</td><td class="val" id="car-data">—</td></tr>
                         </table>
-                        <div class="selo-as-built">AS-BUILT</div>
                     </div>
 
                 </div>
@@ -363,13 +324,6 @@ function escapeHtml(s) {
 function campoOuTraco(v) {
   return (v !== null && v !== undefined && String(v).trim() !== '') ? escapeHtml(String(v)) : '—';
 }
-// 0° = topo (norte), sentido horário — mesma convenção de svgTransversal() em croqui2dService.ts.
-function anguloParaXY(anguloGraus, raio, cx, cy) {
-  var rad = ((anguloGraus - 90) * Math.PI) / 180;
-  return { x: cx + raio * Math.cos(rad), y: cy + raio * Math.sin(rad) };
-}
-// Mantém rótulos ≥14px da borda do viewBox "-20 -20 190 190" (lição de clipping da bússola, fase 1).
-function clampCompasso(v) { return Math.max(-6, Math.min(156, v)); }
 
 // GV do autoclave (nr13_calc_gv_<TAG>) é mesclado APENAS NA LEITURA — nunca gravado — com o nome
 // prefixado "GV — " (CLAUDE.md §3). Mesmo contrato usado em RESUMO-MEMORIAL.html.
@@ -439,6 +393,25 @@ function ajustarFonteParaCaber(el) {
   }
 }
 
+// LISTA DE BOCAIS cresce (bloco flex:1 na coluna esquerda): DEPOIS do ajuste de fonte,
+// completa a tabela com linhas vazias até ocupar a altura livre do bloco — a folha fica
+// preenchida sem "banda vazia" (CLAUDE.md §5). overflow:hidden no bloco garante que uma
+// linha a mais nunca vaza; ainda assim a última excedente é removida.
+function preencherLinhasBocais() {
+  var bloco = document.getElementById('bloco-bocais');
+  var tbody = document.getElementById('tbl-bocais-body');
+  if (!bloco || !tbody) return;
+  var linhaVazia = '<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>';
+  var guard = 0;
+  while (bloco.scrollHeight <= bloco.clientHeight && guard < 60) {
+    tbody.insertAdjacentHTML('beforeend', linhaVazia);
+    guard++;
+  }
+  if (bloco.scrollHeight > bloco.clientHeight && tbody.lastElementChild) {
+    tbody.removeChild(tbody.lastElementChild);
+  }
+}
+
 document.addEventListener('DOMContentLoaded', function () {
   var pront = lerJSON('nr13_prontuario_atual') || {};
   var tag = pront.tag || new URLSearchParams(location.search).get('tag') || '';
@@ -477,7 +450,10 @@ document.addEventListener('DOMContentLoaded', function () {
   texto('dt-temp', temperatura);
   texto('dt-ca', comps.length ? numOuTraco(comps[0].ca) : '—');
   texto('dt-diam', compCasco ? numOuTraco(compCasco.D) : '—');
-  texto('dt-material', compCasco ? compCasco.material : null);
+  // Nunca exibir placeholder cru ("MATERIAL") vindo de dado nao preenchido — mostra "—".
+  var materialCasco = compCasco ? compCasco.material : null;
+  if (materialCasco && /^material$/i.test(String(materialCasco).trim())) materialCasco = null;
+  texto('dt-material', materialCasco);
   texto('dt-pmta', mpaParaKgf(calc.pmta));
   texto('dt-pth', mpaParaKgf(calc.pth));
 
@@ -504,7 +480,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // ───────────────────────── Lista de Bocais ─────────────────────────
   // Com nr13_folha_dados_<TAG>, as linhas reais dos bocais modelados (id/serviço/DN/flange/obs)
-  // entram no topo e o restante até 8 linhas fica vazio, como hoje. Sem a chave, 8 linhas vazias.
+  // entram no topo; completa até a base de 8 linhas. Sem a chave, 8 linhas vazias. Depois do
+  // auto-fit, preencherLinhasBocais() acrescenta linhas vazias até o bloco (flex:1) encher.
   var bocaisHtml = '';
   var bocaisFd = (fd && Array.isArray(fd.bocais)) ? fd.bocais : [];
   bocaisFd.forEach(function (b) {
@@ -532,25 +509,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  // ───────────────────────── Orientação de Bocais — marcadores no círculo ─────────────────────
-  if (fd && Array.isArray(fd.bocais) && fd.bocais.length) {
-    var svgOrientacao = document.getElementById('svg-orientacao');
-    if (svgOrientacao) {
-      var marcadoresHtml = '';
-      fd.bocais.forEach(function (b) {
-        var angulo = (b && typeof b.anguloGraus === 'number') ? b.anguloGraus : null;
-        if (angulo === null || !isFinite(angulo)) return;
-        var pRim = anguloParaXY(angulo, 58, 75, 75);
-        var pLbl = anguloParaXY(angulo, 72, 75, 75);
-        var lx = clampCompasso(pLbl.x);
-        var ly = clampCompasso(pLbl.y);
-        marcadoresHtml += '<circle cx="' + pRim.x.toFixed(1) + '" cy="' + pRim.y.toFixed(1) + '" r="3.2" fill="#c1121f" stroke="#111" stroke-width="0.6"/>' +
-          '<text x="' + lx.toFixed(1) + '" y="' + (ly + 2.8).toFixed(1) + '" font-size="7" font-weight="700" text-anchor="middle" fill="#111">' + escapeHtml(b.id) + '</text>';
-      });
-      if (marcadoresHtml) svgOrientacao.insertAdjacentHTML('beforeend', marcadoresHtml);
-    }
-  }
-
   // ───────────────────────── Lista de Soldas (linhas padrão) ─────────────────────────
   var SOLDAS = [
     ['1', 'Tampo → Casco (circunf.)', '—'],
@@ -573,12 +531,9 @@ document.addEventListener('DOMContentLoaded', function () {
   });
   document.getElementById('tbl-espessuras-body').innerHTML = espessurasHtml || '<tr><td colspan="4">—</td></tr>';
 
-  // ───────────────────────── Carimbo (title block) ─────────────────────────
-  texto('car-data-emissao', meta.emissao);
+  // ───────────────────────── Carimbo (title block) enxuto ─────────────────────────
   texto('car-cliente', emp.razaoSocial || emp.nomeFantasia);
   texto('car-tag', tag);
-  texto('car-desenho', tag ? (tag + '-FD-R00') : null);
-  texto('car-fabricante', info.fabricante);
   texto('car-data', meta.emissao);
 
   // ───────────────────────── Rodapé (dados da empresa executante) ─────────────────────────
@@ -601,6 +556,8 @@ document.addEventListener('DOMContentLoaded', function () {
   // .content-container) e por isso mantém tamanho canônico, nunca encolhe — espelha
   // .resumo-body do RESUMO-MEMORIAL.html. Roda DEPOIS de toda a injeção de dados.
   ajustarFonteParaCaber(document.getElementById('folha-body'));
+  // Com a fonte final definida, a LISTA DE BOCAIS ganha linhas vazias até o fim do bloco.
+  preencherLinhasBocais();
 });
 </script>
 </body>

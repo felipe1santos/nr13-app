@@ -154,6 +154,64 @@
   cursor: not-allowed;
 }
 
+.modelador-campo-rotulo {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+/* Ícone "i" de ajuda do campo (sem glifo "info" no sprite → círculo CSS com "i" tipográfico). */
+.modelador-dica {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.modelador-dica-btn {
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  border: 1px solid var(--border-solid);
+  border-radius: 50%;
+  background: var(--bg-body);
+  color: var(--text-muted);
+  font: italic 700 10px/1 Georgia, 'Times New Roman', serif;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: help;
+  flex-shrink: 0;
+}
+
+.modelador-dica-btn:hover,
+.modelador-dica-btn:focus-visible,
+.modelador-dica-btn[aria-expanded='true'] {
+  outline: none;
+  border-color: var(--accent);
+  color: var(--accent-2);
+  background: var(--accent-bg-light, var(--bg-body));
+}
+
+/* Balão da dica: `position: fixed` (coordenadas calculadas em JS no DicaCampo) para não ser
+   cortado pelo overflow-y do painel; acima do overlay do modelador (z-index 3000). */
+.modelador-dica-balao {
+  position: fixed;
+  z-index: 4000;
+  max-width: 240px;
+  padding: 8px 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-solid);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  color: var(--text-main);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
+  text-transform: none;
+  letter-spacing: normal;
+  pointer-events: none;
+}
+
 .modelador-campo-input {
   position: relative;
   display: flex;

@@ -3,12 +3,28 @@
 // (`gerarCroquis2d` a cada mudança do modelo). "Salvar" grava o modelo, os croquis 2D técnicos e a
 // folha de dados via `salvarModelo` (chaves `nr13_modelo3d_<TAG>` etc. — ver `modeladorService.ts`);
 // "Fechar" descarta sem persistir.
-import { useMemo, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { carregarOuPreCarregar, salvarModelo } from './modeladorService';
 import { gerarCroquis2d } from './croqui2dService';
 import PainelElementos from './PainelElementos';
 import type { ModeloVaso } from './tiposModelador';
 import './modelador.css';
+
+// Fit-to-content: os SVGs vêm com viewBox fixo por vista — vaso pequeno/curto ocupa só o centro
+// e sobra branco. Reescreve o viewBox para o bbox real do conteúdo (getBBox exige o elemento já
+// renderizado; se falhar, mantém o viewBox original).
+function ajustarViewBoxAoConteudo(svgEl: SVGGraphicsElement | null) {
+  if (!svgEl) return;
+  try {
+    const b = svgEl.getBBox();
+    if (b && b.width > 1 && b.height > 1) {
+      const pad = Math.max(b.width, b.height) * 0.02 + 4;
+      svgEl.setAttribute('viewBox', `${b.x - pad} ${b.y - pad} ${b.width + 2 * pad} ${b.height + 2 * pad}`);
+    }
+  } catch {
+    /* getBBox falha se display:none */
+  }
+}
 
 interface Props {
   tag: string;
@@ -24,6 +40,14 @@ export default function ModeladorVaso({ tag, onFechar, onSalvo, aviso }: Props) 
   const [salvando, setSalvando] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const croquis = useMemo(() => gerarCroquis2d(modelo), [modelo]);
+  const previewRef = useRef<HTMLDivElement>(null);
+
+  // O dangerouslySetInnerHTML re-seta os SVGs a cada mudança do modelo, descartando qualquer
+  // ajuste anterior — por isso o fit roda de novo a cada `croquis` novo, antes do paint.
+  useLayoutEffect(() => {
+    if (!previewRef.current) return;
+    previewRef.current.querySelectorAll('svg').forEach((svg) => ajustarViewBoxAoConteudo(svg));
+  }, [croquis]);
 
   async function handleSalvar() {
     if (salvando) return;
@@ -69,7 +93,7 @@ export default function ModeladorVaso({ tag, onFechar, onSalvo, aviso }: Props) 
             <PainelElementos modelo={modelo} onChange={setModelo} />
           </div>
 
-          <div className="modelador-preview">
+          <div className="modelador-preview" ref={previewRef}>
             {croquis === null ? (
               <div className="modelador-preview-vazio">
                 Preencha Ø interno, comprimento e espessuras para ver o croqui
