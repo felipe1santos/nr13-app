@@ -209,9 +209,9 @@
                     </div>
 
                     <div class="bloco">
-                        <div class="bloco-titulo">Espessuras por Componente</div>
+                        <div class="bloco-titulo">Espessuras e Materiais por Componente</div>
                         <table class="tbl-prancha">
-                            <thead><tr><th class="esq">Componente</th><th>t Nominal (mm)</th><th>t Requerida (mm)</th><th>CA (mm)</th></tr></thead>
+                            <thead><tr><th class="esq">Componente</th><th>Material</th><th>t Nominal (mm)</th><th>t Requerida (mm)</th><th>CA (mm)</th></tr></thead>
                             <tbody id="tbl-espessuras-body"></tbody>
                         </table>
                     </div>
@@ -231,7 +231,7 @@
                     <div class="bloco bloco-crescer" id="bloco-bocais">
                         <div class="bloco-titulo">Lista de Bocais</div>
                         <table class="tbl-prancha">
-                            <thead><tr><th>Tag</th><th>Serviço</th><th>Qtd</th><th>DN</th><th>Flange</th><th>Obs</th></tr></thead>
+                            <thead><tr><th>Tag</th><th>Serviço</th><th>DN</th><th>Ø × t (mm)</th><th>Flange</th><th>Local</th><th>Pos. long. (mm)</th><th>Ângulo</th><th>Material</th></tr></thead>
                             <tbody id="tbl-bocais-body"></tbody>
                         </table>
                     </div>
@@ -401,7 +401,7 @@ function preencherLinhasBocais() {
   var bloco = document.getElementById('bloco-bocais');
   var tbody = document.getElementById('tbl-bocais-body');
   if (!bloco || !tbody) return;
-  var linhaVazia = '<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>';
+  var linhaVazia = '<tr>' + new Array(9 + 1).join('<td>&nbsp;</td>') + '</tr>';
   var guard = 0;
   while (bloco.scrollHeight <= bloco.clientHeight && guard < 60) {
     tbody.insertAdjacentHTML('beforeend', linhaVazia);
@@ -471,26 +471,64 @@ document.addEventListener('DOMContentLoaded', function () {
   // "cru" acima) — uma linha por item de fd.dimensoes. Sem a chave, mantém o comportamento
   // de sempre (comps do memorial, já preenchido acima).
   if (fd && Array.isArray(fd.dimensoes) && fd.dimensoes.length) {
+    // Material por componente vem do memorial (nr13_vaso_<TAG>): casco/tampo1/tampo2 → dados.mat.
+    var matPorId = {};
+    (Array.isArray(vaso.componentes) ? vaso.componentes : []).forEach(function (c) {
+      if (c && c.id && c.dados && c.dados.mat && !/^material$/i.test(String(c.dados.mat).trim())) {
+        matPorId[c.id] = String(c.dados.mat);
+      }
+    });
+    function matDaDimensao(nomeComp) {
+      if (/^casco/i.test(nomeComp)) return matPorId.casco;
+      if (/^tampo 1/i.test(nomeComp)) return matPorId.tampo1;
+      if (/^tampo 2/i.test(nomeComp)) return matPorId.tampo2;
+      return null;
+    }
     var dimLinhasHtml = '';
     fd.dimensoes.forEach(function (d) {
-      dimLinhasHtml += '<div class="lista-comp">' + escapeHtml((d && d.texto) || '—') + '</div>';
+      var linha = (d && d.texto) || '—';
+      var matDim = matDaDimensao((d && d.componente) || '');
+      if (matDim) linha += ' — mat. ' + matDim;
+      dimLinhasHtml += '<div class="lista-comp">' + escapeHtml(linha) + '</div>';
     });
     document.getElementById('dt-componentes').innerHTML = dimLinhasHtml;
   }
 
   // ───────────────────────── Lista de Bocais ─────────────────────────
-  // Com nr13_folha_dados_<TAG>, as linhas reais dos bocais modelados (id/serviço/DN/flange/obs)
-  // entram no topo; completa até a base de 8 linhas. Sem a chave, 8 linhas vazias. Depois do
-  // auto-fit, preencherLinhasBocais() acrescenta linhas vazias até o bloco (flex:1) encher.
+  // Com nr13_folha_dados_<TAG>, cada bocal modelado entra completo: Ø×espessura, local,
+  // posição longitudinal (da tangência do tampo 1) e ângulo (0°=topo, horário). Material vem do
+  // memorial (nr13_vaso_<TAG>, componentes tipo 'bocal', na mesma ordem dos bocais doMemorial).
+  // Payloads antigos (sem os campos novos) degradam para "—" ou para o resumo `obs` legado.
+  // Completa até a base de 8 linhas; depois do auto-fit, preencherLinhasBocais() enche o bloco.
+  var NOME_LOCAL = { casco: 'Casco', tampo1: 'Tampo 1', tampo2: 'Tampo 2' };
+  var bocaisMemorial = (Array.isArray(vaso.componentes) ? vaso.componentes : []).filter(function (c) {
+    return c && c.tipo === 'bocal';
+  });
+  var idxMemorial = 0;
   var bocaisHtml = '';
   var bocaisFd = (fd && Array.isArray(fd.bocais)) ? fd.bocais : [];
   bocaisFd.forEach(function (b) {
+    var oxt = '—';
+    if (b.diametroMm !== null && b.diametroMm !== undefined) {
+      oxt = 'Ø' + numOuTraco(b.diametroMm, 0) +
+        ((b.espessuraMm !== null && b.espessuraMm !== undefined) ? ' × ' + numOuTraco(b.espessuraMm, 1) : '');
+    }
+    var localTxt = NOME_LOCAL[b.local] || (b.obs ? escapeHtml(b.obs) : '—');
+    var pos = (b.posicaoAxialMm !== null && b.posicaoAxialMm !== undefined) ? numOuTraco(b.posicaoAxialMm, 0) : '—';
+    var ang = (b.anguloGraus !== null && b.anguloGraus !== undefined) ? numOuTraco(b.anguloGraus, 0) + '°' : '—';
+    var mat = '—';
+    if (b.doMemorial && bocaisMemorial[idxMemorial]) {
+      var dadosB = bocaisMemorial[idxMemorial].dados || {};
+      if (dadosB.mat && !/^material$/i.test(String(dadosB.mat).trim())) mat = escapeHtml(String(dadosB.mat));
+    }
+    if (b.doMemorial) idxMemorial++;
     bocaisHtml += '<tr><td>' + campoOuTraco(b.id) + '</td><td class="esq">' + campoOuTraco(b.servico) +
-      '</td><td>1</td><td>' + campoOuTraco(b.dn) + '</td><td>' + campoOuTraco(b.flange) +
-      '</td><td class="esq">' + campoOuTraco(b.obs) + '</td></tr>';
+      '</td><td>' + campoOuTraco(b.dn) + '</td><td>' + oxt + '</td><td>' + campoOuTraco(b.flange) +
+      '</td><td>' + localTxt + '</td><td>' + pos + '</td><td>' + ang + '</td><td>' + mat + '</td></tr>';
   });
+  var LINHA_BOCAL_VAZIA = '<tr>' + new Array(9 + 1).join('<td>&nbsp;</td>') + '</tr>';
   for (var b = bocaisFd.length; b < 8; b++) {
-    bocaisHtml += '<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>';
+    bocaisHtml += LINHA_BOCAL_VAZIA;
   }
   document.getElementById('tbl-bocais-body').innerHTML = bocaisHtml;
 
@@ -522,14 +560,15 @@ document.addEventListener('DOMContentLoaded', function () {
   });
   document.getElementById('tbl-soldas-body').innerHTML = soldasHtml;
 
-  // ───────────────────────── Espessuras por Componente ─────────────────────────
+  // ───────────────────────── Espessuras e Materiais por Componente ─────────────────────────
   var espessurasHtml = '';
   comps.forEach(function (c) {
+    var matComp = (c && c.material && !/^material$/i.test(String(c.material).trim())) ? escapeHtml(String(c.material)) : '—';
     var nome = (c && c.nome) ? c.nome : 'COMPONENTE';
-    espessurasHtml += '<tr><td class="esq">' + nome + '</td><td>' + numOuTraco(c ? c.tNom : null) +
+    espessurasHtml += '<tr><td class="esq">' + nome + '</td><td>' + matComp + '</td><td>' + numOuTraco(c ? c.tNom : null) +
       '</td><td>' + numOuTraco(c ? c.tReqMm : null) + '</td><td>' + numOuTraco(c ? c.ca : null) + '</td></tr>';
   });
-  document.getElementById('tbl-espessuras-body').innerHTML = espessurasHtml || '<tr><td colspan="4">—</td></tr>';
+  document.getElementById('tbl-espessuras-body').innerHTML = espessurasHtml || '<tr><td colspan="5">—</td></tr>';
 
   // ───────────────────────── Carimbo (title block) enxuto ─────────────────────────
   texto('car-cliente', emp.razaoSocial || emp.nomeFantasia);

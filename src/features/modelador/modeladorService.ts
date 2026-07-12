@@ -10,7 +10,21 @@ import type { BocalModelo, ModeloVaso, TampoModelo, TipoTampoModelo } from './ti
 export interface FolhaDadosDerivada {
   geradoEm: string;
   orientacao: 'vertical' | 'horizontal';
-  bocais: { id: string; servico: string; dn: string; flange: string; obs: string; anguloGraus: number | null }[];
+  bocais: {
+    id: string;
+    servico: string;
+    dn: string;
+    flange: string;
+    /** Resumo textual legado (local @ posição) — mantido p/ payloads/folhas antigas. */
+    obs: string;
+    anguloGraus: number | null;
+    local: 'casco' | 'tampo1' | 'tampo2';
+    doMemorial: boolean;
+    diametroMm: number | null;
+    espessuraMm: number | null;
+    /** Posição longitudinal a partir da tangência do tampo 1; null p/ bocal de tampo. */
+    posicaoAxialMm: number | null;
+  }[];
   pesos: {
     vazioKg: number | null;
     cheioDaguaKg: number | null;
@@ -236,6 +250,11 @@ export function montarFolhaDados(m: ModeloVaso): FolhaDadosDerivada {
       flange: b.flange,
       obs,
       anguloGraus: angulo,
+      local: b.local,
+      doMemorial: b.doMemorial === true,
+      diametroMm: num(b.diametro),
+      espessuraMm: num(b.espessura),
+      posicaoAxialMm: b.local === 'casco' ? posAxial : null,
     };
   });
 

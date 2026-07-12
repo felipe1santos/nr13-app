@@ -115,7 +115,17 @@ describe('salvarModelo e folha de dados', () => {
     m.diametroInterno = 1000; m.comprimentoCilindro = 2000; m.espessuraCasco = 10;
     m.bocais = [{ id: 'N1', doMemorial: false, servico: 'Dreno', dn: '1"', diametro: 25, espessura: 4, flange: 'SO #150', local: 'casco', posicaoAxial: 300, angulo: 180, projecao: 120 }];
     const fd = montarFolhaDados(m);
-    expect(fd.bocais[0]).toMatchObject({ id: 'N1', servico: 'Dreno', dn: '1"', anguloGraus: 180 });
+    expect(fd.bocais[0]).toMatchObject({
+      id: 'N1',
+      servico: 'Dreno',
+      dn: '1"',
+      anguloGraus: 180,
+      local: 'casco',
+      diametroMm: 25,
+      espessuraMm: 4,
+      posicaoAxialMm: 300,
+      doMemorial: false,
+    });
     expect(fd.dimensoes.some((d) => d.componente.includes('Casco'))).toBe(true);
   });
 
@@ -138,6 +148,8 @@ describe('salvarModelo e folha de dados', () => {
     const fd = montarFolhaDados(m);
     expect(fd.bocais[0].obs).toBe('tampo 1 @ 90°');
     expect(fd.bocais[1].obs).toBe('tampo 2'); // sem ângulo informado: só o nome do tampo
+    expect(fd.bocais[0].posicaoAxialMm).toBeNull(); // posição longitudinal não se aplica a tampo
+    expect(fd.bocais[0].local).toBe('tampo1');
   });
 });
 
