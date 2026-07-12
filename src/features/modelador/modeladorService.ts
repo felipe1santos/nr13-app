@@ -1,10 +1,9 @@
-// Persistência do Modelador de Vaso 3D: pré-carga a partir do memorial já salvo
-// (`nr13_vaso_<TAG>` / `nr13_vaso_ac_corpo_<TAG>`), gravação do modelo (`nr13_modelo3d_<TAG>`),
-// da folha de dados derivada (`nr13_folha_dados_<TAG>`) e dos croquis 2D (`nr13_croqui2d_<TAG>`).
-// O croqui 3D (PNG) usa a mesma chave/serviço do prontuário (`gravarCroqui3d`).
+// Persistência do editor de Croqui 2D do vaso: pré-carga a partir do memorial já salvo
+// (`nr13_vaso_<TAG>` / `nr13_vaso_ac_corpo_<TAG>`), gravação do modelo (`nr13_modelo3d_<TAG>`,
+// chave mantida por compatibilidade com modelos já salvos), da folha de dados derivada
+// (`nr13_folha_dados_<TAG>`) e dos croquis 2D (`nr13_croqui2d_<TAG>`).
 import { excluirChave, ler, salvar } from '../../services/storage';
 import type { VasoSalvo } from '../memorial/vasoMemorialService';
-import { gravarCroqui3d } from '../prontuarios/prontuarioService';
 import { circunferenciaMm, comprimentoTotalMm, dimensoesTampo, num, pesosKg } from './geometriaVaso';
 import type { BocalModelo, ModeloVaso, TampoModelo, TipoTampoModelo } from './tiposModelador';
 
@@ -76,14 +75,30 @@ function tipoTampoDoMemorial(tipo: string): TipoTampoModelo | null {
   }
 }
 
-export function carregarOuPreCarregar(tag: string): ModeloVaso {
-  const existente = ler<ModeloVaso>(chaveModelo3d(tag));
-  // Migração: modelos salvos antes do campo `virolas` (fase 2) não o têm — tratar como 1 virola.
-  if (existente) return { ...existente, virolas: existente.virolas === undefined ? 1 : existente.virolas };
+/**
+ * Comprimento do cilindro estimado a partir do volume salvo na calculadora de categoria
+ * (`nr13_cat_<TAG>.volInput`, m³): desconta o volume dos 2 tampos (meia elipsoide 2/3·π·R²·h)
+ * e divide pela seção do cilindro. É só sugestão de pré-preenchimento — o usuário confere.
+ */
+function sugerirComprimentoPorVolume(tag: string, modelo: ModeloVaso): number | '' {
+  const cat = ler<{ volInput?: number | string }>(`nr13_cat_${tag}`);
+  const vol = toNum(cat?.volInput);
+  const D = toNum(modelo.diametroInterno);
+  if (vol === '' || D === '' || vol <= 0 || D <= 0) return '';
+  const R = D / 2;
+  const volTampo = (tampo: TampoModelo): number => {
+    const t = num(tampo.espessura);
+    const dims = dimensoesTampo(tampo.tipo, D, t ?? 0);
+    return (2 / 3) * Math.PI * R * R * dims.profundidade; // mm³
+  };
+  const volMm3 = vol * 1e9;
+  const lMm = (volMm3 - volTampo(modelo.tampo1) - volTampo(modelo.tampo2)) / (Math.PI * R * R);
+  if (!Number.isFinite(lMm) || lMm <= 0) return '';
+  return Math.round(lMm);
+}
 
-  const vaso = ler<VasoSalvo>(`nr13_vaso_${tag}`) ?? ler<VasoSalvo>(`nr13_vaso_ac_corpo_${tag}`);
-  if (!vaso) return modeloVazio(tag);
-
+/** Monta um ModeloVaso a partir do memorial salvo (pré-carga dos campos calculados). */
+function modeloDoMemorial(tag: string, vaso: VasoSalvo): ModeloVaso {
   const modelo = modeloVazio(tag);
   modelo.diametroInterno = toNum(vaso.D);
   modelo.orientacao = vaso.orientacao ?? 'horizontal';
@@ -124,8 +139,35 @@ export function carregarOuPreCarregar(tag: string): ModeloVaso {
   if (tampos[0]) modelo.tampo1 = tampos[0];
   if (tampos[1]) modelo.tampo2 = tampos[1];
   modelo.bocais = bocais;
+  modelo.comprimentoCilindro = sugerirComprimentoPorVolume(tag, modelo);
 
   return modelo;
+}
+
+export function carregarOuPreCarregar(tag: string): ModeloVaso {
+  const vaso = ler<VasoSalvo>(`nr13_vaso_${tag}`) ?? ler<VasoSalvo>(`nr13_vaso_ac_corpo_${tag}`);
+  const existente = ler<ModeloVaso>(chaveModelo3d(tag));
+  if (!existente) return vaso ? modeloDoMemorial(tag, vaso) : modeloVazio(tag);
+
+  // Migração: modelos salvos antes do campo `virolas` (fase 2) não o têm — tratar como 1 virola.
+  const migrado: ModeloVaso = { ...existente, virolas: existente.virolas === undefined ? 1 : existente.virolas };
+  if (!vaso) return migrado;
+
+  // Memorial editado depois do croqui salvo: os campos calculados re-sincronizam (memorial é a
+  // fonte de verdade de Ø, espessuras, tampos e material); o que só o croqui conhece
+  // (comprimento, virolas, suporte, posição/ângulo dos bocais) é preservado.
+  const preCarga = modeloDoMemorial(tag, vaso);
+  return {
+    ...migrado,
+    orientacao: vaso.orientacao ?? migrado.orientacao,
+    diametroInterno: preCarga.diametroInterno === '' ? migrado.diametroInterno : preCarga.diametroInterno,
+    espessuraCasco: preCarga.espessuraCasco === '' ? migrado.espessuraCasco : preCarga.espessuraCasco,
+    material: preCarga.material || migrado.material,
+    tampo1: preCarga.tampo1.espessura === '' ? migrado.tampo1 : preCarga.tampo1,
+    tampo2: preCarga.tampo2.espessura === '' ? migrado.tampo2 : preCarga.tampo2,
+    bocais: migrado.bocais.length > 0 ? migrado.bocais : preCarga.bocais,
+    comprimentoCilindro: migrado.comprimentoCilindro === '' ? preCarga.comprimentoCilindro : migrado.comprimentoCilindro,
+  };
 }
 
 function fmtNum(v: number | null, casas = 2): string {
@@ -237,7 +279,6 @@ export async function salvarModelo(
   tag: string,
   m: ModeloVaso,
   croquis2d: { longitudinal: string; transversal: string; detalheTampo: string } | null,
-  png3d: string | null,
 ): Promise<void> {
   await salvar(chaveModelo3d(tag), m);
   await salvar(chaveFolhaDados(tag), montarFolhaDados(m));
@@ -248,7 +289,4 @@ export async function salvarModelo(
     // o SVG antigo obsoleto — o croqui2d precisa ficar consistente com a folha_dados atual.
     await excluirChave(chaveCroqui2d(tag));
   }
-  // png3d null NÃO remove o croqui3d salvo: o usuário pode ter uma captura antiga intencional
-  // (o viewport pode estar temporariamente sem dados/captura, sem que isso invalide a anterior).
-  if (png3d) await gravarCroqui3d(tag, png3d);
 }

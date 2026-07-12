@@ -38,17 +38,17 @@
 
 ## 3. Polimentos opcionais (nada bloqueia; sistema funciona sem)
 
-- [ ] **Modelador — lista de soldas real:** folha de dados ainda usa 4 linhas padrão fixas
+- [ ] **Croqui 2D — lista de soldas real:** folha de dados ainda usa 4 linhas padrão fixas
       (Tampo→Casco, Longitudinal, Casco→Casco, Bocais) com E(%)/OBS "—"; evoluir para soldas
       derivadas do modelo (nº por curso do casco, eficiência do memorial).
-- [ ] **Modelador — peso de pés/selas:** cálculo de peso só inclui saia; pés/selas ficam de fora
+- [ ] **Croqui 2D — peso de pés/selas:** cálculo de peso só inclui saia; pés/selas ficam de fora
       (a folha avisa em nota). Incluir estimativa por perfil.
-- [ ] **Caldeira sem croqui 3D/2D:** modelador é só vaso/autoclave; caldeira mostra "Em Breve"
-      no botão do prontuário.
+- [ ] **Caldeira sem croqui 2D:** editor de croqui é só vaso/autoclave; caldeira mostra "Em Breve"
+      no botão do prontuário (e o passo obrigatório do memorial não se aplica a ela).
 - [ ] **Campos do ensaio no relatório:** `ULTRASSOM.html` do relatório preserva os campos do
       ensaio agora, mas o formulário de campo não coleta todos (aparelho/série/acoplante/
       cabeçote/velocidade sônica) — conferir `FormularioUltrassom` e completar o que faltar.
 - [ ] **Auditoria mobile folha a folha** das telas de inspeção e **revisão de `@media print`**
       em cada template para A4 exato (sugestão antiga do CLAUDE.md §9).
 - [ ] **Limpar equipamentos de teste** do ambiente (criados nas sessões de desenvolvimento):
-      `CALD-01`, `AUTO-T1` (tem modelo 3D salvo Ø1200×3000) — excluir quando não precisar mais.
+      `CALD-01`, `AUTO-T1` (tem modelo de croqui salvo Ø1200×3000) — excluir quando não precisar mais.

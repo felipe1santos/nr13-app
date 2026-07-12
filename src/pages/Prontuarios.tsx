@@ -5,7 +5,6 @@ import { formatarValor } from '../calc/unidades';
 import {
   carregarProntuario,
   excluirProntuario,
-  gravarCroqui3d,
   gravarProntuarioAtual,
   obterOuCriarMeta,
   salvarProntuario,
@@ -209,6 +208,8 @@ export default function Prontuarios() {
   const [containers, setContainers] = useState<ContainerInspecao[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [imprimindo, setImprimindo] = useState(false);
+  // Recomputado a cada render — o bump de `versao` no onSalvo do modelador atualiza o indicador.
+  const temCroqui2d = tag !== '' && localStorage.getItem(`nr13_croqui2d_${tag}`) !== null;
 
   async function prepararEImprimir() {
     setImprimindo(true);
@@ -435,10 +436,9 @@ export default function Prontuarios() {
       setDados(finais);
       setMostrarModelador(false);
       gravarProntuarioAtual(finais);
-      // Grava/reusa a meta (nº do relatório + data de emissão) e o croqui 3D nas chaves por TAG
-      // que as folhas PRONT-*.html leem — precisa acontecer antes de montar os iframes.
+      // Grava/reusa a meta (nº do relatório + data de emissão) na chave por TAG que as folhas
+      // PRONT-*.html leem — precisa acontecer antes de montar os iframes.
       await obterOuCriarMeta(eq.tag);
-      if (finais.croqui) await gravarCroqui3d(eq.tag, finais.croqui);
       // Re-aplica a grade de espessura do ensaio escolhido (ou limpa se nenhum) para os iframes.
       const contSel = finais.containerEnsaioId ? conts.find((c) => c.id === finais.containerEnsaioId) ?? null : null;
       await aplicarEnsaioEspessura(eq.tag, contSel);
@@ -491,7 +491,6 @@ export default function Prontuarios() {
   async function visualizar() {
     gravarProntuarioAtual(dados);
     await obterOuCriarMeta(tag);
-    if (dados.croqui) await gravarCroqui3d(tag, dados.croqui);
     setVersao((v) => v + 1);
     setVisualizandoSemSalvar(true);
     setTela('visualizador');
@@ -503,7 +502,6 @@ export default function Prontuarios() {
       salvarProntuario(tag, dados);
       gravarProntuarioAtual(dados);
       await obterOuCriarMeta(tag);
-      if (dados.croqui) await gravarCroqui3d(tag, dados.croqui);
       setVersao((v) => v + 1);
       setVisualizandoSemSalvar(false);
       setTela('visualizador');
@@ -776,9 +774,9 @@ export default function Prontuarios() {
             </div>
           </div>
 
-          {/* Dimensões + Croqui 3D */}
+          {/* Dimensões + Croqui 2D */}
           <div className="pront-form-secao">
-            <div className="pront-form-secao-titulo">Dimensões e Croqui 3D</div>
+            <div className="pront-form-secao-titulo">Dimensões e Croqui 2D</div>
 
             {/* Linha única de dimensões adaptada por tipo de equipamento */}
             {(() => {
@@ -797,33 +795,27 @@ export default function Prontuarios() {
               );
             })()}
 
-            {/* Croqui 3D / Modelador */}
+            {/* Croqui 2D / Modelador */}
             <div style={{ padding: '12px 14px 0' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
                 <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
                   Croqui
                 </span>
                 {tipoEquip === 'vaso' || tipoEquip === 'autoclave' ? (
-                  <button type="button" className="btn-secundario" style={{ fontSize: 12 }} onClick={() => setMostrarModelador(true)}>
-                    ⬡ Abrir Modelador
-                  </button>
+                  <>
+                    <button type="button" className="btn-secundario" style={{ fontSize: 12 }} onClick={() => setMostrarModelador(true)}>
+                      Croqui 2D do Equipamento
+                    </button>
+                    <span style={{ fontSize: 12, color: temCroqui2d ? 'var(--ok)' : 'var(--text-muted)', fontStyle: temCroqui2d ? 'normal' : 'italic' }}>
+                      {temCroqui2d ? '✓ croqui gerado' : 'croqui pendente'}
+                    </span>
+                  </>
                 ) : (
                   <span style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                    ⬡ Modelador — Em Breve
+                    Croqui 2D — Em Breve
                   </span>
                 )}
-                {dados.croqui && (
-                  <button type="button" className="btn-remover" style={{ fontSize: 11 }} onClick={() => set('croqui', undefined)}>
-                    Remover croqui
-                  </button>
-                )}
               </div>
-
-              {dados.croqui && (
-                <div className="pront-upload-preview">
-                  <img src={dados.croqui} alt="Croqui" />
-                </div>
-              )}
             </div>
           </div>
 
@@ -926,7 +918,8 @@ export default function Prontuarios() {
         <ModeladorVaso
           tag={tag}
           onFechar={() => setMostrarModelador(false)}
-          onSalvo={(png) => set('croqui', png ?? dados.croqui)}
+          // Bump de versão: atualiza o indicador "croqui gerado" e remonta os iframes na volta.
+          onSalvo={() => setVersao((v) => v + 1)}
         />
       )}
     </div>

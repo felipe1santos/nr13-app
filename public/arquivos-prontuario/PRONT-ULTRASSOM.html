@@ -135,6 +135,8 @@
             border: 1px solid #d1d5db;
         }
         .croqui-wrap img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        /* Croqui 2D (SVG inline do modelador): viewBox preservado, escala pelo box do wrap. */
+        .croqui-wrap svg { width: 100%; height: auto; max-height: 100%; }
         .croqui-vazio {
             width: 100%;
             height: 100%;
@@ -258,8 +260,8 @@
             <div class="section-title-band">LOCALIZAÇÃO DOS PONTOS DE MEDIÇÃO E MEDIDAS ENCONTRADAS (MM)</div>
             <div class="grid-medicao">
                 <table class="tabela-medicao"><tbody id="tabela-medicao-body"></tbody></table>
-                <div class="croqui-wrap">
-                    <img id="img-croqui3d" alt="Croqui 3D" style="display:none">
+                <div id="croqui-box" class="croqui-wrap">
+                    <img id="img-croqui3d" alt="Croqui" style="display:none">
                     <div id="croqui-vazio" class="croqui-vazio">Croqui não gerado</div>
                 </div>
             </div>
@@ -405,14 +407,22 @@ document.addEventListener('DOMContentLoaded', function () {
   var corpoGrid = document.getElementById('tabela-medicao-body');
   if (corpoGrid) corpoGrid.innerHTML = htmlGrid;
 
-  // ───────────────────────── Croqui 3D ─────────────────────────
-  var croqui = lerTexto('nr13_croqui3d_' + tag) || pront.croqui;
-  var imgCroqui = document.getElementById('img-croqui3d');
-  var croquiVazio = document.getElementById('croqui-vazio');
-  if (croqui) {
-    imgCroqui.src = croqui;
-    imgCroqui.style.display = 'block';
-    if (croquiVazio) croquiVazio.style.display = 'none';
+  // ───────────────────────── Croqui ─────────────────────────
+  // Fonte principal: croqui 2D do modelador (nr13_croqui2d_<TAG>, vista longitudinal em SVG).
+  // Fallback legado: PNG 3D (nr13_croqui3d_<TAG> ou pront.croqui). Sem nenhum, "Croqui não gerado".
+  var croquiBox = document.getElementById('croqui-box');
+  var c2d = lerJSON('nr13_croqui2d_' + tag);
+  if (croquiBox && c2d && c2d.longitudinal) {
+    croquiBox.innerHTML = c2d.longitudinal;
+  } else {
+    var croqui = lerTexto('nr13_croqui3d_' + tag) || pront.croqui;
+    var imgCroqui = document.getElementById('img-croqui3d');
+    var croquiVazio = document.getElementById('croqui-vazio');
+    if (croqui) {
+      imgCroqui.src = croqui;
+      imgCroqui.style.display = 'block';
+      if (croquiVazio) croquiVazio.style.display = 'none';
+    }
   }
 
   // ───────────────────────── Instrumento de medição (rastreabilidade) ─────────────────────────

@@ -1,5 +1,5 @@
-/* Modelador de Vaso (fase 2) — overlay full-screen estilo PVElite: painel de elementos + viewport
-   3D. Segue o design system "Forja" (tokens em src/styles/tokens.css: --amber, --bg-card,
+/* Editor de Croqui 2D do vaso — overlay full-screen estilo PVElite: painel de elementos + preview
+   2D ao vivo. Segue o design system "Forja" (tokens em src/styles/tokens.css: --amber, --bg-card,
    --border-solid, --radius-*, --shadow-*, --text-main/--text-muted). */
 
 .modelador-overlay {
@@ -43,6 +43,14 @@
 .modelador-header-acoes {
   display: flex;
   gap: 10px;
+}
+
+.modelador-aviso {
+  padding: 8px 20px;
+  background: color-mix(in srgb, var(--amber, #d97706) 14%, var(--bg-card));
+  border-bottom: 1px solid var(--border-solid);
+  font-size: 13px;
+  flex-shrink: 0;
 }
 
 .modelador-corpo {
@@ -232,79 +240,65 @@
   align-self: flex-start;
 }
 
-.modelador-viewport {
+.modelador-preview {
   display: flex;
   flex-direction: column;
+  gap: 12px;
   min-height: 0;
   padding: 12px 16px 16px;
 }
 
-.modelador-viewport-toggles {
-  display: flex;
-  gap: 18px;
-  padding-bottom: 10px;
-  flex-shrink: 0;
-}
-
-.modelador-toggle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-main);
-  cursor: pointer;
-  user-select: none;
-}
-
-.modelador-toggle input {
-  position: absolute;
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.modelador-toggle-caixa {
-  position: relative;
-  width: 34px;
-  height: 19px;
-  border-radius: 999px;
-  background: var(--border-solid);
-  transition: background var(--t-fast);
-  flex-shrink: 0;
-}
-
-.modelador-toggle-caixa::after {
-  content: '';
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 15px;
-  height: 15px;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: var(--shadow-xs);
-  transition: transform var(--t-fast);
-}
-
-.modelador-toggle input:checked + .modelador-toggle-caixa {
-  background: var(--amber);
-}
-
-.modelador-toggle input:checked + .modelador-toggle-caixa::after {
-  transform: translateX(15px);
-}
-
-.modelador-toggle input:focus-visible + .modelador-toggle-caixa {
-  box-shadow: 0 0 0 3px var(--accent-ring);
-}
-
-.modelador-viewport-canvas {
+/* Croquis são SVG com viewBox (fundo branco de prancha técnica, independente do tema). */
+.modelador-preview-principal {
   flex: 1;
   min-height: 0;
-  border-radius: var(--radius-lg);
-  overflow: hidden;
+  background: #fff;
   border: 1px solid var(--border-solid);
+  border-radius: var(--radius-lg);
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+}
+
+.modelador-preview-principal svg,
+.modelador-preview-mini svg {
+  width: 100%;
+  height: 100%;
+}
+
+.modelador-preview-minis {
+  flex: 0 0 220px;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.modelador-preview-mini {
+  min-height: 0;
+  background: #fff;
+  border: 1px solid var(--border-solid);
+  border-radius: var(--radius-md);
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.modelador-preview-vazio {
+  flex: 1;
+  border: 2px dashed var(--border-solid);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20px;
+  font-size: 13px;
+  color: var(--text-muted);
 }
 
 .modelador-toast {
@@ -324,7 +318,7 @@
   text-align: center;
 }
 
-/* Mobile (CLAUDE.md §5): painel vira accordion acima do viewport, colunas empilham. */
+/* Mobile (CLAUDE.md §5): painel vira accordion acima do preview, colunas empilham. */
 @media (max-width: 860px) {
   .modelador-overlay {
     padding: 0;
@@ -352,7 +346,11 @@
     grid-template-columns: 1fr;
   }
 
-  .modelador-viewport {
+  .modelador-preview {
     padding: 12px;
+  }
+
+  .modelador-preview-minis {
+    flex-basis: 150px;
   }
 }

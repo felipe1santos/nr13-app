@@ -63,14 +63,14 @@ describe('gerarCroquis2d', () => {
     const c = gerarCroquis2d(m)!;
     // 2 tangências + 2 divisões de virola = 4 linhas de costura tracejadas na longitudinal
     // (o detalhe do tampo tem a sua própria; conta só as da longitudinal)
-    const costuras = [...c.longitudinal.matchAll(/stroke-dasharray="8,3"/g)];
+    const costuras = [...c.longitudinal.matchAll(/stroke-dasharray="12,4"/g)];
     expect(costuras).toHaveLength(4);
   });
 
   it('modelo sem o campo virolas (salvo antes da migração) → 1 virola, só as 2 tangências', () => {
     const { virolas: _virolas, ...semVirolas } = modeloCompleto();
     const c = gerarCroquis2d(semVirolas as ReturnType<typeof modeloCompleto>)!;
-    expect([...c.longitudinal.matchAll(/stroke-dasharray="8,3"/g)]).toHaveLength(2);
+    expect([...c.longitudinal.matchAll(/stroke-dasharray="12,4"/g)]).toHaveLength(2);
   });
 
   it('bocal de frente (90°) vira círculo sólido na face; de trás (270°) vira tracejado — horizontal', () => {
@@ -82,7 +82,7 @@ describe('gerarCroquis2d', () => {
     const c = gerarCroquis2d(m)!;
     const circulosTracejados = [...c.longitudinal.matchAll(/<circle[^>]*stroke-dasharray="5,3"/g)];
     expect(circulosTracejados).toHaveLength(1);
-    const circulosSolidos = [...c.longitudinal.matchAll(/<circle[^>]*fill="#fff" stroke="#111" stroke-width="1"\/>/g)];
+    const circulosSolidos = [...c.longitudinal.matchAll(/<circle[^>]*fill="#fff" stroke="#111" stroke-width="2"\/>/g)];
     expect(circulosSolidos.length).toBeGreaterThanOrEqual(1);
   });
 
@@ -148,7 +148,7 @@ describe('gerarCroquis2d', () => {
       local: 'casco' as const, posicaoAxial: 400 + i * 600, angulo: 0, projecao: 100,
     }));
     const c = gerarCroquis2d(m)!;
-    const cotas = [...c.longitudinal.matchAll(/<text x="[\d.]+" y="([\d.]+)" font-size="9" font-weight="700" text-anchor="middle" fill="#111">N\d+: [\d.]+<\/text>/g)];
+    const cotas = [...c.longitudinal.matchAll(/<text x="[\d.]+" y="([\d.]+)" font-size="14" font-weight="700" text-anchor="middle" fill="#111">N\d+: [\d.]+<\/text>/g)];
     expect(cotas).toHaveLength(4);
     const ys = cotas.map((match) => Number(match[1]));
     expect(new Set(ys).size).toBe(4); // 4 alturas distintas: nenhuma sobreposição
@@ -169,7 +169,7 @@ describe('gerarCroquis2d', () => {
       local: 'casco' as const, posicaoAxial: 400 + i * 600, angulo: 0, projecao: 100,
     }));
     const c = gerarCroquis2d(m)!;
-    const cotas = [...c.longitudinal.matchAll(/<text x="([\d.]+)" y="[\d.]+" font-size="9" font-weight="700" text-anchor="middle" fill="#111">N\d+: [\d.]+<\/text>/g)];
+    const cotas = [...c.longitudinal.matchAll(/<text x="([\d.]+)" y="[\d.]+" font-size="13" font-weight="700" text-anchor="middle" fill="#111">N\d+: [\d.]+<\/text>/g)];
     expect(cotas).toHaveLength(4);
     const xs = cotas.map((match) => Number(match[1]));
     expect(new Set(xs).size).toBe(4); // 4 posições x distintas: nenhuma sobreposição

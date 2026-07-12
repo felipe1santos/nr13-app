@@ -4,6 +4,7 @@ import { ler, salvar, excluirChave } from '../../services/storage';
 const CHAVE_ATUAL = 'nr13_prontuario_atual';
 const chave = (tag: string) => `nr13_prontuario_${tag}`;
 const chaveMeta = (tag: string) => `nr13_prontuario_meta_${tag}`;
+// Chave legada do croqui 3D (PNG) — não é mais gravada; mantida só para limpeza em excluirProntuario.
 const chaveCroqui3d = (tag: string) => `nr13_croqui3d_${tag}`;
 
 export interface MetaProntuario {
@@ -34,10 +35,6 @@ export async function obterOuCriarMeta(tag: string): Promise<MetaProntuario> {
   };
   await salvar(chaveMeta(tag), meta);
   return meta;
-}
-
-export async function gravarCroqui3d(tag: string, b64: string): Promise<void> {
-  await salvar(chaveCroqui3d(tag), b64);
 }
 
 export async function gravarProntuarioAtual(dados: ProntuarioDados): Promise<void> {

@@ -16,6 +16,7 @@ import {
 } from './vasoMemorialService';
 import { comLoadingGlobal } from '../../app/loadingGlobal';
 import { useAvisoSairSemSalvar } from './useAvisoSairSemSalvar';
+import ModeladorVaso from '../modelador/ModeladorVaso';
 import './memorial.css';
 
 const ROTULO_CASCO = 'Casco Cilíndrico (UG-27c)';
@@ -122,6 +123,9 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
   const [filtro, setFiltro] = useState<string>('full');
   // instante do último "Gerar Cálculo" — linha "Gerado em ..." no topo do terminal
   const [geradoEm, setGeradoEm] = useState<Date | null>(null);
+  // passo obrigatório pós-salvar: editor do croqui 2D pré-preenchido com o memorial recém-salvo
+  // (o GV do autoclave não tem croqui próprio — o croqui é do corpo do equipamento)
+  const [mostrarCroqui, setMostrarCroqui] = useState(false);
 
   // marca "não salvo" a cada alteração do vaso (ignora a montagem inicial)
   const montou = useRef(false);
@@ -246,7 +250,14 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
         await salvarResumoVaso(tag, resumo, sufixo);
       });
       setDirty(false);
-      window.alert('Memorial salvo com sucesso!');
+      if (sufixo === 'gv') {
+        window.alert('Memorial salvo com sucesso!');
+      } else {
+        // Passo obrigatório: o croqui 2D do prontuário nasce aqui, com os dados do memorial
+        // recém-salvo já pré-preenchidos (carregarOuPreCarregar re-sincroniza do nr13_vaso_).
+        window.alert('Memorial salvo com sucesso!\n\nPróximo passo: confira o croqui 2D do equipamento — os dados do memorial já vêm preenchidos.');
+        setMostrarCroqui(true);
+      }
     } finally {
       setSalvando(false);
     }
@@ -544,6 +555,15 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
           placeholder={'>> Insira os dados estruturais e clique em "Gerar Cálculo"...'}
         />
       </TerminalMemorial>
+
+      {mostrarCroqui && (
+        <ModeladorVaso
+          tag={tag}
+          aviso="Passo obrigatório do prontuário: confira os dados pré-preenchidos do memorial, informe o comprimento do cilindro e a posição dos bocais, e clique em Salvar."
+          onFechar={() => setMostrarCroqui(false)}
+          onSalvo={() => {}}
+        />
+      )}
     </div>
   );
 }

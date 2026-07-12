@@ -49,10 +49,10 @@ export function dimensoesTampo(tipo: TipoTampoModelo, D: number, t: number): {
 
 /**
  * Direção radial local (no plano XZ, ANTES de qualquer rotação de orientação do vaso) de um bocal
- * dado seu ângulo em graus — fonte única de verdade da convenção de ângulo, compartilhada entre
- * `Viewport3D.tsx` (3D) e `croqui2dService.ts` (2D: `svgTransversal`/`anguloParaXY`, que usa
- * `rad = (angulo-90)·π/180`, x=cx+r·cos(rad), y=cy+r·sin(rad) em coordenadas de TELA (y para
- * baixo) ⇒ 0°=topo, sentido horário visto de cima).
+ * dado seu ângulo em graus — fonte única de verdade da convenção de ângulo usada por
+ * `croqui2dService.ts` (2D: `svgTransversal`/`anguloParaXY`, que usa `rad = (angulo-90)·π/180`,
+ * x=cx+r·cos(rad), y=cy+r·sin(rad) em coordenadas de TELA (y para baixo) ⇒ 0°=topo, sentido
+ * horário visto de cima). Derivação abaixo nasceu no viewport 3D (removido), mantida como prova.
  *
  * DERIVAÇÃO (prova geométrica — ver revisão de branch que motivou este helper):
  * 1. Defina φ = ânguloGraus em radianos, medido no sentido horário a partir do "topo" — mesma
@@ -63,7 +63,7 @@ export function dimensoesTampo(tipo: TipoTampoModelo, D: number, t: number): {
  *    (Equivalência com a fórmula do croqui2d: cos(φ−90°) = sin(φ) e −sin(φ−90°) = cos(φ), e como o
  *    SVG usa y PARA BAIXO, "−sin(φ−90°)" para cima em tela equivale a "cima"=cos(φ) acima — mesma
  *    parametrização, dois sistemas de coordenadas diferentes.)
- * 2. No Viewport3D, o casco/tampos são construídos com o eixo do vaso = Y local; o bocal nasce
+ * 2. No viewport 3D (histórico), o casco/tampos eram construídos com o eixo do vaso = Y local; o bocal nasce
  *    apontando ao longo de +X local (ver `construirBocal`), ou seja, a referência "0°" do corpo
  *    do bocal É o eixo local X. Quando o vaso está deitado (`orientacao='horizontal'`), o grupo
  *    inteiro gira `rotation.z = +90°` — sob essa rotação (R_z, mão direita): novo_x = x·cosψ−y·sinψ,

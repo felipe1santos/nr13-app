@@ -39,7 +39,6 @@ export interface ProntuarioDados {
   aro: string;
   luvConexoes: string;
   // Dimensões (opcional)
-  croqui?: string;
   dimensoes?: DimensaoProntuario[];
   // Ensaio de espessura puxado (container de inspeção)
   containerEnsaioId?: string;

@@ -59,10 +59,10 @@ Tudo que o usuário salva pode ser fonte de injeção. Chaves por TAG do equipam
 | `nr13_relatorio_meta_atual` | Metadados do relatório em montagem | Gravado na geração |
 | `nr13_inspecao_atual` **e** `nr13_injecao_atual` | Dados de campo do container escolhido | Gravado na geração |
 | `nr13_prontuario_meta_<TAG>` | Nº do relatório (`REL-<timestamp>`) + data de emissão do prontuário; reusado entre reimpressões (`obterOuCriarMeta`) | Gravado ao abrir o visualizador do prontuário |
-| `nr13_croqui3d_<TAG>` | Imagem base64 do croqui 3D (`CroquiVaso3D`), para a folha de ultrassom (PRONT-ULTRASSOM.html) | Gravado ao capturar o croqui e ao abrir o visualizador do prontuário |
-| `nr13_modelo3d_<TAG>` | Modelo do Modelador de Vaso (`ModeloVaso`: diâmetro, comprimento, casco, tampos, bocais, suporte) — fonte de verdade do modelo 3D | Modelador de Vaso (Prontuários → Abrir Modelador) |
-| `nr13_croqui2d_<TAG>` | SVGs 2D gerados no save do modelador: `{ longitudinal, transversal, detalheTampo }` | Modelador de Vaso (save) → PRONT-CROQUI2D.html |
-| `nr13_folha_dados_<TAG>` | Payload derivado do modelo (`FolhaDadosDerivada`: bocais, pesos, dimensões por componente, comprimento total, circunferência) para a folha de dados | Modelador de Vaso (save) → PRONT-FOLHA-DADOS.html |
+| `nr13_croqui3d_<TAG>` | **LEGADO** (render 3D removido em 11/07/2026): PNG antigo do croqui 3D; nenhum código grava mais — PRONT-ULTRASSOM só lê como fallback de dados antigos | — (só leitura de legado) |
+| `nr13_modelo3d_<TAG>` | Modelo do editor de Croqui 2D (`ModeloVaso`: diâmetro, comprimento, casco, virolas, tampos, bocais, suporte) — nome da chave mantido por compatibilidade | Editor de Croqui 2D (memorial → passo obrigatório; Prontuários → botão "Croqui 2D do Equipamento") |
+| `nr13_croqui2d_<TAG>` | SVGs 2D gerados no save do editor: `{ longitudinal, transversal, detalheTampo }` | Editor de Croqui 2D (save) → PRONT-CROQUI2D.html + croqui da folha 1 (PRONT-ULTRASSOM.html) |
+| `nr13_folha_dados_<TAG>` | Payload derivado do modelo (`FolhaDadosDerivada`: bocais, pesos, dimensões por componente, comprimento total, circunferência) para a folha de dados | Editor de Croqui 2D (save) → PRONT-FOLHA-DADOS.html |
 
 > **REGRA CRÍTICA DE INJEÇÃO:** os dados de campo do container **devem ser gravados nas duas chaves**
 > `nr13_inspecao_atual` **e** `nr13_injecao_atual` (ver `gravarInspecaoOrigemAtual`). Os templates não
@@ -191,12 +191,13 @@ e a auto-injeção insere as folhas de fotos/termo nas posições indicadas.
 
 ## 8. Prontuário
 
-O prontuário deve puxar automaticamente: o **cálculo** (memorial), o **croqui** (`CroquiVaso3D`),
-a **logo e dados da empresa** (`nr13_minha_empresa`), e os dados do **engenheiro responsável** para
-**assinar** (`nr13_lista_phs`). `PAGINAS_PRONTUARIO` (`src/features/prontuarios/tipos.ts`) define as
-6 folhas, nesta ordem fixa:
+O prontuário deve puxar automaticamente: o **cálculo** (memorial), o **croqui 2D**
+(`nr13_croqui2d_<TAG>`), a **logo e dados da empresa** (`nr13_minha_empresa`), e os dados do
+**engenheiro responsável** para **assinar** (`nr13_lista_phs`). `PAGINAS_PRONTUARIO`
+(`src/features/prontuarios/tipos.ts`) define as 6 folhas, nesta ordem fixa:
 
-1. `PRONT-ULTRASSOM.html` — grade de espessuras (ultrassom) + croqui 3D + rastreabilidade dos
+1. `PRONT-ULTRASSOM.html` — grade de espessuras (ultrassom) + croqui (SVG longitudinal do croqui
+   2D; fallback: PNG legado `nr13_croqui3d_` → "Croqui não gerado") + rastreabilidade dos
    instrumentos + responsabilidade técnica.
 2. `PRONT-CROQUI2D.html` — croqui 2D cotado (SVG gerado em runtime) + tabela de dimensões reais.
 3. `PRONT-FOLHA-DADOS.html` — prancha técnica do equipamento.
@@ -211,17 +212,24 @@ real no sistema — não ler de `nr13_lista_phs` nessas folhas enquanto isso nã
 `PRONTUARIO-RECONSTITUICAO-1..4` **não fazem parte** do prontuário — seguem como folhas do
 **relatório** (ver §7).
 
-Ao abrir o visualizador do prontuário (`Prontuarios.tsx`, antes de montar os iframes), o app grava:
+Ao abrir o visualizador do prontuário (`Prontuarios.tsx`, antes de montar os iframes), o app grava
 `obterOuCriarMeta(tag)` em `nr13_prontuario_meta_<TAG>` (nº do relatório + data de emissão, reusado
-entre reimpressões) e, se houver croqui, `gravarCroqui3d(tag, dados.croqui)` em
-`nr13_croqui3d_<TAG>` — o mesmo acontece no callback `onCaptura` do `CroquiVaso3D` assim que o croqui
-é gerado, para já ficar disponível caso o usuário pré-visualize sem salvar.
+entre reimpressões). O croqui vem direto de `nr13_croqui2d_<TAG>` — nada é regravado na abertura.
 
-**Modelador de Vaso (Prontuários → Abrir Modelador):** ao salvar o modelo 3D, alimenta a folha 1 (PNG
-do croqui 3D via `gravarCroqui3d`), a folha 2 (`nr13_croqui2d_<TAG>` — SVGs 2D substituem o desenho
-genérico do `PRONT-CROQUI2D.html`) e a folha 3 (`nr13_folha_dados_<TAG>` — bocais, pesos e dimensões
-reais do `PRONT-FOLHA-DADOS.html`). Sem o modelo salvo, as duas folhas mantêm o comportamento
-genérico/vazio de sempre (fallback).
+**Editor de Croqui 2D (ex-Modelador; render 3D removido em 11/07/2026 — sem three.js):** overlay
+com formulário (`PainelElementos`) + preview 2D ao vivo (`gerarCroquis2d`, função pura sobre
+`ModeloVaso`). O save alimenta a folha 1 (SVG longitudinal), a folha 2 (`nr13_croqui2d_<TAG>` —
+SVGs substituem o desenho genérico do `PRONT-CROQUI2D.html`) e a folha 3 (`nr13_folha_dados_<TAG>`
+— bocais, pesos e dimensões reais do `PRONT-FOLHA-DADOS.html`). Sem o modelo salvo, as folhas
+mantêm o comportamento genérico/vazio de sempre (fallback).
+
+**Croqui 2D é passo OBRIGATÓRIO do memorial:** ao salvar o memorial de vaso/autoclave
+(`MemorialVaso.salvar`, exceto sufixo `gv`), o editor abre automaticamente com os dados do
+memorial **pré-preenchidos** (`carregarOuPreCarregar` re-sincroniza Ø, espessuras, tampos,
+material e bocais do `nr13_vaso_<TAG>`, preservando comprimento/virolas/suporte/posições já
+digitados; comprimento é sugerido pelo volume de `nr13_cat_<TAG>` quando vazio). O botão
+"Ver Memorial Completo" da ficha (`Equipamento.tsx`) também abre o editor antes do documento se
+`nr13_croqui2d_<TAG>` não existir (cobre memoriais antigos).
 
 ---
 

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { obterOuCriarMeta, gravarCroqui3d, excluirProntuario } from '../prontuarioService';
+import { obterOuCriarMeta, excluirProntuario } from '../prontuarioService';
 
 // vitest roda em node (sem DOM): shim mínimo de localStorage p/ o motor de prontuário.
 if (typeof globalThis.localStorage === 'undefined') {
@@ -30,15 +30,10 @@ describe('meta do prontuário', () => {
     expect(segunda).toEqual(primeira);
   });
 
-  it('grava croqui 3D na chave por TAG', async () => {
-    await gravarCroqui3d('VASO-01', 'data:image/png;base64,AAA');
-    expect(localStorage.getItem('nr13_croqui3d_VASO-01')).toContain('AAA');
-  });
-
-  it('excluirProntuario limpa dados, meta e croqui', async () => {
+  it('excluirProntuario limpa dados, meta e a chave legada de croqui 3D', async () => {
     localStorage.setItem('nr13_prontuario_VASO-01', '{}');
     await obterOuCriarMeta('VASO-01');
-    await gravarCroqui3d('VASO-01', 'x');
+    localStorage.setItem('nr13_croqui3d_VASO-01', JSON.stringify('x'));
     await excluirProntuario('VASO-01');
     expect(localStorage.getItem('nr13_prontuario_VASO-01')).toBeNull();
     expect(localStorage.getItem('nr13_prontuario_meta_VASO-01')).toBeNull();
