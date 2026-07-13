@@ -12,15 +12,40 @@ export interface MinhaEmpresaDados {
   email?: string;
 }
 
+// Par rótulo+valor livre exibido junto da assinatura (ex.: rotulo "Certificação", valor "SNQC 12345").
+// Ambos são definidos pelo usuário no cadastro de Funcionários; alimenta o motor de assinatura.
+export interface CampoExtraFuncionario {
+  rotulo: string;
+  valor: string;
+}
+
 // Profissionais habilitados (PH) / inspetores que assinam a documentação. Lido pelos templates
 // (ULTRASSOM, TESTE-HIDROSTATICO) pela chave nr13_lista_phs: campos id, nome, crea, assinatura, tipo.
 // tipo 'Inspetor' alimenta o seletor de técnico (filtro startsWith('Inspetor')); 'Engenheiro' assina.
+// Os campos opcionais abaixo (funcao, camposExtras, folhasProntuario, folhasRelatorio) foram
+// adicionados para o futuro motor de assinatura — todos opcionais para não quebrar dados salvos.
 export interface Funcionario {
   id: string;
   nome: string;
   crea: string;
   tipo: 'Engenheiro' | 'Inspetor';
   assinatura?: string; // imagem dataURL (comprimida)
+  /** Cargo exibido na assinatura (ex.: "Engenheiro Mecânico"). Vazio → as folhas usam fallback. */
+  funcao?: string;
+  /** Informações adicionais do assinante (rótulo e valor livres). Alimenta o motor de assinatura. */
+  camposExtras?: CampoExtraFuncionario[];
+  /**
+   * Folhas do PRONTUÁRIO que este profissional assina — nomes .html de PAGINAS_PRONTUARIO
+   * (src/features/prontuarios/tipos.ts). Alimenta o motor de assinatura.
+   * undefined (dado antigo) = regra padrão: Engenheiro assina todas, Inspetor nenhuma.
+   */
+  folhasProntuario?: string[];
+  /**
+   * Documentos do RELATÓRIO que este profissional assina — nomes .html de DOCUMENTOS_DISPONIVEIS
+   * (src/features/relatorios/tipos.ts). Só pré-definição para o motor de assinatura (fase futura);
+   * nada consome ainda. undefined (dado antigo) = mesma regra padrão do prontuário.
+   */
+  folhasRelatorio?: string[];
 }
 
 export interface Cliente {
