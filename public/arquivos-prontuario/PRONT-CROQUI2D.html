@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NR-13 - Prontuario - Folha de Dados e Croqui Detalhado</title>
+    <title>NR-13 - Prontuario - Croqui Detalhados do Equipamento</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -178,7 +178,7 @@
             border: 1px solid #d1d5db;
             border-bottom: none;
         }
-        table.tabela-dim { width: 100%; border-collapse: collapse; font-size: 9.5px; }
+        table.tabela-dim { width: 100%; border-collapse: collapse; font-size: 11px; }
         table.tabela-dim td {
             border: 1px solid #d1d5db;
             padding: 5px 6px;
@@ -187,7 +187,7 @@
         table.tabela-dim td.lbl {
             background: var(--bg-table-sub);
             font-weight: 700;
-            font-size: 8.5px;
+            font-size: 11px;
             width: 62%;
         }
         table.tabela-dim td.val {
@@ -197,11 +197,9 @@
             text-align: center;
         }
         /* Quando o Modelador (fase 2) acrescenta as 4 linhas derivadas (comprimento total,
-           circunferência, pesos), reduz um pouco a fonte p/ a tabela de 10 linhas continuar
+           circunferência, pesos), reduz o padding p/ a tabela de 10 linhas continuar
            cabendo na coluna de 240px sem estourar a altura do croqui-grid (CLAUDE.md §5). */
         table.tabela-dim.compacta td { padding: 3px 6px; }
-        table.tabela-dim.compacta td.lbl { font-size: 7.5px; }
-        table.tabela-dim.compacta td.val { font-size: 9px; }
 
         /* RESPONSABILIDADE TECNICA (assinatura canonica) */
         .resp-tecnica { margin-top: 8px; margin-bottom: 6px; font-size: 10px; }
@@ -214,11 +212,11 @@
         .resp-nome { font-weight: 800; }
         .resp-cargo, .resp-crea { font-size: 9px; color: #333; }
 
-        /* RODAPE CANONICO — sem paginacao */
-        .rodape { margin-top: auto; text-align: center; font-size: 9px; }
-        .rodape-linha { border-top: 3px solid #111; margin: 3px 0; }
-        .rodape-nome { font-weight: 900; }
-        .rodape-info { color: #7a5c00; font-weight: 600; }
+        /* RODAPE CANONICO — padrao da ultima folha (PRONT-MEMORIAL): linha preta 3px no topo,
+           texto preto centralizado, nome em negrito, sem linha inferior e sem paginacao */
+        .rodape { margin-top: auto; border-top: 3px solid #000; padding-top: 8px; text-align: center; font-size: 11px; color: #000; font-weight: 500; line-height: 1.4; }
+        .rodape-nome { font-weight: 700; }
+        .rodape-info { color: #000; font-weight: 500; }
 
         @media print {
             body { background: none; padding: 0; display: block; }
@@ -231,7 +229,7 @@
     <div class="page">
         <table class="header-table"><tr>
           <td class="col-logo"><img id="img-logo" alt="Logo" style="display:none"></td>
-          <td class="col-title">FOLHA DE DADOS E<br>CROQUI DETALHADO</td>
+          <td class="col-title">CROQUI DETALHADOS<br>DO EQUIPAMENTO</td>
           <td class="col-info">
             <div class="info-label">Relatório nº.</div><div class="info-value" id="meta-numero">—</div>
             <div class="info-label">Data de Emissão:</div><div class="info-value" id="meta-data">—</div>
@@ -282,11 +280,9 @@
             </div>
 
             <div class="rodape">
-              <div class="rodape-linha"></div>
               <div class="rodape-nome" id="rod-nome">—</div>
               <div class="rodape-info"><span id="rod-endereco">—</span> • CNPJ: <span id="rod-cnpj">—</span> • CEP: <span id="rod-cep">—</span></div>
               <div class="rodape-info">Telef: <span id="rod-tel">—</span> • E-mail: <span id="rod-email">—</span></div>
-              <div class="rodape-linha"></div>
             </div>
 
         </div>

@@ -61,16 +61,47 @@ describe('gerarCroquis2d', () => {
     const m = modeloCompleto();
     m.virolas = 3;
     const c = gerarCroquis2d(m)!;
-    // 2 tangências + 2 divisões de virola = 4 linhas de costura tracejadas na longitudinal
-    // (o detalhe do tampo tem a sua própria; conta só as da longitudinal)
-    const costuras = [...c.longitudinal.matchAll(/stroke-dasharray="12,4"/g)];
+    // 2 tangências + 2 divisões de virola = 4 linhas de costura (traço-ponto, class="costura")
+    // na longitudinal (o detalhe do tampo tem a sua própria; conta só as da longitudinal)
+    const costuras = [...c.longitudinal.matchAll(/class="costura"/g)];
     expect(costuras).toHaveLength(4);
   });
 
   it('modelo sem o campo virolas (salvo antes da migração) → 1 virola, só as 2 tangências', () => {
     const { virolas: _virolas, ...semVirolas } = modeloCompleto();
     const c = gerarCroquis2d(semVirolas as ReturnType<typeof modeloCompleto>)!;
-    expect([...c.longitudinal.matchAll(/stroke-dasharray="12,4"/g)]).toHaveLength(2);
+    expect([...c.longitudinal.matchAll(/class="costura"/g)]).toHaveLength(2);
+  });
+
+  it('seção parcial hachurada (espessura da parede em corte) nas longitudinais horizontal e vertical', () => {
+    const mH = modeloCompleto();
+    const cH = gerarCroquis2d(mH)!;
+    expect([...cH.longitudinal.matchAll(/class="hachura"/g)].length).toBeGreaterThanOrEqual(3);
+
+    const mV = modeloCompleto();
+    mV.orientacao = 'vertical';
+    const cV = gerarCroquis2d(mV)!;
+    expect([...cV.longitudinal.matchAll(/class="hachura"/g)].length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('linhas de extensão (chamada) ligam as cotas à geometria nas longitudinais', () => {
+    const c = gerarCroquis2d(modeloCompleto())!;
+    // Horizontal: Ø (2) + L (2) + Total (2) + 2 cotas axiais de bocal = ≥8 linhas de chamada
+    expect([...c.longitudinal.matchAll(/class="cota-ext"/g)].length).toBeGreaterThanOrEqual(8);
+
+    const mV = modeloCompleto();
+    mV.orientacao = 'vertical';
+    const cV = gerarCroquis2d(mV)!;
+    // Vertical: L (2) + Total (2) + 2 chamadas de bocal = ≥6 (Ø fica dentro do vaso, sem chamada)
+    expect([...cV.longitudinal.matchAll(/class="cota-ext"/g)].length).toBeGreaterThanOrEqual(6);
+  });
+
+  it('transversal e detalhe do tampo hachuram o material seccionado (clipPath por vista)', () => {
+    const c = gerarCroquis2d(modeloCompleto())!;
+    expect(c.transversal).toContain('clipPath id="ht-anel"');
+    expect([...c.transversal.matchAll(/class="hachura"/g)].length).toBeGreaterThanOrEqual(5);
+    expect(c.detalheTampo).toContain('clipPath id="ht-tampo"');
+    expect([...c.detalheTampo.matchAll(/class="hachura"/g)].length).toBeGreaterThanOrEqual(5);
   });
 
   it('bocal de frente (90°) vira círculo sólido na face; de trás (270°) vira tracejado — horizontal', () => {
@@ -148,7 +179,7 @@ describe('gerarCroquis2d', () => {
       local: 'casco' as const, posicaoAxial: 400 + i * 600, angulo: 0, projecao: 100,
     }));
     const c = gerarCroquis2d(m)!;
-    const cotas = [...c.longitudinal.matchAll(/<text x="[\d.]+" y="([\d.]+)" font-size="14" font-weight="700" text-anchor="middle" fill="#111">N\d+: [\d.]+<\/text>/g)];
+    const cotas = [...c.longitudinal.matchAll(/<text x="[\d.]+" y="([\d.]+)" font-size="14" font-weight="700" text-anchor="middle" fill="#111">N\d+: [\d.]+<tspan/g)];
     expect(cotas).toHaveLength(4);
     const ys = cotas.map((match) => Number(match[1]));
     expect(new Set(ys).size).toBe(4); // 4 alturas distintas: nenhuma sobreposição
@@ -169,7 +200,7 @@ describe('gerarCroquis2d', () => {
       local: 'casco' as const, posicaoAxial: 400 + i * 600, angulo: 0, projecao: 100,
     }));
     const c = gerarCroquis2d(m)!;
-    const cotas = [...c.longitudinal.matchAll(/<text x="([\d.]+)" y="[\d.]+" font-size="13" font-weight="700" text-anchor="middle" fill="#111">N\d+: [\d.]+<\/text>/g)];
+    const cotas = [...c.longitudinal.matchAll(/<text x="([\d.]+)" y="[\d.]+" font-size="13" font-weight="700" text-anchor="middle" fill="#111">N\d+: [\d.]+<tspan/g)];
     expect(cotas).toHaveLength(4);
     const xs = cotas.map((match) => Number(match[1]));
     expect(new Set(xs).size).toBe(4); // 4 posições x distintas: nenhuma sobreposição

@@ -162,11 +162,11 @@
         .resp-linha { border-top: 2px solid #111; margin: 2px 0 0; }
         .rubrica { display: block; margin: 0 auto; }
 
-        /* RODAPE CANONICO — sem paginacao */
-        .rodape { margin-top: auto; text-align: center; font-size: 9px; }
-        .rodape-linha { border-top: 3px solid #111; margin: 3px 0; }
-        .rodape-nome { font-weight: 900; }
-        .rodape-info { color: #7a5c00; font-weight: 600; }
+        /* RODAPE CANONICO — padrao da ultima folha (PRONT-MEMORIAL): linha preta 3px no topo,
+           texto preto centralizado, nome em negrito, sem linha inferior e sem paginacao */
+        .rodape { margin-top: auto; border-top: 3px solid #000; padding-top: 8px; text-align: center; font-size: 11px; color: #000; font-weight: 500; line-height: 1.4; }
+        .rodape-nome { font-weight: 700; }
+        .rodape-info { color: #000; font-weight: 500; }
 
         @media print {
             body { background: none; padding: 0; display: block; }
@@ -245,11 +245,9 @@
             </div><!-- /#cont-body -->
 
             <div class="rodape">
-              <div class="rodape-linha"></div>
               <div class="rodape-nome" id="rod-nome">—</div>
               <div class="rodape-info"><span id="rod-endereco">—</span> • CNPJ: <span id="rod-cnpj">—</span> • CEP: <span id="rod-cep">—</span></div>
               <div class="rodape-info">Telef: <span id="rod-tel">—</span> • E-mail: <span id="rod-email">—</span></div>
-              <div class="rodape-linha"></div>
             </div>
 
         </div>

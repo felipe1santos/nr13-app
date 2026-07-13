@@ -152,13 +152,13 @@
            auto-fit) e NOTAS TECNICAS (dir — a moldura se estende ate o carimbo). */
         .bloco-crescer { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
 
-        /* CARIMBO (title block) enxuto: so o que informa — Cliente, Tag, Norma, Data */
-        .carimbo { border: 1px solid #999; margin-top: auto; }
-        .carimbo table { width: 100%; border-collapse: collapse; font-size: 0.636em; } /* 7/11 — filho direto de .carimbo (herda a base) */
-        .carimbo td { border: 1px solid #999; padding: 2px 4px; text-align: left; }
-        /* .lbl aninhado dentro da propria table (0.636em da base): razao real 6.5/7 = 0.9286em em relacao a table */
-        .carimbo .lbl { background: var(--bg-table-sub); font-weight: 800; font-size: 0.9286em; text-transform: uppercase; width: 18%; }
-        .carimbo .val { color: var(--blue-data); font-weight: 700; }
+        /* DADOS DO CLIENTE (ex-carimbo): faixa no TOPO da folha, logo abaixo do cabecalho —
+           fora do #folha-body, entao nao encolhe no auto-shrink (tamanho fixo em px). */
+        .cliente-band { border: 1px solid #999; margin-bottom: 8px; }
+        .cliente-band table { width: 100%; border-collapse: collapse; font-size: 10px; }
+        .cliente-band td { border: 1px solid #999; padding: 3px 6px; text-align: left; }
+        .cliente-band .lbl { background: var(--bg-table-sub); font-weight: 800; font-size: 9px; text-transform: uppercase; width: 12%; white-space: nowrap; }
+        .cliente-band .val { color: var(--blue-data); font-weight: 700; }
 
         /* Nota do Modelador (fase 2) sob a Tabela de Pesos — só aparece quando
            fd.pesos.notaSuporte é true (suporte tipo pés/selas, cujo peso o modelador não soma). */
@@ -169,11 +169,22 @@
         .notas-lista li { counter-increment: nota; padding: 1px 0; }
         .notas-lista li::before { content: counter(nota) ". "; font-weight: 700; }
 
-        /* RODAPE CANONICO — sem paginacao */
-        .rodape { margin-top: auto; text-align: center; font-size: 9px; }
-        .rodape-linha { border-top: 3px solid #111; margin: 3px 0; }
-        .rodape-nome { font-weight: 900; }
-        .rodape-info { color: #7a5c00; font-weight: 600; }
+        /* RESPONSABILIDADE TECNICA (assinatura canonica — mesma das demais folhas) */
+        .resp-tecnica { margin-top: 8px; margin-bottom: 6px; font-size: 10px; }
+        .resp-titulo { font-weight: 800; border-bottom: 1px solid #999; margin-bottom: 10px; }
+        .resp-grid { display: flex; justify-content: space-around; gap: 40px; }
+        .resp-col { text-align: center; min-width: 220px; }
+        .rubrica { height: 44px; display: block; margin: 0 auto; }
+        .resp-espaco { height: 44px; }
+        .resp-linha { border-top: 2px solid #111; margin: 2px 20px 4px; }
+        .resp-nome { font-weight: 800; }
+        .resp-cargo, .resp-crea { font-size: 9px; color: #333; }
+
+        /* RODAPE CANONICO — padrao da ultima folha (PRONT-MEMORIAL): linha preta 3px no topo,
+           texto preto centralizado, nome em negrito, sem linha inferior e sem paginacao */
+        .rodape { margin-top: auto; border-top: 3px solid #000; padding-top: 8px; text-align: center; font-size: 11px; color: #000; font-weight: 500; line-height: 1.4; }
+        .rodape-nome { font-weight: 700; }
+        .rodape-info { color: #000; font-weight: 500; }
 
         @media print {
             body { background: none; padding: 0; display: block; }
@@ -194,6 +205,15 @@
         </tr></table>
 
         <div class="content-container">
+            <div class="cliente-band">
+                <table>
+                    <tr><td class="lbl">Cliente</td><td class="val" id="car-cliente">—</td>
+                        <td class="lbl">Tag Equip.</td><td class="val" id="car-tag">—</td></tr>
+                    <tr><td class="lbl">Norma</td><td class="val">ASME VIII Div.1 + NR-13</td>
+                        <td class="lbl">Data</td><td class="val" id="car-data">—</td></tr>
+                </table>
+            </div>
+
             <div class="folha-body" id="folha-body">
             <div class="folha-grid">
 
@@ -273,26 +293,35 @@
                         </ol>
                     </div>
 
-                    <div class="carimbo">
-                        <table>
-                            <tr><td class="lbl">Cliente</td><td class="val" id="car-cliente">—</td>
-                                <td class="lbl">Tag Equip.</td><td class="val" id="car-tag">—</td></tr>
-                            <tr><td class="lbl">Norma</td><td class="val">ASME VIII Div.1 + NR-13</td>
-                                <td class="lbl">Data</td><td class="val" id="car-data">—</td></tr>
-                        </table>
-                    </div>
-
                 </div>
 
             </div>
             </div><!-- /#folha-body -->
 
+            <div class="resp-tecnica">
+                <div class="resp-titulo">Responsabilidade Tecnica:</div>
+                <div class="resp-grid">
+                    <div class="resp-col">
+                        <svg class="rubrica" viewBox="0 0 160 50" aria-hidden="true"><path d="M8 38 C 30 8, 44 44, 60 22 S 92 10, 104 30 S 138 18, 152 26" fill="none" stroke="#1a2f8a" stroke-width="2.2" stroke-linecap="round"/></svg>
+                        <div class="resp-linha"></div>
+                        <div class="resp-nome">Fulano Da Silva</div>
+                        <div class="resp-cargo">Engenheiro De Equipamentos</div>
+                        <div class="resp-crea">CREA: 12151566</div>
+                    </div>
+                    <div class="resp-col">
+                        <div class="resp-espaco"></div>
+                        <div class="resp-linha"></div>
+                        <div class="resp-nome">Fulano Da Silva</div>
+                        <div class="resp-cargo">Tecnico em Mecanica</div>
+                        <div class="resp-crea">CREA: 12151566</div>
+                    </div>
+                </div>
+            </div>
+
             <div class="rodape">
-              <div class="rodape-linha"></div>
               <div class="rodape-nome" id="rod-nome">—</div>
               <div class="rodape-info"><span id="rod-endereco">—</span> • CNPJ: <span id="rod-cnpj">—</span> • CEP: <span id="rod-cep">—</span></div>
               <div class="rodape-info">Telef: <span id="rod-tel">—</span> • E-mail: <span id="rod-email">—</span></div>
-              <div class="rodape-linha"></div>
             </div>
 
         </div>
@@ -570,7 +599,7 @@ document.addEventListener('DOMContentLoaded', function () {
   });
   document.getElementById('tbl-espessuras-body').innerHTML = espessurasHtml || '<tr><td colspan="5">—</td></tr>';
 
-  // ───────────────────────── Carimbo (title block) enxuto ─────────────────────────
+  // ───────────────────────── Dados do cliente (faixa no topo da folha) ─────────────────────────
   texto('car-cliente', emp.razaoSocial || emp.nomeFantasia);
   texto('car-tag', tag);
   texto('car-data', meta.emissao);

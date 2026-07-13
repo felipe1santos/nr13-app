@@ -1,8 +1,10 @@
 // Gerador de croqui 2D técnico do vaso modelado (fase 2.1 do Modelador de Vaso).
 // Produz 3 SVGs auto-contidos (sem CSS externo) no traço de prancha de fabricante:
-// vista longitudinal (costuras, bocais flangeados, suportes, cotas), vista transversal/topo
-// (anel de parede, Ø diagonal, arcos de ângulo por bocal) e detalhe do tampo em corte
-// (parede dupla, Rc/rc no toriesférico). Consumidos por PRONT-CROQUI2D.html.
+// vista longitudinal (costuras sólidas de solda, bocais flangeados, suportes, cotas com linhas
+// de extensão/chamada e seção parcial hachurada mostrando a espessura da parede), vista
+// transversal/topo (anel de parede hachurado em corte, Ø diagonal, arcos de ângulo por bocal)
+// e detalhe do tampo em corte (parede dupla hachurada, Rc/rc no toriesférico).
+// Consumidos por PRONT-CROQUI2D.html.
 //
 // Convenções de ângulo (mesma fonte de verdade de `direcaoBocalLocal` em geometriaVaso.ts):
 // 0° = topo, sentido horário visto de cima. Nas vistas longitudinais o observador fica:
@@ -26,12 +28,17 @@ import {
   clamp,
   cota,
   cotaAngular,
+  cotaEspessura,
   costura,
   esc,
   fmt,
+  hachuraClip,
+  hachuraRect,
   idBalao,
+  linhaExt,
+  quebraOndulada,
 } from './croquiPrimitivas';
-import { pathPerfil, pontosPerfilTampo, perfilTampoDuplo, type MapaLocal } from './croquiTampos';
+import { pontosPerfilTampo, perfilTampoDuplo, type MapaLocal } from './croquiTampos';
 import { circunferenciaMm, comprimentoTotalMm, dimensoesTampo, num } from './geometriaVaso';
 import type { BocalModelo, ModeloVaso, TampoModelo, TipoTampoModelo } from './tiposModelador';
 
@@ -113,9 +120,31 @@ function setorAngulo(ang: number): SetorBocal {
   return 'a270';
 }
 
-/** Contorno do tampo (path fechado) em qualquer orientação via `map`. */
-function pathTampoOutline(tipo: TipoTampoModelo, Rmm: number, hmm: number, map: MapaLocal): string {
-  return pathPerfil(pontosPerfilTampo(tipo, Rmm, hmm), map, true);
+/**
+ * Silhueta única do vaso (tampo1 + costado + tampo2) como path fechado SEM cordas nas linhas de
+ * tangência — assim a costura tracejada é a ÚNICA marca da junção soldada (com a corda sólida
+ * por cima, a linha de solda ficava invisível — feedback da prancha de referência).
+ * `curva1/curva2` mapeiam o perfil local (z,r) de cada tampo; `w1/w2` são os dois segmentos
+ * retos de parede que fecham o contorno (o segundo via Z).
+ */
+function pathSilhueta(
+  pts1: [number, number][],
+  map1: MapaLocal,
+  pts2: [number, number][],
+  map2: MapaLocal,
+  w1: [number, number],
+): string {
+  const seg: string[] = [];
+  pts1.forEach(([z, r], i) => {
+    const [x, y] = map1(z, r);
+    seg.push(`${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`);
+  });
+  seg.push(`L${w1[0].toFixed(1)},${w1[1].toFixed(1)}`);
+  for (let i = pts2.length - 1; i >= 0; i--) {
+    const [x, y] = map2(pts2[i][0], pts2[i][1]);
+    seg.push(`L${x.toFixed(1)},${y.toFixed(1)}`);
+  }
+  return `${seg.join(' ')} Z`;
 }
 
 /** Largura (px) do stub de um bocal a partir do Ø informado (fallback 60 mm). */
@@ -129,6 +158,25 @@ function recuoTampoPx(tipo: TipoTampoModelo, rrPx: number, RPx: number, profPx: 
   if (tipo === 'plano') return profPx;
   const frac = clamp(1 - (rrPx / Math.max(RPx, 0.001)) ** 2, 0, 1);
   return profPx * Math.sqrt(frac);
+}
+
+/**
+ * Escolhe um trecho do casco (entre `a` e `b`) livre de bocais para posicionar a seção parcial
+ * de espessura (breakout hachurado) sem colidir com stubs/círculos. `ocupados` são as posições
+ * (px, no mesmo eixo de a/b) dos bocais do casco. Fallback: primeiro candidato.
+ */
+function escolherTrechoLivre(a: number, b: number, ocupados: number[]): [number, number] {
+  const candidatos: [number, number][] = [
+    [0.6, 0.86],
+    [0.14, 0.4],
+    [0.4, 0.6],
+  ];
+  for (const [f1, f2] of candidatos) {
+    const p1 = a + (b - a) * f1;
+    const p2 = a + (b - a) * f2;
+    if (!ocupados.some((o) => o > p1 - 14 && o < p2 + 14)) return [p1, p2];
+  }
+  return [a + (b - a) * candidatos[0][0], a + (b - a) * candidatos[0][1]];
 }
 
 // ───────────────────────── Vista longitudinal — HORIZONTAL ─────────────────────────
@@ -177,20 +225,44 @@ function svgLongitudinalHorizontal(m: ModeloVaso, d: DadosBase): string {
 
   const parts: string[] = [];
 
-  // Costado + tampos (contorno branco de prancha técnica)
-  parts.push(`<rect x="${xCascoEsq.toFixed(1)}" y="${yTop.toFixed(1)}" width="${(xCascoDir - xCascoEsq).toFixed(1)}" height="${Dpx.toFixed(1)}" fill="${FILL_BRANCO}" stroke="${STROKE}" stroke-width="${SW_CASCO}"/>`);
+  // Silhueta única tampo1+costado+tampo2 (sem corda nas tangências — ver pathSilhueta)
   const mapEsq: MapaLocal = (z, r) => [xCascoEsq - z * scale, yCentro + r * scale];
   const mapDir: MapaLocal = (z, r) => [xCascoDir + z * scale, yCentro + r * scale];
-  parts.push(`<path d="${pathTampoOutline(m.tampo1.tipo, d.DExt / 2, d.prof1, mapEsq)}" fill="${FILL_BRANCO}" stroke="${STROKE}" stroke-width="${SW_CASCO}"/>`);
-  parts.push(`<path d="${pathTampoOutline(m.tampo2.tipo, d.DExt / 2, d.prof2, mapDir)}" fill="${FILL_BRANCO}" stroke="${STROKE}" stroke-width="${SW_CASCO}"/>`);
+  const silhueta = pathSilhueta(
+    pontosPerfilTampo(m.tampo1.tipo, d.DExt / 2, d.prof1),
+    mapEsq,
+    pontosPerfilTampo(m.tampo2.tipo, d.DExt / 2, d.prof2),
+    mapDir,
+    [xCascoDir, yTop],
+  );
+  parts.push(`<path d="${silhueta}" fill="${FILL_BRANCO}" stroke="${STROKE}" stroke-width="${SW_CASCO}"/>`);
 
-  // Costuras: linhas de tangência (junção tampo-casco) + divisões de virolas
+  // Costuras: linhas de tangência (junção soldada tampo-casco) + divisões de virolas
   costura(parts, xCascoEsq, yTop, xCascoEsq, yBottom, SW_COSTURA);
   costura(parts, xCascoDir, yTop, xCascoDir, yBottom, SW_COSTURA);
   for (let i = 1; i < d.virolas; i++) {
     const x = clamp(xCascoEsq + ((xCascoDir - xCascoEsq) * i) / d.virolas, MARGIN, VB_W - MARGIN);
     costura(parts, x, yTop, x, yBottom, SW_COSTURA);
   }
+
+  // Seção parcial (breakout) da parede superior: trecho hachurado entre a superfície externa e a
+  // interna revelando a espessura do casco no próprio desenho (como nas pranchas de referência),
+  // com linha da superfície interna e bordas de ruptura onduladas. t é exagerada quando a escala
+  // é pequena (piso 4,5px) para continuar legível no papel. O trecho desvia de bocais E de
+  // costuras de virola — a banda (e a cota de espessura dela) nunca cobre outra informação.
+  const tVisPx = clamp(d.tCasco * scale, 4.5, 12);
+  const xsOcupados = bocaisCasco.map((b) => {
+    const p = num(b.posicaoAxial);
+    return p === null ? (xCascoEsq + xCascoDir) / 2 : clamp(xCascoEsq + p * scale, xCascoEsq, xCascoDir);
+  });
+  for (let i = 1; i < d.virolas; i++) {
+    xsOcupados.push(xCascoEsq + ((xCascoDir - xCascoEsq) * i) / d.virolas);
+  }
+  const [xQa, xQb] = escolherTrechoLivre(xCascoEsq, xCascoDir, xsOcupados);
+  hachuraRect(parts, xQa, yTop, xQb - xQa, tVisPx, 5, 0.85);
+  parts.push(`<line x1="${xQa.toFixed(1)}" y1="${(yTop + tVisPx).toFixed(1)}" x2="${xQb.toFixed(1)}" y2="${(yTop + tVisPx).toFixed(1)}" stroke="${STROKE}" stroke-width="1.1"/>`);
+  quebraOndulada(parts, xQa, yTop, xQa, yTop + tVisPx);
+  quebraOndulada(parts, xQb, yTop, xQb, yTop + tVisPx);
 
   // Linha de centro
   const clX1 = clamp(xEsq - 14, MARGIN, VB_W - MARGIN);
@@ -232,11 +304,12 @@ function svgLongitudinalHorizontal(m: ModeloVaso, d: DadosBase): string {
     // Cota da altura do suporte (se informada)
     if (alturaSup !== null) {
       const xCotaSup = clamp(xDir + 26, MARGIN, VB_W - MARGIN);
-      cota(parts, xCotaSup, yBottom, xCotaSup, yBase, fmt(alturaSup, 0), VB_W, FS_S);
+      cota(parts, xCotaSup, yBottom, xCotaSup, yBase, fmt(alturaSup, 0), VB_W, FS_S, 0.5, 'mm');
     }
   }
 
-  // Bocais
+  // Bocais (guarda a âncora vertical de cada bocal de casco p/ a linha de chamada da cota axial)
+  const ancoraYCota = new Map<BocalModelo, number>();
   for (const b of m.bocais) {
     const angulo = num(b.angulo);
     const anguloEfetivo = angulo === null ? 0 : angulo;
@@ -265,6 +338,7 @@ function svgLongitudinalHorizontal(m: ModeloVaso, d: DadosBase): string {
       const tip = bocalFlangeado(parts, xBocal, yBaseBocal, emCima ? -Math.PI / 2 : Math.PI / 2, 30, wPx, { sw: SW_COMP });
       const by = clamp(tip.y + (emCima ? -16 : 16), MARGIN + 16, VB_H - MARGIN - 16);
       idBalao(parts, clamp(xBocal, MARGIN + 16, VB_W - MARGIN - 16), by, esc(b.id), FS_BAL);
+      ancoraYCota.set(b, yBaseBocal);
     } else {
       // Bocal na face do casco (frente sólido / fundo tracejado): círculo projetado em tamanho
       // real (boca de visita Ø400+ aparece grande, como nas pranchas de referência)
@@ -280,31 +354,48 @@ function svgLongitudinalHorizontal(m: ModeloVaso, d: DadosBase): string {
       const by = clamp(yProj - rBocal - 8, MARGIN + 16, VB_H - MARGIN - 16);
       parts.push(`<line x1="${(xBocal + rBocal * 0.7).toFixed(1)}" y1="${(yProj - rBocal * 0.7).toFixed(1)}" x2="${(bx - 12).toFixed(1)}" y2="${by.toFixed(1)}" stroke="${STROKE}" stroke-width="1"/>`);
       idBalao(parts, bx, by, esc(b.id), FS_BAL);
+      ancoraYCota.set(b, clamp(yProj + rBocal, MARGIN, VB_H - MARGIN));
     }
   }
 
-  // Cotas axiais dos bocais de casco (a partir da linha de tangência do tampo 1), escalonadas
+  // Posições das linhas de cota principais (calculadas antes p/ ancorar as linhas de extensão)
+  const yCotaCil = clamp(yBase + 16 + nAx * 24 + 8, MARGIN, VB_H - MARGIN);
+  const yCotaTotal = clamp(yCotaCil + 28, MARGIN, VB_H - MARGIN);
+  const xCotaD = clamp(xEsq - 34, MARGIN, VB_W - MARGIN);
+
+  // Linhas de extensão (chamada): ligam a geometria às linhas de cota, como nas pranchas
+  // profissionais — tangências → cota L (e origem das cotas axiais), ápices dos tampos → cota
+  // Total, faces superior/inferior do casco → cota Ø.
+  linhaExt(parts, xCascoEsq, yBottom + 2, xCascoEsq, yCotaCil + 4);
+  linhaExt(parts, xCascoDir, yBottom + 2, xCascoDir, yCotaCil + 4);
+  linhaExt(parts, xEsq, yCentro + 2, xEsq, yCotaTotal + 4);
+  linhaExt(parts, xDir, yCentro + 2, xDir, yCotaTotal + 4);
+  linhaExt(parts, xCotaD - 4, yTop, xCascoEsq - 2, yTop);
+  linhaExt(parts, xCotaD - 4, yBottom, xCascoEsq - 2, yBottom);
+
+  // Cotas axiais dos bocais de casco (a partir da linha de tangência do tampo 1), escalonadas,
+  // cada uma com linha de chamada vertical descendo do eixo do bocal até a sua linha de cota
   let idxCotaAxial = 0;
   for (const b of bocaisCasco) {
     const posAxial = num(b.posicaoAxial);
     if (posAxial === null) continue;
     const xBocal = clamp(xCascoEsq + posAxial * scale, xCascoEsq, xCascoDir);
     const cotaY = clamp(yBase + 16 + idxCotaAxial * 24, MARGIN, VB_H - MARGIN);
-    cota(parts, xCascoEsq, cotaY, xBocal, cotaY, `${esc(b.id)}: ${fmt(posAxial, 0)}`, VB_W, FS_S);
+    const yAnc = ancoraYCota.get(b);
+    if (yAnc !== undefined && cotaY > yAnc + 6) linhaExt(parts, xBocal, yAnc + 2, xBocal, cotaY + 4);
+    cota(parts, xCascoEsq, cotaY, xBocal, cotaY, `${esc(b.id)}: ${fmt(posAxial, 0)}`, VB_W, FS_S, 0.5, 'mm');
     idxCotaAxial++;
   }
 
   // Cotas principais: L do cilindro (entre tangências), comprimento total, Ø, espessura
-  const yCotaCil = clamp(yBase + 16 + nAx * 24 + 8, MARGIN, VB_H - MARGIN);
-  cota(parts, xCascoEsq, yCotaCil, xCascoDir, yCotaCil, `${fmt(d.L, 0)}`, VB_W, FS_P);
-  const yCotaTotal = clamp(yCotaCil + 28, MARGIN, VB_H - MARGIN);
-  cota(parts, xEsq, yCotaTotal, xDir, yCotaTotal, `Total: ${fmt(d.comprTotal, 0)}`, VB_W, FS_P);
+  cota(parts, xCascoEsq, yCotaCil, xCascoDir, yCotaCil, `${fmt(d.L, 0)}`, VB_W, FS_P, 0.5, 'mm');
+  cota(parts, xEsq, yCotaTotal, xDir, yCotaTotal, `Total: ${fmt(d.comprTotal, 0)}`, VB_W, FS_P, 0.5, 'mm');
+  cota(parts, xCotaD, yTop, xCotaD, yBottom, `Ø${fmt(d.D, 0)}`, VB_W, FS_P, 0.5, 'mm');
 
-  const xCotaD = clamp(xEsq - 34, MARGIN, VB_W - MARGIN);
-  cota(parts, xCotaD, yTop, xCotaD, yBottom, `Ø${fmt(d.D, 0)}`, VB_W, FS_P);
-
-  const xAlvoT = clamp(xCascoEsq + (xCascoDir - xCascoEsq) * 0.88, MARGIN, VB_W - MARGIN);
-  callout(parts, xAlvoT, yTop, clamp(xAlvoT + 30, MARGIN, VB_W - MARGIN - 64), clamp(yTop - 32, MARGIN + 10, VB_H - MARGIN), `t=${fmt(d.tCasco, 1)}`, FS_S);
+  // Cota de espessura na seção parcial: setas externas apontando para as duas superfícies da
+  // parede (rótulo dentro do vaso, abaixo da banda) — cota "de verdade", não só um leader
+  const xAlvoT = (xQa + xQb) / 2;
+  cotaEspessura(parts, xAlvoT, yTop + tVisPx, xAlvoT, yTop, `t=${fmt(d.tCasco, 1)}`, FS_S, 'mm');
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${VB_W} ${VB_H}" font-family="Inter, sans-serif">${parts.join('')}</svg>`;
 }
@@ -320,7 +411,7 @@ function svgLongitudinalVertical(m: ModeloVaso, d: DadosBase): string {
   const nAx = bocaisCasco.filter((b) => num(b.posicaoAxial) !== null).length;
 
   // Escala tipográfica desta vista (viewBox 420×720 impresso a ~114mm de caixa ⇒ ~0,17mm/un).
-  const FS_P = 16;
+  // Todas as cotas usam FS_S: hierarquia sutil da prancha de referência (desenho > cotas).
   const FS_S = 13;
   const FS_BAL = 12;
   const FS_NOTA = 11;
@@ -328,11 +419,13 @@ function svgLongitudinalVertical(m: ModeloVaso, d: DadosBase): string {
   const SW_COMP = 1.8;
   const SW_COSTURA = 1.2;
 
-  const RESERVA_ESQ = 60 + nAx * 26; // cotas axiais escalonadas à esquerda
-  const RESERVA_DIR = 104; // cotas L/total + stubs à direita
+  // TODAS as cotas lineares ficam à ESQUERDA (axiais + L + Total), como a prancha de
+  // referência; à direita só stubs/balões e a cota do suporte. Ø vai sutil DENTRO do vaso.
+  const RESERVA_ESQ = 118 + nAx * 24;
+  const RESERVA_DIR = 64; // stubs + balão + cota do suporte
   const RESERVA_TOPO = 64; // bocal do tampo1 + balão
   const temSuporte = m.suporte.tipo !== 'nenhum';
-  const RESERVA_BAIXO = (temSuporte ? 44 : 0) + 46 + 36; // suporte + cota Ø + bocal tampo2
+  const RESERVA_BAIXO = (temSuporte ? 44 : 0) + 16 + 36; // suporte + folga + bocal tampo2
 
   const AREA_W = VB_W - RESERVA_ESQ - RESERVA_DIR;
   const AREA_H = VB_H - RESERVA_TOPO - RESERVA_BAIXO;
@@ -354,20 +447,42 @@ function svgLongitudinalVertical(m: ModeloVaso, d: DadosBase): string {
 
   const parts: string[] = [];
 
-  // Costado + tampos
-  parts.push(`<rect x="${xEsq.toFixed(1)}" y="${yCascoTop.toFixed(1)}" width="${(xDir - xEsq).toFixed(1)}" height="${(yCascoBottom - yCascoTop).toFixed(1)}" fill="${FILL_BRANCO}" stroke="${STROKE}" stroke-width="${SW_CASCO}"/>`);
+  // Silhueta única tampo1+costado+tampo2 (sem corda nas tangências — ver pathSilhueta)
   const mapTopo: MapaLocal = (z, r) => [centerX + r * scale, yCascoTop - z * scale];
   const mapBaixo: MapaLocal = (z, r) => [centerX + r * scale, yCascoBottom + z * scale];
-  parts.push(`<path d="${pathTampoOutline(m.tampo1.tipo, d.DExt / 2, d.prof1, mapTopo)}" fill="${FILL_BRANCO}" stroke="${STROKE}" stroke-width="${SW_CASCO}"/>`);
-  parts.push(`<path d="${pathTampoOutline(m.tampo2.tipo, d.DExt / 2, d.prof2, mapBaixo)}" fill="${FILL_BRANCO}" stroke="${STROKE}" stroke-width="${SW_CASCO}"/>`);
+  const silhueta = pathSilhueta(
+    pontosPerfilTampo(m.tampo1.tipo, d.DExt / 2, d.prof1),
+    mapTopo,
+    pontosPerfilTampo(m.tampo2.tipo, d.DExt / 2, d.prof2),
+    mapBaixo,
+    [xEsq, yCascoBottom],
+  );
+  parts.push(`<path d="${silhueta}" fill="${FILL_BRANCO}" stroke="${STROKE}" stroke-width="${SW_CASCO}"/>`);
 
-  // Costuras: tangências + virolas
+  // Costuras: tangências (junção soldada tampo-casco) + virolas
   costura(parts, xEsq, yCascoTop, xDir, yCascoTop, SW_COSTURA);
   costura(parts, xEsq, yCascoBottom, xDir, yCascoBottom, SW_COSTURA);
   for (let i = 1; i < d.virolas; i++) {
     const y = clamp(yCascoTop + ((yCascoBottom - yCascoTop) * i) / d.virolas, MARGIN, VB_H - MARGIN);
     costura(parts, xEsq, y, xDir, y, SW_COSTURA);
   }
+
+  // Seção parcial (breakout) da parede direita: trecho hachurado revelando a espessura do casco
+  // no próprio desenho (espelho do breakout da vista horizontal; piso 4,5px p/ legibilidade).
+  // Desvia de bocais E de costuras de virola — a banda nunca cobre outra informação.
+  const tVisPx = clamp(d.tCasco * scale, 4.5, 12);
+  const ysOcupados = bocaisCasco.map((b) => {
+    const p = num(b.posicaoAxial);
+    return p === null ? (yCascoTop + yCascoBottom) / 2 : clamp(yCascoTop + p * scale, yCascoTop, yCascoBottom);
+  });
+  for (let i = 1; i < d.virolas; i++) {
+    ysOcupados.push(yCascoTop + ((yCascoBottom - yCascoTop) * i) / d.virolas);
+  }
+  const [yQa, yQb] = escolherTrechoLivre(yCascoTop, yCascoBottom, ysOcupados);
+  hachuraRect(parts, xDir - tVisPx, yQa, tVisPx, yQb - yQa, 5, 0.85);
+  parts.push(`<line x1="${(xDir - tVisPx).toFixed(1)}" y1="${yQa.toFixed(1)}" x2="${(xDir - tVisPx).toFixed(1)}" y2="${yQb.toFixed(1)}" stroke="${STROKE}" stroke-width="1.1"/>`);
+  quebraOndulada(parts, xDir - tVisPx, yQa, xDir, yQa);
+  quebraOndulada(parts, xDir - tVisPx, yQb, xDir, yQb);
 
   // Linha de centro vertical
   const clY1 = clamp(yTop - 12, MARGIN, VB_H - MARGIN);
@@ -405,11 +520,12 @@ function svgLongitudinalVertical(m: ModeloVaso, d: DadosBase): string {
     }
     if (alturaSup !== null) {
       const xCotaSup = clamp(xDir + 24, MARGIN, VB_W - MARGIN);
-      cota(parts, xCotaSup, yBottom, xCotaSup, yBase, fmt(alturaSup, 0), VB_W, FS_S);
+      cota(parts, xCotaSup, yBottom, xCotaSup, yBase, fmt(alturaSup, 0), VB_W, FS_S, 0.5, 'mm');
     }
   }
 
-  // Bocais
+  // Bocais (guarda a âncora horizontal de cada bocal de casco p/ a linha de chamada da cota)
+  const ancoraXCota = new Map<BocalModelo, number>();
   for (const b of m.bocais) {
     const angulo = num(b.angulo);
     const anguloEfetivo = angulo === null ? 0 : angulo;
@@ -437,6 +553,7 @@ function svgLongitudinalVertical(m: ModeloVaso, d: DadosBase): string {
       const tip = bocalFlangeado(parts, direita ? xDir : xEsq, yBocal, direita ? 0 : Math.PI, 26, wPx, { sw: SW_COMP });
       const bx = clamp(tip.x + (direita ? 15 : -15), MARGIN + 14, VB_W - MARGIN - 14);
       idBalao(parts, bx, clamp(yBocal, MARGIN + 14, VB_H - MARGIN - 14), esc(b.id), FS_BAL);
+      ancoraXCota.set(b, direita ? xDir : xEsq);
     } else {
       // Frente (0°, sólido) / fundo (180°, tracejado): círculo projetado na face
       const xProj = clamp(centerX + RPx * Math.sin((anguloEfetivo * Math.PI) / 180), xEsq + 6, xDir - 6);
@@ -451,32 +568,62 @@ function svgLongitudinalVertical(m: ModeloVaso, d: DadosBase): string {
       const by = clamp(yBocal - rBocal - 10, MARGIN + 14, VB_H - MARGIN - 14);
       parts.push(`<line x1="${(xProj + rBocal * 0.7).toFixed(1)}" y1="${(yBocal - rBocal * 0.7).toFixed(1)}" x2="${(bx - 12).toFixed(1)}" y2="${by.toFixed(1)}" stroke="${STROKE}" stroke-width="1"/>`);
       idBalao(parts, bx, by, esc(b.id), FS_BAL);
+      ancoraXCota.set(b, clamp(xProj - rBocal, MARGIN, VB_W - MARGIN));
     }
   }
 
-  // Cotas axiais (da tangência do tampo1 até o bocal), escalonadas à esquerda
+  // Posições das linhas de cota — TODAS à esquerda (como a prancha de referência): colunas
+  // axiais mais próximas do vaso, depois L (tangência a tangência) e Total (ápice a ápice)
+  // na coluna mais externa. Nada se repete à direita.
+  const xCotaCil = clamp(xEsq - 40 - nAx * 24 - 14, MARGIN, VB_W - MARGIN);
+  const xCotaTotal = clamp(xCotaCil - 30, MARGIN, VB_W - MARGIN);
+
+  // Linhas de extensão (chamada): geometria → linhas de cota (tangências servem às cotas
+  // axiais e à L; ápices servem à Total — o vão de 14px até o ápice evita cruzar o stub do
+  // bocal de tampo)
+  linhaExt(parts, xCotaCil - 4, yCascoTop, xEsq - 2, yCascoTop);
+  linhaExt(parts, xCotaCil - 4, yCascoBottom, xEsq - 2, yCascoBottom);
+  linhaExt(parts, xCotaTotal - 4, yTop, centerX - 14, yTop);
+  linhaExt(parts, xCotaTotal - 4, yBottom, centerX - 14, yBottom);
+
+  // Cotas axiais (da tangência do tampo1 até o bocal), escalonadas à esquerda, cada uma com
+  // linha de chamada horizontal do eixo do bocal até a sua linha de cota
   let idxCotaAxialV = 0;
   for (const b of bocaisCasco) {
     const posAxial = num(b.posicaoAxial);
     if (posAxial === null) continue;
     const yBocal = clamp(yCascoTop + posAxial * scale, yCascoTop, yCascoBottom);
-    const cotaX = clamp(xEsq - 46 - idxCotaAxialV * 26, MARGIN, VB_W - MARGIN);
-    cota(parts, cotaX, yCascoTop, cotaX, yBocal, `${esc(b.id)}: ${fmt(posAxial, 0)}`, VB_W, FS_S);
+    const cotaX = clamp(xEsq - 40 - idxCotaAxialV * 24, MARGIN, VB_W - MARGIN);
+    const xAnc = ancoraXCota.get(b);
+    if (xAnc !== undefined && xAnc > cotaX + 6) linhaExt(parts, cotaX - 4, yBocal, xAnc, yBocal);
+    // frac 0.78: rótulo perto do bocal — alturas de bocal são distintas entre si, então os
+    // rótulos das colunas vizinhas (24px) nunca ficam na mesma altura (nem na do rótulo de L)
+    cota(parts, cotaX, yCascoTop, cotaX, yBocal, `${esc(b.id)}: ${fmt(posAxial, 0)}`, VB_W, FS_S, 0.78, 'mm');
     idxCotaAxialV++;
   }
 
-  // Cotas principais: Ø (embaixo do suporte), L e total (à direita, rótulos em alturas
-  // diferentes via `frac` — os spans se sobrepõem verticalmente), espessura
-  const yCotaD = clamp(yBase + 26, MARGIN, VB_H - MARGIN);
-  cota(parts, xEsq, yCotaD, xDir, yCotaD, `Ø${fmt(d.D, 0)}`, VB_W, FS_P);
+  // Cotas principais à esquerda: L e Total (valor puro, como a prancha de referência; frac
+  // separa as alturas dos rótulos p/ não sobreporem as colunas vizinhas)
+  cota(parts, xCotaCil, yCascoTop, xCotaCil, yCascoBottom, `${fmt(d.L, 0)}`, VB_W, FS_S, 0.45, 'mm');
+  cota(parts, xCotaTotal, yTop, xCotaTotal, yBottom, `${fmt(d.comprTotal, 0)}`, VB_W, FS_S, 0.62, 'mm');
 
-  const xCotaCil = clamp(xDir + 30, MARGIN, VB_W - MARGIN);
-  cota(parts, xCotaCil, yCascoTop, xCotaCil, yCascoBottom, `${fmt(d.L, 0)}`, VB_W, FS_P, 0.32);
-  const xCotaTotal = clamp(xDir + 68, MARGIN, VB_W - MARGIN);
-  cota(parts, xCotaTotal, yTop, xCotaTotal, yBottom, `Total: ${fmt(d.comprTotal, 0)}`, VB_W, FS_S, 0.7);
+  // Ø sutil DENTRO do vaso (linha fina parede a parede), desviando das costuras de virola
+  let yDiam = yCascoTop + (yCascoBottom - yCascoTop) * 0.42;
+  for (let i = 1; i < d.virolas; i++) {
+    const yVirola = yCascoTop + ((yCascoBottom - yCascoTop) * i) / d.virolas;
+    if (Math.abs(yDiam - yVirola) < 12) {
+      yDiam = yVirola - 20;
+      break;
+    }
+  }
+  yDiam = clamp(yDiam, yCascoTop + 14, yCascoBottom - 14);
+  cota(parts, xEsq, yDiam, xDir, yDiam, `Ø${fmt(d.D, 0)}`, VB_W, FS_S, 0.5, 'mm');
 
-  const yAlvoT = clamp(yCascoTop + (yCascoBottom - yCascoTop) * 0.12, MARGIN, VB_H - MARGIN);
-  callout(parts, xDir, yAlvoT, clamp(xDir + 30, MARGIN, VB_W - MARGIN - 52), clamp(yAlvoT - 22, MARGIN + 10, VB_H - MARGIN), `t=${fmt(d.tCasco, 1)}`, FS_S);
+  // Cota de espessura na seção parcial: setas externas apontando para as duas superfícies da
+  // parede, rótulo DENTRO do vaso (como o "4.5" da prancha de referência) — o lado direito
+  // externo já está ocupado pelos stubs de bocal.
+  const yAlvoT = (yQa + yQb) / 2;
+  cotaEspessura(parts, xDir - tVisPx, yAlvoT, xDir, yAlvoT, `t=${fmt(d.tCasco, 1)}`, FS_S, 'mm');
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${VB_W} ${VB_H}" font-family="Inter, sans-serif">${parts.join('')}</svg>`;
 }
@@ -520,9 +667,13 @@ function svgTransversal(m: ModeloVaso, d: DadosBase): string {
 
   const parts: string[] = [];
 
-  // Anel de parede (corte): círculo externo + interno
+  // Anel de parede (corte): círculo externo + interno, com hachura de material seccionado
   parts.push(`<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${r.toFixed(1)}" fill="${FILL_BRANCO}" stroke="${STROKE}" stroke-width="${SW_ANEL}"/>`);
   parts.push(`<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${rInt.toFixed(1)}" fill="${FILL_BRANCO}" stroke="${STROKE}" stroke-width="${SW_ANEL_INT}"/>`);
+  const anelD =
+    `M${(cx - r).toFixed(1)},${cy.toFixed(1)} a${r.toFixed(1)},${r.toFixed(1)} 0 1 0 ${(2 * r).toFixed(1)},0 a${r.toFixed(1)},${r.toFixed(1)} 0 1 0 ${(-2 * r).toFixed(1)},0 Z ` +
+    `M${(cx - rInt).toFixed(1)},${cy.toFixed(1)} a${rInt.toFixed(1)},${rInt.toFixed(1)} 0 1 0 ${(2 * rInt).toFixed(1)},0 a${rInt.toFixed(1)},${rInt.toFixed(1)} 0 1 0 ${(-2 * rInt).toFixed(1)},0 Z`;
+  hachuraClip(parts, 'ht-anel', anelD, cx - r, cy - r, 2 * r, 2 * r, 7);
 
   // Cruz de centro tracejada
   const crossExt = r + 8;
@@ -549,13 +700,15 @@ function svgTransversal(m: ModeloVaso, d: DadosBase): string {
   const dy1 = cy + rInt * Math.sin(radDiag);
   const dx2 = cx - rInt * Math.cos(radDiag);
   const dy2 = cy - rInt * Math.sin(radDiag);
-  cota(parts, dx1, dy1, dx2, dy2, `Ø${fmt(d.D, 0)}`, VB_W, FS_P);
+  cota(parts, dx1, dy1, dx2, dy2, `Ø${fmt(d.D, 0)}`, VB_W, FS_P, 0.5, 'mm');
 
-  // Callout de espessura da parede (alvo no anel, a 45°)
+  // Callout de espessura da parede (alvo no anel, a 45°). Texto ACIMA do anel, à direita do
+  // compasso 0° — os rótulos dos arcos de ângulo dos bocais ocupam a diagonal direita (raio
+  // r+30+…) e cobriam o "t" quando o texto ficava na mesma faixa.
   const rad45 = ((45 - 90) * Math.PI) / 180;
   const xAlvo = cx + (r - tPx / 2) * Math.cos(rad45);
   const yAlvo = cy + (r - tPx / 2) * Math.sin(rad45);
-  callout(parts, xAlvo, yAlvo, clamp(cx + r + 28, 12, VB_W - 58), clamp(cy - r - 16, 14, VB_H - 14), `t=${fmt(d.tCasco, 1)}`, FS_S);
+  callout(parts, xAlvo, yAlvo, clamp(cx + r * 0.55, 12, VB_W - 58), clamp(cy - r - 30, 14, VB_H - 14), `t=${fmt(d.tCasco, 1)}`, FS_S, 'mm');
 
   // Bocais do casco: stub flangeado radial no ângulo + arco de cota angular a partir de 0°.
   // Bocais no MESMO ângulo compartilham um único arco (senão os rótulos se sobrepõem).
@@ -637,7 +790,7 @@ function svgDetalheTampo(tampo: TampoModelo, d: DadosBase): string {
 
   const parts: string[] = [];
 
-  // Perfil em corte (parede dupla) apontando para cima
+  // Perfil em corte (parede dupla) apontando para cima, com hachura do material seccionado
   const map: MapaLocal = (z, r) => [xCentro + r * scale, yBase - z * scale];
   const perfil = perfilTampoDuplo(tampo.tipo, DExt, t, map);
   parts.push(`<path d="${perfil.externo}" fill="${FILL_BRANCO}" stroke="${STROKE}" stroke-width="${SW_EXT}"/>`);
@@ -645,8 +798,12 @@ function svgDetalheTampo(tampo: TampoModelo, d: DadosBase): string {
     parts.push(`<path d="${perfil.interno}" fill="none" stroke="${STROKE}" stroke-width="${SW_INT}"/>`);
   }
   const yPonta = clamp(yBase - perfil.profundidadeExt * scale, MARGIN, yBase);
+  // Hachura entre os perfis externo e interno (interno fechado vira furo via evenodd); no tampo
+  // plano não há perfil interno e a chapa inteira é hachurada — correto para um corte.
+  const tampoD = perfil.interno ? `${perfil.externo} ${perfil.interno} Z` : perfil.externo;
+  hachuraClip(parts, 'ht-tampo', tampoD, xEsq, yPonta, xDir - xEsq, yBase - yPonta, 6);
 
-  // Trecho do casco em corte abaixo da linha de tangência (junção soldada)
+  // Trecho do casco em corte abaixo da linha de tangência (junção soldada), hachurado
   const tPx = clamp(t * scale, 1.5, 14);
   const hCasco = 22;
   for (const lado of [-1, 1]) {
@@ -654,6 +811,7 @@ function svgDetalheTampo(tampo: TampoModelo, d: DadosBase): string {
     const xInt = xCentro + lado * (RextPx - tPx);
     parts.push(`<line x1="${xExt.toFixed(1)}" y1="${yBase.toFixed(1)}" x2="${xExt.toFixed(1)}" y2="${clamp(yBase + hCasco, MARGIN, VB_H - MARGIN).toFixed(1)}" stroke="${STROKE}" stroke-width="${SW_EXT}"/>`);
     parts.push(`<line x1="${xInt.toFixed(1)}" y1="${yBase.toFixed(1)}" x2="${xInt.toFixed(1)}" y2="${clamp(yBase + hCasco, MARGIN, VB_H - MARGIN).toFixed(1)}" stroke="${STROKE}" stroke-width="${SW_INT}"/>`);
+    hachuraRect(parts, Math.min(xExt, xInt), yBase, tPx, hCasco, 4);
   }
   costura(parts, clamp(xEsq - 8, MARGIN, VB_W - MARGIN), yBase, clamp(xDir + 8, MARGIN, VB_W - MARGIN), yBase, 1.2);
 
@@ -662,10 +820,10 @@ function svgDetalheTampo(tampo: TampoModelo, d: DadosBase): string {
 
   // Cotas: Ø (abaixo do casco), profundidade h (direita), espessura t (callout na parede)
   const yCotaD = clamp(yBase + hCasco + 18, MARGIN, VB_H - MARGIN);
-  cota(parts, xEsq, yCotaD, xDir, yCotaD, `Ø${fmt(d.D, 0)}`, VB_W, FS_C);
+  cota(parts, xEsq, yCotaD, xDir, yCotaD, `Ø${fmt(d.D, 0)}`, VB_W, FS_C, 0.5, 'mm');
 
   const xCotaProf = clamp(xDir + 26, MARGIN, VB_W - MARGIN);
-  cota(parts, xCotaProf, yPonta, xCotaProf, yBase, `h=${fmt(dims.profundidade, 1)}`, VB_W, FS_C);
+  cota(parts, xCotaProf, yPonta, xCotaProf, yBase, `h=${fmt(dims.profundidade, 1)}`, VB_W, FS_C, 0.5, 'mm');
 
   callout(
     parts,
@@ -675,15 +833,16 @@ function svgDetalheTampo(tampo: TampoModelo, d: DadosBase): string {
     clamp(yBase + hCasco + 4, MARGIN, VB_H - MARGIN),
     `t=${fmt(t, 1)}`,
     FS_CALL,
+    'mm',
   );
 
   // Toriesférico: leaders do raio da coroa (Rc, no ápice, texto à direita) e do raio de canto
   // (rc, no canto ESQUERDO, texto acima-esquerda — o lado direito já tem a cota h)
   if (tampo.tipo === 'toriesferico') {
-    callout(parts, clamp(xCentro + RextPx * 0.35, MARGIN, VB_W - MARGIN), clamp(yPonta + (yBase - yPonta) * 0.12, MARGIN, VB_H - MARGIN), clamp(xCentro + RextPx * 0.55, MARGIN, VB_W - MARGIN - 56), clamp(yPonta - 16, MARGIN + 10, VB_H - MARGIN), `Rc=${fmt(dims.raioCoroa, 0)}`, FS_CALL);
+    callout(parts, clamp(xCentro + RextPx * 0.35, MARGIN, VB_W - MARGIN), clamp(yPonta + (yBase - yPonta) * 0.12, MARGIN, VB_H - MARGIN), clamp(xCentro + RextPx * 0.55, MARGIN, VB_W - MARGIN - 56), clamp(yPonta - 16, MARGIN + 10, VB_H - MARGIN), `Rc=${fmt(dims.raioCoroa, 0)}`, FS_CALL, 'mm');
     const xCanto = xCentro - RextPx * 0.93;
     const yCanto = yBase - (yBase - yPonta) * 0.32;
-    callout(parts, clamp(xCanto, MARGIN, VB_W - MARGIN), clamp(yCanto, MARGIN, VB_H - MARGIN), clamp(xEsq - 14, MARGIN + 4, VB_W - MARGIN), clamp(yCanto - 24, MARGIN + 10, VB_H - MARGIN), `rc=${fmt(dims.raioCanto, 0)}`, FS_CALL);
+    callout(parts, clamp(xCanto, MARGIN, VB_W - MARGIN), clamp(yCanto, MARGIN, VB_H - MARGIN), clamp(xEsq - 14, MARGIN + 4, VB_W - MARGIN), clamp(yCanto - 24, MARGIN + 10, VB_H - MARGIN), `rc=${fmt(dims.raioCanto, 0)}`, FS_CALL, 'mm');
   }
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${VB_W} ${VB_H}" font-family="Inter, sans-serif">${parts.join('')}</svg>`;

@@ -239,6 +239,17 @@
             text-transform: uppercase;
         }
 
+        /* ===== RESPONSABILIDADE TECNICA (assinatura canonica — mesma das demais folhas) ===== */
+        .resp-tecnica { margin-top: auto; margin-bottom: 6px; font-size: 10px; }
+        .resp-titulo { font-weight: 800; border-bottom: 1px solid #999; margin-bottom: 10px; }
+        .resp-grid { display: flex; justify-content: space-around; gap: 40px; }
+        .resp-col { text-align: center; min-width: 220px; }
+        .rubrica { height: 44px; display: block; margin: 0 auto; }
+        .resp-espaco { height: 44px; }
+        .resp-linha { border-top: 2px solid #111; margin: 2px 20px 4px; }
+        .resp-nome { font-weight: 800; }
+        .resp-cargo, .resp-crea { font-size: 9px; color: #333; }
+
         /* ===== RODAPÉ ===== */
         .pgr-footer-new {
             position: absolute;
@@ -251,14 +262,14 @@
         .footer-line-wrapper {
             flex: 1;
             border-top: 3px solid #000;
-            padding-top: 6px;
+            padding-top: 8px;
             text-align: center;
         }
         .company-details {
-            font-size: 10px;
+            font-size: 11px;
             color: #000;
             font-weight: 500;
-            line-height: 1.5;
+            line-height: 1.4;
         }
 
         /* ===== EDIÇÃO ===== */
@@ -502,6 +513,27 @@
             <td style="width:33.3%;" contenteditable="true" spellcheck="false"><strong>PTH</strong> &mdash; Pressão de Teste Hidrostático</td>
         </tr>
     </table>
+
+    <!-- ========== RESPONSABILIDADE TÉCNICA (espaço reservado; assinatura fictícia até o motor de assinatura) ========== -->
+    <div class="resp-tecnica">
+        <div class="resp-titulo">Responsabilidade Tecnica:</div>
+        <div class="resp-grid">
+            <div class="resp-col">
+                <svg class="rubrica" viewBox="0 0 160 50" aria-hidden="true"><path d="M8 38 C 30 8, 44 44, 60 22 S 92 10, 104 30 S 138 18, 152 26" fill="none" stroke="#1a2f8a" stroke-width="2.2" stroke-linecap="round"/></svg>
+                <div class="resp-linha"></div>
+                <div class="resp-nome">Fulano Da Silva</div>
+                <div class="resp-cargo">Engenheiro De Equipamentos</div>
+                <div class="resp-crea">CREA: 12151566</div>
+            </div>
+            <div class="resp-col">
+                <div class="resp-espaco"></div>
+                <div class="resp-linha"></div>
+                <div class="resp-nome">Fulano Da Silva</div>
+                <div class="resp-cargo">Tecnico em Mecanica</div>
+                <div class="resp-crea">CREA: 12151566</div>
+            </div>
+        </div>
+    </div>
 
     <!-- ========== RODAPÉ (sem paginação) ========== -->
     <div class="pgr-footer-new">

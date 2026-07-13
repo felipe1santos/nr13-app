@@ -44,7 +44,7 @@
             overflow: hidden;          /* clipa sobra em vez de empurrar/sobrepor o rodapé */
             background: #fff;
             margin: 0;
-            padding: 15mm 15mm 25mm 15mm; /* mantém a reserva do rodapé (25mm) */
+            padding: 15mm 15mm 32mm 15mm; /* reserva do rodapé (32mm: rodapé absoluto sobe até ~28mm) */
             position: relative;
             page-break-after: always;
             display: flex;
@@ -152,6 +152,19 @@
         }
 
         /* =========================================
+           RESPONSABILIDADE TECNICA (assinatura canonica — mesma das demais folhas)
+           ========================================= */
+        .resp-tecnica { margin-top: 8px; margin-bottom: 6px; font-size: 10px; }
+        .resp-titulo { font-weight: 800; border-bottom: 1px solid #999; margin-bottom: 10px; }
+        .resp-grid { display: flex; justify-content: space-around; gap: 40px; }
+        .resp-col { text-align: center; min-width: 220px; }
+        .rubrica { height: 44px; display: block; margin: 0 auto; }
+        .resp-espaco { height: 44px; }
+        .resp-linha { border-top: 2px solid #111; margin: 2px 20px 4px; }
+        .resp-nome { font-weight: 800; }
+        .resp-cargo, .resp-crea { font-size: 9px; color: #333; }
+
+        /* =========================================
            RODAPÉ
            ========================================= */
         .pgr-footer-new { position: absolute; bottom: 12mm; left: 15mm; right: 15mm; display: flex; align-items: flex-start; }
@@ -162,7 +175,7 @@
         @media print {
             .no-print { display: none !important; }
             body { background: none; padding: 0; display: block; }
-            .page { width: 100% !important; height: 297mm !important; overflow: hidden !important; margin: 0 !important; padding: 15mm 15mm 25mm 15mm !important; box-shadow: none !important; border: none !important; }
+            .page { width: 100% !important; height: 297mm !important; overflow: hidden !important; margin: 0 !important; padding: 15mm 15mm 32mm 15mm !important; box-shadow: none !important; border: none !important; }
         }
 
 
@@ -396,6 +409,28 @@
             A <strong>PMTA</strong> limitante do sistema é de <strong class="hl-text" id="lbl-menor-pmta">--</strong> MPa, determinada pelo componente <strong id="lbl-comp-pmta">--</strong>.
         </div>
         </div><!-- /#resumo-body -->
+
+        <!-- Responsabilidade Técnica: espaço reservado (assinatura fictícia até o motor de assinatura).
+             Fica FORA do #resumo-body, então não encolhe no auto-shrink. -->
+        <div class="resp-tecnica">
+            <div class="resp-titulo">Responsabilidade Tecnica:</div>
+            <div class="resp-grid">
+                <div class="resp-col">
+                    <svg class="rubrica" viewBox="0 0 160 50" aria-hidden="true"><path d="M8 38 C 30 8, 44 44, 60 22 S 92 10, 104 30 S 138 18, 152 26" fill="none" stroke="#1a2f8a" stroke-width="2.2" stroke-linecap="round"/></svg>
+                    <div class="resp-linha"></div>
+                    <div class="resp-nome">Fulano Da Silva</div>
+                    <div class="resp-cargo">Engenheiro De Equipamentos</div>
+                    <div class="resp-crea">CREA: 12151566</div>
+                </div>
+                <div class="resp-col">
+                    <div class="resp-espaco"></div>
+                    <div class="resp-linha"></div>
+                    <div class="resp-nome">Fulano Da Silva</div>
+                    <div class="resp-cargo">Tecnico em Mecanica</div>
+                    <div class="resp-crea">CREA: 12151566</div>
+                </div>
+            </div>
+        </div>
 
         <div class="pgr-footer-new">
             <div class="footer-line-wrapper">
