@@ -5,14 +5,17 @@ import { formatarValor } from '../calc/unidades';
 import {
   carregarProntuario,
   excluirProntuario,
+  gravarAssinantes,
   gravarProntuarioAtual,
+  obterAssinantes,
   obterOuCriarMeta,
   salvarProntuario,
 } from '../features/prontuarios/prontuarioService';
+import type { AssinantesProntuario } from '../features/prontuarios/prontuarioService';
 import type { DimensaoProntuario, ProntuarioDados } from '../features/prontuarios/tipos';
 import { PAGINAS_PRONTUARIO } from '../features/prontuarios/tipos';
-import { carregarMinhaEmpresa, listarClientes } from '../features/cadastros/cadastroService';
-import type { Cliente } from '../features/cadastros/tipos';
+import { carregarMinhaEmpresa, listarClientes, listarFuncionarios } from '../features/cadastros/cadastroService';
+import type { Cliente, Funcionario } from '../features/cadastros/tipos';
 import { carregarVaso } from '../features/memorial/vasoMemorialService';
 import { carregarDadosAutoclave } from '../features/memorial/autoclaveMemorialService';
 import { carregarCaldeira } from '../features/memorial/caldeiraMemorialService';
@@ -207,6 +210,8 @@ export default function Prontuarios() {
   const [visualizandoSemSalvar, setVisualizandoSemSalvar] = useState(false);
   const [containers, setContainers] = useState<ContainerInspecao[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
+  const [assinantes, setAssinantes] = useState<AssinantesProntuario>({ engenheiroId: null, tecnicoId: null });
   const [imprimindo, setImprimindo] = useState(false);
   // Recomputado a cada render — o bump de `versao` no onSalvo do modelador atualiza o indicador.
   const temCroqui2d = tag !== '' && localStorage.getItem(`nr13_croqui2d_${tag}`) !== null;
@@ -256,7 +261,32 @@ export default function Prontuarios() {
     carregarEquipamentos();
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount padrão
     setClientes(listarClientes());
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount padrão
+    setFuncionarios(listarFuncionarios());
   }, [carregarEquipamentos]);
+
+  // Assinantes do prontuário (engenheiro + técnico): carrega a escolha salva da TAG e, por
+  // conveniência, pré-seleciona o engenheiro quando há exatamente 1 cadastrado (e persiste).
+  // O técnico NUNCA é pré-selecionado sozinho.
+  function carregarAssinantes(tagEq: string, funcs: Funcionario[]) {
+    const a = obterAssinantes(tagEq);
+    if (!a.engenheiroId) {
+      const engs = funcs.filter((f) => f.tipo === 'Engenheiro');
+      if (engs.length === 1) {
+        a.engenheiroId = engs[0].id;
+        gravarAssinantes(tagEq, a);
+      }
+    }
+    setAssinantes(a);
+  }
+
+  // Grava a escolha ANTES do bump de versão — os iframes remontados leem a chave nova.
+  function trocarAssinante(campo: keyof AssinantesProntuario, id: string) {
+    const novo: AssinantesProntuario = { ...assinantes, [campo]: id || null };
+    setAssinantes(novo);
+    gravarAssinantes(tag, novo);
+    setVersao((v) => v + 1);
+  }
 
   async function abrirEquipamento(eq: EquipamentoResumo) {
     const existente = carregarProntuario(eq.tag);
@@ -266,6 +296,10 @@ export default function Prontuarios() {
     setConfirmandoExcluir(false);
     const conts = listarContainers(eq.tag);
     setContainers(conts);
+    // Lista fresca de funcionários (pode ter mudado desde o mount) + assinantes salvos da TAG.
+    const funcs = listarFuncionarios();
+    setFuncionarios(funcs);
+    carregarAssinantes(eq.tag, funcs);
 
     {
       // O prefill do memorial roda SEMPRE (novo ou existente) para que os campos derivados do
@@ -509,6 +543,12 @@ export default function Prontuarios() {
       setSalvando(false);
     }
   }
+
+  // Listas para os seletores de assinantes; se o funcionário salvo foi excluído, o select cai em ''.
+  const engenheiros = funcionarios.filter((f) => f.tipo === 'Engenheiro');
+  const tecnicos = funcionarios.filter((f) => String(f.tipo).startsWith('Inspetor'));
+  const valorAssinante = (id: string | null, lista: Funcionario[]) =>
+    id && lista.some((f) => f.id === id) ? id : '';
 
   function handleExcluir() {
     if (!confirmandoExcluir) { setConfirmandoExcluir(true); return; }
@@ -892,6 +932,41 @@ export default function Prontuarios() {
                     )}
                   </>
                 )}
+              </div>
+            </div>
+
+            {/* Assinantes do prontuário — gravados em nr13_assinantes_pront_<TAG> antes do remount
+                dos iframes (as folhas lerão a chave no motor de assinatura). */}
+            <div className="pront-assinantes">
+              <div className="pront-assinante-campo">
+                <label htmlFor="pront-sel-engenheiro">Engenheiro (assina)</label>
+                <select
+                  id="pront-sel-engenheiro"
+                  value={valorAssinante(assinantes.engenheiroId, engenheiros)}
+                  onChange={(e) => trocarAssinante('engenheiroId', e.target.value)}
+                >
+                  <option value="">— sem assinatura —</option>
+                  {engenheiros.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.nome}{f.crea ? ` — ${f.crea}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="pront-assinante-campo">
+                <label htmlFor="pront-sel-tecnico">Técnico (assina)</label>
+                <select
+                  id="pront-sel-tecnico"
+                  value={valorAssinante(assinantes.tecnicoId, tecnicos)}
+                  onChange={(e) => trocarAssinante('tecnicoId', e.target.value)}
+                >
+                  <option value="">— sem assinatura —</option>
+                  {tecnicos.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.nome}{f.crea ? ` — ${f.crea}` : ''}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
           </div>
