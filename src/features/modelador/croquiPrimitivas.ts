@@ -242,6 +242,54 @@ export interface OpcoesBocal {
 }
 
 /**
+ * Símbolo P&ID simplificado de VÁLVULA DE SEGURANÇA (PSV): stub curto saindo da parede na
+ * direção `angRad` + bowtie (2 triângulos com ápice comum) ao longo do eixo do símbolo —
+ * ~20px de comprimento total. Agrupado em `<g class="dispositivo">` (marcador para testes).
+ * Chamador garante base clampada com ≥22px de folga na direção do símbolo (invariante: nenhuma
+ * coordenada fora do viewBox). Retorna a ponta externa (âncora do rótulo).
+ */
+export function simboloValvula(parts: string[], xBase: number, yBase: number, angRad: number, sw = 1.6): { x: number; y: number } {
+  const ux = Math.cos(angRad);
+  const uy = Math.sin(angRad);
+  const vx = -uy;
+  const vy = ux;
+  const stub = 5; // haste entre a parede e o corpo da válvula
+  const alt = 15; // altura do bowtie ao longo do eixo
+  const meia = 6.5; // meia-largura das bases dos triângulos
+  const p = (ao: number, lado: number): [number, number] => [xBase + ux * ao + vx * lado, yBase + uy * ao + vy * lado];
+  const apice = p(stub + alt / 2, 0);
+  const pe = p(stub, 0);
+  const seg: string[] = [];
+  seg.push(`<line x1="${xBase.toFixed(1)}" y1="${yBase.toFixed(1)}" x2="${pe[0].toFixed(1)}" y2="${pe[1].toFixed(1)}" stroke="${STROKE}" stroke-width="${sw}"/>`);
+  seg.push(`<polygon points="${pontosPoly([p(stub, -meia), p(stub, meia), apice])}" fill="${FILL_BRANCO}" stroke="${STROKE}" stroke-width="${sw}"/>`);
+  seg.push(`<polygon points="${pontosPoly([p(stub + alt, -meia), p(stub + alt, meia), apice])}" fill="${FILL_BRANCO}" stroke="${STROKE}" stroke-width="${sw}"/>`);
+  parts.push(`<g class="dispositivo">${seg.join('')}</g>`);
+  return { x: xBase + ux * (stub + alt), y: yBase + uy * (stub + alt) };
+}
+
+/**
+ * Símbolo P&ID de MANÔMETRO (PI): haste curta saindo da parede na direção `angRad` + círculo
+ * pequeno com ponteiro interno a ~45° do eixo — ~21px de comprimento total. Agrupado em
+ * `<g class="dispositivo">` (marcador para testes). Mesmas invariantes de `simboloValvula`.
+ * Retorna a ponta externa (âncora do rótulo).
+ */
+export function simboloManometro(parts: string[], xBase: number, yBase: number, angRad: number, sw = 1.6): { x: number; y: number } {
+  const ux = Math.cos(angRad);
+  const uy = Math.sin(angRad);
+  const stub = 5; // haste entre a parede e o mostrador
+  const r = 8; // raio do mostrador
+  const cx = xBase + ux * (stub + r);
+  const cy = yBase + uy * (stub + r);
+  const angPonteiro = angRad - Math.PI / 4;
+  const seg: string[] = [];
+  seg.push(`<line x1="${xBase.toFixed(1)}" y1="${yBase.toFixed(1)}" x2="${(xBase + ux * stub).toFixed(1)}" y2="${(yBase + uy * stub).toFixed(1)}" stroke="${STROKE}" stroke-width="${sw}"/>`);
+  seg.push(`<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${r}" fill="${FILL_BRANCO}" stroke="${STROKE}" stroke-width="${sw}"/>`);
+  seg.push(`<line x1="${cx.toFixed(1)}" y1="${cy.toFixed(1)}" x2="${(cx + r * 0.62 * Math.cos(angPonteiro)).toFixed(1)}" y2="${(cy + r * 0.62 * Math.sin(angPonteiro)).toFixed(1)}" stroke="${STROKE}" stroke-width="${Math.max(0.9, sw * 0.6).toFixed(1)}"/>`);
+  parts.push(`<g class="dispositivo">${seg.join('')}</g>`);
+  return { x: xBase + ux * (stub + 2 * r), y: yBase + uy * (stub + 2 * r) };
+}
+
+/**
  * Bocal flangeado: pescoço (retângulo ao longo de `angRad`, a partir de `xBase/yBase` na
  * superfície do casco) + placa de flange perpendicular na ponta, como nas pranchas de referência.
  * `comp` = comprimento total (pescoço+flange) em px; `largura` = Ø do pescoço em px.

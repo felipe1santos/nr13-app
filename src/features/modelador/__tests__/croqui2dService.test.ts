@@ -13,6 +13,10 @@ function modeloCompleto() {
   return m;
 }
 
+function dispositivo(id: string, tipo: 'valvula' | 'manometro') {
+  return { id, tipo, fabricante: '', modelo: '', dn: '', ajuste: '', materialCorpo: '', serie: '', local: '' };
+}
+
 describe('gerarCroquis2d', () => {
   it('modelo incompleto → null', () => {
     expect(gerarCroquis2d(modeloVazio('X'))).toBeNull();
@@ -208,6 +212,73 @@ describe('gerarCroquis2d', () => {
       expect(Number.isFinite(x)).toBe(true);
       expect(x).toBeGreaterThanOrEqual(0);
       expect(x).toBeLessThanOrEqual(420); // VB_W da vista longitudinal vertical
+    }
+  });
+
+  it('dispositivos de segurança (válvula + manômetro) indicados na longitudinal com ids e símbolo marcado', () => {
+    const m = modeloCompleto();
+    m.dispositivos = [dispositivo('PSV-1', 'valvula'), dispositivo('PI-1', 'manometro')];
+    const c = gerarCroquis2d(m)!;
+    expect(c.longitudinal).toContain('PSV-1');
+    expect(c.longitudinal).toContain('PI-1');
+    expect([...c.longitudinal.matchAll(/<g class="dispositivo">/g)]).toHaveLength(2);
+  });
+
+  it('sem dispositivos cadastrados → nenhum símbolo class="dispositivo" no SVG', () => {
+    const c = gerarCroquis2d(modeloCompleto())!;
+    expect(c.longitudinal).not.toContain('class="dispositivo"');
+  });
+
+  it('excedente ignorado: 3 válvulas + 3 manômetros → só 2 + 2 símbolos', () => {
+    const m = modeloCompleto();
+    m.dispositivos = [
+      dispositivo('PSV-1', 'valvula'), dispositivo('PSV-2', 'valvula'), dispositivo('PSV-3', 'valvula'),
+      dispositivo('PI-1', 'manometro'), dispositivo('PI-2', 'manometro'), dispositivo('PI-3', 'manometro'),
+    ];
+    const c = gerarCroquis2d(m)!;
+    expect([...c.longitudinal.matchAll(/<g class="dispositivo">/g)]).toHaveLength(4);
+    expect(c.longitudinal).not.toContain('PSV-3');
+    expect(c.longitudinal).not.toContain('PI-3');
+  });
+
+  it('id malicioso de dispositivo é escapado na longitudinal (evita quebra de tag/injeção)', () => {
+    const m = modeloCompleto();
+    m.dispositivos = [dispositivo('PSV<script>&"x\'', 'valvula')];
+    const c = gerarCroquis2d(m)!;
+    expect(c.longitudinal).toContain('PSV&lt;script&gt;&amp;&quot;x&#39;');
+    expect(c.longitudinal).not.toContain('<script>');
+  });
+
+  it('símbolos de dispositivos dentro do viewBox nas duas orientações (sem NaN)', () => {
+    for (const orientacao of ['horizontal', 'vertical'] as const) {
+      const m = modeloCompleto();
+      m.orientacao = orientacao;
+      m.dispositivos = [dispositivo('PSV-1', 'valvula'), dispositivo('PI-1', 'manometro')];
+      const c = gerarCroquis2d(m)!;
+      expect(c.longitudinal).not.toMatch(/NaN|undefined|Infinity/);
+      const [vbW, vbH] = orientacao === 'horizontal' ? [720, 420] : [420, 720];
+      const grupos = [...c.longitudinal.matchAll(/<g class="dispositivo">([\s\S]*?)<\/g>/g)];
+      expect(grupos).toHaveLength(2);
+      for (const g of grupos) {
+        // Atributos x*/y*/cx/cy dos <line>/<circle> do símbolo
+        for (const [, attr, val] of g[1].matchAll(/(x1|x2|y1|y2|cx|cy)="(-?[\d.]+)"/g)) {
+          const v = Number(val);
+          expect(Number.isFinite(v)).toBe(true);
+          expect(v).toBeGreaterThanOrEqual(0);
+          expect(v).toBeLessThanOrEqual(attr.startsWith('x') || attr === 'cx' ? vbW : vbH);
+        }
+        // Pares x,y dos <polygon points="...">
+        for (const [, pts] of g[1].matchAll(/points="([^"]+)"/g)) {
+          for (const par of pts.trim().split(/\s+/)) {
+            const [x, y] = par.split(',').map(Number);
+            expect(Number.isFinite(x) && Number.isFinite(y)).toBe(true);
+            expect(x).toBeGreaterThanOrEqual(0);
+            expect(x).toBeLessThanOrEqual(vbW);
+            expect(y).toBeGreaterThanOrEqual(0);
+            expect(y).toBeLessThanOrEqual(vbH);
+          }
+        }
+      }
     }
   });
 

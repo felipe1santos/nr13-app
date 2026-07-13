@@ -37,10 +37,12 @@ import {
   idBalao,
   linhaExt,
   quebraOndulada,
+  simboloManometro,
+  simboloValvula,
 } from './croquiPrimitivas';
 import { pontosPerfilTampo, perfilTampoDuplo, type MapaLocal } from './croquiTampos';
 import { circunferenciaMm, comprimentoTotalMm, dimensoesTampo, num } from './geometriaVaso';
-import type { BocalModelo, ModeloVaso, TampoModelo, TipoTampoModelo } from './tiposModelador';
+import type { BocalModelo, DispositivoModelo, ModeloVaso, TampoModelo, TipoTampoModelo } from './tiposModelador';
 
 export interface Croquis2d {
   longitudinal: string;
@@ -177,6 +179,65 @@ function escolherTrechoLivre(a: number, b: number, ocupados: number[]): [number,
     if (!ocupados.some((o) => o > p1 - 14 && o < p2 + 14)) return [p1, p2];
   }
   return [a + (b - a) * candidatos[0][0], a + (b - a) * candidatos[0][1]];
+}
+
+/**
+ * Dispositivos de segurança indicados no croqui: no MÁXIMO 2 válvulas + 2 manômetros
+ * (excedente ignorado). `?? []` cobre modelo salvo antes do campo `dispositivos` (migração).
+ * Eles NÃO entram em `bocaisCasco` nem ganham cota axial — são só indicação de símbolo.
+ */
+function dispositivosParaCroqui(m: ModeloVaso): DispositivoModelo[] {
+  const lista = m.dispositivos ?? [];
+  return [
+    ...lista.filter((d) => d.tipo === 'valvula').slice(0, 2),
+    ...lista.filter((d) => d.tipo === 'manometro').slice(0, 2),
+  ];
+}
+
+/**
+ * Posições (px) para os símbolos de dispositivos ao longo do casco [a,b]: varre frações fixas
+ * do trecho (determinístico, sem aleatoriedade) e pula as que ficam a <20px de qualquer posição
+ * ocupada (bocais, costuras de virola, amostras do breakout hachurado). Cada posição escolhida
+ * vira ocupada para o dispositivo seguinte. Fallback (vaso muito cheio): usa a fração da vez
+ * mesmo ocupada — o símbolo sempre é desenhado (nunca falhar).
+ */
+function escolherPosicoesDispositivos(a: number, b: number, ocupados: number[], n: number, folga = 20): number[] {
+  const fracs = [0.15, 0.3, 0.7, 0.85, 0.45, 0.55, 0.22, 0.62];
+  const ocup = [...ocupados];
+  const out: number[] = [];
+  for (let i = 0; i < n; i++) {
+    // 1ª fração livre; se nenhuma sobrar (vaso cheio), a fração mais distante de tudo —
+    // dois dispositivos nunca caem no mesmo ponto
+    let pos = a + (b - a) * fracs[0];
+    let melhorDist = -1;
+    for (const f of fracs) {
+      const cand = a + (b - a) * f;
+      const dist = ocup.length ? Math.min(...ocup.map((o) => Math.abs(o - cand))) : Infinity;
+      if (dist >= folga) {
+        pos = cand;
+        melhorDist = Infinity;
+        break;
+      }
+      if (dist > melhorDist) {
+        melhorDist = dist;
+        pos = cand;
+      }
+    }
+    ocup.push(pos);
+    out.push(pos);
+  }
+  return out;
+}
+
+/** Amostra um intervalo [p1,p2] como posições ocupadas (passo 12px) — usado para o trecho do
+ *  breakout hachurado, que ocupa uma faixa contínua e não um ponto. */
+function ocuparIntervalo(ocupados: number[], p1: number, p2: number): number[] {
+  const out = [...ocupados];
+  const ini = Math.min(p1, p2);
+  const fim = Math.max(p1, p2);
+  for (let p = ini; p < fim; p += 12) out.push(p);
+  out.push(fim);
+  return out;
 }
 
 // ───────────────────────── Vista longitudinal — HORIZONTAL ─────────────────────────
@@ -362,6 +423,26 @@ function svgLongitudinalHorizontal(m: ModeloVaso, d: DadosBase): string {
       idBalao(parts, bx, by, esc(b.id), FS_BAL);
       ancoraYCota.set(b, clamp(yProj + rBocal, MARGIN, VB_H - MARGIN));
     }
+  }
+
+  // Dispositivos de segurança (máx. 2 válvulas + 2 manômetros): símbolos P&ID no topo do casco
+  // (y = yTop), em posições x LIVRES — a mesma lista `xsOcupados` do breakout (bocais de casco +
+  // costuras de virola), estendida com a faixa hachurada [xQa, xQb], garante que o símbolo nunca
+  // cobre bocal, costura, hachura nem a cota de espessura. Rótulo = id em texto pequeno acima.
+  const dispositivos = dispositivosParaCroqui(m);
+  if (dispositivos.length > 0) {
+    const ocupDisp = ocuparIntervalo(xsOcupados, xQa, xQb);
+    // folga 44px: símbolo (~20px) + rótulo do id acima (~35px) — vizinhos não colidem
+    const posicoes = escolherPosicoesDispositivos(xCascoEsq, xCascoDir, ocupDisp, dispositivos.length, 44);
+    dispositivos.forEach((disp, i) => {
+      const xD = clamp(posicoes[i], MARGIN + 12, VB_W - MARGIN - 12);
+      const tip =
+        disp.tipo === 'valvula'
+          ? simboloValvula(parts, xD, yTop, -Math.PI / 2, SW_COMP)
+          : simboloManometro(parts, xD, yTop, -Math.PI / 2, SW_COMP);
+      const yTxt = clamp(tip.y - 7, MARGIN + 10, VB_H - MARGIN);
+      parts.push(`<text x="${clamp(xD, MARGIN + 18, VB_W - MARGIN - 18).toFixed(1)}" y="${yTxt.toFixed(1)}" font-size="${FS_BAL}" font-weight="700" text-anchor="middle" fill="#111">${esc(disp.id)}</text>`);
+    });
   }
 
   // Posições das linhas de cota principais (calculadas antes p/ ancorar as linhas de extensão)
@@ -634,6 +715,25 @@ function svgLongitudinalVertical(m: ModeloVaso, d: DadosBase): string {
   // externo já está ocupado pelos stubs de bocal.
   const yAlvoT = (yQa + yQb) / 2;
   cotaEspessura(parts, xDir - tVisPx, yAlvoT, xDir, yAlvoT, `t=${fmt(d.tCasco, 1)}`, FS_S, 'mm');
+
+  // Dispositivos de segurança (máx. 2 válvulas + 2 manômetros): símbolos P&ID saindo da parede
+  // DIREITA do casco (o lado esquerdo é zona de cotas), em alturas y LIVRES — `ysOcupados`
+  // (bocais de casco + costuras de virola) estendida com a faixa do breakout [yQa, yQb] e com a
+  // altura da cota Ø interna (a seta dela toca a parede direita em yDiam). A cota do suporte
+  // fica abaixo de yCascoBottom, fora do trecho varrido. Rótulo = id acima do símbolo.
+  const dispositivos = dispositivosParaCroqui(m);
+  if (dispositivos.length > 0) {
+    const ocupDisp = ocuparIntervalo([...ysOcupados, yDiam], yQa, yQb);
+    // folga 44px: símbolo (~16px) + rótulo do id acima (~14px) — vizinhos não colidem
+    const posicoes = escolherPosicoesDispositivos(yCascoTop, yCascoBottom, ocupDisp, dispositivos.length, 44);
+    dispositivos.forEach((disp, i) => {
+      const yD = clamp(posicoes[i], MARGIN + 12, VB_H - MARGIN - 12);
+      if (disp.tipo === 'valvula') simboloValvula(parts, xDir, yD, 0, SW_COMP);
+      else simboloManometro(parts, xDir, yD, 0, SW_COMP);
+      const xTxt = clamp(xDir + 2, MARGIN, VB_W - MARGIN - 40);
+      parts.push(`<text x="${xTxt.toFixed(1)}" y="${clamp(yD - 11, MARGIN + 10, VB_H - MARGIN).toFixed(1)}" font-size="${FS_BAL}" font-weight="700" fill="#111">${esc(disp.id)}</text>`);
+    });
+  }
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${VB_W} ${VB_H}" font-family="Inter, sans-serif">${parts.join('')}</svg>`;
 }
