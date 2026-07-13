@@ -78,20 +78,6 @@ describe('pré-carga do memorial', () => {
     expect(sync.bocais[0]).toMatchObject({ posicaoAxial: 800, angulo: 90 }); // posição preservada
   });
 
-  it('modelo antigo salvo sem `dispositivos` carrega com lista vazia (migração)', async () => {
-    const m = modeloVazio('V2d');
-    m.diametroInterno = 800;
-    await salvarModelo('V2d', m, null);
-    // Simula modelo salvo antes dos dispositivos de segurança: remove o campo do JSON gravado.
-    const salvo = JSON.parse(localStorage.getItem('nr13_modelo3d_V2d')!);
-    delete salvo.dispositivos;
-    localStorage.setItem('nr13_modelo3d_V2d', JSON.stringify(salvo));
-
-    const carregado = carregarOuPreCarregar('V2d');
-    expect(carregado.dispositivos).toEqual([]);
-    expect(carregado.diametroInterno).toBe(800);
-  });
-
   it('pré-carga sugere comprimento do cilindro pelo volume da categoria (nr13_cat_<TAG>)', () => {
     localStorage.setItem('nr13_vaso_V2c', JSON.stringify({
       tag: 'V2c', P: 1, D: 1000, orientacao: 'horizontal',
@@ -141,39 +127,6 @@ describe('salvarModelo e folha de dados', () => {
       doMemorial: false,
     });
     expect(fd.dimensoes.some((d) => d.componente.includes('Casco'))).toBe(true);
-  });
-
-  it('montarFolhaDados popula dispositivos de segurança com tipoNome por extenso', () => {
-    const m = modeloVazio('V4d');
-    m.diametroInterno = 1000; m.comprimentoCilindro = 2000; m.espessuraCasco = 10;
-    m.dispositivos = [
-      { id: ' PSV-1 ', tipo: 'valvula', fabricante: 'Spirax Sarco', modelo: 'SV615', dn: '1/2" NPT', ajuste: '10,5', materialCorpo: 'Aço carbono', serie: '123456', local: 'bocal N1' },
-      { id: 'PI-1', tipo: 'manometro', fabricante: 'Willy', modelo: 'W-100', dn: '1/2" NPT', ajuste: '0 a 21 kgf/cm²', materialCorpo: 'Bronze', serie: '654321', local: 'topo do casco' },
-    ];
-    const fd = montarFolhaDados(m);
-    expect(fd.dispositivos).toHaveLength(2);
-    expect(fd.dispositivos[0]).toMatchObject({
-      id: 'PSV-1', // trim
-      tipo: 'valvula',
-      tipoNome: 'Válvula de Segurança',
-      fabricante: 'Spirax Sarco',
-      modelo: 'SV615',
-      ajuste: '10,5',
-      local: 'bocal N1',
-    });
-    expect(fd.dispositivos[1]).toMatchObject({
-      id: 'PI-1',
-      tipo: 'manometro',
-      tipoNome: 'Manômetro',
-      ajuste: '0 a 21 kgf/cm²',
-      serie: '654321',
-    });
-  });
-
-  it('montarFolhaDados sem dispositivos cadastrados → lista vazia', () => {
-    const m = modeloVazio('V4e');
-    m.diametroInterno = 1000; m.comprimentoCilindro = 2000; m.espessuraCasco = 10;
-    expect(montarFolhaDados(m).dispositivos).toEqual([]);
   });
 
   it('obs do bocal de casco formata o número em pt-BR (vírgula decimal)', () => {

@@ -5,7 +5,7 @@
 import { excluirChave, ler, salvar } from '../../services/storage';
 import type { VasoSalvo } from '../memorial/vasoMemorialService';
 import { circunferenciaMm, comprimentoTotalMm, dimensoesTampo, num, pesosKg } from './geometriaVaso';
-import type { BocalModelo, DispositivoModelo, ModeloVaso, TampoModelo, TipoTampoModelo } from './tiposModelador';
+import type { BocalModelo, ModeloVaso, TampoModelo, TipoTampoModelo } from './tiposModelador';
 
 export interface FolhaDadosDerivada {
   geradoEm: string;
@@ -24,20 +24,6 @@ export interface FolhaDadosDerivada {
     espessuraMm: number | null;
     /** Posição longitudinal a partir da tangência do tampo 1; null p/ bocal de tampo. */
     posicaoAxialMm: number | null;
-  }[];
-  dispositivos: {
-    id: string;
-    tipo: 'valvula' | 'manometro';
-    /** Tipo por extenso ('Válvula de Segurança' | 'Manômetro') — pronto para exibição na folha. */
-    tipoNome: string;
-    fabricante: string;
-    modelo: string;
-    dn: string;
-    /** Válvula: pressão de abertura (kgf/cm²); manômetro: faixa da escala. */
-    ajuste: string;
-    materialCorpo: string;
-    serie: string;
-    local: string;
   }[];
   pesos: {
     vazioKg: number | null;
@@ -80,7 +66,6 @@ export function modeloVazio(tag: string): ModeloVaso {
     tampo2: { tipo: 'eliptico', espessura: '' },
     bocais: [],
     suporte: { tipo: 'nenhum', altura: '', quantidade: '' },
-    dispositivos: [],
     densidadeAco: 7850,
     pesoOperacao: '',
     material: '',
@@ -179,12 +164,7 @@ export function carregarOuPreCarregar(tag: string): ModeloVaso {
   if (!existente) return vaso ? modeloDoMemorial(tag, vaso) : modeloVazio(tag);
 
   // Migração: modelos salvos antes do campo `virolas` (fase 2) não o têm — tratar como 1 virola.
-  // Idem para `dispositivos` (dispositivos de segurança) — modelos antigos carregam com lista vazia.
-  const migrado: ModeloVaso = {
-    ...existente,
-    virolas: existente.virolas === undefined ? 1 : existente.virolas,
-    dispositivos: existente.dispositivos ?? [],
-  };
+  const migrado: ModeloVaso = { ...existente, virolas: existente.virolas === undefined ? 1 : existente.virolas };
   if (!vaso) return migrado;
 
   // Memorial editado depois do croqui salvo: os campos calculados re-sincronizam (memorial é a
@@ -235,10 +215,6 @@ function nomeSuporte(tipo: ModeloVaso['suporte']['tipo']): string {
   }
 }
 
-function nomeTipoDispositivo(tipo: DispositivoModelo['tipo']): string {
-  return tipo === 'valvula' ? 'Válvula de Segurança' : 'Manômetro';
-}
-
 function linhaTampo(nome: string, tampo: TampoModelo, D: number | null): { componente: string; texto: string } {
   const t = num(tampo.espessura);
   const dims = D !== null && t !== null ? dimensoesTampo(tampo.tipo, D, t) : null;
@@ -282,20 +258,6 @@ export function montarFolhaDados(m: ModeloVaso): FolhaDadosDerivada {
     };
   });
 
-  // `?? []`: montarFolhaDados pode receber modelo antigo (salvo antes dos dispositivos de segurança).
-  const dispositivos = (m.dispositivos ?? []).map((d) => ({
-    id: d.id.trim(),
-    tipo: d.tipo,
-    tipoNome: nomeTipoDispositivo(d.tipo),
-    fabricante: d.fabricante.trim(),
-    modelo: d.modelo.trim(),
-    dn: d.dn.trim(),
-    ajuste: d.ajuste.trim(),
-    materialCorpo: d.materialCorpo.trim(),
-    serie: d.serie.trim(),
-    local: d.local.trim(),
-  }));
-
   const pesos = pesosKg(m);
 
   const dimensoes: { componente: string; texto: string }[] = [
@@ -321,7 +283,6 @@ export function montarFolhaDados(m: ModeloVaso): FolhaDadosDerivada {
     geradoEm: new Date().toLocaleDateString('pt-BR'),
     orientacao: m.orientacao,
     bocais,
-    dispositivos,
     pesos: {
       ...pesos,
       densidade: m.densidadeAco,

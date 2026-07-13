@@ -292,11 +292,6 @@
 function lerJSON(chave) { try { return JSON.parse(localStorage.getItem(chave) || 'null'); } catch (_) { return null; } }
 function lerTexto(chave) { var v = localStorage.getItem(chave); if (!v) return ''; try { var p = JSON.parse(v); return typeof p === 'string' ? p : v; } catch (_) { return v; } }
 function texto(id, v) { var el = document.getElementById(id); if (el) el.textContent = (v === null || v === undefined || v === '') ? '—' : String(v); }
-// Escape para texto do usuário injetado via innerHTML/insertAdjacentHTML (mesmo helper de
-// PRONT-FOLHA-DADOS.html).
-function escapeHtml(s) {
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
 
 // ───────────────────────── Helpers numéricos ─────────────────────────
 function numMM(v) {
@@ -689,34 +684,6 @@ document.addEventListener('DOMContentLoaded', function () {
       texto('dim-circunf', fmtNumPtBRCompacto(fd.circunferenciaMm));
       texto('dim-peso-vazio', fmtNumPtBRCompacto(fd.pesos && fd.pesos.vazioKg));
       texto('dim-peso-cheio', fmtNumPtBRCompacto(fd.pesos && fd.pesos.cheioDaguaKg));
-    }
-  }
-
-  // ───────────────────────── Dispositivos de Segurança (Croqui 2D) ─────────────────────────
-  // Segunda tabelinha logo abaixo da tabela de dimensões — só quando fd.dispositivos tem itens
-  // (máx. 4 linhas + título ≈ 5 linhas na coluna de 240px, cabe na altura do croqui-grid).
-  // Sem dispositivos, NADA é adicionado (folha idêntica à atual — fallback intacto).
-  var dispositivos = (fd && Array.isArray(fd.dispositivos)) ? fd.dispositivos : [];
-  if (dispositivos.length) {
-    var wrapDim = document.querySelector('.tabela-dim-wrap');
-    if (wrapDim) {
-      var ABREV_TIPO = { valvula: 'Válv. Segurança', manometro: 'Manômetro' };
-      var dispLinhas = '';
-      dispositivos.slice(0, 4).forEach(function (dsp) {
-        if (!dsp) return;
-        var nomePartes = [];
-        if (dsp.id && String(dsp.id).trim()) nomePartes.push(String(dsp.id).trim());
-        nomePartes.push(ABREV_TIPO[dsp.tipo] || dsp.tipoNome || 'Dispositivo');
-        // Resumo curto "modelo · DN · ajuste" — só os campos preenchidos; nada → "—".
-        var resumoPartes = [dsp.modelo, dsp.dn, dsp.ajuste].filter(function (v) {
-          return v !== null && v !== undefined && String(v).trim() !== '';
-        }).map(function (v) { return String(v).trim(); });
-        dispLinhas += '<tr><td class="lbl">' + escapeHtml(nomePartes.join(' — ')) +
-          '</td><td class="val">' + (resumoPartes.length ? escapeHtml(resumoPartes.join(' · ')) : '—') + '</td></tr>';
-      });
-      wrapDim.insertAdjacentHTML('beforeend',
-        '<div class="tabela-dim-titulo" style="margin-top:6px">Dispositivos de Segurança</div>' +
-        '<table class="tabela-dim compacta">' + dispLinhas + '</table>');
     }
   }
 

@@ -7,7 +7,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { Icone } from '../../components/Icone';
 import { dimensoesTampo, num, pesosKg } from './geometriaVaso';
-import type { BocalModelo, DispositivoModelo, ModeloVaso, SuporteModelo, TampoModelo, TipoTampoModelo } from './tiposModelador';
+import type { BocalModelo, ModeloVaso, SuporteModelo, TampoModelo, TipoTampoModelo } from './tiposModelador';
 
 interface Props {
   modelo: ModeloVaso;
@@ -63,18 +63,6 @@ const DICAS = {
     'Distância do bocal a partir da linha de tangência do tampo 1 (esquerdo/inferior), em mm, ao longo do casco.',
   bocalAngulo: 'Posição angular vista de topo: 0° = topo, sentido horário (90° = direita, 180° = fundo, 270° = esquerda).',
   bocalProjecao: 'Quanto o pescoço do bocal se projeta para fora da parede, em mm. Entra no cálculo do peso vazio.',
-  dispositivoId:
-    'Identificação do dispositivo na prancha (PSV-1, PI-1…). Aparece indicado no croqui, na tabelinha da folha de croqui e na documentação do prontuário (seção 7).',
-  dispositivoFabricante: 'Fabricante do dispositivo. Vai para a tabelinha da folha de croqui e para a documentação do prontuário (seção 7).',
-  dispositivoModelo: 'Modelo/código do dispositivo, conforme a plaqueta. Vai para a tabelinha da folha de croqui e para o prontuário.',
-  dispositivoDn: 'Diâmetro nominal / tipo de conexão do dispositivo (ex.: 1/2" NPT). Vai para a tabelinha da folha de croqui.',
-  dispositivoAjusteValvula:
-    'Pressão de abertura (set) da válvula de segurança, em kgf/cm². Vai para a tabelinha da folha de croqui e para o prontuário.',
-  dispositivoAjusteManometro: 'Faixa da escala do manômetro (ex.: 0 a 21 kgf/cm²). Vai para a tabelinha da folha de croqui e para o prontuário.',
-  dispositivoMaterialCorpo: 'Material de construção do corpo do dispositivo (ex.: aço carbono, bronze). Vai para a documentação do prontuário.',
-  dispositivoSerie: 'Número de série do dispositivo, conforme a plaqueta. Vai para a documentação do prontuário.',
-  dispositivoLocal:
-    'Onde o dispositivo está instalado (ex.: bocal N1, topo do casco). Define onde ele aparece indicado no croqui.',
   suporteTipo:
     'Apoio do vaso: saia (cilindro sob o tampo, vasos verticais), pés (colunas) ou selas (berços, vasos horizontais).',
   suporteAltura: 'Altura do suporte, em mm. Entra só no desenho do croqui — não soma no comprimento total do equipamento.',
@@ -201,30 +189,6 @@ function bocalVazio(bocais: BocalModelo[]): BocalModelo {
     posicaoAxial: '',
     angulo: 0,
     projecao: '',
-  };
-}
-
-function proximoIdDispositivo(dispositivos: DispositivoModelo[], tipo: DispositivoModelo['tipo']): string {
-  const prefixo = tipo === 'valvula' ? 'PSV' : 'PI';
-  let max = 0;
-  for (const d of dispositivos) {
-    const m = new RegExp(`^${prefixo}-(\\d+)$`, 'i').exec(d.id.trim());
-    if (m) max = Math.max(max, parseInt(m[1], 10));
-  }
-  return `${prefixo}-${max + 1}`;
-}
-
-function dispositivoVazio(dispositivos: DispositivoModelo[], tipo: DispositivoModelo['tipo']): DispositivoModelo {
-  return {
-    id: proximoIdDispositivo(dispositivos, tipo),
-    tipo,
-    fabricante: '',
-    modelo: '',
-    dn: '',
-    ajuste: '',
-    materialCorpo: '',
-    serie: '',
-    local: '',
   };
 }
 
@@ -396,19 +360,6 @@ export default function PainelElementos({ modelo, onChange }: Props) {
 
   function removerBocal(idx: number) {
     onChange({ ...modelo, bocais: modelo.bocais.filter((_, i) => i !== idx) });
-  }
-
-  function atualizarDispositivo(idx: number, patch: Partial<DispositivoModelo>) {
-    const dispositivos = modelo.dispositivos.map((d, i) => (i === idx ? { ...d, ...patch } : d));
-    onChange({ ...modelo, dispositivos });
-  }
-
-  function adicionarDispositivo(tipo: DispositivoModelo['tipo']) {
-    onChange({ ...modelo, dispositivos: [...modelo.dispositivos, dispositivoVazio(modelo.dispositivos, tipo)] });
-  }
-
-  function removerDispositivo(idx: number) {
-    onChange({ ...modelo, dispositivos: modelo.dispositivos.filter((_, i) => i !== idx) });
   }
 
   return (
@@ -588,95 +539,6 @@ export default function PainelElementos({ modelo, onChange }: Props) {
             disabled={modelo.suporte.tipo === 'nenhum'}
             onChange={(v) => onChange({ ...modelo, suporte: { ...modelo.suporte, quantidade: v } })}
           />
-        </div>
-      </details>
-
-      <details className="modelador-secao" open>
-        <summary>
-          Dispositivos de Segurança
-          <Icone nome="chevdown" tam={14} className="modelador-secao-seta" />
-        </summary>
-        <div className="modelador-secao-corpo modelador-bocais">
-          {modelo.dispositivos.length === 0 && <p className="modelador-vazio">Nenhum dispositivo cadastrado.</p>}
-          {modelo.dispositivos.map((d, idx) => (
-            <div key={d.id} className="modelador-bocal-item">
-              <div className="modelador-bocal-cabecalho">
-                <CampoTexto
-                  label="ID"
-                  dica={DICAS.dispositivoId}
-                  exemplo={d.tipo === 'valvula' ? 'Ex.: PSV-1' : 'Ex.: PI-1'}
-                  value={d.id}
-                  onChange={(v) => atualizarDispositivo(idx, { id: v })}
-                />
-                <span className="modelador-badge">{d.tipo === 'valvula' ? 'válvula' : 'manômetro'}</span>
-                <button
-                  type="button"
-                  className="btn-remover modelador-bocal-remover"
-                  onClick={() => removerDispositivo(idx)}
-                  title="Remover dispositivo"
-                >
-                  <Icone nome="trash" tam={13} />
-                </button>
-              </div>
-              <div className="modelador-bocal-grid">
-                <CampoTexto
-                  label="Fabricante"
-                  dica={DICAS.dispositivoFabricante}
-                  exemplo="Ex.: Spirax Sarco"
-                  value={d.fabricante}
-                  onChange={(v) => atualizarDispositivo(idx, { fabricante: v })}
-                />
-                <CampoTexto
-                  label="Modelo"
-                  dica={DICAS.dispositivoModelo}
-                  exemplo="Ex.: SV615"
-                  value={d.modelo}
-                  onChange={(v) => atualizarDispositivo(idx, { modelo: v })}
-                />
-                <CampoTexto
-                  label="DN / Conexão"
-                  dica={DICAS.dispositivoDn}
-                  exemplo={'Ex.: 1/2" NPT'}
-                  value={d.dn}
-                  onChange={(v) => atualizarDispositivo(idx, { dn: v })}
-                />
-                <CampoTexto
-                  label={d.tipo === 'valvula' ? 'Pressão de abertura (kgf/cm²)' : 'Faixa da escala'}
-                  dica={d.tipo === 'valvula' ? DICAS.dispositivoAjusteValvula : DICAS.dispositivoAjusteManometro}
-                  exemplo={d.tipo === 'valvula' ? 'Ex.: 10,5' : 'Ex.: 0 a 21 kgf/cm²'}
-                  value={d.ajuste}
-                  onChange={(v) => atualizarDispositivo(idx, { ajuste: v })}
-                />
-                <CampoTexto
-                  label="Material do corpo"
-                  dica={DICAS.dispositivoMaterialCorpo}
-                  exemplo="Ex.: Aço carbono / Bronze"
-                  value={d.materialCorpo}
-                  onChange={(v) => atualizarDispositivo(idx, { materialCorpo: v })}
-                />
-                <CampoTexto
-                  label="Nº de série"
-                  dica={DICAS.dispositivoSerie}
-                  exemplo="Ex.: 123456"
-                  value={d.serie}
-                  onChange={(v) => atualizarDispositivo(idx, { serie: v })}
-                />
-                <CampoTexto
-                  label="Instalado em"
-                  dica={DICAS.dispositivoLocal}
-                  exemplo="Ex.: bocal N1"
-                  value={d.local}
-                  onChange={(v) => atualizarDispositivo(idx, { local: v })}
-                />
-              </div>
-            </div>
-          ))}
-          <button type="button" className="btn-secundario modelador-bocal-add" onClick={() => adicionarDispositivo('valvula')}>
-            <Icone nome="plus" tam={14} /> Válvula de segurança
-          </button>
-          <button type="button" className="btn-secundario modelador-bocal-add" onClick={() => adicionarDispositivo('manometro')}>
-            <Icone nome="plus" tam={14} /> Manômetro
-          </button>
         </div>
       </details>
 

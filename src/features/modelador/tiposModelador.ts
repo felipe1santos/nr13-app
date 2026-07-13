@@ -25,18 +25,6 @@ export interface SuporteModelo {
   quantidade: number | '';
 }
 
-export interface DispositivoModelo {
-  id: string;                       // ex.: 'PSV-1', 'PI-1'
-  tipo: 'valvula' | 'manometro';
-  fabricante: string;
-  modelo: string;
-  dn: string;                       // diâmetro nominal / conexão (ex.: '1/2" NPT')
-  ajuste: string;                   // válvula: pressão de abertura (kgf/cm²); manômetro: faixa da escala
-  materialCorpo: string;            // material de construção do corpo
-  serie: string;                    // nº de série
-  local: string;                    // onde está instalado (ex.: 'bocal N1', 'topo do casco')
-}
-
 export interface ModeloVaso {
   tag: string;
   orientacao: 'vertical' | 'horizontal';
@@ -49,7 +37,6 @@ export interface ModeloVaso {
   tampo2: TampoModelo;
   bocais: BocalModelo[];
   suporte: SuporteModelo;
-  dispositivos: DispositivoModelo[];
   densidadeAco: number;
   pesoOperacao: number | '';
   material: string;
