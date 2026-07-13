@@ -460,6 +460,9 @@ document.addEventListener('DOMContentLoaded', function () {
   var emp = lerJSON('nr13_emp_' + tag) || {};
   var vaso = lerJSON('nr13_vaso_' + tag) || {};
   var fd = lerJSON('nr13_folha_dados_' + tag);
+  // Modelo do editor de Croqui 2D (nome legado da chave) — fonte das virolas/comprimento/bocais
+  // da Lista de Soldas e fallback de material.
+  var modelo3d = lerJSON('nr13_modelo3d_' + tag);
 
   var comps = componentesComGV(calc, gv);
   var compCasco = acharComponente(comps, /casc/i) || comps[0] || null;
@@ -481,6 +484,16 @@ document.addEventListener('DOMContentLoaded', function () {
   texto('dt-diam', compCasco ? numOuTraco(compCasco.D) : '—');
   // Nunca exibir placeholder cru ("MATERIAL") vindo de dado nao preenchido — mostra "—".
   var materialCasco = compCasco ? compCasco.material : null;
+  if (materialCasco && /^material$/i.test(String(materialCasco).trim())) materialCasco = null;
+  // Fallbacks quando o memorial não traz o material do casco: componente "casco" de
+  // nr13_vaso_<TAG> (dados.mat) → material global do modelo do Croqui 2D (nr13_modelo3d_<TAG>).
+  if (!materialCasco && Array.isArray(vaso.componentes)) {
+    for (var im = 0; im < vaso.componentes.length; im++) {
+      var vcm = vaso.componentes[im];
+      if (vcm && vcm.id === 'casco' && vcm.dados && vcm.dados.mat) { materialCasco = vcm.dados.mat; break; }
+    }
+  }
+  if (!materialCasco && modelo3d && modelo3d.material) materialCasco = modelo3d.material;
   if (materialCasco && /^material$/i.test(String(materialCasco).trim())) materialCasco = null;
   texto('dt-material', materialCasco);
   texto('dt-pmta', mpaParaKgf(calc.pmta));
@@ -576,16 +589,68 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  // ───────────────────────── Lista de Soldas (linhas padrão) ─────────────────────────
+  // ───────────────────────── Lista de Soldas (dinâmica: memorial + Croqui 2D) ─────────────
+  // E(%) vem da eficiência de junta (fração, ex.: 0.85) dos componentes do memorial (calc);
+  // posições/quantidades vêm do modelo do Croqui 2D (nr13_modelo3d_<TAG>). Sem calc/modelo,
+  // cada célula mantém o "—" de sempre (nunca quebra).
+  function fmtEficienciaPct(comp) {
+    var n = comp ? Number(comp.E) : NaN;
+    if (!isFinite(n) || n <= 0) return '—';
+    return (n * 100).toFixed(1).replace('.', ',').replace(/,0$/, '');
+  }
+  var compTampo = acharComponente(comps, /tampo/i);
+  var eTampoPct = fmtEficienciaPct(compTampo);
+  var eCascoPct = fmtEficienciaPct(compCasco);
+
+  var virolas = null;
+  if (modelo3d && isFinite(Number(modelo3d.virolas)) && Number(modelo3d.virolas) >= 1) {
+    virolas = Math.round(Number(modelo3d.virolas));
+  }
+  var comprCilMm = modelo3d ? Number(modelo3d.comprimentoCilindro) : NaN;
+
+  // Linha 1 — Tampo → Casco: 1 solda circunferencial na tangência de cada tampo.
+  var pos1 = compTampo ? 'Tangências (2×)' : '—';
+  var obs1 = compTampo ? '1 por tampo' : '—';
+
+  // Linha 2 — Longitudinal: 1 solda por virola, no casco.
+  var pos2 = (compCasco || virolas !== null) ? 'Casco' : '—';
+  var obs2 = (virolas !== null) ? (virolas + ' solda(s)') : '—';
+
+  // Linha 3 — Casco → Casco: emendas entre virolas (posições em mm ao longo do cilindro).
+  var pos3 = '—', e3 = '—', obs3 = '—';
+  if (virolas !== null) {
+    if (virolas >= 2) {
+      if (isFinite(comprCilMm) && comprCilMm > 0) {
+        var posEmendas = [];
+        for (var vi = 1; vi < virolas; vi++) posEmendas.push(Math.round(comprCilMm * vi / virolas));
+        pos3 = posEmendas.join(', ') + ' mm';
+      }
+      e3 = eCascoPct;
+      obs3 = (virolas - 1) + ' solda(s)';
+    } else {
+      obs3 = 'Casco em virola única';
+    }
+  }
+
+  // Linha 4 — Bocais: ids dos bocais do modelo (texto do usuário → escapado).
+  var pos4 = '—', obs4 = '—';
+  if (modelo3d && Array.isArray(modelo3d.bocais)) {
+    var idsBocais = modelo3d.bocais.map(function (bc) {
+      return (bc && bc.id !== undefined && bc.id !== null) ? String(bc.id).trim() : '';
+    }).filter(function (s) { return s !== ''; });
+    pos4 = idsBocais.length ? escapeHtml(idsBocais.join(', ')) : '—';
+    obs4 = modelo3d.bocais.length + ' bocal(is)';
+  }
+
   var SOLDAS = [
-    ['1', 'Tampo → Casco (circunf.)', '—'],
-    ['2', 'Longitudinal', '—'],
-    ['3', 'Casco → Casco (circunf.)', '—'],
-    ['4', 'Bocais', '—'],
+    ['1', 'Tampo → Casco (circunf.)', pos1, eTampoPct, obs1],
+    ['2', 'Longitudinal', pos2, eCascoPct, obs2],
+    ['3', 'Casco → Casco (circunf.)', pos3, e3, obs3],
+    ['4', 'Bocais', pos4, '—', obs4],
   ];
   var soldasHtml = '';
   SOLDAS.forEach(function (s) {
-    soldasHtml += '<tr><td>' + s[0] + '</td><td class="esq">' + s[1] + '</td><td>' + s[2] + '</td><td>—</td><td>—</td></tr>';
+    soldasHtml += '<tr><td>' + s[0] + '</td><td class="esq">' + s[1] + '</td><td>' + s[2] + '</td><td>' + s[3] + '</td><td>' + s[4] + '</td></tr>';
   });
   document.getElementById('tbl-soldas-body').innerHTML = soldasHtml;
 

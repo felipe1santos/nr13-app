@@ -106,7 +106,8 @@
         }
 
         table.tbl-disp { width: 100%; border-collapse: collapse; font-size: 1em; margin-bottom: 10px; } /* filho direto de .cont-body */
-        table.tbl-disp td { border: 1px solid #d1d5db; padding: 9px 11px; vertical-align: middle; }
+        /* padding 9px→8px: compensa a linha 7.4 (Manômetro Indicador) sem empurrar o rodapé */
+        table.tbl-disp td { border: 1px solid #d1d5db; padding: 8px 11px; vertical-align: middle; }
         table.tbl-disp td.disp-num { width: 6%; text-align: center; font-weight: 800; background: var(--bg-table-sub); }
         table.tbl-disp td.disp-label { width: 30%; font-weight: 700; background: var(--bg-table-sub); text-transform: uppercase; }
         table.tbl-disp td.disp-val { color: var(--blue-data); font-weight: 700; }
@@ -197,17 +198,22 @@
                     <tr>
                         <td class="disp-num">7.1</td>
                         <td class="disp-label">Válvula de Segurança</td>
-                        <td class="disp-val" contenteditable="true">Calibrada para abertura na pressão indicada, aferida por empresa competente</td>
+                        <td class="disp-val" id="val-disp-valvula" contenteditable="true">Calibrada para abertura na pressão indicada, aferida por empresa competente</td>
                     </tr>
                     <tr>
                         <td class="disp-num">7.2</td>
                         <td class="disp-label">Material de Construção / Corpo</td>
-                        <td class="disp-val" contenteditable="true">—</td>
+                        <td class="disp-val" id="val-material-corpo" contenteditable="true">—</td>
                     </tr>
                     <tr>
                         <td class="disp-num">7.3</td>
                         <td class="disp-label">Pressão Máxima de Abertura</td>
                         <td class="disp-val" id="val-pressao-abertura" contenteditable="true">—</td>
+                    </tr>
+                    <tr>
+                        <td class="disp-num">7.4</td>
+                        <td class="disp-label">Manômetro Indicador</td>
+                        <td class="disp-val" id="val-manometro" contenteditable="true">—</td>
                     </tr>
                 </table>
 
@@ -294,6 +300,67 @@ document.addEventListener('DOMContentLoaded', function () {
   var calc = lerJSON('nr13_calc_' + tag) || {};
   var elPressao = document.getElementById('val-pressao-abertura');
   if (elPressao) elPressao.textContent = mpaParaKgfComUnidade(calc.pmta);
+
+  // ───────────────────────── Dispositivos do Croqui 2D (nr13_folha_dados_<TAG>) ─────────────
+  // Primeira válvula (tipo 'valvula') e primeiro manômetro (tipo 'manometro') cadastrados no
+  // editor de Croqui 2D. Injeção via textContent (segura); campos seguem contenteditable.
+  // Payloads antigos sem dispositivos → comportamento atual intacto.
+  var fd = lerJSON('nr13_folha_dados_' + tag);
+  var dispositivos = (fd && Array.isArray(fd.dispositivos)) ? fd.dispositivos : [];
+  var valvula = null, manometro = null;
+  for (var i = 0; i < dispositivos.length; i++) {
+    var dsp = dispositivos[i];
+    if (!dsp) continue;
+    if (!valvula && dsp.tipo === 'valvula') valvula = dsp;
+    if (!manometro && dsp.tipo === 'manometro') manometro = dsp;
+  }
+
+  function campoPreenchido(v) { return v !== null && v !== undefined && String(v).trim() !== ''; }
+  // Anexa a unidade só se o usuário ainda não digitou "kgf" no próprio campo.
+  function ajusteComUnidade(v) {
+    var aj = String(v).trim();
+    return /kgf/i.test(aj) ? aj : (aj + ' kgf/cm²');
+  }
+  // Frase descritiva com só os campos preenchidos, ex.:
+  // "PSV-1 — Fabricante X, mod. SV615, DN 1/2\" NPT, ajustada para abertura em 10,5 kgf/cm²."
+  function fraseDispositivo(d, rotuloAjuste) {
+    if (!d) return null;
+    var partes = [];
+    if (campoPreenchido(d.fabricante)) partes.push(String(d.fabricante).trim());
+    if (campoPreenchido(d.modelo)) partes.push('mod. ' + String(d.modelo).trim());
+    if (campoPreenchido(d.dn)) partes.push('DN ' + String(d.dn).trim());
+    if (campoPreenchido(d.ajuste)) partes.push(rotuloAjuste + ' ' + ajusteComUnidade(d.ajuste));
+    var frase = partes.join(', ');
+    if (campoPreenchido(d.id)) frase = String(d.id).trim() + (frase ? ' — ' + frase : '');
+    return frase ? frase + '.' : null;
+  }
+
+  // 7.1 — Válvula de Segurança (sem dados preenchidos → mantém o texto fixo atual)
+  var fraseValvula = fraseDispositivo(valvula, 'ajustada para abertura em');
+  if (fraseValvula) {
+    var elValvula = document.getElementById('val-disp-valvula');
+    if (elValvula) elValvula.textContent = fraseValvula;
+  }
+
+  // 7.2 — Material de Construção / Corpo (válvula; fallback: manômetro; senão mantém "—")
+  var matCorpo = (valvula && campoPreenchido(valvula.materialCorpo)) ? String(valvula.materialCorpo).trim()
+    : ((manometro && campoPreenchido(manometro.materialCorpo)) ? String(manometro.materialCorpo).trim() : null);
+  if (matCorpo) {
+    var elMatCorpo = document.getElementById('val-material-corpo');
+    if (elMatCorpo) elMatCorpo.textContent = matCorpo;
+  }
+
+  // 7.3 — ajuste da válvula tem prioridade sobre a PMTA do memorial (já injetada acima)
+  if (elPressao && valvula && campoPreenchido(valvula.ajuste)) {
+    elPressao.textContent = ajusteComUnidade(valvula.ajuste);
+  }
+
+  // 7.4 — Manômetro Indicador (ajuste = faixa da escala; sem manômetro → mantém "—")
+  var fraseMano = fraseDispositivo(manometro, 'escala');
+  if (fraseMano) {
+    var elMano = document.getElementById('val-manometro');
+    if (elMano) elMano.textContent = fraseMano;
+  }
 
   // ───────────────────────── Rodapé (dados da empresa executante) ─────────────────────────
   var nomeEmp = pront.minhaEmpresaNome || minhaEmp.razao || minhaEmp.fantasia;

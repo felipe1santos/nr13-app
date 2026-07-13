@@ -60,9 +60,9 @@ Tudo que o usuário salva pode ser fonte de injeção. Chaves por TAG do equipam
 | `nr13_inspecao_atual` **e** `nr13_injecao_atual` | Dados de campo do container escolhido | Gravado na geração |
 | `nr13_prontuario_meta_<TAG>` | Nº do relatório (`REL-<timestamp>`) + data de emissão do prontuário; reusado entre reimpressões (`obterOuCriarMeta`) | Gravado ao abrir o visualizador do prontuário |
 | `nr13_croqui3d_<TAG>` | **LEGADO** (render 3D removido em 11/07/2026): PNG antigo do croqui 3D; nenhum código grava mais — PRONT-ULTRASSOM só lê como fallback de dados antigos | — (só leitura de legado) |
-| `nr13_modelo3d_<TAG>` | Modelo do editor de Croqui 2D (`ModeloVaso`: diâmetro, comprimento, casco, virolas, tampos, bocais, suporte) — nome da chave mantido por compatibilidade | Editor de Croqui 2D (memorial → passo obrigatório; Prontuários → botão "Croqui 2D do Equipamento") |
-| `nr13_croqui2d_<TAG>` | SVGs 2D gerados no save do editor: `{ longitudinal, transversal, detalheTampo }` | Editor de Croqui 2D (save) → PRONT-CROQUI2D.html + croqui da folha 1 (PRONT-ULTRASSOM.html) |
-| `nr13_folha_dados_<TAG>` | Payload derivado do modelo (`FolhaDadosDerivada`: bocais, pesos, dimensões por componente, comprimento total, circunferência) para a folha de dados | Editor de Croqui 2D (save) → PRONT-FOLHA-DADOS.html |
+| `nr13_modelo3d_<TAG>` | Modelo do editor de Croqui 2D (`ModeloVaso`: diâmetro, comprimento, casco, virolas, tampos, bocais, suporte, `dispositivos[]` — válvulas de segurança/manômetros) — nome da chave mantido por compatibilidade | Editor de Croqui 2D (memorial → passo obrigatório; Prontuários → botão "Croqui 2D do Equipamento") |
+| `nr13_croqui2d_<TAG>` | SVGs 2D gerados no save do editor: `{ longitudinal, transversal, detalheTampo }` (dispositivos de segurança indicados no desenho) | Editor de Croqui 2D (save) → PRONT-CROQUI2D.html + croqui da folha 1 (PRONT-ULTRASSOM.html) |
+| `nr13_folha_dados_<TAG>` | Payload derivado do modelo (`FolhaDadosDerivada`: bocais, pesos, dimensões por componente, comprimento total, circunferência, `dispositivos[]`) | Editor de Croqui 2D (save) → PRONT-FOLHA-DADOS.html, tabelinha de dispositivos do PRONT-CROQUI2D.html e seção 7 do PRONT-CONTINUACAO.html |
 
 > **REGRA CRÍTICA DE INJEÇÃO:** os dados de campo do container **devem ser gravados nas duas chaves**
 > `nr13_inspecao_atual` **e** `nr13_injecao_atual` (ver `gravarInspecaoOrigemAtual`). Os templates não
