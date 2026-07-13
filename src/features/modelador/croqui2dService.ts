@@ -187,7 +187,7 @@ function svgLongitudinalHorizontal(m: ModeloVaso, d: DadosBase): string {
   const MARGIN = 14;
 
   const bocaisCasco = m.bocais.filter((b) => b.local === 'casco');
-  const nAx = bocaisCasco.filter((b) => num(b.posicaoAxial) !== null).length;
+  const nAx = bocaisCasco.length;
 
   // Escala tipográfica desta vista (viewBox 720×420 impresso a ~114mm ⇒ 1 un ≈ 0,16mm no papel):
   // cota precisa de fs ≥14 para render ≥2,2mm; hierarquia principal > secundária > balão > nota.
@@ -203,7 +203,9 @@ function svgLongitudinalHorizontal(m: ModeloVaso, d: DadosBase): string {
   const RESERVA_DIR = 80; // bocais do tampo2 + cota do suporte
   const RESERVA_TOPO = 76; // stubs de cima + callout t
   const temSuporte = m.suporte.tipo !== 'nenhum';
-  const reservaBaixo = 102 + nAx * 24; // suporte (hSup ≤34) + cotas axiais escalonadas + L + Total
+  const temBocalBaixo = bocaisCasco.some((b) => setorAngulo(num(b.angulo) ?? 0) === 'a180');
+  // suporte (hSup ≤34) + cotas axiais escalonadas + L + Total (+ stub/balão de bocal de baixo)
+  const reservaBaixo = 102 + nAx * 24 + (temBocalBaixo ? 30 : 0);
 
   const AREA_W = VB_W - RESERVA_ESQ - RESERVA_DIR;
   const AREA_H = VB_H - RESERVA_TOPO - reservaBaixo;
@@ -308,8 +310,11 @@ function svgLongitudinalHorizontal(m: ModeloVaso, d: DadosBase): string {
     }
   }
 
-  // Bocais (guarda a âncora vertical de cada bocal de casco p/ a linha de chamada da cota axial)
+  // Bocais (guarda a âncora vertical de cada bocal de casco p/ a linha de chamada da cota axial;
+  // yMaxInferior acompanha o ponto mais fundo ocupado por stub/balão de bocal de baixo, para as
+  // linhas de cota axiais começarem abaixo dele — cota nunca cruza balão)
   const ancoraYCota = new Map<BocalModelo, number>();
+  let yMaxInferior = yBase;
   for (const b of m.bocais) {
     const angulo = num(b.angulo);
     const anguloEfetivo = angulo === null ? 0 : angulo;
@@ -339,6 +344,7 @@ function svgLongitudinalHorizontal(m: ModeloVaso, d: DadosBase): string {
       const by = clamp(tip.y + (emCima ? -16 : 16), MARGIN + 16, VB_H - MARGIN - 16);
       idBalao(parts, clamp(xBocal, MARGIN + 16, VB_W - MARGIN - 16), by, esc(b.id), FS_BAL);
       ancoraYCota.set(b, yBaseBocal);
+      if (!emCima) yMaxInferior = Math.max(yMaxInferior, by + 14);
     } else {
       // Bocal na face do casco (frente sólido / fundo tracejado): círculo projetado em tamanho
       // real (boca de visita Ø400+ aparece grande, como nas pranchas de referência)
@@ -359,7 +365,8 @@ function svgLongitudinalHorizontal(m: ModeloVaso, d: DadosBase): string {
   }
 
   // Posições das linhas de cota principais (calculadas antes p/ ancorar as linhas de extensão)
-  const yCotaCil = clamp(yBase + 16 + nAx * 24 + 8, MARGIN, VB_H - MARGIN);
+  const yCotaAxial0 = Math.max(yBase + 16, yMaxInferior + 12);
+  const yCotaCil = clamp(yCotaAxial0 + nAx * 24 + 8, MARGIN, VB_H - MARGIN);
   const yCotaTotal = clamp(yCotaCil + 28, MARGIN, VB_H - MARGIN);
   const xCotaD = clamp(xEsq - 34, MARGIN, VB_W - MARGIN);
 
@@ -374,16 +381,18 @@ function svgLongitudinalHorizontal(m: ModeloVaso, d: DadosBase): string {
   linhaExt(parts, xCotaD - 4, yBottom, xCascoEsq - 2, yBottom);
 
   // Cotas axiais dos bocais de casco (a partir da linha de tangência do tampo 1), escalonadas,
-  // cada uma com linha de chamada vertical descendo do eixo do bocal até a sua linha de cota
+  // cada uma com linha de chamada vertical descendo do eixo do bocal até a sua linha de cota.
+  // Bocal sem posição informada é desenhado (e cotado) no meio do cilindro — a cota sempre
+  // existe, mostrando a posição efetivamente desenhada.
   let idxCotaAxial = 0;
   for (const b of bocaisCasco) {
     const posAxial = num(b.posicaoAxial);
-    if (posAxial === null) continue;
-    const xBocal = clamp(xCascoEsq + posAxial * scale, xCascoEsq, xCascoDir);
-    const cotaY = clamp(yBase + 16 + idxCotaAxial * 24, MARGIN, VB_H - MARGIN);
+    const posEfetiva = posAxial === null ? d.L / 2 : posAxial;
+    const xBocal = clamp(xCascoEsq + posEfetiva * scale, xCascoEsq, xCascoDir);
+    const cotaY = clamp(yCotaAxial0 + idxCotaAxial * 24, MARGIN, VB_H - MARGIN);
     const yAnc = ancoraYCota.get(b);
     if (yAnc !== undefined && cotaY > yAnc + 6) linhaExt(parts, xBocal, yAnc + 2, xBocal, cotaY + 4);
-    cota(parts, xCascoEsq, cotaY, xBocal, cotaY, `${esc(b.id)}: ${fmt(posAxial, 0)}`, VB_W, FS_S, 0.5, 'mm');
+    cota(parts, xCascoEsq, cotaY, xBocal, cotaY, `${esc(b.id)}: ${fmt(posEfetiva, 0)}`, VB_W, FS_S, 0.5, 'mm');
     idxCotaAxial++;
   }
 
@@ -408,7 +417,7 @@ function svgLongitudinalVertical(m: ModeloVaso, d: DadosBase): string {
   const MARGIN = 14;
 
   const bocaisCasco = m.bocais.filter((b) => b.local === 'casco');
-  const nAx = bocaisCasco.filter((b) => num(b.posicaoAxial) !== null).length;
+  const nAx = bocaisCasco.length;
 
   // Escala tipográfica desta vista (viewBox 420×720 impresso a ~114mm de caixa ⇒ ~0,17mm/un).
   // Todas as cotas usam FS_S: hierarquia sutil da prancha de referência (desenho > cotas).
@@ -587,18 +596,19 @@ function svgLongitudinalVertical(m: ModeloVaso, d: DadosBase): string {
   linhaExt(parts, xCotaTotal - 4, yBottom, centerX - 14, yBottom);
 
   // Cotas axiais (da tangência do tampo1 até o bocal), escalonadas à esquerda, cada uma com
-  // linha de chamada horizontal do eixo do bocal até a sua linha de cota
+  // linha de chamada horizontal do eixo do bocal até a sua linha de cota. Bocal sem posição
+  // informada é desenhado (e cotado) no meio do cilindro — a cota sempre existe.
   let idxCotaAxialV = 0;
   for (const b of bocaisCasco) {
     const posAxial = num(b.posicaoAxial);
-    if (posAxial === null) continue;
-    const yBocal = clamp(yCascoTop + posAxial * scale, yCascoTop, yCascoBottom);
+    const posEfetiva = posAxial === null ? d.L / 2 : posAxial;
+    const yBocal = clamp(yCascoTop + posEfetiva * scale, yCascoTop, yCascoBottom);
     const cotaX = clamp(xEsq - 40 - idxCotaAxialV * 24, MARGIN, VB_W - MARGIN);
     const xAnc = ancoraXCota.get(b);
     if (xAnc !== undefined && xAnc > cotaX + 6) linhaExt(parts, cotaX - 4, yBocal, xAnc, yBocal);
     // frac 0.78: rótulo perto do bocal — alturas de bocal são distintas entre si, então os
     // rótulos das colunas vizinhas (24px) nunca ficam na mesma altura (nem na do rótulo de L)
-    cota(parts, cotaX, yCascoTop, cotaX, yBocal, `${esc(b.id)}: ${fmt(posAxial, 0)}`, VB_W, FS_S, 0.78, 'mm');
+    cota(parts, cotaX, yCascoTop, cotaX, yBocal, `${esc(b.id)}: ${fmt(posEfetiva, 0)}`, VB_W, FS_S, 0.78, 'mm');
     idxCotaAxialV++;
   }
 

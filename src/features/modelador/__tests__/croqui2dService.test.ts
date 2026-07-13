@@ -210,4 +210,19 @@ describe('gerarCroquis2d', () => {
       expect(x).toBeLessThanOrEqual(420); // VB_W da vista longitudinal vertical
     }
   });
+
+  it('bocal de casco SEM posição axial informada ainda ganha cota (na posição desenhada, L/2)', () => {
+    const m = modeloVazio('V7');
+    m.diametroInterno = 250; m.comprimentoCilindro = 800; m.espessuraCasco = 4;
+    m.tampo1 = { tipo: 'toriesferico', espessura: 4 }; m.tampo2 = { tipo: 'toriesferico', espessura: 4 };
+    m.bocais = [
+      { id: 'N1', doMemorial: false, servico: '', dn: '', diametro: 25, espessura: 3, flange: '', local: 'casco', posicaoAxial: '', angulo: 0, projecao: 80 },
+    ];
+    const cH = gerarCroquis2d(m)!;
+    expect(cH.longitudinal).toMatch(/>N1: 400<tspan/); // L/2 = 400
+
+    m.orientacao = 'vertical';
+    const cV = gerarCroquis2d(m)!;
+    expect(cV.longitudinal).toMatch(/>N1: 400<tspan/);
+  });
 });
