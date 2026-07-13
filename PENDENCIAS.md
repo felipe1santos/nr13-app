@@ -28,19 +28,14 @@
       essas 2 APIs no projeto. Chave `VITE_*` fica pública no bundle — sem restrição, terceiros
       usam sua cota e geram cobrança.
 
-## 2. Fase 3 — Motor de assinatura (próxima fase de código)
+## 2. Fase 3 — Motor de assinatura
 
-- [ ] Substituir a assinatura FICTÍCIA ("Fulano Da Silva", CREA 12151566) das folhas do
-      prontuário por assinantes reais, e padronizar assinatura em TODAS as documentações
-      (relatório, prontuário, livro de registro, certificados).
-      Decisões a fechar no brainstorm: origem da assinatura (desenhar na tela? upload de imagem?
-      puxar de Funcionários/`nr13_lista_phs`?), quem assina cada documento, posição/carimbo.
+- [ ] **Relatório** (próxima etapa; prontuário já feito em 13/07/2026): aplicar o motor de
+      assinatura nas folhas do relatório usando `folhasRelatorio` já pré-setado no cadastro de
+      Funcionários; depois livro de registro e certificados.
 
 ## 3. Polimentos opcionais (nada bloqueia; sistema funciona sem)
 
-- [ ] **Croqui 2D — lista de soldas real:** folha de dados ainda usa 4 linhas padrão fixas
-      (Tampo→Casco, Longitudinal, Casco→Casco, Bocais) com E(%)/OBS "—"; evoluir para soldas
-      derivadas do modelo (nº por curso do casco, eficiência do memorial).
 - [ ] **Croqui 2D — peso de pés/selas:** cálculo de peso só inclui saia; pés/selas ficam de fora
       (a folha avisa em nota). Incluir estimativa por perfil.
 - [ ] **Caldeira sem croqui 2D:** editor de croqui é só vaso/autoclave; caldeira mostra "Em Breve"

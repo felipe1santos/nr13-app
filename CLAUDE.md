@@ -59,6 +59,7 @@ Tudo que o usuário salva pode ser fonte de injeção. Chaves por TAG do equipam
 | `nr13_relatorio_meta_atual` | Metadados do relatório em montagem | Gravado na geração |
 | `nr13_inspecao_atual` **e** `nr13_injecao_atual` | Dados de campo do container escolhido | Gravado na geração |
 | `nr13_prontuario_meta_<TAG>` | Nº do relatório (`REL-<timestamp>`) + data de emissão do prontuário; reusado entre reimpressões (`obterOuCriarMeta`) | Gravado ao abrir o visualizador do prontuário |
+| `nr13_assinantes_pront_<TAG>` | Assinantes do prontuário (`{engenheiroId, tecnicoId}` de `nr13_lista_phs`) — lido por `pront-assinatura.js` nas 6 folhas | Selects Engenheiro/Técnico no visualizador do prontuário |
 | `nr13_croqui3d_<TAG>` | **LEGADO** (render 3D removido em 11/07/2026): PNG antigo do croqui 3D; nenhum código grava mais — PRONT-ULTRASSOM só lê como fallback de dados antigos | — (só leitura de legado) |
 | `nr13_modelo3d_<TAG>` | Modelo do editor de Croqui 2D (`ModeloVaso`: diâmetro, comprimento, casco, virolas, tampos, bocais, suporte) — nome da chave mantido por compatibilidade | Editor de Croqui 2D (memorial → passo obrigatório; Prontuários → botão "Croqui 2D do Equipamento") |
 | `nr13_croqui2d_<TAG>` | SVGs 2D gerados no save do editor: `{ longitudinal, transversal, detalheTampo }` | Editor de Croqui 2D (save) → PRONT-CROQUI2D.html + croqui da folha 1 (PRONT-ULTRASSOM.html) |
@@ -205,9 +206,20 @@ O prontuário deve puxar automaticamente: o **cálculo** (memorial), o **croqui 
 5. `PRONT-CONTINUACAO.html` — procedimentos, dispositivos de segurança e pontos de atenção.
 6. `PRONT-MEMORIAL.html` — resumo dos cálculos do memorial.
 
-Rodapés das 6 folhas são **sem paginação** (nº de página/total não impresso). A assinatura em
-"Responsabilidade Técnica" é **fictícia** (nome/CREA de exemplo) até existir um motor de assinatura
-real no sistema — não ler de `nr13_lista_phs` nessas folhas enquanto isso não for implementado.
+Rodapés das 6 folhas são **sem paginação** (nº de página/total não impresso).
+
+**Motor de assinatura (prontuário — implementado 13/07/2026):** Funcionários (`nr13_lista_phs`)
+guarda por funcionário: `funcao` (cargo exibido), `camposExtras[{rotulo,valor}]`,
+`folhasProntuario[]`/`folhasRelatorio[]` (quais folhas ele assina — pré-setado no cadastro;
+default: Engenheiro todas / Inspetor nenhuma, inclusive para registros antigos sem o campo).
+O visualizador do prontuário tem selects de Engenheiro/Técnico que gravam
+`nr13_assinantes_pront_<TAG>` (`{engenheiroId, tecnicoId}`) antes de remontar os iframes.
+`public/pront-assinatura.js` (incluído nas 6 folhas, antes do script inline) preenche o bloco
+"Responsabilidade Técnica" com nome, função, CREA/Registro, campos extras e a imagem da
+assinatura, respeitando `folhasProntuario` de cada assinante (não assina a folha → coluna limpa).
+**Fallback:** sem a chave de assinantes ou ambos vazios → a folha mantém a assinatura fictícia
+de exemplo ("Fulano Da Silva"). Relatório/livro/certificados ainda usam o fluxo antigo (fase
+seguinte — ver PENDENCIAS.md).
 
 `PRONTUARIO-RECONSTITUICAO-1..4` **não fazem parte** do prontuário — seguem como folhas do
 **relatório** (ver §7).

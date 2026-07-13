@@ -253,6 +253,7 @@
         </div>
     </div>
 
+<script src="/pront-assinatura.js"></script>
 <script>
 function lerJSON(chave) { try { return JSON.parse(localStorage.getItem(chave) || 'null'); } catch (_) { return null; } }
 function lerTexto(chave) { var v = localStorage.getItem(chave); if (!v) return ''; try { var p = JSON.parse(v); return typeof p === 'string' ? p : v; } catch (_) { return v; } }
