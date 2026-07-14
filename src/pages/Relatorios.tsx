@@ -312,7 +312,21 @@ export default function Relatorios() {
     {
       const funcs = listarFuncionarios();
       setFuncionarios(funcs);
-      carregarAssinantesRel(r.tagVaso, funcs);
+      const a = carregarAssinantesRel(r.tagVaso, funcs);
+      // Relatório salvo ANTES dos snapshots (meta sem assinantes/empresa): congela AGORA, na
+      // 1ª reabertura, e regrava no histórico — para o drift (trocar rubrica/logo depois não
+      // altera mais este relatório). Não toca em relatórios que já têm snapshot.
+      if (!r.meta.assinantes || !r.meta.empresa) {
+        r = {
+          ...r,
+          meta: {
+            ...r.meta,
+            assinantes: r.meta.assinantes ?? snapshotAssinantes(a, funcs),
+            empresa: r.meta.empresa ?? snapshotEmpresa(),
+          },
+        };
+        await salvarNoHistorico(r);
+      }
     }
     // Sempre regrava (limpa quando o relatório não tem container): senão um relatório reaberto sem
     // container exibe os dados de campo do último relatório gerado.

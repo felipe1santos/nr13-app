@@ -333,23 +333,31 @@
                     document.getElementById('exec-box').style.display = 'block';
                 }
 
-                // Assinatura do responsável: busca o funcionário por phId em nr13_lista_phs
-                const phs = lerJSON('nr13_lista_phs');
+                // Assinatura do responsável — prefere os campos CONGELADOS na entrada
+                // (assinaturaImg/assinanteFuncao, gravados na criação — bug fix 14/07/2026:
+                // a entrada do livro não pode mudar quando o cadastro/rubrica do funcionário
+                // muda depois). Só busca o funcionário AO VIVO em nr13_lista_phs (por phId)
+                // para entradas ANTIGAS sem os campos congelados (compatibilidade).
+                const temCongelado = !!(info.assinaturaImg || info.assinanteFuncao);
                 let func = null;
-                if (info.phId && Object.prototype.toString.call(phs) === '[object Array]') {
-                    for (let i = 0; i < phs.length; i++) {
-                        if (phs[i] && String(phs[i].id) === String(info.phId)) { func = phs[i]; break; }
+                if (!temCongelado && info.phId) {
+                    const phs = lerJSON('nr13_lista_phs');
+                    if (Object.prototype.toString.call(phs) === '[object Array]') {
+                        for (let i = 0; i < phs.length; i++) {
+                            if (phs[i] && String(phs[i].id) === String(info.phId)) { func = phs[i]; break; }
+                        }
                     }
                 }
-                const nomeAssinante = (func && func.nome) || info.phNome || '';
+                const nomeAssinante = info.phNome || (func && func.nome) || '';
                 if (nomeAssinante) {
                     const rubrica = document.getElementById('assinatura-rubrica');
                     rubrica.innerHTML = '';
-                    if (func && func.assinatura) {
+                    const imgAssinatura = info.assinaturaImg || (func && func.assinatura) || '';
+                    if (imgAssinatura) {
                         const img = document.createElement('img');
                         img.className = 'assinatura-img';
                         img.alt = 'Assinatura';
-                        img.src = func.assinatura;
+                        img.src = imgAssinatura;
                         rubrica.appendChild(img);
                     } else {
                         const vazio = document.createElement('div');
@@ -357,8 +365,8 @@
                         rubrica.appendChild(vazio);
                     }
                     document.getElementById('assinatura-nome').textContent = nomeAssinante;
-                    document.getElementById('assinatura-cargo').textContent = (func && func.funcao) || 'Profissional Habilitado — NR-13';
-                    const crea = (func && func.crea) || info.phCrea || '';
+                    document.getElementById('assinatura-cargo').textContent = info.assinanteFuncao || (func && func.funcao) || 'Profissional Habilitado — NR-13';
+                    const crea = info.phCrea || (func && func.crea) || '';
                     document.getElementById('assinatura-crea').textContent = crea ? 'CREA/Registro: ' + crea : '';
                     document.getElementById('assinatura-box').style.display = 'block';
                 }
@@ -389,7 +397,9 @@
                     quemRealizou: entrada.quemRealizou,
                     phNome: entrada.phNome,
                     phCrea: entrada.phCrea,
-                    phId: entrada.phId
+                    phId: entrada.phId,
+                    assinaturaImg: entrada.assinaturaImg,
+                    assinanteFuncao: entrada.assinanteFuncao
                 });
             }
 
@@ -418,7 +428,9 @@
                     phNome: entrada.phNome,
                     phCrea: entrada.phCrea,
                     tecnicoNome: entrada.tecnicoNome,
-                    phId: entrada.phId
+                    phId: entrada.phId,
+                    assinaturaImg: entrada.assinaturaImg,
+                    assinanteFuncao: entrada.assinanteFuncao
                 });
             }
 
@@ -437,13 +449,18 @@
                 document.getElementById('data-inicio-val').textContent = dataBR;
                 document.getElementById('data-fim-val').textContent = dataBR;
                 renderizarTermo(tipo, dataBR, dataBR, meta.codigo, '', '', apto);
+                // Snapshot do engenheiro congelado na meta (bug fix 14/07/2026) — ao REABRIR um
+                // relatório salvo, a rubrica/cargo vêm do snapshot da geração, não do cadastro vivo.
+                const snapEng = (meta.assinantes && meta.assinantes.engenheiro) || null;
                 renderizarExtras({
                     ensaios: ensaiosDeDocs(meta.documentos),
                     apto: apto,
                     phNome: meta.phNome,
                     phCrea: meta.phCrea,
                     tecnicoNome: meta.tecnicoNome,
-                    phId: assinantes.engenheiroId || ''
+                    phId: assinantes.engenheiroId || '',
+                    assinaturaImg: snapEng ? snapEng.assinatura : undefined,
+                    assinanteFuncao: snapEng ? snapEng.funcao : undefined
                 });
             }
 

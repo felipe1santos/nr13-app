@@ -37,6 +37,14 @@ export interface LivroEntrada {
   tecnicoNome?: string;
   /** id do engenheiro assinante em nr13_lista_phs (nr13_assinantes_rel_<TAG>) — a folha do livro busca a assinatura por ele. */
   phId?: string;
+  // Congelados na criação (bug fix 14/07/2026): a folha do livro resolvia o funcionário AO VIVO
+  // por phId em nr13_lista_phs — trocar a rubrica/cargo no cadastro depois mudava entradas já
+  // impressas. Rubrica e cargo agora são copiados para a entrada; phId vira só fallback de
+  // compatibilidade para entradas antigas sem os campos congelados (phNome/phCrea já eram congelados).
+  /** dataURL da rubrica do assinante, congelada na criação da entrada. */
+  assinaturaImg?: string;
+  /** Cargo/função do assinante, congelado na criação da entrada. */
+  assinanteFuncao?: string;
   /** Entradas manuais: quem executou a ocorrência (texto livre — empresa/técnico executante). */
   quemRealizou?: string;
 }
@@ -249,6 +257,15 @@ export async function adicionarEntradaLivroAuto(relatorio: RelatorioSalvo): Prom
       ? laudo.apto
       : null;
 
+  // Rubrica/cargo do assinante congelados NA CRIAÇÃO (bug fix 14/07/2026): prefere o snapshot
+  // já congelado na meta do relatório; fallback (relatórios sem snapshot): resolve o funcionário
+  // UMA vez agora, pelo mesmo engenheiroId usado no phId.
+  const engenheiroId = obterAssinantesRel(relatorio.tagVaso).engenheiroId ?? undefined;
+  const snapEng = relatorio.meta.assinantes?.engenheiro;
+  const funcVivo = !snapEng && engenheiroId
+    ? listarFuncionarios().find((f) => f.id === engenheiroId)
+    : undefined;
+
   const entrada: LivroEntrada = {
     id: `LIV-${Date.now()}`,
     data: relatorio.meta.execucaoInspecao || relatorio.data,
@@ -264,7 +281,9 @@ export async function adicionarEntradaLivroAuto(relatorio: RelatorioSalvo): Prom
     ensaios: ensaiosDoRelatorio(relatorio.meta.documentos ?? relatorio.documentos),
     apto,
     tecnicoNome: relatorio.meta.tecnicoNome,
-    phId: obterAssinantesRel(relatorio.tagVaso).engenheiroId ?? undefined,
+    phId: engenheiroId,
+    assinaturaImg: snapEng ? snapEng.assinatura : funcVivo?.assinatura,
+    assinanteFuncao: snapEng ? snapEng.funcao : funcVivo?.funcao,
   };
   await salvar(chaveLivro(relatorio.tagVaso), [...livro, entrada]);
 }
@@ -313,6 +332,9 @@ export function adicionarEntradaLivroManual(tag: string, dados: DadosOcorrenciaM
     criadoEm: new Date().toISOString(),
     quemRealizou: dados.quemRealizou.trim() || undefined,
     phId: func?.id,
+    // Rubrica/cargo congelados na criação (bug fix 14/07/2026) — mesma regra da entrada automática.
+    assinaturaImg: func?.assinatura,
+    assinanteFuncao: func?.funcao,
   };
 
   const livro = ler<LivroEntrada[]>(chaveLivro(tag)) || [];

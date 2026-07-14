@@ -60,7 +60,10 @@
     var params = new URLSearchParams(location.search);
     if (params.get('ctx') === 'rel') {
       var meta = lerJSON('nr13_relatorio_meta_atual');
-      if (meta && meta.assinantes && typeof meta.assinantes === 'object') {
+      if (meta && meta.assinantes && typeof meta.assinantes === 'object' &&
+          (meta.assinantes.engenheiro || meta.assinantes.tecnico)) {
+        // Snapshot vazio (relatório gerado sem assinante escolhido) NÃO bloqueia o fallback
+        // vivo — senão a folha fica sem carimbo mesmo com assinantes salvos para a TAG.
         return {
           eng: meta.assinantes.engenheiro || null,
           tec: meta.assinantes.tecnico || null,
@@ -169,11 +172,25 @@
   function aplicar() {
     var folha = nomeFolhaAtual();
     if (FOLHAS_SEM_CARIMBO.indexOf(folha) !== -1) return; // capa/sumário: nunca carimbar
+    // O carimbo é do CONTEXTO DO RELATÓRIO (?ctx=rel). Fora dele (rota /livro-registro,
+    // certificados avulsos etc.) a folha mantém seus próprios blocos congelados — senão o
+    // carimbo vivo sobrepõe entradas históricas do livro com o cadastro de hoje.
+    // Exceção: TERMO-ABERTURA sempre carimba (comportamento antigo do termo no livro avulso).
+    var ctxRel = new URLSearchParams(location.search).get('ctx') === 'rel';
+    if (!ctxRel && folha !== 'TERMO-ABERTURA.html') return;
     var chave = MAPA_PAI[folha] || folha; // folha auto-injetada herda a config da folha-pai
     var r = resolverAssinantes();
     var eng = assinaFolha(r.eng, chave) ? r.eng : null;
     var tec = assinaFolha(r.tec, chave) ? r.tec : null;
     if (folha === 'TERMO-ABERTURA.html') tec = null; // termo: só o engenheiro
+    try {
+      // Diagnóstico (fica no console da folha, 1x): por que carimbou/não carimbou.
+      if (jaLogou) throw 0;
+      jaLogou = true;
+      console.info('[rel-assinatura]', folha, 'chave=' + chave, 'ctxRel=' + ctxRel,
+        'eng=' + (r.eng ? (r.eng.nome + (eng ? '' : ' (fora de folhasRelatorio)')) : 'nenhum'),
+        'tec=' + (r.tec ? (r.tec.nome + (tec ? '' : ' (fora de folhasRelatorio)')) : 'nenhum'));
+    } catch (_) { /* diagnóstico nunca quebra a folha */ }
     if (!eng && !tec) return; // sem assinantes: folha fica sem carimbo (fictício legado mantido)
 
     removerBlocosLegados();
@@ -192,6 +209,8 @@
       pg.appendChild(wrap);
     }
   }
+
+  var jaLogou = false; // diagnóstico 1x por folha (aplicar roda em 3 passadas)
 
   function aplicarSeguro() {
     try { aplicar(); } catch (_) { /* nunca quebra a folha */ }
