@@ -118,9 +118,9 @@
       '.rel-carimbos{position:absolute;left:15mm;right:15mm;bottom:31mm;display:flex;' +
       'justify-content:space-evenly;align-items:flex-end;gap:8mm;pointer-events:none;z-index:60}' +
       '.rel-carimbo{width:62mm;text-align:center;font-family:Arial,Helvetica,sans-serif}' +
-      '.rel-carimbo-img{height:22mm;max-width:56mm;object-fit:contain;display:block;margin:0 auto -3mm}' +
+      '.rel-carimbo-img{height:22mm;max-width:56mm;object-fit:contain;display:block;margin:0 auto -7mm}' +
       '.rel-carimbo-vazio{height:16mm}' +
-      '.rel-carimbo-linha{border-top:1px solid #000;margin:0 4mm}' +
+      '.rel-carimbo-linha{border-top:1px solid #000;margin:0 11mm}' +
       '.rel-carimbo-nome{font-size:10px;font-weight:700;color:#000;margin-top:2px;line-height:1.25}' +
       '.rel-carimbo-cargo{font-size:8.5px;color:#222;line-height:1.25}' +
       '.rel-carimbo-crea{font-size:8.5px;color:#222;line-height:1.25}' +
