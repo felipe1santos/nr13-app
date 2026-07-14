@@ -4,7 +4,7 @@ import { listarFuncionarios, salvarFuncionario, excluirFuncionario } from '../fe
 import type { Funcionario } from '../features/cadastros/tipos';
 import { PAGINAS_PRONTUARIO } from '../features/prontuarios/tipos';
 import { DOCUMENTOS_DISPONIVEIS } from '../features/relatorios/tipos';
-import { comprimirImagem } from '../services/imagem';
+import { comprimirImagem, processarAssinatura } from '../services/imagem';
 import './cadastros.css';
 
 type Tela = 'lista' | 'formulario';
@@ -148,13 +148,18 @@ export default function Funcionarios() {
   async function handleAssinatura(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    // Comprime como as fotos/logo: assinatura em resolução cheia estoura a cota do localStorage.
+    // Assinatura passa por tratamento próprio: remove o fundo (branco/preto/foto) e gera PNG
+    // transparente — JPEG (comprimirImagem) mata a transparência e vira quadrado preto na folha.
     try {
-      set('assinatura', await comprimirImagem(file, 400));
+      set('assinatura', await processarAssinatura(file));
     } catch {
-      const reader = new FileReader();
-      reader.onload = (ev) => set('assinatura', ev.target?.result as string);
-      reader.readAsDataURL(file);
+      try {
+        set('assinatura', await comprimirImagem(file, 400));
+      } catch {
+        const reader = new FileReader();
+        reader.onload = (ev) => set('assinatura', ev.target?.result as string);
+        reader.readAsDataURL(file);
+      }
     }
   }
 

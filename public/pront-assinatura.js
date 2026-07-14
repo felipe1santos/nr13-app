@@ -1,8 +1,7 @@
 // Assinaturas REAIS das folhas do prontuário (motor de assinatura).
 // Lê nr13_assinantes_pront_<TAG> ({ engenheiroId, tecnicoId }) + nr13_lista_phs e substitui,
-// em runtime, o conteúdo fictício dos blocos de assinatura:
-//   - 5 folhas canônicas: .resp-tecnica > .resp-grid > 2x .resp-col (col 1 = engenheiro, col 2 = técnico)
-//   - PRONT-CONTINUACAO: .linha-responsavel (.lr-rubrica-wrap + .lr-crea) — só o engenheiro
+// em runtime, o conteúdo fictício do bloco canônico (idêntico nas 6 folhas):
+//   .resp-tecnica > .resp-grid > 2x .resp-col (col 1 = engenheiro, col 2 = técnico)
 // COMPATIBILIDADE: se a chave de assinantes não existir OU ambos os ids forem null,
 // NÃO faz nada (as folhas mantêm o exemplo fictício estático).
 // Regra "assina esta folha": nome do arquivo atual ∈ funcionario.folhasProntuario.
@@ -48,13 +47,13 @@
     if (document.getElementById('pront-assinatura-style')) return;
     var st = document.createElement('style');
     st.id = 'pront-assinatura-style';
+    // Assinatura real GRANDE (bem maior que o svg de exemplo de 44px), centrada sobre a linha;
+    // margem negativa deixa o traço "apoiado" na linha como assinatura de caneta.
     st.textContent =
-      '.rubrica-img{max-height:44px;max-width:200px;object-fit:contain;display:block;margin:0 auto}' +
-      '.rubrica-vazia{height:44px}' +
-      '.resp-extra{font-size:9px;color:#333}' +
-      '.lr-rubrica-wrap .rubrica-img{max-height:40px}' +
-      '.lr-rubrica-wrap .rubrica-vazia{height:40px}' +
-      '.lr-nome-assinante{font-size:9px;color:#333;margin-top:2px;text-align:center}';
+      '.rubrica-img{height:72px;max-width:320px;object-fit:contain;display:block;margin:0 auto -6px}' +
+      '.rubrica-vazia{height:66px}' + // mesma altura útil da imagem (72 - 6 de sobreposição): linhas das 2 colunas alinham
+
+      '.resp-extra{font-size:9px;color:#333}';
     document.head.appendChild(st);
   }
 
@@ -123,33 +122,6 @@
     }
   }
 
-  // PRONT-CONTINUACAO: linha única do responsável — só o engenheiro.
-  function preencherLinhaResponsavel(lr, eng, folha) {
-    var wrap = lr.querySelector('.lr-rubrica-wrap');
-    var crea = lr.querySelector('.lr-crea');
-
-    if (eng && assinaFolha(eng, folha)) {
-      if (wrap) {
-        trocarRubrica(wrap, eng.assinatura || '');
-        if (eng.nome) {
-          var nome = document.createElement('div');
-          nome.className = 'lr-nome-assinante';
-          nome.textContent = eng.nome;
-          wrap.appendChild(nome); // logo abaixo da .resp-linha
-        }
-      }
-      if (crea) crea.textContent = eng.crea ? 'CREA nº: ' + eng.crea : '';
-    } else {
-      // Assinantes definidos, mas o engenheiro não assina esta folha: limpa o exemplo
-      // e deixa a linha em branco.
-      if (wrap) {
-        var svg = wrap.querySelector('svg.rubrica');
-        if (svg && svg.parentNode) svg.parentNode.replaceChild(criarEspacoVazio(), svg);
-      }
-      if (crea) crea.textContent = '';
-    }
-  }
-
   function aplicar() {
     var pront = lerJSON('nr13_prontuario_atual') || {};
     var tag = pront.tag || new URLSearchParams(location.search).get('tag') || '';
@@ -167,17 +139,13 @@
 
     injetarCss();
 
-    // 5 folhas canônicas: grid com 2 colunas.
+    // Bloco canônico (idêntico nas 6 folhas): grid com 2 colunas.
     var grid = document.querySelector('.resp-tecnica .resp-grid');
     if (grid) {
       var cols = grid.querySelectorAll('.resp-col');
       if (cols[0]) preencherColuna(cols[0], eng, folha, 'Engenheiro');
       if (cols[1]) preencherColuna(cols[1], tec, folha, 'Técnico');
     }
-
-    // PRONT-CONTINUACAO: linha única do responsável.
-    var lr = document.querySelector('.linha-responsavel');
-    if (lr) preencherLinhaResponsavel(lr, eng, folha);
   }
 
   document.addEventListener('DOMContentLoaded', function () {

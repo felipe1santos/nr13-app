@@ -37,7 +37,9 @@
             height: 297mm;
             background: #fff;
             margin: 0;
-            padding: 12mm 15mm 28mm 15mm;
+            /* 34mm embaixo: assinatura real do motor (88px) e mais alta que o exemplo — sem isso o
+               bloco de responsabilidade invade a linha do rodape absoluto */
+            padding: 12mm 15mm 34mm 15mm;
             position: relative;
             page-break-after: always;
             display: flex;
@@ -284,7 +286,7 @@
         @media print {
             .no-print { display: none !important; }
             body { background: none; padding: 0; }
-            .page { width: 100% !important; margin: 0 !important; padding: 12mm 15mm 28mm 15mm !important; }
+            .page { width: 100% !important; margin: 0 !important; padding: 12mm 15mm 34mm 15mm !important; }
             [contenteditable="true"]:hover { background-color: transparent !important; outline: none !important; }
         }
 
