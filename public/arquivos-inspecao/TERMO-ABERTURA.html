@@ -84,6 +84,12 @@
 
         .hide-input { display: none; }
 
+        /* Modo compacto (?modo=compacto): usado pelo "livro completo" (visualização/PDF contínuo) —
+           a folha vira um BLOCO na altura do conteúdo, sem altura A4 nem numeração de folha. */
+        html.compacto .page { min-height: 0; padding: 10mm 15mm 12mm 15mm; }
+        html.compacto .content-container { padding-bottom: 0; }
+        html.compacto .pgr-footer-new { display: none; }
+
         @media screen {
             .editable-image { cursor: pointer; transition: opacity 0.2s; }
             .editable-image:hover { outline: 2px dashed var(--blue-data); opacity: 0.8; }
@@ -156,13 +162,24 @@
         </div>
     </div>
 
+    <script>
+        // Antes do primeiro paint: marca o modo compacto no <html> (CSS acima).
+        if (new URLSearchParams(location.search).get('modo') === 'compacto') {
+            document.documentElement.classList.add('compacto');
+        }
+    </script>
     <script src="/rel-assinatura.js?v=10"></script>
     <script>
+        // Sem ?page= (preview individual / livro completo) o nº da folha NÃO aparece —
+        // a numeração só faz sentido dentro do relatório montado.
         document.addEventListener('DOMContentLoaded', function() {
             const paramPagina = new URLSearchParams(window.location.search).get('page');
             if (paramPagina) {
                 const elPagina = document.querySelector('.footer-page-number');
                 if (elPagina) elPagina.innerText = paramPagina.trim();
+            } else {
+                const rodape = document.querySelector('.pgr-footer-new');
+                if (rodape) rodape.style.display = 'none';
             }
         });
 

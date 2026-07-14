@@ -5,7 +5,7 @@ import { ler, listarChavesComPrefixo } from '../services/storage';
 import type { InfoEquipamento } from '../features/equipamento/tipos';
 import { listarFuncionarios } from '../features/cadastros/cadastroService';
 import { adicionarEntradaLivroManual } from '../features/relatorios/relatoriosService';
-import { exportarPdf } from '../features/relatorios/pdfService';
+import { exportarPdf, exportarPdfLivroCompleto } from '../features/relatorios/pdfService';
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
 import './dashboard-novo.css';
 import './relatorios.css';
@@ -83,7 +83,45 @@ function criptografiaFicticia(seed: string): string {
 type DocPreview =
   | { arquivo: 'CAPA-LIVRO-REGISTRO.html'; titulo: string }
   | { arquivo: 'TERMO-ABERTURA.html'; titulo: string }
-  | { arquivo: 'LIVRO-REGISTRO.html'; titulo: string; entradaId: string };
+  | { arquivo: 'LIVRO-REGISTRO.html'; titulo: string; entradaId: string; idx: number };
+
+// URLs do livro COMPLETO (capa + termo + todos os registros em ordem cronológica), em
+// ?modo=compacto: cada template vira um bloco na altura do conteúdo, sem numeração de folha.
+// &idx é o fallback de entradas antigas sem id (o template busca por id e cai no índice).
+function urlsLivroCompleto(linha: LinhaLivro): string[] {
+  const t = encodeURIComponent(linha.tag);
+  return [
+    `/arquivos-inspecao/CAPA-LIVRO-REGISTRO.html?tag=${t}&modo=compacto`,
+    `/arquivos-inspecao/TERMO-ABERTURA.html?tag=${t}&modo=compacto`,
+    ...linha.entradas.map(
+      (e, i) => `/arquivos-inspecao/LIVRO-REGISTRO.html?tag=${t}&entrada=${encodeURIComponent(e.id ?? '')}&idx=${i}&modo=compacto`,
+    ),
+  ];
+}
+
+// Iframe que se ajusta à altura real do conteúdo (blocos do livro completo). Re-mede após as
+// fontes carregarem — a altura do texto muda quando a Inter substitui a fonte de fallback.
+function IframeBlocoLivro({ src, titulo }: { src: string; titulo: string }) {
+  const [altura, setAltura] = useState(300);
+  return (
+    <iframe
+      src={src}
+      title={titulo}
+      scrolling="no"
+      style={{ width: 794, height: altura, border: 'none', display: 'block', background: '#fff' }}
+      onLoad={(e) => {
+        const doc = e.currentTarget.contentDocument;
+        const medir = () => {
+          const pagina = doc?.querySelector<HTMLElement>('.page');
+          const h = pagina?.scrollHeight || doc?.body?.scrollHeight || 0;
+          if (h > 80) setAltura(h + 2);
+        };
+        medir();
+        setTimeout(medir, 700);
+      }}
+    />
+  );
+}
 
 // Tipos de ocorrência manual (manutenções pontuais entre inspeções — NR-13 13.4.1.9).
 const TIPOS_OCORRENCIA = [
@@ -121,6 +159,8 @@ export default function LivroRegistro() {
   const [imprimindo, setImprimindo] = useState(false);
   const [exportando, setExportando] = useState(false);
   const [modalOcorrencia, setModalOcorrencia] = useState(false);
+  const [livroCompleto, setLivroCompleto] = useState(false);
+  const [exportandoLivro, setExportandoLivro] = useState(false);
   const [form, setForm] = useState<FormOcorrencia>(FORM_OCORRENCIA_VAZIO);
   const [erroForm, setErroForm] = useState('');
   const funcionarios = useMemo(() => listarFuncionarios(), []);
@@ -169,6 +209,16 @@ export default function LivroRegistro() {
     }
   }
 
+  async function exportarLivroPdf() {
+    if (!linhaAberta || exportandoLivro) return;
+    setExportandoLivro(true);
+    try {
+      await exportarPdfLivroCompleto(urlsLivroCompleto(linhaAberta), `Livro_Registro_${linhaAberta.tag}.pdf`);
+    } finally {
+      setExportandoLivro(false);
+    }
+  }
+
   function abrirModalOcorrencia() {
     setForm(FORM_OCORRENCIA_VAZIO);
     setErroForm('');
@@ -197,7 +247,9 @@ export default function LivroRegistro() {
 
   const srcPreview = preview
     ? `/arquivos-inspecao/${preview.doc.arquivo}?tag=${encodeURIComponent(preview.tag)}${
-        preview.doc.arquivo === 'LIVRO-REGISTRO.html' ? `&entrada=${encodeURIComponent(preview.doc.entradaId)}` : ''
+        preview.doc.arquivo === 'LIVRO-REGISTRO.html'
+          ? `&entrada=${encodeURIComponent(preview.doc.entradaId)}&idx=${preview.doc.idx}`
+          : ''
       }`
     : '';
 
@@ -208,7 +260,7 @@ export default function LivroRegistro() {
         <div className="fj-panel">
           <div className="fj-panel-head">
             <div>
-              <button type="button" className="btn-secundario" style={{ marginBottom: 10 }} onClick={() => setTagAberta(null)}>
+              <button type="button" className="btn-secundario" style={{ marginBottom: 10 }} onClick={() => { setTagAberta(null); setLivroCompleto(false); }}>
                 ← Todos os equipamentos
               </button>
               <div className="fj-eyebrow">NR-13 · 13.4.1.9 · Livro de Registro de Segurança</div>
@@ -219,9 +271,6 @@ export default function LivroRegistro() {
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               {linhaAberta.categoria && <span className="fj-badge neutro">Cat. {linhaAberta.categoria}</span>}
               <span className="fj-badge info2">{linhaAberta.entradas.length} registro(s)</span>
-              <button type="button" className="fj-btn fj-btn-primary" onClick={abrirModalOcorrencia}>
-                <Icone nome="plus" tam={13} /> Adicionar ocorrência
-              </button>
             </div>
           </div>
 
@@ -248,6 +297,19 @@ export default function LivroRegistro() {
                 <strong>Termo de Abertura</strong>
                 <span>NR-13, item 13.4.1.9</span>
               </div>
+            </button>
+          </div>
+
+          {/* Ações do livro — logo abaixo da capa/termo, onde ficam fáceis de achar */}
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap', marginTop: 14 }}>
+            <button type="button" className="fj-btn fj-btn-primary" onClick={abrirModalOcorrencia}>
+              <Icone nome="plus" tam={13} /> Adicionar ocorrência
+            </button>
+            <button type="button" className="fj-btn fj-btn-ghost" onClick={() => setLivroCompleto(true)}>
+              <Icone nome="eye" tam={13} /> Ver livro completo
+            </button>
+            <button type="button" className="fj-btn fj-btn-ghost" onClick={() => void exportarLivroPdf()} disabled={exportandoLivro}>
+              <Icone nome="download" tam={13} /> {exportandoLivro ? 'Gerando PDF…' : 'Exportar PDF'}
             </button>
           </div>
 
@@ -302,7 +364,7 @@ export default function LivroRegistro() {
                       onClick={() =>
                         setPreview({
                           tag: linhaAberta.tag,
-                          doc: { arquivo: 'LIVRO-REGISTRO.html', titulo: `Registro_${entrada.data.replace(/\//g, '-')}`, entradaId: entrada.id ?? '' },
+                          doc: { arquivo: 'LIVRO-REGISTRO.html', titulo: `Registro_${entrada.data.replace(/\//g, '-')}`, entradaId: entrada.id ?? '', idx: i },
                         })
                       }
                     >
@@ -339,6 +401,35 @@ export default function LivroRegistro() {
                 <PaginaA4>
                   <iframe src={srcPreview} scrolling="no" title={preview.doc.titulo} />
                 </PaginaA4>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {livroCompleto && (
+          <div className="fj-modal-overlay" onClick={(e) => e.target === e.currentTarget && setLivroCompleto(false)}>
+            <div className="fj-modal-box" style={{ maxWidth: 900 }}>
+              <div className="fj-modal-head">
+                <div>
+                  <div className="fj-eyebrow">Livro de Registro completo — ordem cronológica</div>
+                  <h2>{linhaAberta.tag}</h2>
+                </div>
+                <button type="button" className="fj-modal-close" onClick={() => setLivroCompleto(false)} aria-label="Fechar">
+                  <Icone nome="x" tam={15} />
+                </button>
+              </div>
+              <div className="no-print" style={{ display: 'flex', gap: 8, padding: '0 16px' }}>
+                <button type="button" className="barra-btn barra-btn-pdf" onClick={() => void exportarLivroPdf()} disabled={exportandoLivro}>
+                  <Icone nome="download" tam={13} /> {exportandoLivro ? 'Gerando PDF…' : 'Exportar PDF'}
+                </button>
+              </div>
+              <div style={{ padding: 16, overflowX: 'auto' }}>
+                {/* Documento único: capa, termo de abertura e todos os registros empilhados */}
+                <div style={{ width: 794, margin: '0 auto', background: '#fff', boxShadow: '0 2px 12px rgba(0,0,0,.18)' }}>
+                  {urlsLivroCompleto(linhaAberta).map((url, i) => (
+                    <IframeBlocoLivro key={url} src={url} titulo={`Bloco ${i + 1} do livro`} />
+                  ))}
+                </div>
               </div>
             </div>
           </div>

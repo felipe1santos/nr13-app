@@ -110,6 +110,12 @@
 
         .hide-input { display: none; }
 
+        /* Modo compacto (?modo=compacto): usado pelo "livro completo" (visualização/PDF contínuo) —
+           a folha vira um BLOCO na altura do conteúdo, sem altura A4 nem numeração de folha. */
+        html.compacto .page { min-height: 0; padding: 10mm 15mm 12mm 15mm; }
+        html.compacto .content-container { padding-bottom: 0; }
+        html.compacto .pgr-footer-new { display: none; }
+
         @media screen {
             .editable-image { cursor: pointer; transition: opacity 0.2s; }
             .editable-image:hover { outline: 2px dashed var(--blue-data); opacity: 0.8; }
@@ -121,6 +127,12 @@
             .page { width: 100% !important; margin: 0 !important; box-shadow: none !important; border: none !important; padding: 15mm 15mm 25mm 15mm !important; box-sizing: border-box !important; }
         }
     </style>
+    <script>
+        // Antes do primeiro paint: marca o modo compacto no <html> (CSS acima).
+        if (new URLSearchParams(location.search).get('modo') === 'compacto') {
+            document.documentElement.classList.add('compacto');
+        }
+    </script>
     <script src="/rel-empresa.js?v=7"></script>
 </head>
 <body>
@@ -184,12 +196,17 @@
     </div>
 
     <script>
-        // SCRIPT DE PAGINAÇÃO AUTOMÁTICA DINÂMICA (numeração da folha dentro do PDF do relatório)
+        // SCRIPT DE PAGINAÇÃO AUTOMÁTICA DINÂMICA (numeração da folha dentro do PDF do relatório).
+        // Sem ?page= (preview individual do Livro Registro / livro completo) o nº da folha NÃO
+        // aparece — a numeração só faz sentido dentro do relatório montado.
         document.addEventListener('DOMContentLoaded', function() {
             const paramPagina = new URLSearchParams(window.location.search).get('page');
             if (paramPagina) {
                 const elPagina = document.querySelector('.footer-page-number');
                 if (elPagina) elPagina.innerText = paramPagina.trim();
+            } else {
+                const rodape = document.querySelector('.pgr-footer-new');
+                if (rodape) rodape.style.display = 'none';
             }
         });
 
@@ -403,9 +420,14 @@
                 });
             }
 
-            function renderizarModoHistorico(tag, entradaId) {
+            function renderizarModoHistorico(tag, entradaId, idx) {
                 const livro = carregarLivro(tag);
-                const entrada = livro.find(e => e.id === entradaId);
+                // Busca por id; fallback por índice (&idx=N) para entradas antigas sem id.
+                let entrada = entradaId ? livro.find(e => e.id === entradaId) : null;
+                if (!entrada && idx !== null && idx !== '') {
+                    const i = parseInt(idx, 10);
+                    if (!isNaN(i) && i >= 0 && i < livro.length) entrada = livro[i];
+                }
                 if (!entrada) return;
 
                 if (entrada.origem === 'manual') {
@@ -468,11 +490,12 @@
                 const params = new URLSearchParams(window.location.search);
                 const tag = params.get('tag');
                 const entradaId = params.get('entrada');
+                const idx = params.get('idx');
 
                 if (!tag) return;
 
-                if (entradaId) {
-                    renderizarModoHistorico(tag, entradaId);
+                if (entradaId || (idx !== null && idx !== '')) {
+                    renderizarModoHistorico(tag, entradaId, idx);
                 } else {
                     renderizarModoRelatorioAtual(tag);
                 }

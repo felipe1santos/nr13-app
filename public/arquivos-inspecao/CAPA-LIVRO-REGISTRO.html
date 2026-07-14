@@ -186,6 +186,11 @@
 
         .hide-input { display: none; }
 
+        /* Modo compacto (?modo=compacto): usado pelo "livro completo" (visualização/PDF contínuo) —
+           fundo branco e sem sombra, para a capa virar o primeiro bloco do documento único. */
+        html.compacto body { background: #fff; display: block; }
+        html.compacto .page { margin: 0 auto; box-shadow: none; }
+
         @media screen {
             .editable-image { cursor: pointer; transition: opacity 0.2s; }
             .editable-image:hover { outline: 2px dashed #0033a2; opacity: 0.85; }
@@ -197,6 +202,12 @@
             .page { width: 100% !important; margin: 0 !important; box-shadow: none !important; }
         }
     </style>
+    <script>
+        // Antes do primeiro paint: marca o modo compacto no <html> (CSS acima).
+        if (new URLSearchParams(location.search).get('modo') === 'compacto') {
+            document.documentElement.classList.add('compacto');
+        }
+    </script>
     <script src="/rel-empresa.js?v=7"></script>
 </head>
 <body>
