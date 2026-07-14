@@ -45,17 +45,6 @@
             box-shadow: none;
         }
 
-        /* CABEÇALHO PADRÃO DO SISTEMA */
-        .header-table { width: 100%; border-collapse: collapse; border: 1px solid var(--text-dark); margin-bottom: 12px; }
-        .header-table td { border: 1px solid var(--text-dark); vertical-align: middle; padding: 8px 10px; }
-        .col-logo { width: 25%; text-align: center; }
-        .col-logo img { max-width: 100%; max-height: 75px; object-fit: contain; display: block; margin: 0 auto; }
-        .col-title { width: 50%; text-align: center; font-size: 16px; font-weight: 800; color: var(--text-dark); line-height: 1.5; }
-        .col-info { width: 25%; text-align: left; padding-left: 15px; }
-        .col-info .info-label { font-size: 10px; color: var(--text-dark); }
-        .col-info .info-value { font-size: 13px; font-weight: 700; color: var(--blue-data); margin-top: 4px; margin-bottom: 8px; }
-        .col-info .info-value:last-child { margin-bottom: 0; }
-
         .content-container { flex-grow: 1; padding: 0 5px; padding-bottom: 12mm; }
 
         .section-title { font-size: 13px; font-weight: 800; margin-bottom: 4px; text-transform: uppercase; text-align: center; }
@@ -111,19 +100,6 @@
 <body>
 
     <div class="page">
-
-        <table class="header-table">
-            <tr>
-                <td class="col-logo"><img id="imgLogo" src="logo.webp" alt="Logo"></td>
-                <td class="col-title">TERMO DE ABERTURA<br>LIVRO DE REGISTRO DE SEGURANÇA — NR-13</td>
-                <td class="col-info">
-                    <div class="info-label">Relatório nº.</div>
-                    <div class="info-value" id="hdr-rel-num">—</div>
-                    <div class="info-label">Data:</div>
-                    <div class="info-value" id="hdr-rel-data">—</div>
-                </td>
-            </tr>
-        </table>
 
         <div class="content-container">
 
@@ -221,25 +197,13 @@
             }
         });
 
-        // CABEÇALHO (logo/Relatório nº/Data) E RODAPÉ (dados da empresa) — a assinatura é o bloco
-        // canônico preenchido pelo rel-assinatura.js. Ver CLAUDE.md §2 (nr13_relatorio_meta_atual,
-        // nr13_minha_empresa, nr13_assinantes_rel_<TAG>).
+        // RODAPÉ (dados da empresa) — a assinatura é o bloco canônico preenchido pelo
+        // rel-assinatura.js. Ver CLAUDE.md §2 (nr13_minha_empresa, nr13_assinantes_rel_<TAG>).
         document.addEventListener('DOMContentLoaded', function() {
-            try {
-                const meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}');
-                const elNum = document.getElementById('hdr-rel-num');
-                const elData = document.getElementById('hdr-rel-data');
-                if (elNum && meta.codigo) elNum.textContent = meta.codigo;
-                if (elData && meta.emissao) elData.textContent = meta.emissao;
-            } catch (e) {}
-
             try {
                 const empresaRaw = localStorage.getItem('nr13_minha_empresa');
                 if (empresaRaw) {
                     const d = JSON.parse(empresaRaw);
-                    const imgLogo = document.getElementById('imgLogo');
-                    if (imgLogo && d.logo) imgLogo.src = d.logo;
-
                     const elEmpresa = document.getElementById('footer-empresa');
                     if (elEmpresa) {
                         let h = '<strong>' + (d.razao || d.fantasia || 'NOME DA EMPRESA') + '</strong><br>';
