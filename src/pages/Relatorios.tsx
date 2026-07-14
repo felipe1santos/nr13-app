@@ -12,12 +12,17 @@ import {
   expandirMemorial,
   filtrarDocumentosValidos,
   filtrarFolhasFotoVazias,
+  gravarAssinantesRel,
   gravarInspecaoOrigemAtual,
   gravarMetaAtual,
   listarHistorico,
   montarListaComTermoAbertura,
+  obterAssinantesRel,
   salvarNoHistorico,
+  type AssinantesRelatorio,
 } from '../features/relatorios/relatoriosService';
+import { listarFuncionarios } from '../features/cadastros/cadastroService';
+import type { Funcionario } from '../features/cadastros/tipos';
 import { validadesPorRelatorio, vincularLotesPendentes } from '../features/calibracoes/componentesService';
 import { registrarUso } from '../services/usoMetricas';
 import { mascararData } from '../services/mascaras';
@@ -113,11 +118,21 @@ export default function Relatorios() {
   const [imprimindo, setImprimindo] = useState(false);
   const [filtroAberto, setFiltroAberto] = useState(false);
   const [filtroTipos, setFiltroTipos] = useState<Set<TipoInspecao>>(() => new Set(TIPOS_INSPECAO));
+  // Motor de assinatura do relatório: assinantes escolhidos (gravados em nr13_assinantes_rel_<TAG>,
+  // lidos pelo public/rel-assinatura.js dentro das folhas) + lista de funcionários para os selects.
+  const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
+  const [assinantes, setAssinantes] = useState<AssinantesRelatorio>({ engenheiroId: null, tecnicoId: null });
 
   const historicoVisivel = historico.filter((r) => filtroTipos.has(r.tipo));
 
   // Validades de válvula/manômetro derivadas dos lotes de calibração vinculados a cada relatório.
   const validadesCal = validadesPorRelatorio(tag);
+
+  // Listas para os seletores de assinantes; se o funcionário salvo foi excluído, o select cai em ''.
+  const engenheiros = funcionarios.filter((f) => f.tipo === 'Engenheiro');
+  const tecnicos = funcionarios.filter((f) => String(f.tipo).startsWith('Inspetor'));
+  const valorAssinante = (id: string | null, lista: Funcionario[]) =>
+    id && lista.some((f) => f.id === id) ? id : '';
 
   async function prepararEImprimir() {
     setImprimindo(true);
@@ -190,6 +205,57 @@ export default function Relatorios() {
     setEtapaModal('documentos');
   }
 
+  // Assinantes do relatório (engenheiro + técnico): carrega a escolha salva da TAG e, por
+  // conveniência, pré-seleciona o engenheiro quando há exatamente 1 cadastrado. O técnico NUNCA
+  // é pré-selecionado sozinho. SEMPRE grava a chave (síncrono no localStorage) ANTES de os
+  // iframes remontarem — as folhas leem nr13_assinantes_rel_<TAG> no DOMContentLoaded.
+  function carregarAssinantesRel(tagEq: string, funcs: Funcionario[]): AssinantesRelatorio {
+    const a = obterAssinantesRel(tagEq);
+    if (!a.engenheiroId) {
+      const engs = funcs.filter((f) => f.tipo === 'Engenheiro');
+      if (engs.length === 1) a.engenheiroId = engs[0].id;
+    }
+    gravarAssinantesRel(tagEq, a);
+    setAssinantes(a);
+    return a;
+  }
+
+  // Reflete os assinantes na meta — o Livro de Registro usa phNome/phCrea (e o campo Técnico usa
+  // tecnicoNome). tecnicoNome digitado manualmente NUNCA é sobrescrito.
+  function aplicarAssinantesNaMeta(m: RelatorioMeta, a: AssinantesRelatorio, funcs: Funcionario[]): RelatorioMeta {
+    const novo = { ...m };
+    const eng = funcs.find((f) => a.engenheiroId != null && f.id === a.engenheiroId);
+    const tec = funcs.find((f) => a.tecnicoId != null && f.id === a.tecnicoId);
+    if (eng) {
+      novo.phNome = eng.nome;
+      novo.phCrea = eng.crea || '';
+    }
+    if (tec && !novo.tecnicoNome) novo.tecnicoNome = tec.nome;
+    return novo;
+  }
+
+  // Troca de assinante com o relatório aberto: regrava a chave e bumpa a versão (remonta os
+  // iframes, que releem a chave). Em relatório editável, espelha também na meta.
+  function trocarAssinanteRel(campo: keyof AssinantesRelatorio, id: string) {
+    const novo: AssinantesRelatorio = { ...assinantes, [campo]: id || null };
+    setAssinantes(novo);
+    gravarAssinantesRel(tag, novo);
+    if (meta && !somenteLeitura) {
+      const m = { ...meta };
+      if (campo === 'engenheiroId') {
+        const eng = funcionarios.find((f) => f.id === id);
+        m.phNome = eng?.nome ?? '';
+        m.phCrea = eng?.crea ?? '';
+      } else {
+        const tec = funcionarios.find((f) => f.id === id);
+        if (tec && !m.tecnicoNome) m.tecnicoNome = tec.nome;
+      }
+      setMeta(m);
+      void gravarMetaAtual(m); // grava localStorage de forma síncrona antes do remount
+    }
+    setVersao((v) => v + 1);
+  }
+
   function avancarParaEtapaContainer(tipo: TipoInspecao, docsSelecionados: string[]) {
     setPendente({ tipo, docs: docsSelecionados });
     setEtapaModal('container');
@@ -206,9 +272,14 @@ export default function Relatorios() {
       expandirMemorial(tag, montarListaComTermoAbertura(tag, validos, dadosContainer)),
       dadosContainer,
     );
-    const novaMeta = metaPadrao(pendente.tipo);
+    let novaMeta = metaPadrao(pendente.tipo);
     novaMeta.documentos = comTermo; // SUMARIO/INSPECOES leem isto pra montar TOC e ensaios
     if (containerId) novaMeta.containerOrigemId = containerId;
+    // Assinantes do motor de assinatura: grava nr13_assinantes_rel_<TAG> ANTES de montar os
+    // iframes e espelha engenheiro/técnico na meta (livro de registro usa phNome/phCrea).
+    const funcs = listarFuncionarios();
+    setFuncionarios(funcs);
+    novaMeta = aplicarAssinantesNaMeta(novaMeta, carregarAssinantesRel(tag, funcs), funcs);
     // Sempre regrava (limpa quando não há container): sem isto, um relatório sem container exibe
     // os dados de campo do ÚLTIMO relatório gerado (chaves nr13_inspecao_atual/nr13_injecao_atual).
     await gravarInspecaoOrigemAtual(dadosContainer);
@@ -228,6 +299,12 @@ export default function Relatorios() {
     if (r.meta.containerOrigemId) {
       const container = carregarContainer(r.tagVaso, r.meta.containerOrigemId);
       dadosContainer = container?.dados ?? {};
+    }
+    // Regrava nr13_assinantes_rel_<TAG> antes de remontar os iframes (motor de assinatura).
+    {
+      const funcs = listarFuncionarios();
+      setFuncionarios(funcs);
+      carregarAssinantesRel(r.tagVaso, funcs);
     }
     // Sempre regrava (limpa quando o relatório não tem container): senão um relatório reaberto sem
     // container exibe os dados de campo do último relatório gerado.
@@ -254,6 +331,12 @@ export default function Relatorios() {
     // salva não passa pela auto-injeção que gateia isso — mesmo motivo de visualizar()).
     const docsFiltrados = expandirFolhasFoto(filtrarFolhasFotoVazias(r.documentos, dadosContainer), dadosContainer);
     const novaMeta: RelatorioMeta = { ...r.meta, codigo: `REL-${Date.now()}`, emissao: hoje(), documentos: docsFiltrados };
+    // Regrava nr13_assinantes_rel_<TAG> antes de remontar os iframes (motor de assinatura).
+    {
+      const funcs = listarFuncionarios();
+      setFuncionarios(funcs);
+      carregarAssinantesRel(r.tagVaso, funcs);
+    }
     await gravarInspecaoOrigemAtual(dadosContainer);
     await gravarMetaAtual(novaMeta);
     setDocumentos(docsFiltrados);
@@ -602,6 +685,38 @@ export default function Relatorios() {
                     <div className="meta-barra-campo">
                       <label>Técnico</label>
                       <input value={meta.tecnicoNome} readOnly={somenteLeitura} onChange={(e) => setCampoMeta('tecnicoNome', e.target.value)} />
+                    </div>
+                    {/* Assinantes do relatório (motor de assinatura) — gravados em
+                        nr13_assinantes_rel_<TAG> antes do remount dos iframes. */}
+                    <div className="meta-barra-campo">
+                      <label htmlFor="rel-sel-engenheiro">Engenheiro (assina)</label>
+                      <select
+                        id="rel-sel-engenheiro"
+                        value={valorAssinante(assinantes.engenheiroId, engenheiros)}
+                        onChange={(e) => trocarAssinanteRel('engenheiroId', e.target.value)}
+                      >
+                        <option value="">— sem assinatura —</option>
+                        {engenheiros.map((f) => (
+                          <option key={f.id} value={f.id}>
+                            {f.nome}{f.crea ? ` — ${f.crea}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="meta-barra-campo">
+                      <label htmlFor="rel-sel-tecnico">Técnico (assina)</label>
+                      <select
+                        id="rel-sel-tecnico"
+                        value={valorAssinante(assinantes.tecnicoId, tecnicos)}
+                        onChange={(e) => trocarAssinanteRel('tecnicoId', e.target.value)}
+                      >
+                        <option value="">— sem assinatura —</option>
+                        {tecnicos.map((f) => (
+                          <option key={f.id} value={f.id}>
+                            {f.nome}{f.crea ? ` — ${f.crea}` : ''}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                 </div>

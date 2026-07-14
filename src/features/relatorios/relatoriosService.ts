@@ -21,6 +21,30 @@ function chaveLivro(tag: string): string {
   return `nr13_livro_${tag}`;
 }
 
+// ── Assinantes do relatório (motor de assinatura — mesmo padrão do prontuário) ─────────────────
+// ids referem-se a Funcionario.id de nr13_lista_phs; null = "sem assinatura" para aquele papel.
+// A chave nr13_assinantes_rel_<TAG> é lida pelo public/rel-assinatura.js nas folhas do relatório.
+const chaveAssinantesRel = (tag: string) => `nr13_assinantes_rel_${tag}`;
+
+export interface AssinantesRelatorio {
+  engenheiroId: string | null;
+  tecnicoId: string | null;
+}
+
+export function obterAssinantesRel(tag: string): AssinantesRelatorio {
+  const salvo = ler<Partial<AssinantesRelatorio>>(chaveAssinantesRel(tag));
+  return {
+    engenheiroId: salvo?.engenheiroId ?? null,
+    tecnicoId: salvo?.tecnicoId ?? null,
+  };
+}
+
+export function gravarAssinantesRel(tag: string, a: AssinantesRelatorio): void {
+  // salvar() grava o localStorage de forma síncrona antes de persistir remoto — os iframes
+  // remontados logo em seguida já leem o valor novo.
+  void salvar(chaveAssinantesRel(tag), a);
+}
+
 // NR-13 13.4.1.9 — injeta TERMO-ABERTURA.html antes de LIVRO-REGISTRO.html só quando é a
 // 1ª inspeção do livro daquele equipamento (livro vazio).
 // Também injeta automaticamente TESTE-HIDROSTATICO-FOTOS.html após TESTE-HIDROSTATICO.html.

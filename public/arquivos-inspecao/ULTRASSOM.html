@@ -122,62 +122,17 @@
 
 
         /* =========================================
-           ASSINATURA FORMATADA E SELETOR
+           RESPONSABILIDADE TECNICA (assinatura canonica — mesma das folhas do prontuário)
            ========================================= */
-        /* =========================================
-           ASSINATURA FORMATADA E SELETOR
-           ========================================= */
-        .signature-wrapper {
-            position: absolute;
-            bottom: 28mm;
-            right: 15mm;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            width: 220px;
-            z-index: 500;
-        }
-        .signature-wrapper-tecnico {
-            position: absolute;
-            bottom: 28mm;
-            left: 15mm;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            width: 220px;
-            z-index: 500;
-        }
-
-        .select-ph-box {
-            position: absolute;
-            right: 0px;
-            top: -35px; /* Joga o botão de seleção para a parte de cima da assinatura */
-            z-index: 9999;
-        }
-
-        .select-ph-box select {
-            padding: 5px 8px;
-            border-radius: 4px;
-            border: 1px solid #9CA3AF;
-            font-size: 10px;
-            font-family: 'Inter', sans-serif;
-            cursor: pointer;
-            background-color: #f9fafb;
-            color: #111827;
-            font-weight: 600;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            outline: none;
-        }
-
-        .signature-line { width: 100%; border-bottom: 1px solid #000; margin-bottom: 4px; }
-        .sig-data {
-            font-size: 11px;
-            line-height: 1.4;
-            text-align: center;
-        }
-        .sig-img { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); height: 55px; max-width: 100%; object-fit: contain; pointer-events: none; z-index: 1; }
-        .signature-wrapper.sig-excluida > *:not(.no-print),
-        .signature-wrapper-tecnico.sig-excluida > *:not(.no-print) { display: none !important; }
+        .resp-tecnica { margin-top: 8px; margin-bottom: 6px; font-size: 10px; }
+        .resp-titulo { font-weight: 800; border-bottom: 1px solid #999; margin-bottom: 10px; }
+        .resp-grid { display: flex; justify-content: space-around; gap: 40px; }
+        .resp-col { text-align: center; min-width: 220px; }
+        .rubrica { height: 44px; display: block; margin: 0 auto; }
+        .resp-espaco { height: 44px; }
+        .resp-linha { border-top: 2px solid #111; margin: 2px 20px 4px; }
+        .resp-nome { font-weight: 800; }
+        .resp-cargo, .resp-crea { font-size: 9px; color: #333; }
 
 
 
@@ -419,7 +374,7 @@
 <table class="content-table">
                 <tr><td class="section-title">OBSERVAÇÕES / CONCLUSÕES DO ENSAIO</td></tr>
                 <tr>
-                    <td class="data-blue left-align" contenteditable="true" spellcheck="false" style="height: 70px; vertical-align: top; padding: 10px; font-size: 11px; color: #000 !important;">
+                    <td class="data-blue left-align" contenteditable="true" spellcheck="false" style="height: 40px; vertical-align: top; padding: 10px; font-size: 11px; color: #000 !important;">
                         INSIRA AQUI O PARECER TÉCNICO
                     </td>
                 </tr>
@@ -447,7 +402,31 @@
 
 
 
-        </div> <div class="pgr-footer-new">
+        </div>
+
+        <!-- Responsabilidade Técnica: bloco canônico (mesmo do prontuário) — conteúdo fictício
+             substituído em runtime pelo rel-assinatura.js (nr13_assinantes_rel_<TAG>). -->
+        <div class="resp-tecnica">
+            <div class="resp-titulo">Responsabilidade Tecnica:</div>
+            <div class="resp-grid">
+                <div class="resp-col">
+                    <svg class="rubrica" viewBox="0 0 160 50" aria-hidden="true"><path d="M8 38 C 30 8, 44 44, 60 22 S 92 10, 104 30 S 138 18, 152 26" fill="none" stroke="#1a2f8a" stroke-width="2.2" stroke-linecap="round"/></svg>
+                    <div class="resp-linha"></div>
+                    <div class="resp-nome">Fulano Da Silva</div>
+                    <div class="resp-cargo">Engenheiro De Equipamentos</div>
+                    <div class="resp-crea">CREA: 12151566</div>
+                </div>
+                <div class="resp-col">
+                    <div class="resp-espaco"></div>
+                    <div class="resp-linha"></div>
+                    <div class="resp-nome">Fulano Da Silva</div>
+                    <div class="resp-cargo">Tecnico em Mecanica</div>
+                    <div class="resp-crea">CREA: 12151566</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="pgr-footer-new">
             <div class="footer-line-wrapper">
                 <div class="company-details" id="footer-empresa" contenteditable="true" spellcheck="false">
                     <strong>NOME DA EMPRESA LTDA.</strong><br>
@@ -459,12 +438,13 @@
                 12
             </div>
         </div>
-    </div> 
+    </div>
 
 
+    <script src="/rel-assinatura.js"></script>
     <script>
 
-        
+
     // =========================================================
     // SCRIPT DE PAGINAÇÃO AUTOMÁTICA DINÂMICA <3
     // =========================================================
@@ -885,67 +865,6 @@
             }
         });
 
-        function carregarPHsParaSelect() {
-            const selectPH = document.getElementById('select-ph');
-            const listaPHs = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
-
-            if (listaPHs.length === 0) {
-                selectPH.innerHTML = '<option value="">Nenhum PH cadastrado em Sua Empresa</option>';
-            } else {
-                listaPHs.forEach(ph => {
-                    const option = document.createElement('option');
-                    option.value = ph.id;
-                    option.textContent = ph.nome + " (" + ph.crea + ")";
-                    selectPH.appendChild(option);
-                });
-            }
-            const optExcluir = document.createElement('option');
-            optExcluir.value = 'excluir';
-            optExcluir.textContent = 'Excluir Assinatura';
-            optExcluir.style.color = '#dc2626';
-            optExcluir.style.fontWeight = '700';
-            selectPH.appendChild(optExcluir);
-        }
-
-        function atualizarAssinatura() {
-            const selectPH = document.getElementById('select-ph');
-            const wrapper = document.getElementById('sig-wrapper-engenheiro');
-            if (selectPH.value === 'excluir') {
-                if (wrapper) wrapper.classList.add('sig-excluida');
-                return;
-            }
-            if (wrapper) wrapper.classList.remove('sig-excluida');
-            const idSelecionado = selectPH.value;
-            const listaPHs = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
-
-            const phSelecionado = listaPHs.find(p => p.id == idSelecionado);
-
-            const imgAssinatura = document.getElementById('img-assinatura-ph');
-            const spanNome = document.getElementById('nome-ph');
-            const spanCrea = document.getElementById('crea-ph');
-
-            if (phSelecionado) {
-                spanNome.textContent = phSelecionado.nome;
-                spanCrea.textContent = phSelecionado.crea;
-                
-                if (phSelecionado.assinatura) {
-                    imgAssinatura.src = phSelecionado.assinatura;
-                    imgAssinatura.style.display = 'block';
-                } else {
-                    imgAssinatura.style.display = 'none';
-                }
-            } else {
-                spanNome.textContent = 'Nome do Engenheiro';
-                spanCrea.textContent = 'ES-123456/D';
-                imgAssinatura.style.display = 'none';
-                imgAssinatura.src = '';
-            }
-        }
-
-
-
-
-        
         // ==============================================================
         // MOTOR RECEPTOR DE AUTO-INJEÇÃO DE DADOS (COM TRADUTOR DE IDs)
         // ==============================================================
@@ -1031,56 +950,6 @@
 
 
 
-
-    </script>
-
-    <script>
-        // ==========================================
-        // ASSINATURA — TÉCNICO RESPONSÁVEL
-        // ==========================================
-        function carregarTecnicosParaSelect() {
-            const sel = document.getElementById('select-tecnico');
-            if (!sel) return;
-            const lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
-            sel.innerHTML = '<option value="">Assinar...</option>';
-            lista.filter(p => p.tipo && p.tipo.startsWith('Inspetor')).forEach(ph => {
-                const opt = document.createElement('option');
-                opt.value = ph.id;
-                opt.textContent = ph.nome + (ph.crea ? " (" + ph.crea + ")" : "");
-                sel.appendChild(opt);
-            });
-            const optExcluir = document.createElement('option');
-            optExcluir.value = 'excluir';
-            optExcluir.textContent = 'Excluir Assinatura';
-            optExcluir.style.color = '#dc2626';
-            optExcluir.style.fontWeight = '700';
-            sel.appendChild(optExcluir);
-        }
-
-        function atualizarAssinaturaTecnico() {
-            const sel = document.getElementById('select-tecnico');
-            const wrapper = document.getElementById('sig-wrapper-tecnico');
-            if (sel.value === 'excluir') {
-                if (wrapper) wrapper.classList.add('sig-excluida');
-                return;
-            }
-            if (wrapper) wrapper.classList.remove('sig-excluida');
-            const lista = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
-            const ph = lista.find(p => String(p.id) === String(sel.value));
-            const img = document.getElementById('img-assinatura-tecnico');
-            const nome = document.getElementById('nome-tecnico');
-            const crea = document.getElementById('crea-tecnico');
-            if (ph) {
-                nome.textContent = ph.nome;
-                crea.textContent = ph.crea || '';
-                if (ph.assinatura) { img.src = ph.assinatura; img.style.display = 'block'; }
-                else { img.style.display = 'none'; img.src = ''; }
-            } else {
-                nome.textContent = 'Nome do Técnico';
-                crea.textContent = '000000';
-                img.style.display = 'none'; img.src = '';
-            }
-        }
 
     </script>
 </body>

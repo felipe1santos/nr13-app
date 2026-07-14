@@ -285,31 +285,18 @@
         .obs-box textarea:focus { background-color: #fdfad2; }
 
         /* =========================================
-           ASSINATURAS E RESPONSABILIDADE
+           RESPONSABILIDADE TECNICA (assinatura canonica — mesma das folhas do prontuário)
            ========================================= */
-        .signatures-container {
-            position: absolute;
-            bottom: 28mm;
-            left: 15mm;
-            right: 15mm;
-            display: flex;
-            justify-content: space-between;
-            z-index: 500;
-        }
-        .signature-box {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            width: 220px;
-            position: relative;
-        }
-        .signature-line { width: 100%; border-bottom: 1px solid #000; margin-bottom: 4px; position: relative; z-index: 2; }
-        .sig-data { font-size: 9px; text-align: center; width: 100%; }
-        .sig-select-box { position: absolute; top: -24px; right: 0; }
-        .sig-select-box select { padding: 3px 6px; border-radius: 4px; border: 1px solid #9CA3AF; font-size: 9px; font-family: 'Inter', sans-serif; cursor: pointer; background-color: #f9fafb; color: #111827; font-weight: 600; outline: none; }
-        .sig-img { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); height: 55px; max-width: 100%; object-fit: contain; pointer-events: none; z-index: 1; }
+        .resp-tecnica { margin-top: 8px; margin-bottom: 6px; font-size: 10px; }
+        .resp-titulo { font-weight: 800; border-bottom: 1px solid #999; margin-bottom: 10px; }
+        .resp-grid { display: flex; justify-content: space-around; gap: 40px; }
+        .resp-col { text-align: center; min-width: 220px; }
+        .rubrica { height: 44px; display: block; margin: 0 auto; }
+        .resp-espaco { height: 44px; }
+        .resp-linha { border-top: 2px solid #111; margin: 2px 20px 4px; }
+        .resp-nome { font-weight: 800; }
+        .resp-cargo, .resp-crea { font-size: 9px; color: #333; }
         .data-highlight { color: var(--blue-data); font-weight: 600; }
-        .signature-box.sig-excluida > *:not(.no-print) { display: none !important; }
 
         /* =========================================
            RODAPÉ POSICIONAMENTO FIXO
@@ -462,7 +449,29 @@
             </div>
 
         </div>
-        
+
+        <!-- Responsabilidade Técnica: bloco canônico (mesmo do prontuário) — conteúdo fictício
+             substituído em runtime pelo rel-assinatura.js (nr13_assinantes_rel_<TAG>). -->
+        <div class="resp-tecnica">
+            <div class="resp-titulo">Responsabilidade Tecnica:</div>
+            <div class="resp-grid">
+                <div class="resp-col">
+                    <svg class="rubrica" viewBox="0 0 160 50" aria-hidden="true"><path d="M8 38 C 30 8, 44 44, 60 22 S 92 10, 104 30 S 138 18, 152 26" fill="none" stroke="#1a2f8a" stroke-width="2.2" stroke-linecap="round"/></svg>
+                    <div class="resp-linha"></div>
+                    <div class="resp-nome">Fulano Da Silva</div>
+                    <div class="resp-cargo">Engenheiro De Equipamentos</div>
+                    <div class="resp-crea">CREA: 12151566</div>
+                </div>
+                <div class="resp-col">
+                    <div class="resp-espaco"></div>
+                    <div class="resp-linha"></div>
+                    <div class="resp-nome">Fulano Da Silva</div>
+                    <div class="resp-cargo">Tecnico em Mecanica</div>
+                    <div class="resp-crea">CREA: 12151566</div>
+                </div>
+            </div>
+        </div>
+
         <div class="pgr-footer-new">
             <div class="footer-line-wrapper">
                 <div class="company-details" id="footer-empresa" contenteditable="true" spellcheck="false">
@@ -474,8 +483,9 @@
             <div class="footer-page-number" contenteditable="true">2</div>
         </div>
 
-    </div> 
-    
+    </div>
+
+    <script src="/rel-assinatura.js"></script>
     <script>
         // Imagem Preview (Logo)
         function previewImage(input, imgId) {

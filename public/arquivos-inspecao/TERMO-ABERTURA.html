@@ -71,11 +71,18 @@
         .ident-table td.label { width: 32%; font-weight: 700; color: #4B5563; background-color: var(--bg-table-header); }
         .ident-table td.valor { color: var(--text-dark); font-weight: 600; }
 
-        .assinatura-box { margin-top: 30px; max-width: 360px; }
-        .assinatura-linha { border-top: 1px solid var(--text-dark); padding-top: 6px; }
-        .assinatura-nome { font-size: 11px; font-weight: 700; }
-        .assinatura-cargo { font-size: 10px; color: #4B5563; }
-        .assinatura-crea { font-size: 10px; color: #4B5563; }
+        /* =========================================
+           RESPONSABILIDADE TECNICA (assinatura canonica — mesma das folhas do prontuário)
+           ========================================= */
+        .resp-tecnica { margin-top: 30px; margin-bottom: 6px; font-size: 10px; }
+        .resp-titulo { font-weight: 800; border-bottom: 1px solid #999; margin-bottom: 10px; }
+        .resp-grid { display: flex; justify-content: space-around; gap: 40px; }
+        .resp-col { text-align: center; min-width: 220px; }
+        .rubrica { height: 44px; display: block; margin: 0 auto; }
+        .resp-espaco { height: 44px; }
+        .resp-linha { border-top: 2px solid #111; margin: 2px 20px 4px; }
+        .resp-nome { font-weight: 800; }
+        .resp-cargo, .resp-crea { font-size: 9px; color: #333; }
 
         /* RODAPÉ COM PAGINAÇÃO PADRÃO */
         .pgr-footer-new { position: absolute; bottom: 12mm; left: 15mm; right: 15mm; display: flex; align-items: flex-start; }
@@ -167,11 +174,26 @@
                 </tr>
             </table>
 
-            <div class="assinatura-box">
-                <div class="assinatura-linha">
-                    <div class="assinatura-nome" id="assinatura-nome">Nome do Engenheiro Responsável</div>
-                    <div class="assinatura-cargo" id="assinatura-cargo">Engenheiro Responsável</div>
-                    <div class="assinatura-crea" id="assinatura-crea">CREA: --</div>
+            <!-- Responsabilidade Técnica: bloco canônico (mesmo do prontuário) — conteúdo fictício
+                 substituído em runtime pelo rel-assinatura.js (nr13_assinantes_rel_<TAG>). Nesta
+                 folha auto-injetada, só o engenheiro assina (o motor limpa a 2ª coluna). -->
+            <div class="resp-tecnica">
+                <div class="resp-titulo">Responsabilidade Tecnica:</div>
+                <div class="resp-grid">
+                    <div class="resp-col">
+                        <svg class="rubrica" viewBox="0 0 160 50" aria-hidden="true"><path d="M8 38 C 30 8, 44 44, 60 22 S 92 10, 104 30 S 138 18, 152 26" fill="none" stroke="#1a2f8a" stroke-width="2.2" stroke-linecap="round"/></svg>
+                        <div class="resp-linha"></div>
+                        <div class="resp-nome">Fulano Da Silva</div>
+                        <div class="resp-cargo">Engenheiro De Equipamentos</div>
+                        <div class="resp-crea">CREA: 12151566</div>
+                    </div>
+                    <div class="resp-col">
+                        <div class="resp-espaco"></div>
+                        <div class="resp-linha"></div>
+                        <div class="resp-nome">Fulano Da Silva</div>
+                        <div class="resp-cargo">Tecnico em Mecanica</div>
+                        <div class="resp-crea">CREA: 12151566</div>
+                    </div>
                 </div>
             </div>
 
@@ -189,6 +211,7 @@
         </div>
     </div>
 
+    <script src="/rel-assinatura.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const paramPagina = new URLSearchParams(window.location.search).get('page');
@@ -198,8 +221,9 @@
             }
         });
 
-        // CABEÇALHO (logo/Relatório nº/Data), RODAPÉ (dados da empresa) E ASSINATURA (PH Engenheiro)
-        // PADRÃO DO SISTEMA — ver CLAUDE.md §2 (nr13_relatorio_meta_atual, nr13_minha_empresa, nr13_lista_phs)
+        // CABEÇALHO (logo/Relatório nº/Data) E RODAPÉ (dados da empresa) — a assinatura é o bloco
+        // canônico preenchido pelo rel-assinatura.js. Ver CLAUDE.md §2 (nr13_relatorio_meta_atual,
+        // nr13_minha_empresa, nr13_assinantes_rel_<TAG>).
         document.addEventListener('DOMContentLoaded', function() {
             try {
                 const meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}');
@@ -225,17 +249,6 @@
                         if (l3.length) h += l3.join(' • ');
                         elEmpresa.innerHTML = h;
                     }
-                }
-            } catch (e) {}
-
-            try {
-                const listaPHs = JSON.parse(localStorage.getItem('nr13_lista_phs') || '[]');
-                const engenheiro = listaPHs.find(function(p) { return p.tipo === 'Engenheiro'; });
-                if (engenheiro) {
-                    const elNome = document.getElementById('assinatura-nome');
-                    const elCrea = document.getElementById('assinatura-crea');
-                    if (elNome) elNome.textContent = engenheiro.nome || 'Nome do Engenheiro Responsável';
-                    if (elCrea) elCrea.textContent = 'CREA: ' + (engenheiro.crea || '--');
                 }
             } catch (e) {}
         });

@@ -1,11 +1,14 @@
-// Assinaturas REAIS das folhas do prontuário (motor de assinatura).
-// Lê nr13_assinantes_pront_<TAG> ({ engenheiroId, tecnicoId }) + nr13_lista_phs e substitui,
-// em runtime, o conteúdo fictício do bloco canônico (idêntico nas 6 folhas):
+// Assinaturas REAIS das folhas do RELATÓRIO (motor de assinatura — clone do pront-assinatura.js).
+// Lê nr13_assinantes_rel_<TAG> ({ engenheiroId, tecnicoId }) + nr13_lista_phs e substitui,
+// em runtime, o conteúdo fictício do bloco canônico (idêntico ao do prontuário):
 //   .resp-tecnica > .resp-grid > 2x .resp-col (col 1 = engenheiro, col 2 = técnico)
+// TAG: as folhas de inspeção recebem ?tag=<TAG> na URL (padrão dos templates do relatório).
 // COMPATIBILIDADE: se a chave de assinantes não existir OU ambos os ids forem null,
 // NÃO faz nada (as folhas mantêm o exemplo fictício estático).
-// Regra "assina esta folha": nome do arquivo atual ∈ funcionario.folhasProntuario.
-// folhasProntuario AUSENTE (registro antigo): Engenheiro assina todas; Inspetor nenhuma.
+// Regra "assina esta folha": nome do arquivo atual ∈ funcionario.folhasRelatorio.
+// folhasRelatorio AUSENTE (registro antigo): Engenheiro assina todas; Inspetor nenhuma.
+// EXCEÇÃO — TERMO-ABERTURA.html é auto-injetada (não está em DOCUMENTOS_DISPONIVEIS, logo nunca
+// aparece em folhasRelatorio): o engenheiro selecionado assina SEMPRE; o técnico nunca (col 2 limpa).
 (function () {
   'use strict';
 
@@ -31,7 +34,9 @@
 
   function assinaFolha(func, folha) {
     if (!func) return false;
-    var folhas = func.folhasProntuario;
+    // Regra especial da folha auto-injetada (ver cabeçalho): só o engenheiro assina o termo.
+    if (folha === 'TERMO-ABERTURA.html') return func.tipo === 'Engenheiro';
+    var folhas = func.folhasRelatorio;
     if (folhas === undefined || folhas === null) {
       // Registro antigo, sem o campo: engenheiro assina todas; inspetor nenhuma.
       return func.tipo === 'Engenheiro';
@@ -44,15 +49,16 @@
   }
 
   function injetarCss() {
-    if (document.getElementById('pront-assinatura-style')) return;
+    if (document.getElementById('rel-assinatura-style')) return;
     var st = document.createElement('style');
-    st.id = 'pront-assinatura-style';
+    st.id = 'rel-assinatura-style';
+    // MESMOS tamanhos do prontuário (pront-assinatura.js) — padronização dos blocos de assinatura.
     // Assinatura real GRANDE (bem maior que o svg de exemplo de 44px), centrada sobre a linha;
     // margem negativa deixa o traço "apoiado" na linha como assinatura de caneta.
     st.textContent =
       '.rubrica-img{height:82px;max-width:340px;object-fit:contain;display:block;margin:0 auto -10px}' +
       '.rubrica-vazia{height:72px}' + // mesma altura útil da imagem (82 - 10 de sobreposição): linhas das 2 colunas alinham
-      '.resp-tecnica .resp-titulo{margin-bottom:5px}' + // recupera os px extras da assinatura maior (folha 4 tem rodapé absoluto)
+      '.resp-tecnica .resp-titulo{margin-bottom:5px}' + // recupera os px extras da assinatura maior
 
       '.resp-extra{font-size:9px;color:#333}';
     document.head.appendChild(st);
@@ -124,11 +130,10 @@
   }
 
   function aplicar() {
-    var pront = lerJSON('nr13_prontuario_atual') || {};
-    var tag = pront.tag || new URLSearchParams(location.search).get('tag') || '';
+    var tag = new URLSearchParams(location.search).get('tag') || '';
 
-    if (localStorage.getItem('nr13_assinantes_pront_' + tag) === null) return; // sem motor: mantém fictício
-    var assinantes = lerJSON('nr13_assinantes_pront_' + tag) || {};
+    if (localStorage.getItem('nr13_assinantes_rel_' + tag) === null) return; // sem motor: mantém fictício
+    var assinantes = lerJSON('nr13_assinantes_rel_' + tag) || {};
     if (!assinantes.engenheiroId && !assinantes.tecnicoId) return; // ambos null: mantém fictício
 
     var phs = lerJSON('nr13_lista_phs');
@@ -140,7 +145,7 @@
 
     injetarCss();
 
-    // Bloco canônico (idêntico nas 6 folhas): grid com 2 colunas.
+    // Bloco canônico (mesmo do prontuário): grid com 2 colunas.
     var grid = document.querySelector('.resp-tecnica .resp-grid');
     if (grid) {
       var cols = grid.querySelectorAll('.resp-col');

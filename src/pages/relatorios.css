@@ -464,6 +464,24 @@
   width: 100%;
 }
 
+/* Seletores de assinantes (engenheiro + técnico) do modal de configurações — motor de assinatura */
+.rel-config-grid .meta-barra-campo select {
+  height: 30px;
+  width: 100%;
+  padding: 4px 7px;
+  font-size: 12px;
+  font-family: inherit;
+  border: 1px solid var(--border-solid);
+  border-radius: var(--radius-sm);
+  background: var(--bg-body);
+  color: var(--text-main);
+}
+
+.rel-config-grid .meta-barra-campo select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
 .rel-modal-acoes {
   display: flex;
   justify-content: flex-end;
