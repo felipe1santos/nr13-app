@@ -5,7 +5,16 @@
 // Vite (sem hash), então edições de código/CSS nunca chegavam ao navegador (ficavam presas no
 // cache do SW). Agora só /assets/ (nomes com hash, imutáveis) é cache-first; o resto é rede
 // primeiro com fallback ao cache (continua funcionando offline).
-const CACHE = 'nr13-cache-v6';
+// v7: "network-first" com fetch(req) simples ainda batia no CACHE HTTP do navegador — o servidor
+// (Caddy) não manda Cache-Control, o navegador aplica cache heurístico e o fetch devolvia
+// rel-assinatura.js/templates VELHOS sem nem ir à rede. Agora todo caminho network-first usa
+// {cache:'no-cache'} (revalida por ETag — barato, 304) e só cai no cache do SW offline.
+const CACHE = 'nr13-cache-v7';
+
+// Rede com revalidação obrigatória (fura o cache heurístico do HTTP; 304 quando não mudou).
+function fetchFresco(req) {
+  return fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' });
+}
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png', '/favicon.svg'];
 
 self.addEventListener('install', (event) => {
@@ -34,7 +43,7 @@ self.addEventListener('fetch', (event) => {
   // Navegação (HTML): rede primeiro, cai no cache se offline (SPA: devolve index.html).
   if (req.mode === 'navigate') {
     event.respondWith(
-      fetch(req)
+      fetchFresco(req)
         .then((resp) => {
           const copia = resp.clone();
           caches.open(CACHE).then((c) => c.put('/index.html', copia));
@@ -50,7 +59,7 @@ self.addEventListener('fetch', (event) => {
   // URLs dos templates NÃO têm hash, então o cache nunca expiraria sozinho.
   if (url.pathname.startsWith('/arquivos-inspecao/') || url.pathname.startsWith('/arquivos-prontuario/')) {
     event.respondWith(
-      fetch(req)
+      fetchFresco(req)
         .then((resp) => {
           if (resp.ok && resp.type === 'basic') {
             const copia = resp.clone();
@@ -84,7 +93,7 @@ self.addEventListener('fetch', (event) => {
   // Qualquer outro asset (módulos do dev server, ícones, imagens sem hash): rede primeiro,
   // cache só como fallback offline — garante que edições apareçam no próximo reload.
   event.respondWith(
-    fetch(req)
+    fetchFresco(req)
       .then((resp) => {
         if (resp.ok && resp.type === 'basic') {
           const copia = resp.clone();
