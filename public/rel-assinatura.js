@@ -115,7 +115,7 @@
     // Carimbo compacto: assinatura "apoiada" na linha (margem negativa), nome/cargo/CREA embaixo.
     // Posição fixa por folha: faixa acima do rodapé (rodapé fica em bottom:12mm nas folhas).
     st.textContent =
-      '.rel-carimbos{position:absolute;left:15mm;right:15mm;bottom:25mm;display:flex;' +
+      '.rel-carimbos{position:absolute;left:15mm;right:15mm;bottom:31mm;display:flex;' +
       'justify-content:space-evenly;align-items:flex-end;gap:8mm;pointer-events:none;z-index:60}' +
       '.rel-carimbo{width:62mm;text-align:center;font-family:Arial,Helvetica,sans-serif}' +
       '.rel-carimbo-img{height:15mm;max-width:56mm;object-fit:contain;display:block;margin:0 auto -2.5mm}' +
