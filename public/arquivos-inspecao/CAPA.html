@@ -199,6 +199,7 @@
             [contenteditable="true"]:hover { background-color: transparent !important; outline: none !important; }
         }
     </style>
+    <script src="/rel-empresa.js"></script>
 </head>
 <body>
 
@@ -279,7 +280,7 @@
             // =========================================================
             // SCRIPT PARA PUXAR A LOGO DA EMPRESA INSPETORA
             // =========================================================
-            const salvo = localStorage.getItem('nr13_minha_empresa');
+            const salvo = (window.NR13_EMPRESA_JSON || localStorage.getItem('nr13_minha_empresa'));
             if (salvo) {
                 const dados = JSON.parse(salvo);
                 if (dados.logo) {

@@ -353,6 +353,7 @@
             .f-val input[type="text"]:focus, .pressure-table td input:focus, .ensaio-table .td-name input:focus, .obs-box textarea:focus { background-color: transparent; }
         }
     </style>
+    <script src="/rel-empresa.js"></script>
 </head>
 <body>
 
@@ -714,7 +715,7 @@
             }
 
             // Auto-Fill Empresa e Logo (Puxando do localStorage)
-            const salvo = localStorage.getItem('nr13_minha_empresa');
+            const salvo = (window.NR13_EMPRESA_JSON || localStorage.getItem('nr13_minha_empresa'));
             if (salvo) {
                 const dados = JSON.parse(salvo);
                 if (dados.logo) document.getElementById('imgLogo').src = dados.logo;
@@ -819,5 +820,6 @@
         });
     </script>
 
+<script src="/rel-assinatura.js"></script>
 </body>
 </html>

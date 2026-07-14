@@ -19,6 +19,8 @@ import {
   montarListaComTermoAbertura,
   obterAssinantesRel,
   salvarNoHistorico,
+  snapshotAssinantes,
+  snapshotEmpresa,
   type AssinantesRelatorio,
 } from '../features/relatorios/relatoriosService';
 import { listarFuncionarios } from '../features/cadastros/cadastroService';
@@ -250,6 +252,8 @@ export default function Relatorios() {
         const tec = funcionarios.find((f) => f.id === id);
         if (tec && !m.tecnicoNome) m.tecnicoNome = tec.nome;
       }
+      // Mantém o snapshot congelado em sincronia com a troca (rel-assinatura.js lê meta.assinantes).
+      m.assinantes = snapshotAssinantes(novo, funcionarios);
       setMeta(m);
       void gravarMetaAtual(m); // grava localStorage de forma síncrona antes do remount
     }
@@ -279,7 +283,11 @@ export default function Relatorios() {
     // iframes e espelha engenheiro/técnico na meta (livro de registro usa phNome/phCrea).
     const funcs = listarFuncionarios();
     setFuncionarios(funcs);
-    novaMeta = aplicarAssinantesNaMeta(novaMeta, carregarAssinantesRel(tag, funcs), funcs);
+    const a = carregarAssinantesRel(tag, funcs);
+    novaMeta = aplicarAssinantesNaMeta(novaMeta, a, funcs);
+    // Congela empresa + assinantes na meta (relatório salvo não muda com trocas futuras).
+    novaMeta.empresa = snapshotEmpresa();
+    novaMeta.assinantes = snapshotAssinantes(a, funcs);
     // Sempre regrava (limpa quando não há container): sem isto, um relatório sem container exibe
     // os dados de campo do ÚLTIMO relatório gerado (chaves nr13_inspecao_atual/nr13_injecao_atual).
     await gravarInspecaoOrigemAtual(dadosContainer);
@@ -335,7 +343,11 @@ export default function Relatorios() {
     {
       const funcs = listarFuncionarios();
       setFuncionarios(funcs);
-      carregarAssinantesRel(r.tagVaso, funcs);
+      const a = carregarAssinantesRel(r.tagVaso, funcs);
+      // Duplicado é um relatório NOVO — refaz os snapshots com a empresa/assinantes ATUAIS
+      // (não herda os congelados do relatório de origem).
+      novaMeta.empresa = snapshotEmpresa();
+      novaMeta.assinantes = snapshotAssinantes(a, funcs);
     }
     await gravarInspecaoOrigemAtual(dadosContainer);
     await gravarMetaAtual(novaMeta);
@@ -642,7 +654,9 @@ export default function Relatorios() {
               const sep = doc.includes('?') ? '&' : '?';
               return (
                 <PaginaA4 key={`${doc}-${i}-${versao}`}>
-                  <iframe src={`/arquivos-inspecao/${doc}${sep}tag=${tag}&page=${i + 1}`} scrolling="no" title={doc} />
+                  {/* ctx=rel: avisa rel-empresa.js/rel-assinatura.js que a folha roda dentro do
+                      visualizador do relatório — usam os snapshots congelados da meta. */}
+                  <iframe src={`/arquivos-inspecao/${doc}${sep}tag=${tag}&page=${i + 1}&ctx=rel`} scrolling="no" title={doc} />
                 </PaginaA4>
               );
             })}
@@ -690,9 +704,12 @@ export default function Relatorios() {
                         nr13_assinantes_rel_<TAG> antes do remount dos iframes. */}
                     <div className="meta-barra-campo">
                       <label htmlFor="rel-sel-engenheiro">Engenheiro (assina)</label>
+                      {/* Relatório salvo é imutável: o snapshot congelado na meta vence, então
+                          trocar assinante não teria efeito — select desabilitado. */}
                       <select
                         id="rel-sel-engenheiro"
                         value={valorAssinante(assinantes.engenheiroId, engenheiros)}
+                        disabled={somenteLeitura}
                         onChange={(e) => trocarAssinanteRel('engenheiroId', e.target.value)}
                       >
                         <option value="">— sem assinatura —</option>
@@ -708,6 +725,7 @@ export default function Relatorios() {
                       <select
                         id="rel-sel-tecnico"
                         value={valorAssinante(assinantes.tecnicoId, tecnicos)}
+                        disabled={somenteLeitura}
                         onChange={(e) => trocarAssinanteRel('tecnicoId', e.target.value)}
                       >
                         <option value="">— sem assinatura —</option>

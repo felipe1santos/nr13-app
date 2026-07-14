@@ -3,7 +3,7 @@ import { Icone } from '../components/Icone';
 import { listarFuncionarios, salvarFuncionario, excluirFuncionario } from '../features/cadastros/cadastroService';
 import type { Funcionario } from '../features/cadastros/tipos';
 import { PAGINAS_PRONTUARIO } from '../features/prontuarios/tipos';
-import { DOCUMENTOS_DISPONIVEIS } from '../features/relatorios/tipos';
+import { FOLHAS_RELATORIO_ASSINAVEIS } from '../features/relatorios/tipos';
 import { comprimirImagem, processarAssinatura } from '../services/imagem';
 import './cadastros.css';
 
@@ -19,10 +19,8 @@ const ROTULOS_PRONTUARIO: Record<string, string> = {
   'PRONT-MEMORIAL.html': 'Resumo do Memorial (folha 6)',
 };
 
-// Rótulos dos documentos do relatório (mesmos nomes exibidos no Modal de Nova Inspeção).
+// Rótulos das folhas assináveis do relatório (capa e sumário nunca recebem carimbo).
 const ROTULOS_RELATORIO: Record<string, string> = {
-  'CAPA.html': 'Capa',
-  'SUMARIO.html': 'Sumário',
   'PLACA.html': 'Placa de Identificação',
   'CLASSIFICACAO-RISCO.html': 'Caracterização (Classificação de Risco)',
   'PRONTUARIO.html': 'Prontuário',
@@ -47,7 +45,7 @@ function defaultFolhasProntuario(tipo: Funcionario['tipo']): string[] {
 }
 
 function defaultFolhasRelatorio(tipo: Funcionario['tipo']): string[] {
-  return tipo === 'Engenheiro' ? [...DOCUMENTOS_DISPONIVEIS] : [];
+  return tipo === 'Engenheiro' ? [...FOLHAS_RELATORIO_ASSINAVEIS] : [];
 }
 
 const VAZIO: Omit<Funcionario, 'id'> = {
@@ -310,7 +308,7 @@ export default function Funcionarios() {
                 <button
                   type="button"
                   className="btn-secundario-sm"
-                  onClick={() => marcarTodasFolhas('folhasRelatorio', DOCUMENTOS_DISPONIVEIS)}
+                  onClick={() => marcarTodasFolhas('folhasRelatorio', FOLHAS_RELATORIO_ASSINAVEIS)}
                 >
                   Marcar todas
                 </button>
@@ -324,7 +322,7 @@ export default function Funcionarios() {
               </div>
             </div>
             <div className="cad-check-grid">
-              {DOCUMENTOS_DISPONIVEIS.map((arquivo) => (
+              {FOLHAS_RELATORIO_ASSINAVEIS.map((arquivo) => (
                 <label key={arquivo} className="cad-check-opt">
                   <input
                     type="checkbox"

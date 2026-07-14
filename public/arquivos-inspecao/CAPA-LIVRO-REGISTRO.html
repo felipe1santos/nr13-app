@@ -197,6 +197,7 @@
             .page { width: 100% !important; margin: 0 !important; box-shadow: none !important; }
         }
     </style>
+    <script src="/rel-empresa.js"></script>
 </head>
 <body>
 
@@ -266,7 +267,7 @@
                 if (el && val !== undefined && val !== null && val !== '') el.innerText = val;
             };
 
-            const salvo = localStorage.getItem('nr13_minha_empresa');
+            const salvo = (window.NR13_EMPRESA_JSON || localStorage.getItem('nr13_minha_empresa'));
             if (salvo) {
                 try {
                     const dados = JSON.parse(salvo);

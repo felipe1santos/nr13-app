@@ -60,7 +60,7 @@ Tudo que o usuário salva pode ser fonte de injeção. Chaves por TAG do equipam
 | `nr13_inspecao_atual` **e** `nr13_injecao_atual` | Dados de campo do container escolhido | Gravado na geração |
 | `nr13_prontuario_meta_<TAG>` | Nº do relatório (`REL-<timestamp>`) + data de emissão do prontuário; reusado entre reimpressões (`obterOuCriarMeta`) | Gravado ao abrir o visualizador do prontuário |
 | `nr13_assinantes_pront_<TAG>` | Assinantes do prontuário (`{engenheiroId, tecnicoId}` de `nr13_lista_phs`) — lido por `pront-assinatura.js` nas 6 folhas | Selects Engenheiro/Técnico no visualizador do prontuário |
-| `nr13_assinantes_rel_<TAG>` | Assinantes do relatório (`{engenheiroId, tecnicoId}`) — lido por `rel-assinatura.js` (TERMO-ABERTURA, ULTRASSOM, TESTE-HIDROSTATICO, CONCLUSAO; regra por `folhasRelatorio`) e espelhado em `meta.phNome/phCrea/tecnicoNome` | Selects no modal Configurações do Relatório |
+| `nr13_assinantes_rel_<TAG>` | Assinantes do relatório (`{engenheiroId, tecnicoId}`) — fallback LEGADO do `rel-assinatura.js` (fonte primária: snapshot `meta.assinantes`, ver §7-bis); espelhado em `meta.phNome/phCrea/tecnicoNome` | Selects no modal Configurações do Relatório |
 | `nr13_laudo_<TAG>` | Laudo da conclusão (`{apto, relatorioCodigo, atualizadoEm}`) — alimenta o selo APTO/INAPTO do livro de registro | Checkbox SIM/NÃO da CONCLUSAO.html |
 | `nr13_croqui3d_<TAG>` | **LEGADO** (render 3D removido em 11/07/2026): PNG antigo do croqui 3D; nenhum código grava mais — PRONT-ULTRASSOM só lê como fallback de dados antigos | — (só leitura de legado) |
 | `nr13_modelo3d_<TAG>` | Modelo do editor de Croqui 2D (`ModeloVaso`: diâmetro, comprimento, casco, virolas, tampos, bocais, suporte) — nome da chave mantido por compatibilidade | Editor de Croqui 2D (memorial → passo obrigatório; Prontuários → botão "Croqui 2D do Equipamento") |
@@ -190,6 +190,26 @@ e a auto-injeção insere as folhas de fotos/termo nas posições indicadas.
 | 21 | Registro Seg. | `LIVRO-REGISTRO.html` *(TERMO-ABERTURA auto antes, se 1ª inspeção)* | livro de registro |
 | 22 | Certificados de Calibração | `CERTIFICADO-CAL-MANOMETRO.html` / `CERTIIFCADO-CAL-PSV.html` | injetado ao fim (seleção em Modal) |
 
+### §7-bis — Motor de assinatura do RELATÓRIO (carimbo flutuante, 14/07/2026)
+
+- `public/rel-assinatura.js` (incluído em todas as folhas do relatório EXCETO `CAPA.html`,
+  `SUMARIO.html`, `CAPA-LIVRO-REGISTRO.html` e `CERTIFICADO-CAL-*` — certificados têm assinatura
+  própria/independente) sobrepõe **carimbos compactos** (engenheiro + técnico) em posição
+  `absolute` logo acima do rodapé de cada `.page`/`.pagina` — **não empurra conteúdo**.
+- **Filtro por folha:** cada assinante carimba só as folhas marcadas em `folhasRelatorio[]`
+  (Funcionários; lista = `FOLHAS_RELATORIO_ASSINAVEIS` = `DOCUMENTOS_DISPONIVEIS` sem capa/sumário;
+  default: Engenheiro todas, Inspetor nenhuma). Folhas auto-injetadas seguem a folha-pai
+  (`*-FOTOS` → folha do ensaio; `FOTOS-DOCUMENTACAO`/`checklist1` → VERIFICACAO-DOCUMENTACAO;
+  `CHECKLIST-FOTOS` → checklist3; `TERMO-ABERTURA` → LIVRO-REGISTRO, e no termo só o engenheiro).
+- **Imutabilidade do relatório salvo:** na geração, `RelatorioMeta` congela `empresa` (cópia de
+  `nr13_minha_empresa`) e `assinantes` (snapshots com nome, cargo, CREA, rubrica, camposExtras,
+  folhasRelatorio). Os iframes do visualizador rodam com `&ctx=rel`; com esse param,
+  `rel-empresa.js` e `rel-assinatura.js` usam os snapshots da meta — trocar rubrica/logo/cadastro
+  depois NÃO altera relatório salvo. Sem `ctx=rel` (livro standalone etc.) ou sem snapshot
+  (relatórios antigos), caem no dado vivo (`nr13_assinantes_rel_<TAG>` + `nr13_lista_phs`).
+  Duplicar = relatório novo → snapshots refeitos com o estado atual; selects de assinante ficam
+  desabilitados em relatório salvo (somenteLeitura).
+
 ---
 
 ## 8. Prontuário
@@ -220,8 +240,8 @@ O visualizador do prontuário tem selects de Engenheiro/Técnico que gravam
 "Responsabilidade Técnica" com nome, função, CREA/Registro, campos extras e a imagem da
 assinatura, respeitando `folhasProntuario` de cada assinante (não assina a folha → coluna limpa).
 **Fallback:** sem a chave de assinantes ou ambos vazios → a folha mantém a assinatura fictícia
-de exemplo ("Fulano Da Silva"). Relatório/livro/certificados ainda usam o fluxo antigo (fase
-seguinte — ver PENDENCIAS.md).
+de exemplo ("Fulano Da Silva"). **Relatório: motor próprio em modo carimbo (ver §7-bis).**
+Certificados de calibração ainda usam o fluxo antigo (ver PENDENCIAS.md).
 
 `PRONTUARIO-RECONSTITUICAO-1..4` **não fazem parte** do prontuário — seguem como folhas do
 **relatório** (ver §7).

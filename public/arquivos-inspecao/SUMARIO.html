@@ -253,6 +253,7 @@
             [contenteditable="true"]:hover { background-color: transparent !important; color: inherit !important; font-weight: inherit !important; }
         }
     </style>
+    <script src="/rel-empresa.js"></script>
 </head>
 <body>
 
@@ -357,7 +358,7 @@
         // =========================================================
         document.addEventListener("DOMContentLoaded", function() {
             // Busca os dados salvos no localStorage (vindos da tela de configuração)
-            const salvo = localStorage.getItem('nr13_minha_empresa');
+            const salvo = (window.NR13_EMPRESA_JSON || localStorage.getItem('nr13_minha_empresa'));
             
             if (salvo) {
                 const dados = JSON.parse(salvo);

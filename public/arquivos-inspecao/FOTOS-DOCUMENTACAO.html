@@ -104,6 +104,7 @@
             .foto-desc { color: var(--blue-data); }
         }
     </style>
+    <script src="/rel-empresa.js"></script>
 </head>
 <body>
 
@@ -214,7 +215,7 @@
         }
 
         try {
-            var empresa = localStorage.getItem('nr13_minha_empresa');
+            var empresa = (window.NR13_EMPRESA_JSON || localStorage.getItem('nr13_minha_empresa'));
             var meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}');
             document.querySelectorAll('[id^="imgLogo"]').forEach(function(el) {
                 if (empresa) { var d = JSON.parse(empresa); if (d.logo) el.src = d.logo; }
@@ -243,5 +244,6 @@
         buildPages();
     });
 </script>
+    <script src="/rel-assinatura.js"></script>
 </body>
 </html>

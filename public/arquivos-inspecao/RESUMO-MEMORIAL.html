@@ -223,6 +223,7 @@
         .data-highlight { color: var(--blue-data); font-weight: 600; }
         .sig-overlay-box.sig-excluida > *:not(.no-print) { display: none !important; }
     </style>
+    <script src="/rel-empresa.js"></script>
 </head>
 <body>
 
@@ -642,7 +643,7 @@
 
         document.addEventListener("DOMContentLoaded", function() {
             // 1. CARREGAR DADOS DO SISTEMA (Padrão de injeção)
-            const salvo = localStorage.getItem('nr13_minha_empresa');
+            const salvo = (window.NR13_EMPRESA_JSON || localStorage.getItem('nr13_minha_empresa'));
             if (salvo) {
                 const dados = JSON.parse(salvo);
                 if (dados.logo) document.getElementById('imgLogo').src = dados.logo;
@@ -799,5 +800,6 @@
         }
     </script>
 
+<script src="/rel-assinatura.js"></script>
 </body>
 </html>

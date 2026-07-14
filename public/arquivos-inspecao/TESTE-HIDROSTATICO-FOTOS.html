@@ -213,6 +213,7 @@
             [contenteditable]:hover, [contenteditable]:focus { background: transparent; outline: none; }
         }
     </style>
+    <script src="/rel-empresa.js"></script>
 </head>
 <body>
 
@@ -361,7 +362,7 @@
 
     /* ── AUTO-FILL EMPRESA (localStorage) ─────────────────── */
     (function preencherEmpresa() {
-        const raw = localStorage.getItem('nr13_minha_empresa');
+        const raw = (window.NR13_EMPRESA_JSON || localStorage.getItem('nr13_minha_empresa'));
         if (!raw) return;
         try {
             const d = JSON.parse(raw);
@@ -448,5 +449,6 @@
     });
 </script>
 
+    <script src="/rel-assinatura.js"></script>
 </body>
 </html>

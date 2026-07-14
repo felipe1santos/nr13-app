@@ -341,6 +341,7 @@
         .data-highlight { color: var(--blue-data); font-weight: 600; }
         .sig-overlay-box.sig-excluida > *:not(.no-print) { display: none !important; }
     </style>
+    <script src="/rel-empresa.js"></script>
 </head>
 <body>
 
@@ -583,7 +584,7 @@
 
         document.addEventListener("DOMContentLoaded", function() {
             // SCRIPT PARA PUXAR DADOS DA EMPRESA E LOGO AUTOMATICAMENTE
-            const salvo = localStorage.getItem('nr13_minha_empresa');
+            const salvo = (window.NR13_EMPRESA_JSON || localStorage.getItem('nr13_minha_empresa'));
             
             if (salvo) {
                 const dados = JSON.parse(salvo);
@@ -783,5 +784,6 @@
         });
     </script>
 
+<script src="/rel-assinatura.js"></script>
 </body>
 </html>

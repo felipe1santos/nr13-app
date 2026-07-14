@@ -121,6 +121,7 @@
             .page { width: 100% !important; margin: 0 !important; box-shadow: none !important; border: none !important; padding: 15mm 15mm 25mm 15mm !important; box-sizing: border-box !important; }
         }
     </style>
+    <script src="/rel-empresa.js"></script>
 </head>
 <body>
 
@@ -203,7 +204,7 @@
         let dadosEmpresaInspetoraGlobal = null;
 
         document.addEventListener("DOMContentLoaded", function() {
-            const salvo = localStorage.getItem('nr13_minha_empresa');
+            const salvo = (window.NR13_EMPRESA_JSON || localStorage.getItem('nr13_minha_empresa'));
             if (salvo) {
                 try { dadosEmpresaInspetoraGlobal = JSON.parse(salvo); } catch(e) {}
             }
@@ -463,5 +464,6 @@
             document.addEventListener('DOMContentLoaded', renderizar);
         })();
     </script>
+    <script src="/rel-assinatura.js"></script>
 </body>
 </html>

@@ -1,6 +1,14 @@
 import { ler, salvar } from '../../services/storage';
 import { listarFuncionarios } from '../cadastros/cadastroService';
-import { DOCUMENTOS_DISPONIVEIS, type RelatorioMeta, type RelatorioSalvo, type TipoInspecao } from './tipos';
+import type { Funcionario } from '../cadastros/tipos';
+import {
+  DOCUMENTOS_DISPONIVEIS,
+  FOLHAS_RELATORIO_ASSINAVEIS,
+  type AssinanteSnapshot,
+  type RelatorioMeta,
+  type RelatorioSalvo,
+  type TipoInspecao,
+} from './tipos';
 
 export function filtrarDocumentosValidos(lista: string[]): string[] {
   return (lista || []).filter((doc) => doc.split('?')[0].toLowerCase().endsWith('.html'));
@@ -85,6 +93,39 @@ export function gravarAssinantesRel(tag: string, a: AssinantesRelatorio): void {
   // salvar() grava o localStorage de forma síncrona antes de persistir remoto — os iframes
   // remontados logo em seguida já leem o valor novo.
   void salvar(chaveAssinantesRel(tag), a);
+}
+
+// ── Snapshots congelados na meta (bug fix 14/07/2026) ─────────────────────────────────────────
+// Relatório salvo guardava só ids/chaves vivas — trocar logo da empresa ou assinante depois
+// alterava relatórios já emitidos. Os helpers abaixo copiam o estado ATUAL para dentro da
+// RelatorioMeta na geração; rel-empresa.js/rel-assinatura.js preferem meta.empresa/meta.assinantes.
+
+// Snapshot da empresa executante (nr13_minha_empresa) para congelar na meta do relatório.
+export function snapshotEmpresa(): Record<string, unknown> | undefined {
+  return ler<Record<string, unknown>>('nr13_minha_empresa') ?? undefined;
+}
+
+// Snapshots dos assinantes escolhidos, resolvidos AGORA contra nr13_lista_phs — congela nome,
+// cargo, CREA, rubrica e campos extras na meta (rel-assinatura.js lê meta.assinantes).
+export function snapshotAssinantes(
+  a: AssinantesRelatorio,
+  funcs: Funcionario[],
+): { engenheiro: AssinanteSnapshot | null; tecnico: AssinanteSnapshot | null } {
+  const snap = (id: string | null): AssinanteSnapshot | null => {
+    const f = funcs.find((x) => id != null && x.id === id);
+    if (!f) return null;
+    return {
+      nome: f.nome,
+      funcao: f.funcao,
+      crea: f.crea,
+      assinatura: f.assinatura,
+      camposExtras: f.camposExtras,
+      // Regra padrão do motor (mesma de Funcionarios.tsx defaultFolhasRelatorio):
+      // engenheiro assina todas as folhas assináveis, inspetor nenhuma.
+      folhasRelatorio: f.folhasRelatorio ?? (f.tipo === 'Engenheiro' ? [...FOLHAS_RELATORIO_ASSINAVEIS] : []),
+    };
+  };
+  return { engenheiro: snap(a.engenheiroId), tecnico: snap(a.tecnicoId) };
 }
 
 // NR-13 13.4.1.9 — injeta TERMO-ABERTURA.html antes de LIVRO-REGISTRO.html só quando é a

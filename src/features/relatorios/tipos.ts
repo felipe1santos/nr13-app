@@ -25,6 +25,25 @@ export const DOCUMENTOS_DISPONIVEIS = [
   'LIVRO-REGISTRO.html',
 ] as const;
 
+// Folhas do relatório que podem receber carimbo de assinatura — capa e sumário nunca recebem.
+export const FOLHAS_RELATORIO_ASSINAVEIS = DOCUMENTOS_DISPONIVEIS.filter(
+  (d) => d !== 'CAPA.html' && d !== 'SUMARIO.html',
+);
+
+// Snapshot de um assinante congelado na geração do relatório (motor de assinatura / carimbo).
+// Lido por public/rel-assinatura.js via meta.assinantes — relatório salvo não muda quando o
+// usuário troca assinantes ou edita o cadastro de funcionários depois.
+export interface AssinanteSnapshot {
+  nome: string;
+  funcao?: string;
+  crea?: string;
+  assinatura?: string; // dataURL da rubrica
+  camposExtras?: { rotulo: string; valor: string }[];
+  // Quais folhas do relatório ele carimba — congelado junto com o resto;
+  // as folhas auto-injetadas seguem a folha-pai no rel-assinatura.js.
+  folhasRelatorio?: string[];
+}
+
 export interface RelatorioMeta {
   codigo: string;
   emissao: string; // DD/MM/AAAA
@@ -43,6 +62,12 @@ export interface RelatorioMeta {
   // templates que dependem da composição — SUMARIO (TOC) e INSPECOES (ensaios realizados) —
   // saibam quais folhas existem. Sem isso o TOC e a tabela de ensaios saem vazios.
   documentos?: string[];
+  // Snapshots congelados na geração (bug fix 14/07/2026): relatório salvo não pode mudar quando
+  // o usuário troca a logo da empresa ou os assinantes depois. `empresa` = cópia de
+  // nr13_minha_empresa (lida por public/rel-empresa.js quando a folha roda com ?ctx=rel);
+  // `assinantes` = snapshots do engenheiro/técnico (lidos por public/rel-assinatura.js).
+  empresa?: Record<string, unknown>;
+  assinantes?: { engenheiro: AssinanteSnapshot | null; tecnico: AssinanteSnapshot | null };
 }
 
 export interface RelatorioSalvo {

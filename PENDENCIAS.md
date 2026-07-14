@@ -32,9 +32,6 @@
 
 - [ ] **Certificados de calibração** (prontuário, relatório e livro de registro já feitos em
       13/07/2026): aplicar o bloco canônico de assinatura nos CERTIFICADO-CAL-*.html.
-- [ ] **Demais folhas do relatório**: o bloco canônico existe hoje em TERMO-ABERTURA, ULTRASSOM,
-      TESTE-HIDROSTATICO e CONCLUSAO; avaliar quais outras folhas de `folhasRelatorio` devem
-      ganhar o bloco (o motor `rel-assinatura.js` já cobre qualquer folha que o tiver).
 
 ## 3. Polimentos opcionais (nada bloqueia; sistema funciona sem)
 

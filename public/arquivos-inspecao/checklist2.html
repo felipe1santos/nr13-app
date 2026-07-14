@@ -80,6 +80,7 @@
             .page { margin: 0 !important; box-shadow: none !important; padding: 12mm 15mm 28mm 15mm !important; }
         }
     </style>
+    <script src="/rel-empresa.js"></script>
 </head>
 <body>
 
@@ -264,7 +265,7 @@
 
         // Empresa
         try {
-            var salvo = localStorage.getItem('nr13_minha_empresa');
+            var salvo = (window.NR13_EMPRESA_JSON || localStorage.getItem('nr13_minha_empresa'));
             if (salvo) {
                 var d = JSON.parse(salvo);
                 if (d.logo) document.getElementById('imgLogo').src = d.logo;
@@ -285,5 +286,6 @@
         } catch(e) {}
     });
 </script>
+    <script src="/rel-assinatura.js"></script>
 </body>
 </html>

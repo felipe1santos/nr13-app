@@ -265,6 +265,7 @@
             .p-table th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         }
     </style>
+    <script src="/rel-empresa.js"></script>
 </head>
 <body>
     <div class="page">
@@ -447,7 +448,7 @@
         document.addEventListener("DOMContentLoaded", function() {
             
             // Auto-Fill Empresa
-            const salvo = localStorage.getItem('nr13_minha_empresa');
+            const salvo = (window.NR13_EMPRESA_JSON || localStorage.getItem('nr13_minha_empresa'));
             if (salvo) {
                 const dados = JSON.parse(salvo);
                 
@@ -571,5 +572,6 @@
             }
         });
     </script>
+<script src="/rel-assinatura.js"></script>
 </body>
 </html>

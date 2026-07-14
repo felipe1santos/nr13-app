@@ -82,6 +82,7 @@
         .data-highlight { color: var(--blue-data); font-weight: 600; }
         .sig-overlay-box.sig-excluida > *:not(.no-print) { display: none !important; }
     </style>
+    <script src="/rel-empresa.js"></script>
 </head>
 <body>
 
@@ -200,7 +201,7 @@
         var from = p.get('from'); var to = p.get('to'); // intervalo de linhas desta folha (paginação por bloco)
         if (part < 1) part = 1; if (of < 1) of = 1;
 
-        var empresa = JSON.parse(localStorage.getItem('nr13_minha_empresa') || '{}');
+        var empresa = JSON.parse((window.NR13_EMPRESA_JSON || localStorage.getItem('nr13_minha_empresa')) || '{}');
         var meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}');
         var emp = JSON.parse(localStorage.getItem('nr13_emp_' + tag) || '{}');
         var info = JSON.parse(localStorage.getItem('nr13_info_' + tag) || '{}');
@@ -285,5 +286,6 @@
 
     });
 </script>
+<script src="/rel-assinatura.js"></script>
 </body>
 </html>
