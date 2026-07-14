@@ -163,7 +163,7 @@
             </div>
 
             <div class="exec-box" id="exec-box" style="display:none">
-                <div class="exec-titulo">Inspeção realizada por:</div>
+                <div class="exec-titulo" id="exec-titulo">Inspeção realizada por:</div>
                 <div id="exec-linhas"></div>
             </div>
 
@@ -312,6 +312,8 @@
 
             // Blocos extras da folha (ensaios, situação APTO/INAPTO, quem realizou, assinatura).
             // Cada bloco só aparece quando o dado existe — entradas antigas seguem como sempre.
+            // `info.manual`: ocorrência manual (manutenção/reparo) — muda os rótulos do exec-box;
+            // ensaios/situação não se aplicam (os campos simplesmente não existem na entrada).
             function renderizarExtras(info) {
                 // Ensaios realizados
                 if (info.ensaios && info.ensaios.length > 0) {
@@ -333,11 +335,14 @@
                     document.getElementById('situacao-box').style.display = 'flex';
                 }
 
-                // Quem realizou (PH + técnico)
+                // Quem realizou (ocorrência manual: executante + responsável; inspeção: PH + técnico)
                 const linhas = [];
-                if (info.phNome) linhas.push({ rotulo: 'Profissional Habilitado', nome: info.phNome, extra: info.phCrea ? 'CREA/Registro: ' + info.phCrea : '' });
+                if (info.quemRealizou) linhas.push({ rotulo: 'Executante', nome: info.quemRealizou, extra: '' });
+                if (info.phNome) linhas.push({ rotulo: info.manual ? 'Responsável' : 'Profissional Habilitado', nome: info.phNome, extra: info.phCrea ? 'CREA/Registro: ' + info.phCrea : '' });
                 if (info.tecnicoNome) linhas.push({ rotulo: 'Técnico / Inspetor', nome: info.tecnicoNome, extra: '' });
                 if (linhas.length > 0) {
+                    const titulo = document.getElementById('exec-titulo');
+                    if (titulo && info.manual) titulo.textContent = 'Ocorrência realizada / registrada por:';
                     const cont = document.getElementById('exec-linhas');
                     cont.innerHTML = '';
                     linhas.forEach(function(l) {
@@ -390,10 +395,39 @@
                 catch (e) { return []; }
             }
 
+            // Ocorrência manual (manutenção/reparo entre inspeções — origem 'manual'): marca o
+            // checkbox "Ocorrência", termo próprio (sem afirmar apto/inapto) e exec/assinatura.
+            // Nada de ensaios nem situação — não é laudo de inspeção.
+            function renderizarModoOcorrenciaManual(entrada) {
+                const dataBR = formatarDataBR(entrada.data);
+                marcarTipo('Ocorrência');
+                document.getElementById('data-inicio-val').textContent = dataBR;
+                document.getElementById('data-fim-val').textContent = dataBR;
+
+                document.getElementById('termo-titulo').textContent = 'Termo de Ocorrência:';
+                let texto = 'Em ' + dataBR + ', registro de ocorrência: ' + (entrada.tipo || 'Ocorrência') +
+                    ' — ' + (entrada.descricao || '--') + '.';
+                if (entrada.quemRealizou) texto += ' Realizado por ' + entrada.quemRealizou + '.';
+                document.getElementById('termo-texto').textContent = texto;
+
+                renderizarExtras({
+                    manual: true,
+                    quemRealizou: entrada.quemRealizou,
+                    phNome: entrada.phNome,
+                    phCrea: entrada.phCrea,
+                    phId: entrada.phId
+                });
+            }
+
             function renderizarModoHistorico(tag, entradaId) {
                 const livro = carregarLivro(tag);
                 const entrada = livro.find(e => e.id === entradaId);
                 if (!entrada) return;
+
+                if (entrada.origem === 'manual') {
+                    renderizarModoOcorrenciaManual(entrada);
+                    return;
+                }
 
                 // Entradas automáticas antigas só têm `data` — dataInicio/dataFim/condicaoOperacional
                 // são opcionais e caem no fallback (nunca quebram a folha).

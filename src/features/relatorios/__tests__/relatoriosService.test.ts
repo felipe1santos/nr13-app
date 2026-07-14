@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { adicionarEntradaLivroAuto, ensaiosDoRelatorio, expandirMemorial, type LivroEntrada } from '../relatoriosService';
+import {
+  adicionarEntradaLivroAuto,
+  adicionarEntradaLivroManual,
+  ensaiosDoRelatorio,
+  expandirMemorial,
+  type LivroEntrada,
+} from '../relatoriosService';
 import type { RelatorioSalvo } from '../tipos';
 
 // vitest roda em node (sem DOM): shim mínimo de localStorage (mesmo padrão de
@@ -128,5 +134,100 @@ describe('adicionarEntradaLivroAuto — campos novos da entrada', () => {
     expect(livro[0].relatorioCodigo).toBe('REL-1');
     expect(livro[0].phNome).toBe('Eng. Teste');
     expect(livro[0].origem).toBe('auto');
+  });
+});
+
+describe('adicionarEntradaLivroManual — ocorrência manual no livro', () => {
+  beforeEach(() => localStorage.clear());
+
+  function ocorrenciaBase(sobrescrever: Partial<Parameters<typeof adicionarEntradaLivroManual>[1]> = {}) {
+    return {
+      data: '2026-07-12',
+      tipoOcorrencia: 'Manutenção corretiva',
+      oQueFoiFeito: 'Troca da válvula de segurança',
+      descricao: 'Válvula apresentava vazamento no assento.',
+      quemRealizou: 'Manutenção Industrial XYZ Ltda.',
+      phId: null as string | null,
+      ...sobrescrever,
+    };
+  }
+
+  function entradaAutoFake(data: string, codigo: string): LivroEntrada {
+    return {
+      id: `LIV-${codigo}`,
+      data,
+      tipo: 'Inspeção Periódica',
+      descricao: `Relatório de inspeção gerado: ${codigo}`,
+      relatorioCodigo: codigo,
+      phNome: 'Eng. Teste',
+      phCrea: '12345',
+      origem: 'auto',
+      criadoEm: '2026-01-01T00:00:00.000Z',
+    };
+  }
+
+  it('grava com origem manual, descrição combinada, sem relatorioCodigo e resolve phNome/phCrea do phId', () => {
+    localStorage.setItem(
+      'nr13_lista_phs',
+      JSON.stringify([{ id: 'ph-7', nome: 'Eng. Manual', crea: 'CREA-777', tipo: 'Engenheiro' }]),
+    );
+    const entrada = adicionarEntradaLivroManual('V1', ocorrenciaBase({ phId: 'ph-7' }));
+
+    expect(entrada.origem).toBe('manual');
+    expect(entrada.tipo).toBe('Manutenção corretiva');
+    expect(entrada.descricao).toBe('Troca da válvula de segurança — Válvula apresentava vazamento no assento.');
+    expect(entrada.relatorioCodigo).toBe('');
+    expect(entrada.quemRealizou).toBe('Manutenção Industrial XYZ Ltda.');
+    expect(entrada.phId).toBe('ph-7');
+    expect(entrada.phNome).toBe('Eng. Manual');
+    expect(entrada.phCrea).toBe('CREA-777');
+
+    const livro = JSON.parse(localStorage.getItem('nr13_livro_V1')!) as LivroEntrada[];
+    expect(livro).toHaveLength(1);
+    expect(livro[0].id).toBe(entrada.id);
+    // Sem laudo de inspeção: entrada manual não tem apto nem ensaios.
+    expect(livro[0].apto).toBeUndefined();
+    expect(livro[0].ensaios).toBeUndefined();
+  });
+
+  it('sem phId (ou phId inexistente): sem assinatura, phNome/phCrea vazios', () => {
+    const semPh = adicionarEntradaLivroManual('V1', ocorrenciaBase({ phId: null }));
+    expect(semPh.phNome).toBe('');
+    expect(semPh.phCrea).toBe('');
+    expect(semPh.phId).toBeUndefined();
+
+    const phFantasma = adicionarEntradaLivroManual('V1', ocorrenciaBase({ phId: 'nao-existe' }));
+    expect(phFantasma.phNome).toBe('');
+    expect(phFantasma.phId).toBeUndefined();
+  });
+
+  it('entra cronologicamente entre entradas automáticas (aceita dd/mm/aaaa e aaaa-mm-dd)', () => {
+    localStorage.setItem(
+      'nr13_livro_V1',
+      JSON.stringify([entradaAutoFake('10/01/2026', 'REL-1'), entradaAutoFake('2026-06-20', 'REL-2')]),
+    );
+    adicionarEntradaLivroManual('V1', ocorrenciaBase({ data: '2026-03-15' }));
+
+    const livro = JSON.parse(localStorage.getItem('nr13_livro_V1')!) as LivroEntrada[];
+    expect(livro).toHaveLength(3);
+    expect(livro[0].relatorioCodigo).toBe('REL-1');
+    expect(livro[1].origem).toBe('manual'); // 15/03 fica entre 10/01 e 20/06
+    expect(livro[2].relatorioCodigo).toBe('REL-2');
+  });
+
+  it('data inválida vai para o fim da lista, sem quebrar', () => {
+    localStorage.setItem(
+      'nr13_livro_V1',
+      JSON.stringify([entradaAutoFake('2026-06-20', 'REL-2'), entradaAutoFake('10/01/2026', 'REL-1')]),
+    );
+    const entrada = adicionarEntradaLivroManual('V1', ocorrenciaBase({ data: 'data-quebrada' }));
+    expect(entrada.origem).toBe('manual');
+
+    const livro = JSON.parse(localStorage.getItem('nr13_livro_V1')!) as LivroEntrada[];
+    expect(livro).toHaveLength(3);
+    // Ordenação também reordena as autos por data crescente; a inválida fica por último.
+    expect(livro[0].relatorioCodigo).toBe('REL-1');
+    expect(livro[1].relatorioCodigo).toBe('REL-2');
+    expect(livro[2].origem).toBe('manual');
   });
 });

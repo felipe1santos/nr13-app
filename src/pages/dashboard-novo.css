@@ -289,3 +289,5 @@
 .selo-flat.crypto { color: #5B3FC9; }
 .selo-flat.info2 { color: #0C4F9B; }
 .selo-flat.ok { color: #0F7A52; }
+/* Marca discreta de ocorrência adicionada manualmente no livro (vs. entrada automática). */
+.selo-flat.manual { color: #6B7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; font-size: 10px; }

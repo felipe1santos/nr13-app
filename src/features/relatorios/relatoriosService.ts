@@ -1,4 +1,5 @@
 import { ler, salvar } from '../../services/storage';
+import { listarFuncionarios } from '../cadastros/cadastroService';
 import { DOCUMENTOS_DISPONIVEIS, type RelatorioMeta, type RelatorioSalvo, type TipoInspecao } from './tipos';
 
 export function filtrarDocumentosValidos(lista: string[]): string[] {
@@ -8,12 +9,14 @@ export function filtrarDocumentosValidos(lista: string[]): string[] {
 export interface LivroEntrada {
   id: string;
   data: string;
-  tipo: TipoInspecao;
+  /** Entradas automáticas: TipoInspecao. Entradas manuais: tipo de ocorrência livre (ex.: "Manutenção corretiva"). */
+  tipo: TipoInspecao | string;
   descricao: string;
+  /** Vazio nas entradas manuais (ocorrência sem relatório de inspeção). */
   relatorioCodigo: string;
   phNome: string;
   phCrea: string;
-  origem: 'auto';
+  origem: 'auto' | 'manual';
   criadoEm: string;
   // ── Campos opcionais (entradas novas; ausentes nas antigas — compatibilidade) ──
   /** Tipo de inspeção do relatório (meta.tipoInspecao) — redundante com `tipo`, mantido explícito. */
@@ -26,6 +29,8 @@ export interface LivroEntrada {
   tecnicoNome?: string;
   /** id do engenheiro assinante em nr13_lista_phs (nr13_assinantes_rel_<TAG>) — a folha do livro busca a assinatura por ele. */
   phId?: string;
+  /** Entradas manuais: quem executou a ocorrência (texto livre — empresa/técnico executante). */
+  quemRealizou?: string;
 }
 
 // Laudo APTO/INAPTO gravado pela folha CONCLUSAO.html quando o usuário marca SIM/NÃO.
@@ -221,6 +226,61 @@ export async function adicionarEntradaLivroAuto(relatorio: RelatorioSalvo): Prom
     phId: obterAssinantesRel(relatorio.tagVaso).engenheiroId ?? undefined,
   };
   await salvar(chaveLivro(relatorio.tagVaso), [...livro, entrada]);
+}
+
+// ── Ocorrência manual no Livro de Registro ─────────────────────────────────────
+// Nem tudo é inspeção: manutenções/reparos pontuais entre inspeções também DEVEM ser
+// registrados (NR-13 13.4.1.9). A entrada manual entra CRONOLOGICAMENTE entre as existentes.
+
+// Timestamp para ordenação cronológica: aceita "aaaa-mm-dd" (input date / execucaoInspecao)
+// e "dd/mm/aaaa" (entradas automáticas antigas). Data inválida vai pro fim da lista.
+function timestampDataLivro(data: string): number {
+  const s = (data || '').trim();
+  let m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s);
+  if (m) return Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(s);
+  if (m) return Date.UTC(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+  return Number.MAX_SAFE_INTEGER; // inválida/vazia: fim da lista (sort é estável — empates mantêm a ordem)
+}
+
+export interface DadosOcorrenciaManual {
+  /** Data da ocorrência — "aaaa-mm-dd" (input date) ou "dd/mm/aaaa". */
+  data: string;
+  /** Ex.: "Manutenção corretiva", "Reparo", "Substituição de dispositivo"… */
+  tipoOcorrencia: string;
+  oQueFoiFeito: string;
+  descricao: string;
+  /** Quem executou (texto livre — empresa/técnico executante). */
+  quemRealizou: string;
+  /** Funcionário (nr13_lista_phs) que assina o registro; null = sem assinatura. */
+  phId: string | null;
+}
+
+export function adicionarEntradaLivroManual(tag: string, dados: DadosOcorrenciaManual): LivroEntrada {
+  const func = dados.phId ? listarFuncionarios().find((f) => f.id === dados.phId) : undefined;
+  const descricao = [dados.oQueFoiFeito.trim(), dados.descricao.trim()].filter(Boolean).join(' — ');
+
+  const entrada: LivroEntrada = {
+    id: `LIV-M-${Date.now()}`,
+    data: dados.data,
+    tipo: dados.tipoOcorrencia,
+    descricao,
+    relatorioCodigo: '', // ocorrência manual não nasce de relatório
+    phNome: func?.nome ?? '',
+    phCrea: func?.crea ?? '',
+    origem: 'manual',
+    criadoEm: new Date().toISOString(),
+    quemRealizou: dados.quemRealizou.trim() || undefined,
+    phId: func?.id,
+  };
+
+  const livro = ler<LivroEntrada[]>(chaveLivro(tag)) || [];
+  livro.push(entrada);
+  livro.sort((a, b) => timestampDataLivro(a.data) - timestampDataLivro(b.data));
+  // salvar() grava o localStorage de forma síncrona antes de persistir remoto — a timeline
+  // recarregada logo em seguida já lê o livro atualizado.
+  void salvar(chaveLivro(tag), livro);
+  return entrada;
 }
 
 export function listaPadraoDocumentos(): string[] {
