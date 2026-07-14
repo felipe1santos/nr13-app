@@ -73,10 +73,9 @@
         .resp-nome { font-weight: 800; }
         .resp-cargo, .resp-crea { font-size: 9px; color: #333; }
 
-        /* RODAPÉ COM PAGINAÇÃO PADRÃO */
-        .pgr-footer-new { position: absolute; bottom: 12mm; left: 15mm; right: 15mm; display: flex; align-items: flex-start; }
-        .footer-line-wrapper { flex: 1; border-top: 3px solid #000; padding-top: 8px; text-align: center; }
-        .company-details { font-size: 11px; color: #000; font-weight: 500; line-height: 1.4; }
+        /* Livro de registro NÃO tem rodapé de empresa (nem cabeçalho) — só o nº da folha,
+           exigência da numeração tipográfica do livro */
+        .pgr-footer-new { position: absolute; bottom: 12mm; right: 15mm; display: flex; justify-content: flex-end; }
         .footer-page-number {
             background-color: #000 !important; color: #fff !important; font-size: 20px; font-weight: 400;
             padding: 6px 22px; margin-left: 10px; display: flex; align-items: center; justify-content: center;
@@ -176,13 +175,6 @@
         </div>
 
         <div class="pgr-footer-new">
-            <div class="footer-line-wrapper">
-                <div class="company-details" id="footer-empresa" contenteditable="true" spellcheck="false">
-                    <strong>NOME DA EMPRESA LTDA.</strong><br>
-                    Endereço • Bairro • Cidade/UF • CNPJ: 00.000.000/0000-00<br>
-                    Telef: (00) 0000-0000 • E-mail: contato@empresa.com.br
-                </div>
-            </div>
             <div class="footer-page-number">1</div>
         </div>
     </div>
@@ -195,26 +187,6 @@
                 const elPagina = document.querySelector('.footer-page-number');
                 if (elPagina) elPagina.innerText = paramPagina.trim();
             }
-        });
-
-        // RODAPÉ (dados da empresa) — a assinatura é o bloco canônico preenchido pelo
-        // rel-assinatura.js. Ver CLAUDE.md §2 (nr13_minha_empresa, nr13_assinantes_rel_<TAG>).
-        document.addEventListener('DOMContentLoaded', function() {
-            try {
-                const empresaRaw = localStorage.getItem('nr13_minha_empresa');
-                if (empresaRaw) {
-                    const d = JSON.parse(empresaRaw);
-                    const elEmpresa = document.getElementById('footer-empresa');
-                    if (elEmpresa) {
-                        let h = '<strong>' + (d.razao || d.fantasia || 'NOME DA EMPRESA') + '</strong><br>';
-                        const l2 = [d.endereco, d.bairro, (d.cidade && d.estado ? d.cidade + '/' + d.estado : ''), d.cnpj ? 'CNPJ: ' + d.cnpj : ''].filter(Boolean);
-                        const l3 = [(d.telefone ? 'Telef: ' + d.telefone : ''), (d.email ? 'E-mail: ' + d.email : '')].filter(Boolean);
-                        if (l2.length) h += l2.join(' • ') + '<br>';
-                        if (l3.length) h += l3.join(' • ');
-                        elEmpresa.innerHTML = h;
-                    }
-                }
-            } catch (e) {}
         });
 
         function previewImage(input, imgId) {
