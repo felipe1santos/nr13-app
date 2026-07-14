@@ -70,8 +70,30 @@
         .termo-titulo { font-size: 12px; font-weight: 800; margin-bottom: 8px; text-transform: uppercase; }
         .termo-texto { font-size: 11.5px; line-height: 1.7; text-align: justify; }
 
-        /* ASSINATURA */
-        .assinatura-box { margin-top: 30px; max-width: 360px; }
+        /* ENSAIOS REALIZADOS */
+        .ensaios-box { border: 1px solid var(--border-color); padding: 12px 14px; margin-bottom: 14px; }
+        .ensaios-titulo { font-size: 11px; font-weight: 800; margin-bottom: 6px; text-transform: uppercase; }
+        .ensaios-lista { list-style: none; margin: 0; padding: 0; }
+        .ensaios-lista li { font-size: 11px; padding: 2px 0; }
+        .ensaios-lista li::before { content: "☑"; font-weight: 800; margin-right: 8px; color: var(--blue-data); }
+
+        /* SITUAÇÃO (APTO / INAPTO) */
+        .situacao-box { display: flex; align-items: center; gap: 12px; border: 1px solid var(--border-color); padding: 10px 14px; margin-bottom: 14px; }
+        .situacao-lbl { font-size: 11px; font-weight: 800; text-transform: uppercase; }
+        .situacao-selo { font-size: 12px; font-weight: 900; letter-spacing: 1.5px; padding: 4px 16px; border: 2px solid; text-transform: uppercase; }
+        .situacao-selo.apto { color: #15803d; border-color: #15803d; background: #f0fdf4; }
+        .situacao-selo.inapto { color: #b91c1c; border-color: #b91c1c; background: #fef2f2; }
+
+        /* QUEM REALIZOU */
+        .exec-box { border: 1px solid var(--border-color); padding: 12px 14px; margin-bottom: 14px; }
+        .exec-titulo { font-size: 11px; font-weight: 800; margin-bottom: 6px; text-transform: uppercase; }
+        .exec-linha { font-size: 11px; padding: 1px 0; }
+        .exec-linha .exec-nome { font-weight: 700; color: var(--blue-data); }
+
+        /* ASSINATURA (bloco canônico: imagem ~82px apoiada sobre a linha, dados embaixo) */
+        .assinatura-box { margin-top: 30px; max-width: 360px; text-align: center; }
+        .assinatura-img { height: 82px; max-width: 340px; object-fit: contain; display: block; margin: 0 auto -10px; }
+        .assinatura-espaco { height: 72px; }
         .assinatura-linha { border-top: 1px solid var(--text-dark); padding-top: 6px; }
         .assinatura-nome { font-size: 11px; font-weight: 700; }
         .assinatura-cargo { font-size: 10px; color: #4B5563; }
@@ -127,6 +149,31 @@
             <div class="termo-box">
                 <div class="termo-titulo" id="termo-titulo">Termo de Inspeção:</div>
                 <div class="termo-texto" id="termo-texto" contenteditable="true" spellcheck="false">--</div>
+            </div>
+
+            <!-- Blocos abaixo só aparecem quando a entrada do livro traz os dados (registros novos). -->
+            <div class="ensaios-box" id="ensaios-box" style="display:none">
+                <div class="ensaios-titulo">Ensaios / Exames Realizados:</div>
+                <ul class="ensaios-lista" id="ensaios-lista"></ul>
+            </div>
+
+            <div class="situacao-box" id="situacao-box" style="display:none">
+                <span class="situacao-lbl">Situação do equipamento:</span>
+                <span class="situacao-selo" id="situacao-selo">--</span>
+            </div>
+
+            <div class="exec-box" id="exec-box" style="display:none">
+                <div class="exec-titulo">Inspeção realizada por:</div>
+                <div id="exec-linhas"></div>
+            </div>
+
+            <div class="assinatura-box" id="assinatura-box" style="display:none">
+                <div id="assinatura-rubrica"></div>
+                <div class="assinatura-linha">
+                    <div class="assinatura-nome" id="assinatura-nome"></div>
+                    <div class="assinatura-cargo" id="assinatura-cargo"></div>
+                    <div class="assinatura-crea" id="assinatura-crea"></div>
+                </div>
             </div>
 
         </div>
@@ -223,7 +270,9 @@
                 return '';
             }
 
-            function renderizarTermo(tipo, dataInicioBR, dataFimBR, codigoRelatorio, descricao, condicaoOperacional) {
+            // `apto`: true/false = laudo da folha CONCLUSAO; null/undefined = não marcado
+            // (mantém o texto histórico "está apto a operar" — compatibilidade com entradas antigas).
+            function renderizarTermo(tipo, dataInicioBR, dataFimBR, codigoRelatorio, descricao, condicaoOperacional, apto) {
                 const elTitulo = document.getElementById('termo-titulo');
                 const elTexto = document.getElementById('termo-texto');
 
@@ -232,10 +281,109 @@
                     elTexto.textContent = `Em ${dataFimBR}, registrou-se a seguinte ocorrência relevante para a segurança do vaso de pressão: ${descricao || '--'}. Condição operacional verificada: ${condicaoOperacional || 'não informada'}.`;
                 } else {
                     elTitulo.textContent = 'Termo de Inspeção:';
-                    elTexto.textContent = `Em ${dataFimBR}, executou-se inspeção de segurança ${tipoParaTextoDescritivo(tipo)}, conforme item 13.5.4 da NR-13, pela empresa habilitada ${nomeEmpresaInspetora()}, em obediência à Portaria Mtb nº 3.214, onde o equipamento a que se refere o relatório de inspeção n° ${codigoRelatorio || '--'} está apto a operar dentro da PMTA estipulada.`;
+                    const situacao = apto === false
+                        ? 'foi considerado INAPTO a operar nas condições atuais, conforme conclusão do referido relatório'
+                        : 'está apto a operar dentro da PMTA estipulada';
+                    elTexto.textContent = `Em ${dataFimBR}, executou-se inspeção de segurança ${tipoParaTextoDescritivo(tipo)}, conforme item 13.5.4 da NR-13, pela empresa habilitada ${nomeEmpresaInspetora()}, em obediência à Portaria Mtb nº 3.214, onde o equipamento a que se refere o relatório de inspeção n° ${codigoRelatorio || '--'} ${situacao}.`;
                 }
             }
 
+            function lerJSON(chave) {
+                try { return JSON.parse(localStorage.getItem(chave) || 'null'); }
+                catch (e) { return null; }
+            }
+
+            // Folha do relatório → rótulo do ensaio (mesmo mapa de ensaiosDoRelatorio no app).
+            const MAPA_ENSAIOS = {
+                'ULTRASSOM.html': 'Medição de espessura (ultrassom)',
+                'TESTE-HIDROSTATICO.html': 'Teste hidrostático',
+                'VISUAL-EXTERNO.html': 'Exame visual externo',
+                'VISUAL-INTERNO.html': 'Exame visual interno'
+            };
+
+            function ensaiosDeDocs(docs) {
+                const out = [];
+                (docs || []).forEach(function(d) {
+                    const rotulo = MAPA_ENSAIOS[String(d).split('?')[0]];
+                    if (rotulo && out.indexOf(rotulo) < 0) out.push(rotulo);
+                });
+                return out;
+            }
+
+            // Blocos extras da folha (ensaios, situação APTO/INAPTO, quem realizou, assinatura).
+            // Cada bloco só aparece quando o dado existe — entradas antigas seguem como sempre.
+            function renderizarExtras(info) {
+                // Ensaios realizados
+                if (info.ensaios && info.ensaios.length > 0) {
+                    const ul = document.getElementById('ensaios-lista');
+                    ul.innerHTML = '';
+                    info.ensaios.forEach(function(e) {
+                        const li = document.createElement('li');
+                        li.textContent = e;
+                        ul.appendChild(li);
+                    });
+                    document.getElementById('ensaios-box').style.display = 'block';
+                }
+
+                // Situação APTO/INAPTO (laudo da CONCLUSAO) — omitido quando não marcado (null)
+                if (info.apto === true || info.apto === false) {
+                    const selo = document.getElementById('situacao-selo');
+                    selo.textContent = info.apto ? 'APTO' : 'INAPTO';
+                    selo.classList.add(info.apto ? 'apto' : 'inapto');
+                    document.getElementById('situacao-box').style.display = 'flex';
+                }
+
+                // Quem realizou (PH + técnico)
+                const linhas = [];
+                if (info.phNome) linhas.push({ rotulo: 'Profissional Habilitado', nome: info.phNome, extra: info.phCrea ? 'CREA/Registro: ' + info.phCrea : '' });
+                if (info.tecnicoNome) linhas.push({ rotulo: 'Técnico / Inspetor', nome: info.tecnicoNome, extra: '' });
+                if (linhas.length > 0) {
+                    const cont = document.getElementById('exec-linhas');
+                    cont.innerHTML = '';
+                    linhas.forEach(function(l) {
+                        const div = document.createElement('div');
+                        div.className = 'exec-linha';
+                        const strong = document.createElement('span');
+                        strong.className = 'exec-nome';
+                        strong.textContent = l.nome;
+                        div.appendChild(document.createTextNode(l.rotulo + ': '));
+                        div.appendChild(strong);
+                        if (l.extra) div.appendChild(document.createTextNode(' — ' + l.extra));
+                        cont.appendChild(div);
+                    });
+                    document.getElementById('exec-box').style.display = 'block';
+                }
+
+                // Assinatura do responsável: busca o funcionário por phId em nr13_lista_phs
+                const phs = lerJSON('nr13_lista_phs');
+                let func = null;
+                if (info.phId && Object.prototype.toString.call(phs) === '[object Array]') {
+                    for (let i = 0; i < phs.length; i++) {
+                        if (phs[i] && String(phs[i].id) === String(info.phId)) { func = phs[i]; break; }
+                    }
+                }
+                const nomeAssinante = (func && func.nome) || info.phNome || '';
+                if (nomeAssinante) {
+                    const rubrica = document.getElementById('assinatura-rubrica');
+                    rubrica.innerHTML = '';
+                    if (func && func.assinatura) {
+                        const img = document.createElement('img');
+                        img.className = 'assinatura-img';
+                        img.alt = 'Assinatura';
+                        img.src = func.assinatura;
+                        rubrica.appendChild(img);
+                    } else {
+                        const vazio = document.createElement('div');
+                        vazio.className = 'assinatura-espaco';
+                        rubrica.appendChild(vazio);
+                    }
+                    document.getElementById('assinatura-nome').textContent = nomeAssinante;
+                    document.getElementById('assinatura-cargo').textContent = (func && func.funcao) || 'Profissional Habilitado — NR-13';
+                    const crea = (func && func.crea) || info.phCrea || '';
+                    document.getElementById('assinatura-crea').textContent = crea ? 'CREA/Registro: ' + crea : '';
+                    document.getElementById('assinatura-box').style.display = 'block';
+                }
+            }
 
             function carregarLivro(tag) {
                 try { return JSON.parse(localStorage.getItem('nr13_livro_' + tag) || '[]'); }
@@ -247,12 +395,23 @@
                 const entrada = livro.find(e => e.id === entradaId);
                 if (!entrada) return;
 
+                // Entradas automáticas antigas só têm `data` — dataInicio/dataFim/condicaoOperacional
+                // são opcionais e caem no fallback (nunca quebram a folha).
                 const dataInicio = entrada.dataInicio || entrada.data;
                 const dataFim = entrada.dataFim || entrada.data;
-                marcarTipo(entrada.tipo);
+                const apto = (entrada.apto === true || entrada.apto === false) ? entrada.apto : null;
+                marcarTipo(entrada.tipoInspecao || entrada.tipo);
                 document.getElementById('data-inicio-val').textContent = formatarDataBR(dataInicio);
                 document.getElementById('data-fim-val').textContent = formatarDataBR(dataFim);
-                renderizarTermo(entrada.tipo, formatarDataBR(dataInicio), formatarDataBR(dataFim), entrada.relatorioCodigo, entrada.descricao, entrada.condicaoOperacional);
+                renderizarTermo(entrada.tipo, formatarDataBR(dataInicio), formatarDataBR(dataFim), entrada.relatorioCodigo, entrada.descricao, entrada.condicaoOperacional, apto);
+                renderizarExtras({
+                    ensaios: entrada.ensaios,
+                    apto: apto,
+                    phNome: entrada.phNome,
+                    phCrea: entrada.phCrea,
+                    tecnicoNome: entrada.tecnicoNome,
+                    phId: entrada.phId
+                });
             }
 
             function renderizarModoRelatorioAtual(tag) {
@@ -261,10 +420,23 @@
 
                 const tipo = meta.tipoInspecao || 'Inspeção Periódica';
                 const dataBR = formatarDataBR(meta.execucaoInspecao);
+                // Laudo APTO/INAPTO da folha CONCLUSAO — só vale se for do relatório em montagem.
+                const laudo = lerJSON('nr13_laudo_' + tag);
+                const apto = (laudo && laudo.relatorioCodigo === meta.codigo && typeof laudo.apto === 'boolean') ? laudo.apto : null;
+                const assinantes = lerJSON('nr13_assinantes_rel_' + tag) || {};
+
                 marcarTipo(tipo);
                 document.getElementById('data-inicio-val').textContent = dataBR;
                 document.getElementById('data-fim-val').textContent = dataBR;
-                renderizarTermo(tipo, dataBR, dataBR, meta.codigo, '', '');
+                renderizarTermo(tipo, dataBR, dataBR, meta.codigo, '', '', apto);
+                renderizarExtras({
+                    ensaios: ensaiosDeDocs(meta.documentos),
+                    apto: apto,
+                    phNome: meta.phNome,
+                    phCrea: meta.phCrea,
+                    tecnicoNome: meta.tecnicoNome,
+                    phId: assinantes.engenheiroId || ''
+                });
             }
 
             function renderizar() {

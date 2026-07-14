@@ -15,6 +15,10 @@ interface LivroEntrada {
   descricao: string;
   relatorioCodigo: string;
   phNome: string;
+  // Campos opcionais das entradas automáticas novas (ausentes nas antigas):
+  ensaios?: string[];
+  apto?: boolean | null;
+  tecnicoNome?: string;
 }
 
 interface LinhaLivro {
@@ -198,12 +202,19 @@ export default function LivroRegistro() {
                     <div className="livro-timeline-corpo">
                       <div className="livro-timeline-topo">
                         <span className={`fj-badge ${cor}`}>{entrada.tipo}</span>
+                        {(entrada.apto === true || entrada.apto === false) && (
+                          <span className={`fj-badge ${entrada.apto ? 'ok' : 'crit'}`}>{entrada.apto ? 'Apto' : 'Inapto'}</span>
+                        )}
                         <span className="livro-timeline-data">{entrada.data}</span>
                       </div>
                       <div className="livro-timeline-desc">{entrada.descricao}</div>
+                      {entrada.ensaios && entrada.ensaios.length > 0 && (
+                        <div className="livro-timeline-desc">Ensaios: {entrada.ensaios.join(' · ')}</div>
+                      )}
                       <div className="livro-timeline-meta">
                         {entrada.relatorioCodigo && <span>Relatório {entrada.relatorioCodigo}</span>}
                         {entrada.phNome && <span>{entrada.phNome}</span>}
+                        {entrada.tecnicoNome && <span>Téc.: {entrada.tecnicoNome}</span>}
                         <span className="selo-flat crypto" title="Selo de integridade — recurso em desenvolvimento">
                           <Icone nome="shield" tam={10} style={{ display: 'inline-block', verticalAlign: -1, marginRight: 3 }} />
                           Criptografia {cripto}

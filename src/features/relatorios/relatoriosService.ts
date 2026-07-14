@@ -5,7 +5,7 @@ export function filtrarDocumentosValidos(lista: string[]): string[] {
   return (lista || []).filter((doc) => doc.split('?')[0].toLowerCase().endsWith('.html'));
 }
 
-interface LivroEntrada {
+export interface LivroEntrada {
   id: string;
   data: string;
   tipo: TipoInspecao;
@@ -15,6 +15,43 @@ interface LivroEntrada {
   phCrea: string;
   origem: 'auto';
   criadoEm: string;
+  // ── Campos opcionais (entradas novas; ausentes nas antigas — compatibilidade) ──
+  /** Tipo de inspeção do relatório (meta.tipoInspecao) — redundante com `tipo`, mantido explícito. */
+  tipoInspecao?: string;
+  /** Rótulos dos ensaios realizados, derivados das folhas do relatório (ver ENSAIO_POR_DOC). */
+  ensaios?: string[];
+  /** Laudo APTO/INAPTO da folha CONCLUSAO (nr13_laudo_<TAG>); null = não marcado no relatório. */
+  apto?: boolean | null;
+  /** Técnico/inspetor que acompanhou (meta.tecnicoNome). */
+  tecnicoNome?: string;
+  /** id do engenheiro assinante em nr13_lista_phs (nr13_assinantes_rel_<TAG>) — a folha do livro busca a assinatura por ele. */
+  phId?: string;
+}
+
+// Laudo APTO/INAPTO gravado pela folha CONCLUSAO.html quando o usuário marca SIM/NÃO.
+interface LaudoConclusao {
+  apto: boolean;
+  relatorioCodigo: string;
+  atualizadoEm: string;
+}
+
+// Folha do relatório → rótulo do ensaio correspondente na entrada do livro de registro.
+const ENSAIO_POR_DOC: Record<string, string> = {
+  'ULTRASSOM.html': 'Medição de espessura (ultrassom)',
+  'TESTE-HIDROSTATICO.html': 'Teste hidrostático',
+  'VISUAL-EXTERNO.html': 'Exame visual externo',
+  'VISUAL-INTERNO.html': 'Exame visual interno',
+};
+
+// Deriva a lista de ensaios realizados das folhas do relatório (ignora query string das
+// folhas expandidas, ex.: MEMORIAL.html?part=1 — e deduplica).
+export function ensaiosDoRelatorio(documentos: string[]): string[] {
+  const out: string[] = [];
+  for (const doc of documentos || []) {
+    const rotulo = ENSAIO_POR_DOC[doc.split('?')[0]];
+    if (rotulo && !out.includes(rotulo)) out.push(rotulo);
+  }
+  return out;
 }
 
 function chaveLivro(tag: string): string {
@@ -159,6 +196,13 @@ export async function adicionarEntradaLivroAuto(relatorio: RelatorioSalvo): Prom
   const livro = ler<LivroEntrada[]>(chaveLivro(relatorio.tagVaso)) || [];
   if (livro.some((l) => l.relatorioCodigo === relatorio.meta.codigo)) return;
 
+  // Laudo APTO/INAPTO marcado na folha CONCLUSAO — só vale se for do relatório sendo salvo.
+  const laudo = ler<LaudoConclusao>(`nr13_laudo_${relatorio.tagVaso}`);
+  const apto =
+    laudo && laudo.relatorioCodigo === relatorio.meta.codigo && typeof laudo.apto === 'boolean'
+      ? laudo.apto
+      : null;
+
   const entrada: LivroEntrada = {
     id: `LIV-${Date.now()}`,
     data: relatorio.meta.execucaoInspecao || relatorio.data,
@@ -169,6 +213,12 @@ export async function adicionarEntradaLivroAuto(relatorio: RelatorioSalvo): Prom
     phCrea: relatorio.meta.phCrea,
     origem: 'auto',
     criadoEm: new Date().toISOString(),
+    // Campos novos (folha do livro imprime tipo/ensaios/situação/assinatura a partir deles):
+    tipoInspecao: relatorio.meta.tipoInspecao,
+    ensaios: ensaiosDoRelatorio(relatorio.meta.documentos ?? relatorio.documentos),
+    apto,
+    tecnicoNome: relatorio.meta.tecnicoNome,
+    phId: obterAssinantesRel(relatorio.tagVaso).engenheiroId ?? undefined,
   };
   await salvar(chaveLivro(relatorio.tagVaso), [...livro, entrada]);
 }
