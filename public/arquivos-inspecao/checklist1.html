@@ -44,8 +44,12 @@
                                text-align: center; font-size: 8.5px; }
         .col-num { width: 24px; text-align: center; font-weight: 700; color: var(--gray-mid); }
         .col-doc { font-weight: 500; }
-        .col-resp { width: 36px; text-align: center; }
+        .col-resp { width: 32px; text-align: center; }
         .col-foto-h { width: 56px; text-align: center; }
+        .col-obs { width: 140px; padding: 2px 4px; }
+        .obs-input { font-family: 'Inter', sans-serif; width: 100%; border: none; outline: none;
+                     font-size: 8.5px; font-weight: 500; color: #374151; background: transparent; padding: 1px 0; }
+        .obs-input:hover, .obs-input:focus { background: #fdfad2; }
 
         /* RADIO CELL */
         .rc { display: inline-flex; align-items: center; justify-content: center;
@@ -76,6 +80,7 @@
         }
     </style>
     <script src="/rel-empresa.js?v=7"></script>
+    <script src="/rel-cabecalho.js?v=2"></script>
 </head>
 <body>
 
@@ -93,9 +98,9 @@
                 RELATÓRIO DE INSPEÇÃO NR-13<br>VASO SOB PRESSÃO
             </td>
             <td class="col-info">
-                <div class="info-label">Relatório nº.</div>
+                <div class="info-label">Rastreabilidade:</div>
                 <div class="info-value" id="hdr-rel-num" contenteditable="true" spellcheck="false">—</div>
-                <div class="info-label">Data:</div>
+                <div class="info-label">Data da Inspeção:</div>
                 <div class="info-value" id="hdr-rel-data" contenteditable="true" spellcheck="false">—</div>
             </td>
         </tr>
@@ -112,6 +117,7 @@
                     <th class="col-resp">Sim</th>
                     <th class="col-resp">Não</th>
                     <th class="col-resp">N.A.</th>
+                    <th class="col-obs">Observação</th>
                 </tr>
             </thead>
             <tbody id="doc-tbody"></tbody>
@@ -170,7 +176,8 @@
                 '<td class="col-doc">' + doc.label + '</td>' +
                 '<td class="col-resp" onclick="selectRC(this.querySelector(\'.rc\'),\'' + fid + '\')"><span class="rc" data-tipo="sim"></span></td>' +
                 '<td class="col-resp" onclick="selectRC(this.querySelector(\'.rc\'),\'' + fid + '\')"><span class="rc" data-tipo="nao"></span></td>' +
-                '<td class="col-resp" onclick="selectRC(this.querySelector(\'.rc\'),\'' + fid + '\')"><span class="rc" data-tipo="na"></span></td>';
+                '<td class="col-resp" onclick="selectRC(this.querySelector(\'.rc\'),\'' + fid + '\')"><span class="rc" data-tipo="na"></span></td>' +
+                '<td class="col-obs"><input type="text" class="obs-input" id="obs-' + fid + '" placeholder="..." spellcheck="false"></td>';
             tbody.appendChild(tr);
         });
     }
@@ -207,8 +214,14 @@
             var cl = dados.checklist;
             if (!cl || !cl.respostas) return;
             var resp = cl.respostas;
+            var obs = cl.observacoes || {};
             Object.keys(MAPA_DOC).forEach(function(fid) {
                 var hid = MAPA_DOC[fid];
+                // Observação da pergunta (independe de ter resposta marcada)
+                if (obs[fid]) {
+                    var elObs = document.getElementById('obs-' + hid);
+                    if (elObs) elObs.value = obs[fid];
+                }
                 var v = resp[fid];
                 if (!v) return;
                 var tipo = v === 'Existe' ? 'sim' : v === 'Não identificado' ? 'nao' : v === 'Não aplica' ? 'na' : null;
@@ -249,7 +262,8 @@
         try {
             var meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}');
             if (meta.codigo) document.getElementById('hdr-rel-num').textContent = meta.codigo;
-            if (meta.emissao) document.getElementById('hdr-rel-data').textContent = meta.emissao;
+            var dataCab = window.NR13_DATA_INSP ? window.NR13_DATA_INSP(meta.emissao) : meta.emissao;
+            if (dataCab) document.getElementById('hdr-rel-data').textContent = dataCab;
         } catch(e) {}
     });
 </script>

@@ -3,6 +3,7 @@ import { comprimirImagem } from '../../../services/imagem';
 import { carregarDadosFormulario, salvarDadosFormulario } from '../inspecaoService';
 import { useAutosaveFormulario } from '../useAutosaveFormulario';
 import RespostaSegmentada from './RespostaSegmentada';
+import ResultadoEnsaio, { type ResultadoEnsaioValor } from './ResultadoEnsaio';
 
 const ITENS = [
   'Condição geral das paredes internas',
@@ -34,6 +35,7 @@ interface DadosVisual {
   itemObs: Record<string, string>;
   observacoes: string;
   conclusao: string;
+  resultado: ResultadoEnsaioValor;
   fotos: { base64: string; descricao: string }[];
 }
 
@@ -50,13 +52,15 @@ function dadosPadrao(): DadosVisual {
     itemObs: {},
     observacoes: '',
     conclusao: '',
+    resultado: '',
     fotos: [],
   };
 }
 
 export default function FormularioVisualInterno({ tag, containerId }: { tag: string; containerId: string }) {
   const [dados, setDados] = useState<DadosVisual>(
-    () => carregarDadosFormulario<DadosVisual>(tag, containerId, 'visual_interno') ?? dadosPadrao(),
+    // Merge com o padrão pra inspeções antigas (sem `resultado`) não quebrarem.
+    () => ({ ...dadosPadrao(), ...(carregarDadosFormulario<DadosVisual>(tag, containerId, 'visual_interno') ?? {}) }),
   );
   useAutosaveFormulario(tag, containerId, 'visual_interno', dados);
   const [salvando, setSalvando] = useState(false);
@@ -189,6 +193,8 @@ export default function FormularioVisualInterno({ tag, containerId }: { tag: str
           onChange={(e) => set('conclusao', e.target.value)}
         />
       </div>
+
+      <ResultadoEnsaio valor={dados.resultado} onChange={(v) => set('resultado', v)} />
 
       <div className="formulario-secao">
         <h3>Registro Fotográfico ({dados.fotos.length} {dados.fotos.length === 1 ? 'foto' : 'fotos'})</h3>

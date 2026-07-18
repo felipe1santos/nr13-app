@@ -83,6 +83,7 @@
         .sig-overlay-box.sig-excluida > *:not(.no-print) { display: none !important; }
     </style>
     <script src="/rel-empresa.js?v=7"></script>
+    <script src="/rel-cabecalho.js?v=2"></script>
 </head>
 <body>
 
@@ -98,8 +99,8 @@
             </td>
             <td class="col-title" contenteditable="true" spellcheck="false">MEMÓRIA DE CÁLCULO</td>
             <td rowspan="2" class="col-info">
-                <div class="info-label">Relatório nº:</div><div class="info-value" id="mem-rel-num" contenteditable="true" spellcheck="false">REL-000000</div>
-                <div class="info-label">Data:</div><div class="info-value" id="mem-rel-data" contenteditable="true" spellcheck="false">DD/MM/AAAA</div>
+                <div class="info-label">Rastreabilidade:</div><div class="info-value" id="mem-rel-num" contenteditable="true" spellcheck="false">REL-000000</div>
+                <div class="info-label">Data da Inspeção:</div><div class="info-value" id="mem-rel-data" contenteditable="true" spellcheck="false">DD/MM/AAAA</div>
                 <div class="info-label">Folha:</div><div class="info-value" id="folha-label" contenteditable="true" spellcheck="false">1/1</div>
             </td>
         </tr>
@@ -107,8 +108,6 @@
             <td class="tag-location-row">
                 <span style="font-size:10px;font-weight:600;text-transform:uppercase;">TAG:</span>
                 <span class="data-highlight" id="tag-label" contenteditable="true" spellcheck="false" style="font-size:12px;font-weight:800;margin-right:20px;">--</span>
-                <span style="font-size:10px;font-weight:600;text-transform:uppercase;">LOCALIZAÇÃO:</span>
-                <span class="data-highlight" contenteditable="true" spellcheck="false" style="font-size:12px;font-weight:800;">--</span>
             </td>
         </tr>
     </table>
@@ -212,7 +211,8 @@
         // Cabeçalho
         if (empresa.logo) document.getElementById('imgLogo').src = empresa.logo;
         if (meta.codigo) document.getElementById('mem-rel-num').textContent = meta.codigo;
-        if (meta.emissao) document.getElementById('mem-rel-data').textContent = meta.emissao;
+        var dataCab = window.NR13_DATA_INSP ? window.NR13_DATA_INSP(meta.emissao) : meta.emissao;
+        if (dataCab) document.getElementById('mem-rel-data').textContent = dataCab;
         document.getElementById('tag-label').textContent = info.tag || tag || '--';
         document.getElementById('folha-label').textContent = part + '/' + of;
         document.getElementById('footer-page').textContent = String(basePage);

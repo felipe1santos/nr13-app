@@ -1,13 +1,18 @@
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { anexarRastreabilidades } from './rastreabilidadeService';
-import { ALTURA_A4_PX, aguardarRecursosIframe } from './printService';
+import { ALTURA_A4_PX, aguardarRecursosIframe, garantirFonteInterHost, normalizarCloneParaCanvas } from './printService';
 
 // Mesmos parâmetros do relatorios.js original: jsPDF('p','mm','a4'), html2canvas scale:2,
 // JPEG 0.95, addImage cobrindo a folha A4 inteira (0,0,210,297mm).
 export async function exportarPdf(containerSelector: string, nomeArquivo: string): Promise<void> {
   const paginas = Array.from(document.querySelectorAll<HTMLElement>(`${containerSelector} .pagina-relatorio-a4`));
   const pdf = new jsPDF('p', 'mm', 'a4');
+
+  // Inter no documento pai ANTES de rasterizar: o html2canvas mede o texto no iframe (que tem a
+  // Inter) mas desenha no canvas criado AQUI — sem a fonte, o fallback mais largo "come" os
+  // espaços entre palavras em negrito/uppercase e estoura células (ver printService).
+  await garantirFonteInterHost();
 
   for (let i = 0; i < paginas.length; i++) {
     const iframe = paginas[i].querySelector('iframe');
@@ -23,6 +28,7 @@ export async function exportarPdf(containerSelector: string, nomeArquivo: string
       logging: false,
       height: ALTURA_A4_PX,
       windowHeight: ALTURA_A4_PX,
+      onclone: normalizarCloneParaCanvas,
     });
     const imgData = canvas.toDataURL('image/jpeg', 0.95);
 
@@ -79,6 +85,8 @@ export async function exportarPdfLivroCompleto(urls: string[], nomeArquivo: stri
     );
     // Mesmo respiro do preview: os motores das folhas renderizam no DOMContentLoaded.
     await new Promise((r) => setTimeout(r, 400));
+    // Mesma garantia de fonte do exportarPdf (texto sem espaços no fillText sem a Inter).
+    await garantirFonteInterHost();
 
     const pdf = new jsPDF('p', 'mm', 'a4');
     let y = 0;
@@ -89,7 +97,7 @@ export async function exportarPdfLivroCompleto(urls: string[], nomeArquivo: stri
       const alvo = doc.querySelector<HTMLElement>('.page') || doc.body;
       // Iframe na altura do conteúdo — sem isso o html2canvas cortaria no viewport de 400px.
       iframe.style.height = `${Math.max(alvo.scrollHeight, 120)}px`;
-      const canvas = await html2canvas(alvo, { scale: 2, useCORS: true, allowTaint: true, logging: false });
+      const canvas = await html2canvas(alvo, { scale: 2, useCORS: true, allowTaint: true, logging: false, onclone: normalizarCloneParaCanvas });
       if (canvas.width === 0 || canvas.height === 0) continue;
       const alturaMm = (canvas.height / canvas.width) * LARGURA_PDF_MM;
 

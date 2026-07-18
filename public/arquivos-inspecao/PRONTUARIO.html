@@ -75,7 +75,6 @@
             font-size: 17px;
             font-weight: 900;
             color: var(--text-dark);
-            letter-spacing: 4px;
             text-transform: uppercase;
         }
         .col-info { width: 22%; padding: 6px 12px !important; }
@@ -320,6 +319,7 @@
         .sig-overlay-box.sig-excluida > *:not(.no-print) { display: none !important; }
     </style>
     <script src="/rel-empresa.js?v=7"></script>
+    <script src="/rel-cabecalho.js?v=2"></script>
 </head>
 <body>
 
@@ -376,15 +376,13 @@
         </tr>
         <tr>
             <td class="label-cell">CÓDIGO DE PROJETO</td>
-            <td class="value-cell" colspan="3" contenteditable="true" spellcheck="false">--</td>
+            <td class="value-cell" colspan="3" id="pront-cod-proj" contenteditable="true" spellcheck="false">--</td>
         </tr>
         <tr>
             <td class="label-cell">ANO DE FABRICAÇÃO</td>
             <td class="value-cell" id="pront-ano" contenteditable="true" spellcheck="false">--</td>
             <td class="label-cell">EDIÇÃO</td>
-            <td class="value-cell" contenteditable="true" spellcheck="false">
-                <span contenteditable="true" spellcheck="false">--</span>
-            </td>
+            <td class="value-cell" id="pront-edicao" contenteditable="true" spellcheck="false">--</td>
         </tr>
     </table>
 
@@ -399,7 +397,7 @@
         </tr>
         <tr>
             <td class="label-cell">TIPO DE CONSTRUÇÃO</td>
-            <td class="value-cell" contenteditable="true" spellcheck="false">--</td>
+            <td class="value-cell" id="pront-tipo-constr" contenteditable="true" spellcheck="false">--</td>
             <td class="label-cell">MATERIAL DO TAMPO 2</td>
             <td class="value-cell" id="pront-mat-tampo2" contenteditable="true" spellcheck="false">--</td>
         </tr>
@@ -417,7 +415,7 @@
         </tr>
         <tr>
             <td class="label-cell">DESCRIÇÃO RESUMIDA</td>
-            <td class="value-cell" colspan="3" contenteditable="true" spellcheck="false">--</td>
+            <td class="value-cell" colspan="3" id="pront-desc-resumida" contenteditable="true" spellcheck="false">--</td>
         </tr>
     </table>
 
@@ -655,7 +653,7 @@
         // ===== CABEÇALHO / RASTREABILIDADE / DATA DA INSPEÇÃO =====
         setVal('pront-rastreab', meta.codigo);
         setVal('pront-rastreab2', meta.codigo);
-        const dataInspecao = formatarDataBR(meta.execucaoInspecao);
+        const dataInspecao = (window.NR13_DATA_INSP && window.NR13_DATA_INSP('')) || formatarDataBR(meta.execucaoInspecao);
         setVal('pront-data-insp', dataInspecao);
         setVal('pront-data-insp2', dataInspecao);
 
@@ -673,6 +671,11 @@
         setVal('pront-tipo', info.descricao || info.tipo);
         setVal('pront-fabricante', info.fabricante);
         setVal('pront-ano', info.ano);
+        // Dados cadastrais complementares da ficha (nr13_info_<TAG>)
+        setVal('pront-cod-proj', info.codigoProjeto);
+        setVal('pront-edicao', info.edicao);
+        setVal('pront-tipo-constr', info.tipoConstrucao);
+        setVal('pront-desc-resumida', info.descricaoResumida);
 
         // ===== ASPECTOS CONSTRUTIVOS =====
         // Componentes em dados3D.componentes (VasoSalvo)
@@ -701,14 +704,18 @@
         // ===== ASPECTOS OPERACIONAIS (FLUIDO + PMO/PMTA/PTH) =====
         setVal('pront-fluido', (cat.fluidoInput || info.fluido || '').replace(/^[A-D]\s*-\s*/, ''));
 
-        const pmtaMpa = parseFloat(calc.pmta) || 0;
-        const pthMpa = parseFloat(calc.pth) || (pmtaMpa * 1.3);
+        // Pressões ADOTADAS da documentação (nr13_info_<TAG>.*AdotadaMpa, em MPa) têm prioridade
+        // sobre as calculadas. A CATEGORIZAÇÃO abaixo segue usando SOMENTE a PMTA calculada
+        // (pmtaCalcMpa) — regra absoluta §4: as adotadas nunca entram no cálculo de categoria.
+        const pmtaCalcMpa = parseFloat(calc.pmta) || 0;
+        const pmtaMpa = parseFloat(info.pmtaAdotadaMpa) || pmtaCalcMpa;
+        const pthMpa = parseFloat(info.pthAdotadaMpa) || parseFloat(calc.pth) || (pmtaCalcMpa * 1.3);
 
-        // PMO (Pressão Máxima de Operação) = pressão de operação informada na categorização,
-        // convertida da unidade de entrada (cat.unidInput) para MPa. Fallback p/ PMTA se não houver.
+        // PMO (Pressão Máxima de Operação) = adotada; senão a pressão de operação informada na
+        // categorização, convertida da unidade de entrada (cat.unidInput) para MPa. Fallback p/ PMTA.
         const FATOR_UNID = { SI: 1, TECNICO: 10.19716, PETROBRAS: 10 };
-        let pmoMpa = 0;
-        if (cat.presInput) {
+        let pmoMpa = parseFloat(info.pmoAdotadaMpa) || 0;
+        if (!pmoMpa && cat.presInput) {
             const f = FATOR_UNID[cat.unidInput] || 1;
             pmoMpa = parseFloat(cat.presInput) / f;
         }
@@ -739,11 +746,12 @@
         const vol_m3 = parseFloat(info.volume) || parseFloat(cat.volInput) || 0;
         // Só calcula/exibe categorização se houver dado real (classe definida, pressão ou volume reais).
         // Sem isso, "classe || 'A'" sempre cairia em A/III mesmo com vaso vazio.
-        const temDadosCategorizacao = !!cat.classe || pmtaMpa > 0 || vol_m3 > 0;
+        // ATENÇÃO: usa a PMTA CALCULADA (nunca a adotada) — regra absoluta §4 do CLAUDE.md.
+        const temDadosCategorizacao = !!cat.classe || pmtaCalcMpa > 0 || vol_m3 > 0;
 
         if (temDadosCategorizacao) {
-            const pv_kpa = pmtaMpa * 1000 * vol_m3;
-            const pv_mpa = pmtaMpa * vol_m3;
+            const pv_kpa = pmtaCalcMpa * 1000 * vol_m3;
+            const pv_mpa = pmtaCalcMpa * vol_m3;
             const atendePV = pv_kpa > 8;
             const classe = cat.classe || 'A';
             const isNR13 = (atendePV || classe === 'A');

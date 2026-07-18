@@ -80,7 +80,7 @@
         /* SITUAÇÃO (APTO / INAPTO) */
         .situacao-box { display: flex; align-items: center; gap: 12px; border: 1px solid var(--border-color); padding: 10px 14px; margin-bottom: 14px; }
         .situacao-lbl { font-size: 11px; font-weight: 800; text-transform: uppercase; }
-        .situacao-selo { font-size: 12px; font-weight: 900; letter-spacing: 1.5px; padding: 4px 16px; border: 2px solid; text-transform: uppercase; }
+        .situacao-selo { font-size: 12px; font-weight: 900; padding: 4px 16px; border: 2px solid; text-transform: uppercase; }
         .situacao-selo.apto { color: #15803d; border-color: #15803d; background: #f0fdf4; }
         .situacao-selo.inapto { color: #b91c1c; border-color: #b91c1c; background: #fef2f2; }
 
@@ -196,18 +196,11 @@
     </div>
 
     <script>
-        // SCRIPT DE PAGINAÇÃO AUTOMÁTICA DINÂMICA (numeração da folha dentro do PDF do relatório).
-        // Sem ?page= (preview individual do Livro Registro / livro completo) o nº da folha NÃO
-        // aparece — a numeração só faz sentido dentro do relatório montado.
+        // O Livro de Registro NÃO exibe número de folha nem quando montado dentro do relatório
+        // (revisão do engenheiro, 07/2026): a numeração válida é a tipográfica do livro físico.
         document.addEventListener('DOMContentLoaded', function() {
-            const paramPagina = new URLSearchParams(window.location.search).get('page');
-            if (paramPagina) {
-                const elPagina = document.querySelector('.footer-page-number');
-                if (elPagina) elPagina.innerText = paramPagina.trim();
-            } else {
-                const rodape = document.querySelector('.pgr-footer-new');
-                if (rodape) rodape.style.display = 'none';
-            }
+            const rodape = document.querySelector('.pgr-footer-new');
+            if (rodape) rodape.style.display = 'none';
         });
 
         function previewImage(input, imgId) {

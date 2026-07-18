@@ -224,6 +224,7 @@
         .sig-overlay-box.sig-excluida > *:not(.no-print) { display: none !important; }
     </style>
     <script src="/rel-empresa.js?v=7"></script>
+    <script src="/rel-cabecalho.js?v=2"></script>
 </head>
 <body>
 
@@ -239,12 +240,10 @@
                 </td>
                 <td class="col-title" contenteditable="true" spellcheck="false">RESUMO DE CÁLCULOS DA PMTA E ESPESSURA</td>
                 <td rowspan="2" class="col-info">
-                    <div class="info-label">Relatório nº:</div>
+                    <div class="info-label">Rastreabilidade:</div>
                     <div class="info-value" id="resumo-rel-num" contenteditable="true" spellcheck="false">REL-000000</div>
-                    <div class="info-label">Data:</div>
+                    <div class="info-label">Data da Inspeção:</div>
                     <div class="info-value" id="resumo-rel-data" contenteditable="true" spellcheck="false">DD/MM/AAAA</div>
-                    <div class="info-label">Folha:</div>
-                    <div class="info-value" id="folha-label" contenteditable="true" spellcheck="false">RESUMO</div>
                 </td>
             </tr>
         </table>
@@ -785,7 +784,7 @@
             try { meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}'); } catch(e) {}
             var fmtData = function(str) { if (!str) return null; var p = String(str).split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : str; };
             setVal('resumo-rel-num', meta.codigo);
-            setVal('resumo-rel-data', meta.emissao);
+            setVal('resumo-rel-data', window.NR13_DATA_INSP ? window.NR13_DATA_INSP(meta.emissao) : meta.emissao);
             setVal('res-cliente', emp.razaoSocial || emp.nome);
             var endereco = [];
             if (emp.endereco) endereco.push(emp.endereco);

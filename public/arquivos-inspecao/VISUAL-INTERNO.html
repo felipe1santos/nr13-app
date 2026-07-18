@@ -173,6 +173,7 @@
         }
     </style>
     <script src="/rel-empresa.js?v=7"></script>
+    <script src="/rel-cabecalho.js?v=2"></script>
 </head>
 <body>
 
@@ -190,25 +191,22 @@
                 INSPEÇÃO VISUAL INTERNA
             </td>
             <td rowspan="2" class="col-info">
-                <div class="info-label">Relatório nº:</div>
+                <div class="info-label">Rastreabilidade:</div>
                 <div class="info-value" id="hdr-rel-num" contenteditable="true" spellcheck="false">REL-000000</div>
-                <div class="info-label">Data:</div>
+                <div class="info-label">Data da Inspeção:</div>
                 <div class="info-value" id="hdr-rel-data" contenteditable="true" spellcheck="false">DD/MM/AAAA</div>
-                <div class="info-label">Folha:</div>
-                <div class="info-value" contenteditable="true" spellcheck="false">1/2</div>
             </td>
         </tr>
     </table>
 
     <!-- DADOS GERAIS -->
     <div class="section-title">DADOS GERAIS</div>
-    <div class="f-grid f-grid-1-2">
+    <!-- RASTREABILIDADE e DATA DA INSPEÇÃO ficam SÓ no cabeçalho — sem duplicar aqui. -->
+    <div class="f-grid">
         <div class="f"><span class="f-lbl">CONTRATANTE</span><div class="f-val" id="inp-contratante" contenteditable="true">--</div></div>
-        <div class="f"><span class="f-lbl">RASTREABILIDADE</span><div class="f-val" id="inp-rastreabilidade" contenteditable="true">--</div></div>
     </div>
-    <div class="f-grid f-grid-2">
+    <div class="f-grid">
         <div class="f"><span class="f-lbl">ENDEREÇO</span><div class="f-val" id="inp-endereco" contenteditable="true">--</div></div>
-        <div class="f"><span class="f-lbl">DATA DA INSPEÇÃO</span><div class="f-val" id="inp-data" contenteditable="true">--</div></div>
     </div>
 
     <!-- ASPECTOS GERAIS -->
@@ -227,8 +225,11 @@
     <table class="checklist-table">
         <thead>
             <tr>
-                <th style="width:28px">Nº</th>
-                <th style="text-align:left;padding-left:7px">ITEM DE VERIFICAÇÃO</th>
+                <th rowspan="2" style="width:28px">Nº</th>
+                <th rowspan="2" style="text-align:left;padding-left:7px">ITEM DE VERIFICAÇÃO</th>
+                <th colspan="4">FOI ENCONTRADO ALGUMA NÃO CONFORMIDADE?</th>
+            </tr>
+            <tr>
                 <th style="width:42px">SIM</th>
                 <th style="width:42px">NÃO</th>
                 <th style="width:42px">N.A.</th>
@@ -367,9 +368,7 @@
             }
 
             inj('inp-contratante', dados.contratante);
-            inj('inp-rastreabilidade', dados.rastreabilidade);
             inj('inp-endereco', dados.endereco);
-            inj('inp-data', dados.dataInspecao);
             var tagVal = dados.tag || new URLSearchParams(window.location.search).get('tag') || '';
             var tagEl = document.getElementById('inp-tag');
             if (tagEl && tagVal) tagEl.textContent = tagVal;
@@ -407,9 +406,10 @@
                 var elNum = document.getElementById('hdr-rel-num');
                 if (elNum) elNum.textContent = meta.codigo;
             }
-            if (meta.emissao) {
+            var dataCab = window.NR13_DATA_INSP ? window.NR13_DATA_INSP(meta.emissao) : meta.emissao;
+            if (dataCab) {
                 var elData = document.getElementById('hdr-rel-data');
-                if (elData) elData.textContent = meta.emissao;
+                if (elData) elData.textContent = dataCab;
             }
         } catch(e) {}
     }

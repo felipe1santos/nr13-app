@@ -5,7 +5,7 @@ import {
   listarRastreabilidades,
   salvarRastreabilidade,
 } from '../relatorios/rastreabilidadeService';
-import type { Rastreabilidade } from '../relatorios/rastreabilidadeService';
+import type { Rastreabilidade, TipoInstrumento } from '../relatorios/rastreabilidadeService';
 
 const VAZIA = (): Rastreabilidade => ({
   id: crypto.randomUUID?.() ?? String(Date.now()),
@@ -15,7 +15,22 @@ const VAZIA = (): Rastreabilidade => ({
   pdfBase64: '',
   injetarNoRelatorio: false,
   criadoEm: new Date().toLocaleDateString('pt-BR'),
+  tipoInstrumento: 'ultrassom',
+  aparelho: '',
+  fabricante: '',
+  numeroSerie: '',
+  acoplante: '',
+  cabecote: '',
+  velocidadeSonica: '',
+  estadoSuperficie: '',
+  tempSuperficie: '',
 });
+
+const ROTULO_TIPO: Record<TipoInstrumento, string> = {
+  ultrassom: 'Ultrassom (ME)',
+  manometro: 'Manômetro',
+  outro: 'Outro',
+};
 
 /**
  * Aba "Rastreabilidade" do menu Calibrações: cadastro do certificado de
@@ -104,6 +119,17 @@ export default function AbaRastreabilidade() {
         <div className="fj-panel" style={{ padding: 16, marginBottom: 16 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
             <div className="fj-field">
+              <label>Tipo de instrumento</label>
+              <select
+                value={form.tipoInstrumento ?? 'outro'}
+                onChange={(e) => set('tipoInstrumento', e.target.value as TipoInstrumento)}
+              >
+                {(Object.keys(ROTULO_TIPO) as TipoInstrumento[]).map((t) => (
+                  <option key={t} value={t}>{ROTULO_TIPO[t]}</option>
+                ))}
+              </select>
+            </div>
+            <div className="fj-field">
               <label>Instrumento / padrão *</label>
               <input value={form.nome} onChange={(e) => set('nome', e.target.value)} placeholder="Ex: Manômetro padrão MP-01" />
             </div>
@@ -116,6 +142,51 @@ export default function AbaRastreabilidade() {
               <input type="date" value={form.validade} onChange={(e) => set('validade', e.target.value)} />
             </div>
           </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginTop: 12 }}>
+            <div className="fj-field">
+              <label>Aparelho / modelo</label>
+              <input value={form.aparelho ?? ''} onChange={(e) => set('aparelho', e.target.value)} placeholder="Ex: CYGNUS 6278" />
+            </div>
+            <div className="fj-field">
+              <label>Fabricante</label>
+              <input value={form.fabricante ?? ''} onChange={(e) => set('fabricante', e.target.value)} />
+            </div>
+            <div className="fj-field">
+              <label>Nº de série</label>
+              <input value={form.numeroSerie ?? ''} onChange={(e) => set('numeroSerie', e.target.value)} />
+            </div>
+          </div>
+
+          {form.tipoInstrumento === 'ultrassom' && (
+            <div style={{ marginTop: 14 }}>
+              <div style={{ fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--muted)', marginBottom: 8 }}>
+                Dados padrão do ensaio (injetados no relatório de ultrassom)
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
+                <div className="fj-field">
+                  <label>Acoplante</label>
+                  <input value={form.acoplante ?? ''} onChange={(e) => set('acoplante', e.target.value)} placeholder="Ex: Gel" />
+                </div>
+                <div className="fj-field">
+                  <label>Cabeçote</label>
+                  <input value={form.cabecote ?? ''} onChange={(e) => set('cabecote', e.target.value)} placeholder="Ex: 2.25 mhz" />
+                </div>
+                <div className="fj-field">
+                  <label>Velocidade sônica</label>
+                  <input value={form.velocidadeSonica ?? ''} onChange={(e) => set('velocidadeSonica', e.target.value)} placeholder="Ex: 5920" />
+                </div>
+                <div className="fj-field">
+                  <label>Estado da superfície</label>
+                  <input value={form.estadoSuperficie ?? ''} onChange={(e) => set('estadoSuperficie', e.target.value)} placeholder="Ex: Pintada" />
+                </div>
+                <div className="fj-field">
+                  <label>Temp. da superfície</label>
+                  <input value={form.tempSuperficie ?? ''} onChange={(e) => set('tempSuperficie', e.target.value)} placeholder="Ex: Ambiente" />
+                </div>
+              </div>
+            </div>
+          )}
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 14, flexWrap: 'wrap' }}>
             <input
@@ -170,6 +241,8 @@ export default function AbaRastreabilidade() {
               <thead>
                 <tr>
                   <th>Instrumento</th>
+                  <th>Tipo</th>
+                  <th>Aparelho / Nº série</th>
                   <th>Certificado</th>
                   <th>Validade</th>
                   <th>Injetar no relatório</th>
@@ -186,6 +259,16 @@ export default function AbaRastreabilidade() {
                         </div>
                         <div className="fj-tag-code">{r.nome}</div>
                       </div>
+                    </td>
+                    <td>
+                      {r.tipoInstrumento
+                        ? <span className="fj-badge neutro">{ROTULO_TIPO[r.tipoInstrumento] ?? r.tipoInstrumento}</span>
+                        : <span className="fj-dash">—</span>}
+                    </td>
+                    <td className="mono">
+                      {r.aparelho || r.numeroSerie
+                        ? [r.aparelho, r.numeroSerie].filter(Boolean).join(' / ')
+                        : <span className="fj-dash">—</span>}
                     </td>
                     <td className="mono">{r.certificadoPadrao || <span className="fj-dash">—</span>}</td>
                     <td className="mono">{r.validade || <span className="fj-dash">—</span>}</td>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { carregarDadosFormulario, salvarDadosFormulario } from '../inspecaoService';
 import { useAutosaveFormulario } from '../useAutosaveFormulario';
+import ResultadoEnsaio, { type ResultadoEnsaioValor } from './ResultadoEnsaio';
 
 const COMPONENTES = [
   { id: 'ts', nome: 'Tampo Superior' },
@@ -17,6 +18,7 @@ type Medidas = Record<string, Record<(typeof ANGULOS)[number], string>>;
 
 interface Dados {
   equipamento: string;
+  dataUltrassom: string;
   area: string;
   espNomCasco: string;
   ano: string;
@@ -27,6 +29,7 @@ interface Dados {
   estadoSup: string;
   cabecote: string;
   velSonica: string;
+  resultado: ResultadoEnsaioValor;
   medidas: Medidas;
 }
 
@@ -39,6 +42,7 @@ function medidasVazias(): Medidas {
 function dadosPadrao(): Dados {
   return {
     equipamento: '',
+    dataUltrassom: new Date().toISOString().split('T')[0],
     area: '',
     espNomCasco: '',
     ano: '',
@@ -49,14 +53,21 @@ function dadosPadrao(): Dados {
     estadoSup: '',
     cabecote: '',
     velSonica: '5920',
+    resultado: '',
     medidas: medidasVazias(),
   };
 }
 
 export default function FormularioUltrassom({ tag, containerId }: { tag: string; containerId: string }) {
-  const [dados, setDados] = useState<Dados>(
-    () => carregarDadosFormulario<Dados>(tag, containerId, 'ultrassom') ?? dadosPadrao(),
-  );
+  const [dados, setDados] = useState<Dados>(() => {
+    const salvo = carregarDadosFormulario<Dados>(tag, containerId, 'ultrassom');
+    if (!salvo) return dadosPadrao(); // formulário novo: data do ensaio sugere hoje
+    // Merge com o padrão pra inspeções antigas (sem `resultado`/`dataUltrassom`) não quebrarem.
+    // Registro EXISTENTE sem `dataUltrassom` fica com data vazia — herdar "hoje" aqui faria o
+    // autosave gravar uma data retroativa no container antigo ao simplesmente reeditar.
+    const base = { ...dadosPadrao(), dataUltrassom: '' };
+    return { ...base, ...salvo };
+  });
   useAutosaveFormulario(tag, containerId, 'ultrassom', dados);
   const [salvando, setSalvando] = useState(false);
 
@@ -92,6 +103,10 @@ export default function FormularioUltrassom({ tag, containerId }: { tag: string;
           <label>
             T.A.G.
             <input type="text" value={tag} disabled />
+          </label>
+          <label>
+            Data do Ensaio
+            <input type="date" value={dados.dataUltrassom} onChange={(e) => set('dataUltrassom', e.target.value)} />
           </label>
           <label>
             Área
@@ -163,6 +178,8 @@ export default function FormularioUltrassom({ tag, containerId }: { tag: string;
           </div>
         ))}
       </div>
+
+      <ResultadoEnsaio valor={dados.resultado} onChange={(v) => set('resultado', v)} />
 
       <div className="formulario-acoes-fixas">
         <button type="button" className="btn-primario" onClick={salvar} disabled={salvando}>

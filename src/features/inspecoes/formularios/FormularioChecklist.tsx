@@ -131,6 +131,9 @@ interface DadosChecklist {
   dataInspecao: string;
   inspetor: string;
   respostas: Record<string, string>;
+  // Observação de texto por pergunta (chave = id da pergunta) — injetada na coluna
+  // OBSERVAÇÃO das folhas VERIFICACAO-DOCUMENTACAO/checklist1-3.
+  observacoes: Record<string, string>;
   instrumentos: Record<string, boolean>;
   // Dois grupos de foto distintos: `fotosDocumentacao` vira a folha "Fotos da Documentação"
   // (FOTOS-DOCUMENTACAO.html) e `fotos` vira "Fotos do Checklist" (CHECKLIST-FOTOS.html).
@@ -143,6 +146,7 @@ function dadosPadrao(): DadosChecklist {
     dataInspecao: new Date().toISOString().split('T')[0],
     inspetor: '',
     respostas: {},
+    observacoes: {},
     instrumentos: {},
     fotosDocumentacao: [],
     fotos: [],
@@ -151,18 +155,32 @@ function dadosPadrao(): DadosChecklist {
 
 // Em nível de módulo (não dentro do render) para não recriar o componente a cada render,
 // o que reiniciaria o estado aberto/fechado do <details>.
+const estiloInputObs: React.CSSProperties = {
+  marginTop: 6,
+  width: '100%',
+  padding: '6px 10px',
+  fontSize: 12,
+  border: '1px solid var(--border-solid)',
+  borderRadius: 6,
+  boxSizing: 'border-box',
+};
+
 function Secao({
   titulo,
   perguntas,
   aberta,
   respostas,
+  observacoes,
   onResposta,
+  onObservacao,
 }: {
   titulo: string;
   perguntas: Pergunta[];
   aberta?: boolean;
   respostas: Record<string, string>;
+  observacoes: Record<string, string>;
   onResposta: (id: string, valor: string) => void;
+  onObservacao: (id: string, valor: string) => void;
 }) {
   return (
     <details className="formulario-secao-collapse" open={aberta}>
@@ -172,6 +190,13 @@ function Secao({
           <div key={p.id} className="pergunta-checklist">
             <label>{p.texto}</label>
             <RespostaSegmentada opcoes={p.opcoes} valor={respostas[p.id] ?? ''} onChange={(v) => onResposta(p.id, v)} />
+            <input
+              type="text"
+              placeholder="Observação (opcional)"
+              value={observacoes[p.id] ?? ''}
+              onChange={(e) => onObservacao(p.id, e.target.value)}
+              style={estiloInputObs}
+            />
           </div>
         ))}
       </div>
@@ -193,6 +218,10 @@ export default function FormularioChecklist({ tag, containerId }: { tag: string;
 
   function setResposta(id: string, valor: string) {
     setDados((d) => ({ ...d, respostas: { ...d.respostas, [id]: valor } }));
+  }
+
+  function setObservacao(id: string, valor: string) {
+    setDados((d) => ({ ...d, observacoes: { ...(d.observacoes ?? {}), [id]: valor } }));
   }
 
   function setInstrumento(id: string, valor: boolean) {
@@ -253,12 +282,12 @@ export default function FormularioChecklist({ tag, containerId }: { tag: string;
         </div>
       </div>
 
-      <Secao titulo="5.1 Verificação da Documentação Existente" perguntas={SECAO_DOCUMENTACAO} aberta respostas={dados.respostas} onResposta={setResposta} />
-      <Secao titulo="5.2 Resultados da Inspeção" perguntas={SECAO_RESULTADOS_GERAIS} respostas={dados.respostas} onResposta={setResposta} />
-      <Secao titulo="Exame do Prontuário e Registro de Segurança" perguntas={SECAO_PRONTUARIO} respostas={dados.respostas} onResposta={setResposta} />
-      <Secao titulo="Exame Externo" perguntas={SECAO_EXAME_EXTERNO} respostas={dados.respostas} onResposta={setResposta} />
-      <Secao titulo="Exame Interno" perguntas={SECAO_EXAME_INTERNO} respostas={dados.respostas} onResposta={setResposta} />
-      <Secao titulo="Ensaio Hidrostático" perguntas={SECAO_TH} respostas={dados.respostas} onResposta={setResposta} />
+      <Secao titulo="5.1 Verificação da Documentação Existente" perguntas={SECAO_DOCUMENTACAO} aberta respostas={dados.respostas} observacoes={dados.observacoes ?? {}} onResposta={setResposta} onObservacao={setObservacao} />
+      <Secao titulo="5.2 Resultados da Inspeção" perguntas={SECAO_RESULTADOS_GERAIS} respostas={dados.respostas} observacoes={dados.observacoes ?? {}} onResposta={setResposta} onObservacao={setObservacao} />
+      <Secao titulo="Exame do Prontuário e Registro de Segurança" perguntas={SECAO_PRONTUARIO} respostas={dados.respostas} observacoes={dados.observacoes ?? {}} onResposta={setResposta} onObservacao={setObservacao} />
+      <Secao titulo="Exame Externo" perguntas={SECAO_EXAME_EXTERNO} respostas={dados.respostas} observacoes={dados.observacoes ?? {}} onResposta={setResposta} onObservacao={setObservacao} />
+      <Secao titulo="Exame Interno" perguntas={SECAO_EXAME_INTERNO} respostas={dados.respostas} observacoes={dados.observacoes ?? {}} onResposta={setResposta} onObservacao={setObservacao} />
+      <Secao titulo="Ensaio Hidrostático" perguntas={SECAO_TH} respostas={dados.respostas} observacoes={dados.observacoes ?? {}} onResposta={setResposta} onObservacao={setObservacao} />
 
       <details className="formulario-secao-collapse">
         <summary>Instrumentos de Controle Instalados</summary>
@@ -293,6 +322,13 @@ export default function FormularioChecklist({ tag, containerId }: { tag: string;
             <div key={p.id} className="pergunta-checklist">
               <label>{p.texto}</label>
               <RespostaSegmentada opcoes={p.opcoes} valor={dados.respostas[p.id] ?? ''} onChange={(v) => setResposta(p.id, v)} />
+              <input
+                type="text"
+                placeholder="Observação (opcional)"
+                value={(dados.observacoes ?? {})[p.id] ?? ''}
+                onChange={(e) => setObservacao(p.id, e.target.value)}
+                style={estiloInputObs}
+              />
             </div>
           ))}
         </div>

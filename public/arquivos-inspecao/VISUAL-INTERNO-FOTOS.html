@@ -64,7 +64,9 @@
         }
         .id-cel { display: flex; align-items: center; border: 1px solid #e5e7eb; padding: 2px 5px; min-height: 21px; }
         .id-lbl { font-size: 7.5px; font-weight: 900; text-transform: uppercase; margin-right: 4px; white-space: nowrap; }
-        .id-val { font-size: 10px; font-weight: 700; color: var(--azul); flex: 1; min-width: 0; }
+        /* nowrap + overflow hidden: valor longo não pode estourar a célula nem sobrepor a linha
+           de baixo (bug visto no PDF rasterizado). */
+        .id-val { font-size: 10px; font-weight: 700; color: var(--azul); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; }
         .id-val[contenteditable]:hover { background: var(--highlight); outline: 1px dashed var(--azul); cursor: text; }
 
         /* ── TÍTULO DE SEÇÃO ────────────────────────── */
@@ -154,6 +156,7 @@
         }
     </style>
     <script src="/rel-empresa.js?v=7"></script>
+    <script src="/rel-cabecalho.js?v=2"></script>
 </head>
 <body>
 
@@ -172,9 +175,9 @@
                 <span class="subtitulo">REGISTRO FOTOGRÁFICO</span>
             </td>
             <td rowspan="2" class="col-info">
-                <div class="rot">Relatório nº:</div>
+                <div class="rot">Rastreabilidade:</div>
                 <div class="val" id="rel-num-1" contenteditable="true" spellcheck="false">REL-000000</div>
-                <div class="rot">Data:</div>
+                <div class="rot">Data da Inspeção:</div>
                 <div class="val" id="rel-data-1" contenteditable="true" spellcheck="false">DD/MM/AAAA</div>
                 <div class="rot">Folha:</div>
                 <div class="val" id="rel-folha-1" contenteditable="true" spellcheck="false">2/2</div>
@@ -213,7 +216,7 @@
     let totalSlots   = 0;
     let paginaAtual  = 1;
     const FOTOS_PAG  = 4;
-    // Meta do relatório (Relatório nº / Data), lida abaixo e reaplicada em cada página nova
+    // Meta do relatório (Rastreabilidade / Data da Inspeção), lida abaixo e reaplicada em cada página nova
     let META_CODIGO  = '';
     let META_EMISSAO = '';
     // Página inicial vem da montagem do relatório (?page=N); páginas extras seguem em sequência.
@@ -278,9 +281,9 @@
             '    </td>' +
             '    <td class="col-titulo">INSPEÇÃO VISUAL INTERNA<span class="subtitulo">REGISTRO FOTOGRÁFICO</span></td>' +
             '    <td rowspan="2" class="col-info">' +
-            '      <div class="rot">Relatório nº:</div>' +
+            '      <div class="rot">Rastreabilidade:</div>' +
             '      <div class="val" id="rel-num-' + num + '" contenteditable="true" spellcheck="false">' + (META_CODIGO || 'REL-000000') + '</div>' +
-            '      <div class="rot">Data:</div>' +
+            '      <div class="rot">Data da Inspeção:</div>' +
             '      <div class="val" id="rel-data-' + num + '" contenteditable="true" spellcheck="false">' + (META_EMISSAO || 'DD/MM/AAAA') + '</div>' +
             '      <div class="rot">Folha:</div>' +
             '      <div class="val" id="rel-folha-' + num + '" contenteditable="true" spellcheck="false">' + num + '/' + num + '</div>' +
@@ -369,12 +372,12 @@
         if (tag) document.getElementById('id-tag').textContent = tag;
     })();
 
-    /* ── AUTO-FILL CABEÇALHO (meta do relatório) ────── */
+    /* ── AUTO-FILL CABEÇALHO (Rastreabilidade / Data da Inspeção) ────── */
     (function preencherMeta() {
         try {
             var meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}');
             META_CODIGO  = meta.codigo  || '';
-            META_EMISSAO = meta.emissao || '';
+            META_EMISSAO = (window.NR13_DATA_INSP ? window.NR13_DATA_INSP(meta.emissao) : meta.emissao) || '';
         } catch(e) {}
         if (META_CODIGO)  document.getElementById('rel-num-1').textContent  = META_CODIGO;
         if (META_EMISSAO) document.getElementById('rel-data-1').textContent = META_EMISSAO;

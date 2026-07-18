@@ -134,7 +134,6 @@
             font-size: 14px;
             font-weight: 900;
             text-transform: uppercase;
-            letter-spacing: 2px;
             color: #000;
             padding-right: 105px; /* equilibra a largura da logo para centralizar de verdade */
         }
@@ -273,8 +272,6 @@
         
         
         <div class="content-container">
-            
-            <div class="section-title" contenteditable="true" spellcheck="false">7. PLACA DE IDENTIFICAÇÃO DO EQUIPAMENTO</div>
 
             <div class="plate-wrapper">
                 <div class="plate-header">
@@ -387,8 +384,6 @@
                 </div>
             </div>
 
-            <div class="plate-directive" contenteditable="true" spellcheck="false">Conforme NR-13 subitem 13.5.1.4 — placa de identificação indelével, fixada em local de fácil acesso e visível, confeccionada em material resistente a intempéries.</div>
-
         </div>
 
         <div class="pgr-footer-new">
@@ -491,7 +486,8 @@
                 setVal('plate-fab-nome', info.fabricante);
                 setVal('plate-serie', info.numeroSerie || info.serie);
                 setVal('plate-ano', info.ano);
-                setVal('plate-norma', prontuario.codigoProjeto || 'ASME');
+                // Código de projeto: preferir o da ficha (nr13_info_<TAG>.codigoProjeto); fallback antigo.
+                setVal('plate-norma', info.codigoProjeto || prontuario.codigoProjeto || 'ASME');
                 setVal('plate-fluido', (info.fluido || cat.fluidoInput || '').replace(/^[A-D]\s*-\s*/, ''));
 
                 // Categoria e Classe NR-13
@@ -554,21 +550,31 @@
                     };
                 };
 
-                // Preenchimento PMTA
-                let pmtaInput = info.pmta || calc.pmta;
-                let pmtaUnid = info.pmta ? info.pmtaUnid : 'MPa';
+                // Preenchimento PMTA — a ADOTADA da documentação (info.pmtaAdotadaMpa, em MPa)
+                // tem prioridade; senão mantém o fluxo antigo (info.pmta manual → calculada).
+                let pmtaInput = info.pmtaAdotadaMpa || info.pmta || calc.pmta;
+                let pmtaUnid = info.pmtaAdotadaMpa ? 'MPa' : (info.pmta ? info.pmtaUnid : 'MPa');
                 let pmtaConv = converterPressaoMult(pmtaInput, pmtaUnid);
                 setVal('pmta-mpa', pmtaConv.mpa);
                 setVal('pmta-psi', pmtaConv.psi);
                 setVal('pmta-kgf', pmtaConv.kgf);
 
-                // Preenchimento PTH (Pressão de Teste Hidrostático)
-                let pthInput = info.th || calc.pth;
-                let pthUnid = info.th ? info.thUnid : 'MPa';
+                // Preenchimento PTH (Pressão de Teste Hidrostático) — ADOTADA primeiro.
+                let pthInput = info.pthAdotadaMpa || info.th || calc.pth;
+                let pthUnid = info.pthAdotadaMpa ? 'MPa' : (info.th ? info.thUnid : 'MPa');
                 let pthConv = converterPressaoMult(pthInput, pthUnid);
                 setVal('pth-mpa', pthConv.mpa);
                 setVal('pth-psi', pthConv.psi);
                 setVal('pth-kgf', pthConv.kgf);
+
+                // Ocultar datas da placa (flag da ficha): esconde EXECUÇÃO DA INSPEÇÃO e VALIDADE.
+                // A linha é flex — VOLUME/GRUPO DE RISCO se expandem e ocupam o espaço sem buraco.
+                if (info.placaOcultarDatas) {
+                    ['plate-data-insp', 'plate-validade'].forEach(function(id) {
+                        const el = document.getElementById(id);
+                        if (el && el.parentElement) el.parentElement.style.display = 'none';
+                    });
+                }
             }
         });
     </script>

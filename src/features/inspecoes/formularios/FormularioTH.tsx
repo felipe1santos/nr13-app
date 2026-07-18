@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { carregarDadosFormulario, salvarDadosFormulario } from '../inspecaoService';
 import { useAutosaveFormulario } from '../useAutosaveFormulario';
 import { comprimirImagem } from '../../../services/imagem';
+import ResultadoEnsaio, { type ResultadoEnsaioValor } from './ResultadoEnsaio';
 
 interface LinhaCurva {
   tempo: string;
@@ -21,6 +22,7 @@ interface DadosTH {
   pressaoProj: string;
   pressaoTeste: string;
   fluido: string;
+  resultado: ResultadoEnsaioValor;
   curva: LinhaCurva[];
   fotos: Foto[];
 }
@@ -34,13 +36,15 @@ function dadosPadrao(): DadosTH {
     pressaoProj: '',
     pressaoTeste: '',
     fluido: 'Água Potável',
+    resultado: '',
     curva: [{ tempo: '', pressao: '' }, { tempo: '', pressao: '' }, { tempo: '', pressao: '' }],
     fotos: [],
   };
 }
 
 export default function FormularioTH({ tag, containerId }: { tag: string; containerId: string }) {
-  const [dados, setDados] = useState<DadosTH>(() => carregarDadosFormulario<DadosTH>(tag, containerId, 'th') ?? dadosPadrao());
+  // Merge com o padrão pra inspeções antigas (sem `resultado`) não quebrarem.
+  const [dados, setDados] = useState<DadosTH>(() => ({ ...dadosPadrao(), ...(carregarDadosFormulario<DadosTH>(tag, containerId, 'th') ?? {}) }));
   useAutosaveFormulario(tag, containerId, 'th', dados);
   const [salvando, setSalvando] = useState(false);
   const [salvoOk, setSalvoOk] = useState(false);
@@ -176,6 +180,8 @@ export default function FormularioTH({ tag, containerId }: { tag: string; contai
           + Adicionar Ponto
         </button>
       </div>
+
+      <ResultadoEnsaio valor={dados.resultado} onChange={(v) => set('resultado', v)} />
 
       <div className="formulario-secao">
         <h3>

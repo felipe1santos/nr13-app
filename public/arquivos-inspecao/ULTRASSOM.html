@@ -191,6 +191,7 @@
     </style>
     <script src="/sb-storage.js"></script>
     <script src="/rel-empresa.js?v=7"></script>
+    <script src="/rel-cabecalho.js?v=2"></script>
 </head>
 <body>
 
@@ -209,9 +210,9 @@
                     MEDIÇÃO DE ESPESSURA
                 </td>
                 <td class="col-info">
-                    <div class="info-label" contenteditable="true" spellcheck="false">Relatório nº.</div>
+                    <div class="info-label" contenteditable="true" spellcheck="false">Rastreabilidade:</div>
                     <div class="info-value" id="hdr-rel-num" contenteditable="true" spellcheck="false">REL-000000</div>
-                    <div class="info-label" contenteditable="true" spellcheck="false">Data de Emissão:</div>
+                    <div class="info-label" contenteditable="true" spellcheck="false">Data da Inspeção:</div>
                     <div class="info-value" id="hdr-rel-data" contenteditable="true" spellcheck="false">DD/MM/AAAA</div>
 
                 </td>
@@ -228,29 +229,13 @@
                 </tr>
                 <tr class="bg-light-grey">
                     <td colspan="2" width="33%">EQUIPAMENTO</td>
-                    <td colspan="2" width="33%">T.A.G</td>
+                    <td colspan="2" width="33%">Nº DE SÉRIE</td>
                     <td colspan="2" width="34%">ÁREA</td>
                 </tr>
                 <tr>
                     <td colspan="2" id="inp-equipamento" class="data-blue" contenteditable="true" spellcheck="false">VASO DE PRESSÃO</td>
-                    <td colspan="2" id="inp-tag" class="data-blue" contenteditable="true" spellcheck="false">TAG-00</td>
+                    <td colspan="2" id="inp-num-serie" class="data-blue" contenteditable="true" spellcheck="false">--</td>
                     <td colspan="2" id="inp-area" class="data-blue" contenteditable="true" spellcheck="false">ÁREA DO EQUIPAMENTO</td>
-                </tr>
-                <tr class="bg-light-grey">
-                    <td colspan="2" width="33%">ESPESSURA NOMINAL [mm]</td>
-                    <td colspan="2" rowspan="2" width="33%">ANO DE<br>FABRICAÇÃO</td>
-                    <td colspan="2" rowspan="2" width="34%">MATERIAL</td>
-                </tr>
-                <tr class="bg-light-grey">
-                    <td width="16.5%">CASCO</td>
-                    <td width="16.5%">TAMPOS</td>
-                </tr>
-                
-                <tr>
-                    <td id="inp-esp-nom-casco" class="data-blue" contenteditable="true" spellcheck="false">0,00</td>
-                    <td id="inp-esp-nom-tampo" class="data-blue" contenteditable="true" spellcheck="false">0,00</td>
-                    <td colspan="2" id="inp-ano" class="data-blue" contenteditable="true" spellcheck="false">0000</td>
-                    <td colspan="2" id="inp-material" class="data-blue" contenteditable="true" spellcheck="false">MATERIAL DE CONSTRUÇÃO</td>
                 </tr>
             </table>
 
@@ -439,13 +424,14 @@
             }
         }
 
-        // Cabeçalho: Relatório nº. / Data de Emissão vêm do relatório em montagem
+        // Cabeçalho: Rastreabilidade / Data da Inspeção vêm do relatório em montagem
         try {
             const meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}');
             const elNum = document.getElementById('hdr-rel-num');
             const elData = document.getElementById('hdr-rel-data');
             if (elNum && meta.codigo) elNum.textContent = meta.codigo;
-            if (elData && meta.emissao) elData.textContent = meta.emissao;
+            const dataCab = window.NR13_DATA_INSP ? window.NR13_DATA_INSP(meta.emissao) : meta.emissao;
+            if (elData && dataCab) elData.textContent = dataCab;
         } catch (e) {}
     });
 
@@ -660,45 +646,66 @@
 
 
 
-        // Puxa o instrumento de medição (Padrão de Espessura) cadastrado em "Sua Empresa"
+        // Puxa o instrumento de medição do cadastro de rastreabilidade
+        // (Calibrações → aba Rastreabilidade, chaves nr13_rastreab_<id> — ver
+        // src/features/relatorios/rastreabilidadeService.ts). Cadastro único por
+        // instrumento (não por equipamento). Prioridade de escolha do registro:
+        // 1) tipoInstrumento === 'ultrassom'; 2) marcado "injetar no relatório";
+        // 3) nome que identifique ultrassom/espessura (compatibilidade com registros
+        // antigos sem tipoInstrumento); 4) mantém o valor atual da folha ("--").
         function carregarRastreabilidadeInstrumento() {
             try {
-                // Fonte legada (nenhum lugar do sistema grava nr13_rastreabilidade hoje, mas
-                // mantemos a leitura para compatibilidade caso venha a existir um gravador).
-                const r = JSON.parse(localStorage.getItem('nr13_rastreabilidade') || '{}');
-                if (r && r.ultrassom) {
-                    if (r.ultrassom.modelo) document.getElementById('rast-us-padrao').innerText = r.ultrassom.modelo;
-                    if (r.ultrassom.serie) document.getElementById('rast-us-serie').innerText = r.ultrassom.serie;
-                    if (r.ultrassom.certificado) document.getElementById('rast-us-certificado').innerText = r.ultrassom.certificado;
-                    if (r.ultrassom.validade) {
-                        const p = r.ultrassom.validade.split('-');
-                        document.getElementById('rast-us-validade').innerText = p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : r.ultrassom.validade;
-                    }
-                    return;
+                function setTexto(id, valor) {
+                    if (valor === undefined || valor === null || String(valor).trim() === '') return;
+                    var el = document.getElementById(id);
+                    if (el) el.innerText = String(valor);
+                }
+                function formatarData(v) {
+                    if (!v) return '';
+                    var p = String(v).split('-');
+                    return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : String(v);
                 }
 
-                // Fonte real hoje (Calibrações → aba Rastreabilidade): nr13_rastreab_<id>,
-                // ver src/features/relatorios/rastreabilidadeService.ts. Procura a entrada cujo
-                // nome identifique o padrão de ultrassom/medição de espessura.
                 const candidatos = [];
                 for (let i = 0; i < localStorage.length; i++) {
                     const chave = localStorage.key(i);
                     if (!chave || chave.indexOf('nr13_rastreab_') !== 0) continue;
                     try {
                         const item = JSON.parse(localStorage.getItem(chave) || 'null');
-                        if (item && item.nome) candidatos.push(item);
+                        if (item && (item.nome || item.aparelho)) candidatos.push(item);
                     } catch (e2) {}
                 }
+                candidatos.sort(function (a, b) { return String(a.nome || '').localeCompare(String(b.nome || '')); });
                 const nomeMatch = (n) => /ultra.?s?om|espessura/i.test(n || '');
-                const escolhido = candidatos.find((c) => nomeMatch(c.nome)) || null;
-                if (escolhido) {
-                    if (escolhido.nome) document.getElementById('rast-us-padrao').innerText = escolhido.nome;
-                    if (escolhido.certificadoPadrao) document.getElementById('rast-us-certificado').innerText = escolhido.certificadoPadrao;
-                    if (escolhido.validade) {
-                        const p = String(escolhido.validade).split('-');
-                        document.getElementById('rast-us-validade').innerText = p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : escolhido.validade;
-                    }
-                }
+                // Fallbacks só entre registros SEM tipo (legados): um registro tipado
+                // explicitamente como manômetro/outro nunca preenche o bloco do ultrassom.
+                const semTipo = candidatos.filter((c) => !c.tipoInstrumento);
+                const escolhido =
+                    candidatos.find((c) => c.tipoInstrumento === 'ultrassom') ||
+                    semTipo.find((c) => c.injetarNoRelatorio) ||
+                    semTipo.find((c) => nomeMatch(c.nome)) ||
+                    null;
+                if (!escolhido) return;
+
+                // Bloco "INSTRUMENTO DE MEDIÇÃO UTILIZADO"
+                setTexto('rast-us-padrao', escolhido.nome || escolhido.aparelho);
+                setTexto('rast-us-serie', escolhido.numeroSerie);
+                setTexto('rast-us-certificado', escolhido.certificadoPadrao);
+                setTexto('rast-us-validade', formatarData(escolhido.validade));
+
+                // Bloco "INFORMAÇÕES PARA O ENSAIO": dados PADRÃO do instrumento.
+                // Rodam no DOMContentLoaded; o motor de injeção do container (500ms+) só
+                // sobrescreve com valores NÃO vazios — ou seja, o dado de campo preenchido
+                // na inspeção sempre vence o padrão do instrumento.
+                var aparelhoSerie = [escolhido.aparelho || escolhido.nome, escolhido.numeroSerie]
+                    .filter(function (v) { return v && String(v).trim() !== ''; })
+                    .join(' / ');
+                setTexto('inp-aparelho', aparelhoSerie);
+                setTexto('inp-acoplante', escolhido.acoplante);
+                setTexto('inp-temp-sup', escolhido.tempSuperficie);
+                setTexto('inp-estado-sup', escolhido.estadoSuperficie);
+                setTexto('inp-cabecote', escolhido.cabecote);
+                setTexto('inp-vel-sonica', escolhido.velocidadeSonica);
             } catch(e) {}
         }
 
@@ -732,6 +739,16 @@
             // Puxa Croqui
             const urlParams = new URLSearchParams(window.location.search);
             const tagVaso = urlParams.get('tag');
+
+            // Nº DE SÉRIE do equipamento (célula do bloco "componente avaliado"):
+            // vem da ficha (nr13_info_<TAG>.numeroSerie); fallback: a própria TAG.
+            if (tagVaso) {
+                try {
+                    const infoEq = JSON.parse(localStorage.getItem('nr13_info_' + tagVaso) || '{}');
+                    const elSerieEq = document.getElementById('inp-num-serie');
+                    if (elSerieEq) elSerieEq.innerText = infoEq.numeroSerie || infoEq.serie || tagVaso;
+                } catch (e) {}
+            }
 
             if (tagVaso) {
                 const imgElemento = document.getElementById('croqui-img');
@@ -878,9 +895,8 @@
                     const MAPA = {
                         equipamento: 'inp-equipamento',
                         area:        'inp-area',
-                        espNomCasco: 'inp-esp-nom-casco',
-                        ano:         'inp-ano',
-                        material:    'inp-material',
+                        // espNomCasco/ano/material saíram da folha (células removidas a pedido
+                        // do engenheiro) — injetarValor ignora IDs inexistentes de dados antigos.
                         aparelho:    'inp-aparelho',
                         acoplante:   'inp-acoplante',
                         estadoSup:   'inp-estado-sup',

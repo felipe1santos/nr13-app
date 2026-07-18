@@ -99,6 +99,7 @@
         }
     </style>
     <script src="/rel-empresa.js?v=7"></script>
+    <script src="/rel-cabecalho.js?v=2"></script>
 </head>
 <body>
 
@@ -116,9 +117,9 @@
                 RELATÓRIO DE INSPEÇÃO NR-13<br>VASO SOB PRESSÃO
             </td>
             <td class="col-info">
-                <div class="info-label">Relatório nº.</div>
+                <div class="info-label">Rastreabilidade:</div>
                 <div class="info-value" id="hdr-rel-num" contenteditable="true" spellcheck="false">—</div>
-                <div class="info-label">Data:</div>
+                <div class="info-label">Data da Inspeção:</div>
                 <div class="info-value" id="hdr-rel-data" contenteditable="true" spellcheck="false">—</div>
             </td>
         </tr>
@@ -338,18 +339,39 @@
         'chk-ensaios-compl': 'ck-ens-compl'
     };
 
+    // Injeta a observação de texto da pergunta no bloco: usa o .obs-field existente ou cria um.
+    function injetarObsPergunta(block, texto) {
+        if (!block || !texto) return;
+        var campoObs = block.querySelector('.obs-field');
+        if (!campoObs) {
+            var wrap = document.createElement('div');
+            wrap.className = 'obs-wrap';
+            campoObs = document.createElement('textarea');
+            campoObs.className = 'obs-field';
+            campoObs.rows = 1;
+            campoObs.placeholder = 'Observação...';
+            wrap.appendChild(campoObs);
+            var rowEl = block.querySelector('.q-row');
+            if (rowEl && rowEl.nextSibling) block.insertBefore(wrap, rowEl.nextSibling);
+            else block.appendChild(wrap);
+        }
+        campoObs.value = texto;
+    }
+
     function injetarDadosChecklist3() {
         try {
             var dados = JSON.parse(localStorage.getItem('nr13_inspecao_atual') || '{}');
             var cl = dados.checklist;
-            if (!cl || !cl.respostas) return;
-            var resp = cl.respostas;
+            if (!cl) return;
+            var resp = cl.respostas || {};
+            var obs = cl.observacoes || {};
             Object.keys(MAPA_CL3).forEach(function(fid) {
                 var hid = MAPA_CL3[fid];
-                var v = resp[fid];
-                if (!v) return;
                 var block = document.querySelector('[data-qid="' + hid + '"]');
                 if (!block) return;
+                injetarObsPergunta(block, obs[fid]);
+                var v = resp[fid];
+                if (!v) return;
                 var opts = block.querySelectorAll('.q-opt');
                 opts.forEach(function(opt) {
                     var txt = opt.textContent.replace(/✓/g,'').trim();
@@ -388,7 +410,8 @@
         try {
             var meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}');
             if (meta.codigo) document.getElementById('hdr-rel-num').textContent = meta.codigo;
-            if (meta.emissao) document.getElementById('hdr-rel-data').textContent = meta.emissao;
+            var dataCab = window.NR13_DATA_INSP ? window.NR13_DATA_INSP(meta.emissao) : meta.emissao;
+            if (dataCab) document.getElementById('hdr-rel-data').textContent = dataCab;
         } catch(e) {}
     });
 </script>

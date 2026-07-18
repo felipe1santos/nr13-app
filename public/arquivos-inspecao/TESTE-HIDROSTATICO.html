@@ -197,6 +197,7 @@
         }
     </style>
     <script src="/rel-empresa.js?v=7"></script>
+    <script src="/rel-cabecalho.js?v=2"></script>
 </head>
 <body>
 
@@ -214,12 +215,10 @@
                     REGISTRO DE TESTE HIDROSTÁTICO
                 </td>
                 <td rowspan="2" class="col-info">
-                    <div class="info-label">Relatório nº:</div>
+                    <div class="info-label">Rastreabilidade:</div>
                     <div class="info-value" id="hdr-rel-num" contenteditable="true" spellcheck="false">REL-000000</div>
-                    <div class="info-label">Data:</div>
+                    <div class="info-label">Data da Inspeção:</div>
                     <div class="info-value" id="hdr-rel-data" contenteditable="true" spellcheck="false">DD/MM/AAAA</div>
-                    <div class="info-label">Folha:</div>
-                    <div class="info-value" id="folha-label" contenteditable="true" spellcheck="false">1/2</div>
                 </td>
             </tr>
         </table>
@@ -279,10 +278,10 @@
 
         <div class="section-title">INSTRUMENTO DE MEDIÇÃO UTILIZADO</div>
         <div class="f-grid f-grid-4">
-            <div class="f"><span class="f-lbl">PADRÃO</span><div class="f-val" contenteditable="true">--</div></div>
-            <div class="f"><span class="f-lbl">Nº SÉRIE</span><div class="f-val" contenteditable="true">--</div></div>
-            <div class="f"><span class="f-lbl">Nº CERTIFICADO</span><div class="f-val" contenteditable="true">--</div></div>
-            <div class="f"><span class="f-lbl">VALIDADE</span><div class="f-val" contenteditable="true">--</div></div>
+            <div class="f"><span class="f-lbl">PADRÃO</span><div class="f-val" id="rast-th-padrao" contenteditable="true">--</div></div>
+            <div class="f"><span class="f-lbl">Nº SÉRIE</span><div class="f-val" id="rast-th-serie" contenteditable="true">--</div></div>
+            <div class="f"><span class="f-lbl">Nº CERTIFICADO</span><div class="f-val" id="rast-th-certificado" contenteditable="true">--</div></div>
+            <div class="f"><span class="f-lbl">VALIDADE</span><div class="f-val" id="rast-th-validade" contenteditable="true">--</div></div>
         </div>
         <div style="display: flex; align-items: center; gap: 8px; border: 1px solid #ededed; padding: 4px; margin-bottom: 4px; background: #fff;">
             <img src="../icon/imetro.webp" style="height: 25px; object-fit: contain;" alt="Selo Inmetro">
@@ -622,19 +621,65 @@
         // ==========================================
         // 5. INJEÇÃO (a assinatura é o bloco canônico preenchido pelo rel-assinatura.js)
         // ==========================================
+        // Instrumento (manômetro padrão) do cadastro de rastreabilidade
+        // (Calibrações → aba Rastreabilidade, chaves nr13_rastreab_<id>). Cadastro
+        // único por instrumento. Prioridade: 1) tipoInstrumento === 'manometro';
+        // 2) marcado "injetar no relatório"; 3) nome que identifique manômetro
+        // (registros antigos sem tipoInstrumento); 4) mantém o "--" da folha.
+        function carregarRastreabilidadeInstrumentoTH() {
+            try {
+                function setTexto(id, valor) {
+                    if (valor === undefined || valor === null || String(valor).trim() === '') return;
+                    var el = document.getElementById(id);
+                    if (el) el.innerText = String(valor);
+                }
+                function formatarData(v) {
+                    if (!v) return '';
+                    var p = String(v).split('-');
+                    return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : String(v);
+                }
+                var candidatos = [];
+                for (var i = 0; i < localStorage.length; i++) {
+                    var chave = localStorage.key(i);
+                    if (!chave || chave.indexOf('nr13_rastreab_') !== 0) continue;
+                    try {
+                        var item = JSON.parse(localStorage.getItem(chave) || 'null');
+                        if (item && (item.nome || item.aparelho)) candidatos.push(item);
+                    } catch (e2) {}
+                }
+                candidatos.sort(function (a, b) { return String(a.nome || '').localeCompare(String(b.nome || '')); });
+                var nomeMatch = function (n) { return /man[oô]metro/i.test(n || ''); };
+                // Fallbacks só entre registros SEM tipo (legados): registro tipado como
+                // ultrassom/outro nunca preenche o bloco de manômetro do TH.
+                var semTipo = candidatos.filter(function (c) { return !c.tipoInstrumento; });
+                var escolhido =
+                    candidatos.find(function (c) { return c.tipoInstrumento === 'manometro'; }) ||
+                    semTipo.find(function (c) { return c.injetarNoRelatorio; }) ||
+                    semTipo.find(function (c) { return nomeMatch(c.nome); }) ||
+                    null;
+                if (!escolhido) return;
+                setTexto('rast-th-padrao', escolhido.nome || escolhido.aparelho);
+                setTexto('rast-th-serie', escolhido.numeroSerie);
+                setTexto('rast-th-certificado', escolhido.certificadoPadrao);
+                setTexto('rast-th-validade', formatarData(escolhido.validade));
+            } catch (e) {}
+        }
+
         document.addEventListener("DOMContentLoaded", function() {
             generateTableRows();
             initChart();
+            carregarRastreabilidadeInstrumentoTH();
 
             // Número da página vem da montagem do relatório (?page=N), não fixo.
             var _pg = new URLSearchParams(window.location.search).get('page');
             if (_pg) { var _el = document.querySelector('.footer-page-number'); if (_el) _el.innerText = _pg.trim(); }
 
-            // Meta do relatório (Relatório nº / Data) — vem da montagem do relatório
+            // Meta do relatório (Rastreabilidade / Data da Inspeção) — vem da montagem do relatório
             try {
                 var meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}');
                 if (meta.codigo) { var _relNum = document.getElementById('hdr-rel-num'); if (_relNum) _relNum.textContent = meta.codigo; }
-                if (meta.emissao) { var _relData = document.getElementById('hdr-rel-data'); if (_relData) _relData.textContent = meta.emissao; }
+                var _dataCab = window.NR13_DATA_INSP ? window.NR13_DATA_INSP(meta.emissao) : meta.emissao;
+                if (_dataCab) { var _relData = document.getElementById('hdr-rel-data'); if (_relData) _relData.textContent = _dataCab; }
             } catch (e) {
                 console.error("Erro ao injetar meta do relatório no TH:", e);
             }

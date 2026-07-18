@@ -13,6 +13,21 @@ export interface InfoEquipamento {
   fabricante?: string;
   ano?: string;
   numeroSerie?: string;
+  // Dados cadastrais complementares — injetados em PRONTUARIO/INSPECOES/PLACA (antes saíam "--").
+  codigoProjeto?: string; // ex.: "ASME Seção VIII Divisão 1"
+  edicao?: string; // ex.: "2004"
+  adenda?: string;
+  localizacao?: string; // ex.: "Área de utilidades"
+  tipoConstrucao?: string;
+  descricaoResumida?: string;
+  // Pressões da Documentação (adotadas manualmente) — SEMPRE armazenadas em MPa (string numérica).
+  // Templates preferem estas quando preenchidas; senão caem nas calculadas (nr13_calc/nr13_cat).
+  // NUNCA entram no cálculo da Categoria de Risco (regra absoluta §4 do CLAUDE.md).
+  pmtaAdotadaMpa?: string;
+  pmoAdotadaMpa?: string;
+  pthAdotadaMpa?: string;
+  // Placa de identificação: ocultar células EXECUÇÃO DA INSPEÇÃO / VALIDADE (default false).
+  placaOcultarDatas?: boolean;
 }
 
 // nr13_cat_<TAG>

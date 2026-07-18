@@ -258,7 +258,6 @@
             font-weight: 900;
             color: var(--text-dark);
             text-transform: uppercase;
-            letter-spacing: 1px;
             margin-bottom: 2px;
         }
         .hb-value {
@@ -342,6 +341,7 @@
         .sig-overlay-box.sig-excluida > *:not(.no-print) { display: none !important; }
     </style>
     <script src="/rel-empresa.js?v=7"></script>
+    <script src="/rel-cabecalho.js?v=2"></script>
 </head>
 <body>
 
@@ -360,9 +360,9 @@
                     CATEGORIA DE RISCO
                 </td>
                 <td class="col-info">
-                    <div class="info-label">Relatório nº.</div>
+                    <div class="info-label">Rastreabilidade:</div>
                     <div id="header-relatorio" class="info-value" contenteditable="true" spellcheck="false">----</div>
-                    <div class="info-label">Data:</div>
+                    <div class="info-label">Data da Inspeção:</div>
                     <div id="header-data" class="info-value" contenteditable="true" spellcheck="false">DD/MM/AAAA</div>
                 </td>
             </tr>
@@ -625,7 +625,8 @@
                 const cat = catStr ? JSON.parse(catStr) : {};
                 const meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}');
                 if (meta.codigo && document.getElementById('header-relatorio')) document.getElementById('header-relatorio').innerText = meta.codigo;
-                if (meta.emissao && document.getElementById('header-data')) document.getElementById('header-data').innerText = meta.emissao;
+                const dataCab = window.NR13_DATA_INSP ? window.NR13_DATA_INSP(meta.emissao) : meta.emissao;
+                if (dataCab && document.getElementById('header-data')) document.getElementById('header-data').innerText = dataCab;
 
                 let pmta_mpa = parseFloat(calc.pmta) || 0;
                 let pmta_kpa = pmta_mpa * 1000;

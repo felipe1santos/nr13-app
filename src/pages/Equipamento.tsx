@@ -10,6 +10,7 @@ import Galeria from '../features/equipamento/Galeria';
 import CategoriaNR13 from '../features/categoria/CategoriaNR13';
 import BadgeTipoEquipamento from '../features/equipamento/BadgeTipoEquipamento';
 import VidaRemanescente from '../features/equipamento/VidaRemanescente';
+import PressoesDocumentacao from '../features/equipamento/PressoesDocumentacao';
 import { formatarValor } from '../calc/unidades';
 import type { SistemaUnidade } from '../calc/unidades';
 import MemorialLog from '../features/memorial/MemorialLog';
@@ -196,7 +197,7 @@ function EquipamentoView({ tag }: { tag: string }) {
             <div className="mem-stats-wrap">
               <div className="memorial-resumo-grid">
             <div className="resultado-item">
-              <span className="lbl-view">PMTA Final</span>
+              <span className="lbl-view">PMTA Calculada</span>
               <span className="val-view accent" style={{ fontSize: 16 }}>
                 {pmtaMpa != null ? formatarValor(pmtaMpa, unidade) : '—'}
               </span>
@@ -239,6 +240,12 @@ function EquipamentoView({ tag }: { tag: string }) {
             </div>
           </div>
         </div>
+      </section>
+
+      <section className="equipamento-secao">
+        {/* Pressões adotadas da documentação — logo abaixo do card Memorial. Exibe/edita na
+            unidade em pré-visualização da ficha; grava em MPa dentro de nr13_info_<TAG>. */}
+        <PressoesDocumentacao tag={tag} info={info} unidade={unidade} onSalvo={setInfo} />
       </section>
 
       <section className="equipamento-secao">

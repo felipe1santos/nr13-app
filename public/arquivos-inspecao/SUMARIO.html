@@ -254,6 +254,7 @@
         }
     </style>
     <script src="/rel-empresa.js?v=7"></script>
+    <script src="/rel-cabecalho.js?v=2"></script>
 </head>
 <body>
 
@@ -272,16 +273,12 @@
                 </td>
                 <td rowspan="2" class="td-info-right">
                     <div class="right-info-block">
-                        <div class="info-label">Relatório nº.</div>
+                        <div class="info-label">Rastreabilidade:</div>
                         <div class="info-value" id="sum-rel" contenteditable="true">ME 2204173</div>
                     </div>
                     <div class="right-info-block">
-                        <div class="info-label">Data de Emissão:</div>
+                        <div class="info-label">Data da Inspeção:</div>
                         <div class="info-value" id="sum-data" contenteditable="true">05/04/2026</div>
-                    </div>
-                    <div class="right-info-block">
-                        <div class="info-label">Validade:</div>
-                        <div class="info-value" id="sum-validade" contenteditable="true">—</div>
                     </div>
                 </td>
             </tr>
@@ -446,8 +443,8 @@
                 if (!metaRaw) return;
                 const meta = JSON.parse(metaRaw);
                 if (meta.codigo && document.getElementById('sum-rel')) document.getElementById('sum-rel').innerText = meta.codigo;
-                if (meta.emissao && document.getElementById('sum-data')) document.getElementById('sum-data').innerText = meta.emissao;
-                if (document.getElementById('sum-validade')) document.getElementById('sum-validade').innerText = meta.validade || '—';
+                const dataCab = window.NR13_DATA_INSP ? window.NR13_DATA_INSP(meta.emissao) : meta.emissao;
+                if (dataCab && document.getElementById('sum-data')) document.getElementById('sum-data').innerText = dataCab;
                 const docs = meta.documentos;
                 if (!docs || docs.length === 0) return;
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { listarEquipamentos } from '../features/equipamento/equipamentoService';
 import type { EquipamentoResumo } from '../features/equipamento/tipos';
 import { formatarValor } from '../calc/unidades';
@@ -26,6 +26,7 @@ import {
 import { listarFuncionarios } from '../features/cadastros/cadastroService';
 import type { Funcionario } from '../features/cadastros/tipos';
 import { validadesPorRelatorio, vincularLotesPendentes } from '../features/calibracoes/componentesService';
+import { listarRastreabilidades } from '../features/relatorios/rastreabilidadeService';
 import { registrarUso } from '../services/usoMetricas';
 import { mascararData } from '../services/mascaras';
 import { exportarPdf } from '../features/relatorios/pdfService';
@@ -124,6 +125,35 @@ export default function Relatorios() {
   // lidos pelo public/rel-assinatura.js dentro das folhas) + lista de funcionários para os selects.
   const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
   const [assinantes, setAssinantes] = useState<AssinantesRelatorio>({ engenheiroId: null, tecnicoId: null });
+
+  // Aviso (não impresso) de rastreabilidade ausente: se o relatório tem folha de ULTRASSOM ou
+  // TESTE-HIDROSTATICO e não há registro compatível em Calibrações → Rastreabilidade, os blocos
+  // "instrumento de medição" dessas folhas ficam em "--". Dispensável com o X; reaparece ao
+  // abrir/remontar outro relatório. Fica FORA dos iframes (parte do app, classe no-print), então
+  // nunca sai na impressão nem no PDF — exportarPdf rasteriza só os iframes das folhas.
+  const [avisoRastreabFechado, setAvisoRastreabFechado] = useState(false);
+  useEffect(() => {
+    if (tela === 'visualizador') setAvisoRastreabFechado(false);
+  }, [tela, versao]);
+  const faltaRastreabilidade = useMemo(() => {
+    if (tela !== 'visualizador' || !documentos) return false;
+    const nomes = documentos.map((d) => d.split('?')[0]);
+    const precisaUS = nomes.includes('ULTRASSOM.html');
+    const precisaTH = nomes.includes('TESTE-HIDROSTATICO.html');
+    if (!precisaUS && !precisaTH) return false;
+    const regs = listarRastreabilidades();
+    // Mesma cadeia de compatibilidade dos templates: tipo explícito OU registro legado sem tipo
+    // (que os templates aceitam via "injetar no relatório" / nome do instrumento).
+    const compat = (tipo: 'ultrassom' | 'manometro', nomeRe: RegExp) =>
+      regs.some(
+        (r) =>
+          r.tipoInstrumento === tipo ||
+          (!r.tipoInstrumento && (r.injetarNoRelatorio || nomeRe.test(r.nome || ''))),
+      );
+    const okUS = !precisaUS || compat('ultrassom', /ultra.?s?om|espessura/i);
+    const okTH = !precisaTH || compat('manometro', /man[oô]metro/i);
+    return !(okUS && okTH);
+  }, [tela, documentos, versao]);
 
   const historicoVisivel = historico.filter((r) => filtroTipos.has(r.tipo));
 
@@ -662,6 +692,59 @@ export default function Relatorios() {
               </button>
             </div>
           </div>
+
+          {/* Banner flutuante (âmbar/warning) — fora dos iframes, nunca impresso */}
+          {faltaRastreabilidade && !avisoRastreabFechado && (
+            <div
+              className="no-print"
+              role="alert"
+              style={{
+                position: 'fixed',
+                bottom: 22,
+                left: '50%',
+                transform: 'translateX(-50%)',
+                zIndex: 60,
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 10,
+                maxWidth: 'min(560px, calc(100vw - 32px))',
+                padding: '12px 14px',
+                borderRadius: 10,
+                background: '#2b2115',
+                border: '1px solid #b45309',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+                color: '#fcd34d',
+                fontSize: 13,
+                lineHeight: 1.45,
+              }}
+            >
+              <span style={{ flexShrink: 0, marginTop: 1 }}>
+                <Icone nome="alerttri" tam={16} />
+              </span>
+              <span>
+                Cadastre a rastreabilidade do instrumento em <b>Calibrações → Rastreabilidade</b>{' '}
+                para os dados do aparelho aparecerem no relatório.
+              </span>
+              <button
+                type="button"
+                aria-label="Dispensar aviso"
+                onClick={() => setAvisoRastreabFechado(true)}
+                style={{
+                  flexShrink: 0,
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#fcd34d',
+                  cursor: 'pointer',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  padding: '0 2px',
+                  lineHeight: 1,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+          )}
 
           <div className="relatorio-preview">
             {documentos.map((doc, i) => {

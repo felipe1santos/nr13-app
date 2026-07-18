@@ -120,6 +120,16 @@
             color: var(--text-dark);
         }
 
+        .checklist-table .col-obs {
+            text-align: left;
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--blue-data);
+            white-space: normal;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
         /* =========================================
            CHECKBOXES VISUAIS (DESIGN DA IMAGEM)
            ========================================= */
@@ -266,6 +276,7 @@
         }
     </style>
     <script src="/rel-empresa.js?v=7"></script>
+    <script src="/rel-cabecalho.js?v=2"></script>
 </head>
 <body>
 
@@ -283,9 +294,9 @@
                     RELATÓRIO DE INSPEÇÃO NR-13<br>VERIFICAÇÃO DA DOCUMENTAÇÃO
                 </td>
                 <td rowspan="2" class="col-info">
-                    <div class="info-label">Relatório nº:</div>
+                    <div class="info-label">Rastreabilidade:</div>
                     <div class="info-value" id="hdr-rel-num" contenteditable="true" spellcheck="false">—</div>
-                    <div class="info-label">Data:</div>
+                    <div class="info-label">Data da Inspeção:</div>
                     <div class="info-value" id="hdr-rel-data" contenteditable="true" spellcheck="false">—</div>
                     
                 </td>
@@ -302,8 +313,9 @@
             <table class="checklist-table">
                 <thead>
                     <tr>
-                        <th rowspan="2" style="width: 55%;">Descrição</th>
-                        <th colspan="3" style="width: 45%;">Situação</th>
+                        <th rowspan="2" style="width: 43%;">Descrição</th>
+                        <th colspan="3" style="width: 36%;">Situação</th>
+                        <th rowspan="2" style="width: 21%;">Observação</th>
                     </tr>
                     <tr class="sub-header">
                         <th>Existe</th>
@@ -403,9 +415,9 @@
                         <td id="v51-art-assinada-3" class="col-check"><div class="custom-chk"><div class="chk-square"></div></div></td>
                     </tr>
                     <tr>
-                        <th colspan="4" style="padding: 6px;" contenteditable="true" spellcheck="false">Comentários sobre a documentação</th>
+                        <th colspan="5" style="padding: 6px;" contenteditable="true" spellcheck="false">Comentários sobre a documentação</th>
                     </tr>
-                    <tr><td colspan="4" class="comment-box" contenteditable="true" spellcheck="false"></td></tr>
+                    <tr><td colspan="5" class="comment-box" contenteditable="true" spellcheck="false"></td></tr>
                 </tbody>
             </table>
 
@@ -510,7 +522,8 @@
                 if (metaRaw) {
                     var meta = JSON.parse(metaRaw);
                     if (meta.codigo) document.getElementById('hdr-rel-num').textContent = meta.codigo;
-                    if (meta.emissao) document.getElementById('hdr-rel-data').textContent = meta.emissao;
+                    var dataCab = window.NR13_DATA_INSP ? window.NR13_DATA_INSP(meta.emissao) : meta.emissao;
+                    if (dataCab) document.getElementById('hdr-rel-data').textContent = dataCab;
                 }
             } catch(e) {}
         });
@@ -529,6 +542,20 @@
 
             const COLUNA_POR_VALOR = { 'Existe': 1, 'Não identificado': 2, 'Não aplica': 3 };
 
+            // Cria a célula "Observação" de cada linha (coluna nova; editável na tela).
+            function criarCelulasObs() {
+                ITENS_51.forEach(chave => {
+                    const primeiraCelula = document.getElementById(`v51-${chave}-1`);
+                    if (!primeiraCelula || document.getElementById(`v51-${chave}-obs`)) return;
+                    const td = document.createElement('td');
+                    td.id = `v51-${chave}-obs`;
+                    td.className = 'col-obs';
+                    td.setAttribute('contenteditable', 'true');
+                    td.setAttribute('spellcheck', 'false');
+                    primeiraCelula.parentElement.appendChild(td);
+                });
+            }
+
             function marcarLinha51(chave, valor) {
                 const coluna = COLUNA_POR_VALOR[valor];
                 if (!coluna) return;
@@ -546,12 +573,14 @@
 
             function executarInjecao51() {
                 try {
+                    criarCelulasObs(); // idempotente — garante as células antes de injetar
                     const raw = localStorage.getItem('nr13_inspecao_atual');
                     if (!raw) return false;
                     const injecao = JSON.parse(raw);
                     const d = injecao['checklist'];
                     if (!d) return false;
                     const r = d.respostas || d;
+                    const obs = d.observacoes || {};
 
                     let injetouAlgo = false;
                     ITENS_51.forEach(chave => {
@@ -560,11 +589,21 @@
                             marcarLinha51(chave, valor);
                             injetouAlgo = true;
                         }
+                        const textoObs = obs[`v51-${chave}`];
+                        if (textoObs) {
+                            const celObs = document.getElementById(`v51-${chave}-obs`);
+                            if (celObs) {
+                                celObs.textContent = textoObs;
+                                injetouAlgo = true;
+                            }
+                        }
                     });
 
                     return injetouAlgo;
                 } catch(e) { return false; }
             }
+
+            document.addEventListener('DOMContentLoaded', criarCelulasObs);
 
             let tentativas51 = 0;
             const motor51 = setInterval(() => {

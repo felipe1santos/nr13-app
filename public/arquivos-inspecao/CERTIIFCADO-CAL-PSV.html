@@ -180,11 +180,9 @@
             text-align: center;
         }
         .company-details { font-size: 11px; color: #000; font-weight: 500; line-height: 1.4; }
-        .footer-page-number {
-            background-color: #000 !important; color: #fff !important; font-size: 20px; font-weight: 400;
-            padding: 6px 22px; margin-left: 10px; display: flex; align-items: center; justify-content: center;
-            -webkit-print-color-adjust: exact; print-color-adjust: exact;
-        }
+        /* Certificado NÃO exibe número de página dentro do relatório (revisão do engenheiro,
+           07/2026) — a caixa preta de numeração fica sempre oculta. */
+        .footer-page-number { display: none !important; }
 
         /* =========================================
            IMPRESSÃO
@@ -443,14 +441,7 @@
                 } catch(e) {}
             })();
             // ─────────────────────────────────────────────────────────────────
-            // Paginação Dinâmica (Mesma lógica do TH.html)
-            const paramPagina = new URLSearchParams(window.location.search).get('page');
-            if (paramPagina) {
-                const elPagina = document.querySelector('.footer-page-number');
-                if (elPagina) {
-                    elPagina.innerText = paramPagina.trim();
-                }
-            }
+            // Sem paginação: o certificado não exibe nº de página (caixa oculta via CSS).
 
             // Auto-Fill Empresa (Puxando do localStorage)
             const salvo = (window.NR13_EMPRESA_JSON || localStorage.getItem('nr13_minha_empresa'));

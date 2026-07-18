@@ -354,6 +354,7 @@
         }
     </style>
     <script src="/rel-empresa.js?v=7"></script>
+    <script src="/rel-cabecalho.js?v=2"></script>
 </head>
 <body>
 
@@ -372,9 +373,9 @@
                     RELATÓRIO DE INSPEÇÃO
                 </td>
                 <td class="col-info">
-                     <div class="info-label">Relatório nº.</div>
+                     <div class="info-label">Rastreabilidade:</div>
                      <div class="info-value" id="hdr-rel-num" contenteditable="true" spellcheck="false">----</div>
-                     <div class="info-label">Data de Emissão:</div>
+                     <div class="info-label">Data da Inspeção:</div>
                      <div class="info-value" id="hdr-rel-data" contenteditable="true" spellcheck="false">DD/MM/AAAA</div>
                 </td>
             </tr>
@@ -384,14 +385,11 @@
 
             <div class="section-title">DADOS GERAIS</div>
 
+            <!-- RASTREABILIDADE fica SÓ no cabeçalho (padrão das folhas) — sem duplicar aqui. -->
             <div class="f-row">
-                <div class="f" style="flex:2.2">
+                <div class="f">
                     <span class="f-lbl">CONTRATANTE</span>
                     <div class="f-val"><input type="text" id="insp-contratante" placeholder="..."></div>
-                </div>
-                <div class="f" style="flex:0.95">
-                    <span class="f-lbl">RASTREABILIDADE</span>
-                    <div class="f-val"><input type="text" placeholder="..."></div>
                 </div>
             </div>
             <div class="f-row">
@@ -439,11 +437,11 @@
             <div class="f-row">
                 <div class="f">
                     <span class="f-lbl">EDIÇÃO</span>
-                    <div class="f-val"><input type="text" placeholder="..."></div>
+                    <div class="f-val"><input type="text" id="insp-edicao" placeholder="..."></div>
                 </div>
                 <div class="f">
                     <span class="f-lbl">ADENDA</span>
-                    <div class="f-val"><input type="text" placeholder="..."></div>
+                    <div class="f-val"><input type="text" id="insp-adenda" placeholder="..."></div>
                 </div>
             </div>
 
@@ -472,7 +470,7 @@
             <div class="f-row">
                 <div class="f">
                     <span class="f-lbl">LOCALIZAÇÃO</span>
-                    <div class="f-val"><input type="text" placeholder="..."></div>
+                    <div class="f-val"><input type="text" id="insp-localizacao" placeholder="..."></div>
                 </div>
                 <div class="f">
                     <span class="f-lbl">VOLUME (m³)</span>
@@ -513,11 +511,11 @@
             <div class="f-row">
                 <div class="f">
                     <span class="f-lbl">DATA DE INÍCIO DA INSPEÇÃO</span>
-                    <div class="f-val"><input type="text" placeholder="DD/MM/AAAA"></div>
+                    <div class="f-val"><input type="text" id="insp-data-inicio" placeholder="DD/MM/AAAA"></div>
                 </div>
                 <div class="f">
                     <span class="f-lbl">DATA DE TÉRMINO DA INSPEÇÃO</span>
-                    <div class="f-val"><input type="text" placeholder="DD/MM/AAAA"></div>
+                    <div class="f-val"><input type="text" id="insp-data-termino" placeholder="DD/MM/AAAA"></div>
                 </div>
             </div>
 
@@ -562,7 +560,7 @@
 
             <div class="vis-row">
                 <span class="vis-name">VISUAL INTERNA</span>
-                <div class="res-opts">
+                <div class="res-opts" id="res-vi">
                     <div class="cb-item res-opt opt-aprovado" onclick="selectResult(this, 'vi')">
                         <span class="cb-box"></span>APROVADO
                     </div>
@@ -574,7 +572,7 @@
 
             <div class="vis-row">
                 <span class="vis-name">VISUAL EXTERNO</span>
-                <div class="res-opts">
+                <div class="res-opts" id="res-ve">
                     <div class="cb-item res-opt opt-aprovado" onclick="selectResult(this, 've')">
                         <span class="cb-box"></span>APROVADO
                     </div>
@@ -641,14 +639,25 @@
             const tipoInspecao = (meta.tipoInspecao || '').toLowerCase();
             const documentos = meta.documentos || [];
 
-            // Cabeçalho: Nº do relatório e Data de Emissão (nr13_relatorio_meta_atual)
+            // Dados de campo do container de inspeção (gravados na geração do relatório).
+            // Este template lê as duas chaves (mesmo conteúdo) por segurança — ver CLAUDE.md §2.
+            let campo = {};
+            try {
+                campo = JSON.parse(
+                    localStorage.getItem('nr13_injecao_atual') ||
+                    localStorage.getItem('nr13_inspecao_atual') || '{}'
+                ) || {};
+            } catch (e) { campo = {}; }
+
+            // Cabeçalho: Rastreabilidade (código do relatório) e Data da Inspeção (rel-cabecalho.js)
             if (meta.codigo) {
                 const elRelNum = document.getElementById('hdr-rel-num');
                 if (elRelNum) elRelNum.textContent = meta.codigo;
             }
-            if (meta.emissao) {
+            const dataCab = window.NR13_DATA_INSP ? window.NR13_DATA_INSP(meta.emissao) : meta.emissao;
+            if (dataCab) {
                 const elRelData = document.getElementById('hdr-rel-data');
-                if (elRelData) elRelData.textContent = meta.emissao;
+                if (elRelData) elRelData.textContent = dataCab;
             }
 
             // Marca a NATUREZA da inspeção (Inicial/Periódica/Extraordinária)
@@ -670,18 +679,26 @@
                 // respectivos documentos forem criados no módulo de relatórios
             ];
 
+            // Resultado conclusivo (APROVADO/REPROVADO) salvo no formulário de campo de cada ensaio
+            const RESULTADO_POR_TIPO = {
+                th: (campo.th && campo.th.resultado) || '',
+                us: (campo.ultrassom && campo.ultrassom.resultado) || ''
+            };
+
             const ensaiosRealizados = [];
             ENSAIOS_MAP.forEach(item => {
                 const selecionado = documentos.some(d => d.toLowerCase().includes(item.match));
                 if (selecionado) {
                     const elTipo = document.querySelector('.cb-item[data-tipo="' + item.tipo + '"]');
                     if (elTipo) elTipo.classList.add('is-checked');
-                    ensaiosRealizados.push(item.nome);
+                    ensaiosRealizados.push({ nome: item.nome, resultado: RESULTADO_POR_TIPO[item.tipo] || '' });
                 }
             });
 
             // Construção das linhas da Tabela de Resultados dos Ensaios (com as classes verde/vermelho)
-            function criarLinhaEnsaio(idx, nome) {
+            function criarLinhaEnsaio(idx, nome, resultado) {
+                const aprovadoChk = resultado === 'aprovado' ? ' is-checked' : '';
+                const reprovadoChk = resultado === 'reprovado' ? ' is-checked' : '';
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td class="td-name" width="45%">
@@ -689,10 +706,10 @@
                     </td>
                     <td class="td-res" width="55%">
                         <div class="res-opts">
-                            <div class="cb-item res-opt opt-aprovado" onclick="selectResult(this,'e${idx}')">
+                            <div class="cb-item res-opt opt-aprovado${aprovadoChk}" onclick="selectResult(this,'e${idx}')">
                                 <span class="cb-box"></span>APROVADO
                             </div>
-                            <div class="cb-item res-opt opt-reprovado" onclick="selectResult(this,'e${idx}')">
+                            <div class="cb-item res-opt opt-reprovado${reprovadoChk}" onclick="selectResult(this,'e${idx}')">
                                 <span class="cb-box"></span>REPROVADO
                             </div>
                         </div>
@@ -702,8 +719,50 @@
             }
 
             const ensaioTbody = document.getElementById('ensaios-tbody');
-            const linhasEnsaios = ensaiosRealizados.length > 0 ? ensaiosRealizados : ['', '', '', ''];
-            linhasEnsaios.forEach((nome, i) => ensaioTbody.appendChild(criarLinhaEnsaio(i, nome)));
+            const linhasEnsaios = ensaiosRealizados.length > 0
+                ? ensaiosRealizados
+                : [{ nome: '', resultado: '' }, { nome: '', resultado: '' }, { nome: '', resultado: '' }, { nome: '', resultado: '' }];
+            linhasEnsaios.forEach((l, i) => ensaioTbody.appendChild(criarLinhaEnsaio(i, l.nome, l.resultado)));
+
+            // ===== RESULTADO EXAME VISUAL (auto: campo `resultado` dos formulários VI/VE) =====
+            function marcarResultadoVisual(idGrupo, resultado) {
+                if (resultado !== 'aprovado' && resultado !== 'reprovado') return; // sem dado → desmarcado
+                const grupo = document.getElementById(idGrupo);
+                if (!grupo) return;
+                grupo.querySelectorAll('.res-opt').forEach(el => el.classList.remove('is-checked'));
+                const alvo = grupo.querySelector(resultado === 'aprovado' ? '.opt-aprovado' : '.opt-reprovado');
+                if (alvo) alvo.classList.add('is-checked');
+            }
+            marcarResultadoVisual('res-vi', campo.visual_interno && campo.visual_interno.resultado);
+            marcarResultadoVisual('res-ve', campo.visual_externo && campo.visual_externo.resultado);
+
+            // ===== DATAS DE INÍCIO/TÉRMINO (menor e maior data dos formulários do container) =====
+            (function preencherDatasInspecao() {
+                function parseData(s) {
+                    if (!s || typeof s !== 'string') return null;
+                    let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);          // ISO (inputs date)
+                    if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
+                    m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);            // DD/MM/AAAA
+                    if (m) return new Date(+m[3], +m[2] - 1, +m[1]);
+                    return null;
+                }
+                const brutas = [
+                    campo.checklist && campo.checklist.dataInspecao,
+                    campo.visual_externo && (campo.visual_externo.dataInspecao || campo.visual_externo.dataVE),
+                    campo.visual_interno && (campo.visual_interno.dataInspecao || campo.visual_interno.dataVI),
+                    campo.th && campo.th.dataTeste,
+                    campo.ultrassom && (campo.ultrassom.dataUltrassom || campo.ultrassom.data)
+                ];
+                const datas = [];
+                brutas.forEach(s => { const d = parseData(s); if (d && !isNaN(d.getTime())) datas.push(d); });
+                if (!datas.length) return; // sem dado → mantém DD/MM/AAAA editável
+                datas.sort((a, b) => a - b);
+                const fmt = d => ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2) + '/' + d.getFullYear();
+                const elIni = document.getElementById('insp-data-inicio');
+                const elFim = document.getElementById('insp-data-termino');
+                if (elIni) elIni.value = fmt(datas[0]);
+                if (elFim) elFim.value = fmt(datas[datas.length - 1]);
+            })();
 
             // Puxar número da página da URL
             const paramPagina = new URLSearchParams(window.location.search).get('page');
@@ -760,8 +819,11 @@
                 setVal('insp-serie', info.numeroSerie || info.serie);
                 setVal('insp-tipo', info.descricao);
                 setVal('insp-fabricante', info.fabricante);
-                setVal('insp-cod-proj', info.codProj);
+                setVal('insp-cod-proj', info.codigoProjeto || info.codProj);
                 setVal('insp-ano', info.ano);
+                setVal('insp-edicao', info.edicao);
+                setVal('insp-adenda', info.adenda);
+                setVal('insp-localizacao', info.localizacao);
                 setVal('insp-volume', info.volume);
 
                 const catStr = localStorage.getItem('nr13_cat_' + tag);
@@ -785,15 +847,18 @@
                     };
                 };
 
+                // Pressões ADOTADAS da documentação (nr13_info_<TAG>.*AdotadaMpa, em MPa) têm
+                // prioridade sobre as calculadas (nr13_calc/nr13_cat).
                 const calcStr = localStorage.getItem('nr13_calc_' + tag);
                 const calc = calcStr ? JSON.parse(calcStr) : {};
-                const pmtaMpa = parseFloat(calc.pmta) || 0;
-                const pthMpa = parseFloat(calc.pth) || (pmtaMpa * 1.3);
+                const pmtaCalcMpa = parseFloat(calc.pmta) || 0;
+                const pmtaMpa = parseFloat(info.pmtaAdotadaMpa) || pmtaCalcMpa;
+                const pthMpa = parseFloat(info.pthAdotadaMpa) || parseFloat(calc.pth) || (pmtaCalcMpa * 1.3);
 
-                // PMO = pressão de operação da categorização (cat.presInput) convertida p/ MPa.
+                // PMO = adotada; senão pressão de operação da categorização (cat.presInput) em MPa.
                 const FATOR_UNID = { SI: 1, TECNICO: 10.19716, PETROBRAS: 10 };
-                let pmoMpa = 0;
-                if (cat && cat.presInput) {
+                let pmoMpa = parseFloat(info.pmoAdotadaMpa) || 0;
+                if (!pmoMpa && cat && cat.presInput) {
                     pmoMpa = parseFloat(cat.presInput) / (FATOR_UNID[cat.unidInput] || 1);
                 }
                 if (!pmoMpa) pmoMpa = pmtaMpa;

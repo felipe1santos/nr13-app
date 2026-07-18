@@ -7,6 +7,8 @@ import { ler, salvar, excluirChave, listarChavesComPrefixo } from '../../service
  * injetá-lo automaticamente no FINAL do relatório gerado (facilita a impressão).
  * Chave: nr13_rastreab_<id> (sincroniza pela nuvem como qualquer outra).
  */
+export type TipoInstrumento = 'ultrassom' | 'manometro' | 'outro';
+
 export interface Rastreabilidade {
   id: string;
   nome: string;               // identificação do instrumento/padrão
@@ -15,6 +17,17 @@ export interface Rastreabilidade {
   pdfBase64: string;          // data URL ou base64 puro do PDF
   injetarNoRelatorio: boolean;
   criadoEm: string;
+  // ── Campos opcionais (cadastro por instrumento — registros antigos não os têm) ──
+  tipoInstrumento?: TipoInstrumento; // seleciona qual template de ensaio consome o registro
+  aparelho?: string;                 // aparelho/modelo (ex.: "CYGNUS 6278")
+  fabricante?: string;
+  numeroSerie?: string;
+  // Dados padrão do ensaio (só fazem sentido quando tipoInstrumento='ultrassom'):
+  acoplante?: string;
+  cabecote?: string;                 // ex.: "2.25 mhz"
+  velocidadeSonica?: string;         // ex.: "5920"
+  estadoSuperficie?: string;
+  tempSuperficie?: string;           // ex.: "Ambiente"
 }
 
 const PREFIXO = 'nr13_rastreab_';
