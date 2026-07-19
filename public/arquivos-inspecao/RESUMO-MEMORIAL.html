@@ -251,13 +251,11 @@
         <!-- Wrapper do conteúdo que cresce: altura limitada (flex:1 + overflow:hidden) p/ o auto-shrink medir -->
         <div class="resumo-body" id="resumo-body">
         <div class="section-title">DADOS GERAIS</div>
-        <div class="f-grid f-grid-1-2">
+        <div class="f-grid">
             <div class="f"><span class="f-lbl">CONTRATANTE</span><div class="f-val" id="res-cliente" contenteditable="true">--</div></div>
-            <div class="f"><span class="f-lbl">RASTREABILIDADE</span><div class="f-val" id="res-rastreab" contenteditable="true">--</div></div>
         </div>
-        <div class="f-grid f-grid-1-2">
+        <div class="f-grid">
             <div class="f"><span class="f-lbl">ENDEREÇO</span><div class="f-val" id="res-endereco" contenteditable="true">--</div></div>
-            <div class="f"><span class="f-lbl">DATA DA INSPEÇÃO</span><div class="f-val" id="res-data-insp" contenteditable="true">--</div></div>
         </div>
 
         <div class="section-title">ASPECTOS GERAIS DO EQUIPAMENTO</div>
@@ -486,13 +484,6 @@
             const dados3D = vasoStr ? JSON.parse(vasoStr) : null;
             const meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}');
 
-            const formatarDataBR = (str) => {
-                if (!str) return null;
-                const partes = str.split('-');
-                if (partes.length === 3) return `${partes[2]}/${partes[1]}/${partes[0]}`;
-                return str;
-            };
-
             // ===== CABEÇALHO / DADOS GERAIS =====
             setVal('res-cliente', emp.razaoSocial || emp.nome);
             let endereco = [];
@@ -500,9 +491,6 @@
             if (emp.bairro) endereco.push(emp.bairro);
             if (emp.localidade) endereco.push(emp.localidade);
             if (endereco.length > 0) setVal('res-endereco', endereco.join(' - '));
-
-            setVal('res-rastreab', meta.codigo);
-            setVal('res-data-insp', formatarDataBR(meta.execucaoInspecao));
 
             setVal('res-identificacao', info.tag || tagAtual);
             setVal('res-serie', info.numeroSerie || info.serie);
@@ -782,7 +770,6 @@
             try { info = JSON.parse(localStorage.getItem('nr13_info_' + tagAtual) || '{}'); } catch(e) {}
             try { emp = JSON.parse(localStorage.getItem('nr13_emp_' + tagAtual) || '{}'); } catch(e) {}
             try { meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}'); } catch(e) {}
-            var fmtData = function(str) { if (!str) return null; var p = String(str).split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : str; };
             setVal('resumo-rel-num', meta.codigo);
             setVal('resumo-rel-data', window.NR13_DATA_INSP ? window.NR13_DATA_INSP(meta.emissao) : meta.emissao);
             setVal('res-cliente', emp.razaoSocial || emp.nome);
@@ -791,8 +778,6 @@
             if (emp.bairro) endereco.push(emp.bairro);
             if (emp.localidade) endereco.push(emp.localidade);
             if (endereco.length) setVal('res-endereco', endereco.join(' - '));
-            setVal('res-rastreab', meta.codigo);
-            setVal('res-data-insp', fmtData(meta.execucaoInspecao));
             setVal('res-identificacao', info.tag || tagAtual);
             setVal('res-serie', info.numeroSerie || info.serie);
             setVal('res-tipo', info.descricao || info.tipo);
