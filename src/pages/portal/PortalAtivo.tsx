@@ -166,7 +166,8 @@ export default function PortalAtivo() {
   async function imprimirDocumento() {
     setImprimindo(true);
     try {
-      await imprimirRelatorio('.relatorio-preview');
+      // Certificados de rastreabilidade só acompanham RELATÓRIO (paridade com o exportarPdf).
+      await imprimirRelatorio('.relatorio-preview', !!relatorioAberto);
     } finally {
       setImprimindo(false);
     }
@@ -208,7 +209,7 @@ export default function PortalAtivo() {
     )
       .then(() => new Promise((r) => setTimeout(r, 500)))
       .then(() => {
-        if (!cancelado) void prepararFolhasImpressao('.relatorio-preview');
+        if (!cancelado) void prepararFolhasImpressao('.relatorio-preview', !!relatorioAberto);
       });
     return () => {
       cancelado = true;

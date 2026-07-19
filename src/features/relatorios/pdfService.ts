@@ -48,8 +48,10 @@ export async function exportarPdf(containerSelector: string, nomeArquivo: string
       }
       return;
     }
-  } catch {
-    /* merge indisponível: cai no save padrão abaixo */
+  } catch (e) {
+    // Merge indisponível (falha ao carregar o próprio PDF do relatório): cai no save padrão
+    // abaixo, mas deixa rastro — antes o certificado sumia sem nenhum sinal.
+    console.error('Falha ao anexar as rastreabilidades ao final do relatório:', e);
   }
 
   pdf.save(nomeArquivo);

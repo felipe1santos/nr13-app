@@ -69,7 +69,7 @@ function base64ParaBytes(b64: string): Uint8Array {
 export async function anexarRastreabilidades(
   pdfBytes: Uint8Array | ArrayBuffer,
 ): Promise<{ bytes: Uint8Array; anexados: number; falhas: string[] }> {
-  const marcadas = listarRastreabilidades().filter((r) => r.injetarNoRelatorio && r.pdfBase64);
+  const marcadas = listarRastreabilidades().filter((r) => r.injetarNoRelatorio);
   const base = new Uint8Array(pdfBytes instanceof ArrayBuffer ? new Uint8Array(pdfBytes) : pdfBytes);
   if (marcadas.length === 0) return { bytes: base, anexados: 0, falhas: [] };
 
@@ -78,12 +78,21 @@ export async function anexarRastreabilidades(
   const falhas: string[] = [];
 
   for (const r of marcadas) {
+    // PDF marcado mas sem conteúdo (perdido quando a cota do localStorage estourou na
+    // gravação): entra em `falhas` para o usuário ser avisado — nunca some em silêncio.
+    if (!r.pdfBase64) {
+      falhas.push(r.nome || r.id);
+      continue;
+    }
     try {
-      const anexo = await PDFDocument.load(base64ParaBytes(r.pdfBase64));
+      // ignoreEncryption: certificados oficiais costumam vir "protegidos" (sem senha de
+      // abertura); sem a flag o pdf-lib recusa o arquivo inteiro.
+      const anexo = await PDFDocument.load(base64ParaBytes(r.pdfBase64), { ignoreEncryption: true });
       const paginas = await doc.copyPages(anexo, anexo.getPageIndices());
       for (const p of paginas) doc.addPage(p);
       anexados++;
-    } catch {
+    } catch (e) {
+      console.error(`Rastreabilidade "${r.nome || r.id}": falha ao anexar o PDF ao relatório.`, e);
       falhas.push(r.nome || r.id);
     }
   }

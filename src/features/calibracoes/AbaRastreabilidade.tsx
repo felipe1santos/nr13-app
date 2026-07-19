@@ -81,6 +81,14 @@ export default function AbaRastreabilidade() {
     setSalvando(true);
     try {
       await salvarRastreabilidade(form);
+      // Round-trip no cache local: a cota do localStorage pode estourar em silêncio na gravação
+      // (storage.salvar não derruba a escrita) — sem o PDF no cache, o certificado nunca seria
+      // injetado no relatório e o usuário só descobriria na impressão.
+      const persistido = listarRastreabilidades().find((r) => r.id === form.id);
+      if (!persistido?.pdfBase64) {
+        setErro('O PDF é grande demais para o armazenamento local do navegador e não foi salvo. Comprima o arquivo (ideal até ~3 MB) e anexe novamente.');
+        return;
+      }
       setForm(null);
       recarregar();
     } finally {

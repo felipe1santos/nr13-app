@@ -1,4 +1,5 @@
 import html2canvas from 'html2canvas';
+import { listarRastreabilidades } from './rastreabilidadeService';
 
 // Impressão própria: o navegador quebra o conteúdo de <iframe> ao imprimir (sai em tiras / só 1
 // página). Aqui rasterizamos cada folha A4 (o body do iframe) em uma imagem e montamos um
@@ -262,6 +263,51 @@ export async function aguardarRecursosIframe(doc: Document | null | undefined): 
   }
 }
 
+// Rasteriza os PDFs de rastreabilidade marcados "injetar no relatório" em imagens de página
+// (pdfjs-dist, import dinâmico — só pesa quando há certificado marcado). Necessário porque o
+// fluxo de impressão imprime o #print-root de IMAGENS via window.print: o merge de PDF do
+// exportarPdf (pdf-lib) não alcança esse caminho, então sem isso o botão "Imprimir" saía sem
+// os certificados anexados.
+async function paginasRastreabilidadeComoImagens(): Promise<string[]> {
+  const marcadas = listarRastreabilidades().filter((r) => r.injetarNoRelatorio && r.pdfBase64);
+  if (marcadas.length === 0) return [];
+  const imagens: string[] = [];
+  try {
+    const pdfjs = await import('pdfjs-dist');
+    pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+      'pdfjs-dist/build/pdf.worker.min.mjs',
+      import.meta.url,
+    ).toString();
+    for (const r of marcadas) {
+      try {
+        const b64 = r.pdfBase64.includes(',') ? r.pdfBase64.slice(r.pdfBase64.indexOf(',') + 1) : r.pdfBase64;
+        const bin = atob(b64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        const tarefa = pdfjs.getDocument({ data: bytes });
+        const doc = await tarefa.promise;
+        for (let p = 1; p <= doc.numPages; p++) {
+          const page = await doc.getPage(p);
+          const original = page.getViewport({ scale: 1 });
+          // Mesma resolução das folhas rasterizadas: largura A4 em px CSS (794 @96dpi) × scale 2.
+          const viewport = page.getViewport({ scale: (794 * 2) / original.width });
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(viewport.width);
+          canvas.height = Math.round(viewport.height);
+          await page.render({ canvas, viewport }).promise;
+          imagens.push(canvas.toDataURL('image/jpeg', 0.95));
+        }
+        await tarefa.destroy();
+      } catch (e) {
+        console.error(`Rastreabilidade "${r.nome || r.id}": falha ao rasterizar o PDF para impressão.`, e);
+      }
+    }
+  } catch (e) {
+    console.error('pdfjs indisponível: certificados de rastreabilidade não entraram na impressão.', e);
+  }
+  return imagens;
+}
+
 function aguardarImagens(root: HTMLElement): Promise<void> {
   return Promise.all(
     Array.from(root.querySelectorAll('img')).map((img) =>
@@ -277,7 +323,12 @@ function aguardarImagens(root: HTMLElement): Promise<void> {
 
 // Rasteriza todas as folhas do preview e popula (ou atualiza) o #print-root oculto. Mantém o
 // container vivo para que o Ctrl+P nativo imprima as imagens prontas. Retorna a qtd de folhas.
-export async function prepararFolhasImpressao(containerSelector = '.relatorio-preview'): Promise<number> {
+// `incluirRastreabilidades`: só o RELATÓRIO anexa os certificados marcados ao final (§7 #22);
+// prontuário/calibrações/livro imprimem sem eles (default false preserva esses fluxos).
+export async function prepararFolhasImpressao(
+  containerSelector = '.relatorio-preview',
+  incluirRastreabilidades = false,
+): Promise<number> {
   if (gerando) return document.getElementById('print-root')?.childElementCount ?? 0;
   gerando = true;
   try {
@@ -307,6 +358,8 @@ export async function prepararFolhasImpressao(containerSelector = '.relatorio-pr
       });
       imagens.push(canvas.toDataURL('image/jpeg', 0.95));
     }
+
+    if (incluirRastreabilidades) imagens.push(...(await paginasRastreabilidadeComoImagens()));
 
     let root = document.getElementById('print-root');
     if (!root) {
@@ -338,11 +391,10 @@ export function limparFolhasImpressao(): void {
 }
 
 // Botão "Imprimir": garante folhas atualizadas e abre o diálogo nativo.
-export async function imprimirRelatorio(containerSelector = '.relatorio-preview'): Promise<void> {
-  const n = await prepararFolhasImpressao(containerSelector);
-  if (n === 0) {
-    window.print();
-    return;
-  }
+export async function imprimirRelatorio(
+  containerSelector = '.relatorio-preview',
+  incluirRastreabilidades = false,
+): Promise<void> {
+  await prepararFolhasImpressao(containerSelector, incluirRastreabilidades);
   window.print();
 }

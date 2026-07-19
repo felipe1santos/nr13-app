@@ -147,18 +147,11 @@ export default function Relatorios() {
     const precisaUS = nomes.includes('ULTRASSOM.html');
     const precisaTH = nomes.includes('TESTE-HIDROSTATICO.html');
     if (!precisaUS && !precisaTH) return false;
-    const regs = listarRastreabilidades();
-    // Mesma cadeia de compatibilidade dos templates: tipo explícito OU registro legado sem tipo
-    // (que os templates aceitam via "injetar no relatório" / nome do instrumento).
-    const compat = (tipo: 'ultrassom' | 'manometro', nomeRe: RegExp) =>
-      regs.some(
-        (r) =>
-          r.tipoInstrumento === tipo ||
-          (!r.tipoInstrumento && (r.injetarNoRelatorio || nomeRe.test(r.nome || ''))),
-      );
-    const okUS = !precisaUS || compat('ultrassom', /ultra.?s?om|espessura/i);
-    const okTH = !precisaTH || compat('manometro', /man[oô]metro/i);
-    return !(okUS && okTH);
+    // Basta existir QUALQUER rastreabilidade cadastrada para o aviso sumir: exigir um registro
+    // por tipo de ensaio fazia o aviso aparecer mesmo com o cadastro feito (ex.: relatório com
+    // TH e instrumento cadastrado como ultrassom). Os templates seguem escolhendo o registro
+    // compatível por conta própria.
+    return listarRastreabilidades().length === 0;
   }, [tela, documentos, versao]);
 
   const historicoVisivel = historico.filter((r) => filtroTipos.has(r.tipo));
@@ -175,7 +168,7 @@ export default function Relatorios() {
   async function prepararEImprimir() {
     setImprimindo(true);
     try {
-      await imprimirRelatorio('.relatorio-preview');
+      await imprimirRelatorio('.relatorio-preview', true);
       registrarUso('impressao');
     } finally {
       setImprimindo(false);
@@ -201,7 +194,7 @@ export default function Relatorios() {
     aguardarIframes
       .then(() => new Promise((r) => setTimeout(r, 500))) // deixa imagens/fontes dos templates assentarem
       .then(() => {
-        if (!cancelado) void prepararFolhasImpressao('.relatorio-preview');
+        if (!cancelado) void prepararFolhasImpressao('.relatorio-preview', true);
       });
     return () => {
       cancelado = true;
