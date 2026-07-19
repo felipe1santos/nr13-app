@@ -14,9 +14,12 @@
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
 
-    <!-- Design novo do memorial (mesmo visual do terminal da calculadora) -->
-    <link rel="stylesheet" href="memorial-calc-novo.css">
-    <script src="memorial-calc-novo.js"></script>
+    <!-- Design novo do memorial (mesmo visual do terminal da calculadora).
+         Caminho ABSOLUTO obrigatório: o clone do html2canvas (Imprimir/Baixar PDF) herda a URL
+         do app, e um href relativo resolvia para fora de /arquivos-inspecao/ → folha impressa
+         saía sem o CSS (texto monoespaçado cru, sem frações/cores). -->
+    <link rel="stylesheet" href="/arquivos-inspecao/memorial-calc-novo.css">
+    <script src="/arquivos-inspecao/memorial-calc-novo.js"></script>
 
     <style>
         :root { --text-dark: #111827; --border-box: #c7c7c7; --blue-data: #0033a2; --bg-table-header: #eff0f1; --bg-table-sub: #f9fafb; }
@@ -206,7 +209,9 @@
         var info = JSON.parse(localStorage.getItem('nr13_info_' + tag) || '{}');
         var calc = JSON.parse(localStorage.getItem('nr13_calc_' + tag) || '{}');
         var calcGv = JSON.parse(localStorage.getItem('nr13_calc_gv_' + tag) || '{}');
-        var pref = localStorage.getItem('nr13_pref_unidade_' + tag) || 'SI';
+        // A chave é gravada via JSON.stringify ("TECNICO" COM aspas) — sem tirar as aspas,
+        // FATORES[pref] nunca casava e a folha imprimia sempre em MPa (ignorava a unidade da ficha).
+        var pref = (localStorage.getItem('nr13_pref_unidade_' + tag) || 'SI').replace(/"/g, '');
 
         // Cabeçalho
         if (empresa.logo) document.getElementById('imgLogo').src = empresa.logo;
