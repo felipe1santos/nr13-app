@@ -146,6 +146,39 @@ export function extensaoAceita(nomeArquivo: string): boolean {
   return EXTENSOES_ACEITAS.some((ext) => nome.endsWith(ext));
 }
 
+/**
+ * Abre o workbook respeitando a codificação do CSV.
+ *
+ * Os formatos binários (.xlsx/.xls/.ods) já carregam a codificação dentro do arquivo, então vão
+ * direto. CSV é texto cru: sem BOM o SheetJS assume a codepage do sistema (CP1252 no Windows), e
+ * um arquivo UTF-8 sem BOM chega com os acentos quebrados — "Nº Série" virava "NÂº SÃ©rie", a
+ * canonização não batia e a coluna sumia em silêncio. Isso acertava justamente o export CSV do
+ * Google Sheets, que é UTF-8 sem BOM.
+ *
+ * Ordem: BOM presente manda; senão tenta UTF-8 estrito, e só cai para CP1252 quando a decodificação
+ * falha — que é o caso do CSV salvo pelo Excel do Windows em ANSI.
+ */
+function lerWorkbook(buffer: ArrayBuffer, nomeArquivo: string): XLSX.WorkBook {
+  if (!nomeArquivo.toLowerCase().endsWith('.csv')) {
+    return XLSX.read(buffer, { type: 'array', cellDates: true });
+  }
+
+  const bytes = new Uint8Array(buffer);
+  const temBom = bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf;
+  if (temBom) {
+    const texto = new TextDecoder('utf-8').decode(bytes.subarray(3));
+    return XLSX.read(texto, { type: 'string', cellDates: true });
+  }
+
+  try {
+    const texto = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    return XLSX.read(texto, { type: 'string', cellDates: true });
+  } catch {
+    // Não é UTF-8 válido: deixa o SheetJS aplicar a codepage legada (CP1252).
+    return XLSX.read(buffer, { type: 'array', cellDates: true, codepage: 1252 });
+  }
+}
+
 /** Lê o arquivo e devolve a análise completa (nada é gravado aqui). */
 export async function analisarPlanilha(arquivo: File): Promise<AnalisePlanilha> {
   if (!extensaoAceita(arquivo.name)) {
@@ -153,7 +186,7 @@ export async function analisarPlanilha(arquivo: File): Promise<AnalisePlanilha> 
   }
 
   const buffer = await arquivo.arrayBuffer();
-  const wb = XLSX.read(buffer, { type: 'array', cellDates: true });
+  const wb = lerWorkbook(buffer, arquivo.name);
   const primeira = wb.SheetNames[0];
   if (!primeira) throw new Error('A planilha não tem nenhuma aba.');
 
