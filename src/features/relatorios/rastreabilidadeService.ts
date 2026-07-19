@@ -7,7 +7,14 @@ import { ler, salvar, excluirChave, listarChavesComPrefixo } from '../../service
  * injetá-lo automaticamente no FINAL do relatório gerado (facilita a impressão).
  * Chave: nr13_rastreab_<id> (sincroniza pela nuvem como qualquer outra).
  */
-export type TipoInstrumento = 'ultrassom' | 'manometro' | 'outro';
+export type TipoInstrumento =
+  | 'ultrassom'
+  | 'manometro'
+  | 'pressostato'
+  | 'termostato'
+  | 'manovacuometro'
+  | 'termometro'
+  | 'outro';
 
 export interface Rastreabilidade {
   id: string;
@@ -28,6 +35,15 @@ export interface Rastreabilidade {
   velocidadeSonica?: string;         // ex.: "5920"
   estadoSuperficie?: string;
   tempSuperficie?: string;           // ex.: "Ambiente"
+  // Equipamentos vinculados (TAGs). Ausente/vazio = padrão GLOBAL, vale para todos
+  // (comportamento dos registros antigos — zero migração).
+  tags?: string[];
+}
+
+/** true se o padrão vale para a TAG (global quando não há vínculo). */
+export function aplicaAoEquipamento(r: Rastreabilidade, tag?: string | null): boolean {
+  if (!r.tags?.length) return true;
+  return !!tag && r.tags.includes(tag);
 }
 
 const PREFIXO = 'nr13_rastreab_';
@@ -68,8 +84,11 @@ function base64ParaBytes(b64: string): Uint8Array {
  */
 export async function anexarRastreabilidades(
   pdfBytes: Uint8Array | ArrayBuffer,
+  tag?: string | null,
 ): Promise<{ bytes: Uint8Array; anexados: number; falhas: string[] }> {
-  const marcadas = listarRastreabilidades().filter((r) => r.injetarNoRelatorio);
+  const marcadas = listarRastreabilidades().filter(
+    (r) => r.injetarNoRelatorio && aplicaAoEquipamento(r, tag),
+  );
   const base = new Uint8Array(pdfBytes instanceof ArrayBuffer ? new Uint8Array(pdfBytes) : pdfBytes);
   if (marcadas.length === 0) return { bytes: base, anexados: 0, falhas: [] };
 

@@ -1,5 +1,6 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Icone } from '../../components/Icone';
+import { listarChavesComPrefixo } from '../../services/storage';
 import {
   excluirRastreabilidade,
   listarRastreabilidades,
@@ -29,6 +30,10 @@ const VAZIA = (): Rastreabilidade => ({
 const ROTULO_TIPO: Record<TipoInstrumento, string> = {
   ultrassom: 'Ultrassom (ME)',
   manometro: 'Manômetro',
+  pressostato: 'Pressostato',
+  termostato: 'Termostato',
+  manovacuometro: 'Manovacuômetro',
+  termometro: 'Termômetro',
   outro: 'Outro',
 };
 
@@ -46,6 +51,25 @@ export default function AbaRastreabilidade() {
 
   function recarregar() {
     setItens(listarRastreabilidades());
+  }
+
+  // TAGs de todos os equipamentos cadastrados — para vincular o padrão a equipamentos
+  // específicos. Sem vínculo, o padrão é GLOBAL (comportamento dos registros antigos).
+  const tagsEquipamentos = useMemo(
+    () =>
+      listarChavesComPrefixo('nr13_info_')
+        .map((c) => c.slice('nr13_info_'.length))
+        .sort((a, b) => a.localeCompare(b)),
+    [],
+  );
+
+  function alternarTag(tag: string) {
+    setForm((f) => {
+      if (!f) return f;
+      const atuais = f.tags ?? [];
+      const tags = atuais.includes(tag) ? atuais.filter((t) => t !== tag) : [...atuais, tag];
+      return { ...f, tags };
+    });
   }
 
   function set<K extends keyof Rastreabilidade>(chave: K, valor: Rastreabilidade[K]) {
@@ -166,6 +190,46 @@ export default function AbaRastreabilidade() {
             </div>
           </div>
 
+          <div style={{ marginTop: 14 }}>
+            <div style={{ fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--muted)', marginBottom: 8 }}>
+              Equipamentos vinculados (nenhum marcado = vale para todos)
+            </div>
+            {tagsEquipamentos.length === 0 ? (
+              <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>Nenhum equipamento cadastrado.</span>
+            ) : (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {tagsEquipamentos.map((t) => {
+                  const marcado = (form.tags ?? []).includes(t);
+                  return (
+                    <label
+                      key={t}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        fontSize: 12.5,
+                        cursor: 'pointer',
+                        padding: '4px 10px',
+                        borderRadius: 999,
+                        border: '1px solid var(--line, #d5d9dd)',
+                        background: marcado ? 'var(--amber-bg, rgba(240,177,42,.14))' : 'transparent',
+                        fontWeight: marcado ? 700 : 500,
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={marcado}
+                        onChange={() => alternarTag(t)}
+                        style={{ accentColor: 'var(--amber)' }}
+                      />
+                      {t}
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           {form.tipoInstrumento === 'ultrassom' && (
             <div style={{ marginTop: 14 }}>
               <div style={{ fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--muted)', marginBottom: 8 }}>
@@ -253,6 +317,7 @@ export default function AbaRastreabilidade() {
                   <th>Aparelho / Nº série</th>
                   <th>Certificado</th>
                   <th>Validade</th>
+                  <th>Equipamentos</th>
                   <th>Injetar no relatório</th>
                   <th>Ações</th>
                 </tr>
@@ -280,6 +345,11 @@ export default function AbaRastreabilidade() {
                     </td>
                     <td className="mono">{r.certificadoPadrao || <span className="fj-dash">—</span>}</td>
                     <td className="mono">{r.validade || <span className="fj-dash">—</span>}</td>
+                    <td>
+                      {r.tags?.length
+                        ? <span className="mono" style={{ fontSize: 11.5 }}>{r.tags.join(', ')}</span>
+                        : <span className="fj-badge neutro">Todos</span>}
+                    </td>
                     <td>
                       <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 12 }}>
                         <input

@@ -648,12 +648,19 @@
                     } catch (e2) {}
                 }
                 candidatos.sort(function (a, b) { return String(a.nome || '').localeCompare(String(b.nome || '')); });
+                // Vínculo com equipamentos (tags[]): padrão vinculado a OUTRAS TAGs não vale
+                // aqui; entre os válidos, o vinculado a ESTA TAG vence o global (sem vínculo).
+                var tagFolha = new URLSearchParams(window.location.search).get('tag') || '';
+                var aplicaAqui = function (c) { return !(c.tags && c.tags.length) || (tagFolha && c.tags.indexOf(tagFolha) !== -1); };
+                var candidatosValidos = candidatos.filter(aplicaAqui);
                 var nomeMatch = function (n) { return /man[oô]metro/i.test(n || ''); };
                 // Fallbacks só entre registros SEM tipo (legados): registro tipado como
                 // ultrassom/outro nunca preenche o bloco de manômetro do TH.
-                var semTipo = candidatos.filter(function (c) { return !c.tipoInstrumento; });
+                var semTipo = candidatosValidos.filter(function (c) { return !c.tipoInstrumento; });
+                var doTipo = candidatosValidos.filter(function (c) { return c.tipoInstrumento === 'manometro'; });
                 var escolhido =
-                    candidatos.find(function (c) { return c.tipoInstrumento === 'manometro'; }) ||
+                    doTipo.find(function (c) { return c.tags && c.tags.length; }) ||
+                    doTipo[0] ||
                     semTipo.find(function (c) { return c.injetarNoRelatorio; }) ||
                     semTipo.find(function (c) { return nomeMatch(c.nome); }) ||
                     null;

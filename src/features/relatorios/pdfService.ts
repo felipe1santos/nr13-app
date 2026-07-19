@@ -5,7 +5,14 @@ import { ALTURA_A4_PX, aguardarRecursosIframe, garantirFonteInterHost, normaliza
 
 // Mesmos parâmetros do relatorios.js original: jsPDF('p','mm','a4'), html2canvas scale:2,
 // JPEG 0.95, addImage cobrindo a folha A4 inteira (0,0,210,297mm).
-export async function exportarPdf(containerSelector: string, nomeArquivo: string): Promise<void> {
+export async function exportarPdf(
+  containerSelector: string,
+  nomeArquivo: string,
+  // Só o RELATÓRIO anexa os certificados de rastreabilidade ao final (§7 #22) — livro
+  // standalone e documentos simples do portal exportam sem eles. `tag` filtra padrões
+  // vinculados a equipamentos específicos (sem vínculo = global, vale para todos).
+  opts: { rastreabilidades?: boolean; tag?: string | null } = {},
+): Promise<void> {
   const paginas = Array.from(document.querySelectorAll<HTMLElement>(`${containerSelector} .pagina-relatorio-a4`));
   const pdf = new jsPDF('p', 'mm', 'a4');
 
@@ -40,7 +47,11 @@ export async function exportarPdf(containerSelector: string, nomeArquivo: string
   // "injetar no relatório" são mesclados ao FINAL. Sem itens marcados, o fluxo
   // é idêntico ao original (save direto). Falha no merge não bloqueia o download.
   try {
-    const { bytes, anexados, falhas } = await anexarRastreabilidades(pdf.output('arraybuffer'));
+    if (!opts.rastreabilidades) {
+      pdf.save(nomeArquivo);
+      return;
+    }
+    const { bytes, anexados, falhas } = await anexarRastreabilidades(pdf.output('arraybuffer'), opts.tag);
     if (anexados > 0 || falhas.length > 0) {
       baixarBytes(bytes, nomeArquivo);
       if (falhas.length > 0) {

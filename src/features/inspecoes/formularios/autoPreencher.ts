@@ -10,7 +10,7 @@ import { ler } from '../../../services/storage';
 import type { CategoriaSalva, EmpresaEquipamento, InfoEquipamento } from '../../equipamento/tipos';
 import type { ComponenteResumo } from '../../memorial/tiposMemorial';
 import type { VasoSalvo } from '../../memorial/vasoMemorialService';
-import { listarRastreabilidades, type Rastreabilidade } from '../../relatorios/rastreabilidadeService';
+import { aplicaAoEquipamento, listarRastreabilidades, type Rastreabilidade } from '../../relatorios/rastreabilidadeService';
 
 const MPA_PARA_KGFCM2 = 10.19716;
 
@@ -102,15 +102,21 @@ function todasRastreabilidades(): Rastreabilidade[] {
   }
 }
 
+/** Padrões válidos para a TAG: vinculado a outra TAG sai; vinculado a ESTA TAG vem antes do global. */
+function rastreabilidadesDaTag(tag: string): Rastreabilidade[] {
+  const validas = todasRastreabilidades().filter((r) => aplicaAoEquipamento(r, tag));
+  return [...validas.filter((r) => r.tags?.length), ...validas.filter((r) => !r.tags?.length)];
+}
+
 /** Padrão de ultrassom: prefere o que tem validade preenchida; senão o 1º de ultrassom. */
-function rastreabilidadeUltrassom(): Rastreabilidade | null {
-  const us = todasRastreabilidades().filter((r) => r?.tipoInstrumento === 'ultrassom');
+function rastreabilidadeUltrassom(tag: string): Rastreabilidade | null {
+  const us = rastreabilidadesDaTag(tag).filter((r) => r?.tipoInstrumento === 'ultrassom');
   return us.find((r) => texto(r.validade) !== null) ?? us[0] ?? null;
 }
 
 /** Padrão citado no relatório: prefere o marcado `injetarNoRelatorio`; senão o 1º cadastrado. */
-function rastreabilidadeDoRelatorio(): Rastreabilidade | null {
-  const todas = todasRastreabilidades();
+function rastreabilidadeDoRelatorio(tag: string): Rastreabilidade | null {
+  const todas = rastreabilidadesDaTag(tag);
   return todas.find((r) => r?.injetarNoRelatorio) ?? todas[0] ?? null;
 }
 
@@ -152,7 +158,7 @@ export function prefillUltrassom(tag: string): PrefillUltrassom {
   por(saida, 'material', casco.material ?? null);
   por(saida, 'espNomCasco', casco.espNomCasco ?? null);
 
-  const r = rastreabilidadeUltrassom();
+  const r = rastreabilidadeUltrassom(tag);
   if (r) {
     por(saida, 'aparelho', juntar(texto(r.aparelho), texto(r.numeroSerie), 'Nº '));
     por(saida, 'acoplante', texto(r.acoplante));
@@ -196,7 +202,7 @@ export function prefillVisual(tag: string): PrefillVisual {
   por(saida, 'tipoEquipamento', descricaoEquipamento(info));
   por(saida, 'fabricante', texto(info?.fabricante));
 
-  const r = rastreabilidadeDoRelatorio();
+  const r = rastreabilidadeDoRelatorio(tag);
   if (r) por(saida, 'rastreabilidade', juntar(texto(r.nome), texto(r.certificadoPadrao), 'Cert. '));
 
   return saida;

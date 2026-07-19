@@ -448,6 +448,11 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     }
   } catch (_) {}
+  // Vínculo com equipamentos (tags[]): padrão vinculado a outras TAGs não aparece
+  // neste prontuário; sem vínculo (registros antigos) = global, aparece sempre.
+  itensRastreab = itensRastreab.filter(function (it) {
+    return !(it.tags && it.tags.length) || (tag && it.tags.indexOf(tag) !== -1);
+  });
 
   var corpoRastreab = document.getElementById('tabela-rastreab-body');
   if (corpoRastreab) {

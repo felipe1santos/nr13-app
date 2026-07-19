@@ -752,12 +752,19 @@
                     } catch (e2) {}
                 }
                 candidatos.sort(function (a, b) { return String(a.nome || '').localeCompare(String(b.nome || '')); });
+                // Vínculo com equipamentos (tags[]): padrão vinculado a OUTRAS TAGs não vale
+                // aqui; entre os válidos, o vinculado a ESTA TAG vence o global (sem vínculo).
+                var tagFolha = new URLSearchParams(window.location.search).get('tag') || '';
+                var aplicaAqui = function (c) { return !(c.tags && c.tags.length) || (tagFolha && c.tags.indexOf(tagFolha) !== -1); };
+                var candidatosValidos = candidatos.filter(aplicaAqui);
                 const nomeMatch = (n) => /ultra.?s?om|espessura/i.test(n || '');
                 // Fallbacks só entre registros SEM tipo (legados): um registro tipado
                 // explicitamente como manômetro/outro nunca preenche o bloco do ultrassom.
-                const semTipo = candidatos.filter((c) => !c.tipoInstrumento);
+                const semTipo = candidatosValidos.filter((c) => !c.tipoInstrumento);
+                const doTipo = candidatosValidos.filter((c) => c.tipoInstrumento === 'ultrassom');
                 const escolhido =
-                    candidatos.find((c) => c.tipoInstrumento === 'ultrassom') ||
+                    doTipo.find((c) => c.tags && c.tags.length) ||
+                    doTipo[0] ||
                     semTipo.find((c) => c.injetarNoRelatorio) ||
                     semTipo.find((c) => nomeMatch(c.nome)) ||
                     null;
