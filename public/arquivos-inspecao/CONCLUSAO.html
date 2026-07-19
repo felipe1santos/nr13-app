@@ -435,11 +435,11 @@
             <div class="f-row" style="margin-bottom: 8px;">
                 <div class="f" style="background-color: #f9fafb; min-height: 36px; padding: 4px 12px;">
                     <span class="f-lbl">EXAME VISUAL EXTERNO</span>
-                    <div class="f-val"><input type="text" id="concl-prox-externa" placeholder="DD/MM/AAAA" style="text-align: center; font-size: 11px;"></div>
+                    <div class="f-val"><input type="text" id="concl-prox-externa" placeholder="DD/MM/AAAA" style="text-align: center; font-size: 11px; color: #005f73;"></div>
                 </div>
                 <div class="f" style="background-color: #f9fafb; min-height: 36px; padding: 4px 12px;">
                     <span class="f-lbl">EXAME VISUAL INTERNO</span>
-                    <div class="f-val"><input type="text" id="concl-prox-interna" placeholder="DD/MM/AAAA" style="text-align: center; font-size: 11px;"></div>
+                    <div class="f-val"><input type="text" id="concl-prox-interna" placeholder="DD/MM/AAAA" style="text-align: center; font-size: 11px; color: #005f73;"></div>
                 </div>
             </div>
 
@@ -458,6 +458,7 @@
 
     </div>
 
+    <script src="/sb-storage.js"></script>
     <script src="/rel-assinatura.js?v=10"></script>
     <script>
         // Imagem Preview (Logo)
@@ -482,7 +483,10 @@
                     const tagLaudo = new URLSearchParams(window.location.search).get('tag');
                     if (!tagLaudo) return;
                     const metaLaudo = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}');
-                    localStorage.setItem('nr13_laudo_' + tagLaudo, JSON.stringify({
+                    // sbSalvar sincroniza com o Supabase (sb-storage.js); só-local, o reconcile
+                    // do lerTudo() apagava o laudo APTO/INAPTO no próximo F5.
+                    var gravarLaudo = window.sbSalvar || function (k, v) { localStorage.setItem(k, v); };
+                    gravarLaudo('nr13_laudo_' + tagLaudo, JSON.stringify({
                         apto: opt.classList.contains('opt-sim'),
                         relatorioCodigo: metaLaudo.codigo || '',
                         atualizadoEm: new Date().toISOString()
@@ -498,6 +502,12 @@
                 if (_meta.codigo && document.getElementById('concl-rel')) document.getElementById('concl-rel').innerText = _meta.codigo;
                 var _dataCab = window.NR13_DATA_INSP ? window.NR13_DATA_INSP(_meta.emissao) : _meta.emissao;
                 if (_dataCab && document.getElementById('concl-data')) document.getElementById('concl-data').innerText = _dataCab;
+
+                // Prazo da próxima inspeção (Configurações do Relatório → meta). Vazio mantém placeholder.
+                var _proxExt = document.getElementById('concl-prox-externa');
+                var _proxInt = document.getElementById('concl-prox-interna');
+                if (_proxExt && _meta.proximaInspecaoExterna) _proxExt.value = _meta.proximaInspecaoExterna;
+                if (_proxInt && _meta.proximaInspecaoInterna) _proxInt.value = _meta.proximaInspecaoInterna;
             } catch (e) {}
 
             // Restaura o laudo APTO/INAPTO salvo (nr13_laudo_<TAG>) — só se for deste relatório.
