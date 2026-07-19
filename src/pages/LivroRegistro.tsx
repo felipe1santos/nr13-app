@@ -43,6 +43,15 @@ const ROTULO_TIPO: Record<string, string> = {
   autoclave: 'Autoclave',
 };
 
+// A entrada automática grava a data já em dd/mm/aaaa, mas a ocorrência manual vem do <input
+// type="date">, que devolve aaaa-mm-dd. Sem normalizar, o livro mistura os dois formatos na mesma
+// lista. Só converte o que está em ISO; qualquer outro formato passa intacto.
+function dataBR(data: string | undefined): string {
+  const bruta = String(data || '').trim();
+  const iso = bruta.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return iso ? `${iso[3]}/${iso[2]}/${iso[1]}` : bruta;
+}
+
 // Cor do badge por tipo de entrada — mesma paleta de badges do sistema (fj-badge), só varia
 // a cor por tipo pra dar leitura rápida rolando a linha do tempo.
 const COR_TIPO: Record<string, string> = {
@@ -240,7 +249,7 @@ export default function LivroRegistro() {
       ...FORM_OCORRENCIA_VAZIO,
       data: new Date().toISOString().slice(0, 10),
       tipoOcorrencia: 'Outra ocorrência',
-      oQueFoiFeito: `Retificação do registro de ${entrada.data}`,
+      oQueFoiFeito: `Retificação do registro de ${dataBR(entrada.data)}`,
       retificaDe: entrada.id ?? '',
     });
     setErroForm('');
@@ -374,7 +383,7 @@ export default function LivroRegistro() {
                         <span className="lrhist-num">#{numeroRegistro}</span>
                         <div className="lrhist-corpo">
                           <div className="lrhist-cab">
-                            <span className="lrhist-data">{entrada.data || '—'}</span>
+                            <span className="lrhist-data">{dataBR(entrada.data) || '—'}</span>
                             <span className="lrhist-tipo">{entrada.tipo}</span>
                             {mostraApto && (
                               <span className={`lrhist-selo ${entrada.apto ? 'ok' : 'crit'}`}>
@@ -465,7 +474,7 @@ export default function LivroRegistro() {
                           <span className={`fj-badge ${entrada.apto ? 'ok' : 'crit'}`}>{entrada.apto ? 'Apto' : 'Inapto'}</span>
                         )}
                         {entrada.origem === 'manual' && <span className="selo-flat manual">manual</span>}
-                        <span className="livro-timeline-data">{entrada.data}</span>
+                        <span className="livro-timeline-data">{dataBR(entrada.data)}</span>
                       </div>
                       {retificada && (
                         <div className="livro-timeline-desc" style={{ fontStyle: 'italic' }}>
