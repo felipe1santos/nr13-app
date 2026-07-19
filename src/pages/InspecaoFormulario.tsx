@@ -8,7 +8,8 @@ import FormularioVisualInterno from '../features/inspecoes/formularios/Formulari
 import FormularioTH from '../features/inspecoes/formularios/FormularioTH';
 import VisualizadorFormulario from '../features/inspecoes/VisualizadorFormulario';
 import { carregarContainer, carregarDadosFormulario } from '../features/inspecoes/inspecaoService';
-import { gravarInspecaoOrigemAtual } from '../features/relatorios/relatoriosService';
+import { gravarInspecaoOrigemAtual, gravarMetaAtual } from '../features/relatorios/relatoriosService';
+import type { RelatorioMeta } from '../features/relatorios/tipos';
 import '../features/inspecoes/formularios.css';
 import '../features/inspecoes/visualizador.css';
 import './relatorios.css';
@@ -22,7 +23,12 @@ function PreviewDocumento({ tag, containerId, formulario }: { tag: string; conta
 
   useEffect(() => {
     const container = carregarContainer(tag, containerId);
-    gravarInspecaoOrigemAtual(container?.dados ?? {}).then(() => setPronto(true));
+    // Meta vazia: sem isso o cabeçalho das folhas do preview mostrava código/emissão/assinantes
+    // do último relatório aberto no visualizador (chave nr13_relatorio_meta_atual ficava suja).
+    Promise.all([
+      gravarInspecaoOrigemAtual(container?.dados ?? {}),
+      gravarMetaAtual({} as RelatorioMeta),
+    ]).then(() => setPronto(true));
   }, [tag, containerId]);
 
   if (!pronto) return <p style={{ padding: 20, color: '#6b7280' }}>Montando documento...</p>;
@@ -32,7 +38,7 @@ function PreviewDocumento({ tag, containerId, formulario }: { tag: string; conta
     <div className="relatorio-preview">
       {docs.map((doc, i) => (
         <PaginaA4 key={`${doc}-${i}`}>
-          <iframe src={`/arquivos-inspecao/${doc}?tag=${tag}&page=${i + 1}`} scrolling="no" title={doc} />
+          <iframe src={`/arquivos-inspecao/${doc}?tag=${encodeURIComponent(tag)}&page=${i + 1}`} scrolling="no" title={doc} />
         </PaginaA4>
       ))}
     </div>

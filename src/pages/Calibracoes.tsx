@@ -1158,7 +1158,7 @@ export default function Calibracoes() {
           <div className="cal-preview">
             <PaginaA4 key={`${calAtual.id}-${versao}`}>
               <iframe
-                src={`/arquivos-inspecao/${arquivoCalibracao(calAtual.tipo)}?calibId=${calAtual.id}&tag=${tag}&page=1`}
+                src={`/arquivos-inspecao/${arquivoCalibracao(calAtual.tipo)}?calibId=${calAtual.id}&tag=${encodeURIComponent(tag)}&page=1`}
                 scrolling="no"
                 title="Certificado de Calibração"
               />

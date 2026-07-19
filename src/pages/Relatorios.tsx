@@ -168,7 +168,7 @@ export default function Relatorios() {
   async function prepararEImprimir() {
     setImprimindo(true);
     try {
-      await imprimirRelatorio('.relatorio-preview', true);
+      await imprimirRelatorio('.relatorio-preview', true, tag);
       registrarUso('impressao');
     } finally {
       setImprimindo(false);
@@ -194,7 +194,7 @@ export default function Relatorios() {
     aguardarIframes
       .then(() => new Promise((r) => setTimeout(r, 500))) // deixa imagens/fontes dos templates assentarem
       .then(() => {
-        if (!cancelado) void prepararFolhasImpressao('.relatorio-preview', true);
+        if (!cancelado) void prepararFolhasImpressao('.relatorio-preview', true, tag);
       });
     return () => {
       cancelado = true;
@@ -474,7 +474,7 @@ export default function Relatorios() {
     if (!meta) return;
     setExportando(true);
     try {
-      await exportarPdf('.relatorio-preview', `Relatorio_${meta.tipoInspecao.replace(/ /g, '_')}_${tag}.pdf`);
+      await exportarPdf('.relatorio-preview', `Relatorio_${meta.tipoInspecao.replace(/ /g, '_')}_${tag}.pdf`, { rastreabilidades: true, tag });
       registrarUso('pdf');
     } finally {
       setExportando(false);
@@ -779,7 +779,7 @@ export default function Relatorios() {
                 <PaginaA4 key={`${doc}-${i}-${versao}`}>
                   {/* ctx=rel: avisa rel-empresa.js/rel-assinatura.js que a folha roda dentro do
                       visualizador do relatório — usam os snapshots congelados da meta. */}
-                  <iframe src={`/arquivos-inspecao/${doc}${sep}tag=${tag}&page=${i + 1}&ctx=rel`} scrolling="no" title={doc} />
+                  <iframe src={`/arquivos-inspecao/${doc}${sep}tag=${encodeURIComponent(tag)}&page=${i + 1}&ctx=rel`} scrolling="no" title={doc} />
                 </PaginaA4>
               );
             })}

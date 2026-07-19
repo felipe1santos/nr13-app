@@ -1016,7 +1016,7 @@ export default function Prontuarios() {
             {PAGINAS_PRONTUARIO.map((doc, i) => (
               <PaginaA4 key={`${doc}-${i}-${versao}`}>
                 <iframe
-                  src={`/arquivos-prontuario/${doc}?tag=${tag}&page=${i + 1}&total=${PAGINAS_PRONTUARIO.length}`}
+                  src={`/arquivos-prontuario/${doc}?tag=${encodeURIComponent(tag)}&page=${i + 1}&total=${PAGINAS_PRONTUARIO.length}`}
                   scrolling="no"
                   title={doc}
                   onLoad={(e) => {

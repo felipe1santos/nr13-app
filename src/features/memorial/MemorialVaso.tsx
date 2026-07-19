@@ -245,9 +245,14 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
     if (!window.confirm('Salvar o cálculo do memorial? Os dados ficarão disponíveis em "Ver Memorial".')) return;
     setSalvando(true);
     try {
+      // Recalcula com os INPUTS ATUAIS: `resumo` guarda o último "Gerar Cálculo" e o usuário
+      // pode ter editado campos depois — salvar o resumo velho gravava nr13_calc_<TAG>
+      // inconsistente com nr13_vaso_<TAG> (PMTA do RESUMO-MEMORIAL não batia com os dados).
+      const resumoAtual = calcularResumoVaso(vaso);
+      setResumo(resumoAtual);
       await comLoadingGlobal('Salvando memorial...', async () => {
         await salvarVaso(tag, vaso, sufixo);
-        await salvarResumoVaso(tag, resumo, sufixo);
+        await salvarResumoVaso(tag, resumoAtual, sufixo);
       });
       setDirty(false);
       if (sufixo === 'gv') {

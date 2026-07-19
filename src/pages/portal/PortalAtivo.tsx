@@ -167,7 +167,7 @@ export default function PortalAtivo() {
     setImprimindo(true);
     try {
       // Certificados de rastreabilidade só acompanham RELATÓRIO (paridade com o exportarPdf).
-      await imprimirRelatorio('.relatorio-preview', !!relatorioAberto);
+      await imprimirRelatorio('.relatorio-preview', !!relatorioAberto, tag);
     } finally {
       setImprimindo(false);
     }
@@ -178,7 +178,8 @@ export default function PortalAtivo() {
     if (!titulo) return;
     setExportando(true);
     try {
-      await exportarPdf('.relatorio-preview', `${titulo.replace(/\s+/g, '_')}_${tag}.pdf`);
+      // Certificados de rastreabilidade só acompanham RELATÓRIO (documentos simples saem sem).
+      await exportarPdf('.relatorio-preview', `${titulo.replace(/\s+/g, '_')}_${tag}.pdf`, { rastreabilidades: !!relatorioAberto, tag });
     } finally {
       setExportando(false);
     }
@@ -187,7 +188,9 @@ export default function PortalAtivo() {
   const paginasAtivas = relatorioAberto
     ? docsVisiveis.map((doc, i) => {
         const sep = doc.includes('?') ? '&' : '?';
-        return `/arquivos-inspecao/${doc}${sep}tag=${encodeURIComponent(tag)}&page=${i + 1}`;
+        // &ctx=rel: relatório SALVO renderiza com os snapshots congelados da meta
+        // (empresa/assinantes do §7-bis), não com o cadastro vivo — igual ao visualizador.
+        return `/arquivos-inspecao/${doc}${sep}tag=${encodeURIComponent(tag)}&page=${i + 1}&ctx=rel`;
       })
     : documentoSimples?.paginas ?? null;
   const tituloAtivo = relatorioAberto?.nome ?? documentoSimples?.titulo ?? '';
@@ -209,7 +212,7 @@ export default function PortalAtivo() {
     )
       .then(() => new Promise((r) => setTimeout(r, 500)))
       .then(() => {
-        if (!cancelado) void prepararFolhasImpressao('.relatorio-preview', !!relatorioAberto);
+        if (!cancelado) void prepararFolhasImpressao('.relatorio-preview', !!relatorioAberto, tag);
       });
     return () => {
       cancelado = true;

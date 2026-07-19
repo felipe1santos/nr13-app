@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Icone } from '../../components/Icone';
 import { calcularESalvarCategoria, carregarCategoria } from './categoriaService';
-import { FATORES_CONVERSAO, paraExibicao, type SistemaUnidade } from '../../calc/unidades';
+import { FATORES_CONVERSAO, paraExibicao, paraMpa, type SistemaUnidade } from '../../calc/unidades';
 import type { CalculoSalvo, CategoriaSalva } from '../equipamento/tipos';
 import { ler } from '../../services/storage';
 import Campo from '../memorial/Campo';
@@ -63,13 +63,30 @@ function pmtaExibida(tag: string, unidade: SistemaUnidade): number | null {
   return Number(paraExibicao(mpa, unidade).toFixed(2));
 }
 
+// O valor salvo foi digitado na unidade `unidInput` da época; converte para a unidade FIXADA
+// atual antes de exibir/recalcular — sem isso, mudar a unidade e clicar "Calcular Categoria"
+// reinterpretava o número na unidade errada (ex.: 1,5 MPa lido como 1,5 kgf/cm²).
+function pressaoSalvaNaUnidade(salva: CategoriaSalva | null, unidade: SistemaUnidade): number | null {
+  if (salva?.presInput == null) return null;
+  const origem = salva.unidInput ?? 'SI';
+  if (origem === unidade) return salva.presInput;
+  return Number(paraExibicao(paraMpa(salva.presInput, origem), unidade).toFixed(4));
+}
+
 export default function CategoriaNR13({ tag, unidade }: { tag: string; unidade: SistemaUnidade }) {
   const [salva, setSalva] = useState<CategoriaSalva | null>(() => carregarCategoria(tag));
   const [volume, setVolume] = useState(() => salva?.volInput ?? 1);
-  const [pressao, setPressao] = useState(() => salva?.presInput ?? pmtaExibida(tag, unidade) ?? 1);
+  const [pressao, setPressao] = useState(() => pressaoSalvaNaUnidade(salva, unidade) ?? pmtaExibida(tag, unidade) ?? 1);
   const [fluido, setFluido] = useState(() => resolverDefault(salva?.fluidoInput));
   // Categoria já salva → abre em modo leitura (só o resultado); sem nada salvo, abre o formulário.
   const [editando, setEditando] = useState(() => !carregarCategoria(tag));
+
+  // Unidade fixada mudou com o card montado: reconverte o campo de pressão para a nova
+  // unidade (o valor em tela é sempre interpretado na unidade ATUAL pelo calcular()).
+  useEffect(() => {
+    setPressao(pressaoSalvaNaUnidade(carregarCategoria(tag), unidade) ?? pmtaExibida(tag, unidade) ?? 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só quando a unidade muda
+  }, [unidade]);
 
   async function calcular() {
     const r = await calcularESalvarCategoria(tag, volume, pressao, unidade, fluido);
@@ -80,7 +97,7 @@ export default function CategoriaNR13({ tag, unidade }: { tag: string; unidade: 
   // Cancelar descarta as alterações dos campos e volta ao resultado salvo.
   function cancelar() {
     setVolume(salva?.volInput ?? 1);
-    setPressao(salva?.presInput ?? pmtaExibida(tag, unidade) ?? 1);
+    setPressao(pressaoSalvaNaUnidade(salva, unidade) ?? pmtaExibida(tag, unidade) ?? 1);
     setFluido(resolverDefault(salva?.fluidoInput));
     setEditando(false);
   }

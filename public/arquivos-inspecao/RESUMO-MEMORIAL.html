@@ -477,12 +477,21 @@
                 }
             };
 
-            const info = JSON.parse(localStorage.getItem('nr13_info_' + tagAtual) || '{}');
-            const emp = JSON.parse(localStorage.getItem('nr13_emp_' + tagAtual) || '{}');
-            const calc = JSON.parse(localStorage.getItem('nr13_calc_' + tagAtual) || '{}');
-            const vasoStr = localStorage.getItem('nr13_vaso_' + tagAtual);
-            const dados3D = vasoStr ? JSON.parse(vasoStr) : null;
-            const meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || '{}');
+            // JSON.parse individual e tolerante: uma chave corrompida não pode abortar a
+            // injeção da folha inteira (mesmo padrão das demais funções deste arquivo).
+            const lerJSONSeguro = (chave) => {
+                try { return JSON.parse(localStorage.getItem(chave) || '{}') || {}; }
+                catch (e) { return {}; }
+            };
+            const info = lerJSONSeguro('nr13_info_' + tagAtual);
+            const emp = lerJSONSeguro('nr13_emp_' + tagAtual);
+            const calc = lerJSONSeguro('nr13_calc_' + tagAtual);
+            let dados3D = null;
+            try {
+                const vasoStr = localStorage.getItem('nr13_vaso_' + tagAtual);
+                dados3D = vasoStr ? JSON.parse(vasoStr) : null;
+            } catch (e) { dados3D = null; }
+            const meta = lerJSONSeguro('nr13_relatorio_meta_atual');
 
             // ===== CABEÇALHO / DADOS GERAIS =====
             setVal('res-cliente', emp.razaoSocial || emp.nome);

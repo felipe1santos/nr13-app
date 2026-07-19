@@ -144,6 +144,7 @@
         }
     </script>
     <script src="/rel-empresa.js?v=7"></script>
+    <script src="/sb-storage.js"></script>
 </head>
 <body>
 
@@ -575,7 +576,12 @@
             }
 
             function gravarTermoRascunho(tag, texto) {
-                try { localStorage.setItem(chaveTermoRascunho(tag), JSON.stringify(texto)); } catch (e) {}
+                // sbSalvar sincroniza com o Supabase (sb-storage.js); sem ele o reconcile do
+                // lerTudo() apagava o rascunho do termo no próximo F5 (chave só-local).
+                try {
+                    var gravar = window.sbSalvar || function (k, v) { localStorage.setItem(k, v); };
+                    gravar(chaveTermoRascunho(tag), JSON.stringify(texto));
+                } catch (e) {}
             }
 
             // Existe relatório com este código no histórico ⇒ ele JÁ FOI SALVO ⇒ termo congelado.

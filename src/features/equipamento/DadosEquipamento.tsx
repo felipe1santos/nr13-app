@@ -25,7 +25,15 @@ export default function DadosEquipamento({ info, onSalvo }: { info: InfoEquipame
       <div className="bloco-header-acoes">
         <h4>Dados do Equipamento</h4>
         {!editando && (
-          <button type="button" className="btn-editar-pencil" onClick={() => setEditando(true)} title="Editar">
+          <button
+            type="button"
+            className="btn-editar-pencil"
+            // Re-sincroniza com a prop ao entrar em edição: `local` fica congelado desde a
+            // montagem, e salvar a cópia velha regravava nr13_info_<TAG> apagando campos
+            // salvos por outros cards (ex.: pressões adotadas da documentação).
+            onClick={() => { setLocal(info); setEditando(true); }}
+            title="Editar"
+          >
             <Icone nome="pencil" tam={14} />
           </button>
         )}

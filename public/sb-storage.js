@@ -26,15 +26,31 @@
     }
   }
 
+  // Falhou a gravação remota: enfileira em nr13_fila_sync (mesmo formato/dedup do
+  // storage.ts) para o app drenar no próximo flushFila. Sem isso a chave ficava só no
+  // cache local e o reconcile do lerTudo() a APAGAVA (dado do template sumia após F5).
+  function enfileirar(chave, valor) {
+    try {
+      var fila = [];
+      try { fila = JSON.parse(localStorage.getItem('nr13_fila_sync') || '[]'); } catch (e) {}
+      if (!Array.isArray(fila)) fila = [];
+      fila = fila.filter(function (o) { return o && o.chave !== chave; });
+      fila.push({ op: 'set', chave: chave, valor: valor });
+      localStorage.setItem('nr13_fila_sync', JSON.stringify(fila));
+    } catch (e) {}
+  }
+
   window.sbSalvar = function (chave, valor) {
     // valor já deve ser string (JSON.stringify). Grava no cache local sempre.
     try { localStorage.setItem(chave, valor); } catch (e) {}
 
     var s = sessao();
     var token = s && s.access_token;
-    if (!token) return; // offline / sem sessão: fica só no cache local
-    var uid = userIdDoToken(token);
-    if (!uid) return;
+    var uid = token ? userIdDoToken(token) : null;
+    if (!token || !uid) {
+      enfileirar(chave, valor); // offline / sem sessão / token ilegível: o app sincroniza depois
+      return;
+    }
 
     fetch(SB_URL + '/rest/v1/app_storage', {
       method: 'POST',
@@ -45,6 +61,10 @@
         Prefer: 'resolution=merge-duplicates',
       },
       body: JSON.stringify({ user_id: uid, chave: chave, valor: valor }),
-    }).catch(function () {});
+    }).then(function (res) {
+      if (!res || !res.ok) enfileirar(chave, valor); // token expirado / RLS: não perde a escrita
+    }).catch(function () {
+      enfileirar(chave, valor);
+    });
   };
 })();

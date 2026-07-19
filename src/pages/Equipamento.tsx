@@ -204,7 +204,7 @@ function EquipamentoView({ tag }: { tag: string }) {
               </span>
             </div>
             <div className="resultado-item">
-              <span className="lbl-view">PTH (1,3×PMTA)</span>
+              <span className="lbl-view">{info.tipo === 'caldeira' ? 'PTH (1,5×PMTA)' : 'PTH (1,3×PMTA)'}</span>
               <span className="val-view">
                 {calculo?.pth ? formatarValor(parseFloat(calculo.pth), unidade) : '—'}
               </span>
