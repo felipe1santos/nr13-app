@@ -242,20 +242,6 @@ export default function LivroRegistro() {
     setModalOcorrencia(true);
   }
 
-  // "Retificar": abre o formulário de ocorrência já apontando para o registro escolhido.
-  // O registro original permanece intacto no livro; a retificação é uma entrada NOVA.
-  function abrirRetificacao(entrada: LivroEntrada) {
-    setForm({
-      ...FORM_OCORRENCIA_VAZIO,
-      data: new Date().toISOString().slice(0, 10),
-      tipoOcorrencia: 'Outra ocorrência',
-      oQueFoiFeito: `Retificação do registro de ${dataBR(entrada.data)}`,
-      retificaDe: entrada.id ?? '',
-    });
-    setErroForm('');
-    setModalOcorrencia(true);
-  }
-
   function salvarOcorrencia() {
     if (!linhaAberta) return;
     if (!form.data || !form.tipoOcorrencia || !form.oQueFoiFeito.trim()) {
@@ -515,13 +501,7 @@ export default function LivroRegistro() {
                       >
                         <Icone nome="eye" tam={13} /> Ver / Imprimir
                       </button>
-
-                      {/* O registro é imutável: a única correção possível é uma entrada NOVA de retificação. */}
-                      {entrada.id && (
-                        <button type="button" className="fj-btn fj-btn-ghost" onClick={() => abrirRetificacao(entrada)}>
-                          <Icone nome="pencil" tam={13} /> Retificar
-                        </button>
-                      )}
+                      {/* Registro salvo é imutável: ver e imprimir é tudo o que o livro permite. */}
                     </div>
                   </li>
                 );
