@@ -7,6 +7,8 @@ import { extensaoAceita } from '../features/equipamento/importarPlanilhaService'
 import { listarEquipamentos } from '../features/equipamento/equipamentoService';
 import type { EmpresaEquipamento, EquipamentoResumo } from '../features/equipamento/tipos';
 import { ler } from '../services/storage';
+import { isTrial } from '../services/auth';
+import { MSG_BLOQUEIO_IMPORTACAO } from '../services/trial';
 import { Icone } from '../components/Icone';
 import '../features/equipamento/equipamento.css';
 import '../features/equipamento/importar.css';
@@ -101,6 +103,11 @@ export default function Equipamentos() {
   }
 
   function abrirImportacao() {
+    // Importação em massa é recurso de assinante — trial cadastra manualmente.
+    if (isTrial()) {
+      window.alert(MSG_BLOQUEIO_IMPORTACAO);
+      return;
+    }
     setArquivoSolto(null);
     setErroArrasto(null);
     setImportAberto(true);
@@ -133,6 +140,10 @@ export default function Equipamentos() {
   function aoSoltar(e: React.DragEvent) {
     e.preventDefault();
     setArrastando(false);
+    if (isTrial()) {
+      setErroArrasto(MSG_BLOQUEIO_IMPORTACAO);
+      return;
+    }
     const arquivo = e.dataTransfer.files?.[0];
     if (!arquivo) return;
     if (!extensaoAceita(arquivo.name)) {
@@ -158,9 +169,11 @@ export default function Equipamentos() {
           >
             <Icone nome="filter" tam={14} /> Filtrar{temFiltro ? ' •' : ''} <Icone nome={filtrosAbertos ? 'chevup' : 'chevdown'} tam={12} />
           </button>
-          <button type="button" className="fj-btn fj-btn-ghost" onClick={abrirImportacao}>
-            <Icone nome="planilha" tam={14} /> Importar planilha
-          </button>
+          {!isTrial() && (
+            <button type="button" className="fj-btn fj-btn-ghost" onClick={abrirImportacao}>
+              <Icone nome="planilha" tam={14} /> Importar planilha
+            </button>
+          )}
           <button type="button" className="fj-btn fj-btn-primary" onClick={() => setModalAberto(true)}>
             <Icone nome="plus" tam={14} /> Criar equipamento
           </button>

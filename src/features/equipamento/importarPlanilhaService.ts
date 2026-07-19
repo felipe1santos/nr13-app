@@ -1,5 +1,7 @@
 import * as XLSX from 'xlsx';
 import { ler, lerTudo, salvar } from '../../services/storage';
+import { isTrial } from '../../services/auth';
+import { MSG_BLOQUEIO_IMPORTACAO } from '../../services/trial';
 import type { EmpresaEquipamento, InfoEquipamento, TipoEquipamento } from './tipos';
 
 /**
@@ -346,6 +348,8 @@ export async function importarLinhas(
   linhas: LinhaPreparada[],
   aoProgredir: (feitos: number, total: number, tag: string) => void,
 ): Promise<ResultadoImportacao> {
+  // Defesa em profundidade: além da UI, o próprio serviço recusa no trial.
+  if (isTrial()) throw new Error(MSG_BLOQUEIO_IMPORTACAO);
   const criados: string[] = [];
   const falhas: LinhaProblema[] = [];
 
@@ -395,6 +399,10 @@ const LINHA_EXEMPLO: Record<string, string> = {
 
 /** Gera e baixa o modelo .xlsx (cabeçalho + 1 linha de exemplo). */
 export function baixarModeloPlanilha(): void {
+  if (isTrial()) {
+    window.alert(MSG_BLOQUEIO_IMPORTACAO);
+    return;
+  }
   const colunas = [...COLUNAS_OBRIGATORIAS, ...COLUNAS_OPCIONAIS];
   const dados = [colunas, colunas.map((c) => LINHA_EXEMPLO[c] ?? '')];
   const ws = XLSX.utils.aoa_to_sheet(dados);

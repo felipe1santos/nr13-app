@@ -56,6 +56,7 @@ Tudo que o usuário salva pode ser fonte de injeção. Chaves por TAG do equipam
 | `nr13_permissoes_<userId>` | Módulos permitidos do sub-login ({ modulos: string[] }) | Acessos (mestre) |
 | `nr13_componentes_cal_<TAG>` | Válvulas/manômetros cadastrados (nome, série, foto) | Calibrações → Componentes |
 | `nr13_lotes_cal_<TAG>` | Lotes/rodadas de calibração (certificados ganham loteId/componenteId) | Calibrações → Lotes |
+| `nr13_demo_seed` | Marcador do seed de demonstração do trial (`{v,em}`) — impede reinjetar os dados DEMO-* | `src/services/demoSeed.ts` (1ª entrada do trial) |
 | `nr13_relatorio_meta_atual` | Metadados do relatório em montagem | Gravado na geração |
 | `nr13_inspecao_atual` **e** `nr13_injecao_atual` | Dados de campo do container escolhido | Gravado na geração |
 | `nr13_prontuario_meta_<TAG>` | Nº do relatório (`REL-<timestamp>`) + data de emissão do prontuário; reusado entre reimpressões (`obterOuCriarMeta`) | Gravado ao abrir o visualizador do prontuário |
@@ -339,6 +340,20 @@ digitados; comprimento é sugerido pelo volume de `nr13_cat_<TAG>` quando vazio)
 > **"Senha atual"** do modal — esse caminho não usa e-mail nenhum.
 > Código: `enviarCodigoTrocaSenha`/`trocarSenhaComCodigo`/`trocarSenhaComSenhaAtual` em
 > `src/services/auth.ts`, `src/components/ModalTrocarSenha.tsx`, modo "recuperar" em Login.tsx.
+
+> **Cadastro automático de trial 48h (19/07/2026): IMPLANTADO** (código + config).
+> Fluxo: Login → "Testar o sistema gratuitamente por 2 dias" (só aparece com a flag ligada) →
+> form do lead → código por e-mail (verifyOtp type 'signup') → Edge Function `trial` ativa
+> server-side (`ativo=true, plano='trial', acesso_expira_em=+48h`) → seed de demonstração
+> (`demoSeed.ts`, TAGs DEMO-*) → barra regressiva (`BarraTrial`). Bloqueios do trial:
+> `imprimirRelatorio`/`exportarPdf`/`exportarPdfLivroCompleto` (funis únicos), `<a download>` do
+> prontuário do fabricante e importação de planilha (só assinantes). Enforcement no servidor:
+> `trial_setup.sql` (tabela `config_global`, trigger `trg_proteger_campos_sensiveis` impede o
+> usuário estender o próprio prazo, RLS `acesso_vigente()` bloqueia ESCRITA no app_storage de
+> conta expirada). Admin: toggle "Permitir cadastro automático" + badge TRIAL + "Liberar acesso
+> completo" (converte: `plano='completo'`). Config já aplicada no Supabase em 19/07: toggle
+> "Confirm email" LIGADO, `trial_setup.sql` executado, edge `trial` deployada. A geração de
+> PDF é 100% client-side — bloqueio de documentos é no bundle/UI (não existe endpoint de PDF).
 
 Nenhuma pendência estrutural aberta. Itens já resolvidos:
 - ✅ "Fotos da documentação" (folha #11): grupo `fotosDocumentacao` no `FormularioChecklist` +

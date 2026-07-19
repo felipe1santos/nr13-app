@@ -2,6 +2,8 @@ import { useRef, useState } from 'react';
 import { Icone } from '../../components/Icone';
 import { excluirChave, ler, salvar } from '../../services/storage';
 import { comLoadingGlobal } from '../../app/loadingGlobal';
+import { isTrial } from '../../services/auth';
+import { MSG_BLOQUEIO_DOCS } from '../../services/trial';
 
 // Prontuário do fabricante em PDF, gravado por equipamento (CLAUDE.md §2).
 // O sufixo _<TAG> é obrigatório: a Edge Function portal_cliente filtra as chaves
@@ -200,9 +202,20 @@ export default function ProntuarioFabricante({ tag }: { tag: string }) {
             >
               <Icone nome="eye" tam={13} /> Visualizar
             </button>
-            <a className="btn-secundario pfab-link-baixar" href={doc.pdfBase64} download={doc.nome || `prontuario-fabricante-${tag}.pdf`}>
-              <Icone nome="download" tam={13} /> Baixar
-            </a>
+            {isTrial() ? (
+              <button
+                type="button"
+                className="btn-secundario"
+                title={MSG_BLOQUEIO_DOCS}
+                onClick={() => window.alert(MSG_BLOQUEIO_DOCS)}
+              >
+                <Icone nome="download" tam={13} /> Baixar
+              </button>
+            ) : (
+              <a className="btn-secundario pfab-link-baixar" href={doc.pdfBase64} download={doc.nome || `prontuario-fabricante-${tag}.pdf`}>
+                <Icone nome="download" tam={13} /> Baixar
+              </a>
+            )}
             {!confirmandoRemover ? (
               <button
                 type="button"

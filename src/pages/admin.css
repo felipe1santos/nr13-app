@@ -252,6 +252,18 @@
   background: #fdecea;
   color: #b71c1c;
 }
+.admin-badge-trial {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  background: #fef3c7;
+  color: #92400e;
+  vertical-align: middle;
+}
 
 .admin-acoes {
   display: flex;

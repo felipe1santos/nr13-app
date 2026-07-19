@@ -1,5 +1,6 @@
 import html2canvas from 'html2canvas';
 import { aplicaAoEquipamento, listarRastreabilidades } from './rastreabilidadeService';
+import { bloqueioTrialDocs } from '../../services/trial';
 
 // Impressão própria: o navegador quebra o conteúdo de <iframe> ao imprimir (sai em tiras / só 1
 // página). Aqui rasterizamos cada folha A4 (o body do iframe) em uma imagem e montamos um
@@ -433,6 +434,12 @@ export async function imprimirRelatorio(
   incluirRastreabilidades = false,
   tag?: string | null,
 ): Promise<void> {
+  // Período de teste: impressão bloqueada (único window.print do sistema).
+  const bloqueio = bloqueioTrialDocs();
+  if (bloqueio) {
+    window.alert(bloqueio);
+    return;
+  }
   await prepararFolhasImpressao(containerSelector, incluirRastreabilidades, tag);
   if (incluirRastreabilidades && falhasRastreabilidadeImpressao.length > 0) {
     window.alert(

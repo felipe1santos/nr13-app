@@ -18,6 +18,12 @@ interface Profile {
   // Controle de acesso multi-papel (null/'' = conta pagante pré-migração ou mestre)
   papel?: string | null;
   org_id?: string | null;
+  // Cadastro automático de trial (trial_setup.sql; ausentes antes da migração)
+  origem_cadastro?: string | null;
+  trial_fim?: string | null;
+  nome?: string | null;
+  telefone?: string | null;
+  empresa_nome?: string | null;
 }
 
 interface LoginEvent {
@@ -133,9 +139,12 @@ function calcularMetricas(eventos: LoginEvent[]): Map<string, Metricas> {
 }
 
 function statusUsuario(p: Profile): { label: string; cls: string } {
+  const trial = p.origem_cadastro === 'trial';
   if (!p.ativo) return { label: 'Pendente', cls: 'pendente' };
   if (p.acesso_expira_em && new Date(p.acesso_expira_em).getTime() < Date.now())
-    return { label: 'Expirado', cls: 'expirado' };
+    return { label: trial && p.plano === 'trial' ? 'Trial expirado' : 'Expirado', cls: 'expirado' };
+  if (trial && p.plano !== 'trial') return { label: 'Convertido', cls: 'ativo' };
+  if (p.plano === 'trial') return { label: 'Trial ativo', cls: 'ativo' };
   return { label: 'Ativo', cls: 'ativo' };
 }
 
@@ -165,6 +174,9 @@ export default function Admin() {
   const [menuAcoes, setMenuAcoes] = useState<{ id: string; x: number; y: number } | null>(null);
   const [superAberto, setSuperAberto] = useState(false);
   const [aba, setAba] = useState<'clientes' | 'acessos'>('clientes');
+  // Flag global do cadastro automático de trial (config_global; null = migração não rodou)
+  const [cadastroAuto, setCadastroAuto] = useState<boolean | null>(null);
+  const [salvandoFlag, setSalvandoFlag] = useState(false);
   const superRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
@@ -205,6 +217,17 @@ export default function Admin() {
         for (const s of usoData as UsoStats[]) m.set(s.escopo, s);
         setUso(m);
       }
+
+      // Flag do cadastro automático (trial). Antes de rodar trial_setup.sql a tabela
+      // não existe: o toggle mostra aviso de migração pendente.
+      const { data: flagData, error: flagErr } = await supabase
+        .from('config_global')
+        .select('valor')
+        .eq('chave', 'cadastro_automatico')
+        .maybeSingle();
+      setCadastroAuto(
+        flagErr || !flagData ? null : (flagData.valor as { ativo?: boolean } | null)?.ativo === true,
+      );
     } catch (e: unknown) {
       setErro(e instanceof Error ? e.message : 'Falha ao carregar dados.');
     } finally {
@@ -323,6 +346,45 @@ export default function Admin() {
     }
   }
 
+  // Liga/desliga o cadastro automático de leads (interruptor global do trial).
+  async function alternarCadastroAuto() {
+    if (cadastroAuto === null || salvandoFlag) return;
+    const novo = !cadastroAuto;
+    setSalvandoFlag(true);
+    setErro(null);
+    setAviso(null);
+    try {
+      const { error } = await supabase
+        .from('config_global')
+        .update({ valor: { ativo: novo }, atualizado_em: new Date().toISOString() })
+        .eq('chave', 'cadastro_automatico');
+      if (error) throw error;
+      setCadastroAuto(novo);
+      setAviso(novo ? 'Cadastro automático LIGADO — leads podem se cadastrar sozinhos.' : 'Cadastro automático desligado.');
+    } catch (e: unknown) {
+      setErro(e instanceof Error ? e.message : 'Falha ao alterar a configuração.');
+    } finally {
+      setSalvandoFlag(false);
+    }
+  }
+
+  // Reenvia o e-mail de confirmação de cadastro (código) para conta ainda não confirmada.
+  async function reenviarConfirmacao(p: Profile) {
+    if (!p.email) return;
+    setAcaoEmAndamento(p.id);
+    setErro(null);
+    setAviso(null);
+    try {
+      const { error } = await supabase.auth.resend({ type: 'signup', email: p.email });
+      if (error) throw error;
+      setAviso(`Confirmação reenviada para ${p.email}.`);
+    } catch (e: unknown) {
+      setErro(e instanceof Error ? e.message : 'Falha ao reenviar confirmação.');
+    } finally {
+      setAcaoEmAndamento(null);
+    }
+  }
+
   // ---- Ações ----
   async function atualizarPerfil(id: string, patch: Partial<Profile>, msg: string) {
     setAcaoEmAndamento(id);
@@ -347,8 +409,23 @@ export default function Admin() {
         ativo: true,
         aprovado_em: new Date().toISOString(),
         aprovado_por: localStorage.getItem('nr13_usuario_logado') ?? 'admin',
+        // Conta de teste liberada manualmente = convertida em assinante (sai dos bloqueios do trial).
+        ...(p.plano === 'trial' ? { plano: 'completo' } : {}),
       },
       `Acesso liberado para ${p.email}.`,
+    );
+  }
+
+  // Converte a conta de teste em assinante: remove os bloqueios do trial e (opcional) a validade.
+  function liberarAcessoCompleto(p: Profile) {
+    const manter = window.confirm(
+      `Liberar acesso COMPLETO para ${p.email}?\n\nOK = libera e REMOVE a expiração.\nCancelar = não faz nada (use "Definir validade" para ajustar o prazo antes/depois).`,
+    );
+    if (!manter) return;
+    void atualizarPerfil(
+      p.id,
+      { ativo: true, plano: 'completo', acesso_expira_em: null },
+      `${p.email} agora tem acesso completo, sem expiração.`,
     );
   }
 
@@ -528,6 +605,33 @@ export default function Admin() {
       {erro && <p className="admin-erro">{erro}</p>}
       {aviso && <p className="admin-aviso">{aviso}</p>}
 
+      {/* Interruptor global do cadastro automático de leads (teste 48h) */}
+      <div className="admin-novo" style={{ alignItems: 'center' }}>
+        <span className="admin-novo-titulo">Cadastro automático (teste 48h)</span>
+        {cadastroAuto === null ? (
+          <span style={{ fontSize: 13, color: '#8a6d1a' }}>
+            Rode <code>supabase/trial_setup.sql</code> no SQL Editor para habilitar esta opção.
+          </span>
+        ) : (
+          <>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 }}>
+              <input
+                type="checkbox"
+                checked={cadastroAuto}
+                disabled={salvandoFlag}
+                onChange={() => void alternarCadastroAuto()}
+              />
+              Permitir cadastro automático
+            </label>
+            <span style={{ fontSize: 12.5, color: 'var(--muted, #667085)' }}>
+              {cadastroAuto
+                ? 'LIGADO: o botão "Testar gratuitamente por 2 dias" aparece na tela de login.'
+                : 'Desligado: novos leads veem "cadastro temporariamente indisponível".'}
+            </span>
+          </>
+        )}
+      </div>
+
       <form className="admin-novo" onSubmit={criarUsuario}>
         <span className="admin-novo-titulo">Criar novo usuário</span>
         <input
@@ -653,6 +757,16 @@ export default function Admin() {
                         <button type="button" onClick={() => { setMenuAcoes(null); definirValidade(p); }}>
                           Definir validade (dias)
                         </button>
+                        {p.plano === 'trial' && (
+                          <button type="button" className="destaque" onClick={() => { setMenuAcoes(null); liberarAcessoCompleto(p); }}>
+                            Liberar acesso completo
+                          </button>
+                        )}
+                        {meta && !meta.email_confirmed_at && (
+                          <button type="button" onClick={() => { setMenuAcoes(null); void reenviarConfirmacao(p); }}>
+                            Reenviar confirmação de e-mail
+                          </button>
+                        )}
                         <button type="button" onClick={() => { setMenuAcoes(null); void resetarSenha(p); }}>
                           Resetar senha
                         </button>
@@ -682,9 +796,18 @@ export default function Admin() {
                   </tr>
                 );
               }
+              const infoLead = [p.nome, p.empresa_nome, p.telefone].filter(Boolean).join(' · ');
               return (
                 <tr key={p.id} className={ocupado ? 'ocupado' : ''}>
-                  <td data-label="E-mail" className="admin-email">{p.email}</td>
+                  <td data-label="E-mail" className="admin-email">
+                    {p.email}
+                    {p.origem_cadastro === 'trial' && (
+                      <span className="admin-badge-trial" title="Conta criada pelo cadastro automático (teste 48h)"> TRIAL</span>
+                    )}
+                    {infoLead && (
+                      <div style={{ fontSize: 11.5, color: 'var(--muted, #667085)', fontWeight: 400 }}>{infoLead}</div>
+                    )}
+                  </td>
                   <td data-label="Status">
                     <span className={`admin-badge ${st.cls}`}>{st.label}</span>
                   </td>

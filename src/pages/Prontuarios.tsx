@@ -30,6 +30,8 @@ import {
   lerProntuarioFabricante,
 } from '../features/equipamento/ProntuarioFabricante';
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
+import { isTrial } from '../services/auth';
+import { MSG_BLOQUEIO_DOCS } from '../services/trial';
 import '../pages/relatorios.css';
 import './prontuarios.css';
 import PaginaA4 from '../components/PaginaA4';
@@ -882,14 +884,26 @@ export default function Prontuarios() {
                     >
                       Visualizar
                     </button>
-                    <a
-                      className="btn-secundario"
-                      style={{ fontSize: 12, textDecoration: 'none' }}
-                      href={prontFabricante.pdfBase64}
-                      download={prontFabricante.nome || `prontuario-fabricante-${tag}.pdf`}
-                    >
-                      Baixar
-                    </a>
+                    {isTrial() ? (
+                      <button
+                        type="button"
+                        className="btn-secundario"
+                        style={{ fontSize: 12 }}
+                        title={MSG_BLOQUEIO_DOCS}
+                        onClick={() => window.alert(MSG_BLOQUEIO_DOCS)}
+                      >
+                        Baixar
+                      </button>
+                    ) : (
+                      <a
+                        className="btn-secundario"
+                        style={{ fontSize: 12, textDecoration: 'none' }}
+                        href={prontFabricante.pdfBase64}
+                        download={prontFabricante.nome || `prontuario-fabricante-${tag}.pdf`}
+                      >
+                        Baixar
+                      </a>
+                    )}
                   </>
                 ) : (
                   <span style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>
