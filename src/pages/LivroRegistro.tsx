@@ -135,6 +135,70 @@ function IframeBlocoLivro({ src, titulo }: { src: string; titulo: string }) {
   );
 }
 
+// ── Recorte VISUAL do preview de um registro ────────────────────────────────────────────────
+// O Registro de Segurança é um documento curto: na folha A4 do modal sobrava mais de meia folha
+// em branco. Medimos aqui a altura REAL do conteúdo dentro do iframe e encolhemos só a CAIXA
+// visível (.pagina-relatorio-a4, que já tem overflow:hidden) — o iframe continua com 297mm e o
+// documento dentro dele não é tocado. Impressão/PDF passam por
+// prepararFolhasImpressao/exportarPdf, que rasterizam `iframe.contentDocument.body` com
+// height: ALTURA_A4_PX (297mm) e NÃO olham a altura do wrapper — logo o papel sai idêntico.
+const ALTURA_A4_PREVIEW = 1123; // px @96dpi = 297mm (mesma referência do PaginaA4)
+const FOLGA_RECORTE = 14; // respiro embaixo pro corte não ficar rente ao texto
+
+/** Fundo (px, relativo ao topo da .page) do último conteúdo visível. null = não deu pra medir. */
+function medirFundoConteudo(doc: Document | null | undefined): number | null {
+  try {
+    if (!doc) return null;
+    const win = doc.defaultView;
+    const page = doc.querySelector<HTMLElement>('.page') ?? doc.body;
+    if (!win || !page) return null;
+    const topo = page.getBoundingClientRect().top;
+    const alturaPagina = page.getBoundingClientRect().height || ALTURA_A4_PREVIEW;
+    let fundo = 0;
+
+    // 1) Texto real (Range por nó de texto) — ignora containers esticados por flex.
+    const walker = doc.createTreeWalker(page, NodeFilter.SHOW_TEXT);
+    let no: Node | null;
+    while ((no = walker.nextNode())) {
+      if (!no.nodeValue || !no.nodeValue.trim()) continue;
+      const pai = no.parentElement;
+      if (!pai) continue;
+      const cs = win.getComputedStyle(pai);
+      if (cs.display === 'none' || cs.visibility === 'hidden') continue;
+      const range = doc.createRange();
+      range.selectNodeContents(no);
+      const r = range.getBoundingClientRect();
+      if (r.height > 0) fundo = Math.max(fundo, r.bottom - topo);
+    }
+
+    // 2) Imagens/vetores (logo, rubrica, selos).
+    doc.querySelectorAll<HTMLElement>('img, svg, canvas').forEach((el) => {
+      const cs = win.getComputedStyle(el);
+      if (cs.display === 'none' || cs.visibility === 'hidden') return;
+      const r = el.getBoundingClientRect();
+      if (r.height > 0 && r.width > 0) fundo = Math.max(fundo, r.bottom - topo);
+    });
+
+    // 3) Caixas com borda/fundo próprio (ex.: .termo-box tem min-height e passa do texto).
+    //    Ignora containers grandes (> 60% da folha), que são esticados e não são "conteúdo".
+    doc.querySelectorAll<HTMLElement>('.page *').forEach((el) => {
+      const cs = win.getComputedStyle(el);
+      if (cs.display === 'none' || cs.visibility === 'hidden') return;
+      const r = el.getBoundingClientRect();
+      if (r.height <= 0 || r.width <= 0 || r.height > alturaPagina * 0.6) return;
+      const temBorda = parseFloat(cs.borderBottomWidth) > 0 || parseFloat(cs.borderTopWidth) > 0;
+      const temFundo = cs.backgroundImage !== 'none';
+      if (!temBorda && !temFundo) return;
+      fundo = Math.max(fundo, r.bottom - topo);
+    });
+
+    if (fundo <= 80) return null; // medição suspeita: mantém a folha A4 inteira
+    return fundo;
+  } catch {
+    return null; // contentDocument nulo / cross-origin: comportamento atual
+  }
+}
+
 // Tipos de ocorrência manual (manutenções pontuais entre inspeções — NR-13 13.4.1.9).
 const TIPOS_OCORRENCIA = [
   'Manutenção corretiva',
@@ -180,6 +244,8 @@ export default function LivroRegistro() {
   const [erroForm, setErroForm] = useState('');
   // Visão "Histórico": log cronológico em texto puro (sem iframes de folhas).
   const [historico, setHistorico] = useState(false);
+  // Altura (px) do recorte VISUAL da folha no modal de preview. null = folha A4 inteira.
+  const [alturaRecorte, setAlturaRecorte] = useState<number | null>(null);
   const funcionarios = useMemo(() => listarFuncionarios(), []);
 
   const comLivro = linhas.filter((l) => l.entradas.length > 0);
@@ -189,6 +255,7 @@ export default function LivroRegistro() {
   // Relatorios.tsx), pra que Imprimir/Baixar PDF funcionem igual ao resto do sistema.
   useEffect(() => {
     if (!preview) return;
+    setAlturaRecorte(null); // troca de documento: volta pra folha inteira até medir de novo
     let cancelado = false;
     const container = document.querySelector<HTMLElement>('.relatorio-preview');
     if (!container) return;
@@ -533,9 +600,37 @@ export default function LivroRegistro() {
                 </button>
               </div>
               <div style={{ padding: 16 }} className="relatorio-preview">
-                <PaginaA4>
-                  <iframe src={srcPreview} scrolling="no" title={preview.doc.titulo} />
-                </PaginaA4>
+                {/* Recorte só VISUAL: encolhe a caixa da folha, nunca o documento (ver
+                    medirFundoConteudo). Sem medição válida, fica a folha A4 inteira. */}
+                <div
+                  className="lrprev-recorte"
+                  data-recortado={alturaRecorte ? '1' : undefined}
+                  style={alturaRecorte ? ({ ['--lrprev-h' as string]: `${alturaRecorte}px` } as React.CSSProperties) : undefined}
+                >
+                  <PaginaA4>
+                    <iframe
+                      src={srcPreview}
+                      scrolling="no"
+                      title={preview.doc.titulo}
+                      onLoad={(e) => {
+                        const doc = e.currentTarget.contentDocument;
+                        const medir = () => {
+                          const fundo = medirFundoConteudo(doc);
+                          // Conteúdo que preenche (ou passa de) a folha: nada a cortar.
+                          if (fundo === null || fundo + FOLGA_RECORTE >= ALTURA_A4_PREVIEW) {
+                            setAlturaRecorte(null);
+                            return;
+                          }
+                          setAlturaRecorte(Math.ceil(fundo + FOLGA_RECORTE));
+                        };
+                        medir();
+                        // As fontes carregam depois e mudam a altura do texto (mesma razão do
+                        // IframeBlocoLivro) — re-mede.
+                        setTimeout(medir, 700);
+                      }}
+                    />
+                  </PaginaA4>
+                </div>
               </div>
             </div>
           </div>

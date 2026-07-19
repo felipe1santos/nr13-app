@@ -561,6 +561,25 @@
   zoom: 0.8;
 }
 
+/* ── Livro de Registro: recorte VISUAL da folha no modal de preview ──────────────────────────
+   O Registro de Segurança é curto e sobrava mais de meia folha em branco no modal. Aqui só a
+   CAIXA da folha encolhe (a .pagina-relatorio-a4 já tem overflow:hidden); o <iframe> dentro
+   continua com height:297mm e o documento não é alterado. Impressão e PDF rasterizam
+   `iframe.contentDocument.body` na altura do A4 (printService/pdfService) e não olham esta
+   altura — o papel continua saindo como folha A4 inteira.
+   Só a partir de 821px: abaixo disso a folha vira fluida (aspect-ratio) / escalada por
+   transform no PaginaA4, então mantemos o comportamento atual. */
+.lrprev-recorte {
+  display: block;
+  flex: 0 0 auto;
+}
+
+@media (min-width: 821px) {
+  .lrprev-recorte[data-recortado='1'] .pagina-relatorio-a4 {
+    height: var(--lrprev-h);
+  }
+}
+
 /* Até 820px (celular E tablet): A4 vira largura-fluida com aspect-ratio fixo, senão na faixa
    601–793px a altura travada (297mm) deforma a folha. */
 @media (max-width: 820px) {
