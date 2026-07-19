@@ -46,6 +46,16 @@
 
         .content-container { flex-grow: 1; padding: 0 5px; padding-bottom: 12mm; }
 
+        /* CABEÇALHO DA EMPRESA EXECUTANTE (logo à esquerda, identificação à direita).
+           display:table / table-cell de propósito: html2canvas (PDF e impressão) NÃO suporta
+           grid e quebra flex — com flex o texto sai colado no PDF. Não trocar. */
+        .emp-header { display: table; width: 100%; border-collapse: collapse; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid var(--border-color); }
+        .emp-logo-cell { display: table-cell; width: 130px; vertical-align: middle; padding-right: 14px; }
+        .emp-logo-cell img { max-width: 125px; max-height: 72px; object-fit: contain; display: block; }
+        .emp-dados-cell { display: table-cell; vertical-align: middle; text-align: left; }
+        .emp-razao { font-size: 13px; font-weight: 800; text-transform: uppercase; line-height: 1.25; margin-bottom: 3px; }
+        .emp-linha { font-size: 10px; color: #374151; line-height: 1.5; }
+
         .section-title { font-size: 12px; font-weight: 800; margin-bottom: 4px; text-transform: uppercase; }
         .subsection-text { font-size: 10px; color: #4B5563; margin-bottom: 14px; }
 
@@ -140,6 +150,20 @@
     <div class="page">
 
         <div class="content-container">
+
+            <!-- Cabeçalho da empresa executante — preenchido por renderizarCabecalhoEmpresa()
+                 a partir de window.NR13_EMPRESA_JSON (snapshot congelado em relatório salvo). -->
+            <div class="emp-header" id="emp-header" style="display:none">
+                <div class="emp-logo-cell" id="emp-logo-cell" style="display:none">
+                    <img id="emp-logo" alt="Logo da empresa">
+                </div>
+                <div class="emp-dados-cell">
+                    <div class="emp-razao" id="emp-razao" style="display:none"></div>
+                    <div class="emp-linha" id="emp-cnpj" style="display:none"></div>
+                    <div class="emp-linha" id="emp-contato" style="display:none"></div>
+                    <div class="emp-linha" id="emp-endereco" style="display:none"></div>
+                </div>
+            </div>
 
             <div class="section-title">REGISTRO DE SEGURANÇA — NR-13, ITEM 13.5.1.8 / 13.5.4</div>
             <div class="subsection-text">Folha individual do Livro de Registro de Segurança do vaso de pressão, para impressão e colagem na folha numerada tipograficamente correspondente do livro físico (caderno de capa dura).</div>
@@ -238,6 +262,60 @@
             function nomeEmpresaInspetora() {
                 if (!dadosEmpresaInspetoraGlobal) return 'NOME DA EMPRESA NÃO INFORMADO';
                 return dadosEmpresaInspetoraGlobal.razao || dadosEmpresaInspetoraGlobal.fantasia || 'NOME DA EMPRESA NÃO INFORMADO';
+            }
+
+            // Cabeçalho da empresa executante: logo + razão social + CNPJ + contato + endereço.
+            // Fonte: window.NR13_EMPRESA_JSON (rel-empresa.js — snapshot da meta quando ?ctx=rel,
+            // senão o cadastro vivo nr13_minha_empresa). Campo ausente = a linha não é renderizada
+            // (nunca "undefined" nem rótulo órfão); sem nenhum dado, o cabeçalho inteiro some.
+            function renderizarCabecalhoEmpresa() {
+                const emp = dadosEmpresaInspetoraGlobal;
+                if (!emp) return;
+
+                const txt = function (v) { return (v === null || v === undefined) ? '' : String(v).trim(); };
+                const preencher = function (id, valor) {
+                    const el = document.getElementById(id);
+                    if (!el) return false;
+                    if (!valor) { el.style.display = 'none'; return false; }
+                    el.textContent = valor;
+                    el.style.display = 'block';
+                    return true;
+                };
+
+                let temAlgo = false;
+
+                const logo = txt(emp.logo);
+                if (logo) {
+                    const img = document.getElementById('emp-logo');
+                    if (img) {
+                        img.src = logo;
+                        document.getElementById('emp-logo-cell').style.display = 'table-cell';
+                        temAlgo = true;
+                    }
+                }
+
+                if (preencher('emp-razao', txt(emp.razao) || txt(emp.fantasia))) temAlgo = true;
+
+                const cnpj = txt(emp.cnpj);
+                if (preencher('emp-cnpj', cnpj ? 'CNPJ: ' + cnpj : '')) temAlgo = true;
+
+                // "Telefone: X / E-mail: Y" — só os pedaços que existem.
+                const contato = [];
+                if (txt(emp.telefone)) contato.push('Telefone: ' + txt(emp.telefone));
+                if (txt(emp.email)) contato.push('E-mail: ' + txt(emp.email));
+                if (preencher('emp-contato', contato.join(' / '))) temAlgo = true;
+
+                // "endereco, bairro – cidade/estado" (CEP no fim quando houver).
+                let end = txt(emp.endereco);
+                if (txt(emp.bairro)) end = end ? end + ', ' + txt(emp.bairro) : txt(emp.bairro);
+                const cid = txt(emp.cidade);
+                const uf = txt(emp.estado);
+                const local = cid && uf ? cid + '/' + uf : (cid || uf);
+                if (local) end = end ? end + ' – ' + local : local;
+                if (txt(emp.cep)) end = end ? end + ' – CEP ' + txt(emp.cep) : 'CEP ' + txt(emp.cep);
+                if (preencher('emp-endereco', end)) temAlgo = true;
+
+                if (temAlgo) document.getElementById('emp-header').style.display = 'table';
             }
 
             function marcarTipo(tipoSelecionado) {
@@ -348,6 +426,34 @@
                 // a entrada do livro não pode mudar quando o cadastro/rubrica do funcionário
                 // muda depois). Só busca o funcionário AO VIVO em nr13_lista_phs (por phId)
                 // para entradas ANTIGAS sem os campos congelados (compatibilidade).
+                // `info.assinante` (quando presente) VENCE tudo: é o assinante escolhido em
+                // "Quem assina o Termo do Livro de Registro" (Configurações do Relatório), já
+                // resolvido pelo chamador — engenheiro OU técnico. Sem ele, mantém o caminho
+                // histórico abaixo (engenheiro/PH da entrada).
+                if (info.assinante && info.assinante.nome) {
+                    const a = info.assinante;
+                    const rubricaA = document.getElementById('assinatura-rubrica');
+                    rubricaA.innerHTML = '';
+                    if (a.assinatura) {
+                        const imgA = document.createElement('img');
+                        imgA.className = 'assinatura-img';
+                        imgA.alt = 'Assinatura';
+                        imgA.src = a.assinatura;
+                        rubricaA.appendChild(imgA);
+                    } else {
+                        const vazioA = document.createElement('div');
+                        vazioA.className = 'assinatura-espaco';
+                        rubricaA.appendChild(vazioA);
+                    }
+                    document.getElementById('assinatura-nome').textContent = a.nome;
+                    document.getElementById('assinatura-cargo').textContent = a.funcao || 'Profissional Habilitado — NR-13';
+                    // Rótulo do registro: usa o campo extra do próprio cadastro quando houver
+                    // (o técnico raramente tem CREA) — só cai em "CREA/Registro" como padrão.
+                    document.getElementById('assinatura-crea').textContent = rotularRegistro(a.registro, a.rotuloRegistro);
+                    document.getElementById('assinatura-box').style.display = 'block';
+                    return;
+                }
+
                 const temCongelado = !!(info.assinaturaImg || info.assinanteFuncao);
                 let func = null;
                 if (!temCongelado && info.phId) {
@@ -450,53 +556,133 @@
                 return entrada;
             }
 
-            // ── Termo editável (rascunho) ───────────────────────────────────────────────
-            // O contenteditable só persiste enquanto a entrada é RASCUNHO (lacrado === false).
-            // Campo AUSENTE = entrada antiga ⇒ tratada como LACRADA (o livro sempre foi imutável).
-            function entradaLacrada(entrada) {
-                return !entrada || entrada.lacrado !== false;
+            // ── Termo: editável ANTES de salvar o relatório, imutável depois ────────────
+            // Regra (19/07/2026): o usuário reescreve o termo enquanto o relatório está em
+            // MONTAGEM (ainda não gravado em nr13_historico_relatorios). No momento em que o
+            // relatório é salvo, adicionarEntradaLivroAuto CONSOME este rascunho para dentro da
+            // entrada do livro (campo termoTexto) e apaga a chave — daí em diante a folha é
+            // somente leitura. Modo histórico (?entrada=) é SEMPRE somente leitura: registro
+            // consumado de livro legal não se edita, se retifica.
+            function chaveTermoRascunho(tag) { return 'nr13_termo_livro_' + tag; }
+
+            function lerTermoRascunho(tag) {
+                let bruto = null;
+                try { bruto = localStorage.getItem(chaveTermoRascunho(tag)); } catch (e) { return ''; }
+                if (bruto === null) return '';
+                // Gravado como JSON (contrato do salvar()/ler() do app); tolera texto cru.
+                try { const v = JSON.parse(bruto); return typeof v === 'string' ? v : ''; }
+                catch (e) { return bruto; }
             }
 
-            // Grava o texto editado de volta na entrada correspondente de nr13_livro_<TAG>.
-            function gravarTermoEditado(tag, entradaId, texto) {
-                let livro;
-                try { livro = JSON.parse(localStorage.getItem('nr13_livro_' + tag) || '[]'); }
-                catch (e) { return; }
-                if (Object.prototype.toString.call(livro) !== '[object Array]') return;
-                let mudou = false;
+            function gravarTermoRascunho(tag, texto) {
+                try { localStorage.setItem(chaveTermoRascunho(tag), JSON.stringify(texto)); } catch (e) {}
+            }
+
+            // Existe relatório com este código no histórico ⇒ ele JÁ FOI SALVO ⇒ termo congelado.
+            function relatorioJaSalvo(codigo) {
+                if (!codigo) return false;
+                const hist = lerJSON('nr13_historico_relatorios');
+                if (Object.prototype.toString.call(hist) !== '[object Array]') return false;
+                for (let i = 0; i < hist.length; i++) {
+                    const r = hist[i];
+                    if (r && r.meta && r.meta.codigo === codigo) return true;
+                }
+                return false;
+            }
+
+            // Texto congelado na entrada do livro daquele relatório (para reimpressão fiel).
+            function termoDaEntradaDoRelatorio(tag, codigo) {
+                if (!codigo) return '';
+                const livro = carregarLivro(tag);
                 for (let i = 0; i < livro.length; i++) {
-                    if (livro[i] && livro[i].id === entradaId) {
-                        if (livro[i].lacrado !== false) return; // lacrada: nunca grava
-                        livro[i].termoTexto = texto;
-                        mudou = true;
-                        break;
+                    const e = livro[i];
+                    if (e && e.relatorioCodigo === codigo && typeof e.termoTexto === 'string' && e.termoTexto.trim()) {
+                        return e.termoTexto;
                     }
                 }
-                if (!mudou) return;
-                try { localStorage.setItem('nr13_livro_' + tag, JSON.stringify(livro)); } catch (e) {}
+                return '';
             }
 
-            // Aplica o texto JÁ EDITADO (se houver) por cima do texto gerado pelo render e liga
-            // (ou desliga) a edição conforme o estado da entrada.
-            function configurarEdicaoTermo(tag, entrada) {
-                const elTexto = document.getElementById('termo-texto');
-                if (!elTexto) return;
+            // Aplica um texto congelado por cima do texto gerado (quando houver) e trava a edição.
+            function aplicarTermoSomenteLeitura(texto) {
+                const el = document.getElementById('termo-texto');
+                if (!el) return;
+                if (texto && texto.trim()) el.textContent = texto;
+                el.setAttribute('contenteditable', 'false');
+            }
 
-                // Texto salvo pelo usuário vence o texto gerado — o render não pode sobrescrevê-lo.
-                if (entrada && typeof entrada.termoTexto === 'string' && entrada.termoTexto.trim()) {
-                    elTexto.textContent = entrada.termoTexto;
-                }
-
-                // Sem entrada (folha do relatório em montagem) não há onde persistir: leitura.
-                if (entradaLacrada(entrada) || !entrada.id) {
-                    elTexto.setAttribute('contenteditable', 'false');
-                    return;
-                }
-
-                elTexto.setAttribute('contenteditable', 'true');
-                elTexto.addEventListener('blur', function() {
-                    gravarTermoEditado(tag, entrada.id, elTexto.textContent || '');
+            // Relatório em montagem: liga o contenteditable e persiste o que for digitado.
+            function ligarEdicaoTermo(tag) {
+                const el = document.getElementById('termo-texto');
+                if (!el) return;
+                // O texto digitado VENCE o gerado — o render não pode sobrescrevê-lo.
+                const rascunho = lerTermoRascunho(tag);
+                if (rascunho && rascunho.trim()) el.textContent = rascunho;
+                el.setAttribute('contenteditable', 'true');
+                el.addEventListener('blur', function () {
+                    gravarTermoRascunho(tag, el.textContent || '');
                 });
+            }
+
+            // Monta a linha do registro sob a assinatura. O usuário costuma digitar o conselho
+            // junto do número no cadastro ("CREASP: 5070146920", "CREA-SP 123456"), e prefixar o
+            // rótulo padrão nesse caso duplicava o texto ("CREA/Registro: CREASP: 5070146920").
+            // Quando o valor já traz o próprio rótulo, ele é impresso como está.
+            function rotularRegistro(registro, rotulo) {
+                const valor = String(registro || '').trim();
+                if (!valor) return '';
+                if (/^[A-Za-zÀ-ú][A-Za-zÀ-ú\-/. ]{1,24}[:\-]\s*\S/.test(valor)) return valor;
+                return (rotulo || 'CREA/Registro') + ': ' + valor;
+            }
+
+            // ── Assinante do termo (Configurações do Relatório) ─────────────────────────
+            // Normaliza um Funcionario (cadastro vivo) OU um AssinanteSnapshot (meta congelada)
+            // no formato consumido pelo bloco de assinatura de renderizarExtras.
+            function assinanteNormalizado(f) {
+                if (!f) return null;
+                const extras = Object.prototype.toString.call(f.camposExtras) === '[object Array]' ? f.camposExtras : [];
+                let registro = String(f.crea || '').trim();
+                let rotulo = registro ? 'CREA/Registro' : '';
+                // Técnico normalmente não tem CREA: usa o campo extra do próprio cadastro
+                // (ex.: "Registro NR-13", "Matrícula") com o RÓTULO dele, não "CREA" fixo.
+                if (!registro) {
+                    for (let i = 0; i < extras.length; i++) {
+                        const ex = extras[i];
+                        if (ex && ex.valor && /registro|crea|crt|conselho|matr[íi]cula/i.test(String(ex.rotulo || ''))) {
+                            registro = String(ex.valor).trim();
+                            rotulo = String(ex.rotulo).trim();
+                            break;
+                        }
+                    }
+                }
+                return {
+                    nome: String(f.nome || '').trim(),
+                    funcao: f.funcao || '',
+                    assinatura: f.assinatura || '',
+                    registro: registro,
+                    rotuloRegistro: rotulo
+                };
+            }
+
+            // Quem assina o termo: 'engenheiro' (default) ou 'tecnico', conforme escolhido no modal
+            // de Configurações do Relatório. Prefere o SNAPSHOT congelado da meta quando ?ctx=rel
+            // (relatório salvo não muda quando o cadastro/escolha mudam depois — §7-bis).
+            function resolverAssinanteTermo(meta, vivos) {
+                const ctxRel = new URLSearchParams(window.location.search).get('ctx') === 'rel';
+                const snap = (meta && meta.assinantes) ? meta.assinantes : null;
+                let escolha = '';
+                if (ctxRel && snap && snap.assinanteTermoLivro) escolha = snap.assinanteTermoLivro;
+                if (!escolha) escolha = vivos.assinanteTermoLivro || '';
+                if (escolha !== 'tecnico') escolha = 'engenheiro'; // default histórico
+                if (snap && snap[escolha]) return assinanteNormalizado(snap[escolha]);
+                const id = escolha === 'tecnico' ? vivos.tecnicoId : vivos.engenheiroId;
+                if (!id) return null;
+                const phs = lerJSON('nr13_lista_phs');
+                if (Object.prototype.toString.call(phs) !== '[object Array]') return null;
+                for (let i = 0; i < phs.length; i++) {
+                    if (phs[i] && String(phs[i].id) === String(id)) return assinanteNormalizado(phs[i]);
+                }
+                return null;
             }
 
             function renderizarModoRelatorioAtual(tag) {
@@ -514,6 +700,15 @@
                 document.getElementById('data-inicio-val').textContent = dataBR;
                 document.getElementById('data-fim-val').textContent = dataBR;
                 renderizarTermo(tipo, dataBR, dataBR, meta.codigo, '', '', apto);
+
+                // Termo editável só enquanto o relatório NÃO foi salvo no histórico; depois de
+                // salvo, exibe o texto congelado na entrada do livro e trava a edição.
+                if (relatorioJaSalvo(meta.codigo)) {
+                    aplicarTermoSomenteLeitura(termoDaEntradaDoRelatorio(tag, meta.codigo));
+                } else {
+                    ligarEdicaoTermo(tag);
+                }
+
                 // Snapshot do engenheiro congelado na meta (bug fix 14/07/2026) — ao REABRIR um
                 // relatório salvo, a rubrica/cargo vêm do snapshot da geração, não do cadastro vivo.
                 const snapEng = (meta.assinantes && meta.assinantes.engenheiro) || null;
@@ -525,7 +720,9 @@
                     tecnicoNome: meta.tecnicoNome,
                     phId: assinantes.engenheiroId || '',
                     assinaturaImg: snapEng ? snapEng.assinatura : undefined,
-                    assinanteFuncao: snapEng ? snapEng.funcao : undefined
+                    assinanteFuncao: snapEng ? snapEng.funcao : undefined,
+                    // Engenheiro OU técnico, conforme "Quem assina o Termo do Livro de Registro".
+                    assinante: resolverAssinanteTermo(meta, assinantes)
                 });
             }
 
@@ -537,13 +734,15 @@
 
                 if (!tag) return;
 
+                renderizarCabecalhoEmpresa();
+
                 if (entradaId || (idx !== null && idx !== '')) {
+                    // Registro já consumado: texto congelado da entrada, SEMPRE somente leitura.
                     const entrada = renderizarModoHistorico(tag, entradaId, idx);
-                    configurarEdicaoTermo(tag, entrada);
+                    aplicarTermoSomenteLeitura(entrada && typeof entrada.termoTexto === 'string' ? entrada.termoTexto : '');
                 } else {
+                    // Relatório em montagem/salvo — a própria função decide se o termo é editável.
                     renderizarModoRelatorioAtual(tag);
-                    // Folha do relatório em montagem: não há entrada do livro para persistir.
-                    configurarEdicaoTermo(tag, null);
                 }
             }
 

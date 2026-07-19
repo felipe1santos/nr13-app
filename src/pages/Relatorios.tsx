@@ -21,6 +21,7 @@ import {
   salvarNoHistorico,
   snapshotAssinantes,
   snapshotEmpresa,
+  type AssinanteTermoLivro,
   type AssinantesRelatorio,
 } from '../features/relatorios/relatoriosService';
 import { expandirFolhasUltrassom } from '../features/relatorios/ultrassomPaginacao';
@@ -125,7 +126,11 @@ export default function Relatorios() {
   // Motor de assinatura do relatório: assinantes escolhidos (gravados em nr13_assinantes_rel_<TAG>,
   // lidos pelo public/rel-assinatura.js dentro das folhas) + lista de funcionários para os selects.
   const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
-  const [assinantes, setAssinantes] = useState<AssinantesRelatorio>({ engenheiroId: null, tecnicoId: null });
+  const [assinantes, setAssinantes] = useState<AssinantesRelatorio>({
+    engenheiroId: null,
+    tecnicoId: null,
+    assinanteTermoLivro: 'engenheiro',
+  });
 
   // Aviso (não impresso) de rastreabilidade ausente: se o relatório tem folha de ULTRASSOM ou
   // TESTE-HIDROSTATICO e não há registro compatível em Calibrações → Rastreabilidade, os blocos
@@ -269,7 +274,7 @@ export default function Relatorios() {
 
   // Troca de assinante com o relatório aberto: regrava a chave e bumpa a versão (remonta os
   // iframes, que releem a chave). Em relatório editável, espelha também na meta.
-  function trocarAssinanteRel(campo: keyof AssinantesRelatorio, id: string) {
+  function trocarAssinanteRel(campo: 'engenheiroId' | 'tecnicoId', id: string) {
     const novo: AssinantesRelatorio = { ...assinantes, [campo]: id || null };
     setAssinantes(novo);
     gravarAssinantesRel(tag, novo);
@@ -285,6 +290,21 @@ export default function Relatorios() {
       }
       // Mantém o snapshot congelado em sincronia com a troca (rel-assinatura.js lê meta.assinantes).
       m.assinantes = snapshotAssinantes(novo, funcionarios);
+      setMeta(m);
+      void gravarMetaAtual(m); // grava localStorage de forma síncrona antes do remount
+    }
+    setVersao((v) => v + 1);
+  }
+
+  // Quem assina o Termo do Livro de Registro (folha LIVRO-REGISTRO.html): engenheiro ou técnico.
+  // Grava na mesma chave dos assinantes e mantém o snapshot congelado da meta em sincronia —
+  // relatório salvo (somenteLeitura) não passa por aqui: o select fica desabilitado.
+  function trocarAssinanteTermoLivro(valor: AssinanteTermoLivro) {
+    const novo: AssinantesRelatorio = { ...assinantes, assinanteTermoLivro: valor };
+    setAssinantes(novo);
+    gravarAssinantesRel(tag, novo);
+    if (meta && !somenteLeitura) {
+      const m = { ...meta, assinantes: snapshotAssinantes(novo, funcionarios) };
       setMeta(m);
       void gravarMetaAtual(m); // grava localStorage de forma síncrona antes do remount
     }
@@ -844,6 +864,21 @@ export default function Relatorios() {
                             {f.nome}{f.crea ? ` — ${f.crea}` : ''}
                           </option>
                         ))}
+                      </select>
+                    </div>
+                    {/* Termo do Livro de Registro: quem assina a folha LIVRO-REGISTRO.html.
+                        A escolha vai para nr13_assinantes_rel_<TAG> e para o snapshot congelado
+                        em meta.assinantes (relatório salvo não muda depois — §7-bis). */}
+                    <div className="meta-barra-campo">
+                      <label htmlFor="rel-sel-termo-livro">Quem assina o Termo do Livro de Registro</label>
+                      <select
+                        id="rel-sel-termo-livro"
+                        value={assinantes.assinanteTermoLivro}
+                        disabled={somenteLeitura}
+                        onChange={(e) => trocarAssinanteTermoLivro(e.target.value as AssinanteTermoLivro)}
+                      >
+                        <option value="engenheiro">Engenheiro</option>
+                        <option value="tecnico">Técnico</option>
                       </select>
                     </div>
                   </div>

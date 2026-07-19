@@ -1,4 +1,4 @@
-import { ler, salvar } from '../../services/storage';
+import { excluirChave, ler, salvar } from '../../services/storage';
 import { emitirDadosAlterados } from '../../services/eventos';
 import { listarFuncionarios } from '../cadastros/cadastroService';
 import type { Funcionario } from '../cadastros/tipos';
@@ -48,13 +48,15 @@ export interface LivroEntrada {
   assinanteFuncao?: string;
   /** Entradas manuais: quem executou a ocorrência (texto livre — empresa/técnico executante). */
   quemRealizou?: string;
-  // ── Ciclo de vida rascunho → lacrado (19/07/2026) ──
-  // AUSENTE = entrada ANTIGA: o livro sempre foi de fato imutável, então trata-se como LACRADA.
-  // false = rascunho editável (gravado EXPLICITAMENTE nas entradas novas). true = lacrada.
+  // ── Ciclo de vida (19/07/2026) ──
+  // A entrada só é criada no momento em que o relatório é SALVO — e a partir daí é imutável.
+  // Por isso toda entrada nova nasce `lacrado: true`. AUSENTE = entrada ANTIGA, também tratada
+  // como lacrada (o livro sempre foi de fato imutável). A edição do termo acontece ANTES, na
+  // própria folha LIVRO-REGISTRO.html (rascunho em nr13_termo_livro_<TAG>, consumido aqui).
   lacrado?: boolean;
   /** id da entrada (lacrada) que este registro retifica — ambas permanecem no livro. */
   retificaDe?: string;
-  /** Texto do termo editado na própria folha LIVRO-REGISTRO.html (contenteditable persistido). */
+  /** Texto do termo digitado pelo usuário na folha LIVRO-REGISTRO.html antes de salvar o relatório. */
   termoTexto?: string;
 }
 
@@ -96,14 +98,33 @@ function chaveLivro(tag: string): string {
   return `nr13_livro_${tag}`;
 }
 
+// Rascunho do termo digitado pelo usuário na folha LIVRO-REGISTRO.html enquanto o relatório está
+// em montagem. É VOLÁTIL: consumido (copiado para a entrada) e APAGADO quando o relatório é
+// salvo — senão o texto de um relatório vazaria para o próximo do mesmo equipamento.
+function chaveTermoLivro(tag: string): string {
+  return `nr13_termo_livro_${tag}`;
+}
+
+function consumirTermoRascunho(tag: string): string | undefined {
+  const bruto = ler<unknown>(chaveTermoLivro(tag));
+  const texto = typeof bruto === 'string' ? bruto.trim() : '';
+  void excluirChave(chaveTermoLivro(tag));
+  return texto || undefined;
+}
+
 // ── Assinantes do relatório (motor de assinatura — mesmo padrão do prontuário) ─────────────────
 // ids referem-se a Funcionario.id de nr13_lista_phs; null = "sem assinatura" para aquele papel.
 // A chave nr13_assinantes_rel_<TAG> é lida pelo public/rel-assinatura.js nas folhas do relatório.
 const chaveAssinantesRel = (tag: string) => `nr13_assinantes_rel_${tag}`;
 
+/** Papel que assina o Termo do Livro de Registro (folha LIVRO-REGISTRO.html). */
+export type AssinanteTermoLivro = 'engenheiro' | 'tecnico';
+
 export interface AssinantesRelatorio {
   engenheiroId: string | null;
   tecnicoId: string | null;
+  /** Escolhido no modal Configurações do Relatório. Default histórico: engenheiro. */
+  assinanteTermoLivro: AssinanteTermoLivro;
 }
 
 export function obterAssinantesRel(tag: string): AssinantesRelatorio {
@@ -111,6 +132,7 @@ export function obterAssinantesRel(tag: string): AssinantesRelatorio {
   return {
     engenheiroId: salvo?.engenheiroId ?? null,
     tecnicoId: salvo?.tecnicoId ?? null,
+    assinanteTermoLivro: salvo?.assinanteTermoLivro === 'tecnico' ? 'tecnico' : 'engenheiro',
   };
 }
 
@@ -135,7 +157,15 @@ export function snapshotEmpresa(): Record<string, unknown> | undefined {
 export function snapshotAssinantes(
   a: AssinantesRelatorio,
   funcs: Funcionario[],
-): { engenheiro: AssinanteSnapshot | null; tecnico: AssinanteSnapshot | null } {
+): {
+  engenheiro: AssinanteSnapshot | null;
+  tecnico: AssinanteSnapshot | null;
+  // Congela também QUEM assina o termo do livro (LIVRO-REGISTRO.html lê meta.assinantes com
+  // ?ctx=rel). Campo extra em relação a RelatorioMeta['assinantes'] — atribuir o RETORNO desta
+  // função a meta.assinantes é válido (excess property check só vale para object literal) e o
+  // campo sobrevive no JSON que a folha lê do localStorage.
+  assinanteTermoLivro: AssinanteTermoLivro;
+} {
   const snap = (id: string | null): AssinanteSnapshot | null => {
     const f = funcs.find((x) => id != null && x.id === id);
     if (!f) return null;
@@ -150,7 +180,11 @@ export function snapshotAssinantes(
       folhasRelatorio: f.folhasRelatorio ?? (f.tipo === 'Engenheiro' ? [...FOLHAS_RELATORIO_ASSINAVEIS] : []),
     };
   };
-  return { engenheiro: snap(a.engenheiroId), tecnico: snap(a.tecnicoId) };
+  return {
+    engenheiro: snap(a.engenheiroId),
+    tecnico: snap(a.tecnicoId),
+    assinanteTermoLivro: a.assinanteTermoLivro === 'tecnico' ? 'tecnico' : 'engenheiro',
+  };
 }
 
 // NR-13 13.4.1.9 — injeta TERMO-ABERTURA.html antes de LIVRO-REGISTRO.html só quando é a
@@ -303,9 +337,12 @@ export async function adicionarEntradaLivroAuto(relatorio: RelatorioSalvo): Prom
     phId: engenheiroId,
     assinaturaImg: snapEng ? snapEng.assinatura : funcVivo?.assinatura,
     assinanteFuncao: snapEng ? snapEng.funcao : funcVivo?.funcao,
-    // Nasce RASCUNHO (editável até o usuário lacrar) — gravado explicitamente para
-    // distinguir de entradas antigas, que não têm o campo e valem como lacradas.
-    lacrado: false,
+    // Termo digitado na folha do livro ANTES de salvar (nr13_termo_livro_<TAG>): copiado para
+    // dentro da entrada e a chave é apagada — rascunho consumido não vaza para o próximo relatório.
+    termoTexto: consumirTermoRascunho(relatorio.tagVaso),
+    // Nasce LACRADA: a entrada só existe a partir do momento em que o relatório é salvo,
+    // e daí em diante é imutável (correção = registro de retificação).
+    lacrado: true,
   };
   await salvar(chaveLivro(relatorio.tagVaso), [...livro, entrada]);
 }
@@ -359,8 +396,8 @@ export function adicionarEntradaLivroManual(tag: string, dados: DadosOcorrenciaM
     // Rubrica/cargo congelados na criação (bug fix 14/07/2026) — mesma regra da entrada automática.
     assinaturaImg: func?.assinatura,
     assinanteFuncao: func?.funcao,
-    // Rascunho editável até ser lacrado (mesma regra da entrada automática).
-    lacrado: false,
+    // Nasce lacrada (mesma regra da entrada automática): registro de livro é imutável.
+    lacrado: true,
     retificaDe: dados.retificaDe || undefined,
   };
 
@@ -373,47 +410,9 @@ export function adicionarEntradaLivroManual(tag: string, dados: DadosOcorrenciaM
   return entrada;
 }
 
-// ── Edição / lacre de entradas do livro ────────────────────────────────────────
-// Enquanto rascunho (lacrado === false), a entrada pode ser corrigida. Depois de lacrada é
-// imutável: erro em registro lacrado se corrige com um REGISTRO DE RETIFICAÇÃO (entrada nova
+// Entrada do livro é IMUTÁVEL desde a criação (nasce lacrada): não existe mais edição/exclusão
+// de entrada. Erro em registro se corrige com um REGISTRO DE RETIFICAÇÃO (entrada manual nova
 // com retificaDe apontando para ela) — ambas permanecem no livro, como manda um livro legal.
-
-/** Campos que o usuário pode corrigir enquanto a entrada é rascunho. */
-export type PatchLivroEntrada = Partial<
-  Pick<LivroEntrada, 'data' | 'tipo' | 'descricao' | 'quemRealizou' | 'termoTexto'>
->;
-
-/** Aplica o patch; retorna false (sem gravar nada) se a entrada não existe ou já está lacrada. */
-export function atualizarEntradaLivro(tag: string, id: string, patch: PatchLivroEntrada): boolean {
-  const livro = ler<LivroEntrada[]>(chaveLivro(tag)) || [];
-  const idx = livro.findIndex((e) => e.id === id);
-  if (idx < 0 || estaLacrada(livro[idx])) return false;
-
-  livro[idx] = { ...livro[idx], ...patch, lacrado: false };
-  // Data pode ter mudado — o livro é cronológico.
-  livro.sort((a, b) => timestampDataLivro(a.data) - timestampDataLivro(b.data));
-  void salvar(chaveLivro(tag), livro);
-  return true;
-}
-
-/** Torna a entrada imutável. Retorna false se não existe (idempotente para já lacradas). */
-export function lacrarEntradaLivro(tag: string, id: string): boolean {
-  const livro = ler<LivroEntrada[]>(chaveLivro(tag)) || [];
-  const idx = livro.findIndex((e) => e.id === id);
-  if (idx < 0) return false;
-  livro[idx] = { ...livro[idx], lacrado: true };
-  void salvar(chaveLivro(tag), livro);
-  return true;
-}
-
-/** Remove uma entrada RASCUNHO. Recusa (false) entradas lacradas. */
-export function excluirEntradaLivro(tag: string, id: string): boolean {
-  const livro = ler<LivroEntrada[]>(chaveLivro(tag)) || [];
-  const alvo = livro.find((e) => e.id === id);
-  if (!alvo || estaLacrada(alvo)) return false;
-  void salvar(chaveLivro(tag), livro.filter((e) => e.id !== id));
-  return true;
-}
 
 export function listaPadraoDocumentos(): string[] {
   return [...DOCUMENTOS_DISPONIVEIS];

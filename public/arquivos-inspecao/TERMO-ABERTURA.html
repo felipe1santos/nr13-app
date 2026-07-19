@@ -47,6 +47,18 @@
 
         .content-container { flex-grow: 1; padding: 0 5px; padding-bottom: 12mm; }
 
+        /* =========================================
+           CABEÇALHO DA EMPRESA (logo + dados) — tabela real (sem grid/flex, regra html2canvas)
+           ========================================= */
+        .termo-empresa-table { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
+        .termo-empresa-table td { vertical-align: middle; padding: 0; }
+        .termo-empresa-logo-cell { width: 28%; text-align: left; padding-right: 14px; }
+        .termo-empresa-logo-cell img { max-width: 140px; max-height: 60px; object-fit: contain; display: block; cursor: pointer; }
+        .termo-empresa-dados-cell { text-align: left; border-left: 1px solid var(--border-color); padding-left: 14px; }
+        .termo-empresa-razao { font-size: 14px; font-weight: 800; text-transform: uppercase; margin-bottom: 3px; color: var(--text-dark); }
+        .termo-empresa-linha { font-size: 10px; color: #4B5563; line-height: 1.5; }
+        .termo-empresa-divisor { border-bottom: 1px solid var(--border-color); margin-bottom: 14px; }
+
         .section-title { font-size: 13px; font-weight: 800; margin-bottom: 4px; text-transform: uppercase; text-align: center; }
         .subsection-text { font-size: 10px; color: #4B5563; margin-bottom: 14px; text-align: center; }
 
@@ -104,9 +116,26 @@
 </head>
 <body>
 
+    <input type="file" id="inputLogoEmpresa" class="hide-input" accept="image/*" onchange="previewImage(this, 'imgLogoEmpresa')">
+
     <div class="page">
 
         <div class="content-container">
+
+            <table class="termo-empresa-table">
+                <tr>
+                    <td class="termo-empresa-logo-cell">
+                        <img id="imgLogoEmpresa" src="logo.webp" alt="Logo da Empresa" class="editable-image" onclick="document.getElementById('inputLogoEmpresa').click()" title="Clique para trocar a logo">
+                    </td>
+                    <td class="termo-empresa-dados-cell">
+                        <div class="termo-empresa-razao" id="empresa-razao">--</div>
+                        <div class="termo-empresa-linha" id="empresa-cnpj"></div>
+                        <div class="termo-empresa-linha" id="empresa-endereco"></div>
+                        <div class="termo-empresa-linha" id="empresa-contato"></div>
+                    </td>
+                </tr>
+            </table>
+            <div class="termo-empresa-divisor"></div>
 
             <div class="section-title">Termo de Abertura</div>
             <div class="subsection-text">NR-13, item 13.4.1.9 — Portaria nº 1.082, de 18 de dezembro de 2018</div>
@@ -147,7 +176,7 @@
                 </tr>
                 <tr>
                     <td class="label">Código de Projeto</td>
-                    <td class="valor" id="ident-codigo-projeto">Adotado — ASME VIII Div. 1</td>
+                    <td class="valor" id="ident-codigo-projeto">--</td>
                 </tr>
                 <tr>
                     <td class="label">Fluido</td>
@@ -168,6 +197,7 @@
             document.documentElement.classList.add('compacto');
         }
     </script>
+    <script src="/rel-empresa.js?v=7"></script>
     <script src="/rel-assinatura.js?v=10"></script>
     <script>
         // O Termo de Abertura NÃO exibe número de folha nem quando montado dentro do relatório
@@ -184,6 +214,44 @@
                 reader.readAsDataURL(input.files[0]);
             }
         }
+
+        // ==========================================
+        // MOTOR: LOGO E DADOS DA EMPRESA EXECUTANTE (cabeçalho)
+        // Fonte: window.NR13_EMPRESA_JSON (snapshot congelado em relatório salvo, ver
+        // rel-empresa.js) com fallback para o dado vivo em nr13_minha_empresa.
+        // ==========================================
+        function preencherEmpresaExecutante() {
+            var raw = (window.NR13_EMPRESA_JSON || localStorage.getItem('nr13_minha_empresa'));
+            if (!raw) return;
+            try {
+                var d = JSON.parse(raw);
+                if (d.logo) document.getElementById('imgLogoEmpresa').src = d.logo;
+
+                var razaoEl = document.getElementById('empresa-razao');
+                if (razaoEl) razaoEl.textContent = d.razao || d.fantasia || 'NOME DA EMPRESA';
+
+                var cnpjEl = document.getElementById('empresa-cnpj');
+                if (cnpjEl) cnpjEl.textContent = d.cnpj ? ('CNPJ: ' + d.cnpj) : '';
+
+                var enderecoPartes = [];
+                if (d.endereco) enderecoPartes.push(d.endereco);
+                if (d.bairro) enderecoPartes.push(d.bairro);
+                var enderecoTxt = enderecoPartes.join(', ');
+                if (d.cidade && d.estado) {
+                    enderecoTxt = enderecoTxt ? (enderecoTxt + ' – ' + d.cidade + '/' + d.estado) : (d.cidade + '/' + d.estado);
+                }
+                if (d.cep) enderecoTxt = enderecoTxt ? (enderecoTxt + ' – CEP: ' + d.cep) : ('CEP: ' + d.cep);
+                var enderecoEl = document.getElementById('empresa-endereco');
+                if (enderecoEl) enderecoEl.textContent = enderecoTxt;
+
+                var contatoPartes = [];
+                if (d.telefone) contatoPartes.push('Telef: ' + d.telefone);
+                if (d.email) contatoPartes.push('E-mail: ' + d.email);
+                var contatoEl = document.getElementById('empresa-contato');
+                if (contatoEl) contatoEl.textContent = contatoPartes.join(' • ');
+            } catch (e) {}
+        }
+        document.addEventListener('DOMContentLoaded', preencherEmpresaExecutante);
 
 
         // ==========================================
@@ -269,13 +337,17 @@
                 if (emp.cep) enderecoVaso.push(`CEP: ${emp.cep}`);
                 const enderecoVasoTexto = enderecoVaso.length > 0 ? enderecoVaso.join(', ') : 'Endereço não informado';
 
+                // A frase do termo já diz "Vaso de Pressão"; a descrição só entra quando acrescenta
+                // informação. Sem isso, um equipamento sem descrição saía como "Vaso de Pressão vaso".
                 const tipoVaso = info.descricao || info.tipo || 'Vaso de Pressão';
+                const tipoNaFrase = /vaso/i.test(tipoVaso) ? '' : ' ' + tipoVaso;
+                const fabricanteVaso = info.fabricante || '';
                 const serieVaso = info.numeroSerie || info.serie || '--';
                 const cnpjVaso = emp.cnpj || 'CNPJ não informado';
                 const totalFolhas = livroConfig.totalFolhas || 50;
 
                 document.getElementById('termo-texto').textContent =
-                    `Este livro contém ${totalFolhas} (${numeroPorExtenso(totalFolhas)}) folhas numeradas tipograficamente de 01 a ${String(totalFolhas).padStart(2, '0')} e servirá como Livro de Registro de Segurança do Vaso de Pressão ${tipoVaso}, TAG ${tag}, Número de Série: ${serieVaso}, da Empresa ${nomeEmpresaVaso}, sob o CNPJ: ${cnpjVaso}, ${enderecoVasoTexto}. ` +
+                    `Este livro contém ${totalFolhas} (${numeroPorExtenso(totalFolhas)}) folhas numeradas tipograficamente de 01 a ${String(totalFolhas).padStart(2, '0')} e servirá como Livro de Registro de Segurança do Vaso de Pressão${tipoNaFrase}${fabricanteVaso ? ', fabricado por ' + fabricanteVaso : ''}, TAG ${tag}, Número de Série: ${serieVaso}, da Empresa ${nomeEmpresaVaso}, sob o CNPJ: ${cnpjVaso}, ${enderecoVasoTexto}. ` +
                     `Em atendimento ao item 13.4.1.9 da Norma Regulamentadora Nº 13, Portaria Nº 1.082, de 18 de dezembro de 2018.`;
 
                 setVal('ident-empresa', nomeEmpresaVaso);
@@ -283,6 +355,16 @@
                 setVal('ident-fabricante', info.fabricante);
                 setVal('ident-tipo', tipoVaso);
                 setVal('ident-serie', serieVaso);
+
+                // O código de projeto vinha escrito fixo no HTML como "Adotado — ASME VIII Div. 1":
+                // uma caldeira (ASME I) imprimia o código errado num documento legal. Agora sai o
+                // que está na ficha, com edição/adenda quando houver, e só cai no padrão de vaso
+                // se o campo estiver vazio.
+                const codigoProjeto = [info.codigoProjeto, info.edicao, info.adenda]
+                    .map((p) => String(p || '').trim())
+                    .filter((p) => p !== '')
+                    .join(' — ');
+                setVal('ident-codigo-projeto', codigoProjeto || 'Adotado — ASME VIII Div. 1');
 
                 const pmtaInput = info.pmta || calc.pmta;
                 const pmtaUnid = info.pmta ? info.pmtaUnid : 'MPa';
