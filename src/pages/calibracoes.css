@@ -460,11 +460,59 @@
   border-bottom-color: var(--amber);
 }
 
-/* ── Cabeçalho com foto do equipamento ── */
+/* ── Cabeçalho com foto do equipamento ──
+   Duas colunas: identificação à esquerda, painel de componentes no canto superior
+   direito (ocupa a faixa que ficava vazia ao lado do título). */
 .cal-eq-header {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 16px;
+}
+.cal-eq-main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+}
+.cal-btn-voltar {
+  flex-shrink: 0;
+  font-size: 12px;
+  padding: 6px 12px;
+  white-space: nowrap;
+}
+.cal-eq-comps {
+  width: 400px;
+  flex-shrink: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #FBFAF7;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cal-eq-comps-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.cal-eq-comps-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.cal-btn-add-comp { font-size: 12px; padding: 4px 10px; white-space: nowrap; }
+.cal-eq-comps-vazio { font-size: 12px; color: var(--muted); margin: 2px 0 4px; line-height: 1.45; }
+.cal-eq-comps-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 190px;
+  overflow-y: auto;
 }
 .cal-eq-foto {
   width: 96px;
@@ -491,7 +539,6 @@
   margin-bottom: 12px;
   background: #FBFAF7;
 }
-.cal-comp-lista { display: flex; flex-direction: column; gap: 8px; }
 .cal-comp-item {
   display: flex;
   align-items: center;
@@ -518,14 +565,36 @@
 .cal-comp-nome { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .cal-comp-nome strong { font-size: 13px; }
 .cal-comp-nome span { font-size: 11px; color: var(--muted); }
+/* Variante compacta do item — usada no painel do cabeçalho */
+.cal-comp-item.compacto { padding: 5px 8px; gap: 8px; background: #fff; }
+.cal-comp-item.compacto .cal-comp-foto { width: 32px; height: 32px; border-radius: 7px; }
+.cal-comp-item.compacto .cal-comp-nome strong {
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cal-comp-item.compacto .cal-comp-nome span {
+  font-size: 10.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cal-comp-item.compacto .badge-cal-tipo { font-size: 9.5px; padding: 2px 7px; }
 
 /* ── Lotes de calibração ── */
+/* overflow VISÍVEL: o menu "Vincular" é position:absolute e era decepado pelo
+   overflow:hidden do lote (a lista aparecia cortada). O arredondamento das
+   bordas é feito nos filhos, não por clipping. */
 .cal-lote {
   border: 1px solid var(--line);
   border-radius: 10px;
   margin-bottom: 8px;
-  overflow: hidden;
+  overflow: visible;
 }
+.cal-lote > .cal-lote-head-row { border-radius: 9px; }
+.cal-lote:has(.cal-lote-corpo) > .cal-lote-head-row { border-radius: 9px 9px 0 0; }
+.cal-lote > .cal-lote-corpo { border-radius: 0 0 9px 9px; }
 .cal-lote-head {
   width: 100%;
   display: flex;
@@ -550,14 +619,18 @@
   align-items: center;
   background: #FBFAF7;
 }
-.cal-lote-head-row .cal-lote-head { flex: 1; min-width: 0; }
+.cal-lote-head-row .cal-lote-head { flex: 1; min-width: 0; background: none; border-radius: inherit; }
+/* Largura fixa no desktop: alinha "x/y calibrados", status e vínculo em colunas
+   consistentes entre os lotes (antes cada linha "dançava" conforme o texto). */
 .cal-lote-vinculo {
   position: relative;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
   padding-right: 12px;
   flex-shrink: 0;
+  width: 360px;
 }
 .badge-vinculo {
   display: inline-flex;
@@ -589,6 +662,8 @@
   z-index: 30;
   min-width: 280px;
   max-width: 360px;
+  max-height: 320px;
+  overflow-y: auto;
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -634,8 +709,19 @@
   border-top: 1px solid var(--line);
 }
 
+/* Painel de componentes desce para baixo do título quando não há largura */
+@media (max-width: 1080px) {
+  .cal-eq-header { flex-direction: column; }
+  .cal-eq-comps { width: 100%; }
+}
+
+/* Entre o mobile e o desktop largo, a coluna fixa do vínculo apertaria o head */
+@media (max-width: 900px) {
+  .cal-lote-vinculo { width: auto; }
+}
+
 @media (max-width: 640px) {
-  .cal-eq-header { flex-direction: column; align-items: flex-start; }
+  .cal-eq-main { flex-wrap: wrap; }
   .cal-comp-item { flex-wrap: wrap; }
   .cal-lote-head-row { flex-wrap: wrap; }
   .cal-lote-vinculo { width: 100%; padding: 0 12px 10px; }

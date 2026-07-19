@@ -210,6 +210,23 @@ export default function Calibracoes() {
   // Vínculo lote ↔ relatório: relatórios salvos do equipamento + menu aberto
   const [relsEquip, setRelsEquip] = useState<RelatorioSalvo[]>([]);
   const [vinculoMenu, setVinculoMenu] = useState<string | null>(null);
+  // Fecha o menu Vincular ao clicar fora dele ou apertar Esc — sem isso o menu de um lote
+  // ficava aberto "pendurado" sobre a lista até o usuário clicar de novo no botão.
+  useEffect(() => {
+    if (!vinculoMenu) return;
+    const aoClicar = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement | null)?.closest('.cal-lote-vinculo')) setVinculoMenu(null);
+    };
+    const aoTeclar = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setVinculoMenu(null);
+    };
+    document.addEventListener('mousedown', aoClicar);
+    document.addEventListener('keydown', aoTeclar);
+    return () => {
+      document.removeEventListener('mousedown', aoClicar);
+      document.removeEventListener('keydown', aoTeclar);
+    };
+  }, [vinculoMenu]);
   const compFotoRef = useRef<HTMLInputElement>(null);
   const vinculoCalibracao = useRef<{ componenteId: string; loteId: string } | null>(null);
 
@@ -472,51 +489,93 @@ export default function Calibracoes() {
       {/* ── HISTÓRICO (componentes + lotes) ─────────── */}
       {abaPrincipal === 'certificados' && tela === 'historico' && (
         <>
-          {/* Voltar FORA do card (pedido do usuário) */}
-          <div className="meta-breadcrumb" style={{ marginBottom: 12 }}>
-            <button type="button" className="btn-secundario" onClick={() => setTela('equipamentos')}>
-              ← Voltar
-            </button>
-          </div>
-
           <div className="bloco-dados">
-            {/* Cabeçalho com a FOTO do equipamento */}
+            {/* Cabeçalho: Voltar compacto + foto + título à esquerda; painel de componentes
+               ocupa o canto superior direito (antes era uma faixa vazia). */}
             <div className="cal-eq-header">
-              <div className="cal-eq-foto">
-                {eqAtual?.fotoCapa ? (
-                  <img src={eqAtual.fotoCapa} alt={`Foto de ${tag}`} />
-                ) : (
-                  <Icone nome="cylinder" tam={34} />
-                )}
-              </div>
-              <div className="cal-eq-info">
-                <h3 style={{ margin: 0, border: 'none', padding: 0 }}>Calibrações — {tag}</h3>
-                <p className="cal-eq-sub">
-                  Cadastre as válvulas e manômetros do equipamento uma única vez; a cada inspeção,
-                  abra um novo lote e calibre os mesmos componentes.
-                </p>
-              </div>
-            </div>
-
-            {/* ── COMPONENTES DO EQUIPAMENTO ── */}
-            <div className="meta-card-header" style={{ marginTop: 16 }}>
-              <h3 style={{ margin: 0, border: 'none', padding: 0, fontSize: 14 }}>Componentes do equipamento</h3>
-              {!compForm && (
+              <div className="cal-eq-main">
                 <button
                   type="button"
-                  className="btn-secundario"
-                  onClick={() =>
-                    setCompForm({
-                      id: `comp-${Date.now()}`,
-                      tipo: 'manometro',
-                      nome: '',
-                      criadoEm: new Date().toLocaleDateString('pt-BR'),
-                    })
-                  }
+                  className="btn-secundario cal-btn-voltar"
+                  onClick={() => setTela('equipamentos')}
                 >
-                  + Adicionar componente
+                  ← Voltar
                 </button>
-              )}
+                <div className="cal-eq-foto">
+                  {eqAtual?.fotoCapa ? (
+                    <img src={eqAtual.fotoCapa} alt={`Foto de ${tag}`} />
+                  ) : (
+                    <Icone nome="cylinder" tam={34} />
+                  )}
+                </div>
+                <div className="cal-eq-info">
+                  <h3 style={{ margin: 0, border: 'none', padding: 0 }}>Calibrações — {tag}</h3>
+                  <p className="cal-eq-sub">
+                    Cadastre as válvulas e manômetros do equipamento uma única vez; a cada inspeção,
+                    abra um novo lote e calibre os mesmos componentes.
+                  </p>
+                </div>
+              </div>
+
+              {/* ── COMPONENTES DO EQUIPAMENTO (painel compacto no topo direito) ── */}
+              <div className="cal-eq-comps">
+                <div className="cal-eq-comps-head">
+                  <span className="cal-eq-comps-title">Componentes do equipamento</span>
+                  {!compForm && (
+                    <button
+                      type="button"
+                      className="btn-secundario cal-btn-add-comp"
+                      onClick={() =>
+                        setCompForm({
+                          id: `comp-${Date.now()}`,
+                          tipo: 'manometro',
+                          nome: '',
+                          criadoEm: new Date().toLocaleDateString('pt-BR'),
+                        })
+                      }
+                    >
+                      + Adicionar
+                    </button>
+                  )}
+                </div>
+                {componentes.length === 0 && !compForm ? (
+                  <p className="cal-eq-comps-vazio">
+                    Nenhum componente. Adicione as válvulas e manômetros deste equipamento.
+                  </p>
+                ) : (
+                  <div className="cal-eq-comps-lista" role="list" aria-label="Componentes do equipamento">
+                    {componentes.map((c) => (
+                      <div key={c.id} className="cal-comp-item compacto">
+                        <div className="cal-comp-foto">
+                          {c.foto ? <img src={c.foto} alt={c.nome} /> : <Icone nome={c.tipo === 'psv' ? 'valvula-psv' : 'manometro'} tam={20} />}
+                        </div>
+                        <div className="cal-comp-nome">
+                          <strong>{c.nome}</strong>
+                          <span>{[c.fabricante, c.serie && `S/N ${c.serie}`].filter(Boolean).join(' · ') || '—'}</span>
+                        </div>
+                        <span className={`badge-cal-tipo ${c.tipo}`}>{c.tipo === 'manometro' ? 'Manômetro' : 'PSV'}</span>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          <button type="button" className="btn-icone cor-cinza" title="Editar" onClick={() => setCompForm({ ...c })}>
+                            <Icone nome="pencil" tam={13} />
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-icone cor-vermelho"
+                            title="Excluir componente"
+                            onClick={async () => {
+                              if (!window.confirm(`Excluir o componente ${c.nome}? Os certificados já emitidos continuam no histórico.`)) return;
+                              await excluirComponente(tag, c.id);
+                              setComponentes(listarComponentes(tag));
+                            }}
+                          >
+                            <Icone nome="trash" tam={13} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             {compForm && (
@@ -580,46 +639,8 @@ export default function Calibracoes() {
               </div>
             )}
 
-            {componentes.length === 0 && !compForm ? (
-              <p className="dashboard-vazio" style={{ padding: '14px 0' }}>
-                Nenhum componente cadastrado. Adicione as válvulas e manômetros deste equipamento para poder calibrá-los.
-              </p>
-            ) : (
-              <div className="cal-comp-lista">
-                {componentes.map((c) => (
-                  <div key={c.id} className="cal-comp-item">
-                    <div className="cal-comp-foto">
-                      {c.foto ? <img src={c.foto} alt={c.nome} /> : <Icone nome={c.tipo === 'psv' ? 'valvula-psv' : 'manometro'} tam={26} />}
-                    </div>
-                    <div className="cal-comp-nome">
-                      <strong>{c.nome}</strong>
-                      <span>{[c.fabricante, c.serie && `S/N ${c.serie}`].filter(Boolean).join(' · ') || '—'}</span>
-                    </div>
-                    <span className={`badge-cal-tipo ${c.tipo}`}>{c.tipo === 'manometro' ? 'Manômetro' : 'PSV'}</span>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button type="button" className="btn-icone cor-cinza" title="Editar" onClick={() => setCompForm({ ...c })}>
-                        <Icone nome="pencil" tam={14} />
-                      </button>
-                      <button
-                        type="button"
-                        className="btn-icone cor-vermelho"
-                        title="Excluir componente"
-                        onClick={async () => {
-                          if (!window.confirm(`Excluir o componente ${c.nome}? Os certificados já emitidos continuam no histórico.`)) return;
-                          await excluirComponente(tag, c.id);
-                          setComponentes(listarComponentes(tag));
-                        }}
-                      >
-                        <Icone nome="trash" tam={14} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
             {/* ── LOTES DE CALIBRAÇÃO ── */}
-            <div className="meta-card-header" style={{ marginTop: 22 }}>
+            <div className="meta-card-header" style={{ marginTop: 18 }}>
               <h3 style={{ margin: 0, border: 'none', padding: 0, fontSize: 14 }}>Lotes de calibração</h3>
               <button
                 type="button"
