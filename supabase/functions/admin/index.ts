@@ -117,9 +117,42 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'delete_user') {
+      // Exclusão COMPLETA: o FK de app_storage/profiles/login_events tem ON DELETE
+      // CASCADE, então deletar o auth user já limpa o que ELE gravou. O que a
+      // cascata NÃO cobre — e é apagado aqui — são os sub-logins da organização
+      // (gerentes/inspetores/portal) e as linhas de app_storage gravadas por eles
+      // (user_id do sub, org_id do mestre).
       const userId = body.user_id as string;
       if (!userId) return json({ erro: 'user_id obrigatório' }, 400);
       if (userId === userData.user.id) return json({ erro: 'Não pode excluir a si mesmo' }, 400);
+
+      const { data: alvo } = await admin
+        .from('profiles')
+        .select('org_id, role')
+        .eq('id', userId)
+        .maybeSingle();
+      if (alvo?.role === 'admin') return json({ erro: 'Não pode excluir outro admin.' }, 400);
+
+      // Mestre/dono da org (org_id === próprio id, ou perfil legado sem org):
+      // derruba a organização inteira.
+      const donoDaOrg = !alvo?.org_id || alvo.org_id === userId;
+      if (donoDaOrg) {
+        const orgId = alvo?.org_id ?? userId;
+        const { data: subs, error: subsErr } = await admin
+          .from('profiles')
+          .select('id')
+          .eq('org_id', orgId)
+          .neq('id', userId);
+        if (subsErr) return json({ erro: subsErr.message }, 400);
+        for (const sub of subs ?? []) {
+          const { error: subDelErr } = await admin.auth.admin.deleteUser(sub.id);
+          if (subDelErr) return json({ erro: `Falha ao excluir sub-login ${sub.id}: ${subDelErr.message}` }, 400);
+        }
+        // Rede de segurança: qualquer linha restante do escopo da org.
+        const { error: stErr } = await admin.from('app_storage').delete().eq('org_id', orgId);
+        if (stErr) return json({ erro: stErr.message }, 400);
+      }
+
       const { error } = await admin.auth.admin.deleteUser(userId);
       if (error) return json({ erro: error.message }, 400);
       return json({ ok: true });

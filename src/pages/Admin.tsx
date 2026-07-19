@@ -486,7 +486,12 @@ export default function Admin() {
   }
 
   async function excluir(p: Profile) {
-    if (!window.confirm(`EXCLUIR permanentemente ${p.email}? Esta ação não pode ser desfeita.`)) return;
+    if (
+      !window.confirm(
+        `EXCLUIR permanentemente ${p.email}?\n\nIsso apaga TUDO do usuário: conta, dados do sistema (equipamentos, inspeções, relatórios) e os sub-logins/acessos de portal criados por ele.\n\nEsta ação não pode ser desfeita.`,
+      )
+    )
+      return;
     setAcaoEmAndamento(p.id);
     setErro(null);
     setAviso(null);
