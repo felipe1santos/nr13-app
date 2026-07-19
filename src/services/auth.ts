@@ -19,6 +19,8 @@ export interface LoginResultado {
   precisaConfirmarEmail?: boolean;
   // cadastro criado mas aguardando liberação do admin (aviso, não erro)
   aguardandoLiberacao?: boolean;
+  // conta de teste (plano 'trial') com prazo vencido — a tela de login mostra o botão "Assinar agora"
+  trialExpirado?: boolean;
 }
 
 export interface VerificaAcessoResultado {
@@ -154,6 +156,9 @@ export async function login(email: string, senha: string): Promise<LoginResultad
   }
   if (expirado(perfil.acessoExpiraEm)) {
     await supabase.auth.signOut();
+    if (perfil.plano === 'trial') {
+      return { sucesso: false, trialExpirado: true, erro: 'Seu período de teste terminou.' };
+    }
     return { sucesso: false, erro: 'Seu acesso expirou. Contate o administrador.' };
   }
   // ── Sessão única (todos os papéis, inclusive o mestre): se a conta tem uma
@@ -272,6 +277,125 @@ export async function cadastrar(email: string, senha: string): Promise<LoginResu
   localStorage.removeItem('nr13_plano');
   localStorage.removeItem('nr13_role');
   return { sucesso: false, aguardandoLiberacao: true };
+}
+
+// ── Cadastro automático de trial (48h) — fluxo da tela de login ─────────────
+// 1. cadastroAutomaticoPermitido() → mostra/esconde o botão "Testar gratuitamente".
+// 2. cadastrarTrial() → signUp com metadados; Supabase envia o código (template
+//    "Confirm sign up" com {{ .Token }}, exige toggle "Confirm email" ligado).
+// 3. confirmarCodigoTrial() → verifyOtp valida o código; a Edge Function `trial`
+//    ativa a conta server-side (ativo + plano 'trial' + validade 48h); na volta,
+//    entra pelo MESMO caminho do login (sessão única + carregarPerfil + lerTudo).
+
+export interface DadosLeadTrial {
+  nome: string;
+  telefone: string;
+  empresaNome: string;
+}
+
+// Extrai o corpo {erro} de um FunctionsHttpError (padrão de orgAdmin.ts).
+async function erroDaFuncao(error: unknown, fallback: string): Promise<string> {
+  const ctx = (error as { context?: Response } | null)?.context;
+  if (ctx && typeof ctx.json === 'function') {
+    try {
+      const body = await ctx.json();
+      if (body?.erro) return String(body.erro);
+    } catch {
+      // corpo não-JSON: usa fallback
+    }
+  }
+  const msg = (error as { message?: string } | null)?.message;
+  return msg ? traduzErro(msg) : fallback;
+}
+
+export async function cadastroAutomaticoPermitido(): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.functions.invoke('trial', { body: { action: 'status' } });
+    if (error) return false;
+    return data?.permitido === true;
+  } catch {
+    return false; // offline/função ausente: botão não aparece
+  }
+}
+
+export async function cadastrarTrial(
+  email: string,
+  senha: string,
+  lead: DadosLeadTrial,
+): Promise<LoginResultado> {
+  const { data, error } = await supabase.auth.signUp({
+    email: normalizar(email),
+    password: senha,
+    options: {
+      data: {
+        nome: lead.nome,
+        telefone: lead.telefone,
+        empresa_nome: lead.empresaNome,
+        origem: 'trial',
+      },
+    },
+  });
+  if (error) return { sucesso: false, erro: traduzErro(error.message) };
+  // signUp de e-mail já registrado NÃO retorna erro (proteção anti-enumeração do
+  // Supabase): devolve um usuário "fake" sem identities. Detecta e avisa.
+  const identities = (data.user as { identities?: unknown[] } | null)?.identities;
+  if (Array.isArray(identities) && identities.length === 0) {
+    return { sucesso: false, erro: 'Este e-mail já está cadastrado.' };
+  }
+  // Com "Confirm email" ligado não há sessão aqui — o código foi enviado.
+  if (data.session) {
+    // Toggle desligado no painel: sem código para digitar; encerra e avisa.
+    await supabase.auth.signOut();
+    return { sucesso: false, erro: 'Confirmação de e-mail desativada no servidor. Contate o suporte.' };
+  }
+  return { sucesso: true, precisaConfirmarEmail: true };
+}
+
+export async function reenviarCodigoTrial(email: string): Promise<TrocaSenhaResultado> {
+  const { error } = await supabase.auth.resend({ type: 'signup', email: normalizar(email) });
+  if (error) return { sucesso: false, erro: traduzErro(error.message) };
+  return { sucesso: true };
+}
+
+export async function confirmarCodigoTrial(
+  email: string,
+  codigo: string,
+  lead: DadosLeadTrial,
+): Promise<LoginResultado> {
+  const { error: otpErr } = await supabase.auth.verifyOtp({
+    email: normalizar(email),
+    token: codigo.trim(),
+    type: 'signup',
+  });
+  if (otpErr) return { sucesso: false, erro: traduzErro(otpErr.message) };
+
+  // E-mail confirmado; ativação é 100% server-side (Edge Function `trial`).
+  const { data, error } = await supabase.functions.invoke('trial', {
+    body: {
+      action: 'ativar_trial',
+      nome: lead.nome,
+      telefone: lead.telefone,
+      empresa_nome: lead.empresaNome,
+    },
+  });
+  if (error || !data?.ok) {
+    const msg = await erroDaFuncao(error, 'Não foi possível concluir seu cadastro. Tente novamente.');
+    await supabase.auth.signOut();
+    return { sucesso: false, erro: msg };
+  }
+
+  // Entra pelo mesmo caminho do login normal (sessão única + cache + métricas).
+  const perfil = await carregarPerfil();
+  const bloqueio = await assumirSessaoUnica(perfil);
+  if (!bloqueio.ok) {
+    await supabase.auth.signOut();
+    return { sucesso: false, erro: 'Esta conta já está em uso em outro dispositivo. Saia lá ou aguarde ~2 minutos.' };
+  }
+  localStorage.removeItem('nr13_sessao_id');
+  localStorage.setItem('nr13_ultimo_login', new Date().toISOString());
+  const plano = await aposEntrar(email);
+  await registrarEvento('login');
+  return { sucesso: true, plano, papel: perfil.papel };
 }
 
 // Faxina LOCAL da sessão (chaves de sessão + cache de dados), SEM ida à rede. Compartilhada
@@ -417,6 +541,12 @@ export function isAdmin(): boolean {
 
 export function isDemo(): boolean {
   return (localStorage.getItem('nr13_plano') || '').toLowerCase().includes('demonstra');
+}
+
+// Conta em período de teste (cadastro automático de 48h). O prazo em si vive em
+// nr13_acesso_expira_em (mesma mecânica de expiração das contas normais).
+export function isTrial(): boolean {
+  return (localStorage.getItem('nr13_plano') || '').toLowerCase() === 'trial';
 }
 
 // Confirma no Supabase se a sessão segue válida e o perfil ativo/não expirado. Limpa sessão se revogado.
