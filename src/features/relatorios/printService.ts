@@ -94,14 +94,152 @@ export async function garantirFonteInterHost(): Promise<void> {
 // text-align: justify colapsa os espaços entre palavras. Normaliza tudo SÓ no clone — o
 // preview/navegador continua com o visual original dos templates.
 export function normalizarCloneParaCanvas(doc: Document): void {
-  const style = doc.createElement('style');
-  style.textContent = '* { letter-spacing: normal !important; word-spacing: normal !important; }';
-  (doc.head || doc.documentElement).appendChild(style);
   const win = doc.defaultView;
-  if (!win) return;
+  if (win) {
+    // Tudo que LÊ o layout original roda ANTES de injetar o <style> abaixo — a normalização de
+    // letter-spacing alarga o texto e mudaria as medidas (grids auto estouravam a folha).
+    substituirControlesPorTexto(doc, win);
+    fixarColunasDeGrid(doc, win);
+    corrigirFundoDeLinhaComRowspan(doc, win);
+    doc.querySelectorAll<HTMLElement>('*').forEach((el) => {
+      if (win.getComputedStyle(el).textAlign === 'justify') el.style.textAlign = 'left';
+    });
+  }
+  const style = doc.createElement('style');
+  // .no-print: o raster é o que sai impresso, então segue a mesma semântica do @media print
+  // dos templates (controles de tela não podem aparecer na folha).
+  style.textContent =
+    '* { letter-spacing: normal !important; word-spacing: normal !important; }\n' +
+    '.no-print { display: none !important; }';
+  (doc.head || doc.documentElement).appendChild(style);
+}
+
+// A normalização de letter-spacing (acima) alarga o texto do clone; colunas de grid
+// dimensionadas por conteúdo (ex.: .id-bar das folhas de fotos, com letter-spacing negativo)
+// crescem e estouram a margem direita da folha, cortando a última célula no raster. Congela as
+// trilhas na largura do layout original — o texto pode encostar na célula vizinha (fração de
+// px por caractere), mas a folha mantém as bordas.
+function fixarColunasDeGrid(doc: Document, win: Window): void {
   doc.querySelectorAll<HTMLElement>('*').forEach((el) => {
-    if (win.getComputedStyle(el).textAlign === 'justify') el.style.textAlign = 'left';
+    const cs = win.getComputedStyle(el);
+    if (cs.display !== 'grid' && cs.display !== 'inline-grid') return;
+    // getComputedStyle devolve as trilhas já resolvidas em px (valores usados). Só as colunas:
+    // as linhas precisam continuar livres para crescer se o texto re-quebrar.
+    if (cs.gridTemplateColumns && cs.gridTemplateColumns !== 'none') {
+      el.style.gridTemplateColumns = cs.gridTemplateColumns;
+    }
   });
+}
+
+// ── BUG "linha some atrás do fundo da tabela" (html2canvas) ─────────────────────────────────
+// Quando um <tr> tem background-color e alguma célula de linha ANTERIOR usa rowspan, o
+// html2canvas pinta o fundo do <tr> (cujo box atravessa a tabela inteira, inclusive a coluna
+// da célula rowspan) DEPOIS do conteúdo já pintado da célula — apagando o texto (ex.: "ANO DE
+// FABRICAÇÃO" do PRONT-ULTRASSOM perdia a 2ª linha). No navegador as células pintam acima do
+// fundo do row; aqui movemos o fundo do <tr> para as células dele, que é visualmente idêntico
+// e não cobre a célula rowspan.
+function corrigirFundoDeLinhaComRowspan(doc: Document, win: Window): void {
+  doc.querySelectorAll<HTMLTableRowElement>('tr').forEach((tr) => {
+    const bg = win.getComputedStyle(tr).backgroundColor;
+    if (!bg || bg === 'transparent' || bg === 'rgba(0, 0, 0, 0)') return;
+    Array.from(tr.cells).forEach((celula) => {
+      const cbg = win.getComputedStyle(celula).backgroundColor;
+      if (cbg === 'rgba(0, 0, 0, 0)' || cbg === 'transparent') celula.style.backgroundColor = bg;
+    });
+    tr.style.backgroundColor = 'transparent';
+  });
+}
+
+// ── BUG "texto cortado ao meio" nos inputs (html2canvas) ────────────────────────────────────
+// O html2canvas desenha o valor de <input>/<textarea> com fillText numa baseline que ele mede
+// criando uma div escondida NO DOCUMENTO DO APP (FontMetrics) — herdando line-height/CSS do
+// app, não do template — e depois aplica ctx.clip() no box do elemento. Qualquer divergência
+// entre a métrica do app e o layout real do iframe desloca o glifo para baixo e o clip corta a
+// metade inferior (dígitos da PMTA, datas, placeholders). Ajuste de line-height/height no
+// template NÃO resolve, porque a métrica errada vem do documento pai.
+// Correção definitiva: no clone, trocar cada controle por um elemento estático com o mesmo
+// texto e estilo — texto comum é desenhado pelo caminho normal (bounds do layout real, sem
+// clip) e sai íntegro. Bônus: placeholder volta a sair na cor de placeholder, não na do valor.
+function substituirControlesPorTexto(doc: Document, win: Window): void {
+  const controles = Array.from(
+    doc.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>('input, textarea, select'),
+  );
+  for (const el of controles) {
+    const tag = el.tagName;
+    if (tag === 'INPUT') {
+      const tipo = ((el as HTMLInputElement).getAttribute('type') || 'text').toLowerCase();
+      // checkbox/radio o html2canvas desenha como forma geométrica (sem fillText) — sem bug;
+      // hidden/file não têm representação visual.
+      if (tipo === 'checkbox' || tipo === 'radio' || tipo === 'hidden' || tipo === 'file') continue;
+    }
+    const cs = win.getComputedStyle(el);
+    if (cs.display === 'none' || cs.visibility === 'hidden') continue;
+
+    let texto = '';
+    let ehPlaceholder = false;
+    if (tag === 'SELECT') {
+      const sel = el as HTMLSelectElement;
+      texto = sel.selectedIndex >= 0 ? sel.options[sel.selectedIndex]?.text ?? '' : '';
+    } else {
+      texto = (el as HTMLInputElement | HTMLTextAreaElement).value;
+      if (texto === '') {
+        texto = (el as HTMLInputElement | HTMLTextAreaElement).placeholder || '';
+        ehPlaceholder = texto !== '';
+      }
+    }
+
+    const sub = doc.createElement('div');
+    sub.textContent = texto;
+    const s = sub.style;
+    // Mesmo box do controle (valores usados em px — o clone tem o mesmo viewport/layout).
+    s.boxSizing = 'border-box';
+    s.width = `${el.offsetWidth}px`;
+    s.height = `${el.offsetHeight}px`;
+    s.paddingTop = cs.paddingTop;
+    s.paddingRight = cs.paddingRight;
+    s.paddingBottom = cs.paddingBottom;
+    s.paddingLeft = cs.paddingLeft;
+    s.borderTop = cs.borderTopWidth === '0px' ? 'none' : `${cs.borderTopWidth} ${cs.borderTopStyle} transparent`;
+    s.borderRight = cs.borderRightWidth === '0px' ? 'none' : `${cs.borderRightWidth} ${cs.borderRightStyle} transparent`;
+    s.borderBottom = cs.borderBottomWidth === '0px' ? 'none' : `${cs.borderBottomWidth} ${cs.borderBottomStyle} transparent`;
+    s.borderLeft = cs.borderLeftWidth === '0px' ? 'none' : `${cs.borderLeftWidth} ${cs.borderLeftStyle} transparent`;
+    s.margin = cs.margin;
+    s.fontFamily = cs.fontFamily;
+    s.fontSize = cs.fontSize;
+    s.fontWeight = cs.fontWeight;
+    s.fontStyle = cs.fontStyle;
+    s.textAlign = cs.textAlign;
+    s.overflow = 'hidden';
+    s.backgroundColor = 'transparent';
+    if (ehPlaceholder) {
+      let corPlaceholder = '';
+      try {
+        corPlaceholder = win.getComputedStyle(el, '::placeholder').color;
+      } catch {
+        /* ::placeholder indisponível — usa fallback */
+      }
+      s.color = corPlaceholder || '#9ca3af';
+    } else {
+      s.color = cs.color;
+    }
+    if (tag === 'TEXTAREA') {
+      s.whiteSpace = 'pre-wrap';
+      s.overflowWrap = 'break-word';
+      s.lineHeight = cs.lineHeight;
+    } else {
+      // Linha única: o navegador centraliza o texto do input verticalmente no content box —
+      // line-height igual à altura do conteúdo reproduz esse centro no elemento estático.
+      s.whiteSpace = 'pre';
+      const alturaConteudo =
+        el.offsetHeight -
+        (parseFloat(cs.paddingTop) || 0) -
+        (parseFloat(cs.paddingBottom) || 0) -
+        (parseFloat(cs.borderTopWidth) || 0) -
+        (parseFloat(cs.borderBottomWidth) || 0);
+      s.lineHeight = alturaConteudo > 0 ? `${alturaConteudo}px` : cs.lineHeight;
+    }
+    el.replaceWith(sub);
+  }
 }
 
 // Espera imagens (logo/fotos base64) decodificarem e as fontes externas carregarem DENTRO do

@@ -62,7 +62,9 @@
             grid-template-columns: 2fr 1fr 1.2fr 1fr;
             gap: 3px; margin-bottom: 5px; flex-shrink: 0;
         }
-        .id-cel { display: flex; align-items: center; border: 1px solid #e5e7eb; padding: 2px 5px; min-height: 21px; }
+        /* min-width:0: sem isto o min-content do valor nowrap trava o track fr e a barra
+           transborda a folha no raster (célula corta o excesso via overflow hidden). */
+        .id-cel { display: flex; align-items: center; border: 1px solid #e5e7eb; padding: 2px 5px; min-height: 21px; min-width: 0; }
         .id-lbl { font-size: 7.5px; font-weight: 900; text-transform: uppercase; margin-right: 4px; white-space: nowrap; }
         /* nowrap + overflow hidden: valor longo não pode estourar a célula nem sobrepor a linha
            de baixo (bug visto no PDF rasterizado). */
