@@ -606,6 +606,91 @@
   padding: 4px;
 }
 
+/* ── Prontuário do fabricante (upload de PDF) ─────────────────────────────── */
+.pfab-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 22px 16px;
+  border: 1.5px dashed var(--line, #DDD6C7);
+  border-radius: 10px;
+  background: var(--surface-2, #FAF8F3);
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.pfab-dropzone:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: #FFF7EF;
+}
+
+.pfab-dropzone:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.pfab-dropzone-ic {
+  color: var(--accent);
+  line-height: 0;
+}
+
+.pfab-dropzone-titulo {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text, #2B2823);
+}
+
+.pfab-dropzone-sub {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.pfab-aviso {
+  margin: 12px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.pfab-aviso a {
+  color: var(--accent);
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.pfab-acoes {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.pfab-link-baixar {
+  text-decoration: none;
+}
+
+.pfab-confirma {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--crit, #B3261E);
+}
+
+.pfab-erro {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--crit, #B3261E);
+}
+
 /* Tag colorida de tipo de equipamento — aparece no topo do card de detalhes e no card do dashboard */
 .badge-tipo-equip {
   display: inline-block;

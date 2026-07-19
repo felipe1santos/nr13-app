@@ -1,6 +1,8 @@
+import { useEffect, useState } from 'react';
 import { ler, listarChavesComPrefixo } from './storage';
 import type { InfoEquipamento } from '../features/equipamento/tipos';
 import type { DadosCalibracao } from '../features/calibracoes/tipos';
+import { assinarDadosAlterados } from './eventos';
 
 /**
  * Motor de vencimentos: deriva prazos SOMENTE de dados já salvos no sistema.
@@ -184,4 +186,29 @@ export function textoPrazo(item: ItemVencimento): string {
   if (item.dias < 0) return `Vencido há ${Math.abs(item.dias)} dia${Math.abs(item.dias) === 1 ? '' : 's'}`;
   if (item.dias === 0) return 'Vence hoje';
   return `Vence em ${item.dias} dia${item.dias === 1 ? '' : 's'}`;
+}
+
+/**
+ * Hook compartilhado por Dashboard e Vencimentos: recalcula `listarVencimentos()`
+ * sempre que os dados mudam. Cobre os três casos de dado velho:
+ *  - mesma aba, sem remount: `emitirDadosAlterados()` (ex.: relatoriosService ao salvar);
+ *  - outra aba/janela: window 'focus';
+ *  - montagem normal da tela.
+ * Os listeners são limpos no cleanup do efeito; nenhum deles reemite o evento que escuta,
+ * então não há loop de re-render.
+ */
+export function useVencimentos(): ItemVencimento[] {
+  const [itens, setItens] = useState<ItemVencimento[]>(() => listarVencimentos());
+
+  useEffect(() => {
+    const atualizar = () => setItens(listarVencimentos());
+    const cancelarAssinatura = assinarDadosAlterados(atualizar);
+    window.addEventListener('focus', atualizar);
+    return () => {
+      cancelarAssinatura();
+      window.removeEventListener('focus', atualizar);
+    };
+  }, []);
+
+  return itens;
 }

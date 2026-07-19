@@ -1,4 +1,5 @@
 import { ler, salvar } from '../../services/storage';
+import { emitirDadosAlterados } from '../../services/eventos';
 import { listarFuncionarios } from '../cadastros/cadastroService';
 import type { Funcionario } from '../cadastros/tipos';
 import {
@@ -47,6 +48,22 @@ export interface LivroEntrada {
   assinanteFuncao?: string;
   /** Entradas manuais: quem executou a ocorrência (texto livre — empresa/técnico executante). */
   quemRealizou?: string;
+  // ── Ciclo de vida rascunho → lacrado (19/07/2026) ──
+  // AUSENTE = entrada ANTIGA: o livro sempre foi de fato imutável, então trata-se como LACRADA.
+  // false = rascunho editável (gravado EXPLICITAMENTE nas entradas novas). true = lacrada.
+  lacrado?: boolean;
+  /** id da entrada (lacrada) que este registro retifica — ambas permanecem no livro. */
+  retificaDe?: string;
+  /** Texto do termo editado na própria folha LIVRO-REGISTRO.html (contenteditable persistido). */
+  termoTexto?: string;
+}
+
+/**
+ * Discriminador do ciclo de vida: só `lacrado === false` é rascunho editável.
+ * Entrada antiga (campo ausente) conta como LACRADA — nunca vira editável retroativamente.
+ */
+export function estaLacrada(e: Pick<LivroEntrada, 'lacrado'>): boolean {
+  return e.lacrado !== false;
 }
 
 // Laudo APTO/INAPTO gravado pela folha CONCLUSAO.html quando o usuário marca SIM/NÃO.
@@ -237,6 +254,8 @@ export async function salvarNoHistorico(relatorio: RelatorioSalvo): Promise<void
   if (idx >= 0) todos[idx] = relatorio;
   else todos.push(relatorio);
   await salvar('nr13_historico_relatorios', todos);
+  // Painel de vencimentos vivo: proximaInspecaoInterna/Externa do meta acabaram de mudar.
+  emitirDadosAlterados();
 }
 
 export async function excluirDoHistorico(id: string): Promise<void> {
@@ -284,6 +303,9 @@ export async function adicionarEntradaLivroAuto(relatorio: RelatorioSalvo): Prom
     phId: engenheiroId,
     assinaturaImg: snapEng ? snapEng.assinatura : funcVivo?.assinatura,
     assinanteFuncao: snapEng ? snapEng.funcao : funcVivo?.funcao,
+    // Nasce RASCUNHO (editável até o usuário lacrar) — gravado explicitamente para
+    // distinguir de entradas antigas, que não têm o campo e valem como lacradas.
+    lacrado: false,
   };
   await salvar(chaveLivro(relatorio.tagVaso), [...livro, entrada]);
 }
@@ -314,6 +336,8 @@ export interface DadosOcorrenciaManual {
   quemRealizou: string;
   /** Funcionário (nr13_lista_phs) que assina o registro; null = sem assinatura. */
   phId: string | null;
+  /** Preenchido quando a ocorrência é um REGISTRO DE RETIFICAÇÃO de uma entrada já lacrada. */
+  retificaDe?: string;
 }
 
 export function adicionarEntradaLivroManual(tag: string, dados: DadosOcorrenciaManual): LivroEntrada {
@@ -335,6 +359,9 @@ export function adicionarEntradaLivroManual(tag: string, dados: DadosOcorrenciaM
     // Rubrica/cargo congelados na criação (bug fix 14/07/2026) — mesma regra da entrada automática.
     assinaturaImg: func?.assinatura,
     assinanteFuncao: func?.funcao,
+    // Rascunho editável até ser lacrado (mesma regra da entrada automática).
+    lacrado: false,
+    retificaDe: dados.retificaDe || undefined,
   };
 
   const livro = ler<LivroEntrada[]>(chaveLivro(tag)) || [];
@@ -344,6 +371,48 @@ export function adicionarEntradaLivroManual(tag: string, dados: DadosOcorrenciaM
   // recarregada logo em seguida já lê o livro atualizado.
   void salvar(chaveLivro(tag), livro);
   return entrada;
+}
+
+// ── Edição / lacre de entradas do livro ────────────────────────────────────────
+// Enquanto rascunho (lacrado === false), a entrada pode ser corrigida. Depois de lacrada é
+// imutável: erro em registro lacrado se corrige com um REGISTRO DE RETIFICAÇÃO (entrada nova
+// com retificaDe apontando para ela) — ambas permanecem no livro, como manda um livro legal.
+
+/** Campos que o usuário pode corrigir enquanto a entrada é rascunho. */
+export type PatchLivroEntrada = Partial<
+  Pick<LivroEntrada, 'data' | 'tipo' | 'descricao' | 'quemRealizou' | 'termoTexto'>
+>;
+
+/** Aplica o patch; retorna false (sem gravar nada) se a entrada não existe ou já está lacrada. */
+export function atualizarEntradaLivro(tag: string, id: string, patch: PatchLivroEntrada): boolean {
+  const livro = ler<LivroEntrada[]>(chaveLivro(tag)) || [];
+  const idx = livro.findIndex((e) => e.id === id);
+  if (idx < 0 || estaLacrada(livro[idx])) return false;
+
+  livro[idx] = { ...livro[idx], ...patch, lacrado: false };
+  // Data pode ter mudado — o livro é cronológico.
+  livro.sort((a, b) => timestampDataLivro(a.data) - timestampDataLivro(b.data));
+  void salvar(chaveLivro(tag), livro);
+  return true;
+}
+
+/** Torna a entrada imutável. Retorna false se não existe (idempotente para já lacradas). */
+export function lacrarEntradaLivro(tag: string, id: string): boolean {
+  const livro = ler<LivroEntrada[]>(chaveLivro(tag)) || [];
+  const idx = livro.findIndex((e) => e.id === id);
+  if (idx < 0) return false;
+  livro[idx] = { ...livro[idx], lacrado: true };
+  void salvar(chaveLivro(tag), livro);
+  return true;
+}
+
+/** Remove uma entrada RASCUNHO. Recusa (false) entradas lacradas. */
+export function excluirEntradaLivro(tag: string, id: string): boolean {
+  const livro = ler<LivroEntrada[]>(chaveLivro(tag)) || [];
+  const alvo = livro.find((e) => e.id === id);
+  if (!alvo || estaLacrada(alvo)) return false;
+  void salvar(chaveLivro(tag), livro.filter((e) => e.id !== id));
+  return true;
 }
 
 export function listaPadraoDocumentos(): string[] {

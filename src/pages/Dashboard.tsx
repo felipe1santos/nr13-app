@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icone } from '../components/Icone';
 import CalendarioVencimentos from '../components/CalendarioVencimentos';
 import ModalDetalheEquipamento from '../components/ModalDetalheEquipamento';
-import { listarVencimentos, resumoKpis, textoPrazo } from '../services/vencimentos';
+import { resumoKpis, textoPrazo, useVencimentos } from '../services/vencimentos';
 import type { ItemVencimento } from '../services/vencimentos';
 import { listarChavesComPrefixo } from '../services/storage';
 import { carregarMinhaEmpresa } from '../features/cadastros/cadastroService';
@@ -33,17 +33,9 @@ export default function Dashboard() {
   const [modalTag, setModalTag] = useState<string | null>(null);
   const [filtroPrazo, setFiltroPrazo] = useState<'todos' | 5 | 30 | 60 | 'vencidos'>('todos');
 
-  // Recalcula ao montar e sempre que a janela volta ao foco: um relatório novo gerado em
-  // Relatórios muda o prazo do equipamento e o painel reflete na hora, sem F5.
-  const [versaoDados, setVersaoDados] = useState(0);
-  useEffect(() => {
-    const atualizar = () => setVersaoDados((v) => v + 1);
-    window.addEventListener('focus', atualizar);
-    return () => window.removeEventListener('focus', atualizar);
-  }, []);
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- versaoDados força a releitura do localStorage
-  const itens = useMemo(() => listarVencimentos(), [versaoDados]);
+  // Recalcula ao montar, ao receber nr13:dados-alterados (mesma aba, ex.: relatório salvo)
+  // e sempre que a janela volta ao foco (outra aba/janela) — ver useVencimentos.
+  const itens = useVencimentos();
   const totalEquip = listarChavesComPrefixo('nr13_info_').length;
   const kpis = useMemo(() => resumoKpis(itens, totalEquip), [itens, totalEquip]);
   const empresa = carregarMinhaEmpresa();

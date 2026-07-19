@@ -2,11 +2,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import CardEquipamento from '../features/equipamento/CardEquipamento';
 import ModalCriarEquipamento from '../features/equipamento/ModalCriarEquipamento';
+import ModalImportarPlanilha from '../features/equipamento/ModalImportarPlanilha';
+import { extensaoAceita } from '../features/equipamento/importarPlanilhaService';
 import { listarEquipamentos } from '../features/equipamento/equipamentoService';
 import type { EmpresaEquipamento, EquipamentoResumo } from '../features/equipamento/tipos';
 import { ler } from '../services/storage';
 import { Icone } from '../components/Icone';
 import '../features/equipamento/equipamento.css';
+import '../features/equipamento/importar.css';
 import './dashboard.css';
 
 const ROTULO_TIPO: Record<string, string> = {
@@ -30,6 +33,10 @@ export default function Equipamentos() {
   const [equipamentos, setEquipamentos] = useState<EquipamentoResumo[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [modalAberto, setModalAberto] = useState(false);
+  const [importAberto, setImportAberto] = useState(false);
+  const [arquivoSolto, setArquivoSolto] = useState<File | null>(null);
+  const [arrastando, setArrastando] = useState(false);
+  const [erroArrasto, setErroArrasto] = useState<string | null>(null);
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [busca, setBusca] = useState('');
   const [fEmpresa, setFEmpresa] = useState('');
@@ -93,6 +100,50 @@ export default function Equipamentos() {
     navigate(`/equipamento/${tag}`);
   }
 
+  function abrirImportacao() {
+    setArquivoSolto(null);
+    setErroArrasto(null);
+    setImportAberto(true);
+  }
+
+  function fecharImportacao() {
+    setImportAberto(false);
+    setArquivoSolto(null);
+  }
+
+  async function concluirImportacao() {
+    setImportAberto(false);
+    setArquivoSolto(null);
+    await carregar();
+  }
+
+  /* Drag-and-drop real sobre a área da lista (não existia no app até aqui). */
+  function aoArrastarSobre(e: React.DragEvent) {
+    if (!e.dataTransfer.types.includes('Files')) return;
+    e.preventDefault();
+    setArrastando(true);
+  }
+
+  function aoSairDoArrasto(e: React.DragEvent) {
+    // ignora as transições entre filhos: só sai quando o ponteiro deixa o container
+    if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+    setArrastando(false);
+  }
+
+  function aoSoltar(e: React.DragEvent) {
+    e.preventDefault();
+    setArrastando(false);
+    const arquivo = e.dataTransfer.files?.[0];
+    if (!arquivo) return;
+    if (!extensaoAceita(arquivo.name)) {
+      setErroArrasto(`"${arquivo.name}" não é uma planilha. Use .xlsx, .xls, .ods ou .csv.`);
+      return;
+    }
+    setErroArrasto(null);
+    setArquivoSolto(arquivo);
+    setImportAberto(true);
+  }
+
   return (
     <div className="dashboard-page">
       <div className="fj-page-head">
@@ -106,6 +157,9 @@ export default function Equipamentos() {
             onClick={() => setFiltrosAbertos((a) => !a)}
           >
             <Icone nome="filter" tam={14} /> Filtrar{temFiltro ? ' •' : ''} <Icone nome={filtrosAbertos ? 'chevup' : 'chevdown'} tam={12} />
+          </button>
+          <button type="button" className="fj-btn fj-btn-ghost" onClick={abrirImportacao}>
+            <Icone nome="planilha" tam={14} /> Importar planilha
           </button>
           <button type="button" className="fj-btn fj-btn-primary" onClick={() => setModalAberto(true)}>
             <Icone nome="plus" tam={14} /> Criar equipamento
@@ -158,29 +212,56 @@ export default function Equipamentos() {
         <div className="equip-result-count">{filtrados.length} de {equipamentos.length} equipamentos</div>
       )}
 
-      {carregando ? (
-        <p style={{ color: 'var(--muted)' }}>Carregando...</p>
-      ) : equipamentos.length === 0 ? (
-        <div className="fj-empty">
-          <div className="fj-empty-ic"><Icone nome="box" tam={22} /></div>
-          <div className="fj-empty-title">Nenhum equipamento cadastrado ainda</div>
-          Clique em "Criar equipamento" para começar.
-        </div>
-      ) : filtrados.length === 0 ? (
-        <div className="fj-empty">
-          <div className="fj-empty-ic"><Icone nome="search" tam={22} /></div>
-          <div className="fj-empty-title">Nenhum equipamento encontrado</div>
-          Ajuste ou limpe os filtros para ver os equipamentos.
-        </div>
-      ) : (
-        <div className="vasos-grid">
-          {filtrados.map((item) => (
-            <CardEquipamento key={item.tag} item={item} />
-          ))}
-        </div>
+      {erroArrasto && (
+        <p className="erro-form" style={{ marginBottom: 12 }}>{erroArrasto}</p>
       )}
 
+      <div
+        className="equip-dropzone"
+        onDragOver={aoArrastarSobre}
+        onDragEnter={aoArrastarSobre}
+        onDragLeave={aoSairDoArrasto}
+        onDrop={aoSoltar}
+      >
+        {arrastando && (
+          <div className="equip-drop-overlay">
+            <Icone nome="planilha" tam={26} />
+            Solte a planilha para importar os equipamentos
+          </div>
+        )}
+
+        {carregando ? (
+          <p style={{ color: 'var(--muted)' }}>Carregando...</p>
+        ) : equipamentos.length === 0 ? (
+          <div className="fj-empty">
+            <div className="fj-empty-ic"><Icone nome="box" tam={22} /></div>
+            <div className="fj-empty-title">Nenhum equipamento cadastrado ainda</div>
+            Clique em "Criar equipamento" para começar — ou arraste uma planilha aqui para importar
+            vários de uma vez.
+          </div>
+        ) : filtrados.length === 0 ? (
+          <div className="fj-empty">
+            <div className="fj-empty-ic"><Icone nome="search" tam={22} /></div>
+            <div className="fj-empty-title">Nenhum equipamento encontrado</div>
+            Ajuste ou limpe os filtros para ver os equipamentos.
+          </div>
+        ) : (
+          <div className="vasos-grid">
+            {filtrados.map((item) => (
+              <CardEquipamento key={item.tag} item={item} />
+            ))}
+          </div>
+        )}
+      </div>
+
       {modalAberto && <ModalCriarEquipamento onClose={() => setModalAberto(false)} onCriado={handleCriado} />}
+      {importAberto && (
+        <ModalImportarPlanilha
+          arquivoInicial={arquivoSolto}
+          onClose={fecharImportacao}
+          onImportado={concluirImportacao}
+        />
+      )}
     </div>
   );
 }

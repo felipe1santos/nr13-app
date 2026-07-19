@@ -23,6 +23,7 @@ import {
   snapshotEmpresa,
   type AssinantesRelatorio,
 } from '../features/relatorios/relatoriosService';
+import { expandirFolhasUltrassom } from '../features/relatorios/ultrassomPaginacao';
 import { listarFuncionarios } from '../features/cadastros/cadastroService';
 import type { Funcionario } from '../features/cadastros/tipos';
 import { validadesPorRelatorio, vincularLotesPendentes } from '../features/calibracoes/componentesService';
@@ -302,8 +303,12 @@ export default function Relatorios() {
     // Carrega o container ANTES de montar: a auto-injeção das folhas de fotos depende de haver
     // fotos de campo (VE/VI/TH) — sem fotos, a folha não entra.
     const dadosContainer = containerId ? (carregarContainer(tag, containerId)?.dados ?? {}) : {};
-    const comTermo = expandirFolhasFoto(
-      expandirMemorial(tag, montarListaComTermoAbertura(tag, validos, dadosContainer)),
+    const comTermo = expandirFolhasUltrassom(
+      tag,
+      expandirFolhasFoto(
+        expandirMemorial(tag, montarListaComTermoAbertura(tag, validos, dadosContainer)),
+        dadosContainer,
+      ),
       dadosContainer,
     );
     let novaMeta = metaPadrao(pendente.tipo);
@@ -362,7 +367,11 @@ export default function Relatorios() {
     // container exibe os dados de campo do último relatório gerado.
     await gravarInspecaoOrigemAtual(dadosContainer);
     // Filtra folhas de fotos sem imagem (a lista salva não passa pela auto-injeção que gateia isso).
-    const docsFiltrados = expandirFolhasFoto(filtrarFolhasFotoVazias(r.documentos, dadosContainer), dadosContainer);
+    const docsFiltrados = expandirFolhasUltrassom(
+      r.tagVaso,
+      expandirFolhasFoto(filtrarFolhasFotoVazias(r.documentos, dadosContainer), dadosContainer),
+      dadosContainer,
+    );
     // meta.documentos (lido pelo SUMARIO p/ o TOC e numeração) deve casar com a lista renderizada
     // já expandida — senão o sumário conta páginas diferente das folhas exibidas.
     await gravarMetaAtual({ ...r.meta, documentos: docsFiltrados });
@@ -381,7 +390,11 @@ export default function Relatorios() {
       : {};
     // Filtra folhas de fotos sem imagem e reexpande conforme a contagem ATUAL do container (a lista
     // salva não passa pela auto-injeção que gateia isso — mesmo motivo de visualizar()).
-    const docsFiltrados = expandirFolhasFoto(filtrarFolhasFotoVazias(r.documentos, dadosContainer), dadosContainer);
+    const docsFiltrados = expandirFolhasUltrassom(
+      r.tagVaso,
+      expandirFolhasFoto(filtrarFolhasFotoVazias(r.documentos, dadosContainer), dadosContainer),
+      dadosContainer,
+    );
     const novaMeta: RelatorioMeta = { ...r.meta, codigo: `REL-${Date.now()}`, emissao: hoje(), documentos: docsFiltrados };
     // Regrava nr13_assinantes_rel_<TAG> antes de remontar os iframes (motor de assinatura).
     {

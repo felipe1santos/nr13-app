@@ -271,55 +271,9 @@
                 </tr>
                 <tr>
                     <td style="padding: 16px; vertical-align: middle;">
-                        <table style="width: 60%; margin: 0 auto; border-collapse: collapse;" id="tabela-medicoes">
-                            <tr class="bg-light-grey"><td colspan="4" style="border: 1px solid #000; padding: 4px;">Tampo superior</td></tr>
-                            <tr class="bg-light-grey">
-                                <td width="25%" style="border: 1px solid #000; padding: 4px;">0°</td>
-                                <td width="25%" style="border: 1px solid #000; padding: 4px;">90°</td>
-                                <td width="25%" style="border: 1px solid #000; padding: 4px;">180°</td>
-                                <td width="25%" style="border: 1px solid #000; padding: 4px;">270°</td>
-                            </tr>
-                            <tr>
-                                <td id="linha1-0" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
-                                <td id="linha1-90" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
-                                <td id="linha1-180" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
-                                <td id="linha1-270" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
-                            </tr>
-                            
-                            <tr class="bg-light-grey"><td colspan="4" style="border: 1px solid #000; padding: 4px;">CASCO</td></tr>
-                            <tr>
-                                <td id="linha2-0" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
-                                <td id="linha2-90" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
-                                <td id="linha2-180" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
-                                <td id="linha2-270" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
-                            </tr>
-                            <tr>
-                                <td id="linha3-0" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
-                                <td id="linha3-90" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
-                                <td id="linha3-180" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
-                                <td id="linha3-270" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
-                            </tr>
-                            <tr>
-                                <td id="linha4-0" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
-                                <td id="linha4-90" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
-                                <td id="linha4-180" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
-                                <td id="linha4-270" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
-                            </tr>
-                            <tr>
-                                <td id="linha6-0" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
-                                <td id="linha6-90" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
-                                <td id="linha6-180" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
-                                <td id="linha6-270" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
-                            </tr>
-
-                            <tr class="bg-light-grey"><td colspan="4" style="border: 1px solid #000; padding: 4px;">Tampo inferior</td></tr>
-                            <tr>
-                                <td id="linha5-0" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
-                                <td id="linha5-90" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
-                                <td id="linha5-180" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
-                                <td id="linha5-270" class="data-blue" contenteditable="true" spellcheck="false" style="border: 1px solid #000; padding: 4px;">0,00</td>
-                            </tr>
-                        </table>
+                        <!-- Linhas GERADAS POR JS (renderTabelaMedicoes) a partir dos pontos de
+                             medição salvos no container. Sem dado de campo => 6 pontos padrão. -->
+                        <table style="width: 60%; margin: 0 auto; border-collapse: collapse;" id="tabela-medicoes"></table>
                     </td>
                 </tr>
             </table>
@@ -551,90 +505,212 @@
 
 
         
-       function destacarMenoresEspessuras() {
-            const tabelaMedicoes = document.getElementById('tabela-medicoes');
-            if (!tabelaMedicoes) return;
+        // =========================================================
+        // PONTOS DE MEDIÇÃO DE ESPESSURA (dinâmicos)
+        // As <tr> da grade são geradas a partir da lista de pontos salva no container
+        // (FormularioUltrassom → dados.pontos). Sem lista salva, assume os 6 pontos
+        // históricos (ts, c1..c4, ti) — dado antigo renderiza exatamente como sempre.
+        // Paginação: ?upag=k&uof=N (ver src/features/relatorios/ultrassomPaginacao.ts).
+        // =========================================================
+        var ANG_US = ['0', '90', '180', '270'];
+        var LINHAS_POR_FOLHA_US = 12; // DEVE casar com ultrassomPaginacao.ts
+        var ORDEM_REGIAO_US = { ts: 0, casco: 1, ti: 2 };
+        var TITULO_REGIAO_US = { ts: 'Tampo superior', casco: 'CASCO', ti: 'Tampo inferior' };
+        var PONTOS_PADRAO_US = [
+            { id: 'ts', rotulo: 'Tampo Superior', regiao: 'ts' },
+            { id: 'c1', rotulo: 'Casco 1', regiao: 'casco' },
+            { id: 'c2', rotulo: 'Casco 2', regiao: 'casco' },
+            { id: 'c3', rotulo: 'Casco 3', regiao: 'casco' },
+            { id: 'c4', rotulo: 'Casco 4', regiao: 'casco' },
+            { id: 'ti', rotulo: 'Tampo Inferior', regiao: 'ti' }
+        ];
+        var PONTOS_US = PONTOS_PADRAO_US.slice(); // todos os pontos (todas as folhas)
+        var MEDIDAS_US = {};                      // medidas salvas (fallback fora desta folha)
+        var UPAG_US = 1, UOF_US = 1;
 
-            const linhas = tabelaMedicoes.querySelectorAll('tr');
-            let gruposDeComponentes = [];
-            let celulasAtuais = [];
+        function dadosUltrassomSalvos() {
+            try {
+                var inj = JSON.parse(localStorage.getItem('nr13_injecao_atual') || 'null');
+                return (inj && inj.ultrassom) ? inj.ultrassom : null;
+            } catch (e) { return null; }
+        }
 
-            linhas.forEach(linha => {
-                const cabecalhoSecao = linha.querySelector('td[colspan="4"]');
-                if (cabecalhoSecao) {
-                    if (celulasAtuais.length > 0) {
-                        gruposDeComponentes.push(celulasAtuais);
-                        celulasAtuais = [];
+        function ordenarPorRegiao(pontos) {
+            // Ordenação estável por região (ts → casco → ti), preservando a ordem interna.
+            return pontos.map(function (p, i) { return { p: p, i: i }; })
+                .sort(function (a, b) {
+                    var ra = ORDEM_REGIAO_US[a.p.regiao], rb = ORDEM_REGIAO_US[b.p.regiao];
+                    if (ra === undefined) ra = 1;
+                    if (rb === undefined) rb = 1;
+                    return ra !== rb ? ra - rb : a.i - b.i;
+                })
+                .map(function (x) { return x.p; });
+        }
+
+        function lerPontosUS() {
+            var d = dadosUltrassomSalvos();
+            if (d && Array.isArray(d.pontos) && d.pontos.length) {
+                var validos = [];
+                var vistos = {};
+                d.pontos.forEach(function (p) {
+                    if (!p || !p.id || vistos[p.id]) return;
+                    vistos[p.id] = 1;
+                    var reg = (p.regiao === 'ts' || p.regiao === 'casco' || p.regiao === 'ti') ? p.regiao : 'casco';
+                    validos.push({ id: String(p.id), rotulo: p.rotulo || String(p.id), regiao: reg });
+                });
+                if (validos.length) return ordenarPorRegiao(validos);
+            }
+            return PONTOS_PADRAO_US.slice();
+        }
+
+        function celulaUS(pid, ang) {
+            return document.querySelector('#tabela-medicoes td[data-ponto="' + pid + '"][data-ang="' + ang + '"]');
+        }
+
+        // Valor do ponto: célula desta folha quando existe (permite edição manual);
+        // senão o valor salvo no container (pontos que caíram em outra folha).
+        function valorUS(pid, ang) {
+            var el = celulaUS(pid, ang);
+            if (el) return el.innerText.trim();
+            var linha = MEDIDAS_US && MEDIDAS_US[pid];
+            var v = linha ? linha[ang] : '';
+            return (v === undefined || v === null) ? '' : String(v).replace('.', ',');
+        }
+
+        // Encolhe progressivamente a grade enquanto o conteúdo estourar a folha A4.
+        // A .page tem height fixa + overflow:hidden — sem isto, linhas extras sumiriam
+        // em silêncio e o rodapé sairia da margem.
+        function ajustarGradeUS() {
+            var page = document.querySelector('.page');
+            var tabela = document.getElementById('tabela-medicoes');
+            if (!page || !tabela) return;
+            var celulas = tabela.querySelectorAll('td');
+            var passos = [
+                { pad: '3px 4px', fonte: '10px' },
+                { pad: '2px 4px', fonte: '9.5px' },
+                { pad: '1px 3px', fonte: '9px' },
+                { pad: '0px 3px', fonte: '8px' },
+                { pad: '0px 2px', fonte: '7px' }
+            ];
+            for (var k = 0; k < passos.length; k++) {
+                if (page.scrollHeight <= page.clientHeight) return;
+                for (var i = 0; i < celulas.length; i++) {
+                    celulas[i].style.padding = passos[k].pad;
+                    celulas[i].style.fontSize = passos[k].fonte;
+                    celulas[i].style.lineHeight = '1.1';
+                }
+            }
+        }
+
+        function renderTabelaMedicoes() {
+            var tabela = document.getElementById('tabela-medicoes');
+            if (!tabela) return;
+
+            var d = dadosUltrassomSalvos();
+            MEDIDAS_US = (d && d.medidas) ? d.medidas : {};
+            PONTOS_US = lerPontosUS();
+
+            var params = new URLSearchParams(window.location.search);
+            UPAG_US = parseInt(params.get('upag') || '1', 10) || 1;
+            UOF_US = parseInt(params.get('uof') || '1', 10) || 1;
+            var daFolha = UOF_US > 1
+                ? PONTOS_US.slice((UPAG_US - 1) * LINHAS_POR_FOLHA_US, UPAG_US * LINHAS_POR_FOLHA_US)
+                : PONTOS_US;
+
+            var borda = 'border: 1px solid #000; padding: 4px;';
+            var html = '';
+            var regAtual = null;
+            var primeiroBloco = true;
+            daFolha.forEach(function (p) {
+                if (p.regiao !== regAtual) {
+                    regAtual = p.regiao;
+                    html += '<tr class="bg-light-grey"><td colspan="4" style="' + borda + '">' +
+                        (TITULO_REGIAO_US[p.regiao] || p.regiao) + '</td></tr>';
+                    if (primeiroBloco) {
+                        primeiroBloco = false;
+                        html += '<tr class="bg-light-grey">' + ANG_US.map(function (a) {
+                            return '<td width="25%" style="' + borda + '">' + a + '°</td>';
+                        }).join('') + '</tr>';
                     }
-                    return;
                 }
-                const celulasDados = linha.querySelectorAll('td[contenteditable="true"]');
-                if (celulasDados.length > 0) {
-                    celulasDados.forEach(celula => celulasAtuais.push(celula));
-                }
+                html += '<tr>' + ANG_US.map(function (a) {
+                    var linha = MEDIDAS_US[p.id];
+                    var v = linha ? linha[a] : '';
+                    var txt = (v === undefined || v === null || v === '') ? '0,00' : String(v).replace('.', ',');
+                    return '<td class="data-blue" contenteditable="true" spellcheck="false"' +
+                        ' data-ponto="' + p.id + '" data-ang="' + a + '" data-regiao="' + p.regiao + '"' +
+                        ' title="' + String(p.rotulo || p.id).replace(/"/g, '') + '"' +
+                        ' style="' + borda + '">' + txt + '</td>';
+                }).join('') + '</tr>';
             });
-            
-            if (celulasAtuais.length > 0) {
-                gruposDeComponentes.push(celulasAtuais);
+            tabela.innerHTML = html;
+
+            ajustarGradeUS();
+
+            // Folha de continuação: marca no título e evita reescrever as chaves de medição.
+            if (UPAG_US > 1) {
+                var titulo = document.querySelector('.col-title');
+                if (titulo && titulo.innerHTML.indexOf('CONTINUAÇÃO') < 0) {
+                    titulo.innerHTML += '<br><span style="font-size:11px;font-weight:700;">(CONTINUAÇÃO)</span>';
+                }
+            }
+        }
+
+        function destacarMenoresEspessuras() {
+            if (!document.getElementById('tabela-medicoes')) return;
+
+            // Mínimo POR REGIÃO considerando TODOS os pontos (inclusive os de outras folhas).
+            var minimos = { ts: Infinity, casco: Infinity, ti: Infinity };
+            PONTOS_US.forEach(function (p) {
+                var reg = minimos[p.regiao] !== undefined ? p.regiao : 'casco';
+                ANG_US.forEach(function (a) {
+                    var n = parseFloat(valorUS(p.id, a).replace(',', '.'));
+                    if (!isNaN(n) && n < minimos[reg]) minimos[reg] = n;
+                });
+            });
+
+            // Destaca nas células presentes nesta folha.
+            var celulas = document.querySelectorAll('#tabela-medicoes td[data-ponto]');
+            for (var i = 0; i < celulas.length; i++) {
+                var cel = celulas[i];
+                cel.classList.remove('highlight-min');
+                var reg2 = minimos[cel.getAttribute('data-regiao')] !== undefined ? cel.getAttribute('data-regiao') : 'casco';
+                var v = parseFloat(cel.innerText.trim().replace(',', '.'));
+                if (!isNaN(v) && minimos[reg2] !== Infinity && v === minimos[reg2]) cel.classList.add('highlight-min');
             }
 
-            // --- NOVO: array para capturar os mínimos absolutos ---
-            let minimos = [];
-
-            gruposDeComponentes.forEach(grupo => {
-                let menorValor = Infinity;
-                grupo.forEach(celula => {
-                    celula.classList.remove('highlight-min');
-                    let valor = parseFloat(celula.innerText.trim().replace(',', '.'));
-                    if (!isNaN(valor) && valor < menorValor) {
-                        menorValor = valor;
-                    }
-                });
-
-                minimos.push(menorValor);
-
-                grupo.forEach(celula => {
-                    let valor = parseFloat(celula.innerText.trim().replace(',', '.'));
-                    if (!isNaN(valor) && valor === menorValor) {
-                        celula.classList.add('highlight-min');
-                    }
-                });
-            });
-
-            // SALVA OS MENORES VALORES NO BANCO DE DADOS PARA A CARACTERIZAÇÃO
+            // SALVA OS MENORES VALORES NO BANCO DE DADOS PARA A CARACTERIZAÇÃO.
+            // Só a 1ª folha grava — as de continuação veriam a mesma lista completa, mas
+            // regravar N vezes a mesma chave é desperdício de escrita no storage.
+            if (UPAG_US > 1) return;
             const urlParams = new URLSearchParams(window.location.search);
             const tagVaso = urlParams.get('tag') || 'VP-101';
-            
-            if (tagVaso && minimos.length >= 3) {
-                // Lê o objeto existente para preservar campos do ensaio (aparelho, acoplante, etc.)
-                var atualMedEsp = {};
-                try { atualMedEsp = JSON.parse(localStorage.getItem('nr13_med_esp_' + tagVaso) || '{}') || {}; } catch (_) {}
+            if (!tagVaso) return;
 
-                // Mescla preservando outros campos, atualizando apenas sup/casco/inf
-                var dadosMedicao = Object.assign({}, atualMedEsp, {
-                    sup: minimos[0] !== Infinity ? String(minimos[0]).replace('.', ',') : '',
-                    casco: minimos[1] !== Infinity ? String(minimos[1]).replace('.', ',') : '',
-                    inf: minimos[2] !== Infinity ? String(minimos[2]).replace('.', ',') : ''
+            function fmt(v) { return v !== Infinity ? String(v).replace('.', ',') : ''; }
+
+            // Lê o objeto existente para preservar campos do ensaio (aparelho, acoplante, etc.)
+            var atualMedEsp = {};
+            try { atualMedEsp = JSON.parse(localStorage.getItem('nr13_med_esp_' + tagVaso) || '{}') || {}; } catch (_) {}
+
+            // Mescla preservando outros campos, atualizando apenas sup/casco/inf
+            var dadosMedicao = Object.assign({}, atualMedEsp, {
+                sup: fmt(minimos.ts),
+                casco: fmt(minimos.casco),
+                inf: fmt(minimos.ti)
+            });
+            sbSalvar('nr13_med_esp_' + tagVaso, JSON.stringify(dadosMedicao));
+
+            // Persiste a GRADE COMPLETA de pontos por TAG (para o Prontuário — folha 1).
+            // Formato inalterado: { ts: [[4 ângulos], ...], casco: [...], ti: [...] }.
+            try {
+                var grid = { ts: [], casco: [], ti: [] };
+                PONTOS_US.forEach(function (p) {
+                    var sec = grid[p.regiao] ? p.regiao : 'casco';
+                    grid[sec].push(ANG_US.map(function (a) { return valorUS(p.id, a); }));
                 });
-                sbSalvar('nr13_med_esp_' + tagVaso, JSON.stringify(dadosMedicao));
-
-                // Persiste a GRADE COMPLETA de pontos por TAG (para o Prontuário — folha 3)
-                try {
-                    var ROWS = { ts: [1], casco: [2, 3, 4, 6], ti: [5] };
-                    var ANG = ['0', '90', '180', '270'];
-                    function celVal(n, a) {
-                        var el = document.getElementById('linha' + n + '-' + a);
-                        return el ? el.innerText.trim() : '';
-                    }
-                    var grid = { ts: [], casco: [], ti: [] };
-                    Object.keys(ROWS).forEach(function (sec) {
-                        ROWS[sec].forEach(function (n) {
-                            grid[sec].push(ANG.map(function (a) { return celVal(n, a); }));
-                        });
-                    });
-                    sbSalvar('nr13_med_grid_' + tagVaso, JSON.stringify(grid));
-                } catch (e) {}
-            }
+                sbSalvar('nr13_med_grid_' + tagVaso, JSON.stringify(grid));
+            } catch (e) {}
         }
 
 
@@ -710,6 +786,7 @@
         }
 
         document.addEventListener('DOMContentLoaded', function() {
+            renderTabelaMedicoes();
             destacarMenoresEspessuras();
             carregarRastreabilidadeInstrumento();
 
@@ -906,21 +983,12 @@
                     };
                     for (let chave in MAPA) injetarValor(MAPA[chave], dados[chave]);
 
-                    // 2. TABELA DE MEDIDAS — medidas[componente][angulo] → célula linha{N}-{angulo}
-                    // Mapa componente→linha do template: ts=1, c1=2, c2=3, c3=4, c4=6, ti=5.
-                    const COMP_PARA_LINHA = { ts: 1, c1: 2, c2: 3, c3: 4, c4: 6, ti: 5 };
-                    const ANGULOS = ['0', '90', '180', '270'];
-                    if (dados.medidas) {
-                        for (let comp in COMP_PARA_LINHA) {
-                            let linha = dados.medidas[comp];
-                            if (!linha) continue;
-                            ANGULOS.forEach(function(ang) {
-                                let v = linha[ang];
-                                if (v !== undefined && v !== '') {
-                                    injetarValor('linha' + COMP_PARA_LINHA[comp] + '-' + ang, String(v).replace('.', ','));
-                                }
-                            });
-                        }
+                    // 2. TABELA DE MEDIDAS — as linhas são geradas a partir de dados.pontos
+                    // (ou dos 6 pontos padrão) e já saem preenchidas com dados.medidas.
+                    // Não há mais mapa componente→linha fixa.
+                    if (dados.medidas || dados.pontos) {
+                        renderTabelaMedicoes();
+                        injetouAlgo = true;
                     }
 
                     if (injetouAlgo) {

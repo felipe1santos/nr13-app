@@ -10,6 +10,12 @@ import { listarComponentes } from '../../features/calibracoes/componentesService
 import { listarCalibracoes } from '../../features/calibracoes/calibracaoService';
 import type { DadosCalibracao } from '../../features/calibracoes/tipos';
 import { carregarProntuario, gravarProntuarioAtual } from '../../features/prontuarios/prontuarioService';
+import {
+  abrirPdfProntuarioFabricante,
+  formatarDataEnvio,
+  formatarTamanho as formatarTamanhoPdf,
+  lerProntuarioFabricante,
+} from '../../features/equipamento/ProntuarioFabricante';
 import { PAGINAS_PRONTUARIO } from '../../features/prontuarios/tipos';
 import { parseDataFlex, statusPrazo } from '../../services/vencimentos';
 import type { InfoEquipamento } from '../../features/equipamento/tipos';
@@ -67,6 +73,9 @@ export default function PortalAtivo() {
   const componentes = useMemo(() => listarComponentes(tag), [tag]);
   const calibracoes = useMemo(() => listarCalibracoes(tag), [tag]);
   const prontuario = useMemo(() => carregarProntuario(tag), [tag]);
+  // PDF do prontuário original do fabricante (nr13_pront_fab_<TAG>) — não é template
+  // HTML, então NÃO passa por abrirProntuario()/abrirRegistro(): abre o PDF direto.
+  const prontFabricante = useMemo(() => lerProntuarioFabricante(tag), [tag]);
 
   // Itens da aba Registros: só os que realmente existem pra este equipamento (mesma
   // condição de LivroRegistro.tsx — termo de abertura nasce junto com a 1ª entrada do livro).
@@ -311,22 +320,45 @@ export default function PortalAtivo() {
 
           {aba === 'prontuario' && (
             <div className="portal-aba-corpo">
-              {!prontuario ? (
+              {!prontuario && !prontFabricante ? (
                 <p className="portal-hint">Nenhum prontuário elaborado para este equipamento ainda.</p>
               ) : (
                 <ul className="portal-lista-docs">
-                  <li>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <Icone nome="filetext" tam={18} style={{ color: '#1e3a8a' }} />
-                      <div>
-                        <b>Prontuário do Equipamento</b>
-                        <span className="portal-doc-meta">Atualizado em {prontuario.criadoEm}</span>
+                  {prontuario && (
+                    <li>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <Icone nome="filetext" tam={18} style={{ color: '#1e3a8a' }} />
+                        <div>
+                          <b>Prontuário do Equipamento</b>
+                          <span className="portal-doc-meta">Atualizado em {prontuario.criadoEm}</span>
+                        </div>
                       </div>
-                    </div>
-                    <button type="button" className="btn-primario" onClick={() => void abrirProntuario()}>
-                      Visualizar
-                    </button>
-                  </li>
+                      <button type="button" className="btn-primario" onClick={() => void abrirProntuario()}>
+                        Visualizar
+                      </button>
+                    </li>
+                  )}
+                  {prontFabricante && (
+                    <li>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <Icone nome="filetext" tam={18} style={{ color: '#1e3a8a' }} />
+                        <div>
+                          <b>Prontuário do Fabricante</b>
+                          <span className="portal-doc-meta">
+                            {prontFabricante.nome} — {formatarTamanhoPdf(prontFabricante.tamanho)} — enviado em{' '}
+                            {formatarDataEnvio(prontFabricante.enviadoEm)}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn-primario"
+                        onClick={() => abrirPdfProntuarioFabricante(prontFabricante.pdfBase64)}
+                      >
+                        Visualizar
+                      </button>
+                    </li>
+                  )}
                 </ul>
               )}
             </div>

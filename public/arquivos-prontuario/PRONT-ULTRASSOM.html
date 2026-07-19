@@ -481,7 +481,67 @@ document.addEventListener('DOMContentLoaded', function () {
   texto('rod-cep', cepEmp);
   texto('rod-tel', telEmp);
   texto('rod-email', emailEmp);
+
+  // ───────────────────────── Ajuste da grade à folha A4 ─────────────────────────
+  // A grade de pontos deixou de ter 6 linhas fixas (o inspetor acrescenta pontos por
+  // região). A .page tem height: 297mm; overflow: hidden — sem este ajuste, as linhas
+  // extras seriam cortadas EM SILÊNCIO. Reduz progressivamente fonte/altura de linha
+  // e, se ainda assim estourar, exibe aviso visível (impresso junto).
+  ajustarGradeMedicao();
+  setTimeout(ajustarGradeMedicao, 250); // re-checa após logo/croqui carregarem
 });
+
+function estouraFolha() {
+  var page = document.querySelector('.page');
+  var rodape = document.querySelector('.rodape');
+  if (!page) return false;
+  if (rodape) {
+    var limite = page.getBoundingClientRect().bottom;
+    if (rodape.getBoundingClientRect().bottom > limite - 2) return true;
+  }
+  return page.scrollHeight > page.clientHeight + 2;
+}
+
+function ajustarGradeMedicao() {
+  var tabela = document.querySelector('.tabela-medicao');
+  if (!tabela) return;
+  var celulas = tabela.querySelectorAll('td');
+  if (!celulas.length) return;
+
+  var PASSOS = [
+    { fonte: '8.5px', pad: '2px 3px', altura: '1.15' },
+    { fonte: '8px',   pad: '1px 3px', altura: '1.1' },
+    { fonte: '7.5px', pad: '1px 2px', altura: '1.05' },
+    { fonte: '7px',   pad: '0px 2px', altura: '1' },
+    { fonte: '6.5px', pad: '0px 1px', altura: '1' },
+    { fonte: '6px',   pad: '0px 1px', altura: '1' }
+  ];
+
+  for (var k = 0; k < PASSOS.length; k++) {
+    if (!estouraFolha()) break;
+    for (var i = 0; i < celulas.length; i++) {
+      celulas[i].style.fontSize = PASSOS[k].fonte;
+      celulas[i].style.padding = PASSOS[k].pad;
+      celulas[i].style.lineHeight = PASSOS[k].altura;
+    }
+  }
+
+  var aviso = document.getElementById('aviso-grade-estourada');
+  if (estouraFolha()) {
+    if (!aviso) {
+      aviso = document.createElement('div');
+      aviso.id = 'aviso-grade-estourada';
+      aviso.style.cssText = 'margin:2px 0 4px;padding:3px 6px;border:1px solid #b91c1c;' +
+        'color:#b91c1c;background:#fee2e2;font-size:8px;font-weight:800;text-align:center;' +
+        'text-transform:uppercase;-webkit-print-color-adjust:exact;print-color-adjust:exact;';
+      aviso.textContent = 'Atenção: há mais pontos de medição do que cabem nesta folha — consulte a folha de ultrassom do relatório para a grade completa.';
+      var faixa = document.querySelector('.section-title-band');
+      if (faixa && faixa.parentNode) faixa.parentNode.insertBefore(aviso, faixa);
+    }
+  } else if (aviso && aviso.parentNode) {
+    aviso.parentNode.removeChild(aviso);
+  }
+}
 </script>
 </body>
 </html>

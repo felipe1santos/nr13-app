@@ -11,6 +11,7 @@ import CategoriaNR13 from '../features/categoria/CategoriaNR13';
 import BadgeTipoEquipamento from '../features/equipamento/BadgeTipoEquipamento';
 import VidaRemanescente from '../features/equipamento/VidaRemanescente';
 import PressoesDocumentacao from '../features/equipamento/PressoesDocumentacao';
+import ProntuarioFabricante from '../features/equipamento/ProntuarioFabricante';
 import { formatarValor } from '../calc/unidades';
 import type { SistemaUnidade } from '../calc/unidades';
 import MemorialLog from '../features/memorial/MemorialLog';
@@ -250,6 +251,11 @@ function EquipamentoView({ tag }: { tag: string }) {
 
       <section className="equipamento-secao">
         <VidaRemanescente tag={tag} info={info} />
+      </section>
+
+      <section className="equipamento-secao">
+        {/* PDF do prontuário original do fabricante (nr13_pront_fab_<TAG>) */}
+        <ProntuarioFabricante tag={tag} />
       </section>
 
       <section className="equipamento-secao">

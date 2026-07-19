@@ -421,11 +421,11 @@
                     const i = parseInt(idx, 10);
                     if (!isNaN(i) && i >= 0 && i < livro.length) entrada = livro[i];
                 }
-                if (!entrada) return;
+                if (!entrada) return null;
 
                 if (entrada.origem === 'manual') {
                     renderizarModoOcorrenciaManual(entrada);
-                    return;
+                    return entrada;
                 }
 
                 // Entradas automáticas antigas só têm `data` — dataInicio/dataFim/condicaoOperacional
@@ -446,6 +446,56 @@
                     phId: entrada.phId,
                     assinaturaImg: entrada.assinaturaImg,
                     assinanteFuncao: entrada.assinanteFuncao
+                });
+                return entrada;
+            }
+
+            // ── Termo editável (rascunho) ───────────────────────────────────────────────
+            // O contenteditable só persiste enquanto a entrada é RASCUNHO (lacrado === false).
+            // Campo AUSENTE = entrada antiga ⇒ tratada como LACRADA (o livro sempre foi imutável).
+            function entradaLacrada(entrada) {
+                return !entrada || entrada.lacrado !== false;
+            }
+
+            // Grava o texto editado de volta na entrada correspondente de nr13_livro_<TAG>.
+            function gravarTermoEditado(tag, entradaId, texto) {
+                let livro;
+                try { livro = JSON.parse(localStorage.getItem('nr13_livro_' + tag) || '[]'); }
+                catch (e) { return; }
+                if (Object.prototype.toString.call(livro) !== '[object Array]') return;
+                let mudou = false;
+                for (let i = 0; i < livro.length; i++) {
+                    if (livro[i] && livro[i].id === entradaId) {
+                        if (livro[i].lacrado !== false) return; // lacrada: nunca grava
+                        livro[i].termoTexto = texto;
+                        mudou = true;
+                        break;
+                    }
+                }
+                if (!mudou) return;
+                try { localStorage.setItem('nr13_livro_' + tag, JSON.stringify(livro)); } catch (e) {}
+            }
+
+            // Aplica o texto JÁ EDITADO (se houver) por cima do texto gerado pelo render e liga
+            // (ou desliga) a edição conforme o estado da entrada.
+            function configurarEdicaoTermo(tag, entrada) {
+                const elTexto = document.getElementById('termo-texto');
+                if (!elTexto) return;
+
+                // Texto salvo pelo usuário vence o texto gerado — o render não pode sobrescrevê-lo.
+                if (entrada && typeof entrada.termoTexto === 'string' && entrada.termoTexto.trim()) {
+                    elTexto.textContent = entrada.termoTexto;
+                }
+
+                // Sem entrada (folha do relatório em montagem) não há onde persistir: leitura.
+                if (entradaLacrada(entrada) || !entrada.id) {
+                    elTexto.setAttribute('contenteditable', 'false');
+                    return;
+                }
+
+                elTexto.setAttribute('contenteditable', 'true');
+                elTexto.addEventListener('blur', function() {
+                    gravarTermoEditado(tag, entrada.id, elTexto.textContent || '');
                 });
             }
 
@@ -488,9 +538,12 @@
                 if (!tag) return;
 
                 if (entradaId || (idx !== null && idx !== '')) {
-                    renderizarModoHistorico(tag, entradaId, idx);
+                    const entrada = renderizarModoHistorico(tag, entradaId, idx);
+                    configurarEdicaoTermo(tag, entrada);
                 } else {
                     renderizarModoRelatorioAtual(tag);
+                    // Folha do relatório em montagem: não há entrada do livro para persistir.
+                    configurarEdicaoTermo(tag, null);
                 }
             }
 

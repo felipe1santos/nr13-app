@@ -24,6 +24,11 @@ import { listarContainers } from '../features/inspecoes/inspecaoService';
 import type { ContainerInspecao } from '../features/inspecoes/tipos';
 import type { EmpresaEquipamento, CategoriaSalva } from '../features/equipamento/tipos';
 import ModeladorVaso from '../features/modelador/ModeladorVaso';
+import {
+  abrirPdfProntuarioFabricante,
+  formatarTamanho as formatarTamanhoPdf,
+  lerProntuarioFabricante,
+} from '../features/equipamento/ProntuarioFabricante';
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
 import '../pages/relatorios.css';
 import './prontuarios.css';
@@ -215,6 +220,8 @@ export default function Prontuarios() {
   const [imprimindo, setImprimindo] = useState(false);
   // Recomputado a cada render — o bump de `versao` no onSalvo do modelador atualiza o indicador.
   const temCroqui2d = tag !== '' && localStorage.getItem(`nr13_croqui2d_${tag}`) !== null;
+  // PDF do prontuário do fabricante (nr13_pront_fab_<TAG>) — enviado na ficha do equipamento.
+  const prontFabricante = tag !== '' ? lerProntuarioFabricante(tag) : null;
 
   async function prepararEImprimir() {
     setImprimindo(true);
@@ -853,6 +860,40 @@ export default function Prontuarios() {
                 ) : (
                   <span style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>
                     Croqui 2D — Em Breve
+                  </span>
+                )}
+              </div>
+
+              {/* Prontuário do fabricante (PDF) — enviado na ficha do equipamento */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                  Prontuário do fabricante
+                </span>
+                {prontFabricante ? (
+                  <>
+                    <span style={{ fontSize: 12, color: 'var(--ok)', fontWeight: 600 }}>
+                      ✓ {prontFabricante.nome} ({formatarTamanhoPdf(prontFabricante.tamanho)})
+                    </span>
+                    <button
+                      type="button"
+                      className="btn-secundario"
+                      style={{ fontSize: 12 }}
+                      onClick={() => abrirPdfProntuarioFabricante(prontFabricante.pdfBase64)}
+                    >
+                      Visualizar
+                    </button>
+                    <a
+                      className="btn-secundario"
+                      style={{ fontSize: 12, textDecoration: 'none' }}
+                      href={prontFabricante.pdfBase64}
+                      download={prontFabricante.nome || `prontuario-fabricante-${tag}.pdf`}
+                    >
+                      Baixar
+                    </a>
+                  </>
+                ) : (
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                    nenhum PDF enviado — envie na ficha do equipamento
                   </span>
                 )}
               </div>

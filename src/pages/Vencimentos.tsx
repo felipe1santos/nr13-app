@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icone } from '../components/Icone';
 import CalendarioVencimentos from '../components/CalendarioVencimentos';
-import { listarVencimentos, resumoKpis, textoPrazo } from '../services/vencimentos';
+import { resumoKpis, textoPrazo, useVencimentos } from '../services/vencimentos';
 import type { ItemVencimento } from '../services/vencimentos';
 import { listarChavesComPrefixo } from '../services/storage';
 import './dashboard-novo.css';
@@ -24,7 +24,7 @@ function BadgeStatus({ status }: { status: ItemVencimento['status'] }) {
 
 export default function Vencimentos() {
   const navigate = useNavigate();
-  const itens = useMemo(() => listarVencimentos(), []);
+  const itens = useVencimentos();
   const totalEquip = listarChavesComPrefixo('nr13_info_').length;
   const kpis = useMemo(() => resumoKpis(itens, totalEquip), [itens, totalEquip]);
 

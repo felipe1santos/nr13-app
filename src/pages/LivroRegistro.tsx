@@ -4,7 +4,13 @@ import PaginaA4 from '../components/PaginaA4';
 import { ler, listarChavesComPrefixo } from '../services/storage';
 import type { InfoEquipamento } from '../features/equipamento/tipos';
 import { listarFuncionarios } from '../features/cadastros/cadastroService';
-import { adicionarEntradaLivroManual } from '../features/relatorios/relatoriosService';
+import {
+  adicionarEntradaLivroManual,
+  atualizarEntradaLivro,
+  estaLacrada,
+  excluirEntradaLivro,
+  lacrarEntradaLivro,
+} from '../features/relatorios/relatoriosService';
 import { exportarPdf, exportarPdfLivroCompleto } from '../features/relatorios/pdfService';
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
 import './dashboard-novo.css';
@@ -24,6 +30,9 @@ interface LivroEntrada {
   // Ocorrência manual (manutenção/reparo entre inspeções):
   origem?: 'auto' | 'manual';
   quemRealizou?: string;
+  // Ciclo de vida rascunho → lacrado. Campo AUSENTE = entrada antiga ⇒ lacrada (imutável).
+  lacrado?: boolean;
+  retificaDe?: string;
 }
 
 interface LinhaLivro {
@@ -140,6 +149,8 @@ interface FormOcorrencia {
   descricao: string;
   quemRealizou: string;
   phId: string;
+  /** id da entrada lacrada que esta ocorrência retifica (vazio = ocorrência comum). */
+  retificaDe: string;
 }
 
 const FORM_OCORRENCIA_VAZIO: FormOcorrencia = {
@@ -149,7 +160,16 @@ const FORM_OCORRENCIA_VAZIO: FormOcorrencia = {
   descricao: '',
   quemRealizou: '',
   phId: '',
+  retificaDe: '',
 };
+
+/** Edição inline de uma entrada rascunho (só campos de texto — nada de dado congelado). */
+interface FormEdicao {
+  data: string;
+  tipo: string;
+  descricao: string;
+  quemRealizou: string;
+}
 
 export default function LivroRegistro() {
   // Estado (e não useMemo) para poder recarregar a timeline após salvar uma ocorrência manual.
@@ -163,6 +183,12 @@ export default function LivroRegistro() {
   const [exportandoLivro, setExportandoLivro] = useState(false);
   const [form, setForm] = useState<FormOcorrencia>(FORM_OCORRENCIA_VAZIO);
   const [erroForm, setErroForm] = useState('');
+  // Edição/lacre de entradas rascunho (uma por vez).
+  const [editandoId, setEditandoId] = useState<string | null>(null);
+  const [formEdicao, setFormEdicao] = useState<FormEdicao>({ data: '', tipo: '', descricao: '', quemRealizou: '' });
+  // Confirmação inline de 2 passos (nunca window.confirm — trava a automação do navegador).
+  const [confirmandoLacreId, setConfirmandoLacreId] = useState<string | null>(null);
+  const [confirmandoExclusaoId, setConfirmandoExclusaoId] = useState<string | null>(null);
   const funcionarios = useMemo(() => listarFuncionarios(), []);
 
   const comLivro = linhas.filter((l) => l.entradas.length > 0);
@@ -225,6 +251,60 @@ export default function LivroRegistro() {
     setModalOcorrencia(true);
   }
 
+  // "Retificar" um registro LACRADO: abre o formulário de ocorrência já apontando para ele.
+  // O registro lacrado permanece intacto no livro; a retificação é uma entrada NOVA (rascunho).
+  function abrirRetificacao(entrada: LivroEntrada) {
+    setForm({
+      ...FORM_OCORRENCIA_VAZIO,
+      data: new Date().toISOString().slice(0, 10),
+      tipoOcorrencia: 'Outra ocorrência',
+      oQueFoiFeito: `Retificação do registro de ${entrada.data}`,
+      retificaDe: entrada.id ?? '',
+    });
+    setErroForm('');
+    setModalOcorrencia(true);
+  }
+
+  function iniciarEdicao(entrada: LivroEntrada) {
+    setConfirmandoLacreId(null);
+    setConfirmandoExclusaoId(null);
+    setEditandoId(entrada.id ?? null);
+    setFormEdicao({
+      data: entrada.data ?? '',
+      tipo: entrada.tipo ?? '',
+      descricao: entrada.descricao ?? '',
+      quemRealizou: entrada.quemRealizou ?? '',
+    });
+  }
+
+  function salvarEdicao() {
+    if (!linhaAberta || !editandoId) return;
+    atualizarEntradaLivro(linhaAberta.tag, editandoId, {
+      data: formEdicao.data,
+      tipo: formEdicao.tipo,
+      descricao: formEdicao.descricao,
+      quemRealizou: formEdicao.quemRealizou || undefined,
+    });
+    setEditandoId(null);
+    setLinhas(montarLinhas());
+  }
+
+  function confirmarLacre(id: string) {
+    if (!linhaAberta) return;
+    lacrarEntradaLivro(linhaAberta.tag, id);
+    setConfirmandoLacreId(null);
+    setEditandoId(null);
+    setLinhas(montarLinhas());
+  }
+
+  function confirmarExclusao(id: string) {
+    if (!linhaAberta) return;
+    excluirEntradaLivro(linhaAberta.tag, id);
+    setConfirmandoExclusaoId(null);
+    setEditandoId(null);
+    setLinhas(montarLinhas());
+  }
+
   function salvarOcorrencia() {
     if (!linhaAberta) return;
     if (!form.data || !form.tipoOcorrencia || !form.oQueFoiFeito.trim()) {
@@ -238,6 +318,7 @@ export default function LivroRegistro() {
       descricao: form.descricao,
       quemRealizou: form.quemRealizou,
       phId: form.phId || null,
+      retificaDe: form.retificaDe || undefined,
     });
     setLinhas(montarLinhas());
     setModalOcorrencia(false);
@@ -325,6 +406,11 @@ export default function LivroRegistro() {
                 const cor = COR_TIPO[entrada.tipo] ?? 'neutro';
                 const cripto = criptografiaFicticia(entrada.id || `${linhaAberta.tag}-${i}`);
                 const numeroRegistro = String(i + 1).padStart(6, '0');
+                const lacrada = estaLacrada(entrada);
+                const emEdicao = !lacrada && editandoId != null && editandoId === entrada.id;
+                const retificada = entrada.retificaDe
+                  ? linhaAberta.entradas.find((e) => e.id === entrada.retificaDe)
+                  : undefined;
                 return (
                   <li key={entrada.id ?? i} className="livro-timeline-item">
                     <span className="livro-timeline-marco" />
@@ -336,9 +422,74 @@ export default function LivroRegistro() {
                           <span className={`fj-badge ${entrada.apto ? 'ok' : 'crit'}`}>{entrada.apto ? 'Apto' : 'Inapto'}</span>
                         )}
                         {entrada.origem === 'manual' && <span className="selo-flat manual">manual</span>}
+                        {lacrada ? (
+                          <span className="selo-flat info2" title="Registro lacrado — imutável">
+                            <Icone nome="shield" tam={10} style={{ display: 'inline-block', verticalAlign: -1, marginRight: 3 }} />
+                            Lacrado
+                          </span>
+                        ) : (
+                          <span className="selo-flat manual" title="Rascunho — ainda pode ser editado ou excluído">Rascunho</span>
+                        )}
                         <span className="livro-timeline-data">{entrada.data}</span>
                       </div>
-                      <div className="livro-timeline-desc">{entrada.descricao}</div>
+                      {retificada && (
+                        <div className="livro-timeline-desc" style={{ fontStyle: 'italic' }}>
+                          Retifica o registro de {retificada.data}
+                          {retificada.relatorioCodigo ? ` (relatório ${retificada.relatorioCodigo})` : ''}
+                        </div>
+                      )}
+                      {emEdicao ? (
+                        <div style={{ display: 'grid', gap: 8, margin: '6px 0 10px' }}>
+                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                            <div className="fj-field" style={{ minWidth: 160 }}>
+                              <label htmlFor={`ed-data-${entrada.id}`}>Data</label>
+                              <input
+                                id={`ed-data-${entrada.id}`}
+                                type="text"
+                                value={formEdicao.data}
+                                onChange={(e) => setFormEdicao({ ...formEdicao, data: e.target.value })}
+                              />
+                            </div>
+                            <div className="fj-field" style={{ minWidth: 200 }}>
+                              <label htmlFor={`ed-tipo-${entrada.id}`}>Tipo</label>
+                              <input
+                                id={`ed-tipo-${entrada.id}`}
+                                type="text"
+                                value={formEdicao.tipo}
+                                onChange={(e) => setFormEdicao({ ...formEdicao, tipo: e.target.value })}
+                              />
+                            </div>
+                          </div>
+                          <div className="fj-field">
+                            <label htmlFor={`ed-desc-${entrada.id}`}>Descrição</label>
+                            <textarea
+                              id={`ed-desc-${entrada.id}`}
+                              rows={3}
+                              value={formEdicao.descricao}
+                              onChange={(e) => setFormEdicao({ ...formEdicao, descricao: e.target.value })}
+                            />
+                          </div>
+                          <div className="fj-field">
+                            <label htmlFor={`ed-quem-${entrada.id}`}>Quem realizou</label>
+                            <input
+                              id={`ed-quem-${entrada.id}`}
+                              type="text"
+                              value={formEdicao.quemRealizou}
+                              onChange={(e) => setFormEdicao({ ...formEdicao, quemRealizou: e.target.value })}
+                            />
+                          </div>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button type="button" className="fj-btn fj-btn-primary" onClick={salvarEdicao}>
+                              <Icone nome="check" tam={13} /> Salvar alterações
+                            </button>
+                            <button type="button" className="fj-btn fj-btn-ghost" onClick={() => setEditandoId(null)}>
+                              Cancelar
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="livro-timeline-desc">{entrada.descricao}</div>
+                      )}
                       {entrada.ensaios && entrada.ensaios.length > 0 && (
                         <div className="livro-timeline-desc">Ensaios: {entrada.ensaios.join(' · ')}</div>
                       )}
@@ -358,18 +509,83 @@ export default function LivroRegistro() {
                         </span>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      className="fj-btn fj-btn-ghost"
-                      onClick={() =>
-                        setPreview({
-                          tag: linhaAberta.tag,
-                          doc: { arquivo: 'LIVRO-REGISTRO.html', titulo: `Registro_${entrada.data.replace(/\//g, '-')}`, entradaId: entrada.id ?? '', idx: i },
-                        })
-                      }
-                    >
-                      <Icone nome="eye" tam={13} /> Ver / Imprimir
-                    </button>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'stretch', minWidth: 190 }}>
+                      <button
+                        type="button"
+                        className="fj-btn fj-btn-ghost"
+                        onClick={() =>
+                          setPreview({
+                            tag: linhaAberta.tag,
+                            doc: { arquivo: 'LIVRO-REGISTRO.html', titulo: `Registro_${entrada.data.replace(/\//g, '-')}`, entradaId: entrada.id ?? '', idx: i },
+                          })
+                        }
+                      >
+                        <Icone nome="eye" tam={13} /> Ver / Imprimir
+                      </button>
+
+                      {/* Rascunho: edita, exclui e lacra. Lacrado: só retificação (entrada nova). */}
+                      {!lacrada && !emEdicao && (
+                        <button type="button" className="fj-btn fj-btn-ghost" onClick={() => iniciarEdicao(entrada)}>
+                          <Icone nome="pencil" tam={13} /> Editar
+                        </button>
+                      )}
+
+                      {!lacrada && confirmandoLacreId !== entrada.id && (
+                        <button
+                          type="button"
+                          className="fj-btn fj-btn-primary"
+                          onClick={() => { setConfirmandoExclusaoId(null); setConfirmandoLacreId(entrada.id ?? null); }}
+                        >
+                          <Icone nome="shield" tam={13} /> Lacrar registro
+                        </button>
+                      )}
+                      {!lacrada && confirmandoLacreId === entrada.id && (
+                        <div className="fj-confirm-inline" style={{ border: '1px solid var(--border, #D1D5DB)', borderRadius: 6, padding: 8 }}>
+                          <p style={{ margin: '0 0 8px', fontSize: 12 }}>
+                            Lacrar este registro? Depois de lacrado ele <strong>não poderá mais ser editado
+                            nem excluído</strong> — qualquer correção só será possível por meio de um registro
+                            de retificação.
+                          </p>
+                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                            <button type="button" className="fj-btn fj-btn-primary" onClick={() => confirmarLacre(entrada.id ?? '')}>
+                              <Icone nome="check" tam={13} /> Confirmar lacre
+                            </button>
+                            <button type="button" className="fj-btn fj-btn-ghost" onClick={() => setConfirmandoLacreId(null)}>
+                              Cancelar
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {!lacrada && confirmandoExclusaoId !== entrada.id && (
+                        <button
+                          type="button"
+                          className="fj-btn fj-btn-ghost"
+                          onClick={() => { setConfirmandoLacreId(null); setConfirmandoExclusaoId(entrada.id ?? null); }}
+                        >
+                          <Icone nome="trash" tam={13} /> Excluir rascunho
+                        </button>
+                      )}
+                      {!lacrada && confirmandoExclusaoId === entrada.id && (
+                        <div style={{ border: '1px solid var(--border, #D1D5DB)', borderRadius: 6, padding: 8 }}>
+                          <p style={{ margin: '0 0 8px', fontSize: 12 }}>Excluir este rascunho do livro? A ação não pode ser desfeita.</p>
+                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                            <button type="button" className="fj-btn fj-btn-primary" onClick={() => confirmarExclusao(entrada.id ?? '')}>
+                              <Icone nome="check" tam={13} /> Confirmar exclusão
+                            </button>
+                            <button type="button" className="fj-btn fj-btn-ghost" onClick={() => setConfirmandoExclusaoId(null)}>
+                              Cancelar
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {lacrada && entrada.id && (
+                        <button type="button" className="fj-btn fj-btn-ghost" onClick={() => abrirRetificacao(entrada)}>
+                          <Icone nome="pencil" tam={13} /> Retificar
+                        </button>
+                      )}
+                    </div>
                   </li>
                 );
               })}
@@ -441,7 +657,7 @@ export default function LivroRegistro() {
               <div className="fj-modal-head">
                 <div>
                   <div className="fj-eyebrow">Livro de Registro · {linhaAberta.tag}</div>
-                  <h2>Adicionar ocorrência</h2>
+                  <h2>{form.retificaDe ? 'Registro de retificação' : 'Adicionar ocorrência'}</h2>
                 </div>
                 <button type="button" className="fj-modal-close" onClick={() => setModalOcorrencia(false)} aria-label="Fechar">
                   <Icone nome="x" tam={15} />
@@ -452,6 +668,13 @@ export default function LivroRegistro() {
                   Registre manutenções, reparos e demais ocorrências realizadas entre inspeções — elas
                   entram na linha do tempo do livro na ordem cronológica.
                 </p>
+                {form.retificaDe && (
+                  <div className="fj-badge warn" style={{ justifySelf: 'start' }}>
+                    Retifica o registro de{' '}
+                    {linhaAberta.entradas.find((e) => e.id === form.retificaDe)?.data ?? '—'} — o registro
+                    lacrado permanece no livro; esta é uma entrada nova de correção.
+                  </div>
+                )}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
                   <div className="fj-field">
                     <label htmlFor="oc-data">Data da ocorrência *</label>
