@@ -160,15 +160,27 @@ export function limparCacheDados(): void {
     if (chave && chave.startsWith('nr13_') && !CHAVES_PRESERVADAS.has(chave)) remover.push(chave);
   }
   for (const chave of remover) localStorage.removeItem(chave);
+  ultimaHidratacao = 0; // troca de usuário/logout: força re-hidratação completa no próximo lerTudo
 }
 
 // Puxa todas as chaves do usuário logado e hidrata o localStorage (cache p/ os iframes).
 // Chamar no login e ao abrir o app. Sem sessão, devolve vazio (mantém o que houver em cache).
 const PAGINA_TAMANHO = 1000; // limite padrão de linhas por consulta do PostgREST/Supabase
 
+// Throttle da hidratação completa: as telas de lista chamam lerTudo() a cada navegação, o que
+// re-baixava o banco INTEIRO (fotos base64 inclusas) a cada clique no menu — a "demora do
+// banco". Dentro da janela, o cache local já está válido e a leitura é instantânea.
+const JANELA_HIDRATACAO_MS = 60_000;
+let ultimaHidratacao = 0;
+
 export async function lerTudo(): Promise<Record<string, string>> {
   const escopo = await escopoStorageAtual();
   if (!escopo) return {};
+  if (Date.now() - ultimaHidratacao < JANELA_HIDRATACAO_MS) {
+    // Cache recém-hidratado: ainda drena a fila offline (no-op quando vazia) e serve do local.
+    await flushFila();
+    return {};
+  }
   // BUG #8b — guarda de isolamento entre contas: se o cache em disco pertence a OUTRO usuário
   // (ex.: logout interrompido antes de limpar), zera ANTES de servir/hidratar para não vazar
   // dados do usuário A ao usuário B. Só limpa com CERTEZA de mismatch: owner salvo não-nulo E
@@ -239,6 +251,7 @@ export async function lerTudo(): Promise<Record<string, string>> {
       }
     }
     localStorage.setItem('nr13_cache_owner', escopo.id);
+    ultimaHidratacao = Date.now();
     return dados;
   } catch {
     // offline: usa o cache local já existente
@@ -281,7 +294,10 @@ export async function excluirChave(chave: string): Promise<void> {
   const escopo = await escopoStorageAtual();
   if (!escopo) return;
   try {
-    await supabase.from(TABELA_STORAGE).delete().eq(escopo.coluna, escopo.id).eq('chave', chave);
+    const { error } = await supabase.from(TABELA_STORAGE).delete().eq(escopo.coluna, escopo.id).eq('chave', chave);
+    // supabase-js NÃO lança em erro de rede/RLS — devolve { error }. Sem esta checagem o
+    // tombstone nunca era enfileirado e o próximo lerTudo ressuscitava a chave excluída.
+    if (error) enfileirar({ op: 'del', chave });
   } catch {
     // offline: o delete lançou → enfileira o tombstone para o registro não ressuscitar
     enfileirar({ op: 'del', chave });
@@ -309,21 +325,32 @@ export function listarChavesComPrefixo(prefixo: string): string[] {
 }
 
 export async function excluirVaso(tag: string): Promise<void> {
-  // coleta no cache local todas as chaves que terminam em "_<TAG>"
+  // Coleta no cache local todas as chaves que terminam em "_<TAG>". Como TAGs podem conter
+  // "_", uma chave de TAG mais longa também termina igual (excluir "B" casava "nr13_info_A_B"
+  // e apagava o equipamento A_B): chave que pertence a OUTRA TAG cadastrada mais específica
+  // fica de fora.
+  const outrasTags = listarChavesComPrefixo('nr13_info_')
+    .map((c) => c.slice('nr13_info_'.length))
+    .filter((t) => t !== tag && t.endsWith(`_${tag}`));
   const chavesDoVaso: string[] = [];
   for (let i = 0; i < localStorage.length; i++) {
     const chave = localStorage.key(i);
-    if (chave && chave.endsWith(`_${tag}`)) chavesDoVaso.push(chave);
+    if (!chave || !chave.endsWith(`_${tag}`)) continue;
+    if (outrasTags.some((t) => chave.endsWith(`_${t}`))) continue;
+    chavesDoVaso.push(chave);
   }
 
   const escopo = await escopoStorageAtual();
   if (escopo && chavesDoVaso.length > 0) {
     try {
-      await supabase
+      const { error } = await supabase
         .from(TABELA_STORAGE)
         .delete()
         .eq(escopo.coluna, escopo.id)
         .in('chave', chavesDoVaso);
+      // Mesmo contrato do salvar/excluirChave: erro devolvido (não lançado) também
+      // precisa dos tombstones, senão o lerTudo ressuscita o equipamento excluído.
+      if (error) for (const chave of chavesDoVaso) enfileirar({ op: 'del', chave });
     } catch {
       // offline: o delete em lote lançou → enfileira um tombstone por chave do vaso
       for (const chave of chavesDoVaso) enfileirar({ op: 'del', chave });

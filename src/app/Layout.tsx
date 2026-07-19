@@ -103,19 +103,24 @@ export default function Layout() {
   }, [location.pathname, modulosPermitidos, navigate]);
 
   useEffect(() => {
-    // Sino: acende quando o motor de vencimentos encontra item vencido.
+    // Sino: acende quando o motor de vencimentos encontra item vencido. Recalcula quando os
+    // DADOS mudam (assinarDadosAlterados), não a cada navegação — listarVencimentos varre e
+    // parseia todos os equipamentos e rodava em toda troca de rota, travando o clique no menu.
     let vivo = true;
-    import('../services/vencimentos')
-      .then((m) => {
+    let cancelarAssinatura = () => {};
+    Promise.all([import('../services/vencimentos'), import('../services/eventos')])
+      .then(([venc, eventos]) => {
         if (!vivo) return;
-        const itens = m.listarVencimentos();
-        setTemAlerta(itens.some((i) => i.status === 'crit'));
+        const atualizar = () => setTemAlerta(venc.listarVencimentos().some((i) => i.status === 'crit'));
+        atualizar();
+        cancelarAssinatura = eventos.assinarDadosAlterados(atualizar);
       })
       .catch(() => {});
     return () => {
       vivo = false;
+      cancelarAssinatura();
     };
-  }, [location.pathname]);
+  }, []);
 
   async function handleLogout() {
     await logout();

@@ -76,9 +76,8 @@ interface RelSalvoMin {
  * Relatório → Próx. Interna / Próx. Externa): vale a data mais próxima das duas.
  * Complementa a Vida Remanescente — em listarVencimentos vence o prazo menor.
  */
-function prazoPorRelatorio(tag: string): { ultima?: Date; vencimento: Date } | null {
-  const todos = ler<RelSalvoMin[]>('nr13_historico_relatorios') ?? [];
-  const doTag = todos.filter((r) => r?.tagVaso === tag);
+function prazoPorRelatorio(tag: string, historico: RelSalvoMin[]): { ultima?: Date; vencimento: Date } | null {
+  const doTag = historico.filter((r) => r?.tagVaso === tag);
   let recente: RelSalvoMin | null = null;
   let tRecente = -Infinity;
   for (const r of doTag) {
@@ -98,6 +97,15 @@ function prazoPorRelatorio(tag: string): { ultima?: Date; vencimento: Date } | n
 export function listarVencimentos(hoje: Date = new Date()): ItemVencimento[] {
   const itens: ItemVencimento[] = [];
   const hojeZero = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+
+  // Parse ÚNICO do histórico (o JSON carrega snapshots de logo/rubrica em base64 — multi-MB):
+  // parsear dentro do loop por equipamento custava N parses completos a cada navegação.
+  let historico: RelSalvoMin[] = [];
+  try {
+    historico = ler<RelSalvoMin[]>('nr13_historico_relatorios') ?? [];
+  } catch {
+    historico = [];
+  }
 
   // ── Equipamentos (via vida remanescente salva na ficha) ──
   for (const chave of listarChavesComPrefixo('nr13_info_')) {
@@ -120,7 +128,7 @@ export function listarVencimentos(hoje: Date = new Date()): ItemVencimento[] {
         venc.setMonth(venc.getMonth() + Math.round(anos * 12));
         prazoVida = { ultima: base, vencimento: venc };
       }
-      const prazo = prazoPorRelatorio(tag) ?? prazoVida;
+      const prazo = prazoPorRelatorio(tag, historico) ?? prazoVida;
 
       if (prazo) {
         const { dias, status } = statusPrazo(prazo.vencimento, hojeZero);
