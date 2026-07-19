@@ -24,14 +24,15 @@ interface VidaSalva {
   vidaAnos?: number | null;
 }
 
-// Vida remanescente relativa ao teto NR-13 mais alto (10 anos) — barra colorida do card.
+// Vida remanescente bruta do cálculo salvo — a barra usa escala interna só como visual.
 function vidaInfo(tag: string): { texto: string; pct: number; cor: string } | null {
   const vida = ler<VidaSalva>(`nr13_vida_${tag}`);
-  if (!vida || typeof vida.vidaAnos !== 'number') return null;
+  if (!vida) return null;
+  if (typeof vida.vidaAnos !== 'number') return { texto: 'Indeterminada', pct: 0, cor: '#AEB4B9' };
   const anos = vida.vidaAnos;
   const pct = Math.max(0, Math.min(100, Math.round((anos / 10) * 100)));
   const cor = pct > 50 ? 'var(--ok)' : pct > 25 ? 'var(--warn)' : 'var(--crit)';
-  return { texto: `${anos.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} anos · ${pct}%`, pct, cor };
+  return { texto: `${anos.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} anos`, pct, cor };
 }
 
 export default function CardEquipamento({ item }: { item: EquipamentoResumo }) {

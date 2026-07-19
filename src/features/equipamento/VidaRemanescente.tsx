@@ -277,10 +277,6 @@ export default function VidaRemanescente({ tag, info }: { tag: string; info: Inf
               </span>
             </div>
             <div className="resultado-item">
-              <span className="lbl-view">Prazo NR-13</span>
-              <span className="val-view">{fmt(salvo?.prazoNR13Anos, 'anos', 0)}</span>
-            </div>
-            <div className="resultado-item">
               <span className="lbl-view">Próxima inspeção</span>
               <span className="val-view">{fmt(salvo?.proximaInspecaoAnos, 'anos')}</span>
             </div>
