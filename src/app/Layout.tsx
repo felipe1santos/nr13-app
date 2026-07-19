@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Icone } from '../components/Icone';
-import { isMestre, logout, papelAtual, usuarioLogado } from '../services/auth';
+import { isMestre, isTrial, logout, papelAtual, usuarioLogado } from '../services/auth';
+import BarraTrial from '../components/BarraTrial';
 import { listarChavesComPrefixo } from '../services/storage';
 import { modulosDoUsuarioAtual } from '../services/permissoes';
 import { ITENS_TOPO, ITENS_CADASTRAR, ITENS_BAIXO, ITEM_ACESSOS, tituloDaRota } from './menu';
@@ -227,6 +228,7 @@ export default function Layout() {
 
         {/* ===== MAIN ===== */}
         <div className="main">
+          <BarraTrial />
           <header className="topbar">
             <div className="topbar-left">
               <button
@@ -275,6 +277,8 @@ export default function Layout() {
 
           <main className="main-content">
             {(() => {
+              // Conta trial: a BarraTrial acima substitui este aviso.
+              if (isTrial()) return null;
               const dias = diasParaExpirar();
               if (dias === null || dias > 30 || dias < 0) return null;
               return (

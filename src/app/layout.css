@@ -346,3 +346,22 @@
 @media (max-width: 560px) {
   .aviso-expiracao { margin: 12px 12px 0; font-size: 12.5px; }
 }
+
+/* Barra fixa do período de teste (trial 48h) — acima da topbar, largura total. */
+.barra-trial {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #B45309;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  text-align: center;
+}
+.barra-trial svg { flex-shrink: 0; }
+.barra-trial strong { font-variant-numeric: tabular-nums; }
+@media (max-width: 560px) {
+  .barra-trial { font-size: 12px; padding: 7px 10px; }
+}
