@@ -3,7 +3,11 @@ import { comprimirImagem } from '../../../services/imagem';
 import { carregarDadosFormulario, salvarDadosFormulario } from '../inspecaoService';
 import { useAutosaveFormulario } from '../useAutosaveFormulario';
 import RespostaSegmentada from './RespostaSegmentada';
+import { mesclarPreenchimento, prefillVisual } from './autoPreencher';
 import ResultadoEnsaio, { type ResultadoEnsaioValor } from './ResultadoEnsaio';
+
+const ESTILO_DICA = { fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 } as const;
+const DICA_AUTO = 'Campos preenchidos automaticamente a partir do cadastro; edite se necessário.';
 
 const ITENS = [
   'Condição geral das paredes internas',
@@ -60,7 +64,13 @@ function dadosPadrao(): DadosVisual {
 export default function FormularioVisualInterno({ tag, containerId }: { tag: string; containerId: string }) {
   const [dados, setDados] = useState<DadosVisual>(
     // Merge com o padrão pra inspeções antigas (sem `resultado`) não quebrarem.
-    () => ({ ...dadosPadrao(), ...(carregarDadosFormulario<DadosVisual>(tag, containerId, 'visual_interno') ?? {}) }),
+    // Precedência: o que o usuário digitou > auto-preenchimento do cadastro > padrão.
+    () =>
+      mesclarPreenchimento(
+        dadosPadrao(),
+        prefillVisual(tag),
+        carregarDadosFormulario<DadosVisual>(tag, containerId, 'visual_interno'),
+      ),
   );
   useAutosaveFormulario(tag, containerId, 'visual_interno', dados);
   const [salvando, setSalvando] = useState(false);
@@ -119,6 +129,7 @@ export default function FormularioVisualInterno({ tag, containerId }: { tag: str
     <>
       <div className="formulario-secao">
         <h3>Dados Gerais</h3>
+        <p style={ESTILO_DICA}>{DICA_AUTO}</p>
         <div className="form-grid">
           <label>T.A.G. do Equipamento<input type="text" value={tag} disabled /></label>
           <label>Data da Inspeção<input type="date" value={dados.dataInspecao} onChange={(e) => set('dataInspecao', e.target.value)} /></label>
@@ -130,6 +141,7 @@ export default function FormularioVisualInterno({ tag, containerId }: { tag: str
 
       <div className="formulario-secao">
         <h3>Aspectos Gerais do Equipamento</h3>
+        <p style={ESTILO_DICA}>{DICA_AUTO}</p>
         <div className="form-grid">
           <label>Nº de Série<input type="text" value={dados.serie} onChange={(e) => set('serie', e.target.value)} /></label>
           <label>Tipo de Equipamento<input type="text" value={dados.tipoEquipamento} onChange={(e) => set('tipoEquipamento', e.target.value)} /></label>

@@ -53,14 +53,20 @@ window.nr13MemorialNovo = (function () {
       .replace(/\\cos/g, 'cos')
       .replace(/\\text\{([^{}]*)\}/g, '$1')
       .replace(/_\{([^{}\\]*)\}/g, '_$1')
-      .replace(/\^\{([^{}\\]*)\}/g, '^$1');
+      .replace(/\^\{([^{}\\]*)\}/g, '^$1')
+      // \_ escapado (t\_req): sem isso sobra "\" e latexSimples devolve null, derrubando a
+      // fração empilhada para a linha linearizada. Espelha o linearizarLatex.
+      .replace(/\\_/g, '_');
     if (t.indexOf('\\') !== -1) return null;
     t = t.replace(/\s+/g, ' ').trim();
     return ptBR(t).replace(/ - /g, ' − ');
   }
 
+  // A barra laranja é um <span> REAL (não ::before): html2canvas não rasteriza
+  // pseudo-elementos de forma confiável no PDF/impressão do relatório.
   function secao(txt) {
-    return '<div class="mc-secao">' + esc(txt) + '</div>';
+    return '<div class="mc-secao"><span class="mc-secao-bar"></span>' +
+      '<span class="mc-secao-txt">' + esc(txt) + '</span></div>';
   }
 
   function equacao(latex) {

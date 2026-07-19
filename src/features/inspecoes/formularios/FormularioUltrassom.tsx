@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import { carregarDadosFormulario, salvarDadosFormulario } from '../inspecaoService';
 import { useAutosaveFormulario } from '../useAutosaveFormulario';
+import { mesclarPreenchimento, prefillUltrassom } from './autoPreencher';
 import ResultadoEnsaio, { type ResultadoEnsaioValor } from './ResultadoEnsaio';
+
+const ESTILO_DICA = { fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 } as const;
+const DICA_AUTO = 'Campos preenchidos automaticamente a partir do cadastro; edite se necessário.';
 
 const COMPONENTES = [
   { id: 'ts', nome: 'Tampo Superior' },
@@ -61,12 +65,14 @@ function dadosPadrao(): Dados {
 export default function FormularioUltrassom({ tag, containerId }: { tag: string; containerId: string }) {
   const [dados, setDados] = useState<Dados>(() => {
     const salvo = carregarDadosFormulario<Dados>(tag, containerId, 'ultrassom');
-    if (!salvo) return dadosPadrao(); // formulário novo: data do ensaio sugere hoje
+    const prefill = prefillUltrassom(tag);
+    // formulário novo: data do ensaio sugere hoje
+    if (!salvo) return mesclarPreenchimento(dadosPadrao(), prefill, null);
     // Merge com o padrão pra inspeções antigas (sem `resultado`/`dataUltrassom`) não quebrarem.
     // Registro EXISTENTE sem `dataUltrassom` fica com data vazia — herdar "hoje" aqui faria o
     // autosave gravar uma data retroativa no container antigo ao simplesmente reeditar.
     const base = { ...dadosPadrao(), dataUltrassom: '' };
-    return { ...base, ...salvo };
+    return mesclarPreenchimento(base, prefill, salvo);
   });
   useAutosaveFormulario(tag, containerId, 'ultrassom', dados);
   const [salvando, setSalvando] = useState(false);
@@ -95,6 +101,7 @@ export default function FormularioUltrassom({ tag, containerId }: { tag: string;
     <>
       <div className="formulario-secao">
         <h3>Informações do Componente Avaliado</h3>
+        <p style={ESTILO_DICA}>{DICA_AUTO}</p>
         <div className="form-grid">
           <label>
             Equipamento
@@ -129,6 +136,7 @@ export default function FormularioUltrassom({ tag, containerId }: { tag: string;
 
       <div className="formulario-secao">
         <h3>Informações para o Ensaio</h3>
+        <p style={ESTILO_DICA}>{DICA_AUTO}</p>
         <div className="form-grid">
           <label>
             Aparelho / Nº de Série

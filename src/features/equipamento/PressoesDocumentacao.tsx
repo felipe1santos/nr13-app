@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Icone } from '../../components/Icone';
 import type { CategoriaSalva, CalculoSalvo, InfoEquipamento } from './tipos';
 import { salvarInfo } from './equipamentoService';
 import { ler } from '../../services/storage';
@@ -42,6 +43,13 @@ function mpaParaExib(mpaStr: string | undefined, unidade: SistemaUnidade): strin
   return n == null ? '' : fmt(n * fatorUnidade(unidade).mult);
 }
 
+// "Já salvo" = pelo menos uma das três pressões adotadas presente e não vazia na ficha.
+function temPressoesSalvas(info: InfoEquipamento): boolean {
+  return [info.pmtaAdotadaMpa, info.pmoAdotadaMpa, info.pthAdotadaMpa].some(
+    (v) => v != null && String(v).trim() !== '',
+  );
+}
+
 export default function PressoesDocumentacao({
   tag,
   info,
@@ -60,6 +68,8 @@ export default function PressoesDocumentacao({
   }));
   const [salvando, setSalvando] = useState(false);
   const [toast, setToast] = useState(false);
+  // Sem nada salvo ainda → já abre em modo edição (não há o que exibir em leitura).
+  const [editando, setEditando] = useState(() => !temPressoesSalvas(info));
   const unidadeAnterior = useRef(unidade);
 
   // Trocar a unidade da ficha reconverte os valores exibidos (mesmo comportamento do resto da ficha).
@@ -117,6 +127,7 @@ export default function PressoesDocumentacao({
     try {
       await salvarInfo(novo);
       onSalvo(novo);
+      setEditando(false);
       setToast(true);
       window.setTimeout(() => setToast(false), 1800);
     } finally {
@@ -124,39 +135,90 @@ export default function PressoesDocumentacao({
     }
   }
 
+  // Cancelar descarta o que foi digitado e volta aos valores gravados na ficha.
+  function cancelar() {
+    setValores({
+      pmta: mpaParaExib(info.pmtaAdotadaMpa, unidade),
+      pmo: mpaParaExib(info.pmoAdotadaMpa, unidade),
+      pth: mpaParaExib(info.pthAdotadaMpa, unidade),
+    });
+    setEditando(false);
+  }
+
+  const VIEW: { chave: Chave; mpa: string | undefined }[] = [
+    { chave: 'pmta', mpa: info.pmtaAdotadaMpa },
+    { chave: 'pmo', mpa: info.pmoAdotadaMpa },
+    { chave: 'pth', mpa: info.pthAdotadaMpa },
+  ];
+
   return (
     <div className="bloco-dados">
-      <h3>Pressões da Documentação</h3>
+      <div className="bloco-header-acoes">
+        <h3>Pressões da Documentação</h3>
+        {!editando && (
+          <button type="button" className="btn-editar-pencil" onClick={() => setEditando(true)} title="Editar" aria-label="Editar">
+            <Icone nome="pencil" tam={14} />
+          </button>
+        )}
+      </div>
       <p className="vida-hint">
         Valores adotados manualmente para as folhas do relatório (placa, prontuário, resumo de inspeções).
         Quando preenchidos, substituem os calculados; em branco, a documentação segue usando o cálculo.
       </p>
 
-      <div className="vida-campos-grid">
-        {(Object.keys(ROTULOS) as Chave[]).map((k) => (
-          <label className="vida-campo" key={k}>
-            <span>
-              {ROTULOS[k]} ({labelUnid})
-            </span>
-            <input
-              value={valores[k]}
-              onChange={(e) => setValores((v) => ({ ...v, [k]: e.target.value }))}
-              inputMode="decimal"
-              placeholder="usar calculada"
-            />
-          </label>
-        ))}
-      </div>
+      {editando ? (
+        <>
+          <div className="vida-campos-grid">
+            {(Object.keys(ROTULOS) as Chave[]).map((k) => (
+              <label className="vida-campo" key={k}>
+                <span>
+                  {ROTULOS[k]} ({labelUnid})
+                </span>
+                <input
+                  value={valores[k]}
+                  onChange={(e) => setValores((v) => ({ ...v, [k]: e.target.value }))}
+                  inputMode="decimal"
+                  placeholder="usar calculada"
+                />
+              </label>
+            ))}
+          </div>
 
-      <div className="memorial-acoes" style={{ marginTop: 10 }}>
-        <button type="button" className="btn-secundario" onClick={usarCalculadas}>
-          Usar calculadas
-        </button>
-        <button type="button" className="btn-primario" onClick={salvarPressoes} disabled={salvando}>
-          {salvando ? 'Salvando...' : 'Salvar Pressões'}
-        </button>
-        {toast && <span className="unidade-salva-ok">✓ Pressões salvas</span>}
-      </div>
+          <div className="memorial-acoes" style={{ marginTop: 10 }}>
+            <button type="button" className="btn-secundario" onClick={usarCalculadas}>
+              Usar calculadas
+            </button>
+            <button type="button" className="btn-primario" onClick={salvarPressoes} disabled={salvando}>
+              {salvando ? 'Salvando...' : 'Salvar Pressões'}
+            </button>
+            <button type="button" className="btn-secundario" onClick={cancelar}>
+              Cancelar
+            </button>
+            {toast && <span className="unidade-salva-ok">✓ Pressões salvas</span>}
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="dash-grid-4">
+            {VIEW.map(({ chave, mpa }) => {
+              const exib = mpaParaExib(mpa, unidade);
+              return (
+                <div className="resultado-item" key={chave}>
+                  <span className="lbl-view">
+                    {ROTULOS[chave]} ({labelUnid})
+                  </span>
+                  <span className="val-view">{exib === '' ? '—' : exib}</span>
+                </div>
+              );
+            })}
+          </div>
+          {toast && (
+            <div className="memorial-acoes" style={{ marginTop: 10 }}>
+              <span className="unidade-salva-ok">✓ Pressões salvas</span>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

@@ -2,7 +2,11 @@ import { useRef, useState } from 'react';
 import { carregarDadosFormulario, salvarDadosFormulario } from '../inspecaoService';
 import { useAutosaveFormulario } from '../useAutosaveFormulario';
 import { comprimirImagem } from '../../../services/imagem';
+import { mesclarPreenchimento, prefillTH } from './autoPreencher';
 import ResultadoEnsaio, { type ResultadoEnsaioValor } from './ResultadoEnsaio';
+
+const ESTILO_DICA = { fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 } as const;
+const DICA_AUTO = 'Campos preenchidos automaticamente a partir do cadastro; edite se necessário.';
 
 interface LinhaCurva {
   tempo: string;
@@ -44,7 +48,10 @@ function dadosPadrao(): DadosTH {
 
 export default function FormularioTH({ tag, containerId }: { tag: string; containerId: string }) {
   // Merge com o padrão pra inspeções antigas (sem `resultado`) não quebrarem.
-  const [dados, setDados] = useState<DadosTH>(() => ({ ...dadosPadrao(), ...(carregarDadosFormulario<DadosTH>(tag, containerId, 'th') ?? {}) }));
+  // Precedência: o que o usuário digitou > auto-preenchimento do cadastro > padrão.
+  const [dados, setDados] = useState<DadosTH>(() =>
+    mesclarPreenchimento(dadosPadrao(), prefillTH(tag), carregarDadosFormulario<DadosTH>(tag, containerId, 'th')),
+  );
   useAutosaveFormulario(tag, containerId, 'th', dados);
   const [salvando, setSalvando] = useState(false);
   const [salvoOk, setSalvoOk] = useState(false);
@@ -115,6 +122,7 @@ export default function FormularioTH({ tag, containerId }: { tag: string; contai
     <>
       <div className="formulario-secao">
         <h3>Informações Gerais do Teste</h3>
+        <p style={ESTILO_DICA}>{DICA_AUTO}</p>
         <div className="form-grid">
           <label>
             Cliente / Empresa

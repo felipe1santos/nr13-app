@@ -4,6 +4,12 @@
    resultado #EC6000, status #008F3F/#E3FFEF e #DE2300/#FFECE8).
    Tamanhos em "em" para acompanhar o auto-shrink da .calc-area (base 12px:
    .92em de padding vertical = 11px, como no terminal).
+
+   IMPORTANTE (html2canvas): a impressão/PDF do relatório rasteriza cada iframe
+   com html2canvas, que NÃO suporta CSS Grid e suporta Flexbox só parcialmente.
+   Por isso este arquivo usa APENAS block / inline-block / table / table-cell,
+   sem `display:flex`, sem `display:grid` e sem `gap` — espaçamentos por
+   margin/padding e alinhamento por text-align/vertical-align.
    ============================================================================ */
 .calc-area {
   font-family: 'IBM Plex Mono', 'Courier New', Courier, monospace;
@@ -12,25 +18,33 @@
   font-weight: 400;
 }
 
+/* ---- Seção: barra laranja como elemento real (.mc-secao-bar), não ::before -- */
 .calc-area .mc-secao {
-  display: flex;
-  align-items: center;
-  gap: .7em;
+  display: block;
   font-weight: 700;
   color: #14181C;
   margin: .9em 0 .45em;
 }
 
-.calc-area .mc-secao::before {
-  content: '';
+.calc-area .mc-secao-bar {
+  display: inline-block;
   width: .38em;
   height: 1.15em;
   background: #FF7A1A;
   border-radius: 2px;
-  flex: 0 0 auto;
+  vertical-align: middle;
+  margin-right: .7em;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.calc-area .mc-secao-txt {
+  display: inline-block;
+  vertical-align: middle;
 }
 
 .calc-area .mc-banner {
+  display: block;
   background: #E4EDF9;
   border-left: .32em solid #005AB9;
   border-radius: .5em;
@@ -40,6 +54,8 @@
   font-size: 1.04em;
   padding: .92em 1.1em;
   margin: 1em 0 .4em;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
 
 .calc-area .mc-norma {
@@ -48,12 +64,34 @@
   margin: .2em 0 .6em;
 }
 
+/* ---- Parâmetro: tabela de 3 colunas (era grid 5.2em / max-content / 1fr) ---- */
 .calc-area .mc-param {
-  display: grid;
-  grid-template-columns: 5.2em max-content 1fr;
-  gap: 0 1.1em;
-  align-items: baseline;
+  display: table;
+  width: calc(100% - .3em);
+  table-layout: auto;
+  border-collapse: collapse;
   margin: .12em 0 .12em .3em;
+}
+
+.calc-area .mc-param > span {
+  display: table-cell;
+  vertical-align: baseline;
+}
+
+.calc-area .mc-param > span:nth-child(1) {
+  width: 5.2em;
+  padding-right: 1.1em;
+  white-space: nowrap;
+}
+
+.calc-area .mc-param > span:nth-child(2) {
+  width: 1%;
+  padding-right: 1.1em;
+  white-space: nowrap;
+}
+
+.calc-area .mc-param > span:nth-child(3) {
+  width: auto;
 }
 
 .calc-area .mc-util {
@@ -62,12 +100,23 @@
   margin: .7em 0 .3em;
 }
 
+/* ---- Fração: bloco centralizado + inline-block (era flex + inline-flex) ----- */
 .calc-area .mc-frac {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: .9em;
+  display: block;
+  text-align: center;
   margin: .9em 0;
+}
+
+.calc-area .mc-frac > .lhs,
+.calc-area .mc-frac > .eq,
+.calc-area .mc-frac > .mc-stack {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.calc-area .mc-frac > .lhs,
+.calc-area .mc-frac > .eq {
+  margin-right: .9em;
 }
 
 .calc-area .mc-frac .lhs,
@@ -84,32 +133,45 @@
 }
 
 .calc-area .mc-stack {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
+  display: inline-block;
+  text-align: center;
 }
 
 .calc-area .mc-num,
 .calc-area .mc-den {
+  display: block;
   padding: 0 .8em;
   white-space: nowrap;
   color: #2D3339;
+  text-align: center;
 }
 
+/* barra de divisão: border (bloco real), nunca span vazio com background+height */
 .calc-area .mc-fbar {
-  height: 1.5px;
-  background: #2D3339;
-  width: 100%;
+  display: block;
+  height: 0;
+  font-size: 0;
+  line-height: 0;
+  overflow: hidden;
+  border-top: 1.5px solid #2D3339;
   margin: .22em 0;
-  border-radius: 2px;
 }
 
+/* ---- Resultado / linha genérica: bloco centralizado (era flex) ------------- */
 .calc-area .mc-res {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: .7em;
+  display: block;
+  text-align: center;
   margin: 1em 0 .5em;
+}
+
+.calc-area .mc-res > span {
+  display: inline-block;
+  vertical-align: baseline;
+  margin-right: .7em;
+}
+
+.calc-area .mc-res > span:last-child {
+  margin-right: 0;
 }
 
 .calc-area .mc-res .val,
@@ -123,22 +185,31 @@
 }
 
 .calc-area .mc-linha {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: .5em;
+  display: block;
   text-align: center;
   margin: .7em 0;
+}
+
+.calc-area .mc-linha > span {
+  display: inline-block;
+  vertical-align: baseline;
+  margin-right: .5em;
+}
+
+.calc-area .mc-linha > span:last-child {
+  margin-right: 0;
 }
 
 .calc-area .mc-ok,
 .calc-area .mc-erro,
 .calc-area .mc-aviso {
+  display: block;
   font-weight: 600;
   padding: .92em 1em;
   border-radius: .5em;
   margin: .4em 0;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
 
 .calc-area .mc-ok { background: #E3FFEF; color: #008F3F; }

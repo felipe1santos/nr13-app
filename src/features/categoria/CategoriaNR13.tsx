@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Icone } from '../../components/Icone';
 import { calcularESalvarCategoria, carregarCategoria } from './categoriaService';
 import { FATORES_CONVERSAO, paraExibicao, type SistemaUnidade } from '../../calc/unidades';
 import type { CalculoSalvo, CategoriaSalva } from '../equipamento/tipos';
@@ -67,15 +68,35 @@ export default function CategoriaNR13({ tag, unidade }: { tag: string; unidade: 
   const [volume, setVolume] = useState(() => salva?.volInput ?? 1);
   const [pressao, setPressao] = useState(() => salva?.presInput ?? pmtaExibida(tag, unidade) ?? 1);
   const [fluido, setFluido] = useState(() => resolverDefault(salva?.fluidoInput));
+  // Categoria já salva → abre em modo leitura (só o resultado); sem nada salvo, abre o formulário.
+  const [editando, setEditando] = useState(() => !carregarCategoria(tag));
 
   async function calcular() {
     const r = await calcularESalvarCategoria(tag, volume, pressao, unidade, fluido);
     setSalva(r);
+    setEditando(false);
+  }
+
+  // Cancelar descarta as alterações dos campos e volta ao resultado salvo.
+  function cancelar() {
+    setVolume(salva?.volInput ?? 1);
+    setPressao(salva?.presInput ?? pmtaExibida(tag, unidade) ?? 1);
+    setFluido(resolverDefault(salva?.fluidoInput));
+    setEditando(false);
   }
 
   return (
     <div className="bloco-categoria">
-      <h3>Categoria NR-13</h3>
+      <div className="bloco-header-acoes">
+        <h3>Categoria NR-13</h3>
+        {!editando && salva && (
+          <button type="button" className="btn-editar-pencil" onClick={() => setEditando(true)} title="Editar" aria-label="Editar">
+            <Icone nome="pencil" tam={14} />
+          </button>
+        )}
+      </div>
+      {editando && (
+      <>
       <div className="memorial-campos-grid">
         <Campo label="Volume (m³)" value={volume} onChange={(v) => setVolume(Number(v))} />
         <Campo label={`Pressão (${FATORES_CONVERSAO[unidade].labelPressao})`} value={pressao} onChange={(v) => setPressao(Number(v))} />
@@ -94,11 +115,20 @@ export default function CategoriaNR13({ tag, unidade }: { tag: string; unidade: 
           </select>
         </div>
       </div>
-      <button type="button" className="btn-primario" style={{ marginTop: 12 }} onClick={calcular}>
-        Calcular Categoria
-      </button>
+      <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
+        <button type="button" className="btn-primario" onClick={calcular}>
+          Calcular Categoria
+        </button>
+        {salva && (
+          <button type="button" className="btn-secundario" onClick={cancelar}>
+            Cancelar
+          </button>
+        )}
+      </div>
+      </>
+      )}
 
-      {salva && (
+      {salva && !editando && (
         <div className="categoria-resultado">
           <div className={`categoria-enquadramento ${salva.isEnquadrado ? 'ok' : 'nao'}`}>
             <span className="lbl-view">Enquadramento da Norma — P(kPa) × V(m³) &gt; 8</span>

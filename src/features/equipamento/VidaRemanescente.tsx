@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Icone } from '../../components/Icone';
 import { ler, salvar } from '../../services/storage';
 import { mascararData } from '../../services/mascaras';
 import { listarContainers } from '../inspecoes/inspecaoService';
@@ -9,6 +10,18 @@ import type { InfoEquipamento } from './tipos';
 import { comLoadingGlobal } from '../../app/loadingGlobal';
 
 type MedidasUS = Record<string, Record<string, string>>;
+
+// Formato gravado em nr13_vida_<TAG> (não alterar — consumido por vencimentos/folhas).
+interface VidaSalva {
+  entrada: { tAtual: number; dataAtual: string; tAnterior: number; dataAnterior: string; tRequerida: number };
+  taxaMmAno: number | null;
+  sobremetalMm: number;
+  vidaAnos: number | null;
+  prazoNR13Anos: number | null;
+  proximaInspecaoAnos: number | null;
+  avisos?: string[];
+  calculadoEm?: string;
+}
 
 interface UltrassomBlob {
   medidas?: MedidasUS;
@@ -73,6 +86,10 @@ export default function VidaRemanescente({ tag, info }: { tag: string; info: Inf
   const [tRequerida, setTRequerida] = useState(() => (tReq != null ? tReq.toFixed(2) : ''));
   const [resultado, setResultado] = useState<ResultadoVidaRemanescente | null>(null);
   const [salvando, setSalvando] = useState(false);
+  const [salvo, setSalvo] = useState<VidaSalva | null>(() => ler<VidaSalva>(`nr13_vida_${tag}`));
+  // Nada salvo ainda → abre direto no formulário.
+  const [editando, setEditando] = useState(() => !ler<VidaSalva>(`nr13_vida_${tag}`));
+  const [toast, setToast] = useState(false);
 
   const num = (s: string) => parseFloat(s.replace(',', '.'));
 
@@ -99,7 +116,7 @@ export default function VidaRemanescente({ tag, info }: { tag: string; info: Inf
     if (!r) return;
     setSalvando(true);
     try {
-      await comLoadingGlobal('Salvando vida remanescente...', () => salvar(`nr13_vida_${tag}`, {
+      const registro: VidaSalva = {
         entrada: { tAtual: num(tAtual), dataAtual, tAnterior: num(tAnterior), dataAnterior, tRequerida: num(tRequerida) },
         taxaMmAno: r.taxaMmAno,
         sobremetalMm: r.sobremetalMm,
@@ -108,11 +125,28 @@ export default function VidaRemanescente({ tag, info }: { tag: string; info: Inf
         proximaInspecaoAnos: r.proximaInspecaoAnos,
         avisos: r.avisos,
         calculadoEm: new Date().toLocaleDateString('pt-BR'),
-      }));
-      alert('Vida remanescente salva.');
+      };
+      await comLoadingGlobal('Salvando vida remanescente...', () => salvar(`nr13_vida_${tag}`, registro));
+      setSalvo(registro);
+      setEditando(false);
+      setToast(true);
+      window.setTimeout(() => setToast(false), 1800);
     } finally {
       setSalvando(false);
     }
+  }
+
+  // Cancelar volta os campos ao que está gravado (se houver) e sai da edição.
+  function cancelar() {
+    if (salvo) {
+      setTAnterior(String(salvo.entrada.tAnterior));
+      setDataAnterior(salvo.entrada.dataAnterior);
+      setTAtual(String(salvo.entrada.tAtual));
+      setDataAtual(salvo.entrada.dataAtual);
+      setTRequerida(String(salvo.entrada.tRequerida));
+    }
+    setResultado(null);
+    setEditando(false);
   }
 
   const fmt = (n: number | null | undefined, un: string, casas = 2) =>
@@ -120,7 +154,15 @@ export default function VidaRemanescente({ tag, info }: { tag: string; info: Inf
 
   return (
     <div className="bloco-dados">
-      <h3>Vida Remanescente (taxa de corrosão)</h3>
+      <div className="bloco-header-acoes">
+        <h3>Vida Remanescente (taxa de corrosão)</h3>
+        {!editando && (
+          <button type="button" className="btn-editar-pencil" onClick={() => setEditando(true)} title="Editar" aria-label="Editar">
+            <Icone nome="pencil" tam={14} />
+          </button>
+        )}
+      </div>
+      {editando && (
       <p className="vida-hint">
         {medicoes.length >= 2
           ? `Pré-preenchido com as 2 medições de espessura mais recentes (${anterior?.data} → ${atual?.data}).`
@@ -128,7 +170,10 @@ export default function VidaRemanescente({ tag, info }: { tag: string; info: Inf
             ? 'Só há 1 medição de espessura salva — a espessura anterior foi pré-preenchida com a nominal (ajuste se necessário) e a data anterior com o ano de fabricação.'
             : 'Nenhuma medição de espessura salva nas inspeções — preencha manualmente.'}
       </p>
+      )}
 
+      {editando ? (
+      <>
       <div className="vida-campos-grid">
         <label className="vida-campo">
           <span>Esp. anterior (mm)</span>
@@ -159,6 +204,9 @@ export default function VidaRemanescente({ tag, info }: { tag: string; info: Inf
         <button type="button" className="btn-primario" onClick={calcularESalvar} disabled={salvando}>
           {salvando ? 'Salvando...' : 'Calcular e Salvar'}
         </button>
+        <button type="button" className="btn-secundario" onClick={cancelar}>
+          Cancelar
+        </button>
       </div>
 
       {resultado && (
@@ -186,6 +234,71 @@ export default function VidaRemanescente({ tag, info }: { tag: string; info: Inf
             </div>
           </div>
           <MemorialLog log={resultado.log} />
+        </>
+      )}
+      </>
+      ) : (
+        <>
+          <div className="dash-grid-4">
+            <div className="resultado-item">
+              <span className="lbl-view">Esp. anterior</span>
+              <span className="val-view">{fmt(salvo?.entrada.tAnterior, 'mm')}</span>
+            </div>
+            <div className="resultado-item">
+              <span className="lbl-view">Data anterior</span>
+              <span className="val-view">{salvo?.entrada.dataAnterior || '—'}</span>
+            </div>
+            <div className="resultado-item">
+              <span className="lbl-view">Esp. atual</span>
+              <span className="val-view">{fmt(salvo?.entrada.tAtual, 'mm')}</span>
+            </div>
+            <div className="resultado-item">
+              <span className="lbl-view">Data atual</span>
+              <span className="val-view">{salvo?.entrada.dataAtual || '—'}</span>
+            </div>
+            <div className="resultado-item">
+              <span className="lbl-view">Esp. mín. requerida</span>
+              <span className="val-view">{fmt(salvo?.entrada.tRequerida, 'mm')}</span>
+            </div>
+            <div className="resultado-item">
+              <span className="lbl-view">Taxa de corrosão</span>
+              <span className="val-view">{fmt(salvo?.taxaMmAno, 'mm/ano', 4)}</span>
+            </div>
+            <div className="resultado-item">
+              <span className="lbl-view">Sobremetal</span>
+              <span className={`val-view ${salvo != null && salvo.sobremetalMm <= 0 ? 'val-erro' : ''}`}>
+                {fmt(salvo?.sobremetalMm, 'mm')}
+              </span>
+            </div>
+            <div className="resultado-item">
+              <span className="lbl-view">Vida remanescente</span>
+              <span className={`val-view accent ${salvo?.vidaAnos === 0 ? 'val-erro' : ''}`}>
+                {salvo?.vidaAnos == null ? 'indeterminada' : fmt(salvo.vidaAnos, 'anos')}
+              </span>
+            </div>
+            <div className="resultado-item">
+              <span className="lbl-view">Prazo NR-13</span>
+              <span className="val-view">{fmt(salvo?.prazoNR13Anos, 'anos', 0)}</span>
+            </div>
+            <div className="resultado-item">
+              <span className="lbl-view">Próxima inspeção</span>
+              <span className="val-view">{fmt(salvo?.proximaInspecaoAnos, 'anos')}</span>
+            </div>
+            <div className="resultado-item">
+              <span className="lbl-view">Calculado em</span>
+              <span className="val-view">{salvo?.calculadoEm || '—'}</span>
+            </div>
+          </div>
+
+          {(salvo?.avisos ?? []).map((a, i) => (
+            <p className="vida-hint" key={i}>⚠ {a}</p>
+          ))}
+
+          {toast && (
+            <div className="memorial-acoes" style={{ marginTop: 10 }}>
+              <span className="unidade-salva-ok">✓ Vida remanescente salva</span>
+            </div>
+          )}
         </>
       )}
     </div>

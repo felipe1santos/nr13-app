@@ -225,11 +225,13 @@
         }
         .pressure-table th, .pressure-table td {
             border: 1px solid var(--border-box);
-            padding: 2px 4px;
+            padding: 3px 4px;
             vertical-align: middle;
         }
         .pressure-table thead tr:first-child th { background-color: var(--bg-gray); font-size: 9px; font-weight: 900; }
         .pressure-table thead tr:nth-child(2) th { background-color: #f9fafb; font-size: 7.5px; font-weight: 800; text-transform: uppercase; }
+        /* height:auto + line-height explícita + padding zerado: sem isso o input herda a
+           métrica do UA e os dígitos saem cortados na vertical no print preview. */
         .pressure-table td input {
             width: 100%;
             text-align: center;
@@ -238,6 +240,11 @@
             font-family: 'Inter', sans-serif;
             font-size: 9.5px;
             font-weight: 600;
+            line-height: 1.35;
+            height: auto;
+            padding: 0;
+            margin: 0;
+            box-sizing: border-box;
             color: var(--blue-data);
             background: transparent;
         }
@@ -351,6 +358,21 @@
             }
             [contenteditable="true"]:hover { background-color: transparent !important; outline: none !important; }
             .f-val input[type="text"]:focus, .pressure-table td input:focus, .ensaio-table .td-name input:focus, .obs-box textarea:focus { background-color: transparent; }
+            /* espelha a métrica do input para o print: o UA de impressão recalcula a altura
+               intrínseca do input e corta os dígitos sem isto. */
+            .pressure-table th, .pressure-table td { padding: 3px 4px !important; vertical-align: middle !important; }
+            .pressure-table td input {
+                line-height: 1.35 !important;
+                height: auto !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                border: none !important;
+                background: transparent !important;
+                text-align: center !important;
+                box-sizing: border-box !important;
+                -webkit-appearance: none;
+                appearance: none;
+            }
         }
     </style>
     <script src="/rel-empresa.js?v=7"></script>

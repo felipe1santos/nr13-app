@@ -188,6 +188,16 @@
             word-wrap: break-word;
             overflow-wrap: break-word;
             word-break: break-word;
+            overflow: hidden;
+        }
+
+        /* Wrapper do texto injetado: altura travada (90px do td - 16px de padding) e
+           overflow escondido, para o auto-shrink ter um clientHeight real p/ comparar.
+           Sem isso o <td> cresceria e empurraria o rodapé para fora da folha A4. */
+        td.comment-box .comment-inner {
+            height: 74px;
+            overflow: hidden;
+            line-height: 1.35;
         }
 
         /* =========================================
@@ -417,7 +427,7 @@
                     <tr>
                         <th colspan="5" style="padding: 6px;" contenteditable="true" spellcheck="false">Comentários sobre a documentação</th>
                     </tr>
-                    <tr><td colspan="5" class="comment-box" contenteditable="true" spellcheck="false"></td></tr>
+                    <tr><td colspan="5" id="v51-comentarios" class="comment-box" contenteditable="true" spellcheck="false"></td></tr>
                 </tbody>
             </table>
 
@@ -571,6 +581,37 @@
                 }
             }
 
+            // Reduz a fonte do comentário até caber na caixa de 90px (altura fixa da folha A4).
+            // Espelho do ajustarFonteParaCaber() das outras folhas: teto 11px, piso 8px, passo 1px.
+            function ajustarFonteParaCaber(el) {
+                if (!el) return;
+                var fonte = 11;
+                el.style.fontSize = fonte + 'px';
+                while (el.scrollHeight > el.clientHeight + 1 && fonte > 8) {
+                    fonte -= 1;
+                    el.style.fontSize = fonte + 'px';
+                }
+            }
+
+            // "Comentários sobre a documentação": texto livre do checklist.
+            // Vazio/ausente => caixa fica em branco (nada de placeholder no impresso).
+            function injetarComentarios(d) {
+                var texto = (d.comentariosDocumentacao || '').trim();
+                if (!texto) return false;
+                var box = document.getElementById('v51-comentarios');
+                if (!box) return false;
+                var inner = box.querySelector('.comment-inner');
+                if (!inner) {
+                    inner = document.createElement('div');
+                    inner.className = 'comment-inner';
+                    box.innerHTML = '';
+                    box.appendChild(inner);
+                }
+                inner.textContent = texto;
+                ajustarFonteParaCaber(inner);
+                return true;
+            }
+
             function executarInjecao51() {
                 try {
                     criarCelulasObs(); // idempotente — garante as células antes de injetar
@@ -598,6 +639,8 @@
                             }
                         }
                     });
+
+                    if (injetarComentarios(d)) injetouAlgo = true;
 
                     return injetouAlgo;
                 } catch(e) { return false; }

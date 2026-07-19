@@ -139,6 +139,9 @@ interface DadosChecklist {
   // (FOTOS-DOCUMENTACAO.html) e `fotos` vira "Fotos do Checklist" (CHECKLIST-FOTOS.html).
   fotosDocumentacao: Foto[];
   fotos: Foto[];
+  // Parecer livre sobre a documentação analisada — injetado no rodapé
+  // ("Comentários sobre a documentação") da folha VERIFICACAO-DOCUMENTACAO.
+  comentariosDocumentacao?: string;
 }
 
 function dadosPadrao(): DadosChecklist {
@@ -150,6 +153,7 @@ function dadosPadrao(): DadosChecklist {
     instrumentos: {},
     fotosDocumentacao: [],
     fotos: [],
+    comentariosDocumentacao: '',
   };
 }
 
@@ -173,6 +177,7 @@ function Secao({
   observacoes,
   onResposta,
   onObservacao,
+  rodape,
 }: {
   titulo: string;
   perguntas: Pergunta[];
@@ -181,6 +186,8 @@ function Secao({
   observacoes: Record<string, string>;
   onResposta: (id: string, valor: string) => void;
   onObservacao: (id: string, valor: string) => void;
+  // Conteúdo extra renderizado após a última pergunta da seção (ex.: comentários gerais).
+  rodape?: React.ReactNode;
 }) {
   return (
     <details className="formulario-secao-collapse" open={aberta}>
@@ -199,6 +206,7 @@ function Secao({
             />
           </div>
         ))}
+        {rodape}
       </div>
     </details>
   );
@@ -282,7 +290,28 @@ export default function FormularioChecklist({ tag, containerId }: { tag: string;
         </div>
       </div>
 
-      <Secao titulo="5.1 Verificação da Documentação Existente" perguntas={SECAO_DOCUMENTACAO} aberta respostas={dados.respostas} observacoes={dados.observacoes ?? {}} onResposta={setResposta} onObservacao={setObservacao} />
+      <Secao
+        titulo="5.1 Verificação da Documentação Existente"
+        perguntas={SECAO_DOCUMENTACAO}
+        aberta
+        respostas={dados.respostas}
+        observacoes={dados.observacoes ?? {}}
+        onResposta={setResposta}
+        onObservacao={setObservacao}
+        rodape={
+          <div className="pergunta-checklist">
+            <label htmlFor="comentarios-documentacao">Comentários sobre a documentação</label>
+            <textarea
+              id="comentarios-documentacao"
+              rows={4}
+              placeholder="Parecer/observações gerais sobre a documentação analisada"
+              value={dados.comentariosDocumentacao ?? ''}
+              onChange={(e) => setDados((d) => ({ ...d, comentariosDocumentacao: e.target.value }))}
+              style={{ ...estiloInputObs, resize: 'vertical' }}
+            />
+          </div>
+        }
+      />
       <Secao titulo="5.2 Resultados da Inspeção" perguntas={SECAO_RESULTADOS_GERAIS} respostas={dados.respostas} observacoes={dados.observacoes ?? {}} onResposta={setResposta} onObservacao={setObservacao} />
       <Secao titulo="Exame do Prontuário e Registro de Segurança" perguntas={SECAO_PRONTUARIO} respostas={dados.respostas} observacoes={dados.observacoes ?? {}} onResposta={setResposta} onObservacao={setObservacao} />
       <Secao titulo="Exame Externo" perguntas={SECAO_EXAME_EXTERNO} respostas={dados.respostas} observacoes={dados.observacoes ?? {}} onResposta={setResposta} onObservacao={setObservacao} />
