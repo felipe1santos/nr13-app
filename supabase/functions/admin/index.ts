@@ -183,6 +183,29 @@ Deno.serve(async (req) => {
         (perfis ?? []).map((p) => [String(p.email).toLowerCase(), p as { nome?: string; empresa_nome?: string }]),
       );
 
+      // Logo no cabeçalho: usa config_global.app_url (a logo é servida pelo próprio app).
+      const { data: cfgUrl } = await admin
+        .from('config_global')
+        .select('valor')
+        .eq('chave', 'app_url')
+        .maybeSingle();
+      const appUrl = String((cfgUrl?.valor as { url?: string } | null)?.url ?? '').replace(/\/+$/, '');
+      const cabecalhoLogo = appUrl
+        ? `<div style="text-align:center;margin-bottom:18px;"><img src="${appUrl}/login-logo.webp" width="96" alt="NR13 Sistema" /></div>`
+        : '';
+
+      // Formatação leve escrita no painel: **negrito**, ==marca-texto==,
+      // [texto](https://link) e !img(https://url-da-imagem). HTML do autor é escapado.
+      const formatar = (t: string) =>
+        t
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+          .replace(/!img\((https?:[^\s)]+)\)/g, '<img src="$1" style="max-width:100%;border-radius:8px;margin:8px 0;display:block;" />')
+          .replace(/\[([^\]]+)\]\((https?:[^\s)]+)\)/g, '<a href="$2" style="color:#0a5a6e;font-weight:bold;">$1</a>')
+          .replace(/==([^=\n]+)==/g, '<mark style="background:#fde68a;padding:0 4px;border-radius:3px;">$1</mark>')
+          .replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>');
+
       let enviados = 0;
       const falhas: string[] = [];
       for (const dest of destinatarios) {
@@ -192,7 +215,8 @@ Deno.serve(async (req) => {
         const html =
           '<div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 24px; ' +
           'font-size: 14px; line-height: 1.65; color: #2b3a41;">' +
-          troca(corpo)
+          cabecalhoLogo +
+          formatar(troca(corpo))
             .split('\n')
             .map((l) => `<p style="margin: 0 0 10px;">${l || '&nbsp;'}</p>`)
             .join('') +

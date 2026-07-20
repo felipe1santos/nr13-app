@@ -90,6 +90,24 @@ function ehHoje(iso: string): boolean {
   return d.getFullYear() === h.getFullYear() && d.getMonth() === h.getMonth() && d.getDate() === h.getDate();
 }
 
+// Espelho da formatação aplicada pela Edge Function no e-mail dos leads:
+// **negrito**, ==marca-texto==, [texto](link), !img(url). Usado só no preview.
+function previewEmailHtml(texto: string): string {
+  return texto
+    .replaceAll('{nome}', 'Fulano da Silva')
+    .replaceAll('{empresa}', 'Empresa Exemplo')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replace(/!img\((https?:[^\s)]+)\)/g, '<img src="$1" style="max-width:100%;border-radius:8px;margin:8px 0;display:block;" />')
+    .replace(/\[([^\]]+)\]\((https?:[^\s)]+)\)/g, '<a href="$2" style="color:#0a5a6e;font-weight:bold;">$1</a>')
+    .replace(/==([^=\n]+)==/g, '<mark style="background:#fde68a;padding:0 4px;border-radius:3px;">$1</mark>')
+    .replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>')
+    .split('\n')
+    .map((l) => `<p style="margin:0 0 10px;">${l || '&nbsp;'}</p>`)
+    .join('');
+}
+
 // Dias restantes do acesso (null = sem expiração; negativo = expirado).
 function diasRestantes(acessoExpiraEm: string | null): number | null {
   if (!acessoExpiraEm) return null;
@@ -183,6 +201,18 @@ export default function Admin() {
   const [emAssunto, setEmAssunto] = useState('');
   const [emCorpo, setEmCorpo] = useState('');
   const [enviandoEmail, setEnviandoEmail] = useState(false);
+  const corpoRef = useRef<HTMLTextAreaElement>(null);
+
+  // Envolve a seleção do textarea com marcadores de formatação (ou insere no cursor).
+  function envolverSelecao(esq: string, dir: string, exemplo: string) {
+    const ta = corpoRef.current;
+    if (!ta) return;
+    const s = ta.selectionStart ?? emCorpo.length;
+    const e = ta.selectionEnd ?? emCorpo.length;
+    const sel = emCorpo.slice(s, e) || exemplo;
+    setEmCorpo(emCorpo.slice(0, s) + esq + sel + dir + emCorpo.slice(e));
+    window.setTimeout(() => ta.focus(), 0);
+  }
   const superRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
@@ -1065,12 +1095,42 @@ export default function Admin() {
               className="admin-email-assunto"
             />
             <label className="admin-email-label">Mensagem</label>
+            <div className="admin-email-toolbar">
+              <button type="button" title="Negrito" onClick={() => envolverSelecao('**', '**', 'texto em destaque')}>
+                <b>B</b>
+              </button>
+              <button type="button" title="Marca-texto" onClick={() => envolverSelecao('==', '==', 'palavra destacada')}>
+                <mark>ab</mark>
+              </button>
+              <button type="button" title="Link" onClick={() => envolverSelecao('[', '](https://seulink.com.br)', 'clique aqui')}>
+                🔗 Link
+              </button>
+              <button type="button" title="Imagem" onClick={() => envolverSelecao('!img(', ')', 'https://url-da-imagem.jpg')}>
+                🖼 Imagem
+              </button>
+            </div>
             <textarea
+              ref={corpoRef}
               value={emCorpo}
               onChange={(e) => setEmCorpo(e.target.value)}
               className="admin-email-corpo"
-              rows={11}
+              rows={10}
             />
+            <p className="admin-email-dica">
+              Formatação: <code>**negrito**</code> · <code>==marca-texto==</code> ·{' '}
+              <code>[texto](https://link)</code> · <code>!img(https://url-da-imagem)</code>. A logo do
+              sistema entra automaticamente no topo quando o <code>app_url</code> estiver configurado.
+            </p>
+            {emCorpo.trim() && (
+              <>
+                <label className="admin-email-label">Pré-visualização</label>
+                <div
+                  className="admin-email-preview"
+                  // preview local do próprio texto do admin, com HTML escapado (mesma regra da edge)
+                  dangerouslySetInnerHTML={{ __html: previewEmailHtml(emCorpo) }}
+                />
+              </>
+            )}
             <div className="admin-email-acoes">
               <button type="button" className="cancelar" onClick={() => setEmailAberto(false)} disabled={enviandoEmail}>
                 Cancelar
