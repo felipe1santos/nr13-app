@@ -123,8 +123,9 @@
         .tabela-medicao td { border: 1px solid #d1d5db; padding: 3px 4px; }
         .tabela-medicao .med-bloco { background: var(--bg-table-sub); font-weight: 800; font-size: 8.5px; text-transform: uppercase; }
         .tabela-medicao .med-ang { background: var(--bg-table-header); font-weight: 700; font-size: 8.5px; }
-        .tabela-medicao .med-val { color: #000; font-weight: 800; background: var(--highlight-yellow); }
-        .tabela-medicao .med-val.highlight-min { background: #ffd54f; font-weight: 900; border: 2px solid #b45309; }
+        /* Só a MENOR espessura da região acende — as demais células ficam brancas. */
+        .tabela-medicao .med-val { color: #000; font-weight: 800; background: #fff; }
+        .tabela-medicao .med-val.highlight-min { background: var(--highlight-yellow); font-weight: 900; border: 2px solid #b45309; }
 
         .croqui-wrap {
             width: 200px;
@@ -476,9 +477,11 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     }
   } catch (_) {}
-  // Vínculo com equipamentos (tags[]): padrão vinculado a outras TAGs não aparece
-  // neste prontuário; sem vínculo (registros antigos) = global, aparece sempre.
+  // Folha de MEDIÇÃO DE ESPESSURA: só o padrão de ULTRASSOM entra na tabela de
+  // instrumento (registro antigo sem tipoInstrumento também passa — não some dado
+  // legado). Padrões de manômetro/válvula pertencem aos certificados de calibração.
   itensRastreab = itensRastreab.filter(function (it) {
+    if (it.tipoInstrumento && it.tipoInstrumento !== 'ultrassom') return false;
     return !(it.tags && it.tags.length) || (tag && it.tags.indexOf(tag) !== -1);
   });
 
