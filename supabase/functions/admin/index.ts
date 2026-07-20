@@ -182,6 +182,19 @@ Deno.serve(async (req) => {
       const porEmail = new Map(
         (perfis ?? []).map((p) => [String(p.email).toLowerCase(), p as { nome?: string; empresa_nome?: string }]),
       );
+      // Leads importados (planilha/manual) não têm conta: personalização vem da
+      // tabela leads_importados. Antes de rodar leads_setup.sql a query só falha
+      // em silêncio (data null) e o disparo segue sem {nome}/{empresa} para eles.
+      const { data: leadsImp } = await admin
+        .from('leads_importados')
+        .select('email, nome, empresa')
+        .in('email', destinatarios);
+      for (const l of leadsImp ?? []) {
+        const chave = String(l.email).toLowerCase();
+        if (!porEmail.has(chave)) {
+          porEmail.set(chave, { nome: l.nome as string, empresa_nome: l.empresa as string });
+        }
+      }
 
       // Logo no cabeçalho: usa config_global.app_url (a logo é servida pelo próprio app).
       const { data: cfgUrl } = await admin

@@ -3,6 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { logout } from '../services/auth';
 import BotaoInstalarPWA from '../app/BotaoInstalarPWA';
+import ModalLeadForm from '../features/admin/ModalLeadForm';
+import ModalImportarLeads from '../features/admin/ModalImportarLeads';
+import {
+  excluirLeadImportado,
+  listarLeadsImportados,
+  type LeadImportado,
+} from '../services/leadsImportados';
 import './admin.css';
 
 interface Profile {
@@ -156,6 +163,22 @@ function calcularMetricas(eventos: LoginEvent[]): Map<string, Metricas> {
   return out;
 }
 
+// Linha unificada da aba Leads: lead do trial 48h (conta em profiles) ou lead
+// importado/cadastrado manualmente (tabela leads_importados — sem conta de acesso).
+interface LeadRow {
+  id: string;
+  tipo: 'trial' | 'importado';
+  nome: string;
+  email: string;
+  telefone: string;
+  empresa: string;
+  origem: string;
+  criadoEm: string | null;
+  trialFim: string | null;
+  profile?: Profile;
+  imp?: LeadImportado;
+}
+
 function statusUsuario(p: Profile): { label: string; cls: string } {
   const trial = p.origem_cadastro === 'trial';
   if (!p.ativo) return { label: 'Pendente', cls: 'pendente' };
@@ -197,6 +220,11 @@ export default function Admin() {
   const [salvandoFlag, setSalvandoFlag] = useState(false);
   // Leads do trial: seleção + compositor de e-mail
   const [selLeads, setSelLeads] = useState<Set<string>>(new Set());
+  // Leads importados (tabela leads_importados; null = leads_setup.sql não rodou)
+  const [leadsImp, setLeadsImp] = useState<LeadImportado[] | null>(null);
+  const [filtroOrigem, setFiltroOrigem] = useState<'todos' | 'trial' | 'importado'>('todos');
+  const [leadForm, setLeadForm] = useState<{ lead: LeadImportado | null } | null>(null);
+  const [importarAberto, setImportarAberto] = useState(false);
   const [emailAberto, setEmailAberto] = useState(false);
   const [emAssunto, setEmAssunto] = useState('');
   const [emCorpo, setEmCorpo] = useState('');
@@ -253,6 +281,10 @@ export default function Admin() {
         for (const s of usoData as UsoStats[]) m.set(s.escopo, s);
         setUso(m);
       }
+
+      // Leads importados (planilha/cadastro manual). Antes de rodar leads_setup.sql
+      // a tabela não existe: a aba mostra aviso de migração pendente.
+      setLeadsImp(await listarLeadsImportados());
 
       // Flag do cadastro automático (trial). Antes de rodar trial_setup.sql a tabela
       // não existe: o toggle mostra aviso de migração pendente.
@@ -327,22 +359,50 @@ export default function Admin() {
     return [...lista].sort((a, b) => score(b) - score(a) || ultimoLogin(b) - ultimoLogin(a));
   }, [profiles, busca, aba, metricas, uso, metas]);
 
-  // Leads = contas criadas pelo cadastro automático (trial), mais recentes primeiro.
-  const leads = useMemo(() => {
+  // Leads = cadastros do teste 48h (profiles) + importados/manuais (leads_importados),
+  // numa lista única — mais recentes primeiro, com filtro por origem e busca.
+  const leads = useMemo<LeadRow[]>(() => {
+    const doTrial: LeadRow[] = profiles
+      .filter((p) => p.origem_cadastro === 'trial' && p.role !== 'admin')
+      .map((p) => ({
+        id: p.id,
+        tipo: 'trial',
+        nome: p.nome ?? '',
+        email: p.email ?? '',
+        telefone: p.telefone ?? '',
+        empresa: p.empresa_nome ?? '',
+        origem: 'Teste 48h',
+        criadoEm: p.criado_em,
+        trialFim: p.trial_fim ?? null,
+        profile: p,
+      }));
+    const importados: LeadRow[] = (leadsImp ?? []).map((l) => ({
+      id: l.id,
+      tipo: 'importado',
+      nome: l.nome,
+      email: l.email,
+      telefone: l.telefone,
+      empresa: l.empresa,
+      origem: l.origem || 'Importado',
+      criadoEm: l.criado_em,
+      trialFim: null,
+      imp: l,
+    }));
+    let lista = [...doTrial, ...importados];
+    if (filtroOrigem !== 'todos') lista = lista.filter((l) => l.tipo === filtroOrigem);
     const q = busca.trim().toLowerCase();
-    let l = profiles.filter((p) => p.origem_cadastro === 'trial' && p.role !== 'admin');
     if (q) {
-      l = l.filter((p) =>
-        [p.email, p.nome, p.empresa_nome, p.telefone].some((v) => (v ?? '').toLowerCase().includes(q)),
+      lista = lista.filter((l) =>
+        [l.email, l.nome, l.empresa, l.telefone, l.origem].some((v) => v.toLowerCase().includes(q)),
       );
     }
-    return [...l].sort(
-      (a, b) => new Date(b.criado_em ?? 0).getTime() - new Date(a.criado_em ?? 0).getTime(),
+    return lista.sort(
+      (a, b) => new Date(b.criadoEm ?? 0).getTime() - new Date(a.criadoEm ?? 0).getTime(),
     );
-  }, [profiles, busca]);
+  }, [profiles, leadsImp, busca, filtroOrigem]);
 
   const emailsSelecionados = useMemo(
-    () => leads.filter((p) => selLeads.has(p.id) && p.email).map((p) => p.email as string),
+    () => leads.filter((l) => selLeads.has(l.id) && l.email).map((l) => l.email),
     [leads, selLeads],
   );
 
@@ -361,10 +421,11 @@ export default function Admin() {
 
   // CSV com BOM (abre certo no Excel BR, separador ;)
   function baixarCsvLeads() {
-    const cab = ['nome', 'email', 'telefone', 'empresa', 'status', 'cadastro', 'fim_do_teste'];
-    const linhas = leads.map((p) => [
-      p.nome ?? '', p.email ?? '', p.telefone ?? '', p.empresa_nome ?? '',
-      statusUsuario(p).label, fmtSomenteData(p.criado_em), fmtSomenteData(p.trial_fim ?? null),
+    const cab = ['nome', 'email', 'telefone', 'empresa', 'origem', 'status', 'cadastro', 'fim_do_teste'];
+    const linhas = leads.map((l) => [
+      l.nome, l.email, l.telefone, l.empresa, l.origem,
+      l.profile ? statusUsuario(l.profile).label : 'Lead',
+      fmtSomenteData(l.criadoEm), fmtSomenteData(l.trialFim),
     ]);
     const csv =
       String.fromCharCode(0xFEFF) +
@@ -378,7 +439,7 @@ export default function Admin() {
   }
 
   async function copiarLeads(campo: 'email' | 'telefone') {
-    const valores = leads.map((p) => (campo === 'email' ? p.email : p.telefone)).filter(Boolean) as string[];
+    const valores = leads.map((l) => (campo === 'email' ? l.email : l.telefone)).filter(Boolean);
     try {
       await navigator.clipboard.writeText(valores.join('; '));
       setAviso(`${valores.length} ${campo === 'email' ? 'e-mails copiados' : 'telefones copiados'} para a área de transferência.`);
@@ -403,7 +464,7 @@ export default function Admin() {
     const destinatarios =
       emailsSelecionados.length > 0
         ? emailsSelecionados
-        : (leads.map((p) => p.email).filter(Boolean) as string[]);
+        : leads.map((l) => l.email).filter(Boolean);
     if (destinatarios.length === 0) {
       setErro('Nenhum lead com e-mail para enviar.');
       return;
@@ -427,6 +488,32 @@ export default function Admin() {
       setErro(e instanceof Error ? e.message : 'Falha ao enviar os e-mails.');
     } finally {
       setEnviandoEmail(false);
+    }
+  }
+
+  // E-mails já no sistema (qualquer conta + leads importados) — dedup da importação.
+  const emailsExistentes = useMemo(() => {
+    const s = new Set<string>();
+    for (const p of profiles) if (p.email) s.add(p.email.toLowerCase());
+    for (const l of leadsImp ?? []) s.add(l.email.toLowerCase());
+    return s;
+  }, [profiles, leadsImp]);
+
+  async function excluirLeadImp(l: LeadImportado) {
+    if (!window.confirm(`Excluir o lead ${l.email}?\n\nEle sai da lista e dos próximos disparos de e-mail.`)) return;
+    setErro(null);
+    setAviso(null);
+    try {
+      await excluirLeadImportado(l.id);
+      setLeadsImp((ls) => (ls ?? []).filter((x) => x.id !== l.id));
+      setSelLeads((s) => {
+        const n = new Set(s);
+        n.delete(l.id);
+        return n;
+      });
+      setAviso(`Lead ${l.email} excluído.`);
+    } catch (e: unknown) {
+      setErro(e instanceof Error ? e.message : 'Falha ao excluir o lead.');
     }
   }
 
@@ -826,7 +913,7 @@ export default function Admin() {
           className={`admin-aba${aba === 'leads' ? ' ativa' : ''}`}
           onClick={() => setAba('leads')}
         >
-          Leads (teste 48h){leads.length > 0 ? ` · ${leads.length}` : ''}
+          Leads{leads.length > 0 ? ` · ${leads.length}` : ''}
         </button>
       </div>
 
@@ -840,6 +927,12 @@ export default function Admin() {
 
       {aba === 'leads' ? (
         <>
+          {leadsImp === null && (
+            <p className="admin-nota">
+              Cadastro manual e importação de leads exigem rodar
+              <code> supabase/leads_setup.sql</code> no SQL Editor do Supabase (uma vez).
+            </p>
+          )}
           <div className="admin-leads-bar">
             <span className="admin-leads-info">
               {selLeads.size > 0
@@ -847,6 +940,32 @@ export default function Admin() {
                 : 'Nenhum selecionado — ações valem para TODOS os leads listados'}
             </span>
             <div className="admin-leads-acoes">
+              <select
+                className="admin-leads-filtro"
+                value={filtroOrigem}
+                onChange={(e) => setFiltroOrigem(e.target.value as typeof filtroOrigem)}
+                title="Filtrar por origem do lead"
+              >
+                <option value="todos">Todas as origens</option>
+                <option value="trial">Teste 48h</option>
+                <option value="importado">Importados / manuais</option>
+              </select>
+              <button
+                type="button"
+                onClick={() => setLeadForm({ lead: null })}
+                disabled={leadsImp === null}
+                title={leadsImp === null ? 'Rode supabase/leads_setup.sql para habilitar' : undefined}
+              >
+                + Cadastrar lead
+              </button>
+              <button
+                type="button"
+                onClick={() => setImportarAberto(true)}
+                disabled={leadsImp === null}
+                title={leadsImp === null ? 'Rode supabase/leads_setup.sql para habilitar' : undefined}
+              >
+                ⬆ Importar planilha
+              </button>
               <button type="button" onClick={baixarCsvLeads} disabled={leads.length === 0}>
                 ⬇ Exportar CSV
               </button>
@@ -877,35 +996,55 @@ export default function Admin() {
                   <th>E-mail</th>
                   <th>Telefone</th>
                   <th>Empresa</th>
+                  <th>Origem</th>
                   <th>Status</th>
                   <th>Cadastro</th>
                   <th>Fim do teste</th>
+                  <th>Ações</th>
                 </tr>
               </thead>
               <tbody>
-                {leads.map((p) => {
-                  const st = statusUsuario(p);
+                {leads.map((l) => {
+                  const st = l.profile ? statusUsuario(l.profile) : null;
                   return (
-                    <tr key={p.id} className={selLeads.has(p.id) ? 'lead-sel' : ''}>
+                    <tr key={l.id} className={selLeads.has(l.id) ? 'lead-sel' : ''}>
                       <td data-label="Selecionar">
-                        <input type="checkbox" checked={selLeads.has(p.id)} onChange={() => alternarLead(p.id)} />
+                        <input type="checkbox" checked={selLeads.has(l.id)} onChange={() => alternarLead(l.id)} />
                       </td>
-                      <td data-label="Nome" className="admin-email">{p.nome || '—'}</td>
-                      <td data-label="E-mail">{p.email}</td>
-                      <td data-label="Telefone">{p.telefone || '—'}</td>
-                      <td data-label="Empresa">{p.empresa_nome || '—'}</td>
+                      <td data-label="Nome" className="admin-email">{l.nome || '—'}</td>
+                      <td data-label="E-mail">{l.email}</td>
+                      <td data-label="Telefone">{l.telefone || '—'}</td>
+                      <td data-label="Empresa">{l.empresa || '—'}</td>
+                      <td data-label="Origem">
+                        <span className={`admin-badge-origem ${l.tipo}`}>{l.origem}</span>
+                      </td>
                       <td data-label="Status">
-                        <span className={`admin-badge ${st.cls}`}>{st.label}</span>
+                        {st ? <span className={`admin-badge ${st.cls}`}>{st.label}</span> : '—'}
                       </td>
-                      <td data-label="Cadastro">{fmtSomenteData(p.criado_em)}</td>
-                      <td data-label="Fim do teste">{fmtSomenteData(p.trial_fim ?? null)}</td>
+                      <td data-label="Cadastro">{fmtSomenteData(l.criadoEm)}</td>
+                      <td data-label="Fim do teste">{fmtSomenteData(l.trialFim)}</td>
+                      <td data-label="Ações" className="admin-lead-acoes-cel">
+                        {l.imp ? (
+                          <>
+                            <button type="button" title="Editar lead" onClick={() => setLeadForm({ lead: l.imp! })}>
+                              ✎
+                            </button>
+                            <button type="button" className="perigo" title="Excluir lead" onClick={() => void excluirLeadImp(l.imp!)}>
+                              🗑
+                            </button>
+                          </>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
                 {leads.length === 0 && !carregando && (
                   <tr>
-                    <td colSpan={8} className="admin-vazio">
-                      Nenhum lead ainda — eles aparecem aqui quando alguém se cadastra pelo teste de 48h.
+                    <td colSpan={10} className="admin-vazio">
+                      Nenhum lead ainda — cadastre manualmente, importe uma planilha ou aguarde
+                      cadastros pelo teste de 48h.
                     </td>
                   </tr>
                 )}
@@ -1075,6 +1214,31 @@ export default function Admin() {
           </p>
         )}
       </div>
+
+      {/* Cadastro manual / edição de lead importado */}
+      {leadForm && (
+        <ModalLeadForm
+          lead={leadForm.lead}
+          onClose={() => setLeadForm(null)}
+          onSalvo={(msg) => {
+            setLeadForm(null);
+            setAviso(msg);
+            void carregar();
+          }}
+        />
+      )}
+
+      {/* Importação de leads por planilha */}
+      {importarAberto && (
+        <ModalImportarLeads
+          emailsExistentes={emailsExistentes}
+          onClose={() => setImportarAberto(false)}
+          onImportado={(msg) => {
+            setAviso(msg);
+            void carregar();
+          }}
+        />
+      )}
 
       {/* Compositor de e-mail para os leads ({nome} e {empresa} são substituídos por destinatário) */}
       {emailAberto && (
