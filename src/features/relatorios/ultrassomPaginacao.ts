@@ -27,7 +27,10 @@ interface GridSalva {
 }
 
 function tamanho(v: unknown): number {
-  return Array.isArray(v) ? v.length : 0;
+  // Formato antigo: array de linhas. Formato novo: { angulos, linhas } (colunas dinâmicas).
+  if (Array.isArray(v)) return v.length;
+  const linhas = (v as { linhas?: unknown } | null)?.linhas;
+  return Array.isArray(linhas) ? linhas.length : 0;
 }
 
 /**

@@ -93,7 +93,12 @@ function linhaVazia(): DimensaoProntuario {
 // ── Ensaio de espessura: extrai a grade de pontos + mínimos de um container e grava nas chaves
 // que as folhas do prontuário leem (nr13_med_grid_<TAG> e nr13_med_esp_<TAG>). ──────────────
 type MedidasUS = Record<string, Record<string, string>>;
-const ANG_US = ['0', '90', '180', '270'];
+// Ângulos por região (colunas distribuídas em 360°). Espelho de angulosDe do
+// FormularioUltrassom; container antigo sem `colunas` cai nos 4 ângulos históricos.
+function angulosUS(n: unknown): string[] {
+  const qtd = Math.min(12, Math.max(1, Math.round(Number(n)) || 4));
+  return Array.from({ length: qtd }, (_, i) => String(Math.round((i * 360) / qtd)));
+}
 
 // Ponto de medição como salvo pelo FormularioUltrassom (PontoME). Normalização replicada de lá
 // (normalizarPontos não é exportado): região fora de 'ts'/'ti' cai no casco, ids duplicados/vazios
@@ -123,15 +128,26 @@ function normalizarPontosUS(bruto: unknown): { id: string; regiao: RegiaoUS }[] 
   return validos;
 }
 
-function construirGridMinima(medidas: MedidasUS | undefined, pontos?: unknown) {
+function construirGridMinima(medidas: MedidasUS | undefined, pontos?: unknown, colunas?: unknown) {
   const med = medidas ?? {};
-  const linha = (id: string) => ANG_US.map((a) => med[id]?.[a] ?? '');
-  // Container sem lista de pontos (dado antigo) => os 6 ids históricos. Shape lido por
-  // PRONT-ULTRASSOM.html: { ts: linhas[], casco: linhas[], ti: linhas[] }, N linhas por região.
+  const cols = (colunas ?? {}) as Partial<Record<RegiaoUS, unknown>>;
+  // Shape lido por PRONT-ULTRASSOM.html: { <regiao>: { angulos: string[], linhas: string[][] } }
+  // (formato antigo — array puro de linhas com 4 ângulos — segue aceito na LEITURA lá).
+  const angPorRegiao: Record<RegiaoUS, string[]> = {
+    ts: angulosUS(cols.ts),
+    casco: angulosUS(cols.casco),
+    ti: angulosUS(cols.ti),
+  };
+  const linha = (id: string, regiao: RegiaoUS) => angPorRegiao[regiao].map((a) => med[id]?.[a] ?? '');
+  // Container sem lista de pontos (dado antigo) => os 6 ids históricos.
   const lista = normalizarPontosUS(pontos);
   const efetivos = lista.length ? lista : PONTOS_FIXOS_US;
-  const grid: Record<RegiaoUS, string[][]> = { ts: [], casco: [], ti: [] };
-  for (const p of efetivos) grid[p.regiao].push(linha(p.id));
+  const grid: Record<RegiaoUS, { angulos: string[]; linhas: string[][] }> = {
+    ts: { angulos: angPorRegiao.ts, linhas: [] },
+    casco: { angulos: angPorRegiao.casco, linhas: [] },
+    ti: { angulos: angPorRegiao.ti, linhas: [] },
+  };
+  for (const p of efetivos) grid[p.regiao].linhas.push(linha(p.id, p.regiao));
   const minOf = (rows: string[][]) => {
     let m = Infinity;
     rows.forEach((r) =>
@@ -142,13 +158,14 @@ function construirGridMinima(medidas: MedidasUS | undefined, pontos?: unknown) {
     );
     return m === Infinity ? '' : String(m).replace('.', ',');
   };
-  const minima = { sup: minOf(grid.ts), casco: minOf(grid.casco), inf: minOf(grid.ti) };
+  const minima = { sup: minOf(grid.ts.linhas), casco: minOf(grid.casco.linhas), inf: minOf(grid.ti.linhas) };
   return { grid, minima };
 }
 
 interface DadosUltrassomContainer {
   medidas?: MedidasUS;
   pontos?: unknown;
+  colunas?: unknown;
   aparelho?: string;
   acoplante?: string;
   tempSup?: string;
@@ -159,7 +176,7 @@ interface DadosUltrassomContainer {
 
 async function aplicarEnsaioEspessura(tag: string, container: ContainerInspecao | null): Promise<void> {
   const us = (container?.dados?.ultrassom as DadosUltrassomContainer | undefined) ?? undefined;
-  const { grid, minima } = construirGridMinima(us?.medidas, us?.pontos);
+  const { grid, minima } = construirGridMinima(us?.medidas, us?.pontos, us?.colunas);
   await salvar(`nr13_med_grid_${tag}`, grid);
   // Além dos mínimos (sup/casco/inf), grava os campos de "Informações para o Ensaio" preenchidos
   // no FormularioUltrassom — PRONT-ULTRASSOM.html lê essas mesmas chaves (aparelho/acoplante/

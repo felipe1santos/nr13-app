@@ -379,31 +379,55 @@ document.addEventListener('DOMContentLoaded', function () {
     var n = parseFloat(String(v).replace(',', '.'));
     return (isFinite(n) && n > 0) ? n : null;
   }
-  function linhasVazias(n) { var out = []; for (var i = 0; i < n; i++) out.push(['', '', '', '']); return out; }
+  function linhasVazias(n, cols) {
+    var out = [];
+    for (var i = 0; i < n; i++) { var r = []; for (var j = 0; j < cols; j++) r.push(''); out.push(r); }
+    return out;
+  }
+  // Grade nova: { angulos: string[], linhas: string[][] } por região (colunas dinâmicas,
+  // distribuídas em 360°). Formato ANTIGO — array puro de linhas — vira 4 ângulos fixos.
+  function secaoDaGrade(bruto, linhasPadrao) {
+    var ANG4 = ['0', '90', '180', '270'];
+    if (bruto && Array.isArray(bruto.linhas) && bruto.linhas.length) {
+      var angs = (Array.isArray(bruto.angulos) && bruto.angulos.length) ? bruto.angulos : ANG4;
+      return { angulos: angs, linhas: bruto.linhas };
+    }
+    if (Array.isArray(bruto) && bruto.length) return { angulos: ANG4, linhas: bruto };
+    return { angulos: ANG4, linhas: linhasVazias(linhasPadrao, 4) };
+  }
 
   var SECOES = [
     { key: 'ts', titulo: 'TAMPO SUPERIOR', linhas: 1 },
     { key: 'casco', titulo: 'CASCO', linhas: 4 },
     { key: 'ti', titulo: 'TAMPO INFERIOR', linhas: 1 },
   ];
-  var ANGULOS = ['0°', '90°', '180°', '270°'];
+
+  // Regiões com contagens de colunas diferentes: colspan sobre o MMC mantém a tabela
+  // única alinhada por proporção (mesma técnica da folha ULTRASSOM do relatório).
+  var dadosSecoes = SECOES.map(function (sec) { return secaoDaGrade(grid && grid[sec.key], sec.linhas); });
+  function mdc(a, b) { return b ? mdc(b, a % b) : a; }
+  var LGRID = 1;
+  dadosSecoes.forEach(function (s) { var n = s.angulos.length; LGRID = LGRID * n / mdc(LGRID, n); });
+  if (LGRID < 1) LGRID = 4;
 
   var htmlGrid = '';
   SECOES.forEach(function (sec, sectionIndex) {
-    var linhas = (grid && Array.isArray(grid[sec.key]) && grid[sec.key].length) ? grid[sec.key] : linhasVazias(sec.linhas);
+    var dadosSec = dadosSecoes[sectionIndex];
+    var linhas = dadosSec.linhas;
+    var span = LGRID / dadosSec.angulos.length;
     var menor = null;
     linhas.forEach(function (r) { r.forEach(function (v) { var n = numVal(v); if (n !== null && (menor === null || n < menor)) menor = n; }); });
 
-    htmlGrid += '<tr><td class="med-bloco" colspan="4">' + sec.titulo + '</td></tr>';
-    if (sectionIndex === 0) {
-      htmlGrid += '<tr>' + ANGULOS.map(function (a) { return '<td class="med-ang">' + a + '</td>'; }).join('') + '</tr>';
-    }
+    htmlGrid += '<tr><td class="med-bloco" colspan="' + LGRID + '">' + sec.titulo + '</td></tr>';
+    htmlGrid += '<tr>' + dadosSec.angulos.map(function (a) {
+      return '<td class="med-ang" colspan="' + span + '" width="' + (100 / dadosSec.angulos.length) + '%">' + a + '°</td>';
+    }).join('') + '</tr>';
     linhas.forEach(function (r) {
       htmlGrid += '<tr>' + r.map(function (v) {
         var n = numVal(v);
         var isMin = (n !== null && menor !== null && n === menor);
         var txt = (n !== null) ? String(v) : '—';
-        return '<td class="med-val' + (isMin ? ' highlight-min' : '') + '">' + txt + '</td>';
+        return '<td class="med-val' + (isMin ? ' highlight-min' : '') + '" colspan="' + span + '">' + txt + '</td>';
       }).join('') + '</tr>';
     });
   });

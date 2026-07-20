@@ -512,7 +512,23 @@
         // históricos (ts, c1..c4, ti) — dado antigo renderiza exatamente como sempre.
         // Paginação: ?upag=k&uof=N (ver src/features/relatorios/ultrassomPaginacao.ts).
         // =========================================================
-        var ANG_US = ['0', '90', '180', '270'];
+        // Colunas por região (pontos distribuídos na circunferência: N pontos = 360/N em
+        // 360/N). Container antigo sem `colunas` => 4 colunas (0/90/180/270), como sempre.
+        var COLUNAS_US = { ts: 4, casco: 4, ti: 4 };
+        function angulosRegiaoUS(reg) {
+            var n = COLUNAS_US[reg] || 4;
+            var out = [];
+            for (var i = 0; i < n; i++) out.push(String(Math.round(i * 360 / n)));
+            return out;
+        }
+        function lerColunasUS(d) {
+            var c = (d && d.colunas) ? d.colunas : {};
+            function num(v) {
+                var n = Math.round(Number(v));
+                return (isFinite(n) && n >= 1 && n <= 12) ? n : 4;
+            }
+            return { ts: num(c.ts), casco: num(c.casco), ti: num(c.ti) };
+        }
         var LINHAS_POR_FOLHA_US = 12; // DEVE casar com ultrassomPaginacao.ts
         var ORDEM_REGIAO_US = { ts: 0, casco: 1, ti: 2 };
         var TITULO_REGIAO_US = { ts: 'Tampo superior', casco: 'CASCO', ti: 'Tampo inferior' };
@@ -608,6 +624,7 @@
 
             var d = dadosUltrassomSalvos();
             MEDIDAS_US = (d && d.medidas) ? d.medidas : {};
+            COLUNAS_US = lerColunasUS(d);
             PONTOS_US = lerPontosUS();
 
             var params = new URLSearchParams(window.location.search);
@@ -617,27 +634,36 @@
                 ? PONTOS_US.slice((UPAG_US - 1) * LINHAS_POR_FOLHA_US, UPAG_US * LINHAS_POR_FOLHA_US)
                 : PONTOS_US;
 
+            // Regiões podem ter nº de colunas diferentes: as células usam colspan sobre o
+            // MMC das contagens para a tabela única continuar alinhada por proporção.
+            function mdc(a, b) { return b ? mdc(b, a % b) : a; }
+            var L = 1;
+            daFolha.forEach(function (p) {
+                var n = COLUNAS_US[p.regiao] || 4;
+                L = L * n / mdc(L, n);
+            });
+            if (L < 1) L = 4;
+
             var borda = 'border: 1px solid #000; padding: 4px;';
             var html = '';
             var regAtual = null;
-            var primeiroBloco = true;
             daFolha.forEach(function (p) {
+                var angs = angulosRegiaoUS(p.regiao);
+                var span = L / angs.length;
                 if (p.regiao !== regAtual) {
                     regAtual = p.regiao;
-                    html += '<tr class="bg-light-grey"><td colspan="4" style="' + borda + '">' +
+                    html += '<tr class="bg-light-grey"><td colspan="' + L + '" style="' + borda + '">' +
                         (TITULO_REGIAO_US[p.regiao] || p.regiao) + '</td></tr>';
-                    if (primeiroBloco) {
-                        primeiroBloco = false;
-                        html += '<tr class="bg-light-grey">' + ANG_US.map(function (a) {
-                            return '<td width="25%" style="' + borda + '">' + a + '°</td>';
-                        }).join('') + '</tr>';
-                    }
+                    // Cada região imprime o próprio cabeçalho de ângulos (contagens diferem).
+                    html += '<tr class="bg-light-grey">' + angs.map(function (a) {
+                        return '<td colspan="' + span + '" width="' + (100 / angs.length) + '%" style="' + borda + '">' + a + '°</td>';
+                    }).join('') + '</tr>';
                 }
-                html += '<tr>' + ANG_US.map(function (a) {
+                html += '<tr>' + angs.map(function (a) {
                     var linha = MEDIDAS_US[p.id];
                     var v = linha ? linha[a] : '';
                     var txt = (v === undefined || v === null || v === '') ? '0,00' : String(v).replace('.', ',');
-                    return '<td class="data-blue" contenteditable="true" spellcheck="false"' +
+                    return '<td class="data-blue" contenteditable="true" spellcheck="false" colspan="' + span + '"' +
                         ' data-ponto="' + p.id + '" data-ang="' + a + '" data-regiao="' + p.regiao + '"' +
                         ' title="' + String(p.rotulo || p.id).replace(/"/g, '') + '"' +
                         ' style="' + borda + '">' + txt + '</td>';
@@ -663,7 +689,7 @@
             var minimos = { ts: Infinity, casco: Infinity, ti: Infinity };
             PONTOS_US.forEach(function (p) {
                 var reg = minimos[p.regiao] !== undefined ? p.regiao : 'casco';
-                ANG_US.forEach(function (a) {
+                angulosRegiaoUS(reg).forEach(function (a) {
                     var n = parseFloat(valorUS(p.id, a).replace(',', '.'));
                     if (!isNaN(n) && n < minimos[reg]) minimos[reg] = n;
                 });
@@ -702,12 +728,17 @@
             sbSalvar('nr13_med_esp_' + tagVaso, JSON.stringify(dadosMedicao));
 
             // Persiste a GRADE COMPLETA de pontos por TAG (para o Prontuário — folha 1).
-            // Formato inalterado: { ts: [[4 ângulos], ...], casco: [...], ti: [...] }.
+            // Formato: { <regiao>: { angulos: string[], linhas: string[][] } } — colunas
+            // dinâmicas por região; o PRONT-ULTRASSOM também lê o formato antigo (array).
             try {
-                var grid = { ts: [], casco: [], ti: [] };
+                var grid = {
+                    ts: { angulos: angulosRegiaoUS('ts'), linhas: [] },
+                    casco: { angulos: angulosRegiaoUS('casco'), linhas: [] },
+                    ti: { angulos: angulosRegiaoUS('ti'), linhas: [] }
+                };
                 PONTOS_US.forEach(function (p) {
                     var sec = grid[p.regiao] ? p.regiao : 'casco';
-                    grid[sec].push(ANG_US.map(function (a) { return valorUS(p.id, a); }));
+                    grid[sec].linhas.push(grid[sec].angulos.map(function (a) { return valorUS(p.id, a); }));
                 });
                 sbSalvar('nr13_med_grid_' + tagVaso, JSON.stringify(grid));
             } catch (e) {}

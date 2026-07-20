@@ -26,17 +26,28 @@ const PONTOS_PADRAO: PontoME[] = [
   { id: 'ti', rotulo: 'Tampo Inferior', regiao: 'ti' },
 ];
 
-// O vaso tem SEMPRE tampo + casco + tampo — ponto extra é uma LINHA a mais dentro da
-// região, nunca um tampo novo: por isso o rótulo nos tampos é "Ponto N" (não "Tampo X 2").
-const REGIOES: { chave: RegiaoME; titulo: string; prefixo: string; rotuloBase: string }[] = [
-  { chave: 'ts', titulo: 'Tampo Superior', prefixo: 'ts', rotuloBase: 'Ponto' },
-  { chave: 'casco', titulo: 'Costado (Casco)', prefixo: 'c', rotuloBase: 'Casco' },
-  { chave: 'ti', titulo: 'Tampo Inferior', prefixo: 'ti', rotuloBase: 'Ponto' },
+// O vaso tem SEMPRE tampo + casco + tampo. Tampo = UMA linha só (os pontos extras são
+// COLUNAS, distribuídas na circunferência: N pontos => ângulos de 360/N em 360/N).
+// Casco = N linhas (Casco 1..N) e também colunas próprias com a mesma distribuição.
+const REGIOES: { chave: RegiaoME; titulo: string; prefixo: string; rotuloBase: string; linhaUnica: boolean }[] = [
+  { chave: 'ts', titulo: 'Tampo Superior', prefixo: 'ts', rotuloBase: 'Tampo Superior', linhaUnica: true },
+  { chave: 'casco', titulo: 'Costado (Casco)', prefixo: 'c', rotuloBase: 'Casco', linhaUnica: false },
+  { chave: 'ti', titulo: 'Tampo Inferior', prefixo: 'ti', rotuloBase: 'Tampo Inferior', linhaUnica: true },
 ];
 
-const ANGULOS = ['0', '90', '180', '270'] as const;
+export type ColunasME = Record<RegiaoME, number>;
 
-type Medidas = Record<string, Record<(typeof ANGULOS)[number], string>>;
+const COLUNAS_PADRAO: ColunasME = { ts: 4, casco: 4, ti: 4 };
+const MIN_COLUNAS = 1;
+const MAX_COLUNAS = 12;
+
+/** Ângulos da região para N pontos na circunferência: 360/N em 360/N, a partir de 0°. */
+export function angulosDe(n: number): string[] {
+  const qtd = Math.min(MAX_COLUNAS, Math.max(MIN_COLUNAS, Math.round(n) || 4));
+  return Array.from({ length: qtd }, (_, i) => String(Math.round((i * 360) / qtd)));
+}
+
+type Medidas = Record<string, Record<string, string>>;
 
 const ESTILO_REGIAO_CABECALHO = {
   display: 'block',
@@ -97,25 +108,51 @@ interface Dados {
   medidas: Medidas;
   /** Pontos de medição do container. Ausente em dados antigos => PONTOS_PADRAO. */
   pontos: PontoME[];
+  /** Nº de colunas (pontos na circunferência) por região. Ausente em dados antigos => 4. */
+  colunas: ColunasME;
+}
+
+function linhaVazia(colunas: number): Record<string, string> {
+  const m: Record<string, string> = {};
+  for (const a of angulosDe(colunas)) m[a] = '';
+  return m;
 }
 
 function medidasVazias(): Medidas {
   const m: Medidas = {};
-  for (const c of PONTOS_PADRAO) m[c.id] = { '0': '', '90': '', '180': '', '270': '' };
+  for (const c of PONTOS_PADRAO) m[c.id] = linhaVazia(4);
   return m;
 }
 
-/** Saneia a lista vinda do storage; qualquer coisa inválida cai nos 6 pontos originais. */
+function normalizarColunas(bruto: unknown): ColunasME {
+  const b = (bruto ?? {}) as Partial<Record<RegiaoME, unknown>>;
+  const num = (v: unknown) => {
+    const n = Math.round(Number(v));
+    return Number.isFinite(n) ? Math.min(MAX_COLUNAS, Math.max(MIN_COLUNAS, n)) : 4;
+  };
+  return { ts: num(b.ts), casco: num(b.casco), ti: num(b.ti) };
+}
+
+/**
+ * Saneia a lista vinda do storage; qualquer coisa inválida cai nos 6 pontos originais.
+ * Tampos têm UMA linha: pontos extras de ts/ti (dado antigo do modelo anterior) são
+ * descartados — só a primeira linha de cada tampo sobrevive.
+ */
 function normalizarPontos(bruto: unknown): PontoME[] {
   if (!Array.isArray(bruto) || bruto.length === 0) return PONTOS_PADRAO.map((p) => ({ ...p }));
   const validos: PontoME[] = [];
   const vistos = new Set<string>();
+  const tampoVisto: Record<'ts' | 'ti', boolean> = { ts: false, ti: false };
   for (const item of bruto) {
     if (!item || typeof item !== 'object') continue;
     const p = item as Partial<PontoME>;
     const id = typeof p.id === 'string' ? p.id.trim() : '';
     if (!id || vistos.has(id)) continue;
     const regiao: RegiaoME = p.regiao === 'ts' || p.regiao === 'casco' || p.regiao === 'ti' ? p.regiao : 'casco';
+    if (regiao !== 'casco') {
+      if (tampoVisto[regiao]) continue;
+      tampoVisto[regiao] = true;
+    }
     vistos.add(id);
     validos.push({ id, rotulo: typeof p.rotulo === 'string' && p.rotulo.trim() ? p.rotulo : id, regiao });
   }
@@ -153,6 +190,7 @@ function dadosPadrao(): Dados {
     resultado: '',
     medidas: medidasVazias(),
     pontos: PONTOS_PADRAO.map((p) => ({ ...p })),
+    colunas: { ...COLUNAS_PADRAO },
   };
 }
 
@@ -168,7 +206,11 @@ export default function FormularioUltrassom({ tag, containerId }: { tag: string;
     const base = { ...dadosPadrao(), dataUltrassom: '' };
     const mesclado = mesclarPreenchimento(base, prefill, salvo);
     // Container sem lista salva => os 6 pontos originais (retrocompatibilidade).
-    return { ...mesclado, pontos: normalizarPontos(mesclado.pontos) };
+    return {
+      ...mesclado,
+      pontos: normalizarPontos(mesclado.pontos),
+      colunas: normalizarColunas(mesclado.colunas),
+    };
   });
   useAutosaveFormulario(tag, containerId, 'ultrassom', dados);
   const [salvando, setSalvando] = useState(false);
@@ -178,11 +220,32 @@ export default function FormularioUltrassom({ tag, containerId }: { tag: string;
     setDados((d) => ({ ...d, [chave]: valor }));
   }
 
-  function setMedida(componenteId: string, angulo: (typeof ANGULOS)[number], valor: string) {
+  function setMedida(componenteId: string, angulo: string, valor: string) {
     setDados((d) => ({
       ...d,
       medidas: { ...d.medidas, [componenteId]: { ...d.medidas[componenteId], [angulo]: valor } },
     }));
+  }
+
+  // Muda o nº de pontos na circunferência da região: os ângulos são redistribuídos
+  // (360/N) e os valores já digitados migram POR POSIÇÃO para os novos ângulos.
+  function mudarColunas(regiao: RegiaoME, delta: number) {
+    setDados((d) => {
+      const atual = d.colunas[regiao];
+      const novo = Math.min(MAX_COLUNAS, Math.max(MIN_COLUNAS, atual + delta));
+      if (novo === atual) return d;
+      const antigos = angulosDe(atual);
+      const novos = angulosDe(novo);
+      const medidas: Medidas = { ...d.medidas };
+      for (const p of d.pontos) {
+        if (p.regiao !== regiao) continue;
+        const linha = medidas[p.id] ?? {};
+        const nova: Record<string, string> = {};
+        novos.forEach((ang, i) => { nova[ang] = linha[antigos[i]] ?? ''; });
+        medidas[p.id] = nova;
+      }
+      return { ...d, colunas: { ...d.colunas, [regiao]: novo }, medidas };
+    });
   }
 
   function adicionarPonto(regiao: RegiaoME) {
@@ -199,7 +262,7 @@ export default function FormularioUltrassom({ tag, containerId }: { tag: string;
       return {
         ...d,
         pontos,
-        medidas: { ...d.medidas, [id]: { '0': '', '90': '', '180': '', '270': '' } },
+        medidas: { ...d.medidas, [id]: linhaVazia(d.colunas[regiao]) },
       };
     });
   }
@@ -292,16 +355,33 @@ export default function FormularioUltrassom({ tag, containerId }: { tag: string;
 
       <div className="formulario-secao">
         <h3>Medidas Encontradas (mm)</h3>
+        <p style={ESTILO_DICA}>
+          Os pontos de cada região são distribuídos na circunferência: N pontos = ângulos de
+          360°/N em 360°/N. Tampos têm uma linha só; o casco aceita mais linhas (Casco 1, 2...).
+        </p>
         {REGIOES.map((reg) => {
           const pontos = dados.pontos.filter((p) => p.regiao === reg.chave);
+          const angulos = angulosDe(dados.colunas[reg.chave]);
           return (
             <div key={reg.chave}>
-              <span style={ESTILO_REGIAO_CABECALHO}>{reg.titulo}</span>
+              <div style={{ display: 'block', margin: '14px 0 8px' }}>
+                <span style={{ ...ESTILO_REGIAO_CABECALHO, display: 'inline', margin: 0 }}>{reg.titulo}</span>
+                <span style={{ marginLeft: 12, fontSize: 12, color: 'var(--text-muted)' }}>
+                  Pontos na circunferência:{' '}
+                  <button type="button" style={ESTILO_BTN_REMOVER} onClick={() => mudarColunas(reg.chave, -1)} disabled={dados.colunas[reg.chave] <= MIN_COLUNAS}>
+                    −
+                  </button>
+                  <b style={{ margin: '0 8px' }}>{dados.colunas[reg.chave]}</b>
+                  <button type="button" style={ESTILO_BTN_REMOVER} onClick={() => mudarColunas(reg.chave, 1)} disabled={dados.colunas[reg.chave] >= MAX_COLUNAS}>
+                    +
+                  </button>
+                </span>
+              </div>
               {pontos.map((c) => (
                 <div key={c.id} className="linha-medida-card">
                   <span className="linha-medida-titulo">{c.rotulo}</span>
                   <div className="linha-medida-campos">
-                    {ANGULOS.map((ang) => (
+                    {angulos.map((ang) => (
                       <label key={ang}>
                         {ang}°
                         <input
@@ -313,39 +393,44 @@ export default function FormularioUltrassom({ tag, containerId }: { tag: string;
                       </label>
                     ))}
                   </div>
-                  {/* Remoção em dois passos (nunca window.confirm — o fluxo é mobile). */}
-                  <div style={{ textAlign: 'right' }}>
-                    {removendo === c.id ? (
-                      <>
-                        <span style={{ fontSize: 12, color: '#b91c1c', marginRight: 8 }}>Remover este ponto?</span>
+                  {/* Remoção em dois passos (nunca window.confirm — o fluxo é mobile). Só o casco
+                      tem linhas removíveis; os tampos têm a linha única fixa. */}
+                  {!reg.linhaUnica && (
+                    <div style={{ textAlign: 'right' }}>
+                      {removendo === c.id ? (
+                        <>
+                          <span style={{ fontSize: 12, color: '#b91c1c', marginRight: 8 }}>Remover este ponto?</span>
+                          <button
+                            type="button"
+                            style={ESTILO_BTN_CONFIRMA}
+                            onClick={() => removerPonto(c.id)}
+                          >
+                            Confirmar
+                          </button>{' '}
+                          <button type="button" style={ESTILO_BTN_REMOVER} onClick={() => setRemovendo(null)}>
+                            Cancelar
+                          </button>
+                        </>
+                      ) : (
                         <button
                           type="button"
-                          style={ESTILO_BTN_CONFIRMA}
-                          onClick={() => removerPonto(c.id)}
+                          style={ESTILO_BTN_REMOVER}
+                          disabled={pontos.length <= 1}
+                          title={pontos.length <= 1 ? 'A região precisa de ao menos um ponto' : 'Remover ponto'}
+                          onClick={() => setRemovendo(c.id)}
                         >
-                          Confirmar
-                        </button>{' '}
-                        <button type="button" style={ESTILO_BTN_REMOVER} onClick={() => setRemovendo(null)}>
-                          Cancelar
+                          Remover ponto
                         </button>
-                      </>
-                    ) : (
-                      <button
-                        type="button"
-                        style={ESTILO_BTN_REMOVER}
-                        disabled={pontos.length <= 1}
-                        title={pontos.length <= 1 ? 'A região precisa de ao menos um ponto' : 'Remover ponto'}
-                        onClick={() => setRemovendo(c.id)}
-                      >
-                        Remover ponto
-                      </button>
-                    )}
-                  </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
-              <button type="button" style={ESTILO_BTN_ADD} onClick={() => adicionarPonto(reg.chave)}>
-                + ponto em {reg.titulo}
-              </button>
+              {!reg.linhaUnica && (
+                <button type="button" style={ESTILO_BTN_ADD} onClick={() => adicionarPonto(reg.chave)}>
+                  + ponto em {reg.titulo}
+                </button>
+              )}
             </div>
           );
         })}
