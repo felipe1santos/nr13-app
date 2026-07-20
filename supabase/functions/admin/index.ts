@@ -190,8 +190,9 @@ Deno.serve(async (req) => {
         .eq('chave', 'app_url')
         .maybeSingle();
       const appUrl = String((cfgUrl?.valor as { url?: string } | null)?.url ?? '').replace(/\/+$/, '');
+      // PNG (não WebP): Outlook e clientes antigos não renderizam WebP.
       const cabecalhoLogo = appUrl
-        ? `<div style="text-align:center;margin-bottom:18px;"><img src="${appUrl}/login-logo.webp" width="96" alt="NR13 Sistema" /></div>`
+        ? `<div style="text-align:center;margin-bottom:18px;"><img src="${appUrl}/email-logo.png" width="110" alt="NR13 Sistema" style="display:inline-block;" /></div>`
         : '';
 
       // Formatação leve escrita no painel: **negrito**, ==marca-texto==,

@@ -70,9 +70,14 @@ async function enviarEmail(para: string, assunto: string, html: string): Promise
   }
 }
 
-function moldura(titulo: string, corpo: string): string {
+// logoUrl (opcional): cabeçalho com a logo do sistema. PNG — Outlook não renderiza WebP.
+function moldura(titulo: string, corpo: string, logoUrl = ''): string {
+  const cab = logoUrl
+    ? `<div style="text-align:center;margin-bottom:18px;"><img src="${logoUrl}" width="110" alt="NR13 Sistema" style="display:inline-block;" /></div>`
+    : '';
   return (
     '<div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 24px;">' +
+    cab +
     `<h2 style="color: #1f2937;">${titulo}</h2>` +
     corpo +
     '<p style="color:#6b7280;font-size:12px;margin-top:28px;">NR13 Sistema — se você não fez este cadastro, ignore este e-mail.</p>' +
@@ -170,6 +175,12 @@ Deno.serve(async (req) => {
 
       // Boas-vindas (best-effort; requer secret RESEND_API_KEY).
       if (user.email) {
+        const { data: cfgUrl } = await admin
+          .from('config_global')
+          .select('valor')
+          .eq('chave', 'app_url')
+          .maybeSingle();
+        const appUrl = String((cfgUrl?.valor as { url?: string } | null)?.url ?? '').replace(/\/+$/, '');
         const enviado = await enviarEmail(
           user.email,
           'Seu teste gratuito começou — NR13 Sistema',
@@ -180,6 +191,7 @@ Deno.serve(async (req) => {
               '<p>Já deixamos equipamentos de demonstração na sua conta para você explorar ' +
               'memorial de cálculo, categoria NR-13, inspeções e vencimentos.</p>' +
               '<p>Download e impressão de documentos ficam disponíveis após a contratação.</p>',
+            appUrl ? `${appUrl}/email-logo.png` : '',
           ),
         );
         if (enviado) {
@@ -203,7 +215,8 @@ Deno.serve(async (req) => {
         .select('valor')
         .eq('chave', 'app_url')
         .maybeSingle();
-      const url = String((cfg?.valor as { url?: string } | null)?.url ?? '');
+      const url = String((cfg?.valor as { url?: string } | null)?.url ?? '').replace(/\/+$/, '');
+      const logoUrl = url ? `${url}/email-logo.png` : '';
 
       let lembretes = 0;
       let vencidos = 0;
@@ -226,6 +239,7 @@ Deno.serve(async (req) => {
             `<p>Seu acesso de teste termina em <b>${dataBR(p.trial_fim)}</b> (horário de Brasília).</p>` +
               '<p>Para continuar usando o NR13 Sistema sem perder o que você viu, contrate agora:</p>' +
               botaoAssinar(url),
+            logoUrl,
           ),
         );
         if (ok) {
@@ -253,6 +267,7 @@ Deno.serve(async (req) => {
               '<p>Gostou? Assine para liberar o acesso completo, incluindo download e impressão ' +
               'de relatórios e prontuários.</p>' +
               botaoAssinar(url),
+            logoUrl,
           ),
         );
         if (ok) {
