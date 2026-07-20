@@ -1,6 +1,13 @@
-/* Fundo: vaso de pressão industrial (public/login-fundo.webp, ~230KB). Card central
-   sobre véu escuro com vinheta; rodapé institucional fixo (nome do sistema + IP à
-   esquerda, versão à direita — ver RodapeLogin em Login.tsx). */
+/* Tela de login — fundo com vaso de pressão (public/login-fundo.webp), card central
+   limpo em azul petróleo, rodapé institucional e frases digitadas (ver Login.tsx). */
+
+:root {
+  --petrol: #0a5a6e;
+  --petrol-escuro: #07424f;
+  --petrol-claro: #0e6f85;
+  --petrol-ring: rgba(10, 90, 110, 0.18);
+}
+
 .login-page {
   display: flex;
   justify-content: center;
@@ -23,9 +30,9 @@
 .login-box {
   position: relative;
   z-index: 1;
-  background: rgba(250, 250, 250, 0.98);
+  background: rgba(251, 251, 251, 0.98);
   backdrop-filter: blur(10px);
-  padding: 40px 38px;
+  padding: 36px 38px 30px;
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.4);
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), 0 2px 10px rgba(0, 0, 0, 0.3);
@@ -37,7 +44,292 @@
   animation: nr-fade-up 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-/* rodapé institucional (padrão do mockup: sistema + IP à esquerda, versão à direita) */
+.login-logo-img {
+  width: 108px;
+  height: auto;
+  margin: 0 auto 10px;
+  display: block;
+}
+
+.login-box h2 {
+  margin: 0 0 8px 0;
+  color: var(--text-main);
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.login-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 24px;
+  line-height: 1.55;
+}
+
+.login-box .input-group {
+  text-align: left;
+  margin-bottom: 15px;
+}
+
+.login-box .input-group label {
+  display: block;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.login-box .input-group input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border-solid);
+  border-radius: var(--radius-md);
+  box-sizing: border-box;
+  font-size: 14px;
+  background: var(--bg-faint);
+  outline: none;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast), background var(--t-fast);
+}
+
+.login-box .input-group input:focus {
+  border-color: var(--petrol);
+  background: #fff;
+  box-shadow: 0 0 0 3px var(--petrol-ring);
+}
+
+/* botão principal — azul petróleo */
+.btn-login {
+  background: linear-gradient(180deg, var(--petrol-claro), var(--petrol));
+  color: #fff;
+  border: none;
+  width: 100%;
+  padding: 13px;
+  border-radius: var(--radius-md);
+  font-family: var(--font-base);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: transform var(--t-fast), box-shadow var(--t-fast), filter var(--t-fast);
+  margin-top: 8px;
+  box-shadow: 0 8px 22px rgba(10, 90, 110, 0.35);
+}
+
+.btn-login:hover:not(:disabled) {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px rgba(10, 90, 110, 0.42);
+}
+
+.btn-login:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-login:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* links do card — duas colunas, azul petróleo */
+.login-links-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 10px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-solid, #e6e6e2);
+}
+
+.btn-link-login {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--petrol);
+  font-family: var(--font-base);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 5px 2px;
+  transition: color var(--t-fast);
+}
+
+.btn-link-login:hover {
+  color: var(--petrol-escuro);
+  text-decoration: underline;
+}
+
+.btn-link-login.destaque {
+  font-weight: 800;
+}
+
+.btn-link-login.col-toda {
+  grid-column: 1 / -1;
+}
+
+.login-erro {
+  color: var(--status-erro-text);
+  font-size: 13px;
+  margin-top: 12px;
+  font-weight: 600;
+}
+
+.login-aviso-ok {
+  color: #1a7f37;
+  font-size: 13px;
+  margin-top: 12px;
+  font-weight: 600;
+}
+
+/* ── Popup do trial (confirmação de e-mail / aviso das 48h) ────────────────── */
+.login-popup-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(5, 10, 14, 0.68);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+}
+
+.login-popup {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+  padding: 30px 30px 26px;
+  width: 100%;
+  max-width: 400px;
+  text-align: center;
+  animation: nr-fade-up 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.login-popup-img {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin: 0 auto 12px;
+  display: block;
+  border: 3px solid var(--petrol);
+  box-shadow: 0 6px 18px rgba(10, 90, 110, 0.3);
+}
+
+.login-popup h3 {
+  margin: 0 0 10px;
+  font-family: var(--font-display);
+  font-size: 19px;
+  color: var(--text-main);
+}
+
+.login-popup p {
+  font-size: 13.5px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin: 0 0 14px;
+}
+
+.login-popup-nota {
+  font-size: 12.5px !important;
+  color: var(--petrol) !important;
+  font-weight: 600;
+}
+
+/* campo do código com cadeado */
+.login-campo-codigo {
+  position: relative;
+  margin-bottom: 6px;
+}
+
+.login-campo-codigo .login-cadeado {
+  position: absolute;
+  left: 13px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--petrol);
+  pointer-events: none;
+}
+
+.login-campo-codigo input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 13px 14px 13px 40px;
+  border: 1px solid var(--border-solid);
+  border-radius: var(--radius-md);
+  font-size: 18px;
+  letter-spacing: 0.35em;
+  font-weight: 700;
+  text-align: center;
+  background: var(--bg-faint);
+  outline: none;
+}
+
+.login-campo-codigo input:focus {
+  border-color: var(--petrol);
+  background: #fff;
+  box-shadow: 0 0 0 3px var(--petrol-ring);
+}
+
+.login-popup-acoes {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  margin-top: 12px;
+}
+
+.login-popup-acoes button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--petrol);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.login-popup-acoes button:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.login-popup-acoes button:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+/* ── Frases digitadas (canto inferior esquerdo) ────────────────────────────── */
+.login-digitando {
+  position: fixed;
+  left: 18px;
+  bottom: 64px;
+  z-index: 1;
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.7);
+  min-height: 28px;
+  pointer-events: none;
+}
+
+.login-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1.05em;
+  background: var(--petrol-claro, #0e6f85);
+  background: #35b6d4;
+  margin-left: 4px;
+  vertical-align: text-bottom;
+  animation: login-piscar 0.9s steps(1) infinite;
+}
+
+@keyframes login-piscar {
+  50% { opacity: 0; }
+}
+
+/* ── Rodapé institucional ──────────────────────────────────────────────────── */
 .login-rodape-esq,
 .login-rodape-dir {
   position: fixed;
@@ -78,7 +370,10 @@
 
 @media (max-width: 900px) {
   .login-box {
-    padding: 34px 24px;
+    padding: 30px 22px 24px;
+  }
+  .login-digitando {
+    display: none;
   }
   .login-rodape-dir {
     display: none;
@@ -88,128 +383,4 @@
     text-align: center;
     align-items: center;
   }
-}
-
-.login-logo {
-  margin-bottom: 14px;
-}
-
-/* selo/marca acima do título */
-.login-box::before {
-  content: 'NR-13';
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-display);
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  font-size: 15px;
-  color: #fff;
-  padding: 8px 16px;
-  border-radius: 12px;
-  margin-bottom: 18px;
-  background: var(--accent-grad);
-  box-shadow: var(--shadow-accent);
-}
-
-.login-box h2 {
-  margin: 0 0 8px 0;
-  color: var(--text-main);
-  font-family: var(--font-display);
-  font-size: 23px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-
-.login-desc {
-  font-size: 13px;
-  color: var(--text-muted);
-  margin-bottom: 26px;
-  line-height: 1.55;
-}
-
-.login-box .input-group {
-  text-align: left;
-  margin-bottom: 16px;
-}
-
-.login-box .input-group label {
-  display: block;
-  font-size: 11.5px;
-  color: var(--text-muted);
-  margin-bottom: 6px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.login-box .input-group input {
-  width: 100%;
-  padding: 12px 14px;
-  border: 1px solid var(--border-solid);
-  border-radius: var(--radius-md);
-  box-sizing: border-box;
-  font-size: 14px;
-  background: var(--bg-faint);
-  outline: none;
-  transition: border-color var(--t-fast), box-shadow var(--t-fast), background var(--t-fast);
-}
-
-.login-box .input-group input:focus {
-  border-color: var(--accent);
-  background: #fff;
-  box-shadow: 0 0 0 3px var(--accent-ring);
-}
-
-.btn-login {
-  background: var(--accent-grad);
-  color: #fff;
-  border: none;
-  width: 100%;
-  padding: 13px;
-  border-radius: var(--radius-md);
-  font-family: var(--font-base);
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  cursor: pointer;
-  transition: transform var(--t-fast), box-shadow var(--t-fast), filter var(--t-fast);
-  margin-top: 10px;
-  box-shadow: var(--shadow-accent);
-}
-
-.btn-login:hover:not(:disabled) {
-  filter: brightness(1.06);
-  transform: translateY(-1px);
-  box-shadow: 0 12px 28px rgba(255, 122, 26, 0.30);
-}
-
-.btn-login:active:not(:disabled) {
-  transform: translateY(0);
-}
-
-.btn-login:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  box-shadow: none;
-}
-
-.login-erro {
-  color: var(--status-erro-text);
-  font-size: 13px;
-  margin-top: 15px;
-  font-weight: 600;
-}
-
-/* links de troca de modo: um por linha, centralizados */
-.btn-trocar-modo {
-  display: block;
-  margin-left: auto;
-  margin-right: auto;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 2px 0;
-}
-.btn-trocar-modo:hover {
-  text-decoration: underline;
 }

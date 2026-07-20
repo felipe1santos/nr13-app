@@ -347,6 +347,137 @@
   .aviso-expiracao { margin: 12px 12px 0; font-size: 12.5px; }
 }
 
+/* ── Boas-vindas + termos de uso do trial (ModalTermos) ────────────────────── */
+.termos-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(5, 10, 14, 0.72);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+}
+
+.termos-modal {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+  width: 100%;
+  max-width: 640px;
+  max-height: calc(100vh - 60px);
+  display: flex;
+  flex-direction: column;
+  padding: 26px 28px 22px;
+  box-sizing: border-box;
+}
+
+.termos-head {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  color: #0a5a6e;
+  margin-bottom: 14px;
+}
+
+.termos-head h2 {
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-size: 20px;
+  color: #17272e;
+}
+
+.termos-head p {
+  margin: 0;
+  font-size: 13px;
+  color: #5b6a70;
+}
+
+.termos-corpo {
+  overflow-y: auto;
+  border: 1px solid #e4e7e8;
+  border-radius: 10px;
+  padding: 14px 18px;
+  background: #fafbfb;
+  font-size: 13px;
+  line-height: 1.65;
+  color: #3b4a50;
+  text-align: left;
+}
+
+.termos-corpo h3 {
+  margin: 10px 0 6px;
+  font-size: 13.5px;
+  color: #0a5a6e;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.termos-corpo h3:first-child {
+  margin-top: 0;
+}
+
+.termos-corpo ol {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.termos-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #17272e;
+  margin: 14px 2px 12px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.termos-check input {
+  margin-top: 2px;
+  accent-color: #0a5a6e;
+}
+
+.termos-acoes {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.termos-btn-recusar {
+  background: none;
+  border: 1px solid #d4d9db;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #5b6a70;
+  cursor: pointer;
+}
+
+.termos-btn-aceitar {
+  background: linear-gradient(180deg, #0e6f85, #0a5a6e);
+  border: none;
+  border-radius: 8px;
+  padding: 10px 22px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(10, 90, 110, 0.3);
+}
+
+.termos-btn-aceitar:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
 /* Barra fixa do período de teste (trial 48h) — acima da topbar, largura total. */
 .barra-trial {
   display: flex;

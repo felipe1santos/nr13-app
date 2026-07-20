@@ -10,6 +10,7 @@ import type { ItemMenu } from './menu';
 import BotaoInstalarPWA from './BotaoInstalarPWA';
 import SyncStatus from './SyncStatus';
 import ModalTrocarSenha from '../components/ModalTrocarSenha';
+import ModalTermos from '../components/ModalTermos';
 import './layout.css';
 
 const ROTULO_PAPEL: Record<string, string> = {
@@ -298,6 +299,8 @@ export default function Layout() {
       </div>
 
       {modalSenha && email && <ModalTrocarSenha email={email} onClose={() => setModalSenha(false)} />}
+      {/* Boas-vindas + termos de uso: obrigatório no 1º acesso do período de teste */}
+      {isTrial() && <ModalTermos />}
     </div>
   );
 }

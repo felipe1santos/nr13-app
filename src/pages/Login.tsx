@@ -11,7 +11,6 @@ import {
   isCliente,
   enviarCodigoTrocaSenha,
   trocarSenhaComCodigo,
-  trocarSenhaNaTelaDeLogin,
 } from '../services/auth';
 import { injetarDadosDemo } from '../services/demoSeed';
 import './login.css';
@@ -19,10 +18,54 @@ import './login.css';
 const REENVIO_SEGUNDOS = 60; // rate limit do Supabase: 1 e-mail de recuperação por minuto
 const VERSAO_SISTEMA = 'V. 1.0.0 (Build 2026)';
 
-type ModoLogin = 'entrar' | 'cadastrar' | 'recuperar' | 'trocar' | 'trial';
+// Troca de senha FORA do app é uma só: código por e-mail (modo 'recuperar').
+// Logado, o usuário troca pela sidebar (ModalTrocarSenha) — com senha atual ou código.
+type ModoLogin = 'entrar' | 'cadastrar' | 'recuperar' | 'trial';
 
-// Rodapé institucional da tela de login (IP identificado + versão). O IP/localidade
-// vem de um serviço público best-effort — falhou/offline, a linha simplesmente não sai.
+const FUNCIONALIDADES = [
+  'Mapeamento NR-13 completo',
+  'Gestão de prontuários e relatórios',
+  'Cálculo de PMTA e espessura mínima',
+  'Croqui 2D com todas as cotas',
+  'Livro de registro de segurança',
+  'Calibração de PSVs e manômetros',
+  'Inspeção em campo pelo celular',
+];
+
+// Frases digitadas e apagadas em loop no canto inferior esquerdo.
+function Digitando() {
+  const [texto, setTexto] = useState('');
+  const [i, setI] = useState(0);
+  const [apagando, setApagando] = useState(false);
+
+  useEffect(() => {
+    const frase = FUNCIONALIDADES[i % FUNCIONALIDADES.length];
+    let t: number;
+    if (!apagando && texto.length < frase.length) {
+      t = window.setTimeout(() => setTexto(frase.slice(0, texto.length + 1)), 55);
+    } else if (!apagando && texto.length === frase.length) {
+      t = window.setTimeout(() => setApagando(true), 1600);
+    } else if (apagando && texto.length > 0) {
+      t = window.setTimeout(() => setTexto(texto.slice(0, -1)), 26);
+    } else {
+      t = window.setTimeout(() => {
+        setApagando(false);
+        setI((n) => n + 1);
+      }, 250);
+    }
+    return () => window.clearTimeout(t);
+  }, [texto, apagando, i]);
+
+  return (
+    <div className="login-digitando" aria-hidden="true">
+      {texto}
+      <span className="login-cursor" />
+    </div>
+  );
+}
+
+// Rodapé institucional (IP identificado + versão). O IP/localidade vem de um serviço
+// público best-effort — falhou/offline, a linha simplesmente não sai.
 function RodapeLogin() {
   const [ipTexto, setIpTexto] = useState<string | null>(null);
 
@@ -45,12 +88,22 @@ function RodapeLogin() {
 
   return (
     <>
+      <Digitando />
       <div className="login-rodape-esq">
         <strong>SISTEMA DE GESTÃO E INTEGRIDADE NR-13</strong>
         {ipTexto && <span>{ipTexto}</span>}
       </div>
       <div className="login-rodape-dir">{VERSAO_SISTEMA}</div>
     </>
+  );
+}
+
+function IconeCadeado() {
+  return (
+    <svg className="login-cadeado" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="4" y="11" width="16" height="10" rx="2" />
+      <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+    </svg>
   );
 }
 
@@ -72,6 +125,9 @@ export default function Login() {
   const [leadNome, setLeadNome] = useState('');
   const [leadTelefone, setLeadTelefone] = useState('');
   const [leadEmpresa, setLeadEmpresa] = useState('');
+  // Popup do trial: 'codigo' (confirmar e-mail) → 'sucesso' (aviso das 48h)
+  const [trialPopup, setTrialPopup] = useState<'codigo' | 'sucesso' | null>(null);
+  const [popupErro, setPopupErro] = useState<string | null>(null);
   // Trial vencido no login: mostra o botão "Assinar agora" (placeholder do pagamento)
   const [trialExpirado, setTrialExpirado] = useState(false);
   const navigate = useNavigate();
@@ -82,8 +138,7 @@ export default function Login() {
     return () => window.clearTimeout(t);
   }, [cooldown]);
 
-  // Flag global do admin (config_global via Edge Function): decide se o botão
-  // "Testar gratuitamente" aparece. Falha de rede/função ausente = não aparece.
+  // Flag global do admin: decide se o link "Teste grátis" aparece.
   useEffect(() => {
     let vivo = true;
     void cadastroAutomaticoPermitido().then((p) => {
@@ -101,6 +156,8 @@ export default function Login() {
     setCodigo('');
     setNovaSenha('');
     setConfirmar('');
+    setTrialPopup(null);
+    setPopupErro(null);
     setModo(m);
   }
 
@@ -129,9 +186,10 @@ export default function Login() {
         empresaNome: leadEmpresa.trim(),
       });
       if (r.precisaConfirmarEmail) {
-        setCodigoEnviado(true);
+        setCodigo('');
+        setPopupErro(null);
         setCooldown(REENVIO_SEGUNDOS);
-        setAviso('Enviamos um código de confirmação para seu e-mail.');
+        setTrialPopup('codigo');
         return;
       }
       setErro(r.erro || 'Não foi possível concluir seu cadastro. Tente novamente.');
@@ -142,8 +200,7 @@ export default function Login() {
 
   async function handleTrialCodigo(e: React.FormEvent) {
     e.preventDefault();
-    setErro(null);
-    setAviso(null);
+    setPopupErro(null);
     setCarregando(true);
     try {
       const r = await confirmarCodigoTrial(email, codigo, {
@@ -152,9 +209,18 @@ export default function Login() {
         empresaNome: leadEmpresa.trim(),
       });
       if (!r.sucesso) {
-        setErro(r.erro || 'Código inválido ou expirado.');
+        setPopupErro(r.erro || 'Código inválido ou expirado.');
         return;
       }
+      setTrialPopup('sucesso');
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  async function comecarTeste() {
+    setCarregando(true);
+    try {
       // Dados de demonstração (best-effort: falha não impede a entrada).
       try {
         await injetarDadosDemo(leadEmpresa.trim());
@@ -168,16 +234,15 @@ export default function Login() {
   }
 
   async function reenviarTrial() {
-    setErro(null);
+    setPopupErro(null);
     setCarregando(true);
     try {
       const r = await reenviarCodigoTrial(email);
       if (!r.sucesso) {
-        setErro(r.erro || 'Falha ao reenviar o código.');
+        setPopupErro(r.erro || 'Falha ao reenviar o código.');
         return;
       }
       setCooldown(REENVIO_SEGUNDOS);
-      setAviso('Código reenviado.');
     } finally {
       setCarregando(false);
     }
@@ -199,33 +264,6 @@ export default function Login() {
       setCodigoEnviado(true);
       setCooldown(REENVIO_SEGUNDOS);
       setAviso('Código enviado! Confira seu e-mail (e a caixa de spam).');
-    } finally {
-      setCarregando(false);
-    }
-  }
-
-  async function handleTrocar(e: React.FormEvent) {
-    e.preventDefault();
-    if (novaSenha.length < 6) {
-      setErro('A nova senha precisa ter no mínimo 6 caracteres.');
-      return;
-    }
-    if (novaSenha !== confirmar) {
-      setErro('A confirmação não confere com a nova senha.');
-      return;
-    }
-    setErro(null);
-    setAviso(null);
-    setCarregando(true);
-    try {
-      const r = await trocarSenhaNaTelaDeLogin(email, senha, novaSenha);
-      if (!r.sucesso) {
-        setErro(r.erro || 'Falha ao trocar a senha.');
-        return;
-      }
-      setSenha('');
-      irPara('entrar');
-      setAviso('Senha alterada! Entre com a nova senha.');
     } finally {
       setCarregando(false);
     }
@@ -271,7 +309,7 @@ export default function Login() {
         // mestre/gerente/funcionário → sistema.
         navigate(isAdmin() ? '/admin' : isCliente() ? '/portal' : '/dashboard');
       } else if (resultado.precisaConfirmarEmail) {
-        setAviso('Conta criada! Confirme o e-mail pelo link enviado e depois entre.');
+        setAviso('Conta criada! Confirme o e-mail pelo código/link enviado e depois entre.');
         setModo('entrar');
       } else if (resultado.aguardandoLiberacao) {
         setAviso('Conta criada! Aguarde a liberação do administrador para acessar o sistema.');
@@ -287,31 +325,88 @@ export default function Login() {
     }
   }
 
+  // ── Popup do trial (confirmação de e-mail → aviso das 48h) ─────────────────
+  const popupTrial = trialPopup && (
+    <div className="login-popup-overlay">
+      <div className="login-popup" role="dialog" aria-modal="true">
+        {trialPopup === 'codigo' ? (
+          <form onSubmit={handleTrialCodigo}>
+            <img className="login-popup-img" src="/login-suporte.webp" alt="Equipe de suporte" />
+            <h3>Confirme seu e-mail</h3>
+            <p>
+              Enviamos um código de 6 dígitos para <strong>{email}</strong>. Digite-o abaixo para
+              ativar seu teste (confira também a caixa de spam).
+            </p>
+            <div className="login-campo-codigo">
+              <IconeCadeado />
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder="000000"
+                maxLength={8}
+                value={codigo}
+                onChange={(e) => setCodigo(e.target.value)}
+                autoFocus
+                required
+              />
+            </div>
+            {popupErro && <p className="login-erro">{popupErro}</p>}
+            <button type="submit" className="btn-login" disabled={carregando}>
+              {carregando ? 'Verificando...' : 'Confirmar código'}
+            </button>
+            <div className="login-popup-acoes">
+              <button type="button" onClick={reenviarTrial} disabled={carregando || cooldown > 0}>
+                {cooldown > 0 ? `Reenviar em ${cooldown}s` : 'Reenviar código'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setTrialPopup(null);
+                  setPopupErro(null);
+                }}
+              >
+                Corrigir e-mail
+              </button>
+            </div>
+          </form>
+        ) : (
+          <div>
+            <img className="login-popup-img" src="/login-suporte.webp" alt="Equipe de suporte" />
+            <h3>Tudo certo! Seu teste começou</h3>
+            <p>
+              Você terá acesso completo ao sistema por <strong>48 horas</strong>. Aproveite para
+              fazer um teste real de tudo — memorial de cálculo, categoria NR-13, inspeções em
+              campo, prontuários e relatórios — assim você conhece bem o sistema antes de assinar.
+            </p>
+            <p className="login-popup-nota">
+              Já deixamos equipamentos de demonstração na sua conta para você explorar à vontade.
+            </p>
+            <button type="button" className="btn-login" onClick={comecarTeste} disabled={carregando}>
+              {carregando ? 'Preparando...' : 'Começar meu teste'}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   if (modo === 'trial') {
     return (
       <div className="login-page">
-        <form className="login-box" onSubmit={codigoEnviado ? handleTrialCodigo : handleTrialCadastro}>
-          <svg className="login-logo" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2">
-            <path d="M12 2 4 5v6c0 5 3.5 8.5 8 11 4.5-2.5 8-6 8-11V5l-8-3Z" />
-          </svg>
-          <h2>Teste Gratuito — 2 dias</h2>
+        <form className="login-box" onSubmit={handleTrialCadastro}>
+          <img className="login-logo-img" src="/login-logo.webp" alt="NR-13" />
+          <h2>Teste Gratuito — 48h</h2>
           {!trialPermitido ? (
             <>
               <p className="login-desc">O cadastro automático está temporariamente indisponível.</p>
-              <button
-                type="button"
-                className="btn-trocar-modo"
-                onClick={() => irPara('entrar')}
-                style={{ marginTop: 12, background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer' }}
-              >
+              <button type="button" className="btn-link-login" onClick={() => irPara('entrar')}>
                 ← Voltar para o login
               </button>
             </>
-          ) : !codigoEnviado ? (
+          ) : (
             <>
-              <p className="login-desc">
-                Preencha seus dados para testar o sistema por 48 horas, sem compromisso.
-              </p>
+              <p className="login-desc">Preencha seus dados para testar o sistema por 2 dias, sem compromisso.</p>
               <div className="input-group">
                 <label htmlFor="tri-nome">Nome completo</label>
                 <input id="tri-nome" type="text" value={leadNome} onChange={(e) => setLeadNome(e.target.value)} required />
@@ -367,148 +462,17 @@ export default function Login() {
                 />
               </div>
               {erro && <p className="login-erro">{erro}</p>}
-              {aviso && <p className="login-erro" style={{ color: '#1a7f37' }}>{aviso}</p>}
+              {aviso && <p className="login-aviso-ok">{aviso}</p>}
               <button type="submit" className="btn-login" disabled={carregando}>
                 {carregando ? 'Aguarde...' : 'Criar conta de teste'}
               </button>
-            </>
-          ) : (
-            <>
-              <p className="login-desc">
-                Enviamos um código de confirmação para <strong>{email}</strong>. Digite-o abaixo
-                (confira também a caixa de spam).
-              </p>
-              <div className="input-group">
-                <label htmlFor="tri-codigo">Código recebido no e-mail</label>
-                <input
-                  id="tri-codigo"
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  placeholder="000000"
-                  value={codigo}
-                  onChange={(e) => setCodigo(e.target.value)}
-                  required
-                />
-              </div>
-              {erro && <p className="login-erro">{erro}</p>}
-              {aviso && <p className="login-erro" style={{ color: '#1a7f37' }}>{aviso}</p>}
-              <button type="submit" className="btn-login" disabled={carregando}>
-                {carregando ? 'Aguarde...' : 'Confirmar e começar o teste'}
-              </button>
-              <button
-                type="button"
-                className="btn-login"
-                onClick={reenviarTrial}
-                disabled={carregando || cooldown > 0}
-                style={{ marginTop: 10 }}
-              >
-                {cooldown > 0 ? `Reenviar em ${cooldown}s` : 'Reenviar código'}
-              </button>
-              <button
-                type="button"
-                className="btn-trocar-modo"
-                onClick={() => {
-                  setErro(null);
-                  setAviso(null);
-                  setCodigo('');
-                  setCodigoEnviado(false);
-                }}
-                style={{ marginTop: 12, background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer' }}
-              >
-                Corrigir e-mail
+              <button type="button" className="btn-link-login" onClick={() => irPara('entrar')}>
+                ← Voltar para o login
               </button>
             </>
           )}
-          {trialPermitido && (
-            <button
-              type="button"
-              className="btn-trocar-modo"
-              onClick={() => irPara('entrar')}
-              style={{ marginTop: 4, background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer' }}
-            >
-              ← Voltar para o login
-            </button>
-          )}
         </form>
-        <RodapeLogin />
-      </div>
-    );
-  }
-
-  if (modo === 'trocar') {
-    return (
-      <div className="login-page">
-        <form className="login-box" onSubmit={handleTrocar}>
-          <svg className="login-logo" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2">
-            <path d="M12 2 4 5v6c0 5 3.5 8.5 8 11 4.5-2.5 8-6 8-11V5l-8-3Z" />
-          </svg>
-          <h2>Trocar Senha</h2>
-          <p className="login-desc">
-            Confirme seu e-mail e a senha atual para definir uma nova senha.
-          </p>
-          <div className="input-group">
-            <label htmlFor="tro-email">E-mail de acesso</label>
-            <input
-              id="tro-email"
-              type="email"
-              placeholder="seu@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          <div className="input-group">
-            <label htmlFor="tro-atual">Senha atual</label>
-            <input
-              id="tro-atual"
-              type="password"
-              autoComplete="current-password"
-              placeholder="••••••••"
-              value={senha}
-              onChange={(e) => setSenha(e.target.value)}
-              minLength={6}
-              required
-            />
-          </div>
-          <div className="input-group">
-            <label htmlFor="tro-nova">Nova senha (mín. 6 caracteres)</label>
-            <input
-              id="tro-nova"
-              type="password"
-              autoComplete="new-password"
-              minLength={6}
-              value={novaSenha}
-              onChange={(e) => setNovaSenha(e.target.value)}
-              required
-            />
-          </div>
-          <div className="input-group">
-            <label htmlFor="tro-confirmar">Confirmar nova senha</label>
-            <input
-              id="tro-confirmar"
-              type="password"
-              autoComplete="new-password"
-              minLength={6}
-              value={confirmar}
-              onChange={(e) => setConfirmar(e.target.value)}
-              required
-            />
-          </div>
-          {erro && <p className="login-erro">{erro}</p>}
-          {aviso && <p className="login-erro" style={{ color: '#1a7f37' }}>{aviso}</p>}
-          <button type="submit" className="btn-login" disabled={carregando}>
-            {carregando ? 'Aguarde...' : 'Trocar senha'}
-          </button>
-          <button
-            type="button"
-            className="btn-trocar-modo"
-            onClick={() => irPara('entrar')}
-            style={{ marginTop: 12, background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer' }}
-          >
-            ← Voltar para o login
-          </button>
-        </form>
+        {popupTrial}
         <RodapeLogin />
       </div>
     );
@@ -518,10 +482,8 @@ export default function Login() {
     return (
       <div className="login-page">
         <form className="login-box" onSubmit={handleRecuperar}>
-          <svg className="login-logo" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2">
-            <path d="M12 2 4 5v6c0 5 3.5 8.5 8 11 4.5-2.5 8-6 8-11V5l-8-3Z" />
-          </svg>
-          <h2>Recuperar Senha</h2>
+          <img className="login-logo-img" src="/login-logo.webp" alt="NR-13" />
+          <h2>Trocar Senha</h2>
           <p className="login-desc">
             Informe seu e-mail para receber o código de confirmação e defina uma nova senha.
           </p>
@@ -591,18 +553,13 @@ export default function Login() {
             </>
           )}
           {erro && <p className="login-erro">{erro}</p>}
-          {aviso && <p className="login-erro" style={{ color: '#1a7f37' }}>{aviso}</p>}
+          {aviso && <p className="login-aviso-ok">{aviso}</p>}
           {codigoEnviado && (
             <button type="submit" className="btn-login" disabled={carregando}>
               {carregando ? 'Aguarde...' : 'Trocar senha'}
             </button>
           )}
-          <button
-            type="button"
-            className="btn-trocar-modo"
-            onClick={() => irPara('entrar')}
-            style={{ marginTop: 12, background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer' }}
-          >
+          <button type="button" className="btn-link-login" onClick={() => irPara('entrar')}>
             ← Voltar para o login
           </button>
         </form>
@@ -614,9 +571,7 @@ export default function Login() {
   return (
     <div className="login-page">
       <form className="login-box" onSubmit={handleSubmit}>
-        <svg className="login-logo" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2">
-          <path d="M12 2 4 5v6c0 5 3.5 8.5 8 11 4.5-2.5 8-6 8-11V5l-8-3Z" />
-        </svg>
+        <img className="login-logo-img" src="/login-logo.webp" alt="NR-13" />
         <h2>{modo === 'entrar' ? 'Acesso ao Sistema' : 'Criar Conta'}</h2>
         <p className="login-desc">
           {modo === 'entrar'
@@ -647,7 +602,7 @@ export default function Login() {
           />
         </div>
         {erro && <p className="login-erro">{erro}</p>}
-        {aviso && <p className="login-erro" style={{ color: '#1a7f37' }}>{aviso}</p>}
+        {aviso && <p className="login-aviso-ok">{aviso}</p>}
         {trialExpirado && (
           <button type="button" className="btn-login" onClick={assinarAgora} style={{ marginBottom: 10 }}>
             Assinar agora
@@ -660,44 +615,31 @@ export default function Login() {
               ? 'Entrar no Sistema'
               : 'Criar Conta'}
         </button>
-        {modo === 'entrar' && trialPermitido && (
-          <button
-            type="button"
-            className="btn-trocar-modo"
-            onClick={() => irPara('trial')}
-            style={{ marginTop: 12, background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontWeight: 600 }}
-          >
-            Testar o sistema gratuitamente por 2 dias
-          </button>
-        )}
-        {modo === 'entrar' && (
-          <>
-            <button
-              type="button"
-              className="btn-trocar-modo"
-              onClick={() => irPara('trocar')}
-              style={{ marginTop: 12, background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer' }}
-            >
-              Trocar minha senha
+        {modo === 'entrar' ? (
+          <div className="login-links-grid">
+            {trialPermitido && (
+              <button type="button" className="btn-link-login destaque" onClick={() => irPara('trial')}>
+                Teste grátis de 48h
+              </button>
+            )}
+            <button type="button" className="btn-link-login" onClick={() => irPara('recuperar')}>
+              Esqueci / trocar senha
             </button>
             <button
               type="button"
-              className="btn-trocar-modo"
-              onClick={() => irPara('recuperar')}
-              style={{ marginTop: 4, background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer' }}
+              className={`btn-link-login${trialPermitido ? ' col-toda' : ''}`}
+              onClick={() => irPara('cadastrar')}
             >
-              Esqueci minha senha
+              Não tem conta? Criar conta
             </button>
-          </>
+          </div>
+        ) : (
+          <div className="login-links-grid">
+            <button type="button" className="btn-link-login col-toda" onClick={() => irPara('entrar')}>
+              Já tem conta? Entrar
+            </button>
+          </div>
         )}
-        <button
-          type="button"
-          className="btn-trocar-modo"
-          onClick={() => irPara(modo === 'entrar' ? 'cadastrar' : 'entrar')}
-          style={{ marginTop: modo === 'entrar' ? 4 : 12, background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer' }}
-        >
-          {modo === 'entrar' ? 'Não tem conta? Criar conta' : 'Já tem conta? Entrar'}
-        </button>
       </form>
       <RodapeLogin />
     </div>
