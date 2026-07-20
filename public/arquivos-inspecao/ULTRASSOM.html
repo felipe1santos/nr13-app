@@ -786,7 +786,9 @@
                 // Vínculo com equipamentos (tags[]): padrão vinculado a OUTRAS TAGs não vale
                 // aqui; entre os válidos, o vinculado a ESTA TAG vence o global (sem vínculo).
                 var tagFolha = new URLSearchParams(window.location.search).get('tag') || '';
-                var aplicaAqui = function (c) { return !(c.tags && c.tags.length) || (tagFolha && c.tags.indexOf(tagFolha) !== -1); };
+                // Versão soft-substituída (edição/exclusão na aba Certificados Calibração) não
+                // preenche folha nova — só permanece nos relatórios salvos que a referenciam.
+                var aplicaAqui = function (c) { return !c.substituidoEm && (!(c.tags && c.tags.length) || (tagFolha && c.tags.indexOf(tagFolha) !== -1)); };
                 var candidatosValidos = candidatos.filter(aplicaAqui);
                 const nomeMatch = (n) => /ultra.?s?om|espessura/i.test(n || '');
                 // Fallbacks só entre registros SEM tipo (legados): um registro tipado

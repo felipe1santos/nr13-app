@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react';
 import { Icone } from '../../components/Icone';
 import {
-  excluirRastreabilidade,
   listarRastreabilidades,
+  listarRastreabilidadesAtivas,
   salvarRastreabilidade,
 } from '../relatorios/rastreabilidadeService';
 import type { Rastreabilidade, TipoInstrumento } from '../relatorios/rastreabilidadeService';
@@ -47,14 +47,14 @@ const ROTULO_TIPO: Record<TipoInstrumento, string> = {
  * ultrassom acompanha a folha de ultrassom). Sem flag manual e sem vínculo por TAG.
  */
 export default function AbaRastreabilidade() {
-  const [itens, setItens] = useState<Rastreabilidade[]>(() => listarRastreabilidades());
+  const [itens, setItens] = useState<Rastreabilidade[]>(() => listarRastreabilidadesAtivas());
   const [form, setForm] = useState<Rastreabilidade | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
   function recarregar() {
-    setItens(listarRastreabilidades());
+    setItens(listarRastreabilidadesAtivas());
   }
 
   function set<K extends keyof Rastreabilidade>(chave: K, valor: Rastreabilidade[K]) {
@@ -97,16 +97,31 @@ export default function AbaRastreabilidade() {
     setErro('');
     setSalvando(true);
     try {
-      await salvarRastreabilidade({ ...form, injetarNoRelatorio: true, tags: undefined });
+      // IMUTABILIDADE: editar não sobrescreve — grava uma VERSÃO NOVA (id novo) e marca a
+      // antiga como substituída. Relatórios salvos referenciam a versão pelo id
+      // (meta.rastreabIds) e continuam com o PDF congelado da época.
+      const agora = new Date().toLocaleDateString('pt-BR');
+      const editando = listarRastreabilidades().find((r) => r.id === form.id);
+      const registro: Rastreabilidade = {
+        ...form,
+        id: editando ? (crypto.randomUUID?.() ?? String(Date.now())) : form.id,
+        criadoEm: agora,
+        injetarNoRelatorio: true,
+        tags: undefined,
+        substituidoEm: undefined,
+      };
+      await salvarRastreabilidade(registro);
       // Round-trip no cache local: a cota do localStorage pode estourar em silêncio na gravação
       // (storage.salvar não derruba a escrita) — sem o PDF no cache, o certificado nunca seria
       // injetado no relatório e o usuário só descobriria na impressão.
-      const persistido = listarRastreabilidades().find((r) => r.id === form.id);
+      const persistido = listarRastreabilidades().find((r) => r.id === registro.id);
       if (!persistido?.pdfBase64) {
         setErro('O PDF é grande demais para o armazenamento local do navegador e não foi salvo. Comprima o arquivo (ideal até ~3 MB) e anexe novamente.');
         return;
       }
-      for (const d of duplicados) await excluirRastreabilidade(d.id);
+      // Só depois do novo estar seguro: aposenta a versão editada e os duplicados do tipo.
+      if (editando) await salvarRastreabilidade({ ...editando, substituidoEm: agora });
+      for (const d of duplicados) await salvarRastreabilidade({ ...d, substituidoEm: agora });
       setForm(null);
       recarregar();
     } finally {
@@ -114,9 +129,10 @@ export default function AbaRastreabilidade() {
     }
   }
 
-  async function excluir(id: string) {
-    if (!window.confirm('Excluir este certificado padrão?')) return;
-    await excluirRastreabilidade(id);
+  async function excluir(r: Rastreabilidade) {
+    if (!window.confirm('Remover este certificado padrão da lista? Relatórios já salvos que o utilizam continuam com o PDF congelado.')) return;
+    // Soft-delete: sai da lista/injeção, mas o PDF fica retido para os relatórios salvos.
+    await salvarRastreabilidade({ ...r, substituidoEm: new Date().toLocaleDateString('pt-BR') });
     recarregar();
   }
 
@@ -303,7 +319,7 @@ export default function AbaRastreabilidade() {
                         <button
                           type="button"
                           className="fj-btn fj-btn-danger"
-                          onClick={() => excluir(r.id)}
+                          onClick={() => excluir(r)}
                           title="Excluir"
                         >
                           <Icone nome="trash" tam={13} />

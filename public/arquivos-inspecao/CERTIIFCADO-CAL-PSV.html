@@ -404,7 +404,16 @@
             (function() {
                 var calibId = new URLSearchParams(window.location.search).get('calibId');
                 if (!calibId) return;
-                var rawCal = localStorage.getItem('nr13_calibracao_item_' + calibId);
+                // Snapshot congelado na meta (relatório salvo é imutável — editar a calibração
+                // depois não muda a folha). Sem snapshot (relatório antigo), lê o dado vivo.
+                var rawCal = null;
+                try {
+                    var metaRel = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || 'null');
+                    if (metaRel && metaRel.certCalibracoes && metaRel.certCalibracoes[calibId]) {
+                        rawCal = JSON.stringify(metaRel.certCalibracoes[calibId]);
+                    }
+                } catch (e) {}
+                if (!rawCal) rawCal = localStorage.getItem('nr13_calibracao_item_' + calibId);
                 if (!rawCal) return;
                 try {
                     var c = JSON.parse(rawCal);

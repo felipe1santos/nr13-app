@@ -52,7 +52,7 @@ Tudo que o usuário salva pode ser fonte de injeção. Chaves por TAG do equipam
 | `nr13_calibracao_item_<id>` | Certificado de calibração | Calibrações |
 | `nr13_livro_<TAG>` / `nr13_livro_config_<TAG>` | Livro de registro de segurança | Auto + config |
 | `nr13_vida_<TAG>` | Vida remanescente (taxa de corrosão, vida, próxima inspeção) | Card "Vida Remanescente" na ficha |
-| `nr13_rastreab_<id>` | Certificado de calibração do instrumento PADRÃO (PDF base64 fixo, **um por `tipoInstrumento`**: ultrassom/manômetro/válvula/bloco/pressostato/termostato/manovacuômetro/termômetro/outro). Injeção **automática por tipo**: `rastreabilidadesParaRelatorio(documentos)` anexa o PDF de cada tipo presente no relatório (folhas `?calibId=` → manômetro/válvula; folha ULTRASSOM → ultrassom) nos 2 funis (pdf-lib no Baixar, pdfjs no Imprimir). `injetarNoRelatorio`/`tags[]` são LEGADO (só critério de preferência do autoPreencher/templates) | Calibrações → aba Certificados Calibração |
+| `nr13_rastreab_<id>` | Certificado de calibração do instrumento PADRÃO (PDF base64 fixo, **um por `tipoInstrumento`** entre os ATIVOS: ultrassom/manômetro/válvula/bloco/pressostato/termostato/manovacuômetro/termômetro/outro). Injeção **automática por tipo**: relatório NOVO usa `rastreabilidadesParaRelatorio(documentos)`; relatório ABERTO usa `rastreabilidadesDoRelatorioAberto` (prefere `meta.rastreabIds` congelado). **IMUTABILIDADE (soft-replace)**: editar/excluir NUNCA apaga — grava versão nova (id novo) e marca a antiga `substituidoEm`; substituída sai da lista/prefill/injeção nova mas segue resolvível por id para relatórios salvos. `injetarNoRelatorio`/`tags[]` são LEGADO | Calibrações → aba Certificados Calibração |
 | `nr13_permissoes_<userId>` | Módulos permitidos do sub-login ({ modulos: string[] }) | Acessos (mestre) |
 | `nr13_componentes_cal_<TAG>` | Válvulas/manômetros cadastrados (nome, série, foto) | Calibrações → Componentes |
 | `nr13_lotes_cal_<TAG>` | Lotes/rodadas de calibração (certificados ganham loteId/componenteId) | Calibrações → Lotes |
@@ -210,6 +210,11 @@ e a auto-injeção insere as folhas de fotos/termo nas posições indicadas.
   (relatórios antigos), caem no dado vivo (`nr13_assinantes_rel_<TAG>` + `nr13_lista_phs`).
   Duplicar = relatório novo → snapshots refeitos com o estado atual; selects de assinante ficam
   desabilitados em relatório salvo (somenteLeitura).
+- **Calibrações também congelam (20/07/2026):** `meta.certCalibracoes` (dados das folhas
+  `?calibId=`, lidos pelos templates CERTIFICADO-CAL-* com preferência sobre a chave viva) e
+  `meta.rastreabIds` (versões dos certificados padrão — ver soft-replace em `nr13_rastreab_`).
+  Editar calibração/certificado depois NÃO altera relatório salvo; retrofit na 1ª reabertura
+  de relatórios antigos, igual empresa/assinantes.
 
 ---
 

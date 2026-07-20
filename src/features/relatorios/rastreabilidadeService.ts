@@ -43,6 +43,10 @@ export interface Rastreabilidade {
   // LEGADO (vínculo por TAG removido — certificado padrão vale para todos os
   // equipamentos). Mantido só para leitura de registros antigos no autoPreencher.
   tags?: string[];
+  // Soft-replace: editar/excluir NÃO apaga o registro — marca a data aqui. Registros
+  // substituídos saem da lista/injeção de relatórios novos, mas relatórios salvos que
+  // referenciam este id (meta.rastreabIds) continuam achando o PDF da época.
+  substituidoEm?: string;
 }
 
 /** true se o padrão vale para a TAG (global quando não há vínculo). */
@@ -88,7 +92,7 @@ export function rastreabilidadesParaRelatorio(documentos: string[]): Rastreabili
   const tipos = new Set(tiposPadraoDoRelatorio(documentos));
   if (tipos.size === 0) return [];
   const porTipo = new Map<TipoInstrumento, Rastreabilidade>();
-  for (const r of listarRastreabilidades()) {
+  for (const r of listarRastreabilidadesAtivas()) {
     if (!r.tipoInstrumento || !tipos.has(r.tipoInstrumento)) continue;
     const atual = porTipo.get(r.tipoInstrumento);
     if (
@@ -117,6 +121,11 @@ export function listarRastreabilidades(): Rastreabilidade[] {
     .sort((a, b) => a.nome.localeCompare(b.nome));
 }
 
+/** Registros vigentes (sem os soft-substituídos) — UI e injeção de relatórios NOVOS. */
+export function listarRastreabilidadesAtivas(): Rastreabilidade[] {
+  return listarRastreabilidades().filter((r) => !r.substituidoEm);
+}
+
 export async function salvarRastreabilidade(r: Rastreabilidade): Promise<void> {
   await salvar(`${PREFIXO}${r.id}`, r);
 }
@@ -134,6 +143,27 @@ function base64ParaBytes(b64: string): Uint8Array {
 }
 
 /**
+ * Certificados padrão do relatório ABERTO no visualizador: se a meta atual congelou os
+ * ids na geração (meta.rastreabIds — imutabilidade §7-bis), resolve por id (inclusive
+ * versões soft-substituídas — o PDF da época). Relatório antigo sem snapshot cai no
+ * cálculo por tipo com os registros vigentes.
+ */
+export function rastreabilidadesDoRelatorioAberto(documentos: string[]): Rastreabilidade[] {
+  try {
+    const meta = ler<{ rastreabIds?: unknown }>('nr13_relatorio_meta_atual');
+    if (meta && Array.isArray(meta.rastreabIds)) {
+      const porId = new Map(listarRastreabilidades().map((r) => [r.id, r]));
+      return (meta.rastreabIds as unknown[])
+        .map((id) => porId.get(String(id)))
+        .filter((r): r is Rastreabilidade => !!r);
+    }
+  } catch {
+    /* meta ausente/corrompida: cálculo vivo abaixo */
+  }
+  return rastreabilidadesParaRelatorio(documentos);
+}
+
+/**
  * Anexa ao final do PDF do relatório os certificados dos padrões dos tipos
  * presentes nos documentos (automático — sem flag manual). PDF que falhar ao
  * carregar é pulado (o relatório sai sem ele) e o nome volta em `falhas`.
@@ -142,7 +172,7 @@ export async function anexarRastreabilidades(
   pdfBytes: Uint8Array | ArrayBuffer,
   documentos: string[] = [],
 ): Promise<{ bytes: Uint8Array; anexados: number; falhas: string[] }> {
-  const marcadas = rastreabilidadesParaRelatorio(documentos);
+  const marcadas = rastreabilidadesDoRelatorioAberto(documentos);
   const base = new Uint8Array(pdfBytes instanceof ArrayBuffer ? new Uint8Array(pdfBytes) : pdfBytes);
   if (marcadas.length === 0) return { bytes: base, anexados: 0, falhas: [] };
 

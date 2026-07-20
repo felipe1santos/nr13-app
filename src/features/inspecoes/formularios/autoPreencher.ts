@@ -104,7 +104,8 @@ function todasRastreabilidades(): Rastreabilidade[] {
 
 /** Padrões válidos para a TAG: vinculado a outra TAG sai; vinculado a ESTA TAG vem antes do global. */
 function rastreabilidadesDaTag(tag: string): Rastreabilidade[] {
-  const validas = todasRastreabilidades().filter((r) => aplicaAoEquipamento(r, tag));
+  // Versões soft-substituídas ficam de fora do prefill — só valem para relatórios salvos.
+  const validas = todasRastreabilidades().filter((r) => !r.substituidoEm && aplicaAoEquipamento(r, tag));
   return [...validas.filter((r) => r.tags?.length), ...validas.filter((r) => !r.tags?.length)];
 }
 

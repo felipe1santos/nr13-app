@@ -1,5 +1,5 @@
 import html2canvas from 'html2canvas';
-import { rastreabilidadesParaRelatorio } from './rastreabilidadeService';
+import { rastreabilidadesDoRelatorioAberto } from './rastreabilidadeService';
 import { bloqueioTrialDocs } from '../../services/trial';
 
 // Impressão própria: o navegador quebra o conteúdo de <iframe> ao imprimir (sai em tiras / só 1
@@ -278,7 +278,7 @@ export async function aguardarRecursosIframe(doc: Document | null | undefined): 
 async function paginasRastreabilidadeComoImagens(
   documentos: string[] = [],
 ): Promise<{ imagens: string[]; falhas: string[] }> {
-  const relevantes = rastreabilidadesParaRelatorio(documentos);
+  const relevantes = rastreabilidadesDoRelatorioAberto(documentos);
   const imagens: string[] = [];
   const falhas: string[] = [];
   // Tipo exigido mas sem conteúdo (PDF perdido na cota do localStorage): avisa em vez de sumir.

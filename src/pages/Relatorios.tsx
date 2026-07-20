@@ -28,7 +28,8 @@ import { expandirFolhasUltrassom } from '../features/relatorios/ultrassomPaginac
 import { listarFuncionarios } from '../features/cadastros/cadastroService';
 import type { Funcionario } from '../features/cadastros/tipos';
 import { validadesPorRelatorio, vincularLotesPendentes } from '../features/calibracoes/componentesService';
-import { listarRastreabilidades } from '../features/relatorios/rastreabilidadeService';
+import { listarRastreabilidadesAtivas, rastreabilidadesParaRelatorio } from '../features/relatorios/rastreabilidadeService';
+import { snapshotCalibracoesDosDocs } from '../features/calibracoes/calibracaoService';
 import { registrarUso } from '../services/usoMetricas';
 import { mascararData } from '../services/mascaras';
 import { exportarPdf } from '../features/relatorios/pdfService';
@@ -151,7 +152,7 @@ export default function Relatorios() {
     // por tipo de ensaio fazia o aviso aparecer mesmo com o cadastro feito (ex.: relatório com
     // TH e instrumento cadastrado como ultrassom). Os templates seguem escolhendo o registro
     // compatível por conta própria.
-    return listarRastreabilidades().length === 0;
+    return listarRastreabilidadesAtivas().length === 0;
   }, [tela, documentos, versao]);
 
   const historicoVisivel = historico.filter((r) => filtroTipos.has(r.tipo));
@@ -336,6 +337,10 @@ export default function Relatorios() {
     // Congela empresa + assinantes na meta (relatório salvo não muda com trocas futuras).
     novaMeta.empresa = snapshotEmpresa();
     novaMeta.assinantes = snapshotAssinantes(a, funcs);
+    // Congela também as calibrações injetadas (dados das folhas ?calibId=) e as versões dos
+    // certificados padrão — editar calibração/certificado depois não altera este relatório.
+    novaMeta.certCalibracoes = snapshotCalibracoesDosDocs(comTermo);
+    novaMeta.rastreabIds = rastreabilidadesParaRelatorio(comTermo).map((r) => r.id);
     // Sempre regrava (limpa quando não há container): sem isto, um relatório sem container exibe
     // os dados de campo do ÚLTIMO relatório gerado (chaves nr13_inspecao_atual/nr13_injecao_atual).
     await gravarInspecaoOrigemAtual(dadosContainer);
@@ -361,16 +366,18 @@ export default function Relatorios() {
       const funcs = listarFuncionarios();
       setFuncionarios(funcs);
       const a = carregarAssinantesRel(r.tagVaso, funcs);
-      // Relatório salvo ANTES dos snapshots (meta sem assinantes/empresa): congela AGORA, na
-      // 1ª reabertura, e regrava no histórico — para o drift (trocar rubrica/logo depois não
-      // altera mais este relatório). Não toca em relatórios que já têm snapshot.
-      if (!r.meta.assinantes || !r.meta.empresa) {
+      // Relatório salvo ANTES dos snapshots (meta sem assinantes/empresa/calibrações): congela
+      // AGORA, na 1ª reabertura, e regrava no histórico — para o drift (trocar rubrica/logo/
+      // certificado depois não altera mais este relatório). Não toca em quem já tem snapshot.
+      if (!r.meta.assinantes || !r.meta.empresa || !r.meta.certCalibracoes || !r.meta.rastreabIds) {
         r = {
           ...r,
           meta: {
             ...r.meta,
             assinantes: r.meta.assinantes ?? snapshotAssinantes(a, funcs),
             empresa: r.meta.empresa ?? snapshotEmpresa(),
+            certCalibracoes: r.meta.certCalibracoes ?? snapshotCalibracoesDosDocs(r.documentos),
+            rastreabIds: r.meta.rastreabIds ?? rastreabilidadesParaRelatorio(r.documentos).map((x) => x.id),
           },
         };
         await salvarNoHistorico(r);
@@ -414,10 +421,12 @@ export default function Relatorios() {
       const funcs = listarFuncionarios();
       setFuncionarios(funcs);
       const a = carregarAssinantesRel(r.tagVaso, funcs);
-      // Duplicado é um relatório NOVO — refaz os snapshots com a empresa/assinantes ATUAIS
-      // (não herda os congelados do relatório de origem).
+      // Duplicado é um relatório NOVO — refaz os snapshots com a empresa/assinantes/
+      // calibrações ATUAIS (não herda os congelados do relatório de origem).
       novaMeta.empresa = snapshotEmpresa();
       novaMeta.assinantes = snapshotAssinantes(a, funcs);
+      novaMeta.certCalibracoes = snapshotCalibracoesDosDocs(docsFiltrados);
+      novaMeta.rastreabIds = rastreabilidadesParaRelatorio(docsFiltrados).map((x) => x.id);
     }
     await gravarInspecaoOrigemAtual(dadosContainer);
     await gravarMetaAtual(novaMeta);

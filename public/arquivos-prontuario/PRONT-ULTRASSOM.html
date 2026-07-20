@@ -481,6 +481,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // instrumento (registro antigo sem tipoInstrumento também passa — não some dado
   // legado). Padrões de manômetro/válvula pertencem aos certificados de calibração.
   itensRastreab = itensRastreab.filter(function (it) {
+    if (it.substituidoEm) return false; // versão soft-substituída: só em relatórios salvos
     if (it.tipoInstrumento && it.tipoInstrumento !== 'ultrassom') return false;
     return !(it.tags && it.tags.length) || (tag && it.tags.indexOf(tag) !== -1);
   });

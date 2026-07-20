@@ -68,6 +68,14 @@ export interface RelatorioMeta {
   // `assinantes` = snapshots do engenheiro/técnico (lidos por public/rel-assinatura.js).
   empresa?: Record<string, unknown>;
   assinantes?: { engenheiro: AssinanteSnapshot | null; tecnico: AssinanteSnapshot | null };
+  // Snapshot dos certificados de calibração injetados (folhas ?calibId=): dados congelados na
+  // geração — editar/excluir a calibração depois NÃO altera o relatório salvo. Chave = calibId.
+  // Lido pelos templates CERTIFICADO-CAL-*.html (preferido sobre nr13_calibracao_item_<id>).
+  certCalibracoes?: Record<string, unknown>;
+  // Ids das rastreabilidades (certificados dos padrões) resolvidos na geração. A edição na aba
+  // Certificados Calibração é soft-replace (versão antiga fica retida com `substituidoEm`), então
+  // o PDF congelado aqui por id continua disponível para reimpressão/re-download.
+  rastreabIds?: string[];
 }
 
 export interface RelatorioSalvo {

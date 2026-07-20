@@ -27,6 +27,22 @@ export function arquivoCalibracao(tipo: 'manometro' | 'psv'): string {
   return tipo === 'manometro' ? 'CERTIFICADO-CAL-MANOMETRO.html' : 'CERTIIFCADO-CAL-PSV.html';
 }
 
+/**
+ * Snapshot dos certificados de calibração referenciados pelas folhas `?calibId=` de um
+ * relatório — congelado em RelatorioMeta.certCalibracoes na geração: editar/excluir a
+ * calibração depois não altera o relatório salvo (imutabilidade §7-bis).
+ */
+export function snapshotCalibracoesDosDocs(documentos: string[]): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const doc of documentos) {
+    const m = /[?&]calibId=([^&]+)/.exec(doc);
+    if (!m) continue;
+    const item = ler<unknown>(chaveItem(m[1]));
+    if (item) out[m[1]] = item;
+  }
+  return out;
+}
+
 export function calcularErro(vc: string, vi: string): string {
   const v = parseFloat(vc.replace(',', '.'));
   const i = parseFloat(vi.replace(',', '.'));
