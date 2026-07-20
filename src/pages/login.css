@@ -1,39 +1,96 @@
+/* Fundo: refinaria iluminada à noite (public/login-fundo.jpg — Pexels #10386893,
+   foto de Tom Fisk, licença Pexels/uso comercial livre). Card à direita no desktop,
+   marca institucional à esquerda; mobile = card centralizado sobre a foto. */
 .login-page {
   display: flex;
-  justify-content: center;
+  justify-content: flex-end;
   align-items: center;
-  height: 100vh;
+  min-height: 100vh;
   position: relative;
   overflow: hidden;
-  background: var(--bg-body, #faf9f5);
+  padding: 24px min(9vw, 130px) 24px 24px;
+  box-sizing: border-box;
+  background-color: #10151c;
+  /* véu escuro (esquerda mais densa) + brilho âmbar sutil + foto */
   background-image:
-    radial-gradient(900px 600px at 50% -10%, rgba(245, 74, 0, 0.14), transparent 55%),
-    radial-gradient(700px 500px at 95% 100%, rgba(245, 74, 0, 0.07), transparent 55%);
+    linear-gradient(100deg, rgba(10, 14, 20, 0.82) 0%, rgba(10, 14, 20, 0.55) 45%, rgba(10, 14, 20, 0.35) 100%),
+    radial-gradient(900px 600px at 85% 50%, rgba(255, 122, 26, 0.10), transparent 60%),
+    url('/login-fundo.jpg');
+  background-size: cover, cover, cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
-/* malha sutil (grade clara, estética Firecrawl) */
+/* marca institucional à esquerda (some no mobile) */
 .login-page::before {
-  content: '';
+  content: 'NR13 SISTEMA';
   position: absolute;
-  inset: 0;
-  background-image: radial-gradient(rgba(26, 22, 12, 0.06) 1px, transparent 1px);
-  background-size: 26px 26px;
+  left: min(7vw, 96px);
+  bottom: min(9vh, 84px);
+  transform: translateY(-64px);
+  z-index: 1;
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.6);
+  border-left: 4px solid var(--accent, #ff7a1a);
+  padding-left: 18px;
+  pointer-events: none;
+}
+
+.login-page::after {
+  content: 'Inspeções, memoriais de cálculo e documentação NR-13 — do campo ao relatório assinado.';
+  position: absolute;
+  left: min(7vw, 96px);
+  bottom: min(9vh, 84px);
+  max-width: 440px;
+  z-index: 1;
+  font-family: var(--font-display);
+  font-size: 15.5px;
+  line-height: 1.6;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: rgba(255, 255, 255, 0.88);
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.6);
+  padding-left: 22px;
   pointer-events: none;
 }
 
 .login-box {
   position: relative;
   z-index: 1;
-  background: rgba(255, 255, 255, 0.96);
-  backdrop-filter: blur(8px);
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(10px);
   padding: 44px 40px;
   border-radius: var(--radius-xl);
-  border: 1px solid var(--border-solid, #e8e6df);
-  box-shadow: 0 20px 60px rgba(26, 22, 12, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45), 0 2px 10px rgba(0, 0, 0, 0.25);
   width: 100%;
-  max-width: 380px;
+  max-width: 390px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
   text-align: center;
   animation: nr-fade-up 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (max-width: 900px) {
+  .login-page {
+    justify-content: center;
+    padding: 20px 14px;
+    background-image:
+      linear-gradient(rgba(10, 14, 20, 0.62), rgba(10, 14, 20, 0.62)),
+      url('/login-fundo.jpg');
+    background-size: cover, cover;
+  }
+  .login-page::before,
+  .login-page::after {
+    display: none;
+  }
+  .login-box {
+    padding: 34px 24px;
+  }
 }
 
 .login-logo {
@@ -145,4 +202,17 @@
   font-size: 13px;
   margin-top: 15px;
   font-weight: 600;
+}
+
+/* links de troca de modo: um por linha, centralizados */
+.btn-trocar-modo {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 2px 0;
+}
+.btn-trocar-modo:hover {
+  text-decoration: underline;
 }
