@@ -275,7 +275,7 @@ export async function aguardarRecursosIframe(doc: Document | null | undefined): 
 // Necessário porque o fluxo de impressão imprime o #print-root de IMAGENS via window.print: o
 // merge de PDF do exportarPdf (pdf-lib) não alcança esse caminho, então sem isso o botão
 // "Imprimir" saía sem os certificados anexados.
-async function paginasRastreabilidadeComoImagens(
+export async function paginasRastreabilidadeComoImagens(
   documentos: string[] = [],
 ): Promise<{ imagens: string[]; falhas: string[] }> {
   const relevantes = rastreabilidadesDoRelatorioAberto(documentos);

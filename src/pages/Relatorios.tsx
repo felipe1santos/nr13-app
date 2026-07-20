@@ -30,6 +30,7 @@ import type { Funcionario } from '../features/cadastros/tipos';
 import { validadesPorRelatorio, vincularLotesPendentes } from '../features/calibracoes/componentesService';
 import { listarRastreabilidadesAtivas, rastreabilidadesParaRelatorio } from '../features/relatorios/rastreabilidadeService';
 import { snapshotCalibracoesDosDocs } from '../features/calibracoes/calibracaoService';
+import AnexosRastreabPreview from '../features/relatorios/AnexosRastreabPreview';
 import { registrarUso } from '../services/usoMetricas';
 import { mascararData } from '../services/mascaras';
 import { exportarPdf } from '../features/relatorios/pdfService';
@@ -792,6 +793,8 @@ export default function Relatorios() {
                 </PaginaA4>
               );
             })}
+            {/* PDFs dos certificados padrão no fim — o preview mostra o pacote completo. */}
+            <AnexosRastreabPreview key={`anexos-${versao}`} documentos={documentos} />
           </div>
 
           {/* Modal de configurações: todas as datas/campos + Atualizar + Baixar PDF */}

@@ -5,6 +5,7 @@ import { ler } from '../../services/storage';
 import { listarHistorico, filtrarFolhasFotoVazias, gravarMetaAtual, gravarInspecaoOrigemAtual } from '../../features/relatorios/relatoriosService';
 import { exportarPdf } from '../../features/relatorios/pdfService';
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../../features/relatorios/printService';
+import AnexosRastreabPreview from '../../features/relatorios/AnexosRastreabPreview';
 import { listarContainers, carregarContainer } from '../../features/inspecoes/inspecaoService';
 import { listarComponentes } from '../../features/calibracoes/componentesService';
 import { listarCalibracoes } from '../../features/calibracoes/calibracaoService';
@@ -244,6 +245,8 @@ export default function PortalAtivo() {
               <iframe src={src} scrolling="no" title={tituloAtivo} />
             </PaginaA4>
           ))}
+          {/* PDFs dos certificados padrão no fim — só RELATÓRIO (paridade com impressão/PDF). */}
+          {relatorioAberto && <AnexosRastreabPreview documentos={docsVisiveis} />}
         </div>
       </div>
     );

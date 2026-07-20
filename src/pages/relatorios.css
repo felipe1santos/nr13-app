@@ -561,6 +561,25 @@
   zoom: 0.8;
 }
 
+/* Páginas dos PDFs dos certificados padrão no FIM do preview. Classe própria de propósito:
+   os funis de impressão/exportação anexam o PDF original — se usassem .pagina-relatorio-a4,
+   estas páginas seriam rasterizadas de novo e sairiam duplicadas no papel/no arquivo. */
+.pagina-anexo-rastreab {
+  width: 210mm;
+  max-width: 100%;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+.pagina-anexo-rastreab img {
+  width: 100%;
+  display: block;
+}
+.relatorio-preview .pagina-anexo-rastreab {
+  zoom: 0.8;
+}
+
 /* ── Livro de Registro: recorte VISUAL da folha no modal de preview ──────────────────────────
    O Registro de Segurança é curto e sobrava mais de meia folha em branco no modal. Aqui só a
    CAIXA da folha encolhe (a .pagina-relatorio-a4 já tem overflow:hidden); o <iframe> dentro
