@@ -173,10 +173,16 @@ export default function Admin() {
   // Menu "Ações": posição fixa (viewport) para não ser cortado pelo overflow da tabela.
   const [menuAcoes, setMenuAcoes] = useState<{ id: string; x: number; y: number } | null>(null);
   const [superAberto, setSuperAberto] = useState(false);
-  const [aba, setAba] = useState<'clientes' | 'acessos'>('clientes');
+  const [aba, setAba] = useState<'clientes' | 'acessos' | 'leads'>('clientes');
   // Flag global do cadastro automático de trial (config_global; null = migração não rodou)
   const [cadastroAuto, setCadastroAuto] = useState<boolean | null>(null);
   const [salvandoFlag, setSalvandoFlag] = useState(false);
+  // Leads do trial: seleção + compositor de e-mail
+  const [selLeads, setSelLeads] = useState<Set<string>>(new Set());
+  const [emailAberto, setEmailAberto] = useState(false);
+  const [emAssunto, setEmAssunto] = useState('');
+  const [emCorpo, setEmCorpo] = useState('');
+  const [enviandoEmail, setEnviandoEmail] = useState(false);
   const superRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
@@ -290,6 +296,109 @@ export default function Admin() {
     };
     return [...lista].sort((a, b) => score(b) - score(a) || ultimoLogin(b) - ultimoLogin(a));
   }, [profiles, busca, aba, metricas, uso, metas]);
+
+  // Leads = contas criadas pelo cadastro automático (trial), mais recentes primeiro.
+  const leads = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    let l = profiles.filter((p) => p.origem_cadastro === 'trial' && p.role !== 'admin');
+    if (q) {
+      l = l.filter((p) =>
+        [p.email, p.nome, p.empresa_nome, p.telefone].some((v) => (v ?? '').toLowerCase().includes(q)),
+      );
+    }
+    return [...l].sort(
+      (a, b) => new Date(b.criado_em ?? 0).getTime() - new Date(a.criado_em ?? 0).getTime(),
+    );
+  }, [profiles, busca]);
+
+  const emailsSelecionados = useMemo(
+    () => leads.filter((p) => selLeads.has(p.id) && p.email).map((p) => p.email as string),
+    [leads, selLeads],
+  );
+
+  function alternarLead(id: string) {
+    setSelLeads((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  }
+
+  function alternarTodosLeads() {
+    setSelLeads((s) => (s.size === leads.length ? new Set() : new Set(leads.map((p) => p.id))));
+  }
+
+  // CSV com BOM (abre certo no Excel BR, separador ;)
+  function baixarCsvLeads() {
+    const cab = ['nome', 'email', 'telefone', 'empresa', 'status', 'cadastro', 'fim_do_teste'];
+    const linhas = leads.map((p) => [
+      p.nome ?? '', p.email ?? '', p.telefone ?? '', p.empresa_nome ?? '',
+      statusUsuario(p).label, fmtSomenteData(p.criado_em), fmtSomenteData(p.trial_fim ?? null),
+    ]);
+    const csv =
+      String.fromCharCode(0xFEFF) +
+      [cab, ...linhas].map((l) => l.map((c) => `"${String(c).replaceAll('"', '""')}"`).join(';')).join('\r\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'leads-nr13.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function copiarLeads(campo: 'email' | 'telefone') {
+    const valores = leads.map((p) => (campo === 'email' ? p.email : p.telefone)).filter(Boolean) as string[];
+    try {
+      await navigator.clipboard.writeText(valores.join('; '));
+      setAviso(`${valores.length} ${campo === 'email' ? 'e-mails copiados' : 'telefones copiados'} para a área de transferência.`);
+    } catch {
+      setErro('Não foi possível copiar. Use o Exportar CSV.');
+    }
+  }
+
+  function abrirCompositor() {
+    setEmAssunto('Como foi seu teste do NR13 Sistema, {nome}?');
+    setEmCorpo(
+      'Olá {nome},\n\n' +
+        'Vimos que você testou o NR13 Sistema na {empresa}. O que achou?\n\n' +
+        'Se ficou alguma dúvida sobre memorial de cálculo, inspeções em campo, prontuários ou relatórios, é só responder este e-mail — a gente te ajuda.\n\n' +
+        'Para contratar e liberar o acesso completo (incluindo download e impressão dos documentos), responda este e-mail ou fale com a nossa equipe.\n\n' +
+        'Abraço,\nEquipe NR13 Sistema',
+    );
+    setEmailAberto(true);
+  }
+
+  async function enviarEmailLeads() {
+    const destinatarios =
+      emailsSelecionados.length > 0
+        ? emailsSelecionados
+        : (leads.map((p) => p.email).filter(Boolean) as string[]);
+    if (destinatarios.length === 0) {
+      setErro('Nenhum lead com e-mail para enviar.');
+      return;
+    }
+    if (!window.confirm(`Enviar este e-mail para ${destinatarios.length} lead(s)?`)) return;
+    setEnviandoEmail(true);
+    setErro(null);
+    setAviso(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('admin', {
+        body: { action: 'enviar_email_leads', assunto: emAssunto, corpo: emCorpo, destinatarios },
+      });
+      if (error) throw error;
+      if (data?.erro) throw new Error(data.erro);
+      setEmailAberto(false);
+      setAviso(
+        `E-mail enviado para ${data.enviados} lead(s).` +
+          (data.falhas?.length ? ` Falhou para: ${data.falhas.join(', ')}.` : ''),
+      );
+    } catch (e: unknown) {
+      setErro(e instanceof Error ? e.message : 'Falha ao enviar os e-mails.');
+    } finally {
+      setEnviandoEmail(false);
+    }
+  }
 
   const resumo = useMemo(() => {
     // Cards focam os clientes PAGANTES (sub-logins ficam na aba própria).
@@ -682,16 +791,99 @@ export default function Admin() {
         >
           Acessos dos clientes (sub-logins)
         </button>
+        <button
+          type="button"
+          className={`admin-aba${aba === 'leads' ? ' ativa' : ''}`}
+          onClick={() => setAba('leads')}
+        >
+          Leads (teste 48h){leads.length > 0 ? ` · ${leads.length}` : ''}
+        </button>
       </div>
 
       <input
         className="admin-busca"
         type="search"
-        placeholder="Buscar por e-mail…"
+        placeholder={aba === 'leads' ? 'Buscar por nome, e-mail, empresa ou telefone…' : 'Buscar por e-mail…'}
         value={busca}
         onChange={(e) => setBusca(e.target.value)}
       />
 
+      {aba === 'leads' ? (
+        <>
+          <div className="admin-leads-bar">
+            <span className="admin-leads-info">
+              {selLeads.size > 0
+                ? `${selLeads.size} selecionado(s) — o disparo vai só para eles`
+                : 'Nenhum selecionado — ações valem para TODOS os leads listados'}
+            </span>
+            <div className="admin-leads-acoes">
+              <button type="button" onClick={baixarCsvLeads} disabled={leads.length === 0}>
+                ⬇ Exportar CSV
+              </button>
+              <button type="button" onClick={() => void copiarLeads('email')} disabled={leads.length === 0}>
+                Copiar e-mails
+              </button>
+              <button type="button" onClick={() => void copiarLeads('telefone')} disabled={leads.length === 0}>
+                Copiar telefones
+              </button>
+              <button type="button" className="principal" onClick={abrirCompositor} disabled={leads.length === 0}>
+                ✉ Enviar e-mail {selLeads.size > 0 ? `(${selLeads.size})` : '(todos)'}
+              </button>
+            </div>
+          </div>
+          <div className="admin-tabela-wrap">
+            <table className="admin-tabela">
+              <thead>
+                <tr>
+                  <th style={{ width: 34 }}>
+                    <input
+                      type="checkbox"
+                      checked={leads.length > 0 && selLeads.size === leads.length}
+                      onChange={alternarTodosLeads}
+                      title="Selecionar todos"
+                    />
+                  </th>
+                  <th>Nome</th>
+                  <th>E-mail</th>
+                  <th>Telefone</th>
+                  <th>Empresa</th>
+                  <th>Status</th>
+                  <th>Cadastro</th>
+                  <th>Fim do teste</th>
+                </tr>
+              </thead>
+              <tbody>
+                {leads.map((p) => {
+                  const st = statusUsuario(p);
+                  return (
+                    <tr key={p.id} className={selLeads.has(p.id) ? 'lead-sel' : ''}>
+                      <td data-label="Selecionar">
+                        <input type="checkbox" checked={selLeads.has(p.id)} onChange={() => alternarLead(p.id)} />
+                      </td>
+                      <td data-label="Nome" className="admin-email">{p.nome || '—'}</td>
+                      <td data-label="E-mail">{p.email}</td>
+                      <td data-label="Telefone">{p.telefone || '—'}</td>
+                      <td data-label="Empresa">{p.empresa_nome || '—'}</td>
+                      <td data-label="Status">
+                        <span className={`admin-badge ${st.cls}`}>{st.label}</span>
+                      </td>
+                      <td data-label="Cadastro">{fmtSomenteData(p.criado_em)}</td>
+                      <td data-label="Fim do teste">{fmtSomenteData(p.trial_fim ?? null)}</td>
+                    </tr>
+                  );
+                })}
+                {leads.length === 0 && !carregando && (
+                  <tr>
+                    <td colSpan={8} className="admin-vazio">
+                      Nenhum lead ainda — eles aparecem aqui quando alguém se cadastra pelo teste de 48h.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      ) : (
       <div className="admin-tabela-wrap">
         <table className="admin-tabela">
           <thead>
@@ -845,13 +1037,56 @@ export default function Admin() {
           </tbody>
         </table>
         </div>
-        {uso.size === 0 && !carregando && (
+      )}
+        {aba !== 'leads' && uso.size === 0 && !carregando && (
           <p className="admin-nota">
             Métricas de uso (equipamentos, inspeções, relatórios…) exibem "—" até rodar
             <code> supabase/admin_stats.sql</code> no SQL Editor do Supabase.
           </p>
         )}
       </div>
+
+      {/* Compositor de e-mail para os leads ({nome} e {empresa} são substituídos por destinatário) */}
+      {emailAberto && (
+        <div className="admin-email-overlay" role="dialog" aria-modal="true">
+          <div className="admin-email-modal">
+            <h3>Enviar e-mail para os leads</h3>
+            <p className="admin-email-sub">
+              Destinatários: <strong>
+                {emailsSelecionados.length > 0 ? `${emailsSelecionados.length} selecionado(s)` : `todos os ${leads.length} leads`}
+              </strong>
+              {' '}· Use <code>{'{nome}'}</code> e <code>{'{empresa}'}</code> para personalizar.
+            </p>
+            <label className="admin-email-label">Assunto</label>
+            <input
+              type="text"
+              value={emAssunto}
+              onChange={(e) => setEmAssunto(e.target.value)}
+              className="admin-email-assunto"
+            />
+            <label className="admin-email-label">Mensagem</label>
+            <textarea
+              value={emCorpo}
+              onChange={(e) => setEmCorpo(e.target.value)}
+              className="admin-email-corpo"
+              rows={11}
+            />
+            <div className="admin-email-acoes">
+              <button type="button" className="cancelar" onClick={() => setEmailAberto(false)} disabled={enviandoEmail}>
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="enviar"
+                onClick={() => void enviarEmailLeads()}
+                disabled={enviandoEmail || !emAssunto.trim() || !emCorpo.trim()}
+              >
+                {enviandoEmail ? 'Enviando…' : 'Enviar agora'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

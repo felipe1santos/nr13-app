@@ -158,6 +158,65 @@ Deno.serve(async (req) => {
       return json({ ok: true });
     }
 
+    if (action === 'enviar_email_leads') {
+      // Disparo de e-mail para leads do trial, escrito pelo admin no painel.
+      // Personalização: {nome} e {empresa} são substituídos por destinatário.
+      const assunto = String(body.assunto ?? '').trim();
+      const corpo = String(body.corpo ?? '').trim();
+      const destinatarios = (Array.isArray(body.destinatarios) ? body.destinatarios : [])
+        .map((e) => String(e).trim().toLowerCase())
+        .filter(Boolean);
+      if (!assunto || !corpo || destinatarios.length === 0) {
+        return json({ erro: 'assunto, corpo e destinatarios são obrigatórios' }, 400);
+      }
+      if (destinatarios.length > 90) {
+        return json({ erro: 'Máximo de 90 destinatários por disparo (limite diário do plano da Resend).' }, 400);
+      }
+      const RESEND_KEY = Deno.env.get('RESEND_API_KEY') ?? '';
+      if (!RESEND_KEY) return json({ erro: 'RESEND_API_KEY não configurada nas Edge Functions.' }, 400);
+
+      const { data: perfis } = await admin
+        .from('profiles')
+        .select('email, nome, empresa_nome')
+        .in('email', destinatarios);
+      const porEmail = new Map(
+        (perfis ?? []).map((p) => [String(p.email).toLowerCase(), p as { nome?: string; empresa_nome?: string }]),
+      );
+
+      let enviados = 0;
+      const falhas: string[] = [];
+      for (const dest of destinatarios) {
+        const p = porEmail.get(dest);
+        const troca = (t: string) =>
+          t.replaceAll('{nome}', p?.nome ?? '').replaceAll('{empresa}', p?.empresa_nome ?? '');
+        const html =
+          '<div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 24px; ' +
+          'font-size: 14px; line-height: 1.65; color: #2b3a41;">' +
+          troca(corpo)
+            .split('\n')
+            .map((l) => `<p style="margin: 0 0 10px;">${l || '&nbsp;'}</p>`)
+            .join('') +
+          '<p style="color:#6b7280;font-size:12px;margin-top:24px;">NR13 Sistema</p></div>';
+        try {
+          const r = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${RESEND_KEY}` },
+            body: JSON.stringify({
+              from: 'NR13 Sistema <acesso@auth.nr13sistema.com.br>',
+              to: [dest],
+              subject: troca(assunto),
+              html,
+            }),
+          });
+          if (r.ok) enviados++;
+          else falhas.push(dest);
+        } catch {
+          falhas.push(dest);
+        }
+      }
+      return json({ ok: true, enviados, falhas });
+    }
+
     return json({ erro: 'Ação desconhecida' }, 400);
   } catch (e) {
     return json({ erro: String(e) }, 500);
