@@ -174,8 +174,18 @@ export default function ModalNovaInspecao({ onClose, onGerar, tag = '' }: Props)
                     Calibrações
                   </div>
                   {itensCalibracao.map((i) => (
-                    <label key={i.id} className="item-documento-check" title="Injeta todos os certificados de calibração do lote e anexa os PDFs dos padrões (por tipo) ao final do relatório">
-                      <input type="checkbox" checked={calibSelecionados.has(i.id)} onChange={() => toggleCalib(i.id)} />
+                    <label
+                      key={i.id}
+                      className="item-documento-check"
+                      title="Injeta todos os certificados de calibração do lote e anexa os PDFs dos padrões (por tipo) ao final do relatório"
+                      style={{ color: '#1d4ed8', fontWeight: 600 }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={calibSelecionados.has(i.id)}
+                        onChange={() => toggleCalib(i.id)}
+                        style={{ accentColor: '#1d4ed8' }}
+                      />
                       {i.rotulo.toUpperCase()}
                     </label>
                   ))}

@@ -22,6 +22,7 @@ import {
   listarComponentes,
   listarLotes,
   salvarComponente,
+  salvarLote,
   type ComponenteCal,
   type LoteCal,
 } from '../features/calibracoes/componentesService';
@@ -618,7 +619,13 @@ export default function Calibracoes() {
                 disabled={componentes.length === 0}
                 title={componentes.length === 0 ? 'Cadastre os componentes primeiro' : undefined}
                 onClick={async () => {
-                  const lote = await criarLote(tag);
+                  // Nome definido pelo usuário facilita achar o lote no modal do relatório.
+                  const nome = window.prompt(
+                    'Nome do lote de calibração:',
+                    `Lote de calibração — ${new Date().toLocaleDateString('pt-BR')}`,
+                  );
+                  if (nome === null) return;
+                  const lote = await criarLote(tag, nome);
                   setLotes(listarLotes(tag));
                   setLoteAberto(lote.id);
                 }}
@@ -649,6 +656,20 @@ export default function Calibracoes() {
                         ) : (
                           <span className="badge-cal-status pendente">Em andamento</span>
                         )}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-icone cor-azul"
+                        title="Renomear lote"
+                        style={{ marginRight: 10, flexShrink: 0 }}
+                        onClick={async () => {
+                          const nome = window.prompt('Nome do lote:', lote.descricao);
+                          if (nome === null || !nome.trim()) return;
+                          await salvarLote(tag, { ...lote, descricao: nome.trim() });
+                          setLotes(listarLotes(tag));
+                        }}
+                      >
+                        <Icone nome="pencil" tam={14} />
                       </button>
                     </div>
                     {aberto && (
