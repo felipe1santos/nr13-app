@@ -17,8 +17,42 @@ import { injetarDadosDemo } from '../services/demoSeed';
 import './login.css';
 
 const REENVIO_SEGUNDOS = 60; // rate limit do Supabase: 1 e-mail de recuperação por minuto
+const VERSAO_SISTEMA = 'V. 1.0.0 (Build 2026)';
 
 type ModoLogin = 'entrar' | 'cadastrar' | 'recuperar' | 'trocar' | 'trial';
+
+// Rodapé institucional da tela de login (IP identificado + versão). O IP/localidade
+// vem de um serviço público best-effort — falhou/offline, a linha simplesmente não sai.
+function RodapeLogin() {
+  const [ipTexto, setIpTexto] = useState<string | null>(null);
+
+  useEffect(() => {
+    let vivo = true;
+    fetch('https://ipapi.co/json/')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!vivo || !d?.ip) return;
+        const local = [d.city, d.region].filter(Boolean).join(' / ');
+        setIpTexto(`IP Identificado: ${d.ip}${local ? ` · ${local}` : ''}`);
+      })
+      .catch(() => {
+        // sem rede/adblock: rodapé fica só com o nome do sistema
+      });
+    return () => {
+      vivo = false;
+    };
+  }, []);
+
+  return (
+    <>
+      <div className="login-rodape-esq">
+        <strong>SISTEMA DE GESTÃO E INTEGRIDADE NR-13</strong>
+        {ipTexto && <span>{ipTexto}</span>}
+      </div>
+      <div className="login-rodape-dir">{VERSAO_SISTEMA}</div>
+    </>
+  );
+}
 
 export default function Login() {
   const [modo, setModo] = useState<ModoLogin>('entrar');
@@ -397,6 +431,7 @@ export default function Login() {
             </button>
           )}
         </form>
+        <RodapeLogin />
       </div>
     );
   }
@@ -474,6 +509,7 @@ export default function Login() {
             ← Voltar para o login
           </button>
         </form>
+        <RodapeLogin />
       </div>
     );
   }
@@ -570,6 +606,7 @@ export default function Login() {
             ← Voltar para o login
           </button>
         </form>
+        <RodapeLogin />
       </div>
     );
   }
@@ -662,6 +699,7 @@ export default function Login() {
           {modo === 'entrar' ? 'Não tem conta? Criar conta' : 'Já tem conta? Entrar'}
         </button>
       </form>
+      <RodapeLogin />
     </div>
   );
 }
