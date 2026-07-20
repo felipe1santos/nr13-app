@@ -2,14 +2,17 @@ import { PDFDocument } from 'pdf-lib';
 import { ler, salvar, excluirChave, listarChavesComPrefixo } from '../../services/storage';
 
 /**
- * Rastreabilidade dos padrões de calibração: o usuário anexa o PDF do
- * certificado de rastreabilidade de cada instrumento e pode marcar para
- * injetá-lo automaticamente no FINAL do relatório gerado (facilita a impressão).
+ * Certificados de calibração dos instrumentos PADRÃO: o usuário anexa UM PDF
+ * por tipo de padrão (manômetro padrão, válvula padrão, bloco padrão...). O PDF
+ * é anexado automaticamente ao FINAL do relatório sempre que o relatório contém
+ * uma calibração daquele tipo (ou a folha de ultrassom, para o padrão de ME).
  * Chave: nr13_rastreab_<id> (sincroniza pela nuvem como qualquer outra).
  */
 export type TipoInstrumento =
   | 'ultrassom'
   | 'manometro'
+  | 'valvula'
+  | 'bloco'
   | 'pressostato'
   | 'termostato'
   | 'manovacuometro'
@@ -22,6 +25,8 @@ export interface Rastreabilidade {
   certificadoPadrao: string;  // nº do certificado do padrão
   validade: string;           // data (dd/mm/aaaa ou aaaa-mm-dd)
   pdfBase64: string;          // data URL ou base64 puro do PDF
+  // LEGADO: a injeção era manual por flag; hoje é automática por tipo presente no
+  // relatório. Mantida só para registros antigos e para a preferência do autoPreencher.
   injetarNoRelatorio: boolean;
   criadoEm: string;
   // ── Campos opcionais (cadastro por instrumento — registros antigos não os têm) ──
@@ -35,8 +40,8 @@ export interface Rastreabilidade {
   velocidadeSonica?: string;         // ex.: "5920"
   estadoSuperficie?: string;
   tempSuperficie?: string;           // ex.: "Ambiente"
-  // Equipamentos vinculados (TAGs). Ausente/vazio = padrão GLOBAL, vale para todos
-  // (comportamento dos registros antigos — zero migração).
+  // LEGADO (vínculo por TAG removido — certificado padrão vale para todos os
+  // equipamentos). Mantido só para leitura de registros antigos no autoPreencher.
   tags?: string[];
 }
 
@@ -44,6 +49,57 @@ export interface Rastreabilidade {
 export function aplicaAoEquipamento(r: Rastreabilidade, tag?: string | null): boolean {
   if (!r.tags?.length) return true;
   return !!tag && r.tags.includes(tag);
+}
+
+/** Tipo de padrão usado por um certificado de calibração ('manometro' | 'psv'). */
+export function tipoPadraoDoCertificado(tipoCalibracao: string): TipoInstrumento {
+  return tipoCalibracao === 'psv' ? 'valvula' : 'manometro';
+}
+
+/**
+ * Tipos de padrão exigidos por um relatório, derivados da lista de documentos:
+ * cada folha de certificado de calibração (`?calibId=`) pede o padrão do seu tipo
+ * (manômetro/válvula) e a folha de ultrassom pede o padrão de ME.
+ */
+export function tiposPadraoDoRelatorio(documentos: string[]): TipoInstrumento[] {
+  const tipos = new Set<TipoInstrumento>();
+  for (const doc of documentos) {
+    const m = /[?&]calibId=([^&]+)/.exec(doc);
+    if (m) {
+      const item = ler<{ tipo?: string }>(`nr13_calibracao_item_${m[1]}`);
+      if (item?.tipo) tipos.add(tipoPadraoDoCertificado(item.tipo));
+    } else if (doc.split('?')[0] === 'ULTRASSOM.html') {
+      tipos.add('ultrassom');
+    }
+  }
+  return [...tipos];
+}
+
+const tsCriadoEm = (r: Rastreabilidade): number => {
+  const p = (r.criadoEm ?? '').split('/');
+  return p.length === 3 ? new Date(Number(p[2]), Number(p[1]) - 1, Number(p[0])).getTime() : 0;
+};
+
+/**
+ * Certificados padrão a anexar no relatório: um por tipo presente nos documentos.
+ * Duplicatas do mesmo tipo (registros antigos): vence quem tem PDF; empate, o mais recente.
+ */
+export function rastreabilidadesParaRelatorio(documentos: string[]): Rastreabilidade[] {
+  const tipos = new Set(tiposPadraoDoRelatorio(documentos));
+  if (tipos.size === 0) return [];
+  const porTipo = new Map<TipoInstrumento, Rastreabilidade>();
+  for (const r of listarRastreabilidades()) {
+    if (!r.tipoInstrumento || !tipos.has(r.tipoInstrumento)) continue;
+    const atual = porTipo.get(r.tipoInstrumento);
+    if (
+      !atual ||
+      (!atual.pdfBase64 && !!r.pdfBase64) ||
+      (!!atual.pdfBase64 === !!r.pdfBase64 && tsCriadoEm(r) > tsCriadoEm(atual))
+    ) {
+      porTipo.set(r.tipoInstrumento, r);
+    }
+  }
+  return [...porTipo.values()];
 }
 
 const PREFIXO = 'nr13_rastreab_';
@@ -78,17 +134,15 @@ function base64ParaBytes(b64: string): Uint8Array {
 }
 
 /**
- * Anexa ao final do PDF do relatório as páginas dos PDFs de rastreabilidade
- * marcados com "injetar no relatório". PDF que falhar ao carregar é pulado
- * (o relatório sai sem ele) e o nome volta em `falhas` para avisar o usuário.
+ * Anexa ao final do PDF do relatório os certificados dos padrões dos tipos
+ * presentes nos documentos (automático — sem flag manual). PDF que falhar ao
+ * carregar é pulado (o relatório sai sem ele) e o nome volta em `falhas`.
  */
 export async function anexarRastreabilidades(
   pdfBytes: Uint8Array | ArrayBuffer,
-  tag?: string | null,
+  documentos: string[] = [],
 ): Promise<{ bytes: Uint8Array; anexados: number; falhas: string[] }> {
-  const marcadas = listarRastreabilidades().filter(
-    (r) => r.injetarNoRelatorio && aplicaAoEquipamento(r, tag),
-  );
+  const marcadas = rastreabilidadesParaRelatorio(documentos);
   const base = new Uint8Array(pdfBytes instanceof ArrayBuffer ? new Uint8Array(pdfBytes) : pdfBytes);
   if (marcadas.length === 0) return { bytes: base, anexados: 0, falhas: [] };
 

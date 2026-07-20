@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { arquivoCalibracao, listarCalibracoes } from '../calibracoes/calibracaoService';
+import type { DadosCalibracao } from '../calibracoes/tipos';
+import { listarLotes, salvarLote, type LoteCal } from '../calibracoes/componentesService';
 import { DOCUMENTOS_DISPONIVEIS, type TipoInspecao } from './tipos';
 import '../equipamento/equipamento.css';
 
@@ -41,12 +43,54 @@ interface Props {
   tag?: string;
 }
 
+// Item selecionável da seção "Calibrações": um LOTE inteiro (todas as calibrações da
+// rodada) ou uma calibração avulsa antiga. Marcar o lote injeta todos os certificados
+// dele; os PDFs dos padrões (por tipo) entram automaticamente no final do PDF.
+interface ItemCalibracao {
+  id: string;
+  rotulo: string;
+  certs: DadosCalibracao[];
+  lote?: LoteCal;
+}
+
+const tsDoId = (id: string) => Number(/-(\d+)$/.exec(id)?.[1] ?? 0);
+
+function contagemPorTipo(certs: DadosCalibracao[]): string {
+  const man = certs.filter((c) => c.tipo === 'manometro').length;
+  const psv = certs.filter((c) => c.tipo === 'psv').length;
+  const partes: string[] = [];
+  if (man) partes.push(`${man} manômetro${man > 1 ? 's' : ''}`);
+  if (psv) partes.push(`${psv} válvula${psv > 1 ? 's' : ''}`);
+  return partes.join(', ');
+}
+
 export default function ModalNovaInspecao({ onClose, onGerar, tag = '' }: Props) {
   const [tipo, setTipo] = useState<TipoInspecao>('Inspeção Periódica');
   const [marcados, setMarcados] = useState<string[]>(
     DOCUMENTOS_DISPONIVEIS.filter((d) => !ENSAIOS.has(d)),
   );
-  const calibracoes = tag ? listarCalibracoes(tag) : [];
+  // 3 últimas calibrações (lote conta como 1 item; avulsas antigas idem), mais recentes primeiro.
+  const itensCalibracao = useMemo<ItemCalibracao[]>(() => {
+    if (!tag) return [];
+    const cals = listarCalibracoes(tag);
+    const doLote: ItemCalibracao[] = listarLotes(tag)
+      .map((lote) => ({ lote, certs: cals.filter((c) => c.loteId === lote.id) }))
+      .filter((x) => x.certs.length > 0)
+      .map(({ lote, certs }) => ({
+        id: lote.id,
+        rotulo: `${lote.descricao || `Lote de calibração — ${lote.criadoEm}`} (${contagemPorTipo(certs)})`,
+        certs,
+        lote,
+      }));
+    const avulsas: ItemCalibracao[] = cals
+      .filter((c) => !c.loteId)
+      .map((c) => ({
+        id: c.id,
+        rotulo: `${c.tipo === 'manometro' ? 'Manômetro' : 'PSV'} — ${c.nome} (${c.dataCalibracao || c.criadoEm})`,
+        certs: [c],
+      }));
+    return [...doLote, ...avulsas].sort((a, b) => tsDoId(b.id) - tsDoId(a.id)).slice(0, 3);
+  }, [tag]);
   const [calibSelecionados, setCalibSelecionados] = useState<Set<string>>(new Set());
 
   function toggle(doc: string) {
@@ -62,11 +106,23 @@ export default function ModalNovaInspecao({ onClose, onGerar, tag = '' }: Props)
     });
   }
 
-  function gerar() {
+  async function gerar() {
     const ordenados = DOCUMENTOS_DISPONIVEIS.filter((d) => marcados.includes(d));
-    const calibDocs = calibracoes
-      .filter((c) => calibSelecionados.has(c.id))
-      .map((c) => `${arquivoCalibracao(c.tipo)}?calibId=${c.id}`);
+    const selecionados = itensCalibracao.filter((i) => calibSelecionados.has(i.id));
+    // Lote marcado = TODAS as calibrações dele viram folhas no fim do relatório; os PDFs
+    // dos certificados padrão (por tipo presente) são anexados no export/impressão.
+    const calibDocs = selecionados.flatMap((i) =>
+      i.certs.map((c) => `${arquivoCalibracao(c.tipo)}?calibId=${c.id}`),
+    );
+    // Lote entra na fila de vínculo: salvarHistorico captura via vincularLotesPendentes
+    // (alimenta as colunas de validade de válvula/manômetro no histórico).
+    if (tag) {
+      for (const i of selecionados) {
+        if (i.lote && !i.lote.relatorioId) {
+          await salvarLote(tag, { ...i.lote, vincularProximoRelatorio: true });
+        }
+      }
+    }
     onGerar(tipo, [...ordenados, ...calibDocs]);
   }
 
@@ -112,15 +168,15 @@ export default function ModalNovaInspecao({ onClose, onGerar, tag = '' }: Props)
                   )}
                 </label>
               ))}
-              {calibracoes.length > 0 && (
+              {itensCalibracao.length > 0 && (
                 <>
                   <div style={{ marginTop: 10, marginBottom: 4, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--accent-2)', letterSpacing: '0.04em' }}>
-                    Certificados de Calibração Disponíveis
+                    Calibrações
                   </div>
-                  {calibracoes.map((c) => (
-                    <label key={c.id} className="item-documento-check">
-                      <input type="checkbox" checked={calibSelecionados.has(c.id)} onChange={() => toggleCalib(c.id)} />
-                      {`${c.tipo === 'manometro' ? 'MANÔMETRO' : 'PSV'} — ${c.nome} (${c.dataCalibracao || c.criadoEm})`}
+                  {itensCalibracao.map((i) => (
+                    <label key={i.id} className="item-documento-check" title="Injeta todos os certificados de calibração do lote e anexa os PDFs dos padrões (por tipo) ao final do relatório">
+                      <input type="checkbox" checked={calibSelecionados.has(i.id)} onChange={() => toggleCalib(i.id)} />
+                      {i.rotulo.toUpperCase()}
                     </label>
                   ))}
                 </>
@@ -132,7 +188,7 @@ export default function ModalNovaInspecao({ onClose, onGerar, tag = '' }: Props)
             <button type="button" className="btn-secundario" onClick={onClose}>
               Cancelar
             </button>
-            <button type="button" className="btn-primario" onClick={gerar} disabled={marcados.length === 0}>
+            <button type="button" className="btn-primario" onClick={() => void gerar()} disabled={marcados.length === 0}>
               Gerar Documento
             </button>
           </div>

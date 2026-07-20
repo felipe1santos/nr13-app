@@ -52,7 +52,7 @@ Tudo que o usuário salva pode ser fonte de injeção. Chaves por TAG do equipam
 | `nr13_calibracao_item_<id>` | Certificado de calibração | Calibrações |
 | `nr13_livro_<TAG>` / `nr13_livro_config_<TAG>` | Livro de registro de segurança | Auto + config |
 | `nr13_vida_<TAG>` | Vida remanescente (taxa de corrosão, vida, próxima inspeção) | Card "Vida Remanescente" na ficha |
-| `nr13_rastreab_<id>` | Rastreabilidade do padrão (PDF base64 + flag injetar no relatório; `tipoInstrumento`: ultrassom/manômetro/pressostato/termostato/manovacuômetro/termômetro/outro; `tags[]` vincula o padrão a equipamentos — ausente/vazio = global, vale para todos) | Calibrações → aba Rastreabilidade |
+| `nr13_rastreab_<id>` | Certificado de calibração do instrumento PADRÃO (PDF base64 fixo, **um por `tipoInstrumento`**: ultrassom/manômetro/válvula/bloco/pressostato/termostato/manovacuômetro/termômetro/outro). Injeção **automática por tipo**: `rastreabilidadesParaRelatorio(documentos)` anexa o PDF de cada tipo presente no relatório (folhas `?calibId=` → manômetro/válvula; folha ULTRASSOM → ultrassom) nos 2 funis (pdf-lib no Baixar, pdfjs no Imprimir). `injetarNoRelatorio`/`tags[]` são LEGADO (só critério de preferência do autoPreencher/templates) | Calibrações → aba Certificados Calibração |
 | `nr13_permissoes_<userId>` | Módulos permitidos do sub-login ({ modulos: string[] }) | Acessos (mestre) |
 | `nr13_componentes_cal_<TAG>` | Válvulas/manômetros cadastrados (nome, série, foto) | Calibrações → Componentes |
 | `nr13_lotes_cal_<TAG>` | Lotes/rodadas de calibração (certificados ganham loteId/componenteId) | Calibrações → Lotes |
@@ -64,7 +64,7 @@ Tudo que o usuário salva pode ser fonte de injeção. Chaves por TAG do equipam
 | `nr13_assinantes_rel_<TAG>` | Assinantes do relatório (`{engenheiroId, tecnicoId}`) — fallback LEGADO do `rel-assinatura.js` (fonte primária: snapshot `meta.assinantes`, ver §7-bis); espelhado em `meta.phNome/phCrea/tecnicoNome` | Selects no modal Configurações do Relatório |
 | `nr13_laudo_<TAG>` | Laudo da conclusão (`{apto, relatorioCodigo, atualizadoEm}`) — alimenta o selo APTO/INAPTO do livro de registro | Checkbox SIM/NÃO da CONCLUSAO.html |
 | `nr13_croqui3d_<TAG>` | **LEGADO** (render 3D removido em 11/07/2026): PNG antigo do croqui 3D; nenhum código grava mais — PRONT-ULTRASSOM só lê como fallback de dados antigos | — (só leitura de legado) |
-| `nr13_modelo3d_<TAG>` | Modelo do editor de Croqui 2D (`ModeloVaso`: diâmetro, comprimento, casco, virolas, tampos, bocais, suporte) — nome da chave mantido por compatibilidade | Editor de Croqui 2D (memorial → passo obrigatório; Prontuários → botão "Croqui 2D do Equipamento") |
+| `nr13_modelo3d_<TAG>` | Modelo do editor de Croqui 2D (`ModeloVaso`: diâmetro, comprimento, casco, virolas, tampos, bocais, suporte) — nome da chave mantido por compatibilidade | Editor de Croqui 2D (Prontuários → botão "Croqui 2D do Equipamento") |
 | `nr13_croqui2d_<TAG>` | SVGs 2D gerados no save do editor: `{ longitudinal, transversal, detalheTampo }` | Editor de Croqui 2D (save) → PRONT-CROQUI2D.html + croqui da folha 1 (PRONT-ULTRASSOM.html) |
 | `nr13_folha_dados_<TAG>` | Payload derivado do modelo (`FolhaDadosDerivada`: bocais, pesos, dimensões por componente, comprimento total, circunferência) para a folha de dados | Editor de Croqui 2D (save) → PRONT-FOLHA-DADOS.html |
 
@@ -189,7 +189,7 @@ e a auto-injeção insere as folhas de fotos/termo nas posições indicadas.
 | 19 | TH | `TESTE-HIDROSTATICO.html` | gráfico do TH + dados do equipamento |
 | 20 | Fotos do TH | `TESTE-HIDROSTATICO-FOTOS.html` *(auto após TH)* | descrição breve + fotos do TH |
 | 21 | Registro Seg. | `LIVRO-REGISTRO.html` *(TERMO-ABERTURA auto antes, se 1ª inspeção)* | livro de registro |
-| 22 | Certificados de Calibração | `CERTIFICADO-CAL-MANOMETRO.html` / `CERTIIFCADO-CAL-PSV.html` | injetado ao fim (seleção em Modal) |
+| 22 | Calibrações | `CERTIFICADO-CAL-MANOMETRO.html` / `CERTIIFCADO-CAL-PSV.html` | injetado ao fim — seção "Calibrações" do Modal lista as **3 últimas** calibrações (lote = 1 item); marcar um LOTE injeta **todas** as folhas `?calibId=` dele + põe o lote na fila de vínculo (`vincularProximoRelatorio` → validades do histórico) + os PDFs dos certificados PADRÃO por tipo entram no export/impressão (ver `nr13_rastreab_`) |
 
 ### §7-bis — Motor de assinatura do RELATÓRIO (carimbo flutuante, 14/07/2026)
 
@@ -258,13 +258,13 @@ SVGs substituem o desenho genérico do `PRONT-CROQUI2D.html`) e a folha 3 (`nr13
 — bocais, pesos e dimensões reais do `PRONT-FOLHA-DADOS.html`). Sem o modelo salvo, as folhas
 mantêm o comportamento genérico/vazio de sempre (fallback).
 
-**Croqui 2D é passo OBRIGATÓRIO do memorial:** ao salvar o memorial de vaso/autoclave
-(`MemorialVaso.salvar`, exceto sufixo `gv`), o editor abre automaticamente com os dados do
-memorial **pré-preenchidos** (`carregarOuPreCarregar` re-sincroniza Ø, espessuras, tampos,
-material e bocais do `nr13_vaso_<TAG>`, preservando comprimento/virolas/suporte/posições já
-digitados; comprimento é sugerido pelo volume de `nr13_cat_<TAG>` quando vazio). O botão
-"Ver Memorial Completo" da ficha (`Equipamento.tsx`) também abre o editor antes do documento se
-`nr13_croqui2d_<TAG>` não existir (cobre memoriais antigos).
+**Croqui 2D é OPCIONAL e vive só no Prontuário** (gates removidos em 20/07/2026 a pedido do
+usuário): o memorial salva sem abrir o editor e "Ver Memorial Completo" da ficha abre o documento
+direto. Único ponto de edição: botão "Croqui 2D do Equipamento" em Prontuários. O editor continua
+pré-preenchendo do memorial ao abrir (`carregarOuPreCarregar` re-sincroniza Ø, espessuras, tampos,
+material e bocais do `nr13_vaso_<TAG>`, preservando comprimento/virolas/suporte já digitados;
+comprimento sugerido pelo volume de `nr13_cat_<TAG>` quando vazio). Sem croqui salvo, as folhas
+do prontuário usam os fallbacks ("Croqui não gerado" / desenho genérico).
 
 ---
 

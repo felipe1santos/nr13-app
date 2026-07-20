@@ -26,10 +26,12 @@ const PONTOS_PADRAO: PontoME[] = [
   { id: 'ti', rotulo: 'Tampo Inferior', regiao: 'ti' },
 ];
 
+// O vaso tem SEMPRE tampo + casco + tampo — ponto extra é uma LINHA a mais dentro da
+// região, nunca um tampo novo: por isso o rótulo nos tampos é "Ponto N" (não "Tampo X 2").
 const REGIOES: { chave: RegiaoME; titulo: string; prefixo: string; rotuloBase: string }[] = [
-  { chave: 'ts', titulo: 'Tampo Superior', prefixo: 'ts', rotuloBase: 'Tampo Superior' },
+  { chave: 'ts', titulo: 'Tampo Superior', prefixo: 'ts', rotuloBase: 'Ponto' },
   { chave: 'casco', titulo: 'Costado (Casco)', prefixo: 'c', rotuloBase: 'Casco' },
-  { chave: 'ti', titulo: 'Tampo Inferior', prefixo: 'ti', rotuloBase: 'Tampo Inferior' },
+  { chave: 'ti', titulo: 'Tampo Inferior', prefixo: 'ti', rotuloBase: 'Ponto' },
 ];
 
 const ANGULOS = ['0', '90', '180', '270'] as const;

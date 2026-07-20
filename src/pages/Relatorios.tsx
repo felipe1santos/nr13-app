@@ -168,7 +168,7 @@ export default function Relatorios() {
   async function prepararEImprimir() {
     setImprimindo(true);
     try {
-      await imprimirRelatorio('.relatorio-preview', true, tag);
+      await imprimirRelatorio('.relatorio-preview', true, documentos ?? []);
       registrarUso('impressao');
     } finally {
       setImprimindo(false);
@@ -194,7 +194,7 @@ export default function Relatorios() {
     aguardarIframes
       .then(() => new Promise((r) => setTimeout(r, 500))) // deixa imagens/fontes dos templates assentarem
       .then(() => {
-        if (!cancelado) void prepararFolhasImpressao('.relatorio-preview', true, tag);
+        if (!cancelado) void prepararFolhasImpressao('.relatorio-preview', true, documentos);
       });
     return () => {
       cancelado = true;
@@ -474,7 +474,7 @@ export default function Relatorios() {
     if (!meta) return;
     setExportando(true);
     try {
-      await exportarPdf('.relatorio-preview', `Relatorio_${meta.tipoInspecao.replace(/ /g, '_')}_${tag}.pdf`, { rastreabilidades: true, tag });
+      await exportarPdf('.relatorio-preview', `Relatorio_${meta.tipoInspecao.replace(/ /g, '_')}_${tag}.pdf`, { rastreabilidades: true, documentos: documentos ?? [] });
       registrarUso('pdf');
     } finally {
       setExportando(false);
@@ -748,7 +748,7 @@ export default function Relatorios() {
                 <Icone nome="alerttri" tam={16} />
               </span>
               <span>
-                Cadastre a rastreabilidade do instrumento em <b>Calibrações → Rastreabilidade</b>{' '}
+                Cadastre o certificado do instrumento padrão em <b>Calibrações → Certificados Calibração</b>{' '}
                 para os dados do aparelho aparecerem no relatório.
               </span>
               <button

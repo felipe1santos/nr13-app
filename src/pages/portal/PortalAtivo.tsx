@@ -167,7 +167,7 @@ export default function PortalAtivo() {
     setImprimindo(true);
     try {
       // Certificados de rastreabilidade só acompanham RELATÓRIO (paridade com o exportarPdf).
-      await imprimirRelatorio('.relatorio-preview', !!relatorioAberto, tag);
+      await imprimirRelatorio('.relatorio-preview', !!relatorioAberto, docsVisiveis);
     } finally {
       setImprimindo(false);
     }
@@ -179,7 +179,7 @@ export default function PortalAtivo() {
     setExportando(true);
     try {
       // Certificados de rastreabilidade só acompanham RELATÓRIO (documentos simples saem sem).
-      await exportarPdf('.relatorio-preview', `${titulo.replace(/\s+/g, '_')}_${tag}.pdf`, { rastreabilidades: !!relatorioAberto, tag });
+      await exportarPdf('.relatorio-preview', `${titulo.replace(/\s+/g, '_')}_${tag}.pdf`, { rastreabilidades: !!relatorioAberto, documentos: docsVisiveis });
     } finally {
       setExportando(false);
     }
@@ -212,7 +212,7 @@ export default function PortalAtivo() {
     )
       .then(() => new Promise((r) => setTimeout(r, 500)))
       .then(() => {
-        if (!cancelado) void prepararFolhasImpressao('.relatorio-preview', !!relatorioAberto, tag);
+        if (!cancelado) void prepararFolhasImpressao('.relatorio-preview', !!relatorioAberto, docsVisiveis);
       });
     return () => {
       cancelado = true;

@@ -1,5 +1,5 @@
 import html2canvas from 'html2canvas';
-import { aplicaAoEquipamento, listarRastreabilidades } from './rastreabilidadeService';
+import { rastreabilidadesParaRelatorio } from './rastreabilidadeService';
 import { bloqueioTrialDocs } from '../../services/trial';
 
 // Impressão própria: o navegador quebra o conteúdo de <iframe> ao imprimir (sai em tiras / só 1
@@ -270,20 +270,18 @@ export async function aguardarRecursosIframe(doc: Document | null | undefined): 
   }
 }
 
-// Rasteriza os PDFs de rastreabilidade marcados "injetar no relatório" em imagens de página
-// (pdfjs-dist, import dinâmico — só pesa quando há certificado marcado). Necessário porque o
-// fluxo de impressão imprime o #print-root de IMAGENS via window.print: o merge de PDF do
-// exportarPdf (pdf-lib) não alcança esse caminho, então sem isso o botão "Imprimir" saía sem
-// os certificados anexados.
+// Rasteriza os PDFs dos certificados padrão (tipos presentes nos documentos do relatório) em
+// imagens de página (pdfjs-dist, import dinâmico — só pesa quando há certificado a anexar).
+// Necessário porque o fluxo de impressão imprime o #print-root de IMAGENS via window.print: o
+// merge de PDF do exportarPdf (pdf-lib) não alcança esse caminho, então sem isso o botão
+// "Imprimir" saía sem os certificados anexados.
 async function paginasRastreabilidadeComoImagens(
-  tag?: string | null,
+  documentos: string[] = [],
 ): Promise<{ imagens: string[]; falhas: string[] }> {
-  const relevantes = listarRastreabilidades().filter(
-    (r) => r.injetarNoRelatorio && aplicaAoEquipamento(r, tag),
-  );
+  const relevantes = rastreabilidadesParaRelatorio(documentos);
   const imagens: string[] = [];
   const falhas: string[] = [];
-  // Marcada mas sem conteúdo (PDF perdido na cota do localStorage): avisa em vez de sumir.
+  // Tipo exigido mas sem conteúdo (PDF perdido na cota do localStorage): avisa em vez de sumir.
   const marcadas = relevantes.filter((r) => {
     if (r.pdfBase64) return true;
     falhas.push(r.nome || r.id);
@@ -343,17 +341,18 @@ function aguardarImagens(root: HTMLElement): Promise<void> {
 
 // Rasteriza todas as folhas do preview e popula (ou atualiza) o #print-root oculto. Mantém o
 // container vivo para que o Ctrl+P nativo imprima as imagens prontas. Retorna a qtd de folhas.
-// `incluirRastreabilidades`: só o RELATÓRIO anexa os certificados marcados ao final (§7 #22);
+// `incluirRastreabilidades`: só o RELATÓRIO anexa os certificados padrão ao final (§7 #22);
 // prontuário/calibrações/livro imprimem sem eles (default false preserva esses fluxos).
+// `documentos`: lista de documentos do relatório — define QUAIS tipos de padrão anexar.
 export async function prepararFolhasImpressao(
   containerSelector = '.relatorio-preview',
   incluirRastreabilidades = false,
-  tag?: string | null,
+  documentos: string[] = [],
 ): Promise<number> {
   // Já tem uma preparação rodando: espera ela terminar e usa o resultado (antes o retorno
   // antecipado deixava o Imprimir sair com o print-root incompleto e sem certificados).
   if (preparacaoEmAndamento) return preparacaoEmAndamento;
-  preparacaoEmAndamento = prepararFolhasImpressaoInterno(containerSelector, incluirRastreabilidades, tag);
+  preparacaoEmAndamento = prepararFolhasImpressaoInterno(containerSelector, incluirRastreabilidades, documentos);
   try {
     return await preparacaoEmAndamento;
   } finally {
@@ -364,7 +363,7 @@ export async function prepararFolhasImpressao(
 async function prepararFolhasImpressaoInterno(
   containerSelector: string,
   incluirRastreabilidades: boolean,
-  tag?: string | null,
+  documentos: string[] = [],
 ): Promise<number> {
   {
     const paginas = Array.from(
@@ -396,7 +395,7 @@ async function prepararFolhasImpressaoInterno(
 
     falhasRastreabilidadeImpressao = [];
     if (incluirRastreabilidades) {
-      const rastreab = await paginasRastreabilidadeComoImagens(tag);
+      const rastreab = await paginasRastreabilidadeComoImagens(documentos);
       imagens.push(...rastreab.imagens);
       falhasRastreabilidadeImpressao = rastreab.falhas;
     }
@@ -432,7 +431,7 @@ export function limparFolhasImpressao(): void {
 export async function imprimirRelatorio(
   containerSelector = '.relatorio-preview',
   incluirRastreabilidades = false,
-  tag?: string | null,
+  documentos: string[] = [],
 ): Promise<void> {
   // Período de teste: impressão bloqueada (único window.print do sistema).
   const bloqueio = bloqueioTrialDocs();
@@ -440,10 +439,10 @@ export async function imprimirRelatorio(
     window.alert(bloqueio);
     return;
   }
-  await prepararFolhasImpressao(containerSelector, incluirRastreabilidades, tag);
+  await prepararFolhasImpressao(containerSelector, incluirRastreabilidades, documentos);
   if (incluirRastreabilidades && falhasRastreabilidadeImpressao.length > 0) {
     window.alert(
-      `Impressão pronta, mas não foi possível anexar a rastreabilidade de: ${falhasRastreabilidadeImpressao.join(', ')}. Confira o PDF cadastrado em Calibrações → Rastreabilidade.`,
+      `Impressão pronta, mas não foi possível anexar o certificado padrão de: ${falhasRastreabilidadeImpressao.join(', ')}. Confira o PDF cadastrado em Calibrações → Certificados Calibração.`,
     );
   }
   window.print();

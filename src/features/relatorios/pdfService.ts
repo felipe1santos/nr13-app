@@ -9,10 +9,10 @@ import { bloqueioTrialDocs } from '../../services/trial';
 export async function exportarPdf(
   containerSelector: string,
   nomeArquivo: string,
-  // Só o RELATÓRIO anexa os certificados de rastreabilidade ao final (§7 #22) — livro
-  // standalone e documentos simples do portal exportam sem eles. `tag` filtra padrões
-  // vinculados a equipamentos específicos (sem vínculo = global, vale para todos).
-  opts: { rastreabilidades?: boolean; tag?: string | null } = {},
+  // Só o RELATÓRIO anexa os certificados padrão ao final (§7 #22) — livro standalone e
+  // documentos simples do portal exportam sem eles. `documentos` (lista de folhas do
+  // relatório) define QUAIS tipos de padrão anexar (calibrações presentes + ultrassom).
+  opts: { rastreabilidades?: boolean; documentos?: string[] } = {},
 ): Promise<void> {
   // Período de teste: download de documentos bloqueado (funil único — cobre todos os botões).
   const bloqueio = bloqueioTrialDocs();
@@ -50,19 +50,19 @@ export async function exportarPdf(
     pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
   }
 
-  // Rastreabilidade (Calibrações → aba Rastreabilidade): PDFs marcados com
-  // "injetar no relatório" são mesclados ao FINAL. Sem itens marcados, o fluxo
-  // é idêntico ao original (save direto). Falha no merge não bloqueia o download.
+  // Certificados padrão (Calibrações → Certificados Calibração): os PDFs dos tipos
+  // presentes no relatório são mesclados ao FINAL, automaticamente. Sem tipo presente,
+  // o fluxo é idêntico ao original (save direto). Falha no merge não bloqueia o download.
   try {
     if (!opts.rastreabilidades) {
       pdf.save(nomeArquivo);
       return;
     }
-    const { bytes, anexados, falhas } = await anexarRastreabilidades(pdf.output('arraybuffer'), opts.tag);
+    const { bytes, anexados, falhas } = await anexarRastreabilidades(pdf.output('arraybuffer'), opts.documentos ?? []);
     if (anexados > 0 || falhas.length > 0) {
       baixarBytes(bytes, nomeArquivo);
       if (falhas.length > 0) {
-        window.alert(`Relatório gerado, mas não foi possível anexar a rastreabilidade de: ${falhas.join(', ')}. Confira o PDF cadastrado.`);
+        window.alert(`Relatório gerado, mas não foi possível anexar o certificado padrão de: ${falhas.join(', ')}. Confira o PDF cadastrado.`);
       }
       return;
     }

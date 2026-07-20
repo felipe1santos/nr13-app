@@ -95,14 +95,43 @@ function linhaVazia(): DimensaoProntuario {
 type MedidasUS = Record<string, Record<string, string>>;
 const ANG_US = ['0', '90', '180', '270'];
 
-function construirGridMinima(medidas: MedidasUS | undefined) {
+// Ponto de medição como salvo pelo FormularioUltrassom (PontoME). Normalização replicada de lá
+// (normalizarPontos não é exportado): região fora de 'ts'/'ti' cai no casco, ids duplicados/vazios
+// são descartados.
+type RegiaoUS = 'ts' | 'casco' | 'ti';
+const PONTOS_FIXOS_US: { id: string; regiao: RegiaoUS }[] = [
+  { id: 'ts', regiao: 'ts' },
+  { id: 'c1', regiao: 'casco' },
+  { id: 'c2', regiao: 'casco' },
+  { id: 'c3', regiao: 'casco' },
+  { id: 'c4', regiao: 'casco' },
+  { id: 'ti', regiao: 'ti' },
+];
+
+function normalizarPontosUS(bruto: unknown): { id: string; regiao: RegiaoUS }[] {
+  if (!Array.isArray(bruto)) return [];
+  const validos: { id: string; regiao: RegiaoUS }[] = [];
+  const vistos = new Set<string>();
+  for (const item of bruto) {
+    if (!item || typeof item !== 'object') continue;
+    const p = item as { id?: unknown; regiao?: unknown };
+    const id = typeof p.id === 'string' ? p.id.trim() : '';
+    if (!id || vistos.has(id)) continue;
+    vistos.add(id);
+    validos.push({ id, regiao: p.regiao === 'ts' || p.regiao === 'ti' ? p.regiao : 'casco' });
+  }
+  return validos;
+}
+
+function construirGridMinima(medidas: MedidasUS | undefined, pontos?: unknown) {
   const med = medidas ?? {};
   const linha = (id: string) => ANG_US.map((a) => med[id]?.[a] ?? '');
-  const grid = {
-    ts: [linha('ts')],
-    casco: [linha('c1'), linha('c2'), linha('c3'), linha('c4')],
-    ti: [linha('ti')],
-  };
+  // Container sem lista de pontos (dado antigo) => os 6 ids históricos. Shape lido por
+  // PRONT-ULTRASSOM.html: { ts: linhas[], casco: linhas[], ti: linhas[] }, N linhas por região.
+  const lista = normalizarPontosUS(pontos);
+  const efetivos = lista.length ? lista : PONTOS_FIXOS_US;
+  const grid: Record<RegiaoUS, string[][]> = { ts: [], casco: [], ti: [] };
+  for (const p of efetivos) grid[p.regiao].push(linha(p.id));
   const minOf = (rows: string[][]) => {
     let m = Infinity;
     rows.forEach((r) =>
@@ -119,6 +148,7 @@ function construirGridMinima(medidas: MedidasUS | undefined) {
 
 interface DadosUltrassomContainer {
   medidas?: MedidasUS;
+  pontos?: unknown;
   aparelho?: string;
   acoplante?: string;
   tempSup?: string;
@@ -129,7 +159,7 @@ interface DadosUltrassomContainer {
 
 async function aplicarEnsaioEspessura(tag: string, container: ContainerInspecao | null): Promise<void> {
   const us = (container?.dados?.ultrassom as DadosUltrassomContainer | undefined) ?? undefined;
-  const { grid, minima } = construirGridMinima(us?.medidas);
+  const { grid, minima } = construirGridMinima(us?.medidas, us?.pontos);
   await salvar(`nr13_med_grid_${tag}`, grid);
   // Além dos mínimos (sup/casco/inf), grava os campos de "Informações para o Ensaio" preenchidos
   // no FormularioUltrassom — PRONT-ULTRASSOM.html lê essas mesmas chaves (aparelho/acoplante/

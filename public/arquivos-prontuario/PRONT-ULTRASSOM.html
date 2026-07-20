@@ -128,15 +128,19 @@
 
         .croqui-wrap {
             width: 200px;
-            min-height: 140px;
+            /* Altura FIXA (não min-height): croqui de vaso vertical (viewBox alto) esticava o
+               wrap além da folha e empurrava o rodapé para fora. */
+            height: 170px;
+            overflow: hidden;
             display: flex;
             align-items: center;
             justify-content: center;
             border: 1px solid #d1d5db;
         }
         .croqui-wrap img { max-width: 100%; max-height: 100%; object-fit: contain; }
-        /* Croqui 2D (SVG inline do modelador): viewBox preservado, escala pelo box do wrap. */
-        .croqui-wrap svg { width: 100%; height: auto; max-height: 100%; }
+        /* Croqui 2D (SVG inline do modelador): height:100% + width:auto encaixa na altura fixa
+           do wrap mantendo a proporção do viewBox (max-height era inócuo com pai de altura auto). */
+        .croqui-wrap svg { width: auto; height: 100%; max-width: 100%; }
         .croqui-vazio {
             width: 100%;
             height: 100%;
@@ -491,7 +495,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // A grade de pontos deixou de ter 6 linhas fixas (o inspetor acrescenta pontos por
   // região). A .page tem height: 297mm; overflow: hidden — sem este ajuste, as linhas
   // extras seriam cortadas EM SILÊNCIO. Reduz progressivamente fonte/altura de linha
-  // e, se ainda assim estourar, exibe aviso visível (impresso junto).
+  // até a grade caber na folha.
   ajustarGradeMedicao();
   setTimeout(ajustarGradeMedicao, 250); // re-checa após logo/croqui carregarem
 });
@@ -529,22 +533,6 @@ function ajustarGradeMedicao() {
       celulas[i].style.padding = PASSOS[k].pad;
       celulas[i].style.lineHeight = PASSOS[k].altura;
     }
-  }
-
-  var aviso = document.getElementById('aviso-grade-estourada');
-  if (estouraFolha()) {
-    if (!aviso) {
-      aviso = document.createElement('div');
-      aviso.id = 'aviso-grade-estourada';
-      aviso.style.cssText = 'margin:2px 0 4px;padding:3px 6px;border:1px solid #b91c1c;' +
-        'color:#b91c1c;background:#fee2e2;font-size:8px;font-weight:800;text-align:center;' +
-        'text-transform:uppercase;-webkit-print-color-adjust:exact;print-color-adjust:exact;';
-      aviso.textContent = 'Atenção: há mais pontos de medição do que cabem nesta folha — consulte a folha de ultrassom do relatório para a grade completa.';
-      var faixa = document.querySelector('.section-title-band');
-      if (faixa && faixa.parentNode) faixa.parentNode.insertBefore(aviso, faixa);
-    }
-  } else if (aviso && aviso.parentNode) {
-    aviso.parentNode.removeChild(aviso);
   }
 }
 </script>

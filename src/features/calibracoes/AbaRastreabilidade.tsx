@@ -1,6 +1,5 @@
-import { useMemo, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Icone } from '../../components/Icone';
-import { listarChavesComPrefixo } from '../../services/storage';
 import {
   excluirRastreabilidade,
   listarRastreabilidades,
@@ -14,9 +13,11 @@ const VAZIA = (): Rastreabilidade => ({
   certificadoPadrao: '',
   validade: '',
   pdfBase64: '',
-  injetarNoRelatorio: false,
+  // Injeção hoje é automática por tipo; a flag fica true para os consumidores legados
+  // (autoPreencher/templates) que a usam como critério de preferência.
+  injetarNoRelatorio: true,
   criadoEm: new Date().toLocaleDateString('pt-BR'),
-  tipoInstrumento: 'ultrassom',
+  tipoInstrumento: 'manometro',
   aparelho: '',
   fabricante: '',
   numeroSerie: '',
@@ -28,19 +29,22 @@ const VAZIA = (): Rastreabilidade => ({
 });
 
 const ROTULO_TIPO: Record<TipoInstrumento, string> = {
-  ultrassom: 'Ultrassom (ME)',
-  manometro: 'Manômetro',
-  pressostato: 'Pressostato',
-  termostato: 'Termostato',
-  manovacuometro: 'Manovacuômetro',
-  termometro: 'Termômetro',
+  manometro: 'Manômetro padrão',
+  valvula: 'Válvula padrão (PSV)',
+  ultrassom: 'Ultrassom (ME) padrão',
+  bloco: 'Bloco padrão',
+  pressostato: 'Pressostato padrão',
+  termostato: 'Termostato padrão',
+  manovacuometro: 'Manovacuômetro padrão',
+  termometro: 'Termômetro padrão',
   outro: 'Outro',
 };
 
 /**
- * Aba "Rastreabilidade" do menu Calibrações: cadastro do certificado de
- * rastreabilidade de cada instrumento padrão + upload do PDF + opção de
- * injetar o PDF no final do relatório gerado (merge no pdfService).
+ * Aba "Certificados Calibração" do menu Calibrações: o certificado do instrumento
+ * PADRÃO (PDF que não muda) — UM por tipo. O PDF é anexado automaticamente ao final
+ * do relatório sempre que uma calibração daquele tipo é injetada (e o padrão de
+ * ultrassom acompanha a folha de ultrassom). Sem flag manual e sem vínculo por TAG.
  */
 export default function AbaRastreabilidade() {
   const [itens, setItens] = useState<Rastreabilidade[]>(() => listarRastreabilidades());
@@ -51,25 +55,6 @@ export default function AbaRastreabilidade() {
 
   function recarregar() {
     setItens(listarRastreabilidades());
-  }
-
-  // TAGs de todos os equipamentos cadastrados — para vincular o padrão a equipamentos
-  // específicos. Sem vínculo, o padrão é GLOBAL (comportamento dos registros antigos).
-  const tagsEquipamentos = useMemo(
-    () =>
-      listarChavesComPrefixo('nr13_info_')
-        .map((c) => c.slice('nr13_info_'.length))
-        .sort((a, b) => a.localeCompare(b)),
-    [],
-  );
-
-  function alternarTag(tag: string) {
-    setForm((f) => {
-      if (!f) return f;
-      const atuais = f.tags ?? [];
-      const tags = atuais.includes(tag) ? atuais.filter((t) => t !== tag) : [...atuais, tag];
-      return { ...f, tags };
-    });
   }
 
   function set<K extends keyof Rastreabilidade>(chave: K, valor: Rastreabilidade[K]) {
@@ -98,13 +83,21 @@ export default function AbaRastreabilidade() {
       return;
     }
     if (!form.pdfBase64) {
-      setErro('Anexe o PDF da rastreabilidade.');
+      setErro('Anexe o PDF do certificado.');
       return;
+    }
+    // Um certificado por tipo: salvar um tipo já cadastrado substitui o registro antigo.
+    const duplicados = itens.filter(
+      (r) => r.id !== form.id && r.tipoInstrumento === form.tipoInstrumento,
+    );
+    if (duplicados.length > 0) {
+      const rotulo = ROTULO_TIPO[form.tipoInstrumento ?? 'outro'] ?? form.tipoInstrumento;
+      if (!window.confirm(`Já existe um certificado de ${rotulo}. Substituir pelo novo?`)) return;
     }
     setErro('');
     setSalvando(true);
     try {
-      await salvarRastreabilidade(form);
+      await salvarRastreabilidade({ ...form, injetarNoRelatorio: true, tags: undefined });
       // Round-trip no cache local: a cota do localStorage pode estourar em silêncio na gravação
       // (storage.salvar não derruba a escrita) — sem o PDF no cache, o certificado nunca seria
       // injetado no relatório e o usuário só descobriria na impressão.
@@ -113,6 +106,7 @@ export default function AbaRastreabilidade() {
         setErro('O PDF é grande demais para o armazenamento local do navegador e não foi salvo. Comprima o arquivo (ideal até ~3 MB) e anexe novamente.');
         return;
       }
+      for (const d of duplicados) await excluirRastreabilidade(d.id);
       setForm(null);
       recarregar();
     } finally {
@@ -120,13 +114,8 @@ export default function AbaRastreabilidade() {
     }
   }
 
-  async function alternarInjecao(r: Rastreabilidade) {
-    await salvarRastreabilidade({ ...r, injetarNoRelatorio: !r.injetarNoRelatorio });
-    recarregar();
-  }
-
   async function excluir(id: string) {
-    if (!window.confirm('Excluir esta rastreabilidade?')) return;
+    if (!window.confirm('Excluir este certificado padrão?')) return;
     await excluirRastreabilidade(id);
     recarregar();
   }
@@ -134,24 +123,25 @@ export default function AbaRastreabilidade() {
   return (
     <div className="bloco-dados">
       <div className="meta-card-header">
-        <h3>Rastreabilidade dos padrões</h3>
+        <h3>Certificados de Calibração dos padrões</h3>
         {!form && (
           <button type="button" className="btn-primario" onClick={() => setForm(VAZIA())}>
-            + Adicionar rastreabilidade
+            + Adicionar certificado
           </button>
         )}
       </div>
       <p style={{ color: 'var(--muted)', fontSize: 12.5, margin: '6px 0 16px' }}>
-        Cadastre o certificado de rastreabilidade de cada instrumento padrão e anexe o PDF.
-        Itens marcados com <b>"Injetar no relatório"</b> são anexados automaticamente ao final
-        do PDF de todo relatório gerado — facilita a impressão do pacote completo.
+        Cadastre o certificado de calibração de cada instrumento <b>padrão</b> e anexe o PDF —
+        é <b>um certificado por tipo</b> (manômetro padrão, válvula padrão, bloco padrão...), válido
+        para todos os equipamentos. Ao injetar um lote de calibração no relatório, os PDFs dos
+        padrões dos tipos presentes no lote são anexados <b>automaticamente</b> ao final.
       </p>
 
       {form && (
         <div className="fj-panel" style={{ padding: 16, marginBottom: 16 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
             <div className="fj-field">
-              <label>Tipo de instrumento</label>
+              <label>Tipo de padrão</label>
               <select
                 value={form.tipoInstrumento ?? 'outro'}
                 onChange={(e) => set('tipoInstrumento', e.target.value as TipoInstrumento)}
@@ -188,46 +178,6 @@ export default function AbaRastreabilidade() {
               <label>Nº de série</label>
               <input value={form.numeroSerie ?? ''} onChange={(e) => set('numeroSerie', e.target.value)} />
             </div>
-          </div>
-
-          <div style={{ marginTop: 14 }}>
-            <div style={{ fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--muted)', marginBottom: 8 }}>
-              Equipamentos vinculados (nenhum marcado = vale para todos)
-            </div>
-            {tagsEquipamentos.length === 0 ? (
-              <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>Nenhum equipamento cadastrado.</span>
-            ) : (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {tagsEquipamentos.map((t) => {
-                  const marcado = (form.tags ?? []).includes(t);
-                  return (
-                    <label
-                      key={t}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        fontSize: 12.5,
-                        cursor: 'pointer',
-                        padding: '4px 10px',
-                        borderRadius: 999,
-                        border: '1px solid var(--line, #d5d9dd)',
-                        background: marcado ? 'var(--amber-bg, rgba(240,177,42,.14))' : 'transparent',
-                        fontWeight: marcado ? 700 : 500,
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={marcado}
-                        onChange={() => alternarTag(t)}
-                        style={{ accentColor: 'var(--amber)' }}
-                      />
-                      {t}
-                    </label>
-                  );
-                })}
-              </div>
-            )}
           </div>
 
           {form.tipoInstrumento === 'ultrassom' && (
@@ -276,15 +226,6 @@ export default function AbaRastreabilidade() {
                 <Icone nome="check" tam={13} /> PDF anexado
               </span>
             )}
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12.5, cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={form.injetarNoRelatorio}
-                onChange={(e) => set('injetarNoRelatorio', e.target.checked)}
-                style={{ accentColor: 'var(--amber)' }}
-              />
-              Injetar no final do relatório
-            </label>
           </div>
 
           {erro && <p style={{ color: 'var(--crit)', fontWeight: 600, fontSize: 12.5, marginTop: 10 }}>{erro}</p>}
@@ -303,8 +244,8 @@ export default function AbaRastreabilidade() {
       {itens.length === 0 && !form ? (
         <div className="fj-empty">
           <div className="fj-empty-ic"><Icone nome="filetext" tam={22} /></div>
-          <div className="fj-empty-title">Nenhuma rastreabilidade cadastrada</div>
-          Adicione o certificado de rastreabilidade dos seus instrumentos padrão.
+          <div className="fj-empty-title">Nenhum certificado padrão cadastrado</div>
+          Adicione o certificado de calibração dos seus instrumentos padrão (um por tipo).
         </div>
       ) : (
         itens.length > 0 && (
@@ -312,13 +253,12 @@ export default function AbaRastreabilidade() {
             <table className="fj-table">
               <thead>
                 <tr>
+                  <th>Tipo de padrão</th>
                   <th>Instrumento</th>
-                  <th>Tipo</th>
                   <th>Aparelho / Nº série</th>
                   <th>Certificado</th>
                   <th>Validade</th>
-                  <th>Equipamentos</th>
-                  <th>Injetar no relatório</th>
+                  <th>PDF</th>
                   <th>Ações</th>
                 </tr>
               </thead>
@@ -326,17 +266,17 @@ export default function AbaRastreabilidade() {
                 {itens.map((r) => (
                   <tr key={r.id}>
                     <td>
+                      {r.tipoInstrumento
+                        ? <span className="fj-badge neutro">{ROTULO_TIPO[r.tipoInstrumento] ?? r.tipoInstrumento}</span>
+                        : <span className="fj-dash">—</span>}
+                    </td>
+                    <td>
                       <div className="fj-tag-cell">
                         <div className="fj-tag-ico" style={{ background: 'var(--crit-bg)', color: 'var(--crit)' }}>
                           <Icone nome="filetext" tam={15} />
                         </div>
                         <div className="fj-tag-code">{r.nome}</div>
                       </div>
-                    </td>
-                    <td>
-                      {r.tipoInstrumento
-                        ? <span className="fj-badge neutro">{ROTULO_TIPO[r.tipoInstrumento] ?? r.tipoInstrumento}</span>
-                        : <span className="fj-dash">—</span>}
                     </td>
                     <td className="mono">
                       {r.aparelho || r.numeroSerie
@@ -346,20 +286,9 @@ export default function AbaRastreabilidade() {
                     <td className="mono">{r.certificadoPadrao || <span className="fj-dash">—</span>}</td>
                     <td className="mono">{r.validade || <span className="fj-dash">—</span>}</td>
                     <td>
-                      {r.tags?.length
-                        ? <span className="mono" style={{ fontSize: 11.5 }}>{r.tags.join(', ')}</span>
-                        : <span className="fj-badge neutro">Todos</span>}
-                    </td>
-                    <td>
-                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 12 }}>
-                        <input
-                          type="checkbox"
-                          checked={r.injetarNoRelatorio}
-                          onChange={() => alternarInjecao(r)}
-                          style={{ accentColor: 'var(--amber)' }}
-                        />
-                        {r.injetarNoRelatorio ? <span className="fj-badge ok">Injeta</span> : <span className="fj-badge neutro">Não injeta</span>}
-                      </label>
+                      {r.pdfBase64
+                        ? <span className="fj-badge ok">Anexado</span>
+                        : <span className="fj-badge neutro">Sem PDF</span>}
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: 6 }}>

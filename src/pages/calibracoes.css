@@ -613,94 +613,12 @@
 .cal-lote-head strong { flex: 0 1 auto; }
 .cal-lote-meta { color: var(--muted); font-size: 11.5px; margin-left: auto; }
 
-/* Vínculo lote ↔ relatório */
 .cal-lote-head-row {
   display: flex;
   align-items: center;
   background: #FBFAF7;
 }
 .cal-lote-head-row .cal-lote-head { flex: 1; min-width: 0; background: none; border-radius: inherit; }
-/* Largura fixa no desktop: alinha "x/y calibrados", status e vínculo em colunas
-   consistentes entre os lotes (antes cada linha "dançava" conforme o texto). */
-.cal-lote-vinculo {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  padding-right: 12px;
-  flex-shrink: 0;
-  width: 360px;
-}
-.badge-vinculo {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 3px 9px;
-  border-radius: 20px;
-  max-width: 220px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.badge-vinculo.tem { background: #E7F0E9; color: #2E6B3F; }
-.badge-vinculo.fila { background: #FFF3DC; color: #8A5B00; }
-.badge-vinculo.sem { background: var(--steel); color: var(--muted); }
-.btn-vincular {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 12px;
-  padding: 5px 10px;
-}
-.cal-vinculo-menu {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 10px;
-  z-index: 30;
-  min-width: 280px;
-  max-width: 360px;
-  max-height: 320px;
-  overflow-y: auto;
-  background: #fff;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-  padding: 6px;
-  display: flex;
-  flex-direction: column;
-}
-.cal-vinculo-menu button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  text-align: left;
-  background: none;
-  border: none;
-  border-radius: 7px;
-  padding: 8px 10px;
-  font-size: 12.5px;
-  cursor: pointer;
-  color: var(--text);
-  font-family: var(--font-base);
-}
-.cal-vinculo-menu button:hover { background: var(--steel); }
-.cal-vinculo-menu button em { color: var(--muted); font-style: normal; font-size: 11px; }
-.cal-vinculo-menu button.remover { color: #B3261E; }
-.cal-vinculo-menu-label {
-  font-size: 10.5px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--muted);
-  padding: 8px 10px 4px;
-  border-top: 1px solid var(--line);
-  margin-top: 4px;
-}
-.cal-vinculo-menu-vazio { font-size: 12px; color: var(--muted); padding: 6px 10px 8px; }
 .cal-lote-corpo {
   padding: 12px 14px;
   display: flex;
@@ -715,15 +633,8 @@
   .cal-eq-comps { width: 100%; }
 }
 
-/* Entre o mobile e o desktop largo, a coluna fixa do vínculo apertaria o head */
-@media (max-width: 900px) {
-  .cal-lote-vinculo { width: auto; }
-}
-
 @media (max-width: 640px) {
   .cal-eq-main { flex-wrap: wrap; }
   .cal-comp-item { flex-wrap: wrap; }
   .cal-lote-head-row { flex-wrap: wrap; }
-  .cal-lote-vinculo { width: 100%; padding: 0 12px 10px; }
-  .cal-vinculo-menu { left: 10px; right: 10px; min-width: 0; }
 }

@@ -15,7 +15,6 @@ import ProntuarioFabricante from '../features/equipamento/ProntuarioFabricante';
 import { formatarValor } from '../calc/unidades';
 import type { SistemaUnidade } from '../calc/unidades';
 import MemorialLog from '../features/memorial/MemorialLog';
-import ModeladorVaso from '../features/modelador/ModeladorVaso';
 import { Icone } from '../components/Icone';
 import './equipamento-page.css';
 
@@ -43,8 +42,6 @@ function EquipamentoView({ tag }: { tag: string }) {
   const [unidadeToast, setUnidadeToast] = useState(false);
   const [excluindo, setExcluindo] = useState(false);
   const [modalMemorial, setModalMemorial] = useState(false);
-  // croqui 2D é passo obrigatório antes de abrir o documento do memorial (vaso/autoclave)
-  const [croquiAntesMemorial, setCroquiAntesMemorial] = useState(false);
   const [calculo, setCalculo] = useState<CalculoSalvo | null>(() => ler<CalculoSalvo>(`nr13_calc_${tag}`));
   // GV do autoclave: memorial salvo à parte (nr13_calc_gv_<TAG>) — exibido junto no modal.
   const [calculoGv, setCalculoGv] = useState<CalculoSalvo | null>(() => ler<CalculoSalvo>(`nr13_calc_gv_${tag}`));
@@ -70,14 +67,7 @@ function EquipamentoView({ tag }: { tag: string }) {
     setUnidade(u);
   }
 
-  // O croqui 2D é passo obrigatório do prontuário: memoriais salvos antes dessa regra (ou cujo
-  // croqui foi apagado) passam pelo editor pré-preenchido antes de abrir o documento.
   function abrirMemorialCompleto() {
-    const tipoComCroqui = info?.tipo === 'vaso' || info?.tipo === 'autoclave';
-    if (tipoComCroqui && !ler(`nr13_croqui2d_${tag}`)) {
-      setCroquiAntesMemorial(true);
-      return;
-    }
     setModalMemorial(true);
   }
 
@@ -267,19 +257,6 @@ function EquipamentoView({ tag }: { tag: string }) {
           </div>
         </div>
       </section>
-
-      {croquiAntesMemorial && (
-        <ModeladorVaso
-          tag={tag}
-          aviso="Croqui 2D pendente — passo obrigatório antes do memorial. Confira os dados pré-preenchidos, informe o comprimento do cilindro e clique em Salvar."
-          onFechar={() => setCroquiAntesMemorial(false)}
-          onSalvo={(croquiGerado) => {
-            if (!croquiGerado) return; // segue pendente — o gate reabre o editor na próxima vez
-            setCroquiAntesMemorial(false);
-            setModalMemorial(true);
-          }}
-        />
-      )}
 
       {modalMemorial && (calculo || calculoGv) && (
         <div className="modal-memorial-overlay" onClick={() => setModalMemorial(false)}>
