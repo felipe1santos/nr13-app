@@ -25,54 +25,60 @@ import RotaAdmin from './RotaAdmin';
 import RotaUsuario from './RotaUsuario';
 import RotaCliente from './RotaCliente';
 import Layout from './Layout';
+import RotaErro from './RotaErro';
 
 export const router = createBrowserRouter([
-  { path: '/login', element: <Login /> },
   {
-    element: <RotaProtegida />,
+    errorElement: <RotaErro />,
     children: [
-      // Painel admin: standalone, FORA do Layout (sem barra do sistema). Só admin entra.
+      { path: '/login', element: <Login /> },
       {
-        element: <RotaAdmin />,
-        children: [{ path: '/admin', element: <Admin /> }],
-      },
-      // Portal do cliente: árvore própria, FORA do Layout do sistema (somente leitura).
-      {
-        element: <RotaCliente />,
+        element: <RotaProtegida />,
         children: [
+          // Painel admin: standalone, FORA do Layout (sem barra do sistema). Só admin entra.
           {
-            element: <PortalLayout />,
+            element: <RotaAdmin />,
+            children: [{ path: '/admin', element: <Admin /> }],
+          },
+          // Portal do cliente: árvore própria, FORA do Layout do sistema (somente leitura).
+          {
+            element: <RotaCliente />,
             children: [
-              { path: '/portal', element: <PortalAtivos /> },
-              { path: '/portal/ativo/:tag', element: <PortalAtivo /> },
+              {
+                element: <PortalLayout />,
+                children: [
+                  { path: '/portal', element: <PortalAtivos /> },
+                  { path: '/portal/ativo/:tag', element: <PortalAtivo /> },
+                ],
+              },
             ],
           },
-        ],
-      },
-      // Sistema: telas normais. Admin é redirecionado para /admin (não vê o sistema).
-      {
-        element: <RotaUsuario />,
-        children: [
+          // Sistema: telas normais. Admin é redirecionado para /admin (não vê o sistema).
           {
-            element: <Layout />,
+            element: <RotaUsuario />,
             children: [
-              { path: '/', element: <Navigate to="/dashboard" replace /> },
-              { path: '/dashboard', element: <Dashboard /> },
-              { path: '/equipamentos', element: <Equipamentos /> },
-              { path: '/vencimentos', element: <Vencimentos /> },
-              { path: '/livro-registro', element: <LivroRegistro /> },
-              { path: '/equipamento/:tag', element: <Equipamento /> },
-              { path: '/equipamento/:tag/memorial', element: <Memorial /> },
-              { path: '/relatorios', element: <Relatorios /> },
-              { path: '/inspecoes', element: <Inspecoes /> },
-              { path: '/inspecoes/:tag/:containerId', element: <InspecaoContainer /> },
-              { path: '/inspecoes/:tag/:containerId/:formulario', element: <InspecaoFormulario /> },
-              { path: '/prontuarios', element: <Prontuarios /> },
-              { path: '/calibracoes', element: <Calibracoes /> },
-              { path: '/minha-empresa', element: <MinhaEmpresa /> },
-              { path: '/empresas', element: <Empresas /> },
-              { path: '/funcionarios', element: <Funcionarios /> },
-              { path: '/acesso', element: <Acesso /> },
+              {
+                element: <Layout />,
+                children: [
+                  { path: '/', element: <Navigate to="/dashboard" replace /> },
+                  { path: '/dashboard', element: <Dashboard /> },
+                  { path: '/equipamentos', element: <Equipamentos /> },
+                  { path: '/vencimentos', element: <Vencimentos /> },
+                  { path: '/livro-registro', element: <LivroRegistro /> },
+                  { path: '/equipamento/:tag', element: <Equipamento /> },
+                  { path: '/equipamento/:tag/memorial', element: <Memorial /> },
+                  { path: '/relatorios', element: <Relatorios /> },
+                  { path: '/inspecoes', element: <Inspecoes /> },
+                  { path: '/inspecoes/:tag/:containerId', element: <InspecaoContainer /> },
+                  { path: '/inspecoes/:tag/:containerId/:formulario', element: <InspecaoFormulario /> },
+                  { path: '/prontuarios', element: <Prontuarios /> },
+                  { path: '/calibracoes', element: <Calibracoes /> },
+                  { path: '/minha-empresa', element: <MinhaEmpresa /> },
+                  { path: '/empresas', element: <Empresas /> },
+                  { path: '/funcionarios', element: <Funcionarios /> },
+                  { path: '/acesso', element: <Acesso /> },
+                ],
+              },
             ],
           },
         ],
