@@ -9,17 +9,21 @@
 // um confere as constantes DIAS_CICLO/DIAS_GRACA, outro confere que cada evento aponta para
 // o status certo dentro do switch de aplicarEvento.
 //
-// TOCTOU conhecido (fix round 1 da revisão, 26/07/2026): a checagem de duplicata (passo 4) e a
-// gravação do evento não são atômicas — duas entregas simultâneas do MESMO webhook da Kiwify
-// (ela reenvia sem esperar resposta) podem ler "não existe ainda" ao mesmo tempo e as duas
-// seguirem para processar. Defesa em profundidade: `assinatura_setup.sql` tem um índice único
-// parcial em (evento, subscription_id) para linhas com processado=true. Se a segunda entrega
-// tentar marcar sua própria linha como processada e isso colidir com o índice (passo 6, update
-// final), tratamos como duplicata (200, sem reprocessar) em vez de estourar como erro genérico.
-// Isso não impede as DUAS entregas de já terem atualizado `profiles` antes de uma delas perder
-// a corrida no rótulo — mas como aplicarEvento é o mesmo evento com "agora" quase idêntico, o
-// pior caso é aplicar a mesma transição duas vezes (ex.: renovação soma 30 dias a partir de
-// "agora" duas vezes, a poucos milissegundos de distância) — não há dano de negócio real.
+// TOCTOU conhecido (fix round 1, 26/07/2026) e correção da janela (fix round 2, 26/07/2026):
+// a checagem de duplicata (passo 4) e a gravação do evento (passo 5) não são atômicas — duas
+// entregas simultâneas do MESMO webhook da Kiwify (ela reenvia sem esperar resposta) podem ler
+// "não existe ainda" ao mesmo tempo e as duas seguirem para processar. Defesa em profundidade:
+// `assinatura_setup.sql` tem um índice único parcial sobre a coluna `dedupe_chave`
+// (`<evento>:<subscription_id ou email>:<balde de 60s>`, calculada em `calcularDedupeChave`
+// abaixo). O "balde" (minuto UTC corrente) é o que limita a proteção do banco à janela CURTA do
+// TOCTOU — NUNCA à vida inteira da assinatura: subscription_id é o MESMO em toda renovação, então
+// um índice único só em (evento, subscription_id) colidiria a renovação do mês seguinte com a
+// primeira gravação e a deixaria presa como "duplicado" para sempre (bug do índice do round 1,
+// substituído por este). A janela por balde é aproximada: duas entregas do mesmo evento
+// separadas por poucos segundos podem cair em baldes diferentes bem na virada do minuto e não
+// colidir — aceitável, porque o índice é só o BACKSTOP; a consulta em memória do passo 4
+// continua sendo a primeira linha de defesa. Se o INSERT do passo 5 violar o índice, tratamos
+// como duplicata (200, sem reprocessar) em vez de estourar como erro genérico.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { extrairDados, type EventoKiwify } from './parser.ts';
@@ -31,7 +35,7 @@ const DIAS_CICLO = 30;
 // Alinhado à retentativa de cartão da Kiwify — bloquear antes derrubaria quem ela ainda ia cobrar.
 const DIAS_GRACA = 5;
 
-// Código do Postgres para violação de índice/constraint único (usado no passo 6).
+// Código do Postgres para violação de índice/constraint único (usado no passo 5).
 const PG_UNIQUE_VIOLATION = '23505';
 
 function somarDias(base: Date, dias: number): string {
@@ -69,6 +73,23 @@ function aplicarEvento(
     default:
       return { status: 'somente_leitura', ate: agora.toISOString() };
   }
+}
+
+// Chave de dedupe do índice único parcial `kiwify_eventos_dedup_idx` (assinatura_setup.sql):
+// só existe quando há evento conhecido E um identificador (subscription_id ou e-mail) — sem
+// isso não há como agrupar entregas do "mesmo" evento, e a linha entra com dedupe_chave NULL
+// (fora do índice parcial, sem essa proteção extra). O "balde" de 60s é o que torna a janela
+// curta em vez de permanente — ver comentário no topo do arquivo.
+function calcularDedupeChave(
+  evento: string | null,
+  subscriptionId: string | null,
+  email: string | null,
+): string | null {
+  if (!evento) return null;
+  const identificador = subscriptionId ?? email;
+  if (!identificador) return null;
+  const balde = Math.floor(Date.now() / 60_000);
+  return `${evento}:${identificador}:${balde}`;
 }
 
 Deno.serve(async (req) => {
@@ -141,7 +162,8 @@ Deno.serve(async (req) => {
   // quando existe; sem ele (nem todo evento da Kiwify traz um), cai para o e-mail — NUNCA usar
   // "?? ''" comparado com .eq, porque em Postgres "coluna = ''" NÃO casa com "coluna IS NULL"
   // (a checagem antiga nunca disparava pra eventos sem subscription_id — corrigido aqui com
-  // .is(coluna, null) explícito quando o valor não existe).
+  // .is(coluna, null) explícito quando o valor não existe). Esta é a primeira linha de defesa
+  // (mais barata, roda antes de qualquer escrita); o índice único do passo 5 é o backstop.
   let jaExiste: { id: string } | null = null;
   if (dados.evento) {
     let consulta = admin
@@ -160,7 +182,7 @@ Deno.serve(async (req) => {
     const { data, error } = await consulta.maybeSingle();
     if (error) {
       // Falha na LEITURA da checagem não deve travar o webhook nem perder o evento: segue
-      // como "sem duplicata conhecida" e deixa o índice único (assinatura_setup.sql, passo 6)
+      // como "sem duplicata conhecida" e deixa o índice único (assinatura_setup.sql, passo 5)
       // como backstop contra a corrida real.
       console.error('kiwify_webhook: erro ao checar duplicata', error.message);
     } else {
@@ -182,6 +204,8 @@ Deno.serve(async (req) => {
   else if (!eventoConhecido) motivoErro = 'evento fora do escopo';
   else if (duplicado) motivoErro = 'duplicado, ignorado';
 
+  const dedupeChave = calcularDedupeChave(dados.evento, dados.subscriptionId, dados.email);
+
   const { data: eventoGravado, error: erroInsert } = await admin
     .from('kiwify_eventos')
     .insert({
@@ -192,10 +216,22 @@ Deno.serve(async (req) => {
       profile_id: profileId,
       processado: false,
       erro: motivoErro,
+      dedupe_chave: dedupeChave,
     })
     .select('id')
     .single();
 
+  if (erroInsert?.code === PG_UNIQUE_VIOLATION) {
+    // Backstop do TOCTOU: alguma outra entrega (a checagem em memória do passo 4, ou uma
+    // corrida concorrente que passou por ela ao mesmo tempo) já gravou o MESMO evento dentro
+    // do MESMO balde de 60s. Não reprocessa (evita duplicar a transição em profiles) e responde
+    // 200 — a Kiwify não precisa reenviar, o evento já está coberto pela outra gravação.
+    console.warn('kiwify_webhook: duplicata pega pelo índice único de dedupe', erroInsert.message);
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
   if (erroInsert || !eventoGravado) {
     // Não conseguimos nem registrar o evento: melhor a Kiwify reenviar (500) do que perder o
     // rastro em silêncio respondendo 200 — sem a linha em kiwify_eventos não existe auditoria
@@ -244,20 +280,16 @@ Deno.serve(async (req) => {
       .update({ processado: true })
       .eq('id', eventoGravado.id);
     if (erroMarcar) {
-      if (erroMarcar.code === PG_UNIQUE_VIOLATION) {
-        // Índice único de assinatura_setup.sql pegou a corrida do TOCTOU do passo 4: outra
-        // entrega concorrente do MESMO evento já se marcou como processada primeiro. profiles
-        // já está correto (a outra entrega aplicou a mesma transição) — não é erro de negócio,
-        // só perdemos a corrida no rótulo desta linha específica.
-        await admin
-          .from('kiwify_eventos')
-          .update({ erro: 'duplicado (corrida concorrente), ignorado' })
-          .eq('id', eventoGravado.id);
-      } else {
-        console.error('kiwify_webhook: erro ao marcar evento como processado', erroMarcar.message);
-      }
-      // Em ambos os casos profiles já foi atualizado com sucesso: a Kiwify reenviar não
-      // ajudaria (o estado já foi aplicado), então respondemos 200 mesmo com essa falha de rótulo.
+      console.error('kiwify_webhook: erro ao marcar evento como processado', erroMarcar.message);
+      // A linha NÃO pode ficar processado:false, erro:null — isso seria indistinguível de uma
+      // linha nunca tocada, mesmo com profiles já correto. Persiste o motivo real (best-effort:
+      // se este segundo UPDATE também falhar, já logamos acima e seguimos, sem travar a resposta).
+      await admin
+        .from('kiwify_eventos')
+        .update({ erro: `falha ao marcar processado: ${erroMarcar.message}` })
+        .eq('id', eventoGravado.id);
+      // profiles já foi atualizado com sucesso: reenviar não corrige nada e ainda arrisca
+      // reaplicar a transição — por isso respondemos 200 mesmo com essa falha de rótulo.
     }
   }
 

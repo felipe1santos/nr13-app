@@ -130,15 +130,23 @@ create table if not exists public.kiwify_eventos (
 create index if not exists kiwify_eventos_email_idx on public.kiwify_eventos (email);
 create index if not exists kiwify_eventos_orfaos_idx on public.kiwify_eventos (processado, recebido_em desc);
 
--- Índice único parcial (fix round 1 da revisão, 26/07/2026): defesa em profundidade contra o
--- TOCTOU entre a checagem de duplicata em memória e a gravação do evento na Edge Function
--- (duas entregas simultâneas do MESMO webhook — a Kiwify reenvia sem esperar resposta — podem
--- ler "não existe ainda" ao mesmo tempo). Só vale para linhas com subscription_id conhecido e
--- já processadas: se a segunda entrega tentar marcar sua linha como processada e colidir aqui,
--- a Edge Function trata como duplicata (200, sem reprocessar) — ver kiwify_webhook/index.ts.
+-- Coluna de dedupe (fix round 2 da revisão, 26/07/2026 — substitui o índice do round 1, que
+-- travava renovações legítimas: ver comentário abaixo). Calculada pela Edge Function como
+-- "<evento>:<subscription_id ou email>:<balde de 60s>" — NUNCA use um índice único direto em
+-- (evento, subscription_id): subscription_id é o MESMO em toda renovação da assinatura, então
+-- a 2ª cobrança do mês seguinte colidiria com a 1ª e ficaria presa como "duplicado" pra sempre.
+alter table public.kiwify_eventos add column if not exists dedupe_chave text;
+
+-- Índice único parcial: defesa em profundidade contra o TOCTOU entre a checagem de duplicata em
+-- memória e a gravação do evento na Edge Function (duas entregas simultâneas do MESMO webhook —
+-- a Kiwify reenvia sem esperar resposta — podem ler "não existe ainda" ao mesmo tempo). O
+-- "balde" de 60s embutido em dedupe_chave é o que limita a proteção a essa janela CURTA, não à
+-- vida inteira da assinatura. Se o INSERT do evento colidir aqui, a Edge Function trata como
+-- duplicata (200, sem reprocessar) — ver kiwify_webhook/index.ts.
+drop index if exists public.kiwify_eventos_dedup_idx;
 create unique index if not exists kiwify_eventos_dedup_idx
-  on public.kiwify_eventos (evento, subscription_id)
-  where processado = true and subscription_id is not null;
+  on public.kiwify_eventos (dedupe_chave)
+  where dedupe_chave is not null;
 
 alter table public.kiwify_eventos enable row level security;
 
