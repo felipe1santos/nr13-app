@@ -57,7 +57,10 @@ const PERFIL_VAZIO: Perfil = {
   papel: '', orgId: null, clienteId: null, sessaoToken: null, sessaoVistoEm: null,
 };
 
-async function carregarPerfil(): Promise<Perfil> {
+// Exportada (só) para o teste em auth.test.ts exercitar o caminho real do login com o
+// supabase mockado — sem isso, um teste que só chama limparEstadoLocal() diretamente não
+// prova que o LOGIN aciona a limpeza (ver fix round 2, task-5-report.md).
+export async function carregarPerfil(): Promise<Perfil> {
   const { data: sess } = await supabase.auth.getSession();
   const uid = sess.session?.user?.id;
   if (!uid) return { ...PERFIL_VAZIO };
