@@ -3,7 +3,7 @@
 // nr13_role) para leitura síncrona no render.
 import { supabase } from './supabase';
 import { lerTudo, limparCacheDados } from './storage';
-import { gravarEstadoLocal } from './assinatura';
+import { gravarEstadoLocal, limparEstadoLocal } from './assinatura';
 import type { StatusAssinatura } from '../features/assinatura/maquinaEstados';
 
 export const VIP_USERS = [
@@ -99,10 +99,16 @@ async function carregarPerfil(): Promise<Perfil> {
   // Espelho local da assinatura (Task 5): só grava se a coluna veio (select legado
   // pré-migração não traz assinatura_status) — ausência mantém o fallback seguro
   // 'ativa' de statusAssinaturaLocal(), nunca trava quem está num banco sem o SQL rodado.
+  // ELSE: limpa qualquer espelho remanescente (fix round 1 — sem isto, uma conta anterior
+  // que fechou a aba sem "Sair" deixava 'somente_leitura' preso no localStorage e a PRÓXIMA
+  // conta a logar no mesmo navegador herdava o bloqueio, mesmo sem nunca ter passado por
+  // encerrarSessaoLocal()). Roda em TODO login onde o perfil não trouxe assinatura_status.
   const assinaturaStatus = (data?.assinatura_status as string) ?? '';
   const assinaturaAteCol = (data?.assinatura_ate as string) ?? null;
   if (assinaturaStatus) {
     gravarEstadoLocal({ status: assinaturaStatus as StatusAssinatura, ate: assinaturaAteCol });
+  } else {
+    limparEstadoLocal();
   }
   return {
     plano, ativo, role, acessoExpiraEm, papel, orgId, clienteId,
@@ -426,9 +432,9 @@ export function encerrarSessaoLocal(): void {
   // hidratação periódica — ver CHAVES_PRESERVADAS em storage.ts): sem limpar aqui, um banco
   // ainda sem a migração (assinatura_setup.sql) jamais re-gravaria essas chaves no próximo
   // login, e o status de uma conta anterior vazaria para a próxima nesse mesmo navegador.
-  localStorage.removeItem('nr13_assinatura_status');
-  localStorage.removeItem('nr13_assinatura_ate');
-  localStorage.removeItem('nr13_assinatura_sucesso_pendente');
+  // (Reforçado também na ENTRADA — ver o `else` em carregarPerfil — para o caso da aba
+  // fechada sem passar por aqui.)
+  limparEstadoLocal();
   // Zera os dados em cache para não vazarem ao próximo login (mesmo navegador).
   limparCacheDados();
 }

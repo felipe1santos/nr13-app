@@ -4,6 +4,9 @@ import {
   podeEscreverAssinatura,
   textoBloqueio,
   gravarEstadoLocal,
+  limparEstadoLocal,
+  marcarSucessoPendente,
+  sucessoPendente,
 } from '../../../services/assinatura';
 
 // vitest roda em node (sem DOM): shim mínimo de localStorage (mesmo padrão de vencimentos.test.ts).
@@ -44,5 +47,17 @@ describe('espelho local da assinatura', () => {
     expect(textoBloqueio()).toContain('suspensa');
     gravarEstadoLocal({ status: 'graca', ate: new Date(Date.now() + 86_400_000).toISOString() });
     expect(textoBloqueio()).toContain('cartão');
+  });
+
+  it('troca de conta sem logout explicito nao herda o espelho da conta anterior', () => {
+    // Conta A fica bloqueada e fecha a aba sem clicar "Sair" (encerrarSessaoLocal nunca roda).
+    gravarEstadoLocal({ status: 'somente_leitura', ate: null });
+    marcarSucessoPendente();
+    // Login da conta B no mesmo navegador: carregarPerfil() nao trouxe assinatura_status
+    // (banco sem a migracao, ou perfil sem assinatura) -> chama limparEstadoLocal().
+    limparEstadoLocal();
+    expect(statusAssinaturaLocal()).toBe('ativa');
+    expect(podeEscreverAssinatura()).toBe(true);
+    expect(sucessoPendente()).toBe(false);
   });
 });
