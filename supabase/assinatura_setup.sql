@@ -130,6 +130,16 @@ create table if not exists public.kiwify_eventos (
 create index if not exists kiwify_eventos_email_idx on public.kiwify_eventos (email);
 create index if not exists kiwify_eventos_orfaos_idx on public.kiwify_eventos (processado, recebido_em desc);
 
+-- Índice único parcial (fix round 1 da revisão, 26/07/2026): defesa em profundidade contra o
+-- TOCTOU entre a checagem de duplicata em memória e a gravação do evento na Edge Function
+-- (duas entregas simultâneas do MESMO webhook — a Kiwify reenvia sem esperar resposta — podem
+-- ler "não existe ainda" ao mesmo tempo). Só vale para linhas com subscription_id conhecido e
+-- já processadas: se a segunda entrega tentar marcar sua linha como processada e colidir aqui,
+-- a Edge Function trata como duplicata (200, sem reprocessar) — ver kiwify_webhook/index.ts.
+create unique index if not exists kiwify_eventos_dedup_idx
+  on public.kiwify_eventos (evento, subscription_id)
+  where processado = true and subscription_id is not null;
+
 alter table public.kiwify_eventos enable row level security;
 
 -- Só admin da plataforma lê pelo app; a Edge Function usa service_role (ignora RLS).
