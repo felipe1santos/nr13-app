@@ -11,6 +11,8 @@ import {
   montarUrlCheckout,
   rotuloStatusAssinatura,
   rotuloEventoKiwify,
+  urlCheckoutSincrona,
+  URL_CHECKOUT_PADRAO,
 } from '../../../services/assinatura';
 
 // vitest roda em node (sem DOM): shim mínimo de localStorage (mesmo padrão de vencimentos.test.ts).
@@ -107,6 +109,20 @@ describe('montarUrlCheckout (ModalAssinatura)', () => {
   it('funciona com email vazio (usuario ainda nao carregado)', () => {
     const url = montarUrlCheckout('https://exemplo.com/checkout', '', '');
     expect(url).toBe('https://exemplo.com/checkout?email=&sck=');
+  });
+});
+
+describe('urlCheckoutSincrona (funil de conversão da tela de login, C1)', () => {
+  it('sem o link de config_global carregado devolve o padrão — o botão nunca fica morto', () => {
+    // A tela de login é ANÔNIMA: se a leitura de config_global falhar (sem permissão, offline),
+    // o clique ainda precisa abrir um checkout válido, senão quem quer pagar não tem caminho.
+    expect(urlCheckoutSincrona()).toBe(URL_CHECKOUT_PADRAO);
+  });
+
+  it('monta a URL do login SEM sck (deslogado não tem uid; o webhook casa por e-mail)', () => {
+    expect(montarUrlCheckout(urlCheckoutSincrona(), 'joao@teste.com', '')).toBe(
+      `${URL_CHECKOUT_PADRAO}?email=joao%40teste.com&sck=`,
+    );
   });
 });
 

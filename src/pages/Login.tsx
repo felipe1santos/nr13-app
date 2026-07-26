@@ -13,6 +13,7 @@ import {
   trocarSenhaComCodigo,
 } from '../services/auth';
 import { injetarDadosDemo } from '../services/demoSeed';
+import { montarUrlCheckout, obterUrlCheckout, urlCheckoutSincrona } from '../services/assinatura';
 import './login.css';
 
 const REENVIO_SEGUNDOS = 60; // rate limit do Supabase: 1 e-mail de recuperação por minuto
@@ -138,6 +139,12 @@ export default function Login() {
     return () => window.clearTimeout(t);
   }, [cooldown]);
 
+  // Pré-carrega o link do checkout (config_global) já na abertura da tela: no clique de
+  // "Assinar agora" a aba precisa abrir SEM await, senão o bloqueador de popup mata a janela.
+  useEffect(() => {
+    void obterUrlCheckout();
+  }, []);
+
   // Flag global do admin: decide se o link "Teste grátis" aparece.
   useEffect(() => {
     let vivo = true;
@@ -161,9 +168,20 @@ export default function Login() {
     setModo(m);
   }
 
-  // Ponto único para plugar o pagamento no futuro (Stripe/Mercado Pago/etc.).
+  // Funil de conversão de quem NÃO está logado (trial vencido cai aqui, deslogado): a
+  // BarraAssinatura/ModalAssinatura só existem dentro do Layout autenticado, então sem este
+  // botão a pessoa que quer pagar não tem para onde ir. Abre o checkout da Kiwify em outra aba.
+  // `sck` vai VAZIO de propósito: aqui não há sessão, logo não existe uid do Supabase — o
+  // webhook casa a compra pelo E-MAIL (`?email=`), que é o mesmo do cadastro.
   function assinarAgora() {
-    setAviso('Em breve! Para contratar o sistema agora, fale com a nossa equipe pelo e-mail acesso@auth.nr13sistema.com.br.');
+    const destino = email.trim().toLowerCase();
+    window.open(montarUrlCheckout(urlCheckoutSincrona(), destino, ''), '_blank', 'noopener,noreferrer');
+    setErro(null);
+    setAviso(
+      destino
+        ? `Abrimos a página de pagamento em outra aba. Conclua a compra com o e-mail ${destino} e entre de novo — o acesso libera sozinho.`
+        : 'Abrimos a página de pagamento em outra aba. Use o MESMO e-mail do seu cadastro e entre de novo — o acesso libera sozinho.',
+    );
   }
 
   async function handleTrialCadastro(e: React.FormEvent) {

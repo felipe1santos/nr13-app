@@ -4,6 +4,7 @@
 // IMPORTANTE: este módulo NÃO pode importar `./auth` (auth.ts já importa `./storage`;
 // um import de volta para auth criaria ciclo auth -> assinatura -> auth).
 import { statusEfetivo, type EstadoAssinatura, type StatusAssinatura } from '../features/assinatura/maquinaEstados';
+import { supabase } from './supabase';
 
 const CHAVE_STATUS = 'nr13_assinatura_status';
 const CHAVE_ATE = 'nr13_assinatura_ate';
@@ -136,4 +137,40 @@ export function calcularDiasRestantes(ate: string | null, agora: Date = new Date
  */
 export function montarUrlCheckout(urlBase: string, email: string, uid: string): string {
   return `${urlBase}?email=${encodeURIComponent(email)}&sck=${encodeURIComponent(uid)}`;
+}
+
+/** Fallback do link do checkout (plano Mensal R$ 197) quando `config_global` não responde. */
+export const URL_CHECKOUT_PADRAO = 'https://pay.kiwify.com.br/O9KdzEI';
+
+// Cache de módulo do link do checkout. Existe por causa do BLOQUEIO DE POPUP: o navegador
+// só deixa `window.open` abrir uma aba enquanto durar a ativação do clique, e uma ida ao
+// servidor no meio do caminho arrisca perder essa janela. Quem precisa abrir o checkout
+// pré-carrega a URL (obterUrlCheckout, no mount da tela) e, no clique, usa a versão
+// SÍNCRONA — que devolve o link real se já veio, ou o padrão se ainda não.
+let urlCheckoutCache: string | null = null;
+
+export function urlCheckoutSincrona(): string {
+  return urlCheckoutCache ?? URL_CHECKOUT_PADRAO;
+}
+
+/**
+ * Lê o link do checkout de `config_global` (assim o dono do projeto troca de plano sem novo
+ * deploy) e memoriza. Nunca lança e nunca devolve vazio: falha de rede, tabela sem a chave ou
+ * usuário anônimo sem permissão de leitura caem no `URL_CHECKOUT_PADRAO` — o botão de assinar
+ * jamais pode ficar morto, é o único caminho de conversão do produto.
+ */
+export async function obterUrlCheckout(): Promise<string> {
+  if (urlCheckoutCache) return urlCheckoutCache;
+  try {
+    const { data } = await supabase
+      .from('config_global')
+      .select('valor')
+      .eq('chave', 'assinatura_checkout_url')
+      .maybeSingle();
+    const u = (data?.valor as { url?: string } | null)?.url;
+    if (u) urlCheckoutCache = u;
+  } catch {
+    // offline/sem permissão: segue com o padrão
+  }
+  return urlCheckoutCache ?? URL_CHECKOUT_PADRAO;
 }
