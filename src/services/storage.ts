@@ -20,6 +20,14 @@ const CHAVES_PRESERVADAS = new Set([
   'nr13_ultimo_login',
   'nr13_uid',
   'nr13_acesso_expira_em', // aviso de expiração no Layout — regravada no login
+  // Espelho local da assinatura (src/services/assinatura.ts), gravado no login por
+  // carregarPerfil(): NÃO é dado de equipamento (nunca vai pro app_storage), então sem
+  // preservar aqui a hidratação periódica (lerTudo, abaixo) apagaria o espelho no meio da
+  // sessão — a cada 60s o usuário voltaria a ver 'ativa' mesmo estando bloqueado.
+  // Limpeza real ao trocar de conta acontece em encerrarSessaoLocal() (auth.ts), não aqui.
+  'nr13_assinatura_status',
+  'nr13_assinatura_ate',
+  'nr13_assinatura_sucesso_pendente',
 
   // Fila de sincronização offline: NÃO pode ser apagada pelo reconcile/limparCacheDados,
   // senão perderíamos as operações pendentes (escritas/deletes feitos offline).

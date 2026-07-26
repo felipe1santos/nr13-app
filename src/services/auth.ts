@@ -3,6 +3,8 @@
 // nr13_role) para leitura síncrona no render.
 import { supabase } from './supabase';
 import { lerTudo, limparCacheDados } from './storage';
+import { gravarEstadoLocal } from './assinatura';
+import type { StatusAssinatura } from '../features/assinatura/maquinaEstados';
 
 export const VIP_USERS = [
   'perone.fs@gmail.com',
@@ -64,7 +66,7 @@ async function carregarPerfil(): Promise<Perfil> {
   let data: Record<string, unknown> | null = null;
   const res = await supabase
     .from('profiles')
-    .select('plano, ativo, role, acesso_expira_em, papel, org_id, cliente_id, sessao_token, sessao_visto_em')
+    .select('plano, ativo, role, acesso_expira_em, papel, org_id, cliente_id, sessao_token, sessao_visto_em, assinatura_status, assinatura_ate')
     .eq('id', uid)
     .maybeSingle();
   if (!res.error) {
@@ -94,6 +96,14 @@ async function carregarPerfil(): Promise<Perfil> {
   if (orgId) localStorage.setItem('nr13_org_id', orgId);
   if (clienteId) localStorage.setItem('nr13_cliente_id', clienteId);
   else localStorage.removeItem('nr13_cliente_id');
+  // Espelho local da assinatura (Task 5): só grava se a coluna veio (select legado
+  // pré-migração não traz assinatura_status) — ausência mantém o fallback seguro
+  // 'ativa' de statusAssinaturaLocal(), nunca trava quem está num banco sem o SQL rodado.
+  const assinaturaStatus = (data?.assinatura_status as string) ?? '';
+  const assinaturaAteCol = (data?.assinatura_ate as string) ?? null;
+  if (assinaturaStatus) {
+    gravarEstadoLocal({ status: assinaturaStatus as StatusAssinatura, ate: assinaturaAteCol });
+  }
   return {
     plano, ativo, role, acessoExpiraEm, papel, orgId, clienteId,
     sessaoToken: (data?.sessao_token as string) ?? null,
@@ -412,6 +422,13 @@ export function encerrarSessaoLocal(): void {
   localStorage.removeItem('nr13_cliente_id');
   localStorage.removeItem('nr13_sessao_token');
   localStorage.removeItem('nr13_acesso_expira_em');
+  // Espelho da assinatura (preservado da faxina do limparCacheDados p/ sobreviver à
+  // hidratação periódica — ver CHAVES_PRESERVADAS em storage.ts): sem limpar aqui, um banco
+  // ainda sem a migração (assinatura_setup.sql) jamais re-gravaria essas chaves no próximo
+  // login, e o status de uma conta anterior vazaria para a próxima nesse mesmo navegador.
+  localStorage.removeItem('nr13_assinatura_status');
+  localStorage.removeItem('nr13_assinatura_ate');
+  localStorage.removeItem('nr13_assinatura_sucesso_pendente');
   // Zera os dados em cache para não vazarem ao próximo login (mesmo navegador).
   limparCacheDados();
 }
