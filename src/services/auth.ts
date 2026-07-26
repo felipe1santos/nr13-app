@@ -151,12 +151,9 @@ export async function carregarPerfil(): Promise<Perfil> {
   };
 }
 
-// Exportada para o polling de ModalAssinatura.tsx reusar a mesma regra de expiração sem
-// duplicar a lógica (e sem precisar chamar verificarAcesso(), que força logout()).
-export function expirado(acessoExpiraEm: string | null): boolean {
-  if (!acessoExpiraEm) return false;
-  return new Date(acessoExpiraEm).getTime() < Date.now();
-}
+// (O antigo `expirado(acessoExpiraEm)` foi REMOVIDO no fix do achado C2: julgar acesso só
+// pela data era exatamente o bug — quem tem assinatura conhecida entra e degrada. Quem
+// precisa dessa decisão usa `bloqueioEntrada`, que conhece as duas dimensões.)
 
 // Adapta o Perfil para a função pura do gate de entrada. Exportada porque o polling do
 // ModalAssinatura precisa da MESMA regra (não pode julgar "conta revogada" por uma data que,
