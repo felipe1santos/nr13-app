@@ -33,6 +33,25 @@ describe('aplicarEvento', () => {
     expect(r.ate).toBe('2026-07-31T12:00:00.000Z');
   });
 
+  it('late fora de ordem NAO encurta periodo ja pago (achado I2)', () => {
+    // Kiwify reentrega um `late` depois do `renewed`: a conta esta paga ate 25/08 e a graca
+    // (agora+5d = 31/07) nao pode roubar 25 dias de quem esta em dia.
+    const ativa: EstadoAssinatura = { status: 'ativa', ate: '2026-08-25T12:00:00.000Z' };
+    const r = aplicarEvento(ativa, 'subscription_late', AGORA);
+    expect(r.status).toBe('graca');
+    expect(r.ate).toBe('2026-08-25T12:00:00.000Z');
+  });
+
+  it('late em conta sem vencimento (vitalicia) mantem sem vencimento', () => {
+    const vitalicia: EstadoAssinatura = { status: 'ativa', ate: null };
+    expect(aplicarEvento(vitalicia, 'subscription_late', AGORA).ate).toBeNull();
+  });
+
+  it('late com data suja cai no piso de 5 dias (fail-safe)', () => {
+    const suja: EstadoAssinatura = { status: 'ativa', ate: 'nao-e-data' };
+    expect(aplicarEvento(suja, 'subscription_late', AGORA).ate).toBe('2026-07-31T12:00:00.000Z');
+  });
+
   it('pagamento durante a graca volta para ativa', () => {
     const graca: EstadoAssinatura = { status: 'graca', ate: '2026-07-31T12:00:00.000Z' };
     expect(aplicarEvento(graca, 'compra_aprovada', AGORA).status).toBe('ativa');

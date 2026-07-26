@@ -95,6 +95,11 @@ describe('consistência maquinaEstados.ts <-> kiwify_webhook/index.ts', () => {
     expect(idxLeitura).toBeLessThan(TEXTO_INDEX.indexOf('aplicarEvento(atual,'));
   });
 
+  // Achado I2: os dois lados precisam tratar a graça como PISO, não como reset da validade.
+  it('subscription_late usa maiorData(atual.ate, ...) também na Edge Function', () => {
+    expect(extrairRetornoDoCase('subscription_late')).toContain('maiorData(atual.ate');
+  });
+
   it('não processa quando o estado atual da org é ilegível (fail-closed)', () => {
     expect(TEXTO_INDEX).toContain('&& atualLido');
   });

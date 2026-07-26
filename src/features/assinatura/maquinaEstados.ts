@@ -41,6 +41,17 @@ function futuro(ate: string | null, agora: Date): boolean {
   return Number.isFinite(t) && t > agora.getTime();
 }
 
+/**
+ * Maior entre a data atual e o piso calculado. `atual` nulo = sem vencimento (conta vitalícia
+ * liberada na mão): continua sem vencimento, um evento de atraso não pode criar validade onde
+ * não havia. Data inválida perde para o piso (fail-safe: nunca fica preso num valor sujo).
+ */
+function maiorData(atual: string | null, piso: string): string | null {
+  if (atual === null) return null;
+  const t = new Date(atual).getTime();
+  return Number.isFinite(t) && t > new Date(piso).getTime() ? atual : piso;
+}
+
 export function aplicarEvento(
   atual: EstadoAssinatura,
   evento: EventoKiwify,
@@ -51,7 +62,10 @@ export function aplicarEvento(
     case 'subscription_renewed':
       return { status: 'ativa', ate: somarDias(agora, DIAS_CICLO) };
     case 'subscription_late':
-      return { status: 'graca', ate: somarDias(agora, DIAS_GRACA) };
+      // NUNCA encurta o que já foi pago (achado I2): um `late` reentregue pela Kiwify depois
+      // de um `renewed` rebaixaria uma conta paga até o dia 30 para 5 dias de graça. A graça é
+      // um PISO — vale o maior entre o período atual e agora+5d.
+      return { status: 'graca', ate: maiorData(atual.ate, somarDias(agora, DIAS_GRACA)) };
     case 'subscription_canceled':
       // Cancelou: usa o que já pagou. Sem período restante, bloqueia agora.
       return futuro(atual.ate, agora)

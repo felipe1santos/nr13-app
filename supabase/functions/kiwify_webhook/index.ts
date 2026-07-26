@@ -44,6 +44,14 @@ function somarDias(base: Date, dias: number): string {
   return d.toISOString();
 }
 
+// Maior entre a data atual e o piso (ver maiorData em maquinaEstados.ts): null = sem
+// vencimento, permanece sem vencimento; data inválida perde para o piso.
+function maiorData(atual: string | null, piso: string): string | null {
+  if (!atual) return null;
+  const t = new Date(atual).getTime();
+  return Number.isFinite(t) && t > new Date(piso).getTime() ? atual : piso;
+}
+
 function futuro(ate: string | null, agora: Date): boolean {
   if (!ate) return true;
   const t = new Date(ate).getTime();
@@ -60,7 +68,9 @@ function aplicarEvento(
     case 'subscription_renewed':
       return { status: 'ativa', ate: somarDias(agora, DIAS_CICLO) };
     case 'subscription_late':
-      return { status: 'graca', ate: somarDias(agora, DIAS_GRACA) };
+      // NUNCA encurta o que já foi pago: um `late` reentregue depois de um `renewed`
+      // rebaixaria conta paga até o dia 30 para 5 dias. A graça é um PISO.
+      return { status: 'graca', ate: maiorData(atual.ate, somarDias(agora, DIAS_GRACA)) };
     case 'subscription_canceled':
       // Cancelou: usa o que já pagou. Sem período restante, bloqueia agora.
       return futuro(atual.ate, agora)
