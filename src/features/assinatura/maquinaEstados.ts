@@ -68,3 +68,50 @@ export function statusEfetivo(estado: EstadoAssinatura, agora: Date): StatusAssi
   if (estado.status === 'somente_leitura') return 'somente_leitura';
   return futuro(estado.ate, agora) ? estado.status : 'somente_leitura';
 }
+
+/** Campos de `profiles` gravados por `camposVinculoManual` — ver comentário da função abaixo. */
+export interface CamposVinculoManual {
+  assinatura_status: StatusAssinatura;
+  assinatura_ate: string;
+  kiwify_email: string | null;
+  kiwify_subscription_id: string | null;
+  ativo: true;
+  plano: 'completo';
+  acesso_expira_em: string;
+}
+
+/**
+ * Campos gravados em `profiles` ao vincular MANUALMENTE (painel Admin, Task 10) um evento Kiwify
+ * órfão a uma conta. Extraída para função pura (fix round 1, achado CRITICAL 1) depois de um bug
+ * em que o handler gravava só `assinatura_status`/`assinatura_ate`/`kiwify_email` — o gate real de
+ * login (`login()` em src/services/auth.ts) usa as colunas LEGADAS `ativo`/`acesso_expira_em`
+ * (e `plano` para a mensagem de "período de teste terminou"), então uma conta de trial vencida
+ * que pagasse com e-mail diferente do cadastro continuava barrada mesmo com o painel mostrando
+ * "Ativa" — a ação parecia ter funcionado e não tinha destravado nada.
+ *
+ * Espelha o passo 6 do webhook (`supabase/functions/kiwify_webhook/index.ts`, que grava os dois
+ * mundos juntos a cada evento) nos campos em comum — `assinatura_status`/`ate`,
+ * `kiwify_email`/`kiwify_subscription_id`, `plano`, `acesso_expira_em` — e ACRESCENTA
+ * `ativo: true`: o vínculo manual pode ser exatamente a forma de destravar uma conta que o admin
+ * bloqueou antes (ver `liberarAcessoCompleto` em Admin.tsx, mesmo padrão de "liberar tudo junto");
+ * o webhook não precisa tocar em `ativo` porque só processa contas que o fluxo normal (cadastro/
+ * trial) já deixou ativas. `plano` sempre vira `'completo'` aqui (diferente do webhook, que também
+ * pode gravar `'expirado'` para eventos de bloqueio) porque o vínculo manual só existe para o
+ * caminho de ATIVAR uma assinatura — não há tela de "desvincular" nesta task.
+ */
+export function camposVinculoManual(
+  agora: Date,
+  emailEvento: string | null,
+  subscriptionId: string | null,
+): CamposVinculoManual {
+  const ate = somarDias(agora, DIAS_CICLO);
+  return {
+    assinatura_status: 'ativa',
+    assinatura_ate: ate,
+    kiwify_email: emailEvento,
+    kiwify_subscription_id: subscriptionId,
+    ativo: true,
+    plano: 'completo',
+    acesso_expira_em: ate,
+  };
+}

@@ -10,6 +10,7 @@ import {
   calcularDiasRestantes,
   montarUrlCheckout,
   rotuloStatusAssinatura,
+  rotuloEventoKiwify,
 } from '../../../services/assinatura';
 
 // vitest roda em node (sem DOM): shim mínimo de localStorage (mesmo padrão de vencimentos.test.ts).
@@ -122,5 +123,20 @@ describe('rotuloStatusAssinatura (coluna "Assinatura" do Admin)', () => {
     expect(rotuloStatusAssinatura(null)).toBe('Trial');
     expect(rotuloStatusAssinatura(undefined)).toBe('Trial');
     expect(rotuloStatusAssinatura('status-que-nao-existe')).toBe('Trial');
+  });
+});
+
+describe('rotuloEventoKiwify (lista "Eventos Kiwify sem conta" do Admin)', () => {
+  it('traduz os 6 eventos conhecidos', () => {
+    expect(rotuloEventoKiwify('compra_aprovada')).toBe('Compra aprovada');
+    expect(rotuloEventoKiwify('subscription_renewed')).toBe('Renovação');
+    expect(rotuloEventoKiwify('subscription_late')).toBe('Cobrança atrasada');
+    expect(rotuloEventoKiwify('subscription_canceled')).toBe('Cancelamento');
+    expect(rotuloEventoKiwify('compra_reembolsada')).toBe('Reembolso');
+    expect(rotuloEventoKiwify('chargeback')).toBe('Chargeback');
+  });
+
+  it('evento desconhecido cai no fallback underscore -> espaco', () => {
+    expect(rotuloEventoKiwify('evento_futuro_nao_mapeado')).toBe('evento futuro nao mapeado');
   });
 });

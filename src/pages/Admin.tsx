@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { logout } from '../services/auth';
-import { rotuloStatusAssinatura } from '../services/assinatura';
-import { DIAS_CICLO, somarDias } from '../features/assinatura/maquinaEstados';
+import { rotuloStatusAssinatura, rotuloEventoKiwify } from '../services/assinatura';
+import { DIAS_CICLO, camposVinculoManual } from '../features/assinatura/maquinaEstados';
 import BotaoInstalarPWA from '../app/BotaoInstalarPWA';
 import ModalLeadForm from '../features/admin/ModalLeadForm';
 import ModalImportarLeads from '../features/admin/ModalImportarLeads';
@@ -38,6 +38,7 @@ interface Profile {
   assinatura_status?: string | null;
   assinatura_ate?: string | null;
   kiwify_email?: string | null;
+  kiwify_subscription_id?: string | null;
 }
 
 // Evento de pagamento Kiwify sem `profile_id` (webhook não conseguiu casar com nenhuma conta —
@@ -375,7 +376,13 @@ export default function Admin() {
   }, [profiles]);
 
   // Candidatos ao vínculo manual de evento Kiwify órfão: contas pagantes (mestre/pré-migração),
-  // sem superadmin nem sub-logins (esses não têm assinatura própria).
+  // sem superadmin nem sub-logins (esses não têm assinatura própria). NÃO filtra por `ativo`
+  // (fix round 1, IMPORTANT 3): antes do fix do CRITICAL 1 abaixo, vincular uma conta bloqueada
+  // era uma armadilha (o admin achava que tinha liberado, mas `ativo` continuava false e o login
+  // recusava mesmo assim). Agora `camposVinculoManual` grava `ativo: true` junto — vincular UMA
+  // conta bloqueada passa a ser um jeito válido de reativá-la (mesma lógica de
+  // `liberarAcessoCompleto`), então mantemos todas na lista; o rótulo abaixo avisa quando isso
+  // vai acontecer, para o admin nunca ser surpreendido.
   const contasPagantes = useMemo(
     () =>
       profiles
@@ -673,38 +680,59 @@ export default function Admin() {
   }
 
   // Vincula manualmente um evento Kiwify órfão (pagamento sem conta identificada) a um usuário:
-  // ativa a assinatura por um novo ciclo e marca o evento como processado, para não aparecer
-  // de novo na lista nem ser reprocessado por engano.
+  // ativa a assinatura por um novo ciclo (camposVinculoManual — inclui as colunas LEGADAS que o
+  // login() de fato usa, ver comentário na função) e marca o evento como processado, para não
+  // aparecer de novo na lista nem ser reprocessado por engano.
   async function vincularOrfao(evento: EventoKiwifyOrfao, usuarioId: string) {
     if (!usuarioId) {
       setErro('Escolha um usuário antes de vincular.');
       return;
     }
+    // fix round 1, IMPORTANT 2a: confirmação explícita (padrão de liberarAcessoCompleto) — os
+    // dois updates abaixo não são atômicos e não têm desfazer por aqui, então o admin precisa
+    // ver com clareza QUAL conta vai receber QUAL pagamento antes de agir.
+    const destino = profiles.find((p) => p.id === usuarioId);
+    const confirmar = window.confirm(
+      `Vincular o pagamento de "${evento.email ?? 'e-mail não informado'}" ` +
+        `(evento: ${rotuloEventoKiwify(evento.evento)}, recebido em ${fmtData(evento.recebido_em)}) ` +
+        `à conta ${destino?.email ?? usuarioId}?\n\n` +
+        `Isso ativa a assinatura dessa conta por ${DIAS_CICLO} dias` +
+        (destino && !destino.ativo ? ' e REATIVA o acesso (a conta está bloqueada hoje)' : '') +
+        `. Não há como desfazer por aqui — confira o e-mail antes de confirmar.`,
+    );
+    if (!confirmar) return;
+
     setAcaoEmAndamento(evento.id);
     setErro(null);
     setAviso(null);
     try {
-      const proximaData = somarDias(new Date(), DIAS_CICLO);
-      const { error: e1 } = await supabase
-        .from('profiles')
-        .update({ assinatura_status: 'ativa', assinatura_ate: proximaData, kiwify_email: evento.email })
-        .eq('id', usuarioId);
+      const campos = camposVinculoManual(new Date(), evento.email, evento.subscription_id);
+      const { error: e1 } = await supabase.from('profiles').update(campos).eq('id', usuarioId);
       if (e1) throw e1;
+
+      // A partir daqui o perfil JÁ foi atualizado. Se o update abaixo falhar, o evento continua
+      // "órfão" na tela — um novo clique vincularia o MESMO pagamento a OUTRA conta. Por isso
+      // (fix round 1, IMPORTANT 2b) esse caso vira um aviso explícito em vez de cair no catch
+      // genérico "Falha ao vincular evento" (que sugeriria que nada aconteceu).
       const { error: e2 } = await supabase
         .from('kiwify_eventos')
         .update({ profile_id: usuarioId, processado: true })
         .eq('id', evento.id);
-      if (e2) throw e2;
-      setProfiles((ps) =>
-        ps.map((p) =>
-          p.id === usuarioId
-            ? { ...p, assinatura_status: 'ativa', assinatura_ate: proximaData, kiwify_email: evento.email }
-            : p,
-        ),
-      );
+
+      setProfiles((ps) => ps.map((p) => (p.id === usuarioId ? { ...p, ...campos } : p)));
+
+      if (e2) {
+        setErro(
+          `A conta ${destino?.email ?? usuarioId} JÁ foi ativada, mas o evento não pôde ser marcado ` +
+            `como vinculado (${e2.message}). NÃO repita o vínculo — ele voltaria a aparecer na lista ` +
+            `e poderia ser aplicado a outra conta por engano; corrija direto no banco se persistir.`,
+        );
+        return;
+      }
+
       setOrfaos((os) => (os ?? []).filter((o) => o.id !== evento.id));
       setSelOrfao((s) => Object.fromEntries(Object.entries(s).filter(([id]) => id !== evento.id)));
-      setAviso('Evento vinculado — assinatura ativada para o usuário escolhido.');
+      setAviso(`Evento vinculado — assinatura ativada para ${destino?.email ?? usuarioId}.`);
     } catch (e: unknown) {
       setErro(e instanceof Error ? e.message : 'Falha ao vincular evento.');
     } finally {
@@ -978,7 +1006,7 @@ export default function Admin() {
                     return (
                       <tr key={ev.id} className={ocupado ? 'ocupado' : ''}>
                         <td data-label="Recebido em">{fmtData(ev.recebido_em)}</td>
-                        <td data-label="Evento">{ev.evento.replace(/_/g, ' ')}</td>
+                        <td data-label="Evento">{rotuloEventoKiwify(ev.evento)}</td>
                         <td data-label="E-mail do pagamento">{ev.email ?? '—'}</td>
                         <td data-label="Vincular a">
                           <select
@@ -990,6 +1018,7 @@ export default function Admin() {
                             {contasPagantes.map((p) => (
                               <option key={p.id} value={p.id}>
                                 {p.email}
+                                {p.ativo ? '' : ' (bloqueada — será reativada)'}
                               </option>
                             ))}
                           </select>

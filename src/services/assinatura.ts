@@ -86,6 +86,25 @@ export function rotuloStatusAssinatura(status: string | null | undefined): strin
   }
 }
 
+const ROTULOS_EVENTO_KIWIFY: Record<string, string> = {
+  compra_aprovada: 'Compra aprovada',
+  subscription_renewed: 'Renovação',
+  subscription_late: 'Cobrança atrasada',
+  subscription_canceled: 'Cancelamento',
+  compra_reembolsada: 'Reembolso',
+  chargeback: 'Chargeback',
+};
+
+/**
+ * Rótulo em pt-BR do tipo de evento Kiwify, para a lista "Eventos Kiwify sem conta" do painel
+ * Admin (Task 10, fix round 1 — MINOR). Evento fora da lista conhecida (a Kiwify passa a mandar
+ * um tipo novo antes deste mapa ser atualizado) cai no fallback `_` → espaço, em vez de sumir ou
+ * quebrar a tela.
+ */
+export function rotuloEventoKiwify(evento: string): string {
+  return ROTULOS_EVENTO_KIWIFY[evento] ?? evento.replace(/_/g, ' ');
+}
+
 /** Marca que a próxima abertura deve exibir o modal verde de "assinatura confirmada". */
 export function marcarSucessoPendente(): void {
   localStorage.setItem(CHAVE_SUCESSO, '1');

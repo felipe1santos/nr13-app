@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { aplicarEvento, statusEfetivo, somarDias, DIAS_CICLO, type EstadoAssinatura } from '../maquinaEstados';
+import {
+  aplicarEvento,
+  statusEfetivo,
+  somarDias,
+  camposVinculoManual,
+  DIAS_CICLO,
+  type EstadoAssinatura,
+} from '../maquinaEstados';
 
 const AGORA = new Date('2026-07-26T12:00:00.000Z');
 const trial: EstadoAssinatura = { status: 'trial', ate: '2026-07-27T12:00:00.000Z' };
@@ -60,6 +67,36 @@ describe('somarDias (vínculo manual de evento órfão no Admin)', () => {
 
   it('vira o mes/ano corretamente perto da virada', () => {
     expect(somarDias(new Date('2026-12-10T00:00:00.000Z'), DIAS_CICLO)).toBe('2027-01-09T00:00:00.000Z');
+  });
+});
+
+describe('camposVinculoManual (Admin — vínculo manual de evento órfão, fix round 1 do CRITICAL 1)', () => {
+  it('grava assinatura_status ativa e assinatura_ate = agora + DIAS_CICLO', () => {
+    const r = camposVinculoManual(AGORA, 'cliente@teste.com', 'sub-123');
+    expect(r.assinatura_status).toBe('ativa');
+    expect(r.assinatura_ate).toBe('2026-08-25T12:00:00.000Z');
+  });
+
+  it('inclui as colunas LEGADAS que o login() realmente usa para liberar a entrada', () => {
+    // Sem isso, o painel mostra "Ativa" mas o usuário continua barrado em auth.ts (!perfil.ativo
+    // ou expirado(perfil.acessoExpiraEm)) — era exatamente o bug do CRITICAL 1.
+    const r = camposVinculoManual(AGORA, 'cliente@teste.com', 'sub-123');
+    expect(r.ativo).toBe(true);
+    expect(r.plano).toBe('completo');
+    expect(r.acesso_expira_em).toBe(r.assinatura_ate);
+  });
+
+  it('propaga e-mail e subscription_id do evento para as colunas kiwify_*', () => {
+    const r = camposVinculoManual(AGORA, 'pagador@kiwify.com', 'sub-999');
+    expect(r.kiwify_email).toBe('pagador@kiwify.com');
+    expect(r.kiwify_subscription_id).toBe('sub-999');
+  });
+
+  it('aceita email/subscriptionId nulos (evento sem esses dados) sem quebrar', () => {
+    const r = camposVinculoManual(AGORA, null, null);
+    expect(r.kiwify_email).toBeNull();
+    expect(r.kiwify_subscription_id).toBeNull();
+    expect(r.ativo).toBe(true);
   });
 });
 
