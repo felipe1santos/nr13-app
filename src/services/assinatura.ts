@@ -77,3 +77,23 @@ export function sucessoPendente(): boolean {
 export function marcarSucessoExibido(): void {
   localStorage.removeItem(CHAVE_SUCESSO);
 }
+
+/**
+ * Dias restantes até `ate` (arredondado para cima, nunca negativo). `null` se não houver
+ * vencimento ou a data for inválida. Recebe `agora` por parâmetro (em vez de usar Date.now()
+ * internamente) só para ficar testável com Vitest sem mockar relógio global.
+ */
+export function calcularDiasRestantes(ate: string | null, agora: Date = new Date()): number | null {
+  if (!ate) return null;
+  const ms = new Date(ate).getTime() - agora.getTime();
+  return Number.isFinite(ms) ? Math.max(0, Math.ceil(ms / 86_400_000)) : null;
+}
+
+/**
+ * Monta a URL do checkout da Kiwify com e-mail e uid (parâmetro `sck`) do usuário logado —
+ * o webhook usa esses dados para casar o pagamento com a conta que o originou. Pura (sem
+ * `window`/`localStorage`) para ser testável isoladamente.
+ */
+export function montarUrlCheckout(urlBase: string, email: string, uid: string): string {
+  return `${urlBase}?email=${encodeURIComponent(email)}&sck=${encodeURIComponent(uid)}`;
+}

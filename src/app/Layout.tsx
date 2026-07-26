@@ -3,8 +3,11 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Icone } from '../components/Icone';
 import { isMestre, isTrial, logout, papelAtual, usuarioLogado } from '../services/auth';
 import BarraTrial from '../components/BarraTrial';
+import BarraAssinatura from '../components/BarraAssinatura';
 import ModalAviso from '../components/ModalAviso';
 import { listarChavesComPrefixo } from '../services/storage';
+import { sucessoPendente, marcarSucessoExibido, statusAssinaturaLocal } from '../services/assinatura';
+import { emitirAviso } from '../services/eventos';
 import { modulosDoUsuarioAtual } from '../services/permissoes';
 import { ITENS_TOPO, ITENS_CADASTRAR, ITENS_BAIXO, ITEM_ACESSOS, tituloDaRota } from './menu';
 import type { ItemMenu } from './menu';
@@ -125,6 +128,21 @@ export default function Layout() {
     };
   }, []);
 
+  // Aviso de sucesso para quem fechou a aba do checkout (ou o app) antes do polling do
+  // ModalAssinatura terminar e voltou depois: o webhook já gravou "ativa" no servidor e
+  // o login/carregarPerfil já espelhou isso no localStorage antes deste Layout montar —
+  // só falta mostrar o aviso UMA vez (marcarSucessoExibido evita repetir a cada navegação).
+  useEffect(() => {
+    if (!sucessoPendente()) return;
+    if (statusAssinaturaLocal() !== 'ativa') return;
+    marcarSucessoExibido();
+    emitirAviso({
+      variante: 'sucesso',
+      titulo: 'Assinatura confirmada!',
+      texto: 'Pagamento aprovado. Salvar, imprimir e gerar documentos já estão liberados.',
+    });
+  }, []);
+
   async function handleLogout() {
     await logout();
     navigate('/login');
@@ -231,6 +249,7 @@ export default function Layout() {
         {/* ===== MAIN ===== */}
         <div className="main">
           <BarraTrial />
+          <BarraAssinatura />
           <ModalAviso />
           <header className="topbar">
             <div className="topbar-left">

@@ -7,6 +7,8 @@ import {
   limparEstadoLocal,
   marcarSucessoPendente,
   sucessoPendente,
+  calcularDiasRestantes,
+  montarUrlCheckout,
 } from '../../../services/assinatura';
 
 // vitest roda em node (sem DOM): shim mínimo de localStorage (mesmo padrão de vencimentos.test.ts).
@@ -59,5 +61,49 @@ describe('espelho local da assinatura', () => {
     expect(statusAssinaturaLocal()).toBe('ativa');
     expect(podeEscreverAssinatura()).toBe(true);
     expect(sucessoPendente()).toBe(false);
+  });
+});
+
+describe('calcularDiasRestantes (BarraAssinatura)', () => {
+  it('sem data de vencimento retorna null', () => {
+    expect(calcularDiasRestantes(null)).toBeNull();
+  });
+
+  it('data invalida retorna null', () => {
+    expect(calcularDiasRestantes('nao-e-data', new Date('2026-01-01T00:00:00Z'))).toBeNull();
+  });
+
+  it('arredonda para cima (2 dias e meio -> 3)', () => {
+    const agora = new Date('2026-01-01T00:00:00Z');
+    const ate = new Date(agora.getTime() + 2.5 * 86_400_000).toISOString();
+    expect(calcularDiasRestantes(ate, agora)).toBe(3);
+  });
+
+  it('data exatamente agora retorna 0', () => {
+    const agora = new Date('2026-01-01T00:00:00Z');
+    expect(calcularDiasRestantes(agora.toISOString(), agora)).toBe(0);
+  });
+
+  it('data no passado nunca retorna negativo (chao em 0)', () => {
+    const agora = new Date('2026-01-10T00:00:00Z');
+    const ate = new Date('2026-01-01T00:00:00Z').toISOString();
+    expect(calcularDiasRestantes(ate, agora)).toBe(0);
+  });
+});
+
+describe('montarUrlCheckout (ModalAssinatura)', () => {
+  it('anexa email e uid como query params (sck)', () => {
+    const url = montarUrlCheckout('https://pay.kiwify.com.br/O9KdzEI', 'joao@teste.com', 'uid-123');
+    expect(url).toBe('https://pay.kiwify.com.br/O9KdzEI?email=joao%40teste.com&sck=uid-123');
+  });
+
+  it('escapa caracteres especiais no email e no uid', () => {
+    const url = montarUrlCheckout('https://exemplo.com/checkout', 'a+b@teste.com', 'uid com espaço');
+    expect(url).toBe('https://exemplo.com/checkout?email=a%2Bb%40teste.com&sck=uid%20com%20espa%C3%A7o');
+  });
+
+  it('funciona com email vazio (usuario ainda nao carregado)', () => {
+    const url = montarUrlCheckout('https://exemplo.com/checkout', '', '');
+    expect(url).toBe('https://exemplo.com/checkout?email=&sck=');
   });
 });
