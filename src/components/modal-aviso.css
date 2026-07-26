@@ -1,0 +1,65 @@
+/* Modal global de aviso (sucesso/alerta/erro) — ligado ao barramento de eventos.
+   Tokens seguem o design system "Forja" (src/styles/tokens.css). */
+.modal-aviso-fundo {
+  position: fixed;
+  inset: 0;
+  /* mesmo tom de --ink (#14181C) usado no overlay padrão .fj-modal-overlay */
+  background: rgba(20, 24, 28, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  /* acima do .fj-modal-overlay (1000) — o aviso pode surgir sobre outro modal aberto */
+  z-index: 1200;
+}
+
+.modal-aviso {
+  background: var(--panel);
+  border-radius: var(--radius-xl);
+  padding: 26px 24px 20px;
+  max-width: 440px;
+  width: 100%;
+  text-align: center;
+  border-top: 5px solid var(--cor-aviso);
+  box-shadow: var(--shadow-lg);
+}
+
+/* cor por variante mapeada para os tokens semânticos já usados no resto do app */
+.modal-aviso.sucesso { --cor-aviso: var(--ok); }
+.modal-aviso.alerta  { --cor-aviso: var(--warn); }
+.modal-aviso.erro    { --cor-aviso: var(--crit); }
+
+.modal-aviso-ic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  color: var(--cor-aviso);
+  background: color-mix(in srgb, var(--cor-aviso) 14%, transparent);
+  margin-bottom: 12px;
+}
+
+.modal-aviso h3 { margin: 0 0 8px; font-size: 18px; }
+.modal-aviso p { margin: 0 0 18px; font-size: 14px; line-height: 1.5; color: var(--muted); }
+
+.modal-aviso-acoes { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+.modal-aviso-btn {
+  border: 1px solid var(--line);
+  background: none;
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-family: var(--font-base);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.modal-aviso-btn.principal {
+  background: var(--cor-aviso);
+  border-color: var(--cor-aviso);
+  color: #fff;
+}

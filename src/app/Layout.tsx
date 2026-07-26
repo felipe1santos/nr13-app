@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Icone } from '../components/Icone';
 import { isMestre, isTrial, logout, papelAtual, usuarioLogado } from '../services/auth';
 import BarraTrial from '../components/BarraTrial';
+import ModalAviso from '../components/ModalAviso';
 import { listarChavesComPrefixo } from '../services/storage';
 import { modulosDoUsuarioAtual } from '../services/permissoes';
 import { ITENS_TOPO, ITENS_CADASTRAR, ITENS_BAIXO, ITEM_ACESSOS, tituloDaRota } from './menu';
@@ -230,6 +231,7 @@ export default function Layout() {
         {/* ===== MAIN ===== */}
         <div className="main">
           <BarraTrial />
+          <ModalAviso />
           <header className="topbar">
             <div className="topbar-left">
               <button
