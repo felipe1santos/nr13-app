@@ -618,19 +618,12 @@ export default function Login() {
         {modo === 'entrar' ? (
           <div className="login-links-grid">
             {trialPermitido && (
-              <button type="button" className="btn-link-login destaque" onClick={() => irPara('trial')}>
-                Teste grátis de 48h
+              <button type="button" className="btn-login btn-trial col-toda" onClick={() => irPara('trial')}>
+                Teste grátis por 48h
               </button>
             )}
-            <button type="button" className="btn-link-login" onClick={() => irPara('recuperar')}>
+            <button type="button" className="btn-link-login col-toda" onClick={() => irPara('recuperar')}>
               Esqueci / trocar senha
-            </button>
-            <button
-              type="button"
-              className={`btn-link-login${trialPermitido ? ' col-toda' : ''}`}
-              onClick={() => irPara('cadastrar')}
-            >
-              Não tem conta? Criar conta
             </button>
           </div>
         ) : (

@@ -27,6 +27,23 @@ const CHAVES_PRESERVADAS = new Set([
 ]);
 
 // ---------------------------------------------------------------------------
+// Portal do Cliente: SOMENTE LEITURA (trava de escrita)
+// ---------------------------------------------------------------------------
+// O papel 'cliente' nunca escreve no banco. As telas do portal ainda precisam gravar
+// chaves de RENDERIZAÇÃO no localStorage (nr13_relatorio_meta_atual, nr13_inspecao_atual
+// etc., lidas pelos templates em iframe), então a gravação local continua — o que é
+// cortado é o envio ao Supabase E a fila offline (senão a escrita ficaria pendente e
+// seria drenada depois sob a sessão de um usuário com permissão de escrita).
+// Ler direto do localStorage (e não de auth.ts) evita import circular: auth → storage.
+function somenteLeitura(): boolean {
+  try {
+    return (localStorage.getItem('nr13_papel') || '') === 'cliente';
+  } catch {
+    return false;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Fila de sincronização offline (nr13_fila_sync)
 // ---------------------------------------------------------------------------
 // Quando uma chamada ao Supabase FALHA (offline), a operação é enfileirada aqui e drenada
@@ -100,6 +117,9 @@ function registrarSync(): void {
 // online). Aplica as ops EM ORDEM; cada sucesso sai da fila. Se uma falhar (ainda offline),
 // PARA e mantém o restante (preservando a ordem). Sem userId, retorna sem mexer na fila.
 export async function flushFila(): Promise<void> {
+  // Cliente (portal) não sincroniza nada: a fila herdada de outra sessão no mesmo
+  // navegador não pode ser drenada com o token dele.
+  if (somenteLeitura()) return;
   let fila = lerFila();
   if (fila.length === 0) return; // invariante: fila vazia ⇒ não toca em rede nem storage
   const escopo = await escopoStorageAtual();
@@ -266,6 +286,7 @@ export async function salvar(chave: string, objeto: unknown): Promise<void> {
   } catch {
     // cota local estourada: ainda assim persiste no Supabase abaixo, sem derrubar a gravação
   }
+  if (somenteLeitura()) return; // portal: fica só no cache local, nunca vai ao banco
   const escopo = await escopoStorageAtual();
   if (!escopo) return;
   try {
@@ -290,6 +311,7 @@ export async function salvar(chave: string, objeto: unknown): Promise<void> {
 
 // Remove UMA chave do Supabase e do cache local.
 export async function excluirChave(chave: string): Promise<void> {
+  if (somenteLeitura()) return; // portal: cliente não exclui nada (nem no cache local)
   localStorage.removeItem(chave);
   const escopo = await escopoStorageAtual();
   if (!escopo) return;
@@ -325,6 +347,7 @@ export function listarChavesComPrefixo(prefixo: string): string[] {
 }
 
 export async function excluirVaso(tag: string): Promise<void> {
+  if (somenteLeitura()) return; // portal: cliente não exclui equipamento
   // Coleta no cache local todas as chaves que terminam em "_<TAG>". Como TAGs podem conter
   // "_", uma chave de TAG mais longa também termina igual (excluir "B" casava "nr13_info_A_B"
   // e apagava o equipamento A_B): chave que pertence a OUTRA TAG cadastrada mais específica

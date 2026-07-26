@@ -23,6 +23,21 @@ export async function excluirCalibracao(tag: string, id: string): Promise<void> 
   await excluirChave(chaveItem(id));
 }
 
+/**
+ * Garante a chave nr13_calibracao_item_<id> no cache local (é ela que o template
+ * CERTIFICADO-CAL-* lê ao abrir por `?calibId=`). Necessário no Portal do Cliente: a
+ * Edge Function portal_cliente só entrega chaves terminadas em _<TAG>, então o item
+ * individual não chega — mas o objeto completo já vem dentro de nr13_calibracoes_<TAG>.
+ * Grava SÓ no localStorage (não é uma escrita de dados: é hidratação de cache).
+ */
+export function hidratarItemLocal(cal: DadosCalibracao): void {
+  try {
+    localStorage.setItem(chaveItem(cal.id), JSON.stringify(cal));
+  } catch {
+    // cota estourada: o template cai no fallback (certificado sem dados)
+  }
+}
+
 export function arquivoCalibracao(tipo: 'manometro' | 'psv'): string {
   return tipo === 'manometro' ? 'CERTIFICADO-CAL-MANOMETRO.html' : 'CERTIIFCADO-CAL-PSV.html';
 }

@@ -40,7 +40,14 @@
     } catch (e) {}
   }
 
+  // Portal do Cliente = somente leitura: o papel 'cliente' nunca envia nada ao banco
+  // nem enfileira (a fila seria drenada depois por uma sessão com permissão de escrita).
+  function somenteLeitura() {
+    try { return (localStorage.getItem('nr13_papel') || '') === 'cliente'; } catch (e) { return false; }
+  }
+
   window.sbSalvar = function (chave, valor) {
+    if (somenteLeitura()) return;
     // valor já deve ser string (JSON.stringify). Grava no cache local sempre.
     try { localStorage.setItem(chave, valor); } catch (e) {}
 

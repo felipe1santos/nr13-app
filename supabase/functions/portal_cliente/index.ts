@@ -105,7 +105,12 @@ Deno.serve(async (req) => {
           continue;
         }
         const pertence =
-          CHAVES_GLOBAIS.includes(chave) || tags.some((t) => chave.endsWith(`_${t}`));
+          CHAVES_GLOBAIS.includes(chave) ||
+          // Certificados dos instrumentos PADRÃO (rastreabilidade): anexados no fim dos
+          // relatórios/certificados. Não terminam em _<TAG> (são da executante, não do
+          // ativo), então sem esta linha o PDF do portal saía sem os anexos.
+          chave.startsWith('nr13_rastreab_') ||
+          tags.some((t) => chave.endsWith(`_${t}`));
         if (pertence) chaves[chave] = row.valor;
       }
       if (!data || data.length < PAGINA) break;

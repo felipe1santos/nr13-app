@@ -198,6 +198,7 @@
 
 .portal-abas-nav {
   display: flex;
+  flex-wrap: wrap; /* 6 abas: no celular quebram em duas linhas em vez de estourar a caixa */
   border-bottom: 1px solid var(--border-solid);
   background: var(--bg-faint);
 }
@@ -243,6 +244,28 @@
 .portal-tabela th { color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
 
 .portal-preview-doc { display: flex; flex-direction: column; gap: 16px; align-items: center; }
+
+/* aba Acessórios: cada acessório com o histórico de calibrações abaixo */
+.portal-acessorio {
+  border: 1px solid var(--border-solid);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--bg-card);
+}
+
+.portal-acessorio + .portal-acessorio { margin-top: 12px; }
+
+.portal-acessorio .cal-comp-item { border: none; padding: 0 0 6px; background: none; }
+
+.portal-lista-calibracoes {
+  border-top: 1px solid var(--border-solid);
+  margin-top: 4px;
+  padding-left: 6px;
+}
+
+.portal-lista-calibracoes li { padding: 9px 0; }
+
+.portal-acessorio-vazio { margin: 8px 0 2px; padding-left: 6px; }
 
 /* aba Histórico: timeline cronológica */
 .portal-timeline { list-style: none; margin: 0; padding: 0; }

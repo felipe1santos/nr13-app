@@ -165,6 +165,20 @@
   font-weight: 800;
 }
 
+/* CTA do teste grátis — botão cheio âmbar (mesma forma do .btn-login) */
+.btn-login.btn-trial {
+  grid-column: 1 / -1;
+  background: linear-gradient(180deg, #ff9440, var(--amber, #ff7a1a));
+  color: #fff;
+  box-shadow: 0 8px 22px rgba(234, 88, 12, 0.32);
+  margin-top: 0;
+  margin-bottom: 6px;
+}
+
+.btn-login.btn-trial:hover:not(:disabled) {
+  box-shadow: 0 12px 28px rgba(234, 88, 12, 0.4);
+}
+
 .btn-link-login.col-toda {
   grid-column: 1 / -1;
 }

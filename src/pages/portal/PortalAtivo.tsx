@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icone, type NomeIcone } from '../../components/Icone';
 import { Link, useParams } from 'react-router-dom';
 import { ler } from '../../services/storage';
@@ -8,7 +8,7 @@ import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } fro
 import AnexosRastreabPreview from '../../features/relatorios/AnexosRastreabPreview';
 import { listarContainers, carregarContainer } from '../../features/inspecoes/inspecaoService';
 import { listarComponentes } from '../../features/calibracoes/componentesService';
-import { listarCalibracoes } from '../../features/calibracoes/calibracaoService';
+import { listarCalibracoes, arquivoCalibracao, hidratarItemLocal } from '../../features/calibracoes/calibracaoService';
 import type { DadosCalibracao } from '../../features/calibracoes/tipos';
 import { carregarProntuario, gravarProntuarioAtual } from '../../features/prontuarios/prontuarioService';
 import {
@@ -22,12 +22,15 @@ import { parseDataFlex, statusPrazo } from '../../services/vencimentos';
 import type { InfoEquipamento } from '../../features/equipamento/tipos';
 import type { RelatorioSalvo } from '../../features/relatorios/tipos';
 import PaginaA4 from '../../components/PaginaA4';
+import { travarIframeSomenteLeitura } from '../../features/portal/somenteLeituraDoc';
 import '../relatorios.css';
 import '../calibracoes.css';
 
-type Aba = 'documentacao' | 'prontuario' | 'registros' | 'historico' | 'acessorios';
+type Aba = 'documentacao' | 'prontuario' | 'registros' | 'historico' | 'acessorios' | 'calibracoes';
 
 interface LivroEntradaView {
+  /** id da entrada — o template LIVRO-REGISTRO.html busca por ele (?entrada=); &idx é o fallback. */
+  id?: string;
   data: string;
   tipo: string;
   descricao: string;
@@ -42,6 +45,17 @@ interface EventoHistorico {
   titulo: string;
   detalhe?: string;
   aoClicar?: () => void;
+}
+
+// Folha do documento no portal: o iframe é travado em SOMENTE LEITURA assim que carrega
+// (templates são preenchíveis por padrão — ver somenteLeituraDoc.ts).
+function IframeDocumento({ src, titulo }: { src: string; titulo: string }) {
+  const ref = useRef<HTMLIFrameElement>(null);
+  useEffect(() => {
+    if (!ref.current) return;
+    return travarIframeSomenteLeitura(ref.current);
+  }, [src]);
+  return <iframe ref={ref} src={src} scrolling="no" title={titulo} />;
 }
 
 // Documento simples (Prontuário / Livro / Termo / Capa): já não depende de um relatório
@@ -81,14 +95,55 @@ export default function PortalAtivo() {
   // Itens da aba Registros: só os que realmente existem pra este equipamento (mesma
   // condição de LivroRegistro.tsx — termo de abertura nasce junto com a 1ª entrada do livro).
   const itensRegistros = useMemo(() => {
-    const itens: { titulo: string; doc: string; meta?: string }[] = [];
+    const t = encodeURIComponent(tag);
+    const itens: { titulo: string; paginas: string[]; meta?: string }[] = [];
     if (livro.length > 0) {
-      itens.push({ titulo: 'Capa do Livro de Registro', doc: 'CAPA-LIVRO-REGISTRO.html' });
-      itens.push({ titulo: 'Termo de Abertura', doc: 'TERMO-ABERTURA.html' });
-      itens.push({ titulo: 'Livro de Registro de Segurança', doc: 'LIVRO-REGISTRO.html', meta: `${livro.length} registro(s)` });
+      itens.push({ titulo: 'Capa do Livro de Registro', paginas: [`/arquivos-inspecao/CAPA-LIVRO-REGISTRO.html?tag=${t}&page=1`] });
+      itens.push({ titulo: 'Termo de Abertura', paginas: [`/arquivos-inspecao/TERMO-ABERTURA.html?tag=${t}&page=1`] });
+      // Uma folha POR ENTRADA do livro (o template renderiza UM registro por vez —
+      // ?entrada=<id>, com &idx de fallback pra entradas antigas sem id). Antes o portal
+      // abria uma folha só e o cliente via apenas o primeiro registro.
+      itens.push({
+        titulo: 'Livro de Registro de Segurança',
+        meta: `${livro.length} registro(s)`,
+        paginas: livro.map(
+          (e, i) =>
+            `/arquivos-inspecao/LIVRO-REGISTRO.html?tag=${t}&entrada=${encodeURIComponent(e.id ?? '')}&idx=${i}&page=${i + 1}&total=${livro.length}`,
+        ),
+      });
     }
     return itens;
-  }, [livro]);
+  }, [livro, tag]);
+
+  // Calibrações de um acessório, da mais recente para a mais antiga.
+  const calibracoesPorComponente = useMemo(() => {
+    const mapa = new Map<string, DadosCalibracao[]>();
+    for (const c of calibracoes) {
+      const chave = c.componenteId || '__sem_componente__';
+      const lista = mapa.get(chave) ?? [];
+      lista.push(c);
+      mapa.set(chave, lista);
+    }
+    for (const lista of mapa.values()) {
+      lista.sort((a, b) => (parseDataFlex(b.dataCalibracao)?.getTime() ?? 0) - (parseDataFlex(a.dataCalibracao)?.getTime() ?? 0));
+    }
+    return mapa;
+  }, [calibracoes]);
+
+  // Calibrações antigas sem componente vinculado — senão sumiriam da aba Acessórios.
+  const calibracoesSoltas = calibracoesPorComponente.get('__sem_componente__') ?? [];
+
+  // Aba Calibrações: TODOS os certificados do equipamento numa linha do tempo única
+  // (manômetros e PSVs juntos, mais recente primeiro), com o acessório identificado.
+  const calibracoesCronologicas = useMemo(() => {
+    const nomePorComponente = new Map(componentes.map((c) => [c.id, c.nome] as const));
+    return [...calibracoes]
+      .sort((a, b) => (parseDataFlex(b.dataCalibracao)?.getTime() ?? 0) - (parseDataFlex(a.dataCalibracao)?.getTime() ?? 0))
+      .map((cal) => ({
+        cal,
+        acessorio: (cal.componenteId && nomePorComponente.get(cal.componenteId)) || cal.nome || cal.instrumento || 'Acessório não identificado',
+      }));
+  }, [calibracoes, componentes]);
 
   const eventosHistorico = useMemo<EventoHistorico[]>(() => {
     const out: EventoHistorico[] = [];
@@ -142,8 +197,19 @@ export default function PortalAtivo() {
 
   // Livro/Termo/Capa: documentos que dependem só da TAG (sem relatório escolhido),
   // igual ao preview usado em LivroRegistro.tsx.
-  function abrirRegistro(titulo: string, doc: string) {
-    setDocumentoSimples({ titulo, paginas: [`/arquivos-inspecao/${doc}?tag=${encodeURIComponent(tag)}&page=1`] });
+  function abrirRegistro(titulo: string, paginas: string[]) {
+    setDocumentoSimples({ titulo, paginas });
+  }
+
+  // Certificado de calibração de um acessório. O template lê nr13_calibracao_item_<id>,
+  // chave que o portal_cliente não entrega (não termina em _<TAG>) — hidratamos do
+  // objeto que já veio dentro de nr13_calibracoes_<TAG>.
+  function abrirCertificado(cal: DadosCalibracao) {
+    hidratarItemLocal(cal);
+    setDocumentoSimples({
+      titulo: `Certificado de Calibração — ${cal.nome || cal.instrumento}`,
+      paginas: [`/arquivos-inspecao/${arquivoCalibracao(cal.tipo)}?calibId=${cal.id}&tag=${encodeURIComponent(tag)}&page=1`],
+    });
   }
 
   // Prontuário: registro único por equipamento (nr13_prontuario_<TAG>), independente
@@ -242,13 +308,41 @@ export default function PortalAtivo() {
         <div className="relatorio-preview portal-preview-doc">
           {paginasAtivas.map((src, i) => (
             <PaginaA4 key={`${src}-${i}`}>
-              <iframe src={src} scrolling="no" title={tituloAtivo} />
+              <IframeDocumento src={src} titulo={tituloAtivo} />
             </PaginaA4>
           ))}
           {/* PDFs dos certificados padrão no fim — só RELATÓRIO (paridade com impressão/PDF). */}
           {relatorioAberto && <AnexosRastreabPreview documentos={docsVisiveis} />}
         </div>
       </div>
+    );
+  }
+
+  // Histórico de calibrações de um acessório (mais recente primeiro), cada certificado
+  // abrindo no visualizador do portal (somente leitura).
+  function ListaCalibracoes({ lista }: { lista: DadosCalibracao[] }) {
+    if (lista.length === 0) return <p className="portal-hint portal-acessorio-vazio">Nenhuma calibração registrada para este acessório.</p>;
+    return (
+      <ul className="portal-lista-docs portal-lista-calibracoes">
+        {lista.map((cal) => (
+          <li key={cal.id}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Icone nome="gauge" tam={16} style={{ color: '#1e3a8a' }} />
+              <div>
+                <b>{cal.numeroCertificado ? `Certificado ${cal.numeroCertificado}` : 'Certificado de calibração'}</b>
+                <span className="portal-doc-meta">
+                  {cal.dataCalibracao || cal.dataEmissao || '—'}
+                  {cal.dataProxCalibracao ? ` · próxima ${cal.dataProxCalibracao}` : ''}
+                  {cal.statusConclusao ? ` · ${cal.statusConclusao === 'aprovado' ? 'Aprovado' : 'Reprovado'}` : ''}
+                </span>
+              </div>
+            </div>
+            <button type="button" className="btn-primario" onClick={() => abrirCertificado(cal)}>
+              Visualizar
+            </button>
+          </li>
+        ))}
+      </ul>
     );
   }
 
@@ -317,6 +411,9 @@ export default function PortalAtivo() {
             <button type="button" className={aba === 'acessorios' ? 'ativa' : ''} onClick={() => setAba('acessorios')}>
               Acessórios
             </button>
+            <button type="button" className={aba === 'calibracoes' ? 'ativa' : ''} onClick={() => setAba('calibracoes')}>
+              Calibrações
+            </button>
           </div>
 
           {aba === 'documentacao' && (
@@ -378,7 +475,7 @@ export default function PortalAtivo() {
               ) : (
                 <ul className="portal-lista-docs">
                   {itensRegistros.map((item) => (
-                    <li key={item.doc}>
+                    <li key={item.titulo}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <Icone nome="filetext" tam={18} style={{ color: '#1e3a8a' }} />
                         <div>
@@ -386,7 +483,7 @@ export default function PortalAtivo() {
                           {item.meta && <span className="portal-doc-meta">{item.meta}</span>}
                         </div>
                       </div>
-                      <button type="button" className="btn-primario" onClick={() => abrirRegistro(item.titulo, item.doc)}>
+                      <button type="button" className="btn-primario" onClick={() => abrirRegistro(item.titulo, item.paginas)}>
                         Visualizar
                       </button>
                     </li>
@@ -421,35 +518,86 @@ export default function PortalAtivo() {
 
           {aba === 'acessorios' && (
             <div className="portal-aba-corpo">
-              {componentes.length === 0 ? (
+              {componentes.length === 0 && calibracoesSoltas.length === 0 ? (
                 <p className="portal-hint">Nenhum acessório (válvula/manômetro) cadastrado para este equipamento.</p>
               ) : (
                 <div className="cal-comp-lista">
                   {componentes.map((c) => {
+                    const doComponente = calibracoesPorComponente.get(c.id) ?? [];
                     const ultima = ultimaCalibracao(c.id);
                     const venc = ultima ? parseDataFlex(ultima.dataProxCalibracao) : null;
                     const prazo = venc ? statusPrazo(venc, new Date()) : null;
                     return (
-                      <div key={c.id} className="cal-comp-item">
-                        <div className="cal-comp-foto">
-                          {c.foto ? <img src={c.foto} alt={c.nome} /> : <Icone nome={c.tipo === 'psv' ? 'valvula-psv' : 'manometro'} tam={26} />}
+                      <div key={c.id} className="portal-acessorio">
+                        <div className="cal-comp-item">
+                          <div className="cal-comp-foto">
+                            {c.foto ? <img src={c.foto} alt={c.nome} /> : <Icone nome={c.tipo === 'psv' ? 'valvula-psv' : 'manometro'} tam={26} />}
+                          </div>
+                          <div className="cal-comp-nome">
+                            <strong>{c.nome}</strong>
+                            <span>{[c.fabricante, c.serie && `S/N ${c.serie}`].filter(Boolean).join(' · ') || '—'}</span>
+                          </div>
+                          <span className={`badge-cal-tipo ${c.tipo}`}>{c.tipo === 'manometro' ? 'Manômetro' : 'PSV'}</span>
+                          {ultima && prazo ? (
+                            <span className={`fj-badge ${prazo.status}`}>
+                              {prazo.status === 'crit' ? `Vencida há ${Math.abs(prazo.dias)} dia(s)` : `Próx. calibração ${ultima.dataProxCalibracao}`}
+                            </span>
+                          ) : (
+                            <span className="fj-badge neutro">Sem calibração registrada</span>
+                          )}
                         </div>
-                        <div className="cal-comp-nome">
-                          <strong>{c.nome}</strong>
-                          <span>{[c.fabricante, c.serie && `S/N ${c.serie}`].filter(Boolean).join(' · ') || '—'}</span>
-                        </div>
-                        <span className={`badge-cal-tipo ${c.tipo}`}>{c.tipo === 'manometro' ? 'Manômetro' : 'PSV'}</span>
-                        {ultima && prazo ? (
-                          <span className={`fj-badge ${prazo.status}`}>
-                            {prazo.status === 'crit' ? `Vencida há ${Math.abs(prazo.dias)} dia(s)` : `Próx. calibração ${ultima.dataProxCalibracao}`}
-                          </span>
-                        ) : (
-                          <span className="fj-badge neutro">Sem calibração registrada</span>
-                        )}
+                        <ListaCalibracoes lista={doComponente} />
                       </div>
                     );
                   })}
+                  {calibracoesSoltas.length > 0 && (
+                    <div className="portal-acessorio">
+                      <div className="cal-comp-item">
+                        <div className="cal-comp-foto"><Icone nome="gauge" tam={26} /></div>
+                        <div className="cal-comp-nome">
+                          <strong>Calibrações sem acessório vinculado</strong>
+                          <span>Certificados anteriores ao cadastro dos acessórios</span>
+                        </div>
+                      </div>
+                      <ListaCalibracoes lista={calibracoesSoltas} />
+                    </div>
+                  )}
                 </div>
+              )}
+            </div>
+          )}
+
+          {aba === 'calibracoes' && (
+            <div className="portal-aba-corpo">
+              {calibracoesCronologicas.length === 0 ? (
+                <p className="portal-hint">Nenhum certificado de calibração emitido para este equipamento ainda.</p>
+              ) : (
+                <>
+                  <p className="portal-hint">
+                    {calibracoesCronologicas.length} certificado(s), do mais recente para o mais antigo.
+                  </p>
+                  <ul className="portal-lista-docs">
+                    {calibracoesCronologicas.map(({ cal, acessorio }) => (
+                      <li key={cal.id}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <Icone nome={cal.tipo === 'psv' ? 'valvula-psv' : 'manometro'} tam={18} style={{ color: '#1e3a8a' }} />
+                          <div>
+                            <b>{acessorio}</b>
+                            <span className="portal-doc-meta">
+                              {cal.numeroCertificado ? `Cert. ${cal.numeroCertificado} · ` : ''}
+                              {cal.dataCalibracao || cal.dataEmissao || '—'}
+                              {cal.dataProxCalibracao ? ` · próxima ${cal.dataProxCalibracao}` : ''}
+                              {cal.statusConclusao ? ` · ${cal.statusConclusao === 'aprovado' ? 'Aprovado' : 'Reprovado'}` : ''}
+                            </span>
+                          </div>
+                        </div>
+                        <button type="button" className="btn-primario" onClick={() => abrirCertificado(cal)}>
+                          Visualizar
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </>
               )}
             </div>
           )}
