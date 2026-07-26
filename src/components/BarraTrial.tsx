@@ -10,6 +10,11 @@ import { Icone } from './Icone';
 export default function BarraTrial() {
   const navigate = useNavigate();
   const [ms, setMs] = useState<number | null>(() => msRestantesTrial());
+  // Trial vencido em servidor COM a migração da assinatura não desloga mais (achado C2): a
+  // conta entra em somente leitura. Nesse caso esta barra sai de cena e quem fala é a
+  // BarraAssinatura ("assinatura suspensa" + botão de pagar) — senão ficariam duas barras,
+  // uma delas presa para sempre em "Verificando acesso...".
+  const [cedeuVez, setCedeuVez] = useState(false);
 
   useEffect(() => {
     if (!isTrial()) return;
@@ -20,11 +25,12 @@ export default function BarraTrial() {
   useEffect(() => {
     if (ms !== 0) return;
     void verificarExpiracaoTrial().then((ativo) => {
-      if (!ativo) navigate('/login');
+      if (ativo) setCedeuVez(true);
+      else navigate('/login');
     });
   }, [ms, navigate]);
 
-  if (!isTrial() || ms === null) return null;
+  if (!isTrial() || ms === null || cedeuVez) return null;
 
   return (
     <div className="barra-trial" role="status">
