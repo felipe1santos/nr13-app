@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   aplicarEvento,
   statusEfetivo,
+  bloqueioEntrada,
   somarDias,
   camposVinculoManual,
   DIAS_CICLO,
@@ -97,6 +98,57 @@ describe('camposVinculoManual (Admin — vínculo manual de evento órfão, fix 
     expect(r.kiwify_email).toBeNull();
     expect(r.kiwify_subscription_id).toBeNull();
     expect(r.ativo).toBe(true);
+  });
+});
+
+describe('bloqueioEntrada (gate de login/verificarAcesso — achado C2)', () => {
+  const VENCIDO = '2026-07-20T12:00:00.000Z';
+  const FUTURO = '2026-08-20T12:00:00.000Z';
+
+  it('conta suspensa ENTRA (somente leitura) em vez de ser deslogada', () => {
+    // É o coração do achado: antes, assinatura_ate no passado (o webhook grava a mesma data em
+    // acesso_expira_em) derrubava a conta no login e a barra vermelha/modal nunca apareciam.
+    expect(
+      bloqueioEntrada({ ativo: true, acessoExpiraEm: VENCIDO, assinaturaStatus: 'somente_leitura' }, AGORA),
+    ).toBeNull();
+  });
+
+  it('assinante com renovacao atrasada (data vencida, status ativa) nao e expulso', () => {
+    expect(
+      bloqueioEntrada({ ativo: true, acessoExpiraEm: VENCIDO, assinaturaStatus: 'ativa' }, AGORA),
+    ).toBeNull();
+  });
+
+  it('trial vencido com a migracao rodada entra e cai no funil de pagamento', () => {
+    expect(
+      bloqueioEntrada({ ativo: true, acessoExpiraEm: VENCIDO, assinaturaStatus: 'trial' }, AGORA),
+    ).toBeNull();
+  });
+
+  it('LEGADO preservado: sem status de assinatura, data vencida continua barrando', () => {
+    expect(
+      bloqueioEntrada({ ativo: true, acessoExpiraEm: VENCIDO, assinaturaStatus: '' }, AGORA),
+    ).toBe('expirado');
+    expect(
+      bloqueioEntrada({ ativo: true, acessoExpiraEm: VENCIDO, assinaturaStatus: null }, AGORA),
+    ).toBe('expirado');
+  });
+
+  it('LEGADO: sem status e sem data (ou data futura) entra normalmente', () => {
+    expect(bloqueioEntrada({ ativo: true, acessoExpiraEm: null, assinaturaStatus: '' }, AGORA)).toBeNull();
+    expect(bloqueioEntrada({ ativo: true, acessoExpiraEm: FUTURO, assinaturaStatus: '' }, AGORA)).toBeNull();
+  });
+
+  it('bloqueio manual do Admin (ativo=false) barra sempre, mesmo com assinatura ativa', () => {
+    expect(
+      bloqueioEntrada({ ativo: false, acessoExpiraEm: FUTURO, assinaturaStatus: 'ativa' }, AGORA),
+    ).toBe('inativo');
+  });
+
+  it('data invalida sem assinatura e tratada como expirada (fail-closed)', () => {
+    expect(
+      bloqueioEntrada({ ativo: true, acessoExpiraEm: 'nao-e-data', assinaturaStatus: '' }, AGORA),
+    ).toBe('expirado');
   });
 });
 

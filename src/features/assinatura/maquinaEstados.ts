@@ -64,6 +64,39 @@ export function aplicarEvento(
   }
 }
 
+/** Por que a entrada foi barrada, ou `null` quando a conta pode entrar. */
+export type MotivoBloqueioEntrada = 'inativo' | 'expirado';
+
+export interface ContaParaEntrada {
+  /** `profiles.ativo` — liberação/bloqueio manual pelo Admin. */
+  ativo: boolean;
+  /** `profiles.acesso_expira_em` — validade LEGADA (trial 48h, prazo definido na mão). */
+  acessoExpiraEm: string | null;
+  /** `''`/`null` = servidor sem a migração da assinatura → vale o gate legado por data. */
+  assinaturaStatus: StatusAssinatura | '' | null;
+}
+
+/**
+ * Decide se a conta ENTRA no app (achado C2 da revisão final).
+ *
+ * O produto vende "somente leitura sem deslogar": conta sem assinatura em dia entra, vê tudo
+ * e é travada na ESCRITA (RLS no servidor + espelho na UI). O gate antigo barrava por
+ * `acesso_expira_em` e derrubava exatamente quem deveria ver a barra vermelha e o botão de
+ * pagar — e ainda expulsava cliente adimplente quando o webhook de renovação atrasava horas.
+ *
+ * Regra: `ativo=false` (bloqueio manual do Admin) sempre barra. Tendo assinatura conhecida
+ * (qualquer status, inclusive `somente_leitura`), a conta ENTRA e degrada — quem manda na
+ * escrita é `assinatura_permite_escrita()` no Postgres. Sem status de assinatura (banco sem a
+ * migração), mantém o comportamento LEGADO: expirou pela data, não entra.
+ *
+ * Data inválida é tratada como expirada (fail-closed), igual a `statusEfetivo`.
+ */
+export function bloqueioEntrada(conta: ContaParaEntrada, agora: Date): MotivoBloqueioEntrada | null {
+  if (!conta.ativo) return 'inativo';
+  if (conta.assinaturaStatus) return null;
+  return futuro(conta.acessoExpiraEm, agora) ? null : 'expirado';
+}
+
 export function statusEfetivo(estado: EstadoAssinatura, agora: Date): StatusAssinatura {
   if (estado.status === 'somente_leitura') return 'somente_leitura';
   return futuro(estado.ate, agora) ? estado.status : 'somente_leitura';

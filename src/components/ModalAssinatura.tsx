@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../services/supabase';
-import { carregarPerfil, expirado, usuarioLogado } from '../services/auth';
+import { carregarPerfil, perfilParaEntrada, usuarioLogado } from '../services/auth';
+import { bloqueioEntrada } from '../features/assinatura/maquinaEstados';
 import {
   statusAssinaturaLocal,
   marcarSucessoPendente,
@@ -93,7 +94,10 @@ export default function ModalAssinatura({ aberto, onFechar }: { aberto: boolean;
       // precisa para o statusAssinaturaLocal() enxergar a mudança feita pelo webhook.
       void carregarPerfil()
         .then((perfil) => {
-          const leituraRuim = !perfil.ativo || expirado(perfil.acessoExpiraEm);
+          // MESMA regra do gate de login (bloqueioEntrada): para quem TEM assinatura, uma
+          // `acesso_expira_em` vencida é só o webhook de renovação atrasado — não pode ser
+          // lida como "conta revogada" justamente enquanto a pessoa espera o pagamento cair.
+          const leituraRuim = !!bloqueioEntrada(perfilParaEntrada(perfil), new Date());
           if (leituraRuim) {
             // `!perfil.ativo` também é verdadeiro em falso-positivos passageiros: sessão
             // momentaneamente ilegível (carregarPerfil devolve PERFIL_VAZIO quando

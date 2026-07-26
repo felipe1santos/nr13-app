@@ -4,7 +4,7 @@
 import { supabase } from './supabase';
 import { lerTudo, limparCacheDados } from './storage';
 import { gravarEstadoLocal, limparEstadoLocal } from './assinatura';
-import type { StatusAssinatura } from '../features/assinatura/maquinaEstados';
+import { bloqueioEntrada, type ContaParaEntrada, type StatusAssinatura } from '../features/assinatura/maquinaEstados';
 
 export const VIP_USERS = [
   'perone.fs@gmail.com',
@@ -158,6 +158,21 @@ export function expirado(acessoExpiraEm: string | null): boolean {
   return new Date(acessoExpiraEm).getTime() < Date.now();
 }
 
+// Adapta o Perfil para a função pura do gate de entrada. Exportada porque o polling do
+// ModalAssinatura precisa da MESMA regra (não pode julgar "conta revogada" por uma data que,
+// para assinante, é só o webhook de renovação atrasado).
+export function perfilParaEntrada(perfil: {
+  ativo: boolean;
+  acessoExpiraEm: string | null;
+  assinaturaStatus: StatusAssinatura | '';
+}): ContaParaEntrada {
+  return {
+    ativo: perfil.ativo,
+    acessoExpiraEm: perfil.acessoExpiraEm,
+    assinaturaStatus: perfil.assinaturaStatus,
+  };
+}
+
 async function aposEntrar(email: string): Promise<string> {
   localStorage.setItem('nr13_usuario_logado', normalizar(email));
   localStorage.setItem('nr13_ultimo_acesso', new Date().toLocaleString('pt-BR'));
@@ -200,13 +215,15 @@ export async function login(email: string, senha: string): Promise<LoginResultad
   if (error) {
     return { sucesso: false, erro: traduzErro(error.message) };
   }
-  // Gate de liberação/expiração: lê o perfil antes de liberar a entrada.
+  // Gate de liberação/expiração: lê o perfil antes de liberar a entrada. Conta COM assinatura
+  // conhecida entra mesmo suspensa e degrada para somente leitura (ver bloqueioEntrada).
   const perfil = await carregarPerfil();
-  if (!perfil.ativo) {
+  const motivo = bloqueioEntrada(perfilParaEntrada(perfil), new Date());
+  if (motivo === 'inativo') {
     await supabase.auth.signOut();
     return { sucesso: false, erro: 'Acesso ainda não liberado pelo administrador.' };
   }
-  if (expirado(perfil.acessoExpiraEm)) {
+  if (motivo === 'expirado') {
     await supabase.auth.signOut();
     if (perfil.plano === 'trial') {
       return { sucesso: false, trialExpirado: true, erro: 'Seu período de teste terminou.' };
@@ -617,7 +634,10 @@ export async function verificarAcesso(): Promise<VerificaAcessoResultado> {
       return { ativo: false };
     }
     const perfil = await carregarPerfil();
-    if (!perfil.ativo || expirado(perfil.acessoExpiraEm)) {
+    // Mesma regra do login: assinatura conhecida NÃO desloga — degrada para somente leitura
+    // (sem isto, toda conta que entra em 'somente_leitura' era expulsa no próximo carregamento
+    // e a barra/modal de regularização viravam código morto — achado C2).
+    if (bloqueioEntrada(perfilParaEntrada(perfil), new Date())) {
       await logout();
       return { ativo: false };
     }
