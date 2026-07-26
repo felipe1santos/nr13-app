@@ -186,7 +186,33 @@ create policy kiwify_eventos_admin on public.kiwify_eventos
   for all to authenticated using (public.is_admin()) with check (public.is_admin());
 
 -- ── 7. Config: link do checkout e segredo do webhook ────────────────────────
+-- O valor "TROQUE-ESTE-VALOR" é PROPOSITALMENTE inútil: a Edge Function
+-- kiwify_webhook responde 401 enquanto ele estiver aqui (o segredo está
+-- publicado neste repositório, então aceitá-lo seria o mesmo que não ter
+-- segredo — qualquer um se daria 30 dias grátis ou derrubaria um pagante).
+-- Troque com:
+--   update public.config_global
+--      set valor = jsonb_build_object('segredo', '<segredo-longo-aleatorio>')
+--    where chave = 'kiwify_webhook_segredo';
 insert into public.config_global (chave, valor) values
   ('assinatura_checkout_url', '{"url": "https://pay.kiwify.com.br/O9KdzEI"}'),
   ('kiwify_webhook_segredo',  '{"segredo": "TROQUE-ESTE-VALOR"}')
   on conflict (chave) do nothing;
+
+-- ── 8. Leitura de config_global: segredo fora do alcance do usuário comum ───
+-- A policy de trial_setup.sql (`for select to authenticated using (true)`)
+-- deixava QUALQUER usuário logado — inclusive um trial — ler
+-- kiwify_webhook_segredo e, com ele, chamar o webhook à vontade. Aqui ela é
+-- reescrita excluindo a chave do segredo (as demais seguem legíveis: são flags
+-- e o link do checkout). Se trial_setup.sql for reexecutado depois deste
+-- arquivo, RODE ESTE BLOCO DE NOVO.
+drop policy if exists config_global_select on public.config_global;
+create policy config_global_select on public.config_global
+  for select to authenticated using (chave <> 'kiwify_webhook_segredo');
+
+-- O link do checkout precisa ser legível DESLOGADO: a tela de login mostra
+-- "Assinar agora" para quem teve o trial vencido antes da migração e é o único
+-- caminho de conversão dessa pessoa. Não é segredo — é a mesma URL do botão.
+drop policy if exists config_global_select_checkout_anon on public.config_global;
+create policy config_global_select_checkout_anon on public.config_global
+  for select to anon using (chave = 'assinatura_checkout_url');

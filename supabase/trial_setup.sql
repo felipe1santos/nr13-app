@@ -22,9 +22,14 @@ insert into public.config_global (chave, valor)
 
 alter table public.config_global enable row level security;
 
+-- Leitura liberada para usuário logado, MENOS o segredo do webhook da Kiwify
+-- (assinatura_setup.sql): com `using (true)`, qualquer conta — inclusive um
+-- trial — lia kiwify_webhook_segredo e podia chamar o webhook se dando 30 dias
+-- de graça ou derrubando um pagante. A chave nem existe antes daquele arquivo;
+-- a condição é inofensiva enquanto isso.
 drop policy if exists config_global_select on public.config_global;
 create policy config_global_select on public.config_global
-  for select to authenticated using (true);
+  for select to authenticated using (chave <> 'kiwify_webhook_segredo');
 
 drop policy if exists config_global_admin_write on public.config_global;
 create policy config_global_admin_write on public.config_global

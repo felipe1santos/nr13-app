@@ -38,6 +38,13 @@ const DIAS_GRACA = 5;
 // Código do Postgres para violação de índice/constraint único (usado no passo 5).
 const PG_UNIQUE_VIOLATION = '23505';
 
+// Valor que `assinatura_setup.sql` insere em config_global e que o passo de deploy MANDA
+// trocar. A função RECUSA (401) enquanto ele estiver lá: se a troca for esquecida, o segredo
+// está publicado no repositório — qualquer um POSTaria `compra_aprovada` e se daria 30 dias
+// de graça, ou `chargeback` e derrubaria um cliente pagante. Melhor o webhook não funcionar
+// (a Kiwify reenfileira e o Admin libera na mão) do que funcionar para o mundo inteiro.
+const SEGREDO_PLACEHOLDER = 'TROQUE-ESTE-VALOR';
+
 function somarDias(base: Date, dias: number): string {
   const d = new Date(base.getTime());
   d.setUTCDate(d.getUTCDate() + dias);
@@ -122,6 +129,13 @@ Deno.serve(async (req) => {
     console.error('kiwify_webhook: erro ao ler segredo em config_global', erroCfg.message);
   }
   const segredo = (cfg?.valor as { segredo?: string } | null)?.segredo ?? '';
+  if (segredo === SEGREDO_PLACEHOLDER) {
+    console.error(
+      'kiwify_webhook: segredo ainda é o placeholder de assinatura_setup.sql — ' +
+        'troque o valor de kiwify_webhook_segredo em config_global antes de cadastrar o webhook.',
+    );
+    return new Response('Não autorizado', { status: 401 });
+  }
   if (!segredo || url.searchParams.get('s') !== segredo) {
     return new Response('Não autorizado', { status: 401 });
   }

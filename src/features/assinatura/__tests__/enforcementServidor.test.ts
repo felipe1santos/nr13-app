@@ -9,8 +9,17 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 const RAIZ = path.join(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
-const SQL_ASSINATURA = readFileSync(path.join(RAIZ, 'supabase/assinatura_setup.sql'), 'utf-8');
-const TRIAL_INDEX = readFileSync(path.join(RAIZ, 'supabase/functions/trial/index.ts'), 'utf-8');
+
+// Normaliza CRLF: o repo é editado no Windows e as asserções de texto com quebra de linha
+// passariam "de graça" comparando contra \n que nunca existe no arquivo lido.
+function ler(relativo: string): string {
+  return readFileSync(path.join(RAIZ, relativo), 'utf-8').replace(/\r\n/g, '\n');
+}
+
+const SQL_ASSINATURA = ler('supabase/assinatura_setup.sql');
+const SQL_TRIAL = ler('supabase/trial_setup.sql');
+const TRIAL_INDEX = ler('supabase/functions/trial/index.ts');
+const WEBHOOK_INDEX = ler('supabase/functions/kiwify_webhook/index.ts');
 
 /** Corpo da policy `nome` em assinatura_setup.sql (do `create policy` até o `;` final). */
 function corpoDaPolicy(nome: string): string {
@@ -43,6 +52,31 @@ describe('C5 — Edge Function `trial` grava o estado da assinatura', () => {
   it('define assinatura_ate com o mesmo fim das colunas legadas (nunca NULL)', () => {
     expect(TRIAL_INDEX).toContain('assinatura_ate: fim.toISOString()');
     expect(TRIAL_INDEX).toContain('acesso_expira_em: fim.toISOString()');
+  });
+});
+
+describe('I3 — segredo placeholder do webhook', () => {
+  it('a Edge Function recusa o valor que o SQL insere', () => {
+    // O placeholder está PUBLICADO neste repositório: se o passo de deploy for esquecido,
+    // aceitá-lo é o mesmo que não ter segredo (30 dias grátis para qualquer um, ou um
+    // chargeback forjado derrubando um pagante).
+    expect(WEBHOOK_INDEX).toContain("const SEGREDO_PLACEHOLDER = 'TROQUE-ESTE-VALOR'");
+    expect(WEBHOOK_INDEX).toContain('segredo === SEGREDO_PLACEHOLDER');
+    const idxGuarda = WEBHOOK_INDEX.indexOf('segredo === SEGREDO_PLACEHOLDER');
+    // A recusa precisa vir ANTES de qualquer leitura do corpo/gravação do evento.
+    expect(idxGuarda).toBeLessThan(WEBHOOK_INDEX.indexOf('await req.json()'));
+  });
+
+  it('o valor recusado é exatamente o que o SQL insere (não podem divergir)', () => {
+    expect(SQL_ASSINATURA).toContain('"segredo": "TROQUE-ESTE-VALOR"');
+  });
+
+  it('usuário logado comum não consegue LER o segredo (RLS de config_global)', () => {
+    // Sem isto, um trial lia o segredo pelo próprio app e chamava o webhook à vontade.
+    for (const sql of [SQL_ASSINATURA, SQL_TRIAL]) {
+      expect(sql).toContain("using (chave <> 'kiwify_webhook_segredo')");
+      expect(sql).not.toContain('create policy config_global_select on public.config_global\n  for select to authenticated using (true)');
+    }
   });
 });
 
