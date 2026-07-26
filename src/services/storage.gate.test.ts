@@ -56,6 +56,12 @@ describe('bloqueadoParaEscrita (gate de escrita: Portal do Cliente + assinatura 
     expect(bloqueadoParaEscrita()).toBe(false);
   });
 
+  it('assinatura ativa com "ate" corrompido/não-parseável -> bloqueado (fail-closed, paridade com statusEfetivo)', () => {
+    localStorage.setItem('nr13_assinatura_status', 'ativa');
+    localStorage.setItem('nr13_assinatura_ate', 'lixo-nao-parseavel');
+    expect(bloqueadoParaEscrita()).toBe(true);
+  });
+
   it('nada gravado (banco sem migração / conta nova) -> liberado (default seguro)', () => {
     expect(bloqueadoParaEscrita()).toBe(false);
   });

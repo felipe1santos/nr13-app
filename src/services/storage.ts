@@ -47,6 +47,11 @@ const CHAVES_PRESERVADAS = new Set([
 // A regra de rebaixamento por data replica statusEfetivo() de
 // src/features/assinatura/maquinaEstados.ts: `ate` nulo/ausente = sem vencimento, nunca
 // rebaixa; `ate` no passado rebaixa (bloqueia) mesmo com status "ativa"/"trial"/etc.
+// FAIL-CLOSED em data corrompida/não-parseável: `futuro()` em maquinaEstados.ts trata um
+// `ate` que não vira Date válida como "não futuro" (Number.isFinite falha), então
+// `statusEfetivo` já rebaixa para 'somente_leitura' nesse caso — replicado aqui bloqueando
+// sempre que `ate` existir e não for uma data finita, e não só quando já passou. `ate`
+// corrompido não prova que a assinatura está em dia, então bloquear é a postura segura.
 //
 // Exportada (e não apenas local) para permitir teste automatizado direto via localStorage
 // sem precisar montar todo o app — ver src/services/storage.gate.test.ts.
@@ -55,11 +60,11 @@ export function bloqueadoParaEscrita(): boolean {
     if ((localStorage.getItem('nr13_papel') || '') === 'cliente') return true;
     const status = localStorage.getItem('nr13_assinatura_status') || '';
     if (status === 'somente_leitura') return true;
-    if (status && status !== '') {
+    if (status) {
       const ate = localStorage.getItem('nr13_assinatura_ate');
       if (ate) {
         const t = new Date(ate).getTime();
-        if (Number.isFinite(t) && t <= Date.now()) return true;
+        if (!Number.isFinite(t) || t <= Date.now()) return true;
       }
     }
     return false;
