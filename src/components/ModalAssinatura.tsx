@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../services/supabase';
-import { carregarPerfil, usuarioLogado } from '../services/auth';
-import { statusAssinaturaLocal, marcarSucessoPendente, montarUrlCheckout } from '../services/assinatura';
+import { carregarPerfil, expirado, usuarioLogado } from '../services/auth';
+import {
+  statusAssinaturaLocal,
+  marcarSucessoPendente,
+  marcarSucessoExibido,
+  montarUrlCheckout,
+} from '../services/assinatura';
 import { emitirAviso } from '../services/eventos';
 import { Icone } from './Icone';
 
@@ -15,6 +20,9 @@ const URL_CHECKOUT_PADRAO = 'https://pay.kiwify.com.br/O9KdzEI';
 // sozinha, sem F5 nem novo login.
 export default function ModalAssinatura({ aberto, onFechar }: { aberto: boolean; onFechar: () => void }) {
   const [aguardando, setAguardando] = useState(false);
+  // Depois que já abriu o checkout uma vez, o timeout de 15min não deve reabrir outra aba —
+  // quem já pagou e só está esperando o webhook atrasado só precisa reconsultar o servidor.
+  const [jaAbriuCheckout, setJaAbriuCheckout] = useState(false);
   const email = usuarioLogado() ?? '';
   const [urlBase, setUrlBase] = useState(URL_CHECKOUT_PADRAO);
 
@@ -52,7 +60,10 @@ export default function ModalAssinatura({ aberto, onFechar }: { aberto: boolean;
   // depois, começa limpo a partir do botão "Ir para o pagamento" — não deixa um polling
   // "fantasma" correndo com o modal escondido.
   useEffect(() => {
-    if (!aberto) setAguardando(false);
+    if (!aberto) {
+      setAguardando(false);
+      setJaAbriuCheckout(false);
+    }
   }, [aberto]);
 
   useEffect(() => {
@@ -72,18 +83,42 @@ export default function ModalAssinatura({ aberto, onFechar }: { aberto: boolean;
       // vencido por outro motivo, sessão que caiu um instante). carregarPerfil() só relê o
       // perfil e regrava o espelho local (gravarEstadoLocal) — é só isso que o polling
       // precisa para o statusAssinaturaLocal() enxergar a mudança feita pelo webhook.
-      void carregarPerfil().then(() => {
-        if (statusAssinaturaLocal() === 'ativa') {
-          setAguardando(false);
-          marcarSucessoPendente();
-          emitirAviso({
-            variante: 'sucesso',
-            titulo: 'Assinatura confirmada!',
-            texto: 'Pagamento aprovado. Salvar, imprimir e gerar documentos já estão liberados.',
-          });
-          onFecharRef.current();
-        }
-      });
+      void carregarPerfil()
+        .then((perfil) => {
+          // Conta desativada/expirada enquanto o usuário esperava o pagamento: para de
+          // perguntar e avisa com clareza, mas NÃO chama logout() daqui — quem decide
+          // encerrar a sessão de fato é o gate normal (RotaProtegida/verificarAcesso) no
+          // próximo carregamento da rota, não este polling em segundo plano.
+          if (!perfil.ativo || expirado(perfil.acessoExpiraEm)) {
+            setAguardando(false);
+            emitirAviso({
+              variante: 'erro',
+              titulo: 'Acesso não liberado',
+              texto: 'Sua conta está inativa ou expirada. Fale com o administrador antes de tentar novamente.',
+            });
+            onFecharRef.current();
+            return;
+          }
+          if (statusAssinaturaLocal() === 'ativa') {
+            setAguardando(false);
+            // Mostramos o aviso AO VIVO agora — marcarSucessoExibido() logo em seguida evita
+            // que o Layout dispare o mesmo toast de novo num F5 futuro (o mecanismo
+            // sucessoPendente/marcarSucessoExibido do Layout continua existindo para quem
+            // fechar a aba/app ANTES deste bloco rodar e reabrir depois, ver Layout.tsx).
+            marcarSucessoPendente();
+            emitirAviso({
+              variante: 'sucesso',
+              titulo: 'Assinatura confirmada!',
+              texto: 'Pagamento aprovado. Salvar, imprimir e gerar documentos já estão liberados.',
+            });
+            marcarSucessoExibido();
+            onFecharRef.current();
+          }
+        })
+        .catch(() => {
+          // Falha de rede (comum numa espera de até 15min) não deve interromper o polling
+          // nem sujar o console — só tenta de novo no próximo tick de 10s.
+        });
     }, INTERVALO_MS);
     return () => window.clearInterval(timer);
   }, [aberto, aguardando]);
@@ -107,11 +142,18 @@ export default function ModalAssinatura({ aberto, onFechar }: { aberto: boolean;
             type="button"
             className="modal-aviso-btn principal"
             onClick={() => {
-              window.open(url, '_blank', 'noopener');
+              // Só reabre a aba do checkout na 1ª vez (ou se o usuário fechou o modal e
+              // recomeçou do zero). Depois do timeout de 15min, quem já pagou e só teve o
+              // webhook atrasado precisa só reconsultar o servidor — reabrir o checkout de
+              // novo seria confuso (pareceria pedir para pagar de novo).
+              if (!jaAbriuCheckout) {
+                window.open(url, '_blank', 'noopener,noreferrer');
+                setJaAbriuCheckout(true);
+              }
               setAguardando(true);
             }}
           >
-            {aguardando ? 'Aguardando confirmação…' : 'Ir para o pagamento'}
+            {aguardando ? 'Aguardando confirmação…' : jaAbriuCheckout ? 'Verificar novamente' : 'Ir para o pagamento'}
           </button>
           <button type="button" className="modal-aviso-btn" onClick={onFechar}>Fechar</button>
         </div>

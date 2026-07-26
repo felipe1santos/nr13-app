@@ -120,7 +120,9 @@ export async function carregarPerfil(): Promise<Perfil> {
   };
 }
 
-function expirado(acessoExpiraEm: string | null): boolean {
+// Exportada para o polling de ModalAssinatura.tsx reusar a mesma regra de expiração sem
+// duplicar a lógica (e sem precisar chamar verificarAcesso(), que força logout()).
+export function expirado(acessoExpiraEm: string | null): boolean {
   if (!acessoExpiraEm) return false;
   return new Date(acessoExpiraEm).getTime() < Date.now();
 }
