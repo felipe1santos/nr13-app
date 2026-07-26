@@ -1,0 +1,137 @@
+-- ============================================================================
+-- NR-13 — Assinatura recorrente (Kiwify). IDEMPOTENTE.
+-- Rodar no SQL Editor DEPOIS de admin_setup.sql, acesso_setup.sql e trial_setup.sql.
+--
+-- Efeito nas contas existentes: nenhum, DESDE QUE o backfill da seção 2 rode
+-- junto (ele é que impede toda conta paga cair no default 'trial').
+-- ============================================================================
+
+-- ── 1. Colunas em profiles ──────────────────────────────────────────────────
+alter table public.profiles add column if not exists assinatura_status       text not null default 'trial';
+alter table public.profiles add column if not exists assinatura_ate          timestamptz;
+alter table public.profiles add column if not exists kiwify_subscription_id  text;
+alter table public.profiles add column if not exists kiwify_email            text;
+
+-- ── 2. Backfill (OBRIGATÓRIO) ───────────────────────────────────────────────
+-- Sem isto, quem já paga entra em 'trial' e é rebaixado a somente leitura.
+-- assinatura_ate NULL = sem vencimento: a função da seção 4 nunca rebaixa.
+update public.profiles
+   set assinatura_status = case
+         when acesso_expira_em is not null and acesso_expira_em <= now() then 'somente_leitura'
+         when plano = 'trial'  then 'trial'
+         else 'ativa'                       -- completo, demonstracao e legado
+       end,
+       assinatura_ate = case
+         when plano = 'trial' then coalesce(trial_fim, acesso_expira_em)
+         else acesso_expira_em              -- null = vitalícia, preservado
+       end
+ where assinatura_status = 'trial'          -- só quem ainda está no default
+   and assinatura_ate is null;
+
+-- ── 3. Campos sensíveis: usuário não muda o próprio status ──────────────────
+create or replace function public.proteger_campos_sensiveis()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if coalesce(auth.role(), '') = 'authenticated' and not public.is_admin() then
+    new.ativo                  := old.ativo;
+    new.acesso_expira_em       := old.acesso_expira_em;
+    new.plano                  := old.plano;
+    new.role                   := old.role;
+    new.papel                  := old.papel;
+    new.org_id                 := old.org_id;
+    new.cliente_id             := old.cliente_id;
+    new.trial_inicio           := old.trial_inicio;
+    new.trial_fim              := old.trial_fim;
+    new.origem_cadastro        := old.origem_cadastro;
+    new.assinatura_status      := old.assinatura_status;
+    new.assinatura_ate         := old.assinatura_ate;
+    new.kiwify_subscription_id := old.kiwify_subscription_id;
+    new.kiwify_email           := old.kiwify_email;
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists trg_proteger_campos_sensiveis on public.profiles;
+create trigger trg_proteger_campos_sensiveis
+  before update on public.profiles
+  for each row execute function public.proteger_campos_sensiveis();
+
+-- ── 4. Status efetivo da ORG (mestre manda; a data rebaixa) ─────────────────
+-- Espelha src/features/assinatura/maquinaEstados.ts::statusEfetivo.
+create or replace function public.assinatura_status_org() returns text
+  language sql security definer set search_path = public as $$
+  select coalesce(
+    (select case
+              when p.assinatura_status = 'somente_leitura' then 'somente_leitura'
+              when p.assinatura_ate is null then p.assinatura_status
+              when p.assinatura_ate > now() then p.assinatura_status
+              else 'somente_leitura'
+            end
+       from public.profiles p
+      where p.id = public.org_atual()),
+    'somente_leitura'
+  );
+$$;
+
+create or replace function public.assinatura_permite_escrita() returns boolean
+  language sql security definer set search_path = public as $$
+  select public.assinatura_status_org() in ('trial','ativa','graca','cancelada_no_prazo');
+$$;
+
+-- ── 5. RLS de escrita: troca acesso_vigente() pelo status da assinatura ─────
+drop policy if exists app_storage_insert_org on public.app_storage;
+create policy app_storage_insert_org on public.app_storage
+  for insert with check (
+    org_id = public.org_atual()
+    and public.papel_atual() in ('mestre','gerente','funcionario')
+    and public.assinatura_permite_escrita()
+  );
+
+drop policy if exists app_storage_update_org on public.app_storage;
+create policy app_storage_update_org on public.app_storage
+  for update using (
+    org_id = public.org_atual()
+    and public.papel_atual() in ('mestre','gerente','funcionario')
+    and public.assinatura_permite_escrita()
+  ) with check (
+    org_id = public.org_atual()
+    and public.papel_atual() in ('mestre','gerente','funcionario')
+    and public.assinatura_permite_escrita()
+  );
+
+drop policy if exists app_storage_delete_org on public.app_storage;
+create policy app_storage_delete_org on public.app_storage
+  for delete using (
+    org_id = public.org_atual()
+    and public.papel_atual() in ('mestre','gerente','funcionario')
+    and public.assinatura_permite_escrita()
+  );
+
+-- ── 6. Log de eventos da Kiwify (auditoria + fila de órfãos) ────────────────
+create table if not exists public.kiwify_eventos (
+  id              uuid primary key default gen_random_uuid(),
+  recebido_em     timestamptz not null default now(),
+  evento          text not null,
+  payload         jsonb not null,
+  email           text,
+  subscription_id text,
+  profile_id      uuid references public.profiles(id),
+  processado      boolean not null default false,
+  erro            text
+);
+
+create index if not exists kiwify_eventos_email_idx on public.kiwify_eventos (email);
+create index if not exists kiwify_eventos_orfaos_idx on public.kiwify_eventos (processado, recebido_em desc);
+
+alter table public.kiwify_eventos enable row level security;
+
+-- Só admin da plataforma lê pelo app; a Edge Function usa service_role (ignora RLS).
+drop policy if exists kiwify_eventos_admin on public.kiwify_eventos;
+create policy kiwify_eventos_admin on public.kiwify_eventos
+  for all to authenticated using (public.is_admin()) with check (public.is_admin());
+
+-- ── 7. Config: link do checkout e segredo do webhook ────────────────────────
+insert into public.config_global (chave, valor) values
+  ('assinatura_checkout_url', '{"url": "https://pay.kiwify.com.br/O9KdzEI"}'),
+  ('kiwify_webhook_segredo',  '{"segredo": "TROQUE-ESTE-VALOR"}')
+  on conflict (chave) do nothing;
