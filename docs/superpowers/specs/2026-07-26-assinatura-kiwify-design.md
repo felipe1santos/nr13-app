@@ -159,6 +159,31 @@ evento real** (ver §9).
 
 O link do checkout e o segredo do webhook ficam em `config_global` — nada hardcoded.
 
+### Avisos visuais (`ModalAviso`)
+
+Hoje o projeto **não tem** modal/toast global: os bloqueios de trial usam `window.alert()`
+(caixa cinza do navegador) em `pdfService.ts`, `printService.ts`, `importarPlanilhaService.ts`
+e `ProntuarioFabricante.tsx`.
+
+Componente novo `src/components/ModalAviso.tsx`, três variantes:
+
+| Variante | Uso |
+|---|---|
+| `sucesso` (verde, ícone de check) | "Assinatura confirmada" ao liberar; lista o que foi desbloqueado |
+| `alerta` (âmbar) | Graça: "cartão recusado, regularize em N dias" |
+| `erro` (vermelho) | "Assinatura suspensa" ao tentar salvar/imprimir, com o motivo real (venceu / cartão recusado / cancelada / contestada) e botão **Regularizar** que abre o checkout |
+
+`pdfService`/`printService` são serviços, não componentes — por isso caíram no `alert()`.
+Em vez de transformá-los em React, eles passam a **emitir** o bloqueio pelo barramento que
+já existe (`src/services/eventos.ts`, ampliado com um evento `nr13:aviso`), e um listener
+montado no `Layout` desenha o modal. O funil único de bloqueio continua sendo um só.
+
+O modal de sucesso do pagamento dispara uma vez por assinatura (marca no `localStorage`),
+para não reaparecer a cada carregamento.
+
+Efeito colateral positivo: os bloqueios do **trial** que já existem passam a usar o mesmo
+modal — o `alert()` cinza atual some sem código novo, só trocando a chamada.
+
 ## 8. Testes
 
 - Unitário da máquina de estados: cada transição da §4, incluindo webhook fora de ordem
