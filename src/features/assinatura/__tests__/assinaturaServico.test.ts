@@ -9,6 +9,7 @@ import {
   sucessoPendente,
   calcularDiasRestantes,
   montarUrlCheckout,
+  rotuloStatusAssinatura,
 } from '../../../services/assinatura';
 
 // vitest roda em node (sem DOM): shim mínimo de localStorage (mesmo padrão de vencimentos.test.ts).
@@ -105,5 +106,21 @@ describe('montarUrlCheckout (ModalAssinatura)', () => {
   it('funciona com email vazio (usuario ainda nao carregado)', () => {
     const url = montarUrlCheckout('https://exemplo.com/checkout', '', '');
     expect(url).toBe('https://exemplo.com/checkout?email=&sck=');
+  });
+});
+
+describe('rotuloStatusAssinatura (coluna "Assinatura" do Admin)', () => {
+  it('traduz cada status conhecido', () => {
+    expect(rotuloStatusAssinatura('ativa')).toBe('Ativa');
+    expect(rotuloStatusAssinatura('graca')).toBe('Em graça');
+    expect(rotuloStatusAssinatura('cancelada_no_prazo')).toBe('Cancelada');
+    expect(rotuloStatusAssinatura('somente_leitura')).toBe('Suspensa');
+    expect(rotuloStatusAssinatura('trial')).toBe('Trial');
+  });
+
+  it('null/undefined/desconhecido caem em Trial (banco sem a migracao ou status inedito)', () => {
+    expect(rotuloStatusAssinatura(null)).toBe('Trial');
+    expect(rotuloStatusAssinatura(undefined)).toBe('Trial');
+    expect(rotuloStatusAssinatura('status-que-nao-existe')).toBe('Trial');
   });
 });

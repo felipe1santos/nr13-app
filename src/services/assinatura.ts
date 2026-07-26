@@ -65,6 +65,27 @@ export function textoBloqueio(): string {
   }
 }
 
+/**
+ * Rótulo em pt-BR do `assinatura_status` para a coluna "Assinatura" do painel Admin (Task 10).
+ * `null`/desconhecido cai em "Trial": tanto a conta pré-migração (coluna ainda não existe —
+ * `select('*')` simplesmente não traz o campo) quanto a conta nova sem evento Kiwify processado
+ * ainda não têm status definido, e nenhuma delas deve ser exibida como bloqueada.
+ */
+export function rotuloStatusAssinatura(status: string | null | undefined): string {
+  switch (status) {
+    case 'ativa':
+      return 'Ativa';
+    case 'graca':
+      return 'Em graça';
+    case 'cancelada_no_prazo':
+      return 'Cancelada';
+    case 'somente_leitura':
+      return 'Suspensa';
+    default:
+      return 'Trial';
+  }
+}
+
 /** Marca que a próxima abertura deve exibir o modal verde de "assinatura confirmada". */
 export function marcarSucessoPendente(): void {
   localStorage.setItem(CHAVE_SUCESSO, '1');

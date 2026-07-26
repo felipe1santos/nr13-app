@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { logout } from '../services/auth';
+import { rotuloStatusAssinatura } from '../services/assinatura';
+import { DIAS_CICLO, somarDias } from '../features/assinatura/maquinaEstados';
 import BotaoInstalarPWA from '../app/BotaoInstalarPWA';
 import ModalLeadForm from '../features/admin/ModalLeadForm';
 import ModalImportarLeads from '../features/admin/ModalImportarLeads';
@@ -31,6 +33,21 @@ interface Profile {
   nome?: string | null;
   telefone?: string | null;
   empresa_nome?: string | null;
+  // Assinatura Kiwify (assinatura_setup.sql; ausentes antes da migração — select('*') simplesmente
+  // não traz as colunas, e o rótulo/badge tratam null como 'trial', ver rotuloStatusAssinatura).
+  assinatura_status?: string | null;
+  assinatura_ate?: string | null;
+  kiwify_email?: string | null;
+}
+
+// Evento de pagamento Kiwify sem `profile_id` (webhook não conseguiu casar com nenhuma conta —
+// ex.: e-mail do checkout diferente do e-mail de cadastro). Vínculo manual pelo admin (Task 10).
+interface EventoKiwifyOrfao {
+  id: string;
+  recebido_em: string;
+  evento: string;
+  email: string | null;
+  subscription_id: string | null;
 }
 
 interface LoginEvent {
@@ -222,6 +239,11 @@ export default function Admin() {
   const [selLeads, setSelLeads] = useState<Set<string>>(new Set());
   // Leads importados (tabela leads_importados; null = leads_setup.sql não rodou)
   const [leadsImp, setLeadsImp] = useState<LeadImportado[] | null>(null);
+  // Eventos Kiwify sem conta vinculada (tabela kiwify_eventos; null = assinatura_setup.sql não
+  // rodou — a seção fica escondida em vez de quebrar a página).
+  const [orfaos, setOrfaos] = useState<EventoKiwifyOrfao[] | null>(null);
+  // Usuário escolhido no <select> de cada linha de evento órfão, por id do evento.
+  const [selOrfao, setSelOrfao] = useState<Record<string, string>>({});
   const [filtroOrigem, setFiltroOrigem] = useState<'todos' | 'trial' | 'importado'>('todos');
   const [leadForm, setLeadForm] = useState<{ lead: LeadImportado | null } | null>(null);
   const [importarAberto, setImportarAberto] = useState(false);
@@ -296,6 +318,17 @@ export default function Admin() {
       setCadastroAuto(
         flagErr || !flagData ? null : (flagData.valor as { ativo?: boolean } | null)?.ativo === true,
       );
+
+      // Eventos Kiwify sem conta vinculada (Task 10). Antes de rodar
+      // supabase/assinatura_setup.sql a tabela não existe: a consulta erra e a seção some
+      // (null), em vez de derrubar o resto do painel.
+      const { data: orfaosData, error: orfaosErr } = await supabase
+        .from('kiwify_eventos')
+        .select('id, recebido_em, evento, email, subscription_id')
+        .is('profile_id', null)
+        .order('recebido_em', { ascending: false })
+        .limit(50);
+      setOrfaos(orfaosErr ? null : ((orfaosData as EventoKiwifyOrfao[] | null) ?? []));
     } catch (e: unknown) {
       setErro(e instanceof Error ? e.message : 'Falha ao carregar dados.');
     } finally {
@@ -340,6 +373,17 @@ export default function Admin() {
     for (const p of profiles) if (p.email) m.set(p.id, p.email);
     return m;
   }, [profiles]);
+
+  // Candidatos ao vínculo manual de evento Kiwify órfão: contas pagantes (mestre/pré-migração),
+  // sem superadmin nem sub-logins (esses não têm assinatura própria).
+  const contasPagantes = useMemo(
+    () =>
+      profiles
+        .filter((p) => p.role !== 'admin' && (!p.papel || p.papel === 'mestre') && p.email)
+        .slice()
+        .sort((a, b) => (a.email ?? '').localeCompare(b.email ?? '')),
+    [profiles],
+  );
 
   // Aba "Clientes": contas pagantes (mestres/pré-migração), ordenadas por atividade —
   // frequência de acesso + relatórios gerados; empate: último login mais recente primeiro.
@@ -628,6 +672,46 @@ export default function Admin() {
     }
   }
 
+  // Vincula manualmente um evento Kiwify órfão (pagamento sem conta identificada) a um usuário:
+  // ativa a assinatura por um novo ciclo e marca o evento como processado, para não aparecer
+  // de novo na lista nem ser reprocessado por engano.
+  async function vincularOrfao(evento: EventoKiwifyOrfao, usuarioId: string) {
+    if (!usuarioId) {
+      setErro('Escolha um usuário antes de vincular.');
+      return;
+    }
+    setAcaoEmAndamento(evento.id);
+    setErro(null);
+    setAviso(null);
+    try {
+      const proximaData = somarDias(new Date(), DIAS_CICLO);
+      const { error: e1 } = await supabase
+        .from('profiles')
+        .update({ assinatura_status: 'ativa', assinatura_ate: proximaData, kiwify_email: evento.email })
+        .eq('id', usuarioId);
+      if (e1) throw e1;
+      const { error: e2 } = await supabase
+        .from('kiwify_eventos')
+        .update({ profile_id: usuarioId, processado: true })
+        .eq('id', evento.id);
+      if (e2) throw e2;
+      setProfiles((ps) =>
+        ps.map((p) =>
+          p.id === usuarioId
+            ? { ...p, assinatura_status: 'ativa', assinatura_ate: proximaData, kiwify_email: evento.email }
+            : p,
+        ),
+      );
+      setOrfaos((os) => (os ?? []).filter((o) => o.id !== evento.id));
+      setSelOrfao((s) => Object.fromEntries(Object.entries(s).filter(([id]) => id !== evento.id)));
+      setAviso('Evento vinculado — assinatura ativada para o usuário escolhido.');
+    } catch (e: unknown) {
+      setErro(e instanceof Error ? e.message : 'Falha ao vincular evento.');
+    } finally {
+      setAcaoEmAndamento(null);
+    }
+  }
+
   function liberar(p: Profile) {
     void atualizarPerfil(
       p.id,
@@ -863,6 +947,73 @@ export default function Admin() {
         )}
       </div>
 
+      {/* Eventos Kiwify sem conta vinculada (Task 10): pagamento chegou mas o webhook não achou
+          o perfil (e-mail do checkout diferente do e-mail de cadastro, por ex.). `orfaos === null`
+          = supabase/assinatura_setup.sql ainda não rodou nesse ambiente — some em vez de quebrar. */}
+      {orfaos === null ? null : (
+        <div className="admin-orfaos">
+          <div className="admin-orfaos-head">
+            <span className="admin-novo-titulo">Eventos Kiwify sem conta ({orfaos.length})</span>
+            <span className="admin-orfaos-sub">
+              Pagamento recebido sem casar com nenhum usuário — vincule manualmente abaixo.
+            </span>
+          </div>
+          {orfaos.length === 0 ? (
+            <p className="admin-nota">Nenhum evento pendente de vínculo.</p>
+          ) : (
+            <div className="admin-tabela-wrap">
+              <table className="admin-tabela">
+                <thead>
+                  <tr>
+                    <th>Recebido em</th>
+                    <th>Evento</th>
+                    <th>E-mail do pagamento</th>
+                    <th>Vincular a</th>
+                    <th>Ação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orfaos.map((ev) => {
+                    const ocupado = acaoEmAndamento === ev.id;
+                    return (
+                      <tr key={ev.id} className={ocupado ? 'ocupado' : ''}>
+                        <td data-label="Recebido em">{fmtData(ev.recebido_em)}</td>
+                        <td data-label="Evento">{ev.evento.replace(/_/g, ' ')}</td>
+                        <td data-label="E-mail do pagamento">{ev.email ?? '—'}</td>
+                        <td data-label="Vincular a">
+                          <select
+                            value={selOrfao[ev.id] ?? ''}
+                            disabled={ocupado}
+                            onChange={(e) => setSelOrfao((s) => ({ ...s, [ev.id]: e.target.value }))}
+                          >
+                            <option value="">Selecione o usuário…</option>
+                            {contasPagantes.map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.email}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                        <td data-label="Ação">
+                          <button
+                            type="button"
+                            className="b b-acoes"
+                            disabled={ocupado || !selOrfao[ev.id]}
+                            onClick={() => void vincularOrfao(ev, selOrfao[ev.id] ?? '')}
+                          >
+                            {ocupado ? 'Vinculando…' : 'Vincular'}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       <form className="admin-novo" onSubmit={criarUsuario}>
         <span className="admin-novo-titulo">Criar novo usuário</span>
         <input
@@ -1060,6 +1211,7 @@ export default function Admin() {
             <tr>
               <th>E-mail</th>
               <th>Status</th>
+              <th>Assinatura</th>
               <th>Dias restantes</th>
               <th>Cadastro</th>
               <th>Último acesso</th>
@@ -1177,6 +1329,11 @@ export default function Admin() {
                   <td data-label="Status">
                     <span className={`admin-badge ${st.cls}`}>{st.label}</span>
                   </td>
+                  <td data-label="Assinatura">
+                    <span className={`admin-badge-assinatura ${p.assinatura_status ?? 'trial'}`}>
+                      {rotuloStatusAssinatura(p.assinatura_status)}
+                    </span>
+                  </td>
                   <td data-label="Dias restantes"><BadgeDias expiraEm={p.acesso_expira_em} /></td>
                   <td data-label="Cadastro">{fmtSomenteData(p.criado_em)}</td>
                   <td data-label="Último acesso">
@@ -1198,7 +1355,7 @@ export default function Admin() {
             })}
             {filtrados.length === 0 && !carregando && (
               <tr>
-                <td colSpan={13} className="admin-vazio">
+                <td colSpan={14} className="admin-vazio">
                   {aba === 'acessos' ? 'Nenhum sub-login criado pelos clientes ainda.' : 'Nenhum usuário encontrado.'}
                 </td>
               </tr>

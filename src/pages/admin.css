@@ -896,3 +896,65 @@
 .admin-email-modal {
   position: relative;
 }
+
+/* ── Coluna "Assinatura" (Task 10) — cores semânticas do design system Forja ── */
+.admin-badge-assinatura {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.admin-badge-assinatura.ativa {
+  background: var(--ok-bg, #e7f6ef);
+  color: var(--ok, #1fa971);
+}
+.admin-badge-assinatura.trial {
+  background: var(--blue-bg, #eaf2fb);
+  color: var(--blue, #457dc1);
+}
+.admin-badge-assinatura.graca {
+  background: var(--warn-bg, #fbf1dc);
+  color: var(--warn, #b8860b);
+}
+.admin-badge-assinatura.cancelada_no_prazo {
+  background: var(--purple-bg, #f1edff);
+  color: var(--purple, #7c5cfc);
+}
+.admin-badge-assinatura.somente_leitura {
+  background: var(--crit-bg, #fbeae9);
+  color: var(--crit, #d5453d);
+}
+
+/* ── Seção "Eventos Kiwify sem conta" (Task 10) ── */
+.admin-orfaos {
+  background: #fff;
+  border: 1px solid var(--adm-borda);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 18px;
+  box-shadow: 0 1px 4px rgba(16, 35, 42, 0.05);
+}
+.admin-orfaos-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.admin-orfaos-sub {
+  font-size: 12.5px;
+  color: var(--adm-cinza);
+}
+.admin-orfaos .admin-tabela-wrap {
+  margin: 0;
+}
+.admin-orfaos select {
+  border: 1px solid var(--adm-borda);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 12.5px;
+  min-width: 200px;
+  max-width: 100%;
+}

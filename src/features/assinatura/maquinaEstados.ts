@@ -26,7 +26,10 @@ export const DIAS_CICLO = 30;
 /** Alinhado à retentativa de cartão da Kiwify — bloquear antes derrubaria quem ela ainda ia cobrar. */
 export const DIAS_GRACA = 5;
 
-function somarDias(base: Date, dias: number): string {
+// Exportada (Task 10): o painel Admin reusa para calcular a nova validade ao vincular
+// manualmente um evento Kiwify órfão a um usuário — mesma regra de "30 dias corridos"
+// usada pelo webhook, sem duplicar a conta em outro lugar.
+export function somarDias(base: Date, dias: number): string {
   const d = new Date(base.getTime());
   d.setUTCDate(d.getUTCDate() + dias);
   return d.toISOString();

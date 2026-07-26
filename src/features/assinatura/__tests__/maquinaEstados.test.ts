@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { aplicarEvento, statusEfetivo, type EstadoAssinatura } from '../maquinaEstados';
+import { aplicarEvento, statusEfetivo, somarDias, DIAS_CICLO, type EstadoAssinatura } from '../maquinaEstados';
 
 const AGORA = new Date('2026-07-26T12:00:00.000Z');
 const trial: EstadoAssinatura = { status: 'trial', ate: '2026-07-27T12:00:00.000Z' };
@@ -50,6 +50,16 @@ describe('aplicarEvento', () => {
   it('renovacao fora de ordem depois de late reativa (webhook atrasado nao pode punir)', () => {
     const graca: EstadoAssinatura = { status: 'graca', ate: '2026-07-31T12:00:00.000Z' };
     expect(aplicarEvento(graca, 'subscription_renewed', AGORA).status).toBe('ativa');
+  });
+});
+
+describe('somarDias (vínculo manual de evento órfão no Admin)', () => {
+  it('soma DIAS_CICLO (30) a partir de agora, em ISO', () => {
+    expect(somarDias(AGORA, DIAS_CICLO)).toBe('2026-08-25T12:00:00.000Z');
+  });
+
+  it('vira o mes/ano corretamente perto da virada', () => {
+    expect(somarDias(new Date('2026-12-10T00:00:00.000Z'), DIAS_CICLO)).toBe('2027-01-09T00:00:00.000Z');
   });
 });
 
