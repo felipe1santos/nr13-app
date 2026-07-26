@@ -37,6 +37,9 @@ interface Perfil {
   ativo: boolean;
   role: string;
   acessoExpiraEm: string | null;
+  // Status da assinatura DA ORGANIZAÇÃO (linha do mestre), resolvido pelo servidor.
+  // '' = servidor sem a migração assinatura_setup.sql (RPC inexistente) — gate legado.
+  assinaturaStatus: StatusAssinatura | '';
   // Controle de acesso multi-papel (null/'' antes da migração acesso_setup.sql)
   papel: PapelOrg | '';
   orgId: string | null;
@@ -53,9 +56,45 @@ function normalizar(email: string): string {
 // Filtra pelo próprio id: a RLS de admin retorna TODOS os perfis, então sem o filtro
 // o maybeSingle() quebraria (várias linhas) para o usuário admin.
 const PERFIL_VAZIO: Perfil = {
-  plano: '', ativo: false, role: 'user', acessoExpiraEm: null,
+  plano: '', ativo: false, role: 'user', acessoExpiraEm: null, assinaturaStatus: '',
   papel: '', orgId: null, clienteId: null, sessaoToken: null, sessaoVistoEm: null,
 };
+
+/**
+ * Espelha no localStorage o status da assinatura DA ORGANIZAÇÃO e devolve o status lido
+ * ('' quando o servidor ainda não tem a migração).
+ *
+ * Por que RPC e não uma coluna do próprio perfil (achado C3): a RLS de `profiles`
+ * (`profiles_select_own`) só deixa cada usuário ler a PRÓPRIA linha, e o webhook grava a
+ * assinatura na linha do MESTRE da org. Um sub-login lendo `assinatura_status` da própria
+ * linha via sempre o default 'trial' — org suspensa, funcionário em campo não via a barra,
+ * gerava PDF (paywall furado) e "salvava" inspeção que a RLS recusava. `assinatura_org()` é
+ * SECURITY DEFINER e resolve pela linha de `org_atual()`, exatamente a mesma fonte que a RLS
+ * de escrita usa — espelho e servidor não podem divergir.
+ *
+ * Por que fora do select das colunas de acesso (achado C6): com as colunas de assinatura no
+ * MESMO select de `papel/org_id/cliente_id/sessao_token`, um banco sem a migração faz o
+ * PostgREST recusar o select inteiro e cair no fallback legado — que não traz org_id (app
+ * abre vazio), nem papel='cliente' (portal quebra), nem sessão única. Isolando aqui, a
+ * ausência da migração só desliga o espelho da assinatura.
+ */
+async function espelharAssinaturaDaOrg(): Promise<StatusAssinatura | ''> {
+  try {
+    const { data, error } = await supabase.rpc('assinatura_org');
+    const status = (data as { status?: string } | null)?.status as StatusAssinatura | undefined;
+    if (error || !status) {
+      limparEstadoLocal();
+      return '';
+    }
+    gravarEstadoLocal({ status, ate: (data as { ate?: string | null }).ate ?? null });
+    return status;
+  } catch {
+    // RPC inexistente (pré-migração) ou offline: sem espelho, UI permissiva — o servidor
+    // nesse cenário também não tem o enforcement por assinatura, então não há divergência.
+    limparEstadoLocal();
+    return '';
+  }
+}
 
 // Exportada (só) para o teste em auth.test.ts exercitar o caminho real do login com o
 // supabase mockado — sem isso, um teste que só chama limparEstadoLocal() diretamente não
@@ -69,7 +108,7 @@ export async function carregarPerfil(): Promise<Perfil> {
   let data: Record<string, unknown> | null = null;
   const res = await supabase
     .from('profiles')
-    .select('plano, ativo, role, acesso_expira_em, papel, org_id, cliente_id, sessao_token, sessao_visto_em, assinatura_status, assinatura_ate')
+    .select('plano, ativo, role, acesso_expira_em, papel, org_id, cliente_id, sessao_token, sessao_visto_em')
     .eq('id', uid)
     .maybeSingle();
   if (!res.error) {
@@ -99,22 +138,14 @@ export async function carregarPerfil(): Promise<Perfil> {
   if (orgId) localStorage.setItem('nr13_org_id', orgId);
   if (clienteId) localStorage.setItem('nr13_cliente_id', clienteId);
   else localStorage.removeItem('nr13_cliente_id');
-  // Espelho local da assinatura (Task 5): só grava se a coluna veio (select legado
-  // pré-migração não traz assinatura_status) — ausência mantém o fallback seguro
-  // 'ativa' de statusAssinaturaLocal(), nunca trava quem está num banco sem o SQL rodado.
-  // ELSE: limpa qualquer espelho remanescente (fix round 1 — sem isto, uma conta anterior
-  // que fechou a aba sem "Sair" deixava 'somente_leitura' preso no localStorage e a PRÓXIMA
-  // conta a logar no mesmo navegador herdava o bloqueio, mesmo sem nunca ter passado por
-  // encerrarSessaoLocal()). Roda em TODO login onde o perfil não trouxe assinatura_status.
-  const assinaturaStatus = (data?.assinatura_status as string) ?? '';
-  const assinaturaAteCol = (data?.assinatura_ate as string) ?? null;
-  if (assinaturaStatus) {
-    gravarEstadoLocal({ status: assinaturaStatus as StatusAssinatura, ate: assinaturaAteCol });
-  } else {
-    limparEstadoLocal();
-  }
+  // Espelho local da assinatura (Task 5): vem da ORG, por RPC — ver espelharAssinaturaDaOrg.
+  // Sem status (servidor pré-migração), a função limpa o espelho: além de manter o fallback
+  // seguro 'ativa' de statusAssinaturaLocal(), isso impede que uma conta anterior que fechou a
+  // aba sem "Sair" (encerrarSessaoLocal nunca rodou) deixe 'somente_leitura' preso no
+  // localStorage e a PRÓXIMA conta a logar no mesmo navegador herde o bloqueio.
+  const assinaturaStatus = await espelharAssinaturaDaOrg();
   return {
-    plano, ativo, role, acessoExpiraEm, papel, orgId, clienteId,
+    plano, ativo, role, acessoExpiraEm, assinaturaStatus, papel, orgId, clienteId,
     sessaoToken: (data?.sessao_token as string) ?? null,
     sessaoVistoEm: (data?.sessao_visto_em as string) ?? null,
   };

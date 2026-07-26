@@ -80,6 +80,20 @@ create or replace function public.assinatura_status_org() returns text
   );
 $$;
 
+-- Espelho para o FRONT (status + validade da ORG numa chamada só). O app NÃO pode ler
+-- assinatura_status da própria linha: profiles_select_own (admin_setup.sql) só libera a
+-- linha do próprio usuário, e o webhook grava na linha do MESTRE — um sub-login lendo a
+-- própria linha veria o default 'trial' e ignoraria a suspensão da org (achado C3 da revisão
+-- final). SECURITY DEFINER pela MESMA fonte que a RLS de escrita usa, para espelho e servidor
+-- nunca divergirem. Chamado por src/services/auth.ts::espelharAssinaturaDaOrg (supabase.rpc).
+create or replace function public.assinatura_org() returns jsonb
+  language sql security definer set search_path = public as $$
+  select jsonb_build_object(
+    'status', public.assinatura_status_org(),
+    'ate',    (select p.assinatura_ate from public.profiles p where p.id = public.org_atual())
+  );
+$$;
+
 create or replace function public.assinatura_permite_escrita() returns boolean
   language sql security definer set search_path = public as $$
   select public.assinatura_status_org() in ('trial','ativa','graca','cancelada_no_prazo');
