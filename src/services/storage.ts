@@ -35,17 +35,34 @@ const CHAVES_PRESERVADAS = new Set([
 ]);
 
 // ---------------------------------------------------------------------------
-// Portal do Cliente: SOMENTE LEITURA (trava de escrita)
+// Trava de escrita: Portal do Cliente OU assinatura suspensa
 // ---------------------------------------------------------------------------
-// O papel 'cliente' nunca escreve no banco. As telas do portal ainda precisam gravar
-// chaves de RENDERIZAÇÃO no localStorage (nr13_relatorio_meta_atual, nr13_inspecao_atual
-// etc., lidas pelos templates em iframe), então a gravação local continua — o que é
-// cortado é o envio ao Supabase E a fila offline (senão a escrita ficaria pendente e
-// seria drenada depois sob a sessão de um usuário com permissão de escrita).
-// Ler direto do localStorage (e não de auth.ts) evita import circular: auth → storage.
-function somenteLeitura(): boolean {
+// Escrita bloqueada quando: (a) Portal do Cliente (papel 'cliente') ou (b) assinatura
+// suspensa. Nos dois casos a gravação fica só no cache local — os templates em iframe
+// leem de lá para renderizar — e NUNCA vai ao Supabase nem para a fila offline (que
+// seria drenada depois por uma sessão com permissão de escrita).
+// Lê direto do localStorage (e não de auth.ts/assinatura.ts) para evitar import circular
+// (auth.ts → storage.ts; assinatura.ts também seria consumido por auth.ts).
+//
+// A regra de rebaixamento por data replica statusEfetivo() de
+// src/features/assinatura/maquinaEstados.ts: `ate` nulo/ausente = sem vencimento, nunca
+// rebaixa; `ate` no passado rebaixa (bloqueia) mesmo com status "ativa"/"trial"/etc.
+//
+// Exportada (e não apenas local) para permitir teste automatizado direto via localStorage
+// sem precisar montar todo o app — ver src/services/storage.gate.test.ts.
+export function bloqueadoParaEscrita(): boolean {
   try {
-    return (localStorage.getItem('nr13_papel') || '') === 'cliente';
+    if ((localStorage.getItem('nr13_papel') || '') === 'cliente') return true;
+    const status = localStorage.getItem('nr13_assinatura_status') || '';
+    if (status === 'somente_leitura') return true;
+    if (status && status !== '') {
+      const ate = localStorage.getItem('nr13_assinatura_ate');
+      if (ate) {
+        const t = new Date(ate).getTime();
+        if (Number.isFinite(t) && t <= Date.now()) return true;
+      }
+    }
+    return false;
   } catch {
     return false;
   }
@@ -125,9 +142,9 @@ function registrarSync(): void {
 // online). Aplica as ops EM ORDEM; cada sucesso sai da fila. Se uma falhar (ainda offline),
 // PARA e mantém o restante (preservando a ordem). Sem userId, retorna sem mexer na fila.
 export async function flushFila(): Promise<void> {
-  // Cliente (portal) não sincroniza nada: a fila herdada de outra sessão no mesmo
-  // navegador não pode ser drenada com o token dele.
-  if (somenteLeitura()) return;
+  // Cliente (portal) ou assinatura suspensa não sincronizam nada: a fila herdada de outra
+  // sessão no mesmo navegador não pode ser drenada sob permissão que não existe mais.
+  if (bloqueadoParaEscrita()) return;
   let fila = lerFila();
   if (fila.length === 0) return; // invariante: fila vazia ⇒ não toca em rede nem storage
   const escopo = await escopoStorageAtual();
@@ -294,7 +311,7 @@ export async function salvar(chave: string, objeto: unknown): Promise<void> {
   } catch {
     // cota local estourada: ainda assim persiste no Supabase abaixo, sem derrubar a gravação
   }
-  if (somenteLeitura()) return; // portal: fica só no cache local, nunca vai ao banco
+  if (bloqueadoParaEscrita()) return; // portal ou assinatura suspensa: fica só no cache local, nunca vai ao banco
   const escopo = await escopoStorageAtual();
   if (!escopo) return;
   try {
@@ -319,7 +336,7 @@ export async function salvar(chave: string, objeto: unknown): Promise<void> {
 
 // Remove UMA chave do Supabase e do cache local.
 export async function excluirChave(chave: string): Promise<void> {
-  if (somenteLeitura()) return; // portal: cliente não exclui nada (nem no cache local)
+  if (bloqueadoParaEscrita()) return; // portal ou assinatura suspensa: não exclui nada (nem no cache local)
   localStorage.removeItem(chave);
   const escopo = await escopoStorageAtual();
   if (!escopo) return;
@@ -355,7 +372,7 @@ export function listarChavesComPrefixo(prefixo: string): string[] {
 }
 
 export async function excluirVaso(tag: string): Promise<void> {
-  if (somenteLeitura()) return; // portal: cliente não exclui equipamento
+  if (bloqueadoParaEscrita()) return; // portal ou assinatura suspensa: não exclui equipamento
   // Coleta no cache local todas as chaves que terminam em "_<TAG>". Como TAGs podem conter
   // "_", uma chave de TAG mais longa também termina igual (excluir "B" casava "nr13_info_A_B"
   // e apagava o equipamento A_B): chave que pertence a OUTRA TAG cadastrada mais específica
