@@ -21,6 +21,12 @@ export interface Aviso {
   titulo: string;
   texto: string;
   acao?: { rotulo: string; aoClicar: () => void };
+  // Chamado quando o usuário efetivamente FECHA este aviso (clique em "Fechar", clique fora
+  // ou Esc) — não quando ele é apenas emitido. Existe para consumir "flags de já mostrado"
+  // (ex.: sucessoPendente da assinatura) só depois que o usuário teve chance de ler, em vez
+  // de zerar a flag no mesmo instante em que o modal aparece na tela. Opcional: quem não
+  // precisa desse gancho simplesmente não passa nada.
+  aoFechar?: () => void;
 }
 
 const EVENTO_AVISO = 'nr13:aviso';

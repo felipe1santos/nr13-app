@@ -38,7 +38,13 @@ export default function ModalAviso() {
     [],
   );
 
-  const fechar = () => setFila((atual) => atual.slice(1));
+  // aviso.aoFechar roda aqui — no momento em que o usuário de fato reconhece o aviso
+  // (clique em "Fechar"/fora, Esc ou clique na ação) — nunca na emissão. Quem emitiu usa
+  // isso para só consumir uma flag ("já mostrado") depois que houve chance real de leitura.
+  const fechar = () => {
+    aviso?.aoFechar?.();
+    setFila((atual) => atual.slice(1));
+  };
 
   useEffect(() => {
     if (!aviso) return;

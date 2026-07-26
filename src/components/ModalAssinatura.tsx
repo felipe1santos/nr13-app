@@ -12,6 +12,9 @@ import { Icone } from './Icone';
 
 const INTERVALO_MS = 10_000;
 const LIMITE_MS = 15 * 60_000;
+/** Leituras "ruins" (perfil inativo/expirado) seguidas exigidas antes de concluir revogação
+ *  de verdade — ver comentário no `.then()` abaixo. */
+const LEITURAS_RUINS_PARA_CONCLUIR = 2;
 /** Fallback do link do checkout (plano Mensal R$ 197) se config_global não responder. */
 const URL_CHECKOUT_PADRAO = 'https://pay.kiwify.com.br/O9KdzEI';
 
@@ -35,6 +38,10 @@ export default function ModalAssinatura({ aberto, onFechar }: { aberto: boolean;
   useEffect(() => {
     onFecharRef.current = onFechar;
   }, [onFechar]);
+
+  // Contador de leituras consecutivas com perfil "ruim" (inativo/expirado). Zerado a cada
+  // leitura normal e a cada nova rodada de polling — ver justificativa no `.then()` abaixo.
+  const leiturasRuinsRef = useRef(0);
 
   // O link vive em config_global (você troca de plano sem novo deploy). Enquanto a
   // consulta não volta — ou se ela falhar — usa a constante, para o botão nunca ficar morto.
@@ -71,6 +78,7 @@ export default function ModalAssinatura({ aberto, onFechar }: { aberto: boolean;
     // nessas duas (fechou o modal, bateu o limite, ou o pagamento foi confirmado) passa
     // por aqui e o cleanup do efeito anterior derruba o interval — nunca fica vazando.
     if (!aberto || !aguardando) return;
+    leiturasRuinsRef.current = 0; // nova rodada de polling começa com o contador zerado
     const inicio = Date.now();
     const timer = window.setInterval(() => {
       if (Date.now() - inicio >= LIMITE_MS) {
@@ -85,11 +93,23 @@ export default function ModalAssinatura({ aberto, onFechar }: { aberto: boolean;
       // precisa para o statusAssinaturaLocal() enxergar a mudança feita pelo webhook.
       void carregarPerfil()
         .then((perfil) => {
-          // Conta desativada/expirada enquanto o usuário esperava o pagamento: para de
-          // perguntar e avisa com clareza, mas NÃO chama logout() daqui — quem decide
-          // encerrar a sessão de fato é o gate normal (RotaProtegida/verificarAcesso) no
-          // próximo carregamento da rota, não este polling em segundo plano.
-          if (!perfil.ativo || expirado(perfil.acessoExpiraEm)) {
+          const leituraRuim = !perfil.ativo || expirado(perfil.acessoExpiraEm);
+          if (leituraRuim) {
+            // `!perfil.ativo` também é verdadeiro em falso-positivos passageiros: sessão
+            // momentaneamente ilegível (carregarPerfil devolve PERFIL_VAZIO quando
+            // getSession() não traz uid) ou a query resolveu sem lançar mas sem dado (data
+            // null). É exatamente o tipo de soluço que o .catch abaixo trata para erros que
+            // lançam — aqui é o mesmo problema só que "resolvido" em vez de rejeitado. Uma
+            // única leitura ruim isolada NÃO pode derrubar quem está de fato pagando: só
+            // concluímos revogação de verdade após leituras ruins CONSECUTIVAS (~20s),
+            // contador zerado a cada leitura normal e a cada nova rodada de polling.
+            leiturasRuinsRef.current += 1;
+            if (leiturasRuinsRef.current < LEITURAS_RUINS_PARA_CONCLUIR) return;
+            // Concluído: conta de fato desativada/expirada enquanto o usuário esperava o
+            // pagamento. Para de perguntar e avisa com clareza, mas NÃO chama logout() daqui
+            // — quem decide encerrar a sessão de fato é o gate normal
+            // (RotaProtegida/verificarAcesso) no próximo carregamento da rota, não este
+            // polling em segundo plano.
             setAguardando(false);
             emitirAviso({
               variante: 'erro',
@@ -99,25 +119,30 @@ export default function ModalAssinatura({ aberto, onFechar }: { aberto: boolean;
             onFecharRef.current();
             return;
           }
+          leiturasRuinsRef.current = 0; // leitura normal: zera o contador de leituras ruins
           if (statusAssinaturaLocal() === 'ativa') {
             setAguardando(false);
-            // Mostramos o aviso AO VIVO agora — marcarSucessoExibido() logo em seguida evita
-            // que o Layout dispare o mesmo toast de novo num F5 futuro (o mecanismo
-            // sucessoPendente/marcarSucessoExibido do Layout continua existindo para quem
-            // fechar a aba/app ANTES deste bloco rodar e reabrir depois, ver Layout.tsx).
             marcarSucessoPendente();
             emitirAviso({
               variante: 'sucesso',
               titulo: 'Assinatura confirmada!',
               texto: 'Pagamento aprovado. Salvar, imprimir e gerar documentos já estão liberados.',
+              // Só consome a flag quando o usuário efetivamente FECHAR este aviso (clique,
+              // Esc ou fora) — o ModalAviso não some sozinho como um toast, então marcar
+              // como exibido na emissão apagaria a flag antes de haver qualquer chance de
+              // leitura. Quem fechar a aba/app com o aviso ainda aberto preserva a flag: o
+              // Layout mostra de novo na próxima sessão (ver o efeito de sucessoPendente lá).
+              aoFechar: marcarSucessoExibido,
             });
-            marcarSucessoExibido();
             onFecharRef.current();
           }
         })
         .catch(() => {
           // Falha de rede (comum numa espera de até 15min) não deve interromper o polling
-          // nem sujar o console — só tenta de novo no próximo tick de 10s.
+          // nem sujar o console — só tenta de novo no próximo tick de 10s. Não mexe no
+          // contador de leituras ruins: é uma classe de falha diferente (promise rejeitada,
+          // não um perfil "resolvido só que vazio/inativo") e não representa nem uma leitura
+          // normal nem uma leitura ruim de perfil.
         });
     }, INTERVALO_MS);
     return () => window.clearInterval(timer);
