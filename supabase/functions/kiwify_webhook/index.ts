@@ -131,30 +131,47 @@ Deno.serve(async (req) => {
   // ILIKE, um comprador "joao_silva@x.com" podia casar com o perfil "joao.silva@x.com" e
   // liberar/bloquear a CONTA ERRADA.
   let profileId: string | null = null;
-  let atual = { status: 'trial', ate: null as string | null };
 
   if (dados.sck) {
     const { data, error } = await admin
       .from('profiles')
-      .select('id, org_id, assinatura_status, assinatura_ate')
+      .select('id, org_id')
       .eq('id', dados.sck)
       .maybeSingle();
     if (error) console.error('kiwify_webhook: erro ao buscar profile por sck', error.message);
-    if (data) {
-      profileId = (data.org_id as string) ?? (data.id as string);
-      atual = { status: data.assinatura_status as string, ate: data.assinatura_ate as string | null };
-    }
+    if (data) profileId = (data.org_id as string) ?? (data.id as string);
   }
   if (!profileId && dados.email) {
     const { data, error } = await admin
       .from('profiles')
-      .select('id, org_id, assinatura_status, assinatura_ate')
+      .select('id, org_id')
       .eq('email', dados.email)
       .maybeSingle();
     if (error) console.error('kiwify_webhook: erro ao buscar profile por email', error.message);
+    if (data) profileId = (data.org_id as string) ?? (data.id as string);
+  }
+
+  // 3-bis. Estado ATUAL da linha que vai ser gravada (a da ORG), nunca o da linha casada.
+  // Sem isto (achado C4 da revisão final), quando quem paga não é o mestre — gerente pagando
+  // com o próprio e-mail, situação comum — lia-se o estado do PAGADOR ({trial, ate:null}) e
+  // aplicava-se a transição no MESTRE. Um subscription_canceled nesse cenário via `ate` nulo
+  // como "período ainda em aberto" e gravava {cancelada_no_prazo, ate:null} = SEM VENCIMENTO:
+  // conta cancelada com acesso permanente e de graça.
+  let atual = { status: 'trial', ate: null as string | null };
+  let atualLido = false;
+  if (profileId) {
+    const { data, error } = await admin
+      .from('profiles')
+      .select('assinatura_status, assinatura_ate')
+      .eq('id', profileId)
+      .maybeSingle();
+    if (error) console.error('kiwify_webhook: erro ao ler estado atual da org', error.message);
     if (data) {
-      profileId = (data.org_id as string) ?? (data.id as string);
-      atual = { status: data.assinatura_status as string, ate: data.assinatura_ate as string | null };
+      atual = {
+        status: (data.assinatura_status as string) ?? 'trial',
+        ate: (data.assinatura_ate as string | null) ?? null,
+      };
+      atualLido = true;
     }
   }
 
@@ -197,12 +214,15 @@ Deno.serve(async (req) => {
   const contaIdentificada = !!profileId;
   const eventoConhecido = !!dados.evento;
   const duplicado = !!jaExiste;
-  const podeProcessar = contaIdentificada && eventoConhecido && !duplicado;
+  // Estado atual ilegível = NÃO processa (fail-closed): aplicar a transição em cima de um
+  // estado chutado é como o C4 dava acesso permanente a conta cancelada. Melhor pedir reenvio.
+  const podeProcessar = contaIdentificada && eventoConhecido && !duplicado && atualLido;
 
   let motivoErro: string | null = null;
   if (!contaIdentificada) motivoErro = 'conta não identificada';
   else if (!eventoConhecido) motivoErro = 'evento fora do escopo';
   else if (duplicado) motivoErro = 'duplicado, ignorado';
+  else if (!atualLido) motivoErro = 'estado atual da conta ilegível';
 
   const dedupeChave = calcularDedupeChave(dados.evento, dados.subscriptionId, dados.email);
 
@@ -238,6 +258,15 @@ Deno.serve(async (req) => {
     // nem reprocesso possível depois.
     console.error('kiwify_webhook: erro ao gravar evento', erroInsert?.message);
     return new Response(JSON.stringify({ ok: false, erro: 'falha ao registrar evento' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  // 5-bis. Conta e evento válidos, mas não conseguimos ler o estado atual da org: o evento
+  // ficou registrado (auditoria/reprocesso) e pedimos reenvio — nada foi aplicado.
+  if (contaIdentificada && eventoConhecido && !duplicado && !atualLido) {
+    return new Response(JSON.stringify({ ok: false, erro: 'estado atual da conta ilegível' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });

@@ -79,6 +79,26 @@ describe('consistência maquinaEstados.ts <-> kiwify_webhook/index.ts', () => {
     expect(TEXTO_INDEX.includes(`'${evento}'`)).toBe(true);
   });
 
+  // ── Achado C4: a transição precisa partir do estado da linha que será GRAVADA (a da org),
+  // nunca da linha casada pelo e-mail do pagador. Quando quem paga não é o mestre, o estado
+  // lido era {trial, ate:null} e um subscription_canceled gravava no mestre
+  // {cancelada_no_prazo, ate:null} = sem vencimento = acesso permanente e grátis.
+  // Só dá para checar por texto: a Edge Function roda em Deno e não é importável aqui.
+  it('não lê mais o estado da assinatura na busca por sck/e-mail', () => {
+    expect(TEXTO_INDEX).not.toContain("select('id, org_id, assinatura_status, assinatura_ate')");
+  });
+
+  it('relê assinatura_status/ate pelo profileId da ORG antes de aplicar a transição', () => {
+    const idxLeitura = TEXTO_INDEX.indexOf(".select('assinatura_status, assinatura_ate')");
+    expect(idxLeitura).toBeGreaterThan(-1);
+    expect(TEXTO_INDEX.slice(idxLeitura, idxLeitura + 200)).toContain(".eq('id', profileId)");
+    expect(idxLeitura).toBeLessThan(TEXTO_INDEX.indexOf('aplicarEvento(atual,'));
+  });
+
+  it('não processa quando o estado atual da org é ilegível (fail-closed)', () => {
+    expect(TEXTO_INDEX).toContain('&& atualLido');
+  });
+
   it.each(Object.entries(MAPEAMENTO_ESPERADO) as [EventoKiwify, string[]][])(
     'evento %s aponta para o status esperado no switch da Edge Function',
     (evento, statusEsperados) => {
