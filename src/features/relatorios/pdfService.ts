@@ -2,7 +2,7 @@ import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { anexarRastreabilidades } from './rastreabilidadeService';
 import { ALTURA_A4_PX, aguardarRecursosIframe, garantirFonteInterHost, normalizarCloneParaCanvas } from './printService';
-import { bloqueioTrialDocs } from '../../services/trial';
+import { avisarBloqueioDocumentos } from '../../services/trial';
 
 // Mesmos parâmetros do relatorios.js original: jsPDF('p','mm','a4'), html2canvas scale:2,
 // JPEG 0.95, addImage cobrindo a folha A4 inteira (0,0,210,297mm).
@@ -14,12 +14,8 @@ export async function exportarPdf(
   // relatório) define QUAIS tipos de padrão anexar (calibrações presentes + ultrassom).
   opts: { rastreabilidades?: boolean; documentos?: string[] } = {},
 ): Promise<void> {
-  // Período de teste: download de documentos bloqueado (funil único — cobre todos os botões).
-  const bloqueio = bloqueioTrialDocs();
-  if (bloqueio) {
-    window.alert(bloqueio);
-    return;
-  }
+  // Bloqueio de documento (trial OU assinatura suspensa) — funil único, cobre todos os botões.
+  if (avisarBloqueioDocumentos()) return;
   const paginas = Array.from(document.querySelectorAll<HTMLElement>(`${containerSelector} .pagina-relatorio-a4`));
   const pdf = new jsPDF('p', 'mm', 'a4');
 
@@ -85,11 +81,7 @@ const ALTURA_PDF_MM = 297;
 const FOLGA_MM = 4;
 
 export async function exportarPdfLivroCompleto(urls: string[], nomeArquivo: string): Promise<void> {
-  const bloqueio = bloqueioTrialDocs();
-  if (bloqueio) {
-    window.alert(bloqueio);
-    return;
-  }
+  if (avisarBloqueioDocumentos()) return;
   // Host offscreen: os templates leem o localStorage no DOMContentLoaded, então basta
   // carregá-los em iframes invisíveis com a mesma largura do A4 em px (794 @96dpi).
   const host = document.createElement('div');

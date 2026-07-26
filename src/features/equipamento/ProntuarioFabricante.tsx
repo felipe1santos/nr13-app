@@ -4,6 +4,7 @@ import { excluirChave, ler, salvar } from '../../services/storage';
 import { comLoadingGlobal } from '../../app/loadingGlobal';
 import { isTrial } from '../../services/auth';
 import { MSG_BLOQUEIO_DOCS } from '../../services/trial';
+import { emitirAviso } from '../../services/eventos';
 
 // Prontuário do fabricante em PDF, gravado por equipamento (CLAUDE.md §2).
 // O sufixo _<TAG> é obrigatório: a Edge Function portal_cliente filtra as chaves
@@ -207,7 +208,7 @@ export default function ProntuarioFabricante({ tag }: { tag: string }) {
                 type="button"
                 className="btn-secundario"
                 title={MSG_BLOQUEIO_DOCS}
-                onClick={() => window.alert(MSG_BLOQUEIO_DOCS)}
+                onClick={() => emitirAviso({ variante: 'alerta', titulo: 'Recurso do plano contratado', texto: MSG_BLOQUEIO_DOCS })}
               >
                 <Icone nome="download" tam={13} /> Baixar
               </button>

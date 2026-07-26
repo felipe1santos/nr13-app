@@ -32,6 +32,7 @@ import {
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
 import { isTrial } from '../services/auth';
 import { MSG_BLOQUEIO_DOCS } from '../services/trial';
+import { emitirAviso } from '../services/eventos';
 import '../pages/relatorios.css';
 import './prontuarios.css';
 import PaginaA4 from '../components/PaginaA4';
@@ -937,7 +938,7 @@ export default function Prontuarios() {
                         className="btn-secundario"
                         style={{ fontSize: 12 }}
                         title={MSG_BLOQUEIO_DOCS}
-                        onClick={() => window.alert(MSG_BLOQUEIO_DOCS)}
+                        onClick={() => emitirAviso({ variante: 'alerta', titulo: 'Recurso do plano contratado', texto: MSG_BLOQUEIO_DOCS })}
                       >
                         Baixar
                       </button>

@@ -9,6 +9,7 @@ import type { EmpresaEquipamento, EquipamentoResumo } from '../features/equipame
 import { ler } from '../services/storage';
 import { isTrial } from '../services/auth';
 import { MSG_BLOQUEIO_IMPORTACAO } from '../services/trial';
+import { emitirAviso } from '../services/eventos';
 import { Icone } from '../components/Icone';
 import '../features/equipamento/equipamento.css';
 import '../features/equipamento/importar.css';
@@ -105,7 +106,7 @@ export default function Equipamentos() {
   function abrirImportacao() {
     // Importação em massa é recurso de assinante — trial cadastra manualmente.
     if (isTrial()) {
-      window.alert(MSG_BLOQUEIO_IMPORTACAO);
+      emitirAviso({ variante: 'alerta', titulo: 'Recurso do plano contratado', texto: MSG_BLOQUEIO_IMPORTACAO });
       return;
     }
     setArquivoSolto(null);

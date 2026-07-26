@@ -2,6 +2,8 @@
 // A validade real é do SERVIDOR (profiles.acesso_expira_em + RLS acesso_vigente);
 // aqui só se lê o espelho local para UI e para cortar as ações no bundle.
 import { isTrial, verificarAcesso } from './auth';
+import { emitirAviso } from './eventos';
+import { podeEscreverAssinatura, textoBloqueio } from './assinatura';
 
 export const MSG_BLOQUEIO_DOCS =
   'Download e impressão estão disponíveis somente após a contratação do sistema.';
@@ -38,6 +40,24 @@ export function formatarContagem(ms: number): string {
   const dd = dias === 1 ? '1 dia' : `${dias} dias`;
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${dd}, ${pad(horas)}h ${pad(min)}m ${pad(seg)}s`;
+}
+
+/**
+ * Funil ÚNICO de bloqueio de documentos (PDF, impressão, download). Devolve true
+ * quando bloqueou — quem chama só precisa dar `return`. Cobre trial e assinatura
+ * suspensa com a mesma tela (ModalAviso), no lugar dos window.alert() de antes.
+ */
+export function avisarBloqueioDocumentos(): boolean {
+  const bloqueioTrial = bloqueioTrialDocs();
+  if (bloqueioTrial) {
+    emitirAviso({ variante: 'alerta', titulo: 'Recurso do plano contratado', texto: bloqueioTrial });
+    return true;
+  }
+  if (!podeEscreverAssinatura()) {
+    emitirAviso({ variante: 'erro', titulo: 'Assinatura suspensa', texto: textoBloqueio() });
+    return true;
+  }
+  return false;
 }
 
 // Chamada quando o contador zera: o servidor decide (verificarAcesso faz logout

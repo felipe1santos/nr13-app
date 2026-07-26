@@ -9,17 +9,43 @@ const ICONE: Record<Aviso['variante'], NomeIcone> = {
   erro: 'alerttri',
 };
 
+// Mesmo aviso (variante+título+texto) do que já está na tela — clique duplo no botão
+// bloqueado ou dois pontos de bloqueio disparando em sequência não deve empilhar 2x a
+// mesma mensagem. Avisos DIFERENTES continuam sendo enfileirados (ver fila abaixo).
+function mesmoAviso(a: Aviso, b: Aviso): boolean {
+  return a.variante === b.variante && a.titulo === b.titulo && a.texto === b.texto;
+}
+
 // Modal único do app para bloqueio/sucesso. Monta uma vez no Layout e escuta o
 // barramento — assim serviços (pdfService, printService) avisam sem virar React.
+//
+// FILA (não só 1 estado): o modal guardava um único `Aviso` — um segundo emitirAviso()
+// antes do usuário fechar o primeiro sobrescrevia o estado e a mensagem anterior era
+// perdida sem o usuário nunca vê-la. Agora cada emitirAviso() entra numa fila; o de cima
+// é exibido e some da fila ao fechar, revelando o próximo (se houver).
 export default function ModalAviso() {
-  const [aviso, setAviso] = useState<Aviso | null>(null);
+  const [fila, setFila] = useState<Aviso[]>([]);
+  const aviso = fila[0] ?? null;
 
-  useEffect(() => assinarAviso(setAviso), []);
+  useEffect(
+    () =>
+      assinarAviso((novo) => {
+        setFila((atual) => {
+          if (atual.length > 0 && mesmoAviso(atual[atual.length - 1], novo)) return atual;
+          return [...atual, novo];
+        });
+      }),
+    [],
+  );
+
+  const fechar = () => setFila((atual) => atual.slice(1));
 
   useEffect(() => {
     if (!aviso) return;
     const onEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setAviso(null);
+      // Escape sempre fecha, mesmo na variante "erro" (bloqueio de assinatura) — só o
+      // clique no fundo é restrito ali (ver onClick abaixo).
+      if (e.key === 'Escape') fechar();
     };
     window.addEventListener('keydown', onEsc);
     return () => window.removeEventListener('keydown', onEsc);
@@ -27,8 +53,13 @@ export default function ModalAviso() {
 
   if (!aviso) return null;
 
+  // Variante "erro" = bloqueio de assinatura com ação de regularizar: clique no fundo
+  // (comum ao tentar interagir com o resto da tela) não pode descartar esse aviso sem
+  // querer. Alerta/sucesso continuam fechando no clique fora.
+  const fecharNoFundo = aviso.variante === 'erro' ? undefined : fechar;
+
   return (
-    <div className="modal-aviso-fundo" role="dialog" aria-modal="true" onClick={() => setAviso(null)}>
+    <div className="modal-aviso-fundo" role="dialog" aria-modal="true" onClick={fecharNoFundo}>
       <div className={`modal-aviso ${aviso.variante}`} onClick={(e) => e.stopPropagation()}>
         <span className="modal-aviso-ic">
           <Icone nome={ICONE[aviso.variante]} tam={30} />
@@ -42,13 +73,13 @@ export default function ModalAviso() {
               className="modal-aviso-btn principal"
               onClick={() => {
                 aviso.acao?.aoClicar();
-                setAviso(null);
+                fechar();
               }}
             >
               {aviso.acao.rotulo}
             </button>
           )}
-          <button type="button" className="modal-aviso-btn" onClick={() => setAviso(null)}>
+          <button type="button" className="modal-aviso-btn" onClick={fechar}>
             Fechar
           </button>
         </div>

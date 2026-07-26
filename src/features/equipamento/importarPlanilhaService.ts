@@ -2,6 +2,7 @@ import * as XLSX from 'xlsx';
 import { ler, lerTudo, salvar } from '../../services/storage';
 import { isTrial } from '../../services/auth';
 import { MSG_BLOQUEIO_IMPORTACAO } from '../../services/trial';
+import { emitirAviso } from '../../services/eventos';
 import type { EmpresaEquipamento, InfoEquipamento, TipoEquipamento } from './tipos';
 
 /**
@@ -400,7 +401,7 @@ const LINHA_EXEMPLO: Record<string, string> = {
 /** Gera e baixa o modelo .xlsx (cabeçalho + 1 linha de exemplo). */
 export function baixarModeloPlanilha(): void {
   if (isTrial()) {
-    window.alert(MSG_BLOQUEIO_IMPORTACAO);
+    emitirAviso({ variante: 'alerta', titulo: 'Recurso do plano contratado', texto: MSG_BLOQUEIO_IMPORTACAO });
     return;
   }
   const colunas = [...COLUNAS_OBRIGATORIAS, ...COLUNAS_OPCIONAIS];

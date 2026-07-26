@@ -1,6 +1,6 @@
 import html2canvas from 'html2canvas';
 import { rastreabilidadesDoRelatorioAberto } from './rastreabilidadeService';
-import { bloqueioTrialDocs } from '../../services/trial';
+import { avisarBloqueioDocumentos } from '../../services/trial';
 
 // Impressão própria: o navegador quebra o conteúdo de <iframe> ao imprimir (sai em tiras / só 1
 // página). Aqui rasterizamos cada folha A4 (o body do iframe) em uma imagem e montamos um
@@ -433,12 +433,8 @@ export async function imprimirRelatorio(
   incluirRastreabilidades = false,
   documentos: string[] = [],
 ): Promise<void> {
-  // Período de teste: impressão bloqueada (único window.print do sistema).
-  const bloqueio = bloqueioTrialDocs();
-  if (bloqueio) {
-    window.alert(bloqueio);
-    return;
-  }
+  // Bloqueio de documento (trial OU assinatura suspensa) — único window.print do sistema.
+  if (avisarBloqueioDocumentos()) return;
   await prepararFolhasImpressao(containerSelector, incluirRastreabilidades, documentos);
   if (incluirRastreabilidades && falhasRastreabilidadeImpressao.length > 0) {
     window.alert(
