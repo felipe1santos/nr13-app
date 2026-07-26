@@ -151,20 +151,33 @@ Deno.serve(async (req) => {
       const agora = new Date();
       const fim = new Date(agora.getTime() + TRIAL_HORAS * 3600_000);
       const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
-      const { error: upErr } = await admin
+      const camposLegado = {
+        ativo: true,
+        plano: 'trial',
+        origem_cadastro: 'trial',
+        trial_inicio: agora.toISOString(),
+        trial_fim: fim.toISOString(),
+        acesso_expira_em: fim.toISOString(),
+        nome: texto(body.nome, 120) ?? texto(meta.nome, 120),
+        telefone: texto(body.telefone, 40) ?? texto(meta.telefone, 40),
+        empresa_nome: texto(body.empresa_nome, 120) ?? texto(meta.empresa_nome, 120),
+      };
+      // assinatura_status/assinatura_ate SÃO OBRIGATÓRIOS aqui (achado C5 da revisão final):
+      // depois de assinatura_setup.sql, a RLS de escrita passa por
+      // assinatura_permite_escrita(), e assinatura_ate NULL significa SEM VENCIMENTO. Um
+      // trial nascendo 'trial' + NULL teria escrita liberada PARA SEMPRE no banco — o prazo
+      // de 48h só existiria na UI. Gravamos o mesmo `fim` das colunas legadas.
+      let { error: upErr } = await admin
         .from('profiles')
-        .update({
-          ativo: true,
-          plano: 'trial',
-          origem_cadastro: 'trial',
-          trial_inicio: agora.toISOString(),
-          trial_fim: fim.toISOString(),
-          acesso_expira_em: fim.toISOString(),
-          nome: texto(body.nome, 120) ?? texto(meta.nome, 120),
-          telefone: texto(body.telefone, 40) ?? texto(meta.telefone, 40),
-          empresa_nome: texto(body.empresa_nome, 120) ?? texto(meta.empresa_nome, 120),
-        })
+        .update({ ...camposLegado, assinatura_status: 'trial', assinatura_ate: fim.toISOString() })
         .eq('id', user.id);
+      if (upErr && /assinatura_/.test(upErr.message ?? '')) {
+        // Deploy fora de ordem (função nova + banco ainda sem assinatura_setup.sql): sem as
+        // colunas, o trial precisa continuar sendo criado com a mecânica antiga, que nesse
+        // banco ainda é a que vale (a RLS de lá só conhece acesso_vigente()).
+        console.warn('trial: colunas de assinatura ausentes, gravando só as legadas');
+        ({ error: upErr } = await admin.from('profiles').update(camposLegado).eq('id', user.id));
+      }
       if (upErr) return json({ erro: upErr.message }, 400);
 
       await admin.from('login_events').insert({

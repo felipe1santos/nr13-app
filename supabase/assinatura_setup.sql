@@ -99,12 +99,25 @@ create or replace function public.assinatura_permite_escrita() returns boolean
   select public.assinatura_status_org() in ('trial','ativa','graca','cancelada_no_prazo');
 $$;
 
--- ── 5. RLS de escrita: troca acesso_vigente() pelo status da assinatura ─────
+-- ── 5. RLS de escrita: assinatura E validade legada (defesa em profundidade) ─
+-- ATENÇÃO (achado C5 da revisão final): NÃO remover o acesso_vigente() daqui.
+-- A versão anterior deste arquivo SUBSTITUÍA acesso_vigente() por
+-- assinatura_permite_escrita(), e isso DESLIGAVA o enforcement de prazo dos
+-- trials NOVOS: a Edge Function `trial` grava plano/acesso_expira_em/trial_fim
+-- e (até o fix) não gravava assinatura_status/assinatura_ate — todo trial
+-- criado depois da migração nascia 'trial' + NULL, e assinatura_ate NULL
+-- significa SEM VENCIMENTO, ou seja, escrita liberada para sempre.
+-- As duas condições convivem: acesso_vigente() olha a validade da PRÓPRIA linha
+-- (mecânica antiga, cobre trial/prazo manual) e assinatura_permite_escrita()
+-- olha o status da ORG (mecânica nova, cobre inadimplência/cancelamento).
+-- O fix do lado da função `trial` também foi feito (ela agora grava
+-- assinatura_status='trial' + assinatura_ate=fim) — as duas defesas juntas.
 drop policy if exists app_storage_insert_org on public.app_storage;
 create policy app_storage_insert_org on public.app_storage
   for insert with check (
     org_id = public.org_atual()
     and public.papel_atual() in ('mestre','gerente','funcionario')
+    and public.acesso_vigente()
     and public.assinatura_permite_escrita()
   );
 
@@ -113,10 +126,12 @@ create policy app_storage_update_org on public.app_storage
   for update using (
     org_id = public.org_atual()
     and public.papel_atual() in ('mestre','gerente','funcionario')
+    and public.acesso_vigente()
     and public.assinatura_permite_escrita()
   ) with check (
     org_id = public.org_atual()
     and public.papel_atual() in ('mestre','gerente','funcionario')
+    and public.acesso_vigente()
     and public.assinatura_permite_escrita()
   );
 
@@ -125,6 +140,7 @@ create policy app_storage_delete_org on public.app_storage
   for delete using (
     org_id = public.org_atual()
     and public.papel_atual() in ('mestre','gerente','funcionario')
+    and public.acesso_vigente()
     and public.assinatura_permite_escrita()
   );
 
