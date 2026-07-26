@@ -6,7 +6,12 @@ import BarraTrial from '../components/BarraTrial';
 import BarraAssinatura from '../components/BarraAssinatura';
 import ModalAviso from '../components/ModalAviso';
 import { listarChavesComPrefixo } from '../services/storage';
-import { sucessoPendente, marcarSucessoExibido, statusAssinaturaLocal } from '../services/assinatura';
+import {
+  sucessoPendente,
+  marcarSucessoExibido,
+  statusAssinaturaLocal,
+  obterUrlCheckout,
+} from '../services/assinatura';
 import { emitirAviso } from '../services/eventos';
 import { modulosDoUsuarioAtual } from '../services/permissoes';
 import { ITENS_TOPO, ITENS_CADASTRAR, ITENS_BAIXO, ITEM_ACESSOS, tituloDaRota } from './menu';
@@ -132,6 +137,12 @@ export default function Layout() {
   // ModalAssinatura terminar e voltou depois: o webhook já gravou "ativa" no servidor e
   // o login/carregarPerfil já espelhou isso no localStorage antes deste Layout montar —
   // só falta mostrar o aviso UMA vez (marcarSucessoExibido evita repetir a cada navegação).
+  // Aquece o cache do link do checkout: os botões "Regularizar" dos bloqueios (ModalAviso,
+  // emitido por serviços) abrem a aba SEM await, para não morrer no bloqueador de popup.
+  useEffect(() => {
+    void obterUrlCheckout();
+  }, []);
+
   useEffect(() => {
     if (!sucessoPendente()) return;
     if (statusAssinaturaLocal() !== 'ativa') return;

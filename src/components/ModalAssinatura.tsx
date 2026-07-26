@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { supabase } from '../services/supabase';
 import { carregarPerfil, perfilParaEntrada, usuarioLogado } from '../services/auth';
 import { bloqueioEntrada } from '../features/assinatura/maquinaEstados';
 import {
@@ -7,6 +6,8 @@ import {
   marcarSucessoPendente,
   marcarSucessoExibido,
   montarUrlCheckout,
+  obterUrlCheckout,
+  urlCheckoutSincrona,
 } from '../services/assinatura';
 import { emitirAviso } from '../services/eventos';
 import { Icone } from './Icone';
@@ -16,8 +17,6 @@ const LIMITE_MS = 15 * 60_000;
 /** Leituras "ruins" (perfil inativo/expirado) seguidas exigidas antes de concluir revogação
  *  de verdade — ver comentário no `.then()` abaixo. */
 const LEITURAS_RUINS_PARA_CONCLUIR = 2;
-/** Fallback do link do checkout (plano Mensal R$ 197) se config_global não responder. */
-const URL_CHECKOUT_PADRAO = 'https://pay.kiwify.com.br/O9KdzEI';
 
 // A Kiwify não tem checkout embutido (só página hospedada), então abrimos em outra aba
 // e ficamos perguntando o status ao servidor: quando o webhook chegar, a tela libera
@@ -28,7 +27,7 @@ export default function ModalAssinatura({ aberto, onFechar }: { aberto: boolean;
   // quem já pagou e só está esperando o webhook atrasado só precisa reconsultar o servidor.
   const [jaAbriuCheckout, setJaAbriuCheckout] = useState(false);
   const email = usuarioLogado() ?? '';
-  const [urlBase, setUrlBase] = useState(URL_CHECKOUT_PADRAO);
+  const [urlBase, setUrlBase] = useState(urlCheckoutSincrona);
 
   // onFechar é recriado a cada render do pai (BarraAssinatura define uma arrow function
   // inline). Se ele entrasse nas deps do efeito de polling abaixo, cada re-render do pai
@@ -44,21 +43,15 @@ export default function ModalAssinatura({ aberto, onFechar }: { aberto: boolean;
   // leitura normal e a cada nova rodada de polling — ver justificativa no `.then()` abaixo.
   const leiturasRuinsRef = useRef(0);
 
-  // O link vive em config_global (você troca de plano sem novo deploy). Enquanto a
-  // consulta não volta — ou se ela falhar — usa a constante, para o botão nunca ficar morto.
+  // O link vive em config_global (você troca de plano sem novo deploy). Enquanto a consulta
+  // não volta — ou se ela falhar — vale o padrão, para o botão nunca ficar morto. A busca é
+  // a mesma de services/assinatura.ts (cache compartilhado com o botão da tela de login).
   useEffect(() => {
     if (!aberto) return;
     let vivo = true;
-    void supabase
-      .from('config_global')
-      .select('valor')
-      .eq('chave', 'assinatura_checkout_url')
-      .maybeSingle()
-      .then(({ data }) => {
-        if (!vivo) return;
-        const u = (data?.valor as { url?: string } | null)?.url;
-        if (u) setUrlBase(u);
-      });
+    void obterUrlCheckout().then((u) => {
+      if (vivo) setUrlBase(u);
+    });
     return () => {
       vivo = false;
     };

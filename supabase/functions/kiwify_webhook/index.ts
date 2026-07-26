@@ -305,8 +305,11 @@ Deno.serve(async (req) => {
       .update({
         assinatura_status: novo.status,
         assinatura_ate: novo.ate,
-        kiwify_subscription_id: dados.subscriptionId,
-        kiwify_email: dados.email,
+        // Só grava quando o evento TROUXE o dado: nem todo payload da Kiwify traz
+        // subscription_id/e-mail, e sobrescrever com null apagaria o vínculo gravado por um
+        // evento anterior (a conta perderia a referência da assinatura na Kiwify).
+        ...(dados.subscriptionId ? { kiwify_subscription_id: dados.subscriptionId } : {}),
+        ...(dados.email ? { kiwify_email: dados.email } : {}),
         // Mantém a coluna legada coerente para o painel Admin e os gates antigos.
         plano: novo.status === 'somente_leitura' ? 'expirado' : 'completo',
         acesso_expira_em: novo.ate,

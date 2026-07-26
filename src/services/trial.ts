@@ -1,9 +1,15 @@
 // Período de teste (trial 48h): contagem regressiva e bloqueios de recurso.
 // A validade real é do SERVIDOR (profiles.acesso_expira_em + RLS acesso_vigente);
 // aqui só se lê o espelho local para UI e para cortar as ações no bundle.
-import { isTrial, verificarAcesso } from './auth';
+import { isTrial, usuarioLogado, verificarAcesso } from './auth';
 import { emitirAviso } from './eventos';
-import { podeEscreverAssinatura, textoBloqueio } from './assinatura';
+import {
+  podeEscreverAssinatura,
+  textoBloqueio,
+  montarUrlCheckout,
+  obterUrlCheckout,
+  urlCheckoutSincrona,
+} from './assinatura';
 
 export const MSG_BLOQUEIO_DOCS =
   'Download e impressão estão disponíveis somente após a contratação do sistema.';
@@ -50,14 +56,42 @@ export function formatarContagem(ms: number): string {
 export function avisarBloqueioDocumentos(): boolean {
   const bloqueioTrial = bloqueioTrialDocs();
   if (bloqueioTrial) {
-    emitirAviso({ variante: 'alerta', titulo: 'Recurso do plano contratado', texto: bloqueioTrial });
+    emitirAviso({
+      variante: 'alerta',
+      titulo: 'Recurso do plano contratado',
+      texto: bloqueioTrial,
+      acao: { rotulo: 'Assinar agora', aoClicar: abrirCheckout },
+    });
     return true;
   }
   if (!podeEscreverAssinatura()) {
-    emitirAviso({ variante: 'erro', titulo: 'Assinatura suspensa', texto: textoBloqueio() });
+    // A spec (§7) prevê o botão "Regularizar" nesta tela: bloquear sem oferecer o caminho de
+    // saída é o momento exato em que a pessoa quer pagar e não tem onde clicar.
+    emitirAviso({
+      variante: 'erro',
+      titulo: 'Assinatura suspensa',
+      texto: textoBloqueio(),
+      acao: { rotulo: 'Regularizar', aoClicar: abrirCheckout },
+    });
     return true;
   }
   return false;
+}
+
+/**
+ * Abre o checkout da Kiwify em nova aba, já com e-mail e uid do usuário logado (o webhook
+ * casa o pagamento com a conta por esses dois campos). Usa a URL SÍNCRONA de propósito: o
+ * clique tem que virar `window.open` na mesma pilha, senão o bloqueador de popup mata a aba.
+ * O `void obterUrlCheckout()` só aquece o cache para os próximos cliques.
+ */
+export function abrirCheckout(): void {
+  const url = montarUrlCheckout(
+    urlCheckoutSincrona(),
+    usuarioLogado() ?? '',
+    localStorage.getItem('nr13_uid') ?? '',
+  );
+  window.open(url, '_blank', 'noopener,noreferrer');
+  void obterUrlCheckout();
 }
 
 // Chamada quando o contador zera: o servidor decide (verificarAcesso faz logout

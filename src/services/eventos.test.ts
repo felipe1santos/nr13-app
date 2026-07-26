@@ -1,5 +1,26 @@
 import { describe, expect, it, vi } from 'vitest';
-import { assinarAviso, assinarDadosAlterados, emitirAviso, emitirDadosAlterados, type Aviso } from './eventos';
+import {
+  assinarAviso,
+  assinarDadosAlterados,
+  assinarAssinaturaAlterada,
+  emitirAviso,
+  emitirDadosAlterados,
+  emitirAssinaturaAlterada,
+  type Aviso,
+} from './eventos';
+
+// shim de localStorage (node): necessário para o teste que grava o espelho da assinatura.
+if (typeof globalThis.localStorage === 'undefined') {
+  const store = new Map<string, string>();
+  (globalThis as Record<string, unknown>).localStorage = {
+    getItem: (k: string) => (store.has(k) ? store.get(k)! : null),
+    setItem: (k: string, v: string) => void store.set(k, String(v)),
+    removeItem: (k: string) => void store.delete(k),
+    clear: () => void store.clear(),
+    key: (i: number) => [...store.keys()][i] ?? null,
+    get length() { return store.size; },
+  };
+}
 
 describe('barramento de dados alterados', () => {
   it('notifica os assinantes quando emitirDadosAlterados é chamado', () => {
@@ -11,6 +32,39 @@ describe('barramento de dados alterados', () => {
     emitirDadosAlterados();
     // depois de cancelar a inscrição, não deve mais ser chamado
     expect(cb).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('barramento da assinatura (BarraAssinatura reage sem F5)', () => {
+  it('notifica e para de notificar depois de cancelar', () => {
+    const cb = vi.fn();
+    const cancelar = assinarAssinaturaAlterada(cb);
+    emitirAssinaturaAlterada();
+    expect(cb).toHaveBeenCalledTimes(1);
+    cancelar();
+    emitirAssinaturaAlterada();
+    expect(cb).toHaveBeenCalledTimes(1);
+  });
+
+  it('gravar/limpar o espelho local dispara o evento (é o que o polling do pagamento faz)', async () => {
+    const { gravarEstadoLocal, limparEstadoLocal } = await import('./assinatura');
+    const cb = vi.fn();
+    const cancelar = assinarAssinaturaAlterada(cb);
+
+    gravarEstadoLocal({ status: 'ativa', ate: null });
+    expect(cb).toHaveBeenCalledTimes(1);
+    limparEstadoLocal();
+    expect(cb).toHaveBeenCalledTimes(2);
+
+    cancelar();
+  });
+
+  it('não vaza para o barramento de dados alterados (eventos distintos)', () => {
+    const cbDados = vi.fn();
+    const cancelar = assinarDadosAlterados(cbDados);
+    emitirAssinaturaAlterada();
+    expect(cbDados).not.toHaveBeenCalled();
+    cancelar();
   });
 });
 

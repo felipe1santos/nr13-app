@@ -40,3 +40,20 @@ export function assinarAviso(cb: (a: Aviso) => void): () => void {
   alvo.addEventListener(EVENTO_AVISO, handler);
   return () => alvo.removeEventListener(EVENTO_AVISO, handler);
 }
+
+/**
+ * Espelho local da assinatura mudou (gravado/limpo em services/assinatura.ts). Existe para a
+ * BarraAssinatura reagir: ela lia o localStorage só no render, então quando o polling do
+ * ModalAssinatura confirmava o pagamento a barra vermelha continuava na tela até o usuário
+ * navegar ou dar F5 — logo depois de pagar, que é o pior momento para parecer que não liberou.
+ */
+const EVENTO_ASSINATURA = 'nr13:assinatura-alterada';
+
+export function emitirAssinaturaAlterada(): void {
+  alvo.dispatchEvent(new Event(EVENTO_ASSINATURA));
+}
+
+export function assinarAssinaturaAlterada(cb: () => void): () => void {
+  alvo.addEventListener(EVENTO_ASSINATURA, cb);
+  return () => alvo.removeEventListener(EVENTO_ASSINATURA, cb);
+}

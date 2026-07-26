@@ -5,6 +5,7 @@
 // um import de volta para auth criaria ciclo auth -> assinatura -> auth).
 import { statusEfetivo, type EstadoAssinatura, type StatusAssinatura } from '../features/assinatura/maquinaEstados';
 import { supabase } from './supabase';
+import { emitirAssinaturaAlterada } from './eventos';
 
 const CHAVE_STATUS = 'nr13_assinatura_status';
 const CHAVE_ATE = 'nr13_assinatura_ate';
@@ -14,6 +15,8 @@ export function gravarEstadoLocal(estado: EstadoAssinatura): void {
   localStorage.setItem(CHAVE_STATUS, estado.status);
   if (estado.ate) localStorage.setItem(CHAVE_ATE, estado.ate);
   else localStorage.removeItem(CHAVE_ATE);
+  // Avisa a UI (BarraAssinatura) — o polling do pagamento roda fora do React.
+  emitirAssinaturaAlterada();
 }
 
 export function assinaturaAte(): string | null {
@@ -40,6 +43,7 @@ export function limparEstadoLocal(): void {
   localStorage.removeItem(CHAVE_STATUS);
   localStorage.removeItem(CHAVE_ATE);
   localStorage.removeItem(CHAVE_SUCESSO);
+  emitirAssinaturaAlterada();
 }
 
 export function statusAssinaturaLocal(): StatusAssinatura {
