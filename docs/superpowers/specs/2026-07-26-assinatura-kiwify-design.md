@@ -83,6 +83,24 @@ libera acesso indevido.
 Ambas entram na lista do trigger `proteger_campos_sensiveis` — usuário não altera o próprio
 status.
 
+### Convivência com `plano` e backfill (obrigatório)
+
+`plano` (`trial` / `completo` / `demonstracao`) **continua existindo** para o Admin e para os
+bloqueios já escritos; quem decide permissão passa a ser `assinatura_status`. O SQL de
+migração precisa classificar as contas atuais na mesma transação que cria a coluna —
+sem isso, toda conta paga cairia em `trial` no dia do deploy:
+
+| Conta hoje | `assinatura_status` | `assinatura_ate` |
+|---|---|---|
+| `plano='completo'` e `acesso_expira_em` nulo | `ativa` | nulo (vitalícia; nunca rebaixa) |
+| `plano='completo'` com data futura | `ativa` | a data atual |
+| `plano='trial'` com data futura | `trial` | `trial_fim` |
+| qualquer uma com data no passado | `somente_leitura` | a data atual |
+| `plano='demonstracao'` | `ativa` | nulo |
+
+`assinatura_ate` nulo significa **sem vencimento** — a função de status nunca rebaixa esses
+casos. É o que preserva as contas liberadas na mão pelo Admin.
+
 Tabela nova `kiwify_eventos`:
 
 - `id uuid pk`, `recebido_em timestamptz`, `evento text`, `payload jsonb`,
