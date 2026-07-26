@@ -4,6 +4,11 @@
 --
 -- Efeito nas contas existentes: nenhum, DESDE QUE o backfill da seção 2 rode
 -- junto (ele é que impede toda conta paga cair no default 'trial').
+--
+-- Não redefine proteger_campos_sensiveis() (trial_setup.sql) — este arquivo tem
+-- seu PRÓPRIO trigger (seção 3), independente, só para os 4 campos de
+-- assinatura. Os dois trigger convivem e reexecutar qualquer um dos arquivos,
+-- em qualquer ordem, não abre brecha no outro.
 -- ============================================================================
 
 -- ── 1. Colunas em profiles ──────────────────────────────────────────────────
@@ -28,21 +33,23 @@ update public.profiles
  where assinatura_status = 'trial'          -- só quem ainda está no default
    and assinatura_ate is null;
 
--- ── 3. Campos sensíveis: usuário não muda o próprio status ──────────────────
-create or replace function public.proteger_campos_sensiveis()
+-- ── 3. Campos de assinatura: usuário não muda o próprio status ──────────────
+-- Função e trigger PRÓPRIOS (não mexe em proteger_campos_sensiveis(), que é
+-- de trial_setup.sql) — assim reexecutar trial_setup.sql depois não apaga a
+-- proteção destes 4 campos, e vice-versa. Mesma mecânica da função irmã.
+--
+-- Ordem dos dois triggers BEFORE UPDATE (trg_proteger_campos_sensiveis e
+-- trg_proteger_campos_assinatura): o Postgres dispara triggers BEFORE UPDATE
+-- da mesma tabela em ordem alfabética do NOME do trigger, e cada um recebe o
+-- NEW já modificado pelo anterior. Isso é seguro aqui porque os dois triggers
+-- mexem em conjuntos de colunas DISJUNTOS (um só reverte os campos "antigos",
+-- este só reverte os 4 campos de assinatura) — não importa qual roda primeiro,
+-- o resultado final é o mesmo: ambos os grupos de campos voltam ao valor OLD
+-- para usuário autenticado não-admin.
+create or replace function public.proteger_campos_assinatura()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
   if coalesce(auth.role(), '') = 'authenticated' and not public.is_admin() then
-    new.ativo                  := old.ativo;
-    new.acesso_expira_em       := old.acesso_expira_em;
-    new.plano                  := old.plano;
-    new.role                   := old.role;
-    new.papel                  := old.papel;
-    new.org_id                 := old.org_id;
-    new.cliente_id             := old.cliente_id;
-    new.trial_inicio           := old.trial_inicio;
-    new.trial_fim              := old.trial_fim;
-    new.origem_cadastro        := old.origem_cadastro;
     new.assinatura_status      := old.assinatura_status;
     new.assinatura_ate         := old.assinatura_ate;
     new.kiwify_subscription_id := old.kiwify_subscription_id;
@@ -51,10 +58,10 @@ begin
   return new;
 end $$;
 
-drop trigger if exists trg_proteger_campos_sensiveis on public.profiles;
-create trigger trg_proteger_campos_sensiveis
+drop trigger if exists trg_proteger_campos_assinatura on public.profiles;
+create trigger trg_proteger_campos_assinatura
   before update on public.profiles
-  for each row execute function public.proteger_campos_sensiveis();
+  for each row execute function public.proteger_campos_assinatura();
 
 -- ── 4. Status efetivo da ORG (mestre manda; a data rebaixa) ─────────────────
 -- Espelha src/features/assinatura/maquinaEstados.ts::statusEfetivo.
