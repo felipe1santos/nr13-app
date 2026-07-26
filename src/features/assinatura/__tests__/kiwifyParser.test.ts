@@ -55,6 +55,7 @@ describe('extrairDados', () => {
   it('null no meio do caminho nao lanca e devolve tudo nulo', () => {
     // data é null, então data.customer.email não resolve
     const r = extrairDados({ data: null, webhook_event_type: 'compra_aprovada' });
+    expect(r.evento).toBe('compra_aprovada');
     expect(r.email).toBeNull();
     expect(r.subscriptionId).toBeNull();
     expect(r.sck).toBeNull();
