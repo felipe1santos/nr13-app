@@ -5,6 +5,8 @@ import {
   bloqueioEntrada,
   somarDias,
   camposVinculoManual,
+  camposAssinaturaAdmin,
+  COLUNAS_ASSINATURA,
   DIAS_CICLO,
   type EstadoAssinatura,
 } from '../maquinaEstados';
@@ -149,6 +151,33 @@ describe('bloqueioEntrada (gate de login/verificarAcesso — achado C2)', () => 
     expect(
       bloqueioEntrada({ ativo: true, acessoExpiraEm: 'nao-e-data', assinaturaStatus: '' }, AGORA),
     ).toBe('expirado');
+  });
+});
+
+describe('camposAssinaturaAdmin (ações de acesso do Admin — achado I1)', () => {
+  it('libera a escrita: status ativa com a MESMA validade das colunas legadas', () => {
+    // Sem estes campos, a conta liberada pelo Admin loga mas não salva nada (a RLS decide por
+    // assinatura_status/assinatura_ate), com a barra vermelha de suspensa na tela.
+    expect(camposAssinaturaAdmin('2026-08-25T12:00:00.000Z')).toEqual({
+      assinatura_status: 'ativa',
+      assinatura_ate: '2026-08-25T12:00:00.000Z',
+    });
+  });
+
+  it('sem expiração vira assinatura_ate null (sem vencimento, nunca rebaixa)', () => {
+    const campos = camposAssinaturaAdmin(null);
+    expect(campos.assinatura_ate).toBeNull();
+    expect(statusEfetivo({ status: campos.assinatura_status, ate: campos.assinatura_ate }, AGORA)).toBe('ativa');
+  });
+
+  it('COLUNAS_ASSINATURA cobre todos os campos que o banco pré-migração não tem', () => {
+    // Lista usada pelo Admin para reenviar o update sem essas colunas quando o banco ainda
+    // não rodou assinatura_setup.sql.
+    for (const coluna of Object.keys(camposVinculoManual(AGORA, null, null))) {
+      if (coluna.startsWith('assinatura_') || coluna.startsWith('kiwify_')) {
+        expect(COLUNAS_ASSINATURA).toContain(coluna);
+      }
+    }
   });
 });
 

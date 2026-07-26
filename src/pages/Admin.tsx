@@ -3,7 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { logout } from '../services/auth';
 import { rotuloStatusAssinatura, rotuloEventoKiwify } from '../services/assinatura';
-import { DIAS_CICLO, camposVinculoManual } from '../features/assinatura/maquinaEstados';
+import {
+  DIAS_CICLO,
+  camposVinculoManual,
+  camposAssinaturaAdmin,
+  COLUNAS_ASSINATURA,
+} from '../features/assinatura/maquinaEstados';
 import BotaoInstalarPWA from '../app/BotaoInstalarPWA';
 import ModalLeadForm from '../features/admin/ModalLeadForm';
 import ModalImportarLeads from '../features/admin/ModalImportarLeads';
@@ -668,9 +673,22 @@ export default function Admin() {
     setErro(null);
     setAviso(null);
     try {
+      let aplicado = patch;
       const { error } = await supabase.from('profiles').update(patch).eq('id', id);
-      if (error) throw error;
-      setProfiles((ps) => ps.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+      if (error) {
+        // Banco ainda sem assinatura_setup.sql: as colunas de assinatura não existem e o
+        // PostgREST recusa o update inteiro. Reenvia só as colunas legadas — nesse banco elas
+        // ainda são as que valem — em vez de deixar o admin sem conseguir liberar ninguém.
+        const semAssinatura = Object.fromEntries(
+          Object.entries(patch).filter(([k]) => !COLUNAS_ASSINATURA.includes(k as never)),
+        ) as Partial<Profile>;
+        const mudou = Object.keys(semAssinatura).length !== Object.keys(patch).length;
+        if (!mudou) throw error;
+        const { error: erroLegado } = await supabase.from('profiles').update(semAssinatura).eq('id', id);
+        if (erroLegado) throw error;
+        aplicado = semAssinatura;
+      }
+      setProfiles((ps) => ps.map((p) => (p.id === id ? { ...p, ...aplicado } : p)));
       setAviso(msg);
     } catch (e: unknown) {
       setErro(e instanceof Error ? e.message : 'Falha na ação.');
@@ -749,6 +767,9 @@ export default function Admin() {
         aprovado_por: localStorage.getItem('nr13_usuario_logado') ?? 'admin',
         // Conta de teste liberada manualmente = convertida em assinante (sai dos bloqueios do trial).
         ...(p.plano === 'trial' ? { plano: 'completo' } : {}),
+        // I1: sem isto, a conta liberada loga e não consegue salvar nada (a RLS olha o status
+        // da assinatura). A validade da assinatura acompanha a validade legada da conta.
+        ...camposAssinaturaAdmin(p.acesso_expira_em),
       },
       `Acesso liberado para ${p.email}.`,
     );
@@ -762,7 +783,8 @@ export default function Admin() {
     if (!manter) return;
     void atualizarPerfil(
       p.id,
-      { ativo: true, plano: 'completo', acesso_expira_em: null },
+      // assinatura_ate null = sem vencimento (nunca rebaixa) — o par exato de acesso_expira_em null.
+      { ativo: true, plano: 'completo', acesso_expira_em: null, ...camposAssinaturaAdmin(null) },
       `${p.email} agora tem acesso completo, sem expiração.`,
     );
   }
@@ -781,7 +803,11 @@ export default function Admin() {
     if (entrada === null) return;
     const valor = entrada.trim();
     if (valor === '') {
-      void atualizarPerfil(p.id, { acesso_expira_em: null }, 'Expiração removida.');
+      void atualizarPerfil(
+        p.id,
+        { acesso_expira_em: null, ...camposAssinaturaAdmin(null) },
+        'Expiração removida.',
+      );
       return;
     }
     const dias = parseInt(valor, 10);
@@ -794,7 +820,7 @@ export default function Admin() {
     d.setHours(23, 59, 59, 0);
     void atualizarPerfil(
       p.id,
-      { acesso_expira_em: d.toISOString() },
+      { acesso_expira_em: d.toISOString(), ...camposAssinaturaAdmin(d.toISOString()) },
       `Acesso de ${p.email} válido por ${dias} dias (até ${fmtSomenteData(d.toISOString())}).`,
     );
   }

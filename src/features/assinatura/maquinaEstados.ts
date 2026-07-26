@@ -132,6 +132,36 @@ export interface CamposVinculoManual {
  * pode gravar `'expirado'` para eventos de bloqueio) porque o vínculo manual só existe para o
  * caminho de ATIVAR uma assinatura — não há tela de "desvincular" nesta task.
  */
+/**
+ * Campos de assinatura que as AÇÕES DE ACESSO do painel Admin precisam gravar junto com as
+ * colunas legadas (achado I1 da revisão final).
+ *
+ * Mesma lição do `camposVinculoManual`, agora para "Liberar acesso", "Liberar acesso completo"
+ * e "Definir validade": depois de assinatura_setup.sql, quem decide se a conta ESCREVE é
+ * `assinatura_permite_escrita()` (status + `assinatura_ate`), não `acesso_expira_em`. Uma conta
+ * liberada só nas colunas legadas passava a logar normalmente e não conseguia salvar nada, com
+ * a barra vermelha de "assinatura suspensa" na tela — parecia liberada e não estava.
+ *
+ * `ate` é sempre o MESMO valor gravado em `acesso_expira_em` (null = sem vencimento), para as
+ * duas mecânicas nunca discordarem sobre até quando a conta vale.
+ */
+export interface CamposAssinaturaAdmin {
+  assinatura_status: StatusAssinatura;
+  assinatura_ate: string | null;
+}
+
+export function camposAssinaturaAdmin(ate: string | null): CamposAssinaturaAdmin {
+  return { assinatura_status: 'ativa', assinatura_ate: ate };
+}
+
+/** Nomes das colunas de assinatura — usados para reenviar o update sem elas em banco sem a migração. */
+export const COLUNAS_ASSINATURA = [
+  'assinatura_status',
+  'assinatura_ate',
+  'kiwify_email',
+  'kiwify_subscription_id',
+] as const;
+
 export function camposVinculoManual(
   agora: Date,
   emailEvento: string | null,
