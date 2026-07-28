@@ -397,8 +397,14 @@ export default function LivroRegistro() {
             <button type="button" className="fj-btn fj-btn-ghost" onClick={() => setLivroCompleto(true)}>
               <Icone nome="eye" tam={13} /> Ver livro completo
             </button>
-            <button type="button" className="fj-btn fj-btn-ghost" onClick={() => void exportarLivroPdf()} disabled={exportandoLivro}>
-              <Icone nome="download" tam={13} /> {exportandoLivro ? 'Gerando PDF…' : 'Exportar PDF'}
+            <button
+              type="button"
+              className={`fj-btn fj-btn-ghost${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
+              onClick={() => void exportarLivroPdf()}
+              disabled={exportandoLivro}
+            >
+              {documentosBloqueados() ? <Icone nome="cadeado" tam={13} /> : <Icone nome="download" tam={13} />}{' '}
+              {exportandoLivro ? 'Gerando PDF…' : 'Exportar PDF'}
             </button>
           </div>
 
@@ -593,7 +599,13 @@ export default function LivroRegistro() {
                 </button>
               </div>
               <div className="no-print" style={{ display: 'flex', gap: 8, padding: '0 16px' }}>
-                <button type="button" className="btn-secundario" onClick={() => void imprimirPreview()} disabled={imprimindo}>
+                <button
+                  type="button"
+                  className={`btn-secundario${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
+                  onClick={() => void imprimirPreview()}
+                  disabled={imprimindo}
+                >
+                  {documentosBloqueados() && <Icone nome="cadeado" tam={13} />}{' '}
                   {imprimindo ? 'Preparando…' : 'Imprimir'}
                 </button>
                 <button
@@ -656,8 +668,14 @@ export default function LivroRegistro() {
                 </button>
               </div>
               <div className="no-print" style={{ display: 'flex', gap: 8, padding: '0 16px' }}>
-                <button type="button" className="barra-btn barra-btn-pdf" onClick={() => void exportarLivroPdf()} disabled={exportandoLivro}>
-                  <Icone nome="download" tam={13} /> {exportandoLivro ? 'Gerando PDF…' : 'Exportar PDF'}
+                <button
+                  type="button"
+                  className={`barra-btn barra-btn-pdf${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
+                  onClick={() => void exportarLivroPdf()}
+                  disabled={exportandoLivro}
+                >
+                  {documentosBloqueados() ? <Icone nome="cadeado" tam={13} /> : <Icone nome="download" tam={13} />}{' '}
+                  {exportandoLivro ? 'Gerando PDF…' : 'Exportar PDF'}
                 </button>
               </div>
               <div style={{ padding: 16, overflowX: 'auto' }}>
