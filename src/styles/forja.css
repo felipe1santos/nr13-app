@@ -470,13 +470,18 @@
   color: var(--amber-deep);
 }
 
-/* ===== Bloqueio de impressão (trial/assinatura suspensa) =====
-   `bloqueioImpressao.ts` mantém a classe `bloqueio-impressao` no <html> enquanto os documentos
-   estiverem bloqueados. Esta é a proteção REAL: o preventDefault() no Ctrl+P (mesmo serviço) só
-   cobre o atalho de teclado dentro da aba — pelo menu do navegador, por outro atalho do SO ou
-   por uma extensão, a impressão ainda dispara o evento `print` do navegador direto, sem passar
-   pelo keydown. Esta regra cobre QUALQUER um desses caminhos, porque roda no momento da
-   impressão em si, não na tecla que a iniciou.
+/* ===== Bloqueio de impressão (trial/assinatura suspensa) — DOCUMENTO PAI =====
+   `bloqueioImpressao.ts` mantém a classe `bloqueio-impressao` no <html> DESTE documento (o app)
+   enquanto os documentos estiverem bloqueados. Esta regra é a proteção real PARA O PAI: o
+   preventDefault() no Ctrl+P (mesmo serviço) só cobre o atalho de teclado dentro da aba — pelo
+   menu do navegador, por outro atalho do SO ou por uma extensão, a impressão ainda dispara o
+   evento `print` direto, sem passar pelo keydown. Esta regra cobre qualquer um desses caminhos
+   PARA O DOCUMENTO PAI, porque roda no momento da impressão em si, não na tecla que a iniciou.
+   NÃO cobre o conteúdo dos <iframe> das folhas (public/arquivos-inspecao|prontuario/): são
+   documentos próprios, com <head> próprio, que não carregam este CSS. Imprimir o quadro
+   isolado (ex.: "Imprimir Quadro" do Firefox) passa batido por esta regra — quem cobre isso é
+   a MESMA regra injetada dentro de cada iframe por `bloqueioImpressao.ts`
+   (`CSS_BLOQUEIO_PRINT_IFRAME`, texto idêntico ao daqui pra baixo).
    Escopo: só ativa com a classe presente. Assinante em dia nunca recebe a classe, então esta
    regra nunca existe para ele — o fluxo real de impressão (#print-root, ver relatorios.css)
    segue intocado. */
