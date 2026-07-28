@@ -493,6 +493,21 @@
 }
 .barra-trial svg { flex-shrink: 0; }
 .barra-trial strong { font-variant-numeric: tabular-nums; }
+/* Botão "Assinar agora" — mesmo tratamento do botão da .barra-assinatura irmã: quem está no
+   trial precisa de um caminho pra pagar sem esbarrar num bloqueio primeiro. */
+.barra-trial button {
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  border-radius: var(--radius-sm);
+  padding: 5px 14px;
+  font-family: var(--font-base);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.barra-trial button:hover { background: rgba(255, 255, 255, 0.26); }
 @media (max-width: 560px) {
   .barra-trial { font-size: 12px; padding: 7px 10px; }
 }
