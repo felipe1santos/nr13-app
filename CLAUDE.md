@@ -57,6 +57,8 @@ Tudo que o usuário salva pode ser fonte de injeção. Chaves por TAG do equipam
 | `nr13_componentes_cal_<TAG>` | Válvulas/manômetros cadastrados (nome, série, foto) | Calibrações → Componentes |
 | `nr13_lotes_cal_<TAG>` | Lotes/rodadas de calibração (certificados ganham loteId/componenteId) | Calibrações → Lotes |
 | `nr13_demo_seed` | Marcador do seed de demonstração do trial (`{v,em}`) — impede reinjetar os dados DEMO-* | `src/services/demoSeed.ts` (1ª entrada do trial) |
+| `nr13_assinatura_status` / `nr13_assinatura_ate` | Espelho LOCAL da assinatura (ver §11). Só desenha UI e corta ação no bundle — quem decide é a RLS | Gravadas no login por `carregarPerfil` (RPC `assinatura_org()`) |
+| `nr13_assinatura_sucesso_pendente` | Marca que falta exibir o modal "Assinatura confirmada" (quem fechou a aba antes do polling detectar) | `ModalAssinatura` / consumida no `Layout` |
 | `nr13_relatorio_meta_atual` | Metadados do relatório em montagem | Gravado na geração |
 | `nr13_inspecao_atual` **e** `nr13_injecao_atual` | Dados de campo do container escolhido | Gravado na geração |
 | `nr13_prontuario_meta_<TAG>` | Nº do relatório (`REL-<timestamp>`) + data de emissão do prontuário; reusado entre reimpressões (`obterOuCriarMeta`) | Gravado ao abrir o visualizador do prontuário |
@@ -376,3 +378,51 @@ Sugestões futuras (não bloqueiam): auditoria de responsividade mobile folha a 
   `DOMContentLoaded`, e posicioná-la em `DOCUMENTOS_DISPONIVEIS` (ou na auto-injeção) conforme §7.
 - Toda folha nova segue as regras de fotos/impressão/responsividade do §5.
 - Qualquer dado novo que o usuário salve deve ser gravado em chave do §2 para poder ser injetado.
+
+---
+
+## 11. Assinatura recorrente (Kiwify) — implantado em 27/07/2026
+
+Trial de 48h → paywall → checkout → o sistema libera sozinho. Conta sem assinatura em dia vira
+**somente leitura** (NÃO desloga). Spec: `docs/superpowers/specs/2026-07-26-assinatura-kiwify-design.md`.
+
+### Estados (fonte da verdade: Postgres, na linha do MESTRE da org)
+
+| Status | Entra quando | Pode |
+|---|---|---|
+| `trial` | Cadastro automático 48h | Tudo, menos PDF/impressão/importação |
+| `ativa` | `compra_aprovada` / `subscription_renewed` (+30 dias) | Tudo |
+| `graca` | `subscription_late` (piso de 5 dias, alinhado à retentativa de cartão da Kiwify) | Tudo + barra âmbar |
+| `cancelada_no_prazo` | `subscription_canceled` com período pago em aberto | Tudo até `assinatura_ate` |
+| `somente_leitura` | Prazo venceu · chargeback · reembolso | Lê tudo; não escreve, não gera PDF |
+
+`assinatura_ate` **nulo = SEM VENCIMENTO** (conta vitalícia liberada pelo Admin) — nunca rebaixa.
+A regra vive em 3 lugares que precisam concordar: `src/features/assinatura/maquinaEstados.ts`,
+`assinatura_status_org()` no SQL e a Edge Function. `consistenciaEdge.test.ts` trava front↔edge.
+
+### Peças
+
+- `supabase/assinatura_setup.sql` — colunas em `profiles`, backfill, `assinatura_status_org()`,
+  `assinatura_org()` (RPC lida pelo front), RLS de escrita em `app_storage` (exige
+  `acesso_vigente()` **e** `assinatura_permite_escrita()`), tabela `kiwify_eventos`.
+- `supabase/functions/kiwify_webhook/` — recebe os 6 eventos. Autentica por **segredo na query**
+  (`?s=`), porque a Kiwify não documenta HMAC. **Verify JWT precisa ficar DESLIGADO** na função,
+  senão o gateway recusa antes (a Kiwify não manda Authorization).
+- `src/services/assinatura.ts` — espelho local; `BarraAssinatura` / `ModalAssinatura` (checkout em
+  nova aba + polling de 10s); `ModalAviso` é o modal global de bloqueio/sucesso.
+- Admin: coluna de status + seção "Eventos Kiwify sem conta" (pagamento cujo e-mail não casou) com
+  vínculo manual.
+
+### Regras que não podem ser quebradas
+
+- **O e-mail casa por igualdade exata (`.eq`), NUNCA `ilike`** — `_`/`%` são coringas e casariam a
+  conta errada, liberando/bloqueando quem não devia.
+- As colunas legadas `plano`/`acesso_expira_em` continuam mandando no **login**; quem grava
+  assinatura (webhook e ações do Admin) precisa gravar as duas coisas, senão a conta "ativa" não
+  entra ou a "liberada" não escreve.
+- Evento sem conta identificada vira **órfão** em `kiwify_eventos` — nunca se chuta um perfil.
+
+### Pendência
+
+O payload real da Kiwify não é público: o parser lê por tentativa. Validar com uma compra de teste
+e, se o e-mail vier em campo não previsto, acrescentar o caminho em `parser.ts` **com teste**.
