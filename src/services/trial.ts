@@ -36,6 +36,17 @@ export function bloqueioTrialImportacao(): string | null {
   return isTrial() ? MSG_BLOQUEIO_IMPORTACAO : null;
 }
 
+/**
+ * "Documentos (PDF/impressão) estão bloqueados AGORA?" — helper único para não duplicar a
+ * lógica de "está bloqueado?" nos botões com cadeado (Relatorios/LivroRegistro/Prontuarios/
+ * Calibracoes) e no bloqueio de Ctrl+P (`bloqueioImpressao.ts`). Mesmas duas condições de
+ * `avisarBloqueioDocumentos`, só que sem disparar o modal — é a versão "posso perguntar sem
+ * efeito colateral" usada para decidir o VISUAL do botão antes do clique.
+ */
+export function documentosBloqueados(): boolean {
+  return bloqueioTrialDocs() !== null || !podeEscreverAssinatura();
+}
+
 // "1 dia, 08h 32m 15s" — usada na barra de contagem regressiva.
 export function formatarContagem(ms: number): string {
   const totalSeg = Math.floor(ms / 1000);

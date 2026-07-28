@@ -452,3 +452,35 @@
   border-color: var(--amber);
   color: var(--amber-deep);
 }
+
+/* ===== Bloqueio de impressão (trial/assinatura suspensa) =====
+   `bloqueioImpressao.ts` mantém a classe `bloqueio-impressao` no <html> enquanto os documentos
+   estiverem bloqueados. Esta é a proteção REAL: o preventDefault() no Ctrl+P (mesmo serviço) só
+   cobre o atalho de teclado dentro da aba — pelo menu do navegador, por outro atalho do SO ou
+   por uma extensão, a impressão ainda dispara o evento `print` do navegador direto, sem passar
+   pelo keydown. Esta regra cobre QUALQUER um desses caminhos, porque roda no momento da
+   impressão em si, não na tecla que a iniciou.
+   Escopo: só ativa com a classe presente. Assinante em dia nunca recebe a classe, então esta
+   regra nunca existe para ele — o fluxo real de impressão (#print-root, ver relatorios.css)
+   segue intocado. */
+@media print {
+  html.bloqueio-impressao body {
+    visibility: hidden !important;
+  }
+  html.bloqueio-impressao body::after {
+    content: 'Impressão disponível somente para assinantes. Contrate o sistema para gerar e imprimir documentos.';
+    visibility: visible !important;
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 60px;
+    text-align: center;
+    font-family: var(--font-base, Arial, sans-serif);
+    font-weight: 600;
+    font-size: 16px;
+    line-height: 1.6;
+    color: #111;
+  }
+}

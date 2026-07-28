@@ -13,6 +13,7 @@ import {
   obterUrlCheckout,
 } from '../services/assinatura';
 import { emitirAviso } from '../services/eventos';
+import { instalarBloqueioImpressao } from '../services/bloqueioImpressao';
 import { modulosDoUsuarioAtual } from '../services/permissoes';
 import { ITENS_TOPO, ITENS_CADASTRAR, ITENS_BAIXO, ITEM_ACESSOS, tituloDaRota } from './menu';
 import type { ItemMenu } from './menu';
@@ -142,6 +143,12 @@ export default function Layout() {
   useEffect(() => {
     void obterUrlCheckout();
   }, []);
+
+  // Bloqueio de impressão (trial/assinatura suspensa): Ctrl+P + classe no <html> consumida
+  // pela regra @media print (styles/forja.css). Instala uma vez para o app inteiro — o Layout
+  // é o único ponto montado em toda rota autenticada (ver BarraTrial/BarraAssinatura/ModalAviso
+  // logo abaixo, mesmo padrão de "serviço global montado aqui").
+  useEffect(() => instalarBloqueioImpressao(), []);
 
   useEffect(() => {
     if (!sucessoPendente()) return;
