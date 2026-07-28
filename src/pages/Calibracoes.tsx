@@ -27,6 +27,7 @@ import {
   type LoteCal,
 } from '../features/calibracoes/componentesService';
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
+import { documentosBloqueados } from '../services/trial';
 import '../pages/relatorios.css';
 import './calibracoes.css';
 import PaginaA4 from '../components/PaginaA4';
@@ -1071,8 +1072,12 @@ export default function Calibracoes() {
                 <button type="button" className="btn-secundario" onClick={() => abrirVerDados(calAtual)}>
                   Ver preenchido
                 </button>
-                <button type="button" className="btn-secundario" onClick={() => void imprimirRelatorio('.cal-preview')}>
-                  Imprimir
+                <button
+                  type="button"
+                  className={`btn-secundario${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
+                  onClick={() => void imprimirRelatorio('.cal-preview')}
+                >
+                  {documentosBloqueados() && <Icone nome="cadeado" tam={13} />} Imprimir
                 </button>
                 {confirmandoId === calAtual.id ? (
                   <>

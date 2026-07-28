@@ -453,6 +453,23 @@
   color: var(--amber-deep);
 }
 
+/* ===== Botão "travado" (PDF/impressão bloqueados no trial ou assinatura suspensa) =====
+   Aparência de desabilitado (opacidade reduzida + borda tracejada âmbar) mas SEM o atributo
+   `disabled`: o clique precisa continuar chegando ao onClick do botão, que já dispara
+   avisarBloqueioDocumentos() por dentro (pdfService/printService) — um botão `disabled` não
+   dispara clique nenhum e a pessoa fica sem entender por que o PDF não sai. */
+.btn-bloqueado {
+  opacity: 0.72;
+  border-style: dashed !important;
+  border-color: var(--amber-deep) !important;
+}
+.btn-bloqueado:hover {
+  opacity: 0.9;
+}
+.btn-bloqueado .icone {
+  color: var(--amber-deep);
+}
+
 /* ===== Bloqueio de impressão (trial/assinatura suspensa) =====
    `bloqueioImpressao.ts` mantém a classe `bloqueio-impressao` no <html> enquanto os documentos
    estiverem bloqueados. Esta é a proteção REAL: o preventDefault() no Ctrl+P (mesmo serviço) só

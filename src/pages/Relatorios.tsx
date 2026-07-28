@@ -32,6 +32,7 @@ import { listarRastreabilidadesAtivas, rastreabilidadesParaRelatorio } from '../
 import { snapshotCalibracoesDosDocs } from '../features/calibracoes/calibracaoService';
 import AnexosRastreabPreview from '../features/relatorios/AnexosRastreabPreview';
 import { registrarUso } from '../services/usoMetricas';
+import { documentosBloqueados } from '../services/trial';
 import { mascararData } from '../services/mascaras';
 import { exportarPdf } from '../features/relatorios/pdfService';
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
@@ -717,11 +718,23 @@ export default function Relatorios() {
                   {salvando ? 'Salvando...' : 'Salvar'}
                 </button>
               )}
-              <button type="button" className="btn-secundario barra-btn" onClick={prepararEImprimir} disabled={imprimindo}>
+              <button
+                type="button"
+                className={`btn-secundario barra-btn${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
+                onClick={prepararEImprimir}
+                disabled={imprimindo}
+              >
+                {documentosBloqueados() && <Icone nome="cadeado" tam={13} />}{' '}
                 {imprimindo ? 'Preparando…' : 'Imprimir'}
               </button>
-              <button type="button" className="barra-btn barra-btn-pdf" onClick={baixarPdf} disabled={exportando}>
-                <Icone nome="download" tam={14} /> {exportando ? 'Gerando PDF…' : 'Baixar PDF'}
+              <button
+                type="button"
+                className={`barra-btn barra-btn-pdf${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
+                onClick={baixarPdf}
+                disabled={exportando}
+              >
+                {documentosBloqueados() ? <Icone nome="cadeado" tam={14} /> : <Icone nome="download" tam={14} />}{' '}
+                {exportando ? 'Gerando PDF…' : 'Baixar PDF'}
               </button>
               <button type="button" className="btn-secundario barra-btn" onClick={() => setModalConfig(true)}>
                 <Icone nome="sliders" tam={14} /> Configurações

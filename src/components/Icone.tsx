@@ -13,7 +13,7 @@ export type NomeIcone =
   | 'flame' | 'fan' | 'cylinder' | 'tool' | 'filetext' | 'pencil' | 'eye' | 'copy'
   | 'trash' | 'filter' | 'search' | 'book' | 'camera' | 'upload' | 'check'
   | 'building' | 'gauge' | 'refresh' | 'calculator' | 'download' | 'shield'
-  | 'valvula-psv' | 'manometro' | 'link' | 'sigma'
+  | 'valvula-psv' | 'manometro' | 'link' | 'sigma' | 'cadeado'
   // Ícones GENÉRICOS de planilha (importação). Não reproduzem logotipo registrado
   // de nenhuma suíte — são desenhos próprios no traço do sprite, diferenciados
   // por cor via a prop `style` (verde/verde/azul/neutro) + rótulo textual ao lado.
@@ -70,6 +70,16 @@ const PATHS: Record<NomeIcone, ReactNode> = {
   calculator: (<><rect x="4" y="2" width="16" height="20" rx="2" /><line x1="8" y1="6" x2="16" y2="6" /><line x1="8" y1="11" x2="8" y2="11.01" /><line x1="12" y1="11" x2="12" y2="11.01" /><line x1="16" y1="11" x2="16" y2="11.01" /><line x1="8" y1="15" x2="8" y2="15.01" /><line x1="12" y1="15" x2="12" y2="15.01" /><line x1="16" y1="15" x2="16" y2="15.01" /><line x1="8" y1="19" x2="8" y2="19.01" /><line x1="12" y1="19" x2="12" y2="19.01" /><line x1="16" y1="19" x2="16" y2="19.01" /></>),
   download: (<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></>),
   shield: <path d="M12 2 4 5v6c0 5 3.5 8.5 8 11 4.5-2.5 8-6 8-11V5l-8-3Z" />,
+  // Cadeado: corpo retangular + arco do fecho + furo da chave — usado nos botões de
+  // PDF/impressão travados no trial/assinatura suspensa (documentosBloqueados).
+  cadeado: (
+    <>
+      <rect x="4.5" y="10.5" width="15" height="10" rx="2" />
+      <path d="M8 10.5V7a4 4 0 0 1 8 0v3.5" />
+      <circle cx="12" cy="15" r="1.3" />
+      <line x1="12" y1="16.3" x2="12" y2="18" />
+    </>
+  ),
   // ── planilhas (genéricas, sem marca) ──
   // Base: folha com linha de cabeçalho e grade de células.
   planilha: (

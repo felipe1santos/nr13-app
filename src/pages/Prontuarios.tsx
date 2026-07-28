@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Icone } from '../components/Icone';
 import { listarEquipamentos } from '../features/equipamento/equipamentoService';
 import type { EquipamentoResumo } from '../features/equipamento/tipos';
 import { formatarValor } from '../calc/unidades';
@@ -31,7 +32,7 @@ import {
 } from '../features/equipamento/ProntuarioFabricante';
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
 import { isTrial } from '../services/auth';
-import { MSG_BLOQUEIO_DOCS } from '../services/trial';
+import { MSG_BLOQUEIO_DOCS, documentosBloqueados } from '../services/trial';
 import { emitirAviso } from '../services/eventos';
 import '../pages/relatorios.css';
 import './prontuarios.css';
@@ -1016,7 +1017,13 @@ export default function Prontuarios() {
                     <button type="button" className="btn-secundario" onClick={() => setTela('formulario')}>
                       Editar
                     </button>
-                    <button type="button" className="btn-secundario" onClick={prepararEImprimir} disabled={imprimindo}>
+                    <button
+                      type="button"
+                      className={`btn-secundario${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
+                      onClick={prepararEImprimir}
+                      disabled={imprimindo}
+                    >
+                      {documentosBloqueados() && <Icone nome="cadeado" tam={13} />}{' '}
                       {imprimindo ? 'Preparando…' : 'Imprimir'}
                     </button>
                     {confirmandoExcluir ? (

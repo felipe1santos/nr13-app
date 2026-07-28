@@ -7,6 +7,7 @@ import { listarFuncionarios } from '../features/cadastros/cadastroService';
 import { adicionarEntradaLivroManual } from '../features/relatorios/relatoriosService';
 import { exportarPdf, exportarPdfLivroCompleto } from '../features/relatorios/pdfService';
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
+import { documentosBloqueados } from '../services/trial';
 import './dashboard-novo.css';
 import './relatorios.css';
 
@@ -558,7 +559,7 @@ export default function LivroRegistro() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'stretch', minWidth: 190 }}>
                       <button
                         type="button"
-                        className="fj-btn fj-btn-ghost"
+                        className={`fj-btn fj-btn-ghost${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
                         onClick={() =>
                           setPreview({
                             tag: linhaAberta.tag,
@@ -566,7 +567,7 @@ export default function LivroRegistro() {
                           })
                         }
                       >
-                        <Icone nome="eye" tam={13} /> Ver / Imprimir
+                        {documentosBloqueados() ? <Icone nome="cadeado" tam={13} /> : <Icone nome="eye" tam={13} />} Ver / Imprimir
                       </button>
                       {/* Registro salvo é imutável: ver e imprimir é tudo o que o livro permite. */}
                     </div>
@@ -595,8 +596,14 @@ export default function LivroRegistro() {
                 <button type="button" className="btn-secundario" onClick={() => void imprimirPreview()} disabled={imprimindo}>
                   {imprimindo ? 'Preparando…' : 'Imprimir'}
                 </button>
-                <button type="button" className="barra-btn barra-btn-pdf" onClick={() => void baixarPreview()} disabled={exportando}>
-                  <Icone nome="download" tam={13} /> {exportando ? 'Gerando PDF…' : 'Baixar PDF'}
+                <button
+                  type="button"
+                  className={`barra-btn barra-btn-pdf${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
+                  onClick={() => void baixarPreview()}
+                  disabled={exportando}
+                >
+                  {documentosBloqueados() ? <Icone nome="cadeado" tam={13} /> : <Icone nome="download" tam={13} />}{' '}
+                  {exportando ? 'Gerando PDF…' : 'Baixar PDF'}
                 </button>
               </div>
               <div style={{ padding: 16 }} className="relatorio-preview">
