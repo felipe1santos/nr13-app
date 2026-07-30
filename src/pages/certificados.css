@@ -1,0 +1,365 @@
+/* Tela "Certificados" — padrões de medição (bloco de espessura, manômetro, PSV). */
+
+.certificados-page {
+  padding: 24px;
+  max-width: 1080px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── Texto de abertura: explica para que serve a tela ───────────────── */
+.cert-intro {
+  background: var(--bg-card);
+  border: 1px solid var(--border-solid);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+}
+
+.cert-intro h2 {
+  margin: 0 0 8px;
+  font-size: 17px;
+  letter-spacing: 0.01em;
+}
+
+.cert-intro p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text-main);
+}
+
+.cert-intro-nota {
+  margin-top: 10px !important;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px !important;
+  color: var(--text-muted) !important;
+}
+
+/* ── Cards dos 3 padrões fixos ──────────────────────────────────────── */
+.cert-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.cert-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-solid);
+  border-radius: var(--radius);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Estado "pronto" do card usa AZUL (não verde): o verde do sistema é reservado
+   a aprovação de ensaio, e aqui significa apenas "certificado cadastrado". */
+.cert-card.ok {
+  border-color: var(--blue-line);
+}
+
+/* align-items:flex-start + as min-height abaixo mantêm as linhas de dados dos três
+   cards na mesma altura quando um título quebra em duas linhas e os outros não. */
+.cert-card-topo {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.cert-card-topo .fj-badge {
+  margin-top: 3px;
+  white-space: nowrap;
+}
+
+.cert-card-ic {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-bg-light);
+  color: var(--accent-2);
+}
+
+.cert-card.ok .cert-card-ic {
+  background: var(--blue-bg);
+  color: var(--blue-deep);
+}
+
+.cert-badge-ok {
+  background: var(--blue-bg);
+  color: var(--blue2);
+  border: 1px solid var(--blue-line);
+}
+
+.cert-card-tit {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  min-height: 40px;
+  flex: 1;
+}
+
+.cert-card-tit strong {
+  font-size: 14.5px;
+  line-height: 1.25;
+}
+
+.cert-card-tit span {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.cert-card-destino {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text-muted);
+  background: var(--bg-faint);
+  border: 1px dashed var(--border-dashed);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  min-height: 52px;
+}
+
+.cert-card-destino svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.cert-card-dados {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 14px;
+}
+
+.cert-card-dados > div {
+  min-width: 0;
+}
+
+.cert-card-dados dt {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.cert-card-dados dd {
+  margin: 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.cert-card-vazio {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Caixinha de injeção: só aparece quando há certificado — marcar injeção de um
+   padrão sem PDF não faria nada. */
+.cert-injetar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-main);
+  cursor: pointer;
+  user-select: none;
+  background: var(--blue-bg);
+  border: 1px solid var(--blue-line);
+  border-radius: var(--radius);
+  padding: 9px 11px;
+}
+
+.cert-injetar input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--blue);
+  cursor: pointer;
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.cert-card-acoes {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 4px;
+}
+
+/* Sem certificado: uma ação só, larga e azul. Com certificado: o botão some e
+   sobram lápis e lixeira — nada de "ação principal" para algo já resolvido. */
+.cert-btn-add {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  background: var(--blue);
+  color: #fff;
+  border: 1px solid var(--blue-deep);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  font-size: 13.5px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.cert-btn-add:hover {
+  background: var(--blue-deep);
+}
+
+.cert-btn-icone {
+  color: var(--blue-deep);
+  border-color: var(--blue-line);
+}
+
+.cert-btn-icone:hover {
+  background: var(--blue-bg);
+}
+
+.cert-ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--blue-deep);
+  font-weight: 600;
+  font-size: 12.5px;
+}
+
+.cert-falta {
+  color: var(--warn);
+  font-weight: 600;
+  font-size: 12.5px;
+}
+
+/* ── Formulário do padrão selecionado ───────────────────────────────── */
+.cert-form {
+  background: var(--bg-card);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 18px;
+}
+
+.cert-form-cab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border-solid);
+}
+
+.cert-form-cab > div {
+  display: flex;
+  flex-direction: column;
+}
+
+.cert-form-cab strong {
+  font-size: 15px;
+}
+
+.cert-form-cab span {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.cert-form-secao {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent-2);
+  margin: 18px 0 10px;
+}
+
+.cert-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+}
+
+.cert-upload {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Aviso do limite: precisa ser lido ANTES do usuário escolher o arquivo. */
+.cert-limite {
+  flex: 1 1 260px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-line);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+}
+
+.cert-erro {
+  margin: 12px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  font-weight: 600;
+  color: var(--crit);
+  background: var(--crit-bg);
+  border: 1px solid var(--crit-line);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+}
+
+.cert-form-acoes {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+/* ── Mobile ─────────────────────────────────────────────────────────── */
+@media (max-width: 720px) {
+  .certificados-page {
+    padding: 16px 12px;
+    gap: 16px;
+  }
+
+  .cert-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .cert-card-dados {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .cert-form {
+    padding: 14px;
+  }
+
+  .cert-form-acoes {
+    flex-direction: column;
+  }
+
+  .cert-form-acoes button {
+    width: 100%;
+  }
+}

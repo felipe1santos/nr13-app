@@ -93,6 +93,7 @@ export default function Layout() {
       ['/relatorios', 'relatorios'],
       ['/prontuarios', 'prontuarios'],
       ['/calibracoes', 'calibracoes'],
+      ['/certificados', 'certificados'],
       ['/livro-registro', 'livro'],
       ['/funcionarios', 'funcionarios'],
       ['/empresas', 'clientes'],
@@ -106,7 +107,8 @@ export default function Layout() {
       const destinos: Record<string, string> = {
         dashboard: '/dashboard', vencimentos: '/vencimentos', equipamentos: '/equipamentos',
         inspecoes: '/inspecoes', relatorios: '/relatorios', prontuarios: '/prontuarios',
-        calibracoes: '/calibracoes', livro: '/livro-registro', funcionarios: '/funcionarios',
+        calibracoes: '/calibracoes', certificados: '/certificados',
+        livro: '/livro-registro', funcionarios: '/funcionarios',
         clientes: '/empresas',
       };
       const primeiro = modulosPermitidos[0];

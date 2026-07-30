@@ -1,5 +1,5 @@
 import html2canvas from 'html2canvas';
-import { rastreabilidadesDoRelatorioAberto } from './rastreabilidadeService';
+import { rastreabilidadesDoRelatorioAberto, resolverPdf } from './rastreabilidadeService';
 import { avisarBloqueioDocumentos } from '../../services/trial';
 
 // Impressão própria: o navegador quebra o conteúdo de <iframe> ao imprimir (sai em tiras / só 1
@@ -281,12 +281,14 @@ export async function paginasRastreabilidadeComoImagens(
   const relevantes = rastreabilidadesDoRelatorioAberto(documentos);
   const imagens: string[] = [];
   const falhas: string[] = [];
-  // Tipo exigido mas sem conteúdo (PDF perdido na cota do localStorage): avisa em vez de sumir.
-  const marcadas = relevantes.filter((r) => {
-    if (r.pdfBase64) return true;
-    falhas.push(r.nome || r.id);
-    return false;
-  });
+  // O PDF mora no IndexedDB (cota do localStorage — ver storage.ts): resolve aqui,
+  // já com o fallback para o Supabase. Irrecuperável entra em `falhas` em vez de sumir.
+  const marcadas: { r: (typeof relevantes)[number]; pdf: string }[] = [];
+  for (const r of relevantes) {
+    const pdf = await resolverPdf(r);
+    if (pdf) marcadas.push({ r, pdf });
+    else falhas.push(r.nome || r.id);
+  }
   if (marcadas.length === 0) return { imagens, falhas };
   try {
     const pdfjs = await import('pdfjs-dist');
@@ -294,9 +296,9 @@ export async function paginasRastreabilidadeComoImagens(
       'pdfjs-dist/build/pdf.worker.min.mjs',
       import.meta.url,
     ).toString();
-    for (const r of marcadas) {
+    for (const { r, pdf } of marcadas) {
       try {
-        const b64 = r.pdfBase64.includes(',') ? r.pdfBase64.slice(r.pdfBase64.indexOf(',') + 1) : r.pdfBase64;
+        const b64 = pdf.includes(',') ? pdf.slice(pdf.indexOf(',') + 1) : pdf;
         const bin = atob(b64);
         const bytes = new Uint8Array(bin.length);
         for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
@@ -321,7 +323,7 @@ export async function paginasRastreabilidadeComoImagens(
     }
   } catch (e) {
     console.error('pdfjs indisponível: certificados de rastreabilidade não entraram na impressão.', e);
-    falhas.push(...marcadas.map((r) => r.nome || r.id));
+    falhas.push(...marcadas.map(({ r }) => r.nome || r.id));
   }
   return { imagens, falhas };
 }

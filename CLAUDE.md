@@ -52,7 +52,7 @@ Tudo que o usuário salva pode ser fonte de injeção. Chaves por TAG do equipam
 | `nr13_calibracao_item_<id>` | Certificado de calibração | Calibrações |
 | `nr13_livro_<TAG>` / `nr13_livro_config_<TAG>` | Livro de registro de segurança | Auto + config |
 | `nr13_vida_<TAG>` | Vida remanescente (taxa de corrosão, vida, próxima inspeção) | Card "Vida Remanescente" na ficha |
-| `nr13_rastreab_<id>` | Certificado de calibração do instrumento PADRÃO (PDF base64 fixo, **um por `tipoInstrumento`** entre os ATIVOS: ultrassom/manômetro/válvula/bloco/pressostato/termostato/manovacuômetro/termômetro/outro). Injeção **automática por tipo**: relatório NOVO usa `rastreabilidadesParaRelatorio(documentos)`; relatório ABERTO usa `rastreabilidadesDoRelatorioAberto` (prefere `meta.rastreabIds` congelado). **IMUTABILIDADE (soft-replace)**: editar/excluir NUNCA apaga — grava versão nova (id novo) e marca a antiga `substituidoEm`; substituída sai da lista/prefill/injeção nova mas segue resolvível por id para relatórios salvos. `injetarNoRelatorio`/`tags[]` são LEGADO | Calibrações → aba Certificados Calibração |
+| `nr13_rastreab_<id>` | Certificado de calibração do instrumento PADRÃO (PDF base64 fixo, **um por `tipoInstrumento`** entre os ATIVOS: ultrassom/manômetro/válvula/bloco/pressostato/termostato/manovacuômetro/termômetro/outro). Injeção **automática por tipo**: relatório NOVO usa `rastreabilidadesParaRelatorio(documentos)`; relatório ABERTO usa `rastreabilidadesDoRelatorioAberto` (prefere `meta.rastreabIds` congelado). **IMUTABILIDADE (soft-replace)**: editar/excluir NUNCA apaga — grava versão nova (id novo) e marca a antiga `substituidoEm`; substituída sai da lista/prefill/injeção nova mas segue resolvível por id para relatórios salvos. `injetarNoRelatorio` voltou a VALER (30/07/2026): é a caixinha "Injetar no final do relatório" do card — `injetaNoRelatorio(r)` filtra em `rastreabilidadesParaRelatorio`, e **ausente = marcado** (registro legado nunca perde o anexo). `tags[]` segue LEGADO. **O PDF NÃO fica no localStorage** (ver §2-bis): no cache o registro vem com `pdfBase64: ''` + `temPdf`/`pdfBytes`; use `temPdfDe(r)` (síncrono, p/ UI) e `await resolverPdf(r)` (IndexedDB → Supabase) para o arquivo. Só os 3 tipos com rota de injeção são cadastráveis: `ultrassom` (bloco padrão de espessura), `manometro`, `valvula` | Menu **Certificados** (`/certificados`) |
 | `nr13_permissoes_<userId>` | Módulos permitidos do sub-login ({ modulos: string[] }) | Acessos (mestre) |
 | `nr13_componentes_cal_<TAG>` | Válvulas/manômetros cadastrados (nome, série, foto) | Calibrações → Componentes |
 | `nr13_lotes_cal_<TAG>` | Lotes/rodadas de calibração (certificados ganham loteId/componenteId) | Calibrações → Lotes |
@@ -76,6 +76,32 @@ Tudo que o usuário salva pode ser fonte de injeção. Chaves por TAG do equipam
 > INTERNO, suas folhas de fotos, TESTE-HIDROSTATICO, ULTRASSOM e CERTIFICADO-CAL-* leem
 > `nr13_injecao_atual`. Ao reabrir um relatório salvo, re-gravar `nr13_relatorio_meta_atual` e os
 > dados do container **antes** de remontar os iframes, senão exibe dados do último relatório gerado.
+
+### §2-bis — Campos pesados fora do localStorage (30/07/2026)
+
+A cota do `localStorage` é de **~5 MB para a origem inteira**, dividida com todas as fotos de
+inspeção. Medido em conta real: storage a **96%** (4888/5080 KB), com `nr13_rastreab_` sozinho
+ocupando 1478 KB — metade disso em versões já substituídas. Nesse estado **nenhum PDF acima de
+~144 KB conseguia ser salvo**, e certificado escaneado tem 200–800 KB. Era a causa da queixa
+"o sistema não aceita meu PDF".
+
+**Regra:** campos declarados em `CAMPOS_PESADOS` (`src/services/storage.ts`) NÃO vão para o
+`localStorage`. Hoje há um: `pdfBase64` das chaves `nr13_rastreab_`.
+
+- **localStorage** — registro enxuto: campo zerado + `temPdf: true` + `pdfBytes`. Os templates em
+  iframe seguem lendo os metadados que usam (aparelho, nº série, validade) sem alteração nenhuma.
+- **IndexedDB** (`src/services/pdfStore.ts`, db `nr13_pdfs`) — o arquivo, chaveado pela mesma
+  chave do storage. Cota na casa das centenas de MB.
+- **Supabase** — continua recebendo o registro **COMPLETO**. É ele que sincroniza o PDF entre
+  aparelhos; o IndexedDB é repovoado na hidratação (`lerTudo`) e por `resolverPdf`.
+
+**Ao consumir:** `temPdfDe(r)` para saber se existe arquivo (síncrono, para a UI) e
+`await resolverPdf(r)` para obtê-lo (objeto → IndexedDB → Supabase). **Nunca** ler `r.pdfBase64`
+direto: no cache ele vem vazio e o relatório sairia sem os certificados.
+
+`aliviarCacheLocal()` roda uma vez por sessão no `lerTudo` e migra registros antigos ainda gordos.
+Só é seguro mover um campo para cá se **nenhum template HTML o ler** — confira antes de somar
+prefixos a `CAMPOS_PESADOS`.
 
 ---
 

@@ -15,6 +15,7 @@ export const MODULOS = [
   'relatorios',
   'prontuarios',
   'calibracoes',
+  'certificados',
   'livro',
   'funcionarios',
   'clientes',
@@ -29,6 +30,7 @@ export const ROTULO_MODULO: Record<Modulo, string> = {
   relatorios: 'Relatórios',
   prontuarios: 'Prontuários',
   calibracoes: 'Calibrações',
+  certificados: 'Certificados dos padrões',
   livro: 'Livro Registro',
   funcionarios: 'Cadastrar Funcionários',
   clientes: 'Cadastrar Clientes',
@@ -43,7 +45,14 @@ const chave = (userId: string) => `nr13_permissoes_${userId}`;
 export function carregarPermissoes(userId: string): Modulo[] | null {
   const salvo = ler<{ modulos?: string[] }>(chave(userId));
   if (!salvo || !Array.isArray(salvo.modulos)) return null; // null = sem restrição (legado)
-  return salvo.modulos.filter((m): m is Modulo => (MODULOS as readonly string[]).includes(m));
+  const modulos = salvo.modulos.filter((m): m is Modulo => (MODULOS as readonly string[]).includes(m));
+  // Compatibilidade: "certificados" nasceu depois, quando os certificados dos padrões saíram
+  // de dentro de Calibrações para o menu próprio. Sub-login com a permissão salva ANTES disso
+  // tem só 'calibracoes' na lista e perderia acesso a uma tela que já usava — herda aqui.
+  if (modulos.includes('calibracoes') && !modulos.includes('certificados')) {
+    modulos.push('certificados');
+  }
+  return modulos;
 }
 
 export async function salvarPermissoes(userId: string, modulos: Modulo[]): Promise<void> {

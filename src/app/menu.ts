@@ -26,6 +26,7 @@ export const ITENS_BAIXO: ItemMenu[] = [
   { id: 'relatorios', to: '/relatorios', label: 'Relatórios', icone: 'barchart' },
   { id: 'prontuarios', to: '/prontuarios', label: 'Prontuários', icone: 'book' },
   { id: 'calibracoes', to: '/calibracoes', label: 'Calibrações', icone: 'sliders' },
+  { id: 'certificados', to: '/certificados', label: 'Certificados', icone: 'shield' },
   { id: 'livro', to: '/livro-registro', label: 'Livro Registro', icone: 'filetext' },
 ];
 
@@ -41,7 +42,8 @@ export const TITULOS_ROTA: { prefixo: string; titulo: string; sub: string }[] = 
   { prefixo: '/inspecoes', titulo: 'Inspeções', sub: 'Preenchimento em campo e containers de inspeção' },
   { prefixo: '/relatorios', titulo: 'Relatórios', sub: 'Histórico de inspeções por equipamento' },
   { prefixo: '/prontuarios', titulo: 'Prontuários', sub: 'Prontuários e reconstituições' },
-  { prefixo: '/calibracoes', titulo: 'Calibrações', sub: 'Calibrações dos equipamentos e certificados dos padrões' },
+  { prefixo: '/calibracoes', titulo: 'Calibrações', sub: 'Calibrações dos equipamentos e acessórios' },
+  { prefixo: '/certificados', titulo: 'Certificados', sub: 'Certificados de calibração dos padrões de medição' },
   { prefixo: '/livro-registro', titulo: 'Livro Registro', sub: 'Livros de registro de segurança por equipamento' },
   { prefixo: '/funcionarios', titulo: 'Funcionários', sub: 'Profissionais habilitados e equipe' },
   { prefixo: '/empresas', titulo: 'Clientes', sub: 'Empresas clientes cadastradas' },

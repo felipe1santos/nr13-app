@@ -6,6 +6,7 @@ import {
   tiposPadraoDoRelatorio,
 } from '../rastreabilidadeService';
 import type { Rastreabilidade } from '../rastreabilidadeService';
+import { guardarPdf } from '../../../services/pdfStore';
 
 // vitest roda em node (sem DOM): shim mínimo de localStorage (mesmo padrão de
 // src/services/vencimentos.test.ts).
@@ -35,7 +36,9 @@ function gravarRegistro(r: Partial<Rastreabilidade> & { id: string }): void {
       certificadoPadrao: '',
       validade: '',
       pdfBase64: '',
-      injetarNoRelatorio: false,
+      // Espelha o que o app grava: todo certificado nasce marcado para injeção
+      // (a caixinha da tela Certificados só serve para DESmarcar).
+      injetarNoRelatorio: true,
       criadoEm: '',
       ...r,
     }),
@@ -117,6 +120,83 @@ describe('anexarRastreabilidades', () => {
     expect(falhas).toEqual([]);
     const final = await PDFDocument.load(bytes);
     expect(final.getPageCount()).toBe(3); // 1 do relatório + 2 do padrão de manômetro
+  });
+
+  // Regressão da separação do campo pesado (PDF no IndexedDB — ver services/storage.ts):
+  // no cache local o registro fica com pdfBase64 vazio e temPdf=true. Se o anexo passasse
+  // a olhar só o campo do registro, TODO relatório sairia sem os certificados.
+  it('anexa o PDF de registro ENXUTO (pdfBase64 vazio + temPdf, arquivo no pdfStore)', async () => {
+    const base = await PDFDocument.create();
+    base.addPage([595, 842]);
+    gravarCertificado('cal-1', 'manometro');
+    gravarRegistro({
+      id: 'man-enxuto',
+      nome: 'Manômetro MP-01',
+      tipoInstrumento: 'manometro',
+      pdfBase64: '',
+      temPdf: true,
+    });
+    await guardarPdf('nr13_rastreab_man-enxuto', await pdfBase64ComPaginas(2));
+
+    const { bytes, anexados, falhas } = await anexarRastreabilidades(await base.save(), [
+      'CERTIFICADO-CAL-MANOMETRO.html?calibId=cal-1',
+    ]);
+
+    expect(falhas).toEqual([]);
+    expect(anexados).toBe(1);
+    expect((await PDFDocument.load(bytes)).getPageCount()).toBe(3);
+  });
+
+  it('registro enxuto cujo PDF sumiu do pdfStore entra em falhas', async () => {
+    const base = await PDFDocument.create();
+    base.addPage([595, 842]);
+    gravarCertificado('cal-1', 'manometro');
+    gravarRegistro({ id: 'sem-arquivo', nome: 'Manômetro sumido', tipoInstrumento: 'manometro', pdfBase64: '', temPdf: true });
+
+    const { anexados, falhas } = await anexarRastreabilidades(await base.save(), [
+      'CERTIFICADO-CAL-MANOMETRO.html?calibId=cal-1',
+    ]);
+
+    expect(anexados).toBe(0);
+    expect(falhas).toEqual(['Manômetro sumido']);
+  });
+
+  // Caixinha "Injetar no final do relatório" (tela Certificados).
+  it('padrão com a caixinha DESMARCADA não é injetado', async () => {
+    gravarCertificado('cal-1', 'manometro');
+    gravarRegistro({ id: 'man', tipoInstrumento: 'manometro', temPdf: true, injetarNoRelatorio: false });
+
+    expect(rastreabilidadesParaRelatorio(['CERTIFICADO-CAL-MANOMETRO.html?calibId=cal-1'])).toEqual([]);
+  });
+
+  it('registro SEM o campo injetarNoRelatorio continua sendo injetado (default marcado)', async () => {
+    gravarCertificado('cal-1', 'manometro');
+    localStorage.setItem(
+      'nr13_rastreab_antigo',
+      // registro legado: nem sabe que a caixinha existe
+      JSON.stringify({ id: 'antigo', nome: 'Legado', certificadoPadrao: '', validade: '', pdfBase64: '', temPdf: true, criadoEm: '', tipoInstrumento: 'manometro' }),
+    );
+
+    const sel = rastreabilidadesParaRelatorio(['CERTIFICADO-CAL-MANOMETRO.html?calibId=cal-1']);
+    expect(sel.map((r) => r.nome)).toEqual(['Legado']);
+  });
+
+  it('desmarcado não rouba a vaga do tipo: o marcado ainda entra', async () => {
+    gravarCertificado('cal-1', 'manometro');
+    gravarRegistro({ id: 'off', nome: 'Desmarcado', tipoInstrumento: 'manometro', temPdf: true, criadoEm: '30/07/2026', injetarNoRelatorio: false });
+    gravarRegistro({ id: 'on', nome: 'Marcado', tipoInstrumento: 'manometro', temPdf: true, criadoEm: '01/06/2026', injetarNoRelatorio: true });
+
+    const sel = rastreabilidadesParaRelatorio(['CERTIFICADO-CAL-MANOMETRO.html?calibId=cal-1']);
+    expect(sel.map((r) => r.nome)).toEqual(['Marcado']);
+  });
+
+  it('desempate entre versões do mesmo tipo respeita o marcador temPdf', async () => {
+    gravarCertificado('cal-1', 'manometro');
+    gravarRegistro({ id: 'vazio', nome: 'Sem arquivo', tipoInstrumento: 'manometro', criadoEm: '10/07/2026' });
+    gravarRegistro({ id: 'enxuto', nome: 'Com arquivo', tipoInstrumento: 'manometro', criadoEm: '01/06/2026', temPdf: true });
+
+    const sel = rastreabilidadesParaRelatorio(['CERTIFICADO-CAL-MANOMETRO.html?calibId=cal-1']);
+    expect(sel.map((r) => r.nome)).toEqual(['Com arquivo']); // vence quem TEM PDF, mesmo mais antigo
   });
 
   it('tipo exigido SEM pdfBase64 (perdido por cota do localStorage) entra em falhas — nunca some em silêncio', async () => {

@@ -436,30 +436,6 @@
   .meta-card-header { flex-direction: column; align-items: stretch; gap: 10px; }
 }
 
-/* ── Abas principais (Certificados | Rastreabilidade) ── */
-.cal-abas-principais {
-  display: flex;
-  gap: 4px;
-  border-bottom: 1px solid var(--line);
-  margin-bottom: 18px;
-}
-.cal-aba-principal {
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  padding: 9px 16px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--muted);
-  cursor: pointer;
-  font-family: var(--font-base);
-}
-.cal-aba-principal:hover { color: var(--text); }
-.cal-aba-principal.ativa {
-  color: var(--amber-deep);
-  border-bottom-color: var(--amber);
-}
-
 /* ── Cabeçalho com foto do equipamento ──
    Duas colunas: identificação à esquerda, painel de componentes no canto superior
    direito (ocupa a faixa que ficava vazia ao lado do título). */

@@ -1,5 +1,6 @@
 import { PDFDocument } from 'pdf-lib';
-import { ler, salvar, excluirChave, listarChavesComPrefixo } from '../../services/storage';
+import { ler, salvar, excluirChave, listarChavesComPrefixo, lerRemoto } from '../../services/storage';
+import { guardarPdf, lerPdf } from '../../services/pdfStore';
 
 /**
  * Certificados de calibração dos instrumentos PADRÃO: o usuário anexa UM PDF
@@ -24,7 +25,13 @@ export interface Rastreabilidade {
   nome: string;               // identificação do instrumento/padrão
   certificadoPadrao: string;  // nº do certificado do padrão
   validade: string;           // data (dd/mm/aaaa ou aaaa-mm-dd)
-  pdfBase64: string;          // data URL ou base64 puro do PDF
+  // data URL ou base64 puro do PDF. VEM VAZIO no cache local desde que os PDFs
+  // passaram a morar no IndexedDB (cota do localStorage — ver storage.ts): use
+  // `temPdfDe()` para saber se existe arquivo e `resolverPdf()` para obtê-lo.
+  // Continua preenchido no Supabase e em registros recém-montados na tela.
+  pdfBase64: string;
+  temPdf?: boolean;           // marcador gravado ao separar o PDF do registro
+  pdfBytes?: number;          // tamanho do base64, para mensagens de erro
   // LEGADO: a injeção era manual por flag; hoje é automática por tipo presente no
   // relatório. Mantida só para registros antigos e para a preferência do autoPreencher.
   injetarNoRelatorio: boolean;
@@ -94,11 +101,12 @@ export function rastreabilidadesParaRelatorio(documentos: string[]): Rastreabili
   const porTipo = new Map<TipoInstrumento, Rastreabilidade>();
   for (const r of listarRastreabilidadesAtivas()) {
     if (!r.tipoInstrumento || !tipos.has(r.tipoInstrumento)) continue;
+    if (!injetaNoRelatorio(r)) continue; // caixinha desmarcada na tela Certificados
     const atual = porTipo.get(r.tipoInstrumento);
     if (
       !atual ||
-      (!atual.pdfBase64 && !!r.pdfBase64) ||
-      (!!atual.pdfBase64 === !!r.pdfBase64 && tsCriadoEm(r) > tsCriadoEm(atual))
+      (!temPdfDe(atual) && temPdfDe(r)) ||
+      (temPdfDe(atual) === temPdfDe(r) && tsCriadoEm(r) > tsCriadoEm(atual))
     ) {
       porTipo.set(r.tipoInstrumento, r);
     }
@@ -107,6 +115,46 @@ export function rastreabilidadesParaRelatorio(documentos: string[]): Rastreabili
 }
 
 const PREFIXO = 'nr13_rastreab_';
+
+/** Há PDF anexado? Checagem SÍNCRONA (para a interface), sem carregar o arquivo. */
+export function temPdfDe(r: Rastreabilidade): boolean {
+  return r.temPdf === true || !!r.pdfBase64;
+}
+
+/**
+ * O usuário marcou este padrão para ser anexado ao fim do relatório?
+ * Ausente = MARCADO: registros antigos (e os criados antes de a caixinha voltar
+ * a existir) continuam sendo injetados exatamente como eram — a caixinha só dá
+ * ao usuário o poder de DESmarcar, nunca tira anexo de quem já tinha.
+ */
+export function injetaNoRelatorio(r: Rastreabilidade): boolean {
+  return r.injetarNoRelatorio !== false;
+}
+
+/**
+ * Devolve o PDF do registro, venha ele de onde vier:
+ * 1. do próprio objeto (registro recém-montado na tela ou legado ainda gordo);
+ * 2. do IndexedDB (caminho normal depois da separação — ver storage.ts);
+ * 3. do Supabase (aparelho novo/cache limpo), repovoando o IndexedDB de quebra.
+ * null = não há arquivo recuperável.
+ */
+export async function resolverPdf(r: Rastreabilidade): Promise<string | null> {
+  if (r.pdfBase64) return r.pdfBase64;
+  if (!temPdfDe(r)) return null;
+  const chave = `${PREFIXO}${r.id}`;
+  const local = await lerPdf(chave);
+  if (local) return local;
+  const bruto = await lerRemoto(chave);
+  if (!bruto) return null;
+  try {
+    const completo = JSON.parse(bruto) as Rastreabilidade;
+    if (!completo.pdfBase64) return null;
+    void guardarPdf(chave, completo.pdfBase64); // próxima leitura sai do IndexedDB
+    return completo.pdfBase64;
+  } catch {
+    return null;
+  }
+}
 
 export function listarRastreabilidades(): Rastreabilidade[] {
   return listarChavesComPrefixo(PREFIXO)
@@ -127,7 +175,15 @@ export function listarRastreabilidadesAtivas(): Rastreabilidade[] {
 }
 
 export async function salvarRastreabilidade(r: Rastreabilidade): Promise<void> {
-  await salvar(`${PREFIXO}${r.id}`, r);
+  // BLINDAGEM: registro lido do cache vem SEM o PDF (mora no IndexedDB — ver
+  // storage.ts §CAMPOS_PESADOS). Regravá-lo desse jeito — como fazem o soft-delete
+  // (`{...r, substituidoEm}`) e o toggle de injeção — sobrescreveria no Supabase o
+  // registro completo por um sem arquivo. Como o Supabase é a fonte que sincroniza
+  // entre aparelhos e que socorre relatórios salvos, o certificado sumiria de vez.
+  // Recupera o PDF antes de gravar sempre que o marcador diz que ele existe.
+  const completo =
+    !r.pdfBase64 && temPdfDe(r) ? { ...r, pdfBase64: (await resolverPdf(r)) ?? '' } : r;
+  await salvar(`${PREFIXO}${r.id}`, completo);
 }
 
 export async function excluirRastreabilidade(id: string): Promise<void> {
@@ -181,16 +237,17 @@ export async function anexarRastreabilidades(
   const falhas: string[] = [];
 
   for (const r of marcadas) {
-    // PDF marcado mas sem conteúdo (perdido quando a cota do localStorage estourou na
-    // gravação): entra em `falhas` para o usuário ser avisado — nunca some em silêncio.
-    if (!r.pdfBase64) {
+    // PDF marcado mas irrecuperável (nem no IndexedDB nem no Supabase): entra em
+    // `falhas` para o usuário ser avisado — nunca some em silêncio.
+    const pdf = await resolverPdf(r);
+    if (!pdf) {
       falhas.push(r.nome || r.id);
       continue;
     }
     try {
       // ignoreEncryption: certificados oficiais costumam vir "protegidos" (sem senha de
       // abertura); sem a flag o pdf-lib recusa o arquivo inteiro.
-      const anexo = await PDFDocument.load(base64ParaBytes(r.pdfBase64), { ignoreEncryption: true });
+      const anexo = await PDFDocument.load(base64ParaBytes(pdf), { ignoreEncryption: true });
       const paginas = await doc.copyPages(anexo, anexo.getPageIndices());
       for (const p of paginas) doc.addPage(p);
       anexados++;

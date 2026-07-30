@@ -14,7 +14,6 @@ import {
 } from '../features/calibracoes/calibracaoService';
 import type { DadosCalibracao, DadosManometro, DadosPSV } from '../features/calibracoes/tipos';
 import VisualizadorCalibracao from '../features/calibracoes/VisualizadorCalibracao';
-import AbaRastreabilidade from '../features/calibracoes/AbaRastreabilidade';
 import {
   criarLote,
   excluirComponente,
@@ -188,7 +187,6 @@ function parseDateBR(d: string): number {
 }
 
 export default function Calibracoes() {
-  const [abaPrincipal, setAbaPrincipal] = useState<'certificados' | 'rastreabilidade'>('certificados');
   const [tela, setTela] = useState<Tela>('equipamentos');
   const [equipamentos, setEquipamentos] = useState<EquipamentoResumo[]>([]);
   const [tag, setTag] = useState('');
@@ -358,28 +356,12 @@ export default function Calibracoes() {
     <div className="calibracoes-page">
       <h1>Calibrações</h1>
 
-      {/* Abas principais: Equipamentos (acessórios + lotes) | Certificados Calibração (padrões + PDF) */}
-      <div className="cal-abas-principais">
-        <button
-          type="button"
-          className={`cal-aba-principal${abaPrincipal === 'certificados' ? ' ativa' : ''}`}
-          onClick={() => setAbaPrincipal('certificados')}
-        >
-          Equipamentos
-        </button>
-        <button
-          type="button"
-          className={`cal-aba-principal${abaPrincipal === 'rastreabilidade' ? ' ativa' : ''}`}
-          onClick={() => setAbaPrincipal('rastreabilidade')}
-        >
-          Certificados Calibração
-        </button>
-      </div>
-
-      {abaPrincipal === 'rastreabilidade' && <AbaRastreabilidade />}
+      {/* Os certificados dos instrumentos PADRÃO saíram daqui para o menu próprio
+          "Certificados" (src/pages/Certificados.tsx) — esta tela cuida só das
+          calibrações dos acessórios do cliente (manômetros/PSV por equipamento). */}
 
       {/* ── EQUIPAMENTOS ─────────────────────────────── */}
-      {abaPrincipal === 'certificados' && tela === 'equipamentos' && (
+      {tela === 'equipamentos' && (
         <div className="bloco-dados">
           <div className="meta-card-header">
             <h3>Selecione o Equipamento</h3>
@@ -459,7 +441,7 @@ export default function Calibracoes() {
       )}
 
       {/* ── HISTÓRICO (componentes + lotes) ─────────── */}
-      {abaPrincipal === 'certificados' && tela === 'historico' && (
+      {tela === 'historico' && (
         <>
           <div className="bloco-dados">
             {/* Cabeçalho: Voltar compacto + foto + título à esquerda; painel de componentes
@@ -806,7 +788,7 @@ export default function Calibracoes() {
       )}
 
       {/* ── FORMULÁRIO ───────────────────────────────── */}
-      {abaPrincipal === 'certificados' && tela === 'formulario' && (
+      {tela === 'formulario' && (
         <div className="bloco-dados">
           <div className="meta-breadcrumb">
             <button type="button" className="btn-secundario" onClick={() => setTela('historico')}>
@@ -1053,7 +1035,7 @@ export default function Calibracoes() {
       )}
 
       {/* ── VISUALIZADOR ─────────────────────────────── */}
-      {abaPrincipal === 'certificados' && tela === 'visualizador' && calAtual && (
+      {tela === 'visualizador' && calAtual && (
         <>
           <div className="bloco-dados">
             <div className="meta-breadcrumb">
@@ -1110,7 +1092,7 @@ export default function Calibracoes() {
       )}
 
       {/* ── VER PREENCHIDO (dados salvos, sem campos de edição) ── */}
-      {abaPrincipal === 'certificados' && tela === 'verDados' && calAtual && (
+      {tela === 'verDados' && calAtual && (
         <div className="bloco-dados">
           <div className="meta-breadcrumb">
             <button type="button" className="btn-secundario" onClick={() => setTela('historico')}>

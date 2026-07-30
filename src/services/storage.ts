@@ -2,6 +2,96 @@
 // REGRA: toda gravação grava no localStorage (cache lido pelos templates HTML em iframe) E no
 // Supabase. Toda leitura sai do cache local (já hidratado por lerTudo). Offline = cai no cache.
 import { supabase, escopoStorageAtual, idUsuarioAtual, TABELA_STORAGE } from './supabase';
+import { guardarPdf, removerPdf } from './pdfStore';
+
+// ---------------------------------------------------------------------------
+// Alívio da cota do cache local: campos grandes demais para o localStorage
+// ---------------------------------------------------------------------------
+// A cota do localStorage é de ~5 MB para a origem inteira, dividida com todas as
+// fotos de inspeção. Um PDF de certificado (200–800 KB, +37% em base64) come uma
+// fatia enorme dela e as versões substituídas (soft-replace) se acumulavam: em
+// conta real, `nr13_rastreab_` sozinho ocupava 1479 KB e o storage estava a 96%,
+// impedindo salvar qualquer PDF acima de ~144 KB.
+//
+// Solução: o campo pesado NÃO vai para o localStorage. Vai para o IndexedDB
+// (ver pdfStore.ts) e — no valor COMPLETO — para o Supabase, que é quem
+// sincroniza entre aparelhos. O localStorage fica com a versão enxuta mais dois
+// marcadores (`temPdf`/`pdfBytes`) para a interface saber que o arquivo existe
+// sem precisar carregá-lo.
+//
+// Seguro porque nenhum template HTML lê o campo pesado: as folhas em iframe leem
+// só os metadados do registro (aparelho, nº de série, validade).
+const CAMPOS_PESADOS: { prefixo: string; campo: string }[] = [
+  { prefixo: 'nr13_rastreab_', campo: 'pdfBase64' },
+];
+
+/** Divide o JSON em (versão enxuta p/ localStorage, conteúdo pesado p/ IndexedDB). */
+function dividirPesado(chave: string, valor: string): { leve: string; pesado: string | null } {
+  const alvo = CAMPOS_PESADOS.find((c) => chave.startsWith(c.prefixo));
+  if (!alvo) return { leve: valor, pesado: null };
+  try {
+    const obj = JSON.parse(valor) as Record<string, unknown>;
+    const pesado = typeof obj[alvo.campo] === 'string' ? (obj[alvo.campo] as string) : '';
+    if (!pesado) return { leve: valor, pesado: null };
+    return {
+      leve: JSON.stringify({ ...obj, [alvo.campo]: '', temPdf: true, pdfBytes: pesado.length }),
+      pesado,
+    };
+  } catch {
+    return { leve: valor, pesado: null }; // valor não-JSON: não há o que dividir
+  }
+}
+
+/** Grava no cache local já aliviado, mandando o campo pesado para o IndexedDB. */
+function gravarNoCache(chave: string, valor: string): void {
+  const { leve, pesado } = dividirPesado(chave, valor);
+  if (pesado) void guardarPdf(chave, pesado);
+  localStorage.setItem(chave, leve); // pode lançar por cota — quem chama decide
+}
+
+/**
+ * Move para o IndexedDB os campos pesados de registros que já estavam gordos no
+ * localStorage (gravados antes desta separação existir). Idempotente e barato:
+ * só olha as chaves dos prefixos registrados e só age quando ainda há conteúdo.
+ */
+export function aliviarCacheLocal(): void {
+  for (const { prefixo } of CAMPOS_PESADOS) {
+    for (const chave of listarChavesComPrefixo(prefixo)) {
+      const bruto = localStorage.getItem(chave);
+      if (!bruto) continue;
+      const { leve, pesado } = dividirPesado(chave, bruto);
+      if (!pesado) continue; // já enxuto
+      void guardarPdf(chave, pesado);
+      try {
+        localStorage.setItem(chave, leve);
+      } catch {
+        /* nada a fazer: a versão enxuta é menor que a atual, então não deveria falhar */
+      }
+    }
+  }
+}
+
+/**
+ * Lê UMA chave direto do Supabase (valor completo, com o campo pesado). Usado
+ * quando o PDF não está no IndexedDB — aparelho novo, cache limpo, ou gravação
+ * feita em outro dispositivo. Devolve null offline/sem sessão.
+ */
+export async function lerRemoto(chave: string): Promise<string | null> {
+  try {
+    const escopo = await escopoStorageAtual();
+    if (!escopo) return null;
+    const { data, error } = await supabase
+      .from(TABELA_STORAGE)
+      .select('valor')
+      .eq(escopo.coluna, escopo.id)
+      .eq('chave', chave)
+      .maybeSingle();
+    if (error || !data) return null;
+    return (data as { valor: string | null }).valor ?? null;
+  } catch {
+    return null;
+  }
+}
 
 // Chaves de sessão/preferência que NÃO são dados de equipamento — não devem ser apagadas ao
 // trocar de usuário (são re-gravadas pelo login).
@@ -223,7 +313,15 @@ const PAGINA_TAMANHO = 1000; // limite padrão de linhas por consulta do PostgRE
 const JANELA_HIDRATACAO_MS = 60_000;
 let ultimaHidratacao = 0;
 
+let aliviouNestaSessao = false;
+
 export async function lerTudo(): Promise<Record<string, string>> {
+  // Registros gravados antes da separação estão gordos no cache: enxuga uma vez
+  // por sessão, antes de qualquer coisa, para liberar cota já na abertura do app.
+  if (!aliviouNestaSessao) {
+    aliviouNestaSessao = true;
+    aliviarCacheLocal();
+  }
   const escopo = await escopoStorageAtual();
   if (!escopo) return {};
   if (Date.now() - ultimaHidratacao < JANELA_HIDRATACAO_MS) {
@@ -295,7 +393,7 @@ export async function lerTudo(): Promise<Record<string, string>> {
       // Guarda individual: um valor grande demais (ex.: logo/foto) que estoure a cota não pode
       // abortar a hidratação das demais chaves — senão dados como nr13_minha_empresa somem.
       try {
-        localStorage.setItem(chave, valor);
+        gravarNoCache(chave, valor);
       } catch {
         // cota excedida nesta chave: pula e continua hidratando o resto
       }
@@ -312,7 +410,9 @@ export async function lerTudo(): Promise<Record<string, string>> {
 export async function salvar(chave: string, objeto: unknown): Promise<void> {
   const valor = JSON.stringify(objeto);
   try {
-    localStorage.setItem(chave, valor); // cache imediato (iframe lê na hora)
+    // Cache imediato (iframe lê na hora), já sem o campo pesado — que vai para o
+    // IndexedDB. O Supabase abaixo recebe o valor COMPLETO.
+    gravarNoCache(chave, valor);
   } catch {
     // cota local estourada: ainda assim persiste no Supabase abaixo, sem derrubar a gravação
   }
@@ -343,6 +443,7 @@ export async function salvar(chave: string, objeto: unknown): Promise<void> {
 export async function excluirChave(chave: string): Promise<void> {
   if (bloqueadoParaEscrita()) return; // portal ou assinatura suspensa: não exclui nada (nem no cache local)
   localStorage.removeItem(chave);
+  void removerPdf(chave); // campo pesado que tenha ido para o IndexedDB
   const escopo = await escopoStorageAtual();
   if (!escopo) return;
   try {

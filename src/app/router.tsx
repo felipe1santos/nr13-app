@@ -12,6 +12,7 @@ import InspecaoContainer from '../pages/InspecaoContainer';
 import InspecaoFormulario from '../pages/InspecaoFormulario';
 import Prontuarios from '../pages/Prontuarios';
 import Calibracoes from '../pages/Calibracoes';
+import Certificados from '../pages/Certificados';
 import MinhaEmpresa from '../pages/MinhaEmpresa';
 import Empresas from '../pages/Empresas';
 import Funcionarios from '../pages/Funcionarios';
@@ -73,6 +74,7 @@ export const router = createBrowserRouter([
                   { path: '/inspecoes/:tag/:containerId/:formulario', element: <InspecaoFormulario /> },
                   { path: '/prontuarios', element: <Prontuarios /> },
                   { path: '/calibracoes', element: <Calibracoes /> },
+                  { path: '/certificados', element: <Certificados /> },
                   { path: '/minha-empresa', element: <MinhaEmpresa /> },
                   { path: '/empresas', element: <Empresas /> },
                   { path: '/funcionarios', element: <Funcionarios /> },
