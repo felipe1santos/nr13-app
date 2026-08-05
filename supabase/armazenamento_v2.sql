@@ -74,6 +74,14 @@ create table if not exists public.org_sync (
   sync_corte timestamptz
 );
 
+-- Flag da v2 POR ORGANIZACAO (ativacao gradual, Task 14 do plano).
+-- Enquanto false: o frontend v1 grava direto em app_storage, como sempre fez.
+-- Quando true: SO a RPC pode gravar — escrita direta e recusada pelo trigger
+-- da secao 5b. Sem isso, um cliente antigo (ou uma chamada manual) ignoraria
+-- versionamento, mutationId, conflitos e tombstones de uma organizacao que ja
+-- migrou.
+alter table public.org_sync add column if not exists v2_ativa boolean not null default false;
+
 alter table public.org_sync enable row level security;
 
 drop policy if exists org_sync_select on public.org_sync;
@@ -102,12 +110,15 @@ security definer
 set search_path = ''
 as $$
 declare
-  v_org   uuid;
-  v_user  uuid := auth.uid();
-  v_res   jsonb;
-  v_piso  integer;
-  v_atual public.app_storage%rowtype;
-  v_nova  integer;
+  v_org         uuid;
+  v_user        uuid := auth.uid();
+  v_res         jsonb;
+  v_piso        integer;
+  v_atual       public.app_storage%rowtype;
+  v_nova        integer;
+  v_reivindicou boolean := false;
+  v_tentativa   integer;
+  v_existia     boolean := false;
 begin
   -- Sessao anonima nao grava nada.
   if v_user is null then
@@ -131,11 +142,11 @@ begin
     return jsonb_build_object('status','recusado','motivo','sem_permissao');
   end if;
 
-  -- IDEMPOTENCIA: mesma mutacao chegando de novo devolve o resultado anterior.
+  -- IDEMPOTENCIA, caminho rapido: mutacao ja concluida devolve o resultado.
   select m.resultado into v_res
     from public.app_storage_mutacoes m
    where m.org_id = v_org and m.mutation_id = p_mutation_id;
-  if found then
+  if found and v_res->>'status' is distinct from 'processando' then
     return v_res || jsonb_build_object('status','repetido');
   end if;
 
@@ -146,7 +157,40 @@ begin
     return jsonb_build_object('status','recusado','motivo','sem_permissao');
   end if;
 
-  -- Marca a sessao como escrita-via-RPC para o trigger de piso (secao 5b).
+  -- IDEMPOTENCIA SOB CONCORRENCIA: reivindica a mutacao ANTES de aplicar.
+  -- Duas chamadas simultaneas com o mesmo mutation_id: uma insere a linha de
+  -- reivindicacao e aplica; a outra bloqueia no lock da PK (FOR SHARE) ate a
+  -- primeira confirmar e devolve o resultado registrado, sem reaplicar e sem
+  -- erro de chave duplicada. Se a primeira desfizer, a linha some e a segunda
+  -- reivindica na segunda volta do laco.
+  for v_tentativa in 1..2 loop
+    insert into public.app_storage_mutacoes (org_id, mutation_id, resultado)
+    values (v_org, p_mutation_id, jsonb_build_object('status','processando'))
+    on conflict (org_id, mutation_id) do nothing;
+
+    if found then
+      v_reivindicou := true;
+      exit;
+    end if;
+
+    v_res := null;
+    select m.resultado into v_res
+      from public.app_storage_mutacoes m
+     where m.org_id = v_org and m.mutation_id = p_mutation_id
+     for share;                       -- bloqueia ate a outra transacao decidir
+
+    if v_res is not null and v_res->>'status' is distinct from 'processando' then
+      return v_res || jsonb_build_object('status','repetido');
+    end if;
+  end loop;
+
+  if not v_reivindicou then
+    -- Outra transacao ficou com a reivindicacao e nao concluiu: o cliente
+    -- reenvia o MESMO mutation_id e cai no caminho rapido acima.
+    return jsonb_build_object('status','recusado','motivo','sem_permissao');
+  end if;
+
+  -- Marca a sessao como escrita-via-RPC para o trigger da secao 5b.
   perform set_config('nr13.via_rpc', '1', true);
 
   -- NAO existe checagem por p_mutado_em em lugar nenhum desta funcao.
@@ -160,8 +204,8 @@ begin
 
   if v_piso is not null and v_nova <= v_piso then
     v_res := jsonb_build_object('status','recusado','motivo','versao_obsoleta','versao', v_piso);
-    insert into public.app_storage_mutacoes (org_id, mutation_id, resultado)
-      values (v_org, p_mutation_id, v_res);
+    update public.app_storage_mutacoes m set resultado = v_res
+     where m.org_id = v_org and m.mutation_id = p_mutation_id;
     return v_res;
   end if;
 
@@ -170,7 +214,9 @@ begin
    where s.org_id = v_org and s.chave = p_chave
    for update;
 
-  if found then
+  v_existia := found;
+
+  if v_existia then
     -- CONFLITO: alguem gravou entre a leitura do cliente e este envio.
     -- Devolve a linha vigente para o cliente preservar AS DUAS versoes.
     if v_atual.versao <> p_versao_esperada then
@@ -181,8 +227,8 @@ begin
         'atualizado_em', v_atual.atualizado_em,
         'dispositivo', v_atual.dispositivo,
         'deletado_em', v_atual.deletado_em);
-      insert into public.app_storage_mutacoes (org_id, mutation_id, resultado)
-        values (v_org, p_mutation_id, v_res);
+      update public.app_storage_mutacoes m set resultado = v_res
+       where m.org_id = v_org and m.mutation_id = p_mutation_id;
       return v_res;
     end if;
 
@@ -192,56 +238,91 @@ begin
     if v_atual.deletado_em is not null and v_piso is not null and v_nova <= v_piso then
       v_res := jsonb_build_object('status','recusado','motivo','tombstone_mais_novo',
                                   'versao', v_atual.versao);
-      insert into public.app_storage_mutacoes (org_id, mutation_id, resultado)
-        values (v_org, p_mutation_id, v_res);
+      update public.app_storage_mutacoes m set resultado = v_res
+       where m.org_id = v_org and m.mutation_id = p_mutation_id;
       return v_res;
     end if;
   else
     -- Cliente esperava uma linha que nao existe mais.
     if p_versao_esperada <> 0 then
       v_res := jsonb_build_object('status','conflito','versao', 0, 'valor', null);
-      insert into public.app_storage_mutacoes (org_id, mutation_id, resultado)
-        values (v_org, p_mutation_id, v_res);
+      update public.app_storage_mutacoes m set resultado = v_res
+       where m.org_id = v_org and m.mutation_id = p_mutation_id;
       return v_res;
     end if;
   end if;
 
-  if p_op = 'set' then
-    insert into public.app_storage
-      (org_id, user_id, chave, valor, versao, dispositivo, deletado_em, atualizado_em, mutado_em_cliente)
-    values
-      (v_org, v_user, p_chave, p_valor, v_nova, p_dispositivo, null, now(), p_mutado_em)
-    on conflict (org_id, chave) do update
-      set valor             = excluded.valor,
-          versao            = excluded.versao,
-          dispositivo       = excluded.dispositivo,
-          deletado_em       = null,
-          atualizado_em     = now(),
-          mutado_em_cliente = excluded.mutado_em_cliente;
-  else
-    insert into public.app_storage
-      (org_id, user_id, chave, valor, versao, dispositivo, deletado_em, atualizado_em, mutado_em_cliente)
-    values
-      (v_org, v_user, p_chave, null, v_nova, p_dispositivo, now(), now(), p_mutado_em)
-    on conflict (org_id, chave) do update
-      set valor             = null,
-          versao            = excluded.versao,
-          dispositivo       = excluded.dispositivo,
-          deletado_em       = now(),
-          atualizado_em     = now(),
-          mutado_em_cliente = excluded.mutado_em_cliente;
+  -- APLICACAO. Criacao e atualizacao sao comandos DIFERENTES de proposito:
+  -- "insert ... on conflict do update" na criacao faria a segunda criacao
+  -- simultanea SOBRESCREVER a primeira em silencio, que e exatamente o que a
+  -- versao esperada existe para impedir. FOR UPDATE nao tranca linha que ainda
+  -- nao existe, entao a corrida e resolvida pela unique constraint e a
+  -- perdedora vira CONFLITO.
+  begin
+    if p_op = 'set' then
+      if v_existia then
+        update public.app_storage s
+           set valor             = p_valor,
+               versao            = v_nova,
+               dispositivo       = p_dispositivo,
+               deletado_em       = null,
+               atualizado_em     = now(),
+               mutado_em_cliente = p_mutado_em
+         where s.org_id = v_org and s.chave = p_chave;
+      else
+        insert into public.app_storage
+          (org_id, user_id, chave, valor, versao, dispositivo, deletado_em, atualizado_em, mutado_em_cliente)
+        values
+          (v_org, v_user, p_chave, p_valor, v_nova, p_dispositivo, null, now(), p_mutado_em);
+      end if;
+    else
+      if v_existia then
+        update public.app_storage s
+           set valor             = null,
+               versao            = v_nova,
+               dispositivo       = p_dispositivo,
+               deletado_em       = now(),
+               atualizado_em     = now(),
+               mutado_em_cliente = p_mutado_em
+         where s.org_id = v_org and s.chave = p_chave;
+      else
+        insert into public.app_storage
+          (org_id, user_id, chave, valor, versao, dispositivo, deletado_em, atualizado_em, mutado_em_cliente)
+        values
+          (v_org, v_user, p_chave, null, v_nova, p_dispositivo, now(), now(), p_mutado_em);
+      end if;
 
-    -- A PROVA da exclusao nasce agora, nao na coleta fisica.
-    insert into public.app_storage_excluidos (org_id, chave, versao_final)
-    values (v_org, p_chave, v_nova)
-    on conflict (org_id, chave) do update
-      set versao_final = greatest(public.app_storage_excluidos.versao_final, excluded.versao_final),
-          excluido_em  = now();
-  end if;
+      -- A PROVA da exclusao nasce agora, nao na coleta fisica.
+      insert into public.app_storage_excluidos (org_id, chave, versao_final)
+      values (v_org, p_chave, v_nova)
+      on conflict (org_id, chave) do update
+        set versao_final = greatest(public.app_storage_excluidos.versao_final, excluded.versao_final),
+            excluido_em  = now();
+    end if;
+
+  exception when unique_violation then
+    -- Corrida de criacao: outra transacao inseriu a mesma chave entre a nossa
+    -- verificacao e o insert. A vencedora fica; esta vira conflito, com a linha
+    -- dela devolvida para o cliente preservar as duas versoes.
+    select * into v_atual
+      from public.app_storage s
+     where s.org_id = v_org and s.chave = p_chave;
+
+    v_res := jsonb_build_object(
+      'status','conflito',
+      'versao', coalesce(v_atual.versao, 0),
+      'valor', v_atual.valor,
+      'atualizado_em', v_atual.atualizado_em,
+      'dispositivo', v_atual.dispositivo,
+      'deletado_em', v_atual.deletado_em);
+    update public.app_storage_mutacoes m set resultado = v_res
+     where m.org_id = v_org and m.mutation_id = p_mutation_id;
+    return v_res;
+  end;
 
   v_res := jsonb_build_object('status','aplicado','versao', v_nova);
-  insert into public.app_storage_mutacoes (org_id, mutation_id, resultado)
-    values (v_org, p_mutation_id, v_res);
+  update public.app_storage_mutacoes m set resultado = v_res
+   where m.org_id = v_org and m.mutation_id = p_mutation_id;
   return v_res;
 end $$;
 
@@ -252,45 +333,68 @@ grant execute on function
   public.aplicar_mutacao_storage(text, uuid, text, text, integer, text, timestamptz)
   to authenticated;
 
--- ── 5b. Piso tambem contra escrita DIRETA (defesa em profundidade) ──────────
--- As policies de app_storage seguem permitindo insert/update direto, e o
--- frontend v1 DEPENDE disso. O trigger aplica o piso SOMENTE quando a escrita
--- veio pela RPC, que marca nr13.via_rpc.
+-- ── 5b. Guarda de escrita em app_storage ────────────────────────────────────
+-- Duas responsabilidades, decididas pela flag v2 da ORGANIZACAO:
 --
--- Consequencia assumida (ver Task 14 do plano): durante um rollback para a v1,
--- aquela organizacao volta a ter a protecao que tinha ANTES deste projeto —
--- nenhuma. Nao e regressao introduzida aqui; e o comportamento da v1, que e
--- justamente para onde se esta voltando. Sem esta valvula, a v1 ficaria
--- impedida de recriar qualquer chave excluida, porque ela nao sabe enviar uma
--- versao superior ao piso.
-create or replace function public.checar_piso_versao()
+--   v2 DESLIGADA -> o frontend v1 grava direto, como sempre fez. O piso nao se
+--     aplica: a v1 nao sabe enviar versao superior e ficaria impedida de
+--     recriar qualquer chave ja excluida. Durante um rollback aquela org volta
+--     a ter a protecao que tinha ANTES deste projeto — nenhuma. Nao e uma
+--     regressao introduzida aqui; e o comportamento da v1, que e para onde se
+--     esta voltando.
+--
+--   v2 LIGADA -> SO a RPC grava. INSERT/UPDATE/DELETE direto e RECUSADO. Sem
+--     isto, um cliente antigo ou uma chamada manual ignoraria versionamento,
+--     mutationId, conflitos e tombstones de uma organizacao ja migrada.
+--
+-- Rotinas administrativas (coleta, reconciliacao) marcam nr13.manutencao e
+-- passam direto — elas rodam como service_role e precisam do DELETE fisico.
+create or replace function public.guardar_app_storage()
 returns trigger
 language plpgsql
 security definer
 set search_path = ''
 as $$
-declare v_final integer;
+declare
+  v_org   uuid;
+  v_v2    boolean;
+  v_final integer;
+  v_linha public.app_storage%rowtype;
 begin
-  if current_setting('nr13.via_rpc', true) is distinct from '1' then
-    return new;  -- escrita direta (v1): semantica antiga, sem piso
+  if tg_op = 'DELETE' then v_linha := old; else v_linha := new; end if;
+  v_org := v_linha.org_id;
+
+  if current_setting('nr13.manutencao', true) = '1' then
+    return v_linha;
   end if;
 
-  select e.versao_final into v_final
-    from public.app_storage_excluidos e
-   where e.org_id = new.org_id and e.chave = new.chave;
+  select o.v2_ativa into v_v2 from public.org_sync o where o.org_id = v_org;
 
-  if v_final is not null and new.versao <= v_final then
-    raise exception 'nr13_versao_obsoleta: chave % excluida na versao %', new.chave, v_final
+  if coalesce(v_v2, false) and current_setting('nr13.via_rpc', true) is distinct from '1' then
+    raise exception
+      'nr13_escrita_direta_bloqueada: org % usa armazenamento v2; grave por aplicar_mutacao_storage', v_org
       using errcode = 'P0001';
   end if;
 
-  return new;
+  if tg_op <> 'DELETE' and current_setting('nr13.via_rpc', true) = '1' then
+    select e.versao_final into v_final
+      from public.app_storage_excluidos e
+     where e.org_id = new.org_id and e.chave = new.chave;
+
+    if v_final is not null and new.versao <= v_final then
+      raise exception 'nr13_versao_obsoleta: chave % excluida na versao %', new.chave, v_final
+        using errcode = 'P0001';
+    end if;
+  end if;
+
+  return v_linha;
 end $$;
 
 drop trigger if exists trg_checar_piso_versao on public.app_storage;
-create trigger trg_checar_piso_versao
-  before insert or update on public.app_storage
-  for each row execute function public.checar_piso_versao();
+drop trigger if exists trg_guardar_app_storage on public.app_storage;
+create trigger trg_guardar_app_storage
+  before insert or update or delete on public.app_storage
+  for each row execute function public.guardar_app_storage();
 
 -- ── 6. Coleta de lixo: por organizacao e SO para service_role ───────────────
 -- A versao anterior deste desenho rodava "update profiles set sync_corte"
@@ -309,6 +413,10 @@ begin
   if current_setting('request.jwt.claims', true)::jsonb->>'role' is distinct from 'service_role' then
     raise exception 'coletar_tombstones exige service_role';
   end if;
+
+  -- Isenta a guarda da secao 5b: a coleta precisa do DELETE fisico mesmo com a
+  -- v2 ligada.
+  perform set_config('nr13.manutencao', '1', true);
 
   delete from public.app_storage s
    where s.org_id = p_org
@@ -347,6 +455,8 @@ begin
     raise exception 'reconciliar_versoes_org exige service_role';
   end if;
 
+  perform set_config('nr13.manutencao', '1', true);
+
   update public.app_storage s
      set versao = e.versao_final + 1
     from public.app_storage_excluidos e
@@ -360,6 +470,31 @@ begin
 end $$;
 
 revoke all on function public.reconciliar_versoes_org(uuid) from public, authenticated;
+
+-- ── 7b. Liga/desliga a v2 de uma organizacao (ativacao gradual) ─────────────
+-- ORDEM OBRIGATORIA NO ROLLBACK (Task 14 do plano):
+--   1. esvaziar a fila nos aparelhos ativos (/pendencias -> "Tentar todas");
+--   2. desligar a v2 aqui;
+--   3. so entao a escrita direta volta a ser aceita.
+-- Desligar com fila cheia perde as pendencias: a v1 usa outra fila e nao as le.
+create or replace function public.definir_v2_org(p_org uuid, p_ativa boolean)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if current_setting('request.jwt.claims', true)::jsonb->>'role' is distinct from 'service_role' then
+    raise exception 'definir_v2_org exige service_role';
+  end if;
+
+  insert into public.org_sync (org_id, v2_ativa) values (p_org, p_ativa)
+  on conflict (org_id) do update set v2_ativa = excluded.v2_ativa;
+
+  return p_ativa;
+end $$;
+
+revoke all on function public.definir_v2_org(uuid, boolean) from public, authenticated;
 
 -- ── 8. Bucket de fotos (criado aqui, consumido na Fase 2) ───────────────────
 insert into storage.buckets (id, name, public)
