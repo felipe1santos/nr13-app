@@ -304,7 +304,14 @@ async function enviarItem(item: ItemFila): Promise<boolean> {
   // 'aplicado' | 'repetido' carrega dois literais no mesmo campo e por isso não
   // funciona como discriminante da união.
   if (r.status === 'recusado') {
-    if (r.motivo === 'versao_obsoleta' || r.motivo === 'tombstone_mais_novo') {
+    // Os TRÊS motivos ligados a versão preservam a alteração e exigem decisão:
+    // o aparelho ficou para trás, mas o que o usuário digitou continua valendo
+    // e não pode virar "falhou, tente de novo" — tentar de novo daria no mesmo.
+    if (
+      r.motivo === 'versao_obsoleta' ||
+      r.motivo === 'tombstone_mais_novo' ||
+      r.motivo === 'anterior_ao_corte'
+    ) {
       await marcarEstado(item.mutationId, 'conflito', {
         code: 'P0001',
         message: `nr13_versao_obsoleta: ${r.motivo}`,

@@ -32,6 +32,44 @@ Por isso: **as telas de inspeção precisam ser 100% responsivas para mobile**, 
 - Cada template lê os dados que precisa **direto do `localStorage`** no `DOMContentLoaded`.
   Não há backend: o "banco" é o `localStorage` (via `src/services/storage.ts`).
 
+### §2-ter — Armazenamento v1 (localStorage) e v2 (Map + IndexedDB) — 05/08/2026
+
+O `localStorage` tem cota de ~5 MB para a origem INTEIRA. Medido em produção, a conta
+`cmam.caldeiras` precisava de 5.692 KB e **nenhum** dos seus 38 equipamentos entrava no
+cache: a hidratação, ordenada por nome, estourava a cota dentro de `nr13_fotos_` e nunca
+chegava em `nr13_info_`. Spec completa em
+`docs/superpowers/specs/2026-08-04-armazenamento-offline-design.md`.
+
+`src/services/storage.ts` é um **DESPACHANTE** entre duas implementações, escolhidas pela
+flag `nr13_armazenamento_v2` — memoizada por sessão (reler a cada chamada faria o caminho
+trocar no meio da sessão) e gravada no login a partir de `org_sync.v2_ativa`.
+
+| | v1 (`storageV1.ts`) | v2 (`storageV2.ts`) |
+|---|---|---|
+| Cache | `localStorage`, teto de 5 MB | `Map` em memória + IndexedDB `nr13_dados_<org_id>` |
+| Escrita | upsert direto | RPC `aplicar_mutacao_storage` + fila transacional |
+| Remoção local | apagava chave ausente no servidor | **só tombstone explícito** |
+| Offline | `lerTudo` devolvia `{}` | devolve snapshot do `Map` |
+
+> **REGRA QUE NÃO SE QUEBRA:** na v2 nada é apagado localmente por não ter voltado do
+> servidor. Era o apagar-por-ausência que transformava qualquer falha de rede ou de cota
+> em sumiço de dado.
+
+Na v2 o `localStorage` vira só o **PALCO** (`palco.ts`): antes de abrir um documento, o app
+materializa ali as chaves daquela TAG, monta os iframes e limpa depois — os 40+ templates
+HTML **não mudaram**. O palco tem dono exclusivo por aba (`palcoTrava.ts`), orçamento de
+3.400 KB, degradação de imagem em passos fixos (qualidade 0,60/0,45/0,35, depois largura
+900/700/560) e materialização tudo-ou-nada com restauração dos valores anteriores.
+
+Módulos: `db` (IndexedDB por org), `cacheLocal` (Map + índice por TAG), `familiasChave`
+(tabela explícita prefixo→escopo — a dedução por regex errava em `nr13_med_esp_`,
+`nr13_livro_config_` e `nr13_minha_empresa`), `sync` (fila + tombstones + drenagem),
+`errosSync`, `manifesto`, `quotaDispositivo`, `palco`/`palcoTrava`, `ponteTemplates`,
+`sessaoArmazenamento`, `flag`, `gateEscrita`.
+
+SQL em `supabase/armazenamento_v2.sql` — aplicado em produção em 05/08/2026 com
+`v2_ativa` **desligada** em todas as organizações. Ver `PENDENCIAS.md`.
+
 ### Como o documento puxa as informações (chaves de `localStorage`)
 
 Tudo que o usuário salva pode ser fonte de injeção. Chaves por TAG do equipamento e globais:
