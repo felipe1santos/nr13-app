@@ -1,0 +1,499 @@
+// "Banco" do sistema = tabela key-value `app_storage` no Supabase, isolada por usuário (RLS).
+// REGRA: toda gravação grava no localStorage (cache lido pelos templates HTML em iframe) E no
+// Supabase. Toda leitura sai do cache local (já hidratado por lerTudo). Offline = cai no cache.
+import { supabase, escopoStorageAtual, idUsuarioAtual, TABELA_STORAGE } from './supabase';
+import { guardarPdf, removerPdf } from './pdfStore';
+import { bloqueadoParaEscrita } from './gateEscrita';
+
+// ---------------------------------------------------------------------------
+// Alívio da cota do cache local: campos grandes demais para o localStorage
+// ---------------------------------------------------------------------------
+// A cota do localStorage é de ~5 MB para a origem inteira, dividida com todas as
+// fotos de inspeção. Um PDF de certificado (200–800 KB, +37% em base64) come uma
+// fatia enorme dela e as versões substituídas (soft-replace) se acumulavam: em
+// conta real, `nr13_rastreab_` sozinho ocupava 1479 KB e o storage estava a 96%,
+// impedindo salvar qualquer PDF acima de ~144 KB.
+//
+// Solução: o campo pesado NÃO vai para o localStorage. Vai para o IndexedDB
+// (ver pdfStore.ts) e — no valor COMPLETO — para o Supabase, que é quem
+// sincroniza entre aparelhos. O localStorage fica com a versão enxuta mais dois
+// marcadores (`temPdf`/`pdfBytes`) para a interface saber que o arquivo existe
+// sem precisar carregá-lo.
+//
+// Seguro porque nenhum template HTML lê o campo pesado: as folhas em iframe leem
+// só os metadados do registro (aparelho, nº de série, validade).
+const CAMPOS_PESADOS: { prefixo: string; campo: string }[] = [
+  { prefixo: 'nr13_rastreab_', campo: 'pdfBase64' },
+];
+
+/** Divide o JSON em (versão enxuta p/ localStorage, conteúdo pesado p/ IndexedDB). */
+function dividirPesado(chave: string, valor: string): { leve: string; pesado: string | null } {
+  const alvo = CAMPOS_PESADOS.find((c) => chave.startsWith(c.prefixo));
+  if (!alvo) return { leve: valor, pesado: null };
+  try {
+    const obj = JSON.parse(valor) as Record<string, unknown>;
+    const pesado = typeof obj[alvo.campo] === 'string' ? (obj[alvo.campo] as string) : '';
+    if (!pesado) return { leve: valor, pesado: null };
+    return {
+      leve: JSON.stringify({ ...obj, [alvo.campo]: '', temPdf: true, pdfBytes: pesado.length }),
+      pesado,
+    };
+  } catch {
+    return { leve: valor, pesado: null }; // valor não-JSON: não há o que dividir
+  }
+}
+
+/** Grava no cache local já aliviado, mandando o campo pesado para o IndexedDB. */
+function gravarNoCache(chave: string, valor: string): void {
+  const { leve, pesado } = dividirPesado(chave, valor);
+  if (pesado) void guardarPdf(chave, pesado);
+  localStorage.setItem(chave, leve); // pode lançar por cota — quem chama decide
+}
+
+/**
+ * Move para o IndexedDB os campos pesados de registros que já estavam gordos no
+ * localStorage (gravados antes desta separação existir). Idempotente e barato:
+ * só olha as chaves dos prefixos registrados e só age quando ainda há conteúdo.
+ */
+export function aliviarCacheLocal(): void {
+  for (const { prefixo } of CAMPOS_PESADOS) {
+    for (const chave of listarChavesComPrefixo(prefixo)) {
+      const bruto = localStorage.getItem(chave);
+      if (!bruto) continue;
+      const { leve, pesado } = dividirPesado(chave, bruto);
+      if (!pesado) continue; // já enxuto
+      void guardarPdf(chave, pesado);
+      try {
+        localStorage.setItem(chave, leve);
+      } catch {
+        /* nada a fazer: a versão enxuta é menor que a atual, então não deveria falhar */
+      }
+    }
+  }
+}
+
+/**
+ * Lê UMA chave direto do Supabase (valor completo, com o campo pesado). Usado
+ * quando o PDF não está no IndexedDB — aparelho novo, cache limpo, ou gravação
+ * feita em outro dispositivo. Devolve null offline/sem sessão.
+ */
+export async function lerRemoto(chave: string): Promise<string | null> {
+  try {
+    const escopo = await escopoStorageAtual();
+    if (!escopo) return null;
+    const { data, error } = await supabase
+      .from(TABELA_STORAGE)
+      .select('valor')
+      .eq(escopo.coluna, escopo.id)
+      .eq('chave', chave)
+      .maybeSingle();
+    if (error || !data) return null;
+    return (data as { valor: string | null }).valor ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// Chaves de sessão/preferência que NÃO são dados de equipamento — não devem ser apagadas ao
+// trocar de usuário (são re-gravadas pelo login).
+const CHAVES_PRESERVADAS = new Set([
+  'nr13_usuario_logado',
+  'nr13_plano',
+  'nr13_role',
+  'nr13_sessao_id',
+  'nr13_ultimo_acesso',
+  'nr13_cache_owner',
+  // Controle de acesso multi-papel (org/tenant) — gravadas no login:
+  'nr13_papel',
+  'nr13_org_id',
+  'nr13_cliente_id',
+  'nr13_sessao_token',
+  'nr13_ultimo_login',
+  'nr13_uid',
+  'nr13_acesso_expira_em', // aviso de expiração no Layout — regravada no login
+  // Espelho local da assinatura (src/services/assinatura.ts), gravado no login por
+  // carregarPerfil(): NÃO é dado de equipamento (nunca vai pro app_storage), então sem
+  // preservar aqui a hidratação periódica (lerTudo, abaixo) apagaria o espelho no meio da
+  // sessão — a cada 60s o usuário voltaria a ver 'ativa' mesmo estando bloqueado.
+  // Limpeza real ao trocar de conta acontece em encerrarSessaoLocal() (auth.ts), não aqui.
+  'nr13_assinatura_status',
+  'nr13_assinatura_ate',
+  'nr13_assinatura_sucesso_pendente',
+
+  // Fila de sincronização offline: NÃO pode ser apagada pelo reconcile/limparCacheDados,
+  // senão perderíamos as operações pendentes (escritas/deletes feitos offline).
+  'nr13_fila_sync',
+]);
+
+// ---------------------------------------------------------------------------
+// Trava de escrita: Portal do Cliente OU assinatura suspensa
+// ---------------------------------------------------------------------------
+// Escrita bloqueada quando: (a) Portal do Cliente (papel 'cliente') ou (b) assinatura
+// suspensa. Nos dois casos a gravação fica só no cache local — os templates em iframe
+// leem de lá para renderizar — e NUNCA vai ao Supabase nem para a fila offline (que
+// seria drenada depois por uma sessão com permissão de escrita).
+// Lê direto do localStorage (e não de auth.ts/assinatura.ts) para evitar import circular
+// (auth.ts → storage.ts; assinatura.ts também seria consumido por auth.ts).
+//
+// A regra de rebaixamento por data replica statusEfetivo() de
+// src/features/assinatura/maquinaEstados.ts: `ate` nulo/ausente = sem vencimento, nunca
+// rebaixa; `ate` no passado rebaixa (bloqueia) mesmo com status "ativa"/"trial"/etc.
+// FAIL-CLOSED em data corrompida/não-parseável: `futuro()` em maquinaEstados.ts trata um
+// `ate` que não vira Date válida como "não futuro" (Number.isFinite falha), então
+// `statusEfetivo` já rebaixa para 'somente_leitura' nesse caso — replicado aqui bloqueando
+// sempre que `ate` existir e não for uma data finita, e não só quando já passou. `ate`
+// corrompido não prova que a assinatura está em dia, então bloquear é a postura segura.
+//
+// Exportada (e não apenas local) para permitir teste automatizado direto via localStorage
+// sem precisar montar todo o app — ver src/services/storage.gate.test.ts.
+
+// ---------------------------------------------------------------------------
+// Fila de sincronização offline (nr13_fila_sync)
+// ---------------------------------------------------------------------------
+// Quando uma chamada ao Supabase FALHA (offline), a operação é enfileirada aqui e drenada
+// depois (no próximo lerTudo, ao voltar a ficar online, ou via flushFila). Enquanto a fila
+// está vazia o caminho online permanece IDÊNTICO ao anterior: nada é gravado/lido daqui.
+type Op = { op: 'set'; chave: string; valor: string } | { op: 'del'; chave: string };
+
+const CHAVE_FILA = 'nr13_fila_sync';
+
+// Lê a fila de operações pendentes do localStorage (array JSON). Tolerante a lixo/ausência.
+function lerFila(): Op[] {
+  const raw = localStorage.getItem(CHAVE_FILA);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as Op[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+// Persiste a fila no localStorage. Fila vazia → remove a chave (mantém o storage limpo).
+function escreverFila(ops: Op[]): void {
+  try {
+    if (ops.length === 0) localStorage.removeItem(CHAVE_FILA);
+    else localStorage.setItem(CHAVE_FILA, JSON.stringify(ops));
+  } catch {
+    // cota estourada ao gravar a fila: nada a fazer além de seguir (best-effort)
+  }
+}
+
+// Enfileira uma operação fazendo DEDUP por chave: remove quaisquer ops anteriores da mesma
+// chave e adiciona a nova ao fim — a última operação vence (um 'del' após um 'set' deixa só o
+// 'del', e vice-versa).
+function enfileirar(op: Op): void {
+  const fila = lerFila().filter((o) => o.chave !== op.chave);
+  fila.push(op);
+  escreverFila(fila);
+}
+
+// ---------------------------------------------------------------------------
+// Última sincronização (profiles.ultima_sync)
+// ---------------------------------------------------------------------------
+// Após uma gravação bem-sucedida em app_storage, marca no perfil do usuário quando ele
+// conseguiu enviar dados ao servidor (exibido na tela Acessos). Best-effort: falha (offline,
+// coluna ainda não criada pelo acesso_setup.sql, RLS) é ignorada em silêncio. Throttle de
+// 60s em memória para não dobrar as requisições em salvamentos em sequência.
+const SYNC_THROTTLE_MS = 60_000;
+let ultimaSyncRegistradaEm = 0;
+
+function registrarSync(): void {
+  const agora = Date.now();
+  if (agora - ultimaSyncRegistradaEm < SYNC_THROTTLE_MS) return;
+  ultimaSyncRegistradaEm = agora;
+  void (async () => {
+    try {
+      const userId = await idUsuarioAtual();
+      if (!userId) return;
+      await supabase
+        .from('profiles')
+        .update({ ultima_sync: new Date().toISOString() })
+        .eq('id', userId);
+    } catch {
+      // best-effort: no próximo salvamento tenta de novo
+      ultimaSyncRegistradaEm = 0;
+    }
+  })();
+}
+
+// Drena a fila contra o Supabase. Fila vazia → retorna IMEDIATAMENTE (custo zero no caminho
+// online). Aplica as ops EM ORDEM; cada sucesso sai da fila. Se uma falhar (ainda offline),
+// PARA e mantém o restante (preservando a ordem). Sem userId, retorna sem mexer na fila.
+export async function flushFila(): Promise<void> {
+  // Cliente (portal) ou assinatura suspensa não sincronizam nada: a fila herdada de outra
+  // sessão no mesmo navegador não pode ser drenada sob permissão que não existe mais.
+  if (bloqueadoParaEscrita()) return;
+  let fila = lerFila();
+  if (fila.length === 0) return; // invariante: fila vazia ⇒ não toca em rede nem storage
+  const escopo = await escopoStorageAtual();
+  if (!escopo) return;
+  const userId = await idUsuarioAtual();
+  let drenouAlguma = false;
+  while (fila.length > 0) {
+    const op = fila[0];
+    try {
+      if (op.op === 'set') {
+        const { error } = await supabase
+          .from(TABELA_STORAGE)
+          .upsert(
+            escopo.coluna === 'org_id'
+              ? { user_id: userId, org_id: escopo.id, chave: op.chave, valor: op.valor }
+              : { user_id: escopo.id, chave: op.chave, valor: op.valor },
+            { onConflict: escopo.coluna + ',chave' },
+          );
+        if (error) break; // ainda offline/erro: para e preserva o restante
+      } else {
+        const { error } = await supabase
+          .from(TABELA_STORAGE)
+          .delete()
+          .eq(escopo.coluna, escopo.id)
+          .eq('chave', op.chave);
+        if (error) break;
+      }
+    } catch {
+      break; // exceção de rede: para e preserva o restante
+    }
+    // sucesso desta op: remove da frente e persiste o que sobrou
+    fila = fila.slice(1);
+    escreverFila(fila);
+    drenouAlguma = true;
+  }
+  if (drenouAlguma) registrarSync();
+}
+
+// Drena a fila ao reconectar (registrado UMA única vez no carregamento do módulo).
+let listenerOnlineRegistrado = false;
+function registrarListenerOnline(): void {
+  if (listenerOnlineRegistrado) return;
+  if (typeof window === 'undefined') return;
+  listenerOnlineRegistrado = true;
+  window.addEventListener('online', () => {
+    void flushFila();
+  });
+}
+registrarListenerOnline();
+
+// Remove do localStorage TODAS as chaves de dados do app (prefixo nr13_), preservando as de
+// sessão. Usado ao trocar de usuário e no logout — impede que dados de um usuário vazem para
+// outro pelo cache local.
+export function limparCacheDados(): void {
+  const remover: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const chave = localStorage.key(i);
+    if (chave && chave.startsWith('nr13_') && !CHAVES_PRESERVADAS.has(chave)) remover.push(chave);
+  }
+  for (const chave of remover) localStorage.removeItem(chave);
+  ultimaHidratacao = 0; // troca de usuário/logout: força re-hidratação completa no próximo lerTudo
+}
+
+// Puxa todas as chaves do usuário logado e hidrata o localStorage (cache p/ os iframes).
+// Chamar no login e ao abrir o app. Sem sessão, devolve vazio (mantém o que houver em cache).
+const PAGINA_TAMANHO = 1000; // limite padrão de linhas por consulta do PostgREST/Supabase
+
+// Throttle da hidratação completa: as telas de lista chamam lerTudo() a cada navegação, o que
+// re-baixava o banco INTEIRO (fotos base64 inclusas) a cada clique no menu — a "demora do
+// banco". Dentro da janela, o cache local já está válido e a leitura é instantânea.
+const JANELA_HIDRATACAO_MS = 60_000;
+let ultimaHidratacao = 0;
+
+let aliviouNestaSessao = false;
+
+export async function lerTudo(): Promise<Record<string, string>> {
+  // Registros gravados antes da separação estão gordos no cache: enxuga uma vez
+  // por sessão, antes de qualquer coisa, para liberar cota já na abertura do app.
+  if (!aliviouNestaSessao) {
+    aliviouNestaSessao = true;
+    aliviarCacheLocal();
+  }
+  const escopo = await escopoStorageAtual();
+  if (!escopo) return {};
+  if (Date.now() - ultimaHidratacao < JANELA_HIDRATACAO_MS) {
+    // Cache recém-hidratado: ainda drena a fila offline (no-op quando vazia) e serve do local.
+    await flushFila();
+    return {};
+  }
+  // BUG #8b — guarda de isolamento entre contas: se o cache em disco pertence a OUTRO usuário
+  // (ex.: logout interrompido antes de limpar), zera ANTES de servir/hidratar para não vazar
+  // dados do usuário A ao usuário B. Só limpa com CERTEZA de mismatch: owner salvo não-nulo E
+  // diferente do userId atual (não-nulo, já garantido acima). Owner ausente = primeiro uso e
+  // userId nulo = offline/sem sessão NÃO limpam nada. Quando owner == userId (caso comum) é no-op.
+  // O dono do cache é o ESCOPO (org após a migração; user antes) — sub-logins da
+  // mesma org compartilham o cache sem zerar um ao outro.
+  const ownerCache = localStorage.getItem('nr13_cache_owner');
+  if (ownerCache && ownerCache !== escopo.id) {
+    limparCacheDados();
+  }
+  // Antes de ler o servidor, drena a fila offline: assim escritas/deletes pendentes chegam ao
+  // Supabase ANTES do reconcile e não são apagados (escritas) nem ressuscitados (deletes).
+  await flushFila();
+  // Snapshot das pendências que sobraram (caso o flush tenha parado no meio por ainda estar
+  // offline): protegem o cache no reconcile abaixo.
+  const fila = lerFila();
+  const pendentesSet = new Set(fila.filter((o) => o.op === 'set').map((o) => o.chave));
+  const pendentesDel = new Set(fila.filter((o) => o.op === 'del').map((o) => o.chave));
+  try {
+    // Busca TODAS as linhas paginando: o Supabase limita ~1000 linhas por consulta; sem paginar,
+    // chaves além desse limite (ex.: fotos em base64) não voltariam e ficariam faltando.
+    const dados: Record<string, string> = {};
+    for (let inicio = 0; ; inicio += PAGINA_TAMANHO) {
+      const { data, error } = await supabase
+        .from(TABELA_STORAGE)
+        .select('chave, valor')
+        .eq(escopo.coluna, escopo.id)
+        .order('chave', { ascending: true })
+        .range(inicio, inicio + PAGINA_TAMANHO - 1);
+      // Erro de rede em qualquer página: aborta SEM mexer no cache (offline-safe).
+      if (error) return {};
+      if (!data || data.length === 0) break;
+      for (const row of data as { chave: string; valor: string | null }[]) {
+        if (row.valor != null) dados[row.chave] = row.valor;
+      }
+      if (data.length < PAGINA_TAMANHO) break;
+    }
+
+    // Hidratação completa e bem-sucedida → agora sim sincroniza o cache:
+    // remove chaves de dados que NÃO pertencem a este usuário (isolamento entre contas)
+    // e grava as do usuário atual. Só zera DEPOIS de ter os dados, nunca antes.
+    const chavesValidas = new Set(Object.keys(dados));
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const chave = localStorage.key(i);
+      if (
+        chave &&
+        chave.startsWith('nr13_') &&
+        !CHAVES_PRESERVADAS.has(chave) &&
+        !chavesValidas.has(chave) &&
+        // Proteção extra: não apaga uma escrita offline ainda pendente como 'set' na fila
+        // (caso o flush acima tenha falhado parcialmente por estar offline).
+        !pendentesSet.has(chave)
+      ) {
+        localStorage.removeItem(chave);
+      }
+    }
+    for (const [chave, valor] of Object.entries(dados)) {
+      // Tombstone: não re-hidrata uma chave que foi deletada offline e ainda está pendente como
+      // 'del' na fila — senão o registro do servidor (ainda não removido) ressuscitaria a chave.
+      if (pendentesDel.has(chave)) continue;
+      // Guarda individual: um valor grande demais (ex.: logo/foto) que estoure a cota não pode
+      // abortar a hidratação das demais chaves — senão dados como nr13_minha_empresa somem.
+      try {
+        gravarNoCache(chave, valor);
+      } catch {
+        // cota excedida nesta chave: pula e continua hidratando o resto
+      }
+    }
+    localStorage.setItem('nr13_cache_owner', escopo.id);
+    ultimaHidratacao = Date.now();
+    return dados;
+  } catch {
+    // offline: usa o cache local já existente
+    return {};
+  }
+}
+
+export async function salvar(chave: string, objeto: unknown): Promise<void> {
+  const valor = JSON.stringify(objeto);
+  try {
+    // Cache imediato (iframe lê na hora), já sem o campo pesado — que vai para o
+    // IndexedDB. O Supabase abaixo recebe o valor COMPLETO.
+    gravarNoCache(chave, valor);
+  } catch {
+    // cota local estourada: ainda assim persiste no Supabase abaixo, sem derrubar a gravação
+  }
+  if (bloqueadoParaEscrita()) return; // portal ou assinatura suspensa: fica só no cache local, nunca vai ao banco
+  const escopo = await escopoStorageAtual();
+  if (!escopo) return;
+  try {
+    const userId = await idUsuarioAtual();
+    const { error } = await supabase
+      .from(TABELA_STORAGE)
+      .upsert(
+        escopo.coluna === 'org_id'
+          ? { user_id: userId, org_id: escopo.id, chave, valor }
+          : { user_id: escopo.id, chave, valor },
+        { onConflict: escopo.coluna + ',chave' },
+      );
+    // supabase-js NÃO lança em erro de RLS/constraint — devolve { error }. Sem esta
+    // checagem a escrita se perdia em silêncio (ficava só no localStorage local).
+    if (error) enfileirar({ op: 'set', chave, valor });
+    else registrarSync();
+  } catch {
+    // offline: o upsert lançou → enfileira a escrita para não ser perdida no próximo reconcile
+    enfileirar({ op: 'set', chave, valor });
+  }
+}
+
+// Remove UMA chave do Supabase e do cache local.
+export async function excluirChave(chave: string): Promise<void> {
+  if (bloqueadoParaEscrita()) return; // portal ou assinatura suspensa: não exclui nada (nem no cache local)
+  localStorage.removeItem(chave);
+  void removerPdf(chave); // campo pesado que tenha ido para o IndexedDB
+  const escopo = await escopoStorageAtual();
+  if (!escopo) return;
+  try {
+    const { error } = await supabase.from(TABELA_STORAGE).delete().eq(escopo.coluna, escopo.id).eq('chave', chave);
+    // supabase-js NÃO lança em erro de rede/RLS — devolve { error }. Sem esta checagem o
+    // tombstone nunca era enfileirado e o próximo lerTudo ressuscitava a chave excluída.
+    if (error) enfileirar({ op: 'del', chave });
+  } catch {
+    // offline: o delete lançou → enfileira o tombstone para o registro não ressuscitar
+    enfileirar({ op: 'del', chave });
+  }
+}
+
+export function ler<T = unknown>(chave: string): T | null {
+  const raw = localStorage.getItem(chave);
+  if (raw == null) return null;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return raw as unknown as T;
+  }
+}
+
+// Varre o cache local (já sincronizado por lerTudo) por chaves com um prefixo, ex.: "nr13_info_".
+export function listarChavesComPrefixo(prefixo: string): string[] {
+  const chaves: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const chave = localStorage.key(i);
+    if (chave && chave.startsWith(prefixo)) chaves.push(chave);
+  }
+  return chaves;
+}
+
+export async function excluirVaso(tag: string): Promise<void> {
+  if (bloqueadoParaEscrita()) return; // portal ou assinatura suspensa: não exclui equipamento
+  // Coleta no cache local todas as chaves que terminam em "_<TAG>". Como TAGs podem conter
+  // "_", uma chave de TAG mais longa também termina igual (excluir "B" casava "nr13_info_A_B"
+  // e apagava o equipamento A_B): chave que pertence a OUTRA TAG cadastrada mais específica
+  // fica de fora.
+  const outrasTags = listarChavesComPrefixo('nr13_info_')
+    .map((c) => c.slice('nr13_info_'.length))
+    .filter((t) => t !== tag && t.endsWith(`_${tag}`));
+  const chavesDoVaso: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const chave = localStorage.key(i);
+    if (!chave || !chave.endsWith(`_${tag}`)) continue;
+    if (outrasTags.some((t) => chave.endsWith(`_${t}`))) continue;
+    chavesDoVaso.push(chave);
+  }
+
+  const escopo = await escopoStorageAtual();
+  if (escopo && chavesDoVaso.length > 0) {
+    try {
+      const { error } = await supabase
+        .from(TABELA_STORAGE)
+        .delete()
+        .eq(escopo.coluna, escopo.id)
+        .in('chave', chavesDoVaso);
+      // Mesmo contrato do salvar/excluirChave: erro devolvido (não lançado) também
+      // precisa dos tombstones, senão o lerTudo ressuscita o equipamento excluído.
+      if (error) for (const chave of chavesDoVaso) enfileirar({ op: 'del', chave });
+    } catch {
+      // offline: o delete em lote lançou → enfileira um tombstone por chave do vaso
+      for (const chave of chavesDoVaso) enfileirar({ op: 'del', chave });
+    }
+  }
+
+  for (const chave of chavesDoVaso) localStorage.removeItem(chave);
+}

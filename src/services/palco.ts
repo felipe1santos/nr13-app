@@ -293,9 +293,17 @@ function lerManifestoPalco(): ManifestoPalco | null {
  * só as chaves registradas na montagem atual — nunca varredura por prefixo.
  *
  * Com o snapshot em memória (mesma aba, mesma sessão), restaura os valores
- * anteriores. Sem ele — a página recarregou —, remove apenas o que a montagem
- * criou e DEIXA intactas as chaves que já existiam antes: apagá-las seria pior
- * que deixá-las, e o dado verdadeiro segue no cache.
+ * anteriores.
+ *
+ * LIMITAÇÃO CONHECIDA (aceita em 05/08/2026): se a página recarregar entre a
+ * montagem e a limpeza, o snapshot em memória se perde. Nesse caso a limpeza
+ * remove apenas o que a montagem criou e DEIXA intactas as chaves que já
+ * existiam antes — inclusive as globais, que podem ter ficado com o valor do
+ * palco. Apagá-las seria pior que deixá-las: o dado verdadeiro segue no cache e
+ * a próxima montagem sobrescreve. Persistir o snapshot no `localStorage`
+ * resolveria, mas duplicaria o valor de chaves grandes como
+ * `nr13_minha_empresa` (com logo), consumindo justamente o orçamento que este
+ * módulo existe para proteger.
  */
 export function limparPalco(ctx: ContextoMontagem): { ok: boolean; motivo?: 'nao_e_dono' } {
   if (!ehDono(ctx)) return { ok: false, motivo: 'nao_e_dono' };
