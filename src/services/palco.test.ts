@@ -365,12 +365,17 @@ describe('conteúdo do palco', () => {
     expect(chaves).toEqual([`nr13_calc_${TAG}`, `nr13_info_${TAG}`, 'nr13_minha_empresa']);
   });
 
-  it('NÃO leva nr13_docs_: nenhum template lê essa chave', async () => {
+  it('NÃO leva chaves que nenhum template lê', async () => {
     await gravarAtomico([
       { chave: `nr13_info_${TAG}`, registro: reg('{}') },
       { chave: `nr13_docs_${TAG}`, registro: reg('x'.repeat(1000)) },
+      // PDF do fabricante: 10 MB numa conta real, e nenhum template o lê.
+      { chave: `nr13_pront_fab_${TAG}`, registro: reg('x'.repeat(1000)) },
     ]);
-    expect(coletarItens(TAG).map((i) => i.chave)).not.toContain(`nr13_docs_${TAG}`);
+    const chaves = coletarItens(TAG).map((i) => i.chave);
+    expect(chaves).not.toContain(`nr13_docs_${TAG}`);
+    expect(chaves).not.toContain(`nr13_pront_fab_${TAG}`);
+    expect(chaves).toContain(`nr13_info_${TAG}`);
   });
 });
 

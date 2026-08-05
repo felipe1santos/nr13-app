@@ -81,11 +81,16 @@ export interface ItemPalco {
 const GLOBAIS = ['nr13_minha_empresa', 'nr13_lista_phs'];
 
 /**
- * Chaves que NENHUM template HTML lê — confirmado por varredura em `public/`:
- * `nr13_docs_` é consumido só por código React. Levá-las gastaria o orçamento
- * com dado que ninguém renderiza.
+ * Chaves que NENHUM template HTML lê — confirmado por varredura em `public/`.
+ * Levá-las gastaria o orçamento com dado que ninguém renderiza.
+ *
+ * `nr13_docs_` (containers de inspeção) e `nr13_pront_fab_` (PDF do prontuário
+ * do fabricante, até 8 MB) são consumidos só por código React. O segundo
+ * apareceu na validação de 05/08/2026 contra dados reais: sozinho ocupava
+ * 10.012 KB numa conta, três vezes o orçamento inteiro, e fazia o livro de
+ * registro ser recusado sem motivo real.
  */
-const FORA_DO_PALCO = ['nr13_docs_'];
+const FORA_DO_PALCO = ['nr13_docs_', 'nr13_pront_fab_'];
 
 export const CHAVE_MANIFESTO = 'nr13_palco_manifesto';
 
