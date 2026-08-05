@@ -1,3 +1,5 @@
+import { usePalcoDocumento } from '../features/documentos/usePalcoDocumento';
+import RecusaPalco from '../components/RecusaPalco';
 import { useEffect, useMemo, useState } from 'react';
 import { Icone } from '../components/Icone';
 import PaginaA4 from '../components/PaginaA4';
@@ -101,13 +103,13 @@ type DocPreview =
 // URLs do livro COMPLETO (capa + termo + todos os registros em ordem cronológica), em
 // ?modo=compacto: cada template vira um bloco na altura do conteúdo, sem numeração de folha.
 // &idx é o fallback de entradas antigas sem id (o template busca por id e cai no índice).
-function urlsLivroCompleto(linha: LinhaLivro): string[] {
+function urlsLivroCompleto(linha: LinhaLivro, params = ''): string[] {
   const t = encodeURIComponent(linha.tag);
   return [
-    `/arquivos-inspecao/CAPA-LIVRO-REGISTRO.html?tag=${t}&modo=compacto`,
-    `/arquivos-inspecao/TERMO-ABERTURA.html?tag=${t}&modo=compacto`,
+    `/arquivos-inspecao/CAPA-LIVRO-REGISTRO.html?tag=${t}&modo=compacto${params}`,
+    `/arquivos-inspecao/TERMO-ABERTURA.html?tag=${t}&modo=compacto${params}`,
     ...linha.entradas.map(
-      (e, i) => `/arquivos-inspecao/LIVRO-REGISTRO.html?tag=${t}&entrada=${encodeURIComponent(e.id ?? '')}&idx=${i}&modo=compacto`,
+      (e, i) => `/arquivos-inspecao/LIVRO-REGISTRO.html?tag=${t}&entrada=${encodeURIComponent(e.id ?? '')}&idx=${i}&modo=compacto${params}`,
     ),
   ];
 }
@@ -242,6 +244,12 @@ export default function LivroRegistro() {
   const [livroCompleto, setLivroCompleto] = useState(false);
   const [exportandoLivro, setExportandoLivro] = useState(false);
   const [form, setForm] = useState<FormOcorrencia>(FORM_OCORRENCIA_VAZIO);
+
+  // Palco do livro. A TAG ativa é a do equipamento aberto ou a da pré-visualização
+  // — as duas montam folhas que leem localStorage no DOMContentLoaded. O hook fica
+  // ANTES dos retornos condicionais desta tela, porque hook não pode ser pulado.
+  const tagDoPalco = tagAberta ?? preview?.tag ?? '';
+  const palco = usePalcoDocumento(tagDoPalco, `livro-${tagDoPalco}`);
   const [erroForm, setErroForm] = useState('');
   // Visão "Histórico": log cronológico em texto puro (sem iframes de folhas).
   const [historico, setHistorico] = useState(false);
@@ -298,7 +306,7 @@ export default function LivroRegistro() {
     if (!linhaAberta || exportandoLivro) return;
     setExportandoLivro(true);
     try {
-      await exportarPdfLivroCompleto(urlsLivroCompleto(linhaAberta), `Livro_Registro_${linhaAberta.tag}.pdf`);
+      await exportarPdfLivroCompleto(urlsLivroCompleto(linhaAberta, palco.paramsIframe), `Livro_Registro_${linhaAberta.tag}.pdf`);
     } finally {
       setExportandoLivro(false);
     }
@@ -336,7 +344,7 @@ export default function LivroRegistro() {
         preview.doc.arquivo === 'LIVRO-REGISTRO.html'
           ? `&entrada=${encodeURIComponent(preview.doc.entradaId)}&idx=${preview.doc.idx}`
           : ''
-      }`
+      }${palco.paramsIframe}`
     : '';
 
   /* ── Detalhe do equipamento: capa + termo fixos no topo, depois a timeline ── */
@@ -680,8 +688,9 @@ export default function LivroRegistro() {
               </div>
               <div style={{ padding: 16, overflowX: 'auto' }}>
                 {/* Documento único: capa, termo de abertura e todos os registros empilhados */}
+                {palco.estado !== 'pronto' && <RecusaPalco estado={palco.estado} falha={palco.falha} />}
                 <div style={{ width: 794, margin: '0 auto', background: '#fff', boxShadow: '0 2px 12px rgba(0,0,0,.18)' }}>
-                  {urlsLivroCompleto(linhaAberta).map((url, i) => (
+                  {palco.estado === 'pronto' && urlsLivroCompleto(linhaAberta, palco.paramsIframe).map((url, i) => (
                     <IframeBlocoLivro key={url} src={url} titulo={`Bloco ${i + 1} do livro`} />
                   ))}
                 </div>
