@@ -282,6 +282,54 @@ e a auto-injeção insere as folhas de fotos/termo nas posições indicadas.
   Editar calibração/certificado depois NÃO altera relatório salvo; retrofit na 1ª reabertura
   de relatórios antigos, igual empresa/assinantes.
 
+### §7-ter — RELATÓRIO SALVO NÃO SE EDITA (05/08/2026)
+
+> **REGRA QUE NÃO SE QUEBRA:** relatório salvo é registro técnico assinado. Depois do
+> "Salvar", NENHUM caminho do sistema pode alterar o documento — nem a UI React, nem o
+> conteúdo dentro do iframe, nem as chaves por TAG que a folha grava. Quem quiser mudar
+> alguma coisa usa **Duplicar** (nasce editável, com snapshots refeitos).
+
+**Causa raiz do bug** (relatório salvo continuava editável): `somenteLeitura`
+(`Relatorios.tsx`) é estado React e só alcançava a **UI React** — modal de configurações,
+selects de assinante, botão Salvar. O conteúdo do relatório **não mora no React**: mora nos
+27 templates de `public/arquivos-inspecao/`, que são preenchíveis por design
+(`contenteditable`, `input`, `div` com `onclick`). A flag nunca era propagada para o iframe.
+Pior: 3 templates **persistem** o que é digitado via `window.sbSalvar` —
+`ULTRASSOM.html` (`nr13_med_esp_`, `nr13_med_grid_`) e `CONCLUSAO.html` (`nr13_laudo_`) —
+contaminando o prontuário e os próximos relatórios da mesma TAG.
+(`LIVRO-REGISTRO.html` já tinha trava própria, via `relatorioJaSalvo`.)
+
+**Três camadas, e as três precisam existir** — a de DOM é visual e pode ser burlada pelo
+DevTools; a de dados é quem realmente protege:
+
+| Camada | Onde | O que faz |
+|---|---|---|
+| 1 · DOM | `src/features/documentos/somenteLeituraDoc.ts`, aplicada por efeito em `Relatorios.tsx` | `contenteditable=false`, `readOnly`, CSS de trava e bloqueio em **captura** de `beforeinput/keydown/keypress/paste/cut/drop/dragstart/click/dblclick`. `click` está na lista porque **todo `onclick` inline dos templates é ação de edição** (`selOpt`, `toggleCb`, `selectSN`, `removerFoto`, trocar logo/foto). `mousedown` fica **de fora** de propósito: sem ele o usuário não conseguiria selecionar e copiar texto. `MutationObserver` reaplica, porque os templates montam conteúdo depois do `DOMContentLoaded`. |
+| 2 · Dados (iframe) | `public/sb-storage.js` | Com `ro=1` na query, `window.sbSalvar` **retorna sem gravar** — nada entra na ponte. Mesmo lugar do gate do papel `cliente`. |
+| 3 · Dados (app) | `usePalcoDocumento` | Em documento somente leitura **não drena** `nr13_fila_ponte`. |
+
+`paramsSomenteLeitura(true)` → `&ro=1` na URL do iframe. `documentoSomenteLeitura(search)` é
+o espelho do gate do `sb-storage.js` do lado do app, para a regra ter **um único teste de
+verdade** (`somenteLeituraDoc.test.ts`): mudar um sem o outro quebra o teste.
+
+**Ordem que importa em `salvarHistorico()`:** drenar a ponte → `setSomenteLeitura(true)` →
+`setVersao(v+1)`. Trancar antes de drenar **descarta** a medição de espessura/laudo digitada
+enquanto o relatório ainda era editável. O bump de versão remonta os iframes para a folha
+nascer já com `ro=1`.
+
+Guardas de dados nos handlers (o gate visual do botão/`disabled` não basta):
+`trocarAssinanteRel`, `trocarAssinanteTermoLivro`, `atualizarMetadados`, `setCampoMeta` e
+`salvarHistorico` retornam cedo com `somenteLeitura`. `visualizar()` chama
+`carregarAssinantesRel(..., { gravar: false })` — abrir um relatório salvo não pode regravar
+`nr13_assinantes_rel_<TAG>`, que é chave viva compartilhada.
+
+**Fora da regra, de propósito:** renomear (rótulo do histórico, não altera o documento),
+excluir, e o retrofit de snapshots na 1ª reabertura de relatório antigo (§7-bis) — esse
+último congela o que faltava, ou seja, protege a imutabilidade em vez de violá-la.
+
+O Portal do Cliente usa a **mesma** trava (`travarIframeSomenteLeitura`), agora em
+`features/documentos/` por ser compartilhada — antes vivia em `features/portal/`.
+
 ---
 
 ## 8. Prontuário

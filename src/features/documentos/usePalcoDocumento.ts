@@ -36,12 +36,23 @@ const INTERVALO_RENOVACAO_MS = 20_000;
  * No caminho v1 é no-op: lá o `localStorage` já tem tudo, e montar palco seria
  * mexer no que funciona.
  */
-export function usePalcoDocumento(tag: string, relatorioId: string): UsoPalco {
+export function usePalcoDocumento(
+  tag: string,
+  relatorioId: string,
+  opcoes?: { somenteLeitura?: boolean },
+): UsoPalco {
   const [estado, setEstado] = useState<EstadoPalco>(() =>
     armazenamentoV2Ativo() ? 'montando' : 'pronto',
   );
   const [falha, setFalha] = useState<FalhaPalco | null>(null);
   const ctxRef = useRef<ContextoMontagem | null>(null);
+  // Lido só na limpeza, e por isso precisa ser ref: `somenteLeitura` vira true
+  // no instante em que o relatório é salvo, sem o efeito de montagem remontar.
+  const somenteLeitura = opcoes?.somenteLeitura ?? false;
+  const somenteLeituraRef = useRef(false);
+  useEffect(() => {
+    somenteLeituraRef.current = somenteLeitura;
+  }, [somenteLeitura]);
 
   useEffect(() => {
     if (!armazenamentoV2Ativo()) {
@@ -100,7 +111,12 @@ export function usePalcoDocumento(tag: string, relatorioId: string): UsoPalco {
       vivo = false;
       clearInterval(renovacao);
       // Absorve o que os templates gravaram por sbSalvar antes de soltar o palco.
-      void drenarPonte((chave, valor) => salvar(chave, JSON.parse(valor)));
+      // Em documento SOMENTE LEITURA nada é absorvido: o que porventura esteja
+      // na ponte não veio desta folha (sbSalvar está bloqueado por ro=1) e será
+      // drenado pela próxima sessão editável. Relatório salvo não regrava nada.
+      if (!somenteLeituraRef.current) {
+        void drenarPonte((chave, valor) => salvar(chave, JSON.parse(valor)));
+      }
       limparPalco(ctx);
       ctxRef.current = null;
     };

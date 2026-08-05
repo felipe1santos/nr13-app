@@ -1,5 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePalcoDocumento } from '../features/documentos/usePalcoDocumento';
+import { paramsSomenteLeitura, travarIframeSomenteLeitura } from '../features/documentos/somenteLeituraDoc';
+import { drenarPonte } from '../services/ponteTemplates';
+import { salvar } from '../services/storage';
 import RecusaPalco from '../components/RecusaPalco';
 import { listarEquipamentos } from '../features/equipamento/equipamentoService';
 import type { EquipamentoResumo } from '../features/equipamento/tipos';
@@ -121,7 +124,21 @@ export default function Relatorios() {
   // Palco: materializa no localStorage só as chaves desta TAG antes de montar
   // os iframes. Nenhum iframe pode ser renderizado antes de `pronto` — um
   // documento meio montado sai impresso com folha faltando.
-  const palco = usePalcoDocumento(tag, `rel-${tag}-${versao}`);
+  const palco = usePalcoDocumento(tag, `rel-${tag}-${versao}`, { somenteLeitura });
+
+  // RELATÓRIO SALVO NÃO SE EDITA. `somenteLeitura` é estado React e só alcança a
+  // UI React — o conteúdo do documento mora dentro dos iframes, onde os
+  // templates são preenchíveis por design. Esta é a trava de DOM (camada 1); as
+  // outras duas são `ro=1` na query (sb-storage.js recusa sbSalvar) e o palco,
+  // que não drena a ponte em documento somente leitura.
+  const previewRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!somenteLeitura || tela !== 'visualizador' || palco.estado !== 'pronto') return;
+    const iframes = Array.from(previewRef.current?.querySelectorAll('iframe') ?? []);
+    const limpezas = iframes.map((f) => travarIframeSomenteLeitura(f));
+    return () => limpezas.forEach((limpar) => limpar());
+  }, [somenteLeitura, tela, palco.estado, documentos, versao]);
+
   const [historico, setHistorico] = useState<RelatorioSalvo[]>([]);
   const [salvando, setSalvando] = useState(false);
   const [exportando, setExportando] = useState(false);
@@ -250,13 +267,20 @@ export default function Relatorios() {
   // conveniência, pré-seleciona o engenheiro quando há exatamente 1 cadastrado. O técnico NUNCA
   // é pré-selecionado sozinho. SEMPRE grava a chave (síncrono no localStorage) ANTES de os
   // iframes remontarem — as folhas leem nr13_assinantes_rel_<TAG> no DOMContentLoaded.
-  function carregarAssinantesRel(tagEq: string, funcs: Funcionario[]): AssinantesRelatorio {
+  // `gravar: false` ao ABRIR um relatório salvo: a folha usa o snapshot congelado
+  // meta.assinantes (ctx=rel), então regravar a chave viva da TAG só mudaria dado
+  // compartilhado por causa de uma leitura.
+  function carregarAssinantesRel(
+    tagEq: string,
+    funcs: Funcionario[],
+    opcoes?: { gravar?: boolean },
+  ): AssinantesRelatorio {
     const a = obterAssinantesRel(tagEq);
     if (!a.engenheiroId) {
       const engs = funcs.filter((f) => f.tipo === 'Engenheiro');
       if (engs.length === 1) a.engenheiroId = engs[0].id;
     }
-    gravarAssinantesRel(tagEq, a);
+    if (opcoes?.gravar !== false) gravarAssinantesRel(tagEq, a);
     setAssinantes(a);
     return a;
   }
@@ -278,6 +302,7 @@ export default function Relatorios() {
   // Troca de assinante com o relatório aberto: regrava a chave e bumpa a versão (remonta os
   // iframes, que releem a chave). Em relatório editável, espelha também na meta.
   function trocarAssinanteRel(campo: 'engenheiroId' | 'tecnicoId', id: string) {
+    if (somenteLeitura) return; // relatório salvo não troca assinante (o select já vem desabilitado)
     const novo: AssinantesRelatorio = { ...assinantes, [campo]: id || null };
     setAssinantes(novo);
     gravarAssinantesRel(tag, novo);
@@ -303,6 +328,7 @@ export default function Relatorios() {
   // Grava na mesma chave dos assinantes e mantém o snapshot congelado da meta em sincronia —
   // relatório salvo (somenteLeitura) não passa por aqui: o select fica desabilitado.
   function trocarAssinanteTermoLivro(valor: AssinanteTermoLivro) {
+    if (somenteLeitura) return; // idem: o select fica desabilitado, este é o guarda de dados
     const novo: AssinantesRelatorio = { ...assinantes, assinanteTermoLivro: valor };
     setAssinantes(novo);
     gravarAssinantesRel(tag, novo);
@@ -374,7 +400,7 @@ export default function Relatorios() {
     {
       const funcs = listarFuncionarios();
       setFuncionarios(funcs);
-      const a = carregarAssinantesRel(r.tagVaso, funcs);
+      const a = carregarAssinantesRel(r.tagVaso, funcs, { gravar: false });
       // Relatório salvo ANTES dos snapshots (meta sem assinantes/empresa/calibrações): congela
       // AGORA, na 1ª reabertura, e regrava no histórico — para o drift (trocar rubrica/logo/
       // certificado depois não altera mais este relatório). Não toca em quem já tem snapshot.
@@ -483,7 +509,7 @@ export default function Relatorios() {
   }
 
   async function atualizarMetadados() {
-    if (!meta) return;
+    if (!meta || somenteLeitura) return; // o botão some em relatório salvo; aqui o dado também
     await gravarMetaAtual(meta);
     setVersao((v) => v + 1);
   }
@@ -500,7 +526,7 @@ export default function Relatorios() {
   }
 
   async function salvarHistorico() {
-    if (!meta || !documentos) return;
+    if (!meta || !documentos || somenteLeitura) return; // salvar duas vezes não reabre a edição
     setSalvando(true);
     try {
       const relatorio: RelatorioSalvo = {
@@ -517,8 +543,16 @@ export default function Relatorios() {
       await adicionarEntradaLivroAuto(relatorio);
       // Lotes de calibração marcados "vincular ao próximo relatório" capturam este relatório.
       await vincularLotesPendentes(tag, relatorio.id);
+      // ORDEM IMPORTA: absorve o que os templates gravaram por sbSalvar (medição de
+      // espessura, laudo) ENQUANTO o relatório ainda era editável. Depois de
+      // `somenteLeitura` virar true o palco não drena mais — e o que estivesse
+      // pendente na ponte seria descartado.
+      await drenarPonte((chave, valor) => salvar(chave, JSON.parse(valor)));
       setHistorico(listarHistorico(tag));
       setSomenteLeitura(true);
+      // Remonta os iframes para que a folha nasça com ro=1 (sb-storage.js recusa
+      // escrita) além da trava de DOM, que o efeito aplica ao ver a flag virar.
+      setVersao((v) => v + 1);
       setToastSalvo(true);
       setTimeout(() => setToastSalvo(false), 3000);
     } finally {
@@ -527,6 +561,7 @@ export default function Relatorios() {
   }
 
   function setCampoMeta(chave: keyof RelatorioMeta, valor: string) {
+    if (somenteLeitura) return; // os inputs já são readOnly; este é o guarda de estado
     setMeta((m) => (m ? { ...m, [chave]: valor } : m));
   }
 
@@ -806,15 +841,16 @@ export default function Relatorios() {
             <RecusaPalco estado={palco.estado} falha={palco.falha} />
           )}
 
-          <div className="relatorio-preview">
+          <div className="relatorio-preview" ref={previewRef}>
             {palco.estado === 'pronto' &&
               documentos.map((doc, i) => {
               const sep = doc.includes('?') ? '&' : '?';
               return (
                 <PaginaA4 key={`${doc}-${i}-${versao}`}>
                   {/* ctx=rel: avisa rel-empresa.js/rel-assinatura.js que a folha roda dentro do
-                      visualizador do relatório — usam os snapshots congelados da meta. */}
-                  <iframe src={`/arquivos-inspecao/${doc}${sep}tag=${encodeURIComponent(tag)}&page=${i + 1}&ctx=rel${palco.paramsIframe}`} scrolling="no" title={doc} />
+                      visualizador do relatório — usam os snapshots congelados da meta.
+                      ro=1: relatório já salvo — sb-storage.js recusa toda escrita da folha. */}
+                  <iframe src={`/arquivos-inspecao/${doc}${sep}tag=${encodeURIComponent(tag)}&page=${i + 1}&ctx=rel${palco.paramsIframe}${paramsSomenteLeitura(somenteLeitura)}`} scrolling="no" title={doc} />
                 </PaginaA4>
               );
             })}

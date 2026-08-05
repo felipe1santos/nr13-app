@@ -22,7 +22,7 @@ import { parseDataFlex, statusPrazo } from '../../services/vencimentos';
 import type { InfoEquipamento } from '../../features/equipamento/tipos';
 import type { RelatorioSalvo } from '../../features/relatorios/tipos';
 import PaginaA4 from '../../components/PaginaA4';
-import { travarIframeSomenteLeitura } from '../../features/portal/somenteLeituraDoc';
+import { travarIframeSomenteLeitura } from '../../features/documentos/somenteLeituraDoc';
 import '../relatorios.css';
 import '../calibracoes.css';
 

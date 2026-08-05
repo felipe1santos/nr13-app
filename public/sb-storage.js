@@ -17,6 +17,11 @@
   var NONCE = params.get('nonce') || '';
   var ABA = params.get('aba') || '';
   var ORG = params.get('org') || '';
+  // ro=1: folha de RELATORIO JA SALVO. Relatorio salvo e registro tecnico
+  // assinado — nao muda mais. Sem este gate, digitar dentro da folha ainda
+  // gravava nr13_med_esp_/nr13_med_grid_/nr13_laudo_ da TAG, contaminando o
+  // prontuario e os proximos relatorios do mesmo equipamento.
+  var SOMENTE_LEITURA = params.get('ro') === '1';
 
   function avisarApp(payload) {
     try {
@@ -92,6 +97,9 @@
   window.sbSalvar = function (chave, valor) {
     // Portal do Cliente e somente leitura.
     if ((localStorage.getItem('nr13_papel') || '') === 'cliente') return;
+    // Relatorio ja salvo: nada sai da folha. A trava de DOM do app ja impede a
+    // digitacao; este e o gate de DADOS, que vale mesmo se o DOM for burlado.
+    if (SOMENTE_LEITURA) return;
 
     var id = String(Date.now()) + '_' + Math.random().toString(36).slice(2);
     guardarFallback(id, chave, valor);
