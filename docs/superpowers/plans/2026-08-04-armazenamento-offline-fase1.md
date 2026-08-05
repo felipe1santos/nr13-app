@@ -2,28 +2,30 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Tirar o `localStorage` do papel de banco primário — `ler()` passa a servir de um `Map` em memória espelhado no IndexedDB, com fila de sincronização idempotente e erro sempre visível — devolvendo os 38 equipamentos da conta `cmam.caldeiras@gmail.com` e matando o teto de 5 MB.
+**Goal:** Tirar o `localStorage` do papel de banco primário — `ler()` passa a servir de um `Map` em memória espelhado no IndexedDB, com gravação local atômica, sincronização transacional no servidor e erro sempre visível — devolvendo os 38 equipamentos da conta `cmam.caldeiras@gmail.com` e matando o teto de 5 MB.
 
-**Architecture:** Quatro camadas com dono único (§3 do spec): Supabase é a verdade, IndexedDB (`nr13_dados_<org_id>`) é o espelho durável, um `Map` em memória serve as leituras síncronas, e o `localStorage` fica só como **palco** do documento aberto para os 40+ templates HTML em iframe, que não mudam uma linha. Nada é apagado localmente por ausência no servidor: a única causa de remoção é um tombstone explícito.
+**Architecture:** Quatro camadas com dono único (§3 do spec). Supabase é a verdade e passa a receber escrita por **RPC transacional** (`aplicar_mutacao_storage`), única forma de detectar conflito de versão e garantir idempotência. IndexedDB (`nr13_dados_<org_id>`) é o espelho durável, gravado em **transação única** entre as stores `dados`/`fila`/`tombstones`. Um `Map` em memória serve as leituras síncronas. O `localStorage` fica só como **palco** do documento aberto, com dono exclusivo por aba via Web Locks.
 
-**Tech Stack:** React 19 + TypeScript + Vite, Zustand, Supabase JS v2, Vitest (`environment: 'node'`), IndexedDB nativo, `fake-indexeddb` nos testes.
+**Tech Stack:** React 19 + TypeScript + Vite, Zustand, Supabase JS v2, Vitest (`environment: 'node'`), IndexedDB nativo, `fake-indexeddb` nos testes, Web Locks API, BroadcastChannel, `postMessage`.
 
-**Spec:** `docs/superpowers/specs/2026-08-04-armazenamento-offline-design.md` — leia antes de começar. Este plano cobre **só a Fase 1** (§13). Fases 2 e 3 terão planos próprios.
+**Spec:** `docs/superpowers/specs/2026-08-04-armazenamento-offline-design.md`. Este plano cobre **só a Fase 1**.
 
 ## Global Constraints
 
-- **Nenhum `catch {}` vazio no caminho de dados.** Todo catch reporta ao `sync.ts` (§9.3).
-- **Nada é apagado localmente por não ter voltado do servidor.** Só tombstone explícito remove (§3.2, §7.3).
-- **Nenhuma versão é descartada sem alguém escolher** (§7.2, §7.4).
-- **Nenhuma mensagem crua do Supabase na tela principal.** Sempre texto compreensível + bloco "Detalhes técnicos" (§9.1).
-- `ORCAMENTO_DOC = 3_400 * 1024` bytes · `ORCAMENTO_IMG = 110 * 1024` bytes · `LARGURA_REL = 900` px (§5.1).
-- Degradação do palco em passos determinísticos: qualidade `0.6 → 0.45 → 0.35`, depois largura `900 → 700 → 560` (§5.3).
-- Escrita no palco é **tudo ou nada**, com rollback explícito (§5.4).
-- Coleta de tombstones: 30 dias, e o `DELETE` físico **nunca** remove a prova da exclusão (§7.4).
+- **Nenhum `catch {}` vazio no caminho de dados** — inclusive em `public/sb-storage.js`.
+- **Gravação local é atômica:** dado + fila + tombstone na MESMA transação do IndexedDB. A UI só diz "salvo localmente" depois do `tx.oncomplete`. Falha reverte o `Map`.
+- **Nenhum teste usa `setTimeout` para "esperar" o IndexedDB.** Se um teste precisa esperar, é porque falta confirmação de transação no código.
+- **Toda escrita no servidor passa pela RPC `aplicar_mutacao_storage`.** `upsert` direto em `app_storage` não detecta conflito e está proibido no caminho de sync.
+- **O servidor decide o `org_id`** (`org_atual()`), nunca o cliente. A RPC é `security definer` e por isso re-checa papel, `acesso_vigente()` e `assinatura_permite_escrita()` explicitamente — `security definer` ignora RLS.
+- **Nada é apagado localmente por ausência no servidor.** Só tombstone explícito remove.
+- **Nenhuma versão é descartada sem alguém escolher.**
+- **Nenhuma mensagem crua do Supabase na tela principal.** Sempre texto compreensível + "Detalhes técnicos".
+- `ORCAMENTO_DOC = 3_400 * 1024` · `ORCAMENTO_IMG = 110 * 1024` · `LARGURA_REL = 900`.
 - `ler()` **continua síncrono**. Mudar a assinatura quebra ~50 pontos de chamada e está fora de escopo.
-- A API pública de `src/services/storage.ts` que outros módulos importam hoje deve continuar existindo: `ler`, `salvar`, `lerTudo`, `listarChavesComPrefixo`, `excluirChave`, `excluirVaso`, `limparCacheDados`, `flushFila`, `bloqueadoParaEscrita`, `lerRemoto`.
-- Commits em português, formato do repo (`feat(escopo): ...`). Branch `main`.
-- Fechar com `npm run build` — o `tsc -b` do deploy é mais estrito que `tsc --noEmit`.
+- API pública preservada em `storage.ts`: `ler`, `salvar`, `lerTudo`, `listarChavesComPrefixo`, `excluirChave`, `excluirVaso`, `limparCacheDados`, `flushFila`, `bloqueadoParaEscrita`, `lerRemoto`.
+- **Trabalho em branch `feat/armazenamento-offline`, nunca direto na `main`** (Task 14).
+- **Todo o frontend novo atrás da feature flag `nr13_armazenamento_v2`** (Task 14).
+- Commits em português, formato do repo. Fechar com `npm run build`.
 
 ---
 
@@ -33,158 +35,103 @@
 
 | Arquivo | Responsabilidade única |
 |---|---|
-| `vitest.setup.ts` | shims de `localStorage`/IndexedDB para todos os testes |
-| `src/services/db.ts` | acesso cru ao IndexedDB, namespace por org. Não conhece regra de negócio |
-| `src/services/cacheLocal.ts` | o `Map` + espelho no `db.ts` + índice de chaves por TAG. Não conhece rede |
-| `src/services/errosSync.ts` | classificação e tradução de erro + detalhe técnico. Sem dependências |
-| `src/services/sync.ts` | fila durável, `mutationId`, drenagem, versionamento, tombstones. Não conhece UI |
-| `src/services/manifesto.ts` | manifesto de pendências no `localStorage` e detecção (parcial) de despejo |
-| `src/services/quotaDispositivo.ts` | `persist()`, `estimate()`, limiares de aviso |
-| `src/services/palco.ts` | orçamento, variante de relatório, materialização e rollback |
-| `src/components/SeloSync.tsx` | selo agregado no Layout |
-| `src/pages/Pendencias.tsx` | tela `/pendencias` |
-| `supabase/armazenamento_v2.sql` | colunas, `app_storage_excluidos`, trigger de piso, `sync_corte`, policies |
-| `src/services/pisoVersao.ts` | espelho em TS da regra do trigger, para checagem no cliente e teste de consistência |
+| `vitest.setup.ts` | shims de `localStorage`/IndexedDB/BroadcastChannel para os testes |
+| `src/services/db.ts` | IndexedDB cru, namespace por org, transações multi-store confirmadas |
+| `src/services/familiasChave.ts` | tabela explícita prefixo → escopo (`tag`/`global`/`id`) |
+| `src/services/cacheLocal.ts` | `Map` + espelho + índice por TAG + propagação entre abas |
+| `src/services/errosSync.ts` | classificação e tradução de erro + detalhe técnico |
+| `src/services/sync.ts` | fila durável, `mutationId`, RPC, conflitos, tombstones |
+| `src/services/manifesto.ts` | manifesto de pendências e detecção (parcial) de despejo |
+| `src/services/quotaDispositivo.ts` | `persist()`, `estimate()`, limiares |
+| `src/services/palco.ts` | orçamento, degradação, materialização com rollback real, trava por aba |
+| `src/services/recompressorFoto.ts` | variante de relatório (canvas) |
+| `src/services/ponteTemplates.ts` | `postMessage` entre iframe e app, com confirmação |
+| `src/services/flag.ts` | feature flag `nr13_armazenamento_v2` |
+| `src/services/selo.ts` + `src/components/SeloSync.tsx` + `src/pages/Pendencias.tsx` | UI de estado |
+| `supabase/armazenamento_v2.sql` | colunas, tabelas, RPC, coleta restrita, bucket |
 
-**Modificados:**
-
-| Arquivo | Mudança |
-|---|---|
-| `vite.config.ts` | registrar `setupFiles` |
-| `src/services/storage.ts` | vira orquestrador fino sobre os módulos acima |
-| `src/services/auth.ts:475-489` | troca de conta limpa `Map`, palco e fecha o IndexedDB |
-| `src/app/Layout.tsx` | montar `<SeloSync/>` e a rota `/pendencias` |
-| `public/sb-storage.js` | escrita dos templates passa pela fila do app |
-| `src/pages/Relatorios.tsx`, `Prontuarios.tsx`, `LivroRegistro.tsx` | `prepararPalco` / `limparPalco` ao redor dos iframes |
-| `src/services/storage.gate.test.ts` | bloqueado agora **erra**, não finge |
+**Modificados:** `vite.config.ts`, `src/services/storage.ts`, `src/services/auth.ts`, `src/app/Layout.tsx`, `public/sb-storage.js`, `src/pages/{Relatorios,Prontuarios,LivroRegistro}.tsx`, `src/services/storage.gate.test.ts`.
 
 ---
 
-## Task 1: Infraestrutura de teste (IndexedDB no Vitest)
+## Task 1: Infraestrutura de teste
 
-**Files:**
-- Create: `vitest.setup.ts`
-- Modify: `vite.config.ts` (bloco `test`)
-- Modify: `package.json` (devDependency)
-- Test: `src/services/db.smoke.test.ts`
+*(Inalterada em relação à revisão anterior, com um acréscimo.)* Instalar `fake-indexeddb`, criar `vitest.setup.ts` com os shims de `localStorage` e `import 'fake-indexeddb/auto'`, registrar `setupFiles` no `vite.config.ts`.
 
-**Interfaces:**
-- Consumes: nada.
-- Produces: ambiente de teste com `globalThis.localStorage` e `globalThis.indexedDB` funcionais em todos os `src/**/*.test.ts`.
-
-O repo hoje shima `localStorage` à mão em cada arquivo de teste (`storage.gate.test.ts:5-15`, `vencimentos.test.ts`, `auth.test.ts`). O shim central é aditivo: aqueles arquivos checam `typeof globalThis.localStorage === 'undefined'` antes de instalar, então continuam funcionando sem alteração.
-
-- [ ] **Step 1: Instalar a dependência de teste**
-
-```bash
-npm install --save-dev fake-indexeddb
-```
-
-- [ ] **Step 2: Criar o setup**
+**Acréscimo obrigatório:** shim de `BroadcastChannel` (usado pelo `cacheLocal` na Task 4) e de `navigator.locks` (usado pelo palco na Task 10), ambos ausentes no `environment: 'node'`:
 
 ```ts
-// vitest.setup.ts
-// Vitest roda em environment 'node': nem localStorage nem IndexedDB existem.
-// Este setup instala os dois para TODOS os testes. Os arquivos que já shimavam
-// localStorage à mão checam `typeof === 'undefined'` antes, então seguem intactos.
-import 'fake-indexeddb/auto';
+// acrescentar a vitest.setup.ts
+if (typeof globalThis.BroadcastChannel === 'undefined') {
+  // Canais por nome, compartilhados no processo: é o que permite simular DUAS ABAS.
+  const canais = new Map<string, Set<{ onmessage: ((e: { data: unknown }) => void) | null }>>();
+  (globalThis as Record<string, unknown>).BroadcastChannel = class {
+    onmessage: ((e: { data: unknown }) => void) | null = null;
+    constructor(public name: string) {
+      if (!canais.has(name)) canais.set(name, new Set());
+      canais.get(name)!.add(this);
+    }
+    postMessage(data: unknown) {
+      for (const outro of canais.get(this.name)!) if (outro !== this) outro.onmessage?.({ data });
+    }
+    close() { canais.get(this.name)!.delete(this); }
+  };
+}
 
-if (typeof globalThis.localStorage === 'undefined') {
-  const store = new Map<string, string>();
-  (globalThis as Record<string, unknown>).localStorage = {
-    getItem: (k: string) => (store.has(k) ? store.get(k)! : null),
-    setItem: (k: string, v: string) => void store.set(k, String(v)),
-    removeItem: (k: string) => void store.delete(k),
-    clear: () => void store.clear(),
-    key: (i: number) => [...store.keys()][i] ?? null,
-    get length() { return store.size; },
+if (typeof globalThis.navigator === 'undefined') {
+  (globalThis as Record<string, unknown>).navigator = {};
+}
+if (!(globalThis.navigator as Navigator & { locks?: unknown }).locks) {
+  const travados = new Set<string>();
+  (globalThis.navigator as unknown as Record<string, unknown>).locks = {
+    async request(nome: string, opcoes: { ifAvailable?: boolean }, fn: (lock: unknown) => unknown) {
+      if (travados.has(nome)) return opcoes?.ifAvailable ? fn(null) : undefined;
+      travados.add(nome);
+      try { return await fn({ name: nome }); } finally { travados.delete(nome); }
+    },
   };
 }
 ```
 
-- [ ] **Step 3: Registrar no vite.config.ts**
-
-No bloco `test`, acrescentar `setupFiles`:
-
-```ts
-  test: {
-    environment: 'node',
-    include: ['src/**/*.test.ts'],
-    setupFiles: ['./vitest.setup.ts'],
-  },
-```
-
-- [ ] **Step 4: Escrever o teste de fumaça**
-
-```ts
-// src/services/db.smoke.test.ts
-import { describe, it, expect } from 'vitest';
-
-describe('ambiente de teste', () => {
-  it('tem indexedDB disponível', () => {
-    expect(typeof indexedDB).toBe('object');
-    expect(typeof indexedDB.open).toBe('function');
-  });
-
-  it('tem localStorage disponível', () => {
-    localStorage.setItem('x', '1');
-    expect(localStorage.getItem('x')).toBe('1');
-    localStorage.clear();
-  });
-});
-```
-
-- [ ] **Step 5: Rodar e verificar que passa**
-
-Run: `npx vitest run src/services/db.smoke.test.ts`
-Expected: PASS, 2 testes.
-
-- [ ] **Step 6: Rodar a suíte inteira para garantir que nada quebrou**
-
-Run: `npm test`
-Expected: PASS — os testes que já existiam continuam verdes.
-
-- [ ] **Step 7: Commit**
-
-```bash
-git add vitest.setup.ts vite.config.ts package.json package-lock.json src/services/db.smoke.test.ts
-git commit -m "test(infra): setup central com indexedDB (fake-indexeddb) e localStorage"
-```
+Commit: `test(infra): setup com indexedDB, BroadcastChannel e Web Locks`
 
 ---
 
-## Task 2: SQL da Fase 1 + espelho da regra de piso em TS
+## Task 2 (REVISADA): SQL — RPC transacional, idempotência, corte por org
 
 **Files:**
 - Create: `supabase/armazenamento_v2.sql`
-- Create: `src/services/pisoVersao.ts`
-- Test: `src/services/pisoVersao.test.ts`
+- Create: `src/services/contratoRpc.ts`
+- Test: `src/services/contratoRpc.test.ts`
 
 **Interfaces:**
-- Consumes: nada.
-- Produces: `aceitaEscrita(args: ArgsPiso): ResultadoPiso` — usada por `sync.ts` (Task 7) para pré-checagem no cliente antes de gastar uma ida ao servidor.
+- Produces: `type StatusMutacao = 'aplicado' | 'repetido' | 'conflito' | 'recusado'`, `type MotivoRecusa = 'versao_obsoleta' | 'anterior_ao_corte' | 'tombstone_mais_novo' | 'sem_permissao'`, `interface RespostaMutacao`, `interpretarResposta(bruto: unknown): RespostaMutacao`.
 
-O repo já usa este padrão de espelho front↔servidor em `src/features/assinatura/__tests__/consistenciaEdge.test.ts`. A **autoridade é o SQL**; o TS é conveniência e trava de regressão.
+**O que mudou e por quê:**
+
+| Ponto | Correção |
+|---|---|
+| #3 | `upsert` com `versaoBase + 1` **não detecta conflito**: dois aparelhos leem a versão 4, ambos gravam 5, o segundo sobrescreve o primeiro em silêncio. Substituído por RPC que compara `versao_esperada` com a versão atual **sob `for update`** e devolve `conflito` com a linha vigente. |
+| #4 | `mutation_id` agora é **registrado no servidor** em `app_storage_mutacoes` (PK `org_id, mutation_id`). Resposta perdida + reenvio devolve o resultado anterior sem reaplicar. |
+| #5 | `sync_corte` sai de `profiles` (era por perfil, não por org, e a coleta atualizava **todos os perfis de todas as organizações** sem filtro) e vai para `org_sync`. `coletar_tombstones` passa a receber `org_id` e a exigir `service_role`. |
+| #6 | `app_storage_excluidos` passa a ser preenchida **no momento da exclusão**, não na coleta — antes, um aparelho antigo podia dar `upsert` com `deletado_em = null` e reverter um tombstone ainda não coletado. A RPC também compara `p_mutado_em` com `deletado_em` da linha vigente. |
+| #5 | O corte é validado **dentro da RPC**. Na versão anterior, `aceitaEscrita()` era criada e nunca chamada por ninguém. |
 
 - [ ] **Step 1: Escrever o SQL**
 
 ```sql
--- supabase/armazenamento_v2.sql
--- Fase 1 do spec 2026-08-04-armazenamento-offline-design.md. IDEMPOTENTE.
--- Rodar no SQL Editor do Supabase.
+-- supabase/armazenamento_v2.sql — Fase 1. IDEMPOTENTE.
 
--- ── 1. Versionamento e soft-delete em app_storage ──────────────────────────
+-- ── 1. Colunas de versionamento e soft-delete ──────────────────────────────
 alter table public.app_storage add column if not exists versao      integer not null default 1;
 alter table public.app_storage add column if not exists dispositivo text;
 alter table public.app_storage add column if not exists deletado_em timestamptz;
+create index if not exists app_storage_deletado_idx on public.app_storage (org_id, deletado_em);
 
-create index if not exists app_storage_deletado_idx
-  on public.app_storage (org_id, deletado_em);
-
--- ── 2. Historico permanente de exclusoes (§7.4a) ───────────────────────────
--- Guarda so identidade e numero de versao. E o que sobrevive ao DELETE fisico
--- da linha: sem isso, um aparelho offline por mais tempo que o prazo de coleta
--- volta e RESSUSCITA o dado excluido.
+-- ── 2. Historico PERMANENTE de exclusoes ───────────────────────────────────
+-- Preenchida NA EXCLUSAO (nao na coleta): enquanto o tombstone ainda estava so
+-- em app_storage, um aparelho antigo revertia deletado_em para null e o dado
+-- ressuscitava dentro da janela de 30 dias.
 create table if not exists public.app_storage_excluidos (
   org_id       uuid        not null,
   chave        text        not null,
@@ -192,66 +139,189 @@ create table if not exists public.app_storage_excluidos (
   excluido_em  timestamptz not null default now(),
   primary key (org_id, chave)
 );
-
 alter table public.app_storage_excluidos enable row level security;
-
 drop policy if exists excluidos_select_org on public.app_storage_excluidos;
 create policy excluidos_select_org on public.app_storage_excluidos
   for select using (org_id = public.org_atual());
 
--- ── 3. Corte de sincronizacao por org (§7.4c) ──────────────────────────────
-alter table public.profiles add column if not exists sync_corte timestamptz;
+-- ── 3. Idempotencia: mutacoes ja processadas ───────────────────────────────
+create table if not exists public.app_storage_mutacoes (
+  org_id      uuid        not null,
+  mutation_id uuid        not null,
+  resultado   jsonb       not null,
+  aplicado_em timestamptz not null default now(),
+  primary key (org_id, mutation_id)
+);
+alter table public.app_storage_mutacoes enable row level security;
+-- Sem policy de select: so a RPC (security definer) enxerga.
 
--- ── 4. Trigger do piso de versao (§7.4b) ───────────────────────────────────
--- Validado NO SERVIDOR de proposito: o cliente desatualizado e a ameaca.
-create or replace function public.checar_piso_versao()
-returns trigger language plpgsql security definer set search_path = public as $$
-declare v_final integer;
+-- ── 4. Corte de sincronizacao POR ORGANIZACAO ──────────────────────────────
+create table if not exists public.org_sync (
+  org_id     uuid primary key,
+  sync_corte timestamptz
+);
+alter table public.org_sync enable row level security;
+drop policy if exists org_sync_select on public.org_sync;
+create policy org_sync_select on public.org_sync
+  for select using (org_id = public.org_atual());
+
+-- ── 5. RPC TRANSACIONAL: unica porta de escrita do app ─────────────────────
+-- security definer IGNORA RLS, entao papel/assinatura/prazo sao re-checados
+-- aqui dentro, explicitamente.
+create or replace function public.aplicar_mutacao_storage(
+  p_chave           text,
+  p_mutation_id     uuid,
+  p_op              text,          -- 'set' | 'del'
+  p_valor           text,
+  p_versao_esperada integer,       -- 0 = espera que a chave NAO exista
+  p_dispositivo     text,
+  p_mutado_em       timestamptz
+) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare
+  v_org       uuid;
+  v_res       jsonb;
+  v_corte     timestamptz;
+  v_piso      integer;
+  v_atual     public.app_storage%rowtype;
+  v_nova      integer;
+  v_user      uuid := auth.uid();
 begin
-  select versao_final into v_final
-    from public.app_storage_excluidos
-   where org_id = new.org_id and chave = new.chave;
-
-  if v_final is not null and new.versao <= v_final then
-    raise exception 'nr13_versao_obsoleta: chave % foi excluida na versao %, escrita tentou versao %',
-      new.chave, v_final, new.versao
-      using errcode = 'P0001';
+  v_org := public.org_atual();
+  if v_org is null then
+    return jsonb_build_object('status','recusado','motivo','sem_permissao');
   end if;
 
-  return new;
+  -- Idempotencia: mesma mutacao chegando de novo devolve o resultado anterior.
+  select resultado into v_res
+    from public.app_storage_mutacoes
+   where org_id = v_org and mutation_id = p_mutation_id;
+  if found then
+    return v_res || jsonb_build_object('status','repetido');
+  end if;
+
+  if public.papel_atual() not in ('mestre','gerente','funcionario')
+     or not public.acesso_vigente()
+     or not public.assinatura_permite_escrita() then
+    return jsonb_build_object('status','recusado','motivo','sem_permissao');
+  end if;
+
+  -- Corte da org: mutacao criada antes da ultima coleta nunca e aplicada sozinha.
+  select sync_corte into v_corte from public.org_sync where org_id = v_org;
+  if v_corte is not null and p_mutado_em < v_corte then
+    v_res := jsonb_build_object('status','recusado','motivo','anterior_ao_corte');
+    insert into public.app_storage_mutacoes(org_id, mutation_id, resultado)
+      values (v_org, p_mutation_id, v_res);
+    return v_res;
+  end if;
+
+  v_nova := p_versao_esperada + 1;
+
+  -- Piso de versao: chave ja excluida nao volta com versao antiga.
+  select versao_final into v_piso
+    from public.app_storage_excluidos
+   where org_id = v_org and chave = p_chave;
+  if v_piso is not null and v_nova <= v_piso then
+    v_res := jsonb_build_object('status','recusado','motivo','versao_obsoleta','versao', v_piso);
+    insert into public.app_storage_mutacoes(org_id, mutation_id, resultado)
+      values (v_org, p_mutation_id, v_res);
+    return v_res;
+  end if;
+
+  select * into v_atual from public.app_storage
+   where org_id = v_org and chave = p_chave
+   for update;
+
+  if found then
+    -- CONFLITO: alguem gravou entre a leitura do cliente e este envio.
+    if v_atual.versao <> p_versao_esperada then
+      v_res := jsonb_build_object(
+        'status','conflito',
+        'versao', v_atual.versao,
+        'valor', v_atual.valor,
+        'atualizado_em', v_atual.atualizado_em,
+        'dispositivo', v_atual.dispositivo,
+        'deletado_em', v_atual.deletado_em);
+      insert into public.app_storage_mutacoes(org_id, mutation_id, resultado)
+        values (v_org, p_mutation_id, v_res);
+      return v_res;
+    end if;
+
+    -- Tombstone ainda nao coletado nao pode ser revertido por escrita mais antiga.
+    if v_atual.deletado_em is not null and p_mutado_em < v_atual.deletado_em then
+      v_res := jsonb_build_object('status','recusado','motivo','tombstone_mais_novo',
+                                  'versao', v_atual.versao);
+      insert into public.app_storage_mutacoes(org_id, mutation_id, resultado)
+        values (v_org, p_mutation_id, v_res);
+      return v_res;
+    end if;
+  else
+    if p_versao_esperada <> 0 then
+      v_res := jsonb_build_object('status','conflito','versao', 0, 'valor', null);
+      insert into public.app_storage_mutacoes(org_id, mutation_id, resultado)
+        values (v_org, p_mutation_id, v_res);
+      return v_res;
+    end if;
+  end if;
+
+  if p_op = 'set' then
+    insert into public.app_storage (org_id, user_id, chave, valor, versao, dispositivo, deletado_em, atualizado_em)
+    values (v_org, v_user, p_chave, p_valor, v_nova, p_dispositivo, null, now())
+    on conflict (org_id, chave) do update
+      set valor = excluded.valor, versao = excluded.versao, dispositivo = excluded.dispositivo,
+          deletado_em = null, atualizado_em = now();
+  else
+    insert into public.app_storage (org_id, user_id, chave, valor, versao, dispositivo, deletado_em, atualizado_em)
+    values (v_org, v_user, p_chave, null, v_nova, p_dispositivo, now(), now())
+    on conflict (org_id, chave) do update
+      set valor = null, versao = excluded.versao, dispositivo = excluded.dispositivo,
+          deletado_em = now(), atualizado_em = now();
+
+    -- A prova da exclusao nasce AGORA, nao na coleta.
+    insert into public.app_storage_excluidos (org_id, chave, versao_final)
+    values (v_org, p_chave, v_nova)
+    on conflict (org_id, chave) do update
+      set versao_final = greatest(public.app_storage_excluidos.versao_final, excluded.versao_final),
+          excluido_em = now();
+  end if;
+
+  v_res := jsonb_build_object('status','aplicado','versao', v_nova);
+  insert into public.app_storage_mutacoes(org_id, mutation_id, resultado)
+    values (v_org, p_mutation_id, v_res);
+  return v_res;
 end $$;
 
-drop trigger if exists trg_checar_piso_versao on public.app_storage;
-create trigger trg_checar_piso_versao
-  before insert or update on public.app_storage
-  for each row execute function public.checar_piso_versao();
+revoke all on function public.aplicar_mutacao_storage(text,uuid,text,text,integer,text,timestamptz) from public;
+grant execute on function public.aplicar_mutacao_storage(text,uuid,text,text,integer,text,timestamptz) to authenticated;
 
--- ── 5. Coleta de lixo: o valor sai, a PROVA da exclusao fica ───────────────
-create or replace function public.coletar_tombstones(dias integer default 30)
+-- ── 6. Coleta: por org e SO para service_role ──────────────────────────────
+create or replace function public.coletar_tombstones(p_org uuid, p_dias integer default 30)
 returns integer language plpgsql security definer set search_path = public as $$
 declare n integer;
 begin
-  insert into public.app_storage_excluidos (org_id, chave, versao_final, excluido_em)
-  select org_id, chave, versao, deletado_em
-    from public.app_storage
-   where deletado_em is not null
-     and deletado_em < now() - (dias || ' days')::interval
-  on conflict (org_id, chave) do update
-     set versao_final = greatest(public.app_storage_excluidos.versao_final, excluded.versao_final);
+  if current_setting('request.jwt.claims', true)::jsonb->>'role' is distinct from 'service_role' then
+    raise exception 'coletar_tombstones exige service_role';
+  end if;
 
   delete from public.app_storage
-   where deletado_em is not null
-     and deletado_em < now() - (dias || ' days')::interval;
-
+   where org_id = p_org and deletado_em is not null
+     and deletado_em < now() - make_interval(days => p_dias);
   get diagnostics n = row_count;
 
-  update public.profiles set sync_corte = now() - (dias || ' days')::interval;
+  insert into public.org_sync (org_id, sync_corte)
+  values (p_org, now() - make_interval(days => p_dias))
+  on conflict (org_id) do update set sync_corte = excluded.sync_corte;
+
+  -- Mutacoes velhas ja nao podem ser reenviadas (o corte barra antes).
+  delete from public.app_storage_mutacoes
+   where org_id = p_org and aplicado_em < now() - make_interval(days => p_dias);
   return n;
 end $$;
 
--- ── 6. Bucket de fotos (criado aqui, usado na Fase 2) ──────────────────────
-insert into storage.buckets (id, name, public)
-values ('inspecao', 'inspecao', false)
+revoke all on function public.coletar_tombstones(uuid, integer) from public, authenticated;
+
+-- ── 7. Bucket de fotos (usado na Fase 2) ───────────────────────────────────
+insert into storage.buckets (id, name, public) values ('inspecao','inspecao',false)
 on conflict (id) do nothing;
 
 drop policy if exists inspecao_leitura on storage.objects;
@@ -260,165 +330,143 @@ create policy inspecao_leitura on storage.objects for select
 
 drop policy if exists inspecao_escrita on storage.objects;
 create policy inspecao_escrita on storage.objects for insert
-  with check (
-    bucket_id = 'inspecao'
+  with check (bucket_id = 'inspecao'
     and (storage.foldername(name))[1] = public.org_atual()::text
     and public.papel_atual() in ('mestre','gerente','funcionario')
-    and public.acesso_vigente()
-    and public.assinatura_permite_escrita()
-  );
+    and public.acesso_vigente() and public.assinatura_permite_escrita());
 
 drop policy if exists inspecao_remocao on storage.objects;
 create policy inspecao_remocao on storage.objects for delete
-  using (
-    bucket_id = 'inspecao'
+  using (bucket_id = 'inspecao'
     and (storage.foldername(name))[1] = public.org_atual()::text
     and public.papel_atual() in ('mestre','gerente','funcionario')
-    and public.acesso_vigente()
-    and public.assinatura_permite_escrita()
-  );
+    and public.acesso_vigente() and public.assinatura_permite_escrita());
 ```
 
-- [ ] **Step 2: Escrever o teste da regra de piso (falha primeiro)**
+- [ ] **Step 2: Escrever o teste do contrato (falha primeiro)**
 
 ```ts
-// src/services/pisoVersao.test.ts
+// src/services/contratoRpc.test.ts
 import { describe, it, expect } from 'vitest';
-import { aceitaEscrita } from './pisoVersao';
+import { interpretarResposta } from './contratoRpc';
 
-const BASE = { excluidoVersaoFinal: null, criadoEm: '2026-08-04T12:00:00.000Z', syncCorte: null };
-
-describe('aceitaEscrita — espelho do trigger checar_piso_versao (SQL é a autoridade)', () => {
-  it('chave nunca excluída -> aceita', () => {
-    expect(aceitaEscrita({ ...BASE, versao: 5 })).toEqual({ aceita: true });
+describe('interpretarResposta — contrato com aplicar_mutacao_storage', () => {
+  it('aplicado devolve a versão nova', () => {
+    expect(interpretarResposta({ status: 'aplicado', versao: 5 }))
+      .toEqual({ status: 'aplicado', versao: 5 });
   });
 
-  it('versão MENOR que a final excluída -> rejeita (ressurreição)', () => {
-    const r = aceitaEscrita({ ...BASE, versao: 3, excluidoVersaoFinal: 7 });
-    expect(r).toEqual({ aceita: false, motivo: 'versao_obsoleta' });
+  it('repetido é sucesso: a mutação já tinha sido aplicada antes', () => {
+    expect(interpretarResposta({ status: 'repetido', versao: 5 }))
+      .toEqual({ status: 'repetido', versao: 5 });
   });
 
-  it('versão IGUAL à final excluída -> rejeita (limite inclusivo, igual ao SQL)', () => {
-    const r = aceitaEscrita({ ...BASE, versao: 7, excluidoVersaoFinal: 7 });
-    expect(r).toEqual({ aceita: false, motivo: 'versao_obsoleta' });
-  });
-
-  it('versão MAIOR que a final excluída -> aceita (recriar a chave é legítimo)', () => {
-    expect(aceitaEscrita({ ...BASE, versao: 8, excluidoVersaoFinal: 7 })).toEqual({ aceita: true });
-  });
-
-  it('mutação anterior ao corte da org -> rejeita mesmo sem histórico de exclusão', () => {
-    const r = aceitaEscrita({
-      ...BASE,
-      versao: 99,
-      criadoEm: '2026-06-01T00:00:00.000Z',
-      syncCorte: '2026-07-05T00:00:00.000Z',
+  it('conflito carrega a linha vigente do servidor para preservar as duas versões', () => {
+    const r = interpretarResposta({
+      status: 'conflito', versao: 7, valor: '{"origem":"escritorio"}',
+      atualizado_em: '2026-08-04T12:00:00.000Z', dispositivo: 'desktop-1',
     });
-    expect(r).toEqual({ aceita: false, motivo: 'anterior_ao_corte' });
-  });
-
-  it('mutação posterior ao corte -> aceita', () => {
-    const r = aceitaEscrita({
-      ...BASE,
-      versao: 99,
-      criadoEm: '2026-08-01T00:00:00.000Z',
-      syncCorte: '2026-07-05T00:00:00.000Z',
+    expect(r).toEqual({
+      status: 'conflito', versao: 7, valor: '{"origem":"escritorio"}',
+      atualizadoEm: '2026-08-04T12:00:00.000Z', dispositivo: 'desktop-1',
     });
-    expect(r).toEqual({ aceita: true });
   });
 
-  it('corte com data corrompida -> não bloqueia por corte (o servidor é quem decide)', () => {
-    const r = aceitaEscrita({ ...BASE, versao: 9, syncCorte: 'lixo' });
-    expect(r).toEqual({ aceita: true });
+  it('recusado carrega o motivo', () => {
+    expect(interpretarResposta({ status: 'recusado', motivo: 'versao_obsoleta', versao: 9 }))
+      .toEqual({ status: 'recusado', motivo: 'versao_obsoleta', versao: 9 });
+  });
+
+  it('os quatro motivos de recusa do SQL são reconhecidos', () => {
+    for (const motivo of ['versao_obsoleta', 'anterior_ao_corte', 'tombstone_mais_novo', 'sem_permissao']) {
+      expect(interpretarResposta({ status: 'recusado', motivo }).status).toBe('recusado');
+    }
+  });
+
+  it('resposta desconhecida vira recusa, nunca sucesso silencioso', () => {
+    expect(interpretarResposta({ status: 'coisa_nova' }))
+      .toEqual({ status: 'recusado', motivo: 'sem_permissao', versao: 0 });
+    expect(interpretarResposta(null))
+      .toEqual({ status: 'recusado', motivo: 'sem_permissao', versao: 0 });
   });
 });
 ```
 
-- [ ] **Step 3: Rodar e verificar que falha**
-
-Run: `npx vitest run src/services/pisoVersao.test.ts`
-Expected: FAIL — `Failed to resolve import "./pisoVersao"`.
+- [ ] **Step 3: Rodar e verificar que falha** — `npx vitest run src/services/contratoRpc.test.ts` → FAIL.
 
 - [ ] **Step 4: Implementar**
 
 ```ts
-// src/services/pisoVersao.ts
+// src/services/contratoRpc.ts
 /**
- * Espelho em TypeScript da regra do trigger `checar_piso_versao` (§7.4 do spec).
- * A AUTORIDADE é o SQL — o cliente desatualizado é a própria ameaça, então a
- * validação real acontece no servidor. Isto aqui é (a) pré-checagem para não
- * gastar uma ida à rede com uma escrita fadada a falhar e (b) trava de
- * regressão: se a regra mudar no SQL sem mudar aqui, o teste denuncia.
+ * Contrato com a RPC `aplicar_mutacao_storage`. Existe separado porque o
+ * cliente NUNCA deve inferir sucesso: qualquer resposta que não seja
+ * explicitamente 'aplicado'/'repetido' é tratada como recusa.
  */
-export interface ArgsPiso {
-  versao: number;
-  excluidoVersaoFinal: number | null;
-  criadoEm: string;
-  syncCorte: string | null;
-}
+export type StatusMutacao = 'aplicado' | 'repetido' | 'conflito' | 'recusado';
+export type MotivoRecusa =
+  | 'versao_obsoleta' | 'anterior_ao_corte' | 'tombstone_mais_novo' | 'sem_permissao';
 
-export type MotivoRecusa = 'versao_obsoleta' | 'anterior_ao_corte';
-export type ResultadoPiso = { aceita: true } | { aceita: false; motivo: MotivoRecusa };
+export type RespostaMutacao =
+  | { status: 'aplicado' | 'repetido'; versao: number }
+  | { status: 'conflito'; versao: number; valor: string | null; atualizadoEm: string; dispositivo: string | null }
+  | { status: 'recusado'; motivo: MotivoRecusa; versao: number };
 
-export function aceitaEscrita(args: ArgsPiso): ResultadoPiso {
-  if (args.excluidoVersaoFinal !== null && args.versao <= args.excluidoVersaoFinal) {
-    return { aceita: false, motivo: 'versao_obsoleta' };
-  }
-  if (args.syncCorte) {
-    const corte = new Date(args.syncCorte).getTime();
-    const criado = new Date(args.criadoEm).getTime();
-    // Data corrompida não bloqueia: quem decide de verdade é o servidor, e
-    // bloquear por lixo local travaria o usuário sem motivo.
-    if (Number.isFinite(corte) && Number.isFinite(criado) && criado < corte) {
-      return { aceita: false, motivo: 'anterior_ao_corte' };
+const MOTIVOS: MotivoRecusa[] = ['versao_obsoleta', 'anterior_ao_corte', 'tombstone_mais_novo', 'sem_permissao'];
+
+export function interpretarResposta(bruto: unknown): RespostaMutacao {
+  const r = (bruto ?? {}) as Record<string, unknown>;
+  const versao = Number(r.versao ?? 0);
+  switch (r.status) {
+    case 'aplicado':
+    case 'repetido':
+      return { status: r.status, versao };
+    case 'conflito':
+      return {
+        status: 'conflito',
+        versao,
+        valor: r.valor == null ? null : String(r.valor),
+        atualizadoEm: String(r.atualizado_em ?? ''),
+        dispositivo: r.dispositivo == null ? null : String(r.dispositivo),
+      };
+    case 'recusado': {
+      const motivo = MOTIVOS.includes(r.motivo as MotivoRecusa) ? (r.motivo as MotivoRecusa) : 'sem_permissao';
+      return { status: 'recusado', motivo, versao };
     }
+    default:
+      // Servidor mais novo que o cliente, ou resposta corrompida: recusar é a
+      // única postura segura — assumir sucesso apagaria a pendência.
+      return { status: 'recusado', motivo: 'sem_permissao', versao: 0 };
   }
-  return { aceita: true };
 }
 ```
 
-- [ ] **Step 5: Rodar e verificar que passa**
-
-Run: `npx vitest run src/services/pisoVersao.test.ts`
-Expected: PASS, 7 testes.
+- [ ] **Step 5: Rodar e verificar que passa** — PASS, 6 testes.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add supabase/armazenamento_v2.sql src/services/pisoVersao.ts src/services/pisoVersao.test.ts
-git commit -m "feat(armazenamento): SQL da fase 1 (versao, soft-delete, piso de versao) + espelho em TS"
+git add supabase/armazenamento_v2.sql src/services/contratoRpc.ts src/services/contratoRpc.test.ts
+git commit -m "feat(armazenamento): RPC transacional com conflito, idempotencia e corte por org"
 ```
-
-> **Pendência de deploy (manual, pelo dono do projeto):** rodar `supabase/armazenamento_v2.sql` no SQL Editor. Registrar em `PENDENCIAS.md` na Task 16.
 
 ---
 
-## Task 3: `db.ts` — IndexedDB com namespace por organização
+## Task 3 (REVISADA): `db.ts` — transações confirmadas e multi-store
 
-**Files:**
-- Create: `src/services/db.ts`
-- Test: `src/services/db.test.ts`
+**Files:** Create `src/services/db.ts`; Test `src/services/db.test.ts`
 
 **Interfaces:**
-- Consumes: nada.
-- Produces:
-  - `abrirDb(orgId: string): Promise<IDBDatabase>`
-  - `guardar(orgId: string, store: NomeStore, chave: string, valor: unknown): Promise<void>`
-  - `obter<T>(orgId: string, store: NomeStore, chave: string): Promise<T | null>`
-  - `listarTudo<T>(orgId: string, store: NomeStore): Promise<Array<{ chave: string; valor: T }>>`
-  - `remover(orgId: string, store: NomeStore, chave: string): Promise<void>`
-  - `fecharDb(): void`
-  - `apagarDb(orgId: string): Promise<void>`
-  - `type NomeStore = 'dados' | 'fila' | 'tombstones' | 'meta'`
+- Produces: `abrirDb`, `transacao(orgId, stores, modo, fn): Promise<void>` (resolve em `tx.oncomplete`), `obter<T>`, `listarTudo<T>` (cursor, uma transação), `fecharDb`, `apagarDb`, `type NomeStore`, `type Operacao = { store: NomeStore; acao: 'put'|'delete'; chave: string; valor?: unknown }`, `aplicarAtomico(orgId, ops): Promise<void>`.
 
-Namespace por org é o que substitui o `reconcile` como mecanismo de isolamento entre contas (§3.2, §10).
+**O que mudou e por quê:** (#2) a versão anterior resolvia a Promise no `IDBRequest.onsuccess`, que dispara **antes** da transação ser confirmada — dado "salvo" podia sumir se o navegador fechasse em seguida. Agora resolve em `tx.oncomplete` e trata `onerror`/`onabort`. `listarTudo` usava **duas transações** (`getAllKeys` + `getAll`) e podia desalinhar chave e valor sob escrita concorrente; passa a usar cursor numa transação só.
 
 - [ ] **Step 1: Escrever o teste (falha primeiro)**
 
 ```ts
 // src/services/db.test.ts
 import { describe, it, expect, beforeEach } from 'vitest';
-import { guardar, obter, listarTudo, remover, fecharDb, apagarDb } from './db';
+import { aplicarAtomico, obter, listarTudo, fecharDb, apagarDb } from './db';
 
 const ORG_A = '11111111-1111-1111-1111-111111111111';
 const ORG_B = '22222222-2222-2222-2222-222222222222';
@@ -429,69 +477,86 @@ beforeEach(async () => {
   await apagarDb(ORG_B);
 });
 
-describe('db — IndexedDB com namespace por org', () => {
-  it('guarda e lê de volta', async () => {
-    await guardar(ORG_A, 'dados', 'nr13_info_X', { valor: '{"tag":"X"}', versao: 1 });
-    expect(await obter(ORG_A, 'dados', 'nr13_info_X')).toEqual({ valor: '{"tag":"X"}', versao: 1 });
+describe('db — durabilidade e atomicidade', () => {
+  it('aplicarAtomico só resolve DEPOIS do commit: leitura imediata já enxerga', async () => {
+    await aplicarAtomico(ORG_A, [{ store: 'dados', acao: 'put', chave: 'k', valor: { v: 1 } }]);
+    // Sem sleep nenhum: se resolvesse no onsuccess do request, isto seria instável.
+    expect(await obter(ORG_A, 'dados', 'k')).toEqual({ v: 1 });
   });
 
-  it('chave ausente devolve null', async () => {
-    expect(await obter(ORG_A, 'dados', 'nao_existe')).toBeNull();
+  it('escreve dados + fila na MESMA transação', async () => {
+    await aplicarAtomico(ORG_A, [
+      { store: 'dados', acao: 'put', chave: 'nr13_info_A', valor: { valor: '{}' } },
+      { store: 'fila', acao: 'put', chave: 'm1', valor: { mutationId: 'm1' } },
+    ]);
+    expect(await obter(ORG_A, 'dados', 'nr13_info_A')).not.toBeNull();
+    expect(await obter(ORG_A, 'fila', 'm1')).not.toBeNull();
+  });
+
+  it('ABORTO: se uma operação falha, NENHUMA das outras persiste', async () => {
+    await expect(
+      aplicarAtomico(ORG_A, [
+        { store: 'dados', acao: 'put', chave: 'k1', valor: { v: 1 } },
+        // Valor não-clonável (função) faz o IndexedDB abortar a transação inteira.
+        { store: 'fila', acao: 'put', chave: 'm1', valor: { fn: () => 1 } },
+      ]),
+    ).rejects.toBeTruthy();
+    expect(await obter(ORG_A, 'dados', 'k1')).toBeNull(); // rollback do IndexedDB
+  });
+
+  it('listarTudo devolve chave e valor alinhados (cursor, uma transação)', async () => {
+    await aplicarAtomico(ORG_A, [
+      { store: 'dados', acao: 'put', chave: 'k1', valor: { v: 1 } },
+      { store: 'dados', acao: 'put', chave: 'k2', valor: { v: 2 } },
+    ]);
+    const linhas = await listarTudo<{ v: number }>(ORG_A, 'dados');
+    expect(linhas.sort((a, b) => a.chave.localeCompare(b.chave)))
+      .toEqual([{ chave: 'k1', valor: { v: 1 } }, { chave: 'k2', valor: { v: 2 } }]);
   });
 
   it('ISOLAMENTO: dado da org A não aparece na org B', async () => {
-    await guardar(ORG_A, 'dados', 'nr13_info_X', { valor: 'a' });
-    expect(await obter(ORG_B, 'dados', 'nr13_info_X')).toBeNull();
+    await aplicarAtomico(ORG_A, [{ store: 'dados', acao: 'put', chave: 'k', valor: { v: 1 } }]);
+    expect(await obter(ORG_B, 'dados', 'k')).toBeNull();
   });
 
-  it('listarTudo devolve só a store pedida', async () => {
-    await guardar(ORG_A, 'dados', 'k1', { valor: '1' });
-    await guardar(ORG_A, 'dados', 'k2', { valor: '2' });
-    await guardar(ORG_A, 'fila', 'm1', { op: 'set' });
-    const dados = await listarTudo(ORG_A, 'dados');
-    expect(dados.map((d) => d.chave).sort()).toEqual(['k1', 'k2']);
-  });
-
-  it('remover apaga a chave', async () => {
-    await guardar(ORG_A, 'dados', 'k1', { valor: '1' });
-    await remover(ORG_A, 'dados', 'k1');
-    expect(await obter(ORG_A, 'dados', 'k1')).toBeNull();
-  });
-
-  it('apagarDb zera a org inteira', async () => {
-    await guardar(ORG_A, 'dados', 'k1', { valor: '1' });
-    fecharDb();
-    await apagarDb(ORG_A);
-    expect(await obter(ORG_A, 'dados', 'k1')).toBeNull();
+  it('delete atômico junto de put', async () => {
+    await aplicarAtomico(ORG_A, [{ store: 'dados', acao: 'put', chave: 'k', valor: { v: 1 } }]);
+    await aplicarAtomico(ORG_A, [
+      { store: 'dados', acao: 'delete', chave: 'k' },
+      { store: 'tombstones', acao: 'put', chave: 'k', valor: { chave: 'k' } },
+    ]);
+    expect(await obter(ORG_A, 'dados', 'k')).toBeNull();
+    expect(await obter(ORG_A, 'tombstones', 'k')).not.toBeNull();
   });
 });
 ```
 
-- [ ] **Step 2: Rodar e verificar que falha**
-
-Run: `npx vitest run src/services/db.test.ts`
-Expected: FAIL — `Failed to resolve import "./db"`.
+- [ ] **Step 2: Rodar e verificar que falha** — FAIL, módulo não existe.
 
 - [ ] **Step 3: Implementar**
 
 ```ts
 // src/services/db.ts
 /**
- * Acesso cru ao IndexedDB, com um banco POR ORGANIZAÇÃO (`nr13_dados_<org_id>`).
+ * IndexedDB cru, um banco POR ORGANIZAÇÃO (`nr13_dados_<org_id>`).
  *
- * O namespace por org é o que substitui o antigo `reconcile` do storage.ts como
- * mecanismo de isolamento entre contas — e sem o efeito colateral que causou o
- * bug original (apagar dado local por ele "não ter voltado do servidor").
- *
- * Este módulo não conhece regra de negócio: quem decide o que guardar é o
- * cacheLocal.ts (dados) e o sync.ts (fila/tombstones).
+ * DURABILIDADE: toda escrita resolve em `tx.oncomplete`, não em
+ * `request.onsuccess`. O `onsuccess` do request dispara ANTES do commit — quem
+ * resolvesse ali diria "salvo" para um dado que some se o navegador fechar no
+ * instante seguinte. É a diferença entre a fila ser confiável e não ser.
  */
 export type NomeStore = 'dados' | 'fila' | 'tombstones' | 'meta';
 const STORES: NomeStore[] = ['dados', 'fila', 'tombstones', 'meta'];
 const VERSAO_SCHEMA = 1;
 
-const nomeDb = (orgId: string) => `nr13_dados_${orgId}`;
+export interface Operacao {
+  store: NomeStore;
+  acao: 'put' | 'delete';
+  chave: string;
+  valor?: unknown;
+}
 
+const nomeDb = (orgId: string) => `nr13_dados_${orgId}`;
 let conexao: { orgId: string; db: Promise<IDBDatabase> } | null = null;
 
 export function fecharDb(): void {
@@ -503,60 +568,72 @@ export function fecharDb(): void {
 
 export function abrirDb(orgId: string): Promise<IDBDatabase> {
   if (conexao && conexao.orgId === orgId) return conexao.db;
-  fecharDb(); // trocou de org: nunca reaproveitar a conexão anterior
+  fecharDb();
   const db = new Promise<IDBDatabase>((resolve, reject) => {
     const req = indexedDB.open(nomeDb(orgId), VERSAO_SCHEMA);
     req.onupgradeneeded = () => {
-      for (const s of STORES) {
-        if (!req.result.objectStoreNames.contains(s)) req.result.createObjectStore(s);
-      }
+      for (const s of STORES) if (!req.result.objectStoreNames.contains(s)) req.result.createObjectStore(s);
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error ?? new Error('IndexedDB indisponível'));
   });
   conexao = { orgId, db };
-  // Falha na abertura não pode "grudar": zera para a próxima chamada tentar de novo.
   db.catch(() => { if (conexao?.db === db) conexao = null; });
   return db;
 }
 
-function transacao<T>(
-  orgId: string,
-  store: NomeStore,
-  modo: IDBTransactionMode,
-  fn: (s: IDBObjectStore) => IDBRequest<T>,
-): Promise<T> {
-  return abrirDb(orgId).then(
-    (db) =>
-      new Promise<T>((resolve, reject) => {
-        const tx = db.transaction(store, modo);
-        const req = fn(tx.objectStore(store));
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error ?? new Error(`falha em ${store}`));
-      }),
-  );
-}
-
-export function guardar(orgId: string, store: NomeStore, chave: string, valor: unknown): Promise<void> {
-  return transacao(orgId, store, 'readwrite', (s) => s.put(valor, chave)).then(() => undefined);
+/** Aplica todas as operações numa ÚNICA transação. Resolve só no commit. */
+export async function aplicarAtomico(orgId: string, ops: Operacao[]): Promise<void> {
+  if (ops.length === 0) return;
+  const db = await abrirDb(orgId);
+  const stores = [...new Set(ops.map((o) => o.store))];
+  return new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(stores, 'readwrite');
+    tx.oncomplete = () => resolve();                                   // <- durabilidade confirmada
+    tx.onerror = () => reject(tx.error ?? new Error('transação falhou'));
+    tx.onabort = () => reject(tx.error ?? new Error('transação abortada'));
+    try {
+      for (const op of ops) {
+        const s = tx.objectStore(op.store);
+        if (op.acao === 'put') s.put(op.valor, op.chave);
+        else s.delete(op.chave);
+      }
+    } catch (erro) {
+      try { tx.abort(); } catch { /* já abortada pelo próprio erro */ }
+      reject(erro);
+    }
+  });
 }
 
 export async function obter<T>(orgId: string, store: NomeStore, chave: string): Promise<T | null> {
-  const v = await transacao<T | undefined>(orgId, store, 'readonly', (s) => s.get(chave));
-  return v ?? null;
+  const db = await abrirDb(orgId);
+  return new Promise<T | null>((resolve, reject) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).get(chave);
+    tx.oncomplete = () => resolve((req.result as T) ?? null);
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error);
+  });
 }
 
-export async function listarTudo<T>(
-  orgId: string,
-  store: NomeStore,
-): Promise<Array<{ chave: string; valor: T }>> {
-  const chaves = await transacao<IDBValidKey[]>(orgId, store, 'readonly', (s) => s.getAllKeys());
-  const valores = await transacao<T[]>(orgId, store, 'readonly', (s) => s.getAll());
-  return chaves.map((c, i) => ({ chave: String(c), valor: valores[i] }));
-}
-
-export function remover(orgId: string, store: NomeStore, chave: string): Promise<void> {
-  return transacao(orgId, store, 'readwrite', (s) => s.delete(chave)).then(() => undefined);
+/** Cursor numa transação só: getAllKeys + getAll separados podiam desalinhar. */
+export async function listarTudo<T>(orgId: string, store: NomeStore): Promise<Array<{ chave: string; valor: T }>> {
+  const db = await abrirDb(orgId);
+  return new Promise((resolve, reject) => {
+    const linhas: Array<{ chave: string; valor: T }> = [];
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).openCursor();
+    req.onsuccess = () => {
+      const cursor = req.result;
+      if (cursor) {
+        linhas.push({ chave: String(cursor.key), valor: cursor.value as T });
+        cursor.continue();
+      }
+    };
+    tx.oncomplete = () => resolve(linhas);
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error);
+  });
 }
 
 export function apagarDb(orgId: string): Promise<void> {
@@ -564,136 +641,315 @@ export function apagarDb(orgId: string): Promise<void> {
   return new Promise((resolve) => {
     const req = indexedDB.deleteDatabase(nomeDb(orgId));
     req.onsuccess = () => resolve();
-    req.onerror = () => resolve(); // best-effort: não travar logout por causa disso
+    req.onerror = () => resolve();
     req.onblocked = () => resolve();
   });
 }
 ```
 
-- [ ] **Step 4: Rodar e verificar que passa**
-
-Run: `npx vitest run src/services/db.test.ts`
-Expected: PASS, 6 testes.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add src/services/db.ts src/services/db.test.ts
-git commit -m "feat(armazenamento): db.ts com IndexedDB por organizacao"
-```
+- [ ] **Step 4: Rodar e verificar que passa** — PASS, 6 testes.
+- [ ] **Step 5: Commit** — `feat(armazenamento): db.ts com transacao confirmada no commit`
 
 ---
 
-## Task 4: `cacheLocal.ts` — o `Map` que substitui o `localStorage`
+## Task 4 (REVISADA): famílias de chave + `cacheLocal` atômico e multi-aba
 
-**Files:**
-- Create: `src/services/cacheLocal.ts`
-- Test: `src/services/cacheLocal.test.ts`
+**Files:** Create `src/services/familiasChave.ts`, `src/services/cacheLocal.ts`; Test `src/services/familiasChave.test.ts`, `src/services/cacheLocal.test.ts`
 
 **Interfaces:**
-- Consumes: `db.ts` (Task 3).
-- Produces:
-  - `type Registro = { valor: string; versao: number; atualizadoEm: string; dispositivo: string | null }`
-  - `definirOrg(orgId: string | null): void`
-  - `orgAtual(): string | null`
-  - `obterRegistro(chave: string): Registro | null` — **síncrono**
-  - `gravarRegistro(chave: string, reg: Registro): void` — síncrono no Map, assíncrono no IndexedDB
-  - `removerRegistro(chave: string): void`
-  - `chaves(): string[]`
-  - `chavesComPrefixo(prefixo: string): string[]`
-  - `chavesDaTag(tag: string): string[]`
-  - `hidratarDoDisco(): Promise<number>`
-  - `zerarMemoria(): void`
+- Produces (`familiasChave.ts`): `type Escopo = 'tag' | 'global' | 'id'`, `escopoDaChave(chave): Escopo`, `tagDaChave(chave): string | null`.
+- Produces (`cacheLocal.ts`): `Registro`, `definirOrg`, `obterRegistro` (síncrono), `gravarAtomico(ops): Promise<void>`, `chavesComPrefixo`, `chavesDaTag`, `hidratarDoDisco`, `zerarMemoria`, `snapshot(): Record<string,string>`, `aplicarRemoto(chave, reg)`, `aguardarHidratacao(): Promise<void>`, `hidratado(): boolean`.
 
-`chavesDaTag` é o índice que substitui o casamento por sufixo `_<TAG>` do `excluirVaso` (D7).
+**O que mudou e por quê:**
 
-- [ ] **Step 1: Escrever o teste (falha primeiro)**
+| Ponto | Correção |
+|---|---|
+| #11 | A regex genérica extraía TAG errada em chaves reais: `nr13_med_esp_ACA 2040` virava TAG `esp_ACA 2040`, `nr13_minha_empresa` virava TAG `empresa`, `nr13_lista_phs` virava `phs`. Substituída por **tabela explícita** com as 34 famílias por TAG, 3 por id e 11 globais que existem no projeto, casadas por **prefixo mais longo primeiro** (`nr13_livro_config_` antes de `nr13_livro_`). |
+| #1 | `gravarRegistro` escrevia no `Map` e disparava gravação assíncrona solta, com erro engolido. Substituída por `gravarAtomico`, que recebe as operações de **todas as stores** e só confirma o `Map` depois do commit — revertendo em caso de falha. |
+| #7 | O `Map` de uma aba não via as alterações da outra. `BroadcastChannel` por org propaga cada commit. |
+| #12 | `snapshot()` e a **barreira de inicialização** (`aguardarHidratacao`), para nenhuma tela chamar `ler()` antes da hidratação terminar. |
+
+- [ ] **Step 1: Teste das famílias (falha primeiro)**
+
+```ts
+// src/services/familiasChave.test.ts
+import { describe, it, expect } from 'vitest';
+import { tagDaChave, escopoDaChave } from './familiasChave';
+
+describe('tagDaChave — todas as famílias reais do projeto', () => {
+  const casos: Array<[string, string | null]> = [
+    ['nr13_info_ACA 2040', 'ACA 2040'],
+    ['nr13_calc_ACA 2040', 'ACA 2040'],
+    ['nr13_calc_gv_ACA 2040', 'ACA 2040'],          // prefixo mais longo vence
+    ['nr13_med_esp_ACA 2040', 'ACA 2040'],          // quebrava na regex antiga
+    ['nr13_med_grid_ACA 2040', 'ACA 2040'],
+    ['nr13_livro_ACA 2040', 'ACA 2040'],
+    ['nr13_livro_config_ACA 2040', 'ACA 2040'],     // prefixo mais longo vence
+    ['nr13_vaso_ACA 2040', 'ACA 2040'],
+    ['nr13_vaso_ac_corpo_ACA 2040', 'ACA 2040'],
+    ['nr13_vaso_cald_ACA 2040', 'ACA 2040'],
+    ['nr13_vaso_gv_ACA 2040', 'ACA 2040'],
+    ['nr13_assinantes_pront_ACA 2040', 'ACA 2040'],
+    ['nr13_assinantes_rel_ACA 2040', 'ACA 2040'],
+    ['nr13_pref_unidade_ACA 2040', 'ACA 2040'],
+    ['nr13_prontuario_meta_ACA 2040', 'ACA 2040'],
+    ['nr13_folha_dados_ACA 2040', 'ACA 2040'],
+    ['nr13_componentes_cal_ACA 2040', 'ACA 2040'],
+    ['nr13_lotes_cal_ACA 2040', 'ACA 2040'],
+    ['nr13_caldeira_dados_costado_ACA 2040', 'ACA 2040'],
+    ['nr13_termo_livro_ACA 2040', 'ACA 2040'],
+    ['nr13_pront_fab_ACA 2040', 'ACA 2040'],
+    ['nr13_docs_ACA 2040', 'ACA 2040'],
+    ['nr13_fotos_ACA 2040', 'ACA 2040'],
+    // Globais: NÃO têm TAG (a regex antiga inventava uma)
+    ['nr13_minha_empresa', null],
+    ['nr13_lista_phs', null],
+    ['nr13_clientes', null],
+    ['nr13_demo_seed', null],
+    ['nr13_inspecao_atual', null],
+    ['nr13_injecao_atual', null],
+    ['nr13_relatorio_meta_atual', null],
+    ['nr13_historico_relatorios', null],
+    ['nr13_uso_contadores', null],
+    // Por id: também não são TAG de equipamento
+    ['nr13_rastreab_abc-123', null],
+    ['nr13_calibracao_item_99', null],
+    ['nr13_permissoes_uuid-do-usuario', null],
+  ];
+
+  for (const [chave, esperado] of casos) {
+    it(`${chave} -> ${esperado ?? 'null'}`, () => expect(tagDaChave(chave)).toBe(esperado));
+  }
+
+  it('TAG que é sufixo de outra não se confunde', () => {
+    expect(tagDaChave('nr13_info_B')).toBe('B');
+    expect(tagDaChave('nr13_info_A_B')).toBe('A_B');
+  });
+
+  it('chave desconhecida é tratada como global, nunca como TAG inventada', () => {
+    expect(escopoDaChave('nr13_coisa_nova')).toBe('global');
+    expect(tagDaChave('nr13_coisa_nova')).toBeNull();
+  });
+});
+```
+
+- [ ] **Step 2: Rodar e verificar que falha** — FAIL.
+
+- [ ] **Step 3: Implementar as famílias**
+
+```ts
+// src/services/familiasChave.ts
+/**
+ * Tabela EXPLÍCITA de famílias de chave. Levantada por varredura de src/ e
+ * public/ em 04/08/2026.
+ *
+ * POR QUE NÃO É REGEX: a dedução genérica errava em chaves reais —
+ * `nr13_med_esp_ACA 2040` produzia a TAG "esp_ACA 2040", e `nr13_minha_empresa`
+ * produzia a TAG "empresa". Índice errado = `excluirVaso` apagando o
+ * equipamento errado e palco montando o documento errado.
+ *
+ * REGRA AO ACRESCENTAR CHAVE NOVA: entre aqui. Chave desconhecida cai em
+ * 'global' — nunca vira TAG inventada.
+ */
+export type Escopo = 'tag' | 'global' | 'id';
+
+// Prefixos por TAG. A ORDEM NÃO IMPORTA: o casamento é sempre pelo mais longo.
+const POR_TAG = [
+  'nr13_assinantes_pront_', 'nr13_assinantes_rel_', 'nr13_autoclave_dados_',
+  'nr13_calc_gv_', 'nr13_calc_', 'nr13_caldeira_dados_costado_',
+  'nr13_caldeira_dados_espelho_', 'nr13_caldeira_dados_tampo_', 'nr13_calibracoes_',
+  'nr13_cat_', 'nr13_componentes_cal_', 'nr13_croqui2d_', 'nr13_croqui3d_',
+  'nr13_docs_', 'nr13_emp_', 'nr13_folha_dados_', 'nr13_fotos_', 'nr13_info_',
+  'nr13_laudo_', 'nr13_livro_config_', 'nr13_livro_', 'nr13_lotes_cal_',
+  'nr13_med_esp_', 'nr13_med_grid_', 'nr13_modelo3d_', 'nr13_pref_unidade_',
+  'nr13_pront_fab_', 'nr13_prontuario_meta_', 'nr13_termo_livro_',
+  'nr13_vaso_ac_corpo_', 'nr13_vaso_cald_', 'nr13_vaso_gv_', 'nr13_vaso_',
+  'nr13_vida_',
+];
+
+// Registros identificados por id próprio, não por TAG de equipamento.
+const POR_ID = ['nr13_rastreab_', 'nr13_calibracao_item_', 'nr13_permissoes_'];
+
+// Chaves inteiras (sem sufixo) — comparação exata, não por prefixo.
+const GLOBAIS = new Set([
+  'nr13_minha_empresa', 'nr13_lista_phs', 'nr13_clientes', 'nr13_demo_seed',
+  'nr13_historico_relatorios', 'nr13_uso_contadores', 'nr13_termos_aceite',
+  'nr13_relatorio_meta_atual', 'nr13_inspecao_atual', 'nr13_injecao_atual',
+  'nr13_prontuario_atual', 'nr13_rastreabilidade',
+]);
+
+function prefixoMaisLongo(chave: string, lista: string[]): string | null {
+  let achado: string | null = null;
+  for (const p of lista) {
+    if (chave.startsWith(p) && chave.length > p.length && (!achado || p.length > achado.length)) achado = p;
+  }
+  return achado;
+}
+
+export function escopoDaChave(chave: string): Escopo {
+  if (GLOBAIS.has(chave)) return 'global';
+  if (prefixoMaisLongo(chave, POR_ID)) return 'id';
+  if (prefixoMaisLongo(chave, POR_TAG)) return 'tag';
+  return 'global'; // desconhecida: nunca inventar TAG
+}
+
+export function tagDaChave(chave: string): string | null {
+  if (GLOBAIS.has(chave)) return null;
+  if (prefixoMaisLongo(chave, POR_ID)) return null;
+  const p = prefixoMaisLongo(chave, POR_TAG);
+  return p ? chave.slice(p.length) : null;
+}
+```
+
+- [ ] **Step 4: Rodar as famílias** — PASS, 37 testes.
+
+- [ ] **Step 5: Teste do cacheLocal (falha primeiro)**
 
 ```ts
 // src/services/cacheLocal.test.ts
 import { describe, it, expect, beforeEach } from 'vitest';
-import { fecharDb, apagarDb } from './db';
+import { fecharDb, apagarDb, obter } from './db';
 import {
-  definirOrg, obterRegistro, gravarRegistro, removerRegistro,
-  chavesComPrefixo, chavesDaTag, hidratarDoDisco, zerarMemoria,
+  definirOrg, obterRegistro, gravarAtomico, chavesComPrefixo, chavesDaTag,
+  hidratarDoDisco, zerarMemoria, snapshot, aplicarRemoto, hidratado, aguardarHidratacao,
 } from './cacheLocal';
 
 const ORG = '11111111-1111-1111-1111-111111111111';
-const reg = (valor: string) => ({ valor, versao: 1, atualizadoEm: '2026-08-04T12:00:00.000Z', dispositivo: 'd1' });
+const reg = (valor: string, versao = 1) =>
+  ({ valor, versao, atualizadoEm: '2026-08-04T12:00:00.000Z', dispositivo: 'd1' });
 
 beforeEach(async () => {
-  zerarMemoria();
-  fecharDb();
-  await apagarDb(ORG);
+  zerarMemoria(); fecharDb(); await apagarDb(ORG); localStorage.clear();
   definirOrg(ORG);
 });
 
-describe('cacheLocal', () => {
-  it('lê de volta de forma SÍNCRONA o que acabou de gravar', () => {
-    gravarRegistro('nr13_info_A', reg('{"tag":"A"}'));
+describe('cacheLocal — atomicidade', () => {
+  it('gravarAtomico só confirma o Map depois do commit (sem sleep nenhum)', async () => {
+    await gravarAtomico([{ chave: 'nr13_info_A', registro: reg('{"tag":"A"}') }]);
     expect(obterRegistro('nr13_info_A')?.valor).toBe('{"tag":"A"}');
+    expect(await obter(ORG, 'dados', 'nr13_info_A')).not.toBeNull();
   });
 
-  it('chave ausente devolve null', () => {
-    expect(obterRegistro('nada')).toBeNull();
+  it('grava dado e item de fila na MESMA transação', async () => {
+    await gravarAtomico(
+      [{ chave: 'nr13_info_A', registro: reg('{}') }],
+      [{ mutationId: 'm1', chave: 'nr13_info_A' } as never],
+    );
+    expect(await obter(ORG, 'fila', 'm1')).not.toBeNull();
   });
 
-  it('não tem teto de 5 MB: 40 chaves de 200 KB cabem', () => {
+  it('REVERTE o Map quando a transação falha', async () => {
+    await gravarAtomico([{ chave: 'nr13_info_A', registro: reg('{"v":1}') }]);
+    await expect(
+      gravarAtomico(
+        [{ chave: 'nr13_info_A', registro: reg('{"v":2}') }],
+        [{ mutationId: 'm1', fn: () => 1 } as never], // não-clonável: aborta a tx
+      ),
+    ).rejects.toBeTruthy();
+    expect(obterRegistro('nr13_info_A')?.valor).toBe('{"v":1}'); // valor anterior restaurado
+  });
+
+  it('não tem teto de 5 MB: 38 fichas + 40 fotos de 200 KB cabem', async () => {
     const gordo = 'x'.repeat(200 * 1024);
-    for (let i = 0; i < 40; i++) gravarRegistro(`nr13_fotos_T${i}`, reg(gordo));
-    for (let i = 0; i < 38; i++) gravarRegistro(`nr13_info_T${i}`, reg('{}'));
+    for (let i = 0; i < 40; i++) await gravarAtomico([{ chave: `nr13_fotos_T${i}`, registro: reg(gordo) }]);
+    for (let i = 0; i < 38; i++) await gravarAtomico([{ chave: `nr13_info_T${i}`, registro: reg('{}') }]);
     expect(chavesComPrefixo('nr13_info_')).toHaveLength(38);
   });
 
-  it('chavesDaTag NÃO casa uma TAG que é sufixo de outra', () => {
-    gravarRegistro('nr13_info_B', reg('{}'));
-    gravarRegistro('nr13_info_A_B', reg('{}'));
-    gravarRegistro('nr13_calc_A_B', reg('{}'));
-    expect(chavesDaTag('B')).toEqual(['nr13_info_B']);
-    expect(chavesDaTag('A_B').sort()).toEqual(['nr13_calc_A_B', 'nr13_info_A_B']);
+  it('chavesDaTag usa a tabela de famílias, não sufixo', async () => {
+    await gravarAtomico([
+      { chave: 'nr13_info_B', registro: reg('{}') },
+      { chave: 'nr13_info_A_B', registro: reg('{}') },
+      { chave: 'nr13_med_esp_B', registro: reg('{}') },
+      { chave: 'nr13_minha_empresa', registro: reg('{}') },
+    ]);
+    expect(chavesDaTag('B').sort()).toEqual(['nr13_info_B', 'nr13_med_esp_B']);
+    expect(chavesDaTag('A_B')).toEqual(['nr13_info_A_B']);
   });
 
-  it('removerRegistro tira do Map e do índice', () => {
-    gravarRegistro('nr13_info_A', reg('{}'));
-    removerRegistro('nr13_info_A');
-    expect(obterRegistro('nr13_info_A')).toBeNull();
-    expect(chavesDaTag('A')).toEqual([]);
-  });
-
-  it('hidratarDoDisco repovoa a memória a partir do IndexedDB (reabrir offline)', async () => {
-    gravarRegistro('nr13_info_A', reg('{"tag":"A"}'));
-    await new Promise((r) => setTimeout(r, 20)); // deixa o espelho assíncrono terminar
+  it('hidratarDoDisco repovoa a memória (reabrir 100% offline)', async () => {
+    await gravarAtomico([{ chave: 'nr13_info_A', registro: reg('{"tag":"A"}') }]);
     zerarMemoria();
     expect(obterRegistro('nr13_info_A')).toBeNull();
-    const n = await hidratarDoDisco();
-    expect(n).toBe(1);
+    expect(await hidratarDoDisco()).toBe(1);
     expect(obterRegistro('nr13_info_A')?.valor).toBe('{"tag":"A"}');
+  });
+
+  it('snapshot devolve o conteúdo inteiro do Map', async () => {
+    await gravarAtomico([{ chave: 'nr13_info_A', registro: reg('{"tag":"A"}') }]);
+    expect(snapshot()).toEqual({ 'nr13_info_A': '{"tag":"A"}' });
+  });
+});
+
+describe('cacheLocal — versão vence na hidratação (#12)', () => {
+  it('linha ANTIGA do servidor NÃO sobrescreve versão local mais nova', async () => {
+    await gravarAtomico([{ chave: 'nr13_info_A', registro: reg('{"local":true}', 9) }]);
+    await aplicarRemoto('nr13_info_A', reg('{"servidor":true}', 4));
+    expect(obterRegistro('nr13_info_A')?.valor).toBe('{"local":true}');
+  });
+
+  it('linha MAIS NOVA do servidor sobrescreve', async () => {
+    await gravarAtomico([{ chave: 'nr13_info_A', registro: reg('{"local":true}', 4) }]);
+    await aplicarRemoto('nr13_info_A', reg('{"servidor":true}', 9));
+    expect(obterRegistro('nr13_info_A')?.valor).toBe('{"servidor":true}');
+  });
+});
+
+describe('cacheLocal — barreira de inicialização (#12)', () => {
+  it('hidratado() é falso antes da hidratação e verdadeiro depois', async () => {
+    zerarMemoria();
+    expect(hidratado()).toBe(false);
+    await hidratarDoDisco();
+    expect(hidratado()).toBe(true);
+  });
+
+  it('aguardarHidratacao só resolve depois da hidratação', async () => {
+    zerarMemoria();
+    let resolvida = false;
+    void aguardarHidratacao().then(() => { resolvida = true; });
+    expect(resolvida).toBe(false);
+    await hidratarDoDisco();
+    await aguardarHidratacao();
+    expect(resolvida).toBe(true);
+  });
+});
+
+describe('cacheLocal — duas abas (#7)', () => {
+  it('gravação de uma aba chega no Map da outra pelo BroadcastChannel', async () => {
+    const canal = new BroadcastChannel(`nr13_cache_${ORG}`);
+    canal.postMessage({
+      tipo: 'gravado',
+      chave: 'nr13_info_OUTRA_ABA',
+      registro: reg('{"origem":"aba2"}'),
+    });
+    await new Promise((r) => queueMicrotask(() => r(null)));
+    expect(obterRegistro('nr13_info_OUTRA_ABA')?.valor).toBe('{"origem":"aba2"}');
+    canal.close();
   });
 });
 ```
 
-- [ ] **Step 2: Rodar e verificar que falha**
+- [ ] **Step 6: Rodar e verificar que falha** — FAIL.
 
-Run: `npx vitest run src/services/cacheLocal.test.ts`
-Expected: FAIL — `Failed to resolve import "./cacheLocal"`.
-
-- [ ] **Step 3: Implementar**
+- [ ] **Step 7: Implementar o `cacheLocal`**
 
 ```ts
 // src/services/cacheLocal.ts
 /**
- * O cache de leitura do app: um Map em memória, espelhado no IndexedDB.
+ * Cache de leitura do app: Map em memória, espelhado no IndexedDB.
  *
  * POR QUE EXISTE: até 04/08/2026 o cache era o localStorage, com 5 MB para a
  * origem inteira. Medido em produção, a conta cmam.caldeiras precisava de
- * 5.692 KB e NENHUM dos seus 38 equipamentos conseguia entrar no cache — a
- * hidratação, ordenada por nome, estourava dentro de `nr13_fotos_` e nunca
- * chegava em `nr13_info_`. Memória e IndexedDB não têm esse teto.
+ * 5.692 KB e NENHUM dos seus 38 equipamentos entrava no cache.
  *
- * `obterRegistro` é SÍNCRONO de propósito: `ler()` do storage.ts é síncrono e
- * tem ~50 pontos de chamada. Trocar a assinatura estava fora de escopo.
+ * ATOMICIDADE: `gravarAtomico` grava dado, item de fila e tombstone na MESMA
+ * transação e só confirma o Map no commit. Em caso de falha o Map volta ao
+ * estado anterior — sem isso, fechar o navegador entre as duas escritas
+ * deixava dado sem fila (nunca sobe) ou fila sem dado (sobe lixo).
  */
-import { guardar, listarTudo, remover } from './db';
+import { aplicarAtomico, listarTudo, type Operacao } from './db';
+import { tagDaChave } from './familiasChave';
+import type { ItemFila } from './sync';
 
 export interface Registro {
   valor: string;
@@ -702,18 +958,16 @@ export interface Registro {
   dispositivo: string | null;
 }
 
+export interface GravacaoDado { chave: string; registro: Registro }
+export interface RemocaoDado { chave: string; remover: true }
+
 const memoria = new Map<string, Registro>();
-// Índice TAG -> chaves. Substitui o casamento por sufixo `_<TAG>` do
-// excluirVaso, que apagava o equipamento errado quando uma TAG era sufixo de
-// outra ("B" casava "nr13_info_A_B").
 const porTag = new Map<string, Set<string>>();
 let orgId: string | null = null;
-
-/** Extrai a TAG de uma chave `nr13_<familia>_<TAG>`. Sem TAG, devolve null. */
-function tagDaChave(chave: string): string | null {
-  const m = /^nr13_[a-z0-9]+(?:_[a-z0-9]+)*?_(.+)$/i.exec(chave);
-  return m ? m[1] : null;
-}
+let canal: BroadcastChannel | null = null;
+let pronto = false;
+let resolverPronto: (() => void) | null = null;
+const promessaPronto = new Promise<void>((r) => { resolverPronto = r; });
 
 function indexar(chave: string): void {
   const tag = tagDaChave(chave);
@@ -731,2417 +985,625 @@ function desindexar(chave: string): void {
   if (set.size === 0) porTag.delete(tag);
 }
 
-export function definirOrg(id: string | null): void { orgId = id; }
-export function orgAtual(): string | null { return orgId; }
-
-export function obterRegistro(chave: string): Registro | null {
-  return memoria.get(chave) ?? null;
+export function definirOrg(id: string | null): void {
+  orgId = id;
+  canal?.close();
+  canal = null;
+  if (!id || typeof BroadcastChannel === 'undefined') return;
+  // Propagação entre abas: sem isto, a aba B seguiria mostrando dado velho
+  // depois de a aba A gravar, e poderia sobrescrever com versão desatualizada.
+  canal = new BroadcastChannel(`nr13_cache_${id}`);
+  canal.onmessage = (e) => {
+    const m = e.data as { tipo: string; chave: string; registro?: Registro };
+    if (m?.tipo === 'gravado' && m.registro) { memoria.set(m.chave, m.registro); indexar(m.chave); }
+    else if (m?.tipo === 'removido') { memoria.delete(m.chave); desindexar(m.chave); }
+  };
 }
 
-export function gravarRegistro(chave: string, reg: Registro): void {
-  memoria.set(chave, reg);
-  indexar(chave);
-  if (orgId) void guardar(orgId, 'dados', chave, reg).catch(() => undefined);
-}
+export function obterRegistro(chave: string): Registro | null { return memoria.get(chave) ?? null; }
+export function chavesComPrefixo(p: string): string[] { return [...memoria.keys()].filter((c) => c.startsWith(p)); }
+export function chavesDaTag(tag: string): string[] { return [...(porTag.get(tag) ?? [])]; }
+export function hidratado(): boolean { return pronto; }
+export function aguardarHidratacao(): Promise<void> { return promessaPronto; }
 
-export function removerRegistro(chave: string): void {
-  memoria.delete(chave);
-  desindexar(chave);
-  if (orgId) void remover(orgId, 'dados', chave).catch(() => undefined);
-}
-
-export function chaves(): string[] { return [...memoria.keys()]; }
-
-export function chavesComPrefixo(prefixo: string): string[] {
-  return [...memoria.keys()].filter((c) => c.startsWith(prefixo));
-}
-
-export function chavesDaTag(tag: string): string[] {
-  return [...(porTag.get(tag) ?? [])];
+export function snapshot(): Record<string, string> {
+  const saida: Record<string, string> = {};
+  for (const [chave, reg] of memoria) saida[chave] = reg.valor;
+  return saida;
 }
 
 export function zerarMemoria(): void {
   memoria.clear();
   porTag.clear();
+  pronto = false;
 }
 
-/** Repovoa a memória a partir do IndexedDB. É o caminho do boot 100% offline. */
+/**
+ * Grava dados (e opcionalmente itens de fila e tombstones) numa transação só.
+ * O Map é atualizado ANTES para as leituras síncronas verem, e REVERTIDO se o
+ * commit falhar — a UI só pode dizer "salvo" depois que esta Promise resolve.
+ */
+export async function gravarAtomico(
+  dados: Array<GravacaoDado | RemocaoDado>,
+  fila: ItemFila[] = [],
+  tombstones: Array<{ chave: string; valor: unknown }> = [],
+): Promise<void> {
+  if (!orgId) throw new Error('cacheLocal sem organização definida');
+
+  const anterior = new Map<string, Registro | null>();
+  for (const d of dados) anterior.set(d.chave, memoria.get(d.chave) ?? null);
+
+  for (const d of dados) {
+    if ('remover' in d) { memoria.delete(d.chave); desindexar(d.chave); }
+    else { memoria.set(d.chave, d.registro); indexar(d.chave); }
+  }
+
+  const ops: Operacao[] = [
+    ...dados.map((d): Operacao =>
+      'remover' in d
+        ? { store: 'dados', acao: 'delete', chave: d.chave }
+        : { store: 'dados', acao: 'put', chave: d.chave, valor: d.registro }),
+    ...fila.map((i): Operacao => ({ store: 'fila', acao: 'put', chave: i.mutationId, valor: i })),
+    ...tombstones.map((t): Operacao => ({ store: 'tombstones', acao: 'put', chave: t.chave, valor: t.valor })),
+  ];
+
+  try {
+    await aplicarAtomico(orgId, ops);
+  } catch (erro) {
+    for (const [chave, reg] of anterior) {
+      if (reg) { memoria.set(chave, reg); indexar(chave); }
+      else { memoria.delete(chave); desindexar(chave); }
+    }
+    throw erro;
+  }
+
+  for (const d of dados) {
+    canal?.postMessage(
+      'remover' in d
+        ? { tipo: 'removido', chave: d.chave }
+        : { tipo: 'gravado', chave: d.chave, registro: d.registro },
+    );
+  }
+}
+
+/** Aplica registro vindo do servidor SÓ se for mais novo que o local (#12). */
+export async function aplicarRemoto(chave: string, remoto: Registro): Promise<void> {
+  const local = memoria.get(chave);
+  if (local && local.versao >= remoto.versao) return;
+  await gravarAtomico([{ chave, registro: remoto }]);
+}
+
 export async function hidratarDoDisco(): Promise<number> {
   if (!orgId) return 0;
   const linhas = await listarTudo<Registro>(orgId, 'dados');
-  for (const { chave, valor } of linhas) {
-    memoria.set(chave, valor);
-    indexar(chave);
-  }
+  for (const { chave, valor } of linhas) { memoria.set(chave, valor); indexar(chave); }
+  pronto = true;
+  resolverPronto?.();
   return linhas.length;
 }
 ```
 
-- [ ] **Step 4: Rodar e verificar que passa**
-
-Run: `npx vitest run src/services/cacheLocal.test.ts`
-Expected: PASS, 6 testes.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add src/services/cacheLocal.ts src/services/cacheLocal.test.ts
-git commit -m "feat(armazenamento): cacheLocal com Map em memoria e indice por TAG"
-```
+- [ ] **Step 8: Rodar e verificar que passa** — PASS.
+- [ ] **Step 9: Commit** — `feat(armazenamento): familias de chave explicitas e cacheLocal atomico multi-aba`
 
 ---
 
-## Task 5: `errosSync.ts` — tradução com detalhe técnico preservado
+## Task 6 (REVISADA): fila com versão-base preservada
 
-**Files:**
-- Create: `src/services/errosSync.ts`
-- Test: `src/services/errosSync.test.ts`
+**Files:** Modify `src/services/sync.ts`; Test `src/services/sync.fila.test.ts`
 
-**Interfaces:**
-- Consumes: nada.
-- Produces:
-  - `type CategoriaErro = 'offline' | 'permissao' | 'cota' | 'sessao' | 'conflito' | 'obsoleto' | 'desconhecido'`
-  - `interface ErroSync { categoria; titulo; explicacao; acao: { rotulo; tipo } | null; detalhe: { codigo; mensagemOriginal; chave; mutationId; dispositivo; quando } }`
-  - `classificar(erro: unknown, ctx: ContextoErro): ErroSync`
+**O que mudou e por quê:** (#4) ao condensar autosaves da mesma chave, a versão anterior **substituía `versaoBase` pela versão local mais recente**. O servidor continuava na versão antiga, então a mutação condensada chegava com uma expectativa que nunca casaria — conflito eterno. Agora a `versaoBase` **original** é preservada. (#1) `enfileirar` deixa de gravar sozinha: devolve o item e quem persiste é `gravarAtomico`.
 
-Regra do §9.1: nenhuma mensagem crua na tela principal, e **nada escondido** — a original fica no `detalhe`.
-
-- [ ] **Step 1: Escrever o teste (falha primeiro)**
+- [ ] **Step 1: Teste (falha primeiro)**
 
 ```ts
-// src/services/errosSync.test.ts
-import { describe, it, expect } from 'vitest';
-import { classificar } from './errosSync';
-
-const CTX = {
-  chave: 'nr13_info_ACA 2040',
-  mutationId: 'm-1',
-  dispositivo: 'd-1',
-  quando: '2026-08-04T12:00:00.000Z',
-};
-
-describe('classificar — erro sempre legível, original sempre preservado', () => {
-  it('sem rede -> offline, sem ação', () => {
-    const e = classificar(new TypeError('Failed to fetch'), CTX);
-    expect(e.categoria).toBe('offline');
-    expect(e.titulo).toBe('Sem conexão');
-    expect(e.acao).toBeNull();
+// src/services/sync.fila.test.ts — trechos novos
+describe('fila — versão-base preservada na condensação (#4)', () => {
+  it('condensar autosaves NÃO avança a versaoBase: o servidor ainda está na antiga', async () => {
+    await enfileirarEGravar('set', 'nr13_form_A', '{"v":1}', 4);   // servidor está na 4
+    await enfileirarEGravar('set', 'nr13_form_A', '{"v":2}', 5);   // local já avançou
+    await enfileirarEGravar('set', 'nr13_form_A', '{"v":3}', 6);
+    const item = itemDaChave('nr13_form_A')!;
+    expect(listarFila()).toHaveLength(1);
+    expect(item.versaoBase).toBe(4);          // <- a original, não a 6
+    expect(item.valor).toBe('{"v":3}');       // <- o conteúdo mais recente
   });
 
-  it('RLS 42501 -> permissão, com ação Regularizar', () => {
-    const e = classificar({ code: '42501', message: 'new row violates row-level security policy' }, CTX);
-    expect(e.categoria).toBe('permissao');
-    expect(e.acao?.tipo).toBe('regularizar');
+  it('mutationId é preservado quando op e valor são idênticos', async () => {
+    const a = await enfileirarEGravar('set', 'nr13_form_A', '{"v":1}', 4);
+    const b = await enfileirarEGravar('set', 'nr13_form_A', '{"v":1}', 4);
+    expect(b).toBe(a);
   });
 
-  it('nr13_versao_obsoleta -> obsoleto (ressurreição barrada pelo servidor)', () => {
-    const e = classificar({ code: 'P0001', message: 'nr13_versao_obsoleta: chave X foi excluida' }, CTX);
-    expect(e.categoria).toBe('obsoleto');
-    expect(e.acao?.tipo).toBe('comparar');
-  });
-
-  it('401 -> sessão expirada', () => {
-    expect(classificar({ status: 401, message: 'JWT expired' }, CTX).categoria).toBe('sessao');
-  });
-
-  it('QuotaExceededError -> cota do aparelho', () => {
-    const err = new Error('quota'); err.name = 'QuotaExceededError';
-    expect(classificar(err, CTX).categoria).toBe('cota');
-  });
-
-  it('NUNCA usa a mensagem crua como texto de tela', () => {
-    const cru = 'duplicate key value violates unique constraint "app_storage_org_chave_uidx"';
-    const e = classificar({ code: '23505', message: cru }, CTX);
-    expect(e.titulo).not.toContain('constraint');
-    expect(e.explicacao).not.toContain('constraint');
-    expect(e.categoria).toBe('desconhecido');
-  });
-
-  it('SEMPRE preserva a mensagem original e o contexto no detalhe técnico', () => {
-    const cru = 'duplicate key value violates unique constraint';
-    const e = classificar({ code: '23505', message: cru }, CTX);
-    expect(e.detalhe.mensagemOriginal).toBe(cru);
-    expect(e.detalhe.codigo).toBe('23505');
-    expect(e.detalhe.chave).toBe('nr13_info_ACA 2040');
-    expect(e.detalhe.mutationId).toBe('m-1');
+  it('a fila sobrevive a fechar o navegador SEM sleep (transação confirmada)', async () => {
+    await enfileirarEGravar('set', 'nr13_info_A', '{"tag":"A"}', 1);
+    zerarFilaMemoria();
+    await carregarFilaDoDisco();
+    expect(listarFila()).toHaveLength(1);
   });
 });
 ```
 
-- [ ] **Step 2: Rodar e verificar que falha**
-
-Run: `npx vitest run src/services/errosSync.test.ts`
-Expected: FAIL — módulo não existe.
-
+- [ ] **Step 2: Rodar e verificar que falha** — FAIL.
 - [ ] **Step 3: Implementar**
 
 ```ts
-// src/services/errosSync.ts
-/**
- * Traduz erro de sincronização para linguagem do usuário, SEM esconder nada:
- * o texto cru do Supabase (que pode expor nome de constraint, coluna, policy)
- * nunca vai para a tela principal, mas fica inteiro no `detalhe`, exibido no
- * bloco recolhível "Detalhes técnicos" da tela de Pendências (§9.1 do spec).
- */
-export type CategoriaErro =
-  | 'offline' | 'permissao' | 'cota' | 'sessao' | 'conflito' | 'obsoleto' | 'desconhecido';
-
-export type TipoAcao = 'regularizar' | 'entrar' | 'liberar_espaco' | 'comparar' | 'tentar';
-
-export interface ContextoErro {
-  chave: string;
-  mutationId: string;
-  dispositivo: string;
-  quando: string;
-}
-
-export interface ErroSync {
-  categoria: CategoriaErro;
-  titulo: string;
-  explicacao: string;
-  acao: { rotulo: string; tipo: TipoAcao } | null;
-  detalhe: {
-    codigo: string;
-    mensagemOriginal: string;
-    chave: string;
-    mutationId: string;
-    dispositivo: string;
-    quando: string;
-  };
-}
-
-const TEXTOS: Record<CategoriaErro, Omit<ErroSync, 'detalhe' | 'categoria'>> = {
-  offline: {
-    titulo: 'Sem conexão',
-    explicacao: 'A alteração está guardada no aparelho e sobe sozinha quando a internet voltar.',
-    acao: null,
-  },
-  permissao: {
-    titulo: 'Sem permissão para gravar',
-    explicacao: 'Sua assinatura está suspensa ou seu acesso não permite gravar este item.',
-    acao: { rotulo: 'Regularizar', tipo: 'regularizar' },
-  },
-  cota: {
-    titulo: 'Armazenamento do aparelho cheio',
-    explicacao: 'Não há espaço livre neste dispositivo para guardar a alteração.',
-    acao: { rotulo: 'Liberar espaço', tipo: 'liberar_espaco' },
-  },
-  sessao: {
-    titulo: 'Sessão expirada',
-    explicacao: 'Entre novamente para que as alterações pendentes sejam enviadas.',
-    acao: { rotulo: 'Entrar', tipo: 'entrar' },
-  },
-  conflito: {
-    titulo: 'Alterado em outro aparelho',
-    explicacao: 'Este item foi modificado em outro dispositivo. As duas versões foram guardadas.',
-    acao: { rotulo: 'Comparar versões', tipo: 'comparar' },
-  },
-  obsoleto: {
-    titulo: 'Alteração mais antiga que a exclusão',
-    explicacao: 'Este item foi excluído em outro aparelho depois desta alteração ter sido feita.',
-    acao: { rotulo: 'Comparar versões', tipo: 'comparar' },
-  },
-  desconhecido: {
-    titulo: 'Não foi possível salvar no servidor',
-    explicacao: 'A alteração continua guardada no aparelho. Veja os detalhes técnicos ou tente de novo.',
-    acao: { rotulo: 'Tentar de novo', tipo: 'tentar' },
-  },
-};
-
-function extrair(erro: unknown): { codigo: string; mensagem: string; nome: string; status: number | null } {
-  if (typeof erro === 'object' && erro !== null) {
-    const e = erro as Record<string, unknown>;
-    return {
-      codigo: String(e.code ?? e.status ?? ''),
-      mensagem: String(e.message ?? ''),
-      nome: String(e.name ?? ''),
-      status: typeof e.status === 'number' ? e.status : null,
-    };
-  }
-  return { codigo: '', mensagem: String(erro ?? ''), nome: '', status: null };
-}
-
-function categorizar(d: ReturnType<typeof extrair>): CategoriaErro {
-  const m = d.mensagem.toLowerCase();
-  if (m.includes('nr13_versao_obsoleta')) return 'obsoleto';
-  if (d.nome === 'QuotaExceededError' || m.includes('quota')) return 'cota';
-  if (d.nome === 'TypeError' && m.includes('fetch')) return 'offline';
-  if (m.includes('networkerror') || m.includes('failed to fetch')) return 'offline';
-  if (d.codigo === '42501' || m.includes('row-level security')) return 'permissao';
-  if (d.status === 401 || d.status === 403 || m.includes('jwt')) return 'sessao';
-  if (d.codigo === 'nr13_conflito') return 'conflito';
-  return 'desconhecido';
-}
-
-export function classificar(erro: unknown, ctx: ContextoErro): ErroSync {
-  const d = extrair(erro);
-  const categoria = categorizar(d);
-  return {
-    categoria,
-    ...TEXTOS[categoria],
-    detalhe: {
-      codigo: d.codigo || d.nome || '—',
-      mensagemOriginal: d.mensagem,
-      chave: ctx.chave,
-      mutationId: ctx.mutationId,
-      dispositivo: ctx.dispositivo,
-      quando: ctx.quando,
-    },
-  };
-}
-```
-
-- [ ] **Step 4: Rodar e verificar que passa**
-
-Run: `npx vitest run src/services/errosSync.test.ts`
-Expected: PASS, 7 testes.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add src/services/errosSync.ts src/services/errosSync.test.ts
-git commit -m "feat(armazenamento): errosSync traduz sem esconder o detalhe tecnico"
-```
-
----
-
-## Task 6: `sync.ts` parte 1 — fila durável e idempotente
-
-**Files:**
-- Create: `src/services/sync.ts`
-- Test: `src/services/sync.fila.test.ts`
-
-**Interfaces:**
-- Consumes: `db.ts` (Task 3), `errosSync.ts` (Task 5).
-- Produces:
-  - `type EstadoItem = 'salvo_local' | 'aguardando' | 'sincronizado' | 'falha_definitiva' | 'conflito'`
-  - `interface ItemFila { mutationId; op: 'set'|'del'; chave; valor?; versaoBase; dispositivo; criadoEm; tentativas; estado; erro?: ErroSync }`
-  - `idDispositivo(): string`
-  - `enfileirar(op, chave, valor, versaoBase): Promise<string>` — devolve o `mutationId`
-  - `listarFila(): ItemFila[]`
-  - `itemDaChave(chave): ItemFila | null`
-  - `marcarEstado(mutationId, estado, erro?): Promise<void>`
-  - `removerDaFila(mutationId): Promise<void>`
-  - `carregarFilaDoDisco(): Promise<void>`
-
-Os cinco estados são exatamente os do §9.2. `salvo_local` e `bloqueado_nao_salvo` não convivem: bloqueado nunca entra na fila (§9.2), quem barra é o `storage.ts` na Task 11.
-
-- [ ] **Step 1: Escrever o teste (falha primeiro)**
-
-```ts
-// src/services/sync.fila.test.ts
-import { describe, it, expect, beforeEach } from 'vitest';
-import { fecharDb, apagarDb } from './db';
-import { definirOrg } from './cacheLocal';
-import {
-  enfileirar, listarFila, itemDaChave, marcarEstado, removerDaFila,
-  carregarFilaDoDisco, idDispositivo, zerarFilaMemoria,
-} from './sync';
-
-const ORG = '11111111-1111-1111-1111-111111111111';
-
-beforeEach(async () => {
-  zerarFilaMemoria();
-  fecharDb();
-  await apagarDb(ORG);
-  localStorage.clear();
-  definirOrg(ORG);
-});
-
-describe('sync — fila durável e idempotente', () => {
-  it('enfileirar devolve mutationId e o item nasce aguardando', async () => {
-    const id = await enfileirar('set', 'nr13_info_A', '{"tag":"A"}', 1);
-    expect(id).toMatch(/[0-9a-f-]{8}/);
-    expect(itemDaChave('nr13_info_A')?.estado).toBe('aguardando');
-  });
-
-  it('idDispositivo é estável entre chamadas', () => {
-    expect(idDispositivo()).toBe(idDispositivo());
-  });
-
-  it('regravar a MESMA chave substitui o item e PRESERVA o mutationId quando o valor é igual', async () => {
-    const id1 = await enfileirar('set', 'nr13_info_A', '{"tag":"A"}', 1);
-    const id2 = await enfileirar('set', 'nr13_info_A', '{"tag":"A"}', 1);
-    expect(id2).toBe(id1);
-    expect(listarFila()).toHaveLength(1);
-  });
-
-  it('regravar com valor DIFERENTE gera mutationId novo e continua com 1 item', async () => {
-    const id1 = await enfileirar('set', 'nr13_info_A', '{"tag":"A"}', 1);
-    const id2 = await enfileirar('set', 'nr13_info_A', '{"tag":"AA"}', 2);
-    expect(id2).not.toBe(id1);
-    expect(listarFila()).toHaveLength(1);
-    expect(itemDaChave('nr13_info_A')?.valor).toBe('{"tag":"AA"}');
-  });
-
-  it('del depois de set deixa só o del (a última operação vence)', async () => {
-    await enfileirar('set', 'nr13_info_A', '{}', 1);
-    await enfileirar('del', 'nr13_info_A', undefined, 2);
-    expect(listarFila()).toHaveLength(1);
-    expect(itemDaChave('nr13_info_A')?.op).toBe('del');
-  });
-
-  it('a fila SOBREVIVE ao fechamento do navegador (recarrega do IndexedDB)', async () => {
-    await enfileirar('set', 'nr13_info_A', '{"tag":"A"}', 1);
-    await new Promise((r) => setTimeout(r, 20));
-    zerarFilaMemoria();
-    expect(listarFila()).toHaveLength(0);
-    await carregarFilaDoDisco();
-    expect(listarFila()).toHaveLength(1);
-    expect(itemDaChave('nr13_info_A')?.valor).toBe('{"tag":"A"}');
-  });
-
-  it('marcarEstado guarda o erro traduzido junto', async () => {
-    const id = await enfileirar('set', 'nr13_info_A', '{}', 1);
-    await marcarEstado(id, 'falha_definitiva', { code: '42501', message: 'row-level security' });
-    const item = itemDaChave('nr13_info_A')!;
-    expect(item.estado).toBe('falha_definitiva');
-    expect(item.erro?.categoria).toBe('permissao');
-    expect(item.erro?.detalhe.mensagemOriginal).toBe('row-level security');
-  });
-
-  it('removerDaFila tira o item', async () => {
-    const id = await enfileirar('set', 'nr13_info_A', '{}', 1);
-    await removerDaFila(id);
-    expect(listarFila()).toHaveLength(0);
-  });
-});
-```
-
-- [ ] **Step 2: Rodar e verificar que falha**
-
-Run: `npx vitest run src/services/sync.fila.test.ts`
-Expected: FAIL — módulo não existe.
-
-- [ ] **Step 3: Implementar a parte 1**
-
-```ts
-// src/services/sync.ts
-/**
- * Fila de sincronização durável (IndexedDB) com chave de idempotência.
- *
- * Cada mutação carrega um `mutationId`. Reenviar o mesmo id é inofensivo: o
- * upsert é por (org_id, chave). "Tentar de novo" RETOMA o item existente e
- * nunca cria um segundo — foi por isso que o campo existe (§6.2 do spec).
- */
-import { guardar, listarTudo, remover } from './db';
-import { orgAtual } from './cacheLocal';
-import { classificar, type ErroSync } from './errosSync';
-
-export type EstadoItem = 'salvo_local' | 'aguardando' | 'sincronizado' | 'falha_definitiva' | 'conflito';
-
-export interface ItemFila {
-  mutationId: string;
-  op: 'set' | 'del';
-  chave: string;
-  valor?: string;
-  versaoBase: number;
-  dispositivo: string;
-  criadoEm: string;
-  tentativas: number;
-  estado: EstadoItem;
-  erro?: ErroSync;
-}
-
-const CHAVE_DISPOSITIVO = 'nr13_dispositivo_id';
-const fila = new Map<string, ItemFila>(); // mutationId -> item
-
-/** Id estável deste aparelho. Fica no localStorage (é preservado na faxina de conta). */
-export function idDispositivo(): string {
-  let id = localStorage.getItem(CHAVE_DISPOSITIVO);
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem(CHAVE_DISPOSITIVO, id);
-  }
-  return id;
-}
-
-export function zerarFilaMemoria(): void { fila.clear(); }
-export function listarFila(): ItemFila[] { return [...fila.values()]; }
-
-export function itemDaChave(chave: string): ItemFila | null {
-  for (const item of fila.values()) if (item.chave === chave) return item;
-  return null;
-}
-
-async function persistir(item: ItemFila): Promise<void> {
-  const org = orgAtual();
-  if (org) await guardar(org, 'fila', item.mutationId, item);
-}
-
-/**
- * Enfileira com DEDUP POR CHAVE (a última operação vence, igual à fila antiga).
- * O mutationId é PRESERVADO quando a operação e o valor são idênticos — assim
- * um autosave que dispara duas vezes com o mesmo conteúdo não vira mutação nova.
- */
-export async function enfileirar(
-  op: 'set' | 'del',
-  chave: string,
-  valor: string | undefined,
-  versaoBase: number,
-): Promise<string> {
+// src/services/sync.ts — construção do item
+export function montarItem(
+  op: 'set' | 'del', chave: string, valor: string | undefined, versaoServidor: number,
+): ItemFila {
   const anterior = itemDaChave(chave);
   const igual = anterior && anterior.op === op && anterior.valor === valor;
-  if (anterior) {
-    fila.delete(anterior.mutationId);
-    const org = orgAtual();
-    if (org) await remover(org, 'fila', anterior.mutationId).catch(() => undefined);
-  }
-  const item: ItemFila = {
+  return {
     mutationId: igual ? anterior!.mutationId : crypto.randomUUID(),
-    op,
-    chave,
-    valor,
-    versaoBase,
+    op, chave, valor,
+    // A versão-base é a que o SERVIDOR tinha quando a primeira edição saiu.
+    // Substituí-la pela versão local faria a RPC recusar para sempre: o
+    // servidor segue na versão antiga até esta mutação chegar.
+    versaoBase: anterior ? anterior.versaoBase : versaoServidor,
     dispositivo: idDispositivo(),
-    criadoEm: new Date().toISOString(),
+    criadoEm: anterior ? anterior.criadoEm : new Date().toISOString(),
     tentativas: igual ? anterior!.tentativas : 0,
     estado: 'aguardando',
   };
-  fila.set(item.mutationId, item);
-  await persistir(item);
-  return item.mutationId;
-}
-
-export async function marcarEstado(mutationId: string, estado: EstadoItem, erroBruto?: unknown): Promise<void> {
-  const item = fila.get(mutationId);
-  if (!item) return;
-  item.estado = estado;
-  if (erroBruto !== undefined) {
-    item.erro = classificar(erroBruto, {
-      chave: item.chave,
-      mutationId: item.mutationId,
-      dispositivo: item.dispositivo,
-      quando: new Date().toISOString(),
-    });
-  }
-  await persistir(item);
-}
-
-export async function removerDaFila(mutationId: string): Promise<void> {
-  fila.delete(mutationId);
-  const org = orgAtual();
-  if (org) await remover(org, 'fila', mutationId).catch(() => undefined);
-}
-
-/** Recarrega a fila do disco. É o que faz a pendência sobreviver a fechar o navegador. */
-export async function carregarFilaDoDisco(): Promise<void> {
-  const org = orgAtual();
-  if (!org) return;
-  const linhas = await listarTudo<ItemFila>(org, 'fila');
-  for (const { valor } of linhas) if (valor?.mutationId) fila.set(valor.mutationId, valor);
 }
 ```
 
-- [ ] **Step 4: Rodar e verificar que passa**
+`enfileirar` some; quem chama monta o item e passa para `gravarAtomico` junto do dado, removendo o item anterior da mesma chave na mesma transação.
 
-Run: `npx vitest run src/services/sync.fila.test.ts`
-Expected: PASS, 8 testes.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add src/services/sync.ts src/services/sync.fila.test.ts
-git commit -m "feat(armazenamento): fila de sync duravel com mutationId idempotente"
-```
+- [ ] **Step 4: Rodar** — PASS. **Step 5: Commit** — `fix(sync): preserva versao-base original ao condensar autosaves`
 
 ---
 
-## Task 7: `sync.ts` parte 2 — drenagem, versionamento e conflitos
+## Task 7 (REVISADA): drenagem pela RPC, conflito real
 
-**Files:**
-- Modify: `src/services/sync.ts` (acrescentar ao módulo da Task 6)
-- Test: `src/services/sync.drenagem.test.ts`
+**Files:** Modify `src/services/sync.ts`; Test `src/services/sync.drenagem.test.ts`
 
-**Interfaces:**
-- Consumes: Task 6, `pisoVersao.ts` (Task 2), `supabase.ts` (`supabase`, `escopoStorageAtual`, `TABELA_STORAGE`).
-- Produces:
-  - `drenar(): Promise<{ enviados: number; falhas: number }>`
-  - `tentarNovamente(mutationId: string): Promise<void>`
-  - `registrarTombstone(chave: string, versao: number): Promise<void>`
-  - `tombstoneMaisNovoQue(chave: string, atualizadoEm: string): boolean`
-  - `carregarTombstonesDoDisco(): Promise<void>`
-  - `guardarConflito(chave: string, perdedor: Registro): Promise<void>`
+**O que mudou e por quê:** (#3) `upsert` trocado pela RPC. `guardarConflito` agora é chamado **pelo fluxo real**, quando a RPC devolve `status: 'conflito'`. (#4) idempotência: `status: 'repetido'` é sucesso. (#6) `tombstone_mais_novo` e `versao_obsoleta` viram conflito para o usuário decidir.
 
-Regra do §7.2: mais recente vence, **perdedor preservado** em `nr13_conflito_<chave>__<timestamp>`.
-
-- [ ] **Step 1: Escrever o teste (falha primeiro)**
+- [ ] **Step 1: Teste (falha primeiro)**
 
 ```ts
 // src/services/sync.drenagem.test.ts
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-
-const upsert = vi.fn();
-const update = vi.fn();
+const rpc = vi.fn();
 vi.mock('./supabase', () => ({
-  supabase: { from: () => ({ upsert, update }) },
-  escopoStorageAtual: vi.fn(async () => ({ coluna: 'org_id', id: '11111111-1111-1111-1111-111111111111' })),
+  supabase: { rpc },
+  escopoStorageAtual: vi.fn(async () => ({ coluna: 'org_id', id: ORG })),
   idUsuarioAtual: vi.fn(async () => 'user-1'),
   TABELA_STORAGE: 'app_storage',
 }));
 
-import { fecharDb, apagarDb } from './db';
-import { definirOrg } from './cacheLocal';
-import {
-  enfileirar, listarFila, itemDaChave, drenar, tentarNovamente,
-  registrarTombstone, tombstoneMaisNovoQue, zerarFilaMemoria,
-} from './sync';
+describe('drenagem pela RPC', () => {
+  it('aplicado: sai da fila e o Map recebe a versão do servidor', async () => {
+    rpc.mockResolvedValue({ data: { status: 'aplicado', versao: 5 }, error: null });
+    await enfileirarEGravar('set', 'nr13_info_A', '{}', 4);
+    expect((await drenar()).enviados).toBe(1);
+    expect(listarFila()).toHaveLength(0);
+    expect(obterRegistro('nr13_info_A')?.versao).toBe(5);
+  });
 
-const ORG = '11111111-1111-1111-1111-111111111111';
-
-beforeEach(async () => {
-  zerarFilaMemoria();
-  fecharDb();
-  await apagarDb(ORG);
-  localStorage.clear();
-  definirOrg(ORG);
-  upsert.mockReset();
-  update.mockReset();
-});
-
-describe('sync — drenagem', () => {
-  it('sucesso: item sai da fila', async () => {
-    upsert.mockResolvedValue({ error: null });
-    await enfileirar('set', 'nr13_info_A', '{}', 1);
-    const r = await drenar();
-    expect(r.enviados).toBe(1);
+  it('repetido é SUCESSO: a resposta anterior se perdeu, o servidor já aplicou (#4)', async () => {
+    rpc.mockResolvedValue({ data: { status: 'repetido', versao: 5 }, error: null });
+    await enfileirarEGravar('set', 'nr13_info_A', '{}', 4);
+    expect((await drenar()).enviados).toBe(1);
     expect(listarFila()).toHaveLength(0);
   });
 
-  it('offline: item FICA na fila com erro traduzido, nada é perdido', async () => {
-    upsert.mockRejectedValue(new TypeError('Failed to fetch'));
-    await enfileirar('set', 'nr13_info_A', '{}', 1);
-    const r = await drenar();
-    expect(r.falhas).toBe(1);
-    const item = itemDaChave('nr13_info_A')!;
-    expect(item.estado).toBe('aguardando');
-    expect(item.erro?.categoria).toBe('offline');
+  it('CONFLITO REAL: dois aparelhos na mesma versaoBase — as DUAS versões sobrevivem (#3)', async () => {
+    rpc.mockResolvedValue({
+      data: {
+        status: 'conflito', versao: 5, valor: '{"origem":"escritorio"}',
+        atualizado_em: '2026-08-04T13:00:00.000Z', dispositivo: 'desktop-1',
+      },
+      error: null,
+    });
+    await enfileirarEGravar('set', 'nr13_form_A', '{"origem":"celular"}', 4);
+    await drenar();
+
+    expect(itemDaChave('nr13_form_A')?.estado).toBe('conflito');   // versão local preservada
+    const conflitos = (await listarTudo<Registro>(ORG, 'dados'))
+      .filter((g) => g.chave.startsWith('nr13_conflito_'));
+    expect(conflitos).toHaveLength(1);
+    expect(conflitos[0].valor.valor).toBe('{"origem":"escritorio"}'); // versão do servidor preservada
   });
 
-  it('RLS: vira falha_definitiva (não adianta reenviar sozinho)', async () => {
-    upsert.mockResolvedValue({ error: { code: '42501', message: 'row-level security' } });
-    await enfileirar('set', 'nr13_info_A', '{}', 1);
+  it('tombstone_mais_novo: escrita antiga NÃO reverte exclusão não coletada (#6)', async () => {
+    rpc.mockResolvedValue({ data: { status: 'recusado', motivo: 'tombstone_mais_novo', versao: 8 }, error: null });
+    await enfileirarEGravar('set', 'nr13_info_A', '{}', 3);
+    await drenar();
+    expect(itemDaChave('nr13_info_A')?.estado).toBe('conflito');
+  });
+
+  it('anterior_ao_corte: aparelho parado além da coleta não ressuscita nada (#5)', async () => {
+    rpc.mockResolvedValue({ data: { status: 'recusado', motivo: 'anterior_ao_corte', versao: 0 }, error: null });
+    await enfileirarEGravar('set', 'nr13_info_A', '{}', 3);
+    await drenar();
+    expect(itemDaChave('nr13_info_A')?.estado).toBe('conflito');
+  });
+
+  it('sem_permissao vira falha_definitiva', async () => {
+    rpc.mockResolvedValue({ data: { status: 'recusado', motivo: 'sem_permissao', versao: 0 }, error: null });
+    await enfileirarEGravar('set', 'nr13_info_A', '{}', 1);
     await drenar();
     expect(itemDaChave('nr13_info_A')?.estado).toBe('falha_definitiva');
   });
 
-  it('versão obsoleta (aparelho parado além da coleta): NÃO ressuscita, vira conflito', async () => {
-    upsert.mockResolvedValue({
-      error: { code: 'P0001', message: 'nr13_versao_obsoleta: chave nr13_info_A foi excluida na versao 7' },
-    });
-    await enfileirar('set', 'nr13_info_A', '{}', 3);
+  it('offline: item FICA na fila, nada é perdido', async () => {
+    rpc.mockRejectedValue(new TypeError('Failed to fetch'));
+    await enfileirarEGravar('set', 'nr13_info_A', '{}', 1);
     await drenar();
-    const item = itemDaChave('nr13_info_A')!;
-    expect(item.estado).toBe('conflito');
-    expect(item.erro?.categoria).toBe('obsoleto');
-    expect(listarFila()).toHaveLength(1); // preservado para o usuário decidir
+    expect(itemDaChave('nr13_info_A')?.erro?.categoria).toBe('offline');
+    expect(listarFila()).toHaveLength(1);
   });
 
-  it('tentarNovamente REUSA o mutationId (não duplica)', async () => {
-    upsert.mockResolvedValue({ error: { code: '42501', message: 'rls' } });
-    const id = await enfileirar('set', 'nr13_info_A', '{}', 1);
-    await drenar();
-    upsert.mockResolvedValue({ error: null });
-    await tentarNovamente(id);
-    expect(listarFila()).toHaveLength(0);
-    expect(upsert).toHaveBeenCalledTimes(2);
-  });
-
-  it('uma falha NÃO impede as outras de subirem', async () => {
-    upsert
-      .mockResolvedValueOnce({ error: { code: '42501', message: 'rls' } })
-      .mockResolvedValueOnce({ error: null });
-    await enfileirar('set', 'nr13_info_A', '{}', 1);
-    await enfileirar('set', 'nr13_info_B', '{}', 1);
+  it('uma falha não impede as outras de subirem', async () => {
+    rpc.mockResolvedValueOnce({ data: { status: 'recusado', motivo: 'sem_permissao' }, error: null })
+       .mockResolvedValueOnce({ data: { status: 'aplicado', versao: 2 }, error: null });
+    await enfileirarEGravar('set', 'nr13_info_A', '{}', 1);
+    await enfileirarEGravar('set', 'nr13_info_B', '{}', 1);
     const r = await drenar();
-    expect(r.enviados).toBe(1);
-    expect(r.falhas).toBe(1);
-  });
-});
-
-describe('sync — tombstones', () => {
-  it('tombstone mais novo que o servidor impede ressurreição na hidratação', async () => {
-    await registrarTombstone('nr13_info_A', 5);
-    expect(tombstoneMaisNovoQue('nr13_info_A', '2020-01-01T00:00:00.000Z')).toBe(true);
-  });
-
-  it('servidor mais novo que o tombstone -> a chave volta (foi recriada depois)', async () => {
-    await registrarTombstone('nr13_info_A', 5);
-    expect(tombstoneMaisNovoQue('nr13_info_A', '2099-01-01T00:00:00.000Z')).toBe(false);
-  });
-
-  it('sem tombstone -> nunca bloqueia', () => {
-    expect(tombstoneMaisNovoQue('nr13_info_Z', '2020-01-01T00:00:00.000Z')).toBe(false);
+    expect(r).toEqual({ enviados: 1, falhas: 1 });
   });
 });
 ```
 
-- [ ] **Step 2: Rodar e verificar que falha**
-
-Run: `npx vitest run src/services/sync.drenagem.test.ts`
-Expected: FAIL — `drenar` não é exportada.
-
-- [ ] **Step 3: Implementar (acrescentar ao `sync.ts`)**
-
-> **Atenção:** mover os `import` abaixo para o topo do arquivo, junto dos da Task 6. Importar **só o tipo** `Registro` — `tsc -b` reprova import não usado.
+- [ ] **Step 2: Rodar e verificar que falha** — FAIL.
+- [ ] **Step 3: Implementar**
 
 ```ts
-// ── acrescentar a src/services/sync.ts (imports vão para o topo) ──────────
-import { supabase, escopoStorageAtual, idUsuarioAtual, TABELA_STORAGE } from './supabase';
-import type { Registro } from './cacheLocal';
-
-interface Tombstone { chave: string; versao: number; excluidoEm: string; dispositivo: string }
-const tombstones = new Map<string, Tombstone>();
-
-export async function registrarTombstone(chave: string, versao: number): Promise<void> {
-  const t: Tombstone = {
-    chave, versao, excluidoEm: new Date().toISOString(), dispositivo: idDispositivo(),
-  };
-  tombstones.set(chave, t);
-  const org = orgAtual();
-  if (org) await guardar(org, 'tombstones', chave, t);
-}
-
-/** A hidratação NUNCA ressuscita uma chave cujo tombstone local é mais novo (§7.3). */
-export function tombstoneMaisNovoQue(chave: string, atualizadoEm: string): boolean {
-  const t = tombstones.get(chave);
-  if (!t) return false;
-  const tomb = new Date(t.excluidoEm).getTime();
-  const srv = new Date(atualizadoEm).getTime();
-  if (!Number.isFinite(tomb)) return false;
-  if (!Number.isFinite(srv)) return true; // data do servidor ilegível: manter excluído é o seguro
-  return tomb > srv;
-}
-
-export async function carregarTombstonesDoDisco(): Promise<void> {
-  const org = orgAtual();
-  if (!org) return;
-  for (const { valor } of await listarTudo<Tombstone>(org, 'tombstones')) {
-    if (valor?.chave) tombstones.set(valor.chave, valor);
-  }
-}
-
-/** Guarda o perdedor de um conflito. Nada é descartado sem alguém escolher (§7.2). */
-export async function guardarConflito(chave: string, perdedor: Registro): Promise<void> {
-  const org = orgAtual();
-  if (!org) return;
-  const alvo = `nr13_conflito_${chave}__${Date.now()}`;
-  await guardar(org, 'dados', alvo, perdedor);
-}
-
-// Categorias que NÃO se resolvem sozinhas com uma nova tentativa automática.
-const DEFINITIVAS = new Set(['permissao', 'cota', 'sessao']);
+// src/services/sync.ts
+import { interpretarResposta } from './contratoRpc';
+import { gravarAtomico, obterRegistro, type Registro } from './cacheLocal';
 
 async function enviarItem(item: ItemFila): Promise<void> {
-  const escopo = await escopoStorageAtual();
-  if (!escopo) throw new Error('sem escopo (sessão ausente)');
-  const userId = await idUsuarioAtual();
   item.tentativas += 1;
-
-  const linhaBase = escopo.coluna === 'org_id'
-    ? { user_id: userId, org_id: escopo.id, chave: item.chave }
-    : { user_id: escopo.id, chave: item.chave };
-
-  const { error } =
-    item.op === 'set'
-      ? await supabase.from(TABELA_STORAGE).upsert(
-          {
-            ...linhaBase,
-            valor: item.valor,
-            versao: item.versaoBase + 1,
-            dispositivo: item.dispositivo,
-            deletado_em: null,
-          },
-          { onConflict: escopo.coluna + ',chave' },
-        )
-      // Exclusão é SOFT-DELETE: sem isso, a exclusão feita num aparelho nunca
-      // chegaria aos outros — linha sumida é indistinguível de nunca existiu.
-      : await supabase.from(TABELA_STORAGE).upsert(
-          {
-            ...linhaBase,
-            valor: null,
-            versao: item.versaoBase + 1,
-            dispositivo: item.dispositivo,
-            deletado_em: new Date().toISOString(),
-          },
-          { onConflict: escopo.coluna + ',chave' },
-        );
-
+  const { data, error } = await supabase.rpc('aplicar_mutacao_storage', {
+    p_chave: item.chave,
+    p_mutation_id: item.mutationId,
+    p_op: item.op,
+    p_valor: item.valor ?? null,
+    p_versao_esperada: item.versaoBase,
+    p_dispositivo: item.dispositivo,
+    p_mutado_em: item.criadoEm,
+  });
   if (error) throw error;
-}
 
-/**
- * Drena a fila. Uma falha NÃO interrompe as demais: cada item é independente,
- * e travar a fila inteira por causa de um item com problema de permissão
- * seguraria dados de campo que subiriam sem dificuldade nenhuma.
- */
-export async function drenar(): Promise<{ enviados: number; falhas: number }> {
-  let enviados = 0;
-  let falhas = 0;
-  for (const item of [...fila.values()]) {
-    if (item.estado === 'conflito') continue; // aguarda decisão do usuário
-    try {
-      await enviarItem(item);
-      await removerDaFila(item.mutationId);
-      enviados += 1;
-    } catch (erro) {
-      falhas += 1;
-      await marcarEstado(item.mutationId, 'aguardando', erro);
-      const cat = fila.get(item.mutationId)?.erro?.categoria;
-      if (cat === 'obsoleto') await marcarEstado(item.mutationId, 'conflito');
-      else if (cat && DEFINITIVAS.has(cat)) await marcarEstado(item.mutationId, 'falha_definitiva');
+  const r = interpretarResposta(data);
+
+  if (r.status === 'aplicado' || r.status === 'repetido') {
+    const local = obterRegistro(item.chave);
+    if (local) await gravarAtomico([{ chave: item.chave, registro: { ...local, versao: r.versao } }]);
+    await removerDaFila(item.mutationId);
+    return;
+  }
+
+  if (r.status === 'conflito') {
+    // As DUAS versões sobrevivem: a do servidor vira nr13_conflito_*, a local
+    // segue na fila marcada como conflito, e o usuário escolhe em /pendencias.
+    if (r.valor !== null) {
+      await guardarConflito(item.chave, {
+        valor: r.valor, versao: r.versao,
+        atualizadoEm: r.atualizadoEm, dispositivo: r.dispositivo,
+      });
     }
+    await marcarEstado(item.mutationId, 'conflito', { code: 'nr13_conflito', message: 'versão divergente' });
+    return;
   }
-  return { enviados, falhas };
-}
 
-/** Retoma um item existente pelo mutationId. NUNCA cria um segundo (§6.2). */
-export async function tentarNovamente(mutationId: string): Promise<void> {
-  const item = fila.get(mutationId);
-  if (!item) return;
-  try {
-    await enviarItem(item);
-    await removerDaFila(mutationId);
-  } catch (erro) {
-    await marcarEstado(mutationId, 'aguardando', erro);
+  if (r.motivo === 'sem_permissao') {
+    await marcarEstado(item.mutationId, 'falha_definitiva', { code: '42501', message: r.motivo });
+  } else {
+    // versao_obsoleta / anterior_ao_corte / tombstone_mais_novo: exige decisão.
+    await marcarEstado(item.mutationId, 'conflito', { code: 'P0001', message: `nr13_versao_obsoleta: ${r.motivo}` });
   }
 }
 ```
 
-- [ ] **Step 4: Rodar e verificar que passa**
-
-Run: `npx vitest run src/services/sync.drenagem.test.ts`
-Expected: PASS, 9 testes.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add src/services/sync.ts src/services/sync.drenagem.test.ts
-git commit -m "feat(armazenamento): drenagem com soft-delete, tombstones e conflito preservado"
-```
+- [ ] **Step 4: Rodar** — PASS, 8 testes. **Step 5: Commit** — `feat(sync): drenagem pela RPC com conflito real preservando as duas versoes`
 
 ---
 
-## Task 8: `manifesto.ts` — detecção (parcial e assumida) de despejo
+## Task 11 (REVISADA): `storage.ts` orquestrador
 
-**Files:**
-- Create: `src/services/manifesto.ts`
-- Test: `src/services/manifesto.test.ts`
-
-**Interfaces:**
-- Consumes: `sync.ts` (`listarFila`).
-- Produces:
-  - `interface EntradaManifesto { mutationId; chave; criadoEm }`
-  - `atualizarManifesto(): void`
-  - `type Diagnostico = { tipo: 'ok' } | { tipo: 'despejo_detectado'; perdidos: EntradaManifesto[] } | { tipo: 'estado_zerado' }`
-  - `diagnosticarPerda(temDadosNoServidor: boolean): Diagnostico`
-
-O §4.2 é explícito: isto **não** detecta limpeza total do site, porque o manifesto vai junto. Não prometer o contrário nem no código nem na UI.
-
-- [ ] **Step 1: Escrever o teste (falha primeiro)**
+**O que mudou:** (#1) `salvar`/`excluirChave` montam o item de fila e gravam **tudo numa transação** via `gravarAtomico`, só retornando depois do commit. (#12) `lerTudo` devolve `snapshot()` do Map em qualquer caminho, inclusive offline, e compara versões via `aplicarRemoto`.
 
 ```ts
-// src/services/manifesto.test.ts
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-
-const filaMock = vi.fn();
-vi.mock('./sync', () => ({ listarFila: () => filaMock() }));
-
-import { atualizarManifesto, diagnosticarPerda } from './manifesto';
-
-beforeEach(() => {
-  localStorage.clear();
-  filaMock.mockReset();
-});
-
-describe('manifesto — o que detecta e o que NÃO detecta', () => {
-  it('fila íntegra -> ok', () => {
-    filaMock.mockReturnValue([{ mutationId: 'm1', chave: 'nr13_info_A', criadoEm: 'x' }]);
-    atualizarManifesto();
-    expect(diagnosticarPerda(true)).toEqual({ tipo: 'ok' });
-  });
-
-  it('DETECTA despejo isolado do IndexedDB: manifesto sobreviveu, fila sumiu', () => {
-    filaMock.mockReturnValue([{ mutationId: 'm1', chave: 'nr13_info_A', criadoEm: 'x' }]);
-    atualizarManifesto();
-    filaMock.mockReturnValue([]); // IndexedDB despejado
-    const d = diagnosticarPerda(true);
-    expect(d.tipo).toBe('despejo_detectado');
-    if (d.tipo === 'despejo_detectado') expect(d.perdidos[0].chave).toBe('nr13_info_A');
-  });
-
-  it('NÃO enumera nada na limpeza total do site (manifesto foi junto)', () => {
-    filaMock.mockReturnValue([]);
-    localStorage.clear(); // limpou tudo: manifesto some junto com o IndexedDB
-    expect(diagnosticarPerda(true)).toEqual({ tipo: 'estado_zerado' });
-  });
-
-  it('estado zerado SEM dados no servidor é conta nova, não perda', () => {
-    filaMock.mockReturnValue([]);
-    expect(diagnosticarPerda(false)).toEqual({ tipo: 'ok' });
-  });
-
-  it('fila vazia com manifesto vazio -> ok (nada pendente, nada a perder)', () => {
-    filaMock.mockReturnValue([]);
-    atualizarManifesto();
-    expect(diagnosticarPerda(true)).toEqual({ tipo: 'ok' });
-  });
-});
-```
-
-- [ ] **Step 2: Rodar e verificar que falha**
-
-Run: `npx vitest run src/services/manifesto.test.ts`
-Expected: FAIL — módulo não existe.
-
-- [ ] **Step 3: Implementar**
-
-```ts
-// src/services/manifesto.ts
-/**
- * Manifesto de pendências: lista minúscula (id + chave + data, SEM payload e
- * SEM foto) mantida no localStorage para detectar que o IndexedDB foi despejado
- * com pendências dentro.
- *
- * LIMITE ASSUMIDO (§4.2 do spec): isto só funciona quando o IndexedDB é
- * despejado ISOLADAMENTE. Se o usuário limpar todos os dados do site, o
- * manifesto é apagado junto e NÃO há como enumerar o que se perdeu. Nesse caso
- * o app avisa de forma genérica em vez de inventar uma lista. A proteção real
- * contra esse cenário é a janela curta de sincronização, não a detecção.
- */
-import { listarFila } from './sync';
-
-const CHAVE = 'nr13_manifesto_pendencias';
-
-export interface EntradaManifesto {
-  mutationId: string;
-  chave: string;
-  criadoEm: string;
-}
-
-export type Diagnostico =
-  | { tipo: 'ok' }
-  | { tipo: 'despejo_detectado'; perdidos: EntradaManifesto[] }
-  | { tipo: 'estado_zerado' };
-
-function lerManifesto(): EntradaManifesto[] | null {
-  const raw = localStorage.getItem(CHAVE);
-  if (raw === null) return null;
-  try {
-    const p = JSON.parse(raw);
-    return Array.isArray(p) ? (p as EntradaManifesto[]) : [];
-  } catch {
-    return []; // manifesto corrompido conta como vazio, nunca como perda
-  }
-}
-
-export function atualizarManifesto(): void {
-  const entradas: EntradaManifesto[] = listarFila().map((i) => ({
-    mutationId: i.mutationId,
-    chave: i.chave,
-    criadoEm: i.criadoEm,
-  }));
-  try {
-    localStorage.setItem(CHAVE, JSON.stringify(entradas));
-  } catch {
-    // Manifesto é diagnóstico, não dado: se não couber, seguir sem ele é
-    // preferível a derrubar a gravação que o usuário acabou de fazer.
-  }
-}
-
-export function diagnosticarPerda(temDadosNoServidor: boolean): Diagnostico {
-  const manifesto = lerManifesto();
-  const fila = listarFila();
-
-  if (manifesto === null) {
-    // Sem manifesto: ou é o primeiro uso, ou limpeza total do site levou tudo.
-    // Só há motivo de alarme se o servidor tem dados e o local está zerado.
-    return temDadosNoServidor && fila.length === 0 ? { tipo: 'estado_zerado' } : { tipo: 'ok' };
-  }
-
-  const idsNaFila = new Set(fila.map((i) => i.mutationId));
-  const perdidos = manifesto.filter((m) => !idsNaFila.has(m.mutationId));
-  return perdidos.length > 0 ? { tipo: 'despejo_detectado', perdidos } : { tipo: 'ok' };
-}
-```
-
-- [ ] **Step 4: Rodar e verificar que passa**
-
-Run: `npx vitest run src/services/manifesto.test.ts`
-Expected: PASS, 5 testes.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add src/services/manifesto.ts src/services/manifesto.test.ts
-git commit -m "feat(armazenamento): manifesto de pendencias com limite de deteccao assumido"
-```
-
----
-
-## Task 9: `quotaDispositivo.ts` — `persist()`, `estimate()` e limiares
-
-**Files:**
-- Create: `src/services/quotaDispositivo.ts`
-- Test: `src/services/quotaDispositivo.test.ts`
-
-**Interfaces:**
-- Consumes: nada.
-- Produces:
-  - `pedirPersistencia(): Promise<boolean>`
-  - `medirUso(): Promise<{ usado: number; cota: number; fracao: number } | null>`
-  - `type NivelQuota = 'ok' | 'aviso' | 'critico'`
-  - `nivelDaFracao(fracao: number): NivelQuota`
-
-Limiares do §4.1: aviso em 80%, crítico (bloqueia foto nova) em 95%.
-
-- [ ] **Step 1: Escrever o teste (falha primeiro)**
-
-```ts
-// src/services/quotaDispositivo.test.ts
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { nivelDaFracao, medirUso, pedirPersistencia } from './quotaDispositivo';
-
-beforeEach(() => {
-  (globalThis.navigator as unknown as Record<string, unknown>) = {};
-});
-
-describe('nivelDaFracao — limiares do §4.1', () => {
-  it('abaixo de 80% -> ok', () => expect(nivelDaFracao(0.79)).toBe('ok'));
-  it('exatamente 80% -> aviso', () => expect(nivelDaFracao(0.8)).toBe('aviso'));
-  it('exatamente 95% -> critico', () => expect(nivelDaFracao(0.95)).toBe('critico'));
-  it('acima de 95% -> critico', () => expect(nivelDaFracao(0.99)).toBe('critico'));
-});
-
-describe('medirUso / pedirPersistencia — degradam sem quebrar', () => {
-  it('sem navigator.storage devolve null (não quebra o boot)', async () => {
-    expect(await medirUso()).toBeNull();
-  });
-
-  it('sem navigator.storage.persist devolve false', async () => {
-    expect(await pedirPersistencia()).toBe(false);
-  });
-
-  it('com estimate calcula a fração', async () => {
-    (globalThis.navigator as unknown as Record<string, unknown>).storage = {
-      estimate: async () => ({ usage: 800, quota: 1000 }),
-    };
-    expect(await medirUso()).toEqual({ usado: 800, cota: 1000, fracao: 0.8 });
-  });
-
-  it('persist() negado devolve false sem lançar', async () => {
-    (globalThis.navigator as unknown as Record<string, unknown>).storage = {
-      persist: async () => false,
-    };
-    expect(await pedirPersistencia()).toBe(false);
-  });
-
-  it('cota zero não vira divisão por zero', async () => {
-    (globalThis.navigator as unknown as Record<string, unknown>).storage = {
-      estimate: async () => ({ usage: 0, quota: 0 }),
-    };
-    expect(await medirUso()).toEqual({ usado: 0, cota: 0, fracao: 0 });
-  });
-});
-```
-
-- [ ] **Step 2: Rodar e verificar que falha**
-
-Run: `npx vitest run src/services/quotaDispositivo.test.ts`
-Expected: FAIL — módulo não existe.
-
-- [ ] **Step 3: Implementar**
-
-```ts
-// src/services/quotaDispositivo.ts
-/**
- * Cota e durabilidade do armazenamento do aparelho (§4.1 do spec).
- * O IndexedDB não é ilimitado nem imune à limpeza do navegador: este módulo
- * pede persistência, mede o uso e classifica o nível para a UI avisar ANTES
- * de o inspetor descobrir no meio da inspeção que não cabe mais nada.
- */
-export type NivelQuota = 'ok' | 'aviso' | 'critico';
-
-export const LIMIAR_AVISO = 0.8;
-export const LIMIAR_CRITICO = 0.95;
-
-export function nivelDaFracao(fracao: number): NivelQuota {
-  if (fracao >= LIMIAR_CRITICO) return 'critico';
-  if (fracao >= LIMIAR_AVISO) return 'aviso';
-  return 'ok';
-}
-
-function storageApi(): StorageManager | null {
-  const nav = globalThis.navigator as Navigator | undefined;
-  return nav && 'storage' in nav ? (nav.storage as StorageManager) : null;
-}
-
-export async function pedirPersistencia(): Promise<boolean> {
-  const s = storageApi();
-  if (!s || typeof s.persist !== 'function') return false;
-  try {
-    return await s.persist();
-  } catch {
-    return false; // navegador recusou ou não implementa: seguir sem persistência
-  }
-}
-
-export async function medirUso(): Promise<{ usado: number; cota: number; fracao: number } | null> {
-  const s = storageApi();
-  if (!s || typeof s.estimate !== 'function') return null;
-  try {
-    const { usage = 0, quota = 0 } = await s.estimate();
-    return { usado: usage, cota: quota, fracao: quota > 0 ? usage / quota : 0 };
-  } catch {
-    return null;
-  }
-}
-```
-
-- [ ] **Step 4: Rodar e verificar que passa**
-
-Run: `npx vitest run src/services/quotaDispositivo.test.ts`
-Expected: PASS, 10 testes.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add src/services/quotaDispositivo.ts src/services/quotaDispositivo.test.ts
-git commit -m "feat(armazenamento): quotaDispositivo com persist, estimate e limiares"
-```
-
----
-
-## Task 10: `palco.ts` — orçamento e materialização atômica
-
-**Files:**
-- Create: `src/services/palco.ts`
-- Create: `src/services/recompressorFoto.ts`
-- Test: `src/services/palco.test.ts`
-
-**Interfaces:**
-- Consumes: `cacheLocal.ts` (Task 4).
-- Produces:
-  - `const ORCAMENTO_DOC = 3_400 * 1024` · `ORCAMENTO_IMG = 110 * 1024` · `LARGURA_REL = 900`
-  - `const PLANO_DEGRADACAO: PassoDegradacao[]` (5 passos, §5.3)
-  - `degradarAteCaber(itens, recomprimir): Promise<{cabe:true; itens; total} | Recusa>`
-  - `ehChaveDeFoto(chave: string): boolean`
-  - `type Recompressor = (valor: string, passo: PassoDegradacao) => Promise<string>`
-  - `recomprimirFotosDoValor: Recompressor` (de `recompressorFoto.ts`)
-  - `interface ItemPalco { chave: string; valor: string }`
-  - `interface Recusa { cabe: false; total: number; orcamento: number; maiores: Array<{ chave; bytes }> }`
-  - `orcar(itens: ItemPalco[]): { cabe: true; total: number } | Recusa`
-  - `materializar(itens: ItemPalco[]): { ok: true } | { ok: false; erro: unknown; chaveQueFalhou: string }`
-  - `limparPalco(): void`
-
-`materializar` é **tudo ou nada** (§5.4): o `localStorage` não tem transação, então o rollback é explícito.
-
-- [ ] **Step 1: Escrever o teste (falha primeiro)**
-
-```ts
-// src/services/palco.test.ts
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { orcar, materializar, limparPalco, ORCAMENTO_DOC } from './palco';
-
-beforeEach(() => localStorage.clear());
-
-const item = (chave: string, bytes: number) => ({ chave, valor: 'x'.repeat(bytes) });
-
-describe('orcar — calcula ANTES de escrever', () => {
-  it('dentro do orçamento -> cabe', () => {
-    const r = orcar([item('nr13_info_A', 1000)]);
-    expect(r.cabe).toBe(true);
-  });
-
-  it('acima do orçamento -> recusa listando os maiores em ordem decrescente', () => {
-    const r = orcar([
-      item('nr13_fotos_A', ORCAMENTO_DOC),
-      item('nr13_docs_A', 500 * 1024),
-      item('nr13_info_A', 10),
-    ]);
-    expect(r.cabe).toBe(false);
-    if (!r.cabe) {
-      expect(r.maiores[0].chave).toBe('nr13_fotos_A');
-      expect(r.maiores[1].chave).toBe('nr13_docs_A');
-      expect(r.total).toBeGreaterThan(r.orcamento);
-    }
-  });
-
-  it('não escreve NADA no localStorage ao orçar', () => {
-    orcar([item('nr13_info_A', 1000)]);
-    expect(localStorage.length).toBe(0);
-  });
-});
-
-describe('materializar — tudo ou nada', () => {
-  it('sucesso: grava todas as chaves', () => {
-    const r = materializar([item('nr13_info_A', 10), item('nr13_calc_A', 10)]);
-    expect(r.ok).toBe(true);
-    expect(localStorage.getItem('nr13_info_A')).not.toBeNull();
-    expect(localStorage.getItem('nr13_calc_A')).not.toBeNull();
-  });
-
-  it('ROLLBACK: se a 2ª chave falha, a 1ª é removida — nunca relatório parcial', () => {
-    const real = localStorage.setItem.bind(localStorage);
-    let n = 0;
-    const spy = vi.spyOn(localStorage, 'setItem').mockImplementation((k: string, v: string) => {
-      if (++n === 2) {
-        const e = new Error('cheio'); e.name = 'QuotaExceededError'; throw e;
-      }
-      real(k, v);
-    });
-
-    const r = materializar([item('nr13_info_A', 10), item('nr13_calc_A', 10)]);
-    spy.mockRestore();
-
-    expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.chaveQueFalhou).toBe('nr13_calc_A');
-    expect(localStorage.getItem('nr13_info_A')).toBeNull(); // rollback aconteceu
-  });
-
-  it('limparPalco remove só o que o palco montou', () => {
-    localStorage.setItem('nr13_usuario_logado', 'a@b.com');
-    materializar([item('nr13_info_A', 10)]);
-    limparPalco();
-    expect(localStorage.getItem('nr13_info_A')).toBeNull();
-    expect(localStorage.getItem('nr13_usuario_logado')).toBe('a@b.com');
-  });
-});
-```
-
-- [ ] **Step 2: Rodar e verificar que falha**
-
-Run: `npx vitest run src/services/palco.test.ts`
-Expected: FAIL — módulo não existe.
-
-- [ ] **Step 3: Implementar**
-
-```ts
-// src/services/palco.ts
-/**
- * O palco: a única coisa que ainda vive no localStorage (§5 do spec).
- *
- * Os 40+ templates HTML em iframe leem localStorage de forma síncrona no
- * DOMContentLoaded. Em vez de reescrevê-los, o app materializa ali só as
- * chaves do documento que está sendo aberto, monta os iframes, e limpa depois.
- *
- * O limite de 5 MB continua valendo NESTE espaço — por isso tudo é orçado
- * ANTES de escrever, e a escrita é tudo-ou-nada: relatório pela metade é pior
- * que relatório recusado, porque sai impresso com folha faltando.
- */
-export const ORCAMENTO_DOC = 3_400 * 1024;
-export const ORCAMENTO_IMG = 110 * 1024;
-export const LARGURA_REL = 900;
-
-const REGISTRO = 'nr13_palco_chaves';
-
-export interface ItemPalco { chave: string; valor: string }
-export interface Recusa {
-  cabe: false;
-  total: number;
-  orcamento: number;
-  maiores: Array<{ chave: string; bytes: number }>;
-}
-
-const tamanho = (i: ItemPalco) => i.chave.length + i.valor.length;
-
-export function orcar(itens: ItemPalco[]): { cabe: true; total: number } | Recusa {
-  const total = itens.reduce((s, i) => s + tamanho(i), 0);
-  if (total <= ORCAMENTO_DOC) return { cabe: true, total };
-  return {
-    cabe: false,
-    total,
-    orcamento: ORCAMENTO_DOC,
-    maiores: itens
-      .map((i) => ({ chave: i.chave, bytes: tamanho(i) }))
-      .sort((a, b) => b.bytes - a.bytes),
-  };
-}
-
-export function materializar(
-  itens: ItemPalco[],
-): { ok: true } | { ok: false; erro: unknown; chaveQueFalhou: string } {
-  const gravadas: string[] = [];
-  for (const item of itens) {
-    try {
-      localStorage.setItem(item.chave, item.valor);
-      gravadas.push(item.chave);
-    } catch (erro) {
-      // Rollback explícito: localStorage não tem transação e um documento
-      // meio montado imprimiria folhas faltando sem ninguém perceber.
-      for (const c of gravadas) localStorage.removeItem(c);
-      localStorage.removeItem(REGISTRO);
-      return { ok: false, erro, chaveQueFalhou: item.chave };
-    }
-  }
-  try {
-    localStorage.setItem(REGISTRO, JSON.stringify(gravadas));
-  } catch {
-    for (const c of gravadas) localStorage.removeItem(c);
-    return { ok: false, erro: new Error('registro do palco não coube'), chaveQueFalhou: REGISTRO };
-  }
-  return { ok: true };
-}
-
-export function limparPalco(): void {
-  const raw = localStorage.getItem(REGISTRO);
-  if (!raw) return;
-  try {
-    const chaves = JSON.parse(raw) as string[];
-    for (const c of chaves) localStorage.removeItem(c);
-  } catch {
-    // Registro corrompido: não sair apagando `nr13_` a esmo, porque as chaves
-    // de sessão vivem no mesmo espaço. O palco seguinte sobrescreve.
-  }
-  localStorage.removeItem(REGISTRO);
-}
-```
-
-- [ ] **Step 4: Rodar e verificar que passa**
-
-Run: `npx vitest run src/services/palco.test.ts`
-Expected: PASS, 6 testes.
-
-- [ ] **Step 5: Escrever o teste da degradação em passos (falha primeiro)**
-
-Sem isto, um documento acima do orçamento seria só recusado — o §5.3 manda **degradar antes de desistir**. O recompressor é injetado porque `canvas` não existe no ambiente de teste (`environment: 'node'`).
-
-```ts
-// acrescentar a src/services/palco.test.ts
-import { PLANO_DEGRADACAO, degradarAteCaber, ehChaveDeFoto } from './palco';
-
-describe('degradação em passos (§5.3)', () => {
-  it('o plano segue a ordem do spec: qualidade primeiro, largura depois', () => {
-    expect(PLANO_DEGRADACAO).toEqual([
-      { qualidade: 0.6, largura: 900 },
-      { qualidade: 0.45, largura: 900 },
-      { qualidade: 0.35, largura: 900 },
-      { qualidade: 0.35, largura: 700 },
-      { qualidade: 0.35, largura: 560 },
-    ]);
-  });
-
-  it('reconhece chave de foto e ignora as demais', () => {
-    expect(ehChaveDeFoto('nr13_fotos_ACA 2040')).toBe(true);
-    expect(ehChaveDeFoto('nr13_info_ACA 2040')).toBe(false);
-  });
-
-  it('já cabendo, NÃO recomprime nada (passo 0 é no-op)', async () => {
-    const recomprimir = vi.fn();
-    const r = await degradarAteCaber([{ chave: 'nr13_info_A', valor: 'x'.repeat(100) }], recomprimir);
-    expect(r.cabe).toBe(true);
-    expect(recomprimir).not.toHaveBeenCalled();
-  });
-
-  it('degrada só o necessário e para no primeiro passo que couber', async () => {
-    // Cada passo devolve metade do tamanho anterior.
-    const recomprimir = vi.fn(async (valor: string, p: { qualidade: number }) =>
-      'y'.repeat(Math.round(valor.length * p.qualidade)));
-    const itens = [
-      { chave: 'nr13_fotos_A', valor: 'x'.repeat(ORCAMENTO_DOC + 500 * 1024) },
-      { chave: 'nr13_info_A', valor: '{}' },
-    ];
-    const r = await degradarAteCaber(itens, recomprimir);
-    expect(r.cabe).toBe(true);
-    expect(recomprimir).toHaveBeenCalledTimes(1); // parou no primeiro passo
-    if (r.cabe) expect(r.itens.find((i) => i.chave === 'nr13_info_A')?.valor).toBe('{}');
-  });
-
-  it('esgotou o plano e ainda não cabe -> recusa com os maiores listados', async () => {
-    const recomprimir = vi.fn(async (valor: string) => valor); // não reduz nada
-    const itens = [{ chave: 'nr13_fotos_A', valor: 'x'.repeat(ORCAMENTO_DOC * 2) }];
-    const r = await degradarAteCaber(itens, recomprimir);
-    expect(r.cabe).toBe(false);
-    if (!r.cabe) expect(r.maiores[0].chave).toBe('nr13_fotos_A');
-    expect(recomprimir).toHaveBeenCalledTimes(PLANO_DEGRADACAO.length);
-  });
-
-  it('falha ao recomprimir uma foto NÃO derruba a montagem: segue com o original', async () => {
-    const recomprimir = vi.fn(async () => { throw new Error('canvas indisponível'); });
-    const itens = [{ chave: 'nr13_fotos_A', valor: 'x'.repeat(100) }];
-    const r = await degradarAteCaber(itens, recomprimir);
-    expect(r.cabe).toBe(true);
-  });
-});
-```
-
-- [ ] **Step 6: Rodar e verificar que falha**
-
-Run: `npx vitest run src/services/palco.test.ts`
-Expected: FAIL — `PLANO_DEGRADACAO` não é exportado.
-
-- [ ] **Step 7: Implementar a degradação**
-
-```ts
-// acrescentar a src/services/palco.ts
-
-/** Qualidade primeiro, largura depois — a ordem é a do §5.3 do spec. */
-export interface PassoDegradacao { qualidade: number; largura: number }
-export const PLANO_DEGRADACAO: PassoDegradacao[] = [
-  { qualidade: 0.6, largura: 900 },
-  { qualidade: 0.45, largura: 900 },
-  { qualidade: 0.35, largura: 900 },
-  { qualidade: 0.35, largura: 700 },
-  { qualidade: 0.35, largura: 560 },
-];
-
-export function ehChaveDeFoto(chave: string): boolean {
-  return chave.startsWith('nr13_fotos_');
-}
-
-export type Recompressor = (valor: string, passo: PassoDegradacao) => Promise<string>;
-
-/**
- * Aplica os passos até caber. Recomprime SÓ as chaves de foto: degradar o JSON
- * do memorial não economizaria nada e corromperia o documento.
- *
- * O recompressor é injetado porque depende de `canvas`, que não existe no
- * ambiente de teste — e porque falha de recompressão não pode derrubar a
- * montagem: nesse caso segue com o original e o orçamento decide.
- */
-export async function degradarAteCaber(
-  itens: ItemPalco[],
-  recomprimir: Recompressor,
-): Promise<{ cabe: true; itens: ItemPalco[]; total: number } | Recusa> {
-  let atuais = itens;
-  const inicial = orcar(atuais);
-  if (inicial.cabe) return { cabe: true, itens: atuais, total: inicial.total };
-
-  for (const passo of PLANO_DEGRADACAO) {
-    atuais = await Promise.all(
-      atuais.map(async (item) => {
-        if (!ehChaveDeFoto(item.chave)) return item;
-        try {
-          return { chave: item.chave, valor: await recomprimir(item.valor, passo) };
-        } catch {
-          return item; // recompressão falhou: segue com o original
-        }
-      }),
-    );
-    const r = orcar(atuais);
-    if (r.cabe) return { cabe: true, itens: atuais, total: r.total };
-  }
-  return orcar(atuais) as Recusa;
-}
-```
-
-- [ ] **Step 8: Criar o recompressor real (usado em runtime, não no teste)**
-
-```ts
-// src/services/recompressorFoto.ts
-import type { Recompressor } from './palco';
-
-/**
- * Gera a "variante de relatório" (§5.2): redesenha cada foto do array
- * `nr13_fotos_<TAG>` em canvas na largura e qualidade do passo.
- * Só roda no navegador — o palco recebe esta função por injeção.
- */
-export const recomprimirFotosDoValor: Recompressor = async (valor, passo) => {
-  const fotos = JSON.parse(valor) as Array<{ src: string; [k: string]: unknown }>;
-  if (!Array.isArray(fotos)) return valor;
-  const novas = await Promise.all(
-    fotos.map(async (f) => (typeof f.src === 'string' ? { ...f, src: await redesenhar(f.src, passo) } : f)),
-  );
-  return JSON.stringify(novas);
-};
-
-function redesenhar(dataUrl: string, passo: { qualidade: number; largura: number }): Promise<string> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      const escala = Math.min(1, passo.largura / img.width);
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.max(1, Math.round(img.width * escala));
-      canvas.height = Math.max(1, Math.round(img.height * escala));
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return resolve(dataUrl);
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      resolve(canvas.toDataURL('image/jpeg', passo.qualidade));
-    };
-    img.onerror = () => resolve(dataUrl); // imagem quebrada: mantém como está
-    img.src = dataUrl;
-  });
-}
-```
-
-- [ ] **Step 9: Rodar e verificar que passa**
-
-Run: `npx vitest run src/services/palco.test.ts`
-Expected: PASS, 12 testes.
-
-- [ ] **Step 10: Commit**
-
-```bash
-git add src/services/palco.ts src/services/recompressorFoto.ts src/services/palco.test.ts
-git commit -m "feat(armazenamento): palco com orcamento, degradacao em passos e montagem atomica"
-```
-
----
-
-## Task 11: `storage.ts` como orquestrador + teste de regressão do bug real
-
-**Files:**
-- Modify: `src/services/storage.ts` (reescrita: 515 linhas → orquestrador fino)
-- Modify: `src/services/storage.gate.test.ts` (bloqueado agora erra)
-- Test: `src/services/storage.regressao.test.ts`
-
-**Interfaces:**
-- Consumes: Tasks 3-10.
-- Produces (API pública preservada): `ler`, `salvar`, `lerTudo`, `listarChavesComPrefixo`, `excluirChave`, `excluirVaso`, `limparCacheDados`, `flushFila`, `bloqueadoParaEscrita`, `lerRemoto`.
-- Novo: `salvar` passa a **lançar** `ErroBloqueado` quando `bloqueadoParaEscrita()` — corrige D1.
-
-Este é o teste que prova o conserto: hoje ele falha na `main`.
-
-- [ ] **Step 1: Escrever o teste de regressão (falha primeiro)**
-
-```ts
-// src/services/storage.regressao.test.ts
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-
-// Espelha a conta cmam.caldeiras medida em 04/08/2026: 38 equipamentos,
-// ~3.900 KB de fotos, ~5.700 KB no total. Antes desta refatoração, a
-// hidratação ordenada por nome estourava a cota dentro de `nr13_fotos_` e
-// NENHUM `nr13_info_` entrava no cache.
-const linhas: Array<{ chave: string; valor: string }> = [];
-for (let i = 0; i < 38; i++) {
-  const tag = `ACA ${2000 + i}`;
-  linhas.push({ chave: `nr13_fotos_${tag}`, valor: 'f'.repeat(103 * 1024) });
-  linhas.push({ chave: `nr13_info_${tag}`, valor: JSON.stringify({ tag, tipo: 'vaso' }) });
-}
-
-const range = vi.fn(async () => ({ data: linhas, error: null }));
-vi.mock('./supabase', () => ({
-  supabase: {
-    from: () => ({
-      select: () => ({ eq: () => ({ order: () => ({ range }) }) }),
-      upsert: vi.fn(async () => ({ error: null })),
-    }),
-  },
-  escopoStorageAtual: vi.fn(async () => ({ coluna: 'org_id', id: '11111111-1111-1111-1111-111111111111' })),
-  idUsuarioAtual: vi.fn(async () => 'user-1'),
-  TABELA_STORAGE: 'app_storage',
-}));
-
-import { fecharDb, apagarDb } from './db';
-import { zerarMemoria } from './cacheLocal';
-import { lerTudo, listarChavesComPrefixo, ler } from './storage';
-
-const ORG = '11111111-1111-1111-1111-111111111111';
-
-beforeEach(async () => {
-  zerarMemoria();
-  fecharDb();
-  await apagarDb(ORG);
-  localStorage.clear();
-  localStorage.setItem('nr13_org_id', ORG);
-});
-
-describe('REGRESSÃO do sumiço de equipamentos (conta cmam.caldeiras, 04/08/2026)', () => {
-  it('hidrata os 38 equipamentos mesmo com ~5,7 MB de dados', async () => {
-    await lerTudo();
-    expect(listarChavesComPrefixo('nr13_info_')).toHaveLength(38);
-  });
-
-  it('a ficha de cada equipamento é legível depois da hidratação', async () => {
-    await lerTudo();
-    expect(ler<{ tag: string }>('nr13_info_ACA 2037')?.tag).toBe('ACA 2037');
-  });
-
-  it('não depende do localStorage: o cache de 5,7 MB não tenta caber nos 5 MB', async () => {
-    await lerTudo();
-    expect(localStorage.getItem('nr13_info_ACA 2000')).toBeNull();
-    expect(ler('nr13_info_ACA 2000')).not.toBeNull();
-  });
-});
-```
-
-- [ ] **Step 2: Rodar e verificar que falha**
-
-Run: `npx vitest run src/services/storage.regressao.test.ts`
-Expected: FAIL — o `storage.ts` atual grava tudo no `localStorage` e estoura a cota.
-
-- [ ] **Step 3: Reescrever `storage.ts` como orquestrador**
-
-Substituir o corpo inteiro do arquivo, preservando a API pública. Pontos obrigatórios:
-
-```ts
-// src/services/storage.ts (estrutura — preservar TODOS os exports listados nas Interfaces)
-import { supabase, escopoStorageAtual, idUsuarioAtual, TABELA_STORAGE } from './supabase';
-import * as cache from './cacheLocal';
-import * as sync from './sync';
-import { limparPalco } from './palco';
-import { atualizarManifesto } from './manifesto';
-
-export class ErroBloqueado extends Error {
-  constructor() {
-    // D1: até 04/08/2026 este caminho gravava no cache e retornava em silêncio.
-    // A tela dizia "salvo", o reconcile apagava 60s depois e o dado sumia.
-    super('Alteração não salva: assinatura suspensa ou acesso somente leitura.');
-    this.name = 'ErroBloqueado';
-  }
-}
-
-export function ler<T = unknown>(chave: string): T | null {
-  const reg = cache.obterRegistro(chave);
-  if (!reg) return null;
-  try { return JSON.parse(reg.valor) as T; } catch { return reg.valor as unknown as T; }
-}
-
-export function listarChavesComPrefixo(prefixo: string): string[] {
-  return cache.chavesComPrefixo(prefixo);
-}
-
 export async function salvar(chave: string, objeto: unknown): Promise<void> {
-  if (bloqueadoParaEscrita()) throw new ErroBloqueado(); // NUNCA fingir sucesso
+  if (bloqueadoParaEscrita()) throw new ErroBloqueado();
   const valor = JSON.stringify(objeto);
   const anterior = cache.obterRegistro(chave);
-  const versao = (anterior?.versao ?? 0) + 1;
-  cache.gravarRegistro(chave, {
-    valor, versao, atualizadoEm: new Date().toISOString(), dispositivo: sync.idDispositivo(),
-  });
-  await sync.enfileirar('set', chave, valor, anterior?.versao ?? 0);
-  atualizarManifesto();
-  await sync.drenar();
-  atualizarManifesto();
-}
-
-export async function excluirChave(chave: string): Promise<void> {
-  if (bloqueadoParaEscrita()) throw new ErroBloqueado();
-  const anterior = cache.obterRegistro(chave);
-  await sync.registrarTombstone(chave, anterior?.versao ?? 0);
-  cache.removerRegistro(chave);
-  await sync.enfileirar('del', chave, undefined, anterior?.versao ?? 0);
+  const registro: cache.Registro = {
+    valor,
+    versao: (anterior?.versao ?? 0) + 1,
+    atualizadoEm: new Date().toISOString(),
+    dispositivo: sync.idDispositivo(),
+  };
+  const item = sync.montarItem('set', chave, valor, anterior?.versao ?? 0);
+  const antigo = sync.itemDaChave(chave);
+  // Dado + fila na MESMA transação: só depois disto a UI pode dizer "salvo".
+  await cache.gravarAtomico([{ chave, registro }], [item]);
+  if (antigo && antigo.mutationId !== item.mutationId) await sync.removerDaFila(antigo.mutationId);
+  sync.registrarNaMemoria(item);
   atualizarManifesto();
   await sync.drenar();
 }
 
-export async function excluirVaso(tag: string): Promise<void> {
-  if (bloqueadoParaEscrita()) throw new ErroBloqueado();
-  // Índice por TAG em vez do casamento por sufixo `_<TAG>` (corrige D7).
-  for (const chave of cache.chavesDaTag(tag)) await excluirChave(chave);
-}
-
-export async function lerTudo(): Promise<Record<string, string>> { /* ver Step 4 */ }
-export function limparCacheDados(): void { /* ver Task 12 */ }
-export async function flushFila(): Promise<void> { await sync.drenar(); atualizarManifesto(); }
-// bloqueadoParaEscrita e lerRemoto: manter as implementações atuais (linhas 79-94 e 148-164).
-```
-
-- [ ] **Step 4: Implementar `lerTudo` sem apagar-por-ausência**
-
-```ts
 export async function lerTudo(): Promise<Record<string, string>> {
   const escopo = await escopoStorageAtual();
-  if (!escopo) return {};
+  if (!escopo) return cache.snapshot();
   cache.definirOrg(escopo.id);
-  await cache.hidratarDoDisco();      // boot offline funciona a partir daqui
+  await cache.hidratarDoDisco();
   await sync.carregarFilaDoDisco();
   await sync.carregarTombstonesDoDisco();
   await sync.drenar();
 
-  const dados: Record<string, string> = {};
   try {
     for (let inicio = 0; ; inicio += 1000) {
-      const { data, error } = await supabase
-        .from(TABELA_STORAGE)
+      const { data, error } = await supabase.from(TABELA_STORAGE)
         .select('chave, valor, versao, atualizado_em, dispositivo, deletado_em')
-        .eq(escopo.coluna, escopo.id)
-        .order('chave', { ascending: true })
+        .eq(escopo.coluna, escopo.id).order('chave', { ascending: true })
         .range(inicio, inicio + 999);
-      if (error) return {};        // offline: fica com o que veio do IndexedDB
+      if (error) return cache.snapshot();      // offline: devolve o que veio do disco
       if (!data || data.length === 0) break;
-
       for (const row of data as Array<Record<string, unknown>>) {
         const chave = String(row.chave);
         const atualizadoEm = String(row.atualizado_em ?? '');
-        // Soft-delete propaga a exclusão feita em OUTRO aparelho.
-        if (row.deletado_em) { cache.removerRegistro(chave); continue; }
-        // Tombstone local mais novo: não ressuscita (§7.3).
+        if (row.deletado_em) { await cache.gravarAtomico([{ chave, remover: true }]); continue; }
         if (sync.tombstoneMaisNovoQue(chave, atualizadoEm)) continue;
-        // Escrita local ainda pendente vence o servidor: ela é mais nova.
-        if (sync.itemDaChave(chave)) continue;
+        if (sync.itemDaChave(chave)) continue;   // escrita local pendente vence
         if (row.valor == null) continue;
-        const valor = String(row.valor);
-        cache.gravarRegistro(chave, {
-          valor,
+        await cache.aplicarRemoto(chave, {       // só sobrescreve se for mais novo
+          valor: String(row.valor),
           versao: Number(row.versao ?? 1),
           atualizadoEm,
           dispositivo: row.dispositivo ? String(row.dispositivo) : null,
         });
-        dados[chave] = valor;
       }
       if (data.length < 1000) break;
     }
   } catch {
-    return {}; // offline
+    return cache.snapshot();
   }
-  // NÃO existe mais varredura removendo chaves locais ausentes no servidor.
-  // Era ela que transformava falha de rede/cota em sumiço de dado.
-  return dados;
+  return cache.snapshot();
 }
 ```
 
-- [ ] **Step 5: Atualizar o teste do gate (bloqueado agora ERRA)**
+**Barreira de inicialização (#12):** o `Layout` só renderiza rotas depois de `await aguardarHidratacao()`, exibindo "Carregando seus dados…". Nenhuma tela chama `ler()` antes disso.
 
-Em `src/services/storage.gate.test.ts`, acrescentar:
-
-```ts
-import { salvar, ErroBloqueado } from './storage';
-
-describe('salvar com escrita bloqueada — não finge sucesso (D1)', () => {
-  it('assinatura somente_leitura -> lança ErroBloqueado', async () => {
-    localStorage.setItem('nr13_assinatura_status', 'somente_leitura');
-    await expect(salvar('nr13_info_A', { tag: 'A' })).rejects.toBeInstanceOf(ErroBloqueado);
-  });
-
-  it('papel cliente -> lança ErroBloqueado', async () => {
-    localStorage.setItem('nr13_papel', 'cliente');
-    await expect(salvar('nr13_info_A', { tag: 'A' })).rejects.toBeInstanceOf(ErroBloqueado);
-  });
-});
-```
-
-- [ ] **Step 6: Rodar tudo e verificar que passa**
-
-Run: `npm test`
-Expected: PASS — incluindo os 3 testes de regressão que falhavam no Step 2.
-
-- [ ] **Step 7: Commit**
-
-```bash
-git add src/services/storage.ts src/services/storage.gate.test.ts src/services/storage.regressao.test.ts
-git commit -m "feat(armazenamento): storage.ts vira orquestrador; fim do apagar-por-ausencia"
-```
+Testes: os 3 de regressão (340 chaves / 5,7 MB → 38 equipamentos), mais `lerTudo devolve snapshot offline` e `ler() antes da hidratação é barrado pela tela, não devolve vazio silencioso`.
 
 ---
 
-## Task 12: Isolamento na troca de conta
+## Task 12 (REVISADA): logout não apaga pendências
 
-**Files:**
-- Modify: `src/services/storage.ts` (`limparCacheDados`)
-- Modify: `src/services/auth.ts:475-489` (`encerrarSessaoLocal`)
-- Test: `src/services/isolamento.test.ts`
-
-**Interfaces:**
-- Consumes: Tasks 3, 4, 6, 10.
-- Produces: `limparCacheDados()` agora zera Map, palco, fila em memória e fecha o IndexedDB.
-
-- [ ] **Step 1: Escrever o teste (falha primeiro)**
+**O que mudou:** (#9) `apagarDb` no logout podia **destruir inspeções feitas offline** que ainda não subiram.
 
 ```ts
-// src/services/isolamento.test.ts
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+export type ResultadoLogout =
+  | { pode: true }
+  | { pode: false; pendencias: number; maisAntiga: string };
 
-vi.mock('./supabase', () => ({
-  supabase: { from: vi.fn() },
-  escopoStorageAtual: vi.fn(),
-  idUsuarioAtual: vi.fn(),
-  TABELA_STORAGE: 'app_storage',
-}));
-
-import { definirOrg, gravarRegistro, obterRegistro } from './cacheLocal';
-import { materializar } from './palco';
-import { limparCacheDados } from './storage';
-
-const ORG_A = '11111111-1111-1111-1111-111111111111';
-const reg = (v: string) => ({ valor: v, versao: 1, atualizadoEm: '2026-08-04T00:00:00.000Z', dispositivo: 'd' });
-
-beforeEach(() => { localStorage.clear(); definirOrg(ORG_A); });
-
-describe('isolamento entre organizações', () => {
-  it('limparCacheDados zera o Map', () => {
-    gravarRegistro('nr13_info_A', reg('{}'));
-    limparCacheDados();
-    expect(obterRegistro('nr13_info_A')).toBeNull();
-  });
-
-  it('limparCacheDados limpa o palco', () => {
-    materializar([{ chave: 'nr13_info_A', valor: '{}' }]);
-    limparCacheDados();
-    expect(localStorage.getItem('nr13_info_A')).toBeNull();
-  });
-
-  it('preserva as chaves de sessão (regravadas no login)', () => {
-    localStorage.setItem('nr13_usuario_logado', 'a@b.com');
-    localStorage.setItem('nr13_dispositivo_id', 'd-1');
-    limparCacheDados();
-    expect(localStorage.getItem('nr13_usuario_logado')).toBe('a@b.com');
-    expect(localStorage.getItem('nr13_dispositivo_id')).toBe('d-1');
-  });
-});
-```
-
-- [ ] **Step 2: Rodar e verificar que falha**
-
-Run: `npx vitest run src/services/isolamento.test.ts`
-Expected: FAIL — `limparCacheDados` ainda só varre o `localStorage`.
-
-- [ ] **Step 3: Implementar**
-
-```ts
-// src/services/storage.ts
-import { fecharDb } from './db';
-
-/**
- * Faxina ao trocar de conta. O isolamento entre organizações agora vem do
- * namespace do IndexedDB (`nr13_dados_<org_id>`), não mais de varrer e apagar
- * chaves — foi o apagar que causou o bug original.
- */
-export function limparCacheDados(): void {
-  cache.zerarMemoria();
-  sync.zerarFilaMemoria();
-  limparPalco();
-  fecharDb();
-  cache.definirOrg(null);
+/** Chamada ANTES do logout. Nunca apagar IndexedDB com pendência dentro. */
+export function podeSairSemPerder(): ResultadoLogout {
+  const fila = sync.listarFila();
+  if (fila.length === 0) return { pode: true };
+  const maisAntiga = fila.map((i) => i.criadoEm).sort()[0];
+  return { pode: false, pendencias: fila.length, maisAntiga };
 }
 ```
 
-Em `src/services/auth.ts`, na `encerrarSessaoLocal` (hoje linhas 475-489), acrescentar `nr13_dispositivo_id` à lista de chaves preservadas e chamar `apagarDb(orgAnterior)` **apenas no logout explícito** — nunca na troca de aba.
+Fluxo: `pode: false` → modal *"Você tem N alterações que ainda não subiram"* com **[Sincronizar agora]**, **[Sair e manter no aparelho]** (mantém o banco) e **[Cancelar]**. `apagarDb` **só** com fila vazia e confirmação explícita. `limparCacheDados()` (troca de aba/conta) nunca apaga o banco — só zera memória, palco e fecha a conexão.
 
-- [ ] **Step 4: Rodar e verificar que passa**
-
-Run: `npx vitest run src/services/isolamento.test.ts`
-Expected: PASS, 3 testes.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add src/services/storage.ts src/services/auth.ts src/services/isolamento.test.ts
-git commit -m "feat(armazenamento): isolamento por org na troca de conta"
-```
+Testes: logout com pendência bloqueia; logout limpo libera; "sair e manter" preserva o banco; troca de conta não apaga banco da anterior.
 
 ---
 
-## Task 13: `sb-storage.js` — escrita dos templates pela fila do app
+## Task 13 (REVISADA): ponte por `postMessage` com confirmação
 
-**Files:**
-- Modify: `public/sb-storage.js`
-- Test: `src/services/sbStorage.contrato.test.ts`
+**O que mudou (#8):** a ponte por `localStorage` perdia dado — `drenarPonte()` limpava a fila inteira antes de salvar (falha no item 1 já tinha removido os itens 2..n), só drenava ao desmontar a tela, e `sbSalvar` tinha `catch` vazios contra a regra global.
 
-**Interfaces:**
-- Consumes: formato de `ItemFila` (Task 6).
-- Produces: `window.sbSalvar(chave, valor)` grava no palco e deposita em `nr13_fila_ponte`, que o app drena.
-
-Corrige D5: o upsert atual (`sb-storage.js:70`) manda `{user_id, chave, valor}` **sem `org_id`**, então a RLS por org sempre recusa e a escrita só sobrevive porque cai na fila. Em vez de duplicar a lógica de versionamento no JS solto, o template deposita e o app envia.
-
-- [ ] **Step 1: Escrever o teste do contrato da ponte (falha primeiro)**
-
-```ts
-// src/services/sbStorage.contrato.test.ts
-import { describe, it, expect, beforeEach } from 'vitest';
-import { lerPonte, limparPonte } from './storage';
-
-beforeEach(() => localStorage.clear());
-
-describe('ponte de escrita dos templates (sb-storage.js -> app)', () => {
-  it('lê o que o template depositou', () => {
-    localStorage.setItem('nr13_fila_ponte', JSON.stringify([
-      { chave: 'nr13_med_esp_ACA 2040', valor: '{"pontos":[]}' },
-    ]));
-    expect(lerPonte()).toEqual([{ chave: 'nr13_med_esp_ACA 2040', valor: '{"pontos":[]}' }]);
-  });
-
-  it('ponte ausente ou corrompida devolve lista vazia, nunca lança', () => {
-    expect(lerPonte()).toEqual([]);
-    localStorage.setItem('nr13_fila_ponte', 'lixo{');
-    expect(lerPonte()).toEqual([]);
-  });
-
-  it('limparPonte esvazia', () => {
-    localStorage.setItem('nr13_fila_ponte', JSON.stringify([{ chave: 'k', valor: 'v' }]));
-    limparPonte();
-    expect(lerPonte()).toEqual([]);
-  });
-});
-```
-
-- [ ] **Step 2: Rodar e verificar que falha**
-
-Run: `npx vitest run src/services/sbStorage.contrato.test.ts`
-Expected: FAIL — `lerPonte` não existe.
-
-- [ ] **Step 3: Implementar o lado do app**
-
-```ts
-// src/services/storage.ts
-const CHAVE_PONTE = 'nr13_fila_ponte';
-
-export function lerPonte(): Array<{ chave: string; valor: string }> {
-  const raw = localStorage.getItem(CHAVE_PONTE);
-  if (!raw) return [];
-  try {
-    const p = JSON.parse(raw);
-    return Array.isArray(p) ? p : [];
-  } catch {
-    return []; // depósito corrompido não pode derrubar o app
-  }
-}
-
-export function limparPonte(): void { localStorage.removeItem(CHAVE_PONTE); }
-
-/** Absorve o que os templates gravaram durante a montagem do documento. */
-export async function drenarPonte(): Promise<void> {
-  const itens = lerPonte();
-  if (itens.length === 0) return;
-  limparPonte();
-  for (const { chave, valor } of itens) await salvar(chave, JSON.parse(valor));
-}
-```
-
-- [ ] **Step 4: Simplificar `public/sb-storage.js`**
-
-Substituir o corpo por um depósito puro — sem token, sem REST, sem `org_id` errado:
+**Fluxo novo:** o template posta e **espera confirmação**; o app grava atomicamente e só então confirma. Fallback em `localStorage` remove **um item por vez**, depois do commit.
 
 ```js
 // public/sb-storage.js
-// Escrita feita DENTRO dos templates HTML (iframe). O template não fala mais
-// com o Supabase: ele deposita aqui e o app envia pela fila, que é quem sabe
-// org_id, versão e dispositivo. Antes, o upsert daqui ia SEM org_id e a RLS
-// por organização recusava toda escrita direta.
 (function () {
   var PONTE = 'nr13_fila_ponte';
-  window.sbSalvar = function (chave, valor) {
-    if ((localStorage.getItem('nr13_papel') || '') === 'cliente') return; // portal é leitura
-    try { localStorage.setItem(chave, valor); } catch (e) {}
+  var pendentes = {};
+
+  function guardarFallback(id, chave, valor) {
     try {
-      var fila = [];
-      try { fila = JSON.parse(localStorage.getItem(PONTE) || '[]'); } catch (e) {}
+      var fila = JSON.parse(localStorage.getItem(PONTE) || '[]');
       if (!Array.isArray(fila)) fila = [];
       fila = fila.filter(function (o) { return o && o.chave !== chave; });
-      fila.push({ chave: chave, valor: valor });
+      fila.push({ id: id, chave: chave, valor: valor });
       localStorage.setItem(PONTE, JSON.stringify(fila));
-    } catch (e) {}
+    } catch (e) {
+      // Cota estourada no fallback: avisa o app em vez de engolir (regra global).
+      try { window.parent.postMessage({ tipo: 'nr13_erro_ponte', chave: chave, erro: String(e) }, '*'); } catch (e2) {}
+    }
+  }
+
+  window.addEventListener('message', function (ev) {
+    if (ev.source !== window.parent) return;
+    var m = ev.data;
+    if (!m || m.tipo !== 'nr13_salvo' || !pendentes[m.id]) return;
+    clearTimeout(pendentes[m.id].timer);
+    delete pendentes[m.id];
+  });
+
+  window.sbSalvar = function (chave, valor) {
+    if ((localStorage.getItem('nr13_papel') || '') === 'cliente') return;
+    var id = String(Date.now()) + '_' + Math.random().toString(36).slice(2);
+    guardarFallback(id, chave, valor);   // fallback ANTES: se o app morrer, o dado existe
+    pendentes[id] = {
+      timer: setTimeout(function () {
+        try { window.parent.postMessage({ tipo: 'nr13_erro_ponte', chave: chave, erro: 'sem confirmacao' }, '*'); } catch (e) {}
+      }, 5000),
+    };
+    try { window.parent.postMessage({ tipo: 'nr13_salvar', id: id, chave: chave, valor: valor }, '*'); }
+    catch (e) { /* sem parent: o fallback já cobriu, o app drena no próximo boot */ }
   };
 })();
 ```
 
-- [ ] **Step 5: Rodar e verificar que passa**
-
-Run: `npx vitest run src/services/sbStorage.contrato.test.ts`
-Expected: PASS, 3 testes.
-
-- [ ] **Step 6: Commit**
-
-```bash
-git add public/sb-storage.js src/services/storage.ts src/services/sbStorage.contrato.test.ts
-git commit -m "fix(armazenamento): escrita dos templates passa pela fila do app (corrige org_id ausente)"
-```
-
----
-
-## Task 14: `<SeloSync/>` e a tela `/pendencias`
-
-**Files:**
-- Create: `src/services/selo.ts`
-- Create: `src/components/SeloSync.tsx`
-- Create: `src/pages/Pendencias.tsx`
-- Modify: `src/app/Layout.tsx` (montar o selo + rota)
-- Test: `src/services/selo.test.ts`
-
-**Interfaces:**
-- Consumes: `sync.ts` (`listarFila`, `tentarNovamente`), `errosSync.ts`, `manifesto.ts`, `quotaDispositivo.ts`.
-- Produces: `resumoSelo(itens: ItemFila[]): { rotulo: string; nivel: 'ok'|'pendente'|'falha' }`
-
-Os cinco estados do §9.2 precisam ser visualmente distintos. `bloqueado_nao_salvo` não vem da fila (bloqueado nunca entra nela) — vem do `ErroBloqueado` capturado pela tela que chamou `salvar`.
-
-- [ ] **Step 1: Escrever o teste da lógica do selo (falha primeiro)**
-
 ```ts
-// src/services/selo.test.ts
-import { describe, it, expect } from 'vitest';
-import { resumoSelo } from './selo';
-
-const item = (estado: string) => ({ estado } as never);
-
-describe('resumoSelo — os cinco estados do §9.2 são distinguíveis', () => {
-  it('fila vazia -> tudo salvo', () => {
-    expect(resumoSelo([])).toEqual({ rotulo: 'Tudo salvo', nivel: 'ok' });
-  });
-
-  it('aguardando -> conta pendências', () => {
-    expect(resumoSelo([item('aguardando'), item('aguardando')]))
-      .toEqual({ rotulo: '2 pendências', nivel: 'pendente' });
-  });
-
-  it('1 pendência no singular', () => {
-    expect(resumoSelo([item('aguardando')]))
-      .toEqual({ rotulo: '1 pendência', nivel: 'pendente' });
-  });
-
-  it('falha_definitiva domina o rótulo', () => {
-    expect(resumoSelo([item('aguardando'), item('falha_definitiva')]))
-      .toEqual({ rotulo: '1 falha', nivel: 'falha' });
-  });
-
-  it('conflito também é falha (exige decisão)', () => {
-    expect(resumoSelo([item('conflito')])).toEqual({ rotulo: '1 falha', nivel: 'falha' });
-  });
-
-  it('sincronizado não conta como pendência', () => {
-    expect(resumoSelo([item('sincronizado')])).toEqual({ rotulo: 'Tudo salvo', nivel: 'ok' });
-  });
-});
-```
-
-- [ ] **Step 2: Rodar e verificar que falha**
-
-Run: `npx vitest run src/services/selo.test.ts`
-Expected: FAIL — módulo não existe.
-
-- [ ] **Step 3: Implementar a lógica**
-
-```ts
-// src/services/selo.ts
-import type { ItemFila } from './sync';
-
-export function resumoSelo(itens: ItemFila[]): { rotulo: string; nivel: 'ok' | 'pendente' | 'falha' } {
-  const falhas = itens.filter((i) => i.estado === 'falha_definitiva' || i.estado === 'conflito').length;
-  if (falhas > 0) return { rotulo: `${falhas} ${falhas === 1 ? 'falha' : 'falhas'}`, nivel: 'falha' };
-  const pend = itens.filter((i) => i.estado === 'aguardando' || i.estado === 'salvo_local').length;
-  if (pend > 0) return { rotulo: `${pend} ${pend === 1 ? 'pendência' : 'pendências'}`, nivel: 'pendente' };
-  return { rotulo: 'Tudo salvo', nivel: 'ok' };
-}
-```
-
-- [ ] **Step 4: Rodar e verificar que passa**
-
-Run: `npx vitest run src/services/selo.test.ts`
-Expected: PASS, 6 testes.
-
-- [ ] **Step 5: Criar `SeloSync.tsx`**
-
-Sem emoji e sem lucide — o repo usa o sprite próprio em `src/components/Icone.tsx`. Cores vêm dos tokens de `design/`.
-
-```tsx
-// src/components/SeloSync.tsx
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { listarFila } from '../services/sync';
-import { resumoSelo } from '../services/selo';
-import { medirUso, nivelDaFracao, pedirPersistencia, type NivelQuota } from '../services/quotaDispositivo';
-import Icone from './Icone';
-
-const ICONE = { ok: 'nuvem-ok', pendente: 'nuvem-subindo', falha: 'alerta' } as const;
-
-export default function SeloSync() {
-  const navegar = useNavigate();
-  const [resumo, setResumo] = useState(() => resumoSelo(listarFila()));
-  const [quota, setQuota] = useState<NivelQuota>('ok');
-  const [semPersistencia, setSemPersistencia] = useState(false);
-
-  useEffect(() => {
-    void pedirPersistencia().then((ok) => setSemPersistencia(!ok));
-    const t = setInterval(() => {
-      setResumo(resumoSelo(listarFila()));
-      void medirUso().then((m) => setQuota(m ? nivelDaFracao(m.fracao) : 'ok'));
-    }, 5000);
-    return () => clearInterval(t);
-  }, []);
-
-  return (
-    <button
-      type="button"
-      className={`selo-sync selo-sync--${resumo.nivel}`}
-      onClick={() => navegar('/pendencias')}
-      title={
-        semPersistencia
-          ? 'Este navegador não garantiu o armazenamento: sincronize com frequência.'
-          : 'Ver pendências de sincronização'
-      }
-    >
-      <Icone nome={ICONE[resumo.nivel]} />
-      <span>{resumo.rotulo}</span>
-      {quota !== 'ok' && <span className="selo-sync__quota">Espaço {quota === 'critico' ? 'esgotando' : 'baixo'}</span>}
-      {semPersistencia && <span className="selo-sync__risco">Armazenamento sem garantia</span>}
-    </button>
-  );
-}
-```
-
-- [ ] **Step 6: Criar `Pendencias.tsx`**
-
-```tsx
-// src/pages/Pendencias.tsx
-import { useState } from 'react';
-import { listarFila, tentarNovamente, type ItemFila } from '../services/sync';
-import { diagnosticarPerda } from '../services/manifesto';
-
-export default function Pendencias() {
-  const [itens, setItens] = useState<ItemFila[]>(() => listarFila());
-  const perda = diagnosticarPerda(true);
-  const recarregar = () => setItens(listarFila());
-
-  return (
-    <section className="pendencias">
-      <h1>Pendências de sincronização</h1>
-
-      {perda.tipo === 'despejo_detectado' && (
-        <div className="aviso aviso--erro">
-          <strong>O navegador apagou {perda.perdidos.length} alteração(ões) que ainda não tinham subido.</strong>
-          <ul>{perda.perdidos.map((p) => <li key={p.mutationId}>{p.chave} — {p.criadoEm}</li>)}</ul>
-        </div>
-      )}
-      {perda.tipo === 'estado_zerado' && (
-        <div className="aviso aviso--erro">
-          Se havia alterações não sincronizadas neste aparelho, elas foram perdidas.
-          Não é possível listar quais: o registro foi apagado junto.
-        </div>
-      )}
-
-      {itens.length === 0 && <p>Tudo sincronizado.</p>}
-
-      {itens.map((item) => (
-        <article key={item.mutationId} className={`pendencia pendencia--${item.estado}`}>
-          <h2>{item.chave}</h2>
-          <p className="pendencia__titulo">{item.erro?.titulo ?? 'Aguardando envio'}</p>
-          <p className="pendencia__explicacao">{item.erro?.explicacao ?? 'Na fila para subir.'}</p>
-          <p className="pendencia__quando">{item.criadoEm} · {item.tentativas} tentativa(s)</p>
-
-          <button type="button" onClick={() => void tentarNovamente(item.mutationId).then(recarregar)}>
-            Tentar de novo
-          </button>
-
-          {item.erro && (
-            <details className="pendencia__detalhes">
-              <summary>Detalhes técnicos</summary>
-              <dl>
-                <dt>Código</dt><dd>{item.erro.detalhe.codigo}</dd>
-                <dt>Mensagem original</dt><dd><code>{item.erro.detalhe.mensagemOriginal}</code></dd>
-                <dt>Identificador</dt><dd>{item.erro.detalhe.mutationId}</dd>
-                <dt>Aparelho</dt><dd>{item.erro.detalhe.dispositivo}</dd>
-                <dt>Quando</dt><dd>{item.erro.detalhe.quando}</dd>
-              </dl>
-              <button
-                type="button"
-                onClick={() => void navigator.clipboard.writeText(JSON.stringify(item.erro!.detalhe, null, 2))}
-              >
-                Copiar para o suporte
-              </button>
-            </details>
-          )}
-        </article>
-      ))}
-
-      <button
-        type="button"
-        onClick={() => void Promise.all(itens.map((i) => tentarNovamente(i.mutationId))).then(recarregar)}
-      >
-        Tentar todas
-      </button>
-    </section>
-  );
-}
-```
-
-> `tentarNovamente(mutationId)` de propósito, **nunca** `enfileirar` — reenfileirar criaria uma segunda mutação para a mesma alteração (§6.2).
-
-- [ ] **Step 7: Montar no Layout**
-
-Em `src/app/Layout.tsx`, renderizar `<SeloSync/>` junto de `<ModalAviso/>` (linha 273) e registrar a rota `/pendencias`.
-
-- [ ] **Step 8: Rodar a suíte e o build**
-
-Run: `npm test && npm run build`
-Expected: PASS nos dois.
-
-- [ ] **Step 9: Commit**
-
-```bash
-git add src/services/selo.ts src/services/selo.test.ts src/components/SeloSync.tsx src/pages/Pendencias.tsx src/app/Layout.tsx
-git commit -m "feat(armazenamento): selo de sincronizacao e tela de pendencias"
-```
-
----
-
-## Task 15: Integrar o palco nas telas de documento
-
-**Files:**
-- Modify: `src/pages/Relatorios.tsx`, `src/pages/Prontuarios.tsx`, `src/pages/LivroRegistro.tsx`
-- Test: `src/services/palco.integracao.test.ts`
-
-**Interfaces:**
-- Consumes: `palco.ts` (Task 10), `cacheLocal.ts`, `storage.ts` (`drenarPonte`).
-- Produces: `montarPalcoDaTag(tag: string): { ok: true } | Recusa | { ok: false; erro: unknown; chaveQueFalhou: string }`
-
-- [ ] **Step 1: Escrever o teste (falha primeiro)**
-
-```ts
-// src/services/palco.integracao.test.ts
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-
-vi.mock('./supabase', () => ({
-  supabase: { from: vi.fn() }, escopoStorageAtual: vi.fn(), idUsuarioAtual: vi.fn(),
-  TABELA_STORAGE: 'app_storage',
-}));
-
-import { definirOrg, gravarRegistro, zerarMemoria } from './cacheLocal';
-import { montarPalcoDaTag } from './palco';
-
-const reg = (v: string) => ({ valor: v, versao: 1, atualizadoEm: '2026-08-04T00:00:00.000Z', dispositivo: 'd' });
-
-beforeEach(() => {
-  localStorage.clear();
-  zerarMemoria();
-  definirOrg('11111111-1111-1111-1111-111111111111');
-});
-
-describe('montarPalcoDaTag', () => {
-  it('materializa só as chaves da TAG pedida', async () => {
-    gravarRegistro('nr13_info_A', reg('{"tag":"A"}'));
-    gravarRegistro('nr13_info_B', reg('{"tag":"B"}'));
-    gravarRegistro('nr13_minha_empresa', reg('{"nome":"X"}'));
-
-    expect(await montarPalcoDaTag('A')).toEqual({ ok: true });
-    expect(localStorage.getItem('nr13_info_A')).toBe('{"tag":"A"}');
-    expect(localStorage.getItem('nr13_minha_empresa')).toBe('{"nome":"X"}');
-    expect(localStorage.getItem('nr13_info_B')).toBeNull();
-  });
-
-  it('NÃO leva nr13_docs_ para o palco: nenhum template lê essa chave', async () => {
-    gravarRegistro('nr13_info_A', reg('{"tag":"A"}'));
-    gravarRegistro('nr13_docs_A', reg('x'.repeat(900 * 1024)));
-
-    expect(await montarPalcoDaTag('A')).toEqual({ ok: true });
-    expect(localStorage.getItem('nr13_docs_A')).toBeNull();
-  });
-
-  it('acima do orçamento e sem degradação possível: RECUSA e não monta nada', async () => {
-    // Recompressor que não reduz nada força o plano a se esgotar.
-    gravarRegistro('nr13_fotos_A', reg(JSON.stringify([{ src: 'x'.repeat(4_000 * 1024) }])));
-    gravarRegistro('nr13_info_A', reg('{}'));
-
-    const r = await montarPalcoDaTag('A', async (v) => v);
-    expect(r).toMatchObject({ cabe: false });
-    expect(localStorage.getItem('nr13_info_A')).toBeNull(); // nem parcial
-  });
-
-  it('acima do orçamento MAS degradável: monta com as fotos recomprimidas', async () => {
-    gravarRegistro('nr13_fotos_A', reg('x'.repeat(4_000 * 1024)));
-    gravarRegistro('nr13_info_A', reg('{}'));
-
-    const r = await montarPalcoDaTag('A', async (v) => v.slice(0, 1000));
-    expect(r).toEqual({ ok: true });
-    expect(localStorage.getItem('nr13_info_A')).toBe('{}');
-    expect(localStorage.getItem('nr13_fotos_A')!.length).toBe(1000);
-  });
-});
-```
-
-- [ ] **Step 2: Rodar e verificar que falha**
-
-Run: `npx vitest run src/services/palco.integracao.test.ts`
-Expected: FAIL — `montarPalcoDaTag` não existe.
-
-- [ ] **Step 3: Implementar em `palco.ts`**
-
-```ts
-// acrescentar a src/services/palco.ts
-import { chavesDaTag, obterRegistro } from './cacheLocal';
-import { recomprimirFotosDoValor } from './recompressorFoto';
-
-const GLOBAIS = ['nr13_minha_empresa', 'nr13_lista_phs'];
-
-// Chaves que NENHUM template HTML lê — confirmado por varredura em public/
-// (04/08/2026): `nr13_docs_` é consumido só por código React. Levá-las ao
-// palco gastaria o orçamento de 3,4 MB com dado que ninguém renderiza.
-const FORA_DO_PALCO = ['nr13_docs_'];
-
-export async function montarPalcoDaTag(
-  tag: string,
-  recomprimir = recomprimirFotosDoValor,
-): Promise<{ ok: true } | Recusa | { ok: false; erro: unknown; chaveQueFalhou: string }> {
-  limparPalco();
-  const chaves = [...chavesDaTag(tag), ...GLOBAIS]
-    .filter((c) => !FORA_DO_PALCO.some((p) => c.startsWith(p)));
-
-  const itens: ItemPalco[] = [];
-  for (const chave of chaves) {
-    const reg = obterRegistro(chave);
-    if (reg) itens.push({ chave, valor: reg.valor });
-  }
-
-  const resultado = await degradarAteCaber(itens, recomprimir);
-  if (!resultado.cabe) return resultado;
-  return materializar(resultado.itens);
-}
-```
-
-- [ ] **Step 4: Ligar nas três telas**
-
-O mesmo padrão nas três (`Relatorios.tsx`, `Prontuarios.tsx`, `LivroRegistro.tsx`), trocando só a TAG de origem:
-
-```tsx
-const [palco, setPalco] = useState<'montando' | 'pronto' | Recusa>('montando');
-
-useEffect(() => {
-  let vivo = true;
-  void montarPalcoDaTag(tag).then((r) => {
-    if (!vivo) return;
-    if ('cabe' in r && !r.cabe) setPalco(r);          // recusa: NÃO montar iframes
-    else if ('ok' in r && !r.ok) setPalco({
-      cabe: false, total: 0, orcamento: ORCAMENTO_DOC,
-      maiores: [{ chave: r.chaveQueFalhou, bytes: 0 }],
-    });
-    else setPalco('pronto');
-  });
-  return () => {
-    vivo = false;
-    limparPalco();
-    void drenarPonte();   // absorve o que os templates gravaram via sbSalvar
+// src/services/ponteTemplates.ts
+export function ouvirPonte(salvarChave: (chave: string, valor: string) => Promise<void>): () => void {
+  const aoReceber = async (ev: MessageEvent) => {
+    const m = ev.data as { tipo?: string; id?: string; chave?: string; valor?: string };
+    if (m?.tipo !== 'nr13_salvar' || !m.chave || m.valor === undefined) return;
+    await salvarChave(m.chave, m.valor);              // grava dado + fila atomicamente
+    removerDaPonte(m.id!);                            // remove UM item, depois do commit
+    (ev.source as Window | null)?.postMessage({ tipo: 'nr13_salvo', id: m.id }, '*');
   };
-}, [tag]);
-
-if (palco === 'montando') return <p>Preparando o documento…</p>;
-if (palco !== 'pronto') return <RecusaPalco recusa={palco} />;
-// ...só aqui os <iframe> são renderizados
+  window.addEventListener('message', (e) => void aoReceber(e));
+  return () => window.removeEventListener('message', (e) => void aoReceber(e));
+}
 ```
 
-`RecusaPalco` lista `recusa.maiores` (chave, tamanho), o total e o orçamento — o §5.5 exige dizer **exatamente** o que excedeu, e oferecer remover fotos ou dividir o relatório.
+`drenarPonte()` passa a iterar item a item, removendo cada um **só depois** do `gravarAtomico` correspondente. É chamada no **boot** (não só ao desmontar a tela) e ao desmontar.
 
-- [ ] **Step 5: Rodar e verificar que passa**
-
-Run: `npx vitest run src/services/palco.integracao.test.ts && npm run build`
-Expected: PASS nos dois.
-
-- [ ] **Step 6: Commit**
-
-```bash
-git add src/services/palco.ts src/services/palco.integracao.test.ts src/pages/Relatorios.tsx src/pages/Prontuarios.tsx src/pages/LivroRegistro.tsx
-git commit -m "feat(armazenamento): telas de documento montam e limpam o palco"
-```
+Testes: confirmação chega; item removido só após commit; falha no item 1 preserva 2..n; ponte drenada no boot; erro da ponte aparece em `/pendencias`.
 
 ---
 
-## Task 16: Cenários do §11.2 e fechamento
+## Task 15 (REVISADA): palco com dono exclusivo por aba
 
-**Files:**
-- Create: `src/services/cenarios.test.ts`
-- Modify: `PENDENCIAS.md`, `CLAUDE.md`
-
-**Interfaces:**
-- Consumes: todos os módulos anteriores.
-- Produces: cobertura dos 15 cenários obrigatórios do spec.
-
-- [ ] **Step 1: Escrever os cenários que ainda não têm teste**
-
-Cobertos por tasks anteriores: 3 (fechar navegador — Task 6), 5 (sessão expirada — Task 7), 6 (exclusão offline — Task 7), 8 (troca de org — Task 12), 9 (reabrir offline — Task 4), 10 (relatório acima de 5 MB — Tasks 10/15), 11 e 14 (manifesto — Task 8), 12 (`persist()` negado — Task 9), 13 e 15 (piso de versão — Tasks 2/7).
-
-Faltam **1** (duas abas) e **2** (dois dispositivos):
+**O que mudou:** (#7) duas abas compartilham `localStorage` e sobrescreviam o palco uma da outra — relatório da aba B saía com dado da aba A. (#10) o rollback não restaurava valores anteriores; `ORCAMENTO_IMG` era declarado e nunca usado.
 
 ```ts
-// src/services/cenarios.test.ts
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+// src/services/palco.ts
+const ID_ABA = crypto.randomUUID();
+const REGISTRO = 'nr13_palco_chaves';
+const DONO = 'nr13_palco_dono';
 
-const upsert = vi.fn();
-vi.mock('./supabase', () => ({
-  supabase: { from: () => ({ upsert }) },
-  escopoStorageAtual: vi.fn(async () => ({ coluna: 'org_id', id: '11111111-1111-1111-1111-111111111111' })),
-  idUsuarioAtual: vi.fn(async () => 'user-1'),
-  TABELA_STORAGE: 'app_storage',
-}));
+export type ResultadoPalco =
+  | { ok: true }
+  | Recusa
+  | { ok: false; erro: unknown; chaveQueFalhou: string }
+  | { ok: false; ocupado: true; donoAtual: string };
 
-import { fecharDb, apagarDb } from './db';
-import { definirOrg, zerarMemoria } from './cacheLocal';
-import { enfileirar, listarFila, carregarFilaDoDisco, zerarFilaMemoria, guardarConflito } from './sync';
+/** Só UMA aba pode montar o palco: os templates leem chaves de nome fixo. */
+export async function montarPalcoDaTag(tag: string, recomprimir = recomprimirFotosDoValor): Promise<ResultadoPalco> {
+  const dono = localStorage.getItem(DONO);
+  if (dono && dono !== ID_ABA) return { ok: false, ocupado: true, donoAtual: dono };
 
-const ORG = '11111111-1111-1111-1111-111111111111';
+  return navigator.locks.request(`nr13_palco`, { ifAvailable: true }, async (lock) => {
+    if (!lock) return { ok: false, ocupado: true, donoAtual: dono ?? 'outra aba' };
+    localStorage.setItem(DONO, ID_ABA);
+    /* ...orçar, degradar, materializar... */
+  }) as Promise<ResultadoPalco>;
+}
 
-beforeEach(async () => {
-  zerarMemoria(); zerarFilaMemoria(); fecharDb();
-  await apagarDb(ORG);
-  localStorage.clear();
-  definirOrg(ORG);
-  upsert.mockReset();
-});
+export function materializar(itens: ItemPalco[]): { ok: true } | { ok: false; erro: unknown; chaveQueFalhou: string } {
+  // ROLLBACK REAL: guarda o valor ANTERIOR de cada chave, não só a lista de
+  // gravadas. Remover o que foi escrito não restaura o que havia antes.
+  const anteriores = new Map<string, string | null>();
+  for (const item of itens) {
+    try {
+      anteriores.set(item.chave, localStorage.getItem(item.chave));
+      localStorage.setItem(item.chave, item.valor);
+    } catch (erro) {
+      for (const [chave, valor] of anteriores) {
+        if (valor === null) localStorage.removeItem(chave);
+        else localStorage.setItem(chave, valor);
+      }
+      return { ok: false, erro, chaveQueFalhou: item.chave };
+    }
+  }
+  localStorage.setItem(REGISTRO, JSON.stringify([...anteriores.keys()]));
+  return { ok: true };
+}
 
-describe('cenário 1 — duas abas no mesmo aparelho', () => {
-  it('a fila é única: a segunda aba enxerga o que a primeira enfileirou', async () => {
-    await enfileirar('set', 'nr13_info_A', '{"aba":1}', 1);
-    await new Promise((r) => setTimeout(r, 20));
-
-    zerarFilaMemoria();            // simula a 2ª aba, que começa com memória vazia
-    await carregarFilaDoDisco();
-
-    expect(listarFila()).toHaveLength(1);
-    expect(listarFila()[0].valor).toBe('{"aba":1}');
-  });
-
-  it('a mesma chave nas duas abas não vira dois itens', async () => {
-    await enfileirar('set', 'nr13_info_A', '{"aba":1}', 1);
-    await new Promise((r) => setTimeout(r, 20));
-    zerarFilaMemoria();
-    await carregarFilaDoDisco();
-    await enfileirar('set', 'nr13_info_A', '{"aba":2}', 1);
-    expect(listarFila()).toHaveLength(1);
-  });
-});
-
-describe('cenário 2 — dois dispositivos na mesma chave', () => {
-  it('o perdedor do conflito é PRESERVADO, nunca descartado', async () => {
-    const perdedor = {
-      valor: '{"origem":"celular"}', versao: 4,
-      atualizadoEm: '2026-08-04T10:00:00.000Z', dispositivo: 'celular',
-    };
-    await guardarConflito('nr13_form_A__c1__visual_externo', perdedor);
-
-    const { listarTudo } = await import('./db');
-    const guardados = await listarTudo<typeof perdedor>(ORG, 'dados');
-    const conflito = guardados.find((g) => g.chave.startsWith('nr13_conflito_'));
-    expect(conflito?.valor.valor).toBe('{"origem":"celular"}');
-    expect(conflito?.valor.dispositivo).toBe('celular');
-  });
-});
+/** Só o dono limpa: uma aba nunca apaga o palco da outra. */
+export function limparPalco(): void {
+  if (localStorage.getItem(DONO) !== ID_ABA) return;
+  /* ...remove as chaves do REGISTRO... */
+  localStorage.removeItem(DONO);
+}
 ```
 
-- [ ] **Step 2: Rodar e verificar que passa**
+**`ORCAMENTO_IMG` passa a ser aplicado (#10):** dentro de `degradarAteCaber`, qualquer foto individual acima de `ORCAMENTO_IMG` força mais um passo de degradação mesmo que o total já caiba — foto de 900 KB numa folha estoura a renderização do `html2canvas` ainda que o documento inteiro coubesse.
 
-Run: `npx vitest run src/services/cenarios.test.ts`
-Expected: PASS, 3 testes.
+**Tamanho coerente com o armazenamento real (#10):** `tamanho()` passa a contar **UTF-16** (`(chave.length + valor.length) * 2`), que é como o Chrome cobra a cota, e o `ORCAMENTO_DOC` é reexpresso nessa mesma unidade.
 
-- [ ] **Step 3: Rodar a suíte completa**
-
-Run: `npm test`
-Expected: PASS — todos os arquivos, sem regressão nos testes que já existiam.
-
-- [ ] **Step 4: Rodar o build real**
-
-Run: `npm run build`
-Expected: sucesso. O `tsc -b` é mais estrito que `tsc --noEmit`; qualquer erro aqui trava o deploy.
-
-- [ ] **Step 5: Registrar a pendência de deploy**
-
-Acrescentar a `PENDENCIAS.md`:
-
-```markdown
-- [ ] **Rodar `supabase/armazenamento_v2.sql`** no SQL Editor do Supabase (idempotente).
-      Sem ele: `versao`/`deletado_em` não existem, a sincronização cai no caminho de
-      erro e o piso de versão contra ressurreição não é aplicado. Cria também o bucket
-      `inspecao` (usado na Fase 2).
-- [ ] Agendar `select public.coletar_tombstones(30);` (mensal). A prova da exclusão
-      permanece em `app_storage_excluidos`; só o `valor` é removido.
-```
-
-- [ ] **Step 6: Atualizar o CLAUDE.md**
-
-Na §2, substituir a descrição do `localStorage` como "banco" pela arquitetura de quatro camadas, apontando para o spec. Registrar que `ler()` serve do `Map`, que o `localStorage` é só o palco, e que **nada é apagado localmente por ausência no servidor**.
-
-- [ ] **Step 7: Commit**
-
-```bash
-git add src/services/cenarios.test.ts PENDENCIAS.md CLAUDE.md
-git commit -m "test(armazenamento): cenarios de duas abas e dois dispositivos + pendencias de deploy"
-```
+Testes: segunda aba recebe `ocupado` e não monta; `limparPalco` de aba não-dona é no-op; rollback restaura o valor anterior; foto acima de `ORCAMENTO_IMG` força degradação; `nr13_docs_` fora do palco.
 
 ---
 
-## Verificação final
+## Task 14 (NOVA POSIÇÃO): implantação controlada e rollback
 
-- [ ] `npm test` — verde, incluindo `storage.regressao.test.ts` (os 38 equipamentos).
-- [ ] `npm run build` — sucesso.
-- [ ] `grep -rn "catch\s*{\s*}" src/services/` — nenhum resultado nos módulos de dados.
-- [ ] Conferido manualmente: nenhum `localStorage.setItem` de dado de equipamento fora do `palco.ts`.
-- [ ] `supabase/armazenamento_v2.sql` rodado em produção **antes** do deploy do front.
+**Files:** Create `src/services/flag.ts`, `docs/superpowers/plans/implantacao-armazenamento-v2.md`
+
+**Ordem obrigatória (#14):**
+
+1. **Branch** `feat/armazenamento-offline`. Nada direto na `main`.
+2. **Backup e conferência:** `pg_dump` de `app_storage` + guardar a saída das consultas de diagnóstico (38 equipamentos, 340 chaves, 5.692 KB).
+3. **SQL aditivo em produção.** Todas as colunas são `add column if not exists` com default, todas as tabelas são novas e a RPC é função nova: **o frontend atual continua funcionando** — ele faz `upsert` direto e ignora as colunas novas.
+4. **Teste de compatibilidade:** com o SQL aplicado e o frontend ANTIGO em produção, confirmar que salvar equipamento, gerar relatório e sincronizar seguem funcionando.
+5. **Frontend novo atrás da flag** `nr13_armazenamento_v2` (coluna em `config_global`, igual ao toggle de trial que já existe). Flag desligada → caminho antigo, byte a byte.
+6. **Ativar só para uma conta de teste.** Validar os 15 cenários.
+7. **Ativar para `cmam.caldeiras@gmail.com`** e confirmar os 38 equipamentos na tela.
+8. **Ativação gradual** conta a conta, começando pelas 4 acima da cota.
+
+**Rollback do frontend — o ponto que faltava:**
+
+O risco não é desligar a flag: é o **dado novo criado enquanto ela esteve ligada**. Com a v2 ativa, as escritas passam pela RPC e incrementam `versao`; o frontend antigo lê `valor` e ignora `versao`, então **continua funcionando normalmente** — é compatível para leitura. O que ele *não* faz é respeitar `deletado_em`.
+
+Portanto o rollback é:
+
+```sql
+-- 1. Desligar a flag para a conta afetada.
+update public.config_global set armazenamento_v2 = false;
+
+-- 2. Materializar os soft-deletes que o frontend antigo não entende,
+--    senão itens excluídos na v2 REAPARECEM na v1.
+delete from public.app_storage where deletado_em is not null;
+
+-- 3. As pendências que ainda estavam no IndexedDB do aparelho não sobem pela
+--    v1 (ela usa outra fila). Antes de desligar, drenar:
+--    /pendencias -> "Tentar todas" -> confirmar fila vazia em cada aparelho ativo.
+```
+
+**Regra:** a flag só é desligada depois de a fila estar vazia nos aparelhos ativos daquela conta. O passo 3 é o único que exige ação do usuário, e a tela `/pendencias` já mostra exatamente o que falta.
+
+As colunas e tabelas novas **permanecem** no rollback: são aditivas e inertes para a v1.
+
+---
+
+## Task 16 (REVISADA): cenários de concorrência real
+
+**Files:** Create `src/services/cenarios.test.ts`; Modify `PENDENCIAS.md`, `CLAUDE.md`
+
+**O que mudou (#13):** os testes anteriores de "duas abas" e "dois dispositivos" **não simulavam concorrência** — limpavam o Map e liam o mesmo IndexedDB em sequência, e chamavam `guardarConflito()` diretamente em vez de provocar um conflito.
+
+| # | Cenário | Como o teste força de verdade |
+|---|---|---|
+| 1 | Fechar o processo entre dado e fila | operação não-clonável aborta a tx; assertar que **nem** o dado **nem** a fila persistiram |
+| 2 | Aborto de transação do IndexedDB | `tx.abort()` no meio; Map revertido ao valor anterior |
+| 3 | Resposta do servidor perdida após aplicar | 1ª chamada rejeita depois de aplicado; 2ª devolve `repetido`; assertar **uma** aplicação |
+| 4 | Dois aparelhos com a mesma `versaoBase` | RPC devolve `conflito`; assertar `nr13_conflito_*` **e** item local preservado |
+| 5 | Exclusão concorrente com edição | `del` aplicado, depois `set` com versão antiga → `tombstone_mais_novo`; nada ressuscita |
+| 6 | Duas abas montando relatórios | dois `montarPalcoDaTag` concorrentes; o 2º recebe `ocupado`, o 1º mantém o palco íntegro |
+| 7 | Aba A altera o Map da aba B | `BroadcastChannel` real entre duas instâncias; assertar propagação |
+| 8 | Iframe grava e recebe confirmação | `postMessage` ida e volta; assertar que o item só sai da ponte após o commit |
+| 9 | Logout com pendências | `podeSairSemPerder()` bloqueia; banco preservado |
+| 10 | Aparelho offline além da coleta | `anterior_ao_corte`; vira conflito, não ressurreição |
+| 11 | Reabrir 100% offline | sem rede, `lerTudo` devolve snapshot do IndexedDB com os 38 |
+| 12 | Relatório perto e acima de 5 MB | degrada em passos; recusa listando o que excedeu; nunca parcial |
+| 13 | Troca de organização | zero chaves da anterior no Map, palco e IndexedDB |
+| 14 | Limpeza total do site | aviso genérico, sem lista inventada |
+| 15 | Recriar chave excluída e coletada | versão nova > `versao_final` → aceita |
+
+**SQL/RPC (#13):** os cenários 3, 4, 5, 10 e 15 dependem do comportamento da RPC. O `contratoRpc.test.ts` cobre a interpretação no cliente; a verificação do **servidor** é um roteiro manual em `docs/superpowers/plans/implantacao-armazenamento-v2.md`, executado no passo 4 da implantação, com um `select` de conferência por cenário. Testar PL/pgSQL dentro do Vitest exigiria um Postgres no CI, que este repo não tem — a limitação fica registrada em vez de fingida.
+
+- [ ] Rodar `npm test` (verde) e `npm run build`.
+- [ ] `grep -rnE "catch\s*\{\s*\}" src/services/ public/sb-storage.js` → nenhum resultado.
+- [ ] Registrar em `PENDENCIAS.md` o SQL, o agendamento de `coletar_tombstones(org, 30)` por service_role, e o roteiro de implantação.
+- [ ] Atualizar `CLAUDE.md` §2 com a arquitetura de quatro camadas.
+
+---
 
 ## Fora de escopo (Fases 2 e 3)
 
-Fotos no bucket, autosave granular por formulário, `esquema: 2` e migração preguiçosa. A Fase 1 mantém o base64 legado funcionando: ele passa a viver no `Map`/IndexedDB, onde cabe, e o palco o recomprime quando necessário.
+Fotos no bucket, autosave granular por formulário, `esquema: 2` e migração preguiçosa.
