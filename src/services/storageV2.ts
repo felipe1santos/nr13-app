@@ -18,6 +18,15 @@ import * as sync from './sync';
 import { fecharDb } from './db';
 import { bloqueadoParaEscrita, ErroBloqueado } from './gateEscrita';
 import { tagDaChave } from './familiasChave';
+import { bloqueadoParaUso } from './sessaoArmazenamento';
+
+/** Troca de conta em andamento (ou falha nela): nada entra e nada sai. */
+export class ErroTrocandoConta extends Error {
+  constructor() {
+    super('Aguarde: o sistema está trocando de organização.');
+    this.name = 'ErroTrocandoConta';
+  }
+}
 
 const PAGINA = 1000;
 
@@ -29,6 +38,10 @@ const PAGINA = 1000;
  * operação assíncrona: tem ~50 pontos de chamada síncronos.
  */
 export function ler<T = unknown>(chave: string): T | null {
+  // Durante a troca de conta o Map já foi zerado; devolver null aqui é
+  // explícito sobre o motivo. Quem decide o que mostrar é a UI, por
+  // `bloqueadoParaUso()` — sem isso a tela concluiria "conta vazia".
+  if (bloqueadoParaUso()) return null;
   const reg = cache.obterRegistro(chave);
   if (!reg) return null;
   try {
@@ -39,6 +52,7 @@ export function ler<T = unknown>(chave: string): T | null {
 }
 
 export function listarChavesComPrefixo(prefixo: string): string[] {
+  if (bloqueadoParaUso()) return [];
   return cache.chavesComPrefixo(prefixo);
 }
 
@@ -81,6 +95,7 @@ export function aguardarPronto(): Promise<void> {
  * resolve. Bloqueio de assinatura/papel LANÇA e não persiste nada.
  */
 export async function salvar(chave: string, objeto: unknown): Promise<void> {
+  if (bloqueadoParaUso()) throw new ErroTrocandoConta();
   if (bloqueadoParaEscrita()) throw new ErroBloqueado();
 
   const valor = JSON.stringify(objeto);
@@ -126,6 +141,7 @@ async function excluirUma(chave: string): Promise<void> {
 }
 
 export async function excluirChave(chave: string): Promise<void> {
+  if (bloqueadoParaUso()) throw new ErroTrocandoConta();
   if (bloqueadoParaEscrita()) throw new ErroBloqueado();
   await excluirUma(chave);
   await sync.drenar();
@@ -138,6 +154,7 @@ export async function excluirChave(chave: string): Promise<void> {
  * `nr13_info_A_B` — apagava o equipamento errado.
  */
 export async function excluirVaso(tag: string): Promise<void> {
+  if (bloqueadoParaUso()) throw new ErroTrocandoConta();
   if (bloqueadoParaEscrita()) throw new ErroBloqueado();
   for (const chave of cache.chavesDaTag(tag)) {
     if (tagDaChave(chave) !== tag) continue; // cinto e suspensório

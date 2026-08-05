@@ -326,6 +326,16 @@ export function limparPalco(ctx: ContextoMontagem): { ok: boolean; motivo?: 'nao
   return { ok: true };
 }
 
+/**
+ * Libera o palco que ESTA aba montou, se houver. Usada na troca de conta e no
+ * logout, onde não existe o `ctx` à mão. Se a aba não é dona de nada, é no-op —
+ * nunca mexe no palco de outra aba.
+ */
+export function liberarPalcoDestaAba(): boolean {
+  if (!montagem) return false;
+  return limparPalco(montagem.ctx).ok;
+}
+
 // ---------------------------------------------------------------------------
 // Montagem completa
 // ---------------------------------------------------------------------------
