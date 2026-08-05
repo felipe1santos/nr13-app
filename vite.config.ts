@@ -14,5 +14,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts'],
+    // Shims de localStorage/IndexedDB/BroadcastChannel/Web Locks — ver vitest.setup.ts.
+    setupFiles: ['./vitest.setup.ts'],
   },
 })

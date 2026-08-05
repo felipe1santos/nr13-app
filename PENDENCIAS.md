@@ -46,3 +46,32 @@
       em cada template para A4 exato (sugestão antiga do CLAUDE.md §9).
 - [ ] **Limpar equipamentos de teste** do ambiente (criados nas sessões de desenvolvimento):
       `CALD-01`, `AUTO-T1` (tem modelo de croqui salvo Ø1200×3000) — excluir quando não precisar mais.
+
+## Armazenamento offline-first (Fase 1) — pendências de deploy
+
+- [x] **Gate de concorrência da RPC — LIBERADO em 05/08/2026, 30/30.** `scripts/testar-concorrencia-rpc.mts` precisa
+      rodar com a `service_role` em `.env.teste`. Os dois cenários — duas criações
+      simultâneas da mesma chave e duas chamadas com o mesmo `mutationId` — são os
+      únicos do gate que não se provam no SQL Editor. **Enquanto não ficarem verdes,
+      `definir_v2_org(<org>, true)` não pode ser executado para nenhum cliente.**
+      Resultados em `docs/superpowers/plans/resultados-rpc-armazenamento-v2.md`.
+
+- [ ] **Agendar `coletar_tombstones(<org>, 30)`** (mensal, service_role). A prova da
+      exclusão permanece em `app_storage_excluidos`; só o `valor` é removido.
+
+- [ ] **Ligar a v2 gradualmente.** Ordem: conta de teste → validar os 15 cenários →
+      `cmam.caldeiras@gmail.com` (confirmar os 38 equipamentos) → demais contas acima
+      da cota (`teste@gmail.com`, `gabriel.dadona@gmail.com`, `liperoneads@gmail.com`).
+
+- [ ] **Rollback**, se preciso: esvaziar a fila nos aparelhos (`/pendencias` →
+      "Tentar todas"), `definir_v2_org(org, false)`, `delete from app_storage where
+      deletado_em is not null`. Ao REATIVAR, rodar `reconciliar_versoes_org(org)` antes
+      — sem isso a primeira edição na v2 é recusada como `versao_obsoleta` para sempre.
+
+- [ ] **Fases 2 e 3** (planos próprios): fotos no bucket `inspecao` (já criado),
+      autosave granular por formulário, migração `esquema: 2`.
+
+**Já aplicado em produção em 05/08/2026:** `supabase/armazenamento_v2.sql` (colunas,
+`app_storage_excluidos`, `app_storage_mutacoes`, `org_sync`, RPC, trigger de guarda,
+coleta e reconciliação). Backup em `app_storage_bkp_20260805`. `v2_ativa` **desligada
+em todas as organizações** — comportamento idêntico ao anterior.
