@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { usePalcoDocumento } from '../features/documentos/usePalcoDocumento';
+import RecusaPalco from '../components/RecusaPalco';
 import { listarEquipamentos } from '../features/equipamento/equipamentoService';
 import type { EquipamentoResumo } from '../features/equipamento/tipos';
 import { formatarValor } from '../calc/unidades';
@@ -115,6 +117,11 @@ export default function Relatorios() {
   const [meta, setMeta] = useState<RelatorioMeta | null>(null);
   const [somenteLeitura, setSomenteLeitura] = useState(false);
   const [versao, setVersao] = useState(0);
+
+  // Palco: materializa no localStorage só as chaves desta TAG antes de montar
+  // os iframes. Nenhum iframe pode ser renderizado antes de `pronto` — um
+  // documento meio montado sai impresso com folha faltando.
+  const palco = usePalcoDocumento(tag, `rel-${tag}-${versao}`);
   const [historico, setHistorico] = useState<RelatorioSalvo[]>([]);
   const [salvando, setSalvando] = useState(false);
   const [exportando, setExportando] = useState(false);
@@ -795,14 +802,19 @@ export default function Relatorios() {
             </div>
           )}
 
+          {palco.estado !== 'pronto' && (
+            <RecusaPalco estado={palco.estado} falha={palco.falha} />
+          )}
+
           <div className="relatorio-preview">
-            {documentos.map((doc, i) => {
+            {palco.estado === 'pronto' &&
+              documentos.map((doc, i) => {
               const sep = doc.includes('?') ? '&' : '?';
               return (
                 <PaginaA4 key={`${doc}-${i}-${versao}`}>
                   {/* ctx=rel: avisa rel-empresa.js/rel-assinatura.js que a folha roda dentro do
                       visualizador do relatório — usam os snapshots congelados da meta. */}
-                  <iframe src={`/arquivos-inspecao/${doc}${sep}tag=${encodeURIComponent(tag)}&page=${i + 1}&ctx=rel`} scrolling="no" title={doc} />
+                  <iframe src={`/arquivos-inspecao/${doc}${sep}tag=${encodeURIComponent(tag)}&page=${i + 1}&ctx=rel${palco.paramsIframe}`} scrolling="no" title={doc} />
                 </PaginaA4>
               );
             })}

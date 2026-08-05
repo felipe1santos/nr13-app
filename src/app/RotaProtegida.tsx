@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { supabase } from '../services/supabase';
-import { lerTudo } from '../services/storage';
+import { lerTudo, iniciarArmazenamento } from '../services/storage';
 import { verificarAcesso } from '../services/auth';
 
 // Gate de sessão: confere a sessão Supabase, valida liberação/expiração do perfil e hidrata o cache
@@ -26,6 +26,10 @@ export default function RotaProtegida() {
         setEstado('anonimo');
         return;
       }
+      // Barreira: organizacao, IndexedDB, Map, fila e tombstones ANTES de
+      // qualquer tela. Sem isso uma tela poderia listar zero equipamentos so
+      // porque chamou ler() antes da hidratacao terminar.
+      await iniciarArmazenamento();
       await lerTudo();
       if (vivo) setEstado('autenticado');
     })();
