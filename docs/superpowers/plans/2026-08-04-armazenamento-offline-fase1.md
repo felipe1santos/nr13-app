@@ -126,6 +126,9 @@ Commit: `test(infra): setup com indexedDB, BroadcastChannel e Web Locks`
 alter table public.app_storage add column if not exists versao      integer not null default 1;
 alter table public.app_storage add column if not exists dispositivo text;
 alter table public.app_storage add column if not exists deletado_em timestamptz;
+-- AUDITORIA APENAS. O relogio do aparelho nunca decide aceitacao: um celular
+-- com a data errada passaria por qualquer regra baseada nesta coluna.
+alter table public.app_storage add column if not exists mutado_em_cliente timestamptz;
 create index if not exists app_storage_deletado_idx on public.app_storage (org_id, deletado_em);
 
 -- ── 2. Historico PERMANENTE de exclusoes ───────────────────────────────────
@@ -168,6 +171,11 @@ create policy org_sync_select on public.org_sync
 -- ── 5. RPC TRANSACIONAL: unica porta de escrita do app ─────────────────────
 -- security definer IGNORA RLS, entao papel/assinatura/prazo sao re-checados
 -- aqui dentro, explicitamente.
+-- NAO existe parametro org_id: a organizacao vem SEMPRE de org_atual(), que
+-- deriva de auth.uid(). O cliente nao tem como informar a org de outra conta.
+-- search_path = '' com tudo qualificado por schema (hardening obrigatorio em
+-- security definer: sem isso um schema no caminho do usuario poderia
+-- sequestrar uma chamada de funcao).
 create or replace function public.aplicar_mutacao_storage(
   p_chave           text,
   p_mutation_id     uuid,
@@ -175,22 +183,40 @@ create or replace function public.aplicar_mutacao_storage(
   p_valor           text,
   p_versao_esperada integer,       -- 0 = espera que a chave NAO exista
   p_dispositivo     text,
-  p_mutado_em       timestamptz
+  p_mutado_em       timestamptz    -- AUDITORIA APENAS: relogio do aparelho nao decide nada
 ) returns jsonb
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = '' as $$
 declare
   v_org       uuid;
   v_res       jsonb;
-  v_corte     timestamptz;
   v_piso      integer;
   v_atual     public.app_storage%rowtype;
   v_nova      integer;
   v_user      uuid := auth.uid();
 begin
+  -- Sessao anonima nao grava nada.
+  if v_user is null then
+    return pg_catalog.jsonb_build_object('status','recusado','motivo','sem_permissao');
+  end if;
+
+  if p_op not in ('set','del') or p_chave is null or p_chave = '' then
+    return pg_catalog.jsonb_build_object('status','recusado','motivo','sem_permissao');
+  end if;
+
   v_org := public.org_atual();
   if v_org is null then
-    return jsonb_build_object('status','recusado','motivo','sem_permissao');
+    return pg_catalog.jsonb_build_object('status','recusado','motivo','sem_permissao');
   end if;
+
+  -- Redundante com org_atual() (que ja le o profile de auth.uid()), mantido
+  -- como asserção explicita: o usuario precisa pertencer a org afetada.
+  if not exists (select 1 from public.profiles p where p.id = v_user and p.org_id = v_org) then
+    return pg_catalog.jsonb_build_object('status','recusado','motivo','sem_permissao');
+  end if;
+
+  -- Marca a sessao como "escrita via RPC" para o trigger de piso saber que
+  -- deve aplicar a regra (ver rollback para a v1, Task 14).
+  perform pg_catalog.set_config('nr13.via_rpc', '1', true);
 
   -- Idempotencia: mesma mutacao chegando de novo devolve o resultado anterior.
   select resultado into v_res
@@ -206,15 +232,12 @@ begin
     return jsonb_build_object('status','recusado','motivo','sem_permissao');
   end if;
 
-  -- Corte da org: mutacao criada antes da ultima coleta nunca e aplicada sozinha.
-  select sync_corte into v_corte from public.org_sync where org_id = v_org;
-  if v_corte is not null and p_mutado_em < v_corte then
-    v_res := jsonb_build_object('status','recusado','motivo','anterior_ao_corte');
-    insert into public.app_storage_mutacoes(org_id, mutation_id, resultado)
-      values (v_org, p_mutation_id, v_res);
-    return v_res;
-  end if;
-
+  -- NAO existe mais checagem por p_mutado_em. O relogio do aparelho nao e
+  -- autoridade: um celular com a data adiantada passaria por qualquer corte
+  -- baseado em data. A protecao real e o PISO DE VERSAO abaixo, que e
+  -- monotonico e vive no servidor. `org_sync.sync_corte` continua sendo
+  -- gravado, mas so como diagnostico (a UI usa para sugerir re-hidratacao
+  -- completa), nunca como criterio de aceitacao.
   v_nova := p_versao_esperada + 1;
 
   -- Piso de versao: chave ja excluida nao volta com versao antiga.
@@ -222,7 +245,7 @@ begin
     from public.app_storage_excluidos
    where org_id = v_org and chave = p_chave;
   if v_piso is not null and v_nova <= v_piso then
-    v_res := jsonb_build_object('status','recusado','motivo','versao_obsoleta','versao', v_piso);
+    v_res := pg_catalog.jsonb_build_object('status','recusado','motivo','versao_obsoleta','versao', v_piso);
     insert into public.app_storage_mutacoes(org_id, mutation_id, resultado)
       values (v_org, p_mutation_id, v_res);
     return v_res;
@@ -235,7 +258,7 @@ begin
   if found then
     -- CONFLITO: alguem gravou entre a leitura do cliente e este envio.
     if v_atual.versao <> p_versao_esperada then
-      v_res := jsonb_build_object(
+      v_res := pg_catalog.jsonb_build_object(
         'status','conflito',
         'versao', v_atual.versao,
         'valor', v_atual.valor,
@@ -247,17 +270,21 @@ begin
       return v_res;
     end if;
 
-    -- Tombstone ainda nao coletado nao pode ser revertido por escrita mais antiga.
-    if v_atual.deletado_em is not null and p_mutado_em < v_atual.deletado_em then
-      v_res := jsonb_build_object('status','recusado','motivo','tombstone_mais_novo',
-                                  'versao', v_atual.versao);
+    -- Tombstone nao coletado: decidido por VERSAO, nao por data. A exclusao
+    -- gravou versao_final em app_storage_excluidos, entao uma escrita vinda de
+    -- um aparelho que parou antes dela chega com v_nova <= v_piso e ja foi
+    -- barrada acima. Aqui so resta o caso de a linha estar deletada e a versao
+    -- casar: e uma RECRIACAO legitima e segue adiante.
+    if v_atual.deletado_em is not null and v_piso is not null and v_nova <= v_piso then
+      v_res := pg_catalog.jsonb_build_object('status','recusado','motivo','tombstone_mais_novo',
+                                             'versao', v_atual.versao);
       insert into public.app_storage_mutacoes(org_id, mutation_id, resultado)
         values (v_org, p_mutation_id, v_res);
       return v_res;
     end if;
   else
     if p_versao_esperada <> 0 then
-      v_res := jsonb_build_object('status','conflito','versao', 0, 'valor', null);
+      v_res := pg_catalog.jsonb_build_object('status','conflito','versao', 0, 'valor', null);
       insert into public.app_storage_mutacoes(org_id, mutation_id, resultado)
         values (v_org, p_mutation_id, v_res);
       return v_res;
@@ -265,27 +292,33 @@ begin
   end if;
 
   if p_op = 'set' then
-    insert into public.app_storage (org_id, user_id, chave, valor, versao, dispositivo, deletado_em, atualizado_em)
-    values (v_org, v_user, p_chave, p_valor, v_nova, p_dispositivo, null, now())
+    insert into public.app_storage (org_id, user_id, chave, valor, versao, dispositivo,
+                                    deletado_em, atualizado_em, mutado_em_cliente)
+    values (v_org, v_user, p_chave, p_valor, v_nova, p_dispositivo,
+            null, pg_catalog.now(), p_mutado_em)
     on conflict (org_id, chave) do update
       set valor = excluded.valor, versao = excluded.versao, dispositivo = excluded.dispositivo,
-          deletado_em = null, atualizado_em = now();
+          deletado_em = null, atualizado_em = pg_catalog.now(),
+          mutado_em_cliente = excluded.mutado_em_cliente;
   else
-    insert into public.app_storage (org_id, user_id, chave, valor, versao, dispositivo, deletado_em, atualizado_em)
-    values (v_org, v_user, p_chave, null, v_nova, p_dispositivo, now(), now())
+    insert into public.app_storage (org_id, user_id, chave, valor, versao, dispositivo,
+                                    deletado_em, atualizado_em, mutado_em_cliente)
+    values (v_org, v_user, p_chave, null, v_nova, p_dispositivo,
+            pg_catalog.now(), pg_catalog.now(), p_mutado_em)
     on conflict (org_id, chave) do update
       set valor = null, versao = excluded.versao, dispositivo = excluded.dispositivo,
-          deletado_em = now(), atualizado_em = now();
+          deletado_em = pg_catalog.now(), atualizado_em = pg_catalog.now(),
+          mutado_em_cliente = excluded.mutado_em_cliente;
 
     -- A prova da exclusao nasce AGORA, nao na coleta.
     insert into public.app_storage_excluidos (org_id, chave, versao_final)
     values (v_org, p_chave, v_nova)
     on conflict (org_id, chave) do update
-      set versao_final = greatest(public.app_storage_excluidos.versao_final, excluded.versao_final),
-          excluido_em = now();
+      set versao_final = pg_catalog.greatest(public.app_storage_excluidos.versao_final, excluded.versao_final),
+          excluido_em = pg_catalog.now();
   end if;
 
-  v_res := jsonb_build_object('status','aplicado','versao', v_nova);
+  v_res := pg_catalog.jsonb_build_object('status','aplicado','versao', v_nova);
   insert into public.app_storage_mutacoes(org_id, mutation_id, resultado)
     values (v_org, p_mutation_id, v_res);
   return v_res;
@@ -294,12 +327,44 @@ end $$;
 revoke all on function public.aplicar_mutacao_storage(text,uuid,text,text,integer,text,timestamptz) from public;
 grant execute on function public.aplicar_mutacao_storage(text,uuid,text,text,integer,text,timestamptz) to authenticated;
 
+-- ── 5b. Piso de versao tambem contra escrita DIRETA (defesa em profundidade) ─
+-- A RPC e a porta oficial, mas as policies de app_storage ainda permitem
+-- insert/update direto (e o frontend v1 depende disso). O trigger aplica o piso
+-- SOMENTE quando a escrita veio pela RPC, que marca `nr13.via_rpc`. Assim:
+--   - cliente v2 desatualizado tentando burlar via upsert direto: barrado pela
+--     RPC ser o unico caminho que o app v2 usa, e o piso segue valendo nela;
+--   - frontend v1 (rollback): escreve direto, sem a marca, e NAO e barrado —
+--     e o que permite recriar uma chave legitimamente depois do rollback.
+-- Ver Task 14 para o que isso significa e como e reconciliado na reativacao.
+create or replace function public.checar_piso_versao()
+returns trigger language plpgsql security definer set search_path = '' as $$
+declare v_final integer;
+begin
+  if pg_catalog.current_setting('nr13.via_rpc', true) is distinct from '1' then
+    return new;  -- escrita direta (v1): semantica antiga, sem piso
+  end if;
+  select versao_final into v_final
+    from public.app_storage_excluidos
+   where org_id = new.org_id and chave = new.chave;
+  if v_final is not null and new.versao <= v_final then
+    raise exception 'nr13_versao_obsoleta: chave % excluida na versao %', new.chave, v_final
+      using errcode = 'P0001';
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists trg_checar_piso_versao on public.app_storage;
+create trigger trg_checar_piso_versao
+  before insert or update on public.app_storage
+  for each row execute function public.checar_piso_versao();
+
 -- ── 6. Coleta: por org e SO para service_role ──────────────────────────────
 create or replace function public.coletar_tombstones(p_org uuid, p_dias integer default 30)
-returns integer language plpgsql security definer set search_path = public as $$
+returns integer language plpgsql security definer set search_path = '' as $$
 declare n integer;
 begin
-  if current_setting('request.jwt.claims', true)::jsonb->>'role' is distinct from 'service_role' then
+  if pg_catalog.current_setting('request.jwt.claims', true)::pg_catalog.jsonb->>'role'
+     is distinct from 'service_role' then
     raise exception 'coletar_tombstones exige service_role';
   end if;
 
@@ -1423,12 +1488,21 @@ Testes: logout com pendência bloqueia; logout limpo libera; "sair e manter" pre
     }
   }
 
+  // Credenciais desta montagem, entregues pelo app na query string do iframe.
+  var params = new URLSearchParams(location.search);
+  var NONCE = params.get('nonce') || '';
+  var ABA = params.get('aba') || '';
+  var ORG = params.get('org') || '';
+
   window.addEventListener('message', function (ev) {
+    // Espelho da validacao do lado do app: origem, emissor e nonce.
+    if (ev.origin !== location.origin) return;
     if (ev.source !== window.parent) return;
     var m = ev.data;
-    if (!m || m.tipo !== 'nr13_salvo' || !pendentes[m.id]) return;
+    if (!m || m.tipo !== 'nr13_salvo' || m.nonce !== NONCE || !pendentes[m.id]) return;
     clearTimeout(pendentes[m.id].timer);
     delete pendentes[m.id];
+    removerDoFallback(m.id);   // so agora: o app confirmou o commit
   });
 
   window.sbSalvar = function (chave, valor) {
@@ -1437,29 +1511,79 @@ Testes: logout com pendência bloqueia; logout limpo libera; "sair e manter" pre
     guardarFallback(id, chave, valor);   // fallback ANTES: se o app morrer, o dado existe
     pendentes[id] = {
       timer: setTimeout(function () {
-        try { window.parent.postMessage({ tipo: 'nr13_erro_ponte', chave: chave, erro: 'sem confirmacao' }, '*'); } catch (e) {}
+        try {
+          window.parent.postMessage(
+            { tipo: 'nr13_erro_ponte', nonce: NONCE, aba: ABA, org: ORG, chave: chave, erro: 'sem confirmacao' },
+            location.origin);
+        } catch (e) {}
       }, 5000),
     };
-    try { window.parent.postMessage({ tipo: 'nr13_salvar', id: id, chave: chave, valor: valor }, '*'); }
-    catch (e) { /* sem parent: o fallback já cobriu, o app drena no próximo boot */ }
+    try {
+      window.parent.postMessage(
+        { tipo: 'nr13_salvar', id: id, nonce: NONCE, aba: ABA, org: ORG, chave: chave, valor: valor },
+        location.origin);   // destino explicito, nunca '*'
+    } catch (e) {
+      /* sem parent acessivel: o fallback ja cobriu e o app drena no proximo boot */
+    }
   };
 })();
 ```
 
+**Validação da mensagem (ponto #3 da revisão final).** `postMessage` é um canal aberto: qualquer página numa aba, qualquer iframe de terceiro e qualquer extensão pode postar. Sem validação, uma mensagem forjada viraria gravação no banco do usuário. Cinco checagens, todas obrigatórias:
+
 ```ts
 // src/services/ponteTemplates.ts
-export function ouvirPonte(salvarChave: (chave: string, valor: string) => Promise<void>): () => void {
+import { orgAtual } from './cacheLocal';
+
+export interface SessaoPonte {
+  nonce: string;                 // sorteado por montagem de palco
+  aba: string;                   // ID_ABA do palco (uma aba só)
+  org: string;                   // organização vigente
+  janelas: Set<Window>;          // contentWindow dos iframes QUE NÓS montamos
+}
+
+export function ouvirPonte(
+  sessao: SessaoPonte,
+  salvarChave: (chave: string, valor: string) => Promise<void>,
+  aoRecusar: (motivo: string, ev: MessageEvent) => void,
+): () => void {
   const aoReceber = async (ev: MessageEvent) => {
-    const m = ev.data as { tipo?: string; id?: string; chave?: string; valor?: string };
-    if (m?.tipo !== 'nr13_salvar' || !m.chave || m.valor === undefined) return;
-    await salvarChave(m.chave, m.valor);              // grava dado + fila atomicamente
-    removerDaPonte(m.id!);                            // remove UM item, depois do commit
-    (ev.source as Window | null)?.postMessage({ tipo: 'nr13_salvo', id: m.id }, '*');
+    // 1. Origem: só a nossa própria origem. Os templates são servidos por nós.
+    if (ev.origin !== window.location.origin) return aoRecusar('origem', ev);
+    // 2. Emissor: tem que ser um dos iframes que ESTE componente montou.
+    //    `ev.source` não é forjável — o navegador o preenche.
+    if (!ev.source || !sessao.janelas.has(ev.source as Window)) return aoRecusar('emissor', ev);
+
+    const m = ev.data as Record<string, unknown>;
+    if (m?.tipo !== 'nr13_salvar') return;
+
+    // 3. Nonce: sorteado a cada montagem e entregue ao iframe pela query string.
+    if (m.nonce !== sessao.nonce) return aoRecusar('nonce', ev);
+    // 4. Aba: o palco tem dono exclusivo; mensagem de outra aba não vale.
+    if (m.aba !== sessao.aba) return aoRecusar('aba', ev);
+    // 5. Organização: protege contra mensagem retida através de troca de conta.
+    if (m.org !== sessao.org || m.org !== orgAtual()) return aoRecusar('org', ev);
+
+    if (typeof m.chave !== 'string' || typeof m.valor !== 'string' || typeof m.id !== 'string') {
+      return aoRecusar('formato', ev);
+    }
+
+    await salvarChave(m.chave, m.valor);        // dado + fila, atomicamente
+    removerDaPonte(m.id);                       // remove UM item, DEPOIS do commit
+    (ev.source as Window).postMessage(
+      { tipo: 'nr13_salvo', id: m.id, nonce: sessao.nonce },
+      window.location.origin,                   // nunca '*' na resposta
+    );
   };
-  window.addEventListener('message', (e) => void aoReceber(e));
-  return () => window.removeEventListener('message', (e) => void aoReceber(e));
+  const ouvinte = (e: MessageEvent) => void aoReceber(e);
+  window.addEventListener('message', ouvinte);
+  return () => window.removeEventListener('message', ouvinte);
 }
 ```
+
+Toda recusa chama `aoRecusar`, que registra em `/pendencias` — mensagem barrada é sinal de bug ou de tentativa de injeção, e some em silêncio contraria a regra global.
+
+O `nonce` e o `aba` vão para o iframe na query string junto de `?tag=&page=`, e o `sb-storage.js` os lê de `location.search`, ecoando em cada mensagem. A resposta usa `window.location.origin`, nunca `'*'`.
 
 `drenarPonte()` passa a iterar item a item, removendo cada um **só depois** do `gravarAtomico` correspondente. É chamada no **boot** (não só ao desmontar a tela) e ao desmontar.
 
@@ -1546,28 +1670,41 @@ Testes: segunda aba recebe `ocupado` e não monta; `limparPalco` de aba não-don
 7. **Ativar para `cmam.caldeiras@gmail.com`** e confirmar os 38 equipamentos na tela.
 8. **Ativação gradual** conta a conta, começando pelas 4 acima da cota.
 
-**Rollback do frontend — o ponto que faltava:**
+**Rollback do frontend, revisado (ponto #2 da revisão final):**
 
-O risco não é desligar a flag: é o **dado novo criado enquanto ela esteve ligada**. Com a v2 ativa, as escritas passam pela RPC e incrementam `versao`; o frontend antigo lê `valor` e ignora `versao`, então **continua funcionando normalmente** — é compatível para leitura. O que ele *não* faz é respeitar `deletado_em`.
+O risco não é desligar a flag: é o **dado criado enquanto ela esteve ligada**. A v1 lê `valor` e ignora `versao` — compatível. Mas ela não entende `deletado_em`, e **não sabe enviar uma versão superior ao piso**.
 
-Portanto o rollback é:
+O problema concreto: um equipamento excluído na v2 deixa `app_storage_excluidos.versao_final = 8`. Depois do rollback, o usuário recria a mesma TAG pela v1, que faz `upsert` direto com `versao` no default. Se o piso valesse para escrita direta, **a v1 ficaria impedida de recriar a chave para sempre**.
 
+Resolução, sem abrir mão da proteção contra ressurreição:
+
+1. **O piso só vale para escrita via RPC.** O trigger (§5b do SQL) checa `nr13.via_rpc`, marcado apenas por `aplicar_mutacao_storage`. A v1 escreve direto, sem a marca, e recria normalmente.
+   *O que isso significa, dito às claras:* durante o rollback aquela org volta à proteção que tinha **antes deste projeto** — nenhuma. Não é uma regressão introduzida aqui; é o comportamento da v1, que é justamente para onde se está voltando. A proteção não é removida do banco, só não se aplica ao cliente que não sabe usá-la.
+
+2. **Materializar os soft-deletes**, senão excluídos reaparecem na v1:
 ```sql
--- 1. Desligar a flag para a conta afetada.
-update public.config_global set armazenamento_v2 = false;
-
--- 2. Materializar os soft-deletes que o frontend antigo não entende,
---    senão itens excluídos na v2 REAPARECEM na v1.
-delete from public.app_storage where deletado_em is not null;
-
--- 3. As pendências que ainda estavam no IndexedDB do aparelho não sobem pela
---    v1 (ela usa outra fila). Antes de desligar, drenar:
---    /pendencias -> "Tentar todas" -> confirmar fila vazia em cada aparelho ativo.
+update public.config_global set armazenamento_v2 = false;      -- 1. desligar a flag
+delete from public.app_storage where deletado_em is not null;  -- 2. a v1 não entende soft-delete
 ```
 
-**Regra:** a flag só é desligada depois de a fila estar vazia nos aparelhos ativos daquela conta. O passo 3 é o único que exige ação do usuário, e a tela `/pendencias` já mostra exatamente o que falta.
+3. **Drenar antes de desligar.** A fila do IndexedDB não sobe pela v1. `/pendencias` → "Tentar todas" → confirmar fila vazia em cada aparelho ativo. A flag só cai com fila vazia.
+
+4. **Reconciliação obrigatória ao REATIVAR a v2** — o passo que faltava. Chaves recriadas pela v1 ficam com `versao` baixa enquanto o piso continua alto; a primeira edição na v2 seria recusada como `versao_obsoleta` para sempre. Antes de religar a flag:
+```sql
+-- Alinha a versao das linhas VIVAS acima do piso registrado, para que a
+-- primeira edicao na v2 seja aceita. Nao mexe no historico de exclusoes:
+-- a protecao continua valendo para chaves que seguem excluidas.
+update public.app_storage s
+   set versao = e.versao_final + 1
+  from public.app_storage_excluidos e
+ where e.org_id = s.org_id and e.chave = s.chave
+   and s.deletado_em is null
+   and s.versao <= e.versao_final;
+```
 
 As colunas e tabelas novas **permanecem** no rollback: são aditivas e inertes para a v1.
+
+**Gate obrigatório antes de ligar a flag (ponto final da revisão):** os cenários manuais da RPC (3, 4, 5, 10 e 15 da Task 16) precisam ser **executados e registrados** em `docs/superpowers/plans/resultados-rpc-armazenamento-v2.md`, com o `select` de conferência e a saída de cada um, datados e assinados por quem rodou. Roteiro não executado **não libera** a ativação.
 
 ---
 
