@@ -21,8 +21,10 @@ if (typeof globalThis.localStorage === 'undefined') {
   };
 }
 
-// BroadcastChannel: canais por nome, compartilhados dentro do processo. É o que
-// permite simular DUAS ABAS num teste — duas instâncias do mesmo nome conversam.
+// BroadcastChannel: o Node 22 já traz o nativo, então este bloco normalmente
+// NÃO roda — fica como rede de segurança para runtimes que não o tenham.
+// Atenção ao escrever teste de duas abas: o nativo entrega de forma
+// ASSÍNCRONA, então esperar por condição (não por tempo) é obrigatório.
 if (typeof globalThis.BroadcastChannel === 'undefined') {
   interface CanalFalso {
     name: string;
