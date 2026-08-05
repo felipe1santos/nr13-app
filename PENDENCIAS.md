@@ -49,7 +49,7 @@
 
 ## Armazenamento offline-first (Fase 1) — pendências de deploy
 
-- [ ] **Gate de concorrência da RPC.** `scripts/testar-concorrencia-rpc.mts` precisa
+- [x] **Gate de concorrência da RPC — LIBERADO em 05/08/2026, 30/30.** `scripts/testar-concorrencia-rpc.mts` precisa
       rodar com a `service_role` em `.env.teste`. Os dois cenários — duas criações
       simultâneas da mesma chave e duas chamadas com o mesmo `mutationId` — são os
       únicos do gate que não se provam no SQL Editor. **Enquanto não ficarem verdes,

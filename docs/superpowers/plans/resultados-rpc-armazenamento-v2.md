@@ -83,7 +83,51 @@ O cenário 6 é o que prova a correção: era exatamente aí que a marca ficava 
 
 Nenhum dado de produção alterado.
 
-## Cenários que seguem SEM execução — o gate NÃO fecha
+## 3ª rodada — concorrência real (05/08/2026) — **30/30**
+
+Executada por `scripts/testar-concorrencia-rpc.mts` contra uma organização
+descartável (`nr13-gate-conc-1229f552@example.invalid`, org
+`738530fb-277a-4db1-9312-9e7b249db253`), com `v2_ativa` ligada **apenas** nela.
+Dois clientes Supabase independentes, `Promise.allSettled`, 15 rodadas por cenário.
+
+### Cenário A — mesmo `mutationId`, chamadas simultâneas
+
+15/15. Todas as rodadas: **`aplicado` + `repetido`**, `versao = 1`, **1 registro**
+em `app_storage_mutacoes`.
+
+A versão parar em 1 é a prova que importa: a mutação foi aplicada **uma única
+vez**, mesmo com as duas chamadas em voo ao mesmo tempo. Sem o padrão de
+reivindicação (`insert ... on conflict do nothing` + `FOR SHARE`), a segunda
+teria aplicado de novo e a versão iria a 2.
+
+### Cenário B — duas criações da mesma chave, `versao_esperada = 0`
+
+15/15. Todas: **`aplicado` + `conflito`**, **1 linha viva**, valor do vencedor
+intacto, e a resposta de conflito carregando o valor do vencedor.
+
+O vencedor **alterna** entre A e B ao longo das rodadas (A venceu 7, B venceu 8) —
+prova de que a corrida é real, e não uma ordenação determinística que passaria
+sem exercitar o `unique_violation`.
+
+### Limpeza
+
+`orgs com v2 ligada = 0`, `chaves de teste restantes = 0`. Usuário de auth,
+profile, `app_storage`, `app_storage_excluidos`, `app_storage_mutacoes` e
+`org_sync` da organização descartável removidos.
+
+---
+
+## Conclusão
+
+- [x] Todos os cenários executados com saída igual à esperada.
+- [x] Divergências corrigidas antes da ativação (bug do `via_rpc`, 1ª rodada).
+
+**Gate LIBERADO em 05/08/2026** para `definir_v2_org(<org>, true)`, respeitando a
+ordem de ativação gradual do `PENDENCIAS.md`.
+
+---
+
+## Histórico: cenários que estavam sem execução
 
 | Cenário | Por quê |
 |---|---|
