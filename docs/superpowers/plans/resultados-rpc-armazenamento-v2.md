@@ -57,17 +57,42 @@ Em produção o PostgREST usa uma transação por request, o que estreita a expo
 
 **Correção aplicada:** a marca passou a ser ligada **imediatamente antes** da escrita e desligada logo depois, inclusive no handler de `unique_violation`. RPC corrigida já reaplicada em produção (`RPC CORRIGIDA` confirmado).
 
-**Reteste PENDENTE** — a extensão do Chrome perdeu acesso ao supabase.com antes da 2ª rodada.
+## 2ª rodada — reteste após a correção (05/08/2026)
 
-## Cenários que seguem sem execução
+| # | Cenário | OK |
+|---|---|---|
+| 1 | RPC grava com v2 desligada → `aplicado` | ✅ |
+| 2 | **INSERT direto com v2 ligada → `nr13_escrita_direta_bloqueada`** | ✅ |
+| 3 | **UPDATE direto com v2 ligada → bloqueado** | ✅ |
+| 4 | **DELETE direto com v2 ligada → bloqueado** | ✅ |
+| 5 | RPC segue funcionando com v2 ligada → `aplicado` | ✅ |
+| 6 | **INSERT direto DEPOIS da RPC, mesma transação → bloqueado** | ✅ |
+
+O cenário 6 é o que prova a correção: era exatamente aí que a marca ficava presa e a guarda furava.
+
+## Estado após todas as rodadas
+
+| | |
+|---|---|
+| Linhas | 927 (= base) |
+| Checksum | `8c0cdc4ecbae069d10a6c9be1b4becc0` (= base) |
+| Equipamentos do `cmam` | 38 |
+| Chaves de teste restantes | 0 |
+| Orgs com v2 ligada | **0** |
+| `app_storage_excluidos` / `app_storage_mutacoes` | 0 / 0 |
+
+Nenhum dado de produção alterado.
+
+## Cenários que seguem SEM execução — o gate NÃO fecha
 
 | Cenário | Por quê |
 |---|---|
-| Duas criações simultâneas da mesma chave | Exige duas sessões paralelas; o SQL Editor roda uma instrução por vez |
-| Duas chamadas simultâneas com o mesmo `mutationId` | Idem — é o que prova o `FOR SHARE` |
-| Reteste de 11, 12 e 13 após a correção | Extensão sem acesso ao host |
+| Duas criações simultâneas da mesma chave (`versao_esperada = 0`) | Exige duas sessões paralelas; o SQL Editor roda uma instrução por vez |
+| Duas chamadas simultâneas com o mesmo `mutationId` | Idem — é o que prova o `FOR SHARE` e o handler de `unique_violation` |
 
-Os dois primeiros precisam de `psql` com duas sessões. **Sem eles o gate não fecha.**
+Ambos precisam de `psql` com duas sessões, ou de duas chamadas HTTP concorrentes à RPC com JWT de usuário real. **Enquanto não rodarem, `definir_v2_org(<org>, true)` não deve ser executado para nenhuma organização.**
+
+O caminho de código deles está escrito e revisado, mas escrito e revisado não é o mesmo que exercitado — foi um caminho igualmente "revisado" que produziu o bug dos cenários 11-13.
 
 ---
 
