@@ -190,9 +190,6 @@ begin
     return jsonb_build_object('status','recusado','motivo','sem_permissao');
   end if;
 
-  -- Marca a sessao como escrita-via-RPC para o trigger da secao 5b.
-  perform set_config('nr13.via_rpc', '1', true);
-
   -- NAO existe checagem por p_mutado_em em lugar nenhum desta funcao.
   v_nova := p_versao_esperada + 1;
 
@@ -258,7 +255,15 @@ begin
   -- versao esperada existe para impedir. FOR UPDATE nao tranca linha que ainda
   -- nao existe, entao a corrida e resolvida pela unique constraint e a
   -- perdedora vira CONFLITO.
+  --
+  -- A marca nr13.via_rpc e ligada AQUI e desligada logo apos a escrita, nao no
+  -- inicio da funcao. set_config(..., true) vale para a TRANSACAO inteira, nao
+  -- para a chamada: marcada cedo, ela continuaria ligada depois do return e
+  -- qualquer escrita direta na mesma transacao passaria pela guarda como se
+  -- fosse da RPC. O gate de 05/08/2026 pegou exatamente isso (cenarios 11-13).
   begin
+    perform set_config('nr13.via_rpc', '1', true);
+
     if p_op = 'set' then
       if v_existia then
         update public.app_storage s
@@ -300,7 +305,11 @@ begin
             excluido_em  = now();
     end if;
 
+    perform set_config('nr13.via_rpc', '0', true);
+
   exception when unique_violation then
+    perform set_config('nr13.via_rpc', '0', true);
+
     -- Corrida de criacao: outra transacao inseriu a mesma chave entre a nossa
     -- verificacao e o insert. A vencedora fica; esta vira conflito, com a linha
     -- dela devolvida para o cliente preservar as duas versoes.

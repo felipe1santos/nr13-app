@@ -8,9 +8,66 @@ Não há Postgres no CI deste repo, então o comportamento do PL/pgSQL não é c
 
 **Preencher:** `Executado em`, `Por`, e a saída real de cada cenário. Saída divergente do esperado **bloqueia** a ativação.
 
-- **Executado em:** _(não executado)_
-- **Por:** _(—)_
-- **Projeto/ref:** _(—)_
+- **Executado em:** 05/08/2026 (1ª rodada)
+- **Por:** Claude, via SQL Editor do Supabase, com contexto autenticado forjado por `set_config('request.jwt.claims', …)`
+- **Projeto/ref:** `qqsesrntfvmdxqxrfvmw` (SAAS NR13) — **PRODUÇÃO**
+- **Status geral:** ⚠️ **NÃO LIBERADO** — 14 de 17 verificações passaram; 3 falharam, causa corrigida, **reteste pendente**
+
+## Linha de base (antes de qualquer alteração)
+
+| | |
+|---|---|
+| Banco | 56 MB · `app_storage` 44 MB |
+| Linhas | 927 · 20 orgs |
+| Checksum | `8c0cdc4ecbae069d10a6c9be1b4becc0` |
+| Equipamentos do `cmam.caldeiras` | 38 |
+| Backup | `app_storage_bkp_20260805` — 927 linhas, checksum idêntico |
+
+## Verificação pós-trigger (a que mais importava)
+
+`INSERT` + `UPDATE` + `DELETE` diretos com a flag desligada: **os três passaram**. Checksum, contagem e os 38 equipamentos **inalterados**. O frontend v1 em produção não foi afetado.
+
+## Resultado da 1ª rodada
+
+| # | Cenário | OK |
+|---|---|---|
+| 1 | Criação com `versao_esperada = 0` → `aplicado`/versão 1 | ✅ |
+| 2 | Dois aparelhos na mesma versão → `conflito` + valor vigente | ✅ |
+| 3 | 1ª chamada do `mutationId` → `aplicado`/versão 2 | ✅ |
+| 4 | Reenvio do MESMO `mutationId` → `repetido` | ✅ |
+| 5 | Versão após reenvio = **2, não 3** (não reaplicou) | ✅ |
+| 6 | Exclusão → `aplicado`/versão 3 | ✅ |
+| 7 | Prova gravada **na exclusão** (`versao_final = 3`) | ✅ |
+| 8 | Escrita antiga após exclusão → `recusado`/`versao_obsoleta` | ✅ |
+| 9 | Recriar chave excluída (versão > piso) → `aplicado` | ✅ |
+| 10 | Escrita direta com v2 **desligada** → aceita | ✅ |
+| 11 | **INSERT direto com v2 ligada → deveria bloquear** | ❌ |
+| 12 | **UPDATE direto com v2 ligada → deveria bloquear** | ❌ |
+| 13 | **DELETE direto com v2 ligada → deveria bloquear** | ❌ |
+| 14 | RPC com v2 ligada → `aplicado` | ✅ |
+| 15 | `coletar_tombstones` com v2 ligada (service_role) → executa | ✅ |
+| 16 | `coletar_tombstones` como usuário comum → recusa | ✅ |
+| 17 | RPC sem `auth.uid()` → `recusado`/`sem_permissao` | ✅ |
+
+### Bug encontrado nos cenários 11-13
+
+`set_config('nr13.via_rpc', '1', true)` é local à **transação**, não à chamada. A marca era ligada no início da RPC e **nunca desligada**, então qualquer escrita direta feita depois, na mesma transação, passava pela guarda como se fosse da RPC.
+
+Em produção o PostgREST usa uma transação por request, o que estreita a exposição — mas a guarda não pode depender dessa suposição.
+
+**Correção aplicada:** a marca passou a ser ligada **imediatamente antes** da escrita e desligada logo depois, inclusive no handler de `unique_violation`. RPC corrigida já reaplicada em produção (`RPC CORRIGIDA` confirmado).
+
+**Reteste PENDENTE** — a extensão do Chrome perdeu acesso ao supabase.com antes da 2ª rodada.
+
+## Cenários que seguem sem execução
+
+| Cenário | Por quê |
+|---|---|
+| Duas criações simultâneas da mesma chave | Exige duas sessões paralelas; o SQL Editor roda uma instrução por vez |
+| Duas chamadas simultâneas com o mesmo `mutationId` | Idem — é o que prova o `FOR SHARE` |
+| Reteste de 11, 12 e 13 após a correção | Extensão sem acesso ao host |
+
+Os dois primeiros precisam de `psql` com duas sessões. **Sem eles o gate não fecha.**
 
 ---
 
