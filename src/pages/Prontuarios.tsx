@@ -1,3 +1,5 @@
+import { usePalcoDocumento } from '../features/documentos/usePalcoDocumento';
+import RecusaPalco from '../components/RecusaPalco';
 import { useCallback, useEffect, useState } from 'react';
 import { Icone } from '../components/Icone';
 import { listarEquipamentos } from '../features/equipamento/equipamentoService';
@@ -258,6 +260,11 @@ export default function Prontuarios() {
   const [tag, setTag] = useState('');
   const [dados, setDados] = useState<ProntuarioDados>(dadosPadrao(''));
   const [versao, setVersao] = useState(0);
+
+  // Palco: as 6 folhas do prontuário leem localStorage no DOMContentLoaded.
+  // Nenhum iframe antes de `pronto` — prontuário meio montado sai impresso com
+  // folha faltando.
+  const palco = usePalcoDocumento(tag, `pront-${tag}-${versao}`);
   const [confirmandoExcluir, setConfirmandoExcluir] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [mostrarModelador, setMostrarModelador] = useState(false);
@@ -1081,11 +1088,16 @@ export default function Prontuarios() {
             </div>
           </div>
 
+          {palco.estado !== 'pronto' && (
+            <RecusaPalco estado={palco.estado} falha={palco.falha} />
+          )}
+
           <div className="prontuario-preview">
-            {PAGINAS_PRONTUARIO.map((doc, i) => (
+            {palco.estado === 'pronto' &&
+              PAGINAS_PRONTUARIO.map((doc, i) => (
               <PaginaA4 key={`${doc}-${i}-${versao}`}>
                 <iframe
-                  src={`/arquivos-prontuario/${doc}?tag=${encodeURIComponent(tag)}&page=${i + 1}&total=${PAGINAS_PRONTUARIO.length}`}
+                  src={`/arquivos-prontuario/${doc}?tag=${encodeURIComponent(tag)}&page=${i + 1}&total=${PAGINAS_PRONTUARIO.length}${palco.paramsIframe}`}
                   scrolling="no"
                   title={doc}
                   onLoad={(e) => {
