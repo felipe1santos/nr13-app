@@ -5,6 +5,7 @@ import { isMestre, isTrial, logout, papelAtual, usuarioLogado } from '../service
 import BarraTrial from '../components/BarraTrial';
 import BarraAssinatura from '../components/BarraAssinatura';
 import ModalAviso from '../components/ModalAviso';
+import SeloSync from '../components/SeloSync';
 import { listarChavesComPrefixo } from '../services/storage';
 import {
   sucessoPendente,
@@ -271,6 +272,7 @@ export default function Layout() {
           <BarraTrial />
           <BarraAssinatura />
           <ModalAviso />
+          <SeloSync />
           <header className="topbar">
             <div className="topbar-left">
               <button

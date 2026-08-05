@@ -3,6 +3,7 @@ import Login from '../pages/Login';
 import Dashboard from '../pages/Dashboard';
 import Equipamentos from '../pages/Equipamentos';
 import Vencimentos from '../pages/Vencimentos';
+import Pendencias from '../pages/Pendencias';
 import LivroRegistro from '../pages/LivroRegistro';
 import Equipamento from '../pages/Equipamento';
 import Memorial from '../pages/Memorial';
@@ -65,6 +66,7 @@ export const router = createBrowserRouter([
                   { path: '/dashboard', element: <Dashboard /> },
                   { path: '/equipamentos', element: <Equipamentos /> },
                   { path: '/vencimentos', element: <Vencimentos /> },
+                  { path: '/pendencias', element: <Pendencias /> },
                   { path: '/livro-registro', element: <LivroRegistro /> },
                   { path: '/equipamento/:tag', element: <Equipamento /> },
                   { path: '/equipamento/:tag/memorial', element: <Memorial /> },
