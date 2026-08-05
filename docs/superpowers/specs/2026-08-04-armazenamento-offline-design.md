@@ -119,13 +119,23 @@ O IndexedDB **não** é ilimitado nem imune à limpeza do navegador. O design as
 
 Só existe um dado que não sobrevive: o **pendente ainda não sincronizado**. Tudo já sincronizado volta do Supabase.
 
-Para nunca perder isso em silêncio:
+A defesa tem dois níveis, e o segundo é honestamente parcial:
 
-- Um **manifesto de pendências** minúsculo (só ids, chaves e contagem — sem payload, sem foto) é mantido em `localStorage`, poucos KB.
-- No boot, se o manifesto aponta pendências que **não existem mais** no IndexedDB, o app conclui que houve limpeza e mostra tela explícita: *"O navegador apagou N alterações que ainda não tinham subido"*, listando quais (TAG, formulário, quando).
-- `persist()` negado é registrado e exibido no selo como aviso permanente de risco, com o texto do porquê.
+**Nível 1 — encurtar a janela (é o que realmente protege).** Drenagem agressiva assim que há rede, `persist()` pedido no boot, o selo sempre visível para que pendência acumulada não passe despercebida, e aviso quando um item está pendente há mais de 1 hora. Pendência que não existe não se perde.
 
-Nenhuma perda silenciosa. É o princípio que atravessa o documento inteiro.
+**Nível 2 — detectar, quando der.** Um **manifesto** minúsculo (só ids, chaves e contagem — sem payload, sem foto) é mantido em `localStorage`, poucos KB.
+
+| Situação | O manifesto detecta? |
+|---|---|
+| IndexedDB despejado isoladamente (pressão de cota, limpeza automática do navegador) | **Sim** — lista o que se perdeu: TAG, formulário, quando |
+| Usuário limpa **todos os dados do site** | **Não** — `localStorage` e IndexedDB são apagados juntos e o manifesto vai junto |
+| Navegador anônimo/efêmero encerrado | **Não** |
+
+No caso não detectável não há como enumerar o que se perdeu — o registro do que existia foi embora com o resto. O que o app faz é reconhecer o estado zerado numa conta que tem dados no servidor e avisar de forma genérica: *"Se havia alterações não sincronizadas neste aparelho, elas foram perdidas."* Sem inventar uma lista que não existe mais.
+
+`persist()` negado é registrado e exibido no selo como aviso permanente de risco, com o texto do porquê.
+
+**O compromisso é não perder em silêncio, não "sempre saber o que se perdeu".** Onde a detecção não alcança, a proteção é a janela curta do Nível 1.
 
 ---
 
@@ -233,7 +243,35 @@ alter table public.app_storage add column if not exists deletado_em timestamptz;
 - A hidratação traz também as linhas com `deletado_em` preenchido e **remove localmente** as chaves correspondentes. É assim que a exclusão feita num aparelho chega aos outros.
 - A hidratação **nunca ressuscita** uma chave cujo tombstone local é mais novo que o `atualizado_em` do servidor.
 - `ler()` e a listagem ignoram linhas com `deletado_em`.
-- **Coleta de lixo**: `DELETE` físico só numa rotina administrativa, para linhas com `deletado_em` há mais de 30 dias — prazo que cobre com folga um aparelho que ficou offline. O tombstone local é descartado junto.
+- **Coleta de lixo**: `DELETE` físico só numa rotina administrativa, para linhas com `deletado_em` há mais de 30 dias. O `valor` (a parte pesada) é o que sai; a prova da exclusão **permanece** — ver §7.4. O tombstone local é descartado junto.
+
+### 7.4 Piso de versão — o morto não volta depois da coleta
+
+Depois do `DELETE` físico não sobra nada, na linha, que prove que a chave existiu. Um aparelho que ficou offline **mais tempo que o prazo de coleta** volta com um `set` pendente daquela chave, o upsert não encontra conflito e **o dado ressuscita**. Três controles, aplicados **no servidor** — o cliente desatualizado é exatamente a ameaça, então validar só no cliente não serve:
+
+**a) Histórico compacto de exclusões (permanente)**
+
+```sql
+create table if not exists public.app_storage_excluidos (
+  org_id       uuid not null,
+  chave        text not null,
+  versao_final integer not null,   -- última versão vista antes de excluir
+  excluido_em  timestamptz not null default now(),
+  primary key (org_id, chave)
+);
+```
+
+Guarda só a identidade e o número da versão — dezenas de bytes por exclusão, sem `valor`. É o que sobrevive à coleta. Não é podado junto com as linhas; se um dia precisar ser, aí vale o controle (c).
+
+**b) Piso de versão por chave**
+
+Trigger `before insert or update on app_storage`: se a chave existe em `app_storage_excluidos` com `versao_final >= versao` sendo gravada, a escrita é **rejeitada** com um código próprio (`nr13_versao_obsoleta`). Reescrever legitimamente aquela chave depois — recriar o mesmo equipamento, por exemplo — funciona normalmente, porque a versão nova é maior que `versao_final`.
+
+**c) Corte de sincronização por org (rede de segurança)**
+
+`profiles.sync_corte timestamptz` marca a última coleta executada. Mutação cujo `criadoEm` é anterior ao corte **nunca é aplicada automaticamente**, mesmo que a chave não conste no histórico de exclusões — cobre a hipótese de o próprio histórico ter sido podado um dia.
+
+**Nos três casos a alteração não é descartada:** vira item `conflito` em `/pendencias`, com o texto *"Esta alteração é mais antiga que a exclusão feita em outro aparelho"*, mostrando as duas datas e deixando o usuário decidir entre descartar ou regravar como versão nova. Vale a mesma regra do §7.2: nada é jogado fora sem alguém escolher.
 
 ---
 
@@ -351,8 +389,11 @@ Cenário com **340 chaves / 8 MB**, espelhando a conta `cmam.caldeiras`: os **38
 | 8 | **Troca de organização** | zero chaves da org anterior no Map, no palco ou no IndexedDB |
 | 9 | **Reabrir o app 100% offline** | hidrata do IndexedDB; lista e fichas funcionam |
 | 10 | **Relatório perto e acima de 5 MB** | degrada em passos; se não couber, recusa com a lista do que excedeu; **nunca monta parcial** |
-| 11 | IndexedDB apagado pelo navegador com pendências | tela explícita listando o que se perdeu |
+| 11 | IndexedDB apagado pelo navegador com pendências (manifesto sobrevive) | tela explícita listando o que se perdeu |
 | 12 | `persist()` negado | app funciona; aviso permanente de risco |
+| 13 | **Aparelho offline além do prazo de coleta** volta e tenta sincronizar versão antiga de chave já excluída e coletada | escrita **rejeitada** pelo servidor (§7.4); dado excluído **não ressuscita**; a alteração vira item `conflito` em `/pendencias` com as duas datas |
+| 14 | Limpeza total dos dados do site (manifesto some junto) | aviso genérico de possível perda; **sem** lista inventada; nada ressuscita ao re-hidratar |
+| 15 | Recriar legitimamente uma chave excluída e coletada | funciona: versão nova > `versao_final`, escrita aceita |
 
 ### 11.3 Por módulo
 
@@ -426,5 +467,7 @@ Defeitos corrigidos por fase: **Fase 1** — o bug principal, D1, D2, D3, D4 e D
 | Colunas `versao`/`dispositivo` no SQL, fora do JSON | os templates fazem parse do `valor` e não podem enxergar metadado |
 | Conflito nunca descarta versão | dado de inspeção em campo não se refaz |
 | Exclusão vira soft-delete (`deletado_em`) | sem isso, uma exclusão feita num aparelho nunca chegaria aos outros — e foi o apagar-por-ausência que causou o bug original |
+| Histórico de exclusões permanente + piso de versão, validados por trigger | o cliente desatualizado é a ameaça; validação só no cliente não impede a ressurreição |
+| Manifesto de perdas assumido como parcial | limpeza total do site leva o manifesto junto; prometer sempre saber o que se perdeu seria falso |
 | Exclusão vence conflito | é a única ação inequivocamente intencional |
 | Sem Fase 0 publicada | evita construir e publicar algo que seria substituído em seguida |
