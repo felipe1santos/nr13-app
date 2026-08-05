@@ -15,6 +15,7 @@ import { orgAtual, obterRegistro, gravarAtomico, type Registro } from './cacheLo
 import { classificar, type ErroSync } from './errosSync';
 import { interpretarResposta } from './contratoRpc';
 import { supabase } from './supabase';
+import { registrarPendencias, removerPendencia, substituirManifesto } from './manifesto';
 
 export type EstadoItem =
   | 'salvo_local'
@@ -109,8 +110,14 @@ export function montarItem(
  */
 export function registrarNaMemoria(item: ItemFila): void {
   const anterior = itemDaChave(item.chave);
-  if (anterior && anterior.mutationId !== item.mutationId) fila.delete(anterior.mutationId);
+  if (anterior && anterior.mutationId !== item.mutationId) {
+    fila.delete(anterior.mutationId);
+    // Condensação: a mutação anterior deixou de existir e não pode continuar
+    // sendo cobrada no manifesto como se tivesse se perdido.
+    removerPendencia(anterior.mutationId);
+  }
   fila.set(item.mutationId, item);
+  registrarPendencias([item]);
 }
 
 async function persistir(item: ItemFila): Promise<void> {
@@ -143,6 +150,7 @@ export async function marcarEstado(
 
 export async function removerDaFila(mutationId: string): Promise<void> {
   fila.delete(mutationId);
+  removerPendencia(mutationId);
   const org = orgAtual();
   if (!org) return;
   await aplicarAtomico(org, [{ store: 'fila', acao: 'delete', chave: mutationId }]);
@@ -155,6 +163,11 @@ export async function carregarFilaDoDisco(): Promise<void> {
   for (const { valor } of await listarTudo<ItemFila>(org, 'fila')) {
     if (valor?.mutationId) fila.set(valor.mutationId, valor);
   }
+  // O IndexedDB é compartilhado entre as abas da organização, então o que veio
+  // dele é a visão AUTORITATIVA — é o único momento em que o manifesto pode ser
+  // substituído por inteiro, inclusive por lista vazia (fila confirmadamente
+  // vazia). Nos demais caminhos o manifesto só recebe merge.
+  substituirManifesto([...fila.values()]);
 }
 
 // ---------------------------------------------------------------------------
