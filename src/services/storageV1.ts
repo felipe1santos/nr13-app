@@ -262,6 +262,11 @@ export async function flushFila(): Promise<void> {
   if (drenouAlguma) registrarSync();
 }
 
+/** Quantas operações ainda não chegaram ao servidor. */
+export function contarPendencias(): number {
+  return lerFila().length;
+}
+
 // Drena a fila ao reconectar (registrado UMA única vez no carregamento do módulo).
 let listenerOnlineRegistrado = false;
 function registrarListenerOnline(): void {

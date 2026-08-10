@@ -59,9 +59,24 @@
 - [ ] **Agendar `coletar_tombstones(<org>, 30)`** (mensal, service_role). A prova da
       exclusão permanece em `app_storage_excluidos`; só o `valor` é removido.
 
-- [ ] **Ligar a v2 gradualmente.** Ordem: conta de teste → validar os 15 cenários →
-      `cmam.caldeiras@gmail.com` (confirmar os 38 equipamentos) → demais contas acima
-      da cota (`teste@gmail.com`, `gabriel.dadona@gmail.com`, `liperoneads@gmail.com`).
+- [ ] **DEPLOY URGENTE do front.** `cmam.caldeiras` está com `org_sync.v2_ativa = true` no
+      servidor desde 05/08 e o bundle em produção ainda é o que não lê essa flag: ele fala v1
+      com um banco que só aceita a RPC, então **nenhuma escrita dele chega ao banco** (fica em
+      `nr13_fila_sync` no aparelho) e a lista abre vazia. Enquanto não houver deploy, o
+      cliente segue nesse estado. Depois do deploy o aparelho dele adota sozinho a fila presa
+      (`migracaoV1.ts`) — não pedir para ele limpar o cache/navegador antes disso, é lá que
+      estão as gravações que ainda não subiram.
+
+- [ ] **Ligar a v2 nas demais contas acima da cota** (`teste@gmail.com`,
+      `gabriel.dadona@gmail.com`, `liperoneads@gmail.com`) com `definir_v2_org(<org>, true)`.
+      `cmam.caldeiras@gmail.com` já está ligada e validada em 10/08/2026 (38 equipamentos na
+      tela, criação/edição/exclusão indo ao banco, ciclo offline→online drenando, conflito de
+      versão preservando as duas versões).
+
+- [ ] **Descartar pendência definitivamente falha.** `/pendencias` só oferece "Tentar de novo";
+      um item recusado com `versao_obsoleta` (chave excluída no servidor por outro aparelho)
+      nunca vai ser aceito e fica para sempre exibindo "1 falha". Falta a ação de descartar,
+      mostrando o valor local antes de jogar fora.
 
 - [ ] **Rollback**, se preciso: esvaziar a fila nos aparelhos (`/pendencias` →
       "Tentar todas"), `definir_v2_org(org, false)`, `delete from app_storage where

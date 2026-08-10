@@ -9,6 +9,8 @@
  * é quem manda de verdade: a RLS recusa escrita direta quando a v2 está ativa
  * para a organização. Este espelho local só decide qual caminho o bundle usa.
  */
+import { supabase, escopoStorageAtual } from './supabase';
+
 const CHAVE = 'nr13_armazenamento_v2';
 
 /**
@@ -45,6 +47,41 @@ export function definirArmazenamentoV2(ativo: boolean): void {
 /** Descarta a decisão memoizada (troca de conta, e testes). */
 export function zerarFlagEmMemoria(): void {
   emMemoria = null;
+}
+
+/**
+ * Pergunta ao SERVIDOR qual implementação esta organização usa e grava a
+ * resposta. É o elo que faltava: sem ele `org_sync.v2_ativa` podia estar ligada
+ * no banco e o bundle continuar despachando para a v1 — foi exatamente o estado
+ * da conta `cmam.caldeiras` entre 05/08 e 10/08/2026. Nesse estado a guarda
+ * `trg_guardar_app_storage` recusa TODA escrita direta (`nr13_escrita_direta_
+ * bloqueada`), a v1 empilha tudo em `nr13_fila_sync` e o usuário vê o sistema
+ * "salvando" sem que nada chegue ao banco.
+ *
+ * Chamar SEMPRE antes do primeiro acesso ao armazenamento (é o que
+ * `carregarPerfil` faz, logo após gravar `nr13_org_id`).
+ *
+ * Falha de rede NÃO troca de caminho: mantém o que já valia. Rebaixar para a v1
+ * porque a consulta não respondeu levaria a tela a ler o `localStorage` vazio da
+ * v2 e concluir "conta sem equipamentos" — o sumiço que este código combate.
+ */
+export async function sincronizarFlagDoServidor(): Promise<boolean> {
+  try {
+    const escopo = await escopoStorageAtual();
+    if (!escopo) return armazenamentoV2Ativo();
+    const { data, error } = await supabase
+      .from('org_sync')
+      .select('v2_ativa')
+      .eq('org_id', escopo.id)
+      .maybeSingle();
+    // Erro pode ser offline OU banco sem a migração armazenamento_v2.sql. Nos
+    // dois casos o valor conhecido continua valendo.
+    if (error) return armazenamentoV2Ativo();
+    definirArmazenamentoV2((data as { v2_ativa?: boolean } | null)?.v2_ativa === true);
+    return armazenamentoV2Ativo();
+  } catch {
+    return armazenamentoV2Ativo();
+  }
 }
 
 export const CHAVE_FLAG_V2 = CHAVE;

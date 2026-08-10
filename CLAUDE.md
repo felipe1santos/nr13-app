@@ -44,6 +44,30 @@ chegava em `nr13_info_`. Spec completa em
 flag `nr13_armazenamento_v2` — memoizada por sessão (reler a cada chamada faria o caminho
 trocar no meio da sessão) e gravada no login a partir de `org_sync.v2_ativa`.
 
+> **QUEM LIGA A FLAG (10/08/2026):** `flag.sincronizarFlagDoServidor()`, chamada dentro de
+> `carregarPerfil()` (auth.ts) logo depois de `nr13_org_id` ser gravada — ou seja, no login E
+> em todo boot pelo `verificarAcesso()` do `RotaProtegida`. **Esse elo não existia**: a v2
+> ficou pronta e desligada, e quando `definir_v2_org(org, true)` foi executado para
+> `cmam.caldeiras` em 05/08, o bundle continuou na v1 contra um servidor já migrado. Resultado
+> medido: a guarda `trg_guardar_app_storage` recusava TODA escrita direta
+> (`nr13_escrita_direta_bloqueada`), a v1 empilhava tudo em `nr13_fila_sync`, e a leitura
+> estourava a cota antes de chegar em `nr13_info_` — 38 equipamentos no banco, zero na tela,
+> `profiles.ultima_sync` parada em 05/08. Erro de rede na consulta **não rebaixa** para v1:
+> rebaixar mostraria a conta vazia, que é o sumiço que este projeto conserta.
+>
+> **Herança do aparelho que vinha da v1** (`migracaoV1.ts`, aplicada por `storageV2.lerTudo`
+> depois de uma hidratação bem-sucedida): a fila `nr13_fila_sync` é ADOTADA pela fila da v2
+> (é onde estão as escritas recusadas — os equipamentos "que sumiram") e o cache v1 do
+> `localStorage` é purgado, senão não sobra espaço para o palco. A purga só recua diante de um
+> palco **vivo**; manifesto órfão (trava `nr13_palco_dono` vencida) sai junto — encontrado em
+> produção travando a purga para sempre.
+>
+> **Drenagem automática:** a v2 nasceu sem o listener de `online` que a v1 tinha. Agora escuta
+> `online` **e** `visibilitychange` (no celular a rede volta com a aba em segundo plano e
+> nenhum evento `online` chega à página). O selo da topbar (`SyncStatus`) conta pendências por
+> `storage.contarPendencias()` — lia direto o `nr13_fila_sync` e anunciava "Sincronizado" com
+> trabalho de campo inteiro parado no aparelho.
+
 | | v1 (`storageV1.ts`) | v2 (`storageV2.ts`) |
 |---|---|---|
 | Cache | `localStorage`, teto de 5 MB | `Map` em memória + IndexedDB `nr13_dados_<org_id>` |

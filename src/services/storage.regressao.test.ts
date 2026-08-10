@@ -180,3 +180,61 @@ describe('REGRESSÃO — sumiço de equipamentos (conta cmam.caldeiras, 04/08/20
     expect(listarChavesComPrefixo('nr13_info_')).toEqual([]);
   });
 });
+
+describe('herança do aparelho que estava na v1', () => {
+  it('adota a fila da v1 — as escritas recusadas pela guarda não se perdem', async () => {
+    // Estado real entre 05 e 10/08/2026: `org_sync.v2_ativa` ligada no servidor
+    // e o bundle ainda na v1. A guarda respondia `nr13_escrita_direta_bloqueada`
+    // e a v1 empilhava aqui. É onde ficaram os equipamentos "que sumiram".
+    localStorage.setItem(
+      'nr13_fila_sync',
+      JSON.stringify([
+        { op: 'set', chave: 'nr13_info_NOVO 01', valor: JSON.stringify({ tag: 'NOVO 01' }) },
+        { op: 'set', chave: 'nr13_emp_NOVO 01', valor: JSON.stringify({ nome: 'Cliente' }) },
+      ]),
+    );
+
+    await lerTudo();
+
+    expect(ler<{ tag: string }>('nr13_info_NOVO 01')?.tag).toBe('NOVO 01');
+    expect(listarChavesComPrefixo('nr13_info_')).toHaveLength(39); // 38 do servidor + o herdado
+    expect(localStorage.getItem('nr13_fila_sync')).toBeNull(); // adotada, não repetida
+  });
+
+  it('purga o cache que a v1 deixou no localStorage, preservando a sessão', async () => {
+    // Sem isto o palco (orçamento de 3.400 KB) não tem espaço para montar o
+    // documento: o mesmo teto de 5 MB, agora estourando na impressão.
+    localStorage.setItem('nr13_info_ACA 2000', JSON.stringify({ tag: 'ACA 2000' }));
+    localStorage.setItem('nr13_fotos_ACA 2000', 'f'.repeat(2000));
+    localStorage.setItem('nr13_usuario_logado', 'cmam.caldeiras@gmail.com');
+
+    await lerTudo();
+
+    expect(localStorage.getItem('nr13_info_ACA 2000')).toBeNull();
+    expect(localStorage.getItem('nr13_fotos_ACA 2000')).toBeNull();
+    expect(localStorage.getItem('nr13_usuario_logado')).toBe('cmam.caldeiras@gmail.com');
+    // E o dado continua acessível — ele mora no Map/IndexedDB agora.
+    expect(ler<{ tag: string }>('nr13_info_ACA 2000')?.tag).toBe('ACA 2000');
+  });
+
+  it('offline não adota nem purga: sem servidor lido, o cache antigo é tudo que há', async () => {
+    localStorage.setItem('nr13_info_ACA 2000', JSON.stringify({ tag: 'ACA 2000' }));
+    localStorage.setItem(
+      'nr13_fila_sync',
+      JSON.stringify([{ op: 'set', chave: 'nr13_info_NOVO 02', valor: '{}' }]),
+    );
+    range.mockImplementation(async () => {
+      throw new TypeError('Failed to fetch');
+    });
+
+    await lerTudo();
+
+    expect(localStorage.getItem('nr13_info_ACA 2000')).not.toBeNull();
+    expect(localStorage.getItem('nr13_fila_sync')).not.toBeNull();
+
+    range.mockImplementation(async (inicio: number, fim: number) => ({
+      data: LINHAS.slice(inicio, fim + 1),
+      error: null,
+    }));
+  });
+});

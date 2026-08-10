@@ -3,6 +3,7 @@
 // nr13_role) para leitura síncrona no render.
 import { supabase } from './supabase';
 import { lerTudo, limparCacheDados } from './storage';
+import { sincronizarFlagDoServidor, zerarFlagEmMemoria, CHAVE_FLAG_V2 } from './flag';
 import { gravarEstadoLocal, limparEstadoLocal } from './assinatura';
 import { bloqueioEntrada, type ContaParaEntrada, type StatusAssinatura } from '../features/assinatura/maquinaEstados';
 
@@ -51,6 +52,20 @@ interface Perfil {
 function normalizar(email: string): string {
   return email.trim().toLowerCase();
 }
+
+/**
+ * Sair SÓ deste dispositivo.
+ *
+ * O padrão do supabase-js é `scope: 'global'`, que revoga os refresh tokens da
+ * conta em TODOS os aparelhos. Como os gates de entrada (perfil inativo, acesso
+ * expirado, senha trocada, cadastro pendente) chamam signOut para desfazer a
+ * sessão recém-criada, o padrão global transformava uma tentativa de login
+ * recusada no computador em logout do celular que estava em campo — sem nenhum
+ * aviso e sem relação com o que o usuário fez. Nenhum caminho deste arquivo quer
+ * derrubar os outros dispositivos: quem faz isso, de propósito e com aviso, é o
+ * heartbeat de sessão única.
+ */
+const SO_LOCAL = { scope: 'local' } as const;
 
 // Busca perfil; grava plano/role no cache local p/ isDemo()/isAdmin().
 // Filtra pelo próprio id: a RLS de admin retorna TODOS os perfis, então sem o filtro
@@ -144,6 +159,10 @@ export async function carregarPerfil(): Promise<Perfil> {
   // aba sem "Sair" (encerrarSessaoLocal nunca rodou) deixe 'somente_leitura' preso no
   // localStorage e a PRÓXIMA conta a logar no mesmo navegador herde o bloqueio.
   const assinaturaStatus = await espelharAssinaturaDaOrg();
+  // Qual armazenamento esta organização usa (v1 ou v2) é decisão do SERVIDOR, e
+  // precisa estar resolvida ANTES do primeiro lerTudo/ler — daí ficar aqui, logo
+  // depois de `nr13_org_id` ser gravada (é dela que sai o escopo consultado).
+  await sincronizarFlagDoServidor();
   return {
     plano, ativo, role, acessoExpiraEm, assinaturaStatus, papel, orgId, clienteId,
     sessaoToken: (data?.sessao_token as string) ?? null,
@@ -217,24 +236,18 @@ export async function login(email: string, senha: string): Promise<LoginResultad
   const perfil = await carregarPerfil();
   const motivo = bloqueioEntrada(perfilParaEntrada(perfil), new Date());
   if (motivo === 'inativo') {
-    await supabase.auth.signOut();
+    await supabase.auth.signOut(SO_LOCAL);
     return { sucesso: false, erro: 'Acesso ainda não liberado pelo administrador.' };
   }
   if (motivo === 'expirado') {
-    await supabase.auth.signOut();
+    await supabase.auth.signOut(SO_LOCAL);
     if (perfil.plano === 'trial') {
       return { sucesso: false, trialExpirado: true, erro: 'Seu período de teste terminou.' };
     }
     return { sucesso: false, erro: 'Seu acesso expirou. Contate o administrador.' };
   }
-  // ── Sessão única (todos os papéis, inclusive o mestre): se a conta tem uma
-  // sessão viva (heartbeat < LIMITE), bloqueia o segundo login. Heartbeat velho
-  // = sessão abandonada e o lock é assumido. Antes da migração SQL, campos nulos.
-  const bloqueio = await assumirSessaoUnica(perfil);
-  if (!bloqueio.ok) {
-    await supabase.auth.signOut();
-    return { sucesso: false, erro: 'Esta conta já está em uso em outro dispositivo. Saia lá ou aguarde ~2 minutos.' };
-  }
+  // Sessão única: este login passa a ser o dono da conta (ver assumirSessaoUnica).
+  await assumirSessaoUnica(perfil);
   // Nova sessão de uso → novo sessao_id.
   localStorage.removeItem('nr13_sessao_id');
   // Registro local do último login (exibido na topbar) — não sincroniza.
@@ -248,26 +261,45 @@ export async function login(email: string, senha: string): Promise<LoginResultad
 export const SESSAO_LIMITE_MS = 90_000; // heartbeat mais velho que isso = sessão abandonada
 export const SESSAO_HEARTBEAT_MS = 30_000;
 
-async function assumirSessaoUnica(perfil: Perfil): Promise<{ ok: boolean }> {
+/**
+ * Torna ESTE dispositivo o dono da sessão da conta.
+ *
+ * Antes isto RECUSAVA o login enquanto houvesse heartbeat vivo (< 90 s),
+ * respondendo "Esta conta já está em uso em outro dispositivo". Recusar era o
+ * erro: quem fecha a aba sem clicar em "Sair" deixa o lock aceso, e o dono
+ * legítimo ficava travado fora da própria conta — sem nenhuma ação capaz de
+ * destravar, porque a única saída (o "Sair") exige estar dentro. Bastava também
+ * um celular esquecido com o app aberto para o computador nunca mais entrar: o
+ * heartbeat renova o lock a cada 30 s, então a espera de "~2 minutos" prometida
+ * na mensagem nunca terminava.
+ *
+ * O modelo correto já existia do outro lado: `iniciarHeartbeatSessao` derruba a
+ * sessão que perdeu o token (App.tsx avisa e manda para o /login). Então o
+ * último login vence e o dispositivo anterior sai — a conta continua valendo por
+ * um dispositivo de cada vez, que é o objetivo da regra, sem trancar ninguém.
+ *
+ * Reentrada no MESMO aparelho preserva o token: sem isso, logar numa segunda aba
+ * geraria um token novo e a primeira aba se derrubaria sozinha no heartbeat
+ * seguinte.
+ */
+async function assumirSessaoUnica(perfil: Perfil): Promise<void> {
   try {
     const { data: sess } = await supabase.auth.getSession();
     const uid = sess.session?.user?.id;
-    if (!uid) return { ok: false };
-    const vivo =
-      !!perfil.sessaoToken &&
-      !!perfil.sessaoVistoEm &&
-      Date.now() - new Date(perfil.sessaoVistoEm).getTime() < SESSAO_LIMITE_MS;
-    if (vivo) return { ok: false };
-    const meuToken = crypto.randomUUID?.() ?? String(Date.now()) + Math.random().toString(36).slice(2);
+    if (!uid) return;
+    const tokenLocal = localStorage.getItem('nr13_sessao_token');
+    const mesmoAparelho = !!tokenLocal && tokenLocal === perfil.sessaoToken;
+    const meuToken = mesmoAparelho
+      ? tokenLocal
+      : (crypto.randomUUID?.() ?? String(Date.now()) + Math.random().toString(36).slice(2));
     const { error } = await supabase
       .from('profiles')
       .update({ sessao_token: meuToken, sessao_visto_em: new Date().toISOString() })
       .eq('id', uid);
-    if (error) return { ok: true }; // migração ainda não rodou: não bloqueia o login
+    if (error) return; // migração ainda não rodou: nada a marcar, login segue
     localStorage.setItem('nr13_sessao_token', meuToken);
-    return { ok: true };
   } catch {
-    return { ok: true }; // best-effort: falha de rede não pode trancar o login
+    // best-effort: falha de rede não pode trancar o login
   }
 }
 
@@ -338,7 +370,7 @@ export async function cadastrar(email: string, senha: string): Promise<LoginResu
   }
   // Conta criada com sessão, mas o acesso depende de liberação do admin (perfil nasce ativo=false).
   // Encerra a sessão: usuário só entra após o admin liberar.
-  await supabase.auth.signOut();
+  await supabase.auth.signOut(SO_LOCAL);
   localStorage.removeItem('nr13_usuario_logado');
   localStorage.removeItem('nr13_plano');
   localStorage.removeItem('nr13_role');
@@ -411,7 +443,7 @@ export async function cadastrarTrial(
   // Com "Confirm email" ligado não há sessão aqui — o código foi enviado.
   if (data.session) {
     // Toggle desligado no painel: sem código para digitar; encerra e avisa.
-    await supabase.auth.signOut();
+    await supabase.auth.signOut(SO_LOCAL);
     return { sucesso: false, erro: 'Confirmação de e-mail desativada no servidor. Contate o suporte.' };
   }
   return { sucesso: true, precisaConfirmarEmail: true };
@@ -446,17 +478,13 @@ export async function confirmarCodigoTrial(
   });
   if (error || !data?.ok) {
     const msg = await erroDaFuncao(error, 'Não foi possível concluir seu cadastro. Tente novamente.');
-    await supabase.auth.signOut();
+    await supabase.auth.signOut(SO_LOCAL);
     return { sucesso: false, erro: msg };
   }
 
   // Entra pelo mesmo caminho do login normal (sessão única + cache + métricas).
   const perfil = await carregarPerfil();
-  const bloqueio = await assumirSessaoUnica(perfil);
-  if (!bloqueio.ok) {
-    await supabase.auth.signOut();
-    return { sucesso: false, erro: 'Esta conta já está em uso em outro dispositivo. Saia lá ou aguarde ~2 minutos.' };
-  }
+  await assumirSessaoUnica(perfil);
   localStorage.removeItem('nr13_sessao_id');
   localStorage.setItem('nr13_ultimo_login', new Date().toISOString());
   const plano = await aposEntrar(email);
@@ -486,13 +514,19 @@ export function encerrarSessaoLocal(): void {
   // fechada sem passar por aqui.)
   limparEstadoLocal();
   // Zera os dados em cache para não vazarem ao próximo login (mesmo navegador).
+  // Precisa vir ANTES de esquecer a flag: é ela que decide qual implementação
+  // limpa (a da v2 zera o Map; a da v1 varre o localStorage).
   limparCacheDados();
+  // A próxima conta pode usar a outra implementação: a decisão é por organização
+  // e volta a ser tomada no login dela.
+  localStorage.removeItem(CHAVE_FLAG_V2);
+  zerarFlagEmMemoria();
 }
 
 export async function logout(): Promise<void> {
   await registrarEvento('logout');
   await liberarSessaoUnica();
-  await supabase.auth.signOut();
+  await supabase.auth.signOut(SO_LOCAL);
   encerrarSessaoLocal();
 }
 
@@ -532,10 +566,10 @@ export async function trocarSenhaComCodigo(
   if (otpErr) return { sucesso: false, erro: traduzErro(otpErr.message) };
   const { error } = await supabase.auth.updateUser({ password: novaSenha });
   if (error) {
-    if (encerrarSessao) await supabase.auth.signOut();
+    if (encerrarSessao) await supabase.auth.signOut(SO_LOCAL);
     return { sucesso: false, erro: traduzErro(error.message) };
   }
-  if (encerrarSessao) await supabase.auth.signOut();
+  if (encerrarSessao) await supabase.auth.signOut(SO_LOCAL);
   return { sucesso: true };
 }
 
@@ -570,7 +604,7 @@ export async function trocarSenhaNaTelaDeLogin(
   });
   if (confErr) return { sucesso: false, erro: 'E-mail ou senha atual incorretos.' };
   const { error } = await supabase.auth.updateUser({ password: novaSenha });
-  await supabase.auth.signOut();
+  await supabase.auth.signOut(SO_LOCAL);
   if (error) return { sucesso: false, erro: traduzErro(error.message) };
   return { sucesso: true };
 }

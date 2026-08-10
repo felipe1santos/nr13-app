@@ -53,6 +53,16 @@ export function flushFila(): Promise<void> {
   return v2Ativo() ? v2.flushFila() : v1.flushFila();
 }
 
+/**
+ * Mutações ainda não enviadas ao servidor. Cada implementação tem a SUA fila —
+ * a v1 no `localStorage`, a v2 no IndexedDB —, e o indicador da topbar lia só a
+ * da v1: numa organização já migrada ele exibia "Sincronizado" com trabalho de
+ * campo inteiro parado no aparelho.
+ */
+export function contarPendencias(): number {
+  return v2Ativo() ? v2.contarPendencias() : v1.contarPendencias();
+}
+
 export function lerRemoto(chave: string): Promise<string | null> {
   return v2Ativo() ? v2.lerRemoto(chave) : v1.lerRemoto(chave);
 }

@@ -244,12 +244,26 @@ com um **lock por heartbeat** em `profiles`.
 
 **Campos:** `sessao_token` (uuid da sessão dona) + `sessao_visto_em` (heartbeat).
 
-**No login (`auth.ts`, após `signInWithPassword` e gate de ativo/expiração):**
+**No login (`auth.ts`, após `signInWithPassword` e gate de ativo/expiração) — REVISADO em 10/08/2026:**
 1. Lê `sessao_token` + `sessao_visto_em` do próprio profile.
-2. Se `sessao_token` existe **e** `sessao_visto_em` é recente (< `LIMITE`, ex. 90s) → **bloqueia**:
-   `signOut()` + erro *"Esta conta já está em uso em outro dispositivo."*
-3. Senão (sem token, ou heartbeat velho = sessão abandonada) → **assume**: gera novo uuid, grava
-   `sessao_token = meu`, `sessao_visto_em = now()`, guarda o uuid em `localStorage` (`nr13_sessao_token`).
+2. Se o `sessao_token` do servidor é IGUAL ao de `localStorage` → mesmo aparelho reentrando:
+   **preserva o token**. (Sem isso, logar numa segunda aba geraria token novo e a primeira aba
+   se derrubaria sozinha no heartbeat seguinte.)
+3. Caso contrário → **assume**: gera novo uuid, grava `sessao_token = meu`,
+   `sessao_visto_em = now()`, guarda o uuid em `localStorage` (`nr13_sessao_token`). O dispositivo
+   anterior é derrubado pelo heartbeat, com aviso.
+
+> **O login NÃO é mais recusado por sessão viva.** O desenho original bloqueava
+> (`signOut()` + *"Esta conta já está em uso em outro dispositivo"*), e isso trancava o dono
+> legítimo fora da própria conta: quem fecha a aba sem clicar em "Sair" deixa o lock aceso, e a
+> única forma de liberá-lo (o "Sair") exige estar dentro. Pior com um celular esquecido com o app
+> aberto — o heartbeat renova o lock a cada 30 s, então a espera de "~2 minutos" da mensagem nunca
+> terminava. A garantia de um dispositivo por vez continua valendo pela detecção de tomada
+> (abaixo); ela só passou a ser aplicada expulsando o antigo em vez de barrando o novo.
+>
+> No mesmo fix, todo `signOut()` deste arquivo passou a usar `{ scope: 'local' }`: o padrão do
+> supabase-js é `global` e revoga os refresh tokens em TODOS os aparelhos — uma tentativa de login
+> recusada no computador deslogava o celular que estava em campo.
 
 **Durante o uso:**
 - **Heartbeat:** a cada ~30s, `update profiles set sessao_visto_em = now() where id = me and sessao_token = meu`.

@@ -19,6 +19,7 @@ import { fecharDb } from './db';
 import { bloqueadoParaEscrita, ErroBloqueado } from './gateEscrita';
 import { tagDaChave } from './familiasChave';
 import { bloqueadoParaUso } from './sessaoArmazenamento';
+import { descartarFilaV1, lerFilaV1, purgarCacheV1 } from './migracaoV1';
 
 /** Troca de conta em andamento (ou falha nela): nada entra e nada sai. */
 export class ErroTrocandoConta extends Error {
@@ -98,7 +99,12 @@ export async function salvar(chave: string, objeto: unknown): Promise<void> {
   if (bloqueadoParaUso()) throw new ErroTrocandoConta();
   if (bloqueadoParaEscrita()) throw new ErroBloqueado();
 
-  const valor = JSON.stringify(objeto);
+  await gravarComFila(chave, JSON.stringify(objeto));
+  await sync.drenar();
+}
+
+/** Dado + item de fila na mesma transação. Sem gates: quem chama já os aplicou. */
+async function gravarComFila(chave: string, valor: string): Promise<void> {
   const anterior = cache.obterRegistro(chave);
   const versaoServidor = anterior?.versao ?? 0;
 
@@ -115,8 +121,6 @@ export async function salvar(chave: string, objeto: unknown): Promise<void> {
   await cache.gravarAtomico([{ chave, registro }], [item]);
   if (antigo && antigo.mutationId !== item.mutationId) await sync.removerDaFila(antigo.mutationId);
   sync.registrarNaMemoria(item);
-
-  await sync.drenar();
 }
 
 async function excluirUma(chave: string): Promise<void> {
@@ -166,6 +170,39 @@ export async function excluirVaso(tag: string): Promise<void> {
 export async function flushFila(): Promise<void> {
   await sync.drenar();
 }
+
+/** Quantas mutações ainda não chegaram ao servidor. */
+export function contarPendencias(): number {
+  return sync.listarFila().length;
+}
+
+// ---------------------------------------------------------------------------
+// Drenagem automática ao reconectar
+// ---------------------------------------------------------------------------
+// A v1 tinha este listener; a v2 nasceu sem ele, e o resultado media-se na tela:
+// com a conexão de volta, a inspeção feita offline continuava parada até o
+// usuário gravar outra coisa ou navegar. Quem trabalha em campo fecha o app
+// achando que subiu.
+//
+// `visibilitychange` entra junto porque no celular é o sinal que realmente
+// acontece: o aparelho recupera a rede com a aba em segundo plano — nenhum
+// evento `online` chega a esta página — e o app só volta a existir quando o
+// usuário o traz para a frente.
+let listenersRegistrados = false;
+function registrarDrenagemAutomatica(): void {
+  if (listenersRegistrados || typeof window === 'undefined') return;
+  listenersRegistrados = true;
+  const drenar = () => {
+    if (!iniciado) return;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+    void sync.drenar();
+  };
+  window.addEventListener('online', drenar);
+  document.addEventListener?.('visibilitychange', () => {
+    if (document.visibilityState === 'visible') drenar();
+  });
+}
+registrarDrenagemAutomatica();
 
 // ---------------------------------------------------------------------------
 // Hidratação
@@ -227,8 +264,43 @@ export async function lerTudo(): Promise<Record<string, string>> {
     return cache.snapshot(); // offline
   }
 
+  // Só aqui, com o servidor já lido: a herança da v1 precisa da versão vigente
+  // de cada chave para não virar conflito, e a purga do cache antigo só é segura
+  // depois de o IndexedDB ter o conteúdo.
+  await adotarHerancaV1();
+
   // NÃO existe varredura removendo chaves locais ausentes no servidor.
   return cache.snapshot();
+}
+
+/**
+ * Traz para a fila da v2 o que ficou preso na fila da v1 e limpa o cache que a
+ * v1 deixou no `localStorage` (ver migracaoV1.ts).
+ *
+ * Uma pendência da v2 para a mesma chave VENCE a herdada: é posterior, foi feita
+ * já nesta implementação. E uma op que falhe ao ser adotada não pode interromper
+ * as outras — a fila da v1 é justamente o lugar onde estão os dados que ninguém
+ * mais tem.
+ */
+async function adotarHerancaV1(): Promise<number> {
+  const ops = lerFilaV1();
+  let adotadas = 0;
+  for (const op of ops) {
+    if (sync.itemDaChave(op.chave)) continue;
+    try {
+      if (op.op === 'set') await gravarComFila(op.chave, op.valor as string);
+      else await excluirUma(op.chave);
+      adotadas++;
+    } catch {
+      // segue para a próxima: perder uma não pode custar as demais
+    }
+  }
+  if (ops.length > 0) {
+    descartarFilaV1();
+    await sync.drenar();
+  }
+  purgarCacheV1();
+  return adotadas;
 }
 
 /** Lê UMA chave direto do servidor (valor completo). Null offline/sem sessão. */
