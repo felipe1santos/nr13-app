@@ -69,7 +69,7 @@ vi.mock('./storage', () => ({
   limparCacheDados: vi.fn(),
 }));
 
-import { login } from './auth';
+import { encerrarSessaoDesteDispositivo, login } from './auth';
 
 beforeEach(() => {
   localStorage.clear();
@@ -125,6 +125,33 @@ describe('sessão única no login', () => {
 
     expect(tokenGravado()).toBe('token-deste-aparelho');
     expect(localStorage.getItem('nr13_sessao_token')).toBe('token-deste-aparelho');
+  });
+});
+
+describe('dispositivo derrubado pela tomada de sessão', () => {
+  it('derruba a sessão do Supabase, não só as chaves locais', async () => {
+    // Limpar só o localStorage deixava o token de acesso valendo: um F5 revalidava
+    // no RotaProtegida e o aparelho voltava para dentro.
+    localStorage.setItem('nr13_usuario_logado', 'cmam.caldeiras@gmail.com');
+    localStorage.setItem('nr13_org_id', 'org-1');
+    localStorage.setItem('nr13_sessao_token', 'token-antigo');
+
+    await encerrarSessaoDesteDispositivo();
+
+    expect(estado.saidas).toEqual([{ scope: 'local' }]);
+    expect(localStorage.getItem('nr13_usuario_logado')).toBeNull();
+    expect(localStorage.getItem('nr13_org_id')).toBeNull();
+    expect(localStorage.getItem('nr13_sessao_token')).toBeNull();
+  });
+
+  it('NÃO libera o lock no servidor: ele agora é do aparelho que assumiu', async () => {
+    localStorage.setItem('nr13_usuario_logado', 'cmam.caldeiras@gmail.com');
+    localStorage.setItem('nr13_sessao_token', 'token-antigo');
+
+    await encerrarSessaoDesteDispositivo();
+
+    // Um update em profiles aqui apagaria o sessao_token de quem acabou de entrar.
+    expect(estado.updates.filter((u) => u.tabela === 'profiles')).toEqual([]);
   });
 });
 

@@ -523,6 +523,28 @@ export function encerrarSessaoLocal(): void {
   zerarFlagEmMemoria();
 }
 
+/**
+ * Encerra a sessão SÓ deste aparelho, sem liberar o lock de sessão única.
+ *
+ * É o que o dispositivo derrubado precisa fazer quando outro assume a conta:
+ * `encerrarSessaoLocal()` sozinho limpa as chaves `nr13_*`, mas deixa o token do
+ * Supabase válido — bastava recarregar a página para o `RotaProtegida` revalidar,
+ * o `carregarPerfil` reescrever tudo e o aparelho voltar para dentro. A tomada de
+ * posse virava enfeite.
+ *
+ * Diferente do `logout()`: NÃO chama `liberarSessaoUnica()`, porque o
+ * `sessao_token` no servidor agora pertence ao outro aparelho — limpá-lo
+ * derrubaria o lock de quem acabou de assumir.
+ */
+export async function encerrarSessaoDesteDispositivo(): Promise<void> {
+  try {
+    await supabase.auth.signOut(SO_LOCAL);
+  } catch {
+    // best-effort: mesmo sem rede, a faxina local abaixo precisa acontecer
+  }
+  encerrarSessaoLocal();
+}
+
 export async function logout(): Promise<void> {
   await registrarEvento('logout');
   await liberarSessaoUnica();

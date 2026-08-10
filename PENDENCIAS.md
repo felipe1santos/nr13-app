@@ -73,6 +73,12 @@
       tela, criação/edição/exclusão indo ao banco, ciclo offline→online drenando, conflito de
       versão preservando as duas versões).
 
+- [ ] **`profiles.ultima_sync` não é mais atualizada na v2.** Quem gravava era o
+      `registrarSync()` da v1; a drenagem da v2 não tem equivalente. A coluna alimenta o
+      "última sincronização" da tela Acessos, que numa org migrada fica congelada na data em
+      que ela saiu da v1 (`cmam.caldeiras` mostra 05/08/2026 para sempre). Só observabilidade
+      — nenhum dado se perde —, mas engana quem for conferir se um aparelho está sincronizando.
+
 - [ ] **Descartar pendência definitivamente falha.** `/pendencias` só oferece "Tentar de novo";
       um item recusado com `versao_obsoleta` (chave excluída no servidor por outro aparelho)
       nunca vai ser aceito e fica para sempre exibindo "1 falha". Falta a ação de descartar,

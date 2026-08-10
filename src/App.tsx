@@ -3,7 +3,7 @@ import { RouterProvider } from 'react-router-dom';
 import { router } from './app/router';
 import LoadingGlobalOverlay from './app/LoadingGlobalOverlay';
 import { supabase } from './services/supabase';
-import { encerrarSessaoLocal, iniciarHeartbeatSessao, usuarioLogado } from './services/auth';
+import { encerrarSessaoDesteDispositivo, encerrarSessaoLocal, iniciarHeartbeatSessao } from './services/auth';
 
 function App() {
   // BUG #8a — detecta perda de sessão DURANTE o uso (sessão revogada/expirada/refresh falho).
@@ -32,12 +32,19 @@ function App() {
 
   // Sessão única: heartbeat mantém o lock; se OUTRO dispositivo assumir a conta,
   // derruba esta sessão com aviso (PLANO-CONTROLE-DE-ACESSO §7).
+  //
+  // SEM a guarda `if (!usuarioLogado()) return`: com deps `[]`, o efeito roda uma
+  // única vez, no mount do App. Quem entra pelo formulário de login não remonta o
+  // App (é navegação da SPA), então naquela aba o heartbeat NUNCA começava — a
+  // sessão nem se anunciava viva nem detectava tomada. Ligar sempre é barato: o
+  // `bater()` já sai na hora enquanto não existir `nr13_sessao_token`.
   useEffect(() => {
-    if (!usuarioLogado()) return;
     const parar = iniciarHeartbeatSessao(() => {
-      encerrarSessaoLocal();
       window.alert('Sua sessão foi encerrada: a conta foi aberta em outro dispositivo.');
-      window.location.assign('/login');
+      // Precisa derrubar a sessão do SUPABASE, não só as chaves locais: o token de
+      // acesso continuaria válido e um F5 traria o aparelho de volta para dentro —
+      // a tomada de posse seria puramente cosmética.
+      void encerrarSessaoDesteDispositivo().finally(() => window.location.assign('/login'));
     });
     return parar;
   }, []);
