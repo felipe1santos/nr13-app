@@ -341,7 +341,49 @@ export async function drenar(): Promise<{ enviados: number; falhas: number }> {
     else falhas += 1;
   }
 
+  if (enviados > 0) registrarSync();
+
   return { enviados, falhas };
+}
+
+// ---------------------------------------------------------------------------
+// profiles.ultima_sync
+// ---------------------------------------------------------------------------
+// Marca no perfil quando este aparelho conseguiu ENTREGAR alguma coisa ao
+// servidor. É o que a tela Acessos mostra como "última sincronização".
+//
+// Quem gravava era o `registrarSync()` da v1; a v2 nasceu sem equivalente, e o
+// resultado é uma coluna congelada na data em que a organização saiu da v1 —
+// `cmam.caldeiras` marcava 05/08/2026 mesmo sincronizando normalmente. Nenhum
+// dado se perde por isso, mas quem abre a tela para conferir se um aparelho
+// está sincronizando lê o contrário do que está acontecendo.
+//
+// Best-effort de propósito: falha (offline, RLS, coluna ausente antes do
+// acesso_setup.sql) é ignorada — isto é telemetria, não pode derrubar uma
+// drenagem que deu certo. Throttle de 60 s em memória para não dobrar as
+// requisições numa rajada de autosaves.
+const SYNC_THROTTLE_MS = 60_000;
+let ultimaSyncRegistradaEm = 0;
+
+function registrarSync(): void {
+  const agora = Date.now();
+  if (agora - ultimaSyncRegistradaEm < SYNC_THROTTLE_MS) return;
+  ultimaSyncRegistradaEm = agora;
+  void (async () => {
+    try {
+      const { data } = await supabase.auth.getSession();
+      const uid = data.session?.user?.id;
+      if (!uid) return;
+      await supabase.from('profiles').update({ ultima_sync: new Date().toISOString() }).eq('id', uid);
+    } catch {
+      ultimaSyncRegistradaEm = 0; // sem marcar: tenta de novo na próxima drenagem
+    }
+  })();
+}
+
+/** Só para teste: zera o throttle do registrarSync. */
+export function zerarThrottleSync(): void {
+  ultimaSyncRegistradaEm = 0;
 }
 
 /**

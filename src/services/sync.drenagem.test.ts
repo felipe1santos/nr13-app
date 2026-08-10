@@ -2,9 +2,22 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 const ORG = '11111111-1111-1111-1111-111111111111';
 const rpc = vi.fn();
+// Updates feitos em `profiles` (é onde mora o carimbo de ultima_sync).
+const perfilUpdates: Record<string, unknown>[] = [];
 
 vi.mock('./supabase', () => ({
-  supabase: { rpc: (...a: unknown[]) => rpc(...a) },
+  supabase: {
+    rpc: (...a: unknown[]) => rpc(...a),
+    auth: { getSession: vi.fn(async () => ({ data: { session: { user: { id: 'user-1' } } } })) },
+    from: vi.fn((tabela: string) => ({
+      update: vi.fn((valores: Record<string, unknown>) => ({
+        eq: vi.fn(async () => {
+          perfilUpdates.push({ tabela, ...valores });
+          return { error: null };
+        }),
+      })),
+    })),
+  },
   escopoStorageAtual: vi.fn(async () => ({ coluna: 'org_id', id: ORG })),
   idUsuarioAtual: vi.fn(async () => 'user-1'),
   TABELA_STORAGE: 'app_storage',
@@ -25,6 +38,7 @@ import {
   carregarTombstonesDoDisco,
   zerarFilaMemoria,
   zerarTombstonesMemoria,
+  zerarThrottleSync,
 } from './sync';
 
 const reg = (valor: string, versao: number): Registro => ({
@@ -54,6 +68,40 @@ beforeEach(async () => {
   localStorage.clear();
   definirOrg(ORG);
   rpc.mockReset();
+  perfilUpdates.length = 0;
+  zerarThrottleSync();
+});
+
+describe('carimbo de profiles.ultima_sync', () => {
+  it('marca a sincronização quando alguma coisa realmente sobe', async () => {
+    // A tela Acessos le esta coluna. Sem o carimbo ela congela na data em que a
+    // organizacao saiu da v1 e passa a mentir sobre o aparelho estar sincronizando.
+    rpc.mockResolvedValue(ok(2));
+    await pendencia('nr13_info_A', '{}', 1);
+
+    await drenar();
+    await new Promise((r) => setTimeout(r, 0)); // o carimbo é disparado sem await
+
+    expect(perfilUpdates).toHaveLength(1);
+    expect(perfilUpdates[0].tabela).toBe('profiles');
+    expect(typeof perfilUpdates[0].ultima_sync).toBe('string');
+  });
+
+  it('não carimba quando nada subiu', async () => {
+    rpc.mockRejectedValue(new TypeError('Failed to fetch'));
+    await pendencia('nr13_info_A', '{}', 1);
+
+    await drenar();
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(perfilUpdates).toEqual([]);
+  });
+
+  it('drenagem sem pendência nenhuma não gera requisição', async () => {
+    await drenar();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(perfilUpdates).toEqual([]);
+  });
 });
 
 describe('drenar — sucesso', () => {

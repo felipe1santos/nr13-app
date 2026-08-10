@@ -59,25 +59,17 @@
 - [ ] **Agendar `coletar_tombstones(<org>, 30)`** (mensal, service_role). A prova da
       exclusão permanece em `app_storage_excluidos`; só o `valor` é removido.
 
-- [ ] **DEPLOY URGENTE do front.** `cmam.caldeiras` está com `org_sync.v2_ativa = true` no
-      servidor desde 05/08 e o bundle em produção ainda é o que não lê essa flag: ele fala v1
-      com um banco que só aceita a RPC, então **nenhuma escrita dele chega ao banco** (fica em
-      `nr13_fila_sync` no aparelho) e a lista abre vazia. Enquanto não houver deploy, o
-      cliente segue nesse estado. Depois do deploy o aparelho dele adota sozinho a fila presa
-      (`migracaoV1.ts`) — não pedir para ele limpar o cache/navegador antes disso, é lá que
-      estão as gravações que ainda não subiram.
+- [ ] **Deploy do front antes de ligar a v2 em qualquer organização nova.** Com a v2 ligada, a
+      guarda recusa escrita direta; aparelho com bundle anterior a `13f12ef` para de gravar no
+      banco na hora e acumula tudo em `nr13_fila_sync`. Não se perde nada (o código novo adota
+      essa fila sozinho), mas fica sem sincronizar até recarregar a página — e é por isso que
+      NÃO se pede para o usuário limpar cache/navegador nessa situação.
 
 - [ ] **Ligar a v2 nas demais contas acima da cota** (`teste@gmail.com`,
       `gabriel.dadona@gmail.com`, `liperoneads@gmail.com`) com `definir_v2_org(<org>, true)`.
       `cmam.caldeiras@gmail.com` já está ligada e validada em 10/08/2026 (38 equipamentos na
       tela, criação/edição/exclusão indo ao banco, ciclo offline→online drenando, conflito de
       versão preservando as duas versões).
-
-- [ ] **`profiles.ultima_sync` não é mais atualizada na v2.** Quem gravava era o
-      `registrarSync()` da v1; a drenagem da v2 não tem equivalente. A coluna alimenta o
-      "última sincronização" da tela Acessos, que numa org migrada fica congelada na data em
-      que ela saiu da v1 (`cmam.caldeiras` mostra 05/08/2026 para sempre). Só observabilidade
-      — nenhum dado se perde —, mas engana quem for conferir se um aparelho está sincronizando.
 
 - [ ] **Descartar pendência definitivamente falha.** `/pendencias` só oferece "Tentar de novo";
       um item recusado com `versao_obsoleta` (chave excluída no servidor por outro aparelho)
