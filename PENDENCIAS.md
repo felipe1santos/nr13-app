@@ -29,6 +29,23 @@ banco. Em ordem de urgência.
   Caminhos: pagar um mês e voltar ao Free depois (o Supabase permite), ou aceitar a janela
   de 4 dias (16→20/08) com o app possivelmente fora do ar.
 
+### 0.15 — Rodar `supabase/v2_por_default.sql` (organização nova nascia em v1)
+
+- [ ] **SQL Editor do Supabase, idempotente.** Descoberto em 11/08: `org_sync.v2_ativa` era
+      `not null default false` e o `ativar_v2_todas_orgs.sql` foi um tiro único sobre as 27
+      orgs daquele dia. **Toda conta criada depois — todo trial, todo cliente novo — nascia
+      na v1**, com `localStorage` como banco e o teto de 5 MB: o sumiço de equipamentos de
+      volta assim que a conta crescesse.
+
+  O arquivo põe `default true`, faz backfill de quem ficou sem linha e cria
+  `trg_garantir_org_sync` em `profiles` (AFTER, com exceção engolida — cadastro de usuário
+  nunca falha por causa dessa linha). Traz as consultas de conferência no fim.
+
+  **O front já não depende disso** (`flag.ts`: consulta que responde sem linha = org nova =
+  v2), então não há janela de risco como no `ativar_v2_todas_orgs.sql`. Este SQL fecha o
+  outro lado: com a linha gravada, a guarda `trg_guardar_app_storage` volta a proteger a
+  organização nova contra aparelho com bundle antigo.
+
 ### 0.2 — Migrar as fotos legadas das duas contas pagantes pesadas
 
 - [ ] **`gabriel.dadona@gmail.com` (~6,7 MB) e `engyuricesar@gmail.com` (~6,5 MB).**
@@ -43,6 +60,20 @@ banco. Em ordem de urgência.
 
   **Bloqueio:** o script entra na conta para migrar, porque a RLS do `app_storage` é por
   organização — não existe caminho de admin. Precisa da senha de cada uma.
+
+  **ALCANCE REAL DO SCRIPT (medido no banco do `gabriel` em 11/08):** ele varre só os
+  prefixos `nr13_fotos_` e `nr13_docs_`, e dentro deles troca só os campos `src` e `base64`.
+  Na conta dele isso recupera ~1,5 MB (`nr13_docs_` 863+640 KB, `nr13_fotos_` 184 KB) e
+  **não alcança**:
+
+  | chave | KB | por quê |
+  |---|---|---|
+  | `nr13_rastreab_<id>` (2 registros) | 5451 + 1941 | PDF de certificado, não é foto |
+  | `nr13_componentes_cal_<TAG>` | 2518 | campo se chama `foto`, não `src`/`base64` |
+
+  Somar o prefixo de `componentes_cal` NÃO basta: `hidratarFotosDoBucket` devolve a imagem
+  escrevendo em `src`/`base64`, e a tela de Calibrações lê `c.foto` síncrono — migrar sem
+  mexer nos dois lados deixa os cards de componente sem imagem. É trabalho da Fase 2.
 
   Roteiro que funcionou no `cmam`, vale repetir: backup → `simular` → migrar UMA TAG →
   conferir na tela → resto → gerar um relatório e comparar o número de imagens com o de

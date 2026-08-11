@@ -44,6 +44,15 @@ chegava em `nr13_info_`. Spec completa em
 flag `nr13_armazenamento_v2` — memoizada por sessão (reler a cada chamada faria o caminho
 trocar no meio da sessão) e gravada no login a partir de `org_sync.v2_ativa`.
 
+> **ORGANIZAÇÃO NOVA NASCE EM v2 (11/08/2026).** `v2_ativa` era `default false` e a ativação
+> de 10/08 foi um tiro único sobre as 27 orgs existentes — toda conta criada depois caía na v1
+> e voltava a bater no teto de 5 MB. Agora: `flag.ts` trata "consulta respondeu e NÃO veio
+> linha" como org nova → v2; `supabase/v2_por_default.sql` põe `default true`, faz backfill e
+> cria a linha por trigger (`trg_garantir_org_sync` em `profiles`). Linha PRESENTE com `false`
+> (rollback deliberado) continua vencendo. Errar para o lado da v2 é o lado barato:
+> `aplicar_mutacao_storage` nunca consulta `v2_ativa`, então org que o servidor ainda considera
+> v1 grava normal pela RPC — o erro caro é o inverso (bundle v1 × servidor v2 = o bug do `cmam`).
+>
 > **QUEM LIGA A FLAG (10/08/2026):** `flag.sincronizarFlagDoServidor()`, chamada dentro de
 > `carregarPerfil()` (auth.ts) logo depois de `nr13_org_id` ser gravada — ou seja, no login E
 > em todo boot pelo `verificarAcesso()` do `RotaProtegida`. **Esse elo não existia**: a v2
@@ -84,6 +93,19 @@ materializa ali as chaves daquela TAG, monta os iframes e limpa depois — os 40
 HTML **não mudaram**. O palco tem dono exclusivo por aba (`palcoTrava.ts`), orçamento de
 3.400 KB, degradação de imagem em passos fixos (qualidade 0,60/0,45/0,35, depois largura
 900/700/560) e materialização tudo-ou-nada com restauração dos valores anteriores.
+
+> **SÓ VAI PRO PALCO O QUE ALGUM TEMPLATE LÊ** (`FORA_DO_PALCO`). O orçamento é de 3.368 KB
+> por DOCUMENTO (3.400 menos a margem), e é o limite do navegador, não do sistema — o dado
+> mora no IndexedDB/Supabase sem esse teto. Antes de deixar uma família de chave entrar no
+> palco, confira por varredura em `public/` que alguma folha realmente a lê. Já saíram por
+> isso: `nr13_docs_`, `nr13_pront_fab_` (05/08) e `nr13_componentes_cal_`/`nr13_lotes_cal_`
+> (11/08 — a foto base64 de cada válvula/manômetro; 2.518 KB dos 3.959 KB de um documento na
+> conta `gabriel.dadona`, recusando o relatório inteiro por foto que nenhuma folha imprime).
+>
+> **A degradação só recomprime `nr13_fotos_`** (`ehChaveDeFoto`). As fotos de campo que vêm
+> em `nr13_inspecao_atual`/`nr13_injecao_atual` (640 KB × 2, duplicação obrigatória do §2)
+> NÃO degradam — é o teto que volta a apertar conforme a inspeção cresce, e o que a Fase 2
+> (fotos no bucket) resolve de vez.
 
 Módulos: `db` (IndexedDB por org), `cacheLocal` (Map + índice por TAG), `familiasChave`
 (tabela explícita prefixo→escopo — a dedução por regex errava em `nr13_med_esp_`,
