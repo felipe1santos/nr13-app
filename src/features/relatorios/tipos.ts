@@ -1,3 +1,5 @@
+import type { RefFoto } from '../../services/fotos';
+
 export type TipoInspecao = 'Inspeção Inicial' | 'Inspeção Periódica' | 'Inspeção Extraordinária';
 
 // Ordem-fonte do relatório — segue o CLAUDE.md (Organização do Relatório / Ordem de Montagem).
@@ -84,7 +86,43 @@ export interface RelatorioSalvo {
   nome: string;
   tipo: TipoInspecao;
   data: string;
+  /**
+   * A RECEITA do documento. Até 11/08/2026 era a única coisa guardada, e o
+   * relatório salvo era remontado a partir dela com os dados VIVOS — por isso
+   * editar a ficha mudava relatório assinado.
+   *
+   * Com `pdfRef` presente, `documentos` e `meta` continuam gravados APENAS para
+   * auditoria e compatibilidade. NÃO devem mais ser usados para reconstruir o
+   * documento histórico: quem manda é o arquivo.
+   */
   documentos: string[];
   meta: RelatorioMeta;
   status: 'Aprovado';
+
+  // ── Artefato imutável (11/08/2026) ───────────────────────────────────────
+  /** O PDF no bucket. Presente = relatório finalizado no modelo novo. */
+  pdfRef?: RefFoto;
+  /** SHA-256 do PDF, hex. A prova de que o documento não foi trocado. */
+  sha256?: string;
+  /** ISO da geração do artefato. */
+  geradoEm?: string;
+  paginas?: number;
+  /**
+   * `true` enquanto o upload não confirmou (salvo offline). O relatório ESTÁ
+   * salvo e o arquivo existe no cofre local; falta só chegar ao bucket, e a fila
+   * das fotos cuida disso. Serve para a UI dizer a verdade em vez de fingir que
+   * está tudo no servidor.
+   */
+  pdfPendente?: boolean;
+  /**
+   * Cópia de `nr13_livro_<TAG>` no momento da emissão. `nr13_livro_` é uma chave
+   * ÚNICA e acumulativa por equipamento: sem este congelamento não existe "o
+   * livro como estava naquela inspeção", só o livro de agora.
+   */
+  livroSnapshot?: unknown;
+}
+
+/** Relatório finalizado no modelo novo — serve o arquivo, não remonta nada. */
+export function temArtefato(r: Pick<RelatorioSalvo, 'pdfRef'> | null | undefined): boolean {
+  return !!r?.pdfRef?.path;
 }

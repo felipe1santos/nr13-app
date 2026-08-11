@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePalcoDocumento } from '../features/documentos/usePalcoDocumento';
 import { paramsSomenteLeitura, travarIframeSomenteLeitura } from '../features/documentos/somenteLeituraDoc';
 import { drenarPonte } from '../services/ponteTemplates';
-import { salvar } from '../services/storage';
+import { ler, salvar } from '../services/storage';
 import RecusaPalco from '../components/RecusaPalco';
 import { listarEquipamentos } from '../features/equipamento/equipamentoService';
 import type { EquipamentoResumo } from '../features/equipamento/tipos';
@@ -39,9 +39,11 @@ import AnexosRastreabPreview from '../features/relatorios/AnexosRastreabPreview'
 import { registrarUso } from '../services/usoMetricas';
 import { documentosBloqueados } from '../services/trial';
 import { mascararData } from '../services/mascaras';
-import { exportarPdf } from '../features/relatorios/pdfService';
+import { exportarPdf, gerarPdfBytes } from '../features/relatorios/pdfService';
+import { publicarArtefato, artefatoDe } from '../features/relatorios/artefatoRelatorio';
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
-import type { RelatorioMeta, RelatorioSalvo, TipoInspecao } from '../features/relatorios/tipos';
+import { temArtefato, type RelatorioMeta, type RelatorioSalvo, type TipoInspecao } from '../features/relatorios/tipos';
+import VisualizadorPdf, { baixarPdfArquivado, imprimirPdfArquivado } from '../components/VisualizadorPdf';
 import { Icone } from '../components/Icone';
 import './relatorios.css';
 import PaginaA4 from '../components/PaginaA4';
@@ -144,6 +146,13 @@ export default function Relatorios() {
   const [salvando, setSalvando] = useState(false);
   const [exportando, setExportando] = useState(false);
   const [toastSalvo, setToastSalvo] = useState(false);
+  // Erro da finalização (geração/upload do PDF). Fica na tela até o próximo save:
+  // um alert() sumiria e o usuário concluiria que salvou.
+  const [erroSalvar, setErroSalvar] = useState('');
+  // Progresso da rasterização — dezenas de segundos num relatório grande.
+  const [progressoPdf, setProgressoPdf] = useState<{ feito: number; total: number } | null>(null);
+  // Relatório finalizado sendo VISTO pelo arquivo (não remontado). Null = fluxo legado.
+  const [relatorioArquivado, setRelatorioArquivado] = useState<RelatorioSalvo | null>(null);
   const [renomeandoId, setRenomeandoId] = useState<string | null>(null);
   const [nomeRenomeando, setNomeRenomeando] = useState('');
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
@@ -196,6 +205,15 @@ export default function Relatorios() {
   async function prepararEImprimir() {
     setImprimindo(true);
     try {
+      // Relatório finalizado imprime o ARQUIVO. Re-rasterizar a tela produziria
+      // um impresso feito com os dados de hoje — e permitiria que uma alteração
+      // no DOM saísse no papel como se fosse o documento assinado.
+      if (relatorioArquivado && temArtefato(relatorioArquivado)) {
+        const ok = await imprimirPdfArquivado(artefatoDe(relatorioArquivado)!);
+        if (!ok) setErroSalvar('Não foi possível abrir o PDF para impressão. Verifique a conexão.');
+        else registrarUso('impressao');
+        return;
+      }
       await imprimirRelatorio('.relatorio-preview', true, documentos ?? []);
       registrarUso('impressao');
     } finally {
@@ -254,6 +272,8 @@ export default function Relatorios() {
   }
 
   function voltarParaHistorico() {
+    setRelatorioArquivado(null);
+    setErroSalvar('');
     setHistorico(listarHistorico(tag));
     setDocumentos(null);
     setMeta(null);
@@ -385,6 +405,8 @@ export default function Relatorios() {
     setMeta(novaMeta);
     setSomenteLeitura(false);
     setPendente(null);
+    setRelatorioArquivado(null); // relatório NOVO nunca abre no modo arquivo
+    setErroSalvar('');
     setVersao((v) => v + 1);
     setTela('visualizador');
   }
@@ -392,6 +414,17 @@ export default function Relatorios() {
   // Re-hidrata as chaves "atuais" que os templates leem do localStorage ANTES de remontar os
   // iframes, senão um relatório reaberto exibe a meta/dados de campo do último relatório gerado.
   async function visualizar(r: RelatorioSalvo) {
+    // ARTEFATO: relatório finalizado no modelo novo NÃO é remontado. Abrir o
+    // arquivo é o que garante que ele não mude quando a ficha do equipamento, o
+    // memorial, o laudo ou os próprios templates mudarem depois. `documentos` e
+    // `meta` seguem gravados só para auditoria.
+    if (temArtefato(r)) {
+      setRelatorioArquivado(r);
+      setErroSalvar('');
+      setTela('visualizador');
+      return;
+    }
+
     let dadosContainer: unknown = {};
     if (r.meta.containerOrigemId) {
       const container = carregarContainer(r.tagVaso, r.meta.containerOrigemId);
@@ -516,9 +549,19 @@ export default function Relatorios() {
   }
 
   async function baixarPdf() {
-    if (!meta) return;
     setExportando(true);
     try {
+      // Finalizado: entrega o MESMO arquivo que subiu na emissão. Regenerar
+      // produziria um PDF com os dados de hoje e com hash diferente do que ficou
+      // registrado — deixaria de ser o documento assinado.
+      if (relatorioArquivado && temArtefato(relatorioArquivado)) {
+        if (documentosBloqueados()) return;
+        const ok = await baixarPdfArquivado(artefatoDe(relatorioArquivado)!, relatorioArquivado.nome);
+        if (!ok) setErroSalvar('Não foi possível baixar o PDF. Verifique a conexão.');
+        else registrarUso('pdf');
+        return;
+      }
+      if (!meta) return;
       await exportarPdf('.relatorio-preview', `Relatorio_${meta.tipoInspecao.replace(/ /g, '_')}_${tag}.pdf`, { rastreabilidades: true, documentos: documentos ?? [] });
       registrarUso('pdf');
     } finally {
@@ -526,10 +569,52 @@ export default function Relatorios() {
     }
   }
 
+  /**
+   * SALVAR = FINALIZAR: gera o PDF, sobe para o bucket e só então grava.
+   *
+   * Antes, salvar gravava a RECEITA (documentos + meta) e o documento era
+   * remontado dos dados VIVOS a cada abertura — editar a ficha mudava relatório
+   * assinado, e no Portal do Cliente dava para adulterar o DOM antes de baixar.
+   * Ver `features/relatorios/artefatoRelatorio.ts`.
+   *
+   * ORDEM, e cada passo está aqui por um motivo:
+   *  1. drenar a ponte ANTES DE TUDO — é o que os templates gravaram enquanto o
+   *     relatório ainda era editável (medição de espessura, laudo). Gerar o PDF
+   *     antes disso congelaria um documento sem o que acabou de ser digitado.
+   *  2. congelar o livro — `nr13_livro_<TAG>` é chave única e acumulativa; sem a
+   *     cópia não existe "o livro daquela inspeção".
+   *  3. gerar o PDF do que está na tela AGORA.
+   *  4. publicar (hash + upload).
+   *  5. só então gravar o histórico.
+   *
+   * Falhar em 3 ou 4 NÃO salva: o relatório continua editável e o usuário vê o
+   * motivo. Marcar como salvo sem o arquivo seria o pior desfecho possível —
+   * o documento pareceria finalizado e não existiria.
+   */
   async function salvarHistorico() {
     if (!meta || !documentos || somenteLeitura) return; // salvar duas vezes não reabre a edição
     setSalvando(true);
+    setErroSalvar('');
     try {
+      // 1. Absorve o que os templates gravaram por sbSalvar ENQUANTO era editável.
+      await drenarPonte((chave, valor) => salvar(chave, JSON.parse(valor)));
+
+      // 2. Livro daquela emissão.
+      const livroSnapshot = ler<unknown>(`nr13_livro_${tag}`) ?? null;
+
+      // 3. PDF do que está montado.
+      setProgressoPdf({ feito: 0, total: documentos.length });
+      const { bytes, paginas, falhasAnexo } = await gerarPdfBytes('.relatorio-preview', {
+        rastreabilidades: true,
+        documentos,
+        onProgresso: (feito, total) => setProgressoPdf({ feito, total }),
+      });
+
+      // 4. Hash + upload. Offline, `salvarArquivo` deixa no cofre local e
+      //    enfileira — o artefato existe, só ainda não chegou ao servidor.
+      const artefato = await publicarArtefato(bytes, paginas);
+      const pdfPendente = !navigator.onLine;
+
       const relatorio: RelatorioSalvo = {
         id: meta.codigo,
         tagVaso: tag,
@@ -539,25 +624,37 @@ export default function Relatorios() {
         documentos,
         meta,
         status: 'Aprovado',
+        ...artefato,
+        pdfPendente,
+        livroSnapshot,
       };
+
+      // 5. Agora sim.
       await salvarNoHistorico(relatorio);
       await adicionarEntradaLivroAuto(relatorio);
       // Lotes de calibração marcados "vincular ao próximo relatório" capturam este relatório.
       await vincularLotesPendentes(tag, relatorio.id);
-      // ORDEM IMPORTA: absorve o que os templates gravaram por sbSalvar (medição de
-      // espessura, laudo) ENQUANTO o relatório ainda era editável. Depois de
-      // `somenteLeitura` virar true o palco não drena mais — e o que estivesse
-      // pendente na ponte seria descartado.
-      await drenarPonte((chave, valor) => salvar(chave, JSON.parse(valor)));
       setHistorico(listarHistorico(tag));
       setSomenteLeitura(true);
       // Remonta os iframes para que a folha nasça com ro=1 (sb-storage.js recusa
       // escrita) além da trava de DOM, que o efeito aplica ao ver a flag virar.
       setVersao((v) => v + 1);
+      if (falhasAnexo.length > 0) {
+        setErroSalvar(
+          `Relatório finalizado, mas sem o certificado padrão de: ${falhasAnexo.join(', ')}. Confira o PDF cadastrado em Certificados.`,
+        );
+      }
       setToastSalvo(true);
       setTimeout(() => setToastSalvo(false), 3000);
+    } catch (e) {
+      // NÃO marca como salvo. O relatório segue editável e o usuário pode tentar
+      // de novo depois de resolver a causa (rede, sessão, memória).
+      setErroSalvar(
+        `Não foi possível finalizar o relatório: ${e instanceof Error ? e.message : String(e)}. Nada foi salvo — tente novamente.`,
+      );
     } finally {
       setSalvando(false);
+      setProgressoPdf(null);
     }
   }
 
@@ -751,6 +848,11 @@ export default function Relatorios() {
       {tela === 'visualizador' && meta && documentos && (
         <>
           {/* Barra de ações — só 4 botões */}
+          {erroSalvar && (
+            <div className="no-print" role="alert" style={{ margin: '8px 0', padding: '10px 14px', border: '1px solid #c0392b', borderRadius: 8, background: '#fdf0ee', color: '#8e2b20', fontSize: 13 }}>
+              {erroSalvar}
+            </div>
+          )}
           <div className="meta-barra-fixa no-print">
             <button type="button" className="btn-secundario barra-btn" onClick={voltarParaHistorico}>
               ← Voltar
@@ -758,7 +860,13 @@ export default function Relatorios() {
             <div className="meta-barra-acoes">
               {!somenteLeitura && (
                 <button type="button" className={`barra-btn barra-btn-salvar ${salvando ? 'is-loading' : ''}`} onClick={salvarHistorico} disabled={salvando}>
-                  {salvando ? 'Salvando...' : 'Salvar'}
+                  {/* Salvar agora GERA o PDF: num relatório de 30+ folhas são
+                      dezenas de segundos, e sem o contador a tela parece travada. */}
+                  {progressoPdf
+                    ? `Gerando PDF ${progressoPdf.feito}/${progressoPdf.total}...`
+                    : salvando
+                      ? 'Finalizando...'
+                      : 'Salvar'}
                 </button>
               )}
               <button
@@ -838,6 +946,33 @@ export default function Relatorios() {
             </div>
           )}
 
+          {/* DOCUMENTO FINALIZADO: mostra o arquivo, não remonta. Nem o palco é
+              montado — ver relatório salvo deixa de disputar os 3.368 KB. */}
+          {relatorioArquivado && temArtefato(relatorioArquivado) ? (
+            <>
+              {relatorioArquivado.pdfPendente && (
+                <div className="no-print" style={{ margin: '8px 0', padding: '8px 12px', border: '1px solid #b8860b', borderRadius: 8, background: '#fff8e1', color: '#7a5b00', fontSize: 13 }}>
+                  Este documento ainda não terminou de subir para o servidor. Ele está salvo no
+                  aparelho e o envio é retomado sozinho quando a conexão voltar.
+                </div>
+              )}
+              <VisualizadorPdf
+                artefato={{
+                  pdfRef: relatorioArquivado.pdfRef!,
+                  sha256: relatorioArquivado.sha256 ?? '',
+                  geradoEm: relatorioArquivado.geradoEm ?? '',
+                  paginas: relatorioArquivado.paginas ?? 0,
+                }}
+                nomeArquivo={relatorioArquivado.nome}
+                onErro={setErroSalvar}
+              />
+              <p className="no-print" style={{ fontSize: 11, color: 'var(--text-muted, #888)', marginTop: 8, wordBreak: 'break-all' }}>
+                Documento arquivado em {relatorioArquivado.geradoEm?.slice(0, 10) ?? '—'} ·{' '}
+                {relatorioArquivado.paginas ?? '—'} páginas · SHA-256 {relatorioArquivado.sha256 ?? '—'}
+              </p>
+            </>
+          ) : (
+          <>
           {palco.estado !== 'pronto' && (
             <RecusaPalco estado={palco.estado} falha={palco.falha} />
           )}
@@ -858,6 +993,8 @@ export default function Relatorios() {
             {/* PDFs dos certificados padrão no fim — o preview mostra o pacote completo. */}
             <AnexosRastreabPreview key={`anexos-${versao}`} documentos={documentos} />
           </div>
+          </>
+          )}
 
           {/* Modal de configurações: todas as datas/campos + Atualizar + Baixar PDF */}
           {modalConfig && (

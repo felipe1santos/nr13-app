@@ -6,6 +6,74 @@ import { avisarBloqueioDocumentos } from '../../services/trial';
 
 // Mesmos parâmetros do relatorios.js original: jsPDF('p','mm','a4'), html2canvas scale:2,
 // JPEG 0.95, addImage cobrindo a folha A4 inteira (0,0,210,297mm).
+/**
+ * Rasteriza as folhas e DEVOLVE os bytes do PDF, em vez de baixar.
+ *
+ * Existe porque o relatório salvo virou ARTEFATO: no "Salvar", o PDF precisa ser
+ * gerado, ter o hash calculado e subir para o bucket — nada disso cabe numa
+ * função que termina em `pdf.save()`.
+ *
+ * NÃO chama `avisarBloqueioDocumentos()` de propósito. Aquele gate existe para
+ * os funis de DOWNLOAD e IMPRESSÃO (trial não exporta documento); aplicá-lo aqui
+ * impediria uma conta em trial de SALVAR o próprio relatório, que é outra coisa.
+ * O invólucro `exportarPdf` continua cobrando o gate.
+ *
+ * `onProgresso` é chamado a cada folha rasterizada: são dezenas de segundos num
+ * relatório grande, e sem isso a tela parece travada.
+ */
+export async function gerarPdfBytes(
+  containerSelector: string,
+  opts: {
+    rastreabilidades?: boolean;
+    documentos?: string[];
+    onProgresso?: (feito: number, total: number) => void;
+  } = {},
+): Promise<{ bytes: Uint8Array; paginas: number; falhasAnexo: string[] }> {
+  const folhas = Array.from(document.querySelectorAll<HTMLElement>(`${containerSelector} .pagina-relatorio-a4`));
+  if (folhas.length === 0) throw new Error('nenhuma folha para gerar: o documento não está montado');
+
+  const pdf = new jsPDF('p', 'mm', 'a4');
+  await garantirFonteInterHost();
+
+  for (let i = 0; i < folhas.length; i++) {
+    const iframe = folhas[i].querySelector('iframe');
+    const alvo = iframe?.contentDocument?.body || folhas[i];
+    await aguardarRecursosIframe(iframe?.contentDocument);
+    const canvas = await html2canvas(alvo, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+      height: ALTURA_A4_PX,
+      windowHeight: ALTURA_A4_PX,
+      onclone: normalizarCloneParaCanvas,
+    });
+    if (i > 0) pdf.addPage();
+    pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, 210, 297);
+    opts.onProgresso?.(i + 1, folhas.length);
+    // Devolve o fôlego ao navegador entre folhas: sem isso a aba congela e o
+    // Chrome chega a oferecer "matar a página" num relatório de 30+ folhas.
+    await new Promise((r) => setTimeout(r, 0));
+  }
+
+  let bytes: Uint8Array = new Uint8Array(pdf.output('arraybuffer') as ArrayBuffer);
+  let falhasAnexo: string[] = [];
+  if (opts.rastreabilidades) {
+    try {
+      const r = await anexarRastreabilidades(bytes.slice().buffer as ArrayBuffer, opts.documentos ?? []);
+      if (r.anexados > 0) bytes = new Uint8Array(r.bytes);
+      falhasAnexo = r.falhas;
+    } catch (e) {
+      // Falha no merge NÃO invalida o relatório: o documento sai sem o anexo e o
+      // chamador decide o que fazer com a lista de falhas.
+      console.error('Falha ao anexar as rastreabilidades:', e);
+      falhasAnexo = ['certificados padrão'];
+    }
+  }
+
+  return { bytes, paginas: pdf.getNumberOfPages(), falhasAnexo };
+}
+
 export async function exportarPdf(
   containerSelector: string,
   nomeArquivo: string,

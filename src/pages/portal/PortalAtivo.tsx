@@ -9,6 +9,8 @@ import AnexosRastreabPreview from '../../features/relatorios/AnexosRastreabPrevi
 import { listarContainers, carregarContainer } from '../../features/inspecoes/inspecaoService';
 import { fotoDoComponente, listarComponentes } from '../../features/calibracoes/componentesService';
 import FotoImg from '../../components/FotoImg';
+import VisualizadorPdf, { baixarPdfArquivado, imprimirPdfArquivado } from '../../components/VisualizadorPdf';
+import { artefatoDe } from '../../features/relatorios/artefatoRelatorio';
 import type { FotoArmazenada } from '../../services/fotos';
 import { listarCalibracoes, arquivoCalibracao, hidratarItemLocal } from '../../features/calibracoes/calibracaoService';
 import type { DadosCalibracao } from '../../features/calibracoes/tipos';
@@ -236,6 +238,18 @@ export default function PortalAtivo() {
   async function imprimirDocumento() {
     setImprimindo(true);
     try {
+      // ARTEFATO: relatório finalizado imprime o ARQUIVO.
+      //
+      // Era exatamente aqui que morava o vetor de adulteração: a impressão saía
+      // do DOM vivo, então bastava abrir o DevTools, remover a trava de
+      // somente-leitura, trocar "Aprovado" por "Reprovado" e imprimir um
+      // documento falso com a logo e a assinatura do engenheiro. Servindo o
+      // arquivo não há DOM a adulterar.
+      const arte = artefatoDe(relatorioAberto);
+      if (arte) {
+        await imprimirPdfArquivado(arte);
+        return;
+      }
       // Certificados de rastreabilidade só acompanham RELATÓRIO (paridade com o exportarPdf).
       await imprimirRelatorio('.relatorio-preview', !!relatorioAberto, docsVisiveis);
     } finally {
@@ -248,6 +262,12 @@ export default function PortalAtivo() {
     if (!titulo) return;
     setExportando(true);
     try {
+      // Idem: finalizado entrega o arquivo da emissão, não uma regeração.
+      const arte = artefatoDe(relatorioAberto);
+      if (arte && relatorioAberto) {
+        await baixarPdfArquivado(arte, relatorioAberto.nome);
+        return;
+      }
       // Certificados de rastreabilidade só acompanham RELATÓRIO (documentos simples saem sem).
       await exportarPdf('.relatorio-preview', `${titulo.replace(/\s+/g, '_')}_${tag}.pdf`, { rastreabilidades: !!relatorioAberto, documentos: docsVisiveis });
     } finally {
@@ -308,6 +328,12 @@ export default function PortalAtivo() {
           </div>
         </div>
         <h2 style={{ margin: '12px 0' }}>{tituloAtivo}</h2>
+        {artefatoDe(relatorioAberto) ? (
+          // Relatório finalizado: o cliente vê o ARQUIVO da emissão. Nenhum
+          // template é montado, então não há DOM para o DevTools alterar antes
+          // de imprimir ou baixar.
+          <VisualizadorPdf artefato={artefatoDe(relatorioAberto)!} nomeArquivo={relatorioAberto!.nome} />
+        ) : (
         <div className="relatorio-preview portal-preview-doc">
           {paginasAtivas.map((src, i) => (
             <PaginaA4 key={`${src}-${i}`}>
@@ -317,6 +343,7 @@ export default function PortalAtivo() {
           {/* PDFs dos certificados padrão no fim — só RELATÓRIO (paridade com impressão/PDF). */}
           {relatorioAberto && <AnexosRastreabPreview documentos={docsVisiveis} />}
         </div>
+        )}
       </div>
     );
   }
