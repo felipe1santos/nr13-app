@@ -28,7 +28,8 @@ import type { ContainerInspecao } from '../features/inspecoes/tipos';
 import type { EmpresaEquipamento, CategoriaSalva } from '../features/equipamento/tipos';
 import ModeladorVaso from '../features/modelador/ModeladorVaso';
 import {
-  abrirPdfProntuarioFabricante,
+  abrirProntuarioFabricante,
+  baixarPdfFabricante,
   formatarTamanho as formatarTamanhoPdf,
   lerProntuarioFabricante,
 } from '../features/equipamento/ProntuarioFabricante';
@@ -936,7 +937,7 @@ export default function Prontuarios() {
                       type="button"
                       className="btn-secundario"
                       style={{ fontSize: 12 }}
-                      onClick={() => abrirPdfProntuarioFabricante(prontFabricante.pdfBase64)}
+                      onClick={() => void abrirProntuarioFabricante(prontFabricante)}
                     >
                       Visualizar
                     </button>
@@ -951,14 +952,19 @@ export default function Prontuarios() {
                         Baixar
                       </button>
                     ) : (
-                      <a
+                      <button
+                        type="button"
                         className="btn-secundario"
-                        style={{ fontSize: 12, textDecoration: 'none' }}
-                        href={prontFabricante.pdfBase64}
-                        download={prontFabricante.nome || `prontuario-fabricante-${tag}.pdf`}
+                        style={{ fontSize: 12 }}
+                        onClick={() =>
+                          void baixarPdfFabricante(
+                            prontFabricante,
+                            prontFabricante.nome || `prontuario-fabricante-${tag}.pdf`,
+                          )
+                        }
                       >
                         Baixar
-                      </a>
+                      </button>
                     )}
                   </>
                 ) : (

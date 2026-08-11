@@ -18,6 +18,7 @@ import {
   criarLote,
   excluirComponente,
   excluirLote,
+  fotoDoComponente,
   listarComponentes,
   listarLotes,
   salvarComponente,
@@ -502,7 +503,7 @@ export default function Calibracoes() {
                     {componentes.map((c) => (
                       <div key={c.id} className="cal-comp-item compacto">
                         <div className="cal-comp-foto">
-                          {c.foto ? <img src={c.foto} alt={c.nome} /> : <Icone nome={c.tipo === 'psv' ? 'valvula-psv' : 'manometro'} tam={20} />}
+                          {fotoDoComponente(c) ? <FotoImg foto={fotoDoComponente(c)} alt={c.nome} placeholder="" /> : <Icone nome={c.tipo === 'psv' ? 'valvula-psv' : 'manometro'} tam={20} />}
                         </div>
                         <div className="cal-comp-nome">
                           <strong>{c.nome}</strong>
@@ -569,7 +570,13 @@ export default function Calibracoes() {
                       const file = e.target.files?.[0];
                       if (!file) return;
                       const reader = new FileReader();
-                      reader.onload = (ev) => setCompForm((f) => (f ? { ...f, foto: String(ev.target?.result ?? '') } : f));
+                      // A `fotoRef` do arquivo anterior morre junto: mantê-la faria
+                      // `salvarComponente` gravar a referência velha e descartar em
+                      // silêncio a foto que o usuário acabou de escolher.
+                      reader.onload = (ev) =>
+                        setCompForm((f) =>
+                          f ? { ...f, foto: String(ev.target?.result ?? ''), fotoRef: undefined } : f,
+                        );
                       reader.readAsDataURL(file);
                     }}
                   />
@@ -663,7 +670,7 @@ export default function Calibracoes() {
                           return (
                             <div key={c.id} className="cal-comp-item">
                               <div className="cal-comp-foto">
-                                {c.foto ? <img src={c.foto} alt={c.nome} /> : <Icone nome={c.tipo === 'psv' ? 'valvula-psv' : 'manometro'} tam={24} />}
+                                {fotoDoComponente(c) ? <FotoImg foto={fotoDoComponente(c)} alt={c.nome} placeholder="" /> : <Icone nome={c.tipo === 'psv' ? 'valvula-psv' : 'manometro'} tam={24} />}
                               </div>
                               <div className="cal-comp-nome">
                                 <strong>{c.nome}</strong>

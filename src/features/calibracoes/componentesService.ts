@@ -1,4 +1,5 @@
 import { ler, salvar } from '../../services/storage';
+import { salvarArquivo, type RefFoto, type FotoArmazenada } from '../../services/fotos';
 
 /**
  * Componentes de calibração do equipamento (válvulas de segurança e manômetros).
@@ -15,8 +16,38 @@ export interface ComponenteCal {
   fabricante?: string;
   modelo?: string;
   serie?: string;
-  foto?: string;         // base64 (opcional — sem foto, a UI mostra o ícone do tipo)
+  /** LEGADO: base64 das fotos gravadas antes de 11/08/2026. Novas nascem ''. */
+  foto?: string;
+  /**
+   * A foto no bucket `inspecao`, em `<org>/componentes/<uuid>.jpg`. É assim que
+   * uma foto nova é guardada: o registro leva só esta referência leve.
+   *
+   * Antes, os 8 componentes de um único equipamento da conta gabriel.dadona
+   * somavam 2.518 KB de base64 numa chave só — baixados a cada hidratação para
+   * desenhar oito miniaturas de 40px.
+   */
+  fotoRef?: RefFoto;
   criadoEm: string;
+}
+
+/**
+ * O que entregar ao `<FotoImg>`: a referência quando existe, o base64 legado
+ * quando não, `null` quando o componente não tem foto (a UI mostra o ícone do
+ * tipo). Quem exibe não precisa saber onde o arquivo mora.
+ */
+export function fotoDoComponente(c: ComponenteCal): FotoArmazenada | string | null {
+  if (c.fotoRef?.path) return { ref: c.fotoRef };
+  return c.foto ? c.foto : null;
+}
+
+/** dataURL → bytes, sem passar por string intermediária gigante. */
+function dataUrlParaBlob(dataUrl: string): Blob {
+  const virgula = dataUrl.indexOf(',');
+  const mime = /^data:([^;]+)/.exec(dataUrl)?.[1] ?? 'image/jpeg';
+  const bin = atob(dataUrl.slice(virgula + 1));
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes as unknown as BlobPart], { type: mime });
 }
 
 export interface LoteCal {
@@ -37,10 +68,28 @@ export function listarComponentes(tag: string): ComponenteCal[] {
 }
 
 export async function salvarComponente(tag: string, comp: ComponenteCal): Promise<void> {
+  let final = comp;
+
+  if (comp.fotoRef?.path) {
+    // Já está no bucket. O `foto` que a tela porventura carregue é só o que ela
+    // resolveu para exibir — zerado aqui para o peso não voltar ao app_storage.
+    final = { ...comp, foto: '' };
+  } else if (comp.foto?.startsWith('data:')) {
+    try {
+      const ref = await salvarArquivo(dataUrlParaBlob(comp.foto), 'componentes', 'jpg', 'image/jpeg');
+      final = { ...comp, foto: '', fotoRef: ref };
+    } catch {
+      // Sem organização ativa ou cofre indisponível: grava o base64 como antes.
+      // Pesado, porém salvo — perder a foto que o usuário acabou de tirar é o
+      // único desfecho inaceitável aqui.
+      final = comp;
+    }
+  }
+
   const lista = listarComponentes(tag);
-  const i = lista.findIndex((c) => c.id === comp.id);
-  if (i >= 0) lista[i] = comp;
-  else lista.push(comp);
+  const i = lista.findIndex((c) => c.id === final.id);
+  if (i >= 0) lista[i] = final;
+  else lista.push(final);
   await salvar(chaveComp(tag), lista);
 }
 

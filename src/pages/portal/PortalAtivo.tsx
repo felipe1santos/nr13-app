@@ -7,12 +7,14 @@ import { exportarPdf } from '../../features/relatorios/pdfService';
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../../features/relatorios/printService';
 import AnexosRastreabPreview from '../../features/relatorios/AnexosRastreabPreview';
 import { listarContainers, carregarContainer } from '../../features/inspecoes/inspecaoService';
-import { listarComponentes } from '../../features/calibracoes/componentesService';
+import { fotoDoComponente, listarComponentes } from '../../features/calibracoes/componentesService';
+import FotoImg from '../../components/FotoImg';
+import type { FotoArmazenada } from '../../services/fotos';
 import { listarCalibracoes, arquivoCalibracao, hidratarItemLocal } from '../../features/calibracoes/calibracaoService';
 import type { DadosCalibracao } from '../../features/calibracoes/tipos';
 import { carregarProntuario, gravarProntuarioAtual } from '../../features/prontuarios/prontuarioService';
 import {
-  abrirPdfProntuarioFabricante,
+  abrirProntuarioFabricante,
   formatarDataEnvio,
   formatarTamanho as formatarTamanhoPdf,
   lerProntuarioFabricante,
@@ -77,7 +79,8 @@ export default function PortalAtivo() {
   const [exportando, setExportando] = useState(false);
 
   const info = ler<InfoEquipamento>(`nr13_info_${tag}`);
-  const fotos = ler<{ src: string; isCapa: boolean }[]>(`nr13_fotos_${tag}`) || [];
+  // `ref` é o caminho no bucket; `src` só continua preenchido nas fotos legadas.
+  const fotos = ler<(FotoArmazenada & { src?: string; isCapa?: boolean })[]>(`nr13_fotos_${tag}`) || [];
   const capa = fotos.find((f) => f.isCapa) ?? fotos[0] ?? null;
   const cat = ler<{ catFinal?: string }>(`nr13_cat_${tag}`);
   const calc = ler<{ pmta?: string; pth?: string; resultado?: string }>(`nr13_calc_${tag}`);
@@ -378,7 +381,10 @@ export default function PortalAtivo() {
         {/* ── Resumo do ativo (esquerda) ── */}
         <aside className="portal-resumo">
           <div className="portal-resumo-foto">
-            {capa ? <img src={capa.src} alt={tag} /> : <span className="portal-card-sem-foto"><Icone nome="box" tam={22} /></span>}
+            {/* `capa.src` vem VAZIO desde que as fotos passaram a morar no bucket
+                (11/08/2026): o que o registro carrega é `ref`. Ler `src` direto
+                deixava o Portal sem foto nenhuma para as contas já migradas. */}
+            {capa ? <FotoImg foto={capa} alt={tag} placeholder="" /> : <span className="portal-card-sem-foto"><Icone nome="box" tam={22} /></span>}
           </div>
           <h2>{tag}</h2>
           {info?.descricao && <p className="portal-card-desc">{info.descricao}</p>}
@@ -457,7 +463,7 @@ export default function PortalAtivo() {
                       <button
                         type="button"
                         className="btn-primario"
-                        onClick={() => abrirPdfProntuarioFabricante(prontFabricante.pdfBase64)}
+                        onClick={() => void abrirProntuarioFabricante(prontFabricante)}
                       >
                         Visualizar
                       </button>
@@ -531,7 +537,7 @@ export default function PortalAtivo() {
                       <div key={c.id} className="portal-acessorio">
                         <div className="cal-comp-item">
                           <div className="cal-comp-foto">
-                            {c.foto ? <img src={c.foto} alt={c.nome} /> : <Icone nome={c.tipo === 'psv' ? 'valvula-psv' : 'manometro'} tam={26} />}
+                            {fotoDoComponente(c) ? <FotoImg foto={fotoDoComponente(c)} alt={c.nome} placeholder="" /> : <Icone nome={c.tipo === 'psv' ? 'valvula-psv' : 'manometro'} tam={26} />}
                           </div>
                           <div className="cal-comp-nome">
                             <strong>{c.nome}</strong>

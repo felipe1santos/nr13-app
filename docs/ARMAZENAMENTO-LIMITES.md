@@ -30,16 +30,25 @@ justamente o que o palco existe para evitar.
 
 Peso medido na conta `gabriel.dadona` (org `92a28bff…`), 11/08/2026.
 
-| Chave | Peso lá | Onde o arquivo mora hoje | No palco? | Situação |
-|---|---|---|---|---|
-| `nr13_rastreab_<id>` | 5451 + 1941 KB | **bucket** (novo) / base64 (legado) | não (escopo id) | ✅ resolvido no código; falta migrar o legado |
-| `nr13_componentes_cal_<TAG>` | 2518 KB | base64 no `app_storage` | **não** (desde 11/08) | ⚠️ fora do palco, mas ainda pesa no banco |
-| `nr13_pront_fab_<TAG>` | — | base64, **até 8 MB por equipamento** | não | ❌ **maior risco aberto** |
-| `nr13_docs_<TAG>` | 863 + 640 KB | base64 → bucket pelo script | não | 🔸 migrável hoje |
-| `nr13_inspecao_atual` / `nr13_injecao_atual` | 640 KB × 2 | cópia do container | **sim** | ⚠️ não degrada (ver 3.1) |
-| `nr13_fotos_<TAG>` | 184 KB | base64 → bucket | sim | ✅ degrada; migrável |
-| `nr13_minha_empresa` | ~60 KB | logo em base64 | sim | 🔸 aceitável |
-| `nr13_lista_phs` | 15 KB | assinaturas em base64 | sim | 🔸 aceitável |
+**Resultado da migração de 11/08/2026 na conta `gabriel.dadona`: `app_storage` foi de 6.542 KB
+para 1.377 KB — queda de 79%.** O que sobrou de peso é uma chave só (`componentes_cal`), à
+espera do deploy do código que a lê pelo bucket.
+
+| Chave | Antes | Depois | Onde o arquivo mora | No palco? | Situação |
+|---|---|---|---|---|---|
+| `nr13_rastreab_<id>` | 2725 + 970 KB | ~0 | **bucket** | não (escopo id) | ✅ código + legado migrado |
+| `nr13_componentes_cal_<TAG>` | 1259 KB | 1259 KB | base64 | **não** (desde 11/08) | 🔸 código pronto, falta deploy + migrar |
+| `nr13_docs_<TAG>` | 751 KB | ~6 KB | **bucket** | não | ✅ migrado |
+| `nr13_inspecao_atual` / `injecao_atual` | 640 KB | ~0 | **bucket** | **sim** | ✅ migrado — mas ver 3.1 |
+| `nr13_fotos_<TAG>` | 92 KB | ~1 KB | **bucket** | sim | ✅ migrado |
+| `nr13_pront_fab_<TAG>` | (vazio nesta conta) | — | **bucket** | não | ✅ código pronto, falta deploy |
+| `nr13_minha_empresa` | 6 KB | 6 KB | logo em base64 | sim | 🔸 aceitável |
+| `nr13_lista_phs` | 8 KB | 8 KB | assinaturas em base64 | sim | 🔸 aceitável |
+
+> **ORDEM OBRIGATÓRIA: deploy ANTES da migração.** O registro migrado troca o base64 por uma
+> referência; um bundle que ainda não sabe ler `ref`/`pdfRef`/`fotoRef` mostra o campo VAZIO —
+> foto sumida, certificado "sem arquivo". Foi o que quase aconteceu com o Portal do Cliente em
+> 11/08 (ver 3.6).
 
 ---
 
@@ -68,7 +77,19 @@ a guardar `ref` em vez de base64, mas `hidratarFotosDoBucket` **re-infla** a ima
 hora de montar o documento (os templates exigem `src` embutido). O peso volta na montagem. A
 migração alivia o banco e o egress; **não** alivia o palco.
 
-### 3.2 `nr13_pront_fab_` — até 8 MB de PDF por equipamento no banco
+### 3.6 Toda tela que desenha arquivo precisa passar por `FotoImg`/`resolver*`
+
+Descoberto em 11/08/2026, durante a migração: o **Portal do Cliente** renderizava
+`<img src={capa.src}>` direto. Como `src` fica vazio quando a foto vai para o bucket, o portal
+das contas migradas ficaria **sem foto nenhuma** — e ninguém perceberia, porque quem olha o
+portal é o cliente final, não quem opera o sistema.
+
+Corrigido no mesmo dia (`FotoImg` no portal, na capa e nos componentes). A regra que fica:
+**nenhuma tela lê `.src`, `.foto`, `.pdfBase64` direto.** Use `FotoImg`, `fotoDoComponente`,
+`resolverPdf` ou `resolverPdfFabricante`. Uma varredura por `src={` em telas novas é barata e
+pega esse erro antes do usuário.
+
+### 3.2 `nr13_pront_fab_` — até 8 MB de PDF por equipamento no banco (✅ CÓDIGO PRONTO)
 
 **O problema.** `ProntuarioFabricante.tsx` grava o PDF do prontuário do fabricante inteiro em
 base64 dentro do `app_storage`, com `LIMITE_PDF_BYTES = 8 * 1024 * 1024`. É o maior peso
@@ -79,25 +100,24 @@ Já está fora do palco (desde 05/08, quando 10.012 KB numa conta faziam o livro
 recusado sem motivo), então **não derruba documento** — mas alimenta direto o egress da
 cota 3.
 
-**O que falta.** O mesmo desenho do certificado de rastreabilidade: `salvarArquivo` no bucket +
-`ref` leve no registro. Duas diferenças exigem cuidado:
+**Feito em 11/08/2026:** `pdfRef` no registro, upload por `salvarArquivo`, e
+`resolverPdfFabricante`/`baixarPdfFabricante` para os consumidores. O `<a download>` virou
+botão (não existe href pronto para um arquivo no bucket) — o gate do trial continua idêntico.
+`lerProntuarioFabricante` passou a aceitar as duas formas: exigir `pdfBase64` faria um registro
+migrado aparecer como "nenhum prontuário enviado" e o usuário reenviaria o arquivo por cima.
 
-1. O consumo é por `<a download>` e `window.open` de object URL, não por template — então a
-   troca é contida.
-2. A Edge Function `portal_cliente` entrega ao Portal do Cliente as chaves que terminam em
-   `_<TAG>`. Com o PDF fora do registro, o Portal precisa da URL assinada do bucket, e a policy
-   `inspecao_leitura` compara a pasta com `org_atual()` — **o papel `cliente` precisa ser
-   verificado** antes de assumir que a leitura funciona por lá.
+**Falta:** deploy, e verificar no Portal do Cliente que o papel `cliente` consegue URL assinada
+sob a policy `inspecao_leitura` (ela compara a pasta com `org_atual()`).
 
-### 3.3 `nr13_componentes_cal_` — 2518 KB de foto que ninguém imprime
+### 3.3 `nr13_componentes_cal_` — 1259 KB de foto que ninguém imprime (✅ CÓDIGO PRONTO)
 
-Saiu do palco em 11/08 (era o que recusava o relatório do gabriel), mas continua em base64 no
-banco e no egress. Migrar exige mexer nos **dois lados**, e por isso não foi feito junto:
+Saiu do palco em 11/08 (era o que recusava o relatório do gabriel). O código para guardar no
+bucket ficou pronto no mesmo dia: `ComponenteCal.fotoRef`, upload dentro de `salvarComponente`,
+e `fotoDoComponente(c)` entregando ref-ou-base64 para o `<FotoImg>` nas três telas que desenham
+essa miniatura (duas em Calibrações, uma no Portal).
 
-- o script varre `src`/`base64`; aqui o campo se chama `foto` (`ComponenteCal.foto`);
-- `hidratarFotosDoBucket` devolve a imagem escrevendo em `src`/`base64`, e a tela de
-  Calibrações lê `c.foto` de forma **síncrona** — migrar sem adaptar a tela deixa os cards de
-  componente sem imagem.
+**Falta:** deploy e a migração do legado. A migração só pode rodar DEPOIS do deploy — o bundle
+antigo lê `c.foto` e mostraria os cards sem imagem.
 
 ### 3.4 Migração do legado das contas pesadas
 
@@ -142,6 +162,9 @@ quando o documento é recusado — que é tarde, e no meio do trabalho. Duas ide
 | 11/08/2026 | `nr13_componentes_cal_` e `nr13_lotes_cal_` fora do palco — o relatório da AUTOCLAVE ESTERILAV caiu de **3959 KB para 1449 KB**. |
 | 11/08/2026 | **Organização nova nasce em v2** (`flag.ts` + `supabase/v2_por_default.sql`). Antes, toda conta criada depois de 10/08 nascia em v1. |
 | 11/08/2026 | **PDF de rastreabilidade no bucket**: `pdfRef` no registro, upload pela mesma fila offline das fotos, `resolverPdf` com cadeia de socorro (ref → cofre → IndexedDB → Supabase legado). |
+| 11/08/2026 | **Foto do componente de calibração** (`fotoRef`) e **prontuário do fabricante** (`pdfRef`) no bucket, pelo mesmo desenho. |
+| 11/08/2026 | **Portal do Cliente passou a resolver refs** — lia `capa.src`/`c.foto` direto e teria ficado sem foto nenhuma nas contas migradas. |
+| 11/08/2026 | **Legado da conta `gabriel.dadona` migrado** pelo navegador, com a sessão do próprio usuário: `app_storage` de **6.542 → 1.377 KB (−79%)**. Fotos, containers de inspeção e os 2 certificados (3.695 KB) confirmados no bucket com assinatura `%PDF-`. |
 
 ---
 
@@ -158,3 +181,11 @@ quando o documento é recusado — que é tarde, e no meio do trabalho. Duas ide
    opcional e idempotente.
 5. **Errar para o lado da v2.** A RPC de escrita nunca consulta `v2_ativa`; ficar na v1 contra
    um servidor em v2 é que custou uma semana no `cmam`.
+6. **Deploy ANTES da migração, sempre.** O registro migrado troca o arquivo por uma referência;
+   bundle que não sabe lê-la mostra campo vazio, e o usuário conclui que o dado sumiu.
+7. **Nenhuma tela lê `.src`/`.foto`/`.pdfBase64` direto.** `FotoImg`, `fotoDoComponente`,
+   `resolverPdf`, `resolverPdfFabricante` — foi assim que o Portal do Cliente escapou de ficar
+   sem foto (3.6).
+8. **Falha de upload nunca cancela a gravação.** Todo caminho novo cai no formato legado
+   (base64 no registro) quando o bucket não responde. Pesado, porém salvo: perder o arquivo do
+   usuário é o único desfecho inaceitável.

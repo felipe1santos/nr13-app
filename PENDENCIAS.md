@@ -51,7 +51,12 @@ banco. Em ordem de urgência.
   outro lado: com a linha gravada, a guarda `trg_guardar_app_storage` volta a proteger a
   organização nova contra aparelho com bundle antigo.
 
-### 0.2 — Migrar as fotos legadas das duas contas pagantes pesadas
+### 0.2 — Migrar as fotos legadas das contas pagantes pesadas
+
+> **`gabriel.dadona` FEITO em 11/08/2026: 6.542 KB → 1.377 KB (−79%).** Migrado pelo
+> NAVEGADOR, com a sessão do próprio usuário logado (fetch na REST + Storage + a RPC
+> `aplicar_mutacao_storage`), o que dispensa a senha que o script de linha de comando exige.
+> Falta só `componentes_cal` (1259 KB), que depende do deploy do código novo.
 
 - [ ] **`gabriel.dadona@gmail.com` (~6,7 MB) e `engyuricesar@gmail.com` (~6,5 MB).**
 
@@ -94,17 +99,15 @@ banco. Em ordem de urgência.
       `ehChaveDeFoto`. **Migrar as fotos para o bucket NÃO resolve isto** — a hidratação
       re-infla a imagem no palco na hora de montar o documento.
 
-- [ ] **`nr13_pront_fab_` guarda até 8 MB de PDF base64 por equipamento** no `app_storage`
-      (`LIMITE_PDF_BYTES` em `ProntuarioFabricante.tsx`). Maior peso possível por chave em
-      todo o sistema, rebaixado a cada hidratação. Já está fora do palco, então não derruba
-      documento — mas alimenta o egress direto. Mesmo desenho do certificado de
-      rastreabilidade (`salvarArquivo` + ref). **Cuidado:** a Edge Function `portal_cliente`
-      entrega a chave ao Portal do Cliente; conferir se o papel `cliente` consegue URL
-      assinada sob a policy `inspecao_leitura` antes de trocar.
+- [ ] **Deploy + migração do `componentes_cal` e do `pront_fab`.** O código dos dois ficou
+      pronto em 11/08 (`fotoRef` e `pdfRef`). **NESTA ORDEM, sem inverter:** deploy primeiro,
+      migração depois — bundle que não sabe ler a referência mostra o campo vazio e o usuário
+      conclui que a foto sumiu. Na conta do gabriel restam 1259 KB em `componentes_cal`.
 
-- [ ] **`nr13_componentes_cal_` continua com 2518 KB de foto no banco.** Saiu do palco em
-      11/08, mas migrar exige os dois lados: o campo se chama `foto` (o script varre
-      `src`/`base64`) e a tela de Calibrações lê `c.foto` síncrono.
+- [ ] **Conferir o Portal do Cliente depois do deploy.** O portal passou a resolver refs
+      (`FotoImg`), mas a policy `inspecao_leitura` compara a pasta com `org_atual()` — falta
+      confirmar em tela que o papel `cliente` recebe a URL assinada. Se não receber, a foto
+      degrada para o ícone (não quebra), mas o cliente fica sem ver imagem.
 
 ### 0.3 — Automatizar a purga do trial (hoje é manual e funciona)
 
