@@ -958,3 +958,14 @@
   min-width: 200px;
   max-width: 100%;
 }
+
+/* Selo do cliente pagante — escudo antes do e-mail na lista de clientes.
+   `inline-flex` + `vertical-align` para o ícone acompanhar a linha de base do
+   texto sem esticar a altura da célula. */
+.admin-selo-pagante {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 6px;
+  vertical-align: -2px;
+  color: var(--ambar, #d97706);
+}

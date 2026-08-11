@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
+import { Icone } from '../components/Icone';
 import { logout } from '../services/auth';
 import { rotuloStatusAssinatura, rotuloEventoKiwify } from '../services/assinatura';
 import {
@@ -202,6 +203,27 @@ interface LeadRow {
   imp?: LeadImportado;
 }
 
+/**
+ * Cliente pagante = conta que o dono do produto LIBEROU e que segue valendo.
+ *
+ * Não dá para deduzir isso de um campo de cobrança: em 11/08/2026 nenhuma conta
+ * tinha `kiwify_subscription_id`, e o `plano` da maioria é o valor legado
+ * 'demonstracao' — a `cmam.caldeiras`, cliente real, tem exatamente os mesmos
+ * campos de várias contas de teste do próprio dono. O que separa, na prática, é
+ * o ato de liberar: sair de `plano = 'trial'` e continuar ativo, sem prazo
+ * vencido.
+ *
+ * Conta de teste que foi convertida cai aqui naturalmente, porque "Liberar
+ * acesso completo" grava `plano = 'completo'` — é o caso do
+ * `engyuricesar@gmail.com`, que veio de `origem_cadastro = 'trial'`.
+ */
+export function ehPagante(p: Profile): boolean {
+  if (!p.ativo) return false;
+  if (p.plano === 'trial') return false;
+  const venceu = p.acesso_expira_em && new Date(p.acesso_expira_em).getTime() < Date.now();
+  return !venceu;
+}
+
 function statusUsuario(p: Profile): { label: string; cls: string } {
   const trial = p.origem_cadastro === 'trial';
   if (!p.ativo) return { label: 'Pendente', cls: 'pendente' };
@@ -237,7 +259,7 @@ export default function Admin() {
   // Menu "Ações": posição fixa (viewport) para não ser cortado pelo overflow da tabela.
   const [menuAcoes, setMenuAcoes] = useState<{ id: string; x: number; y: number } | null>(null);
   const [superAberto, setSuperAberto] = useState(false);
-  const [aba, setAba] = useState<'clientes' | 'acessos' | 'leads'>('clientes');
+  const [aba, setAba] = useState<'clientes' | 'trial' | 'acessos' | 'leads'>('clientes');
   // Flag global do cadastro automático de trial (config_global; null = migração não rodou)
   const [cadastroAuto, setCadastroAuto] = useState<boolean | null>(null);
   const [salvandoFlag, setSalvandoFlag] = useState(false);
@@ -402,9 +424,15 @@ export default function Admin() {
   const filtrados = useMemo(() => {
     const q = busca.trim().toLowerCase();
     const ehSubLogin = (p: Profile) => !!p.papel && p.papel !== 'mestre';
-    let lista = profiles.filter(
-      (p) => p.role !== 'admin' && (aba === 'acessos' ? ehSubLogin(p) : !ehSubLogin(p)),
-    );
+    let lista = profiles.filter((p) => {
+      if (p.role === 'admin') return false;
+      if (aba === 'acessos') return ehSubLogin(p);
+      if (ehSubLogin(p)) return false;
+      // As duas listas são complementares e cobrem todo mundo: quem não é
+      // pagante cai obrigatoriamente na de teste/expirados, para nenhuma conta
+      // sumir do painel por causa de um critério que não previu seu caso.
+      return aba === 'trial' ? !ehPagante(p) : ehPagante(p);
+    });
     if (q) lista = lista.filter((p) => (p.email ?? '').toLowerCase().includes(q));
     const score = (p: Profile) =>
       (metricas.get(p.id)?.sessoesTotal ?? 0) + (uso.get(p.id)?.relatorios ?? 0);
@@ -1109,6 +1137,13 @@ export default function Admin() {
         </button>
         <button
           type="button"
+          className={`admin-aba${aba === 'trial' ? ' ativa' : ''}`}
+          onClick={() => setAba('trial')}
+        >
+          Testes e expirados
+        </button>
+        <button
+          type="button"
           className={`admin-aba${aba === 'acessos' ? ' ativa' : ''}`}
           onClick={() => setAba('acessos')}
         >
@@ -1262,7 +1297,7 @@ export default function Admin() {
       <div className="admin-tabela-wrap">
         <table className="admin-tabela">
           <thead>
-            {aba === 'clientes' ? (
+            {aba === 'clientes' || aba === 'trial' ? (
             <tr>
               <th>E-mail</th>
               <th>Status</th>
@@ -1356,7 +1391,14 @@ export default function Admin() {
                   p.papel === 'cliente' ? 'Cliente (portal)' : p.papel === 'gerente' ? 'Gerente' : 'Inspetor';
                 return (
                   <tr key={p.id} className={ocupado ? 'ocupado' : ''}>
-                    <td data-label="E-mail" className="admin-email">{p.email}</td>
+                    <td data-label="E-mail" className="admin-email">
+                      {ehPagante(p) && (
+                        <span className="admin-selo-pagante" title="Cliente pagante">
+                          <Icone nome="shield" tam={14} />
+                        </span>
+                      )}
+                      {p.email}
+                    </td>
                     <td data-label="Papel"><span className={`admin-badge-papel ${p.papel}`}>{rotulo}</span></td>
                     <td data-label="Conta pagante">{(p.org_id && emailPorId.get(p.org_id)) ?? '—'}</td>
                     <td data-label="Status">

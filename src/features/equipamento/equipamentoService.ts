@@ -1,4 +1,5 @@
 import { ler, lerTudo, listarChavesComPrefixo, salvar } from '../../services/storage';
+import { podeCriarEquipamento } from '../../services/limiteTrial';
 import type {
   CalculoSalvo,
   CategoriaSalva,
@@ -62,11 +63,25 @@ export async function salvarUnidade(tag: string, unidade: string): Promise<void>
   await salvar(`nr13_pref_unidade_${tag}`, unidade);
 }
 
+/** Recusa do teto do trial. Mensagem já pronta para a tela. */
+export class ErroLimiteTrial extends Error {
+  constructor(motivo: string) {
+    super(motivo);
+    this.name = 'ErroLimiteTrial';
+  }
+}
+
 export async function criarEquipamento(
   tag: string,
   tipo: TipoEquipamento,
   subtipo: InfoEquipamento['subtipo'] = '',
 ): Promise<void> {
+  // O teto do trial é checado AQUI, no serviço, e não só no botão: a criação
+  // tem mais de um ponto de entrada (tela de equipamentos e importação de
+  // planilha), e um gate que vive na tela não alcança o outro caminho.
+  const limite = podeCriarEquipamento();
+  if (!limite.permitido) throw new ErroLimiteTrial(limite.motivo);
+
   const info: InfoEquipamento = {
     tag,
     tipo,

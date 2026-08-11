@@ -37,6 +37,10 @@ export default function ModalCriarEquipamento({ onClose, onCriado }: Props) {
       }
       await criarEquipamento(tagLimpa, tipo, resolverSubtipo());
       onCriado(tagLimpa);
+    } catch (e) {
+      // O teto do trial chega como erro do serviço e vira mensagem na própria
+      // caixa, no lugar onde o usuário está olhando.
+      setErro(e instanceof Error ? e.message : 'Não foi possível criar o equipamento.');
     } finally {
       setSalvando(false);
     }
