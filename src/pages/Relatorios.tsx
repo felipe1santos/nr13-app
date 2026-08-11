@@ -123,11 +123,14 @@ export default function Relatorios() {
   const [meta, setMeta] = useState<RelatorioMeta | null>(null);
   const [somenteLeitura, setSomenteLeitura] = useState(false);
   const [versao, setVersao] = useState(0);
+  // Relatório finalizado sendo VISTO pelo arquivo (não remontado). Null = fluxo
+  // legado. Declarado aqui em cima porque o palco depende dele.
+  const [relatorioArquivado, setRelatorioArquivado] = useState<RelatorioSalvo | null>(null);
 
   // Palco: materializa no localStorage só as chaves desta TAG antes de montar
   // os iframes. Nenhum iframe pode ser renderizado antes de `pronto` — um
   // documento meio montado sai impresso com folha faltando.
-  const palco = usePalcoDocumento(tag, `rel-${tag}-${versao}`, { somenteLeitura });
+  const palco = usePalcoDocumento(tag, `rel-${tag}-${versao}`, { somenteLeitura, pular: !!relatorioArquivado });
 
   // RELATÓRIO SALVO NÃO SE EDITA. `somenteLeitura` é estado React e só alcança a
   // UI React — o conteúdo do documento mora dentro dos iframes, onde os
@@ -151,8 +154,6 @@ export default function Relatorios() {
   const [erroSalvar, setErroSalvar] = useState('');
   // Progresso da rasterização — dezenas de segundos num relatório grande.
   const [progressoPdf, setProgressoPdf] = useState<{ feito: number; total: number } | null>(null);
-  // Relatório finalizado sendo VISTO pelo arquivo (não remontado). Null = fluxo legado.
-  const [relatorioArquivado, setRelatorioArquivado] = useState<RelatorioSalvo | null>(null);
   const [renomeandoId, setRenomeandoId] = useState<string | null>(null);
   const [nomeRenomeando, setNomeRenomeando] = useState('');
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
@@ -420,6 +421,13 @@ export default function Relatorios() {
     // `meta` seguem gravados só para auditoria.
     if (temArtefato(r)) {
       setRelatorioArquivado(r);
+      // `meta` e `documentos` são a RECEITA congelada. Preenchê-los aqui é o que
+      // faz o cabeçalho e o modal de configurações terem o que exibir — o
+      // documento em si NÃO sai daqui, sai do arquivo. Sem isto a tela do
+      // visualizador não renderiza nada (o bloco exige `meta && documentos`).
+      setMeta(r.meta);
+      setDocumentos(r.documentos);
+      setSomenteLeitura(true);
       setErroSalvar('');
       setTela('visualizador');
       return;

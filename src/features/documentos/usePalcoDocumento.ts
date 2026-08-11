@@ -39,7 +39,7 @@ const INTERVALO_RENOVACAO_MS = 20_000;
 export function usePalcoDocumento(
   tag: string,
   relatorioId: string,
-  opcoes?: { somenteLeitura?: boolean },
+  opcoes?: { somenteLeitura?: boolean; pular?: boolean },
 ): UsoPalco {
   const [estado, setEstado] = useState<EstadoPalco>(() =>
     armazenamentoV2Ativo() ? 'montando' : 'pronto',
@@ -54,8 +54,12 @@ export function usePalcoDocumento(
     somenteLeituraRef.current = somenteLeitura;
   }, [somenteLeitura]);
 
+  // Documento ARQUIVADO (PDF servido do bucket) não monta template nenhum:
+  // montar o palco gastaria o orçamento de 3.368 KB para nada.
+  const pular = opcoes?.pular === true;
+
   useEffect(() => {
-    if (!armazenamentoV2Ativo()) {
+    if (pular || !armazenamentoV2Ativo()) {
       setEstado('pronto');
       return;
     }
@@ -120,7 +124,7 @@ export function usePalcoDocumento(
       limparPalco(ctx);
       ctxRef.current = null;
     };
-  }, [tag, relatorioId]);
+  }, [tag, relatorioId, pular]);
 
   const ctx = ctxRef.current;
   const paramsIframe = ctx
