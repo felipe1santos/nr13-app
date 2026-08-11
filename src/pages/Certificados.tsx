@@ -135,7 +135,14 @@ export default function Certificados() {
     setErro('');
     const reader = new FileReader();
     reader.onerror = () => setErro('Não foi possível ler o arquivo. Tente selecioná-lo novamente.');
-    reader.onload = (ev) => set('pdfBase64', String(ev.target?.result ?? ''));
+    reader.onload = (ev) =>
+      // A `pdfRef` do arquivo ANTERIOR morre aqui, junto com o arquivo que ela
+      // aponta. Mantê-la faria `salvarRastreabilidade` tomar o caminho "já tem
+      // ref", gravar a referência velha e DESCARTAR em silêncio o PDF que o
+      // usuário acabou de escolher.
+      setForm((f) =>
+        f ? { ...f, pdfBase64: String(ev.target?.result ?? ''), pdfRef: undefined } : f,
+      );
     reader.readAsDataURL(file);
   }
 

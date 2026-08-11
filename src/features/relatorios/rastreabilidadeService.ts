@@ -1,6 +1,7 @@
 import { PDFDocument } from 'pdf-lib';
 import { ler, salvar, excluirChave, listarChavesComPrefixo, lerRemoto } from '../../services/storage';
 import { guardarPdf, lerPdf } from '../../services/pdfStore';
+import { salvarArquivo, baixarFoto, blobParaDataUrl, type RefFoto } from '../../services/fotos';
 
 /**
  * Certificados de calibração dos instrumentos PADRÃO: o usuário anexa UM PDF
@@ -32,6 +33,13 @@ export interface Rastreabilidade {
   pdfBase64: string;
   temPdf?: boolean;           // marcador gravado ao separar o PDF do registro
   pdfBytes?: number;          // tamanho do base64, para mensagens de erro
+  /**
+   * O arquivo no bucket `inspecao`, caminho `<org>/certificados/<uuid>.pdf`.
+   * Desde 11/08/2026 é ASSIM que um certificado novo é guardado: o registro do
+   * `app_storage` carrega só esta referência leve. Ausente = registro legado,
+   * com o PDF em base64 dentro do próprio registro no Supabase.
+   */
+  pdfRef?: RefFoto;
   // LEGADO: a injeção era manual por flag; hoje é automática por tipo presente no
   // relatório. Mantida só para registros antigos e para a preferência do autoPreencher.
   injetarNoRelatorio: boolean;
@@ -118,7 +126,7 @@ const PREFIXO = 'nr13_rastreab_';
 
 /** Há PDF anexado? Checagem SÍNCRONA (para a interface), sem carregar o arquivo. */
 export function temPdfDe(r: Rastreabilidade): boolean {
-  return r.temPdf === true || !!r.pdfBase64;
+  return r.temPdf === true || !!r.pdfBase64 || !!r.pdfRef?.path;
 }
 
 /**
@@ -132,15 +140,31 @@ export function injetaNoRelatorio(r: Rastreabilidade): boolean {
 }
 
 /**
- * Devolve o PDF do registro, venha ele de onde vier:
+ * Devolve o PDF do registro, venha ele de onde vier, na ordem que custa menos:
  * 1. do próprio objeto (registro recém-montado na tela ou legado ainda gordo);
- * 2. do IndexedDB (caminho normal depois da separação — ver storage.ts);
- * 3. do Supabase (aparelho novo/cache limpo), repovoando o IndexedDB de quebra.
+ * 2. do BUCKET pela `pdfRef` — que na verdade tenta o cofre local primeiro
+ *    (`baixarFoto`), então offline e egress zero no caso comum;
+ * 3. do IndexedDB `nr13_pdfs` (registros separados pelo §2-bis, sem ref);
+ * 4. do Supabase (aparelho novo/cache limpo), repovoando o IndexedDB de quebra.
  * null = não há arquivo recuperável.
+ *
+ * O passo 2 NÃO interrompe a cadeia quando falha: bucket fora do ar ou arquivo
+ * removido caem nos passos seguintes, porque o socorro dos relatórios já
+ * salvos vale mais do que a economia.
  */
 export async function resolverPdf(r: Rastreabilidade): Promise<string | null> {
   if (r.pdfBase64) return r.pdfBase64;
   if (!temPdfDe(r)) return null;
+
+  if (r.pdfRef?.path) {
+    try {
+      const blob = await baixarFoto(r.pdfRef);
+      if (blob) return await blobParaDataUrl(blob);
+    } catch {
+      // segue para os caminhos legados
+    }
+  }
+
   const chave = `${PREFIXO}${r.id}`;
   const local = await lerPdf(chave);
   if (local) return local;
@@ -175,6 +199,50 @@ export function listarRastreabilidadesAtivas(): Rastreabilidade[] {
 }
 
 export async function salvarRastreabilidade(r: Rastreabilidade): Promise<void> {
+  // ── Caminho novo: o arquivo vai para o bucket, o registro leva só a ref ────
+  // O PDF NUNCA mais entra no `app_storage`. Um certificado escaneado tem
+  // 200–800 KB e base64 ainda infla 33%; na conta `gabriel.dadona` dois
+  // registros somavam 7.392 KB que o app rebaixava a cada hidratação.
+  //
+  // Se o upload falhar (campo sem sinal), `salvarArquivo` já deixou o arquivo
+  // no cofre local marcado como pendente e a fila o retoma sozinha — o registro
+  // pode ser gravado agora, com o caminho definitivo.
+  if (r.pdfBase64 && !r.pdfRef?.path) {
+    try {
+      const bytes = base64ParaBytes(r.pdfBase64);
+      const ref = await salvarArquivo(
+        new Blob([bytes as unknown as BlobPart], { type: 'application/pdf' }),
+        'certificados',
+        'pdf',
+        'application/pdf',
+      );
+      await salvar(`${PREFIXO}${r.id}`, {
+        ...r,
+        pdfBase64: '',
+        pdfRef: ref,
+        temPdf: true,
+        pdfBytes: r.pdfBase64.length,
+      });
+      return;
+    } catch {
+      // Sem organização ativa ou cofre indisponível: cai no caminho legado
+      // abaixo, que ainda grava o PDF no registro. Pesado, porém salvo — perder
+      // o certificado do usuário seria muito pior que gastar bytes.
+    }
+  }
+
+  // ── Registro que já tem ref: nada a recuperar, a ref é leve ───────────────
+  // `pdfBase64` é ZERADO aqui de propósito. A tela de Certificados pré-preenche
+  // esse campo com o arquivo resolvido (para poder mostrar "Trocar PDF"), e
+  // deixá-lo viajar junto devolveria o peso ao `app_storage` pela porta dos
+  // fundos. Quem troca de arquivo de verdade limpa a `pdfRef` junto — é o que
+  // faz o input de PDF —, e aí o registro cai no ramo de upload acima.
+  if (r.pdfRef?.path) {
+    await salvar(`${PREFIXO}${r.id}`, { ...r, pdfBase64: '', temPdf: true });
+    return;
+  }
+
+  // ── Caminho legado (registro sem ref, PDF em base64 no Supabase) ──────────
   // BLINDAGEM: registro lido do cache vem SEM o PDF (mora no IndexedDB — ver
   // storage.ts §CAMPOS_PESADOS). Regravá-lo desse jeito — como fazem o soft-delete
   // (`{...r, substituidoEm}`) e o toggle de injeção — sobrescreveria no Supabase o

@@ -8,6 +8,11 @@
 
 ---
 
+> **MAPA DE ARMAZENAMENTO: `docs/ARMAZENAMENTO-LIMITES.md`** — os quatro limites (o de 5 MB
+> do navegador, o de 3.368 KB do palco, o egress do Supabase e o IndexedDB), o peso medido de
+> cada família de chave, o que já foi resolvido e o que falta, em ordem de risco. Consultar
+> antes de mexer em qualquer coisa que grave arquivo.
+
 ## 0. PRÓXIMOS PASSOS COMBINADOS (sessão de 10-11/08/2026)
 
 O que ficou em aberto depois de resolver o sumiço de equipamentos, o login e o peso do
@@ -78,6 +83,28 @@ banco. Em ordem de urgência.
   Roteiro que funcionou no `cmam`, vale repetir: backup → `simular` → migrar UMA TAG →
   conferir na tela → resto → gerar um relatório e comparar o número de imagens com o de
   antes.
+
+### 0.25 — Três buracos de armazenamento ainda abertos (detalhe em `docs/ARMAZENAMENTO-LIMITES.md`)
+
+- [ ] **Degradação do palco só enxerga `nr13_fotos_`.** As fotos de campo chegam por
+      `nr13_inspecao_atual`/`nr13_injecao_atual` (640 KB cada, duplicação obrigatória) e
+      NUNCA são recomprimidas. Quando o documento não couber, o sistema recomprime 184 KB
+      e ignora 1280 KB. Fix: tornar `recompressorFoto.ts` recursivo sobre `src`/`base64`
+      (o caminhador já existe em `hidratarFotosDoBucket`) e somar as duas chaves em
+      `ehChaveDeFoto`. **Migrar as fotos para o bucket NÃO resolve isto** — a hidratação
+      re-infla a imagem no palco na hora de montar o documento.
+
+- [ ] **`nr13_pront_fab_` guarda até 8 MB de PDF base64 por equipamento** no `app_storage`
+      (`LIMITE_PDF_BYTES` em `ProntuarioFabricante.tsx`). Maior peso possível por chave em
+      todo o sistema, rebaixado a cada hidratação. Já está fora do palco, então não derruba
+      documento — mas alimenta o egress direto. Mesmo desenho do certificado de
+      rastreabilidade (`salvarArquivo` + ref). **Cuidado:** a Edge Function `portal_cliente`
+      entrega a chave ao Portal do Cliente; conferir se o papel `cliente` consegue URL
+      assinada sob a policy `inspecao_leitura` antes de trocar.
+
+- [ ] **`nr13_componentes_cal_` continua com 2518 KB de foto no banco.** Saiu do palco em
+      11/08, mas migrar exige os dois lados: o campo se chama `foto` (o script varre
+      `src`/`base64`) e a tela de Calibrações lê `c.foto` síncrono.
 
 ### 0.3 — Automatizar a purga do trial (hoje é manual e funciona)
 

@@ -19,6 +19,13 @@
  *   node scratch-migrar-fotos.mjs migrar "ACA 2038"  → uma TAG
  *   node scratch-migrar-fotos.mjs migrar-todas       → nr13_fotos_ inteiro
  *   node scratch-migrar-fotos.mjs migrar-docs        → containers de inspeção
+ *   node scratch-migrar-fotos.mjs migrar-certificados → PDFs de nr13_rastreab_
+ *   node scratch-migrar-fotos.mjs simular-certificados → o mesmo, sem gravar
+ *
+ * O modo `certificados` é separado porque o registro tem outro FORMATO: o
+ * arquivo mora em `pdfBase64` (não em `src`/`base64`) e a referência vai para
+ * `pdfRef` (não para `ref`). Os dois maiores pesos da conta gabriel.dadona
+ * estavam aí: 5.451 KB e 1.941 KB num único par de registros.
  */
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'node:fs';
@@ -43,7 +50,8 @@ const BUCKET = 'inspecao';
 
 const acao = process.argv[2] ?? 'simular';
 const alvo = process.argv[3] ?? null;
-const simulando = acao === 'simular';
+const simulando = acao === 'simular' || acao === 'simular-certificados';
+const modoCertificados = acao === 'migrar-certificados' || acao === 'simular-certificados';
 
 function sanitizar(txt) {
   return (txt || 'geral').replace(/[^\w.-]+/g, '_').slice(0, 60) || 'geral';
@@ -110,6 +118,52 @@ async function migrarNo(no, escopo, contador) {
   for (const v of Object.values(no)) await migrarNo(v, escopo, contador);
 }
 
+/**
+ * Certificado de rastreabilidade: `pdfBase64` → arquivo no bucket + `pdfRef`.
+ *
+ * Formato diferente do das fotos, por isso a função separada. Mesma ordem de
+ * segurança: sobe, CONFIRMA tamanho, e só então zera o base64 do registro.
+ * Idempotente — registro que já tem `pdfRef` é pulado.
+ *
+ * `temPdf` é forçado para true: é ele que a interface e a injeção no relatório
+ * consultam de forma síncrona (`temPdfDe`), e um registro que perdesse o base64
+ * sem ganhar o marcador apareceria como "sem certificado".
+ */
+async function migrarCertificado(chave) {
+  const { data, error } = await sb.from('app_storage')
+    .select('valor, versao').eq('org_id', ORG).eq('chave', chave).maybeSingle();
+  if (error || !data) { console.log(chave, '→ nao encontrado'); return null; }
+
+  const antes = data.valor.length;
+  let reg;
+  try { reg = JSON.parse(data.valor); } catch { console.log(chave, '→ nao e JSON, pulando'); return null; }
+
+  if (reg.pdfRef?.path) { console.log(chave, '→ ja migrado, pulando'); return null; }
+  if (!reg.pdfBase64) { console.log(chave, '→ sem pdfBase64, pulando'); return null; }
+
+  if (simulando) {
+    const est = antes - reg.pdfBase64.length + 160; // ~tamanho da ref
+    console.log(`${chave} → 1 PDF | ${(antes/1024).toFixed(0)} KB → ~${(est/1024).toFixed(1)} KB (simulacao)`);
+    return { antes, depois: est, fotos: 1 };
+  }
+
+  const ref = await subirEConfirmar(reg.pdfBase64, 'certificados');
+  if (!ref) { console.log(chave, '→ upload/confirmacao falhou, registro intacto'); return null; }
+
+  const novo = JSON.stringify({ ...reg, pdfBase64: '', pdfRef: ref, temPdf: true, pdfBytes: reg.pdfBase64.length });
+  const r = await sb.rpc('aplicar_mutacao_storage', {
+    p_op: 'set', p_mutation_id: crypto.randomUUID(), p_chave: chave, p_valor: novo,
+    p_versao_esperada: data.versao, p_dispositivo: 'migracao-certificados', p_mutado_em: new Date().toISOString(),
+  });
+  const st = r.data?.status;
+  if (st !== 'aplicado' && st !== 'repetido') {
+    console.log(`${chave} → RECUSADO (${st ?? r.error?.message}) — registro intacto, arquivo ficou no bucket`);
+    return null;
+  }
+  console.log(`${chave} → 1 PDF | ${(antes/1024).toFixed(0)} KB → ${(novo.length/1024).toFixed(1)} KB`);
+  return { antes, depois: novo.length, fotos: 1 };
+}
+
 async function migrarChave(chave, escopo) {
   const { data, error } = await sb.from('app_storage')
     .select('valor, versao').eq('org_id', ORG).eq('chave', chave).maybeSingle();
@@ -146,6 +200,7 @@ async function migrarChave(chave, escopo) {
 // ── execução ────────────────────────────────────────────────────────────────
 let prefixo = 'nr13_fotos_';
 if (acao === 'migrar-docs') prefixo = 'nr13_docs_';
+if (modoCertificados) prefixo = 'nr13_rastreab_';
 
 let chaves = [];
 if (alvo) {
@@ -153,16 +208,22 @@ if (alvo) {
 } else {
   const { data } = await sb.from('app_storage').select('chave, valor')
     .eq('org_id', ORG).like('chave', `${prefixo}%`).is('deletado_em', null);
-  chaves = (data ?? []).filter((d) => (d.valor ?? '').includes('data:image')).map((d) => d.chave);
+  // Certificado guarda PDF (`data:application/pdf`), não imagem — o filtro de
+  // `data:image` do caminho das fotos descartaria todos eles.
+  chaves = (data ?? [])
+    .filter((d) => (d.valor ?? '').includes(modoCertificados ? '"pdfBase64":"data:' : 'data:image'))
+    .map((d) => d.chave);
 }
 
 console.log(`acao=${acao} | ${chaves.length} chaves\n`);
 let antes = 0, depois = 0, fotos = 0;
 for (const chave of chaves) {
-  const escopo = chave.slice(prefixo.length);
-  const r = await migrarChave(chave, escopo);
+  const r = modoCertificados
+    ? await migrarCertificado(chave)
+    : await migrarChave(chave, chave.slice(prefixo.length));
   if (r) { antes += r.antes; depois += r.depois; fotos += r.fotos; }
 }
 console.log('');
-console.log(`TOTAL: ${fotos} fotos | ${(antes/1024/1024).toFixed(2)} MB → ${(depois/1024).toFixed(0)} KB`);
+const unidade = modoCertificados ? 'PDFs' : 'fotos';
+console.log(`TOTAL: ${fotos} ${unidade} | ${(antes/1024/1024).toFixed(2)} MB → ${(depois/1024).toFixed(0)} KB`);
 await sb.auth.signOut({ scope: 'local' });

@@ -99,24 +99,48 @@ export async function salvarFoto(
   escopo: string,
   opcoes: { larguraMax?: number; qualidade?: number } = {},
 ): Promise<RefFoto> {
-  const org = await orgAtual();
-  if (!org) throw new Error('sem organização ativa: entre novamente para anexar fotos');
-
   const blob = await comprimirParaBlob(file, opcoes.larguraMax ?? 1200, opcoes.qualidade ?? 0.7);
-  const path = montarPath(org, escopo);
-  const ref: RefFoto = { bucket: BUCKET, path, mimeType: 'image/jpeg', tamanho: blob.size };
+  return salvarArquivo(blob, escopo, 'jpg', 'image/jpeg');
+}
+
+/**
+ * Sobe um arquivo QUALQUER pelo mesmo caminho da foto — mesma pasta por
+ * organização, mesmo cofre local, mesma fila de reenvio.
+ *
+ * Existe porque o certificado PDF de rastreabilidade tinha exatamente o
+ * problema que as fotos tinham: `pdfBase64` ia inteiro para o `app_storage` e
+ * era rebaixado a cada hidratação (5.451 KB e 1.941 KB em dois registros da
+ * conta `gabriel.dadona`, medidos em 11/08/2026). Reaproveitar esta fila, em vez
+ * de escrever uma segunda, dá ao PDF de graça o que a foto já tem: gravação
+ * offline, retomada automática ao voltar a rede e contagem na tela de
+ * pendências.
+ *
+ * O blob vai para o cofre local ANTES da tentativa de upload: se a rede cair no
+ * meio, o arquivo está preservado e a pendência é retomada sozinha.
+ */
+export async function salvarArquivo(
+  blob: Blob,
+  escopo: string,
+  ext: string,
+  mimeType: string,
+): Promise<RefFoto> {
+  const org = await orgAtual();
+  if (!org) throw new Error('sem organização ativa: entre novamente para anexar arquivos');
+
+  const path = montarPath(org, escopo, ext);
+  const ref: RefFoto = { bucket: BUCKET, path, mimeType, tamanho: blob.size };
 
   await cofre.guardar({
     path,
     blob,
-    mimeType: 'image/jpeg',
+    mimeType,
     pendente: true,
     criadoEm: new Date().toISOString(),
     tentativas: 0,
   });
 
   // Tenta subir na hora. Falhar aqui é normal (campo sem sinal) e não é erro
-  // para o usuário: a foto já está salva e a fila cuida do resto.
+  // para o usuário: o arquivo já está salvo e a fila cuida do resto.
   await enviarPendente(path).catch(() => {});
   return ref;
 }
