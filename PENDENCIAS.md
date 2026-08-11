@@ -65,12 +65,6 @@
       essa fila sozinho), mas fica sem sincronizar até recarregar a página — e é por isso que
       NÃO se pede para o usuário limpar cache/navegador nessa situação.
 
-- [ ] **Ligar a v2 nas demais contas acima da cota** (`teste@gmail.com`,
-      `gabriel.dadona@gmail.com`, `liperoneads@gmail.com`) com `definir_v2_org(<org>, true)`.
-      `cmam.caldeiras@gmail.com` já está ligada e validada em 10/08/2026 (38 equipamentos na
-      tela, criação/edição/exclusão indo ao banco, ciclo offline→online drenando, conflito de
-      versão preservando as duas versões).
-
 - [ ] **Descartar pendência definitivamente falha.** `/pendencias` só oferece "Tentar de novo";
       um item recusado com `versao_obsoleta` (chave excluída no servidor por outro aparelho)
       nunca vai ser aceito e fica para sempre exibindo "1 falha". Falta a ação de descartar,
@@ -86,5 +80,24 @@
 
 **Já aplicado em produção em 05/08/2026:** `supabase/armazenamento_v2.sql` (colunas,
 `app_storage_excluidos`, `app_storage_mutacoes`, `org_sync`, RPC, trigger de guarda,
-coleta e reconciliação). Backup em `app_storage_bkp_20260805`. `v2_ativa` **desligada
-em todas as organizações** — comportamento idêntico ao anterior.
+coleta e reconciliação). Backup em `app_storage_bkp_20260805`.
+
+**v2 LIGADA PARA AS 27 ORGANIZAÇÕES em 10/08/2026**, depois do deploy do `52e0621` e da
+validação em produção com a conta `cmam.caldeiras` (equipamentos na tela, gravação no
+banco, ciclo offline→online, conflito de versão, sessão única, login sem erro).
+
+O levantamento que motivou ligar tudo de uma vez — e que vale repetir de tempos em tempos,
+porque é ele que revela quem está prestes a quebrar:
+
+| conta | equipamentos | KB |
+|---|---|---|
+| teste@gmail.com | 12 | 14.118 |
+| cmam.caldeiras@gmail.com | 38 | 8.096 |
+| gabriel.dadona@gmail.com | 3 | 6.768 |
+| engyuricesar@gmail.com | 1 | 6.481 |
+| liperoneads@gmail.com | 2 | 5.064 |
+| demais 7 contas com dado | 2–4 | ≤ 455 |
+
+As três do meio estavam na v1 acima da cota do `localStorage`, ou seja, no mesmo estado do
+`cmam` — e ninguém tinha reportado. **O peso não vem da quantidade de equipamentos e sim
+das fotos e PDFs:** `engyuricesar` estourava 6,4 MB com UM equipamento cadastrado.
