@@ -8,6 +8,82 @@
 
 ---
 
+## 0. PRÓXIMOS PASSOS COMBINADOS (sessão de 10-11/08/2026)
+
+O que ficou em aberto depois de resolver o sumiço de equipamentos, o login e o peso do
+banco. Em ordem de urgência.
+
+### 0.1 — Decisão da cota do Supabase (TEM PRAZO: 16/08/2026)
+
+- [ ] **Decidir entre pagar ~US$ 25 por um mês ou arriscar a restrição.**
+
+  Estado em 11/08: egress em **6,3 GB contra 5 GB** do plano Free, ciclo de 20/jul a
+  20/ago, restrição marcada para **16/08**. Depois dela as requisições ao projeto
+  respondem **402** e o app sai do ar para os 27 clientes — inclusive o `cmam`.
+
+  O ponto que decide: **o contador é acumulativo e só zera em 20/08.** As correções desta
+  sessão (hidratação incremental + fotos no bucket) resolvem o consumo FUTURO — a partir do
+  ciclo de 20/08 o Free deve sobrar com folga —, mas não desfazem o que já foi gasto. Ou
+  seja, no dia 16 a organização ainda estará acima da cota, faça-se o que fizer.
+
+  Caminhos: pagar um mês e voltar ao Free depois (o Supabase permite), ou aceitar a janela
+  de 4 dias (16→20/08) com o app possivelmente fora do ar.
+
+### 0.2 — Migrar as fotos legadas das duas contas pagantes pesadas
+
+- [ ] **`gabriel.dadona@gmail.com` (~6,7 MB) e `engyuricesar@gmail.com` (~6,5 MB).**
+
+  Mesmo caso do `cmam`, que saiu de 8,00 MB para 3,06 MB. Ferramenta pronta e já validada
+  de ponta a ponta: `scripts/migrar-fotos-legadas.mjs`.
+
+      MIGRAR_EMAIL=... MIGRAR_SENHA=... node scripts/migrar-fotos-legadas.mjs simular
+      # depois de conferir o ganho:
+      MIGRAR_EMAIL=... MIGRAR_SENHA=... node scripts/migrar-fotos-legadas.mjs migrar-todas
+      MIGRAR_EMAIL=... MIGRAR_SENHA=... node scripts/migrar-fotos-legadas.mjs migrar-docs
+
+  **Bloqueio:** o script entra na conta para migrar, porque a RLS do `app_storage` é por
+  organização — não existe caminho de admin. Precisa da senha de cada uma.
+
+  Roteiro que funcionou no `cmam`, vale repetir: backup → `simular` → migrar UMA TAG →
+  conferir na tela → resto → gerar um relatório e comparar o número de imagens com o de
+  antes.
+
+### 0.3 — Automatizar a purga do trial (hoje é manual e funciona)
+
+- [ ] **Redeploy da Edge Function `purga_trial`** com o código atual do repo. A versão no ar
+      é a antiga, que lia o segredo de `config_global`; responde 500 e não faz nada
+      (fail-closed, seguro). O segredo já está em Edge Functions → Secrets como
+      `PURGA_TRIAL_SEGREDO`.
+
+          supabase functions deploy purga_trial --project-ref qqsesrntfvmdxqxrfvmw
+
+      Teste sem apagar nada (`dry=1` é simulação):
+
+          curl -H "Authorization: Bearer <ANON_KEY>" \
+            "https://qqsesrntfvmdxqxrfvmw.supabase.co/functions/v1/purga_trial?s=<SEGREDO>&dry=1"
+
+- [ ] **Agendar** em Integrations → Cron: `0 4 * * *`, POST na mesma URL **sem** `dry=1`,
+      com o header `Authorization`. Depende de `pg_cron`, que não foi confirmado no Free —
+      se não existir, o Cron nativo do painel resolve.
+
+  Enquanto isso: rodar o bloco 4 do `supabase/purga_trial.sql` de tempos em tempos. Foi
+  assim que as 13 contas foram limpas em 11/08.
+
+### 0.4 — Webhook da Kiwify não está gravando a assinatura
+
+- [ ] **Investigar por que `profiles.kiwify_subscription_id` está NULO em todas as contas** —
+      inclusive no `cmam`, que é cliente real.
+
+  Consequência prática: não existe marcador de cobrança no banco, e "cliente pagante" hoje
+  depende de você lembrar de liberar cada um na mão (`ativo = true` + `plano <> 'trial'` +
+  sem prazo vencido). É esse critério que o painel Admin e a purga usam.
+
+  Resolver isso torna a classificação automática e à prova de esquecimento. Pode ser que a
+  compra não tenha passado pela Kiwify, ou que o parser do webhook não encontre o campo —
+  o payload real dela não é público e o parser lê por tentativa (ver §11 do CLAUDE.md).
+
+---
+
 ## 1. Deploy manual (feito pelo dono do projeto, fora do código)
 
 - [ ] **Rodar `supabase/acesso_setup.sql`** no SQL Editor do Supabase (idempotente; backfill
@@ -55,15 +131,6 @@
       únicos do gate que não se provam no SQL Editor. **Enquanto não ficarem verdes,
       `definir_v2_org(<org>, true)` não pode ser executado para nenhum cliente.**
       Resultados em `docs/superpowers/plans/resultados-rpc-armazenamento-v2.md`.
-
-- [ ] **Purga do trial: automatizar (OPCIONAL).** Hoje é manual e funciona — as funções
-      `trial_candidatos_purga(5)` e `purgar_dados_trial(5)` estão criadas em produção e foram
-      usadas em 11/08/2026 para limpar 13 contas. Para automatizar falta: (1) redeploy da Edge
-      Function `purga_trial` com o código atual do repo (a versão no ar é a antiga, que lia o
-      segredo de `config_global` — responde 500 e não faz nada, fail-closed); (2) agendar em
-      Integrations → Cron. O segredo já está em Edge Functions → Secrets
-      (`PURGA_TRIAL_SEGREDO`). Enquanto não for feito, rodar o bloco 4 do
-      `supabase/purga_trial.sql` de tempos em tempos resolve.
 
 - [ ] **Melhoria cosmética da conferência:** `trial_candidatos_purga` em produção ainda é a
       versão sem `having count(s.chave) > 0`, então relista contas já purgadas com 0 KB. O
