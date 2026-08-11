@@ -11,6 +11,7 @@
  * com folha faltando e ninguém percebe.
  */
 import { chavesDaTag, obterRegistro } from './cacheLocal';
+import { baixarFoto, blobParaDataUrl, ehRef, type RefFoto } from './fotos';
 import { classificar, type ErroSync } from './errosSync';
 import {
   adquirirTrava,
@@ -77,8 +78,22 @@ export interface ItemPalco {
   valor: string;
 }
 
-/** Globais que os templates leem. */
-const GLOBAIS = ['nr13_minha_empresa', 'nr13_lista_phs'];
+/**
+ * Globais que os templates leem.
+ *
+ * `nr13_inspecao_atual` e `nr13_injecao_atual` carregam os dados de campo do
+ * container escolhido (checklists, visual externo/interno, TH, ultrassom) e são
+ * lidas por quase todas as folhas do relatório — em DUAS chaves porque os
+ * templates nunca foram uniformes (ver `gravarInspecaoOrigemAtual`). Sem elas
+ * aqui, na v2 o documento monta com os ensaios em branco: o dado existe no Map,
+ * mas o iframe só enxerga o `localStorage`.
+ */
+const GLOBAIS = [
+  'nr13_minha_empresa',
+  'nr13_lista_phs',
+  'nr13_inspecao_atual',
+  'nr13_injecao_atual',
+];
 
 /**
  * Chaves que NENHUM template HTML lê — confirmado por varredura em `public/`.
@@ -358,9 +373,81 @@ export function coletarItens(tag: string): ItemPalco[] {
 }
 
 /**
- * Fluxo completo: trava → coleta → degrada → orça → materializa.
- * Só devolve `ok: true` depois de TUDO confirmado. Quem chama não pode montar
- * iframe nenhum antes disso.
+ * Traz para dentro do valor a imagem que hoje mora no bucket.
+ *
+ * Os 40+ templates HTML são páginas estáticas que leem `localStorage` de forma
+ * síncrona e renderizam `<img src="...">`. Eles não sabem — e não vão aprender,
+ * porque reescrevê-los é justamente o que o palco existe para evitar — pedir
+ * arquivo ao Storage. Então na montagem do documento, e SÓ nela, a foto volta a
+ * ser dataURL, escrita nos mesmos campos que os templates sempre leram (`src` e
+ * `base64`).
+ *
+ * Isso não desfaz a mudança: o dataURL vive no palco, que é apagado ao fechar o
+ * documento, e nunca volta para o `app_storage`. O banco continua guardando só
+ * o caminho.
+ */
+export async function hidratarFotosDoBucket(itens: ItemPalco[]): Promise<ItemPalco[]> {
+  const jaBaixadas = new Map<string, string | null>();
+
+  async function dataUrlDe(ref: RefFoto): Promise<string | null> {
+    const emCache = jaBaixadas.get(ref.path);
+    if (emCache !== undefined) return emCache;
+    let url: string | null;
+    try {
+      const blob = await baixarFoto(ref);
+      url = blob ? await blobParaDataUrl(blob) : null;
+    } catch {
+      url = null; // foto indisponível não pode derrubar o documento inteiro
+    }
+    jaBaixadas.set(ref.path, url);
+    return url;
+  }
+
+  async function percorrer(no: unknown): Promise<boolean> {
+    if (Array.isArray(no)) {
+      let mudou = false;
+      for (const filho of no) if (await percorrer(filho)) mudou = true;
+      return mudou;
+    }
+    if (typeof no !== 'object' || no === null) return false;
+
+    const obj = no as Record<string, unknown>;
+    let mudou = false;
+    if (ehRef(obj.ref)) {
+      const url = await dataUrlDe(obj.ref as RefFoto);
+      if (url) {
+        obj.src = url;
+        obj.base64 = url;
+        mudou = true;
+      }
+    }
+    for (const valor of Object.values(obj)) if (await percorrer(valor)) mudou = true;
+    return mudou;
+  }
+
+  const saida: ItemPalco[] = [];
+  for (const item of itens) {
+    // Atalho barato: sem a palavra "ref" no texto não há o que hidratar, e a
+    // maioria das chaves (memorial, categoria, livro) cai aqui sem custo.
+    if (!item.valor.includes('"ref"')) {
+      saida.push(item);
+      continue;
+    }
+    try {
+      const obj: unknown = JSON.parse(item.valor);
+      const mudou = await percorrer(obj);
+      saida.push(mudou ? { chave: item.chave, valor: JSON.stringify(obj) } : item);
+    } catch {
+      saida.push(item); // valor não-JSON: segue intacto
+    }
+  }
+  return saida;
+}
+
+/**
+ * Fluxo completo: trava → coleta → hidrata as fotos → degrada → orça →
+ * materializa. Só devolve `ok: true` depois de TUDO confirmado. Quem chama não
+ * pode montar iframe nenhum antes disso.
  */
 export async function montarPalcoDaTag(
   ctx: ContextoMontagem,
@@ -370,7 +457,10 @@ export async function montarPalcoDaTag(
   const trava = await adquirirTrava(ctx, opcoes);
   if (!trava.obtida) return { ok: false, falha: { tipo: 'ocupado', dono: trava.dono } };
 
-  const brutos = coletarItens(ctx.tag);
+  // A hidratação vem ANTES da degradação de propósito: é ela que devolve os
+  // bytes da imagem, e é sobre esses bytes que o orçamento de 3.400 KB decide
+  // se precisa recomprimir.
+  const brutos = await hidratarFotosDoBucket(coletarItens(ctx.tag));
   const degradado = await degradarAteCaber(brutos, foto);
   if (!degradado.cabe) {
     liberarTrava(ctx);

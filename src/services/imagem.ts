@@ -1,4 +1,42 @@
-// Comprime imagem pro tamanho web antes de gravar como base64 (galeria de fotos, fotos de formulários de campo).
+/**
+ * Redimensiona e comprime para JPEG devolvendo BLOB.
+ *
+ * É a função que as fotos de equipamento e de inspeção usam desde 10/08/2026.
+ * `canvas.toBlob` em vez de `toDataURL` de propósito: o dataURL é a string
+ * base64 que saiu do banco nessa mudança, e ela custa ~33% a mais de bytes que
+ * o arquivo binário equivalente.
+ */
+export function comprimirParaBlob(file: File, larguraMax = 1200, qualidade = 0.7): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const escala = Math.min(1, larguraMax / img.width);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(img.width * escala));
+      canvas.height = Math.max(1, Math.round(img.height * escala));
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return reject(new Error('canvas indisponível'));
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(
+        (blob) => (blob ? resolve(blob) : reject(new Error('falha ao comprimir a imagem'))),
+        'image/jpeg',
+        qualidade,
+      );
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('arquivo não é uma imagem válida'));
+    };
+    img.src = url;
+  });
+}
+
+// Comprime imagem pro tamanho web como base64. Restou para a LOGO da empresa e a
+// ASSINATURA dos funcionários: os templates HTML leem essas duas direto do
+// localStorage e são pequenas (300–400px, poucos KB), então não justificam ida
+// ao bucket. Fotos de equipamento e de inspeção usam comprimirParaBlob acima.
 export function comprimirImagem(file: File, larguraMax = 500): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();

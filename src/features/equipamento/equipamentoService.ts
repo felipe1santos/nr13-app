@@ -36,7 +36,7 @@ function montarResumo(tag: string): EquipamentoResumo | null {
     info,
     categoria,
     calculo,
-    fotoCapa: capa ? capa.src : null,
+    fotoCapa: capa ? { ref: capa.ref, base64: capa.src } : null,
     unidade: unidade as EquipamentoResumo['unidade'],
   };
 }

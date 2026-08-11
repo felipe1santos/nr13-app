@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { comprimirImagem } from '../../../services/imagem';
 import { carregarDadosFormulario, salvarDadosFormulario } from '../inspecaoService';
 import { useAutosaveFormulario } from '../useAutosaveFormulario';
 import RespostaSegmentada from './RespostaSegmentada';
 import { mesclarPreenchimento, prefillVisual } from './autoPreencher';
 import ResultadoEnsaio, { type ResultadoEnsaioValor } from './ResultadoEnsaio';
+import { salvarFoto, type RefFoto } from '../../../services/fotos';
+import FotoImg from '../../../components/FotoImg';
 
 const ESTILO_DICA = { fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 } as const;
 const DICA_AUTO = 'Campos preenchidos automaticamente a partir do cadastro; edite se necessário.';
@@ -40,7 +41,7 @@ interface DadosVisual {
   observacoes: string;
   conclusao: string;
   resultado: ResultadoEnsaioValor;
-  fotos: { base64: string; descricao: string }[];
+  fotos: { base64?: string; ref?: RefFoto; descricao: string }[];
 }
 
 function dadosPadrao(): DadosVisual {
@@ -93,8 +94,8 @@ export default function FormularioVisualExterno({ tag, containerId }: { tag: str
     const arquivo = e.target.files?.[0];
     e.target.value = '';
     if (!arquivo) return;
-    const base64 = await comprimirImagem(arquivo, 800);
-    setDados((d) => ({ ...d, fotos: [...d.fotos, { base64, descricao: '' }] }));
+    const ref = await salvarFoto(arquivo, `${tag}/visual-externo`);
+    setDados((d) => ({ ...d, fotos: [...d.fotos, { ref, descricao: '' }] }));
   }
 
   function setDescricaoFoto(i: number, desc: string) {
@@ -216,7 +217,7 @@ export default function FormularioVisualExterno({ tag, containerId }: { tag: str
         <div className="fotos-formulario-grid">
           {dados.fotos.map((f, i) => (
             <div key={i} className="foto-formulario-item">
-              <img src={f.base64} alt={`Foto ${i + 1}`} />
+              <FotoImg foto={f} alt={`Foto ${i + 1}`} />
               <input
                 type="text"
                 placeholder={`Legenda — Foto ${i + 1}`}

@@ -9,6 +9,7 @@ import { ENSAIOS_DISPONIVEIS, type ContainerInspecao, type TipoEnsaio } from '..
 import '../features/inspecoes/visualizador.css';
 import '../pages/relatorios.css';
 import './inspecoes.css';
+import FotoImg from '../components/FotoImg';
 
 const ROTULO_TIPO: Record<string, string> = {
   vaso: 'Vaso de Pressão',
@@ -145,7 +146,7 @@ export default function Inspecoes() {
                 >
                   <div className="card-eq-img">
                     {eq.fotoCapa ? (
-                      <img src={eq.fotoCapa} alt={eq.tag} />
+                      <FotoImg foto={eq.fotoCapa} alt={eq.tag} />
                     ) : (
                       <span className="card-eq-img-vazio">{eq.tag.slice(0, 2)}</span>
                     )}

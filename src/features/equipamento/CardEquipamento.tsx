@@ -7,6 +7,7 @@ import { salvarUnidade } from './equipamentoService';
 import { ler } from '../../services/storage';
 import { Icone } from '../../components/Icone';
 import './equipamento.css';
+import FotoImg from '../../components/FotoImg';
 
 const ROTULO_TIPO: Record<string, string> = {
   vaso: 'Vaso de Pressão',
@@ -62,7 +63,7 @@ export default function CardEquipamento({ item }: { item: EquipamentoResumo }) {
       <div className="plate-photo">
         <span className="plate-tag-chip">{tag}</span>
         {fotoCapa ? (
-          <img src={fotoCapa} alt={`Foto do equipamento ${tag}`} />
+          <FotoImg foto={fotoCapa} alt={`Foto do equipamento ${tag}`} />
         ) : (
           <span className="plate-photo-empty">Sem foto</span>
         )}

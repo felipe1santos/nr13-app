@@ -30,6 +30,7 @@ import { documentosBloqueados } from '../services/trial';
 import '../pages/relatorios.css';
 import './calibracoes.css';
 import PaginaA4 from '../components/PaginaA4';
+import FotoImg from '../components/FotoImg';
 
 type Tela = 'equipamentos' | 'historico' | 'formulario' | 'visualizador' | 'verDados';
 
@@ -457,7 +458,7 @@ export default function Calibracoes() {
                 </button>
                 <div className="cal-eq-foto">
                   {eqAtual?.fotoCapa ? (
-                    <img src={eqAtual.fotoCapa} alt={`Foto de ${tag}`} />
+                    <FotoImg foto={eqAtual.fotoCapa} alt={`Foto de ${tag}`} />
                   ) : (
                     <Icone nome="cylinder" tam={34} />
                   )}

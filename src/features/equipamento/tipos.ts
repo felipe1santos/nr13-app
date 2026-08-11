@@ -1,4 +1,5 @@
 import type { SistemaUnidade } from '../../calc/unidades';
+import type { FotoArmazenada, RefFoto } from '../../services/fotos';
 
 export type TipoEquipamento = 'vaso' | 'autoclave' | 'caldeira';
 export type SubtipoAutoclave = 'retangular' | 'cilindrica' | 'vertical';
@@ -58,7 +59,14 @@ export interface CalculoSalvo {
 // nr13_fotos_<TAG>
 export interface FotoEquipamento {
   id: number;
+  /**
+   * LEGADO: base64 das fotos gravadas antes de 10/08/2026. Fotos novas nascem
+   * com `src: ''` e a imagem no bucket — ver `ref`. O campo continua existindo
+   * porque as fotos antigas não foram migradas e precisam seguir aparecendo.
+   */
   src: string;
+  /** Referência no Storage (bucket + path). Ausente nas fotos legadas. */
+  ref?: RefFoto;
   isCapa: boolean;
 }
 
@@ -85,6 +93,7 @@ export interface EquipamentoResumo {
   info: InfoEquipamento;
   categoria: CategoriaSalva | null;
   calculo: CalculoSalvo | null;
-  fotoCapa: string | null;
+  /** Capa: referência no bucket e/ou base64 legado. Resolvida na exibição. */
+  fotoCapa: FotoArmazenada | null;
   unidade: SistemaUnidade;
 }

@@ -1,8 +1,9 @@
 import { useRef, useState } from 'react';
-import { comprimirImagem } from '../../../services/imagem';
 import { carregarDadosFormulario, salvarDadosFormulario } from '../inspecaoService';
 import { useAutosaveFormulario } from '../useAutosaveFormulario';
 import RespostaSegmentada from './RespostaSegmentada';
+import { salvarFoto, type RefFoto } from '../../../services/fotos';
+import FotoImg from '../../../components/FotoImg';
 
 const OPCOES_EXISTE = ['Existe', 'Não identificado', 'Não aplica'];
 const OPCOES_SIM_NAO = ['Sim', 'Não'];
@@ -125,7 +126,9 @@ const INSTRUMENTOS = [
   { id: 'inst-trans', calId: 'inst-trans-cal', nome: 'Transmissor de pressão' },
 ];
 
-type Foto = { base64: string; descricao: string };
+// `base64` só sobrevive para as fotos gravadas antes de 10/08/2026; as novas
+// carregam `ref` e a imagem mora no bucket (ver services/fotos.ts).
+type Foto = { base64?: string; ref?: RefFoto; descricao: string };
 
 interface DadosChecklist {
   dataInspecao: string;
@@ -242,8 +245,8 @@ export default function FormularioChecklist({ tag, containerId }: { tag: string;
     const arquivo = e.target.files?.[0];
     e.target.value = '';
     if (!arquivo) return;
-    const base64 = await comprimirImagem(arquivo, 800);
-    setDados((d) => ({ ...d, [campo]: [...d[campo], { base64, descricao: '' }] }));
+    const ref = await salvarFoto(arquivo, `${tag}/checklist`);
+    setDados((d) => ({ ...d, [campo]: [...d[campo], { ref, descricao: '' }] }));
   }
 
   function setDescricaoFoto(campo: CampoFoto, idx: number, desc: string) {
@@ -369,7 +372,7 @@ export default function FormularioChecklist({ tag, containerId }: { tag: string;
         <div className="fotos-formulario-grid">
           {dados.fotosDocumentacao.map((foto, idx) => (
             <div key={idx} className="foto-formulario-item">
-              <img src={foto.base64} alt={`Foto documentação ${idx + 1}`} />
+              <FotoImg foto={foto} alt={`Foto documentação ${idx + 1}`} />
               <input
                 type="text"
                 value={foto.descricao}
@@ -397,7 +400,7 @@ export default function FormularioChecklist({ tag, containerId }: { tag: string;
         <div className="fotos-formulario-grid">
           {dados.fotos.map((foto, idx) => (
             <div key={idx} className="foto-formulario-item">
-              <img src={foto.base64} alt={`Foto ${idx + 1}`} />
+              <FotoImg foto={foto} alt={`Foto ${idx + 1}`} />
               <input
                 type="text"
                 value={foto.descricao}

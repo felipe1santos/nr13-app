@@ -17,6 +17,7 @@ import type { SistemaUnidade } from '../calc/unidades';
 import MemorialLog from '../features/memorial/MemorialLog';
 import { Icone } from '../components/Icone';
 import './equipamento-page.css';
+import FotoImg from '../components/FotoImg';
 
 const ROTULO_TIPO: Record<string, string> = {
   vaso: 'Vaso de Pressão',
@@ -160,7 +161,7 @@ function EquipamentoView({ tag }: { tag: string }) {
 
         <div className="equipamento-foto-principal">
           {fotoCapa ? (
-            <img src={fotoCapa.src} alt={`Foto de ${tag}`} />
+            <FotoImg foto={{ ref: fotoCapa.ref, base64: fotoCapa.src }} alt={`Foto de ${tag}`} />
           ) : (
             <div className="equipamento-foto-vazia">Sem Foto</div>
           )}
