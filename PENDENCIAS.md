@@ -91,7 +91,12 @@ banco. Em ordem de urgência.
 
 ### 0.25 — Três buracos de armazenamento ainda abertos (detalhe em `docs/ARMAZENAMENTO-LIMITES.md`)
 
-- [ ] **Degradação do palco só enxerga `nr13_fotos_`.** As fotos de campo chegam por
+- [ ] **RISCO Nº 1 — Degradação do palco só enxerga `nr13_fotos_`.** Medido em produção
+      DEPOIS da migração: o palco do relatório do gabriel foi de 1.449 para **2.780 KB**
+      contra 3.368 — 83% do orçamento, sem foto nova nenhuma. Migrar para o bucket alivia o
+      banco e APERTA o palco, porque `hidratarFotosDoBucket` grava a imagem em `src` E
+      `base64` (obrigatório: CAPA lê um, as folhas de fotos leem o outro, e foto nova chega
+      só com `ref` — ver `palco.fotos.test.ts`, que existe para impedir a "otimização"). As fotos de campo chegam por
       `nr13_inspecao_atual`/`nr13_injecao_atual` (640 KB cada, duplicação obrigatória) e
       NUNCA são recomprimidas. Quando o documento não couber, o sistema recomprime 184 KB
       e ignora 1280 KB. Fix: tornar `recompressorFoto.ts` recursivo sobre `src`/`base64`

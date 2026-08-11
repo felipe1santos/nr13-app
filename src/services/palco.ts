@@ -430,6 +430,21 @@ export async function hidratarFotosDoBucket(itens: ItemPalco[]): Promise<ItemPal
     if (ehRef(obj.ref)) {
       const url = await dataUrlDe(obj.ref as RefFoto);
       if (url) {
+        // OS DOIS CAMPOS, e isso CUSTA CARO: a mesma imagem é gravada duas
+        // vezes dentro do orçamento de 3.368 KB. Medido em produção em
+        // 11/08/2026, o palco do relatório da conta gabriel.dadona foi de
+        // 1.449 KB para 2.780 KB logo depois da migração das fotos para o
+        // bucket — sem que uma única foto nova tivesse sido tirada.
+        //
+        // Mesmo assim é obrigatório: CAPA.html lê `.src`, as folhas de fotos
+        // leem `.base64`, e uma foto nova chega ao palco só com `ref`, sem
+        // nenhum dos dois declarado. Não há como saber qual campo o template
+        // daquela folha vai consultar. Preencher um só deixa folha em branco —
+        // pior que gastar orçamento (ver `palco.fotos.test.ts`).
+        //
+        // A saída certa para o custo NÃO é aqui: é fazer a degradação alcançar
+        // `nr13_inspecao_atual`/`nr13_injecao_atual`, hoje limitada a
+        // `nr13_fotos_` (ver docs/ARMAZENAMENTO-LIMITES.md §3.1).
         obj.src = url;
         obj.base64 = url;
         mudou = true;

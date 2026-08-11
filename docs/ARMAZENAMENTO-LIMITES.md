@@ -54,7 +54,22 @@ espera do deploy do código que a lê pelo bucket.
 
 ## 3. O que falta implementar — em ordem de risco
 
-### 3.1 A degradação do palco só enxerga `nr13_fotos_`
+### 3.1 A degradação do palco só enxerga `nr13_fotos_` — AGORA É O RISCO Nº 1
+
+> **MEDIDO DEPOIS DA MIGRAÇÃO, em produção, 11/08/2026:** o palco do relatório da AUTOCLAVE
+> ESTERILAV foi de **1.449 KB para 2.780 KB** contra o limite de 3.368 — **83% do orçamento**,
+> sem que uma única foto nova tivesse sido tirada.
+>
+> A causa é `hidratarFotosDoBucket`, que grava a imagem em **`src` E `base64`**, duplicando
+> cada foto no palco. Isso é obrigatório e não deve ser "otimizado": `CAPA.html` lê `.src`, as
+> folhas de fotos leem `.base64`, e uma foto nova chega só com `ref`, sem nenhum dos dois
+> declarado — não há como saber qual campo aquele template vai consultar, e preencher um só
+> deixa folha em branco. Tentar cortar isso quebra `palco.fotos.test.ts`, que existe
+> exatamente para impedir a tentação.
+>
+> Ou seja: migrar para o bucket **alivia o banco e o egress, mas APERTA o palco**. Com 17% de
+> folga, a próxima inspeção com mais fotos volta a ser recusada — e agora a degradação é a
+> única saída possível.
 
 **O problema.** `degradarAteCaber` (`palco.ts`) só recomprime chave que passa em
 `ehChaveDeFoto()`, que é `startsWith('nr13_fotos_')`. As fotos de campo chegam ao palco por
