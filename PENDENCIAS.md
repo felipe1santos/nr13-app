@@ -53,10 +53,14 @@ banco. Em ordem de urgência.
 
 ### 0.2 — Migrar as fotos legadas das contas pagantes pesadas
 
-> **`gabriel.dadona` FEITO em 11/08/2026: 6.542 KB → 1.377 KB (−79%).** Migrado pelo
+> **`gabriel.dadona` CONCLUÍDO em 11/08/2026: 6.542 KB → 120 KB (−98%).** Migrado pelo
 > NAVEGADOR, com a sessão do próprio usuário logado (fetch na REST + Storage + a RPC
 > `aplicar_mutacao_storage`), o que dispensa a senha que o script de linha de comando exige.
-> Falta só `componentes_cal` (1259 KB), que depende do deploy do código novo.
+> Fotos de capa, containers de inspeção, os 2 certificados (3.695 KB) e as 8 fotos de
+> componente (1.259 KB) estão no bucket, validados em tela. Sobrou só logo e assinaturas.
+>
+> **Falta `engyuricesar@gmail.com` (~6,5 MB)** — mesmo roteiro. Pelo navegador dispensa senha:
+> basta o dono da conta logar e me deixar a aba aberta.
 
 - [ ] **`gabriel.dadona@gmail.com` (~6,7 MB) e `engyuricesar@gmail.com` (~6,5 MB).**
 
@@ -91,23 +95,16 @@ banco. Em ordem de urgência.
 
 ### 0.25 — Três buracos de armazenamento ainda abertos (detalhe em `docs/ARMAZENAMENTO-LIMITES.md`)
 
-- [ ] **RISCO Nº 1 — Degradação do palco só enxerga `nr13_fotos_`.** Medido em produção
-      DEPOIS da migração: o palco do relatório do gabriel foi de 1.449 para **2.780 KB**
-      contra 3.368 — 83% do orçamento, sem foto nova nenhuma. Migrar para o bucket alivia o
-      banco e APERTA o palco, porque `hidratarFotosDoBucket` grava a imagem em `src` E
-      `base64` (obrigatório: CAPA lê um, as folhas de fotos leem o outro, e foto nova chega
-      só com `ref` — ver `palco.fotos.test.ts`, que existe para impedir a "otimização"). As fotos de campo chegam por
-      `nr13_inspecao_atual`/`nr13_injecao_atual` (640 KB cada, duplicação obrigatória) e
-      NUNCA são recomprimidas. Quando o documento não couber, o sistema recomprime 184 KB
-      e ignora 1280 KB. Fix: tornar `recompressorFoto.ts` recursivo sobre `src`/`base64`
-      (o caminhador já existe em `hidratarFotosDoBucket`) e somar as duas chaves em
-      `ehChaveDeFoto`. **Migrar as fotos para o bucket NÃO resolve isto** — a hidratação
-      re-infla a imagem no palco na hora de montar o documento.
-
-- [ ] **Deploy + migração do `componentes_cal` e do `pront_fab`.** O código dos dois ficou
-      pronto em 11/08 (`fotoRef` e `pdfRef`). **NESTA ORDEM, sem inverter:** deploy primeiro,
-      migração depois — bundle que não sabe ler a referência mostra o campo vazio e o usuário
-      conclui que a foto sumiu. Na conta do gabriel restam 1259 KB em `componentes_cal`.
+- [ ] **DEPLOY da degradação que alcança as fotos de campo (era o risco nº 1).** Corrigido no
+      código em 11/08 e ainda não no ar. Medido em produção DEPOIS da migração: o palco do
+      relatório do gabriel foi de 1.449 para **2.780 KB** contra 3.368 — 83% do orçamento,
+      sem foto nova nenhuma. Migrar para o bucket alivia o banco e APERTA o palco, porque
+      `hidratarFotosDoBucket` grava a imagem em `src` E `base64` (obrigatório: CAPA lê um, as
+      folhas de fotos leem o outro, e foto nova chega só com `ref` — ver `palco.fotos.test.ts`,
+      que existe para impedir a "otimização"). Antes do fix, no aperto o sistema recomprimia
+      ~1 KB de capa e ignorava ~2,7 MB de fotos de inspeção. **Validar em tela depois do
+      deploy:** gerar um relatório com muitas fotos e conferir que ele CABE em vez de ser
+      recusado.
 
 - [ ] **Conferir o Portal do Cliente depois do deploy.** O portal passou a resolver refs
       (`FotoImg`), mas a policy `inspecao_leitura` compara a pasta com `org_atual()` — falta

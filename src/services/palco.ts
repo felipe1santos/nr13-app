@@ -66,8 +66,25 @@ export interface AdaptadorFoto {
   maiorFoto(valor: string): number;
 }
 
+/**
+ * Chaves que a degradação pode recomprimir.
+ *
+ * `nr13_fotos_` é a foto de capa — alguns KB. O peso de verdade está nas fotos
+ * de CAMPO, que chegam ao palco dentro de `nr13_inspecao_atual` e
+ * `nr13_injecao_atual` (checklists, visual externo/interno, TH, ultrassom), em
+ * DUAS chaves porque os templates nunca foram uniformes (§2 do CLAUDE.md).
+ *
+ * Enquanto só `nr13_fotos_` entrava aqui, a degradação era decorativa: medido
+ * na conta gabriel.dadona em 11/08/2026, com o palco em 2.780 KB de 3.368, ela
+ * recomprimia ~1 KB de capa e ignorava ~2,7 MB de fotos de inspeção.
+ *
+ * NÃO acrescente chave de dado estruturado: recomprimir o JSON do memorial não
+ * economizaria nada e corromperia o documento.
+ */
+const CHAVES_DEGRADAVEIS = ['nr13_fotos_', 'nr13_inspecao_atual', 'nr13_injecao_atual'];
+
 export function ehChaveDeFoto(chave: string): boolean {
-  return chave.startsWith('nr13_fotos_');
+  return CHAVES_DEGRADAVEIS.some((p) => chave.startsWith(p));
 }
 
 // ---------------------------------------------------------------------------

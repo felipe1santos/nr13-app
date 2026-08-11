@@ -31,13 +31,13 @@ justamente o que o palco existe para evitar.
 Peso medido na conta `gabriel.dadona` (org `92a28bff…`), 11/08/2026.
 
 **Resultado da migração de 11/08/2026 na conta `gabriel.dadona`: `app_storage` foi de 6.542 KB
-para 1.377 KB — queda de 79%.** O que sobrou de peso é uma chave só (`componentes_cal`), à
-espera do deploy do código que a lê pelo bucket.
+para 120 KB — queda de 98%.** Todo arquivo passou para o bucket; o que restou é logo da
+empresa e imagens de assinatura, 6 a 14 KB cada.
 
 | Chave | Antes | Depois | Onde o arquivo mora | No palco? | Situação |
 |---|---|---|---|---|---|
 | `nr13_rastreab_<id>` | 2725 + 970 KB | ~0 | **bucket** | não (escopo id) | ✅ código + legado migrado |
-| `nr13_componentes_cal_<TAG>` | 1259 KB | 1259 KB | base64 | **não** (desde 11/08) | 🔸 código pronto, falta deploy + migrar |
+| `nr13_componentes_cal_<TAG>` | 1259 KB | **2 KB** | **bucket** | **não** (desde 11/08) | ✅ código + legado migrado |
 | `nr13_docs_<TAG>` | 751 KB | ~6 KB | **bucket** | não | ✅ migrado |
 | `nr13_inspecao_atual` / `injecao_atual` | 640 KB | ~0 | **bucket** | **sim** | ✅ migrado — mas ver 3.1 |
 | `nr13_fotos_<TAG>` | 92 KB | ~1 KB | **bucket** | sim | ✅ migrado |
@@ -54,7 +54,17 @@ espera do deploy do código que a lê pelo bucket.
 
 ## 3. O que falta implementar — em ordem de risco
 
-### 3.1 A degradação do palco só enxerga `nr13_fotos_` — AGORA É O RISCO Nº 1
+### 3.1 A degradação do palco só enxergava `nr13_fotos_` — ✅ RESOLVIDO 11/08/2026
+
+> **Corrigido:** `CHAVES_DEGRADAVEIS` (palco.ts) passou a incluir `nr13_inspecao_atual` e
+> `nr13_injecao_atual`, e `recompressorFoto.ts` virou um caminhador RECURSIVO sobre
+> `src`/`base64` — antes só entendia o array plano de `{src}` do `nr13_fotos_`.
+> `maiorFotoDoValor` também é recursivo e conta a mesma imagem repetida em `src` e `base64`
+> UMA vez (contá-la em dobro faria a degradação achar que existe foto do dobro do tamanho e
+> degradar além do necessário). A recompressão memoiza por dataURL: um canvas por imagem
+> por passo, não um por ocorrência.
+>
+> Falta o deploy. O texto abaixo fica como registro do diagnóstico.
 
 > **MEDIDO DEPOIS DA MIGRAÇÃO, em produção, 11/08/2026:** o palco do relatório da AUTOCLAVE
 > ESTERILAV foi de **1.449 KB para 2.780 KB** contra o limite de 3.368 — **83% do orçamento**,

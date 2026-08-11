@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { armazenamentoV2Ativo } from '../../services/flag';
 import { montarPalcoDaTag, limparPalco, type FalhaPalco } from '../../services/palco';
 import { renovarTrava, type ContextoMontagem } from '../../services/palcoTrava';
-import { recomprimirFotosDoValor } from '../../services/recompressorFoto';
+import { recomprimirFotosDoValor, maiorFotoDoValor } from '../../services/recompressorFoto';
 import { drenarPonte } from '../../services/ponteTemplates';
 import { salvar } from '../../services/storage';
 import { idDispositivo } from '../../services/sync';
@@ -131,14 +131,3 @@ export function usePalcoDocumento(
 }
 
 /** Tamanho (UTF-16) da maior foto dentro do valor de `nr13_fotos_<TAG>`. */
-function maiorFotoDoValor(valor: string): number {
-  try {
-    const fotos = JSON.parse(valor) as Array<{ src?: string }>;
-    if (!Array.isArray(fotos)) return 0;
-    return fotos.reduce((m, f) => Math.max(m, (f?.src?.length ?? 0) * 2), 0);
-  } catch {
-    // Não é um array de fotos: trata como sem imagem, e o orçamento do
-    // documento decide sozinho.
-    return 0;
-  }
-}
