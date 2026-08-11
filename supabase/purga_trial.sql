@@ -184,6 +184,25 @@ revoke all on function public.purgar_dados_por_email(text[]) from public, authen
 --   select * from public.purgar_dados_por_email(array['teste@gmail.com']);
 -- commit;
 
+-- ── 4c. Segredo da Edge Function `purga_trial` ─────────────────────────────
+-- A função é chamada pelo agendador, que não manda Authorization — daí o
+-- segredo na query, mesmo desenho do kiwify_webhook.
+--
+-- TROQUE O VALOR ABAIXO antes de rodar. O que está aqui é um exemplo e, se for
+-- para produção como está, o segredo estará publicado no repositório: qualquer
+-- um chamaria a rota e dispararia a purga na hora que quisesse.
+insert into public.config_global (chave, valor)
+values ('purga_trial_segredo', jsonb_build_object('segredo', 'TROQUE-ESTE-VALOR'))
+on conflict (chave) do nothing;
+
+-- Esconde o segredo de quem está logado no app. Sem isto, qualquer conta —
+-- inclusive um trial — leria o valor e poderia disparar a purga. É a mesma
+-- proteção que `kiwify_webhook_segredo` já tem.
+drop policy if exists config_global_select on public.config_global;
+create policy config_global_select on public.config_global
+  for select to authenticated
+  using (chave not in ('kiwify_webhook_segredo', 'purga_trial_segredo'));
+
 -- ── 5. Agendamento (opcional, quando houver pg_cron) ────────────────────────
 -- select cron.schedule('purga-trial', '0 4 * * *', $cron$
 --   select public.purgar_dados_trial(5);
