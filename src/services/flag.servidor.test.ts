@@ -61,8 +61,27 @@ describe('sincronizarFlagDoServidor', () => {
     expect(armazenamentoV2Ativo()).toBe(false);
   });
 
-  it('organização sem linha em org_sync fica na v1', async () => {
+  it('organização SEM linha em org_sync nasce na v2', async () => {
+    // A ativação de 10/08/2026 foi um tiro único sobre as 27 orgs existentes, e
+    // `v2_ativa` nascia `default false`: toda conta criada depois disso caía na
+    // v1 — `localStorage` como banco, teto de 5 MB, e o sumiço de equipamentos
+    // de volta. Consulta que RESPONDE sem linha significa organização nova.
+    //
+    // Errar para o lado da v2 é o lado barato: a RPC de escrita nunca consulta
+    // `v2_ativa` (ela só cobra papel, prazo e assinatura), então uma org que o
+    // servidor ainda considera v1 continua gravando normalmente pela RPC. O erro
+    // inverso — ficar na v1 com o servidor em v2 — é o bug do `cmam`: escrita
+    // direta recusada em silêncio e tela vazia.
     estado.resposta = { data: null, error: null };
+    await sincronizarFlagDoServidor();
+    expect(armazenamentoV2Ativo()).toBe(true);
+  });
+
+  it('rollback explícito (v2_ativa = false gravada) continua sendo respeitado', async () => {
+    // O default acima não pode atropelar um desligamento deliberado: linha
+    // PRESENTE com false é decisão do dono do projeto, não org nova.
+    definirArmazenamentoV2(true);
+    estado.resposta = { data: { v2_ativa: false }, error: null };
     await sincronizarFlagDoServidor();
     expect(armazenamentoV2Ativo()).toBe(false);
   });

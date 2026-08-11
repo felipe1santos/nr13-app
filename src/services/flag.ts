@@ -1,13 +1,16 @@
 /**
  * Feature flag do armazenamento v2 (Map + IndexedDB + palco).
  *
- * DESLIGADA por padrão. Com ela desligada o app usa exatamente o caminho v1 —
- * `localStorage` como cache e upsert direto no Supabase —, byte a byte o que
- * está em produção hoje.
+ * Com ela desligada o app usa o caminho v1 — `localStorage` como cache e upsert
+ * direto no Supabase. Só continua existindo para o rollback: desligar uma
+ * organização é uma decisão explícita (`definir_v2_org(org, false)`).
  *
  * O valor é espelhado no login a partir de `org_sync.v2_ativa` (servidor), que
  * é quem manda de verdade: a RLS recusa escrita direta quando a v2 está ativa
  * para a organização. Este espelho local só decide qual caminho o bundle usa.
+ *
+ * PADRÃO DESDE 11/08/2026: organização SEM linha em `org_sync` é v2. Ver o
+ * comentário em `sincronizarFlagDoServidor`.
  */
 import { supabase, escopoStorageAtual } from './supabase';
 
@@ -77,7 +80,26 @@ export async function sincronizarFlagDoServidor(): Promise<boolean> {
     // Erro pode ser offline OU banco sem a migração armazenamento_v2.sql. Nos
     // dois casos o valor conhecido continua valendo.
     if (error) return armazenamentoV2Ativo();
-    definirArmazenamentoV2((data as { v2_ativa?: boolean } | null)?.v2_ativa === true);
+
+    // AUSÊNCIA DE LINHA = ORGANIZAÇÃO NOVA = v2 (11/08/2026).
+    //
+    // A coluna nasceu `default false` e a ativação de 10/08 foi um tiro único
+    // sobre as 27 organizações que existiam naquele dia. Toda conta criada
+    // depois — todo trial, todo cliente novo — vinha sem linha e caía na v1:
+    // `localStorage` como banco, teto de 5 MB da origem inteira, e o sumiço de
+    // equipamentos de volta assim que a conta crescesse.
+    //
+    // Consulta que RESPONDE (sem `error`) e não traz linha é organização que
+    // nunca passou por `definir_v2_org` — nova. Rollback deliberado grava a
+    // linha com `false` e continua sendo respeitado logo abaixo.
+    //
+    // Por que errar para o lado da v2 é o lado barato: `aplicar_mutacao_storage`
+    // NUNCA consulta `v2_ativa` (só cobra papel, prazo e assinatura), então uma
+    // org que o servidor ainda considera v1 grava normalmente pela RPC. O erro
+    // inverso é o que custou uma semana no `cmam`: bundle na v1 contra servidor
+    // em v2, escrita direta recusada em silêncio e a conta aparecendo vazia.
+    const linha = data as { v2_ativa?: boolean } | null;
+    definirArmazenamentoV2(linha ? linha.v2_ativa === true : true);
     return armazenamentoV2Ativo();
   } catch {
     return armazenamentoV2Ativo();
