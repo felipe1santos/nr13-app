@@ -58,6 +58,10 @@ as $$
      and p.acesso_expira_em is not null
      and p.acesso_expira_em < now() - make_interval(days => p_dias)
    group by p.email, p.plano, p.acesso_expira_em
+  -- Só quem ainda TEM dados. Sem isto a conferência relista para sempre as
+  -- contas já purgadas — todas com 0 KB — e quem executa perde a noção do que
+  -- falta fazer. O critério de purga não muda; muda o que a conferência mostra.
+  having count(s.chave) > 0
    order by kb desc;
 $$;
 

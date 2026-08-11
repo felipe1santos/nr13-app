@@ -1392,11 +1392,6 @@ export default function Admin() {
                 return (
                   <tr key={p.id} className={ocupado ? 'ocupado' : ''}>
                     <td data-label="E-mail" className="admin-email">
-                      {ehPagante(p) && (
-                        <span className="admin-selo-pagante" title="Cliente pagante">
-                          <Icone nome="shield" tam={14} />
-                        </span>
-                      )}
                       {p.email}
                     </td>
                     <td data-label="Papel"><span className={`admin-badge-papel ${p.papel}`}>{rotulo}</span></td>
@@ -1415,6 +1410,11 @@ export default function Admin() {
               return (
                 <tr key={p.id} className={ocupado ? 'ocupado' : ''}>
                   <td data-label="E-mail" className="admin-email">
+                    {ehPagante(p) && (
+                      <span className="admin-selo-pagante" title="Cliente pagante">
+                        <Icone nome="shield" tam={14} />
+                      </span>
+                    )}
                     {p.email}
                     {p.origem_cadastro === 'trial' && (
                       <span className="admin-badge-trial" title="Conta criada pelo cadastro automático (teste 48h)"> TRIAL</span>
