@@ -124,6 +124,62 @@ select * from public.trial_candidatos_purga(5);
 --   select * from public.purgar_dados_trial(5);
 -- commit;
 
+-- ── 4b. Purga PONTUAL por e-mail ───────────────────────────────────────────
+-- Para conta que o dono quer limpar mas que NÃO se encaixa no critério de
+-- trial — o caso da `teste@gmail.com`, que é `plano = 'demonstracao'` e por
+-- isso o bloco 4 nunca alcançaria.
+--
+-- Exige a lista de e-mails na chamada, escrita à mão. É de propósito: uma
+-- rotina que apaga por critério é auditável; uma que apaga por nome precisa do
+-- nome na frente de quem executa.
+create or replace function public.purgar_dados_por_email(p_emails text[])
+returns table (email text, linhas_apagadas bigint)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_org  uuid;
+  v_mail text;
+  v_n    bigint;
+begin
+  if current_setting('request.jwt.claims', true)::jsonb->>'role' is distinct from 'service_role' then
+    raise exception 'purgar_dados_por_email exige service_role';
+  end if;
+
+  perform set_config('nr13.manutencao', '1', true);
+
+  for v_org, v_mail in
+    select coalesce(p.org_id, p.id), p.email
+      from public.profiles p
+     where p.email = any(p_emails)
+       and coalesce(p.role, 'user') <> 'admin'   -- nunca a conta do dono
+  loop
+    delete from public.app_storage s where s.org_id = v_org;
+    get diagnostics v_n = row_count;
+    update public.profiles set dados_purgados_em = now() where coalesce(org_id, id) = v_org;
+    email := v_mail;
+    linhas_apagadas := v_n;
+    return next;
+  end loop;
+end $$;
+
+revoke all on function public.purgar_dados_por_email(text[]) from public, authenticated;
+
+-- Conferência antes (só leitura):
+-- select p.email, count(s.chave) as linhas,
+--        round(sum(length(coalesce(s.valor,'')))/1024.0) as kb
+--   from public.profiles p
+--   left join public.app_storage s on s.org_id = coalesce(p.org_id, p.id) and s.deletado_em is null
+--  where p.email = any(array['teste@gmail.com'])
+--  group by p.email;
+--
+-- Execução:
+-- begin;
+--   set local request.jwt.claims = '{"role":"service_role"}';
+--   select * from public.purgar_dados_por_email(array['teste@gmail.com']);
+-- commit;
+
 -- ── 5. Agendamento (opcional, quando houver pg_cron) ────────────────────────
 -- select cron.schedule('purga-trial', '0 4 * * *', $cron$
 --   select public.purgar_dados_trial(5);
