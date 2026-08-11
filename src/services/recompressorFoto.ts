@@ -68,12 +68,32 @@ export async function recomprimirFotosDoValor(
 }
 
 /**
- * Tamanho (UTF-16) da MAIOR imagem dentro do valor, em qualquer profundidade.
+ * Bytes do ARQUIVO da maior imagem dentro do valor, em qualquer profundidade.
+ *
+ * POR QUE BYTES DO ARQUIVO E NÃO O TAMANHO DA STRING (corrigido em 11/08/2026):
+ * este número é comparado com `ORCAMENTO_IMG` (110 KB), cujo propósito é barrar
+ * a imagem que estoura a renderização do `html2canvas` — "foto de 900 KB numa
+ * folha". Medir a string em UTF-16 dava 2,67× o arquivo real (base64 infla 33%,
+ * e UTF-16 dobra), então o teto de 110 KB valia na prática ~41 KB de JPEG.
+ *
+ * Enquanto só a foto de CAPA era medida, isso passou despercebido — ela é
+ * pequena. Ao estender a degradação para as fotos de campo, o erro apareceu na
+ * hora: em produção, uma foto de inspeção já degradada nos seis passos foi
+ * medida em "117 KB" e o documento inteiro foi RECUSADO, sendo que o arquivo
+ * real tinha ~44 KB e o total cabia no orçamento.
  *
  * A mesma imagem repetida em `src` e `base64` conta UMA vez: são o mesmo
  * arquivo, e contá-la em dobro faria a degradação enxergar uma foto do dobro do
  * tamanho e degradar mais do que o necessário.
  */
+export function bytesDaImagem(dataUrl: string): number {
+  const virgula = dataUrl.indexOf(',');
+  if (virgula < 0) return 0;
+  const b64 = dataUrl.length - virgula - 1;
+  const padding = dataUrl.endsWith('==') ? 2 : dataUrl.endsWith('=') ? 1 : 0;
+  return Math.max(0, Math.floor((b64 * 3) / 4) - padding);
+}
+
 export function maiorFotoDoValor(valor: string): number {
   let raiz: unknown;
   try {
@@ -93,7 +113,7 @@ export function maiorFotoDoValor(valor: string): number {
     if (typeof no !== 'object' || no === null) continue;
     const obj = no as Record<string, unknown>;
     for (const campo of CAMPOS) {
-      if (ehImagem(obj[campo])) maior = Math.max(maior, (obj[campo] as string).length * 2);
+      if (ehImagem(obj[campo])) maior = Math.max(maior, bytesDaImagem(obj[campo] as string));
     }
     pilha.push(...Object.values(obj));
   }

@@ -26,7 +26,19 @@ import {
 // ---------------------------------------------------------------------------
 /** Orçamento do documento. NÃO é o teto de 5 MB: o resto fica para a sessão. */
 export const ORCAMENTO_DOC = 3_400 * 1024;
-/** Teto por imagem já na variante de relatório. */
+/**
+ * Teto por imagem já na variante de relatório, em BYTES DO ARQUIVO — não do
+ * texto base64 que o carrega. Existe para barrar a imagem que estoura a
+ * renderização do `html2canvas` numa folha.
+ *
+ * A unidade importa: `maiorFotoDoValor` media a string em UTF-16, que é 2,67×
+ * o arquivo (base64 infla 33%, UTF-16 dobra), e o teto de 110 KB valia na
+ * prática ~41 KB de JPEG. Passou despercebido enquanto só a foto de CAPA era
+ * medida; ao estender a degradação para as fotos de campo, uma foto de inspeção
+ * já degradada nos seis passos foi medida em "117 KB" e derrubou o documento
+ * inteiro em produção (11/08/2026) — o arquivo real tinha ~44 KB e o total
+ * cabia no orçamento.
+ */
 export const ORCAMENTO_IMG = 110 * 1024;
 /** Reserva para o manifesto da montagem e a variação entre navegadores. */
 export const MARGEM_METADADOS = 32 * 1024;

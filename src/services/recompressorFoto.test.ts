@@ -92,11 +92,25 @@ describe('recompressão recursiva', () => {
 });
 
 describe('maior foto', () => {
+  // 4000 chars de base64 = 3000 bytes de arquivo.
+  const BYTES = 3000;
+
+  it('mede os BYTES DO ARQUIVO, não o tamanho da string', () => {
+    // O número é comparado com ORCAMENTO_IMG (110 KB), cujo propósito é barrar a
+    // imagem que estoura o html2canvas. Medir a string em UTF-16 dava 2,67× o
+    // arquivo (base64 infla 33%, UTF-16 dobra), então o teto valia ~41 KB de
+    // JPEG. Em produção, 11/08/2026: uma foto de campo já degradada nos seis
+    // passos mediu "117 KB" e o documento inteiro foi RECUSADO — o arquivo real
+    // tinha ~44 KB e o total cabia no orçamento.
+    expect(maiorFotoDoValor(JSON.stringify([{ src: PIXEL }]))).toBe(BYTES);
+    expect(maiorFotoDoValor(JSON.stringify([{ src: PIXEL }]))).toBeLessThan(PIXEL.length * 2);
+  });
+
   it('encontra a maior foto aninhada, não só no array plano', () => {
     const container = JSON.stringify({
       visual_interno: { fotos: [{ base64: PIXEL }] },
     });
-    expect(maiorFotoDoValor(container)).toBe(PIXEL.length * 2);
+    expect(maiorFotoDoValor(container)).toBe(BYTES);
   });
 
   it('a mesma imagem em `src` e `base64` conta UMA vez', () => {
@@ -104,7 +118,12 @@ describe('maior foto', () => {
     // degradação achar que existe uma foto do dobro do tamanho e degradar mais
     // do que o necessário.
     const um = JSON.stringify([{ src: PIXEL, base64: PIXEL }]);
-    expect(maiorFotoDoValor(um)).toBe(PIXEL.length * 2);
+    expect(maiorFotoDoValor(um)).toBe(BYTES);
+  });
+
+  it('desconta o padding do base64', () => {
+    const comPad = 'data:image/jpeg;base64,' + 'A'.repeat(6) + '==';
+    expect(maiorFotoDoValor(JSON.stringify([{ src: comPad }]))).toBe(4);
   });
 
   it('sem foto nenhuma devolve 0', () => {
