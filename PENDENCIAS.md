@@ -56,6 +56,13 @@
       `definir_v2_org(<org>, true)` não pode ser executado para nenhum cliente.**
       Resultados em `docs/superpowers/plans/resultados-rpc-armazenamento-v2.md`.
 
+- [ ] **RODAR `supabase/fotos_storage.sql`** — bloqueia as fotos novas. O bucket privado
+      `inspecao` foi criado pelo painel em 10/08/2026 (o `insert into storage.buckets` da
+      seção 8 do `armazenamento_v2.sql` nunca teve efeito: qualquer upload respondia
+      `Bucket not found`). Falta só as policies; sem elas o upload responde
+      `new row violates row-level security policy` e a foto fica pendente no aparelho — não
+      se perde, mas não sobe. Depois de rodar, conferir com um upload real.
+
 - [ ] **Agendar `coletar_tombstones(<org>, 30)`** (mensal, service_role). A prova da
       exclusão permanece em `app_storage_excluidos`; só o `valor` é removido.
 
