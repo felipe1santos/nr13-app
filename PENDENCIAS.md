@@ -56,12 +56,22 @@
       `definir_v2_org(<org>, true)` não pode ser executado para nenhum cliente.**
       Resultados em `docs/superpowers/plans/resultados-rpc-armazenamento-v2.md`.
 
-- [ ] **RODAR `supabase/fotos_storage.sql`** — bloqueia as fotos novas. O bucket privado
-      `inspecao` foi criado pelo painel em 10/08/2026 (o `insert into storage.buckets` da
-      seção 8 do `armazenamento_v2.sql` nunca teve efeito: qualquer upload respondia
-      `Bucket not found`). Falta só as policies; sem elas o upload responde
-      `new row violates row-level security policy` e a foto fica pendente no aparelho — não
-      se perde, mas não sobe. Depois de rodar, conferir com um upload real.
+- [ ] **Purga do trial: automatizar (OPCIONAL).** Hoje é manual e funciona — as funções
+      `trial_candidatos_purga(5)` e `purgar_dados_trial(5)` estão criadas em produção e foram
+      usadas em 11/08/2026 para limpar 13 contas. Para automatizar falta: (1) redeploy da Edge
+      Function `purga_trial` com o código atual do repo (a versão no ar é a antiga, que lia o
+      segredo de `config_global` — responde 500 e não faz nada, fail-closed); (2) agendar em
+      Integrations → Cron. O segredo já está em Edge Functions → Secrets
+      (`PURGA_TRIAL_SEGREDO`). Enquanto não for feito, rodar o bloco 4 do
+      `supabase/purga_trial.sql` de tempos em tempos resolve.
+
+- [ ] **Melhoria cosmética da conferência:** `trial_candidatos_purga` em produção ainda é a
+      versão sem `having count(s.chave) > 0`, então relista contas já purgadas com 0 KB. O
+      arquivo no repo já tem a correção; falta aplicar quando o SQL Editor voltar a abrir.
+
+- [x] **`supabase/fotos_storage.sql` — APLICADO em 11/08/2026.** Bucket `inspecao` criado pelo
+      painel (privado) e as 4 policies no ar. Upload, URL assinada, download e isolamento entre
+      organizações validados contra produção.
 
 - [ ] **Agendar `coletar_tombstones(<org>, 30)`** (mensal, service_role). A prova da
       exclusão permanece em `app_storage_excluidos`; só o `valor` é removido.
