@@ -45,7 +45,19 @@ export default function FotoImg({
       { rootMargin: '300px' },
     );
     obs.observe(el);
-    return () => obs.disconnect();
+
+    // REDE DE SEGURANÇA. O observer só dispara para elemento com área, e
+    // enquanto a foto não resolve este `div` pode ter altura zero — foi o que
+    // aconteceu na validação de 11/08/2026 na galeria do equipamento, onde o
+    // CSS dimensiona o `<img>` e não o contêiner. Resultado: a foto existia,
+    // tinha subido, e ficava esperando uma visibilidade que nunca chegava.
+    // Passado o prazo, carrega assim mesmo: a economia de banda não vale uma
+    // foto invisível.
+    const prazo = window.setTimeout(() => setVisivel(true), 1200);
+    return () => {
+      obs.disconnect();
+      window.clearTimeout(prazo);
+    };
   }, [visivel]);
 
   useEffect(() => {
@@ -72,8 +84,16 @@ export default function FotoImg({
     );
   }
 
+  // `width/height: 100%` no contêiner: sem isso ele encolhe para zero enquanto a
+  // imagem não chegou, o layout da galeria salta quando ela aparece e o próprio
+  // observer perde a área que precisa para disparar.
   return (
-    <div ref={ref} className={className} onClick={onClick} style={{ position: 'relative' }}>
+    <div
+      ref={ref}
+      className={className}
+      onClick={onClick}
+      style={{ position: 'relative', width: '100%', height: '100%', minHeight: 1 }}
+    >
       {src ? (
         <img src={src} alt={alt} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
       ) : (
