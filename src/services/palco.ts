@@ -104,8 +104,22 @@ const GLOBAIS = [
  * apareceu na validação de 05/08/2026 contra dados reais: sozinho ocupava
  * 10.012 KB numa conta, três vezes o orçamento inteiro, e fazia o livro de
  * registro ser recusado sem motivo real.
+ *
+ * `nr13_componentes_cal_` e `nr13_lotes_cal_` entraram em 11/08/2026 pelo mesmo
+ * caminho: o cadastro de válvulas/manômetros guarda uma FOTO base64 por
+ * componente (`ComponenteCal.foto`), e essa foto só é desenhada no card da tela
+ * de Calibrações. Na conta gabriel.dadona eram 8 componentes de 260–355 KB cada
+ * = 2.518 KB dos 3.959 KB do documento — a chave sozinha recusava o relatório da
+ * AUTOCLAVE ESTERILAV. O que o relatório de fato imprime são as folhas
+ * `CERTIFICADO-CAL-*?calibId=<id>`, que leem `nr13_calibracao_item_<id>` (escopo
+ * de id, nunca coletada por TAG) ou o snapshot congelado em `meta.certCalibracoes`.
  */
-const FORA_DO_PALCO = ['nr13_docs_', 'nr13_pront_fab_'];
+const FORA_DO_PALCO = [
+  'nr13_docs_',
+  'nr13_pront_fab_',
+  'nr13_componentes_cal_',
+  'nr13_lotes_cal_',
+];
 
 export const CHAVE_MANIFESTO = 'nr13_palco_manifesto';
 

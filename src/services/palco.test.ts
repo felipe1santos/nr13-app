@@ -371,11 +371,27 @@ describe('conteúdo do palco', () => {
       { chave: `nr13_docs_${TAG}`, registro: reg('x'.repeat(1000)) },
       // PDF do fabricante: 10 MB numa conta real, e nenhum template o lê.
       { chave: `nr13_pront_fab_${TAG}`, registro: reg('x'.repeat(1000)) },
+      // Componentes de calibração: cada válvula/manômetro guarda uma foto
+      // base64. Numa conta real (gabriel.dadona, 11/08/2026) eram 2.518 KB de
+      // 3.959 KB — sozinha essa chave derrubava o relatório inteiro, e nenhum
+      // template a lê: a foto só aparece no card da tela de Calibrações.
+      { chave: `nr13_componentes_cal_${TAG}`, registro: reg('x'.repeat(1000)) },
+      { chave: `nr13_lotes_cal_${TAG}`, registro: reg('x'.repeat(1000)) },
     ]);
     const chaves = coletarItens(TAG).map((i) => i.chave);
     expect(chaves).not.toContain(`nr13_docs_${TAG}`);
     expect(chaves).not.toContain(`nr13_pront_fab_${TAG}`);
+    expect(chaves).not.toContain(`nr13_componentes_cal_${TAG}`);
+    expect(chaves).not.toContain(`nr13_lotes_cal_${TAG}`);
     expect(chaves).toContain(`nr13_info_${TAG}`);
+  });
+
+  it('a chave que o template CERTIFICADO-CAL lê de fato continua no palco', async () => {
+    // Guarda contra excesso de zelo: `nr13_calibracoes_<TAG>` é irmã das duas
+    // acima, mas alimenta o vencimento e o Portal do Cliente — tirá-la exigiria
+    // a mesma varredura de `public/` que justificou tirar as outras.
+    await gravarAtomico([{ chave: `nr13_calibracoes_${TAG}`, registro: reg('[]') }]);
+    expect(coletarItens(TAG).map((i) => i.chave)).toContain(`nr13_calibracoes_${TAG}`);
   });
 });
 
