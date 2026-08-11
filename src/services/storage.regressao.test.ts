@@ -60,23 +60,29 @@ const range = vi.fn(async (inicio: number, fim: number) => ({
   error: null,
 }));
 
-vi.mock('./supabase', () => ({
-  supabase: {
-    from: () => ({
-      select: () => ({
-        eq: () => ({
-          order: () => ({
-            range: (a: number, b: number) => range(a, b),
-          }),
-        }),
-      }),
-    }),
-    rpc: vi.fn(async () => ({ data: { status: 'aplicado', versao: 2 }, error: null })),
-  },
-  escopoStorageAtual: vi.fn(async () => ({ coluna: 'org_id', id: ORG })),
-  idUsuarioAtual: vi.fn(async () => 'user-1'),
-  TABELA_STORAGE: 'app_storage',
-}));
+// Encadeamento do PostgREST: select → eq → [gt] → order → order → range.
+// O `gt` e o segundo `order` entraram com a hidratação incremental (11/08/2026);
+// esta suíte continua exercitando a leitura COMPLETA, que é o cenário do sumiço
+// de equipamentos que ela existe para travar.
+vi.mock('./supabase', () => {
+  const encadeamento: Record<string, unknown> = {};
+  Object.assign(encadeamento, {
+    select: () => encadeamento,
+    eq: () => encadeamento,
+    gt: () => encadeamento,
+    order: () => encadeamento,
+    range: (a: number, b: number) => range(a, b),
+  });
+  return {
+    supabase: {
+      from: () => encadeamento,
+      rpc: vi.fn(async () => ({ data: { status: 'aplicado', versao: 2 }, error: null })),
+    },
+    escopoStorageAtual: vi.fn(async () => ({ coluna: 'org_id', id: ORG })),
+    idUsuarioAtual: vi.fn(async () => 'user-1'),
+    TABELA_STORAGE: 'app_storage',
+  };
+});
 
 import { fecharDb, apagarDb } from './db';
 import { zerarMemoria, definirOrg, hidratarDoDisco, chavesComPrefixo } from './cacheLocal';

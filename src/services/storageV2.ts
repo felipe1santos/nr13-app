@@ -20,6 +20,7 @@ import { bloqueadoParaEscrita, ErroBloqueado } from './gateEscrita';
 import { tagDaChave } from './familiasChave';
 import { bloqueadoParaUso } from './sessaoArmazenamento';
 import { descartarFilaV1, lerFilaV1, purgarCacheV1 } from './migracaoV1';
+import * as marcaSync from './marcaSync';
 
 /** Troca de conta em andamento (ou falha nela): nada entra e nada sai. */
 export class ErroTrocandoConta extends Error {
@@ -208,6 +209,26 @@ registrarDrenagemAutomatica();
 // Hidratação
 // ---------------------------------------------------------------------------
 /**
+ * Desligamento de emergência da hidratação incremental.
+ *
+ * `localStorage.nr13_hidratacao_completa = '1'` faz todo boot voltar a baixar a
+ * organização inteira, como antes de 11/08/2026. Existe porque a incremental
+ * foi escrita contra um prazo (a restrição de egress do Supabase em 16/08) e,
+ * se ela deixar algum dado para trás em algum cenário que os testes não
+ * cobriram, o conserto precisa ser uma linha no console do aparelho afetado —
+ * não um deploy.
+ */
+export const CHAVE_HIDRATACAO_COMPLETA = 'nr13_hidratacao_completa';
+
+function hidratacaoCompletaForcada(): boolean {
+  try {
+    return localStorage.getItem(CHAVE_HIDRATACAO_COMPLETA) === '1';
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Devolve SEMPRE um snapshot do Map — online ou offline.
  *
  * Sem rede, devolve o que veio do IndexedDB; a v1 devolvia `{}`, e a tela que
@@ -224,11 +245,29 @@ export async function lerTudo(): Promise<Record<string, string>> {
     const escopo = await escopoStorageAtual();
     if (!escopo) return cache.snapshot();
 
+    // ── Hidratação INCREMENTAL ──────────────────────────────────────────────
+    // Com marca d'água, pede só o que mudou desde a última leitura; sem ela
+    // (primeiro boot, ou cache apagado), pede tudo. A ordenação passa a ser por
+    // `atualizado_em` porque é ela que define o corte — ordenar por chave e
+    // filtrar por data devolveria as páginas fora da ordem do filtro.
+    const marca = hidratacaoCompletaForcada() ? null : await marcaSync.lerMarca(escopo.id);
+    let maiorVisto = marca ?? '';
+
     for (let inicio = 0; ; inicio += PAGINA) {
-      const { data, error } = await supabase
+      let consulta = supabase
         .from(TABELA_STORAGE)
         .select('chave, valor, versao, atualizado_em, dispositivo, deletado_em')
-        .eq(escopo.coluna, escopo.id)
+        .eq(escopo.coluna, escopo.id);
+      // `gt` e não `gte`: `gte` traria de novo, em toda abertura, a última linha
+      // já conhecida — barato, mas some com o "custo zero" quando nada mudou.
+      if (marca) consulta = consulta.gt('atualizado_em', marca);
+
+      // Ordenação COMPOSTA (`atualizado_em`, `chave`): `atualizado_em` sozinho
+      // não é único, e com empate a ordem entre páginas fica indefinida — duas
+      // linhas do mesmo instante poderiam cair na fronteira e uma delas nunca
+      // ser lida. A chave desempata e torna a paginação determinística.
+      const { data, error } = await consulta
+        .order('atualizado_em', { ascending: true })
         .order('chave', { ascending: true })
         .range(inicio, inicio + PAGINA - 1);
 
@@ -238,6 +277,7 @@ export async function lerTudo(): Promise<Record<string, string>> {
       for (const linha of data as Array<Record<string, unknown>>) {
         const chave = String(linha.chave);
         const atualizadoEm = String(linha.atualizado_em ?? '');
+        if (atualizadoEm > maiorVisto) maiorVisto = atualizadoEm;
 
         // Soft-delete propaga a exclusão feita em OUTRO aparelho.
         if (linha.deletado_em) {
@@ -260,6 +300,11 @@ export async function lerTudo(): Promise<Record<string, string>> {
 
       if (data.length < PAGINA) break;
     }
+
+    // A marca só avança depois de TODAS as páginas terem sido aplicadas. Movê-la
+    // no meio faria uma falha de rede na página 2 deixar a marca dizendo que a
+    // organização inteira já foi lida — e as linhas seguintes nunca chegariam.
+    if (maiorVisto && maiorVisto !== marca) await marcaSync.avancarMarca(escopo.id, maiorVisto);
   } catch {
     return cache.snapshot(); // offline
   }
