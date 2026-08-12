@@ -95,13 +95,6 @@ function montarLinhas(): LinhaLivro[] {
   return linhas;
 }
 
-// Código fictício "de criptografia" — só visual por enquanto (não há assinatura/blockchain
-// real ainda). Determinístico a partir do id da entrada pra não mudar a cada render.
-function criptografiaFicticia(seed: string): string {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
-  return h.toString(16).toUpperCase().padStart(8, '0');
-}
 
 type DocPreview =
   | { arquivo: 'CAPA-LIVRO-REGISTRO.html'; titulo: string }
@@ -613,13 +606,34 @@ export default function LivroRegistro() {
             <h3 style={{ margin: 0, border: 'none', padding: 0, fontSize: 14 }}>Linha do tempo — ordem cronológica</h3>
           </div>
 
+          {/* Veredicto do livro inteiro, acima da linha do tempo. */}
+          {cadeiaOk !== null && linhaAberta.entradas.length > 0 && (
+            <div
+              className="no-print"
+              style={{
+                margin: '10px 0', padding: '9px 13px', borderRadius: 8, fontSize: 12.5,
+                border: `1px solid ${cadeiaOk ? '#1f7a45' : '#c0392b'}`,
+                background: cadeiaOk ? '#eef8f1' : '#fdf0ee',
+                color: cadeiaOk ? '#155c33' : '#8e2b20',
+              }}
+            >
+              {cadeiaOk ? (
+                <><strong>Cadeia de registros íntegra.</strong> Cada registro lacrado guarda o hash do próprio conteúdo e o elo do anterior — editar, remover ou reordenar seria detectado aqui.</>
+              ) : (
+                <><strong>ATENÇÃO: a cadeia de registros não confere.</strong> Um ou mais registros foram alterados, removidos ou reordenados depois de emitidos. Veja os marcados abaixo.</>
+              )}
+            </div>
+          )}
+
           {linhaAberta.entradas.length === 0 ? (
             <p className="dashboard-vazio" style={{ padding: '14px 0' }}>Nenhum registro lançado ainda neste livro.</p>
           ) : (
             <ul className="livro-timeline">
               {linhaAberta.entradas.map((entrada, i) => {
                 const cor = COR_TIPO[entrada.tipo] ?? 'neutro';
-                const cripto = criptografiaFicticia(entrada.id || `${linhaAberta.tag}-${i}`);
+                // Os 8 primeiros dígitos do SHA-256 REAL. Vazio = entrada antiga,
+                // sem lacre — e aí nenhum código é exibido, em vez de inventar um.
+                const cripto = entrada.sha256 ? entrada.sha256.slice(0, 8).toUpperCase() : '';
                 const numeroRegistro = String(i + 1).padStart(6, '0');
                 const retificada = entrada.retificaDe
                   ? linhaAberta.entradas.find((e) => e.id === entrada.retificaDe)
@@ -652,15 +666,41 @@ export default function LivroRegistro() {
                         {entrada.phNome && <span>{entrada.phNome}</span>}
                         {entrada.tecnicoNome && <span>Téc.: {entrada.tecnicoNome}</span>}
                         {entrada.quemRealizou && <span>Exec.: {entrada.quemRealizou}</span>}
-                        <span className="selo-flat crypto" title="Selo de integridade — recurso em desenvolvimento">
-                          <Icone nome="shield" tam={10} style={{ display: 'inline-block', verticalAlign: -1, marginRight: 3 }} />
-                          Criptografia {cripto}
-                        </span>
+                        {/* SELO REAL (12/08/2026). Antes daqui saía um código
+                            derivado do id por uma função de hash caseira, com o
+                            título "recurso em desenvolvimento", e um "Íntegro"
+                            FIXO NO CÓDIGO — a tela afirmava integridade que
+                            nunca havia sido verificada. Agora o código é o
+                            SHA-256 gravado na emissão e o veredicto vem de
+                            recalculá-lo. */}
+                        {cripto && (
+                          <span className="selo-flat crypto" title={`SHA-256 ${entrada.sha256}\nLacrado em ${entrada.lacradaEm?.slice(0, 10) ?? '—'}`}>
+                            <Icone nome="shield" tam={10} style={{ display: 'inline-block', verticalAlign: -1, marginRight: 3 }} />
+                            SHA-256 {cripto}
+                          </span>
+                        )}
                         <span className="selo-flat info2">Registro nº {numeroRegistro}</span>
-                        <span className="selo-flat ok">
-                          <Icone nome="check" tam={10} style={{ display: 'inline-block', verticalAlign: -1, marginRight: 3 }} />
-                          Íntegro
-                        </span>
+                        {selos[entrada.id ?? ''] === 'integra' && (
+                          <span className="selo-flat ok" title="O conteúdo confere com o hash gravado na emissão.">
+                            <Icone nome="check" tam={10} style={{ display: 'inline-block', verticalAlign: -1, marginRight: 3 }} />
+                            Íntegro
+                          </span>
+                        )}
+                        {selos[entrada.id ?? ''] === 'adulterada' && (
+                          <span className="selo-flat crit" title="O conteúdo NÃO confere com o hash gravado na emissão.">
+                            ⚠ Alterado após a emissão
+                          </span>
+                        )}
+                        {selos[entrada.id ?? ''] === 'elo_quebrado' && (
+                          <span className="selo-flat crit" title="O elo com o registro anterior não confere: algum registro foi removido ou reordenado.">
+                            ⚠ Cadeia quebrada
+                          </span>
+                        )}
+                        {selos[entrada.id ?? ''] === 'sem_lacre' && (
+                          <span className="selo-flat neutro" title="Registro anterior à adoção do lacre criptográfico (12/08/2026). Não é sinal de problema.">
+                            Sem lacre
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'stretch', minWidth: 190 }}>
