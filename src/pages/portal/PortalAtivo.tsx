@@ -24,7 +24,7 @@ import {
 import { PAGINAS_PRONTUARIO } from '../../features/prontuarios/tipos';
 import { parseDataFlex, statusPrazo } from '../../services/vencimentos';
 import type { InfoEquipamento } from '../../features/equipamento/tipos';
-import type { RelatorioSalvo } from '../../features/relatorios/tipos';
+import { temArtefato, type RelatorioSalvo } from '../../features/relatorios/tipos';
 import PaginaA4 from '../../components/PaginaA4';
 import { travarIframeSomenteLeitura } from '../../features/documentos/somenteLeituraDoc';
 import '../relatorios.css';
@@ -193,6 +193,19 @@ export default function PortalAtivo() {
   // Reabre um relatório salvo em modo leitura: regrava as chaves "atuais" que os
   // templates leem (CLAUDE.md §2 — REGRA CRÍTICA DE INJEÇÃO) antes de montar os iframes.
   async function abrirRelatorio(r: RelatorioSalvo) {
+    // ARTEFATO: relatório finalizado é só um arquivo. NÃO grava nada.
+    //
+    // As escritas abaixo existem para o fluxo legado — os templates leem
+    // `nr13_relatorio_meta_atual` e os dados de campo do localStorage. Só que o
+    // papel `cliente` não tem permissão de escrita, e `gravarMetaAtual` lançava
+    // `ErroBloqueado: acesso somente leitura` ANTES de `setRelatorioAberto`:
+    // clicar em "Visualizar" no Portal não abria nada, em silêncio (o erro só
+    // aparecia no console). Medido em produção em 12/08/2026.
+    if (temArtefato(r)) {
+      setDocsVisiveis([]);
+      setRelatorioAberto(r);
+      return;
+    }
     await gravarMetaAtual(r.meta);
     const container = r.meta.containerOrigemId ? carregarContainer(tag, r.meta.containerOrigemId) : null;
     await gravarInspecaoOrigemAtual(container?.dados ?? {});
