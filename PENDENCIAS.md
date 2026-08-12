@@ -40,6 +40,55 @@ artefato + lacre. Duas entradas `LIV-TESTE-*` devem ser removidas pela porta de 
       botão "Congelar PDF agora", ele precisa deixar claro que congela o estado ATUAL.
 - [ ] **Rasterização segura a thread principal**: 18 folhas em ~3 s, mas o `setTimeout(0)`
       entre folhas não impede a aba de travar. Só mexer se houver queixa.
+- [ ] **Limpar as 2 entradas `LIV-TESTE-*`** do livro da AUTOCLAVE ESTERILAV. Comando pronto:
+
+      begin;
+      set local nr13.manutencao = '1';
+      update public.app_storage
+         set valor = (
+               select coalesce(jsonb_agg(e order by ord), '[]'::jsonb)::text
+                 from jsonb_array_elements(valor::jsonb) with ordinality as t(e, ord)
+                where e->>'id' not like 'LIV-TESTE-%'
+             ),
+             versao = versao + 1
+       where org_id = '92a28bff-55ce-40a7-a5f3-4d7598488a75'
+         and chave  = 'nr13_livro_AUTOCLAVE ESTERILAV - SANTA CASA MAUÁ';
+      commit;
+
+      O `versao + 1` não é detalhe: sem ele, aparelho com o livro em cache não percebe a
+      mudança. A porta `nr13.manutencao` é obrigatória — a trava recusa até para o dono.
+
+### 0-BIS.1 — MIGRAÇÃO SEM SENHA (o que destrava a conta `engyuricesar`)
+
+- [ ] **Escrever um migrador que rode com `service_role`, não com a senha do cliente.**
+
+  **O problema:** as duas migrações feitas até aqui (`cmam`, `gabriel`) exigiram ENTRAR na
+  conta, porque a RLS do `app_storage` é por organização. Em 12/08/2026 a migração do
+  `engyuricesar@gmail.com` (~6,5 MB, e o caso mais desproporcional da base: esse peso todo
+  com UM equipamento) parou exatamente aí — o dono do projeto não tem a senha dele, e pedir
+  a senha de um cliente pagante é a pior saída possível.
+
+  **Por que a `service_role` resolve:** ela ignora a RLS tanto no `app_storage` quanto no
+  Storage. O que NÃO funciona é a RPC `aplicar_mutacao_storage` — ela deriva a organização
+  de `auth.uid()`, que é nulo para a service_role, e devolve `sem_permissao`. A escrita
+  precisa ser `UPDATE` direto com `set local nr13.manutencao = '1'`, que é a porta que
+  desliga a guarda de escrita direta e a trava do livro só naquela transação.
+
+  **Esboço do script** (Node, fora do navegador, com `SUPABASE_SERVICE_ROLE_KEY`):
+
+  1. `select chave, valor, versao from app_storage where org_id = <org> and deletado_em is null`
+  2. para cada arquivo em base64 (campos `src`/`base64`, `pdfBase64`, `foto`):
+     decodifica → `storage.upload('<org>/<escopo>/<uuid>.<ext>')` → **baixa de volta e
+     confere o tamanho** → só então troca por `ref`/`pdfRef`/`fotoRef`
+  3. grava com `UPDATE ... set valor = ..., versao = versao + 1` dentro de
+     `begin; set local nr13.manutencao='1'; ... commit;`
+
+  **Ordem de segurança que não muda:** o base64 só sai do registro DEPOIS do arquivo estar
+  confirmado no bucket. Falha em qualquer passo deixa o registro intacto.
+
+  **Ganho além do `engyuricesar`:** vale para qualquer conta futura, e permite rodar em lote
+  sem depender de ninguém. `scripts/migrar-fotos-legadas.mjs` continua servindo para quem
+  tem a senha à mão.
 
 ---
 
@@ -104,6 +153,11 @@ banco. Em ordem de urgência.
 
   **Bloqueio:** o script entra na conta para migrar, porque a RLS do `app_storage` é por
   organização — não existe caminho de admin. Precisa da senha de cada uma.
+
+  > **`engyuricesar` PAROU AQUI em 12/08/2026: o dono do projeto não tem a senha.**
+  > A saída certa NÃO é pedir a senha ao cliente — é o migrador por `service_role`
+  > descrito em **0-BIS.1**. Enquanto ele não existir, esta conta fica como está
+  > (funciona; só pesa no egress).
 
   **ALCANCE REAL DO SCRIPT (medido no banco do `gabriel` em 11/08):** ele varre só os
   prefixos `nr13_fotos_` e `nr13_docs_`, e dentro deles troca só os campos `src` e `base64`.
