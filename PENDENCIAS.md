@@ -13,6 +13,36 @@
 > cada família de chave, o que já foi resolvido e o que falta, em ordem de risco. Consultar
 > antes de mexer em qualquer coisa que grave arquivo.
 
+## 0-BIS. ENTREGUE E VALIDADO EM PRODUÇÃO (sessão de 11-12/08/2026)
+
+Tudo abaixo está no ar e foi conferido em tela, na conta `gabriel.dadona`:
+
+- **Arquivos no bucket**: fotos, containers, certificados de rastreabilidade, fotos de
+  componente e prontuário do fabricante. `app_storage` da conta: **6.542 KB → ~200 KB**.
+- **Relatório finalizado = artefato PDF imutável** (§7-quater). Provado: alterei o nº de série
+  da ficha e o SHA-256 do PDF continuou idêntico. Portal serve o arquivo — removi a trava por
+  DevTools, editei a página e o arquivo baixado saiu com o hash da emissão.
+- **Livro lacrado + trava no banco** (§7-quinquies). As quatro fraudes recusadas pelo Postgres
+  (editar, apagar, reordenar, forjar o hash); acréscimo e ocorrência manual seguem passando.
+- **Degradação do palco** alcança as fotos de campo; **v2 por default** para org nova.
+- **SQL aplicado:** `v2_por_default.sql`, `livro_imutavel.sql`.
+
+**Lixo de teste que ficou na conta** (combinado manter): relatórios `REL-1786503426229` e
+`REL-1786504660780` (18 páginas cada) e suas entradas de livro — servem de exemplo real de
+artefato + lacre. Duas entradas `LIV-TESTE-*` devem ser removidas pela porta de manutenção
+(`set local nr13.manutencao = '1'`).
+
+### O que sobrou deste bloco
+
+- [ ] **Imprimir e Baixar do relatório finalizado** — não validados em produção (o download
+      grava ~10 MB no disco do operador).
+- [ ] **Retrofit de relatório legado**: sem retrofit automático, por decisão. Se quiser um
+      botão "Congelar PDF agora", ele precisa deixar claro que congela o estado ATUAL.
+- [ ] **Rasterização segura a thread principal**: 18 folhas em ~3 s, mas o `setTimeout(0)`
+      entre folhas não impede a aba de travar. Só mexer se houver queixa.
+
+---
+
 ## 0. PRÓXIMOS PASSOS COMBINADOS (sessão de 10-11/08/2026)
 
 O que ficou em aberto depois de resolver o sumiço de equipamentos, o login e o peso do

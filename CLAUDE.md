@@ -328,6 +328,51 @@ e a auto-injeção insere as folhas de fotos/termo nas posições indicadas.
   Editar calibração/certificado depois NÃO altera relatório salvo; retrofit na 1ª reabertura
   de relatórios antigos, igual empresa/assinantes.
 
+### §7-quater — RELATÓRIO FINALIZADO É UM ARQUIVO, NÃO UMA RECEITA (12/08/2026)
+
+> **REGRA QUE NÃO SE QUEBRA:** relatório com `pdfRef` NÃO é remontado. Visualizar,
+> imprimir, baixar e o Portal do Cliente servem o **arquivo**. `documentos` e `meta`
+> continuam gravados só para auditoria.
+
+Até aqui, salvar gravava a RECEITA (lista de templates + campos) e reabrir remontava os 27
+templates com os dados **vivos**. Consequências medidas em produção: editar a ficha mudava a
+Capa/Placa/Caracterização de relatório assinado; mexer no checkbox da conclusão mudava o
+APTO/INAPTO de laudo antigo; corrigir uma margem num `.html` reescrevia todo documento já
+emitido; e no Portal bastava o DevTools para adulterar o DOM e baixar um PDF falso com a logo
+e a assinatura do engenheiro.
+
+**No "Salvar"** (`Relatorios.tsx:salvarHistorico`), nesta ordem, e cada passo importa:
+drenar a ponte → congelar `livroSnapshot` → `gerarPdfBytes` (com progresso) → SHA-256 →
+upload em `<org>/relatorios/<uuid>.pdf` → só então gravar o histórico. Falha em gerar ou
+subir **NÃO salva**.
+
+`RelatorioSalvo` ganhou `pdfRef`, `sha256`, `geradoEm`, `paginas`, `pdfPendente`,
+`livroSnapshot` — todos **opcionais**: sem `pdfRef` o relatório é legado e segue o fluxo
+antigo. **Não há retrofit automático**: gerar o PDF ao abrir um relatório antigo produziria um
+documento com os dados de HOJE carimbado como "o artefato daquela emissão".
+
+Peças: `features/relatorios/artefatoRelatorio.ts` (hash, publicação, `artefatoDe`),
+`components/VisualizadorPdf.tsx`, `pdfService.gerarPdfBytes`. Reusa a fila offline das fotos
+(`fotos.salvarArquivo`), e `pdfPendente` vem de `fotos.arquivoPendente` — **nunca** de
+`navigator.onLine`, que mente quando o servidor recusa com o navegador online.
+
+### §7-quinquies — LIVRO DE REGISTRO: LACRE + TRAVA NO BANCO (12/08/2026)
+
+Cada entrada nasce lacrada (`livroLacre.ts`): `sha256` do conteúdo canônico, `shaAnterior`
+(elo da anterior) e `lacradaEm`. ~180 bytes por entrada, nenhum arquivo — congelar o livro
+inteiro em PDF a cada inspeção cresceria ao quadrado, e a folha daquela inspeção já está
+dentro do PDF imutável do relatório.
+
+**Serialização CANÔNICA** (chaves ordenadas, sem os campos do lacre): sem isso um
+`{...entrada}` reordenado acusaria de adulterada uma entrada íntegra, e o selo viraria ruído.
+Entrada sem `sha256` é ANTIGA, não adulterada.
+
+**A trava que impede vive no banco** — `supabase/livro_imutavel.sql`, aplicado em 12/08/2026.
+O lacre DETECTA; detectar não é impedir (uma chamada à RPC pelo console alterava entrada
+emitida). A regra: a sequência de entradas lacradas do valor novo precisa começar exatamente
+pela do valor antigo. Recusa editar, apagar, reordenar e forjar o hash; permite acrescentar ao
+fim, inserir ocorrência manual e retificar. Porta de manutenção: `set local nr13.manutencao = '1'`.
+
 ### §7-ter — RELATÓRIO SALVO NÃO SE EDITA (05/08/2026)
 
 > **REGRA QUE NÃO SE QUEBRA:** relatório salvo é registro técnico assinado. Depois do
