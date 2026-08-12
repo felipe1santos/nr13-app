@@ -1,6 +1,7 @@
 import { excluirChave, ler, salvar } from '../../services/storage';
 import { emitirDadosAlterados } from '../../services/eventos';
 import { listarFuncionarios } from '../cadastros/cadastroService';
+import { lacrarEntrada, ultimaLacrada, type LivroEntrada as LivroEntradaLacre } from './livroLacre';
 import type { Funcionario } from '../cadastros/tipos';
 import {
   DOCUMENTOS_DISPONIVEIS,
@@ -344,7 +345,14 @@ export async function adicionarEntradaLivroAuto(relatorio: RelatorioSalvo): Prom
     // e daí em diante é imutável (correção = registro de retificação).
     lacrado: true,
   };
-  await salvar(chaveLivro(relatorio.tagVaso), [...livro, entrada]);
+  // LACRE CRIPTOGRÁFICO (12/08/2026): a entrada nasce com o hash do próprio
+  // conteúdo e o elo da anterior. `lacrado: true` sempre foi só uma flag — nada
+  // impedia editar a entrada depois e ninguém saberia. Agora editar quebra o
+  // hash, e remover ou reordenar quebra a cadeia. Custa ~180 bytes por entrada:
+  // congelar o livro inteiro em PDF a cada inspeção cresceria ao quadrado, e a
+  // folha daquela inspeção já está dentro do PDF imutável do relatório.
+  const lacrada = await lacrarEntrada(entrada as LivroEntradaLacre, ultimaLacrada(livro as LivroEntradaLacre[]));
+  await salvar(chaveLivro(relatorio.tagVaso), [...livro, lacrada as unknown as LivroEntrada]);
 }
 
 // ── Ocorrência manual no Livro de Registro ─────────────────────────────────────
