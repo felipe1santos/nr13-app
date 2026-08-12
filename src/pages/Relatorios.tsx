@@ -621,7 +621,10 @@ export default function Relatorios() {
       // 4. Hash + upload. Offline, `salvarArquivo` deixa no cofre local e
       //    enfileira — o artefato existe, só ainda não chegou ao servidor.
       const artefato = await publicarArtefato(bytes, paginas);
-      const pdfPendente = !navigator.onLine;
+      // A verdade vem do cofre: upload recusado com o navegador ONLINE também é
+      // pendente. Usar `navigator.onLine` marcava como sincronizado um documento
+      // que nunca chegou ao bucket (medido em 11/08/2026 com upload devolvendo 500).
+      const pdfPendente = artefato.pendente;
 
       const relatorio: RelatorioSalvo = {
         id: meta.codigo,
@@ -969,6 +972,7 @@ export default function Relatorios() {
                   pdfRef: relatorioArquivado.pdfRef!,
                   sha256: relatorioArquivado.sha256 ?? '',
                   geradoEm: relatorioArquivado.geradoEm ?? '',
+                  pendente: relatorioArquivado.pdfPendente === true,
                   paginas: relatorioArquivado.paginas ?? 0,
                 }}
                 nomeArquivo={relatorioArquivado.nome}

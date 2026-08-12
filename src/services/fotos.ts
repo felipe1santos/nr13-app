@@ -181,6 +181,27 @@ export async function drenarFotosPendentes(): Promise<{ enviadas: number; penden
   return { enviadas, pendentes: pendentes.length - enviadas };
 }
 
+/**
+ * O arquivo já foi CONFIRMADO no servidor?
+ *
+ * `salvarArquivo` engole a falha de upload de propósito — para foto tirada em
+ * campo isso é certo: o arquivo está no cofre e a fila reenvia. Mas quem grava
+ * um REGISTRO que aponta para o arquivo precisa saber a verdade, senão marca
+ * como "salvo e sincronizado" um documento que nunca chegou ao bucket. Foi o que
+ * aconteceu no teste de falha de upload em 11/08/2026: o relatório nasceu com
+ * `pdfPendente: false` e `pdfRef` apontando para um arquivo inexistente.
+ *
+ * `true` = ainda pendente (ou desconhecido, que é o lado seguro para reportar).
+ */
+export async function arquivoPendente(path: string): Promise<boolean> {
+  try {
+    const local = await cofre.obter(path);
+    return local ? local.pendente : true;
+  } catch {
+    return true;
+  }
+}
+
 export async function contarFotosPendentes(): Promise<number> {
   try {
     return (await cofre.listarPendentes()).length;

@@ -29,7 +29,7 @@
  * não foi trocado — é a razão de o artefato existir num registro técnico com
  * responsabilidade de engenheiro.
  */
-import { salvarArquivo, baixarFoto, montarPath, type RefFoto } from '../../services/fotos';
+import { salvarArquivo, baixarFoto, montarPath, arquivoPendente, type RefFoto } from '../../services/fotos';
 
 /** O que fica gravado no `RelatorioSalvo` quando o artefato existe. */
 export interface PdfArtefato {
@@ -39,6 +39,16 @@ export interface PdfArtefato {
   /** ISO da geração. */
   geradoEm: string;
   paginas: number;
+  /**
+   * `true` = o arquivo está no cofre local mas o upload AINDA NÃO foi
+   * confirmado pelo servidor. Vem do cofre, NÃO de `navigator.onLine`.
+   *
+   * A diferença não é acadêmica: no teste de 11/08/2026 o upload foi recusado
+   * com 500 enquanto o navegador estava online, e o relatório nasceu dizendo
+   * que estava sincronizado com um `pdfRef` apontando para arquivo inexistente
+   * no bucket. Estado falso de "salvo" é o pior desfecho possível aqui.
+   */
+  pendente: boolean;
 }
 
 /** Escopo (pasta) dos relatórios dentro do bucket, sob `<org_id>/`. */
@@ -75,7 +85,10 @@ export async function publicarArtefato(bytes: Uint8Array, paginas: number): Prom
   const sha256 = await sha256Hex(bytes);
   const blob = new Blob([bytes.slice().buffer as ArrayBuffer], { type: 'application/pdf' });
   const pdfRef = await salvarArquivo(blob, ESCOPO_RELATORIOS, 'pdf', 'application/pdf');
-  return { pdfRef, sha256, geradoEm: new Date().toISOString(), paginas };
+  // A VERDADE sobre o upload vem do cofre, não de `navigator.onLine`: estar
+  // online não significa que o servidor aceitou o arquivo.
+  const pendente = await arquivoPendente(pdfRef.path);
+  return { pdfRef, sha256, geradoEm: new Date().toISOString(), paginas, pendente };
 }
 
 /** O arquivo: cofre local primeiro (offline, egress zero), bucket depois. */
@@ -109,6 +122,7 @@ export function artefatoDe(r: {
   sha256?: string;
   geradoEm?: string;
   paginas?: number;
+  pdfPendente?: boolean;
 } | null | undefined): PdfArtefato | null {
   if (!r?.pdfRef?.path) return null;
   return {
@@ -116,6 +130,7 @@ export function artefatoDe(r: {
     sha256: r.sha256 ?? '',
     geradoEm: r.geradoEm ?? '',
     paginas: r.paginas ?? 0,
+    pendente: r.pdfPendente === true,
   };
 }
 
