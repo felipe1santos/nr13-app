@@ -7,6 +7,7 @@ import { ler, listarChavesComPrefixo } from '../services/storage';
 import type { InfoEquipamento } from '../features/equipamento/tipos';
 import { listarFuncionarios } from '../features/cadastros/cadastroService';
 import { adicionarEntradaLivroManual } from '../features/relatorios/relatoriosService';
+import { verificarCadeia, verificarEntrada, type LivroEntrada as EntradaLacre } from '../features/relatorios/livroLacre';
 import { exportarPdf, exportarPdfLivroCompleto } from '../features/relatorios/pdfService';
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
 import { documentosBloqueados } from '../services/trial';
@@ -30,7 +31,14 @@ interface LivroEntrada {
   // Ciclo de vida rascunho → lacrado. Campo AUSENTE = entrada antiga ⇒ lacrada (imutável).
   lacrado?: boolean;
   retificaDe?: string;
+  // ── Lacre criptográfico (12/08/2026) — ver features/relatorios/livroLacre.ts ──
+  sha256?: string;
+  shaAnterior?: string | null;
+  lacradaEm?: string;
 }
+
+/** O que o selo mostra para cada entrada. */
+type SeloEntrada = 'integra' | 'adulterada' | 'elo_quebrado' | 'sem_lacre';
 
 interface LinhaLivro {
   tag: string;
@@ -260,6 +268,40 @@ export default function LivroRegistro() {
   const comLivro = linhas.filter((l) => l.entradas.length > 0);
   const linhaAberta = linhas.find((l) => l.tag === tagAberta) ?? null;
 
+  // ── Selo de integridade ────────────────────────────────────────────────────
+  // O lacre (hash + elo) já protege o livro; sem mostrá-lo, protege em silêncio.
+  // A verificação é assíncrona (crypto.subtle) e roda só para o livro ABERTO —
+  // um equipamento por vez, algumas dezenas de entradas, microssegundos cada.
+  const [selos, setSelos] = useState<Record<string, SeloEntrada>>({});
+  const [cadeiaOk, setCadeiaOk] = useState<boolean | null>(null);
+  useEffect(() => {
+    let vivo = true;
+    if (!linhaAberta) {
+      setSelos({});
+      setCadeiaOk(null);
+      return;
+    }
+    const entradas = linhaAberta.entradas as unknown as EntradaLacre[];
+    void Promise.all([
+      verificarCadeia(entradas),
+      Promise.all(entradas.map(async (e) => [e.id, await verificarEntrada(e)] as const)),
+    ]).then(([cadeia, porEntrada]) => {
+      if (!vivo) return;
+      const mapa: Record<string, SeloEntrada> = {};
+      for (const [id, veredicto] of porEntrada) mapa[String(id)] = veredicto;
+      // O elo quebrado é da CADEIA, não da entrada em si: sobrescreve só quem a
+      // cadeia acusou, e sem apagar um veredicto de "adulterada" que é pior.
+      for (const p of cadeia.problemas) {
+        if (mapa[p.id] !== 'adulterada') mapa[p.id] = p.motivo === 'elo_quebrado' ? 'elo_quebrado' : 'adulterada';
+      }
+      setSelos(mapa);
+      setCadeiaOk(cadeia.ok);
+    });
+    return () => {
+      vivo = false;
+    };
+  }, [linhaAberta]);
+
   // Pré-rasteriza a folha em #print-root assim que o preview abre (mesmo padrão de
   // Relatorios.tsx), pra que Imprimir/Baixar PDF funcionem igual ao resto do sistema.
   useEffect(() => {
@@ -422,6 +464,34 @@ export default function LivroRegistro() {
                 <div>
                   <div className="fj-eyebrow">Histórico do livro — log cronológico</div>
                   <h3 className="lrhist-title">{linhaAberta.tag} · {linhaAberta.entradas.length} registro(s)</h3>
+                  {/* Veredicto do livro INTEIRO. Um lacre que ninguém vê protege
+                      em silêncio; esta barra é o que transforma a verificação em
+                      informação para quem responde tecnicamente pelo registro. */}
+                  {cadeiaOk !== null && (
+                    <div
+                      className="no-print"
+                      style={{
+                        margin: '8px 0 4px', padding: '8px 12px', borderRadius: 8, fontSize: 12.5,
+                        border: `1px solid ${cadeiaOk ? '#1f7a45' : '#c0392b'}`,
+                        background: cadeiaOk ? '#eef8f1' : '#fdf0ee',
+                        color: cadeiaOk ? '#155c33' : '#8e2b20',
+                      }}
+                    >
+                      {cadeiaOk ? (
+                        <>
+                          <strong>Cadeia de registros íntegra.</strong> Cada entrada lacrada guarda o
+                          hash do próprio conteúdo e o elo da anterior — editar, remover ou reordenar
+                          qualquer registro seria detectado aqui.
+                        </>
+                      ) : (
+                        <>
+                          <strong>ATENÇÃO: a cadeia de registros não confere.</strong> Um ou mais
+                          registros foram alterados, removidos ou reordenados depois de emitidos.
+                          Veja os marcados abaixo.
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <button type="button" className="fj-btn fj-btn-ghost" onClick={() => setHistorico(false)}>
                   ← Voltar à linha do tempo
@@ -460,6 +530,29 @@ export default function LivroRegistro() {
                             )}
                             {entrada.origem === 'manual' && <span className="lrhist-selo neutro">MANUAL</span>}
                             {entrada.retificaDe && <span className="lrhist-selo warn">RETIFICAÇÃO</span>}
+                            {/* Selo do lacre. A entrada ANTIGA (anterior a 12/08/2026) não ganha
+                                marca de alerta: acusar anos de registros legítimos ensinaria o
+                                usuário a ignorar o selo, que é o pior desfecho de um alarme. */}
+                            {selos[entrada.id ?? ''] === 'integra' && (
+                              <span className="lrhist-selo ok" title={`Lacrado em ${entrada.lacradaEm?.slice(0, 10) ?? '—'} · SHA-256 ${entrada.sha256}`}>
+                                🔒 LACRADO
+                              </span>
+                            )}
+                            {selos[entrada.id ?? ''] === 'adulterada' && (
+                              <span className="lrhist-selo crit" title="O conteúdo deste registro não confere com o hash gravado na emissão.">
+                                ⚠ ALTERADO APÓS A EMISSÃO
+                              </span>
+                            )}
+                            {selos[entrada.id ?? ''] === 'elo_quebrado' && (
+                              <span className="lrhist-selo crit" title="O elo com o registro anterior não confere: algum registro foi removido ou reordenado.">
+                                ⚠ CADEIA QUEBRADA
+                              </span>
+                            )}
+                            {selos[entrada.id ?? ''] === 'sem_lacre' && (
+                              <span className="lrhist-selo neutro" title="Registro anterior à adoção do lacre criptográfico (12/08/2026).">
+                                SEM LACRE
+                              </span>
+                            )}
                           </div>
 
                           {retificada && (
