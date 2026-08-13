@@ -13,6 +13,19 @@
 > cada família de chave, o que já foi resolvido e o que falta, em ordem de risco. Consultar
 > antes de mexer em qualquer coisa que grave arquivo.
 
+## 0-QUATER. INTERFACE (12-13/08/2026) — no ar e validado em produção
+
+Marca própria na sidebar, no favicon e no ícone do PWA (cache do SW em v8, senão o atalho
+instalado ficava com o ícone velho). "Meus dados" virou item de menu e saiu do Dashboard.
+Lista de vencimentos e histórico de relatórios legíveis com os dados reais do cliente —
+os dois só estouraram quando testados com texto de verdade, não com dado curto de teste.
+Prazo acima de 60 dias com selo azul. Agenda do Dashboard virou também caderno de
+anotações (`nr13_agenda_notas`, global, fora do palco).
+
+Nada aqui sobrou em aberto além do que já está no bloco 0-TER abaixo.
+
+---
+
 ## 0-TER. RESPONSIVIDADE MOBILE (12/08/2026) — feito e o que sobrou
 
 Varredura tela a tela em viewport de 390px (Dashboard, Equipamentos, Inspeções + container +
@@ -139,23 +152,6 @@ banco. Em ordem de urgência.
   Caminhos: pagar um mês e voltar ao Free depois (o Supabase permite), ou aceitar a janela
   de 4 dias (16→20/08) com o app possivelmente fora do ar.
 
-### 0.15 — Rodar `supabase/v2_por_default.sql` (organização nova nascia em v1)
-
-- [ ] **SQL Editor do Supabase, idempotente.** Descoberto em 11/08: `org_sync.v2_ativa` era
-      `not null default false` e o `ativar_v2_todas_orgs.sql` foi um tiro único sobre as 27
-      orgs daquele dia. **Toda conta criada depois — todo trial, todo cliente novo — nascia
-      na v1**, com `localStorage` como banco e o teto de 5 MB: o sumiço de equipamentos de
-      volta assim que a conta crescesse.
-
-  O arquivo põe `default true`, faz backfill de quem ficou sem linha e cria
-  `trg_garantir_org_sync` em `profiles` (AFTER, com exceção engolida — cadastro de usuário
-  nunca falha por causa dessa linha). Traz as consultas de conferência no fim.
-
-  **O front já não depende disso** (`flag.ts`: consulta que responde sem linha = org nova =
-  v2), então não há janela de risco como no `ativar_v2_todas_orgs.sql`. Este SQL fecha o
-  outro lado: com a linha gravada, a guarda `trg_guardar_app_storage` volta a proteger a
-  organização nova contra aparelho com bundle antigo.
-
 ### 0.2 — Migrar as fotos legadas das contas pagantes pesadas
 
 > **`gabriel.dadona` CONCLUÍDO em 11/08/2026: 6.542 KB → 120 KB (−98%).** Migrado pelo
@@ -167,7 +163,7 @@ banco. Em ordem de urgência.
 > **Falta `engyuricesar@gmail.com` (~6,5 MB)** — mesmo roteiro. Pelo navegador dispensa senha:
 > basta o dono da conta logar e me deixar a aba aberta.
 
-- [ ] **`gabriel.dadona@gmail.com` (~6,7 MB) e `engyuricesar@gmail.com` (~6,5 MB).**
+- [ ] **`engyuricesar@gmail.com` (~6,5 MB)** — única conta pesada que sobrou.
 
   Mesmo caso do `cmam`, que saiu de 8,00 MB para 3,06 MB. Ferramenta pronta e já validada
   de ponta a ponta: `scripts/migrar-fotos-legadas.mjs`.
@@ -205,16 +201,16 @@ banco. Em ordem de urgência.
 
 ### 0.25 — Três buracos de armazenamento ainda abertos (detalhe em `docs/ARMAZENAMENTO-LIMITES.md`)
 
-- [ ] **DEPLOY da degradação que alcança as fotos de campo (era o risco nº 1).** Corrigido no
-      código em 11/08 e ainda não no ar. Medido em produção DEPOIS da migração: o palco do
+- [ ] **VALIDAR EM TELA a degradação que alcança as fotos de campo (era o risco nº 1).**
+      Código corrigido em 11/08 e **já no ar**; falta a prova com dado real — gerar um
+      relatório com muitas fotos numa conta pesada e conferir que ele CABE em vez de ser
+      recusado. Medido em produção DEPOIS da migração: o palco do
       relatório do gabriel foi de 1.449 para **2.780 KB** contra 3.368 — 83% do orçamento,
       sem foto nova nenhuma. Migrar para o bucket alivia o banco e APERTA o palco, porque
       `hidratarFotosDoBucket` grava a imagem em `src` E `base64` (obrigatório: CAPA lê um, as
       folhas de fotos leem o outro, e foto nova chega só com `ref` — ver `palco.fotos.test.ts`,
       que existe para impedir a "otimização"). Antes do fix, no aperto o sistema recomprimia
-      ~1 KB de capa e ignorava ~2,7 MB de fotos de inspeção. **Validar em tela depois do
-      deploy:** gerar um relatório com muitas fotos e conferir que ele CABE em vez de ser
-      recusado.
+      ~1 KB de capa e ignorava ~2,7 MB de fotos de inspeção.
 
 - [ ] **Conferir o Portal do Cliente depois do deploy.** O portal passou a resolver refs
       (`FotoImg`), mas a policy `inspecao_leitura` compara a pasta com `org_atual()` — falta
