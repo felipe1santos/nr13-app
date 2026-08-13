@@ -796,7 +796,9 @@
   font-size: 13px;
   vertical-align: middle;
 }
-.acesso-acoes { display: flex; gap: 6px; flex-wrap: wrap; }
+/* nowrap: com quebra, os quatro ícones viravam 2×2 e dobravam a altura da linha. */
+.acesso-acoes { display: flex; gap: 6px; flex-wrap: nowrap; }
+.cad-tabela td.cel-acoes { white-space: nowrap; }
 
 @media (max-width: 640px) {
   /* Sete colunas — e-mail, papel, dois carimbos de tempo, dois selos e quatro
@@ -846,6 +848,8 @@
     margin-top: 6px;
     border-top: 1px solid var(--border-solid);
   }
+  .acesso-acoes { flex-wrap: wrap; }
+  .cad-tabela td.cel-acoes { white-space: normal; }
   .acesso-acoes .btn-secundario {
     display: inline-flex;
     align-items: center;

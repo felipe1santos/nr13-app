@@ -13,6 +13,32 @@
 > cada família de chave, o que já foi resolvido e o que falta, em ordem de risco. Consultar
 > antes de mexer em qualquer coisa que grave arquivo.
 
+## 0-TER. RESPONSIVIDADE MOBILE (12/08/2026) — feito e o que sobrou
+
+Varredura tela a tela em viewport de 390px (Dashboard, Equipamentos, Inspeções + container +
+formulário, Relatórios + histórico + visualizador, Prontuários, Calibrações, Certificados,
+Livro de Registro + livro aberto, Funcionários, Clientes, Minha Empresa, Acessos, Vencimentos,
+Pendências e a ficha do equipamento), medindo estouro pelo retângulo de cada elemento.
+
+Feito: selo do armazenamento v2 virou botão pequeno na topbar (era uma faixa cinza sem CSS
+atravessando o topo); sino e instalar-app foram para o menu do círculo de iniciais; histórico
+de relatórios, vencimentos, livro e acessos viram cartões no celular; barra do visualizador
+numa linha; aviso de rastreabilidade retangular; KPIs do Dashboard sem quebrar a pílula;
+Pendências ganhou a folha de estilo que nunca teve.
+
+### O que sobrou deste bloco
+
+- [ ] **Portal do Cliente no celular** — não foi varrido nesta sessão: exige o login do
+      cliente (`caioh94@gmail.com`) e a conta de teste local é mestre. As telas do portal
+      usam classes próprias (`src/pages/portal/*`), então o que foi corrigido aqui NÃO cobre
+      elas automaticamente. Só o visualizador de PDF é compartilhado, e esse melhorou.
+- [ ] **PDF em iframe no iOS** — `navigator.pdfViewerEnabled` é `true` no Safari do iPhone,
+      mas o iframe mostra só a primeira página e não rola. O botão "Abrir em outra aba"
+      resolve na prática; se aparecer queixa, tratar iOS como o Android (cartão em vez de
+      quadro).
+
+---
+
 ## 0-BIS. ENTREGUE E VALIDADO EM PRODUÇÃO (sessão de 11-12/08/2026)
 
 Tudo abaixo está no ar e foi conferido em tela, na conta `gabriel.dadona`:
