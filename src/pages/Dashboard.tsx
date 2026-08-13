@@ -191,7 +191,9 @@ export default function Dashboard() {
             <div className="fj-table-wrap">
               <table className="fj-table">
                 <thead>
-                  <tr><th>Tag</th><th>Origem</th><th>Última</th><th>Vencimento</th><th>Prazo</th><th>Status</th></tr>
+                  {/* col-ultima: escondida neste painel de meia largura (ver
+                      dashboard-novo.css). Continua na tela cheia de /vencimentos. */}
+                  <tr><th>Tag</th><th>Origem</th><th className="col-ultima">Última</th><th>Vencimento</th><th>Prazo</th><th>Status</th></tr>
                 </thead>
                 <tbody>
                   {tabela.map((it, i) => (
@@ -212,7 +214,7 @@ export default function Dashboard() {
                         </div>
                       </td>
                       <td data-rot="Origem">{it.origem === 'calibracao' ? 'Calibração' : 'Inspeção'}</td>
-                      <td className="mono" data-rot="Última">{it.ultima ? it.ultima.toLocaleDateString('pt-BR') : <span className="fj-dash">—</span>}</td>
+                      <td className="mono col-ultima" data-rot="Última">{it.ultima ? it.ultima.toLocaleDateString('pt-BR') : <span className="fj-dash">—</span>}</td>
                       <td className="mono" data-rot="Vencimento">{it.vencimento ? it.vencimento.toLocaleDateString('pt-BR') : <span className="fj-dash">—</span>}</td>
                       <td className={`fj-days ${it.status === 'crit' ? 'crit' : it.status === 'warn' ? 'warn' : ''}`} data-rot="Prazo">{textoPrazo(it)}</td>
                       <td data-rot="Status"><BadgeStatus status={it.status} /></td>

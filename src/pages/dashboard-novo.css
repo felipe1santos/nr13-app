@@ -297,6 +297,14 @@
 .dash-cols .fj-tag-cell { max-width: 190px; gap: 8px; }
 .dash-cols .fj-tag-ico { width: 26px; height: 26px; }
 
+/* "Última inspeção" sai deste painel. Medido na conta real: as seis colunas dão
+   765px contra 748px de caixa num monitor de 1536, e o que ficava atrás da
+   rolagem lateral era o STATUS — a coluna que diz se o equipamento está
+   operacional. Numa lista chamada "próximos do vencimento", a data da última
+   inspeção é o dado mais dispensável dos seis; ela continua inteira na tela
+   cheia de /vencimentos, a um clique em "Ver todos os vencimentos". */
+.dash-cols .fj-table .col-ultima { display: none; }
+
 /* Faixa em que o painel é mais estreito: acima de 1180px as duas colunas do
    Dashboard ainda existem, mas a da esquerda só passa a ter folga por volta de
    1500px. No meio disso a tabela precisa apertar mais, senão volta a rolagem
@@ -305,7 +313,7 @@
   .dash-cols .fj-table thead th,
   .dash-cols .fj-table tbody td { padding-left: 9px; padding-right: 9px; }
   .dash-cols .fj-table tbody td { font-size: 12px; }
-  .dash-cols .fj-tag-cell { max-width: 132px; }
+  .dash-cols .fj-tag-cell { max-width: 170px; }
 }
 
 .livro-timeline-acoes {
@@ -317,6 +325,9 @@
 }
 
 @media (max-width: 640px) {
+  /* No celular a tabela vira cartão e sobra largura: a última inspeção volta. */
+  .dash-cols .fj-table td.col-ultima { display: flex; }
+
   .livro-timeline { padding: 8px 12px 16px; }
   .livro-timeline-item { flex-wrap: wrap; gap: 10px; }
   /* base 0 para o corpo ficar ao lado do marco; com base `auto` o texto empurra
