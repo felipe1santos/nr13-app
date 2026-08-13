@@ -811,7 +811,11 @@ export default function Relatorios() {
                             onKeyDown={(e) => e.key === 'Enter' && confirmarRenome(r)}
                           />
                         ) : (
-                          r.nome
+                          // Envolvido para poder cortar em duas linhas: o nome gerado
+                          // ("Relatorio_Inspeção_Periódica_AUTOCLAVE ESTERILAV - SANTA
+                          // CASA MAUÁ.pdf") come metade da tabela e empurra a coluna de
+                          // Ações para fora da tela.
+                          <span className="nome-relatorio-txt" title={r.nome}>{r.nome}</span>
                         )}
                       </span>
                     </td>
