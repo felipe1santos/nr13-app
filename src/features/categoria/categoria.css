@@ -85,8 +85,50 @@
   display: block;
 }
 
+/* No celular as três caixas do resultado (classe, grupo e categoria final)
+   ficavam empilhadas e o bloco tomava meia tela para dizer três coisas curtas.
+   Elas se leem juntas — "fluido A, grupo 3, logo categoria II" — então ficam na
+   mesma linha, com rótulo menor e a fórmula do grupo cortada para caber. A
+   grade secundária (volume, pressão, P×V) continua empilhando: ali os valores
+   têm unidade e não cabem em três colunas. */
 @media (max-width: 600px) {
+  /* Coluna do meio mais larga: o rótulo dela carrega a fórmula
+     ("Grupo de Potencial de Risco — P(MPa) × V(m³)") e é três vezes maior que
+     os outros dois. */
   .categoria-specs-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 0.85fr 1.3fr 0.85fr;
+    gap: 7px;
   }
+  /* Altura reservada para o rótulo: os três quebram em 1, 2 e 3 linhas, e sem
+     isso os três números ficavam em degrau. Ancorar pelo fim da caixa não
+     resolve — "Categoria Final" não tem a linha de fórmula embaixo. */
+  .categoria-specs-grid .resultado-item {
+    min-width: 0;
+    padding: 9px 8px;
+    display: flex;
+    flex-direction: column;
+    /* O `center` herdado centrava o conteúdo na caixa, e a caixa sem a linha de
+       fórmula ("Categoria Final") descia o número alguns pixels. */
+    justify-content: flex-start;
+  }
+  .categoria-specs-grid .lbl-view {
+    flex: none;
+    min-height: 32px;
+    font-size: 8.5px;
+    line-height: 1.25;
+    letter-spacing: 0.2px;
+  }
+  .categoria-specs-grid .categoria-valor-grande { font-size: 17px; }
+  .categoria-specs-grid .categoria-sub-calc {
+    font-size: 9px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .categoria-specs-grid-secundaria {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .categoria-specs-grid-secundaria .lbl-view { font-size: 10px; }
 }
