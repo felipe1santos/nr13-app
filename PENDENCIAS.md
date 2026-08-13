@@ -251,9 +251,21 @@ banco. Em ordem de urgência.
   compra não tenha passado pela Kiwify, ou que o parser do webhook não encontre o campo —
   o payload real dela não é público e o parser lê por tentativa (ver §11 do CLAUDE.md).
 
-### 0.5 — App confunde "servidor indisponível" com "conta revogada" e desloga todo mundo
+### 0.5 — App confundia "servidor indisponível" com "conta revogada" — RESOLVIDO EM 13/08/2026
 
-- [ ] **Distinguir os dois casos em `carregarPerfil` / `verificarAcesso` (`src/services/auth.ts`).**
+> **Feito.** `src/services/falhaPerfil.ts` classifica a falha, `carregarPerfil` devolve
+> `indisponivel: true` sem tocar no `localStorage`, `verificarAcesso` mantém a sessão nesse
+> caso e o `RotaProtegida` mostra a faixa "Sem resposta do servidor". 18 testes cobrem os
+> dois lados (402/429/5xx mantêm a sessão; 401/403/JWT inválido continuam deslogando).
+>
+> Validado no navegador com TODA chamada ao Supabase respondendo 402: o app continua dentro,
+> lendo do IndexedDB, com o `nr13_org_id` preservado. **O caminho 403 → logout foi provado só
+> por teste unitário** — exercitá-lo no navegador deslogaria a sessão de teste local, e eu não
+> posso digitar a senha para voltar.
+>
+> Fica de referência (o texto abaixo explica o bug original):
+
+- [x] **Distinguir os dois casos em `carregarPerfil` / `verificarAcesso` (`src/services/auth.ts`).**
 
   **O bug:** `carregarPerfil()` lê o perfil no servidor. Se a leitura FALHA (não é que o
   perfil diga algo — é que não deu para lê-lo), `data` fica `null` e a linha

@@ -6,6 +6,7 @@ import { lerTudo, limparCacheDados } from './storage';
 import { sincronizarFlagDoServidor, zerarFlagEmMemoria, CHAVE_FLAG_V2 } from './flag';
 import { gravarEstadoLocal, limparEstadoLocal } from './assinatura';
 import { bloqueioEntrada, type ContaParaEntrada, type StatusAssinatura } from '../features/assinatura/maquinaEstados';
+import { classificarFalhaPerfil, ehFalhaDeTransporte, type FalhaPerfil } from './falhaPerfil';
 
 export const VIP_USERS = [
   'perone.fs@gmail.com',
@@ -29,6 +30,8 @@ export interface LoginResultado {
 export interface VerificaAcessoResultado {
   ativo: boolean;
   plano?: string;
+  /** Entrou, mas sem confirmação do servidor — trabalhando com o que está no aparelho. */
+  servidorIndisponivel?: boolean;
 }
 
 export type PapelOrg = 'mestre' | 'gerente' | 'funcionario' | 'cliente';
@@ -38,6 +41,13 @@ interface Perfil {
   ativo: boolean;
   role: string;
   acessoExpiraEm: string | null;
+  /**
+   * O servidor NÃO respondeu sobre esta conta (cota estourada, 5xx, rede caída).
+   * Diferente de `ativo: false`, que é o servidor dizendo que a conta está
+   * bloqueada. Quem decide deslogar precisa olhar este campo primeiro — sem ele,
+   * uma instabilidade do banco expulsava todo mundo. Ver `falhaPerfil.ts`.
+   */
+  indisponivel: boolean;
   // Status da assinatura DA ORGANIZAÇÃO (linha do mestre), resolvido pelo servidor.
   // '' = servidor sem a migração assinatura_setup.sql (RPC inexistente) — gate legado.
   assinaturaStatus: StatusAssinatura | '';
@@ -73,6 +83,7 @@ const SO_LOCAL = { scope: 'local' } as const;
 const PERFIL_VAZIO: Perfil = {
   plano: '', ativo: false, role: 'user', acessoExpiraEm: null, assinaturaStatus: '',
   papel: '', orgId: null, clienteId: null, sessaoToken: null, sessaoVistoEm: null,
+  indisponivel: false,
 };
 
 /**
@@ -121,6 +132,7 @@ export async function carregarPerfil(): Promise<Perfil> {
   // Tenta com as colunas do controle de acesso; se a migração acesso_setup.sql
   // ainda não rodou (coluna inexistente), cai no select legado — deploy seguro.
   let data: Record<string, unknown> | null = null;
+  let falha: FalhaPerfil = 'nenhuma';
   const res = await supabase
     .from('profiles')
     .select('plano, ativo, role, acesso_expira_em, papel, org_id, cliente_id, sessao_token, sessao_visto_em')
@@ -129,13 +141,25 @@ export async function carregarPerfil(): Promise<Perfil> {
   if (!res.error) {
     data = res.data as Record<string, unknown> | null;
   } else {
-    const legado = await supabase
-      .from('profiles')
-      .select('plano, ativo, role, acesso_expira_em')
-      .eq('id', uid)
-      .maybeSingle();
-    data = legado.data as Record<string, unknown> | null;
+    falha = classificarFalhaPerfil(res.status, res.error.code);
+    // Só tenta o select legado quando a falha é do ESQUEMA (coluna inexistente,
+    // migração acesso_setup.sql ainda não rodada). Se o servidor está fora, a
+    // segunda tentativa falharia igual e só atrasaria a tela.
+    if (falha === 'nenhuma') {
+      const legado = await supabase
+        .from('profiles')
+        .select('plano, ativo, role, acesso_expira_em')
+        .eq('id', uid)
+        .maybeSingle();
+      if (legado.error) falha = classificarFalhaPerfil(legado.status, legado.error.code);
+      else data = legado.data as Record<string, unknown> | null;
+    }
   }
+  // O servidor não disse nada sobre esta conta. Sai daqui SEM tocar no
+  // localStorage: apagar `nr13_org_id`, `nr13_papel` ou o espelho da assinatura
+  // aqui deixaria o app sem escopo de armazenamento e sem saber o que pode
+  // fazer — pior do que o problema que causou a falha.
+  if (falha === 'indisponivel') return { ...PERFIL_VAZIO, indisponivel: true };
   const plano = (data?.plano as string) ?? '';
   const ativo = (data?.ativo as boolean) ?? false;
   const role = (data?.role as string) ?? 'user';
@@ -167,6 +191,7 @@ export async function carregarPerfil(): Promise<Perfil> {
     plano, ativo, role, acessoExpiraEm, assinaturaStatus, papel, orgId, clienteId,
     sessaoToken: (data?.sessao_token as string) ?? null,
     sessaoVistoEm: (data?.sessao_visto_em as string) ?? null,
+    indisponivel: false,
   };
 }
 
@@ -234,6 +259,16 @@ export async function login(email: string, senha: string): Promise<LoginResultad
   // Gate de liberação/expiração: lê o perfil antes de liberar a entrada. Conta COM assinatura
   // conhecida entra mesmo suspensa e degrada para somente leitura (ver bloqueioEntrada).
   const perfil = await carregarPerfil();
+  // Autenticou, mas não foi possível LER o perfil. Dizer "acesso não liberado
+  // pelo administrador" seria mentir sobre a causa e mandar o usuário procurar
+  // quem não pode ajudar.
+  if (perfil.indisponivel) {
+    await supabase.auth.signOut(SO_LOCAL);
+    return {
+      sucesso: false,
+      erro: 'Não foi possível confirmar seu acesso: o servidor não respondeu. Tente de novo em alguns minutos.',
+    };
+  }
   const motivo = bloqueioEntrada(perfilParaEntrada(perfil), new Date());
   if (motivo === 'inativo') {
     await supabase.auth.signOut(SO_LOCAL);
@@ -687,6 +722,11 @@ export async function verificarAcesso(): Promise<VerificaAcessoResultado> {
       return { ativo: false };
     }
     const perfil = await carregarPerfil();
+    // O servidor não respondeu sobre a conta (cota estourada, 5xx, rede). Mantém
+    // a sessão: com o armazenamento v2 os dados estão no IndexedDB e o trabalho
+    // de campo continua, subindo quando o serviço voltar. Deslogar aqui jogaria
+    // fora essa capacidade sem que ninguém tenha revogado nada.
+    if (perfil.indisponivel) return { ativo: true, servidorIndisponivel: true };
     // Mesma regra do login: assinatura conhecida NÃO desloga — degrada para somente leitura
     // (sem isto, toda conta que entra em 'somente_leitura' era expulsa no próximo carregamento
     // e a barra/modal de regularização viravam código morto — achado C2).
@@ -695,9 +735,10 @@ export async function verificarAcesso(): Promise<VerificaAcessoResultado> {
       return { ativo: false };
     }
     return { ativo: true, plano: perfil.plano };
-  } catch {
-    // offline: mantém sessão local, não força logout
-    return { ativo: true };
+  } catch (e) {
+    // Exceção só acontece em falha de transporte — o supabase-js devolve `{ error }`
+    // para tudo o que teve resposta HTTP. Mantém a sessão local, não força logout.
+    return { ativo: true, servidorIndisponivel: ehFalhaDeTransporte(e) };
   }
 }
 
