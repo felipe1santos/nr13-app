@@ -251,59 +251,6 @@ banco. Em ordem de urgência.
   compra não tenha passado pela Kiwify, ou que o parser do webhook não encontre o campo —
   o payload real dela não é público e o parser lê por tentativa (ver §11 do CLAUDE.md).
 
-### 0.5 — App confundia "servidor indisponível" com "conta revogada" — RESOLVIDO EM 13/08/2026
-
-> **Feito.** `src/services/falhaPerfil.ts` classifica a falha, `carregarPerfil` devolve
-> `indisponivel: true` sem tocar no `localStorage`, `verificarAcesso` mantém a sessão nesse
-> caso e o `RotaProtegida` mostra a faixa "Sem resposta do servidor". 18 testes cobrem os
-> dois lados (402/429/5xx mantêm a sessão; 401/403/JWT inválido continuam deslogando).
->
-> Validado no navegador com TODA chamada ao Supabase respondendo 402: o app continua dentro,
-> lendo do IndexedDB, com o `nr13_org_id` preservado. **O caminho 403 → logout foi provado só
-> por teste unitário** — exercitá-lo no navegador deslogaria a sessão de teste local, e eu não
-> posso digitar a senha para voltar.
->
-> Fica de referência (o texto abaixo explica o bug original):
-
-- [x] **Distinguir os dois casos em `carregarPerfil` / `verificarAcesso` (`src/services/auth.ts`).**
-
-  **O bug:** `carregarPerfil()` lê o perfil no servidor. Se a leitura FALHA (não é que o
-  perfil diga algo — é que não deu para lê-lo), `data` fica `null` e a linha
-
-      const ativo = (data?.ativo as boolean) ?? false;
-
-  produz `ativo: false`. Aí `verificarAcesso()` chama `bloqueioEntrada()`, que devolve
-  `'inativo'` — o motivo que significa *"conta ainda não liberada pelo administrador"* — e
-  executa `logout()`. **O usuário é deslogado por um erro de leitura.**
-
-  O `catch` de `verificarAcesso` já protege o caso de rede caída, mas só pega EXCEÇÃO. Um
-  402 (cota estourada), um 500 ou um 429 do PostgREST não lançam: o supabase-js devolve
-  `{ error }`, o fluxo segue e cai no logout.
-
-  **Por que importa agora:** se o Supabase aplicar a restrição de cota (ver 0.1), todo
-  usuário que abrir o app é deslogado e não consegue voltar, porque o login também depende
-  do servidor. E o pior é que seria desnecessário: com a v2, os dados estão no IndexedDB do
-  aparelho. Quem continuasse logado veria os equipamentos, criaria coisas novas e
-  sincronizaria quando o serviço voltasse — a capacidade existe, o gate de sessão é que a
-  joga fora.
-
-  **O fix:** `carregarPerfil` precisa devolver um terceiro estado — algo como
-  `indisponivel: true` — em vez de fingir que leu um perfil inativo. `verificarAcesso`
-  trata esse estado como offline: mantém a sessão local e NÃO desloga.
-
-  **O cuidado que não pode faltar:** isto não pode virar brecha. Recusa por autorização
-  (401/403) continua deslogando — é revogação real. Só indisponibilidade (402, 429, 5xx e
-  falha de rede) mantém a sessão. Vale checar o shape real do erro do supabase-js antes de
-  escolher o discriminante; `error.status`/`error.code` são o caminho, e o teste tem que
-  cobrir os dois lados.
-
-  **Como testar:** interceptar o `fetch` e devolver 402 nas chamadas ao Supabase (é o mesmo
-  truque usado para simular offline na validação das fotos), abrir o app já logado e
-  confirmar que continua dentro, lendo do IndexedDB, com a fila acumulando. Depois um teste
-  com 403 confirmando que aí SIM desloga.
-
-  Vale por si só, independente da cota: protege contra qualquer instabilidade do Supabase.
-
 ---
 
 ## 1. Deploy manual (feito pelo dono do projeto, fora do código)
