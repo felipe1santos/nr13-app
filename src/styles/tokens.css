@@ -41,6 +41,13 @@
   --blue2-bg: #E4EDF9;
   --blue2-line: #C4D9F0;
   --link: #1E3A8A;           /* azul escuro — textos clicáveis (fj-link) */
+  /* Azul petróleo — o azul da tela de login. Usado onde um texto informativo
+     precisa de peso sem virar alerta (carimbo de último login, selo do
+     documento arquivado). */
+  --petroleo: #0A5A6E;
+  --petroleo-claro: #0E6F85;
+  --petroleo-bg: #E8F2F5;
+  --petroleo-line: #BEDCE4;
   --radius: 10px;
 
   /* ── Aliases legados (mapeados para a paleta Forja) ── */

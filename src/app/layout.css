@@ -180,7 +180,8 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--muted);
+  color: var(--petroleo);
+  font-weight: 600;
   font-size: 12px;
   white-space: nowrap;
 }

@@ -26,20 +26,34 @@
   overflow: hidden;
   margin-bottom: 18px;
 }
+/* Cabeçalho do painel com um fundo levemente quente e um filete âmbar à
+   esquerda: a tela era branco sobre branco e nada separava o cabeçalho do
+   conteúdo além de um fio de 1px. */
 .fj-panel-head {
+  position: relative;
   padding: 16px 20px;
   border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, #FCFBF9 0%, var(--panel) 100%);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
 }
+.fj-panel-head::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--amber);
+}
 .fj-eyebrow {
   font-size: 10.5px;
   letter-spacing: 1.1px;
-  color: var(--muted);
-  font-weight: 600;
+  color: var(--amber-deep);
+  font-weight: 700;
   text-transform: uppercase;
 }
 .fj-panel-head h2 {

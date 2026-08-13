@@ -498,7 +498,12 @@
   box-shadow: var(--shadow-card);
 }
 
+/* Marca âmbar antes do título da seção: com o fio cinza sozinho, blocos
+   empilhados viravam uma parede branca sem hierarquia. */
 .bloco-dados h3 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
   font-family: var(--font-display);
   font-size: 15px;
   color: var(--text-main);
@@ -507,6 +512,14 @@
   border-bottom: 1px solid var(--border-solid);
   padding-bottom: 10px;
   margin-bottom: 16px;
+}
+.bloco-dados h3::before {
+  content: '';
+  width: 4px;
+  height: 15px;
+  border-radius: 2px;
+  background: var(--amber);
+  flex-shrink: 0;
 }
 
 .bloco-dados-split {

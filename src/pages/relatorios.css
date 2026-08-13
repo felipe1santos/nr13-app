@@ -837,7 +837,7 @@
 }
 /* Azul petróleo: é a frase que garante a integridade do documento, não um
    rodapé de apoio — em cinza ela se perdia entre os botões. */
-.visualizador-pdf-info { font-size: 12.5px; color: #0A5A6E; font-weight: 600; min-width: 0; }
+.visualizador-pdf-info { font-size: 12.5px; color: var(--petroleo); font-weight: 600; min-width: 0; }
 /* Abrir em outra aba é a saída para quem está no celular (onde o quadro do PDF
    não renderiza): destaque âmbar no hover e no toque. */
 .visualizador-pdf-barra .btn-secundario:hover,
