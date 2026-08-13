@@ -16,7 +16,7 @@ import {
 } from '../features/prontuarios/prontuarioService';
 import type { AssinantesProntuario } from '../features/prontuarios/prontuarioService';
 import type { DimensaoProntuario, ProntuarioDados } from '../features/prontuarios/tipos';
-import { PAGINAS_PRONTUARIO } from '../features/prontuarios/tipos';
+import { paginasProntuario, temCroqui2d } from '../features/prontuarios/tipos';
 import { carregarMinhaEmpresa, listarClientes, listarFuncionarios } from '../features/cadastros/cadastroService';
 import type { Cliente, Funcionario } from '../features/cadastros/tipos';
 import { carregarVaso } from '../features/memorial/vasoMemorialService';
@@ -278,7 +278,11 @@ export default function Prontuarios() {
   const [assinantes, setAssinantes] = useState<AssinantesProntuario>({ engenheiroId: null, tecnicoId: null });
   const [imprimindo, setImprimindo] = useState(false);
   // Recomputado a cada render — o bump de `versao` no onSalvo do modelador atualiza o indicador.
-  const temCroqui2d = tag !== '' && localStorage.getItem(`nr13_croqui2d_${tag}`) !== null;
+  const croquiSalvo = tag !== '' && localStorage.getItem(`nr13_croqui2d_${tag}`) !== null;
+  // Caldeira e autoclave não têm croqui: as duas folhas que dependem dele saem
+  // do documento (ver paginasProntuario). A numeração e o total do rodapé saem
+  // desta lista, e a impressão/PDF rasterizam o que ela montou.
+  const folhasDoProntuario = paginasProntuario(tipoEquip);
   // PDF do prontuário do fabricante (nr13_pront_fab_<TAG>) — enviado na ficha do equipamento.
   const prontFabricante = tag !== '' ? lerProntuarioFabricante(tag) : null;
 
@@ -907,18 +911,18 @@ export default function Prontuarios() {
                 <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
                   Croqui
                 </span>
-                {tipoEquip === 'vaso' || tipoEquip === 'autoclave' ? (
+                {temCroqui2d(tipoEquip) ? (
                   <>
                     <button type="button" className="btn-secundario" style={{ fontSize: 12 }} onClick={() => setMostrarModelador(true)}>
                       Croqui 2D do Equipamento
                     </button>
-                    <span style={{ fontSize: 12, color: temCroqui2d ? 'var(--ok)' : 'var(--text-muted)', fontStyle: temCroqui2d ? 'normal' : 'italic' }}>
-                      {temCroqui2d ? '✓ croqui gerado' : 'croqui pendente'}
+                    <span style={{ fontSize: 12, color: croquiSalvo ? 'var(--ok)' : 'var(--text-muted)', fontStyle: croquiSalvo ? 'normal' : 'italic' }}>
+                      {croquiSalvo ? '✓ croqui gerado' : 'croqui pendente'}
                     </span>
                   </>
                 ) : (
                   <span style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                    Croqui 2D — Em Breve
+                    Não se aplica — o croqui 2D existe só para vaso de pressão.
                   </span>
                 )}
               </div>
@@ -1100,10 +1104,10 @@ export default function Prontuarios() {
 
           <div className="prontuario-preview">
             {palco.estado === 'pronto' &&
-              PAGINAS_PRONTUARIO.map((doc, i) => (
+              folhasDoProntuario.map((doc, i) => (
               <PaginaA4 key={`${doc}-${i}-${versao}`}>
                 <iframe
-                  src={`/arquivos-prontuario/${doc}?tag=${encodeURIComponent(tag)}&page=${i + 1}&total=${PAGINAS_PRONTUARIO.length}${palco.paramsIframe}`}
+                  src={`/arquivos-prontuario/${doc}?tag=${encodeURIComponent(tag)}&page=${i + 1}&total=${folhasDoProntuario.length}${palco.paramsIframe}`}
                   scrolling="no"
                   title={doc}
                   onLoad={(e) => {

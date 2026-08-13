@@ -21,7 +21,7 @@ import {
   formatarTamanho as formatarTamanhoPdf,
   lerProntuarioFabricante,
 } from '../../features/equipamento/ProntuarioFabricante';
-import { PAGINAS_PRONTUARIO } from '../../features/prontuarios/tipos';
+import { paginasProntuario } from '../../features/prontuarios/tipos';
 import { parseDataFlex, statusPrazo } from '../../services/vencimentos';
 import type { InfoEquipamento } from '../../features/equipamento/tipos';
 import { temArtefato, type RelatorioSalvo } from '../../features/relatorios/tipos';
@@ -236,10 +236,13 @@ export default function PortalAtivo() {
   async function abrirProntuario() {
     if (!prontuario) return;
     await gravarProntuarioAtual(prontuario);
-    const n = PAGINAS_PRONTUARIO.length;
+    // Mesma lista do prontuário interno: caldeira e autoclave não têm croqui 2D,
+    // e o cliente não pode receber duas folhas a mais que o engenheiro não vê.
+    const folhas = paginasProntuario(info?.tipo ?? '');
+    const n = folhas.length;
     setDocumentoSimples({
       titulo: 'Prontuário',
-      paginas: PAGINAS_PRONTUARIO.map((doc, i) => `/arquivos-prontuario/${doc}?tag=${encodeURIComponent(tag)}&page=${i + 1}&total=${n}`),
+      paginas: folhas.map((doc, i) => `/arquivos-prontuario/${doc}?tag=${encodeURIComponent(tag)}&page=${i + 1}&total=${n}`),
     });
   }
 

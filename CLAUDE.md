@@ -455,6 +455,17 @@ assinatura, respeitando `folhasProntuario` de cada assinante (não assina a folh
 de exemplo ("Fulano Da Silva"). **Relatório: motor próprio em modo carimbo (ver §7-bis).**
 Certificados de calibração ainda usam o fluxo antigo (ver PENDENCIAS.md).
 
+> **AS FOLHAS 2 e 3 SÓ EXISTEM PARA VASO DE PRESSÃO (13/08/2026).** `PRONT-CROQUI2D` e
+> `PRONT-FOLHA-DADOS` derivam do mesmo modelo do editor de croqui, que nunca soube desenhar
+> caldeira nem autoclave — o prontuário delas saía com um desenho genérico que não é o
+> equipamento e uma tabela de dimensões vazia, num documento assinado por engenheiro.
+> `paginasProntuario(tipo)` (`features/prontuarios/tipos.ts`) é a fonte única: dela saem os
+> iframes do visualizador, o `page`/`total` de cada folha e — porque impressão e PDF
+> rasterizam `.prontuario-preview` — também o papel e o arquivo. O Portal do Cliente usa a
+> MESMA função (`info.tipo` do equipamento), senão o cliente receberia duas folhas que o
+> engenheiro não vê. O botão "Croqui 2D do Equipamento" também passou a aparecer só para
+> vaso.
+
 `PRONTUARIO-RECONSTITUICAO-1..4` **não fazem parte** do prontuário — seguem como folhas do
 **relatório** (ver §7).
 
