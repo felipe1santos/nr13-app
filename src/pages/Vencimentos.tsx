@@ -126,7 +126,11 @@ export default function Vencimentos() {
                       <td data-rot="Origem">{it.origem === 'calibracao' ? 'Calibração' : 'Inspeção'}</td>
                       <td className="mono" data-rot="Última">{it.ultima ? it.ultima.toLocaleDateString('pt-BR') : <span className="fj-dash">—</span>}</td>
                       <td className="mono" data-rot="Vencimento">{it.vencimento ? it.vencimento.toLocaleDateString('pt-BR') : <span className="fj-dash">—</span>}</td>
-                      <td className={`fj-days ${it.status === 'crit' ? 'crit' : it.status === 'warn' ? 'warn' : ''}`} data-rot="Prazo">{textoPrazo(it)}</td>
+                      {/* `folgado`: mais de 60 dias até vencer — mesmo selo azul do
+                          painel de Prazos do Dashboard. */}
+                      <td className={`fj-days ${it.status === 'crit' ? 'crit' : it.status === 'warn' ? 'warn' : ''}`} data-rot="Prazo">
+                        <span className={`fj-prazo${(it.dias ?? 0) > 60 ? ' folgado' : ''}`}>{textoPrazo(it)}</span>
+                      </td>
                       <td data-rot="Status"><BadgeStatus status={it.status} /></td>
                     </tr>
                   ))}

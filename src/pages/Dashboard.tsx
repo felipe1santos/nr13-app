@@ -216,7 +216,12 @@ export default function Dashboard() {
                       <td data-rot="Origem">{it.origem === 'calibracao' ? 'Calibração' : 'Inspeção'}</td>
                       <td className="mono col-ultima" data-rot="Última">{it.ultima ? it.ultima.toLocaleDateString('pt-BR') : <span className="fj-dash">—</span>}</td>
                       <td className="mono" data-rot="Vencimento">{it.vencimento ? it.vencimento.toLocaleDateString('pt-BR') : <span className="fj-dash">—</span>}</td>
-                      <td className={`fj-days ${it.status === 'crit' ? 'crit' : it.status === 'warn' ? 'warn' : ''}`} data-rot="Prazo">{textoPrazo(it)}</td>
+                      {/* `folgado`: mais de 60 dias até vencer. Selo azul, para o olho
+                          separar o que está tranquilo do que pede agenda — sem mudar o
+                          cálculo de status, que continua vindo do motor de vencimentos. */}
+                      <td className={`fj-days ${it.status === 'crit' ? 'crit' : it.status === 'warn' ? 'warn' : ''}`} data-rot="Prazo">
+                        <span className={`fj-prazo${(it.dias ?? 0) > 60 ? ' folgado' : ''}`}>{textoPrazo(it)}</span>
+                      </td>
                       <td data-rot="Status"><BadgeStatus status={it.status} /></td>
                     </tr>
                   ))}

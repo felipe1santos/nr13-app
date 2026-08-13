@@ -732,7 +732,7 @@ export default function Relatorios() {
             <span className="crumb-tag-chip">{tag}</span>
           </div>
           <div className="meta-card-header">
-            <h3>Histórico de Inspeções</h3>
+            <h3>Histórico de Relatórios</h3>
             <div style={{ display: 'flex', gap: 10, position: 'relative' }}>
               {selecionados.size > 0 && (
                 <button type="button" className="btn-secundario" onClick={excluirSelecionados}>
@@ -779,15 +779,18 @@ export default function Relatorios() {
                   <th style={{ width: 30 }}>
                     <input type="checkbox" checked={selecionados.size === historico.length} onChange={toggleSelecionarTodos} />
                   </th>
+                  {/* Rótulos curtos, iguais aos `data-rot` do cartão do celular:
+                      "Próx. Insp. Interna" quebrava em três linhas na coluna e
+                      deixava o cabeçalho três vezes mais alto que o conteúdo. */}
                   <th>Nome do Relatório</th>
                   <th>TAG</th>
-                  <th>Tipo de Inspeção</th>
-                  <th>Criação Relatório</th>
-                  <th>Validade Relatório</th>
-                  <th>Próx. Insp. Interna</th>
-                  <th>Próx. Insp. Externa</th>
-                  <th>Validade Válvula</th>
-                  <th>Validade Manômetro</th>
+                  <th>Tipo</th>
+                  <th>Criação</th>
+                  <th>Validade</th>
+                  <th>Próx. interna</th>
+                  <th>Próx. externa</th>
+                  <th>Val. válvula</th>
+                  <th>Val. manômetro</th>
                   <th>Ações</th>
                 </tr>
               </thead>

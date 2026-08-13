@@ -311,6 +311,19 @@
 .fj-days.crit { color: var(--crit); font-weight: 600; }
 .fj-days.warn { color: #DC2626; font-weight: 700; } /* vermelho forte: item próximo de vencer */
 
+/* Prazo com mais de 60 dias: selo azul. O vermelho já marca o que urge; sem um
+   sinal para o outro extremo, a coluna vira uma lista de datas todas iguais e o
+   olho tem que ler cada uma para saber o que pode esperar. */
+.fj-prazo.folgado {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 20px;
+  background: var(--blue2-bg);
+  color: var(--blue2);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 /* ===== KPI ===== */
 .fj-kpi-row {
   display: grid;
