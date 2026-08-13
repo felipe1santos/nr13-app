@@ -10,10 +10,15 @@ import { ler } from '../services/storage';
 import { isTrial } from '../services/auth';
 import { MSG_BLOQUEIO_IMPORTACAO } from '../services/trial';
 import { emitirAviso } from '../services/eventos';
+import { formatarValor } from '../calc/unidades';
 import { Icone } from '../components/Icone';
+import FotoImg from '../components/FotoImg';
 import '../features/equipamento/equipamento.css';
 import '../features/equipamento/importar.css';
 import './dashboard.css';
+/* .lista-cards-horiz / .card-equipamento-horiz / .eq-* — classes globais já usadas em
+   Inspeções, Relatórios e Prontuários; o modo lista desta tela reusa as mesmas. */
+import './relatorios.css';
 
 const ROTULO_TIPO: Record<string, string> = {
   vaso: 'Vaso de Pressão',
@@ -41,6 +46,8 @@ export default function Equipamentos() {
   const [arrastando, setArrastando] = useState(false);
   const [erroArrasto, setErroArrasto] = useState<string | null>(null);
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
+  // Preferência de visualização é de sessão/tela — não persiste em localStorage de propósito.
+  const [visao, setVisao] = useState<'grade' | 'lista'>('grade');
   const [busca, setBusca] = useState('');
   const [fEmpresa, setFEmpresa] = useState('');
   const [fTipo, setFTipo] = useState('');
@@ -158,11 +165,33 @@ export default function Equipamentos() {
 
   return (
     <div className="dashboard-page">
-      <div className="fj-page-head">
-        <div className="sub">
-          {equipamentos.length} equipamento{equipamentos.length !== 1 ? 's' : ''} cadastrado{equipamentos.length !== 1 ? 's' : ''}
+      <div className="fj-page-head equip-head">
+        <div className="equip-head-esq">
+          <div className="sub">
+            {equipamentos.length} equipamento{equipamentos.length !== 1 ? 's' : ''} cadastrado{equipamentos.length !== 1 ? 's' : ''}
+          </div>
+          <div className="equip-visao" role="group" aria-label="Modo de visualização">
+            <button
+              type="button"
+              className={`equip-visao-btn${visao === 'grade' ? ' ativo' : ''}`}
+              onClick={() => setVisao('grade')}
+              aria-pressed={visao === 'grade'}
+              title="Ver em grade"
+            >
+              <Icone nome="grid" tam={15} />
+            </button>
+            <button
+              type="button"
+              className={`equip-visao-btn${visao === 'lista' ? ' ativo' : ''}`}
+              onClick={() => setVisao('lista')}
+              aria-pressed={visao === 'lista'}
+              title="Ver em lista"
+            >
+              <Icone nome="filetext" tam={15} />
+            </button>
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+        <div className="equip-head-acoes">
           <button
             type="button"
             className={`fj-btn fj-btn-ghost${temFiltro ? ' filtro-ativo' : ''}`}
@@ -258,6 +287,45 @@ export default function Equipamentos() {
             <div className="fj-empty-ic"><Icone nome="search" tam={22} /></div>
             <div className="fj-empty-title">Nenhum equipamento encontrado</div>
             Ajuste ou limpe os filtros para ver os equipamentos.
+          </div>
+        ) : visao === 'lista' ? (
+          <div className="lista-cards-horiz equip-lista">
+            {filtrados.map((e) => (
+              <button
+                type="button"
+                key={e.tag}
+                className="card-equipamento-horiz"
+                onClick={() => navigate(`/equipamento/${e.tag}`)}
+              >
+                <div className="card-eq-img">
+                  {e.fotoCapa ? (
+                    <FotoImg foto={e.fotoCapa} alt={`Foto do equipamento ${e.tag}`} />
+                  ) : (
+                    <span className="card-eq-img-vazio">{e.tag.slice(0, 2)}</span>
+                  )}
+                </div>
+                <div className="card-eq-info">
+                  <div className="eq-col">
+                    <span className="eq-tag">{e.tag}</span>
+                    <span className="eq-tipo">{ROTULO_TIPO[e.info.tipo] ?? e.info.tipo}</span>
+                  </div>
+                  <div className="eq-col">
+                    <span className="eq-label">Categoria</span>
+                    <span className="eq-value">{e.categoria?.catFinal ?? '—'}</span>
+                  </div>
+                  <div className="eq-col">
+                    <span className="eq-label">PMTA</span>
+                    <span className="eq-value">
+                      {e.calculo ? formatarValor(parseFloat(e.calculo.pmta), e.unidade) : '—'}
+                    </span>
+                  </div>
+                  <div className="eq-col eq-col-empresa">
+                    <span className="eq-label">Empresa</span>
+                    <span className="eq-value">{empresaDe(e.tag) || '—'}</span>
+                  </div>
+                </div>
+              </button>
+            ))}
           </div>
         ) : (
           <div className="vasos-grid">

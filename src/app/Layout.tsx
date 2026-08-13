@@ -16,7 +16,7 @@ import {
 import { emitirAviso } from '../services/eventos';
 import { instalarBloqueioImpressao } from '../services/bloqueioImpressao';
 import { modulosDoUsuarioAtual } from '../services/permissoes';
-import { ITENS_TOPO, ITENS_CADASTRAR, ITENS_BAIXO, ITEM_ACESSOS, tituloDaRota } from './menu';
+import { ITENS_TOPO, ITENS_CADASTRAR, ITENS_BAIXO, ITEM_ACESSOS, ITEM_MEUS_DADOS, tituloDaRota } from './menu';
 import type { ItemMenu } from './menu';
 import MenuUsuario from './MenuUsuario';
 import SyncStatus from './SyncStatus';
@@ -197,7 +197,7 @@ export default function Layout() {
         {/* ===== SIDEBAR (escura, Forja) ===== */}
         <aside className={`sidebar${menuAberto ? ' aberta' : ''}`}>
           <div className="brand">
-            <div className="brand-mark">13</div>
+            <img className="brand-logo" src="/logo-marca.png" alt="" aria-hidden="true" />
             <div>
               <div className="brand-name">NR13</div>
               <div className="brand-sub">Engenharia &amp; Ativos</div>
@@ -205,6 +205,7 @@ export default function Layout() {
           </div>
 
           <nav className="nav-list">
+            {isMestre() && <NavItem item={ITEM_MEUS_DADOS} />}
             {itensTopo.map((item) => (
               <NavItem key={item.id} item={item} />
             ))}

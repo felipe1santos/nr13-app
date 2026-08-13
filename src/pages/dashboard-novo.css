@@ -284,6 +284,30 @@
 
 .livro-timeline-meta { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; font-size: 11.5px; color: var(--muted); margin-top: 6px; }
 
+/* A lista de vencimentos do Dashboard vive num painel de meia largura, e as
+   mesmas seis colunas que sobram na tela cheia de /vencimentos ficam apertadas
+   aqui. Compacta o suficiente para caber sem rolagem lateral e sem quebrar
+   nenhuma célula em duas linhas. */
+.dash-cols .fj-table thead th,
+.dash-cols .fj-table tbody td {
+  padding-left: 12px;
+  padding-right: 12px;
+}
+.dash-cols .fj-table tbody td { font-size: 12.5px; }
+.dash-cols .fj-tag-cell { max-width: 190px; gap: 8px; }
+.dash-cols .fj-tag-ico { width: 26px; height: 26px; }
+
+/* Faixa em que o painel é mais estreito: acima de 1180px as duas colunas do
+   Dashboard ainda existem, mas a da esquerda só passa a ter folga por volta de
+   1500px. No meio disso a tabela precisa apertar mais, senão volta a rolagem
+   lateral. O nome completo continua em /vencimentos e na ficha. */
+@media (min-width: 1181px) and (max-width: 1500px) {
+  .dash-cols .fj-table thead th,
+  .dash-cols .fj-table tbody td { padding-left: 9px; padding-right: 9px; }
+  .dash-cols .fj-table tbody td { font-size: 12px; }
+  .dash-cols .fj-tag-cell { max-width: 132px; }
+}
+
 .livro-timeline-acoes {
   display: flex;
   flex-direction: column;

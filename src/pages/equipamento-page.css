@@ -59,17 +59,33 @@
 }
 
 /* TAG em destaque azul (design/painel_detalhe_equipamento.html .eq-tag) */
+/* Identificação do equipamento: é o dado que amarra ficha, memorial, inspeção,
+   relatório e prontuário. Em azul claro sobre branco competia em peso com os
+   rótulos ao redor; aqui vira uma placa escura, com a palavra TAG discreta e o
+   código em destaque. */
 .equipamento-tag-titulo {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
   font-family: var(--font-mono);
   font-weight: 700;
-  font-size: 21px;
-  color: var(--blue);
-  background: var(--blue-bg);
-  border: 1px solid var(--blue-line);
-  padding: 5px 14px;
+  font-size: 13px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: #9AA6B2;
+  background: linear-gradient(135deg, var(--ink) 0%, var(--ink-soft2) 100%);
+  border: none;
+  border-left: 3px solid var(--amber);
+  padding: 9px 16px;
   border-radius: 8px;
-  letter-spacing: 0.3px;
   margin: 0;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.18);
+}
+.equipamento-tag-titulo span {
+  font-size: 20px;
+  letter-spacing: 0.3px;
+  color: #fff;
+  text-transform: none;
 }
 
 .seletor-unidade-box {

@@ -45,6 +45,14 @@
   font-family: var(--font-display);
   flex-shrink: 0;
 }
+/* Logo da marca no lugar do quadradinho "13". */
+.brand-logo {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  flex-shrink: 0;
+  border-radius: 6px;
+}
 .brand-name { color: #fff; font-weight: 600; font-size: 15.5px; }
 .brand-sub { font-size: 10.5px; color: #7C8792; }
 

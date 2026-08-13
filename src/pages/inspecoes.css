@@ -122,17 +122,25 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 14px 16px;
+  padding: 12px 14px;
   border: 1px solid var(--border-solid);
+  /* Faixa lateral com o estado do ensaio: verde = preenchido, âmbar = pendente.
+     De relance a lista diz o que falta antes de qualquer texto ser lido. */
+  border-left: 3px solid var(--amber);
   border-radius: var(--radius-md);
+  background: var(--bg-card);
   flex-wrap: wrap;
 }
+.item-container-row.preenchido { border-left-color: var(--ok, #1FA971); }
 
 .item-container-info {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
 }
+
+.item-container-texto { min-width: 0; }
 
 .item-container-info strong {
   display: block;
@@ -140,17 +148,18 @@
   margin-bottom: 4px;
 }
 
-.item-status-dot {
-  font-size: 14px;
+/* Ícone do ensaio (ultrassom, checklist, visual, TH, manômetro, PSV). */
+.item-form-ico {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
-
-.item-status-dot.ok {
-  color: var(--status-sucesso-icone, #16a34a);
-}
-
-.item-status-dot.pendente {
-  color: var(--status-pendente-icone, #d97706);
-}
+.item-form-ico.ok { background: var(--ok-bg, #E7F6EF); color: var(--ok, #1FA971); }
+.item-form-ico.pendente { background: var(--warn-bg, #FBF1DC); color: var(--warn, #B8860B); }
 
 .item-container-acoes {
   display: flex;
@@ -158,10 +167,14 @@
   gap: 8px;
   flex-wrap: wrap;
 }
-
-.btn-ver-doc {
-  background: #ede9fe;
-  color: #6d28d9;
+.item-container-acoes .btn-visualizar,
+.item-container-acoes .btn-primario {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  white-space: nowrap;
 }
 
 @media (max-width: 600px) {
@@ -173,9 +186,8 @@
     align-items: flex-start;
   }
 
-  /* Três botões em flex-wrap davam larguras diferentes por linha: "Ver
-     documento" quebrava em duas linhas e "Editar" sobrava sozinho com meia
-     largura. Grade de duas colunas, com a ação principal ocupando a linha. */
+  /* Os dois botões dividem a linha em partes iguais. Em flex-wrap cada um
+     ficava com uma largura e o rótulo mais longo quebrava em duas linhas. */
   .item-container-acoes {
     width: 100%;
     display: grid;
@@ -192,5 +204,6 @@
     white-space: nowrap;
     font-size: 12.5px;
   }
-  .item-container-acoes .btn-primario { grid-column: 1 / -1; }
+  /* Ensaio ainda não preenchido tem um botão só: ocupa a linha. */
+  .item-container-acoes > :only-child { grid-column: 1 / -1; }
 }

@@ -265,7 +265,24 @@
 .fj-table tbody tr:hover { background: #FBFAF7; }
 .fj-dash { color: #C9C5B8; }
 
-.fj-tag-cell { display: flex; align-items: center; gap: 10px; }
+/* Lista de vencimentos: a primeira coluna (ícone + tag + "tipo · pertence a X")
+   quebrava em três linhas enquanto as colunas de data ocupavam uma só, e a
+   linha inteira ficava com a altura da pior célula. Teto de largura + corte com
+   reticências mantém tudo numa linha e as linhas todas da mesma altura. */
+.fj-tag-cell { display: flex; align-items: center; gap: 10px; max-width: 260px; min-width: 0; }
+.fj-tag-cell > div { min-width: 0; }
+/* Uma linha para a tag e uma para o nome, sempre — o que desalinhava a lista era
+   o nome ("Vaso de Pressão · pertence a SANTA CASA DE MISERICÓRDIA DE MAUÁ")
+   quebrando em duas ou três linhas e esticando só aquela linha da tabela. */
+.fj-tag-code, .fj-eq-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Datas, prazo e selo nunca quebram: são curtos e a quebra deles é sempre
+   sintoma de aperto na coluna da esquerda, não falta de espaço próprio. */
+.fj-table tbody td.mono,
+.fj-table tbody td.fj-days { white-space: nowrap; }
 .fj-tag-ico {
   width: 30px; height: 30px;
   border-radius: 7px;
@@ -491,6 +508,8 @@
     padding: 5px 0 !important;
     border-bottom: none;
     font-size: 12.5px;
+    /* No cartão há largura sobrando: o nowrap do desktop cortaria valor à toa. */
+    white-space: normal;
   }
   .fj-table tbody td::before {
     content: attr(data-rot);

@@ -11,6 +11,22 @@ export interface ItemMenu {
   icone: NomeIcone;
 }
 
+/**
+ * Dados da empresa executante — logo, razão social, CNPJ, contato.
+ *
+ * Ficava só como um card dentro do Dashboard, sem entrada no menu: para editar
+ * era preciso passar pelo painel. Agora tem porta própria, acima do Dashboard.
+ * Fica atrás de `isMestre()` como o item de Acessos, porque a rota já era
+ * exclusiva do mestre (ver o guarda de rota em Layout.tsx) — pôr no menu de
+ * quem seria redirecionado só produziria um item que não abre.
+ */
+export const ITEM_MEUS_DADOS: ItemMenu = {
+  id: 'meusdados',
+  to: '/minha-empresa',
+  label: 'Meus dados',
+  icone: 'building',
+};
+
 export const ITENS_TOPO: ItemMenu[] = [
   { id: 'dashboard', to: '/dashboard', label: 'Dashboard', icone: 'grid' },
   { id: 'equipamentos', to: '/equipamentos', label: 'Equipamentos', icone: 'box' },
@@ -47,8 +63,9 @@ export const TITULOS_ROTA: { prefixo: string; titulo: string; sub: string }[] = 
   { prefixo: '/livro-registro', titulo: 'Livro Registro', sub: 'Livros de registro de segurança por equipamento' },
   { prefixo: '/funcionarios', titulo: 'Funcionários', sub: 'Profissionais habilitados e equipe' },
   { prefixo: '/empresas', titulo: 'Clientes', sub: 'Empresas clientes cadastradas' },
-  { prefixo: '/minha-empresa', titulo: 'Minha Empresa', sub: 'Dados da empresa executante' },
+  { prefixo: '/minha-empresa', titulo: 'Meus dados', sub: 'Dados da empresa executante' },
   { prefixo: '/acesso', titulo: 'Acessos', sub: 'Logins da sua equipe e permissões' },
+  { prefixo: '/pendencias', titulo: 'Sincronização', sub: 'O que ainda não subiu para o servidor' },
 ];
 
 export function tituloDaRota(pathname: string): { titulo: string; sub: string } {

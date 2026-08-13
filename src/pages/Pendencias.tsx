@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { listarFila, tentarNovamente, type ItemFila } from '../services/sync';
-import { rotuloEstado, pendenciaVelha } from '../services/selo';
+import { rotuloEstado, pendenciaVelha, resumoSelo } from '../services/selo';
 import { diagnosticarPerda } from '../services/manifesto';
 import { erroDoManifesto } from '../services/manifesto';
 import './pendencias.css';
@@ -41,11 +41,32 @@ export default function Pendencias() {
     }
   };
 
+  // Mesma função que alimenta o selo da topbar — a contagem aqui não pode
+  // discordar da que o usuário viu antes de clicar.
+  const resumo = resumoSelo(itens);
+
   return (
     <section className="pendencias">
-      <header className="pendencias__cabecalho">
-        <h1>Pendências de sincronização</h1>
-        <p>Alterações que ainda não chegaram ao servidor.</p>
+      <header className={`pendencias-hero nivel-${resumo.nivel}`}>
+        <div className="pendencias-hero-txt">
+          <span className="pendencias-hero-eyebrow">Sincronização</span>
+          <h1>{itens.length === 0 ? 'Tudo salvo na nuvem' : resumo.rotulo}</h1>
+          <p>
+            {itens.length === 0
+              ? 'Nada neste aparelho está esperando para subir. Tudo o que você preencheu já está no servidor.'
+              : 'Estas alterações estão guardadas no aparelho e ainda não chegaram ao servidor. Elas não se perdem ao fechar o app.'}
+          </p>
+        </div>
+        <div className="pendencias-hero-selos">
+          <div className="pend-chip">
+            <span className="n">{resumo.pendentes}</span>
+            na fila
+          </div>
+          <div className={`pend-chip${resumo.falhas > 0 ? ' crit' : ''}`}>
+            <span className="n">{resumo.falhas}</span>
+            {resumo.falhas === 1 ? 'com falha' : 'com falhas'}
+          </div>
+        </div>
       </header>
 
       {perda.tipo === 'despejo_detectado' && (
@@ -145,6 +166,11 @@ export default function Pendencias() {
           Tentar todas
         </button>
       )}
+
+      <footer className="pendencias-rodape">
+        <img src="/logo-marca.png" alt="" aria-hidden="true" />
+        <span>Sistema NR-13 · o que você preenche fica no aparelho até o servidor confirmar</span>
+      </footer>
     </section>
   );
 }

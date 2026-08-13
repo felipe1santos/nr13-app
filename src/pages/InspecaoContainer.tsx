@@ -3,7 +3,20 @@ import { Icone } from '../components/Icone';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { carregarContainer, formulariosDoContainer } from '../features/inspecoes/inspecaoService';
 import { ROTULO_FORMULARIO } from '../features/inspecoes/tipos';
+import type { FormularioEnsaio } from '../features/inspecoes/tipos';
+import type { NomeIcone } from '../components/Icone';
 import './inspecoes.css';
+
+/** Ícone por ensaio: em campo o técnico procura o item pela figura, não pelo texto. */
+const ICONE_FORMULARIO: Record<FormularioEnsaio, NomeIcone> = {
+  ultrassom: 'gauge',
+  checklist: 'clipboard',
+  visual_externo: 'eye',
+  visual_interno: 'search',
+  th: 'cylinder',
+  manometro: 'manometro',
+  psv: 'valvula-psv',
+};
 
 export default function InspecaoContainer() {
   const { tag = '', containerId = '' } = useParams<{ tag: string; containerId: string }>();
@@ -40,10 +53,12 @@ export default function InspecaoContainer() {
           {formularios.map((f) => {
             const preenchido = container.dados[f] != null;
             return (
-              <li key={f} className="item-container-row">
+              <li key={f} className={`item-container-row${preenchido ? ' preenchido' : ''}`}>
                 <div className="item-container-info">
-                  <span className={`item-status-dot ${preenchido ? 'ok' : 'pendente'}`}>{preenchido ? '●' : '○'}</span>
-                  <div>
+                  <span className={`item-form-ico ${preenchido ? 'ok' : 'pendente'}`}>
+                    <Icone nome={ICONE_FORMULARIO[f]} tam={17} />
+                  </span>
+                  <div className="item-container-texto">
                     <strong>{ROTULO_FORMULARIO[f]}</strong>
                     <span className={`badge-tipo ${preenchido ? 'preenchido' : ''}`}>
                       {preenchido ? 'Preenchido' : 'Pendente'}
@@ -52,17 +67,12 @@ export default function InspecaoContainer() {
                 </div>
                 <div className="item-container-acoes">
                   {preenchido && (
-                    <>
-                      <button type="button" className="btn-visualizar" onClick={() => navigate(`${base}/${f}?visualizar=1`)}>
-                        👁 Ver preenchido
-                      </button>
-                      <button type="button" className="btn-visualizar btn-ver-doc" onClick={() => navigate(`${base}/${f}?documento=1`)}>
-                        <Icone nome="eye" tam={14} /> Ver documento
-                      </button>
-                    </>
+                    <button type="button" className="btn-visualizar" onClick={() => navigate(`${base}/${f}?visualizar=1`)}>
+                      <Icone nome="eye" tam={14} /> Ver preenchido
+                    </button>
                   )}
                   <button type="button" className="btn-primario" onClick={() => navigate(`${base}/${f}`)}>
-                    {preenchido ? '✎ Editar' : 'Preencher'}
+                    <Icone nome="pencil" tam={14} /> {preenchido ? 'Editar' : 'Preencher'}
                   </button>
                 </div>
               </li>

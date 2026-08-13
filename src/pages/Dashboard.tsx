@@ -6,7 +6,6 @@ import ModalDetalheEquipamento from '../components/ModalDetalheEquipamento';
 import { resumoKpis, textoPrazo, useVencimentos } from '../services/vencimentos';
 import type { ItemVencimento } from '../services/vencimentos';
 import { listarChavesComPrefixo } from '../services/storage';
-import { carregarMinhaEmpresa } from '../features/cadastros/cadastroService';
 import './dashboard-novo.css';
 
 const ICONE_TIPO: Record<string, Parameters<typeof Icone>[0]['nome']> = {
@@ -38,7 +37,6 @@ export default function Dashboard() {
   const itens = useVencimentos();
   const totalEquip = listarChavesComPrefixo('nr13_info_').length;
   const kpis = useMemo(() => resumoKpis(itens, totalEquip), [itens, totalEquip]);
-  const empresa = carregarMinhaEmpresa();
 
   const vencidos = itens.filter((i) => i.status === 'crit');
   const alertas = itens.filter((i) => i.status === 'crit' || i.status === 'warn').slice(0, 5);
@@ -148,41 +146,9 @@ export default function Dashboard() {
            calendário é mais alto que o card da empresa. ===== */}
       <div className="dash-cols">
         <div className="dash-col">
-        <div className="fj-panel">
-          <div className="fj-panel-head">
-            <div>
-              <div className="fj-eyebrow">Empresa executante</div>
-              <h2>Minha Empresa</h2>
-            </div>
-            <button type="button" className="fj-btn fj-btn-ghost" onClick={() => navigate('/minha-empresa')}>
-              <Icone nome="pencil" tam={13} /> Editar dados
-            </button>
-          </div>
-          <div className="minha-emp-body">
-            <div className="minha-emp-logo">
-              {empresa.logo ? <img src={empresa.logo} alt="Logo da empresa" /> : <Icone nome="briefcase" tam={26} />}
-            </div>
-            {empresa.razao || empresa.fantasia ? (
-              <div className="minha-emp-info">
-                <div className="minha-emp-nome">{empresa.razao || empresa.fantasia}</div>
-                {empresa.fantasia && empresa.razao && <div className="minha-emp-sub">{empresa.fantasia}</div>}
-                <div className="minha-emp-meta">
-                  {empresa.cnpj && <span className="mono">CNPJ {empresa.cnpj}</span>}
-                  {empresa.cidade && <span>{empresa.cidade}{empresa.estado ? `/${empresa.estado}` : ''}</span>}
-                  {empresa.telefone && <span>{empresa.telefone}</span>}
-                  {empresa.email && <span>{empresa.email}</span>}
-                </div>
-                <div className="minha-emp-nota">Estes dados assinam a documentação gerada (relatórios e prontuários).</div>
-              </div>
-            ) : (
-              <div className="minha-emp-info">
-                <div className="minha-emp-nome" style={{ color: 'var(--muted)' }}>Dados não preenchidos</div>
-                <div className="minha-emp-nota">Preencha os dados e a logo da sua empresa — eles vão para dentro da documentação.</div>
-              </div>
-            )}
-          </div>
-        </div>
-
+        {/* O card "Minha Empresa" saiu daqui em 12/08/2026: virou o item "Meus dados"
+            do menu, acima do Dashboard, apontando para a MESMA tela /minha-empresa.
+            Nada de dado mudou de lugar — só a porta de entrada. */}
         <div className="fj-panel">
           <div className="fj-panel-head">
             <div>

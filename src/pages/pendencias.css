@@ -15,23 +15,123 @@
   gap: 14px;
 }
 
-.pendencias__cabecalho h1 {
+/* ── Cabeçalho ─────────────────────────────────────────────────────────────
+   Faixa escura com a marca em marca-d'água e o veredicto em tamanho grande.
+   A pergunta que traz alguém aqui é "meu trabalho de campo subiu ou não?" —
+   ela precisa ser respondida antes de qualquer lista. */
+.pendencias-hero {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 18px;
+  padding: 22px 24px;
+  border-radius: var(--radius);
+  background:
+    linear-gradient(105deg, var(--ink) 0%, var(--ink-soft) 62%, var(--ink-soft2, var(--ink-soft)) 100%);
+  color: #E8EBEE;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.16);
+}
+/* Marca-d'água: a logo bem apagada, atrás do texto. */
+.pendencias-hero::after {
+  content: '';
+  position: absolute;
+  right: -26px;
+  bottom: -46px;
+  width: 190px;
+  height: 190px;
+  background: url('/logo-marca.png') no-repeat center / contain;
+  opacity: 0.07;
+  pointer-events: none;
+}
+/* Fio de cor no topo, pelo estado. */
+.pendencias-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--ok);
+}
+.pendencias-hero.nivel-pendente::before { background: var(--warn); }
+.pendencias-hero.nivel-falha::before { background: var(--crit); }
+.pendencias-hero.nivel-bloqueado::before { background: var(--amber); }
+
+.pendencias-hero-txt { position: relative; z-index: 1; min-width: 0; }
+.pendencias-hero-eyebrow {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #8D99A4;
+  margin-bottom: 6px;
+}
+.pendencias-hero h1 {
+  font-family: var(--font-display);
+  font-size: 25px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  margin: 0 0 6px;
+  color: #fff;
+}
+.pendencias-hero p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #AEB7C0;
+  max-width: 54ch;
+}
+
+.pendencias-hero-selos { position: relative; z-index: 1; display: flex; gap: 10px; }
+.pend-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 84px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 11px;
+  font-weight: 600;
+  color: #AEB7C0;
+  white-space: nowrap;
+}
+.pend-chip .n {
   font-family: var(--font-display);
   font-size: 22px;
   font-weight: 700;
-  margin: 0 0 4px;
+  color: #fff;
+  line-height: 1;
 }
-.pendencias__cabecalho p { margin: 0; font-size: 13px; color: var(--muted); }
+.pend-chip.crit { border-color: rgba(213, 69, 61, 0.5); background: rgba(213, 69, 61, 0.14); }
+.pend-chip.crit .n { color: #FF9A93; }
+
+.pendencias-rodape {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.pendencias-rodape img { width: 22px; height: 22px; object-fit: contain; opacity: 0.75; }
 
 .pendencias__vazio {
   margin: 0;
-  padding: 26px 18px;
+  padding: 30px 18px;
   text-align: center;
-  border: 1px dashed var(--line);
+  border: 1px solid var(--ok-line, var(--line));
   border-radius: var(--radius);
-  background: var(--panel);
-  color: var(--muted);
+  background: var(--ok-bg);
+  color: var(--ok);
   font-size: 13.5px;
+  font-weight: 600;
 }
 
 .pendencia {
@@ -98,7 +198,11 @@
 
 @media (max-width: 640px) {
   .pendencias { padding: 16px 14px; gap: 12px; }
-  .pendencias__cabecalho h1 { font-size: 19px; }
+  .pendencias-hero { padding: 18px 16px; gap: 14px; }
+  .pendencias-hero h1 { font-size: 20px; }
+  .pendencias-hero p { font-size: 12.5px; }
+  .pendencias-hero-selos { width: 100%; }
+  .pend-chip { flex: 1; min-width: 0; }
   .pendencias button { align-self: stretch; }
   /* Duas colunas de 390px em rótulo + valor deixam o valor com uma palavra por
      linha; empilhado, cabe. */
