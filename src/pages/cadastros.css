@@ -779,6 +779,8 @@
 /* ── Lista de acessos (Acesso.tsx) ─────────────────────────────────────────── */
 .cad-tabela-wrap { overflow-x: auto; min-width: 0; max-width: 100%; }
 .cad-tabela { border-collapse: collapse; }
+/* Sete colunas mais quatro botões de ação: com 12px de respiro de cada lado a
+   tabela passava de 1040px e ganhava rolagem lateral já num notebook de 1366. */
 .cad-tabela th {
   text-align: left;
   font-size: 10.5px;
@@ -786,12 +788,12 @@
   letter-spacing: 0.5px;
   color: var(--text-muted);
   font-weight: 700;
-  padding: 10px 12px;
+  padding: 10px 9px;
   border-bottom: 1px solid var(--border-solid);
   white-space: nowrap;
 }
 .cad-tabela td {
-  padding: 10px 12px;
+  padding: 10px 9px;
   border-bottom: 1px solid var(--border-solid);
   font-size: 13px;
   vertical-align: middle;
