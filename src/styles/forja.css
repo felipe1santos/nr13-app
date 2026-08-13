@@ -445,6 +445,73 @@
   .fj-kpi-row { grid-template-columns: 1fr 1fr; gap: 10px; }
   .fj-modal-overlay { padding: 12px; }
   .fj-table thead th, .fj-table tbody td { padding-left: 12px; padding-right: 12px; }
+
+  /* KPI no celular: dois cartões por linha deixam ~110px de texto. Sem encolher
+     tudo isto, a pílula do rodapé ("itens com prazo em dia") quebrava em três
+     linhas e cada cartão da mesma linha ficava com uma altura. */
+  .fj-kpi { padding: 12px; gap: 8px; }
+  .fj-kpi > div:first-child { min-width: 0; }
+  .fj-kpi-icon { width: 32px; height: 32px; }
+  .fj-kpi-icon svg { width: 16px; height: 16px; }
+  .fj-kpi-label { font-size: 10px; letter-spacing: 0.3px; }
+  .fj-kpi-value { font-size: 21px; margin-top: 4px; }
+  .fj-kpi-delta {
+    font-size: 9.5px;
+    padding: 2px 7px;
+    margin-top: 6px;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  /* ==========================================================================
+     TABELAS VIRAM CARTÕES NO CELULAR (.fj-table: vencimentos e livro)
+     ==========================================================================
+     Seis colunas dentro de 390px produziam a coluna larga ao lado da estreita e
+     um bloco de rolagem lateral onde a última coluna ("Status", "Ações") ficava
+     fora da tela. Cada linha vira um cartão; o rótulo de cada campo sai do
+     `data-rot` da célula, porque sem cabeçalho as datas ficam anônimas. */
+  .fj-table-wrap { overflow-x: visible; }
+  .fj-table { display: block; }
+  .fj-table thead { display: none; }
+  .fj-table tbody { display: flex; flex-direction: column; gap: 10px; }
+  .fj-table tbody tr {
+    display: block;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    background: var(--panel);
+  }
+  .fj-table tbody tr:hover { background: var(--panel); }
+  .fj-table tbody td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 5px 0 !important;
+    border-bottom: none;
+    font-size: 12.5px;
+  }
+  .fj-table tbody td::before {
+    content: attr(data-rot);
+    flex-shrink: 0;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  /* Célula-título (tag + nome do equipamento): cabeçalho do cartão. */
+  .fj-table tbody td.cel-titulo {
+    display: block;
+    padding: 0 0 8px !important;
+    margin-bottom: 4px;
+    border-bottom: 1px solid var(--line);
+  }
+  .fj-table tbody td.cel-titulo::before { display: none; }
+  .fj-table tbody td.cel-acoes { padding-top: 10px !important; }
+  .fj-table tbody td.cel-acoes::before { display: none; }
+  .fj-table tbody td.cel-acoes .fj-btn { width: 100%; justify-content: center; min-height: 38px; }
 }
 
 /* botão Filtrar com filtro ativo */

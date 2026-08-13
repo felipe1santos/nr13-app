@@ -15,13 +15,20 @@ const ICONE: Record<ResumoSelo['nivel'], NomeIcone> = {
 };
 
 /**
- * Selo fixo de sincronização.
+ * Selo de sincronização, na topbar ao lado do indicador de nuvem.
  *
  * Existe para que "não subiu ainda" nunca seja confundido com "está salvo". A
  * conta do cliente perdeu 28 equipamentos justamente porque a tela dizia
  * "salvo" enquanto o dado nunca havia saído do aparelho.
  *
  * Só aparece no caminho v2 — na v1 não há fila para reportar.
+ *
+ * FORMATO: em dia, é só um botão pequeno de nuvem. Quando há pendência, falha
+ * ou bloqueio, o rótulo aparece junto — o aviso precisa ocupar espaço na
+ * proporção do problema, e não o contrário. Os avisos de espaço/persistência
+ * viram um pino no canto do botão, com o texto no title e na tela de
+ * Pendências: eles não podem sumir, mas também não podem virar uma faixa
+ * ocupando a largura da tela em cima de todo o app.
  */
 export default function SeloSync() {
   const navegar = useNavigate();
@@ -46,9 +53,13 @@ export default function SeloSync() {
 
   if (!armazenamentoV2Ativo()) return null;
 
-  const titulo = semPersistencia
-    ? 'Este navegador não garantiu o armazenamento. Sincronize com frequência.'
-    : 'Ver pendências de sincronização';
+  const avisos = [
+    quota === 'critico' ? 'Espaço do aparelho esgotando.' : '',
+    quota === 'aviso' ? 'Espaço do aparelho ficando baixo.' : '',
+    semPersistencia ? 'Este navegador não garantiu o armazenamento. Sincronize com frequência.' : '',
+  ].filter(Boolean);
+
+  const titulo = [resumo.rotulo, ...avisos, 'Toque para ver as pendências.'].join(' ');
 
   return (
     <button
@@ -56,15 +67,11 @@ export default function SeloSync() {
       className={`selo-sync selo-sync--${resumo.nivel}`}
       onClick={() => navegar('/pendencias')}
       title={titulo}
+      aria-label={titulo}
     >
-      <Icone nome={ICONE[resumo.nivel]} />
-      <span className="selo-sync__rotulo">{resumo.rotulo}</span>
-      {quota !== 'normal' && (
-        <span className="selo-sync__quota">
-          {quota === 'critico' ? 'Espaço esgotando' : 'Espaço baixo'}
-        </span>
-      )}
-      {semPersistencia && <span className="selo-sync__risco">Armazenamento sem garantia</span>}
+      <Icone nome={ICONE[resumo.nivel]} tam={15} />
+      {resumo.nivel !== 'ok' && <span className="selo-sync__rotulo">{resumo.rotulo}</span>}
+      {avisos.length > 0 && <span className="selo-sync__pino" aria-hidden="true" />}
     </button>
   );
 }

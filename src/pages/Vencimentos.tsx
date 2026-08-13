@@ -108,7 +108,10 @@ export default function Vencimentos() {
                 <tbody>
                   {itens.map((it, i) => (
                     <tr key={`${it.tag}${i}`} style={{ cursor: 'pointer' }} onClick={() => irParaItem(it)}>
-                      <td>
+                      {/* data-rot: rótulo de cada campo quando a tabela vira cartão no
+                          celular (forja.css). Sem ele, três datas em sequência não dizem
+                          qual é a última inspeção e qual é o vencimento. */}
+                      <td className="cel-titulo">
                         <div className="fj-tag-cell">
                           <div className="fj-tag-ico"><Icone nome={ICONE_TIPO[it.tipoEquip] ?? 'box'} tam={15} /></div>
                           <div>
@@ -120,11 +123,11 @@ export default function Vencimentos() {
                           </div>
                         </div>
                       </td>
-                      <td>{it.origem === 'calibracao' ? 'Calibração' : 'Inspeção'}</td>
-                      <td className="mono">{it.ultima ? it.ultima.toLocaleDateString('pt-BR') : <span className="fj-dash">—</span>}</td>
-                      <td className="mono">{it.vencimento ? it.vencimento.toLocaleDateString('pt-BR') : <span className="fj-dash">—</span>}</td>
-                      <td className={`fj-days ${it.status === 'crit' ? 'crit' : it.status === 'warn' ? 'warn' : ''}`}>{textoPrazo(it)}</td>
-                      <td><BadgeStatus status={it.status} /></td>
+                      <td data-rot="Origem">{it.origem === 'calibracao' ? 'Calibração' : 'Inspeção'}</td>
+                      <td className="mono" data-rot="Última">{it.ultima ? it.ultima.toLocaleDateString('pt-BR') : <span className="fj-dash">—</span>}</td>
+                      <td className="mono" data-rot="Vencimento">{it.vencimento ? it.vencimento.toLocaleDateString('pt-BR') : <span className="fj-dash">—</span>}</td>
+                      <td className={`fj-days ${it.status === 'crit' ? 'crit' : it.status === 'warn' ? 'warn' : ''}`} data-rot="Prazo">{textoPrazo(it)}</td>
+                      <td data-rot="Status"><BadgeStatus status={it.status} /></td>
                     </tr>
                   ))}
                 </tbody>

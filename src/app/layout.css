@@ -178,30 +178,8 @@
 }
 .divider-v { width: 1px; height: 20px; background: var(--line); }
 
-.bell-wrap {
-  position: relative;
-  width: 34px;
-  height: 34px;
-  border-radius: 9px;
-  border: 1px solid var(--line);
-  background: transparent;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: var(--muted);
-}
-.bell-wrap:hover { background: var(--steel); color: var(--text); }
-.bell-dot {
-  position: absolute;
-  top: 7px;
-  right: 8px;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--crit);
-  border: 1.5px solid var(--panel);
-}
+/* ===== Chip do usuário + menu da conta ===== */
+.menu-usuario { position: relative; flex-shrink: 0; }
 
 .user-chip {
   display: flex;
@@ -209,10 +187,90 @@
   gap: 8px;
   padding: 4px 8px 4px 4px;
   border-radius: 20px;
+  border: 1px solid transparent;
+  background: none;
+  cursor: pointer;
+  font-family: var(--font-base);
+  text-align: left;
+  max-width: 220px;
 }
 .user-chip:hover { background: var(--steel); }
-.user-chip .name { font-size: 12.5px; font-weight: 600; color: var(--text); max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.user-chip .role { font-size: 10.5px; color: var(--muted); }
+.user-chip.aberto { background: var(--steel); border-color: var(--line); }
+.user-chip .name { display: block; font-size: 12.5px; font-weight: 600; color: var(--text); max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.user-chip .role { display: block; font-size: 10.5px; color: var(--muted); }
+.user-chip-chev { color: var(--muted); flex-shrink: 0; }
+.user-chip .avatar { position: relative; }
+
+/* Ponto de alerta no próprio chip: aviso que só aparece depois de abrir o menu
+   não é aviso. */
+.avatar-dot {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--crit);
+  border: 2px solid var(--panel);
+}
+
+.menu-conta {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 60;
+  min-width: 232px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.18);
+  padding: 6px;
+  animation: nr-fade-in 0.14s ease;
+}
+.menu-conta-topo {
+  padding: 8px 10px 10px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 6px;
+}
+.menu-conta-email {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.menu-conta-papel { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+.menu-conta-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px;
+  border: none;
+  background: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: var(--font-base);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  text-align: left;
+}
+.menu-conta-item:hover { background: var(--steel); }
+.menu-conta-item svg { color: var(--muted); flex-shrink: 0; }
+.menu-conta-tag {
+  margin-left: auto;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--steel);
+  border-radius: 20px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+.menu-conta-tag.crit { color: var(--crit); background: var(--crit-bg, #FDECEA); }
 
 .btn-instalar-pwa {
   display: inline-flex;
@@ -259,6 +317,44 @@
 }
 .sync-status.pendente:disabled { opacity: 0.6; cursor: default; }
 .sync-status .girando { animation: nr-spin 0.9s linear infinite; }
+
+/* ===== Selo do armazenamento v2 (fila/tombstones) — ao lado da nuvem ===== */
+.selo-sync {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 9px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-base);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.selo-sync:hover { background: var(--steel); color: var(--text); }
+.selo-sync__rotulo { white-space: nowrap; }
+.selo-sync--pendente { background: var(--warn-bg); border-color: var(--warn-line); color: var(--warn); }
+.selo-sync--falha { background: var(--crit-bg); border-color: var(--crit-line); color: var(--crit); }
+.selo-sync--bloqueado { background: var(--steel); border-color: var(--line); color: var(--text); }
+/* Pino: espaço acabando / navegador sem garantia de persistência. O texto vai
+   no title e na tela de Pendências — aqui só o sinal de que há algo a ler. */
+.selo-sync__pino {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--warn);
+  border: 2px solid var(--panel);
+}
 
 /* ===== Hambúrguer (mobile) ===== */
 .btn-hamburguer {
@@ -319,7 +415,8 @@
   .login-info, .divider-v { display: none; }
   .topbar { padding: 10px 14px; gap: 10px; }
   .topbar .path { display: none; }
-  .user-chip-txt { display: none; }
+  .user-chip-txt, .user-chip-chev { display: none; }
+  .user-chip { padding: 3px; }
 }
 
 @media (max-width: 560px) {
@@ -327,6 +424,12 @@
   .sidebar { width: 86vw; }
   .sync-status-txt { display: none; }
   .sync-status { padding: 6px 9px; }
+  .top-status { gap: 8px; }
+  .selo-sync { padding: 0 7px; }
+  .selo-sync__rotulo { display: none; }
+  /* Menu da conta ancorado na borda da tela: com 390px de largura ele não pode
+     nascer colado no chip e sair pela direita. */
+  .menu-conta { right: -4px; min-width: 216px; max-width: calc(100vw - 24px); }
 }
 
 /* Aviso vermelho: acesso do usuário vencendo (≤30 dias) */

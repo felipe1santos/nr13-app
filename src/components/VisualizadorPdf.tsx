@@ -74,12 +74,40 @@ export default function VisualizadorPdf({
   }
 
   return (
-    <iframe
-      title={nomeArquivo}
-      src={url}
-      style={{ width: '100%', height: '80vh', border: '1px solid var(--line, #ddd)', borderRadius: 8, background: '#fff' }}
-    />
+    <div className="visualizador-pdf">
+      <div className="visualizador-pdf-barra no-print">
+        <span className="visualizador-pdf-info">
+          {podeEmbutirPdf()
+            ? 'Documento arquivado — o que você vê é o arquivo emitido.'
+            : 'Este navegador não abre PDF dentro da página. Toque para abrir o documento.'}
+        </span>
+        <button type="button" className="btn-secundario" onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}>
+          Abrir em outra aba
+        </button>
+      </div>
+      {podeEmbutirPdf() ? (
+        <iframe title={nomeArquivo} src={url} className="visualizador-pdf-quadro" />
+      ) : (
+        <div className="visualizador-pdf-vazio">
+          <strong>{nomeArquivo}</strong>
+          <span>{artefato.paginas ? `${artefato.paginas} páginas` : 'PDF'} · pronto para abrir</span>
+        </div>
+      )}
+    </div>
   );
+}
+
+/**
+ * O Chrome do Android não tem leitor de PDF embutido: um `<iframe>` apontando
+ * para o arquivo fica em BRANCO, e era esse quadro vazio que aparecia para quem
+ * abria um relatório salvo pelo celular. `pdfViewerEnabled` responde exatamente
+ * essa pergunta — melhor do que adivinhar pelo user agent, que erra em tablet,
+ * modo desktop e navegador alternativo.
+ */
+function podeEmbutirPdf(): boolean {
+  if (typeof navigator === 'undefined') return true;
+  const n = navigator as Navigator & { pdfViewerEnabled?: boolean };
+  return n.pdfViewerEnabled !== false;
 }
 
 /**

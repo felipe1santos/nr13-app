@@ -18,7 +18,7 @@ import { instalarBloqueioImpressao } from '../services/bloqueioImpressao';
 import { modulosDoUsuarioAtual } from '../services/permissoes';
 import { ITENS_TOPO, ITENS_CADASTRAR, ITENS_BAIXO, ITEM_ACESSOS, tituloDaRota } from './menu';
 import type { ItemMenu } from './menu';
-import BotaoInstalarPWA from './BotaoInstalarPWA';
+import MenuUsuario from './MenuUsuario';
 import SyncStatus from './SyncStatus';
 import ModalTrocarSenha from '../components/ModalTrocarSenha';
 import ModalTermos from '../components/ModalTermos';
@@ -272,7 +272,6 @@ export default function Layout() {
           <BarraTrial />
           <BarraAssinatura />
           <ModalAviso />
-          <SeloSync />
           <header className="topbar">
             <div className="topbar-left">
               <button
@@ -292,6 +291,7 @@ export default function Layout() {
 
             <div className="top-status">
               <SyncStatus />
+              <SeloSync />
               {ultimoLoginTexto() && (
                 <span className="login-info">
                   <Icone nome="clock" tam={14} />
@@ -299,23 +299,13 @@ export default function Layout() {
                 </span>
               )}
               <span className="divider-v" />
-              <button
-                type="button"
-                className="bell-wrap"
-                title={temAlerta ? 'Há equipamentos vencidos — ver Dashboard' : 'Sem alertas críticos'}
-                onClick={() => navigate('/dashboard')}
-              >
-                <Icone nome="bell" />
-                {temAlerta && <span className="bell-dot" />}
-              </button>
-              <BotaoInstalarPWA />
-              <div className="user-chip" title={email ?? ''}>
-                <div className="avatar">{iniciais(email)}</div>
-                <div className="user-chip-txt">
-                  <div className="name">{email ? email.split('@')[0] : '—'}</div>
-                  <div className="role">{papel}</div>
-                </div>
-              </div>
+              <MenuUsuario
+                iniciais={iniciais(email)}
+                email={email}
+                papel={papel}
+                temAlerta={temAlerta}
+                onNotificacoes={() => navigate('/dashboard')}
+              />
             </div>
           </header>
 

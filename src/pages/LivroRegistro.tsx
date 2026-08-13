@@ -977,7 +977,8 @@ export default function LivroRegistro() {
               <tbody>
                 {comLivro.map((l) => (
                   <tr key={l.tag} className="linha-clicavel" onClick={() => setTagAberta(l.tag)}>
-                    <td>
+                    {/* data-rot: rótulo por campo quando a tabela vira cartão (forja.css). */}
+                    <td className="cel-titulo">
                       <div className="fj-tag-cell">
                         <div className="fj-tag-ico"><Icone nome="book" tam={15} /></div>
                         <div>
@@ -986,10 +987,10 @@ export default function LivroRegistro() {
                         </div>
                       </div>
                     </td>
-                    <td>{l.categoria ? <span className="fj-badge neutro">Cat. {l.categoria}</span> : <span className="fj-dash">—</span>}</td>
-                    <td className="mono">{l.entradas.length}</td>
-                    <td className="mono">{l.ultimaData || <span className="fj-dash">—</span>}</td>
-                    <td onClick={(e) => e.stopPropagation()}>
+                    <td data-rot="Categoria">{l.categoria ? <span className="fj-badge neutro">Cat. {l.categoria}</span> : <span className="fj-dash">—</span>}</td>
+                    <td className="mono" data-rot="Registros">{l.entradas.length}</td>
+                    <td className="mono" data-rot="Último registro">{l.ultimaData || <span className="fj-dash">—</span>}</td>
+                    <td className="cel-acoes" onClick={(e) => e.stopPropagation()}>
                       <button type="button" className="fj-btn fj-btn-ghost" onClick={() => setTagAberta(l.tag)}>
                         <Icone nome="chevright" tam={13} /> Abrir livro
                       </button>

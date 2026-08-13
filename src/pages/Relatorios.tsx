@@ -794,10 +794,10 @@ export default function Relatorios() {
               <tbody>
                 {historicoVisivel.map((r) => (
                   <tr key={r.id}>
-                    <td>
+                    <td className="cel-check" data-rot="Selecionar">
                       <input type="checkbox" checked={selecionados.has(r.id)} onChange={() => toggleSelecionado(r.id)} />
                     </td>
-                    <td>
+                    <td className="cel-nome" data-rot="Relatório">
                       <span className="nome-relatorio-cel">
                         <span className="icone-pdf-cel">{IconePdf}</span>
                         {renomeandoId === r.id ? (
@@ -812,19 +812,22 @@ export default function Relatorios() {
                         )}
                       </span>
                     </td>
-                    <td>
+                    {/* data-rot alimenta o ::before de cada célula quando a tabela vira
+                        cartão no celular (ver relatorios.css) — sem cabeçalho, o valor
+                        sozinho não diz de que data se trata. */}
+                    <td data-rot="TAG">
                       <span className="tag-cel-link">{r.tagVaso}</span>
                     </td>
-                    <td>
+                    <td data-rot="Tipo">
                       <span className="badge-tipo-inspecao">{r.tipo}</span>
                     </td>
-                    <td>{r.meta.emissao}</td>
-                    <td>{r.meta.validade || '-'}</td>
-                    <td>{r.meta.proximaInspecaoInterna || '-'}</td>
-                    <td>{r.meta.proximaInspecaoExterna || '-'}</td>
+                    <td data-rot="Criação">{r.meta.emissao}</td>
+                    <td data-rot="Validade">{r.meta.validade || '-'}</td>
+                    <td data-rot="Próx. interna">{r.meta.proximaInspecaoInterna || '-'}</td>
+                    <td data-rot="Próx. externa">{r.meta.proximaInspecaoExterna || '-'}</td>
                     {/* Derivado do lote de calibração vinculado; fallback: valor manual antigo */}
-                    <td>{validadesCal.get(r.id)?.valvula || r.meta.validadeValvula || '-'}</td>
-                    <td>{validadesCal.get(r.id)?.manometro || '-'}</td>
+                    <td data-rot="Val. válvula">{validadesCal.get(r.id)?.valvula || r.meta.validadeValvula || '-'}</td>
+                    <td data-rot="Val. manômetro">{validadesCal.get(r.id)?.manometro || '-'}</td>
                     <td className="acoes-relatorio-icones">
                       {renomeandoId === r.id ? (
                         <button type="button" className="btn-secundario" onClick={() => confirmarRenome(r)}>
@@ -869,8 +872,11 @@ export default function Relatorios() {
               ← Voltar
             </button>
             <div className="meta-barra-acoes">
+              {/* `gerando`: enquanto o contador de folhas está na cara do botão, ele ocupa a
+                  linha inteira no celular — truncar "Gerando PDF 3/27..." tiraria justamente
+                  o sinal de que o app não travou. */}
               {!somenteLeitura && (
-                <button type="button" className={`barra-btn barra-btn-salvar ${salvando ? 'is-loading' : ''}`} onClick={salvarHistorico} disabled={salvando}>
+                <button type="button" className={`barra-btn barra-btn-salvar${salvando ? ' is-loading' : ''}${progressoPdf ? ' gerando' : ''}`} onClick={salvarHistorico} disabled={salvando}>
                   {/* Salvar agora GERA o PDF: num relatório de 30+ folhas são
                       dezenas de segundos, e sem o contador a tela parece travada. */}
                   {progressoPdf
@@ -906,30 +912,8 @@ export default function Relatorios() {
 
           {/* Banner flutuante (âmbar/warning) — fora dos iframes, nunca impresso */}
           {faltaRastreabilidade && !avisoRastreabFechado && (
-            <div
-              className="no-print"
-              role="alert"
-              style={{
-                position: 'fixed',
-                bottom: 22,
-                left: '50%',
-                transform: 'translateX(-50%)',
-                zIndex: 60,
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: 10,
-                maxWidth: 'min(560px, calc(100vw - 32px))',
-                padding: '12px 14px',
-                borderRadius: 10,
-                background: '#2b2115',
-                border: '1px solid #b45309',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
-                color: '#fcd34d',
-                fontSize: 13,
-                lineHeight: 1.45,
-              }}
-            >
-              <span style={{ flexShrink: 0, marginTop: 1 }}>
+            <div className="no-print rel-aviso-flutuante" role="alert">
+              <span className="rel-aviso-ico">
                 <Icone nome="alerttri" tam={16} />
               </span>
               <span>
@@ -938,19 +922,9 @@ export default function Relatorios() {
               </span>
               <button
                 type="button"
+                className="rel-aviso-fechar"
                 aria-label="Dispensar aviso"
                 onClick={() => setAvisoRastreabFechado(true)}
-                style={{
-                  flexShrink: 0,
-                  background: 'transparent',
-                  border: 'none',
-                  color: '#fcd34d',
-                  cursor: 'pointer',
-                  fontSize: 14,
-                  fontWeight: 700,
-                  padding: '0 2px',
-                  lineHeight: 1,
-                }}
               >
                 ✕
               </button>
