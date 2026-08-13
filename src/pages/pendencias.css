@@ -1,0 +1,106 @@
+/* ============================================================================
+   PENDÊNCIAS DE SINCRONIZAÇÃO
+   ============================================================================
+   A tela nasceu sem folha de estilo nenhuma: título no tamanho padrão do <h1>,
+   sem respiro lateral, colado nas bordas do celular. É a tela para onde o selo
+   da topbar manda quem tem trabalho de campo parado no aparelho — precisa ser
+   legível justamente nesse aparelho.
+   ========================================================================== */
+.pendencias {
+  padding: 24px;
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pendencias__cabecalho h1 {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 4px;
+}
+.pendencias__cabecalho p { margin: 0; font-size: 13px; color: var(--muted); }
+
+.pendencias__vazio {
+  margin: 0;
+  padding: 26px 18px;
+  text-align: center;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 13.5px;
+}
+
+.pendencia {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pendencia--falha_definitiva, .pendencia--conflito { border-left-color: var(--crit); }
+.pendencia--aguardando, .pendencia--salvo_local { border-left-color: var(--warn); }
+
+.pendencia__chave {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  margin: 0;
+  word-break: break-all;
+}
+.pendencia__estado {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+}
+.pendencia__titulo { margin: 6px 0 0; font-size: 13.5px; font-weight: 600; }
+.pendencia__explicacao { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; }
+.pendencia__quando { margin: 4px 0 0; font-size: 11.5px; color: var(--muted); }
+.pendencia__velha { color: var(--crit); }
+
+.pendencias button {
+  align-self: flex-start;
+  margin-top: 8px;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm, 8px);
+  background: var(--panel);
+  font-family: var(--font-base);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+}
+.pendencias button:hover:not(:disabled) { background: var(--steel); }
+.pendencias button:disabled { opacity: 0.6; cursor: default; }
+
+.pendencia__detalhes { margin-top: 10px; font-size: 12.5px; }
+.pendencia__detalhes summary { cursor: pointer; color: var(--muted); font-weight: 600; }
+.pendencia__detalhes dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: 10px 0 0;
+}
+.pendencia__detalhes dt { font-weight: 700; color: var(--muted); font-size: 11px; text-transform: uppercase; }
+.pendencia__detalhes dd { margin: 0; word-break: break-word; }
+.pendencia__detalhes code { font-family: var(--font-mono); font-size: 11.5px; }
+
+@media (max-width: 640px) {
+  .pendencias { padding: 16px 14px; gap: 12px; }
+  .pendencias__cabecalho h1 { font-size: 19px; }
+  .pendencias button { align-self: stretch; }
+  /* Duas colunas de 390px em rótulo + valor deixam o valor com uma palavra por
+     linha; empilhado, cabe. */
+  .pendencia__detalhes dl { grid-template-columns: 1fr; }
+}

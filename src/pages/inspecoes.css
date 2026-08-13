@@ -173,7 +173,24 @@
     align-items: flex-start;
   }
 
+  /* Três botões em flex-wrap davam larguras diferentes por linha: "Ver
+     documento" quebrava em duas linhas e "Editar" sobrava sozinho com meia
+     largura. Grade de duas colunas, com a ação principal ocupando a linha. */
   .item-container-acoes {
     width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
   }
+  .item-container-acoes > * {
+    width: 100%;
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    white-space: nowrap;
+    font-size: 12.5px;
+  }
+  .item-container-acoes .btn-primario { grid-column: 1 / -1; }
 }

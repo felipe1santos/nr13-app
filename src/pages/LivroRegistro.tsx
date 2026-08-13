@@ -703,7 +703,10 @@ export default function LivroRegistro() {
                         )}
                       </div>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'stretch', minWidth: 190 }}>
+                    {/* Largura mínima de 190px vinha inline e, no celular, sobrava uma
+                        coluna de ~60px para a descrição — uma palavra por linha. Agora é
+                        classe, e abaixo de 640px a ação cai para a linha de baixo. */}
+                    <div className="livro-timeline-acoes">
                       <button
                         type="button"
                         className={`fj-btn fj-btn-ghost${documentosBloqueados() ? ' btn-bloqueado' : ''}`}

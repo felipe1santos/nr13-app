@@ -3,6 +3,7 @@ import { listarFila, tentarNovamente, type ItemFila } from '../services/sync';
 import { rotuloEstado, pendenciaVelha } from '../services/selo';
 import { diagnosticarPerda } from '../services/manifesto';
 import { erroDoManifesto } from '../services/manifesto';
+import './pendencias.css';
 
 /**
  * Tela de Pendências.

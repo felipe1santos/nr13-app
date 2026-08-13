@@ -331,7 +331,11 @@ export default function Acesso() {
         ) : aba === 'clientes' && clientesFiltrados.length === 0 ? (
           <p style={{ color: 'var(--text-muted)' }}>Nenhum acesso de cliente encontrado para "{busca}".</p>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
+          <div className="cad-tabela-wrap">
+            {/* O `overflow-x` do contêiner não segurava nada: sem `min-width: 0` o
+                próprio div cresce com a tabela e quem estoura é a página. No celular
+                a lista vira cartões (cadastros.css), com o rótulo de cada campo
+                saindo do `data-rot`. */}
             <table className="cad-tabela" style={{ width: '100%' }}>
               <thead>
                 <tr>
@@ -347,8 +351,8 @@ export default function Acesso() {
               <tbody>
                 {(aba === 'equipe' ? equipe : clientesFiltrados).map((u) => (
                   <tr key={u.id}>
-                    <td style={{ fontWeight: 600 }}>{u.email}</td>
-                    <td>
+                    <td className="cel-titulo" style={{ fontWeight: 600 }}>{u.email}</td>
+                    <td data-rot={aba === 'equipe' ? 'Papel' : 'Empresa'}>
                       {u.papel === 'cliente' ? (
                         <span
                           className="acesso-empresa-nome"
@@ -371,16 +375,16 @@ export default function Acesso() {
                         </select>
                       )}
                     </td>
-                    <td><CarimboTempo iso={u.ultimo_acesso ?? null} rotulo="Último acesso" vazio="Nunca acessou" /></td>
-                    <td><CarimboTempo iso={u.ultima_sync ?? null} rotulo="Sincronizou" vazio="Nunca sincronizou" /></td>
-                    <td>
+                    <td data-rot="Último acesso"><CarimboTempo iso={u.ultimo_acesso ?? null} rotulo="Último acesso" vazio="Nunca acessou" /></td>
+                    <td data-rot="Sincronização"><CarimboTempo iso={u.ultima_sync ?? null} rotulo="Sincronizou" vazio="Nunca sincronizou" /></td>
+                    <td data-rot="Status">
                       {u.ativo ? <span className="fj-badge ok">Liberado</span> : <span className="fj-badge crit">Bloqueado</span>}
                     </td>
-                    <td>
+                    <td data-rot="Sessão">
                       {u.sessao_ativa ? <span className="fj-badge warn">Em uso</span> : <span className="fj-badge neutro">Livre</span>}
                     </td>
-                    <td>
-                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    <td className="cel-acoes">
+                      <div className="acesso-acoes">
                         {u.papel !== 'cliente' && (
                           <button type="button" className="btn-secundario" title="Permissões" onClick={() => abrirPermissoes(u)}>
                             <Icone nome="sliders" tam={13} />

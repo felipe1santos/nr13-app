@@ -751,6 +751,33 @@
   .relatorios-page .acoes-relatorio-icones .btn-icone::after { content: attr(title); }
 }
 
+/* ── Cartão de equipamento no celular (Relatórios, Inspeções, Prontuários,
+      Calibrações — todas usam .card-equipamento-horiz) ──────────────────────
+   `.card-eq-info` é flex com `justify-content: space-between`: quando as colunas
+   quebram, a sobra de espaço vai toda para os vãos e cada campo fica com uma
+   largura diferente na mesma linha. Numa grade de duas colunas os rótulos
+   alinham, e o selo de contagem sai da disputa indo para a linha de baixo. */
+@media (max-width: 640px) {
+  .card-equipamento-horiz {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 12px 14px;
+  }
+  .card-eq-info {
+    flex: 1 1 190px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 8px 12px;
+  }
+  .card-eq-info .eq-col:first-child { grid-column: 1 / -1; }
+  .card-equipamento-horiz .badge-relatorios {
+    flex: 1 0 100%;
+    text-align: center;
+  }
+}
+
 /* ── Aviso flutuante de rastreabilidade ──────────────────────────────────────
    `left: 50%` + `translateX(-50%)` limita a largura disponível à METADE da tela
    (o encolhe-para-caber mede da borda esquerda da caixa até a direita da tela).

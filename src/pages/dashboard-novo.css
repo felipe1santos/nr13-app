@@ -284,6 +284,26 @@
 
 .livro-timeline-meta { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; font-size: 11.5px; color: var(--muted); margin-top: 6px; }
 
+.livro-timeline-acoes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: stretch;
+  min-width: 190px;
+}
+
+@media (max-width: 640px) {
+  .livro-timeline { padding: 8px 12px 16px; }
+  .livro-timeline-item { flex-wrap: wrap; gap: 10px; }
+  /* base 0 para o corpo ficar ao lado do marco; com base `auto` o texto empurra
+     a quebra e a bolinha sobra sozinha numa linha. */
+  .livro-timeline-corpo { flex: 1 1 0; }
+  /* A ação vai para a linha de baixo; disputando a mesma linha ela levava 190px
+     dos 303px do item e a descrição saía com uma palavra por linha. */
+  .livro-timeline-acoes { flex: 1 0 100%; min-width: 0; }
+  .livro-timeline-acoes .fj-btn { justify-content: center; min-height: 38px; }
+}
+
 /* Selos (Criptografia/Registro nº/Íntegro): texto colorido sem fundo, mais escuro pra ler bem. */
 .selo-flat { display: inline-flex; align-items: center; font-weight: 700; font-size: 11px; }
 .selo-flat.crypto { color: #5B3FC9; }

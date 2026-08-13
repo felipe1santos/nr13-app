@@ -499,6 +499,27 @@
   .cad-extra-row {
     grid-template-columns: 1fr;
   }
+
+  /* Título e botão lado a lado espremiam os dois: "Empresas Cadastradas" em
+     duas linhas e "+ Nova Empresa" também. Empilhados, cada um usa a largura. */
+  .cad-page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+  .cad-page-header .btn-primario,
+  .cad-page-header .btn-secundario {
+    width: 100%;
+    min-height: 44px;
+    white-space: nowrap;
+  }
+  /* Cabeçalho cuja ação é só um lápis (Minha Empresa) continua em linha: o
+     ícone sozinho embaixo do título fica órfão. */
+  .cad-page-header:has(.btn-editar-pencil) {
+    flex-direction: row;
+    align-items: center;
+  }
 }
 
 /* Client selector in DadosEmpresa */
@@ -753,4 +774,85 @@
 @media (max-width: 640px) {
   .cli-det-grid { grid-template-columns: 1fr; }
   .cli-busca-row { flex-direction: column; }
+}
+
+/* ── Lista de acessos (Acesso.tsx) ─────────────────────────────────────────── */
+.cad-tabela-wrap { overflow-x: auto; min-width: 0; max-width: 100%; }
+.cad-tabela { border-collapse: collapse; }
+.cad-tabela th {
+  text-align: left;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  font-weight: 700;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-solid);
+  white-space: nowrap;
+}
+.cad-tabela td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-solid);
+  font-size: 13px;
+  vertical-align: middle;
+}
+.acesso-acoes { display: flex; gap: 6px; flex-wrap: wrap; }
+
+@media (max-width: 640px) {
+  /* Sete colunas — e-mail, papel, dois carimbos de tempo, dois selos e quatro
+     botões de ação — não cabem em 390px por nenhum ajuste de fonte. Cada linha
+     vira um cartão, e as ações ganham o rótulo do próprio `title` (quatro ícones
+     cinzas iguais são indistinguíveis no dedo). */
+  .cad-tabela, .cad-tabela tbody, .cad-tabela tr, .cad-tabela td { display: block; }
+  .cad-tabela thead { display: none; }
+  .cad-tabela tbody { display: flex; flex-direction: column; gap: 10px; }
+  .cad-tabela tr {
+    border: 1px solid var(--border-solid);
+    border-radius: var(--radius-md);
+    background: var(--bg-card);
+    padding: 12px 14px;
+  }
+  .cad-tabela td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 5px 0;
+    border-bottom: none;
+    font-size: 12.5px;
+  }
+  .cad-tabela td::before {
+    content: attr(data-rot);
+    flex-shrink: 0;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .cad-tabela td.cel-titulo {
+    display: block;
+    padding: 0 0 8px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid var(--border-solid);
+    font-size: 13.5px;
+    word-break: break-word;
+  }
+  .cad-tabela td.cel-titulo::before,
+  .cad-tabela td.cel-acoes::before { display: none; }
+  .cad-tabela td select { max-width: 60%; }
+  .cad-tabela td.cel-acoes {
+    padding-top: 12px;
+    margin-top: 6px;
+    border-top: 1px solid var(--border-solid);
+  }
+  .acesso-acoes .btn-secundario {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 38px;
+    padding: 0 12px;
+    font-size: 12.5px;
+  }
+  .acesso-acoes .btn-secundario::after { content: attr(title); }
 }
