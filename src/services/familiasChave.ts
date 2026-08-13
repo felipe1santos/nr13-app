@@ -46,6 +46,13 @@ const POR_TAG = [
   'nr13_modelo3d_',
   'nr13_pref_unidade_',
   'nr13_pront_fab_',
+  // O registro do prontuário do equipamento. Estava fora desta lista, então caía
+  // em 'global' e nunca era indexado por TAG: não ia para o palco (a folha
+  // PLACA.html lê `nr13_prontuario_<TAG>` para o código de projeto) e não era
+  // apagada junto com o equipamento por `excluirVaso`. O casamento é pelo
+  // prefixo mais longo, então `nr13_prontuario_meta_<TAG>` continua sendo meta, e
+  // `nr13_prontuario_atual` continua global (comparação exata vem antes).
+  'nr13_prontuario_',
   'nr13_prontuario_meta_',
   'nr13_termo_livro_',
   'nr13_vaso_',

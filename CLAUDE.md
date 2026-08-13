@@ -102,6 +102,23 @@ HTML **não mudaram**. O palco tem dono exclusivo por aba (`palcoTrava.ts`), or�
 > (11/08 — a foto base64 de cada válvula/manômetro; 2.518 KB dos 3.959 KB de um documento na
 > conta `gabriel.dadona`, recusando o relatório inteiro por foto que nenhuma folha imprime).
 >
+> **E TUDO QUE ALGUM TEMPLATE LÊ PRECISA IR (13/08/2026).** A regra acima só cuidava do
+> excesso; a falta é o defeito mais caro, porque é SILENCIOSO — a folha cai no `|| '{}'`,
+> imprime "-" e ninguém vê erro nenhum. Faltavam quatro famílias, e cada uma virou uma queixa
+> separada do usuário: `nr13_relatorio_meta_atual` (a 2ª chave mais lida do sistema, 36
+> ocorrências) deixava a CAPA com "Nº RELATÓRIO / DATA INSPEÇÃO / VALIDADE: -" mesmo com o
+> modal Configurações preenchido, e a folha INSPECOES sem marcar natureza, tipo de exame nem
+> resultado; `nr13_rastreab_` deixava "INSTRUMENTO DE MEDIÇÃO UTILIZADO" com "--" no
+> ULTRASSOM; `nr13_calibracao_item_` deixava o certificado de calibração em branco; e
+> `nr13_prontuario_` (lida pela PLACA) nem família tinha em `familiasChave` — caía em
+> 'global', então não ia para o palco e nem era apagada por `excluirVaso`.
+> `nr13_calibracao_item_` entra FILTRADA pela lista de `nr13_calibracoes_<TAG>`, não por
+> varredura de prefixo: ela é global por organização, e varrer traria o parque inteiro.
+> `nr13_historico_relatorios` é o caso raro do meio-termo — é lida (`LIVRO-REGISTRO.html`) e
+> mesmo assim fica em `FORA_DO_PALCO`, porque cresce sem teto (224 KB e subindo) e desde
+> §7-ter o `ro=1` já faz o que ela fazia. **`palco.varreduraTemplates.test.ts` varre `public/`
+> e quebra se aparecer chave nova sem cobertura** — a conferência que antes era manual.
+>
 > **A degradação só recomprime `nr13_fotos_`** (`ehChaveDeFoto`). As fotos de campo que vêm
 > em `nr13_inspecao_atual`/`nr13_injecao_atual` (640 KB × 2, duplicação obrigatória do §2)
 > NÃO degradam — é o teto que volta a apertar conforme a inspeção cresce, e o que a Fase 2

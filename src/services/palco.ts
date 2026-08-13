@@ -10,7 +10,7 @@
  * anteriores. Relatório pela metade é pior que relatório recusado: sai impresso
  * com folha faltando e ninguém percebe.
  */
-import { chavesDaTag, obterRegistro } from './cacheLocal';
+import { chavesComPrefixo, chavesDaTag, obterRegistro } from './cacheLocal';
 import { baixarFoto, blobParaDataUrl, ehRef, type RefFoto } from './fotos';
 import { classificar, type ErroSync } from './errosSync';
 import {
@@ -116,13 +116,50 @@ export interface ItemPalco {
  * templates nunca foram uniformes (ver `gravarInspecaoOrigemAtual`). Sem elas
  * aqui, na v2 o documento monta com os ensaios em branco: o dado existe no Map,
  * mas o iframe só enxerga o `localStorage`.
+ *
+ * `nr13_relatorio_meta_atual` é a SEGUNDA chave mais lida de todo o sistema (36
+ * ocorrências em `public/`) e ficou de fora até 13/08/2026. O estrago, medido na
+ * conta gabriel.dadona com o documento montado: a CAPA saía com "Nº RELATÓRIO:
+ * -", "DATA INSPEÇÃO: -" e "VALIDADE: -" enquanto SOLICITANTE e ENDEREÇO — que
+ * vêm de `nr13_emp_<TAG>`, chave de TAG e portanto no palco — apareciam
+ * preenchidos; e a folha INSPECOES não marcava natureza, tipo de exame nem
+ * resultado, porque tudo isso sai de `meta.tipoInspecao`/`meta.documentos`.
+ * Preencher "Configurações do Relatório" não adiantava: o valor era gravado no
+ * Map e nunca chegava ao `localStorage` que o iframe enxerga.
+ *
+ * `nr13_prontuario_atual` é lida pelas 6 folhas do prontuário e pelo rodapé
+ * (`pront-footer.js`).
  */
-const GLOBAIS = [
+export const GLOBAIS = [
   'nr13_minha_empresa',
   'nr13_lista_phs',
   'nr13_inspecao_atual',
   'nr13_injecao_atual',
+  'nr13_relatorio_meta_atual',
+  'nr13_prontuario_atual',
 ];
+
+/**
+ * Famílias de escopo de ID (não de TAG) que algum template lê.
+ *
+ * `nr13_rastreab_` é varrida por PREFIXO dentro do `ULTRASSOM.html`, que
+ * percorre o `localStorage` inteiro atrás do certificado do instrumento padrão.
+ * Sem as chaves aqui, a varredura não acha nada e o bloco "INSTRUMENTO DE
+ * MEDIÇÃO UTILIZADO" sai com "--" nos quatro campos, mesmo com o certificado
+ * cadastrado. São registros ENXUTOS: o `pdfBase64` mora no IndexedDB (§2-bis),
+ * então o custo aqui é de ~1 KB por instrumento.
+ *
+ * `nr13_calibracao_item_` NÃO entra por prefixo: ela é global por organização e
+ * uma conta com muitos equipamentos traria centenas de certificados que este
+ * documento não imprime. Vem filtrada pela TAG, em `chavesDeCalibracaoDaTag`.
+ */
+export const POR_ID_NO_PALCO = ['nr13_rastreab_'];
+
+/**
+ * Família por id que entra FILTRADA pela TAG, não por varredura de prefixo.
+ * Declarada aqui para a varredura de `public/` saber que ela está coberta.
+ */
+export const POR_ID_FILTRADO_POR_TAG = ['nr13_calibracao_item_'];
 
 /**
  * Chaves que NENHUM template HTML lê — confirmado por varredura em `public/`.
@@ -143,11 +180,20 @@ const GLOBAIS = [
  * `CERTIFICADO-CAL-*?calibId=<id>`, que leem `nr13_calibracao_item_<id>` (escopo
  * de id, nunca coletada por TAG) ou o snapshot congelado em `meta.certCalibracoes`.
  */
-const FORA_DO_PALCO = [
+export const FORA_DO_PALCO = [
   'nr13_docs_',
   'nr13_pront_fab_',
   'nr13_componentes_cal_',
   'nr13_lotes_cal_',
+  // Esta é lida por um template (`LIVRO-REGISTRO.html`) e mesmo assim fica de
+  // fora, de propósito: guarda TODO o histórico da organização e cresce a cada
+  // relatório emitido — 224 KB na conta gabriel.dadona em 13/08/2026, sem teto.
+  // O único uso é `relatorioJaSalvo(codigo)`, que congela o texto do termo
+  // depois do salvamento; desde §7-ter esse congelamento é feito pelo `ro=1`,
+  // que bloqueia a escrita na origem. Trazer uma chave sem limite de tamanho
+  // para dentro de um orçamento de 3.368 KB trocaria "termo editável" por
+  // "documento recusado", que é o defeito pior.
+  'nr13_historico_relatorios',
 ];
 
 export const CHAVE_MANIFESTO = 'nr13_palco_manifesto';
@@ -402,11 +448,44 @@ export function liberarPalcoDestaAba(): boolean {
 // ---------------------------------------------------------------------------
 // Montagem completa
 // ---------------------------------------------------------------------------
+/**
+ * Certificados de calibração DESTE equipamento, no formato por id que as folhas
+ * `CERTIFICADO-CAL-*?calibId=<id>` leem.
+ *
+ * A chave `nr13_calibracao_item_<id>` não tem TAG no nome, então não aparece em
+ * `chavesDaTag`. A lista de quem pertence a quem está em `nr13_calibracoes_<TAG>`
+ * — a mesma origem que o Portal do Cliente usa em `hidratarItemLocal`. Filtrar
+ * por aqui, em vez de varrer o prefixo, mantém o custo proporcional ao
+ * equipamento aberto e não à organização inteira.
+ */
+function chavesDeCalibracaoDaTag(tag: string): string[] {
+  const reg = obterRegistro(`nr13_calibracoes_${tag}`);
+  if (!reg) return [];
+  try {
+    const lista: unknown = JSON.parse(reg.valor);
+    if (!Array.isArray(lista)) return [];
+    return lista
+      .map((c) => (c as { id?: unknown })?.id)
+      .filter((id): id is string => typeof id === 'string' && id !== '')
+      .map((id) => `nr13_calibracao_item_${id}`);
+  } catch {
+    return []; // lista corrompida não pode derrubar a montagem do documento
+  }
+}
+
 /** Coleta as chaves que os templates realmente leem para a TAG aberta. */
 export function coletarItens(tag: string): ItemPalco[] {
-  const chaves = [...chavesDaTag(tag), ...GLOBAIS].filter(
-    (c) => !FORA_DO_PALCO.some((p) => c.startsWith(p)),
-  );
+  // Set: a mesma chave duas vezes faria `materializar` guardar o valor do palco
+  // como "anterior" da segunda gravação, e o rollback restauraria o palco em vez
+  // do estado original.
+  const chaves = [
+    ...new Set([
+      ...chavesDaTag(tag),
+      ...GLOBAIS,
+      ...POR_ID_NO_PALCO.flatMap((p) => chavesComPrefixo(p)),
+      ...chavesDeCalibracaoDaTag(tag),
+    ]),
+  ].filter((c) => !FORA_DO_PALCO.some((p) => c.startsWith(p)));
   const itens: ItemPalco[] = [];
   for (const chave of chaves) {
     const reg = obterRegistro(chave);

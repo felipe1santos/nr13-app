@@ -32,6 +32,8 @@ import '../pages/relatorios.css';
 import './calibracoes.css';
 import PaginaA4 from '../components/PaginaA4';
 import FotoImg from '../components/FotoImg';
+import RecusaPalco from '../components/RecusaPalco';
+import { usePalcoDocumento } from '../features/documentos/usePalcoDocumento';
 
 type Tela = 'equipamentos' | 'historico' | 'formulario' | 'visualizador' | 'verDados';
 
@@ -197,6 +199,16 @@ export default function Calibracoes() {
   const [form, setForm] = useState<FormDados>(formPadrao());
   const [confirmandoId, setConfirmandoId] = useState<string | null>(null);
   const [versao, setVersao] = useState(0);
+
+  // Palco: a folha CERTIFICADO-CAL-* lê `nr13_calibracao_item_<id>` e
+  // `nr13_minha_empresa` do localStorage no DOMContentLoaded. Esta tela montava o
+  // iframe sem preparar nada — na v2 o dado mora no Map/IndexedDB, então "Ver
+  // como fica o documento" abria o certificado EM BRANCO. Só monta na tela do
+  // visualizador: nas outras não há iframe e segurar a trava do palco à toa
+  // impediria o relatório de abrir em seguida.
+  const palco = usePalcoDocumento(tag, `cal-${calAtual?.id ?? 'nenhuma'}-${versao}`, {
+    pular: tela !== 'visualizador',
+  });
   const [filtroTipo, setFiltroTipo] = useState<'todos' | TipoEquipamento>('todos');
   const [filtroProp, setFiltroProp] = useState('');
   const [toast, setToast] = useState('');
@@ -1087,14 +1099,18 @@ export default function Calibracoes() {
             </div>
           </div>
 
+          {palco.estado !== 'pronto' && <RecusaPalco estado={palco.estado} falha={palco.falha} />}
+
           <div className="cal-preview">
-            <PaginaA4 key={`${calAtual.id}-${versao}`}>
-              <iframe
-                src={`/arquivos-inspecao/${arquivoCalibracao(calAtual.tipo)}?calibId=${calAtual.id}&tag=${encodeURIComponent(tag)}&page=1`}
-                scrolling="no"
-                title="Certificado de Calibração"
-              />
-            </PaginaA4>
+            {palco.estado === 'pronto' && (
+              <PaginaA4 key={`${calAtual.id}-${versao}`}>
+                <iframe
+                  src={`/arquivos-inspecao/${arquivoCalibracao(calAtual.tipo)}?calibId=${calAtual.id}&tag=${encodeURIComponent(tag)}&page=1${palco.paramsIframe}`}
+                  scrolling="no"
+                  title="Certificado de Calibração"
+                />
+              </PaginaA4>
+            )}
           </div>
         </>
       )}

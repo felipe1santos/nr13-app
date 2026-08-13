@@ -395,6 +395,81 @@ describe('conteúdo do palco', () => {
   });
 });
 
+/**
+ * Regressão de 13/08/2026. Medido na conta gabriel.dadona, em produção, com o
+ * documento montado: o palco levava 14 chaves e `nr13_relatorio_meta_atual` não
+ * era uma delas. Sintomas que isso produzia, todos relatados como bugs
+ * separados: capa com "Nº RELATÓRIO: -", "DATA INSPEÇÃO: -" e "VALIDADE: -";
+ * folha INSPECOES sem marcar natureza/tipo de exame/resultado; bloco
+ * "Instrumento de Medição Utilizado" do ULTRASSOM com "--"; e certificado de
+ * calibração em branco.
+ */
+describe('chaves que os templates leem e não eram materializadas', () => {
+  it('leva a meta do relatório — é dela que saem código, datas e natureza', async () => {
+    await gravarAtomico([
+      { chave: 'nr13_relatorio_meta_atual', registro: reg('{"codigo":"REL-1"}') },
+    ]);
+    expect(coletarItens(TAG).map((i) => i.chave)).toContain('nr13_relatorio_meta_atual');
+  });
+
+  it('leva o prontuário atual — lido pelas 6 folhas e pelo rodapé', async () => {
+    await gravarAtomico([{ chave: 'nr13_prontuario_atual', registro: reg('{"tag":"A"}') }]);
+    expect(coletarItens(TAG).map((i) => i.chave)).toContain('nr13_prontuario_atual');
+  });
+
+  it('leva TODOS os certificados padrão: o ULTRASSOM varre o prefixo', async () => {
+    // A folha percorre o localStorage inteiro atrás de `nr13_rastreab_`; filtrar
+    // por TAG aqui devolveria "--" para o instrumento cadastrado sem vínculo.
+    await gravarAtomico([
+      { chave: 'nr13_rastreab_us-1', registro: reg('{"tipoInstrumento":"ultrassom"}') },
+      { chave: 'nr13_rastreab_man-2', registro: reg('{"tipoInstrumento":"manometro"}') },
+    ]);
+    const chaves = coletarItens(TAG).map((i) => i.chave);
+    expect(chaves).toContain('nr13_rastreab_us-1');
+    expect(chaves).toContain('nr13_rastreab_man-2');
+  });
+
+  it('leva os certificados de calibração DESTA TAG, e só eles', async () => {
+    await gravarAtomico([
+      { chave: `nr13_calibracoes_${TAG}`, registro: reg('[{"id":"cal-1"},{"id":"cal-2"}]') },
+      { chave: 'nr13_calibracoes_OUTRA', registro: reg('[{"id":"cal-9"}]') },
+      { chave: 'nr13_calibracao_item_cal-1', registro: reg('{"id":"cal-1"}') },
+      { chave: 'nr13_calibracao_item_cal-2', registro: reg('{"id":"cal-2"}') },
+      { chave: 'nr13_calibracao_item_cal-9', registro: reg('{"id":"cal-9"}') },
+    ]);
+    const chaves = coletarItens(TAG).map((i) => i.chave);
+    expect(chaves).toContain('nr13_calibracao_item_cal-1');
+    expect(chaves).toContain('nr13_calibracao_item_cal-2');
+    // Escopo de id é global por organização: varrer o prefixo traria o parque
+    // inteiro para dentro do orçamento de 3.368 KB.
+    expect(chaves).not.toContain('nr13_calibracao_item_cal-9');
+  });
+
+  it('lista de calibrações corrompida não derruba a montagem', async () => {
+    await gravarAtomico([
+      { chave: `nr13_calibracoes_${TAG}`, registro: reg('não é json') },
+      { chave: `nr13_info_${TAG}`, registro: reg('{}') },
+    ]);
+    expect(coletarItens(TAG).map((i) => i.chave)).toContain(`nr13_info_${TAG}`);
+  });
+
+  it('NÃO leva o histórico de relatórios: cresce sem teto', async () => {
+    // 224 KB na conta gabriel.dadona, e mais um relatório a cada emissão. Ver o
+    // comentário em FORA_DO_PALCO.
+    await gravarAtomico([{ chave: 'nr13_historico_relatorios', registro: reg('[]') }]);
+    expect(coletarItens(TAG).map((i) => i.chave)).not.toContain('nr13_historico_relatorios');
+  });
+
+  it('não repete chave: valor anterior duplicado quebraria o rollback', async () => {
+    await gravarAtomico([
+      { chave: `nr13_calibracoes_${TAG}`, registro: reg('[{"id":"x"},{"id":"x"}]') },
+      { chave: 'nr13_calibracao_item_x', registro: reg('{}') },
+    ]);
+    const chaves = coletarItens(TAG).map((i) => i.chave);
+    expect(chaves.length).toBe(new Set(chaves).size);
+  });
+});
+
 describe('montagem completa', () => {
   it('só devolve ok depois de tudo confirmado', async () => {
     await gravarAtomico([{ chave: `nr13_info_${TAG}`, registro: reg('{"tag":"A"}') }]);
