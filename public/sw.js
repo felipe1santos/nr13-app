@@ -9,13 +9,17 @@
 // (Caddy) não manda Cache-Control, o navegador aplica cache heurístico e o fetch devolvia
 // rel-assinatura.js/templates VELHOS sem nem ir à rede. Agora todo caminho network-first usa
 // {cache:'no-cache'} (revalida por ETag — barato, 304) e só cai no cache do SW offline.
-const CACHE = 'nr13-cache-v7';
+// v8: os ícones do PWA trocaram (passaram a ser a marca do sistema). O nome do
+// cache PRECISA mudar junto: o `cache.add` do APP_SHELL só roda na instalação de
+// uma versão nova, então mantendo 'v7' quem já tem o app instalado continuaria
+// com o ícone antigo guardado.
+const CACHE = 'nr13-cache-v8';
 
 // Rede com revalidação obrigatória (fura o cache heurístico do HTTP; 304 quando não mudou).
 function fetchFresco(req) {
   return fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' });
 }
-const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png', '/favicon.svg'];
+const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
