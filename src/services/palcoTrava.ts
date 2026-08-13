@@ -79,9 +79,25 @@ export function travaExpirada(d: DonoRegistrado | null): boolean {
   return d === null || d.expiraEm <= agora();
 }
 
-/** Mesma aba, mesmo relatório: remontar é legítimo (o usuário só recarregou). */
+/**
+ * Mesma aba, mesma organização: remontar é legítimo.
+ *
+ * O `relatorioId` NÃO entra na comparação, e isso é o conserto de um bug real:
+ * ele carrega um contador de versão (`pront-<TAG>-<versao>`, `rel-<TAG>-<versao>`)
+ * que sobe a cada troca de assinante, salvamento ou abertura de documento já
+ * salvo. Quando a versão subia logo depois da tag mudar, a montagem nova pedia
+ * a trava antes de a limpeza da anterior terminar de soltá-la — e, com o
+ * `relatorioId` diferente, a aba se recusava a si mesma com "Este relatório já
+ * está aberto em outra aba". Medido em produção: abrir o prontuário salvo de um
+ * equipamento não montava nenhuma folha.
+ *
+ * Ampliar para "mesma aba" não enfraquece a garantia: uma aba mostra uma rota
+ * por vez, então nunca há dois documentos sendo montados nela. O que a trava
+ * existe para impedir — DUAS ABAS escrevendo no mesmo `localStorage` e
+ * produzindo um documento misturado — continua impedido.
+ */
 function mesmaMontagem(d: DonoRegistrado, ctx: ContextoMontagem): boolean {
-  return d.tabId === ctx.tabId && d.relatorioId === ctx.relatorioId && d.orgId === ctx.orgId;
+  return d.tabId === ctx.tabId && d.orgId === ctx.orgId;
 }
 
 // Um objetor por aba: responde ao broadcast enquanto esta aba for a dona.

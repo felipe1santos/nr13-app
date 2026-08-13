@@ -225,3 +225,32 @@ describe('trava — registro corrompido não trava o app para sempre', () => {
     expect(await adquirirTrava(ctx('aba-1'), { esperaMs: 0 })).toMatchObject({ obtida: true });
   });
 });
+
+describe('trava — remontagem da própria aba (bug medido em produção)', () => {
+  it('a mesma aba pode montar um relatorioId DIFERENTE sem se recusar', async () => {
+    // O `relatorioId` carrega um contador de versão que sobe a cada troca de
+    // assinante, salvamento ou abertura de documento salvo. Quando a versão
+    // subia antes de a limpeza anterior soltar a trava, a aba se recusava a si
+    // mesma com "Este relatório já está aberto em outra aba" e o documento não
+    // montava folha nenhuma.
+    await adquirirTrava(ctx('aba-1', 'pront-ACA-0'));
+    expect(await adquirirTrava(ctx('aba-1', 'pront-ACA-1'), { esperaMs: 0 })).toMatchObject({
+      obtida: true,
+    });
+    expect(donoAtual()?.relatorioId).toBe('pront-ACA-1');
+  });
+
+  it('outra ABA continua sendo recusada — é para isso que a trava existe', async () => {
+    await adquirirTrava(ctx('aba-1', 'pront-ACA-0'));
+    expect(await adquirirTrava(ctx('aba-2', 'pront-ACA-1'), { esperaMs: 0 })).toMatchObject({
+      obtida: false,
+      motivo: 'ocupado',
+    });
+  });
+
+  it('mesma aba em OUTRA organização é recusada (troca de conta)', async () => {
+    await adquirirTrava(ctx('aba-1', 'pront-ACA-0'));
+    const outraOrg = { ...ctx('aba-1', 'pront-ACA-0'), orgId: 'org-2' };
+    expect(await adquirirTrava(outraOrg, { esperaMs: 0 })).toMatchObject({ obtida: false });
+  });
+});
