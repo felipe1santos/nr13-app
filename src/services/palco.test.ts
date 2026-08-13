@@ -23,6 +23,7 @@ import {
   degradarAteCaber,
   materializar,
   limparPalco,
+  liberarPalcoAoSair,
   coletarItens,
   montarPalcoDaTag,
   zerarMontagemEmMemoria,
@@ -467,6 +468,60 @@ describe('chaves que os templates leem e não eram materializadas', () => {
     ]);
     const chaves = coletarItens(TAG).map((i) => i.chave);
     expect(chaves.length).toBe(new Set(chaves).size);
+  });
+});
+
+/**
+ * Regressão de 13/08/2026, achada validando em produção: abrir um certificado
+ * de calibração logo depois de recarregar a página com um relatório na tela
+ * dava "Este relatório já está aberto em outra aba" — mesma aba, nada aberto.
+ * O `tabId` mora em memória, então o F5 sorteia outro e a aba não reconhece o
+ * próprio registro; sobrava esperar os 60s do TTL.
+ */
+describe('saída da página solta a trava', () => {
+  it('pagehide libera o registro de posse', async () => {
+    const alvo = new EventTarget();
+    const c = ctx('aba-1');
+    await montarPalcoDaTag(c, semFoto, { esperaMs: 0 });
+    expect(donoAtual()).not.toBeNull();
+
+    liberarPalcoAoSair(alvo);
+    alvo.dispatchEvent(new Event('pagehide'));
+
+    expect(donoAtual()).toBeNull();
+  });
+
+  it('depois de sair, outra montagem entra na hora', async () => {
+    const alvo = new EventTarget();
+    await montarPalcoDaTag(ctx('aba-1'), semFoto, { esperaMs: 0 });
+    liberarPalcoAoSair(alvo);
+    alvo.dispatchEvent(new Event('pagehide'));
+
+    // `aba-2` representa a MESMA aba depois do F5: tabId novo, sem esperar TTL.
+    const r = await montarPalcoDaTag(ctx('aba-2'), semFoto, { esperaMs: 0 });
+    expect(r).toMatchObject({ ok: true });
+  });
+
+  it('a escuta cancelada não solta mais nada', async () => {
+    const alvo = new EventTarget();
+    const c = ctx('aba-1');
+    await montarPalcoDaTag(c, semFoto, { esperaMs: 0 });
+
+    liberarPalcoAoSair(alvo)();
+    alvo.dispatchEvent(new Event('pagehide'));
+
+    expect(donoAtual()).not.toBeNull();
+  });
+
+  it('aba que não montou nada não mexe no palco de ninguém', async () => {
+    const alvo = new EventTarget();
+    await montarPalcoDaTag(ctx('aba-1'), semFoto, { esperaMs: 0 });
+    zerarMontagemEmMemoria(); // esta "aba" não é dona de nada
+
+    liberarPalcoAoSair(alvo);
+    alvo.dispatchEvent(new Event('pagehide'));
+
+    expect(donoAtual()).not.toBeNull();
   });
 });
 

@@ -445,6 +445,37 @@ export function liberarPalcoDestaAba(): boolean {
   return limparPalco(montagem.ctx).ok;
 }
 
+/**
+ * Solta a trava quando a página sai — F5, fechar a aba, navegar para fora.
+ *
+ * Sem isto, o registro de posse só saía pelo TTL de 60 s, e nesses 60 segundos
+ * QUALQUER documento era recusado com "Este relatório já está aberto em outra
+ * aba". A mensagem era falsa duas vezes: a aba era a mesma, e não havia
+ * documento nenhum aberto. Acontecia porque o `tabId` vive em memória — o
+ * recarregamento sorteia um id novo, e a aba deixa de reconhecer o próprio
+ * registro. Medido em produção em 13/08/2026, abrindo um certificado de
+ * calibração logo depois de recarregar com um relatório na tela.
+ *
+ * `pagehide` (e não `unload`) porque é o único que ainda dispara em iOS. O
+ * trabalho é síncrono de propósito: durante a descarga da página não há tempo
+ * para `await`. A ponte NÃO é drenada aqui, e não precisa — o que os templates
+ * gravaram fica em `nr13_fila_ponte`, que é justamente o fallback para este
+ * caso e é drenado no próximo boot.
+ *
+ * Se a página voltar do bfcache, a trava já foi solta e o palco limpo: os
+ * iframes seguem desenhados (o DOM veio junto) e qualquer ação que remonte o
+ * documento pede o palco de novo.
+ */
+export function liberarPalcoAoSair(alvo?: EventTarget): () => void {
+  const destino = alvo ?? (globalThis as unknown as EventTarget | undefined);
+  if (!destino || typeof destino.addEventListener !== 'function') return () => {};
+  const aoSair = () => {
+    liberarPalcoDestaAba();
+  };
+  destino.addEventListener('pagehide', aoSair);
+  return () => destino.removeEventListener('pagehide', aoSair);
+}
+
 // ---------------------------------------------------------------------------
 // Montagem completa
 // ---------------------------------------------------------------------------

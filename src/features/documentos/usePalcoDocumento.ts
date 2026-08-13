@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { armazenamentoV2Ativo } from '../../services/flag';
-import { montarPalcoDaTag, limparPalco, type FalhaPalco } from '../../services/palco';
+import {
+  montarPalcoDaTag,
+  limparPalco,
+  liberarPalcoAoSair,
+  type FalhaPalco,
+} from '../../services/palco';
 import { renovarTrava, type ContextoMontagem } from '../../services/palcoTrava';
 import { recomprimirFotosDoValor, maiorFotoDoValor } from '../../services/recompressorFoto';
 import { drenarPonte } from '../../services/ponteTemplates';
@@ -110,10 +115,15 @@ export function usePalcoDocumento(
 
     // A trava expira em 60s; renova enquanto o documento estiver aberto.
     const renovacao = setInterval(() => renovarTrava(ctx), INTERVALO_RENOVACAO_MS);
+    // Recarregar a página com o documento aberto não passa por esta limpeza:
+    // sem soltar a trava na saída, o próximo documento era recusado por até 60s
+    // com "já está aberto em outra aba" — sendo a mesma aba.
+    const pararEscutaDeSaida = liberarPalcoAoSair();
 
     return () => {
       vivo = false;
       clearInterval(renovacao);
+      pararEscutaDeSaida();
       // Absorve o que os templates gravaram por sbSalvar antes de soltar o palco.
       // Em documento SOMENTE LEITURA nada é absorvido: o que porventura esteja
       // na ponte não veio desta folha (sbSalvar está bloqueado por ro=1) e será
