@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icone } from '../components/Icone';
-import CalendarioVencimentos from '../components/CalendarioVencimentos';
+import CalendarioVencimentos, { type ModoAgenda } from '../components/CalendarioVencimentos';
 import ModalDetalheEquipamento from '../components/ModalDetalheEquipamento';
 import { resumoKpis, textoPrazo, useVencimentos } from '../services/vencimentos';
 import type { ItemVencimento } from '../services/vencimentos';
@@ -31,6 +31,7 @@ export default function Dashboard() {
   const [listaExpandida, setListaExpandida] = useState(false);
   const [modalTag, setModalTag] = useState<string | null>(null);
   const [filtroPrazo, setFiltroPrazo] = useState<'todos' | 5 | 30 | 60 | 'vencidos'>('todos');
+  const [agenda, setAgenda] = useState<ModoAgenda>('fechado');
 
   // Recalcula ao montar, ao receber nr13:dados-alterados (mesma aba, ex.: relatório salvo)
   // e sempre que a janela volta ao foco (outra aba/janela) — ver useVencimentos.
@@ -243,13 +244,16 @@ export default function Dashboard() {
           <div className="fj-panel-head">
             <div>
               <div className="fj-eyebrow">Agenda</div>
-              <h2>Próximas inspeções</h2>
+              <h2>Calendário e anotações</h2>
             </div>
-            <button type="button" className="fj-btn fj-btn-primary" onClick={() => navigate('/inspecoes')}>
-              <Icone nome="plus" tam={14} /> Nova Inspeção
+            {/* Antes levava para a tela de Inspeções. Agora abre a própria agenda no
+                formulário de anotação — o calendário passou a ser também o caderno do
+                usuário, e sair da tela para isso não fazia sentido. */}
+            <button type="button" className="fj-btn fj-btn-primary" onClick={() => setAgenda('nova')}>
+              <Icone nome="plus" tam={14} /> Nova anotação
             </button>
           </div>
-          <CalendarioVencimentos itens={itens} />
+          <CalendarioVencimentos itens={itens} modo={agenda} onModo={setAgenda} />
         </div>
 
         <div className="fj-panel">

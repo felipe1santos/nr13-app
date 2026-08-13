@@ -72,6 +72,7 @@ const GLOBAIS = new Set([
   'nr13_injecao_atual',
   'nr13_prontuario_atual',
   'nr13_rastreabilidade',
+  'nr13_agenda_notas',
 ]);
 
 /**

@@ -140,6 +140,7 @@ Tudo que o usuário salva pode ser fonte de injeção. Chaves por TAG do equipam
 | `nr13_permissoes_<userId>` | Módulos permitidos do sub-login ({ modulos: string[] }) | Acessos (mestre) |
 | `nr13_componentes_cal_<TAG>` | Válvulas/manômetros cadastrados (nome, série, foto) | Calibrações → Componentes |
 | `nr13_lotes_cal_<TAG>` | Lotes/rodadas de calibração (certificados ganham loteId/componenteId) | Calibrações → Lotes |
+| `nr13_agenda_notas` | Anotações do usuário no calendário (`NotaAgenda[]`: data `AAAA-MM-DD`, título, tipo, TAG opcional, observações). **Controle pessoal** — não alimenta relatório, prontuário, livro nem cálculo de vencimento, e nenhum template de `public/` lê, então NÃO entra no palco (a lista `GLOBAIS` do `palco.ts` é explícita) | Dashboard → Agenda (`src/features/agenda/notasAgenda.ts`) |
 | `nr13_demo_seed` | Marcador do seed de demonstração do trial (`{v,em}`) — impede reinjetar os dados DEMO-* | `src/services/demoSeed.ts` (1ª entrada do trial) |
 | `nr13_assinatura_status` / `nr13_assinatura_ate` | Espelho LOCAL da assinatura (ver §11). Só desenha UI e corta ação no bundle — quem decide é a RLS | Gravadas no login por `carregarPerfil` (RPC `assinatura_org()`) |
 | `nr13_assinatura_sucesso_pendente` | Marca que falta exibir o modal "Assinatura confirmada" (quem fechou a aba antes do polling detectar) | `ModalAssinatura` / consumida no `Layout` |
