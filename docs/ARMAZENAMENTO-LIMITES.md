@@ -158,14 +158,36 @@ migrar-todas           → nr13_fotos_ inteiro
 migrar-docs            → nr13_docs_ (containers de inspeção)
 simular-certificados   → mede os PDFs de nr13_rastreab_
 migrar-certificados    → PDFs de nr13_rastreab_ → bucket + pdfRef
+simular-prontuarios    → mede os PDFs de nr13_pront_fab_
+migrar-prontuarios     → PDFs de nr13_pront_fab_ → bucket + pdfRef
 ```
+
+**Antes e depois, sempre** (acrescentados em 14/08/2026):
+
+```
+node scripts/backup-org.mjs <arquivo.json>          → dump de TUDO, antes
+node scripts/verificar-migracao.mjs <arquivo.json>  → SHA-256 de cada arquivo
+                                                      no bucket contra o backup
+```
+
+O verificador é o que separa "o script disse que conferiu" de conferido: ele compara
+contra uma fonte independente (o dump anterior), acusa chave sumida e acusa registro
+que perdeu o arquivo sem ganhar a referência — o estado que na tela vira "sem foto".
 
 **Bloqueio permanente:** o script entra na conta (`signInWithPassword`) porque a RLS do
 `app_storage` é por organização e não existe caminho de admin. Precisa da senha de cada conta.
 
-Contas pendentes: `gabriel.dadona@gmail.com` (~6,7 MB) e `engyuricesar@gmail.com` (~6,5 MB).
-Roteiro que funcionou no `cmam` (8,00 → 3,06 MB): backup → `simular` → migrar UMA TAG →
-conferir na tela → resto → gerar um relatório e comparar o número de imagens com o de antes.
+**`engyuricesar@gmail.com`: MIGRADA em 14/08/2026 — 6,37 MB → 0,18 MB (−97%).** 4 arquivos
+movidos (1 foto, 2 certificados, 1 prontuário do fabricante de 4,2 MB), todos conferidos por
+SHA-256 contra o backup, 64 chaves preservadas, nenhum órfão. Validado na tela: fotos dos
+cards, prontuário do fabricante abre do bucket, certificados com "PDF ✓ Anexado" e o merge
+do pdf-lib anexando o certificado migrado ao relatório.
+
+Conta pendente: `gabriel.dadona@gmail.com` (~6,7 MB — a migração de 11/08 cobriu fotos e
+certificados; falta conferir se sobrou algo).
+
+Roteiro: backup → `simular` de cada família → migrar da MENOR para a maior → `verificar-migracao`
+→ conferir na tela (foto do card, PDF que abre, certificado anexando no relatório).
 
 ### 3.5 Sem teto por conta, e sem aviso antes de doer
 

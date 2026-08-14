@@ -21,11 +21,20 @@
  *   node scratch-migrar-fotos.mjs migrar-docs        → containers de inspeção
  *   node scratch-migrar-fotos.mjs migrar-certificados → PDFs de nr13_rastreab_
  *   node scratch-migrar-fotos.mjs simular-certificados → o mesmo, sem gravar
+ *   node scratch-migrar-fotos.mjs migrar-prontuarios   → PDFs de nr13_pront_fab_
+ *   node scratch-migrar-fotos.mjs simular-prontuarios  → o mesmo, sem gravar
  *
- * O modo `certificados` é separado porque o registro tem outro FORMATO: o
- * arquivo mora em `pdfBase64` (não em `src`/`base64`) e a referência vai para
- * `pdfRef` (não para `ref`). Os dois maiores pesos da conta gabriel.dadona
- * estavam aí: 5.451 KB e 1.941 KB num único par de registros.
+ * Os modos `certificados` e `prontuarios` são separados porque o registro tem
+ * outro FORMATO: o arquivo mora em `pdfBase64` (não em `src`/`base64`) e a
+ * referência vai para `pdfRef` (não para `ref`). Os dois maiores pesos da conta
+ * gabriel.dadona estavam aí: 5.451 KB e 1.941 KB num par de registros.
+ *
+ * `prontuarios` (`nr13_pront_fab_`) entrou em 14/08/2026: o PDF do prontuário do
+ * fabricante aceita até 8 MB e é o MAIOR peso possível por chave no sistema.
+ * Medido na conta engyuricesar: 5.614 KB numa única chave — 86% dos 6,37 MB da
+ * organização inteira. O código que grava já usa `pdfRef` desde 11/08, mas a
+ * migração é forward-only: registro nunca reescrito carrega o base64 para
+ * sempre, e volta inteiro em cada hidratação completa.
  */
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'node:fs';
@@ -50,8 +59,11 @@ const BUCKET = 'inspecao';
 
 const acao = process.argv[2] ?? 'simular';
 const alvo = process.argv[3] ?? null;
-const simulando = acao === 'simular' || acao === 'simular-certificados';
 const modoCertificados = acao === 'migrar-certificados' || acao === 'simular-certificados';
+const modoProntuarios = acao === 'migrar-prontuarios' || acao === 'simular-prontuarios';
+/** Os dois modos que movem um `pdfBase64` — mesmo código, escopos diferentes. */
+const modoPdf = modoCertificados || modoProntuarios;
+const simulando = acao === 'simular' || acao.startsWith('simular-');
 
 function sanitizar(txt) {
   return (txt || 'geral').replace(/[^\w.-]+/g, '_').slice(0, 60) || 'geral';
@@ -63,7 +75,18 @@ function decodificar(dataUrl) {
   if (!m) return null;
   const mime = m[1];
   const bytes = Buffer.from(m[2], 'base64');
-  const ext = mime.includes('png') ? 'png' : mime.includes('webp') ? 'webp' : 'jpg';
+  // `pdf` PRECISA estar aqui: sem ele o fallback dava `.jpg` a todo certificado e
+  // prontuário do fabricante migrado (achado em 14/08/2026, na conta
+  // engyuricesar — um PDF de 4,2 MB gravado como `.jpg`). Não quebra nada: o que
+  // manda na leitura é o `contentType` do objeto, que sempre foi o correto, e o
+  // app resolve pelo `blob.type`. Mas é o nome errado no bucket para sempre, e
+  // qualquer download direto pelo painel do Supabase sai ilegível.
+  // Os arquivos JÁ subidos com `.jpg` ficam como estão: re-migrar por causa da
+  // extensão trocaria um defeito cosmético por risco em dado de produção.
+  const ext = mime.includes('pdf') ? 'pdf'
+    : mime.includes('png') ? 'png'
+    : mime.includes('webp') ? 'webp'
+    : 'jpg';
   return { bytes, mime, ext };
 }
 
@@ -129,7 +152,7 @@ async function migrarNo(no, escopo, contador) {
  * consultam de forma síncrona (`temPdfDe`), e um registro que perdesse o base64
  * sem ganhar o marcador apareceria como "sem certificado".
  */
-async function migrarCertificado(chave) {
+async function migrarPdfDoRegistro(chave, opcoes) {
   const { data, error } = await sb.from('app_storage')
     .select('valor, versao').eq('org_id', ORG).eq('chave', chave).maybeSingle();
   if (error || !data) { console.log(chave, '→ nao encontrado'); return null; }
@@ -147,13 +170,18 @@ async function migrarCertificado(chave) {
     return { antes, depois: est, fotos: 1 };
   }
 
-  const ref = await subirEConfirmar(reg.pdfBase64, 'certificados');
+  const ref = await subirEConfirmar(reg.pdfBase64, opcoes.escopo);
   if (!ref) { console.log(chave, '→ upload/confirmacao falhou, registro intacto'); return null; }
 
-  const novo = JSON.stringify({ ...reg, pdfBase64: '', pdfRef: ref, temPdf: true, pdfBytes: reg.pdfBase64.length });
+  // Os marcadores só valem para o certificado: `temPdfDe()` os consulta de forma
+  // síncrona. O prontuário do fabricante não os tem no tipo e decide por
+  // `pdfRef?.path || pdfBase64` (ver lerProntuarioFabricante) — acrescentá-los ali
+  // seria campo órfão num registro que o Portal do Cliente também lê.
+  const marcadores = opcoes.marcadores ? { temPdf: true, pdfBytes: reg.pdfBase64.length } : {};
+  const novo = JSON.stringify({ ...reg, pdfBase64: '', pdfRef: ref, ...marcadores });
   const r = await sb.rpc('aplicar_mutacao_storage', {
     p_op: 'set', p_mutation_id: crypto.randomUUID(), p_chave: chave, p_valor: novo,
-    p_versao_esperada: data.versao, p_dispositivo: 'migracao-certificados', p_mutado_em: new Date().toISOString(),
+    p_versao_esperada: data.versao, p_dispositivo: opcoes.dispositivo, p_mutado_em: new Date().toISOString(),
   });
   const st = r.data?.status;
   if (st !== 'aplicado' && st !== 'repetido') {
@@ -201,6 +229,7 @@ async function migrarChave(chave, escopo) {
 let prefixo = 'nr13_fotos_';
 if (acao === 'migrar-docs') prefixo = 'nr13_docs_';
 if (modoCertificados) prefixo = 'nr13_rastreab_';
+if (modoProntuarios) prefixo = 'nr13_pront_fab_';
 
 let chaves = [];
 if (alvo) {
@@ -211,19 +240,21 @@ if (alvo) {
   // Certificado guarda PDF (`data:application/pdf`), não imagem — o filtro de
   // `data:image` do caminho das fotos descartaria todos eles.
   chaves = (data ?? [])
-    .filter((d) => (d.valor ?? '').includes(modoCertificados ? '"pdfBase64":"data:' : 'data:image'))
+    .filter((d) => (d.valor ?? '').includes(modoPdf ? '"pdfBase64":"data:' : 'data:image'))
     .map((d) => d.chave);
 }
 
 console.log(`acao=${acao} | ${chaves.length} chaves\n`);
 let antes = 0, depois = 0, fotos = 0;
 for (const chave of chaves) {
-  const r = modoCertificados
-    ? await migrarCertificado(chave)
+  const r = modoPdf
+    ? await migrarPdfDoRegistro(chave, modoCertificados
+        ? { escopo: 'certificados', marcadores: true, dispositivo: 'migracao-certificados' }
+        : { escopo: 'prontuario-fabricante', marcadores: false, dispositivo: 'migracao-prontuarios' })
     : await migrarChave(chave, chave.slice(prefixo.length));
   if (r) { antes += r.antes; depois += r.depois; fotos += r.fotos; }
 }
 console.log('');
-const unidade = modoCertificados ? 'PDFs' : 'fotos';
+const unidade = modoPdf ? 'PDFs' : 'fotos';
 console.log(`TOTAL: ${fotos} ${unidade} | ${(antes/1024/1024).toFixed(2)} MB → ${(depois/1024).toFixed(0)} KB`);
 await sb.auth.signOut({ scope: 'local' });
