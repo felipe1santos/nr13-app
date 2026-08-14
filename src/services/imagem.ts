@@ -35,8 +35,9 @@ export function comprimirParaBlob(file: File, larguraMax = 1200, qualidade = 0.7
 
 // Comprime imagem pro tamanho web como base64. Restou para a LOGO da empresa e a
 // ASSINATURA dos funcionários: os templates HTML leem essas duas direto do
-// localStorage e são pequenas (300–400px, poucos KB), então não justificam ida
-// ao bucket. Fotos de equipamento e de inspeção usam comprimirParaBlob acima.
+// localStorage e são pequenas (300–500px, poucos KB), então não justificam ida
+// ao bucket — ver a nota em `processarAssinatura` sobre o que ainda custam.
+// Fotos de equipamento e de inspeção usam comprimirParaBlob acima.
 export function comprimirImagem(file: File, larguraMax = 500): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -64,7 +65,25 @@ export function comprimirImagem(file: File, larguraMax = 500): Promise<string> {
 // pelas bordas (branco de papel, preto de scanner ou transparência) e a remove, convertendo o
 // traço em tinta escura sobre fundo TRANSPARENTE (PNG). Sem isso, JPEG mata a transparência
 // (vira quadrado preto) e fundo de foto/scanner aparece na folha impressa.
-export function processarAssinatura(file: File, larguraMax = 900): Promise<string> {
+//
+// 500px, e não 900 (14/08/2026). PNG não tem qualidade a ajustar — o peso vem da
+// ÁREA —, e o comentário logo acima já justificava a exceção ao bucket com
+// "300–400px, poucos KB" enquanto esta função guardava o dobro disso. Medido:
+// `nr13_lista_phs` pesava 56 KB numa conta com UMA assinatura, e essa chave é
+// global, entra no palco de TODO documento das 4 rotas e ainda é copiada para
+// dentro de `meta.assinantes` de cada relatório salvo (§7-bis).
+//
+// 500 é o teto de RENDERIZAÇÃO com margem, não um palpite. A rubrica é impressa
+// com altura fixa — 22mm no relatório (`rel-assinatura.js`), 82px no prontuário
+// e no livro —, e o PDF rasteriza em `scale: 2`. Isso dá ~165px de altura de
+// raster, ou seja ~495px de largura para o formato mais comum (2:1 a 3:1). A
+// assinatura real medida na conta engyuricesar tem 591×295 e é desenhada a
+// 332×166: já vinha com 1,8× mais resolução do que a folha usa.
+//
+// SÓ VALE PARA ASSINATURA NOVA. As já cadastradas não são reprocessadas: elas
+// são a rubrica de um profissional em documento técnico assinado, e mexer nelas
+// mudaria a aparência de registro já emitido.
+export function processarAssinatura(file: File, larguraMax = 500): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
