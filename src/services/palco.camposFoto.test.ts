@@ -1,0 +1,90 @@
+import { describe, expect, it } from 'vitest';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { camposDeFotoDaChave } from './palco';
+
+/**
+ * A regra que este arquivo protege: a hidratação do palco grava a imagem em UM
+ * campo por chave (`CAMPO_DA_FOTO`), não nos dois. Isso vale metade do peso das
+ * fotos dentro de um orçamento de 3.368 KB — e só é seguro enquanto os
+ * conjuntos de folhas continuarem disjuntos.
+ *
+ * Por isso a conferência é por VARREDURA e não por lista escrita à mão: quem
+ * acrescentar uma folha que leia `foto.src` de dado de campo, ou `foto.base64`
+ * da galeria, quebra este teste em vez de descobrir em produção que a folha
+ * imprime o quadro vazio.
+ */
+const RAIZ = join(process.cwd(), 'public');
+const PASTAS = ['arquivos-inspecao', 'arquivos-prontuario'];
+
+function templates(): { nome: string; texto: string }[] {
+  const out: { nome: string; texto: string }[] = [];
+  for (const pasta of PASTAS) {
+    for (const arq of readdirSync(join(RAIZ, pasta))) {
+      if (arq.endsWith('.html')) out.push({ nome: arq, texto: readFileSync(join(RAIZ, pasta, arq), 'utf8') });
+    }
+  }
+  return out;
+}
+
+/**
+ * Leituras do CAMPO de um objeto de foto, ignorando as atribuições ao DOM.
+ *
+ * `img.src = ...` aparece em toda folha (logo, assinatura, preview do upload) e
+ * não diz nada sobre o formato do dado. O que interessa é a LEITURA:
+ * `foto.base64`, `f.src`, `fotoCapa.src`. O `=` que segue, quando existe, é o
+ * que separa uma da outra.
+ */
+function lePropriedade(texto: string, campo: 'src' | 'base64'): string[] {
+  const re = new RegExp(`\\b([A-Za-z_$][\\w$]*)\\.${campo}\\b(?!\\s*=[^=])`, 'g');
+  const achados = new Set<string>();
+  for (const m of texto.matchAll(re)) {
+    const variavel = m[1];
+    // Elementos do DOM: nunca são o objeto de foto.
+    if (/^(img|imagem|imgElement|imgElemento|el|elem|elemento|document|window|script|link|a|node)$/i.test(variavel)) continue;
+    achados.add(m[0]);
+  }
+  return [...achados];
+}
+
+describe('campo da foto por chave — varredura de public/', () => {
+  it('a tabela responde o que se espera dela', () => {
+    expect(camposDeFotoDaChave('nr13_fotos_VP01')).toEqual(['src']);
+    expect(camposDeFotoDaChave('nr13_inspecao_atual')).toEqual(['base64']);
+    expect(camposDeFotoDaChave('nr13_injecao_atual')).toEqual(['base64']);
+  });
+
+  it('chave FORA da tabela recebe os dois campos — a falta é o defeito caro', () => {
+    // Gastar orçamento produz uma recusa com mensagem; faltar produz uma folha
+    // com o quadro vazio num relatório assinado, sem erro nenhum.
+    expect(camposDeFotoDaChave('nr13_chave_nova_qualquer')).toEqual(['src', 'base64']);
+  });
+
+  it('quem lê `nr13_fotos_` lê `.src`, e é só a CAPA', () => {
+    const leitores = templates().filter((t) => t.texto.includes('nr13_fotos_'));
+    expect(leitores.map((t) => t.nome)).toEqual(['CAPA.html']);
+    expect(lePropriedade(leitores[0].texto, 'src').length).toBeGreaterThan(0);
+  });
+
+  it('nenhuma folha lê `.base64` de `nr13_fotos_`', () => {
+    const capa = templates().find((t) => t.nome === 'CAPA.html')!;
+    expect(lePropriedade(capa.texto, 'base64')).toEqual([]);
+  });
+
+  it('as folhas das chaves de campo leem `.base64`, nunca `.src` do dado', () => {
+    const deCampo = templates().filter(
+      (t) => t.texto.includes('nr13_inspecao_atual') || t.texto.includes('nr13_injecao_atual'),
+    );
+    expect(deCampo.length).toBeGreaterThan(5); // a varredura achou alguma coisa
+
+    const problemas: string[] = [];
+    for (const t of deCampo) {
+      // A folha pode não desenhar foto nenhuma (VISUAL-EXTERNO só imprime as
+      // respostas); nesse caso não lê campo nenhum e está tudo certo.
+      for (const leitura of lePropriedade(t.texto, 'src')) {
+        problemas.push(`${t.nome}: lê ${leitura} — a hidratação não preenche \`src\` nas chaves de campo`);
+      }
+    }
+    expect(problemas).toEqual([]);
+  });
+});

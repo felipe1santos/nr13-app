@@ -264,8 +264,13 @@ describe('migração do array legado', () => {
 
 describe('volume: centenas de relatórios', () => {
   const N = 400;
+  // 400 gravações de um registro de ~110 KB cada. Passa em ~5 s sozinho e
+  // estoura o teto padrão de 5 s quando a suíte inteira disputa o worker — é
+  // trabalho real, não lentidão a investigar. O teto explícito é o que separa
+  // "este teste é pesado" de "este teste é instável".
+  const TEMPO = 60_000;
 
-  it('o custo de salvar NÃO cresce com o histórico', async () => {
+  it('o custo de salvar NÃO cresce com o histórico', { timeout: TEMPO }, async () => {
     for (let i = 0; i < N; i++) {
       await salvarRelatorio(rel(`REL-${1000 + i}`, TAG, '10/08/2026'));
     }
@@ -285,7 +290,7 @@ describe('volume: centenas de relatórios', () => {
     expect(bytesIndice / N).toBeLessThan(bytesRegistro / 100);
   });
 
-  it('abrir o histórico não materializa nenhum snapshot', async () => {
+  it('abrir o histórico não materializa nenhum snapshot', { timeout: TEMPO }, async () => {
     for (let i = 0; i < N; i++) await salvarRelatorio(rel(`REL-${2000 + i}`));
 
     const lista = listarIndice(TAG);
@@ -293,7 +298,7 @@ describe('volume: centenas de relatórios', () => {
     expect(JSON.stringify(lista)).not.toContain('data:image');
   });
 
-  it('abrir UM relatório carrega só ele', async () => {
+  it('abrir UM relatório carrega só ele', { timeout: TEMPO }, async () => {
     for (let i = 0; i < N; i++) await salvarRelatorio(rel(`REL-${3000 + i}`));
 
     const r = carregarRelatorio('REL-3007', TAG)!;
@@ -301,7 +306,7 @@ describe('volume: centenas de relatórios', () => {
     expect(r.meta.empresa).toBeDefined();
   });
 
-  it('migração de 400 relatórios legados converte todos e confere a contagem', async () => {
+  it('migração de 400 relatórios legados converte todos e confere a contagem', { timeout: TEMPO }, async () => {
     const entradas = Array.from({ length: N }, (_, i) => rel(`REL-${4000 + i}`));
     localStorage.setItem(CHAVE_LEGADO, JSON.stringify(entradas));
     zerarCacheLegado();

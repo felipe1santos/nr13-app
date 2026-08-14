@@ -564,6 +564,45 @@ export function coletarItens(tag: string): ItemPalco[] {
  * documento, e nunca volta para o `app_storage`. O banco continua guardando só
  * o caminho.
  */
+/**
+ * QUAL campo cada família de chave precisa receber a imagem — e SÓ ele.
+ *
+ * Até 14/08/2026 a hidratação gravava a mesma dataURL em `src` E em `base64`,
+ * "porque não dá para saber qual campo o template daquela folha vai consultar".
+ * Dá: cada família de chave é lida por um conjunto FECHADO de folhas, e a
+ * varredura de `public/` (`palco.camposFoto.test.ts`) mostra que os dois
+ * conjuntos são disjuntos e sempre foram:
+ *
+ *   `nr13_fotos_<TAG>`   → `.src`     — CAPA.html é a ÚNICA folha que a lê
+ *                                        (`fotoCapa.src`, `fotos[0].src`)
+ *   as chaves de campo    → `.base64`  — CHECKLIST-FOTOS, FOTOS-DOCUMENTACAO,
+ *                                        VISUAL-EXTERNO/INTERNO-FOTOS,
+ *                                        TESTE-HIDROSTATICO e a folha de fotos
+ *                                        dele, todas por `foto.base64`
+ *
+ * O que isso custava: medido na conta engyuricesar em 14/08/2026, um container
+ * com 8 fotos hidratava para 5.729 KB e ia ao palco DUAS vezes (`inspecao` e
+ * `injecao`) = 11.458 KB, 3,4× o orçamento inteiro. Por foto: 134 KB de arquivo
+ * viravam 1.432 KB no palco — ×1,33 do base64, ×2 do UTF-16, ×2 do campo
+ * duplicado e ×2 da chave duplicada. Os dois primeiros são do navegador e não
+ * têm saída; este corta o terceiro pela metade.
+ *
+ * CHAVE DESCONHECIDA RECEBE OS DOIS. Errar para o lado de gastar orçamento é
+ * barato — o documento é recusado com uma mensagem clara. Errar para o lado de
+ * faltar é SILENCIOSO: a folha imprime o quadro vazio e o relatório sai
+ * assinado sem a foto do ensaio.
+ */
+const CAMPO_DA_FOTO: { prefixo: string; campo: 'src' | 'base64' }[] = [
+  { prefixo: 'nr13_fotos_', campo: 'src' },
+  { prefixo: 'nr13_inspecao_atual', campo: 'base64' },
+  { prefixo: 'nr13_injecao_atual', campo: 'base64' },
+];
+
+export function camposDeFotoDaChave(chave: string): Array<'src' | 'base64'> {
+  const achado = CAMPO_DA_FOTO.find((c) => chave.startsWith(c.prefixo));
+  return achado ? [achado.campo] : ['src', 'base64'];
+}
+
 export async function hidratarFotosDoBucket(itens: ItemPalco[]): Promise<ItemPalco[]> {
   const jaBaixadas = new Map<string, string | null>();
 
@@ -581,10 +620,10 @@ export async function hidratarFotosDoBucket(itens: ItemPalco[]): Promise<ItemPal
     return url;
   }
 
-  async function percorrer(no: unknown): Promise<boolean> {
+  async function percorrer(no: unknown, campos: Array<'src' | 'base64'>): Promise<boolean> {
     if (Array.isArray(no)) {
       let mudou = false;
-      for (const filho of no) if (await percorrer(filho)) mudou = true;
+      for (const filho of no) if (await percorrer(filho, campos)) mudou = true;
       return mudou;
     }
     if (typeof no !== 'object' || no === null) return false;
@@ -594,27 +633,18 @@ export async function hidratarFotosDoBucket(itens: ItemPalco[]): Promise<ItemPal
     if (ehRef(obj.ref)) {
       const url = await dataUrlDe(obj.ref as RefFoto);
       if (url) {
-        // OS DOIS CAMPOS, e isso CUSTA CARO: a mesma imagem é gravada duas
-        // vezes dentro do orçamento de 3.368 KB. Medido em produção em
-        // 11/08/2026, o palco do relatório da conta gabriel.dadona foi de
-        // 1.449 KB para 2.780 KB logo depois da migração das fotos para o
-        // bucket — sem que uma única foto nova tivesse sido tirada.
+        // SÓ o campo que as folhas daquela chave leem (ver `CAMPO_DA_FOTO`).
         //
-        // Mesmo assim é obrigatório: CAPA.html lê `.src`, as folhas de fotos
-        // leem `.base64`, e uma foto nova chega ao palco só com `ref`, sem
-        // nenhum dos dois declarado. Não há como saber qual campo o template
-        // daquela folha vai consultar. Preencher um só deixa folha em branco —
-        // pior que gastar orçamento (ver `palco.fotos.test.ts`).
-        //
-        // A saída certa para o custo NÃO é aqui: é fazer a degradação alcançar
-        // `nr13_inspecao_atual`/`nr13_injecao_atual`, hoje limitada a
-        // `nr13_fotos_` (ver docs/ARMAZENAMENTO-LIMITES.md §3.1).
-        obj.src = url;
-        obj.base64 = url;
+        // Gravar os dois era a resposta antiga para "não dá para saber qual
+        // campo o template vai consultar", e custava a imagem inteira em
+        // dobro dentro de um orçamento de 3.368 KB: o palco da conta
+        // gabriel.dadona saltou de 1.449 KB para 2.780 KB na migração das fotos
+        // para o bucket, sem uma foto nova sequer.
+        for (const campo of campos) obj[campo] = url;
         mudou = true;
       }
     }
-    for (const valor of Object.values(obj)) if (await percorrer(valor)) mudou = true;
+    for (const valor of Object.values(obj)) if (await percorrer(valor, campos)) mudou = true;
     return mudou;
   }
 
@@ -628,7 +658,7 @@ export async function hidratarFotosDoBucket(itens: ItemPalco[]): Promise<ItemPal
     }
     try {
       const obj: unknown = JSON.parse(item.valor);
-      const mudou = await percorrer(obj);
+      const mudou = await percorrer(obj, camposDeFotoDaChave(item.chave));
       saida.push(mudou ? { chave: item.chave, valor: JSON.stringify(obj) } : item);
     } catch {
       saida.push(item); // valor não-JSON: segue intacto

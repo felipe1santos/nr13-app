@@ -35,9 +35,10 @@ vi.mock('./fotos', async (original) => {
 import { hidratarFotosDoBucket } from './palco';
 
 describe('palco — hidratação das fotos para os templates', () => {
-  it('devolve a imagem embutida nos campos que os templates leem', async () => {
-    // CAPA.html lê `.src`; as folhas de fotos leem `.base64`. Os dois precisam
-    // existir, porque os templates nunca foram uniformes.
+  it('a galeria recebe SÓ `src` — é o único campo que a CAPA lê', async () => {
+    // Gravar os dois custava a imagem inteira em dobro dentro de um orçamento
+    // de 3.368 KB. `CAPA.html` é a única folha que lê `nr13_fotos_`, e lê
+    // `fotoCapa.src` — conferido por varredura em `palco.camposFoto.test.ts`.
     const itens = [
       {
         chave: 'nr13_fotos_ACA 2002',
@@ -51,7 +52,27 @@ describe('palco — hidratação das fotos para os templates', () => {
     const fotos = JSON.parse(saida[0].valor) as Array<Record<string, string>>;
 
     expect(fotos[0].src).toBe('data:image/jpeg;base64,SGVsbG8=');
-    expect(fotos[0].base64).toBe('data:image/jpeg;base64,SGVsbG8=');
+    expect(fotos[0].base64).toBeUndefined();
+  });
+
+  it('chave de campo recebe SÓ `base64`, e o valor fica pela metade do peso', async () => {
+    const ref = { bucket: 'inspecao', path: 'org-1/tag/ve.jpg' };
+    const [saida] = await hidratarFotosDoBucket([
+      { chave: 'nr13_injecao_atual', valor: JSON.stringify({ ve: { fotos: [{ ref }] } }) },
+    ]);
+    const obj = JSON.parse(saida.valor);
+    expect(obj.ve.fotos[0].base64).toBe('data:image/jpeg;base64,SGVsbG8=');
+    expect(obj.ve.fotos[0].src).toBeUndefined();
+  });
+
+  it('chave DESCONHECIDA ainda recebe os dois — faltar é o defeito silencioso', async () => {
+    const ref = { bucket: 'inspecao', path: 'org-1/tag/x.jpg' };
+    const [saida] = await hidratarFotosDoBucket([
+      { chave: 'nr13_familia_nova_atual', valor: JSON.stringify([{ ref }]) },
+    ]);
+    const obj = JSON.parse(saida.valor);
+    expect(obj[0].src).toContain('data:image');
+    expect(obj[0].base64).toContain('data:image');
   });
 
   it('alcança fotos aninhadas dentro do container de inspeção', async () => {
