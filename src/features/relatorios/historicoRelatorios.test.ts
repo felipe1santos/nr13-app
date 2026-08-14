@@ -317,3 +317,31 @@ describe('volume: centenas de relatórios', () => {
     expect(contarRelatorios(TAG)).toBe(N);
   });
 });
+
+describe('corte do livro no lugar da cópia', () => {
+  it('o índice não carrega nem o snapshot legado nem o corte', () => {
+    const r = resumir({ ...rel('REL-1'), livroCorte: { sha256: 'abc', entradas: 12, em: '2026-08-14T00:00:00.000Z' } });
+    const json = JSON.stringify(r);
+    expect(json).not.toContain('livroSnapshot');
+    expect(json).not.toContain('livroCorte');
+  });
+
+  it('registro legado com livroSnapshot continua legível e intacto', async () => {
+    // Nada é reescrito: quem já tem a cópia inteira segue com ela.
+    const legado = { ...rel('REL-ANTIGO'), livroSnapshot: [{ id: 'e1', descricao: 'x' }] };
+    await salvarRelatorio(legado);
+    const lido = carregarRelatorio('REL-ANTIGO', TAG)!;
+    expect(lido.livroSnapshot).toEqual([{ id: 'e1', descricao: 'x' }]);
+  });
+
+  it('o corte pesa ~100 bytes contra o livro inteiro', () => {
+    const livro = Array.from({ length: 20 }, (_, i) => ({
+      id: `e${i}`, data: '10/08/2026', tipo: 'Inspeção Periódica',
+      descricao: 'x'.repeat(600), relatorioCodigo: `REL-${i}`, phNome: 'Eng', phCrea: '1',
+      origem: 'auto', criadoEm: '2026-08-10T00:00:00.000Z', sha256: 'a'.repeat(64),
+    }));
+    const corte = { sha256: livro[19].sha256, entradas: livro.length, em: '2026-08-14T00:00:00.000Z' };
+    expect(JSON.stringify(corte).length).toBeLessThan(150);
+    expect(JSON.stringify(livro).length).toBeGreaterThan(15_000);
+  });
+});

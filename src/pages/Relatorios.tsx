@@ -32,6 +32,7 @@ import {
   type AssinantesRelatorio,
 } from '../features/relatorios/relatoriosService';
 import { expandirFolhasUltrassom } from '../features/relatorios/ultrassomPaginacao';
+import { ultimaLacrada, type LivroEntrada } from '../features/relatorios/livroLacre';
 import { listarFuncionarios } from '../features/cadastros/cadastroService';
 import type { Funcionario } from '../features/cadastros/tipos';
 import { validadesPorRelatorio, vincularLotesPendentes } from '../features/calibracoes/componentesService';
@@ -630,8 +631,17 @@ export default function Relatorios() {
       // 1. Absorve o que os templates gravaram por sbSalvar ENQUANTO era editável.
       await drenarPonte((chave, valor) => salvar(chave, JSON.parse(valor)));
 
-      // 2. Livro daquela emissão.
-      const livroSnapshot = ler<unknown>(`nr13_livro_${tag}`) ?? null;
+      // 2. O CORTE do livro daquela emissão — não a cópia. `nr13_livro_` é
+      //    acumulativo por equipamento, e guardar o array inteiro em cada
+      //    relatório crescia ao quadrado, para um campo que ninguém lia. O sha
+      //    da última entrada lacrada aponta o ponto exato da cadeia
+      //    (§7-quinquies), e a folha daquela inspeção já está dentro do PDF.
+      const entradasLivro = ler<LivroEntrada[]>(`nr13_livro_${tag}`) ?? [];
+      const livroCorte = {
+        sha256: ultimaLacrada(entradasLivro)?.sha256 ?? null,
+        entradas: entradasLivro.length,
+        em: new Date().toISOString(),
+      };
 
       // 3. PDF do que está montado.
       setProgressoPdf({ feito: 0, total: documentos.length });
@@ -660,7 +670,7 @@ export default function Relatorios() {
         status: 'Aprovado',
         ...artefato,
         pdfPendente,
-        livroSnapshot,
+        livroCorte,
       };
 
       // 5. Agora sim.

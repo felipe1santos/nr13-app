@@ -115,11 +115,27 @@ export interface RelatorioSalvo {
    */
   pdfPendente?: boolean;
   /**
-   * Cópia de `nr13_livro_<TAG>` no momento da emissão. `nr13_livro_` é uma chave
-   * ÚNICA e acumulativa por equipamento: sem este congelamento não existe "o
-   * livro como estava naquela inspeção", só o livro de agora.
+   * LEGADO (12/08 → 14/08/2026): cópia INTEIRA de `nr13_livro_<TAG>` na emissão.
+   *
+   * Nada no sistema lia este campo — nem template, nem tela, nem serviço. E o
+   * custo era quadrático: `nr13_livro_` é acumulativo por equipamento, então a
+   * 20ª inspeção guardava um snapshot com 20 entradas, e as 19 cópias anteriores
+   * continuavam gravadas. Registros que já o têm continuam com ele; nenhum novo
+   * o recebe.
    */
   livroSnapshot?: unknown;
+  /**
+   * O CORTE do livro na emissão, no lugar da cópia (14/08/2026): `sha256` da
+   * última entrada lacrada e quantas entradas existiam. ~100 bytes.
+   *
+   * É o suficiente para responder "o livro como estava naquela inspeção" sem
+   * copiá-lo: a cadeia de lacres (§7-quinquies) liga cada entrada à anterior,
+   * então o sha identifica o ponto exato da cadeia e `verificarCadeia` prova que
+   * o trecho até ali não mudou. E a folha daquela inspeção já está dentro do PDF
+   * imutável do relatório (§7-quater) — congelar o livro em cópia era guardar
+   * pela terceira vez o que já estava guardado duas.
+   */
+  livroCorte?: { sha256: string | null; entradas: number; em: string };
 }
 
 /**
