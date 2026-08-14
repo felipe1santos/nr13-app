@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ler, listarChavesComPrefixo } from './storage';
+import { listarIndice } from '../features/relatorios/historicoRelatorios';
 import type { InfoEquipamento } from '../features/equipamento/tipos';
 import type { DadosCalibracao } from '../features/calibracoes/tipos';
 import { assinarDadosAlterados } from './eventos';
@@ -60,52 +61,32 @@ interface VidaSalva {
   calculadoEm?: string;
 }
 
-interface RelSalvoMin {
-  tagVaso?: string;
-  data?: string;
-  meta?: {
-    emissao?: string;
-    execucaoInspecao?: string;
-    proximaInspecaoInterna?: string;
-    proximaInspecaoExterna?: string;
-  };
-}
-
 /**
  * Prazo do equipamento vindo do RELATÓRIO salvo mais recente (Configurações do
  * Relatório → Próx. Interna / Próx. Externa): vale a data mais próxima das duas.
  * Complementa a Vida Remanescente — em listarVencimentos vence o prazo menor.
+ *
+ * Lê do ÍNDICE por TAG (14/08/2026). Antes lia o array global
+ * `nr13_historico_relatorios`, que carrega os snapshots congelados de cada
+ * relatório (logo e rubricas em base64, ~125 KB por entrada) só para chegar a
+ * quatro datas. Agora o Dashboard nunca abre um relatório.
  */
-function prazoPorRelatorio(tag: string, historico: RelSalvoMin[]): { ultima?: Date; vencimento: Date } | null {
-  const doTag = historico.filter((r) => r?.tagVaso === tag);
-  let recente: RelSalvoMin | null = null;
-  let tRecente = -Infinity;
-  for (const r of doTag) {
-    const t = (parseDataFlex(r.meta?.emissao) ?? parseDataFlex(r.data))?.getTime() ?? -Infinity;
-    if (t >= tRecente) { tRecente = t; recente = r; }
-  }
+function prazoPorRelatorio(tag: string): { ultima?: Date; vencimento: Date } | null {
+  // `listarIndice` já devolve do mais recente para o mais antigo.
+  const recente = listarIndice(tag)[0];
   if (!recente) return null;
-  const candidatas = [recente.meta?.proximaInspecaoInterna, recente.meta?.proximaInspecaoExterna]
+  const candidatas = [recente.proximaInspecaoInterna, recente.proximaInspecaoExterna]
     .map(parseDataFlex)
     .filter((d): d is Date => d !== null);
   if (candidatas.length === 0) return null;
   const vencimento = candidatas.reduce((a, b) => (a.getTime() <= b.getTime() ? a : b));
-  const ultima = parseDataFlex(recente.meta?.execucaoInspecao) ?? parseDataFlex(recente.meta?.emissao) ?? undefined;
+  const ultima = parseDataFlex(recente.execucaoInspecao) ?? parseDataFlex(recente.emissao) ?? undefined;
   return { ultima, vencimento };
 }
 
 export function listarVencimentos(hoje: Date = new Date()): ItemVencimento[] {
   const itens: ItemVencimento[] = [];
   const hojeZero = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
-
-  // Parse ÚNICO do histórico (o JSON carrega snapshots de logo/rubrica em base64 — multi-MB):
-  // parsear dentro do loop por equipamento custava N parses completos a cada navegação.
-  let historico: RelSalvoMin[] = [];
-  try {
-    historico = ler<RelSalvoMin[]>('nr13_historico_relatorios') ?? [];
-  } catch {
-    historico = [];
-  }
 
   // ── Equipamentos (via vida remanescente salva na ficha) ──
   for (const chave of listarChavesComPrefixo('nr13_info_')) {
@@ -128,7 +109,7 @@ export function listarVencimentos(hoje: Date = new Date()): ItemVencimento[] {
         venc.setMonth(venc.getMonth() + Math.round(anos * 12));
         prazoVida = { ultima: base, vencimento: venc };
       }
-      const prazo = prazoPorRelatorio(tag, historico) ?? prazoVida;
+      const prazo = prazoPorRelatorio(tag) ?? prazoVida;
 
       if (prazo) {
         const { dias, status } = statusPrazo(prazo.vencimento, hojeZero);

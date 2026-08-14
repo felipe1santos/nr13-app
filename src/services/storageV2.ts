@@ -58,6 +58,18 @@ export function listarChavesComPrefixo(prefixo: string): string[] {
   return cache.chavesComPrefixo(prefixo);
 }
 
+/** Valor bruto, sem parse. Mesma instância enquanto o registro não muda. */
+export function lerCru(chave: string): string | null {
+  if (bloqueadoParaUso()) return null;
+  return cache.obterRegistro(chave)?.valor ?? null;
+}
+
+/** Chaves do equipamento pelo índice explícito por TAG — não varre o cache. */
+export function listarChavesDaTag(tag: string): string[] {
+  if (bloqueadoParaUso()) return [];
+  return cache.chavesDaTag(tag);
+}
+
 // ---------------------------------------------------------------------------
 // Barreira de inicialização
 // ---------------------------------------------------------------------------

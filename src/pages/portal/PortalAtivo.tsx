@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icone, type NomeIcone } from '../../components/Icone';
 import { Link, useParams } from 'react-router-dom';
 import { ler } from '../../services/storage';
-import { listarHistorico, filtrarFolhasFotoVazias, gravarMetaAtual, gravarInspecaoOrigemAtual } from '../../features/relatorios/relatoriosService';
+import { listarHistorico, carregarRelatorio, filtrarFolhasFotoVazias, gravarMetaAtual, gravarInspecaoOrigemAtual } from '../../features/relatorios/relatoriosService';
 import { exportarPdf } from '../../features/relatorios/pdfService';
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../../features/relatorios/printService';
 import AnexosRastreabPreview from '../../features/relatorios/AnexosRastreabPreview';
@@ -24,7 +24,7 @@ import {
 import { paginasProntuario } from '../../features/prontuarios/tipos';
 import { parseDataFlex, statusPrazo } from '../../services/vencimentos';
 import type { InfoEquipamento } from '../../features/equipamento/tipos';
-import { temArtefato, type RelatorioSalvo } from '../../features/relatorios/tipos';
+import { temArtefato, type RelatorioIndiceItem, type RelatorioSalvo } from '../../features/relatorios/tipos';
 import PaginaA4 from '../../components/PaginaA4';
 import { travarIframeSomenteLeitura } from '../../features/documentos/somenteLeituraDoc';
 import '../relatorios.css';
@@ -192,7 +192,11 @@ export default function PortalAtivo() {
 
   // Reabre um relatório salvo em modo leitura: regrava as chaves "atuais" que os
   // templates leem (CLAUDE.md §2 — REGRA CRÍTICA DE INJEÇÃO) antes de montar os iframes.
-  async function abrirRelatorio(r: RelatorioSalvo) {
+  async function abrirRelatorio(item: RelatorioIndiceItem) {
+    // A lista é o ÍNDICE (leve). O relatório completo — `meta` e `documentos`,
+    // que o fluxo legado precisa — só é carregado quando o cliente clica.
+    const r = carregarRelatorio(item.id, tag);
+    if (!r) return;
     // ARTEFATO: relatório finalizado é só um arquivo. NÃO grava nada.
     //
     // As escritas abaixo existem para o fluxo legado — os templates leem
@@ -392,7 +396,7 @@ export default function PortalAtivo() {
     );
   }
 
-  function ListaDocumentos({ lista, vazio }: { lista: RelatorioSalvo[]; vazio: string }) {
+  function ListaDocumentos({ lista, vazio }: { lista: RelatorioIndiceItem[]; vazio: string }) {
     if (lista.length === 0) return <p className="portal-hint">{vazio}</p>;
     return (
       <ul className="portal-lista-docs">
@@ -403,7 +407,7 @@ export default function PortalAtivo() {
               <div>
                 <b>{r.nome}</b>
                 <span className="portal-doc-meta">
-                  {r.meta?.codigo ? `${r.meta.codigo} · ` : ''}{r.data} · {r.tipo}
+                  {r.codigo ? `${r.codigo} · ` : ''}{r.data} · {r.tipo}
                 </span>
               </div>
             </div>

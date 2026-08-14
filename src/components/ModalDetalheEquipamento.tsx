@@ -52,16 +52,10 @@ export default function ModalDetalheEquipamento({ tag, itens, onClose }: Props) 
   const categoria = useMemo(() => ler<CategoriaSalva>(`nr13_cat_${tag}`), [tag]);
 
   // Último relatório feito — é dele que o painel tira o prazo do equipamento.
-  const ultimoRel = useMemo(() => {
-    const todos = listarHistorico(tag);
-    let melhor = null;
-    let t = -Infinity;
-    for (const r of todos) {
-      const tr = (parseDataFlex(r.meta?.emissao) ?? parseDataFlex(r.data))?.getTime() ?? -Infinity;
-      if (tr >= t) { t = tr; melhor = r; }
-    }
-    return melhor;
-  }, [tag]);
+  // O índice já vem ordenado do mais recente para o mais antigo, e todos os
+  // campos exibidos aqui (código, tipo, execução, emissão, próximas) estão nele:
+  // o relatório completo não é carregado.
+  const ultimoRel = useMemo(() => listarHistorico(tag)[0] ?? null, [tag]);
 
   const acessorios = useMemo(() => agruparAcessorios(listarCalibracoes(tag)), [tag]);
 
@@ -110,12 +104,12 @@ export default function ModalDetalheEquipamento({ tag, itens, onClose }: Props) 
             <div className="det-secao-titulo">Última inspeção e prazos</div>
             {ultimoRel ? (
               <div className="det-grid">
-                <div><span>Relatório</span><b className="mono">{ultimoRel.meta.codigo}</b></div>
+                <div><span>Relatório</span><b className="mono">{ultimoRel.codigo}</b></div>
                 <div><span>Tipo</span><b>{ultimoRel.tipo}</b></div>
-                <div><span>Execução</span><b className="mono">{ultimoRel.meta.execucaoInspecao || '—'}</b></div>
-                <div><span>Emissão</span><b className="mono">{ultimoRel.meta.emissao || '—'}</b></div>
-                <div><span>Próx. interna</span><b className="mono">{ultimoRel.meta.proximaInspecaoInterna || '—'}</b></div>
-                <div><span>Próx. externa</span><b className="mono">{ultimoRel.meta.proximaInspecaoExterna || '—'}</b></div>
+                <div><span>Execução</span><b className="mono">{ultimoRel.execucaoInspecao || "—"}</b></div>
+                <div><span>Emissão</span><b className="mono">{ultimoRel.emissao || "—"}</b></div>
+                <div><span>Próx. interna</span><b className="mono">{ultimoRel.proximaInspecaoInterna || "—"}</b></div>
+                <div><span>Próx. externa</span><b className="mono">{ultimoRel.proximaInspecaoExterna || "—"}</b></div>
                 <div>
                   <span>Vencimento (painel)</span>
                   <b className="mono">{itemEquip?.vencimento ? itemEquip.vencimento.toLocaleDateString('pt-BR') : '—'}</b>

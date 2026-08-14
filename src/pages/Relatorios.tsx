@@ -20,6 +20,8 @@ import {
   gravarAssinantesRel,
   gravarInspecaoOrigemAtual,
   gravarMetaAtual,
+  carregarRelatorio,
+  contarRelatorios,
   listarHistorico,
   montarListaComTermoAbertura,
   obterAssinantesRel,
@@ -42,7 +44,7 @@ import { mascararData } from '../services/mascaras';
 import { exportarPdf, gerarPdfBytes } from '../features/relatorios/pdfService';
 import { publicarArtefato, artefatoDe } from '../features/relatorios/artefatoRelatorio';
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
-import { temArtefato, type RelatorioMeta, type RelatorioSalvo, type TipoInspecao } from '../features/relatorios/tipos';
+import { temArtefato, type RelatorioIndiceItem, type RelatorioMeta, type RelatorioSalvo, type TipoInspecao } from '../features/relatorios/tipos';
 import VisualizadorPdf, { baixarPdfArquivado, imprimirPdfArquivado } from '../components/VisualizadorPdf';
 import { Icone } from '../components/Icone';
 import './relatorios.css';
@@ -145,7 +147,10 @@ export default function Relatorios() {
     return () => limpezas.forEach((limpar) => limpar());
   }, [somenteLeitura, tela, palco.estado, documentos, versao]);
 
-  const [historico, setHistorico] = useState<RelatorioSalvo[]>([]);
+  // ÍNDICE, não os relatórios completos (§achado 1, 14/08/2026): a lista exibe
+  // nome, TAG, tipo e datas — nenhum snapshot. O registro inteiro só é carregado
+  // em `visualizar`, `duplicar` e `confirmarRenome`, um por vez.
+  const [historico, setHistorico] = useState<RelatorioIndiceItem[]>([]);
   const [salvando, setSalvando] = useState(false);
   const [exportando, setExportando] = useState(false);
   const [toastSalvo, setToastSalvo] = useState(false);
@@ -248,6 +253,15 @@ export default function Relatorios() {
       limparFolhasImpressao();
     };
   }, [tela, documentos, versao]);
+
+  // UMA contagem por equipamento, recalculada só quando a lista muda. Chamar
+  // `listarHistorico` direto no JSX rodava a leitura por equipamento a CADA
+  // render — com o índice por TAG isso é barato, mas continua sendo trabalho
+  // repetido numa lista que pode ter centenas de itens.
+  const contagemPorTag = useMemo(
+    () => new Map(equipamentos.map((e) => [e.tag, contarRelatorios(e.tag)] as const)),
+    [equipamentos],
+  );
 
   const carregarEquipamentos = useCallback(async () => {
     setEquipamentos(await listarEquipamentos());
@@ -414,7 +428,11 @@ export default function Relatorios() {
 
   // Re-hidrata as chaves "atuais" que os templates leem do localStorage ANTES de remontar os
   // iframes, senão um relatório reaberto exibe a meta/dados de campo do último relatório gerado.
-  async function visualizar(r: RelatorioSalvo) {
+  async function visualizar(item: RelatorioIndiceItem) {
+    // A lista é o ÍNDICE. O registro completo (meta com snapshots, documentos,
+    // livroSnapshot) é carregado agora, e só o deste relatório.
+    let r = carregarRelatorio(item.id, item.tagVaso);
+    if (!r) return;
     // ARTEFATO: relatório finalizado no modelo novo NÃO é remontado. Abrir o
     // arquivo é o que garante que ele não mude quando a ficha do equipamento, o
     // memorial, o laudo ou os próprios templates mudarem depois. `documentos` e
@@ -479,7 +497,9 @@ export default function Relatorios() {
     setTela('visualizador');
   }
 
-  async function duplicar(r: RelatorioSalvo) {
+  async function duplicar(item: RelatorioIndiceItem) {
+    const r = carregarRelatorio(item.id, item.tagVaso);
+    if (!r) return;
     // Regrava as chaves de campo do container de origem (ou limpa): senão o duplicado renderiza os
     // dados de ensaio do último relatório que esteve nas chaves nr13_inspecao_atual/nr13_injecao_atual.
     const dadosContainer = r.meta.containerOrigemId
@@ -515,12 +535,12 @@ export default function Relatorios() {
   }
 
   async function excluirHistorico(id: string) {
-    await excluirDoHistorico(id);
+    await excluirDoHistorico(id, tag);
     setHistorico(listarHistorico(tag));
   }
 
   async function excluirSelecionados() {
-    for (const id of selecionados) await excluirDoHistorico(id);
+    for (const id of selecionados) await excluirDoHistorico(id, tag);
     setSelecionados(new Set());
     setHistorico(listarHistorico(tag));
   }
@@ -538,14 +558,17 @@ export default function Relatorios() {
     setSelecionados((s) => (s.size === historico.length ? new Set() : new Set(historico.map((r) => r.id))));
   }
 
-  function iniciarRenome(r: RelatorioSalvo) {
+  function iniciarRenome(r: RelatorioIndiceItem) {
     setRenomeandoId(r.id);
     setNomeRenomeando(r.nome);
   }
 
-  async function confirmarRenome(r: RelatorioSalvo) {
+  async function confirmarRenome(item: RelatorioIndiceItem) {
     const novoNome = nomeRenomeando.trim();
-    if (novoNome) await salvarNoHistorico({ ...r, nome: novoNome });
+    // Renomear é rótulo do histórico, não conteúdo do documento (§7-ter). Carrega
+    // o registro completo para não gravar um relatório sem meta/documentos.
+    const r = novoNome ? carregarRelatorio(item.id, item.tagVaso) : null;
+    if (r) await salvarNoHistorico({ ...r, nome: novoNome });
     setRenomeandoId(null);
     setHistorico(listarHistorico(tag));
   }
@@ -712,8 +735,8 @@ export default function Relatorios() {
                       <span className="eq-value">{eq.calculo ? formatarValor(parseFloat(eq.calculo.pmta), eq.unidade) : '—'}</span>
                     </div>
                   </div>
-                  <span className={`badge-relatorios ${listarHistorico(eq.tag).length > 0 ? 'tem' : ''}`}>
-                    {listarHistorico(eq.tag).length} Relatórios
+                  <span className={`badge-relatorios ${(contagemPorTag.get(eq.tag) ?? 0) > 0 ? 'tem' : ''}`}>
+                    {contagemPorTag.get(eq.tag) ?? 0} Relatórios
                   </span>
                 </button>
               ))}
@@ -828,12 +851,12 @@ export default function Relatorios() {
                     <td data-rot="Tipo">
                       <span className="badge-tipo-inspecao">{r.tipo}</span>
                     </td>
-                    <td data-rot="Criação">{r.meta.emissao}</td>
-                    <td data-rot="Validade">{r.meta.validade || '-'}</td>
-                    <td data-rot="Próx. interna">{r.meta.proximaInspecaoInterna || '-'}</td>
-                    <td data-rot="Próx. externa">{r.meta.proximaInspecaoExterna || '-'}</td>
+                    <td data-rot="Criação">{r.emissao}</td>
+                    <td data-rot="Validade">{r.validade || '-'}</td>
+                    <td data-rot="Próx. interna">{r.proximaInspecaoInterna || '-'}</td>
+                    <td data-rot="Próx. externa">{r.proximaInspecaoExterna || '-'}</td>
                     {/* Derivado do lote de calibração vinculado; fallback: valor manual antigo */}
-                    <td data-rot="Val. válvula">{validadesCal.get(r.id)?.valvula || r.meta.validadeValvula || '-'}</td>
+                    <td data-rot="Val. válvula">{validadesCal.get(r.id)?.valvula || r.validadeValvula || '-'}</td>
                     <td data-rot="Val. manômetro">{validadesCal.get(r.id)?.manometro || '-'}</td>
                     <td className="acoes-relatorio-icones">
                       {renomeandoId === r.id ? (

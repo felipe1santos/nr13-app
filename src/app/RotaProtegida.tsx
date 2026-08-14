@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { lerTudo, iniciarArmazenamento } from '../services/storage';
+import { migrarHistoricoEmSegundoPlano } from '../features/relatorios/historicoRelatorios';
 import { verificarAcesso } from '../services/auth';
 import './layout.css';
 
@@ -43,6 +44,12 @@ export default function RotaProtegida() {
       } catch {
         if (vivo) setSemServidor(true);
       }
+      // Converte o array único `nr13_historico_relatorios` em um registro por
+      // relatório (§achado 1). Depois da hidratação, porque precisa do histórico
+      // já carregado; em SEGUNDO PLANO, porque não pode atrasar a primeira tela;
+      // e sem apagar nada, então falhar aqui só significa que as telas seguem
+      // lendo pelo legado.
+      migrarHistoricoEmSegundoPlano();
       if (vivo) setEstado('autenticado');
     })();
     return () => {

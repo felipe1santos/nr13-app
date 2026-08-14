@@ -430,6 +430,34 @@ describe('chaves que os templates leem e não eram materializadas', () => {
     expect(chaves).toContain('nr13_rastreab_man-2');
   });
 
+  it('leva o certificado padrão PODADO: o PDF não cabe no palco e ninguém o imprime', async () => {
+    // Regressão de 14/08/2026, conta engyuricesar. Dois registros
+    // `nr13_rastreab_` ocupavam 794 KB e 614 KB de um orçamento de 3.368 KB e
+    // recusavam o relatório inteiro. A poda existia desde 30/07 (§2-bis) mas
+    // vivia dentro do `storageV1`: na v2 o `Map` guarda o valor cru do Supabase.
+    const pdf = 'JVBERi0xLjQK' + 'A'.repeat(400_000);
+    await gravarAtomico([
+      {
+        chave: 'nr13_rastreab_us-pesado',
+        registro: reg(
+          JSON.stringify({ tipoInstrumento: 'ultrassom', nome: 'Krautkramer', validade: '2027-01-01', pdfBase64: pdf }),
+        ),
+      },
+    ]);
+
+    const item = coletarItens(TAG).find((i) => i.chave === 'nr13_rastreab_us-pesado')!;
+    const obj = JSON.parse(item.valor);
+    expect(obj.pdfBase64).toBe('');
+    expect(obj.temPdf).toBe(true);
+    // Os metadados que a folha ULTRASSOM imprime continuam lá.
+    expect(obj.nome).toBe('Krautkramer');
+    expect(obj.validade).toBe('2027-01-01');
+    expect(item.valor.length).toBeLessThan(1_000);
+    // E o arquivo NÃO foi tocado no cache: quem monta o PDF do relatório é o
+    // React, por `resolverPdf()`, sobre o registro completo.
+    expect(JSON.parse(obterRegistro('nr13_rastreab_us-pesado')!.valor).pdfBase64).toBe(pdf);
+  });
+
   it('leva os certificados de calibração DESTA TAG, e só eles', async () => {
     await gravarAtomico([
       { chave: `nr13_calibracoes_${TAG}`, registro: reg('[{"id":"cal-1"},{"id":"cal-2"}]') },
@@ -459,6 +487,28 @@ describe('chaves que os templates leem e não eram materializadas', () => {
     // comentário em FORA_DO_PALCO.
     await gravarAtomico([{ chave: 'nr13_historico_relatorios', registro: reg('[]') }]);
     expect(coletarItens(TAG).map((i) => i.chave)).not.toContain('nr13_historico_relatorios');
+  });
+
+  it('NÃO leva os relatórios salvos nem o índice — e AINDA leva a meta atual', async () => {
+    // Regressão de 14/08/2026. Os registros por relatório (`nr13_rel_<id>_<TAG>`)
+    // são de escopo de TAG, então `chavesDaTag` os traria sozinho: cada um pesa
+    // ~125 KB de snapshots que nenhuma folha imprime.
+    //
+    // A segunda metade do teste é a que importa mais: o prefixo tinha que ser
+    // `nr13_rel_` justamente para que excluí-lo NÃO excluísse
+    // `nr13_relatorio_meta_atual`, cuja ausência deixou a CAPA com
+    // "Nº RELATÓRIO: -" em 13/08/2026.
+    await gravarAtomico([
+      { chave: `nr13_rel_REL-1755000000000_${TAG}`, registro: reg('x'.repeat(1000)) },
+      { chave: `nr13_historico_indice_${TAG}`, registro: reg('[]') },
+      { chave: 'nr13_relatorio_meta_atual', registro: reg('{"codigo":"REL-1"}') },
+      { chave: `nr13_info_${TAG}`, registro: reg('{}') },
+    ]);
+    const chaves = coletarItens(TAG).map((i) => i.chave);
+    expect(chaves).not.toContain(`nr13_rel_REL-1755000000000_${TAG}`);
+    expect(chaves).not.toContain(`nr13_historico_indice_${TAG}`);
+    expect(chaves).toContain('nr13_relatorio_meta_atual');
+    expect(chaves).toContain(`nr13_info_${TAG}`);
   });
 
   it('não repete chave: valor anterior duplicado quebraria o rollback', async () => {

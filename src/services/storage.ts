@@ -31,6 +31,36 @@ export function listarChavesComPrefixo(prefixo: string): string[] {
   return v2Ativo() ? v2.listarChavesComPrefixo(prefixo) : v1.listarChavesComPrefixo(prefixo);
 }
 
+/**
+ * O valor BRUTO da chave, sem `JSON.parse`.
+ *
+ * Existe para quem precisa saber se um valor MUDOU sem pagar o parse: o cache do
+ * histórico legado (`historicoRelatorios.legado()`) memoriza um array de vários
+ * MB e usa esta string como identidade. Na v2 o `Map` devolve sempre a MESMA
+ * instância enquanto o valor não muda, então a comparação é O(1); um memo preso a
+ * outro critério (sessão, evento) mostraria o histórico da conta anterior depois
+ * de uma troca de organização.
+ */
+export function lerCru(chave: string): string | null {
+  return v2Ativo() ? v2.lerCru(chave) : v1.lerCru(chave);
+}
+
+/**
+ * Chaves de UM equipamento, sem varrer o cache inteiro.
+ *
+ * A v2 tem índice explícito por TAG (`cacheLocal.porTag`), então isto é O(chaves
+ * daquele equipamento) — dezenas — em vez de O(cache inteiro). Existe porque o
+ * histórico de relatórios precisa conferir "há registro sem entrada no índice?"
+ * a cada listagem: com varredura de prefixo isso custaria uma passada por todas
+ * as chaves da organização a cada render.
+ *
+ * A v1 não tem esse índice; cai na varredura por prefixo, que é o que ela sempre
+ * fez. Nenhuma organização nova nasce em v1 (§2-ter).
+ */
+export function listarChavesDaTag(tag: string): string[] {
+  return v2Ativo() ? v2.listarChavesDaTag(tag) : v1.listarChavesDaTag(tag);
+}
+
 // --- Escrita ----------------------------------------------------------------
 export function salvar(chave: string, objeto: unknown): Promise<void> {
   return v2Ativo() ? v2.salvar(chave, objeto) : v1.salvar(chave, objeto);

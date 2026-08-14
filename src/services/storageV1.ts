@@ -4,44 +4,21 @@
 import { supabase, escopoStorageAtual, idUsuarioAtual, TABELA_STORAGE } from './supabase';
 import { guardarPdf, removerPdf } from './pdfStore';
 import { bloqueadoParaEscrita } from './gateEscrita';
+import { CAMPOS_PESADOS, dividirPesado } from './camposPesados';
 
 // ---------------------------------------------------------------------------
 // Alívio da cota do cache local: campos grandes demais para o localStorage
 // ---------------------------------------------------------------------------
-// A cota do localStorage é de ~5 MB para a origem inteira, dividida com todas as
-// fotos de inspeção. Um PDF de certificado (200–800 KB, +37% em base64) come uma
-// fatia enorme dela e as versões substituídas (soft-replace) se acumulavam: em
-// conta real, `nr13_rastreab_` sozinho ocupava 1479 KB e o storage estava a 96%,
-// impedindo salvar qualquer PDF acima de ~144 KB.
+// A tabela e a divisão moraram AQUI até 14/08/2026 e por isso a v2 nunca as
+// aplicou: ela guarda no `Map` o valor cru do Supabase, e o palco materializava
+// o `pdfBase64` inteiro no `localStorage` (ver `camposPesados.ts`). Agora a
+// tabela é compartilhada — este arquivo poda ao GRAVAR, o palco poda ao
+// MATERIALIZAR, e as duas regras não podem mais divergir.
 //
-// Solução: o campo pesado NÃO vai para o localStorage. Vai para o IndexedDB
-// (ver pdfStore.ts) e — no valor COMPLETO — para o Supabase, que é quem
-// sincroniza entre aparelhos. O localStorage fica com a versão enxuta mais dois
-// marcadores (`temPdf`/`pdfBytes`) para a interface saber que o arquivo existe
-// sem precisar carregá-lo.
-//
-// Seguro porque nenhum template HTML lê o campo pesado: as folhas em iframe leem
-// só os metadados do registro (aparelho, nº de série, validade).
-const CAMPOS_PESADOS: { prefixo: string; campo: string }[] = [
-  { prefixo: 'nr13_rastreab_', campo: 'pdfBase64' },
-];
-
-/** Divide o JSON em (versão enxuta p/ localStorage, conteúdo pesado p/ IndexedDB). */
-function dividirPesado(chave: string, valor: string): { leve: string; pesado: string | null } {
-  const alvo = CAMPOS_PESADOS.find((c) => chave.startsWith(c.prefixo));
-  if (!alvo) return { leve: valor, pesado: null };
-  try {
-    const obj = JSON.parse(valor) as Record<string, unknown>;
-    const pesado = typeof obj[alvo.campo] === 'string' ? (obj[alvo.campo] as string) : '';
-    if (!pesado) return { leve: valor, pesado: null };
-    return {
-      leve: JSON.stringify({ ...obj, [alvo.campo]: '', temPdf: true, pdfBytes: pesado.length }),
-      pesado,
-    };
-  } catch {
-    return { leve: valor, pesado: null }; // valor não-JSON: não há o que dividir
-  }
-}
+// Motivo original: um PDF de certificado (200–800 KB, +37% em base64) come uma
+// fatia enorme dos ~5 MB da origem e as versões substituídas (soft-replace) se
+// acumulavam — em conta real, `nr13_rastreab_` sozinho ocupava 1479 KB, com o
+// storage a 96%, impedindo salvar qualquer PDF acima de ~144 KB.
 
 /** Grava no cache local já aliviado, mandando o campo pesado para o IndexedDB. */
 function gravarNoCache(chave: string, valor: string): void {
@@ -462,6 +439,25 @@ export function listarChavesComPrefixo(prefixo: string): string[] {
   for (let i = 0; i < localStorage.length; i++) {
     const chave = localStorage.key(i);
     if (chave && chave.startsWith(prefixo)) chaves.push(chave);
+  }
+  return chaves;
+}
+
+/** Valor bruto, sem parse. */
+export function lerCru(chave: string): string | null {
+  return localStorage.getItem(chave);
+}
+
+/**
+ * Chaves do equipamento. A v1 não tem índice por TAG (é o que a v2 acrescentou),
+ * então isto é uma varredura — o mesmo custo que a v1 sempre teve.
+ */
+export function listarChavesDaTag(tag: string): string[] {
+  const sufixo = `_${tag}`;
+  const chaves: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const chave = localStorage.key(i);
+    if (chave && chave.startsWith('nr13_') && chave.endsWith(sufixo)) chaves.push(chave);
   }
   return chaves;
 }

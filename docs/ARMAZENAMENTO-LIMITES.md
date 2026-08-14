@@ -42,6 +42,9 @@ empresa e imagens de assinatura, 6 a 14 KB cada.
 | `nr13_inspecao_atual` / `injecao_atual` | 640 KB | ~0 | **bucket** | **sim** | ✅ migrado — mas ver 3.1 |
 | `nr13_fotos_<TAG>` | 92 KB | ~1 KB | **bucket** | sim | ✅ migrado |
 | `nr13_pront_fab_<TAG>` | (vazio nesta conta) | — | **bucket** | não | ✅ código pronto, falta deploy |
+| `nr13_historico_relatorios` | 224 KB e subindo | **congelado** | LEGADO, só leitura | não | ✅ substituído em 14/08 (ver 4) |
+| `nr13_rel_<id>_<TAG>` | — | ~110 KB × N | snapshots congelados (§7-bis) | **não** | ✅ 1 chave por relatório |
+| `nr13_historico_indice_<TAG>` | — | ~0,6 KB por relatório | só metadados | **não** | ✅ é o que a tela lê |
 | `nr13_minha_empresa` | 6 KB | 6 KB | logo em base64 | sim | 🔸 aceitável |
 | `nr13_lista_phs` | 8 KB | 8 KB | assinaturas em base64 | sim | 🔸 aceitável |
 
@@ -189,6 +192,8 @@ quando o documento é recusado — que é tarde, e no meio do trabalho. Duas ide
 | 11/08/2026 | **PDF de rastreabilidade no bucket**: `pdfRef` no registro, upload pela mesma fila offline das fotos, `resolverPdf` com cadeia de socorro (ref → cofre → IndexedDB → Supabase legado). |
 | 11/08/2026 | **Foto do componente de calibração** (`fotoRef`) e **prontuário do fabricante** (`pdfRef`) no bucket, pelo mesmo desenho. |
 | 11/08/2026 | **Portal do Cliente passou a resolver refs** — lia `capa.src`/`c.foto` direto e teria ficado sem foto nenhuma nas contas migradas. |
+| 14/08/2026 | **`pdfBase64` fora do palco** (`camposPesados.ts`): a poda do §2-bis vivia só no `storageV1`, e na v2 o `Map` guarda o valor cru do servidor — dois certificados legados da conta `engyuricesar` ocupavam 794 + 614 KB de um orçamento de 3.368 KB e recusavam o relatório inteiro. Documento de **3.969 → 2.561 KB**. |
+| 14/08/2026 | **Histórico de relatórios: 1 registro por relatório + índice leve por TAG** (`historicoRelatorios.ts`). O array único carregava logo e rubricas em base64 e era reescrito por inteiro a cada emissão. Com 100 relatórios: reescrita por save de **10,8 MB → 170 KB**; leitura para listar de **10,8 MB → 60 KB**. O legado fica como fallback de leitura, sem ser apagado. |
 | 11/08/2026 | **Legado da conta `gabriel.dadona` migrado** pelo navegador, com a sessão do próprio usuário: `app_storage` de **6.542 → 1.377 KB (−79%)**. Fotos, containers de inspeção e os 2 certificados (3.695 KB) confirmados no bucket com assinatura `%PDF-`. |
 
 ---

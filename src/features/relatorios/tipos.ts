@@ -122,6 +122,44 @@ export interface RelatorioSalvo {
   livroSnapshot?: unknown;
 }
 
+/**
+ * O que a LISTA precisa saber de um relatório, sem abrir o relatório.
+ *
+ * Alimenta a tela de Relatórios, o card do Dashboard, `listarVencimentos` e a
+ * linha do tempo do Portal. Guardado em `nr13_historico_indice_<TAG>` (ver
+ * `historicoRelatorios.ts`).
+ *
+ * O QUE FICA DE FORA É O PONTO: `meta.empresa` (logo em base64),
+ * `meta.assinantes` (rubricas em base64), `meta.certCalibracoes`, `documentos` e
+ * `livroSnapshot` — os snapshots congelados que faziam uma entrada pesar ~125 KB.
+ * As datas entram porque sem elas o Dashboard teria que abrir todos os
+ * relatórios de todos os equipamentos para calcular um vencimento.
+ */
+export interface RelatorioIndiceItem {
+  id: string;
+  tagVaso: string;
+  nome: string;
+  tipo: TipoInspecao;
+  data: string;
+  status: 'Aprovado';
+  /** `meta.codigo` — o número impresso no documento. */
+  codigo: string;
+  emissao: string;
+  validade: string;
+  execucaoInspecao: string;
+  proximaInspecaoInterna: string;
+  proximaInspecaoExterna: string;
+  /** Coluna "Val. válvula" da lista; o valor derivado do lote vem de `validadesPorRelatorio`. */
+  validadeValvula: string;
+  // Artefato (§7-quater): o suficiente para a lista mostrar o selo e abrir o PDF
+  // sem carregar o registro inteiro.
+  pdfRef?: RefFoto;
+  sha256?: string;
+  geradoEm?: string;
+  paginas?: number;
+  pdfPendente?: boolean;
+}
+
 /** Relatório finalizado no modelo novo — serve o arquivo, não remonta nada. */
 export function temArtefato(r: Pick<RelatorioSalvo, 'pdfRef'> | null | undefined): boolean {
   return !!r?.pdfRef?.path;

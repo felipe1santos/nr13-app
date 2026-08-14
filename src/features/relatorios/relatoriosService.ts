@@ -7,10 +7,12 @@ import {
   DOCUMENTOS_DISPONIVEIS,
   FOLHAS_RELATORIO_ASSINAVEIS,
   type AssinanteSnapshot,
+  type RelatorioIndiceItem,
   type RelatorioMeta,
   type RelatorioSalvo,
   type TipoInspecao,
 } from './tipos';
+import { excluirRelatorio, listarIndice, salvarRelatorio } from './historicoRelatorios';
 
 export function filtrarDocumentosValidos(lista: string[]): string[] {
   return (lista || []).filter((doc) => doc.split('?')[0].toLowerCase().endsWith('.html'));
@@ -278,24 +280,29 @@ export async function gravarInspecaoOrigemAtual(dadosContainer: unknown): Promis
   await salvar('nr13_injecao_atual', dados);
 }
 
-export function listarHistorico(tag?: string): RelatorioSalvo[] {
-  const todos = ler<RelatorioSalvo[]>('nr13_historico_relatorios') || [];
-  return tag ? todos.filter((r) => r.tagVaso === tag) : todos;
+/**
+ * Lista LEVE do histórico do equipamento (§achado 1, 14/08/2026).
+ *
+ * Antes isto devolvia `RelatorioSalvo[]` a partir de um array único com o
+ * histórico da organização inteira — snapshots de logo e rubrica em base64
+ * inclusos, ~125 KB por relatório. Agora devolve só o resumo; quem precisa do
+ * relatório completo chama `carregarRelatorio(id, tag)`.
+ */
+export function listarHistorico(tag: string): RelatorioIndiceItem[] {
+  return listarIndice(tag);
 }
 
+export { carregarRelatorio, contarRelatorios } from './historicoRelatorios';
+
 export async function salvarNoHistorico(relatorio: RelatorioSalvo): Promise<void> {
-  const todos = ler<RelatorioSalvo[]>('nr13_historico_relatorios') || [];
-  const idx = todos.findIndex((r) => r.id === relatorio.id);
-  if (idx >= 0) todos[idx] = relatorio;
-  else todos.push(relatorio);
-  await salvar('nr13_historico_relatorios', todos);
+  await salvarRelatorio(relatorio);
   // Painel de vencimentos vivo: proximaInspecaoInterna/Externa do meta acabaram de mudar.
   emitirDadosAlterados();
 }
 
-export async function excluirDoHistorico(id: string): Promise<void> {
-  const todos = ler<RelatorioSalvo[]>('nr13_historico_relatorios') || [];
-  await salvar('nr13_historico_relatorios', todos.filter((r) => r.id !== id));
+export async function excluirDoHistorico(id: string, tag: string): Promise<void> {
+  await excluirRelatorio(id, tag);
+  emitirDadosAlterados();
 }
 
 // NR-13 13.5.1.8 — entrada automática no Livro de Registro de Segurança a cada relatório novo

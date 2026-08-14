@@ -11,6 +11,7 @@
  * com folha faltando e ninguém percebe.
  */
 import { chavesComPrefixo, chavesDaTag, obterRegistro } from './cacheLocal';
+import { podar } from './camposPesados';
 import { baixarFoto, blobParaDataUrl, ehRef, type RefFoto } from './fotos';
 import { classificar, type ErroSync } from './errosSync';
 import {
@@ -146,8 +147,14 @@ export const GLOBAIS = [
  * percorre o `localStorage` inteiro atrás do certificado do instrumento padrão.
  * Sem as chaves aqui, a varredura não acha nada e o bloco "INSTRUMENTO DE
  * MEDIÇÃO UTILIZADO" sai com "--" nos quatro campos, mesmo com o certificado
- * cadastrado. São registros ENXUTOS: o `pdfBase64` mora no IndexedDB (§2-bis),
- * então o custo aqui é de ~1 KB por instrumento.
+ * cadastrado. Vão PODADOS (`camposPesados.podar`), com ~1 KB por instrumento:
+ * os templates leem só nome/nº de série/certificado/validade.
+ *
+ * A poda precisa ser feita AQUI, e não na gravação: na v1 o `localStorage` era o
+ * cache e a divisão acontecia ao gravar (§2-bis), mas na v2 o `Map` guarda o
+ * `valor` cru do Supabase, `pdfBase64` incluído. Sem podar na entrada do palco,
+ * dois certificados escaneados de uma conta real ocupavam 794 KB + 614 KB de um
+ * orçamento de 3.368 KB e recusavam o relatório inteiro (14/08/2026).
  *
  * `nr13_calibracao_item_` NÃO entra por prefixo: ela é global por organização e
  * uma conta com muitos equipamentos traria centenas de certificados que este
@@ -194,6 +201,20 @@ export const FORA_DO_PALCO = [
   // para dentro de um orçamento de 3.368 KB trocaria "termo editável" por
   // "documento recusado", que é o defeito pior.
   'nr13_historico_relatorios',
+  // Os registros individuais que substituíram o array acima (14/08/2026). São
+  // de escopo de TAG, então `chavesDaTag` os traria para o palco sozinho — e
+  // cada um pesa ~125 KB de snapshots (logo, rubricas, certificados) que
+  // NENHUMA folha lê: os templates leem `nr13_relatorio_meta_atual`, gravada
+  // pela geração. Vinte relatórios de um equipamento estourariam o orçamento
+  // inteiro por conta própria.
+  //
+  // O prefixo é `nr13_rel_` e não `nr13_relatorio_` justamente por causa desta
+  // lista: `startsWith('nr13_relatorio_')` levaria junto a
+  // `nr13_relatorio_meta_atual`, que é a 2ª chave mais lida do sistema e cuja
+  // ausência já custou uma CAPA com "Nº RELATÓRIO: -" em 13/08/2026.
+  'nr13_rel_',
+  // Índice leve da listagem. Só a UI React o consome.
+  'nr13_historico_indice_',
 ];
 
 export const CHAVE_MANIFESTO = 'nr13_palco_manifesto';
@@ -520,7 +541,11 @@ export function coletarItens(tag: string): ItemPalco[] {
   const itens: ItemPalco[] = [];
   for (const chave of chaves) {
     const reg = obterRegistro(chave);
-    if (reg) itens.push({ chave, valor: reg.valor });
+    // `podar` tira o campo que nenhum template lê (hoje só o `pdfBase64` do
+    // `nr13_rastreab_`). Não altera o `Map`, o IndexedDB nem o Supabase: o
+    // arquivo segue inteiro lá, resolvido por `resolverPdf()` quando o React
+    // monta o PDF do relatório.
+    if (reg) itens.push({ chave, valor: podar(chave, reg.valor) });
   }
   return itens;
 }

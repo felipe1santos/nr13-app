@@ -161,6 +161,9 @@ Tudo que o usuário salva pode ser fonte de injeção. Chaves por TAG do equipam
 | `nr13_demo_seed` | Marcador do seed de demonstração do trial (`{v,em}`) — impede reinjetar os dados DEMO-* | `src/services/demoSeed.ts` (1ª entrada do trial) |
 | `nr13_assinatura_status` / `nr13_assinatura_ate` | Espelho LOCAL da assinatura (ver §11). Só desenha UI e corta ação no bundle — quem decide é a RLS | Gravadas no login por `carregarPerfil` (RPC `assinatura_org()`) |
 | `nr13_assinatura_sucesso_pendente` | Marca que falta exibir o modal "Assinatura confirmada" (quem fechou a aba antes do polling detectar) | `ModalAssinatura` / consumida no `Layout` |
+| `nr13_rel_<id>_<TAG>` | UM relatório salvo, completo (`RelatorioSalvo`: documentos, meta com os snapshots congelados do §7-bis, `pdfRef`/`sha256`, `livroSnapshot`). A TAG fica no FIM porque a Edge `portal_cliente` filtra por `endsWith('_'+tag)`; o prefixo é `nr13_rel_` e não `nr13_relatorio_` para NÃO colidir com `nr13_relatorio_meta_atual` em filtros por prefixo. **Fora do palco** — nenhuma folha o lê | "Salvar" do relatório |
+| `nr13_historico_indice_<TAG>` | Índice LEVE do histórico do equipamento (`RelatorioIndiceItem[]`: id, código, nome, tipo, datas, `pdfRef`, `sha256`) — é o que a lista, o Dashboard, `listarVencimentos` e o Portal leem. É DERIVADO: `listarIndice` reconstrói do registro o que faltar, então perder o índice numa corrida entre aparelhos nunca some com o relatório. **Fora do palco** | Gravado junto com o relatório |
+| `nr13_historico_relatorios` | **LEGADO** (até 14/08/2026): array com o histórico da organização inteira. Só LEITURA — fallback enquanto a migração não roda em todo aparelho. Encolhe ao excluir um relatório; nunca cresce. Fora do palco (§7-sexies) | — |
 | `nr13_relatorio_meta_atual` | Metadados do relatório em montagem | Gravado na geração |
 | `nr13_inspecao_atual` **e** `nr13_injecao_atual` | Dados de campo do container escolhido | Gravado na geração |
 | `nr13_prontuario_meta_<TAG>` | Nº do relatório (`REL-<timestamp>`) + data de emissão do prontuário; reusado entre reimpressões (`obterOuCriarMeta`) | Gravado ao abrir o visualizador do prontuário |
@@ -390,6 +393,39 @@ O lacre DETECTA; detectar não é impedir (uma chamada à RPC pelo console alter
 emitida). A regra: a sequência de entradas lacradas do valor novo precisa começar exatamente
 pela do valor antigo. Recusa editar, apagar, reordenar e forjar o hash; permite acrescentar ao
 fim, inserir ocorrência manual e retificar. Porta de manutenção: `set local nr13.manutencao = '1'`.
+
+### §7-sexies — HISTÓRICO: 1 REGISTRO POR RELATÓRIO + ÍNDICE LEVE (14/08/2026)
+
+> **REGRA QUE NÃO SE QUEBRA:** salvar um relatório grava DUAS chaves — o registro
+> daquele relatório e o índice daquele equipamento. Nunca o histórico inteiro.
+
+O histórico da organização vivia numa chave só, `nr13_historico_relatorios`, e cada
+entrada carrega os snapshots congelados do §7-bis: `meta.empresa` com a LOGO em base64,
+`meta.assinantes` com duas rubricas PNG, `meta.certCalibracoes` e o `livroSnapshot` —
+~110 KB por relatório, medidos na conta `engyuricesar`. Salvar reescrevia o array
+inteiro; a hidratação incremental (§2-ter) trazia a linha INTEIRA de volta em todo boot,
+porque ela muda a cada emissão; e `listarVencimentos` fazia `JSON.parse` de tudo para ler
+quatro datas. Com 100 relatórios: 10,8 MB reescritos e retransmitidos por emissão.
+
+Modelo: `nr13_rel_<id>_<TAG>` (o relatório, a VERDADE) + `nr13_historico_indice_<TAG>`
+(a lista) + `nr13_historico_relatorios` (legado, só leitura). Medido com 100 relatórios:
+reescrita por save **10,8 MB → 170 KB**, leitura para listar **10,8 MB → 60 KB**.
+
+**O conteúdo do `RelatorioSalvo` NÃO mudou.** Os snapshots continuam snapshots dentro do
+registro — trocá-los por referência a dado vivo desfaria o §7-bis. Só o contêiner mudou.
+`pdfRef` + `sha256` (§7-quater) seguem sendo a fonte do documento finalizado.
+
+**Concorrência sem RPC nova:** o índice é DERIVADO. Dois aparelhos salvando relatórios do
+mesmo equipamento ao mesmo tempo fazem a última gravação do índice vencer — mas os dois
+REGISTROS existem em chaves distintas, e `listarIndice` recompõe o que faltar varrendo as
+chaves daquela TAG (índice explícito da v2, não varredura do cache). Perder o índice custa
+uma listagem mais lenta; perder o registro custaria o relatório.
+
+**Migração** (`migrarHistoricoEmSegundoPlano`, chamada no `RotaProtegida` depois da
+hidratação): idempotente, valida a contagem por equipamento e **não apaga o legado** — ele
+é o backup e o fallback de quem ainda não rodou o código novo. Conta somente leitura
+(Portal, assinatura vencida) não migra. O único caminho que ainda reescreve o array antigo
+é a EXCLUSÃO de um relatório, e lá ele só encolhe.
 
 ### §7-ter — RELATÓRIO SALVO NÃO SE EDITA (05/08/2026)
 
