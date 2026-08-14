@@ -83,14 +83,18 @@ describe('palco — hidratação das fotos para os templates', () => {
       checklist: { fotosDocumentacao: [{ ref: { bucket: 'inspecao', path: 'org-1/tag/doc.jpg' }, descricao: '' }] },
     };
 
-    const saida = await hidratarFotosDoBucket([
+    const [injecao] = await hidratarFotosDoBucket([
       { chave: 'nr13_injecao_atual', valor: JSON.stringify(container) },
     ]);
-    const obj = JSON.parse(saida[0].valor);
+    const [inspecao] = await hidratarFotosDoBucket([
+      { chave: 'nr13_inspecao_atual', valor: JSON.stringify(container) },
+    ]);
 
-    expect(obj.visual_externo.fotos[0].base64).toContain('data:image');
-    expect(obj.checklist.fotosDocumentacao[0].base64).toContain('data:image');
-    expect(obj.visual_externo.fotos[0].descricao).toBe('trinca'); // resto intacto
+    // Cada grupo é embutido na chave cuja folha imprime as fotos dele — ver a
+    // partição em `grupoVaiNaChave`.
+    expect(JSON.parse(injecao.valor).visual_externo.fotos[0].base64).toContain('data:image');
+    expect(JSON.parse(inspecao.valor).checklist.fotosDocumentacao[0].base64).toContain('data:image');
+    expect(JSON.parse(injecao.valor).visual_externo.fotos[0].descricao).toBe('trinca'); // resto intacto
   });
 
   it('não toca em chave sem foto — nem gasta download', async () => {
@@ -125,5 +129,64 @@ describe('palco — hidratação das fotos para os templates', () => {
     const itens = [{ chave: 'nr13_qualquer', valor: 'isto "ref" não é json' }];
     const saida = await hidratarFotosDoBucket(itens);
     expect(saida[0].valor).toBe('isto "ref" não é json');
+  });
+});
+
+describe('palco — partição das fotos entre as duas chaves de campo', () => {
+  const ref = (n: string) => ({ bucket: 'inspecao', path: `org-1/tag/${n}.jpg` });
+  const container = () =>
+    JSON.stringify({
+      checklist: { fotos: [{ ref: ref('chk') }], fotosDocumentacao: [{ ref: ref('doc') }] },
+      visual_externo: { fotos: [{ ref: ref('ve') }] },
+      visual_interno: { fotos: [{ ref: ref('vi') }] },
+      th: { fotos: [{ ref: ref('th') }] },
+    });
+
+  const temImagem = (v: unknown) => typeof (v as { base64?: string })?.base64 === 'string';
+
+  it('inspecao_atual embute só as fotos do checklist', async () => {
+    const [saida] = await hidratarFotosDoBucket([{ chave: 'nr13_inspecao_atual', valor: container() }]);
+    const o = JSON.parse(saida.valor);
+    expect(temImagem(o.checklist.fotos[0])).toBe(true);
+    expect(temImagem(o.checklist.fotosDocumentacao[0])).toBe(true);
+    // Os outros grupos seguem só com a `ref` — nenhuma folha que leia esta
+    // chave imprime as fotos deles.
+    expect(temImagem(o.visual_externo.fotos[0])).toBe(false);
+    expect(o.visual_externo.fotos[0].ref.path).toContain('ve.jpg'); // o dado NÃO some
+    expect(temImagem(o.th.fotos[0])).toBe(false);
+  });
+
+  it('injecao_atual embute visual externo/interno e TH, mas não o checklist', async () => {
+    const [saida] = await hidratarFotosDoBucket([{ chave: 'nr13_injecao_atual', valor: container() }]);
+    const o = JSON.parse(saida.valor);
+    expect(temImagem(o.visual_externo.fotos[0])).toBe(true);
+    expect(temImagem(o.visual_interno.fotos[0])).toBe(true);
+    expect(temImagem(o.th.fotos[0])).toBe(true);
+    expect(temImagem(o.checklist.fotos[0])).toBe(false);
+    expect(o.checklist.fotos[0].ref.path).toContain('chk.jpg');
+  });
+
+  it('cada foto é embutida UMA vez somando as duas chaves', async () => {
+    const saida = await hidratarFotosDoBucket([
+      { chave: 'nr13_inspecao_atual', valor: container() },
+      { chave: 'nr13_injecao_atual', valor: container() },
+    ]);
+    let embutidas = 0;
+    const contar = (n: unknown): void => {
+      if (Array.isArray(n)) return n.forEach(contar);
+      if (typeof n !== 'object' || n === null) return;
+      if (temImagem(n)) embutidas++;
+      Object.values(n).forEach(contar);
+    };
+    saida.forEach((s) => contar(JSON.parse(s.valor)));
+    expect(embutidas).toBe(5); // 5 fotos distintas, nenhuma em dobro
+  });
+
+  it('grupo desconhecido é embutido nas DUAS — faltar é pior que gastar', async () => {
+    const valor = JSON.stringify({ ensaio_novo: { fotos: [{ ref: ref('novo') }] } });
+    for (const chave of ['nr13_inspecao_atual', 'nr13_injecao_atual']) {
+      const [saida] = await hidratarFotosDoBucket([{ chave, valor }]);
+      expect(temImagem(JSON.parse(saida.valor).ensaio_novo.fotos[0])).toBe(true);
+    }
   });
 });

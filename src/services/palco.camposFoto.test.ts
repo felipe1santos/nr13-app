@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { camposDeFotoDaChave } from './palco';
+import { camposDeFotoDaChave, grupoVaiNaChave, CHAVES_DE_CAMPO } from './palco';
 
 /**
  * A regra que este arquivo protege: a hidratação do palco grava a imagem em UM
@@ -86,5 +86,65 @@ describe('campo da foto por chave — varredura de public/', () => {
       }
     }
     expect(problemas).toEqual([]);
+  });
+});
+
+/**
+ * A segunda metade: cada foto entra em UMA das duas chaves de campo, não nas
+ * duas. É a mudança de maior risco do palco — a foto que ficar na chave errada
+ * não aparece, e não aparece em silêncio.
+ *
+ * Por isso a conferência é dupla: contra `FOLHA_FOTO_FONTE` (a tabela que já
+ * decide quantas folhas de foto o relatório terá, em `relatoriosService.ts`) e
+ * contra a varredura de `public/`, que diz de qual chave cada folha lê.
+ */
+describe('partição das fotos entre as duas chaves de campo', () => {
+  /** Grupo do container → folha que imprime as fotos dele. */
+  const FOLHA_DO_GRUPO: Record<string, string[]> = {
+    checklist: ['CHECKLIST-FOTOS.html', 'FOTOS-DOCUMENTACAO.html'],
+    visual_externo: ['VISUAL-EXTERNO-FOTOS.html'],
+    visual_interno: ['VISUAL-INTERNO-FOTOS.html'],
+    th: ['TESTE-HIDROSTATICO-FOTOS.html', 'TESTE-HIDROSTATICO.html'],
+  };
+
+  it('a tabela do palco bate com a chave que a folha do grupo realmente lê', () => {
+    const arquivos = templates();
+    const problemas: string[] = [];
+
+    for (const [grupo, folhas] of Object.entries(FOLHA_DO_GRUPO)) {
+      for (const nome of folhas) {
+        const t = arquivos.find((x) => x.nome === nome);
+        expect(t, `${nome} sumiu de public/`).toBeDefined();
+
+        const leInspecao = t!.texto.includes('nr13_inspecao_atual');
+        const leInjecao = t!.texto.includes('nr13_injecao_atual');
+        // A folha que desenha foto tem que ler exatamente UMA das duas, senão a
+        // partição não tem como estar certa para ela.
+        if (leInspecao === leInjecao) {
+          problemas.push(`${nome} lê ${leInspecao ? 'as DUAS' : 'NENHUMA'} chave de campo`);
+          continue;
+        }
+        const chaveQueLe = leInspecao ? 'nr13_inspecao_atual' : 'nr13_injecao_atual';
+        if (!grupoVaiNaChave(chaveQueLe, grupo)) {
+          problemas.push(`${nome} imprime "${grupo}" e lê ${chaveQueLe}, mas o palco manda esse grupo para a outra chave`);
+        }
+      }
+    }
+    expect(problemas).toEqual([]);
+  });
+
+  it('cada grupo conhecido vai para UMA chave só', () => {
+    for (const grupo of Object.keys(FOLHA_DO_GRUPO)) {
+      const donos = CHAVES_DE_CAMPO.filter((c) => grupoVaiNaChave(c, grupo));
+      expect(donos, `grupo ${grupo}`).toHaveLength(1);
+    }
+  });
+
+  it('grupo DESCONHECIDO vai para as duas — faltar é o defeito silencioso', () => {
+    expect(CHAVES_DE_CAMPO.filter((c) => grupoVaiNaChave(c, 'grupo_novo'))).toEqual(CHAVES_DE_CAMPO);
+  });
+
+  it('chave que não é de campo não é particionada', () => {
+    expect(grupoVaiNaChave('nr13_fotos_VP01', 'visual_externo')).toBe(true);
   });
 });

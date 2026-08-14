@@ -603,6 +603,55 @@ export function camposDeFotoDaChave(chave: string): Array<'src' | 'base64'> {
   return achado ? [achado.campo] : ['src', 'base64'];
 }
 
+/**
+ * As duas chaves de campo levam o MESMO container (§2 — "REGRA CRÍTICA DE
+ * INJEÇÃO"), e por isso cada foto ia ao palco duas vezes. Mas os DADOS
+ * precisam mesmo estar nas duas: `VISUAL-EXTERNO.html` lê `nr13_injecao_atual`
+ * e acessa `checklist`; `VERIFICACAO-DOCUMENTACAO.html` lê
+ * `nr13_inspecao_atual` e acessa `th`. Uma partição dos grupos INTEIROS
+ * deixaria essas folhas sem resposta impressa.
+ *
+ * A partição possível é só das FOTOS, e aí os conjuntos são disjuntos: cada
+ * grupo tem UMA folha que desenha as imagens dele, e essa folha lê UMA das duas
+ * chaves (derivado de `FOLHA_FOTO_FONTE` em `relatoriosService.ts` — a mesma
+ * tabela que decide quantas folhas de foto o relatório terá):
+ *
+ *   checklist       → CHECKLIST-FOTOS / FOTOS-DOCUMENTACAO  → nr13_inspecao_atual
+ *   visual_externo  → VISUAL-EXTERNO-FOTOS                  → nr13_injecao_atual
+ *   visual_interno  → VISUAL-INTERNO-FOTOS                  → nr13_injecao_atual
+ *   th              → TESTE-HIDROSTATICO(-FOTOS)            → nr13_injecao_atual
+ *
+ * `ultrassom` não tem folha que imprima foto (`ULTRASSOM.html` desenha croqui e
+ * grade, nunca `foto.base64`); vai com `injecao`, que é a chave que ela lê, e o
+ * custo é zero quando não há foto lá.
+ *
+ * Na chave que NÃO carrega a foto, ela continua presente como `ref` — o dado
+ * não some, só não vira imagem embutida. Nenhuma folha lê `ref`.
+ */
+const CHAVE_DA_FOTO_POR_GRUPO: Record<string, string> = {
+  checklist: 'nr13_inspecao_atual',
+  visual_externo: 'nr13_injecao_atual',
+  visual_interno: 'nr13_injecao_atual',
+  th: 'nr13_injecao_atual',
+  teste_hidrostatico: 'nr13_injecao_atual',
+  ultrassom: 'nr13_injecao_atual',
+};
+
+export const CHAVES_DE_CAMPO = ['nr13_inspecao_atual', 'nr13_injecao_atual'];
+
+/**
+ * Esta chave deve embutir a imagem deste grupo do container?
+ *
+ * Grupo DESCONHECIDO entra nas duas, pelo mesmo motivo de `camposDeFotoDaChave`:
+ * gastar orçamento vira recusa com mensagem, faltar vira folha em branco num
+ * relatório assinado.
+ */
+export function grupoVaiNaChave(chave: string, grupo: string): boolean {
+  if (!CHAVES_DE_CAMPO.includes(chave)) return true;
+  const dono = CHAVE_DA_FOTO_POR_GRUPO[grupo];
+  return dono === undefined || dono === chave;
+}
+
 export async function hidratarFotosDoBucket(itens: ItemPalco[]): Promise<ItemPalco[]> {
   const jaBaixadas = new Map<string, string | null>();
 
@@ -658,7 +707,21 @@ export async function hidratarFotosDoBucket(itens: ItemPalco[]): Promise<ItemPal
     }
     try {
       const obj: unknown = JSON.parse(item.valor);
-      const mudou = await percorrer(obj, camposDeFotoDaChave(item.chave));
+      const campos = camposDeFotoDaChave(item.chave);
+      let mudou = false;
+
+      if (CHAVES_DE_CAMPO.includes(item.chave) && obj && typeof obj === 'object' && !Array.isArray(obj)) {
+        // Container de campo: o valor é `container.dados`, então as chaves de
+        // topo SÃO os grupos (checklist, visual_externo, th…). Percorre só os
+        // grupos cuja folha de fotos lê ESTA chave.
+        for (const [grupo, conteudo] of Object.entries(obj as Record<string, unknown>)) {
+          if (!grupoVaiNaChave(item.chave, grupo)) continue;
+          if (await percorrer(conteudo, campos)) mudou = true;
+        }
+      } else if (await percorrer(obj, campos)) {
+        mudou = true;
+      }
+
       saida.push(mudou ? { chave: item.chave, valor: JSON.stringify(obj) } : item);
     } catch {
       saida.push(item); // valor não-JSON: segue intacto
