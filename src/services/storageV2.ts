@@ -165,6 +165,31 @@ export async function excluirChave(chave: string): Promise<void> {
 }
 
 /**
+ * Chaves que o SERVIDOR nunca deixa apagar, e que por isso não entram na
+ * exclusão do equipamento.
+ *
+ * `nr13_livro_` é o Livro de Registro de Segurança: o trigger de
+ * `supabase/livro_imutavel.sql` recusa remover entrada já emitida, e está certo
+ * — é registro legal, não dado de trabalho. Antes desta lista, excluir um
+ * equipamento enfileirava um `del` que o banco recusava, e a fila retentava
+ * eternamente com "⚠ 1 falha" na topbar (medido em 14/08/2026).
+ *
+ * O livro some da TELA junto com o equipamento (nada mais o referencia) e
+ * permanece no servidor E no cache local — de propósito. Removê-lo do cache
+ * sem tombstone só o traria de volta na hidratação seguinte, e com tombstone
+ * voltaríamos à exclusão recusada. Órfão invisível de ~1 KB por equipamento
+ * excluído é o preço certo por um registro legal que a norma manda preservar.
+ * `nr13_livro_config_` é só configuração de exibição e sai normalmente — o
+ * prefixo mais longo tem que ser testado primeiro.
+ */
+const PROTEGIDAS_NO_SERVIDOR = ['nr13_livro_'];
+
+export function protegidaContraExclusao(chave: string): boolean {
+  if (chave.startsWith('nr13_livro_config_')) return false;
+  return PROTEGIDAS_NO_SERVIDOR.some((p) => chave.startsWith(p));
+}
+
+/**
  * Exclui o equipamento inteiro usando o ÍNDICE EXPLÍCITO por TAG.
  *
  * A v1 casava chaves por sufixo `_<TAG>`, e por isso excluir a TAG "B" alcançava
@@ -175,6 +200,7 @@ export async function excluirVaso(tag: string): Promise<void> {
   if (bloqueadoParaEscrita()) throw new ErroBloqueado();
   for (const chave of cache.chavesDaTag(tag)) {
     if (tagDaChave(chave) !== tag) continue; // cinto e suspensório
+    if (protegidaContraExclusao(chave)) continue;
     await excluirUma(chave);
   }
   await sync.drenar();

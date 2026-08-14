@@ -2,6 +2,7 @@ import { excluirChave, ler, salvar } from '../../services/storage';
 import { emitirDadosAlterados } from '../../services/eventos';
 import { listarFuncionarios } from '../cadastros/cadastroService';
 import { lacrarEntrada, ultimaLacrada, type LivroEntrada as LivroEntradaLacre } from './livroLacre';
+import { camposDaRubrica } from './livroAssinatura';
 import type { Funcionario } from '../cadastros/tipos';
 import {
   DOCUMENTOS_DISPONIVEIS,
@@ -343,7 +344,11 @@ export async function adicionarEntradaLivroAuto(relatorio: RelatorioSalvo): Prom
     apto,
     tecnicoNome: relatorio.meta.tecnicoNome,
     phId: engenheiroId,
-    assinaturaImg: snapEng ? snapEng.assinatura : funcVivo?.assinatura,
+    // A rubrica vai por REFERÊNCIA de conteúdo, não embutida: 54,9 KB dos 56 KB
+    // de uma entrada eram a assinatura, e o livro é cumulativo (ver
+    // `livroAssinatura.ts`). Sem bucket disponível, cai no base64 — pesado,
+    // porém salvo, que é o que um registro de segurança exige.
+    ...(await camposDaRubrica(snapEng ? snapEng.assinatura : funcVivo?.assinatura)),
     assinanteFuncao: snapEng ? snapEng.funcao : funcVivo?.funcao,
     // Termo digitado na folha do livro ANTES de salvar (nr13_termo_livro_<TAG>): copiado para
     // dentro da entrada e a chave é apagada — rascunho consumido não vaza para o próximo relatório.
@@ -392,7 +397,12 @@ export interface DadosOcorrenciaManual {
   retificaDe?: string;
 }
 
-export function adicionarEntradaLivroManual(tag: string, dados: DadosOcorrenciaManual): LivroEntrada {
+// ASSÍNCRONA desde 14/08/2026: a rubrica sobe ao bucket antes de a entrada
+// nascer, para não voltar a ser embutida em base64 (ver `livroAssinatura.ts`).
+export async function adicionarEntradaLivroManual(
+  tag: string,
+  dados: DadosOcorrenciaManual,
+): Promise<LivroEntrada> {
   const func = dados.phId ? listarFuncionarios().find((f) => f.id === dados.phId) : undefined;
   const descricao = [dados.oQueFoiFeito.trim(), dados.descricao.trim()].filter(Boolean).join(' — ');
 
@@ -408,8 +418,9 @@ export function adicionarEntradaLivroManual(tag: string, dados: DadosOcorrenciaM
     criadoEm: new Date().toISOString(),
     quemRealizou: dados.quemRealizou.trim() || undefined,
     phId: func?.id,
-    // Rubrica/cargo congelados na criação (bug fix 14/07/2026) — mesma regra da entrada automática.
-    assinaturaImg: func?.assinatura,
+    // Rubrica/cargo congelados na criação (bug fix 14/07/2026) — mesma regra da
+    // entrada automática, agora por referência de conteúdo.
+    ...(await camposDaRubrica(func?.assinatura)),
     assinanteFuncao: func?.funcao,
     // Nasce lacrada (mesma regra da entrada automática): registro de livro é imutável.
     lacrado: true,
@@ -419,9 +430,7 @@ export function adicionarEntradaLivroManual(tag: string, dados: DadosOcorrenciaM
   const livro = ler<LivroEntrada[]>(chaveLivro(tag)) || [];
   livro.push(entrada);
   livro.sort((a, b) => timestampDataLivro(a.data) - timestampDataLivro(b.data));
-  // salvar() grava o localStorage de forma síncrona antes de persistir remoto — a timeline
-  // recarregada logo em seguida já lê o livro atualizado.
-  void salvar(chaveLivro(tag), livro);
+  await salvar(chaveLivro(tag), livro);
   return entrada;
 }
 

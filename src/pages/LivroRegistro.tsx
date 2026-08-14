@@ -353,13 +353,13 @@ export default function LivroRegistro() {
     setModalOcorrencia(true);
   }
 
-  function salvarOcorrencia() {
+  async function salvarOcorrencia() {
     if (!linhaAberta) return;
     if (!form.data || !form.tipoOcorrencia || !form.oQueFoiFeito.trim()) {
       setErroForm('Preencha a data, o tipo de ocorrência e o que foi feito.');
       return;
     }
-    adicionarEntradaLivroManual(linhaAberta.tag, {
+    await adicionarEntradaLivroManual(linhaAberta.tag, {
       data: form.data,
       tipoOcorrencia: form.tipoOcorrencia,
       oQueFoiFeito: form.oQueFoiFeito,

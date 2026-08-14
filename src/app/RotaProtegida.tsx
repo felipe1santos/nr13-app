@@ -3,6 +3,7 @@ import { Navigate, Outlet } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { lerTudo, iniciarArmazenamento } from '../services/storage';
 import { migrarHistoricoEmSegundoPlano } from '../features/relatorios/historicoRelatorios';
+import { migrarRubricasEmSegundoPlano } from '../features/relatorios/livroAssinatura';
 import { verificarAcesso } from '../services/auth';
 import './layout.css';
 
@@ -50,6 +51,9 @@ export default function RotaProtegida() {
       // e sem apagar nada, então falhar aqui só significa que as telas seguem
       // lendo pelo legado.
       migrarHistoricoEmSegundoPlano();
+      // Rubricas do Livro de Registro: base64 embutido em cada entrada vira
+      // referência de conteúdo (§livroAssinatura). Entradas lacradas ficam.
+      migrarRubricasEmSegundoPlano();
       if (vivo) setEstado('autenticado');
     })();
     return () => {

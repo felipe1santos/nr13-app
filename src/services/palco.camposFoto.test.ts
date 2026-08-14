@@ -148,3 +148,29 @@ describe('partição das fotos entre as duas chaves de campo', () => {
     expect(grupoVaiNaChave('nr13_fotos_VP01', 'visual_externo')).toBe(true);
   });
 });
+
+describe('CAPA sem foto — nada de imagem quebrada', () => {
+  it('o <img> do equipamento não nasce com src apontando para arquivo inexistente', () => {
+    const capa = templates().find((t) => t.nome === 'CAPA.html')!;
+    // `src="foto.webp"` era um arquivo que não existe no servidor: sem foto de
+    // capa, a folha imprimia o ícone de imagem quebrada e o texto do alt.
+    expect(capa.texto).not.toContain('src="foto.webp"');
+    expect(/<img id="imgVessel"[^>]*>/.exec(capa.texto)?.[0] ?? '').not.toContain('src=');
+  });
+
+  it('a injeção esconde a imagem quando não há foto', () => {
+    const capa = templates().find((t) => t.nome === 'CAPA.html')!;
+    expect(capa.texto).toContain("imgVessel.removeAttribute('src')");
+    expect(capa.texto).toContain("imgVessel.style.display = 'none'");
+  });
+});
+
+describe('exclusão de equipamento — sem confirm nativo', () => {
+  it('Equipamento.tsx não usa window.confirm', () => {
+    const fonte = readFileSync(join(process.cwd(), 'src/pages/Equipamento.tsx'), 'utf8');
+    // O confirm nativo congela a página inteira e é o único fora do padrão
+    // `fj-modal-*` do sistema.
+    expect(fonte).not.toContain('window.confirm');
+    expect(fonte).toContain('fj-modal-overlay');
+  });
+});

@@ -71,8 +71,20 @@ export function ehBase64(v: unknown): v is string {
  * antiga em cache do navegador e do CDN, e a foto trocada continuaria
  * aparecendo como a anterior.
  */
+/**
+ * Nome de pasta seguro para o bucket.
+ *
+ * Existe como função só para poder ser TESTADA: a mesma linha estava inline em
+ * dois lugares e numa delas o `\w` perdeu a barra, virando `[^w.-]`. O efeito
+ * foi silencioso e permanente — "assinaturas" virou "_", e as rubricas foram
+ * parar numa pasta chamada `_`. Nada quebra, mas o bucket fica ilegível.
+ */
+export function pastaSegura(escopo: string): string {
+  return (escopo || 'geral').replace(/[^\w.-]+/g, '_').slice(0, 60) || 'geral';
+}
+
 export function montarPath(orgId: string, escopo: string, ext = 'jpg'): string {
-  const limpo = (escopo || 'geral').replace(/[^\w.-]+/g, '_').slice(0, 60) || 'geral';
+  const limpo = pastaSegura(escopo);
   return `${orgId}/${limpo}/${crypto.randomUUID()}.${ext}`;
 }
 
@@ -143,6 +155,52 @@ export async function salvarArquivo(
   // para o usuário: o arquivo já está salvo e a fila cuida do resto.
   await enviarPendente(path).catch(() => {});
   return ref;
+}
+
+/**
+ * Sobe um arquivo cujo NOME é o hash do próprio conteúdo.
+ *
+ * É o que dá imutabilidade e deduplicação de uma vez só, e por isso a rubrica do
+ * Livro de Registro usa este caminho (ver `livroAssinatura.ts`):
+ *
+ *  - conteúdo igual → path igual → UM arquivo no bucket, N referências. A mesma
+ *    rubrica em 20 entradas do livro custa 20 referências de ~150 bytes, não 20
+ *    cópias de 55 KB.
+ *  - conteúdo diferente → path diferente. Trocar a assinatura no cadastro cria
+ *    um arquivo NOVO; o antigo continua onde está, então a entrada de 2024 segue
+ *    exibindo a rubrica de 2024. A imutabilidade histórica não depende de
+ *    ninguém lembrar de preservá-la — ela é consequência do endereço.
+ *
+ * `upsert: true` é seguro justamente porque o conteúdo é o mesmo: reescrever
+ * um arquivo por outro byte a byte idêntico não muda nada.
+ */
+export async function salvarArquivoPorConteudo(
+  blob: Blob,
+  escopo: string,
+  ext: string,
+  mimeType: string,
+): Promise<RefFoto> {
+  const org = await orgAtual();
+  if (!org) throw new Error('sem organização ativa: entre novamente para anexar arquivos');
+
+  const hash = await sha256Hex(await blob.arrayBuffer());
+  const limpo = pastaSegura(escopo);
+  const path = `${org}/${limpo}/${hash}.${ext}`;
+  const ref: RefFoto = { bucket: BUCKET, path, mimeType, tamanho: blob.size };
+
+  await cofre.guardar({
+    path, blob, mimeType, pendente: true,
+    criadoEm: new Date().toISOString(), tentativas: 0,
+  });
+  await enviarPendente(path).catch(() => {});
+  return ref;
+}
+
+async function sha256Hex(buf: ArrayBuffer): Promise<string> {
+  const subtle = globalThis.crypto?.subtle;
+  if (!subtle) throw new Error('crypto.subtle indisponível: exige contexto seguro (https)');
+  const d = await subtle.digest('SHA-256', buf);
+  return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 /** Sobe UMA foto pendente. Só marca como enviada depois da confirmação. */

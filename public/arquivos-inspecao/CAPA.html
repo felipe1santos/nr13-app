@@ -221,7 +221,12 @@
         </div>
 
         <div class="cover-image-wrapper editable-image" onclick="document.getElementById('inputVessel').click()" title="Clique para alterar a foto do equipamento">
-            <img id="imgVessel" src="foto.webp" alt="Foto do Equipamento">
+            <!-- SEM `src` inicial: apontava para "foto.webp", que não existe no
+                 servidor. Equipamento sem foto de capa imprimia o ícone de imagem
+                 quebrada e o texto do alt no meio da capa do relatório. Quem
+                 preenche é o bloco de injeção abaixo; sem foto, a img fica
+                 escondida e a área sai limpa. -->
+            <img id="imgVessel" alt="" style="display:none">
         </div>
 
         <h2 id="capa-subtitulo" contenteditable="true">--</h2>
@@ -327,8 +332,17 @@
                     if (vasoSalvo && vasoSalvo.imagemPrint) fotoSrc = vasoSalvo.imagemPrint;
                 }
 
-                if (fotoSrc && document.getElementById('imgVessel')) {
-                    document.getElementById('imgVessel').src = fotoSrc;
+                const imgVessel = document.getElementById('imgVessel');
+                if (imgVessel) {
+                    if (fotoSrc) {
+                        imgVessel.src = fotoSrc;
+                        imgVessel.style.display = '';
+                    } else {
+                        // Sem foto: nada de `src` — um src vazio ou inválido é o que
+                        // desenha o ícone de imagem quebrada na capa.
+                        imgVessel.removeAttribute('src');
+                        imgVessel.style.display = 'none';
+                    }
                 }
 
                 // =====================================================

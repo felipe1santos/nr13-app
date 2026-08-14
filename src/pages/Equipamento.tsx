@@ -42,6 +42,7 @@ function EquipamentoView({ tag }: { tag: string }) {
   const [salvandoUnidade, setSalvandoUnidade] = useState(false);
   const [unidadeToast, setUnidadeToast] = useState(false);
   const [excluindo, setExcluindo] = useState(false);
+  const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
   const [modalMemorial, setModalMemorial] = useState(false);
   const [calculo, setCalculo] = useState<CalculoSalvo | null>(() => ler<CalculoSalvo>(`nr13_calc_${tag}`));
   // GV do autoclave: memorial salvo à parte (nr13_calc_gv_<TAG>) — exibido junto no modal.
@@ -84,8 +85,13 @@ function EquipamentoView({ tag }: { tag: string }) {
     }
   }
 
+  // O confirm NATIVO do navegador saiu daqui (14/08/2026): era a única
+  // confirmação do sistema fora do padrão `fj-modal-*`, e um diálogo modal do
+  // navegador congela a página inteira enquanto está aberto. Excluir equipamento
+  // é irreversível, então vai de modal — não de confirmação inline, que é o
+  // padrão para itens de lista (funcionários, clientes).
   async function excluirEquipamento() {
-    if (!window.confirm(`Excluir o equipamento ${tag}? Essa ação não pode ser desfeita.`)) return;
+    setConfirmandoExclusao(false);
     setExcluindo(true);
     try {
       await excluirVaso(tag);
@@ -129,9 +135,65 @@ function EquipamentoView({ tag }: { tag: string }) {
             </div>
           </div>
 
-          <button type="button" className="btn-excluir-equip" onClick={excluirEquipamento} disabled={excluindo}>
+          <button
+            type="button"
+            className="btn-excluir-equip"
+            onClick={() => setConfirmandoExclusao(true)}
+            disabled={excluindo}
+          >
             <Icone nome="trash" tam={13} /> {excluindo ? 'Excluindo...' : 'Excluir'}
           </button>
+
+          {confirmandoExclusao && (
+            <div
+              className="fj-modal-overlay"
+              onClick={(e) => e.target === e.currentTarget && setConfirmandoExclusao(false)}
+            >
+              <div className="fj-modal-box" style={{ maxWidth: 460 }}>
+                <div className="fj-modal-head">
+                  <div>
+                    <div className="fj-eyebrow">Excluir equipamento</div>
+                    <h2>{tag}</h2>
+                  </div>
+                  <button
+                    type="button"
+                    className="fj-modal-close"
+                    onClick={() => setConfirmandoExclusao(false)}
+                    aria-label="Fechar"
+                  >
+                    <Icone nome="x" tam={15} />
+                  </button>
+                </div>
+                <div style={{ padding: '4px 16px 16px' }}>
+                  <p style={{ margin: '0 0 6px', fontSize: 14 }}>
+                    Isso apaga a ficha, o memorial, as inspeções, os relatórios e os prontuários
+                    deste equipamento. <b>Não é possível desfazer.</b>
+                  </p>
+                  <p style={{ margin: 0, fontSize: 13, color: 'var(--muted, #555)' }}>
+                    O Livro de Registro de Segurança permanece arquivado no servidor — registro
+                    emitido não pode ser apagado.
+                  </p>
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 18 }}>
+                    <button
+                      type="button"
+                      className="btn-secundario"
+                      onClick={() => setConfirmandoExclusao(false)}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-excluir-equip"
+                      onClick={() => void excluirEquipamento()}
+                      disabled={excluindo}
+                    >
+                      {excluindo ? 'Excluindo...' : 'Excluir equipamento'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="equipamento-quick-grid">
             <div className="quick-item">

@@ -640,6 +640,27 @@ const CHAVE_DA_FOTO_POR_GRUPO: Record<string, string> = {
 export const CHAVES_DE_CAMPO = ['nr13_inspecao_atual', 'nr13_injecao_atual'];
 
 /**
+ * Referências NOMEADAS: campos que guardam uma `RefFoto` fora do formato
+ * `{ ref }` e que precisam virar imagem embutida noutro campo.
+ *
+ * Existe para a rubrica do Livro de Registro. Cada entrada guardava a assinatura
+ * inteira em base64 (54,9 KB dos 56 KB de UMA entrada, medidos em produção), e o
+ * livro é cumulativo — 20 inspeções = 20 cópias do mesmo desenho dentro de um
+ * orçamento de 3.368 KB. Agora a entrada guarda `assinaturaRef` (~150 bytes) e o
+ * palco devolve o `assinaturaImg` que `LIVRO-REGISTRO.html` já lia. O template
+ * não mudou.
+ */
+const CAMPO_REF_NOMEADO: { prefixo: string; de: string; para: string }[] = [
+  { prefixo: 'nr13_livro_', de: 'assinaturaRef', para: 'assinaturaImg' },
+];
+
+export function refsNomeadasDaChave(chave: string): { de: string; para: string }[] {
+  // `nr13_livro_config_` também casa o prefixo, e não faz mal: é configuração de
+  // exibição e nunca tem o campo.
+  return CAMPO_REF_NOMEADO.filter((c) => chave.startsWith(c.prefixo)).map(({ de, para }) => ({ de, para }));
+}
+
+/**
  * Esta chave deve embutir a imagem deste grupo do container?
  *
  * Grupo DESCONHECIDO entra nas duas, pelo mesmo motivo de `camposDeFotoDaChave`:
@@ -669,16 +690,30 @@ export async function hidratarFotosDoBucket(itens: ItemPalco[]): Promise<ItemPal
     return url;
   }
 
-  async function percorrer(no: unknown, campos: Array<'src' | 'base64'>): Promise<boolean> {
+  async function percorrer(
+    no: unknown,
+    campos: Array<'src' | 'base64'>,
+    nomeadas: { de: string; para: string }[] = [],
+  ): Promise<boolean> {
     if (Array.isArray(no)) {
       let mudou = false;
-      for (const filho of no) if (await percorrer(filho, campos)) mudou = true;
+      for (const filho of no) if (await percorrer(filho, campos, nomeadas)) mudou = true;
       return mudou;
     }
     if (typeof no !== 'object' || no === null) return false;
 
     const obj = no as Record<string, unknown>;
     let mudou = false;
+    // Referência nomeada (rubrica do livro): vira imagem no campo que o template
+    // já lia, sem passar a existir em nenhum outro lugar.
+    for (const { de, para } of nomeadas) {
+      if (!ehRef(obj[de])) continue;
+      const url = await dataUrlDe(obj[de] as RefFoto);
+      if (url) {
+        obj[para] = url;
+        mudou = true;
+      }
+    }
     if (ehRef(obj.ref)) {
       const url = await dataUrlDe(obj.ref as RefFoto);
       if (url) {
@@ -693,15 +728,16 @@ export async function hidratarFotosDoBucket(itens: ItemPalco[]): Promise<ItemPal
         mudou = true;
       }
     }
-    for (const valor of Object.values(obj)) if (await percorrer(valor, campos)) mudou = true;
+    for (const valor of Object.values(obj)) if (await percorrer(valor, campos, nomeadas)) mudou = true;
     return mudou;
   }
 
   const saida: ItemPalco[] = [];
   for (const item of itens) {
-    // Atalho barato: sem a palavra "ref" no texto não há o que hidratar, e a
-    // maioria das chaves (memorial, categoria, livro) cai aqui sem custo.
-    if (!item.valor.includes('"ref"')) {
+    const nomeadas = refsNomeadasDaChave(item.chave);
+    // Atalho barato: sem `"ref"` nem o campo nomeado daquela família, não há o
+    // que hidratar — a maioria das chaves (memorial, categoria) cai aqui sem custo.
+    if (!item.valor.includes('"ref"') && !nomeadas.some((n) => item.valor.includes(`"${n.de}"`))) {
       saida.push(item);
       continue;
     }
@@ -716,9 +752,9 @@ export async function hidratarFotosDoBucket(itens: ItemPalco[]): Promise<ItemPal
         // grupos cuja folha de fotos lê ESTA chave.
         for (const [grupo, conteudo] of Object.entries(obj as Record<string, unknown>)) {
           if (!grupoVaiNaChave(item.chave, grupo)) continue;
-          if (await percorrer(conteudo, campos)) mudou = true;
+          if (await percorrer(conteudo, campos, nomeadas)) mudou = true;
         }
-      } else if (await percorrer(obj, campos)) {
+      } else if (await percorrer(obj, campos, nomeadas)) {
         mudou = true;
       }
 

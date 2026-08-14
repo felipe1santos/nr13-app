@@ -15,6 +15,18 @@ export type CategoriaErro =
   | 'sessao'
   | 'conflito'
   | 'obsoleto'
+  /**
+   * O servidor RECUSOU por regra de negócio, e vai recusar de novo para sempre.
+   *
+   * Diferente de `permissao` (que muda quando a assinatura é regularizada) e de
+   * `offline` (que passa quando a rede volta): aqui não existe estado futuro em
+   * que a operação passe. O caso concreto é a trava de imutabilidade do Livro de
+   * Registro — excluir um equipamento tenta apagar `nr13_livro_<TAG>`, o banco
+   * recusa com `nr13_livro_imutavel`, e a fila ficava retentando eternamente
+   * com "⚠ 1 falha" na topbar. Retentar o que nunca vai passar não é
+   * resiliência, é ruído.
+   */
+  | 'recusa_definitiva'
   | 'desconhecido';
 
 export type TipoAcao = 'regularizar' | 'entrar' | 'liberar_espaco' | 'comparar' | 'tentar';
@@ -74,6 +86,12 @@ const TEXTOS: Record<CategoriaErro, Texto> = {
     explicacao: 'Este item foi excluído em outro aparelho depois desta alteração ter sido feita.',
     acao: { rotulo: 'Comparar versões', tipo: 'comparar' },
   },
+  recusa_definitiva: {
+    titulo: 'Alteração recusada pela regra do sistema',
+    explicacao:
+      'O servidor não permite esta alteração — registro de Livro de Segurança já emitido não pode ser apagado nem editado. A operação foi encerrada; nada mais será tentado.',
+    acao: null,
+  },
   desconhecido: {
     titulo: 'Não foi possível salvar no servidor',
     explicacao:
@@ -106,6 +124,12 @@ function categorizar(d: Extraido): CategoriaErro {
   const m = d.mensagem.toLowerCase();
 
   // Marcadores próprios primeiro: são inequívocos e vêm da nossa RPC.
+  //
+  // `nr13_livro_imutavel` vem do trigger de `supabase/livro_imutavel.sql` e é
+  // uma recusa DEFINITIVA: a regra não muda com o tempo, com a rede nem com a
+  // assinatura. Precisa vir antes de `nr13_escrita_direta_bloqueada` e do teste
+  // de RLS porque é mais específico.
+  if (m.includes('nr13_livro_imutavel')) return 'recusa_definitiva';
   if (m.includes('nr13_versao_obsoleta')) return 'obsoleto';
   if (m.includes('nr13_escrita_direta_bloqueada')) return 'permissao';
   if (d.codigo === 'nr13_conflito') return 'conflito';

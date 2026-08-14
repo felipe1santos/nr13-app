@@ -190,3 +190,40 @@ describe('palco — partição das fotos entre as duas chaves de campo', () => {
     }
   });
 });
+
+describe('palco — rubrica do livro por referência nomeada', () => {
+  const ref = { bucket: 'inspecao', path: 'org-1/assinaturas/abc123.png' };
+
+  it('assinaturaRef vira assinaturaImg — o campo que LIVRO-REGISTRO.html já lia', async () => {
+    const livro = JSON.stringify([
+      { id: 'LIV-1', descricao: 'x', assinaturaRef: ref },
+      { id: 'LIV-2', descricao: 'y', assinaturaRef: ref },
+    ]);
+    const [saida] = await hidratarFotosDoBucket([{ chave: 'nr13_livro_VP01', valor: livro }]);
+    const entradas = JSON.parse(saida.valor) as Array<Record<string, string>>;
+
+    expect(entradas[0].assinaturaImg).toBe('data:image/jpeg;base64,SGVsbG8=');
+    expect(entradas[1].assinaturaImg).toBe('data:image/jpeg;base64,SGVsbG8=');
+  });
+
+  it('baixa UMA vez a rubrica repetida em N entradas', async () => {
+    baixadas.length = 0;
+    const livro = JSON.stringify(
+      Array.from({ length: 20 }, (_, i) => ({ id: `LIV-${i}`, assinaturaRef: ref })),
+    );
+    await hidratarFotosDoBucket([{ chave: 'nr13_livro_VP01', valor: livro }]);
+    expect(baixadas.filter((p) => p === ref.path)).toHaveLength(1);
+  });
+
+  it('entrada LEGADA com assinaturaImg em base64 segue intacta', async () => {
+    const legado = JSON.stringify([{ id: 'LIV-1', assinaturaImg: 'data:image/png;base64,VELHA' }]);
+    const [saida] = await hidratarFotosDoBucket([{ chave: 'nr13_livro_VP01', valor: legado }]);
+    expect(saida.valor).toBe(legado);
+  });
+
+  it('a referência nomeada NÃO vaza para outras famílias de chave', async () => {
+    const valor = JSON.stringify([{ assinaturaRef: ref }]);
+    const [saida] = await hidratarFotosDoBucket([{ chave: 'nr13_info_VP01', valor }]);
+    expect(JSON.parse(saida.valor)[0].assinaturaImg).toBeUndefined();
+  });
+});

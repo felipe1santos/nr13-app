@@ -240,8 +240,23 @@ export async function guardarConflito(chave: string, perdedor: Registro): Promis
   ]);
 }
 
-/** Categorias que não se resolvem sozinhas com uma nova tentativa automática. */
+/**
+ * Categorias que não se resolvem sozinhas com uma nova tentativa automática.
+ * O item fica na fila, marcado, e só sai por ação do usuário (`tentarNovamente`).
+ */
 const DEFINITIVAS = new Set(['permissao', 'cota', 'sessao', 'desconhecido']);
+
+/**
+ * Recusa por REGRA DE NEGÓCIO: não existe estado futuro em que a operação passe,
+ * então ela sai da fila em vez de virar pendência eterna.
+ *
+ * Medido em 14/08/2026: excluir um equipamento tenta apagar `nr13_livro_<TAG>`,
+ * a trava de imutabilidade do banco recusa (com razão — livro emitido é registro
+ * legal), e a fila retentava sem parar exibindo "⚠ 1 falha" na topbar para
+ * sempre. A proteção do banco está certa; quem precisava aprender a ler a
+ * recusa era o cliente.
+ */
+const RECUSAS_DEFINITIVAS = new Set(['recusa_definitiva']);
 
 /**
  * Envia UM item. Só remove da fila depois que a RPC confirma — 'aplicado' ou
@@ -267,6 +282,16 @@ async function enviarItem(item: ItemFila): Promise<boolean> {
     // Rede, sessão, permissão: nada sai da fila.
     await marcarEstado(item.mutationId, 'aguardando', erro);
     const cat = fila.get(item.mutationId)?.erro?.categoria;
+    if (cat && RECUSAS_DEFINITIVAS.has(cat)) {
+      // Encerrada: o servidor nunca vai aceitar. Sai da fila para não virar
+      // pendência eterna; o motivo fica no log para quem for investigar.
+      console.warn(
+        `[sync] operação encerrada — o servidor recusou definitivamente ${item.op} de "${item.chave}".`,
+        fila.get(item.mutationId)?.erro?.detalhe?.mensagemOriginal ?? '',
+      );
+      await removerDaFila(item.mutationId);
+      return false;
+    }
     if (cat && DEFINITIVAS.has(cat)) await marcarEstado(item.mutationId, 'falha_definitiva');
     return false;
   }
@@ -337,6 +362,13 @@ export async function drenar(): Promise<{ enviados: number; falhas: number }> {
 
   for (const item of [...fila.values()]) {
     if (item.estado === 'conflito') continue; // aguarda decisão do usuário
+    // Já sabemos que não passa sozinha: retentar a cada drenagem só gasta
+    // requisição e mantém o selo em falha. Sai daqui por `tentarNovamente`,
+    // que é ação explícita do usuário.
+    if (item.estado === 'falha_definitiva') {
+      falhas += 1;
+      continue;
+    }
     if (await enviarItem(item)) enviados += 1;
     else falhas += 1;
   }

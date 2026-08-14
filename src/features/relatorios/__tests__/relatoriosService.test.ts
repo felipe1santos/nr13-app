@@ -29,20 +29,20 @@ function calcCom(linhas: string[]): string {
 describe('expandirMemorial — merge do GV do autoclave', () => {
   beforeEach(() => localStorage.clear());
 
-  it('sem chave gv: paginação inalterada (to = nº de linhas do principal)', () => {
+  it('sem chave gv: paginação inalterada (to = nº de linhas do principal)', async () => {
     localStorage.setItem('nr13_calc_AC1', calcCom(['MEMORIAL DE CÁLCULO: CORPO', 'linha a', 'linha b']));
     const docs = expandirMemorial('AC1', ['MEMORIAL.html']);
     expect(docs[docs.length - 1]).toContain('to=3');
   });
 
-  it('com nr13_calc_gv_<TAG>: linhas do GV entram após as do principal', () => {
+  it('com nr13_calc_gv_<TAG>: linhas do GV entram após as do principal', async () => {
     localStorage.setItem('nr13_calc_AC1', calcCom(['MEMORIAL DE CÁLCULO: CORPO', 'linha a']));
     localStorage.setItem('nr13_calc_gv_AC1', calcCom(['MEMORIAL DE CÁLCULO: GERADOR DE VAPOR', 'linha gv']));
     const docs = expandirMemorial('AC1', ['MEMORIAL.html']);
     expect(docs[docs.length - 1]).toContain('to=4');
   });
 
-  it('gv sem principal: só as linhas do gv', () => {
+  it('gv sem principal: só as linhas do gv', async () => {
     localStorage.setItem('nr13_calc_gv_AC1', calcCom(['MEMORIAL DE CÁLCULO: GERADOR DE VAPOR', 'linha gv']));
     const docs = expandirMemorial('AC1', ['MEMORIAL.html']);
     expect(docs[docs.length - 1]).toContain('to=2');
@@ -50,7 +50,7 @@ describe('expandirMemorial — merge do GV do autoclave', () => {
 });
 
 describe('ensaiosDoRelatorio — derivação dos ensaios das folhas', () => {
-  it('mapeia as 4 folhas de ensaio, ignora as demais e a query string', () => {
+  it('mapeia as 4 folhas de ensaio, ignora as demais e a query string', async () => {
     expect(
       ensaiosDoRelatorio([
         'CAPA.html',
@@ -68,7 +68,7 @@ describe('ensaiosDoRelatorio — derivação dos ensaios das folhas', () => {
     ]);
   });
 
-  it('deduplica e devolve vazio sem folhas de ensaio', () => {
+  it('deduplica e devolve vazio sem folhas de ensaio', async () => {
     expect(ensaiosDoRelatorio(['ULTRASSOM.html', 'ULTRASSOM.html'])).toEqual(['Medição de espessura (ultrassom)']);
     expect(ensaiosDoRelatorio(['CAPA.html'])).toEqual([]);
   });
@@ -166,12 +166,12 @@ describe('adicionarEntradaLivroManual — ocorrência manual no livro', () => {
     };
   }
 
-  it('grava com origem manual, descrição combinada, sem relatorioCodigo e resolve phNome/phCrea do phId', () => {
+  it('grava com origem manual, descrição combinada, sem relatorioCodigo e resolve phNome/phCrea do phId', async () => {
     localStorage.setItem(
       'nr13_lista_phs',
       JSON.stringify([{ id: 'ph-7', nome: 'Eng. Manual', crea: 'CREA-777', tipo: 'Engenheiro' }]),
     );
-    const entrada = adicionarEntradaLivroManual('V1', ocorrenciaBase({ phId: 'ph-7' }));
+    const entrada = await adicionarEntradaLivroManual('V1', ocorrenciaBase({ phId: 'ph-7' }));
 
     expect(entrada.origem).toBe('manual');
     expect(entrada.tipo).toBe('Manutenção corretiva');
@@ -190,23 +190,23 @@ describe('adicionarEntradaLivroManual — ocorrência manual no livro', () => {
     expect(livro[0].ensaios).toBeUndefined();
   });
 
-  it('sem phId (ou phId inexistente): sem assinatura, phNome/phCrea vazios', () => {
-    const semPh = adicionarEntradaLivroManual('V1', ocorrenciaBase({ phId: null }));
+  it('sem phId (ou phId inexistente): sem assinatura, phNome/phCrea vazios', async () => {
+    const semPh = await adicionarEntradaLivroManual('V1', ocorrenciaBase({ phId: null }));
     expect(semPh.phNome).toBe('');
     expect(semPh.phCrea).toBe('');
     expect(semPh.phId).toBeUndefined();
 
-    const phFantasma = adicionarEntradaLivroManual('V1', ocorrenciaBase({ phId: 'nao-existe' }));
+    const phFantasma = await adicionarEntradaLivroManual('V1', ocorrenciaBase({ phId: 'nao-existe' }));
     expect(phFantasma.phNome).toBe('');
     expect(phFantasma.phId).toBeUndefined();
   });
 
-  it('entra cronologicamente entre entradas automáticas (aceita dd/mm/aaaa e aaaa-mm-dd)', () => {
+  it('entra cronologicamente entre entradas automáticas (aceita dd/mm/aaaa e aaaa-mm-dd)', async () => {
     localStorage.setItem(
       'nr13_livro_V1',
       JSON.stringify([entradaAutoFake('10/01/2026', 'REL-1'), entradaAutoFake('2026-06-20', 'REL-2')]),
     );
-    adicionarEntradaLivroManual('V1', ocorrenciaBase({ data: '2026-03-15' }));
+    await adicionarEntradaLivroManual('V1', ocorrenciaBase({ data: '2026-03-15' }));
 
     const livro = JSON.parse(localStorage.getItem('nr13_livro_V1')!) as LivroEntrada[];
     expect(livro).toHaveLength(3);
@@ -215,12 +215,12 @@ describe('adicionarEntradaLivroManual — ocorrência manual no livro', () => {
     expect(livro[2].relatorioCodigo).toBe('REL-2');
   });
 
-  it('data inválida vai para o fim da lista, sem quebrar', () => {
+  it('data inválida vai para o fim da lista, sem quebrar', async () => {
     localStorage.setItem(
       'nr13_livro_V1',
       JSON.stringify([entradaAutoFake('2026-06-20', 'REL-2'), entradaAutoFake('10/01/2026', 'REL-1')]),
     );
-    const entrada = adicionarEntradaLivroManual('V1', ocorrenciaBase({ data: 'data-quebrada' }));
+    const entrada = await adicionarEntradaLivroManual('V1', ocorrenciaBase({ data: 'data-quebrada' }));
     expect(entrada.origem).toBe('manual');
 
     const livro = JSON.parse(localStorage.getItem('nr13_livro_V1')!) as LivroEntrada[];
