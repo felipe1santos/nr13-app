@@ -189,6 +189,29 @@ certificados; falta conferir se sobrou algo).
 Roteiro: backup → `simular` de cada família → migrar da MENOR para a maior → `verificar-migracao`
 → conferir na tela (foto do card, PDF que abre, certificado anexando no relatório).
 
+### 3.7 Logo e assinatura ainda em base64 — o que sobrou (14/08/2026)
+
+Última família de base64 persistido: `nr13_minha_empresa.logo` e
+`nr13_lista_phs[].assinatura`. Medido na conta engyuricesar: 6 KB e 56 KB no banco,
+13 KB e 111 KB no palco — ~4% do orçamento de 3.368 KB. Elas também são COPIADAS para
+dentro de `meta.empresa`/`meta.assinantes` de cada relatório salvo (§7-bis), então
+aparecem de novo em `nr13_relatorio_meta_atual` (129 KB no palco).
+
+Duas saídas, com custos bem diferentes:
+
+1. **Barata:** `processarAssinatura` gera PNG de **900px** e o comentário de
+   `imagem.ts` justifica a exceção com "300–400px, poucos KB". Baixar para ~500px
+   corta ~70% do peso (a área cai para 31%) e 500px cobre com folga os ~4 cm que a
+   rubrica ocupa na folha impressa. Vale só para assinaturas NOVAS; reprocessar as
+   existentes é alteração de dado e muda a aparência de documento assinado.
+2. **Estrutural:** mandar as duas para o bucket, como o resto. Complica por causa dos
+   snapshots congelados: o relatório salvo carrega a imagem DENTRO da meta, e trocar
+   por referência exige que a hidratação do palco alcance esse formato sem quebrar a
+   imutabilidade do §7-bis.
+
+Não feito: o ganho é marginal perto do que a partição das fotos já rendeu, e o passo 1
+muda a aparência de um documento técnico assinado — decisão do dono do projeto.
+
 ### 3.5 Sem teto por conta, e sem aviso antes de doer
 
 Não existe hoje nenhum ponto que diga ao usuário "sua conta está pesada". O sistema só reage
@@ -215,6 +238,10 @@ quando o documento é recusado — que é tarde, e no meio do trabalho. Duas ide
 | 11/08/2026 | **Foto do componente de calibração** (`fotoRef`) e **prontuário do fabricante** (`pdfRef`) no bucket, pelo mesmo desenho. |
 | 11/08/2026 | **Portal do Cliente passou a resolver refs** — lia `capa.src`/`c.foto` direto e teria ficado sem foto nenhuma nas contas migradas. |
 | 14/08/2026 | **`pdfBase64` fora do palco** (`camposPesados.ts`): a poda do §2-bis vivia só no `storageV1`, e na v2 o `Map` guarda o valor cru do servidor — dois certificados legados da conta `engyuricesar` ocupavam 794 + 614 KB de um orçamento de 3.368 KB e recusavam o relatório inteiro. Documento de **3.969 → 2.561 KB**. |
+| 14/08/2026 | **A foto de campo deixou de entrar 4× no palco.** Eram ×2 do campo (`src` E `base64`) e ×2 da chave (`nr13_inspecao_atual` E `nr13_injecao_atual`). A varredura de `public/` mostra que os conjuntos de folhas são disjuntos nos dois eixos, então a hidratação passou a gravar UM campo por chave e UMA chave por grupo do container. Medido na conta engyuricesar: documento de 20 folhas com 8 fotos, palco de **5.522 → 1.676 KB**, e a degradação deixou de ser acionada por falta de orçamento. Travado por `palco.camposFoto.test.ts`. |
+| 14/08/2026 | **Conta `engyuricesar` migrada**: 6,37 MB → 0,18 MB (−97%), com SHA-256 conferido contra backup. O maior peso era `nr13_pront_fab_` com 5.614 KB — família que o migrador ainda não cobria. |
+| 14/08/2026 | **`livroCorte` no lugar de `livroSnapshot`**: a cópia inteira do livro em cada relatório (crescimento quadrático, campo que ninguém lia) virou o sha da última entrada lacrada — ~100 bytes contra 15 KB. |
+| 14/08/2026 | **Impressão em blob, não em base64**: as folhas rasterizadas deixaram de viver como string UTF-16 (2,67× os bytes do arquivo) durante a preparação. |
 | 14/08/2026 | **Histórico de relatórios: 1 registro por relatório + índice leve por TAG** (`historicoRelatorios.ts`). O array único carregava logo e rubricas em base64 e era reescrito por inteiro a cada emissão. Com 100 relatórios: reescrita por save de **10,8 MB → 170 KB**; leitura para listar de **10,8 MB → 60 KB**. O legado fica como fallback de leitura, sem ser apagado. |
 | 11/08/2026 | **Legado da conta `gabriel.dadona` migrado** pelo navegador, com a sessão do próprio usuário: `app_storage` de **6.542 → 1.377 KB (−79%)**. Fotos, containers de inspeção e os 2 certificados (3.695 KB) confirmados no bucket com assinatura `%PDF-`. |
 
