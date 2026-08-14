@@ -275,6 +275,41 @@ export async function aguardarRecursosIframe(doc: Document | null | undefined): 
 // Necessário porque o fluxo de impressão imprime o #print-root de IMAGENS via window.print: o
 // merge de PDF do exportarPdf (pdf-lib) não alcança esse caminho, então sem isso o botão
 // "Imprimir" saía sem os certificados anexados.
+/**
+ * Canvas → object URL, e NÃO dataURL.
+ *
+ * A impressão rasteriza o relatório inteiro e guarda uma imagem por folha até o
+ * `window.print`. Em dataURL isso custa 2,67× os bytes do arquivo — base64 infla
+ * 33% e a string é UTF-16 —, então um relatório de 40 folhas A4 em escala 2
+ * chegava a dezenas de MB de STRING viva, mais os canvases, mais a decodificação
+ * de cada `<img>`. O blob guarda os bytes uma vez só.
+ *
+ * Quem cria é quem revoga: os URLs saem em `limparFolhasImpressao`. Sem isso
+ * cada impressão vazaria o relatório inteiro até a aba fechar.
+ */
+const urlsDeImpressao: string[] = [];
+
+/** Devolve a memória das folhas da rodada anterior. */
+function revogarUrlsDeImpressao(): void {
+  for (const url of urlsDeImpressao) URL.revokeObjectURL(url);
+  urlsDeImpressao.length = 0;
+}
+
+function canvasParaUrl(canvas: HTMLCanvasElement): Promise<string> {
+  return new Promise((resolve) => {
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) return resolve(canvas.toDataURL('image/jpeg', 0.95)); // sem toBlob: o antigo
+        const url = URL.createObjectURL(blob);
+        urlsDeImpressao.push(url);
+        resolve(url);
+      },
+      'image/jpeg',
+      0.95,
+    );
+  });
+}
+
 export async function paginasRastreabilidadeComoImagens(
   documentos: string[] = [],
 ): Promise<{ imagens: string[]; falhas: string[] }> {
@@ -313,7 +348,7 @@ export async function paginasRastreabilidadeComoImagens(
           canvas.width = Math.round(viewport.width);
           canvas.height = Math.round(viewport.height);
           await page.render({ canvas, viewport }).promise;
-          imagens.push(canvas.toDataURL('image/jpeg', 0.95));
+          imagens.push(await canvasParaUrl(canvas));
         }
         await tarefa.destroy();
       } catch (e) {
@@ -377,6 +412,10 @@ async function prepararFolhasImpressaoInterno(
     // fonte fallback e o texto sai sem espaços/estourando células (ver comentário acima).
     await garantirFonteInterHost();
 
+    // Reimprimir sem sair do visualizador prepara tudo de novo: as folhas da
+    // rodada anterior são substituídas e seus blobs não têm mais dono.
+    revogarUrlsDeImpressao();
+
     const imagens: string[] = [];
     for (const pag of paginas) {
       const iframe = pag.querySelector('iframe');
@@ -392,7 +431,7 @@ async function prepararFolhasImpressaoInterno(
         windowHeight: ALTURA_A4_PX,
         onclone: normalizarCloneParaCanvas,
       });
-      imagens.push(canvas.toDataURL('image/jpeg', 0.95));
+      imagens.push(await canvasParaUrl(canvas));
     }
 
     falhasRastreabilidadeImpressao = [];
@@ -427,6 +466,9 @@ async function prepararFolhasImpressaoInterno(
 export function limparFolhasImpressao(): void {
   document.body.classList.remove('imprimindo-relatorio');
   document.getElementById('print-root')?.remove();
+  // Os object URLs seguram o blob vivo enquanto existirem. Revogar aqui é o que
+  // devolve a memória do relatório inteiro depois da impressão.
+  revogarUrlsDeImpressao();
 }
 
 // Botão "Imprimir": garante folhas atualizadas e abre o diálogo nativo.
