@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { camposDeFotoDaChave, grupoVaiNaChave, CHAVES_DE_CAMPO } from './palco';
+import { camposDeFotoDaChave, grupoVaiNaChave, CHAVES_DE_CAMPO, CHAVE_RUBRICAS_PALCO } from './palco';
+import { tagDaChave } from './familiasChave';
 
 /**
  * A regra que este arquivo protege: a hidratação do palco grava a imagem em UM
@@ -172,5 +173,33 @@ describe('exclusão de equipamento — sem confirm nativo', () => {
     // `fj-modal-*` do sistema.
     expect(fonte).not.toContain('window.confirm');
     expect(fonte).toContain('fj-modal-overlay');
+  });
+});
+
+describe('LIVRO-REGISTRO resolve a rubrica pelo mapa do palco', () => {
+  it('o template lê nr13_rubricas_palco e mantém os dois caminhos legados', () => {
+    const t = templates().find((x) => x.nome === 'LIVRO-REGISTRO.html')!;
+    expect(t.texto).toContain("localStorage.getItem('nr13_rubricas_palco')");
+    expect(t.texto).toContain('function rubricaPorReferencia');
+    // Ordem que importa: base64 congelado na entrada (livro antigo) vence o mapa,
+    // e a rubrica VIVA do cadastro é o último recurso — ela muda quando o
+    // funcionário troca a assinatura, e registro emitido não pode mudar.
+    expect(t.texto).toContain(
+      "info.assinaturaImg || rubricaPorReferencia(info.assinaturaRef) || (func && func.assinatura)",
+    );
+  });
+
+  it('a função é declarada antes do uso', () => {
+    const t = templates().find((x) => x.nome === 'LIVRO-REGISTRO.html')!;
+    expect(t.texto.indexOf('function rubricaPorReferencia')).toBeLessThan(
+      t.texto.indexOf('rubricaPorReferencia(info.assinaturaRef)'),
+    );
+  });
+
+  it('a chave do mapa não colide com nr13_livro_ (familiasChave / exclusão protegida)', () => {
+    // `nr13_livro_rubricas` viraria a TAG "rubricas" no índice por equipamento e
+    // seria pega por `protegidaContraExclusao`.
+    expect(CHAVE_RUBRICAS_PALCO.startsWith('nr13_livro_')).toBe(false);
+    expect(tagDaChave(CHAVE_RUBRICAS_PALCO)).toBeNull();
   });
 });

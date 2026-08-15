@@ -3,6 +3,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { escopoDaChave } from './familiasChave';
 import {
+  CHAVE_RUBRICAS_PALCO,
   FORA_DO_PALCO,
   GLOBAIS,
   POR_ID_FILTRADO_POR_TAG,
@@ -74,6 +75,9 @@ function tokensDosTemplates(): Map<string, string[]> {
 function cobertoPeloPalco(token: string): boolean {
   if (FORA_DO_PALCO.some((p) => token.startsWith(p))) return true; // exclusão deliberada
   if (GLOBAIS.includes(token)) return true;
+  // PRODUZIDA pelo palco, não coletada do cache: a hidratação a monta com uma
+  // cópia por rubrica distinta e a materializa junto com as demais chaves.
+  if (token === CHAVE_RUBRICAS_PALCO) return true;
 
   const familias = [...POR_ID_NO_PALCO, ...POR_ID_FILTRADO_POR_TAG];
   if (familias.some((p) => token === p || token.startsWith(p))) return true;

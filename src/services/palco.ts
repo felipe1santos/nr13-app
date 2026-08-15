@@ -650,15 +650,39 @@ export const CHAVES_DE_CAMPO = ['nr13_inspecao_atual', 'nr13_injecao_atual'];
  * palco devolve o `assinaturaImg` que `LIVRO-REGISTRO.html` já lia. O template
  * não mudou.
  */
-const CAMPO_REF_NOMEADO: { prefixo: string; de: string; para: string }[] = [
-  { prefixo: 'nr13_livro_', de: 'assinaturaRef', para: 'assinaturaImg' },
+const CAMPO_REF_NOMEADO: { prefixo: string; de: string }[] = [
+  { prefixo: 'nr13_livro_', de: 'assinaturaRef' },
 ];
 
-export function refsNomeadasDaChave(chave: string): { de: string; para: string }[] {
+export function refsNomeadasDaChave(chave: string): string[] {
   // `nr13_livro_config_` também casa o prefixo, e não faz mal: é configuração de
   // exibição e nunca tem o campo.
-  return CAMPO_REF_NOMEADO.filter((c) => chave.startsWith(c.prefixo)).map(({ de, para }) => ({ de, para }));
+  return CAMPO_REF_NOMEADO.filter((c) => chave.startsWith(c.prefixo)).map((c) => c.de);
 }
+
+/**
+ * Onde as rubricas do livro são materializadas — UMA vez cada, por caminho.
+ *
+ * Embutir a imagem em cada entrada resolveria a exibição, mas devolveria no
+ * palco o peso que a referência tirou do banco: a mesma rubrica de 111 KB
+ * (UTF-16) repetida por entrada, 2,2 MB num livro de 20 inspeções, dentro de um
+ * orçamento de 3.368 KB. O livro é cumulativo — é a única família que cresce
+ * sozinha a cada inspeção.
+ *
+ * Então o palco grava um MAPA `caminho → dataURL`, com uma cópia por rubrica
+ * DISTINTA, e as entradas seguem só com `assinaturaRef`.
+ * `LIVRO-REGISTRO.html` resolve por esse mapa. Vinte entradas do mesmo
+ * engenheiro custam 111 KB no total, não 2,2 MB.
+ *
+ * A chave é `nr13_rubricas_palco` e NÃO `nr13_livro_rubricas`: o prefixo
+ * `nr13_livro_` é usado por `familiasChave` (viraria a TAG "rubricas") e por
+ * `protegidaContraExclusao`. Nome que colide é defeito esperando data.
+ *
+ * Ela nasce e morre com o documento: é produzida na hidratação, entra no
+ * manifesto como qualquer outra chave e sai na limpeza do palco. Nunca vai para
+ * o cache nem para o servidor.
+ */
+export const CHAVE_RUBRICAS_PALCO = 'nr13_rubricas_palco';
 
 /**
  * Esta chave deve embutir a imagem deste grupo do container?
@@ -690,10 +714,13 @@ export async function hidratarFotosDoBucket(itens: ItemPalco[]): Promise<ItemPal
     return url;
   }
 
+  // caminho → dataURL. Uma entrada por rubrica distinta em TODO o documento.
+  const rubricas = new Map<string, string>();
+
   async function percorrer(
     no: unknown,
     campos: Array<'src' | 'base64'>,
-    nomeadas: { de: string; para: string }[] = [],
+    nomeadas: string[] = [],
   ): Promise<boolean> {
     if (Array.isArray(no)) {
       let mudou = false;
@@ -704,15 +731,15 @@ export async function hidratarFotosDoBucket(itens: ItemPalco[]): Promise<ItemPal
 
     const obj = no as Record<string, unknown>;
     let mudou = false;
-    // Referência nomeada (rubrica do livro): vira imagem no campo que o template
-    // já lia, sem passar a existir em nenhum outro lugar.
-    for (const { de, para } of nomeadas) {
-      if (!ehRef(obj[de])) continue;
-      const url = await dataUrlDe(obj[de] as RefFoto);
-      if (url) {
-        obj[para] = url;
-        mudou = true;
-      }
+    // Referência nomeada (rubrica do livro): a imagem NÃO entra na entrada — vai
+    // uma única vez para o mapa de rubricas, e o template resolve pelo caminho.
+    for (const de of nomeadas) {
+      const ref = obj[de];
+      if (!ehRef(ref)) continue;
+      const path = (ref as RefFoto).path;
+      if (rubricas.has(path)) continue;
+      const url = await dataUrlDe(ref as RefFoto);
+      if (url) rubricas.set(path, url);
     }
     if (ehRef(obj.ref)) {
       const url = await dataUrlDe(obj.ref as RefFoto);
@@ -737,7 +764,7 @@ export async function hidratarFotosDoBucket(itens: ItemPalco[]): Promise<ItemPal
     const nomeadas = refsNomeadasDaChave(item.chave);
     // Atalho barato: sem `"ref"` nem o campo nomeado daquela família, não há o
     // que hidratar — a maioria das chaves (memorial, categoria) cai aqui sem custo.
-    if (!item.valor.includes('"ref"') && !nomeadas.some((n) => item.valor.includes(`"${n.de}"`))) {
+    if (!item.valor.includes('"ref"') && !nomeadas.some((n) => item.valor.includes(`"${n}"`))) {
       saida.push(item);
       continue;
     }
@@ -762,6 +789,11 @@ export async function hidratarFotosDoBucket(itens: ItemPalco[]): Promise<ItemPal
     } catch {
       saida.push(item); // valor não-JSON: segue intacto
     }
+  }
+  // O mapa só existe quando há rubrica por referência — livro antigo (base64 na
+  // entrada) e documento sem livro não pagam nada por isto.
+  if (rubricas.size > 0) {
+    saida.push({ chave: CHAVE_RUBRICAS_PALCO, valor: JSON.stringify(Object.fromEntries(rubricas)) });
   }
   return saida;
 }

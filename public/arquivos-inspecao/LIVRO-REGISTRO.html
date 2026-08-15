@@ -422,6 +422,23 @@
                     document.getElementById('exec-box').style.display = 'block';
                 }
 
+                // Rubrica materializada pelo palco em `nr13_rubricas_palco`: um mapa
+                // caminho → dataURL com UMA cópia por assinatura distinta do documento.
+                //
+                // A entrada nova guarda só `assinaturaRef` (~150 bytes). Embutir a imagem
+                // em cada entrada devolveria ao palco o peso que a referência tirou do
+                // banco — a mesma rubrica de 111 KB repetida por inspeção, e o livro é
+                // cumulativo. Entrada ANTIGA continua com `assinaturaImg` e nem chega aqui.
+                function rubricaPorReferencia(ref) {
+                    if (!ref || !ref.path) return '';
+                    try {
+                        var mapa = JSON.parse(localStorage.getItem('nr13_rubricas_palco') || '{}');
+                        return mapa[ref.path] || '';
+                    } catch (e) {
+                        return '';
+                    }
+                }
+
                 // Assinatura do responsável — prefere os campos CONGELADOS na entrada
                 // (assinaturaImg/assinanteFuncao, gravados na criação — bug fix 14/07/2026:
                 // a entrada do livro não pode mudar quando o cadastro/rubrica do funcionário
@@ -455,7 +472,7 @@
                     return;
                 }
 
-                const temCongelado = !!(info.assinaturaImg || info.assinanteFuncao);
+                const temCongelado = !!(info.assinaturaImg || info.assinaturaRef || info.assinanteFuncao);
                 let func = null;
                 if (!temCongelado && info.phId) {
                     const phs = lerJSON('nr13_lista_phs');
@@ -469,7 +486,11 @@
                 if (nomeAssinante) {
                     const rubrica = document.getElementById('assinatura-rubrica');
                     rubrica.innerHTML = '';
-                    const imgAssinatura = info.assinaturaImg || (func && func.assinatura) || '';
+                    // Ordem: base64 congelado na própria entrada (livro antigo) →
+                    // mapa de rubricas materializado pelo palco (entrada nova, que
+                    // guarda só `assinaturaRef`) → rubrica viva do cadastro, que é o
+                    // último recurso porque muda quando o funcionário troca a assinatura.
+                    const imgAssinatura = info.assinaturaImg || rubricaPorReferencia(info.assinaturaRef) || (func && func.assinatura) || '';
                     if (imgAssinatura) {
                         const img = document.createElement('img');
                         img.className = 'assinatura-img';
@@ -516,6 +537,7 @@
                     phCrea: entrada.phCrea,
                     phId: entrada.phId,
                     assinaturaImg: entrada.assinaturaImg,
+                    assinaturaRef: entrada.assinaturaRef,
                     assinanteFuncao: entrada.assinanteFuncao
                 });
             }
@@ -552,6 +574,7 @@
                     tecnicoNome: entrada.tecnicoNome,
                     phId: entrada.phId,
                     assinaturaImg: entrada.assinaturaImg,
+                    assinaturaRef: entrada.assinaturaRef,
                     assinanteFuncao: entrada.assinanteFuncao
                 });
                 return entrada;

@@ -32,7 +32,7 @@ vi.mock('./fotos', async (original) => {
   };
 });
 
-import { hidratarFotosDoBucket } from './palco';
+import { hidratarFotosDoBucket, CHAVE_RUBRICAS_PALCO } from './palco';
 
 describe('palco — hidratação das fotos para os templates', () => {
   it('a galeria recebe SÓ `src` — é o único campo que a CAPA lê', async () => {
@@ -191,39 +191,69 @@ describe('palco — partição das fotos entre as duas chaves de campo', () => {
   });
 });
 
-describe('palco — rubrica do livro por referência nomeada', () => {
+describe('palco — rubrica do livro materializada UMA vez', () => {
   const ref = { bucket: 'inspecao', path: 'org-1/assinaturas/abc123.png' };
+  const outra = { bucket: 'inspecao', path: 'org-1/assinaturas/def456.png' };
+  const IMG = 'data:image/jpeg;base64,SGVsbG8=';
 
-  it('assinaturaRef vira assinaturaImg — o campo que LIVRO-REGISTRO.html já lia', async () => {
+  it('a imagem vai para o MAPA, não para dentro de cada entrada', async () => {
     const livro = JSON.stringify([
       { id: 'LIV-1', descricao: 'x', assinaturaRef: ref },
       { id: 'LIV-2', descricao: 'y', assinaturaRef: ref },
     ]);
-    const [saida] = await hidratarFotosDoBucket([{ chave: 'nr13_livro_VP01', valor: livro }]);
-    const entradas = JSON.parse(saida.valor) as Array<Record<string, string>>;
+    const saida = await hidratarFotosDoBucket([{ chave: 'nr13_livro_VP01', valor: livro }]);
 
-    expect(entradas[0].assinaturaImg).toBe('data:image/jpeg;base64,SGVsbG8=');
-    expect(entradas[1].assinaturaImg).toBe('data:image/jpeg;base64,SGVsbG8=');
+    const mapa = saida.find((s) => s.chave === CHAVE_RUBRICAS_PALCO)!;
+    expect(JSON.parse(mapa.valor)).toEqual({ [ref.path]: IMG });
+
+    // A entrada NÃO engorda: segue com a referência e sem imagem embutida.
+    const entradas = JSON.parse(saida.find((s) => s.chave === 'nr13_livro_VP01')!.valor);
+    expect(entradas[0].assinaturaImg).toBeUndefined();
+    expect(entradas[0].assinaturaRef.path).toBe(ref.path);
   });
 
-  it('baixa UMA vez a rubrica repetida em N entradas', async () => {
+  it('20 entradas com a mesma rubrica custam UMA cópia', async () => {
     baixadas.length = 0;
     const livro = JSON.stringify(
       Array.from({ length: 20 }, (_, i) => ({ id: `LIV-${i}`, assinaturaRef: ref })),
     );
-    await hidratarFotosDoBucket([{ chave: 'nr13_livro_VP01', valor: livro }]);
+    const saida = await hidratarFotosDoBucket([{ chave: 'nr13_livro_VP01', valor: livro }]);
+
     expect(baixadas.filter((p) => p === ref.path)).toHaveLength(1);
+    const mapa = JSON.parse(saida.find((s) => s.chave === CHAVE_RUBRICAS_PALCO)!.valor);
+    expect(Object.keys(mapa)).toHaveLength(1);
+    // Era isto que pesava: embutir por entrada daria 20 cópias da imagem.
+    // A prova é que a dataURL não aparece NENHUMA vez dentro do livro.
+    const livroSaida = saida.find((s) => s.chave === 'nr13_livro_VP01')!.valor;
+    expect(livroSaida).not.toContain('data:image');
+    expect((mapa[ref.path].match(/data:image/g) ?? []).length).toBe(1);
   });
 
-  it('entrada LEGADA com assinaturaImg em base64 segue intacta', async () => {
+  it('rubricas DIFERENTES viram entradas diferentes do mapa', async () => {
+    const livro = JSON.stringify([{ assinaturaRef: ref }, { assinaturaRef: outra }]);
+    const saida = await hidratarFotosDoBucket([{ chave: 'nr13_livro_VP01', valor: livro }]);
+    expect(Object.keys(JSON.parse(saida.find((s) => s.chave === CHAVE_RUBRICAS_PALCO)!.valor))).toEqual([
+      ref.path,
+      outra.path,
+    ]);
+  });
+
+  it('sem rubrica por referência, o mapa nem existe', async () => {
+    const saida = await hidratarFotosDoBucket([{ chave: 'nr13_info_VP01', valor: '{"tag":"A"}' }]);
+    expect(saida.some((s) => s.chave === CHAVE_RUBRICAS_PALCO)).toBe(false);
+  });
+
+  it('entrada LEGADA com assinaturaImg em base64 segue intacta e sem mapa', async () => {
     const legado = JSON.stringify([{ id: 'LIV-1', assinaturaImg: 'data:image/png;base64,VELHA' }]);
-    const [saida] = await hidratarFotosDoBucket([{ chave: 'nr13_livro_VP01', valor: legado }]);
-    expect(saida.valor).toBe(legado);
+    const saida = await hidratarFotosDoBucket([{ chave: 'nr13_livro_VP01', valor: legado }]);
+    expect(saida.find((s) => s.chave === 'nr13_livro_VP01')!.valor).toBe(legado);
+    expect(saida.some((s) => s.chave === CHAVE_RUBRICAS_PALCO)).toBe(false);
   });
 
   it('a referência nomeada NÃO vaza para outras famílias de chave', async () => {
     const valor = JSON.stringify([{ assinaturaRef: ref }]);
-    const [saida] = await hidratarFotosDoBucket([{ chave: 'nr13_info_VP01', valor }]);
-    expect(JSON.parse(saida.valor)[0].assinaturaImg).toBeUndefined();
+    const saida = await hidratarFotosDoBucket([{ chave: 'nr13_info_VP01', valor }]);
+    expect(saida.some((s) => s.chave === CHAVE_RUBRICAS_PALCO)).toBe(false);
+    expect(JSON.parse(saida[0].valor)[0].assinaturaImg).toBeUndefined();
   });
 });
