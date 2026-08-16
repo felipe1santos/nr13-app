@@ -292,6 +292,47 @@ equipamento a cada.
 
 ---
 
+## RESULTADO DA VALIDAÇÃO EM PRODUÇÃO — 16/08/2026
+
+Deploy na ordem prevista: Edge `portal_arquivo` (verificada byte a byte, hash `-85678721`)
+→ bundle novo (`index-B1FaznYJ` → `index-CWMRC27y`, 3 strings exclusivas presentes) →
+Portal conferido com as policies ANTIGAS → policies aplicadas.
+
+### O A-01 medido antes e depois
+
+Conta `ipiranga@gmail.com` (papel `cliente`, 2 equipamentos vinculados):
+
+| Medida | Antes das policies | Depois |
+|---|---|---|
+| `select` direto em `app_storage` | **49 chaves** (32 delas de outros ativos) | **0** |
+| Ficha de equipamento alheio visível | `ZZ-TESTE-AUTOCLAVE` | nenhuma |
+| Assinar URL do próprio arquivo pelo SDK | funcionava | **400, bloqueado** |
+| Assinar URL de arquivo de outra organização | 400 (já era bloqueado — I-22 estava correto) | 400 |
+
+### Edge `portal_arquivo`
+
+| Caso | Resultado |
+|---|---|
+| Arquivo próprio | 200 + URL assinada |
+| Arquivo real de **outra organização** | 404 `nao_disponivel` |
+| Path **inventado** em pasta autorizada | 404 `nao_disponivel` — **resposta idêntica** (D-26) |
+| Token de **mestre** | 403 (somente contas de cliente) |
+
+### Portal funcionando com as policies novas
+
+Lista de ativos, foto (via URL assinada da Edge, `<img>` 720×1280 carregado), detalhe do
+ativo com categoria/PMTA/situação/empresa, e **PDF do relatório aberto — 22 páginas**, com o
+selo "Documento arquivado". Nenhuma regressão.
+
+Confirma também que `semearCachePortal` funciona: o cliente não hidrata mais a organização
+(`lerTudo` pulado) e ainda assim as telas leem tudo que precisam.
+
+### Limitações do que foi testado, registradas
+
+- **Cliente-contra-cliente de ARQUIVO na mesma organização não foi testado literalmente:** `cliente001` não tem equipamento nem arquivo. Foram testados arquivo de outra organização e path não-referenciado, que exercitam a mesma decisão (`autorizados.has(path)`), mas o caso literal ficou de fora.
+- **Regressão do sistema interno DEPOIS das policies ainda não verificada.** Foi verificada antes (13 equipamentos carregando). Depois de aplicar o SQL a sessão daquela aba era de cliente. **Verificar com uma conta `mestre`/`gerente`/`funcionario` antes de considerar a fase encerrada.**
+- `lerRemoto` recusando para cliente: verificado por leitura de código, não exercitado com certificado legado real.
+
 ## Rollback
 
 | Sintoma | Ação |
