@@ -104,7 +104,10 @@ export type ResultadoSaida =
  * alterações que só existem neste aparelho e que a v1 não sabe drenar.
  */
 export function podeSairSemPerder(): ResultadoSaida {
-  const fila = sync.listarFila();
+  // `listarPendentes` e não `listarFila`: mutação ENCERRADA pelo servidor não é
+  // trabalho a subir, e segurar o logout por causa dela seria um bloqueio sem
+  // saída — nenhuma sincronização vai resolvê-la.
+  const fila = sync.listarPendentes();
   if (fila.length === 0) return { pode: true };
   const datas = fila.map((i) => i.criadoEm).sort();
   return { pode: false, pendencias: fila.length, maisAntiga: datas[0] ?? null };

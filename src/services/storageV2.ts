@@ -211,9 +211,15 @@ export async function flushFila(): Promise<void> {
   await sync.drenar();
 }
 
-/** Quantas mutações ainda não chegaram ao servidor. */
+/**
+ * Quantas mutações ainda não chegaram ao servidor.
+ *
+ * Não conta as ENCERRADAS: elas continuam na fila para o usuário ver na tela de
+ * Pendências, mas nenhuma sincronização futura vai movê-las, e contá-las aqui
+ * deixaria o selo da topbar em alerta para sempre.
+ */
 export function contarPendencias(): number {
-  return sync.listarFila().length;
+  return sync.listarPendentes().length;
 }
 
 // ---------------------------------------------------------------------------

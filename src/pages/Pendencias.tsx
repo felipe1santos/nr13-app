@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { listarFila, tentarNovamente, type ItemFila } from '../services/sync';
+import { listarFila, tentarNovamente, descartarEncerrada, type ItemFila } from '../services/sync';
 import { rotuloEstado, pendenciaVelha, resumoSelo } from '../services/selo';
 import { diagnosticarPerda } from '../services/manifesto';
 import { erroDoManifesto } from '../services/manifesto';
@@ -21,6 +21,12 @@ export default function Pendencias() {
 
   const recarregar = () => setItens(listarFila());
 
+  // Encerradas ficam SEPARADAS: não têm "tentar de novo" (o servidor não muda de
+  // ideia) e não entram na contagem do selo. Ficam listadas porque a alteração
+  // existiu e não chegou ao servidor — o usuário precisa saber disso.
+  const pendentes = itens.filter((i) => i.estado !== 'encerrado');
+  const encerradas = itens.filter((i) => i.estado === 'encerrado');
+
   const retentar = async (mutationId: string) => {
     setOcupado(true);
     try {
@@ -34,7 +40,17 @@ export default function Pendencias() {
   const retentarTodas = async () => {
     setOcupado(true);
     try {
-      for (const i of itens) await tentarNovamente(i.mutationId);
+      for (const i of pendentes) await tentarNovamente(i.mutationId);
+    } finally {
+      setOcupado(false);
+      recarregar();
+    }
+  };
+
+  const dispensar = async (mutationId: string) => {
+    setOcupado(true);
+    try {
+      await descartarEncerrada(mutationId);
     } finally {
       setOcupado(false);
       recarregar();
@@ -50,9 +66,9 @@ export default function Pendencias() {
       <header className={`pendencias-hero nivel-${resumo.nivel}`}>
         <div className="pendencias-hero-txt">
           <span className="pendencias-hero-eyebrow">Sincronização</span>
-          <h1>{itens.length === 0 ? 'Tudo salvo na nuvem' : resumo.rotulo}</h1>
+          <h1>{pendentes.length === 0 ? 'Tudo salvo na nuvem' : resumo.rotulo}</h1>
           <p>
-            {itens.length === 0
+            {pendentes.length === 0
               ? 'Nada neste aparelho está esperando para subir. Tudo o que você preencheu já está no servidor.'
               : 'Estas alterações estão guardadas no aparelho e ainda não chegaram ao servidor. Elas não se perdem ao fechar o app.'}
           </p>
@@ -108,9 +124,9 @@ export default function Pendencias() {
         </div>
       )}
 
-      {itens.length === 0 && <p className="pendencias__vazio">Tudo sincronizado.</p>}
+      {pendentes.length === 0 && <p className="pendencias__vazio">Tudo sincronizado.</p>}
 
-      {itens.map((item) => (
+      {pendentes.map((item) => (
         <article key={item.mutationId} className={`pendencia pendencia--${item.estado}`}>
           <h2 className="pendencia__chave">{item.chave}</h2>
           <p className="pendencia__estado">{rotuloEstado(item.estado)}</p>
@@ -161,10 +177,56 @@ export default function Pendencias() {
         </article>
       ))}
 
-      {itens.length > 0 && (
+      {pendentes.length > 0 && (
         <button type="button" disabled={ocupado} onClick={() => void retentarTodas()}>
           Tentar todas
         </button>
+      )}
+
+      {encerradas.length > 0 && (
+        <section className="pendencias__encerradas">
+          <h2>Encerradas pelo servidor</h2>
+          <p>
+            O servidor recusou estas alterações por regra do sistema. Não adianta tentar de novo — a
+            recusa não muda. Elas ficam listadas aqui até você dispensar.
+          </p>
+
+          {encerradas.map((item) => (
+            <article key={item.mutationId} className="pendencia pendencia--encerrado">
+              <h3 className="pendencia__chave">{item.chave}</h3>
+              <p className="pendencia__estado">{rotuloEstado(item.estado)}</p>
+              <p className="pendencia__titulo">{item.erro?.titulo ?? 'Recusada pelo servidor'}</p>
+              <p className="pendencia__explicacao">{item.erro?.explicacao ?? ''}</p>
+              <p className="pendencia__quando">
+                {item.criadoEm} · {item.tentativas} tentativa(s)
+              </p>
+
+              <button
+                type="button"
+                disabled={ocupado}
+                onClick={() => void dispensar(item.mutationId)}
+              >
+                Dispensar
+              </button>
+
+              {item.erro && (
+                <details className="pendencia__detalhes">
+                  <summary>Detalhes técnicos</summary>
+                  <dl>
+                    <dt>Código</dt>
+                    <dd>{item.erro.detalhe.codigo}</dd>
+                    <dt>Mensagem original</dt>
+                    <dd>
+                      <code>{item.erro.detalhe.mensagemOriginal}</code>
+                    </dd>
+                    <dt>Identificador</dt>
+                    <dd>{item.erro.detalhe.mutationId}</dd>
+                  </dl>
+                </details>
+              )}
+            </article>
+          ))}
+        </section>
       )}
 
       <footer className="pendencias-rodape">

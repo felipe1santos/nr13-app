@@ -146,6 +146,19 @@
 }
 .pendencia--falha_definitiva, .pendencia--conflito { border-left-color: var(--crit); }
 .pendencia--aguardando, .pendencia--salvo_local { border-left-color: var(--warn); }
+/* Encerrada não é falha a corrigir nem pendência a subir: cor neutra, de arquivo. */
+.pendencia--encerrado { border-left-color: var(--muted, var(--line)); opacity: 0.85; }
+
+.pendencias__encerradas {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.pendencias__encerradas > h2 { margin: 0; font-size: 15px; }
+.pendencias__encerradas > p { margin: 0; font-size: 13px; color: var(--muted); }
 
 .pendencia__chave {
   font-family: var(--font-mono);

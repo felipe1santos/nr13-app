@@ -63,6 +63,8 @@ export function rotuloEstado(estado: EstadoItem): string {
       return 'Falhou';
     case 'conflito':
       return 'Precisa de decisão';
+    case 'encerrado':
+      return 'Encerrada pelo servidor';
   }
 }
 

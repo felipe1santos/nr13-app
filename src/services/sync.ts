@@ -22,7 +22,14 @@ export type EstadoItem =
   | 'aguardando'
   | 'sincronizado'
   | 'falha_definitiva'
-  | 'conflito';
+  | 'conflito'
+  /**
+   * O servidor recusou por regra de negócio e vai recusar sempre. A mutação
+   * PARA de ser tentada, mas continua na fila — encerrada não é o mesmo que
+   * confirmada, e sumir daqui faria a topbar dizer "Tudo salvo" para uma
+   * alteração que o servidor nunca aceitou. Sai só por `descartarEncerrada`.
+   */
+  | 'encerrado';
 
 export interface ItemFila {
   mutationId: string;
@@ -63,6 +70,17 @@ export function zerarFilaMemoria(): void {
 
 export function listarFila(): ItemFila[] {
   return [...fila.values()];
+}
+
+/**
+ * A fila SEM as encerradas: é esta a resposta para "ainda tem trabalho para
+ * subir?". Quem pergunta é o selo da topbar, a contagem de pendências e a
+ * guarda de logout — e nenhum deles pode ficar em alerta eterno por causa de
+ * uma operação que o servidor encerrou. Elas continuam em `listarFila`, que é
+ * o que a tela de Pendências mostra.
+ */
+export function listarPendentes(): ItemFila[] {
+  return [...fila.values()].filter((i) => i.estado !== 'encerrado');
 }
 
 export function itemDaChave(chave: string): ItemFila | null {
@@ -216,6 +234,21 @@ export function tombstoneMaisNovoQue(chave: string, atualizadoEm: string): boole
   return tomb > srv;
 }
 
+/**
+ * Apaga a marca de exclusão de UMA chave.
+ *
+ * Existe para um caso só: o servidor recusou definitivamente o `del`. Mantido o
+ * tombstone, a hidratação passaria a pular para sempre uma chave que existe no
+ * servidor — o aparelho ficaria dizendo "excluído" sobre um registro vivo, em
+ * silêncio e sem conserto. Recusada a exclusão, o servidor é a verdade.
+ */
+export async function removerTombstone(chave: string): Promise<void> {
+  tombstones.delete(chave);
+  const org = orgAtual();
+  if (!org) return;
+  await aplicarAtomico(org, [{ store: 'tombstones', acao: 'delete', chave }]);
+}
+
 export async function carregarTombstonesDoDisco(): Promise<void> {
   const org = orgAtual();
   if (!org) return;
@@ -283,13 +316,18 @@ async function enviarItem(item: ItemFila): Promise<boolean> {
     await marcarEstado(item.mutationId, 'aguardando', erro);
     const cat = fila.get(item.mutationId)?.erro?.categoria;
     if (cat && RECUSAS_DEFINITIVAS.has(cat)) {
-      // Encerrada: o servidor nunca vai aceitar. Sai da fila para não virar
-      // pendência eterna; o motivo fica no log para quem for investigar.
+      // Encerrada: o servidor nunca vai aceitar. PARA de ser tentada, mas
+      // continua na fila — até 16/08/2026 ela era removida aqui com um
+      // `console.warn`, e a única falha de sync do sistema capaz de apagar uma
+      // mutação sem o usuário saber era esta. Quem tira é `descartarEncerrada`.
       console.warn(
         `[sync] operação encerrada — o servidor recusou definitivamente ${item.op} de "${item.chave}".`,
         fila.get(item.mutationId)?.erro?.detalhe?.mensagemOriginal ?? '',
       );
-      await removerDaFila(item.mutationId);
+      await marcarEstado(item.mutationId, 'encerrado');
+      // Exclusão recusada: o registro continua vivo no servidor, então a marca
+      // local de exclusão precisa sair para a hidratação repô-lo.
+      if (item.op === 'del') await removerTombstone(item.chave);
       return false;
     }
     if (cat && DEFINITIVAS.has(cat)) await marcarEstado(item.mutationId, 'falha_definitiva');
@@ -362,6 +400,9 @@ export async function drenar(): Promise<{ enviados: number; falhas: number }> {
 
   for (const item of [...fila.values()]) {
     if (item.estado === 'conflito') continue; // aguarda decisão do usuário
+    // Encerrada pelo servidor: não existe tentativa que passe, e ela também não
+    // é falha a corrigir. Fica listada, fora da contagem e fora da rede.
+    if (item.estado === 'encerrado') continue;
     // Já sabemos que não passa sozinha: retentar a cada drenagem só gasta
     // requisição e mantém o selo em falha. Sai daqui por `tentarNovamente`,
     // que é ação explícita do usuário.
@@ -425,5 +466,17 @@ export function zerarThrottleSync(): void {
 export async function tentarNovamente(mutationId: string): Promise<void> {
   const item = fila.get(mutationId);
   if (!item) return;
+  if (item.estado === 'encerrado') return; // gastaria requisição para a mesma recusa
   await enviarItem(item);
+}
+
+/**
+ * Tira da fila uma mutação ENCERRADA. É a única saída dela, e é ação explícita
+ * do usuário na tela de Pendências — que é a diferença entre "o usuário
+ * dispensou" e "o app apagou sem avisar". Item em qualquer outro estado é
+ * ignorado: aí ainda existe trabalho a subir.
+ */
+export async function descartarEncerrada(mutationId: string): Promise<void> {
+  if (fila.get(mutationId)?.estado !== 'encerrado') return;
+  await removerDaFila(mutationId);
 }
