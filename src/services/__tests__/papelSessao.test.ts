@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ehCliente, papelDaSessao } from '../papelSessao';
 
 describe('papelSessao', () => {
@@ -32,15 +32,16 @@ describe('papelSessao', () => {
   // Janela anônima / armazenamento bloqueado: ler o papel não pode lançar, senão
   // derruba a resolução de QUALQUER foto — inclusive a do sistema interno.
   it('localStorage indisponível não derruba a leitura', () => {
-    const orig = Storage.prototype.getItem;
-    Storage.prototype.getItem = () => {
+    // Espiona a INSTÂNCIA, não `Storage.prototype`: o shim do vitest.setup.ts
+    // fornece um objeto `localStorage` sem expor o construtor `Storage` global.
+    const espiao = vi.spyOn(localStorage, 'getItem').mockImplementation(() => {
       throw new Error('armazenamento bloqueado');
-    };
+    });
     try {
       expect(papelDaSessao()).toBe('');
       expect(ehCliente()).toBe(false);
     } finally {
-      Storage.prototype.getItem = orig;
+      espiao.mockRestore();
     }
   });
 });
