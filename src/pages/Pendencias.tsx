@@ -1,5 +1,17 @@
 import { useState } from 'react';
-import { listarFila, tentarNovamente, descartarEncerrada, type ItemFila } from '../services/sync';
+import {
+  listarFila,
+  tentarNovamente,
+  descartarEncerrada,
+  conflitosPendentes,
+  conflitosResolvidos,
+  resolverMantendoLocal,
+  resolverUsandoServidor,
+  descartarSubstituida,
+  type ItemFila,
+  type RegistroConflito,
+} from '../services/sync';
+import { rotuloDaChave, resumoDoValor } from '../features/documentos/rotuloChave';
 import { rotuloEstado, pendenciaVelha, resumoSelo } from '../services/selo';
 import { diagnosticarPerda } from '../services/manifesto';
 import { erroDoManifesto } from '../services/manifesto';
@@ -19,12 +31,23 @@ export default function Pendencias() {
   const perda = diagnosticarPerda(listarFila(), true);
   const erroManifesto = erroDoManifesto();
 
-  const recarregar = () => setItens(listarFila());
+  const [conflitos, setConflitos] = useState<RegistroConflito[]>(() => conflitosPendentes());
+  const [substituidas, setSubstituidas] = useState<RegistroConflito[]>(() => conflitosResolvidos());
+
+  const recarregar = () => {
+    setItens(listarFila());
+    setConflitos(conflitosPendentes());
+    setSubstituidas(conflitosResolvidos());
+  };
 
   // Encerradas ficam SEPARADAS: não têm "tentar de novo" (o servidor não muda de
   // ideia) e não entram na contagem do selo. Ficam listadas porque a alteração
   // existiu e não chegou ao servidor — o usuário precisa saber disso.
-  const pendentes = itens.filter((i) => i.estado !== 'encerrado');
+  //
+  // Conflito sai da lista comum pelo mesmo motivo, e por um mais forte: para ele
+  // "Tentar de novo" não é inútil, é DESTRUTIVO (ver comentário em
+  // `sync.tentarNovamente`). Ele tem tela própria, com as duas versões.
+  const pendentes = itens.filter((i) => i.estado !== 'encerrado' && i.estado !== 'conflito');
   const encerradas = itens.filter((i) => i.estado === 'encerrado');
 
   const retentar = async (mutationId: string) => {
@@ -51,6 +74,27 @@ export default function Pendencias() {
     setOcupado(true);
     try {
       await descartarEncerrada(mutationId);
+    } finally {
+      setOcupado(false);
+      recarregar();
+    }
+  };
+
+  const escolher = async (chave: string, lado: 'local' | 'servidor') => {
+    setOcupado(true);
+    try {
+      if (lado === 'local') await resolverMantendoLocal(chave);
+      else await resolverUsandoServidor(chave);
+    } finally {
+      setOcupado(false);
+      recarregar();
+    }
+  };
+
+  const descartarLadoPerdedor = async (chave: string) => {
+    setOcupado(true);
+    try {
+      await descartarSubstituida(chave);
     } finally {
       setOcupado(false);
       recarregar();
@@ -124,7 +168,85 @@ export default function Pendencias() {
         </div>
       )}
 
-      {pendentes.length === 0 && <p className="pendencias__vazio">Tudo sincronizado.</p>}
+      {conflitos.length > 0 && (
+        <section className="pendencias__conflitos">
+          <h2>Precisa da sua decisão</h2>
+          <p>
+            Estes itens foram alterados em mais de um aparelho. As duas versões estão guardadas —
+            nenhuma é descartada até você escolher.
+          </p>
+
+          {conflitos.map((c) => (
+            <article key={c.chave} className="conflito">
+              <h3 className="conflito__titulo">{rotuloDaChave(c.chave)}</h3>
+
+              <div className="conflito__lados">
+                <div className="conflito__lado">
+                  <span className="conflito__rot">Neste aparelho</span>
+                  <p className="conflito__resumo">{resumoDoValor(c.local?.valor)}</p>
+                  <p className="conflito__meta">
+                    {c.local?.atualizadoEm ?? '—'}
+                    {c.local?.dispositivo ? ` · ${c.local.dispositivo}` : ''}
+                  </p>
+                  <button
+                    type="button"
+                    disabled={ocupado}
+                    onClick={() => void escolher(c.chave, 'local')}
+                  >
+                    Manter a minha
+                  </button>
+                </div>
+
+                <div className="conflito__lado">
+                  <span className="conflito__rot">No servidor</span>
+                  <p className="conflito__resumo">{resumoDoValor(c.remoto?.valor)}</p>
+                  <p className="conflito__meta">
+                    {c.remoto?.atualizadoEm ?? '—'}
+                    {c.remoto?.dispositivo ? ` · ${c.remoto.dispositivo}` : ''}
+                  </p>
+                  <button
+                    type="button"
+                    disabled={ocupado}
+                    onClick={() => void escolher(c.chave, 'servidor')}
+                  >
+                    Usar a do servidor
+                  </button>
+                </div>
+              </div>
+
+              {/* Não decidir é uma opção legítima e é o estado atual: nada aqui
+                  escolhe sozinho. O item continua contado no selo. */}
+              <p className="conflito__adiar">
+                Pode decidir depois — nada se perde enquanto você não escolher.
+              </p>
+
+              <details className="pendencia__detalhes">
+                <summary>Detalhes técnicos</summary>
+                <dl>
+                  <dt>Chave</dt>
+                  <dd>
+                    <code>{c.chave}</code>
+                  </dd>
+                  <dt>Detectado em</dt>
+                  <dd>{c.detectadoEm}</dd>
+                  <dt>Versão neste aparelho</dt>
+                  <dd>
+                    <code>{c.local?.valor ?? '(sem valor local)'}</code>
+                  </dd>
+                  <dt>Versão no servidor</dt>
+                  <dd>
+                    <code>{c.remoto?.valor ?? '(chave não existe mais no servidor)'}</code>
+                  </dd>
+                </dl>
+              </details>
+            </article>
+          ))}
+        </section>
+      )}
+
+      {pendentes.length === 0 && conflitos.length === 0 && (
+        <p className="pendencias__vazio">Tudo sincronizado.</p>
+      )}
 
       {pendentes.map((item) => (
         <article key={item.mutationId} className={`pendencia pendencia--${item.estado}`}>
@@ -226,6 +348,51 @@ export default function Pendencias() {
               )}
             </article>
           ))}
+        </section>
+      )}
+
+      {substituidas.length > 0 && (
+        <section className="pendencias__encerradas">
+          <h2>Versões substituídas</h2>
+          <p>
+            O lado que você não escolheu continua guardado aqui. Descartar é decisão sua — o sistema
+            não apaga versão nenhuma sozinho.
+          </p>
+
+          {substituidas.map((c) => {
+            const perdedor = c.resolucao?.escolha === 'local' ? c.remoto : c.local;
+            const ondeVinha = c.resolucao?.escolha === 'local' ? 'do servidor' : 'deste aparelho';
+            return (
+              <article key={c.chave} className="pendencia pendencia--encerrado">
+                <h3 className="pendencia__chave">{rotuloDaChave(c.chave)}</h3>
+                <p className="pendencia__estado">Versão {ondeVinha}, substituída</p>
+                <p className="pendencia__explicacao">{resumoDoValor(perdedor?.valor)}</p>
+                <p className="pendencia__quando">
+                  {perdedor?.atualizadoEm ?? '—'} · decidido em {c.resolucao?.em}
+                </p>
+                <button
+                  type="button"
+                  disabled={ocupado}
+                  onClick={() => void descartarLadoPerdedor(c.chave)}
+                >
+                  Descartar
+                </button>
+                <details className="pendencia__detalhes">
+                  <summary>Detalhes técnicos</summary>
+                  <dl>
+                    <dt>Chave</dt>
+                    <dd>
+                      <code>{c.chave}</code>
+                    </dd>
+                    <dt>Conteúdo</dt>
+                    <dd>
+                      <code>{perdedor?.valor ?? '(vazio)'}</code>
+                    </dd>
+                  </dl>
+                </details>
+              </article>
+            );
+          })}
         </section>
       )}
 
