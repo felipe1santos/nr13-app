@@ -27,6 +27,7 @@
 import { supabase, escopoStorageAtual } from './supabase';
 import * as cofre from './fotoStore';
 import { comprimirParaBlob } from './imagem';
+import { ehCliente } from './papelSessao';
 
 export const BUCKET = 'inspecao';
 
@@ -287,9 +288,50 @@ export function limparCacheDeUrls(): void {
   assinadas.clear();
 }
 
+/**
+ * TTL da URL que a Edge do Portal emite. Menor que o do sistema interno de
+ * propósito — ver o comentário em `supabase/functions/portal_arquivo/index.ts`.
+ * Precisa acompanhar o `TTL_S` de lá; se divergirem, o cache local guardaria uma
+ * URL já vencida e a imagem quebraria de forma intermitente.
+ */
+const URL_TTL_PORTAL_S = 300;
+/** Margem menor, proporcional ao TTL: 5 min de margem num TTL de 5 min zeraria o cache. */
+const MARGEM_PORTAL_MS = 30 * 1000;
+
+/**
+ * URL do arquivo para uma conta de CLIENTE, emitida pela Edge `portal_arquivo`.
+ *
+ * O cliente não fala com o Storage direto: desde a Fase 0-B a policy do bucket
+ * recusa leitura para `papel='cliente'` (D-04), e a Edge é quem confere se o
+ * caminho pedido está referenciado por algum recurso daquele cliente (D-05).
+ *
+ * NÃO existe fallback para o SDK aqui, e isso é deliberado: cair no SDK
+ * mascararia a recusa enquanto a policy antiga ainda permitisse, e o defeito só
+ * apareceria no dia em que o SQL fosse aplicado — que é exatamente o momento em
+ * que menos se quer descobrir uma surpresa.
+ */
+async function urlAssinadaPortal(path: string): Promise<string | null> {
+  try {
+    const { data, error } = await supabase.functions.invoke('portal_arquivo', { body: { path } });
+    if (error) return null;
+    const url = (data as { url?: unknown } | null)?.url;
+    return typeof url === 'string' && url ? url : null;
+  } catch {
+    return null;
+  }
+}
+
 async function urlAssinada(path: string): Promise<string | null> {
   const cacheado = assinadas.get(path);
   if (cacheado && cacheado.expiraEm > Date.now()) return cacheado.url;
+
+  if (ehCliente()) {
+    const url = await urlAssinadaPortal(path);
+    if (!url) return null;
+    assinadas.set(path, { url, expiraEm: Date.now() + URL_TTL_PORTAL_S * 1000 - MARGEM_PORTAL_MS });
+    return url;
+  }
+
   try {
     const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, URL_TTL_S);
     if (error || !data?.signedUrl) return null;
@@ -346,6 +388,22 @@ export async function baixarFoto(ref: RefFoto): Promise<Blob | null> {
   } catch {
     // segue para o bucket
   }
+
+  // Cliente do Portal: pela URL que a Edge emite, nunca por `storage.download`
+  // — que a policy da Fase 0-B recusa para este papel. O cofre acima continua
+  // valendo e é tentado primeiro, como para todo mundo.
+  if (ehCliente()) {
+    const url = await urlAssinada(ref.path);
+    if (!url) return null;
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) return null;
+      return await resp.blob();
+    } catch {
+      return null;
+    }
+  }
+
   try {
     const { data, error } = await supabase.storage.from(BUCKET).download(ref.path);
     if (error || !data) return null;
