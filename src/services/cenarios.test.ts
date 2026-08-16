@@ -125,10 +125,20 @@ describe('4 — dois aparelhos enviando a mesma versaoBase', () => {
     expect(cache.obterRegistro('nr13_form_A')?.valor).toBe('{"origem":"celular"}');
     expect(sync.itemDaChave('nr13_form_A')?.estado).toBe('conflito');
 
-    const guardados = await db.listarTudo<{ valor: string }>(ORG, 'dados');
-    const conflitos = guardados.filter((g) => g.chave.startsWith('nr13_conflito_'));
+    // Desde a Fase 3 a cópia vive na store `conflitos`, uma por chave, fora de
+    // `dados` — e por isso fora do Map. Antes ela era `nr13_conflito_<chave>__<ts>`
+    // dentro de `dados`, entrava no cache de leitura e crescia a cada tentativa.
+    const conflitos = await db.listarTudo<{ remoto: { valor: string }; local: { valor: string } }>(
+      ORG,
+      'conflitos',
+    );
     expect(conflitos).toHaveLength(1);
-    expect(conflitos[0].valor.valor).toBe('{"origem":"escritorio"}');
+    expect(conflitos[0].chave).toBe('nr13_form_A');
+    expect(conflitos[0].valor.remoto.valor).toBe('{"origem":"escritorio"}');
+    expect(conflitos[0].valor.local.valor).toBe('{"origem":"celular"}');
+
+    const dados = await db.listarTudo<unknown>(ORG, 'dados');
+    expect(dados.filter((g) => g.chave.startsWith('nr13_conflito_'))).toEqual([]);
   });
 });
 

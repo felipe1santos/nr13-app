@@ -219,12 +219,11 @@ describe('drenar — conflito preserva AS DUAS versões', () => {
     expect(obterRegistro('nr13_form_A')?.valor).toBe('{"origem":"celular"}');
     expect(itemDaChave('nr13_form_A')?.estado).toBe('conflito');
 
-    // A do servidor foi preservada à parte.
-    const guardados = await listarTudo<Registro>(ORG, 'dados');
-    const conflitos = guardados.filter((g) => g.chave.startsWith('nr13_conflito_'));
+    // A do servidor foi preservada à parte — na store `conflitos` desde a Fase 3.
+    const conflitos = await listarTudo<{ remoto: Registro }>(ORG, 'conflitos');
     expect(conflitos).toHaveLength(1);
-    expect(conflitos[0].valor.valor).toBe('{"origem":"escritorio"}');
-    expect(conflitos[0].valor.dispositivo).toBe('desktop-1');
+    expect(conflitos[0].valor.remoto.valor).toBe('{"origem":"escritorio"}');
+    expect(conflitos[0].valor.remoto.dispositivo).toBe('desktop-1');
   });
 
   it('item em conflito NÃO é reenviado automaticamente na próxima drenagem', async () => {

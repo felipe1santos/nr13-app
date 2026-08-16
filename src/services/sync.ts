@@ -11,7 +11,13 @@
  * Dado sem fila nunca sobe ao servidor; fila sem dado sobe lixo.
  */
 import { aplicarAtomico, listarTudo } from './db';
-import { orgAtual, obterRegistro, gravarAtomico, type Registro } from './cacheLocal';
+import {
+  orgAtual,
+  obterRegistro,
+  gravarAtomico,
+  removerDaMemoria,
+  type Registro,
+} from './cacheLocal';
 import { classificar, type ErroSync } from './errosSync';
 import { interpretarResposta } from './contratoRpc';
 import { supabase } from './supabase';
@@ -43,9 +49,47 @@ export interface ItemFila {
   tentativas: number;
   estado: EstadoItem;
   erro?: ErroSync;
+  /**
+   * `mutationId` da mutação que terminou em conflito e que ESTA resolve.
+   *
+   * Só a resolução de conflito preenche. Medido contra o banco em 16/08/2026
+   * (docs/medicoes/2026-08-16-fase3-mutationid.md): a tentativa que dá conflito
+   * fica registrada no servidor com esse resultado, então reenviar o mesmo id
+   * devolve `repetido` com o valor do SERVIDOR — sem gravar nada. A resolução
+   * precisa de id NOVO; este campo é o vínculo com o original, para auditoria.
+   */
+  resolveDe?: string;
+}
+
+/**
+ * A cópia guardada quando duas versões da mesma chave divergem. UMA por chave —
+ * a cópia relevante é a mais recente do servidor, e guardar uma por tentativa
+ * era o vazamento que enchia o cache.
+ */
+export interface RegistroConflito {
+  chave: string;
+  /** Item da fila em conflito. `null` depois de resolvido. */
+  mutationId: string | null;
+  /** Versão do servidor no momento da detecção. */
+  remoto: Registro | null;
+  /** Versão local no momento da detecção — preservada para o usuário comparar. */
+  local: Registro | null;
+  detectadoEm: string;
+  /**
+   * Preenchido quando o usuário decide. O lado PERDEDOR continua guardado aqui
+   * até ele mandar descartar: escolher um lado não pode apagar o outro em
+   * silêncio, nos dois sentidos (I-05).
+   */
+  resolucao?: { escolha: 'local' | 'servidor'; em: string };
 }
 
 const CHAVE_DISPOSITIVO = 'nr13_dispositivo_id';
+
+/**
+ * Prefixo que a versão anterior usava para guardar a cópia do conflito DENTRO
+ * da store `dados`. Só a migração o conhece; nada novo grava com ele.
+ */
+const PREFIXO_CONFLITO_ANTIGO = 'nr13_conflito_';
 
 /** mutationId -> item */
 const fila = new Map<string, ItemFila>();
@@ -261,16 +305,77 @@ export async function carregarTombstonesDoDisco(): Promise<void> {
 // Drenagem
 // ---------------------------------------------------------------------------
 
-/**
- * Guarda o lado perdedor de um conflito. Nenhuma versão é descartada sem
- * alguém escolher — dado de inspeção em campo não se refaz.
- */
-export async function guardarConflito(chave: string, perdedor: Registro): Promise<void> {
+// ---------------------------------------------------------------------------
+// Conflitos
+// ---------------------------------------------------------------------------
+// A cópia da versão do servidor vivia em `dados`, sob
+// `nr13_conflito_<chave>__<Date.now()>`. Três defeitos num só lugar:
+// `hidratarDoDisco` carrega `dados` inteira no Map (a cópia virava cache de
+// leitura), nenhuma família de chave a conhecia (caía em escopo 'global', nunca
+// indexada nem limpa), e cada retentativa gravava MAIS UMA, sem teto.
+//
+// Agora: store própria, uma entrada por chave, fora do Map.
+
+/** chave -> cópia do conflito */
+const conflitos = new Map<string, RegistroConflito>();
+
+export function zerarConflitosMemoria(): void {
+  conflitos.clear();
+}
+
+export function listarConflitos(): RegistroConflito[] {
+  return [...conflitos.values()];
+}
+
+export function conflitoDaChave(chave: string): RegistroConflito | null {
+  return conflitos.get(chave) ?? null;
+}
+
+/** Conflitos ainda SEM decisão — é o que a tela cobra do usuário. */
+export function conflitosPendentes(): RegistroConflito[] {
+  return listarConflitos().filter((c) => !c.resolucao);
+}
+
+/** Versões perdedoras guardadas, à espera de descarte explícito. */
+export function conflitosResolvidos(): RegistroConflito[] {
+  return listarConflitos().filter((c) => c.resolucao);
+}
+
+export async function carregarConflitosDoDisco(): Promise<void> {
   const org = orgAtual();
   if (!org) return;
-  await aplicarAtomico(org, [
-    { store: 'dados', acao: 'put', chave: `nr13_conflito_${chave}__${Date.now()}`, valor: perdedor },
-  ]);
+  for (const { valor } of await listarTudo<RegistroConflito>(org, 'conflitos')) {
+    if (valor?.chave) conflitos.set(valor.chave, valor);
+  }
+}
+
+async function persistirConflito(c: RegistroConflito): Promise<void> {
+  conflitos.set(c.chave, c);
+  const org = orgAtual();
+  if (!org) return;
+  await aplicarAtomico(org, [{ store: 'conflitos', acao: 'put', chave: c.chave, valor: c }]);
+}
+
+/**
+ * Guarda AS DUAS versões de um conflito. Nenhuma é descartada sem alguém
+ * escolher — dado de inspeção em campo não se refaz.
+ *
+ * Sobrescreve a cópia anterior da mesma chave de propósito: o que o usuário
+ * precisa comparar é a versão vigente no servidor, não o histórico de
+ * tentativas fracassadas.
+ */
+export async function guardarConflito(
+  chave: string,
+  remoto: Registro | null,
+  mutationId: string,
+): Promise<void> {
+  await persistirConflito({
+    chave,
+    mutationId,
+    remoto,
+    local: obterRegistro(chave),
+    detectadoEm: new Date().toISOString(),
+  });
 }
 
 /**
@@ -345,16 +450,20 @@ async function enviarItem(item: ItemFila): Promise<boolean> {
   }
 
   if (r.status === 'conflito') {
-    // As DUAS sobrevivem: a do servidor vira nr13_conflito_*, a local segue na
-    // fila marcada, e o usuário escolhe em /pendencias.
-    if (r.valor !== null) {
-      await guardarConflito(item.chave, {
-        valor: r.valor,
-        versao: r.versao,
-        atualizadoEm: r.atualizadoEm,
-        dispositivo: r.dispositivo,
-      });
-    }
+    // As DUAS sobrevivem: a do servidor vai para a store `conflitos`, a local
+    // segue na fila marcada, e o usuário escolhe em /pendencias.
+    await guardarConflito(
+      item.chave,
+      r.valor === null
+        ? null
+        : {
+            valor: r.valor,
+            versao: r.versao,
+            atualizadoEm: r.atualizadoEm,
+            dispositivo: r.dispositivo,
+          },
+      item.mutationId,
+    );
     await marcarEstado(item.mutationId, 'conflito', {
       code: 'nr13_conflito',
       message: 'versão divergente',
@@ -467,6 +576,16 @@ export async function tentarNovamente(mutationId: string): Promise<void> {
   const item = fila.get(mutationId);
   if (!item) return;
   if (item.estado === 'encerrado') return; // gastaria requisição para a mesma recusa
+  // CONFLITO NÃO SE RESOLVE RETENTANDO — e retentar aqui DESTRÓI a edição.
+  //
+  // Medido contra o banco em 16/08/2026: a tentativa que deu conflito fica
+  // registrada no servidor, então o mesmo `mutationId` volta como `repetido`
+  // carregando o valor do SERVIDOR. `enviarItem` trata `repetido` como sucesso:
+  // carimba a versão do servidor no registro local (que ainda tem o valor do
+  // usuário) e remove o item da fila. A edição fica só no aparelho, com versão
+  // alta demais para `aplicarRemoto` corrigir — divergência permanente, sem
+  // pendência, sem erro. Quem resolve conflito é o usuário, em /pendencias.
+  if (item.estado === 'conflito') return;
   await enviarItem(item);
 }
 
@@ -476,6 +595,175 @@ export async function tentarNovamente(mutationId: string): Promise<void> {
  * dispensou" e "o app apagou sem avisar". Item em qualquer outro estado é
  * ignorado: aí ainda existe trabalho a subir.
  */
+// ---------------------------------------------------------------------------
+// Resolução de conflito
+// ---------------------------------------------------------------------------
+
+/**
+ * "Manter a minha": manda o valor LOCAL para o servidor, por cima da versão
+ * dele.
+ *
+ * Cria mutação NOVA, e isso foi decidido por medição, não por gosto
+ * (docs/medicoes/2026-08-16-fase3-mutationid.md): a tentativa que deu conflito
+ * fica registrada no servidor com `resultado.status = 'conflito'`, então
+ * reenviar o MESMO `mutationId` cai no caminho rápido de idempotência e devolve
+ * `repetido` — carregando o valor do SERVIDOR, sem gravar nada. Como
+ * `enviarItem` trata `repetido` como sucesso, reusar o id apagaria a edição do
+ * usuário em silêncio.
+ *
+ * Não é violação de I-03: a idempotência protege contra reenviar A MESMA
+ * mutação. Esta é outra — mesma intenção de valor, base diferente, decisão
+ * humana no meio. `resolveDe` guarda o vínculo.
+ *
+ * A troca vai numa transação só (I-01): remover o original e depois criar o
+ * novo deixaria uma janela em que a alteração do usuário não está em fila
+ * nenhuma — fechar o navegador ali a perderia.
+ */
+export async function resolverMantendoLocal(chave: string): Promise<void> {
+  const c = conflitos.get(chave);
+  if (!c || c.resolucao) return;
+  const original = c.mutationId ? fila.get(c.mutationId) : null;
+  if (!original) return;
+
+  const novo: ItemFila = {
+    mutationId: crypto.randomUUID(),
+    resolveDe: original.mutationId,
+    op: original.op,
+    chave: original.chave,
+    valor: original.valor,
+    // A base é a versão do SERVIDOR. Sem isso a RPC recusaria para sempre: o
+    // servidor está numa versão que o aparelho nunca esperou.
+    versaoBase: c.remoto?.versao ?? original.versaoBase,
+    dispositivo: idDispositivo(),
+    criadoEm: new Date().toISOString(),
+    tentativas: 0,
+    estado: 'aguardando',
+  };
+
+  const resolvido: RegistroConflito = {
+    ...c,
+    mutationId: null,
+    resolucao: { escolha: 'local', em: new Date().toISOString() },
+  };
+
+  const org = orgAtual();
+  if (org) {
+    await aplicarAtomico(org, [
+      { store: 'fila', acao: 'put', chave: novo.mutationId, valor: novo },
+      { store: 'fila', acao: 'delete', chave: original.mutationId },
+      { store: 'conflitos', acao: 'put', chave, valor: resolvido },
+    ]);
+  }
+
+  fila.delete(original.mutationId);
+  removerPendencia(original.mutationId);
+  fila.set(novo.mutationId, novo);
+  registrarPendencias([novo]);
+  conflitos.set(chave, resolvido);
+}
+
+/**
+ * "Usar a do servidor": aplica o valor remoto no cache e encerra a pendência.
+ *
+ * Não toca na rede — o servidor já tem esse valor. Funciona 100% offline, que é
+ * o caso de uso real: conflito nasce de trabalho offline.
+ *
+ * O valor LOCAL não é apagado: ele fica em `local`, marcado como substituído,
+ * até o usuário mandar descartar. O plano macro previa apagar a cópia aqui, o
+ * que descartaria a versão do usuário sem ela existir em lugar nenhum — o
+ * espelho exato do problema que esta fase conserta.
+ */
+export async function resolverUsandoServidor(chave: string): Promise<void> {
+  const c = conflitos.get(chave);
+  if (!c || c.resolucao) return;
+
+  const resolvido: RegistroConflito = {
+    ...c,
+    mutationId: null,
+    resolucao: { escolha: 'servidor', em: new Date().toISOString() },
+  };
+
+  const extras: Parameters<typeof gravarAtomico>[3] = [
+    { store: 'conflitos', acao: 'put', chave, valor: resolvido },
+  ];
+  if (c.mutationId) extras.push({ store: 'fila', acao: 'delete', chave: c.mutationId });
+
+  // Dado + fila + conflito na mesma transação: o Map só perde a versão local
+  // depois de o commit confirmar.
+  await gravarAtomico(c.remoto ? [{ chave, registro: c.remoto }] : [{ chave, remover: true }], [], [], extras);
+
+  if (c.mutationId) {
+    fila.delete(c.mutationId);
+    removerPendencia(c.mutationId);
+  }
+  conflitos.set(chave, resolvido);
+}
+
+/**
+ * Descarta a versão perdedora de um conflito JÁ RESOLVIDO. Ação explícita do
+ * usuário — conflito sem decisão nunca é apagado por aqui.
+ */
+export async function descartarSubstituida(chave: string): Promise<void> {
+  const c = conflitos.get(chave);
+  if (!c?.resolucao) return;
+  conflitos.delete(chave);
+  const org = orgAtual();
+  if (!org) return;
+  await aplicarAtomico(org, [{ store: 'conflitos', acao: 'delete', chave }]);
+}
+
+/**
+ * Traz para a store `conflitos` as cópias que a versão antiga deixou em
+ * `dados`, sob `nr13_conflito_<chave>__<timestamp>`.
+ *
+ * Fica a MAIS RECENTE por chave (o timestamp está no nome). Grava o destino
+ * ANTES de remover a origem, e não sobrescreve conflito novo já existente para
+ * a mesma chave — o novo tem mais informação (as duas versões, o mutationId).
+ * Idempotente: sem cópia antiga nenhuma, não faz nada.
+ */
+export async function migrarConflitosAntigos(): Promise<number> {
+  const org = orgAtual();
+  if (!org) return 0;
+
+  const antigas = (await listarTudo<Registro>(org, 'dados')).filter((d) =>
+    d.chave.startsWith(PREFIXO_CONFLITO_ANTIGO),
+  );
+  if (antigas.length === 0) return 0;
+
+  /** `nr13_conflito_<chave>__<ts>` -> { chave, ts } */
+  const maisRecente = new Map<string, { ts: number; valor: Registro }>();
+  for (const { chave, valor } of antigas) {
+    const resto = chave.slice(PREFIXO_CONFLITO_ANTIGO.length);
+    const corte = resto.lastIndexOf('__');
+    if (corte <= 0) continue;
+    const original = resto.slice(0, corte);
+    const ts = Number(resto.slice(corte + 2)) || 0;
+    const atual = maisRecente.get(original);
+    if (!atual || ts > atual.ts) maisRecente.set(original, { ts, valor });
+  }
+
+  const ops: Array<{ store: 'dados' | 'conflitos'; acao: 'put' | 'delete'; chave: string; valor?: unknown }> = [];
+  for (const [chave, { valor }] of maisRecente) {
+    if (conflitos.has(chave)) continue; // conflito novo vence: sabe mais
+    const registro: RegistroConflito = {
+      chave,
+      mutationId: itemDaChave(chave)?.mutationId ?? null,
+      remoto: valor,
+      local: obterRegistro(chave),
+      detectadoEm: valor.atualizadoEm ?? new Date().toISOString(),
+    };
+    conflitos.set(chave, registro);
+    ops.push({ store: 'conflitos', acao: 'put', chave, valor: registro });
+  }
+  // A remoção da origem entra na MESMA transação da gravação do destino: nunca
+  // apagar o que ainda não foi guardado.
+  for (const { chave } of antigas) ops.push({ store: 'dados', acao: 'delete', chave });
+
+  await aplicarAtomico(org, ops);
+  for (const { chave } of antigas) removerDaMemoria(chave);
+  return maisRecente.size;
+}
+
 export async function descartarEncerrada(mutationId: string): Promise<void> {
   if (fila.get(mutationId)?.estado !== 'encerrado') return;
   await removerDaFila(mutationId);

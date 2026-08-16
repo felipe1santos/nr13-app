@@ -89,6 +89,12 @@ export async function iniciar(): Promise<boolean> {
   await cache.hidratarDoDisco();
   await sync.carregarFilaDoDisco();
   await sync.carregarTombstonesDoDisco();
+  await sync.carregarConflitosDoDisco();
+  // Cópias de conflito que a versão anterior deixou DENTRO de `dados` (e que a
+  // hidratação acabou de trazer para o Map) vão para a store própria. Depois de
+  // `hidratarDoDisco` de propósito: a migração precisa do Map para saber qual é
+  // a versão local de cada chave em conflito.
+  await sync.migrarConflitosAntigos().catch(() => 0);
   iniciado = true;
   return true;
 }
@@ -466,6 +472,7 @@ export function limparCacheDados(): void {
   cache.zerarMemoria();
   sync.zerarFilaMemoria();
   sync.zerarTombstonesMemoria();
+  sync.zerarConflitosMemoria();
   fecharDb();
   cache.definirOrg(null);
   iniciado = false;
