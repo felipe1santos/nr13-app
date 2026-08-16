@@ -21,6 +21,11 @@ const NOMES: Array<[string, string]> = [
   ['nr13_emp_', 'Cliente do equipamento'],
   ['nr13_fotos_', 'Fotos do equipamento'],
   ['nr13_med_esp_', 'Medição de espessura'],
+  // Apareceu num conflito real na validação de 16/08/2026 e caiu no fallback:
+  // o card mostrava `nr13_pref_unidade_ZZ-P2`. É uma das chaves que MAIS
+  // conflitam, porque muda com um clique no card do equipamento, em qualquer
+  // aparelho.
+  ['nr13_pref_unidade_', 'Unidade de medida'],
   ['nr13_med_grid_', 'Grade de espessuras'],
   ['nr13_livro_config_', 'Configuração do livro'],
   ['nr13_livro_', 'Livro de Registro de Segurança'],

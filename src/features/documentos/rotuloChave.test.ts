@@ -11,6 +11,8 @@ describe('rótulo da chave', () => {
   it('traduz a família e mostra a TAG do equipamento', () => {
     expect(rotuloDaChave('nr13_info_VP-01')).toBe('Ficha do equipamento · VP-01');
     expect(rotuloDaChave('nr13_med_esp_CALD-2')).toBe('Medição de espessura · CALD-2');
+    // Muda com um clique no card, em qualquer aparelho: é das que mais conflitam.
+    expect(rotuloDaChave('nr13_pref_unidade_ZZ-P2')).toBe('Unidade de medida · ZZ-P2');
   });
 
   it('usa o prefixo MAIS LONGO — senão o específico vira o genérico', () => {
