@@ -12,6 +12,7 @@ import {
   type RegistroConflito,
 } from '../services/sync';
 import { rotuloDaChave, resumoDoValor } from '../features/documentos/rotuloChave';
+import { flushFila } from '../services/storage';
 import { rotuloEstado, pendenciaVelha, resumoSelo } from '../services/selo';
 import { diagnosticarPerda } from '../services/manifesto';
 import { erroDoManifesto } from '../services/manifesto';
@@ -83,8 +84,18 @@ export default function Pendencias() {
   const escolher = async (chave: string, lado: 'local' | 'servidor') => {
     setOcupado(true);
     try {
-      if (lado === 'local') await resolverMantendoLocal(chave);
-      else await resolverUsandoServidor(chave);
+      if (lado === 'local') {
+        await resolverMantendoLocal(chave);
+        // Decidiu, sobe. Sem isto a mutação da resolução ficava esperando o
+        // próximo evento de `online`/`visibilitychange` — medido em produção
+        // em 16/08/2026: a fila ficava com o item em "aguardando" depois de o
+        // usuário já ter decidido, e a tela não dava sinal de que faltava algo.
+        // Falhar aqui não desfaz nada: o item continua na fila e sobe depois.
+        await flushFila().catch(() => undefined);
+      } else {
+        // "Usar a do servidor" não precisa de rede: o servidor já tem o valor.
+        await resolverUsandoServidor(chave);
+      }
     } finally {
       setOcupado(false);
       recarregar();
@@ -110,9 +121,22 @@ export default function Pendencias() {
       <header className={`pendencias-hero nivel-${resumo.nivel}`}>
         <div className="pendencias-hero-txt">
           <span className="pendencias-hero-eyebrow">Sincronização</span>
-          <h1>{pendentes.length === 0 ? 'Tudo salvo na nuvem' : resumo.rotulo}</h1>
+          {/* CONFLITO CONTA COMO NÃO-SALVO. Medido em produção em 16/08/2026:
+              com um conflito aberto e nenhuma pendência comum, o título dizia
+              "Tudo salvo na nuvem" enquanto a alteração do usuário NÃO estava no
+              servidor e a tela logo abaixo pedia uma decisão. É exatamente a
+              mentira que esta tela existe para não contar. */}
+          <h1>
+            {conflitos.length > 0
+              ? `${conflitos.length} ${conflitos.length === 1 ? 'decisão' : 'decisões'} para você tomar`
+              : pendentes.length === 0
+                ? 'Tudo salvo na nuvem'
+                : resumo.rotulo}
+          </h1>
           <p>
-            {pendentes.length === 0
+            {conflitos.length > 0
+              ? 'A mesma informação foi alterada em mais de um aparelho. Enquanto você não escolher, a sua versão fica guardada aqui e não vai para o servidor.'
+              : pendentes.length === 0
               ? 'Nada neste aparelho está esperando para subir. Tudo o que você preencheu já está no servidor.'
               : 'Estas alterações estão guardadas no aparelho e ainda não chegaram ao servidor. Elas não se perdem ao fechar o app.'}
           </p>
