@@ -969,3 +969,58 @@
   vertical-align: -2px;
   color: var(--ambar, #d97706);
 }
+
+/* ── Crescimento e armazenamento (Fase 2) ─────────────────────────────────── */
+.admin-crescimento {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line, #e4e7ec);
+}
+.admin-crescimento > h2 {
+  margin: 0 0 14px;
+  font-size: 16px;
+}
+.admin-cards-metricas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+}
+.admin-card-metrica {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 1px solid var(--line, #e4e7ec);
+  border-radius: 10px;
+  background: var(--panel, #fff);
+}
+.admin-card-metrica .rot {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--muted, #667085);
+}
+.admin-card-metrica strong {
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}
+.admin-card-metrica small {
+  font-size: 11.5px;
+  color: var(--muted, #667085);
+}
+.admin-tabela-consumo {
+  width: 100%;
+  margin-top: 16px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.admin-tabela-consumo th,
+.admin-tabela-consumo td {
+  padding: 7px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--line, #e4e7ec);
+}
+.admin-tabela-consumo td:not(:first-child) {
+  font-variant-numeric: tabular-nums;
+}

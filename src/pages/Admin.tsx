@@ -18,6 +18,14 @@ import {
   listarLeadsImportados,
   type LeadImportado,
 } from '../services/leadsImportados';
+import {
+  fmtBytes,
+  fracaoBase64,
+  fmtPercentual,
+  ordenarPorConsumo,
+  type UsoStats,
+  type StorageStats,
+} from './adminMetricas';
 import './admin.css';
 
 interface Profile {
@@ -76,18 +84,8 @@ interface Metricas {
   duracaoMediaMin: number | null;
 }
 
-// Métricas de uso vindas da função SQL admin_usage_stats (supabase/admin_stats.sql).
-interface UsoStats {
-  escopo: string;
-  equip_vaso: number;
-  equip_caldeira: number;
-  equip_autoclave: number;
-  inspecoes: number;
-  relatorios: number;
-  pdf_gerados: number;
-  impressoes: number;
-  subusuarios: number;
-}
+// Métricas de uso e de armazenamento. Os tipos e as funções puras moram em
+// `adminMetricas.ts`, que é onde o contrato com o SQL é testado.
 
 function fmtData(iso: string | null): string {
   if (!iso) return '—';
@@ -247,6 +245,7 @@ export default function Admin() {
   const [eventos, setEventos] = useState<LoginEvent[]>([]);
   const [metas, setMetas] = useState<Map<string, AuthMeta>>(new Map());
   const [uso, setUso] = useState<Map<string, UsoStats>>(new Map());
+  const [storage, setStorage] = useState<Map<string, StorageStats>>(new Map());
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
@@ -330,6 +329,17 @@ export default function Admin() {
         const m = new Map<string, UsoStats>();
         for (const s of usoData as UsoStats[]) m.set(s.escopo, s);
         setUso(m);
+      }
+
+      // Peso do BUCKET por organização. Função separada porque lê
+      // `storage.objects`, que é outro schema — e porque uma delas pode existir
+      // sem a outra durante o deploy. Ausente = a seção de armazenamento não
+      // aparece; o resto da tela não depende dela.
+      const { data: stData, error: stErr } = await supabase.rpc('admin_storage_stats');
+      if (!stErr && Array.isArray(stData)) {
+        const m = new Map<string, StorageStats>();
+        for (const s of stData as StorageStats[]) m.set(s.escopo, s);
+        setStorage(m);
       }
 
       // Leads importados (planilha/cadastro manual). Antes de rodar leads_setup.sql
@@ -1312,6 +1322,9 @@ export default function Admin() {
               <th>PDFs</th>
               <th>Impressões</th>
               <th>Acessos criados</th>
+              <th>Dados</th>
+              <th>Arquivos</th>
+              <th title="profiles.ultima_sync — do USUÁRIO, não do aparelho">Última sync</th>
               <th>Ações</th>
             </tr>
             ) : (
@@ -1331,6 +1344,7 @@ export default function Admin() {
               const m = metricas.get(p.id);
               const meta = metas.get(p.id);
               const s = uso.get(p.id);
+              const sto = storage.get(p.id);
               const ocupado = acaoEmAndamento === p.id;
               const ultimoAcesso = fmtUltimoAcessoSP(meta?.last_sign_in_at ?? null);
               const celAcoes = (
@@ -1446,13 +1460,20 @@ export default function Admin() {
                   <td data-label="PDFs">{s ? s.pdf_gerados : '—'}</td>
                   <td data-label="Impressões">{s ? s.impressoes : '—'}</td>
                   <td data-label="Acessos criados">{s ? s.subusuarios : '—'}</td>
+                  <td data-label="Dados" title={s ? `${s.chaves_total} chaves · ${s.chaves_base64} com base64` : ''}>
+                    {s ? fmtBytes(s.bytes_total) : '—'}
+                  </td>
+                  <td data-label="Arquivos" title={sto ? `${sto.arquivos} arquivos no bucket` : ''}>
+                    {sto ? fmtBytes(sto.bytes) : '—'}
+                  </td>
+                  <td data-label="Última sync">{s?.ultima_sync ? fmtSomenteData(s.ultima_sync) : '—'}</td>
                   {celAcoes}
                 </tr>
               );
             })}
             {filtrados.length === 0 && !carregando && (
               <tr>
-                <td colSpan={14} className="admin-vazio">
+                <td colSpan={17} className="admin-vazio">
                   {aba === 'acessos' ? 'Nenhum sub-login criado pelos clientes ainda.' : 'Nenhum usuário encontrado.'}
                 </td>
               </tr>
@@ -1467,6 +1488,14 @@ export default function Admin() {
             <code> supabase/admin_stats.sql</code> no SQL Editor do Supabase.
           </p>
         )}
+        {aba !== 'leads' && uso.size > 0 && storage.size === 0 && !carregando && (
+          <p className="admin-nota">
+            As colunas de arquivos exibem "—" até rodar
+            <code> supabase/admin_storage_stats.sql</code> no SQL Editor do Supabase.
+          </p>
+        )}
+
+        {aba === 'clientes' && uso.size > 0 && !carregando && <PainelCrescimento uso={uso} storage={storage} emailPorId={emailPorId} />}
       </div>
 
       {/* Cadastro manual / edição de lead importado */}
@@ -1566,5 +1595,110 @@ export default function Admin() {
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Crescimento e armazenamento (Fase 2, 16/08/2026).
+ *
+ * O que esta seção existe para responder, e que o painel não respondia:
+ * quem consome, em quê, e quanto do consumo é blob que ainda mora no banco.
+ * Cada número aqui dimensiona uma fase seguinte — por isso o rótulo diz o que
+ * o número É, e não só quanto ele vale.
+ */
+function PainelCrescimento({
+  uso,
+  storage,
+  emailPorId,
+}: {
+  uso: Map<string, UsoStats>;
+  storage: Map<string, StorageStats>;
+  emailPorId: Map<string, string>;
+}) {
+  const linhas = [...uso.values()];
+  const ranking = ordenarPorConsumo(linhas, storage).slice(0, 10);
+
+  const somaBanco = linhas.reduce((a, u) => a + (u.bytes_total ?? 0), 0);
+  const somaBase64 = linhas.reduce((a, u) => a + (u.bytes_base64 ?? 0), 0);
+  const somaLegado = linhas.reduce((a, u) => a + (u.bytes_legado ?? 0), 0);
+  const legadoPendente = linhas.reduce((a, u) => a + (u.relatorios_legado ?? 0), 0);
+  const arquivos = [...storage.values()];
+  const somaBucket = arquivos.reduce((a, s) => a + (s.bytes ?? 0), 0);
+  const pdfs = arquivos.reduce((a, s) => a + (s.pdfs ?? 0), 0);
+  const bytesPdf = arquivos.reduce((a, s) => a + (s.pdfs ?? 0) * (s.pdf_bytes_medio ?? 0), 0);
+  const fotos = arquivos.reduce((a, s) => a + (s.fotos ?? 0), 0);
+  const bytesFoto = arquivos.reduce((a, s) => a + (s.fotos ?? 0) * (s.foto_bytes_medio ?? 0), 0);
+
+  return (
+    <section className="admin-crescimento">
+      <h2>Crescimento e armazenamento</h2>
+
+      <div className="admin-cards-metricas">
+        <div className="admin-card-metrica">
+          <span className="rot">Dados no banco</span>
+          <strong>{fmtBytes(somaBanco)}</strong>
+          <small>{linhas.length} organizações</small>
+        </div>
+        <div className="admin-card-metrica">
+          <span className="rot">Arquivos no bucket</span>
+          <strong>{fmtBytes(somaBucket)}</strong>
+          <small>{arquivos.length} organizações com arquivo</small>
+        </div>
+        <div className="admin-card-metrica">
+          <span className="rot">Ainda em base64 no banco</span>
+          <strong>{fmtBytes(somaBase64)}</strong>
+          {/* PISO: conta chaves com marcador `base64,`. Serve para dimensionar
+              a migração das fotos para o bucket, não para declarar que acabou. */}
+          <small>{fmtPercentual(somaBanco ? somaBase64 / somaBanco : null)} do banco · piso</small>
+        </div>
+        <div className="admin-card-metrica">
+          <span className="rot">Histórico legado</span>
+          <strong>{fmtBytes(somaLegado)}</strong>
+          <small>{legadoPendente} relatório(s) só no legado</small>
+        </div>
+        <div className="admin-card-metrica">
+          <span className="rot">PDFs de relatório</span>
+          <strong>{pdfs}</strong>
+          <small>{fmtBytes(pdfs ? bytesPdf / pdfs : null)} em média</small>
+        </div>
+        <div className="admin-card-metrica">
+          <span className="rot">Fotos</span>
+          <strong>{fotos}</strong>
+          <small>{fmtBytes(fotos ? bytesFoto / fotos : null)} em média</small>
+        </div>
+      </div>
+
+      <table className="admin-tabela-consumo">
+        <thead>
+          <tr>
+            <th>Organização</th>
+            <th>Banco</th>
+            <th>Bucket</th>
+            <th>Total</th>
+            <th>Base64 no banco</th>
+          </tr>
+        </thead>
+        <tbody>
+          {ranking.map((r) => {
+            const u = uso.get(r.escopo);
+            return (
+              <tr key={r.escopo}>
+                <td>{emailPorId.get(r.escopo) ?? r.escopo.slice(0, 8)}</td>
+                <td>{fmtBytes(r.bytesBanco)}</td>
+                <td>{fmtBytes(r.bytesBucket)}</td>
+                <td>{fmtBytes(r.total)}</td>
+                <td>{u ? fmtPercentual(fracaoBase64(u)) : '—'}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+
+      <p className="admin-nota">
+        "Última sync" na tabela acima é de <code>profiles.ultima_sync</code>: ela é do{' '}
+        <strong>usuário</strong>, não do aparelho. Quem usa celular e computador grava ali o mais
+        recente dos dois — um aparelho parado com trabalho dentro não aparece nessa coluna.
+      </p>
+    </section>
   );
 }
