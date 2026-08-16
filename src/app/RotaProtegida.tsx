@@ -5,6 +5,7 @@ import { lerTudo, iniciarArmazenamento } from '../services/storage';
 import { migrarHistoricoEmSegundoPlano } from '../features/relatorios/historicoRelatorios';
 import { migrarRubricasEmSegundoPlano } from '../features/relatorios/livroAssinatura';
 import { verificarAcesso } from '../services/auth';
+import { ehCliente as isCliente } from '../services/papelSessao';
 import './layout.css';
 
 // Gate de sessão: confere a sessão Supabase, valida liberação/expiração do perfil e hidrata o cache
@@ -41,7 +42,19 @@ export default function RotaProtegida() {
       // "Carregando…" para sempre — pior do que abrir com o que o aparelho tem.
       try {
         await iniciarArmazenamento();
-        await lerTudo();
+        // CLIENTE DO PORTAL NÃO HIDRATA A ORGANIZAÇÃO (Fase 0-B, achado A-01).
+        //
+        // `lerTudo()` baixa TODO o `app_storage` da organização. Como esta rota
+        // envolve também a árvore do Portal (router.tsx), um cliente que fizesse
+        // login recebia no aparelho os dados de todos os ativos da organização —
+        // inclusive os de outros clientes. A Edge `portal_cliente` filtra o que a
+        // TELA mostra; a hidratação roda antes dela e não filtrava nada.
+        //
+        // `iniciarArmazenamento()` continua: ele só prepara organização,
+        // IndexedDB e Map, sem tocar na rede. O que o Portal precisa ver é
+        // depositado por `carregarDadosPortal` → `semearCachePortal`, já filtrado
+        // pelo servidor.
+        if (!isCliente()) await lerTudo();
       } catch {
         if (vivo) setSemServidor(true);
       }

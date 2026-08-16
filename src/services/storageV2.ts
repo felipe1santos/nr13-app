@@ -21,6 +21,7 @@ import { tagDaChave } from './familiasChave';
 import { bloqueadoParaUso } from './sessaoArmazenamento';
 import { descartarFilaV1, lerFilaV1, purgarCacheV1 } from './migracaoV1';
 import * as marcaSync from './marcaSync';
+import { ehCliente } from './papelSessao';
 
 /** Troca de conta em andamento (ou falha nela): nada entra e nada sai. */
 export class ErroTrocandoConta extends Error {
@@ -386,8 +387,54 @@ async function adotarHerancaV1(): Promise<number> {
   return adotadas;
 }
 
-/** Lê UMA chave direto do servidor (valor completo). Null offline/sem sessão. */
+/**
+ * Semeia o cache com chaves que vieram de uma fonte JÁ FILTRADA pelo servidor.
+ *
+ * Existe para o Portal do Cliente (Fase 0-B). Desde a policy fail-closed, uma
+ * conta `papel='cliente'` não lê `app_storage` direto — quem entrega os dados
+ * dela é a Edge `portal_cliente`, que filtra pelos ativos vinculados àquele
+ * cliente. Sem semear, o `Map` fica vazio, `ler()` devolve `null` e TODA tela do
+ * Portal quebra (ela lê do `Map`, não do `localStorage`; aquele serve aos
+ * templates em iframe).
+ *
+ * NÃO é hidratação: não consulta o servidor, não mexe em marca d'água, não
+ * enfileira nada e não gera tombstone. É o oposto do `lerTudo` — recebe o que já
+ * foi decidido lá fora e apenas deposita.
+ *
+ * Versão fixa em 1 e `aplicarRemoto` na frente: se por algum motivo já houver
+ * registro local mais novo, ele vence. O Portal é somente leitura, então esse
+ * caso não deveria existir; deixar `aplicarRemoto` decidir é mais barato que
+ * confiar que não existe.
+ */
+export async function semearCache(chaves: Record<string, string>): Promise<number> {
+  if (!iniciado && !(await iniciar())) return 0;
+  const agora = new Date().toISOString();
+  let postas = 0;
+  for (const [chave, valor] of Object.entries(chaves)) {
+    if (typeof valor !== 'string') continue;
+    try {
+      await cache.aplicarRemoto(chave, { valor, versao: 1, atualizadoEm: agora, dispositivo: null });
+      postas++;
+    } catch {
+      // uma chave que falhe não pode custar as demais: o Portal precisa abrir
+      // com o que deu para depositar
+    }
+  }
+  return postas;
+}
+
+/**
+ * Lê UMA chave direto do servidor (valor completo). Null offline/sem sessão.
+ *
+ * RECUSA para `papel='cliente'` (Fase 0-B): a policy fail-closed já bloqueia
+ * essa consulta no servidor, e deixar a chamada sair só produz um erro de rede
+ * silencioso a cada tentativa. Para o Portal o caminho é a Edge, e os registros
+ * que ele precisa já vêm por ela — `portal_cliente` entrega `nr13_rastreab_`
+ * completo, com o `pdfBase64`, então `resolverPdf` resolve no primeiro passo e
+ * nunca chega aqui.
+ */
 export async function lerRemoto(chave: string): Promise<string | null> {
+  if (ehCliente()) return null;
   try {
     const escopo = await escopoStorageAtual();
     if (!escopo) return null;

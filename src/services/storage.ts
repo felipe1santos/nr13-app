@@ -121,3 +121,16 @@ export function armazenamentoPronto(): boolean {
 export function aguardarArmazenamento(): Promise<void> {
   return v2Ativo() ? v2.aguardarPronto() : Promise.resolve();
 }
+
+// --- Só v2: semeadura do Portal do Cliente (Fase 0-B) -----------------------
+/**
+ * Deposita no cache chaves que vieram JÁ FILTRADAS pelo servidor (a Edge
+ * `portal_cliente`). Ver `storageV2.semearCache`.
+ *
+ * No caminho v1 é no-op: lá o cache É o `localStorage`, e o `portalService` já
+ * escreve nele — semear seria gravar a mesma coisa duas vezes.
+ */
+export async function semearCachePortal(chaves: Record<string, string>): Promise<number> {
+  if (!v2Ativo()) return 0;
+  return v2.semearCache(chaves);
+}
