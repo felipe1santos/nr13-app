@@ -447,6 +447,50 @@ Em **organização de teste**, nunca real:
 
 **Só depois disso** o task-level da Parte 0-B é escrito.
 
+### RESULTADO DA VALIDAÇÃO EM PRODUÇÃO — 16/08/2026 ✅
+
+Deploy: frontend (dono) · Edge `org_admin` (verificada byte a byte, hash `-869169835`) ·
+`perfil_origem.sql` aplicado no SQL Editor.
+
+**Verificações read-only:**
+
+| # | Verificação | Resultado |
+|---|---|---|
+| 1 | Trigger `on_auth_user_created` ativo (`tgenabled = 'O'`) em `auth.users` | ✅ |
+| 1 | Função lê `nr13_papel` e contém `sem_papel` | ✅ `true` / `true` |
+| 4 | Nenhum perfil com papel fora da lista branca | ✅ só mestre/cliente/funcionario |
+| 4 | Nenhum perfil sem organização | ✅ `sem_org = 0` em todos |
+| 4 | Nenhum cliente sem vínculo | ✅ `cliente_sem_vinculo = 0` |
+| 5 | Nada criado entre o deploy e o teste | ✅ conta mais recente era de 07/08 |
+
+**Teste funcional — o critério central da fase:**
+
+Sub-login criado pela tela Acessos, na organização de teste (`teste@gmail.com`), em
+16/08/2026 15:37 — depois do deploy:
+
+```
+email          fase0a.validacao@example.com
+papel          funcionario          ← gravado no INSERT
+cliente_id     NULL
+org_do_mestre  true                 ← org do mestre, não a própria
+meta_papel     funcionario          ← a Edge MANDOU a metadata
+meta_org       99f642d3-6efd-446d-9e76-d234ad8d211c
+```
+
+`meta_papel` preenchido prova que a Edge envia a metadata; `papel` igual a ela prova que o
+trigger a lê e grava. **O perfil nasceu correto no INSERT — não passou por `mestre` em
+instante nenhum.** A janela descrita na D-24 deixou de existir.
+
+Contagem antes → depois: `funcionario` 3 → 4. Nenhum outro papel mudou. Nenhum
+`sem_papel` apareceu.
+
+**Contas de teste criadas (limpar quando conveniente):**
+`fase0a.validacao@example.com` — sub-login funcionário na org de teste.
+
+**Não testado nesta rodada, e por quê:**
+- Acesso de **cliente** (`criar_acesso_cliente`): mesmo caminho de código do sub-login, mesma metadata, mesma Edge. O sub-login já exercita a cadeia inteira; o cliente acrescentaria só o `cliente_id`.
+- **Auto-cadastro** e **trial**: exigem caixa de entrada para o código de confirmação. O caminho é o mesmo (`metadataPerfil('mestre')` nos dois `signUp`), e metadata ausente continua caindo em `'mestre'`, que é o comportamento de hoje — risco baixo e verificável na próxima conta real que nascer.
+
 ---
 
 ## Fora do escopo desta parte (registrado para não se perder)
