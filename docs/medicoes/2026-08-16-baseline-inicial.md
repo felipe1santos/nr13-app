@@ -27,6 +27,10 @@ cosmética.
 731 linhas · 9 organizações com dado · 33 MB (tabela + índices) · índices 504 kB
 (72 kB deles são o índice novo da Fase 1).
 
+Somado pelo painel: **5,4 MB de conteúdo** em 27 organizações, dos quais **4,4 MB
+(81 %) são base64**. A diferença entre 5,4 MB de conteúdo e 33 MB de tabela é
+overhead de página, TOAST e as linhas já soft-deletadas, que a função não conta.
+
 `admin_usage_stats()` devolve **27 organizações** (as demais existem em `profiles` sem
 nada gravado).
 
@@ -61,9 +65,14 @@ nada gravado).
 | Arquivos | 220 |
 | Bytes | **110,4 MB** |
 | PDFs de relatório | **14** |
-| **Tamanho médio de PDF** | **6,5 MB** |
+| **Tamanho médio de PDF** | **6,6 MB** |
 | Fotos | 206 |
-| Tamanho médio de foto | 77 KB |
+| Tamanho médio de foto | 87,7 KB |
+
+> As duas médias são PONDERADAS (bytes totais ÷ arquivos), que é o que o painel
+> mostra. A média das médias por organização daria 6,5 MB e 77 KB — número
+> diferente para a mesma realidade, porque organização com 3 arquivos pesaria
+> igual a uma com 102.
 
 | org (prefixo) | arquivos | bytes | relatórios | assinaturas | certificados | fotos |
 |---|---|---|---|---|---|---|
@@ -109,6 +118,7 @@ select * from admin_usage_stats();
 | Guarda de admin — `admin_storage_stats()` | mestre comum: `ERROR P0001: acesso negado` ✔ |
 | Bucket × painel do Supabase | função 110,4 MB × gráfico ~110–122 MB ✔ |
 | Organização sem dado | devolve zeros, sem erro ✔ |
+| Painel Admin em produção (logado como admin) | conta de teste exibe **13** relatórios onde a versão antiga exibiria 1; colunas Dados/Arquivos/Última sync populadas; seção "Crescimento e armazenamento" com os mesmos números do SQL ✔ |
 
 ## O que o painel media antes
 
