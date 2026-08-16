@@ -145,6 +145,18 @@ export function snapshot(): Record<string, string> {
   return saida;
 }
 
+/**
+ * Tira uma chave do `Map` SEM tocar no disco.
+ *
+ * Existe para a migração das cópias de conflito (Fase 3): elas já foram
+ * removidas de `dados` na transação da migração, e a memória precisa
+ * acompanhar. Não é caminho de escrita — para remover dado do usuário use
+ * `gravarAtomico([{ chave, remover: true }])`, que persiste.
+ */
+export function removerDaMemoria(chave: string): void {
+  aplicarNaMemoria({ chave, remover: true });
+}
+
 export function zerarMemoria(): void {
   memoria.clear();
   porTag.clear();
@@ -163,6 +175,17 @@ export async function gravarAtomico(
   dados: Array<GravacaoDado | RemocaoDado>,
   fila: ItemComId[] = [],
   tombstones: Array<{ chave: string; valor: unknown }> = [],
+  /**
+   * Operações cruas de outras stores, aplicadas na MESMA transação.
+   *
+   * Existe para a resolução de conflito (Fase 3), que precisa remover o item
+   * antigo da fila, gravar o novo e atualizar a cópia do conflito de uma vez —
+   * "apaga o velho e depois cria o novo" deixaria uma janela em que a alteração
+   * do usuário não existe em fila nenhuma. Quem passa `extras` é responsável
+   * por refletir o efeito na memória do próprio módulo; o `Map` de dados só é
+   * revertido para o que vem em `dados`.
+   */
+  extras: Operacao[] = [],
 ): Promise<void> {
   if (!orgId) throw new Error('cacheLocal sem organização definida');
 
@@ -182,6 +205,7 @@ export async function gravarAtomico(
     ...tombstones.map(
       (t): Operacao => ({ store: 'tombstones', acao: 'put', chave: t.chave, valor: t.valor }),
     ),
+    ...extras,
   ];
 
   try {

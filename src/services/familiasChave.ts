@@ -125,7 +125,27 @@ function tagAposId(chave: string, prefixo: string): string | null {
   return resto.slice(corte + 1);
 }
 
+/**
+ * Cópias de conflito que a versão anterior gravava DENTRO de `dados`, como
+ * `nr13_conflito_<chave>__<timestamp>`.
+ *
+ * Registradas aqui porque a regra deste arquivo é essa — chave nova se declara
+ * na tabela, nunca se deduz por regex. O escopo é 'global' e a TAG é `null`
+ * DE PROPÓSITO: mesmo enquanto a migração da Fase 3 não rodou num aparelho, uma
+ * cópia de conflito não pode ser indexada sob a TAG do equipamento nem ser
+ * arrastada para o palco ou para o `excluirVaso` como se fosse dado dele.
+ *
+ * Nada novo grava com este prefixo desde 16/08/2026: o destino é a store
+ * `conflitos`, fora do `Map`.
+ */
+export const PREFIXO_CONFLITO_LEGADO = 'nr13_conflito_';
+
+export function ehChaveDeConflitoLegado(chave: string): boolean {
+  return chave.startsWith(PREFIXO_CONFLITO_LEGADO);
+}
+
 export function escopoDaChave(chave: string): Escopo {
+  if (ehChaveDeConflitoLegado(chave)) return 'global';
   if (GLOBAIS.has(chave)) return 'global';
   const comId = prefixoMaisLongo(chave, POR_ID_E_TAG);
   if (comId) return tagAposId(chave, comId) ? 'tag' : 'global';
@@ -135,6 +155,7 @@ export function escopoDaChave(chave: string): Escopo {
 }
 
 export function tagDaChave(chave: string): string | null {
+  if (ehChaveDeConflitoLegado(chave)) return null;
   if (GLOBAIS.has(chave)) return null;
   const comId = prefixoMaisLongo(chave, POR_ID_E_TAG);
   if (comId) return tagAposId(chave, comId);

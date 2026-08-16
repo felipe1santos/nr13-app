@@ -19,10 +19,26 @@
  * Este módulo não conhece regra de negócio: quem decide o que guardar é o
  * cacheLocal.ts (dados) e o sync.ts (fila/tombstones).
  */
-export type NomeStore = 'dados' | 'fila' | 'tombstones' | 'meta';
+export type NomeStore = 'dados' | 'fila' | 'tombstones' | 'meta' | 'conflitos';
 
-const STORES: NomeStore[] = ['dados', 'fila', 'tombstones', 'meta'];
-const VERSAO_SCHEMA = 1;
+const STORES: NomeStore[] = ['dados', 'fila', 'tombstones', 'meta', 'conflitos'];
+
+/**
+ * v2 (16/08/2026): store `conflitos`.
+ *
+ * A cópia da versão do servidor num conflito morava em `dados`, sob a chave
+ * `nr13_conflito_<chave>__<timestamp>` — e `hidratarDoDisco` carrega `dados`
+ * INTEIRA no `Map`. As cópias entravam no cache de leitura, apareciam em
+ * `chavesComPrefixo`, não eram indexadas por TAG (nenhuma família as conhecia)
+ * e nunca eram limpas. Pior: cada retentativa gravava mais uma.
+ *
+ * O upgrade é PURAMENTE ADITIVO, e isso não é estilo: `indexedDB.open` com
+ * versão MENOR falha, então um aparelho que subiu para v2 não volta para v1.
+ * A segurança do rollback vem de o código antigo continuar funcionando com o
+ * schema novo — ele só não conhece a store a mais, e ignorá-la é inofensivo.
+ * Nunca apagar nem recriar store existente aqui.
+ */
+const VERSAO_SCHEMA = 2;
 
 export interface Operacao {
   store: NomeStore;
