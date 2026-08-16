@@ -123,25 +123,6 @@ Deno.serve(async (req) => {
         email,
         password: senha,
         email_confirm: true,
-        // PAPEL EXPLÍCITO NA ORIGEM (Fase 0, D-24).
-        //
-        // Sem isto, `handle_new_user` insere o profile sem a coluna `papel` e
-        // ela cai no default `'mestre'`: o sub-login NASCE mestre da própria
-        // organização e só é corrigido pelo upsert alguns milissegundos abaixo.
-        // Se aquele upsert falhar, o usuário fica no Auth com senha válida e
-        // perfil mestre PERMANENTE — o estado que o bloco `adotavel` mais
-        // adiante existe para recolher na retentativa.
-        //
-        // Com a metadata, o trigger grava o papel certo já no INSERT: a janela
-        // deixa de existir, e o upsert vira confirmação em vez de correção.
-        //
-        // O formato espelha `src/services/perfilOrigem.ts` — a Edge roda em Deno
-        // e não importa de `src/`. Mudou lá, muda aqui.
-        user_metadata: {
-          nr13_papel: papel,
-          nr13_org_id: orgId,
-          ...(clienteId ? { nr13_cliente_id: clienteId } : {}),
-        },
       });
       if (error) {
         // Caso comum: tentativa anterior criou o usuário no Auth mas falhou no perfil
