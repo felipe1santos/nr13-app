@@ -59,6 +59,15 @@ export interface ItemFila {
    * precisa de id NOVO; este campo é o vínculo com o original, para auditoria.
    */
   resolveDe?: string;
+  /**
+   * Versão que o SERVIDOR informou ao RECUSAR por versão.
+   *
+   * Só a recusa preenche, e sem ela não existe reenvio possível: a exclusão
+   * deixa um piso permanente em `app_storage_excluidos`, e a RPC só aceita
+   * `versaoBase + 1 > piso`. Reenviar com a base antiga seria recusado de
+   * novo, para sempre — o item ficaria eternamente no selo.
+   */
+  versaoServidor?: number;
 }
 
 /**
@@ -484,6 +493,10 @@ async function enviarItem(item: ItemFila): Promise<boolean> {
       r.motivo === 'tombstone_mais_novo' ||
       r.motivo === 'anterior_ao_corte'
     ) {
+      // A versão do servidor entra ANTES do estado: `marcarEstado` persiste o
+      // item, e um reenvio sem essa base seria recusado para sempre.
+      const emFila = fila.get(item.mutationId);
+      if (emFila) emFila.versaoServidor = r.versao;
       await marcarEstado(item.mutationId, 'conflito', {
         code: 'P0001',
         message: `nr13_versao_obsoleta: ${r.motivo}`,
@@ -767,4 +780,78 @@ export async function migrarConflitosAntigos(): Promise<number> {
 export async function descartarEncerrada(mutationId: string): Promise<void> {
   if (fila.get(mutationId)?.estado !== 'encerrado') return;
   await removerDaFila(mutationId);
+}
+
+// ---------------------------------------------------------------------------
+// Recusa por versão SEM lado do servidor (item excluído em outro aparelho)
+// ---------------------------------------------------------------------------
+// `versao_obsoleta`, `tombstone_mais_novo` e `anterior_ao_corte` marcam o item
+// como `conflito`, mas a RPC não devolve valor: do lado do servidor o registro
+// foi EXCLUÍDO. Não há duas versões para comparar, então `guardarConflito` não
+// é chamado e a tela — que lista `conflitosPendentes()` — não tinha o que
+// desenhar. O item ficava contado no selo e invisível na página.
+//
+// E o dano passava do ruído: enquanto a pendência existe, `lerTudo` PULA a
+// chave (`itemDaChave`), então o `deletado_em` do servidor nunca é aplicado
+// aqui. O equipamento apagado no celular seguia aparecendo no computador.
+
+/**
+ * Pendências em conflito que NÃO têm as duas versões guardadas — as que a tela
+ * de Pendências precisa desenhar com card próprio.
+ */
+export function pendenciasSemComparacao(): ItemFila[] {
+  return listarFila().filter((i) => i.estado === 'conflito' && !conflitos.has(i.chave));
+}
+
+/**
+ * "Descartar a minha alteração": tira a pendência da fila.
+ *
+ * O dado local NÃO é apagado aqui. Quem apaga é a hidratação seguinte, ao ver
+ * o `deletado_em` do servidor — e ela só consegue fazer isso depois que a
+ * chave deixa de ter pendência. Apagar por conta própria aqui seria decidir
+ * pelo servidor sem ter lido o servidor.
+ */
+export async function descartarPendencia(mutationId: string): Promise<void> {
+  if (fila.get(mutationId)?.estado !== 'conflito') return;
+  await removerDaFila(mutationId);
+}
+
+/**
+ * "Recriar no servidor": reenvia o valor local por cima do estado atual.
+ *
+ * Mutação NOVA, pelo mesmo motivo de `resolverMantendoLocal`: reenviar o
+ * mesmo `mutationId` devolveria `repetido` e apagaria a edição em silêncio.
+ * A base é a versão que o servidor informou na recusa — é ela que passa do
+ * piso deixado pela exclusão.
+ */
+export async function recriarNoServidor(mutationId: string): Promise<void> {
+  const original = fila.get(mutationId);
+  if (!original || original.estado !== 'conflito') return;
+  if (original.versaoServidor === undefined) return;
+
+  const novo: ItemFila = {
+    mutationId: crypto.randomUUID(),
+    resolveDe: original.mutationId,
+    op: original.op,
+    chave: original.chave,
+    valor: original.valor,
+    versaoBase: original.versaoServidor,
+    dispositivo: idDispositivo(),
+    criadoEm: new Date().toISOString(),
+    tentativas: 0,
+    estado: 'aguardando',
+  };
+
+  const org = orgAtual();
+  if (org) {
+    await aplicarAtomico(org, [
+      { store: 'fila', acao: 'put', chave: novo.mutationId, valor: novo },
+      { store: 'fila', acao: 'delete', chave: original.mutationId },
+    ]);
+  }
+
+  fila.delete(original.mutationId);
+  removerPendencia(original.mutationId);
+  fila.set(novo.mutationId, novo);
+  registrarPendencias([novo]);
 }

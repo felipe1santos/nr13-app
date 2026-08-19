@@ -8,6 +8,9 @@ import {
   resolverMantendoLocal,
   resolverUsandoServidor,
   descartarSubstituida,
+  pendenciasSemComparacao,
+  descartarPendencia,
+  recriarNoServidor,
   type ItemFila,
   type RegistroConflito,
 } from '../services/sync';
@@ -35,11 +38,19 @@ export default function Pendencias() {
   const [conflitos, setConflitos] = useState<RegistroConflito[]>(() => conflitosPendentes());
   const [substituidas, setSubstituidas] = useState<RegistroConflito[]>(() => conflitosResolvidos());
 
+  // Recusa por versão SEM lado do servidor: o item foi excluído em outro
+  // aparelho, então não há duas versões para comparar. Sem esta lista, ele
+  // entrava na contagem do selo e não aparecia em lugar nenhum da tela.
+  const [semComparacao, setSemComparacao] = useState<ItemFila[]>(() => pendenciasSemComparacao());
+
   const recarregar = () => {
     setItens(listarFila());
     setConflitos(conflitosPendentes());
     setSubstituidas(conflitosResolvidos());
+    setSemComparacao(pendenciasSemComparacao());
   };
+
+  const decisoes = conflitos.length + semComparacao.length;
 
   // Encerradas ficam SEPARADAS: não têm "tentar de novo" (o servidor não muda de
   // ideia) e não entram na contagem do selo. Ficam listadas porque a alteração
@@ -75,6 +86,33 @@ export default function Pendencias() {
     setOcupado(true);
     try {
       await descartarEncerrada(mutationId);
+    } finally {
+      setOcupado(false);
+      recarregar();
+    }
+  };
+
+  // Excluído em outro aparelho: "Recriar" reenvia a minha alteração por cima do
+  // estado atual do servidor e, como a decisão já foi tomada, sobe na hora —
+  // mesmo motivo do `flushFila` de `escolher`.
+  const recriar = async (mutationId: string) => {
+    setOcupado(true);
+    try {
+      await recriarNoServidor(mutationId);
+      await flushFila().catch(() => undefined);
+    } finally {
+      setOcupado(false);
+      recarregar();
+    }
+  };
+
+  // "Descartar a minha": tira a pendência da fila. O dado local sai na
+  // hidratação seguinte, quando o `deletado_em` do servidor finalmente puder
+  // ser aplicado a esta chave.
+  const descartar = async (mutationId: string) => {
+    setOcupado(true);
+    try {
+      await descartarPendencia(mutationId);
     } finally {
       setOcupado(false);
       recarregar();
@@ -127,14 +165,14 @@ export default function Pendencias() {
               servidor e a tela logo abaixo pedia uma decisão. É exatamente a
               mentira que esta tela existe para não contar. */}
           <h1>
-            {conflitos.length > 0
-              ? `${conflitos.length} ${conflitos.length === 1 ? 'decisão' : 'decisões'} para você tomar`
+            {decisoes > 0
+              ? `${decisoes} ${decisoes === 1 ? 'decisão' : 'decisões'} para você tomar`
               : pendentes.length === 0
                 ? 'Tudo salvo na nuvem'
                 : resumo.rotulo}
           </h1>
           <p>
-            {conflitos.length > 0
+            {decisoes > 0
               ? 'A mesma informação foi alterada em mais de um aparelho. Enquanto você não escolher, a sua versão fica guardada aqui e não vai para o servidor.'
               : pendentes.length === 0
               ? 'Nada neste aparelho está esperando para subir. Tudo o que você preencheu já está no servidor.'
@@ -268,7 +306,85 @@ export default function Pendencias() {
         </section>
       )}
 
-      {pendentes.length === 0 && conflitos.length === 0 && (
+      {semComparacao.length > 0 && (
+        <section className="pendencias__conflitos">
+          <h2>Excluído em outro aparelho</h2>
+          <p>
+            O item foi apagado em outro dispositivo depois que você o alterou aqui. Não há versão no
+            servidor para comparar — a sua alteração está guardada e é você quem decide o destino
+            dela.
+          </p>
+
+          {semComparacao.map((item) => (
+            <article key={item.mutationId} className="conflito conflito--sem-lado">
+              <h3 className="conflito__titulo">{rotuloDaChave(item.chave)}</h3>
+
+              <div className="conflito__lados">
+                <div className="conflito__lado">
+                  <span className="conflito__rot">Sua alteração, neste aparelho</span>
+                  <p className="conflito__resumo">{resumoDoValor(item.valor)}</p>
+                  <p className="conflito__meta">
+                    {item.criadoEm}
+                    {item.dispositivo ? ` · ${item.dispositivo}` : ''}
+                  </p>
+                  <button
+                    type="button"
+                    disabled={ocupado}
+                    onClick={() => void recriar(item.mutationId)}
+                  >
+                    Recriar no servidor
+                  </button>
+                </div>
+
+                <div className="conflito__lado">
+                  <span className="conflito__rot">No servidor</span>
+                  <p className="conflito__resumo">Excluído</p>
+                  <p className="conflito__meta">
+                    {item.versaoServidor !== undefined ? `versão ${item.versaoServidor}` : '—'}
+                  </p>
+                  <button
+                    type="button"
+                    disabled={ocupado}
+                    onClick={() => void descartar(item.mutationId)}
+                  >
+                    Descartar a minha
+                  </button>
+                </div>
+              </div>
+
+              {/* O aviso importa: enquanto a pendência existe, `lerTudo` pula a
+                  chave, então a exclusão feita no outro aparelho NÃO é aplicada
+                  aqui. O item continua aparecendo no sistema até a decisão. */}
+              <p className="conflito__adiar">
+                Enquanto você não decidir, este item continua aparecendo neste aparelho — mesmo já
+                tendo sido excluído no outro.
+              </p>
+
+              <details className="pendencia__detalhes">
+                <summary>Detalhes técnicos</summary>
+                <dl>
+                  <dt>Chave</dt>
+                  <dd>
+                    <code>{item.chave}</code>
+                  </dd>
+                  <dt>Motivo da recusa</dt>
+                  <dd>
+                    <code>{item.erro?.detalhe?.mensagemOriginal ?? '—'}</code>
+                  </dd>
+                  <dt>Versão no servidor</dt>
+                  <dd>{item.versaoServidor ?? '—'}</dd>
+                  <dt>Sua alteração</dt>
+                  <dd>
+                    <code>{item.valor ?? '(exclusão)'}</code>
+                  </dd>
+                </dl>
+              </details>
+            </article>
+          ))}
+        </section>
+      )}
+
+      {pendentes.length === 0 && decisoes === 0 && (
         <p className="pendencias__vazio">Tudo sincronizado.</p>
       )}
 
