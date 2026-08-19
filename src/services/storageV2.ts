@@ -22,6 +22,7 @@ import { bloqueadoParaUso } from './sessaoArmazenamento';
 import { descartarFilaV1, lerFilaV1, purgarCacheV1 } from './migracaoV1';
 import * as marcaSync from './marcaSync';
 import { ehCliente } from './papelSessao';
+import { donoAtual, travaExpirada } from './palcoTrava';
 
 /** Troca de conta em andamento (ou falha nela): nada entra e nada sai. */
 export class ErroTrocandoConta extends Error {
@@ -240,21 +241,71 @@ export function contarPendencias(): number {
 // acontece: o aparelho recupera a rede com a aba em segundo plano — nenhum
 // evento `online` chega a esta página — e o app só volta a existir quando o
 // usuário o traz para a frente.
+// ---------------------------------------------------------------------------
+// ...e a atualização na direção CONTRÁRIA (19/08/2026)
+// ---------------------------------------------------------------------------
+// Os listeners acima só SUBIAM. Descer — descobrir o que os OUTROS aparelhos
+// fizeram — dependia de recarregar a página, entrar de novo, ou abrir a lista
+// de equipamentos (`listarEquipamentos` chama `lerTudo`).
+//
+// O caso real: o usuário apaga um vaso pelo celular, em campo. O computador
+// ficou aberto no escritório e segue mostrando o vaso apagado, indefinidamente.
+//
+// Os dois cuidados abaixo são o motivo de isto ser uma função, e não um
+// `lerTudo()` solto no listener.
+
+/** Intervalo mínimo entre duas hidratações automáticas. */
+export const JANELA_ATUALIZACAO_MS = 60_000;
+
+let ultimaAtualizacaoEm = 0;
+
+/** Zera a janela. Igual ao `zerarThrottleSync`: existe para os testes. */
+export function zerarThrottleAtualizacao(): void {
+  ultimaAtualizacaoEm = 0;
+}
+
+/**
+ * Sobe o que está na fila e, no máximo uma vez por janela, baixa o que mudou.
+ *
+ * **Throttle.** `visibilitychange` dispara a cada volta de aba. Sem janela, um
+ * usuário alternando entre o sistema e a planilha geraria uma consulta por
+ * distração. A drenagem NÃO é throttled: fila vazia não faz requisição
+ * nenhuma, e trabalho de campo parado é o defeito mais caro.
+ *
+ * **Palco.** Durante a montagem de um documento, o `localStorage` está
+ * materializado com as chaves daquela TAG e os iframes já leram parte delas.
+ * Hidratar no meio trocaria o dado sob o documento — folha de um equipamento
+ * com dado de outro, impressa sem ninguém perceber. Enquanto houver dono VIVO
+ * do palco, a atualização espera; trava vencida é aba morta e não segura nada.
+ */
+export async function atualizarDoServidor(): Promise<void> {
+  if (!iniciado) return;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+
+  await sync.drenar();
+
+  if (!travaExpirada(donoAtual())) return;
+
+  const agora = Date.now();
+  if (agora - ultimaAtualizacaoEm < JANELA_ATUALIZACAO_MS) return;
+  ultimaAtualizacaoEm = agora;
+
+  await lerTudo();
+}
+
 let listenersRegistrados = false;
-function registrarDrenagemAutomatica(): void {
+function registrarSincronizacaoAutomatica(): void {
   if (listenersRegistrados || typeof window === 'undefined') return;
   listenersRegistrados = true;
-  const drenar = () => {
-    if (!iniciado) return;
-    if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
-    void sync.drenar();
+  const sincronizar = () => {
+    void atualizarDoServidor();
   };
-  window.addEventListener('online', drenar);
+  window.addEventListener('online', sincronizar);
   document.addEventListener?.('visibilitychange', () => {
-    if (document.visibilityState === 'visible') drenar();
+    if (document.visibilityState === 'visible') sincronizar();
   });
 }
-registrarDrenagemAutomatica();
+registrarSincronizacaoAutomatica();
 
 // ---------------------------------------------------------------------------
 // Hidratação
