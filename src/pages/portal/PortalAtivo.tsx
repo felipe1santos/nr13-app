@@ -14,7 +14,7 @@ import { artefatoDe } from '../../features/relatorios/artefatoRelatorio';
 import type { FotoArmazenada } from '../../services/fotos';
 import { listarCalibracoes, arquivoCalibracao, hidratarItemLocal } from '../../features/calibracoes/calibracaoService';
 import type { DadosCalibracao } from '../../features/calibracoes/tipos';
-import { carregarProntuario, gravarProntuarioAtual } from '../../features/prontuarios/prontuarioService';
+import { carregarProntuario, materializarProntuarioAtual } from '../../features/prontuarios/prontuarioService';
 import {
   abrirProntuarioFabricante,
   formatarDataEnvio,
@@ -235,11 +235,14 @@ export default function PortalAtivo() {
   }
 
   // Prontuário: registro único por equipamento (nr13_prontuario_<TAG>), independente
-  // do histórico de relatórios — mesmo fluxo de Prontuarios.tsx (gravarProntuarioAtual
+  // do histórico de relatórios — mesmo fluxo de Prontuarios.tsx (a chave 'atual'
   // antes de montar os iframes de /arquivos-prontuario/).
   async function abrirProntuario() {
     if (!prontuario) return;
-    await gravarProntuarioAtual(prontuario);
+    // Materializa SÓ no localStorage: no Portal os templates leem de lá
+    // (portalService), e `salvar()` enfileiraria mutação — que o gate de
+    // escrita recusa para o papel cliente, derrubando a abertura (19/08/2026).
+    materializarProntuarioAtual(prontuario);
     // Mesma lista do prontuário interno: caldeira e autoclave não têm croqui 2D,
     // e o cliente não pode receber duas folhas a mais que o engenheiro não vê.
     const folhas = paginasProntuario(info?.tipo ?? '');
