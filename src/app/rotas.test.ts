@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { matchRoutes } from 'react-router-dom';
+import { createMemoryRouter, matchRoutes } from 'react-router-dom';
 import {
   rotaEquipamento,
   rotaMemorial,
@@ -80,5 +80,29 @@ describe('construtores de rota por TAG', () => {
 
   it('TAG sem caractere especial sai idêntica', () => {
     expect(rotaEquipamento('DEMO-CP-01')).toBe('/equipamento/DEMO-CP-01');
+  });
+});
+
+// A prova pelo caminho REAL: string casando padrão é uma coisa, a navegação do
+// react-router é outra. Se `navigate()` re-codificasse o caminho já codificado,
+// `%2F` viraria `%252F` e o defeito só teria trocado de forma.
+describe('navegação de verdade, não só casamento de string', () => {
+  it('navigate() não codifica de novo o caminho já codificado', async () => {
+    const r = createMemoryRouter(
+      [
+        { path: '/equipamento/:tag', element: null },
+        { path: '/inspecoes/:tag/:containerId', element: null },
+      ],
+      { initialEntries: ['/'] },
+    );
+
+    await r.navigate(rotaEquipamento(TAG_BARRA));
+    expect(r.state.location.pathname).toBe('/equipamento/COMPRESSOR%20V8-15%2F200L');
+    expect(r.state.matches[r.state.matches.length - 1].params.tag).toBe(TAG_BARRA);
+
+    await r.navigate(rotaInspecaoContainer(TAG_BARRA, 'c 1/2'));
+    const params = r.state.matches[r.state.matches.length - 1].params;
+    expect(params.tag).toBe(TAG_BARRA);
+    expect(params.containerId).toBe('c 1/2');
   });
 });
