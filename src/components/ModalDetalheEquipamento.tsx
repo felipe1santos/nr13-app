@@ -9,6 +9,7 @@ import { listarCalibracoes } from '../features/calibracoes/calibracaoService';
 import type { DadosCalibracao } from '../features/calibracoes/tipos';
 import type { CategoriaSalva, InfoEquipamento } from '../features/equipamento/tipos';
 import './modal-detalhe-equipamento.css';
+import { rotaEquipamento } from '../app/rotas';
 
 const ROTULO_TIPO: Record<string, string> = {
   vaso: 'Vaso de Pressão',
@@ -177,7 +178,7 @@ export default function ModalDetalheEquipamento({ tag, itens, onClose }: Props) 
           <button type="button" className="fj-btn fj-btn-ghost" onClick={() => navigate('/calibracoes')}>
             <Icone nome="sliders" tam={13} /> Calibrações
           </button>
-          <button type="button" className="fj-btn fj-btn-primary" onClick={() => navigate(`/equipamento/${tag}`)}>
+          <button type="button" className="fj-btn fj-btn-primary" onClick={() => navigate(rotaEquipamento(tag))}>
             Abrir ficha completa <Icone nome="arrowright" tam={13} />
           </button>
         </div>

@@ -19,6 +19,7 @@ import './dashboard.css';
 /* .lista-cards-horiz / .card-equipamento-horiz / .eq-* — classes globais já usadas em
    Inspeções, Relatórios e Prontuários; o modo lista desta tela reusa as mesmas. */
 import './relatorios.css';
+import { rotaEquipamento } from '../app/rotas';
 
 const ROTULO_TIPO: Record<string, string> = {
   vaso: 'Vaso de Pressão',
@@ -107,7 +108,7 @@ export default function Equipamentos() {
 
   function handleCriado(tag: string) {
     setModalAberto(false);
-    navigate(`/equipamento/${tag}`);
+    navigate(rotaEquipamento(tag));
   }
 
   function abrirImportacao() {
@@ -295,7 +296,7 @@ export default function Equipamentos() {
                 type="button"
                 key={e.tag}
                 className="card-equipamento-horiz"
-                onClick={() => navigate(`/equipamento/${e.tag}`)}
+                onClick={() => navigate(rotaEquipamento(e.tag))}
               >
                 <div className="card-eq-img">
                   {e.fotoCapa ? (

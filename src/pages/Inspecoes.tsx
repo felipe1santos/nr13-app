@@ -10,6 +10,7 @@ import '../features/inspecoes/visualizador.css';
 import '../pages/relatorios.css';
 import './inspecoes.css';
 import FotoImg from '../components/FotoImg';
+import { rotaInspecaoContainer, rotaInspecoes } from '../app/rotas';
 
 const ROTULO_TIPO: Record<string, string> = {
   vaso: 'Vaso de Pressão',
@@ -37,7 +38,7 @@ function ContainerCard({
   }
 
   function abrir() {
-    navigate(`/inspecoes/${tag}/${container.id}`);
+    navigate(rotaInspecaoContainer(tag, container.id));
   }
 
   return (
@@ -107,7 +108,7 @@ export default function Inspecoes() {
     setTag(novaTag);
     setContainers(listarContainers(novaTag));
     setTela('containers');
-    navigate(`/inspecoes?tag=${novaTag}`, { replace: true });
+    navigate(rotaInspecoes(novaTag), { replace: true });
   }
 
   function voltarParaEquipamentos() {

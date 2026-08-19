@@ -14,6 +14,7 @@ import '../features/inspecoes/formularios.css';
 import '../features/inspecoes/visualizador.css';
 import './relatorios.css';
 import PaginaA4 from '../components/PaginaA4';
+import { rotaEquipamento, rotaInspecaoContainer, rotaInspecaoFormulario } from '../app/rotas';
 
 // Pré-visualização "como o documento ficará": grava os dados de campo do container nas chaves que
 // os templates de public/arquivos-inspecao/ leem e renderiza os mesmos iframes do relatório.
@@ -51,7 +52,10 @@ export default function InspecaoFormulario() {
   const f = formulario as FormularioEnsaio;
   const visualizar = params.get('visualizar') === '1';
   const documento = params.get('documento') === '1';
-  const voltarPara = params.get('origem') === 'equipamento' ? `/equipamento/${tag}` : `/inspecoes/${tag}/${containerId}`;
+  const voltarPara =
+    params.get('origem') === 'equipamento'
+      ? rotaEquipamento(tag)
+      : rotaInspecaoContainer(tag, containerId);
 
   const dadosSalvos = visualizar ? carregarDadosFormulario(tag, containerId, f) : null;
 
@@ -64,7 +68,7 @@ export default function InspecaoFormulario() {
         <h1>{ROTULO_FORMULARIO[f] ?? formulario}</h1>
         {(visualizar || documento) && (
           <Link
-            to={`/inspecoes/${tag}/${containerId}/${f}`}
+            to={rotaInspecaoFormulario(tag, containerId, f)}
             className="btn-secundario"
             style={{ marginLeft: 'auto', fontSize: 13 }}
           >

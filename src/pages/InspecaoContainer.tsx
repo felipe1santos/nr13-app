@@ -6,6 +6,7 @@ import { ROTULO_FORMULARIO } from '../features/inspecoes/tipos';
 import type { FormularioEnsaio } from '../features/inspecoes/tipos';
 import type { NomeIcone } from '../components/Icone';
 import './inspecoes.css';
+import { rotaInspecaoContainer, rotaInspecoes } from '../app/rotas';
 
 /** Ícone por ensaio: em campo o técnico procura o item pela figura, não pelo texto. */
 const ICONE_FORMULARIO: Record<FormularioEnsaio, NomeIcone> = {
@@ -24,18 +25,18 @@ export default function InspecaoContainer() {
   const container = carregarContainer(tag, containerId);
 
   useEffect(() => {
-    if (!container) navigate(`/inspecoes?tag=${tag}`);
+    if (!container) navigate(rotaInspecoes(tag));
   }, [container, navigate, tag]);
 
   if (!container) return <p>Carregando...</p>;
 
   const formularios = formulariosDoContainer(container);
-  const base = `/inspecoes/${tag}/${containerId}`;
+  const base = rotaInspecaoContainer(tag, containerId);
 
   return (
     <div className="inspecoes-page">
       <div className="meta-breadcrumb">
-        <Link to={`/inspecoes?tag=${tag}`} className="btn-secundario">
+        <Link to={rotaInspecoes(tag)} className="btn-secundario">
           ← Voltar
         </Link>
         <span className="tag-equipamento-roxa">{tag}</span>

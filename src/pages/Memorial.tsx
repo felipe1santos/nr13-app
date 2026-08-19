@@ -5,6 +5,7 @@ import MemorialVaso from '../features/memorial/MemorialVaso';
 import MemorialAutoclave from '../features/memorial/MemorialAutoclave';
 import MemorialCaldeira from '../features/memorial/MemorialCaldeira';
 import '../features/memorial/memorial.css';
+import { rotaEquipamento } from '../app/rotas';
 
 export default function Memorial() {
   const { tag = '' } = useParams<{ tag: string }>();
@@ -20,7 +21,7 @@ export default function Memorial() {
   return (
     <div className="memorial-page">
       <div className="memorial-page-header">
-        <Link to={`/equipamento/${tag}`} className="btn-voltar-memorial">
+        <Link to={rotaEquipamento(tag)} className="btn-voltar-memorial">
           ← Voltar para Lista
         </Link>
         <div>

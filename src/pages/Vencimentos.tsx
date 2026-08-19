@@ -6,6 +6,7 @@ import { resumoKpis, textoPrazo, useVencimentos } from '../services/vencimentos'
 import type { ItemVencimento } from '../services/vencimentos';
 import { listarChavesComPrefixo } from '../services/storage';
 import './dashboard-novo.css';
+import { rotaEquipamento } from '../app/rotas';
 
 const ICONE_TIPO: Record<string, Parameters<typeof Icone>[0]['nome']> = {
   'Vaso de Pressão': 'cylinder',
@@ -29,7 +30,7 @@ export default function Vencimentos() {
   const kpis = useMemo(() => resumoKpis(itens, totalEquip), [itens, totalEquip]);
 
   function irParaItem(it: ItemVencimento) {
-    navigate(`/equipamento/${it.pertenceA ?? it.tag}`);
+    navigate(rotaEquipamento(it.pertenceA ?? it.tag));
   }
 
   return (

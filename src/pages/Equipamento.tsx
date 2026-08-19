@@ -18,6 +18,7 @@ import MemorialLog from '../features/memorial/MemorialLog';
 import { Icone } from '../components/Icone';
 import './equipamento-page.css';
 import FotoImg from '../components/FotoImg';
+import { rotaMemorial } from '../app/rotas';
 
 const ROTULO_TIPO: Record<string, string> = {
   vaso: 'Vaso de Pressão',
@@ -240,7 +241,7 @@ function EquipamentoView({ tag }: { tag: string }) {
         <div className="bloco-dados bloco-memorial-resumo">
           <h3>Memorial de Cálculo</h3>
           <div className="memorial-body">
-            <Link to={`/equipamento/${tag}/memorial`} className="btn-mem-edit">
+            <Link to={rotaMemorial(tag)} className="btn-mem-edit">
               <span className="btn-mem-edit-icone">
                 <Icone nome="sigma" tam={24} />
               </span>

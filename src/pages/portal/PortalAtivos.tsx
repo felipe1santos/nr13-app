@@ -3,6 +3,7 @@ import { Icone } from '../../components/Icone';
 import { montarAtivos } from '../../features/portal/portalService';
 import type { ContextoPortal } from './PortalLayout';
 import FotoImg from '../../components/FotoImg';
+import { rotaPortalAtivo } from '../../app/rotas';
 
 const ROTULO_TIPO: Record<string, string> = {
   vaso: 'Vaso de Pressão',
@@ -25,7 +26,7 @@ export default function PortalAtivos() {
       </p>
       <div className="portal-grid-ativos">
         {ativos.map((a) => (
-          <Link key={a.tag} to={`/portal/ativo/${a.tag}`} className="portal-card-ativo">
+          <Link key={a.tag} to={rotaPortalAtivo(a.tag)} className="portal-card-ativo">
             <div className="portal-card-foto">
               {a.fotoCapa ? <FotoImg foto={a.fotoCapa} alt={a.tag} /> : <span className="portal-card-sem-foto"><Icone nome="box" tam={22} /></span>}
             </div>

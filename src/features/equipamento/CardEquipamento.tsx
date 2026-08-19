@@ -8,6 +8,7 @@ import { ler } from '../../services/storage';
 import { Icone } from '../../components/Icone';
 import './equipamento.css';
 import FotoImg from '../../components/FotoImg';
+import { rotaEquipamento } from '../../app/rotas';
 
 const ROTULO_TIPO: Record<string, string> = {
   vaso: 'Vaso de Pressão',
@@ -59,7 +60,7 @@ export default function CardEquipamento({ item }: { item: EquipamentoResumo }) {
   }
 
   return (
-    <div className="plate-card" onClick={() => navigate(`/equipamento/${tag}`)} style={{ cursor: 'pointer' }}>
+    <div className="plate-card" onClick={() => navigate(rotaEquipamento(tag))} style={{ cursor: 'pointer' }}>
       <div className="plate-photo">
         <span className="plate-tag-chip">{tag}</span>
         {fotoCapa ? (
