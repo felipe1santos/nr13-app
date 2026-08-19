@@ -4,7 +4,7 @@ import { isTrial } from '../../services/auth';
 import { MSG_BLOQUEIO_IMPORTACAO } from '../../services/trial';
 import { emitirAviso } from '../../services/eventos';
 import type { EmpresaEquipamento, InfoEquipamento, TipoEquipamento } from './tipos';
-import { normalizarTag } from './tagNormalizada';
+import { motivoTagInvalida, normalizarTag } from './tagNormalizada';
 
 /**
  * Importação de equipamentos por planilha (.xlsx / .xls / .ods / .csv).
@@ -240,6 +240,14 @@ export async function analisarPlanilha(arquivo: File): Promise<AnalisePlanilha> 
 
     if (!tag) {
       rejeitadas.push({ linha: numeroLinha, tag: '—', motivo: 'TAG vazia' });
+      continue;
+    }
+
+    // Mesma regra da criação pela tela: TAG nova não nasce com separador de
+    // caminho. Rejeita a LINHA, não a planilha inteira — o resto importa normal.
+    const tagInvalida = motivoTagInvalida(tag);
+    if (tagInvalida) {
+      rejeitadas.push({ linha: numeroLinha, tag, motivo: tagInvalida });
       continue;
     }
 

@@ -44,3 +44,32 @@ export function normalizarTag(bruta: string): string {
     .trim()
     .toUpperCase();
 }
+
+/**
+ * Caractere recusado na TAG NOVA: os dois separadores de caminho.
+ *
+ * A barra é o caractere do defeito de 19/08/2026 — TAG com `/` virava dois
+ * segmentos de URL e a ficha caía em "Ocorreu um erro inesperado". A barra
+ * invertida entra junto porque o navegador a CONVERTE em barra ao normalizar a
+ * URL: proibir uma e liberar a outra deixaria a porta aberta pelo lado que
+ * ninguém lembra de testar.
+ *
+ * A rota já codifica os dois desde `src/app/rotas.ts`, então isto não é o que
+ * conserta o defeito — é decisão do dono do produto de manter TAG nova simples.
+ * Por isso vale só na CRIAÇÃO e na IMPORTAÇÃO: equipamento que já existe com
+ * barra continua funcionando, abrindo e imprimindo. Bloquear o que já está
+ * cadastrado tornaria a ficha inalcançável de novo, agora de propósito.
+ */
+const PROIBIDOS = ['/', '\\'];
+
+/**
+ * Devolve a mensagem para o usuário, ou `null` se a TAG serve.
+ *
+ * Vazio devolve `null`: quem chama já tem mensagem própria para "informe a
+ * TAG", e duas mensagens para a mesma falha confundem mais que ajudam.
+ */
+export function motivoTagInvalida(tag: string): string | null {
+  const achados = PROIBIDOS.filter((c) => tag.includes(c));
+  if (achados.length === 0) return null;
+  return `A TAG não pode conter ${achados.map((c) => `"${c}"`).join(' nem ')}. Use traço ou espaço no lugar (ex.: V8-15-200L).`;
+}
