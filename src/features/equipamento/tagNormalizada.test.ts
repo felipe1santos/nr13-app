@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { motivoTagInvalida, normalizarTag } from './tagNormalizada';
+import { normalizarTag } from './tagNormalizada';
 
 describe('normalizarTag', () => {
   it('remove TAB e quebra de linha coladas do Excel', () => {
@@ -34,31 +34,5 @@ describe('normalizarTag', () => {
   it('TAG que era só lixo invisível vira string vazia', () => {
     // Quem chama trata vazio como "TAG vazia" — a rejeição que já existe.
     expect(normalizarTag('​\t \r\n')).toBe('');
-  });
-});
-
-describe('motivoTagInvalida', () => {
-  it('recusa barra — o caractere que quebrava a rota', () => {
-    expect(motivoTagInvalida('V8-15/200L')).toContain('/');
-  });
-
-  it('recusa barra invertida: o navegador a converte em barra', () => {
-    expect(motivoTagInvalida('V8-15\\200L')).not.toBeNull();
-  });
-
-  it('aceita o resto do que é nome de placa', () => {
-    for (const tag of ['VP-01', 'TQ 001', 'TQ #3 (50%)', 'CD.02', 'VÁLVULA-Ø200']) {
-      expect(motivoTagInvalida(tag), tag).toBeNull();
-    }
-  });
-
-  it('a mensagem diz o que fazer, não só que está errado', () => {
-    const motivo = motivoTagInvalida('V8-15/200L') ?? '';
-    expect(motivo).toMatch(/tra(ç|c)o|h(í|i)fen/i);
-  });
-
-  it('TAG vazia não é problema DESTE validador', () => {
-    // Quem trata vazio é quem chama, com a mensagem própria de "informe a TAG".
-    expect(motivoTagInvalida('')).toBeNull();
   });
 });

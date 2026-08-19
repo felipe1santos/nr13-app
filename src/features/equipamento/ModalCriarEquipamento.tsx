@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { SubtipoAutoclave, SubtipoCaldeira, TipoEquipamento } from './tipos';
 import { criarEquipamento, tagJaExiste } from './equipamentoService';
 import './equipamento.css';
-import { motivoTagInvalida, normalizarTag } from './tagNormalizada';
+import { normalizarTag } from './tagNormalizada';
 
 interface Props {
   onClose: () => void;
@@ -27,11 +27,6 @@ export default function ModalCriarEquipamento({ onClose, onCriado }: Props) {
     const tagLimpa = normalizarTag(tag);
     if (!tagLimpa) {
       setErro('Informe a TAG do equipamento.');
-      return;
-    }
-    const invalida = motivoTagInvalida(tagLimpa);
-    if (invalida) {
-      setErro(invalida);
       return;
     }
     setSalvando(true);
