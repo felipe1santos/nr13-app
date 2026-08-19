@@ -4,6 +4,7 @@ import { isTrial } from '../../services/auth';
 import { MSG_BLOQUEIO_IMPORTACAO } from '../../services/trial';
 import { emitirAviso } from '../../services/eventos';
 import type { EmpresaEquipamento, InfoEquipamento, TipoEquipamento } from './tipos';
+import { normalizarTag } from './tagNormalizada';
 
 /**
  * Importação de equipamentos por planilha (.xlsx / .xls / .ods / .csv).
@@ -235,7 +236,7 @@ export async function analisarPlanilha(arquivo: File): Promise<AnalisePlanilha> 
 
     totalLinhas++;
     const numeroLinha = i + 1; // 1-based, como aparece no Excel
-    const tag = (campos.tag || '').toUpperCase();
+    const tag = normalizarTag(campos.tag || '');
 
     if (!tag) {
       rejeitadas.push({ linha: numeroLinha, tag: '—', motivo: 'TAG vazia' });

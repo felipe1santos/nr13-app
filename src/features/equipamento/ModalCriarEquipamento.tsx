@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { SubtipoAutoclave, SubtipoCaldeira, TipoEquipamento } from './tipos';
 import { criarEquipamento, tagJaExiste } from './equipamentoService';
 import './equipamento.css';
+import { normalizarTag } from './tagNormalizada';
 
 interface Props {
   onClose: () => void;
@@ -23,7 +24,7 @@ export default function ModalCriarEquipamento({ onClose, onCriado }: Props) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const tagLimpa = tag.trim().toUpperCase();
+    const tagLimpa = normalizarTag(tag);
     if (!tagLimpa) {
       setErro('Informe a TAG do equipamento.');
       return;
