@@ -18,7 +18,7 @@
 | Criar o task-level | ✅ FEITO (este arquivo) |
 | Apresentar o plano ao dono | ✅ FEITO — as 3 decisões voltaram aprovadas |
 | **Implementar** | ✅ **T1…T8 IMPLEMENTADAS E COMMITADAS** — 6 commits, suíte 1107/1107, build verde |
-| Push `main` | 🔄 em curso |
+| Push `main` | ✅ `485c024` |
 | **Validar em produção** | ⛔ **AGUARDANDO REDEPLOY DO DONO** |
 
 ---
@@ -489,7 +489,7 @@ Ordem de execução e de commit. Cada bloco fecha em commit próprio.
 - [x] Suíte — **1107/1107**, 89 arquivos
 - [x] Build — `npm run build` verde (só os avisos de chunk que já existiam)
 - [x] Medição do que dá para medir **antes** do deploy — ver `### B-11`
-- [ ] Push `main`
+- [x] Push `main` — `485c024`
 - [ ] **PARAR para o redeploy do dono**
 - [ ] Medição do "depois" em produção, na mesma massa `ZZ-TESTE-FOTO-*` — **só é possível depois do redeploy**
 
@@ -591,6 +591,7 @@ ficha, o card da lista é o único consumidor de miniatura que importa, e a esco
 | 20/08 04:35 | Baseline, arquitetura, tarefas, critérios, riscos e rollback escritos | ✅ |
 | 20/08 04:40 | Pedido do dono ("uma imagem por ficha") registrado, aguardando definição | ✅ |
 | 20/08 05:05 | Decisões A-1 a A-4 aprovadas; revisão de impacto concluída; D5-10 criada (miniatura é objeto, não string) | ✅ |
+| 20/08 06:45 | **T9** — suíte 1107/1107, build verde, push `main` em `485c024`. **PARADO para o redeploy do dono** | ✅ |
 | 20/08 06:35 | **T8 concluída** — `FotoIdentificacao` (slot único) no lugar da galeria da ficha; regras puras em `identificacaoEquipamento.ts` com 10 testes. Suíte **1107/1107**, build verde | ✅ |
 | 20/08 06:15 | **T7 concluída (N-02)** — assinatura e download de miniatura deduplicados por caminho; falha não congela o caminho. Suíte **1097/1097** | ✅ |
 | 20/08 06:05 | **T6 concluída (N-01)** — miniatura baixada vai para o cofre como já enviada; principal segue sob demanda. Suíte **1094/1094** | ✅ |
