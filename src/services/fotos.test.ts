@@ -20,6 +20,7 @@ const estado = vi.hoisted(() => ({
   removidos: [] as string[][],
   erroUpload: null as { message: string } | null,
   assinadas: 0,
+  caminhosAssinados: [] as string[],
 }));
 
 vi.mock('./supabase', () => ({
@@ -33,6 +34,7 @@ vi.mock('./supabase', () => ({
         }),
         createSignedUrl: vi.fn(async (path: string) => {
           estado.assinadas++;
+          estado.caminhosAssinados.push(path);
           return { data: { signedUrl: `https://bucket.exemplo/${path}?token=abc` }, error: null };
         }),
         download: vi.fn(async () => ({ data: new Blob(['bytes']), error: null })),
@@ -119,11 +121,17 @@ beforeEach(() => {
   estado.removidos = [];
   estado.erroUpload = null;
   estado.assinadas = 0;
+  estado.caminhosAssinados = [];
   imagem.falhaMiniatura = false;
   limparCacheDeUrls();
   (globalThis as Record<string, unknown>).URL = Object.assign(globalThis.URL ?? {}, {
     createObjectURL: () => 'blob:local/fake',
     revokeObjectURL: () => {},
+  });
+  // Dublê de rede para o N-01: baixar a miniatura devolve bytes.
+  (globalThis as Record<string, unknown>).fetch = async () => ({
+    ok: true,
+    blob: async () => new Blob(['mini-bytes'], { type: 'image/jpeg' }),
   });
 });
 
@@ -356,8 +364,8 @@ describe('resolver por variante', () => {
     cofre.mapa.delete(ref.path); // força ir ao bucket para poder ver qual caminho foi pedido
     cofre.mapa.delete(ref.thumb!.path);
 
-    const url = await resolverFoto({ ref }, { variante: 'thumb' });
-    expect(url).toContain(ref.thumb!.path);
+    await resolverFoto({ ref }, { variante: 'thumb' });
+    expect(estado.caminhosAssinados).toEqual([ref.thumb!.path]);
   });
 
   it('sem variante, continua sendo a principal — nenhuma tela muda sem ser tocada', async () => {
@@ -366,7 +374,7 @@ describe('resolver por variante', () => {
     cofre.mapa.delete(ref.thumb!.path);
 
     const url = await resolverFoto({ ref });
-    expect(url).toContain(ref.path);
+    expect(estado.caminhosAssinados).toEqual([ref.path]);
     expect(url).not.toContain('.thumb.jpg');
   });
 
@@ -393,5 +401,53 @@ describe('baixarFoto — o caminho do DOCUMENTO', () => {
     // O cofre tem as duas; a que volta é a do `ref.path`.
     expect(blob).toBe(cofre.mapa.get(ref.path)?.blob);
     expect(blob).not.toBe(cofre.mapa.get(ref.thumb!.path)?.blob);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// N-01 — o cofre guarda a miniatura que baixou
+// ---------------------------------------------------------------------------
+describe('N-01 · miniatura baixada vira cache local', () => {
+  const refComThumb = (): RefFoto => ({
+    bucket: BUCKET,
+    path: `${ORG}/x/foto.jpg`,
+    mimeType: 'image/jpeg',
+    tamanho: 112000,
+    thumb: { bucket: BUCKET, path: `${ORG}/x/foto.thumb.jpg`, mimeType: 'image/jpeg', tamanho: 16000 },
+  });
+
+  it('a SEGUNDA resolução não vai à rede — era o re-download por sessão', async () => {
+    const ref = refComThumb();
+    expect(await resolverFoto({ ref }, { variante: 'thumb' })).toBe('blob:local/fake');
+    expect(estado.assinadas).toBe(1);
+    expect(cofre.mapa.has(ref.thumb!.path)).toBe(true);
+
+    // Simula uma sessão nova: o cache de objectURL some, o cofre permanece.
+    limparCacheDeUrls();
+    await resolverFoto({ ref }, { variante: 'thumb' });
+    expect(estado.assinadas).toBe(1); // nenhuma assinatura nova, nenhum byte novo
+  });
+
+  it('guarda como JÁ ENVIADA — não entra na fila de upload', async () => {
+    const ref = refComThumb();
+    await resolverFoto({ ref }, { variante: 'thumb' });
+    expect(cofre.mapa.get(ref.thumb!.path)?.pendente).toBe(false);
+    expect(await contarFotosPendentes()).toBe(0);
+  });
+
+  it('a PRINCIPAL continua sem ser cacheada por download', async () => {
+    const ref = refComThumb();
+    await resolverFoto({ ref });
+    expect(cofre.mapa.has(ref.path)).toBe(false);
+  });
+
+  it('falha ao baixar os bytes ainda exibe a foto pela URL assinada', async () => {
+    const ref = refComThumb();
+    (globalThis as Record<string, unknown>).fetch = async () => {
+      throw new Error('rede caiu no meio');
+    };
+    const url = await resolverFoto({ ref }, { variante: 'thumb' });
+    expect(url).toContain('https://bucket.exemplo/');
+    expect(cofre.mapa.has(ref.thumb!.path)).toBe(false);
   });
 });

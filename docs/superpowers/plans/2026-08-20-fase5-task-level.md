@@ -460,11 +460,11 @@ Ordem de execução e de commit. Cada bloco fecha em commit próprio.
 - [x] **Commit 3** — `perf(ui): listas e cards usam a miniatura`
 
 ### T6 — N-01: o cofre guarda a miniatura que baixou
-- [ ] `resolverFoto`, ao baixar do bucket **em modo miniatura**, grava o blob no cofre (`pendente: false`)
-- [ ] **Só a miniatura.** A principal continua não sendo cacheada por download — 115 KB × parque encheria o disco do escritório
-- [ ] Falha ao gravar no cofre não pode derrubar a exibição
-- [ ] Teste: segunda resolução do mesmo caminho não vai à rede
-- [ ] **Commit 4** — `perf(fotos): cofre guarda a miniatura baixada`
+- [x] `resolverFoto`, ao baixar do bucket **em modo miniatura**, grava o blob no cofre (`pendente: false`)
+- [x] **Só a miniatura.** A principal continua não sendo cacheada por download — 115 KB × parque encheria o disco do escritório
+- [x] Falha ao gravar no cofre não pode derrubar a exibição
+- [x] Teste: segunda resolução do mesmo caminho não vai à rede
+- [x] **Commit 4** — `perf(fotos): cofre guarda a miniatura baixada`
 
 ### T7 — N-02: uma assinatura em voo por caminho
 - [ ] `urlAssinada` guarda a **promessa** em `emVoo: Map<string, Promise>`, não só o resultado
@@ -567,6 +567,7 @@ ficha, o card da lista é o único consumidor de miniatura que importa, e a esco
 | 20/08 04:35 | Baseline, arquitetura, tarefas, critérios, riscos e rollback escritos | ✅ |
 | 20/08 04:40 | Pedido do dono ("uma imagem por ficha") registrado, aguardando definição | ✅ |
 | 20/08 05:05 | Decisões A-1 a A-4 aprovadas; revisão de impacto concluída; D5-10 criada (miniatura é objeto, não string) | ✅ |
+| 20/08 06:05 | **T6 concluída (N-01)** — miniatura baixada vai para o cofre como já enviada; principal segue sob demanda. Suíte **1094/1094** | ✅ |
 | 20/08 05:55 | **T3 concluída** — `FotoImg` com `variante`, 15 pontos de miniatura, `Equipamento.tsx` intocado, teste do palco. Suíte **1090/1090** | ✅ |
 | 20/08 05:40 | **T2 concluída** — `RefFoto.thumb` como objeto, D-18 na ordem certa, `resolverFoto` por variante, `removerFoto` cobrindo as duas. Suíte **1088/1088** | ✅ |
 | 20/08 05:15 | **T1 concluída** — `dimensionar`, `abrirImagem`, `gerarMiniatura`, `imagem.test.ts` com 15 testes verdes | ✅ |

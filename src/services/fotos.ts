@@ -455,7 +455,7 @@ export async function resolverFoto(
     // foto cuja miniatura falhou — cai na principal, que é o comportamento de
     // sempre. Nenhuma tela precisa saber a diferença.
     if (opcoes.variante === 'thumb' && foto.ref.thumb?.path) {
-      const url = await resolverCaminho(foto.ref.thumb.path);
+      const url = await resolverMiniatura(foto.ref.thumb.path);
       // Miniatura ainda não enviada por este aparelho e ausente no bucket: cai
       // na principal em vez de mostrar moldura vazia.
       if (url) return url;
@@ -465,6 +465,67 @@ export async function resolverFoto(
   }
 
   return ehBase64(foto.base64) ? (foto.base64 as string) : null;
+}
+
+/**
+ * Como `resolverCaminho`, mas GUARDA NO COFRE o que baixou (achado N-01).
+ *
+ * O defeito medido em 20/08/2026: `resolverFoto` e `baixarFoto` leem o cofre e,
+ * quando não acham, usam a URL assinada — sem nunca gravar o blob de volta. O
+ * cofre só era preenchido por quem CAPTUROU a foto. E o cache HTTP não cobria a
+ * falta, porque cada assinatura gera um `?token=` novo e a URL nunca casa com a
+ * entrada anterior. Resultado medido: duas recargas seguidas da mesma galeria
+ * baixaram as mesmas 1.152,3 KB. Quem pagava era o computador do escritório —
+ * que nunca tirou foto nenhuma e é onde a documentação é montada.
+ *
+ * **Só a miniatura entra aqui.** Cachear a principal por download encheria o
+ * disco do escritório com o parque inteiro a 115 KB por foto, para servir uma
+ * tela que já resolve com 16 KB. A principal continua sob demanda.
+ *
+ * `pendente: false` porque o arquivo JÁ ESTÁ no servidor — foi de lá que ele
+ * veio. Marcar como pendente colocaria na fila um upload do que já existe.
+ *
+ * Falhar aqui não pode custar a exibição: qualquer erro devolve a URL assinada,
+ * que é exatamente o comportamento de antes desta mudança.
+ */
+async function resolverMiniatura(path: string): Promise<string | null> {
+  const jaCriado = objetos.get(path);
+  if (jaCriado) return jaCriado;
+  try {
+    const local = await cofre.obter(path);
+    if (local) {
+      const url = URL.createObjectURL(local.blob);
+      objetos.set(path, url);
+      return url;
+    }
+  } catch {
+    // cofre indisponível: segue para o bucket
+  }
+
+  const assinada = await urlAssinada(path);
+  if (!assinada) return null;
+  try {
+    const resp = await fetch(assinada);
+    if (!resp.ok) return assinada;
+    const blob = await resp.blob();
+    try {
+      await cofre.guardar({
+        path,
+        blob,
+        mimeType: blob.type || 'image/jpeg',
+        pendente: false,
+        criadoEm: new Date().toISOString(),
+        tentativas: 0,
+      });
+    } catch {
+      // sem espaço ou cofre indisponível: a imagem aparece do mesmo jeito
+    }
+    const url = URL.createObjectURL(blob);
+    objetos.set(path, url);
+    return url;
+  } catch {
+    return assinada;
+  }
 }
 
 /** Blob local (instantâneo, offline, egress zero) → URL assinada → `null`. */
