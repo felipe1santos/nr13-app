@@ -499,3 +499,65 @@ Conforme a instrução do dono — *"Se chegar ao teste visual e elas ainda não
 disponíveis: PARE nesse critério e me avise. Não substitua por imagens sintéticas e não feche
 a Fase 5"* — **parei aqui**. A Fase 5 **continua aberta** neste único critério.
 
+
+---
+
+## 20. Revisão do critério final — o que a Fase 5 realmente pode ter degradado
+
+O dono separou os critérios (ficha/CAPA × folhas de fotos técnicas) e pediu uma revisão
+honesta: **existe alguma validação visual indispensável causada pelas mudanças da Fase 5?**
+
+Para responder, a pergunta certa não é "as fotos estão boas?", e sim **"o que exatamente
+mudou no pixel que vai para o documento?"**. São três mudanças, e só uma delas toca a imagem.
+
+### 20.1 As três mudanças, e o que cada uma faz com a imagem impressa
+
+| Mudança | Efeito na imagem que entra no documento |
+|---|---|
+| **Miniatura de 400 px** | **Nenhum.** Ela não existe para o documento: `baixarFoto` não conhece variante, o palco não a usa, e isso está travado por teste (`palco.fotos.test.ts`) e foi medido em produção — o palco recebeu 900×1200 / 1200×900, nunca 400×533 |
+| **Orientação explícita** | **Nenhum.** Medido nas 4 orientações: caminho antigo e novo são idênticos **pixel a pixel**; e em produção, com EXIF 6 real, principal e miniatura giraram igual, marca no mesmo canto |
+| **Teto de altura de 1600 px** | **Este é o único que mexe na principal** — e só para fotos **mais altas que 3:4** |
+
+Para **4:3 e 3:4** — a proporção nativa de câmera de celular, que é a esmagadora maioria — a
+principal sai **byte a byte igual à de antes**. Não há o que comparar visualmente: é o mesmo
+arquivo.
+
+### 20.2 O teto de altura NÃO pode degradar o PDF — demonstração
+
+O PDF não é vetorial: `pdfService` rasteriza a folha inteira com `html2canvas` em
+**`scale: 2`** sobre a largura A4 em px CSS (**794 × 1123**). Ou seja, **a página inteira do
+PDF tem 1588 × 2246 px** — cerca de **192 dpi**, não 300.
+
+Todas as folhas de foto usam grade **2 × 2** com `object-fit: contain`. Então um quadro de
+foto ocupa, **no limite absoluto**, metade da página: `W_q ≤ 794` e `H_q ≤ 1123` px do PDF
+(na prática bem menos, por causa de cabeçalho, rodapé e linha de descrição).
+
+Com `contain`, a foto (w × h) é desenhada por `escala = min(W_q/w, H_q/h)`:
+
+- **Foto limitada pela largura** (paisagens): usa `w = 1200`, e `W_q ≤ 794` → **sobra 1,5×**.
+- **Foto limitada pela altura** (os retratos altos, os únicos que o teto toca): usa
+  `h = 1600`, e `H_q ≤ 1123` → **sobra 1,4×**. A largura usada é `H_q × (w/h) ≤ 1123 × (w/h)`,
+  contra os `1600 × (w/h)` que o arquivo tem → **sobra a mesma 1,4×**.
+
+**Em qualquer proporção, a variante com teto entrega mais pixels do que o PDF consegue
+usar.** A perda seria matematicamente impossível de aparecer.
+
+> Antes do teto, um retrato 9:16 era guardado com 1200×2133 e o PDF usava no máximo 1123 de
+> altura: **48 % dos pixels eram descartados na rasterização**. O teto tirou peso que o
+> documento nunca imprimiu.
+
+### 20.3 O que NÃO é da Fase 5
+
+A qualidade intrínseca da foto técnica — **1200 px / q0,7** — é anterior a esta fase e **não
+foi alterada por ela**. Validar legibilidade de placa, textura de corrosão e trinca fina é um
+teste legítimo e útil, mas ele mede o pipeline **antigo**. Fica registrado como critério das
+**folhas fotográficas de inspeção**, com as 6 referências, **fora do escopo da Fase 5** — e
+sem mexer na regra de uma foto por ficha.
+
+### 20.4 Veredito
+
+Das mudanças da Fase 5, **nenhuma exige comparação visual com as 6 fotos técnicas**. O único
+item que ainda depende de material real é o **critério 1 do dono**: uma **única foto real de
+identificação**, para ver a cadeia ficha → CAPA → PDF com conteúdo fotográfico de verdade.
+Toda a massa usada até aqui é sintética.
+

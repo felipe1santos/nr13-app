@@ -539,7 +539,8 @@ aceite continua aberto.
 
 - [x] Redução **≥ 85 %** — **87,4 % medidos em produção** (arquivos no bucket) e **87,6 %** na listagem `/equipamentos`
 - [x] **A foto principal não muda** para 4:3 e 3:4 — provado por teste (`dimensionar`) e pela medição B-8
-- [ ] PDF de comparação com as 6 fotos de referência reais (placa, solda, corrosão, trinca, instrumento, geral): **AINDA PENDENTE** — a principal não muda para 4:3/3:4, mas a comparação visual não foi feita
+- [x] **Critério revisto em 20/08 (§20 das medições):** as 6 referências técnicas medem o pipeline **1200 px/q0,7**, que é ANTERIOR à Fase 5 e não foi alterado por ela. Movido para o teste das **folhas fotográficas de inspeção**, fora desta fase.
+- [ ] **Critério 1 do dono:** UMA foto real de identificação percorrendo ficha → CAPA → PDF — **falta o material**
 - [x] Foto antiga sem miniatura funciona — **confirmado em produção**: as 9 fotos legadas do `ZZ-TESTE-P2` continuam resolvendo pela principal
 - [ ] Teste provando que o palco nunca usa o thumb
 - [x] Orientação: medida em 20/08 nas 4 orientações, caminho atual == explícito, 0 pixel de diferença; travada por teste
