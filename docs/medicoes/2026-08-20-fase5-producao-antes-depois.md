@@ -368,3 +368,57 @@ cresce passou de ~61 KB para **0,4 KB por troca** — 150× menor.
 | Nenhuma foto histórica convertida à toa | ✅ 18 e 19 entradas produziram **1** imagem |
 | Relatório arquivado com `pdfRef` imutável | ✅ abre **1 iframe `blob:`** (o PDF), não um `.html`; a chave de fotos do palco foi apagada antes e **não voltou** — o palco nem é montado |
 
+
+---
+
+## 17. B · OFFLINE REAL — validado
+
+Rede desligada **de verdade** pelo dono no DevTools. **Nada foi simulado por `fetch`.**
+
+> **Ressalva metodológica, declarada:** `navigator.onLine` voltou a reportar `true` durante o
+> teste — a emulação de rede do DevTools é sobrescrita pela sessão CDP da extensão. **Não usei
+> essa flag como critério em momento nenhum.** A prova de que a rede estava desligada é o
+> `erro: "Failed to fetch"` com `tentativas` subindo (1 → 3 → 6) e as duas variantes presas em
+> `pendente: true` durante todo o período.
+
+### 17.1 Com a rede desligada
+
+Equipamento `ZZ-FASE3`, troca da foto de identificação pelo `<input>` real.
+
+| Verificação | Resultado |
+|---|---|
+| A troca acontece sem erro na tela | ✅ nenhum erro; aparece o aviso "Sem resposta do servidor. Você continua trabalhando com os dados deste aparelho…" |
+| **Principal** no IndexedDB | ✅ **105,1 KB**, `pendente: true` |
+| **Miniatura** no IndexedDB | ✅ **12,7 KB**, `pendente: true` |
+| O upload foi mesmo recusado | ✅ `tentativas` 1 → 3 → 6, `erro: "Failed to fetch"` nas duas |
+| Registro durável | ✅ a ficha passou de 1 → 2 entradas |
+| **Miniatura utilizável offline** | ✅ exibida em **400×300**, esquema `blob:`, **zero** requisição |
+| **Fechar e reabrir** | ✅ miniatura **400×300** e principal **1200×900**, as duas resolvidas do cofre |
+| Selo de pendências | ✅ "Sincronizar (3)" — as 2 mutações legadas do `EQUIPE TESTE` + a foto |
+
+### 17.2 Ao voltar a rede
+
+Disparei os eventos `online` e `visibilitychange` — **os mesmos que o navegador emite**, para
+não depender do timing. A rede já estava religada de verdade; nenhuma função do app foi
+chamada diretamente.
+
+| Verificação | Resultado |
+|---|---|
+| **Fila drena** | ✅ em **1.203 ms**, as duas variantes passaram de `pendente: true` → `false` |
+| **Principal sobe** | ✅ no bucket, **105,1 KB** — o mesmo tamanho do blob local |
+| **Miniatura sobe** | ✅ no bucket, **12,7 KB** |
+| **Referências corretas** | ✅ no servidor: a capa aponta para o caminho criado offline **e** para a miniatura irmã |
+| Registro no servidor | ✅ 2 entradas, `versao` 2, **sem `data:image`** |
+| Nada foi apagado | ✅ 4 arquivos na pasta: as 2 variantes da foto anterior + as 2 da nova |
+| Blobs preservados no cofre | ✅ continuam lá depois de enviados — é o cache de leitura offline |
+
+### 17.3 Reload depois de tudo
+
+| Verificação | Resultado |
+|---|---|
+| Ficha correta | ✅ **1** foto de identificação exibida |
+| Imagens | ✅ miniatura no slot + principal na foto grande (conferido por captura de tela) |
+| Requisições | ✅ **0 assinaturas, 0 GET** — tudo do cofre |
+| Aviso de offline | ✅ sumiu |
+| Selo | ✅ voltou a "Sincronizar (2)" — só as 2 mutações legadas do `EQUIPE TESTE`, alheias à Fase 5 |
+

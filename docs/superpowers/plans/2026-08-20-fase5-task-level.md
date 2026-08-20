@@ -544,7 +544,7 @@ aceite continua aberto.
 - [ ] Teste provando que o palco nunca usa o thumb
 - [x] Orientação: medida em 20/08 nas 4 orientações, caminho atual == explícito, 0 pixel de diferença; travada por teste
 - [ ] Portal: miniatura de outro cliente recusada — **PENDENTE: exige sessão de conta `cliente`** (por construção a autorização é a mesma da principal, D5-10, mas isso é raciocínio, não medição)
-- [x] Offline coberto por teste (as duas variantes no cofre antes da rede, as duas pendentes, as duas drenam) · **PENDENTE: exige a rede desligada de verdade** — a regra do projeto proíbe simular offline interceptando `fetch`
+- [x] Offline **VALIDADO EM PRODUÇÃO com a rede desligada de verdade** (20/08): principal 105,1 KB e miniatura 12,7 KB no cofre como pendentes, `Failed to fetch` com tentativas subindo, miniatura exibida offline em 400×300, sobrevive a fechar/reabrir, fila drena em 1,2 s e as duas sobem com as referências certas
 - [x] Suíte verde (**1107/1107**), build limpo
 
 ---
@@ -652,6 +652,7 @@ ficha, o card da lista é o único consumidor de miniatura que importa, e a esco
 | 20/08 04:35 | Baseline, arquitetura, tarefas, critérios, riscos e rollback escritos | ✅ |
 | 20/08 04:40 | Pedido do dono ("uma imagem por ficha") registrado, aguardando definição | ✅ |
 | 20/08 05:05 | Decisões A-1 a A-4 aprovadas; revisão de impacto concluída; D5-10 criada (miniatura é objeto, não string) | ✅ |
+| 20/08 17:3x | **Item B (offline real) VALIDADO** — rede desligada pelo dono; as duas variantes ficam pendentes com `Failed to fetch`, miniatura utilizável offline, sobrevive a reabrir, drena em 1.203 ms, principal e miniatura sobem, referências corretas, reload com 0 requisição | ✅ |
 | 20/08 17:0x | **A-F5-02 confirmado em produção** — 18 entradas preservadas, 1 imagem embutida (a `isCapa`), chave 1.100,9 KB → **92,9 KB** (−91,6 %). 19ª troca custou **0,4 KB**, não uma imagem. Item **D** reconfirmado no bundle novo | ✅ |
 | 20/08 16:2x | **T10 — A-F5-02 corrigido**: palco hidrata só a foto de identificação, repetindo a cadeia de `CAPA.html` com o fallback. 18 testes novos. Suíte **1125/1125**, build verde | ✅ |
 | 20/08 16:2x | **T11 — A-F5-01**: investigação read-only encerrada sem causa determinada; caminho capaz de causar o efeito foi removido pela própria Fase 5 | ✅ |
