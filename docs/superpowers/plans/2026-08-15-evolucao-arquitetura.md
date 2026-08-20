@@ -1298,7 +1298,7 @@ teste específica para cada invariante tocado.
 1. `fix(sync): conflito vai para store própria, uma cópia por chave`
 2. `fix(sync): retentar todas não reenvia item em conflito`
 3. `feat(pendencias): comparar as duas versões e escolher`
-**PARAR.**
+**PARAR — PORTÃO P2.**
 
 ---
 
@@ -1661,7 +1661,7 @@ exatamente o caminho já exercitado pelas fotos antigas.
 1. `feat(imagem): orientação explícita e teto de altura`
 2. `feat(fotos): variante miniatura com fallback para a principal`
 3. `perf(ui): listas e cards usam a miniatura`
-**PARAR — PORTÃO P3.**
+**PARAR.**
 
 ---
 
