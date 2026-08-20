@@ -6,28 +6,47 @@
 > **REGRA:** este arquivo é atualizado NO MOMENTO em que o estado muda — commit, push,
 > redeploy, validação, portão. Não no fim da fase.
 
-**Última atualização:** 20/08/2026 02:45
+**Última atualização:** 20/08/2026 03:10
 **Branch:** `main` · **Suíte:** 1063 testes / 87 arquivos, 0 falhas · **Build:** verde
 
-> 🔴 **RISCO OPERACIONAL ABERTO — cota do Supabase.** O Dashboard avisa que o período de
-> carência acabou e o projeto está `EXCEEDING USAGE LIMITS`. Se a cota se esgotar, o app sai do
-> ar. É a §0.1 do `PENDENCIAS.md`. A rever depois do P3.
 
-## ✅ P1 e P2 — APROVADOS FORMALMENTE PELO DONO em 20/08/2026
+## ✅ P1, P2 e P3 APROVADOS · FASE 4 CONCLUÍDA
 
 | | |
 |---|---|
-| **P1** (depois da Fase 0) | **FECHADO ✅** — aprovado pelo dono |
-| **P2** (depois da Fase 3) | **FECHADO ✅** — aprovado pelo dono |
+| **P1** (Fase 0) | **FECHADO ✅** aprovado 20/08 |
+| **P2** (Fase 3) | **FECHADO ✅** aprovado 20/08 |
+| **P3** (Fase 4) | **FECHADO ✅** aprovado 20/08 |
 | **Fase 3** | **CONCLUÍDA** |
-| Commit de fechamento | **`caa168f`** |
-| Suíte | **1042/1042**, 84 arquivos |
-| Build | **verde** |
-| Fase 4 | **ainda NÃO implementada** — em planejamento/baseline |
+| **Fase 4** | **CONCLUÍDA** |
+| **Fase 5** | **NÃO INICIADA** — sem autorização |
+| Commits de fechamento | `caa168f` (P1/P2) · `676f81f` (P3) |
+| Suíte | **1063/1063**, 87 arquivos · Build **verde** |
 
-Evidência completa: `docs/medicoes/2026-08-19-p1-p2-producao.md`.
+**Ganho da Fase 4, aprovado com base nas evidências:** leitura no Postgres **534,7 KB → ~21 KB**
+(descarte de 93 % → ~zero), payload **31.403 → 21.592 bytes**, `nr13_rel_` e legado fora da carga
+inicial, busca sob demanda funcionando, regressão de segurança completa e ataques ao modo novo
+`{chaves:[…]}` — todos passaram.
+
+**Ressalva aceita pelo dono:** **não** se afirma ganho de latência como conclusão da Fase 4 — a
+dispersão observada não permite essa conclusão. O ganho provado é de **leitura e payload**.
 
 ---
+
+## 🟡 Risco operacional Supabase — EM ANÁLISE → **RESOLVIDO como alarme falso**
+
+Auditoria read-only em 20/08: **`docs/medicoes/2026-08-20-auditoria-cota-supabase.md`**
+
+**Nenhuma métrica está excedida.** A maior é o Storage, em **33 %**; todos os *overages* em 0.
+O badge `EXCEEDING USAGE LIMITS` refletia o ciclo **20/jul → 20/ago**, que fechou ontem — e já
+**desapareceu**; o projeto está `Healthy`. O banner *"Grace period is over"* é **condicional**
+("**If** your organization is over its quota…"), não uma constatação.
+
+**Sem risco imediato. Sem necessidade de mudar de plano.**
+
+O que fica para acompanhar é **estoque, não fluxo**: o Storage não zera no reset, e **o PDF de
+relatório é 99,5 % dele**, a ~5,9 MB por arquivo. É exatamente o alvo das **Fases 11 e 12**
+(PDF vetorial) — o roadmap já aponta para lá.
 
 ## 🔴 ACHADO ABERTO — `EQUIPE TESTE` recriado a cada boot
 
@@ -76,11 +95,12 @@ Sempre use um destes. Nunca "concluído".
 | **1** | Índice da hidratação (A-03) | ✅ VALIDADO EM PRODUÇÃO | — | *(sem task-level — ver abaixo)* |
 | **2** | Observabilidade (A-11) | ✅ VALIDADO EM PRODUÇÃO · 1 item de doc aberto | — | `plans/2026-08-16-fase2-task-level.md` |
 | **3** | Conflitos (A-14) | ✅ **CONCLUÍDA** | **P2 FECHADO ✅** aprovado 20/08 | `plans/2026-08-16-fase3-task-level.md` |
-| **4** | Portal: arquitetura de leitura (A-02) | ✅ **VALIDADO EM PRODUÇÃO** | **P3 pronto p/ aprovação** | `plans/2026-08-20-fase4-task-level.md` |
-| 5…13 | ver plano macro | PLANEJADO | P4…P8 | `plans/2026-08-15-evolucao-arquitetura.md` |
+| **4** | Portal: arquitetura de leitura (A-02) | ✅ **CONCLUÍDA** | **P3 FECHADO ✅** aprovado 20/08 | `plans/2026-08-20-fase4-task-level.md` |
+| **5** | Fotos: thumbnail, EXIF, teto de altura (A-08) | 🚫 **NÃO INICIADA** — aguarda autorização | — | `plans/2026-08-15-evolucao-arquitetura.md` |
+| 6…13 | ver plano macro | PLANEJADO | P4…P8 | `plans/2026-08-15-evolucao-arquitetura.md` |
 
 **Fase atual:** 3 · **Tarefa atual:** Tarefa 8 (validação em produção)
-**Próxima ação exata:** dono aprova ou recusa **P1** e **P2**. Roteiros executados; evidência em `docs/medicoes/2026-08-19-p1-p2-producao.md`.
+**Próxima ação exata:** aguardar autorização do dono para iniciar a **Fase 5**. Nada em andamento.
 
 Os dois roteiros ficam gravados, já com os resultados marcados:
 

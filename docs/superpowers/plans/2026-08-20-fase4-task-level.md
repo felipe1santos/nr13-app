@@ -10,15 +10,15 @@
 ## Estado atual da fase
 
 - **Fase:** 4 — Portal: arquitetura de leitura
-- **Estado:** **VALIDADO EM PRODUÇÃO — P3 pronto para aprovação**
+- **Estado:** **CONCLUÍDA ✅** — P3 aprovado formalmente pelo dono em 20/08/2026
 - **Último commit:** ver Log · **Suíte:** 1063/1063 · **Build:** verde
 - **Push main:** SIM
 - **Redeploy:** SIM — frontend (bundle `index-C93aM9ry.js`, SHA-256 conferido) + Edge `portal_cliente` com `index.ts` **e** `prefixos.ts`, confirmada por comportamento
 - **Validação local:** SIM — 1063/1063, build limpo, 0 problemas novos de lint
 - **Validação produção:** **SIM** — payload −31 %, leitura no banco 534,7 KB → ~21 KB, 11 provas de segurança + 6 ataques à superfície nova, cota visível na tela
-- **Portão:** **P3 — PRONTO PARA APROVAÇÃO**, com 1 item não exercitável registrado (relatório legado pela UI)
-- **Próxima ação:** dono aprova ou recusa o **P3**. Depois disso, revisar a cota do Supabase (risco operacional separado)
-- **Última atualização:** 20/08/2026 02:40
+- **Portão:** **P3 FECHADO ✅** (aprovado em 20/08/2026), com 1 item não exercitável registrado (relatório legado pela UI)
+- **Próxima ação:** auditoria READ-ONLY da cota do Supabase. **Fase 5 NÃO INICIADA** e sem autorização
+- **Última atualização:** 20/08/2026 02:55
 
 ---
 
@@ -268,13 +268,13 @@ Só a medição em org de 500/1.000 continua pendente — pertence à **Fase 8**
 
 ## Ponto de retomada
 
-- **Última coisa concluída:** Fase 4 validada em produção. **P3 pronto para aprovação.**
+- **Última coisa concluída:** **Fase 4 CONCLUÍDA — P3 aprovado formalmente pelo dono em 20/08/2026.**
 - **Commit de código:** `5a42d4f` · **Bundle no ar:** `index-C93aM9ry.js` (SHA-256 conferido)
 - **Edge:** publicada com os dois arquivos, confirmada por comportamento (pedir 1 chave → 1)
 - **Suíte:** 1063/1063 · **Build:** verde
 - **Produção:** validada. Segurança sem regressão.
-- **Pendência:** aprovação do **P3** pelo dono.
-- **Próxima ação:** dono aprova ou recusa o P3. Em seguida, revisar a **cota do Supabase**.
+- **Pendência:** nenhuma nesta fase. **P3 aprovado.**
+- **Próxima ação:** auditoria da cota do Supabase (risco operacional separado).
 - **Não fazer ainda:** Fase 5.
 
 ### Aberto, registrado, não bloqueante
