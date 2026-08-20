@@ -1,3 +1,120 @@
+/** Largura padrão da foto principal. Ver `MINIATURA_*` para a variante de lista. */
+export const PRINCIPAL_LARGURA = 1200;
+/**
+ * Teto de ALTURA da foto principal (Fase 5).
+ *
+ * Até 20/08/2026 só a largura limitava, então um retrato 3:4 era guardado em
+ * 1200×1600 (1,92 Mpx contra 1,08 Mpx da paisagem) e um retrato 9:16 chegava a
+ * **1200×2133**. Medido na conta de teste: paisagem 98–105 KB, retrato
+ * 142–150 KB — 1,42× pelo mesmo motivo.
+ *
+ * 1600 é escolhido para **não mexer no caso comum**: para 4:3 e 3:4 o fator de
+ * largura já é o mais restritivo, então a foto sai byte a byte igual à de
+ * antes. Ele só age no retrato "alto" (9:16), onde corta 32,4 % — medido:
+ * 1200×2133 / 195,2 KB → 900×1600 / 132,0 KB.
+ */
+export const PRINCIPAL_ALTURA = 1600;
+export const PRINCIPAL_QUALIDADE = 0.7;
+
+/** Miniatura de lista/card (Fase 5). 400 px / q0,6 = 16,1 KB medidos, −85,6 %. */
+export const MINIATURA_LARGURA = 400;
+/** Teto proporcional (4:3) para o retrato não virar uma tira alta. */
+export const MINIATURA_ALTURA = 533;
+export const MINIATURA_QUALIDADE = 0.6;
+
+/**
+ * Dimensão de saída, escalando pelo fator MAIS RESTRITIVO entre largura e altura.
+ *
+ * Separada por ser a única parte com regra de negócio — e a única testável sem
+ * canvas, que não existe no ambiente `node` da suíte.
+ */
+export function dimensionar(
+  largura: number,
+  altura: number,
+  larguraMax: number,
+  alturaMax = Infinity,
+): { largura: number; altura: number } {
+  const escala = Math.min(1, larguraMax / largura, alturaMax / altura);
+  return {
+    largura: Math.max(1, Math.round(largura * escala)),
+    altura: Math.max(1, Math.round(altura * escala)),
+  };
+}
+
+interface FonteImagem {
+  fonte: CanvasImageSource;
+  largura: number;
+  altura: number;
+  liberar(): void;
+}
+
+/**
+ * Abre o arquivo já com a ORIENTAÇÃO FÍSICA aplicada.
+ *
+ * Medido em 20/08/2026 nas orientações EXIF 1, 3, 6 e 8: o caminho antigo
+ * (`new Image()` + `drawImage`) **já entrega o resultado certo**, idêntico
+ * pixel a pixel ao `createImageBitmap` explícito. Isto aqui não conserta bug
+ * nenhum — passa a ser GARANTIA, com teste, em vez de comportamento herdado do
+ * motor: `image-orientation: from-image` é padrão hoje, mas é decisão do
+ * navegador, e uma foto de inspeção girada em documento assinado é caro demais
+ * para depender disso.
+ *
+ * O fallback existe porque `createImageBitmap` não está em toda parte (e não
+ * está no ambiente de teste): ele cai exatamente no caminho de antes.
+ */
+export async function abrirImagem(file: Blob): Promise<FonteImagem> {
+  if (typeof createImageBitmap === 'function') {
+    try {
+      const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+      return {
+        fonte: bmp,
+        largura: bmp.width,
+        altura: bmp.height,
+        liberar: () => bmp.close?.(),
+      };
+    } catch {
+      // formato exótico ou navegador sem suporte à opção: segue para o <img>
+    }
+  }
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () =>
+      resolve({
+        fonte: img,
+        largura: img.width,
+        altura: img.height,
+        liberar: () => URL.revokeObjectURL(url),
+      });
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('arquivo não é uma imagem válida'));
+    };
+    img.src = url;
+  });
+}
+
+function rasterizar(
+  fonte: CanvasImageSource,
+  largura: number,
+  altura: number,
+  qualidade: number,
+): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = largura;
+    canvas.height = altura;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return reject(new Error('canvas indisponível'));
+    ctx.drawImage(fonte, 0, 0, largura, altura);
+    canvas.toBlob(
+      (blob) => (blob ? resolve(blob) : reject(new Error('falha ao comprimir a imagem'))),
+      'image/jpeg',
+      qualidade,
+    );
+  });
+}
+
 /**
  * Redimensiona e comprime para JPEG devolvendo BLOB.
  *
@@ -6,31 +123,39 @@
  * base64 que saiu do banco nessa mudança, e ela custa ~33% a mais de bytes que
  * o arquivo binário equivalente.
  */
-export function comprimirParaBlob(file: File, larguraMax = 1200, qualidade = 0.7): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      const escala = Math.min(1, larguraMax / img.width);
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.max(1, Math.round(img.width * escala));
-      canvas.height = Math.max(1, Math.round(img.height * escala));
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return reject(new Error('canvas indisponível'));
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      canvas.toBlob(
-        (blob) => (blob ? resolve(blob) : reject(new Error('falha ao comprimir a imagem'))),
-        'image/jpeg',
-        qualidade,
-      );
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error('arquivo não é uma imagem válida'));
-    };
-    img.src = url;
-  });
+export async function comprimirParaBlob(
+  file: Blob,
+  larguraMax = PRINCIPAL_LARGURA,
+  qualidade = PRINCIPAL_QUALIDADE,
+  alturaMax = Infinity,
+): Promise<Blob> {
+  const img = await abrirImagem(file);
+  try {
+    const d = dimensionar(img.largura, img.altura, larguraMax, alturaMax);
+    return await rasterizar(img.fonte, d.largura, d.altura, qualidade);
+  } finally {
+    img.liberar();
+  }
+}
+
+/**
+ * Variante MINIATURA — para card, lista e galeria; nunca para o documento.
+ *
+ * Medido em 20/08/2026: a galeria da ficha desenha 97×67 CSS px decodificando
+ * 1200×900, ou seja ~150× a área que chega na tela. Dez fotos numa galeria
+ * custavam 1.152,3 KB de rede em cache frio.
+ *
+ * **Não substitui a principal em lugar nenhum do documento.** O palco, o PDF e
+ * o Portal em modo documento continuam usando `baixarFoto`, que não conhece
+ * variante.
+ */
+export function gerarMiniatura(
+  file: Blob,
+  largura = MINIATURA_LARGURA,
+  qualidade = MINIATURA_QUALIDADE,
+  alturaMax = MINIATURA_ALTURA,
+): Promise<Blob> {
+  return comprimirParaBlob(file, largura, qualidade, alturaMax);
 }
 
 // Comprime imagem pro tamanho web como base64. Restou para a LOGO da empresa e a
