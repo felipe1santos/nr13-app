@@ -561,3 +561,85 @@ item que ainda depende de material real é o **critério 1 do dono**: uma **úni
 identificação**, para ver a cadeia ficha → CAPA → PDF com conteúdo fotográfico de verdade.
 Toda a massa usada até aqui é sintética.
 
+
+---
+
+## 21. ÚLTIMO CRITÉRIO — foto real de identificação (executado)
+
+Foto **real de campo**, enviada pelo dono às **21:09:49Z** pelo fluxo normal da ficha do
+`ZZ-FASE3` (botão "Trocar Foto"). Conteúdo: **manômetro com lacre e etiqueta de calibração**,
+sobre estrutura pintada de vermelho — foto de inspeção de verdade, não massa sintética.
+
+### 21.1 O que o sistema guardou
+
+| | |
+|---|---|
+| Principal | `415ca3d7….jpg` — **447×447**, **21,4 KB** |
+| Miniatura | `415ca3d7….thumb.jpg` — **400×400**, **14,4 KB** |
+| Registro | 3 entradas, **1** marcada como capa, `versao` 3, **sem `data:image`** |
+| Ficha | **1** item exibido, rótulo "Trocar Foto" |
+| Fotos anteriores | preservadas — as 2 entradas antigas continuam no registro e no bucket |
+
+> **A fonte tem 447 px, abaixo dos limites de 1200/1600.** Ou seja, **a Fase 5 não
+> redimensionou nada nesta foto**: a principal é a imagem original recomprimida, e o teto de
+> altura não foi exercido. Isso está declarado de propósito — ver §21.5.
+
+### 21.2 Qual variante entra no documento — provado por CONTEÚDO
+
+Não bastou comparar dimensão (447 e 400 são próximos). Comparei **pixel a pixel**, amostrando
+as três imagens em 200×200 e medindo a diferença média por canal:
+
+| Comparação | Diferença média |
+|---|---|
+| **Palco × principal** | **0,00** — idênticas |
+| Palco × miniatura | 2,83 |
+| Principal × miniatura | 2,83 |
+
+**O documento usa a principal, byte a byte.** E a folha confirma: `#imgVessel` com
+`naturalWidth/Height` = **447×447**.
+
+### 21.3 Orientação, proporção, corte e distorção
+
+| Verificação | Resultado |
+|---|---|
+| Orientação | ✅ correta, igual à do arquivo armazenado; nada girado |
+| Proporção natural × proporção da caixa | ✅ **1,000 × 1,000** |
+| Distorção | ✅ nenhuma — `object-fit: contain` e proporções iguais |
+| Corte | ✅ nenhum — a imagem inteira aparece na folha |
+| Identificação preservada | ✅ manômetro, mostrador, lacre e etiqueta reconhecíveis na CAPA |
+
+### 21.4 `.thumb.jpg` NÃO entra no PDF
+
+Prova por linha do tempo dos recursos da sessão:
+
+| | |
+|---|---|
+| `.thumb.jpg` carregados | 2 — aos **69.398 ms** (`fetch`, o cache do N-01) e **69.490 ms** (`img`, o card da lista) |
+| Documento começou a montar | **117.007 ms** (primeira das **15** folhas) |
+| **Miniaturas pedidas depois do documento começar** | **0** |
+
+As duas miniaturas são da **listagem**, antes do documento existir. Nenhuma das 15 folhas
+pediu miniatura — o documento se serve do palco, que recebeu a principal.
+
+### 21.5 Ressalva declarada — o que este teste NÃO prova
+
+A caixa da foto na CAPA mede 420×420 px CSS, ou **840×840 px no PDF**. A foto tem **447 px**,
+então ela é **ampliada ~1,9×** no documento. Isso é limitação **da fonte**, não da Fase 5:
+com 447 px a foto está abaixo de todos os limites que esta fase introduziu, e nenhum
+redimensionamento foi aplicado a ela.
+
+**Portanto este teste prova a cadeia** (variante certa, orientação, proporção, corte, ausência
+da miniatura, imutabilidade) **mas não mede a qualidade de uma foto de câmera em resolução
+plena**. Para isso serve o teste das folhas fotográficas com as 6 referências — que, conforme
+§20.3, mede o pipeline **anterior** a esta fase.
+
+### 21.6 Relatório arquivado — imutável, provado por hash
+
+| | |
+|---|---|
+| Registro | `nr13_rel_REL-1787152599432_COMPRESSOR V8-15/200L` |
+| `atualizado_em` | **19/08 15:17:02Z** — intocado; gerar o relatório novo não mexeu nele |
+| `sha256` gravado na emissão | `7cb14f9855bb87b4…` |
+| **SHA-256 recalculado do arquivo no bucket** | **`7cb14f9855bb87b4…`** |
+| Veredito | ✅ **byte a byte o mesmo arquivo**, 4.604.131 bytes, 15 páginas |
+

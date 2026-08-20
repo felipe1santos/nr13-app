@@ -7,7 +7,7 @@
 
 ## Estado atual da fase
 
-`🔵 PLANEJAMENTO / BASELINE` — **nada implementado**.
+✅ **CONCLUÍDA** — implementada, deployada e validada em produção em **20/08/2026**.
 
 | Etapa | Estado |
 |---|---|
@@ -17,10 +17,10 @@
 | Colher baseline | ✅ FEITO (20/08) — ver `## Baseline` |
 | Criar o task-level | ✅ FEITO (este arquivo) |
 | Apresentar o plano ao dono | ✅ FEITO — as 3 decisões voltaram aprovadas |
-| **Implementar** | ✅ **T1…T8 IMPLEMENTADAS E COMMITADAS** — 6 commits, suíte 1107/1107, build verde |
+| **Implementar** | ✅ **CONCLUÍDA** — T1…T11, suíte **1125/1125**, build verde |
 | Push `main` | ✅ `485c024` |
-| Redeploy | ✅ feito pelo dono em 20/08 · bundle `index-Bx8gMJyu.js` |
-| **Validar em produção** | 🟢 **12 de 12 itens PASSARAM** · A-F5-02 corrigido e confirmado · A-F5-01 encerrado · **falta apenas a comparação visual das 6 fotos de referência** — `docs/medicoes/2026-08-20-fase5-producao-antes-depois.md` |
+| Redeploy | ✅ dois, pelo dono em 20/08 · bundles `index-Bx8gMJyu.js` e `index-Ite3xGkv.js` |
+| **Validar em produção** | ✅ **COMPLETA** — 12 de 12 itens + o teste com foto real. A-F5-02 corrigido e confirmado; A-F5-01 encerrado — `docs/medicoes/2026-08-20-fase5-producao-antes-depois.md` |
 | **T10 — correção A-F5-02** | ✅ **CONFIRMADA EM PRODUÇÃO** (bundle `index-Ite3xGkv.js`): 1.100,9 KB → **92,9 KB**, exatamente o previsto |
 
 ---
@@ -540,7 +540,7 @@ aceite continua aberto.
 - [x] Redução **≥ 85 %** — **87,4 % medidos em produção** (arquivos no bucket) e **87,6 %** na listagem `/equipamentos`
 - [x] **A foto principal não muda** para 4:3 e 3:4 — provado por teste (`dimensionar`) e pela medição B-8
 - [x] **Critério revisto em 20/08 (§20 das medições):** as 6 referências técnicas medem o pipeline **1200 px/q0,7**, que é ANTERIOR à Fase 5 e não foi alterado por ela. Movido para o teste das **folhas fotográficas de inspeção**, fora desta fase.
-- [ ] **Critério 1 do dono:** UMA foto real de identificação percorrendo ficha → CAPA → PDF — **falta o material**
+- [x] **Critério 1 do dono — EXECUTADO (20/08):** foto real de campo (manômetro com lacre) enviada pelo fluxo da ficha do `ZZ-FASE3`. Palco × principal = **0,00** de diferença; proporção 1,000 × 1,000; sem corte nem distorção; **0** miniaturas pedidas depois de o documento começar; arquivado com **SHA-256 idêntico** ao da emissão. Ver §21 das medições
 - [x] Foto antiga sem miniatura funciona — **confirmado em produção**: as 9 fotos legadas do `ZZ-TESTE-P2` continuam resolvendo pela principal
 - [ ] Teste provando que o palco nunca usa o thumb
 - [x] Orientação: medida em 20/08 nas 4 orientações, caminho atual == explícito, 0 pixel de diferença; travada por teste
@@ -653,6 +653,7 @@ ficha, o card da lista é o único consumidor de miniatura que importa, e a esco
 | 20/08 04:35 | Baseline, arquitetura, tarefas, critérios, riscos e rollback escritos | ✅ |
 | 20/08 04:40 | Pedido do dono ("uma imagem por ficha") registrado, aguardando definição | ✅ |
 | 20/08 05:05 | Decisões A-1 a A-4 aprovadas; revisão de impacto concluída; D5-10 criada (miniatura é objeto, não string) | ✅ |
+| 20/08 18:1x | **ÚLTIMO CRITÉRIO EXECUTADO com foto real** — manômetro de campo no `ZZ-FASE3`: principal 447×447 / miniatura 400×400; palco recebe a principal com diferença **0,00**; orientação, proporção e enquadramento corretos; **0** miniaturas no documento; arquivado com SHA-256 idêntico. **FASE 5 CONCLUÍDA** | ✅ |
 | 20/08 17:4x | **Item C (Portal) VALIDADO** — miniatura e principal autorizadas abrem; as REAIS de outro cliente e o caminho inexistente devolvem 404 `nao_disponivel` com corpo e cabeçalhos idênticos; cliente segue sem assinar direto no Storage e sem ler `app_storage`. Card do Portal em 400×300 | ✅ |
 | 20/08 17:3x | **Item B (offline real) VALIDADO** — rede desligada pelo dono; as duas variantes ficam pendentes com `Failed to fetch`, miniatura utilizável offline, sobrevive a reabrir, drena em 1.203 ms, principal e miniatura sobem, referências corretas, reload com 0 requisição | ✅ |
 | 20/08 17:0x | **A-F5-02 confirmado em produção** — 18 entradas preservadas, 1 imagem embutida (a `isCapa`), chave 1.100,9 KB → **92,9 KB** (−91,6 %). 19ª troca custou **0,4 KB**, não uma imagem. Item **D** reconfirmado no bundle novo | ✅ |
@@ -671,27 +672,21 @@ ficha, o card da lista é o único consumidor de miniatura que importa, e a esco
 
 ## Ponto de retomada
 
-**Estado: 12 de 12 itens de validação PASSARAM. A FASE 5 NÃO ESTÁ FECHADA.**
+**FASE 5 — CONCLUÍDA em 20/08/2026.** Implementada, deployada, validada em produção e
+fechada com teste real. Nada em aberto nesta fase.
 
-Falta exatamente **um** critério, e ele depende de material do dono:
+### O que ficou registrado para OUTRA etapa
 
-> **Comparação visual dos PDFs com as 6 fotos de referência reais.**
->
-> São elas: (1) placa com texto pequeno, (2) solda, (3) corrosão, (4) trinca/detalhe fino,
-> (5) instrumento/manômetro com mostrador, (6) foto geral do equipamento.
->
-> **Procuradas em 20/08 e NÃO encontradas** — ver §19 das medições: nenhum arquivo entrou na organização depois das 20:22:04Z, que é o upload do próprio teste offline.
->
-> **Elas ainda não foram fornecidas.** Toda a massa usada até aqui é sintética e **não serve**
-> para julgar legibilidade de placa ou de trinca. Conforme instrução do dono: **PARADO neste
-> critério**, sem substituir por imagem sintética e sem fechar a fase.
+**As 6 fotos técnicas de referência** (placa com texto pequeno, solda, corrosão, trinca,
+instrumento, foto geral) permanecem como critério do **teste das folhas fotográficas de
+inspeção**. Elas medem o pipeline **1200 px / q0,7**, que é ANTERIOR à Fase 5 e não foi
+alterado por ela (§20.3 das medições). **A regra de uma foto por ficha não muda por causa
+desse teste.**
 
-O que esse teste ainda precisa provar, quando as fotos chegarem:
-relatório novo usa a principal e nunca a miniatura · orientação correta · qualidade técnica
-preservada · a CAPA usa só a foto de identificação · relatório arquivado antigo continua
-sendo exatamente o mesmo arquivo.
+**A-F5-01** permanece **CAUSA NÃO DETERMINADA / EVENTO ANTERIOR À FASE 5**; não reabrir sem
+evidência nova.
 
-**A-F5-01** permanece **CAUSA NÃO DETERMINADA / EVENTO ANTERIOR À FASE 5** e não deve ser
-reaberto sem evidência nova.
+### Próxima fase
 
-**Não iniciar a Fase 6.**
+**Fase 6 — recuperação do fallback base64 (achado A-10).** **NÃO INICIADA e NÃO AUTORIZADA.**
+Aguarda decisão do dono.

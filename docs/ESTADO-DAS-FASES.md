@@ -19,7 +19,7 @@
 | **P3** (Fase 4) | **FECHADO ✅** aprovado 20/08 |
 | **Fase 3** | **CONCLUÍDA** |
 | **Fase 4** | **CONCLUÍDA** |
-| **Fase 5** | **12 de 12 itens VALIDADOS em produção** — −87,4 % nas fotos, palco 1.100,9 → 92,9 KB, offline e Portal OK. **NÃO FECHADA**: falta só a comparação visual das 6 fotos de referência, que o dono vai fornecer |
+| **Fase 5** | ✅ **CONCLUÍDA** (20/08) — fotos de lista −87,4 %, palco da CAPA −91,6 %, offline real, Portal sem regressão, fechada com teste de foto real |
 | Commits de fechamento | `caa168f` (P1/P2) · `676f81f` (P3) |
 | Suíte | **1063/1063**, 87 arquivos · Build **verde** |
 
@@ -97,11 +97,11 @@ Sempre use um destes. Nunca "concluído".
 | **2** | Observabilidade (A-11) | ✅ VALIDADO EM PRODUÇÃO · 1 item de doc aberto | — | `plans/2026-08-16-fase2-task-level.md` |
 | **3** | Conflitos (A-14) | ✅ **CONCLUÍDA** | **P2 FECHADO ✅** aprovado 20/08 | `plans/2026-08-16-fase3-task-level.md` |
 | **4** | Portal: arquitetura de leitura (A-02) | ✅ **CONCLUÍDA** | **P3 FECHADO ✅** aprovado 20/08 | `plans/2026-08-20-fase4-task-level.md` |
-| **5** | Fotos: thumbnail, EXIF, teto de altura (A-08) | 🟠 **VALIDADA · AGUARDANDO AS 6 FOTOS DE REFERÊNCIA · NÃO FECHADA** | — | `plans/2026-08-20-fase5-task-level.md` · `medicoes/2026-08-20-fase5-producao-antes-depois.md` |
+| **5** | Fotos: thumbnail, EXIF, teto de altura (A-08) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** | — | `plans/2026-08-20-fase5-task-level.md` · `medicoes/2026-08-20-fase5-producao-antes-depois.md` |
 | 6…13 | ver plano macro | PLANEJADO | P4…P8 | `plans/2026-08-15-evolucao-arquitetura.md` |
 
-**Fase atual:** 5 (validada em produção) · **Tarefa atual:** aguardar as 6 fotos de referência para a comparação visual dos PDFs
-**Próxima ação exata:** o dono fornece as **6 fotos de referência reais** (placa com texto pequeno, solda, corrosão, trinca, instrumento com mostrador, foto geral) na conta de teste. Com elas, roda-se a comparação visual dos PDFs — o **único** critério que falta para fechar a Fase 5. Nada substitui essa amostra.
+**Fase atual:** nenhuma em execução · **Tarefa atual:** nenhuma — a Fase 6 depende de autorização do dono
+**Próxima ação exata:** aguardar a decisão do dono sobre iniciar a **Fase 6** (recuperação do fallback base64, achado A-10). As 6 fotos técnicas de referência seguem registradas para o teste das **folhas fotográficas de inspeção**, que mede o pipeline anterior à Fase 5.
 
 Os dois roteiros ficam gravados, já com os resultados marcados:
 
