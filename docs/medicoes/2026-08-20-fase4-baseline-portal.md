@@ -294,6 +294,148 @@ Registrado como pendente, não como medido:
 
 ---
 
+## 7-quater. DEPOIS DA FASE 4 — medição em produção (20/08/2026)
+
+**Bundle:** `index-C93aM9ry.js`, SHA-256 idêntico ao build de `5a42d4f`.
+**Edge:** publicada e confirmada **por comportamento** — pedir 1 chave devolve 1 (a antiga
+devolvia 15). Mesma conta, mesmo navegador, mesma organização, **mesma metodologia**.
+
+### Payload e chaves
+
+| Medida | ANTES | DEPOIS | Δ |
+|---|---|---|---|
+| Chaves entregues | 15 | **13** | −2 |
+| **Payload JSON** | 31.403 b (30,7 KB) | **21.592 b (21,1 KB)** | **−31 %** |
+| Na rede (`content-length`) | 10.366 b | **9.886 b** | −4,6 % |
+| `nr13_rel_` (registro completo) | **presente**, 9,3 KB | **ausente** ✅ | — |
+| `nr13_historico_relatorios` (legado) | **presente** | **ausente** ✅ | — |
+| `nr13_historico_indice_` (o substituto) | presente | **presente** ✅ | — |
+
+> A queda na rede (−4,6 %) é bem menor que a do JSON (−31 %) porque o que saiu era **texto
+> altamente compressível** — JSON repetitivo de snapshot. Registrado como está, sem escolher o
+> número mais bonito.
+
+### Leitura no Postgres — o objetivo central da fase
+
+| Medida | ANTES | DEPOIS |
+|---|---|---|
+| Estratégia | `where org_id = X` **sem filtro**, paginado | `where org_id = X and chave in (lista)` |
+| Linhas lidas | **45** (toda a organização) | **≤ 74** pedidas por igualdade, **13 encontradas** |
+| Bytes lidos | **534,7 KB** | **~21 KB** (só as linhas do cliente) |
+| Descartado | 496 KB — **93 %** | **~0** |
+| **Cresce com o tamanho da organização?** | **SIM** | **NÃO** — cresce com o nº de ativos DO CLIENTE |
+
+**O aceite central está cumprido por construção:** a consulta passou a ser por lista fechada,
+derivada das TAGs autorizadas. Numa organização de 344 chaves, a leitura deixa de ser 3,06 MB e
+passa a ser a mesma de hoje — porque não depende mais do tamanho da organização.
+
+### Tempos — 5 execuções, mesma metodologia (7-bis)
+
+| # | Cache | `portal_cliente` duração | t_lista |
+|---|---|---|---|
+| 1 | FRIO | 810 | 1.904 |
+| 2 | quente | 385 | 1.227 |
+| 3 | quente | 387 | 1.223 |
+| 4 | quente | 661 | 934 |
+| 5 | quente | 582 | 1.046 |
+
+| Medida | ANTES | DEPOIS | Δ |
+|---|---|---|---|
+| **Duração da Edge** (mediana) | 693 ms | **582 ms** | **−16 %** |
+| **t_lista** (mediana) | 1.069 ms | **1.223 ms** | **+14 %** ⚠️ |
+| t_lista (pior caso) | 1.510 ms | 1.904 ms | — |
+| Requests na abertura | 11 | **11** | = |
+| `requestsDepoisDoEdge` | 0 | **0** | = |
+
+**Sobre o `t_lista` ter subido:** a Edge ficou mais rápida (−16 %), mas o `t_lista` piorou. As
+duas coisas convivem porque `t_lista` inclui o **início** da chamada, e ele varia com as 4
+chamadas de auth em série que vêm antes (`edge_inicio` oscilou entre 274 e 1.093 ms nas
+amostras). A dispersão da série (934–1.904) é maior que a diferença entre as medianas, então
+**não afirmo melhora nem piora de tempo de abertura com esta amostra** — o ganho provado desta
+fase é de **leitura no banco e payload**, não de latência. Medir latência com confiança exigiria
+mais execuções e controle do ambiente de rede.
+
+### Abrir um ativo — 5 execuções
+
+| # | t_detalhe |
+|---|---|
+| A | 732 · B | 972 · C | 936 · D | 215 · E | 559 |
+
+| Medida | ANTES | DEPOIS |
+|---|---|---|
+| **Mediana** | 754 ms | **732 ms** |
+| Pior caso | 954 ms | 972 ms |
+| **Requests novos ao abrir** | 0 | **0** |
+
+Praticamente igual, como esperado: o relatório do ativo testado tem `pdfRef`, então o detalhe
+não precisou buscar nada sob demanda.
+
+---
+
+## 7-quinquies. REGRESSÃO DE SEGURANÇA — as 10 provas do P1, repetidas ✅
+
+Executadas **depois** da mudança, com `ipiranga@gmail.com`.
+
+| # | Prova | Resultado |
+|---|---|---|
+| 1 | Cliente vê somente ativo vinculado | ✅ 2 ativos, os dele |
+| 2 | Ativo de outro cliente não aparece | ✅ `ZZ-FASE3`, `DASDSA`, `VASO A23` ausentes |
+| 3 | `app_storage` amplo negado | ✅ **0 linhas** |
+| 4 | Leitura dirigida a ativo alheio | ✅ **0 linhas** |
+| 5 | `portal_arquivo` autorizado | ✅ **200 + URL** (PDF e foto) |
+| 6 | Arquivo **REAL** de outro cliente | ✅ **404 `nao_disponivel`** |
+| 7 | Não-enumerabilidade (D-26) | ✅ arquivo real negado, path inexistente e outra org → **corpo único e idêntico** |
+| 8 | Storage pelo SDK | ✅ assinar **400**, download **400**, listar **`[]`** |
+| 9 | Prontuário abre | ✅ renderiza, com `Relatório nº` e `Data de Emissão` preenchidos |
+| 10 | Relatório arquivado abre | ✅ **15 páginas**, selo "Documento arquivado" |
+| 11 | Mestre no sistema interno | ✅ lê `app_storage` (**HTTP 200, 86 linhas**), lista equipamentos; Edge do Portal recusa mestre com **403** |
+
+### A superfície NOVA também foi atacada
+
+O modo `{chaves:[…]}` é uma superfície que **não existia** no P1. Testei-a como atacante:
+
+| Pedido | Devolvido |
+|---|---|
+| `nr13_info_ZZ-FASE3` (ativo de **outro cliente**) | **0** ✅ |
+| `nr13_info_DASDSA` (ativo **sem vínculo**) | **0** ✅ |
+| `nr13_rel_…_VASO A23` (relatório **real** de ativo alheio) | **0** ✅ |
+| `nr13_minha_empresa` (global, fora da lista por TAG) | **0** ✅ |
+| `nr13_info_COMPRESSOR…` (legítima) | **1** ✅ |
+| **misto**: 1 alheia + 1 legítima | **1** — só a legítima ✅ |
+
+**Nenhum vazamento.** A autorização é derivada das TAGs lidas do banco; o corpo do request só
+diz *qual* chave.
+
+---
+
+## 7-sexies. Cota visível — provado na tela ✅
+
+Enchi o `localStorage` de propósito até não caber nem 2 KB e recarreguei o Portal. A tela
+exibiu, em vermelho:
+
+> **"Não foi possível carregar 13 documentos — o armazenamento do navegador está cheio. Feche
+> outras abas do sistema e recarregue a página."**
+
+Antes da Fase 4 isso era um `console.error` e o Portal **abria mesmo assim**, com documentos
+faltando — o cliente concluiria que o documento não existe.
+
+> **A primeira tentativa deste teste foi inválida e está registrada como tal.** Enchi o
+> `localStorage` mas o Portal carregou normalmente: as chaves `nr13_*` já estavam gravadas da
+> carga anterior, e reescrever chave existente com o mesmo valor não consome espaço novo. Refiz
+> removendo as chaves de dados (preservando sessão) antes de encher, e aí sim o caminho foi
+> exercitado. O entulho foi removido ao fim.
+
+---
+
+## 7-septies. O que NÃO foi possível exercitar
+
+- [ ] **Relatório LEGADO pela interface.** A busca sob demanda foi provada **pela API** (pedir a
+      chave devolve exatamente 1, e a autorização recusa as alheias), mas o fluxo de UI não pôde
+      ser percorrido: **não existe relatório sem `pdfRef` num ativo deste cliente**. Todos os
+      relatórios da organização de teste são artefatos. Criar um legado de propósito exigiria
+      forjar dado no banco, o que não farei numa validação de portão.
+- [ ] **Organização de 500/1.000.** Pertence à **Fase 8**, como combinado.
+
 ## 8. Reprodução
 
 ```js

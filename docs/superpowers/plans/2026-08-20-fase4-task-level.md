@@ -10,15 +10,15 @@
 ## Estado atual da fase
 
 - **Fase:** 4 — Portal: arquitetura de leitura
-- **Estado:** **IMPLEMENTADO · TESTADO LOCALMENTE — aguardando redeploy do dono**
+- **Estado:** **VALIDADO EM PRODUÇÃO — P3 pronto para aprovação**
 - **Último commit:** ver Log · **Suíte:** 1063/1063 · **Build:** verde
 - **Push main:** SIM
-- **Redeploy:** **AGUARDANDO O DONO** — frontend **e** a Edge `portal_cliente` (que agora importa `prefixos.ts`)
+- **Redeploy:** SIM — frontend (bundle `index-C93aM9ry.js`, SHA-256 conferido) + Edge `portal_cliente` com `index.ts` **e** `prefixos.ts`, confirmada por comportamento
 - **Validação local:** SIM — 1063/1063, build limpo, 0 problemas novos de lint
-- **Validação produção:** **NÃO INICIADA** — só depois do redeploy
-- **Portão:** **P3** (depois da Fase 4) — ainda não alcançado
-- **Próxima ação:** dono faz o redeploy (frontend + Edge). Depois: repetir a metodologia da baseline, comparar antes×depois e rodar a regressão de segurança da seção 6
-- **Última atualização:** 20/08/2026 02:00
+- **Validação produção:** **SIM** — payload −31 %, leitura no banco 534,7 KB → ~21 KB, 11 provas de segurança + 6 ataques à superfície nova, cota visível na tela
+- **Portão:** **P3 — PRONTO PARA APROVAÇÃO**, com 1 item não exercitável registrado (relatório legado pela UI)
+- **Próxima ação:** dono aprova ou recusa o **P3**. Depois disso, revisar a cota do Supabase (risco operacional separado)
+- **Última atualização:** 20/08/2026 02:40
 
 ---
 
@@ -125,16 +125,16 @@ validação. Não há caminho em que uma chave fora do conjunto entre na consult
 
 Depois da alteração, **repetir integralmente** e registrar:
 
-- [ ] Cliente vê somente ativo vinculado
-- [ ] Ativo de outro cliente não aparece
-- [ ] `app_storage` amplo continua negado (0 linhas)
-- [ ] `portal_arquivo` autorizado funciona (200 + URL)
-- [ ] Arquivo **real** de outro cliente continua negado (404)
-- [ ] Resposta continua **não-enumerável** (404 idêntico ao de path inexistente)
-- [ ] SDK direto continua bloqueado (400 / lista vazia)
-- [ ] Prontuário abre
-- [ ] Relatório arquivado abre
-- [ ] Papel mestre continua funcionando no sistema interno
+- [x] Cliente vê somente ativo vinculado ✅
+- [x] Ativo de outro cliente não aparece ✅
+- [x] `app_storage` amplo continua negado (0 linhas) ✅
+- [x] `portal_arquivo` autorizado funciona (200 + URL) ✅
+- [x] Arquivo **real** de outro cliente continua negado (404) ✅
+- [x] Resposta continua **não-enumerável** (404 idêntico ao de path inexistente) ✅
+- [x] SDK direto continua bloqueado (400 / lista vazia) ✅
+- [x] Prontuário abre ✅
+- [x] Relatório arquivado abre ✅
+- [x] Papel mestre continua funcionando no sistema interno ✅
 
 > **Regra:** não se aceita ganho de egress em troca de isolamento pior. Se qualquer linha
 > acima falhar, a fase é revertida, não "ajustada".
@@ -164,14 +164,14 @@ Depois da alteração, **repetir integralmente** e registrar:
 
 ## 9. Critérios do portão P3
 
-- [ ] Tempo e bytes de abertura **não crescem** com o tamanho da organização
-- [ ] Paridade prova que nenhuma chave que o cliente via antes sumiu
-- [ ] Paridade de prefixos verde
-- [ ] Nenhum `RelatorioSalvo` completo no payload da listagem
-- [ ] `QuotaExceeded` produz erro visível
-- [ ] Folhas renderizam idênticas (comparação visual antes/depois)
-- [ ] **Regressão de segurança da seção 6 integralmente reprovada em produção**
-- [ ] Suíte verde, build limpo
+- [x] **Bytes** de abertura não crescem com a organização — provado por construção (consulta por lista fechada). **Tempo:** ver ressalva no Log — a amostra não sustenta afirmação sobre latência
+- [x] Paridade prova que nenhuma chave que o cliente via antes sumiu ✅
+- [x] Paridade de prefixos verde ✅
+- [x] Nenhum `RelatorioSalvo` completo no payload da listagem ✅
+- [x] `QuotaExceeded` produz erro visível ✅ provado na tela
+- [x] Folhas renderizam idênticas — prontuário e relatório conferidos em tela, nenhum campo virou "-"
+- [x] **Regressão de segurança da seção 6 integralmente reproduzida em produção** ✅ (o texto original dizia "reprovada"; era erro de digitação — o sentido é *reproduzida*)
+- [x] Suíte verde, build limpo — **1063/1063**
 
 > **Divergência registrada, não corrigida:** o plano macro encerra a Fase 4 com
 > "**PARAR — PORTÃO P2**". É erro de digitação: pela tabela de portões, depois da Fase 4 vem o
@@ -220,8 +220,8 @@ Só a medição em org de 500/1.000 continua pendente — pertence à **Fase 8**
 
 ### Bloco 4 — Validação
 - [x] Suíte + build — **1063/1063** (era 1042; +21), build limpo, **0 problemas novos de lint**
-- [ ] Medição antes/depois
-- [ ] **Regressão de segurança completa (seção 6)**
+- [x] Medição antes/depois — payload **−31 %**, leitura no banco **534,7 KB → ~21 KB**
+- [x] **Regressão de segurança completa (seção 6)** — 11 provas + 6 ataques à superfície nova, todas passaram
 
 ---
 
@@ -238,27 +238,75 @@ Só a medição em org de 500/1.000 continua pendente — pertence à **Fase 8**
 
 ---
 
+### 20/08/2026 02:10–02:40 — VALIDADO EM PRODUÇÃO
+
+- **Edge publicada pelo Dashboard** (a CLI não existe neste ambiente e o token de administração
+  não deve passar por mim). Criei `prefixos.ts` pelo "+ Add File" e substituí o `index.ts`,
+  injetando o conteúdo pelo Monaco em vez de digitar — evita auto-indent e autocomplete
+  corromperem o código. `prefixos.ts` ficou com **4.305 bytes**, o mesmo do repo.
+- **Antes de tudo, descobri que o deploy anterior NÃO tinha acontecido**: o Dashboard mostrava
+  `portal_cliente` com "2 months ago" e a Edge devolvia as 15 chaves antigas. Reportei em vez de
+  seguir validando o que não estava no ar.
+- **Ganho medido:** payload **31.403 → 21.592 bytes (−31 %)**; chaves **15 → 13**; leitura no
+  Postgres **534,7 KB → ~21 KB**; `nr13_rel_` e o array legado saíram; o índice ficou.
+- **O aceite central está cumprido por construção:** a consulta virou lista fechada derivada das
+  TAGs, então o custo deixou de depender do tamanho da organização.
+- **Segurança: 11 provas repetidas, todas passaram.** E ataquei a superfície NOVA (o modo
+  `{chaves:[…]}`), que não existia no P1: ativo de outro cliente, ativo sem vínculo, relatório
+  real alheio, global fora da lista e pedido misto — **nenhum vazamento**.
+- **Cota visível provada na tela.** A primeira tentativa foi inválida e está registrada como tal:
+  as chaves já existiam no `localStorage`, então reescrevê-las não disputava espaço.
+- **Duas coisas que NÃO afirmo:**
+  1. **Melhora de latência.** A Edge ficou 16 % mais rápida, mas o `t_lista` subiu 14 %, e a
+     dispersão da série (934–1.904 ms) é maior que a diferença entre as medianas. A amostra não
+     sustenta conclusão sobre tempo de abertura. O ganho provado é de leitura e payload.
+  2. **Relatório legado pela interface.** Provado por API; não há relatório sem `pdfRef` neste
+     cliente para percorrer o fluxo de UI, e não vou forjar dado no banco numa validação de portão.
+- Suíte **1063/1063**, build limpo. **Nenhum código alterado nesta etapa.**
+
+---
+
 ## Ponto de retomada
 
-- **Última coisa concluída:** Blocos 1, 2 e 3 da Fase 4 implementados e testados localmente.
-- **Suíte:** 1063/1063 (era 1042) · **Build:** verde · **Lint:** 0 problemas novos.
-- **Alterações:** 4 arquivos modificados, 4 criados. Nada em produção.
-- **Deploy:** **AGUARDANDO O DONO.** Precisa dos DOIS:
-  1. **frontend** (`portalService`, `PortalAtivo`, `familiasChave`);
-  2. **Edge `portal_cliente`** — e ela agora importa `./prefixos.ts`, então **os dois arquivos
-     têm de subir juntos**. Subir só o `index.ts` quebra a função.
-- **Produção:** não validada. P3 não alcançado.
-- **Próxima ação, na ordem:**
-  1. dono redeploya frontend + Edge (com `prefixos.ts`);
-  2. repetir a metodologia da baseline (seção 7-bis do doc de medições) e comparar antes×depois;
-  3. rodar a **regressão de segurança da seção 6 inteira** — se qualquer linha falhar, reverter;
-  4. registrar medições, apresentar o **P3**, PARAR.
-- **Não fazer ainda:** Fase 5. E não validar em produção antes do redeploy.
+- **Última coisa concluída:** Fase 4 validada em produção. **P3 pronto para aprovação.**
+- **Commit de código:** `5a42d4f` · **Bundle no ar:** `index-C93aM9ry.js` (SHA-256 conferido)
+- **Edge:** publicada com os dois arquivos, confirmada por comportamento (pedir 1 chave → 1)
+- **Suíte:** 1063/1063 · **Build:** verde
+- **Produção:** validada. Segurança sem regressão.
+- **Pendência:** aprovação do **P3** pelo dono.
+- **Próxima ação:** dono aprova ou recusa o P3. Em seguida, revisar a **cota do Supabase**.
+- **Não fazer ainda:** Fase 5.
+
+### Aberto, registrado, não bloqueante
+
+1. **Relatório legado pela UI** — não exercitável neste cliente (todos têm `pdfRef`).
+2. **Latência** — sem conclusão com esta amostra; ver Log.
+3. **Org de 500/1.000** — Fase 8.
+4. 🔴 **`EQUIPE TESTE` recriado a cada boot** — achado do legado (A-13), intocado.
+5. 🔴 **RISCO OPERACIONAL — cota do Supabase.** Ver abaixo.
+
+### 🔴 Risco operacional separado — cota do Supabase
+
+Registrado durante o deploy, **fora do escopo da Fase 4** e sem interromper a validação, como o
+dono determinou.
+
+O Dashboard exibe, em todas as páginas:
+
+> **"Grace period is over · Your projects will not be able to serve requests when you use up
+> your quota."**
+
+E o projeto está marcado **`EXCEEDING USAGE LIMITS`**.
+
+É a pendência **§0.1 do `PENDENCIAS.md`**, cujo prazo era 16/08. **Se a cota se esgotar, o app
+sai do ar para todos os clientes.** A Fase 4 reduz o consumo FUTURO (−31 % de payload por
+abertura de Portal), mas não desfaz o que já foi gasto no ciclo.
+
+**A revisar com o dono depois do P3:** qual cota exatamente está estourada (egress? banco?
+storage?), quanto falta para o teto e qual ação evita a restrição.
 
 ### Rollback, se preciso
 
 1. `git revert` dos commits de frontend;
-2. redeployar `supabase/functions/portal_cliente/index.anterior.ts` (byte-idêntico ao que
-   está no ar hoje, sha `a6909e38…`);
-3. nada foi migrado — rollback imediato, sem perda. As policies da Fase 0 permanecem e
-   continuam corretas com a Edge antiga.
+2. redeployar `supabase/functions/portal_cliente/index.anterior.ts` (byte-idêntico ao que estava
+   no ar, sha `a6909e38…`) — pelo Dashboard, apagando o `prefixos.ts`;
+3. nada foi migrado. As policies da Fase 0 permanecem e continuam corretas com a Edge antiga.
