@@ -6,7 +6,7 @@
 > **REGRA:** este arquivo é atualizado NO MOMENTO em que o estado muda — commit, push,
 > redeploy, validação, portão. Não no fim da fase.
 
-**Última atualização:** 20/08/2026 03:10
+**Última atualização:** 20/08/2026 03:20
 **Branch:** `main` · **Suíte:** 1063 testes / 87 arquivos, 0 falhas · **Build:** verde
 
 
@@ -19,7 +19,7 @@
 | **P3** (Fase 4) | **FECHADO ✅** aprovado 20/08 |
 | **Fase 3** | **CONCLUÍDA** |
 | **Fase 4** | **CONCLUÍDA** |
-| **Fase 5** | **NÃO INICIADA** — sem autorização |
+| **Fase 5** | **PLANEJADA** — AS-IS + baseline prontos; **implementação NÃO autorizada**, 3 decisões abertas |
 | Commits de fechamento | `caa168f` (P1/P2) · `676f81f` (P3) |
 | Suíte | **1063/1063**, 87 arquivos · Build **verde** |
 
@@ -33,7 +33,7 @@ dispersão observada não permite essa conclusão. O ganho provado é de **leitu
 
 ---
 
-## 🟡 Risco operacional Supabase — EM ANÁLISE → **RESOLVIDO como alarme falso**
+## ✅ Risco operacional Supabase — ENCERRADO (aprovado pelo dono em 20/08)
 
 Auditoria read-only em 20/08: **`docs/medicoes/2026-08-20-auditoria-cota-supabase.md`**
 
@@ -42,7 +42,8 @@ O badge `EXCEEDING USAGE LIMITS` refletia o ciclo **20/jul → 20/ago**, que fec
 **desapareceu**; o projeto está `Healthy`. O banner *"Grace period is over"* é **condicional**
 ("**If** your organization is over its quota…"), não uma constatação.
 
-**Sem risco imediato. Sem necessidade de mudar de plano.**
+**Sem risco imediato. Sem necessidade de mudar de plano nem de prioridade.** Encerramento da
+auditoria aprovado formalmente pelo dono. Projeto `Healthy`.
 
 O que fica para acompanhar é **estoque, não fluxo**: o Storage não zera no reset, e **o PDF de
 relatório é 99,5 % dele**, a ~5,9 MB por arquivo. É exatamente o alvo das **Fases 11 e 12**
@@ -96,11 +97,11 @@ Sempre use um destes. Nunca "concluído".
 | **2** | Observabilidade (A-11) | ✅ VALIDADO EM PRODUÇÃO · 1 item de doc aberto | — | `plans/2026-08-16-fase2-task-level.md` |
 | **3** | Conflitos (A-14) | ✅ **CONCLUÍDA** | **P2 FECHADO ✅** aprovado 20/08 | `plans/2026-08-16-fase3-task-level.md` |
 | **4** | Portal: arquitetura de leitura (A-02) | ✅ **CONCLUÍDA** | **P3 FECHADO ✅** aprovado 20/08 | `plans/2026-08-20-fase4-task-level.md` |
-| **5** | Fotos: thumbnail, EXIF, teto de altura (A-08) | 🚫 **NÃO INICIADA** — aguarda autorização | — | `plans/2026-08-15-evolucao-arquitetura.md` |
+| **5** | Fotos: thumbnail, EXIF, teto de altura (A-08) | 🔵 **PLANO PRONTO — AGUARDA DECISÃO** | — | `plans/2026-08-20-fase5-task-level.md` |
 | 6…13 | ver plano macro | PLANEJADO | P4…P8 | `plans/2026-08-15-evolucao-arquitetura.md` |
 
-**Fase atual:** 3 · **Tarefa atual:** Tarefa 8 (validação em produção)
-**Próxima ação exata:** aguardar autorização do dono para iniciar a **Fase 5**. Nada em andamento.
+**Fase atual:** 5 (planejamento) · **Tarefa atual:** nenhuma — aguardando decisão do dono
+**Próxima ação exata:** aguardar do dono 3 decisões da Fase 5 (largura do thumb + critério; achados novos N-01/N-02; "uma imagem por ficha"). **Nenhum código será tocado antes disso.**
 
 Os dois roteiros ficam gravados, já com os resultados marcados:
 
