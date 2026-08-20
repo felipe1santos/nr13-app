@@ -20,7 +20,8 @@
 | **Implementar** | ✅ **T1…T8 IMPLEMENTADAS E COMMITADAS** — 6 commits, suíte 1107/1107, build verde |
 | Push `main` | ✅ `485c024` |
 | Redeploy | ✅ feito pelo dono em 20/08 · bundle `index-Bx8gMJyu.js` |
-| **Validar em produção** | 🟠 **10 de 12 itens PASSARAM · 2 ACHADOS ABERTOS · 2 itens dependem do dono** — `docs/medicoes/2026-08-20-fase5-producao-antes-depois.md` |
+| **Validar em produção** | 🟠 **10 de 12 itens PASSARAM** · A-F5-02 **corrigido** · A-F5-01 **encerrado sem causa determinada** · faltam offline, Portal e comparação de PDF — `docs/medicoes/2026-08-20-fase5-producao-antes-depois.md` |
+| **T10 — correção A-F5-02** | ✅ **IMPLEMENTADA E TESTADA** · aguarda redeploy para confirmar em produção |
 
 ---
 
@@ -486,6 +487,22 @@ Ordem de execução e de commit. Cada bloco fecha em commit próprio.
 - [x] Testes: troca preserva a antiga, remoção não chama `removerFoto`, legado com N fotos escolhe a capa certa
 - [x] **Commit 6** — `feat(equipamento): ficha com uma foto de identificação`
 
+### T10 — A-F5-02: o palco hidrata só a foto de identificação
+- [x] Provar a regra atual de `CAPA.html` antes de mexer (linhas 322-333) — **a cadeia tem fallback por causa do `&& .src`**
+- [x] `hidratarIdentificacaoDaFicha` em `palco.ts`: mesma cadeia, mesma ordem, nenhum critério novo
+- [x] O array vai INTEIRO para o palco — nada é removido
+- [x] 11 testes novos em `palco.fotos.test.ts` (os 10 pedidos pelo dono + base64 legado)
+- [x] `fichaNaoApaga.test.ts` (novo, varredura): a ficha não chama `removerFoto` nem escreve base64
+- [x] 3 testes em `historicoRelatorios.test.ts`: relatório com `pdfRef` é arquivo, não receita
+- [x] Medição: **1.100,9 KB → ≈ 92,9 KB (−91,6 %)**, derivada; confirmar após o redeploy
+- [x] Suíte **1125/1125**, build verde
+- [x] **Commit** — `fix(palco): só a foto de identificação da ficha vira imagem`
+
+### T11 — A-F5-01: investigação READ-ONLY
+- [x] `app_storage_excluidos`, `app_storage_mutacoes`, `versao`/`atualizado_em`, bucket, tombstones locais
+- [x] Veredito registrado: **CAUSA NÃO DETERMINADA / EVENTO ANTERIOR À FASE 5**
+- [x] Nenhuma correção por hipótese
+
 ### T9 — Fechamento
 - [x] Suíte — **1107/1107**, 89 arquivos
 - [x] Build — `npm run build` verde (só os avisos de chunk que já existiam)
@@ -536,15 +553,26 @@ aceite continua aberto.
 
 Detalhe e evidências: `docs/medicoes/2026-08-20-fase5-producao-antes-depois.md` §6.
 
-### A-F5-01 · Uma foto sumiu da massa de teste — sem explicação
+### A-F5-01 · ENCERRADO — CAUSA NÃO DETERMINADA / EVENTO ANTERIOR À FASE 5
 
 Entre a criação da massa e a validação, uma das 10 fotos sumiu do **registro, do cofre e do
 bucket** ao mesmo tempo (`05d97b1d…jpg`, 142,1 KB; a diferença bate exata). A última escrita
 daquele registro é `2026-08-20T15:05:40Z`, `versao` 2 — **anterior ao redeploy**, então o
-código da Fase 5 não a causou. **O que a causou continua desconhecido, e não fecho a lacuna
-com hipótese.** Impacto: massa de teste, conta de teste.
+código da Fase 5 não a causou.
 
-### A-F5-02 · O palco hidrata TODAS as fotos da ficha, e agora o array cresce
+Investigação read-only (detalhe em `medicoes/…-fase5-producao-antes-depois.md` §15):
+`app_storage_excluidos` **não tem linha** para essa chave (não houve exclusão de chave — o que
+sumiu foi uma entrada do array); `versao` 2 indica **duas** gravações, e o upload das 10 fotos
+grava **uma**; o arquivo saiu do bucket, o que só acontece por `removerFoto`, chamado naquele
+bundle **apenas** por `Galeria.remover()`; `app_storage_mutacoes` **não é legível** (sem policy
+de select), então o `[]` é ausência de acesso, não de registro.
+
+**Veredito: CAUSA NÃO DETERMINADA / EVENTO ANTERIOR À FASE 5.** Sem evidência de regressão do
+código novo — e o caminho capaz de produzir o efeito **foi removido pela própria Fase 5**
+(`FotoIdentificacao` não chama `removerFoto`, travado por `fichaNaoApaga.test.ts`). **Não
+bloqueia a fase.** Impacto: massa de teste, conta de teste.
+
+### A-F5-02 · CORRIGIDO em 20/08 (aprovado pelo dono)
 
 Medido ao gerar a CAPA no `ZZ-TESTE-P2`: **18 entradas, 18 dataURLs, 1.100,9 KB** numa chave
 só, de um orçamento de 3.368 KB — para uma folha que imprime **uma** foto.
@@ -554,9 +582,13 @@ troca**, por decisão A-4 (nada é apagado). Por volta de **38 trocas**, essa ch
 o orçamento e o documento passa a ser recusado (I-23) — com mensagem e sem perda de dado, mas
 recusado.
 
-**Correção candidata, NÃO aplicada:** o palco hidratar apenas a foto de identificação de
-`nr13_fotos_`, já que é a única que `CAPA.html` lê. Muda o comportamento do palco e precisa
-de decisão do dono.
+**Corrigido em T10.** O palco passa a hidratar apenas a foto que a CAPA usaria, repetindo a
+**cadeia inteira** do template (`find(isCapa)` com `src` → `fotos[0].src` → `imagemPrint`) —
+inclusive o fallback, que existe justamente porque a condição é `&& .src`. O array vai
+**inteiro** para o palco: `fotos.length` e `fotos[0]` são lidos pelo template.
+
+Medido: **1.100,9 KB → ≈ 92,9 KB (−91,6 %)**; o "depois" é derivado de dois números medidos
+(5,3 KB de referências + 87,6 KB de uma foto degradada) e **será confirmado após o redeploy**.
 
 ---
 
@@ -620,6 +652,8 @@ ficha, o card da lista é o único consumidor de miniatura que importa, e a esco
 | 20/08 04:35 | Baseline, arquitetura, tarefas, critérios, riscos e rollback escritos | ✅ |
 | 20/08 04:40 | Pedido do dono ("uma imagem por ficha") registrado, aguardando definição | ✅ |
 | 20/08 05:05 | Decisões A-1 a A-4 aprovadas; revisão de impacto concluída; D5-10 criada (miniatura é objeto, não string) | ✅ |
+| 20/08 16:2x | **T10 — A-F5-02 corrigido**: palco hidrata só a foto de identificação, repetindo a cadeia de `CAPA.html` com o fallback. 18 testes novos. Suíte **1125/1125**, build verde | ✅ |
+| 20/08 16:2x | **T11 — A-F5-01**: investigação read-only encerrada sem causa determinada; caminho capaz de causar o efeito foi removido pela própria Fase 5 | ✅ |
 | 20/08 12:5x | **Validação em produção** — bundle `index-Bx8gMJyu.js` conferido; 10 de 12 itens passaram; achados A-F5-01 e A-F5-02 abertos; itens 9 (offline) e 10 (Portal) dependem do dono | 🟠 |
 | 20/08 06:45 | **T9** — suíte 1107/1107, build verde, push `main` em `485c024`. **PARADO para o redeploy do dono** | ✅ |
 | 20/08 06:35 | **T8 concluída** — `FotoIdentificacao` (slot único) no lugar da galeria da ficha; regras puras em `identificacaoEquipamento.ts` com 10 testes. Suíte **1107/1107**, build verde | ✅ |
@@ -633,20 +667,27 @@ ficha, o card da lista é o único consumidor de miniatura que importa, e a esco
 
 ## Ponto de retomada
 
-**Estado: DEPLOYADA · VALIDAÇÃO PARCIAL · FASE NÃO FECHADA.**
+**Estado: DEPLOYADA · A-F5-02 CORRIGIDO (aguardando redeploy) · FASE NÃO FECHADA.**
 
-Passaram em produção: bundle, redução medida (−87,4 % por arquivo, −87,6 % na listagem),
-listas usando só miniatura, cache frio e quente, N-01, N-02 (com limite declarado), foto de
-identificação (adicionar/trocar/remover sem apagar nada), orientação EXIF consistente entre
-principal e miniatura, relatório arquivado imutável, CAPA usando a principal, nenhuma base64
-nova.
+Commits da correção: ver `git log`. Suíte **1125/1125**, build verde, push feito.
 
-**Falta, e é decisão do dono:**
+**Próxima ação: o dono redeploya.** Depois disso, e só depois, fecha-se a fase com:
 
-1. **A-F5-02** — o palco hidratar só a foto de identificação, ou deixar como está?
-2. **A-F5-01** — investigar mais, ou aceitar como incidente de massa de teste?
-3. **Item 9 (offline)** — preciso que a rede seja desligada de verdade (não posso simular).
-4. **Item 10 (Portal)** — preciso de uma sessão com papel `cliente`.
-5. **Comparação visual dos PDFs** com as 6 fotos de referência reais.
+**A · Offline real** — quando chegar a hora eu digo, com estas palavras:
+**"Coloque a sessão OFFLINE agora."** Validar: foto adicionada offline → blob no IndexedDB →
+miniatura utilizável offline → fechar/reabrir → continua disponível → voltar online →
+principal sobe → miniatura sobe → referências corretas → fila drena.
+
+**B · Portal** — o dono autentica `ipiranga@gmail.com`. Validar: miniatura autorizada abre;
+principal autorizada abre; miniatura REAL de outro cliente negada; principal REAL de outro
+cliente negada; caminho inexistente continua não-enumerável.
+
+**C · PDF** — comparação visual com as 6 fotos de referência (placa com texto pequeno, solda,
+corrosão, trinca, instrumento com mostrador, foto geral). **Essas 6 fotos reais NÃO existem no
+repositório nem na conta de teste** — a massa usada até aqui é sintética. Preciso que o dono
+forneça as 6, ou autorize declarar o critério como não verificável com o material disponível.
+**Não vou substituir a amostra em silêncio.**
+
+**D** — confirmar em produção a medição do §14 (palco: 1.100,9 KB → ≈ 92,9 KB).
 
 **Não iniciar a Fase 6.**

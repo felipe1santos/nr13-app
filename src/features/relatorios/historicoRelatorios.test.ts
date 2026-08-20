@@ -345,3 +345,29 @@ describe('corte do livro no lugar da cópia', () => {
     expect(JSON.stringify(livro).length).toBeGreaterThan(15_000);
   });
 });
+
+// ---------------------------------------------------------------------------
+// 9 · relatório arquivado com `pdfRef` continua imutável (§7-quater)
+// ---------------------------------------------------------------------------
+describe('relatório arquivado é ARQUIVO, não receita', () => {
+  it('com `pdfRef`, `artefatoDe` devolve o artefato — o documento não é remontado', async () => {
+    const { artefatoDe } = await import('./artefatoRelatorio');
+    const salvo = rel('REL-1');
+
+    const art = artefatoDe(salvo);
+    expect(art).not.toBeNull();
+    expect(art!.pdfRef.path).toContain('REL-1.pdf');
+  });
+
+  it('sem `pdfRef` (legado), devolve null — é o sinal para o fluxo antigo', async () => {
+    const { artefatoDe } = await import('./artefatoRelatorio');
+    const legado = { ...rel('REL-2'), pdfRef: undefined };
+    expect(artefatoDe(legado)).toBeNull();
+  });
+
+  it('a Fase 5 não tocou no artefato: nenhuma miniatura entra nele', async () => {
+    const salvo = rel('REL-3');
+    expect(JSON.stringify(salvo.pdfRef)).not.toMatch(/thumb/);
+    expect(salvo.pdfRef?.mimeType).toBe('application/pdf');
+  });
+});

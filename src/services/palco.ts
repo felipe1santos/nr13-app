@@ -697,6 +697,68 @@ export function grupoVaiNaChave(chave: string, grupo: string): boolean {
   return dono === undefined || dono === chave;
 }
 
+/**
+ * A ficha do equipamento guarda um HISTÓRICO de fotos, e a CAPA imprime UMA.
+ *
+ * Desde a Fase 5 a ficha tem uma "foto de identificação" e trocar não apaga a
+ * anterior — o array só cresce. O palco hidratava TODAS as entradas: medido em
+ * produção em 20/08/2026, um equipamento com 18 fotos produzia **1.100,9 KB**
+ * numa chave só, de um orçamento de 3.368 KB, para desenhar uma imagem. Por
+ * volta de 38 trocas essa chave sozinha ocuparia o orçamento e o documento
+ * passaria a ser recusado.
+ *
+ * **O array continua INTEIRO no palco.** Nada é removido: `fotos.length` e
+ * `fotos[0]` são lidos pelo template, e mexer neles mudaria a folha. O que muda
+ * é só QUAIS entradas ganham a imagem embutida.
+ */
+const PREFIXO_FOTOS_FICHA = 'nr13_fotos_';
+
+/**
+ * Hidrata exatamente a foto que `CAPA.html` usaria — **a mesma cadeia, na mesma
+ * ordem**, incluindo o fallback:
+ *
+ * ```js
+ * let fotoCapa = fotos.find(f => f.isCapa);
+ * if (fotoCapa && fotoCapa.src)              -> fotoCapa.src
+ * else if (fotos.length > 0 && fotos[0].src) -> fotos[0].src
+ * else                                       -> nr13_vaso_<TAG>.imagemPrint
+ * ```
+ *
+ * O `&& .src` é o detalhe que obriga a repetir a cadeia inteira em vez de
+ * hidratar só a marcada: se a imagem da marcada não vier (arquivo indisponível),
+ * o template cai em `fotos[0].src` — e essa entrada precisa ter sido hidratada
+ * para o fallback continuar existindo. Hidratar só a marcada mudaria o
+ * comportamento no caminho de falha.
+ */
+async function hidratarIdentificacaoDaFicha(
+  arr: unknown[],
+  campos: Array<'src' | 'base64'>,
+  dataUrlDe: (ref: RefFoto) => Promise<string | null>,
+): Promise<boolean> {
+  const entradas = arr.filter(
+    (e): e is Record<string, unknown> => typeof e === 'object' && e !== null,
+  );
+  if (entradas.length === 0) return false;
+
+  const marcada = entradas.find((e) => e.isCapa === true);
+  const candidatos: Record<string, unknown>[] = [];
+  if (marcada) candidatos.push(marcada);
+  if (entradas[0] && entradas[0] !== marcada) candidatos.push(entradas[0]);
+
+  for (const cand of candidatos) {
+    // Base64 LEGADO já preenchido: o template usaria este e pararia aqui.
+    if (typeof cand.src === 'string' && cand.src) return false;
+    if (!ehRef(cand.ref)) continue;
+    const url = await dataUrlDe(cand.ref as RefFoto);
+    if (url) {
+      for (const campo of campos) cand[campo] = url;
+      return true;
+    }
+    // Sem imagem: o template cairia para o próximo da cadeia, e nós também.
+  }
+  return false;
+}
+
 export async function hidratarFotosDoBucket(itens: ItemPalco[]): Promise<ItemPalco[]> {
   const jaBaixadas = new Map<string, string | null>();
 
@@ -773,7 +835,11 @@ export async function hidratarFotosDoBucket(itens: ItemPalco[]): Promise<ItemPal
       const campos = camposDeFotoDaChave(item.chave);
       let mudou = false;
 
-      if (CHAVES_DE_CAMPO.includes(item.chave) && obj && typeof obj === 'object' && !Array.isArray(obj)) {
+      if (item.chave.startsWith(PREFIXO_FOTOS_FICHA) && Array.isArray(obj)) {
+        // Histórico da ficha: só a foto de identificação vira imagem. O array
+        // vai inteiro, com todas as referências.
+        mudou = await hidratarIdentificacaoDaFicha(obj, campos, dataUrlDe);
+      } else if (CHAVES_DE_CAMPO.includes(item.chave) && obj && typeof obj === 'object' && !Array.isArray(obj)) {
         // Container de campo: o valor é `container.dados`, então as chaves de
         // topo SÃO os grupos (checklist, visual_externo, th…). Percorre só os
         // grupos cuja folha de fotos lê ESTA chave.

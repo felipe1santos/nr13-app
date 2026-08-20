@@ -3,8 +3,10 @@
 **Data:** 20/08/2026 · **Bundle validado:** `index-Bx8gMJyu.js` (antes: `index-C93aM9ry.js`)
 **Conta:** `teste@gmail.com`, organização `99f642d3`. **Nenhum dado de cliente real foi tocado.**
 
-> **A Fase 5 NÃO está fechada.** Dois achados abertos (§6) e dois itens que dependem do dono
-> (§7). Este documento registra o que foi medido, não um encerramento.
+> **A Fase 5 NÃO está fechada.** Os dois achados de §6 já foram tratados — **A-F5-02 corrigido**
+> (§14) e **A-F5-01 encerrado sem causa determinada** (§15) —, mas seguem pendentes os itens que
+> dependem do dono (§7: offline e Portal), a comparação visual dos PDFs, e a confirmação em
+> produção da correção do §14, que precisa de um novo redeploy.
 
 ---
 
@@ -89,7 +91,7 @@ fora do cache por download**.
 
 ---
 
-## 6. ACHADOS ABERTOS — a fase não fecha com eles em pé
+## 6. ACHADOS — como foram encontrados (tratamento em §14 e §15)
 
 ### A-F5-01 · Uma foto sumiu da massa de teste, e não sei explicar
 
@@ -130,9 +132,7 @@ Conta simples: ~87 KB por foto degradada a 900 px ⇒ **por volta de 38 trocas**
 sozinha ocupa o orçamento inteiro; o documento passa a ser **recusado** (I-23), com mensagem,
 sem perda de dado — mas recusado.
 
-**Correção candidata, NÃO aplicada:** o palco hidratar apenas a foto de identificação de
-`nr13_fotos_`, já que é a única que `CAPA.html` lê. É mudança de comportamento do palco e
-precisa de decisão — não faço correção silenciosa.
+**Correção aprovada pelo dono e aplicada em 20/08 — ver §14.**
 
 ---
 
@@ -212,3 +212,105 @@ contêm imagem nenhuma**.
 5. Cache frio: apagar do IndexedDB `nr13_fotos` os blobs **não pendentes** e recarregar.
 6. Requisições: `performance.getEntriesByType('resource')`, separando `?token=` (GET da imagem)
    de `POST /object/sign` (assinatura).
+
+---
+
+## 14. A-F5-02 — CORRIGIDO (aprovado pelo dono em 20/08)
+
+### 14.1 A regra da CAPA, provada antes de mexer
+
+`public/arquivos-inspecao/CAPA.html`, linhas 322-333 — **transcrita, não interpretada**:
+
+```js
+let fotoCapa = fotos.find(f => f.isCapa);
+if (fotoCapa && fotoCapa.src)              -> fotoCapa.src
+else if (fotos.length > 0 && fotos[0].src) -> fotos[0].src
+else                                       -> nr13_vaso_<TAG>.imagemPrint
+```
+
+**O `&& .src` é o detalhe que decidiu o desenho da correção.** Não basta hidratar a entrada
+marcada: se a imagem dela não vier (arquivo indisponível), o template cai em `fotos[0].src` —
+e essa entrada precisa ter sido hidratada para o fallback continuar existindo. Hidratar só a
+marcada mudaria o comportamento no caminho de falha. Por isso o palco repete **a cadeia
+inteira, na mesma ordem**, incluindo o caso do base64 legado já preenchido.
+
+**Nenhum critério novo foi inventado.**
+
+### 14.2 O que mudou e o que não mudou
+
+| | |
+|---|---|
+| Dados reais, Storage, histórico | **intocados** — nenhuma foto apagada, nenhuma referência removida |
+| Array no palco | **inteiro**, com as 18 referências. `fotos.length` e `fotos[0]` são lidos pelo template; mexer neles mudaria a folha |
+| O que mudou | **quais entradas ganham a imagem embutida**: só a que a CAPA usaria |
+| Fotos de inspeção | intocadas — outra família de chave, outro ramo do código |
+
+### 14.3 Medição
+
+| | Entradas | Imagens embutidas | Peso da chave |
+|---|---|---|---|
+| **ANTES** (medido em produção, 20/08) | 18 | **18** | **1.100,9 KB** |
+| **DEPOIS** (derivado) | 18 | **1** | **≈ 92,9 KB** — **−91,6 %** |
+
+O "depois" é **derivado de dois números medidos**, não medido de ponta a ponta: as 18
+referências pesam **5,3 KB** (lido do `app_storage`) e uma foto degradada a 900 px pesou
+**87,6 KB** (lida do palco na mesma sessão). **Confirmação em produção fica pendente do
+próximo redeploy** — não vou apresentar como medido o que ainda não medi.
+
+Efeito prático: a chave sai de ~33 % do orçamento de 3.368 KB para ~2,8 %, e deixa de crescer
+com o número de trocas.
+
+### 14.4 Testes — os 10 pedidos
+
+`src/services/palco.fotos.test.ts` (+11 testes) e `src/features/equipamento/fichaNaoApaga.test.ts` (+4),
+`src/features/relatorios/historicoRelatorios.test.ts` (+3).
+
+| # | Pedido | Onde |
+|---|---|---|
+| 1 | ficha com 1 foto → CAPA recebe essa foto | `palco.fotos` · "ficha com UMA foto" |
+| 2 | histórico → palco recebe só a atual | `palco.fotos` · "SÓ a de identificação"; prova também que as outras **nem são baixadas** |
+| 3 | trocar → CAPA usa a nova | `palco.fotos` · "trocar a foto" |
+| 4 | remover → fallback existente funciona | `palco.fotos` · "sem nenhuma marcada, cai em fotos[0]" e "marcada SEM imagem disponível" |
+| 5 | array real completo preservado | `palco.fotos` · "o array REAL continua inteiro" |
+| 6 | arquivos antigos continuam no Storage | `fichaNaoApaga` · varredura: a ficha não importa nem chama `removerFoto` |
+| 7 | fotos das inspeções múltiplas e intactas | `palco.fotos` · "as fotos das INSPEÇÕES continuam todas" |
+| 8 | palco não converte fotos antigas | `palco.fotos` · "18 entradas, 1 imagem", 1 download |
+| 9 | relatório arquivado com `pdfRef` imutável | `historicoRelatorios` · "relatório arquivado é ARQUIVO, não receita" |
+| 10 | nenhuma base64 nova como fonte definitiva | `palco.fotos` · "nada de base64 é criado onde não havia" + `fichaNaoApaga` · "não escreve base64" |
+
+Suíte **1125/1125** (90 arquivos), build verde.
+
+---
+
+## 15. A-F5-01 — investigação READ-ONLY encerrada
+
+Investigado o caminho `…/ZZ-TESTE-P2/05d97b1d-dc98-4e57-9fae-2ef86dcefd36.jpg` (142,1 KB).
+
+### O que a evidência mostra
+
+| Fonte | Resultado |
+|---|---|
+| `app_storage_excluidos` (tombstones do servidor) | **nenhuma linha** para `nr13_fotos_ZZ-TESTE-P2` — a chave nunca foi excluída. O que sumiu foi uma **entrada dentro do array**, e isso não gera tombstone |
+| `app_storage.versao` no momento da anomalia | **2** — houve exatamente **duas** gravações da chave antes da sessão de hoje. O upload das 10 fotos, no código antigo, grava **uma** vez |
+| `atualizado_em` | `2026-08-20T15:05:40Z` — **anterior ao redeploy** |
+| Bucket | o arquivo **não está lá** ⇒ `supabase.storage.remove()` foi chamado |
+| `app_storage_mutacoes` | **não legível**: a tabela não tem policy de `select` (só a RPC `security definer` a enxerga). Consulta devolve `[]`, o que é **ausência de acesso, não ausência de registro** |
+
+### Leitura
+
+O único caminho de código que apaga arquivo do bucket é `removerFoto`, e no bundle daquele
+momento ele era chamado **apenas** por `Galeria.remover()` — o botão "×" da galeria antiga.
+Uma segunda gravação da chave (versão 2) com uma entrada a menos e o arquivo apagado é
+exatamente a assinatura desse caminho. **Mas não registrei esse clique, e não vou afirmar o
+que não observei.**
+
+### Veredito
+
+> **A-F5-01 — CAUSA NÃO DETERMINADA / EVENTO ANTERIOR À FASE 5.**
+
+Sem evidência de regressão causada pelo código novo: a última escrita é anterior ao bundle da
+Fase 5, e o caminho capaz de produzir o efeito (`Galeria.remover` → `removerFoto`) **foi
+removido pela própria Fase 5** — `FotoIdentificacao` não chama `removerFoto`, e isso agora
+está travado por teste de varredura (`fichaNaoApaga.test.ts`).
+
+Impacto: massa de teste, conta de teste. **Não bloqueia a Fase 5.**

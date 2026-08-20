@@ -19,18 +19,27 @@ vi.mock('./supabase', () => ({
   TABELA_STORAGE: 'app_storage',
 }));
 
-const baixadas: string[] = [];
+const mockBaixar = vi.hoisted(() =>
+  vi.fn(async (ref: { path: string }): Promise<Blob | null> => {
+    baixadasRef.lista.push(ref.path);
+    return new Blob(['bytes-da-imagem']);
+  }),
+);
+// `baixadas` é uma const de módulo e não pode ser tocada de dentro de um
+// `vi.hoisted` (ele roda antes). O indireto resolve sem mudar os testes que já
+// liam `baixadas`.
+const baixadasRef = vi.hoisted(() => ({ lista: [] as string[] }));
 vi.mock('./fotos', async (original) => {
   const mod = await original<typeof import('./fotos')>();
   return {
     ...mod,
-    baixarFoto: vi.fn(async (ref: { path: string }) => {
-      baixadas.push(ref.path);
-      return new Blob(['bytes-da-imagem']);
-    }),
+    baixarFoto: mockBaixar,
     blobParaDataUrl: vi.fn(async () => 'data:image/jpeg;base64,SGVsbG8='),
   };
 });
+
+/** Mesma referência de array — os testes que já liam `baixadas` seguem iguais. */
+const baixadas = baixadasRef.lista;
 
 import { hidratarFotosDoBucket, CHAVE_RUBRICAS_PALCO } from './palco';
 
@@ -288,5 +297,159 @@ describe('o palco NUNCA usa a miniatura', () => {
 
     expect(baixadas).toContain('org-1/ACA_2002/principal.jpg');
     expect(baixadas.some((p) => p.includes('.thumb.'))).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// A-F5-02 — a ficha guarda histórico; a CAPA imprime UMA
+// ---------------------------------------------------------------------------
+/**
+ * A regra NÃO é inventada aqui: é a de `CAPA.html`, linhas 322-333.
+ *
+ *   let fotoCapa = fotos.find(f => f.isCapa);
+ *   if (fotoCapa && fotoCapa.src)              -> fotoCapa.src
+ *   else if (fotos.length > 0 && fotos[0].src) -> fotos[0].src
+ *   else                                       -> nr13_vaso_<TAG>.imagemPrint
+ */
+describe('palco — só a foto de identificação da ficha vira imagem', () => {
+  const ref = (n: string) => ({ bucket: 'inspecao', path: `org-1/TAG/${n}.jpg`, mimeType: 'image/jpeg', tamanho: 100 });
+  const foto = (id: number, nome: string, isCapa = false) => ({ id, src: '', ref: ref(nome), isCapa });
+  const hidrata = async (arr: unknown[]) => {
+    const [saida] = await hidratarFotosDoBucket([{ chave: 'nr13_fotos_TAG', valor: JSON.stringify(arr) }]);
+    return JSON.parse(saida.valor) as Array<Record<string, unknown>>;
+  };
+
+  it('1 · ficha com UMA foto: a CAPA recebe essa foto', async () => {
+    const r = await hidrata([foto(1, 'unica', true)]);
+    expect(r[0].src).toBe('data:image/jpeg;base64,SGVsbG8=');
+  });
+
+  it('2 · ficha com histórico: SÓ a de identificação recebe imagem', async () => {
+    baixadas.length = 0;
+    const r = await hidrata([foto(1, 'velha1'), foto(2, 'velha2'), foto(3, 'atual', true)]);
+
+    expect(r[2].src).toBe('data:image/jpeg;base64,SGVsbG8=');
+    expect(r[0].src).toBe('');
+    expect(r[1].src).toBe('');
+    // E o que não é impresso não é nem BAIXADO — é onde o custo morava.
+    expect(baixadas).toEqual(['org-1/TAG/atual.jpg']);
+  });
+
+  it('3 · trocar a foto: a CAPA usa a nova', async () => {
+    const r = await hidrata([foto(1, 'antiga'), foto(2, 'nova', true)]);
+    expect(r[1].src).toContain('data:image');
+    expect(r[0].src).toBe('');
+  });
+
+  it('4 · sem nenhuma marcada, cai em fotos[0] — o fallback do template', async () => {
+    const r = await hidrata([foto(1, 'primeira'), foto(2, 'segunda')]);
+    expect(r[0].src).toContain('data:image');
+    expect(r[1].src).toBe('');
+  });
+
+  it('4-bis · marcada SEM imagem disponível: hidrata fotos[0], como o template faria', async () => {
+    // `&& fotoCapa.src` é a razão de a cadeia inteira ser repetida no palco.
+    baixadas.length = 0;
+    const original = mockBaixar.getMockImplementation()!;
+    mockBaixar.mockImplementation(async (r: { path: string }) => {
+      baixadas.push(r.path);
+      return r.path.includes('sumida') ? null : new Blob(['bytes']);
+    });
+
+    const r = await hidrata([foto(1, 'primeira'), foto(2, 'sumida', true)]);
+    expect(r[1].src).toBe('');
+    expect(r[0].src).toContain('data:image');
+
+    mockBaixar.mockImplementation(original);
+  });
+
+  it('5 · o array REAL continua inteiro — nada é removido do palco', async () => {
+    const arr = [foto(1, 'a'), foto(2, 'b'), foto(3, 'c', true), foto(4, 'd')];
+    const r = await hidrata(arr);
+
+    expect(r).toHaveLength(4);
+    expect(r.map((f) => f.id)).toEqual([1, 2, 3, 4]);
+    // As referências históricas continuam lá, inclusive as que não viraram imagem.
+    expect(r.every((f) => (f.ref as { path: string }).path)).toBe(true);
+  });
+
+  it('8 · o palco não converte foto histórica: 18 entradas, 1 imagem', async () => {
+    baixadas.length = 0;
+    const historico = Array.from({ length: 18 }, (_, i) => foto(i + 1, `h${i + 1}`, i === 17));
+    const r = await hidrata(historico);
+
+    expect(r).toHaveLength(18);
+    expect(r.filter((f) => String(f.src).startsWith('data:'))).toHaveLength(1);
+    expect(baixadas).toHaveLength(1);
+  });
+
+  it('10 · nada de base64 é criado onde não havia — as demais seguem com `src` vazio', async () => {
+    const r = await hidrata([foto(1, 'a'), foto(2, 'b', true), foto(3, 'c')]);
+    const comImagem = r.filter((f) => String(f.src).startsWith('data:'));
+    expect(comImagem).toHaveLength(1);
+    expect(r[0].base64).toBeUndefined();
+    expect(r[2].base64).toBeUndefined();
+  });
+
+  it('base64 LEGADO na identificação é respeitado, e nada é baixado', async () => {
+    baixadas.length = 0;
+    const legado = { id: 1, src: 'data:image/jpeg;base64,LEGADO', isCapa: true, ref: ref('x') };
+    const r = await hidrata([legado, foto(2, 'outra')]);
+
+    expect(r[0].src).toBe('data:image/jpeg;base64,LEGADO');
+    expect(baixadas).toHaveLength(0);
+  });
+
+  it('7 · as fotos das INSPEÇÕES continuam todas — outra família de chave', async () => {
+    baixadas.length = 0;
+    const container = { ve: { fotos: [{ ref: ref('ve1') }, { ref: ref('ve2') }, { ref: ref('ve3') }] } };
+    const [saida] = await hidratarFotosDoBucket([
+      { chave: 'nr13_injecao_atual', valor: JSON.stringify(container) },
+    ]);
+    const obj = JSON.parse(saida.valor);
+
+    expect(obj.ve.fotos.map((f: Record<string, string>) => f.base64)).toEqual([
+      'data:image/jpeg;base64,SGVsbG8=',
+      'data:image/jpeg;base64,SGVsbG8=',
+      'data:image/jpeg;base64,SGVsbG8=',
+    ]);
+    expect(baixadas).toHaveLength(3);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Medição A-F5-02: o mesmo caso de produção, antes × depois
+// ---------------------------------------------------------------------------
+describe('medição — 18 fotos na ficha', () => {
+  it('o peso da chave cai na proporção de 18 imagens para 1', async () => {
+    // Em produção (20/08) a chave pesou 1.100,9 KB com 18 dataURLs de ~61 KB
+    // cada, já degradadas a 900 px pelo palco. Aqui a dataURL é o dublê, então
+    // o que se mede é a PROPORÇÃO — que é o que a correção muda.
+    const IMAGEM = 'data:image/jpeg;base64,' + 'A'.repeat(60 * 1024);
+    mockBaixar.mockImplementation(async (r: { path: string }) => {
+      baixadas.push(r.path);
+      return new Blob(['bytes']);
+    });
+    const mod = await import('./fotos');
+    const espiao = vi.spyOn(mod, 'blobParaDataUrl').mockResolvedValue(IMAGEM);
+
+    const historico = Array.from({ length: 18 }, (_, i) => ({
+      id: i + 1,
+      src: '',
+      ref: { bucket: 'inspecao', path: `org-1/TAG/h${i + 1}.jpg`, mimeType: 'image/jpeg', tamanho: 100 },
+      isCapa: i === 17,
+    }));
+
+    const [saida] = await hidratarFotosDoBucket([
+      { chave: 'nr13_fotos_TAG', valor: JSON.stringify(historico) },
+    ]);
+    const kb = saida.valor.length / 1024;
+    const arr = JSON.parse(saida.valor) as Array<Record<string, unknown>>;
+
+    expect(arr).toHaveLength(18);
+    expect(arr.filter((f) => String(f.src).startsWith('data:'))).toHaveLength(1);
+    // Antes seriam 18 imagens; agora é uma. O teto confirma a ordem de grandeza.
+    expect(kb).toBeLessThan(90);
+    espiao.mockRestore();
   });
 });
