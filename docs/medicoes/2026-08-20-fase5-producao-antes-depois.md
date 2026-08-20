@@ -475,3 +475,27 @@ campo `thumbPath: string`, este teste teria falhado com 404 no arquivo do própr
 | Card do Portal | ✅ decodifica **400×300** — a **miniatura** |
 | Segunda carga da mesma tela | ✅ **0 chamadas** à Edge e **0 downloads** — o N-01 vale também para o Portal |
 
+
+---
+
+## 19. Último critério — as 6 fotos de referência NÃO foram encontradas
+
+O dono informou que as seis já estariam na conta de teste. **Procurei e não estão.**
+Registro a busca para que ela seja refeita sem ambiguidade.
+
+**Conta:** `teste@gmail.com`, organização `99f642d3`.
+
+| Onde procurei | O que encontrei |
+|---|---|
+| `app_storage`, 25 chaves mais recentes | A escrita mais nova é `nr13_fotos_ZZ-FASE3` em **20:22:04Z** — **o meu próprio upload do teste offline**. Nada depois disso |
+| Bucket `inspecao`, todas as 10 pastas da organização, ordenado por `created_at desc` | O arquivo mais novo é `ZZ-FASE3/47b7e96b….thumb.jpg` de **20:22:04.761Z** — de novo, o meu upload offline |
+| Pastas existentes | `ZZ-TESTE-P2`, `ZZ-FASE3`, `relatorios`, `EQUIPE_TESTE_visual-externo`, `EQUIPE_TESTE_checklist`, `EQUIPE_TESTE`, `DASDSA`, `COMPRESSOR_V8-15_200L_visual-interno`, `COMPRESSOR_V8-15_200L`, `assinaturas` — **nenhuma nova** |
+| Equipamento novo (`nr13_info_`) | nenhum criado depois de 03:41Z |
+| Fotos de inspeção (`nr13_docs_`) | nenhuma escrita recente |
+
+**Nenhum arquivo entrou na organização depois das 20:22:04Z.**
+
+Conforme a instrução do dono — *"Se chegar ao teste visual e elas ainda não estiverem
+disponíveis: PARE nesse critério e me avise. Não substitua por imagens sintéticas e não feche
+a Fase 5"* — **parei aqui**. A Fase 5 **continua aberta** neste único critério.
+

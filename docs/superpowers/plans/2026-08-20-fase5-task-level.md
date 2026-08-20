@@ -679,6 +679,8 @@ Falta exatamente **um** critério, e ele depende de material do dono:
 > São elas: (1) placa com texto pequeno, (2) solda, (3) corrosão, (4) trinca/detalhe fino,
 > (5) instrumento/manômetro com mostrador, (6) foto geral do equipamento.
 >
+> **Procuradas em 20/08 e NÃO encontradas** — ver §19 das medições: nenhum arquivo entrou na organização depois das 20:22:04Z, que é o upload do próprio teste offline.
+>
 > **Elas ainda não foram fornecidas.** Toda a massa usada até aqui é sintética e **não serve**
 > para julgar legibilidade de placa ou de trinca. Conforme instrução do dono: **PARADO neste
 > critério**, sem substituir por imagem sintética e sem fechar a fase.
