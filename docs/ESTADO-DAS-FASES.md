@@ -101,7 +101,7 @@ Sempre use um destes. Nunca "concluído".
 | 6…13 | ver plano macro | PLANEJADO | P4…P8 | `plans/2026-08-15-evolucao-arquitetura.md` |
 
 **Fase atual:** 5 (correção do A-F5-02 pronta) · **Tarefa atual:** aguardar redeploy, depois offline + Portal + PDF
-**Próxima ação exata:** o dono redeploya. Depois: **A** offline real (eu peço com "Coloque a sessão OFFLINE agora"), **B** Portal com , **C** comparação visual de PDF — **as 6 fotos de referência reais não existem no repo nem na conta de teste, preciso que o dono forneça**, **D** confirmar em produção o palco (1.100,9 KB → ≈92,9 KB). A Fase 5 **não fecha** antes disso.
+**Próxima ação exata:** o dono redeploya. Depois: **A** offline real (eu peço com "Coloque a sessão OFFLINE agora"), **B** Portal com a conta cliente `ipiranga@gmail.com`, **C** comparação visual de PDF — **as 6 fotos de referência reais não existem no repo nem na conta de teste, preciso que o dono forneça**, **D** confirmar em produção o palco (1.100,9 KB → ≈92,9 KB). A Fase 5 **não fecha** antes disso.
 
 Os dois roteiros ficam gravados, já com os resultados marcados:
 
