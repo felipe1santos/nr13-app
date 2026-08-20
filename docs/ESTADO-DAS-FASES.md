@@ -9,16 +9,23 @@
 **Última atualização:** 19/08/2026 22:19
 **Branch:** `main` · **Suíte:** 1042 testes / 84 arquivos, 0 falhas · **Build:** verde
 
-## ⏳ AGUARDANDO REDEPLOY
+## ⏳ BLOQUEADO — falta URL de produção e autenticação
 
-Este é o bloqueio único no momento. Nada de produção anda antes disso.
+Redeploy **anunciado** em 19/08/2026 22:35 (`main` @ `88956eb`, docs-only, contendo `cb26450`).
+Os testes de produção **não começaram**.
 
-- O dono redeploya o `main` e avisa **`REDEPLOY CONCLUÍDO`**
-- **`main` está em `d5340ba`** (docs-only). O último commit de CÓDIGO é **`cb26450`**, e
-  `d5340ba` o contém (`git merge-base --is-ancestor cb26450 HEAD` = verdadeiro) — logo,
-  redeployar o `main` de hoje entrega o estado de código correto para os testes
-- Assim que chegar o aviso: confirmar o bundle no ar → **fechar o P1** → **fechar o P2**
-- **Fase 4: não começar.**
+**Faltam duas coisas, as duas só o dono fornece:**
+
+1. **URL de produção.** Não está no repositório e não deve estar: `.env` não é versionado, o
+   `Caddyfile` serve em `:80` e o deploy é manual no Coolify.
+2. **Sessão autenticada em `teste@gmail.com`.** A senha não entra em código, Git, Markdown nem
+   log — quem faz o login é o dono, no navegador.
+
+**Já pronto, esperando só isso:** o método de confirmação do bundle. Não há carimbo de commit no
+build, então a prova é por **assinatura de string** — literais que cada commit de 19/08 introduziu
+e que sobrevivem à minificação. Validado contra o `dist/` local; basta procurá-los no JS servido.
+
+Assim que destravar: confirmar bundle → **P1** → **P2**. **Fase 4: não começar.**
 
 ---
 

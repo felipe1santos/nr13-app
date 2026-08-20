@@ -361,6 +361,27 @@ implementação. Eles são o material do teste manual **depois** do deploy — e
   **Descartar a minha**. Item passou a guardar `versaoServidor`.
 - **Este commit é da Fase 3 e não estava registrado em lugar nenhum.**
 
+### 19/08/2026 22:35 — Redeploy anunciado · verificação de bundle preparada · BLOQUEADO
+- Dono avisou **`REDEPLOY CONCLUÍDO`** (`main` @ `88956eb`, docs-only, contendo `cb26450`).
+- **Método de confirmação do bundle definido e validado localmente.** Não existe carimbo de
+  commit no build, então a prova é por **assinatura de string**: literais introduzidos por cada
+  commit de 19/08 sobrevivem à minificação e podem ser procurados no JS servido em produção.
+  Conferido contra o `dist/` local (build de HEAD):
+
+  | Commit | String-assinatura | No `dist/` local |
+  |---|---|---|
+  | `cb26450` | `prontuário não coube no armazenamento` | ✅ presente |
+  | `f074a64` | `Recriar no servidor` | ✅ presente |
+  | `f074a64` | `Descartar a minha` | ✅ presente |
+  | `150948d` (controle) | `Versões substituídas` | ✅ presente |
+  | `81cfd79` (controle) | `Unidade de medida` | ✅ presente |
+
+- **BLOQUEIO: falta a URL de produção e a autenticação.** A URL não está no repositório
+  (`.env` não é versionado; o `Caddyfile` serve em `:80`; deploy manual no Coolify). E a senha de
+  `teste@gmail.com` **não deve** ser gravada em código, Git, Markdown ou log — quem autentica é o
+  dono.
+- Nenhum teste de produção executado. P1 e P2 seguem **ABERTOS**.
+
 ### 19/08/2026 — Sessão de recuperação de estado (esta)
 - Nenhum código alterado. Git, suíte, build e código conferidos;
 - suíte **1042/1042** (84 arquivos), `npm run build` limpo;
@@ -380,7 +401,12 @@ implementação. Eles são o material do teste manual **depois** do deploy — e
 - **Alterações locais:** **nenhuma.** Working tree limpo.
 - **Testes:** 1042/1042, 84 arquivos, 25 s. Verde.
 - **Build:** verde (`tsc -b && vite build`, só warnings de chunk size, nenhum erro).
-- **Deploy:** **AGUARDANDO REDEPLOY.** Os commits de 16/08 estão em produção (provado pelo uso).
+- **Deploy:** **REDEPLOY ANUNCIADO em 19/08/2026 22:35** (`main` @ `88956eb`). Confirmação do
+  bundle no ar: **BLOQUEADA** — falta a URL de produção. Método de prova já definido e validado
+  localmente (ver Log de execução).
+- **Bloqueio ativo:** (1) URL de produção; (2) sessão autenticada em `teste@gmail.com` — a senha
+  é do dono e não entra em código, Git, Markdown nem log.
+- **Histórico:** Os commits de 16/08 estão em produção (provado pelo uso).
   Os de 19/08 (`8f19a26`, `4a8e50e`, `a85570a`, `f074a64`, `e72dd38`, `cb26450`) **não estão
   confirmados no ar**. O dono vai redeployar o `main` a partir do commit de documentação e avisar
   `REDEPLOY CONCLUÍDO`. O bundle válido para os testes precisa conter `cb26450`.
