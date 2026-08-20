@@ -186,15 +186,107 @@ Todos relativos a **t0**, em milissegundos.
 - A prova de que o custo deixa de crescer com a organização será **arquitetural** (a consulta
   passa a ser por lista de chaves derivada das TAGs) mais leitura read-only da maior org real.
 
+## 7-ter. MEDIÇÕES DE TEMPO — executadas em 20/08/2026 ✅
+
+Sessão `ipiranga@gmail.com` (papel `cliente`, 2 ativos) no **Brave**. Bundle `index-AIiLkfur.js`.
+
+### Abertura do Portal — 5 execuções
+
+| # | Cache | `portal_cliente` início | fim | **duração** | nav DCL | **t_lista** |
+|---|---|---|---|---|---|---|
+| 1 | **FRIO** | 869 | 1510 | 641 | 416 | **1510** |
+| 2 | quente | 761 | 1391 | 630 | 257 | **1391** |
+| 3 | quente | 326 | 1069 | 743 | 108 | **1069** |
+| 4 | quente | 320 | 1013 | 693 | 123 | **1013** |
+| 5 | quente | 293 | 1020 | 728 | 108 | **1020** |
+
+| Medida | Mediana | Pior caso |
+|---|---|---|
+| **Duração da chamada `portal_cliente`** | **693 ms** | 743 ms |
+| **t_lista** (lista utilizável) | **1.069 ms** | 1.510 ms (frio) |
+
+**Como `t_lista` foi obtido, e por que é confiável:** o `portal_cliente` é o **último request
+antes de a lista existir** — em todas as 5 execuções, `requestsDepoisDoEdge = 0`. Logo
+`t_lista ≡ responseEnd` do `portal_cliente`, valor **exato** do Resource Timing, sem depender
+do meu polling.
+
+> **A tentativa de medir `t_lista` por polling foi descartada, como a metodologia previa.** Na
+> execução 1 os cards já existiam quando meu script rodou (latência da automação, ~14 s) — a
+> amostra foi marcada `LIMITE_INFERIOR` e **não entrou em nenhuma média**.
+
+### Abrir um ativo — 5 execuções
+
+Cenário fiel: **abertura fresca do Portal + um clique real no card** (navegação SPA).
+
+| # | t_detalhe |
+|---|---|
+| A | 754 ms |
+| B | 811 ms |
+| C | 954 ms |
+| D | 685 ms |
+| E | 623 ms |
+
+| Medida | Valor |
+|---|---|
+| **Mediana** | **754 ms** |
+| Pior caso | 954 ms |
+| **Requests novos ao abrir o detalhe** | **0 — em todas as 5** |
+
+> **Uma série anterior foi descartada e o motivo está registrado.** Ao repetir com
+> `history.back()` entre as amostras, os valores saltaram para ~990 ms com a primeira em 97 ms —
+> dispersão de 10×, causada pelo meu vaivém de histórico, que não é o caminho do usuário.
+> Refeita com abertura fresca + clique, que é o cenário real.
+
+**Os 754 ms são puro render.** Zero rede. É o React montando `PortalAtivo`, que lê 13 famílias
+de chave do `Map` e roda vários `useMemo` (histórico, calibrações, registros). Depois da Fase 4
+esse número **muda de natureza**: passa a incluir uma busca sob demanda quando o relatório for
+legado. É esperado, e a comparação depois precisa levar isso em conta.
+
+### Payload da resposta
+
+| Medida | Valor |
+|---|---|
+| HTTP | 200 |
+| **JSON descomprimido** | **31.403 bytes — 30,7 KB** |
+| **Na rede (`content-length`)** | **10.366 bytes — 10,1 KB** |
+| Compressão | ~3,0× |
+| Chaves entregues | **15** |
+| TAGs | `COMPRESSOR V8-15/200L`, `D33DD33D` |
+
+**As 4 maiores chaves concentram 84 % do payload:**
+
+| Chave | KB | % |
+|---|---|---|
+| **`nr13_rel_REL-1787152599432_COMPRESSOR…`** | **9,3** | **30 %** |
+| `nr13_prontuario_COMPRESSOR…` | 8,6 | 28 % |
+| `nr13_minha_empresa` (logo base64) | 7,7 | 25 % |
+| `nr13_historico_indice_COMPRESSOR…` | 0,7 | 2 % |
+
+**O alvo direto da Fase 4 é a primeira linha:** o `RelatorioSalvo` completo custa **9,3 KB** e
+o índice que o substitui já está sendo enviado por **0,7 KB**. Com mais relatórios por ativo,
+essa fatia domina o payload inteiro.
+
+### Requests na abertura
+
+| Medida | Valor |
+|---|---|
+| Total de requests | **11** |
+| Deles, à Edge `portal_cliente` | **1** |
+| Chamadas de autenticação antes dela | **4** encadeadas (`getUser`, `profiles`, `assinatura_org`, +1) |
+| Arquivos (foto/PDF) baixados | **0** |
+
+> **Achado de latência, fora do escopo da Fase 4 e não corrigido:** o `portal_cliente` só
+> **começa** aos 293–869 ms, depois de quatro chamadas de auth em série. Da mediana de
+> 1.069 ms até a lista, cerca de **1/3 é espera de autenticação antes de a busca de dados
+> sequer começar**. Registrado para avaliação futura; mexer nisso agora seria refatoração
+> lateral, que o dono pediu explicitamente para não fazer.
+
 ## 7. O que a baseline ainda NÃO tem
 
 Registrado como pendente, não como medido:
 
-- [ ] **Tempo até a lista utilizável** e **tempo até abrir um ativo** — exigem sessão de cliente
-      autenticada e cronometragem no navegador. O dono precisa logar `ipiranga@gmail.com`
-      (não digito senha em campo de autenticação).
-- [ ] **Bytes transferidos na rede** (com gzip) — o número acima é o tamanho do conteúdo em
-      `app_storage`; o payload HTTP real é menor por compressão.
+- [x] **Tempo até a lista utilizável** e **tempo até abrir um ativo** — MEDIDOS em 20/08/2026 (seção 7-ter): mediana 1.069 ms e 754 ms
+- [x] **Bytes transferidos na rede** — MEDIDOS: **10.366 bytes** na rede contra 31.403 do JSON
 - [ ] **Medição em org de 500 / 1.000 equipamentos** — depende de massa sintética, que é a
       **Fase 8**. Até lá, o critério "custo não cresce com a organização" será provado por
       construção (a consulta passa a ser por lista de chaves) + medição nas orgs reais

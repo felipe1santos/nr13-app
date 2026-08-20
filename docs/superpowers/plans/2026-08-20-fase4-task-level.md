@@ -10,15 +10,15 @@
 ## Estado atual da fase
 
 - **Fase:** 4 — Portal: arquitetura de leitura
-- **Estado:** **PLANO APROVADO (20/08) — completando a baseline de tempo antes de codar**
+- **Estado:** **BASELINE COMPLETA — iniciando implementação (Bloco 1 / Tarefa 1)**
 - **Último commit:** — (nenhuma linha de código escrita)
 - **Push main:** N/A
 - **Redeploy:** N/A
 - **Validação local:** N/A
 - **Validação produção:** N/A
 - **Portão:** **P3** (depois da Fase 4) — ainda não alcançado
-- **Próxima ação:** **AGUARDANDO o dono logar `ipiranga@gmail.com`** para as duas medições de tempo que faltam. Depois: Bloco 1 / Tarefa 1
-- **Última atualização:** 20/08/2026 01:25
+- **Próxima ação:** Bloco 1 / Tarefa 1 — backup da Edge `portal_cliente`
+- **Última atualização:** 20/08/2026 01:55
 
 ---
 
@@ -192,9 +192,9 @@ Resumo — completa em `docs/medicoes/2026-08-20-fase4-baseline-portal.md`.
 | Desperdício | **93 %** |
 | Arquivos baixados na listagem | **nenhum** (já correto) |
 
-**Pendente da baseline** (precisa de sessão de cliente autenticada pelo dono): tempo até a lista
-utilizável, tempo até abrir um ativo, bytes de rede com gzip. Medição em org de 500/1.000
-depende da **Fase 8**.
+**Medido em 20/08** (5 execuções cada): `portal_cliente` **693 ms** (mediana), **t_lista 1.069 ms**,
+**t_detalhe 754 ms** com **0 requests novos**, payload **30,7 KB JSON / 10,1 KB na rede**.
+Só a medição em org de 500/1.000 continua pendente — pertence à **Fase 8**.
 
 ---
 
@@ -271,3 +271,23 @@ depende da **Fase 8**.
   `teste@gmail.com` (mestre) e Brave em `inspetor01@gmail.com` (funcionario). Não digito senha
   em campo de autenticação — o dono faz o login.
 - **Nenhuma linha de código da Fase 4 escrita.**
+
+### 20/08/2026 01:30–01:55 — BASELINE DE TEMPO COMPLETA
+- Corrigidas as duas divergências documentais autorizadas (Fase 3 → P2, Fase 5 → sem portão);
+- 5 execuções da abertura do Portal e 5 do clique num ativo, sessão `ipiranga@gmail.com` no Brave;
+- `portal_cliente`: mediana **693 ms**, pior caso 743 ms;
+- **t_lista** (lista utilizável): mediana **1.069 ms**, pior caso 1.510 ms (frio). Obtido do
+  Resource Timing, exato — o `portal_cliente` é o **último request antes da lista** nas 5
+  execuções (`requestsDepoisDoEdge = 0`);
+- **t_detalhe**: mediana **754 ms**, pior 954 ms, com **0 requests novos** — tudo já veio na
+  abertura, então é puro render;
+- payload: **31.403 bytes de JSON, 10.366 na rede** (compressão ~3×), 15 chaves;
+- **`nr13_rel_` sozinho é 9,3 KB = 30 % do payload**, e o índice que o substitui já vai junto
+  por 0,7 KB — é o alvo mais direto da fase;
+- **duas séries foram descartadas com o motivo registrado**, em vez de maquiadas: o polling de
+  `t_lista` (cards já existiam quando meu script rodou → `LIMITE_INFERIOR`) e a primeira série
+  de `t_detalhe` (o meu `history.back()` entre amostras distorceu, dispersão de 10×);
+- achado de latência anotado e **não corrigido**: o `portal_cliente` só começa depois de
+  **4 chamadas de auth em série** — cerca de 1/3 do tempo até a lista. Mexer nisso agora seria
+  refatoração lateral, que o dono vetou;
+- **nenhuma linha de código da Fase 4 escrita até aqui.**
