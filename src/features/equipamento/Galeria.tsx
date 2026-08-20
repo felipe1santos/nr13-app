@@ -65,7 +65,7 @@ export default function Galeria({ tag }: { tag: string }) {
           onClick={() => !f.isCapa && definirCapa(f.id)}
           title={f.isCapa ? 'Foto de capa' : 'Clique para definir como capa'}
         >
-          <FotoImg foto={{ ref: f.ref, base64: f.src }} alt="Foto do equipamento" />
+          <FotoImg foto={{ ref: f.ref, base64: f.src }} alt="Foto do equipamento" variante="thumb" />
           <button
             type="button"
             className="btn-remover-foto"

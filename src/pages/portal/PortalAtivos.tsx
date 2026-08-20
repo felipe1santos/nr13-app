@@ -28,7 +28,7 @@ export default function PortalAtivos() {
         {ativos.map((a) => (
           <Link key={a.tag} to={rotaPortalAtivo(a.tag)} className="portal-card-ativo">
             <div className="portal-card-foto">
-              {a.fotoCapa ? <FotoImg foto={a.fotoCapa} alt={a.tag} /> : <span className="portal-card-sem-foto"><Icone nome="box" tam={22} /></span>}
+              {a.fotoCapa ? <FotoImg foto={a.fotoCapa} alt={a.tag} variante="thumb" /> : <span className="portal-card-sem-foto"><Icone nome="box" tam={22} /></span>}
             </div>
             <div className="portal-card-info">
               <span className="portal-card-tag">{a.tag}</span>

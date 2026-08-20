@@ -147,7 +147,7 @@ export default function Inspecoes() {
                 >
                   <div className="card-eq-img">
                     {eq.fotoCapa ? (
-                      <FotoImg foto={eq.fotoCapa} alt={eq.tag} />
+                      <FotoImg foto={eq.fotoCapa} alt={eq.tag} variante="thumb" />
                     ) : (
                       <span className="card-eq-img-vazio">{eq.tag.slice(0, 2)}</span>
                     )}

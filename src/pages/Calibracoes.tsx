@@ -471,7 +471,7 @@ export default function Calibracoes() {
                 </button>
                 <div className="cal-eq-foto">
                   {eqAtual?.fotoCapa ? (
-                    <FotoImg foto={eqAtual.fotoCapa} alt={`Foto de ${tag}`} />
+                    <FotoImg foto={eqAtual.fotoCapa} alt={`Foto de ${tag}`} variante="thumb" />
                   ) : (
                     <Icone nome="cylinder" tam={34} />
                   )}
@@ -515,7 +515,7 @@ export default function Calibracoes() {
                     {componentes.map((c) => (
                       <div key={c.id} className="cal-comp-item compacto">
                         <div className="cal-comp-foto">
-                          {fotoDoComponente(c) ? <FotoImg foto={fotoDoComponente(c)} alt={c.nome} placeholder="" /> : <Icone nome={c.tipo === 'psv' ? 'valvula-psv' : 'manometro'} tam={20} />}
+                          {fotoDoComponente(c) ? <FotoImg foto={fotoDoComponente(c)} alt={c.nome} placeholder="" variante="thumb" /> : <Icone nome={c.tipo === 'psv' ? 'valvula-psv' : 'manometro'} tam={20} />}
                         </div>
                         <div className="cal-comp-nome">
                           <strong>{c.nome}</strong>
@@ -682,7 +682,7 @@ export default function Calibracoes() {
                           return (
                             <div key={c.id} className="cal-comp-item">
                               <div className="cal-comp-foto">
-                                {fotoDoComponente(c) ? <FotoImg foto={fotoDoComponente(c)} alt={c.nome} placeholder="" /> : <Icone nome={c.tipo === 'psv' ? 'valvula-psv' : 'manometro'} tam={24} />}
+                                {fotoDoComponente(c) ? <FotoImg foto={fotoDoComponente(c)} alt={c.nome} placeholder="" variante="thumb" /> : <Icone nome={c.tipo === 'psv' ? 'valvula-psv' : 'manometro'} tam={24} />}
                               </div>
                               <div className="cal-comp-nome">
                                 <strong>{c.nome}</strong>

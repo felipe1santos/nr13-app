@@ -217,7 +217,7 @@ export default function FormularioVisualExterno({ tag, containerId }: { tag: str
         <div className="fotos-formulario-grid">
           {dados.fotos.map((f, i) => (
             <div key={i} className="foto-formulario-item">
-              <FotoImg foto={f} alt={`Foto ${i + 1}`} />
+              <FotoImg foto={f} alt={`Foto ${i + 1}`} variante="thumb" />
               <input
                 type="text"
                 placeholder={`Legenda — Foto ${i + 1}`}

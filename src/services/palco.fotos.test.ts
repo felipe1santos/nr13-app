@@ -257,3 +257,36 @@ describe('palco — rubrica do livro materializada UMA vez', () => {
     expect(JSON.parse(saida[0].valor)[0].assinaturaImg).toBeUndefined();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Fase 5 — a regressão que degradaria documento assinado
+// ---------------------------------------------------------------------------
+describe('o palco NUNCA usa a miniatura', () => {
+  it('com miniatura disponível, o documento ainda baixa a PRINCIPAL', async () => {
+    // A miniatura tem 400 px e existe para card e lista. A folha A4 é impressa a
+    // 300 dpi e pede ~1.060 px de largura útil. Se a miniatura vazasse para cá,
+    // o relatório sairia borrado — assinado por engenheiro, e sem erro nenhum
+    // na tela para avisar.
+    baixadas.length = 0;
+    const ref = {
+      bucket: 'inspecao',
+      path: 'org-1/ACA_2002/principal.jpg',
+      mimeType: 'image/jpeg',
+      tamanho: 112000,
+      thumb: {
+        bucket: 'inspecao',
+        path: 'org-1/ACA_2002/principal.thumb.jpg',
+        mimeType: 'image/jpeg',
+        tamanho: 16000,
+      },
+    };
+
+    await hidratarFotosDoBucket([
+      { chave: 'nr13_fotos_ACA 2002', valor: JSON.stringify([{ id: 1, src: '', ref, isCapa: true }]) },
+      { chave: 'nr13_injecao_atual', valor: JSON.stringify({ ve: { fotos: [{ ref }] } }) },
+    ]);
+
+    expect(baixadas).toContain('org-1/ACA_2002/principal.jpg');
+    expect(baixadas.some((p) => p.includes('.thumb.'))).toBe(false);
+  });
+});

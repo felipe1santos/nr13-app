@@ -82,7 +82,7 @@ function GaleriaFotos({ fotos, titulo = 'Registro Fotográfico' }: { fotos: { ba
       <div className="fotos-formulario-grid">
         {fotos.map((f, i) => (
           <div key={i} className="foto-formulario-item">
-            <FotoImg foto={f} alt={f.descricao || `Foto ${i + 1}`} />
+            <FotoImg foto={f} alt={f.descricao || `Foto ${i + 1}`} variante="thumb" />
             {f.descricao && (
               <div style={{ padding: '6px 8px', fontSize: 12, color: '#374151', borderTop: '1px solid #e5e7eb' }}>
                 {f.descricao}

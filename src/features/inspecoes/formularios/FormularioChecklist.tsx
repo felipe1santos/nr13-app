@@ -372,7 +372,7 @@ export default function FormularioChecklist({ tag, containerId }: { tag: string;
         <div className="fotos-formulario-grid">
           {dados.fotosDocumentacao.map((foto, idx) => (
             <div key={idx} className="foto-formulario-item">
-              <FotoImg foto={foto} alt={`Foto documentação ${idx + 1}`} />
+              <FotoImg foto={foto} alt={`Foto documentação ${idx + 1}`} variante="thumb" />
               <input
                 type="text"
                 value={foto.descricao}
@@ -400,7 +400,7 @@ export default function FormularioChecklist({ tag, containerId }: { tag: string;
         <div className="fotos-formulario-grid">
           {dados.fotos.map((foto, idx) => (
             <div key={idx} className="foto-formulario-item">
-              <FotoImg foto={foto} alt={`Foto ${idx + 1}`} />
+              <FotoImg foto={foto} alt={`Foto ${idx + 1}`} variante="thumb" />
               <input
                 type="text"
                 value={foto.descricao}

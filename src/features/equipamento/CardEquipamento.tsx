@@ -64,7 +64,7 @@ export default function CardEquipamento({ item }: { item: EquipamentoResumo }) {
       <div className="plate-photo">
         <span className="plate-tag-chip">{tag}</span>
         {fotoCapa ? (
-          <FotoImg foto={fotoCapa} alt={`Foto do equipamento ${tag}`} />
+          <FotoImg foto={fotoCapa} alt={`Foto do equipamento ${tag}`} variante="thumb" />
         ) : (
           <span className="plate-photo-empty">Sem foto</span>
         )}

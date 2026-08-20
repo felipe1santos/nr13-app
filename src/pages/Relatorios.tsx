@@ -729,7 +729,7 @@ export default function Relatorios() {
                   onClick={() => abrirEquipamento(eq.tag)}
                 >
                   <div className="card-eq-img">
-                    {eq.fotoCapa ? <FotoImg foto={eq.fotoCapa} alt={eq.tag} /> : <span className="card-eq-img-vazio">{eq.tag.slice(0, 2)}</span>}
+                    {eq.fotoCapa ? <FotoImg foto={eq.fotoCapa} alt={eq.tag} variante="thumb" /> : <span className="card-eq-img-vazio">{eq.tag.slice(0, 2)}</span>}
                   </div>
                   <div className="card-eq-info">
                     <div className="eq-col">

@@ -300,7 +300,7 @@ export default function Equipamentos() {
               >
                 <div className="card-eq-img">
                   {e.fotoCapa ? (
-                    <FotoImg foto={e.fotoCapa} alt={`Foto do equipamento ${e.tag}`} />
+                    <FotoImg foto={e.fotoCapa} alt={`Foto do equipamento ${e.tag}`} variante="thumb" />
                   ) : (
                     <span className="card-eq-img-vazio">{e.tag.slice(0, 2)}</span>
                   )}

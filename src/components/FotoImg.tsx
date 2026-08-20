@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { resolverFoto, type FotoArmazenada } from '../services/fotos';
+import { resolverFoto, type FotoArmazenada, type VarianteFoto } from '../services/fotos';
 
 /**
  * Exibe uma foto que pode estar em três lugares — cofre local, bucket ou
@@ -17,12 +17,23 @@ export default function FotoImg({
   className,
   onClick,
   placeholder = 'Sem foto',
+  variante = 'cheia',
 }: {
   foto: FotoArmazenada | string | null | undefined;
   alt?: string;
   className?: string;
   onClick?: () => void;
   placeholder?: string;
+  /**
+   * `thumb` para card, lista e galeria — 400 px, ~16 KB. Medido em 20/08/2026:
+   * a galeria da ficha desenha 97×67 CSS px decodificando 1200×900, e uma
+   * galeria de 10 fotos custava 1.152 KB de rede em cache frio.
+   *
+   * O padrão é `cheia` DE PROPÓSITO: tela nenhuma muda de comportamento sem ser
+   * tocada, e quem exibe a foto em tamanho grande não precisa saber que a
+   * miniatura existe.
+   */
+  variante?: VarianteFoto;
 }) {
   const [src, setSrc] = useState<string | null>(null);
   const [falhou, setFalhou] = useState(false);
@@ -66,7 +77,7 @@ export default function FotoImg({
     // O estado só muda quando a resolução RESPONDE. Zerar `falhou` aqui, de
     // forma síncrona, dispararia uma renderização em cascata a cada troca de
     // prop — e a resolução já devolve o veredito completo.
-    void resolverFoto(foto).then((url) => {
+    void resolverFoto(foto, { variante }).then((url) => {
       if (!vivo) return;
       setSrc(url);
       setFalhou(!url);
@@ -74,7 +85,7 @@ export default function FotoImg({
     return () => {
       vivo = false;
     };
-  }, [foto, visivel]);
+  }, [foto, visivel, variante]);
 
   if (falhou || (visivel && src === null && foto == null)) {
     return (

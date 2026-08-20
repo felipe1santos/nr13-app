@@ -78,6 +78,7 @@ vi.mock('./fotoStore', () => ({
 
 import {
   BUCKET,
+  baixarFoto,
   contarFotosPendentes,
   drenarFotosPendentes,
   ehBase64,
@@ -380,5 +381,17 @@ describe('resolver por variante', () => {
   it('base64 legado continua aparecendo mesmo pedindo thumb', async () => {
     const legado = 'data:image/jpeg;base64,AAAA';
     expect(await resolverFoto({ base64: legado }, { variante: 'thumb' })).toBe(legado);
+  });
+});
+
+describe('baixarFoto — o caminho do DOCUMENTO', () => {
+  it('não conhece variante: mesmo com miniatura, entrega a principal', async () => {
+    const ref = await salvarFoto(arquivoFalso(), 'ACA 2002');
+    expect(ref.thumb).toBeDefined();
+
+    const blob = await baixarFoto(ref);
+    // O cofre tem as duas; a que volta é a do `ref.path`.
+    expect(blob).toBe(cofre.mapa.get(ref.path)?.blob);
+    expect(blob).not.toBe(cofre.mapa.get(ref.thumb!.path)?.blob);
   });
 });

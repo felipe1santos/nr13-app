@@ -477,7 +477,7 @@ export default function PortalAtivo() {
             {/* `capa.src` vem VAZIO desde que as fotos passaram a morar no bucket
                 (11/08/2026): o que o registro carrega é `ref`. Ler `src` direto
                 deixava o Portal sem foto nenhuma para as contas já migradas. */}
-            {capa ? <FotoImg foto={capa} alt={tag} placeholder="" /> : <span className="portal-card-sem-foto"><Icone nome="box" tam={22} /></span>}
+            {capa ? <FotoImg foto={capa} alt={tag} placeholder="" variante="thumb" /> : <span className="portal-card-sem-foto"><Icone nome="box" tam={22} /></span>}
           </div>
           <h2>{tag}</h2>
           {info?.descricao && <p className="portal-card-desc">{info.descricao}</p>}
@@ -630,7 +630,7 @@ export default function PortalAtivo() {
                       <div key={c.id} className="portal-acessorio">
                         <div className="cal-comp-item">
                           <div className="cal-comp-foto">
-                            {fotoDoComponente(c) ? <FotoImg foto={fotoDoComponente(c)} alt={c.nome} placeholder="" /> : <Icone nome={c.tipo === 'psv' ? 'valvula-psv' : 'manometro'} tam={26} />}
+                            {fotoDoComponente(c) ? <FotoImg foto={fotoDoComponente(c)} alt={c.nome} placeholder="" variante="thumb" /> : <Icone nome={c.tipo === 'psv' ? 'valvula-psv' : 'manometro'} tam={26} />}
                           </div>
                           <div className="cal-comp-nome">
                             <strong>{c.nome}</strong>
