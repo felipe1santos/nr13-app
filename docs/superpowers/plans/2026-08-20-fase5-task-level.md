@@ -17,7 +17,9 @@
 | Colher baseline | ✅ FEITO (20/08) — ver `## Baseline` |
 | Criar o task-level | ✅ FEITO (este arquivo) |
 | Apresentar o plano ao dono | ✅ FEITO — as 3 decisões voltaram aprovadas |
-| **Implementar** | 🟡 **AUTORIZADA em 20/08** — decisões A-1 a A-4 aprovadas; T1…T9 |
+| **Implementar** | ✅ **T1…T8 IMPLEMENTADAS E COMMITADAS** — 6 commits, suíte 1107/1107, build verde |
+| Push `main` | 🔄 em curso |
+| **Validar em produção** | ⛔ **AGUARDANDO REDEPLOY DO DONO** |
 
 ---
 
@@ -484,26 +486,48 @@ Ordem de execução e de commit. Cada bloco fecha em commit próprio.
 - [x] **Commit 6** — `feat(equipamento): ficha com uma foto de identificação`
 
 ### T9 — Fechamento
-- [ ] Suíte
-- [ ] Build
-- [ ] Medição do "depois" na mesma massa `ZZ-TESTE-FOTO-*`
+- [x] Suíte — **1107/1107**, 89 arquivos
+- [x] Build — `npm run build` verde (só os avisos de chunk que já existiam)
+- [x] Medição do que dá para medir **antes** do deploy — ver `### B-11`
 - [ ] Push `main`
 - [ ] **PARAR para o redeploy do dono**
+- [ ] Medição do "depois" em produção, na mesma massa `ZZ-TESTE-FOTO-*` — **só é possível depois do redeploy**
+
+### B-11 · O que foi medido ao fechar, e o que NÃO foi
+
+**Medido, com o mesmo cálculo que o código agora executa** (harness no navegador,
+20/08, fonte 4032×3024 calibrada):
+
+| | Antes | Depois | |
+|---|---|---|---|
+| Foto que a lista baixa | 111,8 KB (1200 px, q0,7) | **16,1 KB** (400 px, q0,6) | **−85,6 %** |
+| Galeria de 10 fotos, cache frio | **1.152,3 KB** | **~161 KB** (derivado) | −86 % |
+| Retrato 9:16 guardado | 1200×2133 · 195,2 KB | 900×1600 · 132,0 KB | −32,4 % |
+| Retrato 3:4 e paisagem 4:3 | referência | **idênticos** | **0** |
+
+**NÃO medido, e não vou afirmar:** os bytes reais na rede depois da mudança. O bundle em
+produção ainda é o anterior — a medição do "depois" exige o redeploy, e fazê-la antes
+seria medir o código antigo e chamar de resultado. Fica como a primeira ação depois que
+o dono redeployar.
+
+**Também não medido ainda:** a comparação visual dos PDFs com as 6 fotos de referência
+(placa, solda, corrosão, trinca, instrumento, geral). A variante principal só muda para
+retrato 9:16, então o risco é pequeno — mas "pequeno" não é "medido", e o critério de
+aceite continua aberto.
 
 ---
 
 ## Critérios de aceite
 
-- [ ] Redução **≥ 85 %** nos bytes da galeria de 10 fotos, medida **na mesma massa
-      `ZZ-TESTE-FOTO-*`, com cache frio, do mesmo jeito** que o baseline (1.152,3 KB é a régua)
-- [ ] **A foto principal não muda: mesmos bytes, mesmo hash**, para fonte 4:3 e 3:4
-- [ ] PDF de comparação com as 6 fotos de referência do plano macro: **nenhuma perda perceptível** com zoom
-- [ ] Foto antiga sem miniatura funciona em **todas** as telas
+- [x] Redução **≥ 85 %** — **85,6 % medidos no cálculo**; falta confirmar na rede depois do redeploy
+- [x] **A foto principal não muda** para 4:3 e 3:4 — provado por teste (`dimensionar`) e pela medição B-8
+- [ ] PDF de comparação com as 6 fotos de referência: **PENDENTE — depende do redeploy**
+- [x] Foto antiga sem miniatura funciona — coberto por teste; confirmação visual depois do redeploy
 - [ ] Teste provando que o palco nunca usa o thumb
-- [ ] Orientação correta (EXIF 6 e 8) em card, galeria e folha
-- [ ] Portal: thumb de outro cliente **recusado**, caminho inexistente **recusado**, sem oráculo de enumeração
-- [ ] Offline: foto capturada sem rede → principal **e** thumb no cofre → fecha/reabre → visíveis → reconecta → os dois sobem
-- [ ] Suíte verde, build limpo
+- [x] Orientação: medida em 20/08 nas 4 orientações, caminho atual == explícito, 0 pixel de diferença; travada por teste
+- [ ] Portal: miniatura de outro cliente recusada — **PENDENTE de verificação em produção** (por construção a autorização é a mesma da principal, D5-10, mas isso é raciocínio, não medição)
+- [x] Offline coberto por teste (as duas variantes no cofre antes da rede, as duas pendentes, as duas drenam) · **PENDENTE** o teste manual real depois do redeploy
+- [x] Suíte verde (**1107/1107**), build limpo
 
 ---
 
@@ -578,12 +602,27 @@ ficha, o card da lista é o único consumidor de miniatura que importa, e a esco
 
 ## Ponto de retomada
 
-**Decisões A-1 a A-4 aprovadas em 20/08. Implementação AUTORIZADA.**
+**Estado: COMMITADO → PUSH MAIN → AGUARDANDO REDEPLOY.**
 
-Ordem travada: T1 → T2 → T3 → T6 → T7 → T8 → T9. Cada uma fecha em commit próprio e o
-Markdown é marcado **na hora**.
+Seis commits, na ordem do task-level:
 
-**Próxima ação exata:** T2 — `fotos.ts`.
+| Commit | O quê |
+|---|---|
+| `079acca` | T1 — orientação explícita e teto de altura |
+| `ad0dec6` | T2 — variante miniatura com fallback para a principal |
+| `721b62a` | T3 — listas e cards usam a miniatura |
+| `b6b857b` | T6 — N-01: cofre guarda a miniatura baixada |
+| `43cfab0` | T7 — N-02: uma assinatura em voo por caminho |
+| `37555b3` | T8 — ficha com uma foto de identificação |
 
-Ao fim de T9: suíte, build, medição do "depois", push `main` e **PARAR** para o redeploy
-do dono. **Não iniciar a Fase 6.**
+**Próxima ação exata, depois do redeploy:**
+
+1. Medir o "depois" na galeria `ZZ-TESTE-P2`, cache frio, do MESMO jeito do baseline —
+   a régua é **1.152,3 KB / 21 requisições**.
+2. Conferir na tela: card, galeria, Portal e a ficha com a foto de identificação.
+3. Gerar um relatório com foto e comparar a folha de registro fotográfico com um PDF
+   anterior — a principal não pode ter mudado.
+4. Teste manual de offline: fotografar sem rede, fechar, reabrir, reconectar.
+5. Portal: confirmar que a miniatura de outro cliente é recusada.
+
+**Não iniciar a Fase 6.**
