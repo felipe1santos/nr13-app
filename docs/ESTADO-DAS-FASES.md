@@ -6,51 +6,53 @@
 > **REGRA:** este arquivo é atualizado NO MOMENTO em que o estado muda — commit, push,
 > redeploy, validação, portão. Não no fim da fase.
 
-**Última atualização:** 20/08/2026 00:50
+**Última atualização:** 20/08/2026 01:00
 **Branch:** `main` · **Suíte:** 1042 testes / 84 arquivos, 0 falhas · **Build:** verde
 
-## ✅ P1 = FECHADO · P2 = FECHADO — aguardando SUA aprovação
+## ✅ P1 e P2 — APROVADOS FORMALMENTE PELO DONO em 20/08/2026
 
-Ambos executados em produção, **sem ressalva pendente**.
+| | |
+|---|---|
+| **P1** (depois da Fase 0) | **FECHADO ✅** — aprovado pelo dono |
+| **P2** (depois da Fase 3) | **FECHADO ✅** — aprovado pelo dono |
+| **Fase 3** | **CONCLUÍDA** |
+| Commit de fechamento | **`caa168f`** |
+| Suíte | **1042/1042**, 84 arquivos |
+| Build | **verde** |
+| Fase 4 | **ainda NÃO implementada** — em planejamento/baseline |
+
 Evidência completa: `docs/medicoes/2026-08-19-p1-p2-producao.md`.
 
-**P1** — conta cliente re-verificada no bundle atual (19/08 23:25). O Portal lista só os ativos
-vinculados; a Edge `portal_arquivo` recusa arquivo **real** de ativo de outro cliente com resposta
-**idêntica** à de path inexistente; Storage pelo SDK negado nos três caminhos; prontuário e
-relatório abrem. As três pendências que o 0-B carregava desde 16/08 estão fechadas.
+---
 
-**P2** — teste real de dois aparelhos (20/08 00:45): **Chrome × Brave**, contas distintas da mesma
-organização, **IndexedDB separado**, **offline REAL** pelo DevTools (conferido por requisição que
-de fato falhou, nunca só pela flag). Dois ciclos completos de conflito, mais a regressão do fluxo
-de exclusão.
+## 🔴 ACHADO ABERTO — `EQUIPE TESTE` recriado a cada boot
 
-**As duas ressalvas anteriores foram fechadas:**
+**NÃO CORRIGIR INCIDENTALMENTE.** Não limpar o array legado. Não remover à mão só para sumir da
+fila. Não "consertar" no meio de outra fase sem análise. Pertence ao **legado / achado A-13** e
+será tratado na fase apropriada do roadmap (10A/10B).
 
-| Ressalva | Desfecho |
-|---|---|
-| Drenagem offline não exercitada manualmente | **fechada** — offline real, persistência no IndexedDB, reconexão e drenagem automática |
-| Clique em "Manter a minha" sem efeito | **não se reproduziu** — um único clique funcionou. Registrado como provável falha de automação, não de produto |
+### Causa provável COMPROVADA
 
-**Prova DIRETA** dos três campos, lida no IndexedDB com a mutação parada e sem rede:
+```
+legado persistente no SERVIDOR  (nr13_historico_relatorios ainda contém o relatório)
+   → migração em segundo plano  (migrarHistoricoEmSegundoPlano, no boot)
+   → equipamento/relatório JÁ EXCLUÍDO  (não há nr13_rel_ correspondente)
+   → recriação da mutação        (nr13_rel_ + nr13_historico_indice_, versaoBase 0)
+   → servidor recusa             (versao_obsoleta — piso em app_storage_excluidos)
+   → novo boot repete
+```
 
-| Campo | Valor | |
-|---|---|---|
-| `mutationId` original | `b0e55784-…` | — |
-| `mutationId` da resolução | `758f3393-…` | **≠ original** ✅ |
-| `resolveDe` | `b0e55784-…` | **= original** ✅ |
-| `versaoBase` | `4` | **= versão do servidor no conflito** ✅ |
+### Por que não é corrupção de um navegador
 
-Ao reconectar: servidor **v4 → v5**, exatamente uma versão, com o valor e o dispositivo de B.
-Fila drenou. Nenhum `repetido` como falso sucesso.
+Reproduzido em **outro navegador (Brave), outra conta (`inspetor01@gmail.com`) e outro
+IndexedDB**, durante o teste do P2. O mesmo item preso apareceu numa sessão que nunca tinha
+tocado naquele equipamento. A causa está no servidor, não no aparelho.
 
-**🔴 Achado aberto, que NÃO pertence a estas fases e segue intocado:** os itens presos de
-`EQUIPE TESTE` **são recriados a cada boot**. Confirmado de forma independente na Sessão B —
-outro navegador, outra conta, outro IndexedDB, mesmo item. A causa está no servidor: o array
-legado `nr13_historico_relatorios` ainda contém um relatório de equipamento excluído, e a
-migração de histórico o recria com `versaoBase 0`. É a interseção do §7-sexies com o achado
-A-13 e precisa de fase própria.
+### Efeito
 
-**Falta só a sua aprovação.** Fase 4 não começou.
+Gerador permanente de pendência: toda abertura do app produz mutações que o servidor nunca vai
+aceitar, e o selo fica em falha para sempre. Não impede o funcionamento normal da Fase 3 — os
+conflitos reais nascem, são resolvidos e drenam normalmente, como o P2 provou.
 
 ## Vocabulário de estado
 
@@ -66,11 +68,11 @@ Sempre use um destes. Nunca "concluído".
 | Fase | Tema | Estado | Portão | Task-level |
 |---|---|---|---|---|
 | **0-A** | Origem do papel na criação de perfil | ✅ VALIDADO EM PRODUÇÃO | — | `plans/2026-08-16-fase0-task-level.md` |
-| **0-B** | Isolamento do Portal (A-01) | ✅ VALIDADO EM PRODUÇÃO — sem ressalva | **P1 FECHADO** — aguarda aprovação | `plans/2026-08-16-fase0b-task-level.md` |
+| **0-B** | Isolamento do Portal (A-01) | ✅ VALIDADO EM PRODUÇÃO — sem ressalva | **P1 FECHADO ✅** aprovado 20/08 | `plans/2026-08-16-fase0b-task-level.md` |
 | **1** | Índice da hidratação (A-03) | ✅ VALIDADO EM PRODUÇÃO | — | *(sem task-level — ver abaixo)* |
 | **2** | Observabilidade (A-11) | ✅ VALIDADO EM PRODUÇÃO · 1 item de doc aberto | — | `plans/2026-08-16-fase2-task-level.md` |
-| **3** | Conflitos (A-14) | ✅ VALIDADO EM PRODUÇÃO | **P2 FECHADO** — aguarda aprovação | `plans/2026-08-16-fase3-task-level.md` |
-| **4** | Portal: arquitetura de leitura (A-02) | 🚫 NÃO INICIAR — depende da aprovação de P1 e P2 | P3 | — |
+| **3** | Conflitos (A-14) | ✅ **CONCLUÍDA** | **P2 FECHADO ✅** aprovado 20/08 | `plans/2026-08-16-fase3-task-level.md` |
+| **4** | Portal: arquitetura de leitura (A-02) | 🔵 **PLANEJAMENTO / BASELINE** | P3 | `plans/2026-08-20-fase4-task-level.md` |
 | 5…13 | ver plano macro | PLANEJADO | P4…P8 | `plans/2026-08-15-evolucao-arquitetura.md` |
 
 **Fase atual:** 3 · **Tarefa atual:** Tarefa 8 (validação em produção)
