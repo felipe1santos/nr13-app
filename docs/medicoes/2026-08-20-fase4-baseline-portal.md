@@ -143,6 +143,49 @@ específico** — e, para relatório com `pdfRef`, `abrirRelatorio` **não usa `
 
 ---
 
+## 7-bis. Metodologia de tempo — definida ANTES de medir, para ser repetível
+
+Escrita aqui para que a medição **depois** da Fase 4 use exatamente os mesmos pontos. Repetir
+com a mesma conta, mesmo navegador e mesma organização.
+
+### Definição dos pontos
+
+| Marco | Definição operacional |
+|---|---|
+| **t0** | `performance.timeOrigin` da navegação — instante em que o navegador começa a carregar `/portal` |
+| **t_edge_inicio** | `startTime` da entrada de Resource Timing cujo `name` contém `portal_cliente` |
+| **t_edge_fim** | `responseEnd` dessa mesma entrada |
+| **t_lista** | instante em que o **primeiro `.portal-card-ativo` existe no DOM** |
+| **t_detalhe** | instante em que, após clicar num card, o container do detalhe (`.portal-abas`/lista de documentos) existe no DOM |
+
+Todos relativos a **t0**, em milissegundos.
+
+### Como cada número é obtido
+
+- **Tempos de rede:** `performance.getEntriesByType('resource')` — exatos, independem de quando
+  eu leio.
+- **Bytes:** da mesma entrada — `transferSize` (o que trafegou, já com compressão),
+  `encodedBodySize` e `decodedBodySize` (o JSON expandido).
+- **t_lista / t_detalhe:** polling de **25 ms** procurando o seletor. Granularidade declarada:
+  **±25 ms**. Se o seletor já existir na primeira checagem, a amostra é marcada
+  **`LIMITE_INFERIOR`** e não entra na mediana.
+
+### Protocolo
+
+- **5 execuções** de cada medição.
+- **Cache frio:** `caches.delete()` do cache do service worker + `location.reload()` — a primeira
+  execução de cada série é rotulada `FRIO`.
+- **Cache quente:** as 4 seguintes.
+- Reportar: **cada valor individual**, **mediana** e, se a dispersão passar de 2×, também o
+  **pior caso**.
+- Entre execuções, `performance.clearResourceTimings()`.
+
+### O que NÃO é medido, e por quê
+
+- Org de 500/1.000: pertence à **Fase 8** (massa sintética). Combinado com o dono.
+- A prova de que o custo deixa de crescer com a organização será **arquitetural** (a consulta
+  passa a ser por lista de chaves derivada das TAGs) mais leitura read-only da maior org real.
+
 ## 7. O que a baseline ainda NÃO tem
 
 Registrado como pendente, não como medido:

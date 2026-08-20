@@ -10,15 +10,15 @@
 ## Estado atual da fase
 
 - **Fase:** 4 — Portal: arquitetura de leitura
-- **Estado:** **PLANEJAMENTO / BASELINE CONCLUÍDA — aguardando aprovação do plano**
+- **Estado:** **PLANO APROVADO (20/08) — completando a baseline de tempo antes de codar**
 - **Último commit:** — (nenhuma linha de código escrita)
 - **Push main:** N/A
 - **Redeploy:** N/A
 - **Validação local:** N/A
 - **Validação produção:** N/A
 - **Portão:** **P3** (depois da Fase 4) — ainda não alcançado
-- **Próxima ação:** dono aprova ou recusa este plano. **Nenhuma implementação antes disso.**
-- **Última atualização:** 20/08/2026 01:15
+- **Próxima ação:** **AGUARDANDO o dono logar `ipiranga@gmail.com`** para as duas medições de tempo que faltam. Depois: Bloco 1 / Tarefa 1
+- **Última atualização:** 20/08/2026 01:25
 
 ---
 
@@ -249,3 +249,25 @@ depende da **Fase 8**.
 - **Pendência:** aprovação deste plano pelo dono.
 - **Próxima ação:** dono aprova → começar pelo Bloco 1, Tarefa 1 (backup da Edge).
 - **Não fazer ainda:** qualquer alteração funcional de código da Fase 4.
+
+---
+
+### 20/08/2026 01:20 — Plano APROVADO pelo dono
+- Aprovada também a correção documental do plano macro: a Fase 4 encerrava com
+  "PARAR — PORTÃO P2" e passou a "PARAR — PORTÃO P3" (linha 1476). **Feito.**
+- **Duas divergências do mesmo tipo encontradas na conferência, NÃO corrigidas** (fora da
+  autorização dada):
+
+  | Fase | Marcador no plano macro | Tabela de portões |
+  |---|---|---|
+  | 3 | `**PARAR.**` — sem portão | deveria ser **P2** |
+  | 5 | `**PARAR — PORTÃO P3.**` (linha 1664) | Fase 5 **não tem portão** |
+
+  Os marcadores estão **deslocados uma fase**. Com a correção autorizada, as Fases 4 e 5 passam
+  a reivindicar o mesmo P3 — o que é inconsistente e precisa de decisão do dono.
+- Metodologia de medição de tempo definida **antes** de medir, para ser repetível depois da
+  implementação (ver seção 7-bis do documento de baseline).
+- **Bloqueio:** nenhum dos dois navegadores tem a sessão de cliente. Chrome está em
+  `teste@gmail.com` (mestre) e Brave em `inspetor01@gmail.com` (funcionario). Não digito senha
+  em campo de autenticação — o dono faz o login.
+- **Nenhuma linha de código da Fase 4 escrita.**

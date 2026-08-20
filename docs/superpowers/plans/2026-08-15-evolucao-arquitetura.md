@@ -1473,7 +1473,7 @@ e é exatamente o que o teste de paridade cobre.
 1. `perf(portal): edge consulta só as chaves das TAGs do cliente`
 2. `perf(portal): listagem usa índice de relatórios, sem snapshots`
 3. `fix(portal): falha de cota vira erro visível`
-**PARAR — PORTÃO P2.**
+**PARAR — PORTÃO P3.**
 
 ---
 
