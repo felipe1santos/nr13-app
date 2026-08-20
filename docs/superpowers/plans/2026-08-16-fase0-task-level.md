@@ -11,6 +11,30 @@ origem fail-open da criação de perfis que a pré-condição D-24 encontrou.
 
 ---
 
+## Estado atual da fase
+
+- **Fase:** 0 · **Parte 0-A** (origem do papel). A Parte 0-B tem task-level próprio:
+  `2026-08-16-fase0b-task-level.md`
+- **Estado:** **VALIDADO EM PRODUÇÃO** (16/08/2026)
+- **Commits:** `96b872f` (metadata de origem) · `b285d0c` (signUp declara o papel) ·
+  `1bd8d9f` (org_admin na metadata) · `7f1a371` (trigger lê a metadata) ·
+  `485c519` (script read-only de validação) · `5b00d4d` (resultado da validação)
+- **Push main:** SIM
+- **Redeploy:** SIM — frontend + Edge `org_admin` (hash `-869169835`) + `perfil_origem.sql` aplicado
+- **Validação local:** SIM · **Validação produção:** SIM — ver "RESULTADO DA VALIDAÇÃO EM PRODUÇÃO"
+  no fim deste arquivo
+- **Portão P1:** ver o task-level da **Parte 0-B** — P1 só fecha com as duas partes, e a 0-B
+  tem uma verificação registrada como pendente
+- **Próxima ação:** nenhuma nesta parte. Item herdado fora de escopo: **0.b-4** (trocar o default
+  de `papel` para `'sem_papel'`), ainda não executado
+- **Última atualização:** 19/08/2026 21:58
+
+> **Checkboxes marcados em 19/08/2026**, numa sessão de recuperação de estado, contra Git + código
+> + os arquivos SQL versionados + a seção de resultado de produção já registrada neste arquivo.
+> A implementação estava pronta desde 16/08 e a documentação seguia toda desmarcada.
+
+---
+
 ## Resultado das pré-condições (executadas em 16/08/2026, read-only)
 
 ### Pré-condição 0.a (D-24) — auditoria dos caminhos de criação de `profiles`
@@ -169,7 +193,7 @@ defeito que a paridade `familiasChave`↔Edge combate na Fase 4. A Edge não imp
 **Interfaces:**
 - Produz: `metadataPerfil(papel, opcoes?) => Record<string, string>`, `PAPEIS_VALIDOS`, `papelValido(v) => boolean`
 
-- [ ] **Passo 1.1 — escrever o teste que falha**
+- [x] **Passo 1.1 — escrever o teste que falha**
 
 ```ts
 // src/services/__tests__/perfilOrigem.test.ts
@@ -216,12 +240,12 @@ describe('papelValido', () => {
 });
 ```
 
-- [ ] **Passo 1.2 — rodar e ver falhar**
+- [x] **Passo 1.2 — rodar e ver falhar**
 
 `npx vitest run src/services/__tests__/perfilOrigem.test.ts`
 Esperado: falha com "Cannot find module '../perfilOrigem'".
 
-- [ ] **Passo 1.3 — implementar o mínimo**
+- [x] **Passo 1.3 — implementar o mínimo**
 
 ```ts
 // src/services/perfilOrigem.ts
@@ -262,11 +286,11 @@ export function metadataPerfil(
 }
 ```
 
-- [ ] **Passo 1.4 — rodar e ver passar**
+- [x] **Passo 1.4 — rodar e ver passar**
 
 `npx vitest run src/services/__tests__/perfilOrigem.test.ts` → 6 testes passando.
 
-- [ ] **Passo 1.5 — commit**
+- [x] **Passo 1.5 — commit**
 
 ```bash
 git add src/services/perfilOrigem.ts src/services/__tests__/perfilOrigem.test.ts
@@ -284,12 +308,12 @@ git commit -m "feat(perfil): metadata de origem do perfil, com papel explícito"
 **Interfaces:**
 - Consome: `metadataPerfil` da Task 1
 
-- [ ] **Passo 2.1 — ler os dois pontos antes de tocar**
+- [x] **Passo 2.1 — ler os dois pontos antes de tocar**
 
 `Read src/services/auth.ts` nas faixas `385-410` e `450-480`. Registrar o que cada `signUp`
 já passa em `options.data` — se já houver metadata, a nova entra **junto**, nunca por cima.
 
-- [ ] **Passo 2.2 — escrever o teste que falha**
+- [x] **Passo 2.2 — escrever o teste que falha**
 
 Teste do formato final da metadata do auto-cadastro (papel mestre, sem org, sem cliente):
 
@@ -300,7 +324,7 @@ it('auto-cadastro (signUp) declara mestre e nada mais', () => {
 });
 ```
 
-- [ ] **Passo 2.3 — aplicar nos dois `signUp`**
+- [x] **Passo 2.3 — aplicar nos dois `signUp`**
 
 Em cada um, acrescentar `nr13_papel: 'mestre'` a `options.data`, **preservando** o que já
 estiver lá. Comentário no ponto:
@@ -311,15 +335,15 @@ estiver lá. Comentário no ponto:
 // Ver docs/.../2026-08-16-fase0-task-level.md, Task 2.
 ```
 
-- [ ] **Passo 2.4 — suíte inteira**
+- [x] **Passo 2.4 — suíte inteira**
 
 `npm test` → 909+ passando, zero falhas.
 
-- [ ] **Passo 2.5 — build**
+- [x] **Passo 2.5 — build**
 
 `npm run build` → sem erro.
 
-- [ ] **Passo 2.6 — commit**
+- [x] **Passo 2.6 — commit**
 
 ```bash
 git add src/services/auth.ts src/services/__tests__/perfilOrigem.test.ts
@@ -336,14 +360,14 @@ git commit -m "feat(auth): signUp declara o papel explicitamente na metadata"
 **Interfaces:**
 - Consome: o mesmo formato da Task 1, replicado (a Edge roda em Deno e não importa de `src/`)
 
-- [ ] **Passo 3.1 — guardar a versão atual para rollback**
+- [x] **Passo 3.1 — guardar a versão atual para rollback**
 
 ```bash
 cp supabase/functions/org_admin/index.ts supabase/functions/org_admin/index.anterior.ts
 git add supabase/functions/org_admin/index.anterior.ts
 ```
 
-- [ ] **Passo 3.2 — acrescentar a metadata**
+- [x] **Passo 3.2 — acrescentar a metadata**
 
 ```ts
 const { data: novo, error } = await admin.auth.admin.createUser({
@@ -367,7 +391,7 @@ O `upsert` das linhas 161-166 **permanece intacto**: ele continua sendo a confir
 cobre o caminho de adoção de usuário já existente (onde `createUser` falha e não há
 metadata nova a aplicar).
 
-- [ ] **Passo 3.3 — commit**
+- [x] **Passo 3.3 — commit**
 
 ```bash
 git add supabase/functions/org_admin/index.ts
@@ -394,11 +418,11 @@ git commit -m "feat(org_admin): papel explícito na metadata do createUser"
 > ```
 > Sem isso, a task fica bloqueada e o SQL não é escrito.
 
-- [ ] **Passo 4.1 — obter o corpo real do trigger em produção** *(ação do dono)*
-- [ ] **Passo 4.2 — comparar com `admin_setup.sql:60-74`** e registrar as diferenças
-- [ ] **Passo 4.3 — escrever `perfil_origem.sql`** partindo do corpo REAL, acrescentando só a leitura da metadata
-- [ ] **Passo 4.4 — escrever `perfil_origem_rollback.sql`** com o corpo real, byte a byte
-- [ ] **Passo 4.5 — commit** (SQL versionado; **não aplicado**)
+- [x] **Passo 4.1 — obter o corpo real do trigger em produção** *(ação do dono)*
+- [x] **Passo 4.2 — comparar com `admin_setup.sql:60-74`** e registrar as diferenças
+- [x] **Passo 4.3 — escrever `perfil_origem.sql`** partindo do corpo REAL, acrescentando só a leitura da metadata
+- [x] **Passo 4.4 — escrever `perfil_origem_rollback.sql`** com o corpo real, byte a byte
+- [x] **Passo 4.5 — commit** (SQL versionado; **não aplicado**)
 
 **Esboço do que a função passa a fazer** (a ser reescrito sobre o corpo real):
 
@@ -429,9 +453,9 @@ essa interação no teste manual — é onde um sub-login poderia nascer na org 
 
 Depois das Tasks 1–4:
 
-- [ ] `npm test` verde · `npm run build` limpo · `npm run lint` sem erro novo
-- [ ] `git push origin main`
-- [ ] **PARAR.** O dono aplica `perfil_origem.sql` e faz o deploy do frontend e da Edge.
+- [x] `npm test` verde · `npm run build` limpo · `npm run lint` sem erro novo
+- [x] `git push origin main`
+- [x] **PARAR.** O dono aplica `perfil_origem.sql` e faz o deploy do frontend e da Edge.
 
 ### Validação em produção da 0-A (roteiro, executado após o deploy)
 

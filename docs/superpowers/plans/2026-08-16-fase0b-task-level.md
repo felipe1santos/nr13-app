@@ -12,6 +12,81 @@ não pasta), D-26 (não-enumeração).
 
 ---
 
+## Estado atual da fase
+
+- **Fase:** 0 · **Parte 0-B** (isolamento do Portal, achado A-01)
+- **Estado:** IMPLEMENTADO · TESTADO · COMMITADO · PUSH MAIN · DEPLOYADO ·
+  **VALIDADO EM PRODUÇÃO com 3 limitações registradas**
+- **Commits:** `2330444` (papelSessao) · `42e8952` (Edge `portal_arquivo`) ·
+  `0300029` (arquivo do cliente pela Edge) · `ad99ceb` (cliente não hidrata) ·
+  `49672c0` (policies fail-closed + rollback) · `fa210c5` (resultado da validação) ·
+  `37eaa9b` (correção de teste)
+- **Push main:** SIM · **Redeploy:** SIM (Edge + frontend + `portal_policies.sql` aplicado)
+- **Validação produção:** SIM para o A-01 — medido antes/depois na conta `ipiranga@gmail.com`:
+  `select` direto em `app_storage` foi de **49 chaves → 0**; URL assinada pelo SDK passou a
+  devolver 400; a Edge recusa arquivo alheio e path inventado com a **mesma** resposta (D-26)
+- **Portão P1:** **ABERTO** — falta a verificação abaixo
+- **Próxima ação exata:** verificar, com uma conta `mestre`/`gerente`/`funcionario`, que o
+  sistema interno não regrediu **depois** das policies (ver "Limitações do que foi testado")
+- **Última atualização:** 19/08/2026 21:58
+
+### Pendências de produção desta parte
+
+- [ ] **Regressão do sistema interno DEPOIS das policies** — verificada ANTES (13 equipamentos
+      carregando), não depois: a aba estava com sessão de cliente quando o SQL foi aplicado.
+      **Evidência indireta forte, colhida em 19/08/2026:** os commits `f074a64` e `e72dd38`
+      relatam trabalho de produção na conta `teste` (papel mestre) lendo e escrevendo
+      `app_storage` normalmente, com as policies novas já no ar. Isso torna improvável uma
+      regressão, mas **não é a verificação formal** e não fecha o item.
+- [ ] **Cliente-contra-cliente de ARQUIVO na mesma organização** — não testado literalmente
+      (`cliente001` não tem equipamento nem arquivo). Foram testados arquivo de outra organização
+      e path não-referenciado, que exercitam a mesma decisão (`autorizados.has(path)`).
+- [ ] **`lerRemoto` recusando para cliente** — verificado por leitura de código, não exercitado
+      com certificado legado real.
+
+### Roteiro de fechamento do P1 (acordado em 19/08/2026)
+
+Escopo deliberadamente CURTO: prova só o que ficou sem evidência. **Não repetir a Fase 0
+inteira.** Executar depois do redeploy, com `teste@gmail.com` como mestre e ativos `ZZ-TESTE-*`.
+Escrita só em organização/ativo de teste; conta real de cliente só read-only.
+
+**Sistema interno com as policies atuais:**
+
+- [ ] Login mestre
+- [ ] Hidratação normal (sem erro, sem conta vazia)
+- [ ] Listar equipamentos
+- [ ] Abrir equipamento
+- [ ] Editar um dado descartável
+- [ ] Sincronizar (fila esvazia, selo volta a "sincronizado")
+- [ ] Abrir de novo em **sessão limpa** e confirmar que o dado vem do SERVIDOR
+- [ ] Abrir relatório/documento (palco monta, iframes renderizam)
+- [ ] Confirmar que as policies do Portal **não** bloquearam o sistema interno
+
+**Fronteira entre papéis:**
+
+- [ ] Conta cliente continua limitada ao vínculo permitido
+- [ ] Conta mestre **não** usa os caminhos restritos do Portal indevidamente
+      (isto é: mestre resolve arquivo pelo SDK, não pela Edge `portal_arquivo` — `papelSessao.ehCliente()`
+      decide o roteamento, e a Edge recusa token de mestre com 403, o que já foi provado em 16/08)
+
+Comprovados os itens: marcar aqui, registrar a evidência, **fechar o P1** e atualizar
+`docs/ESTADO-DAS-FASES.md`.
+
+### Regressão encontrada DEPOIS desta parte, já corrigida
+
+`cb26450` (19/08/2026) — no Portal, o botão "Visualizar" do prontuário não abria nada, para
+qualquer equipamento. `abrirProntuario` chamava `gravarProntuarioAtual` (= `salvar()`), o gate
+de escrita recusou para o papel `cliente` e a exceção derrubou a montagem do visualizador.
+Corrigido com `materializarProntuarioAtual`, que grava só no `localStorage` e não lança.
+**Consequência direta da fail-closed desta parte** — a policy estava certa, o app é que usava
+a escrita do inspetor para preparar uma chave de renderização.
+**Revalidação do prontuário no Portal depois do fix: PENDENTE DE CONFIRMAÇÃO.**
+
+> **Checkboxes de implementação marcados em 19/08/2026** contra Git + código + a seção de
+> resultado de produção já registrada neste arquivo. Nenhum item de produção foi marcado.
+
+---
+
 ## O que a pré-condição 0.d encontrou
 
 Quatro famílias de acesso direto do Portal ao Supabase, todas passando por **três funções**:
@@ -82,7 +157,7 @@ só consegue tentar o caminho direto, que a policy recusa.
 
 **Produces:** `papelDaSessao(): string`, `ehCliente(): boolean`
 
-- [ ] **1.1 Teste que falha**
+- [x] **1.1 Teste que falha**
 
 ```ts
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -123,10 +198,10 @@ describe('papelSessao', () => {
 });
 ```
 
-- [ ] **1.2 Rodar, ver falhar** — `npx vitest run src/services/__tests__/papelSessao.test.ts`
-- [ ] **1.3 Implementar**
-- [ ] **1.4 Rodar, ver passar**
-- [ ] **1.5 Commit** — `feat(portal): papel da sessão sem acoplar fotos.ts a auth.ts`
+- [x] **1.2 Rodar, ver falhar** — `npx vitest run src/services/__tests__/papelSessao.test.ts`
+- [x] **1.3 Implementar**
+- [x] **1.4 Rodar, ver passar**
+- [x] **1.5 Commit** — `feat(portal): papel da sessão sem acoplar fotos.ts a auth.ts`
 
 ---
 
@@ -159,8 +234,8 @@ POST { path }  com Bearer do cliente
 - **Resolve `assinaturaRef`/`logoRef` desde já**, mesmo que nenhum snapshot os tenha ainda. Elimina o acoplamento de cronograma com a Fase 7 (alternativa (a) da dependência registrada lá).
 - **Nunca consulta a existência do arquivo** antes de decidir. A decisão é pertinência ao conjunto — por isso não há caminho distinguível para cronometrar (D-26).
 
-- [ ] **2.1** Escrever a Edge
-- [ ] **2.2** Commit — `feat(portal): edge portal_arquivo autoriza arquivo por vínculo`
+- [x] **2.1** Escrever a Edge
+- [x] **2.2** Commit — `feat(portal): edge portal_arquivo autoriza arquivo por vínculo`
 
 ---
 
@@ -168,8 +243,8 @@ POST { path }  com Bearer do cliente
 
 **Files:** Modify `src/services/fotos.ts`
 
-- [ ] **3.1 Teste que falha** — cliente não chama `supabase.storage` direto; interno continua chamando
-- [ ] **3.2 Implementar**
+- [x] **3.1 Teste que falha** — cliente não chama `supabase.storage` direto; interno continua chamando
+- [x] **3.2 Implementar**
 
 ```
 urlAssinada(path):
@@ -183,8 +258,8 @@ baixarFoto(ref):
   senão          → storage.download como hoje
 ```
 
-- [ ] **3.3 Rodar, ver passar**
-- [ ] **3.4 Commit** — `feat(portal): arquivo do cliente sai pela edge, não pelo SDK`
+- [x] **3.3 Rodar, ver passar**
+- [x] **3.4 Commit** — `feat(portal): arquivo do cliente sai pela edge, não pelo SDK`
 
 ---
 
@@ -232,9 +307,9 @@ passo (`if (r.pdfBase64) return r.pdfBase64`) e nunca chega ao `lerRemoto`.
 Se a investigação confirmar isso, `lerRemoto` retornar `null` para cliente é inócuo. Se não
 confirmar, o certificado legado precisa de rota na Edge — e aí a task cresce.
 
-- [ ] **4.1** Confirmar o caminho com teste
-- [ ] **4.2** Implementar a recusa
-- [ ] **4.3** Commit
+- [x] **4.1** Confirmar o caminho com teste
+- [x] **4.2** Implementar a recusa
+- [x] **4.3** Commit
 
 ---
 
@@ -264,8 +339,8 @@ create policy inspecao_leitura on storage.objects for select
 **Verificar antes de aplicar:** nenhuma tela do Admin faz `select` direto em `app_storage`
 (ela usa `admin_usage_stats()`, que é `security definer`). Se fizer, migra para RPC primeiro.
 
-- [ ] **5.1** Escrever ida e volta
-- [ ] **5.2** Commit — **não aplicar**
+- [x] **5.1** Escrever ida e volta
+- [x] **5.2** Commit — **não aplicar**
 
 ---
 

@@ -6,6 +6,29 @@
 
 ---
 
+## Estado atual da fase
+
+- **Fase:** 2 — Observabilidade (achado A-11)
+- **Estado:** **VALIDADO EM PRODUÇÃO** (16/08/2026), com **1 item de documentação em aberto**
+- **Commits:** `f1bab47` (contagem por `nr13_rel_`) · `2a03b57` (métricas de storage e ranking) ·
+  `8fad49e` (baseline confirmado no painel)
+- **Push main:** SIM · **Redeploy:** SIM (frontend) · **SQL aplicado:** `admin_stats.sql` e
+  `admin_storage_stats.sql`
+- **Validação local:** SIM · **Validação produção:** SIM — tabela "Verificações feitas hoje" em
+  `docs/medicoes/2026-08-16-baseline-inicial.md` (contagem 13 = 13; união não dobra; guarda de
+  admin recusando mestre comum com `ERROR P0001`; bucket 110,4 MB × painel; org vazia devolve zeros)
+- **Baseline gravado:** SIM — `docs/medicoes/2026-08-16-baseline-inicial.md`
+- **Portão:** a Fase 2 não tem portão próprio no plano macro
+- **Próxima ação exata:** acrescentar `supabase/admin_storage_stats.sql` à nota de deploy manual
+  (Bloco 4, Passo 5 — único item aberto)
+- **Última atualização:** 19/08/2026 21:58
+
+> **Checkboxes marcados em 19/08/2026** contra os arquivos SQL, `src/pages/adminMetricas.ts` +
+> `adminMetricas.test.ts` e o documento de baseline. O Passo 5 do Bloco 4 foi conferido e
+> **continua aberto**.
+
+---
+
 ## O defeito, em uma linha
 
 O Painel Admin conta relatórios por `nr13_historico_relatorios` — a chave que desde
@@ -139,10 +162,10 @@ Acrescentadas ao fim:
 | `bytes_base64` | bytes dessas chaves (dimensiona a Fase 6) |
 | `ultima_sync` | de `profiles`, do MESTRE da org (D2-05) |
 
-- [ ] Passo 1: escrever o SQL com a união de ids (D2-01) e os comentários das decisões.
-- [ ] Passo 2: rodar no SQL Editor (é `create or replace` — idempotente).
-- [ ] Passo 3: conferir contagem contra uma organização de contagem conhecida.
-- [ ] Passo 4: conferir que a soma NÃO dobra numa org que tem legado e novo.
+- [x] Passo 1: escrever o SQL com a união de ids (D2-01) e os comentários das decisões.
+- [x] Passo 2: rodar no SQL Editor (é `create or replace` — idempotente).
+- [x] Passo 3: conferir contagem contra uma organização de contagem conhecida.
+- [x] Passo 4: conferir que a soma NÃO dobra numa org que tem legado e novo.
 
 ### Tarefa 2 — `admin_storage_stats()`
 
@@ -154,37 +177,38 @@ Por organização: `arquivos`, `bytes`, `bytes_relatorios`, `bytes_assinaturas`,
 
 Mesma guarda de admin. `set search_path = public, storage`.
 
-- [ ] Passo 1: escrever o SQL.
-- [ ] Passo 2: rodar e comparar o total com o painel de Storage do Supabase (tolerância de arredondamento).
-- [ ] Passo 3: confirmar que bucket vazio devolve zero, sem erro.
+- [x] Passo 1: escrever o SQL.
+- [x] Passo 2: rodar e comparar o total com o painel de Storage do Supabase (tolerância de arredondamento).
+- [x] Passo 3: confirmar que bucket vazio devolve zero, sem erro.
 
 ### Tarefa 3 — Guarda de admin, verificada
 
-- [ ] Passo 1: teste estático (`adminMetricas.test.ts`) — o corpo das DUAS funções contém o bloco de guarda antes de qualquer `return query`.
-- [ ] Passo 2: teste manual em produção — logar como `mestre` comum e chamar as duas RPCs; ambas precisam falhar com `acesso negado`.
+- [x] Passo 1: teste estático (`adminMetricas.test.ts`) — o corpo das DUAS funções contém o bloco de guarda antes de qualquer `return query`.
+- [x] Passo 2: teste manual em produção — logar como `mestre` comum e chamar as duas RPCs; ambas precisam falhar com `acesso negado`.
 
 ### Tarefa 4 — Admin.tsx
 
-- [ ] Passo 1: `adminMetricas.ts` com a interface `UsoStats` ampliada, `StorageStats`, e `fmtBytes()` pura.
-- [ ] Passo 2: teste de `fmtBytes` e do contrato de colunas contra o `.sql`.
-- [ ] Passo 3: colunas novas na tabela (bytes da org, última sync do usuário).
-- [ ] Passo 4: seção "Crescimento e armazenamento" — ranking por consumo, base64 restante, peso do legado.
+- [x] Passo 1: `adminMetricas.ts` com a interface `UsoStats` ampliada, `StorageStats`, e `fmtBytes()` pura.
+- [x] Passo 2: teste de `fmtBytes` e do contrato de colunas contra o `.sql`.
+- [x] Passo 3: colunas novas na tabela (bytes da org, última sync do usuário).
+- [x] Passo 4: seção "Crescimento e armazenamento" — ranking por consumo, base64 restante, peso do legado.
 - [ ] Passo 5: nota de deploy atualizada (a de hoje cita só `admin_stats.sql`).
+      **Status: NÃO FEITO — verificado em 19/08/2026.** `grep -rn admin_storage_stats PENDENCIAS.md CLAUDE.md docs/` não devolve nada. A função ESTÁ aplicada em produção (o baseline foi colhido com ela), mas quem reconstruir o banco a partir da documentação não vai saber rodar `supabase/admin_storage_stats.sql`.
 
 ### Tarefa 5 — Snapshot inicial
 
-- [ ] Passo 1: rodar as duas funções em produção e salvar a saída bruta.
-- [ ] Passo 2: escrever `docs/medicoes/2026-08-16-baseline-inicial.md` com data, org por org (anonimizadas por prefixo de uuid), totais e o que cada número dimensiona.
+- [x] Passo 1: rodar as duas funções em produção e salvar a saída bruta.
+- [x] Passo 2: escrever `docs/medicoes/2026-08-16-baseline-inicial.md` com data, org por org (anonimizadas por prefixo de uuid), totais e o que cada número dimensiona.
 
 ---
 
 ## Critério de aceite
 
-- [ ] Contagem de relatórios bate com a contagem manual em organização de teste.
-- [ ] Nenhuma organização contada em dobro na convivência legado + novo.
-- [ ] Não-admin recusado nas duas funções (verificado em produção, não só por leitura de código).
-- [ ] Snapshot inicial salvo em `docs/medicoes/`.
-- [ ] Suíte verde, build limpo.
+- [x] Contagem de relatórios bate com a contagem manual em organização de teste.
+- [x] Nenhuma organização contada em dobro na convivência legado + novo.
+- [x] Não-admin recusado nas duas funções (verificado em produção, não só por leitura de código).
+- [x] Snapshot inicial salvo em `docs/medicoes/`.
+- [x] Suíte verde, build limpo.
 
 ## Rollback
 

@@ -6,6 +6,30 @@
 
 ---
 
+## Estado atual da fase
+
+- **Fase:** 3 — Conflitos: fechar o ciclo
+- **Estado:** IMPLEMENTADO · TESTADO LOCALMENTE · COMMITADO · PUSH MAIN · **produção PARCIAL**
+- **Último commit da fase:** `81cfd79` (16/08/2026) · **HEAD do repo:** `cb26450` (19/08/2026)
+- **Push main:** SIM — `HEAD == origin/main`, working tree limpo
+- **Redeploy:** SIM para os commits de 16/08 (provado pelo uso em produção em 19/08).
+  **PENDENTE DE CONFIRMAÇÃO** para os commits de 19/08 (`f074a64`, `e72dd38`, `cb26450`)
+- **Validação local:** SIM — suíte **1042/1042** em 84 arquivos, `npm run build` limpo (19/08/2026 21:56)
+- **Validação produção:** **PARCIAL** — a tela de conflitos foi exercitada em produção na conta
+  `teste` e revelou um defeito, corrigido em `f074a64`. O roteiro de dois aparelhos **não foi
+  executado por inteiro nem registrado com medições**
+- **Portão P2:** **ABERTO** — bloqueado pelo P1, que vem antes
+- **Próxima ação exata:** **AGUARDANDO REDEPLOY.** O dono redeploya o `main` e avisa
+  `REDEPLOY CONCLUÍDO`. Só então: fechar o **P1** (roteiro curto no task-level da Fase 0-B) e,
+  depois dele, executar o "Roteiro de dois aparelhos — P2" deste arquivo
+- **Última atualização:** 19/08/2026 22:19 (relógio do ambiente)
+
+> **Nota de honestidade:** esta seção foi escrita em 19/08/2026 numa sessão de RECUPERAÇÃO DE
+> ESTADO, a partir de Git + código + testes + build. Nenhum item de produção foi marcado sem
+> evidência. Onde a evidência é indireta, está dito.
+
+---
+
 ## O que a pré-condição decidiu
 
 Verificado por execução contra o banco (org de teste, chave descartável):
@@ -104,53 +128,187 @@ livro, não com erro genérico.
 
 ## Tarefas
 
-### Tarefa 1 — Schema v2 com a store `conflitos`
-- [ ] Teste: banco criado em v1 com dado nas 4 stores, reaberto em v2 → 4 stores intactas + `conflitos` presente.
-- [ ] `VERSAO_SCHEMA = 2`, `NomeStore` += `'conflitos'`, upgrade só acrescenta.
+> Marcação revisada em 19/08/2026 contra código, testes e Git. A evidência de cada item
+> está ao lado dele.
 
-### Tarefa 2 — `guardarConflito` na store nova, uma cópia por chave
-- [ ] Teste: dois conflitos da mesma chave → **1** entrada; `dados` sem `nr13_conflito_*`.
-- [ ] Teste: `hidratarDoDisco` não traz conflito para o `Map`.
+### Tarefa 1 — Schema v2 com a store `conflitos` · **COMMITADA** `f0e1817`
+- [x] Teste: banco criado em v1 com dado nas 4 stores, reaberto em v2 → 4 stores intactas + `conflitos` presente.
+      → `src/services/db.upgrade.test.ts`, 4 testes (`preserva dados, fila, tombstones e meta`;
+      `cria a store conflitos, vazia`; `a store nova aceita escrita atômica junto com as antigas`;
+      `banco novo nasce direto com as cinco stores`)
+- [x] `VERSAO_SCHEMA = 2`, `NomeStore` += `'conflitos'`, upgrade só acrescenta.
+      → `src/services/db.ts:22,24,41` — `createObjectStore` só quando `!contains(s)`
 
-### Tarefa 3 — Guarda do defeito ativo (D3-03)
-- [ ] Teste: `tentarNovamente` em item `conflito` não chama a RPC e não mexe na fila.
-- [ ] `retentarTodas` opera só sobre itens sem conflito.
+### Tarefa 2 — `guardarConflito` na store nova, uma cópia por chave · **COMMITADA** `f0e1817`
+- [x] Teste: dois conflitos da mesma chave → **1** entrada; `dados` sem `nr13_conflito_*`.
+      → `sync.conflito.test.ts`: `DUAS detecções do mesmo conflito produzem UMA cópia, não duas` ·
+      `não polui a store dados com nr13_conflito_*`
+- [x] Teste: `hidratarDoDisco` não traz conflito para o `Map`.
+      → `sync.conflito.test.ts`: `não entra no Map na hidratação`
 
-### Tarefa 4 — Resolver mantendo a minha (D3-01)
-- [ ] Teste: gera UM item novo, com `resolveDe`, `versaoBase` = versão do servidor; o original sai; a troca é uma transação só.
-- [ ] Teste: a resolução sobe e o servidor recebe o valor local (RPC mockada devolvendo `aplicado`).
-- [ ] Teste: falha de rede na resolução → item continua, sem criar terceiro.
-- [ ] Teste: nunca devolve `repetido` tratado como sucesso.
+### Tarefa 3 — Guarda do defeito ativo (D3-03) · **COMMITADA** `ecdf789`
+- [x] Teste: `tentarNovamente` em item `conflito` não chama a RPC e não mexe na fila.
+      → `sync.conflito.test.ts`: `tentarNovamente RECUSA item em conflito — não chama a RPC`
+- [x] `retentarTodas` opera só sobre itens sem conflito.
+      → `Pendencias.tsx:62` (`pendentes` filtra `conflito` e `encerrado`) + `sync.drenar` pula conflito
+      (`sync.conflito.test.ts`: `drenar continua pulando conflito`)
 
-### Tarefa 5 — Resolver usando o servidor
-- [ ] Teste: aplica o remoto no cache, item sai da fila, valor local vira `substituido` guardado.
-- [ ] Teste: funciona offline (não chama a RPC).
+### Tarefa 4 — Resolver mantendo a minha (D3-01) · **COMMITADA** `150948d`
+- [x] Teste: gera UM item novo, com `resolveDe`, `versaoBase` = versão do servidor; o original sai; a troca é uma transação só.
+      → `cria UMA mutação nova, com resolveDe e a versão do SERVIDOR como base` ·
+      `a troca é UMA transação: o original nunca coexiste com o novo no disco`
+- [x] Teste: a resolução sobe e o servidor recebe o valor local (RPC mockada devolvendo `aplicado`).
+      → `a resolução SOBE e o item sai da fila`
+- [x] Teste: falha de rede na resolução → item continua, sem criar terceiro.
+      → `falha de rede na resolução não cria um terceiro item nem ressuscita o original`
+- [x] Teste: nunca devolve `repetido` tratado como sucesso.
+      → coberto pelo id novo (`resolveDe`) + `resolver de novo o que já foi resolvido é no-op`
 
-### Tarefa 6 — Migração das cópias antigas
-- [ ] Teste: `nr13_conflito_<chave>__<ts>` em `dados` → move para `conflitos` (fica a mais recente), remove de `dados`, idempotente.
+### Tarefa 5 — Resolver usando o servidor · **COMMITADA** `150948d`
+- [x] Teste: aplica o remoto no cache, item sai da fila, valor local vira `substituido` guardado.
+      → `aplica o remoto no cache e tira o item da fila` · `guarda o valor LOCAL como substituído`
+- [x] Teste: funciona offline (não chama a RPC).
+      → `funciona OFFLINE: não chama a RPC`
 
-### Tarefa 7 — Tela
-- [ ] Comparação lado a lado com resumo humano + JSON em `<details>`.
-- [ ] Três ações; "Decidir depois" não faz nada.
-- [ ] Seção "Versões substituídas" com Descartar.
+### Tarefa 6 — Migração das cópias antigas · **COMMITADA** `f0e1817`
+- [x] Teste: `nr13_conflito_<chave>__<ts>` em `dados` → move para `conflitos` (fica a mais recente), remove de `dados`, idempotente.
+      → 4 testes em `describe('migração das cópias antigas')`, incluindo
+      `não apaga a origem sem ter gravado o destino` e `não sobrescreve conflito novo já existente`.
+      Implementação: `sync.migrarConflitosAntigos` (`sync.ts:737`) + `familiasChave.PREFIXO_CONFLITO_LEGADO`
+
+### Tarefa 7 — Tela · **COMMITADA** `150948d` + `c54a84c` + `81cfd79`
+- [x] Comparação lado a lado com resumo humano + JSON em `<details>`.
+      → `Pendencias.tsx:244-300` (`conflito__lados`, `resumoDoValor`, `<details>` "Detalhes técnicos")
+- [x] Três ações; "Decidir depois" não faz nada.
+      → "Manter a minha" (l. 258) · "Usar a do servidor" (l. 274) · adiar é texto explicativo,
+      sem ação (l. 278-282) — exatamente o previsto
+- [x] Seção "Versões substituídas" com Descartar.
+      → `Pendencias.tsx:496-520`
+- [x] Rótulo humano da chave no card (`rotuloDaChave`), incluindo `nr13_pref_unidade_` → "Unidade de medida"
+      → `src/features/documentos/rotuloChave.ts` + `.test.ts`, commit `81cfd79`
 
 ### Tarefa 8 — Validação
-- [ ] Suíte + build.
+- [x] Suíte + build. → **1042 testes / 84 arquivos, 0 falhas**; `npm run build` limpo, medido em
+      19/08/2026 21:56. (Baseline do plano macro: 909. Baseline citado na Fase 3: 1.011.)
 - [ ] Roteiro de dois aparelhos em produção (org de teste).
+      **Status: PARCIAL — não executado como roteiro, não medido, não registrado.**
+      O que existe de evidência real: em 19/08/2026 a tela de conflitos FOI usada em produção na
+      conta `teste` e revelou um defeito legítimo — item recusado por
+      `tombstone_mais_novo`/`anterior_ao_corte` ficava contado no selo e invisível na tela, e a
+      chave nunca recebia o `deletado_em` do servidor. Corrigido em `f074a64` (card próprio com
+      "Recriar no servidor" e "Descartar a minha"). Isso prova que a fase foi ao ar e foi exercitada,
+      **mas não substitui o roteiro**: os dois conflitos reais parados desde 14/08 não têm registro
+      de desfecho, e não há medição antes/depois.
 
 ---
 
 ## Critério de aceite
 
+**Local — todos provados por teste automatizado (19/08/2026):**
+
 - [x] Pré-condição executada e registrada
-- [ ] "Manter a minha" grava no servidor e sai da fila
-- [ ] Nenhum caminho trata `repetido` como sucesso sem gravação
-- [ ] `tentarNovamente`/`retentarTodas` recusam conflito
-- [ ] Zero `nr13_conflito_*` no `Map`
-- [ ] Uma cópia por chave, não por tentativa
-- [ ] Nenhuma versão descartada sem escolha explícita
-- [ ] Upgrade v1→v2 preserva as stores, provado por teste
-- [ ] Suíte verde, build limpo
+- [x] "Manter a minha" grava no servidor e sai da fila
+- [x] Nenhum caminho trata `repetido` como sucesso sem gravação
+- [x] `tentarNovamente`/`retentarTodas` recusam conflito
+- [x] Zero `nr13_conflito_*` no `Map`
+- [x] Uma cópia por chave, não por tentativa
+- [x] Nenhuma versão descartada sem escolha explícita
+- [x] Upgrade v1→v2 preserva as stores, provado por teste
+- [x] Suíte verde, build limpo — 1042/1042, build sem erro
+
+**Produção — o que falta para fechar o P2:**
+
+- [ ] Roteiro de dois aparelhos executado e registrado (org de teste, `teste@gmail.com`,
+      equipamentos `ZZ-TESTE-*`)
+- [ ] Desfecho dos 2 conflitos reais parados desde 14/08 registrado
+- [ ] Confirmação de que o bundle em produção é posterior a `cb26450`
+- [ ] Conferência de que nenhum `nr13_conflito_*` sobrou em `dados` nos aparelhos migrados
+
+## Roteiro de dois aparelhos — P2 (acordado em 19/08/2026)
+
+Executar **depois do P1**, na conta `teste@gmail.com`, com chaves de equipamentos `ZZ-TESTE-*`.
+Duas sessões (A e B) — janelas/perfis separados, para terem IndexedDB próprio.
+
+> **Os 2 conflitos reais de 14/08 NÃO são material de teste.** Primeiro descobrir se ainda
+> existem; se forem de dado real do dono, **apenas inspecionar e reportar**. Nenhuma ação neles
+> sem autorização.
+
+**Ciclo do conflito:**
+
+- [ ] Sessão A e sessão B abertas na mesma organização, mesma chave
+- [ ] A altera e sincroniza
+- [ ] B altera **offline**
+- [ ] B reconecta → **conflito real aparece** na tela
+- [ ] "Decidir depois" → estado permanece íntegro, nada se perde, item continua contado
+- [ ] "Usar a do servidor" → valor remoto prevalece no cache
+- [ ] A versão local perdedora fica preservada em "Versões substituídas"
+- [ ] Provocar um novo conflito
+- [ ] "Manter a minha" → o servidor realmente recebe o valor escolhido
+
+**O que precisa ser inspecionado no momento da resolução** (DevTools → Application → IndexedDB,
+e a aba Network para a chamada da RPC):
+
+- [ ] `mutationId` **NOVO** (diferente do original)
+- [ ] `resolveDe` = id da mutação original
+- [ ] `versaoBase` = versão vigente do servidor
+- [ ] O item original **não** é reenviado como retry
+- [ ] `repetido` nunca é tratado como gravação quando a edição não foi aplicada
+
+**Robustez:**
+
+- [ ] Falha de rede durante a resolução não perde nenhuma das versões
+- [ ] Fechar e reabrir o navegador → IndexedDB consistente
+- [ ] Conflito fora de `dados`
+- [ ] Conflito fora do `Map` normal
+- [ ] Store `conflitos` presente e usada
+- [ ] Máximo de **uma** entrada por chave (repetir a detecção não multiplica)
+- [ ] `tentarNovamente` recusa item em conflito
+- [ ] `retentarTodas` pula conflito
+- [ ] Versão substituída não entra no sync normal
+- [ ] Versão substituída não recria conflito
+- [ ] Descarte explícito funciona
+- [ ] Sem crescimento infinito (contar entradas antes/depois)
+- [ ] Fila termina correta (vazia ou só com o que deve ficar)
+- [ ] Selo/status de sincronização termina correto
+
+**Regressão do fluxo de exclusão** (cobre o defeito de `f074a64`, corrigido — **não
+reimplementar**, só provar que não voltou):
+
+- [ ] Criar equipamento `ZZ-TESTE-*` → sincronizar
+- [ ] Segunda sessão enxerga
+- [ ] Excluir → sincronizar
+- [ ] **Segunda sessão deixa de enxergar** — era exatamente isto que falhava: com pendência na
+      chave, `lerTudo` a pulava (`itemDaChave`) e o `deletado_em` do servidor nunca era aplicado,
+      então o equipamento apagado num aparelho continuava visível no outro, sem saída pela interface
+- [ ] Havendo o cenário de recusa/pendência correspondente
+      (`tombstone_mais_novo` / `anterior_ao_corte`), validar as duas saídas do card:
+      **"Recriar no servidor"** (mutação nova, base = versão informada na recusa) e
+      **"Descartar a minha"**
+
+**Fechamento:** marcar tudo que for comprovado, registrar a validação em
+`docs/medicoes/`, atualizar `docs/ESTADO-DAS-FASES.md` e o `Ponto de retomada`, rodar suíte +
+build, apresentar o P2. **PARAR.**
+
+---
+
+## Portão P2 — ABERTO
+
+Definido no plano macro (`2026-08-15-evolucao-arquitetura.md`, "Portões de parada
+obrigatórios"): P2 vem **depois da Fase 3** e é crítico por ser o único upgrade de schema do
+IndexedDB do roteiro, mexendo no motor de sincronização.
+
+Sequência do portão, e onde estamos:
+
+```
+validado local          ✅  1042/1042 + build limpo
+commit                  ✅  f0e1817 · ecdf789 · 150948d · c54a84c · 81cfd79
+push main               ✅  HEAD == origin/main
+[dono faz o redeploy]   ✅ (16/08)  ·  ⏳ PENDENTE DE CONFIRMAÇÃO para os commits de 19/08
+produção validada       ⏳  PARCIAL — exercitada, não medida nem registrada
+relatório com números   ⏳
+aprovação do dono       ⏳
+próxima fase (4)        🚫  NÃO INICIAR
+```
 
 ## Rollback
 
@@ -164,3 +322,74 @@ reversível da fase.
 Os **2 conflitos reais parados desde 14/08** no aparelho do dono não são tocados durante a
 implementação. Eles são o material do teste manual **depois** do deploy — e até lá o botão
 "Tentar de novo" deles continua sendo o gatilho de perda descrito na pré-condição.
+
+> **19/08/2026 — não há registro do desfecho desses 2 conflitos.** Não sei se foram resolvidos,
+> se ainda estão parados, ou se sumiram numa limpeza. Item aberto do P2.
+
+---
+
+## Log de execução
+
+### 16/08/2026 — Tarefas 1, 2 e 6 · commit `f0e1817`
+- `VERSAO_SCHEMA` 1 → 2, store `conflitos`, upgrade aditivo (`db.ts`);
+- `guardarConflito` sai de `dados`, uma entrada por chave;
+- migração das cópias antigas (`migrarConflitosAntigos`) + `PREFIXO_CONFLITO_LEGADO` em `familiasChave`;
+- testes: `db.upgrade.test.ts` (4) e `sync.conflito.test.ts`.
+
+### 16/08/2026 — Tarefa 3 · commit `ecdf789`
+- `tentarNovamente` recusa item em conflito (era o defeito ativo: destruía a edição em silêncio);
+- `drenar` segue pulando conflito.
+
+### 16/08/2026 — Tarefas 4, 5 e 7 · commit `150948d`
+- `resolverMantendoLocal` com **mutationId NOVO** + `resolveDe` + `versaoBase` = versão do servidor;
+- `resolverUsandoServidor` (funciona offline);
+- `descartarSubstituida`;
+- tela `/pendencias`: comparação lado a lado, três ações, seção "Versões substituídas".
+
+### 16/08/2026 — Ajustes de tela · commits `c54a84c`, `81cfd79`
+- conflito aberto deixa de ser contado como "tudo salvo"; decisão sobe na hora;
+- `rotuloChave` mapeia `nr13_pref_unidade_` → "Unidade de medida" (o card mostrava nome de chave).
+
+### 19/08/2026 — Uso em produção revelou um buraco · commit `f074a64`
+- Encontrado na conta `teste`: selo dizia "3 falhas", tela oferecia UMA decisão. Itens recusados
+  por `tombstone_mais_novo`/`anterior_ao_corte` não têm `RegistroConflito` (o servidor não devolve
+  valor — a chave foi EXCLUÍDA lá), então não apareciam. Pior: enquanto a pendência existia,
+  `lerTudo` pulava a chave e o `deletado_em` nunca era aplicado — equipamento apagado no celular
+  continuava na tela do computador, sem saída pela interface.
+- Card próprio com **Recriar no servidor** (mutação nova, base = versão informada na recusa) e
+  **Descartar a minha**. Item passou a guardar `versaoServidor`.
+- **Este commit é da Fase 3 e não estava registrado em lugar nenhum.**
+
+### 19/08/2026 — Sessão de recuperação de estado (esta)
+- Nenhum código alterado. Git, suíte, build e código conferidos;
+- suíte **1042/1042** (84 arquivos), `npm run build` limpo;
+- `HEAD == origin/main == cb26450`, working tree limpo;
+- 26 checkboxes desta fase estavam abertos com a implementação pronta e commitada — corrigidos
+  aqui, um por um, com a evidência ao lado;
+- o que NÃO foi marcado: tudo que depende de produção.
+
+---
+
+## Ponto de retomada
+
+- **Última coisa concluída:** correção da documentação desta fase contra o estado real do
+  repositório (19/08/2026). Implementação da Fase 3 completa, commitada e no `main`.
+- **Commit atual:** `cb26450` (HEAD, == `origin/main`). Último commit da Fase 3 propriamente:
+  `f074a64`.
+- **Alterações locais:** nenhuma rastreada. Um arquivo novo não commitado:
+  `docs/medicoes/estado-arquitetural-atual.md` (auditoria de estado, produzida na sessão anterior).
+- **Testes:** 1042/1042, 84 arquivos, 25 s. Verde.
+- **Build:** verde (`tsc -b && vite build`, só warnings de chunk size, nenhum erro).
+- **Deploy:** **AGUARDANDO REDEPLOY.** Os commits de 16/08 estão em produção (provado pelo uso).
+  Os de 19/08 (`8f19a26`, `4a8e50e`, `a85570a`, `f074a64`, `e72dd38`, `cb26450`) **não estão
+  confirmados no ar**. O dono vai redeployar o `main` a partir do commit de documentação e avisar
+  `REDEPLOY CONCLUÍDO`. O bundle válido para os testes precisa conter `cb26450`.
+- **Produção:** P1 e P2 **abertos**. A fase foi exercitada em produção, não medida nem registrada.
+- **Pendência:** (1) fechar o P1 — roteiro curto de regressão do sistema interno, no task-level da
+  Fase 0-B; (2) fechar o P2 — "Roteiro de dois aparelhos" deste arquivo; (3) descobrir se os 2
+  conflitos reais de 14/08 ainda existem — **inspecionar e reportar, nunca agir sem autorização**.
+- **Próxima ação:** aguardar `REDEPLOY CONCLUÍDO`. Depois, nesta ordem: confirmar que o bundle no
+  ar contém `cb26450` → **P1** → **P2** → registrar em `docs/medicoes/` → suíte + build →
+  apresentar o portão → PARAR.
+- **Não fazer ainda:** Fase 4 (Portal: arquitetura de leitura). Nenhuma linha antes de P1 e P2
+  fecharem com aprovação explícita do dono.
