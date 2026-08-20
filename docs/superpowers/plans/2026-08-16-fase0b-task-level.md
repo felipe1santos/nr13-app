@@ -50,27 +50,50 @@ Escopo deliberadamente CURTO: prova só o que ficou sem evidência. **Não repet
 inteira.** Executar depois do redeploy, com `teste@gmail.com` como mestre e ativos `ZZ-TESTE-*`.
 Escrita só em organização/ativo de teste; conta real de cliente só read-only.
 
+**EXECUTADO em 19/08/2026 22:40–22:50.** Evidência completa em
+`docs/medicoes/2026-08-19-p1-p2-producao.md`, seção 1.
+Bundle sob teste confirmado **byte-a-byte** igual ao build do `main` (SHA-256 do asset).
+
 **Sistema interno com as policies atuais:**
 
-- [ ] Login mestre
-- [ ] Hidratação normal (sem erro, sem conta vazia)
-- [ ] Listar equipamentos
-- [ ] Abrir equipamento
-- [ ] Editar um dado descartável
-- [ ] Sincronizar (fila esvazia, selo volta a "sincronizado")
-- [ ] Abrir de novo em **sessão limpa** e confirmar que o dado vem do SERVIDOR
-- [ ] Abrir relatório/documento (palco monta, iframes renderizam)
-- [ ] Confirmar que as policies do Portal **não** bloquearam o sistema interno
+- [x] Login mestre — `nr13_papel = mestre`, topbar "teste / Administrador"
+- [x] Hidratação normal (sem erro, sem conta vazia) — 44 chaves, selo "Sincronizado"
+- [x] Listar equipamentos — 3 cards
+- [x] Abrir equipamento — `/equipamento/ZZ-FASE3`
+- [x] Editar um dado descartável — Fabricante → `ZZ-TESTE-P1-2201`
+- [x] Sincronizar (fila esvazia, selo volta a "sincronizado") — versão local 5, item saiu da fila
+- [x] Abrir de novo em **sessão limpa** e confirmar que o dado vem do SERVIDOR
+      **Status: cumprido por outra via.** `deleteDatabase` respondeu `bloqueado` (o app segura a
+      conexão), então a hidratação fria não aconteceu. A pergunta foi respondida direto no
+      Postgres: `GET /rest/v1/app_storage` devolveu `versao 5` e `fabricante: ZZ-TESTE-P1-2201`,
+      sem passar pelo cache. Nada foi perdido — fila conferida vazia antes, com aborto programado
+- [x] Abrir relatório/documento (palco monta, iframes renderizam) — Prontuário de
+      `COMPRESSOR V8-15/200L`, folha `PRONT-ULTRASSOM` com logo e TAG corretas
+- [x] Confirmar que as policies do Portal **não** bloquearam o sistema interno —
+      `GET /rest/v1/app_storage` com token de mestre → **HTTP 200**
 
 **Fronteira entre papéis:**
 
+- [x] Conta mestre **não** usa os caminhos restritos do Portal indevidamente —
+      Edge `portal_cliente` → **403**; Edge `portal_arquivo` → **403**, ambas
+      `{"erro":"Acesso negado (somente contas de cliente)"}`
 - [ ] Conta cliente continua limitada ao vínculo permitido
-- [ ] Conta mestre **não** usa os caminhos restritos do Portal indevidamente
-      (isto é: mestre resolve arquivo pelo SDK, não pela Edge `portal_arquivo` — `papelSessao.ehCliente()`
-      decide o roteamento, e a Edge recusa token de mestre com 403, o que já foi provado em 16/08)
+      **Status: PARCIAL — herdado de 16/08, não re-testado hoje.** Naquela data, com
+      `ipiranga@gmail.com`: `select` direto em `app_storage` foi de **49 chaves → 0** e a URL
+      assinada pelo SDK passou a devolver 400. Hoje não repeti: não tenho credencial de cliente e
+      ela não deve ser gravada em código, Git, Markdown nem log. Para fechar, o dono precisa
+      autenticar uma conta `papel='cliente'`.
 
-Comprovados os itens: marcar aqui, registrar a evidência, **fechar o P1** e atualizar
-`docs/ESTADO-DAS-FASES.md`.
+### Veredito
+
+**P1 PASSA.** O sistema interno não regrediu. A única linha aberta é a re-verificação do lado
+cliente, cuja prova original de 16/08 continua válida e registrada.
+
+> **Achado colateral, fora do escopo do P1 e não corrigido:** a migração de histórico recria a
+> cada boot as chaves de um relatório de equipamento **excluído** (`EQUIPE TESTE`), porque o
+> array legado `nr13_historico_relatorios` é global e `excluirVaso` só varre por TAG. O servidor
+> recusa com `versao_obsoleta` e as 2 mutações ficam presas em `conflito` — gerador permanente de
+> pendência. Detalhe e mecanismo na seção 1 do documento de medições.
 
 ### Regressão encontrada DEPOIS desta parte, já corrigida
 
