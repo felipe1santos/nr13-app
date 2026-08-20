@@ -17,13 +17,13 @@
 - **Validação local:** SIM — suíte **1042/1042** em 84 arquivos, `npm run build` limpo
   (19/08/2026 22:58)
 - **Validação produção:** **SIM** — dois ciclos completos de conflito + regressão do fluxo de
-  exclusão. Evidência: `docs/medicoes/2026-08-19-p1-p2-producao.md`
-- **Portão P2:** **PRONTO PARA APROVAÇÃO DO DONO** — todos os critérios cumpridos, com
-  **2 ressalvas nomeadas** (drenagem offline não exercitada manualmente; um clique que não
-  registrou, não diagnosticado)
+  exclusão, MAIS o ciclo offline real de 20/08. Evidência: `docs/medicoes/2026-08-19-p1-p2-producao.md`
+- **Portão P2:** **PRONTO PARA APROVAÇÃO — SEM RESSALVA** (20/08/2026). Teste real de dois
+  aparelhos executado: Chrome × Brave, contas distintas, IndexedDB separado, offline REAL pelo
+  DevTools. As duas ressalvas anteriores foram fechadas.
 - **Próxima ação exata:** dono lê o resultado e **aprova ou recusa o P2**. Nenhuma linha da
   Fase 4 antes disso
-- **Última atualização:** 19/08/2026 23:00 (relógio do ambiente)
+- **Última atualização:** 20/08/2026 00:45 (relógio do ambiente)
 
 > **Nota de honestidade:** esta seção foi escrita em 19/08/2026 numa sessão de RECUPERAÇÃO DE
 > ESTADO, a partir de Git + código + testes + build. Nenhum item de produção foi marcado sem
@@ -231,9 +231,7 @@ livro, não com erro genérico.
 
 **Aberto, e por que:**
 
-- [ ] Conta `papel='cliente'` re-verificada nesta rodada — herdada da medição de 16/08; não tenho
-      credencial de cliente e ela não deve existir do meu lado (item do P1, listado aqui porque
-      é a única linha que separa os dois portões de "fechado sem ressalva")
+- [x] Conta `papel='cliente'` re-verificada — **FECHADO em 19/08/2026 23:25** no bundle atual, com `ipiranga@gmail.com` (login feito pelo dono). Ver seção 2-bis do documento de medições
 
 ## Roteiro de dois aparelhos — P2 (acordado em 19/08/2026)
 
@@ -260,7 +258,7 @@ Duas sessões (A e B) — janelas/perfis separados, para terem IndexedDB própri
 e a aba Network para a chamada da RPC):
 
 - [x] `mutationId` **NOVO** (diferente do original)
-- [ ] `resolveDe` = id da mutação original
+- [x] `resolveDe` = id da mutação original — **PROVA DIRETA** lida no IndexedDB do Brave, offline: `resolveDe = b0e55784-ea61-4fd5-8947-6bdae417dbe9`, idêntico ao `mutationId` original
 - [x] `versaoBase` = versão vigente do servidor
 - [x] O item original **não** é reenviado como retry
 - [x] `repetido` nunca é tratado como gravação quando a edição não foi aplicada
@@ -392,6 +390,29 @@ implementação. Eles são o material do teste manual **depois** do deploy — e
   dono.
 - Nenhum teste de produção executado. P1 e P2 seguem **ABERTOS**.
 
+### 20/08/2026 00:00–00:45 — TESTE REAL DE DOIS APARELHOS · P2 sem ressalva
+- **Chrome (A, `teste@gmail.com`) × Brave (B, `inspetor01@gmail.com`)**, contas distintas da mesma
+  organização, **IndexedDB separado** (A com 4 bancos, B com 2 — armazenamentos diferentes);
+- **offline REAL** pelo DevTools do Brave, conferido por requisição que de fato falhou, nunca só
+  pela flag `navigator.onLine`;
+- **Ciclo 1:** B offline edita e persiste → A online sincroniza → B reconecta e o **conflito nasce
+  sozinho** pela drenagem automática (valida I-15 em cenário real). "Decidir depois" sobreviveu a
+  reload; "Usar a do servidor" aplicou o remoto e preservou o lado perdedor;
+- **Ciclo 2:** com o conflito aberto e B **offline**, **UM ÚNICO CLIQUE** em "Manter a minha"
+  funcionou. A anomalia da rodada anterior **não se reproduziu**;
+- **PROVA DIRETA**, lida no IndexedDB com a mutação parada e sem rede:
+  `mutationId` novo `758f3393-…` **≠** original `b0e55784-…`; `resolveDe` **=** original;
+  `versaoBase 4` **=** versão do servidor no conflito; original fora da fila; **1** mutação, nenhuma
+  terceira;
+- **Reconexão:** a fila drenou sozinha, o servidor foi de **v4 → v5** (exatamente uma versão), com o
+  valor de B e o dispositivo de B. Nenhum `repetido` como falso sucesso;
+- **Achado de robustez:** houve um instante em que `navigator.onLine` dizia `true` com a rede ainda
+  cortada; o sistema tentou, falhou e **manteve a pendência** em vez de confiar na flag;
+- **Sessão única não atrapalhou:** as duas contas ficaram `EM USO` simultaneamente;
+- **Ajuste de permissão:** B precisou do módulo *Equipamentos* liberado pela tela Acessos (é gate de
+  menu no bundle; a RLS já autorizava o papel `funcionario` a escrever);
+- suíte **1042/1042**, build verde; **nenhum código alterado**.
+
 ### 19/08/2026 22:40–23:00 — P1 e P2 EXECUTADOS em produção
 - Bundle confirmado por **SHA-256 idêntico** ao build local (prova mais forte que a assinatura de
   string planejada);
@@ -420,30 +441,38 @@ implementação. Eles são o material do teste manual **depois** do deploy — e
 
 ## Ponto de retomada
 
-- **Última coisa concluída:** **P1 e P2 executados e registrados em produção** (19/08/2026,
-  22:40–23:00), na conta `teste@gmail.com`.
+- **Última coisa concluída:** **P1 e P2 executados e fechados**, ambos sem ressalva pendente.
+  O teste real de dois aparelhos (Chrome × Brave, offline pelo DevTools) foi concluído em
+  20/08/2026 00:45.
 - **Commit de CÓDIGO atual:** `cb26450`. Último commit da Fase 3: `f074a64`.
-- **Alterações locais:** nenhuma de código. Só documentação desta sessão.
+- **Alterações locais:** nenhuma de código. Só documentação.
 - **Testes:** 1042/1042, 84 arquivos. Verde. · **Build:** verde.
-- **Deploy:** **CONFIRMADO.** `https://app.nr13sistema.com.br` serve
-  `/assets/index-AIiLkfur.js` com SHA-256 `01e05db6…b48250`, **idêntico byte a byte** ao build
-  local do `main`. Service worker `nr13-cache-v8` nos dois lados.
-- **Produção:** P1 **passa**, P2 **passa**. Evidência completa em
+- **Deploy:** confirmado byte a byte (SHA-256 do asset igual ao build local), reconferido depois
+  do segundo redeploy do dono.
+- **Produção:** P1 **PASSA**, P2 **PASSA**. Evidência completa em
   `docs/medicoes/2026-08-19-p1-p2-producao.md`.
-- **Pendências reais que sobraram:**
-  1. **Aprovação do dono** para P1 e P2 — é o único passo que falta na sequência do portão;
-  2. conta `papel='cliente'` não re-verificada nesta rodada (sem credencial; a prova de 16/08
-     continua valendo e está registrada);
-  3. drenagem da fila **offline** não exercitada manualmente — o aparelho B foi encenado pela
-     RPC; esse trecho segue coberto só por teste automatizado;
-  4. primeiro clique em "Manter a minha" não registrou, sem erro no console — **não
-     diagnosticado**, provável causa de automação (layout deslocou entre localizar e clicar);
-  5. 🔴 **os 2 itens de `EQUIPE TESTE` são RECRIADOS a cada boot.** Inspecionados, **intocados**.
-     A migração de histórico lê o array legado `nr13_historico_relatorios`, não acha o
-     `nr13_rel_` correspondente (o equipamento foi excluído) e recria as chaves com `versaoBase 0`;
-     o servidor recusa com `versao_obsoleta`. Gerador permanente de pendência. **Não é defeito da
-     Fase 3** — é a interseção do §7-sexies com o achado A-13.
-- **Próxima ação:** dono lê o resultado e **aprova ou recusa P1 e P2**.
+- **Pendência:** **aprovação do dono** para P1 e P2. É o único passo que falta.
+- **Próxima ação:** dono aprova ou recusa os dois portões.
 - **Não fazer ainda:** Fase 4 (Portal: arquitetura de leitura) — nenhuma linha antes da aprovação.
-  Também **não** corrigir o item 5 por conta própria: mexe no array legado, que é o backup da
-  migração de 14/08, e precisa de decisão + fase própria.
+
+### Aberto, e que NÃO pertence a esta fase
+
+🔴 **Os itens de `EQUIPE TESTE` são recriados a cada boot.** Confirmado de forma independente na
+Sessão B: outro navegador, outra conta, outro IndexedDB, e o mesmo item preso apareceu. Isso
+descarta "estado corrompido de um aparelho" — a causa está no servidor, no array legado
+`nr13_historico_relatorios`, que ainda contém um relatório de equipamento excluído. A migração
+de histórico o relê a cada boot, recria as chaves com `versaoBase 0` e a RPC recusa com
+`versao_obsoleta`.
+
+**Intocado, como combinado.** É a interseção do §7-sexies com o achado A-13 e precisa de fase
+própria — não se resolve "limpando o legado" no meio de um portão.
+
+### Rastros deixados na organização de teste
+
+| Item | Estado |
+|---|---|
+| `ZZ-TESTE-P2` | equipamento descartável, servidor em v5, `fabricante: ZZ-TESTE-B-CICLO2` |
+| `ZZ-FASE3` | vinculado ao **Posto Shell Prime** (feito para o teste cliente-contra-cliente do P1) |
+| `inspetor01@gmail.com` | ganhou o módulo *Equipamentos* nas permissões |
+| Registro de conflito em B | 1 entrada resolvida (`escolha: local`), lado perdedor preservado |
+| Itens de `EQUIPE TESTE` | **intocados**, aguardando decisão |

@@ -6,45 +6,51 @@
 > **REGRA:** este arquivo é atualizado NO MOMENTO em que o estado muda — commit, push,
 > redeploy, validação, portão. Não no fim da fase.
 
-**Última atualização:** 19/08/2026 23:15
+**Última atualização:** 20/08/2026 00:50
 **Branch:** `main` · **Suíte:** 1042 testes / 84 arquivos, 0 falhas · **Build:** verde
 
-## ⏸ P1/P2 NÃO APROVADOS — fechando as ressalvas (19/08/2026 23:15)
+## ✅ P1 = FECHADO · P2 = FECHADO — aguardando SUA aprovação
 
-O dono recusou fechar os portões com as ressalvas abertas. Em andamento:
-
-1. **P1 — FECHADO em 19/08/2026 23:25.** Conta cliente re-verificada no bundle atual: Portal vê
-   só os ativos vinculados; `portal_arquivo` recusa arquivo REAL de ativo de outro cliente com a
-   mesma resposta de path inexistente. As 3 pendências do 0-B desde 16/08 estão fechadas.
-2. **P2 — offline REAL**, com DevTools → Network → Offline, e prova DIRETA de
-   `mutationId`/`resolveDe`/`versaoBase` inspecionados na fila antes de reconectar.
-
-Resultado anterior (por RPC) segue registrado e válido; não substitui estes dois.
-
----
-
-## Resultado da rodada de 19/08 22:40–23:00
-
-Validados em produção em 19/08/2026, na conta `teste@gmail.com`.
+Ambos executados em produção, **sem ressalva pendente**.
 Evidência completa: `docs/medicoes/2026-08-19-p1-p2-producao.md`.
 
-- **Bundle conferido byte a byte:** o `/assets/index-AIiLkfur.js` servido em
-  `https://app.nr13sistema.com.br` tem SHA-256 **idêntico** ao do build local do `main`.
-- **P1 passa** — o sistema interno não regrediu com as policies fail-closed.
-- **P2 passa** — dois ciclos completos de conflito + regressão do fluxo de exclusão.
-- **Falta só a aprovação do dono.** É o último passo da sequência do portão.
+**P1** — conta cliente re-verificada no bundle atual (19/08 23:25). O Portal lista só os ativos
+vinculados; a Edge `portal_arquivo` recusa arquivo **real** de ativo de outro cliente com resposta
+**idêntica** à de path inexistente; Storage pelo SDK negado nos três caminhos; prontuário e
+relatório abrem. As três pendências que o 0-B carregava desde 16/08 estão fechadas.
 
-**Ressalvas nomeadas, nenhuma bloqueante:**
+**P2** — teste real de dois aparelhos (20/08 00:45): **Chrome × Brave**, contas distintas da mesma
+organização, **IndexedDB separado**, **offline REAL** pelo DevTools (conferido por requisição que
+de fato falhou, nunca só pela flag). Dois ciclos completos de conflito, mais a regressão do fluxo
+de exclusão.
 
-1. conta `papel='cliente'` não re-verificada (sem credencial; prova de 16/08 vale);
-2. drenagem da fila **offline** não exercitada manualmente — o 2º aparelho foi encenado pela RPC;
-3. primeiro clique em "Manter a minha" não registrou, sem erro no console — **não diagnosticado**.
+**As duas ressalvas anteriores foram fechadas:**
 
-**🔴 Achado que precisa de decisão sua (não corrigido):** os 2 itens presos de `EQUIPE TESTE`
-**não são antigos — são recriados a cada boot**. A migração de histórico lê o array legado
-`nr13_historico_relatorios`, não acha o `nr13_rel_` (o equipamento foi excluído) e recria as
-chaves com `versaoBase 0`; o servidor recusa com `versao_obsoleta`. É um gerador permanente de
-pendência, e a interseção do §7-sexies com o achado A-13. **Inspecionados e intocados.**
+| Ressalva | Desfecho |
+|---|---|
+| Drenagem offline não exercitada manualmente | **fechada** — offline real, persistência no IndexedDB, reconexão e drenagem automática |
+| Clique em "Manter a minha" sem efeito | **não se reproduziu** — um único clique funcionou. Registrado como provável falha de automação, não de produto |
+
+**Prova DIRETA** dos três campos, lida no IndexedDB com a mutação parada e sem rede:
+
+| Campo | Valor | |
+|---|---|---|
+| `mutationId` original | `b0e55784-…` | — |
+| `mutationId` da resolução | `758f3393-…` | **≠ original** ✅ |
+| `resolveDe` | `b0e55784-…` | **= original** ✅ |
+| `versaoBase` | `4` | **= versão do servidor no conflito** ✅ |
+
+Ao reconectar: servidor **v4 → v5**, exatamente uma versão, com o valor e o dispositivo de B.
+Fila drenou. Nenhum `repetido` como falso sucesso.
+
+**🔴 Achado aberto, que NÃO pertence a estas fases e segue intocado:** os itens presos de
+`EQUIPE TESTE` **são recriados a cada boot**. Confirmado de forma independente na Sessão B —
+outro navegador, outra conta, outro IndexedDB, mesmo item. A causa está no servidor: o array
+legado `nr13_historico_relatorios` ainda contém um relatório de equipamento excluído, e a
+migração de histórico o recria com `versaoBase 0`. É a interseção do §7-sexies com o achado
+A-13 e precisa de fase própria.
+
+**Falta só a sua aprovação.** Fase 4 não começou.
 
 ## Vocabulário de estado
 
@@ -60,10 +66,10 @@ Sempre use um destes. Nunca "concluído".
 | Fase | Tema | Estado | Portão | Task-level |
 |---|---|---|---|---|
 | **0-A** | Origem do papel na criação de perfil | ✅ VALIDADO EM PRODUÇÃO | — | `plans/2026-08-16-fase0-task-level.md` |
-| **0-B** | Isolamento do Portal (A-01) | ✅ VALIDADO EM PRODUÇÃO — sem ressalva | **P1 pronto p/ aprovação** | `plans/2026-08-16-fase0b-task-level.md` |
+| **0-B** | Isolamento do Portal (A-01) | ✅ VALIDADO EM PRODUÇÃO — sem ressalva | **P1 FECHADO** — aguarda aprovação | `plans/2026-08-16-fase0b-task-level.md` |
 | **1** | Índice da hidratação (A-03) | ✅ VALIDADO EM PRODUÇÃO | — | *(sem task-level — ver abaixo)* |
 | **2** | Observabilidade (A-11) | ✅ VALIDADO EM PRODUÇÃO · 1 item de doc aberto | — | `plans/2026-08-16-fase2-task-level.md` |
-| **3** | Conflitos (A-14) | ✅ VALIDADO EM PRODUÇÃO | **P2 aguardando aprovação** | `plans/2026-08-16-fase3-task-level.md` |
+| **3** | Conflitos (A-14) | ✅ VALIDADO EM PRODUÇÃO | **P2 FECHADO** — aguarda aprovação | `plans/2026-08-16-fase3-task-level.md` |
 | **4** | Portal: arquitetura de leitura (A-02) | 🚫 NÃO INICIAR — depende da aprovação de P1 e P2 | P3 | — |
 | 5…13 | ver plano macro | PLANEJADO | P4…P8 | `plans/2026-08-15-evolucao-arquitetura.md` |
 
