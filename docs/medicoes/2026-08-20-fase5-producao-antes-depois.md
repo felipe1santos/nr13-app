@@ -314,3 +314,57 @@ removido pela própria Fase 5** — `FotoIdentificacao` não chama `removerFoto`
 está travado por teste de varredura (`fichaNaoApaga.test.ts`).
 
 Impacto: massa de teste, conta de teste. **Não bloqueia a Fase 5.**
+
+---
+
+## 16. Validação pós-redeploy da correção (bundle `index-Ite3xGkv.js`)
+
+Bundle conferido no ar e **efetivamente carregado** na aba antes de medir — o marcador
+exclusivo da correção do palco está presente.
+
+### 16.1 A · A-F5-02 confirmado em produção
+
+Equipamento `ZZ-TESTE-P2`, o mesmo do achado.
+
+| | ANTES (20/08, bundle anterior) | DEPOIS (medido agora) |
+|---|---|---|
+| Entradas no registro | 18 | **18** — nenhuma perdida |
+| Referências preservadas | 18 | **18** |
+| Entradas com imagem embutida no palco | **18** | **1** |
+| Qual entrada recebeu a imagem | todas | **a `isCapa`** |
+| Dimensão da imagem embutida | 900×1200 | **900×1200** — a principal degradada pelo palco |
+| **Peso da chave no palco** | **1.100,9 KB** | **92,9 KB** |
+| Redução | — | **−91,6 %** |
+
+O valor previsto era **≈ 92,9 KB**. O medido foi **92,9 KB**.
+
+### 16.2 O tamanho deixou de crescer com as trocas
+
+Uma troca a mais foi feita pelo fluxo real (19ª foto) e o documento foi gerado de novo:
+
+| Entradas na ficha | Imagens no palco | Peso da chave |
+|---|---|---|
+| 18 | **1** | 92,9 KB |
+| 19 | **1** | 138,4 KB |
+
+A variação de 92,9 → 138,4 KB **não vem da entrada extra**: vem de a foto de identificação ter
+mudado de um retrato degradado a 900 px (87,6 KB) para uma paisagem que coube inteira a
+1200×900. O custo da entrada adicional, medido no registro, é de **0,4 KB** — a referência.
+
+**Antes**, a 19ª troca custaria mais uma imagem inteira (~61 KB no palco). Com 19 fotos, o
+modelo antigo produziria da ordem de **1.160 KB**; o novo produz **138,4 KB**, e o termo que
+cresce passou de ~61 KB para **0,4 KB por troca** — 150× menor.
+
+> **Nota sobre `.thumb.jpg` no palco:** a string aparece no valor da chave porque as
+> **referências** incluem `ref.thumb.path`. Nenhuma imagem de miniatura é embutida: a única
+> dataURL do valor tem 900×1200 (ou 1200×900), nunca 400×533.
+
+### 16.3 D · CAPA e relatório arquivado, no bundle novo
+
+| Verificação | Resultado |
+|---|---|
+| CAPA usa a foto de **identificação** correta | ✅ a única imagem embutida é a marcada `isCapa` |
+| CAPA usa a **principal**, nunca `.thumb.jpg` | ✅ 900×1200 / 1200×900; a miniatura seria 400×533 |
+| Nenhuma foto histórica convertida à toa | ✅ 18 e 19 entradas produziram **1** imagem |
+| Relatório arquivado com `pdfRef` imutável | ✅ abre **1 iframe `blob:`** (o PDF), não um `.html`; a chave de fotos do palco foi apagada antes e **não voltou** — o palco nem é montado |
+

@@ -21,7 +21,7 @@
 | Push `main` | ✅ `485c024` |
 | Redeploy | ✅ feito pelo dono em 20/08 · bundle `index-Bx8gMJyu.js` |
 | **Validar em produção** | 🟠 **10 de 12 itens PASSARAM** · A-F5-02 **corrigido** · A-F5-01 **encerrado sem causa determinada** · faltam offline, Portal e comparação de PDF — `docs/medicoes/2026-08-20-fase5-producao-antes-depois.md` |
-| **T10 — correção A-F5-02** | ✅ **IMPLEMENTADA E TESTADA** · aguarda redeploy para confirmar em produção |
+| **T10 — correção A-F5-02** | ✅ **CONFIRMADA EM PRODUÇÃO** (bundle `index-Ite3xGkv.js`): 1.100,9 KB → **92,9 KB**, exatamente o previsto |
 
 ---
 
@@ -652,6 +652,7 @@ ficha, o card da lista é o único consumidor de miniatura que importa, e a esco
 | 20/08 04:35 | Baseline, arquitetura, tarefas, critérios, riscos e rollback escritos | ✅ |
 | 20/08 04:40 | Pedido do dono ("uma imagem por ficha") registrado, aguardando definição | ✅ |
 | 20/08 05:05 | Decisões A-1 a A-4 aprovadas; revisão de impacto concluída; D5-10 criada (miniatura é objeto, não string) | ✅ |
+| 20/08 17:0x | **A-F5-02 confirmado em produção** — 18 entradas preservadas, 1 imagem embutida (a `isCapa`), chave 1.100,9 KB → **92,9 KB** (−91,6 %). 19ª troca custou **0,4 KB**, não uma imagem. Item **D** reconfirmado no bundle novo | ✅ |
 | 20/08 16:2x | **T10 — A-F5-02 corrigido**: palco hidrata só a foto de identificação, repetindo a cadeia de `CAPA.html` com o fallback. 18 testes novos. Suíte **1125/1125**, build verde | ✅ |
 | 20/08 16:2x | **T11 — A-F5-01**: investigação read-only encerrada sem causa determinada; caminho capaz de causar o efeito foi removido pela própria Fase 5 | ✅ |
 | 20/08 12:5x | **Validação em produção** — bundle `index-Bx8gMJyu.js` conferido; 10 de 12 itens passaram; achados A-F5-01 e A-F5-02 abertos; itens 9 (offline) e 10 (Portal) dependem do dono | 🟠 |
