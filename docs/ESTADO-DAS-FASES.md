@@ -98,10 +98,11 @@ Sempre use um destes. Nunca "concluído".
 | **3** | Conflitos (A-14) | ✅ **CONCLUÍDA** | **P2 FECHADO ✅** aprovado 20/08 | `plans/2026-08-16-fase3-task-level.md` |
 | **4** | Portal: arquitetura de leitura (A-02) | ✅ **CONCLUÍDA** | **P3 FECHADO ✅** aprovado 20/08 | `plans/2026-08-20-fase4-task-level.md` |
 | **5** | Fotos: thumbnail, EXIF, teto de altura (A-08) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** | — | `plans/2026-08-20-fase5-task-level.md` · `medicoes/2026-08-20-fase5-producao-antes-depois.md` |
-| 6…13 | ver plano macro | PLANEJADO | P4…P8 | `plans/2026-08-15-evolucao-arquitetura.md` |
+| **6** | Recuperação do fallback base64 (A-10) | 🔵 **PLANEJAMENTO / BASELINE** — implementação não autorizada | — | `plans/2026-08-20-fase6-task-level.md` |
+| 7…13 | ver plano macro | PLANEJADO | P4…P8 | `plans/2026-08-15-evolucao-arquitetura.md` |
 
-**Fase atual:** nenhuma em execução · **Tarefa atual:** nenhuma — a Fase 6 depende de autorização do dono
-**Próxima ação exata:** aguardar a decisão do dono sobre iniciar a **Fase 6** (recuperação do fallback base64, achado A-10). As 6 fotos técnicas de referência seguem registradas para o teste das **folhas fotográficas de inspeção**, que mede o pipeline anterior à Fase 5.
+**Fase atual:** 6 (planejamento/baseline) · **Tarefa atual:** apresentar o plano e aguardar aprovação
+**Próxima ação exata:** o dono aprova (ou ajusta) o plano da Fase 6 — em especial: reusar o motor que já existe (`migrarRubricasDoLivro`) em vez de escrever outro; autorizar a criação de massa de fallback na conta de teste; e confirmar que logo/rubrica/snapshots ficam integralmente para a Fase 7. **Nenhum código será tocado antes disso.**
 
 Os dois roteiros ficam gravados, já com os resultados marcados:
 
