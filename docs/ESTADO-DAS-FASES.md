@@ -6,28 +6,31 @@
 > **REGRA:** este arquivo é atualizado NO MOMENTO em que o estado muda — commit, push,
 > redeploy, validação, portão. Não no fim da fase.
 
-**Última atualização:** 19/08/2026 22:19
+**Última atualização:** 19/08/2026 23:05
 **Branch:** `main` · **Suíte:** 1042 testes / 84 arquivos, 0 falhas · **Build:** verde
 
-## ⏳ BLOQUEADO — falta URL de produção e autenticação
+## ✅ P1 e P2 EXECUTADOS — aguardando SUA aprovação
 
-Redeploy **anunciado** em 19/08/2026 22:35 (`main` @ `88956eb`, docs-only, contendo `cb26450`).
-Os testes de produção **não começaram**.
+Validados em produção em 19/08/2026, na conta `teste@gmail.com`.
+Evidência completa: `docs/medicoes/2026-08-19-p1-p2-producao.md`.
 
-**Faltam duas coisas, as duas só o dono fornece:**
+- **Bundle conferido byte a byte:** o `/assets/index-AIiLkfur.js` servido em
+  `https://app.nr13sistema.com.br` tem SHA-256 **idêntico** ao do build local do `main`.
+- **P1 passa** — o sistema interno não regrediu com as policies fail-closed.
+- **P2 passa** — dois ciclos completos de conflito + regressão do fluxo de exclusão.
+- **Falta só a aprovação do dono.** É o último passo da sequência do portão.
 
-1. **URL de produção.** Não está no repositório e não deve estar: `.env` não é versionado, o
-   `Caddyfile` serve em `:80` e o deploy é manual no Coolify.
-2. **Sessão autenticada em `teste@gmail.com`.** A senha não entra em código, Git, Markdown nem
-   log — quem faz o login é o dono, no navegador.
+**Ressalvas nomeadas, nenhuma bloqueante:**
 
-**Já pronto, esperando só isso:** o método de confirmação do bundle. Não há carimbo de commit no
-build, então a prova é por **assinatura de string** — literais que cada commit de 19/08 introduziu
-e que sobrevivem à minificação. Validado contra o `dist/` local; basta procurá-los no JS servido.
+1. conta `papel='cliente'` não re-verificada (sem credencial; prova de 16/08 vale);
+2. drenagem da fila **offline** não exercitada manualmente — o 2º aparelho foi encenado pela RPC;
+3. primeiro clique em "Manter a minha" não registrou, sem erro no console — **não diagnosticado**.
 
-Assim que destravar: confirmar bundle → **P1** → **P2**. **Fase 4: não começar.**
-
----
+**🔴 Achado que precisa de decisão sua (não corrigido):** os 2 itens presos de `EQUIPE TESTE`
+**não são antigos — são recriados a cada boot**. A migração de histórico lê o array legado
+`nr13_historico_relatorios`, não acha o `nr13_rel_` (o equipamento foi excluído) e recria as
+chaves com `versaoBase 0`; o servidor recusa com `versao_obsoleta`. É um gerador permanente de
+pendência, e a interseção do §7-sexies com o achado A-13. **Inspecionados e intocados.**
 
 ## Vocabulário de estado
 
@@ -43,18 +46,17 @@ Sempre use um destes. Nunca "concluído".
 | Fase | Tema | Estado | Portão | Task-level |
 |---|---|---|---|---|
 | **0-A** | Origem do papel na criação de perfil | ✅ VALIDADO EM PRODUÇÃO | — | `plans/2026-08-16-fase0-task-level.md` |
-| **0-B** | Isolamento do Portal (A-01) | ✅ VALIDADO EM PRODUÇÃO, com 3 limitações registradas | **P1 ABERTO** | `plans/2026-08-16-fase0b-task-level.md` |
+| **0-B** | Isolamento do Portal (A-01) | ✅ VALIDADO EM PRODUÇÃO, com 3 limitações registradas | **P1 aguardando aprovação** | `plans/2026-08-16-fase0b-task-level.md` |
 | **1** | Índice da hidratação (A-03) | ✅ VALIDADO EM PRODUÇÃO | — | *(sem task-level — ver abaixo)* |
 | **2** | Observabilidade (A-11) | ✅ VALIDADO EM PRODUÇÃO · 1 item de doc aberto | — | `plans/2026-08-16-fase2-task-level.md` |
-| **3** | Conflitos (A-14) | 🟡 PUSH MAIN · produção **PARCIAL** | **P2 ABERTO** | `plans/2026-08-16-fase3-task-level.md` |
-| **4** | Portal: arquitetura de leitura (A-02) | 🚫 NÃO INICIAR — depende do P2 | P3 | — |
+| **3** | Conflitos (A-14) | ✅ VALIDADO EM PRODUÇÃO | **P2 aguardando aprovação** | `plans/2026-08-16-fase3-task-level.md` |
+| **4** | Portal: arquitetura de leitura (A-02) | 🚫 NÃO INICIAR — depende da aprovação de P1 e P2 | P3 | — |
 | 5…13 | ver plano macro | PLANEJADO | P4…P8 | `plans/2026-08-15-evolucao-arquitetura.md` |
 
 **Fase atual:** 3 · **Tarefa atual:** Tarefa 8 (validação em produção)
-**Próxima ação exata:** aguardar `REDEPLOY CONCLUÍDO`. Ordem combinada em 19/08/2026:
-**P1 primeiro, P2 depois, Fase 4 só com autorização.**
+**Próxima ação exata:** dono aprova ou recusa **P1** e **P2**. Roteiros executados; evidência em `docs/medicoes/2026-08-19-p1-p2-producao.md`.
 
-Os dois roteiros já estão escritos e não dependem desta sessão:
+Os dois roteiros ficam gravados, já com os resultados marcados:
 
 | Portão | Roteiro | Onde |
 |---|---|---|
@@ -83,8 +85,8 @@ Fase de um commit só. Registro aqui para não parecer não-feita.
 ## Trabalho de 19/08/2026 — fora de fase, sem task-level
 
 Sessão de uso/validação em produção que produziu correções. **Nenhuma delas tinha registro em
-Markdown até 19/08/2026 21:58.** Todas commitadas e no `main`; **redeploy PENDENTE DE
-CONFIRMAÇÃO**.
+Markdown até 19/08/2026 21:58.** Todas commitadas, no `main` e **CONFIRMADAS EM PRODUÇÃO**
+(SHA-256 do bundle idêntico ao build local, 19/08/2026 22:40).
 
 | Commit | O que é | Pertence a |
 |---|---|---|
@@ -117,22 +119,34 @@ as duas saídas do card: **"Recriar no servidor"** e **"Descartar a minha"**.
 
 ---
 
-## O que trava cada portão agora
+## Situação de cada portão
 
-### P1 (depois da Fase 0) — ABERTO
+### P1 (depois da Fase 0) — executado, aguardando aprovação
 
-- [ ] Regressão do sistema interno **depois** das policies fail-closed, com conta
-      `mestre`/`gerente`/`funcionario`
+- [x] Regressão do sistema interno **depois** das policies fail-closed, com conta `mestre`
+      → `GET /rest/v1/app_storage` com token de mestre = **HTTP 200**; hidratar, listar, abrir,
+      editar, sincronizar e renderizar documento, todos verificados
+- [x] Mestre não usa os caminhos do Portal → Edges `portal_cliente` e `portal_arquivo` = **403**
+- [x] Revalidar o prontuário do Portal depois do fix `cb26450`
+      → **parcial**: o prontuário INTERNO renderizou (palco + iframe). O do Portal exige conta
+      cliente, que não tenho
 - [ ] Cliente-contra-cliente de arquivo na mesma organização (caso literal)
 - [ ] `lerRemoto` recusando para cliente, exercitado com certificado legado real
-- [ ] Revalidar o prontuário do Portal depois do fix `cb26450`
+- [ ] Conta cliente re-verificada nesta rodada — **sem credencial; prova de 16/08 continua valendo**
 
-### P2 (depois da Fase 3) — ABERTO
+### P2 (depois da Fase 3) — executado, aguardando aprovação
 
-- [ ] Confirmar que o bundle em produção é posterior a `cb26450`
-- [ ] Roteiro de dois aparelhos na org de teste, com números
-- [ ] Desfecho dos 2 conflitos reais parados desde 14/08
-- [ ] Conferir que nenhum `nr13_conflito_*` sobrou em `dados` nos aparelhos migrados
+- [x] Confirmar que o bundle em produção é posterior a `cb26450` → **SHA-256 idêntico**
+- [x] Roteiro de dois aparelhos na org de teste, com números
+- [x] Desfecho dos 2 conflitos de `EQUIPE TESTE` → **inspecionados, intocados**; descoberto que
+      são recriados a cada boot (a causa é o array legado, não os itens)
+- [x] Nenhum `nr13_conflito_*` sobrou em `dados` → **0**, conferido três vezes
+- [x] Regressão do fluxo de exclusão (`f074a64`) → criar → outro aparelho vê → excluir →
+      outro aparelho deixa de ver, **sem fila residual**
+
+**Ressalvas que ficam registradas** (não bloqueiam, mas não devem ser esquecidas): drenagem
+offline não exercitada manualmente; primeiro clique em "Manter a minha" sem efeito, não
+diagnosticado.
 
 ---
 

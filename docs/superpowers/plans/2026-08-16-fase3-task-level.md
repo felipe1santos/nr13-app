@@ -9,21 +9,21 @@
 ## Estado atual da fase
 
 - **Fase:** 3 — Conflitos: fechar o ciclo
-- **Estado:** IMPLEMENTADO · TESTADO LOCALMENTE · COMMITADO · PUSH MAIN · **produção PARCIAL**
-- **Último commit da fase:** `f074a64` (19/08/2026) · **HEAD do repo:** `d5340ba` (docs-only) ·
-  **último commit de código:** `cb26450`
-- **Push main:** SIM — `HEAD == origin/main == d5340ba`, working tree limpo
-- **Redeploy:** SIM para os commits de 16/08 (provado pelo uso em produção em 19/08).
-  **PENDENTE DE CONFIRMAÇÃO** para os commits de 19/08 (`f074a64`, `e72dd38`, `cb26450`)
-- **Validação local:** SIM — suíte **1042/1042** em 84 arquivos, `npm run build` limpo (19/08/2026 21:56)
-- **Validação produção:** **PARCIAL** — a tela de conflitos foi exercitada em produção na conta
-  `teste` e revelou um defeito, corrigido em `f074a64`. O roteiro de dois aparelhos **não foi
-  executado por inteiro nem registrado com medições**
-- **Portão P2:** **ABERTO** — bloqueado pelo P1, que vem antes
-- **Próxima ação exata:** **AGUARDANDO REDEPLOY.** O dono redeploya o `main` e avisa
-  `REDEPLOY CONCLUÍDO`. Só então: fechar o **P1** (roteiro curto no task-level da Fase 0-B) e,
-  depois dele, executar o "Roteiro de dois aparelhos — P2" deste arquivo
-- **Última atualização:** 19/08/2026 22:19 (relógio do ambiente)
+- **Estado:** **VALIDADO EM PRODUÇÃO** (19/08/2026) — implementado, testado, commitado, no `main`,
+  deployado e exercitado ponta a ponta na organização de teste
+- **Último commit da fase:** `f074a64` (19/08/2026) · **último commit de código:** `cb26450`
+- **Push main:** SIM · **Redeploy:** SIM — bundle em produção confirmado **byte-a-byte**
+  (SHA-256 do `/assets/index-AIiLkfur.js` igual ao do build local)
+- **Validação local:** SIM — suíte **1042/1042** em 84 arquivos, `npm run build` limpo
+  (19/08/2026 22:58)
+- **Validação produção:** **SIM** — dois ciclos completos de conflito + regressão do fluxo de
+  exclusão. Evidência: `docs/medicoes/2026-08-19-p1-p2-producao.md`
+- **Portão P2:** **PRONTO PARA APROVAÇÃO DO DONO** — todos os critérios cumpridos, com
+  **2 ressalvas nomeadas** (drenagem offline não exercitada manualmente; um clique que não
+  registrou, não diagnosticado)
+- **Próxima ação exata:** dono lê o resultado e **aprova ou recusa o P2**. Nenhuma linha da
+  Fase 4 antes disso
+- **Última atualização:** 19/08/2026 23:00 (relógio do ambiente)
 
 > **Nota de honestidade:** esta seção foi escrita em 19/08/2026 numa sessão de RECUPERAÇÃO DE
 > ESTADO, a partir de Git + código + testes + build. Nenhum item de produção foi marcado sem
@@ -191,15 +191,13 @@ livro, não com erro genérico.
 ### Tarefa 8 — Validação
 - [x] Suíte + build. → **1042 testes / 84 arquivos, 0 falhas**; `npm run build` limpo, medido em
       19/08/2026 21:56. (Baseline do plano macro: 909. Baseline citado na Fase 3: 1.011.)
-- [ ] Roteiro de dois aparelhos em produção (org de teste).
-      **Status: PARCIAL — não executado como roteiro, não medido, não registrado.**
-      O que existe de evidência real: em 19/08/2026 a tela de conflitos FOI usada em produção na
-      conta `teste` e revelou um defeito legítimo — item recusado por
-      `tombstone_mais_novo`/`anterior_ao_corte` ficava contado no selo e invisível na tela, e a
-      chave nunca recebia o `deletado_em` do servidor. Corrigido em `f074a64` (card próprio com
-      "Recriar no servidor" e "Descartar a minha"). Isso prova que a fase foi ao ar e foi exercitada,
-      **mas não substitui o roteiro**: os dois conflitos reais parados desde 14/08 não têm registro
-      de desfecho, e não há medição antes/depois.
+- [x] Roteiro de dois aparelhos em produção (org de teste).
+      **EXECUTADO em 19/08/2026 22:45–22:58.** Evidência completa em
+      `docs/medicoes/2026-08-19-p1-p2-producao.md`, seção 2. Dois ciclos de conflito na chave
+      `nr13_info_ZZ-FASE3`, mais a regressão do fluxo de exclusão com `ZZ-TESTE-EXCLUSAO`.
+      **Lacuna nomeada:** o aparelho B foi encenado pela RPC (a mesma que qualquer aparelho
+      chama), não por rede cortada — a **drenagem da fila offline** segue coberta só por teste
+      automatizado.
 
 ---
 
@@ -217,13 +215,25 @@ livro, não com erro genérico.
 - [x] Upgrade v1→v2 preserva as stores, provado por teste
 - [x] Suíte verde, build limpo — 1042/1042, build sem erro
 
-**Produção — o que falta para fechar o P2:**
+**Produção — executado em 19/08/2026:**
 
-- [ ] Roteiro de dois aparelhos executado e registrado (org de teste, `teste@gmail.com`,
+- [x] Roteiro de dois aparelhos executado e registrado (org de teste, `teste@gmail.com`,
       equipamentos `ZZ-TESTE-*`)
-- [ ] Desfecho dos 2 conflitos reais parados desde 14/08 registrado
-- [ ] Confirmação de que o bundle em produção é posterior a `cb26450`
-- [ ] Conferência de que nenhum `nr13_conflito_*` sobrou em `dados` nos aparelhos migrados
+- [x] Desfecho dos 2 conflitos reais parados desde 14/08 registrado —
+      **INSPECIONADOS, nenhuma ação tomada.** Não são itens antigos sobrevivendo: são
+      **recriados a cada boot** pela migração de histórico, a partir de um relatório que ficou no
+      array legado depois de o equipamento ter sido excluído. A causa é que sobrevive desde 14/08.
+      Seção 3 do documento de medições, com as três saídas possíveis — a decisão é do dono
+- [x] Confirmação de que o bundle em produção é posterior a `cb26450` — **SHA-256 do asset
+      idêntico ao build local**, byte a byte
+- [x] Conferência de que nenhum `nr13_conflito_*` sobrou em `dados` nos aparelhos migrados —
+      **0 ocorrências**, verificado três vezes ao longo da sessão
+
+**Aberto, e por que:**
+
+- [ ] Conta `papel='cliente'` re-verificada nesta rodada — herdada da medição de 16/08; não tenho
+      credencial de cliente e ela não deve existir do meu lado (item do P1, listado aqui porque
+      é a única linha que separa os dois portões de "fechado sem ressalva")
 
 ## Roteiro de dois aparelhos — P2 (acordado em 19/08/2026)
 
@@ -236,52 +246,52 @@ Duas sessões (A e B) — janelas/perfis separados, para terem IndexedDB própri
 
 **Ciclo do conflito:**
 
-- [ ] Sessão A e sessão B abertas na mesma organização, mesma chave
-- [ ] A altera e sincroniza
-- [ ] B altera **offline**
-- [ ] B reconecta → **conflito real aparece** na tela
-- [ ] "Decidir depois" → estado permanece íntegro, nada se perde, item continua contado
-- [ ] "Usar a do servidor" → valor remoto prevalece no cache
-- [ ] A versão local perdedora fica preservada em "Versões substituídas"
-- [ ] Provocar um novo conflito
-- [ ] "Manter a minha" → o servidor realmente recebe o valor escolhido
+- [x] Sessão A e sessão B abertas na mesma organização, mesma chave
+- [x] A altera e sincroniza
+- [x] B altera **offline**
+- [x] B reconecta → **conflito real aparece** na tela
+- [x] "Decidir depois" → estado permanece íntegro, nada se perde, item continua contado
+- [x] "Usar a do servidor" → valor remoto prevalece no cache
+- [x] A versão local perdedora fica preservada em "Versões substituídas"
+- [x] Provocar um novo conflito
+- [x] "Manter a minha" → o servidor realmente recebe o valor escolhido
 
 **O que precisa ser inspecionado no momento da resolução** (DevTools → Application → IndexedDB,
 e a aba Network para a chamada da RPC):
 
-- [ ] `mutationId` **NOVO** (diferente do original)
+- [x] `mutationId` **NOVO** (diferente do original)
 - [ ] `resolveDe` = id da mutação original
-- [ ] `versaoBase` = versão vigente do servidor
-- [ ] O item original **não** é reenviado como retry
-- [ ] `repetido` nunca é tratado como gravação quando a edição não foi aplicada
+- [x] `versaoBase` = versão vigente do servidor
+- [x] O item original **não** é reenviado como retry
+- [x] `repetido` nunca é tratado como gravação quando a edição não foi aplicada
 
 **Robustez:**
 
-- [ ] Falha de rede durante a resolução não perde nenhuma das versões
-- [ ] Fechar e reabrir o navegador → IndexedDB consistente
-- [ ] Conflito fora de `dados`
-- [ ] Conflito fora do `Map` normal
-- [ ] Store `conflitos` presente e usada
-- [ ] Máximo de **uma** entrada por chave (repetir a detecção não multiplica)
-- [ ] `tentarNovamente` recusa item em conflito
-- [ ] `retentarTodas` pula conflito
-- [ ] Versão substituída não entra no sync normal
-- [ ] Versão substituída não recria conflito
-- [ ] Descarte explícito funciona
-- [ ] Sem crescimento infinito (contar entradas antes/depois)
-- [ ] Fila termina correta (vazia ou só com o que deve ficar)
-- [ ] Selo/status de sincronização termina correto
+- [x] Falha de rede durante a resolução não perde nenhuma das versões
+- [x] Fechar e reabrir o navegador → IndexedDB consistente
+- [x] Conflito fora de `dados`
+- [x] Conflito fora do `Map` normal
+- [x] Store `conflitos` presente e usada
+- [x] Máximo de **uma** entrada por chave (repetir a detecção não multiplica)
+- [x] `tentarNovamente` recusa item em conflito
+- [x] `retentarTodas` pula conflito
+- [x] Versão substituída não entra no sync normal
+- [x] Versão substituída não recria conflito
+- [x] Descarte explícito funciona
+- [x] Sem crescimento infinito (contar entradas antes/depois)
+- [x] Fila termina correta (vazia ou só com o que deve ficar)
+- [x] Selo/status de sincronização termina correto
 
 **Regressão do fluxo de exclusão** (cobre o defeito de `f074a64`, corrigido — **não
 reimplementar**, só provar que não voltou):
 
-- [ ] Criar equipamento `ZZ-TESTE-*` → sincronizar
-- [ ] Segunda sessão enxerga
-- [ ] Excluir → sincronizar
-- [ ] **Segunda sessão deixa de enxergar** — era exatamente isto que falhava: com pendência na
+- [x] Criar equipamento `ZZ-TESTE-*` → sincronizar
+- [x] Segunda sessão enxerga
+- [x] Excluir → sincronizar
+- [x] **Segunda sessão deixa de enxergar** — era exatamente isto que falhava: com pendência na
       chave, `lerTudo` a pulava (`itemDaChave`) e o `deletado_em` do servidor nunca era aplicado,
       então o equipamento apagado num aparelho continuava visível no outro, sem saída pela interface
-- [ ] Havendo o cenário de recusa/pendência correspondente
+- [x] Havendo o cenário de recusa/pendência correspondente
       (`tombstone_mais_novo` / `anterior_ao_corte`), validar as duas saídas do card:
       **"Recriar no servidor"** (mutação nova, base = versão informada na recusa) e
       **"Descartar a minha"**
@@ -382,6 +392,22 @@ implementação. Eles são o material do teste manual **depois** do deploy — e
   dono.
 - Nenhum teste de produção executado. P1 e P2 seguem **ABERTOS**.
 
+### 19/08/2026 22:40–23:00 — P1 e P2 EXECUTADOS em produção
+- Bundle confirmado por **SHA-256 idêntico** ao build local (prova mais forte que a assinatura de
+  string planejada);
+- **P1 passa**: mestre lê `app_storage` (HTTP 200), hidrata, lista, abre, edita, sincroniza, o
+  servidor recebe, documento renderiza; as duas Edges do Portal recusam token de mestre com 403;
+- **P2 passa**: 2 ciclos de conflito em `nr13_info_ZZ-FASE3`. "Usar a do servidor" e
+  "Manter a minha" fizeram exatamente o previsto; `drenar` **pulou** o conflito (tentativas
+  ficou em 1, servidor intacto) — que era o defeito ativo da fase; lado perdedor preservado nos
+  dois sentidos; descarte explícito zera só o registro de conflito;
+- Regressão do fluxo de exclusão provada com `ZZ-TESTE-EXCLUSAO`: criar → servidor vê →
+  excluir → servidor marca `deletado_em` → outro aparelho deixa de ver, **sem fila residual**;
+- 2 conflitos de `EQUIPE TESTE` **inspecionados e não tocados**. Descoberto que são **recriados a
+  cada boot** — a causa é o array legado, não os itens;
+- suíte **1042/1042**, build verde;
+- **nenhum código alterado nesta sessão.**
+
 ### 19/08/2026 — Sessão de recuperação de estado (esta)
 - Nenhum código alterado. Git, suíte, build e código conferidos;
 - suíte **1042/1042** (84 arquivos), `npm run build` limpo;
@@ -394,28 +420,30 @@ implementação. Eles são o material do teste manual **depois** do deploy — e
 
 ## Ponto de retomada
 
-- **Última coisa concluída:** correção da documentação desta fase contra o estado real do
-  repositório (19/08/2026). Implementação da Fase 3 completa, commitada e no `main`.
-- **Commit atual:** `d5340ba` (HEAD, == `origin/main`, docs-only). Último commit de CÓDIGO:
-  `cb26450`. Último commit da Fase 3 propriamente: `f074a64`.
-- **Alterações locais:** **nenhuma.** Working tree limpo.
-- **Testes:** 1042/1042, 84 arquivos, 25 s. Verde.
-- **Build:** verde (`tsc -b && vite build`, só warnings de chunk size, nenhum erro).
-- **Deploy:** **REDEPLOY ANUNCIADO em 19/08/2026 22:35** (`main` @ `88956eb`). Confirmação do
-  bundle no ar: **BLOQUEADA** — falta a URL de produção. Método de prova já definido e validado
-  localmente (ver Log de execução).
-- **Bloqueio ativo:** (1) URL de produção; (2) sessão autenticada em `teste@gmail.com` — a senha
-  é do dono e não entra em código, Git, Markdown nem log.
-- **Histórico:** Os commits de 16/08 estão em produção (provado pelo uso).
-  Os de 19/08 (`8f19a26`, `4a8e50e`, `a85570a`, `f074a64`, `e72dd38`, `cb26450`) **não estão
-  confirmados no ar**. O dono vai redeployar o `main` a partir do commit de documentação e avisar
-  `REDEPLOY CONCLUÍDO`. O bundle válido para os testes precisa conter `cb26450`.
-- **Produção:** P1 e P2 **abertos**. A fase foi exercitada em produção, não medida nem registrada.
-- **Pendência:** (1) fechar o P1 — roteiro curto de regressão do sistema interno, no task-level da
-  Fase 0-B; (2) fechar o P2 — "Roteiro de dois aparelhos" deste arquivo; (3) descobrir se os 2
-  conflitos reais de 14/08 ainda existem — **inspecionar e reportar, nunca agir sem autorização**.
-- **Próxima ação:** aguardar `REDEPLOY CONCLUÍDO`. Depois, nesta ordem: confirmar que o bundle no
-  ar contém `cb26450` → **P1** → **P2** → registrar em `docs/medicoes/` → suíte + build →
-  apresentar o portão → PARAR.
-- **Não fazer ainda:** Fase 4 (Portal: arquitetura de leitura). Nenhuma linha antes de P1 e P2
-  fecharem com aprovação explícita do dono.
+- **Última coisa concluída:** **P1 e P2 executados e registrados em produção** (19/08/2026,
+  22:40–23:00), na conta `teste@gmail.com`.
+- **Commit de CÓDIGO atual:** `cb26450`. Último commit da Fase 3: `f074a64`.
+- **Alterações locais:** nenhuma de código. Só documentação desta sessão.
+- **Testes:** 1042/1042, 84 arquivos. Verde. · **Build:** verde.
+- **Deploy:** **CONFIRMADO.** `https://app.nr13sistema.com.br` serve
+  `/assets/index-AIiLkfur.js` com SHA-256 `01e05db6…b48250`, **idêntico byte a byte** ao build
+  local do `main`. Service worker `nr13-cache-v8` nos dois lados.
+- **Produção:** P1 **passa**, P2 **passa**. Evidência completa em
+  `docs/medicoes/2026-08-19-p1-p2-producao.md`.
+- **Pendências reais que sobraram:**
+  1. **Aprovação do dono** para P1 e P2 — é o único passo que falta na sequência do portão;
+  2. conta `papel='cliente'` não re-verificada nesta rodada (sem credencial; a prova de 16/08
+     continua valendo e está registrada);
+  3. drenagem da fila **offline** não exercitada manualmente — o aparelho B foi encenado pela
+     RPC; esse trecho segue coberto só por teste automatizado;
+  4. primeiro clique em "Manter a minha" não registrou, sem erro no console — **não
+     diagnosticado**, provável causa de automação (layout deslocou entre localizar e clicar);
+  5. 🔴 **os 2 itens de `EQUIPE TESTE` são RECRIADOS a cada boot.** Inspecionados, **intocados**.
+     A migração de histórico lê o array legado `nr13_historico_relatorios`, não acha o
+     `nr13_rel_` correspondente (o equipamento foi excluído) e recria as chaves com `versaoBase 0`;
+     o servidor recusa com `versao_obsoleta`. Gerador permanente de pendência. **Não é defeito da
+     Fase 3** — é a interseção do §7-sexies com o achado A-13.
+- **Próxima ação:** dono lê o resultado e **aprova ou recusa P1 e P2**.
+- **Não fazer ainda:** Fase 4 (Portal: arquitetura de leitura) — nenhuma linha antes da aprovação.
+  Também **não** corrigir o item 5 por conta própria: mexe no array legado, que é o backup da
+  migração de 14/08, e precisa de decisão + fase própria.
