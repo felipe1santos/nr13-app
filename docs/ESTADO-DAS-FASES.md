@@ -6,10 +6,24 @@
 > **REGRA:** este arquivo é atualizado NO MOMENTO em que o estado muda — commit, push,
 > redeploy, validação, portão. Não no fim da fase.
 
-**Última atualização:** 19/08/2026 23:05
+**Última atualização:** 19/08/2026 23:15
 **Branch:** `main` · **Suíte:** 1042 testes / 84 arquivos, 0 falhas · **Build:** verde
 
-## ✅ P1 e P2 EXECUTADOS — aguardando SUA aprovação
+## ⏸ P1/P2 NÃO APROVADOS — fechando as ressalvas (19/08/2026 23:15)
+
+O dono recusou fechar os portões com as ressalvas abertas. Em andamento:
+
+1. **P1 — conta cliente no bundle ATUAL.** Cenário montado (`ZZ-FASE3` vinculado a Posto Shell
+   Prime, criando o caso cliente-contra-cliente literal). **AGUARDANDO O DONO FAZER LOGIN** como
+   `ipiranga@gmail.com` — não digito senha em campo de autenticação.
+2. **P2 — offline REAL**, com DevTools → Network → Offline, e prova DIRETA de
+   `mutationId`/`resolveDe`/`versaoBase` inspecionados na fila antes de reconectar.
+
+Resultado anterior (por RPC) segue registrado e válido; não substitui estes dois.
+
+---
+
+## Resultado da rodada de 19/08 22:40–23:00
 
 Validados em produção em 19/08/2026, na conta `teste@gmail.com`.
 Evidência completa: `docs/medicoes/2026-08-19-p1-p2-producao.md`.
