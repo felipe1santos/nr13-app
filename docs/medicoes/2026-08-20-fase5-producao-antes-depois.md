@@ -422,3 +422,56 @@ chamada diretamente.
 | Aviso de offline | ✅ sumiu |
 | Selo | ✅ voltou a "Sincronizar (2)" — só as 2 mutações legadas do `EQUIPE TESTE`, alheias à Fase 5 |
 
+
+---
+
+## 18. C · PORTAL DO CLIENTE — segurança validada
+
+Sessão real de `ipiranga@gmail.com` (papel `cliente`, org `99f642d3`, cliente
+`ad1fd71c…`), no Brave, com o bundle `index-Ite3xGkv.js`. O Portal desse cliente lista
+**2 ativos**: `COMPRESSOR V8-15/200L` e `D33DD33D`.
+
+Os caminhos usados como "de outro cliente" são **reais e existem no bucket** — são de
+`ZZ-TESTE-P2`, que **não** pertence a este cliente.
+
+### 18.1 Autorização
+
+| Teste | Resultado |
+|---|---|
+| **Miniatura autorizada** (`…/COMPRESSOR_V8-15_200L/….thumb.jpg`) | ✅ **200**, com URL assinada |
+| **Principal autorizada** | ✅ **200**, com URL assinada |
+| **Miniatura REAL de outro cliente** | ✅ **404 `nao_disponivel`** |
+| **Principal REAL de outro cliente** | ✅ **404 `nao_disponivel`** |
+| Caminho inexistente na pasta de outro | ✅ **404 `nao_disponivel`** |
+| Caminho com TAG inventada | ✅ **404 `nao_disponivel`** |
+
+A miniatura entrou na autorização **sem nenhuma alteração na Edge** — é a D5-10 funcionando:
+como `thumb` é um objeto com `path`, `coletarPaths` a recolhe pela forma. Se tivesse sido um
+campo `thumbPath: string`, este teste teria falhado com 404 no arquivo do próprio cliente.
+
+### 18.2 Não-enumerabilidade (D-26)
+
+"Existe mas não é seu" × "não existe", comparados campo a campo:
+
+| | |
+|---|---|
+| Mesmo status | ✅ 404 nos dois |
+| Mesmo corpo | ✅ `{"erro":"nao_disponivel"}`, idêntico |
+| Mesmos cabeçalhos | ✅ `content-length: 45`, `content-type: application/json` |
+
+### 18.3 P1/P3 sem regressão
+
+| Teste | Resultado |
+|---|---|
+| Cliente assina direto no Storage (**arquivo dele**) | ✅ **recusado** — `NoSuchKey`, mesmo o arquivo existindo. É o *fail closed* da D-04 |
+| Cliente assina direto no Storage (arquivo de outro) | ✅ recusado, resposta **idêntica** |
+| Cliente lê `app_storage` por REST | ✅ **`[]`** — a RLS não devolve nada |
+| Todo arquivo passa pela Edge | ✅ **0** assinaturas diretas no Storage em toda a navegação |
+
+### 18.4 Exibição
+
+| | |
+|---|---|
+| Card do Portal | ✅ decodifica **400×300** — a **miniatura** |
+| Segunda carga da mesma tela | ✅ **0 chamadas** à Edge e **0 downloads** — o N-01 vale também para o Portal |
+

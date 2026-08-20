@@ -20,7 +20,7 @@
 | **Implementar** | ✅ **T1…T8 IMPLEMENTADAS E COMMITADAS** — 6 commits, suíte 1107/1107, build verde |
 | Push `main` | ✅ `485c024` |
 | Redeploy | ✅ feito pelo dono em 20/08 · bundle `index-Bx8gMJyu.js` |
-| **Validar em produção** | 🟠 **10 de 12 itens PASSARAM** · A-F5-02 **corrigido** · A-F5-01 **encerrado sem causa determinada** · faltam offline, Portal e comparação de PDF — `docs/medicoes/2026-08-20-fase5-producao-antes-depois.md` |
+| **Validar em produção** | 🟢 **12 de 12 itens PASSARAM** · A-F5-02 corrigido e confirmado · A-F5-01 encerrado · **falta apenas a comparação visual das 6 fotos de referência** — `docs/medicoes/2026-08-20-fase5-producao-antes-depois.md` |
 | **T10 — correção A-F5-02** | ✅ **CONFIRMADA EM PRODUÇÃO** (bundle `index-Ite3xGkv.js`): 1.100,9 KB → **92,9 KB**, exatamente o previsto |
 
 ---
@@ -543,7 +543,7 @@ aceite continua aberto.
 - [x] Foto antiga sem miniatura funciona — **confirmado em produção**: as 9 fotos legadas do `ZZ-TESTE-P2` continuam resolvendo pela principal
 - [ ] Teste provando que o palco nunca usa o thumb
 - [x] Orientação: medida em 20/08 nas 4 orientações, caminho atual == explícito, 0 pixel de diferença; travada por teste
-- [ ] Portal: miniatura de outro cliente recusada — **PENDENTE: exige sessão de conta `cliente`** (por construção a autorização é a mesma da principal, D5-10, mas isso é raciocínio, não medição)
+- [x] Portal **VALIDADO EM PRODUÇÃO** (20/08, sessão real de `ipiranga@gmail.com`): miniatura e principal autorizadas abrem; miniatura e principal REAIS de outro cliente devolvem 404 `nao_disponivel`; caminho inexistente devolve **o mesmo status, corpo e cabeçalhos**; cliente não assina direto no Storage nem lê `app_storage`
 - [x] Offline **VALIDADO EM PRODUÇÃO com a rede desligada de verdade** (20/08): principal 105,1 KB e miniatura 12,7 KB no cofre como pendentes, `Failed to fetch` com tentativas subindo, miniatura exibida offline em 400×300, sobrevive a fechar/reabrir, fila drena em 1,2 s e as duas sobem com as referências certas
 - [x] Suíte verde (**1107/1107**), build limpo
 
@@ -652,6 +652,7 @@ ficha, o card da lista é o único consumidor de miniatura que importa, e a esco
 | 20/08 04:35 | Baseline, arquitetura, tarefas, critérios, riscos e rollback escritos | ✅ |
 | 20/08 04:40 | Pedido do dono ("uma imagem por ficha") registrado, aguardando definição | ✅ |
 | 20/08 05:05 | Decisões A-1 a A-4 aprovadas; revisão de impacto concluída; D5-10 criada (miniatura é objeto, não string) | ✅ |
+| 20/08 17:4x | **Item C (Portal) VALIDADO** — miniatura e principal autorizadas abrem; as REAIS de outro cliente e o caminho inexistente devolvem 404 `nao_disponivel` com corpo e cabeçalhos idênticos; cliente segue sem assinar direto no Storage e sem ler `app_storage`. Card do Portal em 400×300 | ✅ |
 | 20/08 17:3x | **Item B (offline real) VALIDADO** — rede desligada pelo dono; as duas variantes ficam pendentes com `Failed to fetch`, miniatura utilizável offline, sobrevive a reabrir, drena em 1.203 ms, principal e miniatura sobem, referências corretas, reload com 0 requisição | ✅ |
 | 20/08 17:0x | **A-F5-02 confirmado em produção** — 18 entradas preservadas, 1 imagem embutida (a `isCapa`), chave 1.100,9 KB → **92,9 KB** (−91,6 %). 19ª troca custou **0,4 KB**, não uma imagem. Item **D** reconfirmado no bundle novo | ✅ |
 | 20/08 16:2x | **T10 — A-F5-02 corrigido**: palco hidrata só a foto de identificação, repetindo a cadeia de `CAPA.html` com o fallback. 18 testes novos. Suíte **1125/1125**, build verde | ✅ |
@@ -669,27 +670,25 @@ ficha, o card da lista é o único consumidor de miniatura que importa, e a esco
 
 ## Ponto de retomada
 
-**Estado: DEPLOYADA · A-F5-02 CORRIGIDO (aguardando redeploy) · FASE NÃO FECHADA.**
+**Estado: 12 de 12 itens de validação PASSARAM. A FASE 5 NÃO ESTÁ FECHADA.**
 
-Commits da correção: ver `git log`. Suíte **1125/1125**, build verde, push feito.
+Falta exatamente **um** critério, e ele depende de material do dono:
 
-**Próxima ação: o dono redeploya.** Depois disso, e só depois, fecha-se a fase com:
+> **Comparação visual dos PDFs com as 6 fotos de referência reais.**
+>
+> São elas: (1) placa com texto pequeno, (2) solda, (3) corrosão, (4) trinca/detalhe fino,
+> (5) instrumento/manômetro com mostrador, (6) foto geral do equipamento.
+>
+> **Elas ainda não foram fornecidas.** Toda a massa usada até aqui é sintética e **não serve**
+> para julgar legibilidade de placa ou de trinca. Conforme instrução do dono: **PARADO neste
+> critério**, sem substituir por imagem sintética e sem fechar a fase.
 
-**A · Offline real** — quando chegar a hora eu digo, com estas palavras:
-**"Coloque a sessão OFFLINE agora."** Validar: foto adicionada offline → blob no IndexedDB →
-miniatura utilizável offline → fechar/reabrir → continua disponível → voltar online →
-principal sobe → miniatura sobe → referências corretas → fila drena.
+O que esse teste ainda precisa provar, quando as fotos chegarem:
+relatório novo usa a principal e nunca a miniatura · orientação correta · qualidade técnica
+preservada · a CAPA usa só a foto de identificação · relatório arquivado antigo continua
+sendo exatamente o mesmo arquivo.
 
-**B · Portal** — o dono autentica `ipiranga@gmail.com`. Validar: miniatura autorizada abre;
-principal autorizada abre; miniatura REAL de outro cliente negada; principal REAL de outro
-cliente negada; caminho inexistente continua não-enumerável.
-
-**C · PDF** — comparação visual com as 6 fotos de referência (placa com texto pequeno, solda,
-corrosão, trinca, instrumento com mostrador, foto geral). **Essas 6 fotos reais NÃO existem no
-repositório nem na conta de teste** — a massa usada até aqui é sintética. Preciso que o dono
-forneça as 6, ou autorize declarar o critério como não verificável com o material disponível.
-**Não vou substituir a amostra em silêncio.**
-
-**D** — confirmar em produção a medição do §14 (palco: 1.100,9 KB → ≈ 92,9 KB).
+**A-F5-01** permanece **CAUSA NÃO DETERMINADA / EVENTO ANTERIOR À FASE 5** e não deve ser
+reaberto sem evidência nova.
 
 **Não iniciar a Fase 6.**

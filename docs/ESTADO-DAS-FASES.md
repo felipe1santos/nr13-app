@@ -19,7 +19,7 @@
 | **P3** (Fase 4) | **FECHADO ✅** aprovado 20/08 |
 | **Fase 3** | **CONCLUÍDA** |
 | **Fase 4** | **CONCLUÍDA** |
-| **Fase 5** | **DEPLOYADA · A-F5-02 CORRIGIDO · A-F5-01 ENCERRADO** — 10 de 12 itens passaram (−87,4 %); palco 1.100,9 KB → ≈92,9 KB. **NÃO FECHADA**: falta redeploy, offline, Portal e comparação de PDF |
+| **Fase 5** | **12 de 12 itens VALIDADOS em produção** — −87,4 % nas fotos, palco 1.100,9 → 92,9 KB, offline e Portal OK. **NÃO FECHADA**: falta só a comparação visual das 6 fotos de referência, que o dono vai fornecer |
 | Commits de fechamento | `caa168f` (P1/P2) · `676f81f` (P3) |
 | Suíte | **1063/1063**, 87 arquivos · Build **verde** |
 
@@ -97,11 +97,11 @@ Sempre use um destes. Nunca "concluído".
 | **2** | Observabilidade (A-11) | ✅ VALIDADO EM PRODUÇÃO · 1 item de doc aberto | — | `plans/2026-08-16-fase2-task-level.md` |
 | **3** | Conflitos (A-14) | ✅ **CONCLUÍDA** | **P2 FECHADO ✅** aprovado 20/08 | `plans/2026-08-16-fase3-task-level.md` |
 | **4** | Portal: arquitetura de leitura (A-02) | ✅ **CONCLUÍDA** | **P3 FECHADO ✅** aprovado 20/08 | `plans/2026-08-20-fase4-task-level.md` |
-| **5** | Fotos: thumbnail, EXIF, teto de altura (A-08) | 🟠 **CORRIGIDA · AGUARDANDO REDEPLOY · NÃO FECHADA** | — | `plans/2026-08-20-fase5-task-level.md` · `medicoes/2026-08-20-fase5-producao-antes-depois.md` |
+| **5** | Fotos: thumbnail, EXIF, teto de altura (A-08) | 🟠 **VALIDADA · AGUARDANDO AS 6 FOTOS DE REFERÊNCIA · NÃO FECHADA** | — | `plans/2026-08-20-fase5-task-level.md` · `medicoes/2026-08-20-fase5-producao-antes-depois.md` |
 | 6…13 | ver plano macro | PLANEJADO | P4…P8 | `plans/2026-08-15-evolucao-arquitetura.md` |
 
-**Fase atual:** 5 (correção do A-F5-02 pronta) · **Tarefa atual:** aguardar redeploy, depois offline + Portal + PDF
-**Próxima ação exata:** o dono redeploya. Depois: **A** offline real (eu peço com "Coloque a sessão OFFLINE agora"), **B** Portal com a conta cliente `ipiranga@gmail.com`, **C** comparação visual de PDF — **as 6 fotos de referência reais não existem no repo nem na conta de teste, preciso que o dono forneça**, **D** confirmar em produção o palco (1.100,9 KB → ≈92,9 KB). A Fase 5 **não fecha** antes disso.
+**Fase atual:** 5 (validada em produção) · **Tarefa atual:** aguardar as 6 fotos de referência para a comparação visual dos PDFs
+**Próxima ação exata:** o dono fornece as **6 fotos de referência reais** (placa com texto pequeno, solda, corrosão, trinca, instrumento com mostrador, foto geral) na conta de teste. Com elas, roda-se a comparação visual dos PDFs — o **único** critério que falta para fechar a Fase 5. Nada substitui essa amostra.
 
 Os dois roteiros ficam gravados, já com os resultados marcados:
 
