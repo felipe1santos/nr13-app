@@ -19,7 +19,8 @@
 | Apresentar o plano ao dono | ✅ FEITO — as 3 decisões voltaram aprovadas |
 | **Implementar** | ✅ **T1…T8 IMPLEMENTADAS E COMMITADAS** — 6 commits, suíte 1107/1107, build verde |
 | Push `main` | ✅ `485c024` |
-| **Validar em produção** | ⛔ **AGUARDANDO REDEPLOY DO DONO** |
+| Redeploy | ✅ feito pelo dono em 20/08 · bundle `index-Bx8gMJyu.js` |
+| **Validar em produção** | 🟠 **10 de 12 itens PASSARAM · 2 ACHADOS ABERTOS · 2 itens dependem do dono** — `docs/medicoes/2026-08-20-fase5-producao-antes-depois.md` |
 
 ---
 
@@ -490,8 +491,8 @@ Ordem de execução e de commit. Cada bloco fecha em commit próprio.
 - [x] Build — `npm run build` verde (só os avisos de chunk que já existiam)
 - [x] Medição do que dá para medir **antes** do deploy — ver `### B-11`
 - [x] Push `main` — `485c024`
-- [ ] **PARAR para o redeploy do dono**
-- [ ] Medição do "depois" em produção, na mesma massa `ZZ-TESTE-FOTO-*` — **só é possível depois do redeploy**
+- [x] **PARAR para o redeploy do dono** — feito
+- [x] Medição do "depois" em produção — **1.152,3 KB → 144,9 KB (−87,4 %)**; listagem 450,0 KB → 55,6 KB (−87,6 %)
 
 ### B-11 · O que foi medido ao fechar, e o que NÃO foi
 
@@ -519,15 +520,43 @@ aceite continua aberto.
 
 ## Critérios de aceite
 
-- [x] Redução **≥ 85 %** — **85,6 % medidos no cálculo**; falta confirmar na rede depois do redeploy
+- [x] Redução **≥ 85 %** — **87,4 % medidos em produção** (arquivos no bucket) e **87,6 %** na listagem `/equipamentos`
 - [x] **A foto principal não muda** para 4:3 e 3:4 — provado por teste (`dimensionar`) e pela medição B-8
-- [ ] PDF de comparação com as 6 fotos de referência: **PENDENTE — depende do redeploy**
-- [x] Foto antiga sem miniatura funciona — coberto por teste; confirmação visual depois do redeploy
+- [ ] PDF de comparação com as 6 fotos de referência reais (placa, solda, corrosão, trinca, instrumento, geral): **AINDA PENDENTE** — a principal não muda para 4:3/3:4, mas a comparação visual não foi feita
+- [x] Foto antiga sem miniatura funciona — **confirmado em produção**: as 9 fotos legadas do `ZZ-TESTE-P2` continuam resolvendo pela principal
 - [ ] Teste provando que o palco nunca usa o thumb
 - [x] Orientação: medida em 20/08 nas 4 orientações, caminho atual == explícito, 0 pixel de diferença; travada por teste
-- [ ] Portal: miniatura de outro cliente recusada — **PENDENTE de verificação em produção** (por construção a autorização é a mesma da principal, D5-10, mas isso é raciocínio, não medição)
-- [x] Offline coberto por teste (as duas variantes no cofre antes da rede, as duas pendentes, as duas drenam) · **PENDENTE** o teste manual real depois do redeploy
+- [ ] Portal: miniatura de outro cliente recusada — **PENDENTE: exige sessão de conta `cliente`** (por construção a autorização é a mesma da principal, D5-10, mas isso é raciocínio, não medição)
+- [x] Offline coberto por teste (as duas variantes no cofre antes da rede, as duas pendentes, as duas drenam) · **PENDENTE: exige a rede desligada de verdade** — a regra do projeto proíbe simular offline interceptando `fetch`
 - [x] Suíte verde (**1107/1107**), build limpo
+
+---
+
+## Achados abertos da validação em produção (20/08)
+
+Detalhe e evidências: `docs/medicoes/2026-08-20-fase5-producao-antes-depois.md` §6.
+
+### A-F5-01 · Uma foto sumiu da massa de teste — sem explicação
+
+Entre a criação da massa e a validação, uma das 10 fotos sumiu do **registro, do cofre e do
+bucket** ao mesmo tempo (`05d97b1d…jpg`, 142,1 KB; a diferença bate exata). A última escrita
+daquele registro é `2026-08-20T15:05:40Z`, `versao` 2 — **anterior ao redeploy**, então o
+código da Fase 5 não a causou. **O que a causou continua desconhecido, e não fecho a lacuna
+com hipótese.** Impacto: massa de teste, conta de teste.
+
+### A-F5-02 · O palco hidrata TODAS as fotos da ficha, e agora o array cresce
+
+Medido ao gerar a CAPA no `ZZ-TESTE-P2`: **18 entradas, 18 dataURLs, 1.100,9 KB** numa chave
+só, de um orçamento de 3.368 KB — para uma folha que imprime **uma** foto.
+
+Hidratar o array inteiro **já era assim**. O que muda com o T8 é que o array **cresce a cada
+troca**, por decisão A-4 (nada é apagado). Por volta de **38 trocas**, essa chave sozinha ocupa
+o orçamento e o documento passa a ser recusado (I-23) — com mensagem e sem perda de dado, mas
+recusado.
+
+**Correção candidata, NÃO aplicada:** o palco hidratar apenas a foto de identificação de
+`nr13_fotos_`, já que é a única que `CAPA.html` lê. Muda o comportamento do palco e precisa
+de decisão do dono.
 
 ---
 
@@ -591,6 +620,7 @@ ficha, o card da lista é o único consumidor de miniatura que importa, e a esco
 | 20/08 04:35 | Baseline, arquitetura, tarefas, critérios, riscos e rollback escritos | ✅ |
 | 20/08 04:40 | Pedido do dono ("uma imagem por ficha") registrado, aguardando definição | ✅ |
 | 20/08 05:05 | Decisões A-1 a A-4 aprovadas; revisão de impacto concluída; D5-10 criada (miniatura é objeto, não string) | ✅ |
+| 20/08 12:5x | **Validação em produção** — bundle `index-Bx8gMJyu.js` conferido; 10 de 12 itens passaram; achados A-F5-01 e A-F5-02 abertos; itens 9 (offline) e 10 (Portal) dependem do dono | 🟠 |
 | 20/08 06:45 | **T9** — suíte 1107/1107, build verde, push `main` em `485c024`. **PARADO para o redeploy do dono** | ✅ |
 | 20/08 06:35 | **T8 concluída** — `FotoIdentificacao` (slot único) no lugar da galeria da ficha; regras puras em `identificacaoEquipamento.ts` com 10 testes. Suíte **1107/1107**, build verde | ✅ |
 | 20/08 06:15 | **T7 concluída (N-02)** — assinatura e download de miniatura deduplicados por caminho; falha não congela o caminho. Suíte **1097/1097** | ✅ |
@@ -603,27 +633,20 @@ ficha, o card da lista é o único consumidor de miniatura que importa, e a esco
 
 ## Ponto de retomada
 
-**Estado: COMMITADO → PUSH MAIN → AGUARDANDO REDEPLOY.**
+**Estado: DEPLOYADA · VALIDAÇÃO PARCIAL · FASE NÃO FECHADA.**
 
-Seis commits, na ordem do task-level:
+Passaram em produção: bundle, redução medida (−87,4 % por arquivo, −87,6 % na listagem),
+listas usando só miniatura, cache frio e quente, N-01, N-02 (com limite declarado), foto de
+identificação (adicionar/trocar/remover sem apagar nada), orientação EXIF consistente entre
+principal e miniatura, relatório arquivado imutável, CAPA usando a principal, nenhuma base64
+nova.
 
-| Commit | O quê |
-|---|---|
-| `079acca` | T1 — orientação explícita e teto de altura |
-| `ad0dec6` | T2 — variante miniatura com fallback para a principal |
-| `721b62a` | T3 — listas e cards usam a miniatura |
-| `b6b857b` | T6 — N-01: cofre guarda a miniatura baixada |
-| `43cfab0` | T7 — N-02: uma assinatura em voo por caminho |
-| `37555b3` | T8 — ficha com uma foto de identificação |
+**Falta, e é decisão do dono:**
 
-**Próxima ação exata, depois do redeploy:**
-
-1. Medir o "depois" na galeria `ZZ-TESTE-P2`, cache frio, do MESMO jeito do baseline —
-   a régua é **1.152,3 KB / 21 requisições**.
-2. Conferir na tela: card, galeria, Portal e a ficha com a foto de identificação.
-3. Gerar um relatório com foto e comparar a folha de registro fotográfico com um PDF
-   anterior — a principal não pode ter mudado.
-4. Teste manual de offline: fotografar sem rede, fechar, reabrir, reconectar.
-5. Portal: confirmar que a miniatura de outro cliente é recusada.
+1. **A-F5-02** — o palco hidratar só a foto de identificação, ou deixar como está?
+2. **A-F5-01** — investigar mais, ou aceitar como incidente de massa de teste?
+3. **Item 9 (offline)** — preciso que a rede seja desligada de verdade (não posso simular).
+4. **Item 10 (Portal)** — preciso de uma sessão com papel `cliente`.
+5. **Comparação visual dos PDFs** com as 6 fotos de referência reais.
 
 **Não iniciar a Fase 6.**

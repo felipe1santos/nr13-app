@@ -19,7 +19,7 @@
 | **P3** (Fase 4) | **FECHADO ✅** aprovado 20/08 |
 | **Fase 3** | **CONCLUÍDA** |
 | **Fase 4** | **CONCLUÍDA** |
-| **Fase 5** | **IMPLEMENTADA E COMMITADA** — 6 commits, suíte 1107/1107, build verde · **AGUARDANDO REDEPLOY** para validar em produção |
+| **Fase 5** | **DEPLOYADA · VALIDAÇÃO PARCIAL** — 10 de 12 itens passaram (−87,4 % medidos). **NÃO FECHADA**: 2 achados abertos (A-F5-01, A-F5-02) + offline e Portal dependem do dono |
 | Commits de fechamento | `caa168f` (P1/P2) · `676f81f` (P3) |
 | Suíte | **1063/1063**, 87 arquivos · Build **verde** |
 
@@ -97,11 +97,11 @@ Sempre use um destes. Nunca "concluído".
 | **2** | Observabilidade (A-11) | ✅ VALIDADO EM PRODUÇÃO · 1 item de doc aberto | — | `plans/2026-08-16-fase2-task-level.md` |
 | **3** | Conflitos (A-14) | ✅ **CONCLUÍDA** | **P2 FECHADO ✅** aprovado 20/08 | `plans/2026-08-16-fase3-task-level.md` |
 | **4** | Portal: arquitetura de leitura (A-02) | ✅ **CONCLUÍDA** | **P3 FECHADO ✅** aprovado 20/08 | `plans/2026-08-20-fase4-task-level.md` |
-| **5** | Fotos: thumbnail, EXIF, teto de altura (A-08) | 🟢 **COMMITADA · PUSH MAIN · AGUARDANDO REDEPLOY** | — | `plans/2026-08-20-fase5-task-level.md` |
+| **5** | Fotos: thumbnail, EXIF, teto de altura (A-08) | 🟠 **DEPLOYADA · VALIDAÇÃO PARCIAL · NÃO FECHADA** | — | `plans/2026-08-20-fase5-task-level.md` · `medicoes/2026-08-20-fase5-producao-antes-depois.md` |
 | 6…13 | ver plano macro | PLANEJADO | P4…P8 | `plans/2026-08-15-evolucao-arquitetura.md` |
 
-**Fase atual:** 5 (implementada) · **Tarefa atual:** T9 — validação em produção
-**Próxima ação exata:** o dono redeploya; então medir o "depois" na galeria `ZZ-TESTE-P2` (régua: **1.152,3 KB / 21 requisições**) e rodar os 5 itens do `Ponto de retomada` do task-level da Fase 5.
+**Fase atual:** 5 (deployada, validação parcial) · **Tarefa atual:** decidir sobre A-F5-01/A-F5-02 e completar offline + Portal
+**Próxima ação exata:** o dono decide sobre **A-F5-02** (palco hidratando as 18 fotos da ficha) e **A-F5-01** (foto sumida na massa de teste), e libera o teste de **offline** (rede desligada de verdade) e do **Portal** (sessão de conta cliente). A Fase 5 **não fecha** antes disso.
 
 Os dois roteiros ficam gravados, já com os resultados marcados:
 
