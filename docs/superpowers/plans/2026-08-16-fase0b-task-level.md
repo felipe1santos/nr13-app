@@ -15,8 +15,7 @@ não pasta), D-26 (não-enumeração).
 ## Estado atual da fase
 
 - **Fase:** 0 · **Parte 0-B** (isolamento do Portal, achado A-01)
-- **Estado:** IMPLEMENTADO · TESTADO · COMMITADO · PUSH MAIN · DEPLOYADO ·
-  **VALIDADO EM PRODUÇÃO com 3 limitações registradas**
+- **Estado:** **VALIDADO EM PRODUÇÃO — SEM RESSALVA** (19/08/2026)
 - **Commits:** `2330444` (papelSessao) · `42e8952` (Edge `portal_arquivo`) ·
   `0300029` (arquivo do cliente pela Edge) · `ad99ceb` (cliente não hidrata) ·
   `49672c0` (policies fail-closed + rollback) · `fa210c5` (resultado da validação) ·
@@ -25,24 +24,32 @@ não pasta), D-26 (não-enumeração).
 - **Validação produção:** SIM para o A-01 — medido antes/depois na conta `ipiranga@gmail.com`:
   `select` direto em `app_storage` foi de **49 chaves → 0**; URL assinada pelo SDK passou a
   devolver 400; a Edge recusa arquivo alheio e path inventado com a **mesma** resposta (D-26)
-- **Portão P1:** **ABERTO** — falta a verificação abaixo
-- **Próxima ação exata:** verificar, com uma conta `mestre`/`gerente`/`funcionario`, que o
-  sistema interno não regrediu **depois** das policies (ver "Limitações do que foi testado")
-- **Última atualização:** 19/08/2026 21:58
+- **Portão P1:** **PRONTO PARA APROVAÇÃO** — todos os itens fechados, inclusive os 3 que estavam pendentes desde 16/08
+- **Próxima ação exata:** dono aprova o P1
+- **Última atualização:** 19/08/2026 23:30
 
-### Pendências de produção desta parte
+### Pendências de produção desta parte — TODAS FECHADAS em 19/08/2026
 
-- [ ] **Regressão do sistema interno DEPOIS das policies** — verificada ANTES (13 equipamentos
-      carregando), não depois: a aba estava com sessão de cliente quando o SQL foi aplicado.
-      **Evidência indireta forte, colhida em 19/08/2026:** os commits `f074a64` e `e72dd38`
-      relatam trabalho de produção na conta `teste` (papel mestre) lendo e escrevendo
-      `app_storage` normalmente, com as policies novas já no ar. Isso torna improvável uma
-      regressão, mas **não é a verificação formal** e não fecha o item.
-- [ ] **Cliente-contra-cliente de ARQUIVO na mesma organização** — não testado literalmente
-      (`cliente001` não tem equipamento nem arquivo). Foram testados arquivo de outra organização
-      e path não-referenciado, que exercitam a mesma decisão (`autorizados.has(path)`).
-- [ ] **`lerRemoto` recusando para cliente** — verificado por leitura de código, não exercitado
-      com certificado legado real.
+- [x] **Regressão do sistema interno DEPOIS das policies.**
+      **FECHADO em 19/08/2026 22:40**, no bundle atual: `GET /rest/v1/app_storage` com token de
+      **mestre** devolveu **HTTP 200** com a linha pedida; hidratação, listagem, ficha, edição,
+      sincronização e renderização de documento verificadas em sequência.
+      *(A evidência indireta anterior — os commits `f074a64` e `e72dd38`, feitos trabalhando na
+      conta `teste` com as policies já no ar — apontava na mesma direção, mas não era a
+      verificação formal. Agora é.)*
+- [x] **Cliente-contra-cliente de ARQUIVO na mesma organização.**
+      **FECHADO em 19/08/2026 23:25.** O impedimento anterior era não haver um segundo cliente
+      com ativo; resolvido vinculando `ZZ-FASE3` ao **Posto Shell Prime**. Com a sessão de
+      `ipiranga@gmail.com`, a Edge `portal_arquivo` **recusou (404 `nao_disponivel`)** o PDF
+      **real** do relatório do `VASO A23` e a rubrica **real** do livro dele — arquivos que
+      existem, na mesma organização, de ativo não vinculado ao chamador. É o caso literal.
+- [x] **`lerRemoto` recusando para cliente.**
+      **FECHADO por equivalência, e a equivalência está declarada:** com token de cliente, a
+      leitura ampla de `app_storage` devolveu **0 linhas** e a leitura dirigida a
+      `nr13_info_ZZ-FASE3` devolveu **0 linhas**. `lerRemoto` é exatamente esse `select` por
+      chave — a policy o esvazia na origem, e o guard `if (ehCliente()) return null` no bundle
+      só evita a requisição inútil. Não exercitei o caminho com um certificado legado real,
+      porque a organização de teste não tem um.
 
 ### Roteiro de fechamento do P1 (acordado em 19/08/2026)
 
@@ -77,17 +84,25 @@ Bundle sob teste confirmado **byte-a-byte** igual ao build do `main` (SHA-256 do
 - [x] Conta mestre **não** usa os caminhos restritos do Portal indevidamente —
       Edge `portal_cliente` → **403**; Edge `portal_arquivo` → **403**, ambas
       `{"erro":"Acesso negado (somente contas de cliente)"}`
-- [ ] Conta cliente continua limitada ao vínculo permitido
-      **Status: PARCIAL — herdado de 16/08, não re-testado hoje.** Naquela data, com
-      `ipiranga@gmail.com`: `select` direto em `app_storage` foi de **49 chaves → 0** e a URL
-      assinada pelo SDK passou a devolver 400. Hoje não repeti: não tenho credencial de cliente e
-      ela não deve ser gravada em código, Git, Markdown nem log. Para fechar, o dono precisa
-      autenticar uma conta `papel='cliente'`.
+- [x] Conta cliente continua limitada ao vínculo permitido
+      **VERIFICADO NO BUNDLE ATUAL em 19/08/2026 23:25**, com `ipiranga@gmail.com` (login feito
+      pelo dono — eu não digito senha em campo de autenticação). Portal carrega e lista **só os
+      2 ativos do cliente**; `ZZ-FASE3`, `DASDSA` e `VASO A23` **não aparecem**; leitura ampla e
+      dirigida de `app_storage` devolvem **0 linhas**; Storage pelo SDK recusa nos três caminhos
+      (assinar **400**, download **400**, listar **`[]`**); a Edge serve o arquivo autorizado
+      (**200 + URL assinada**) e recusa o não autorizado (**404**), com corpo **idêntico** ao de
+      path inexistente — não-enumerabilidade preservada.
 
 ### Veredito
 
-**P1 PASSA.** O sistema interno não regrediu. A única linha aberta é a re-verificação do lado
-cliente, cuja prova original de 16/08 continua válida e registrada.
+**P1 PASSA — sem ressalva pendente.** O sistema interno não regrediu, e o lado cliente foi
+re-verificado **no bundle atual**, não por herança de 16/08.
+
+Dois itens que valem registro por terem sido provados de quebra:
+
+- **prontuário do Portal abre** — a regressão de `cb26450` está de fato corrigida em produção;
+- **relatório arquivado abre** para o cliente (15 páginas, selo "Documento arquivado"), servido
+  pela Edge.
 
 > **Achado colateral, fora do escopo do P1 e não corrigido:** a migração de histórico recria a
 > cada boot as chaves de um relatório de equipamento **excluído** (`EQUIPE TESTE`), porque o
@@ -103,7 +118,7 @@ de escrita recusou para o papel `cliente` e a exceção derrubou a montagem do v
 Corrigido com `materializarProntuarioAtual`, que grava só no `localStorage` e não lança.
 **Consequência direta da fail-closed desta parte** — a policy estava certa, o app é que usava
 a escrita do inspetor para preparar uma chave de renderização.
-**Revalidação do prontuário no Portal depois do fix: PENDENTE DE CONFIRMAÇÃO.**
+**Revalidação do prontuário no Portal depois do fix: FEITA em 19/08/2026 — abre e renderiza.**
 
 > **Checkboxes de implementação marcados em 19/08/2026** contra Git + código + a seção de
 > resultado de produção já registrada neste arquivo. Nenhum item de produção foi marcado.

@@ -13,9 +13,9 @@
 
 O dono recusou fechar os portões com as ressalvas abertas. Em andamento:
 
-1. **P1 — conta cliente no bundle ATUAL.** Cenário montado (`ZZ-FASE3` vinculado a Posto Shell
-   Prime, criando o caso cliente-contra-cliente literal). **AGUARDANDO O DONO FAZER LOGIN** como
-   `ipiranga@gmail.com` — não digito senha em campo de autenticação.
+1. **P1 — FECHADO em 19/08/2026 23:25.** Conta cliente re-verificada no bundle atual: Portal vê
+   só os ativos vinculados; `portal_arquivo` recusa arquivo REAL de ativo de outro cliente com a
+   mesma resposta de path inexistente. As 3 pendências do 0-B desde 16/08 estão fechadas.
 2. **P2 — offline REAL**, com DevTools → Network → Offline, e prova DIRETA de
    `mutationId`/`resolveDe`/`versaoBase` inspecionados na fila antes de reconectar.
 
@@ -60,7 +60,7 @@ Sempre use um destes. Nunca "concluído".
 | Fase | Tema | Estado | Portão | Task-level |
 |---|---|---|---|---|
 | **0-A** | Origem do papel na criação de perfil | ✅ VALIDADO EM PRODUÇÃO | — | `plans/2026-08-16-fase0-task-level.md` |
-| **0-B** | Isolamento do Portal (A-01) | ✅ VALIDADO EM PRODUÇÃO, com 3 limitações registradas | **P1 aguardando aprovação** | `plans/2026-08-16-fase0b-task-level.md` |
+| **0-B** | Isolamento do Portal (A-01) | ✅ VALIDADO EM PRODUÇÃO — sem ressalva | **P1 pronto p/ aprovação** | `plans/2026-08-16-fase0b-task-level.md` |
 | **1** | Índice da hidratação (A-03) | ✅ VALIDADO EM PRODUÇÃO | — | *(sem task-level — ver abaixo)* |
 | **2** | Observabilidade (A-11) | ✅ VALIDADO EM PRODUÇÃO · 1 item de doc aberto | — | `plans/2026-08-16-fase2-task-level.md` |
 | **3** | Conflitos (A-14) | ✅ VALIDADO EM PRODUÇÃO | **P2 aguardando aprovação** | `plans/2026-08-16-fase3-task-level.md` |
