@@ -6,8 +6,8 @@
 > **REGRA:** este arquivo é atualizado NO MOMENTO em que o estado muda — commit, push,
 > redeploy, validação, portão. Não no fim da fase.
 
-**Última atualização:** 20/08/2026 01:00
-**Branch:** `main` · **Suíte:** 1042 testes / 84 arquivos, 0 falhas · **Build:** verde
+**Última atualização:** 20/08/2026 02:05
+**Branch:** `main` · **Suíte:** 1063 testes / 87 arquivos, 0 falhas · **Build:** verde
 
 ## ✅ P1 e P2 — APROVADOS FORMALMENTE PELO DONO em 20/08/2026
 
@@ -72,7 +72,7 @@ Sempre use um destes. Nunca "concluído".
 | **1** | Índice da hidratação (A-03) | ✅ VALIDADO EM PRODUÇÃO | — | *(sem task-level — ver abaixo)* |
 | **2** | Observabilidade (A-11) | ✅ VALIDADO EM PRODUÇÃO · 1 item de doc aberto | — | `plans/2026-08-16-fase2-task-level.md` |
 | **3** | Conflitos (A-14) | ✅ **CONCLUÍDA** | **P2 FECHADO ✅** aprovado 20/08 | `plans/2026-08-16-fase3-task-level.md` |
-| **4** | Portal: arquitetura de leitura (A-02) | 🔵 **PLANEJAMENTO / BASELINE** | P3 | `plans/2026-08-20-fase4-task-level.md` |
+| **4** | Portal: arquitetura de leitura (A-02) | 🟡 **IMPLEMENTADO — aguardando redeploy** | P3 | `plans/2026-08-20-fase4-task-level.md` |
 | 5…13 | ver plano macro | PLANEJADO | P4…P8 | `plans/2026-08-15-evolucao-arquitetura.md` |
 
 **Fase atual:** 3 · **Tarefa atual:** Tarefa 8 (validação em produção)

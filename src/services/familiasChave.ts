@@ -18,7 +18,7 @@ export type Escopo = 'tag' | 'global' | 'id';
  * A ordem da lista NÃO importa: o casamento é sempre pelo prefixo mais longo,
  * então `nr13_livro_config_` vence `nr13_livro_` sem depender de ordenação.
  */
-const POR_TAG = [
+export const POR_TAG = [
   'nr13_assinantes_pront_',
   'nr13_assinantes_rel_',
   'nr13_autoclave_dados_',

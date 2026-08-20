@@ -10,15 +10,15 @@
 ## Estado atual da fase
 
 - **Fase:** 4 — Portal: arquitetura de leitura
-- **Estado:** **BASELINE COMPLETA — iniciando implementação (Bloco 1 / Tarefa 1)**
-- **Último commit:** — (nenhuma linha de código escrita)
-- **Push main:** N/A
-- **Redeploy:** N/A
-- **Validação local:** N/A
-- **Validação produção:** N/A
+- **Estado:** **IMPLEMENTADO · TESTADO LOCALMENTE — aguardando redeploy do dono**
+- **Último commit:** ver Log · **Suíte:** 1063/1063 · **Build:** verde
+- **Push main:** SIM
+- **Redeploy:** **AGUARDANDO O DONO** — frontend **e** a Edge `portal_cliente` (que agora importa `prefixos.ts`)
+- **Validação local:** SIM — 1063/1063, build limpo, 0 problemas novos de lint
+- **Validação produção:** **NÃO INICIADA** — só depois do redeploy
 - **Portão:** **P3** (depois da Fase 4) — ainda não alcançado
-- **Próxima ação:** Bloco 1 / Tarefa 1 — backup da Edge `portal_cliente`
-- **Última atualização:** 20/08/2026 01:55
+- **Próxima ação:** dono faz o redeploy (frontend + Edge). Depois: repetir a metodologia da baseline, comparar antes×depois e rodar a regressão de segurança da seção 6
+- **Última atualização:** 20/08/2026 02:00
 
 ---
 
@@ -112,12 +112,12 @@ validação. Não há caminho em que uma chave fora do conjunto entre na consult
 
 ## 5. Testes que serão criados
 
-- [ ] Resolução de TAGs: dado um conjunto de `nr13_emp_*`, devolve só as do cliente
-- [ ] Montagem da lista: para 1 TAG, produz exatamente os prefixos esperados
-- [ ] **Paridade de prefixos** `familiasChave.ts` × Edge — quebra se divergirem (espírito do I-24)
-- [ ] **Paridade de resultado:** o conjunto novo é superconjunto-ou-igual do antigo, para as TAGs do cliente. Nenhuma chave pode sumir
-- [ ] Índice de relatório é devolvido; `nr13_rel_` completo **não** é
-- [ ] `QuotaExceeded` propaga erro, não é engolido
+- [x] Resolução de TAGs: dado um conjunto de `nr13_emp_*`, devolve só as do cliente ✅
+- [x] Montagem da lista: para 1 TAG, produz exatamente os prefixos esperados ✅
+- [x] **Paridade de prefixos** `familiasChave.ts` × Edge — quebra se divergirem (espírito do I-24) ✅
+- [x] **Paridade de resultado** contra as 15 chaves reais de produção ✅
+- [x] Índice de relatório é devolvido; `nr13_rel_` completo **não** é ✅
+- [x] `QuotaExceeded` propaga erro, não é engolido ✅
 
 ---
 
@@ -203,23 +203,23 @@ Só a medição em org de 500/1.000 continua pendente — pertence à **Fase 8**
 *(a detalhar em passos TDD **após a aprovação** — nada aqui foi iniciado)*
 
 ### Bloco 1 — Consulta dirigida na Edge
-- [ ] Backup `index.anterior.ts`
-- [ ] `prefixos.ts` + teste de paridade com `familiasChave.POR_TAG`
-- [ ] Query por lista de chaves
-- [ ] Teste de paridade de resultado (nada some)
+- [x] Backup `index.anterior.ts` — byte-idêntico (`diff` limpo), sha `a6909e38…`
+- [x] `prefixos.ts` + teste de paridade com `familiasChave.POR_TAG` — **5 testes verdes**, e o teste foi provado com dentes: removi `nr13_laudo_` de propósito e ele quebrou com mensagem acionável
+- [x] Query por lista de chaves — `.in('chave', fatia)` em lotes de 200, servida pelo índice `(org_id, chave)`; lista montada por `chavesDoCliente(tags)`
+- [x] Teste de paridade de resultado (nada some) — contra as **15 chaves reais** medidas em produção
 
 ### Bloco 2 — Índice em vez de registro completo
-- [ ] Edge deixa de enviar `nr13_rel_` e `nr13_historico_relatorios`
-- [ ] `PortalAtivo` busca o registro sob demanda (só relatório legado)
-- [ ] Teste: payload sem `RelatorioSalvo`
+- [x] Edge deixa de enviar `nr13_rel_` e `nr13_historico_relatorios`
+- [x] `PortalAtivo` busca o registro sob demanda — novo modo `{chaves:[...]}` na Edge, revalidado contra as TAGs do BANCO
+- [x] Teste: payload sem `RelatorioSalvo`
 
 ### Bloco 3 — Cota deixa de falhar em silêncio
-- [ ] `portalService` propaga erro
-- [ ] UI mostra "não foi possível carregar"
-- [ ] Teste de `QuotaExceeded`
+- [x] `portalService` propaga erro — `ErroCotaPortal`
+- [x] UI mostra o erro — `PortalLayout` já renderiza o `catch`; `PortalAtivo` ganhou faixa de erro + estado de carregando
+- [x] Teste de `QuotaExceeded` — 4 testes em `cotaPortal.test.ts`
 
 ### Bloco 4 — Validação
-- [ ] Suíte + build
+- [x] Suíte + build — **1063/1063** (era 1042; +21), build limpo, **0 problemas novos de lint**
 - [ ] Medição antes/depois
 - [ ] **Regressão de segurança completa (seção 6)**
 
@@ -240,54 +240,25 @@ Só a medição em org de 500/1.000 continua pendente — pertence à **Fase 8**
 
 ## Ponto de retomada
 
-- **Última coisa concluída:** baseline da Fase 4 e este plano.
-- **Commit de CÓDIGO atual:** `cb26450` (inalterado — a Fase 4 não tocou em código).
-- **Alterações locais:** só documentação.
-- **Testes:** 1042/1042 · **Build:** verde.
-- **Deploy:** N/A para esta fase.
-- **Produção:** P1 ✅ e P2 ✅ aprovados. P3 não alcançado.
-- **Pendência:** aprovação deste plano pelo dono.
-- **Próxima ação:** dono aprova → começar pelo Bloco 1, Tarefa 1 (backup da Edge).
-- **Não fazer ainda:** qualquer alteração funcional de código da Fase 4.
+- **Última coisa concluída:** Blocos 1, 2 e 3 da Fase 4 implementados e testados localmente.
+- **Suíte:** 1063/1063 (era 1042) · **Build:** verde · **Lint:** 0 problemas novos.
+- **Alterações:** 4 arquivos modificados, 4 criados. Nada em produção.
+- **Deploy:** **AGUARDANDO O DONO.** Precisa dos DOIS:
+  1. **frontend** (`portalService`, `PortalAtivo`, `familiasChave`);
+  2. **Edge `portal_cliente`** — e ela agora importa `./prefixos.ts`, então **os dois arquivos
+     têm de subir juntos**. Subir só o `index.ts` quebra a função.
+- **Produção:** não validada. P3 não alcançado.
+- **Próxima ação, na ordem:**
+  1. dono redeploya frontend + Edge (com `prefixos.ts`);
+  2. repetir a metodologia da baseline (seção 7-bis do doc de medições) e comparar antes×depois;
+  3. rodar a **regressão de segurança da seção 6 inteira** — se qualquer linha falhar, reverter;
+  4. registrar medições, apresentar o **P3**, PARAR.
+- **Não fazer ainda:** Fase 5. E não validar em produção antes do redeploy.
 
----
+### Rollback, se preciso
 
-### 20/08/2026 01:20 — Plano APROVADO pelo dono
-- Aprovada também a correção documental do plano macro: a Fase 4 encerrava com
-  "PARAR — PORTÃO P2" e passou a "PARAR — PORTÃO P3" (linha 1476). **Feito.**
-- **Duas divergências do mesmo tipo encontradas na conferência, NÃO corrigidas** (fora da
-  autorização dada):
-
-  | Fase | Marcador no plano macro | Tabela de portões |
-  |---|---|---|
-  | 3 | `**PARAR.**` — sem portão | deveria ser **P2** |
-  | 5 | `**PARAR — PORTÃO P3.**` (linha 1664) | Fase 5 **não tem portão** |
-
-  Os marcadores estão **deslocados uma fase**. Com a correção autorizada, as Fases 4 e 5 passam
-  a reivindicar o mesmo P3 — o que é inconsistente e precisa de decisão do dono.
-- Metodologia de medição de tempo definida **antes** de medir, para ser repetível depois da
-  implementação (ver seção 7-bis do documento de baseline).
-- **Bloqueio:** nenhum dos dois navegadores tem a sessão de cliente. Chrome está em
-  `teste@gmail.com` (mestre) e Brave em `inspetor01@gmail.com` (funcionario). Não digito senha
-  em campo de autenticação — o dono faz o login.
-- **Nenhuma linha de código da Fase 4 escrita.**
-
-### 20/08/2026 01:30–01:55 — BASELINE DE TEMPO COMPLETA
-- Corrigidas as duas divergências documentais autorizadas (Fase 3 → P2, Fase 5 → sem portão);
-- 5 execuções da abertura do Portal e 5 do clique num ativo, sessão `ipiranga@gmail.com` no Brave;
-- `portal_cliente`: mediana **693 ms**, pior caso 743 ms;
-- **t_lista** (lista utilizável): mediana **1.069 ms**, pior caso 1.510 ms (frio). Obtido do
-  Resource Timing, exato — o `portal_cliente` é o **último request antes da lista** nas 5
-  execuções (`requestsDepoisDoEdge = 0`);
-- **t_detalhe**: mediana **754 ms**, pior 954 ms, com **0 requests novos** — tudo já veio na
-  abertura, então é puro render;
-- payload: **31.403 bytes de JSON, 10.366 na rede** (compressão ~3×), 15 chaves;
-- **`nr13_rel_` sozinho é 9,3 KB = 30 % do payload**, e o índice que o substitui já vai junto
-  por 0,7 KB — é o alvo mais direto da fase;
-- **duas séries foram descartadas com o motivo registrado**, em vez de maquiadas: o polling de
-  `t_lista` (cards já existiam quando meu script rodou → `LIMITE_INFERIOR`) e a primeira série
-  de `t_detalhe` (o meu `history.back()` entre amostras distorceu, dispersão de 10×);
-- achado de latência anotado e **não corrigido**: o `portal_cliente` só começa depois de
-  **4 chamadas de auth em série** — cerca de 1/3 do tempo até a lista. Mexer nisso agora seria
-  refatoração lateral, que o dono vetou;
-- **nenhuma linha de código da Fase 4 escrita até aqui.**
+1. `git revert` dos commits de frontend;
+2. redeployar `supabase/functions/portal_cliente/index.anterior.ts` (byte-idêntico ao que
+   está no ar hoje, sha `a6909e38…`);
+3. nada foi migrado — rollback imediato, sem perda. As policies da Fase 0 permanecem e
+   continuam corretas com a Edge antiga.

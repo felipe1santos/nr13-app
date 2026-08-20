@@ -3,6 +3,8 @@ import { Icone, type NomeIcone } from '../../components/Icone';
 import { Link, useParams } from 'react-router-dom';
 import { ler } from '../../services/storage';
 import { listarHistorico, carregarRelatorio, filtrarFolhasFotoVazias, gravarMetaAtual, gravarInspecaoOrigemAtual } from '../../features/relatorios/relatoriosService';
+import { chaveRelatorio } from '../../features/relatorios/historicoRelatorios';
+import { buscarChaveSobDemanda } from '../../features/portal/portalService';
 import { exportarPdf } from '../../features/relatorios/pdfService';
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../../features/relatorios/printService';
 import AnexosRastreabPreview from '../../features/relatorios/AnexosRastreabPreview';
@@ -79,6 +81,10 @@ export default function PortalAtivo() {
   const [documentoSimples, setDocumentoSimples] = useState<DocumentoSimples | null>(null);
   const [imprimindo, setImprimindo] = useState(false);
   const [exportando, setExportando] = useState(false);
+  // Fase 4: o registro do relatório legado vem sob demanda, então a abertura pode esperar
+  // rede — e pode falhar. Sem estes dois, o clique ficaria mudo (o defeito do cb26450).
+  const [carregandoRelatorio, setCarregandoRelatorio] = useState(false);
+  const [erroPortal, setErroPortal] = useState<string | null>(null);
 
   const info = ler<InfoEquipamento>(`nr13_info_${tag}`);
   // `ref` é o caminho no bucket; `src` só continua preenchido nas fotos legadas.
@@ -195,8 +201,29 @@ export default function PortalAtivo() {
   async function abrirRelatorio(item: RelatorioIndiceItem) {
     // A lista é o ÍNDICE (leve). O relatório completo — `meta` e `documentos`,
     // que o fluxo legado precisa — só é carregado quando o cliente clica.
-    const r = carregarRelatorio(item.id, tag);
-    if (!r) return;
+    let r = carregarRelatorio(item.id, tag);
+    // Não está no cache porque a carga inicial deixou de trazer `nr13_rel_` (Fase 4): a
+    // listagem usa só o índice. Busca agora, pela Edge, com a mesma autorização.
+    //
+    // Para relatório COM `pdfRef` isto quase nunca dispara — `temArtefato` decide pelo
+    // índice, que já tem `pdfRef` e `sha256`. Quem realmente precisa do registro é o
+    // relatório LEGADO, que remonta os templates a partir de `meta` e `documentos`.
+    if (!r) {
+      try {
+        setCarregandoRelatorio(true);
+        await buscarChaveSobDemanda(chaveRelatorio(item.id, tag));
+        r = carregarRelatorio(item.id, tag);
+      } catch (e) {
+        setErroPortal(e instanceof Error ? e.message : String(e));
+        return;
+      } finally {
+        setCarregandoRelatorio(false);
+      }
+    }
+    if (!r) {
+      setErroPortal('Não foi possível carregar este relatório. Tente novamente.');
+      return;
+    }
     // ARTEFATO: relatório finalizado é só um arquivo. NÃO grava nada.
     //
     // As escritas abaixo existem para o fluxo legado — os templates leem
@@ -426,6 +453,22 @@ export default function PortalAtivo() {
   return (
     <div className="portal-pagina">
       <Link to="/portal" className="btn-secundario">← Todos os equipamentos</Link>
+
+      {/* Falha ao carregar documento sob demanda vira AVISO VISÍVEL (Fase 4). O clique mudo
+          é o defeito que o `cb26450` corrigiu; não vamos reintroduzi-lo por outro caminho. */}
+      {erroPortal && (
+        <p className="erro-form" role="alert" style={{ marginTop: 12 }}>
+          {erroPortal}{' '}
+          <button type="button" className="btn-secundario" onClick={() => setErroPortal(null)}>
+            Fechar
+          </button>
+        </p>
+      )}
+      {carregandoRelatorio && (
+        <p className="portal-hint" role="status" style={{ marginTop: 12 }}>
+          <span className="spinner" /> Carregando o relatório…
+        </p>
+      )}
 
       <div className="portal-detalhe">
         {/* ── Resumo do ativo (esquerda) ── */}
