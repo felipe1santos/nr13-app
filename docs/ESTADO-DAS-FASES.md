@@ -14,7 +14,9 @@
 Este é o bloqueio único no momento. Nada de produção anda antes disso.
 
 - O dono redeploya o `main` e avisa **`REDEPLOY CONCLUÍDO`**
-- O bundle válido para os testes precisa conter **`cb26450`** (ou posterior que o contenha)
+- **`main` está em `d5340ba`** (docs-only). O último commit de CÓDIGO é **`cb26450`**, e
+  `d5340ba` o contém (`git merge-base --is-ancestor cb26450 HEAD` = verdadeiro) — logo,
+  redeployar o `main` de hoje entrega o estado de código correto para os testes
 - Assim que chegar o aviso: confirmar o bundle no ar → **fechar o P1** → **fechar o P2**
 - **Fase 4: não começar.**
 

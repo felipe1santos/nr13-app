@@ -10,8 +10,9 @@
 
 - **Fase:** 3 — Conflitos: fechar o ciclo
 - **Estado:** IMPLEMENTADO · TESTADO LOCALMENTE · COMMITADO · PUSH MAIN · **produção PARCIAL**
-- **Último commit da fase:** `81cfd79` (16/08/2026) · **HEAD do repo:** `cb26450` (19/08/2026)
-- **Push main:** SIM — `HEAD == origin/main`, working tree limpo
+- **Último commit da fase:** `f074a64` (19/08/2026) · **HEAD do repo:** `d5340ba` (docs-only) ·
+  **último commit de código:** `cb26450`
+- **Push main:** SIM — `HEAD == origin/main == d5340ba`, working tree limpo
 - **Redeploy:** SIM para os commits de 16/08 (provado pelo uso em produção em 19/08).
   **PENDENTE DE CONFIRMAÇÃO** para os commits de 19/08 (`f074a64`, `e72dd38`, `cb26450`)
 - **Validação local:** SIM — suíte **1042/1042** em 84 arquivos, `npm run build` limpo (19/08/2026 21:56)
@@ -374,10 +375,9 @@ implementação. Eles são o material do teste manual **depois** do deploy — e
 
 - **Última coisa concluída:** correção da documentação desta fase contra o estado real do
   repositório (19/08/2026). Implementação da Fase 3 completa, commitada e no `main`.
-- **Commit atual:** `cb26450` (HEAD, == `origin/main`). Último commit da Fase 3 propriamente:
-  `f074a64`.
-- **Alterações locais:** nenhuma rastreada. Um arquivo novo não commitado:
-  `docs/medicoes/estado-arquitetural-atual.md` (auditoria de estado, produzida na sessão anterior).
+- **Commit atual:** `d5340ba` (HEAD, == `origin/main`, docs-only). Último commit de CÓDIGO:
+  `cb26450`. Último commit da Fase 3 propriamente: `f074a64`.
+- **Alterações locais:** **nenhuma.** Working tree limpo.
 - **Testes:** 1042/1042, 84 arquivos, 25 s. Verde.
 - **Build:** verde (`tsc -b && vite build`, só warnings de chunk size, nenhum erro).
 - **Deploy:** **AGUARDANDO REDEPLOY.** Os commits de 16/08 estão em produção (provado pelo uso).
