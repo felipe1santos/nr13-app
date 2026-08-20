@@ -50,9 +50,18 @@ vi.mock('./supabase', () => ({
 
 // Cofre em memória: o IndexedDB real não existe no vitest, e o que importa aqui
 // é o CONTRATO (o blob é guardado antes do upload e sobrevive à falha dele).
-const cofre = vi.hoisted(() => ({ mapa: new Map<string, Record<string, unknown>>() }));
+const cofre = vi.hoisted(() => ({
+  mapa: new Map<string, Record<string, unknown>>(),
+  /** >0 = a N-ésima gravação em diante falha. Usado no teste da D-18. */
+  falharAPartirDe: 0,
+  gravacoes: 0,
+}));
 vi.mock('./fotoStore', () => ({
-  guardar: vi.fn(async (f: Record<string, unknown>) => void cofre.mapa.set(f.path as string, f)),
+  guardar: vi.fn(async (f: Record<string, unknown>) => {
+    cofre.gravacoes++;
+    if (cofre.falharAPartirDe && cofre.gravacoes >= cofre.falharAPartirDe) throw new Error('cofre cheio');
+    cofre.mapa.set(f.path as string, f);
+  }),
   obter: vi.fn(async (p: string) => cofre.mapa.get(p) ?? null),
   listarPendentes: vi.fn(async () => [...cofre.mapa.values()].filter((f) => f.pendente)),
   marcarEnviada: vi.fn(async (p: string) => {
@@ -75,6 +84,7 @@ import {
   ehRef,
   limparCacheDeUrls,
   montarPath,
+  caminhoDaMiniatura,
   removerFoto,
   resolverFoto,
   salvarFoto,
@@ -84,8 +94,16 @@ import {
 // A compressão usa canvas, que não existe no vitest. Mockada aqui para o teste
 // cobrir o que é lógica — caminho, cofre, upload, fila e resolução. A compressão
 // real é exercitada na validação pelo navegador.
+const imagem = vi.hoisted(() => ({ falhaMiniatura: false }));
 vi.mock('./imagem', () => ({
   comprimirParaBlob: vi.fn(async () => new Blob(['imagem-binaria-falsa'])),
+  gerarMiniatura: vi.fn(async () => {
+    if (imagem.falhaMiniatura) throw new Error('canvas sem memória');
+    return new Blob(['mini']);
+  }),
+  PRINCIPAL_LARGURA: 1200,
+  PRINCIPAL_ALTURA: 1600,
+  PRINCIPAL_QUALIDADE: 0.7,
 }));
 
 function arquivoFalso(nome = 'foto.jpg'): File {
@@ -94,10 +112,13 @@ function arquivoFalso(nome = 'foto.jpg'): File {
 
 beforeEach(() => {
   cofre.mapa.clear();
+  cofre.falharAPartirDe = 0;
+  cofre.gravacoes = 0;
   estado.uploads = [];
   estado.removidos = [];
   estado.erroUpload = null;
   estado.assinadas = 0;
+  imagem.falhaMiniatura = false;
   limparCacheDeUrls();
   (globalThis as Record<string, unknown>).URL = Object.assign(globalThis.URL ?? {}, {
     createObjectURL: () => 'blob:local/fake',
@@ -148,7 +169,8 @@ describe('salvar foto', () => {
     // O que vai para o app_storage não pode conter imagem nenhuma.
     expect(JSON.stringify(ref)).not.toContain('data:image');
     expect(JSON.stringify(ref)).not.toContain('base64');
-    expect(estado.uploads).toHaveLength(1);
+    // Principal + miniatura (Fase 5). A principal é sempre a primeira.
+    expect(estado.uploads).toHaveLength(2);
     expect(estado.uploads[0].path).toBe(ref.path);
   });
 
@@ -162,7 +184,8 @@ describe('salvar foto', () => {
     const tamanhoRef = JSON.stringify(ref).length;
     // Uma foto de inspeção comprimida a 800px pesa ~180 KB; em base64, ~240 KB.
     const tamanhoBase64Tipico = 240 * 1024;
-    expect(tamanhoRef).toBeLessThan(300);
+    // Com a miniatura da Fase 5 o registro tem DUAS referências e ainda cabe em meio KB.
+    expect(tamanhoRef).toBeLessThan(600);
     expect(tamanhoBase64Tipico / tamanhoRef).toBeGreaterThan(500);
   });
 });
@@ -174,7 +197,8 @@ describe('offline', () => {
     const ref = await salvarFoto(arquivoFalso(), 'ACA 2002');
 
     expect(estado.uploads).toHaveLength(0);
-    expect(await contarFotosPendentes()).toBe(1);
+    // Principal + miniatura: as duas nascem pendentes e as duas estão no aparelho.
+    expect(await contarFotosPendentes()).toBe(2);
     // A ÚNICA cópia da foto continua no aparelho.
     expect(cofre.mapa.get(ref.path)?.pendente).toBe(true);
     expect(cofre.mapa.get(ref.path)?.blob).toBeInstanceOf(Blob);
@@ -199,7 +223,7 @@ describe('offline', () => {
 
     const r = await drenarFotosPendentes();
 
-    expect(r.enviadas).toBe(1);
+    expect(r.enviadas).toBe(2); // principal + miniatura, cada uma por sua conta
     expect(await contarFotosPendentes()).toBe(0);
     expect(cofre.mapa.get(ref.path)?.pendente).toBe(false);
   });
@@ -257,12 +281,104 @@ describe('remover foto', () => {
     const ref = await salvarFoto(arquivoFalso(), 'ACA 2002');
     await removerFoto(ref);
 
-    expect(estado.removidos[0]).toEqual([ref.path]);
+    expect(estado.removidos[0]).toEqual([ref.path, caminhoDaMiniatura(ref.path)]);
     expect(cofre.mapa.has(ref.path)).toBe(false);
   });
 
   it('referência ausente não vira erro', async () => {
     await expect(removerFoto(undefined)).resolves.toBeUndefined();
     expect(estado.removidos).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Fase 5 — miniatura
+// ---------------------------------------------------------------------------
+describe('miniatura (Fase 5)', () => {
+  it('nasce irmã da principal, na MESMA pasta — a policy do bucket não muda', async () => {
+    const ref = await salvarFoto(arquivoFalso(), 'ACA 2002');
+
+    expect(ref.thumb).toBeDefined();
+    expect(ref.thumb!.path).toBe(caminhoDaMiniatura(ref.path));
+    expect(ref.thumb!.path.startsWith(`${ORG}/ACA_2002/`)).toBe(true);
+    // Mesma primeira pasta = mesma organização = mesma policy (I-22).
+    expect(ref.thumb!.path.split('/')[0]).toBe(ref.path.split('/')[0]);
+  });
+
+  it('é um OBJETO com `path`, não um campo string — é isso que o Portal autoriza', async () => {
+    const ref = await salvarFoto(arquivoFalso(), 'ACA 2002');
+    // `portal_arquivo.coletarPaths` recolhe todo objeto que tenha `path`.
+    // Uma string solta não seria recolhida e o cliente receberia `nao_disponivel`.
+    expect(typeof ref.thumb).toBe('object');
+    expect(typeof ref.thumb!.path).toBe('string');
+    expect(ref.thumb!.bucket).toBe(BUCKET);
+  });
+
+  it('as duas variantes vão ao cofre ANTES da rede', async () => {
+    const ref = await salvarFoto(arquivoFalso(), 'ACA 2002');
+    expect(cofre.mapa.has(ref.path)).toBe(true);
+    expect(cofre.mapa.has(ref.thumb!.path)).toBe(true);
+  });
+
+  it('D-18 · falha ao GERAR a miniatura não custa a foto', async () => {
+    imagem.falhaMiniatura = true;
+    const ref = await salvarFoto(arquivoFalso(), 'ACA 2002');
+
+    expect(ehRef(ref)).toBe(true);
+    expect(ref.thumb).toBeUndefined();
+    expect(cofre.mapa.has(ref.path)).toBe(true);
+    expect(estado.uploads.map((u) => u.path)).toEqual([ref.path]);
+  });
+
+  it('D-18 · falha ao GRAVAR a miniatura no cofre não custa a foto', async () => {
+    cofre.falharAPartirDe = 2; // a 1ª gravação (a principal) passa; a 2ª (a miniatura) quebra
+    const ref = await salvarFoto(arquivoFalso(), 'ACA 2002');
+
+    expect(ehRef(ref)).toBe(true);
+    expect(ref.thumb).toBeUndefined();
+    expect(cofre.mapa.has(ref.path)).toBe(true);
+  });
+
+  it('falha de UPLOAD da miniatura não desfaz nada — ela fica pendente como a principal', async () => {
+    estado.erroUpload = { message: 'sem rede' };
+    const ref = await salvarFoto(arquivoFalso(), 'ACA 2002');
+
+    expect(ref.thumb).toBeDefined();
+    expect(cofre.mapa.get(ref.thumb!.path)?.pendente).toBe(true);
+    expect(cofre.mapa.get(ref.path)?.pendente).toBe(true);
+  });
+});
+
+describe('resolver por variante', () => {
+  it('variante `thumb` usa a miniatura', async () => {
+    const ref = await salvarFoto(arquivoFalso(), 'ACA 2002');
+    cofre.mapa.delete(ref.path); // força ir ao bucket para poder ver qual caminho foi pedido
+    cofre.mapa.delete(ref.thumb!.path);
+
+    const url = await resolverFoto({ ref }, { variante: 'thumb' });
+    expect(url).toContain(ref.thumb!.path);
+  });
+
+  it('sem variante, continua sendo a principal — nenhuma tela muda sem ser tocada', async () => {
+    const ref = await salvarFoto(arquivoFalso(), 'ACA 2002');
+    cofre.mapa.delete(ref.path);
+    cofre.mapa.delete(ref.thumb!.path);
+
+    const url = await resolverFoto({ ref });
+    expect(url).toContain(ref.path);
+    expect(url).not.toContain('.thumb.jpg');
+  });
+
+  it('foto ANTIGA (sem miniatura) pedida como thumb cai na principal', async () => {
+    const ref: RefFoto = {
+      bucket: BUCKET, path: `${ORG}/x/antiga.jpg`, mimeType: 'image/jpeg', tamanho: 10,
+    };
+    const url = await resolverFoto({ ref }, { variante: 'thumb' });
+    expect(url).toContain('antiga.jpg');
+  });
+
+  it('base64 legado continua aparecendo mesmo pedindo thumb', async () => {
+    const legado = 'data:image/jpeg;base64,AAAA';
+    expect(await resolverFoto({ base64: legado }, { variante: 'thumb' })).toBe(legado);
   });
 });

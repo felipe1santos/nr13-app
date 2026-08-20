@@ -26,7 +26,13 @@
  */
 import { supabase, escopoStorageAtual } from './supabase';
 import * as cofre from './fotoStore';
-import { comprimirParaBlob } from './imagem';
+import {
+  comprimirParaBlob,
+  gerarMiniatura,
+  PRINCIPAL_ALTURA,
+  PRINCIPAL_LARGURA,
+  PRINCIPAL_QUALIDADE,
+} from './imagem';
 import { ehCliente } from './papelSessao';
 
 export const BUCKET = 'inspecao';
@@ -38,7 +44,29 @@ export interface RefFoto {
   mimeType: string;
   /** Bytes do arquivo enviado (não do base64). */
   tamanho: number;
+  /**
+   * MINIATURA (Fase 5) — 400 px, para card, lista e galeria. **Opcional**:
+   * ausente em toda foto anterior a 20/08/2026 e em toda foto cuja miniatura
+   * falhou, e nesses casos o consumidor cai na principal.
+   *
+   * É um OBJETO com a mesma forma da referência principal, e não um campo
+   * `thumbPath: string`. O motivo é a Edge `portal_arquivo`: ela autoriza por
+   * FORMA — `coletarPaths` varre o JSON e recolhe todo objeto que tenha `path`.
+   * Uma string solta não seria recolhida, o conjunto autorizado não conteria a
+   * miniatura, e o Portal responderia `nao_disponivel` para ela. Como objeto, a
+   * miniatura herda exatamente a mesma autorização da principal, **sem deploy
+   * de Edge e sem exceção de policy**.
+   */
+  thumb?: {
+    bucket: string;
+    path: string;
+    mimeType: string;
+    tamanho: number;
+  };
 }
+
+/** Qual variante da foto o consumidor quer. `cheia` é sempre o padrão. */
+export type VarianteFoto = 'cheia' | 'thumb';
 
 /** Uma foto vinda do banco: nova (ref) ou legada (base64 na string). */
 export interface FotoArmazenada {
@@ -89,6 +117,19 @@ export function montarPath(orgId: string, escopo: string, ext = 'jpg'): string {
   return `${orgId}/${limpo}/${crypto.randomUUID()}.${ext}`;
 }
 
+/**
+ * Caminho IRMÃO da miniatura: `<uuid>.jpg` → `<uuid>.thumb.jpg`.
+ *
+ * Irmão, e não uma subpasta `thumbs/`, porque a policy do bucket compara
+ * `storage.foldername(name)[1]` com a organização. Manter as duas na MESMA
+ * pasta faz a miniatura herdar a policy da principal sem alteração nenhuma de
+ * SQL (I-22). Derivar da principal em vez de sortear um uuid novo também dá de
+ * graça: dado o caminho de uma, sabe-se o da outra.
+ */
+export function caminhoDaMiniatura(path: string): string {
+  return `${path.replace(/\.[^./]+$/, '')}.thumb.jpg`;
+}
+
 async function orgAtual(): Promise<string | null> {
   const escopo = await escopoStorageAtual();
   return escopo?.id ?? null;
@@ -112,8 +153,48 @@ export async function salvarFoto(
   escopo: string,
   opcoes: { larguraMax?: number; qualidade?: number } = {},
 ): Promise<RefFoto> {
-  const blob = await comprimirParaBlob(file, opcoes.larguraMax ?? 1200, opcoes.qualidade ?? 0.7);
-  return salvarArquivo(blob, escopo, 'jpg', 'image/jpeg');
+  const blob = await comprimirParaBlob(
+    file,
+    opcoes.larguraMax ?? PRINCIPAL_LARGURA,
+    opcoes.qualidade ?? PRINCIPAL_QUALIDADE,
+    PRINCIPAL_ALTURA,
+  );
+  // A PRINCIPAL É SALVA E DEVOLVIDA ANTES DE QUALQUER COISA (D-18). Deste ponto
+  // em diante nada pode desfazer a foto que o inspetor acabou de tirar.
+  const ref = await salvarArquivo(blob, escopo, 'jpg', 'image/jpeg');
+  return (await anexarMiniatura(ref, blob)) ?? ref;
+}
+
+/**
+ * Acrescenta a miniatura à referência — **best-effort, nunca atômico** (D-18).
+ *
+ * A atomicidade aqui protegeria a coisa errada. O invariante I-01 (dado + fila
+ * na mesma transação) existe porque dado sem fila nunca sobe e fila sem dado
+ * sobe lixo: os dois lados são necessários para a correção. Aqui não: a
+ * principal sozinha é um estado COMPLETO, indistinguível do de toda foto tirada
+ * antes desta fase. A miniatura é acelerador.
+ *
+ * Exigir atomicidade inverteria a prioridade: um erro ao rasterizar — canvas sem
+ * memória, imagem exótica, aba em segundo plano no celular — faria **perder a
+ * foto de campo**, que é o único desfecho inaceitável do sistema inteiro.
+ *
+ * Devolve `null` em qualquer falha, e quem chamou fica com a referência
+ * principal, que é válida e é o que as fotos antigas sempre foram.
+ *
+ * A miniatura sai da PRINCIPAL, não do arquivo original: 1200 px decodifica
+ * muito mais barato que 4032 px num celular, a orientação já vem resolvida do
+ * primeiro passo, e a 400 px a recompressão não é distinguível.
+ */
+async function anexarMiniatura(ref: RefFoto, principal: Blob): Promise<RefFoto | null> {
+  try {
+    const mini = await gerarMiniatura(principal);
+    const refMini = await guardarEEnviar(caminhoDaMiniatura(ref.path), mini, 'image/jpeg');
+    return { ...ref, thumb: refMini };
+  } catch {
+    // Registro sem miniatura é válido, esperado, e já exercitado por todas as
+    // fotos anteriores a esta fase. Só não pode custar a foto.
+    return null;
+  }
 }
 
 /**
@@ -140,7 +221,17 @@ export async function salvarArquivo(
   const org = await orgAtual();
   if (!org) throw new Error('sem organização ativa: entre novamente para anexar arquivos');
 
-  const path = montarPath(org, escopo, ext);
+  return guardarEEnviar(montarPath(org, escopo, ext), blob, mimeType);
+}
+
+/**
+ * Cofre primeiro, upload depois — para um caminho JÁ DECIDIDO.
+ *
+ * Separada de `salvarArquivo` porque a miniatura não sorteia caminho: ela é
+ * irmã da principal (`caminhoDaMiniatura`). O comportamento é o mesmo dos dois
+ * lados, e é o que faz a foto sobreviver à rede.
+ */
+async function guardarEEnviar(path: string, blob: Blob, mimeType: string): Promise<RefFoto> {
   const ref: RefFoto = { bucket: BUCKET, path, mimeType, tamanho: blob.size };
 
   await cofre.guardar({
@@ -352,29 +443,45 @@ async function urlAssinada(path: string): Promise<string | null> {
  * `null` quando não há nada — a UI decide o que mostrar no lugar, e nunca uma
  * imagem quebrada.
  */
-export async function resolverFoto(foto: FotoArmazenada | string | null | undefined): Promise<string | null> {
+export async function resolverFoto(
+  foto: FotoArmazenada | string | null | undefined,
+  opcoes: { variante?: VarianteFoto } = {},
+): Promise<string | null> {
   if (!foto) return null;
   if (typeof foto === 'string') return ehBase64(foto) ? foto : null;
 
   if (foto.ref?.path) {
-    const path = foto.ref.path;
-    const jaCriado = objetos.get(path);
-    if (jaCriado) return jaCriado;
-    try {
-      const local = await cofre.obter(path);
-      if (local) {
-        const url = URL.createObjectURL(local.blob);
-        objetos.set(path, url);
-        return url;
-      }
-    } catch {
-      // cofre indisponível: segue para o bucket
+    // Miniatura quando ela existe E foi pedida. Sem miniatura — foto antiga, ou
+    // foto cuja miniatura falhou — cai na principal, que é o comportamento de
+    // sempre. Nenhuma tela precisa saber a diferença.
+    if (opcoes.variante === 'thumb' && foto.ref.thumb?.path) {
+      const url = await resolverCaminho(foto.ref.thumb.path);
+      // Miniatura ainda não enviada por este aparelho e ausente no bucket: cai
+      // na principal em vez de mostrar moldura vazia.
+      if (url) return url;
     }
-    const assinada = await urlAssinada(path);
-    if (assinada) return assinada;
+    const url = await resolverCaminho(foto.ref.path);
+    if (url) return url;
   }
 
   return ehBase64(foto.base64) ? (foto.base64 as string) : null;
+}
+
+/** Blob local (instantâneo, offline, egress zero) → URL assinada → `null`. */
+async function resolverCaminho(path: string): Promise<string | null> {
+  const jaCriado = objetos.get(path);
+  if (jaCriado) return jaCriado;
+  try {
+    const local = await cofre.obter(path);
+    if (local) {
+      const url = URL.createObjectURL(local.blob);
+      objetos.set(path, url);
+      return url;
+    }
+  } catch {
+    // cofre indisponível: segue para o bucket
+  }
+  return urlAssinada(path);
 }
 
 /**
@@ -436,21 +543,29 @@ export function blobParaDataUrl(blob: Blob): Promise<string> {
  */
 export async function removerFoto(ref: RefFoto | undefined | null): Promise<void> {
   if (!ref?.path) return;
-  assinadas.delete(ref.path);
-  const objeto = objetos.get(ref.path);
-  if (objeto) {
-    URL.revokeObjectURL(objeto);
-    objetos.delete(ref.path);
+  // A miniatura vai junto: ela não tem existência própria, é uma projeção da
+  // principal. Deixá-la para trás criaria órfão a cada exclusão.
+  const caminhos = [ref.path, ...(ref.thumb?.path ? [ref.thumb.path] : [])];
+
+  for (const path of caminhos) {
+    assinadas.delete(path);
+    const objeto = objetos.get(path);
+    if (objeto) {
+      URL.revokeObjectURL(objeto);
+      objetos.delete(path);
+    }
   }
   try {
-    await supabase.storage.from(BUCKET).remove([ref.path]);
+    await supabase.storage.from(BUCKET).remove(caminhos);
   } catch {
     // arquivo órfão no bucket é aceitável; perder a ação do usuário não é
   }
-  try {
-    await cofre.remover(ref.path);
-  } catch {
-    // idem
+  for (const path of caminhos) {
+    try {
+      await cofre.remover(path);
+    } catch {
+      // idem
+    }
   }
 }
 

@@ -443,14 +443,14 @@ Ordem de execução e de commit. Cada bloco fecha em commit próprio.
 - [x] **Commit 1** — `feat(imagem): orientação explícita e teto de altura`
 
 ### T2 — `fotos.ts`: variante miniatura (D-18)
-- [ ] `RefFoto.thumb?` como **objeto** (D5-10), opcional
-- [ ] `salvarFoto` na ordem da D-18 — principal salva e devolvida **antes** de qualquer tentativa de miniatura
-- [ ] Três `catch` independentes: gerar / gravar no cofre / completar o registro
-- [ ] `resolverFoto(foto, { variante })` — `'thumb'` usa `thumb.path`, cai na principal quando não existe
-- [ ] `baixarFoto` **inalterada** (é o caminho do documento)
-- [ ] `removerFoto` apaga também a miniatura
-- [ ] `fotos.test.ts` estendido: 3 pontos de falha, registro sem thumb, resolução por variante
-- [ ] **Commit 2** — `feat(fotos): variante miniatura com fallback para a principal`
+- [x] `RefFoto.thumb?` como **objeto** (D5-10), opcional
+- [x] `salvarFoto` na ordem da D-18 — principal salva e devolvida **antes** de qualquer tentativa de miniatura
+- [x] Três `catch` independentes: gerar / gravar no cofre / completar o registro
+- [x] `resolverFoto(foto, { variante })` — `'thumb'` usa `thumb.path`, cai na principal quando não existe
+- [x] `baixarFoto` **inalterada** (é o caminho do documento)
+- [x] `removerFoto` apaga também a miniatura
+- [x] `fotos.test.ts` estendido: 3 pontos de falha, registro sem thumb, resolução por variante
+- [x] **Commit 2** — `feat(fotos): variante miniatura com fallback para a principal`
 
 ### T3 — `FotoImg` e consumidores de miniatura
 - [ ] `variante?: 'thumb' | 'cheia'`, default `'cheia'`
@@ -567,6 +567,7 @@ ficha, o card da lista é o único consumidor de miniatura que importa, e a esco
 | 20/08 04:35 | Baseline, arquitetura, tarefas, critérios, riscos e rollback escritos | ✅ |
 | 20/08 04:40 | Pedido do dono ("uma imagem por ficha") registrado, aguardando definição | ✅ |
 | 20/08 05:05 | Decisões A-1 a A-4 aprovadas; revisão de impacto concluída; D5-10 criada (miniatura é objeto, não string) | ✅ |
+| 20/08 05:40 | **T2 concluída** — `RefFoto.thumb` como objeto, D-18 na ordem certa, `resolverFoto` por variante, `removerFoto` cobrindo as duas. Suíte **1088/1088** | ✅ |
 | 20/08 05:15 | **T1 concluída** — `dimensionar`, `abrirImagem`, `gerarMiniatura`, `imagem.test.ts` com 15 testes verdes | ✅ |
 
 ---
