@@ -377,6 +377,8 @@ export function limparCacheDeUrls(): void {
   for (const url of objetos.values()) URL.revokeObjectURL(url);
   objetos.clear();
   assinadas.clear();
+  emVoo.clear();
+  miniaturasEmVoo.clear();
 }
 
 /**
@@ -412,10 +414,35 @@ async function urlAssinadaPortal(path: string): Promise<string | null> {
   }
 }
 
-async function urlAssinada(path: string): Promise<string | null> {
-  const cacheado = assinadas.get(path);
-  if (cacheado && cacheado.expiraEm > Date.now()) return cacheado.url;
+/**
+ * Assinaturas EM VOO, por caminho (achado N-02).
+ *
+ * O cache `assinadas` só é preenchido quando a chamada VOLTA. Enquanto ela está
+ * no ar, todo mundo que pedir o mesmo caminho erra o cache e dispara a sua
+ * própria. Medido em 20/08/2026 na galeria da ficha: **11 assinaturas para 10
+ * caminhos distintos** — a foto de capa é pedida ao mesmo tempo pela capa da
+ * ficha e pelo item da galeria. O desperdício cresce com o tamanho da lista.
+ *
+ * Guardar a PROMESSA, e não só o resultado, faz os dois consumidores esperarem
+ * a mesma requisição.
+ */
+const emVoo = new Map<string, Promise<string | null>>();
 
+function urlAssinada(path: string): Promise<string | null> {
+  const cacheado = assinadas.get(path);
+  if (cacheado && cacheado.expiraEm > Date.now()) return Promise.resolve(cacheado.url);
+
+  const jaPedida = emVoo.get(path);
+  if (jaPedida) return jaPedida;
+
+  // `finally` e não `then`: a entrada em voo tem de sair TAMBÉM quando falha,
+  // senão uma falha de rede congelaria aquele caminho pelo resto da sessão.
+  const pedido = assinarAgora(path).finally(() => emVoo.delete(path));
+  emVoo.set(path, pedido);
+  return pedido;
+}
+
+async function assinarAgora(path: string): Promise<string | null> {
   if (ehCliente()) {
     const url = await urlAssinadaPortal(path);
     if (!url) return null;
@@ -488,7 +515,20 @@ export async function resolverFoto(
  * Falhar aqui não pode custar a exibição: qualquer erro devolve a URL assinada,
  * que é exatamente o comportamento de antes desta mudança.
  */
-async function resolverMiniatura(path: string): Promise<string | null> {
+const miniaturasEmVoo = new Map<string, Promise<string | null>>();
+
+function resolverMiniatura(path: string): Promise<string | null> {
+  // Mesma regra do N-02 um nível acima: dois cards pedindo a MESMA miniatura ao
+  // mesmo tempo baixariam os bytes duas vezes, porque tanto o cofre quanto o
+  // mapa de objectURL só são preenchidos no fim.
+  const jaPedida = miniaturasEmVoo.get(path);
+  if (jaPedida) return jaPedida;
+  const pedido = baixarMiniatura(path).finally(() => miniaturasEmVoo.delete(path));
+  miniaturasEmVoo.set(path, pedido);
+  return pedido;
+}
+
+async function baixarMiniatura(path: string): Promise<string | null> {
   const jaCriado = objetos.get(path);
   if (jaCriado) return jaCriado;
   try {

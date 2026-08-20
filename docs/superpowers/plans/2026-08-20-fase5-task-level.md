@@ -467,11 +467,11 @@ Ordem de execução e de commit. Cada bloco fecha em commit próprio.
 - [x] **Commit 4** — `perf(fotos): cofre guarda a miniatura baixada`
 
 ### T7 — N-02: uma assinatura em voo por caminho
-- [ ] `urlAssinada` guarda a **promessa** em `emVoo: Map<string, Promise>`, não só o resultado
-- [ ] Vale para os dois caminhos (SDK interno e Edge do Portal)
-- [ ] A entrada em voo é limpa ao resolver, inclusive em falha
-- [ ] Teste: N chamadas simultâneas ao mesmo caminho = 1 requisição
-- [ ] **Commit 5** — `perf(fotos): uma assinatura em voo por caminho`
+- [x] `urlAssinada` guarda a **promessa** em `emVoo: Map<string, Promise>`, não só o resultado
+- [x] Vale para os dois caminhos (SDK interno e Edge do Portal)
+- [x] A entrada em voo é limpa ao resolver, inclusive em falha
+- [x] Teste: N chamadas simultâneas ao mesmo caminho = 1 requisição
+- [x] **Commit 5** — `perf(fotos): uma assinatura em voo por caminho`
 
 ### T8 — Ficha do equipamento: uma foto de identificação
 - [ ] `Galeria.tsx` vira **slot único** (`FotoIdentificacao`): adicionar / trocar / remover
@@ -567,6 +567,7 @@ ficha, o card da lista é o único consumidor de miniatura que importa, e a esco
 | 20/08 04:35 | Baseline, arquitetura, tarefas, critérios, riscos e rollback escritos | ✅ |
 | 20/08 04:40 | Pedido do dono ("uma imagem por ficha") registrado, aguardando definição | ✅ |
 | 20/08 05:05 | Decisões A-1 a A-4 aprovadas; revisão de impacto concluída; D5-10 criada (miniatura é objeto, não string) | ✅ |
+| 20/08 06:15 | **T7 concluída (N-02)** — assinatura e download de miniatura deduplicados por caminho; falha não congela o caminho. Suíte **1097/1097** | ✅ |
 | 20/08 06:05 | **T6 concluída (N-01)** — miniatura baixada vai para o cofre como já enviada; principal segue sob demanda. Suíte **1094/1094** | ✅ |
 | 20/08 05:55 | **T3 concluída** — `FotoImg` com `variante`, 15 pontos de miniatura, `Equipamento.tsx` intocado, teste do palco. Suíte **1090/1090** | ✅ |
 | 20/08 05:40 | **T2 concluída** — `RefFoto.thumb` como objeto, D-18 na ordem certa, `resolverFoto` por variante, `removerFoto` cobrindo as duas. Suíte **1088/1088** | ✅ |

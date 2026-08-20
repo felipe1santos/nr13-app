@@ -21,6 +21,7 @@ const estado = vi.hoisted(() => ({
   erroUpload: null as { message: string } | null,
   assinadas: 0,
   caminhosAssinados: [] as string[],
+  assinaturaFalha: false,
 }));
 
 vi.mock('./supabase', () => ({
@@ -33,6 +34,7 @@ vi.mock('./supabase', () => ({
           return { data: { path }, error: null };
         }),
         createSignedUrl: vi.fn(async (path: string) => {
+          if (estado.assinaturaFalha) return { data: null, error: { message: 'sem permissão' } };
           estado.assinadas++;
           estado.caminhosAssinados.push(path);
           return { data: { signedUrl: `https://bucket.exemplo/${path}?token=abc` }, error: null };
@@ -122,6 +124,7 @@ beforeEach(() => {
   estado.erroUpload = null;
   estado.assinadas = 0;
   estado.caminhosAssinados = [];
+  estado.assinaturaFalha = false;
   imagem.falhaMiniatura = false;
   limparCacheDeUrls();
   (globalThis as Record<string, unknown>).URL = Object.assign(globalThis.URL ?? {}, {
@@ -449,5 +452,56 @@ describe('N-01 · miniatura baixada vira cache local', () => {
     const url = await resolverFoto({ ref }, { variante: 'thumb' });
     expect(url).toContain('https://bucket.exemplo/');
     expect(cofre.mapa.has(ref.thumb!.path)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// N-02 — uma assinatura em voo por caminho
+// ---------------------------------------------------------------------------
+describe('N-02 · pedidos simultâneos do mesmo caminho', () => {
+  it('N consumidores pedindo a mesma foto = UMA assinatura', async () => {
+    const ref: RefFoto = { bucket: BUCKET, path: `${ORG}/x/capa.jpg`, mimeType: 'image/jpeg', tamanho: 10 };
+
+    // É o caso medido em produção: a capa é pedida ao mesmo tempo pela capa da
+    // ficha e pelo item da galeria — 11 assinaturas para 10 caminhos.
+    const urls = await Promise.all([
+      resolverFoto({ ref }),
+      resolverFoto({ ref }),
+      resolverFoto({ ref }),
+    ]);
+
+    expect(estado.assinadas).toBe(1);
+    expect(new Set(urls).size).toBe(1);
+  });
+
+  it('a miniatura também: três cards, um download', async () => {
+    const ref: RefFoto = {
+      bucket: BUCKET, path: `${ORG}/x/f.jpg`, mimeType: 'image/jpeg', tamanho: 10,
+      thumb: { bucket: BUCKET, path: `${ORG}/x/f.thumb.jpg`, mimeType: 'image/jpeg', tamanho: 5 },
+    };
+    let baixados = 0;
+    (globalThis as Record<string, unknown>).fetch = async () => {
+      baixados++;
+      return { ok: true, blob: async () => new Blob(['mini'], { type: 'image/jpeg' }) };
+    };
+
+    await Promise.all([
+      resolverFoto({ ref }, { variante: 'thumb' }),
+      resolverFoto({ ref }, { variante: 'thumb' }),
+      resolverFoto({ ref }, { variante: 'thumb' }),
+    ]);
+
+    expect(estado.assinadas).toBe(1);
+    expect(baixados).toBe(1);
+  });
+
+  it('falha NÃO congela o caminho para o resto da sessão', async () => {
+    const ref: RefFoto = { bucket: BUCKET, path: `${ORG}/x/z.jpg`, mimeType: 'image/jpeg', tamanho: 10 };
+    estado.assinaturaFalha = true;
+    expect(await resolverFoto({ ref })).toBeNull();
+
+    estado.assinaturaFalha = false;
+    const url = await resolverFoto({ ref });
+    expect(url).toContain('https://bucket.exemplo/');
   });
 });
