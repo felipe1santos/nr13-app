@@ -6,7 +6,7 @@ import { excluirVaso, ler } from '../services/storage';
 import SeletorUnidade from '../features/equipamento/SeletorUnidade';
 import DadosEquipamento from '../features/equipamento/DadosEquipamento';
 import DadosEmpresa from '../features/equipamento/DadosEmpresa';
-import Galeria from '../features/equipamento/Galeria';
+import FotoIdentificacao from '../features/equipamento/FotoIdentificacao';
 import CategoriaNR13 from '../features/categoria/CategoriaNR13';
 import BadgeTipoEquipamento from '../features/equipamento/BadgeTipoEquipamento';
 import VidaRemanescente from '../features/equipamento/VidaRemanescente';
@@ -219,7 +219,7 @@ function EquipamentoView({ tag }: { tag: string }) {
             </div>
           </div>
 
-          <Galeria tag={tag} />
+          <FotoIdentificacao tag={tag} />
         </div>
 
         <div className="equipamento-foto-principal">
