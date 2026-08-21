@@ -4,7 +4,8 @@ import { listarFuncionarios, salvarFuncionario, excluirFuncionario } from '../fe
 import type { Funcionario } from '../features/cadastros/tipos';
 import { PAGINAS_PRONTUARIO } from '../features/prontuarios/tipos';
 import { FOLHAS_RELATORIO_ASSINAVEIS } from '../features/relatorios/tipos';
-import { comprimirImagem, processarAssinatura } from '../services/imagem';
+import { comprimirImagem, processarAssinaturaComBlob } from '../services/imagem';
+import { paraGravar, ESCOPO_ASSINATURA } from '../services/identidadeVisual';
 import './cadastros.css';
 
 type Tela = 'lista' | 'formulario';
@@ -149,7 +150,11 @@ export default function Funcionarios() {
     // Assinatura passa por tratamento próprio: remove o fundo (branco/preto/foto) e gera PNG
     // transparente — JPEG (comprimirImagem) mata a transparência e vira quadrado preto na folha.
     try {
-      set('assinatura', await processarAssinatura(file));
+      // FASE 7B — gravação dupla (D-11): a dataURL continua na chave viva, e a
+      // referência entra quando o servidor confirma o arquivo. Ver MinhaEmpresa
+      // para o custo declarado da convivência.
+      const { dataUrl, ref } = await paraGravar(await processarAssinaturaComBlob(file), ESCOPO_ASSINATURA);
+      setForm((f) => ({ ...f, assinatura: dataUrl, ...(ref ? { assinaturaRef: ref } : {}) }));
     } catch {
       try {
         set('assinatura', await comprimirImagem(file, 400));

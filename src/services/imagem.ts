@@ -163,8 +163,34 @@ export function gerarMiniatura(
 // localStorage e são pequenas (300–500px, poucos KB), então não justificam ida
 // ao bucket — ver a nota em `processarAssinatura` sobre o que ainda custam.
 // Fotos de equipamento e de inspeção usam comprimirParaBlob acima.
-export function comprimirImagem(file: File, larguraMax = 500): Promise<string> {
+/**
+ * FASE 7B — o dataURL **e** os bytes que o originaram.
+ *
+ * O SHA-256 do arquivo endereçado por conteúdo precisa representar **exatamente**
+ * os bytes que a imagem tem. Por isso o blob é a fonte e o dataURL é derivado
+ * dele, e não o contrário: `canvas.toBlob` e `canvas.toDataURL` são dois
+ * caminhos de codificação distintos e nada garante que produzam byte a byte a
+ * mesma coisa. Gerar os dois independentemente daria um hash que não descreve o
+ * que está no registro.
+ */
+export interface ImagemProcessada {
+  /** O que os templates leem hoje. */
+  dataUrl: string;
+  /** Os bytes de onde o dataURL saiu — é sobre eles que o hash é calculado. */
+  blob: Blob;
+}
+
+function blobParaDataUrlLocal(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.onerror = () => reject(r.error ?? new Error('falha ao ler a imagem'));
+    r.readAsDataURL(blob);
+  });
+}
+
+export function comprimirImagemComBlob(file: File, larguraMax = 500): Promise<ImagemProcessada> {
+  return new Promise<ImagemProcessada>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
       const img = new Image();
@@ -176,7 +202,14 @@ export function comprimirImagem(file: File, larguraMax = 500): Promise<string> {
         const ctx = canvas.getContext('2d');
         if (!ctx) return reject(new Error('canvas indisponível'));
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/jpeg', 0.5));
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) return reject(new Error('falha ao comprimir a imagem'));
+            blobParaDataUrlLocal(blob).then((dataUrl) => resolve({ dataUrl, blob }), reject);
+          },
+          'image/jpeg',
+          0.5,
+        );
       };
       img.onerror = reject;
       img.src = reader.result as string;
@@ -208,8 +241,8 @@ export function comprimirImagem(file: File, larguraMax = 500): Promise<string> {
 // SÓ VALE PARA ASSINATURA NOVA. As já cadastradas não são reprocessadas: elas
 // são a rubrica de um profissional em documento técnico assinado, e mexer nelas
 // mudaria a aparência de registro já emitido.
-export function processarAssinatura(file: File, larguraMax = 500): Promise<string> {
-  return new Promise((resolve, reject) => {
+export function processarAssinaturaComBlob(file: File, larguraMax = 500): Promise<ImagemProcessada> {
+  return new Promise<ImagemProcessada>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
       const img = new Image();
@@ -252,7 +285,10 @@ export function processarAssinatura(file: File, larguraMax = 500): Promise<strin
           if (fundoEscuro) { px[i] = 26; px[i + 1] = 32; px[i + 2] = 84; } // tinta azul-escura
         }
         ctx.putImageData(dados, 0, 0);
-        resolve(canvas.toDataURL('image/png'));
+        canvas.toBlob((blob) => {
+          if (!blob) return reject(new Error('falha ao processar a assinatura'));
+          blobParaDataUrlLocal(blob).then((dataUrl) => resolve({ dataUrl, blob }), reject);
+        }, 'image/png');
       };
       img.onerror = reject;
       img.src = reader.result as string;
@@ -260,4 +296,16 @@ export function processarAssinatura(file: File, larguraMax = 500): Promise<strin
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
+
+/**
+ * Compatibilidade: quem só precisa do dataURL. Os writers da Fase 7B usam as
+ * versões `...ComBlob`, porque precisam dos bytes para o hash.
+ */
+export async function comprimirImagem(file: File, larguraMax = 500): Promise<string> {
+  return (await comprimirImagemComBlob(file, larguraMax)).dataUrl;
+}
+
+export async function processarAssinatura(file: File, larguraMax = 500): Promise<string> {
+  return (await processarAssinaturaComBlob(file, larguraMax)).dataUrl;
 }

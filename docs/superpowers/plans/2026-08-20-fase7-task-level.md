@@ -11,7 +11,7 @@
 
 ## Estado atual da fase
 
-`🟢 ETAPA 7A VALIDADA EM PRODUÇÃO` · 7B não autorizada — plano aprovado em 20/08 com as decisões D7-1, D7-3, D7-H e a **correção obrigatória do rollout** (7A → 7B).
+`🟢 7A VALIDADA` · `🟡 7B IMPLEMENTADA LOCALMENTE` — plano aprovado em 20/08 com as decisões D7-1, D7-3, D7-H e a **correção obrigatória do rollout** (7A → 7B).
 
 | Etapa | Estado |
 |---|---|
@@ -22,7 +22,7 @@
 | Criar o task-level | ✅ FEITO (este arquivo) |
 | Apresentar o plano ao dono | ✅ **aprovado** com D7-1, D7-3, D7-H e a correção do rollout |
 | **Etapa 7A — leitura/resolução** | ✅ **VALIDADA EM PRODUÇÃO** |
-| **Etapa 7B — switch dos writers** | ⛔ **NÃO AUTORIZADA** — depende da validação da 7A em produção |
+| **Etapa 7B — switch dos writers** | 🟡 **IMPLEMENTADA LOCALMENTE** — aguardando redeploy |
 
 ---
 
@@ -365,14 +365,20 @@ Nunca o inverso. É o teste manual nº 4 e um critério de aceite.
 **Nenhum writer foi alterado. Nenhum HTML foi alterado.** O diff é `palco.ts` + dois arquivos
 de tipos. Nenhum snapshot novo depende de referência.
 
-### ETAPA 7B — switch dos writers ⛔ NÃO AUTORIZADA
+### ETAPA 7B — switch dos writers 🟡 IMPLEMENTADA LOCALMENTE
 
-- [ ] **7B.1** — `imagem.ts`: `processarAssinatura` e `comprimirImagem` devolvem também o blob
-- [ ] **7B.2** — `MinhaEmpresa.tsx` / `Funcionarios.tsx` gravam a ref (gravação dupla), via `salvarArquivoPorConteudo`
-- [ ] **7B.3** — Snapshot de relatório novo congela a **referência**
-- [ ] **7B.4** — `PENDENCIAS.md`: encerramento da gravação dupla, data-alvo = deploy + 45 dias
-- [ ] **7B.5** — Teste histórico obrigatório (LOGO A → doc A → LOGO B → doc B → reabrir os dois)
-- [ ] **7B.6** — Validação em produção e **PORTÃO P4**
+- [x] **7B.1** — `imagem.ts`: `comprimirImagemComBlob` e `processarAssinaturaComBlob` devolvem **dataURL + blob**. O blob é a fonte e o dataURL é derivado dele — `toBlob` e `toDataURL` são caminhos de codificação distintos, e gerar os dois independentemente daria um hash que não descreve o que está no registro
+- [x] **7B.2** — `identidadeVisual.ts` (novo): casca fina sobre `salvarArquivoPorConteudo`, com a ordem obrigatória — processar → bytes → hash (o próprio path) → upload/reuso → **confirmar** → só então a referência. Falha devolve `null`, e o cadastro segue com a dataURL
+- [x] **7B.3** — `MinhaEmpresa.tsx` e `Funcionarios.tsx` gravam a referência de forma **aditiva** (D-11), com o custo declarado em comentário no ponto exato
+- [x] **7B.4** — `snapshotEmpresa()` e `snapshotAssinantes()`: com referência, o snapshot congela **só ela** e a dataURL sai. Sem referência, nada muda
+- [x] **7B.5** — `PENDENCIAS.md`: encerramento da gravação dupla (data-alvo = deploy + 45 dias) **e** a regra de rollback `7B → 7A`
+- [x] **7B.6** — `identidadeVisual.test.ts` (14) e `snapshot7b.test.ts` (10)
+- [x] **7B.7** — Suíte **1186/1186**, build verde
+- [ ] **7B.8** — Validação em produção — **depende do redeploy**
+- [ ] **7B.9** — **PORTÃO P4**
+
+**Nenhum HTML alterado. Nenhum snapshot antigo tocado.** O diff é `imagem.ts`,
+`identidadeVisual.ts` (novo), os dois writers de cadastro e `relatoriosService.ts`.
 
 ---
 
@@ -458,49 +464,51 @@ imutabilidade, **não perda de dado**, e desaparece ao reaplicar a fase.
 | 21/08 | **7A VALIDADA EM PRODUÇÃO** — 94 chaves conferidas por SHA-256 e versão: `nr13_rel_`, `nr13_minha_empresa`, `nr13_lista_phs` e `nr13_livro_` **não foram escritos**; PDFs arquivados com hash idêntico | ✅ |
 | 21/08 | Teste controlado de leitura: ref válida resolve · **ref inválida NÃO vira substituto** · base64 congelado vence · restauração conferida | ✅ |
 | 21/08 | Portal: arquivo próprio 200, de outro cliente e inexistente 404 idêntico, `app_storage` vazio. **Rubrica da org recusada** — correto pela D-05, e vira teste bloqueante da 7B | ✅ |
+| 21/08 | **7A APROVADA pelo dono** · commit `ae36731` | ✅ |
+| 21/08 | **ETAPA 7B IMPLEMENTADA** — `imagem.ts` devolve blob+dataURL, `identidadeVisual.ts` faz o content-addressing com confirmação, writers gravam a ref de forma aditiva, e o snapshot novo congela **só a referência** | ✅ |
+| 21/08 | 24 testes novos (dedupe A/B/C/D, falhas de upload e de confirmação, snapshot A continua A). Suíte **1186/1186**, build verde | ✅ |
+| 21/08 | `PENDENCIAS.md`: encerramento da gravação dupla + **regra de rollback 7B → 7A** | ✅ |
 
 ---
 
 ## Ponto de retomada
 
-**ETAPA 7A: VALIDADA EM PRODUÇÃO ✅**
-**ETAPA 7B: NÃO AUTORIZADA — aguardando aprovação do dono.**
+**7A: VALIDADA EM PRODUÇÃO ✅ · 7B: IMPLEMENTADA LOCALMENTE · AGUARDANDO REDEPLOY.**
 
-Suíte **1162/1162**, build verde. Bundle validado: `index-D_-wTh2v.js`.
+Suíte **1186/1186** (94 arquivos, +24), build verde.
 
-### O que a 7A provou
+### Regra de rollback — registrada também em `PENDENCIAS.md`
 
-Zero escrita histórica (94 chaves conferidas por SHA-256 e versão) · PDFs arquivados com hash
-idêntico · Livro e Portal sem regressão · e os quatro cenários de leitura:
+> **O rollback da 7B é SEMPRE `7B → 7A`. NUNCA para antes da 7A.**
 
-| Cenário | Resultado |
-|---|---|
-| Ref válida, campo vazio | resolve |
-| **Ref inválida** | campo continua vazio — **nenhum substituto injetado** |
-| Base64 + ref | **base64 congelado vence** |
-| Mesma imagem em dois lugares | baixada uma vez |
+Depois que um writer da 7B grava um snapshot com referência, voltar para antes da 7A faria o
+leitor antigo ignorá-la e cair no dado **vivo** — documento histórico exibindo a logo atual.
+É o cenário recusado ao aprovar o EXPAND → VALIDAR → SWITCH.
 
-E o principal: **nenhum writer produz referência ainda.** O EXPAND está em produção.
+### Economia — medida em teste, não prometida sobre o histórico
 
-### Achado que a 7A entregou para a 7B
+Snapshot da empresa com logo de 7 KB: **>20× menor** com referência (teste
+`snapshot7b.test.ts`). Os **475,8 KB históricos continuam onde estão** e não entram em
+nenhuma conta.
 
-O Portal **recusou** a rubrica da organização (404 `nao_disponivel`) — comportamento **correto**
-pela D-05: a autorização é por vínculo, e hoje nenhum relatório do cliente referencia a
-rubrica. Quando a 7B fizer o snapshot carregar `assinaturaRef`, ela passará a ser alcançável
-por `coletarPaths` a partir do relatório que o cliente pode ver.
+### Depois do redeploy — validar em produção
 
-> **"Portal exibe a rubrica" é teste BLOQUEANTE da 7B.** Se falhar lá, o cliente recebe
-> relatório sem a assinatura do engenheiro — documento técnico incompleto.
-
-### Quando a 7B for autorizada
-
-1. `imagem.ts` devolve o blob além do dataURL
-2. `MinhaEmpresa.tsx` / `Funcionarios.tsx` gravam a ref (**gravação dupla**, D-11)
-3. Snapshot de relatório novo congela a **referência**
-4. `PENDENCIAS.md`: encerramento da gravação dupla, data-alvo = deploy + 45 dias
-5. **Teste histórico obrigatório**: LOGO A → doc A → LOGO B → doc B → reabrir os dois
-6. Portal exibindo a rubrica · medição do snapshot novo (≈50 % menor) · **PORTÃO P4**
-
-**Rollback da 7B é `7B → 7A`, nunca para antes da 7A.**
+1. Bundle novo
+2. **Content-addressing**: subir uma logo e conferir o arquivo em `<org>/logos/<sha256>.jpg`
+3. **Dedupe**: mesma imagem duas vezes → um arquivo · imagem diferente → arquivo novo ·
+   voltar aos bytes de A → reaproveita o arquivo de A
+4. **Cenário histórico A/B** — LOGO A + RUBRICA A → documento A · trocar para B → documento B ·
+   reabrir os dois, com reload completo. **A = A, B = B**
+5. **PDF imutável**: SHA-256 do PDF de A idêntico depois da troca para B
+6. **Portal**: relatório do cliente com `assinaturaRef` → cliente autorizado recebe **200**;
+   mesma rubrica sem vínculo → **404**; rubrica de outro cliente → **404**; hash inventado →
+   mesma resposta. **Se o cliente autorizado receber 404, NÃO fechar 7B nem P4**
+7. Mesma regra para `logoRef`
+8. **Livro** sem regressão
+9. **Offline**, se o fluxo permitir editar cadastro sem rede — senão, documentar a limitação
+10. Chaves históricas **byte a byte** intactas (SHA-256 + versão, como na 7A)
+11. Economia real medida
+12. Suíte e build
+13. **PORTÃO P4**
 
 **Não iniciar a Fase 8.**

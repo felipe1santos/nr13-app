@@ -354,3 +354,26 @@ porque é ele que revela quem está prestes a quebrar:
 As três do meio estavam na v1 acima da cota do `localStorage`, ou seja, no mesmo estado do
 `cmam` — e ninguém tinha reportado. **O peso não vem da quantidade de equipamentos e sim
 das fotos e PDFs:** `engyuricesar` estourava 6,4 MB com UM equipamento cadastrado.
+
+---
+
+## FASE 7B — encerrar a gravação dupla de logo/rubrica
+
+**Data-alvo:** deploy da 7B em produção **+ 45 dias**. (Deploy ainda não feito quando esta
+linha foi escrita — preencher a data assim que ocorrer.)
+
+Hoje `nr13_minha_empresa.logo` e `nr13_lista_phs[].assinatura` guardam a dataURL **e** a
+referência. A duplicação é deliberada (D-11): é ela que torna o rollback para a 7A gratuito.
+Encerrar = zerar a dataURL viva, e só pode acontecer com as condições **C1–C8** do plano macro
+atendidas — em especial o backup (C7) e a ausência de referência órfã (C5).
+
+**Pertence à Fase 10B.** Ver `docs/superpowers/plans/2026-08-20-fase7-task-level.md`.
+
+## FASE 7B — regra de rollback (não apagar enquanto a 7B existir)
+
+> **O rollback da 7B é SEMPRE `7B → 7A`. NUNCA para uma versão anterior à 7A.**
+
+A 7A é a versão que **sabe ler** referência. Depois que qualquer writer da 7B tiver gravado um
+snapshot com `logoRef`/`assinaturaRef`, voltar para antes da 7A faria o leitor antigo ignorar
+a referência e cair no dado **vivo** — e aí um documento histórico passaria a exibir a logo
+atual. É exatamente o cenário que o dono recusou ao aprovar o modelo EXPAND → VALIDAR → SWITCH.

@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Icone } from '../components/Icone';
 import { carregarMinhaEmpresa, salvarMinhaEmpresa } from '../features/cadastros/cadastroService';
 import type { MinhaEmpresaDados } from '../features/cadastros/tipos';
-import { comprimirImagem } from '../services/imagem';
+import { comprimirImagemComBlob } from '../services/imagem';
+import { paraGravar, ESCOPO_LOGO } from '../services/identidadeVisual';
 import './cadastros.css';
 
 export default function MinhaEmpresa() {
@@ -31,7 +32,21 @@ export default function MinhaEmpresa() {
     // Comprime antes de gravar: logo em resolução cheia (vários MB em base64) estoura a cota do
     // localStorage e impede a hidratação dos dados no PC do escritório — a logo some dos documentos.
     try {
-      set('logo', await comprimirImagem(file, 300));
+      // FASE 7B — GRAVAÇÃO DUPLA (D-11), e ela é deliberada.
+      //
+      // A dataURL continua na chave viva durante toda a convivência: é o que
+      // torna o rollback para a 7A gratuito, porque o código anterior volta a
+      // lê-la sem perder nada. O ganho da fase NÃO vem daqui — vem do snapshot
+      // do relatório novo, que congela só a referência.
+      //
+      // Custo declarado: a logo fica duplicada nesta chave (~7 KB) enquanto a
+      // convivência durar. É UMA chave por organização, e o encerramento tem
+      // data-alvo em PENDENCIAS.md (deploy + 45 dias, condições C1–C8).
+      const { dataUrl, ref } = await paraGravar(
+        await comprimirImagemComBlob(file, 300),
+        ESCOPO_LOGO,
+      );
+      setRascunho((d) => ({ ...d, logo: dataUrl, ...(ref ? { logoRef: ref } : {}) }));
     } catch {
       const reader = new FileReader();
       reader.onload = (ev) => set('logo', ev.target?.result as string);

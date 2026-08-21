@@ -152,8 +152,30 @@ export function gravarAssinantesRel(tag: string, a: AssinantesRelatorio): void {
 // RelatorioMeta na geração; rel-empresa.js/rel-assinatura.js preferem meta.empresa/meta.assinantes.
 
 // Snapshot da empresa executante (nr13_minha_empresa) para congelar na meta do relatório.
+/**
+ * Snapshot da empresa congelado na geração.
+ *
+ * FASE 7B — quando a chave viva já tem `logoRef`, o snapshot congela **só a
+ * referência** e a dataURL sai. É daqui que vem o ganho da fase: o registro do
+ * relatório deixa de carregar uma cópia da logo (~7 KB) e passa a carregar
+ * ~150 bytes. O palco (7A) resolve a referência na montagem, e os 41 templates
+ * continuam lendo `.logo` sem saber de nada.
+ *
+ * **A imutabilidade fica mais forte, não mais fraca:** o path É o hash do
+ * conteúdo, então trocar a logo depois gera outro arquivo e este relatório
+ * continua apontando para o hash de hoje. Antes isso dependia de a cópia ter
+ * sido feita; agora é consequência do endereço.
+ *
+ * Sem `logoRef` (organização que ainda não regravou o cadastro), nada muda: a
+ * dataURL é congelada como sempre foi.
+ */
 export function snapshotEmpresa(): Record<string, unknown> | undefined {
-  return ler<Record<string, unknown>>('nr13_minha_empresa') ?? undefined;
+  const viva = ler<Record<string, unknown>>('nr13_minha_empresa') ?? undefined;
+  if (!viva) return undefined;
+  const ref = viva.logoRef as { path?: string } | undefined;
+  if (!ref?.path) return viva;
+  const { logo: _dataUrl, ...resto } = viva;
+  return resto;
 }
 
 // Snapshots dos assinantes escolhidos, resolvidos AGORA contra nr13_lista_phs — congela nome,
@@ -173,11 +195,16 @@ export function snapshotAssinantes(
   const snap = (id: string | null): AssinanteSnapshot | null => {
     const f = funcs.find((x) => id != null && x.id === id);
     if (!f) return null;
+    // FASE 7B — mesma regra da logo: com referência, ela é o que congela, e a
+    // dataURL sai do snapshot. Sem referência, congela a dataURL como antes.
+    const rubrica = f.assinaturaRef?.path
+      ? { assinaturaRef: f.assinaturaRef }
+      : { assinatura: f.assinatura };
     return {
       nome: f.nome,
       funcao: f.funcao,
       crea: f.crea,
-      assinatura: f.assinatura,
+      ...rubrica,
       camposExtras: f.camposExtras,
       // Regra padrão do motor (mesma de Funcionarios.tsx defaultFolhasRelatorio):
       // engenheiro assina todas as folhas assináveis, inspetor nenhuma.
