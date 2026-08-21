@@ -11,7 +11,7 @@
 
 ## Estado atual da fase
 
-`🟢 7A VALIDADA` · `🟡 7B IMPLEMENTADA LOCALMENTE` — plano aprovado em 20/08 com as decisões D7-1, D7-3, D7-H e a **correção obrigatória do rollout** (7A → 7B).
+`🟢 7A VALIDADA` · `🟡 7B EM VALIDAÇÃO DE PRODUÇÃO` — plano aprovado em 20/08 com as decisões D7-1, D7-3, D7-H e a **correção obrigatória do rollout** (7A → 7B).
 
 | Etapa | Estado |
 |---|---|
@@ -22,7 +22,7 @@
 | Criar o task-level | ✅ FEITO (este arquivo) |
 | Apresentar o plano ao dono | ✅ **aprovado** com D7-1, D7-3, D7-H e a correção do rollout |
 | **Etapa 7A — leitura/resolução** | ✅ **VALIDADA EM PRODUÇÃO** |
-| **Etapa 7B — switch dos writers** | 🟡 **IMPLEMENTADA LOCALMENTE** — aguardando redeploy |
+| **Etapa 7B — switch dos writers** | 🟡 **DEPLOYADA · EM VALIDAÇÃO DE PRODUÇÃO** — faltam Portal e offline |
 
 ---
 
@@ -374,7 +374,9 @@ de tipos. Nenhum snapshot novo depende de referência.
 - [x] **7B.5** — `PENDENCIAS.md`: encerramento da gravação dupla (data-alvo = deploy + 45 dias) **e** a regra de rollback `7B → 7A`
 - [x] **7B.6** — `identidadeVisual.test.ts` (14) e `snapshot7b.test.ts` (10)
 - [x] **7B.7** — Suíte **1186/1186**, build verde
-- [ ] **7B.8** — Validação em produção — **depende do redeploy**
+- [x] **7B.8a** — Validação em produção, parte medida: content-addressing, dedupe A/B/C/D, D-11, **teste histórico A/B**, PDF imutável, convivência base64×ref, não escrita histórica, livro, economia, suíte e build → `docs/medicoes/2026-08-20-fase7b-validacao-producao.md`
+- [ ] **7B.8b** — **Portal do Cliente** — depende de o dono autenticar `cliente001@gmail.com` (dono do ZZ-FASE3) e `ipiranga@gmail.com` (contraprova). **Bloqueante do P4**
+- [ ] **7B.8c** — **Offline real** — depende de o dono cortar a rede; não se simula offline interceptando `fetch`
 - [ ] **7B.9** — **PORTÃO P4**
 
 **Nenhum HTML alterado. Nenhum snapshot antigo tocado.** O diff é `imagem.ts`,
@@ -468,16 +470,45 @@ imutabilidade, **não perda de dado**, e desaparece ao reaplicar a fase.
 | 21/08 | **ETAPA 7B IMPLEMENTADA** — `imagem.ts` devolve blob+dataURL, `identidadeVisual.ts` faz o content-addressing com confirmação, writers gravam a ref de forma aditiva, e o snapshot novo congela **só a referência** | ✅ |
 | 21/08 | 24 testes novos (dedupe A/B/C/D, falhas de upload e de confirmação, snapshot A continua A). Suíte **1186/1186**, build verde | ✅ |
 | 21/08 | `PENDENCIAS.md`: encerramento da gravação dupla + **regra de rollback 7B → 7A** | ✅ |
+| 21/08 | **7B DEPLOYADA** — commit `490a236`, bundle `index-WDnlnv6E.js`. O build local reconstruído sai com o **mesmo hash**: o que foi medido é exatamente esse commit | ✅ |
+| 21/08 | Content-addressing conferido **baixando os 4 arquivos do bucket e recalculando o SHA-256**: `nomeEhOHash` verdadeiro nos quatro; `tamanho` declarado = bytes reais | ✅ |
+| 21/08 | Dedupe A/B/C/D pela UI real: mesma logo → 1 arquivo · logo nova → arquivo novo · voltar aos bytes de A → **reaproveita A** · o arquivo de B **continua existindo** | ✅ |
+| 21/08 | **TESTE HISTÓRICO A/B, com reload completo: A = A, B = B.** Relatório A (2.497 B) aponta para LOGO A + RUBRICA A e renderiza LOGO-A/RUBRICA A; B (2.461 B) para B e renderiza B. **Nenhum base64 nos dois snapshots** | ✅ |
+| 21/08 | **PDF de A imutável**: 4.971.975 bytes e SHA `c74e21af…ea85c5` idênticos depois da troca para B, conferidos rebaixando o arquivo | ✅ |
+| 21/08 | Convivência provada em produção: relatório de **19/08** (base64, sem ref) reaberto hoje mostra a logo **original**, não a atual | ✅ |
+| 21/08 | **Zero escrita histórica**: 24 chaves históricas conferidas por SHA-256 + versão, nenhuma alterada; `nr13_historico_relatorios` byte a byte idêntico; **nenhuma chave com conteúdo sumiu** | ✅ |
+| 21/08 | Duas divergências no `EQUIPE TESTE` são **anteriores à 7B** (`versao_obsoleta`, erro de 20/08 01:42) — caso legado da Fase 10B, não corrigido | ⚠️ registrado |
+| 21/08 | Livro do ZZ-FASE3: 2 entradas lacradas e **encadeadas** (`shaAnterior` de B = `sha256` de A) | ✅ |
+| 21/08 | **Economia medida: snapshot 34.442 → 2.461 B, 14,0× menor.** A chave viva **não** encolheu — a dataURL continua lá pela D-11, e é assim que tem que ser agora | ✅ |
+| 21/08 | Suíte **1186/1186**, build verde, bundle com o mesmo hash de produção | ✅ |
+| 21/08 | **Portal e offline PENDENTES DE CONFIRMAÇÃO** — dependem de ação do dono. P4 **continua aberto** | ⏳ |
 
 ---
 
 ## Ponto de retomada
 
-**7A: VALIDADA EM PRODUÇÃO ✅ · 7B: IMPLEMENTADA LOCALMENTE · AGUARDANDO REDEPLOY.**
+**7A: VALIDADA ✅ · 7B: DEPLOYADA E VALIDADA NA PARTE MEDÍVEL · P4 ABERTO.**
 
-Suíte **1186/1186** (94 arquivos, +24), build verde.
+Commit `490a236`, bundle `index-WDnlnv6E.js`. Suíte **1186/1186**, build verde — e o build
+local sai com o **mesmo hash** do bundle em produção.
 
-### Regra de rollback — registrada também em `PENDENCIAS.md`
+Medições completas em `docs/medicoes/2026-08-20-fase7b-validacao-producao.md`.
+
+### O que já está provado em produção
+
+| | |
+|---|---|
+| Content-addressing | 4 arquivos baixados do bucket, SHA-256 recalculado: o nome **é** o hash |
+| Dedupe A/B/C/D | ✅ os quatro cenários, pela UI real |
+| Gravação dupla D-11 | ✅ intacta nas duas chaves vivas |
+| **Teste histórico A/B** | ✅ **A = A, B = B** depois de reload completo |
+| **PDF imutável** | ✅ bytes e SHA-256 idênticos depois da troca para B |
+| Convivência base64 × ref | ✅ relatório de 19/08 mostra a logo original |
+| **Zero escrita histórica** | ✅ 24 chaves conferidas, 0 alteradas, 0 chaves com conteúdo perdidas |
+| Livro | ✅ 2 entradas lacradas e encadeadas |
+| Economia | ✅ snapshot **14,0× menor** (34.442 → 2.461 B) |
+
+### Regra de rollback — também em `PENDENCIAS.md`
 
 > **O rollback da 7B é SEMPRE `7B → 7A`. NUNCA para antes da 7A.**
 
@@ -485,30 +516,21 @@ Depois que um writer da 7B grava um snapshot com referência, voltar para antes 
 leitor antigo ignorá-la e cair no dado **vivo** — documento histórico exibindo a logo atual.
 É o cenário recusado ao aprovar o EXPAND → VALIDAR → SWITCH.
 
-### Economia — medida em teste, não prometida sobre o histórico
+### O que falta — e por que não dá para fazer sozinho
 
-Snapshot da empresa com logo de 7 KB: **>20× menor** com referência (teste
-`snapshot7b.test.ts`). Os **475,8 KB históricos continuam onde estão** e não entram em
-nenhuma conta.
+**1 · Portal do Cliente — BLOQUEANTE DO P4.** ZZ-FASE3 é do cliente
+`cliente001@gmail.com` (`62299e40-…`); `ipiranga@gmail.com` (`ad1fd71c-…`) é a contraprova.
+Falta provar, com o cliente autenticado: ref autorizada → **200** · ref real de outro cliente →
+**404 `nao_disponivel`** · hash inventado → **a mesma resposta**.
+Na 7A o Portal **recusou** a rubrica da organização — correto pela D-05, porque ela não tinha
+vínculo nenhum. Agora ela está **dentro do snapshot de um relatório autorizado**, e é
+justamente isso que precisa ser medido. **Se o cliente autorizado receber 404, o P4 continua
+ABERTO.**
 
-### Depois do redeploy — validar em produção
-
-1. Bundle novo
-2. **Content-addressing**: subir uma logo e conferir o arquivo em `<org>/logos/<sha256>.jpg`
-3. **Dedupe**: mesma imagem duas vezes → um arquivo · imagem diferente → arquivo novo ·
-   voltar aos bytes de A → reaproveita o arquivo de A
-4. **Cenário histórico A/B** — LOGO A + RUBRICA A → documento A · trocar para B → documento B ·
-   reabrir os dois, com reload completo. **A = A, B = B**
-5. **PDF imutável**: SHA-256 do PDF de A idêntico depois da troca para B
-6. **Portal**: relatório do cliente com `assinaturaRef` → cliente autorizado recebe **200**;
-   mesma rubrica sem vínculo → **404**; rubrica de outro cliente → **404**; hash inventado →
-   mesma resposta. **Se o cliente autorizado receber 404, NÃO fechar 7B nem P4**
-7. Mesma regra para `logoRef`
-8. **Livro** sem regressão
-9. **Offline**, se o fluxo permitir editar cadastro sem rede — senão, documentar a limitação
-10. Chaves históricas **byte a byte** intactas (SHA-256 + versão, como na 7A)
-11. Economia real medida
-12. Suíte e build
-13. **PORTÃO P4**
+**2 · Offline real.** Pelo código, offline o cadastro salva com a dataURL e **sem**
+referência — comportamento seguro. Mas não foi medido, e não se simula offline interceptando
+`fetch`. Lacuna já registrada: `FAMILIAS_RECUPERAVEIS` da Fase 6 **não** cobre
+`nr13_minha_empresa` nem `nr13_lista_phs`, então uma logo cadastrada offline só ganha
+referência na próxima edição.
 
 **Não iniciar a Fase 8.**
