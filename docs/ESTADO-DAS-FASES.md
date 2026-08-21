@@ -6,7 +6,7 @@
 > **REGRA:** este arquivo é atualizado NO MOMENTO em que o estado muda — commit, push,
 > redeploy, validação, portão. Não no fim da fase.
 
-**Última atualização:** 20/08/2026 22:45
+**Última atualização:** 20/08/2026 23:00
 **Branch:** `main` · **Suíte:** 1148 testes / 91 arquivos, 0 falhas · **Build:** verde
 
 
@@ -19,6 +19,7 @@
 | **P3** (Fase 4) | **FECHADO ✅** aprovado 20/08 |
 | **Fase 3** | **CONCLUÍDA** |
 | **Fase 4** | **CONCLUÍDA** |
+| **Fase 6** | ✅ **CONCLUÍDA** (20/08) — as 3 famílias recuperadas com integridade byte a byte, idempotente, protegidas intactas |
 | **Fase 5** | ✅ **CONCLUÍDA** (20/08) — fotos de lista −87,4 %, palco da CAPA −91,6 %, offline real, Portal sem regressão, fechada com teste de foto real |
 | Commits de fechamento | `caa168f` (P1/P2) · `676f81f` (P3) |
 | Suíte | **1148/1148**, 91 arquivos · Build **verde** |
@@ -98,11 +99,11 @@ Sempre use um destes. Nunca "concluído".
 | **3** | Conflitos (A-14) | ✅ **CONCLUÍDA** | **P2 FECHADO ✅** aprovado 20/08 | `plans/2026-08-16-fase3-task-level.md` |
 | **4** | Portal: arquitetura de leitura (A-02) | ✅ **CONCLUÍDA** | **P3 FECHADO ✅** aprovado 20/08 | `plans/2026-08-20-fase4-task-level.md` |
 | **5** | Fotos: thumbnail, EXIF, teto de altura (A-08) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** | — | `plans/2026-08-20-fase5-task-level.md` · `medicoes/2026-08-20-fase5-producao-antes-depois.md` |
-| **6** | Recuperação do fallback base64 (A-10) | 🟠 **DEPLOYADA · PROTEÇÕES VALIDADAS · caminho feliz bloqueado (a UI não produz o fallback)** | — | `plans/2026-08-20-fase6-task-level.md` |
+| **6** | Recuperação do fallback base64 (A-10) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** nas 3 famílias, com SHA-256 idêntico | — | `plans/2026-08-20-fase6-task-level.md` |
 | 7…13 | ver plano macro | PLANEJADO | P4…P8 | `plans/2026-08-15-evolucao-arquitetura.md` |
 
-**Fase atual:** 6 (validação parcial) · **Tarefa atual:** decidir o método de massa controlada (A, B ou C)
-**Próxima ação exata:** o dono escolhe entre **A** (induzir a falha real do cofre e deixar a UI produzir o registro), **B** (gravar massa pelo caminho oficial de escrita) ou **C** (aceitar a cobertura dos 23 testes e fechar registrando que o caminho feliz não foi validado em produção). Detalhes em `docs/medicoes/2026-08-20-fase6-validacao-producao.md` §5.
+**Fase atual:** nenhuma em execução · **Tarefa atual:** nenhuma — a Fase 7 depende de autorização do dono
+**Próxima ação exata:** aguardar autorização do dono para a **Fase 7** (logo e rubrica endereçadas por conteúdo). Lembrete registrado na Fase 6: os snapshots congelados em nr13_rel_ são FORA DA FASE 6 e devem ser avaliados na Fase 7 **respeitando a imutabilidade histórica** — nunca removidos por economia de bytes.
 
 Os dois roteiros ficam gravados, já com os resultados marcados:
 

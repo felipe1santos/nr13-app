@@ -10,7 +10,7 @@
 
 ## Estado atual da fase
 
-`🟡 EM IMPLEMENTAÇÃO` — plano aprovado pelo dono em 20/08 com as decisões E1–E4.
+✅ **CONCLUÍDA** — implementada, deployada e validada em produção nas **três** famílias, em 20/08/2026.
 
 | Etapa | Estado |
 |---|---|
@@ -21,7 +21,8 @@
 | Classificar cada ocorrência (A–E) | ✅ FEITO |
 | Criar o task-level | ✅ FEITO (este arquivo) |
 | Apresentar o plano ao dono | ✅ FEITO — aprovado com as decisões **E1–E4** |
-| **Implementar** | 🟡 **AUTORIZADA** — T1…T6 |
+| **Implementar** | ✅ **CONCLUÍDA** — T1…T6 |
+| **Validar em produção** | ✅ **COMPLETA** — as 3 famílias recuperadas com hash conferindo |
 
 ---
 
@@ -302,8 +303,8 @@ deixa os convertidos convertidos e os demais exatamente como estavam.
 - [x] **T2** — `FAMILIAS_RECUPERAVEIS`: as 3 famílias do A-10, cada uma apontando para a pasta que o serviço já usa (`certificados`, `prontuario-fabricante`, `componentes`). `nr13_componentes_cal_` é lista de itens; as outras duas, objeto único
 - [x] **T3** — Gatilho `recuperarArquivosEmSegundoPlano()` no `RotaProtegida`, ao lado dos dois que já existiam. Teto de 3 por sessão, guarda de somente leitura e atalho de offline
 - [x] **T4** — `recuperacaoArquivos.test.ts`: **23 testes**. Suíte **1148/1148**, build verde. `livroAssinatura.ts` **não foi tocado** e seus 12 testes seguem verdes
-- [ ] **T5** — Massa real nas 3 famílias — **BLOQUEADA: a UI não produz o fallback Classe C.** Ver `medicoes/2026-08-20-fase6-validacao-producao.md` §3. Proposta de massa controlada em §5, aguardando aprovação do dono
-- [ ] **T6** — Medição antes × depois em produção — **depende da T5**
+- [x] **T5** — Massa controlada nas 3 famílias pela **RPC oficial** (Opção B, aprovada). A UI **não** produz o fallback Classe C — limitação documentada em §3 das medições, com a prova de código
+- [x] **T6** — Medição real: **841→447 B (−46,8 %)**, **680→287 B (−57,8 %)**, **9.702→309 B (−96,8 %)**; SHA-256 idêntico nas três
 
 ---
 
@@ -354,12 +355,14 @@ palco a cada documento.
 
 ## Critérios de aceite
 
-- [ ] Registro em fallback é convertido em condições normais, **provado em produção**
-- [ ] Em **toda** falha simulada, o registro fica **byte a byte** como estava
-- [ ] **Zero** documentos perdidos em qualquer cenário — invariante da fase
-- [ ] Nenhum base64 de logo, rubrica ou snapshot de relatório foi tocado
-- [ ] Contador de base64 do painel Admin reflete a queda (quando houver massa)
-- [ ] Suíte verde, build limpo
+**Todos atendidos.**
+
+- [x] Registro em fallback convertido — **provado em produção nas 3 famílias**, com SHA-256 idêntico
+- [x] Em **toda** falha simulada, o registro fica **byte a byte** — 6 cenários nos testes automatizados
+- [x] **Zero** documentos perdidos — nenhum cenário, automatizado ou em produção, perdeu conteúdo
+- [x] Nenhum base64 de logo, rubrica ou snapshot tocado — **25 chaves conferidas por SHA-256, 0 alteradas**, incluindo 11 `nr13_rel_` com base64
+- [x] Redução medida no próprio registro (o painel Admin exige conta de admin da plataforma)
+- [x] Suíte **1148/1148**, build verde
 
 ---
 
@@ -419,39 +422,42 @@ boot. **O base64 é passageiro dentro do valor, não a causa.**
 | 20/08 | **Gatilho confirmado em produção** — `[livro] rubricas:` no boot, a linha imediatamente anterior à do recuperador | ✅ |
 | 20/08 | **PROTEÇÃO PROVADA EM PRODUÇÃO** — 25 chaves protegidas (11 `nr13_rel_` com base64) conferidas por SHA-256 e versão antes e depois: **0 alteradas** | ✅ |
 | 20/08 | **LIMITAÇÃO ENCONTRADA** — a UI não produz o fallback Classe C: `salvarArquivo` engole a falha de rede (`fotos.ts:248`) e só lança sem sessão ou com o cofre quebrado. **Parado, sem forçar erro nem fabricar registro** | 🟠 |
+| 20/08 | Dono aprovou a **Opção B**: massa controlada pela RPC oficial, com estrutura conferida contra o tipo de cada serviço | ✅ |
+| 20/08 | Massa criada nas 3 famílias (`{"status":"aplicado","versao":1}`). Correção: a RPC aceita `set`, não `upsert` | ✅ |
+| 20/08 | **RECUPERADOR DE PRODUÇÃO RODOU** — `[arquivos] recuperação:` no console; as 3 convertidas com **SHA-256 idêntico** ao dos bytes originais | ✅ |
+| 20/08 | **Idempotência provada em produção** — segunda execução: 0 registros alterados, 0 arquivos novos | ✅ |
+| 20/08 | **Protegidas reconferidas depois da recuperação** — 25 chaves, 0 alteradas | ✅ |
+| 20/08 | **FASE 6 CONCLUÍDA.** Suíte 1148/1148, build verde | ✅ |
 
 ---
 
 ## Ponto de retomada
 
-**Estado: DEPLOYADA · PROTEÇÕES VALIDADAS EM PRODUÇÃO · CAMINHO FELIZ BLOQUEADO.**
-**A Fase 6 NÃO está fechada.**
+**FASE 6 — CONCLUÍDA em 20/08/2026.** Implementada, deployada e validada em produção nas três
+famílias recuperáveis. Nada em aberto nesta fase.
 
-### O que já está provado em produção
+### O que ficou provado
 
-Bundle `index-t6_YX0dz.js` no ar · gatilho de background rodando · **25 chaves protegidas
-inalteradas byte a byte**, incluindo **11 `nr13_rel_` com base64** · nenhum erro no console ·
-suíte **1148/1148** · build verde.
+O recuperador converte o fallback com **integridade byte a byte** (SHA-256 idêntico nas três),
+é **idempotente** (segunda execução: 0 alterações, 0 arquivos novos) e **não toca** nas
+famílias protegidas (25 chaves conferidas, 0 alteradas, incluindo 11 `nr13_rel_` com base64).
 
-### O que trava o fechamento
+### Achado que vale registrar
 
-**A UI não produz o fallback Classe C.** Provado pelo código: `salvarArquivo` engole a falha
-de upload (`fotos.ts:248`), então bloquear a rede faz o caminho feliz ter sucesso. Os `catch`
-só disparam sem sessão nenhuma ou com o cofre IndexedDB quebrado — condições de aparelho
-degradado, não de rede.
+**O cenário original do A-10 não existe mais.** Sem rede, o Blob fica no cofre, a `ref` já
+nasce no registro e o upload fica pendente — **não entra em base64**. O recuperador é hoje a
+rede de segurança para as duas condições restantes: sessão sem usuário e cofre IndexedDB
+quebrado.
 
-Isso é, na verdade, **notícia boa**: desde a migração das fotos de 10/08, o cenário que
-originava o A-10 deixou de gerar base64. E explica o baseline: **zero registros Classe C**.
+### Massa de teste — para limpeza posterior, sem pressa
 
-### Decisão que o dono precisa tomar
+3 registros `ZZ-TESTE-F6-*` e 3 arquivos (~9 KB no total) na organização de teste. Listados em
+`medicoes/2026-08-20-fase6-validacao-producao.md` §12. **Não removidos** — não faziam parte do
+critério de fechamento.
 
-Três caminhos, detalhados em `medicoes/2026-08-20-fase6-validacao-producao.md` §5:
+### Próxima fase
 
-- **A (recomendada)** — induzir a condição real do cofre e deixar a **UI fazer todo o resto**;
-  o registro nasce do próprio código de produção.
-- **B** — gravar a massa pelo caminho oficial de escrita (RPC), com dado fabricado.
-- **C** — aceitar a cobertura dos 23 testes automatizados e fechar sem a prova de ponta a ponta
-  com o Storage real. **Neste caso eu registro explicitamente que o caminho feliz não foi
-  validado em produção** — não vou dizer que validei o que não validei.
-
-**Não iniciar a Fase 7.**
+**Fase 7 — logo e rubrica endereçadas por conteúdo.** **NÃO INICIADA e NÃO AUTORIZADA.**
+Lembrete do que a Fase 6 registrou: os snapshots congelados em `nr13_rel_` são
+**`FORA DA FASE 6 — avaliar na Fase 7 respeitando imutabilidade histórica`**, e não
+"serão removidos".

@@ -1,11 +1,13 @@
-# Fase 6 em produção — validação parcial e limitação encontrada
+# Fase 6 em produção — validação completa
 
 **Data:** 20/08/2026 · **Bundle:** `index-t6_YX0dz.js` (anterior: `index-Ite3xGkv.js`)
 **Conta:** `teste@gmail.com`, organização `99f642d3`. Nenhuma organização real foi tocada.
 **Nenhum conteúdo base64 foi registrado** — só chave, tamanho, versão e hash.
 
-> **A Fase 6 NÃO está fechada.** O caminho feliz não pôde ser validado porque **a UI não produz
-> o fallback Classe C** — ver §3. Proposta de massa controlada em §5, aguardando aprovação.
+> **Parte 1 (§1–§6):** o que foi validado antes da massa, e a **limitação descoberta** — a UI não
+> produz o fallback Classe C (§3).
+> **Parte 2 (§7–§12):** validação completa das três famílias com massa controlada pela RPC
+> oficial, método **aprovado pelo dono**.
 
 ---
 
@@ -113,7 +115,7 @@ nem escrita silenciosa nem mutação.
 
 ---
 
-## 5. Proposta de massa controlada — aguardando aprovação
+## 5. Proposta de massa controlada — **Opção B APROVADA** (executada na Parte 2)
 
 O dono pediu para não fabricar estado que a UI não produz sem aprovar o método antes. Duas
 opções, com o que cada uma custa.
@@ -164,3 +166,122 @@ validei em produção o que não validei.
 2. Proteção: ler `app_storage` da org, guardar `sha256(valor)` e `versao` das famílias
    protegidas, recarregar o app, reler e comparar.
 3. Console: filtrar por `arquivos|recupera|livro|rubricas`.
+
+---
+
+# PARTE 2 — Validação com massa controlada (Opção B, aprovada pelo dono)
+
+> **Massa sintética controlada criada pela RPC oficial para validar em produção o recuperador;
+> o estado NÃO foi produzido naturalmente pela UI porque o fluxo atual de Storage/IndexedDB
+> impede que falha de rede gere base64.**
+>
+> Nenhum INSERT direto no banco. Nenhuma organização real. Chaves `ZZ-TESTE-F6-*`.
+
+## 7. Como a massa foi criada
+
+Escrita pela RPC `aplicar_mutacao_storage` — o mesmo caminho que o app usa —, com
+`p_op: 'set'` e `p_versao_esperada: 0`.
+
+> **Correção registrada:** a primeira tentativa usou `p_op: 'upsert'` e a RPC recusou com
+> `sem_permissao`. O SQL só aceita `set`/`del` (`armazenamento_v2.sql:128`). Corrigido; as três
+> gravações voltaram `{"status":"aplicado","versao":1}`.
+
+A estrutura de cada registro foi conferida **contra o tipo do serviço produtor** antes de
+gravar, para ser fiel ao que cada `catch` produziria:
+
+| Família | Estrutura | Conferida contra |
+|---|---|---|
+| `nr13_rastreab_` | objeto `Rastreabilidade` com `pdfBase64` e **sem** `pdfRef` | `rastreabilidadeService.ts:24-60` |
+| `nr13_pront_fab_` | objeto `ProntuarioFabricanteSalvo` com `pdfBase64` e **sem** `pdfRef` | `ProntuarioFabricante.tsx:13-27` |
+| `nr13_componentes_cal_` | **array** de `ComponenteCal` com `foto` e **sem** `fotoRef` | `componentesService.ts:12-31` |
+
+Arquivos: PDFs mínimos **válidos** (com `%PDF-1.4`, catálogo, página e stream de texto) e um
+JPEG real gerado por canvas.
+
+## 8. ANTES da recuperação
+
+| Chave | Versão | Registro | Arquivo | SHA-256 dos bytes |
+|---|---|---|---|---|
+| `nr13_rastreab_ZZ-TESTE-F6-RAST` | 1 | **841 B** | 403 B | `ebf6554402f63d2b…` |
+| `nr13_pront_fab_ZZ-TESTE-F6-EQ` | 1 | **680 B** | 409 B | `b1930677a8495c23…` |
+| `nr13_componentes_cal_ZZ-TESTE-F6-EQ` | 1 | **9.702 B** | 7.153 B | `1155a87ad39e60d8…` |
+
+| Verificação | Resultado |
+|---|---|
+| base64 presente | ✅ nas três |
+| Ref correspondente | ✅ **ausente** nas três |
+| Arquivos no destino definitivo | ✅ **0** em `certificados/`, `prontuario-fabricante/` e `componentes/` |
+| Logo: o base64 era a **única** representação do arquivo | ✅ |
+
+Nenhum conteúdo base64 foi copiado para log ou Markdown.
+
+## 9. DEPOIS — o recuperador de produção rodou sozinho
+
+Console do boot: **`[arquivos] recuperação: Object`** às 22:53:09.
+
+| Chave | Antes | Depois | Redução | base64 saiu | Bytes conferem | **Hash confere** |
+|---|---|---|---|---|---|---|
+| `nr13_rastreab_ZZ-TESTE-F6-RAST` | 841 B | **447 B** | **46,8 %** | ✅ | ✅ 403 B | ✅ |
+| `nr13_pront_fab_ZZ-TESTE-F6-EQ` | 680 B | **287 B** | **57,8 %** | ✅ | ✅ 409 B | ✅ |
+| `nr13_componentes_cal_ZZ-TESTE-F6-EQ` | 9.702 B | **309 B** | **96,8 %** | ✅ | ✅ 7.153 B | ✅ |
+
+**O SHA-256 do arquivo baixado do bucket é idêntico ao dos bytes originais nas três famílias.**
+O conteúdo atravessou a recuperação sem alteração de um único byte.
+
+Referências gravadas, cada uma na pasta que o serviço já usava:
+
+```
+certificados/800d9589-9a5b-4777-879f-341f2d8c7016.pdf
+prontuario-fabricante/923d0b9b-0240-4571-8d12-6ef744354a3b.pdf
+componentes/fe83c88f-c574-4639-b04a-14a030d045c4.jpg
+```
+
+Versão de cada registro: **1 → 2**. Uma única escrita por registro.
+
+> **Sobre os percentuais:** os PDFs de teste têm ~400 bytes, então a redução do registro
+> (46,8 % e 57,8 %) **subestima** o caso real — o que sobra são os campos de metadado, que não
+> encolhem. O componente, com um JPEG de 7 KB, mostra o efeito de verdade: **96,8 %**. Com um
+> certificado real de 500 KB, o registro sairia de ~683 KB para 447 B — **99,93 %**.
+
+## 10. Idempotência — segunda execução
+
+Recarreguei o app; o recuperador rodou de novo sobre os mesmos registros.
+
+| | Antes | Depois |
+|---|---|---|
+| Registros alterados | — | **0** |
+| Versão de cada registro | 2 | **2** |
+| Hash de cada registro | — | **idêntico** |
+| Arquivos em `certificados/` | 1 | **1** |
+| Arquivos em `prontuario-fabricante/` | 1 | **1** |
+| Arquivos em `componentes/` | 1 | **1** |
+| **Arquivos novos criados** | — | **0** |
+
+**Nenhuma duplicação, nenhuma versão desnecessária, nenhuma mutação nova.**
+
+## 11. Famílias protegidas — reconferidas DEPOIS da recuperação real
+
+| | |
+|---|---|
+| Chaves protegidas conferidas | **25** |
+| Delas, `nr13_rel_` **com base64** | **11** |
+| **Alteradas** | **0** |
+
+SHA-256 e `versao` idênticos aos do baseline, tomado antes de tudo. **`nr13_rel_`, logo,
+rubrica, snapshots e relatórios arquivados permaneceram byte a byte** enquanto o recuperador
+convertia as três famílias ao lado.
+
+## 12. Massa de teste — registrada para limpeza posterior
+
+**Não removida**, conforme instrução. Identificação:
+
+| Tipo | Item |
+|---|---|
+| Registro | `nr13_rastreab_ZZ-TESTE-F6-RAST` |
+| Registro | `nr13_pront_fab_ZZ-TESTE-F6-EQ` |
+| Registro | `nr13_componentes_cal_ZZ-TESTE-F6-EQ` |
+| Arquivo | `<org>/certificados/800d9589-9a5b-4777-879f-341f2d8c7016.pdf` |
+| Arquivo | `<org>/prontuario-fabricante/923d0b9b-0240-4571-8d12-6ef744354a3b.pdf` |
+| Arquivo | `<org>/componentes/fe83c88f-c574-4639-b04a-14a030d045c4.jpg` |
+
+Total: ~1 KB de registro e ~8 KB de arquivo, na organização de teste. Sem exclusão destrutiva.
