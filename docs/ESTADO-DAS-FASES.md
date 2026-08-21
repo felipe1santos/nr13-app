@@ -6,8 +6,8 @@
 > **REGRA:** este arquivo é atualizado NO MOMENTO em que o estado muda — commit, push,
 > redeploy, validação, portão. Não no fim da fase.
 
-**Última atualização:** 20/08/2026 03:20
-**Branch:** `main` · **Suíte:** 1063 testes / 87 arquivos, 0 falhas · **Build:** verde
+**Última atualização:** 20/08/2026 22:45
+**Branch:** `main` · **Suíte:** 1148 testes / 91 arquivos, 0 falhas · **Build:** verde
 
 
 ## ✅ P1, P2 e P3 APROVADOS · FASE 4 CONCLUÍDA
@@ -21,7 +21,7 @@
 | **Fase 4** | **CONCLUÍDA** |
 | **Fase 5** | ✅ **CONCLUÍDA** (20/08) — fotos de lista −87,4 %, palco da CAPA −91,6 %, offline real, Portal sem regressão, fechada com teste de foto real |
 | Commits de fechamento | `caa168f` (P1/P2) · `676f81f` (P3) |
-| Suíte | **1063/1063**, 87 arquivos · Build **verde** |
+| Suíte | **1148/1148**, 91 arquivos · Build **verde** |
 
 **Ganho da Fase 4, aprovado com base nas evidências:** leitura no Postgres **534,7 KB → ~21 KB**
 (descarte de 93 % → ~zero), payload **31.403 → 21.592 bytes**, `nr13_rel_` e legado fora da carga
