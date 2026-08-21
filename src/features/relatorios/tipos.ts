@@ -40,6 +40,17 @@ export interface AssinanteSnapshot {
   funcao?: string;
   crea?: string;
   assinatura?: string; // dataURL da rubrica
+  /**
+   * FASE 7A — o mesmo conteúdo no bucket, endereçado pelo SHA-256 dos bytes
+   * (`<org>/{logos,assinaturas}/<sha256>.<ext>`).
+   *
+   * **Opcional e ainda não gravado.** A etapa 7A ensina o sistema a LER este
+   * campo; os writers só passam a preenchê-lo na 7B, depois de a capacidade de
+   * leitura estar em produção. Enquanto isso a dataURL acima continua sendo a
+   * fonte, e ela permanece durante toda a convivência (D-11) para o rollback
+   * não custar nada.
+   */
+  assinaturaRef?: RefFoto;
   camposExtras?: { rotulo: string; valor: string }[];
   // Quais folhas do relatório ele carimba — congelado junto com o resto;
   // as folhas auto-injetadas seguem a folha-pai no rel-assinatura.js.

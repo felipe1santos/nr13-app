@@ -661,6 +661,47 @@ export function refsNomeadasDaChave(chave: string): string[] {
 }
 
 /**
+ * FASE 7A — referência resolvida NO LUGAR, para o campo que o template já lê.
+ *
+ * ── Por que aqui e não nos templates ────────────────────────────────────────
+ *
+ * Varredura de `public/` em 20/08/2026: **41 templates leem
+ * `nr13_minha_empresa` diretamente** e 40 deles acessam `.logo` (91
+ * ocorrências). Ensinar cada um a entender uma referência de Storage
+ * significaria editar 41 arquivos HTML — e **um único esquecido imprime
+ * documento assinado sem a logo, em silêncio**, que é o modo de falha mais caro
+ * deste projeto.
+ *
+ * Então o palco resolve e **preenche o campo que eles já leem**. Nenhum
+ * template muda. É o mesmo princípio de `CAMPO_REF_NOMEADO`, com uma diferença:
+ * lá a imagem vai para um MAPA (porque o livro é cumulativo e repetiria a mesma
+ * rubrica por entrada); aqui ela vai para o próprio campo, porque são
+ * ocorrências únicas por documento.
+ *
+ * ── A REGRA QUE NÃO SE QUEBRA ───────────────────────────────────────────────
+ *
+ * **Só preenche campo VAZIO.** Se o campo já tem uma dataURL, ela é o conteúdo
+ * congelado daquele documento e vence — sempre. E se a referência não resolver,
+ * o campo fica **como estava**: nunca se busca a logo ou a rubrica ATUAL para
+ * tapar o buraco. Trocar a identidade visual de um documento histórico por
+ * causa de uma falha de rede seria pior do que imprimir sem a imagem.
+ */
+const REF_RESOLVIDA_NO_LUGAR: { prefixo: string; de: string; para: string }[] = [
+  { prefixo: 'nr13_minha_empresa', de: 'logoRef', para: 'logo' },
+  { prefixo: 'nr13_lista_phs', de: 'assinaturaRef', para: 'assinatura' },
+  // O snapshot congelado que as folhas leem com `ctx=rel` durante a montagem.
+  { prefixo: 'nr13_relatorio_meta_atual', de: 'logoRef', para: 'logo' },
+  { prefixo: 'nr13_relatorio_meta_atual', de: 'assinaturaRef', para: 'assinatura' },
+];
+
+export function refsNoLugarDaChave(chave: string): { de: string; para: string }[] {
+  return REF_RESOLVIDA_NO_LUGAR.filter((c) => chave.startsWith(c.prefixo)).map((c) => ({
+    de: c.de,
+    para: c.para,
+  }));
+}
+
+/**
  * Onde as rubricas do livro são materializadas — UMA vez cada, por caminho.
  *
  * Embutir a imagem em cada entrada resolveria a exibição, mas devolveria no
@@ -783,10 +824,11 @@ export async function hidratarFotosDoBucket(itens: ItemPalco[]): Promise<ItemPal
     no: unknown,
     campos: Array<'src' | 'base64'>,
     nomeadas: string[] = [],
+    noLugar: { de: string; para: string }[] = [],
   ): Promise<boolean> {
     if (Array.isArray(no)) {
       let mudou = false;
-      for (const filho of no) if (await percorrer(filho, campos, nomeadas)) mudou = true;
+      for (const filho of no) if (await percorrer(filho, campos, nomeadas, noLugar)) mudou = true;
       return mudou;
     }
     if (typeof no !== 'object' || no === null) return false;
@@ -803,6 +845,22 @@ export async function hidratarFotosDoBucket(itens: ItemPalco[]): Promise<ItemPal
       const url = await dataUrlDe(ref as RefFoto);
       if (url) rubricas.set(path, url);
     }
+    // FASE 7A — referência resolvida NO LUGAR (logo da empresa, rubrica do
+    // funcionário, e os mesmos campos dentro do snapshot do relatório).
+    for (const { de, para } of noLugar) {
+      const ref = obj[de];
+      if (!ehRef(ref)) continue;
+      // Campo já preenchido = conteúdo congelado daquele documento. Vence sempre.
+      const atual = obj[para];
+      if (typeof atual === 'string' && atual) continue;
+      const url = await dataUrlDe(ref as RefFoto);
+      // Sem imagem: o campo fica COMO ESTAVA. Nunca se cai na logo/rubrica ATUAL
+      // para tapar o buraco — isso trocaria a identidade visual de um documento
+      // histórico por causa de uma falha de rede.
+      if (!url) continue;
+      obj[para] = url;
+      mudou = true;
+    }
     if (ehRef(obj.ref)) {
       const url = await dataUrlDe(obj.ref as RefFoto);
       if (url) {
@@ -817,16 +875,23 @@ export async function hidratarFotosDoBucket(itens: ItemPalco[]): Promise<ItemPal
         mudou = true;
       }
     }
-    for (const valor of Object.values(obj)) if (await percorrer(valor, campos, nomeadas)) mudou = true;
+    for (const valor of Object.values(obj)) {
+      if (await percorrer(valor, campos, nomeadas, noLugar)) mudou = true;
+    }
     return mudou;
   }
 
   const saida: ItemPalco[] = [];
   for (const item of itens) {
     const nomeadas = refsNomeadasDaChave(item.chave);
+    const noLugar = refsNoLugarDaChave(item.chave);
     // Atalho barato: sem `"ref"` nem o campo nomeado daquela família, não há o
     // que hidratar — a maioria das chaves (memorial, categoria) cai aqui sem custo.
-    if (!item.valor.includes('"ref"') && !nomeadas.some((n) => item.valor.includes(`"${n}"`))) {
+    if (
+      !item.valor.includes('"ref"') &&
+      !nomeadas.some((n) => item.valor.includes(`"${n}"`)) &&
+      !noLugar.some((n) => item.valor.includes(`"${n.de}"`))
+    ) {
       saida.push(item);
       continue;
     }
@@ -845,9 +910,9 @@ export async function hidratarFotosDoBucket(itens: ItemPalco[]): Promise<ItemPal
         // grupos cuja folha de fotos lê ESTA chave.
         for (const [grupo, conteudo] of Object.entries(obj as Record<string, unknown>)) {
           if (!grupoVaiNaChave(item.chave, grupo)) continue;
-          if (await percorrer(conteudo, campos, nomeadas)) mudou = true;
+          if (await percorrer(conteudo, campos, nomeadas, noLugar)) mudou = true;
         }
-      } else if (await percorrer(obj, campos, nomeadas)) {
+      } else if (await percorrer(obj, campos, nomeadas, noLugar)) {
         mudou = true;
       }
 

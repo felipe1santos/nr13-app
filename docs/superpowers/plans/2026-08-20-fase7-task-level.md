@@ -11,7 +11,7 @@
 
 ## Estado atual da fase
 
-`🔵 PLANEJAMENTO / BASELINE` — **nada implementado, nada alterado.**
+`🟡 ETAPA 7A EM IMPLEMENTAÇÃO` — plano aprovado em 20/08 com as decisões D7-1, D7-3, D7-H e a **correção obrigatória do rollout** (7A → 7B).
 
 | Etapa | Estado |
 |---|---|
@@ -20,8 +20,106 @@
 | Medir duplicação real por hash | ✅ FEITO |
 | Verificar infraestrutura reaproveitável | ✅ FEITO |
 | Criar o task-level | ✅ FEITO (este arquivo) |
-| Apresentar o plano | 🔄 EM CURSO |
-| **Implementar** | ⛔ **NÃO AUTORIZADO** |
+| Apresentar o plano ao dono | ✅ **aprovado** com D7-1, D7-3, D7-H e a correção do rollout |
+| **Etapa 7A — leitura/resolução** | 🟡 **AUTORIZADA** |
+| **Etapa 7B — switch dos writers** | ⛔ **NÃO AUTORIZADA** — depende da validação da 7A em produção |
+
+---
+
+## Rollout aprovado — EXPAND → VALIDAR → SWITCH
+
+> **Correção obrigatória exigida pelo dono, e ela conserta um defeito real do meu plano.**
+>
+> Eu havia registrado como "custo aceitável" que um relatório emitido durante a Fase 7 e
+> reaberto após um rollback exibiria a rubrica **atual** em vez da congelada. **O dono recusou:
+> isso viola a garantia histórica.** A correção elimina o cenário em vez de documentá-lo.
+
+### Etapa 7A — compatibilidade de LEITURA (esta etapa)
+
+O sistema aprende a **interpretar** os dois formatos — base64 legado **e** referência — mas os
+**writers continuam no formato atual**. Nenhum snapshot novo depende exclusivamente de ref.
+
+| Entra na 7A | Fica para a 7B |
+|---|---|
+| Palco resolve `logoRef` e `assinaturaRef` | Writers gravando ref |
+| Tipos com os campos opcionais | Snapshot novo congelando ref |
+| Helpers content-addressed necessários | Cadastro gravando hash |
+| Testes, segurança, leitura no Portal | — |
+
+Depois: suíte → build → commit → push → **PARAR** para o redeploy. Em produção, validar que
+**tudo antigo continua abrindo** e que **nenhuma identidade visual mudou**.
+
+### Etapa 7B — switch dos WRITERS (só após aprovação)
+
+Com os leitores já em produção, os writers passam a gravar ref, e os snapshots novos congelam
+a referência do momento.
+
+### Rollback — a regra que motivou a correção
+
+```
+7B com problema  →  volta para 7A       ← 7A JÁ SABE LER as refs novas
+7B com problema  →  volta para antes da 7A     ← PROIBIDO
+```
+
+O segundo caminho produz exatamente o cenário recusado: relatório novo com ref, leitor antigo
+que não a entende, fallback para o dado vivo, e **documento histórico mudando de identidade
+visual**. Com 7A em produção, esse caminho deixa de existir.
+
+---
+
+## Decisões do dono — aprovadas em 20/08/2026
+
+### D7-1 · Resolver no PALCO ✅
+
+Os 41 templates continuam lendo a interface que já conhecem (`nr13_minha_empresa.logo` e os
+campos de rubrica). O palco aceita **base64 legado OU ref**, e materializa para o formato
+esperado **apenas em memória**. Nenhum HTML é alterado.
+
+Exigências que viram teste: legado continua funcionando · `logoRef` funciona ·
+`assinaturaRef` funciona · o template recebe **exatamente** o formato esperado · URL assinada
+é transitória e nunca persistida · **erro de resolução NÃO troca silenciosamente pela
+logo/rubrica atual** · relatório histórico nunca recebe identidade visual errada.
+
+### D7-3 · O que é hasheado ✅
+
+SHA-256 dos **bytes resultantes do processamento atual, no momento da entrada** —
+`comprimirImagem(300)` para logo, `processarAssinatura(500)` para rubrica.
+
+**Proibido:** reprocessar imagem histórica para gerar hash novo, ou decodificar/recomprimir
+base64 histórico e regravar em silêncio. Para conteúdo antigo, hash só para **análise**, sobre
+os bytes existentes, **sem modificar a origem**.
+
+### D7-H · Histórico intocado ✅
+
+14 relatórios legados · 12 snapshots antigos · PDFs arquivados · Livro lacrado · identidades
+visuais antigas — **todos intactos**, mesmo sendo a maior parte dos 475,8 KB.
+**Nenhum retrofit automático.**
+
+### D7-GC · Sem garbage collection nesta fase
+
+Logo que deixa de ser a atual: **arquivo continua**. Rubrica antiga: **continua**. Funcionário
+excluído: a assinatura continua se houver referência histórica. Auditoria de órfãos e eventual
+limpeza são da **Fase 10A/10B**.
+
+### D7-E · Como a economia será apresentada
+
+**Os 475,8 KB históricos NÃO entram como economia prometida.** Eles permanecem. A comparação
+honesta é: *snapshot novo com base64* × *snapshot novo com ref*, e *N usos da mesma imagem →
+1 arquivo físico*.
+
+---
+
+## Divergências comprovadas em relação ao plano macro
+
+Registradas aqui **sem alterar o macro em silêncio**:
+
+| # | O macro dizia | O que a varredura/medição mostrou |
+|---|---|---|
+| 1 | Poucos consumidores (`rel-empresa.js`, "CAPA e cabeçalhos") | **41 templates** leem `nr13_minha_empresa` direto (40 usam `.logo`, 91 ocorrências) |
+| 2 | Escopo incluía alterar os templates | **D7-1**: resolver no palco, **zero HTML alterado** |
+| 3 | — | **14 de 16 relatórios são legados** e dependem do snapshot para remontar |
+| 4 | Rollback com "regressão temporária de imutabilidade" aceitável | **Recusado.** Rollout **7A → 7B** elimina o cenário |
+| 5 | Histórico seria alvo de ganho | Histórico **não é reescrito**; o ganho é **prospectivo** |
 
 ---
 
@@ -254,19 +352,33 @@ Nunca o inverso. É o teste manual nº 4 e um critério de aceite.
 
 ## Tarefas
 
-- [ ] **T1** — `imagem.ts`: `processarAssinatura` e `comprimirImagem` devolvem também o blob
-- [ ] **T2** — `MinhaEmpresa.tsx` e `Funcionarios.tsx` gravam `logoRef`/`assinaturaRef` (gravação dupla), reusando `salvarArquivoPorConteudo`
-- [ ] **T3** — Tipos: `Funcionario.assinaturaRef?`, `AssinanteSnapshot.assinaturaRef?`, `meta.empresa.logoRef?`
-- [ ] **T4** — `palco.ts`: estender `CAMPO_REF_NOMEADO` para `nr13_minha_empresa.logoRef` e `nr13_lista_phs[].assinaturaRef`, resolvendo para os campos que os templates já leem, com **dedupe por caminho**
-- [ ] **T5** — Snapshot de relatório **novo** congela a referência
-- [ ] **T6** — `rel-assinatura.js` / `rel-empresa.js` / `pront-assinatura.js`: ordem `ref → dataURL → vazio`
-- [ ] **T7** — Testes (ver `## Testes`), incluindo estender `palco.varreduraTemplates.test.ts`
-- [ ] **T8** — `PENDENCIAS.md`: item do encerramento da gravação dupla, com data-alvo = deploy + 45 dias
-- [ ] **T9** — Medição, validação em produção e **PORTÃO P4**
+### ETAPA 7A — compatibilidade de leitura ✅ IMPLEMENTADA
+
+- [x] **7A.1** — `palco.ts`: `REF_RESOLVIDA_NO_LUGAR` + `refsNoLugarDaChave()`, cobrindo `nr13_minha_empresa.logoRef`, `nr13_lista_phs[].assinaturaRef` e os dois campos dentro de `nr13_relatorio_meta_atual`
+- [x] **7A.2** — Resolução recursiva na `percorrer`, com **dedupe por caminho** (o cache `jaBaixadas` já existente) e a guarda de campo já preenchido
+- [x] **7A.3** — Tipos ganham os campos **opcionais**: `MinhaEmpresaDados.logoRef`, `Funcionario.assinaturaRef`, `AssinanteSnapshot.assinaturaRef` (`meta.empresa` já é `Record<string, unknown>`)
+- [x] **7A.4** — `palco.refs7a.test.ts`: **14 testes**
+- [x] **7A.5** — Regressão: Livro (12) e as 4 suítes de palco (106 no total) verdes
+- [x] **7A.6** — Suíte **1162/1162**, build verde
+- [ ] **7A.7** — Validação em produção — **depende do redeploy**
+
+**Nenhum writer foi alterado. Nenhum HTML foi alterado.** O diff é `palco.ts` + dois arquivos
+de tipos. Nenhum snapshot novo depende de referência.
+
+### ETAPA 7B — switch dos writers ⛔ NÃO AUTORIZADA
+
+- [ ] **7B.1** — `imagem.ts`: `processarAssinatura` e `comprimirImagem` devolvem também o blob
+- [ ] **7B.2** — `MinhaEmpresa.tsx` / `Funcionarios.tsx` gravam a ref (gravação dupla), via `salvarArquivoPorConteudo`
+- [ ] **7B.3** — Snapshot de relatório novo congela a **referência**
+- [ ] **7B.4** — `PENDENCIAS.md`: encerramento da gravação dupla, data-alvo = deploy + 45 dias
+- [ ] **7B.5** — Teste histórico obrigatório (LOGO A → doc A → LOGO B → doc B → reabrir os dois)
+- [ ] **7B.6** — Validação em produção e **PORTÃO P4**
 
 ---
 
 ## Testes
+
+**Marcados = cobertos pela 7A** (14 testes novos). Os demais pertencem à 7B.
 
 - [ ] Mesmo conteúdo → **mesmo path**, um arquivo só
 - [ ] Conteúdo diferente → path diferente; **o antigo continua resolvível**
@@ -277,10 +389,10 @@ Nunca o inverso. É o teste manual nº 4 e um critério de aceite.
 - [ ] Documento **novo** usa a logo atual; documento **antigo** continua com a anterior
 - [ ] Relatório com `pdfRef` **não** regenera e mantém o **SHA-256**
 - [ ] Relatório legado (sem `pdfRef`) continua remontando com a imagem congelada
-- [ ] Snapshot antigo permanece **byte a byte**
-- [ ] Livro continua funcionando — **regressão bloqueante**
+- [x] Snapshot antigo permanece **byte a byte**
+- [x] Livro continua funcionando — **regressão bloqueante**
 - [ ] Portal abre o histórico e exibe a rubrica
-- [ ] **URL assinada nunca persistida**
+- [x] **URL assinada nunca persistida**
 - [ ] **Nenhuma exclusão automática** de arquivo histórico
 - [ ] Palco materializa **uma cópia por imagem distinta**, não uma por uso
 - [ ] `palco.varreduraTemplates.test.ts`: todo consumidor de logo/rubrica coberto
@@ -339,20 +451,35 @@ imutabilidade, **não perda de dado**, e desaparece ao reaplicar a fase.
 | 20/08 | Relatórios: 16 total, **2 com `pdfRef`, 14 LEGADOS** que dependem do snapshot | ✅ |
 | 20/08 | Infraestrutura reaproveitável levantada — nada precisa ser inventado | ✅ |
 | 20/08 | Task-level criado | ✅ |
+| 20/08 | Plano **aprovado** com D7-1, D7-3, D7-H, D7-GC, D7-E e a **correção obrigatória do rollout** (7A → 7B) | ✅ |
+| 20/08 | **ETAPA 7A IMPLEMENTADA** — palco resolve as refs no lugar, com dedupe e guarda de campo preenchido; tipos opcionais; 14 testes novos | ✅ |
+| 20/08 | Regressão verde: Livro 12/12, palco 106/106. Suíte **1162/1162**, build verde | ✅ |
+| 20/08 | Diff da 7A: **só palco.ts e 2 arquivos de tipos** — nenhum writer, nenhum HTML | ✅ |
 
 ---
 
 ## Ponto de retomada
 
-**Plano pronto. NADA implementado. Aguardando aprovação.**
+**ETAPA 7A: IMPLEMENTADA · COMMITADA · AGUARDANDO REDEPLOY.**
+**ETAPA 7B: NÃO AUTORIZADA.**
 
-Três pontos precisam de decisão antes de qualquer código:
+Suíte **1162/1162** (92 arquivos, +14), build verde.
 
-1. **D7-1** — resolver no **palco** (zero template alterado) em vez de tocar nos 41 arquivos
-   HTML, como o plano macro sugeria?
-2. **D7-3** — hashear os bytes **depois** do processamento atual (`processarAssinatura` /
-   `comprimirImagem`), nunca reprocessando imagem já existente?
-3. **Escopo** — confirmar que os 14 relatórios legados e os 12 snapshots antigos ficam
-   **integralmente intocados**, mesmo sendo a maior parte dos 475,8 KB.
+### O que a 7A faz — e o que ela deliberadamente NÃO faz
+
+O sistema **sabe ler** referência de logo e rubrica. Mas **nada as grava ainda**: os writers
+continuam produzindo dataURL, e nenhum snapshot novo depende de referência. É o "EXPAND" do
+rollout — quando a 7B chegar, os leitores já estarão em produção, e o rollback `7B → 7A`
+passa a ser seguro.
+
+### Depois do redeploy — validar em produção
+
+1. **Tudo antigo continua abrindo:** relatório legado, relatório arquivado, Livro, prontuário,
+   Portal e sistema interno.
+2. **Nenhuma identidade visual mudou** — a logo e as rubricas dos documentos são as mesmas.
+3. **Nenhuma chave histórica foi escrita** — conferir por SHA-256 e `versao`, como na Fase 6.
+4. Console sem erro.
+
+Só depois da aprovação do dono é que a **7B** começa.
 
 **Não iniciar a Fase 8.**

@@ -1,3 +1,4 @@
+import type { RefFoto } from '../../services/fotos';
 export interface MinhaEmpresaDados {
   logo?: string;
   razao?: string;
@@ -30,6 +31,17 @@ export interface Funcionario {
   crea: string;
   tipo: 'Engenheiro' | 'Inspetor';
   assinatura?: string; // imagem dataURL (comprimida)
+  /**
+   * FASE 7A — o mesmo conteúdo no bucket, endereçado pelo SHA-256 dos bytes
+   * (`<org>/{logos,assinaturas}/<sha256>.<ext>`).
+   *
+   * **Opcional e ainda não gravado.** A etapa 7A ensina o sistema a LER este
+   * campo; os writers só passam a preenchê-lo na 7B, depois de a capacidade de
+   * leitura estar em produção. Enquanto isso a dataURL acima continua sendo a
+   * fonte, e ela permanece durante toda a convivência (D-11) para o rollback
+   * não custar nada.
+   */
+  assinaturaRef?: RefFoto;
   /** Cargo exibido na assinatura (ex.: "Engenheiro Mecânico"). Vazio → as folhas usam fallback. */
   funcao?: string;
   /** Informações adicionais do assinante (rótulo e valor livres). Alimenta o motor de assinatura. */
