@@ -6,7 +6,7 @@
 > **REGRA:** este arquivo é atualizado NO MOMENTO em que o estado muda — commit, push,
 > redeploy, validação, portão. Não no fim da fase.
 
-**Última atualização:** 20/08/2026 23:35
+**Última atualização:** 21/08/2026 00:00
 **Branch:** `main` · **Suíte:** 1162 testes / 92 arquivos, 0 falhas · **Build:** verde
 
 
@@ -100,11 +100,11 @@ Sempre use um destes. Nunca "concluído".
 | **4** | Portal: arquitetura de leitura (A-02) | ✅ **CONCLUÍDA** | **P3 FECHADO ✅** aprovado 20/08 | `plans/2026-08-20-fase4-task-level.md` |
 | **5** | Fotos: thumbnail, EXIF, teto de altura (A-08) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** | — | `plans/2026-08-20-fase5-task-level.md` · `medicoes/2026-08-20-fase5-producao-antes-depois.md` |
 | **6** | Recuperação do fallback base64 (A-10) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** nas 3 famílias, com SHA-256 idêntico | — | `plans/2026-08-20-fase6-task-level.md` |
-| **7** | Logo e rubrica por conteúdo (A-05) | 🟡 **ETAPA 7A IMPLEMENTADA · AGUARDANDO REDEPLOY** · 7B não autorizada | **P4** | `plans/2026-08-20-fase7-task-level.md` |
+| **7** | Logo e rubrica por conteúdo (A-05) | 🟢 **7A VALIDADA EM PRODUÇÃO** · 7B aguarda autorização | **P4** | `plans/2026-08-20-fase7-task-level.md` |
 | 8…13 | ver plano macro | PLANEJADO | P5…P8 | `plans/2026-08-15-evolucao-arquitetura.md` |
 
-**Fase atual:** 7A (implementada localmente) · **Tarefa atual:** validar a 7A em produção depois do redeploy
-**Próxima ação exata:** o dono redeploya. Depois, validar a **7A** em produção: tudo antigo continua abrindo (legado, arquivado, Livro, prontuário, Portal), nenhuma identidade visual mudou e nenhuma chave histórica foi escrita. A **7B** (switch dos writers) só começa após essa aprovação.
+**Fase atual:** 7A concluída · **Tarefa atual:** aguardar autorização do dono para a 7B (switch dos writers)
+**Próxima ação exata:** o dono autoriza (ou não) a **ETAPA 7B** — switch dos writers, snapshot congelando referência, teste histórico LOGO A/LOGO B e **PORTÃO P4**. Rollback da 7B é sempre `7B -> 7A`, nunca para antes da 7A.
 
 Os dois roteiros ficam gravados, já com os resultados marcados:
 

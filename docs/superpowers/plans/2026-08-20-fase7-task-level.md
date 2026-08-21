@@ -11,7 +11,7 @@
 
 ## Estado atual da fase
 
-`🟡 ETAPA 7A EM IMPLEMENTAÇÃO` — plano aprovado em 20/08 com as decisões D7-1, D7-3, D7-H e a **correção obrigatória do rollout** (7A → 7B).
+`🟢 ETAPA 7A VALIDADA EM PRODUÇÃO` · 7B não autorizada — plano aprovado em 20/08 com as decisões D7-1, D7-3, D7-H e a **correção obrigatória do rollout** (7A → 7B).
 
 | Etapa | Estado |
 |---|---|
@@ -21,7 +21,7 @@
 | Verificar infraestrutura reaproveitável | ✅ FEITO |
 | Criar o task-level | ✅ FEITO (este arquivo) |
 | Apresentar o plano ao dono | ✅ **aprovado** com D7-1, D7-3, D7-H e a correção do rollout |
-| **Etapa 7A — leitura/resolução** | 🟡 **AUTORIZADA** |
+| **Etapa 7A — leitura/resolução** | ✅ **VALIDADA EM PRODUÇÃO** |
 | **Etapa 7B — switch dos writers** | ⛔ **NÃO AUTORIZADA** — depende da validação da 7A em produção |
 
 ---
@@ -360,7 +360,7 @@ Nunca o inverso. É o teste manual nº 4 e um critério de aceite.
 - [x] **7A.4** — `palco.refs7a.test.ts`: **14 testes**
 - [x] **7A.5** — Regressão: Livro (12) e as 4 suítes de palco (106 no total) verdes
 - [x] **7A.6** — Suíte **1162/1162**, build verde
-- [ ] **7A.7** — Validação em produção — **depende do redeploy**
+- [x] **7A.7** — **VALIDADA EM PRODUÇÃO** (bundle `index-D_-wTh2v.js`): zero escrita histórica, PDFs com SHA-256 idêntico, Livro e Portal sem regressão, e os 4 cenários de leitura provados. Ver `medicoes/2026-08-20-fase7a-validacao-producao.md`
 
 **Nenhum writer foi alterado. Nenhum HTML foi alterado.** O diff é `palco.ts` + dois arquivos
 de tipos. Nenhum snapshot novo depende de referência.
@@ -455,31 +455,52 @@ imutabilidade, **não perda de dado**, e desaparece ao reaplicar a fase.
 | 20/08 | **ETAPA 7A IMPLEMENTADA** — palco resolve as refs no lugar, com dedupe e guarda de campo preenchido; tipos opcionais; 14 testes novos | ✅ |
 | 20/08 | Regressão verde: Livro 12/12, palco 106/106. Suíte **1162/1162**, build verde | ✅ |
 | 20/08 | Diff da 7A: **só palco.ts e 2 arquivos de tipos** — nenhum writer, nenhum HTML | ✅ |
+| 21/08 | **7A VALIDADA EM PRODUÇÃO** — 94 chaves conferidas por SHA-256 e versão: `nr13_rel_`, `nr13_minha_empresa`, `nr13_lista_phs` e `nr13_livro_` **não foram escritos**; PDFs arquivados com hash idêntico | ✅ |
+| 21/08 | Teste controlado de leitura: ref válida resolve · **ref inválida NÃO vira substituto** · base64 congelado vence · restauração conferida | ✅ |
+| 21/08 | Portal: arquivo próprio 200, de outro cliente e inexistente 404 idêntico, `app_storage` vazio. **Rubrica da org recusada** — correto pela D-05, e vira teste bloqueante da 7B | ✅ |
 
 ---
 
 ## Ponto de retomada
 
-**ETAPA 7A: IMPLEMENTADA · COMMITADA · AGUARDANDO REDEPLOY.**
-**ETAPA 7B: NÃO AUTORIZADA.**
+**ETAPA 7A: VALIDADA EM PRODUÇÃO ✅**
+**ETAPA 7B: NÃO AUTORIZADA — aguardando aprovação do dono.**
 
-Suíte **1162/1162** (92 arquivos, +14), build verde.
+Suíte **1162/1162**, build verde. Bundle validado: `index-D_-wTh2v.js`.
 
-### O que a 7A faz — e o que ela deliberadamente NÃO faz
+### O que a 7A provou
 
-O sistema **sabe ler** referência de logo e rubrica. Mas **nada as grava ainda**: os writers
-continuam produzindo dataURL, e nenhum snapshot novo depende de referência. É o "EXPAND" do
-rollout — quando a 7B chegar, os leitores já estarão em produção, e o rollback `7B → 7A`
-passa a ser seguro.
+Zero escrita histórica (94 chaves conferidas por SHA-256 e versão) · PDFs arquivados com hash
+idêntico · Livro e Portal sem regressão · e os quatro cenários de leitura:
 
-### Depois do redeploy — validar em produção
+| Cenário | Resultado |
+|---|---|
+| Ref válida, campo vazio | resolve |
+| **Ref inválida** | campo continua vazio — **nenhum substituto injetado** |
+| Base64 + ref | **base64 congelado vence** |
+| Mesma imagem em dois lugares | baixada uma vez |
 
-1. **Tudo antigo continua abrindo:** relatório legado, relatório arquivado, Livro, prontuário,
-   Portal e sistema interno.
-2. **Nenhuma identidade visual mudou** — a logo e as rubricas dos documentos são as mesmas.
-3. **Nenhuma chave histórica foi escrita** — conferir por SHA-256 e `versao`, como na Fase 6.
-4. Console sem erro.
+E o principal: **nenhum writer produz referência ainda.** O EXPAND está em produção.
 
-Só depois da aprovação do dono é que a **7B** começa.
+### Achado que a 7A entregou para a 7B
+
+O Portal **recusou** a rubrica da organização (404 `nao_disponivel`) — comportamento **correto**
+pela D-05: a autorização é por vínculo, e hoje nenhum relatório do cliente referencia a
+rubrica. Quando a 7B fizer o snapshot carregar `assinaturaRef`, ela passará a ser alcançável
+por `coletarPaths` a partir do relatório que o cliente pode ver.
+
+> **"Portal exibe a rubrica" é teste BLOQUEANTE da 7B.** Se falhar lá, o cliente recebe
+> relatório sem a assinatura do engenheiro — documento técnico incompleto.
+
+### Quando a 7B for autorizada
+
+1. `imagem.ts` devolve o blob além do dataURL
+2. `MinhaEmpresa.tsx` / `Funcionarios.tsx` gravam a ref (**gravação dupla**, D-11)
+3. Snapshot de relatório novo congela a **referência**
+4. `PENDENCIAS.md`: encerramento da gravação dupla, data-alvo = deploy + 45 dias
+5. **Teste histórico obrigatório**: LOGO A → doc A → LOGO B → doc B → reabrir os dois
+6. Portal exibindo a rubrica · medição do snapshot novo (≈50 % menor) · **PORTÃO P4**
+
+**Rollback da 7B é `7B → 7A`, nunca para antes da 7A.**
 
 **Não iniciar a Fase 8.**
