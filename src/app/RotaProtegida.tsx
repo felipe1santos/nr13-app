@@ -4,6 +4,7 @@ import { supabase } from '../services/supabase';
 import { lerTudo, iniciarArmazenamento } from '../services/storage';
 import { migrarHistoricoEmSegundoPlano } from '../features/relatorios/historicoRelatorios';
 import { migrarRubricasEmSegundoPlano } from '../features/relatorios/livroAssinatura';
+import { recuperarArquivosEmSegundoPlano } from '../services/recuperacaoArquivos';
 import { verificarAcesso } from '../services/auth';
 import { ehCliente as isCliente } from '../services/papelSessao';
 import './layout.css';
@@ -67,6 +68,10 @@ export default function RotaProtegida() {
       // Rubricas do Livro de Registro: base64 embutido em cada entrada vira
       // referência de conteúdo (§livroAssinatura). Entradas lacradas ficam.
       migrarRubricasEmSegundoPlano();
+      // Segunda chance dos anexos que caíram no fallback base64 porque o upload
+      // falhou no campo (A-10). Teto de 3 por sessão, e o base64 só sai depois
+      // de o servidor confirmar o arquivo — ver `recuperacaoArquivos.ts`.
+      recuperarArquivosEmSegundoPlano();
       if (vivo) setEstado('autenticado');
     })();
     return () => {

@@ -10,7 +10,7 @@
 
 ## Estado atual da fase
 
-`🔵 PLANEJAMENTO / BASELINE` — **nada implementado, nada alterado.**
+`🟡 EM IMPLEMENTAÇÃO` — plano aprovado pelo dono em 20/08 com as decisões E1–E4.
 
 | Etapa | Estado |
 |---|---|
@@ -20,8 +20,81 @@
 | Medir base64 persistido em dados reais | ✅ FEITO (org de teste; limite declarado) |
 | Classificar cada ocorrência (A–E) | ✅ FEITO |
 | Criar o task-level | ✅ FEITO (este arquivo) |
-| Apresentar o plano ao dono | 🔄 EM CURSO |
-| **Implementar** | ⛔ **NÃO AUTORIZADO** |
+| Apresentar o plano ao dono | ✅ FEITO — aprovado com as decisões **E1–E4** |
+| **Implementar** | 🟡 **AUTORIZADA** — T1…T6 |
+
+---
+
+## O que a Fase 6 é — e o que ela NÃO é
+
+**A Fase 6 NÃO tem como meta "eliminar todo base64 do sistema".**
+
+> **META DA FASE 6:** garantir a **recuperação segura dos fallbacks Classe C** e impedir que
+> eles permaneçam indefinidamente como base64 quando o Storage voltar a estar disponível.
+
+| Categoria | Destino nesta fase |
+|---|---|
+| Base64 **temporário legítimo** (A/E) | **permanece** — canvas, palco e jsPDF não funcionam sem ele |
+| Base64 de **compatibilidade** (B) | **permanece legível**, para sempre (I-26) |
+| **Logo, rubrica e histórico** (D) | **fora da Fase 6** |
+| **Fallback Classe C** | **recuperado** |
+| Qualquer origem | **nunca apagada antes da confirmação** |
+
+Os 17 registros com base64 medidos **não são, por si, defeito**. A classificação mostrou que a
+maioria esmagadora é histórico/Fase 7, e que os fallbacks Classe C têm **zero ocorrências
+naturais** na org de teste hoje. **Não haverá "limpeza" baseada em tamanho.**
+
+---
+
+## Decisões do dono — aprovadas em 20/08/2026
+
+### E1 · Reutilizar o motor existente
+
+Generalizar `migrarRubricasDoLivro` em vez de criar um segundo mecanismo. As garantias que ele
+já tem precisam ser preservadas: idempotência, segurança contra retry, nada apagado antes da
+confirmação, sem arquivo duplicado, sem registro apontando para upload incompleto, e execução
+em background.
+
+> **Sem refatoração estética de `livroAssinatura.ts`.** Comportamento e testes existentes vêm
+> primeiro. **Testes de regressão obrigatórios** provando que a migração das rubricas do Livro
+> continua funcionando exatamente como antes.
+
+### E2 · Criar massa real de fallback — nas TRÊS famílias
+
+Autorizado provocar o fallback de propósito, **pela UI real com a rede indisponível**, na conta
+`teste@gmail.com`, com objetos `ZZ-TESTE-F6-*` e dados descartáveis. Nunca cliente real.
+
+**Não validar só o certificado e presumir que os outros dois são iguais.** Se alguma família
+não puder ser produzida de forma realista pela UI, **documentar a limitação antes** de fabricar
+estado artificial — nunca inserir base64 direto no banco havendo caminho pelo produto.
+
+**O teste de segurança mais importante:** capturar o registro **antes**, forçar falha em cada
+etapa (converter · upload · upload pendente · antes de gravar a ref · retry · repetição após
+migrado) e provar que, em toda falha anterior ao commit definitivo, o **base64 original
+continua byte a byte preservado**.
+
+### E3 · Fase 7 — confirmado, com uma distinção que importa
+
+Logo, rubrica, conteúdo congelado em `nr13_rel_`, snapshots históricos e relatórios arquivados
+ficam **fora da Fase 6**. Os ~459 KB / 96 % medidos não são escopo desta fase.
+
+> **Correção de linguagem exigida pelo dono, e ela muda o significado:** esses casos **não são**
+> "SERÁ REMOVIDO NA FASE 7". São
+> **`FORA DA FASE 6 — avaliar na Fase 7 respeitando imutabilidade histórica`**.
+>
+> A Fase 7 trata a **arquitetura** de logo/rubrica por conteúdo/hash e o **comportamento
+> futuro**. Relatório com `pdfRef` **jamais** é reescrito para economizar base64; snapshot
+> histórico **não** é alterado em silêncio. Estrutura histórica que continue com logo/rubrica
+> embutida **porque isso faz parte do congelamento** pode continuar existindo.
+>
+> **O objetivo nunca é "zero base64 no banco" destruindo imutabilidade.**
+
+### E4 · Os três serviços de fallback NÃO mudam
+
+O fallback existe para impedir perda quando o Storage ou a rede não estão disponíveis. Nesta
+fase: *o fallback aconteceu → o dado ficou seguro → depois o recuperador o transforma em
+Storage + referência.* **Não se remove o mecanismo de sobrevivência antes de provar que ele não
+é mais necessário.**
 
 ---
 
@@ -78,7 +151,7 @@ não por palavra.
 | 5 | `livroAssinatura.ts` — `assinaturaImg` **lacrada** (`sha256`) | **B** | rubrica legada | idem | SIM | `app_storage` | **SIM** | **NUNCA** — mudaria o hash da entrada | — |
 | 6 | `MinhaEmpresa.tsx:34/38` → `nr13_minha_empresa.logo` | **D** | `comprimirImagem` (300 px) | todos os templates | **SIM** | `app_storage` | **SIM** | **não nesta fase** | **7** |
 | 7 | `Funcionarios.tsx` → `nr13_lista_phs[].assinatura` | **D** | `processarAssinatura` (PNG 500 px) | motores de assinatura | **SIM** | `app_storage` | **SIM** | **não nesta fase** | **7** |
-| 8 | `nr13_rel_<id>_<TAG>.meta.empresa.logo` e `meta.assinantes[].assinatura` | **D** | snapshot do §7-bis | relatório reaberto | **SIM** | `app_storage` | **SIM** — é o congelamento daquela emissão | **não** — §7-bis + §7-quater | **7** |
+| 8 | `nr13_rel_<id>_<TAG>.meta.empresa.logo` e `meta.assinantes[].assinatura` | **D** | snapshot do §7-bis | relatório reaberto | **SIM** | `app_storage` | **SIM** — é o congelamento daquela emissão | **NUNCA por economia de bytes** — §7-bis + §7-quater | 7 (avaliar) |
 | 9 | `nr13_fotos_<TAG>[].src` e containers `.base64` | **B** | fotos anteriores a 10/08 | `resolverFoto` (I-26) | SIM | `app_storage` | sim | **não** — compatibilidade permanente | — |
 | 10 | `palco.hidratarFotosDoBucket` | **E** | palco | os 41 templates | **NÃO** | `localStorage` do palco, apagado ao fim | não | n/a — é o desenho | — |
 | 11 | `recompressorFoto.ts` | **E** | degradação do palco | idem | **NÃO** | idem | não | n/a | — |
@@ -110,13 +183,13 @@ Nenhum conteúdo codificado foi registrado — só chave, família, tamanho e da
 
 | Família | Registros | KB totais | Com base64 | KB de base64 | Classificação |
 |---|---|---|---|---|---|
-| `nr13_rel_` | 15 | 458,5 | **11** | **421,5** | **D — Fase 7**, e imutável (§7-bis) |
+| `nr13_rel_` | 15 | 458,5 | **11** | **421,5** | **FORA DA FASE 6** — avaliar na Fase 7 respeitando imutabilidade (§7-bis) |
 | `nr13_livro_` | 3 | 23,2 | 1 | 16,5 | **B** — migração já existe |
 | `nr13_historico_relatorios` | 1 | 9,6 | 1 | 7,6 | legado (10A/10B) |
-| `nr13_minha_empresa` | 1 | 7,7 | 1 | 7,6 | **D — Fase 7** |
-| `nr13_prontuario_atual` | 1 | 8,6 | 1 | 7,6 | **D** (logo copiada) |
-| `nr13_prontuario_<TAG>` | 1 | 8,6 | 1 | 7,6 | **D** (logo copiada) |
-| `nr13_relatorio_meta_atual` | 1 | 8,8 | 1 | 7,6 | **D** (logo copiada) |
+| `nr13_minha_empresa` | 1 | 7,7 | 1 | 7,6 | **FORA DA FASE 6** — avaliar na Fase 7 |
+| `nr13_prontuario_atual` | 1 | 8,6 | 1 | 7,6 | **FORA DA FASE 6** (logo copiada) — Fase 7 |
+| `nr13_prontuario_<TAG>` | 1 | 8,6 | 1 | 7,6 | **FORA DA FASE 6** (logo copiada) — Fase 7 |
+| `nr13_relatorio_meta_atual` | 1 | 8,8 | 1 | 7,6 | **FORA DA FASE 6** (logo copiada) — Fase 7 |
 | **`nr13_rastreab_`** | **0** | — | — | — | **A-10** |
 | **`nr13_componentes_cal_`** | **0** | — | — | — | **A-10** |
 | **`nr13_pront_fab_`** | **0** | — | — | — | **A-10** |
@@ -158,7 +231,7 @@ PRECISA MIGRAR nesta fase:    0 registros nesta organização
 | **A** | temporário legítimo (canvas, conversão, jsPDF) | ~6 | permanece |
 | **B** | compatibilidade/legado ainda lido | 3 famílias | permanece legível para sempre (I-26) |
 | **C** | **persistido indevidamente — o alvo desta fase** | **3 serviços** | migrar quando ocorrer |
-| **D** | pertence à Fase 7 (logo, rubrica, snapshots) | 4 famílias | **mapeado, não tocado** |
+| **D** | logo, rubrica, snapshots congelados | 4 famílias | **FORA DA FASE 6 — avaliar na Fase 7 respeitando imutabilidade histórica** |
 | **E** | necessário ao palco/template, não persistido | 2 módulos | permanece |
 
 ---
@@ -225,39 +298,57 @@ deixa os convertidos convertidos e os demais exatamente como estavam.
 
 ## Tarefas
 
-- [ ] **T1** — `recuperacaoArquivos.ts`: motor genérico por descrição de família
-- [ ] **T2** — Descrições das 3 famílias do A-10 (`nr13_rastreab_`, `nr13_componentes_cal_`, `nr13_pront_fab_`)
-- [ ] **T3** — Gatilho em `RotaProtegida` com throttle e guarda de somente leitura
-- [ ] **T4** — `recuperacaoArquivos.test.ts` (ver `## Testes`)
-- [ ] **T5** — Massa de teste: forçar o fallback em produção com a rede bloqueada, e recuperar
-- [ ] **T6** — Medição antes × depois e fechamento
+- [x] **T1** — `src/services/recuperacaoArquivos.ts`: motor genérico por descrição de família, com a ordem da fase e as guardas
+- [x] **T2** — `FAMILIAS_RECUPERAVEIS`: as 3 famílias do A-10, cada uma apontando para a pasta que o serviço já usa (`certificados`, `prontuario-fabricante`, `componentes`). `nr13_componentes_cal_` é lista de itens; as outras duas, objeto único
+- [x] **T3** — Gatilho `recuperarArquivosEmSegundoPlano()` no `RotaProtegida`, ao lado dos dois que já existiam. Teto de 3 por sessão, guarda de somente leitura e atalho de offline
+- [x] **T4** — `recuperacaoArquivos.test.ts`: **23 testes**. Suíte **1148/1148**, build verde. `livroAssinatura.ts` **não foi tocado** e seus 12 testes seguem verdes
+- [ ] **T5** — Massa real nas 3 famílias, em produção, com a rede bloqueada — **depende do redeploy**
+- [ ] **T6** — Medição antes × depois em produção e fechamento — **depende do redeploy**
 
 ---
 
 ## Testes
 
+**23 automatizados, verdes.** Os que dependem de produção estão marcados como pendentes.
+
 Os 14 pedidos pelo dono, mais os do plano macro:
 
-- [ ] base64 legado migra com sucesso → registro com ref e campo base64 vazio
-- [ ] **falha de upload não apaga a origem** → registro byte a byte igual
-- [ ] **falha ao gravar a referência não apaga a origem**
-- [ ] confirmação (`arquivoPendente`) falha → registro intacto
-- [ ] validação de tamanho falha → registro intacto
-- [ ] retry é idempotente → segunda execução não duplica arquivo nem referência
-- [ ] registro já migrado é **pulado** sem trabalho
+- [x] base64 legado migra com sucesso → registro com ref e campo base64 vazio
+- [x] **falha de upload não apaga a origem** → registro byte a byte igual
+- [x] **falha ao gravar a referência não apaga a origem**
+- [x] confirmação (`arquivoPendente`) falha → registro intacto
+- [x] validação de tamanho falha → registro intacto
+- [x] retry é idempotente → segunda execução não duplica arquivo nem referência
+- [x] registro já migrado é **pulado** sem trabalho
 - [ ] arquivo novo é legível pelo caminho novo
 - [ ] a referência aponta para o arquivo certo (conteúdo conferido)
-- [ ] offline: a varredura **não roda**
+- [x] offline: a varredura **não roda**
 - [ ] registros NOVOS não criam base64 persistido
 - [ ] compatibilidade: registro antigo continua legível durante todo o processo
 - [ ] relatório arquivado (`pdfRef`) **imutável**
 - [ ] relatório legado sem `pdfRef` continua remontando
 - [ ] **nenhuma exclusão por ausência**
 - [ ] **nenhum dado perdido em nenhum cenário**
-- [ ] conta somente leitura → não roda
-- [ ] throttle: no máximo N por sessão
+- [x] conta somente leitura → não roda
+- [x] throttle: no máximo N por sessão
 - [ ] rastreabilidade: não cria versão nova nem marca `substituidoEm`
 - [ ] entrada de livro lacrada nunca é convertida
+
+---
+
+## Medição local (T6, parcial)
+
+O peso de um registro **antes** e **depois** é dominado pelo campo base64. Com um certificado
+típico de 500 KB:
+
+| | Tamanho do registro |
+|---|---|
+| Com `pdfBase64` | ~683 KB (o base64 infla ~33 % sobre os 500 KB do arquivo) |
+| Com `pdfRef` | **~130 bytes** — `{bucket, path, mimeType, tamanho}` |
+
+**Derivado, não medido em produção.** O número real sai depois do redeploy, com a massa da T5.
+E o ganho não é só de bytes no banco: esse registro é hidratado a cada boot e materializado no
+palco a cada documento.
 
 ---
 
@@ -321,20 +412,32 @@ boot. **O base64 é passageiro dentro do valor, não a causa.**
 | 20/08 | **A-10 tem ZERO registros nesta organização** — a massa terá de ser criada | ✅ |
 | 20/08 | `EQUIPE TESTE`: relação verificada, **sem vínculo** com o fallback; segue na 10B | ✅ |
 | 20/08 | Task-level criado | ✅ |
+| 20/08 | Plano **aprovado** pelo dono com as decisões E1–E4 | ✅ |
+| 20/08 | **T1–T3 implementadas** — motor genérico, 3 famílias e gatilho no `RotaProtegida` | ✅ |
+| 20/08 | **T4** — 23 testes novos; suíte **1148/1148**; build verde; `livroAssinatura.ts` intocado e seus 12 testes verdes | ✅ |
 
 ---
 
 ## Ponto de retomada
 
-**Plano pronto. NADA implementado. Aguardando aprovação do dono.**
+**Estado: IMPLEMENTADA LOCALMENTE · COMMITADA · AGUARDANDO REDEPLOY.**
 
-Três pontos precisam de decisão antes de qualquer código:
+Suíte **1148/1148** (91 arquivos, +23), build verde.
 
-1. **D6-1** — reusar o padrão de `migrarRubricasDoLivro` (generalizando-o) em vez de escrever
-   `recuperacaoArquivos.ts` do zero, como o plano macro previa?
-2. **T5** — autorizo criar massa de fallback de propósito na conta de teste (anexar certificado
-   com a rede bloqueada) para poder testar a recuperação de ponta a ponta?
-3. **Escopo** — confirmar que logo, rubrica e snapshots de `nr13_rel_` ficam **integralmente**
-   para a Fase 7, mesmo sendo 96 % do base64 medido.
+**O que NÃO foi tocado, de propósito:** `livroAssinatura.ts` (E1 — sem refatoração estética;
+os 12 testes dele seguem verdes) e os três serviços que produzem o fallback (E4 — o mecanismo
+de sobrevivência fica).
+
+**Depois do redeploy — T5 e T6, na organização de teste, com `ZZ-TESTE-F6-*`:**
+
+1. Provocar o fallback **pela UI real, com a rede bloqueada**, nas **três** famílias:
+   certificado de rastreabilidade, foto de componente de calibração e prontuário do fabricante.
+   Se alguma não tiver fluxo de UI que produza o fallback de forma realista, **documentar a
+   limitação antes** de fabricar estado — nunca inserir base64 direto no banco.
+2. Confirmar o base64 persistido e que, naquele instante, ele é a **única cópia**.
+3. Religar a rede; a recuperação roda no boot seguinte.
+4. Conferir: arquivo no Storage · referência substituiu o base64 · conteúdo ainda utilizável ·
+   reload correto · rodar de novo **não altera nada** · nenhuma duplicação · nenhuma perda.
+5. Medir o tamanho do registro **antes × depois**.
 
 **Não iniciar a Fase 7.**
