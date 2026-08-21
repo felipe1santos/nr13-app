@@ -98,11 +98,11 @@ Sempre use um destes. Nunca "concluído".
 | **3** | Conflitos (A-14) | ✅ **CONCLUÍDA** | **P2 FECHADO ✅** aprovado 20/08 | `plans/2026-08-16-fase3-task-level.md` |
 | **4** | Portal: arquitetura de leitura (A-02) | ✅ **CONCLUÍDA** | **P3 FECHADO ✅** aprovado 20/08 | `plans/2026-08-20-fase4-task-level.md` |
 | **5** | Fotos: thumbnail, EXIF, teto de altura (A-08) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** | — | `plans/2026-08-20-fase5-task-level.md` · `medicoes/2026-08-20-fase5-producao-antes-depois.md` |
-| **6** | Recuperação do fallback base64 (A-10) | 🟡 **IMPLEMENTADA LOCALMENTE · AGUARDANDO REDEPLOY** | — | `plans/2026-08-20-fase6-task-level.md` |
+| **6** | Recuperação do fallback base64 (A-10) | 🟠 **DEPLOYADA · PROTEÇÕES VALIDADAS · caminho feliz bloqueado (a UI não produz o fallback)** | — | `plans/2026-08-20-fase6-task-level.md` |
 | 7…13 | ver plano macro | PLANEJADO | P4…P8 | `plans/2026-08-15-evolucao-arquitetura.md` |
 
-**Fase atual:** 6 (implementada localmente) · **Tarefa atual:** T5/T6 — massa real e medição, depois do redeploy
-**Próxima ação exata:** o dono redeploya. Depois: provocar o fallback pela UI real com a rede bloqueada nas **três** famílias (`ZZ-TESTE-F6-*`), confirmar que o base64 é a única cópia, religar, ver a recuperação rodar e medir o registro antes × depois. A Fase 6 **não fecha** antes disso.
+**Fase atual:** 6 (validação parcial) · **Tarefa atual:** decidir o método de massa controlada (A, B ou C)
+**Próxima ação exata:** o dono escolhe entre **A** (induzir a falha real do cofre e deixar a UI produzir o registro), **B** (gravar massa pelo caminho oficial de escrita) ou **C** (aceitar a cobertura dos 23 testes e fechar registrando que o caminho feliz não foi validado em produção). Detalhes em `docs/medicoes/2026-08-20-fase6-validacao-producao.md` §5.
 
 Os dois roteiros ficam gravados, já com os resultados marcados:
 

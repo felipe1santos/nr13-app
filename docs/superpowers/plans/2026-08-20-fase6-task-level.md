@@ -302,8 +302,8 @@ deixa os convertidos convertidos e os demais exatamente como estavam.
 - [x] **T2** — `FAMILIAS_RECUPERAVEIS`: as 3 famílias do A-10, cada uma apontando para a pasta que o serviço já usa (`certificados`, `prontuario-fabricante`, `componentes`). `nr13_componentes_cal_` é lista de itens; as outras duas, objeto único
 - [x] **T3** — Gatilho `recuperarArquivosEmSegundoPlano()` no `RotaProtegida`, ao lado dos dois que já existiam. Teto de 3 por sessão, guarda de somente leitura e atalho de offline
 - [x] **T4** — `recuperacaoArquivos.test.ts`: **23 testes**. Suíte **1148/1148**, build verde. `livroAssinatura.ts` **não foi tocado** e seus 12 testes seguem verdes
-- [ ] **T5** — Massa real nas 3 famílias, em produção, com a rede bloqueada — **depende do redeploy**
-- [ ] **T6** — Medição antes × depois em produção e fechamento — **depende do redeploy**
+- [ ] **T5** — Massa real nas 3 famílias — **BLOQUEADA: a UI não produz o fallback Classe C.** Ver `medicoes/2026-08-20-fase6-validacao-producao.md` §3. Proposta de massa controlada em §5, aguardando aprovação do dono
+- [ ] **T6** — Medição antes × depois em produção — **depende da T5**
 
 ---
 
@@ -415,29 +415,43 @@ boot. **O base64 é passageiro dentro do valor, não a causa.**
 | 20/08 | Plano **aprovado** pelo dono com as decisões E1–E4 | ✅ |
 | 20/08 | **T1–T3 implementadas** — motor genérico, 3 famílias e gatilho no `RotaProtegida` | ✅ |
 | 20/08 | **T4** — 23 testes novos; suíte **1148/1148**; build verde; `livroAssinatura.ts` intocado e seus 12 testes verdes | ✅ |
+| 20/08 | Redeploy do dono · bundle `index-t6_YX0dz.js` conferido e carregado | ✅ |
+| 20/08 | **Gatilho confirmado em produção** — `[livro] rubricas:` no boot, a linha imediatamente anterior à do recuperador | ✅ |
+| 20/08 | **PROTEÇÃO PROVADA EM PRODUÇÃO** — 25 chaves protegidas (11 `nr13_rel_` com base64) conferidas por SHA-256 e versão antes e depois: **0 alteradas** | ✅ |
+| 20/08 | **LIMITAÇÃO ENCONTRADA** — a UI não produz o fallback Classe C: `salvarArquivo` engole a falha de rede (`fotos.ts:248`) e só lança sem sessão ou com o cofre quebrado. **Parado, sem forçar erro nem fabricar registro** | 🟠 |
 
 ---
 
 ## Ponto de retomada
 
-**Estado: IMPLEMENTADA LOCALMENTE · COMMITADA · AGUARDANDO REDEPLOY.**
+**Estado: DEPLOYADA · PROTEÇÕES VALIDADAS EM PRODUÇÃO · CAMINHO FELIZ BLOQUEADO.**
+**A Fase 6 NÃO está fechada.**
 
-Suíte **1148/1148** (91 arquivos, +23), build verde.
+### O que já está provado em produção
 
-**O que NÃO foi tocado, de propósito:** `livroAssinatura.ts` (E1 — sem refatoração estética;
-os 12 testes dele seguem verdes) e os três serviços que produzem o fallback (E4 — o mecanismo
-de sobrevivência fica).
+Bundle `index-t6_YX0dz.js` no ar · gatilho de background rodando · **25 chaves protegidas
+inalteradas byte a byte**, incluindo **11 `nr13_rel_` com base64** · nenhum erro no console ·
+suíte **1148/1148** · build verde.
 
-**Depois do redeploy — T5 e T6, na organização de teste, com `ZZ-TESTE-F6-*`:**
+### O que trava o fechamento
 
-1. Provocar o fallback **pela UI real, com a rede bloqueada**, nas **três** famílias:
-   certificado de rastreabilidade, foto de componente de calibração e prontuário do fabricante.
-   Se alguma não tiver fluxo de UI que produza o fallback de forma realista, **documentar a
-   limitação antes** de fabricar estado — nunca inserir base64 direto no banco.
-2. Confirmar o base64 persistido e que, naquele instante, ele é a **única cópia**.
-3. Religar a rede; a recuperação roda no boot seguinte.
-4. Conferir: arquivo no Storage · referência substituiu o base64 · conteúdo ainda utilizável ·
-   reload correto · rodar de novo **não altera nada** · nenhuma duplicação · nenhuma perda.
-5. Medir o tamanho do registro **antes × depois**.
+**A UI não produz o fallback Classe C.** Provado pelo código: `salvarArquivo` engole a falha
+de upload (`fotos.ts:248`), então bloquear a rede faz o caminho feliz ter sucesso. Os `catch`
+só disparam sem sessão nenhuma ou com o cofre IndexedDB quebrado — condições de aparelho
+degradado, não de rede.
+
+Isso é, na verdade, **notícia boa**: desde a migração das fotos de 10/08, o cenário que
+originava o A-10 deixou de gerar base64. E explica o baseline: **zero registros Classe C**.
+
+### Decisão que o dono precisa tomar
+
+Três caminhos, detalhados em `medicoes/2026-08-20-fase6-validacao-producao.md` §5:
+
+- **A (recomendada)** — induzir a condição real do cofre e deixar a **UI fazer todo o resto**;
+  o registro nasce do próprio código de produção.
+- **B** — gravar a massa pelo caminho oficial de escrita (RPC), com dado fabricado.
+- **C** — aceitar a cobertura dos 23 testes automatizados e fechar sem a prova de ponta a ponta
+  com o Storage real. **Neste caso eu registro explicitamente que o caminho feliz não foi
+  validado em produção** — não vou dizer que validei o que não validei.
 
 **Não iniciar a Fase 7.**
