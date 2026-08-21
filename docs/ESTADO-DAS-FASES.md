@@ -6,7 +6,7 @@
 > **REGRA:** este arquivo é atualizado NO MOMENTO em que o estado muda — commit, push,
 > redeploy, validação, portão. Não no fim da fase.
 
-**Última atualização:** 20/08/2026 23:00
+**Última atualização:** 20/08/2026 23:20
 **Branch:** `main` · **Suíte:** 1148 testes / 91 arquivos, 0 falhas · **Build:** verde
 
 
@@ -100,10 +100,11 @@ Sempre use um destes. Nunca "concluído".
 | **4** | Portal: arquitetura de leitura (A-02) | ✅ **CONCLUÍDA** | **P3 FECHADO ✅** aprovado 20/08 | `plans/2026-08-20-fase4-task-level.md` |
 | **5** | Fotos: thumbnail, EXIF, teto de altura (A-08) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** | — | `plans/2026-08-20-fase5-task-level.md` · `medicoes/2026-08-20-fase5-producao-antes-depois.md` |
 | **6** | Recuperação do fallback base64 (A-10) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** nas 3 famílias, com SHA-256 idêntico | — | `plans/2026-08-20-fase6-task-level.md` |
-| 7…13 | ver plano macro | PLANEJADO | P4…P8 | `plans/2026-08-15-evolucao-arquitetura.md` |
+| **7** | Logo e rubrica por conteúdo (A-05) | 🔵 **PLANEJAMENTO / BASELINE** — implementação não autorizada | **P4** | `plans/2026-08-20-fase7-task-level.md` |
+| 8…13 | ver plano macro | PLANEJADO | P5…P8 | `plans/2026-08-15-evolucao-arquitetura.md` |
 
-**Fase atual:** nenhuma em execução · **Tarefa atual:** nenhuma — a Fase 7 depende de autorização do dono
-**Próxima ação exata:** aguardar autorização do dono para a **Fase 7** (logo e rubrica endereçadas por conteúdo). Lembrete registrado na Fase 6: os snapshots congelados em nr13_rel_ são FORA DA FASE 6 e devem ser avaliados na Fase 7 **respeitando a imutabilidade histórica** — nunca removidos por economia de bytes.
+**Fase atual:** 7 (planejamento/baseline) · **Tarefa atual:** apresentar o plano e aguardar aprovação
+**Próxima ação exata:** o dono aprova (ou ajusta) o plano da Fase 7 — em especial: resolver no PALCO em vez de tocar nos 41 templates que leem a logo direto; definir que se hasheiam os bytes depois do processamento atual; e confirmar que os 14 relatorios legados e os 12 snapshots antigos ficam intocados. **Nenhum codigo sera tocado antes disso.**
 
 Os dois roteiros ficam gravados, já com os resultados marcados:
 
