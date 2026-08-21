@@ -104,7 +104,7 @@ Sempre use um destes. Nunca "concluído".
 | 8…13 | ver plano macro | PLANEJADO | P5…P8 | `plans/2026-08-15-evolucao-arquitetura.md` |
 
 **Fase atual:** 7B (em produção, commit `490a236`) · **Tarefa atual:** fechar os dois itens que dependem do dono e apresentar o P4
-**Próxima ação exata:** já provados em produção — content-addressing, dedupe A/B/C/D, **teste histórico A/B (A = A, B = B)**, PDF imutável por SHA-256, convivência base64 x ref, **zero escrita histórica** (24 chaves), Livro encadeado e economia de **14,0x** no snapshot (`medicoes/2026-08-20-fase7b-validacao-producao.md`). Faltam dois, e os dois dependem do dono: **Portal do Cliente** com `logoRef`/`assinaturaRef` (bloqueante do P4 — precisa de `cliente001@gmail.com` autenticado) e **offline real**. Rollback da 7B é sempre `7B -> 7A`.
+**Próxima ação exata:** já provados em produção — content-addressing, dedupe A/B/C/D, **teste histórico A/B (A = A, B = B)**, PDF imutável por SHA-256, convivência base64 x ref, **zero escrita histórica** (24 chaves), Livro encadeado, economia de **14,0x** no snapshot e o **Portal pelo lado autorizado** (`cliente001@gmail.com` recebe 200 nas 4 refs; arquivo real sem vínculo e hash inventado recebem 404 idêntico; P1/P3 intactos) — tudo em `medicoes/2026-08-20-fase7b-validacao-producao.md`. Faltam dois, e os dois dependem do dono: a **contraprova com `ipiranga@gmail.com`** pedindo as mesmas refs (obrigatório 404 — bloqueante do P4) e o **offline real**. Rollback da 7B é sempre `7B -> 7A`.
 
 Os dois roteiros ficam gravados, já com os resultados marcados:
 

@@ -1,7 +1,7 @@
 # Etapa 7B em produção — validação
 
 **Data:** 21/08/2026 · **Bundle:** `index-WDnlnv6E.js` · **Commit:** `490a236`
-**Conta:** `teste@gmail.com` (mestre). Nenhuma organização real foi tocada.
+**Contas:** `teste@gmail.com` (mestre) e `cliente001@gmail.com` (Portal). Nenhuma organização real foi tocada.
 **Nenhum conteúdo de imagem ou assinatura foi registrado aqui** — só tamanhos, hashes e paths.
 
 > **O que a 7B precisa provar:** os writers passam a **produzir** referência de logo e rubrica,
@@ -170,23 +170,123 @@ Os **475,8 KB históricos continuam onde estão** e não entram em nenhuma conta
 
 ---
 
+## 11. Portal do Cliente — cadeia de vínculo
+
+Cliente autenticado: **`cliente001@gmail.com`** (`62299e40-…`, Posto Shell Prime), que enxerga
+exatamente 1 equipamento: **ZZ-FASE3**, com os relatórios **A** e **B**.
+
+### 11.1 A cadeia, reproduzida chave a chave
+
+O conjunto autorizado da Edge é derivado das TAGs do cliente: chaves que terminam em
+`_ZZ-FASE3` mais `nr13_rastreab_*`. Reproduzido sobre o mesmo conjunto, com a mesma varredura
+por FORMA, o caminho de cada path é:
+
+| Arquivo | Chave autorizada | Campo |
+|---|---|---|
+| LOGO A | `nr13_rel_REL-1787282142486_ZZ-FASE3` | `.meta.empresa.logoRef` |
+| LOGO B | `nr13_rel_REL-1787282922043_ZZ-FASE3` | `.meta.empresa.logoRef` |
+| RUBRICA A | `nr13_rel_REL-1787282142486_ZZ-FASE3` | `.meta.assinantes.engenheiro.assinaturaRef` |
+| RUBRICA B | `nr13_rel_REL-1787282922043_ZZ-FASE3` | `.meta.assinantes.engenheiro.assinaturaRef` |
+
+Chaves varridas: 9. Paths autorizados no total: **13** — conjunto estreito, sem sobra.
+
+> **É o vínculo que autoriza, e dá para provar pela ausência:** `nr13_minha_empresa` e
+> `nr13_lista_phs` **não entram** no conjunto varrido (não terminam em `_ZZ-FASE3`), e as duas
+> carregam `logoRef`/`assinaturaRef`. Se o cadastro vivo bastasse, o 200 viria dali. Veio do
+> **snapshot do relatório**.
+
+### 11.2 Rota real `portal_arquivo`
+
+| Path pedido | Status | |
+|---|---|---|
+| LOGO A · LOGO B | **200** | URL assinada válida |
+| RUBRICA A · RUBRICA B | **200** | URL assinada válida |
+| PDF de A · PDF de B | **200** | URL assinada válida |
+| **Rubrica `45cbb213…png`** — arquivo **REAL**, mesmo bucket, mesma organização, hash válido, **sem vínculo** | **404** | `nao_disponivel` |
+| Hash inventado em `logos/` (`000…0.jpg`) | **404** | `nao_disponivel` |
+| Hash inventado em `assinaturas/` (`fff…f.png`) | **404** | `nao_disponivel` |
+| Path de outra organização | **404** | `nao_disponivel` |
+
+Todas as recusas devolvem **o mesmo status e o mesmo corpo**. Não há como distinguir "não
+existe" de "não é seu" (D-26).
+
+> A linha do `45cbb213` é a prova direta de que **hash não é autorização**: arquivo que existe,
+> na mesma organização, com o nome correto — e mesmo assim 404, porque nenhum recurso que esse
+> cliente enxerga o referencia.
+
+### 11.3 As URLs devolvidas são de verdade
+
+Cada URL de 200 foi baixada e o SHA-256 recalculado:
+
+| | Bytes | Hash bate com o nome |
+|---|---|---|
+| LOGO A | 4.408 | ✅ |
+| LOGO B | 4.453 | ✅ |
+| RUBRICA A | 14.557 | ✅ |
+| RUBRICA B | 19.496 | ✅ |
+
+### 11.4 O documento recebe a imagem certa
+
+**Relatório arquivado (PDF).** O Portal exibe *"Documento arquivado — o que você vê é o arquivo
+emitido"*. Os bytes servidos ao cliente são **os mesmos** que o engenheiro tem:
+
+| | Bytes | SHA-256 |
+|---|---|---|
+| A | 4.971.975 | `c74e21afcb89667f…` |
+| B | 4.397.694 | `ec93a6d39a10064b…` |
+
+Na tela do Portal, o relatório B abre com **13 páginas** e **LOGO-B** no cabeçalho — página 1 e
+página 10. Como o arquivo é byte a byte o mesmo já conferido no §4, a página 10 é a mesma que
+mostra **RUBRICA B**.
+
+**Documento remontado (Livro de Registro).** Este não é PDF congelado: é montado na hora, pelo
+palco. No Portal ele renderizou **LOGO-B** no cabeçalho e a **RUBRICA B** no bloco de
+assinatura, com `funciona01 · Profissional Habilitado`. É a materialização funcionando do lado
+do cliente.
+
+> Durante a convivência D-11 a chave viva tem **as duas** formas, então esta folha não distingue
+> "veio da dataURL" de "veio da referência resolvida". Distinguir só será possível quando a
+> gravação dupla for encerrada — e é por isso que a prova de leitura por referência é a do §11.2,
+> que passa pela rota e não pelo cadastro.
+
+## 12. P1/P3 — sem regressão
+
+Tudo abaixo executado **com o token do cliente**:
+
+| Tentativa | Resultado |
+|---|---|
+| Listar `inspecao/<org>/assinaturas` | **0 itens** |
+| Assinar URL de arquivo arbitrário (`45cbb213`) | **400** — recusado |
+| Baixar direto um arquivo que ele **pode** ver pela Edge (LOGO A) | **400** — recusado |
+| `select` amplo em `app_storage` | **0 linhas** |
+
+O cliente só alcança arquivo pela Edge, e só o que está vinculado.
+
+## 13. Observação registrada — logo do CABEÇALHO do Portal está velha
+
+Não é da 7B, e não afeta documento nenhum, mas fica registrado porque foi visto:
+
+O cabeçalho do Portal desenha a logo **MDK antiga** (7.767 B). O servidor entrega a atual
+(5.963 B, LOGO-B) e o `localStorage` já tem a nova, mas o cache IndexedDB da conta cliente
+segue em **versão 1** de `nr13_minha_empresa` — a conta é somente leitura e não re-hidrata essa
+chave. **Os documentos usam o dado fresco** (o Livro renderizou LOGO-B). Item para uma fase
+seguinte, não corrigido aqui.
+
+---
+
 ## PENDENTE DE CONFIRMAÇÃO — precisa de ação do dono
 
 Estes dois itens **não foram executados** e **não estão sendo dados como aprovados**.
 
-### A · Portal do Cliente
+### A · Portal do Cliente — falta só a contraprova
 
-O equipamento ZZ-FASE3 é do cliente **`cliente001@gmail.com`** (Posto Shell Prime,
-`62299e40-…`). O outro cliente da conta, **`ipiranga@gmail.com`** (`ad1fd71c-…`), serve de
-contraprova.
+Feito e aprovado: cliente autorizado recebe **200** nas quatro referências, hash real sem
+vínculo e hash inventado recebem **404 `nao_disponivel`** idêntico, P1/P3 intactos, documento
+renderiza a imagem certa (§11 e §12).
 
-Falta provar, com o cliente autenticado:
-
-1. `assinaturaRef` e `logoRef` de relatório autorizado → **200**
-2. Referência real do **outro** cliente → **404 `nao_disponivel`**
-3. Hash inventado → **a mesma resposta**, sem revelar existência
-
-> Se um relatório autorizado devolver **404**, o P4 continua **ABERTO**.
+**Falta:** repetir com **`ipiranga@gmail.com`** (`ad1fd71c-…`, o outro cliente da conta)
+pedindo **exatamente** a `logoRef` e a `assinaturaRef` do relatório do ZZ-FASE3. Resultado
+obrigatório: **404 `nao_disponivel`**. Depende de o dono autenticar essa conta.
 
 ### B · Offline real
 

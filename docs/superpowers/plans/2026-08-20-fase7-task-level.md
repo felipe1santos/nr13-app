@@ -375,7 +375,8 @@ de tipos. Nenhum snapshot novo depende de referência.
 - [x] **7B.6** — `identidadeVisual.test.ts` (14) e `snapshot7b.test.ts` (10)
 - [x] **7B.7** — Suíte **1186/1186**, build verde
 - [x] **7B.8a** — Validação em produção, parte medida: content-addressing, dedupe A/B/C/D, D-11, **teste histórico A/B**, PDF imutável, convivência base64×ref, não escrita histórica, livro, economia, suíte e build → `docs/medicoes/2026-08-20-fase7b-validacao-producao.md`
-- [ ] **7B.8b** — **Portal do Cliente** — depende de o dono autenticar `cliente001@gmail.com` (dono do ZZ-FASE3) e `ipiranga@gmail.com` (contraprova). **Bloqueante do P4**
+- [x] **7B.8b·1** — **Portal, cliente autorizado (`cliente001@gmail.com`)**: cadeia `relatório → snapshot → logoRef/assinaturaRef → path` reproduzida chave a chave; `portal_arquivo` devolve **200** para LOGO A/B, RUBRICA A/B e os dois PDFs; arquivo REAL sem vínculo, hash inventado e outra org devolvem **404 `nao_disponivel`** idêntico; P1/P3 intactos; Livro remontado no Portal renderiza LOGO-B + RUBRICA B
+- [ ] **7B.8b·2** — **Contraprova com `ipiranga@gmail.com`** pedindo as MESMAS refs do ZZ-FASE3 → **404**. Depende de o dono autenticar. **Bloqueante do P4**
 - [ ] **7B.8c** — **Offline real** — depende de o dono cortar a rede; não se simula offline interceptando `fetch`
 - [ ] **7B.9** — **PORTÃO P4**
 
@@ -481,7 +482,12 @@ imutabilidade, **não perda de dado**, e desaparece ao reaplicar a fase.
 | 21/08 | Livro do ZZ-FASE3: 2 entradas lacradas e **encadeadas** (`shaAnterior` de B = `sha256` de A) | ✅ |
 | 21/08 | **Economia medida: snapshot 34.442 → 2.461 B, 14,0× menor.** A chave viva **não** encolheu — a dataURL continua lá pela D-11, e é assim que tem que ser agora | ✅ |
 | 21/08 | Suíte **1186/1186**, build verde, bundle com o mesmo hash de produção | ✅ |
-| 21/08 | **Portal e offline PENDENTES DE CONFIRMAÇÃO** — dependem de ação do dono. P4 **continua aberto** | ⏳ |
+| 21/08 | **Portal, cliente AUTORIZADO: passou.** Cadeia provada chave a chave — LOGO A/B e RUBRICA A/B saem de `.meta.empresa.logoRef` e `.meta.assinantes.engenheiro.assinaturaRef` dos relatórios A e B. `nr13_minha_empresa` e `nr13_lista_phs` **não** entram no conjunto varrido: o 200 veio do vínculo, não do cadastro | ✅ |
+| 21/08 | `portal_arquivo`: 200 nas 4 refs + 2 PDFs · **404 `nao_disponivel`** para arquivo REAL sem vínculo (`45cbb213`), hash inventado e outra org — **hash não é autorização** | ✅ |
+| 21/08 | P1/P3 sem regressão: listar Storage 0 itens, assinar arbitrário 400, download direto 400, `app_storage` 0 linhas | ✅ |
+| 21/08 | Portal serve os PDFs **byte a byte** iguais aos do engenheiro; Livro **remontado** no Portal renderiza LOGO-B + RUBRICA B | ✅ |
+| 21/08 | Observação anotada: cabeçalho do Portal desenha a logo ANTIGA (cache IndexedDB da conta cliente em versão 1). Não é da 7B e não afeta documento — os documentos usam o dado fresco | ⚠️ registrado |
+| 21/08 | **Contraprova (`ipiranga`) e offline PENDENTES** — dependem de ação do dono. P4 **continua aberto** | ⏳ |
 
 ---
 
@@ -518,14 +524,14 @@ leitor antigo ignorá-la e cair no dado **vivo** — documento histórico exibin
 
 ### O que falta — e por que não dá para fazer sozinho
 
-**1 · Portal do Cliente — BLOQUEANTE DO P4.** ZZ-FASE3 é do cliente
-`cliente001@gmail.com` (`62299e40-…`); `ipiranga@gmail.com` (`ad1fd71c-…`) é a contraprova.
-Falta provar, com o cliente autenticado: ref autorizada → **200** · ref real de outro cliente →
-**404 `nao_disponivel`** · hash inventado → **a mesma resposta**.
-Na 7A o Portal **recusou** a rubrica da organização — correto pela D-05, porque ela não tinha
-vínculo nenhum. Agora ela está **dentro do snapshot de um relatório autorizado**, e é
-justamente isso que precisa ser medido. **Se o cliente autorizado receber 404, o P4 continua
-ABERTO.**
+**1 · Portal — falta a CONTRAPROVA. BLOQUEANTE DO P4.** O lado autorizado passou:
+`cliente001@gmail.com` recebe **200** nas quatro referências, e a cadeia foi reproduzida chave
+a chave (`nr13_rel_…_ZZ-FASE3` → `.meta.empresa.logoRef` / `.meta.assinantes.engenheiro.assinaturaRef`).
+A prova de que é o **vínculo** que autoriza vem da ausência: `nr13_minha_empresa` e
+`nr13_lista_phs` não entram no conjunto varrido, e as duas carregam as mesmas refs.
+Na 7A o Portal recusava a rubrica da organização porque ela não tinha vínculo nenhum; agora ela
+está dentro do snapshot de um relatório autorizado, e por isso é servida.
+**Falta:** `ipiranga@gmail.com` (`ad1fd71c-…`) pedindo as MESMAS refs → **404**.
 
 **2 · Offline real.** Pelo código, offline o cadastro salva com a dataURL e **sem**
 referência — comportamento seguro. Mas não foi medido, e não se simula offline interceptando
