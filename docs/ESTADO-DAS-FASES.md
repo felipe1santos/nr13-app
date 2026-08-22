@@ -105,23 +105,32 @@ Sempre use um destes. Nunca "concluído".
 | 9…13 | ver plano macro | PLANEJADO | P5…P8 | `plans/2026-08-15-evolucao-arquitetura.md` |
 
 **Fase atual:** **8 — em implementação.** Gerador de massa pronto e testado (27/27); **nenhuma massa gerada**. A Fase 7 está CONCLUÍDA e o P4 FECHADO.
-**Próxima ação exata:** 🔴 **PARADO, aguardando o dono.** O laboratório Supabase local **subiu**
-(Docker 29.7.2, Postgres 17.6, 12 contêineres, API 54321 · DB 54322 · Studio 54323) — mas
-**`public.app_storage`, a tabela base de todo o sistema, não tem `CREATE TABLE` em lugar nenhum do
-repositório**: os 16 `.sql` que a citam apenas a ALTERAM. Sem ela, nenhuma migration real aplica.
-A recuperação read-only do DDL de produção (spec OpenAPI do PostgREST) devolveu
-`401 — Only secret API keys can be used for this endpoint`; a anon key do `.env` não descreve schema.
-**Schema não foi improvisado e produção não foi tocada.** Decisão do dono entre: (A) fornecer a senha
-do banco de produção para `supabase db dump` somente leitura — caminho fiel; (B) autorizar uma
-reconstrução do DDL por evidência, declarada como reconstrução, com o tipo de `valor` confirmado à
-parte; (C) o dono colar o DDL do Dashboard (Table Editor → `app_storage` → Definition).
-Depois disso: aplicar os `.sql` na **ordem corrigida por dependência** (registrada no task-level —
-`armazenamento_v2.sql` **não** é o primeiro) → documentar diferenças local × produção → degraus
-100/500/1.000/5.000 **um por vez** (gerar, medir, registrar, limpar, provar). F8.1
-(`supabase/fase8_indice_verificar.sql`, 4 blocos, somente leitura) **continua pendente** no SQL
-Editor; quando rodar, classificar a saída em A/B/C/D antes de seguir. Nenhuma massa em produção
-antes do laboratório local provado; realista em produção NÃO autorizado; Fase 9 e PDF vetorial não
-iniciados.
+**Próxima ação exata:** **degrau 100 estrutural, no laboratório local.** O laboratório Supabase
+local está **de pé e provado** (Docker 29.7.2, Postgres **17.6 — igual ao de produção**, 12
+contêineres, 13 migrations aplicadas sem falha, paridade conferida objeto a objeto e comportamento
+validado por teste funcional da RPC, da guarda, do conflito, do tombstone e da idempotência).
+**F8.1 foi executado** e a **dívida do índice da Fase 1 está FECHADA: manter o**
+`app_storage_org_atualizado_idx` (780 varreduras em 92 dias; é o índice do caminho real de
+hidratação, 6 buffers e 0,185 ms; e 87,7 % das atualizações são HOT, que não tocam índice). A
+regressão de primeiro boot registrada na Fase 1 (65 → 236 buffers) **não reproduz** — hoje custa
+48 buffers e o planner nem usa esse índice.
+
+Duas ausências graves foram encontradas e corrigidas no repositório: **`public.app_storage` — a
+tabela base de todo o sistema — não tinha `CREATE TABLE` em lugar nenhum**, nem o trigger
+`app_storage_touch`, nem os **GRANTs de tabela**. Sem isso o sistema não era reconstruível a
+partir do repositório. Ambos foram recuperados de produção por consulta **somente leitura** e
+gravados em `supabase/app_storage_base.sql` e `supabase/grants_postgrest.sql` — **no-op em
+produção**, aplicar lá é decisão do dono.
+
+Registro completo com todos os números: `medicoes/2026-08-22-fase8-laboratorio-e-f81.md`.
+
+**Pendente do dono:** (1) confirmar a escala **A/B/C/D**, que não está definida em documento
+nenhum — apliquei A=age agora, B=fase planejada, C=observar, D=descartado; (2) o Dashboard do
+Supabase mostra **"Grace period is over"** (cota/faturamento) — classificado **A**, e mais um
+motivo para não gerar massa em produção agora.
+
+**Massa continua em ZERO**, local e produção. Nada em `src/` foi alterado. Realista em produção
+segue **NÃO autorizado**; Fase 9 e PDF vetorial, não iniciados.
 
 Os dois roteiros ficam gravados, já com os resultados marcados:
 

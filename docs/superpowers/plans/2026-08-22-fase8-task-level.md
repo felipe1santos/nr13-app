@@ -2,10 +2,10 @@
 
 ## Estado atual da fase
 
-`🟡 EM IMPLEMENTAÇÃO — laboratório Supabase local NO AR; bloqueado no schema base.`
+`🟡 EM IMPLEMENTAÇÃO — laboratório Supabase local NO AR, com paridade provada. F8.1 fechado.`
 **Nenhuma massa gerada, nem local nem em produção. Nenhuma linha de código de produção alterada.**
-Bloqueado em dois pontos que dependem do dono: **Docker não existe nesta máquina** (laboratório
-local) e **F8.1 precisa do SQL Editor**.
+Os dois bloqueios caíram em 22/08: o Docker foi instalado e o F8.1 foi executado. O laboratório
+está de pé e provado por teste funcional. **Próximo passo: degrau 100 estrutural local.**
 
 Autorizado em 22/08/2026: **somente planejamento + baseline + desenho do dataset + plano de
 medição**. Sem otimização, sem Fase 9, sem PDF vetorial.
@@ -365,9 +365,8 @@ Massa parcial (gerador interrompido) sai pelo mesmo caminho — a seed identific
 
 ## Tarefas
 
-- [~] **F8.1** — `supabase/fase8_indice_verificar.sql` escrito: 7 consultas, **somente leitura**,
-      com o contexto exigido (`stats_reset`, uptime, todos os índices, volume, escrita, planos
-      dos cenários 1 e 2). **Falta o dono rodar no SQL Editor**
+- [x] **F8.1** — executado em 22/08 pelo SQL Editor (via navegador, somente leitura). Contexto,
+      índices, escrita e os 3 planos coletados; achados classificados
 - [x] **F8.2** — `scripts/massa-escala/gerar.mjs` com as 6 travas, `--dry-run` e manifesto
 - [x] **F8.3** — `prng.mjs` (mulberry32, marco de data **fixo**) + `conteudo.mjs` por família
 - [x] **F8.4** — `arquivos.mjs` com preenchimento **incompressível** — provado por gzip no teste
@@ -375,9 +374,9 @@ Massa parcial (gerador interrompido) sai pelo mesmo caminho — a seed identific
 - [x] **F8.6** — `massa.test.mjs` — **27 testes, 27 verdes** (`node --test`, sem tocar o Vitest)
 - [ ] **F8.7** — `docs/medicoes/roteiro-baseline.md`
 - [ ] **F8.8** — Instrumentação de medição (`performance.mark`) — **decisão pendente**, ver Riscos
-- [ ] **F8.9** — Rodar estrutural 100/500/1.000/5.000 no ambiente aprovado
+- [ ] **F8.9** — Rodar estrutural 100/500/1.000/5.000 no ambiente aprovado — **laboratório pronto; próximo passo**
 - [ ] **F8.10** — Rodar realista, calibração 1
-- [ ] **F8.11** — Custo do índice da Fase 1
+- [x] **F8.11** — Custo do índice da Fase 1 — **dívida FECHADA**: manter (780 varreduras/92 dias, 6 buffers no caminho real, 87,7 % das escritas são HOT)
 - [ ] **F8.12** — Baseline de PDF (5/15/30 folhas)
 - [ ] **F8.13** — Medições de banco, Storage e egress
 - [ ] **F8.14** — Classificar cada achado em A/B/C/D
@@ -479,6 +478,17 @@ não altera produção. A massa gerada sai por `limpar.mjs`.
 | 22/08 | 🔴 **BLOQUEIO: `public.app_storage` não tem `CREATE TABLE` em lugar nenhum do repositório.** Todo `.sql` apenas a ALTERA. Sem a tabela base, nenhuma migration real aplica localmente | 🔴 **PARADO — aguardando o dono** |
 | 22/08 | Tentativa de recuperar o DDL de produção **somente leitura** (spec OpenAPI do PostgREST, sem ler linha nenhuma): `401 — Only secret API keys can be used for this endpoint`. A anon key do `.env` não descreve schema | ⚠️ |
 | 22/08 | **Nenhuma migration aplicada. Schema NÃO improvisado. Produção NÃO tocada.** Massa continua em zero | ⏳ |
+| 22/08 | Dono autorizou eu operar o Dashboard do Supabase pelo Chrome. **Tudo somente leitura** — só `select` e `explain (analyze)` sobre `select` | ✅ |
+| 22/08 | DDL real de `app_storage` recuperado: `valor` é **`text`**, PK `(user_id, chave)`, **sem coluna `id`**, FK CASCADE, trigger `app_storage_touch` | ✅ |
+| 22/08 | Segunda ausência achada: **GRANTs de tabela** nunca versionados. CLI 2.115.0 não os dá mais; sem eles a guarda nem era alcançada | ✅ |
+| 22/08 | `app_storage_base.sql` e `grants_postgrest.sql` criados **a partir do que produção tem**, não de palpite. `app_storage_org_unico.sql` foi criado e removido — o índice já estava em `acesso_setup.sql:97` | ✅ |
+| 22/08 | **13 migrations aplicadas no local, 13 OK, 0 falhas** + 5 fora do caminho crítico | ✅ |
+| 22/08 | Paridade: Postgres **17.6 = 17.6**, colunas 9=9, índices 6=6, triggers 7=7, extensões 7=7, GRANTs idênticos, bucket e RLS iguais | ✅ |
+| 22/08 | Laboratório provado por **comportamento**: guarda, RPC `set`/conflito/`del`, tombstone e idempotência de `mutation_id`. Dado de teste removido, 0 linhas | ✅ |
+| 22/08 | **F8.1 executado.** Dívida do índice da Fase 1 **FECHADA — manter**. Regressão de primeiro boot **não reproduz** (48 buffers, e o planner nem usa o índice) | ✅ |
+| 22/08 | Achado novo: `app_storage_org_idx` é redundante com `app_storage_org_chave_uidx` (38 × 14.260). Classe **B** — a Fase 8 mede, não corrige | ✅ |
+| 22/08 | Visto no Dashboard: **"Grace period is over"** (cota/faturamento). Registrado como classe **A**, para o dono | ⚠️ |
+| 22/08 | **Massa continua em ZERO.** Próximo passo: degrau 100 estrutural local | ⏳ |
 
 ### Estimado × observado — recalibração por `--dry-run`
 
@@ -557,54 +567,117 @@ A ordem sugerida no Ponto de retomada (`armazenamento_v2` primeiro) **não funci
 Fora do caminho da Fase 8 (aplicar só se necessário): `leads_setup`, `purga_trial`,
 `admin_stats`, `admin_storage_stats`, `trial_emails_setup` (este exige `pg_cron`/`pg_net`).
 
-### 🔴 BLOQUEIO — a tabela base `public.app_storage` não existe no repositório
+### ✅ RESOLVIDO — a tabela base `public.app_storage` não estava no repositório
 
-**O que foi verificado, não suposto:**
+**Registro completo, com todos os números: [`docs/medicoes/2026-08-22-fase8-laboratorio-e-f81.md`](../../medicoes/2026-08-22-fase8-laboratorio-e-f81.md).**
 
-```
-grep -rniE 'create table[^;]*app_storage' supabase/
-  → armazenamento_v2.sql:39  app_storage_excluidos
-  → armazenamento_v2.sql:57  app_storage_mutacoes
-  (nenhum resultado para a tabela app_storage em si)
-```
+`public.app_storage` é o "banco" inteiro do sistema e **não tinha `CREATE TABLE` em lugar
+nenhum do repositório** — os 16 `.sql` que a citam apenas a ALTERAM. Nunca doeu porque em
+produção ela existe desde antes do versionamento; doeu na primeira tentativa de reconstruir o
+sistema do zero, que é o que um laboratório é.
 
-16 arquivos `.sql` citam `app_storage`. **Todos só a alteram.** As colunas aparecem em
-`alter table ... add column if not exists` espalhados:
+Recuperada de produção por consulta **somente leitura** e gravada em
+**`supabase/app_storage_base.sql`**, com a procedência no cabeçalho:
 
-| Coluna | Origem no repo |
+- PK **`(user_id, chave)`**; **não existe coluna `id`**; FK para `auth.users(id)` ON DELETE CASCADE.
+- **`valor` é `text`, não `jsonb`** — era o campo que não dava para deduzir por uso, e o que
+  mudaria TOAST, compressão e tamanho de linha, ou seja, exatamente o que esta fase mede.
+- Trigger `app_storage_touch` → `touch_atualizado_em()`, **também fora do repositório**, e é
+  ele que mantém honesta a marca de sync da v2 (`storageV2.ts:409`).
+
+`app_storage_org_chave_uidx` **não** estava faltando: está em `acesso_setup.sql:97`. A primeira
+varredura não o viu porque procurava `create index`, e ele é `create unique index`.
+
+### ✅ Segunda coisa fora do versionamento: os GRANTs de tabela
+
+Nenhum `.sql` concede permissão de **tabela** — só de função. Em produção o Supabase da época
+dava `select/insert/update/delete` a `anon`/`authenticated`/`service_role` por privilégio padrão
+do schema. **O CLI 2.115.0 não faz mais isso**, e o defeito apareceu no teste funcional: a
+escrita direta foi recusada com `permission denied for table app_storage` **em vez de**
+`nr13_escrita_direta_bloqueada`. A RLS só é avaliada DEPOIS do GRANT — um laboratório que barra
+antes da guarda mediria outro sistema. Medido em produção e reproduzido em
+**`supabase/grants_postgrest.sql`**.
+
+> Os dois arquivos são **no-op em produção** — lá tudo já existe. Aplicá-los é decisão sua;
+> o valor deles é o sistema voltar a ser reconstruível a partir do repositório.
+
+### Aplicação: 13 passos, 13 OK, 0 falhas
+
+A ordem sugerida no Ponto de retomada não funcionava (`armazenamento_v2.sql` chama
+`acesso_vigente`, `assinatura_permite_escrita`, `org_atual` e `papel_atual`, de outros três
+arquivos). Ordem real, já executada:
+
+`app_storage_base` → `admin_setup` → `acesso_setup` → `trial_setup` → `assinatura_setup` →
+`armazenamento_v2` → `fotos_storage` → `indice_hidratacao` → `portal_policies` →
+`livro_imutavel` → `v2_por_default` → `perfil_origem` → `grants_postgrest`.
+
+Depois, sem falha: `leads_setup`, `purga_trial`, `admin_stats`, `admin_storage_stats`,
+`trial_emails_setup`.
+
+### Paridade — e o laboratório provado por COMPORTAMENTO
+
+| Item | Resultado |
 |---|---|
-| `org_id uuid` | `acesso_setup.sql:30` |
-| `versao integer not null default 1` | `armazenamento_v2.sql:21` |
-| `dispositivo text` | `armazenamento_v2.sql:22` |
-| `deletado_em timestamptz` | `armazenamento_v2.sql:23` |
-| `mutado_em_cliente timestamptz` | `armazenamento_v2.sql:28` |
-| `id`, `user_id`, `chave`, `valor`, `atualizado_em` | **nenhuma — só uso, nunca criação** |
+| Postgres | **17.6 = 17.6** — `EXPLAIN` fica comparável plano a plano |
+| Colunas de `app_storage` | 9 = 9, mesma ordem, tipos, nulidade e defaults ✅ |
+| Índices · triggers · extensões | 6 = 6 · 7 = 7 · 7 = 7 ✅ |
+| GRANTs · bucket · RLS | idênticos ✅ |
+| Tabelas | local 9 · produção 11 — sobram `app_storage_bkp_20260805` e `gate_resultados`, resíduos operacionais |
 
-A tabela foi criada fora do versionamento (Dashboard ou script perdido) e nunca voltou ao repo.
+Nome de objeto igual não prova sistema igual. Teste funcional com `request.jwt.claims`:
+guarda de escrita direta recusa com a mensagem exata de produção · RPC `set` aplica v1 ·
+segunda `set` com versão esperada 0 devolve **conflito** com a linha vigente · `del` aplica v2 e
+**nasce o tombstone** · repetir o `mutation_id` devolve `repetido` sem reaplicar. Dado de teste
+removido: **0 linhas** nas três tabelas.
 
-**O que ela precisa ter, por evidência de uso:**
+**O que o laboratório NÃO mede:** latência de rede (loopback), egress (não existe) e throughput
+de Storage (MinIO). Esses três só saem dos degraus 100/500 em produção.
 
-- `insert into public.app_storage (org_id, user_id, chave, valor, versao, dispositivo, deletado_em, atualizado_em, mutado_em_cliente)` — `armazenamento_v2.sql:278` e `:294`
-- `select 'chave, valor, versao, atualizado_em, dispositivo, deletado_em'` — `storageV2.ts:361`
-- `onConflict: escopo.coluna + ',chave'` — `storageV1.ts:220` ⇒ **unique em `(org_id, chave)`**, e também no escopo legado por `(user_id, chave)`
-- `app_storage_org_idx (org_id, chave)`, `app_storage_deletado_idx (org_id, deletado_em)`, `app_storage_org_atualizado_idx (org_id, atualizado_em, chave)`
-- `valor` aceita `null` — o tombstone grava `valor = null` (`armazenamento_v2.sql:287`)
+---
 
-**O que falta com certeza e não dá para deduzir:** tipo exato de `valor` (`text` × `jsonb`),
-tipo e default de `id`, se a PK é própria ou composta, `not null` de `chave`/`user_id`, e a
-definição exata das constraints únicas.
+## F8.1 — dívida do índice da Fase 1: **FECHADA**
 
-> **Tipo de `valor` importa para a Fase 8, não é detalhe.** `jsonb` faz TOAST, compressão e
-> tamanho de linha diferentes de `text`. A fase mede **exatamente** peso de linha, custo de
-> índice e `EXPLAIN (BUFFERS)`. Chutar aqui produziria número errado com cara de número certo —
-> pior do que não medir.
+Janela de estatísticas de **92 dias** (zeradas em 22/05). Tabela com **864 linhas**, 10
+organizações, heap 472 kB, índices 592 kB, **33 MB** com TOAST.
 
-**Recuperação read-only de produção foi tentada e falhou:** a spec OpenAPI do PostgREST
-(`GET /rest/v1/`, descreve colunas e tipos, **não lê linha nenhuma**) devolveu
-`401 — {"message":"Secret API key required","hint":"Only secret API keys can be used for this endpoint."}`.
-O `.env` local só tem `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`.
+| Índice | `idx_scan` (92 dias) | Tamanho |
+|---|---:|---:|
+| `app_storage_org_chave_uidx` | **14.260** | 120 kB |
+| `app_storage_deletado_idx` | 1.594 | 40 kB |
+| `app_storage_pkey` | 799 | 120 kB |
+| **`app_storage_org_atualizado_idx`** | **780** | 112 kB |
+| `app_storage_user_idx` | 616 | 16 kB |
+| `app_storage_org_idx` | **38** | 112 kB |
 
-**Estado: PARADO, aguardando decisão do dono. Schema não foi improvisado. Produção não foi tocada.**
+| Bloco | Cenário | Plano | Buffers | Execução |
+|---|---|---|---:|---:|
+| 2 | org resolvida por subconsulta | Limit + InitPlan | 261 (129 do InitPlan) | 1,36 ms |
+| **3** | **"nada mudou", literal — o caminho REAL** | **Index Scan using `app_storage_org_atualizado_idx`** | **6** | **0,185 ms** |
+| 4 | "primeiro boot", literal | Bitmap Index Scan on `app_storage_deletado_idx` → Sort | 48 | 1,343 ms |
+
+**Veredito: manter o índice.** Ele é o escolhido pelo caminho de hidratação real, que custa 6
+buffers e 0,185 ms. E o custo de escrita é menor do que se supunha: **87,7 % das atualizações
+são HOT** (7.834 de 8.935), e HOT update não toca índice nenhum — a conta incide sobre 12,3 %.
+
+**A regressão de primeiro boot da Fase 1 (65 → 236 buffers) NÃO reproduz:** hoje custa 48
+buffers e o planner nem usa esse índice.
+
+### Achados classificados
+
+> ⚠️ **A escala A/B/C/D não está definida em nenhum documento do projeto.** Apliquei
+> **A** = age agora · **B** = age numa fase já planejada · **C** = observar · **D** = descartado.
+> **Confirme se é o que você quis dizer** antes de eu classificar o resto da fase com ela.
+
+| Achado | Classe |
+|---|---|
+| `app_storage` (tabela, trigger, função) não versionada | **A** — resolvido nesta sessão |
+| GRANTs de tabela não versionados | **A** — resolvido nesta sessão |
+| O índice da Fase 1 se paga? | **D** — sim; dívida fechada, manter |
+| Regressão de primeiro boot da Fase 1 | **D** — não reproduz |
+| `app_storage_org_idx` redundante com o `uidx` (38 × 14.260 varreduras, 112 kB) | **B** — candidato a remoção; **a Fase 8 mede, não corrige** (R7). Decidir com o degrau de 5.000 |
+| ~29 MB de TOAST sem conteúdo vivo correspondente | **C** — bloat; a Fase 2 reduz a origem |
+| `app_storage_bkp_20260805` e `gate_resultados` fora do repo | **C** |
+| **"Grace period is over" no Dashboard** (cota/faturamento, visto em 22/08) | **A** — precisa da sua atenção; mais um motivo para não gerar massa em produção agora |
 
 ---
 
