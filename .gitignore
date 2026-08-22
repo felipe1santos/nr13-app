@@ -28,3 +28,4 @@ dist-ssr
 *.sln
 *.sw?
 docs/medicoes/massa-f8-*.json
+supabase/.temp/
