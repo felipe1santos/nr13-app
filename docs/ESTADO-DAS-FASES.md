@@ -100,11 +100,11 @@ Sempre use um destes. Nunca "concluído".
 | **4** | Portal: arquitetura de leitura (A-02) | ✅ **CONCLUÍDA** | **P3 FECHADO ✅** aprovado 20/08 | `plans/2026-08-20-fase4-task-level.md` |
 | **5** | Fotos: thumbnail, EXIF, teto de altura (A-08) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** | — | `plans/2026-08-20-fase5-task-level.md` · `medicoes/2026-08-20-fase5-producao-antes-depois.md` |
 | **6** | Recuperação do fallback base64 (A-10) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** nas 3 famílias, com SHA-256 idêntico | — | `plans/2026-08-20-fase6-task-level.md` |
-| **7** | Logo e rubrica por conteúdo (A-05) | 🟢 **7A VALIDADA** · 🟡 **7B DEPLOYADA · VALIDADA NA PARTE MEDÍVEL** | **P4 ABERTO** | `plans/2026-08-20-fase7-task-level.md` |
+| **7** | Logo e rubrica por conteúdo (A-05) | 🟢 **7A VALIDADA** · 🟡 **7B VALIDADA · PORTAL ✅ · falta OFFLINE** | **P4 ABERTO** | `plans/2026-08-20-fase7-task-level.md` |
 | 8…13 | ver plano macro | PLANEJADO | P5…P8 | `plans/2026-08-15-evolucao-arquitetura.md` |
 
 **Fase atual:** 7B (em produção, commit `490a236`) · **Tarefa atual:** fechar os dois itens que dependem do dono e apresentar o P4
-**Próxima ação exata:** já provados em produção — content-addressing, dedupe A/B/C/D, **teste histórico A/B (A = A, B = B)**, PDF imutável por SHA-256, convivência base64 x ref, **zero escrita histórica** (24 chaves), Livro encadeado, economia de **14,0x** no snapshot e o **Portal pelo lado autorizado** (`cliente001@gmail.com` recebe 200 nas 4 refs; arquivo real sem vínculo e hash inventado recebem 404 idêntico; P1/P3 intactos) — tudo em `medicoes/2026-08-20-fase7b-validacao-producao.md`. Faltam dois, e os dois dependem do dono: a **contraprova com `ipiranga@gmail.com`** pedindo as mesmas refs (obrigatório 404 — bloqueante do P4) e o **offline real**. Rollback da 7B é sempre `7B -> 7A`.
+**Próxima ação exata:** **só falta o OFFLINE REAL** para fechar o P4. Já validados em produção: content-addressing, dedupe A/B/C/D, **teste histórico A/B (A = A, B = B)**, PDF imutável por SHA-256, convivência base64 x ref, **zero escrita histórica** (24 chaves), Livro encadeado, economia de **14,0x** no snapshot e o **PORTAL VALIDADO** — `cliente001` recebe 200 nas refs do relatório autorizado, `ipiranga` recebe **404** nos MESMOS paths, hash inexistente devolve 404 indistinguível (1 assinatura de resposta entre 6 casos), P1/P3 intactos. Tudo em `medicoes/2026-08-20-fase7b-validacao-producao.md`. Rollback da 7B é sempre `7B -> 7A`.
 
 Os dois roteiros ficam gravados, já com os resultados marcados:
 

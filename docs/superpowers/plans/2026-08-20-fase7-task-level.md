@@ -376,7 +376,7 @@ de tipos. Nenhum snapshot novo depende de referência.
 - [x] **7B.7** — Suíte **1186/1186**, build verde
 - [x] **7B.8a** — Validação em produção, parte medida: content-addressing, dedupe A/B/C/D, D-11, **teste histórico A/B**, PDF imutável, convivência base64×ref, não escrita histórica, livro, economia, suíte e build → `docs/medicoes/2026-08-20-fase7b-validacao-producao.md`
 - [x] **7B.8b·1** — **Portal, cliente autorizado (`cliente001@gmail.com`)**: cadeia `relatório → snapshot → logoRef/assinaturaRef → path` reproduzida chave a chave; `portal_arquivo` devolve **200** para LOGO A/B, RUBRICA A/B e os dois PDFs; arquivo REAL sem vínculo, hash inventado e outra org devolvem **404 `nao_disponivel`** idêntico; P1/P3 intactos; Livro remontado no Portal renderiza LOGO-B + RUBRICA B
-- [ ] **7B.8b·2** — **Contraprova com `ipiranga@gmail.com`** pedindo as MESMAS refs do ZZ-FASE3 → **404**. Depende de o dono autenticar. **Bloqueante do P4**
+- [x] **7B.8b·2** — **Contraprova com `ipiranga@gmail.com`** (JWT conferido: `cliente_id ad1fd71c…`, mesma org): as **6** refs do ZZ-FASE3 → **404 `nao_disponivel`**, nenhuma URL emitida. O 404 é **seletivo** — na mesma rota e com o mesmo token, o PDF do vínculo DELE (COMPRESSOR) dá **200**. Não-enumerabilidade: **1 única assinatura de resposta** entre 6 casos distintos (status + corpo + cabeçalhos). P1/P3 intactos. **PORTAL 7B = VALIDADO EM PRODUÇÃO ✅**
 - [ ] **7B.8c** — **Offline real** — depende de o dono cortar a rede; não se simula offline interceptando `fetch`
 - [ ] **7B.9** — **PORTÃO P4**
 
@@ -487,7 +487,12 @@ imutabilidade, **não perda de dado**, e desaparece ao reaplicar a fase.
 | 21/08 | P1/P3 sem regressão: listar Storage 0 itens, assinar arbitrário 400, download direto 400, `app_storage` 0 linhas | ✅ |
 | 21/08 | Portal serve os PDFs **byte a byte** iguais aos do engenheiro; Livro **remontado** no Portal renderiza LOGO-B + RUBRICA B | ✅ |
 | 21/08 | Observação anotada: cabeçalho do Portal desenha a logo ANTIGA (cache IndexedDB da conta cliente em versão 1). Não é da 7B e não afeta documento — os documentos usam o dado fresco | ⚠️ registrado |
-| 21/08 | **Contraprova (`ipiranga`) e offline PENDENTES** — dependem de ação do dono. P4 **continua aberto** | ⏳ |
+| 21/08 | **CONTRAPROVA PASSOU.** `ipiranga@gmail.com` (JWT conferido antes de qualquer requisição) recebe **404 `nao_disponivel`** nas **6** refs reais do ZZ-FASE3 — logoRef A/B, assinaturaRef A/B, pdfRef A/B. Nenhuma URL assinada emitida | ✅ |
+| 21/08 | O 404 é **seletivo, não é conta vazia**: o ipiranga tem 2 TAGs próprias e, na MESMA rota com o MESMO token, o PDF do vínculo dele dá **200**. Sem isso o 404 seria o atalho `tags.length === 0` e não provaria a regra | ✅ |
+| 21/08 | Não-enumerabilidade completa: **1 única assinatura de resposta** (status + corpo + cabeçalhos) entre ref alheia, arquivo sem vínculo, 2 hashes inexistentes, PDF alheio e outra organização | ✅ |
+| 21/08 | P1/P3 com o token do ipiranga: listagem 0 itens nas 3 pastas, assinatura direta 400, download autenticado 400, download público 400, `app_storage` 0 linhas (amplo e filtrado) | ✅ |
+| 21/08 | **PORTAL 7B = VALIDADO EM PRODUÇÃO ✅** — cadeia fechada: cliente001 → 200 · ipiranga com o MESMO path → 404 · hash inexistente → 404 indistinguível | ✅ |
+| 21/08 | **Resta só o OFFLINE REAL.** P4 **continua aberto** | ⏳ |
 
 ---
 
@@ -524,14 +529,13 @@ leitor antigo ignorá-la e cair no dado **vivo** — documento histórico exibin
 
 ### O que falta — e por que não dá para fazer sozinho
 
-**1 · Portal — falta a CONTRAPROVA. BLOQUEANTE DO P4.** O lado autorizado passou:
-`cliente001@gmail.com` recebe **200** nas quatro referências, e a cadeia foi reproduzida chave
-a chave (`nr13_rel_…_ZZ-FASE3` → `.meta.empresa.logoRef` / `.meta.assinantes.engenheiro.assinaturaRef`).
-A prova de que é o **vínculo** que autoriza vem da ausência: `nr13_minha_empresa` e
-`nr13_lista_phs` não entram no conjunto varrido, e as duas carregam as mesmas refs.
-Na 7A o Portal recusava a rubrica da organização porque ela não tinha vínculo nenhum; agora ela
-está dentro do snapshot de um relatório autorizado, e por isso é servida.
-**Falta:** `ipiranga@gmail.com` (`ad1fd71c-…`) pedindo as MESMAS refs → **404**.
+**1 · Portal — VALIDADO EM PRODUÇÃO ✅.** Cadeia fechada com os **mesmos paths** nas três pontas:
+`cliente001` com o relatório autorizado → **200**; `ipiranga` com **exatamente o mesmo
+hash/path**, sem vínculo → **404**; hash inexistente → **404 indistinguível** (1 única assinatura
+de resposta entre 6 casos). A origem do 200 foi reproduzida chave a chave —
+`nr13_rel_…_ZZ-FASE3 → .meta.empresa.logoRef` e `→ .meta.assinantes.engenheiro.assinaturaRef` —
+e `nr13_minha_empresa`/`nr13_lista_phs` sequer entram no conjunto varrido. O 404 do ipiranga é
+seletivo: o PDF do vínculo dele dá 200 na mesma rota. **Hash/path não é autorização.**
 
 **2 · Offline real.** Pelo código, offline o cadastro salva com a dataURL e **sem**
 referência — comportamento seguro. Mas não foi medido, e não se simula offline interceptando
@@ -539,4 +543,4 @@ referência — comportamento seguro. Mas não foi medido, e não se simula offl
 `nr13_minha_empresa` nem `nr13_lista_phs`, então uma logo cadastrada offline só ganha
 referência na próxima edição.
 
-**Não iniciar a Fase 8.**
+**Falta só o offline real para fechar o P4. Não iniciar a Fase 8.**

@@ -1,7 +1,7 @@
 # Etapa 7B em produção — validação
 
 **Data:** 21/08/2026 · **Bundle:** `index-WDnlnv6E.js` · **Commit:** `490a236`
-**Contas:** `teste@gmail.com` (mestre) e `cliente001@gmail.com` (Portal). Nenhuma organização real foi tocada.
+**Contas:** `teste@gmail.com` (mestre), `cliente001@gmail.com` e `ipiranga@gmail.com` (Portal). Nenhuma organização real foi tocada.
 **Nenhum conteúdo de imagem ou assinatura foi registrado aqui** — só tamanhos, hashes e paths.
 
 > **O que a 7B precisa provar:** os writers passam a **produzir** referência de logo e rubrica,
@@ -272,21 +272,109 @@ segue em **versão 1** de `nr13_minha_empresa` — a conta é somente leitura e 
 chave. **Os documentos usam o dado fresco** (o Livro renderizou LOGO-B). Item para uma fase
 seguinte, não corrigido aqui.
 
+## 14. Contraprova — `ipiranga@gmail.com` conhece o hash e não passa
+
+Sessão conferida pelo **JWT**, não pela tela, antes de qualquer requisição:
+
+```
+jwt_email  : ipiranga@gmail.com
+jwt_sub    : 5f865e4d-cfb3-46df-9edd-6eb8802e9175
+papel      : cliente
+cliente_id : ad1fd71c-c99b-4277-a07d-a57b90723e35   ← o OUTRO cliente
+org_id     : 99f642d3-…                              ← a MESMA organização
+navegador  : Brave
+```
+
+### 14.1 As seis referências reais do ZZ-FASE3
+
+Os mesmos paths que devolveram **200** para o `cliente001`, pedidos agora com o token do
+`ipiranga`:
+
+| # | Referência | Path | Status |
+|---|---|---|---|
+| 1 | `logoRef` A | `…/logos/17822fce…adc.jpg` | **404 `nao_disponivel`** |
+| 2 | `logoRef` B | `…/logos/ad888201…5cb.jpg` | **404 `nao_disponivel`** |
+| 3 | `assinaturaRef` A | `…/assinaturas/df32c300…139.png` | **404 `nao_disponivel`** |
+| 4 | `assinaturaRef` B | `…/assinaturas/67bd9c3e…16e.png` | **404 `nao_disponivel`** |
+| 5 | `pdfRef` A | `…/relatorios/40edde04….pdf` | **404 `nao_disponivel`** |
+| 6 | `pdfRef` B | `…/relatorios/e50b5bf1….pdf` | **404 `nao_disponivel`** |
+
+**Nenhuma URL assinada foi emitida.** Seis de seis recusadas.
+
+### 14.2 O 404 é SELETIVO, não é conta vazia
+
+Este é o controle que dá sentido aos seis 404 acima. Se o `ipiranga` não tivesse vínculo
+nenhum, a Edge sairia no atalho `tags.length === 0` e o 404 não provaria a regra do vínculo —
+provaria só a ausência de qualquer vínculo.
+
+Ele **tem** vínculo próprio: 2 TAGs (`COMPRESSOR V8-15/200L` e `D33DD33D`) e 15 chaves
+autorizadas. E, **na mesma rota e com o mesmo token**:
+
+| Pedido | Status |
+|---|---|
+| PDF do relatório do **COMPRESSOR** — vínculo dele | **200** + URL assinada |
+| As 6 refs do **ZZ-FASE3** — vínculo do `cliente001` | **404** |
+
+A rota funciona para ele. O que não funciona é alcançar o que não é dele.
+
+### 14.3 Não-enumerabilidade — status, corpo E cabeçalhos
+
+Comparadas as assinaturas completas das respostas (status + corpo + cabeçalhos, descontados os
+voláteis de data/CDN) para seis casos deliberadamente diferentes: referência real com vínculo
+**alheio**, arquivo real **sem vínculo nenhum** (`45cbb213`), hash inexistente em `logos/`,
+hash inexistente em `assinaturas/`, PDF alheio e path de **outra organização**.
+
+```
+respostas distintas: 1
+404 :: {"erro":"nao_disponivel"} :: content-length:45|content-type:application/json
+```
+
+**Uma única assinatura.** Não há oráculo: o atacante não distingue "não existe" de "existe e
+não é seu" nem pelo corpo, nem pelo tamanho, nem pelos cabeçalhos.
+
+### 14.4 P1/P3 com o token do `ipiranga`
+
+| Tentativa | Resultado |
+|---|---|
+| Listar `inspecao/<org>/assinaturas` | **200, 0 itens** |
+| Listar `inspecao/<org>/logos` | **200, 0 itens** |
+| Listar `inspecao/<org>/relatorios` | **200, 0 itens** |
+| Assinar URL de `logoRef` A direto no Storage | **400** — recusado |
+| Download autenticado direto pelo hash conhecido | **400** — recusado |
+| Download pela rota **pública** do bucket | **400** — recusado |
+| `select` amplo em `app_storage` | **200, 0 linhas** |
+| `select` filtrado por `nr13_rel_*` em `app_storage` | **200, 0 linhas** |
+
+Conhecer o path não abre atalho nenhum fora da Edge. **Nenhuma política global do tipo
+"cliente da organização alcança qualquer logo/rubrica"** — a leitura direta do bucket segue
+fechada para o papel `cliente` (D-04), e a listagem não expõe sequer os nomes.
+
 ---
 
-## PENDENTE DE CONFIRMAÇÃO — precisa de ação do dono
+## PORTAL 7B = VALIDADO EM PRODUÇÃO ✅
 
-Estes dois itens **não foram executados** e **não estão sendo dados como aprovados**.
+A cadeia fechou nas três pontas, com os **mesmos paths** nos três casos:
 
-### A · Portal do Cliente — falta só a contraprova
+| | |
+|---|---|
+| `cliente001` + relatório autorizado, ref dentro do snapshot | **200** |
+| `ipiranga` + **exatamente o mesmo hash/path**, sem vínculo | **404** |
+| Hash inexistente | **404**, indistinguível |
 
-Feito e aprovado: cliente autorizado recebe **200** nas quatro referências, hash real sem
-vínculo e hash inventado recebem **404 `nao_disponivel`** idêntico, P1/P3 intactos, documento
-renderiza a imagem certa (§11 e §12).
+E a origem do 200 foi reproduzida chave a chave (§11.1): veio de
+`nr13_rel_…_ZZ-FASE3 → .meta.empresa.logoRef` e
+`→ .meta.assinantes.engenheiro.assinaturaRef` — não do cadastro vivo, que sequer entra no
+conjunto varrido.
 
-**Falta:** repetir com **`ipiranga@gmail.com`** (`ad1fd71c-…`, o outro cliente da conta)
-pedindo **exatamente** a `logoRef` e a `assinaturaRef` do relatório do ZZ-FASE3. Resultado
-obrigatório: **404 `nao_disponivel`**. Depende de o dono autenticar essa conta.
+> **Hash/path não é autorização. O vínculo com o recurso é que autoriza.**
+
+Nenhum código, política, Edge, banco ou dado foi alterado para esta prova.
+
+---
+
+## PENDENTE DE CONFIRMAÇÃO — o último item
+
+Resta **um**, e ele depende de ação do dono. Não está sendo dado como aprovado.
 
 ### B · Offline real
 
