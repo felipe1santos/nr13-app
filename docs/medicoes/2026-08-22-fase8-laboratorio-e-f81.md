@@ -498,17 +498,19 @@ assim compensa com folga — 0,02 ms a mais por escrita contra **12.595 buffers 
 cada boot de cada aparelho**. Mas o custo precisa estar escrito com o número certo.
 
 **A regressão de primeiro boot que a Fase 1 registrou (65 → 236 buffers) não existe em escala
-nenhuma medida aqui.** Em 100 o plano é idêntico com e sem índice; em 500 e 1.000 o índice
+nenhuma medida aqui.** Em 100 o plano é idêntico com e sem índice; em 500, 1.000 e 5.000 o índice
 MELHORA o primeiro boot. A classificação **D** do achado 4 fica confirmada por medição, não só
 pelo retrato de produção.
 
 ---
 
-## 12 · Dois defeitos na FERRAMENTA de limpeza — encontrados e corrigidos
+## 12 · Três defeitos na FERRAMENTA de limpeza — encontrados e corrigidos
 
-Os dois eram **silenciosos**: a limpeza reportava sucesso e deixava arquivo para trás. Os dois
-quebravam o critério de aceite "toda a massa removida ao fim, com prova" — e justamente nas
-escalas grandes, onde ninguém confere à mão.
+Os três são a MESMA doença: **incompletude que se declara sucesso**. A limpeza terminava, imprimia
+uma linha de prova, e deixava coisa para trás. Os três quebravam o critério de aceite "toda a massa
+removida ao fim, com prova" — e todos apareceram só nas escalas grandes, onde ninguém confere à
+mão. Nenhum deles seria encontrado sem gerar a massa: é o tipo de defeito que a Fase 8 existe para
+achar.
 
 ### D1 · `list()` não paginava
 
@@ -541,7 +543,36 @@ prova: 0 arquivos com o carimbo f8-3- e 0 pastas ZZ-SCALE-F8-3-* no bucket.
 Com a correção, os restos das seeds 1 e 3 saíram (402 e 200 arquivos), e a conferência
 independente pelo banco deu **0 para as três seeds**.
 
-### Um terceiro, menor
+### D3 · A limpeza não repetia o que falhava, e a prova não olhava as chaves
+
+**O mais caro dos três, e só apareceu no degrau de 5.000.** Numa rodada de 55.000 chaves,
+**2.004 falharam (3,6 %)** — e a limpeza terminou assim mesmo, imprimindo
+`prova: 0 arquivos com o carimbo f8-5-`, que **parece** uma linha de sucesso.
+
+As 2.004 sobreviventes estavam todas em **versão 1** (nunca alteradas) e espalhadas por várias
+famílias. Rodar o mesmo comando de novo removeu as 2.004 com **zero falhas** — logo não eram
+recusas legítimas do sistema: eram **transitórias**, sob ~20 minutos de chamadas sequenciais com
+a pilha local também servindo 20.002 remoções de arquivo.
+
+Duas ausências, e são o mesmo defeito de fundo de D1 e D2 — **incompletude silenciosa**:
+
+1. **Nenhuma repescagem.** Uma falha transitória custava a chave, definitivamente.
+2. **A prova só conferia o bucket.** Ela nunca releu as chaves, então 2.004 linhas vivas não
+   apareciam em lugar nenhum do relatório final.
+
+Corrigido: até **2 voltas de repescagem** do que falhou, e a prova passou a **reler as duas
+pontas** — banco e bucket — direto da fonte, em vez de confiar nos contadores do laço. Se sobrar
+chave OU arquivo, ela imprime exemplos e **sai com código 3**.
+
+```
+prova: 0 chaves vivas, 0 arquivos com o carimbo f8-6- e 0 pastas ZZ-SCALE-F8-6-*.
+```
+
+> **Um agravante que era meu, não do script:** eu vinha rodando a limpeza através de `grep`, e o
+> código de saída de um pipeline é o do ÚLTIMO comando. O `node` até saía com 2, mas o shell
+> reportava 0. Duas camadas de silêncio empilhadas.
+
+### Um quarto, menor
 
 A listagem de chaves não filtrava `deletado_em`, então a limpeza reapagava o que já era
 tombstone. Inofensivo (a RPC é idempotente), mas em 5.000 equipamentos seriam 55.000 chamadas de
@@ -553,10 +584,15 @@ rede para não mudar nada. Corrigido filtrando is-null na listagem de chaves.
 
 ## 13 · O que NÃO foi feito
 
-- **Nenhuma massa em produção.** No laboratório local, o degrau 100 foi gerado, medido e removido com prova.
+- **Nenhuma massa em produção.** No laboratório local, os degraus 100, 500, 1.000 e 5.000 foram
+  gerados, medidos e **removidos com prova**: ao fim, 0 chaves vivas e 0 arquivos da org alvo;
+  restam só as 9.900 linhas e 3.606 arquivos das organizações de ruído, que são permanentes.
 - **Nenhuma escrita em produção.** Só `select` e `explain (analyze)` sobre `select`.
 - **Nada em `src/`** alterado.
-- Degraus 500 / 1.000 / 5.000: **não iniciados** — aguardam a decisão sobre as organizações de ruído (§9).
+- **Falta a via de UI** (DOM, listas, INP, memória, IndexedDB) — o laboratório mediu o banco e o
+  Storage, não o navegador.
+- **Faltam os degraus 100 e 500 em produção**, que são os únicos capazes de medir latência real e
+  egress. Realista em produção segue NÃO autorizado.
 - Fase 9 e PDF vetorial: **não iniciados**.
 
 ---

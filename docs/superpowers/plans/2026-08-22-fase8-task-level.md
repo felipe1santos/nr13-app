@@ -370,7 +370,7 @@ Massa parcial (gerador interrompido) sai pelo mesmo caminho — a seed identific
 - [x] **F8.2** — `scripts/massa-escala/gerar.mjs` com as 6 travas, `--dry-run` e manifesto
 - [x] **F8.3** — `prng.mjs` (mulberry32, marco de data **fixo**) + `conteudo.mjs` por família
 - [x] **F8.4** — `arquivos.mjs` com preenchimento **incompressível** — provado por gzip no teste
-- [x] **F8.5** — `scripts/massa-escala/limpar.mjs`, cirúrgico por seed, pela RPC oficial. **Dois defeitos silenciosos encontrados medindo, e corrigidos (22/08):** `list()` não paginava (deixou 200 PDFs) e arquivo órfão de geração falha era invisível (deixou 402). Agora ela **prova** o resultado e sai com erro se sobrar
+- [x] **F8.5** — `scripts/massa-escala/limpar.mjs`, cirúrgico por seed, pela RPC oficial. **Três defeitos silenciosos encontrados medindo, e corrigidos (22/08):** `list()` não paginava (deixou 200 PDFs); arquivo órfão de geração falha era invisível (deixou 402); e **não havia repescagem nem prova sobre as chaves** — no degrau de 5.000, 2.004 falhas transitórias sobreviveram a uma linha de prova de aparência vitoriosa. Agora ela **repete o que falha** e **prova as duas pontas**, saindo com código 3 se sobrar
 - [x] **F8.6** — `massa.test.mjs` — **27 testes, 27 verdes** (`node --test`, sem tocar o Vitest)
 - [ ] **F8.7** — `docs/medicoes/roteiro-baseline.md`
 - [ ] **F8.8** — Instrumentação de medição (`performance.mark`) — **decisão pendente**, ver Riscos
@@ -380,7 +380,7 @@ Massa parcial (gerador interrompido) sai pelo mesmo caminho — a seed identific
 - [ ] **F8.12** — Baseline de PDF (5/15/30 folhas)
 - [ ] **F8.13** — Medições de banco, Storage e egress
 - [ ] **F8.14** — Classificar cada achado em A/B/C/D
-- [ ] **F8.15** — Limpar toda a massa e provar que não sobrou nada
+- [~] **F8.15** — Massa **local** removida com prova nos 4 degraus (0 chaves, 0 arquivos da org alvo). Falta a massa de produção, que ainda não existe
 
 ---
 
@@ -501,7 +501,11 @@ não altera produção. A massa gerada sai por `limpar.mjs`.
 | 22/08 | **Leitura, 4 escalas:** com índice o primeiro boot é **913 buffers em 500, 1.000 E 5.000** — constante. Sem índice: 1.444 → 2.046 → 6.347. "Nada mudou": **7 contra 12.602** | ✅ |
 | 22/08 | **Escrita medida:** o índice custa +8 % de buffers e +35 % de tempo por atualização | ✅ |
 | 22/08 | 🔴 **Correção de um número que eu tinha registrado errado:** os 87,7 % de HOT de produção NÃO valem para julgar este índice — ele entrou em 16/08 e a janela começa em 22/05. Com o índice presente, HOT é **0,1 %**, porque `atualizado_em` está dentro dele | ✅ corrigido |
-| 22/08 | Degrau 5.000 limpo. **Produção segue com massa ZERO** | ⏳ |
+| 22/08 | 🔴 **Terceiro defeito da limpeza, o mais caro:** no degrau de 5.000, **2.004 chaves de 55.000 (3,6 %) falharam** e a limpeza imprimiu `prova: 0 arquivos` assim mesmo. Rodar de novo removeu as 2.004 com **0 falhas** — eram transitórias, não recusas | ✅ corrigido |
+| 22/08 | Faltavam duas coisas: **repescagem** do que falha e **prova sobre as CHAVES** (a prova só olhava o bucket). Agora há 2 voltas de repescagem e a prova relê banco **e** bucket da fonte, saindo com código 3 se sobrar | ✅ |
+| 22/08 | Agravante meu: eu rodava a limpeza por `grep`, e o código de saída de um pipeline é o do último comando — o `node` saía 2 e o shell reportava 0 | ✅ registrado |
+| 22/08 | Ciclo completo revalidado numa seed nova (6): gerar → limpar → **prova das duas pontas** → exit 0. 29/29 testes | ✅ |
+| 22/08 | **Degraus 100, 500, 1.000 e 5.000 concluídos e removidos com prova.** Laboratório com 0 chaves e 0 arquivos da org alvo; só o ruído permanente. **Produção segue com massa ZERO** | ✅ |
 
 ### Estimado × observado — recalibração por `--dry-run`
 

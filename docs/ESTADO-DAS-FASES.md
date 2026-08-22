@@ -134,10 +134,16 @@ tinha registrado que "87,7 % das atualizações são HOT, logo o índice quase n
 índice presente, o HOT medido é **0,1 %**: `atualizado_em` está dentro dele e toda escrita mexe
 nessa coluna. O veredito não muda; o argumento sim.
 
-**Dois defeitos SILENCIOSOS na ferramenta de limpeza**, achados justamente por medir: `list()`
-não paginava (deixou 200 PDFs para trás declarando sucesso) e arquivo órfão de geração que falha
-era invisível para ela (deixou 402). Corrigidos; a limpeza agora **prova** o resultado e sai com
-erro se sobrar alguma coisa. 29/29 testes verdes.
+**Três defeitos SILENCIOSOS na ferramenta de limpeza**, achados justamente por medir — todos da
+mesma família, incompletude que se declara sucesso: `list()` não paginava (deixou 200 PDFs);
+arquivo órfão de geração que falha era invisível para ela (deixou 402); e **não havia repescagem
+nem prova sobre as chaves** — no degrau de 5.000, **2.004 chaves de 55.000 falharam por causa
+transitória** e a limpeza imprimiu mesmo assim uma linha de prova de aparência vitoriosa (rodar de
+novo removeu as 2.004 com zero falhas). Corrigidos: a limpeza agora **repete o que falha** e
+**prova as duas pontas**, banco e bucket, saindo com erro se sobrar. 29/29 testes verdes.
+
+**Os 4 degraus locais estão concluídos e removidos com prova** — 0 chaves e 0 arquivos da org
+alvo; restam só as 9.900 linhas de ruído, que são permanentes entre degraus.
 
 Registro completo, com todos os números: `medicoes/2026-08-22-fase8-laboratorio-e-f81.md`.
 

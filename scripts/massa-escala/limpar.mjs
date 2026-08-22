@@ -119,10 +119,23 @@ if (!CONFIRMAR) {
 }
 
 // ── apagar: chaves pela RPC, arquivos pelo Storage ──────────────────────────
+//
+// TERCEIRO DEFEITO CONSERTADO AQUI (22/08/2026), medido no degrau de 5.000:
+// numa rodada de 55.000 chaves, **2.004 falharam (3,6 %)** e a limpeza terminou
+// assim mesmo, imprimindo uma linha de prova de aparência vitoriosa. Rodar o
+// mesmo comando de novo removeu as 2.004 com ZERO falhas — ou seja, não eram
+// recusas legítimas: eram TRANSITÓRIAS, sob 20 minutos de chamadas sequenciais
+// com a pilha local também servindo 20.002 remoções de arquivo.
+//
+// Duas coisas faltavam, e são o mesmo defeito de fundo dos outros dois:
+// incompletude SILENCIOSA. Agora a limpeza **repete o que falhou** e a prova
+// confere **as chaves também**, não só o bucket.
 let removidas = 0, falhas = 0;
-for (const linha of alvos) {
+const naoRemovidas = [];
+
+async function apagar(linha) {
   // Segunda checagem, imediatamente antes de apagar. Barato, e é a última rede.
-  if (!podeApagar(linha.chave, SEED)) { console.error('BUG: alvo recusado na segunda checagem:', linha.chave); continue; }
+  if (!podeApagar(linha.chave, SEED)) { console.error('BUG: alvo recusado na segunda checagem:', linha.chave); return false; }
   const { data, error } = await sb.rpc('aplicar_mutacao_storage', {
     p_chave: linha.chave,
     p_mutation_id: randomUUID(),
@@ -133,10 +146,27 @@ for (const linha of alvos) {
     p_mutado_em: new Date().toISOString(),
   });
   if (error || (data?.status && data.status !== 'aplicado' && data.status !== 'ok')) {
-    falhas++;
-    if (falhas <= 5) console.error('  ! falhou', linha.chave, error?.message ?? data?.motivo);
-  } else removidas++;
+    if (falhas < 5) console.error('  ! falhou', linha.chave, error?.message ?? data?.motivo);
+    return false;
+  }
+  return true;
+}
+
+for (const linha of alvos) {
+  if (await apagar(linha)) removidas++;
+  else { falhas++; naoRemovidas.push(linha); }
   if (removidas % 100 === 0) process.stdout.write(`\r  ${removidas}/${alvos.length} chaves removidas`);
+}
+
+// Repescagem. Duas passadas bastam para falha transitória; se sobrar depois
+// disso, é problema de verdade e a prova no fim vai gritar.
+for (let volta = 1; volta <= 2 && naoRemovidas.length; volta++) {
+  const repetir = naoRemovidas.splice(0, naoRemovidas.length);
+  console.log(`\nrepescagem ${volta}: ${repetir.length} chave(s) que falharam`);
+  for (const linha of repetir) {
+    if (await apagar(linha)) { removidas++; falhas--; }
+    else naoRemovidas.push(linha);
+  }
 }
 
 // ── arquivos ────────────────────────────────────────────────────────────────
@@ -206,17 +236,45 @@ await limparPasta(`${ORG}/relatorios`, (n) => n.startsWith(carimbo));
 await limparPasta(`${ORG}/logos`, (n) => n.startsWith(carimbo));
 await limparPasta(`${ORG}/assinaturas`, (n) => n.startsWith(carimbo));
 
-// Prova, não promessa: relista e conta o que ficou com o carimbo desta seed.
+// ── PROVA, não promessa ─────────────────────────────────────────────────────
+//
+// Relê o estado REAL das duas pontas — banco e bucket — em vez de confiar nos
+// contadores do laço. Foi a falta disso do lado das CHAVES que deixou a rodada
+// de 5.000 imprimir uma linha de sucesso com 2.004 chaves ainda vivas.
+
+// 1) chaves: relista da fonte, sem reaproveitar nada da lista inicial.
+const chavesVivas = [];
+for (let inicio = 0; ; inicio += PAGINA) {
+  const { data, error } = await sb.from('app_storage')
+    .select('chave').eq('org_id', ORG).is('deletado_em', null)
+    .order('chave', { ascending: true }).range(inicio, inicio + PAGINA - 1);
+  if (error) { console.error('falha ao conferir chaves:', error.message); process.exit(4); }
+  if (!data?.length) break;
+  chavesVivas.push(...data.map((l) => l.chave));
+  if (data.length < PAGINA) break;
+}
+const chavesSobraram = chavesVivas.filter((c) => podeApagar(c, SEED));
+
+// 2) arquivos: raiz da org (pastas de TAG) e as três pastas compartilhadas.
 const sobrouRaiz = (await listarTudo(ORG)).map((o) => o.name).filter((n) => ehTagDaSeed(n, SEED));
-let sobrou = sobrouRaiz.length;
+let arquivosSobraram = sobrouRaiz.length;
 for (const p of ['relatorios', 'logos', 'assinaturas']) {
-  sobrou += (await listarTudo(`${ORG}/${p}`)).filter((o) => o.name.startsWith(carimbo)).length;
+  arquivosSobraram += (await listarTudo(`${ORG}/${p}`)).filter((o) => o.name.startsWith(carimbo)).length;
 }
 
 console.log(`\nchaves removidas ${removidas}   falhas: ${falhas}   arquivos: ${arquivosRemovidos}`);
-if (sobrou > 0) {
-  console.error(`! SOBROU ${sobrou} arquivo(s)/pasta(s) com o carimbo da seed ${SEED}. A limpeza NÃO está completa.`);
+
+if (chavesSobraram.length || arquivosSobraram) {
+  if (chavesSobraram.length) {
+    console.error(`! SOBRARAM ${chavesSobraram.length} chave(s) vivas da seed ${SEED}. Exemplos:`);
+    for (const c of chavesSobraram.slice(0, 5)) console.error(`  · ${c}`);
+  }
+  if (arquivosSobraram) {
+    console.error(`! SOBRARAM ${arquivosSobraram} arquivo(s)/pasta(s) com o carimbo da seed ${SEED}.`);
+  }
+  console.error('A limpeza NÃO está completa. Rode o mesmo comando de novo — é idempotente.');
   process.exit(3);
 }
-console.log(`prova: 0 arquivos com o carimbo f8-${SEED}- e 0 pastas ZZ-SCALE-F8-${SEED}-* no bucket.`);
+
+console.log(`prova: 0 chaves vivas, 0 arquivos com o carimbo f8-${SEED}- e 0 pastas ZZ-SCALE-F8-${SEED}-*.`);
 process.exit(falhas > 0 ? 2 : 0);
