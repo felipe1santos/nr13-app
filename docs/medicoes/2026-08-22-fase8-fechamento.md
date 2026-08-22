@@ -218,6 +218,61 @@ clique.**
 
 ---
 
-## 7 · Limpeza do laboratório
+## 7 · Limpeza do laboratório — executada e provada
 
-Ver a seção final deste documento, preenchida com as provas da execução.
+Toda a massa foi removida pela **ferramenta oficial corrigida**, que prova as duas pontas (banco e
+bucket) e sai com código 3 se sobrar qualquer coisa.
+
+| Organização | Seed | Chaves | Arquivos | Prova | exit |
+|---|---:|---:|---:|---|:--:|
+| `lab@local.test` (alvo) | 7 | 11.000 | 4.002 | `0 chaves vivas, 0 arquivos, 0 pastas` | **0** |
+| `ruido1@local.test` | 8 | 7.700 | 2.802 | idem | **0** |
+| `ruido1@local.test` | 901 | 3.300 | 1.202 | idem | **0** |
+| `ruido2@local.test` | 902 | 3.300 | 1.202 | idem | **0** |
+| `ruido3@local.test` | 903 | 3.300 | 1.202 | idem | **0** |
+| **Total** | | **28.600** | **10.410** | | **0 falhas** |
+
+### Conferência independente, feita no banco e não pela ferramenta
+
+```
+chaves vivas com prefixo da massa .... 0
+arquivos no bucket inspecao ......... 0
+chaves vivas de QUALQUER tipo ....... nenhuma, em nenhuma organização
+tombstones .......................... 128.600
+```
+
+Os 128.600 tombstones **não são sobra** — são a PROVA da exclusão exigida pelo §2-ter. Nenhuma
+chave global (`nr13_lista_phs`, `nr13_minha_empresa`, `nr13_clientes`) jamais existiu no
+laboratório: o gerador tem proibição absoluta de escrevê-las, e o teste que trava isso está na
+suíte.
+
+### Destino das organizações de ruído — decidido
+
+As três (`ruido1/2/3@local.test`) existiam para dar **seletividade realista** ao laboratório — sem
+elas o planner escolhia `Seq Scan` porque a org alvo era 100 % da tabela, e nenhuma medição de
+índice de leitura valia.
+
+**Decisão: a massa delas foi removida com prova, e as contas ficam.** Elas são registros do GoTrue
+e do `profiles` do banco descartável, custam bytes, e a Fase 9 vai precisar do mesmo laboratório
+para os benchmarks DEPOIS — recriá-las seria trabalho repetido sem ganho. Morrem junto com os
+volumes do Docker quando o laboratório for descartado (`npx supabase stop --no-backup` ou
+`db reset`).
+
+### O que ficou no repositório, e por quê
+
+| Arquivo | Por que fica |
+|---|---|
+| `supabase/app_storage_base.sql` | O sistema não era reconstruível sem ele. **No-op em produção** |
+| `supabase/grants_postgrest.sql` | Idem |
+| `supabase/config.toml` | Configuração do laboratório. `site_url` aponta para `localhost:5173` — é do laboratório, **não afeta produção** |
+| `supabase/fase8_indice_verificar.sql` | O F8.1, somente leitura |
+| `scripts/massa-escala/` | A ferramenta da fase, com os três defeitos corrigidos e 29 testes |
+
+### Ambiente do desenvolvedor, restaurado
+
+| | |
+|---|---|
+| `.env.local` temporário | **removido** |
+| `.env` de produção | **intacto**, apontando para `qqsesrntfvmdxqxrfvmw` |
+| Servidor de desenvolvimento | parado |
+| App | **não** ficou apontando para o laboratório ✅ |
