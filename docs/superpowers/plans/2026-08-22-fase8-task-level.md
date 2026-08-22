@@ -2,9 +2,10 @@
 
 ## Estado atual da fase
 
-`🟡 PLANEJADO — AS-IS levantado, dataset desenhado, plano de medição escrito.`
-**Nenhuma massa gerada. Nenhuma linha de código de produção alterada.**
-Aguardando aprovação do dono para implementar o gerador.
+`🟡 EM IMPLEMENTAÇÃO — gerador, limpeza e testes prontos; estimativas recalibradas com bytes reais.`
+**Nenhuma massa gerada, nem local nem em produção. Nenhuma linha de código de produção alterada.**
+Bloqueado em dois pontos que dependem do dono: **Docker não existe nesta máquina** (laboratório
+local) e **F8.1 precisa do SQL Editor**.
 
 Autorizado em 22/08/2026: **somente planejamento + baseline + desenho do dataset + plano de
 medição**. Sem otimização, sem Fase 9, sem PDF vetorial.
@@ -364,14 +365,14 @@ Massa parcial (gerador interrompido) sai pelo mesmo caminho — a seed identific
 
 ## Tarefas
 
-- [ ] **F8.1** — Coletar `pg_stat_user_indexes` de `app_storage_org_atualizado_idx` (dívida da
-      Fase 1, independe de massa). **Precisa do SQL Editor — só o dono executa**
-- [ ] **F8.2** — `scripts/massa-escala/gerar.mjs` com as 6 travas de segurança
-- [ ] **F8.3** — PRNG determinístico + geradores de conteúdo por família
-- [ ] **F8.4** — Gerador de arquivos sintéticos com **preenchimento incompressível** (o tamanho
-      no bucket precisa ser o pedido, ±10 %)
-- [ ] **F8.5** — `scripts/massa-escala/limpar.mjs`
-- [ ] **F8.6** — Testes automatizados do gerador e do limpador
+- [~] **F8.1** — `supabase/fase8_indice_verificar.sql` escrito: 7 consultas, **somente leitura**,
+      com o contexto exigido (`stats_reset`, uptime, todos os índices, volume, escrita, planos
+      dos cenários 1 e 2). **Falta o dono rodar no SQL Editor**
+- [x] **F8.2** — `scripts/massa-escala/gerar.mjs` com as 6 travas, `--dry-run` e manifesto
+- [x] **F8.3** — `prng.mjs` (mulberry32, marco de data **fixo**) + `conteudo.mjs` por família
+- [x] **F8.4** — `arquivos.mjs` com preenchimento **incompressível** — provado por gzip no teste
+- [x] **F8.5** — `scripts/massa-escala/limpar.mjs`, cirúrgico por seed, pela RPC oficial
+- [x] **F8.6** — `massa.test.mjs` — **27 testes, 27 verdes** (`node --test`, sem tocar o Vitest)
 - [ ] **F8.7** — `docs/medicoes/roteiro-baseline.md`
 - [ ] **F8.8** — Instrumentação de medição (`performance.mark`) — **decisão pendente**, ver Riscos
 - [ ] **F8.9** — Rodar estrutural 100/500/1.000/5.000 no ambiente aprovado
@@ -458,24 +459,93 @@ não altera produção. A massa gerada sai por `limpar.mjs`.
 | 22/08 | Dívida da Fase 1 recuperada e transformada em tarefa (F8.1 e F8.11) | ✅ |
 | 22/08 | Constatado: **sem `supabase/config.toml`** — não há Supabase local hoje | ⚠️ registrado |
 | 22/08 | Task-level criado. **Nenhuma massa gerada, nenhum código tocado** | ✅ |
+| 22/08 | **Plano aprovado** pelo dono: local-first · Supabase local autorizado · instrumentação por DevTools · realista em produção **NÃO** autorizado · produção só 100 e 500 estrutural, depois do local | ✅ |
+| 22/08 | **Ambiente conferido antes de instalar nada: `docker` NÃO existe nesta máquina.** Supabase CLI roda por `npx` (2.115.0), mas `supabase start` **exige Docker** | ⚠️ **bloqueio** |
+| 22/08 | `prng.mjs`, `seguranca.mjs`, `conteudo.mjs`, `arquivos.mjs`, `gerar.mjs`, `limpar.mjs` implementados | ✅ |
+| 22/08 | Testes em `node:test` — **sem tocar `vite.config.ts`**: a suíte do app está travada em `src/**`, e mexer no include por causa de uma ferramenta seria alterar configuração de build | ✅ |
+| 22/08 | **27/27 verdes**: determinismo, prefixo, seed 1 × seed 12, proibição de `nr13_livro_`, limpeza cirúrgica, TAGs protegidas, 5 recusas de segurança, tamanho ±10 %, **incompressibilidade provada por gzip** | ✅ |
+| 22/08 | **Divergência encontrada e corrigida:** o relatório sintético saía com **1.103 B** contra **2.461 B** do registro real — subestimava 2,2×. Formato refeito contra o registro real da Fase 7B, campo a campo | ✅ |
+| 22/08 | Depois da correção: `nr13_rel_` = **2.460 B** (real: 2.461) · índice = **662 B/item** (real: 665) | ✅ |
+| 22/08 | Estimativas recalibradas por `--dry-run` — todas as do plano eram **conservadoras** | ✅ |
+| 22/08 | **Nenhuma massa gerada.** Sem laboratório local, não há onde gerar sem tocar produção | ⏳ |
+
+### Estimado × observado — recalibração por `--dry-run`
+
+| Escala | Conteúdo estimado | **Observado** | Bucket estimado | **Observado** |
+|---|---|---|---|---|
+| 100 | 1,0 MB | **0,81 MB** | 4,7 MB | **4,61 MB** |
+| 500 | 5,1 MB | **4,06 MB** | 23,5 MB | **22,97 MB** |
+| 1.000 | 10,1 MB | **8,13 MB** | 47 MB | **45,92 MB** |
+| 5.000 | 50,7 MB | **40,79 MB** | 235 MB | **229,51 MB** |
+
+Conteúdo ficou **20 % abaixo** do estimado; bucket, **2 %**. As duas divergências são para o
+lado seguro. **O degrau de 500 confirma a condição do dono** — 22,97 MB contra o teto de
+"~23,5 MB" que ele fixou para autorizar produção.
+
+### Peso por família — massa sintética × registro real
+
+| Família | Sintético | Real medido | |
+|---|---|---|---|
+| `nr13_rel_<id>_<TAG>` | **2.460 B** | 2.461 B | ✅ fiel |
+| `nr13_historico_indice_` | 662 B/item | 665 B/item | ✅ fiel |
+| `nr13_calc_` | 501 B | — | memorial reduzido |
+| `nr13_emp_` | 383 B | 336 B | próximo |
+| `nr13_fotos_` | 380 B | 408–1.145 B | 1 foto contra 1–9 reais |
+| `nr13_info_` | 335 B | 43–81 B | **maior** que o real — a ficha de teste é magra |
+| **Total por equipamento (2 relatórios)** | **8.431 B** | — | |
 
 ---
 
 ## Ponto de retomada
 
-**PLANEJAMENTO ENTREGUE. Aguardando aprovação do dono.**
+**Gerador pronto e testado. Nenhuma massa gerada. Duas coisas dependem de você.**
 
-Três decisões dependem de você antes de qualquer implementação:
+### 1 · Docker não existe nesta máquina — o laboratório local está bloqueado
 
-1. **Onde a massa nasce** — recomendo o híbrido: local para o estrutural até 5.000 e para o
-   custo do índice; produção (org de teste) até 500 estrutural e 10 realista.
-2. **Supabase local** — instalar? Sem ele, o custo do índice da Fase 1 não fecha e vira
-   `PENDENTE DE CONFIRMAÇÃO`.
-3. **Instrumentação** — o aceite proíbe alterar código de produção; proponho medir por DevTools
-   e `PerformanceObserver` injetado. Se algum ponto exigir `performance.mark` permanente, peço
-   autorização em separado.
+Conferi antes de instalar qualquer coisa, como você pediu:
 
-Uma coleta pode acontecer já, e não depende de massa nem de decisão: **F8.1**, o `idx_scan` de
-`app_storage_org_atualizado_idx`, que fecha (ou reabre) a Fase 1. Precisa de você no SQL Editor.
+```
+docker --version     → command not found
+supabase --version   → command not found
+npx supabase         → 2.115.0  (mas `supabase start` EXIGE Docker)
+```
 
-**Não gerar massa. Não implementar otimização. Não iniciar a Fase 9. Não iniciar PDF vetorial.**
+`supabase start` sobe Postgres, GoTrue, PostgREST e Storage **em contêineres**. Sem Docker não
+há laboratório local no formato que você autorizou. Instalar Docker Desktop é decisão sua — não
+faço instalação desse porte sem autorização explícita.
+
+| | O que dá | O que **não** dá |
+|---|---|---|
+| **A · Instalar Docker Desktop** | tudo o que você autorizou: 100/500/1.000/5.000 local, EXPLAIN sob RLS, custo do índice com e sem, limpeza sem risco | ~1 GB de instalação, reinício provável |
+| **B · Laboratório só no navegador** — injetar a massa direto no IndexedDB de uma org sintética, com o app em `npm run dev` | **DOM, listas, filtros, busca, scroll, memória, IndexedDB, render, PDF** — a maior parte da fase | banco, EXPLAIN, custo do índice, sync real |
+| **C · Produção, org de teste, 100 e 500** (já autorizados) | latência e egress reais, sync real | 1.000 e 5.000 |
+
+**Recomendo A + B + C.** Se preferir não instalar Docker, B + C ainda entregam a maior parte da
+Fase 8, e o custo do índice fica `PENDENTE DE CONFIRMAÇÃO` com o motivo técnico registrado —
+não como "passou".
+
+### 2 · F8.1 precisa de você no SQL Editor
+
+`supabase/fase8_indice_verificar.sql` está pronto: **7 consultas, todas somente leitura**.
+Coleta o contexto que você exigiu antes de qualquer interpretação — `stats_reset`, janela de
+coleta, uptime, uso de **todos** os índices (para comparar), volume da tabela, linhas por
+organização, estatística de escrita, e os planos dos cenários 1 e 2.
+
+Nas consultas 6 e 7, troque `<ORG>` e `<MARCA>`. Me mande a saída e eu classifico em
+**A / B / C / D** — sem reabrir a Fase 1 por contador baixo isolado.
+
+> Limitação já declarada, não contornada: o SQL Editor roda como `postgres`, **sem RLS**. O app
+> roda como `authenticated`, e a policy entra no plano. Os planos de lá são um **piso**. A
+> comparação fiel exige o laboratório local — mais um motivo para a decisão 1.
+
+### Como rodar o que já existe
+
+```bash
+node --test scripts/massa-escala/massa.test.mjs      # 27 testes
+node scripts/massa-escala/gerar.mjs --org <uuid> --perfil estrutural \
+  --equipamentos 500 --seed 1 --relatorios-por-equipamento 2 \
+  --url <url> --confirmar-org-de-teste --dry-run     # não escreve nada
+```
+
+**Não gerar massa em produção antes de: laboratório definido, geração local provada, limpeza
+provada. Não iniciar a Fase 9. Não iniciar PDF vetorial.**
