@@ -101,10 +101,11 @@ Sempre use um destes. Nunca "concluído".
 | **5** | Fotos: thumbnail, EXIF, teto de altura (A-08) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** | — | `plans/2026-08-20-fase5-task-level.md` · `medicoes/2026-08-20-fase5-producao-antes-depois.md` |
 | **6** | Recuperação do fallback base64 (A-10) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** nas 3 famílias, com SHA-256 idêntico | — | `plans/2026-08-20-fase6-task-level.md` |
 | **7** | Logo e rubrica por conteúdo (A-05) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** (7A EXPAND + 7B SWITCH, Portal e offline real) | **P4 FECHADO ✅** aprovado 22/08 | `plans/2026-08-20-fase7-task-level.md` · `medicoes/2026-08-20-fase7b-validacao-producao.md` |
-| 8…13 | ver plano macro | PLANEJADO | P5…P8 | `plans/2026-08-15-evolucao-arquitetura.md` |
+| **8** | Escala, dataset determinístico e medições (A-17) | 🟡 **PLANEJADA** — AS-IS, dataset e plano de medição escritos; **nenhuma massa gerada** | — | `plans/2026-08-22-fase8-task-level.md` |
+| 9…13 | ver plano macro | PLANEJADO | P5…P8 | `plans/2026-08-15-evolucao-arquitetura.md` |
 
-**Fase atual:** nenhuma em execução — a **Fase 7 está CONCLUÍDA** e o **P4 foi FECHADO** em 22/08/2026.
-**Próxima ação exata:** aguardar autorização explícita do dono para iniciar a **Fase 8**. Nada da Fase 8 pode ser começado antes disso. A regra de rollback da 7B (`7B -> 7A`, nunca antes da 7A) e a gravação dupla D-11 seguem valendo — ver `PENDENCIAS.md`.
+**Fase atual:** **8 — planejamento entregue.** A Fase 7 está CONCLUÍDA e o P4 FECHADO (22/08/2026).
+**Próxima ação exata:** aguardar três decisões do dono antes de implementar o gerador — (1) **onde a massa nasce** (recomendo híbrido: local para o estrutural até 5.000 e para o custo do índice; produção/org de teste até 500 estrutural e 10 realista); (2) **instalar Supabase local?** sem ele a dívida do índice da Fase 1 vira `PENDENTE DE CONFIRMAÇÃO`; (3) **como instrumentar** sem alterar código de produção. Uma coleta já pode acontecer e não depende de massa: **F8.1**, o `idx_scan` de `app_storage_org_atualizado_idx` no SQL Editor, que fecha ou reabre a Fase 1. Nenhuma massa gerada, nenhuma otimização, Fase 9 e PDF vetorial não iniciados.
 
 Os dois roteiros ficam gravados, já com os resultados marcados:
 
