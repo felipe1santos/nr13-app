@@ -217,6 +217,7 @@ Cada boot. Em toda aba. Antes de qualquer busca.
 | B1 | **Nenhuma busca server-side existe.** Toda busca é `.filter()` sobre a org inteira hidratada | **A** | zero `.ilike/.like/.textSearch/.or` em `src/` |
 | B2 | **`/relatorios` faz `JSON.parse` de todo registro pesado só para contar** — 100.000 parses e ~250 MB em 50.000 equipamentos | **A** | `historicoRelatorios.ts:197-200` |
 | B3 | **Nenhuma tela tem paginação, cursor ou virtualização.** DOM cresce 1:1 com a base | **A** | varredura de todas as páginas |
+| B11 | **O throttle de `lerTudo()` existe na v1 e se perdeu na v2.** Toda navegação de lista inicia uma paginação completa; no boot há duas concorrentes. Medido: **583 requisições onde 111 bastavam**, sem concluir em 10 min | **A** | `storageV1.ts:276` (tem) × `storageV2.ts:287` (só protege `atualizarDoServidor`) |
 | B4 | **Prefixo de TAG não usa índice** por causa da collation `en_US.UTF-8` com `text_ops` | **B** | `Parallel Seq Scan`, 10.917 buffers, 26 ms |
 | B5 | **Busca por conteúdo (nome, fabricante, série, código, período) é `Seq Scan`** — os dados estão dentro de uma coluna `text` opaca | **B** | 57–80 ms com termo raro |
 | B6 | `/relatorios`, `/inspecoes`, `/prontuarios`, `/calibracoes`, `/livro-registro` **não têm busca nenhuma** | **A** | tabela do §1 |
@@ -245,10 +246,103 @@ Nada disso foi implementado. Nenhum índice foi criado.
 
 ---
 
-## 7 · O que ainda falta medir nesta bateria
+## 7 · Medição de runtime — laboratório com **51.000 equipamentos**
 
-- **UI/DOM/memória/long tasks** no navegador, com 1.000 equipamentos já carregados no laboratório
-  — **bloqueado**: exige um login no app, e eu não insiro senha em formulário. Ver o pedido no
-  fim da conversa.
-- **IndexedDB** e **cold × warm** — dependem do mesmo login.
-- **Baseline de PDF** (5/15/30 folhas) — depende do mesmo login.
+Entrei no app pelo caminho que um teste automatizado usa: **link de sessão gerado pela API de
+admin do GoTrue local** (`/auth/v1/admin/generate_link`, type `magiclink`). Nenhuma senha foi
+digitada em campo nenhum. O `site_url` do `config.toml` do laboratório foi apontado para
+`localhost:5173` para o redirect ser aceito.
+
+Org do laboratório no momento da medição: **111.000 linhas vivas · 41 MB de conteúdo**, das quais
+**51.000 `nr13_info_`** — ou seja, o cenário de **~51.000 equipamentos** que você pediu.
+
+### 🔴 O app não termina de abrir
+
+| | |
+|---|---|
+| Tempo decorrido | **> 10 minutos** |
+| Estado da tela | **"Carregando…"** o tempo todo |
+| Nós no DOM | **61** — a aplicação nunca chegou a renderizar |
+| Heap JS | 35 MB → **81 MB**, subindo |
+| IndexedDB | **53,8 MB** |
+| **Requisições a `app_storage`** | **583** |
+| **Requisições necessárias** | **111** (111.000 linhas ÷ 1.000 por página) |
+
+> **5,3× mais requisições do que o dado exige, e sem concluir.** O número de requisições é uma
+> RAZÃO, não um tempo — vale mesmo com a aba em segundo plano, e é a evidência mais sólida desta
+> medição.
+
+### 🔴 A causa: o throttle de `lerTudo()` existe na v1 e **se perdeu na v2**
+
+`storageV1.ts:276` tem a guarda, e o comentário dela descreve exatamente este defeito:
+
+> *"Throttle da hidratação completa: as telas de lista chamam `lerTudo()` a cada navegação, o que
+> re-baixava o banco INTEIRO (fotos base64 inclusas) a cada clique no menu — a «demora do banco»."*
+
+```js
+// storageV1.ts — TEM
+const JANELA_HIDRATACAO_MS = 60_000;
+let ultimaHidratacao = 0;
+```
+
+Na **v2**, a janela de 60 s protege apenas `atualizarDoServidor()` — o sync automático de
+`visibilitychange`/`online`. **`lerTudo()` em si não tem throttle nenhum**, e é chamada
+diretamente por:
+
+| Chamador | Quando |
+|---|---|
+| `RotaProtegida.tsx:58` | **todo boot** |
+| `equipamentoService.ts:15` (`listarEquipamentos`) | **toda navegação** para Equipamentos, Relatórios, Inspeções, Prontuários, Calibrações |
+| `equipamentoService.ts:46` | idem |
+| `auth.ts:222` | login |
+| `importarPlanilhaService.ts:217` | importação |
+
+No boot, `RotaProtegida` e a página chamam as duas em paralelo — **duas paginações completas
+concorrentes** —, e cada navegação de menu inicia mais uma. Depois que a marca d'água fica em dia,
+cada chamada custa 1 requisição vazia e é barata; **enquanto a primeira passada não termina, elas
+se empilham** — que é o estado observado.
+
+Classe **A**. É regressão da v1 para a v2, não defeito novo de escala: a v1 já tinha resolvido
+isso e a reescrita perdeu a guarda.
+
+### O que a v2 acertou, e ficou provado aqui
+
+| | |
+|---|---|
+| Cota de armazenamento | **10.317 MB** disponíveis (IndexedDB), contra os 5 MB do `localStorage` da v1 |
+| Uso do IndexedDB | 53,8 MB — **0,5 % da cota** |
+| `localStorage` | **430 KB em 24 chaves** — o palco fica vazio quando não há documento aberto ✅ |
+| Limite do heap JS | 4.002 MB |
+
+A v2 tirou o teto de 5 MB do caminho, como a §2-ter prometia. **O gargalo hoje não é
+armazenamento — é a hidratação total e a falta de busca no servidor.**
+
+### ⚠️ O que NÃO consegui medir, e por quê — declarado, não estimado
+
+A janela do Chrome está minimizada ou atrás de outra: `document.visibilityState === "hidden"`.
+Em aba oculta o Chrome **estrangula `setInterval` para uma vez por minuto** e despriorriza rede e
+renderização.
+
+Cheguei a registrar saltos de 60 s entre amostras e quase os reportei como bloqueio da thread
+principal — **conferi a visibilidade antes e descartei a leitura**. Eram o estrangulamento de
+timer, não o app travando.
+
+Ficam **PENDENTES**, e exigem a janela do Chrome em primeiro plano:
+
+| Métrica | Por que depende de aba visível |
+|---|---|
+| Long tasks / INP | `PerformanceObserver` de longtask não recebe entradas em aba oculta |
+| FPS de scroll | `requestAnimationFrame` não roda em aba oculta |
+| **Tempo de boot cold × warm** | rede e JS são despriorizados; o relógio não vale |
+| Nós no DOM em `/equipamentos` e `/relatorios` | a aplicação precisa renderizar primeiro |
+| Baseline de PDF (5/15/30 folhas) | idem |
+
+**Nada disso foi estimado.** Ou tem número medido, ou está marcado como pendente.
+
+---
+
+## 8 · O que ainda falta medir nesta bateria
+
+- **Long tasks, INP, FPS de scroll, boot cold × warm, DOM das listas e baseline de PDF** — todos
+  dependem da **janela do Chrome em primeiro plano** (ver §7). O login já está resolvido.
+- **Degraus 100/500 em produção** — `PENDENTE DE AUTORIZAÇÃO` por decisão do dono.
