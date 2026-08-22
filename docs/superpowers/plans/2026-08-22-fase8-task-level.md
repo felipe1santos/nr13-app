@@ -375,15 +375,15 @@ Massa parcial (gerador interrompido) sai pelo mesmo caminho — a seed identific
 - [x] **F8.16** — **Auditoria de busca/listas/escala** (requisito formal do dono, 22/08) —
       14 telas auditadas nas 15 perguntas, benchmarks de busca em 50.000 equipamentos, 10
       gargalos classificados. `medicoes/2026-08-22-fase8-auditoria-busca-e-listas.md`
-- [~] **F8.17** — UI/DOM/memória/IndexedDB **medidos com 51.000 equipamentos** (2.292.273 nós, 1.630 MB de heap, ~4 min de bloqueio, 583 requisições onde 111 bastavam). Long tasks, INP, FPS e cold×warm cronometrado seguem pendentes: exigem a aba como **ativa** da janela
-- [ ] **F8.18** — Baseline de PDF (5/15/30 folhas) — pendente pelo mesmo motivo
+- [x] **F8.17** — UI/DOM/memória/long tasks/IndexedDB **medidos nas duas escalas**: 51.000 equipamentos (2.292.273 nós, 1.630 MB, ~4 min de bloqueio) e 1.000 com a aba visível (FCP 440 ms, warm em 1 requisição, `/equipamentos` 2,20 s / 42.283 nós / 4 long tasks, `/relatorios` 1,51 s / 15.250 nós, busca 395–1.215 ms)
+- [~] **F8.18** — PDF: **servir** relatório arquivado medido (273 nós, 1 iframe, 21 ms, `blob:`) — confirma o §7-quater. **Gerar** (5/15/30 folhas) NÃO medido: o fluxo exige container de inspeção, que a massa sintética não cria
 - [x] **F8.19** — **Diagnóstico consolidado da Fase 8 + lista objetiva para a Fase 9** — `medicoes/2026-08-22-fase8-diagnostico-consolidado.md`
 - [ ] **F8.7** — `docs/medicoes/roteiro-baseline.md`
 - [ ] **F8.8** — Instrumentação de medição (`performance.mark`) — **decisão pendente**, ver Riscos
 - [~] **F8.9** — Estrutural local: **100, 500, 1.000 e 5.000 FEITOS** (gerar → medir → registrar → limpar → provar, sem acumular). Falta a via de UI (DOM, listas, IndexedDB) e os degraus 100/500 em **produção**, que são os únicos que medem latência e egress reais
 - [ ] **F8.10** — Rodar realista, calibração 1
 - [x] **F8.11** — Custo do índice da Fase 1 — **dívida FECHADA por medição em 4 escalas**. Leitura: com o índice o primeiro boot **não cresce** — 912 buffers em 500, 913 em 1.000, **913 em 5.000**; sem ele vai 1.444 → 2.046 → **6.347**. "Nada mudou": **7 buffers contra 12.602**. Escrita: **+8 % de buffers, +35 % de tempo**, e o índice **tirou o HOT** da tabela. **Manter** — compensa com folga
-- [ ] **F8.12** — Baseline de PDF (5/15/30 folhas)
+- [~] **F8.12** — ver F8.18
 - [ ] **F8.13** — Medições de banco, Storage e egress
 - [ ] **F8.14** — Classificar cada achado em A/B/C/D
 - [~] **F8.15** — Massa **local** removida com prova nos 4 degraus (0 chaves, 0 arquivos da org alvo). Falta a massa de produção, que ainda não existe
@@ -470,6 +470,18 @@ não altera produção. A massa gerada sai por `limpar.mjs`.
 | 22/08 | 🔴 **Runtime com 51.000 equipamentos:** `/equipamentos` com **2.292.273 nós no DOM** e **1.630 MB de heap**; thread bloqueada **~4 min** com zero rede; depois um `querySelectorAll` não completa em 45 s | ✅ |
 | 22/08 | **Diagnóstico consolidado entregue**, com a lista de 9 correções para a Fase 9 em ordem de retorno pelo custo | ✅ |
 | 22/08 | Pendentes por a aba nunca ter sido a ATIVA da janela (`visibilityState: hidden`, `rAF` não dispara): long tasks, INP, FPS, cold×warm cronometrado, `/relatorios` em runtime e baseline de PDF | ⏸️ |
+| 22/08 | Dono trouxe a janela à frente. **Aba `visible` e `rAF` vivo, conferidos antes de cada leitura** | ✅ |
+| 22/08 | Deadlock que EU criei: `deleteDatabase` pendente travava o `open()` do app e vice-versa. Diagnosticado por 209 amostras sem salto + zero long tasks + zero rede — thread livre, app esperando. **Não é defeito do sistema** | ✅ corrigido |
+| 22/08 | Contornado usando **outra organização** (`ruido1`, cache virgem), completada para 1.000 equipamentos | ✅ |
+| 22/08 | **Warm boot: FCP 440 ms, hidratação em 1 requisição (1.121 ms).** O caminho incremental funciona | ✅ |
+| 22/08 | **`/equipamentos` a 1.000: 2,20 s · 42.283 nós · 97 MB · 4 long tasks (maior 432 ms) · 1.004 `<select>` · só 5 imagens carregadas** | ✅ |
+| 22/08 | **Busca medida:** TAG exata 435 ms · prefixo 446 ms · nome 436 ms · **fabricante `Werner` devolve ZERO** · limpar 1.215 ms com long task de 423 ms | ✅ |
+| 22/08 | Achado de UX: **o campo de busca fica escondido atrás do botão "Filtrar"** — a página abre sem nenhum `<input>` | ✅ |
+| 22/08 | **`/relatorios` a 1.000: 1,51 s · 15.250 nós · zero campos de texto.** Histórico de um equipamento: 350 nós, zero long tasks | ✅ |
+| 22/08 | **Custo do contador isolado:** 2.000 registros pesados (4,75 MB) → 10 ms de parse contra 3,2 ms dos índices. 3,1× de desperdício, ~500 ms em 50.000. Real, mas **não dominante** | ✅ |
+| 22/08 | **PDF arquivado: 273 nós, 1 iframe, 21 ms, `blob:`** — §7-quater confirmado em runtime. Achado menor: o PDF é pedido 2× | ✅ |
+| 22/08 | Cliquei sem querer em checkboxes de seleção de relatórios; **desmarquei tudo e conferi no banco: 2.000 relatórios, 1.000 índices, 1.000 equipamentos intactos** | ✅ |
+| 22/08 | **Diagnóstico consolidado atualizado com as duas escalas.** Fase 8 encerrada na medição | ✅ |
 | 22/08 | Fase 7 fechada (P4 ✅). Fase 8 autorizada **só para planejamento/baseline** | ✅ |
 | 22/08 | Lidos: `ESTADO-DAS-FASES.md`, Fase 8 do plano macro (linhas 2142–2350), Fase 9 (para saber o que **não** fazer), `PENDENCIAS.md`, medições das Fases 1, 2, 5, 6, 7 | ✅ |
 | 22/08 | AS-IS de código mapeado: `demoSeed`, `storageV2.lerTudo`, `listarEquipamentos`, `Equipamentos.tsx`, `vencimentos.ts`, `pdfService.ts`, `db.ts`, padrão de `scripts/` | ✅ |

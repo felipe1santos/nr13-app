@@ -64,13 +64,15 @@ O que o schema de hoje consegue e não consegue, medido com 50.000 equipamentos:
 
 ### G2 · Nenhuma tela tem paginação, cursor ou virtualização
 
-**Nenhuma. Em nenhum lugar.** O DOM cresce 1:1 com a base: medi **~45 nós por card**, então:
+**Nenhuma. Em nenhum lugar.** O DOM cresce 1:1 com a base, ~42–45 nós por card:
 
-| Equipamentos | Nós no DOM (projetado do medido) |
-|---:|---:|
-| 1.000 | ~45.000 |
-| 5.000 | ~225.000 |
-| **51.000** | **2.292.273 — medido** |
+| Equipamentos | Nós no DOM | |
+|---:|---:|---|
+| 1.000 | **42.283** | medido |
+| 5.000 | ~211.000 | projetado |
+| **51.000** | **2.292.273** | **medido** |
+
+A página também cria **um `<select>` por card** — 1.004 deles em 1.000 equipamentos.
 
 A única contenção que existe é o `slice(0, 6)` do Dashboard, e ele limita a **exibição**, não o
 **cálculo**.
@@ -86,6 +88,11 @@ relatório**. O resultado só é descartado depois.
 | 1.000 | 2.000 | ~5 MB |
 | 5.000 | 10.000 | ~25 MB |
 | 50.000 | **100.000** | **~250 MB** |
+
+Custo em tempo, medido a 1.000 equipamentos: **10 ms** de `JSON.parse` desperdiçado contra 3,2 ms
+dos índices leves — **3,1×**. Cresce linearmente: ~500 ms em 50.000, mais a pressão de GC dos
+~237 MB transitórios. **É real e barato de corrigir, mas não é o gargalo dominante** — os
+dominantes são G1, G2 e G4.
 
 ### G4 · O throttle de `lerTudo()` existe na v1 e se perdeu na v2
 
@@ -134,6 +141,9 @@ Ordem de retorno pelo custo. **Nada disso foi implementado.**
 | **7** | **Ampliar os campos pesquisáveis de `/equipamentos`** — fabricante, nº de série, localização e ano **já existem** em `InfoEquipamento` e não são buscáveis | B | baixo | Ganho de UX imediato |
 | **8** | Tirar `listarCalibracoes(tag)` de dentro do `.map()` de render (`Calibracoes.tsx:417`) | B | baixo | Mesmo padrão do G3 |
 | **9** | Dashboard: limitar o **cálculo**, não só a exibição | C | baixo | `slice(0,6)` esconde o custo, não o remove |
+| **10** | **Deixar o campo de busca VISÍVEL** em `/equipamentos` — hoje está atrás do botão "Filtrar" e a página abre sem nenhum `<input>` | B | trivial | Quem não sabe do botão não descobre que há busca |
+| **11** | Um `<select>` por card (1.004 em 1.000 equipamentos) — avaliar se precisa existir antes do clique | B | baixo | Controle de formulário é dos nós mais caros do DOM |
+| **12** | O PDF arquivado é requisitado **duas vezes** ao abrir o relatório | C | trivial | Achado em runtime |
 
 ### A experiência que a Fase 9 deve entregar (requisito formal, 22/08)
 
@@ -170,7 +180,110 @@ Cada uma tem consequência diferente para RLS, sync e offline. **A Fase 8 não e
 
 ---
 
-## 6 · Estado do que ficou medido, e do que não
+## 6 · Runtime medido com a aba VISÍVEL — 1.000 equipamentos
+
+Segunda bateria, com `document.visibilityState === "visible"` e `requestAnimationFrame` vivo,
+confirmados antes de cada leitura. **Estes números valem**; os da §1 (51.000 equipamentos) foram
+colhidos em aba oculta e valem só onde são razão (nós, bytes, requisições), não onde são relógio.
+
+Organização virgem (`ruido1`, cache do IndexedDB nunca criado neste navegador): **1.000
+equipamentos · 11.000 chaves · 2.000 relatórios · zero tombstones**.
+
+### Boot
+
+| | Valor | Origem |
+|---|---:|---|
+| DOMContentLoaded | **416 ms** | Navigation Timing |
+| First Contentful Paint | **440 ms** | Paint Timing |
+| Hidratação (warm) | **1 requisição, encerrada em 1.121 ms** | Resource Timing |
+| Dashboard renderizado | 636 nós · 44 MB de heap | — |
+
+> **O caminho incremental funciona.** Com a marca d'água em dia, o boot custa **uma** requisição
+> vazia. O problema do §2/G4 é a **primeira** passada e as chamadas repetidas de `lerTudo()`, não
+> o mecanismo incremental.
+
+**Boot cold cronometrado: NÃO medido.** A ida e volta da ferramenta de automação é de ~21 s, e o
+boot a esta escala termina antes disso — não consigo instrumentar cedo o bastante. Fica declarado,
+não estimado.
+
+### `/equipamentos`
+
+| | Valor |
+|---|---:|
+| Tempo até a lista estabilizar | **2,20 s** |
+| Nós no DOM | **42.283** (~42 por card) |
+| Heap | 97 MB |
+| Imagens efetivamente carregadas | **5** ✅ o lazy do `FotoImg` funciona |
+| Long tasks | **4 · 1.102 ms no total · maior de 432 ms** |
+| `<select>` na página | **1.004** — um por card |
+
+### A busca de `/equipamentos`, medida
+
+| Termo | Tempo | Cards | Maior long task | |
+|---|---:|---:|---:|:--:|
+| `ZZ-SCALE-F8-8-500` (TAG exata) | 435 ms | 1 | 51 ms | ✅ |
+| `ZZ-SCALE-F8-8-5` (prefixo) | 446 ms | 111 | 61 ms | ✅ |
+| `Caldeira` (nome) | 436 ms | 207 | 65 ms | ✅ |
+| **`Werner` (fabricante)** | 395 ms | **0** | — | ❌ |
+| limpar a busca | **1.215 ms** | 1.000 | **423 ms** | ⚠️ |
+
+Dois achados que só apareceram com o app na mão:
+
+1. **`Werner` devolve zero** — o fabricante existe no dado e **não é pesquisável**. Confirma o
+   gargalo B7 empiricamente, não só por leitura de código.
+2. **O campo de busca não fica visível.** Na única tela do sistema que tem busca, ele está
+   escondido atrás do botão **"Filtrar"** — a página abre sem nenhum `<input>` no DOM. Quem não
+   souber que o botão existe não descobre que há busca.
+
+O custo dominante não é filtrar: é **re-renderizar**. Limpar a busca (voltar a 1.000 cards) custa
+quase 3× uma busca que reduz para 1.
+
+### `/relatorios`
+
+| | Valor |
+|---|---:|
+| Tempo até estabilizar | **1,51 s** |
+| Nós no DOM | 15.250 |
+| Heap | 79 MB |
+| Long tasks | 3 · 310 ms · maior de 136 ms |
+| Campos de texto na página | **0** — nenhuma busca, confirmado em runtime |
+| Histórico de UM equipamento | 350 nós · 3 linhas · **zero long tasks** ✅ |
+
+### O custo do contador de `/relatorios` (G3), isolado
+
+Li o IndexedDB da org e repliquei exatamente o que `listarIndice` faz:
+
+| | |
+|---|---:|
+| Registros pesados (`nr13_rel_`) | 2.000 · **4,75 MB** · média de **2.491 B** |
+| **`JSON.parse` dos registros pesados** | **10,0 ms** |
+| `JSON.parse` dos índices leves | 3,2 ms |
+| **Desperdício** | **3,1×** |
+
+> **Correção de escala do que eu havia estimado.** Em 1.000 equipamentos o desperdício é de
+> **10 ms** — pequeno. Ele cresce linearmente: ~50 ms em 5.000 e **~500 ms em 50.000**, mais
+> ~237 MB de lixo transitório, que pesa por pressão de GC e não só por CPU. G3 é real e vale
+> corrigir por ser barato, **mas não é o gargalo dominante** — os dominantes são G1, G2 e G4.
+
+### PDF
+
+| | |
+|---|---:|
+| Abrir relatório arquivado | **273 nós · 1 iframe** ✅ |
+| Buscar o PDF do Storage | **21 ms** (20 KB, local) |
+| Entrega | `blob:` no iframe |
+
+Confirma o §7-quater em runtime: **relatório finalizado é servido como arquivo**, não remontado a
+partir dos 27 templates. Achado menor: o mesmo PDF é requisitado **duas vezes**.
+
+**Baseline de GERAÇÃO de PDF (5/15/30 folhas): NÃO medida.** O fluxo "+ Criar Relatório" exige um
+**container de inspeção**, e a massa sintética não cria nenhum — ela produz artefatos já
+arquivados, com `pdfRef`. Medir a geração exige montar uma inspeção de verdade pela UI. Fica
+declarado como pendente, não estimado.
+
+---
+
+## 7 · Estado do que ficou medido, e do que não
 
 ### Medido
 
@@ -185,12 +298,13 @@ Cada uma tem consequência diferente para RLS, sync e offline. **A Fase 8 não e
 
 | Item | Motivo |
 |---|---|
-| Boot **cold × warm** cronometrado | A aba do NR-13 nunca foi a **aba ativa** da janela: `document.visibilityState === "hidden"` e `requestAnimationFrame` **não dispara**. Em aba oculta o Chrome despriorizará rede e renderização, e o relógio não vale |
-| **Long tasks / INP** | `PerformanceObserver` de longtask não recebe entradas em aba oculta |
-| **FPS de scroll** | `requestAnimationFrame` não roda em aba oculta |
-| **`/relatorios` em runtime** e tempo da busca atual | a aba ficou irresponsiva depois de montar 2,29 M de nós |
-| **Baseline de PDF (5/15/30 folhas)** | idem |
+| **Boot cold cronometrado** | A ida e volta da ferramenta de automação é de ~21 s; a esta escala o boot termina antes, e não dá para instrumentar cedo o bastante. O **warm** está medido (§6) |
+| **FPS de scroll** | Precisaria de rolagem sustentada com `rAF` amostrado; não executada |
+| **Baseline de GERAÇÃO de PDF (5/15/30 folhas)** | O fluxo exige um **container de inspeção**, que a massa sintética não cria. Servir um PDF arquivado está medido (21 ms) |
 | **Degraus 100/500 em produção** | `PENDENTE DE AUTORIZAÇÃO` — decisão sua, até esclarecer a cota do Supabase |
+
+Long tasks, INP, DOM das listas, busca em runtime e `/relatorios` **saíram de pendente**: foram
+medidos na segunda bateria (§6), com a aba visível.
 
 > Um erro que quase entrou neste registro: cheguei a medir saltos de 60 s entre amostras e ia
 > reportá-los como bloqueio da thread principal. Conferi `document.visibilityState` antes e

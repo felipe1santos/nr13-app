@@ -105,43 +105,48 @@ Sempre use um destes. Nunca "concluído".
 | 9…13 | ver plano macro | PLANEJADO | P5…P8 | `plans/2026-08-15-evolucao-arquitetura.md` |
 
 **Fase atual:** **8 — em implementação.** Gerador de massa pronto e testado (27/27); **nenhuma massa gerada**. A Fase 7 está CONCLUÍDA e o P4 FECHADO.
-**Próxima ação exata:** fechar as pendências de runtime que exigem a aba do NR-13 como **aba ativa**
-da janela do Chrome (boot cold × warm cronometrado, long tasks/INP, FPS, `/relatorios` em runtime e
-baseline de PDF). Tudo o mais da Fase 8 está medido.
+**Próxima ação exata:** **Fase 8 encerrada na parte de medição.** Restam só três itens declarados
+como não medidos (boot cold cronometrado, FPS de scroll e baseline de GERAÇÃO de PDF) e os degraus
+100/500 em produção, que seguem `PENDENTE DE AUTORIZAÇÃO`. O próximo passo é seu: aprovar o
+diagnóstico e decidir o item 4 da lista da Fase 9 (onde os metadados pesquisáveis vão viver).
 
 **DIAGNÓSTICO CONSOLIDADO:** `medicoes/2026-08-22-fase8-diagnostico-consolidado.md`.
 
 ### A pergunta de produto, respondida com número
 
-Com **51.000 equipamentos** no laboratório: abertura **> 10 min**; `/equipamentos` com
-**2.292.273 nós no DOM** e **1.630 MB** de heap (limite do navegador: 4.002 MB); thread principal
-bloqueada **~4 min** com **zero** rede; depois disso um `querySelectorAll` não completa em 45 s.
-**A tela não fica lenta — fica inutilizável, e antes de o usuário digitar qualquer coisa.**
+Com **51.000 equipamentos**: abertura **> 10 min**, `/equipamentos` com **2.292.273 nós** e
+**1.630 MB** de heap, thread bloqueada **~4 min**, e depois um `querySelectorAll` não completa em
+45 s. **Hoje a resposta é NÃO.**
+
+Com **1.000 equipamentos**, medido com a aba visível: warm boot com **FCP de 440 ms** e hidratação
+em **1 requisição (1.121 ms)**; `/equipamentos` em **2,20 s** com **42.283 nós** e 4 long tasks
+(maior de 432 ms); `/relatorios` em **1,51 s** com 15.250 nós. **Nessa escala o sistema funciona** —
+a curva quebra entre 5.000 e 50.000.
 
 ### Os quatro gargalos estruturais
 
 1. **Não existe busca no servidor, em lugar nenhum** — zero `.ilike/.like/.textSearch/.or` em todo
-   o `src/`. Logo `app_storage_org_atualizado_idx` **não serve busca e nunca poderia**. TAG exata
-   custa 4 buffers; prefixo de TAG, nome, série e código de relatório são `Seq Scan` (26–80 ms),
-   porque `valor` é `text` opaco e o índice é `text_ops` em collation `en_US.UTF-8`.
-2. **Nenhuma tela tem paginação, cursor ou virtualização** — ~45 nós de DOM por card, 1:1 com a base.
-3. **`/relatorios` faz `JSON.parse` do registro pesado só para o contador** — 100.000 parses e
-   ~250 MB em 50.000 equipamentos.
+   o `src/`. Logo `app_storage_org_atualizado_idx` **não serve busca e nunca poderia**.
+2. **Nenhuma tela tem paginação, cursor ou virtualização** — 42 nós por card, 1:1 com a base.
+3. **`/relatorios` faz `JSON.parse` do registro pesado só para o contador** — 3,1× de desperdício,
+   ~500 ms em 50.000 equipamentos. Real e barato, mas **não é o dominante**.
 4. **O throttle de `lerTudo()` existe na v1 e se perdeu na v2** — 583 requisições onde 111 bastavam.
-   **Regressão**, não defeito novo de escala. Fica classe **A para a Fase 9; não corrigir na baseline.**
+   **Regressão.** Classe **A para a Fase 9; não corrigido na baseline**, como determinado.
+
+Confirmados em runtime: **`Werner` (fabricante) devolve zero resultados** embora o campo exista, e
+**o campo de busca fica escondido atrás do botão "Filtrar"** na única tela que tem busca.
 
 ### O que está certo e não se mexe
 
-**A arquitetura de PDF** (índice leve com `pdfRef`, PDF só no clique), **a v2 de armazenamento**
-(10.317 MB de cota contra 5 MB), **o palco** (5 KB sem documento aberto), **as fotos sob demanda** e
-**o índice da Fase 1** (primeiro boot não cresce: 913 buffers de 500 a 5.000 equipamentos).
+**Arquitetura de PDF** (relatório arquivado abre com 273 nós e 1 iframe, PDF servido em 21 ms — o
+§7-quater funcionando), **v2 de armazenamento** (10.317 MB de cota), **palco** (5 KB), **fotos sob
+demanda** (só 5 imagens carregadas em 1.000 cards) e **o índice da Fase 1**.
 
 ### Requisito formal mantido (22/08)
 
-A **Fase 9** implementa busca profissional e escalável nas telas que hoje não têm busca ou filtram
-só no cliente. Sem input decorativo sobre arquitetura ruim: com 50.000 registros, não carregar
-50.000 para depois filtrar no navegador. A decisão de **onde os metadados pesquisáveis vão viver**
-é do dono, porque muda schema.
+A **Fase 9** implementa busca profissional e escalável nas telas sem busca ou com filtro só no
+cliente. Sem input decorativo sobre arquitetura ruim. A decisão de **onde os metadados pesquisáveis
+vão viver** é do dono, porque muda schema.
 
 **⏸️ Degraus 100/500 em PRODUÇÃO: `PENDENTE DE AUTORIZAÇÃO`.** Realista em produção: não autorizado.
 **Massa em produção: ZERO.** Nada em `src/`. Fase 9 e PDF vetorial, não iniciados.
