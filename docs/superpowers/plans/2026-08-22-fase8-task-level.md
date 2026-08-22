@@ -374,9 +374,9 @@ Massa parcial (gerador interrompido) sai pelo mesmo caminho — a seed identific
 - [x] **F8.6** — `massa.test.mjs` — **27 testes, 27 verdes** (`node --test`, sem tocar o Vitest)
 - [ ] **F8.7** — `docs/medicoes/roteiro-baseline.md`
 - [ ] **F8.8** — Instrumentação de medição (`performance.mark`) — **decisão pendente**, ver Riscos
-- [~] **F8.9** — Estrutural local: **100, 500 e 1.000 feitos** (gerar → medir → registrar → limpar → provar, sem acumular). **5.000 em andamento.** Produção: não iniciado
+- [~] **F8.9** — Estrutural local: **100, 500, 1.000 e 5.000 FEITOS** (gerar → medir → registrar → limpar → provar, sem acumular). Falta a via de UI (DOM, listas, IndexedDB) e os degraus 100/500 em **produção**, que são os únicos que medem latência e egress reais
 - [ ] **F8.10** — Rodar realista, calibração 1
-- [x] **F8.11** — Custo do índice da Fase 1 — **dívida FECHADA por medição, não só por retrato**: com o índice o primeiro boot PARA de crescer (912 buffers em 500, 913 em 1.000); sem ele vai de 1.444 a 2.046 e continua subindo. "Nada mudou" custa 7 buffers contra 4.086. **Manter**
+- [x] **F8.11** — Custo do índice da Fase 1 — **dívida FECHADA por medição em 4 escalas**. Leitura: com o índice o primeiro boot **não cresce** — 912 buffers em 500, 913 em 1.000, **913 em 5.000**; sem ele vai 1.444 → 2.046 → **6.347**. "Nada mudou": **7 buffers contra 12.602**. Escrita: **+8 % de buffers, +35 % de tempo**, e o índice **tirou o HOT** da tabela. **Manter** — compensa com folga
 - [ ] **F8.12** — Baseline de PDF (5/15/30 folhas)
 - [ ] **F8.13** — Medições de banco, Storage e egress
 - [ ] **F8.14** — Classificar cada achado em A/B/C/D
@@ -497,7 +497,11 @@ não altera produção. A massa gerada sai por `limpar.mjs`.
 | 22/08 | **Dois defeitos SILENCIOSOS na limpeza**, achados medindo: `list()` sem paginação (200 PDFs ficaram) e órfão de geração falha invisível (402 arquivos ficaram). Corrigidos; a limpeza agora PROVA e sai com código 3 se sobrar. 29/29 testes | ✅ |
 | 22/08 | Escala **A/B/C/D confirmada pelo dono** e gravada aqui | ✅ |
 | 22/08 | Push de `36e5cf6`, `07d5e70`, `b8cbc3a` para `origin/main` | ✅ |
-| 22/08 | Degrau **5.000** em andamento. **Produção segue com massa ZERO** | ⏳ |
+| 22/08 | Degrau **5.000**: 55.000 chaves, 0 falhas, 818 s, 229,5 MB no bucket. Org alvo a 84,7 % | ✅ |
+| 22/08 | **Leitura, 4 escalas:** com índice o primeiro boot é **913 buffers em 500, 1.000 E 5.000** — constante. Sem índice: 1.444 → 2.046 → 6.347. "Nada mudou": **7 contra 12.602** | ✅ |
+| 22/08 | **Escrita medida:** o índice custa +8 % de buffers e +35 % de tempo por atualização | ✅ |
+| 22/08 | 🔴 **Correção de um número que eu tinha registrado errado:** os 87,7 % de HOT de produção NÃO valem para julgar este índice — ele entrou em 16/08 e a janela começa em 22/05. Com o índice presente, HOT é **0,1 %**, porque `atualizado_em` está dentro dele | ✅ corrigido |
+| 22/08 | Degrau 5.000 limpo. **Produção segue com massa ZERO** | ⏳ |
 
 ### Estimado × observado — recalibração por `--dry-run`
 
@@ -665,8 +669,15 @@ organizações, heap 472 kB, índices 592 kB, **33 MB** com TOAST.
 | 4 | "primeiro boot", literal | Bitmap Index Scan on `app_storage_deletado_idx` → Sort | 48 | 1,343 ms |
 
 **Veredito: manter o índice.** Ele é o escolhido pelo caminho de hidratação real, que custa 6
-buffers e 0,185 ms. E o custo de escrita é menor do que se supunha: **87,7 % das atualizações
-são HOT** (7.834 de 8.935), e HOT update não toca índice nenhum — a conta incide sobre 12,3 %.
+buffers e 0,185 ms.
+
+> **CORREÇÃO (medida depois, no laboratório).** Cheguei a registrar que "87,7 % das atualizações
+> são HOT, logo o custo de escrita incide sobre 12,3 %". **Está errado.** O índice entrou em
+> 16/08 e a janela de estatísticas começa em 22/05 — quase toda ela é de antes dele existir.
+> Com o índice presente o tempo todo, o HOT medido é **0,1 %** (42 de 28.301), porque
+> `atualizado_em` está DENTRO do índice e o trigger `app_storage_touch` faz toda escrita mexer
+> nele. Custo real de escrita: **+8 % de buffers e +35 % de tempo**, sempre. O veredito não muda
+> — compensa com folga —, mas o argumento sim.
 
 **A regressão de primeiro boot da Fase 1 (65 → 236 buffers) NÃO reproduz:** hoje custa 48
 buffers e o planner nem usa esse índice.
@@ -681,6 +692,7 @@ buffers e o planner nem usa esse índice.
 
 | Achado | Classe |
 |---|---|
+| O índice da Fase 1 **tirou o HOT update** da tabela (87,7 % → 0,1 %), porque `atualizado_em` está dentro dele | **C** |
 | `app_storage` (tabela, trigger, função) não versionada | **A** — resolvido nesta sessão |
 | GRANTs de tabela não versionados | **A** — resolvido nesta sessão |
 | O índice da Fase 1 se paga? | **D** — sim; dívida fechada, manter |

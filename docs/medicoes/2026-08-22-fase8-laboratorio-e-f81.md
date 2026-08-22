@@ -207,8 +207,10 @@ Somente leitura, no SQL Editor.
 | **Atualizadas HOT** | **7.834 — 87,7 %** |
 | Removidas | 706 |
 
-**HOT update não toca índice nenhum.** 87,7 % das atualizações desta tabela são HOT, então o
-custo de escrita de um B-tree extra incide sobre 12,3 % delas — 1.101 atualizações em 92 dias.
+**HOT update não toca índice nenhum**, e 87,7 % das atualizações desta janela foram HOT.
+**⚠️ Mas este número NÃO serve para julgar o índice da Fase 1** — ver a correção no §11: o
+índice entrou em 16/08 e a janela começa em 22/05, então quase toda a janela é de antes dele
+existir. Com o índice presente, medido no laboratório, o HOT cai para **0,1 %**.
 
 ### Uso de cada índice — 92 dias
 
@@ -250,11 +252,13 @@ lembrete de que **nesta escala nada disso é gargalo**.
 |---|---|---|---|
 | 1 | **`public.app_storage` não versionada** (tabela, trigger e função base) | **A** | O sistema não era reconstruível a partir do repositório. Já resolvido nesta sessão: `app_storage_base.sql`. Falta só o dono decidir se aplica em produção — lá é **no-op**, tudo já existe |
 | 2 | **GRANTs de tabela não versionados** | **A** | Mesmo motivo. Resolvido: `grants_postgrest.sql`. Em produção é no-op |
-| 3 | **Dívida da Fase 1: `app_storage_org_atualizado_idx` se paga?** | **D** | **Sim, e a dívida fecha.** 780 varreduras em 92 dias; é o índice escolhido pelo caminho de hidratação real (bloco 3), que custa **6 buffers e 0,185 ms**. O custo de escrita incide sobre 12,3 % das atualizações (87,7 % são HOT). 112 kB. **Manter.** |
-| 4 | A regressão de primeiro boot da Fase 1 (65 → 236 buffers) | **D** | **Não reproduz.** Hoje o primeiro boot custa **48 buffers** e nem usa esse índice — o planner escolhe `app_storage_deletado_idx`. A medição da Fase 1 foi feita em outro estado de dados/estatísticas |
+| 3 | **Dívida da Fase 1: `app_storage_org_atualizado_idx` se paga?** | **D** | **Sim, e a dívida fecha** — confirmado depois por medição em 4 escalas (§11). Com o índice o primeiro boot **não cresce** (913 buffers de 500 a 5.000 equipamentos); sem ele vai a 6.347. "Nada mudou" custa **7 buffers contra 12.602**. Custo de escrita: +8 % de buffers, +35 % de tempo. **Manter.** |
+| 4 | A regressão de primeiro boot da Fase 1 (65 → 236 buffers) | **D** | **Não reproduz em escala nenhuma.** Em produção hoje custa 48 buffers; no laboratório, de 500 a 5.000 equipamentos, o índice **melhora** o primeiro boot (913 contra 1.444–6.347). A medição da Fase 1 foi feita em outro estado de dados/estatísticas |
 | 5 | **`app_storage_org_idx (org_id, chave)` é redundante** | **B** | Mesmas colunas do `app_storage_org_chave_uidx`, que é único. 38 varreduras contra 14.260. Ocupa 112 kB e é mantido em toda escrita não-HOT. Candidato a remoção — **mas a Fase 8 mede, não corrige** (R7). Decidir com a massa de 5.000 na mão |
 | 6 | **~29 MB de TOAST sem conteúdo vivo correspondente** | **C** | Bloat de 8.935 atualizações sobre valores grandes. Some com `VACUUM FULL`, que trava a tabela. Observar; a Fase 2 (fotos no bucket) reduz a origem |
 | 7 | `app_storage_bkp_20260805` e `gate_resultados` em produção, fora do repo | **C** | Resíduos operacionais, não schema do app. Vale decidir quando descartar o backup de 05/08 |
+| 9 | **O índice da Fase 1 tirou o HOT update da tabela** — `atualizado_em` está dentro dele, e toda escrita mexe em `atualizado_em`. HOT caiu de 87,7 % (antes do índice) para 0,1 % (com ele) | **C** | Não muda o veredito — o índice compensa com folga —, mas muda o argumento: ele não é quase de graça na escrita. Observar quando a Fase 9 discutir volume de escrita |
+| 10 | `atualizado_em` no índice é o que impede HOT. Um índice `(org_id, chave) INCLUDE (atualizado_em)` não resolveria, porque a ordenação por `atualizado_em` é o que dá o corte do `limit 1000` | **C** | Registrado para não ser "descoberto" de novo como se fosse ideia nova |
 | 8 | **"Grace period is over"** no topo do Dashboard | **A** | Aviso de cota/faturamento visto em 22/08. Não é Fase 8, mas é o mesmo tema do risco de cota já registrado. **Precisa da sua atenção**, e é mais um motivo para não gerar massa em produção agora |
 
 ---
@@ -396,7 +400,7 @@ dado excluído de ressuscitar (§2-ter).
 
 ---
 
-## 11 · Degraus 100 · 500 · 1.000 — estrutural, com ruído
+## 11 · Degraus 100 · 500 · 1.000 · 5.000 — estrutural, com ruído
 
 Ciclo por degrau: **gerar → medir → registrar → limpar → provar**. Sem acumular. `VACUUM ANALYZE`
 entre degraus. Cada benchmark roda 3× e a mediana é a das rodadas 2–3 (a 1ª carrega ruído de
@@ -409,8 +413,9 @@ cache e de planejamento).
 | 100 | 2 | 1.100 | 27,8 s | 830 kB | 4,61 MB | **10,0 %** |
 | 500 | 3 | 5.500 | 106,1 s | 4.162 kB | 22,97 MB | **35,7 %** |
 | 1.000 | 4 | 11.000 | 180,5 s | 8.328 kB | 45,92 MB | **52,6 %** |
+| 5.000 | 5 | 55.000 | 818,3 s | 41 MB | 229,51 MB | **84,7 %** |
 
-Zero falhas nos três. O `--dry-run` bateu com o real em todos. A escrita pela RPC anda a
+Zero falhas nos quatro. O `--dry-run` bateu com o real em todos. A escrita pela RPC anda a
 **~55–60 chaves/s** em loopback — e isso é o custo de ida e volta da RPC, **não** do banco.
 
 | Degrau | Heap (4 orgs) | Índices | Total |
@@ -418,11 +423,13 @@ Zero falhas nos três. O `--dry-run` bateu com o real em todos. A escrita pela R
 | 100 | 800 kB* | 472 kB* | 1.304 kB* |
 | 500 | 11 MB | 7.872 kB | 19 MB |
 | 1.000 | 16 MB | 14 MB | 30 MB |
+| 5.000 | 49 MB | 38 MB | 87 MB |
 
 \* medido antes de existir o ruído, só com a org alvo.
 
-**Os índices custam de 59 % a 88 % do heap.** Em 1.000 equipamentos são 14 MB de índice para
-16 MB de dado. É o número que a discussão sobre remover o `app_storage_org_idx` redundante
+**Os índices custam de 59 % a 88 % do heap.** Em 5.000 equipamentos são 38 MB de índice para
+49 MB de dado — e três deles (`pkey` 9.784 kB, `org_chave_uidx` 9.784 kB, `org_idx` 9.752 kB)
+têm praticamente o mesmo tamanho, sendo que dois indexam as MESMAS colunas. É o número que a discussão sobre remover o `app_storage_org_idx` redundante
 precisa ter na mão.
 
 ### F8.11 — o benchmark do índice, agora com seletividade real
@@ -438,15 +445,57 @@ precisa ter na mão.
 | 500 | nada mudou | **5 buf · 0,18 ms** | 2.103 buf · 8,1 ms | **420× buffers** |
 | 1.000 | primeiro boot | **913 buf · 0,62 ms** | 2.046 buf · 12,6 ms | 20× tempo |
 | 1.000 | nada mudou | **7 buf · 0,088 ms** | 4.086 buf · 10,6 ms | **584× buffers** |
+| 5.000 | primeiro boot | **913 buf · 0,67 ms** | 6.347 buf · 21,9 ms | 33× tempo |
+| 5.000 | nada mudou | **7 buf · 0,088 ms** | 12.602 buf · 36,9 ms | **1.800× buffers** |
 
-> **O achado que fecha o assunto: com o índice, o custo do primeiro boot PARA DE CRESCER.**
-> 912 buffers em 500 equipamentos, 913 em 1.000 — porque o `limit 1000` corta e o índice já
-> entrega as linhas na ordem pedida. Sem o índice, o mesmo primeiro boot foi de 1.444 para
-> 2.046 buffers e continua subindo com a tabela INTEIRA, porque `Seq Scan` + `Sort` precisa ler
-> tudo antes de poder descartar.
+> **O achado que fecha o assunto: com o índice, o custo do primeiro boot NÃO CRESCE COM A ESCALA.**
+> **912 buffers em 500 equipamentos, 913 em 1.000, 913 em 5.000** — constante confirmada em 10× de
+> variação. É o `limit 1000` cortando: o índice já entrega as linhas na ordem pedida, então o
+> Postgres para de ler assim que junta mil.
+>
+> Sem o índice, o mesmo primeiro boot foi **1.444 → 2.046 → 6.347** buffers, crescendo com a
+> tabela INTEIRA — porque `Seq Scan` + `Sort` precisa ler tudo antes de poder descartar.
 >
 > E o "nada mudou" — a pergunta feita em **todo boot de todo aparelho** — custa **7 buffers**
-> com o índice contra **4.086** sem ele, em 1.000 equipamentos.
+> com o índice contra **12.602** sem ele em 5.000 equipamentos. **1.800×.** E os 7 buffers também
+> não crescem: são 11 em 100, 5 em 500, 7 em 1.000, 7 em 5.000.
+
+### O outro lado: quanto o índice custa para ESCREVER
+
+`UPDATE` de 500 linhas em 5.000 equipamentos, igual ao que a RPC faz no `set`, 3× cada:
+
+| | Buffers (mediana) | Tempo (mediana) |
+|---|---:|---:|
+| **Com** índice | 20.579 | 38,7 ms |
+| **Sem** índice | 19.013 | 28,5 ms |
+| **Custo do índice** | **+1.566 (+8 %)** | **+10,2 ms (+35 %)** |
+
+Por escrita individual: cerca de **3 buffers e 0,02 ms**.
+
+### 🔴 CORREÇÃO — o índice tirou o HOT update desta tabela
+
+Registrei antes, a partir do retrato de produção, que "87,7 % das atualizações são HOT, e HOT
+update não toca índice, logo o custo de escrita incide sobre 12,3 %". **Isso está errado, e a
+medição local mostrou onde.**
+
+| | HOT |
+|---|---|
+| Produção, janela de 92 dias | 7.834 de 8.935 = **87,7 %** |
+| Laboratório, índice presente o tempo todo | 42 de 28.301 = **0,1 %** |
+
+A causa é estrutural: **`atualizado_em` está DENTRO do índice** — ele é
+`(org_id, atualizado_em, chave)` — e o trigger `app_storage_touch` garante que **toda** escrita
+mexe em `atualizado_em`. HOT update exige que nenhuma coluna indexada mude. Logo, com este
+índice, atualização nesta tabela **praticamente nunca pode ser HOT**.
+
+Os 87,7 % de produção são reais, mas medem outra coisa: o índice entrou em **16/08** e a janela
+de estatísticas começa em **22/05** — ou seja, ~86 dos 92 dias são de antes de ele existir. O
+número certo para decidir é o do laboratório.
+
+**Isso não muda o veredito, muda o argumento.** O índice não é quase de graça na escrita: ele
+custa +8 % de buffers e +35 % de tempo em toda atualização, e tirou o HOT da tabela. Ainda
+assim compensa com folga — 0,02 ms a mais por escrita contra **12.595 buffers e 36 ms a menos em
+cada boot de cada aparelho**. Mas o custo precisa estar escrito com o número certo.
 
 **A regressão de primeiro boot que a Fase 1 registrou (65 → 236 buffers) não existe em escala
 nenhuma medida aqui.** Em 100 o plano é idêntico com e sem índice; em 500 e 1.000 o índice

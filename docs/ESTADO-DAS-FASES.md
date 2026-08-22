@@ -120,12 +120,19 @@ partir do repositório. Recuperados de produção por consulta somente leitura e
 `supabase/app_storage_base.sql` e `supabase/grants_postgrest.sql` — **no-op em produção**,
 aplicar lá é decisão do dono.
 
-**F8.1 e F8.11 FECHADOS.** Manter o `app_storage_org_atualizado_idx`, agora por medição em três
-escalas e não só pelo retrato de produção: **com o índice o custo do primeiro boot para de
-crescer** (912 buffers em 500 equipamentos, 913 em 1.000, porque o `limit 1000` corta); **sem**
-ele vai de 1.444 a 2.046 e continua subindo com a tabela inteira. E "nada mudou" — a pergunta de
-todo boot de todo aparelho — custa **7 buffers com o índice contra 4.086 sem**. A regressão de
-primeiro boot registrada na Fase 1 (65 → 236) **não existe em escala nenhuma medida**.
+**F8.1 e F8.11 FECHADOS.** Manter o `app_storage_org_atualizado_idx`, agora por medição em
+**quatro escalas** e não só pelo retrato de produção: **com o índice o custo do primeiro boot não
+cresce** — **913 buffers em 500, 1.000 e 5.000 equipamentos**, porque o `limit 1000` corta;
+**sem** ele vai 1.444 → 2.046 → **6.347**, subindo com a tabela inteira. E "nada mudou" — a
+pergunta de todo boot de todo aparelho — custa **7 buffers com o índice contra 12.602 sem**. A
+regressão de primeiro boot registrada na Fase 1 (65 → 236) **não existe em escala nenhuma
+medida**.
+
+O custo de escrita também foi medido: **+8 % de buffers e +35 % de tempo**. E uma correção: eu
+tinha registrado que "87,7 % das atualizações são HOT, logo o índice quase não custa na escrita"
+— **errado**, porque o índice entrou em 16/08 e a janela de estatísticas começa em 22/05. Com o
+índice presente, o HOT medido é **0,1 %**: `atualizado_em` está dentro dele e toda escrita mexe
+nessa coluna. O veredito não muda; o argumento sim.
 
 **Dois defeitos SILENCIOSOS na ferramenta de limpeza**, achados justamente por medir: `list()`
 não paginava (deixou 200 PDFs para trás declarando sucesso) e arquivo órfão de geração que falha
