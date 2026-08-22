@@ -502,6 +502,48 @@ lado seguro. **O degrau de 500 confirma a condição do dono** — 22,97 MB cont
 
 ## Ponto de retomada
 
+> ### ⏸️ SESSÃO INTERROMPIDA EM 22/08/2026 — instalação do Docker + reinício do Windows
+>
+> **Leia este bloco primeiro. Ele basta para retomar sem contexto nenhum da conversa.**
+>
+> | | |
+> |---|---|
+> | Último commit | **`8b2f973`** · `main` sincronizada com `origin/main` · árvore **limpa** |
+> | Último commit de **código de produção** | `490a236` (Fase 7B) — nada em `src/` mudou na Fase 8 |
+> | Bundle em produção | `index-WDnlnv6E.js` — **não precisa redeploy**, tudo desde então é docs/scripts |
+> | Suíte do app | **1186/1186** · build verde |
+> | Testes do gerador | **27/27** — `node --test scripts/massa-escala/massa.test.mjs` |
+> | Massa gerada | **NENHUMA**, nem local nem em produção |
+> | Fase 7 | **CONCLUÍDA**, P4 **FECHADO** — não reabrir sem evidência nova |
+>
+> **O que o dono foi fazer:** instalar WSL2 (`wsl --install` como Administrador), **reiniciar o
+> Windows**, e depois instalar o Docker Desktop
+> (`winget install -e --id Docker.DockerDesktop`), abrindo-o uma vez.
+>
+> **Ao voltar, na ordem:**
+>
+> 1. `docker --version` e `docker run --rm hello-world` — se falhar, o Docker Desktop não
+>    terminou de subir; abrir e esperar.
+> 2. `npx supabase init` (cria `supabase/config.toml`, que **não existe** hoje) e
+>    `npx supabase start`.
+> 3. Aplicar as migrations **reais** de `supabase/*.sql` — nunca schema simplificado inventado.
+>    Ordem sugerida: `armazenamento_v2.sql` → `indice_hidratacao.sql` → `fotos_storage.sql` →
+>    `acesso_setup.sql` → `portal_policies.sql` → `livro_imutavel.sql`. Conferir dependências
+>    antes; várias assumem `auth.users` e o schema `storage`, que o Supabase local já provê.
+> 4. Documentar versões e **diferenças local × produção** — o que não for reproduzível fiel,
+>    declarar, não fingir.
+> 5. Só então: degrau **100** estrutural local → medir → registrar → limpar → provar limpeza →
+>    **500** → **1.000** → **5.000**, um por vez, sem acumular.
+>
+> **Se o dono já tiver rodado o F8.1** (`supabase/fase8_indice_verificar.sql`, 4 blocos),
+> classificar a saída em **A / B / C / D** antes de seguir. Não reabrir a Fase 1 por `idx_scan`
+> baixo isolado.
+>
+> **Proibições que continuam valendo:** não gerar massa em produção antes do laboratório local
+> provado · dataset realista em produção **não autorizado** · não alterar `src/` para
+> instrumentar · não iniciar a Fase 9 · não iniciar PDF vetorial · nunca `DROP` do índice em
+> produção.
+
 **Gerador pronto e testado (27/27). Nenhuma massa gerada. Duas coisas param na sua mão.**
 
 ### 1 · F8.1 — SQL pronto, sem placeholder
