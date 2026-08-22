@@ -2,6 +2,7 @@
 
 **Data:** 21/08/2026 · **Bundle:** `index-WDnlnv6E.js` · **Commit:** `490a236`
 **Contas:** `teste@gmail.com` (mestre), `cliente001@gmail.com` e `ipiranga@gmail.com` (Portal). Nenhuma organização real foi tocada.
+**Datas:** 21/08 (7B + Portal) e 22/08 (offline real).
 **Nenhum conteúdo de imagem ou assinatura foi registrado aqui** — só tamanhos, hashes e paths.
 
 > **O que a 7B precisa provar:** os writers passam a **produzir** referência de logo e rubrica,
@@ -372,20 +373,147 @@ Nenhum código, política, Edge, banco ou dado foi alterado para esta prova.
 
 ---
 
-## PENDENTE DE CONFIRMAÇÃO — o último item
+## 15. OFFLINE REAL — o último item do P4
 
-Resta **um**, e ele depende de ação do dono. Não está sendo dado como aprovado.
+**22/08/2026** · Chrome, `teste@gmail.com` (mestre) · bundle `index-WDnlnv6E.js`.
+Offline acionado **pelo dono**, no DevTools → Network → Offline. Nada simulado por código:
+nenhum `fetch` interceptado, nenhuma rede desligada por script.
 
-### B · Offline real
+### 15.1 Massa de teste — a mais barata que exercita o writer real
 
-Pelo código, `referenciaPorConteudo` devolve `null` quando `arquivoPendente(path)` ainda é
-`true` — ou seja, **offline o cadastro salva com a dataURL e sem referência**, que é o
-comportamento seguro. Mas isso **não foi medido offline de verdade** e, pela regra do dono,
-não se simula offline interceptando `fetch`.
+Funcionário descartável `ZZ-TESTE-F7-OFFLINE-1` (`41b3961a…`), tipo **Inspetor**, criado
+**online e sem rubrica**, e já sincronizado (`nr13_lista_phs` versão 6 local **e** no servidor).
 
-Registro de um vazio conhecido, para não passar por implementado:
-`FAMILIAS_RECUPERAVEIS` (Fase 6) cobre `nr13_rastreab_`, `nr13_pront_fab_` e
-`nr13_componentes_cal_` — **não** cobre `nr13_minha_empresa` nem `nr13_lista_phs`. Uma logo
-cadastrada offline **não ganha referência sozinha** depois; ela só aparece na próxima edição.
-Não é perda de dado (a dataURL está salva e o snapshot cai nela), mas é uma lacuna a avaliar
-numa fase seguinte.
+A escolha importa: Inspetor não assina folha nenhuma por default, e **acrescentar** um
+funcionário não sobrescreve o `funciona01` — que é quem assina os relatórios A e B — nem
+encosta em `nr13_minha_empresa`, lida por 41 templates. A ação offline foi apenas *acrescentar
+a assinatura*, passando pelo mesmo caminho de produção:
+`processarAssinaturaComBlob → paraGravar → ESCOPO_ASSINATURA`.
+
+### 15.2 Prova de que a rede estava fora
+
+Medida por **falha real de requisição** em três alvos, inclusive o próprio domínio do app:
+
+```
+appProprio    FALHOU: Failed to fetch
+supabaseRest  FALHOU: Failed to fetch
+storageList   FALHOU: Failed to fetch
+```
+
+> **E `navigator.onLine` respondeu `true` com a rede inteiramente morta.** Não é teoria: está
+> em duas das medições desta sessão. É a razão de `referenciaPorConteudo` confirmar por
+> `arquivoPendente(path) === false` e nunca por `navigator.onLine` (I-14), flagrada ao vivo.
+
+### 15.3 Estado offline — o fallback seguro, medido
+
+| | Antes | Depois de salvar |
+|---|---|---|
+| `nr13_lista_phs` versão | 6 | **7** |
+| bytes | 27.049 | 53.823 |
+| Alvo · dataURL | ausente | **26.774 B** ✅ |
+| Alvo · `assinaturaRef` | ausente | **ausente** ✅ |
+| `funciona01` | — | **idêntico à baseline** |
+
+**Nenhuma referência prematura.** A regra bloqueante — *Ref persistida + arquivo inexistente* —
+não foi violada.
+
+No cofre (`nr13_fotos`) apareceu o item, com a cadeia inteira visível:
+
+```
+path      : <org>/assinaturas/563da5f0…705df.png
+blob      : 20.064 B (image/png)
+pendente  : true          ← exatamente o que arquivoPendente() devolve
+tentativas: 3
+erro      : "Failed to fetch"
+```
+
+Comparado a uma rubrica já sincronizada (`67bd9c3e…`: `pendente: false`, `tentativas: 0`), o
+mecanismo fica explícito: **o hash já estava calculado e o endereço já existia**, mas como o
+servidor não confirmou, a referência não foi devolvida e o cadastro seguiu com a dataURL.
+
+A fila de dados recebeu `nr13_lista_phs`.
+
+### 15.4 Reload offline
+
+O app recarregou pelo service worker e exibiu o aviso correto — *"Sem resposta do servidor.
+Você continua trabalhando com os dados deste aparelho — o que for salvo sobe sozinho quando a
+conexão voltar."* O funcionário aparece com **"Assinatura cadastrada"**, dataURL intacta,
+`assinaturaRef` ainda ausente. **Nada se perdeu.**
+
+### 15.5 Reconexão — CENÁRIO B, e sem arquivo órfão
+
+Sem nenhuma edição nova, observado por **140 segundos** com a aba visível, e depois um reload
+completo:
+
+| Momento | Ref | Item no cofre | Bucket | Fila de dados |
+|---|---|---|---|---|
+| t=0s (reconnect) | ausente | `pendente: true`, 5 tentativas | 3 arquivos | 3 |
+| t≈25s · 60s · 100s · 140s | ausente | inalterado | 3 arquivos | 3 |
+| Após botão **Sincronizar** | ausente | **inalterado** | 3 arquivos | **2** |
+| Após reload online | ausente | **inalterado** | 3 arquivos | 2 |
+
+Dois achados objetivos:
+
+1. **Não houve recuperação automática** — é o **CENÁRIO B**. `FAMILIAS_RECUPERAVEIS` (Fase 6)
+   cobre `nr13_rastreab_`, `nr13_pront_fab_` e `nr13_componentes_cal_`; **não** cobre
+   `nr13_lista_phs` nem `nr13_minha_empresa`.
+2. **A hipótese do arquivo órfão NÃO se confirmou — e o resultado é melhor do que ela.** O
+   botão "Sincronizar" drenou a fila de **dados** (3 → 2, sobrando só as duas pendências
+   legadas do `EQUIPE TESTE`), mas **não** a fila de **arquivos**: o blob ficou no cofre,
+   `pendente: true`, e **nada subiu ao bucket**. Sem ref e sem arquivo — em vez de arquivo sem
+   ref.
+
+O dado subiu íntegro: no servidor, `nr13_lista_phs` versão **7**, com a dataURL de 26.774 B e
+sem `assinaturaRef`.
+
+### 15.6 A segunda edição reaproveita o trabalho feito offline
+
+Reeditando com **os mesmos bytes** (mesmo arquivo, SHA do original `65c9a465b48e…`):
+
+| | |
+|---|---|
+| Versão | 7 → **8** |
+| `assinaturaRef` | `563da5f0…705df.png` — **o mesmo hash calculado offline** ✅ |
+| Item do cofre | `pendente: true` → **`false`**, tentativas 5 → **0** |
+| Bucket `assinaturas/` | 3 → **4** arquivos |
+| Arquivo subido | 20.064 B · `nomeEhOHash: true` · `tamanho` declarado = bytes reais |
+| dataURL | preservada (26.774 B) |
+
+**Nada foi reprocessado e nada duplicou.** O endereço calculado offline foi exatamente o
+endereço usado depois — que é a propriedade que o content-addressing existe para dar.
+
+### 15.7 Histórico intacto
+
+Conferido **depois** de todo o experimento, incluindo a segunda edição:
+
+| | Registro | `logoRef` | `assinaturaRef` | PDF | SHA-256 |
+|---|---|---|---|---|---|
+| A | 2.497 B, igual | `17822fce` | `df32c300` | 4.971.975 B | **idêntico** |
+| B | 2.461 B, igual | `ad888201` | `67bd9c3e` | 4.397.694 B | **idêntico** |
+
+`nr13_minha_empresa` (versão 6) e `funciona01` inalterados. `logos/` continua com 2 arquivos.
+Cofre sem pendências. **O teste offline não tocou o histórico.**
+
+### 15.8 Classificação — as sete perguntas
+
+| | Pergunta | Resposta |
+|---|---|---|
+| 1 | Houve perda de dado? | **NÃO** |
+| 2 | Conteúdo continua utilizável? | **SIM** — dataURL renderiza, sobreviveu ao reload e subiu ao servidor |
+| 3 | Relatório novo congela a identidade corretamente? | **SIM** — sem referência, `snapshotAssinantes` cai no ramo legado e congela a dataURL (§7-bis). O documento sai correto, só maior |
+| 4 | Perde só a deduplicação até a próxima edição? | **SIM — e nem isso.** A segunda edição reaproveitou o hash calculado offline, sem reprocessar e sem duplicar arquivo |
+| 5 | Existe risco funcional ou histórico? | **NÃO** — sem ref quebrada, sem órfão, histórico byte a byte |
+| 6 | Correção mínima | Duas frentes, e a segunda só faz sentido com a primeira: **(a)** fazer a fila de **arquivos** drenar junto com a de dados — hoje o "Sincronizar" só drena dados; **(b)** cobrir `nr13_lista_phs` e `nr13_minha_empresa` em `FAMILIAS_RECUPERAVEIS` para a varredura gravar a referência quando o arquivo já estiver no bucket |
+| 7 | Pertence à 7B/P4? | **NÃO.** É otimização, não correção. O estado alcançado é o fallback **desejado**, e ele se resolve sozinho na próxima edição |
+
+---
+
+## OFFLINE REAL = VALIDADO EM PRODUÇÃO ✅
+
+O estado proibido — **referência persistida apontando para arquivo inexistente ou pendente** —
+**não ocorreu em nenhum momento**. O que se observou foi exatamente o fallback desenhado:
+dataURL válida, sem referência nova, sem perda, sem tocar o histórico.
+
+A lacuna encontrada é de **otimização**, não de correção: sem rede, a identidade fica em
+base64 até a próxima edição do cadastro — e a próxima edição reaproveita integralmente o
+endereço já calculado. Fica **documentada**, não corrigida nesta fase.

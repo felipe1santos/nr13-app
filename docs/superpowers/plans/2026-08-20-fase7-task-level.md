@@ -377,8 +377,8 @@ de tipos. Nenhum snapshot novo depende de referência.
 - [x] **7B.8a** — Validação em produção, parte medida: content-addressing, dedupe A/B/C/D, D-11, **teste histórico A/B**, PDF imutável, convivência base64×ref, não escrita histórica, livro, economia, suíte e build → `docs/medicoes/2026-08-20-fase7b-validacao-producao.md`
 - [x] **7B.8b·1** — **Portal, cliente autorizado (`cliente001@gmail.com`)**: cadeia `relatório → snapshot → logoRef/assinaturaRef → path` reproduzida chave a chave; `portal_arquivo` devolve **200** para LOGO A/B, RUBRICA A/B e os dois PDFs; arquivo REAL sem vínculo, hash inventado e outra org devolvem **404 `nao_disponivel`** idêntico; P1/P3 intactos; Livro remontado no Portal renderiza LOGO-B + RUBRICA B
 - [x] **7B.8b·2** — **Contraprova com `ipiranga@gmail.com`** (JWT conferido: `cliente_id ad1fd71c…`, mesma org): as **6** refs do ZZ-FASE3 → **404 `nao_disponivel`**, nenhuma URL emitida. O 404 é **seletivo** — na mesma rota e com o mesmo token, o PDF do vínculo DELE (COMPRESSOR) dá **200**. Não-enumerabilidade: **1 única assinatura de resposta** entre 6 casos distintos (status + corpo + cabeçalhos). P1/P3 intactos. **PORTAL 7B = VALIDADO EM PRODUÇÃO ✅**
-- [ ] **7B.8c** — **Offline real** — depende de o dono cortar a rede; não se simula offline interceptando `fetch`
-- [ ] **7B.9** — **PORTÃO P4**
+- [x] **7B.8c** — **Offline real** (22/08, offline acionado pelo dono no DevTools): dataURL preservada, **sem Ref prematura**, item no cofre com `pendente: true`, reload offline preserva tudo, **nenhuma recuperação automática** no reconnect (CENÁRIO B) e **nenhum arquivo órfão**; a 2ª edição reaproveita o hash calculado offline. Histórico byte a byte. **OFFLINE REAL = VALIDADO ✅**
+- [ ] **7B.9** — **PORTÃO P4** — todos os itens medidos e verdes. **Aguardando a decisão do dono** sobre documentar a limitação do offline (base64 até a próxima edição) em vez de corrigi-la agora
 
 **Nenhum HTML alterado. Nenhum snapshot antigo tocado.** O diff é `imagem.ts`,
 `identidadeVisual.ts` (novo), os dois writers de cadastro e `relatoriosService.ts`.
@@ -492,7 +492,17 @@ imutabilidade, **não perda de dado**, e desaparece ao reaplicar a fase.
 | 21/08 | Não-enumerabilidade completa: **1 única assinatura de resposta** (status + corpo + cabeçalhos) entre ref alheia, arquivo sem vínculo, 2 hashes inexistentes, PDF alheio e outra organização | ✅ |
 | 21/08 | P1/P3 com o token do ipiranga: listagem 0 itens nas 3 pastas, assinatura direta 400, download autenticado 400, download público 400, `app_storage` 0 linhas (amplo e filtrado) | ✅ |
 | 21/08 | **PORTAL 7B = VALIDADO EM PRODUÇÃO ✅** — cadeia fechada: cliente001 → 200 · ipiranga com o MESMO path → 404 · hash inexistente → 404 indistinguível | ✅ |
-| 21/08 | **Resta só o OFFLINE REAL.** P4 **continua aberto** | ⏳ |
+| 22/08 | Rede da máquina caiu sozinha no meio da preparação — experimento **abortado sem baseline**, e a queda **não** foi aproveitada como teste | ⚠️ registrado |
+| 22/08 | Rede estável (6/6 amostras). Push do `e315c13` concluído, `main` sincronizada | ✅ |
+| 22/08 | Massa: `ZZ-TESTE-F7-OFFLINE-1` (Inspetor) criado **online e sem rubrica** — acrescenta em vez de sobrescrever, não toca `funciona01` nem `nr13_minha_empresa` | ✅ |
+| 22/08 | **OFFLINE (acionado pelo dono).** Rede provada fora por **falha real** em 3 alvos. Salvou: dataURL 26.774 B presente, `assinaturaRef` **ausente** — nenhuma Ref prematura. Cofre com `pendente: true`, 3 tentativas, erro `Failed to fetch` | ✅ |
+| 22/08 | **`navigator.onLine` respondeu `true` com a rede morta** — a justificativa da regra I-14, flagrada em produção | ✅ |
+| 22/08 | Reload offline: app sobe pelo service worker, aviso correto, "Assinatura cadastrada", nada perdido | ✅ |
+| 22/08 | **Reconnect = CENÁRIO B.** 140 s de observação + botão Sincronizar + reload: **nenhuma recuperação automática**. E a hipótese do órfão **não se confirmou** — o "Sincronizar" drena a fila de DADOS, não a de ARQUIVOS; o blob ficou no cofre e nada subiu | ✅ |
+| 22/08 | **2ª edição reaproveita o trabalho offline**: mesmo hash `563da5f0…`, cofre vira `pendente: false`, bucket 3 → 4, `nomeEhOHash: true`. Nada reprocessado, nada duplicado | ✅ |
+| 22/08 | Histórico conferido DEPOIS de tudo: A = A, B = B, PDFs byte a byte e SHA idênticos, `nr13_minha_empresa` e `funciona01` inalterados | ✅ |
+| 22/08 | Suíte **1186/1186**, build verde, bundle `index-WDnlnv6E.js` | ✅ |
+| 22/08 | **Todos os itens do P4 medidos.** Falta só a **decisão do dono** sobre documentar a limitação do offline | ⏳ |
 
 ---
 
@@ -537,10 +547,17 @@ de resposta entre 6 casos). A origem do 200 foi reproduzida chave a chave —
 e `nr13_minha_empresa`/`nr13_lista_phs` sequer entram no conjunto varrido. O 404 do ipiranga é
 seletivo: o PDF do vínculo dele dá 200 na mesma rota. **Hash/path não é autorização.**
 
-**2 · Offline real.** Pelo código, offline o cadastro salva com a dataURL e **sem**
-referência — comportamento seguro. Mas não foi medido, e não se simula offline interceptando
-`fetch`. Lacuna já registrada: `FAMILIAS_RECUPERAVEIS` da Fase 6 **não** cobre
-`nr13_minha_empresa` nem `nr13_lista_phs`, então uma logo cadastrada offline só ganha
-referência na próxima edição.
+**2 · Offline real — VALIDADO EM PRODUÇÃO ✅ (22/08).** Offline acionado pelo dono, rede provada
+fora por falha real em 3 alvos. Resultado: dataURL preservada, **nenhuma Ref prematura**, item
+no cofre com `pendente: true` — a cadeia I-14 visível. Reload offline preserva tudo.
+No reconnect: **CENÁRIO B**, sem recuperação automática — e a hipótese do arquivo órfão **não
+se confirmou**, porque o "Sincronizar" drena a fila de dados e não a de arquivos: ficou sem ref
+**e** sem arquivo, que é o lado barato. A 2ª edição reaproveita o hash calculado offline
+(`563da5f0…`), sem reprocessar nem duplicar. Histórico byte a byte.
 
-**Falta só o offline real para fechar o P4. Não iniciar a Fase 8.**
+**A lacuna que resta é de otimização, não de correção:** `FAMILIAS_RECUPERAVEIS` não cobre
+`nr13_lista_phs`/`nr13_minha_empresa`, então a identidade cadastrada sem rede fica em base64
+até a próxima edição. Correção mínima, para uma fase seguinte: **(a)** drenar a fila de
+ARQUIVOS junto com a de dados; **(b)** só então cobrir essas duas famílias na varredura.
+
+**Todos os itens do P4 estão medidos e verdes. O portão só fecha com a decisão do dono sobre documentar a limitação do offline. Não iniciar a Fase 8.**
