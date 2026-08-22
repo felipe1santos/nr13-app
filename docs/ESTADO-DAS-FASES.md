@@ -100,11 +100,11 @@ Sempre use um destes. Nunca "concluído".
 | **4** | Portal: arquitetura de leitura (A-02) | ✅ **CONCLUÍDA** | **P3 FECHADO ✅** aprovado 20/08 | `plans/2026-08-20-fase4-task-level.md` |
 | **5** | Fotos: thumbnail, EXIF, teto de altura (A-08) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** | — | `plans/2026-08-20-fase5-task-level.md` · `medicoes/2026-08-20-fase5-producao-antes-depois.md` |
 | **6** | Recuperação do fallback base64 (A-10) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** nas 3 famílias, com SHA-256 idêntico | — | `plans/2026-08-20-fase6-task-level.md` |
-| **7** | Logo e rubrica por conteúdo (A-05) | 🟢 **7A VALIDADA** · 🟢 **7B VALIDADA · PORTAL ✅ · OFFLINE ✅** | **P4 aguardando decisão do dono** | `plans/2026-08-20-fase7-task-level.md` |
+| **7** | Logo e rubrica por conteúdo (A-05) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** (7A EXPAND + 7B SWITCH, Portal e offline real) | **P4 FECHADO ✅** aprovado 22/08 | `plans/2026-08-20-fase7-task-level.md` · `medicoes/2026-08-20-fase7b-validacao-producao.md` |
 | 8…13 | ver plano macro | PLANEJADO | P5…P8 | `plans/2026-08-15-evolucao-arquitetura.md` |
 
-**Fase atual:** 7B (em produção, commit `490a236`) · **Tarefa atual:** fechar os dois itens que dependem do dono e apresentar o P4
-**Próxima ação exata:** **todos os itens do P4 foram medidos e estão verdes** — content-addressing, dedupe A/B/C/D, teste histórico A/B (A = A, B = B), PDF imutável por SHA-256, convivência base64 x ref, zero escrita histórica, Livro encadeado, economia de 14,0x no snapshot, **Portal** (cliente001 -> 200, ipiranga com o MESMO path -> 404, hash inexistente -> 404 indistinguível, P1/P3 intactos) e **offline real** (dataURL preservada, nenhuma Ref prematura, nenhum arquivo órfão, histórico byte a byte). Medições em `medicoes/2026-08-20-fase7b-validacao-producao.md`. **O portão só fecha com a decisão do dono** sobre documentar a limitação do offline (identidade fica em base64 até a próxima edição) em vez de corrigi-la agora. Rollback da 7B é sempre `7B -> 7A`.
+**Fase atual:** nenhuma em execução — a **Fase 7 está CONCLUÍDA** e o **P4 foi FECHADO** em 22/08/2026.
+**Próxima ação exata:** aguardar autorização explícita do dono para iniciar a **Fase 8**. Nada da Fase 8 pode ser começado antes disso. A regra de rollback da 7B (`7B -> 7A`, nunca antes da 7A) e a gravação dupla D-11 seguem valendo — ver `PENDENCIAS.md`.
 
 Os dois roteiros ficam gravados, já com os resultados marcados:
 
@@ -183,6 +183,40 @@ as duas saídas do card: **"Recriar no servidor"** e **"Descartar a minha"**.
 - [ ] Cliente-contra-cliente de arquivo na mesma organização (caso literal)
 - [ ] `lerRemoto` recusando para cliente, exercitado com certificado legado real
 - [ ] Conta cliente re-verificada nesta rodada — **sem credencial; prova de 16/08 continua valendo**
+
+### P4 (depois da Fase 7) — FECHADO ✅ · aprovado pelo dono em 22/08/2026
+
+**7A — EXPAND**
+
+- [x] Leitor entende Base64 **e** Ref em produção
+- [x] **Zero escrita histórica** — 94 chaves conferidas por SHA-256 + versão
+- [x] Fallback seguro de leitura: base64 congelado vence; ref que não resolve **não** é
+      substituída pela identidade atual
+- [x] Rollback preparado (`7B -> 7A`)
+
+**7B — SWITCH**
+
+- [x] Writers produzem referência endereçada por conteúdo — 4 arquivos baixados do bucket e
+      SHA-256 recalculado, `nomeEhOHash` verdadeiro nos quatro
+- [x] Mesmo conteúdo = mesmo hash/path · conteúdo diferente = arquivo novo
+- [x] Deduplicação validada nos 4 cenários (A/B/C/D), pela UI real
+- [x] Snapshot novo congela **só** a referência — nenhum base64 nos registros A e B
+- [x] **A continua A depois da troca para B**, com reload completo
+- [x] PDF arquivado **imutável**: bytes e SHA-256 idênticos depois da troca
+- [x] Histórico em Base64 permanece correto — relatório de 19/08 reaberto mostra a logo original
+- [x] Portal: cliente autorizado → **200**
+- [x] Portal: outro cliente com o **mesmo hash/path** → **404 `nao_disponivel`**
+- [x] Portal: hash inexistente → **404 indistinguível** (1 única assinatura de resposta em 6 casos)
+- [x] **P1/P3 preservados** — Storage não lista, não assina arbitrário, não baixa pelo hash;
+      `app_storage` devolve 0 linhas
+- [x] Livro de Registro preservado — entradas lacradas e encadeadas
+- [x] **Offline sem perda** — dataURL preservada, reload offline funciona, dado sincroniza
+- [x] **Offline sem Ref quebrada** — nenhuma referência prematura, nenhum arquivo órfão
+- [x] Suíte **1186/1186** e build verdes
+
+**Achado offline classificado pelo dono como `LIMITAÇÃO DE OTIMIZAÇÃO / PROMOÇÃO TARDIA PARA
+REF`** — e explicitamente **não** como risco de perda, risco histórico, ref quebrada ou falha
+de integridade. Correção **não** implementada; pendência registrada em `PENDENCIAS.md`.
 
 ### P2 (depois da Fase 3) — executado, aguardando aprovação
 

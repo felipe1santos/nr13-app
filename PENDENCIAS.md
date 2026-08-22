@@ -359,8 +359,7 @@ das fotos e PDFs:** `engyuricesar` estourava 6,4 MB com UM equipamento cadastrad
 
 ## FASE 7B — encerrar a gravação dupla de logo/rubrica
 
-**Data-alvo:** deploy da 7B em produção **+ 45 dias**. (Deploy ainda não feito quando esta
-linha foi escrita — preencher a data assim que ocorrer.)
+**Data-alvo:** deploy da 7B em produção **+ 45 dias** → **deploy em 21/08/2026, alvo 05/10/2026.**
 
 Hoje `nr13_minha_empresa.logo` e `nr13_lista_phs[].assinatura` guardam a dataURL **e** a
 referência. A duplicação é deliberada (D-11): é ela que torna o rollback para a 7A gratuito.
@@ -368,6 +367,46 @@ Encerrar = zerar a dataURL viva, e só pode acontecer com as condições **C1–
 atendidas — em especial o backup (C7) e a ausência de referência órfã (C5).
 
 **Pertence à Fase 10B.** Ver `docs/superpowers/plans/2026-08-20-fase7-task-level.md`.
+
+> **Condição nova, vinda do teste offline de 22/08:** enquanto a promoção tardia abaixo não
+> existir, uma identidade cadastrada **sem rede** fica só em dataURL. Zerar a dataURL viva
+> antes disso apagaria a única cópia dessa identidade. O achado offline entra como condição
+> adicional antes de aposentar a compatibilidade.
+
+## FASE 7B — promoção tardia de dataURL para Ref (identidade cadastrada offline)
+
+**Origem:** teste offline real de 22/08/2026, registrado em
+`docs/medicoes/2026-08-20-fase7b-validacao-producao.md` §15. Classificado pelo dono como
+**LIMITAÇÃO DE OTIMIZAÇÃO / PROMOÇÃO TARDIA PARA REF** — não é risco de perda, risco
+histórico, ref quebrada nem falha de integridade.
+
+Medido: cadastrando logo/rubrica offline, a dataURL é preservada, **nenhuma referência
+prematura** é gravada e o blob fica no cofre com `pendente: true`. Na reconexão **não há
+recuperação automática**: o botão "Sincronizar" drena a fila de **dados**, não a de
+**arquivos**. Resultado: sem ref **e** sem arquivo — nunca arquivo órfão. A identidade fica em
+base64 até a próxima edição online, que reaproveita integralmente o mesmo hash.
+
+**A ordem segura, e ela não pode ser invertida:**
+
+```
+Blob/dataURL
+  → upload do arquivo pendente
+  → confirmar arquivoPendente(path) === false
+  → validar conteúdo / tamanho / hash
+  → gravar assinaturaRef / logoRef
+  → manter a compatibilidade D-11
+```
+
+**NUNCA:** gravar a Ref e tentar subir o arquivo depois.
+
+1. A fila de **arquivos** precisa drenar de verdade depois da reconexão.
+2. **Só depois** da confirmação do arquivo no Storage,
+3. `nr13_lista_phs` / `nr13_minha_empresa` podem ser promovidos de dataURL para Ref.
+4. Nunca inverter essa ordem.
+
+> **Não ampliar `FAMILIAS_RECUPERAVEIS` antes de corrigir o drain da fila de arquivos.** O
+> próprio teste mostrou por quê: a varredura procuraria no Storage um arquivo que ainda não
+> chegou lá, e o único desfecho possível seria referência órfã — que hoje **não existe**.
 
 ## FASE 7B — regra de rollback (não apagar enquanto a 7B existir)
 
