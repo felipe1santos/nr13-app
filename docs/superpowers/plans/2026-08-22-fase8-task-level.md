@@ -468,6 +468,10 @@ não altera produção. A massa gerada sai por `limpar.mjs`.
 | 22/08 | Depois da correção: `nr13_rel_` = **2.460 B** (real: 2.461) · índice = **662 B/item** (real: 665) | ✅ |
 | 22/08 | Estimativas recalibradas por `--dry-run` — todas as do plano eram **conservadoras** | ✅ |
 | 22/08 | **Nenhuma massa gerada.** Sem laboratório local, não há onde gerar sem tocar produção | ⏳ |
+| 22/08 | **Dono aprovou A+B+C** e autorizou instalar Docker Desktop | ✅ |
+| 22/08 | F8.1 reescrito **sem placeholder**: 4 blocos, org e marca auto-resolvidas e provadas no código (`storageV2.ts:409` e `:365-374`) | ✅ |
+| 22/08 | Ambiente conferido: Win 11 Pro build 26200 x64 · virtualização na BIOS **ativa** · **WSL não instalado** · `HypervisorPresent: False` · 224 GB livres · **RAM 7,6 GB** · sessão não elevada | ⚠️ registrado |
+| 22/08 | Passo a passo de instalação entregue ao dono (`wsl --install` → reinício → Docker Desktop). **Parado antes do reinício**, como combinado | ⏳ |
 
 ### Estimado × observado — recalibração por `--dry-run`
 
@@ -498,45 +502,86 @@ lado seguro. **O degrau de 500 confirma a condição do dono** — 22,97 MB cont
 
 ## Ponto de retomada
 
-**Gerador pronto e testado. Nenhuma massa gerada. Duas coisas dependem de você.**
+**Gerador pronto e testado (27/27). Nenhuma massa gerada. Duas coisas param na sua mão.**
 
-### 1 · Docker não existe nesta máquina — o laboratório local está bloqueado
+### 1 · F8.1 — SQL pronto, sem placeholder
 
-Conferi antes de instalar qualquer coisa, como você pediu:
+`supabase/fase8_indice_verificar.sql`. **Somente leitura**, sem `INSERT/UPDATE/DELETE/CREATE/ALTER/DROP`.
 
-```
-docker --version     → command not found
-supabase --version   → command not found
-npx supabase         → 2.115.0  (mas `supabase start` EXIGE Docker)
-```
+Os valores foram provados, não escolhidos:
 
-`supabase start` sobe Postgres, GoTrue, PostgREST e Storage **em contêineres**. Sem Docker não
-há laboratório local no formato que você autorizou. Instalar Docker Desktop é decisão sua — não
-faço instalação desse porte sem autorização explícita.
+| Valor | De onde veio |
+|---|---|
+| Org de teste `99f642d3-…` | `localStorage.nr13_org_id` e `sub` do JWT em `teste@gmail.com`; `2026-08-16-baseline-inicial.md` a lista como "99f642d3 (teste)" |
+| Org representativa | **não fixada** — resolvida pela consulta como "a de mais linhas", mesmo critério da Fase 1 |
+| Marca de sync | **maior `atualizado_em` da org** — `storageV2.ts:409`, `avancarMarca(escopo.id, maiorVisto)` |
+| Filtro, ordem, limite | `gt` (estritamente maior), `(atualizado_em, chave)`, `limit 1000` — `storageV2.ts:365-374` |
 
-| | O que dá | O que **não** dá |
+**São 4 blocos, e o motivo é uma limitação real da ferramenta:** o SQL Editor mostra apenas o
+resultado da ÚLTIMA consulta de um lote. Rode um bloco por vez:
+
+| Bloco | O que é | Como copiar |
 |---|---|---|
-| **A · Instalar Docker Desktop** | tudo o que você autorizou: 100/500/1.000/5.000 local, EXPLAIN sob RLS, custo do índice com e sem, limpeza sem risco | ~1 GB de instalação, reinício provável |
-| **B · Laboratório só no navegador** — injetar a massa direto no IndexedDB de uma org sintética, com o app em `npm run dev` | **DOM, listas, filtros, busca, scroll, memória, IndexedDB, render, PDF** — a maior parte da fase | banco, EXPLAIN, custo do índice, sync real |
-| **C · Produção, org de teste, 100 e 500** (já autorizados) | latência e egress reais, sync real | 1.000 e 5.000 |
+| **1** | Contexto — estatísticas, todos os índices, volume, escrita, 10 maiores orgs com a marca de cada | **uma célula JSON**; clique nela e copie inteira |
+| **2** | `EXPLAIN` "nada mudou", org representativa | copie o texto do plano |
+| **3** | `EXPLAIN` "nada mudou", org de teste (uuid literal) | idem |
+| **4** | `EXPLAIN` "primeiro boot", org de teste | idem |
 
-**Recomendo A + B + C.** Se preferir não instalar Docker, B + C ainda entregam a maior parte da
-Fase 8, e o custo do índice fica `PENDENTE DE CONFIRMAÇÃO` com o motivo técnico registrado —
-não como "passou".
+Com as quatro saídas eu classifico em **A / B / C / D**, considerando `stats_reset`, uptime,
+`idx_scan`/`tup_read`/`tup_fetch`, tamanho, linhas, índices concorrentes, writes, plano,
+buffers e a diferença `postgres` × `authenticated`. **Sem reabrir a Fase 1 por contador baixo.**
 
-### 2 · F8.1 precisa de você no SQL Editor
+### 2 · Docker — ambiente conferido, e falta ação sua
 
-`supabase/fase8_indice_verificar.sql` está pronto: **7 consultas, todas somente leitura**.
-Coleta o contexto que você exigiu antes de qualquer interpretação — `stats_reset`, janela de
-coleta, uptime, uso de **todos** os índices (para comparar), volume da tabela, linhas por
-organização, estatística de escrita, e os planos dos cenários 1 e 2.
+| | |
+|---|---|
+| Windows | **11 Pro**, build 26200, x64 ✅ |
+| Virtualização na BIOS | `VirtualizationFirmwareEnabled: True` ✅ |
+| Hypervisor ativo | `HypervisorPresent: **False**` |
+| WSL | **não instalado** |
+| Disco livre | 224,3 GB ✅ |
+| **RAM** | **7,6 GB** ⚠️ |
+| Sessão | **não elevada** — não instalo daqui |
 
-Nas consultas 6 e 7, troque `<ORG>` e `<MARCA>`. Me mande a saída e eu classifico em
-**A / B / C / D** — sem reabrir a Fase 1 por contador baixo isolado.
+**Passo a passo — execute você, em PowerShell como Administrador:**
 
-> Limitação já declarada, não contornada: o SQL Editor roda como `postgres`, **sem RLS**. O app
-> roda como `authenticated`, e a policy entra no plano. Os planos de lá são um **piso**. A
-> comparação fiel exige o laboratório local — mais um motivo para a decisão 1.
+```powershell
+# 1) instala WSL2 + VirtualMachinePlatform (EXIGE REINÍCIO ao final)
+wsl --install
+```
+
+**Reinicie o Windows.** Depois:
+
+```powershell
+# 2) confirmar
+wsl --status
+wsl --version
+
+# 3) instalar o Docker Desktop
+winget install -e --id Docker.DockerDesktop
+```
+
+Abra o Docker Desktop uma vez (ele finaliza a configuração do WSL2) e me avise. Eu retomo em:
+`docker --version` → `docker run --rm hello-world` → `npx supabase init` → `npx supabase start`
+→ aplicar as migrations **reais** de `supabase/*.sql` → documentar as diferenças local × produção.
+
+> **Risco da RAM, declarado antes e não depois.** O Supabase local sobe ~8 contêineres
+> (Postgres, GoTrue, PostgREST, Storage, Kong, Realtime, Studio, Inbucket). Com 7,6 GB totais,
+> mais Chrome com massa de 5.000 equipamentos, é apertado. Mitigação: rodar o degrau de 5.000
+> **sem** o navegador aberto e medir DOM/listas pela via B (IndexedDB direto). Se travar, digo
+> na hora — não vou empurrar medição em máquina saturada, porque o número sairia errado.
+
+### Ordem depois que o laboratório subir — como você definiu
+
+Um degrau por vez: **gerar → medir → registrar → limpar → provar limpeza → próximo**.
+100 · 500 · 1.000 · 5.000. Sem acumular.
+
+Depois, no local (descartável), o benchmark do índice: leitura (hidratação, poucas, muitas
+alterações) e escrita (`aplicar_mutacao_storage`, INSERT/UPDATE lógicos, buffers, mediana,
+variação), **com e sem** o índice — e **recriar o índice antes de qualquer outro benchmark**.
+Nunca `DROP` em produção.
+
+Medições com **≥ 3 execuções**, mediana e variação declaradas, cold e warm separados.
 
 ### Como rodar o que já existe
 
@@ -547,5 +592,6 @@ node scripts/massa-escala/gerar.mjs --org <uuid> --perfil estrutural \
   --url <url> --confirmar-org-de-teste --dry-run     # não escreve nada
 ```
 
-**Não gerar massa em produção antes de: laboratório definido, geração local provada, limpeza
-provada. Não iniciar a Fase 9. Não iniciar PDF vetorial.**
+**Produção continua sem massa.** Os degraus 100 e 500 estruturais seguem autorizados, mas só
+depois do laboratório local provado. Realista em produção: **não autorizado**.
+**Não iniciar a Fase 9. Não iniciar PDF vetorial.**
