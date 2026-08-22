@@ -375,8 +375,9 @@ Massa parcial (gerador interrompido) sai pelo mesmo caminho — a seed identific
 - [x] **F8.16** — **Auditoria de busca/listas/escala** (requisito formal do dono, 22/08) —
       14 telas auditadas nas 15 perguntas, benchmarks de busca em 50.000 equipamentos, 10
       gargalos classificados. `medicoes/2026-08-22-fase8-auditoria-busca-e-listas.md`
-- [ ] **F8.17** — UI/DOM/memória/long tasks/IndexedDB/cold×warm — **bloqueado por login**
-- [ ] **F8.18** — Baseline de PDF (5/15/30 folhas) — mesmo bloqueio
+- [~] **F8.17** — UI/DOM/memória/IndexedDB **medidos com 51.000 equipamentos** (2.292.273 nós, 1.630 MB de heap, ~4 min de bloqueio, 583 requisições onde 111 bastavam). Long tasks, INP, FPS e cold×warm cronometrado seguem pendentes: exigem a aba como **ativa** da janela
+- [ ] **F8.18** — Baseline de PDF (5/15/30 folhas) — pendente pelo mesmo motivo
+- [x] **F8.19** — **Diagnóstico consolidado da Fase 8 + lista objetiva para a Fase 9** — `medicoes/2026-08-22-fase8-diagnostico-consolidado.md`
 - [ ] **F8.7** — `docs/medicoes/roteiro-baseline.md`
 - [ ] **F8.8** — Instrumentação de medição (`performance.mark`) — **decisão pendente**, ver Riscos
 - [~] **F8.9** — Estrutural local: **100, 500, 1.000 e 5.000 FEITOS** (gerar → medir → registrar → limpar → provar, sem acumular). Falta a via de UI (DOM, listas, IndexedDB) e os degraus 100/500 em **produção**, que são os únicos que medem latência e egress reais
@@ -465,6 +466,10 @@ não altera produção. A massa gerada sai por `limpar.mjs`.
 | 22/08 | **A arquitetura de PDF está CORRETA** — índice leve com `pdfRef`, e o PDF só é resolvido no clique. O defeito não é o PDF, é o contador | ✅ |
 | 22/08 | Projeção: em 50.000 equipamentos o navegador baixa **~410 MB** e materializa 550.000 entradas **antes** de qualquer busca | ✅ |
 | 22/08 | UI/DOM/memória/IndexedDB/PDF **bloqueados**: exigem login no app, e não insiro senha em formulário. Pedido feito ao dono | ⏸️ |
+| 22/08 | Login resolvido **sem digitar senha**: link de sessão pela API de admin do GoTrue local (`generate_link`/magiclink) | ✅ |
+| 22/08 | 🔴 **Runtime com 51.000 equipamentos:** `/equipamentos` com **2.292.273 nós no DOM** e **1.630 MB de heap**; thread bloqueada **~4 min** com zero rede; depois um `querySelectorAll` não completa em 45 s | ✅ |
+| 22/08 | **Diagnóstico consolidado entregue**, com a lista de 9 correções para a Fase 9 em ordem de retorno pelo custo | ✅ |
+| 22/08 | Pendentes por a aba nunca ter sido a ATIVA da janela (`visibilityState: hidden`, `rAF` não dispara): long tasks, INP, FPS, cold×warm cronometrado, `/relatorios` em runtime e baseline de PDF | ⏸️ |
 | 22/08 | Fase 7 fechada (P4 ✅). Fase 8 autorizada **só para planejamento/baseline** | ✅ |
 | 22/08 | Lidos: `ESTADO-DAS-FASES.md`, Fase 8 do plano macro (linhas 2142–2350), Fase 9 (para saber o que **não** fazer), `PENDENCIAS.md`, medições das Fases 1, 2, 5, 6, 7 | ✅ |
 | 22/08 | AS-IS de código mapeado: `demoSeed`, `storageV2.lerTudo`, `listarEquipamentos`, `Equipamentos.tsx`, `vencimentos.ts`, `pdfService.ts`, `db.ts`, padrão de `scripts/` | ✅ |

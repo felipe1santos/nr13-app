@@ -105,44 +105,46 @@ Sempre use um destes. Nunca "concluído".
 | 9…13 | ver plano macro | PLANEJADO | P5…P8 | `plans/2026-08-15-evolucao-arquitetura.md` |
 
 **Fase atual:** **8 — em implementação.** Gerador de massa pronto e testado (27/27); **nenhuma massa gerada**. A Fase 7 está CONCLUÍDA e o P4 FECHADO.
-**Próxima ação exata:** medir a via de **UI** (DOM, memória, long tasks, IndexedDB, cold × warm)
-e a **baseline de PDF**, com os 1.000 equipamentos já carregados no laboratório. **Bloqueado num
-ponto:** exige um login no app, e eu não insiro senha em formulário — o dono precisa fazer esse
-login uma vez.
+**Próxima ação exata:** fechar as pendências de runtime que exigem a aba do NR-13 como **aba ativa**
+da janela do Chrome (boot cold × warm cronometrado, long tasks/INP, FPS, `/relatorios` em runtime e
+baseline de PDF). Tudo o mais da Fase 8 está medido.
 
-**Degraus locais 100/500/1.000/5.000: CONCLUÍDOS e removidos com prova.** F8.1 e F8.11 fechados
-(manter o `app_storage_org_atualizado_idx`: com ele o primeiro boot **não cresce** — 913 buffers
-de 500 a 5.000 equipamentos; sem ele vai a 6.347). Registro:
-`medicoes/2026-08-22-fase8-laboratorio-e-f81.md`.
+**DIAGNÓSTICO CONSOLIDADO:** `medicoes/2026-08-22-fase8-diagnostico-consolidado.md`.
 
-**⏸️ Degraus 100/500 em PRODUÇÃO: `PENDENTE DE AUTORIZAÇÃO`** — suspensos pelo dono em 22/08 até
-esclarecer o aviso de cota do Supabase ("Grace period is over"). Não bloqueia o resto da Fase 8.
-Realista em produção: **não autorizado**.
+### A pergunta de produto, respondida com número
 
-### Requisito formal novo (22/08): busca, UX e escala
+Com **51.000 equipamentos** no laboratório: abertura **> 10 min**; `/equipamentos` com
+**2.292.273 nós no DOM** e **1.630 MB** de heap (limite do navegador: 4.002 MB); thread principal
+bloqueada **~4 min** com **zero** rede; depois disso um `querySelectorAll` não completa em 45 s.
+**A tela não fica lenta — fica inutilizável, e antes de o usuário digitar qualquer coisa.**
 
-Fase 8 **audita e mede**; Fase 9 **corrige**. Auditoria concluída:
-`medicoes/2026-08-22-fase8-auditoria-busca-e-listas.md`. O achado que governa o resto:
+### Os quatro gargalos estruturais
 
-> **Não existe busca no servidor, em lugar nenhum do sistema.** Zero `.ilike/.like/.textSearch/
-> .or` em todo o `src/`. Toda busca é `.filter()` em JavaScript sobre a organização INTEIRA já
-> hidratada. Logo, `app_storage_org_atualizado_idx` **não serve busca e nunca poderia** — não há
-> consulta de busca para ele atender.
+1. **Não existe busca no servidor, em lugar nenhum** — zero `.ilike/.like/.textSearch/.or` em todo
+   o `src/`. Logo `app_storage_org_atualizado_idx` **não serve busca e nunca poderia**. TAG exata
+   custa 4 buffers; prefixo de TAG, nome, série e código de relatório são `Seq Scan` (26–80 ms),
+   porque `valor` é `text` opaco e o índice é `text_ops` em collation `en_US.UTF-8`.
+2. **Nenhuma tela tem paginação, cursor ou virtualização** — ~45 nós de DOM por card, 1:1 com a base.
+3. **`/relatorios` faz `JSON.parse` do registro pesado só para o contador** — 100.000 parses e
+   ~250 MB em 50.000 equipamentos.
+4. **O throttle de `lerTudo()` existe na v1 e se perdeu na v2** — 583 requisições onde 111 bastavam.
+   **Regressão**, não defeito novo de escala. Fica classe **A para a Fase 9; não corrigir na baseline.**
 
-Das 14 telas auditadas, **só `/equipamentos` e `/acesso` têm busca textual**, e **nenhuma tela do
-sistema tem paginação, cursor ou virtualização**. Em 50.000 equipamentos o navegador precisa
-baixar **~410 MB** e materializar 550.000 entradas **antes** de o usuário poder buscar qualquer
-coisa.
+### O que está certo e não se mexe
 
-Gargalos classe **A**: (1) nenhuma busca server-side; (2) `/relatorios` faz `JSON.parse` de todo
-registro pesado só para desenhar o contador do card — 100.000 parses e ~250 MB em 50.000
-equipamentos, e é o conserto mais barato da Fase 9; (3) DOM cresce 1:1 com a base.
+**A arquitetura de PDF** (índice leve com `pdfRef`, PDF só no clique), **a v2 de armazenamento**
+(10.317 MB de cota contra 5 MB), **o palco** (5 KB sem documento aberto), **as fotos sob demanda** e
+**o índice da Fase 1** (primeiro boot não cresce: 913 buffers de 500 a 5.000 equipamentos).
 
-**A arquitetura de PDF está CORRETA** e não precisa mudar: o índice é leve, carrega `pdfRef`, e o
-PDF só é resolvido no clique — ter 50.000 PDFs no Storage não faz o sistema enumerá-los.
+### Requisito formal mantido (22/08)
 
-**Massa em produção continua ZERO.** Nada em `src/` foi alterado. Fase 9 e PDF vetorial, não
-iniciados.
+A **Fase 9** implementa busca profissional e escalável nas telas que hoje não têm busca ou filtram
+só no cliente. Sem input decorativo sobre arquitetura ruim: com 50.000 registros, não carregar
+50.000 para depois filtrar no navegador. A decisão de **onde os metadados pesquisáveis vão viver**
+é do dono, porque muda schema.
+
+**⏸️ Degraus 100/500 em PRODUÇÃO: `PENDENTE DE AUTORIZAÇÃO`.** Realista em produção: não autorizado.
+**Massa em produção: ZERO.** Nada em `src/`. Fase 9 e PDF vetorial, não iniciados.
 
 Os dois roteiros ficam gravados, já com os resultados marcados:
 
