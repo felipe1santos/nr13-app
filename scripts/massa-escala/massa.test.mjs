@@ -142,6 +142,28 @@ test('a limpeza recusa chave sem TAG reconhecível', () => {
   assert.ok(!podeApagar(null, 1));
 });
 
+// ── varredura de pastas órfãs no bucket (defeito D2, 22/08/2026) ────────────
+//
+// O gerador sobe o arquivo ANTES da RPC. Quando a RPC recusa, sobram arquivos
+// sem chave nenhuma apontando para eles — e a limpeza, que deriva as TAGs das
+// CHAVES, ficava cega para eles. Medido no laboratório: 402 arquivos órfãos.
+// A limpeza passou a varrer a raiz da org pelo NOME DA PASTA, usando a mesma
+// regra de pertencimento. Estes testes travam essa regra.
+test('pasta órfã no bucket é reconhecida como sendo da seed', () => {
+  assert.ok(ehTagDaSeed('ZZ-SCALE-F8-1-0', 1));
+  assert.ok(ehTagDaSeed('ZZ-SCALE-F8-1-999', 1));
+});
+
+test('a varredura de pastas órfãs não invade outra seed nem pasta do sistema', () => {
+  // O erro que a regra existe para impedir: `-12-` casar com a seed 1.
+  assert.ok(!ehTagDaSeed('ZZ-SCALE-F8-12-3', 1));
+  assert.ok(!ehTagDaSeed('ZZ-SCALE-F8-1-3-extra', 1));
+  // Pastas compartilhadas da org, que são limpas por CARIMBO e não por TAG.
+  for (const p of ['relatorios', 'logos', 'assinaturas']) assert.ok(!ehTagDaSeed(p, 1));
+  // TAGs reais nunca podem ser confundidas com pasta de massa.
+  for (const p of ['ZZ-FASE3', 'EQUIPE TESTE', 'VASO A23']) assert.ok(!ehTagDaSeed(p, 1));
+});
+
 // ── recusas de segurança ────────────────────────────────────────────────────
 test('recusa sem --org', () => {
   const r = validarAlvo({ org: null, perfil: 'estrutural', url: 'http://localhost:54321', confirmou: true });

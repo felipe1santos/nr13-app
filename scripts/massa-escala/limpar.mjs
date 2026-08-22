@@ -26,7 +26,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
-import { podeApagar, ORGS_DE_TESTE, PREFIXO, tagDaChave } from './seguranca.mjs';
+import { podeApagar, ORGS_DE_TESTE, PREFIXO, tagDaChave, ehTagDaSeed } from './seguranca.mjs';
 
 const argv = process.argv.slice(2);
 const arg = (n, p = null) => { const i = argv.indexOf(`--${n}`); return i === -1 ? p : argv[i + 1]; };
@@ -79,9 +79,16 @@ if (orgDaSessao !== ORG) {
 const PAGINA = 1000;
 const todas = [];
 for (let inicio = 0; ; inicio += PAGINA) {
+  // `deletado_em is null`: a linha excluída CONTINUA na tabela, virada em
+  // tombstone (§2-ter). Sem este filtro a limpeza reapaga o que já está morto —
+  // inofensivo, porque a RPC é idempotente, mas em 5.000 equipamentos são
+  // 55.000 chamadas de rede para não mudar nada. Os arquivos de uma chave já
+  // tombstoneada não ficam órfãos por causa deste filtro: a varredura D2 abaixo
+  // trabalha sobre o BUCKET, não sobre as chaves.
   const { data, error } = await sb.from('app_storage')
     .select('chave, versao')
     .eq('org_id', ORG)
+    .is('deletado_em', null)
     .order('chave', { ascending: true })
     .range(inicio, inicio + PAGINA - 1);
   if (error) { console.error('falha ao listar:', error.message); process.exit(1); }
@@ -132,21 +139,84 @@ for (const linha of alvos) {
   if (removidas % 100 === 0) process.stdout.write(`\r  ${removidas}/${alvos.length} chaves removidas`);
 }
 
-// Arquivos: só sob as pastas das TAGs desta seed, mais os PDFs/logo/rubrica com o carimbo da seed.
+// ── arquivos ────────────────────────────────────────────────────────────────
+//
+// DOIS DEFEITOS CONSERTADOS AQUI EM 22/08/2026, os dois encontrados medindo os
+// degraus 100 e 500 no laboratório, e os dois SILENCIOSOS — a limpeza reportava
+// sucesso e deixava arquivo para trás:
+//
+//   D1 · `list()` devolve no máximo 1.000 objetos por chamada. A pasta
+//        `relatorios/` passa disso já em 500 equipamentos com 2 relatórios
+//        cada, e o excedente ficava. Medido: 200 PDFs da seed 3 sobreviveram a
+//        uma limpeza que se declarou completa. Agora `listarTudo` pagina até o
+//        fim, e `remove` vai em lotes.
+//
+//   D2 · O gerador sobe o arquivo ANTES da RPC. Quando a RPC recusa — foi o que
+//        aconteceu ao reusar uma seed cujos tombstones já existiam — sobram
+//        arquivos sem chave nenhuma apontando para eles. Como a limpeza deriva
+//        as TAGs das CHAVES, esses órfãos eram invisíveis: sem chave, sem TAG,
+//        sem remoção. Medido: 402 arquivos órfãos da seed 1.
+//        Agora, além das pastas das TAGs vivas, varremos a raiz da org atrás de
+//        QUALQUER pasta `ZZ-SCALE-F8-<seed>-<n>` — a verdade do bucket, não a
+//        do banco.
 let arquivosRemovidos = 0;
-async function limparPasta(prefixo, filtro = () => true) {
-  const { data, error } = await sb.storage.from('inspecao').list(prefixo, { limit: 1000 });
-  if (error || !data?.length) return;
-  const nomes = data.filter((o) => filtro(o.name)).map((o) => `${prefixo}/${o.name}`);
-  if (!nomes.length) return;
-  const { error: e2 } = await sb.storage.from('inspecao').remove(nomes);
-  if (!e2) arquivosRemovidos += nomes.length;
+
+/** `list` pagina de 1.000 em 1.000. Sem isto, some arquivo em silêncio. */
+async function listarTudo(prefixo) {
+  const itens = [];
+  for (let inicio = 0; ; inicio += 1000) {
+    const { data, error } = await sb.storage.from('inspecao')
+      .list(prefixo, { limit: 1000, offset: inicio });
+    if (error) { console.error(`  ! falha ao listar ${prefixo}:`, error.message); return itens; }
+    if (!data?.length) return itens;
+    itens.push(...data);
+    if (data.length < 1000) return itens;
+  }
 }
-for (const tag of tags) await limparPasta(`${ORG}/${tag}`);
+
+async function limparPasta(prefixo, filtro = () => true) {
+  const itens = await listarTudo(prefixo);
+  const nomes = itens.filter((o) => filtro(o.name)).map((o) => `${prefixo}/${o.name}`);
+  for (let i = 0; i < nomes.length; i += 500) {
+    const lote = nomes.slice(i, i + 500);
+    const { error } = await sb.storage.from('inspecao').remove(lote);
+    if (error) console.error('  ! falha ao remover lote:', error.message);
+    else arquivosRemovidos += lote.length;
+  }
+}
+
 const carimbo = `f8-${SEED}-`;
+
+// Pastas das TAGs que ainda têm chave no banco.
+for (const tag of tags) await limparPasta(`${ORG}/${tag}`);
+
+// D2: pastas de TAG desta seed que existem no BUCKET mesmo sem chave no banco.
+// `podeApagar` não serve aqui (é sobre chave); a checagem é a mesma regra de
+// pertencimento da seed, aplicada ao nome da pasta.
+const jaLimpas = new Set(tags);
+const pastasOrfas = (await listarTudo(ORG))
+  .map((o) => o.name)
+  .filter((n) => ehTagDaSeed(n, SEED) && !jaLimpas.has(n));
+if (pastasOrfas.length) {
+  console.log(`órfãs no bucket ${pastasOrfas.length} pasta(s) sem chave no banco — removendo`);
+  for (const pasta of pastasOrfas) await limparPasta(`${ORG}/${pasta}`);
+}
+
 await limparPasta(`${ORG}/relatorios`, (n) => n.startsWith(carimbo));
 await limparPasta(`${ORG}/logos`, (n) => n.startsWith(carimbo));
 await limparPasta(`${ORG}/assinaturas`, (n) => n.startsWith(carimbo));
 
+// Prova, não promessa: relista e conta o que ficou com o carimbo desta seed.
+const sobrouRaiz = (await listarTudo(ORG)).map((o) => o.name).filter((n) => ehTagDaSeed(n, SEED));
+let sobrou = sobrouRaiz.length;
+for (const p of ['relatorios', 'logos', 'assinaturas']) {
+  sobrou += (await listarTudo(`${ORG}/${p}`)).filter((o) => o.name.startsWith(carimbo)).length;
+}
+
 console.log(`\nchaves removidas ${removidas}   falhas: ${falhas}   arquivos: ${arquivosRemovidos}`);
+if (sobrou > 0) {
+  console.error(`! SOBROU ${sobrou} arquivo(s)/pasta(s) com o carimbo da seed ${SEED}. A limpeza NÃO está completa.`);
+  process.exit(3);
+}
+console.log(`prova: 0 arquivos com o carimbo f8-${SEED}- e 0 pastas ZZ-SCALE-F8-${SEED}-* no bucket.`);
 process.exit(falhas > 0 ? 2 : 0);

@@ -105,32 +105,44 @@ Sempre use um destes. Nunca "concluído".
 | 9…13 | ver plano macro | PLANEJADO | P5…P8 | `plans/2026-08-15-evolucao-arquitetura.md` |
 
 **Fase atual:** **8 — em implementação.** Gerador de massa pronto e testado (27/27); **nenhuma massa gerada**. A Fase 7 está CONCLUÍDA e o P4 FECHADO.
-**Próxima ação exata:** **degrau 100 estrutural, no laboratório local.** O laboratório Supabase
-local está **de pé e provado** (Docker 29.7.2, Postgres **17.6 — igual ao de produção**, 12
-contêineres, 13 migrations aplicadas sem falha, paridade conferida objeto a objeto e comportamento
-validado por teste funcional da RPC, da guarda, do conflito, do tombstone e da idempotência).
-**F8.1 foi executado** e a **dívida do índice da Fase 1 está FECHADA: manter o**
-`app_storage_org_atualizado_idx` (780 varreduras em 92 dias; é o índice do caminho real de
-hidratação, 6 buffers e 0,185 ms; e 87,7 % das atualizações são HOT, que não tocam índice). A
-regressão de primeiro boot registrada na Fase 1 (65 → 236 buffers) **não reproduz** — hoje custa
-48 buffers e o planner nem usa esse índice.
+**Próxima ação exata:** terminar o **degrau 5.000** local (em andamento) e, depois dele,
+os degraus **100 e 500 estruturais em produção** — que são os únicos que medem **latência real**
+e **egress**, coisas que o laboratório não tem. Realista em produção segue **NÃO autorizado**.
 
-Duas ausências graves foram encontradas e corrigidas no repositório: **`public.app_storage` — a
-tabela base de todo o sistema — não tinha `CREATE TABLE` em lugar nenhum**, nem o trigger
+**O laboratório está de pé, provado e já produziu resultado.** Docker 29.7.2, Postgres **17.6 —
+igual ao de produção**, 13 migrations aplicadas sem falha, paridade objeto a objeto e
+comportamento validado (RPC, guarda, conflito, tombstone, idempotência).
+
+**Duas ausências graves no repositório, encontradas e corrigidas:** `public.app_storage` — a
+tabela base de todo o sistema — não tinha `CREATE TABLE` em lugar nenhum, nem o trigger
 `app_storage_touch`, nem os **GRANTs de tabela**. Sem isso o sistema não era reconstruível a
-partir do repositório. Ambos foram recuperados de produção por consulta **somente leitura** e
-gravados em `supabase/app_storage_base.sql` e `supabase/grants_postgrest.sql` — **no-op em
-produção**, aplicar lá é decisão do dono.
+partir do repositório. Recuperados de produção por consulta somente leitura e gravados em
+`supabase/app_storage_base.sql` e `supabase/grants_postgrest.sql` — **no-op em produção**,
+aplicar lá é decisão do dono.
 
-Registro completo com todos os números: `medicoes/2026-08-22-fase8-laboratorio-e-f81.md`.
+**F8.1 e F8.11 FECHADOS.** Manter o `app_storage_org_atualizado_idx`, agora por medição em três
+escalas e não só pelo retrato de produção: **com o índice o custo do primeiro boot para de
+crescer** (912 buffers em 500 equipamentos, 913 em 1.000, porque o `limit 1000` corta); **sem**
+ele vai de 1.444 a 2.046 e continua subindo com a tabela inteira. E "nada mudou" — a pergunta de
+todo boot de todo aparelho — custa **7 buffers com o índice contra 4.086 sem**. A regressão de
+primeiro boot registrada na Fase 1 (65 → 236) **não existe em escala nenhuma medida**.
 
-**Pendente do dono:** (1) confirmar a escala **A/B/C/D**, que não está definida em documento
-nenhum — apliquei A=age agora, B=fase planejada, C=observar, D=descartado; (2) o Dashboard do
-Supabase mostra **"Grace period is over"** (cota/faturamento) — classificado **A**, e mais um
-motivo para não gerar massa em produção agora.
+**Dois defeitos SILENCIOSOS na ferramenta de limpeza**, achados justamente por medir: `list()`
+não paginava (deixou 200 PDFs para trás declarando sucesso) e arquivo órfão de geração que falha
+era invisível para ela (deixou 402). Corrigidos; a limpeza agora **prova** o resultado e sai com
+erro se sobrar alguma coisa. 29/29 testes verdes.
 
-**Massa continua em ZERO**, local e produção. Nada em `src/` foi alterado. Realista em produção
-segue **NÃO autorizado**; Fase 9 e PDF vetorial, não iniciados.
+Registro completo, com todos os números: `medicoes/2026-08-22-fase8-laboratorio-e-f81.md`.
+
+**Escala A/B/C/D confirmada pelo dono:** A = age agora · B = age numa fase já planejada ·
+C = observar · D = descartado.
+
+⚠️ **Atenção do dono:** o Dashboard do Supabase mostra **"Grace period is over"**
+(cota/faturamento). Classificado **A**, e mais um motivo para não gerar massa em produção antes
+de resolver isso.
+
+**Massa em produção continua ZERO.** Nada em `src/` foi alterado. Fase 9 e PDF vetorial, não
+iniciados.
 
 Os dois roteiros ficam gravados, já com os resultados marcados:
 

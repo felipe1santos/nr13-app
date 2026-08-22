@@ -368,7 +368,141 @@ peso de um degrau contamina a medição do seguinte.
 
 ---
 
-## 10 · O que NÃO foi feito
+## 10 · Organizações de ruído — a correção do defeito de método
+
+Aprovado pelo dono em 22/08. Criadas 3 organizações locais (`ruido1..3@local.test`), com **300
+equipamentos cada** — 9.900 linhas de fundo, geradas uma vez e mantidas entre os degraus.
+
+Com elas, o planner local passou a escolher índice, **como o de produção**. Prova, no mesmo
+degrau 100 e com a org alvo em 10,0 % (produção: 11,5 %):
+
+| Cenário | Antes (org alvo = 100 %) | Depois (org alvo = 10 %) |
+|---|---|---|
+| Primeiro boot | `Seq Scan` · 106 buffers | `Bitmap Index Scan` · 225 buffers |
+| "Nada mudou" | `Seq Scan` · 109 buffers | **`Bitmap Index Scan on app_storage_org_atualizado_idx` · 11 buffers** |
+
+A seletividade da org alvo passou a ser **parâmetro declarado de cada degrau**, porque ela muda
+conforme a massa cresce e o ruído fica fixo.
+
+### ⚠️ Uma seed é de USO ÚNICO por organização
+
+Regerar a seed 1 depois de limpá-la falhou: **1.100 recusas `versao_obsoleta`**. A causa é
+projeto, não defeito — a limpeza deixa tombstone com `versao_final = 2`, e o piso de versão
+recusa uma escrita que se declara `versao_esperada = 0`. É exatamente o mecanismo que impede
+dado excluído de ressuscitar (§2-ter).
+
+**Consequência prática:** cada rodada precisa de uma seed nova. Determinismo continua intacto —
+é por seed —, mas "mesma seed, mesmo dataset" só vale em banco limpo.
+
+---
+
+## 11 · Degraus 100 · 500 · 1.000 — estrutural, com ruído
+
+Ciclo por degrau: **gerar → medir → registrar → limpar → provar**. Sem acumular. `VACUUM ANALYZE`
+entre degraus. Cada benchmark roda 3× e a mediana é a das rodadas 2–3 (a 1ª carrega ruído de
+cache e de planejamento).
+
+### Geração e peso
+
+| Degrau | Seed | Chaves | Tempo | Conteúdo da org | Bucket | Org alvo é |
+|---|---|---:|---:|---:|---:|---:|
+| 100 | 2 | 1.100 | 27,8 s | 830 kB | 4,61 MB | **10,0 %** |
+| 500 | 3 | 5.500 | 106,1 s | 4.162 kB | 22,97 MB | **35,7 %** |
+| 1.000 | 4 | 11.000 | 180,5 s | 8.328 kB | 45,92 MB | **52,6 %** |
+
+Zero falhas nos três. O `--dry-run` bateu com o real em todos. A escrita pela RPC anda a
+**~55–60 chaves/s** em loopback — e isso é o custo de ida e volta da RPC, **não** do banco.
+
+| Degrau | Heap (4 orgs) | Índices | Total |
+|---|---:|---:|---:|
+| 100 | 800 kB* | 472 kB* | 1.304 kB* |
+| 500 | 11 MB | 7.872 kB | 19 MB |
+| 1.000 | 16 MB | 14 MB | 30 MB |
+
+\* medido antes de existir o ruído, só com a org alvo.
+
+**Os índices custam de 59 % a 88 % do heap.** Em 1.000 equipamentos são 14 MB de índice para
+16 MB de dado. É o número que a discussão sobre remover o `app_storage_org_idx` redundante
+precisa ter na mão.
+
+### F8.11 — o benchmark do índice, agora com seletividade real
+
+`DROP` e `CREATE` só no laboratório descartável, com recriação conferida a cada rodada.
+**Nunca houve `DROP` em produção.**
+
+| Degrau | Cenário | **Com** índice | **Sem** índice | Ganho |
+|---|---|---|---|---|
+| 100 | primeiro boot | 225 buf · 2,4 ms | 225 buf · 2,05 ms | — (mesmo plano) |
+| 100 | nada mudou | **11 buf · 0,15 ms** | 444 buf · 1,83 ms | **40× buffers** |
+| 500 | primeiro boot | **912 buf · 0,59 ms** | 1.444 buf · 20,2 ms | 34× tempo |
+| 500 | nada mudou | **5 buf · 0,18 ms** | 2.103 buf · 8,1 ms | **420× buffers** |
+| 1.000 | primeiro boot | **913 buf · 0,62 ms** | 2.046 buf · 12,6 ms | 20× tempo |
+| 1.000 | nada mudou | **7 buf · 0,088 ms** | 4.086 buf · 10,6 ms | **584× buffers** |
+
+> **O achado que fecha o assunto: com o índice, o custo do primeiro boot PARA DE CRESCER.**
+> 912 buffers em 500 equipamentos, 913 em 1.000 — porque o `limit 1000` corta e o índice já
+> entrega as linhas na ordem pedida. Sem o índice, o mesmo primeiro boot foi de 1.444 para
+> 2.046 buffers e continua subindo com a tabela INTEIRA, porque `Seq Scan` + `Sort` precisa ler
+> tudo antes de poder descartar.
+>
+> E o "nada mudou" — a pergunta feita em **todo boot de todo aparelho** — custa **7 buffers**
+> com o índice contra **4.086** sem ele, em 1.000 equipamentos.
+
+**A regressão de primeiro boot que a Fase 1 registrou (65 → 236 buffers) não existe em escala
+nenhuma medida aqui.** Em 100 o plano é idêntico com e sem índice; em 500 e 1.000 o índice
+MELHORA o primeiro boot. A classificação **D** do achado 4 fica confirmada por medição, não só
+pelo retrato de produção.
+
+---
+
+## 12 · Dois defeitos na FERRAMENTA de limpeza — encontrados e corrigidos
+
+Os dois eram **silenciosos**: a limpeza reportava sucesso e deixava arquivo para trás. Os dois
+quebravam o critério de aceite "toda a massa removida ao fim, com prova" — e justamente nas
+escalas grandes, onde ninguém confere à mão.
+
+### D1 · `list()` não paginava
+
+`sb.storage.from(...).list(prefixo, { limit: 1000 })` devolve no máximo 1.000 objetos. A pasta
+`<org>/relatorios/` passa disso já em 500 equipamentos com 2 relatórios cada. **Medido: 200 PDFs
+da seed 3 sobreviveram a uma limpeza que se declarou completa.**
+
+Corrigido: `listarTudo` pagina por `offset` até o fim, e a remoção vai em lotes de 500.
+
+### D2 · Geração que falha deixa arquivo órfão, e a limpeza era cega para ele
+
+O gerador **sobe o arquivo antes** de chamar a RPC. Quando a RPC recusa — foi o que aconteceu ao
+reusar a seed 1 —, ficam arquivos no bucket sem chave nenhuma apontando para eles. E como a
+limpeza derivava as TAGs das CHAVES, sem chave não havia TAG, e sem TAG não havia remoção.
+**Medido: 402 arquivos órfãos, invisíveis para a ferramenta.**
+
+Corrigido: além das pastas das TAGs vivas, a limpeza varre a raiz da org atrás de qualquer pasta
+`ZZ-SCALE-F8-<seed>-<n>` — **a verdade do bucket, não a do banco**. O teste de pertencimento é o
+mesmo `ehTagDaSeed` já usado para as chaves, então `-12-` continua não casando com a seed 1.
+
+### E a limpeza agora PROVA em vez de prometer
+
+Ao fim, ela relista o bucket e conta o que sobrou com o carimbo da seed. Se sobrar qualquer
+coisa, **imprime o número e sai com código 3** em vez de dizer que terminou.
+
+```
+prova: 0 arquivos com o carimbo f8-3- e 0 pastas ZZ-SCALE-F8-3-* no bucket.
+```
+
+Com a correção, os restos das seeds 1 e 3 saíram (402 e 200 arquivos), e a conferência
+independente pelo banco deu **0 para as três seeds**.
+
+### Um terceiro, menor
+
+A listagem de chaves não filtrava `deletado_em`, então a limpeza reapagava o que já era
+tombstone. Inofensivo (a RPC é idempotente), mas em 5.000 equipamentos seriam 55.000 chamadas de
+rede para não mudar nada. Corrigido filtrando is-null na listagem de chaves.
+
+**29/29 testes verdes**, com 2 novos travando a regra da varredura de pastas órfãs.
+
+---
+
+## 13 · O que NÃO foi feito
 
 - **Nenhuma massa em produção.** No laboratório local, o degrau 100 foi gerado, medido e removido com prova.
 - **Nenhuma escrita em produção.** Só `select` e `explain (analyze)` sobre `select`.
@@ -378,7 +512,7 @@ peso de um degrau contamina a medição do seguinte.
 
 ---
 
-## 11 · Como reproduzir
+## 14 · Como reproduzir
 
 ```bash
 docker --version                       # 29.7.2

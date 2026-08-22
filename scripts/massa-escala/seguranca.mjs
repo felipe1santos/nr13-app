@@ -25,7 +25,17 @@ export const ORGS_DE_TESTE = [
   // existe no banco descartável de `npx supabase start`; em produção este uuid
   // não corresponde a organização nenhuma, e a 5ª trava
   // (`NR13_PERMITIR_PRODUCAO`) continua valendo de qualquer forma.
-  '6721e0d7-4229-4b7d-b495-05677f574d45',
+  '6721e0d7-4229-4b7d-b495-05677f574d45', // lab@local.test — ORG ALVO
+  // ORGANIZAÇÕES DE RUÍDO (22/08/2026), também só locais.
+  //
+  // Existem porque o degrau 100 mostrou que um laboratório de uma organização
+  // só NÃO mede plano de leitura: com 100 % das linhas da org alvo, o planner
+  // escolhe `Seq Scan` — decisão correta dele — enquanto produção, onde a org
+  // de teste é 11,5 % da tabela, escolhe `Index Scan`. Subir a escala não
+  // conserta; só distribuição conserta.
+  '2ba1cc06-5707-4571-b19b-a50a728593fb', // ruido1@local.test
+  '2eb6a43f-827b-47a3-b8e8-18e1d5fdd55a', // ruido2@local.test
+  '46f70633-9d6f-4955-b6d7-0d919972183e', // ruido3@local.test
 ];
 
 /** TAGs que a limpeza NUNCA pode tocar, mesmo se algo der errado no filtro. */

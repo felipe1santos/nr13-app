@@ -370,13 +370,13 @@ Massa parcial (gerador interrompido) sai pelo mesmo caminho — a seed identific
 - [x] **F8.2** — `scripts/massa-escala/gerar.mjs` com as 6 travas, `--dry-run` e manifesto
 - [x] **F8.3** — `prng.mjs` (mulberry32, marco de data **fixo**) + `conteudo.mjs` por família
 - [x] **F8.4** — `arquivos.mjs` com preenchimento **incompressível** — provado por gzip no teste
-- [x] **F8.5** — `scripts/massa-escala/limpar.mjs`, cirúrgico por seed, pela RPC oficial
+- [x] **F8.5** — `scripts/massa-escala/limpar.mjs`, cirúrgico por seed, pela RPC oficial. **Dois defeitos silenciosos encontrados medindo, e corrigidos (22/08):** `list()` não paginava (deixou 200 PDFs) e arquivo órfão de geração falha era invisível (deixou 402). Agora ela **prova** o resultado e sai com erro se sobrar
 - [x] **F8.6** — `massa.test.mjs` — **27 testes, 27 verdes** (`node --test`, sem tocar o Vitest)
 - [ ] **F8.7** — `docs/medicoes/roteiro-baseline.md`
 - [ ] **F8.8** — Instrumentação de medição (`performance.mark`) — **decisão pendente**, ver Riscos
-- [ ] **F8.9** — Rodar estrutural 100/500/1.000/5.000 no ambiente aprovado — **laboratório pronto; próximo passo**
+- [~] **F8.9** — Estrutural local: **100, 500 e 1.000 feitos** (gerar → medir → registrar → limpar → provar, sem acumular). **5.000 em andamento.** Produção: não iniciado
 - [ ] **F8.10** — Rodar realista, calibração 1
-- [x] **F8.11** — Custo do índice da Fase 1 — **dívida FECHADA**: manter (780 varreduras/92 dias, 6 buffers no caminho real, 87,7 % das escritas são HOT)
+- [x] **F8.11** — Custo do índice da Fase 1 — **dívida FECHADA por medição, não só por retrato**: com o índice o primeiro boot PARA de crescer (912 buffers em 500, 913 em 1.000); sem ele vai de 1.444 a 2.046 e continua subindo. "Nada mudou" custa 7 buffers contra 4.086. **Manter**
 - [ ] **F8.12** — Baseline de PDF (5/15/30 folhas)
 - [ ] **F8.13** — Medições de banco, Storage e egress
 - [ ] **F8.14** — Classificar cada achado em A/B/C/D
@@ -488,7 +488,16 @@ não altera produção. A massa gerada sai por `limpar.mjs`.
 | 22/08 | **F8.1 executado.** Dívida do índice da Fase 1 **FECHADA — manter**. Regressão de primeiro boot **não reproduz** (48 buffers, e o planner nem usa o índice) | ✅ |
 | 22/08 | Achado novo: `app_storage_org_idx` é redundante com `app_storage_org_chave_uidx` (38 × 14.260). Classe **B** — a Fase 8 mede, não corrige | ✅ |
 | 22/08 | Visto no Dashboard: **"Grace period is over"** (cota/faturamento). Registrado como classe **A**, para o dono | ⚠️ |
-| 22/08 | **Massa continua em ZERO.** Próximo passo: degrau 100 estrutural local | ⏳ |
+| 22/08 | Degrau **100** local: 1.100 chaves, 0 falhas, 27,2 s; `--dry-run` bateu exato; limpo e provado | ✅ |
+| 22/08 | **Defeito de método achado no degrau 100:** laboratório de uma org só dá 100 % de seletividade, o planner escolhe `Seq Scan` e produção escolhe `Index Scan`. Subir a escala não conserta | ⚠️ |
+| 22/08 | **Dono aprovou as organizações de ruído.** 3 orgs locais × 300 equipamentos = 9.900 linhas de fundo, fixas entre degraus. Org alvo caiu para 10 % e o plano local passou a bater com o de produção | ✅ |
+| 22/08 | **Seed é de uso único por org:** regerar a seed 1 deu 1.100 `versao_obsoleta`. É o piso de tombstone do §2-ter funcionando, não defeito. Cada rodada usa seed nova | ✅ registrado |
+| 22/08 | Degraus **500** (5.500 chaves, 106 s) e **1.000** (11.000 chaves, 181 s) — 0 falhas, medidos e limpos | ✅ |
+| 22/08 | **F8.11 fechado por medição:** com índice o primeiro boot para de crescer (912 → 913 buffers de 500 para 1.000); sem índice vai de 1.444 a 2.046. "Nada mudou": 7 buffers contra 4.086 | ✅ |
+| 22/08 | **Dois defeitos SILENCIOSOS na limpeza**, achados medindo: `list()` sem paginação (200 PDFs ficaram) e órfão de geração falha invisível (402 arquivos ficaram). Corrigidos; a limpeza agora PROVA e sai com código 3 se sobrar. 29/29 testes | ✅ |
+| 22/08 | Escala **A/B/C/D confirmada pelo dono** e gravada aqui | ✅ |
+| 22/08 | Push de `36e5cf6`, `07d5e70`, `b8cbc3a` para `origin/main` | ✅ |
+| 22/08 | Degrau **5.000** em andamento. **Produção segue com massa ZERO** | ⏳ |
 
 ### Estimado × observado — recalibração por `--dry-run`
 
@@ -664,9 +673,11 @@ buffers e o planner nem usa esse índice.
 
 ### Achados classificados
 
-> ⚠️ **A escala A/B/C/D não está definida em nenhum documento do projeto.** Apliquei
-> **A** = age agora · **B** = age numa fase já planejada · **C** = observar · **D** = descartado.
-> **Confirme se é o que você quis dizer** antes de eu classificar o resto da fase com ela.
+> **Escala A/B/C/D — confirmada pelo dono em 22/08/2026.** Não estava definida em documento
+> nenhum; passa a estar aqui, e vale para o resto da fase:
+>
+> **A** = age agora · **B** = age numa fase já planejada · **C** = observar, sem ação ·
+> **D** = descartado, não é problema
 
 | Achado | Classe |
 |---|---|
