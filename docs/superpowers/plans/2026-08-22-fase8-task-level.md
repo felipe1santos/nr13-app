@@ -2,7 +2,7 @@
 
 ## Estado atual da fase
 
-`🟡 EM IMPLEMENTAÇÃO — laboratório Supabase local NO AR, com paridade provada. F8.1 fechado.`
+`✅ CONCLUÍDA — diagnóstico aprovado pelo dono em 22/08/2026 sobre o commit f6b2032.`
 **Nenhuma massa gerada, nem local nem em produção. Nenhuma linha de código de produção alterada.**
 Os dois bloqueios caíram em 22/08: o Docker foi instalado e o F8.1 foi executado. O laboratório
 está de pé e provado por teste funcional. **Próximo passo: degrau 100 estrutural local.**
@@ -378,15 +378,15 @@ Massa parcial (gerador interrompido) sai pelo mesmo caminho — a seed identific
 - [x] **F8.17** — UI/DOM/memória/long tasks/IndexedDB **medidos nas duas escalas**: 51.000 equipamentos (2.292.273 nós, 1.630 MB, ~4 min de bloqueio) e 1.000 com a aba visível (FCP 440 ms, warm em 1 requisição, `/equipamentos` 2,20 s / 42.283 nós / 4 long tasks, `/relatorios` 1,51 s / 15.250 nós, busca 395–1.215 ms)
 - [~] **F8.18** — PDF: **servir** relatório arquivado medido (273 nós, 1 iframe, 21 ms, `blob:`) — confirma o §7-quater. **Gerar** (5/15/30 folhas) NÃO medido: o fluxo exige container de inspeção, que a massa sintética não cria
 - [x] **F8.19** — **Diagnóstico consolidado da Fase 8 + lista objetiva para a Fase 9** — `medicoes/2026-08-22-fase8-diagnostico-consolidado.md`
-- [ ] **F8.7** — `docs/medicoes/roteiro-baseline.md`
-- [ ] **F8.8** — Instrumentação de medição (`performance.mark`) — **decisão pendente**, ver Riscos
+- [x] **F8.7** — roteiro de baseline: incorporado aos registros de medição (o roteiro é a seção "Como reproduzir" de cada um), em vez de um arquivo separado que duplicaria os números
+- [x] **F8.8** — Instrumentação: **nada em `src/`**. `PerformanceObserver` e amostradores injetados pelo console, como o R5 exigia
 - [~] **F8.9** — Estrutural local: **100, 500, 1.000 e 5.000 FEITOS** (gerar → medir → registrar → limpar → provar, sem acumular). Falta a via de UI (DOM, listas, IndexedDB) e os degraus 100/500 em **produção**, que são os únicos que medem latência e egress reais
-- [ ] **F8.10** — Rodar realista, calibração 1
+- [~] **F8.10** — Realista: **NÃO AUTORIZADO em produção** pelo dono. Os tamanhos calibrados (PDF 6,6 MB, foto 87,7 KB, thumb 14,5 KB) ficam registrados para quando for
 - [x] **F8.11** — Custo do índice da Fase 1 — **dívida FECHADA por medição em 4 escalas**. Leitura: com o índice o primeiro boot **não cresce** — 912 buffers em 500, 913 em 1.000, **913 em 5.000**; sem ele vai 1.444 → 2.046 → **6.347**. "Nada mudou": **7 buffers contra 12.602**. Escrita: **+8 % de buffers, +35 % de tempo**, e o índice **tirou o HOT** da tabela. **Manter** — compensa com folga
 - [~] **F8.12** — ver F8.18
-- [ ] **F8.13** — Medições de banco, Storage e egress
-- [ ] **F8.14** — Classificar cada achado em A/B/C/D
-- [~] **F8.15** — Massa **local** removida com prova nos 4 degraus (0 chaves, 0 arquivos da org alvo). Falta a massa de produção, que ainda não existe
+- [~] **F8.13** — Banco e Storage medidos no laboratório. **Egress permanece `PROJETADO`** — só sairia dos degraus em produção, que estão adiados
+- [x] **F8.14** — 25 achados classificados no fechamento
+- [x] **F8.15** — Massa do laboratório removida com prova pela ferramenta corrigida (as duas pontas). Massa em produção nunca existiu
 
 ---
 
@@ -482,6 +482,16 @@ não altera produção. A massa gerada sai por `limpar.mjs`.
 | 22/08 | **PDF arquivado: 273 nós, 1 iframe, 21 ms, `blob:`** — §7-quater confirmado em runtime. Achado menor: o PDF é pedido 2× | ✅ |
 | 22/08 | Cliquei sem querer em checkboxes de seleção de relatórios; **desmarquei tudo e conferi no banco: 2.000 relatórios, 1.000 índices, 1.000 equipamentos intactos** | ✅ |
 | 22/08 | **Diagnóstico consolidado atualizado com as duas escalas.** Fase 8 encerrada na medição | ✅ |
+| 22/08 | **DONO APROVOU O DIAGNÓSTICO** sobre `f6b2032`. Veredito: o critério de produto **NÃO PASSA em grande escala** | ✅ |
+| 22/08 | Degraus 100/500 em produção classificados como **CALIBRAÇÃO DE PRODUÇÃO ADIADA / NÃO BLOQUEANTE** — não é falha da Fase 8 | ⏸️ |
+| 22/08 | **Busca server-side APROVADA para a Fase 9**, mas **sem `LIKE` sobre `app_storage.valor`** — o dono exige camada pesquisável aditiva e indexável, com projeção LEVE | ✅ |
+| 22/08 | Exigência dura do dono: **não criar segunda verdade**. O plano da Fase 9 tem de responder o que acontece se o `app_storage` salva e a projeção falha | ✅ registrado |
+| 22/08 | Ressalva arquitetural do dono: **THROTTLE ≠ SOLUÇÃO DE ESCALA**. Restaurar o throttle é obrigatório, mas uma hidratação integral já é inadequada em dezenas de milhares | ✅ registrado |
+| 22/08 | **Offline é obrigatório** — busca server-side não pode significar "sem internet não acha nada". Estratégia explícita exigida no plano | ✅ registrado |
+| 22/08 | Prioridade corrigida pelo dono: **G3 rebaixado de A para B** (10 ms em 1.000). Ordem passa a ser sair da hidratação integral → paginação/virtualização → busca | ✅ |
+| 22/08 | **Baseline de GERAÇÃO de PDF** marcada como **PRÉ-REQUISITO ANTES DA FASE 11** — não bloqueia a Fase 8 | ⏸️ |
+| 22/08 | Laboratório limpo com a ferramenta corrigida; `.env.local` removido; app confirmado apontando para produção | ✅ |
+| 22/08 | **FASE 8 CONCLUÍDA.** Fase 9 **não** iniciada — o dono quer aprovar o PLANO arquitetural primeiro | ✅ |
 | 22/08 | Fase 7 fechada (P4 ✅). Fase 8 autorizada **só para planejamento/baseline** | ✅ |
 | 22/08 | Lidos: `ESTADO-DAS-FASES.md`, Fase 8 do plano macro (linhas 2142–2350), Fase 9 (para saber o que **não** fazer), `PENDENCIAS.md`, medições das Fases 1, 2, 5, 6, 7 | ✅ |
 | 22/08 | AS-IS de código mapeado: `demoSeed`, `storageV2.lerTudo`, `listarEquipamentos`, `Equipamentos.tsx`, `vencimentos.ts`, `pdfService.ts`, `db.ts`, padrão de `scripts/` | ✅ |

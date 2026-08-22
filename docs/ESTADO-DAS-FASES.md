@@ -100,56 +100,57 @@ Sempre use um destes. Nunca "concluído".
 | **4** | Portal: arquitetura de leitura (A-02) | ✅ **CONCLUÍDA** | **P3 FECHADO ✅** aprovado 20/08 | `plans/2026-08-20-fase4-task-level.md` |
 | **5** | Fotos: thumbnail, EXIF, teto de altura (A-08) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** | — | `plans/2026-08-20-fase5-task-level.md` · `medicoes/2026-08-20-fase5-producao-antes-depois.md` |
 | **6** | Recuperação do fallback base64 (A-10) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** nas 3 famílias, com SHA-256 idêntico | — | `plans/2026-08-20-fase6-task-level.md` |
+| **8** | Escala, dataset e medições | ✅ **CONCLUÍDA** (22/08) — diagnóstico aprovado; o critério de produto **NÃO PASSA em grande escala**, e isso é o mandato da Fase 9 | — | `plans/2026-08-22-fase8-task-level.md` · `medicoes/2026-08-22-fase8-fechamento.md` |
 | **7** | Logo e rubrica por conteúdo (A-05) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** (7A EXPAND + 7B SWITCH, Portal e offline real) | **P4 FECHADO ✅** aprovado 22/08 | `plans/2026-08-20-fase7-task-level.md` · `medicoes/2026-08-20-fase7b-validacao-producao.md` |
 | **8** | Escala, dataset determinístico e medições (A-17) | 🟡 **PLANEJADA** — AS-IS, dataset e plano de medição escritos; **nenhuma massa gerada** | — | `plans/2026-08-22-fase8-task-level.md` |
 | 9…13 | ver plano macro | PLANEJADO | P5…P8 | `plans/2026-08-15-evolucao-arquitetura.md` |
 
 **Fase atual:** **8 — em implementação.** Gerador de massa pronto e testado (27/27); **nenhuma massa gerada**. A Fase 7 está CONCLUÍDA e o P4 FECHADO.
-**Próxima ação exata:** **Fase 8 encerrada na parte de medição.** Restam só três itens declarados
-como não medidos (boot cold cronometrado, FPS de scroll e baseline de GERAÇÃO de PDF) e os degraus
-100/500 em produção, que seguem `PENDENTE DE AUTORIZAÇÃO`. O próximo passo é seu: aprovar o
-diagnóstico e decidir o item 4 da lista da Fase 9 (onde os metadados pesquisáveis vão viver).
+**Fase atual:** **9 — PLANEJADA, não iniciada.** O dono quer **aprovar o PLANO arquitetural**
+antes de qualquer alteração de schema ou de `src/`.
 
-**DIAGNÓSTICO CONSOLIDADO:** `medicoes/2026-08-22-fase8-diagnostico-consolidado.md`.
+**Próxima ação exata:** escrever o **plano da Fase 9** (só o plano). Ele precisa mostrar: como sair
+da hidratação integral · arquitetura de metadados pesquisáveis · consistência da projeção · RLS ·
+online/offline · paginação/cursor · virtualização · índices · UX · rollout sem regressão · rollback
+· benchmarks antes/depois.
 
-### A pergunta de produto, respondida com número
+**FECHAMENTO DA FASE 8:** `medicoes/2026-08-22-fase8-fechamento.md` — aprovado pelo dono sobre o
+commit `f6b2032`.
 
-Com **51.000 equipamentos**: abertura **> 10 min**, `/equipamentos` com **2.292.273 nós** e
-**1.630 MB** de heap, thread bloqueada **~4 min**, e depois um `querySelectorAll` não completa em
-45 s. **Hoje a resposta é NÃO.**
+### Veredito
 
-Com **1.000 equipamentos**, medido com a aba visível: warm boot com **FCP de 440 ms** e hidratação
-em **1 requisição (1.121 ms)**; `/equipamentos` em **2,20 s** com **42.283 nós** e 4 long tasks
-(maior de 432 ms); `/relatorios` em **1,51 s** com 15.250 nós. **Nessa escala o sistema funciona** —
-a curva quebra entre 5.000 e 50.000.
+**O critério de produto NÃO PASSA em grande escala.** Com 1.000 equipamentos o sistema funciona
+(FCP 440 ms, `/equipamentos` 2,20 s, 42.283 nós); com ~51.000 fica **inutilizável** (> 10 min para
+abrir, 2.292.273 nós, 1,63 GB de heap, ~4 min de bloqueio). **A curva quebra por arquitetura, não
+por algoritmo.**
 
-### Os quatro gargalos estruturais
+### Mandato da Fase 9 (decisões formais do dono, 22/08)
 
-1. **Não existe busca no servidor, em lugar nenhum** — zero `.ilike/.like/.textSearch/.or` em todo
-   o `src/`. Logo `app_storage_org_atualizado_idx` **não serve busca e nunca poderia**.
-2. **Nenhuma tela tem paginação, cursor ou virtualização** — 42 nós por card, 1:1 com a base.
-3. **`/relatorios` faz `JSON.parse` do registro pesado só para o contador** — 3,1× de desperdício,
-   ~500 ms em 50.000 equipamentos. Real e barato, mas **não é o dominante**.
-4. **O throttle de `lerTudo()` existe na v1 e se perdeu na v2** — 583 requisições onde 111 bastavam.
-   **Regressão.** Classe **A para a Fase 9; não corrigido na baseline**, como determinado.
+1. **Busca server-side SIM**, mas **sem `LIKE` sobre `app_storage.valor`** — camada pesquisável
+   aditiva e indexável, **projeção LEVE** (sem blobs, base64, snapshots ou PDFs). Modelagem a
+   analisar; **não assumir duas tabelas**.
+2. **Não criar segunda verdade.** O plano deve responder: *o que acontece se o `app_storage` salva
+   e a projeção falha?*
+3. **THROTTLE ≠ SOLUÇÃO DE ESCALA.** Restaurar o throttle da v1 é obrigatório (regressão
+   comprovada), mas **uma hidratação integral já é inadequada** em dezenas de milhares. Boot
+   progressivo/sob demanda.
+4. **Offline não pode ser perdido.** Estratégia explícita para online × offline, e a UI precisa
+   informar as limitações. Não quebrar PWA em silêncio.
+5. **Três mecanismos, três responsabilidades:** cursor controla o que vem do servidor;
+   virtualização, o que vai ao DOM; busca server-side evita baixar tudo. Preferir keyset.
+6. **Cada índice precisa de consulta real e benchmark.** `app_storage_org_atualizado_idx` segue
+   aprovado para hidratação e **não é índice de busca**.
+7. **UX e arquitetura se corrigem juntas** — nada de `<input>` decorativo sobre milhares de cards.
+8. Prioridade por impacto: **G3 rebaixado para B** (10 ms em 1.000 equipamentos).
 
-Confirmados em runtime: **`Werner` (fabricante) devolve zero resultados** embora o campo exista, e
-**o campo de busca fica escondido atrás do botão "Filtrar"** na única tela que tem busca.
+### Marcados, não fechados
 
-### O que está certo e não se mexe
+- Degraus 100/500 em produção: **CALIBRAÇÃO DE PRODUÇÃO ADIADA / NÃO BLOQUEANTE** (aviso de cota).
+- Realista em produção: **NÃO AUTORIZADO**.
+- **Baseline de GERAÇÃO de PDF (5/15/30 folhas): PRÉ-REQUISITO ANTES DA FASE 11.**
+- Boot cold cronometrado e FPS de scroll: não medidos, motivo declarado.
 
-**Arquitetura de PDF** (relatório arquivado abre com 273 nós e 1 iframe, PDF servido em 21 ms — o
-§7-quater funcionando), **v2 de armazenamento** (10.317 MB de cota), **palco** (5 KB), **fotos sob
-demanda** (só 5 imagens carregadas em 1.000 cards) e **o índice da Fase 1**.
-
-### Requisito formal mantido (22/08)
-
-A **Fase 9** implementa busca profissional e escalável nas telas sem busca ou com filtro só no
-cliente. Sem input decorativo sobre arquitetura ruim. A decisão de **onde os metadados pesquisáveis
-vão viver** é do dono, porque muda schema.
-
-**⏸️ Degraus 100/500 em PRODUÇÃO: `PENDENTE DE AUTORIZAÇÃO`.** Realista em produção: não autorizado.
-**Massa em produção: ZERO.** Nada em `src/`. Fase 9 e PDF vetorial, não iniciados.
+**Massa em produção: ZERO. Nada em `src/` foi alterado. PDF vetorial não iniciado.**
 
 Os dois roteiros ficam gravados, já com os resultados marcados:
 
