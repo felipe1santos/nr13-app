@@ -20,7 +20,12 @@ export const PREFIXO = 'ZZ-SCALE-F8-';
  * consciente de quem edita o arquivo, e o diff mostra.
  */
 export const ORGS_DE_TESTE = [
-  '99f642d3-6efd-446d-9e76-d234ad8d211c', // teste@gmail.com
+  '99f642d3-6efd-446d-9e76-d234ad8d211c', // teste@gmail.com — PRODUÇÃO
+  // Laboratório Supabase local (22/08/2026), usuário `lab@local.test`. Só
+  // existe no banco descartável de `npx supabase start`; em produção este uuid
+  // não corresponde a organização nenhuma, e a 5ª trava
+  // (`NR13_PERMITIR_PRODUCAO`) continua valendo de qualquer forma.
+  '6721e0d7-4229-4b7d-b495-05677f574d45',
 ];
 
 /** TAGs que a limpeza NUNCA pode tocar, mesmo se algo der errado no filtro. */

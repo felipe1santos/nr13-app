@@ -1,6 +1,8 @@
 # Fase 8 · Laboratório Supabase local + F8.1 (dívida do índice da Fase 1)
 
-**22/08/2026** · somente leitura em produção · **nenhuma massa gerada** · **nada em `src/` alterado**
+**22/08/2026** · somente leitura em produção · **nenhuma massa em produção** · **nada em `src/` alterado**
+
+No laboratório local: degrau **100 estrutural gerado, medido e removido com prova**.
 
 ---
 
@@ -12,6 +14,8 @@
 3. Aplicou as **migrations reais** do repo, na ordem corrigida por dependência.
 4. Provou o laboratório por teste funcional, não só por nomes de objeto iguais.
 5. Rodou o **F8.1** e fechou a dívida do índice da Fase 1.
+6. Rodou o **degrau 100 estrutural** local — gerar, medir, registrar, limpar, provar.
+7. Encontrou um **defeito de método**: laboratório de uma organização só não mede índice de leitura (§9).
 
 ---
 
@@ -255,17 +259,126 @@ lembrete de que **nesta escala nada disso é gargalo**.
 
 ---
 
-## 9 · O que NÃO foi feito
+## 9 · Degrau 100 estrutural — local · seed 1
 
-- **Nenhuma massa gerada**, nem local nem em produção.
+```
+node scripts/massa-escala/gerar.mjs --org 6721e0d7-... --perfil estrutural \
+  --equipamentos 100 --seed 1 --relatorios-por-equipamento 2 --confirmar-org-de-teste
+```
+
+Escrito pela **mesma porta do app** — login `authenticated` + `aplicar_mutacao_storage`,
+nunca `service_role`.
+
+### Geração
+
+| | Planejado (`--dry-run`) | **Real** |
+|---|---|---|
+| Chaves | 1.100 | **1.100**, 0 falhas |
+| Conteúdo | 0,81 MB | **830 kB** |
+| Arquivos no bucket | 402 · 4,61 MB | **402 · 4,61 MB** |
+| Desvio de tamanho do PDF | ±10 % tolerado | **0,00 %** |
+| Tempo | — | **27,2 s** (~40 chaves/s pela RPC, em loopback) |
+
+O `--dry-run` bateu com o real em tudo. Manifesto: `massa-f8-estrutural-1-100.json`.
+
+### Peso no banco
+
+| | |
+|---|---|
+| Heap | 800 kB |
+| Índices | 472 kB |
+| **Total** | **1.304 kB** |
+| Conteúdo (`sum(length(valor))`) | 830 kB |
+
+Índices custam **59 % do heap** nesta escala. Tamanho de cada um: `pkey` 112 kB ·
+`org_idx` 112 kB · `org_chave_uidx` 112 kB · `org_atualizado_idx` 104 kB · `user_idx` 16 kB ·
+`deletado_idx` 16 kB.
+
+### Por família — o que realmente pesa
+
+| Família | Chaves | Conteúdo |
+|---|---:|---:|
+| `nr13_historico_indice_` | 100 | **130 kB** |
+| `nr13_rel_<id>_` | 200 | ~**492 kB** (2.478–2.484 B cada) |
+| `nr13_calc_` | 100 | 49 kB |
+| `nr13_fotos_` | 100 | 38 kB |
+| `nr13_emp_` | 100 | 37 kB |
+| `nr13_info_` | 100 | 33 kB |
+| `nr13_vida_` | 100 | 29 kB |
+| `nr13_docs_` | 100 | 15 kB |
+| `nr13_cat_` | 100 | 14 kB |
+| `nr13_pref_unidade_` | 100 | 400 B |
+
+Os relatórios são **59 % do conteúdo** já em 100 equipamentos com 2 relatórios cada — e é a
+família que cresce sem teto ao longo da vida da conta. Confirma a leitura do §7-sexies.
+
+### ⚠️ ACHADO METODOLÓGICO — o laboratório de uma org só não mede índice de leitura
+
+| Cenário | Buffers (mediana de 3) | Execução (mediana) | Plano |
+|---|---:|---:|---|
+| Primeiro boot · **com** índice | 106 | 1,27 ms | **Seq Scan** |
+| Primeiro boot · **sem** índice | 106 | 3,10 ms | Seq Scan |
+| "Nada mudou" · **com** índice | **109** | 0,86 ms | Seq Scan + subconsulta |
+| "Nada mudou" · **sem** índice | **206** | 0,65 ms | Seq Scan + subconsulta |
+
+**O planner escolheu `Seq Scan` em todos os casos** — e em produção, a mesma consulta escolhe
+`Index Scan using app_storage_org_atualizado_idx`.
+
+A causa é seletividade, não escala: **100 % das linhas do laboratório pertencem à org alvo**,
+contra **11,5 %** da org de teste em produção (99 de 864). Com o filtro `org_id` casando tudo,
+varrer a tabela inteira é a decisão CORRETA do planner — e nenhum índice sobre `org_id` ajuda.
+
+> **Consequência que precisa ficar escrita:** enquanto o laboratório tiver uma organização só,
+> os degraus 500, 1.000 e 5.000 vão medir bem **peso de dado, DOM, listas, IndexedDB e custo de
+> escrita** — mas **não** medem escolha de plano nem eficácia de índice de leitura. Subir a
+> escala não conserta: 5.000 equipamentos de uma org só continuam sendo 100 % da tabela.
+>
+> **Correção proposta (precisa da sua decisão):** criar 2–3 organizações de ruído no laboratório
+> e distribuir a massa, deixando a org alvo em ~10–40 % das linhas, que é a faixa real de
+> produção. Custa uma rodada a mais por degrau e faz o plano local voltar a bater com o de
+> produção.
+
+O único efeito de índice que sobreviveu à baixa seletividade é real e vale registrar: a
+subconsulta `max(atualizado_em)` da marca de sync custa **206 buffers sem o índice e 109 com**
+ele. O índice **corta pela metade** o custo de descobrir "mudou alguma coisa?", que é a pergunta
+feita em **todo boot de todo aparelho**.
+
+O índice foi **recriado** logo após o benchmark, e a recriação foi conferida.
+
+### Limpeza — e a prova
+
+```
+node scripts/massa-escala/limpar.mjs --org 6721e0d7-... --seed 1            # ensaio
+node scripts/massa-escala/limpar.mjs --org 6721e0d7-... --seed 1 --confirmar
+```
+
+O ensaio sem `--confirmar` listou 1.100 alvos em 100 TAGs e não apagou nada. A limpeza real
+removeu **1.100 chaves, 0 falhas, 402 arquivos**.
+
+| Prova | Resultado |
+|---|---|
+| Linhas vivas com o prefixo da massa | **0** |
+| Linhas vivas na org | **0** |
+| Arquivos no bucket | **0** |
+| Tombstones | **1.100** — é a PROVA da exclusão (§2-ter), não sobra |
+
+**Nota para os próximos degraus:** depois da limpeza o heap continuou em 800 kB e os índices
+subiram para 760 kB — bloat do ciclo de escrita+exclusão. **`VACUUM` entre degraus**, senão o
+peso de um degrau contamina a medição do seguinte.
+
+---
+
+## 10 · O que NÃO foi feito
+
+- **Nenhuma massa em produção.** No laboratório local, o degrau 100 foi gerado, medido e removido com prova.
 - **Nenhuma escrita em produção.** Só `select` e `explain (analyze)` sobre `select`.
 - **Nada em `src/`** alterado.
-- Degraus 100/500/1.000/5.000: **não iniciados** — próximo passo.
+- Degraus 500 / 1.000 / 5.000: **não iniciados** — aguardam a decisão sobre as organizações de ruído (§9).
 - Fase 9 e PDF vetorial: **não iniciados**.
 
 ---
 
-## 10 · Como reproduzir
+## 11 · Como reproduzir
 
 ```bash
 docker --version                       # 29.7.2
