@@ -105,54 +105,41 @@ Sempre use um destes. Nunca "concluído".
 | 9…13 | ver plano macro | PLANEJADO | P5…P8 | `plans/2026-08-15-evolucao-arquitetura.md` |
 
 **Fase atual:** **8 — em implementação.** Gerador de massa pronto e testado (27/27); **nenhuma massa gerada**. A Fase 7 está CONCLUÍDA e o P4 FECHADO.
-**Próxima ação exata:** terminar o **degrau 5.000** local (em andamento) e, depois dele,
-os degraus **100 e 500 estruturais em produção** — que são os únicos que medem **latência real**
-e **egress**, coisas que o laboratório não tem. Realista em produção segue **NÃO autorizado**.
+**Próxima ação exata:** medir a via de **UI** (DOM, memória, long tasks, IndexedDB, cold × warm)
+e a **baseline de PDF**, com os 1.000 equipamentos já carregados no laboratório. **Bloqueado num
+ponto:** exige um login no app, e eu não insiro senha em formulário — o dono precisa fazer esse
+login uma vez.
 
-**O laboratório está de pé, provado e já produziu resultado.** Docker 29.7.2, Postgres **17.6 —
-igual ao de produção**, 13 migrations aplicadas sem falha, paridade objeto a objeto e
-comportamento validado (RPC, guarda, conflito, tombstone, idempotência).
+**Degraus locais 100/500/1.000/5.000: CONCLUÍDOS e removidos com prova.** F8.1 e F8.11 fechados
+(manter o `app_storage_org_atualizado_idx`: com ele o primeiro boot **não cresce** — 913 buffers
+de 500 a 5.000 equipamentos; sem ele vai a 6.347). Registro:
+`medicoes/2026-08-22-fase8-laboratorio-e-f81.md`.
 
-**Duas ausências graves no repositório, encontradas e corrigidas:** `public.app_storage` — a
-tabela base de todo o sistema — não tinha `CREATE TABLE` em lugar nenhum, nem o trigger
-`app_storage_touch`, nem os **GRANTs de tabela**. Sem isso o sistema não era reconstruível a
-partir do repositório. Recuperados de produção por consulta somente leitura e gravados em
-`supabase/app_storage_base.sql` e `supabase/grants_postgrest.sql` — **no-op em produção**,
-aplicar lá é decisão do dono.
+**⏸️ Degraus 100/500 em PRODUÇÃO: `PENDENTE DE AUTORIZAÇÃO`** — suspensos pelo dono em 22/08 até
+esclarecer o aviso de cota do Supabase ("Grace period is over"). Não bloqueia o resto da Fase 8.
+Realista em produção: **não autorizado**.
 
-**F8.1 e F8.11 FECHADOS.** Manter o `app_storage_org_atualizado_idx`, agora por medição em
-**quatro escalas** e não só pelo retrato de produção: **com o índice o custo do primeiro boot não
-cresce** — **913 buffers em 500, 1.000 e 5.000 equipamentos**, porque o `limit 1000` corta;
-**sem** ele vai 1.444 → 2.046 → **6.347**, subindo com a tabela inteira. E "nada mudou" — a
-pergunta de todo boot de todo aparelho — custa **7 buffers com o índice contra 12.602 sem**. A
-regressão de primeiro boot registrada na Fase 1 (65 → 236) **não existe em escala nenhuma
-medida**.
+### Requisito formal novo (22/08): busca, UX e escala
 
-O custo de escrita também foi medido: **+8 % de buffers e +35 % de tempo**. E uma correção: eu
-tinha registrado que "87,7 % das atualizações são HOT, logo o índice quase não custa na escrita"
-— **errado**, porque o índice entrou em 16/08 e a janela de estatísticas começa em 22/05. Com o
-índice presente, o HOT medido é **0,1 %**: `atualizado_em` está dentro dele e toda escrita mexe
-nessa coluna. O veredito não muda; o argumento sim.
+Fase 8 **audita e mede**; Fase 9 **corrige**. Auditoria concluída:
+`medicoes/2026-08-22-fase8-auditoria-busca-e-listas.md`. O achado que governa o resto:
 
-**Três defeitos SILENCIOSOS na ferramenta de limpeza**, achados justamente por medir — todos da
-mesma família, incompletude que se declara sucesso: `list()` não paginava (deixou 200 PDFs);
-arquivo órfão de geração que falha era invisível para ela (deixou 402); e **não havia repescagem
-nem prova sobre as chaves** — no degrau de 5.000, **2.004 chaves de 55.000 falharam por causa
-transitória** e a limpeza imprimiu mesmo assim uma linha de prova de aparência vitoriosa (rodar de
-novo removeu as 2.004 com zero falhas). Corrigidos: a limpeza agora **repete o que falha** e
-**prova as duas pontas**, banco e bucket, saindo com erro se sobrar. 29/29 testes verdes.
+> **Não existe busca no servidor, em lugar nenhum do sistema.** Zero `.ilike/.like/.textSearch/
+> .or` em todo o `src/`. Toda busca é `.filter()` em JavaScript sobre a organização INTEIRA já
+> hidratada. Logo, `app_storage_org_atualizado_idx` **não serve busca e nunca poderia** — não há
+> consulta de busca para ele atender.
 
-**Os 4 degraus locais estão concluídos e removidos com prova** — 0 chaves e 0 arquivos da org
-alvo; restam só as 9.900 linhas de ruído, que são permanentes entre degraus.
+Das 14 telas auditadas, **só `/equipamentos` e `/acesso` têm busca textual**, e **nenhuma tela do
+sistema tem paginação, cursor ou virtualização**. Em 50.000 equipamentos o navegador precisa
+baixar **~410 MB** e materializar 550.000 entradas **antes** de o usuário poder buscar qualquer
+coisa.
 
-Registro completo, com todos os números: `medicoes/2026-08-22-fase8-laboratorio-e-f81.md`.
+Gargalos classe **A**: (1) nenhuma busca server-side; (2) `/relatorios` faz `JSON.parse` de todo
+registro pesado só para desenhar o contador do card — 100.000 parses e ~250 MB em 50.000
+equipamentos, e é o conserto mais barato da Fase 9; (3) DOM cresce 1:1 com a base.
 
-**Escala A/B/C/D confirmada pelo dono:** A = age agora · B = age numa fase já planejada ·
-C = observar · D = descartado.
-
-⚠️ **Atenção do dono:** o Dashboard do Supabase mostra **"Grace period is over"**
-(cota/faturamento). Classificado **A**, e mais um motivo para não gerar massa em produção antes
-de resolver isso.
+**A arquitetura de PDF está CORRETA** e não precisa mudar: o índice é leve, carrega `pdfRef`, e o
+PDF só é resolvido no clique — ter 50.000 PDFs no Storage não faz o sistema enumerá-los.
 
 **Massa em produção continua ZERO.** Nada em `src/` foi alterado. Fase 9 e PDF vetorial, não
 iniciados.

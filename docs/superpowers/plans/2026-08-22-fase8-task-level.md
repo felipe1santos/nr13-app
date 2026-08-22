@@ -372,6 +372,11 @@ Massa parcial (gerador interrompido) sai pelo mesmo caminho — a seed identific
 - [x] **F8.4** — `arquivos.mjs` com preenchimento **incompressível** — provado por gzip no teste
 - [x] **F8.5** — `scripts/massa-escala/limpar.mjs`, cirúrgico por seed, pela RPC oficial. **Três defeitos silenciosos encontrados medindo, e corrigidos (22/08):** `list()` não paginava (deixou 200 PDFs); arquivo órfão de geração falha era invisível (deixou 402); e **não havia repescagem nem prova sobre as chaves** — no degrau de 5.000, 2.004 falhas transitórias sobreviveram a uma linha de prova de aparência vitoriosa. Agora ela **repete o que falha** e **prova as duas pontas**, saindo com código 3 se sobrar
 - [x] **F8.6** — `massa.test.mjs` — **27 testes, 27 verdes** (`node --test`, sem tocar o Vitest)
+- [x] **F8.16** — **Auditoria de busca/listas/escala** (requisito formal do dono, 22/08) —
+      14 telas auditadas nas 15 perguntas, benchmarks de busca em 50.000 equipamentos, 10
+      gargalos classificados. `medicoes/2026-08-22-fase8-auditoria-busca-e-listas.md`
+- [ ] **F8.17** — UI/DOM/memória/long tasks/IndexedDB/cold×warm — **bloqueado por login**
+- [ ] **F8.18** — Baseline de PDF (5/15/30 folhas) — mesmo bloqueio
 - [ ] **F8.7** — `docs/medicoes/roteiro-baseline.md`
 - [ ] **F8.8** — Instrumentação de medição (`performance.mark`) — **decisão pendente**, ver Riscos
 - [~] **F8.9** — Estrutural local: **100, 500, 1.000 e 5.000 FEITOS** (gerar → medir → registrar → limpar → provar, sem acumular). Falta a via de UI (DOM, listas, IndexedDB) e os degraus 100/500 em **produção**, que são os únicos que medem latência e egress reais
@@ -450,6 +455,16 @@ não altera produção. A massa gerada sai por `limpar.mjs`.
 
 | Quando | O quê | Estado |
 |---|---|---|
+| 22/08 | **Dono suspendeu os degraus 100/500 em PRODUÇÃO** até esclarecer a cota. Marcado `PENDENTE DE AUTORIZAÇÃO`; não bloqueia o resto | ⏸️ |
+| 22/08 | **Requisito formal novo:** busca/UX/escala. Fase 8 AUDITA e MEDE; Fase 9 corrige | ✅ |
+| 22/08 | 🔴 **Achado que governa a auditoria: NÃO EXISTE busca server-side.** Zero `.ilike/.like/.textSearch/.or` em todo o `src/`. Toda busca é `.filter()` sobre a org inteira hidratada | ✅ |
+| 22/08 | 14 telas auditadas. Só `/equipamentos` e `/acesso` têm busca. **Nenhuma tela tem paginação, cursor ou virtualização** | ✅ |
+| 22/08 | **`/relatorios` faz `JSON.parse` de todo `nr13_rel_` só para o contador do card** — 100.000 parses e ~250 MB em 50.000 equipamentos. Classe **A**, e o conserto mais barato da Fase 9 | ✅ |
+| 22/08 | Benchmarks de busca com **50.000 equipamentos só em metadados** (nenhum PDF real): TAG exata 4 buffers/0,07 ms ✅; **prefixo de TAG 10.917 buffers/26 ms** ❌; nº de série 57 ms; relatório por código 80 ms | ✅ |
+| 22/08 | Causa do prefixo não usar índice **identificada**: collation `en_US.UTF-8` com opclass `text_ops` — btree não serve `LIKE 'prefixo%'` sem `text_pattern_ops` | ✅ |
+| 22/08 | **A arquitetura de PDF está CORRETA** — índice leve com `pdfRef`, e o PDF só é resolvido no clique. O defeito não é o PDF, é o contador | ✅ |
+| 22/08 | Projeção: em 50.000 equipamentos o navegador baixa **~410 MB** e materializa 550.000 entradas **antes** de qualquer busca | ✅ |
+| 22/08 | UI/DOM/memória/IndexedDB/PDF **bloqueados**: exigem login no app, e não insiro senha em formulário. Pedido feito ao dono | ⏸️ |
 | 22/08 | Fase 7 fechada (P4 ✅). Fase 8 autorizada **só para planejamento/baseline** | ✅ |
 | 22/08 | Lidos: `ESTADO-DAS-FASES.md`, Fase 8 do plano macro (linhas 2142–2350), Fase 9 (para saber o que **não** fazer), `PENDENCIAS.md`, medições das Fases 1, 2, 5, 6, 7 | ✅ |
 | 22/08 | AS-IS de código mapeado: `demoSeed`, `storageV2.lerTudo`, `listarEquipamentos`, `Equipamentos.tsx`, `vencimentos.ts`, `pdfService.ts`, `db.ts`, padrão de `scripts/` | ✅ |
@@ -845,6 +860,11 @@ node scripts/massa-escala/gerar.mjs --org <uuid> --perfil estrutural \
   --url <url> --confirmar-org-de-teste --dry-run     # não escreve nada
 ```
 
-**Produção continua sem massa.** Os degraus 100 e 500 estruturais seguem autorizados, mas só
-depois do laboratório local provado. Realista em produção: **não autorizado**.
+**Produção continua sem massa.**
+
+> ### ⏸️ DEGRAUS 100 e 500 EM PRODUÇÃO — **PENDENTE DE AUTORIZAÇÃO** (22/08/2026)
+>
+> Estavam autorizados; o dono **suspendeu** depois que o Dashboard do Supabase passou a
+> exibir **"Grace period is over"** (cota/faturamento). Não é bloqueio para o resto da
+> Fase 8 — só para gerar massa em produção. Realista em produção: **não autorizado**.
 **Não iniciar a Fase 9. Não iniciar PDF vetorial.**
