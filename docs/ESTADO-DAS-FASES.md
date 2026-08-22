@@ -105,7 +105,23 @@ Sempre use um destes. Nunca "concluído".
 | 9…13 | ver plano macro | PLANEJADO | P5…P8 | `plans/2026-08-15-evolucao-arquitetura.md` |
 
 **Fase atual:** **8 — em implementação.** Gerador de massa pronto e testado (27/27); **nenhuma massa gerada**. A Fase 7 está CONCLUÍDA e o P4 FECHADO.
-**Próxima ação exata:** *(sessão interrompida em 22/08/2026 para instalar o Docker e reiniciar o Windows — ver o bloco no topo do Ponto de retomada do task-level da Fase 8)*. Ao voltar: `docker --version` → `npx supabase init` + `npx supabase start` → aplicar as migrations REAIS de `supabase/*.sql` → documentar diferenças local x produção → degraus 100/500/1.000/5.000 **um por vez** (gerar, medir, registrar, limpar, provar). Se o F8.1 (`supabase/fase8_indice_verificar.sql`, 4 blocos, somente leitura) já tiver sido rodado, classificar a saída em A/B/C/D primeiro. Nenhuma massa em produção antes do laboratório local provado; realista em produção NÃO autorizado; Fase 9 e PDF vetorial não iniciados.
+**Próxima ação exata:** 🔴 **PARADO, aguardando o dono.** O laboratório Supabase local **subiu**
+(Docker 29.7.2, Postgres 17.6, 12 contêineres, API 54321 · DB 54322 · Studio 54323) — mas
+**`public.app_storage`, a tabela base de todo o sistema, não tem `CREATE TABLE` em lugar nenhum do
+repositório**: os 16 `.sql` que a citam apenas a ALTERAM. Sem ela, nenhuma migration real aplica.
+A recuperação read-only do DDL de produção (spec OpenAPI do PostgREST) devolveu
+`401 — Only secret API keys can be used for this endpoint`; a anon key do `.env` não descreve schema.
+**Schema não foi improvisado e produção não foi tocada.** Decisão do dono entre: (A) fornecer a senha
+do banco de produção para `supabase db dump` somente leitura — caminho fiel; (B) autorizar uma
+reconstrução do DDL por evidência, declarada como reconstrução, com o tipo de `valor` confirmado à
+parte; (C) o dono colar o DDL do Dashboard (Table Editor → `app_storage` → Definition).
+Depois disso: aplicar os `.sql` na **ordem corrigida por dependência** (registrada no task-level —
+`armazenamento_v2.sql` **não** é o primeiro) → documentar diferenças local × produção → degraus
+100/500/1.000/5.000 **um por vez** (gerar, medir, registrar, limpar, provar). F8.1
+(`supabase/fase8_indice_verificar.sql`, 4 blocos, somente leitura) **continua pendente** no SQL
+Editor; quando rodar, classificar a saída em A/B/C/D antes de seguir. Nenhuma massa em produção
+antes do laboratório local provado; realista em produção NÃO autorizado; Fase 9 e PDF vetorial não
+iniciados.
 
 Os dois roteiros ficam gravados, já com os resultados marcados:
 

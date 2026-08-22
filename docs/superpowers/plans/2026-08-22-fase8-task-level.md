@@ -2,7 +2,7 @@
 
 ## Estado atual da fase
 
-`🟡 EM IMPLEMENTAÇÃO — gerador, limpeza e testes prontos; estimativas recalibradas com bytes reais.`
+`🟡 EM IMPLEMENTAÇÃO — laboratório Supabase local NO AR; bloqueado no schema base.`
 **Nenhuma massa gerada, nem local nem em produção. Nenhuma linha de código de produção alterada.**
 Bloqueado em dois pontos que dependem do dono: **Docker não existe nesta máquina** (laboratório
 local) e **F8.1 precisa do SQL Editor**.
@@ -472,6 +472,13 @@ não altera produção. A massa gerada sai por `limpar.mjs`.
 | 22/08 | F8.1 reescrito **sem placeholder**: 4 blocos, org e marca auto-resolvidas e provadas no código (`storageV2.ts:409` e `:365-374`) | ✅ |
 | 22/08 | Ambiente conferido: Win 11 Pro build 26200 x64 · virtualização na BIOS **ativa** · **WSL não instalado** · `HypervisorPresent: False` · 224 GB livres · **RAM 7,6 GB** · sessão não elevada | ⚠️ registrado |
 | 22/08 | Passo a passo de instalação entregue ao dono (`wsl --install` → reinício → Docker Desktop). **Parado antes do reinício**, como combinado | ⏳ |
+| 22/08 | Reinício feito pelo dono. **Docker 29.7.2 no ar**, 12 CPU, VM do WSL2 com **3,9 GB**. O bloqueio do laboratório caiu | ✅ |
+| 22/08 | `npx supabase init` → `supabase/config.toml` criado (não existia). **Não há `supabase/migrations/`**: os `.sql` reais ficam soltos em `supabase/`, então `supabase start` não aplica nenhum deles sozinho — a aplicação tem de ser manual, por `psql`, sem reescrever arquivo | ✅ |
+| 22/08 | `npx supabase start` — **12 contêineres**, Postgres **17.6**, API 54321 · DB 54322 · Studio 54323. `supabase_vector` em reinício contínuo (coletor de log do Docker; **não** toca o banco) | ✅ |
+| 22/08 | Ordem de aplicação sugerida no Ponto de retomada **estava errada por dependência** — `armazenamento_v2.sql` não pode ser o primeiro. Ordem real derivada e registrada abaixo | ✅ |
+| 22/08 | 🔴 **BLOQUEIO: `public.app_storage` não tem `CREATE TABLE` em lugar nenhum do repositório.** Todo `.sql` apenas a ALTERA. Sem a tabela base, nenhuma migration real aplica localmente | 🔴 **PARADO — aguardando o dono** |
+| 22/08 | Tentativa de recuperar o DDL de produção **somente leitura** (spec OpenAPI do PostgREST, sem ler linha nenhuma): `401 — Only secret API keys can be used for this endpoint`. A anon key do `.env` não descreve schema | ⚠️ |
+| 22/08 | **Nenhuma migration aplicada. Schema NÃO improvisado. Produção NÃO tocada.** Massa continua em zero | ⏳ |
 
 ### Estimado × observado — recalibração por `--dry-run`
 
@@ -500,9 +507,113 @@ lado seguro. **O degrau de 500 confirma a condição do dono** — 22,97 MB cont
 
 ---
 
+## Laboratório Supabase local — 22/08/2026
+
+### Ambiente que subiu
+
+| | |
+|---|---|
+| Docker | **29.7.2** (`build a7dcaa6`) · 12 CPU · VM do WSL2 com **3,9 GB** (metade dos 7,6 GB da máquina) |
+| Supabase CLI | **2.115.0** (via `npx`) |
+| Postgres local | **17.6** |
+| Portas | API `54321` · DB `54322` · Studio `54323` · Mailpit `54324` |
+| Contêineres | 12 no ar; `supabase_vector` reiniciando — é o coletor de log do Docker, sem acesso ao socket. **Não afeta banco, API nem Storage** |
+| RAM em uso pelo laboratório | ~1,9 GB dos 3,6 GB da VM — folga para o degrau de 100; os degraus grandes seguem sob o risco de RAM já declarado |
+
+`supabase/config.toml` **passou a existir** (não existia até hoje) e `supabase/.gitignore` foi
+criado pelo `init`. Nenhum arquivo `.sql` existente foi tocado.
+
+### Divergências local × produção — as já conhecidas
+
+| Item | Local | Produção | Efeito na medição |
+|---|---|---|---|
+| Postgres | **17.6** | **não confirmada** — sai do `select version()` do F8.1 | planos de `EXPLAIN` podem divergir entre major versions. **Confirmar antes de comparar plano com plano** |
+| `pg_cron` / `pg_net` | disponíveis, **não instaladas** | instaladas (`trial_emails_setup.sql`) | irrelevante para a Fase 8 — nada da massa depende de cron |
+| Latência de rede | ~0 (loopback) | real | **boot, hidratação e sync locais não medem latência.** Latência só sai dos degraus 100/500 em produção |
+| Egress | não existe | cobrado | egress permanece `PROJETADO`, nunca `MEDIDO`, no local |
+| Storage | MinIO local | S3 da Supabase | tamanho é fiel; throughput não |
+
+### Ordem real de aplicação dos `.sql` — corrigida por dependência
+
+A ordem sugerida no Ponto de retomada (`armazenamento_v2` primeiro) **não funciona**:
+`armazenamento_v2.sql` chama `public.acesso_vigente`, `public.assinatura_permite_escrita`,
+`public.org_atual` e `public.papel_atual`, que nascem em outros três arquivos. Ordem real:
+
+| # | Arquivo | Cria | Depende de |
+|---|---|---|---|
+| 0 | **(faltando)** | `public.app_storage` | — |
+| 1 | `admin_setup.sql` | `profiles`, `login_events`, `is_admin`, `handle_new_user` | `auth.users` ✅ local provê |
+| 2 | `acesso_setup.sql` | `org_atual`, `papel_atual`, RLS de `app_storage`, `app_storage.org_id` | 0, 1 |
+| 3 | `trial_setup.sql` | `acesso_vigente`, `config_global` | 0, 1, 2 |
+| 4 | `assinatura_setup.sql` | `assinatura_permite_escrita`, `assinatura_org`, `kiwify_eventos` | 1, 3 |
+| 5 | `armazenamento_v2.sql` | `aplicar_mutacao_storage`, `org_sync`, tombstones, bucket `inspecao` | 0, 2, 3, 4 |
+| 6 | `fotos_storage.sql` | políticas de `storage.objects` | 5 |
+| 7 | `indice_hidratacao.sql` | `app_storage_org_atualizado_idx` — **o índice da dívida da Fase 1** | 0 |
+| 8 | `portal_policies.sql` | leitura do Portal | 2, 5 |
+| 9 | `livro_imutavel.sql` | `trg_guardar_livro_imutavel` | 0 |
+| 10 | `v2_por_default.sql` | `trg_garantir_org_sync` | 1, 5 |
+| 11 | `perfil_origem.sql` | **redefine** `handle_new_user` | 1 |
+
+Fora do caminho da Fase 8 (aplicar só se necessário): `leads_setup`, `purga_trial`,
+`admin_stats`, `admin_storage_stats`, `trial_emails_setup` (este exige `pg_cron`/`pg_net`).
+
+### 🔴 BLOQUEIO — a tabela base `public.app_storage` não existe no repositório
+
+**O que foi verificado, não suposto:**
+
+```
+grep -rniE 'create table[^;]*app_storage' supabase/
+  → armazenamento_v2.sql:39  app_storage_excluidos
+  → armazenamento_v2.sql:57  app_storage_mutacoes
+  (nenhum resultado para a tabela app_storage em si)
+```
+
+16 arquivos `.sql` citam `app_storage`. **Todos só a alteram.** As colunas aparecem em
+`alter table ... add column if not exists` espalhados:
+
+| Coluna | Origem no repo |
+|---|---|
+| `org_id uuid` | `acesso_setup.sql:30` |
+| `versao integer not null default 1` | `armazenamento_v2.sql:21` |
+| `dispositivo text` | `armazenamento_v2.sql:22` |
+| `deletado_em timestamptz` | `armazenamento_v2.sql:23` |
+| `mutado_em_cliente timestamptz` | `armazenamento_v2.sql:28` |
+| `id`, `user_id`, `chave`, `valor`, `atualizado_em` | **nenhuma — só uso, nunca criação** |
+
+A tabela foi criada fora do versionamento (Dashboard ou script perdido) e nunca voltou ao repo.
+
+**O que ela precisa ter, por evidência de uso:**
+
+- `insert into public.app_storage (org_id, user_id, chave, valor, versao, dispositivo, deletado_em, atualizado_em, mutado_em_cliente)` — `armazenamento_v2.sql:278` e `:294`
+- `select 'chave, valor, versao, atualizado_em, dispositivo, deletado_em'` — `storageV2.ts:361`
+- `onConflict: escopo.coluna + ',chave'` — `storageV1.ts:220` ⇒ **unique em `(org_id, chave)`**, e também no escopo legado por `(user_id, chave)`
+- `app_storage_org_idx (org_id, chave)`, `app_storage_deletado_idx (org_id, deletado_em)`, `app_storage_org_atualizado_idx (org_id, atualizado_em, chave)`
+- `valor` aceita `null` — o tombstone grava `valor = null` (`armazenamento_v2.sql:287`)
+
+**O que falta com certeza e não dá para deduzir:** tipo exato de `valor` (`text` × `jsonb`),
+tipo e default de `id`, se a PK é própria ou composta, `not null` de `chave`/`user_id`, e a
+definição exata das constraints únicas.
+
+> **Tipo de `valor` importa para a Fase 8, não é detalhe.** `jsonb` faz TOAST, compressão e
+> tamanho de linha diferentes de `text`. A fase mede **exatamente** peso de linha, custo de
+> índice e `EXPLAIN (BUFFERS)`. Chutar aqui produziria número errado com cara de número certo —
+> pior do que não medir.
+
+**Recuperação read-only de produção foi tentada e falhou:** a spec OpenAPI do PostgREST
+(`GET /rest/v1/`, descreve colunas e tipos, **não lê linha nenhuma**) devolveu
+`401 — {"message":"Secret API key required","hint":"Only secret API keys can be used for this endpoint."}`.
+O `.env` local só tem `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`.
+
+**Estado: PARADO, aguardando decisão do dono. Schema não foi improvisado. Produção não foi tocada.**
+
+---
+
 ## Ponto de retomada
 
-> ### ⏸️ SESSÃO INTERROMPIDA EM 22/08/2026 — instalação do Docker + reinício do Windows
+> ### ✅ RESOLVIDO EM 22/08/2026 — Docker instalado, laboratório no ar
+>
+> *Bloco histórico. O estado atual está na seção **Laboratório Supabase local** logo acima;
+> o que trava agora é a ausência do `CREATE TABLE public.app_storage` no repositório.*
 >
 > **Leia este bloco primeiro. Ele basta para retomar sem contexto nenhum da conversa.**
 >
