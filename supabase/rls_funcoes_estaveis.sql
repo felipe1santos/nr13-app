@@ -111,19 +111,32 @@ alter function public.assinatura_permite_escrita() stable;
 -- `acesso_setup.sql` e NÃO são tocadas por este arquivo — o ganho de 244×
 -- medido acima vem só dos `alter function`, sem mexer em política nenhuma do
 -- sistema existente.
-drop policy if exists equipamentos_index_select_org on public.equipamentos_index;
-create policy equipamentos_index_select_org on public.equipamentos_index
-  for select using (
-    org_id = (select public.org_atual())
-    and coalesce((select public.papel_atual()), '') <> 'cliente'
-  );
+-- AS TABELAS DA FASE 9 PODEM NÃO EXISTIR — e em produção, hoje, NÃO existem.
+--
+-- Este arquivo é INDEPENDENTE da Fase 9, então ele não pode falhar num banco que
+-- ainda não a recebeu. Sem esta guarda, aplicá-lo em produção pararia no meio
+-- com "relation does not exist" — e as funções acima já teriam sido alteradas,
+-- deixando o deploy pela metade.
+do $$
+begin
+  if to_regclass('public.equipamentos_index') is not null then
+    execute 'drop policy if exists equipamentos_index_select_org on public.equipamentos_index';
+    execute 'create policy equipamentos_index_select_org on public.equipamentos_index
+               for select using (
+                 org_id = (select public.org_atual())
+                 and coalesce((select public.papel_atual()), '''') <> ''cliente''
+               )';
+  end if;
 
-drop policy if exists relatorios_index_select_org on public.relatorios_index;
-create policy relatorios_index_select_org on public.relatorios_index
-  for select using (
-    org_id = (select public.org_atual())
-    and coalesce((select public.papel_atual()), '') <> 'cliente'
-  );
+  if to_regclass('public.relatorios_index') is not null then
+    execute 'drop policy if exists relatorios_index_select_org on public.relatorios_index';
+    execute 'create policy relatorios_index_select_org on public.relatorios_index
+               for select using (
+                 org_id = (select public.org_atual())
+                 and coalesce((select public.papel_atual()), '''') <> ''cliente''
+               )';
+  end if;
+end $$;
 
 -- ---------------------------------------------------------------------------
 -- 3 · O QUE ESTE ARQUIVO **NÃO** FAZ

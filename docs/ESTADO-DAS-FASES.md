@@ -6,7 +6,7 @@
 > **REGRA:** este arquivo é atualizado NO MOMENTO em que o estado muda — commit, push,
 > redeploy, validação, portão. Não no fim da fase.
 
-**Última atualização:** 23/08/2026 12:10
+**Última atualização:** 23/08/2026 13:00
 **Branch:** `main` · **Suíte:** 1237 testes / 98 arquivos, 0 falhas · **Build:** verde
 
 
@@ -118,8 +118,24 @@ Sempre use um destes. Nunca "concluído".
 | **9B** | **CONCLUÍDA** — `medicoes/2026-08-22-fase9b-projecao-na-rpc.md` · P9.1 aprovado |
 | **9C** | **CONCLUÍDA** — `medicoes/2026-08-22-fase9c-indices.md` e `-tela.md` |
 
-**Próxima ação exata:** o dono autoriza a **ETAPA 1** do rollout (RLS/STABLE isolado). Ordem
-completa e decidida em [`plans/2026-08-23-ordem-de-rollout.md`](superpowers/plans/2026-08-23-ordem-de-rollout.md).
+**Próxima ação exata:** o dono autoriza a **ETAPA 2** (infraestrutura da Fase 9 em produção).
+Ordem em [`plans/2026-08-23-ordem-de-rollout.md`](superpowers/plans/2026-08-23-ordem-de-rollout.md).
+
+### ✅ ETAPA 1 CONCLUÍDA EM PRODUÇÃO — 23/08/2026
+
+As seis funções auxiliares da RLS estão **`STABLE`** em produção. Aplicada, validada, **revertida
+de verdade** e reaplicada.
+
+| | |
+|---|---|
+| Benchmark (mesma consulta) | 1.695 → **883 buffers** · 11,4 → **6,3 ms** |
+| Plano | `Filter` por linha → **`One-Time Filter`** |
+| Segurança | **7 atores reais, 0 divergências** |
+| Dados / permissões | **inalterados** |
+| Projeto | **Healthy** |
+
+Detalhes em [`medicoes/2026-08-23-etapa1-rls-stable-producao.md`](medicoes/2026-08-23-etapa1-rls-stable-producao.md).
+**A Fase 9 continua sem NADA aplicado em produção.**
 
 ### O aviso `Grace period is over` — investigado em 23/08
 

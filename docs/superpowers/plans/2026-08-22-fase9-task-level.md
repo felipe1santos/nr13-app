@@ -691,6 +691,9 @@ recém-consultado.
 | 23/08 | **Backfill de 1.004 equipamentos: 2,3 s em 6 lotes.** Fidelidade exata (1004/2001), idempotente, e **retomável** — interrompido em 300, a auditoria acusou 704 faltando e a continuação convergiu | ✅ |
 | 23/08 | Regressão sobre a instalação nova: **30/30 SQL**, 88 linhas RLS idênticas, flag OFF→ON→OFF, suíte 1237/1237, build verde | ✅ |
 | 23/08 | **ORDEM DE ROLLOUT registrada** em `plans/2026-08-23-ordem-de-rollout.md`: ETAPA 1 (RLS isolado) → ETAPA 2 (Fase 9), em autorizações separadas | ✅ |
+| 23/08 | ✅ **ETAPA 1 APLICADA EM PRODUÇÃO.** As seis funções da RLS agora `STABLE`. 1.695 → **883 buffers**, `Filter` por linha → `One-Time Filter`. **7 atores reais, 0 divergências** | ✅ |
+| 23/08 | Rollback **exercitado de verdade** (6/6 a VOLATILE, dados intactos) e reaplicado. Os 9 erros do painel eram MEUS, todos ANTES da aplicação — defeito de aspas no montador da bateria | ✅ |
+| 23/08 | 🔴 Defeito achado **antes** de aplicar: o arquivo criava políticas em tabelas da Fase 9 que **não existem em produção** e teria falhado no meio. Bloco virou condicional | ✅ |
 
 ---
 

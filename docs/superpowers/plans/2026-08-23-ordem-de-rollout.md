@@ -4,8 +4,8 @@
 > improvisada**. Se algo não estiver escrito aqui, não se faz na hora: para-se e decide-se fora
 > da janela de deploy.
 
-**Estado em 23/08/2026:** nada aplicado em produção. As duas etapas aguardam autorização
-separada, e a segunda só começa depois de a primeira estar fechada.
+**Estado em 23/08/2026:** a **ETAPA 1 está CONCLUÍDA em produção**. A **ETAPA 2 aguarda
+autorização separada** — a Fase 9 continua sem nada aplicado.
 
 ---
 
@@ -27,7 +27,7 @@ justamente navegando pelo app. Entrar com a Etapa 1 antes deixa o terreno limpo.
 
 ---
 
-## ⛔ Pré-condição das duas etapas
+## Pré-condição das duas etapas — esclarecida em 23/08
 
 **O estado do Supabase precisa estar esclarecido.** Diagnóstico completo em
 [`medicoes/2026-08-23-diagnostico-grace-period.md`](../../medicoes/2026-08-23-diagnostico-grace-period.md).
@@ -41,7 +41,32 @@ quando aplicar é do dono; tecnicamente não há impedimento.
 
 ---
 
-# ETAPA 1 — RLS/STABLE, isolada
+# ✅ ETAPA 1 — CONCLUÍDA EM 23/08/2026
+
+> **Aplicada, validada, revertida e reaplicada em produção.** Estado final: as seis funções estão
+> `STABLE`. Resultado completo em
+> [`medicoes/2026-08-23-etapa1-rls-stable-producao.md`](../../medicoes/2026-08-23-etapa1-rls-stable-producao.md).
+>
+> | | |
+> |---|---|
+> | Benchmark | 1.695 → **883 buffers** · 11,4 → **6,3 ms** · `Filter` por linha → **`One-Time Filter`** |
+> | Segurança | **7 atores reais, 0 divergências** · Portal em zero · `anon` em zero · org A nunca viu org B |
+> | Permissões | **inalteradas** |
+> | Dados | **inalterados** — 888 chaves, 33 MB, zero resíduo |
+> | Rollback | **exercitado**, 6/6 de volta a VOLATILE, e reaplicado |
+> | Projeto | **Healthy** |
+>
+> **O ganho foi menor que no laboratório (244×), e a razão está documentada:** produção tem 888
+> chaves contra 122.011 do laboratório, e o custo de uma função VOLATILE em RLS é proporcional às
+> linhas varridas. O que não depende da escala é a mudança de PLANO, que é o que impede o custo
+> de crescer junto com a base.
+>
+> **Defeito corrigido antes de aplicar:** o arquivo criava políticas em tabelas da Fase 9 que não
+> existem em produção, e teria falhado no meio. O bloco virou condicional.
+
+---
+
+# ETAPA 1 — o roteiro que foi seguido
 
 **Arquivo:** `supabase/rls_funcoes_estaveis.sql`
 **Rollback:** `supabase/rls_funcoes_estaveis_rollback.sql`
