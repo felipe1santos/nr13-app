@@ -105,53 +105,52 @@ Sempre use um destes. Nunca "concluído".
 | **8** | Escala, dataset determinístico e medições (A-17) | 🟡 **PLANEJADA** — AS-IS, dataset e plano de medição escritos; **nenhuma massa gerada** | — | `plans/2026-08-22-fase8-task-level.md` |
 | 9…13 | ver plano macro | PLANEJADO | P5…P8 | `plans/2026-08-15-evolucao-arquitetura.md` |
 
-**Fase atual:** **9 — DESENHO ESCRITO, aguardando aprovação.** Nada implementado: nenhum schema,
-nenhum índice, nenhuma tabela, nada em `src/`.
+**Fase atual:** **9 — DESENHO v2, com as 7 decisões arquiteturais FECHADAS pelo dono.** Nada
+implementado: nenhum schema, nenhuma migration, nenhum índice, nenhuma tabela, nada em `src/`.
 
-**Próxima ação exata:** o dono aprova (ou corrige) o desenho e responde as **7 decisões** da §25.
-Só então nasce o task-level de implementação.
+**Próxima ação exata:** o dono revisa esta versão final e **autoriza ou não** o task-level de
+implementação. A 9A não começa antes disso.
 
-**DESENHO DA FASE 9:** `superpowers/specs/2026-08-22-fase9-escala-busca-design.md`
-**FECHAMENTO DA FASE 8:** `medicoes/2026-08-22-fase8-fechamento.md` — aprovado em 22/08 (`fe62356`)
+**DESENHO:** `superpowers/specs/2026-08-22-fase9-escala-busca-design.md` (§26 traz as decisões)
+**FECHAMENTO DA FASE 8:** `medicoes/2026-08-22-fase8-fechamento.md` — aprovado (`fe62356`)
 
-### Os dois achados de análise que sustentam o desenho
+### Fundamentos aprovados
 
-1. **O palco já é por TAG.** `coletarItens(tag)` usa `chavesDaTag(tag)` + 6 globais + as
-   calibrações daquela TAG. Gerar relatório ou prontuário **nunca precisou da organização
-   inteira** — o que derruba o maior risco do carregamento sob demanda: os 40+ templates HTML
-   não precisam saber de nada.
-2. **A primitiva do cache parcial já existe e está em produção.** O cliente do Portal não hidrata
-   (Fase 0-B, A-01) e recebe cache parcial por `semearCache()`. A Fase 9 **generaliza um padrão
-   existente**, não inventa um novo.
+1. **O palco já é por TAG** — `coletarItens(tag)` não depende da organização inteira.
+2. **Cache parcial já existe em produção** — o Portal usa `semearCache()` sem hidratar.
 
-### A amarra que gera todo o resto
+### As 7 decisões fechadas
 
-`ler()` é **síncrono** sobre o `Map`. Por isso `RotaProtegida` instalou a barreira que espera a
-organização inteira antes da primeira tela. **A barreira não é o defeito — o defeito é ela ter de
-esperar tudo.**
+| # | Decisão |
+|---|---|
+| 1 | **Duas projeções** por domínio — equipamentos e relatórios |
+| 2 | **`app_storage` continua a verdade**; projeções são derivadas, descartáveis, reconstruíveis |
+| 3 | **A verdade não depende da projeção** — mas falha vira **pendência durável**, com reparo idempotente e auditoria que prova convergência. Eventual consistency sim; **divergência silenciosa permanente, não** |
+| 3b | **Item recém-salvo nunca some da tela** |
+| 4 | **Offline: pré-carga manual**, e **catálogo leve ≠ dados completos offline** |
+| 5 | **`pg_trgm` não agora**, e `tsvector` **não é universal** — cada modalidade com índice e benchmark próprios |
+| 6 | Ordem `/equipamentos` → `/relatorios` → demais, **com infraestrutura antes do visual** |
+| 7 | **Dashboard híbrido**, e offline não pode passar dado antigo por recém-consultado |
 
-### Arquitetura alvo
+### O mecanismo de consistência (§6 do desenho)
 
-Boot com globais pequenas → shell utilizável · listas por **cursor keyset** de 50 · busca
-**server-side** sobre projeção leve · detalhe **sob demanda por TAG** · documentos e PDF
-**inalterados**.
+A escrita da projeção vai numa **subtransação** dentro da RPC. Se falhar, o *savepoint* reverte
+**só o bloco da projeção** — a verdade permanece — e grava uma **pendência durável**. Há **duas
+detecções independentes**: a pendência, e uma auditoria que compara `source_version` com a verdade
+e **não depende do mecanismo de pendência funcionar**. Reparo idempotente e rebuild completo.
 
-**O número que sustenta o offline:** a projeção leve é **~33× menor** que o dado completo — 12,5 MB
-contra ~415 MB em 50.000 equipamentos. Cabe folgado no IndexedDB (cota medida: 10.317 MB), então
-**busca offline continua existindo** sem guardar a base inteira no aparelho.
+**Caminho feliz é síncrono**, então normalmente não há atraso nenhum — o que também resolve o caso
+do item recém-salvo.
 
-### A resposta ao ponto bloqueante (app_storage salva + projeção falha)
+### A ponte para sair da amarra síncrona (§4 do desenho)
 
-A escrita da projeção vai **dentro da transação da RPC** — `aplicar_mutacao_storage` já é o único
-caminho de escrita, provado na Fase 8. Mas com uma inversão obrigatória: falha na projeção
-**registra e segue**, nunca aborta. **A verdade nunca pode depender da projeção**; divergência é
-detectável por auditoria e curável por rebuild idempotente.
+`ler()` continua síncrono, o `Map` continua a interface, o palco continua por TAG. **Muda só QUANDO
+o `Map` é preenchido**: lista leve → usuário abre TAG → `carregarEquipamento(tag)` →
+`semearCache()` → o legado síncrono enxerga aquela TAG → palco coleta → documento funciona.
+**Nenhum dos 40+ templates é tocado.**
 
-### Rollout: 9A→9G, com portões P9.1–P9.5
-
-Projeção existe e é auditada (nada lê) → escrita na RPC → **piloto em `/equipamentos` sob flag** →
-sair da hidratação integral (**a etapa arriscada, vem depois do piloto**) → throttle → demais
-telas → achados secundários. Rollback em cada etapa.
+**Rollout 9A→9G**, portões P9.1–P9.5, rollback em cada etapa, e a 9G **remove o caminho de
+hidratação integral** — o fallback existe para o rollout, não para sempre.
 
 **Fase 10 e PDF vetorial: não iniciados.** Massa em produção: ZERO.
 

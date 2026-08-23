@@ -1,10 +1,10 @@
 # FASE 9 — Escala, busca e carregamento sob demanda · **DESENHO ARQUITETURAL**
 
-**22/08/2026** · autorizado como **análise + planejamento + desenho + rollout + testes**
+**22/08/2026** · v2, com as **decisões arquiteturais do dono incorporadas** (ver §26)
 
-> **NADA FOI IMPLEMENTADO.** Nenhum schema alterado, nenhum índice criado, nenhuma tabela criada,
-> nada em `src/`. Este documento existe para ser **aprovado antes** de qualquer mudança. O
-> task-level de implementação só nasce depois.
+> **NADA FOI IMPLEMENTADO.** Nenhum schema, nenhuma migration, nenhum índice, nenhuma tabela, nada
+> em `src/`. Este documento existe para ser **aprovado**. O task-level de implementação só nasce
+> depois da sua revisão desta versão.
 
 **Baseline que este desenho precisa derrubar:**
 [Fase 8 — fechamento](../../medicoes/2026-08-22-fase8-fechamento.md)
@@ -21,15 +21,15 @@
 
 ## 1 · Arquitetura atual relevante
 
-### 1.1 A amarra que gera tudo o mais
+### 1.1 A amarra central
 
 ```
 ler(chave)  →  cache.obterRegistro(chave)  →  Map em memória     ← SÍNCRONO
 ```
 
 `ler()` é **síncrono**. Toda tela chama `ler()` durante o render. Uma tela que rodasse antes da
-hidratação veria o `Map` vazio e concluiria "conta vazia" — que é exatamente o sumiço de dado que
-a v2 existe para consertar.
+hidratação veria o `Map` vazio e concluiria "conta vazia" — o sumiço de dado que a v2 existe para
+consertar.
 
 Por isso `RotaProtegida` instalou uma **barreira**, e o comentário dela diz o porquê:
 
@@ -47,44 +47,42 @@ BOOT → iniciarArmazenamento()        (local: org, IndexedDB, Map)
 
 ### 1.2 Quem depende do cache completo
 
-| Consumidor | O que faz | Precisa mesmo de tudo? |
+| Consumidor | O que faz | Precisa de tudo? |
 |---|---|---|
-| `equipamentoService.listarEquipamentos` | `listarChavesComPrefixo('nr13_info_')` + monta resumo de cada | **Não** — precisa de uma página |
-| `vencimentos.listarVencimentos` | varre todo `nr13_info_` + `nr13_vida_` + índices | **Sim, hoje** — é agregado sobre a org |
-| `Dashboard`, `Layout`, `Vencimentos`, `limiteTrial` | `.length` de `nr13_info_` para contador | **Não** — é um `count` |
-| `LivroRegistro` | varre todo `nr13_info_` + livro de cada | **Não** — precisa de uma página |
-| `rastreabilidadeService` | prefixo `nr13_rastreab_` | **Sim**, mas é lista pequena e global |
-| `livroAssinatura` | prefixo `nr13_livro_` | migração, roda em segundo plano |
-| `recuperacaoArquivos` | prefixos da Fase 6 | migração, roda em segundo plano |
+| `equipamentoService.listarEquipamentos` | `listarChavesComPrefixo('nr13_info_')` + resumo de cada | **Não** — precisa de uma página |
+| `vencimentos.listarVencimentos` | varre `nr13_info_` + `nr13_vida_` + índices | **Sim hoje** — é agregado (§15) |
+| `Dashboard`, `Layout`, `Vencimentos`, `limiteTrial` | `.length` de `nr13_info_` | **Não** — é um `count` |
+| `LivroRegistro` | varre `nr13_info_` + livro de cada | **Não** — precisa de uma página |
+| `rastreabilidadeService` | prefixo `nr13_rastreab_` | Sim, mas lista pequena e global |
+| `livroAssinatura`, `recuperacaoArquivos` | migrações | rodam em segundo plano |
 
-### 1.3 O palco — e a boa notícia
+### 1.3 O palco — e a ponte que ele oferece
 
 `palco.coletarItens(tag)` monta o `localStorage` para os 40+ templates HTML a partir de:
 
 ```js
-chavesDaTag(tag)                    // índice por TAG — barato
-+ GLOBAIS                           // 6 chaves fixas
-+ chavesComPrefixo('nr13_rastreab_')// lista pequena, escopo de ID
-+ chavesDeCalibracaoDaTag(tag)      // filtrada pela lista daquela TAG
+chavesDaTag(tag)                     // índice por TAG — barato
++ GLOBAIS                            // 6 chaves fixas
++ chavesComPrefixo('nr13_rastreab_') // lista pequena, escopo de ID
++ chavesDeCalibracaoDaTag(tag)       // filtrada pela lista daquela TAG
 ```
 
 > **O palco JÁ É por TAG.** Gerar relatório ou prontuário **nunca precisou** da organização
-> inteira — precisa daquela TAG mais um punhado de globais. **Isto derruba o maior risco do
-> carregamento sob demanda**: os 40+ templates não precisam saber de nada.
+> inteira. **Fundamento aprovado pelo dono**, e é a ponte que permite sair da hidratação integral
+> **sem reescrever um único template**.
 
-### 1.4 O precedente que já existe no código
+### 1.4 O precedente de cache parcial
 
-O **cliente do Portal não hidrata** (Fase 0-B, achado A-01). Ele recebe cache **parcial**,
-depositado por `semearCachePortal(chaves)` → `storageV2.semearCache(chaves)`, já filtrado pelo
-servidor.
+O **cliente do Portal não hidrata** (Fase 0-B, achado A-01). Recebe cache **parcial** por
+`semearCachePortal(chaves)` → `storageV2.semearCache(chaves)`, já filtrado pelo servidor.
 
-> **A primitiva do carregamento sob demanda já está escrita e em produção.** A Fase 9 generaliza
-> um padrão existente, não inventa um novo.
+> **A primitiva já está escrita e em produção.** **Fundamento aprovado pelo dono.** A Fase 9
+> generaliza um padrão existente. **Mas generalizar não pode relaxar segurança** — ver §9.
 
 ### 1.5 Busca hoje
 
-**Não existe busca no servidor.** Zero `.ilike/.like/.textSearch/.or` em todo o `src/`. Toda busca
-é `.filter()` em JavaScript sobre o `Map`. Medido em 50.000 equipamentos:
+**Não existe busca no servidor.** Zero `.ilike/.like/.textSearch/.or` em todo o `src/`. Medido com
+50.000 equipamentos:
 
 | | Plano | Buffers | Tempo |
 |---|---|---:|---:|
@@ -93,8 +91,8 @@ servidor.
 | Fabricante / nº série / nome | `Parallel Seq Scan` | 10.917 | 57 ms ❌ |
 | Relatório por código | `Parallel Seq Scan` | 10.917 | 80 ms ❌ |
 
-Causa: `valor` é `text` **opaco**, e `chave` é `btree text_ops` sob collation `en_US.UTF-8` — que
-não serve `LIKE 'prefixo%'`.
+Causa: `valor` é `text` **opaco**; `chave` é `btree text_ops` sob collation `en_US.UTF-8`, que não
+serve `LIKE 'prefixo%'`.
 
 ---
 
@@ -102,24 +100,19 @@ não serve `LIKE 'prefixo%'`.
 
 | Sintoma medido | Causa-raiz |
 |---|---|
-| > 10 min para abrir com 51.000 | Barreira de hidratação integral no boot |
-| 583 requisições onde 111 bastavam | `lerTudo()` sem throttle na v2 + duas chamadas concorrentes no boot |
+| > 10 min para abrir com 51.000 | Barreira de hidratação integral |
+| 583 requisições onde 111 bastavam | `lerTudo()` sem throttle na v2 + duas chamadas concorrentes |
 | 2.292.273 nós no DOM | `.map()` sobre a coleção inteira, sem paginação nem virtualização |
 | 1,63 GB de heap | `Map` com a org inteira **+** 2,29 M de nós **+** objetos do React |
 | Busca não acha fabricante | `.filter()` sobre 3 campos escolhidos no cliente |
 | Busca por conteúdo é `Seq Scan` | `valor` é `text` opaco; não há camada pesquisável |
 
-**Os três remédios isolados, e por que cada um falha sozinho:**
+- **Só throttle** → continua baixando a organização inteira, uma vez. **~415 MB em 50.000.**
+- **Só virtualização** → DOM controlado, boot ainda de minutos.
+- **Só busca server-side** → busca rápida, boot e listas ainda carregam tudo.
 
-- **Só throttle** → continua baixando a organização inteira, só que uma vez. **50.000 equipamentos
-  = ~415 MB.** Inaceitável.
-- **Só virtualização** → o DOM fica controlado, mas o navegador ainda baixa e materializa tudo, e
-  o boot continua de minutos.
-- **Só busca server-side** → a busca fica rápida, mas o boot e as listas continuam carregando tudo.
-
-> **Precisam ser resolvidos juntos, e nesta ordem de dependência:** primeiro deixar de exigir a
-> organização inteira (senão nada mais importa), depois paginar o transporte, depois limitar o DOM,
-> e a busca server-side é o que torna a paginação utilizável.
+> **Resolvidos juntos, nesta ordem de dependência:** deixar de exigir a organização inteira →
+> paginar o transporte → limitar o DOM. A busca server-side é o que torna a paginação utilizável.
 
 ---
 
@@ -128,9 +121,7 @@ não serve `LIKE 'prefixo%'`.
 ```
 LOGIN
  └─ sessão + perfil + flags
- └─ hidratarEssencial()        globais pequenas: minha empresa, funcionários,
-                               clientes, config do livro, rastreabilidades,
-                               contadores.  ~dezenas de KB, teto conhecido
+ └─ hidratarEssencial()        globais pequenas, teto conhecido
  └─ SHELL UTILIZÁVEL           ← a barreira termina AQUI
 
 /equipamentos
@@ -139,7 +130,7 @@ LOGIN
 
 busca
  └─ ONLINE  → consulta na projeção, no servidor
- └─ OFFLINE → mesma consulta sobre a projeção cacheada no IndexedDB
+ └─ OFFLINE → mesma consulta sobre o CATÁLOGO cacheado (§8)
 
 abrir equipamento
  └─ carregarEquipamento(tag)  → chaves daquela TAG → semearCache()
@@ -150,240 +141,307 @@ abrir equipamento
  └─ PDF                       → só no clique, via pdfRef  (já é assim ✅)
 ```
 
-### O que muda de fato
-
-| Camada | Hoje | Alvo |
-|---|---|---|
-| Boot | organização inteira | globais pequenas |
-| Lista | tudo no `Map`, tudo no DOM | página do servidor, DOM virtualizado |
-| Busca | `.filter()` no cliente | consulta no servidor; offline sobre projeção cacheada |
-| Detalhe | já estava no `Map` | sob demanda por TAG |
-| Documentos | palco por TAG | **inalterado** |
-| PDF | só no clique | **inalterado** |
-
 ---
 
-## 4 · Modelagem da camada pesquisável
+## 4 · A estratégia oficial de compatibilidade — como sair da amarra síncrona
 
-### 4.1 Uma tabela ou duas?
+> **Pedido explícito do dono:** mostrar como sair de *"antes de qualquer tela funcionar, o `Map`
+> precisa conter a organização inteira"* **sem reescrever os 40+ templates**.
 
-Você pediu para não assumir duas. Avaliei três formas:
-
-| Forma | A favor | Contra |
-|---|---|---|
-| **(a) Duas tabelas** — `equipamentos_index`, `relatorios_index` | Colunas tipadas de verdade (`date`, `numeric`); índices exatos por domínio; `EXPLAIN` legível; RLS simples | Duas migrações, dois backfills |
-| **(b) Uma tabela genérica** — `search_index(tipo, campos jsonb)` | Uma migração; extensível sem DDL | `jsonb` volta a ser opaco para tipagem; índices viram GIN sobre expressão; **repete o erro que estamos consertando** |
-| **(c) Colunas geradas no próprio `app_storage`** | Sem tabela nova; consistência automática | `valor` é `text` (não `jsonb`) → precisaria de cast em toda linha; infla a tabela mais quente do sistema; RLS já tem quatro políticas e um trigger — mexer ali é caro e arriscado |
-
-**Recomendação: (a) duas tabelas.** O motivo decisivo é que **as consultas dos dois domínios são
-diferentes** — equipamento busca por texto e categoria; relatório busca por código, período e TAG.
-Índices diferentes, seletividade diferente. Uma tabela só forçaria índices parciais e tornaria o
-`EXPLAIN` difícil de ler, que é justamente o que precisamos manter afiado.
-
-E há um argumento de risco: **(c) mexe na tabela mais quente do sistema**, aquela cuja guarda
-`trg_guardar_app_storage` e cujas 4 políticas de RLS já são delicadas. Camada nova e **aditiva**
-é reversível; alterar `app_storage` não é.
-
-### 4.2 Forma proposta
-
-**`equipamentos_index`** — uma linha por equipamento:
-
-| Coluna | Tipo | Origem |
-|---|---|---|
-| `org_id` | uuid | escopo |
-| `tag` | text | chave do `nr13_info_<TAG>` |
-| `descricao` | text | `info.descricao` |
-| `tipo` | text | `info.tipo` |
-| `subtipo` | text | `info.subtipo` |
-| `categoria` | text | `nr13_cat_<TAG>.catFinal` |
-| `fabricante` | text | `info.fabricante` |
-| `numero_serie` | text | `info.numeroSerie` |
-| `localizacao` | text | `info.localizacao` |
-| `ano` | text | `info.ano` |
-| `cliente` | text | `nr13_emp_<TAG>` |
-| `proxima_inspecao` | date | `nr13_vida_<TAG>` |
-| `tem_foto` | boolean | `nr13_fotos_<TAG>` não vazio |
-| `busca` | tsvector **gerado** | ver §10 |
-| `atualizado_em` | timestamptz | do `app_storage` |
-
-**PK `(org_id, tag)`.**
-
-**`relatorios_index`** — uma linha por relatório:
-
-| Coluna | Tipo | Origem |
-|---|---|---|
-| `org_id` · `relatorio_id` | uuid · text | escopo e id |
-| `tag` | text | `tagVaso` |
-| `codigo` · `nome` · `tipo` | text | do `RelatorioIndiceItem` |
-| `emissao` · `validade` | **date** | hoje são string `DD/MM/AAAA` — normalizar |
-| `profissional` | text | `meta.phNome` |
-| `status` | text | `status` |
-| `pdf_ref` · `sha256` · `paginas` | text · text · int | artefato (§7-quater) |
-| `busca` | tsvector gerado | |
-| `atualizado_em` | timestamptz | |
-
-**PK `(org_id, relatorio_id)`.**
-
-> **Nada de blob, base64, snapshot, foto, PDF ou JSON pesado.** Estimativa: **~250 B por linha**.
-
-### 4.3 O número que sustenta o desenho, e o offline
-
-| | Por equipamento | 50.000 equipamentos |
-|---|---:|---:|
-| Dado completo (**medido**: 8,3 kB) | 8,3 kB | **~415 MB** |
-| Projeção leve (**estimado**: 250 B) | 250 B | **~12,5 MB** |
-| **Razão** | | **33×** |
-
-**12,5 MB cabem folgados no IndexedDB** — a Fase 8 mediu **10.317 MB de cota** e uso de 53,8 MB.
-É isto que torna a busca offline possível **sem** guardar a base inteira no aparelho.
-
----
-
-## 5 · Consistência com `app_storage` — o ponto bloqueante
-
-> **`app_storage` continua sendo a verdade definitiva. A projeção é DERIVADA e descartável.**
-
-### 5.1 As quatro alternativas, avaliadas
-
-| | **A · Trigger no banco** | **B · Mesma RPC/transação** | **C · Projeção derivada assíncrona** | **D · Coluna gerada (§4.1c)** |
-|---|---|---|---|---|
-| **Consistência** | **Forte** — mesma transação, sempre | **Forte** — se dentro do `begin/commit` da RPC | Eventual | Forte |
-| **Atomicidade** | Automática | Precisa de disciplina no código | Não há | Automática |
-| **Offline** | Indiferente — roda no servidor quando a fila drena | Indiferente | Indiferente | Indiferente |
-| **Rollback** | `drop trigger` | Reverter a RPC (função versionada) | Parar o worker | `drop column` na tabela quente |
-| **Desempenho** | +1 upsert por escrita; medir | Idem, sem salto de contexto | Escrita não paga | Cast a cada linha |
-| **Manutenção** | Lógica de parsing **em PL/pgSQL** — duplica regra que hoje é TypeScript | Lógica fica **junto da RPC**, já em PL/pgSQL | Lógica em JS, mais fácil | Expressão SQL frágil sobre `text` |
-| **RLS** | Herda o escopo | Herda | Worker precisa de `service_role` | Herda |
-| **Recuperação** | Rebuild | Rebuild | Rebuild | `REINDEX` |
-| **Risco** | Trigger na tabela mais quente | **Baixo — a RPC já é o único caminho de escrita** | **Janela de divergência** | Alto |
-
-### 5.2 Recomendação: **B, com A como rede de segurança**
-
-**`aplicar_mutacao_storage` já é o ÚNICO caminho de escrita.** A guarda
-`trg_guardar_app_storage` recusa escrita direta (`nr13_escrita_direta_bloqueada`) — a Fase 8
-provou isso por teste funcional. Então:
-
-> Toda escrita passa pela RPC → **atualizar a projeção dentro da mesma transação da RPC** dá
-> atomicidade de graça, sem trigger novo na tabela mais quente.
-
-E a rede de segurança: **a projeção é reconstruível** (§6). Se algo divergir, o rebuild resolve —
-não há dado perdido, porque a projeção nunca é fonte.
-
-### 5.3 Resposta explícita: **`app_storage` salva e a projeção falha — o que acontece?**
-
-**Não acontece divergência silenciosa, porque as duas escritas são a mesma transação.**
+**Esta é a estratégia oficial da Fase 9.** O fluxo, concreto:
 
 ```
-begin  (dentro de aplicar_mutacao_storage)
-  ├─ escreve app_storage        ← a verdade
-  ├─ escreve equipamentos_index ← a projeção
-  └─ commit  |  rollback
+1. LISTA LEVE
+   /equipamentos consulta a projeção (servidor ou catálogo cacheado).
+   Nada disso passa pelo `Map`. Nenhuma chave `nr13_*` é necessária.
+
+2. USUÁRIO ABRE UMA TAG
+   carregarEquipamento(tag)
+     → busca as chaves daquela TAG no servidor (ou já as tem no cache)
+     → semearCache({ 'nr13_info_VASO-203': '…', 'nr13_calc_…': '…', … })
+
+3. O CÓDIGO LEGADO SÍNCRONO CONTINUA FUNCIONANDO
+   ler('nr13_info_VASO-203') encontra a chave no Map. Nada mudou para ele.
+   `montarResumo`, a ficha, o memorial, a categoria — tudo intacto.
+
+4. O PALCO COLETA AQUELA TAG
+   coletarItens(tag) = chavesDaTag(tag) + GLOBAIS + rastreab + calibrações
+   Todas presentes, porque o passo 2 as semeou.
+
+5. O DOCUMENTO FUNCIONA
+   Os 40+ templates HTML leem o localStorage materializado, exatamente como
+   sempre leram. NENHUM template é tocado.
 ```
 
-| Cenário | Resultado |
+**Por que isto fecha:** `ler()` continua síncrono; o `Map` continua sendo a interface; o palco
+continua por TAG. **O que muda é apenas QUANDO o `Map` é preenchido** — de "tudo, antes da primeira
+tela" para "o que a tela precisa, quando precisa".
+
+**As duas garantias que sustentam a ponte:**
+
+| | |
 |---|---|
-| Projeção falha por erro **lógico** (chave malformada, JSON inválido) | **A transação inteira aborta.** O cliente recebe erro, a mutação **fica na fila** e é reenviada. **Nada é perdido, nada diverge** |
-| Projeção falha por erro de **infraestrutura** | Idem — rollback |
-| Servidor cai **entre** as duas escritas | Impossível: é uma transação |
-| A projeção **não existe ainda** (org não migrada) | `if to_regclass(...) is null then return; end if` — a RPC segue gravando a verdade. **Fallback seguro (§13)** |
-| Alguém edita o banco fora da RPC | Guarda recusa. Porta de manutenção (`nr13.manutencao`) exige rebuild depois — **documentar** |
+| `semearCache()` | já existe, em produção, usado pelo Portal (§1.4) |
+| `coletarItens(tag)` | já é por TAG, não varre a organização (§1.3) |
 
-> **O risco que este desenho ACEITA, e precisa da sua ciência:** se a escrita da projeção tiver um
-> defeito, ela passa a derrubar **escritas de dado real**. É trocar "busca desatualizada" por
-> "gravação recusada" — e gravação recusada é o defeito mais caro deste projeto.
->
-> **Mitigação obrigatória:** a atualização da projeção roda dentro de um bloco
-> `exception when others then` que **registra e segue**, em vez de abortar. Assim a verdade nunca
-> é bloqueada por defeito da projeção; a divergência vira **detectável** (§6.2) e curável pelo
-> rebuild. É a inversão certa: **a verdade nunca pode depender da projeção.**
+**Contrato que a Fase 9 assume:** nenhuma tela pode chamar `ler()` de uma TAG que não foi semeada.
+Isto vira **regra e teste**: `carregarEquipamento(tag)` é obrigatório antes de qualquer rota de
+detalhe, documento ou inspeção.
 
 ---
 
-## 6 · Reconstrução
+## 5 · Modelagem das projeções
 
-### 6.1 `reconstruir_indice_busca(org_id, lote)`
+### 5.1 Duas projeções — **DECISÃO 1, aprovada**
 
-Idempotente · retomável · auditável · **não altera `app_storage`**.
+Uma por domínio: as consultas, os campos, os índices, os filtros e o **ciclo de vida** são
+diferentes. Uma tabela genérica com `jsonb` repetiria o erro que estamos consertando — voltaria a
+ser opaca.
 
-- Lê `app_storage` da org em lotes (cursor por `chave`), monta as linhas, faz `upsert`.
-- Ao fim de cada lote, grava a posição — retomar é continuar do cursor.
-- **Não apaga o que não reconheceu**: remoção só por tombstone explícito, mesma regra do §2-ter.
-- Roda com `service_role` (é manutenção), **nunca** disparada pelo cliente.
+Também foi descartado alterar o próprio `app_storage` com colunas geradas: é a tabela mais quente
+do sistema, com quatro políticas de RLS e a guarda `trg_guardar_app_storage`. **Camada aditiva é
+reversível; alterar `app_storage` não é.**
 
-### 6.2 Detecção de divergência
+Nomes finais a decidir tecnicamente no task-level.
 
-Consulta de auditoria, barata, para rodar sob demanda:
+### 5.2 Identidade entre fonte e projeção — **exigência do dono**
 
-```
-equipamentos vivos em app_storage   vs   linhas em equipamentos_index
-por org, com as TAGs que faltam ou sobram
-```
+Toda linha de projeção precisa responder: **"esta projeção corresponde a qual versão da verdade?"**
 
-Se divergir: rebuild daquela org. **A projeção nunca é consertada à mão.**
+| Coluna | Papel |
+|---|---|
+| `org_id` | escopo (RLS) |
+| `tag` / `relatorio_id` | identidade do recurso |
+| **`source_version`** | `app_storage.versao` da chave de origem no momento da projeção |
+| **`source_updated_at`** | `app_storage.atualizado_em` da origem |
+| **`projected_at`** | quando esta linha foi escrita |
+
+Serve **auditoria, reparo, rebuild, detecção de atraso e rollout** — os cinco usos que você listou.
+A auditoria do §7.3 compara `source_version` com a verdade e **não depende de nenhum outro
+mecanismo funcionar**.
+
+### 5.3 Campos
+
+**Equipamentos** — origem: `nr13_info_`, `nr13_cat_`, `nr13_emp_`, `nr13_vida_`, `nr13_fotos_`:
+
+`tag` · `descricao` · `tipo` · `subtipo` · `categoria` · `fabricante` · `numero_serie` ·
+`localizacao` · `ano` · `cliente` · `proxima_inspecao` (**date**) · `tem_foto` (bool)
+
+**Relatórios** — origem: `nr13_historico_indice_`:
+
+`relatorio_id` · `tag` · `codigo` · `nome` · `tipo` · `emissao` (**date**) · `validade` (**date**) ·
+`profissional` · `status` · `pdf_ref` · `sha256` · `paginas`
+
+> Hoje `emissao`/`validade` são string `DD/MM/AAAA`. **Normalizar para `date` na projeção** é o que
+> torna busca por período indexável.
+
+**Nada de blob, base64, snapshot, foto, PDF ou JSON pesado.**
+
+### 5.4 Peso — **estimativa, não contrato**
+
+> **Ressalva do dono, acatada:** os ~250 B são **baseline de direção**, não compromisso.
+
+| | Por equipamento | 50.000 |
+|---|---:|---:|
+| Dado completo (**medido** na Fase 8) | 8,3 kB | ~415 MB |
+| Projeção leve (**estimado**) | ~250 B | ~12,5 MB |
+| Razão | | **~33×** |
+
+**Obrigatório medir depois da modelagem real**, e publicar em `docs/medicoes/`: tamanho médio de
+linha · peso dos índices · overhead do Postgres (TOAST, fillfactor) · bytes transferidos por
+página · tamanho no IndexedDB.
+
+**O compromisso é qualitativo e esse não muda:** a projeção fica **várias ordens de grandeza** mais
+leve que o registro completo. Se a medição mostrar que não ficou, o desenho volta à mesa.
 
 ---
 
-## 7 · RLS
+## 6 · Consistência — **DECISÃO 3, ajustada pelo dono**
 
-Preserva P1 e P3. Espelha o que `acesso_setup.sql` já faz para `app_storage`:
+> **Regra:** a gravação da verdade **não depende** do sucesso da projeção. **Mas** qualquer falha
+> ou divergência precisa ficar **duravelmente detectável e recuperável**. Consistência eventual é
+> aceita. **Divergência silenciosa permanente, não.**
+
+### 6.1 O mecanismo
+
+Três camadas, e cada uma cobre a falha da anterior:
+
+```
+aplicar_mutacao_storage  (transação única)
+│
+├─ 1. escreve app_storage                    ← A VERDADE. Nunca bloqueada.
+│
+├─ 2. SUBTRANSAÇÃO (savepoint do PL/pgSQL)
+│     └─ atualiza a projeção, com source_version/source_updated_at/projected_at
+│        exception when others then
+│          └─ 3. grava PENDÊNCIA durável em `busca_pendencias`
+│                (org_id, recurso, chave, motivo, tentativas, criado_em)
+│
+└─ commit
+```
+
+**Por que o `EXCEPTION` do PL/pgSQL resolve:** ele cria um *savepoint*. Se a projeção falhar, o
+rollback atinge **só** o bloco da projeção — a escrita da verdade, feita antes, **permanece** e o
+`commit` acontece. Não é "log e reza": é rollback parcial com registro durável.
+
+**Caminho feliz é síncrono.** Normalmente a projeção é atualizada **dentro da mesma transação**,
+então não há atraso nenhum — o que também resolve o caso de UX do §6.4.
+
+### 6.2 As sete propriedades exigidas, ponto a ponto
+
+| # | Exigência | Como é atendida |
+|---|---|---|
+| 1 | Falha da projeção nunca perde a verdade | Savepoint: só o bloco da projeção reverte |
+| 2 | Falha não pode ser silenciosa | Linha em `busca_pendencias` **+** auditoria independente |
+| 3 | Descobrir quais registros divergem | Auditoria compara `source_version` × `app_storage.versao` |
+| 4 | Reparo idempotente | `reparar_pendencias(org, lote)` — `upsert` por PK |
+| 5 | Rebuild completo | `reconstruir_indice_busca(org, lote)` (§7) |
+| 6 | Projeção carrega versão/timestamp da fonte | `source_version`, `source_updated_at`, `projected_at` (§5.2) |
+| 7 | Auditoria prova convergência | Consulta que devolve **zero divergências** = prova (§6.3) |
+
+### 6.3 Duas detecções independentes — de propósito
+
+| Detecção | Como | Cobre |
+|---|---|---|
+| **Pendência** | `busca_pendencias` não vazia | a falha que o próprio código percebeu |
+| **Auditoria** | `source_version` ≠ `versao`, ou linha faltando/sobrando | **a falha que o código NÃO percebeu** — inclusive escrita pela porta de manutenção, ou defeito na própria gravação da pendência |
+
+> A auditoria **não depende** do mecanismo de pendência funcionar. É essa independência que impede
+> divergência silenciosa permanente.
+
+**Reparo é sempre idempotente e sempre parte da verdade.** A projeção nunca é consertada à mão.
+
+### 6.4 O caso do item recém-salvo — **pedido do dono**
+
+*Usuário salva `VASO-203`; a verdade grava; a projeção fica pendente por alguns segundos. O
+equipamento não pode "desaparecer" da tela.*
+
+**Três camadas, e a primeira já resolve quase sempre:**
+
+1. **Caminho feliz — não há atraso.** A projeção é escrita na mesma transação da RPC. Quando a RPC
+   retorna, a projeção **já está em dia**. A lista seguinte já mostra `VASO-203`.
+
+2. **Escrita local é imediata, e é a rede de segurança.** O app grava no `Map` local antes/junto do
+   envio (é assim que o offline funciona hoje). Então o item **existe no cliente** mesmo que o
+   servidor ainda não o tenha projetado.
+   → **A lista funde os itens escritos localmente e ainda não confirmados** sobre o resultado do
+   servidor, deduplicando por TAG. Item recém-salvo **sempre aparece**, e no topo.
+
+3. **Offline ou pendente — a UI diz.** Se o item veio da fila local e ainda não foi confirmado,
+   ganha o mesmo selo de sincronização que o `SyncStatus` já usa. **Nunca some sem explicação.**
+
+> **Regra de UX, e ela é inegociável:** o usuário **nunca** perde de vista o que acabou de salvar.
+> Este projeto já teve o defeito de dado sumindo da tela; a Fase 9 não pode reintroduzi-lo por uma
+> otimização de busca.
+
+---
+
+## 7 · Rebuild e reparo
+
+### 7.1 `reconstruir_indice_busca(org_id, lote)`
+
+**Requisitos confirmados:** idempotente · paginado · retomável · observável · **por organização** ·
+sem alterar histórico · sem PDFs · sem base64 · **sem efeito colateral empresarial**.
+
+- Lê `app_storage` da org em lotes com cursor por `chave`; monta as linhas; `upsert` por PK.
+- Grava a posição a cada lote — retomar é continuar do cursor.
+- **Não apaga o que não reconheceu.** Remoção só por tombstone explícito, mesma regra do §2-ter.
+- Roda com `service_role`. **Nunca** disparada pelo cliente.
+- **Não escreve em `app_storage`.** Só lê. Isso é o que garante "sem efeito colateral empresarial".
+
+### 7.2 `reparar_pendencias(org_id, lote)`
+
+Consome `busca_pendencias`, reprojeta cada recurso a partir da verdade, remove a pendência
+resolvida. Idempotente. Conta tentativas — pendência que não resolve depois de N tentativas vira
+**alerta**, não desaparece.
+
+### 7.3 Auditoria de convergência
+
+```
+para a org:
+  equipamentos vivos em app_storage   ×   linhas em equipamentos_index
+  onde falta, onde sobra, onde source_version ≠ versao
+```
+
+**Zero divergências = prova de convergência.** É o critério do portão P9.1.
+
+---
+
+## 8 · Offline — **DECISÃO 4, aprovada**, com a separação que o dono exigiu
+
+> **Bloqueante:** busca server-side **não pode** virar "sem internet, listas vazias".
+
+### 8.1 Catálogo ≠ dados completos offline
+
+**A distinção mais importante desta seção**, e é do dono:
+
+| | **CATÁLOGO** (metadados leves) | **DADOS COMPLETOS** |
+|---|---|---|
+| O que é | a projeção da organização | as chaves `nr13_*` de uma TAG |
+| Tamanho | ~250 B × N — **12,5 MB em 50.000** (a medir) | 8,3 kB × N — **~415 MB em 50.000** |
+| Fica offline? | **Sim, inteiro** | **Não. Só o que for escolhido** |
+| Serve para | pesquisar, listar, saber que existe | abrir, editar, gerar documento |
+
+> **Conhecer e pesquisar milhares ≠ ter milhares completos no aparelho.** 50.000 equipamentos
+> cadastrados **não** significa 50.000 completos offline.
+
+### 8.2 Comportamento
+
+| | Online | Offline |
+|---|---|---|
+| Lista | página do servidor | página do catálogo cacheado |
+| Busca | consulta no servidor | **mesma consulta**, sobre o catálogo |
+| Detalhe | sob demanda | só se a TAG estiver no cache completo |
+| Documento | palco por TAG | idem |
+| PDF | busca no Storage | só se já cacheado |
+
+### 8.3 Pré-carga — **manual e explícita na primeira versão**
+
+O usuário escolhe o que levar: equipamentos selecionados, ou um conjunto (unidade/cliente). A UI
+mostra **quantos** e **quanto ocupa** antes de baixar. Simples e previsível.
+
+**Automático fica para depois**, com número medido — candidatos: os N com inspeção próxima, ou os
+recém-abertos. **Não entra na primeira versão.**
+
+### 8.4 O que a UI precisa dizer
+
+- Selo no campo de busca: *"buscando no que está neste aparelho"*.
+- Resultado sem detalhe cacheado: o card **aparece**; abrir avisa que precisa de conexão.
+- **Nunca** mostrar lista vazia sem explicar por quê.
+
+---
+
+## 9 · RLS e segurança — o precedente do Portal **não relaxa nada**
+
+> **Alerta do dono, acatado:** generalizar `semearCache()` não pode afrouxar segurança.
 
 | Papel | `equipamentos_index` / `relatorios_index` |
 |---|---|
 | `mestre` / sub-login | `select` onde `org_id = org_atual()` |
-| `cliente` (Portal) | **Nenhum acesso direto.** Continua pela Edge `portal_cliente`, que já filtra por vínculo |
+| `cliente` (Portal) | **Nenhum acesso direto.** Continua pela Edge `portal_cliente`, que filtra por vínculo |
 | `anon` | nenhum |
 | Escrita | **ninguém** pelo PostgREST. Só a RPC (`security definer`) e o rebuild |
 
-**Hash/path continua não sendo autorização** — a projeção guarda `pdf_ref` como *referência*, e
-quem autoriza o download é a política do bucket, inalterada.
+**Invariantes preservadas:**
 
-> **Teste que trava isso:** usuário da org A consultando a projeção **não** enxerga linha da org B —
-> igual ao que a Fase 4 fez para o Portal.
+- **P1** e **P3** intactos.
+- **Fail closed:** sem política que case, não devolve linha.
+- **Hash/path nunca é autorização.** A projeção guarda `pdf_ref` como *referência*; quem autoriza o
+  download continua sendo a política do bucket, **inalterada**.
+- **`semearCache()` generalizado semeia apenas o que o servidor já autorizou a devolver.** Ele não
+  ganha poder novo: continua sendo um depósito no cache local do que a RLS deixou passar.
+- **Recursos vinculados** do Portal seguem a mesma regra de hoje.
 
----
-
-## 8 · Offline — bloqueante
-
-> Busca server-side **não pode** virar "sem internet, listas vazias".
-
-| | Online | Offline |
-|---|---|---|
-| Lista | página do servidor | página da **projeção cacheada** no IndexedDB |
-| Busca | consulta no servidor | **mesma consulta**, sobre a projeção cacheada |
-| Detalhe do equipamento | sob demanda | só se aquela TAG já estiver no cache |
-| Abrir documento | palco por TAG | idem — precisa da TAG cacheada |
-| PDF | busca no Storage | só se já estiver no cache de PDFs |
-
-### O que fica cacheado
-
-**A projeção inteira da organização** — 12,5 MB para 50.000 equipamentos (§4.3), contra 415 MB do
-dado completo. É a diferença entre viável e inviável.
-
-Sincronizada pelo mesmo mecanismo incremental que já existe (marca d'água por `atualizado_em`).
-
-### O que a UI precisa dizer, e é requisito
-
-- Selo de offline no campo de busca: *"buscando no que está neste aparelho"*.
-- Resultado sem detalhe cacheado: card aparece, **abrir avisa** que precisa de conexão.
-- **Nunca** mostrar lista vazia sem explicar por quê — é o defeito que a v2 existe para não repetir.
-
-### Trabalho de campo — o que não pode regredir
-
-O inspetor abre um equipamento, preenche em campo e salva. Isso exige aquela TAG **já cacheada**.
-**Proposta: "levar para o campo"** — o usuário marca equipamentos e o app pré-carrega as chaves
-deles. Explícito, com tamanho mostrado, em vez de baixar 50.000 "por via das dúvidas".
-
-> **Decisão sua, no aceite:** o pré-carregamento é **manual** (o usuário escolhe) ou **automático**
-> (os N com inspeção próxima)? Recomendo manual na 9C e automático depois, com número medido.
+**Teste que trava:** usuário da org A consultando a projeção **não** vê linha da org B — igual ao
+que a Fase 4 fez para o Portal.
 
 ---
 
-## 9 · Paginação — cursor, não OFFSET
+## 10 · Paginação — keyset, não OFFSET
 
-`OFFSET 40000 LIMIT 50` obriga o Postgres a **produzir e descartar 40.000 linhas**. Keyset não.
+`OFFSET 40000 LIMIT 50` obriga o Postgres a **produzir e descartar 40.000 linhas**.
 
 ```sql
--- página seguinte, ordenada por tag
 where org_id = $1 and tag > $cursor
 order by tag
 limit 50
@@ -391,69 +449,35 @@ limit 50
 
 | | OFFSET | **Keyset** |
 |---|---|---|
-| Custo da página 1 | baixo | baixo |
-| Custo da página 800 | **cresce linearmente** | **igual ao da página 1** |
-| Inserção durante a navegação | pula/duplica itens | estável |
-
-**Recomendação: keyset em toda lista.** Ordem por `(tag)` ou `(atualizado_em desc, tag)` conforme a
-tela; o cursor é o último item da página. **A ser provado por benchmark em 5.000 / 20.000 / 50.000**
-— não por teoria.
+| Página 800 | **cresce linearmente** | **igual à página 1** |
+| Inserção durante a navegação | pula/duplica | estável |
 
 Página de **50**. Busca devolve no máximo **50 + cursor**, nunca "todos os 20.000".
+**A ser provado por benchmark em 5.000 / 20.000 / 50.000** — não por teoria.
 
 ---
 
-## 10 · Índices e consultas
+## 11 · Busca — **DECISÃO 5**: uma modalidade, um índice, um benchmark
 
-**Regra: cada índice precisa de consulta real e `EXPLAIN (ANALYZE, BUFFERS)` antes/depois.
-Nenhum índice "porque pode".**
+> **Ajuste do dono:** não assumir que `tsvector` resolve tudo. **Não existe índice universal.**
 
-| Consulta real | Índice candidato | Por quê |
-|---|---|---|
-| TAG exata | PK `(org_id, tag)` | já resolve — 4 buffers medidos |
-| **Prefixo de TAG** | `(org_id, tag text_pattern_ops)` | a Fase 8 provou que `text_ops` + `en_US.UTF-8` **não** serve `LIKE 'x%'` |
-| Paginação keyset | PK | mesma ordem |
-| Filtro tipo/categoria + ordem | `(org_id, tipo, tag)` — **só se o benchmark mostrar ganho** | pode ser desnecessário com poucas categorias |
-| **Texto livre** (descrição, fabricante, nº série, localização) | `GIN` sobre `busca tsvector` gerada | um índice serve os quatro campos |
-| Relatório por código | `(org_id, codigo)` | busca exata, muito seletiva |
-| Relatório por período | `(org_id, emissao desc)` | exige `emissao` como **date**, não string |
+| Modalidade | Consulta real | Índice apropriado | Observação |
+|---|---|---|---|
+| **TAG exata** | `tag = $1` | PK `(org_id, tag)` | já medido: **4 buffers, 0,07 ms** |
+| **Prefixo de TAG** | `tag like $1 \|\| '%'` | `(org_id, tag text_pattern_ops)` | a Fase 8 provou que `text_ops` + `en_US.UTF-8` **não** serve |
+| **Nº de série** | igualdade **ou** prefixo — **definir pela UX real** | `(org_id, numero_serie)` ou com `text_pattern_ops` | decidir **como o usuário digita** antes de escolher |
+| **Código de relatório** | igualdade ou prefixo | `(org_id, codigo)` | muito seletivo |
+| **Nome / descrição / fabricante** | busca por **palavra** | `GIN` sobre `tsvector` gerado | **só se a semântica de palavra bastar** |
+| **Período** | `emissao between` | `(org_id, emissao desc)` | exige `emissao` como `date` |
+| **Filtro tipo/categoria** | `= $1` + ordem | `(org_id, tipo, tag)` — **só se o benchmark mostrar ganho** | poucas categorias podem dispensar |
 
-**Sobre substring tolerante** (`"vaso"` achar `"Vaso separador"`): `tsvector` resolve por palavra.
-Para *substring no meio de palavra* seria preciso `pg_trgm` — **não proposto agora**: instala
-extensão e índice GIN caro. **Só entra se o benchmark provar que a busca por palavra não basta.**
+**Cada linha da tabela vira um experimento:** consulta real → índice candidato →
+`EXPLAIN (ANALYZE, BUFFERS)` **antes e depois** → decisão registrada. Índice sem benchmark **não
+entra**.
 
----
-
-## 11 · UX
-
-### `/relatorios` — hoje tem zero campo de texto
-
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│  🔍 Buscar por TAG, equipamento ou nº do relatório…             [×] │
-└──────────────────────────────────────────────────────────────────────┘
-   [ Tipo ▾ ]  [ Período ▾ ]  [ Ordenar ▾ ]              128 resultados
-```
-
-Requisitos, todos obrigatórios:
-
-| | |
-|---|---|
-| Busca **visível** | Não atrás de "Filtrar" — o erro medido em `/equipamentos` |
-| Limpar | botão `×`, e `Esc` |
-| Carregando | esqueleto, não spinner que salta |
-| Zero resultados | texto útil, com o que foi buscado e como limpar |
-| Contador | "128 resultados" |
-| **Debounce** | 300 ms, porque é server-side |
-| **Cancelar resposta antiga** | `AbortController` + descartar resposta cujo termo não é o atual — **senão a resposta lenta de "vas" sobrescreve a de "vaso"** |
-| Teclado | foco por `/`, setas, `Enter` abre |
-| Acessibilidade | `role="searchbox"`, `aria-live` na contagem |
-| Mobile | campo em largura total, filtros em bottom-sheet |
-
-### Estado na URL
-
-`/relatorios?q=vaso&tipo=periodica&cursor=…` — recarregar, voltar do detalhe, compartilhar e
-histórico funcionam. **Onde fizer sentido**; o cursor pode ficar fora se poluir.
+**`pg_trgm`: NÃO agora.** Só entra se precisarmos de **substring no meio de palavra**, *contains*
+ou tolerância a erro de digitação — **e** houver benchmark mostrando benefício sobre a alternativa.
+Instalar extensão e índice GIN caro por precaução é exatamente o que não vamos fazer.
 
 ---
 
@@ -465,92 +489,138 @@ histórico funcionam. **Onde fizer sentido**; o cursor pode ficar fora se poluir
 | **Virtualização** | quanto vai **para o DOM** |
 | **Busca server-side** | não baixar a coleção para achar poucos itens |
 
-Com 50 por página a virtualização é quase dispensável — **mas** o "carregar mais" acumula, e 20
-páginas viram 1.000 cards × 42 nós = 42.000 nós, o número que já medimos. **Então é necessária.**
+Com 50 por página a virtualização parece dispensável — **mas** "carregar mais" acumula: 20 páginas
+= 1.000 cards × 42 nós = **42.000 nós**, o número já medido. **Então é necessária.**
 
-Requisitos: altura variável, thumbnails, responsivo, mobile, compatível com busca, filtros e
-seleção. Biblioteca a escolher **na 9D, com medição** — candidatos: `@tanstack/react-virtual`
-(headless, altura dinâmica) ou implementação própria com `IntersectionObserver` (já usado em
-`FotoImg`). **Não decidir por gosto.**
+Requisitos: altura variável · thumbnails · responsivo · mobile · compatível com busca, filtros e
+seleção. Biblioteca escolhida **com medição** — candidatos: `@tanstack/react-virtual` ou
+implementação própria com `IntersectionObserver` (já usado em `FotoImg`).
 
 ---
 
-## 13 · Ordem de migração das telas
+## 13 · UX de busca
 
-Por impacto medido, e cada uma é um portão:
+### `/relatorios` — hoje tem **zero** campo de texto
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│  🔍 Buscar por TAG, equipamento ou nº do relatório…             [×] │
+└──────────────────────────────────────────────────────────────────────┘
+   [ Tipo ▾ ]  [ Período ▾ ]  [ Ordenar ▾ ]              128 resultados
+```
+
+| Requisito | |
+|---|---|
+| Busca **visível** | Não atrás de "Filtrar" — o erro medido em `/equipamentos` |
+| Limpar | botão `×` e `Esc` |
+| Carregando | esqueleto, não spinner que salta |
+| Zero resultados | texto útil, com o termo e como limpar |
+| Contador | "128 resultados" |
+| **Debounce** | 300 ms, porque é server-side |
+| **Cancelar resposta antiga** | `AbortController` + descartar resposta cujo termo não é o atual — senão a resposta lenta de "vas" sobrescreve a de "vaso" |
+| Teclado | foco por `/`, setas, `Enter` abre |
+| Acessibilidade | `role="searchbox"`, `aria-live` na contagem |
+| Mobile | campo em largura total, filtros em bottom-sheet |
+| **Item recém-salvo** | sempre visível (§6.4) |
+
+**Estado na URL:** `/relatorios?q=vaso&tipo=periodica` — recarregar, voltar do detalhe, compartilhar
+e histórico funcionam.
+
+---
+
+## 14 · Ordem das telas — **DECISÃO 6**: infraestrutura antes do visual
 
 | Ordem | Tela | Por quê |
 |---|---|---|
-| **1** | `/equipamentos` | maior DOM medido (42.283 nós), tem busca para corrigir, é a porta de entrada |
-| **2** | `/relatorios` | **zero busca hoje**; é o caso concreto que você levantou |
-| 3 | `/inspecoes`, `/prontuarios` | mesmo padrão, sem busca |
+| **1** | `/equipamentos` | maior DOM medido, tem busca a corrigir, é a porta de entrada |
+| **2** | `/relatorios` | **zero busca hoje**; o caso concreto levantado pelo dono |
+| 3 | `/inspecoes`, `/prontuarios` | mesmo padrão |
 | 4 | `/calibracoes` | + tirar `listarCalibracoes` do render |
 | 5 | `/livro-registro` | varre todo `nr13_info_` |
-| 6 | `/vencimentos`, `/dashboard` | dependem de **agregado** (§14) |
+| 6 | `/vencimentos`, `/dashboard` | dependem de agregado (§15) |
 | 7 | `/empresas` | busca na lista local |
 
 ---
 
-## 14 · Dashboard e vencimentos — o caso que não é paginável
+## 15 · Dashboard e vencimentos — **DECISÃO 7**: híbrido
 
-`listarVencimentos()` percorre **todos** os `nr13_info_` e cruza com `nr13_vida_` e o índice de
-relatórios. Não é lista — é **agregado sobre a organização**.
+`listarVencimentos()` percorre **todos** os `nr13_info_`. Não é lista — é **agregado**.
 
-| Opção | Avaliação |
-|---|---|
-| Manter no cliente sobre a projeção cacheada | funciona offline; custo O(n) em 50.000, mas sobre 12,5 MB e não 415 MB |
-| Consulta agregada no servidor | rápida e exata; **não funciona offline** |
-| **Híbrida — recomendada** | servidor quando online (números exatos, baratos); projeção cacheada quando offline, com selo |
+| | Fonte | UI |
+|---|---|---|
+| **Online** | consulta agregada no servidor sobre a projeção | números exatos |
+| **Offline** | catálogo cacheado, do último sync | **selo com a data do último sync** |
 
-`proxima_inspecao` como `date` na projeção torna a consulta trivial:
+> **Exigência do dono:** offline **não pode** apresentar informação antiga como se tivesse acabado
+> de ser consultada. O cartão mostra *"dados de HH:MM"* quando vier do cache.
+
+`proxima_inspecao` como `date` torna a consulta trivial:
 `where org_id = $1 and proxima_inspecao < now() + interval '30 days'`.
 
----
-
-## 15 · Backfill
-
-- Por organização, **sob autorização explícita** — nunca global automático.
-- Paginado (lotes de 1.000), **retomável** por cursor, **idempotente** (`upsert` por PK).
-- **Observável**: linhas processadas, tempo, erros.
-- Sem bloquear usuário: roda como manutenção, e a org funciona pelo **fallback** enquanto não
-  terminar.
-- **Sem egress absurdo:** roda no **servidor**, lendo `app_storage` direto. O cliente não baixa
-  nada para o backfill. Este ponto é inegociável — a cota do Supabase já está sob aviso.
+**O Dashboard não volta a varrer a organização inteira.**
 
 ---
 
-## 16 · Rollout por etapas, com portão em cada uma
+## 16 · Fallback — com o cuidado que o dono pediu
 
-| Etapa | Entrega | Rollback |
-|---|---|---|
-| **9A** | Migration da projeção + RLS + rebuild + backfill. **Nenhuma tela muda.** Nada lê a projeção ainda | `drop table` — nada depende dela |
-| **9B** | Escrita da projeção dentro da RPC + auditoria de divergência. Ainda **nenhuma leitura** | Reverter a função (versionada) |
-| **9C** | **Piloto: `/equipamentos`** — busca server-side, keyset, virtualização, offline pela projeção cacheada. **Atrás de flag por organização** | Desligar a flag → tela volta ao caminho atual |
-| **9D** | Sair da hidratação integral: `hidratarEssencial()` + `carregarEquipamento(tag)` sob demanda. **A etapa mais arriscada** | Flag: voltar à barreira |
-| **9E** | Restaurar o throttle de `lerTudo()` | trivial |
-| **9F** | Expandir para `/relatorios` e demais telas, uma por vez | Flag por tela |
-| **9G** | Achados secundários: contador pesado, `<select>` por card, `listarCalibracoes`, Dashboard, PDF duplicado | Independentes |
-
-**Cada etapa:** local → testes → commit → deploy → validação em produção → portão → próxima.
-
-> **9D é a etapa que pode quebrar tudo**, porque desfaz uma barreira que existe para impedir "conta
-> vazia". Ela vem **depois** de 9C provar que a leitura pela projeção funciona, e sai atrás de flag.
-
----
-
-## 17 · Compatibilidade durante a migração
+> **Não pode ser:** *"se não tem projeção, hidrata 50.000 equipamentos"*.
 
 | Situação | Comportamento |
 |---|---|
-| Org **sem** projeção | A RPC detecta (`to_regclass`) e não escreve nela. As telas usam o caminho atual. **Deploy não depende de backfill completo** |
-| Org **com** projeção, flag desligada | Projeção é escrita e fica em dia; ninguém lê ainda |
-| Org **com** flag ligada | Lê da projeção; se a consulta falhar, **cai no caminho atual** |
-| Aparelho com bundle antigo | Continua no caminho atual. A projeção não muda `app_storage` |
-| Dado antigo | Inalterado — a projeção é **aditiva**, não migra nem reescreve nada |
+| Org **sem** projeção (ainda não migrada) | Caminho atual, **temporário**. O backfill remove essa necessidade |
+| Org **com** projeção, flag desligada | Projeção escrita e em dia; ninguém lê |
+| Org **com** flag ligada | Lê da projeção |
+| **Consulta da projeção falha pontualmente** | Erro tratado na UI + retry. **Não** cai em hidratação integral |
+| **Item pontual** ausente da projeção | Reparo (§7.2); a UI mostra o que tem |
+| Bundle antigo | Caminho atual — a projeção não muda `app_storage` |
+
+**O fallback existe para o rollout, não para sempre.** Critério de saída: quando todas as orgs
+tiverem backfill concluído e auditoria em zero, **o caminho de hidratação integral é removido** —
+e isso é tarefa explícita da 9G, não "algum dia".
 
 ---
 
-## 18 · Arquivos e schema que seriam tocados
+## 17 · Backfill
+
+- **Por organização**, sob autorização explícita. Nunca global automático.
+- Paginado (lotes de 1.000), **retomável** por cursor, **idempotente** (`upsert` por PK).
+- **Observável**: linhas processadas, tempo, erros, posição.
+- Não bloqueia usuário: a org funciona pelo fallback enquanto não termina.
+- **Roda no servidor**, lendo `app_storage` direto. **O cliente não baixa nada.** Inegociável — a
+  cota do Supabase está sob aviso.
+
+---
+
+## 18 · Rollout — **DECISÃO 6**, infraestrutura antes da migração visual
+
+| Etapa | Entrega | Rollback |
+|---|---|---|
+| **9A** | Projeções + RLS + `busca_pendencias` + rebuild + auditoria + backfill. **Nenhum leitor.** | `drop` — nada depende |
+| **9B** | Escrita da projeção na RPC (com savepoint e pendência) + auditoria rodando. **Ainda nenhuma leitura** | Reverter a função (versionada) |
+| **9C** | **Piloto `/equipamentos`** — busca server-side, keyset, virtualização, catálogo offline. **Flag por organização** | Desligar a flag |
+| **9D** | Sair da hidratação integral: `hidratarEssencial()` + `carregarEquipamento(tag)`. **A etapa mais arriscada** | Flag: a barreira volta |
+| **9E** | **`/relatorios`** — a tela sem busca nenhuma | Flag por tela |
+| **9F** | Demais telas de escala, uma por vez | Flag por tela |
+| **9G** | Secundários + **remover o caminho de hidratação integral** | Independentes |
+
+**Cada etapa:** local → testes → commit → deploy → validação em produção → portão → próxima.
+
+> **9D vem depois de 9C** porque desfaz a barreira que impede "conta vazia". Só depois de a leitura
+> pela projeção estar provada em produção.
+
+### Portões
+
+| Portão | Depois de | Libera |
+|---|---|---|
+| **P9.1** | 9A + 9B | Projeção escrita e **auditoria em zero divergências** |
+| **P9.2** | 9C | `/equipamentos` pela projeção, validado em produção sob flag |
+| **P9.3** | 9D | Boot sem hidratação integral, **com offline provado** |
+| **P9.4** | 9E + 9F | Telas migradas |
+| **P9.5** | 9G + benchmarks | Fase 9 concluída |
+
+---
+
+## 19 · Arquivos e schema que seriam tocados
 
 **Nada disto foi feito.** É o mapa para o task-level.
 
@@ -558,50 +628,52 @@ relatórios. Não é lista — é **agregado sobre a organização**.
 
 | Arquivo | Conteúdo |
 |---|---|
-| `supabase/busca_index.sql` | tabelas, índices, RLS, grants |
+| `supabase/busca_index.sql` | as duas projeções, `busca_pendencias`, índices, RLS, grants |
 | `supabase/busca_index_rollback.sql` | `drop` na ordem inversa |
-| `supabase/busca_rebuild.sql` | `reconstruir_indice_busca` + auditoria |
-| `supabase/armazenamento_v2.sql` | **modificado**: `aplicar_mutacao_storage` passa a atualizar a projeção |
+| `supabase/busca_manutencao.sql` | rebuild, reparo, auditoria |
+| `supabase/armazenamento_v2.sql` | **modificado**: `aplicar_mutacao_storage` com o savepoint do §6.1 |
 
 ### Frontend
 
 | Arquivo | Papel |
 |---|---|
 | `src/services/buscaIndex.ts` | **novo** — consulta da projeção, online e offline |
+| `src/services/catalogoLocal.ts` | **novo** — catálogo no IndexedDB (§8.1) |
 | `src/services/storageV2.ts` | `hidratarEssencial()`, `carregarEquipamento(tag)`, **throttle de `lerTudo()`** |
-| `src/services/cacheLocal.ts` | store da projeção no IndexedDB |
-| `src/app/RotaProtegida.tsx` | barreira passa a esperar só o essencial |
-| `src/features/equipamento/equipamentoService.ts` | `listarPagina()` além de `listarEquipamentos()` |
-| `src/components/BuscaLista.tsx` | **novo** — o componente de busca do §11 |
-| `src/components/ListaVirtualizada.tsx` | **novo** |
+| `src/app/RotaProtegida.tsx` | barreira espera só o essencial |
+| `src/features/equipamento/equipamentoService.ts` | `listarPagina()` |
+| `src/components/BuscaLista.tsx` · `ListaVirtualizada.tsx` | **novos** |
 | `src/pages/Equipamentos.tsx` · `Relatorios.tsx` · … | consumir os novos serviços |
 | `src/services/vencimentos.ts` | agregado híbrido |
 
 ### Intocados de propósito
 
-`public/arquivos-*` (os 40+ templates), `palco.ts`, `pdfService.ts`, `artefatoRelatorio.ts`,
-`livroLacre.ts`, `fotos.ts`.
+`public/arquivos-*` (os 40+ templates) · `palco.ts` · `pdfService.ts` · `artefatoRelatorio.ts` ·
+`livroLacre.ts` · `fotos.ts`.
 
-> **`pdfService` não é tocado nesta fase.** A vetorização é Fase 11 e **não** começa aqui.
+> **`pdfService` não é tocado.** A vetorização é Fase 11 e **não** começa aqui.
 
 ---
 
-## 19 · Testes
+## 20 · Testes
 
 | Camada | O que trava |
 |---|---|
-| **Consistência** | Escrita pela RPC cria/atualiza a linha da projeção · falha na projeção **não** derruba a verdade · tombstone remove da projeção |
-| **Rebuild** | Idempotente (rodar 2× dá o mesmo) · retomável do cursor · **não** apaga o que não reconheceu |
-| **RLS** | Org A não vê linha da org B · Portal não acessa a projeção direto · `anon` não lê |
-| **Busca** | TAG exata · prefixo · fabricante · nº série · código · período · combinação · zero resultados · acentuação |
+| **Consistência** | Escrita pela RPC projeta · **falha na projeção não derruba a verdade** · falha gera pendência · tombstone remove da projeção · `source_version` acompanha |
+| **Reparo** | Idempotente · consome a pendência · pendência teimosa vira alerta |
+| **Rebuild** | Idempotente (2× = mesmo) · retomável · **não apaga o não reconhecido** · **não escreve em `app_storage`** |
+| **Auditoria** | Detecta linha faltando, sobrando e `source_version` defasada · **detecta divergência criada fora da RPC** |
+| **RLS** | Org A não vê org B · Portal sem acesso direto · `anon` nada · fail closed |
+| **Busca** | cada modalidade do §11, com seu índice · zero resultados · acentuação |
 | **Paginação** | Keyset não pula nem duplica com inserção concorrente · última página · cursor inválido |
-| **Offline** | Busca sobre a projeção cacheada · UI avisa a limitação · detalhe não cacheado avisa · **fila de escrita segue funcionando** |
-| **Regressão** | Palco monta documento igual · PDF só no clique · thumbnails da Fase 5 intactos · livro lacrado intacto · Portal sem regressão |
-| **Fallback** | Org sem projeção funciona · consulta que falha cai no caminho atual |
+| **Item recém-salvo** | Aparece imediatamente após salvar, online e offline (§6.4) |
+| **Offline** | Busca sobre o catálogo · UI avisa a limitação · detalhe não cacheado avisa · **fila de escrita funciona** |
+| **Compatibilidade** | `carregarEquipamento(tag)` → `ler()` síncrono encontra → palco monta → documento igual (§4) |
+| **Regressão** | PDF só no clique · thumbnails da Fase 5 · livro lacrado · Portal · palco |
 
 ---
 
-## 20 · Benchmarks — antes e depois, mesmos datasets
+## 21 · Benchmarks — antes e depois, mesmos datasets
 
 O **antes** está registrado. O **depois** roda no mesmo laboratório, com as mesmas seeds.
 
@@ -610,11 +682,8 @@ O **antes** está registrado. O **depois** roda no mesmo laboratório, com as me
 | 100 · 500 · 1.000 · 5.000 | ✅ | ✅ |
 | 10.000 · 20.000 · 50.000 | — | ✅ |
 
-Medir, nos dois lados: **FCP · bytes transferidos · nº de requisições · tempo de consulta ·
-buffers · nós no DOM · heap · long tasks · tempo de busca · filtros · scroll/FPS · paginação ·
-cache · offline.**
-
-### Comparação obrigatória
+Medir dos dois lados: **FCP · bytes · requisições · tempo de consulta · buffers · nós no DOM ·
+heap · long tasks · tempo de busca · filtros · scroll/FPS · paginação · cache · offline.**
 
 | | ANTES (medido) | DEPOIS (meta) |
 |---|---|---|
@@ -625,82 +694,106 @@ cache · offline.**
 | Busca por fabricante | **0 resultados** | **acha** |
 | `/relatorios` | sem busca | **com busca** |
 
+**Medir também:** peso real da projeção (§5.4) e do catálogo no IndexedDB.
+
 ---
 
-## 21 · Critérios de aceite
+## 22 · Critérios de aceite
 
-- [ ] **Boot não depende do número de equipamentos** — 1.000 e 50.000 abrem em tempo equivalente
+- [ ] **Boot não depende do número de equipamentos**
 - [ ] **Nenhuma tela hidrata a organização inteira**
-- [ ] **DOM proporcional à viewport/página**, não à base
-- [ ] **Heap não cresce linearmente** com o total de registros
-- [ ] Busca por **TAG exata, prefixo, descrição, fabricante, nº de série** funciona e é rápida
-- [ ] `/relatorios` **tem busca**, com todos os requisitos do §11
-- [ ] Busca devolve **subconjunto pequeno** com cursor — nunca 20.000 de uma vez
+- [ ] **DOM proporcional à viewport/página**
+- [ ] **Heap não cresce linearmente** com o total
+- [ ] Busca por TAG exata, prefixo, descrição, fabricante e nº de série funciona e é rápida
+- [ ] `/relatorios` **tem busca**, com todos os requisitos do §13
+- [ ] Busca devolve **subconjunto pequeno** com cursor
 - [ ] **Zero PDF baixado antes do clique**
-- [ ] **Offline continua funcionando**, com limitações **visíveis** na UI
-- [ ] **Nenhuma divergência** entre projeção e `app_storage` — provado por auditoria
-- [ ] **Falha na projeção nunca impede gravar a verdade**
-- [ ] RLS: org A não vê org B; Portal inalterado; **P1 e P3 preservados**
-- [ ] Thumbnails da Fase 5 **sem regressão** (N-01/N-02)
-- [ ] Livro lacrado, palco e PDF imutável **sem regressão**
-- [ ] Cada índice criado tem **consulta real e benchmark**
+- [ ] **Offline funciona**, com limitações **visíveis**
+- [ ] **Item recém-salvo nunca some da tela**
+- [ ] **Auditoria em zero divergências**, e prova disso
+- [ ] **Falha na projeção nunca impede gravar a verdade** — e deixa pendência durável
+- [ ] Pendência é **reparável e idempotente**; rebuild reconstrói do zero
+- [ ] RLS: org A não vê org B; Portal inalterado; **P1 e P3 preservados**; fail closed
+- [ ] Thumbnails da Fase 5 sem regressão (N-01/N-02)
+- [ ] Livro lacrado, palco e PDF imutável sem regressão
+- [ ] **Cada índice tem consulta real e benchmark**
+- [ ] Peso real da projeção **medido e publicado**
 - [ ] Rollback provado em cada etapa
-- [ ] Suíte verde, build verde
-- [ ] Benchmarks depois publicados em `docs/medicoes/`
-
----
-
-## 22 · Portões internos
-
-| Portão | Depois de | Libera |
-|---|---|---|
-| **P9.1** | 9A + 9B | Projeção existe, é escrita e **auditada sem divergência**. Nada lê ainda |
-| **P9.2** | 9C | `/equipamentos` pela projeção, com busca e virtualização, **validado em produção sob flag** |
-| **P9.3** | 9D + 9E | Boot sem hidratação integral, **com offline provado** |
-| **P9.4** | 9F | Demais telas migradas |
-| **P9.5** | 9G + benchmarks | Fase 9 concluída |
+- [ ] **Caminho de hidratação integral removido** ao fim da 9G
+- [ ] Suíte e build verdes; benchmarks publicados em `docs/medicoes/`
 
 ---
 
 ## 23 · Riscos
 
-| # | Risco | Gravidade | Mitigação |
+| # | Risco | Grav. | Mitigação |
 |---|---|:--:|---|
-| R1 | **Defeito na projeção passa a derrubar gravação de dado real** | 🔴 | Bloco `exception ... then registra e segue`. **A verdade nunca depende da projeção** (§5.3) |
-| R2 | **Sair da hidratação integral quebra tela que lia do `Map`** | 🔴 | Mapeamento do §1.2 é a lista completa; 9D vem depois de 9C; flag por org; a barreira volta desligando a flag |
-| R3 | **Offline regride sem ninguém notar** | 🔴 | Offline é critério de aceite, com teste próprio. Projeção cacheada é o coração da solução, não um remendo |
-| R4 | Projeção diverge com o tempo | 🟡 | Auditoria (§6.2) + rebuild idempotente |
-| R5 | Backfill estoura cota/egress | 🟡 | Roda **no servidor**; cliente não baixa nada; por org, sob autorização |
-| R6 | Virtualização quebra impressão/PDF | 🟡 | Documentos **não** usam as listas virtualizadas — o palco é por TAG e fica intocado |
-| R7 | Keyset com ordem instável pula itens | 🟡 | Ordem sempre termina em coluna única (`tag` / `relatorio_id`); teste com inserção concorrente |
-| R8 | Índice novo pesa na escrita | 🟡 | Cada um com benchmark antes/depois; a Fase 8 já mostrou que este projeto mede isso |
-| R9 | Ganhar desempenho e perder trabalho de campo | 🔴 | "Levar para o campo" (§8) é parte do escopo, **não** um extra |
-| R10 | Fase 9 crescer sem fim | 🟡 | Portões P9.1–P9.5; achados secundários só na 9G |
+| R1 | Defeito na projeção derruba gravação de dado real | 🔴 | Savepoint: só o bloco da projeção reverte (§6.1) |
+| R2 | **Divergência silenciosa permanente** | 🔴 | **Duas detecções independentes** (§6.3): pendência + auditoria por `source_version` |
+| R3 | Sair da hidratação quebra tela que lia do `Map` | 🔴 | §1.2 é a lista completa; 9D depois de 9C; flag; barreira volta |
+| R4 | Offline regride sem ninguém notar | 🔴 | Critério de aceite com teste próprio; catálogo é o coração, não remendo |
+| R5 | **Item recém-salvo some da tela** | 🔴 | §6.4, três camadas; teste dedicado |
+| R6 | Fallback vira muleta permanente | 🟡 | Critério de saída explícito na 9G (§16) |
+| R7 | Backfill estoura cota/egress | 🟡 | Roda no servidor; cliente não baixa nada |
+| R8 | Virtualização quebra impressão/PDF | 🟡 | Documentos não usam listas virtualizadas — palco intocado |
+| R9 | Keyset com ordem instável pula itens | 🟡 | Ordem termina em coluna única; teste com inserção concorrente |
+| R10 | Índice novo pesa na escrita | 🟡 | Cada um com benchmark antes/depois |
+| R11 | Ganhar desempenho e perder trabalho de campo | 🔴 | Pré-carga manual (§8.3) é escopo, não extra |
+| R12 | Projeção mais pesada que o estimado | 🟡 | §5.4: medir depois da modelagem; se não for ordens de grandeza menor, o desenho volta à mesa |
+| R13 | Fase 9 crescer sem fim | 🟡 | Portões P9.1–P9.5; secundários só na 9G |
 
 ---
 
 ## 24 · Fora do escopo, explicitamente
 
 - **PDF vetorial** — Fase 11. `pdfService` não é tocado.
-- **Baseline de geração de PDF (5/15/30 folhas)** — pré-requisito **antes da Fase 11**, não da 9.
+- **Baseline de geração de PDF (5/15/30 folhas)** — pré-requisito antes da Fase 11, não da 9.
 - **Degraus 100/500 em produção** — `CALIBRAÇÃO ADIADA`.
 - **Dataset realista em produção** — não autorizado.
 - **Fase 10** — não iniciada.
-- Limpeza de legado (`nr13_historico_relatorios`), remoção do `app_storage_org_idx` redundante,
-  bloat de TOAST — registrados na Fase 8, **fora da 9**.
+- Limpeza de legado, `app_storage_org_idx` redundante, bloat de TOAST — registrados na Fase 8.
 
 ---
 
-## 25 · O que precisa da sua decisão antes do task-level
+## 25 · O que o task-level ainda terá de decidir tecnicamente
 
-| # | Decisão | Recomendação |
+Não são decisões de arquitetura — são escolhas de implementação, todas com medição:
+
+1. Nomes finais das tabelas e colunas.
+2. `numero_serie`: igualdade ou prefixo — **definir pela UX real** antes do índice.
+3. Biblioteca de virtualização, escolhida por medição.
+4. Ordem do keyset por tela (`tag` × `atualizado_em desc, tag`).
+5. Tamanho de lote do backfill e do rebuild.
+6. Limiar de tentativas antes de uma pendência virar alerta.
+
+---
+
+## 26 · Decisões arquiteturais aprovadas
+
+Fechadas pelo dono em 22/08/2026, sobre a v1 deste documento.
+
+| # | Decisão | Resolução |
 |---|---|---|
-| 1 | **Duas tabelas** ou projeção genérica? | **Duas** (§4.1) — consultas e índices são diferentes por domínio |
-| 2 | **Escrita na mesma transação da RPC** ou trigger? | **Mesma RPC** (§5.2) — ela já é o único caminho de escrita |
-| 3 | Projeção pode **abortar** a escrita da verdade? | **Não.** Registra e segue (§5.3, R1) |
-| 4 | Offline: pré-carga **manual** ou automática? | **Manual na 9C**, automática depois com número medido (§8) |
-| 5 | `pg_trgm` para substring? | **Não agora.** `tsvector` primeiro; só entra com benchmark (§10) |
-| 6 | Ordem das telas | `/equipamentos` → `/relatorios` → resto (§13) |
-| 7 | Dashboard offline | Híbrido (§14) |
+| **1** | **Duas projeções por domínio** | **APROVADO.** Equipamentos e relatórios em projeções distintas — consultas, campos, índices, filtros e ciclo de vida diferentes. Nada de tabela genérica só para economizar uma tabela. Nomes finais são escolha técnica |
+| **2** | **Fonte da verdade** | **`app_storage` continua sendo a verdade.** As projeções são **derivadas, descartáveis e reconstruíveis**. Perder uma projeção **não perde informação empresarial**. Nunca podem virar segunda fonte de verdade |
+| **3** | **Falha da projeção** | **A gravação da verdade não depende do sucesso da projeção** — mas a falha **não pode ser silenciosa**. Toda falha ou divergência fica **duravelmente detectável e recuperável**: pendência durável → reparo idempotente → auditoria que prova convergência. **Consistência eventual é aceita para busca; divergência silenciosa permanente, não** |
+| **3b** | **Item recém-salvo** | O que o usuário acabou de salvar **nunca some da tela**. Caminho feliz é síncrono; escrita local é a rede de segurança; a UI sinaliza pendência quando houver |
+| **4** | **Offline** | **Pré-carga manual e explícita** na primeira versão. **Catálogo de metadados leves ≠ dados completos offline**: conhecer e pesquisar milhares não obriga a ter milhares completos no aparelho. Automático só depois, com número medido |
+| **5** | **Busca e `pg_trgm`** | **`pg_trgm` não entra agora**, e **`tsvector` não é assumido como solução universal**. Cada modalidade — TAG exata, prefixo, nº de série, código, texto livre, período — tem **consulta real → índice apropriado → `EXPLAIN (ANALYZE, BUFFERS)` → benchmark**. Sem índice universal |
+| **6** | **Ordem das telas** | `/equipamentos` → `/relatorios` → demais. **Mas a infraestrutura vem antes da migração visual**: 9A projeções sem leitores · 9B escrita e auditoria · 9C piloto · 9D fim da hidratação integral · 9E `/relatorios` · 9F demais · 9G secundários |
+| **7** | **Dashboard** | **Híbrido.** Online: agregados leves do servidor. Offline: último estado do catálogo, **com a UI deixando claro que é do último sync** — nunca apresentar dado antigo como recém-consultado. **Não volta a varrer a organização inteira** |
 
-**Aprovado o desenho, o próximo passo é o task-level de implementação — que ainda não existe.**
+### Ressalvas registradas junto com as decisões
+
+| | |
+|---|---|
+| **~250 B por projeção** | É **estimativa/baseline de direção, não contrato**. Medir depois da modelagem real: tamanho médio, índices, overhead do Postgres, transferência, IndexedDB. O compromisso é a projeção ser **várias ordens de grandeza** mais leve |
+| **Identidade fonte↔projeção** | Toda linha responde *"corresponde a qual versão da verdade?"* — `source_version`, `source_updated_at`, `projected_at` (nomes a definir). Serve auditoria, reparo, rebuild, detecção de atraso e rollout |
+| **Fallback** | Existe para **o rollout**, não para sempre. **Nunca** pode ser "sem projeção, hidrata 50.000". O backfill remove a necessidade, e a 9G **remove o caminho antigo** |
+| **Rebuild** | Idempotente · paginado · retomável · observável · por organização · sem alterar histórico · sem PDFs · sem base64 · **sem efeito colateral empresarial** |
+| **Portal** | O precedente **não relaxa segurança**: P1, P3, RLS, recursos vinculados, fail closed, e **hash/path nunca é autorização** |
+| **Amarra síncrona** | A estratégia oficial de compatibilidade está no **§4**, e sai da dependência do `Map` completo **sem reescrever os 40+ templates** |
+
+---
+
+**Aprovado este desenho, o próximo passo é o task-level de implementação — que ainda não existe.**
