@@ -2,9 +2,10 @@
 
 ## Estado atual da fase
 
-`⏸️ PLANEJADA — AGUARDANDO AUTORIZAÇÃO DE IMPLEMENTAÇÃO.`
+`✅ 9A CONCLUÍDA — aguardando o CHECKPOINT 9A → 9B.`
 
-**Nada executado. Nenhuma migration, tabela, índice, RPC, linha de `src/`, backfill ou deploy.**
+**9B a 9G continuam NÃO autorizadas.** `aplicar_mutacao_storage` segue **intocada**.
+Medições: [`medicoes/2026-08-22-fase9a-peso-projecao.md`](../../medicoes/2026-08-22-fase9a-peso-projecao.md)
 
 Desenho arquitetural **APROVADO** pelo dono em 22/08/2026, commit `8e82cf6`:
 [`specs/2026-08-22-fase9-escala-busca-design.md`](../specs/2026-08-22-fase9-escala-busca-design.md)
@@ -40,7 +41,7 @@ Valem em **todas** as subfases. Quebrar qualquer uma reprova o portão.
 | **I3** | A auditoria por `source_version` **não depende** da pendência existir |
 | **I4** | `source_version` = `app_storage.versao` **efetivamente persistida** pela mesma mutação. Nenhum timestamp de frontend. Nenhum contador novo |
 | **I5** | Todo cursor tem ordenação **estável, determinística, com desempate único** |
-| **I6** | **Offline não regride.** Catálogo leve disponível; fila durável; item recém-salvo nunca some da tela |
+| **I6** | **Offline não regride.** E a distinção é invariante: **catálogo leve offline ≠ todo equipamento completo offline.** Preservados integralmente: fila durável · conflitos · reconexão · item recém-salvo · equipamento explicitamente preparado para offline · comportamento do palco e dos templates |
 | **I7** | **Nenhum dos 40+ templates de `public/` é tocado** |
 | **I8** | RLS: org A nunca vê org B · Portal sem acesso direto às projeções · fail closed · hash/path nunca é autorização · **P1 e P3 preservados** |
 | **I9** | **Nenhum índice sem consulta real e benchmark antes/depois** |
@@ -85,14 +86,14 @@ Cria `equipamentos_index`, `relatorios_index`, `busca_pendencias`. **Não toca `
 
 ### Tarefas
 
-- [ ] **9A.1** — `busca_index.sql`: tabelas + colunas de identidade + PKs
-- [ ] **9A.2** — RLS das duas projeções e de `busca_pendencias`, espelhando `acesso_setup.sql`
-- [ ] **9A.3** — `reconstruir_indice_busca(org, lote)`: idempotente, paginado por cursor de `chave`,
+- [x] **9A.1** — `busca_index.sql`: tabelas + colunas de identidade + PKs
+- [x] **9A.2** — RLS das duas projeções e de `busca_pendencias`, espelhando `acesso_setup.sql`
+- [x] **9A.3** — `reconstruir_indice_busca(org, lote)`: idempotente, paginado por cursor de `chave`,
       retomável, observável, **não escreve em `app_storage`**, **não apaga o não reconhecido**
-- [ ] **9A.4** — `reparar_pendencias(org, lote)`
-- [ ] **9A.5** — `auditar_projecao(org)`: anti-join + comparação `source_version` × `versao`
-- [ ] **9A.6** — `busca_index_rollback.sql`
-- [ ] **9A.7** — Aplicar no laboratório; rodar rebuild sobre massa de 1.000; **medir o peso real**
+- [x] **9A.4** — `reparar_pendencias(org, lote)`
+- [x] **9A.5** — `auditar_projecao(org)`: anti-join + comparação `source_version` × `versao`
+- [x] **9A.6** — `busca_index_rollback.sql`
+- [x] **9A.7** — Aplicar no laboratório; rodar rebuild sobre massa de 1.000; **medir o peso real**
       da projeção (§5.4 do desenho — os ~250 B são estimativa, não contrato)
 
 ### Testes
@@ -113,8 +114,19 @@ Cria `equipamentos_index`, `relatorios_index`, `busca_pendencias`. **Não toca `
 - Peso por linha, peso dos índices, `pg_total_relation_size` das duas projeções em **1.000** e
   **10.000**.
 - Tempo do rebuild por lote.
-- **Comparar com o dado completo medido na Fase 8 (8,3 kB/equipamento).** Se a razão não for de
-  ordens de grandeza, **parar e reavaliar o desenho** (risco R12).
+- **Comparar com o dado completo medido na Fase 8 (8,3 kB/equipamento).**
+
+> **Critério ajustado pelo dono — não é aritmético.** Os ~250 B eram estimativa de direção e
+> **não viram requisito artificial**. Não reprovar só porque o total *com índices* não ficou
+> literalmente em "ordens de grandeza".
+>
+> **O critério é:** a projeção precisa permanecer **claramente leve** contra o dado completo e
+> permitir operar dezenas de milhares de registros **sem repetir o problema da Fase 8**.
+> **Volta à mesa** se ela se aproximar do tamanho dos registros completos, ou gerar dezenas/
+> centenas de MB desnecessários para um simples catálogo.
+
+- Medir e **apresentar os números**: payload médio da linha · tamanho real da tabela · overhead ·
+  tamanho dos índices · bytes por página · impacto no IndexedDB · projeção em **10k / 20k / 50k**.
 
 ### Rollback
 
@@ -122,11 +134,11 @@ Cria `equipamentos_index`, `relatorios_index`, `busca_pendencias`. **Não toca `
 
 ### Critérios de aceite
 
-- [ ] Tabelas, RLS e funções aplicadas no laboratório
-- [ ] Todos os testes acima verdes
-- [ ] **Peso real medido e publicado**
-- [ ] `src/` intocado
-- [ ] Suíte e build verdes
+- [x] Tabelas, RLS e funções aplicadas no laboratório
+- [x] Todos os testes acima verdes — **12/12 funcionais, 6/6 de RLS**
+- [x] **Peso real medido e publicado** — catálogo **26,8×** mais leve; as duas projeções **7,5×**
+- [x] `src/` intocado
+- [x] Suíte 1186/1186 e build verdes
 
 **Commit:** `feat(fase9): projeções de busca, RLS, rebuild e auditoria — sem leitores`
 **Deploy:** **não.** Aplicar em produção só depois do portão P9.1.
@@ -216,6 +228,19 @@ projeções ficam paradas, ninguém lê, nada quebra.
 
 ---
 
+## ⏸️ CHECKPOINT 9A → 9B — **aprovação manual obrigatória**
+
+> **Exigido pelo dono.** Não é portão formal — é uma parada obrigatória entre as duas subfases.
+
+**Por que existe:** a 9A é **aditiva** (projeções, RLS, rebuild, auditoria, benchmarks, nenhum
+leitor). A 9B toca `aplicar_mutacao_storage`, que é o **caminho crítico de escrita da verdade**.
+São riscos de naturezas diferentes e não devem ser aprovados no mesmo gesto.
+
+**Ao terminar a 9A:** implementar → testar → medir → commit → push → **apresentar os resultados** →
+**PARAR**. A 9B só começa com autorização explícita.
+
+---
+
 ## 🚪 PORTÃO P9.1 — a projeção existe, é mantida e é auditável
 
 | Exigência | Prova |
@@ -262,6 +287,10 @@ projeções ficam paradas, ninguém lê, nada quebra.
 
 > **Errar para o lado do OFF é o lado barato.** Org sem projeção ou sem flag continua exatamente
 > como hoje.
+
+> **A flag é mecanismo de rollout/rollback, NÃO arquitetura permanente.** Depois que a 9G remover
+> a hidratação integral, ela **não pode virar desculpa para manter dois sistemas completos para
+> sempre**. Remover a flag e o caminho antigo é entrega da 9G.
 
 ### Busca — quatro modalidades, quatro experimentos separados
 
@@ -540,7 +569,7 @@ recém-consultado.
 | **Como iniciar** | `select reconstruir_indice_busca('<org>', 1000);` no SQL Editor, **por organização**, sob autorização explícita |
 | **Como pausar** | Parar de chamar. Cada lote é uma transação — não há estado pela metade |
 | **Como retomar** | Chamar de novo: a função lê a posição gravada e continua do cursor |
-| **Lote inicial** | **1.000 chaves**. Ajustar com medição; começar conservador |
+| **Lote inicial** | **1.000 chaves — HIPÓTESE DE PARTIDA, não constante arquitetural.** Precisa ser **configurável, mensurável, reduzível** se gerar pressão e **aumentável** se o benchmark permitir. A primeira execução local decide se 1.000 serve |
 | **Como medir** | A função devolve `{processadas, ultima_chave, ms}` |
 | **Progresso** | `auditar_projecao(org)` mostra quantas faltam |
 | **Detectar falha** | Lote que levanta não avança o cursor — repetir é seguro |
@@ -614,30 +643,42 @@ recém-consultado.
 |---|---|---|
 | 22/08 | Desenho arquitetural aprovado (`8e82cf6`), com a hierarquia de falhas fechada | ✅ |
 | 22/08 | Task-level criado. **Nada executado** | ✅ |
+| 22/08 | **Task-level APROVADO** (`2fada5b`). Dono autorizou **somente a 9A** | ✅ |
+| 22/08 | Ajustes de procedimento: **CHECKPOINT manual 9A→9B**, critério de peso **não aritmético**, lote de backfill como **hipótese**, flag **não é arquitetura permanente** | ✅ |
+| 22/08 | **9A implementada**: `busca_index.sql`, `busca_manutencao.sql`, `busca_index_rollback.sql`. Aplicadas no laboratório | ✅ |
+| 22/08 | **12/12 testes funcionais** — identidade de versão, idempotência, retomada, não escreve em `app_storage`, auditoria detecta faltando/sobrando/defasada, reparo converge, não apaga o alheio, datas normalizadas, parsers tolerantes | ✅ |
+| 22/08 | **6/6 testes de RLS** — org A não vê org B · `anon` nada · escrita negada em insert/update/delete · **cliente do Portal não lê a projeção** · tabelas e funções de manutenção fechadas | ✅ |
+| 22/08 | **Rebuild de 51.000 equipamentos + 102.000 relatórios em 33 s**, 104 lotes de 50–92 ms. Auditoria `convergiu: true`. **O lote de 1.000 se validou** | ✅ |
+| 22/08 | **Peso medido com dado de forma real:** catálogo **319 B/equip (26,8× mais leve)**, as duas projeções **1.138 B (7,5×)**. Catálogo de 50.000 = **15,6 MB**, 0,15 % da cota do IndexedDB | ✅ |
+| 22/08 | **Correção da minha estimativa:** o desenho dizia ~33×; o real é **26,8×** para o catálogo, e os **7,5×** só aparecem somando `relatorios_index`, que a estimativa não contava | ✅ |
+| 22/08 | Armadilha de medição registrada: `VACUUM FULL` via `psql -c` com vários comandos **falha em silêncio** (transação implícita). O número errado era 3,6× maior | ✅ |
+| 22/08 | **9A CONCLUÍDA. PARADA no CHECKPOINT 9A → 9B**, aguardando autorização | ⏸️ |
 
 ---
 
 ## Ponto de retomada
 
-> ### ⏸️ AGUARDANDO AUTORIZAÇÃO DE IMPLEMENTAÇÃO
+> ### ⏸️ 9A CONCLUÍDA — PARADA NO CHECKPOINT 9A → 9B
 >
 > **Leia este bloco primeiro. Ele basta para retomar sem contexto nenhum.**
 >
 > | | |
 > |---|---|
-> | Desenho aprovado | `specs/2026-08-22-fase9-escala-busca-design.md` · commit `8e82cf6` |
-> | Fase 8 | **CONCLUÍDA** (`fe62356`) — baseline em `medicoes/2026-08-22-fase8-fechamento.md` |
-> | Estado da Fase 9 | **task-level escrito, NADA executado** |
-> | `src/` | intocado desde `490a236` |
-> | Schema | **nenhuma migration criada** |
-> | Massa em produção | **ZERO** |
-> | Laboratório | parado, volumes preservados (`npx supabase start` para voltar) |
+> | 9A | **CONCLUÍDA** — projeções, RLS, rebuild, reparo e auditoria, aplicados e provados no laboratório |
+> | Testes | **12/12 funcionais · 6/6 RLS** · suíte 1186/1186 · build verde |
+> | Peso | catálogo **26,8×** mais leve; as duas projeções **7,5×**. 50.000 equipamentos = **15,6 MB** de catálogo |
+> | Rebuild | **51.000 equipamentos em 33 s**, lote de 1.000 validado |
+> | `src/` | **intocado** desde `490a236` |
+> | `aplicar_mutacao_storage` | **intocada** — é 9B |
+> | Produção | **nada aplicado.** Só laboratório |
+> | Laboratório | no ar, 1.000 equipamentos, auditoria `convergiu: true` |
 >
-> **O que falta para começar:** autorização explícita do dono para a **9A**. Nada mais.
+> **O que falta para seguir:** autorização explícita do dono para a **9B**, que é onde a RPC passa
+> a manter a projeção. É a primeira vez que a fase toca o **caminho crítico de escrita da verdade**.
 >
-> **Ao retomar, na ordem:** 9A.1 → 9A.7 → testes → commit → **portão P9.1 exige 9B também** → 9B →
-> deploy → backfill de uma org → auditoria em zero → **só então 9C**.
+> **Ao retomar a 9B, na ordem:** 9B.1 → 9B.5 → **teste de falha em cascata (os 6 passos)** →
+> auditoria em zero → benchmark de escrita dentro do limiar de 20 % → commit → **portão P9.1**.
 >
-> **Proibições que continuam valendo:** não iniciar 9A sem autorização · não tocar nos 40+ templates
-> de `public/` · não criar índice sem benchmark · não rodar backfill global · não iniciar a Fase 10
-> · não iniciar PDF vetorial · não alterar `pdfService`.
+> **Proibições que continuam valendo:** não iniciar 9B sem autorização · não tocar nos 40+ templates
+> de `public/` · não criar índice sem benchmark · não rodar backfill em org real · não ativar
+> `busca_v9` · não migrar leitores · não iniciar a Fase 10 · não iniciar PDF vetorial.

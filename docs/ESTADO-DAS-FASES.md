@@ -100,45 +100,45 @@ Sempre use um destes. Nunca "concluído".
 | **4** | Portal: arquitetura de leitura (A-02) | ✅ **CONCLUÍDA** | **P3 FECHADO ✅** aprovado 20/08 | `plans/2026-08-20-fase4-task-level.md` |
 | **5** | Fotos: thumbnail, EXIF, teto de altura (A-08) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** | — | `plans/2026-08-20-fase5-task-level.md` · `medicoes/2026-08-20-fase5-producao-antes-depois.md` |
 | **6** | Recuperação do fallback base64 (A-10) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** nas 3 famílias, com SHA-256 idêntico | — | `plans/2026-08-20-fase6-task-level.md` |
-| **9** | Escala, busca e carregamento sob demanda | ⏸️ **PLANEJADA — AGUARDANDO AUTORIZAÇÃO DE IMPLEMENTAÇÃO** | P9.1…P9.5 | `plans/2026-08-22-fase9-task-level.md` · `specs/2026-08-22-fase9-escala-busca-design.md` |
+| **9** | Escala, busca e carregamento sob demanda | 🟡 **EM IMPLEMENTAÇÃO — 9A CONCLUÍDA**, parada no checkpoint 9A→9B | P9.1…P9.5 | `plans/2026-08-22-fase9-task-level.md` · `specs/2026-08-22-fase9-escala-busca-design.md` |
 | **8** | Escala, dataset e medições | ✅ **CONCLUÍDA** (22/08) — diagnóstico aprovado; o critério de produto **NÃO PASSA em grande escala**, e isso é o mandato da Fase 9 | — | `plans/2026-08-22-fase8-task-level.md` · `medicoes/2026-08-22-fase8-fechamento.md` |
 | **7** | Logo e rubrica por conteúdo (A-05) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** (7A EXPAND + 7B SWITCH, Portal e offline real) | **P4 FECHADO ✅** aprovado 22/08 | `plans/2026-08-20-fase7-task-level.md` · `medicoes/2026-08-20-fase7b-validacao-producao.md` |
 | **8** | Escala, dataset determinístico e medições (A-17) | 🟡 **PLANEJADA** — AS-IS, dataset e plano de medição escritos; **nenhuma massa gerada** | — | `plans/2026-08-22-fase8-task-level.md` |
 | 9…13 | ver plano macro | PLANEJADO | P5…P8 | `plans/2026-08-15-evolucao-arquitetura.md` |
 
-**Fase atual:** **9 — PLANEJADA / AGUARDANDO AUTORIZAÇÃO DE IMPLEMENTAÇÃO.**
+**Fase atual:** **9 — 9A CONCLUÍDA, parada no CHECKPOINT 9A → 9B.**
 
-**Nada executado:** nenhuma migration, tabela, índice, RPC, linha de `src/`, backfill ou deploy.
+**9B a 9G não autorizadas.** `aplicar_mutacao_storage` **intocada**. `src/` intocado. Produção sem
+nada aplicado.
 
 | | |
 |---|---|
-| Desenho arquitetural | **APROVADO** — `specs/2026-08-22-fase9-escala-busca-design.md` (`8e82cf6`) |
-| Task-level | **escrito** — `plans/2026-08-22-fase9-task-level.md` |
-| Fase 8 | **CONCLUÍDA** (`fe62356`) |
-| `src/` | intocado desde `490a236` |
-| Massa em produção | **ZERO** |
+| Desenho | **APROVADO** — `specs/2026-08-22-fase9-escala-busca-design.md` (`8e82cf6`) |
+| Task-level | **APROVADO** — `plans/2026-08-22-fase9-task-level.md` (`2fada5b`) |
+| **9A** | **CONCLUÍDA** — `medicoes/2026-08-22-fase9a-peso-projecao.md` |
 
-**Próxima ação exata:** o dono revisa o task-level e **autoriza (ou não) a 9A**. Nada começa antes.
+**Próxima ação exata:** o dono revisa os resultados da 9A e **autoriza (ou não) a 9B** — a primeira
+subfase que toca o **caminho crítico de escrita da verdade**.
 
-### Subfases planejadas
+### O que a 9A entregou e provou
 
-| | | Portão |
-|---|---|---|
-| **9A** | Projeções, RLS, rebuild, auditoria — **sem leitores** | |
-| **9B** | Projeção mantida pela RPC + falha contida em savepoint | **P9.1** |
-| **9C** | Piloto `/equipamentos` sob flag `busca_v9` | **P9.2** |
-| **9D** | Saída da hidratação integral + throttle de `lerTudo()` | **P9.3** |
-| **9E** | `/relatorios` — a tela sem busca nenhuma | |
-| **9F** | Demais telas de escala | **P9.4** |
-| **9G** | Secundários + **remoção do caminho legado** | **P9.5** |
+Duas projeções (`equipamentos_index`, `relatorios_index`), `busca_pendencias`, estado de rebuild,
+RLS, e as funções `reconstruir_indice_busca` · `reparar_pendencias` · `auditar_projecao`.
 
-### As 12 invariantes que valem em todas as subfases
+| | |
+|---|---|
+| Testes | **12/12 funcionais · 6/6 RLS** · suíte 1186/1186 · build verde |
+| Rebuild | **51.000 equipamentos + 102.000 relatórios em 33 s** (104 lotes de 50–92 ms) |
+| Auditoria | `convergiu: true` em 1.000 e em 51.000 |
+| Peso | catálogo **319 B/equip = 26,8× mais leve**; as duas projeções **1.138 B = 7,5×** |
+| Offline | catálogo de 50.000 = **15,6 MB**, contra 407 MB do dado completo — **0,15 % da cota** |
 
-Destaque para as três que governam o resto: **`app_storage` é a única verdade**; **falha em
-mecanismo derivado nunca vira falha da verdade**; e **nenhum dos 40+ templates de `public/` é
-tocado**. A lista completa está no topo do task-level.
+**Correção registrada:** o desenho estimava ~33×; o real é **26,8×** para o catálogo, e os **7,5×**
+só aparecem somando `relatorios_index`, que a estimativa não contava. Pelo critério do dono — a
+projeção precisa ser **claramente leve** e não se aproximar do dado completo — **passa**.
 
-**Fase 10 e PDF vetorial: não iniciados.**
+**Nenhum índice de busca criado** (é 9C, com benchmark). **Nenhuma coluna `tsvector`** (a
+configuração é decisão da 9C; medi que custaria 194 B/linha).
 
 Os dois roteiros ficam gravados, já com os resultados marcados:
 
