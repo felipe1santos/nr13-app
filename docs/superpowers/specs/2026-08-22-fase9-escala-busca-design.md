@@ -262,56 +262,104 @@ leve que o registro completo. Se a medição mostrar que não ficou, o desenho v
 > ou divergência precisa ficar **duravelmente detectável e recuperável**. Consistência eventual é
 > aceita. **Divergência silenciosa permanente, não.**
 
-### 6.1 O mecanismo
+### 6.1 A hierarquia — e ela é o coração desta seção
 
-Três camadas, e cada uma cobre a falha da anterior:
+> **Regra de ouro:** **falha em QUALQUER mecanismo derivado nunca pode virar falha da verdade.**
 
-```
-aplicar_mutacao_storage  (transação única)
-│
-├─ 1. escreve app_storage                    ← A VERDADE. Nunca bloqueada.
-│
-├─ 2. SUBTRANSAÇÃO (savepoint do PL/pgSQL)
-│     └─ atualiza a projeção, com source_version/source_updated_at/projected_at
-│        exception when others then
-│          └─ 3. grava PENDÊNCIA durável em `busca_pendencias`
-│                (org_id, recurso, chave, motivo, tentativas, criado_em)
-│
-└─ commit
-```
+Três níveis, e cada um é *menos* essencial que o anterior:
 
-**Por que o `EXCEPTION` do PL/pgSQL resolve:** ele cria um *savepoint*. Se a projeção falhar, o
-rollback atinge **só** o bloco da projeção — a escrita da verdade, feita antes, **permanece** e o
-`commit` acontece. Não é "log e reza": é rollback parcial com registro durável.
-
-**Caminho feliz é síncrono.** Normalmente a projeção é atualizada **dentro da mesma transação**,
-então não há atraso nenhum — o que também resolve o caso de UX do §6.4.
-
-### 6.2 As sete propriedades exigidas, ponto a ponto
-
-| # | Exigência | Como é atendida |
+| Nível | Papel | Se falhar |
 |---|---|---|
-| 1 | Falha da projeção nunca perde a verdade | Savepoint: só o bloco da projeção reverte |
-| 2 | Falha não pode ser silenciosa | Linha em `busca_pendencias` **+** auditoria independente |
-| 3 | Descobrir quais registros divergem | Auditoria compara `source_version` × `app_storage.versao` |
-| 4 | Reparo idempotente | `reparar_pendencias(org, lote)` — `upsert` por PK |
-| 5 | Rebuild completo | `reconstruir_indice_busca(org, lote)` (§7) |
-| 6 | Projeção carrega versão/timestamp da fonte | `source_version`, `source_updated_at`, `projected_at` (§5.2) |
-| 7 | Auditoria prova convergência | Consulta que devolve **zero divergências** = prova (§6.3) |
+| **1 · `app_storage`** | **A VERDADE** | A transação aborta, a mutação **fica na fila do cliente** e é reenviada. Nada se perde |
+| **2 · Projeção** | Derivada, para busca | Rollback só do bloco dela. A verdade permanece |
+| **3 · Pendência** | **Best-effort** — apenas acelera o reparo | Rollback só do bloco dela. **Nem a verdade nem a projeção são afetadas** |
 
-### 6.3 Duas detecções independentes — de propósito
+> **A pendência é uma otimização, não uma garantia.** A garantia é a **auditoria por
+> `source_version`** (§6.3), que funciona **mesmo que o mecanismo de pendência nunca tenha
+> funcionado um único dia**. Foi assim que a brecha se fechou: em vez de tornar o registro da
+> pendência infalível, o desenho passou a **não depender dele**.
 
-| Detecção | Como | Cobre |
+### 6.2 O mecanismo, com os dois níveis de proteção
+
+```sql
+-- dentro de aplicar_mutacao_storage, transação única
+
+--  NÍVEL 1 ── A VERDADE. Escrita primeiro, e nunca condicionada ao que vem depois.
+update/insert public.app_storage ... ;          -- v_nova = versão persistida
+
+--  NÍVEL 2 ── PROJEÇÃO (subtransação: BEGIN..EXCEPTION cria um savepoint)
+begin
+  perform public.projetar_equipamento(v_org, p_chave, v_nova, v_agora);
+exception when others then
+
+  --  NÍVEL 3 ── PENDÊNCIA, dentro do próprio handler, com savepoint PRÓPRIO.
+  --  É ESTE bloco que fecha a brecha: sem ele, uma falha ao gravar a pendência
+  --  escaparia do handler do nível 2 e abortaria a transação inteira —
+  --  derrubando a verdade que já estava escrita.
+  begin
+    insert into public.busca_pendencias (org_id, chave, motivo, criado_em)
+    values (v_org, p_chave, sqlerrm, v_agora)
+    on conflict (org_id, chave) do update set tentativas = busca_pendencias.tentativas + 1;
+  exception when others then
+    --  Fim da linha: NÃO propaga. A auditoria (§6.3) detecta esta divergência
+    --  sem precisar que esta linha exista.
+    null;
+  end;
+end;
+
+--  commit  →  a verdade está salva nos três cenários
+```
+
+**Por que os blocos aninhados resolvem:** em PL/pgSQL, todo `BEGIN … EXCEPTION … END` é uma
+**subtransação** com *savepoint* próprio. O rollback vai até o savepoint **daquele** bloco e não
+além. O handler interno com `null` **não pode levantar exceção**, então nada escapa do nível 3.
+
+**Alternativas consideradas e por que esta venceu:**
+
+| Alternativa | Por que não |
+|---|---|
+| Só auditoria, sem pendência | Correto, mas o reparo dependeria de a auditoria rodar. A pendência dá reparo rápido **de graça** — desde que não seja obrigatória |
+| Pendência via `RAISE WARNING` no log do Postgres | Não é consultável nem durável de forma útil no Supabase |
+| Pendência numa transação autônoma (`dblink`/`pg_background`) | Dependência externa e conexão nova por escrita. Custo alto para um mecanismo que é best-effort |
+
+### 6.3 As cinco garantias, provadas
+
+| # | Garantia | Como o desenho prova |
 |---|---|---|
-| **Pendência** | `busca_pendencias` não vazia | a falha que o próprio código percebeu |
-| **Auditoria** | `source_version` ≠ `versao`, ou linha faltando/sobrando | **a falha que o código NÃO percebeu** — inclusive escrita pela porta de manutenção, ou defeito na própria gravação da pendência |
+| **1** | **Falha da projeção não aborta a verdade** | O `update/insert` do nível 1 acontece **antes** e fora da subtransação. O rollback do nível 2 vai só até o savepoint dele |
+| **2** | **Falha ao registrar a pendência também não aborta a verdade** | O nível 3 tem savepoint próprio e handler `null`, que **não pode levantar**. Nada escapa para o nível 2 nem para a transação |
+| **3** | **A auditoria não depende da pendência existir** | Ela compara `equipamentos_index.source_version` com `app_storage.versao` **direto nas duas tabelas**. Não lê `busca_pendencias` |
+| **4** | **Projeção ausente ou desatualizada continua detectável** | Ausente → *anti-join* acha a chave sem linha. Desatualizada → `source_version < versao`. **Os dois casos pela mesma consulta** |
+| **5** | **Reparo posterior converge** | `reparar_pendencias` (rápido, quando há pendência) **ou** `reconstruir_indice_busca` (completo, sempre disponível). Ambos idempotentes e partindo da verdade |
 
-> A auditoria **não depende** do mecanismo de pendência funcionar. É essa independência que impede
-> divergência silenciosa permanente.
+**A rede de segurança mais externa, que já existe:** se a transação inteira abortar — banco fora
+do ar, disco cheio, conexão perdida —, a RPC não confirma a mutação, ela **permanece em**
+`nr13_fila_sync` **no cliente** e é reenviada. É o mesmo mecanismo que sustenta o trabalho de campo
+offline hoje. **Nenhum cenário perde dado.**
 
-**Reparo é sempre idempotente e sempre parte da verdade.** A projeção nunca é consertada à mão.
+### 6.3.1 `source_version` — de onde ele vem, e de onde NÃO vem
 
-### 6.4 O caso do item recém-salvo — **pedido do dono**
+> **Exigência do dono:** a autoridade da convergência é a **versão efetivamente persistida da
+> verdade pela mesma mutação**. Nada de timestamp de frontend.
+
+| | |
+|---|---|
+| **`source_version`** | **`v_nova`** — exatamente o inteiro gravado em `app_storage.versao` por **esta** mutação. Mesma variável, mesma transação |
+| **`source_updated_at`** | o `now()` da transação, o mesmo gravado em `atualizado_em` |
+| **`projected_at`** | quando a linha da projeção foi escrita |
+
+**Não é criado contador novo.** `app_storage.versao` já é o versionamento do sistema — o mesmo que
+a RPC usa para detectar conflito e o mesmo do piso de tombstone. A projeção **reusa** essa
+semântica.
+
+**Explicitamente proibido como autoridade de convergência:** `mutado_em_cliente`. O próprio
+`armazenamento_v2.sql` o marca como **`AUDITORIA APENAS`** — é relógio de aparelho, sujeito a
+fuso, atraso e adulteração. Usá-lo para decidir convergência contradiria o desenho existente.
+
+**Consequência prática:** a auditoria é uma comparação de inteiros na mesma transação-fonte, sem
+ambiguidade de relógio.
+
+### 6.5 O caso do item recém-salvo — **pedido do dono**
 
 *Usuário salva `VASO-203`; a verdade grava; a projeção fica pendente por alguns segundos. O
 equipamento não pode "desaparecer" da tela.*
@@ -454,6 +502,24 @@ limit 50
 
 Página de **50**. Busca devolve no máximo **50 + cursor**, nunca "todos os 20.000".
 **A ser provado por benchmark em 5.000 / 20.000 / 50.000** — não por teoria.
+
+### 10.1 Regra fixada pelo dono — ordenação estável com desempate único
+
+> **Toda paginação por cursor precisa de ordenação estável, determinística e com desempate
+> único.** Cursor sobre campo que pode empatar causa **item duplicado, item pulado e paginação
+> inconsistente**.
+
+A última coluna da ordenação é sempre uma **chave única daquele domínio**:
+
+| Tela | Forma | Desempate |
+|---|---|---|
+| Equipamentos por TAG | `order by tag` | `tag` **já é único** por org |
+| Equipamentos por data | `order by proxima_inspecao, tag` | `tag` |
+| Relatórios por emissão | `order by emissao desc, relatorio_id` | `relatorio_id` |
+
+**A ordenação concreta de cada tela fica para o task-level** — a regra é que ela **sempre termina
+em coluna única**. Teste obrigatório: paginar do início ao fim com **inserção concorrente**, e
+provar que nenhum item é pulado nem devolvido duas vezes.
 
 ---
 
@@ -659,7 +725,9 @@ e isso é tarefa explícita da 9G, não "algum dia".
 
 | Camada | O que trava |
 |---|---|
-| **Consistência** | Escrita pela RPC projeta · **falha na projeção não derruba a verdade** · falha gera pendência · tombstone remove da projeção · `source_version` acompanha |
+| **Consistência** | Escrita pela RPC projeta · tombstone remove da projeção · `source_version` = versão persistida |
+| **Consistência — o teste de falha em cascata (§6.3)** | **1.** força falha na projeção · **2.** força falha **também** no registro da pendência · **3.** confirma que `app_storage` **foi salvo** · **4.** confirma que a **auditoria detecta** a divergência **sem** a pendência existir · **5.** repara · **6.** confirma **convergência** |
+| **Keyset** | Paginar do início ao fim **com inserção concorrente**: nenhum item pulado, nenhum duplicado (§10.1) |
 | **Reparo** | Idempotente · consome a pendência · pendência teimosa vira alerta |
 | **Rebuild** | Idempotente (2× = mesmo) · retomável · **não apaga o não reconhecido** · **não escreve em `app_storage`** |
 | **Auditoria** | Detecta linha faltando, sobrando e `source_version` defasada · **detecta divergência criada fora da RPC** |
@@ -711,7 +779,10 @@ heap · long tasks · tempo de busca · filtros · scroll/FPS · paginação · 
 - [ ] **Offline funciona**, com limitações **visíveis**
 - [ ] **Item recém-salvo nunca some da tela**
 - [ ] **Auditoria em zero divergências**, e prova disso
-- [ ] **Falha na projeção nunca impede gravar a verdade** — e deixa pendência durável
+- [ ] **Falha na projeção nunca impede gravar a verdade**
+- [ ] **Falha ao registrar a pendência também não impede gravar a verdade**
+- [ ] **A auditoria detecta divergência sem depender da pendência existir**
+- [ ] Toda ordenação de cursor **termina em coluna única**, provado com inserção concorrente
 - [ ] Pendência é **reparável e idempotente**; rebuild reconstrói do zero
 - [ ] RLS: org A não vê org B; Portal inalterado; **P1 e P3 preservados**; fail closed
 - [ ] Thumbnails da Fase 5 sem regressão (N-01/N-02)
@@ -729,7 +800,8 @@ heap · long tasks · tempo de busca · filtros · scroll/FPS · paginação · 
 | # | Risco | Grav. | Mitigação |
 |---|---|:--:|---|
 | R1 | Defeito na projeção derruba gravação de dado real | 🔴 | Savepoint: só o bloco da projeção reverte (§6.1) |
-| R2 | **Divergência silenciosa permanente** | 🔴 | **Duas detecções independentes** (§6.3): pendência + auditoria por `source_version` |
+| R2 | **Divergência silenciosa permanente** | 🔴 | Auditoria por `source_version` (§6.3), que **não depende da pendência** |
+| R2b | **Falha em mecanismo derivado derruba a verdade** | 🔴 | Savepoints aninhados nos níveis 2 e 3; handler interno `null` **não pode levantar** (§6.2). Teste de falha em cascata (§20) |
 | R3 | Sair da hidratação quebra tela que lia do `Map` | 🔴 | §1.2 é a lista completa; 9D depois de 9C; flag; barreira volta |
 | R4 | Offline regride sem ninguém notar | 🔴 | Critério de aceite com teste próprio; catálogo é o coração, não remendo |
 | R5 | **Item recém-salvo some da tela** | 🔴 | §6.4, três camadas; teste dedicado |
@@ -776,7 +848,9 @@ Fechadas pelo dono em 22/08/2026, sobre a v1 deste documento.
 |---|---|---|
 | **1** | **Duas projeções por domínio** | **APROVADO.** Equipamentos e relatórios em projeções distintas — consultas, campos, índices, filtros e ciclo de vida diferentes. Nada de tabela genérica só para economizar uma tabela. Nomes finais são escolha técnica |
 | **2** | **Fonte da verdade** | **`app_storage` continua sendo a verdade.** As projeções são **derivadas, descartáveis e reconstruíveis**. Perder uma projeção **não perde informação empresarial**. Nunca podem virar segunda fonte de verdade |
-| **3** | **Falha da projeção** | **A gravação da verdade não depende do sucesso da projeção** — mas a falha **não pode ser silenciosa**. Toda falha ou divergência fica **duravelmente detectável e recuperável**: pendência durável → reparo idempotente → auditoria que prova convergência. **Consistência eventual é aceita para busca; divergência silenciosa permanente, não** |
+| **3** | **Falha de mecanismo derivado** | **Falha em QUALQUER mecanismo derivado — projeção, pendência, outbox, telemetria — nunca pode virar falha da verdade.** Savepoints aninhados garantem isso nos dois níveis. A **pendência é best-effort**; a **auditoria por `source_version` é a garantia**, e funciona mesmo que a pendência nunca funcione. **Consistência eventual é aceita para busca; divergência silenciosa permanente, não** |
+| **3c** | **Autoridade da convergência** | **`source_version` é a versão efetivamente persistida** (`app_storage.versao`, mesma mutação, mesma transação). **Nenhum timestamp de frontend decide convergência** — `mutado_em_cliente` é `AUDITORIA APENAS` por desenho existente. Não se cria contador novo |
+| **3d** | **Cursor/keyset** | **Ordenação estável, determinística e com desempate único**, sempre terminando em coluna única. A ordenação concreta de cada tela fica para o task-level |
 | **3b** | **Item recém-salvo** | O que o usuário acabou de salvar **nunca some da tela**. Caminho feliz é síncrono; escrita local é a rede de segurança; a UI sinaliza pendência quando houver |
 | **4** | **Offline** | **Pré-carga manual e explícita** na primeira versão. **Catálogo de metadados leves ≠ dados completos offline**: conhecer e pesquisar milhares não obriga a ter milhares completos no aparelho. Automático só depois, com número medido |
 | **5** | **Busca e `pg_trgm`** | **`pg_trgm` não entra agora**, e **`tsvector` não é assumido como solução universal**. Cada modalidade — TAG exata, prefixo, nº de série, código, texto livre, período — tem **consulta real → índice apropriado → `EXPLAIN (ANALYZE, BUFFERS)` → benchmark**. Sem índice universal |

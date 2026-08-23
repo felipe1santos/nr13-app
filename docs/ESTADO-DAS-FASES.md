@@ -132,15 +132,24 @@ implementação. A 9A não começa antes disso.
 | 6 | Ordem `/equipamentos` → `/relatorios` → demais, **com infraestrutura antes do visual** |
 | 7 | **Dashboard híbrido**, e offline não pode passar dado antigo por recém-consultado |
 
-### O mecanismo de consistência (§6 do desenho)
+### O mecanismo de consistência (§6 do desenho) — hierarquia de três níveis
 
-A escrita da projeção vai numa **subtransação** dentro da RPC. Se falhar, o *savepoint* reverte
-**só o bloco da projeção** — a verdade permanece — e grava uma **pendência durável**. Há **duas
-detecções independentes**: a pendência, e uma auditoria que compara `source_version` com a verdade
-e **não depende do mecanismo de pendência funcionar**. Reparo idempotente e rebuild completo.
+> **Falha em QUALQUER mecanismo derivado nunca vira falha da verdade.**
 
-**Caminho feliz é síncrono**, então normalmente não há atraso nenhum — o que também resolve o caso
-do item recém-salvo.
+| Nível | Papel | Se falhar |
+|---|---|---|
+| **1 · `app_storage`** | **A VERDADE** | Transação aborta; a mutação fica na fila do cliente e é reenviada |
+| **2 · Projeção** | Derivada | Savepoint próprio: a verdade permanece |
+| **3 · Pendência** | **Best-effort** | Savepoint próprio, handler `null` que **não pode levantar** |
+
+**A pendência é otimização, não garantia.** A garantia é a **auditoria por `source_version`**, que
+compara as duas tabelas direto e **funciona mesmo que a pendência nunca tenha funcionado**. Foi
+assim que a última brecha se fechou: em vez de tornar o registro da pendência infalível, o desenho
+passou a **não depender dele**.
+
+**Autoridade da convergência:** `source_version` é a versão **efetivamente persistida**
+(`app_storage.versao`, mesma mutação, mesma transação). **Nenhum timestamp de frontend decide** —
+`mutado_em_cliente` é `AUDITORIA APENAS` por desenho existente. Não se cria contador novo.
 
 ### A ponte para sair da amarra síncrona (§4 do desenho)
 
