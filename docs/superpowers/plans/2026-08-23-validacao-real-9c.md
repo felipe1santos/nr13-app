@@ -1,9 +1,18 @@
 # Validação real da 9C — roteiro para o portão P9.2
 
-**Preparado em 23/08/2026.** **NADA AQUI FOI EXECUTADO.**
+**Preparado em 23/08/2026 e EXECUTADO no mesmo dia — o portão P9.2 FECHOU ✅.**
 
-> **BLOQUEIO ATIVO:** o Supabase de produção mostra **`Grace period is over`**. Enquanto esse
-> estado não for esclarecido, **nada deste roteiro roda** — nem o SQL, nem a flag, nem o deploy.
+> **Como o roteiro se comportou na prática:** ele achou o defeito. A comparação campo a campo do
+> passo OFF × ON pegou a cidade do cliente sumindo do cartão sob a V9, e o portão ficou aberto até
+> a correção. Registro em
+> [`medicoes/2026-08-23-p92-validacao-frontend-8d211c.md`](../../medicoes/2026-08-23-p92-validacao-frontend-8d211c.md).
+>
+> **O bloqueio do `Grace period is over` foi investigado e removido antes de qualquer execução:**
+> não havia restrição, dívida nem problema de cartão. Ver
+> [`medicoes/2026-08-23-diagnostico-grace-period.md`](../../medicoes/2026-08-23-diagnostico-grace-period.md).
+>
+> **Uma decisão do dono mudou a execução:** a validação de tela NÃO foi feita na conta real do
+> cliente. Ficou dividida — servidor na organização rica `…8d0f7e`, tela na `…8d211c`.
 
 ---
 

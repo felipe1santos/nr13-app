@@ -2,9 +2,10 @@
 
 ## Estado atual da fase
 
-`✅ INFRAESTRUTURA EM PRODUÇÃO — P9.2 aguarda o DEPLOY DO FRONT.`
+**✅ 9A · 9B · 9C EM PRODUÇÃO — P9.2 FECHADO ✅ em 23/08/2026.**
+A flag `busca_v9` está **DESLIGADA nas 29 organizações**: a tela de todo mundo é a antiga.
 
-**9D a 9G continuam NÃO autorizadas.** Nada aplicado em produção.
+**9D a 9G continuam NÃO autorizadas** — a 9D começa em autorização separada.
 Medições: [9A — peso](../../medicoes/2026-08-22-fase9a-peso-projecao.md) · [9B — projeção na RPC](../../medicoes/2026-08-22-fase9b-projecao-na-rpc.md) · [9C — índices](../../medicoes/2026-08-22-fase9c-indices.md) · [9C — tela](../../medicoes/2026-08-22-fase9c-tela.md)
 
 Desenho arquitetural **APROVADO** pelo dono em 22/08/2026, commit `8e82cf6`:
@@ -384,15 +385,20 @@ validação manual.
 
 ---
 
-## 🚪 PORTÃO P9.2 — `/equipamentos` pela projeção, validado em produção
+## 🚪 PORTÃO P9.2 — `/equipamentos` pela projeção, validado em produção · **FECHADO ✅ 23/08/2026**
 
-| Exigência | Prova |
-|---|---|
-| Flag ligada em **uma** org real | validação do dono |
-| Conteúdo idêntico ao caminho antigo | comparação lado a lado |
-| Benchmark antes/depois publicado | `docs/medicoes/` |
-| Offline validado no aparelho | roteiro executado |
-| Rollback exercitado **de verdade** | desligar a flag e conferir |
+| Exigência | Prova | |
+|---|---|---|
+| Flag ligada em **uma** org real | `…8d211c`, uma linha `true` em `org_sync`, as outras 28 intactas | ✅ |
+| Conteúdo idêntico ao caminho antigo | **4 de 4 cartões idênticos caractere a caractere** OFF × ON; ficha pela ponte com os mesmos 466 nós | ✅ |
+| Benchmark antes/depois publicado | `medicoes/2026-08-22-fase9c-indices.md`, `-tela.md`, `2026-08-23-etapa2-fase9-producao.md`, `2026-08-23-p92-validacao-frontend-8d211c.md` | ✅ |
+| Offline validado no aparelho | `fetch` recusando `supabase.co` de verdade, com `navigator.onLine` seguindo `true`: catálogo local responde, selo aparece, fila durável com `mutation_id`, reconexão drena e a RPC reprojeta sozinha | ✅ |
+| Rollback exercitado **de verdade** | ON → OFF: caminho antigo inteiro de volta, nada convertido, nenhuma outra organização afetada | ✅ |
+
+> **O portão não fechou de primeira, e é isso que deu valor a ele:** a comparação campo a campo
+> achou a cidade do cliente sumindo do cartão sob a V9, mais uma precedência de nome invertida que
+> nenhuma organização real exercia. Só depois da correção — `cliente_nome` + `cliente_cidade`, em
+> todos os caminhos da projeção — a paridade ficou em 4/4.
 
 ---
 
@@ -564,7 +570,7 @@ recém-consultado.
 
 ---
 
-## Backfill — detalhado, **não executado**
+## Backfill — detalhado · **executado em DUAS organizações** em 23/08/2026 (`…8d0f7e` e `…8d211c`) · **nunca global**
 
 | | |
 |---|---|
@@ -701,12 +707,17 @@ recém-consultado.
 | 23/08 | Escrita controlada `ZZ-TESTE-9C-20260823`: criar → editar → excluir. `source_version` 1→2→removido, fabricante antigo saiu do índice, **zero fantasma**. Resíduo: 1 tombstone, declarado | ✅ |
 | 23/08 | Isolamento: outras orgs e papel `cliente` veem **zero**. `busca_pendencias` recusa `authenticated` com `permission denied` — fail closed confirmado | ✅ |
 | 23/08 | ⛔ **P9.2 NÃO pode fechar ainda:** o bundle do front com a 9C **não está em produção** (deploy manual do dono, no Coolify). Validação de interface pendente | ⏸️ |
+| 23/08 | Bundle publicado. Validação de tela em `…8d211c` (OPÇÃO B — **a conta real do cliente não foi acessada**): OFF × ON, busca, debounce, DOM/rede, ponte, palco, offline real, fila, reconexão, rollback | ✅ |
+| 23/08 | ⛔ **DIVERGÊNCIA DE PARIDADE:** a cidade do cliente some do cartão sob a V9, e a precedência do nome está invertida (`nomeFantasia` antes de `razaoSocial`) — este segundo é LATENTE, nenhuma org real o exercia | ⚠️ |
+| 23/08 | Correção autorizada e aplicada: projeção passa a ter **`cliente_nome` + `cliente_cidade`**, composição na tela (`textoCliente()`), em TODOS os caminhos. Cidade **fora** do vetor de busca, por decisão registrada | ✅ |
+| 23/08 | Prova sintética em produção com razão social ≠ nome fantasia: **`PARIDADE OK`**, zero resíduo. Reprojeção das duas orgs piloto: 4 lotes, **18,1 ms** no servidor | ✅ |
+| 23/08 | Regressão curta: **4/4 cartões idênticos** OFF × ON · ficha 466 = 466 nós · busca por TAG, fabricante e nome do cliente · cidade não pesquisa, como projetado · offline curto com a cidade vinda do catálogo local | ✅ |
+| 23/08 | **🚪 P9.2 FECHADO ✅ pelo dono.** Flag `busca_v9` de volta a OFF nas 29 organizações. **9D não iniciada** | ✅ |
 
 ---
 
-## Ponto de retomada
 
-> ### ⏸️ 9C TECNICAMENTE APROVADA — P9.2 AGUARDANDO VALIDAÇÃO REAL
+> ### ✅ P9.2 FECHADO — 23/08/2026
 >
 > **Leia este bloco primeiro. Ele basta para retomar sem contexto nenhum.**
 >
@@ -714,34 +725,53 @@ recém-consultado.
 > |---|---|
 > | 9A | **CONCLUÍDA** — projeções, RLS, rebuild, reparo e auditoria |
 > | 9B | **CONCLUÍDA** — projeção mantida pela RPC, falha contida em savepoint |
-> | 9C | **CONCLUÍDA** — `/equipamentos` pela projeção, sob a flag `busca_v9` |
-> | Testes | **1237/1237** · 30 testes SQL · build verde |
-> | DOM, 1.004 equip. | **42.450 → 1.301 nós** (32×) · constante de 50 para 100 itens |
-> | Busca | fabricante, cliente, localização e nº de série passam a achar — **e sem acento** |
-> | Consulta a 50.000 | **plana**: 1.073 a 2.235 buffers, 2 a 6 ms, qualquer modalidade |
-> | Custo de escrita | **+48 %** — ✅ **aceito em 23/08** como desvio do piloto, é o baseline da V9 |
-> | Rollback | exercitado pelo servidor: a tela antiga volta inteira |
-> | Produção | **nada aplicado** |
+> | 9C | **CONCLUÍDA E VALIDADA EM PRODUÇÃO** — `/equipamentos` pela projeção, sob `busca_v9` |
+> | **P9.1** | **APROVADO** |
+> | **P9.2** | **FECHADO ✅** pelo dono, depois da correção de paridade do cartão |
+> | Testes | **1244/1244** · 30 testes SQL · build verde |
+> | Produção | ETAPA 1 (RLS `STABLE`) + infraestrutura 9A/9B/9C aplicadas · **flag OFF nas 29 organizações** |
 >
-> **O que falta:** a **VALIDAÇÃO EM ORGANIZAÇÃO REAL**. O roteiro está pronto em
-> `plans/2026-08-23-validacao-real-9c.md` e **não foi executado**.
+> **Estado de produção, exato:**
 >
-> **O aviso `Grace period is over` foi INVESTIGADO** (23/08, só leitura): não há restrição, não
-> há dívida, não há problema de cartão. É o fim da carência do Free Plan; a maior métrica está em
-> 54 %. Ver `medicoes/2026-08-23-diagnostico-grace-period.md`.
+> - as seis funções auxiliares da RLS estão **`STABLE`** (883 buffers contra 1.695);
+> - as projeções, a RPC de manutenção, os índices, a consulta e a flag estão instalados;
+> - **duas** organizações têm projeção convergida: `…8d0f7e` (4 equip.) e `…8d211c` (4 equip.);
+> - **`busca_v9` está DESLIGADA em todas as 29** — a tela de todo mundo é a antiga;
+> - `app_storage` **inalterada**: 891 chaves, 32,9 MB.
 >
-> **ORDEM DE ROLLOUT decidida:** `plans/2026-08-23-ordem-de-rollout.md` — ETAPA 1 (RLS/STABLE
-> isolado) e ETAPA 2 (Fase 9), em autorizações separadas.
+> **A evidência do P9.2 ficou dividida em duas organizações**, para não acessar a conta real do
+> cliente (decisão OPÇÃO B do dono):
 >
-> **Mudança independente, pronta e também não aplicada:** `supabase/rls_funcoes_estaveis.sql` —
-> as 6 funções auxiliares da RLS estão `VOLATILE`, o que as faz rodar **por linha**.
-> **248.685 → 1.021 buffers (244×)**. Validada isolada, com 88 provas idênticas nos dois modos e
-> rollback próprio. Ver `medicoes/2026-08-23-rls-funcoes-volateis.md`.
+> | organização | o que provou |
+> |---|---|
+> | `…8d0f7e` | **servidor**, com dado rico: projeção × verdade 4 × 13 campos, busca em todas as modalidades, cursor, isolamento, ciclo criar→editar→excluir sem fantasma |
+> | `…8d211c` | **tela**: OFF × ON, busca, debounce (10 teclas → 1 RPC), URL, DOM/rede sem PDF, ponte, palco, offline com requisição realmente falhando, fila durável com `mutation_id`, reconexão, reprojeção automática, rollback |
 >
-> **Ordem de aplicação do SQL:** `busca_index` → `busca_manutencao` → `busca_index_rpc` →
-> `busca_index_indices` → `busca_consulta` → `busca_v9_flag`. O `busca_index_indices` reescreve
-> a coluna `tag`: **aplicar ANTES do backfill**, com a tabela vazia.
+> **O portão só fechou depois de uma divergência achada e corrigida.** A cidade do cliente sumia
+> do cartão sob a V9, e a precedência do nome estava invertida — defeito LATENTE, que só aparece
+> quando razão social ≠ nome fantasia, e nenhuma organização validada exercia isso. A projeção
+> passou a ter **`cliente_nome` + `cliente_cidade`**, com a composição na tela (`textoCliente()`),
+> e a correção alcançou TODOS os caminhos: estrutura, projetor, manutenção pela RPC, rebuild,
+> reparo, consulta, catálogo offline, item pendente e testes. Migração para banco já instalado:
+> `supabase/busca_cliente_paridade.sql`.
 >
-> **Proibições:** não iniciar 9D · não ligar `busca_v9` em produção · não rodar backfill em org
-> real · não migrar `/relatorios` · não tocar nos 40+ templates · não iniciar a Fase 10 · não
-> iniciar PDF vetorial.
+> Resultado final: **4 de 4 cartões idênticos caractere a caractere entre OFF e ON**, ficha pela
+> ponte com os mesmos 466 nós, `PARIDADE OK` na prova sintética com razão social ≠ nome fantasia
+> (`scripts/fase9/teste-cliente-paridade.sql`, rodada em produção e desfeita pela própria
+> exceção), auditoria convergida nas duas organizações, **zero pendências**.
+>
+> **Decisão registrada, e ela vale para o futuro:** a **cidade NÃO entra no vetor de busca**. A
+> busca do caminho legado não pesquisa cliente nem cidade; e mudar a expressão de uma coluna
+> gerada obriga a derrubá-la e recriá-la, com rewrite da tabela e do GIN. Se um dia for pedida,
+> entra nos DOIS lados juntos — servidor e `catalogoLocal.ts` — com medição.
+>
+> **Medições:** [P9.2 · frontend `…8d211c`](../../medicoes/2026-08-23-p92-validacao-frontend-8d211c.md)
+> (§11 correção · §12 regressão curta) · [ETAPA 2](../../medicoes/2026-08-23-etapa2-fase9-producao.md)
+> · [ETAPA 1](../../medicoes/2026-08-23-etapa1-rls-stable-producao.md)
+>
+> **Próximo passo:** a **9D** — o boot deixa de esperar a organização inteira. **Não iniciada e
+> não autorizada**; começa em autorização separada do dono.
+>
+> **Proibições que seguem valendo:** não iniciar 9D sem autorização · não ligar `busca_v9` para
+> outras organizações · não rodar backfill global · não migrar `/relatorios` · não tocar nos 40+
+> templates · não iniciar a Fase 10 · não iniciar PDF vetorial.

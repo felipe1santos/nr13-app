@@ -1,5 +1,9 @@
 # P9.2 · validação REAL do FRONTEND — organização `…8d211c`
 
+> # 🚪 P9.2 — FECHADO ✅
+> **23/08/2026**, pelo dono, depois da correção de paridade do §11 e da regressão curta do §12.
+> A flag `busca_v9` voltou a **OFF nas 29 organizações**. A **9D não foi iniciada**.
+
 **23/08/2026** · produção (`https://app.nr13sistema.com.br`) · bundle do `main` conferido marcador
 a marcador (12/12 JS + 5/5 CSS, hash do CSS idêntico ao build local)
 

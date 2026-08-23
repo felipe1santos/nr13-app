@@ -100,15 +100,16 @@ Sempre use um destes. Nunca "concluído".
 | **4** | Portal: arquitetura de leitura (A-02) | ✅ **CONCLUÍDA** | **P3 FECHADO ✅** aprovado 20/08 | `plans/2026-08-20-fase4-task-level.md` |
 | **5** | Fotos: thumbnail, EXIF, teto de altura (A-08) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** | — | `plans/2026-08-20-fase5-task-level.md` · `medicoes/2026-08-20-fase5-producao-antes-depois.md` |
 | **6** | Recuperação do fallback base64 (A-10) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** nas 3 famílias, com SHA-256 idêntico | — | `plans/2026-08-20-fase6-task-level.md` |
-| **9** | Escala, busca e carregamento sob demanda | 🟡 **Infraestrutura EM PRODUÇÃO · org piloto validada no servidor** — P9.2 aguarda deploy do front | P9.1…P9.5 | `plans/2026-08-22-fase9-task-level.md` · `specs/2026-08-22-fase9-escala-busca-design.md` |
+| **9** | Escala, busca e carregamento sob demanda | 🟢 **9A/9B/9C EM PRODUÇÃO · validadas no servidor E na tela** | **P9.1 ✅** · **P9.2 FECHADO ✅** (23/08) · P9.3…P9.5 | `plans/2026-08-22-fase9-task-level.md` · `specs/2026-08-22-fase9-escala-busca-design.md` |
 | **8** | Escala, dataset e medições | ✅ **CONCLUÍDA** (22/08) — diagnóstico aprovado; o critério de produto **NÃO PASSA em grande escala**, e isso é o mandato da Fase 9 | — | `plans/2026-08-22-fase8-task-level.md` · `medicoes/2026-08-22-fase8-fechamento.md` |
 | **7** | Logo e rubrica por conteúdo (A-05) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** (7A EXPAND + 7B SWITCH, Portal e offline real) | **P4 FECHADO ✅** aprovado 22/08 | `plans/2026-08-20-fase7-task-level.md` · `medicoes/2026-08-20-fase7b-validacao-producao.md` |
 | **8** | Escala, dataset determinístico e medições (A-17) | 🟡 **PLANEJADA** — AS-IS, dataset e plano de medição escritos; **nenhuma massa gerada** | — | `plans/2026-08-22-fase8-task-level.md` |
 | 9…13 | ver plano macro | PLANEJADO | P5…P8 | `plans/2026-08-15-evolucao-arquitetura.md` |
 
-**Fase atual:** **9 — ETAPA 2 aplicada em produção. P9.2 aguarda o DEPLOY DO FRONT.**
+**Fase atual:** **9 — P9.2 FECHADO ✅ em 23/08/2026.** 9A/9B/9C estão em produção, validadas no
+servidor e na tela, com a flag `busca_v9` **DESLIGADA em todas as 29 organizações**.
 
-**9D a 9G não autorizadas.** **Produção sem nada aplicado.**
+**9D a 9G continuam NÃO autorizadas** — a 9D começa em autorização separada.
 
 | | |
 |---|---|
@@ -118,9 +119,33 @@ Sempre use um destes. Nunca "concluído".
 | **9B** | **CONCLUÍDA** — `medicoes/2026-08-22-fase9b-projecao-na-rpc.md` · P9.1 aprovado |
 | **9C** | **CONCLUÍDA** — `medicoes/2026-08-22-fase9c-indices.md` e `-tela.md` |
 
-**Próxima ação exata:** o dono decide sobre o **deploy do bundle** no Coolify — sem ele a
-validação de interface do P9.2 não acontece. O front é deploy **manual, do dono, fora do código**
-(`PENDENCIAS.md` §1).
+**Próxima ação exata:** aguardar a autorização da **9D** (fim da hidratação integral no boot). Nada
+mais está pendente da Fase 9 até lá.
+
+### ✅ P9.2 FECHADO — 23/08/2026
+
+Aprovado pelo dono depois da correção de paridade. A evidência ficou dividida em duas
+organizações, de propósito, para **não acessar a conta real do cliente** (decisão OPÇÃO B):
+
+| organização | o que provou |
+|---|---|
+| `…8d0f7e` | camada de **servidor** com dado rico — projeção × verdade, 4 equipamentos × 13 campos, busca em todas as modalidades, cursor, isolamento, ciclo de escrita |
+| `…8d211c` | camada de **tela** — flag OFF × ON, busca, debounce, URL, DOM/rede sem PDF, ponte, palco, offline com requisição realmente falhando, fila durável, reconexão, reprojeção automática, rollback |
+
+**O portão só fechou depois de uma divergência ser encontrada e corrigida:** a cidade do cliente
+sumia do cartão sob a V9, e a precedência do nome estava invertida (`nomeFantasia` antes de
+`razaoSocial`) — defeito LATENTE que nenhuma das organizações validadas exercia. A correção
+separou a projeção em `cliente_nome` + `cliente_cidade`, com a composição na tela
+(`textoCliente()`), e alcançou **todos** os caminhos: estrutura, projetor, manutenção pela RPC,
+rebuild, reparo, consulta, catálogo offline, item pendente e testes.
+
+Resultado final medido: **os 4 cartões idênticos caractere a caractere entre OFF e ON**, ficha
+pela ponte com os mesmos 466 nós nos dois caminhos, prova sintética `PARIDADE OK` com razão
+social ≠ nome fantasia, e auditoria convergida nas duas organizações com zero pendências.
+
+Registro completo em
+[`medicoes/2026-08-23-p92-validacao-frontend-8d211c.md`](medicoes/2026-08-23-p92-validacao-frontend-8d211c.md)
+(§11 a correção, §12 a regressão curta).
 
 ### ✅ ETAPA 2 APLICADA EM PRODUÇÃO — 23/08/2026
 
@@ -139,8 +164,9 @@ Infraestrutura 9A/9B/9C instalada na ordem, org piloto `…8d0f7e` com backfill 
 | Flag | OFF → ON → OFF, **nenhuma outra org afetada** |
 | `app_storage` | intacta (+1 tombstone do teste, declarado) |
 
-**⛔ NÃO validado — depende do bundle:** comparação visual, abrir equipamento, offline, DOM/rede,
-debounce. Detalhes em [`medicoes/2026-08-23-etapa2-fase9-producao.md`](medicoes/2026-08-23-etapa2-fase9-producao.md).
+O que faltava aqui (comparação visual, abrir equipamento, offline, DOM/rede, debounce) foi feito
+depois do deploy do bundle, na organização `…8d211c` — ver o bloco do **P9.2 FECHADO** acima.
+Detalhes em [`medicoes/2026-08-23-etapa2-fase9-producao.md`](medicoes/2026-08-23-etapa2-fase9-producao.md).
 
 ### ✅ ETAPA 1 CONCLUÍDA EM PRODUÇÃO — 23/08/2026
 

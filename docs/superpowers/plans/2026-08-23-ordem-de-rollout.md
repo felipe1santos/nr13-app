@@ -4,8 +4,16 @@
 > improvisada**. Se algo não estiver escrito aqui, não se faz na hora: para-se e decide-se fora
 > da janela de deploy.
 
-**Estado em 23/08/2026:** a **ETAPA 1 está CONCLUÍDA em produção**. A **ETAPA 2 aguarda
-autorização separada** — a Fase 9 continua sem nada aplicado.
+**Estado em 23/08/2026:** as **DUAS ETAPAS estão CONCLUÍDAS em produção**, e o **P9.2 está
+FECHADO ✅**. A flag `busca_v9` ficou **DESLIGADA nas 29 organizações** — a validação foi feita
+ligando e desligando, organização por organização, como o roteiro previa.
+
+> **A ETAPA 2 ganhou um passo que não estava previsto, e ele foi o mais importante:** a comparação
+> campo a campo achou uma divergência de paridade (a cidade do cliente sumindo do cartão) e o
+> portão **ficou aberto até a correção**. O registro está em
+> [`medicoes/2026-08-23-p92-validacao-frontend-8d211c.md`](../../medicoes/2026-08-23-p92-validacao-frontend-8d211c.md),
+> §11 e §12. Para banco que já recebeu a Fase 9, a migração é `supabase/busca_cliente_paridade.sql`,
+> aplicada **antes** de `busca_manutencao.sql` e `busca_consulta.sql`.
 
 ---
 
@@ -129,7 +137,7 @@ Commit com os números medidos em produção. **A Etapa 2 não começa aqui.**
 
 ---
 
-# ETAPA 2 — Fase 9, em autorização separada
+# ✅ ETAPA 2 — CONCLUÍDA EM 23/08/2026
 
 **Roteiro detalhado:** [`2026-08-23-validacao-real-9c.md`](2026-08-23-validacao-real-9c.md).
 Abaixo está só a **ordem**; o detalhe de cada prova está lá.
@@ -209,9 +217,16 @@ select public.definir_busca_v9('<ORG>', false);
 
 A tela antiga volta inteira. **Nenhum dado precisa ser convertido.**
 
-### 2.10 · Auditoria final e P9.2
+### 2.10 · Auditoria final e P9.2 — **FECHADO ✅ em 23/08/2026**
 
-`convergiu: true`, zero pendências, e então o portão fecha.
+`convergiu: true` nas duas organizações com projeção (`…8d0f7e` e `…8d211c`), **zero pendências**,
+`app_storage` inalterada (891 chaves, 32,9 MB), `busca_v9` **OFF nas 29**.
+
+> **O portão não fechou na primeira passagem — e não devia mesmo.** O passo 2.6 (OFF × ON, campo a
+> campo) achou a cidade do cliente sumindo do cartão, mais uma precedência de nome invertida que
+> nenhuma organização real exercia. A correção entrou como mudança própria, com migração,
+> reprojeção medida e regressão curta, e só então o dono fechou o P9.2. **Se a comparação tivesse
+> sido "no olho", esse defeito teria ido para dentro da 9D.**
 
 ---
 
