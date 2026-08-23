@@ -685,6 +685,12 @@ recém-consultado.
 | 23/08 | **RLS/STABLE validado ISOLADO.** O levantamento no catálogo achou **6** funções em política, não 4: faltavam `is_admin` (a mais usada, 9 políticas) e `assinatura_status_org` | ✅ |
 | 23/08 | Bateria RLS 7 atores × 12 provas + `anon`, nos dois modos: **88 linhas idênticas byte a byte**. Custo: **248.685 → 1.021 buffers (244×)**, com o plano virando `One-Time Filter` | ✅ |
 | 23/08 | Rollback do RLS exercitado (volta 6/6 a VOLATILE) e arquivo principal idempotente | ✅ |
+| 23/08 | **Dashboard investigado** (só leitura): o aviso é do FIM DA CARÊNCIA, não de cota estourada. Sem restrição, sem dívida — 7 faturas US$ 0,00 PAID. Maior métrica: cached egress 54 % | ✅ |
+| 23/08 | 🔴 **65 % do egresso é PostgREST** — a hidratação. ~800 MB/dia de cached egress com 8 usuários ativos. Adiar a Fase 9 para poupar cota é o contrário do que a evidência mostra | ⚠️ |
+| 23/08 | **Simulação de deploy do ZERO**: Fase 9 desinstalada e reinstalada na ordem de produção. SQL inteiro em **1,8 s**; a guarda do rollback recusou a ordem errada, como devia | ✅ |
+| 23/08 | **Backfill de 1.004 equipamentos: 2,3 s em 6 lotes.** Fidelidade exata (1004/2001), idempotente, e **retomável** — interrompido em 300, a auditoria acusou 704 faltando e a continuação convergiu | ✅ |
+| 23/08 | Regressão sobre a instalação nova: **30/30 SQL**, 88 linhas RLS idênticas, flag OFF→ON→OFF, suíte 1237/1237, build verde | ✅ |
+| 23/08 | **ORDEM DE ROLLOUT registrada** em `plans/2026-08-23-ordem-de-rollout.md`: ETAPA 1 (RLS isolado) → ETAPA 2 (Fase 9), em autorizações separadas | ✅ |
 
 ---
 
@@ -710,8 +716,12 @@ recém-consultado.
 > **O que falta:** a **VALIDAÇÃO EM ORGANIZAÇÃO REAL**. O roteiro está pronto em
 > `plans/2026-08-23-validacao-real-9c.md` e **não foi executado**.
 >
-> **⛔ BLOQUEIO:** produção com aviso **`Grace period is over`**. Nada roda lá até isso ser
-> esclarecido.
+> **O aviso `Grace period is over` foi INVESTIGADO** (23/08, só leitura): não há restrição, não
+> há dívida, não há problema de cartão. É o fim da carência do Free Plan; a maior métrica está em
+> 54 %. Ver `medicoes/2026-08-23-diagnostico-grace-period.md`.
+>
+> **ORDEM DE ROLLOUT decidida:** `plans/2026-08-23-ordem-de-rollout.md` — ETAPA 1 (RLS/STABLE
+> isolado) e ETAPA 2 (Fase 9), em autorizações separadas.
 >
 > **Mudança independente, pronta e também não aplicada:** `supabase/rls_funcoes_estaveis.sql` —
 > as 6 funções auxiliares da RLS estão `VOLATILE`, o que as faz rodar **por linha**.

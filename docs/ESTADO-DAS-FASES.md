@@ -6,7 +6,7 @@
 > **REGRA:** este arquivo é atualizado NO MOMENTO em que o estado muda — commit, push,
 > redeploy, validação, portão. Não no fim da fase.
 
-**Última atualização:** 23/08/2026 03:10
+**Última atualização:** 23/08/2026 12:10
 **Branch:** `main` · **Suíte:** 1237 testes / 98 arquivos, 0 falhas · **Build:** verde
 
 
@@ -118,8 +118,21 @@ Sempre use um destes. Nunca "concluído".
 | **9B** | **CONCLUÍDA** — `medicoes/2026-08-22-fase9b-projecao-na-rpc.md` · P9.1 aprovado |
 | **9C** | **CONCLUÍDA** — `medicoes/2026-08-22-fase9c-indices.md` e `-tela.md` |
 
-**Próxima ação exata:** executar `plans/2026-08-23-validacao-real-9c.md` numa organização real —
-**bloqueado** enquanto o aviso `Grace period is over` do Supabase não for esclarecido.
+**Próxima ação exata:** o dono autoriza a **ETAPA 1** do rollout (RLS/STABLE isolado). Ordem
+completa e decidida em [`plans/2026-08-23-ordem-de-rollout.md`](superpowers/plans/2026-08-23-ordem-de-rollout.md).
+
+### O aviso `Grace period is over` — investigado em 23/08
+
+**Não há bloqueio, não há dívida, não há problema de cartão.** 7 faturas, todas US$ 0,00 e PAID.
+O aviso diz que a carência acabou em 16/08 e que estourar a cota **passa a** restringir; o projeto
+está **Healthy**, com 100 % de sucesso nas requisições. Métrica mais alta: *cached egress* em
+**54 %** (2,71 de 5 GB), ciclo de 20/08 a 20/09.
+
+**O que preocupa é o RITMO, não o deploy:** ~800 MB/dia de *cached egress* com **8 usuários
+ativos**. E **65 % do egresso não cacheado é PostgREST** — a hidratação que a Fase 9 remove.
+O custo das operações planejadas é de alguns MB contra 2,29 GB disponíveis.
+
+Diagnóstico completo: [`medicoes/2026-08-23-diagnostico-grace-period.md`](medicoes/2026-08-23-diagnostico-grace-period.md).
 
 ### O que a 9C entregou
 
