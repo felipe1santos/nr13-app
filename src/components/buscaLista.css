@@ -1,0 +1,100 @@
+/* Fase 9 · campo de busca das listas grandes (§13 do desenho). */
+
+.busca-lista { margin-bottom: 12px; }
+
+.busca-lista-linha {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.busca-lista-campo { flex: 1 1 260px; }
+
+/* O `type="search"` do WebKit desenha um X próprio, que ficaria ao lado do
+   nosso e com contraste errado no tema escuro. */
+.busca-lista-campo input::-webkit-search-cancel-button { display: none; }
+
+.busca-lista-limpar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.busca-lista-limpar:hover { background: rgba(255, 255, 255, 0.07); color: var(--text); }
+.busca-lista-limpar:focus-visible { outline: 2px solid var(--amber); outline-offset: 1px; }
+
+.busca-lista-girando {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
+  border: 2px solid var(--line);
+  border-top-color: var(--amber);
+  border-radius: 50%;
+  animation: busca-lista-giro 0.7s linear infinite;
+}
+@keyframes busca-lista-giro { to { transform: rotate(360deg); } }
+/* Quem pediu menos animação não recebe o giro — o estado continua legível pelo
+   `aria-live` da contagem. */
+@media (prefers-reduced-motion: reduce) {
+  .busca-lista-girando { animation: none; opacity: 0.6; }
+}
+
+.busca-lista-rodape {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  min-height: 16px;
+}
+
+.busca-lista-contagem { font-size: 12px; color: var(--muted); }
+
+.busca-lista-selo {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  color: var(--amber);
+  background: rgba(212, 160, 23, 0.1);
+  border: 1px solid rgba(212, 160, 23, 0.3);
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+
+/* Mobile: o campo ocupa a linha inteira e os filtros descem para baixo dele. */
+@media (max-width: 640px) {
+  .busca-lista-campo { flex: 1 1 100%; }
+  .busca-lista-linha > :not(.busca-lista-campo) { flex: 1 1 auto; }
+}
+
+/* ── Lista virtualizada ─────────────────────────────────────────────────── */
+
+.lista-virt { position: relative; width: 100%; }
+
+/* A altura total é fingida por este espaçador, para a barra de rolagem do
+   navegador ter o tamanho certo mesmo com poucos nós no DOM. */
+.lista-virt-total { position: relative; width: 100%; }
+
+.lista-virt-janela {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+}
+
+.lista-virt-fim {
+  display: flex;
+  justify-content: center;
+  padding: 16px 0;
+  font-size: 12px;
+  color: var(--muted);
+}

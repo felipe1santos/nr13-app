@@ -2,10 +2,10 @@
 
 ## Estado atual da fase
 
-`✅ 9A e 9B CONCLUÍDAS — aguardando avaliação do PORTÃO P9.1.`
+`✅ 9A, 9B e 9C CONCLUÍDAS — aguardando avaliação do PORTÃO P9.2.`
 
-**9C a 9G continuam NÃO autorizadas.** Nada aplicado em produção.
-Medições: [9A — peso](../../medicoes/2026-08-22-fase9a-peso-projecao.md) · [9B — projeção na RPC](../../medicoes/2026-08-22-fase9b-projecao-na-rpc.md)
+**9D a 9G continuam NÃO autorizadas.** Nada aplicado em produção.
+Medições: [9A — peso](../../medicoes/2026-08-22-fase9a-peso-projecao.md) · [9B — projeção na RPC](../../medicoes/2026-08-22-fase9b-projecao-na-rpc.md) · [9C — índices](../../medicoes/2026-08-22-fase9c-indices.md) · [9C — tela](../../medicoes/2026-08-22-fase9c-tela.md)
 
 Desenho arquitetural **APROVADO** pelo dono em 22/08/2026, commit `8e82cf6`:
 [`specs/2026-08-22-fase9-escala-busca-design.md`](../specs/2026-08-22-fase9-escala-busca-design.md)
@@ -319,19 +319,19 @@ implementação → benchmark DEPOIS**.
 
 ### Tarefas
 
-- [ ] **9C.1** — `buscaIndex.ts`: `listarPagina(cursor, filtros)` e `buscar(termo, cursor)`
-- [ ] **9C.2** — `catalogoLocal.ts`: store do catálogo no IndexedDB + sync incremental por
+- [x] **9C.1** — `buscaIndex.ts`: `listarPagina(cursor, filtros)` e `buscar(termo, cursor)`
+- [x] **9C.2** — `catalogoLocal.ts`: store do catálogo no IndexedDB + sync incremental por
       `atualizado_em`
-- [ ] **9C.3** — `BuscaLista.tsx` com **todos** os requisitos do §13 do desenho: visível, limpar,
+- [x] **9C.3** — `BuscaLista.tsx` com **todos** os requisitos do §13 do desenho: visível, limpar,
       carregando, zero resultados, contador, debounce 300 ms, **`AbortController` + descarte de
       resposta cujo termo não é o atual**, teclado, `aria-live`, mobile
-- [ ] **9C.4** — `ListaVirtualizada.tsx`; biblioteca escolhida **por medição**
-- [ ] **9C.5** — Flag `busca_v9` (servidor + espelho local + sincronização no login)
-- [ ] **9C.6** — `Equipamentos.tsx` consumindo os dois caminhos conforme a flag
-- [ ] **9C.7** — **Merge do item recém-salvo** sobre o resultado do servidor, deduplicado por TAG
+- [x] **9C.4** — `ListaVirtualizada.tsx`; biblioteca escolhida **por medição**
+- [x] **9C.5** — Flag `busca_v9` (servidor + espelho local + sincronização no login)
+- [x] **9C.6** — `Equipamentos.tsx` consumindo os dois caminhos conforme a flag
+- [x] **9C.7** — **Merge do item recém-salvo** sobre o resultado do servidor, deduplicado por TAG
       (§6.5 do desenho)
-- [ ] **9C.8** — Índices `9C-b1` a `9C-b4`, **um commit por índice**, cada um com benchmark
-- [ ] **9C.9** — Estado na URL: `?q=&tipo=&categoria=`
+- [x] **9C.8** — Índices `9C-b1` a `9C-b4`, **um commit por índice**, cada um com benchmark
+- [x] **9C.9** — Estado na URL: `?q=&tipo=&categoria=`
 
 ### Testes
 
@@ -368,14 +368,16 @@ validação manual.
 
 ### Critérios de aceite
 
-- [ ] Flag ON e OFF equivalentes em conteúdo
-- [ ] DOM proporcional à página, não à base
-- [ ] Busca por fabricante e nº de série funcionando
-- [ ] Offline provado, com a UI avisando
-- [ ] Item recém-salvo nunca some
-- [ ] Cada índice com benchmark antes/depois
-- [ ] Keyset provado com inserção concorrente
-- [ ] Suíte e build verdes
+- [x] Flag ON e OFF equivalentes em conteúdo — mesma org, rollback pelo servidor
+- [x] DOM proporcional à página: **42.450 → 1.301 nós**, e constante de 50 para 100 itens
+- [x] Busca por fabricante e nº de série funcionando (e **sem acento**)
+- [x] Offline provado, com selo na UI — 11 testes
+- [x] Item recém-salvo nunca some — `fundirLocais`, com teste do catálogo vazio
+- [x] Cada índice com benchmark antes/depois · um DESCARTADO por medição
+- [x] Keyset provado com inserção concorrente — sem pular nem duplicar
+- [x] Suíte **1237/1237** e build verdes
+- [~] **Custo de escrita: +48 % vs. antes da projeção.** Acima dos +25,9 % aceitos no P9.1 — é o
+      ponto a decidir no P9.2 (ver §10 de `medicoes/2026-08-22-fase9c-indices.md`)
 
 **Commits:** um por tarefa; **um por índice**.
 **Deploy:** sim, com a flag **desligada** para todas as orgs. Ligar **uma** org por vez.
@@ -663,33 +665,54 @@ recém-consultado.
 | 22/08 | Depois de consertar, **medi**: a versão "otimizada" custava 1.494 buffers contra 1.451 dos 4 selects — **3 % pior**. Revertida, com o motivo no código | ✅ |
 | 22/08 | Custo de escrita: **+25,9 % de buffers** (1.129 → 1.421), **acima do limiar de 20 %**. Tempo não separável do ruído nesta VM | ⚠️ registrado |
 | 22/08 | **9B CONCLUÍDA. PARADA aguardando o P9.1** | ⏸️ |
+| 23/08 | **P9.1 aprovado.** Overhead de +25,9 % aceito como desvio registrado. 9C autorizada | ✅ |
+| 23/08 | Bancada de 50.000 metadados sintéticos. **A primeira massa foi descartada**: distribuía os campos por `i % N` e os amarrava ao prefixo da TAG — o benchmark media o artefato | ✅ |
+| 23/08 | **b1:** a PK já resolvia em 4 buffers → **nenhum índice novo**. Primeiro experimento, resultado "não faça nada" | ✅ |
+| 23/08 | **b2:** `text_pattern_ops` criado, medido e **DESCARTADO** — serve o LIKE mas não a ordenação. A saída foi mudar a COLLATION DA COLUNA: a PK passa a servir prefixo, ordem e cursor, e o PostgREST funciona sem saber | ✅ |
+| 23/08 | **b3:** GIN entra pelo que o ILIKE **ERRA** — `frigorifico` achava ZERO de 6.211. Nenhuma extensão: `translate()` é IMMUTABLE. `pg_trgm` segue fora | ✅ |
+| 23/08 | **Série:** UX decidida ANTES do índice — prefixo sobre a forma sem separador. 11.334 → 6 buffers | ✅ |
+| 23/08 | **b4:** entrou pelo caso RARO (9.222 → 12 buffers, 768×), não pelo comum (0,2 ms) | ✅ |
+| 23/08 | 🔴 **Achado maior que a 9C:** `org_atual()`/`papel_atual()` são **VOLATILE** em produção → chamadas POR LINHA na RLS. Ler 1.000 chaves: **1.478.822 → 9.064 buffers (163×)** com dois `ALTER FUNCTION`. Em arquivo próprio, independente da flag | ⚠️ **não aplicado** |
+| 23/08 | A RPC nasceu `security invoker` e **mudou depois de medir**: `textlike` e `ts_match_vq` não são leakproof, então sob RLS nem o prefixo nem o GIN viram índice (11.977 × 928 buffers) | ✅ |
+| 23/08 | **Quatro defeitos que só o navegador mostrou** na virtualização: rolador errado, altura medida antes das fotos, `ResizeObserver` cego a 4-numa-linha, e a média realimentando laço de render (travava a aba) | ✅ |
+| 23/08 | 🔴 **D5:** `nr13_busca_v9` não estava na lista de chaves preservadas da purga de cache — a flag era apagada, e o boot seguinte cairia no caminho antigo em silêncio | ✅ |
+| 23/08 | Medido na tela, 1.004 equipamentos: **42.450 → 1.301 nós**, heap 72,9 → 49,5 MB, DOM constante de 50 para 100 itens. Rollback exercitado pelo servidor | ✅ |
+| 23/08 | Custo de escrita **+48 %** vs. antes da projeção — os últimos 12 pontos compraram fidelidade do cartão | ⚠️ a decidir no P9.2 |
+| 23/08 | **9C CONCLUÍDA. PARADA aguardando o P9.2** | ⏸️ |
 
 ---
 
 ## Ponto de retomada
 
-> ### ⏸️ 9A e 9B CONCLUÍDAS — PARADA NO PORTÃO P9.1
+> ### ⏸️ 9A, 9B e 9C CONCLUÍDAS — PARADA NO PORTÃO P9.2
 >
 > **Leia este bloco primeiro. Ele basta para retomar sem contexto nenhum.**
 >
 > | | |
 > |---|---|
-> | 9A | **CONCLUÍDA** — projeções, RLS, rebuild, reparo, reconciliação dirigida e auditoria |
-> | 9B | **CONCLUÍDA** — projeção mantida pela RPC, savepoints aninhados |
-> | Testes | **38, zero falhas** · suíte 1186/1186 · build verde |
-> | Semântica empresarial | **diff idêntico** antes × depois da 9B |
-> | Cascata | **10/10 passos** |
-> | Custo de escrita | **+25,9 % de buffers** — acima do limiar de 20 %, registrado |
-> | Laboratório | `convergiu: true`, 0 pendências |
-> | `src/` | **intocado** desde `490a236` |
+> | 9A | **CONCLUÍDA** — projeções, RLS, rebuild, reparo e auditoria |
+> | 9B | **CONCLUÍDA** — projeção mantida pela RPC, falha contida em savepoint |
+> | 9C | **CONCLUÍDA** — `/equipamentos` pela projeção, sob a flag `busca_v9` |
+> | Testes | **1237/1237** · 30 testes SQL · build verde |
+> | DOM, 1.004 equip. | **42.450 → 1.301 nós** (32×) · constante de 50 para 100 itens |
+> | Busca | fabricante, cliente, localização e nº de série passam a achar — **e sem acento** |
+> | Consulta a 50.000 | **plana**: 1.073 a 2.235 buffers, 2 a 6 ms, qualquer modalidade |
+> | Custo de escrita | **+48 %** vs. antes da projeção — **acima dos +25,9 % do P9.1** |
+> | Rollback | exercitado pelo servidor: a tela antiga volta inteira |
 > | Produção | **nada aplicado** |
 >
-> **O que falta:** avaliação do dono no **P9.1**. O ponto a discutir é o overhead de escrita,
-> 5,9 pontos acima do limiar que eu mesmo fixei.
+> **O que falta:** avaliação do dono no **P9.2**, que exige validar numa org REAL.
 >
-> **Se passar:** aplicar 9A+9B em produção (decisão do dono), backfill de uma org, auditoria em
-> zero, e **só então** a 9C.
+> **Dois pontos para a conversa:**
+> 1. **O overhead de escrita foi a +48 %.** Os últimos 12 pontos compraram fidelidade do cartão
+>    (PMTA, PTH, resultado, volume, fluido, vida, unidade). É troca, e a decisão é do dono.
+> 2. **`supabase/rls_funcoes_estaveis.sql` NÃO depende da Fase 9** e vale para toda org de hoje:
+>    163× menos leitura na hidratação, com dois `ALTER FUNCTION`. Pode ir a produção sozinho.
 >
-> **Proibições:** não iniciar 9C · não ativar `busca_v9` · não migrar leitores · não criar índice
-> de busca · não rodar backfill em org real · não tocar nos 40+ templates · não iniciar a Fase 10
-> · não iniciar PDF vetorial.
+> **Ordem de aplicação do SQL:** `busca_index` → `busca_manutencao` → `busca_index_rpc` →
+> `busca_index_indices` → `busca_consulta` → `busca_v9_flag`. O `busca_index_indices` reescreve
+> a coluna `tag`: **aplicar ANTES do backfill**, com a tabela vazia.
+>
+> **Proibições:** não iniciar 9D · não ligar `busca_v9` em produção · não rodar backfill em org
+> real · não migrar `/relatorios` · não tocar nos 40+ templates · não iniciar a Fase 10 · não
+> iniciar PDF vetorial.

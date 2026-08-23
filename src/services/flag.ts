@@ -17,6 +17,18 @@ import { supabase, escopoStorageAtual } from './supabase';
 const CHAVE = 'nr13_armazenamento_v2';
 
 /**
+ * Fase 9 · leitura de `/equipamentos` pela projeção de busca.
+ *
+ * DEFAULT DESLIGADA, e é o oposto da `v2_ativa` de propósito: org sem a flag
+ * continua com a hidratação integral, que funciona. Errar para o lado do OFF é
+ * o lado barato — o contrário custaria uma tela vazia numa org sem backfill.
+ *
+ * É MECANISMO DE ROLLOUT, não arquitetura permanente: remover a flag e o
+ * caminho antigo é entrega da 9G.
+ */
+const CHAVE_BUSCA = 'nr13_busca_v9';
+
+/**
  * MEMOIZADA de propósito: qual implementação está ativa é decisão de SESSÃO,
  * tomada no login. Reler o `localStorage` a cada chamada deixaria o caminho
  * trocar no meio da sessão se algo limpasse o storage — e a v2, que não guarda
@@ -24,6 +36,7 @@ const CHAVE = 'nr13_armazenamento_v2';
  * justamente o sumiço que este projeto conserta.
  */
 let emMemoria: boolean | null = null;
+let buscaEmMemoria: boolean | null = null;
 
 export function armazenamentoV2Ativo(): boolean {
   if (emMemoria !== null) return emMemoria;
@@ -47,9 +60,37 @@ export function definirArmazenamentoV2(ativo: boolean): void {
   }
 }
 
+/**
+ * Memoizada pelo mesmo motivo da `armazenamentoV2Ativo`: qual caminho a tela
+ * usa é decisão de SESSÃO. Trocar no meio faria a lista alternar entre duas
+ * fontes com cursores diferentes, e o usuário veria itens repetirem ou sumirem
+ * no meio da rolagem.
+ */
+export function buscaV9Ativa(): boolean {
+  if (buscaEmMemoria !== null) return buscaEmMemoria;
+  try {
+    buscaEmMemoria = localStorage.getItem(CHAVE_BUSCA) === '1';
+  } catch {
+    buscaEmMemoria = false;
+  }
+  return buscaEmMemoria;
+}
+
+/** Gravada no login a partir do que o servidor informou para a organização. */
+export function definirBuscaV9(ativa: boolean): void {
+  buscaEmMemoria = ativa;
+  try {
+    if (ativa) localStorage.setItem(CHAVE_BUSCA, '1');
+    else localStorage.removeItem(CHAVE_BUSCA);
+  } catch {
+    // idem `definirArmazenamentoV2`: a decisão desta sessão continua valendo.
+  }
+}
+
 /** Descarta a decisão memoizada (troca de conta, e testes). */
 export function zerarFlagEmMemoria(): void {
   emMemoria = null;
+  buscaEmMemoria = null;
 }
 
 /**
@@ -74,12 +115,13 @@ export async function sincronizarFlagDoServidor(): Promise<boolean> {
     if (!escopo) return armazenamentoV2Ativo();
     const { data, error } = await supabase
       .from('org_sync')
-      .select('v2_ativa')
+      // As duas flags saem na MESMA consulta — nenhum round-trip novo no boot.
+      .select('v2_ativa, busca_v9')
       .eq('org_id', escopo.id)
       .maybeSingle();
     // Erro pode ser offline OU banco sem a migração armazenamento_v2.sql. Nos
     // dois casos o valor conhecido continua valendo.
-    if (error) return armazenamentoV2Ativo();
+    if (error) return await sincronizarSemColunaBusca(escopo.id);
 
     // AUSÊNCIA DE LINHA = ORGANIZAÇÃO NOVA = v2 (11/08/2026).
     //
@@ -98,6 +140,39 @@ export async function sincronizarFlagDoServidor(): Promise<boolean> {
     // org que o servidor ainda considera v1 grava normalmente pela RPC. O erro
     // inverso é o que custou uma semana no `cmam`: bundle na v1 contra servidor
     // em v2, escrita direta recusada em silêncio e a conta aparecendo vazia.
+    const linha = data as { v2_ativa?: boolean; busca_v9?: boolean } | null;
+    definirArmazenamentoV2(linha ? linha.v2_ativa === true : true);
+
+    // A busca v9 NÃO herda a regra "sem linha = ligada". Org nova nasce com o
+    // caminho antigo, que funciona sem backfill nenhum; ligar é ato explícito.
+    definirBuscaV9(linha?.busca_v9 === true);
+    return armazenamentoV2Ativo();
+  } catch {
+    return armazenamentoV2Ativo();
+  }
+}
+
+/**
+ * Recuo para banco SEM a migração `busca_v9_flag.sql`.
+ *
+ * ESTA FUNÇÃO EXISTE POR CAUSA DE UM BUG CONHECIDO, não por precaução: se a
+ * consulta combinada falhar porque a coluna `busca_v9` não existe e nós
+ * desistíssemos ali, a `v2_ativa` deixaria de ser sincronizada — que é
+ * exatamente o estado que custou uma semana na conta `cmam.caldeiras` (bundle
+ * na v1 contra servidor em v2, escrita recusada em silêncio, conta vazia).
+ *
+ * Então: erro na consulta combinada não desiste — repete pedindo só a coluna
+ * antiga. A busca v9 fica DESLIGADA, que é o lado barato.
+ */
+async function sincronizarSemColunaBusca(orgId: string): Promise<boolean> {
+  definirBuscaV9(false);
+  try {
+    const { data, error } = await supabase
+      .from('org_sync')
+      .select('v2_ativa')
+      .eq('org_id', orgId)
+      .maybeSingle();
+    if (error) return armazenamentoV2Ativo(); // aí sim é rede/tabela ausente
     const linha = data as { v2_ativa?: boolean } | null;
     definirArmazenamentoV2(linha ? linha.v2_ativa === true : true);
     return armazenamentoV2Ativo();
@@ -107,3 +182,4 @@ export async function sincronizarFlagDoServidor(): Promise<boolean> {
 }
 
 export const CHAVE_FLAG_V2 = CHAVE;
+export const CHAVE_FLAG_BUSCA_V9 = CHAVE_BUSCA;

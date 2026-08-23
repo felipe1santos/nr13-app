@@ -25,7 +25,7 @@
 import { CHAVE_MANIFESTO } from './palco';
 import { CHAVE_DONO, donoAtual, travaExpirada } from './palcoTrava';
 import { CHAVE_PONTE } from './ponteTemplates';
-import { CHAVE_FLAG_V2 } from './flag';
+import { CHAVE_FLAG_BUSCA_V9, CHAVE_FLAG_V2 } from './flag';
 
 export const CHAVE_FILA_V1 = 'nr13_fila_sync';
 
@@ -94,6 +94,15 @@ const PRESERVADAS = new Set([
   // identidade e controle do armazenamento
   'nr13_dispositivo_id',
   CHAVE_FLAG_V2,
+  // A flag da busca v9 entra aqui pelo MESMO motivo da v2, e a falta dela foi
+  // achada rodando a tela no navegador: a purga varria `nr13_*` e levava a
+  // flag junto. Num boot em que a purga rodasse antes de
+  // `sincronizarFlagDoServidor` responder — offline, por exemplo — a sessão
+  // usaria o caminho antigo mesmo com o servidor dizendo o contrário.
+  //
+  // O erro cai para o lado barato (a tela antiga funciona), mas é SILENCIOSO, e
+  // faria o rollout parecer instável sem que ninguém achasse o motivo.
+  CHAVE_FLAG_BUSCA_V9,
   CHAVE_FILA_V1,
   // palco e ponte com os templates em iframe
   CHAVE_MANIFESTO,

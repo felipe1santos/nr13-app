@@ -64,6 +64,26 @@ $$;
 -- Recebe a TAG e lê tudo que precisa. É esta função que a 9B vai chamar dentro
 -- da RPC — deixá-la pronta aqui é o que torna a 9B uma mudança pequena no
 -- caminho crítico de escrita, em vez de uma cirurgia.
+-- ---------------------------------------------------------------------------
+-- Número guardado como TEXTO vira numeric — ou NULL, sem derrubar a projeção.
+-- ---------------------------------------------------------------------------
+-- `nr13_calc_` guarda `pmta`/`pth` como STRING ("1.2345"), e o usuário pode ter
+-- salvo "", "--" ou lixo. Um cast direto levantaria exceção, a projeção iria
+-- para a fila de pendências e o equipamento sumiria da lista — por causa de um
+-- campo decorativo. Aqui o valor ruim vira NULL e o resto da linha sobrevive.
+create or replace function public.f9_num(p_texto text)
+returns numeric
+language plpgsql
+immutable
+set search_path = ''
+as $fn$
+begin
+  return nullif(btrim(coalesce(p_texto, '')), '')::numeric;
+exception when others then
+  return null;
+end;
+$fn$;
+
 create or replace function public.projetar_equipamento(p_org uuid, p_tag text)
 returns void
 language plpgsql
@@ -78,6 +98,8 @@ declare
   v_emp     jsonb;
   v_vida    jsonb;
   v_fotos   jsonb;
+  v_calc    jsonb;
+  v_unid    text;
   v_base    date;
   v_anos    numeric;
 begin
@@ -109,20 +131,23 @@ begin
     on conflict (org_id, tag) do update set
       descricao = null, tipo = null, subtipo = null, categoria = null,
       fabricante = null, numero_serie = null, localizacao = null, ano = null,
-      cliente = null, proxima_inspecao = null, tem_foto = false,
+      cliente = null, proxima_inspecao = null, tem_foto = false, foto_ref = null,
+      pmta_mpa = null, pth_mpa = null, resultado = null, volume_m3 = null,
+      fluido = null, classe_fluido = null, vida_anos = null, tem_cliente = false,
+      unidade = null,
       source_version = excluded.source_version,
       source_updated_at = excluded.source_updated_at,
       projected_at = excluded.projected_at;
     return;
   end if;
 
-  -- QUATRO SELECTs, e isso e o resultado de uma MEDICAO, nao descuido.
+  -- SELECTs SEPARADOS, e isso e o resultado de uma MEDICAO, nao descuido.
   --
   -- Tentei trocar por uma varredura unica com IN + array_agg FILTER, supondo
-  -- que uma passada venceria quatro buscas por indice. MEDIDO: 1.494 buffers
-  -- contra 1.451 dos quatro selects — a "otimizacao" ficou 3 % PIOR. O indice
-  -- (org_id, chave) resolve cada chave em ~4 buffers; agregar sobre um IN custa
-  -- mais do que isso.
+  -- que uma passada venceria varias buscas por indice. MEDIDO: 1.494 buffers
+  -- contra 1.451 dos selects separados — a "otimizacao" ficou 3 % PIOR. O
+  -- indice (org_id, chave) resolve cada chave em ~4 buffers; agregar sobre um
+  -- IN custa mais do que isso.
   --
   -- (A primeira versao daquela tentativa ainda usava max(jsonb), que NAO EXISTE
   -- em Postgres. A projecao quebrou, e foram a pendencia e a auditoria que
@@ -135,6 +160,13 @@ begin
    where org_id = p_org and chave = 'nr13_vida_'  || p_tag and deletado_em is null;
   select public.f9_json(valor) into v_fotos from public.app_storage
    where org_id = p_org and chave = 'nr13_fotos_' || p_tag and deletado_em is null;
+  -- `nr13_calc_` e `nr13_pref_unidade_` entraram na 9C: sem eles o cartão da
+  -- lista perderia PMTA, PTH, resultado e a unidade escolhida, e o piloto
+  -- viraria regressão visível para o usuário.
+  select public.f9_json(valor) into v_calc  from public.app_storage
+   where org_id = p_org and chave = 'nr13_calc_'  || p_tag and deletado_em is null;
+  select public.f9_json(valor) #>> '{}' into v_unid from public.app_storage
+   where org_id = p_org and chave = 'nr13_pref_unidade_' || p_tag and deletado_em is null;
 
   -- proxima_inspecao: FATO derivado só da vida remanescente. A consolidação com
   -- as datas do relatório é da 9F, por junção com relatorios_index — replicar
@@ -149,7 +181,9 @@ begin
 
   insert into public.equipamentos_index as e (
     org_id, tag, descricao, tipo, subtipo, categoria, fabricante, numero_serie,
-    localizacao, ano, cliente, proxima_inspecao, tem_foto,
+    localizacao, ano, cliente, proxima_inspecao, tem_foto, foto_ref,
+    pmta_mpa, pth_mpa, resultado, volume_m3, fluido, classe_fluido, vida_anos,
+    tem_cliente, unidade,
     source_version, source_updated_at, projected_at
   ) values (
     p_org,
@@ -167,6 +201,24 @@ begin
          then v_base + (v_anos * 365)::integer
          else null end,
     coalesce(jsonb_array_length(coalesce(v_fotos, '[]'::jsonb)) > 0, false),
+    -- Capa: a marcada `isCapa`, senão a primeira. Só a REFERÊNCIA do bucket;
+    -- foto legada em base64 não tem `ref` e vira null, como deve.
+    (select f -> 'ref'
+       from jsonb_array_elements(coalesce(v_fotos, '[]'::jsonb)) f
+      where f -> 'ref' is not null
+      order by (f ->> 'isCapa')::boolean desc nulls last
+      limit 1),
+    public.f9_num(v_calc ->> 'pmta'),
+    public.f9_num(v_calc ->> 'pth'),
+    nullif(btrim(coalesce(v_calc ->> 'resultado', '')), ''),
+    public.f9_num(v_cat ->> 'volInput'),
+    nullif(btrim(coalesce(v_cat ->> 'fluidoInput', '')), ''),
+    nullif(btrim(coalesce(v_cat ->> 'classe', '')), ''),
+    public.f9_num(v_vida ->> 'vidaAnos'),
+    -- Sem `clienteId` o equipamento não aparece no Portal, e o cartão avisa em
+    -- âmbar. O aviso precisa do FATO, não do id — que não tem por que viajar.
+    nullif(btrim(coalesce(v_emp ->> 'clienteId', '')), '') is not null,
+    nullif(btrim(coalesce(v_unid, '')), ''),
     v_versao,
     v_atual,
     now()
@@ -177,7 +229,12 @@ begin
     fabricante = excluded.fabricante,     numero_serie = excluded.numero_serie,
     localizacao = excluded.localizacao,   ano = excluded.ano,
     cliente = excluded.cliente,           proxima_inspecao = excluded.proxima_inspecao,
-    tem_foto = excluded.tem_foto,
+    tem_foto = excluded.tem_foto,         foto_ref = excluded.foto_ref,
+    pmta_mpa = excluded.pmta_mpa,         pth_mpa = excluded.pth_mpa,
+    resultado = excluded.resultado,       volume_m3 = excluded.volume_m3,
+    fluido = excluded.fluido,             classe_fluido = excluded.classe_fluido,
+    vida_anos = excluded.vida_anos,       tem_cliente = excluded.tem_cliente,
+    unidade = excluded.unidade,
     source_version = excluded.source_version,
     source_updated_at = excluded.source_updated_at,
     projected_at = excluded.projected_at;

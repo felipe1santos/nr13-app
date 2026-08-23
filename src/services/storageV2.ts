@@ -528,3 +528,61 @@ export function limparCacheDados(): void {
   cache.definirOrg(null);
   iniciado = false;
 }
+
+/**
+ * Fase 9 · traz do servidor as chaves de UMA TAG e as deposita no cache.
+ *
+ * É a ponte da "estratégia oficial de compatibilidade" (desenho §4): a lista
+ * passa a ser leve, e quando o usuário abre um equipamento estas chaves entram
+ * no `Map`. A partir daí `ler()` continua SÍNCRONO e encontra tudo, o palco
+ * coleta a TAG normalmente, e NENHUM dos 40+ templates HTML é tocado.
+ *
+ * As guardas são as MESMAS da hidratação, e cada uma existe por um motivo:
+ *   · `deletado_em`  — exclusão feita em outro aparelho não pode reaparecer;
+ *   · tombstone local mais novo — nem ressuscitar o que este aparelho apagou;
+ *   · item na fila   — escrita local pendente é mais nova que o servidor.
+ *
+ * E a VERSÃO vem do servidor, não fixada em 1 como em `semearCache` (que serve
+ * o Portal, somente leitura). Fixar 1 aqui faria a próxima edição do usuário
+ * nascer com versão errada e voltar `conflito` da RPC.
+ */
+export async function semearEquipamento(chaves: string[]): Promise<number> {
+  if (!iniciado && !(await iniciar())) return 0;
+  if (!chaves.length) return 0;
+  try {
+    const escopo = await escopoStorageAtual();
+    if (!escopo) return 0;
+
+    let postas = 0;
+    // Em blocos: a lista de chaves de uma TAG é pequena, mas `in()` vira query
+    // string e um bloco grande demais estoura o limite de URL do PostgREST.
+    for (let i = 0; i < chaves.length; i += 60) {
+      const bloco = chaves.slice(i, i + 60);
+      const { data, error } = await supabase
+        .from(TABELA_STORAGE)
+        .select('chave, valor, versao, atualizado_em, dispositivo, deletado_em')
+        .eq(escopo.coluna, escopo.id)
+        .in('chave', bloco);
+      if (error) return postas; // offline: fica com o que já havia no cache
+
+      for (const linha of (data ?? []) as Array<Record<string, unknown>>) {
+        const chave = String(linha.chave);
+        const atualizadoEm = String(linha.atualizado_em ?? '');
+        if (linha.deletado_em) continue;
+        if (sync.tombstoneMaisNovoQue(chave, atualizadoEm)) continue;
+        if (sync.itemDaChave(chave)) continue;
+        if (linha.valor == null) continue;
+        await cache.aplicarRemoto(chave, {
+          valor: String(linha.valor),
+          versao: Number(linha.versao ?? 1),
+          atualizadoEm,
+          dispositivo: linha.dispositivo ? String(linha.dispositivo) : null,
+        });
+        postas++;
+      }
+    }
+    return postas;
+  } catch {
+    return 0; // offline: o que já estiver no cache continua valendo
+  }
+}

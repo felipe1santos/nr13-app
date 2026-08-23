@@ -72,6 +72,11 @@ begin
   elsif p_chave like 'nr13_emp_%'   then v_tag := substring(p_chave from 10);
   elsif p_chave like 'nr13_vida_%'  then v_tag := substring(p_chave from 11);
   elsif p_chave like 'nr13_fotos_%' then v_tag := substring(p_chave from 12);
+  -- `nr13_calc_gv_` é do gerador de vapor do autoclave e NÃO é o memorial
+  -- principal; entrasse aqui, a TAG projetada viraria "gv_<TAG>".
+  elsif p_chave like 'nr13_calc_gv_%' then return;
+  elsif p_chave like 'nr13_calc_%' then v_tag := substring(p_chave from 11);
+  elsif p_chave like 'nr13_pref_unidade_%' then v_tag := substring(p_chave from 19);
   else
     return;  -- família não projetável: comportamento empresarial normal
   end if;

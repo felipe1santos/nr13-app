@@ -20,6 +20,8 @@ import './dashboard.css';
    Inspeções, Relatórios e Prontuários; o modo lista desta tela reusa as mesmas. */
 import './relatorios.css';
 import { rotaEquipamento } from '../app/rotas';
+import EquipamentosV9 from '../features/equipamento/EquipamentosV9';
+import { buscaV9Ativa } from '../services/storage';
 
 const ROTULO_TIPO: Record<string, string> = {
   vaso: 'Vaso de Pressão',
@@ -38,7 +40,25 @@ function resultadoDe(e: EquipamentoResumo): string {
   return 'Pendente';
 }
 
+/**
+ * Fase 9 · o interruptor da flag `busca_v9`.
+ *
+ * DESLIGADA (padrão, e é o padrão de propósito): `EquipamentosLegado` abaixo,
+ * byte a byte como sempre foi — hidrata a organização, filtra em memória.
+ * LIGADA: `EquipamentosV9`, que lê da projeção com busca no servidor.
+ *
+ * A flag é decisão de SESSÃO, lida uma vez no login. Alternar no meio faria a
+ * lista trocar de fonte com cursores diferentes, e o usuário veria item repetir
+ * ou sumir durante a rolagem.
+ *
+ * ROLLBACK É DESLIGAR A FLAG. Nenhum dado precisa ser convertido de volta: a
+ * projeção é derivada, e `app_storage` nunca deixou de ser a verdade.
+ */
 export default function Equipamentos() {
+  return buscaV9Ativa() ? <EquipamentosV9 /> : <EquipamentosLegado />;
+}
+
+function EquipamentosLegado() {
   const [equipamentos, setEquipamentos] = useState<EquipamentoResumo[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [modalAberto, setModalAberto] = useState(false);

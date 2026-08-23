@@ -70,6 +70,27 @@ create table if not exists public.equipamentos_index (
   proxima_inspecao  date,       -- de nr13_vida_: dataAtual + proximaInspecaoAnos
   tem_foto          boolean     not null default false,
 
+  -- REFERÊNCIA da foto de capa (bucket + path + miniatura) — nunca a imagem.
+  -- ~100 bytes. Sem ela o cartão da lista perderia a foto, e o piloto viraria
+  -- regressão visual; COM a imagem, cada linha passaria de 190 B para ~100 kB e
+  -- o catálogo leve deixaria de ser leve. Foto legada (base64, sem `ref`) não
+  -- entra: continua no `nr13_fotos_`, e o cartão cai no espaço reservado.
+  foto_ref          jsonb,
+
+  -- FATOS que o cartão da lista mostra. Entraram na 9C porque sem eles o
+  -- piloto perderia PMTA, categoria, volume, fluido, resultado e vida — e
+  -- "conteúdo idêntico ao caminho antigo" é exigência do portão P9.2.
+  -- Continuam sendo FATOS, não regra: nenhum cálculo do sistema é refeito aqui.
+  pmta_mpa          numeric,
+  pth_mpa           numeric,
+  resultado         text,
+  volume_m3         numeric,
+  fluido            text,
+  classe_fluido     text,
+  vida_anos         numeric,
+  tem_cliente       boolean     not null default false,
+  unidade           text,
+
   -- Identidade fonte ↔ projeção
   source_version    integer     not null,
   source_updated_at timestamptz not null,
@@ -210,3 +231,15 @@ revoke insert, update, delete, truncate on public.equipamentos_index   from anon
 revoke insert, update, delete, truncate on public.relatorios_index     from anon, authenticated;
 revoke all on public.busca_pendencias     from anon, authenticated;
 revoke all on public.busca_rebuild_estado from anon, authenticated;
+
+-- Aditivo, para quem já criou a tabela antes de 22/08/2026 (a 9A original).
+alter table public.equipamentos_index add column if not exists foto_ref      jsonb;
+alter table public.equipamentos_index add column if not exists pmta_mpa      numeric;
+alter table public.equipamentos_index add column if not exists pth_mpa       numeric;
+alter table public.equipamentos_index add column if not exists resultado     text;
+alter table public.equipamentos_index add column if not exists volume_m3     numeric;
+alter table public.equipamentos_index add column if not exists fluido        text;
+alter table public.equipamentos_index add column if not exists classe_fluido text;
+alter table public.equipamentos_index add column if not exists vida_anos     numeric;
+alter table public.equipamentos_index add column if not exists tem_cliente   boolean not null default false;
+alter table public.equipamentos_index add column if not exists unidade       text;

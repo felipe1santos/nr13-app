@@ -19,6 +19,7 @@ import * as v2 from './storageV2';
 
 export { bloqueadoParaEscrita, ErroBloqueado } from './gateEscrita';
 export { armazenamentoV2Ativo, definirArmazenamentoV2 } from './flag';
+export { buscaV9Ativa, definirBuscaV9 } from './flag';
 
 const v2Ativo = () => armazenamentoV2Ativo();
 
@@ -133,4 +134,15 @@ export function aguardarArmazenamento(): Promise<void> {
 export async function semearCachePortal(chaves: Record<string, string>): Promise<number> {
   if (!v2Ativo()) return 0;
   return v2.semearCache(chaves);
+}
+
+/**
+ * Fase 9 · semeia no cache as chaves de UMA TAG (carregamento sob demanda).
+ *
+ * No caminho v1 é no-op: lá o cache É o `localStorage`, e o v1 já carrega tudo
+ * que cabe. A Fase 9 só existe para a v2.
+ */
+export async function semearEquipamento(chaves: string[]): Promise<number> {
+  if (!v2Ativo()) return 0;
+  return v2.semearEquipamento(chaves);
 }
