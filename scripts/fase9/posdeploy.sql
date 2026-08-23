@@ -52,7 +52,8 @@ select column_name, data_type, is_generated
   from information_schema.columns
  where table_schema='public' and table_name='equipamentos_index'
    and column_name in ('busca','serie_norm','foto_ref','pmta_mpa','pth_mpa','resultado',
-                       'volume_m3','fluido','classe_fluido','vida_anos','tem_cliente','unidade')
+                       'volume_m3','fluido','classe_fluido','vida_anos','tem_cliente','unidade',
+                       'cliente_nome','cliente_cidade')
  order by 1;
 
 select indexname, pg_size_pretty(pg_relation_size(indexname::regclass)) as tamanho

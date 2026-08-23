@@ -24,7 +24,8 @@ import { TAMANHO_PAGINA, fundirLocais, type ItemCatalogo } from './buscaIndex';
 function item(tag: string, extra: Partial<ItemCatalogo> = {}): ItemCatalogo {
   return {
     tag, descricao: null, tipo: 'vaso', subtipo: null, categoria: null, fabricante: null,
-    numeroSerie: null, localizacao: null, ano: null, cliente: null, proximaInspecao: null,
+    numeroSerie: null, localizacao: null, ano: null, clienteNome: null, clienteCidade: null,
+    proximaInspecao: null,
     temFoto: false, fotoRef: null, pmtaMpa: null, pthMpa: null, resultado: null,
     volumeM3: null, fluido: null, classeFluido: null, vidaAnos: null, temCliente: false,
     unidade: null, sourceVersion: 1,

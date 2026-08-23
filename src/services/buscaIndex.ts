@@ -31,7 +31,14 @@ export interface ItemCatalogo {
   numeroSerie: string | null;
   localizacao: string | null;
   ano: string | null;
-  cliente: string | null;
+  /**
+   * Nome do cliente, com a MESMA precedência do cartão antigo:
+   * `razaoSocial || nomeFantasia`. Guardado separado da cidade de propósito —
+   * ver `textoCliente()` logo abaixo.
+   */
+  clienteNome: string | null;
+  /** Cidade do cliente. Só `cidade` — o cartão antigo não lê `localidade`. */
+  clienteCidade: string | null;
   proximaInspecao: string | null;
   temFoto: boolean;
   /** REFERÊNCIA da capa no bucket (nunca a imagem). `FotoImg` resolve. */
@@ -54,6 +61,22 @@ export interface ItemCatalogo {
    * (§6.5 do desenho).
    */
   pendente?: boolean;
+}
+
+/**
+ * O texto do cliente exatamente como o cartão ANTIGO o monta.
+ *
+ * `CardEquipamento.tsx` faz
+ *   [razaoSocial || nomeFantasia, cidade].filter(Boolean).join(' · ')
+ * e esta função é o espelho disso do lado da V9. Existe uma só, e todas as
+ * telas da V9 a usam, porque em 23/08/2026 a divergência que segurou o P9.2 foi
+ * justamente cada lado compondo esse texto por conta própria.
+ */
+export function textoCliente(item: {
+  clienteNome: string | null;
+  clienteCidade: string | null;
+}): string {
+  return [item.clienteNome, item.clienteCidade].filter(Boolean).join(' · ');
 }
 
 export interface FiltrosBusca {
@@ -91,7 +114,8 @@ interface LinhaRpc {
   numero_serie: string | null;
   localizacao: string | null;
   ano: string | null;
-  cliente: string | null;
+  cliente_nome: string | null;
+  cliente_cidade: string | null;
   proxima_inspecao: string | null;
   tem_foto: boolean | null;
   foto_ref: RefFoto | null;
@@ -125,7 +149,8 @@ function daLinha(l: LinhaRpc): ItemCatalogo {
     numeroSerie: l.numero_serie,
     localizacao: l.localizacao,
     ano: l.ano,
-    cliente: l.cliente,
+    clienteNome: l.cliente_nome,
+    clienteCidade: l.cliente_cidade,
     proximaInspecao: l.proxima_inspecao,
     temFoto: l.tem_foto === true,
     fotoRef: l.foto_ref ?? null,

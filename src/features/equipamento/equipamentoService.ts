@@ -165,7 +165,12 @@ export function equipamentosPendentesLocais(): ItemCatalogo[] {
       const tag = item.chave.slice(PREFIXO_INFO.length);
       const info = ler<InfoEquipamento>(item.chave);
       const cat = ler<CategoriaSalva>(`nr13_cat_${tag}`);
-      const emp = ler<{ nomeFantasia?: string; razaoSocial?: string; clienteId?: string }>(`nr13_emp_${tag}`);
+      const emp = ler<{
+        nomeFantasia?: string;
+        razaoSocial?: string;
+        cidade?: string;
+        clienteId?: string;
+      }>(`nr13_emp_${tag}`);
       const fotos = ler<FotoEquipamento[]>(`nr13_fotos_${tag}`) || [];
       const calc = ler<CalculoSalvo>(`nr13_calc_${tag}`);
       const vida = ler<{ vidaAnos?: number | null }>(`nr13_vida_${tag}`);
@@ -179,7 +184,11 @@ export function equipamentosPendentesLocais(): ItemCatalogo[] {
         numeroSerie: info?.numeroSerie ?? null,
         localizacao: info?.localizacao ?? null,
         ano: info?.ano ?? null,
-        cliente: emp?.nomeFantasia || emp?.razaoSocial || null,
+        // MESMA precedência do cartão antigo e da projeção: razão social
+        // primeiro. Este caminho monta a linha do item que ainda não voltou do
+        // servidor; divergir aqui faria o cartão TROCAR de nome ao sincronizar.
+        clienteNome: emp?.razaoSocial || emp?.nomeFantasia || null,
+        clienteCidade: emp?.cidade || null,
         proximaInspecao: null,
         temFoto: fotos.length > 0,
         fotoRef: (fotos.find((f) => f.isCapa) ?? fotos[0])?.ref ?? null,

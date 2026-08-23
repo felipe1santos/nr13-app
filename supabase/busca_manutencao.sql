@@ -131,7 +131,8 @@ begin
     on conflict (org_id, tag) do update set
       descricao = null, tipo = null, subtipo = null, categoria = null,
       fabricante = null, numero_serie = null, localizacao = null, ano = null,
-      cliente = null, proxima_inspecao = null, tem_foto = false, foto_ref = null,
+      cliente_nome = null, cliente_cidade = null,
+      proxima_inspecao = null, tem_foto = false, foto_ref = null,
       pmta_mpa = null, pth_mpa = null, resultado = null, volume_m3 = null,
       fluido = null, classe_fluido = null, vida_anos = null, tem_cliente = false,
       unidade = null,
@@ -181,7 +182,7 @@ begin
 
   insert into public.equipamentos_index as e (
     org_id, tag, descricao, tipo, subtipo, categoria, fabricante, numero_serie,
-    localizacao, ano, cliente, proxima_inspecao, tem_foto, foto_ref,
+    localizacao, ano, cliente_nome, cliente_cidade, proxima_inspecao, tem_foto, foto_ref,
     pmta_mpa, pth_mpa, resultado, volume_m3, fluido, classe_fluido, vida_anos,
     tem_cliente, unidade,
     source_version, source_updated_at, projected_at
@@ -196,7 +197,14 @@ begin
     nullif(btrim(coalesce(v_info ->> 'numeroSerie', '')), ''),
     nullif(btrim(coalesce(v_info ->> 'localizacao', '')), ''),
     nullif(btrim(coalesce(v_info ->> 'ano', '')), ''),
-    nullif(btrim(coalesce(v_emp ->> 'nomeFantasia', v_emp ->> 'razaoSocial', '')), ''),
+    -- MESMA precedência do cartão antigo: razão social primeiro, nome fantasia
+    -- como reserva. Inverter isso trocaria o nome exibido em toda empresa cujos
+    -- dois campos diferem — sem erro nenhum na tela.
+    nullif(btrim(coalesce(v_emp ->> 'razaoSocial', v_emp ->> 'nomeFantasia', '')), ''),
+    -- Só `cidade`. `localidade` existe como alias em `tipos.ts`, mas o cartão
+    -- antigo lê exclusivamente `cidade` — aceitar o alias aqui mostraria cidade
+    -- onde o caminho legado não mostra, e isso também é divergência.
+    nullif(btrim(coalesce(v_emp ->> 'cidade', '')), ''),
     case when v_base is not null and v_anos is not null
          then v_base + (v_anos * 365)::integer
          else null end,
@@ -228,7 +236,8 @@ begin
     subtipo = excluded.subtipo,           categoria = excluded.categoria,
     fabricante = excluded.fabricante,     numero_serie = excluded.numero_serie,
     localizacao = excluded.localizacao,   ano = excluded.ano,
-    cliente = excluded.cliente,           proxima_inspecao = excluded.proxima_inspecao,
+    cliente_nome = excluded.cliente_nome, cliente_cidade = excluded.cliente_cidade,
+    proxima_inspecao = excluded.proxima_inspecao,
     tem_foto = excluded.tem_foto,         foto_ref = excluded.foto_ref,
     pmta_mpa = excluded.pmta_mpa,         pth_mpa = excluded.pth_mpa,
     resultado = excluded.resultado,       volume_m3 = excluded.volume_m3,

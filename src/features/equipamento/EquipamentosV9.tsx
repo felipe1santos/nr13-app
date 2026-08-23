@@ -432,7 +432,7 @@ function LinhaCatalogo({ item, aoAbrir }: { item: ItemCatalogo; aoAbrir: () => v
         </div>
         <div className="eq-col eq-col-empresa">
           <span className="eq-label">Empresa</span>
-          <span className="eq-value">{item.cliente || '—'}</span>
+          <span className="eq-value">{buscaIndex.textoCliente(item) || '—'}</span>
         </div>
       </div>
     </button>

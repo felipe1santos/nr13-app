@@ -59,7 +59,10 @@ function textoDe(item: ItemCatalogo): string {
       item.tag,
       item.descricao,
       item.fabricante,
-      item.cliente,
+      // `cliente_cidade` NÃO entra: o vetor `busca` do servidor também não a
+      // inclui, e o catálogo local precisa achar exatamente o mesmo conjunto —
+      // senão a busca offline devolveria itens que a online não devolve.
+      item.clienteNome,
       item.localizacao,
       item.tipo,
       item.subtipo,

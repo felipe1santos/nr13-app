@@ -151,7 +151,8 @@ returns table (
   numero_serie     text,
   localizacao      text,
   ano              text,
-  cliente          text,
+  cliente_nome     text,
+  cliente_cidade   text,
   proxima_inspecao date,
   tem_foto         boolean,
   foto_ref         jsonb,
@@ -198,7 +199,8 @@ begin
 
   return query
   select e.tag, e.descricao, e.tipo, e.subtipo, e.categoria, e.fabricante,
-         e.numero_serie, e.localizacao, e.ano, e.cliente, e.proxima_inspecao,
+         e.numero_serie, e.localizacao, e.ano, e.cliente_nome, e.cliente_cidade,
+         e.proxima_inspecao,
          e.tem_foto, e.foto_ref,
          e.pmta_mpa, e.pth_mpa, e.resultado, e.volume_m3, e.fluido,
          e.classe_fluido, e.vida_anos, e.tem_cliente, e.unidade, e.source_version

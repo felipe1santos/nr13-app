@@ -61,7 +61,22 @@ create table if not exists public.equipamentos_index (
   numero_serie      text,
   localizacao       text,
   ano               text,
-  cliente           text,       -- nr13_emp_<TAG>: nomeFantasia || razaoSocial
+  -- CLIENTE, ESTRUTURADO EM DOIS CAMPOS — e a razão é paridade, não estética.
+  --
+  -- O cartão antigo (`CardEquipamento.tsx`) mostra
+  --   [razaoSocial || nomeFantasia, cidade].filter(Boolean).join(' · ')
+  -- Enquanto a projeção guardou UM campo com `nomeFantasia || razaoSocial`,
+  -- duas coisas divergiam em produção: a cidade sumia do cartão (visível) e a
+  -- preferência de nome ficava invertida (latente — só aparece quando razão
+  -- social e nome fantasia diferem). Medido em 23/08/2026 na organização
+  -- `…8d211c`: OFF `Posto Ipiranga · Vila Velha` × ON `Posto Ipiranga`.
+  --
+  -- Guardar NOME e CIDADE separados, e deixar a composição para a tela, é o que
+  -- permite reproduzir a regra do legado sem petrificar formatação de UI dentro
+  -- do banco — e o que deixa a cidade utilizável por qualquer leitor futuro
+  -- (filtro, agrupamento, Dashboard) sem ter de fatiar string.
+  cliente_nome      text,       -- nr13_emp_<TAG>: razaoSocial || nomeFantasia
+  cliente_cidade    text,       -- nr13_emp_<TAG>: cidade
 
   -- Fatos úteis para lista e Dashboard. FATOS, não regra de negócio:
   -- a consolidação com as datas do relatório é da 9F, por junção — replicar a

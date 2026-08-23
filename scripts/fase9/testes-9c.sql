@@ -50,7 +50,7 @@ on conflict (id) do update set
 
 -- 120 equipamentos na org A (mais de duas páginas), 5 na org B.
 insert into public.equipamentos_index
-  (org_id, tag, descricao, tipo, categoria, fabricante, numero_serie, cliente,
+  (org_id, tag, descricao, tipo, categoria, fabricante, numero_serie, cliente_nome,
    localizacao, source_version, source_updated_at)
 select :'ORG_A'::uuid, 'VP-' || lpad(i::text, 4, '0'),
        'Vaso separador ' || i, 'vaso', (array['I','II','III'])[1 + (i % 3)],

@@ -54,6 +54,7 @@ import { definirArmazenamentoV2, zerarFlagEmMemoria } from '../../services/flag'
 import { ler } from '../../services/storage';
 import { carregarEquipamento, chavesDoEquipamento } from './equipamentoService';
 import { coletarItens } from '../../services/palco';
+import { textoCliente } from '../../services/buscaIndex';
 
 function linha(chave: string, valor: unknown, versao = 3) {
   return {
@@ -147,5 +148,38 @@ describe('carregarEquipamento — a ponte que dispensa reescrever os templates',
     // Derrubar a navegação por causa da rede transformaria uma tela degradada
     // numa tela quebrada.
     expect(ler<{ tag: string }>(`nr13_info_${TAG}`)?.tag).toBe(TAG);
+  });
+});
+
+/**
+ * PARIDADE DO CLIENTE no item PENDENTE.
+ *
+ * O item que este aparelho gravou e o servidor ainda não confirmou é montado
+ * aqui, não pela projeção. Se as duas montagens divergirem, o cartão troca de
+ * nome sozinho no instante em que a sincronização termina — que é exatamente o
+ * tipo de mudança silenciosa que o P9.2 proíbe.
+ */
+describe('equipamentosPendentesLocais — mesmo cliente que a projeção', () => {
+  it('usa razaoSocial ANTES de nomeFantasia e traz a cidade', async () => {
+    const { equipamentosPendentesLocais } = await import('./equipamentoService');
+    const sync = await import('../../services/sync');
+    const { salvar } = await import('../../services/storage');
+
+    await salvar(`nr13_info_${TAG}`, { tag: TAG, tipo: 'vaso', descricao: 'Vaso pendente' });
+    await salvar(`nr13_emp_${TAG}`, {
+      razaoSocial: 'Alfa Industria e Comercio Ltda',
+      nomeFantasia: 'Alfa Gases',
+      cidade: 'Serra',
+      clienteId: 'c1',
+    });
+
+    vi.spyOn(sync, 'listarPendentes').mockReturnValue([
+      { chave: `nr13_info_${TAG}`, op: 'set' },
+    ] as unknown as ReturnType<typeof sync.listarPendentes>);
+
+    const [item] = equipamentosPendentesLocais();
+    expect(item.clienteNome).toBe('Alfa Industria e Comercio Ltda');
+    expect(item.clienteCidade).toBe('Serra');
+    expect(textoCliente(item)).toBe('Alfa Industria e Comercio Ltda · Serra');
   });
 });

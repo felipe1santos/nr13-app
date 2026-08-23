@@ -17,7 +17,7 @@
  */
 import { useState, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { ItemCatalogo } from '../../services/buscaIndex';
+import { textoCliente, type ItemCatalogo } from '../../services/buscaIndex';
 import type { SistemaUnidade } from '../../calc/unidades';
 import { FATORES_CONVERSAO, formatarValor } from '../../calc/unidades';
 import { salvarUnidade } from './equipamentoService';
@@ -48,6 +48,8 @@ export default function CardCatalogo({ item }: { item: ItemCatalogo }) {
     (ROTULO_TIPO[tipo] ?? tipo) +
     (item.subtipo && item.subtipo !== 'flamotubular' ? ` (${item.subtipo})` : '');
   const vida = vidaInfo(item.vidaAnos);
+  // MESMO texto do cartão antigo: nome (razão social primeiro) · cidade.
+  const empresaTxt = textoCliente(item);
 
   async function trocarUnidade(e: ChangeEvent<HTMLSelectElement>) {
     e.stopPropagation();
@@ -86,11 +88,11 @@ export default function CardCatalogo({ item }: { item: ItemCatalogo }) {
 
         <div className="plate-name">{item.descricao || rotuloTipo}</div>
         {item.temCliente ? (
-          <div className="plate-empresa">{item.cliente ?? ''}</div>
+          <div className="plate-empresa">{empresaTxt}</div>
         ) : (
           <div className="plate-empresa sem-cliente">
             <Icone nome="alerttri" tam={12} style={{ display: 'inline-block', verticalAlign: -2, marginRight: 4 }} />
-            Sem cliente vinculado{item.cliente ? ` · ${item.cliente}` : ''}
+            Sem cliente vinculado{empresaTxt ? ` · ${empresaTxt}` : ''}
           </div>
         )}
 

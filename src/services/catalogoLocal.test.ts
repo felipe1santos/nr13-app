@@ -19,7 +19,8 @@ import type { ItemCatalogo } from './buscaIndex';
 function eq(extra: Partial<ItemCatalogo> = {}): ItemCatalogo {
   return {
     tag: 'VP-001', descricao: null, tipo: 'vaso', subtipo: null, categoria: null,
-    fabricante: null, numeroSerie: null, localizacao: null, ano: null, cliente: null,
+    fabricante: null, numeroSerie: null, localizacao: null, ano: null,
+    clienteNome: null, clienteCidade: null,
     proximaInspecao: null, temFoto: false, fotoRef: null, pmtaMpa: null, pthMpa: null,
     resultado: null, volumeM3: null, fluido: null, classeFluido: null, vidaAnos: null,
     temCliente: false, unidade: null, sourceVersion: 1,
@@ -51,7 +52,7 @@ describe('a tabela de acentos do bundle é a MESMA do banco', () => {
 
 describe('quem digita sem acento acha o dado com acento', () => {
   it('"frigorifico" acha "Frigorífico Beta"', () => {
-    expect(casaTermo(eq({ cliente: 'Frigorífico Beta' }), 'frigorifico')).toBe(true);
+    expect(casaTermo(eq({ clienteNome: 'Frigorífico Beta' }), 'frigorifico')).toBe(true);
   });
 
   it('"metalurgica" acha "Metalúrgica Silva"', () => {
@@ -103,7 +104,7 @@ describe('os campos que a Fase 8 provou não serem pesquisáveis', () => {
   });
 
   it('cliente e localização entram na busca', () => {
-    expect(casaTermo(eq({ cliente: 'Usina Epsilon' }), 'epsilon')).toBe(true);
+    expect(casaTermo(eq({ clienteNome: 'Usina Epsilon' }), 'epsilon')).toBe(true);
     expect(casaTermo(eq({ localizacao: 'Casa de Máquinas' }), 'maquinas')).toBe(true);
   });
 });

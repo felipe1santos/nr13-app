@@ -23,13 +23,21 @@ vi.mock('./supabase', () => ({
   },
 }));
 
-import { ErroBusca, TAMANHO_PAGINA, contar, fundirLocais, listarPagina, type ItemCatalogo } from './buscaIndex';
+import {
+  ErroBusca,
+  TAMANHO_PAGINA,
+  contar,
+  fundirLocais,
+  listarPagina,
+  textoCliente,
+  type ItemCatalogo,
+} from './buscaIndex';
 
 function linha(tag: string, extra: Record<string, unknown> = {}) {
   return {
     tag,
     descricao: null, tipo: 'vaso', subtipo: null, categoria: null, fabricante: null,
-    numero_serie: null, localizacao: null, ano: null, cliente: null,
+    numero_serie: null, localizacao: null, ano: null, cliente_nome: null, cliente_cidade: null,
     proxima_inspecao: null, tem_foto: false, foto_ref: null,
     pmta_mpa: null, pth_mpa: null, resultado: null, volume_m3: null,
     fluido: null, classe_fluido: null, vida_anos: null, tem_cliente: false,
@@ -41,7 +49,8 @@ function linha(tag: string, extra: Record<string, unknown> = {}) {
 function item(tag: string, extra: Partial<ItemCatalogo> = {}): ItemCatalogo {
   return {
     tag, descricao: null, tipo: null, subtipo: null, categoria: null, fabricante: null,
-    numeroSerie: null, localizacao: null, ano: null, cliente: null, proximaInspecao: null,
+    numeroSerie: null, localizacao: null, ano: null, clienteNome: null, clienteCidade: null,
+    proximaInspecao: null,
     temFoto: false, fotoRef: null, pmtaMpa: null, pthMpa: null, resultado: null,
     volumeM3: null, fluido: null, classeFluido: null, vidaAnos: null, temCliente: false,
     unidade: null, sourceVersion: 0,
@@ -180,5 +189,65 @@ describe('o item recém-salvo NUNCA some da lista (§6.5)', () => {
     const servidor = Array.from({ length: TAMANHO_PAGINA }, (_, i) => item(`S-${String(i).padStart(3, '0')}`));
     const locais = [item('A-000'), item('A-001')];
     expect(fundirLocais(servidor, locais)).toHaveLength(TAMANHO_PAGINA);
+  });
+});
+
+/**
+ * PARIDADE DO CLIENTE — a divergência que segurou o P9.2 em 23/08/2026.
+ *
+ * O cartão antigo (`CardEquipamento.tsx:51`) monta
+ *   [razaoSocial || nomeFantasia, cidade].filter(Boolean).join(' · ')
+ * e `textoCliente()` é o espelho disso do lado da V9.
+ *
+ * O caso de razão social ≠ nome fantasia NÃO existe nas organizações usadas na
+ * validação real — os dois campos coincidiam, e por isso a precedência
+ * invertida ficou invisível na comparação visual. Ele vive aqui.
+ */
+describe('textoCliente — paridade com o cartão antigo', () => {
+  it('compõe nome · cidade', () => {
+    expect(textoCliente({ clienteNome: 'Posto Ipiranga', clienteCidade: 'Vila Velha' }))
+      .toBe('Posto Ipiranga · Vila Velha');
+  });
+
+  it('sem cidade, imprime só o nome — e sem separador solto', () => {
+    expect(textoCliente({ clienteNome: 'Gama Energia S.A.', clienteCidade: null }))
+      .toBe('Gama Energia S.A.');
+  });
+
+  it('sem nome e sem cidade, devolve vazio (o cartão cai no aviso âmbar)', () => {
+    expect(textoCliente({ clienteNome: null, clienteCidade: null })).toBe('');
+  });
+
+  it('cidade sozinha não vira texto de cliente com separador na frente', () => {
+    expect(textoCliente({ clienteNome: null, clienteCidade: 'Serra' })).toBe('Serra');
+  });
+
+  it('reproduz EXATAMENTE o que o cartão antigo produziria', () => {
+    // A regra do legado, escrita aqui como referência independente.
+    const legado = (emp: { razaoSocial?: string; nomeFantasia?: string; cidade?: string }) =>
+      [emp.razaoSocial || emp.nomeFantasia, emp.cidade].filter(Boolean).join(' · ');
+
+    const casos = [
+      { razaoSocial: 'Alfa Industria e Comercio Ltda', nomeFantasia: 'Alfa Gases', cidade: 'Serra' },
+      { nomeFantasia: 'Beta Postos', cidade: 'Vitoria' },
+      { razaoSocial: 'Gama Energia S.A.', nomeFantasia: 'Gama' },
+      { razaoSocial: 'Delta', nomeFantasia: 'Delta' },
+      {},
+    ];
+
+    for (const emp of casos) {
+      // O que a PROJEÇÃO grava, campo a campo (mesma expressão do SQL).
+      const daProjecao = {
+        clienteNome: emp.razaoSocial || emp.nomeFantasia || null,
+        clienteCidade: emp.cidade || null,
+      };
+      expect(textoCliente(daProjecao)).toBe(legado(emp));
+    }
+  });
+
+  it('a precedência é razão social PRIMEIRO — invertida, o nome exibido muda', () => {
+    const comRazao = { clienteNome: 'Alfa Industria e Comercio Ltda', clienteCidade: 'Serra' };
+    expect(textoCliente(comRazao)).toContain('Alfa Industria e Comercio Ltda');
+    expect(textoCliente(comRazao)).not.toContain('Alfa Gases');
   });
 });

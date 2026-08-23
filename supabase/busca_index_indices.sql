@@ -95,12 +95,25 @@ alter table public.equipamentos_index
 --
 -- O nº de série entra em DUAS formas, sem separador (SN00123456) e só dígitos
 -- (00123456), porque o usuário tanto digita a série inteira quanto só o número.
+--
+-- `cliente_cidade` fica de FORA deste vetor, de propósito (23/08/2026):
+--   · a busca do caminho LEGADO não pesquisa nem cliente nem cidade (filtra só
+--     TAG + descrição + tipo), então cidade pesquisável não é paridade — é
+--     funcionalidade nova, e a correção de hoje é de paridade;
+--   · trocar a EXPRESSÃO de uma coluna gerada obriga a derrubá-la e recriá-la,
+--     o que reescreve a tabela e reconstrói o GIN (12 MB por 50.000 linhas na
+--     medição da 9C). Renomear `cliente` → `cliente_nome` NÃO custa nada disso:
+--     o Postgres reescreve a referência dentro da expressão sozinho.
+--   · o catálogo local (`catalogoLocal.ts`) espelha ESTA lista campo a campo.
+--     Incluir cidade só aqui faria a busca offline achar menos que a online.
+-- Se um dia cidade pesquisável for pedida, ela entra nos DOIS lados junto, com
+-- medição do rewrite — não de carona numa correção visual.
 alter table public.equipamentos_index
   add column if not exists busca tsvector
   generated always as (
     to_tsvector('simple', translate(lower(
       coalesce(tag, '')          || ' ' || coalesce(descricao, '')  || ' ' ||
-      coalesce(fabricante, '')   || ' ' || coalesce(cliente, '')    || ' ' ||
+      coalesce(fabricante, '')   || ' ' || coalesce(cliente_nome, '') || ' ' ||
       coalesce(localizacao, '')  || ' ' || coalesce(tipo, '')       || ' ' ||
       coalesce(subtipo, '')      || ' ' || coalesce(ano, '')        || ' ' ||
       coalesce(categoria, '')    || ' ' ||
@@ -162,7 +175,7 @@ create index if not exists equipamentos_index_filtro_idx
 --       ser "C", porque a PK herdou a collation.
 --   pg_trgm  — só com necessidade provada de substring no meio de palavra.
 --   unaccent — desnecessário: `translate()` resolve e é IMMUTABLE.
---   (org_id, cliente) — o GIN já cobre cliente na busca livre.
+--   (org_id, cliente_nome) — o GIN já cobre o nome do cliente na busca livre.
 drop index if exists public.equipamentos_index_tag_prefixo_idx;
 drop index if exists public.equipamentos_index_tag_c_idx;
 
