@@ -2,7 +2,7 @@
 
 ## Estado atual da fase
 
-`✅ 9C TECNICAMENTE APROVADA — P9.2 AGUARDANDO VALIDAÇÃO REAL.`
+`✅ INFRAESTRUTURA EM PRODUÇÃO — P9.2 aguarda o DEPLOY DO FRONT.`
 
 **9D a 9G continuam NÃO autorizadas.** Nada aplicado em produção.
 Medições: [9A — peso](../../medicoes/2026-08-22-fase9a-peso-projecao.md) · [9B — projeção na RPC](../../medicoes/2026-08-22-fase9b-projecao-na-rpc.md) · [9C — índices](../../medicoes/2026-08-22-fase9c-indices.md) · [9C — tela](../../medicoes/2026-08-22-fase9c-tela.md)
@@ -694,6 +694,13 @@ recém-consultado.
 | 23/08 | ✅ **ETAPA 1 APLICADA EM PRODUÇÃO.** As seis funções da RLS agora `STABLE`. 1.695 → **883 buffers**, `Filter` por linha → `One-Time Filter`. **7 atores reais, 0 divergências** | ✅ |
 | 23/08 | Rollback **exercitado de verdade** (6/6 a VOLATILE, dados intactos) e reaplicado. Os 9 erros do painel eram MEUS, todos ANTES da aplicação — defeito de aspas no montador da bateria | ✅ |
 | 23/08 | 🔴 Defeito achado **antes** de aplicar: o arquivo criava políticas em tabelas da Fase 9 que **não existem em produção** e teria falhado no meio. Bloco virou condicional | ✅ |
+| 23/08 | ✅ **ETAPA 2 APLICADA EM PRODUÇÃO.** Os 6 arquivos na ordem, buscados do repositório publicado e conferidos byte a byte. Passo 4 (collation) com as tabelas comprovadamente vazias | ✅ |
+| 23/08 | Org piloto `…8d0f7e` escolhida. **Conflito de critérios registrado:** a única org com ≥20 equipamentos é a MAIOR, e nenhuma chega a 50 — paginação não é exercitável em produção | ⚠️ |
+| 23/08 | Backfill: 4 equip. + 4 relatórios em **123 ms**, `convergiu: true`. **Projeção × verdade: 4 × 13 campos, todos idênticos** — inclusive TAGs com espaço duplo | ✅ |
+| 23/08 | Busca em dado real: fabricante `schulz` acha `SCHULZ COMPRESSORES` e `Schulz`; série `I416366` acha `I-416366`. **O achado G1 da Fase 8 está resolvido em produção** | ✅ |
+| 23/08 | Escrita controlada `ZZ-TESTE-9C-20260823`: criar → editar → excluir. `source_version` 1→2→removido, fabricante antigo saiu do índice, **zero fantasma**. Resíduo: 1 tombstone, declarado | ✅ |
+| 23/08 | Isolamento: outras orgs e papel `cliente` veem **zero**. `busca_pendencias` recusa `authenticated` com `permission denied` — fail closed confirmado | ✅ |
+| 23/08 | ⛔ **P9.2 NÃO pode fechar ainda:** o bundle do front com a 9C **não está em produção** (deploy manual do dono, no Coolify). Validação de interface pendente | ⏸️ |
 
 ---
 

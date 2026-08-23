@@ -6,7 +6,7 @@
 > **REGRA:** este arquivo é atualizado NO MOMENTO em que o estado muda — commit, push,
 > redeploy, validação, portão. Não no fim da fase.
 
-**Última atualização:** 23/08/2026 13:00
+**Última atualização:** 23/08/2026 14:20
 **Branch:** `main` · **Suíte:** 1237 testes / 98 arquivos, 0 falhas · **Build:** verde
 
 
@@ -100,13 +100,13 @@ Sempre use um destes. Nunca "concluído".
 | **4** | Portal: arquitetura de leitura (A-02) | ✅ **CONCLUÍDA** | **P3 FECHADO ✅** aprovado 20/08 | `plans/2026-08-20-fase4-task-level.md` |
 | **5** | Fotos: thumbnail, EXIF, teto de altura (A-08) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** | — | `plans/2026-08-20-fase5-task-level.md` · `medicoes/2026-08-20-fase5-producao-antes-depois.md` |
 | **6** | Recuperação do fallback base64 (A-10) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** nas 3 famílias, com SHA-256 idêntico | — | `plans/2026-08-20-fase6-task-level.md` |
-| **9** | Escala, busca e carregamento sob demanda | 🟡 **9A/9B/9C CONCLUÍDAS · 9C tecnicamente aprovada** — P9.2 aguardando validação REAL | P9.1…P9.5 | `plans/2026-08-22-fase9-task-level.md` · `specs/2026-08-22-fase9-escala-busca-design.md` |
+| **9** | Escala, busca e carregamento sob demanda | 🟡 **Infraestrutura EM PRODUÇÃO · org piloto validada no servidor** — P9.2 aguarda deploy do front | P9.1…P9.5 | `plans/2026-08-22-fase9-task-level.md` · `specs/2026-08-22-fase9-escala-busca-design.md` |
 | **8** | Escala, dataset e medições | ✅ **CONCLUÍDA** (22/08) — diagnóstico aprovado; o critério de produto **NÃO PASSA em grande escala**, e isso é o mandato da Fase 9 | — | `plans/2026-08-22-fase8-task-level.md` · `medicoes/2026-08-22-fase8-fechamento.md` |
 | **7** | Logo e rubrica por conteúdo (A-05) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** (7A EXPAND + 7B SWITCH, Portal e offline real) | **P4 FECHADO ✅** aprovado 22/08 | `plans/2026-08-20-fase7-task-level.md` · `medicoes/2026-08-20-fase7b-validacao-producao.md` |
 | **8** | Escala, dataset determinístico e medições (A-17) | 🟡 **PLANEJADA** — AS-IS, dataset e plano de medição escritos; **nenhuma massa gerada** | — | `plans/2026-08-22-fase8-task-level.md` |
 | 9…13 | ver plano macro | PLANEJADO | P5…P8 | `plans/2026-08-15-evolucao-arquitetura.md` |
 
-**Fase atual:** **9 — 9C TECNICAMENTE APROVADA. P9.2 aguardando VALIDAÇÃO EM ORGANIZAÇÃO REAL.**
+**Fase atual:** **9 — ETAPA 2 aplicada em produção. P9.2 aguarda o DEPLOY DO FRONT.**
 
 **9D a 9G não autorizadas.** **Produção sem nada aplicado.**
 
@@ -118,8 +118,29 @@ Sempre use um destes. Nunca "concluído".
 | **9B** | **CONCLUÍDA** — `medicoes/2026-08-22-fase9b-projecao-na-rpc.md` · P9.1 aprovado |
 | **9C** | **CONCLUÍDA** — `medicoes/2026-08-22-fase9c-indices.md` e `-tela.md` |
 
-**Próxima ação exata:** o dono autoriza a **ETAPA 2** (infraestrutura da Fase 9 em produção).
-Ordem em [`plans/2026-08-23-ordem-de-rollout.md`](superpowers/plans/2026-08-23-ordem-de-rollout.md).
+**Próxima ação exata:** o dono decide sobre o **deploy do bundle** no Coolify — sem ele a
+validação de interface do P9.2 não acontece. O front é deploy **manual, do dono, fora do código**
+(`PENDENCIAS.md` §1).
+
+### ✅ ETAPA 2 APLICADA EM PRODUÇÃO — 23/08/2026
+
+Infraestrutura 9A/9B/9C instalada na ordem, org piloto `…8d0f7e` com backfill convergido, e
+**toda a camada de servidor validada em dado real**. Flag **DESLIGADA**.
+
+| | |
+|---|---|
+| SQL aplicado | os 6 arquivos, **verificados byte a byte** contra o commit publicado |
+| Backfill da piloto | 4 equip. + 4 relatórios · **123 ms** · `convergiu: true` |
+| Projeção × verdade | **4 equipamentos × 13 campos, todos idênticos** |
+| Busca | TAG, prefixo, descrição, **fabricante**, **nº de série** (com e sem separador), filtros |
+| Paginação | cursor sem duplicar nem pular |
+| Isolamento | outras orgs e papel `cliente` → **zero** |
+| Escrita | criar → editar → excluir, `source_version` convergindo, **sem fantasma** |
+| Flag | OFF → ON → OFF, **nenhuma outra org afetada** |
+| `app_storage` | intacta (+1 tombstone do teste, declarado) |
+
+**⛔ NÃO validado — depende do bundle:** comparação visual, abrir equipamento, offline, DOM/rede,
+debounce. Detalhes em [`medicoes/2026-08-23-etapa2-fase9-producao.md`](medicoes/2026-08-23-etapa2-fase9-producao.md).
 
 ### ✅ ETAPA 1 CONCLUÍDA EM PRODUÇÃO — 23/08/2026
 
