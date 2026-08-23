@@ -6,7 +6,7 @@
 > **REGRA:** este arquivo é atualizado NO MOMENTO em que o estado muda — commit, push,
 > redeploy, validação, portão. Não no fim da fase.
 
-**Última atualização:** 23/08/2026 02:30
+**Última atualização:** 23/08/2026 03:10
 **Branch:** `main` · **Suíte:** 1237 testes / 98 arquivos, 0 falhas · **Build:** verde
 
 
@@ -100,13 +100,13 @@ Sempre use um destes. Nunca "concluído".
 | **4** | Portal: arquitetura de leitura (A-02) | ✅ **CONCLUÍDA** | **P3 FECHADO ✅** aprovado 20/08 | `plans/2026-08-20-fase4-task-level.md` |
 | **5** | Fotos: thumbnail, EXIF, teto de altura (A-08) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** | — | `plans/2026-08-20-fase5-task-level.md` · `medicoes/2026-08-20-fase5-producao-antes-depois.md` |
 | **6** | Recuperação do fallback base64 (A-10) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** nas 3 famílias, com SHA-256 idêntico | — | `plans/2026-08-20-fase6-task-level.md` |
-| **9** | Escala, busca e carregamento sob demanda | 🟡 **EM IMPLEMENTAÇÃO — 9A, 9B e 9C CONCLUÍDAS**, parada no portão P9.2 | P9.1…P9.5 | `plans/2026-08-22-fase9-task-level.md` · `specs/2026-08-22-fase9-escala-busca-design.md` |
+| **9** | Escala, busca e carregamento sob demanda | 🟡 **9A/9B/9C CONCLUÍDAS · 9C tecnicamente aprovada** — P9.2 aguardando validação REAL | P9.1…P9.5 | `plans/2026-08-22-fase9-task-level.md` · `specs/2026-08-22-fase9-escala-busca-design.md` |
 | **8** | Escala, dataset e medições | ✅ **CONCLUÍDA** (22/08) — diagnóstico aprovado; o critério de produto **NÃO PASSA em grande escala**, e isso é o mandato da Fase 9 | — | `plans/2026-08-22-fase8-task-level.md` · `medicoes/2026-08-22-fase8-fechamento.md` |
 | **7** | Logo e rubrica por conteúdo (A-05) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** (7A EXPAND + 7B SWITCH, Portal e offline real) | **P4 FECHADO ✅** aprovado 22/08 | `plans/2026-08-20-fase7-task-level.md` · `medicoes/2026-08-20-fase7b-validacao-producao.md` |
 | **8** | Escala, dataset determinístico e medições (A-17) | 🟡 **PLANEJADA** — AS-IS, dataset e plano de medição escritos; **nenhuma massa gerada** | — | `plans/2026-08-22-fase8-task-level.md` |
 | 9…13 | ver plano macro | PLANEJADO | P5…P8 | `plans/2026-08-15-evolucao-arquitetura.md` |
 
-**Fase atual:** **9 — 9A, 9B e 9C CONCLUÍDAS, parada no PORTÃO P9.2.**
+**Fase atual:** **9 — 9C TECNICAMENTE APROVADA. P9.2 aguardando VALIDAÇÃO EM ORGANIZAÇÃO REAL.**
 
 **9D a 9G não autorizadas.** **Produção sem nada aplicado.**
 
@@ -118,7 +118,8 @@ Sempre use um destes. Nunca "concluído".
 | **9B** | **CONCLUÍDA** — `medicoes/2026-08-22-fase9b-projecao-na-rpc.md` · P9.1 aprovado |
 | **9C** | **CONCLUÍDA** — `medicoes/2026-08-22-fase9c-indices.md` e `-tela.md` |
 
-**Próxima ação exata:** o dono avalia o **P9.2**, que exige ligar a flag numa organização REAL.
+**Próxima ação exata:** executar `plans/2026-08-23-validacao-real-9c.md` numa organização real —
+**bloqueado** enquanto o aviso `Grace period is over` do Supabase não for esclarecido.
 
 ### O que a 9C entregou
 
@@ -137,18 +138,24 @@ do tamanho da base. O DOM ficou constante entre 50 e 100 itens carregados.
 **Rollback é desligar a flag**, e foi exercitado: a tela antiga volta inteira, sem converter dado
 nenhum.
 
-### Dois pontos abertos para o P9.2
+### Decidido em 23/08
 
-**1 · O custo de escrita foi a +48 %** (1.129 → 1.671 buffers), acima dos +25,9 % aceitos no
-P9.1. Os últimos 12 pontos compraram fidelidade do cartão — PMTA, PTH, resultado, volume,
-fluido, vida e unidade. Sem eles a lista perderia informação que a tela antiga mostra. É troca,
-e a decisão é do dono.
+**O custo de escrita de +48 %** (1.129 → 1.671 buffers) foi **ACEITO** como *desvio do piloto 9C*
+e registrado como **baseline de escrita da V9**. A fidelidade do cartão — PMTA, PTH, resultado,
+volume, fluido, vida e unidade — fica preservada. Reabrir a otimização só com evidência de que a
+escrita virou gargalo, e sem enfraquecer consistência.
 
-**2 · Um achado maior que a própria 9C, e independente dela:** `org_atual()` e `papel_atual()`
-estão **VOLATILE** em produção, e numa cláusula de RLS isso significa **uma chamada por linha**.
-Ler 1.000 chaves de `app_storage` custa **1.478.822 buffers**; com elas `STABLE`, **9.064** —
-163× menos, com dois `ALTER FUNCTION`. Está em `supabase/rls_funcoes_estaveis.sql`, não depende
-da flag nem da Fase 9, e beneficia toda organização existente hoje.
+### Mudança INDEPENDENTE, validada e não aplicada
+
+As **seis** funções auxiliares da RLS estão `VOLATILE` em produção, o que numa cláusula de RLS
+significa **uma chamada por linha**. A mesma leitura de 1.000 chaves custa **248.685 buffers**
+com `VOLATILE` e **1.021** com `STABLE` — **244×**, e o plano vira `One-Time Filter`.
+
+Validada isolada: análise semântica função por função, **88 provas de comportamento idênticas**
+nos dois modos (7 atores × 12 provas + `anon`), e rollback exercitado.
+`supabase/rls_funcoes_estaveis.sql` · `medicoes/2026-08-23-rls-funcoes-volateis.md`.
+
+**Não depende da flag nem da Fase 9.** Pode ser implantada sozinha, quando autorizado.
 
 Os dois roteiros ficam gravados, já com os resultados marcados:
 

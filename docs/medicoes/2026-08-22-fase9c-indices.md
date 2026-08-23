@@ -135,25 +135,26 @@ consertar numa organização grande.
 
 ## 8 · O achado que vale mais que os índices
 
-> Ler 1.000 chaves de `app_storage` como `authenticated`, com a RLS ativa:
+> Ler 1.000 chaves de `app_storage` como `authenticated`, com a RLS ativa — a MESMA instrução:
 >
-> | `org_atual()` / `papel_atual()` | buffers | ms |
-> |---|---:|---:|
-> | **VOLATILE — como estão em PRODUÇÃO hoje** | **1.478.822** | 1.417–2.176 |
-> | STABLE | **9.064** | 6,3 |
+> | funções auxiliares da RLS | buffers | plano |
+> |---|---:|---|
+> | **VOLATILE — como estão em PRODUÇÃO hoje** | **248.685** | filtro **por linha** sobre 122.081 linhas |
+> | STABLE | **1.021** | `One-Time Filter` + `Index Only Scan` |
 >
-> **163× menos leitura. 225× menos tempo. Dois `ALTER FUNCTION`.**
+> **244× menos leitura**, e o plano muda de natureza.
 
-Uma função `sql`/`plpgsql` sem marcador de volatilidade nasce **VOLATILE**. Numa cláusula de RLS,
+Função em `language sql` sem marcador de volatilidade nasce **VOLATILE**. Numa cláusula de RLS,
 função VOLATILE é chamada **uma vez por linha** e não pode ser içada para fora da varredura — e
 cada chamada faz um `select` em `profiles`.
 
-Marcá-las `STABLE` está correto: elas só LEEM o perfil do usuário atual. Nada de segurança muda —
-`security definer`, corpo e policy seguem iguais; muda quantas vezes o Postgres as chama.
+São **seis** funções na cadeia, não duas: o levantamento no catálogo (`pg_policies` × `pg_proc`)
+mostrou que `is_admin()` aparece em **9 políticas** — mais que qualquer outra — e que
+`assinatura_status_org()` entra por dentro de `assinatura_permite_escrita()`.
 
-Está em **`supabase/rls_funcoes_estaveis.sql`**, arquivo separado de propósito: **não depende da
-Fase 9, não depende de `busca_v9`, e beneficia toda organização existente hoje**. A escrita não
-muda (1.533 buffers com ou sem), porque escrita toca uma linha e uma linha não multiplica nada.
+**Isto NÃO faz parte da 9C.** Está em `supabase/rls_funcoes_estaveis.sql`, com rollback próprio e
+validação isolada — análise semântica função por função e 88 provas de comportamento idênticas nos
+dois modos. Ver **`docs/medicoes/2026-08-23-rls-funcoes-volateis.md`**.
 
 ---
 
@@ -219,13 +220,22 @@ Uma mutação de `nr13_info_` em `aplicar_mutacao_storage`, mediana de 5:
 | + `busca` (tsvector) e GIN | 1.536 | +36 % |
 | **+ os campos do cartão (`nr13_calc_`, unidade)** | **1.671** | **+48 %** |
 
-> **Isto ultrapassa por muito o que foi aceito no P9.1 (+25,9 %), e é o principal ponto a decidir
-> no P9.2.**
+> ### ✅ ACEITO PELO DONO EM 23/08/2026 — "desvio aceito no piloto 9C"
+>
+> **Este passou a ser o baseline de escrita da V9.** A decisão foi explícita: **não remover**
+> PMTA, PTH, resultado, volume, fluido, vida nem unidade só para perseguir uma redução artificial
+> de buffers. A fidelidade funcional e visual do cartão antigo vale mais.
+>
+> A prioridade da fase continua sendo remover centenas de MB de hidratação, milhões de nós no DOM
+> e a varredura no cliente — e nada disso pode ser enfraquecido por causa da escrita.
+>
+> **Reabrir a otimização apenas se** latência absoluta, throughput, carga real ou produção
+> mostrarem que a escrita virou gargalo. E mesmo então: **sem enfraquecer a fidelidade nem a
+> garantia de consistência.**
 >
 > O último degrau — de +36 % para +48 % — comprou **fidelidade do cartão**: PMTA, PTH, resultado,
 > volume, fluido, vida remanescente e a unidade escolhida. Sem ele o piloto perderia informação
 > que a tela antiga mostra, e "conteúdo idêntico com a flag ligada e desligada" é exigência do
 > próprio portão P9.2.
 >
-> **É uma troca, não um descuido, e a decisão é sua:** ou o cartão mantém tudo e a escrita custa
-> +48 %, ou alguns campos saem da lista e a escrita volta para perto de +36 %.
+> **Decisão tomada: o cartão mantém tudo.** O overhead permanece monitorado, não otimizado.

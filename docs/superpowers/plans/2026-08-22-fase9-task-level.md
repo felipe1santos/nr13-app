@@ -2,7 +2,7 @@
 
 ## Estado atual da fase
 
-`✅ 9A, 9B e 9C CONCLUÍDAS — aguardando avaliação do PORTÃO P9.2.`
+`✅ 9C TECNICAMENTE APROVADA — P9.2 AGUARDANDO VALIDAÇÃO REAL.`
 
 **9D a 9G continuam NÃO autorizadas.** Nada aplicado em produção.
 Medições: [9A — peso](../../medicoes/2026-08-22-fase9a-peso-projecao.md) · [9B — projeção na RPC](../../medicoes/2026-08-22-fase9b-projecao-na-rpc.md) · [9C — índices](../../medicoes/2026-08-22-fase9c-indices.md) · [9C — tela](../../medicoes/2026-08-22-fase9c-tela.md)
@@ -376,8 +376,8 @@ validação manual.
 - [x] Cada índice com benchmark antes/depois · um DESCARTADO por medição
 - [x] Keyset provado com inserção concorrente — sem pular nem duplicar
 - [x] Suíte **1237/1237** e build verdes
-- [~] **Custo de escrita: +48 % vs. antes da projeção.** Acima dos +25,9 % aceitos no P9.1 — é o
-      ponto a decidir no P9.2 (ver §10 de `medicoes/2026-08-22-fase9c-indices.md`)
+- [x] **Custo de escrita: +48 %** — ✅ **ACEITO pelo dono em 23/08** como *desvio aceito no piloto
+      9C*, e registrado como baseline de escrita da V9. Fidelidade do cartão preservada
 
 **Commits:** um por tarefa; **um por índice**.
 **Deploy:** sim, com a flag **desligada** para todas as orgs. Ligar **uma** org por vez.
@@ -679,12 +679,18 @@ recém-consultado.
 | 23/08 | Medido na tela, 1.004 equipamentos: **42.450 → 1.301 nós**, heap 72,9 → 49,5 MB, DOM constante de 50 para 100 itens. Rollback exercitado pelo servidor | ✅ |
 | 23/08 | Custo de escrita **+48 %** vs. antes da projeção — os últimos 12 pontos compraram fidelidade do cartão | ⚠️ a decidir no P9.2 |
 | 23/08 | **9C CONCLUÍDA. PARADA aguardando o P9.2** | ⏸️ |
+| 23/08 | **9C tecnicamente APROVADA.** +48 % de escrita aceito como desvio do piloto; fidelidade do cartão preservada por decisão explícita | ✅ |
+| 23/08 | **P9.2 permanece ABERTO** — exige validação em organização REAL. Roteiro pronto em `plans/2026-08-23-validacao-real-9c.md`, **não executado** | ⏸️ |
+| 23/08 | 🔴 Produção com aviso **`Grace period is over`** — nada aplicado lá até esclarecer | ⛔ |
+| 23/08 | **RLS/STABLE validado ISOLADO.** O levantamento no catálogo achou **6** funções em política, não 4: faltavam `is_admin` (a mais usada, 9 políticas) e `assinatura_status_org` | ✅ |
+| 23/08 | Bateria RLS 7 atores × 12 provas + `anon`, nos dois modos: **88 linhas idênticas byte a byte**. Custo: **248.685 → 1.021 buffers (244×)**, com o plano virando `One-Time Filter` | ✅ |
+| 23/08 | Rollback do RLS exercitado (volta 6/6 a VOLATILE) e arquivo principal idempotente | ✅ |
 
 ---
 
 ## Ponto de retomada
 
-> ### ⏸️ 9A, 9B e 9C CONCLUÍDAS — PARADA NO PORTÃO P9.2
+> ### ⏸️ 9C TECNICAMENTE APROVADA — P9.2 AGUARDANDO VALIDAÇÃO REAL
 >
 > **Leia este bloco primeiro. Ele basta para retomar sem contexto nenhum.**
 >
@@ -697,17 +703,20 @@ recém-consultado.
 > | DOM, 1.004 equip. | **42.450 → 1.301 nós** (32×) · constante de 50 para 100 itens |
 > | Busca | fabricante, cliente, localização e nº de série passam a achar — **e sem acento** |
 > | Consulta a 50.000 | **plana**: 1.073 a 2.235 buffers, 2 a 6 ms, qualquer modalidade |
-> | Custo de escrita | **+48 %** vs. antes da projeção — **acima dos +25,9 % do P9.1** |
+> | Custo de escrita | **+48 %** — ✅ **aceito em 23/08** como desvio do piloto, é o baseline da V9 |
 > | Rollback | exercitado pelo servidor: a tela antiga volta inteira |
 > | Produção | **nada aplicado** |
 >
-> **O que falta:** avaliação do dono no **P9.2**, que exige validar numa org REAL.
+> **O que falta:** a **VALIDAÇÃO EM ORGANIZAÇÃO REAL**. O roteiro está pronto em
+> `plans/2026-08-23-validacao-real-9c.md` e **não foi executado**.
 >
-> **Dois pontos para a conversa:**
-> 1. **O overhead de escrita foi a +48 %.** Os últimos 12 pontos compraram fidelidade do cartão
->    (PMTA, PTH, resultado, volume, fluido, vida, unidade). É troca, e a decisão é do dono.
-> 2. **`supabase/rls_funcoes_estaveis.sql` NÃO depende da Fase 9** e vale para toda org de hoje:
->    163× menos leitura na hidratação, com dois `ALTER FUNCTION`. Pode ir a produção sozinho.
+> **⛔ BLOQUEIO:** produção com aviso **`Grace period is over`**. Nada roda lá até isso ser
+> esclarecido.
+>
+> **Mudança independente, pronta e também não aplicada:** `supabase/rls_funcoes_estaveis.sql` —
+> as 6 funções auxiliares da RLS estão `VOLATILE`, o que as faz rodar **por linha**.
+> **248.685 → 1.021 buffers (244×)**. Validada isolada, com 88 provas idênticas nos dois modos e
+> rollback próprio. Ver `medicoes/2026-08-23-rls-funcoes-volateis.md`.
 >
 > **Ordem de aplicação do SQL:** `busca_index` → `busca_manutencao` → `busca_index_rpc` →
 > `busca_index_indices` → `busca_consulta` → `busca_v9_flag`. O `busca_index_indices` reescreve
