@@ -100,68 +100,45 @@ Sempre use um destes. Nunca "concluído".
 | **4** | Portal: arquitetura de leitura (A-02) | ✅ **CONCLUÍDA** | **P3 FECHADO ✅** aprovado 20/08 | `plans/2026-08-20-fase4-task-level.md` |
 | **5** | Fotos: thumbnail, EXIF, teto de altura (A-08) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** | — | `plans/2026-08-20-fase5-task-level.md` · `medicoes/2026-08-20-fase5-producao-antes-depois.md` |
 | **6** | Recuperação do fallback base64 (A-10) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** nas 3 famílias, com SHA-256 idêntico | — | `plans/2026-08-20-fase6-task-level.md` |
+| **9** | Escala, busca e carregamento sob demanda | ⏸️ **PLANEJADA — AGUARDANDO AUTORIZAÇÃO DE IMPLEMENTAÇÃO** | P9.1…P9.5 | `plans/2026-08-22-fase9-task-level.md` · `specs/2026-08-22-fase9-escala-busca-design.md` |
 | **8** | Escala, dataset e medições | ✅ **CONCLUÍDA** (22/08) — diagnóstico aprovado; o critério de produto **NÃO PASSA em grande escala**, e isso é o mandato da Fase 9 | — | `plans/2026-08-22-fase8-task-level.md` · `medicoes/2026-08-22-fase8-fechamento.md` |
 | **7** | Logo e rubrica por conteúdo (A-05) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** (7A EXPAND + 7B SWITCH, Portal e offline real) | **P4 FECHADO ✅** aprovado 22/08 | `plans/2026-08-20-fase7-task-level.md` · `medicoes/2026-08-20-fase7b-validacao-producao.md` |
 | **8** | Escala, dataset determinístico e medições (A-17) | 🟡 **PLANEJADA** — AS-IS, dataset e plano de medição escritos; **nenhuma massa gerada** | — | `plans/2026-08-22-fase8-task-level.md` |
 | 9…13 | ver plano macro | PLANEJADO | P5…P8 | `plans/2026-08-15-evolucao-arquitetura.md` |
 
-**Fase atual:** **9 — DESENHO v2, com as 7 decisões arquiteturais FECHADAS pelo dono.** Nada
-implementado: nenhum schema, nenhuma migration, nenhum índice, nenhuma tabela, nada em `src/`.
+**Fase atual:** **9 — PLANEJADA / AGUARDANDO AUTORIZAÇÃO DE IMPLEMENTAÇÃO.**
 
-**Próxima ação exata:** o dono revisa esta versão final e **autoriza ou não** o task-level de
-implementação. A 9A não começa antes disso.
+**Nada executado:** nenhuma migration, tabela, índice, RPC, linha de `src/`, backfill ou deploy.
 
-**DESENHO:** `superpowers/specs/2026-08-22-fase9-escala-busca-design.md` (§26 traz as decisões)
-**FECHAMENTO DA FASE 8:** `medicoes/2026-08-22-fase8-fechamento.md` — aprovado (`fe62356`)
-
-### Fundamentos aprovados
-
-1. **O palco já é por TAG** — `coletarItens(tag)` não depende da organização inteira.
-2. **Cache parcial já existe em produção** — o Portal usa `semearCache()` sem hidratar.
-
-### As 7 decisões fechadas
-
-| # | Decisão |
+| | |
 |---|---|
-| 1 | **Duas projeções** por domínio — equipamentos e relatórios |
-| 2 | **`app_storage` continua a verdade**; projeções são derivadas, descartáveis, reconstruíveis |
-| 3 | **A verdade não depende da projeção** — mas falha vira **pendência durável**, com reparo idempotente e auditoria que prova convergência. Eventual consistency sim; **divergência silenciosa permanente, não** |
-| 3b | **Item recém-salvo nunca some da tela** |
-| 4 | **Offline: pré-carga manual**, e **catálogo leve ≠ dados completos offline** |
-| 5 | **`pg_trgm` não agora**, e `tsvector` **não é universal** — cada modalidade com índice e benchmark próprios |
-| 6 | Ordem `/equipamentos` → `/relatorios` → demais, **com infraestrutura antes do visual** |
-| 7 | **Dashboard híbrido**, e offline não pode passar dado antigo por recém-consultado |
+| Desenho arquitetural | **APROVADO** — `specs/2026-08-22-fase9-escala-busca-design.md` (`8e82cf6`) |
+| Task-level | **escrito** — `plans/2026-08-22-fase9-task-level.md` |
+| Fase 8 | **CONCLUÍDA** (`fe62356`) |
+| `src/` | intocado desde `490a236` |
+| Massa em produção | **ZERO** |
 
-### O mecanismo de consistência (§6 do desenho) — hierarquia de três níveis
+**Próxima ação exata:** o dono revisa o task-level e **autoriza (ou não) a 9A**. Nada começa antes.
 
-> **Falha em QUALQUER mecanismo derivado nunca vira falha da verdade.**
+### Subfases planejadas
 
-| Nível | Papel | Se falhar |
+| | | Portão |
 |---|---|---|
-| **1 · `app_storage`** | **A VERDADE** | Transação aborta; a mutação fica na fila do cliente e é reenviada |
-| **2 · Projeção** | Derivada | Savepoint próprio: a verdade permanece |
-| **3 · Pendência** | **Best-effort** | Savepoint próprio, handler `null` que **não pode levantar** |
+| **9A** | Projeções, RLS, rebuild, auditoria — **sem leitores** | |
+| **9B** | Projeção mantida pela RPC + falha contida em savepoint | **P9.1** |
+| **9C** | Piloto `/equipamentos` sob flag `busca_v9` | **P9.2** |
+| **9D** | Saída da hidratação integral + throttle de `lerTudo()` | **P9.3** |
+| **9E** | `/relatorios` — a tela sem busca nenhuma | |
+| **9F** | Demais telas de escala | **P9.4** |
+| **9G** | Secundários + **remoção do caminho legado** | **P9.5** |
 
-**A pendência é otimização, não garantia.** A garantia é a **auditoria por `source_version`**, que
-compara as duas tabelas direto e **funciona mesmo que a pendência nunca tenha funcionado**. Foi
-assim que a última brecha se fechou: em vez de tornar o registro da pendência infalível, o desenho
-passou a **não depender dele**.
+### As 12 invariantes que valem em todas as subfases
 
-**Autoridade da convergência:** `source_version` é a versão **efetivamente persistida**
-(`app_storage.versao`, mesma mutação, mesma transação). **Nenhum timestamp de frontend decide** —
-`mutado_em_cliente` é `AUDITORIA APENAS` por desenho existente. Não se cria contador novo.
+Destaque para as três que governam o resto: **`app_storage` é a única verdade**; **falha em
+mecanismo derivado nunca vira falha da verdade**; e **nenhum dos 40+ templates de `public/` é
+tocado**. A lista completa está no topo do task-level.
 
-### A ponte para sair da amarra síncrona (§4 do desenho)
-
-`ler()` continua síncrono, o `Map` continua a interface, o palco continua por TAG. **Muda só QUANDO
-o `Map` é preenchido**: lista leve → usuário abre TAG → `carregarEquipamento(tag)` →
-`semearCache()` → o legado síncrono enxerga aquela TAG → palco coleta → documento funciona.
-**Nenhum dos 40+ templates é tocado.**
-
-**Rollout 9A→9G**, portões P9.1–P9.5, rollback em cada etapa, e a 9G **remove o caminho de
-hidratação integral** — o fallback existe para o rollout, não para sempre.
-
-**Fase 10 e PDF vetorial: não iniciados.** Massa em produção: ZERO.
+**Fase 10 e PDF vetorial: não iniciados.**
 
 Os dois roteiros ficam gravados, já com os resultados marcados:
 
