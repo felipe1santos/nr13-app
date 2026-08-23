@@ -6,8 +6,12 @@
 > **REGRA:** este arquivo é atualizado NO MOMENTO em que o estado muda — commit, push,
 > redeploy, validação, portão. Não no fim da fase.
 
-**Última atualização:** 23/08/2026 14:20
-**Branch:** `main` · **Suíte:** 1237 testes / 98 arquivos, 0 falhas · **Build:** verde
+**Última atualização:** 23/08/2026 18:10
+**Branch:** `main` · **Suíte:** 1244 testes / 98 arquivos, 0 falhas · **Build:** verde
+
+> ### 🔖 VOLTANDO DEPOIS DE UMA PAUSA? Leia [`PONTO-DE-RETOMADA.md`](PONTO-DE-RETOMADA.md).
+> Ele tem o estado de produção, o que falta decidir (a **9D**) e **todos os endereços de acesso** —
+> sistema, Supabase e Coolify.
 
 
 ## ✅ P1, P2 e P3 APROVADOS · FASE 4 CONCLUÍDA
