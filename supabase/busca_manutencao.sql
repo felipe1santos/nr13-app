@@ -87,12 +87,46 @@ begin
     from public.app_storage s
    where s.org_id = p_org and s.chave = 'nr13_info_' || p_tag and s.deletado_em is null;
 
-  -- Sem ficha viva, o equipamento não existe para a projeção.
-  if v_info is null then
+  -- Sem ficha VIVA, o equipamento não existe para a projeção — e some dela.
+  if not found then
     delete from public.equipamentos_index where org_id = p_org and tag = p_tag;
     return;
   end if;
 
+  -- Ficha viva, mas com JSON ILEGÍVEL. Projeta linha MÍNIMA em vez de omitir.
+  --
+  -- Descoberto pelo teste de falha em cascata da 9B: omitir criava uma
+  -- divergência PERMANENTE E IRREPARÁVEL — a auditoria acusaria para sempre,
+  -- porque nenhum reparo conseguiria produzir a linha. E o equipamento sumia
+  -- da busca, que é justamente o defeito que este projeto existe para combater.
+  --
+  -- Com a linha mínima, o equipamento continua achável pela TAG (que vem da
+  -- CHAVE, não do valor), a auditoria converge, e os campos pesquisáveis ficam
+  -- nulos — que é a verdade sobre um conteúdo que ninguém consegue ler.
+  if v_info is null then
+    insert into public.equipamentos_index (org_id, tag, source_version, source_updated_at, projected_at)
+    values (p_org, p_tag, v_versao, v_atual, now())
+    on conflict (org_id, tag) do update set
+      descricao = null, tipo = null, subtipo = null, categoria = null,
+      fabricante = null, numero_serie = null, localizacao = null, ano = null,
+      cliente = null, proxima_inspecao = null, tem_foto = false,
+      source_version = excluded.source_version,
+      source_updated_at = excluded.source_updated_at,
+      projected_at = excluded.projected_at;
+    return;
+  end if;
+
+  -- QUATRO SELECTs, e isso e o resultado de uma MEDICAO, nao descuido.
+  --
+  -- Tentei trocar por uma varredura unica com IN + array_agg FILTER, supondo
+  -- que uma passada venceria quatro buscas por indice. MEDIDO: 1.494 buffers
+  -- contra 1.451 dos quatro selects — a "otimizacao" ficou 3 % PIOR. O indice
+  -- (org_id, chave) resolve cada chave em ~4 buffers; agregar sobre um IN custa
+  -- mais do que isso.
+  --
+  -- (A primeira versao daquela tentativa ainda usava max(jsonb), que NAO EXISTE
+  -- em Postgres. A projecao quebrou, e foram a pendencia e a auditoria que
+  -- acusaram — a verdade nunca foi afetada. Ver o registro da 9B.)
   select public.f9_json(valor) into v_cat   from public.app_storage
    where org_id = p_org and chave = 'nr13_cat_'   || p_tag and deletado_em is null;
   select public.f9_json(valor) into v_emp   from public.app_storage
@@ -252,7 +286,12 @@ begin
     from public.busca_rebuild_estado where org_id = p_org;
 
   if v_etapa = 'concluido' then
-    return jsonb_build_object('etapa','concluido','processadas',0,'ms',0);
+    -- NAO-OP EXPLICITO. Chamar o rebuild com o cursor no fim nao faz nada, e um
+    -- 'processadas: 0' seco parece sucesso. Quem quer REPARAR usa
+    -- reparar_divergencias(); quem quer refazer TUDO chama
+    -- reiniciar_rebuild_busca() antes. Descoberto pelo teste de cascata da 9B.
+    return jsonb_build_object('etapa','concluido','processadas',0,'ms',0,
+      'aviso','cursor no fim: nada foi feito. Use reparar_divergencias() para reparar, ou reiniciar_rebuild_busca() para refazer do zero.');
   end if;
 
   if v_etapa = 'equipamentos' then
@@ -401,13 +440,21 @@ as $$
   proj as (
     select tag, source_version from public.equipamentos_index where org_id = p_org
   ),
+  -- RELATORIOS: compara a CONTAGEM esperada com a projetada, nao a presenca da
+  -- TAG. Descoberto no teste de cascata da 9B: um indice legitimamente VAZIO
+  -- ([] — equipamento sem relatorio ainda) nao produz linha nenhuma, e a
+  -- comparacao por presenca o acusaria de divergente PARA SEMPRE.
   verdade_rel as (
-    select substring(chave from 23) as tag, versao
+    select substring(chave from 23) as tag,
+           versao,
+           case when jsonb_typeof(public.f9_json(valor)) = 'array'
+                then jsonb_array_length(public.f9_json(valor)) else 0 end as esperados
       from public.app_storage
      where org_id = p_org and chave like 'nr13_historico_indice_%' and deletado_em is null
   ),
   proj_rel as (
-    select distinct tag, source_version from public.relatorios_index where org_id = p_org
+    select tag, max(source_version) as source_version, count(*) as projetados
+      from public.relatorios_index where org_id = p_org group by tag
   )
   select jsonb_build_object(
     'org', p_org,
@@ -421,7 +468,7 @@ as $$
     'relatorios', jsonb_build_object(
       'tags_na_verdade',  (select count(*) from verdade_rel),
       'tags_na_projecao', (select count(*) from proj_rel),
-      'faltando',  (select count(*) from verdade_rel v left join proj_rel p using (tag) where p.tag is null),
+      'faltando',  (select count(*) from verdade_rel v left join proj_rel p using (tag) where v.esperados > 0 and coalesce(p.projetados,0) <> v.esperados),
       'sobrando',  (select count(*) from proj_rel p left join verdade_rel v using (tag) where v.tag is null),
       'defasadas', (select count(*) from verdade_rel v join proj_rel p using (tag) where p.source_version <> v.versao)
     ),
@@ -430,7 +477,7 @@ as $$
       (select count(*) from verdade v left join proj p using (tag) where p.tag is null) = 0
       and (select count(*) from proj p left join verdade v using (tag) where v.tag is null) = 0
       and (select count(*) from verdade v join proj p using (tag) where p.source_version <> v.versao) = 0
-      and (select count(*) from verdade_rel v left join proj_rel p using (tag) where p.tag is null) = 0
+      and (select count(*) from verdade_rel v left join proj_rel p using (tag) where v.esperados > 0 and coalesce(p.projetados,0) <> v.esperados) = 0
       and (select count(*) from proj_rel p left join verdade_rel v using (tag) where v.tag is null) = 0
       and (select count(*) from verdade_rel v join proj_rel p using (tag) where p.source_version <> v.versao) = 0
     )
@@ -446,3 +493,79 @@ revoke all on function public.reconstruir_indice_busca(uuid, integer)   from pub
 revoke all on function public.reiniciar_rebuild_busca(uuid)             from public, anon, authenticated;
 revoke all on function public.reparar_pendencias(uuid, integer)         from public, anon, authenticated;
 revoke all on function public.auditar_projecao(uuid)                    from public, anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- RECONCILIAÇÃO DIRIGIDA — reparar exatamente o que a auditoria acusou
+-- ---------------------------------------------------------------------------
+-- NASCEU DE UM DEFEITO ENCONTRADO PELO TESTE DE FALHA EM CASCATA (9B).
+--
+-- Sem esta função, reparar uma divergência sem pendência exigia
+-- `reiniciar_rebuild_busca` + varrer a organização inteira. E havia uma
+-- armadilha pior: chamar `reconstruir_indice_busca` com o cursor já em
+-- `concluido` devolve `{"processadas": 0}` e **não faz nada** — parece sucesso.
+-- É a mesma classe de defeito (no-op silencioso) que a Fase 8 achou três vezes
+-- na ferramenta de limpeza.
+--
+-- Esta função ataca só as TAGs divergentes, usando a MESMA comparação da
+-- auditoria: faltando, sobrando e `source_version` defasada. Idempotente, e não
+-- depende de `busca_pendencias` ter funcionado.
+create or replace function public.reparar_divergencias(p_org uuid, p_lote integer default 500)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_tag  text;
+  v_eq   integer := 0;
+  v_rel  integer := 0;
+begin
+  if p_lote is null or p_lote < 1 then p_lote := 500; end if;
+
+  -- Equipamentos: faltando, sobrando ou defasado.
+  for v_tag in
+    with verdade as (
+      select substring(chave from 11) as tag, versao
+        from public.app_storage
+       where org_id = p_org and chave like 'nr13_info_%' and deletado_em is null
+    ), proj as (
+      select tag, source_version from public.equipamentos_index where org_id = p_org
+    )
+    select coalesce(v.tag, p.tag)
+      from verdade v full outer join proj p using (tag)
+     where v.tag is null or p.tag is null or p.source_version <> v.versao
+     limit p_lote
+  loop
+    perform public.projetar_equipamento(p_org, v_tag);
+    v_eq := v_eq + 1;
+  end loop;
+
+  -- Relatórios: mesma lógica, por TAG.
+  for v_tag in
+    with verdade as (
+      select substring(chave from 23) as tag, versao,
+             case when jsonb_typeof(public.f9_json(valor)) = 'array'
+                  then jsonb_array_length(public.f9_json(valor)) else 0 end as esperados
+        from public.app_storage
+       where org_id = p_org and chave like 'nr13_historico_indice_%' and deletado_em is null
+    ), proj as (
+      select tag, max(source_version) source_version, count(*) projetados
+        from public.relatorios_index where org_id = p_org group by tag
+    )
+    select coalesce(v.tag, p.tag)
+      from verdade v full outer join proj p using (tag)
+     where p.tag is null and v.esperados > 0
+        or v.tag is null
+        or p.source_version <> v.versao
+        or coalesce(p.projetados,0) <> v.esperados
+     limit p_lote
+  loop
+    perform public.projetar_relatorios(p_org, v_tag);
+    v_rel := v_rel + 1;
+  end loop;
+
+  return jsonb_build_object('equipamentos_reparados', v_eq, 'relatorios_reparados', v_rel);
+end;
+$$;
+
+revoke all on function public.reparar_divergencias(uuid, integer) from public, anon, authenticated;

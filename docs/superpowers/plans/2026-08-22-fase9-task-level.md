@@ -2,10 +2,10 @@
 
 ## Estado atual da fase
 
-`✅ 9A CONCLUÍDA — aguardando o CHECKPOINT 9A → 9B.`
+`✅ 9A e 9B CONCLUÍDAS — aguardando avaliação do PORTÃO P9.1.`
 
-**9B a 9G continuam NÃO autorizadas.** `aplicar_mutacao_storage` segue **intocada**.
-Medições: [`medicoes/2026-08-22-fase9a-peso-projecao.md`](../../medicoes/2026-08-22-fase9a-peso-projecao.md)
+**9C a 9G continuam NÃO autorizadas.** Nada aplicado em produção.
+Medições: [9A — peso](../../medicoes/2026-08-22-fase9a-peso-projecao.md) · [9B — projeção na RPC](../../medicoes/2026-08-22-fase9b-projecao-na-rpc.md)
 
 Desenho arquitetural **APROVADO** pelo dono em 22/08/2026, commit `8e82cf6`:
 [`specs/2026-08-22-fase9-escala-busca-design.md`](../specs/2026-08-22-fase9-escala-busca-design.md)
@@ -182,11 +182,11 @@ E o tombstone (`p_op = 'del'`) **remove** a linha da projeção, pelo mesmo cami
 
 ### Tarefas
 
-- [ ] **9B.1** — `projetar_equipamento()` e `projetar_relatorio()`, chamadas da RPC
-- [ ] **9B.2** — Os três níveis com savepoints aninhados
-- [ ] **9B.3** — Tombstone remove da projeção
-- [ ] **9B.4** — Guarda `to_regclass` para org sem projeção
-- [ ] **9B.5** — **Teste de falha em cascata** (abaixo) — a tarefa mais importante da subfase
+- [x] **9B.1** — `projetar_equipamento()` e `projetar_relatorio()`, chamadas da RPC
+- [x] **9B.2** — Os três níveis com savepoints aninhados
+- [x] **9B.3** — Tombstone remove da projeção
+- [x] **9B.4** — Guarda `to_regclass` para org sem projeção
+- [x] **9B.5** — **Teste de falha em cascata** (abaixo) — a tarefa mais importante da subfase
 
 ### Testes
 
@@ -217,11 +217,11 @@ projeções ficam paradas, ninguém lê, nada quebra.
 
 ### Critérios de aceite
 
-- [ ] Teste de falha em cascata **verde**, com os 6 passos
-- [ ] `auditar_projecao` em **zero** após uma bateria de escritas
-- [ ] Custo de escrita dentro do limiar
-- [ ] `src/` intocado
-- [ ] Suíte e build verdes
+- [x] Teste de falha em cascata **verde**, com os 10 passos
+- [x] `auditar_projecao` em **zero** após uma bateria de escritas
+- [~] Custo de escrita: **+25,9 % de buffers**, acima do limiar de 20 % que eu fixei. Registrado com o motivo, não silenciado
+- [x] `src/` intocado
+- [x] Suíte 1186/1186 e build verdes
 
 **Commit:** `feat(fase9): projeção mantida pela RPC, com falha contida em savepoint`
 **Deploy:** sim, junto com 9A, **atrás do portão P9.1**.
@@ -653,32 +653,43 @@ recém-consultado.
 | 22/08 | **Correção da minha estimativa:** o desenho dizia ~33×; o real é **26,8×** para o catálogo, e os **7,5×** só aparecem somando `relatorios_index`, que a estimativa não contava | ✅ |
 | 22/08 | Armadilha de medição registrada: `VACUUM FULL` via `psql -c` com vários comandos **falha em silêncio** (transação implícita). O número errado era 3,6× maior | ✅ |
 | 22/08 | **9A CONCLUÍDA. PARADA no CHECKPOINT 9A → 9B**, aguardando autorização | ⏸️ |
+| 22/08 | **Checkpoint 9A→9B aprovado.** 9B autorizada, tratada como alto risco | ✅ |
+| 22/08 | **Semântica capturada ANTES de tocar na RPC** — 12 cenários. Depois da mudança o diff deu **idêntico** (só o timestamp difere) | ✅ |
+| 22/08 | Hierarquia de 3 níveis implementada. **Teste de falha em cascata: 10/10** — verdade salva com projeção E pendência sabotadas, auditoria detectou sem a pendência, reparo convergiu | ✅ |
+| 22/08 | **38 testes, zero falhas**: 10 funcionais 9B · 10 da cascata · 12 da 9A revalidados · 10 de RLS | ✅ |
+| 22/08 | 🔴 **D1:** rebuild com cursor no fim era **no-op silencioso** — mesma classe de defeito que a Fase 8 achou 3× na limpeza. Corrigido com aviso explícito + **`reparar_divergencias()`** | ✅ |
+| 22/08 | 🔴 **D2:** ficha com JSON ilegível não era projetada → sumia da busca e a auditoria acusava **para sempre, sem reparo possível**. Agora projeta **linha mínima**. Mesmo defeito no índice de relatórios **vazio** — auditoria passou a comparar contagem, não presença | ✅ |
+| 22/08 | 🔴 **D3, e o defeito era MEU:** troquei 4 `SELECT` por `max(jsonb)`, que **não existe**. A projeção quebrou em toda escrita — e **a verdade continuou salva, a pendência registrou e a auditoria acusou**. Validação real da arquitetura, não planejada | ✅ |
+| 22/08 | Depois de consertar, **medi**: a versão "otimizada" custava 1.494 buffers contra 1.451 dos 4 selects — **3 % pior**. Revertida, com o motivo no código | ✅ |
+| 22/08 | Custo de escrita: **+25,9 % de buffers** (1.129 → 1.421), **acima do limiar de 20 %**. Tempo não separável do ruído nesta VM | ⚠️ registrado |
+| 22/08 | **9B CONCLUÍDA. PARADA aguardando o P9.1** | ⏸️ |
 
 ---
 
 ## Ponto de retomada
 
-> ### ⏸️ 9A CONCLUÍDA — PARADA NO CHECKPOINT 9A → 9B
+> ### ⏸️ 9A e 9B CONCLUÍDAS — PARADA NO PORTÃO P9.1
 >
 > **Leia este bloco primeiro. Ele basta para retomar sem contexto nenhum.**
 >
 > | | |
 > |---|---|
-> | 9A | **CONCLUÍDA** — projeções, RLS, rebuild, reparo e auditoria, aplicados e provados no laboratório |
-> | Testes | **12/12 funcionais · 6/6 RLS** · suíte 1186/1186 · build verde |
-> | Peso | catálogo **26,8×** mais leve; as duas projeções **7,5×**. 50.000 equipamentos = **15,6 MB** de catálogo |
-> | Rebuild | **51.000 equipamentos em 33 s**, lote de 1.000 validado |
+> | 9A | **CONCLUÍDA** — projeções, RLS, rebuild, reparo, reconciliação dirigida e auditoria |
+> | 9B | **CONCLUÍDA** — projeção mantida pela RPC, savepoints aninhados |
+> | Testes | **38, zero falhas** · suíte 1186/1186 · build verde |
+> | Semântica empresarial | **diff idêntico** antes × depois da 9B |
+> | Cascata | **10/10 passos** |
+> | Custo de escrita | **+25,9 % de buffers** — acima do limiar de 20 %, registrado |
+> | Laboratório | `convergiu: true`, 0 pendências |
 > | `src/` | **intocado** desde `490a236` |
-> | `aplicar_mutacao_storage` | **intocada** — é 9B |
-> | Produção | **nada aplicado.** Só laboratório |
-> | Laboratório | no ar, 1.000 equipamentos, auditoria `convergiu: true` |
+> | Produção | **nada aplicado** |
 >
-> **O que falta para seguir:** autorização explícita do dono para a **9B**, que é onde a RPC passa
-> a manter a projeção. É a primeira vez que a fase toca o **caminho crítico de escrita da verdade**.
+> **O que falta:** avaliação do dono no **P9.1**. O ponto a discutir é o overhead de escrita,
+> 5,9 pontos acima do limiar que eu mesmo fixei.
 >
-> **Ao retomar a 9B, na ordem:** 9B.1 → 9B.5 → **teste de falha em cascata (os 6 passos)** →
-> auditoria em zero → benchmark de escrita dentro do limiar de 20 % → commit → **portão P9.1**.
+> **Se passar:** aplicar 9A+9B em produção (decisão do dono), backfill de uma org, auditoria em
+> zero, e **só então** a 9C.
 >
-> **Proibições que continuam valendo:** não iniciar 9B sem autorização · não tocar nos 40+ templates
-> de `public/` · não criar índice sem benchmark · não rodar backfill em org real · não ativar
-> `busca_v9` · não migrar leitores · não iniciar a Fase 10 · não iniciar PDF vetorial.
+> **Proibições:** não iniciar 9C · não ativar `busca_v9` · não migrar leitores · não criar índice
+> de busca · não rodar backfill em org real · não tocar nos 40+ templates · não iniciar a Fase 10
+> · não iniciar PDF vetorial.

@@ -100,45 +100,53 @@ Sempre use um destes. Nunca "concluído".
 | **4** | Portal: arquitetura de leitura (A-02) | ✅ **CONCLUÍDA** | **P3 FECHADO ✅** aprovado 20/08 | `plans/2026-08-20-fase4-task-level.md` |
 | **5** | Fotos: thumbnail, EXIF, teto de altura (A-08) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** | — | `plans/2026-08-20-fase5-task-level.md` · `medicoes/2026-08-20-fase5-producao-antes-depois.md` |
 | **6** | Recuperação do fallback base64 (A-10) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** nas 3 famílias, com SHA-256 idêntico | — | `plans/2026-08-20-fase6-task-level.md` |
-| **9** | Escala, busca e carregamento sob demanda | 🟡 **EM IMPLEMENTAÇÃO — 9A CONCLUÍDA**, parada no checkpoint 9A→9B | P9.1…P9.5 | `plans/2026-08-22-fase9-task-level.md` · `specs/2026-08-22-fase9-escala-busca-design.md` |
+| **9** | Escala, busca e carregamento sob demanda | 🟡 **EM IMPLEMENTAÇÃO — 9A e 9B CONCLUÍDAS**, parada no portão P9.1 | P9.1…P9.5 | `plans/2026-08-22-fase9-task-level.md` · `specs/2026-08-22-fase9-escala-busca-design.md` |
 | **8** | Escala, dataset e medições | ✅ **CONCLUÍDA** (22/08) — diagnóstico aprovado; o critério de produto **NÃO PASSA em grande escala**, e isso é o mandato da Fase 9 | — | `plans/2026-08-22-fase8-task-level.md` · `medicoes/2026-08-22-fase8-fechamento.md` |
 | **7** | Logo e rubrica por conteúdo (A-05) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** (7A EXPAND + 7B SWITCH, Portal e offline real) | **P4 FECHADO ✅** aprovado 22/08 | `plans/2026-08-20-fase7-task-level.md` · `medicoes/2026-08-20-fase7b-validacao-producao.md` |
 | **8** | Escala, dataset determinístico e medições (A-17) | 🟡 **PLANEJADA** — AS-IS, dataset e plano de medição escritos; **nenhuma massa gerada** | — | `plans/2026-08-22-fase8-task-level.md` |
 | 9…13 | ver plano macro | PLANEJADO | P5…P8 | `plans/2026-08-15-evolucao-arquitetura.md` |
 
-**Fase atual:** **9 — 9A CONCLUÍDA, parada no CHECKPOINT 9A → 9B.**
+**Fase atual:** **9 — 9A e 9B CONCLUÍDAS, parada no PORTÃO P9.1.**
 
-**9B a 9G não autorizadas.** `aplicar_mutacao_storage` **intocada**. `src/` intocado. Produção sem
-nada aplicado.
+**9C a 9G não autorizadas.** `src/` intocado. **Produção sem nada aplicado.**
 
 | | |
 |---|---|
-| Desenho | **APROVADO** — `specs/2026-08-22-fase9-escala-busca-design.md` (`8e82cf6`) |
-| Task-level | **APROVADO** — `plans/2026-08-22-fase9-task-level.md` (`2fada5b`) |
+| Desenho | **APROVADO** (`8e82cf6`) |
+| Task-level | **APROVADO** (`2fada5b`) |
 | **9A** | **CONCLUÍDA** — `medicoes/2026-08-22-fase9a-peso-projecao.md` |
+| **9B** | **CONCLUÍDA** — `medicoes/2026-08-22-fase9b-projecao-na-rpc.md` |
 
-**Próxima ação exata:** o dono revisa os resultados da 9A e **autoriza (ou não) a 9B** — a primeira
-subfase que toca o **caminho crítico de escrita da verdade**.
+**Próxima ação exata:** o dono avalia o **P9.1**.
 
-### O que a 9A entregou e provou
+### O que a 9B provou
 
-Duas projeções (`equipamentos_index`, `relatorios_index`), `busca_pendencias`, estado de rebuild,
-RLS, e as funções `reconstruir_indice_busca` · `reparar_pendencias` · `auditar_projecao`.
+**A semântica empresarial não mudou** — 12 cenários capturados antes de tocar na RPC, e o diff
+depois deu **idêntico**. O corpo veio de `pg_get_functiondef`, e a única alteração é um bloco
+aditivo entre "a verdade está persistida" e o retorno.
 
-| | |
-|---|---|
-| Testes | **12/12 funcionais · 6/6 RLS** · suíte 1186/1186 · build verde |
-| Rebuild | **51.000 equipamentos + 102.000 relatórios em 33 s** (104 lotes de 50–92 ms) |
-| Auditoria | `convergiu: true` em 1.000 e em 51.000 |
-| Peso | catálogo **319 B/equip = 26,8× mais leve**; as duas projeções **1.138 B = 7,5×** |
-| Offline | catálogo de 50.000 = **15,6 MB**, contra 407 MB do dado completo — **0,15 % da cota** |
+**Teste de falha em cascata: 10/10.** Com projeção **e** pendência sabotadas, a verdade foi salva,
+a auditoria detectou a divergência **sem a pendência existir**, e o reparo convergiu.
 
-**Correção registrada:** o desenho estimava ~33×; o real é **26,8×** para o catálogo, e os **7,5×**
-só aparecem somando `relatorios_index`, que a estimativa não contava. Pelo critério do dono — a
-projeção precisa ser **claramente leve** e não se aproximar do dado completo — **passa**.
+**38 testes, zero falhas.** Suíte 1186/1186, build verde.
 
-**Nenhum índice de busca criado** (é 9C, com benchmark). **Nenhuma coluna `tsvector`** (a
-configuração é decisão da 9C; medi que custaria 194 B/linha).
+### Três defeitos que os testes acharam
+
+1. **No-op silencioso** no rebuild com cursor no fim — mesma classe que a Fase 8 achou 3× na
+   limpeza. Corrigido com aviso explícito e **`reparar_divergencias()`**, reconciliação dirigida.
+2. **Divergência permanente e irreparável**: ficha com JSON ilegível sumia da busca e a auditoria
+   acusava para sempre. Agora projeta **linha mínima**, achável pela TAG. Idem para índice de
+   relatórios vazio, onde a auditoria passou a comparar contagem em vez de presença.
+3. **Minha própria otimização quebrou a projeção** (`max(jsonb)` não existe). E o sistema fez o
+   que foi desenhado: verdade salva, pendência registrada, auditoria acusando. **Validação real
+   da arquitetura, não planejada.** Depois medi: a "otimização" era 3 % pior. Revertida.
+
+### O ponto a discutir no P9.1
+
+**Custo de escrita: +25,9 % de buffers** (1.129 → 1.421 por mutação), **acima do limiar de 20 %**
+que eu mesmo fixei. Registrado em vez de silenciado. Poderia cair passando valores da RPC em vez
+de reler, mas isso **enfraqueceria a garantia** de que a projeção representa a versão
+efetivamente persistida. Tempo não é separável do ruído nesta VM.
 
 Os dois roteiros ficam gravados, já com os resultados marcados:
 
