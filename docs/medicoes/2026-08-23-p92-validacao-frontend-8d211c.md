@@ -98,18 +98,10 @@ Duas diferenças, não uma:
    `nomeFantasia`. Aqui os dois coincidiram e o defeito ficou LATENTE; numa empresa cujo nome
    fantasia difere da razão social, o cartão trocaria de nome sem avisar.
 
-**Correção proposta (NÃO aplicada — aguarda autorização):** projetar o mesmo texto do cartão
-antigo, na mesma ordem de preferência —
-
-```sql
-nullif(btrim(concat_ws(' · ',
-  nullif(btrim(coalesce(v_emp ->> 'razaoSocial', v_emp ->> 'nomeFantasia', '')), ''),
-  nullif(btrim(coalesce(v_emp ->> 'cidade', '')), '')
-)), '')
-```
-
-Custo: uma reprojeção das organizações já backfilladas (60 ms nesta). Efeito colateral
-**desejável**: a cidade passa a ser pesquisável, porque `cliente` alimenta a coluna `busca`.
+> **CORRIGIDO em 23/08/2026 — ver §11.** A correção autorizada não foi a proposta original de
+> uma string composta no banco: ficaram **dois campos estruturados** (`cliente_nome` e
+> `cliente_cidade`), com a composição na tela. A cidade **não** entrou na busca textual, e a
+> razão está no §11.3.
 
 > **Nenhuma outra diferença de conteúdo foi encontrada.** Em particular, o FLUIDO com prefixo
 > duplicado e transbordo do cartão (`A · A - Fluido inflamável, com…`) aparece **igual nos dois
@@ -230,3 +222,113 @@ carregamento sob demanda com cache VAZIO segue coberto só por teste de laborat�
 **PENDENTE DE DECISÃO SUA:** a divergência do §4.1 (cidade do cliente + preferência de nome).
 Ela é a única encontrada, e a regra combinada é clara: *nenhum campo do cartão antigo pode
 desaparecer silenciosamente*. **P9.2 não está fechado.**
+
+---
+
+# 11 · A CORREÇÃO — aplicada em 23/08/2026
+
+Autorizada logo depois deste relatório, e limitada à divergência do §4.1.
+
+## 11.1 · Modelagem: dois campos, não uma string
+
+| | |
+|---|---|
+| `cliente_nome` | `razaoSocial \|\| nomeFantasia` — **a precedência do cartão antigo** |
+| `cliente_cidade` | `cidade` (só ela; `localidade` é alias que o cartão antigo não lê) |
+| composição | é da TELA: `textoCliente()` faz `[nome, cidade].filter(Boolean).join(' · ')` |
+
+Gravar a string já composta petrificaria formatação de UI dentro do banco, e
+qualquer leitor futuro (filtro por cidade, agrupamento, Dashboard, Portal)
+teria de fatiar texto para recuperar o que já se sabia na hora de escrever.
+
+`textoCliente()` existe **uma vez** e é usada pelo cartão e pela lista — a
+divergência de 23/08 nasceu de cada lado compor esse texto por conta própria.
+
+## 11.2 · Todos os caminhos, não só o backfill
+
+| caminho | arquivo |
+|---|---|
+| estrutura | `supabase/busca_index.sql` (banco novo) + `supabase/busca_cliente_paridade.sql` (banco já instalado) |
+| projetor · manutenção pela RPC · rebuild · reparo | `supabase/busca_manutencao.sql` — insert, `on conflict` e o ramo de reset |
+| consulta | `supabase/busca_consulta.sql` — a RPC devolve os dois campos |
+| vetor de busca | `supabase/busca_index_indices.sql` — passa a citar `cliente_nome` |
+| frontend | `buscaIndex.ts`, `CardCatalogo.tsx`, `EquipamentosV9.tsx`, `equipamentoService.ts` (item pendente), `catalogoLocal.ts` |
+| scripts | `posdeploy.sql`, `testes-9c.sql`, `teste-cliente-paridade.sql` |
+
+> A projeção criada hoje e a criada daqui a seis meses produzem o mesmo
+> resultado porque **o projetor é um só** — `projetar_equipamento`. Backfill,
+> escrita pela `aplicar_mutacao_storage`, rebuild e reparo passam todos por ele.
+
+## 11.3 · A cidade NÃO entrou na busca textual — e por quê
+
+- a busca do caminho **legado** não pesquisa nem cliente nem cidade (filtra TAG
+  + descrição + tipo). Cidade pesquisável seria funcionalidade nova, e esta
+  correção é de **paridade**;
+- trocar a EXPRESSÃO de uma coluna gerada obriga a **derrubá-la e recriá-la**:
+  rewrite da tabela e reconstrução do GIN (12 MB por 50.000 linhas, medido na
+  9C). **Renomear** `cliente` → `cliente_nome` não custa nada disso — o Postgres
+  reescreve a referência dentro da expressão sozinho, e foi conferido em
+  produção que a expressão passou a citar `cliente_nome`;
+- o catálogo local espelha o vetor do servidor campo a campo. Incluir a cidade
+  só de um lado faria a busca offline achar o que a online não acha.
+
+**Nenhum índice novo foi criado.**
+
+## 11.4 · Aplicação em produção
+
+Os três arquivos foram baixados do GitHub no commit `de01cda` e conferidos por
+**SHA-256 contra a cópia local** antes de rodar:
+
+| arquivo | SHA-256 (início) | resultado |
+|---|---|---|
+| `busca_cliente_paridade.sql` | `fbae43a0…` | rename + coluna nova |
+| `busca_manutencao.sql` | `c2e778e5…` | projetor novo |
+| `busca_consulta.sql` | `f6eb2f1b…` | RPC com os dois campos |
+
+Conferido depois, no banco: coluna `cliente` **não existe mais**,
+`cliente_nome`/`cliente_cidade` existem, `busca` continua `GENERATED ALWAYS` e
+sua expressão cita `cliente_nome`, `projetar_equipamento` é a versão nova e a
+RPC declara `cliente_nome, cliente_cidade`.
+
+## 11.5 · A prova sintética — o caso que produção não tem
+
+`scripts/fase9/teste-cliente-paridade.sql`, rodado **em produção**, projetando
+pelo projetor real e desfazendo tudo pela própria exceção final:
+
+```
+PARIDADE OK
+ | ZZ-PARIDADE-1 PASSA [Alfa Industria e Comercio Ltda · Serra]   ← razão social ≠ nome fantasia
+ | ZZ-PARIDADE-2 PASSA [Beta Postos · Vitoria]                    ← só nome fantasia
+ | ZZ-PARIDADE-3 PASSA [Gama Energia S.A.]                        ← sem cidade
+ | BUSCA-NOME PASSA
+ | CIDADE-FORA-DA-BUSCA ok
+```
+
+Resíduo depois: **0 chaves, 0 linhas de projeção, 0 pendências**.
+
+No laboratório, `buscaIndex.test.ts` compara `textoCliente()` contra a regra do
+legado **reescrita de forma independente**, caso a caso, e
+`carregamentoSobDemanda.test.ts` prova que o item PENDENTE (montado no
+aparelho, não pela projeção) usa a mesma precedência — senão o cartão trocaria
+de nome no instante em que a sincronização terminasse. Suíte: **1.237 → 1.244**.
+
+## 11.6 · Reprojeção — só as duas organizações da validação
+
+| organização | lotes | tempo |
+|---|---|---|
+| `…8d0f7e` | 4 | — |
+| `…8d211c` | 4 | **18,1 ms** (medido no servidor, `clock_timestamp`) |
+
+Auditoria **`convergiu: true`** nas duas · `busca_rebuild_estado` = `concluido`
+nas duas · pendências **0** · **nenhuma outra organização tocada**.
+
+E a projeção agora carrega a cidade:
+
+```
+COMPRESSOR V8-15/200L → Posto Ipiranga · Vila Velha
+ZZ-FASE3             → Posto Shell Prime · Vila Velha
+FALCON CG MS - 427L  → Falcon Aditivos · Campo Grande
+```
+
+> Os ~6 s de relógio por organização são ida e volta de HTTP do painel; o custo
+> real do servidor é o de cima.
