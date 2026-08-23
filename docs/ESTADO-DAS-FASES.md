@@ -105,52 +105,55 @@ Sempre use um destes. Nunca "concluído".
 | **8** | Escala, dataset determinístico e medições (A-17) | 🟡 **PLANEJADA** — AS-IS, dataset e plano de medição escritos; **nenhuma massa gerada** | — | `plans/2026-08-22-fase8-task-level.md` |
 | 9…13 | ver plano macro | PLANEJADO | P5…P8 | `plans/2026-08-15-evolucao-arquitetura.md` |
 
-**Fase atual:** **8 — em implementação.** Gerador de massa pronto e testado (27/27); **nenhuma massa gerada**. A Fase 7 está CONCLUÍDA e o P4 FECHADO.
-**Fase atual:** **9 — PLANEJADA, não iniciada.** O dono quer **aprovar o PLANO arquitetural**
-antes de qualquer alteração de schema ou de `src/`.
+**Fase atual:** **9 — DESENHO ESCRITO, aguardando aprovação.** Nada implementado: nenhum schema,
+nenhum índice, nenhuma tabela, nada em `src/`.
 
-**Próxima ação exata:** escrever o **plano da Fase 9** (só o plano). Ele precisa mostrar: como sair
-da hidratação integral · arquitetura de metadados pesquisáveis · consistência da projeção · RLS ·
-online/offline · paginação/cursor · virtualização · índices · UX · rollout sem regressão · rollback
-· benchmarks antes/depois.
+**Próxima ação exata:** o dono aprova (ou corrige) o desenho e responde as **7 decisões** da §25.
+Só então nasce o task-level de implementação.
 
-**FECHAMENTO DA FASE 8:** `medicoes/2026-08-22-fase8-fechamento.md` — aprovado pelo dono sobre o
-commit `f6b2032`.
+**DESENHO DA FASE 9:** `superpowers/specs/2026-08-22-fase9-escala-busca-design.md`
+**FECHAMENTO DA FASE 8:** `medicoes/2026-08-22-fase8-fechamento.md` — aprovado em 22/08 (`fe62356`)
 
-### Veredito
+### Os dois achados de análise que sustentam o desenho
 
-**O critério de produto NÃO PASSA em grande escala.** Com 1.000 equipamentos o sistema funciona
-(FCP 440 ms, `/equipamentos` 2,20 s, 42.283 nós); com ~51.000 fica **inutilizável** (> 10 min para
-abrir, 2.292.273 nós, 1,63 GB de heap, ~4 min de bloqueio). **A curva quebra por arquitetura, não
-por algoritmo.**
+1. **O palco já é por TAG.** `coletarItens(tag)` usa `chavesDaTag(tag)` + 6 globais + as
+   calibrações daquela TAG. Gerar relatório ou prontuário **nunca precisou da organização
+   inteira** — o que derruba o maior risco do carregamento sob demanda: os 40+ templates HTML
+   não precisam saber de nada.
+2. **A primitiva do cache parcial já existe e está em produção.** O cliente do Portal não hidrata
+   (Fase 0-B, A-01) e recebe cache parcial por `semearCache()`. A Fase 9 **generaliza um padrão
+   existente**, não inventa um novo.
 
-### Mandato da Fase 9 (decisões formais do dono, 22/08)
+### A amarra que gera todo o resto
 
-1. **Busca server-side SIM**, mas **sem `LIKE` sobre `app_storage.valor`** — camada pesquisável
-   aditiva e indexável, **projeção LEVE** (sem blobs, base64, snapshots ou PDFs). Modelagem a
-   analisar; **não assumir duas tabelas**.
-2. **Não criar segunda verdade.** O plano deve responder: *o que acontece se o `app_storage` salva
-   e a projeção falha?*
-3. **THROTTLE ≠ SOLUÇÃO DE ESCALA.** Restaurar o throttle da v1 é obrigatório (regressão
-   comprovada), mas **uma hidratação integral já é inadequada** em dezenas de milhares. Boot
-   progressivo/sob demanda.
-4. **Offline não pode ser perdido.** Estratégia explícita para online × offline, e a UI precisa
-   informar as limitações. Não quebrar PWA em silêncio.
-5. **Três mecanismos, três responsabilidades:** cursor controla o que vem do servidor;
-   virtualização, o que vai ao DOM; busca server-side evita baixar tudo. Preferir keyset.
-6. **Cada índice precisa de consulta real e benchmark.** `app_storage_org_atualizado_idx` segue
-   aprovado para hidratação e **não é índice de busca**.
-7. **UX e arquitetura se corrigem juntas** — nada de `<input>` decorativo sobre milhares de cards.
-8. Prioridade por impacto: **G3 rebaixado para B** (10 ms em 1.000 equipamentos).
+`ler()` é **síncrono** sobre o `Map`. Por isso `RotaProtegida` instalou a barreira que espera a
+organização inteira antes da primeira tela. **A barreira não é o defeito — o defeito é ela ter de
+esperar tudo.**
 
-### Marcados, não fechados
+### Arquitetura alvo
 
-- Degraus 100/500 em produção: **CALIBRAÇÃO DE PRODUÇÃO ADIADA / NÃO BLOQUEANTE** (aviso de cota).
-- Realista em produção: **NÃO AUTORIZADO**.
-- **Baseline de GERAÇÃO de PDF (5/15/30 folhas): PRÉ-REQUISITO ANTES DA FASE 11.**
-- Boot cold cronometrado e FPS de scroll: não medidos, motivo declarado.
+Boot com globais pequenas → shell utilizável · listas por **cursor keyset** de 50 · busca
+**server-side** sobre projeção leve · detalhe **sob demanda por TAG** · documentos e PDF
+**inalterados**.
 
-**Massa em produção: ZERO. Nada em `src/` foi alterado. PDF vetorial não iniciado.**
+**O número que sustenta o offline:** a projeção leve é **~33× menor** que o dado completo — 12,5 MB
+contra ~415 MB em 50.000 equipamentos. Cabe folgado no IndexedDB (cota medida: 10.317 MB), então
+**busca offline continua existindo** sem guardar a base inteira no aparelho.
+
+### A resposta ao ponto bloqueante (app_storage salva + projeção falha)
+
+A escrita da projeção vai **dentro da transação da RPC** — `aplicar_mutacao_storage` já é o único
+caminho de escrita, provado na Fase 8. Mas com uma inversão obrigatória: falha na projeção
+**registra e segue**, nunca aborta. **A verdade nunca pode depender da projeção**; divergência é
+detectável por auditoria e curável por rebuild idempotente.
+
+### Rollout: 9A→9G, com portões P9.1–P9.5
+
+Projeção existe e é auditada (nada lê) → escrita na RPC → **piloto em `/equipamentos` sob flag** →
+sair da hidratação integral (**a etapa arriscada, vem depois do piloto**) → throttle → demais
+telas → achados secundários. Rollback em cada etapa.
+
+**Fase 10 e PDF vetorial: não iniciados.** Massa em produção: ZERO.
 
 Os dois roteiros ficam gravados, já com os resultados marcados:
 
