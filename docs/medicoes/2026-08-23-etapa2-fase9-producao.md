@@ -293,7 +293,18 @@ projeção da piloto continuou com as 4 linhas, e `app_storage` não foi tocada.
   **sem fantasma** na busca;
 - flag OFF → ON → OFF sem afetar terceiros e sem converter dado.
 
-### NÃO provado — depende do bundle em produção
+### Validado DEPOIS, no frontend — organização `…8d211c`
+
+O bundle do `main` entrou em produção e a validação de interface foi feita numa SEGUNDA
+organização, para não tocar na conta real do cliente (decisão do dono: OPÇÃO B). Resultado
+completo em [`2026-08-23-p92-validacao-frontend-8d211c.md`](2026-08-23-p92-validacao-frontend-8d211c.md):
+flag OFF × ON, busca na tela, debounce, DOM/rede, ponte, palco, **offline com requisição
+realmente falhando**, fila durável, reconexão, rollback da flag e auditoria convergida.
+
+**Uma divergência encontrada:** a cidade do cliente some do cartão sob a V9 (§4.1 daquele
+documento). **P9.2 continua ABERTO** por causa dela.
+
+### NÃO provado pelo que está NESTE documento — dependia do bundle (resolvido acima)
 
 - comparação **visual** OFF × ON, cartões e miniaturas;
 - abrir equipamento e montar documentos pela ponte de compatibilidade;
