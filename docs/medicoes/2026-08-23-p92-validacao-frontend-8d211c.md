@@ -332,3 +332,88 @@ FALCON CG MS - 427L  → Falcon Aditivos · Campo Grande
 
 > Os ~6 s de relógio por organização são ida e volta de HTTP do painel; o custo
 > real do servidor é o de cima.
+
+---
+
+# 12 · REGRESSÃO CURTA depois da correção — 23/08/2026
+
+Bundle novo em produção: `index-Bf-Fi8nA.js`. Conferido antes de qualquer prova —
+`cliente_nome`/`cliente_cidade`/`clienteNome`/`clienteCidade`/`tem_cliente`/`buscar_equipamentos`
+aparecem com a **mesma contagem do build local** (1/1/4/3/1/1), e o CSS é o mesmo arquivo
+(`index-Cc25AS24.css`). O hash do JS difere do local porque o build de produção embute as
+variáveis de ambiente dele.
+
+## 12.1 · A paridade que segurava o portão
+
+| cartão | flag OFF | flag ON |
+|---|---|---|
+| COMPRESSOR V8-15/200L | `Posto Ipiranga · Vila Velha` | **`Posto Ipiranga · Vila Velha`** |
+| ZZ-FASE3 | `Posto Shell Prime · Vila Velha` | **`Posto Shell Prime · Vila Velha`** |
+
+E não só a linha do cliente: o texto INTEIRO dos **4 cartões** foi comparado caractere a
+caractere entre OFF e ON.
+
+```
+COMPRESSOR V8-15/200L IDENTICO
+DASDSA                IDENTICO
+ZZ-FASE3              IDENTICO
+ZZ-TESTE-P2           IDENTICO
+```
+
+## 12.2 · O resto da regressão curta
+
+| prova | OFF | ON |
+|---|---|---|
+| contagem | "4 equipamentos cadastrados" | **"4 resultados"** |
+| TAGs | as mesmas 4 | **as mesmas 4** |
+| nós no DOM (lista) | 409 | 428 (a caixa de busca e os filtros) |
+| imagens | 4 | **4** |
+| ficha pela ponte (`ZZ-FASE3`) | **466 nós** | **466 nós** — idênticos, com fabricante, categoria III e volume 1 m³ |
+
+Busca na tela, com a flag ligada:
+
+| termo | resultado |
+|---|---|
+| `ZZ-FASE3` (TAG exata) | 1 |
+| `ZZ` (prefixo) | 2 |
+| `compressor` | 1 |
+| `ZZ-TESTE-APARELHO-A2` (**fabricante**) | 1 |
+| `Posto Shell` (**nome do cliente**) | 1 — o nome segue no vetor |
+| `Vila Velha` (**cidade**) | **0 — como projetado** (§11.3) |
+| `zzzznaoexiste` | 0 |
+
+Esta organização não tem descrição nem nº de série preenchidos. As duas modalidades foram
+conferidas na organização rica `…8d0f7e`, direto no servidor, com a projeção JÁ corrigida:
+
+```
+descrição "VP01 - Compressor 427L" → acha 2
+série     "I-416366"               → acha 1
+cliente                            → acha 1
+```
+
+## 12.3 · Offline, curto
+
+`fetch` recusando `supabase.co` de novo, `navigator.onLine` seguindo `true`:
+
+| | |
+|---|---|
+| requisição falhou de verdade | **sim** |
+| busca `ZZ` | **2 resultados**, do catálogo local |
+| selo | **"buscando no que está neste aparelho"** |
+| **cidade no cartão offline** | **`Posto Shell Prime · Vila Velha`** — o catálogo local guarda os dois campos novos |
+
+## 12.4 · Rollback da flag e auditoria final
+
+| | |
+|---|---|
+| `busca_v9` | **0 de 29** organizações |
+| tela | caminho antigo inteiro de volta (sem busca, botão "Filtrar", "4 equipamentos cadastrados", 409 nós, 4 imagens) |
+| cartões OFF × ON | **4 de 4 idênticos** |
+| `auditar_projecao` | **`true`** nas duas organizações |
+| pendências | **0** |
+| `equipamentos_index` / `relatorios_index` | 8 / 19 |
+| `app_storage` | 891 chaves · 32,9 MB · **inalterado** |
+| resíduo do teste sintético | **0** |
+| banco | 14 conexões, 1 ativa, cache hit **100 %** |
+
+**Nada além de nome e cidade mudou.**
