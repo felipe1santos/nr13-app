@@ -271,9 +271,19 @@ begin
 end;
 $$;
 
+-- REVOGAR DE `public` VEM PRIMEIRO, E NÃO É DETALHE.
+--
+-- Toda função nova nasce com EXECUTE concedido a `public`, e `anon` HERDA de
+-- `public`. A primeira versão deste arquivo revogava só de `anon` — e o banco
+-- respondeu `has_function_privilege('anon', …) = true`, medido em 25/08/2026 ao
+-- aplicar. Uma função `security definer` executável por sessão anônima é o
+-- oposto do que o desenho §9 exige.
+--
+-- É o mesmo par de linhas de `busca_consulta.sql`, e o motivo de ele existir lá.
+revoke all on function public.vencimentos_org(integer)     from public, anon;
+revoke all on function public.f9_mais_meses(date, integer)  from public, anon;
 grant execute on function public.f9_mais_meses(date, integer) to authenticated;
 grant execute on function public.vencimentos_org(integer)     to authenticated;
-revoke execute on function public.vencimentos_org(integer)    from anon;
 
 -- ---------------------------------------------------------------------------
 -- ROLLBACK
