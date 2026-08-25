@@ -86,3 +86,84 @@ describe('deveRetentar', () => {
     expect(INTERVALO_RETENTATIVA_MS).toBeGreaterThanOrEqual(30_000);
   });
 });
+
+/**
+ * O CICLO, no relógio — por que a observação em produção marcou ~74 s.
+ *
+ * Em 25/08/2026 a fila drenou sozinha e a medição registrou "~74 s após a volta
+ * da rede". A janela é de 45 s, então o número merecia explicação. Ela é de
+ * MEDIÇÃO, não de mecanismo:
+ *
+ *   · o relógio da retentativa NÃO começa quando a rede volta — ele já estava
+ *     correndo. Enquanto a aba esteve offline, cada ciclo tentou drenar, falhou
+ *     e reiniciou a janela. Na volta da rede, o tempo restante do ciclo em
+ *     andamento era qualquer valor entre 0 e 45 s;
+ *   · a decisão só é avaliada no tick do selo, de 4 s em 4 s;
+ *   · logo, o teto real entre a volta da rede e a drenagem é JANELA + TICK ≈
+ *     49 s — e a leitura de 74 s foi apenas o instante em que alguém OLHOU:
+ *     entre a instalação da testemunha (14:54:40) e a conferência (14:55:54)
+ *     não houve medição intermediária.
+ *
+ * Estes testes travam o que importa: o teto não cresce, o ciclo não para, e
+ * nenhuma espera aumenta a cada tentativa.
+ */
+describe('o ciclo de retentativa no relógio', () => {
+  const TICK = 4_000;
+
+  /** Roda o laço do selo por `duracao` ms e devolve os instantes de retentativa. */
+  function simular(duracao: number, temEvidencia: (t: number) => boolean): number[] {
+    const quando: number[] = [];
+    let ultima = 0;
+    for (let t = 0; t <= duracao; t += TICK) {
+      const pendentes = temEvidencia(t) ? [item(deRede)] : [];
+      if (deveRetentar({ pendentes, desdeUltima: t - ultima })) {
+        quando.push(t);
+        ultima = t;
+      }
+    }
+    return quando;
+  }
+
+  it('entre duas retentativas nunca passa de JANELA + TICK', () => {
+    const quando = simular(10 * 60_000, () => true);
+    const intervalos = quando.slice(1).map((t, i) => t - quando[i]);
+
+    expect(intervalos.length).toBeGreaterThan(10);
+    for (const dt of intervalos) {
+      expect(dt).toBeGreaterThanOrEqual(INTERVALO_RETENTATIVA_MS);
+      expect(dt).toBeLessThanOrEqual(INTERVALO_RETENTATIVA_MS + TICK);
+    }
+  });
+
+  it('a espera NÃO cresce a cada tentativa — não há backoff escondido', () => {
+    // Um backoff exponencial faria a fila de campo esperar minutos, depois
+    // horas. O primeiro intervalo tem de ser igual ao último.
+    const quando = simular(10 * 60_000, () => true);
+    const intervalos = quando.slice(1).map((t, i) => t - quando[i]);
+    expect(intervalos[intervalos.length - 1]).toBe(intervalos[0]);
+  });
+
+  it('o ciclo não para: em 10 minutos de queda, tenta pelo menos 12 vezes', () => {
+    // "Nenhuma fila pode ficar parada indefinidamente porque `navigator.onLine`
+    // mente" — a garantia é esta: enquanto houver evidência, sempre haverá uma
+    // próxima tentativa, e ela chega em menos de um minuto.
+    expect(simular(10 * 60_000, () => true).length).toBeGreaterThanOrEqual(12);
+  });
+
+  it('a rede volta no meio de um ciclo: drena em no máximo JANELA + TICK', () => {
+    // O caso de produção. A evidência aparece em t=0 (a queda), o ciclo corre
+    // durante a queda, e a rede volta num instante qualquer.
+    const quando = simular(10 * 60_000, () => true);
+    for (const voltaDaRede of [0, 10_000, 30_000, 44_999, 60_000, 123_456]) {
+      const proxima = quando.find((t) => t >= voltaDaRede);
+      expect(proxima).toBeDefined();
+      expect((proxima as number) - voltaDaRede).toBeLessThanOrEqual(
+        INTERVALO_RETENTATIVA_MS + TICK,
+      );
+    }
+  });
+
+  it('sem evidência de queda, o ciclo não gasta requisição nenhuma', () => {
+    expect(simular(10 * 60_000, () => false)).toEqual([]);
+  });
+});
