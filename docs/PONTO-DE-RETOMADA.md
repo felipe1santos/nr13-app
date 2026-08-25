@@ -22,9 +22,9 @@ decidir se ela sobe para as organizações de cliente, e em que ritmo.
 | Projeção das 2 orgs | refeita com as funções da 9D; `convergiu: true`, `pendencias: 0` |
 | **Flag `boot_v9`** | **`true` em `99f642d3-…-8d211c`** (org de teste, `teste@gmail.com`); `false` nas demais |
 | **Flag `busca_v9`** | **desligada em todas** |
-| Front | commit **`aa984c9`** publicado no Coolify em 25/08; `origin/main` em dia |
+| Front | commit **`599ac68`** publicado no Coolify em 25/08 (bundle `index-o18n-uvq.js`); `origin/main` em dia |
 | `app_storage` | inalterada |
-| Suíte | **1298/1298** · build verde (sem mudança de código nesta sessão — só SQL e documentos) |
+| Suíte | **1315/1315** · build verde |
 
 ---
 
@@ -40,8 +40,16 @@ decidir se ela sobe para as organizações de cliente, e em que ritmo.
    contra o que a FUNÇÃO ATUAL produz, não contra o que a 9D passou a exigir.
 4. Roteiro de tela com a flag ligada: Dashboard, `/vencimentos`, `/equipamentos`, ficha,
    histórico, relatório arquivado, `/livro-registro` e **rollback** — todos conferidos.
+5. **Prova offline real**, com o DevTools: achou DOIS defeitos, ambos corrigidos com teste e
+   reprovados em produção — o painel inventava `0` quando o agregado falhava, e a UI decidia
+   conectividade por `navigator.onLine`, que ficou `true` a sessão inteira com a rede morta.
+   Detalhes em `medicoes/2026-08-25-9d-prova-offline-e-dois-defeitos.md`.
 
-> **Depois de reaplicar SQL de projeção, confira o `prosrc`, não só o `convergiu`:**
+> **Duas armadilhas que já custaram tempo, e voltarão:**
+>
+> 1. **O service worker serve o bundle ANTIGO depois do deploy.** Conferir o bundle sempre por
+>    fora do navegador (`curl https://app.nr13sistema.com.br/ | grep assets`), nunca só pela aba.
+> 2. **Depois de reaplicar SQL de projeção, confira o `prosrc`, não só o `convergiu`:**
 > ```sql
 > select proname, (prosrc like '%vida_base%'), length(prosrc)
 >   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
@@ -77,7 +85,7 @@ Organização grande ainda não tem projeção: rodar o rebuild antes de ligar
 | 3 | 2 pendências de sincronização em `teste@gmail.com` (14/08) | continuam ali; o selo mostra "2 falhas" |
 | 4 | Fluido do cartão com prefixo duplicado | cosmético, igual nos dois caminhos |
 | 5 | `nr13_rastreab_` é 396 dos 433 KB do boot | **fica**; a saída é parar de mandar `pdfBase64` no registro |
-| 6 | Modo offline do roteiro | **não exercitado** — precisa do DevTools, a extensão não controla |
+| 6 | Modo offline do roteiro | **EXERCITADO em 25/08** — achou 2 defeitos, corrigidos e reprovados (`medicoes/2026-08-25-9d-prova-offline-e-dois-defeitos.md`) |
 | 7 | Cota do Supabase | o painel exibe *"Grace period is over"*. Fora do escopo da Fase 9, decisão sua |
 
 ---

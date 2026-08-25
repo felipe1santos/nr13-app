@@ -722,6 +722,9 @@ recém-consultado.
 | 25/08 | SQL da 9D aplicado inteiro (`boot_v9_flag`, `vencimentos_agregado`, `busca_manutencao` 9D, despachante com `nr13_calibracoes_`) e projeção refeita nas 2 orgs: `convergiu: true`, `pendencias: 0` | ✅ |
 | 25/08 | Front publicado no Coolify (`aa984c9`). Marcador de bundle do ponto de retomada corrigido: usar a **string literal** `boot_v9`, não o nome de função `hidratarEssencial` (a minificação renomeia) | ✅ |
 | 25/08 | **`boot_v9` LIGADA em `99f642d3…8d211c`** (org de teste). Roteiro: Dashboard, /vencimentos, /equipamentos, ficha, histórico (2 relatórios), relatório arquivado (13 págs), /livro-registro, **rollback** — paridade OK. Offline **não** exercitado | ✅ |
+| 25/08 | **Prova offline real** (DevTools). ⛔ Achou 2 defeitos: (1) Dashboard exibia `EQUIPAMENTOS CADASTRADOS: 0` com 4 no cache — o painel caía em zero literal no caminho de erro; (2) `navigator.onLine` ficou `true` a sessão inteira com 50 requisições falhando, e na volta da rede NENHUM evento `online`/`visibilitychange` disparou: a fila ficou parada com internet | ⚠️ |
+| 25/08 | Correções com teste (`599ac68`): `KpisPainel` com contadores opcionais + `textoContador` (`—`); `conectividade.ts` decide pelo erro REAL da fila; `retentativaRede.ts` (janela 45 s, só com evidência de queda). Suíte 1298 → **1315** | ✅ |
+| 25/08 | Reprova em produção com o bundle novo: fila **3→2** sem clique e sem evento `online` (~74 s), servidor 9→10 com `pmtaAdotadaMpa 0.91`, projeção no mesmo timestamp, KPIs em `—` offline, auditoria **`convergiu: true`** nas 2 orgs, projeto **Healthy** | ✅ |
 
 ---
 
