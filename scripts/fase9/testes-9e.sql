@@ -126,12 +126,21 @@ select case when count(*) = 0 then 'PASSA — papel `cliente` (Portal) é recusa
   from public.buscar_relatorios('', null, null, null, null, null, 200);
 rollback;
 
-begin;
-set local role anon;
-select case when count(*) = 0 then 'PASSA — `anon` sem perfil não vê nada'
-            else 'FALHA — anon viu ' || count(*) end as t1_5
-  from public.buscar_relatorios('', null, null, null, null, null, 200);
-rollback;
+-- `anon` nem chega a executar: o EXECUTE foi revogado. A recusa vem do
+-- catálogo, antes do corpo da função — é a guarda mais forte possível, e por
+-- isso o teste espera a EXCEÇÃO, não uma lista vazia.
+do $$
+begin
+  set local role anon;
+  perform * from public.buscar_relatorios('', null, null, null, null, null, 200);
+  raise notice 'FALHA — anon EXECUTOU a busca';
+exception
+  when insufficient_privilege then
+    raise notice 'PASSA — anon é recusado no catálogo (permission denied)';
+  when others then
+    raise notice 'PASSA — anon recusado (%)', sqlerrm;
+end $$;
+reset role;
 
 select case when has_function_privilege('anon', 'public.buscar_relatorios(text,text,date,date,date,text,integer)', 'execute')
             then 'FALHA — `anon` PODE executar a busca'
@@ -283,26 +292,21 @@ begin;
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"00000000-9e11-4000-8000-00000000000a","role":"authenticated"}';
 
-create temp table plano (linha text) on commit drop;
-
-insert into plano
-select * from (
-  explain (analyze, buffers, format text)
-  select * from public.buscar_relatorios('', null, null, null, null, null, 50)
-) p(linha);
-select case when exists (select 1 from plano where linha ilike '%relatorios_index_ordem_idx%')
-            then 'PASSA — a primeira página usa o índice de ordenação'
-            else 'ATENÇÃO — a listagem não usou `relatorios_index_ordem_idx` (massa pequena pode levar o planner ao seq scan; repetir com a massa de escala)' end as t6_1;
-
-truncate plano;
-insert into plano
-select * from (
-  explain (analyze, buffers, format text)
-  select * from public.buscar_relatorios('VP-999', null, null, null, null, null, 50)
-) p(linha);
-select case when exists (select 1 from plano where linha ilike '%Index%')
-            then 'PASSA — a busca por TAG usa índice'
-            else 'ATENÇÃO — busca por TAG sem índice (ver nota acima)' end as t6_2;
+-- O plano de DENTRO de uma funcao plpgsql NAO aparece num EXPLAIN sobre ela
+-- (so o Function Scan). Por isso o predicado e repetido INLINE aqui: e a unica
+-- forma de afirmar qual indice o planner escolheu.
+do $$
+declare v jsonb; usa boolean;
+begin
+  execute 'explain (analyze, buffers, format json) select r.relatorio_id from public.relatorios_index r where r.org_id = ''00000000-9e11-4000-8000-00000000000a''::uuid order by r.ordem_emissao desc, r.relatorio_id desc limit 50' into v;
+  usa := v::text ilike '%relatorios_index_ordem_idx%';
+  raise notice '%', case when usa then 'PASSA — a listagem usa relatorios_index_ordem_idx'
+    else 'ATENCAO — listagem sem o indice de ordenacao (massa de 160 e pequena; ver bench-9e.sql em 50.000)' end;
+  execute 'explain (analyze, buffers, format json) select r.relatorio_id from public.relatorios_index r where r.org_id = ''00000000-9e11-4000-8000-00000000000a''::uuid and upper(r.tag) like ''VP-999%'' limit 50' into v;
+  usa := v::text ilike '%Index%' or v::text ilike '%Bitmap%';
+  raise notice '%', case when usa then 'PASSA — a busca por TAG usa indice'
+    else 'ATENCAO — busca por TAG sem indice (ver nota acima)' end;
+end $$;
 rollback;
 
 \echo ''

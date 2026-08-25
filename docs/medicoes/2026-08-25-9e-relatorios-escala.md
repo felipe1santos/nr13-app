@@ -1,4 +1,4 @@
-# 9E · `/relatorios` em escala — implementação e o que falta medir
+# 9E · `/relatorios` em escala — implementação e GATE 9E.2 MEDIDO
 
 **25/08/2026.** Autorizada depois do fechamento do P9.3. **Nada foi aplicado em produção**: nem
 SQL, nem deploy, nem flag. Este registro é o conjunto fechado que o dono pediu para revisar antes
@@ -70,8 +70,12 @@ fica igualmente satisfeito.
 
 **Filtros com suporte REAL, e só eles:** período e tipo. `status` e `profissional` existem na
 projeção mas **não ganharam índice** — o gate 9E-b4 exige benchmark antes, e filtro sem índice
-numa organização grande é uma varredura disfarçada de recurso. O `9E-b2` (TAG) **reusa** o
-índice que a 9B já criou: índice a mais é escrita mais cara em toda emissão de relatório.
+numa organização grande é uma varredura disfarçada de recurso.
+
+> **O `9E-b2` (TAG) ganhou índice próprio, e isso mudou por causa da medição.** A primeira
+> versão reusava o índice que a 9B criou, com o argumento de que "índice a mais é escrita mais
+> cara". O benchmark em 50.000 linhas mostrou que o reuso **não acontecia** (o índice da 9B é
+> sobre `tag` cru; o predicado usava `upper(tag)`), e o custo foi de **24.770 buffers**. Ver §6.1.
 
 ---
 
@@ -122,34 +126,140 @@ numa organização grande é uma varredura disfarçada de recurso. O `9E-b2` (TA
 | `buscaRelatorios.semPdf.test.ts` (6) | **zero PDF**, zero `app_storage`, consultas constantes com o acervo |
 | `relatoriosLocais.test.ts` (20) | offline: conversão de data, filtros equivalentes, sem-data fora do período, sem tocar PDF |
 
-**Suíte completa: 1378/1378. Build verde.**
+**Suíte completa: 1378/1378. Build verde.** Os testes de servidor (25) estão no §6.8.
 
 ---
 
-## 6 · O QUE FALTA — e por que
+## 6 · GATE 9E.2 — o benchmark de escala, EXECUTADO
 
-### 6.1 · Benchmark e testes SQL: escritos, NÃO EXECUTADOS
+**Docker ligado em 25/08.** Massa de 1.000 · 5.000 · 10.000 · 20.000 · 50.000 relatórios,
+**só metadados** — `pdf_ref` é string, nenhum PDF criado.
 
-`scripts/fase9/bench-9e.sql` e `scripts/fase9/testes-9e.sql` estão prontos, mas **não rodaram**:
-o Docker não está ativo nesta máquina (`failed to connect to the docker API … dockerDesktopLinuxEngine`).
-É o mesmo bloqueio registrado na Fase 8 em 22/08.
+### 6.1 · O gate REPROVOU na primeira passada, e o defeito era real
 
-> **Nenhum número de escala foi medido.** O que esta etapa prova sobre custo constante está no
-> nível do CLIENTE (contagem de consultas e de acessos ao storage), não no do PLANNER. Falta a
-> prova de que os índices são realmente escolhidos em 50.000 linhas — e ela é exigência do
-> próprio task-level ("um por vez, com benchmark"). **Sem ela, o gate 9E.2 não pode ser dado
-> como cumprido.**
+| consulta | 1.000 | 5.000 | 10.000 | 20.000 | **50.000** |
+|---|---|---|---|---|---|
+| 1ª página | 444 | 260 | 274 | 287 | **303** |
+| keyset (página profunda) | 13 | 56 | 55 | 55 | **57** |
+| busca por TAG | 116 | 446 | 724 | 20.173 | **24.770** |
+| código só dígitos | 64 | 435 | 712 | 20.160 | **50.423** |
+| período de 1 mês | 70 | 435 | 712 | 3.751 | **9.393** |
+| termo inexistente | 64 | 435 | 712 | 20.160 | **50.423** |
+| contagem | 221 | 214 | 214 | 214 | **214** |
 
-O benchmark mede **buffers** (métrica independente da máquina) em 1.000 · 5.000 · 10.000 ·
-20.000 · 50.000, com **só metadados**: `pdf_ref` é string, e nenhum PDF é criado — gerar 50.000
-arquivos para medir uma busca que não os toca seria medir a coisa errada.
+*(buffers — páginas lidas)*
 
-### 6.2 · DOM, heap e long tasks
+Listagem, keyset e contagem já eram constantes. Mas **busca, código, período e termo inexistente
+cresciam junto com o acervo** — 50.423 buffers é a tabela inteira. O plano explicou:
 
-Não medidos: exigem a tela rodando com massa, o que depende do mesmo Docker. A virtualização é a
-mesma da 9C, cujo ganho está medido em `2026-08-22-fase9c-tela.md`.
+```
+Index Scan using relatorios_index_ordem_idx
+  Filter: (upper(codigo) ~~ 'VP-0250%' OR upper(tag) ~~ 'VP-0250%')
+  Rows Removed by Filter: 24498          ← 24.754 buffers, 22 ms
+```
 
----
+Três causas, e as três eram minhas:
+
+1. **`upper(tag)` não tinha índice.** Eu havia decidido "reusar o índice da 9B para poupar
+   escrita" — a medição mostrou que o reuso **não acontece**: o índice da 9B é sobre `tag` cru, e
+   o predicado usava `upper(tag)`.
+2. **Btree de collation linguística não serve a `LIKE 'ABC%'`** — falta `text_pattern_ops`.
+3. **`OR` + `ORDER BY` + `LIMIT`**: o planner apostava em percorrer o índice de ORDENAÇÃO e
+   filtrar linha a linha, esperando achar 51 cedo. Com termo seletivo (ou que não casa nada), a
+   aposta perde e ele varre tudo.
+
+### 6.2 · As correções
+
+- **`relatorios_index_tag_prefixo_idx`** — `(org_id, tag text_pattern_ops)`. A TAG é gravada em
+  caixa alta (`normalizarTag`), então o predicado passou a comparar sem `upper`, igual à 9C.
+- **Dois caminhos na RPC.** Sem termo, a ordem É o filtro (percorre o índice e para no limite).
+  Com termo, uma **CTE `materialized`** restringe primeiro pelos índices de texto e só então
+  ordena o punhado que sobrou — é ela que impede o planner de recair no caso ruim.
+- **Período sobre `ordem_emissao`** (com `emissao is not null`), para virar `Index Cond` no mesmo
+  índice da ordenação em vez de `Filter`.
+
+### 6.3 · Depois das correções — o gate PASSA
+
+| consulta | 1.000 | 5.000 | 10.000 | 20.000 | **50.000** | antes → depois em 50k |
+|---|---|---|---|---|---|---|
+| 1ª página | 597 | 434 | 451 | 467 | **481** | — |
+| keyset (página profunda) | 14 | 56 | 55 | 55 | **56** | — |
+| busca por TAG | 193 | 473 | 754 | 1.314 | **454** | 24.770 → 454 (**55×**) |
+| código só dígitos | 37 | 406 | 684 | 1.240 | **266** | 50.423 → 266 (**190×**) |
+| período de 1 mês | 10 | 55 | 55 | 55 | **56** | 9.393 → 56 (**168×**) |
+| termo inexistente | 37 | 406 | 684 | 1.240 | **266** | 50.423 → 266 (**190×**) |
+| contagem | 192 | 184 | 184 | 184 | **184** | — |
+
+**Tempos em 50.000:** 1ª página 0,76 ms · keyset 0,22 ms · TAG 3,02 ms · código 1,77 ms ·
+período 0,44 ms · contagem 0,44 ms.
+
+> **Nenhuma consulta cresce com o acervo.** De 1.000 para 50.000 — cinquenta vezes mais
+> relatórios — o custo fica na mesma ordem de grandeza. É a promessa da 9E, agora medida.
+
+### 6.4 · O plano, que é a prova de que o índice é escolhido
+
+`EXPLAIN` sobre uma função plpgsql mostra só o `Function Scan`; por isso o benchmark repete o
+predicado inline. Busca por TAG em 50.000:
+
+| caminho | plano | buffers | tempo |
+|---|---|---|---|
+| **novo** | `BitmapOr` de `tag_prefixo_idx` + `codigo_idx` | **205** | **0,35 ms** |
+| antigo | `Index Scan` de ordenação + `Filter`, 24.498 linhas descartadas | 24.754 | 22,14 ms |
+
+**121× menos buffers, 63× mais rápido.** Os demais planos:
+
+- 1ª página → `Index Only Scan using relatorios_index_ordem_idx`, 55 buffers, `Heap Fetches: 51`;
+- keyset → mesmo índice, com a **comparação de tupla como `Index Cond`** (não como filtro) —
+  `ROW(ordem_emissao, relatorio_id) < ROW('2023-06-15','REL-0005000')`;
+- texto livre → `Bitmap Index Scan on relatorios_index_busca_idx` (o GIN), 265 buffers.
+
+### 6.5 · Antes × depois dos índices (mesma consulta, `enable_indexscan = off`)
+
+| | plano | buffers | tempo |
+|---|---|---|---|
+| **sem índice** | `Seq Scan` + `top-N heapsort` sobre 50.000 linhas | 2.903 | 12,63 ms |
+| **com os índices da 9E** | `Index Only Scan` | **55** | **0,09 ms** |
+
+**53× menos buffers, 140× mais rápido.**
+
+### 6.6 · Bytes: o que de fato chega ao frontend
+
+| | |
+|---|---|
+| Uma página (50 linhas) | **12 KB** |
+| Por linha | **237 bytes** |
+| Um registro completo (`nr13_rel_…`) | **~110 KB** |
+
+> Listar 50 relatórios custa **12 KB**. Baixar os mesmos 50 registros completos custaria
+> **~5,5 MB** — 458× mais. É a diferença entre listar metadados e baixar o acervo, e é o motivo
+> de a busca não tocar o PDF.
+
+### 6.7 · Custo dos índices (50.000 relatórios, só metadados)
+
+| índice | tamanho | usos no benchmark |
+|---|---|---|
+| `relatorios_index_busca_idx` (GIN) | 13 MB | 53 |
+| `relatorios_index_codigo_idx` | 10 MB | 51 |
+| `relatorios_index_pkey` | 8,7 MB | 0 |
+| `relatorios_index_ordem_idx` | 6,7 MB | 161 |
+| **`relatorios_index_tag_prefixo_idx`** | **1,6 MB** | 70 |
+
+Tabela 23 MB · índices 42 MB. O índice novo é o **menor de todos** e o que resolveu o pior caso
+— o argumento de "poupar escrita" que me levou a não criá-lo custava 121× em leitura.
+
+### 6.8 · Testes de servidor: 25/25 PASSA
+
+Isolamento (org A não vê org B) · papel `cliente` recusado · **`anon` recusado no catálogo**
+(`permission denied`, antes mesmo do corpo da função) · keyset percorrendo as 160 linhas sem
+duplicar e sem pular · 30 na mesma data · 10 sem data, todos na última página · TAG · código
+inteiro · só dígitos · `%` escapado · período de um dia · sem-data fora do período · contagem
+com teto · e os dois planos usando índice.
+
+### 6.9 · O que continua NÃO medido
+
+**DOM, heap e long tasks** do navegador. Exigem a tela rodando com massa real, o que este
+benchmark de banco não cobre. A virtualização é a mesma da 9C, cujo ganho está em
+`2026-08-22-fase9c-tela.md`.
 
 ## 7 · Estado e rollback
 

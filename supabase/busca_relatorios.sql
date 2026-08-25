@@ -116,10 +116,26 @@ create index if not exists relatorios_index_codigo_idx
   on public.relatorios_index (org_id, upper(codigo) text_pattern_ops)
   where codigo is not null;
 
--- 9E-b2 · TAG. Já existe `relatorios_index_org_tag_idx` (criado na 9B para a
--- integridade do apaga-e-reinsere); ele serve igualmente à busca por
--- equipamento, então NÃO se cria um segundo aqui. Índice a mais é escrita mais
--- cara em toda emissão de relatório.
+-- 9E-b2 · TAG por prefixo.
+--
+-- ESTE ÍNDICE NASCEU DE UMA MEDIÇÃO QUE REPROVOU A DECISÃO ANTERIOR. A primeira
+-- versão deste arquivo dizia: "reusa `relatorios_index_org_tag_idx`, que a 9B já
+-- criou — índice a mais é escrita mais cara". O benchmark em 50.000 linhas
+-- mostrou que o reuso NÃO acontece:
+--
+--     Index Scan using relatorios_index_ordem_idx
+--       Filter: upper(tag) ~~ 'VP-0250%'
+--       Rows Removed by Filter: 24498        ← 24.770 buffers
+--
+-- Duas razões, e as duas precisavam de conserto:
+--   1. o predicado usava `upper(tag)`, e o índice da 9B é sobre `tag` cru;
+--   2. mesmo sem o `upper`, um btree de collation linguística não serve a
+--      LIKE 'ABC%' — é preciso `text_pattern_ops`.
+--
+-- A TAG é gravada em caixa alta (`normalizarTag`), então comparar em caixa alta
+-- é o que casa — a mesma decisão, pelo mesmo motivo, de `buscar_equipamentos`.
+create index if not exists relatorios_index_tag_prefixo_idx
+  on public.relatorios_index (org_id, tag text_pattern_ops);
 
 -- Texto livre.
 create index if not exists relatorios_index_busca_idx
@@ -181,31 +197,70 @@ begin
     return;
   end if;
 
+  -- ---------------------------------------------------------------------
+  -- DOIS CAMINHOS, E A SEPARAÇÃO VEIO DE UMA MEDIÇÃO
+  -- ---------------------------------------------------------------------
+  -- Numa consulta só, com `OR` de três predicados de texto MAIS `order by …
+  -- limit 51`, o planner escolhe percorrer o índice de ORDENAÇÃO e aplicar o
+  -- texto como `Filter` — apostando que acha 51 linhas cedo. Quando o termo é
+  -- seletivo (ou não casa nada), essa aposta perde feio: medido em 50.000
+  -- linhas, "termo inexistente" custou **50.423 buffers**, a tabela inteira.
+  --
+  -- Separar resolve porque as duas situações querem planos opostos:
+  --
+  --   · SEM termo   → a ordem É o filtro. Percorrer `relatorios_index_ordem_idx`
+  --                   e parar no limite é o plano ideal (303 buffers em 50.000).
+  --   · COM termo   → primeiro RESTRINGIR pelos índices de texto, depois
+  --                   ordenar o punhado que sobrou. A CTE `materialized` é o que
+  --                   impede o planner de empurrar o filtro para dentro da
+  --                   varredura ordenada e recair no caso ruim.
+  if v_termo is null then
+    return query
+    select r.relatorio_id, r.tag, r.codigo, r.nome, r.tipo, r.status, r.profissional,
+           r.emissao, r.validade, r.execucao_inspecao,
+           r.proxima_inspecao_interna, r.proxima_inspecao_externa,
+           r.pdf_ref, r.sha256, r.paginas, r.source_version
+      from public.relatorios_index r
+     where r.org_id = v_org
+       -- Keyset: as DUAS colunas descem juntas, então a comparação de tupla
+       -- vale como está. Ordenar `emissao desc, relatorio_id asc` obrigaria a
+       -- quebrar isto em dois OR e a perder o índice.
+       and (p_cursor_data is null
+            or (r.ordem_emissao, r.relatorio_id) < (p_cursor_data, coalesce(p_cursor_id, '')))
+       and (v_tipo is null or r.tipo = v_tipo)
+       -- Período: o range vai sobre `ordem_emissao` para virar Index Cond no
+       -- mesmo índice da ordenação, e `emissao is not null` garante que o
+       -- relatório SEM data não seja arrastado para dentro de um intervalo que
+       -- o usuário escolheu — a sentinela ordena, não é um fato.
+       and (p_de  is null or (r.emissao is not null and r.ordem_emissao >= p_de))
+       and (p_ate is null or (r.emissao is not null and r.ordem_emissao <= p_ate))
+     order by r.ordem_emissao desc, r.relatorio_id desc
+     limit v_lim;
+    return;
+  end if;
+
   return query
-  select r.relatorio_id, r.tag, r.codigo, r.nome, r.tipo, r.status, r.profissional,
-         r.emissao, r.validade, r.execucao_inspecao,
-         r.proxima_inspecao_interna, r.proxima_inspecao_externa,
-         r.pdf_ref, r.sha256, r.paginas, r.source_version
-    from public.relatorios_index r
-   where r.org_id = v_org
-     -- Keyset: as DUAS colunas descem juntas, então a comparação de tupla vale
-     -- como está. Ordenar `emissao desc, relatorio_id asc` obrigaria a quebrar
-     -- isto em dois OR e a perder o índice.
-     and (p_cursor_data is null
-          or (r.ordem_emissao, r.relatorio_id) < (p_cursor_data, coalesce(p_cursor_id, '')))
-     and (v_tipo is null or r.tipo = v_tipo)
-     -- Período sobre `emissao` (a coluna real), não sobre `ordem_emissao`:
-     -- filtrar por data NÃO pode arrastar o relatório sem data para dentro de
-     -- um intervalo que o usuário escolheu.
-     and (p_de   is null or r.emissao >= p_de)
-     and (p_ate  is null or r.emissao <= p_ate)
-     and (
-       v_termo is null
-       or upper(r.codigo) like v_cod
-       or upper(r.tag)    like v_cod
-       or (v_tsq is not null and r.busca @@ v_tsq)
-     )
-   order by r.ordem_emissao desc, r.relatorio_id desc
+  with candidatos as materialized (
+    select r.*
+      from public.relatorios_index r
+     where r.org_id = v_org
+       and (
+         r.tag like v_cod                        -- prefixo de TAG (caixa alta)
+         or upper(r.codigo) like v_cod           -- prefixo de código
+         or (v_tsq is not null and r.busca @@ v_tsq)   -- texto livre (GIN)
+       )
+       and (v_tipo is null or r.tipo = v_tipo)
+       and (p_de  is null or (r.emissao is not null and r.ordem_emissao >= p_de))
+       and (p_ate is null or (r.emissao is not null and r.ordem_emissao <= p_ate))
+       and (p_cursor_data is null
+            or (r.ordem_emissao, r.relatorio_id) < (p_cursor_data, coalesce(p_cursor_id, '')))
+  )
+  select c.relatorio_id, c.tag, c.codigo, c.nome, c.tipo, c.status, c.profissional,
+         c.emissao, c.validade, c.execucao_inspecao,
+         c.proxima_inspecao_interna, c.proxima_inspecao_externa,
+         c.pdf_ref, c.sha256, c.paginas, c.source_version
+    from candidatos c
+   order by c.ordem_emissao desc, c.relatorio_id desc
    limit v_lim;
 end;
 $$;
@@ -251,17 +306,21 @@ begin
     return;
   end if;
 
+  -- O mesmo predicado da busca, com o mesmo cuidado: `tag` sem `upper` (ela é
+  -- gravada em caixa alta) para o índice de prefixo valer, e o período sobre
+  -- `ordem_emissao` com `emissao is not null` — o relatório sem data não entra
+  -- num intervalo escolhido.
   select count(*) into v_n from (
     select 1
       from public.relatorios_index r
      where r.org_id = v_org
        and (v_tipo is null or r.tipo = v_tipo)
-       and (p_de   is null or r.emissao >= p_de)
-       and (p_ate  is null or r.emissao <= p_ate)
+       and (p_de  is null or (r.emissao is not null and r.ordem_emissao >= p_de))
+       and (p_ate is null or (r.emissao is not null and r.ordem_emissao <= p_ate))
        and (
          v_termo is null
+         or r.tag like v_cod
          or upper(r.codigo) like v_cod
-         or upper(r.tag)    like v_cod
          or (v_tsq is not null and r.busca @@ v_tsq)
        )
      limit v_teto + 1
