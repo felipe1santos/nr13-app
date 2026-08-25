@@ -20,11 +20,11 @@ decidir se ela sobe para as organizações de cliente, e em que ritmo.
 | Infraestrutura 9A/9B/9C | instalada; projeção convergida em **duas** organizações |
 | SQL da 9D (4 arquivos) | **APLICADO** (25/08) — ver `docs/medicoes/2026-08-25-9d-sql-aplicado-producao.md` |
 | Projeção das 2 orgs | refeita com as funções da 9D; `convergiu: true`, `pendencias: 0` |
-| **Flag `boot_v9`** | **`true` em `99f642d3-…-8d211c`** (org de teste, `teste@gmail.com`); `false` nas demais |
+| **Flag `boot_v9`** | **`true` em DUAS**: `99f642d3-…-8d211c` (teste) e `92a28bff-…-488a75` (PILOTO cliente, 25/08); `false` nas outras 28 |
 | **Flag `busca_v9`** | **desligada em todas** |
 | Front | commit **`599ac68`** publicado no Coolify em 25/08 (bundle `index-o18n-uvq.js`); `origin/main` em dia |
 | `app_storage` | inalterada |
-| Suíte | **1315/1315** · build verde |
+| Suíte | **1320/1320** · build verde |
 
 ---
 
@@ -60,7 +60,16 @@ decidir se ela sobe para as organizações de cliente, e em que ritmo.
 
 ## 4 · O QUE FALTA — comece por aqui
 
-### 4.1 · A decisão: subir `boot_v9` para organização de cliente
+### 4.1 · A decisão: expandir o `boot_v9` além do piloto
+
+> **O piloto em organização cliente JÁ FOI FEITO** (25/08, `92a28bff…`, validação
+> administrativa read-only): paridade 3/3 campo a campo, boot de **20 KB contra 354 KB**,
+> rollback conferido. Registro em `medicoes/2026-08-25-9d-piloto-org-cliente.md`.
+>
+> **P9.3 NÃO foi fechado** — aguarda decisão formal do dono, junto da estratégia de expansão.
+>
+> **A organização PAGANTE (`06f84f2e`, cmam.caldeiras, 39 equipamentos) ainda não recebeu a
+> flag** e é a única com massa real. Ela é a próxima decisão de risco.
 
 **PRÉ-CONDIÇÃO, por organização:** as migrações de segundo plano dela já concluíram (histórico
 por relatório, rubricas do livro, anexos). O boot leve NÃO as roda — elas varrem o cache, que

@@ -125,6 +125,7 @@ Sempre use um destes. Nunca "concluído".
 | **9C** | **CONCLUÍDA** — `medicoes/2026-08-22-fase9c-indices.md` e `-tela.md` |
 | **9D** | **CONCLUÍDA · EM PRODUÇÃO** (25/08) — `medicoes/2026-08-25-9d-sql-aplicado-producao.md` |
 | **9D · prova offline** | **CONCLUÍDA** (25/08) — 2 defeitos achados e corrigidos: painel inventava `0`; `navigator.onLine` como autoridade. `medicoes/2026-08-25-9d-prova-offline-e-dois-defeitos.md` |
+| **9D · piloto cliente** | **CONCLUÍDO** (25/08) — `92a28bff…`: paridade 3/3, boot 20 KB × 354 KB, rollback conferido. **P9.3 aguarda decisão do dono.** `medicoes/2026-08-25-9d-piloto-org-cliente.md` |
 
 **Próxima ação exata:** decidir se `boot_v9` sobe para organização de cliente, e em que ritmo.
 A pré-condição por organização (migrações de segundo plano concluídas + projeção reconstruída)

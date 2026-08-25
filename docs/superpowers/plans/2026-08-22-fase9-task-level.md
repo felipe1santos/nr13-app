@@ -725,6 +725,8 @@ recém-consultado.
 | 25/08 | **Prova offline real** (DevTools). ⛔ Achou 2 defeitos: (1) Dashboard exibia `EQUIPAMENTOS CADASTRADOS: 0` com 4 no cache — o painel caía em zero literal no caminho de erro; (2) `navigator.onLine` ficou `true` a sessão inteira com 50 requisições falhando, e na volta da rede NENHUM evento `online`/`visibilitychange` disparou: a fila ficou parada com internet | ⚠️ |
 | 25/08 | Correções com teste (`599ac68`): `KpisPainel` com contadores opcionais + `textoContador` (`—`); `conectividade.ts` decide pelo erro REAL da fila; `retentativaRede.ts` (janela 45 s, só com evidência de queda). Suíte 1298 → **1315** | ✅ |
 | 25/08 | Reprova em produção com o bundle novo: fila **3→2** sem clique e sem evento `online` (~74 s), servidor 9→10 com `pmtaAdotadaMpa 0.91`, projeção no mesmo timestamp, KPIs em `—` offline, auditoria **`convergiu: true`** nas 2 orgs, projeto **Healthy** | ✅ |
+| 25/08 | Os ~74 s da retentativa explicados e travados por teste: o relógio já corria durante a queda; teto real = JANELA + TICK ≈ 49 s. Sem bug de timer, sem backoff, ciclo perpétuo, evidência persistida em disco. Suíte **1320** | ✅ |
+| 25/08 | **PILOTO em organização CLIENTE** (`92a28bff…`, escolhida pelo dono): rebuild da projeção (3/8/3, `convergiu: true`), paridade OFF×ON **3/3 campo a campo**, boot **20 KB × 354 KB** (5,6 %), isolamento (1→2 orgs, `busca_v9` intocada), rollback conferido e religada. **P9.3 NÃO fechado** | ✅ |
 
 ---
 
