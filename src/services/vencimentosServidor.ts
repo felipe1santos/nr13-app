@@ -38,12 +38,35 @@ import type { ItemVencimento } from './vencimentos';
 /** Quantas linhas o servidor devolve. O resto vira `truncado`/`restantes`. */
 export const LIMITE_PAINEL = 500;
 
+/**
+ * Os contadores do painel. TODOS opcionais, e isso é a regra, não descuido.
+ *
+ * `undefined` = **não foi possível conferir**; a tela mostra "—".
+ * `0` = **conferido, e não há nenhum**.
+ *
+ * Até 25/08/2026 só `conformidade` sabia dizer "não sei", e os outros três
+ * caíam em zero no caminho de erro. Medido em produção com a aba offline: o
+ * Dashboard exibia "EQUIPAMENTOS CADASTRADOS: 0" numa organização com 4
+ * equipamentos no cache — o mesmo texto que o sumiço de dados produz.
+ */
 export interface KpisPainel {
-  total: number;
-  aVencer30: number;
-  vencidos: number;
+  total?: number;
+  aVencer30?: number;
+  vencidos?: number;
   /** Indefinida quando o painel não pôde ser lido — nunca 100 % por omissão. */
   conformidade?: number;
+}
+
+/**
+ * Um contador de `KpisPainel`, como ele deve aparecer na tela.
+ *
+ * Existe porque o React renderiza `undefined` como string VAZIA: trocar o zero
+ * por indefinido sem passar por aqui deixaria o KPI em branco — tão mudo quanto
+ * o zero era mentiroso. "—" é o símbolo que o painel já usa para a conformidade
+ * desconhecida, e agora vale para os quatro.
+ */
+export function textoContador(n: number | undefined): string {
+  return n === undefined ? '—' : n.toLocaleString('pt-BR');
 }
 
 export interface PainelVencimentos {
@@ -80,9 +103,11 @@ export async function painelDoServidor(
   hoje: Date = new Date(),
   limite: number = LIMITE_PAINEL,
 ): Promise<PainelVencimentos> {
+  // Os contadores ficam INDEFINIDOS: este objeto só é devolvido quando a
+  // consulta falhou, e nada foi conferido. Ver `KpisPainel`.
   const vazio: PainelVencimentos = {
     itens: [],
-    kpis: { total: 0, aVencer30: 0, vencidos: 0 },
+    kpis: {},
     fonte: 'servidor',
     truncado: false,
     restantes: 0,

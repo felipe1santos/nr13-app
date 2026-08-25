@@ -15,6 +15,7 @@
 import { supabase, escopoStorageAtual, TABELA_STORAGE } from './supabase';
 import * as cache from './cacheLocal';
 import * as sync from './sync';
+import type { ItemFila } from './sync';
 import { fecharDb } from './db';
 import { bloqueadoParaEscrita, ErroBloqueado } from './gateEscrita';
 import { tagDaChave } from './familiasChave';
@@ -233,6 +234,19 @@ export async function flushFila(): Promise<void> {
  */
 export function contarPendencias(): number {
   return sync.listarPendentes().length;
+}
+
+/**
+ * As pendências em si, não só a contagem.
+ *
+ * Quem pergunta é o selo da topbar, para saber se a última tentativa REAL
+ * falhou por rede (`erro.categoria === 'offline'`) — ver `conectividade.ts`.
+ * A contagem sozinha não distingue "3 esperando a rede voltar" de "3 recusadas
+ * por assinatura vencida", e as duas frases mandam o usuário para lugares
+ * opostos.
+ */
+export function listarPendentesFila(): ItemFila[] {
+  return sync.listarPendentes();
 }
 
 // ---------------------------------------------------------------------------

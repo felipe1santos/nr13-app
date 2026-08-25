@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Icone } from '../components/Icone';
-import { contarPendencias, flushFila } from '../services/storage';
+import { contarPendencias, flushFila, listarPendentesFila } from '../services/storage';
+import { estadoConectividade } from '../services/conectividade';
+import { deveRetentar } from '../services/retentativaRede';
 
 // Indicador de sincronização offline (topbar). Mostra:
 //  - Offline: dados sendo salvos no aparelho
@@ -11,19 +13,48 @@ import { contarPendencias, flushFila } from '../services/storage';
 // fila em um lugar (v1 no localStorage, v2 no IndexedDB), e ler direto daqui
 // fazia a topbar anunciar "Sincronizado" numa organização já migrada, com dados
 // pendentes no aparelho.
+//
+// E o ESTADO DA REDE não vem de `navigator.onLine` sozinho (25/08/2026). Medido
+// na prova offline da 9D: com a aba em Offline pelo DevTools, `onLine` ficou
+// `true` a sessão inteira enquanto 50 requisições falhavam com `TypeError:
+// Failed to fetch` — e a topbar convidava a clicar em "Sincronizar (3)", um
+// botão sem como funcionar. Quem decide é `conectividade.ts`, que lê o erro
+// REAL da última tentativa de cada pendência.
 
 export default function SyncStatus() {
-  const [online, setOnline] = useState(() => navigator.onLine);
+  const [navegadorOnLine, setNavegadorOnLine] = useState(() => navigator.onLine);
   const [pendencias, setPendencias] = useState(() => contarPendencias());
+  const [redeCaiu, setRedeCaiu] = useState(false);
   const [sincronizando, setSincronizando] = useState(false);
 
+  const online = !redeCaiu && navegadorOnLine;
+
   useEffect(() => {
-    const aoOnline = () => setOnline(true);
-    const aoOffline = () => setOnline(false);
+    const aoOnline = () => setNavegadorOnLine(true);
+    const aoOffline = () => setNavegadorOnLine(false);
     window.addEventListener('online', aoOnline);
     window.addEventListener('offline', aoOffline);
     // fila muda por gravações do próprio app — checagem barata a cada 4s
-    const timer = window.setInterval(() => setPendencias(contarPendencias()), 4000);
+    let ultimaRetentativa = Date.now();
+    const reavaliar = () => {
+      const pendentes = listarPendentesFila();
+      setPendencias(contarPendencias());
+      setRedeCaiu(
+        estadoConectividade({ navegadorOnLine: navigator.onLine, pendentes }) === 'offline',
+      );
+
+      // Rede de segurança dos listeners `online`/`visibilitychange`: quando a
+      // conexão volta sem que o navegador perceba, nenhum dos dois dispara e a
+      // fila fica parada com a internet de volta (medido em 25/08/2026). Só
+      // acontece com evidência de queda e fora da janela — ver
+      // `retentativaRede.ts`.
+      if (deveRetentar({ pendentes, desdeUltima: Date.now() - ultimaRetentativa })) {
+        ultimaRetentativa = Date.now();
+        void flushFila().then(() => setPendencias(contarPendencias()));
+      }
+    };
+    reavaliar();
+    const timer = window.setInterval(reavaliar, 4000);
     return () => {
       window.removeEventListener('online', aoOnline);
       window.removeEventListener('offline', aoOffline);

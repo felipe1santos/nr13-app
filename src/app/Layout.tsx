@@ -137,8 +137,14 @@ export default function Layout() {
         const atualizar = () => {
           void painel.carregarPainel().then((p) => {
             if (!vivo) return;
-            setTemAlerta(p.kpis.vencidos > 0);
-            setNEquip(p.kpis.total);
+            // Contador INDEFINIDO = o servidor não respondeu (25/08/2026).
+            // Aqui, diferente dos KPIs do painel, existe uma fonte local
+            // legítima: o valor que já está na tela, semeado das chaves do
+            // cache. Sobrescrevê-lo com zero apagaria o "4" do menu lateral
+            // numa queda de rede — e o menu vazio é a cara do sumiço de dados.
+            // Não saber é motivo para NÃO mexer, não para zerar.
+            if (p.kpis.vencidos !== undefined) setTemAlerta(p.kpis.vencidos > 0);
+            if (p.kpis.total !== undefined) setNEquip(p.kpis.total);
           });
         };
         atualizar();

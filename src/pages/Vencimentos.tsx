@@ -3,7 +3,7 @@ import { Icone } from '../components/Icone';
 import CalendarioVencimentos from '../components/CalendarioVencimentos';
 import { textoPrazo } from '../services/vencimentos';
 import type { ItemVencimento } from '../services/vencimentos';
-import { usePainelVencimentos } from '../services/vencimentosServidor';
+import { usePainelVencimentos, textoContador } from '../services/vencimentosServidor';
 import SeloPainel from '../components/SeloPainel';
 import './dashboard-novo.css';
 import { rotaEquipamento } from '../app/rotas';
@@ -40,7 +40,7 @@ export default function Vencimentos() {
         <div className="fj-kpi">
           <div>
             <div className="fj-kpi-label">Equipamentos cadastrados</div>
-            <div className="fj-kpi-value">{kpis.total}</div>
+            <div className="fj-kpi-value">{textoContador(kpis.total)}</div>
             <div className="fj-kpi-delta flat">ativos sob NR-13</div>
           </div>
           <div className="fj-kpi-icon" style={{ background: 'var(--blue-bg)', color: 'var(--blue)' }}>
@@ -50,7 +50,7 @@ export default function Vencimentos() {
         <div className="fj-kpi">
           <div>
             <div className="fj-kpi-label">Próximos a vencer <span className="mono" style={{ fontSize: 10 }}>(30 dias)</span></div>
-            <div className="fj-kpi-value" style={{ color: 'var(--warn)' }}>{kpis.aVencer30}</div>
+            <div className="fj-kpi-value" style={{ color: 'var(--warn)' }}>{textoContador(kpis.aVencer30)}</div>
             <div className="fj-kpi-delta flat">inspeções e calibrações</div>
           </div>
           <div className="fj-kpi-icon" style={{ background: 'var(--warn-bg)', color: 'var(--warn)' }}>
@@ -60,9 +60,9 @@ export default function Vencimentos() {
         <div className="fj-kpi">
           <div>
             <div className="fj-kpi-label">Vencidos</div>
-            <div className="fj-kpi-value" style={{ color: kpis.vencidos > 0 ? 'var(--crit)' : undefined }}>{kpis.vencidos}</div>
-            <div className={`fj-kpi-delta ${kpis.vencidos > 0 ? 'down' : 'up'}`}>
-              {kpis.vencidos > 0 ? 'ação imediata' : 'nenhum vencido'}
+            <div className="fj-kpi-value" style={{ color: (kpis.vencidos ?? 0) > 0 ? 'var(--crit)' : undefined }}>{textoContador(kpis.vencidos)}</div>
+            <div className={`fj-kpi-delta ${(kpis.vencidos ?? 0) > 0 ? 'down' : 'up'}`}>
+              {(kpis.vencidos ?? 0) > 0 ? 'ação imediata' : 'nenhum vencido'}
             </div>
           </div>
           <div className="fj-kpi-icon" style={{ background: 'var(--crit-bg)', color: 'var(--crit)' }}>
@@ -96,7 +96,7 @@ export default function Vencimentos() {
               <div className="fj-eyebrow">Prazos</div>
               <h2>Equipamentos próximos do vencimento</h2>
             </div>
-            {kpis.vencidos > 0 && <span className="fj-badge crit">{kpis.vencidos} vencido{kpis.vencidos > 1 ? 's' : ''}</span>}
+            {(kpis.vencidos ?? 0) > 0 && <span className="fj-badge crit">{kpis.vencidos} vencido{(kpis.vencidos ?? 0) > 1 ? 's' : ''}</span>}
           </div>
           {itens.length === 0 ? (
             <div className="fj-empty">

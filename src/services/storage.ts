@@ -17,6 +17,7 @@ import { armazenamentoV2Ativo } from './flag';
 import * as v1 from './storageV1';
 import * as v2 from './storageV2';
 import type { MedidaEssencial } from './essencial';
+import type { ItemFila } from './sync';
 
 export { bloqueadoParaEscrita, ErroBloqueado } from './gateEscrita';
 export { armazenamentoV2Ativo, definirArmazenamentoV2 } from './flag';
@@ -94,6 +95,23 @@ export function flushFila(): Promise<void> {
  */
 export function contarPendencias(): number {
   return v2Ativo() ? v2.contarPendencias() : v1.contarPendencias();
+}
+
+/**
+ * As pendências em si — para quem precisa saber POR QUE elas não subiram.
+ *
+ * O selo da topbar usa isto em `conectividade.estadoConectividade`: uma
+ * pendência cujo último erro foi de rede prova queda de conexão melhor do que
+ * `navigator.onLine`, que em 25/08/2026 permaneceu `true` durante uma sessão
+ * inteira com a rede bloqueada.
+ *
+ * A v1 guarda a fila como uma lista de operações sem erro classificado —
+ * devolve vazio, e o selo cai no comportamento antigo (só `navigator.onLine`).
+ * Organizações na v1 estão em extinção; investir na fila velha seria construir
+ * sobre o que já foi substituído.
+ */
+export function listarPendentesFila(): ItemFila[] {
+  return v2Ativo() ? v2.listarPendentesFila() : [];
 }
 
 export function lerRemoto(chave: string): Promise<string | null> {

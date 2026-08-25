@@ -40,7 +40,7 @@ vi.mock('./vencimentos', async () => {
 
 vi.mock('./storage', () => ({ listarChavesComPrefixo: () => ['nr13_info_A', 'nr13_info_B'] }));
 
-import { carregarPainel, painelDoServidor } from './vencimentosServidor';
+import { carregarPainel, painelDoServidor, textoContador } from './vencimentosServidor';
 
 const HOJE = new Date(2026, 7, 24);
 
@@ -139,6 +139,39 @@ describe('painelDoServidor', () => {
     expect(painel.kpis.conformidade).toBeUndefined();
   });
 
+  it('sem resposta, NENHUM contador vale zero — a tela precisa poder dizer "—"', async () => {
+    resposta.error = { message: 'Failed to fetch' };
+
+    const painel = await painelDoServidor(HOJE);
+
+    // Medido em produção em 25/08/2026, com a aba offline: o Dashboard exibia
+    // "EQUIPAMENTOS CADASTRADOS: 0" numa organização com 4 equipamentos no
+    // cache, o menu lateral marcando 4 e /equipamentos listando 4 de 4.
+    //
+    // Zero é uma AFIRMAÇÃO — "conferi e não há nenhum" — e é a mesma frase que
+    // o sumiço de dados diz. Este projeto existe para que a tela nunca a diga
+    // sem ter conferido. Não saber tem representação própria.
+    expect(painel.kpis.total).toBeUndefined();
+    expect(painel.kpis.aVencer30).toBeUndefined();
+    expect(painel.kpis.vencidos).toBeUndefined();
+  });
+
+  it('zero VERDADEIRO continua sendo zero — não vira "—"', async () => {
+    resposta.data = {
+      total_equip: 0, com_prazo: 0, vencidos: 0, a_vencer_30: 0,
+      truncado: false, restantes: 0, itens: [], em: '2026-08-25T12:00:00.000Z',
+    };
+
+    const painel = await painelDoServidor(HOJE);
+
+    // O oposto do teste acima, e igualmente necessário: organização recém-criada
+    // TEM zero equipamentos, e apagar esse zero em nome da prudência esconderia
+    // o estado real de quem acabou de entrar.
+    expect(painel.kpis.total).toBe(0);
+    expect(painel.kpis.vencidos).toBe(0);
+    expect(painel.erro).toBeUndefined();
+  });
+
   it('organização sem nenhum equipamento não é erro', async () => {
     resposta.data = {
       total_equip: 0, com_prazo: 0, vencidos: 0, a_vencer_30: 0,
@@ -197,5 +230,19 @@ describe('carregarPainel — quem escolhe a fonte', () => {
     expect(painel.fonte).toBe('servidor');
     expect(painel.kpis.total).toBe(9);
     expect(local.chamou).toBe(false);
+  });
+});
+
+describe('textoContador — como o número indefinido chega na tela', () => {
+  it('contador conferido vira o número', () => {
+    expect(textoContador(0)).toBe('0');
+    expect(textoContador(4)).toBe('4');
+    expect(textoContador(1200)).toBe('1.200');
+  });
+
+  it('contador NÃO conferido vira "—", nunca 0', () => {
+    // O React renderiza `undefined` como string vazia: sem esta função o KPI
+    // apareceria em branco, que é tão mudo quanto o zero era mentiroso.
+    expect(textoContador(undefined)).toBe('—');
   });
 });
