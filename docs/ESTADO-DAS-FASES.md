@@ -104,16 +104,17 @@ Sempre use um destes. Nunca "concluído".
 | **4** | Portal: arquitetura de leitura (A-02) | ✅ **CONCLUÍDA** | **P3 FECHADO ✅** aprovado 20/08 | `plans/2026-08-20-fase4-task-level.md` |
 | **5** | Fotos: thumbnail, EXIF, teto de altura (A-08) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** | — | `plans/2026-08-20-fase5-task-level.md` · `medicoes/2026-08-20-fase5-producao-antes-depois.md` |
 | **6** | Recuperação do fallback base64 (A-10) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** nas 3 famílias, com SHA-256 idêntico | — | `plans/2026-08-20-fase6-task-level.md` |
-| **9** | Escala, busca e carregamento sob demanda | 🟢 **9A/9B/9C EM PRODUÇÃO · validadas no servidor E na tela** | **P9.1 ✅** · **P9.2 FECHADO ✅** (23/08) · P9.3…P9.5 | `plans/2026-08-22-fase9-task-level.md` · `specs/2026-08-22-fase9-escala-busca-design.md` |
+| **9** | Escala, busca e carregamento sob demanda | 🟢 **9A/9B/9C/9D EM PRODUÇÃO** · `boot_v9` LIGADA na org de teste (25/08) | **P9.1 ✅** · **P9.2 FECHADO ✅** (23/08) · P9.3…P9.5 | `plans/2026-08-22-fase9-task-level.md` · `specs/2026-08-22-fase9-escala-busca-design.md` |
 | **8** | Escala, dataset e medições | ✅ **CONCLUÍDA** (22/08) — diagnóstico aprovado; o critério de produto **NÃO PASSA em grande escala**, e isso é o mandato da Fase 9 | — | `plans/2026-08-22-fase8-task-level.md` · `medicoes/2026-08-22-fase8-fechamento.md` |
 | **7** | Logo e rubrica por conteúdo (A-05) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** (7A EXPAND + 7B SWITCH, Portal e offline real) | **P4 FECHADO ✅** aprovado 22/08 | `plans/2026-08-20-fase7-task-level.md` · `medicoes/2026-08-20-fase7b-validacao-producao.md` |
 | **8** | Escala, dataset determinístico e medições (A-17) | 🟡 **PLANEJADA** — AS-IS, dataset e plano de medição escritos; **nenhuma massa gerada** | — | `plans/2026-08-22-fase8-task-level.md` |
 | 9…13 | ver plano macro | PLANEJADO | P5…P8 | `plans/2026-08-15-evolucao-arquitetura.md` |
 
-**Fase atual:** **9 — P9.2 FECHADO ✅ em 23/08/2026.** 9A/9B/9C estão em produção, validadas no
-servidor e na tela, com a flag `busca_v9` **DESLIGADA em todas as 29 organizações**.
+**Fase atual:** **9 — 9D EM PRODUÇÃO em 25/08/2026.** 9A/9B/9C/9D estão aplicadas, com
+`busca_v9` **desligada em todas as organizações** e `boot_v9` **ligada em uma** — a de teste
+(`99f642d3-…-8d211c`). O rollback foi exercitado no mesmo dia.
 
-**9D a 9G continuam NÃO autorizadas** — a 9D começa em autorização separada.
+**9E a 9G continuam NÃO autorizadas.**
 
 | | |
 |---|---|
@@ -122,9 +123,11 @@ servidor e na tela, com a flag `busca_v9` **DESLIGADA em todas as 29 organizaç�
 | **9A** | **CONCLUÍDA** — `medicoes/2026-08-22-fase9a-peso-projecao.md` |
 | **9B** | **CONCLUÍDA** — `medicoes/2026-08-22-fase9b-projecao-na-rpc.md` · P9.1 aprovado |
 | **9C** | **CONCLUÍDA** — `medicoes/2026-08-22-fase9c-indices.md` e `-tela.md` |
+| **9D** | **CONCLUÍDA · EM PRODUÇÃO** (25/08) — `medicoes/2026-08-25-9d-sql-aplicado-producao.md` |
 
-**Próxima ação exata:** aguardar a autorização da **9D** (fim da hidratação integral no boot). Nada
-mais está pendente da Fase 9 até lá.
+**Próxima ação exata:** decidir se `boot_v9` sobe para organização de cliente, e em que ritmo.
+A pré-condição por organização (migrações de segundo plano concluídas + projeção reconstruída)
+está no `PONTO-DE-RETOMADA.md`, §4.1.
 
 ### ✅ P9.2 FECHADO — 23/08/2026
 
@@ -186,7 +189,7 @@ de verdade** e reaplicada.
 | Projeto | **Healthy** |
 
 Detalhes em [`medicoes/2026-08-23-etapa1-rls-stable-producao.md`](medicoes/2026-08-23-etapa1-rls-stable-producao.md).
-**A Fase 9 continua sem NADA aplicado em produção.**
+**(Naquele momento a Fase 9 ainda não tinha nada aplicado em produção; 9A–9D entraram depois.)**
 
 ### O aviso `Grace period is over` — investigado em 23/08
 

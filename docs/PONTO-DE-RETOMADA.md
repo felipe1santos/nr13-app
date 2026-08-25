@@ -1,4 +1,4 @@
-# PONTO DE RETOMADA — 24/08/2026, fim do dia
+# PONTO DE RETOMADA — 25/08/2026, fim do dia
 
 > **Leia só este arquivo para voltar ao trabalho.** Ele diz onde paramos, o que está de pé em
 > produção, e qual é a próxima decisão. Nada aqui depende de lembrar da conversa.
@@ -7,8 +7,8 @@
 
 ## 1 · Onde paramos, em uma linha
 
-**A 9D está ESCRITA e commitada, e nada dela está ligado em produção.** O que falta é
-**aplicar o SQL e ligar a flag numa organização** — e essa é a sua decisão quando voltar.
+**A 9D está inteira em produção e LIGADA em uma organização — a de teste.** O que falta é
+decidir se ela sobe para as organizações de cliente, e em que ritmo.
 
 ---
 
@@ -17,86 +17,72 @@
 | | estado |
 |---|---|
 | Funções auxiliares da RLS | **`STABLE`** (ETAPA 1, 23/08) |
-| Infraestrutura da Fase 9 (9A/9B/9C) | **instalada**; projeção convergida em **duas** organizações |
-| **Flag `busca_v9`** | **DESLIGADA nas 29 organizações** |
-| **Flag `boot_v9`** | **não existe no banco ainda** — o SQL da 9D não foi aplicado |
-| SQL da 9D (3 arquivos) | **NÃO aplicado** — ver §4.1 |
-| Front | o bundle em produção é o de 23/08; **a 9D não foi publicada** (deploy é manual, no Coolify) |
+| Infraestrutura 9A/9B/9C | instalada; projeção convergida em **duas** organizações |
+| SQL da 9D (4 arquivos) | **APLICADO** (25/08) — ver `docs/medicoes/2026-08-25-9d-sql-aplicado-producao.md` |
+| Projeção das 2 orgs | refeita com as funções da 9D; `convergiu: true`, `pendencias: 0` |
+| **Flag `boot_v9`** | **`true` em `99f642d3-…-8d211c`** (org de teste, `teste@gmail.com`); `false` nas demais |
+| **Flag `busca_v9`** | **desligada em todas** |
+| Front | commit **`aa984c9`** publicado no Coolify em 25/08; `origin/main` em dia |
 | `app_storage` | inalterada |
-| Suíte | **1298/1298** · build verde |
-
-> **Nada mudou para nenhum usuário.** A 9D inteira nasce atrás de uma flag que ainda não
-> existe no banco — e, mesmo depois de criada, ela nasce `false`.
+| Suíte | **1298/1298** · build verde (sem mudança de código nesta sessão — só SQL e documentos) |
 
 ---
 
-## 3 · O que a 9D fez (commits `0819277` e `cd54457`, em `main`)
+## 3 · O que aconteceu em 25/08
 
-O boot esperava `lerTudo()`: a organização INTEIRA antes da primeira tela. Com 51.000
-equipamentos a Fase 8 mediu **~4 min e 1,63 GB**. Sob `boot_v9` o boot espera só o
-essencial — **433 KB, medidos, e CONSTANTES** (não crescem com o parque).
+1. **`revoke` de `public` antes de `anon`** (commit `aa984c9`): `anon` herda de `public`, e
+   revogar só de `anon` deixava `has_function_privilege('anon', …) = true`. Medido no banco.
+2. **`origin/main` estava 3 commits atrás** — a 9D nunca tinha sido pushada. Sem isso o Coolify
+   não teria o que publicar.
+3. **`busca_manutencao.sql` não tinha sido reaplicado**: `projetar_equipamento` em produção era a
+   versão da 9C, sem `vida_base` e sem chamar `projetar_calibracoes`. Resultado: `vida_base` nula
+   e `calibracoes_index` vazia **com a auditoria dizendo `convergiu: true`** — ela mede a projeção
+   contra o que a FUNÇÃO ATUAL produz, não contra o que a 9D passou a exigir.
+4. Roteiro de tela com a flag ligada: Dashboard, `/vencimentos`, `/equipamentos`, ficha,
+   histórico, relatório arquivado, `/livro-registro` e **rollback** — todos conferidos.
 
-| | |
-|---|---|
-| **9D.1** | `hidratarEssencial()` + `essencial.ts` (lista explícita). Não avança a marca d'água — uma leitura parcial que a movesse faria a próxima hidratação completa pular a organização inteira, sem erro na tela |
-| **9D.2** | `carregarEquipamento(tag)` já existia (9C). **Faltava uma passada:** `nr13_rel_<id>_<TAG>` é `POR_ID_E_TAG` e nenhuma lista de prefixos o alcança — o histórico abria curto e o relatório não era encontrado |
-| **9D.3** | Throttle de `lerTudo()` (60 s), que a v2 tinha perdido. Dentro da janela devolve o SNAPSHOT (a v1 devolvia `{}`, e tela que recebesse isso diria "conta vazia"); a fila NUNCA é throttled |
-| **9D.4** | `hidratarNoBoot()`, testado, com três respostas: `nenhuma` (Portal), `completa` (hoje), `essencial`. As 3 migrações de varredura **não rodam** no boot leve |
-| **9D.5** | Dashboard/Vencimentos pelo **agregado do servidor** (§15, trazido da 9F por decisão sua); `limiteTrial` conta pela projeção; `Layout` idem; `/livro-registro` hidrata sob demanda |
-| **9D.6** | Teste ponta a ponta: palco **idêntico** ao da hidratação integral. **Nenhum template tocado** |
-
-**A regra do vencimento agora tem UMA implementação e DUAS fontes** (`itemDeEquipamento` /
-`itemDeCalibracao`, funções puras sobre fatos). O servidor só CONTA e ORDENA. É a lição do
-portão P9.2, aplicada antes de o defeito acontecer.
+> **Depois de reaplicar SQL de projeção, confira o `prosrc`, não só o `convergiu`:**
+> ```sql
+> select proname, (prosrc like '%vida_base%'), length(prosrc)
+>   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+>  where n.nspname = 'public' and proname like 'projetar_%';
+> ```
 
 ---
 
 ## 4 · O QUE FALTA — comece por aqui
 
-### 4.1 · Aplicar o SQL da 9D (manual, no SQL Editor), **nesta ordem**
+### 4.1 · A decisão: subir `boot_v9` para organização de cliente
 
-1. `supabase/boot_v9_flag.sql` — cria a coluna `boot_v9` (nasce `false`) e `definir_boot_v9`.
-2. `supabase/vencimentos_agregado.sql` — colunas novas, `calibracoes_index`, `f9_mais_meses`
-   e `vencimentos_org()`.
-3. `supabase/busca_manutencao.sql` — **reaplicar** (projeta os campos novos e as calibrações).
-4. `supabase/busca_index_rpc.sql` — **reaplicar** (`nr13_calibracoes_` entra no despachante).
-5. Nas **duas** organizações já convergidas, refazer a projeção para as colunas novas
-   deixarem de ser nulas:
-   ```sql
-   select public.reiniciar_rebuild_busca('<ORG>');
-   select public.reconstruir_indice_busca('<ORG>', 1000);   -- repetir até processadas = 0
-   select public.auditar_projecao('<ORG>');
-   ```
+**PRÉ-CONDIÇÃO, por organização:** as migrações de segundo plano dela já concluíram (histórico
+por relatório, rubricas do livro, anexos). O boot leve NÃO as roda — elas varrem o cache, que
+deixa de ter a organização inteira. Confira **no servidor**:
 
-> **Sem o passo 5 o painel abre certo em equipamento novo e vazio nos antigos** — as colunas
-> novas nascem nulas nas linhas já projetadas.
+```sql
+select count(*) filter (where chave like 'nr13_rel_%')              as por_id,
+       count(*) filter (where chave like 'nr13_historico_indice_%') as indice,
+       count(*) filter (where chave = 'nr13_historico_relatorios')  as legado
+  from public.app_storage where org_id = '<ORG>' and deletado_em is null;
+```
 
-### 4.2 · Depois: publicar o front e ligar a flag numa organização
+Organização grande ainda não tem projeção: rodar o rebuild antes de ligar
+(`reiniciar_rebuild_busca` → `reconstruir_indice_busca` até `processadas = 0` → `auditar_projecao`).
 
-1. Deploy manual no Coolify, a partir do `main` (o `git push` sozinho não publica).
-2. Conferir que o bundle subiu — o script está em §4.4, agora com marcador da 9D.
-3. `select public.definir_boot_v9('<ORG>', true);` numa organização de teste.
-4. Roteiro de tela: Dashboard (KPIs e selo "dados de HH:MM"), `/vencimentos`, abrir um
-   equipamento, gerar um documento, `/livro-registro`, offline, e o rollback.
-
-> **PRÉ-CONDIÇÃO de ligar `boot_v9` numa organização:** as migrações de segundo plano dela já
-> concluíram (histórico por relatório, rubricas do livro, anexos). O boot leve NÃO as roda —
-> elas varrem o cache, que deixa de ter a organização. Confira no servidor, não no aparelho.
-
-### 4.3 · Decisões menores em aberto
+### 4.2 · Decisões menores em aberto
 
 | # | assunto | estado |
 |---|---|---|
-| 1 | Ligar `busca_v9` numa organização de verdade | provado e desligado desde 23/08. Faz sentido ligar junto com `boot_v9` |
+| 1 | Ligar `busca_v9` junto com `boot_v9` | provado e desligado desde 23/08 |
 | 2 | Cidade pesquisável na busca | decidido **não** agora |
-| 3 | 2 pendências antigas de sincronização em `teste@gmail.com` (14/08) | anteriores a este trabalho; ninguém olhou |
+| 3 | 2 pendências de sincronização em `teste@gmail.com` (14/08) | continuam ali; o selo mostra "2 falhas" |
 | 4 | Fluido do cartão com prefixo duplicado | cosmético, igual nos dois caminhos |
-| 5 | `nr13_rastreab_` é 396 dos 433 KB do boot | **fica**, com o motivo registrado na medição. A saída futura é parar de mandar o `pdfBase64` dentro do registro, não tirar a família do boot |
-| 6 | Aba do SQL Editor ficou aberta no Chrome | a extensão parou de responder ao fechar; feche na mão |
+| 5 | `nr13_rastreab_` é 396 dos 433 KB do boot | **fica**; a saída é parar de mandar `pdfBase64` no registro |
+| 6 | Modo offline do roteiro | **não exercitado** — precisa do DevTools, a extensão não controla |
+| 7 | Cota do Supabase | o painel exibe *"Grace period is over"*. Fora do escopo da Fase 9, decisão sua |
 
 ---
 
-## 4.4 · Os caminhos de acesso
+## 4.3 · Os caminhos de acesso
 
 > **Nenhuma senha, token ou chave está escrita aqui, de propósito.**
 
@@ -108,23 +94,30 @@ portão P9.2, aplicada antes de o defeito acontecer.
 | Coolify — deploy do front | `http://187.77.34.112:8000/project/ngg0g8oo0sw0wk8ggw8wso4o/environment/vwcgcgsogsswwck8w04c0c0w/application/ok40g4s8ko8wgssk8go00sg8` |
 | Repositório | `https://github.com/felipe1santos/nr13-app` · branch **`main`** |
 
-**Publicação:** front = manual no Coolify · SQL = manual no SQL Editor · Edge = manual no Dashboard.
+**Publicação:** front = manual no Coolify (botão *Redeploy*; ~95 s) · SQL = manual no SQL Editor ·
+Edge = manual no Dashboard. O `git push` sozinho não publica — mas sem ele o Coolify publica o
+commit velho.
 
-**Conferir que o bundle novo subiu** (console da aba do app):
+**Conferir que o bundle novo subiu** (console da aba do app) — o marcador é uma **string
+literal**, porque nome de função a minificação renomeia:
 
 ```js
 const html = await (await fetch('/', {cache:'no-store'})).text();
 const js = [...html.matchAll(/assets\/([\w.-]+\.js)/g)].map(m => m[1]);
 const t = await (await fetch('/assets/' + js[0], {cache:'no-store'})).text();
-console.log(js[0], t.includes('hidratarEssencial') ? 'BUNDLE DA 9D' : 'bundle ANTIGO');
+console.log(js[0], t.includes('boot_v9') ? 'BUNDLE DA 9D' : 'bundle ANTIGO');
 ```
 
-**Duas manhas do painel do Supabase:**
-1. A aba do SQL Editor só monta o Monaco quando está **VISÍVEL** (em segundo plano,
-   `document.visibilityState = 'hidden'` e `window.monaco` não existe). Um **screenshot**
-   força o render.
-2. Depois disso, `window.monaco.editor.getEditors()[0].setValue(sql)` escreve a consulta e
-   **Ctrl+Enter** executa — o clique no botão *Run* sozinho não pegou.
+**Três manhas do painel do Supabase:**
+1. A aba do SQL Editor só monta o Monaco quando está **VISÍVEL**. Um **screenshot** força o render.
+2. `window.monaco.editor.getEditors()[0].setValue(sql)` escreve, e **Ctrl+Enter** executa — o
+   clique no botão *Run* sozinho não pega. Antes do Ctrl+Enter, dar foco:
+   `document.querySelector('.monaco-editor textarea').focus()`.
+3. Script com `delete`/`drop` no texto abre o modal **"Potential issue detected"**. Confirmar em
+   *Run query* — clicar pelo DOM, porque as coordenadas da tela dançam.
+
+**Arquivo grande no editor sem digitar:** `fetch` do `raw.githubusercontent.com` pelo **SHA do
+commit** (a URL por branch fica em cache do CDN e serve a versão velha) e `setValue` no Monaco.
 
 ---
 
@@ -133,13 +126,12 @@ console.log(js[0], t.includes('hidratarEssencial') ? 'BUNDLE DA 9D' : 'bundle AN
 | o quê | onde |
 |---|---|
 | Estado de todas as fases | `docs/ESTADO-DAS-FASES.md` |
-| Plano da Fase 9 (9D marcada, 9E–9G abertas) | `docs/superpowers/plans/2026-08-22-fase9-task-level.md` |
+| Plano da Fase 9 (9D fechada, 9E–9G abertas) | `docs/superpowers/plans/2026-08-22-fase9-task-level.md` |
 | Desenho da Fase 9 | `docs/superpowers/specs/2026-08-22-fase9-escala-busca-design.md` |
-| **Teto do boot, medido** | `docs/medicoes/2026-08-24-9d1-teto-do-boot-producao.md` |
+| **9D em produção: SQL, defeito e roteiro** | `docs/medicoes/2026-08-25-9d-sql-aplicado-producao.md` |
+| Teto do boot, medido | `docs/medicoes/2026-08-24-9d1-teto-do-boot-producao.md` |
 | P9.2: tela, correção e regressão | `docs/medicoes/2026-08-23-p92-validacao-frontend-8d211c.md` |
-| ETAPA 1 e 2 em produção | `docs/medicoes/2026-08-23-etapa1-rls-stable-producao.md` · `…-etapa2-fase9-producao.md` |
-| SQL da 9D | `supabase/boot_v9_flag.sql` · `supabase/vencimentos_agregado.sql` |
-| Medição, para repetir | `scripts/fase9/medir-teto-boot.sql` |
+| SQL da 9D | `supabase/boot_v9_flag.sql` · `supabase/vencimentos_agregado.sql` · `busca_manutencao.sql` · `busca_index_rpc.sql` |
 
 ---
 
@@ -147,7 +139,7 @@ console.log(js[0], t.includes('hidratarEssencial') ? 'BUNDLE DA 9D' : 'bundle AN
 
 | desfazer | como | custo |
 |---|---|---|
-| O boot leve de uma organização | `select public.definir_boot_v9('<ORG>', false);` | instantâneo, nada se perde |
+| O boot leve de uma organização | `select public.definir_boot_v9('<ORG>', false);` | instantâneo, nada se perde — **testado em 25/08** |
 | A busca nova de uma organização | `select public.definir_busca_v9('<ORG>', false);` | idem |
 | O agregado de vencimentos | bloco ROLLBACK no fim de `vencimentos_agregado.sql` | as projeções são derivadas |
 | As funções da RLS voltarem a `VOLATILE` | `supabase/rls_funcoes_estaveis_rollback.sql` | instantâneo |

@@ -5,7 +5,7 @@
 **✅ 9A · 9B · 9C EM PRODUÇÃO — P9.2 FECHADO ✅ em 23/08/2026.**
 A flag `busca_v9` está **DESLIGADA nas 29 organizações**: a tela de todo mundo é a antiga.
 
-**9D a 9G continuam NÃO autorizadas** — a 9D começa em autorização separada.
+**9D EM PRODUÇÃO desde 25/08** (flag ligada só na org de teste). **9E a 9G continuam NÃO autorizadas.**
 Medições: [9A — peso](../../medicoes/2026-08-22-fase9a-peso-projecao.md) · [9B — projeção na RPC](../../medicoes/2026-08-22-fase9b-projecao-na-rpc.md) · [9C — índices](../../medicoes/2026-08-22-fase9c-indices.md) · [9C — tela](../../medicoes/2026-08-22-fase9c-tela.md)
 
 Desenho arquitetural **APROVADO** pelo dono em 22/08/2026, commit `8e82cf6`:
@@ -715,6 +715,13 @@ recém-consultado.
 | 23/08 | Prova sintética em produção com razão social ≠ nome fantasia: **`PARIDADE OK`**, zero resíduo. Reprojeção das duas orgs piloto: 4 lotes, **18,1 ms** no servidor | ✅ |
 | 23/08 | Regressão curta: **4/4 cartões idênticos** OFF × ON · ficha 466 = 466 nós · busca por TAG, fabricante e nome do cliente · cidade não pesquisa, como projetado · offline curto com a cidade vinda do catálogo local | ✅ |
 | 23/08 | **🚪 P9.2 FECHADO ✅ pelo dono.** Flag `busca_v9` de volta a OFF nas 29 organizações. **9D não iniciada** | ✅ |
+| 24/08 | **9D escrita e commitada** (9D.1…9D.6), flag `boot_v9` ainda inexistente no banco; suíte 1298/1298 | ✅ |
+| 25/08 | `revoke` de `vencimentos_org`/`f9_mais_meses` corrigido para `from public, anon` — `anon` HERDA de `public`, e o banco respondia `has_function_privilege(anon,…) = true` (`aa984c9`) | ✅ |
+| 25/08 | **`origin/main` estava 3 commits atrás** — a 9D nunca fora pushada. Push feito; sem ele o Coolify publicaria o commit velho | ✅ |
+| 25/08 | ⛔ **`busca_manutencao.sql` não tinha sido reaplicado:** `projetar_equipamento` em produção era a versão da 9C (8.177 bytes), sem `vida_base` e sem chamar `projetar_calibracoes` — `vida_base` nula e `calibracoes_index` vazia **com `auditar_projecao` dizendo `convergiu: true`** | ⚠️ |
+| 25/08 | SQL da 9D aplicado inteiro (`boot_v9_flag`, `vencimentos_agregado`, `busca_manutencao` 9D, despachante com `nr13_calibracoes_`) e projeção refeita nas 2 orgs: `convergiu: true`, `pendencias: 0` | ✅ |
+| 25/08 | Front publicado no Coolify (`aa984c9`). Marcador de bundle do ponto de retomada corrigido: usar a **string literal** `boot_v9`, não o nome de função `hidratarEssencial` (a minificação renomeia) | ✅ |
+| 25/08 | **`boot_v9` LIGADA em `99f642d3…8d211c`** (org de teste). Roteiro: Dashboard, /vencimentos, /equipamentos, ficha, histórico (2 relatórios), relatório arquivado (13 págs), /livro-registro, **rollback** — paridade OK. Offline **não** exercitado | ✅ |
 
 ---
 
@@ -771,9 +778,10 @@ recém-consultado.
 > (§11 correção · §12 regressão curta) · [ETAPA 2](../../medicoes/2026-08-23-etapa2-fase9-producao.md)
 > · [ETAPA 1](../../medicoes/2026-08-23-etapa1-rls-stable-producao.md)
 >
-> **Próximo passo:** a **9D** — o boot deixa de esperar a organização inteira. **Não iniciada e
-> não autorizada**; começa em autorização separada do dono.
+> **Próximo passo:** a 9D está **em produção desde 25/08**, ligada só na organização de teste
+> (ver `medicoes/2026-08-25-9d-sql-aplicado-producao.md`). A decisão em aberto é subir `boot_v9`
+> para organização de cliente, e em que ritmo.
 >
-> **Proibições que seguem valendo:** não iniciar 9D sem autorização · não ligar `busca_v9` para
-> outras organizações · não rodar backfill global · não migrar `/relatorios` · não tocar nos 40+
+> **Proibições que seguem valendo:** não ligar `boot_v9` para organização de cliente sem a
+> pré-condição do §4.1 do ponto de retomada · não ligar `busca_v9` para outras organizações · não rodar backfill global · não migrar `/relatorios` · não tocar nos 40+
 > templates · não iniciar a Fase 10 · não iniciar PDF vetorial.
