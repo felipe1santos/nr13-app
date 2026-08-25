@@ -255,13 +255,106 @@ duplicar e sem pular · 30 na mesma data · 10 sem data, todos na última págin
 inteiro · só dígitos · `%` escapado · período de um dia · sem-data fora do período · contagem
 com teto · e os dois planos usando índice.
 
-### 6.9 · O que continua NÃO medido
+### 6.9 · DOM, heap e long tasks
 
-**DOM, heap e long tasks** do navegador. Exigem a tela rodando com massa real, o que este
-benchmark de banco não cobre. A virtualização é a mesma da 9C, cujo ganho está em
-`2026-08-22-fase9c-tela.md`.
+Medidos no navegador, na tela real — ver §7.
 
-## 7 · Estado e rollback
+## 7 · GATE LOCAL — a tela real no navegador, com acervo grande
+
+**25/08/2026.** `RelatoriosV9` rodando contra o Supabase local (`npm run dev` + `.env.local`), com
+uma organização de laboratório e a flag `busca_v9` ligada só nela. Massa crescida em degraus, **só
+metadados** — nenhum PDF criado.
+
+### 7.1 · A PROVA CENTRAL
+
+| relatórios NO BANCO | linhas no DOM | nós DOM (total) | nós da tabela | heap | PDF requests |
+|---|---|---|---|---|---|
+| **1.000** | **16** | 463 | 203 | 29,2 MB | **0** |
+| **10.000** | **16** | 453 | 203 | 30,7 MB | **0** |
+| **50.000** | **16** | 469 | 203 | 30,9 MB | **0** |
+
+> **50.000 relatórios no banco não são 50.000 no DOM.** O DOM ficou em **16 linhas** e ~460 nós
+> nos três degraus — proporcional à JANELA visível, não ao acervo. O heap variou 1,7 MB entre
+> 1.000 e 50.000 (5,8 %), dentro do ruído de coleta de lixo.
+>
+> Para comparação, o que a Fase 8 mediu na tela antiga de equipamentos: **42.000 nós**.
+
+**Carga inicial em 50.000:** FCP **740 ms**, DOMContentLoaded **674 ms**.
+
+### 7.2 · Interações, todas com 50.000 no banco
+
+| ação | resultado | linhas DOM | heap | PDF |
+|---|---|---|---|---|
+| abrir `/relatorios` | "mais de 1.000 resultados" | 16 | 30,9 MB | **0** |
+| buscar TAG `VP-0250` | **100 resultados**, todas as linhas com a TAG certa | 16 | 31,3 MB | **0** |
+| código inteiro `REL-178640012345` | **1 resultado** | 1 | 32,6 MB | **0** |
+| **só os dígitos** `178640012345` | **o MESMO 1 resultado** | 1 | 31,6 MB | **0** |
+| período `2025-03-01` a `2025-03-31` | **750 resultados**, 1ª data 31/03/2025 | 16 | 30,5 MB | **0** |
+| termo inexistente | "Nenhum relatório encontrado para *zzzznaoexiste*" + Limpar busca | 0 | 32,0 MB | **0** |
+| limpar busca | volta à lista completa | 16 | 32,0 MB | **0** |
+| rolagem profunda (2 blocos de 10 cliques) | páginas seguintes carregam | **16** | 36,1 MB | **0** |
+
+**Long tasks:** 1 durante toda a sessão, de **55 ms** — abaixo do limiar de 50 ms por pouco, e
+nenhuma durante busca ou digitação.
+
+**Custo de uma busca:** **2 requisições** (`buscar_relatorios` + `contar_relatorios`) e **24 KB**.
+Limpar a busca custa o mesmo. Não há terceira chamada escondida.
+
+### 7.3 · Estado na URL
+
+| ação | URL |
+|---|---|
+| buscar TAG | `/relatorios?q=VP-0250` |
+| período | `/relatorios?de=2025-03-01&ate=2025-03-31` |
+| limpar | `/relatorios` |
+
+Recarregar, voltar e compartilhar preservam a busca — o estado É a URL, não memória do componente.
+
+### 7.4 · Paridade visual conferida na tela
+
+Linha real, com 50.000 no banco:
+
+```
+Relatorio_Inspecao_Periodica_VP-499.pdf | VP-0499 | INSPEÇÃO INICIAL | 26/09/2022 | 27/09/2027
+```
+
+TAG, nome, tipo (com o selo), criação, validade e a ação de visualizar — todos presentes.
+
+**E o caso que mais importava:**
+
+```
+Relatorio_Inspecao_Periodica_VP-340.pdf | VP-0340 | INSPEÇÃO PERIÓDICA | Sem data | 23/10/2027
+```
+
+> **Nenhuma sentinela `01/01/0001` aparece em lugar nenhum da tela** — conferido por varredura do
+> texto inteiro do documento em todos os cenários, inclusive com 2.500 relatórios sem data na
+> massa. O usuário lê **"Sem data"**.
+
+### 7.5 · A regra do PDF, no navegador
+
+**Zero** requisição a `.pdf` ou a `storage/v1/object` em **todos** os cenários acima: abrir,
+buscar, limpar, filtrar por período, paginar e rolar. A instrumentação observou `fetch` e o
+Resource Timing durante a sessão inteira.
+
+O `pdfRef` viaja como texto na linha; só o clique em visualizar o resolveria.
+
+### 7.6 · Como reproduzir
+
+```bash
+docker exec -i supabase_db_nr13-app psql -U postgres -d postgres -X \
+  -v n=50000 -f - < scripts/fase9/lab-9e-massa.sql
+npm run dev      # .env.local já aponta para o Supabase local
+# login: lab9e@local.test / lab123456
+```
+
+> **Uma armadilha que custou tempo:** inserir direto em `auth.users` deixa os campos de token
+> como `NULL`, e o GoTrue (que os lê como `string` em Go) responde
+> **500 "Database error querying schema"** no login — uma mensagem que não diz nada sobre a
+> causa. O script já corrige com `update … = ''`.
+
+---
+
+## 8 · Estado e rollback
 
 | | |
 |---|---|
