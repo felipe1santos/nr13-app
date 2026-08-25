@@ -1,4 +1,4 @@
-# PONTO DE RETOMADA — 25/08/2026, fim do dia
+# PONTO DE RETOMADA — 25/08/2026, fim do dia (P9.3 FECHADO)
 
 > **Leia só este arquivo para voltar ao trabalho.** Ele diz onde paramos, o que está de pé em
 > produção, e qual é a próxima decisão. Nada aqui depende de lembrar da conversa.
@@ -7,8 +7,9 @@
 
 ## 1 · Onde paramos, em uma linha
 
-**A 9D está inteira em produção e LIGADA em uma organização — a de teste.** O que falta é
-decidir se ela sobe para as organizações de cliente, e em que ritmo.
+**A 9D está CONCLUÍDA e o P9.3 foi FECHADO pelo dono em 25/08.** `boot_v9` está ligada em duas
+organizações — a de teste e o piloto real `92a28bff…` (gabriel.dadona). A próxima etapa
+autorizada é a **9E** (`/relatorios` em escala).
 
 ---
 
@@ -45,31 +46,49 @@ decidir se ela sobe para as organizações de cliente, e em que ritmo.
    conectividade por `navigator.onLine`, que ficou `true` a sessão inteira com a rede morta.
    Detalhes em `medicoes/2026-08-25-9d-prova-offline-e-dois-defeitos.md`.
 
-> **Duas armadilhas que já custaram tempo, e voltarão:**
+> **QUATRO ARMADILHAS que já custaram tempo, e voltarão. Leia antes de auditar qualquer coisa.**
 >
-> 1. **O service worker serve o bundle ANTIGO depois do deploy.** Conferir o bundle sempre por
->    fora do navegador (`curl https://app.nr13sistema.com.br/ | grep assets`), nunca só pela aba.
-> 2. **Depois de reaplicar SQL de projeção, confira o `prosrc`, não só o `convergiu`:**
-> ```sql
-> select proname, (prosrc like '%vida_base%'), length(prosrc)
->   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
->  where n.nspname = 'public' and proname like 'projetar_%';
-> ```
+> 1. **O service worker serve o bundle ANTIGO depois do deploy** (`nr13-cache-v8`, cache-first em
+>    `/assets/`). Medido duas vezes. Conferir SEMPRE por fora do navegador:
+>    `curl -s https://app.nr13sistema.com.br/ | grep -o 'assets/[A-Za-z0-9._-]*.js'`.
+> 2. **`auditar_projecao` converge com função de projeção VELHA no banco.** Ela compara a projeção
+>    com o que a FUNÇÃO ATUAL produz, não com o que a etapa nova exige. Depois de reaplicar SQL de
+>    projeção, conferir o `prosrc`:
+>    `select proname, (prosrc like '%vida_base%'), length(prosrc) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and proname like 'projetar_%';`
+> 3. **Em SQL, `_` é CORINGA.** `like 'nr13_rel_%'` casa também `nr13_relatorio_meta_atual` — o que
+>    fez uma auditoria acusar 4 relatórios contra 3 na projeção e PARECER perda de dado. Use
+>    `left(chave, 9) = 'nr13_rel_'` ou `like ... escape`. O código usa `startsWith` e está correto.
+> 4. **`navigator.onLine === true` não significa nada.** Só o `false` é confiável. Ficou `true` uma
+>    sessão inteira com 50 requisições falhando. Conectividade se decide pelo ERRO REAL da última
+>    tentativa (`conectividade.ts`), nunca por essa propriedade sozinha.
 
 ---
 
 ## 4 · O QUE FALTA — comece por aqui
 
-### 4.1 · A decisão: expandir o `boot_v9` além do piloto
+### 4.1 · A PRÓXIMA ETAPA: 9E — `/relatorios` em escala
+
+**Autorizada em 25/08.** Gates no task-level, seção 9E: busca server-side (código, TAG, período),
+metadados leves, keyset `emissao desc, relatorio_id`, contador que NÃO parseia o registro pesado,
+estado na URL, **PDF só no clique** e — o critério que manda — **zero PDF baixado durante a
+busca**. Preservar os PDFs arquivados e seus SHA-256; não regenerar histórico. Flag por tela.
+
+**Proibido sem nova autorização:** 9F, 9G, PDF vetorial, e habilitar `cmam.caldeiras`.
+
+### 4.1-bis · A expansão do `boot_v9` (gradual, autorização separada)
 
 > **O piloto em organização cliente JÁ FOI FEITO** (25/08, `92a28bff…`, validação
 > administrativa read-only): paridade 3/3 campo a campo, boot de **20 KB contra 354 KB**,
 > rollback conferido. Registro em `medicoes/2026-08-25-9d-piloto-org-cliente.md`.
 >
-> **P9.3 NÃO foi fechado** — aguarda decisão formal do dono, junto da estratégia de expansão.
+> **P9.3 FECHADO ✅ em 25/08.** A evidência foi aceita como DISTRIBUÍDA: laboratório (escala,
+> essencial constante, testes), organização de teste (interface real, offline, fila, reconexão,
+> retentativa, rollback) e piloto real (rebuild, paridade, boot leve, rollback).
 >
-> **A organização PAGANTE (`06f84f2e`, cmam.caldeiras, 39 equipamentos) ainda não recebeu a
-> flag** e é a única com massa real. Ela é a próxima decisão de risco.
+> **`cmam.caldeiras` (`06f84f2e…`) NÃO deve ser habilitada** — decisão do dono em 25/08. É a
+> única pagante, a maior, e a do incidente v1×v2; a organização de maior risco não vira
+> requisito artificial para fechar um portão. Expansão a clientes: **gradual, com autorização
+> separada, uma de cada vez**.
 
 **PRÉ-CONDIÇÃO, por organização:** as migrações de segundo plano dela já concluíram (histórico
 por relatório, rubricas do livro, anexos). O boot leve NÃO as roda — elas varrem o cache, que

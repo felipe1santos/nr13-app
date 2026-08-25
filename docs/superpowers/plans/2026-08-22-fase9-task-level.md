@@ -5,7 +5,9 @@
 **✅ 9A · 9B · 9C EM PRODUÇÃO — P9.2 FECHADO ✅ em 23/08/2026.**
 A flag `busca_v9` está **DESLIGADA nas 29 organizações**: a tela de todo mundo é a antiga.
 
-**9D EM PRODUÇÃO desde 25/08** (flag ligada só na org de teste). **9E a 9G continuam NÃO autorizadas.**
+**9D CONCLUÍDA · P9.3 FECHADO ✅ (25/08/2026).** `boot_v9` ON em DUAS organizações: a de teste e o
+piloto `92a28bff…` (gabriel.dadona). **`cmam.caldeiras` NÃO habilitada, por decisão do dono.**
+**9E AUTORIZADA** (25/08). **9F e 9G continuam NÃO autorizadas.**
 Medições: [9A — peso](../../medicoes/2026-08-22-fase9a-peso-projecao.md) · [9B — projeção na RPC](../../medicoes/2026-08-22-fase9b-projecao-na-rpc.md) · [9C — índices](../../medicoes/2026-08-22-fase9c-indices.md) · [9C — tela](../../medicoes/2026-08-22-fase9c-tela.md)
 
 Desenho arquitetural **APROVADO** pelo dono em 22/08/2026, commit `8e82cf6`:
@@ -727,6 +729,7 @@ recém-consultado.
 | 25/08 | Reprova em produção com o bundle novo: fila **3→2** sem clique e sem evento `online` (~74 s), servidor 9→10 com `pmtaAdotadaMpa 0.91`, projeção no mesmo timestamp, KPIs em `—` offline, auditoria **`convergiu: true`** nas 2 orgs, projeto **Healthy** | ✅ |
 | 25/08 | Os ~74 s da retentativa explicados e travados por teste: o relógio já corria durante a queda; teto real = JANELA + TICK ≈ 49 s. Sem bug de timer, sem backoff, ciclo perpétuo, evidência persistida em disco. Suíte **1320** | ✅ |
 | 25/08 | **PILOTO em organização CLIENTE** (`92a28bff…`, escolhida pelo dono): rebuild da projeção (3/8/3, `convergiu: true`), paridade OFF×ON **3/3 campo a campo**, boot **20 KB × 354 KB** (5,6 %), isolamento (1→2 orgs, `busca_v9` intocada), rollback conferido e religada. **P9.3 NÃO fechado** | ✅ |
+| 25/08 | **🚪 P9.3 FECHADO ✅ pelo dono. 9D CONCLUÍDA.** Evidência aceita como DISTRIBUÍDA entre laboratório (escala, essencial constante, testes), organização de teste (interface real, offline, fila, reconexão, rollback) e piloto real (rebuild, paridade, boot leve, rollback). **`cmam.caldeiras` NÃO habilitada** — a organização de maior risco não vira requisito artificial para fechar um portão. Expansão a clientes: gradual, com autorização separada. **9E autorizada** | ✅ |
 
 ---
 
