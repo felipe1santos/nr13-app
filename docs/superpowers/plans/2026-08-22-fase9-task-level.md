@@ -443,13 +443,15 @@ lista leve → abrir TAG → carregarEquipamento(tag) → semearCache()
 
 ### Tarefas
 
-- [ ] **9D.1** — `hidratarEssencial()` + medir o teto real
-- [ ] **9D.2** — `carregarEquipamento(tag)` + `semearCache()`
-- [ ] **9D.3** — **Throttle de `lerTudo()`** (a regressão da Fase 8)
-- [ ] **9D.4** — Barreira do boot passa a esperar só o essencial, sob flag `boot_v9`
-- [ ] **9D.5** — Cada consumidor do §1.2: `LivroRegistro`, `Vencimentos`, `Dashboard`, `Layout`,
-      `limiteTrial` — um por vez, com teste
-- [ ] **9D.6** — Teste ponta a ponta da estratégia de compatibilidade
+- [x] **9D.1** — `hidratarEssencial()` + teto real medido: **433 KB, constante** (`docs/medicoes/2026-08-24-9d1-teto-do-boot-producao.md`)
+- [x] **9D.2** — `carregarEquipamento(tag)` (veio da 9C) + a passada que FALTAVA: `nr13_rel_<id>_<TAG>` pelo índice
+- [x] **9D.3** — **Throttle de `lerTudo()`**, janela de 60 s; snapshot dentro da janela, fila nunca throttled
+- [x] **9D.4** — `hidratarNoBoot()` sob `boot_v9`; as 3 migrações de varredura NÃO rodam no boot leve
+- [x] **9D.5** — Cada consumidor do §1.2. `Dashboard`/`Vencimentos` ganharam o AGREGADO do §15,
+      trazido da 9F por decisão do dono (a tela de entrada mostraria zero em silêncio);
+      `limiteTrial` conta pela projeção (o teto do trial sumia); `Layout` pela mesma fonte;
+      `LivroRegistro` hidrata SOB DEMANDA — é a única que cruza `nr13_livro_` de todo equipamento
+- [x] **9D.6** — `bootLeve.pontaAPonta.test.ts`: palco IDÊNTICO ao da hidratação integral
 
 ### Testes
 
