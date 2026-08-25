@@ -991,3 +991,130 @@
   border-color: var(--amber);
 }
 .barra-btn-pdf:disabled { opacity: 0.65; cursor: not-allowed; }
+
+/* ===========================================================================
+   Fase 9 · 9E — /relatorios com busca
+   ===========================================================================
+   A busca fica VISÍVEL, no topo, nunca atrás de um botão "Filtrar": é o erro
+   que a auditoria da Fase 8 mediu em /equipamentos.
+   ------------------------------------------------------------------------ */
+
+.rel-cabecalho-busca {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.rel-filtros-painel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--surface-2, #f6f7f9);
+  border: 1px solid var(--linha, #e3e6ea);
+  border-radius: 10px;
+}
+
+.rel-filtros-painel label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted, #6b7280);
+}
+
+.rel-filtros-painel input,
+.rel-filtros-painel select {
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid var(--linha, #e3e6ea);
+  border-radius: 8px;
+  font-size: 13px;
+  background: #fff;
+}
+
+/* A "tabela" é grade, não <table>: a virtualização precisa de linhas que possam
+   nascer e morrer sem quebrar a estrutura — o que <tbody> não permite. */
+.rel-tabela-v9 {
+  border: 1px solid var(--linha, #e3e6ea);
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.rel-linha {
+  display: grid;
+  grid-template-columns: minmax(180px, 2.4fr) minmax(110px, 1fr) minmax(120px, 1fr)
+    minmax(92px, 0.8fr) minmax(92px, 0.8fr) 64px;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--linha, #eef0f3);
+  font-size: 13px;
+}
+
+.rel-linha-cabecalho {
+  background: var(--surface-2, #f6f7f9);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--muted, #6b7280);
+}
+
+.rel-cel-nome {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.rel-cel-acoes {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.rel-vazio,
+.rel-aviso-erro,
+.rel-rodape-carregando {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 28px 16px;
+  text-align: center;
+  color: var(--muted, #6b7280);
+  font-size: 13px;
+}
+
+.rel-aviso-erro {
+  color: var(--crit, #b42318);
+  background: var(--crit-bg, #fef3f2);
+  border: 1px solid var(--crit-bg, #fee4e2);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.rel-rodape-carregando {
+  padding: 14px;
+}
+
+/* Celular: a grade vira cartão, com o rótulo antes do valor. */
+@media (max-width: 720px) {
+  .rel-linha-cabecalho {
+    display: none;
+  }
+  .rel-linha {
+    grid-template-columns: 1fr;
+    gap: 4px;
+    padding: 12px 14px;
+  }
+  .rel-cel-acoes {
+    justify-content: flex-start;
+    margin-top: 6px;
+  }
+}

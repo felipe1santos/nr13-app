@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import RelatoriosV9 from '../features/relatorios/RelatoriosV9';
 import { usePalcoDocumento } from '../features/documentos/usePalcoDocumento';
 import { paramsSomenteLeitura, travarIframeSomenteLeitura } from '../features/documentos/somenteLeituraDoc';
 import { drenarPonte } from '../services/ponteTemplates';
-import { ler, salvar } from '../services/storage';
+import { ler, salvar, buscaV9Ativa } from '../services/storage';
 import RecusaPalco from '../components/RecusaPalco';
 import { listarEquipamentos } from '../features/equipamento/equipamentoService';
 import type { EquipamentoResumo } from '../features/equipamento/tipos';
@@ -116,7 +118,7 @@ function metaPadrao(tipo: TipoInspecao): RelatorioMeta {
 }
 
 
-export default function Relatorios() {
+function RelatoriosLegado() {
   const [tela, setTela] = useState<Tela>('equipamentos');
   const [equipamentos, setEquipamentos] = useState<EquipamentoResumo[]>([]);
   const [tag, setTag] = useState('');
@@ -1143,5 +1145,39 @@ export default function Relatorios() {
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Fase 9 · 9E — o interruptor da flag `busca_v9`, por TELA.
+ *
+ * DESLIGADA (padrão, e é o padrão de propósito): `RelatoriosLegado` acima, byte
+ * a byte como sempre foi — escolhe o equipamento, hidrata, e o histórico daquela
+ * TAG aparece sem nenhum campo de busca.
+ * LIGADA: `RelatoriosV9`, com busca global no servidor sobre a projeção.
+ *
+ * ROLLBACK É DESLIGAR A FLAG. Nada precisa ser convertido de volta: a projeção é
+ * derivada, os PDFs arquivados nunca foram tocados, e `app_storage` continua
+ * sendo a verdade.
+ *
+ * OS DOIS CAMINHOS NÃO FICAM PARA SEMPRE. Quando o rollout terminar, o legado
+ * sai — e é por isso que `RelatoriosV9` não importa nada deste arquivo: a
+ * remoção não pode derrubar a tela nova junto.
+ */
+export default function Relatorios() {
+  // A flag é decisão de SESSÃO, lida uma vez no login. Alternar no meio faria a
+  // lista trocar de fonte com cursores diferentes, e o usuário veria item
+  // repetir ou sumir durante a rolagem.
+  const [modo] = useState<'v9' | 'legado'>(() => (buscaV9Ativa() ? 'v9' : 'legado'));
+  const navigate = useNavigate();
+
+  if (modo === 'legado') return <RelatoriosLegado />;
+
+  return (
+    <RelatoriosV9
+      // Abrir o relatório é o ÚNICO caminho que resolve o PDF. A tela legada já
+      // sabe fazer isso a partir da TAG; a V9 leva o usuário até lá.
+      aoAbrir={(r) => navigate(`/relatorios?tag=${encodeURIComponent(r.tag)}&rel=${encodeURIComponent(r.relatorioId)}`)}
+    />
   );
 }
