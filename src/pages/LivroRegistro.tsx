@@ -3,7 +3,8 @@ import RecusaPalco from '../components/RecusaPalco';
 import { useEffect, useMemo, useState } from 'react';
 import { Icone } from '../components/Icone';
 import PaginaA4 from '../components/PaginaA4';
-import { ler, listarChavesComPrefixo } from '../services/storage';
+import { ler, lerTudo, listarChavesComPrefixo } from '../services/storage';
+import { bootV9Ativo } from '../services/flag';
 import type { InfoEquipamento } from '../features/equipamento/tipos';
 import { listarFuncionarios } from '../features/cadastros/cadastroService';
 import { adicionarEntradaLivroManual } from '../features/relatorios/relatoriosService';
@@ -237,6 +238,34 @@ const FORM_OCORRENCIA_VAZIO: FormOcorrencia = {
 export default function LivroRegistro() {
   // Estado (e não useMemo) para poder recarregar a timeline após salvar uma ocorrência manual.
   const [linhas, setLinhas] = useState<LinhaLivro[]>(() => montarLinhas());
+  const [hidratando, setHidratando] = useState(false);
+
+  // Fase 9 · esta tela é a ÚNICA que ainda precisa da organização inteira.
+  //
+  // Ela cruza `nr13_info_` com `nr13_livro_<TAG>` de cada equipamento, e o
+  // livro não tem projeção — dar uma a ele é entrega da 9F. Sob `boot_v9` o
+  // cache não tem nada disso, e a tela abriria VAZIA, que é o defeito que a
+  // Fase 9 existe para combater.
+  //
+  // Então aqui, e só aqui, a hidratação integral acontece SOB DEMANDA, com o
+  // usuário vendo que está carregando. O boot continua leve: quem nunca abre o
+  // livro nunca paga por ele.
+  useEffect(() => {
+    if (!bootV9Ativo()) return;
+    let vivo = true;
+    setHidratando(true);
+    void lerTudo()
+      .then(() => {
+        if (!vivo) return;
+        setLinhas(montarLinhas());
+      })
+      .finally(() => {
+        if (vivo) setHidratando(false);
+      });
+    return () => {
+      vivo = false;
+    };
+  }, []);
   const [tagAberta, setTagAberta] = useState<string | null>(null);
   const [preview, setPreview] = useState<{ tag: string; doc: DocPreview } | null>(null);
   const [imprimindo, setImprimindo] = useState(false);
@@ -959,7 +988,11 @@ export default function LivroRegistro() {
           <div className="fj-empty">
             <div className="fj-empty-ic"><Icone nome="book" tam={22} /></div>
             <div className="fj-empty-title">
-              {linhas.length === 0 ? 'Nenhum equipamento cadastrado' : 'Nenhum livro de registro gerado ainda'}
+              {hidratando
+                ? 'Carregando os livros de registro…'
+                : linhas.length === 0
+                  ? 'Nenhum equipamento cadastrado'
+                  : 'Nenhum livro de registro gerado ainda'}
             </div>
             O livro de registro de cada equipamento é criado automaticamente na primeira inspeção
             (com termo de abertura) e recebe uma anotação a cada relatório salvo. Ocorrências manuais

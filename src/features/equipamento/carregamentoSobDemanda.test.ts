@@ -82,6 +82,8 @@ beforeEach(async () => {
     linha(`nr13_fotos_${TAG}`, [{ id: 1, src: '', isCapa: true }]),
     linha(`nr13_calibracoes_${TAG}`, [{ id: 'cal-9' }]),
     linha('nr13_calibracao_item_cal-9', { id: 'cal-9', instrumento: 'Manômetro' }),
+    linha(`nr13_historico_indice_${TAG}`, [{ id: 'r-77', codigo: 'REL-77', tagVaso: TAG }]),
+    linha(`nr13_rel_r-77_${TAG}`, { id: 'r-77', tagVaso: TAG, documentos: [] }),
     // Chave de OUTRO equipamento: não pode vir junto.
     linha('nr13_info_OUTRO-1', { tag: 'OUTRO-1', tipo: 'caldeira' }),
   ];
@@ -123,6 +125,17 @@ describe('carregarEquipamento — a ponte que dispensa reescrever os templates',
     // sairia em branco.
     await carregarEquipamento(TAG);
     expect(ler<{ id: string }>('nr13_calibracao_item_cal-9')?.id).toBe('cal-9');
+  });
+
+  it('traz os RELATÓRIOS salvos, que têm id próprio antes da TAG', async () => {
+    // `nr13_rel_<id>_<TAG>` não está em `POR_TAG` — a família é `POR_ID_E_TAG`,
+    // porque a Edge do Portal filtra por `endsWith('_'+tag)`. Sem uma passada
+    // guiada pelo ÍNDICE, o histórico do equipamento abriria curto: o índice
+    // lista os relatórios, o registro de cada um não estaria no cache, e
+    // visualizar/imprimir cairia em "relatório não encontrado".
+    await carregarEquipamento(TAG);
+
+    expect(ler<{ id: string }>(`nr13_rel_r-77_${TAG}`)?.id).toBe('r-77');
   });
 
   it('o PALCO acha as chaves da TAG — o documento monta', async () => {

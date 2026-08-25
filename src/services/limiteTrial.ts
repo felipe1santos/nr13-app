@@ -19,6 +19,8 @@
  */
 import { isTrial } from './auth';
 import { listarChavesComPrefixo } from './storage';
+import { bootV9Ativo } from './flag';
+import { contar } from './buscaIndex';
 
 export const LIMITE_EQUIPAMENTOS_TRIAL = 3;
 
@@ -40,9 +42,33 @@ export function equipamentosCadastrados(): number {
   return listarChavesComPrefixo('nr13_info_').length;
 }
 
+/**
+ * O teto, valendo também sob o BOOT LEVE (Fase 9 · `boot_v9`).
+ *
+ * `equipamentosCadastrados()` conta chaves do cache, e com o boot leve o cache
+ * não tem a organização: a conta daria ZERO e o teto sumiria sem que nada na
+ * tela mudasse. Um gate que desaparece em silêncio é pior que um gate que não
+ * existe — ninguém vai procurar por ele.
+ *
+ * Só consulta o servidor quando há teto para valer (conta de teste): numa conta
+ * paga o limite é infinito, e pagar uma ida à rede para concluir "pode" seria
+ * desperdício em todo cadastro.
+ */
+export async function podeCriarEquipamentoAgora(): Promise<ResultadoLimite> {
+  if (!isTrial()) return { permitido: true, atual: 0, limite: Infinity, motivo: '' };
+  if (!bootV9Ativo()) return podeCriarEquipamento();
+
+  const { total } = await contar();
+  return avaliarTeto(total);
+}
+
 export function podeCriarEquipamento(): ResultadoLimite {
   const atual = equipamentosCadastrados();
   if (!isTrial()) return { permitido: true, atual, limite: Infinity, motivo: '' };
+  return avaliarTeto(atual);
+}
+
+function avaliarTeto(atual: number): ResultadoLimite {
 
   if (atual >= LIMITE_EQUIPAMENTOS_TRIAL) {
     return {

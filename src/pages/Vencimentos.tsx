@@ -1,10 +1,10 @@
-import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icone } from '../components/Icone';
 import CalendarioVencimentos from '../components/CalendarioVencimentos';
-import { resumoKpis, textoPrazo, useVencimentos } from '../services/vencimentos';
+import { textoPrazo } from '../services/vencimentos';
 import type { ItemVencimento } from '../services/vencimentos';
-import { listarChavesComPrefixo } from '../services/storage';
+import { usePainelVencimentos } from '../services/vencimentosServidor';
+import SeloPainel from '../components/SeloPainel';
 import './dashboard-novo.css';
 import { rotaEquipamento } from '../app/rotas';
 
@@ -25,9 +25,9 @@ function BadgeStatus({ status }: { status: ItemVencimento['status'] }) {
 
 export default function Vencimentos() {
   const navigate = useNavigate();
-  const itens = useVencimentos();
-  const totalEquip = listarChavesComPrefixo('nr13_info_').length;
-  const kpis = useMemo(() => resumoKpis(itens, totalEquip), [itens, totalEquip]);
+  const painel = usePainelVencimentos();
+  const itens = painel.itens;
+  const kpis = painel.kpis;
 
   function irParaItem(it: ItemVencimento) {
     navigate(rotaEquipamento(it.pertenceA ?? it.tag));
@@ -35,6 +35,7 @@ export default function Vencimentos() {
 
   return (
     <div className="dash-page">
+      <SeloPainel painel={painel} />
       <div className="fj-kpi-row">
         <div className="fj-kpi">
           <div>
@@ -71,12 +72,15 @@ export default function Vencimentos() {
         <div className="fj-kpi">
           <div>
             <div className="fj-kpi-label">Taxa de conformidade</div>
+            {/* Indefinida = o painel não pôde ser lido. 100 % por omissão seria
+                a mentira mais cara desta tela. */}
             <div className="fj-kpi-value">
-              {kpis.conformidade.toLocaleString('pt-BR')}
+              {kpis.conformidade === undefined ? '—' : kpis.conformidade.toLocaleString('pt-BR')}
               <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--muted)' }}>%</span>
             </div>
-            <div className={`fj-kpi-delta ${kpis.conformidade >= 90 ? 'up' : 'down'}`}>
-              <Icone nome="trendup" tam={11} /> itens com prazo em dia
+            <div className={`fj-kpi-delta ${(kpis.conformidade ?? 0) >= 90 ? 'up' : 'down'}`}>
+              <Icone nome="trendup" tam={11} />{' '}
+              {kpis.conformidade === undefined ? 'sem resposta do servidor' : 'itens com prazo em dia'}
             </div>
           </div>
           <div className="fj-kpi-icon" style={{ background: 'var(--ok-bg)', color: 'var(--ok)' }}>

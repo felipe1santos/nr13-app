@@ -89,6 +89,7 @@ import { zerarMemoria, definirOrg, hidratarDoDisco, chavesComPrefixo } from './c
 import { zerarFilaMemoria, zerarTombstonesMemoria } from './sync';
 import { ler, listarChavesComPrefixo, lerTudo, definirArmazenamentoV2 } from './storage';
 import { zerarFlagEmMemoria } from './flag';
+import { zerarThrottleHidratacao } from './storageV2';
 
 beforeEach(async () => {
   zerarMemoria();
@@ -99,6 +100,7 @@ beforeEach(async () => {
   localStorage.clear();
   zerarFlagEmMemoria();
   definirArmazenamentoV2(true); // esta suíte exercita o caminho v2
+  zerarThrottleHidratacao();
   definirOrg(ORG);
 });
 
@@ -156,6 +158,7 @@ describe('REGRESSÃO — sumiço de equipamentos (conta cmam.caldeiras, 04/08/20
     await hidratarDoDisco();
 
     expect(chavesComPrefixo('nr13_info_')).toHaveLength(38);
+    zerarThrottleHidratacao();
     const snapshot = await lerTudo();
     expect(Object.keys(snapshot).filter((k) => k.startsWith('nr13_info_'))).toHaveLength(38);
   });
@@ -165,6 +168,7 @@ describe('REGRESSÃO — sumiço de equipamentos (conta cmam.caldeiras, 04/08/20
     zerarMemoria();
     definirOrg(ORG);
     await hidratarDoDisco();
+    zerarThrottleHidratacao();
 
     range.mockImplementation(async () => {
       throw new TypeError('Failed to fetch');

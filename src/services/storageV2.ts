@@ -23,6 +23,12 @@ import { descartarFilaV1, lerFilaV1, purgarCacheV1 } from './migracaoV1';
 import * as marcaSync from './marcaSync';
 import { ehCliente } from './papelSessao';
 import { donoAtual, travaExpirada } from './palcoTrava';
+import {
+  CHAVES_ESSENCIAIS,
+  PREFIXOS_ESSENCIAIS,
+  familiaEssencial,
+  type MedidaEssencial,
+} from './essencial';
 
 /** Troca de conta em andamento (ou falha nela): nada entra e nada sai. */
 export class ErroTrocandoConta extends Error {
@@ -338,10 +344,45 @@ function hidratacaoCompletaForcada(): boolean {
  * servidor respeitando tombstones e comparando versões: linha antiga do
  * servidor não derruba edição local mais recente.
  */
+/**
+ * Janela mínima entre duas hidratações completas — a que a v2 tinha perdido.
+ *
+ * A v1 tinha 60 s, e o comentário dela dizia o porquê: sem janela o app
+ * re-baixava o banco a cada clique no menu. Na v2 `listarEquipamentos()` chama
+ * `lerTudo()` em todo `useEffect`, e quatro telas fazem isso — foi a regressão
+ * que a Fase 8 mediu.
+ */
+export const JANELA_HIDRATACAO_MS = 60_000;
+
+let ultimaHidratacaoEm = 0;
+
+/** Zera a janela. Chamada na troca de conta, e pelos testes. */
+export function zerarThrottleHidratacao(): void {
+  ultimaHidratacaoEm = 0;
+}
+
 export async function lerTudo(): Promise<Record<string, string>> {
   if (!iniciado && !(await iniciar())) return cache.snapshot();
 
   await sync.drenar();
+
+  // Dentro da janela, serve do cache. DUAS diferenças em relação à v1, e as
+  // duas de propósito:
+  //   · a v1 devolvia `{}` aqui. Na v2 o retorno é o SNAPSHOT — uma tela que
+  //     recebesse `{}` concluiria "conta vazia", que é o defeito que a v2
+  //     existe para consertar;
+  //   · a drenagem acontece ANTES e não é throttled: fila vazia não faz
+  //     requisição nenhuma, e trabalho de campo parado é o custo mais caro.
+  //
+  // A chave de emergência passa POR CIMA da janela: é alavanca manual, puxada
+  // no console do aparelho afetado quando algo ficou para trás. Quem a puxa
+  // quer a organização inteira agora — fazê-la esperar 60 s seria a alavanca
+  // não funcionar, e o conserto voltaria a ser um deploy.
+  const agora = Date.now();
+  if (!hidratacaoCompletaForcada() && agora - ultimaHidratacaoEm < JANELA_HIDRATACAO_MS) {
+    return cache.snapshot();
+  }
+  ultimaHidratacaoEm = agora;
 
   try {
     const escopo = await escopoStorageAtual();
@@ -418,6 +459,86 @@ export async function lerTudo(): Promise<Record<string, string>> {
 
   // NÃO existe varredura removendo chaves locais ausentes no servidor.
   return cache.snapshot();
+}
+
+/**
+ * Fase 9 · 9D — o boot deixa de esperar a organização inteira.
+ *
+ * Baixa SÓ o que `essencial.ts` declara: um punhado de chaves nomeadas e duas
+ * famílias cujo tamanho depende da organização, não do parque. O resto chega
+ * quando for preciso — `carregarEquipamento(tag)` para um equipamento, a
+ * projeção de busca para a lista.
+ *
+ * TRÊS CUIDADOS, e cada um seria um defeito silencioso se faltasse:
+ *
+ * 1. **A marca d'água NÃO avança.** Ela é o corte da hidratação incremental
+ *    (`lerTudo`). Uma leitura PARCIAL que a movesse faria a próxima hidratação
+ *    completa concluir "nada mudou desde então" e pular a organização inteira
+ *    — o dado nunca chegaria, sem erro nenhum na tela.
+ *
+ * 2. **As guardas são as mesmas da hidratação** (exclusão em outro aparelho,
+ *    tombstone local mais novo, escrita local pendente). Um caminho de entrada
+ *    novo no `Map` com guarda a menos ressuscitaria dado apagado.
+ *
+ * 3. **Não lança.** Sem rede, o que veio do IndexedDB continua valendo — é o
+ *    princípio da v2, e o oposto do `{}` da v1.
+ *
+ * Devolve a MEDIDA do que trouxe, por família: é com ela que o teto real do
+ * boot se decide com número (tarefa 9D.1), em vez de estimativa.
+ */
+export async function hidratarEssencial(): Promise<MedidaEssencial> {
+  const medida: MedidaEssencial = { chaves: 0, bytes: 0, porFamilia: {} };
+  if (!iniciado && !(await iniciar())) return medida;
+
+  try {
+    const escopo = await escopoStorageAtual();
+    if (!escopo) return medida;
+
+    const colunas = 'chave, valor, versao, atualizado_em, dispositivo, deletado_em';
+    const base = () => supabase.from(TABELA_STORAGE).select(colunas).eq(escopo.coluna, escopo.id);
+
+    const respostas: Array<{ data: unknown; error: unknown }> = [];
+    // Em blocos, como em `semearEquipamento`: `in()` vira query string, e um
+    // bloco grande demais estoura o limite de URL do PostgREST.
+    for (let i = 0; i < CHAVES_ESSENCIAIS.length; i += 60) {
+      respostas.push(await base().in('chave', CHAVES_ESSENCIAIS.slice(i, i + 60)));
+    }
+    for (const prefixo of PREFIXOS_ESSENCIAIS) {
+      respostas.push(await base().like('chave', `${prefixo}%`));
+    }
+
+    for (const { data, error } of respostas) {
+      if (error) continue; // offline/falha pontual: fica com o que já havia
+      for (const linha of (data ?? []) as Array<Record<string, unknown>>) {
+        const chave = String(linha.chave);
+        const atualizadoEm = String(linha.atualizado_em ?? '');
+        if (linha.deletado_em) {
+          if (cache.obterRegistro(chave)) await cache.gravarAtomico([{ chave, remover: true }]);
+          continue;
+        }
+        if (sync.tombstoneMaisNovoQue(chave, atualizadoEm)) continue;
+        if (sync.itemDaChave(chave)) continue;
+        if (linha.valor == null) continue;
+
+        const valor = String(linha.valor);
+        await cache.aplicarRemoto(chave, {
+          valor,
+          versao: Number(linha.versao ?? 1),
+          atualizadoEm,
+          dispositivo: linha.dispositivo ? String(linha.dispositivo) : null,
+        });
+
+        const familia = familiaEssencial(chave);
+        medida.chaves++;
+        medida.bytes += valor.length;
+        medida.porFamilia[familia] = (medida.porFamilia[familia] ?? 0) + valor.length;
+      }
+    }
+  } catch {
+    return medida; // offline
+  }
+
+  return medida;
 }
 
 /**
@@ -520,6 +641,10 @@ export async function lerRemoto(chave: string): Promise<string | null> {
  * apagar é o fluxo de logout, depois de conferir a fila.
  */
 export function limparCacheDados(): void {
+  // A janela do throttle é da CONTA que saiu. Sem zerar, a primeira leitura da
+  // conta nova cairia dentro dela e serviria um cache que não é dela.
+  zerarThrottleHidratacao();
+  zerarThrottleAtualizacao();
   cache.zerarMemoria();
   sync.zerarFilaMemoria();
   sync.zerarTombstonesMemoria();

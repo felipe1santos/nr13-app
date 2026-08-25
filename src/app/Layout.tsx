@@ -72,7 +72,10 @@ export default function Layout() {
   const [modalSenha, setModalSenha] = useState(false);
   const email = usuarioLogado();
   const papel = ROTULO_PAPEL[papelAtual()] ?? 'Administrador';
-  const nEquip = listarChavesComPrefixo('nr13_info_').length;
+  // Contagem do selo do menu. Nasce da contagem local (instantânea, e correta
+  // no caminho de sempre) e é substituída pelo total do painel assim que ele
+  // responde — sob `boot_v9` o cache não tem a organização e a local daria zero.
+  const [nEquip, setNEquip] = useState(() => listarChavesComPrefixo('nr13_info_').length);
   const { titulo, sub } = tituloDaRota(location.pathname);
 
   // Permissões por sub-login (tela Acessos): null = sem restrição (mestre/legado).
@@ -121,12 +124,23 @@ export default function Layout() {
     // Sino: acende quando o motor de vencimentos encontra item vencido. Recalcula quando os
     // DADOS mudam (assinarDadosAlterados), não a cada navegação — listarVencimentos varre e
     // parseia todos os equipamentos e rodava em toda troca de rota, travando o clique no menu.
+    //
+    // Fase 9 · passou por `carregarPainel`, que escolhe a fonte: cache local, ou o agregado
+    // do servidor sob `boot_v9`. Com o boot leve, contar no cache daria zero e o sino nunca
+    // acenderia — a conta com equipamento vencido não receberia aviso nenhum. E é do
+    // CONTADOR da organização que ele decide, não da lista, que vem truncada.
     let vivo = true;
     let cancelarAssinatura = () => {};
-    Promise.all([import('../services/vencimentos'), import('../services/eventos')])
-      .then(([venc, eventos]) => {
+    Promise.all([import('../services/vencimentosServidor'), import('../services/eventos')])
+      .then(([painel, eventos]) => {
         if (!vivo) return;
-        const atualizar = () => setTemAlerta(venc.listarVencimentos().some((i) => i.status === 'crit'));
+        const atualizar = () => {
+          void painel.carregarPainel().then((p) => {
+            if (!vivo) return;
+            setTemAlerta(p.kpis.vencidos > 0);
+            setNEquip(p.kpis.total);
+          });
+        };
         atualizar();
         cancelarAssinatura = eventos.assinarDadosAlterados(atualizar);
       })

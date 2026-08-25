@@ -1,12 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { supabase } from '../services/supabase';
-import { lerTudo, iniciarArmazenamento } from '../services/storage';
-import { migrarHistoricoEmSegundoPlano } from '../features/relatorios/historicoRelatorios';
-import { migrarRubricasEmSegundoPlano } from '../features/relatorios/livroAssinatura';
-import { recuperarArquivosEmSegundoPlano } from '../services/recuperacaoArquivos';
+import { hidratarNoBoot, migracoesDeSegundoPlano } from './bootArmazenamento';
 import { verificarAcesso } from '../services/auth';
-import { ehCliente as isCliente } from '../services/papelSessao';
 import './layout.css';
 
 // Gate de sessão: confere a sessão Supabase, valida liberação/expiração do perfil e hidrata o cache
@@ -38,40 +34,15 @@ export default function RotaProtegida() {
       // qualquer tela. Sem isso uma tela poderia listar zero equipamentos so
       // porque chamou ler() antes da hidratacao terminar.
       //
-      // Envolvido em try: na v2 `lerTudo` já devolve o snapshot do disco quando o
-      // servidor falha, mas uma exceção inesperada aqui deixaria o app preso em
-      // "Carregando…" para sempre — pior do que abrir com o que o aparelho tem.
-      try {
-        await iniciarArmazenamento();
-        // CLIENTE DO PORTAL NÃO HIDRATA A ORGANIZAÇÃO (Fase 0-B, achado A-01).
-        //
-        // `lerTudo()` baixa TODO o `app_storage` da organização. Como esta rota
-        // envolve também a árvore do Portal (router.tsx), um cliente que fizesse
-        // login recebia no aparelho os dados de todos os ativos da organização —
-        // inclusive os de outros clientes. A Edge `portal_cliente` filtra o que a
-        // TELA mostra; a hidratação roda antes dela e não filtrava nada.
-        //
-        // `iniciarArmazenamento()` continua: ele só prepara organização,
-        // IndexedDB e Map, sem tocar na rede. O que o Portal precisa ver é
-        // depositado por `carregarDadosPortal` → `semearCachePortal`, já filtrado
-        // pelo servidor.
-        if (!isCliente()) await lerTudo();
-      } catch {
-        if (vivo) setSemServidor(true);
-      }
-      // Converte o array único `nr13_historico_relatorios` em um registro por
-      // relatório (§achado 1). Depois da hidratação, porque precisa do histórico
-      // já carregado; em SEGUNDO PLANO, porque não pode atrasar a primeira tela;
-      // e sem apagar nada, então falhar aqui só significa que as telas seguem
-      // lendo pelo legado.
-      migrarHistoricoEmSegundoPlano();
-      // Rubricas do Livro de Registro: base64 embutido em cada entrada vira
-      // referência de conteúdo (§livroAssinatura). Entradas lacradas ficam.
-      migrarRubricasEmSegundoPlano();
-      // Segunda chance dos anexos que caíram no fallback base64 porque o upload
-      // falhou no campo (A-10). Teto de 3 por sessão, e o base64 só sai depois
-      // de o servidor confirmar o arquivo — ver `recuperacaoArquivos.ts`.
-      recuperarArquivosEmSegundoPlano();
+      // O QUE a barreira espera é decisão de `hidratarNoBoot()` — sem a flag
+      // `boot_v9`, a organização inteira, como sempre; com ela, só o essencial
+      // (§9D). Cliente do Portal não hidrata nada (Fase 0-B, achado A-01).
+      const boot = await hidratarNoBoot();
+      if (boot.falhou && vivo) setSemServidor(true);
+      // Migrações e reparos, em SEGUNDO PLANO — nunca atrasam a primeira tela.
+      // As três varrem o cache por prefixo, então quem decide se elas podem
+      // rodar é o MODO do boot (ver `migracoesDeSegundoPlano`).
+      migracoesDeSegundoPlano(boot.modo);
       if (vivo) setEstado('autenticado');
     })();
     return () => {

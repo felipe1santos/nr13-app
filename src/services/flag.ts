@@ -29,6 +29,18 @@ const CHAVE = 'nr13_armazenamento_v2';
 const CHAVE_BUSCA = 'nr13_busca_v9';
 
 /**
+ * Fase 9 · 9D — o boot deixa de baixar a organização inteira.
+ *
+ * SEPARADA da `busca_v9` de propósito. A busca troca a FONTE da lista e não
+ * mexe no `Map`; esta troca QUANDO o `Map` é preenchido, e alcança toda tela
+ * que hoje lê do cache completo. É a etapa de maior risco da fase, então ela
+ * precisa de rollback próprio: desligar o boot leve sem desligar a busca.
+ *
+ * DEFAULT DESLIGADA, pelo mesmo motivo da `busca_v9`.
+ */
+const CHAVE_BOOT = 'nr13_boot_v9';
+
+/**
  * MEMOIZADA de propósito: qual implementação está ativa é decisão de SESSÃO,
  * tomada no login. Reler o `localStorage` a cada chamada deixaria o caminho
  * trocar no meio da sessão se algo limpasse o storage — e a v2, que não guarda
@@ -37,6 +49,7 @@ const CHAVE_BUSCA = 'nr13_busca_v9';
  */
 let emMemoria: boolean | null = null;
 let buscaEmMemoria: boolean | null = null;
+let bootEmMemoria: boolean | null = null;
 
 export function armazenamentoV2Ativo(): boolean {
   if (emMemoria !== null) return emMemoria;
@@ -87,10 +100,41 @@ export function definirBuscaV9(ativa: boolean): void {
   }
 }
 
+/**
+ * O boot leve está ligado para esta organização?
+ *
+ * EXIGE A v2. `hidratarEssencial` e `carregarEquipamento` só existem lá; ligada
+ * contra a v1, a primeira tela abriria com o cache vazio e concluiria "conta
+ * sem equipamentos" — o sumiço que a v2 conserta. Conjunção aqui, e não no
+ * servidor, porque quem sabe qual implementação este bundle usa é o bundle.
+ */
+export function bootV9Ativo(): boolean {
+  if (!armazenamentoV2Ativo()) return false;
+  if (bootEmMemoria !== null) return bootEmMemoria;
+  try {
+    bootEmMemoria = localStorage.getItem(CHAVE_BOOT) === '1';
+  } catch {
+    bootEmMemoria = false;
+  }
+  return bootEmMemoria;
+}
+
+/** Gravada no login a partir do que o servidor informou para a organização. */
+export function definirBootV9(ativo: boolean): void {
+  bootEmMemoria = ativo;
+  try {
+    if (ativo) localStorage.setItem(CHAVE_BOOT, '1');
+    else localStorage.removeItem(CHAVE_BOOT);
+  } catch {
+    // idem `definirArmazenamentoV2`: a decisão desta sessão continua valendo.
+  }
+}
+
 /** Descarta a decisão memoizada (troca de conta, e testes). */
 export function zerarFlagEmMemoria(): void {
   emMemoria = null;
   buscaEmMemoria = null;
+  bootEmMemoria = null;
 }
 
 /**
@@ -116,12 +160,17 @@ export async function sincronizarFlagDoServidor(): Promise<boolean> {
     const { data, error } = await supabase
       .from('org_sync')
       // As duas flags saem na MESMA consulta — nenhum round-trip novo no boot.
-      .select('v2_ativa, busca_v9')
+      .select('v2_ativa, busca_v9, boot_v9')
       .eq('org_id', escopo.id)
       .maybeSingle();
     // Erro pode ser offline OU banco sem a migração armazenamento_v2.sql. Nos
     // dois casos o valor conhecido continua valendo.
-    if (error) return await sincronizarSemColunaBusca(escopo.id);
+    //
+    // O recuo é em DEGRAUS, e desce um de cada vez. Pular direto para a
+    // consulta mais antiga faria o banco que tem `busca_v9` mas ainda não tem
+    // `boot_v9` — o estado da produção quando a 9D foi escrita — perder a
+    // busca no boot seguinte: uma flag desligando a outra, sem ninguém pedir.
+    if (error) return await sincronizarSemColunaBoot(escopo.id);
 
     // AUSÊNCIA DE LINHA = ORGANIZAÇÃO NOVA = v2 (11/08/2026).
     //
@@ -140,12 +189,17 @@ export async function sincronizarFlagDoServidor(): Promise<boolean> {
     // org que o servidor ainda considera v1 grava normalmente pela RPC. O erro
     // inverso é o que custou uma semana no `cmam`: bundle na v1 contra servidor
     // em v2, escrita direta recusada em silêncio e a conta aparecendo vazia.
-    const linha = data as { v2_ativa?: boolean; busca_v9?: boolean } | null;
+    const linha = data as
+      | { v2_ativa?: boolean; busca_v9?: boolean; boot_v9?: boolean }
+      | null;
     definirArmazenamentoV2(linha ? linha.v2_ativa === true : true);
 
     // A busca v9 NÃO herda a regra "sem linha = ligada". Org nova nasce com o
     // caminho antigo, que funciona sem backfill nenhum; ligar é ato explícito.
     definirBuscaV9(linha?.busca_v9 === true);
+    // O boot leve idem, e com mais razão: ele alcança toda tela que lê do cache
+    // completo.
+    definirBootV9(linha?.boot_v9 === true);
     return armazenamentoV2Ativo();
   } catch {
     return armazenamentoV2Ativo();
@@ -164,8 +218,31 @@ export async function sincronizarFlagDoServidor(): Promise<boolean> {
  * Então: erro na consulta combinada não desiste — repete pedindo só a coluna
  * antiga. A busca v9 fica DESLIGADA, que é o lado barato.
  */
+/**
+ * Primeiro degrau do recuo: banco SEM a coluna `boot_v9` (9D ainda não
+ * aplicada), mas COM a `busca_v9`. Só o boot leve fica desligado.
+ */
+async function sincronizarSemColunaBoot(orgId: string): Promise<boolean> {
+  definirBootV9(false);
+  try {
+    const { data, error } = await supabase
+      .from('org_sync')
+      .select('v2_ativa, busca_v9')
+      .eq('org_id', orgId)
+      .maybeSingle();
+    if (error) return await sincronizarSemColunaBusca(orgId);
+    const linha = data as { v2_ativa?: boolean; busca_v9?: boolean } | null;
+    definirArmazenamentoV2(linha ? linha.v2_ativa === true : true);
+    definirBuscaV9(linha?.busca_v9 === true);
+    return armazenamentoV2Ativo();
+  } catch {
+    return armazenamentoV2Ativo();
+  }
+}
+
 async function sincronizarSemColunaBusca(orgId: string): Promise<boolean> {
   definirBuscaV9(false);
+  definirBootV9(false);
   try {
     const { data, error } = await supabase
       .from('org_sync')

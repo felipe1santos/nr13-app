@@ -1,11 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icone } from '../components/Icone';
 import CalendarioVencimentos, { type ModoAgenda } from '../components/CalendarioVencimentos';
 import ModalDetalheEquipamento from '../components/ModalDetalheEquipamento';
-import { resumoKpis, textoPrazo, useVencimentos } from '../services/vencimentos';
+import { textoPrazo } from '../services/vencimentos';
 import type { ItemVencimento } from '../services/vencimentos';
-import { listarChavesComPrefixo } from '../services/storage';
+import { usePainelVencimentos } from '../services/vencimentosServidor';
+import SeloPainel from '../components/SeloPainel';
 import './dashboard-novo.css';
 import { rotaEquipamento } from '../app/rotas';
 
@@ -35,10 +36,15 @@ export default function Dashboard() {
   const [agenda, setAgenda] = useState<ModoAgenda>('fechado');
 
   // Recalcula ao montar, ao receber nr13:dados-alterados (mesma aba, ex.: relatório salvo)
-  // e sempre que a janela volta ao foco (outra aba/janela) — ver useVencimentos.
-  const itens = useVencimentos();
-  const totalEquip = listarChavesComPrefixo('nr13_info_').length;
-  const kpis = useMemo(() => resumoKpis(itens, totalEquip), [itens, totalEquip]);
+  // e sempre que a janela volta ao foco (outra aba/janela).
+  //
+  // Fase 9 · o painel pode vir do cache local (caminho de sempre) ou do
+  // agregado do servidor, sob a flag `boot_v9`. Os KPIs vêm junto porque no
+  // caminho do servidor eles são CONTADORES da organização — a lista é
+  // truncada, e contar nela mostraria "3 vencidos" numa conta com 300.
+  const painel = usePainelVencimentos();
+  const itens = painel.itens;
+  const kpis = painel.kpis;
 
   const vencidos = itens.filter((i) => i.status === 'crit');
   const alertas = itens.filter((i) => i.status === 'crit' || i.status === 'warn').slice(0, 5);
@@ -93,6 +99,7 @@ export default function Dashboard() {
       )}
 
       {/* ===== KPIs ===== */}
+      <SeloPainel painel={painel} />
       <div className="fj-kpi-row">
         <div className="fj-kpi">
           <div>
@@ -129,12 +136,15 @@ export default function Dashboard() {
         <div className="fj-kpi">
           <div>
             <div className="fj-kpi-label">Taxa de conformidade</div>
+            {/* Conformidade indefinida = o painel não pôde ser lido. Mostrar
+                100 % aqui seria a mentira mais cara desta tela. */}
             <div className="fj-kpi-value">
-              {kpis.conformidade.toLocaleString('pt-BR')}
+              {kpis.conformidade === undefined ? '—' : kpis.conformidade.toLocaleString('pt-BR')}
               <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--muted)' }}>%</span>
             </div>
-            <div className={`fj-kpi-delta ${kpis.conformidade >= 90 ? 'up' : 'down'}`}>
-              <Icone nome="trendup" tam={11} /> itens com prazo em dia
+            <div className={`fj-kpi-delta ${(kpis.conformidade ?? 0) >= 90 ? 'up' : 'down'}`}>
+              <Icone nome="trendup" tam={11} />{' '}
+              {kpis.conformidade === undefined ? 'sem resposta do servidor' : 'itens com prazo em dia'}
             </div>
           </div>
           <div className="fj-kpi-icon" style={{ background: 'var(--ok-bg)', color: 'var(--ok)' }}>

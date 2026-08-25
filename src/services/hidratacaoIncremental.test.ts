@@ -53,7 +53,7 @@ vi.mock('./supabase', () => {
 import { fecharDb, apagarDb } from './db';
 import { zerarMemoria, definirOrg, hidratarDoDisco, obterRegistro, chavesComPrefixo } from './cacheLocal';
 import { zerarFilaMemoria, zerarTombstonesMemoria } from './sync';
-import { lerTudo, CHAVE_HIDRATACAO_COMPLETA } from './storageV2';
+import { lerTudo, CHAVE_HIDRATACAO_COMPLETA, zerarThrottleHidratacao } from './storageV2';
 import { lerMarca } from './marcaSync';
 
 beforeEach(async () => {
@@ -65,6 +65,7 @@ beforeEach(async () => {
   localStorage.clear();
   consultas.length = 0;
   SERVIDOR.length = 0;
+  zerarThrottleHidratacao();
   definirOrg(ORG);
 });
 
@@ -88,6 +89,7 @@ describe('hidratação incremental', () => {
     SERVIDOR.push(linha('nr13_info_A', '{"tag":"A"}', '2026-08-01T10:00:00.000Z'));
     await lerTudo();
     consultas.length = 0;
+    zerarThrottleHidratacao();
 
     await lerTudo();
 
@@ -100,6 +102,7 @@ describe('hidratação incremental', () => {
     await lerTudo();
     SERVIDOR.push(linha('nr13_info_B', '{"tag":"B"}', '2026-08-02T10:00:00.000Z'));
     consultas.length = 0;
+    zerarThrottleHidratacao();
 
     await lerTudo();
 
@@ -114,6 +117,7 @@ describe('hidratação incremental', () => {
     expect(obterRegistro('nr13_info_A')).not.toBeNull();
 
     SERVIDOR.length = 0;
+    zerarThrottleHidratacao();
     SERVIDOR.push(linha('nr13_info_A', '', '2026-08-03T10:00:00.000Z', true));
     await lerTudo();
 
@@ -133,6 +137,7 @@ describe('hidratação incremental', () => {
     definirOrg(ORG);
     await hidratarDoDisco();
     consultas.length = 0;
+    zerarThrottleHidratacao();
 
     await lerTudo();
 
@@ -146,6 +151,7 @@ describe('hidratação incremental', () => {
     const marcaAntes = await lerMarca(ORG);
 
     SERVIDOR.push(linha('nr13_info_B', '{"tag":"B"}', '2026-08-05T10:00:00.000Z'));
+    zerarThrottleHidratacao();
     const from = (await import('./supabase')).supabase.from as unknown as () => unknown;
     const original = from;
     (await import('./supabase')).supabase.from = (() => {

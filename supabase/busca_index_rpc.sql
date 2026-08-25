@@ -77,6 +77,10 @@ begin
   elsif p_chave like 'nr13_calc_gv_%' then return;
   elsif p_chave like 'nr13_calc_%' then v_tag := substring(p_chave from 11);
   elsif p_chave like 'nr13_pref_unidade_%' then v_tag := substring(p_chave from 19);
+  -- 9D · os acessórios entram pela MESMA porta: `projetar_equipamento` chama
+  -- `projetar_calibracoes` no fim. Uma etapa própria aqui criaria uma segunda
+  -- máquina de estados, convergindo em ritmo diferente do rebuild.
+  elsif p_chave like 'nr13_calibracoes_%' then v_tag := substring(p_chave from 18);
   else
     return;  -- família não projetável: comportamento empresarial normal
   end if;

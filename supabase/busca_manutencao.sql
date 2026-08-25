@@ -110,8 +110,11 @@ begin
    where s.org_id = p_org and s.chave = 'nr13_info_' || p_tag and s.deletado_em is null;
 
   -- Sem ficha VIVA, o equipamento não existe para a projeção — e some dela.
+  -- Os acessórios dele vão junto: calibração órfã continuaria vencendo no
+  -- painel de um equipamento que não existe mais.
   if not found then
     delete from public.equipamentos_index where org_id = p_org and tag = p_tag;
+    perform public.projetar_calibracoes(p_org, p_tag);
     return;
   end if;
 
@@ -135,7 +138,7 @@ begin
       proxima_inspecao = null, tem_foto = false, foto_ref = null,
       pmta_mpa = null, pth_mpa = null, resultado = null, volume_m3 = null,
       fluido = null, classe_fluido = null, vida_anos = null, tem_cliente = false,
-      unidade = null,
+      unidade = null, vida_base = null, vida_prox_anos = null,
       source_version = excluded.source_version,
       source_updated_at = excluded.source_updated_at,
       projected_at = excluded.projected_at;
@@ -180,11 +183,16 @@ begin
     v_anos := null;
   end;
 
+  -- Os acessórios daquela TAG. Fora do `insert` abaixo porque são N linhas em
+  -- outra tabela — e dentro desta função, e não numa etapa própria do rebuild,
+  -- para não haver duas máquinas de estado convergindo em ritmos diferentes.
+  perform public.projetar_calibracoes(p_org, p_tag);
+
   insert into public.equipamentos_index as e (
     org_id, tag, descricao, tipo, subtipo, categoria, fabricante, numero_serie,
     localizacao, ano, cliente_nome, cliente_cidade, proxima_inspecao, tem_foto, foto_ref,
     pmta_mpa, pth_mpa, resultado, volume_m3, fluido, classe_fluido, vida_anos,
-    tem_cliente, unidade,
+    tem_cliente, unidade, vida_base, vida_prox_anos,
     source_version, source_updated_at, projected_at
   ) values (
     p_org,
@@ -227,6 +235,15 @@ begin
     -- âmbar. O aviso precisa do FATO, não do id — que não tem por que viajar.
     nullif(btrim(coalesce(v_emp ->> 'clienteId', '')), '') is not null,
     nullif(btrim(coalesce(v_unid, '')), ''),
+    -- 9D · os DOIS FATOS crus da vida remanescente, guardados além da data já
+    -- derivada acima. O agregado de vencimentos precisa deles porque a REGRA
+    -- continua em TypeScript (`vencimentos.ts`): lá o prazo é
+    -- `base.setMonth(+round(anos*12))`, em meses de calendário, e aqui a data
+    -- derivada usa `anos*365` dias. Mandar o fato cru é o que faz o painel
+    -- exibir exatamente a mesma data dos dois caminhos, em vez de duas
+    -- aproximações parecidas.
+    v_base,
+    v_anos,
     v_versao,
     v_atual,
     now()
@@ -244,11 +261,89 @@ begin
     fluido = excluded.fluido,             classe_fluido = excluded.classe_fluido,
     vida_anos = excluded.vida_anos,       tem_cliente = excluded.tem_cliente,
     unidade = excluded.unidade,
+    vida_base = excluded.vida_base,       vida_prox_anos = excluded.vida_prox_anos,
     source_version = excluded.source_version,
     source_updated_at = excluded.source_updated_at,
     projected_at = excluded.projected_at;
 end;
 $$;
+
+-- ---------------------------------------------------------------------------
+-- Projeção das CALIBRAÇÕES de uma tag (9D · painel de vencimentos)
+-- ---------------------------------------------------------------------------
+-- Origem: `nr13_calibracoes_<TAG>` — um array. Uma linha da verdade vira N
+-- linhas aqui, então apaga por (org, tag) antes de reinserir: calibração
+-- excluída some.
+--
+-- FATOS, NÃO REGRA. A redução "só a calibração MAIS RECENTE de cada componente
+-- conta para o prazo" fica em `vencimentos.ts`, onde já está. Aqui saem todas,
+-- com `componente_id` e as duas datas, e quem decide qual vale é quem sempre
+-- decidiu. Duplicar essa escolha em PL/pgSQL criaria duas respostas para a
+-- mesma pergunta, e a que aparece na tela dependeria da flag.
+create or replace function public.projetar_calibracoes(p_org uuid, p_tag text)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_lista  jsonb;
+  v_versao integer;
+  v_atual  timestamptz;
+begin
+  if to_regclass('public.calibracoes_index') is null then
+    return;  -- organização sem a migração da 9D: nada a fazer, e não é erro
+  end if;
+
+  select public.f9_json(s.valor), s.versao, s.atualizado_em
+    into v_lista, v_versao, v_atual
+    from public.app_storage s
+   where s.org_id = p_org
+     and s.chave = 'nr13_calibracoes_' || p_tag
+     and s.deletado_em is null;
+
+  delete from public.calibracoes_index where org_id = p_org and tag = p_tag;
+
+  if v_lista is null or jsonb_typeof(v_lista) <> 'array' then
+    return;
+  end if;
+
+  insert into public.calibracoes_index (
+    org_id, calibracao_id, tag, componente_id, nome, tipo, serie,
+    data_calibracao, prox_calibracao, source_version, source_updated_at, projected_at
+  )
+  select
+    p_org,
+    c ->> 'id',
+    p_tag,
+    -- Chave do componente com o MESMO recuo do TypeScript: `componenteId`, e
+    -- na falta dele `nome:<nome|id>`. É por ela que a tela agrupa.
+    coalesce(
+      nullif(btrim(coalesce(c ->> 'componenteId', '')), ''),
+      'nome:' || coalesce(nullif(btrim(coalesce(c ->> 'nome', '')), ''), c ->> 'id')
+    ),
+    nullif(btrim(coalesce(c ->> 'nome', '')), ''),
+    nullif(btrim(coalesce(c ->> 'tipo', '')), ''),
+    nullif(btrim(coalesce(c ->> 'serie', '')), ''),
+    public.f9_data(c ->> 'dataCalibracao'),
+    public.f9_data(c ->> 'dataProxCalibracao'),
+    v_versao,
+    v_atual,
+    now()
+  from jsonb_array_elements(v_lista) c
+  where coalesce(c ->> 'id', '') <> ''
+  on conflict (org_id, calibracao_id) do update set
+    tag = excluded.tag, componente_id = excluded.componente_id,
+    nome = excluded.nome, tipo = excluded.tipo, serie = excluded.serie,
+    data_calibracao = excluded.data_calibracao,
+    prox_calibracao = excluded.prox_calibracao,
+    source_version = excluded.source_version,
+    source_updated_at = excluded.source_updated_at,
+    projected_at = excluded.projected_at;
+end;
+$$;
+
+revoke all on function public.projetar_calibracoes(uuid, text) from public, anon, authenticated;
 
 -- ---------------------------------------------------------------------------
 -- Projeção dos relatórios de UMA tag
@@ -282,6 +377,7 @@ begin
   insert into public.relatorios_index (
     org_id, relatorio_id, tag, codigo, nome, tipo, status, profissional,
     emissao, validade, proxima_inspecao_interna, proxima_inspecao_externa,
+    execucao_inspecao, data_ref,
     pdf_ref, sha256, paginas, source_version, source_updated_at, projected_at
   )
   select
@@ -297,6 +393,14 @@ begin
     public.f9_data(r ->> 'validade'),
     public.f9_data(r ->> 'proximaInspecaoInterna'),
     public.f9_data(r ->> 'proximaInspecaoExterna'),
+    -- 9D · as duas datas que faltavam para o painel de vencimentos:
+    --   `execucaoInspecao` é a "última inspeção" que a linha exibe;
+    --   `data` é o desempate de "qual relatório é o mais recente" quando
+    --   `emissao` está vazia — a MESMA precedência do `ts()` de
+    --   `historicoRelatorios.ts`. Sem ela, o servidor escolheria um relatório
+    --   e a tela antiga escolheria outro.
+    public.f9_data(r ->> 'execucaoInspecao'),
+    public.f9_data(r ->> 'data'),
     -- `pdfRef` pode ser objeto (RefFoto) ou string. Guardamos a forma textual;
     -- resolver o arquivo continua sendo trabalho do cliente, no clique.
     case when jsonb_typeof(r -> 'pdfRef') = 'object' then (r -> 'pdfRef') ->> 'caminho'
@@ -314,6 +418,7 @@ begin
     emissao = excluded.emissao, validade = excluded.validade,
     proxima_inspecao_interna = excluded.proxima_inspecao_interna,
     proxima_inspecao_externa = excluded.proxima_inspecao_externa,
+    execucao_inspecao = excluded.execucao_inspecao, data_ref = excluded.data_ref,
     pdf_ref = excluded.pdf_ref, sha256 = excluded.sha256, paginas = excluded.paginas,
     source_version = excluded.source_version,
     source_updated_at = excluded.source_updated_at,

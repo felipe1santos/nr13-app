@@ -1,9 +1,7 @@
-import { useEffect, useState } from 'react';
 import { ler, listarChavesComPrefixo } from './storage';
 import { listarIndice } from '../features/relatorios/historicoRelatorios';
 import type { InfoEquipamento } from '../features/equipamento/tipos';
 import type { DadosCalibracao } from '../features/calibracoes/tipos';
-import { assinarDadosAlterados } from './eventos';
 
 /**
  * Motor de vencimentos: deriva prazos SOMENTE de dados já salvos no sistema.
@@ -61,27 +59,120 @@ interface VidaSalva {
   calculadoEm?: string;
 }
 
+// O prazo pelo RELATÓRIO mais recente (Configurações do Relatório → Próx.
+// Interna / Próx. Externa) era uma função à parte aqui. Virou parte de
+// `itemDeEquipamento`, logo abaixo, quando o agregado do servidor passou a
+// precisar da MESMA regra: duas cópias divergiriam em silêncio.
+//
+// O que não mudou: a leitura é do ÍNDICE por TAG (14/08/2026). Antes vinha do
+// array global `nr13_historico_relatorios`, que carrega os snapshots
+// congelados de cada relatório (logo e rubricas em base64, ~125 KB por
+// entrada) só para chegar a quatro datas. O Dashboard nunca abre um relatório.
+
+// ── A REGRA, sobre FATOS — uma implementação, duas fontes (Fase 9 · §15) ────
+//
+// O painel pode vir do cache local (caminho de sempre) ou do agregado no
+// servidor sobre a projeção. A lição do portão P9.2: quando dois caminhos
+// montam a mesma linha cada um por sua conta, eles divergem em SILÊNCIO — foi
+// assim que a cidade do cliente sumiu do cartão em 23/08/2026.
+//
+// Por isso a regra vive aqui, em função pura sobre fatos, e as duas fontes a
+// chamam. A paridade passa a ser consequência da construção.
+
+/** Fatos de um equipamento, venham do `Map` ou do agregado do servidor. */
+export interface FatosEquipamento {
+  tag: string;
+  descricao?: string | null;
+  tipo?: string | null;
+  /** `nr13_vida_`: entrada.dataAtual (ou calculadoEm) e proximaInspecaoAnos. */
+  vidaBase?: string | null;
+  vidaProxAnos?: number | null;
+  /** Do relatório MAIS RECENTE do equipamento. */
+  relEmissao?: string | null;
+  relExecucao?: string | null;
+  relProxInterna?: string | null;
+  relProxExterna?: string | null;
+}
+
+/** Fatos de UMA calibração — a que já venceu a disputa por componente. */
+export interface FatosCalibracao {
+  tag: string;
+  nome?: string | null;
+  tipo?: string | null;
+  serie?: string | null;
+  dataCalibracao?: string | null;
+  proxCalibracao?: string | null;
+}
+
 /**
- * Prazo do equipamento vindo do RELATÓRIO salvo mais recente (Configurações do
- * Relatório → Próx. Interna / Próx. Externa): vale a data mais próxima das duas.
- * Complementa a Vida Remanescente — em listarVencimentos vence o prazo menor.
- *
- * Lê do ÍNDICE por TAG (14/08/2026). Antes lia o array global
- * `nr13_historico_relatorios`, que carrega os snapshots congelados de cada
- * relatório (logo e rubricas em base64, ~125 KB por entrada) só para chegar a
- * quatro datas. Agora o Dashboard nunca abre um relatório.
+ * `base` + `anos` — em MESES de calendário, como o `setMonth` do JavaScript,
+ * que transborda (31/01 + 1 mês = 03/03). O agregado do servidor reproduz esta
+ * conta em `f9_mais_meses`, e não a de "anos × 365 dias" da coluna derivada
+ * `proxima_inspecao`: duas datas quase iguais seriam pior que duas diferentes.
  */
-function prazoPorRelatorio(tag: string): { ultima?: Date; vencimento: Date } | null {
-  // `listarIndice` já devolve do mais recente para o mais antigo.
-  const recente = listarIndice(tag)[0];
-  if (!recente) return null;
-  const candidatas = [recente.proximaInspecaoInterna, recente.proximaInspecaoExterna]
+function somarAnosEmMeses(base: Date, anos: number): Date {
+  const d = new Date(base);
+  d.setMonth(d.getMonth() + Math.round(anos * 12));
+  return d;
+}
+
+/** A linha do painel para um equipamento. Nunca devolve null: sem prazo, `semPrazo`. */
+export function itemDeEquipamento(f: FatosEquipamento, hoje: Date): ItemVencimento {
+  const hojeZero = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+  const tipoEquip = ROTULO_TIPO[f.tipo ?? ''] ?? 'Equipamento';
+  const nome = f.descricao?.trim() || tipoEquip;
+
+  // Regra do painel (decisão do usuário): o prazo é o do ÚLTIMO RELATÓRIO
+  // (menor entre Próx. Interna e Próx. Externa). Vida Remanescente só entra
+  // como reserva, e um relatório recente SEM datas não faz procurar num
+  // anterior — a regra sempre olhou só o mais recente.
+  const doRelatorio = [f.relProxInterna, f.relProxExterna]
     .map(parseDataFlex)
     .filter((d): d is Date => d !== null);
-  if (candidatas.length === 0) return null;
-  const vencimento = candidatas.reduce((a, b) => (a.getTime() <= b.getTime() ? a : b));
-  const ultima = parseDataFlex(recente.execucaoInspecao) ?? parseDataFlex(recente.emissao) ?? undefined;
-  return { ultima, vencimento };
+  const vencimento =
+    doRelatorio.length > 0
+      ? doRelatorio.reduce((a, b) => (a.getTime() <= b.getTime() ? a : b))
+      : prazoDaVida(f)?.vencimento;
+
+  const ultima =
+    doRelatorio.length > 0
+      ? (parseDataFlex(f.relExecucao ?? null) ?? parseDataFlex(f.relEmissao ?? null) ?? undefined)
+      : prazoDaVida(f)?.ultima;
+
+  if (!vencimento) return { tag: f.tag, nome, tipoEquip, origem: 'inspecao', status: 'semPrazo' };
+  const { dias, status } = statusPrazo(vencimento, hojeZero);
+  return { tag: f.tag, nome, tipoEquip, origem: 'inspecao', ultima, vencimento, dias, status };
+}
+
+function prazoDaVida(f: FatosEquipamento): { ultima: Date; vencimento: Date } | null {
+  const base = parseDataFlex(f.vidaBase ?? null);
+  const anos = f.vidaProxAnos;
+  if (!base || typeof anos !== 'number' || anos < 0) return null;
+  return { ultima: base, vencimento: somarAnosEmMeses(base, anos) };
+}
+
+/** A linha do painel para um acessório. `null` sem próxima calibração — igual ao caminho antigo. */
+export function itemDeCalibracao(f: FatosCalibracao, hoje: Date): ItemVencimento | null {
+  const hojeZero = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+  const venc = parseDataFlex(f.proxCalibracao ?? null);
+  if (!venc) return null;
+
+  const tipoAc = f.tipo === 'psv' ? 'Válvula de Segurança' : 'Manômetro';
+  const nome = f.nome?.trim() || tipoAc;
+  const { dias, status } = statusPrazo(venc, hojeZero);
+  return {
+    // A "TAG" do acessório é rótulo de tela, não identidade de equipamento:
+    // primeira palavra do tipo + nº de série, como sempre foi.
+    tag: f.serie ? `${tipoAc.split(' ')[0].toUpperCase()}-${f.serie}` : nome,
+    nome,
+    tipoEquip: tipoAc,
+    origem: 'calibracao',
+    pertenceA: f.tag,
+    ultima: parseDataFlex(f.dataCalibracao ?? null) ?? undefined,
+    vencimento: venc,
+    dias,
+    status,
+  };
 }
 
 export function listarVencimentos(hoje: Date = new Date()): ItemVencimento[] {
@@ -94,29 +185,28 @@ export function listarVencimentos(hoje: Date = new Date()): ItemVencimento[] {
       const tag = chave.slice('nr13_info_'.length);
       const info = ler<InfoEquipamento>(chave);
       if (!info) continue;
-      const nome = info.descricao?.trim() || ROTULO_TIPO[info.tipo] || 'Equipamento';
-      const tipoEquip = ROTULO_TIPO[info.tipo] ?? 'Equipamento';
 
+      // Os FATOS saem do cache; a REGRA é a mesma função que o agregado do
+      // servidor usa. Foi o que tirou daqui a segunda cópia da regra.
       const vida = ler<VidaSalva>(`nr13_vida_${tag}`);
-      const base = parseDataFlex(vida?.entrada?.dataAtual) ?? parseDataFlex(vida?.calculadoEm);
-      const anos = vida?.proximaInspecaoAnos;
-
-      // Regra do painel (decisão do usuário): o prazo do equipamento é o do ÚLTIMO RELATÓRIO
-      // feito (Próx. Interna/Externa). Vida Remanescente só entra como fallback sem relatório.
-      let prazoVida: { ultima?: Date; vencimento: Date } | null = null;
-      if (vida && base && typeof anos === 'number' && anos >= 0) {
-        const venc = new Date(base);
-        venc.setMonth(venc.getMonth() + Math.round(anos * 12));
-        prazoVida = { ultima: base, vencimento: venc };
-      }
-      const prazo = prazoPorRelatorio(tag) ?? prazoVida;
-
-      if (prazo) {
-        const { dias, status } = statusPrazo(prazo.vencimento, hojeZero);
-        itens.push({ tag, nome, tipoEquip, origem: 'inspecao', ultima: prazo.ultima, vencimento: prazo.vencimento, dias, status });
-      } else {
-        itens.push({ tag, nome, tipoEquip, origem: 'inspecao', status: 'semPrazo' });
-      }
+      // `listarIndice` já devolve do mais recente para o mais antigo.
+      const recente = listarIndice(tag)[0];
+      itens.push(
+        itemDeEquipamento(
+          {
+            tag,
+            descricao: info.descricao,
+            tipo: info.tipo,
+            vidaBase: vida?.entrada?.dataAtual ?? vida?.calculadoEm ?? null,
+            vidaProxAnos: vida?.proximaInspecaoAnos ?? null,
+            relEmissao: recente?.emissao ?? null,
+            relExecucao: recente?.execucaoInspecao ?? null,
+            relProxInterna: recente?.proximaInspecaoInterna ?? null,
+            relProxExterna: recente?.proximaInspecaoExterna ?? null,
+          },
+          hojeZero,
+        ),
+      );
 
       // ── Acessórios do equipamento (calibrações) ──
       // Com lotes, o mesmo componente acumula certificados a cada inspeção:
@@ -133,30 +223,50 @@ export function listarVencimentos(hoje: Date = new Date()): ItemVencimento[] {
       const cals = [...porComponente.values()];
       for (const cal of cals) {
         try {
-          const venc = parseDataFlex(cal.dataProxCalibracao);
-          const ultima = parseDataFlex(cal.dataCalibracao) ?? undefined;
-          const nomeAc = cal.nome?.trim() || (cal.tipo === 'psv' ? 'Válvula de Segurança' : 'Manômetro');
-          const tipoAc = cal.tipo === 'psv' ? 'Válvula de Segurança' : 'Manômetro';
-          if (venc) {
-            const { dias, status } = statusPrazo(venc, hojeZero);
-            itens.push({
-              tag: cal.serie ? `${tipoAc.split(' ')[0].toUpperCase()}-${cal.serie}` : nomeAc,
-              nome: nomeAc, tipoEquip: tipoAc, origem: 'calibracao', pertenceA: tag,
-              ultima, vencimento: venc, dias, status,
-            });
-          }
+          const linha = itemDeCalibracao(
+            {
+              tag,
+              nome: cal.nome,
+              tipo: cal.tipo,
+              serie: cal.serie,
+              dataCalibracao: cal.dataCalibracao,
+              proxCalibracao: cal.dataProxCalibracao,
+            },
+            hojeZero,
+          );
+          if (linha) itens.push(linha);
         } catch { /* item malformado: ignora */ }
       }
     } catch { /* chave malformada: ignora */ }
   }
 
-  // Ordena: vencidos primeiro, depois por dias restantes; semPrazo por último.
-  itens.sort((a, b) => {
+  return ordenarVencimentos(itens);
+}
+
+/**
+ * Vencidos primeiro, depois por dias restantes; `semPrazo` por último.
+ *
+ * Exportada porque o painel do servidor ordena a MESMA lista: o servidor
+ * ordena para escolher QUAIS linhas mandar (é ele que tem a organização
+ * inteira), e a tela reordena com esta função para exibir. Duas ordens
+ * parecidas seriam pior que duas diferentes.
+ */
+export function ordenarVencimentos(itens: ItemVencimento[]): ItemVencimento[] {
+  return [...itens].sort((a, b) => {
     if (a.status === 'semPrazo' && b.status !== 'semPrazo') return 1;
     if (b.status === 'semPrazo' && a.status !== 'semPrazo') return -1;
     return (a.dias ?? Infinity) - (b.dias ?? Infinity);
   });
-  return itens;
+}
+
+/**
+ * A conta da conformidade, isolada porque o painel do servidor a refaz sobre
+ * CONTADORES da organização (a lista que ele devolve é truncada). Duas
+ * fórmulas dariam duas porcentagens para a mesma conta.
+ */
+export function conformidadeDe(comPrazo: number, vencidos: number): number {
+  if (comPrazo <= 0) return 100;
+  return Math.round(((comPrazo - vencidos) / comPrazo) * 1000) / 10;
 }
 
 export function resumoKpis(itens: ItemVencimento[], totalEquip: number): {
@@ -165,8 +275,7 @@ export function resumoKpis(itens: ItemVencimento[], totalEquip: number): {
   const comPrazo = itens.filter((i) => i.status !== 'semPrazo');
   const vencidos = comPrazo.filter((i) => i.status === 'crit').length;
   const aVencer30 = comPrazo.filter((i) => i.status === 'warn').length;
-  const conformidade = comPrazo.length === 0 ? 100 : Math.round(((comPrazo.length - vencidos) / comPrazo.length) * 1000) / 10;
-  return { total: totalEquip, aVencer30, vencidos, conformidade };
+  return { total: totalEquip, aVencer30, vencidos, conformidade: conformidadeDe(comPrazo.length, vencidos) };
 }
 
 /** Texto humano do prazo ("Vencido há 2 dias" / "Vence em 3 dias" / "Vence hoje"). */
@@ -186,18 +295,8 @@ export function textoPrazo(item: ItemVencimento): string {
  * Os listeners são limpos no cleanup do efeito; nenhum deles reemite o evento que escuta,
  * então não há loop de re-render.
  */
-export function useVencimentos(): ItemVencimento[] {
-  const [itens, setItens] = useState<ItemVencimento[]>(() => listarVencimentos());
-
-  useEffect(() => {
-    const atualizar = () => setItens(listarVencimentos());
-    const cancelarAssinatura = assinarDadosAlterados(atualizar);
-    window.addEventListener('focus', atualizar);
-    return () => {
-      cancelarAssinatura();
-      window.removeEventListener('focus', atualizar);
-    };
-  }, []);
-
-  return itens;
-}
+// O hook do painel mora em `vencimentosServidor.ts`, e não aqui, por uma razão
+// de DEPENDÊNCIA: ele precisa escolher entre a fonte local (este arquivo) e o
+// agregado do servidor (aquele). Se ficasse aqui, os dois módulos importariam
+// um ao outro. Este arquivo é a camada de baixo — regra e leitura do cache — e
+// não conhece o servidor.

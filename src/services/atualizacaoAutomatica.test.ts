@@ -73,6 +73,7 @@ import {
   lerTudo,
   atualizarDoServidor,
   zerarThrottleAtualizacao,
+  zerarThrottleHidratacao,
   JANELA_ATUALIZACAO_MS,
 } from './storageV2';
 import { CHAVE_DONO, TTL_TRAVA_MS } from './palcoTrava';
@@ -92,6 +93,7 @@ beforeEach(async () => {
   SERVIDOR.length = 0;
   definirOrg(ORG);
   zerarThrottleAtualizacao();
+  zerarThrottleHidratacao();
 });
 
 afterEach(() => {
@@ -104,6 +106,9 @@ async function comEquipamento() {
   await lerTudo();
   expect(obterRegistro(CHAVE)).not.toBeNull();
   consultas.length = 0;
+  // A hidratação acima é MONTAGEM do cenário; a janela dela não pode engolir a
+  // consulta que cada teste abaixo exercita.
+  zerarThrottleHidratacao();
 }
 
 describe('descobrir o que outro aparelho fez, sem recarregar', () => {

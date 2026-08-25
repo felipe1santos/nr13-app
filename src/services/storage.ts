@@ -16,10 +16,12 @@
 import { armazenamentoV2Ativo } from './flag';
 import * as v1 from './storageV1';
 import * as v2 from './storageV2';
+import type { MedidaEssencial } from './essencial';
 
 export { bloqueadoParaEscrita, ErroBloqueado } from './gateEscrita';
 export { armazenamentoV2Ativo, definirArmazenamentoV2 } from './flag';
 export { buscaV9Ativa, definirBuscaV9 } from './flag';
+export { bootV9Ativo, definirBootV9 } from './flag';
 
 const v2Ativo = () => armazenamentoV2Ativo();
 
@@ -145,4 +147,17 @@ export async function semearCachePortal(chaves: Record<string, string>): Promise
 export async function semearEquipamento(chaves: string[]): Promise<number> {
   if (!v2Ativo()) return 0;
   return v2.semearEquipamento(chaves);
+}
+
+/**
+ * Fase 9 · 9D — o boot baixa só o essencial (ver `essencial.ts`).
+ *
+ * No caminho v1 é no-op, e por isso `bootV9Ativo()` já exige a v2: lá o cache
+ * É o `localStorage`, não existe semeadura por TAG, e um boot leve deixaria a
+ * primeira tela lendo um cache vazio. Quem chama isto é `hidratarNoBoot()`,
+ * que só o faz com a flag ligada.
+ */
+export async function hidratarEssencial(): Promise<MedidaEssencial> {
+  if (!v2Ativo()) return { chaves: 0, bytes: 0, porFamilia: {} };
+  return v2.hidratarEssencial();
 }

@@ -3,7 +3,8 @@ import * as buscaIndex from '../../services/buscaIndex';
 import type { FiltrosBusca, ItemCatalogo, PaginaCatalogo } from '../../services/buscaIndex';
 import { POR_TAG } from '../../services/familiasChave';
 import { listarPendentes } from '../../services/sync';
-import { podeCriarEquipamento } from '../../services/limiteTrial';
+import { chaveIndice, chaveRelatorio } from '../relatorios/historicoRelatorios';
+import { podeCriarEquipamentoAgora } from '../../services/limiteTrial';
 import type {
   CalculoSalvo,
   CategoriaSalva,
@@ -83,7 +84,11 @@ export async function criarEquipamento(
   // O teto do trial é checado AQUI, no serviço, e não só no botão: a criação
   // tem mais de um ponto de entrada (tela de equipamentos e importação de
   // planilha), e um gate que vive na tela não alcança o outro caminho.
-  const limite = podeCriarEquipamento();
+  //
+  // A versão ASSÍNCRONA porque sob `boot_v9` o cache não tem a organização: a
+  // contagem local daria zero e o teto sumiria em silêncio. Fora do boot leve
+  // ela não vai à rede — devolve o mesmo resultado síncrono de sempre.
+  const limite = await podeCriarEquipamentoAgora();
   if (!limite.permitido) throw new ErroLimiteTrial(limite.motivo);
 
   const info: InfoEquipamento = {
@@ -132,9 +137,18 @@ export function chavesDoEquipamento(tag: string): string[] {
  *   · `coletarItens(tag)` acha as chaves e monta o palco;
  *   · os 40+ templates HTML seguem exatamente como sempre foram.
  *
- * DUAS PASSADAS, e a segunda não é desperdício: os certificados de calibração
- * são chaves POR ID (`nr13_calibracao_item_<id>`), e a lista de ids está dentro
- * de `nr13_calibracoes_<TAG>` — que só existe depois da primeira passada.
+ * DUAS PASSADAS, e a segunda não é desperdício: existem duas famílias cujo
+ * NOME depende de um id que só se conhece depois de ler uma chave da primeira
+ * passada. `POR_TAG` não as alcança — nenhuma lista de prefixos alcançaria:
+ *
+ *   · `nr13_calibracao_item_<id>` — os ids estão em `nr13_calibracoes_<TAG>`.
+ *     Sem esta passada, o certificado do relatório sai em branco;
+ *   · `nr13_rel_<id>_<TAG>`       — o REGISTRO de cada relatório salvo. A
+ *     família é `POR_ID_E_TAG` (a TAG fica no fim porque a Edge do Portal
+ *     filtra por `endsWith('_'+tag)`), e os ids estão no índice
+ *     `nr13_historico_indice_<TAG>`. Sem esta passada o histórico abre curto:
+ *     o índice lista os relatórios e abrir qualquer um deles não acha o
+ *     registro.
  *
  * Não lança: sem rede, o que já estiver no cache continua valendo, e a tela de
  * detalhe decide o que dizer. Derrubar a navegação por causa da rede seria
@@ -143,13 +157,23 @@ export function chavesDoEquipamento(tag: string): string[] {
 export async function carregarEquipamento(tag: string): Promise<void> {
   await semearEquipamento(chavesDoEquipamento(tag));
 
+  const porId: string[] = [];
+
   const calibracoes = ler<Array<{ id?: unknown }>>(`nr13_calibracoes_${tag}`);
-  if (Array.isArray(calibracoes)) {
-    const ids = calibracoes
-      .map((c) => c?.id)
-      .filter((id): id is string => typeof id === 'string' && id !== '');
-    if (ids.length) await semearEquipamento(ids.map((id) => `nr13_calibracao_item_${id}`));
-  }
+  for (const id of idsDe(calibracoes)) porId.push(`nr13_calibracao_item_${id}`);
+
+  const indice = ler<Array<{ id?: unknown }>>(chaveIndice(tag));
+  for (const id of idsDe(indice)) porId.push(chaveRelatorio(id, tag));
+
+  if (porId.length) await semearEquipamento(porId);
+}
+
+/** Os ids de uma lista lida do cache, ignorando o que não for id. */
+function idsDe(lista: unknown): string[] {
+  if (!Array.isArray(lista)) return [];
+  return lista
+    .map((item) => (item as { id?: unknown } | null)?.id)
+    .filter((id): id is string => typeof id === 'string' && id !== '');
 }
 
 /**
