@@ -1,4 +1,4 @@
-# PONTO DE RETOMADA — 25/08/2026, fim do dia (P9.3 FECHADO)
+# PONTO DE RETOMADA — 25/08/2026, fim do dia (9E BLOQUEADA)
 
 > **Leia só este arquivo para voltar ao trabalho.** Ele diz onde paramos, o que está de pé em
 > produção, e qual é a próxima decisão. Nada aqui depende de lembrar da conversa.
@@ -7,9 +7,11 @@
 
 ## 1 · Onde paramos, em uma linha
 
-**A 9D está CONCLUÍDA e o P9.3 foi FECHADO pelo dono em 25/08.** `boot_v9` está ligada em duas
-organizações — a de teste e o piloto real `92a28bff…` (gabriel.dadona). A próxima etapa
-autorizada é a **9E** (`/relatorios` em escala).
+**A 9D está CONCLUÍDA (P9.3 fechado em 25/08). A 9E foi construída, medida e REPROVADA no
+rollout: está BLOQUEADA ❌.** O rollout de 14 passos passou em tudo menos no passo 11 — na tela
+nova, clicar em "Visualizar" num relatório arquivado NÃO ABRE NADA. A flag `busca_v9` voltou
+para OFF nas 30 organizações no mesmo dia, e a tela antiga voltou intacta. **A próxima tarefa é
+consertar esse caminho** (§4.1).
 
 ---
 
@@ -22,8 +24,10 @@ autorizada é a **9E** (`/relatorios` em escala).
 | SQL da 9D (4 arquivos) | **APLICADO** (25/08) — ver `docs/medicoes/2026-08-25-9d-sql-aplicado-producao.md` |
 | Projeção das 2 orgs | refeita com as funções da 9D; `convergiu: true`, `pendencias: 0` |
 | **Flag `boot_v9`** | **`true` em DUAS**: `99f642d3-…-8d211c` (teste) e `92a28bff-…-488a75` (PILOTO cliente, 25/08); `false` nas outras 28 |
-| **Flag `busca_v9`** | **desligada em todas** |
-| Front | commit **`599ac68`** publicado no Coolify em 25/08 (bundle `index-o18n-uvq.js`); `origin/main` em dia |
+| **Flag `busca_v9`** | **desligada nas 30** — ligada no piloto e revertida em 25/08 (`medicoes/2026-08-25-9e-rollout-producao.md`) |
+| Front | bundle **`index-CuF2FwNz.js`** publicado no Coolify em 25/08 — já contém a 9E, dormente atrás da flag; `origin/main` em dia |
+| SQL da 9E (`busca_relatorios.sql`) | **APLICADO** — RPCs, coluna gerada e os 4 índices de pé; inertes com a flag OFF |
+| Projeções | `relatorios_index` **23** · `equipamentos_index` **17** · `calibracoes_index` **18** |
 | `app_storage` | inalterada |
 | Suíte | **1320/1320** · build verde |
 
@@ -45,6 +49,11 @@ autorizada é a **9E** (`/relatorios` em escala).
    reprovados em produção — o painel inventava `0` quando o agregado falhava, e a UI decidia
    conectividade por `navigator.onLine`, que ficou `true` a sessão inteira com a rede morta.
    Detalhes em `medicoes/2026-08-25-9d-prova-offline-e-dois-defeitos.md`.
+6. **9E construída, medida e REPROVADA no rollout.** Gate de banco (1k→50k) e gate de navegador
+   passaram: com 50.000 relatórios no banco, a tela mantém **16 linhas** no DOM e **zero** PDF.
+   Em produção, o passo 11 achou o bloqueio: `aoAbrir` navega para `/relatorios?tag=…&rel=…`,
+   mas com a flag LIGADA essa rota **sempre** renderiza a V9, que ignora `tag` e `rel` — o clique
+   não leva a lugar nenhum. Rollback feito e conferido no mesmo dia.
 
 > **QUATRO ARMADILHAS que já custaram tempo, e voltarão. Leia antes de auditar qualquer coisa.**
 >
@@ -66,12 +75,34 @@ autorizada é a **9E** (`/relatorios` em escala).
 
 ## 4 · O QUE FALTA — comece por aqui
 
-### 4.1 · A PRÓXIMA ETAPA: 9E — `/relatorios` em escala
+### 4.1 · A PRÓXIMA TAREFA: destravar a 9E — abrir o relatório arquivado
 
-**Autorizada em 25/08.** Gates no task-level, seção 9E: busca server-side (código, TAG, período),
-metadados leves, keyset `emissao desc, relatorio_id`, contador que NÃO parseia o registro pesado,
-estado na URL, **PDF só no clique** e — o critério que manda — **zero PDF baixado durante a
-busca**. Preservar os PDFs arquivados e seus SHA-256; não regenerar histórico. Flag por tela.
+**A 9E está BLOQUEADA por UM defeito, e ele é de front.** Em `src/pages/Relatorios.tsx`:
+
+```jsx
+aoAbrir={(r) => navigate(`/relatorios?tag=${…}&rel=${…}`)}
+```
+
+O comentário ao lado diz "a tela legada já sabe fazer isso a partir da TAG" — mas com `busca_v9`
+LIGADA a rota `/relatorios` **sempre** monta `RelatoriosV9` (o `modo` vem da flag, uma vez, e
+nunca da URL), e a V9 lê só `q`, `tipo`, `de` e `ate`. O clique troca a query string e
+re-renderiza a mesma tela. **Com a 9E ligada não existe caminho para abrir um relatório
+arquivado.**
+
+O conserto é a V9 resolver o documento ela mesma — `pdfRef` → `VisualizadorPdf` — em vez de
+delegar a uma tela que a própria flag impede de existir. `ItemRelatorio` já carrega `pdfRef` e
+`sha256`, então não falta dado; falta o caminho.
+
+**Regra que não muda no conserto:** nenhum PDF histórico é regenerado e nenhum SHA-256 muda. O
+defeito não corrompeu nada — a tela nunca chegou a tocar em PDF (zero requisições medidas).
+
+Depois do conserto, repetir o rollout de 14 passos na organização de TESTE, com atenção ao passo
+11, que é o que reprovou.
+
+**Também aguardando decisão do dono (não é defeito):** a V9 lista **15** relatórios onde a legada
+mostrava **3**, porque lista a organização inteira, inclusive órfãos cujo equipamento foi excluído
+(`VASO A23`, `CALD-01`, `VASO 02`). É informação aparecendo, não sumindo — mas é mudança
+visível de comportamento.
 
 **Proibido sem nova autorização:** 9F, 9G, PDF vetorial, e habilitar `cmam.caldeiras`.
 
@@ -115,6 +146,7 @@ Organização grande ainda não tem projeção: rodar o rebuild antes de ligar
 | 5 | `nr13_rastreab_` é 396 dos 433 KB do boot | **fica**; a saída é parar de mandar `pdfBase64` no registro |
 | 6 | Modo offline do roteiro | **EXERCITADO em 25/08** — achou 2 defeitos, corrigidos e reprovados (`medicoes/2026-08-25-9d-prova-offline-e-dois-defeitos.md`) |
 | 7 | Cota do Supabase | o painel exibe *"Grace period is over"*. Fora do escopo da Fase 9, decisão sua |
+| 8 | Relatório órfão na lista da 9E | decisão do dono — ver §4.1 |
 
 ---
 
@@ -151,6 +183,12 @@ console.log(js[0], t.includes('boot_v9') ? 'BUNDLE DA 9D' : 'bundle ANTIGO');
    `document.querySelector('.monaco-editor textarea').focus()`.
 3. Script com `delete`/`drop` no texto abre o modal **"Potential issue detected"**. Confirmar em
    *Run query* — clicar pelo DOM, porque as coordenadas da tela dançam.
+4. **O painel de resultado SERVE O RESULTADO ANTERIOR**, e a caixa de texto para de aceitar
+   digitação depois da primeira execução em cada aba. Em 25/08 isso quase fez o rollback ser dado
+   como falho: a leitura mostrava `busca_on: 1` — o resultado VELHO — porque a consulta nova nem
+   tinha rodado. **Confira as COLUNAS, não só os valores:** se os nomes não são os da consulta que
+   você acabou de escrever, o painel está velho. Abra uma **aba nova do navegador** em vez de
+   insistir na mesma.
 
 **Arquivo grande no editor sem digitar:** `fetch` do `raw.githubusercontent.com` pelo **SHA do
 commit** (a URL por branch fica em cache do CDN e serve a versão velha) e `setValue` no Monaco.
@@ -165,6 +203,8 @@ commit** (a URL por branch fica em cache do CDN e serve a versão velha) e `setV
 | Plano da Fase 9 (9D fechada, 9E–9G abertas) | `docs/superpowers/plans/2026-08-22-fase9-task-level.md` |
 | Desenho da Fase 9 | `docs/superpowers/specs/2026-08-22-fase9-escala-busca-design.md` |
 | **9D em produção: SQL, defeito e roteiro** | `docs/medicoes/2026-08-25-9d-sql-aplicado-producao.md` |
+| **9E: rollout, defeito bloqueante e rollback** | `docs/medicoes/2026-08-25-9e-rollout-producao.md` |
+| 9E: gates de escala (banco e navegador) | `docs/medicoes/2026-08-25-9e-relatorios-escala.md` |
 | Teto do boot, medido | `docs/medicoes/2026-08-24-9d1-teto-do-boot-producao.md` |
 | P9.2: tela, correção e regressão | `docs/medicoes/2026-08-23-p92-validacao-frontend-8d211c.md` |
 | SQL da 9D | `supabase/boot_v9_flag.sql` · `supabase/vencimentos_agregado.sql` · `busca_manutencao.sql` · `busca_index_rpc.sql` |

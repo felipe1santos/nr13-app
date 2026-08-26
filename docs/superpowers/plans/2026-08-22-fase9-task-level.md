@@ -517,10 +517,16 @@ de `relatorios_index` conforme benchmark.
 
 ### Tarefas
 
-- [ ] **9E.1** — Busca e filtros em `/relatorios`
-- [ ] **9E.2** — Índices `9E-b1` a `9E-b4`, um por vez com benchmark
-- [ ] **9E.3** — **Contador sem parsear o registro pesado** (o achado G3 da Fase 8)
-- [ ] **9E.4** — Estado na URL
+- [x] **9E.1** — Busca e filtros em `/relatorios`
+- [x] **9E.2** — Índices `9E-b1` a `9E-b4`, um por vez com benchmark
+- [x] **9E.3** — **Contador sem parsear o registro pesado** (o achado G3 da Fase 8)
+- [x] **9E.4** — Estado na URL
+- [ ] **9E.5** — ⛔ **BLOQUEIO: abrir o relatório arquivado a partir da V9.**
+      `aoAbrir` navega para `/relatorios?tag=…&rel=…`, mas com a flag LIGADA essa rota **sempre**
+      monta `RelatoriosV9` (o `modo` vem da flag, não da URL) e a V9 ignora `tag`/`rel`. Com a 9E
+      ligada **não existe caminho para abrir um relatório arquivado**. A V9 precisa resolver o
+      `pdfRef` ela mesma no `VisualizadorPdf`. Nenhum PDF é regenerado; nenhum SHA-256 muda.
+      Registro: `medicoes/2026-08-25-9e-rollout-producao.md`
 
 ### Testes
 
@@ -729,6 +735,10 @@ recém-consultado.
 | 25/08 | Reprova em produção com o bundle novo: fila **3→2** sem clique e sem evento `online` (~74 s), servidor 9→10 com `pmtaAdotadaMpa 0.91`, projeção no mesmo timestamp, KPIs em `—` offline, auditoria **`convergiu: true`** nas 2 orgs, projeto **Healthy** | ✅ |
 | 25/08 | Os ~74 s da retentativa explicados e travados por teste: o relógio já corria durante a queda; teto real = JANELA + TICK ≈ 49 s. Sem bug de timer, sem backoff, ciclo perpétuo, evidência persistida em disco. Suíte **1320** | ✅ |
 | 25/08 | **PILOTO em organização CLIENTE** (`92a28bff…`, escolhida pelo dono): rebuild da projeção (3/8/3, `convergiu: true`), paridade OFF×ON **3/3 campo a campo**, boot **20 KB × 354 KB** (5,6 %), isolamento (1→2 orgs, `busca_v9` intocada), rollback conferido e religada. **P9.3 NÃO fechado** | ✅ |
+| 25/08 | **9E construída** — SQL (`busca_relatorios.sql`), serviço, tela sob flag por sessão, 58 testes novos | ✅ |
+| 25/08 | **Gate 9E.2 (banco)**: 1k→50k. 1ª passada **REPROVOU** (TAG 24.770 buffers, código 50.423, termo inexistente 50.423). Causa: `upper(tag)` sem índice + collation linguística não serve `LIKE 'ABC%'` + OR com ORDER BY/LIMIT levando a varredura ordenada. Corrigido com índice `text_pattern_ops` de TAG + RPC de dois caminhos + CTE `AS MATERIALIZED`: **55×–190×** melhor | ✅ |
+| 25/08 | **Gate 9E (navegador)**: 1k/10k/50k. 50.000 relatórios no banco = **16 linhas** no DOM, heap constante, **zero** requisição de PDF | ✅ |
+| 25/08 | **⛔ ROLLOUT DA 9E REPROVADO — 9E BLOQUEADA.** Passos 1–10 ✅ (SQL, índices, RLS, bundle `index-CuF2FwNz.js`, flag OFF nas 30, piloto na org de teste, busca visível, 15 resultados, `Sem data`, zero PDF). **Passo 11: "Visualizar" não abre nada** — `aoAbrir` navega para uma rota que a própria flag impede de renderizar a tela legada. Rollback ON→OFF conferido: `busca_v9` 0/30, `boot_v9` 2, projeções 23/17/18, 6 índices, tela antiga com os mesmos 3 relatórios da linha de base | ⛔ |
 | 25/08 | **🚪 P9.3 FECHADO ✅ pelo dono. 9D CONCLUÍDA.** Evidência aceita como DISTRIBUÍDA entre laboratório (escala, essencial constante, testes), organização de teste (interface real, offline, fila, reconexão, rollback) e piloto real (rebuild, paridade, boot leve, rollback). **`cmam.caldeiras` NÃO habilitada** — a organização de maior risco não vira requisito artificial para fechar um portão. Expansão a clientes: gradual, com autorização separada. **9E autorizada** | ✅ |
 
 ---
