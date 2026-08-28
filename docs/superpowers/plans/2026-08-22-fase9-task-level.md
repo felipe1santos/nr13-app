@@ -612,16 +612,24 @@ no clique** · offline · o histórico por equipamento continua funcionando.
 ### Tarefas
 
 - [x] **9F.1.0** — Análise do caminho atual, com medida em produção e no banco
-- [ ] **9F.1.1** — Catálogo da tela vindo do SERVIDOR (reuso de `buscaIndex`, `BuscaLista`,
-      `ListaVirtualizada`), com busca, keyset e virtualização — sem `lerTudo()`
-- [ ] **9F.1.2** — **Badge sem parsear o container.** Caminho recomendado: coluna
+- [x] **9F.1.1** — Catálogo da tela vindo do SERVIDOR (`InspecoesV9.tsx`), com busca, keyset e
+      virtualização — sem `lerTudo()`. Commit `ef10c90`
+- [x] **9F.1.2** — **Badge sem parsear o container** (commit `b555ddb`). Caminho recomendado: coluna
       `inspecoes integer` em `equipamentos_index`, projetada de `nr13_docs_<TAG>`;
       `projetar_chave` já tem a porta (uma linha no `elsif`), e a contagem é
       `jsonb_array_length`. **Ausente é `null` = "não sei", nunca `0`** — o badge omite o número
       em vez de afirmar zero numa organização ainda não reprojetada
-- [ ] **9F.1.3** — Ligar `carregarEquipamento(tag)` ao escolher a TAG (a semeadura que hoje só o
-      teste exercita). Sem ela, tirar o `lerTudo()` faria a tela de containers abrir vazia
-- [ ] **9F.1.4** — Flag própria da tela + rollback por desligar
+- [x] **9F.1.3** — `carregarEquipamento(tag)` LIGADO ao escolher a TAG, via
+      `abrirEquipamentoParaInspecao`: semeia e só então lê, e não lança (offline segue com o
+      cache). A semeadura existia desde a 9D e **nenhuma tela a chamava**
+- [x] **9F.1.4** — Flag `inspecoes_v9` (`supabase/inspecoes_v9_flag.sql`) + **degrau de recuo
+      novo** em `flag.ts`: banco sem a coluna nova não derruba `busca_v9` e `boot_v9` junto — o
+      estado normal entre publicar o bundle e aplicar o SQL
+
+> **ESTADO EM 28/08: implementada e verificada localmente (1439/1439, build verde). NADA foi
+> aplicado em produção e NENHUMA flag foi ligada.** Falta o gate de navegador (1k/10k/50k), o SQL,
+> a reprojeção e o roteiro na organização de teste — nesta ordem, e só com autorização.
+> Registro: `medicoes/2026-08-28-9f1-inspecoes-implementada.md`
 
 ### Testes — ANTES da mudança
 

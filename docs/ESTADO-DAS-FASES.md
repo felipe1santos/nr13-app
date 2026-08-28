@@ -6,8 +6,8 @@
 > **REGRA:** este arquivo é atualizado NO MOMENTO em que o estado muda — commit, push,
 > redeploy, validação, portão. Não no fim da fase.
 
-**Última atualização:** 28/08/2026 — 9E FECHADA
-**Branch:** `main` · **Suíte:** 1410 testes / 114 arquivos, 0 falhas · **Build:** verde
+**Última atualização:** 28/08/2026 — 9E FECHADA · 9F.1 implementada (sem rollout)
+**Branch:** `main` · **Suíte:** 1439 testes / 117 arquivos, 0 falhas · **Build:** verde
 
 > ### 🔖 VOLTANDO DEPOIS DE UMA PAUSA? Leia [`PONTO-DE-RETOMADA.md`](PONTO-DE-RETOMADA.md).
 > Ele tem o estado de produção, o que falta decidir (a **9D**) e **todos os endereços de acesso** —
@@ -139,8 +139,11 @@ habilitar em cliente sem autorização nova.**
 
 | **9E** | **🚪 FECHADA ✅ pelo dono em 28/08/2026** — com DUAS limitações declaradas, que **não** contam como aprovadas: (1) **cache frio sob `boot_v9` NÃO foi exercitado** no rollout da organização de teste; (2) **paginação/keyset** foi validada em laboratório com 50.000 relatórios, mas **não** exercitada na organização de teste, que tem 12. Nenhuma das duas vale por inferência |
 
-**Próxima ação exata:** **NENHUMA sem autorização.** A 9F NÃO está autorizada e não começa
-sozinha. `busca_v9` segue **OFF nas 30** — **não habilitar em cliente nenhum**; nenhuma conta
+**Próxima ação exata:** **NENHUMA sem autorização.** A **9F.1 (`/inspecoes`) está implementada e
+verificada localmente** (commits `b555ddb` e `ef10c90`) — mas **nada foi aplicado em produção e
+nenhuma flag foi ligada**. Falta o gate de navegador, o SQL, a reprojeção e o roteiro na
+organização de teste. As demais telas da 9F **não** foram iniciadas.
+Registro: `medicoes/2026-08-28-9f1-inspecoes-implementada.md`. `busca_v9` segue **OFF nas 30** — **não habilitar em cliente nenhum**; nenhuma conta
 pagante foi habilitada. Nenhum PDF histórico foi regenerado e nenhum SHA-256 mudou.
 
 ### ✅ P9.2 FECHADO — 23/08/2026
