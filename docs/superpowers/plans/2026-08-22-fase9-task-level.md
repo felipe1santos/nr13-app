@@ -521,8 +521,8 @@ de `relatorios_index` conforme benchmark.
 - [x] **9E.2** — Índices `9E-b1` a `9E-b4`, um por vez com benchmark
 - [x] **9E.3** — **Contador sem parsear o registro pesado** (o achado G3 da Fase 8)
 - [x] **9E.4** — Estado na URL
-- [x] **9E.5** — **Abrir o relatório arquivado a partir da V9** (código pronto em 28/08; o
-      rollout em produção é o que ainda falta). A V9 resolve o `pdfRef` no próprio
+- [x] **9E.5** — **Abrir o relatório arquivado a partir da V9** (validado em produção em 28/08:
+      dois relatórios abertos, SHA-256 da tela igual ao do banco). A V9 resolve o `pdfRef` no próprio
       `VisualizadorPdf` (`artefatoDoItemBuscado`); a rota ganhou a saída `legado=1`
       (`rotaRelatorios.ts`) e a tela antiga passou a abrir por link (`?tag=…&rel=…`), que é o
       caminho do relatório anterior ao §7-quater, sem arquivo. Nenhum PDF regenerado; nenhum
@@ -548,10 +548,17 @@ no clique** · offline · o histórico por equipamento continua funcionando.
 
 ### Critérios de aceite
 
-- [ ] `/relatorios` tem busca com todos os requisitos do §13 do desenho
-- [ ] Período funciona
-- [ ] **Zero PDF baixado durante a busca**
-- [ ] Contador não parseia o registro pesado
+- [x] `/relatorios` tem busca com todos os requisitos do §13 do desenho — medido na org de teste em 28/08
+- [x] Período funciona — `?de=2026-08-20&ate=2026-08-22` reduz de 3 para 2, e o de 19/08 sai
+- [x] **Zero PDF baixado durante a busca** — 36 requisições registradas, nenhuma de `storage`
+- [x] Contador não parseia o registro pesado — `contar_relatorios` devolve total e historicos direto da projeção
+- [x] **Abrir o relatório arquivado** — 13 e 18 páginas, SHA-256 conferido contra o banco; legado sem artefato abre por `legado=1`
+- [x] Rollback ON→OFF — `busca_v9` 0/30, projeções e índices intactos, tela antiga com os mesmos 3
+
+**Evidência:** `medicoes/2026-08-28-9e-rollout-producao.md`. **Falta a decisão formal do dono.**
+
+**Não exercitado em produção, e declarado:** cache frio sob `boot_v9` (exigiria limpar o
+IndexedDB) e paginação/keyset (12 itens contra página de 50 — medido em laboratório com 50.000).
 
 **Deploy:** flag por tela.
 
@@ -750,6 +757,7 @@ recém-consultado.
 | 25/08 | **⛔ ROLLOUT DA 9E REPROVADO — 9E BLOQUEADA.** Passos 1–10 ✅ (SQL, índices, RLS, bundle `index-CuF2FwNz.js`, flag OFF nas 30, piloto na org de teste, busca visível, 15 resultados, `Sem data`, zero PDF). **Passo 11: "Visualizar" não abre nada** — `aoAbrir` navega para uma rota que a própria flag impede de renderizar a tela legada. Rollback ON→OFF conferido: `busca_v9` 0/30, `boot_v9` 2, projeções 23/17/18, 6 índices, tela antiga com os mesmos 3 relatórios da linha de base | ⛔ |
 | 25/08 | **🚪 P9.3 FECHADO ✅ pelo dono. 9D CONCLUÍDA.** Evidência aceita como DISTRIBUÍDA entre laboratório (escala, essencial constante, testes), organização de teste (interface real, offline, fila, reconexão, rollback) e piloto real (rebuild, paridade, boot leve, rollback). **`cmam.caldeiras` NÃO habilitada** — a organização de maior risco não vira requisito artificial para fechar um portão. Expansão a clientes: gradual, com autorização separada. **9E autorizada** | ✅ |
 | 28/08 | **9E DESTRAVADA no código** — três defeitos consertados com teste: (1) a navegação, agora a V9 abre o `pdfRef` no próprio visualizador e a rota tem a saída `legado=1` para o relatório sem arquivo; (2) **`pdfRef ->> 'caminho'` × `path`** na projeção, o NULL silencioso que deixava `pdf_ref` nulo nas 15 linhas, inclusive nas 4 com artefato — agora com guarda no `busca_relatorios.sql` e teste de projeção de verdade; (3) relatório de equipamento excluído com escopo, aviso e selo. **1410/1410** · build verde. **A 9E só sai de BLOQUEADA com o rollout repetido em produção** | 🔧 |
+| 28/08 | **ROLLOUT DA 9E REPETIDO EM PRODUÇÃO — PASSOU.** `busca_manutencao.sql` aplicado (`prosrc` com `->> 'path'`) → reprojeção só de relatórios nas orgs já projetadas (**linhas com `sha256` e sem `pdf_ref`: 11 → 0**) → `busca_relatorios.sql` aplicado (1 sobrecarga de cada, anon=false/auth=true, 6 índices) → front `a944845` publicado (**o nome do bundle NÃO mudou; a prova foi a string literal**) → flag ON na org de teste: 3 resultados (paridade), aviso de 12 excluídos, `Sem data`, busca por TAG, termo inexistente, período, **zero PDF**. **Passo 11 APROVADO**: dois relatórios abertos (13 e 18 páginas), SHA-256 da tela **igual ao do banco**, incl. um de equipamento EXCLUÍDO; legado sem artefato abriu por `legado=1`. Rollback ON→OFF conferido: 0/30, boot_v9 2, 22/17/18, 6 índices, tela antiga com os mesmos 3. Falta só a decisão do dono | ✅ |
 
 ---
 

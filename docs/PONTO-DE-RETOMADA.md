@@ -1,4 +1,4 @@
-# PONTO DE RETOMADA — 28/08/2026 (9E: defeito consertado, rollout por repetir)
+# PONTO DE RETOMADA — 28/08/2026 (9E: rollout REPETIDO e passou; falta a decisão do dono)
 
 > **Leia só este arquivo para voltar ao trabalho.** Ele diz onde paramos, o que está de pé em
 > produção, e qual é a próxima decisão. Nada aqui depende de lembrar da conversa.
@@ -7,11 +7,13 @@
 
 ## 1 · Onde paramos, em uma linha
 
-**A 9D está CONCLUÍDA (P9.3 fechado em 25/08). O defeito que bloqueou a 9E foi CONSERTADO em
-28/08 — junto com outros dois que estavam escondidos atrás dele —, mas a 9E só sai de
-BLOQUEADA quando o rollout for repetido em produção.** A flag `busca_v9` segue OFF nas 30. A
-próxima tarefa é APLICAR e MEDIR, na ordem do §4.1: o SQL da projeção primeiro, senão nada mais
-adianta. Registro da correção: `medicoes/2026-08-28-9e-destravamento.md`.
+**A 9D está CONCLUÍDA (P9.3 fechado em 25/08). Em 28/08 os três defeitos da 9E foram
+consertados, o SQL foi aplicado, o front publicado e o rollout de 14 passos REPETIDO na
+organização de teste — inclusive o passo 11, que era o bloqueio: o PDF arquivado ABRE, com o
+SHA-256 da tela igual ao do banco.** Rollback feito no mesmo dia: `busca_v9` OFF nas 30.
+**Falta só a decisão formal do dono: 9E FECHADA ✅ ou BLOQUEADA ❌.** Evidências em
+`medicoes/2026-08-28-9e-rollout-producao.md`; as correções em
+`medicoes/2026-08-28-9e-destravamento.md`.
 
 ---
 
@@ -25,10 +27,10 @@ adianta. Registro da correção: `medicoes/2026-08-28-9e-destravamento.md`.
 | Projeção das 2 orgs | refeita com as funções da 9D; `convergiu: true`, `pendencias: 0` |
 | **Flag `boot_v9`** | **`true` em DUAS**: `99f642d3-…-8d211c` (teste) e `92a28bff-…-488a75` (PILOTO cliente, 25/08); `false` nas outras 28 |
 | **Flag `busca_v9`** | **desligada nas 30** — ligada no piloto e revertida em 25/08 (`medicoes/2026-08-25-9e-rollout-producao.md`) |
-| Front | bundle **`index-CuF2FwNz.js`** publicado no Coolify em 25/08 — contém a 9E **com o defeito**; a correção de 28/08 ainda NÃO foi publicada |
-| SQL da 9E (`busca_relatorios.sql`) | aplicado em 25/08, **VERSÃO ANTIGA** — a de 28/08 (escopo, `equipamento_ativo`, `historicos`) está por aplicar |
-| SQL da projeção (`busca_manutencao.sql`) | **PRECISA SER REAPLICADO** — `pdfRef ->> 'path'`; enquanto não for, `pdf_ref` continua nulo em toda linha |
-| Projeções | `relatorios_index` **23** · `equipamentos_index` **17** · `calibracoes_index` **18** — a de relatórios precisa ser REFEITA depois do passo acima |
+| Front | commit **`a944845`** publicado no Coolify em 28/08 (deploy Success, 01m54s). O bundle manteve o nome `index-Ccsir5D0.js` — **conferir por string literal, não pelo nome** |
+| SQL da 9E (`busca_relatorios.sql`) | **APLICADO em 28/08** — `p_escopo`, `equipamento_ativo`, `historicos`; 1 sobrecarga de cada, `anon` false / `authenticated` true, 6 índices |
+| SQL da projeção (`busca_manutencao.sql`) | **APLICADO em 28/08** — `pdfRef ->> 'path'` conferido no `prosrc` |
+| Projeções | `relatorios_index` **22** · `equipamentos_index` **17** · `calibracoes_index` **18** · pendências **0**. Reprojetada: linhas com `sha256` e sem `pdf_ref` **11 → 0** |
 | `app_storage` | inalterada |
 | Suíte | **1410/1410** · `tsc -b` limpo · build verde (28/08) |
 
@@ -58,11 +60,12 @@ adianta. Registro da correção: `medicoes/2026-08-28-9e-destravamento.md`.
 
 ### 3-bis · O que aconteceu em 28/08
 
-7. **Os três defeitos da 9E, consertados com teste** (§4.1 e
+7. **Os três defeitos da 9E, consertados com teste, e o rollout REPETIDO em produção** (§4.0/§4.1;
    `medicoes/2026-08-28-9e-destravamento.md`). O segundo é o que importa lembrar: a projeção lia
    `pdfRef ->> 'caminho'` e o campo se chama `path` — chave inexistente devolve `NULL` sem erro,
-   e a busca inteira ficava sem referência de arquivo. **Nada em produção foi tocado**: são
-   mudanças de código e de SQL, ainda por aplicar.
+   e a busca inteira ficava sem referência de arquivo. Em produção, a reprojeção levou as linhas
+   com `sha256` e sem `pdf_ref` de **11 para 0**. O passo 11 passou: o PDF abre, com o SHA-256 da
+   tela igual ao do banco. Rollback conferido no mesmo dia.
 
 > **QUATRO ARMADILHAS que já custaram tempo, e voltarão. Leia antes de auditar qualquer coisa.**
 >
@@ -84,10 +87,25 @@ adianta. Registro da correção: `medicoes/2026-08-28-9e-destravamento.md`.
 
 ## 4 · O QUE FALTA — comece por aqui
 
-### 4.1 · A PRÓXIMA TAREFA: aplicar e repetir o rollout da 9E
+### 4.0 · A PRÓXIMA DECISÃO (é sua): 9E FECHADA ✅ ou BLOQUEADA ❌
 
-**O código está pronto e verificado localmente (1410/1410, build verde). O que falta é
-produção.** Os três defeitos e o desenho de cada correção estão em
+O rollout foi repetido em 28/08 e passou, inclusive no passo 11.
+Evidência: `medicoes/2026-08-28-9e-rollout-producao.md`. O resumo:
+
+| | |
+|---|---|
+| Passo 11 (o bloqueio) | **PASSOU** — dois relatórios abertos, 13 e 18 páginas, SHA-256 da tela **igual** ao do banco |
+| Zero PDF na busca | **confirmado** — 36 requisições, nenhuma de `storage` |
+| Paridade | `ativos` = **3**, o mesmo da tela legada |
+| Excluídos | 12, com aviso e selo; abrem normalmente |
+| Legado sem arquivo | abre pela rota `legado=1` |
+| Rollback | conferido: `busca_v9` 0/30, `boot_v9` 2, projeções 22/17/18, 6 índices, tela antiga com os mesmos 3 |
+| Não exercitado | cache frio sob `boot_v9` e paginação (12 itens × página de 50 — medida em laboratório com 50.000) |
+
+### 4.1 · O rollout de 28/08 — o que foi feito, na ordem
+
+**Código verificado localmente (1410/1410, build verde) e APLICADO em produção.** Os três
+defeitos e o desenho de cada correção estão em
 `medicoes/2026-08-28-9e-destravamento.md`; o resumo é:
 
 1. **Navegação** — a V9 abre o documento ela mesma (`pdfRef` → `VisualizadorPdf`), em vez de
@@ -100,15 +118,15 @@ produção.** Os três defeitos e o desenho de cada correção estão em
    URL. Com `equipamentos_index` vazia ninguém é marcado como órfão — a guarda que impede a tela
    de afirmar "não há relatórios" para quem tem o parque inteiro.
 
-**A ORDEM IMPORTA, e o primeiro passo é o que não pode ser pulado:**
+**A ORDEM IMPORTOU, e o primeiro passo era o que não podia ser pulado. Tudo abaixo foi FEITO em 28/08:**
 
 | # | Ação | Como conferir |
 |---|---|---|
-| 1 | Reaplicar **`supabase/busca_manutencao.sql`** | `prosrc` de `projetar_relatorios` contém `->> 'path'` (a auditoria NÃO acusa isto — armadilha nº 2) |
-| 2 | Reprojetar (`reiniciar_rebuild_busca` + `reconstruir_indice_busca`) | nenhuma linha com `sha256` preenchido e `pdf_ref` nulo |
-| 3 | Reaplicar **`supabase/busca_relatorios.sql`** | ele RECUSA rodar se o passo 1 faltou; assinaturas com `p_escopo`, coluna `equipamento_ativo` |
-| 4 | Publicar o front e conferir o bundle | `curl` da raiz, nunca pelo navegador (armadilha nº 1) |
-| 5 | Repetir o roteiro de 14 passos na org de TESTE | **passo 11**: o PDF ABRE; a busca segue com **zero** requisição de PDF; o selo e o aviso aparecem para o órfão |
+| 1 ✅ | Reaplicar **`supabase/busca_manutencao.sql`** | `prosrc` de `projetar_relatorios` contém `->> 'path'` — conferido (a auditoria NÃO acusa isto — armadilha nº 2) |
+| 2 ✅ | Reprojetar (só relatórios, só nas orgs já projetadas) | linhas com `sha256` e sem `pdf_ref`: **11 → 0** |
+| 3 ✅ | Reaplicar **`supabase/busca_relatorios.sql`** | a guarda deixou passar; 1 sobrecarga de cada, RLS anon=false/auth=true, 6 índices |
+| 4 ✅ | Publicar o front e conferir o bundle | deploy `a944845` Success; **o nome do bundle não mudou** — a prova foi a string literal `/relatorios?legado=1&tag=` |
+| 5 ✅ | Repetir o roteiro de 14 passos na org de TESTE | passo 11 PASSOU; zero PDF na busca; selo e aviso conferidos; rollback ON→OFF feito |
 
 **Regra que não muda:** nenhum PDF histórico é regenerado e nenhum SHA-256 muda.
 
@@ -213,6 +231,7 @@ commit** (a URL por branch fica em cache do CDN e serve a versão velha) e `setV
 | **9D em produção: SQL, defeito e roteiro** | `docs/medicoes/2026-08-25-9d-sql-aplicado-producao.md` |
 | **9E: rollout, defeito bloqueante e rollback** | `docs/medicoes/2026-08-25-9e-rollout-producao.md` |
 | **9E: os três defeitos e como foram consertados** | `docs/medicoes/2026-08-28-9e-destravamento.md` |
+| **9E: o rollout de 28/08 que passou (evidências)** | `docs/medicoes/2026-08-28-9e-rollout-producao.md` |
 | 9E: gates de escala (banco e navegador) | `docs/medicoes/2026-08-25-9e-relatorios-escala.md` |
 | Teto do boot, medido | `docs/medicoes/2026-08-24-9d1-teto-do-boot-producao.md` |
 | P9.2: tela, correção e regressão | `docs/medicoes/2026-08-23-p92-validacao-frontend-8d211c.md` |
