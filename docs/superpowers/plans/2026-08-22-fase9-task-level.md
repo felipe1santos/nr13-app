@@ -577,11 +577,74 @@ no clique** · offline · o histórico por equipamento continua funcionando.
 
 # 9F · Demais telas de escala
 
-`/inspecoes` · `/prontuarios` · `/calibracoes` (+ tirar `listarCalibracoes` do render) ·
-`/livro-registro` · `/vencimentos` e `/dashboard` (agregado híbrido, §15 do desenho) ·
-`/empresas` (busca na lista local).
+**INICIADA em 28/08/2026 — bloco de análise.** Ordem do desenho (§14): `/inspecoes` e
+`/prontuarios` · `/calibracoes` (+ tirar `listarCalibracoes` do render) · `/livro-registro` ·
+`/vencimentos` e `/dashboard` (agregado híbrido, §15) · `/empresas` (busca na lista local).
 
-**Uma tela por commit, uma flag por tela.** Testes e benchmarks no mesmo molde da 9C.
+**Uma tela por commit, uma flag por tela.** Testes e benchmarks no mesmo molde da 9C/9E.
+
+> **O DEFEITO É O MESMO NAS QUATRO PRIMEIRAS TELAS, e tem nome:** `listarEquipamentos()`.
+> `Inspecoes.tsx`, `Prontuarios.tsx`, `Calibracoes.tsx` e a `/relatorios` LEGADA chamam a mesma
+> função, e ela começa com `await lerTudo()` — **hidratação completa**. Sob `boot_v9` isso desfaz
+> o boot leve da 9D (20 KB × 354 KB medidos) na primeira visita a qualquer uma delas. Não são
+> quatro problemas: é um, repetido quatro vezes.
+
+---
+
+## 9F.1 · `/inspecoes` — PRIMEIRA TELA
+
+**Análise concluída em 28/08:** `medicoes/2026-08-28-9f-analise-inspecoes.md`.
+**Nada foi alterado ainda — aguardando aprovação do dono para implementar.**
+
+### O que foi medido (AS-IS)
+
+| Achado | Medida |
+|---|---|
+| Lista inteira no DOM, sem busca nem paginação | org de teste: 4 equipamentos, 261 nós, 14 MB de heap, `tem_campo_busca: false` |
+| **Badge "N Inspeções" parseia o container INTEIRO, 2× por cartão, no render** | `nr13_docs_` medida em produção: 27 chaves / 10 orgs · média **11,4 KB** · p95 **71,8 KB** · maior **117,3 KB** → projeção: **~22 MB de `JSON.parse` por render** com 1.000 equipamentos |
+| `lerTudo()` desfaz o boot leve | `hidratarEssencial` não traz `nr13_info_`; a tela precisa da hidratação completa para ter o que mostrar |
+
+> **ACHADO LATERAL, registrado e NÃO corrigido de improviso:** `carregarEquipamento(tag)` — a
+> semeadura sob demanda do §4 do desenho, com teste próprio — **não é chamada por nenhuma tela**.
+> Hoje fica mascarada porque `lerTudo()` traz tudo. No dia em que a 9F tirar o `lerTudo()`, ela
+> passa a ser obrigatória: **entra como tarefa 9F.1.3**, não como conserto avulso.
+
+### Tarefas
+
+- [x] **9F.1.0** — Análise do caminho atual, com medida em produção e no banco
+- [ ] **9F.1.1** — Catálogo da tela vindo do SERVIDOR (reuso de `buscaIndex`, `BuscaLista`,
+      `ListaVirtualizada`), com busca, keyset e virtualização — sem `lerTudo()`
+- [ ] **9F.1.2** — **Badge sem parsear o container.** Caminho recomendado: coluna
+      `inspecoes integer` em `equipamentos_index`, projetada de `nr13_docs_<TAG>`;
+      `projetar_chave` já tem a porta (uma linha no `elsif`), e a contagem é
+      `jsonb_array_length`. **Ausente é `null` = "não sei", nunca `0`** — o badge omite o número
+      em vez de afirmar zero numa organização ainda não reprojetada
+- [ ] **9F.1.3** — Ligar `carregarEquipamento(tag)` ao escolher a TAG (a semeadura que hoje só o
+      teste exercita). Sem ela, tirar o `lerTudo()` faria a tela de containers abrir vazia
+- [ ] **9F.1.4** — Flag própria da tela + rollback por desligar
+
+### Testes — ANTES da mudança
+
+| Nível | O que trava |
+|---|---|
+| unidade | contagem por TAG a partir da projeção · `null` ≠ `0` no rótulo · estado na URL |
+| unidade | a tela nova **não** chama `lerTudo()` (mesma instrumentação do `buscaRelatorios.semPdf.test.ts`) |
+| SQL | `projetar_equipamento` conta o array de `nr13_docs_` · container criado/removido reprojeta · org sem a chave devolve `null` · isolamento entre organizações |
+| navegador | 1k / 10k / 50k: nós de DOM constantes, heap estável, **zero leitura de `nr13_docs_` na lista** |
+| produção | só depois da aprovação: flag ON na org de TESTE, paridade da contagem contra a tela antiga, rollback |
+
+### Benchmark
+
+`explain (analyze, buffers)` do catálogo antes × depois da coluna nova — ela não pode piorar a
+consulta medida na 9C/9E.2.
+
+---
+
+## 9F.2…9F.6 · demais telas — NÃO INICIADAS
+
+`/prontuarios` · `/calibracoes` · `/livro-registro` · `/vencimentos` + `/dashboard` (§15) ·
+`/empresas`. Cada uma repete o molde: entender o caminho atual → escopo → testes antes →
+benchmark → medir DOM/heap/rede → commit próprio → aprovação antes do rollout.
 
 **Dashboard offline:** a UI mostra a **hora do último sync** — nunca apresenta dado antigo como
 recém-consultado.
