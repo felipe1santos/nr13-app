@@ -182,4 +182,24 @@ Os 14 passos do roteiro foram executados. O critério que reprovou em 25/08 —
 abre o `pdfRef` existente"* — foi cumprido em dois relatórios, com o SHA-256 da
 tela conferido contra o banco nos dois.
 
-**A decisão de FECHAR ou não a 9E é do dono.**
+---
+
+## 🚪 DECISÃO DO DONO — 9E FECHADA ✅ (28/08/2026)
+
+**Aceito como provado:** SQL aplicado · projeção corrigida · `pdf_ref`/`path` validado · busca em
+produção · RLS · índices · busca V9 · ativos e históricos de equipamentos excluídos · abertura
+real do PDF · SHA-256 · zero PDF durante a busca · rollback · 1410/1410 · build verde · árvore
+limpa · **nenhuma conta pagante habilitada**.
+
+**DUAS LIMITAÇÕES DECLARADAS NO FECHAMENTO — e nenhuma delas é aprovada por inferência:**
+
+1. **Cache frio sob `boot_v9`** — o caminho em que o aparelho não tem o índice daquela TAG **não
+   foi exercitado** no rollout da organização de teste. Coberto por código, não por medição.
+   **Não tratar como aprovado.**
+2. **Paginação / keyset** — validada em laboratório com massa de **50.000** relatórios, mas **não**
+   exercitada na organização de teste, que tem 12 relatórios contra uma página de 50. **Não conta
+   como teste de rollout dessa organização.**
+
+**Restrições que continuam valendo:** `busca_v9` permanece **OFF nas 30** — **não habilitar em
+organização cliente** sem autorização nova e separada. **A 9F não está autorizada e não começa
+sozinha.** `cmam.caldeiras` segue não habilitada.

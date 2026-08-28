@@ -1,4 +1,4 @@
-# PONTO DE RETOMADA — 28/08/2026 (9E: rollout REPETIDO e passou; falta a decisão do dono)
+# PONTO DE RETOMADA — 28/08/2026 (🚪 9E FECHADA ✅)
 
 > **Leia só este arquivo para voltar ao trabalho.** Ele diz onde paramos, o que está de pé em
 > produção, e qual é a próxima decisão. Nada aqui depende de lembrar da conversa.
@@ -11,7 +11,9 @@
 consertados, o SQL foi aplicado, o front publicado e o rollout de 14 passos REPETIDO na
 organização de teste — inclusive o passo 11, que era o bloqueio: o PDF arquivado ABRE, com o
 SHA-256 da tela igual ao do banco.** Rollback feito no mesmo dia: `busca_v9` OFF nas 30.
-**Falta só a decisão formal do dono: 9E FECHADA ✅ ou BLOQUEADA ❌.** Evidências em
+**O dono FECHOU a 9E em 28/08**, com duas limitações declaradas (§4.0) que não valem por
+inferência: cache frio sob `boot_v9` e paginação/keyset. **A 9F não está autorizada.**
+Evidências em
 `medicoes/2026-08-28-9e-rollout-producao.md`; as correções em
 `medicoes/2026-08-28-9e-destravamento.md`.
 
@@ -87,10 +89,31 @@ SHA-256 da tela igual ao do banco.** Rollback feito no mesmo dia: `busca_v9` OFF
 
 ## 4 · O QUE FALTA — comece por aqui
 
-### 4.0 · A PRÓXIMA DECISÃO (é sua): 9E FECHADA ✅ ou BLOQUEADA ❌
+### 4.0 · 🚪 9E FECHADA ✅ pelo dono em 28/08/2026
 
-O rollout foi repetido em 28/08 e passou, inclusive no passo 11.
-Evidência: `medicoes/2026-08-28-9e-rollout-producao.md`. O resumo:
+**O portão está fechado. A 9F NÃO está autorizada e não começa sozinha.**
+
+> **DUAS LIMITAÇÕES DECLARADAS, e elas NÃO contam como aprovadas.** O dono fechou a 9E
+> com elas explícitas, e nenhuma vale por inferência:
+>
+> 1. **Cache frio sob `boot_v9`** — o caminho em que o aparelho não tem o índice daquela TAG
+>    e a tela antiga deve parar no HISTÓRICO da TAG certa (e nunca jogar o usuário na lista de
+>    equipamentos) **NÃO foi exercitado** no rollout da organização de teste. Está coberto por
+>    código e por comentário, não por medição em produção.
+> 2. **Paginação / keyset** — validada em **laboratório com 50.000 relatórios**
+>    (`medicoes/2026-08-25-9e-relatorios-escala.md`), **não** exercitada na organização de
+>    teste, que tem 12 relatórios contra uma página de 50. **Não é teste de rollout dessa
+>    organização.**
+
+**O que o dono aceitou como provado:** SQL aplicado · projeção corrigida · `pdf_ref`/`path`
+validado · busca em produção · RLS · índices · busca V9 · ativos e históricos de equipamentos
+excluídos · abertura real do PDF · SHA-256 · zero PDF durante a busca · rollback · 1410/1410 ·
+build verde · árvore limpa · **nenhuma conta pagante habilitada**.
+
+> **NÃO HABILITAR `busca_v9` EM CLIENTE.** A flag está OFF nas 30 e continua assim até
+> autorização nova e separada.
+
+Evidência do rollout: `medicoes/2026-08-28-9e-rollout-producao.md`. O resumo:
 
 | | |
 |---|---|
@@ -100,7 +123,7 @@ Evidência: `medicoes/2026-08-28-9e-rollout-producao.md`. O resumo:
 | Excluídos | 12, com aviso e selo; abrem normalmente |
 | Legado sem arquivo | abre pela rota `legado=1` |
 | Rollback | conferido: `busca_v9` 0/30, `boot_v9` 2, projeções 22/17/18, 6 índices, tela antiga com os mesmos 3 |
-| Não exercitado | cache frio sob `boot_v9` e paginação (12 itens × página de 50 — medida em laboratório com 50.000) |
+| Não exercitado — **declarado, não aprovado** | cache frio sob `boot_v9` · paginação/keyset (12 itens × página de 50; medida em laboratório com 50.000) |
 
 ### 4.1 · O rollout de 28/08 — o que foi feito, na ordem
 
@@ -130,7 +153,8 @@ defeitos e o desenho de cada correção estão em
 
 **Regra que não muda:** nenhum PDF histórico é regenerado e nenhum SHA-256 muda.
 
-**Proibido sem nova autorização:** 9F, 9G, PDF vetorial, e habilitar `cmam.caldeiras`.
+**Proibido sem nova autorização:** iniciar a **9F**, a 9G, PDF vetorial, habilitar `cmam.caldeiras`
+e **habilitar `busca_v9` em qualquer organização cliente**.
 
 ### 4.1-bis · A expansão do `boot_v9` (gradual, autorização separada)
 

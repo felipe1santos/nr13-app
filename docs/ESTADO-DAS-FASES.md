@@ -6,8 +6,8 @@
 > **REGRA:** este arquivo é atualizado NO MOMENTO em que o estado muda — commit, push,
 > redeploy, validação, portão. Não no fim da fase.
 
-**Última atualização:** 23/08/2026 18:10
-**Branch:** `main` · **Suíte:** 1244 testes / 98 arquivos, 0 falhas · **Build:** verde
+**Última atualização:** 28/08/2026 — 9E FECHADA
+**Branch:** `main` · **Suíte:** 1410 testes / 114 arquivos, 0 falhas · **Build:** verde
 
 > ### 🔖 VOLTANDO DEPOIS DE UMA PAUSA? Leia [`PONTO-DE-RETOMADA.md`](PONTO-DE-RETOMADA.md).
 > Ele tem o estado de produção, o que falta decidir (a **9D**) e **todos os endereços de acesso** —
@@ -104,22 +104,23 @@ Sempre use um destes. Nunca "concluído".
 | **4** | Portal: arquitetura de leitura (A-02) | ✅ **CONCLUÍDA** | **P3 FECHADO ✅** aprovado 20/08 | `plans/2026-08-20-fase4-task-level.md` |
 | **5** | Fotos: thumbnail, EXIF, teto de altura (A-08) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** | — | `plans/2026-08-20-fase5-task-level.md` · `medicoes/2026-08-20-fase5-producao-antes-depois.md` |
 | **6** | Recuperação do fallback base64 (A-10) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** nas 3 famílias, com SHA-256 idêntico | — | `plans/2026-08-20-fase6-task-level.md` |
-| **9** | Escala, busca e carregamento sob demanda | 🟢 **9A–9D CONCLUÍDAS** · `boot_v9` em 2 orgs (teste + piloto real); `cmam.caldeiras` NÃO habilitada | **P9.1 ✅** · **P9.2 ✅** (23/08) · **P9.3 FECHADO ✅** (25/08) · P9.4…P9.5 | `plans/2026-08-22-fase9-task-level.md` · `specs/2026-08-22-fase9-escala-busca-design.md` |
+| **9** | Escala, busca e carregamento sob demanda | 🟢 **9A–9E CONCLUÍDAS** · `boot_v9` em 2 orgs (teste + piloto real); **`busca_v9` OFF nas 30**; `cmam.caldeiras` NÃO habilitada | **P9.1 ✅** · **P9.2 ✅** (23/08) · **P9.3 ✅** (25/08) · **9E FECHADA ✅** (28/08) · P9.4…P9.5 | `plans/2026-08-22-fase9-task-level.md` · `specs/2026-08-22-fase9-escala-busca-design.md` |
 | **8** | Escala, dataset e medições | ✅ **CONCLUÍDA** (22/08) — diagnóstico aprovado; o critério de produto **NÃO PASSA em grande escala**, e isso é o mandato da Fase 9 | — | `plans/2026-08-22-fase8-task-level.md` · `medicoes/2026-08-22-fase8-fechamento.md` |
 | **7** | Logo e rubrica por conteúdo (A-05) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** (7A EXPAND + 7B SWITCH, Portal e offline real) | **P4 FECHADO ✅** aprovado 22/08 | `plans/2026-08-20-fase7-task-level.md` · `medicoes/2026-08-20-fase7b-validacao-producao.md` |
 | **8** | Escala, dataset determinístico e medições (A-17) | 🟡 **PLANEJADA** — AS-IS, dataset e plano de medição escritos; **nenhuma massa gerada** | — | `plans/2026-08-22-fase8-task-level.md` |
 | 9…13 | ver plano macro | PLANEJADO | P5…P8 | `plans/2026-08-15-evolucao-arquitetura.md` |
 
-**Fase atual:** **9 — P9.3 FECHADO ✅ e 9D CONCLUÍDA em 25/08/2026.** `boot_v9` está ligada em
-DUAS organizações: a de teste (`99f642d3-…-8d211c`) e o piloto real `92a28bff-…-488a75`
-(gabriel.dadona). `busca_v9` segue desligada em todas as 30.
+**Fase atual:** **9 — 9E FECHADA ✅ pelo dono em 28/08/2026** (P9.3 fechado em 25/08, 9D
+concluída). `boot_v9` está ligada em DUAS organizações: a de teste (`99f642d3-…-8d211c`) e o
+piloto real `92a28bff-…-488a75` (gabriel.dadona). **`busca_v9` segue desligada nas 30 — não
+habilitar em cliente sem autorização nova.**
 
 > **`cmam.caldeiras` (`06f84f2e…`) NÃO foi habilitada, por decisão do dono.** É a única
 > organização pagante, a maior, e a do incidente v1×v2 — e a organização de maior risco não vira
 > requisito artificial para fechar um portão. A expansão para clientes é **gradual, com
 > autorização separada**.
 
-**9E AUTORIZADA** (25/08). **9F e 9G continuam NÃO autorizadas.**
+**9E FECHADA ✅** (28/08). **9F e 9G continuam NÃO autorizadas — a 9F não começa sozinha.**
 
 | | |
 |---|---|
@@ -136,9 +137,11 @@ DUAS organizações: a de teste (`99f642d3-…-8d211c`) e o piloto real `92a28bf
 | **9E · correção** | **APLICADA** (28/08) — três defeitos consertados com teste: a navegação, o `pdfRef ->> 'caminho'` da projeção (o campo é `path`, e o `NULL` era silencioso) e o recorte do relatório de equipamento excluído. 1410/1410 · build verde. `medicoes/2026-08-28-9e-destravamento.md` |
 | **9E · rollout repetido** | **PASSOU** (28/08) — SQL aplicado, reprojeção (`sha256` sem `pdf_ref`: **11 → 0**), front `a944845` publicado, flag ON na org de teste. **Passo 11 aprovado: o PDF arquivado ABRE**, 13 e 18 páginas, SHA-256 da tela igual ao do banco; zero PDF durante a busca; selo e aviso do equipamento excluído conferidos; rollback ON→OFF completo. `medicoes/2026-08-28-9e-rollout-producao.md` |
 
-**Próxima ação exata:** **decisão do dono — 9E FECHADA ✅ ou BLOQUEADA ❌.** Nada mais está
-pendente de execução: `busca_v9` voltou a OFF nas 30, nenhum PDF histórico foi regenerado e
-nenhum SHA-256 mudou.
+| **9E** | **🚪 FECHADA ✅ pelo dono em 28/08/2026** — com DUAS limitações declaradas, que **não** contam como aprovadas: (1) **cache frio sob `boot_v9` NÃO foi exercitado** no rollout da organização de teste; (2) **paginação/keyset** foi validada em laboratório com 50.000 relatórios, mas **não** exercitada na organização de teste, que tem 12. Nenhuma das duas vale por inferência |
+
+**Próxima ação exata:** **NENHUMA sem autorização.** A 9F NÃO está autorizada e não começa
+sozinha. `busca_v9` segue **OFF nas 30** — **não habilitar em cliente nenhum**; nenhuma conta
+pagante foi habilitada. Nenhum PDF histórico foi regenerado e nenhum SHA-256 mudou.
 
 ### ✅ P9.2 FECHADO — 23/08/2026
 

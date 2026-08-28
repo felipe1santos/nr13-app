@@ -7,7 +7,11 @@ A flag `busca_v9` está **DESLIGADA nas 29 organizações**: a tela de todo mund
 
 **9D CONCLUÍDA · P9.3 FECHADO ✅ (25/08/2026).** `boot_v9` ON em DUAS organizações: a de teste e o
 piloto `92a28bff…` (gabriel.dadona). **`cmam.caldeiras` NÃO habilitada, por decisão do dono.**
-**9E AUTORIZADA** (25/08). **9F e 9G continuam NÃO autorizadas.**
+**🚪 9E FECHADA ✅ pelo dono em 28/08/2026**, com DUAS limitações declaradas que NÃO valem por
+inferência: **cache frio sob `boot_v9`** (não exercitado no rollout) e **paginação/keyset**
+(validada em laboratório com 50.000; a organização de teste tem 12 relatórios). **`busca_v9`
+segue OFF nas 30 — não habilitar em cliente.** **9F e 9G continuam NÃO autorizadas: a 9F não
+começa sozinha.**
 Medições: [9A — peso](../../medicoes/2026-08-22-fase9a-peso-projecao.md) · [9B — projeção na RPC](../../medicoes/2026-08-22-fase9b-projecao-na-rpc.md) · [9C — índices](../../medicoes/2026-08-22-fase9c-indices.md) · [9C — tela](../../medicoes/2026-08-22-fase9c-tela.md)
 
 Desenho arquitetural **APROVADO** pelo dono em 22/08/2026, commit `8e82cf6`:
@@ -555,10 +559,17 @@ no clique** · offline · o histórico por equipamento continua funcionando.
 - [x] **Abrir o relatório arquivado** — 13 e 18 páginas, SHA-256 conferido contra o banco; legado sem artefato abre por `legado=1`
 - [x] Rollback ON→OFF — `busca_v9` 0/30, projeções e índices intactos, tela antiga com os mesmos 3
 
-**Evidência:** `medicoes/2026-08-28-9e-rollout-producao.md`. **Falta a decisão formal do dono.**
+**Evidência:** `medicoes/2026-08-28-9e-rollout-producao.md`.
 
-**Não exercitado em produção, e declarado:** cache frio sob `boot_v9` (exigiria limpar o
-IndexedDB) e paginação/keyset (12 itens contra página de 50 — medido em laboratório com 50.000).
+> **🚪 GATE 9E FECHADO ✅ pelo dono em 28/08/2026**, com as duas limitações abaixo DECLARADAS —
+> nenhuma delas foi aprovada por inferência:
+>
+> 1. **Cache frio sob `boot_v9`** — NÃO exercitado no rollout da organização de teste.
+> 2. **Paginação / keyset** — validada em laboratório com 50.000 relatórios; NÃO exercitada na
+>    organização de teste (12 relatórios contra página de 50). Não conta como teste de rollout
+>    dessa organização.
+>
+> **`busca_v9` permanece OFF nas 30. Não habilitar em cliente sem autorização nova.**
 
 **Deploy:** flag por tela.
 
@@ -758,6 +769,7 @@ recém-consultado.
 | 25/08 | **🚪 P9.3 FECHADO ✅ pelo dono. 9D CONCLUÍDA.** Evidência aceita como DISTRIBUÍDA entre laboratório (escala, essencial constante, testes), organização de teste (interface real, offline, fila, reconexão, rollback) e piloto real (rebuild, paridade, boot leve, rollback). **`cmam.caldeiras` NÃO habilitada** — a organização de maior risco não vira requisito artificial para fechar um portão. Expansão a clientes: gradual, com autorização separada. **9E autorizada** | ✅ |
 | 28/08 | **9E DESTRAVADA no código** — três defeitos consertados com teste: (1) a navegação, agora a V9 abre o `pdfRef` no próprio visualizador e a rota tem a saída `legado=1` para o relatório sem arquivo; (2) **`pdfRef ->> 'caminho'` × `path`** na projeção, o NULL silencioso que deixava `pdf_ref` nulo nas 15 linhas, inclusive nas 4 com artefato — agora com guarda no `busca_relatorios.sql` e teste de projeção de verdade; (3) relatório de equipamento excluído com escopo, aviso e selo. **1410/1410** · build verde. **A 9E só sai de BLOQUEADA com o rollout repetido em produção** | 🔧 |
 | 28/08 | **ROLLOUT DA 9E REPETIDO EM PRODUÇÃO — PASSOU.** `busca_manutencao.sql` aplicado (`prosrc` com `->> 'path'`) → reprojeção só de relatórios nas orgs já projetadas (**linhas com `sha256` e sem `pdf_ref`: 11 → 0**) → `busca_relatorios.sql` aplicado (1 sobrecarga de cada, anon=false/auth=true, 6 índices) → front `a944845` publicado (**o nome do bundle NÃO mudou; a prova foi a string literal**) → flag ON na org de teste: 3 resultados (paridade), aviso de 12 excluídos, `Sem data`, busca por TAG, termo inexistente, período, **zero PDF**. **Passo 11 APROVADO**: dois relatórios abertos (13 e 18 páginas), SHA-256 da tela **igual ao do banco**, incl. um de equipamento EXCLUÍDO; legado sem artefato abriu por `legado=1`. Rollback ON→OFF conferido: 0/30, boot_v9 2, 22/17/18, 6 índices, tela antiga com os mesmos 3. Falta só a decisão do dono | ✅ |
+| 28/08 | **🚪 9E FECHADA ✅ pelo dono.** Aceito como provado: SQL aplicado · projeção corrigida · `pdf_ref`/`path` · busca em produção · RLS · índices · busca V9 · ativos e históricos de equipamento excluído · abertura real do PDF · SHA-256 · zero PDF durante a busca · rollback · 1410/1410 · build verde · árvore limpa · **nenhuma conta pagante habilitada**. **DUAS LIMITAÇÕES DECLARADAS, não aprovadas por inferência:** cache frio sob `boot_v9` (não exercitado no rollout) e paginação/keyset (laboratório com 50.000; a org de teste tem 12). **`busca_v9` fica OFF nas 30 — não habilitar em cliente. A 9F NÃO está autorizada** | ✅ |
 
 ---
 
