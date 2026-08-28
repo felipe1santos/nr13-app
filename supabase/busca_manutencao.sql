@@ -403,7 +403,15 @@ begin
     public.f9_data(r ->> 'data'),
     -- `pdfRef` pode ser objeto (RefFoto) ou string. Guardamos a forma textual;
     -- resolver o arquivo continua sendo trabalho do cliente, no clique.
-    case when jsonb_typeof(r -> 'pdfRef') = 'object' then (r -> 'pdfRef') ->> 'caminho'
+    --
+    -- O CAMPO SE CHAMA `path`. Escrito `caminho`, o `->>` devolve NULL sem
+    -- erro nenhum — a chave simplesmente não existe — e TODO relatório
+    -- finalizado ficava na projeção com `pdf_ref` nulo, ou seja, sem por onde a
+    -- tela abrir o documento arquivado. O silêncio é o que tornou isto caro:
+    -- medido em produção em 25/08/2026, `pdf_ref` nulo nas 15 linhas da
+    -- organização de teste, INCLUSIVE nas 4 que têm artefato e `sha256`
+    -- gravados. Ver `RefFoto` em `src/services/fotos.ts`.
+    case when jsonb_typeof(r -> 'pdfRef') = 'object' then (r -> 'pdfRef') ->> 'path'
          else nullif(r ->> 'pdfRef', '') end,
     nullif(r ->> 'sha256', ''),
     case when (r ->> 'paginas') ~ '^\d+$' then (r ->> 'paginas')::integer else null end,

@@ -20,6 +20,9 @@ vi.mock('../../../services/fotos', () => ({
   baixarFoto: () => baixarMock(),
   arquivoPendente: async () => pendenteMock(),
   montarPath: (org: string, escopo: string, ext: string) => `${org}/${escopo}/uuid.${ext}`,
+  // Espelha a constante real do modulo. `baixarFoto` resolve o arquivo pelo
+  // `path` e ignora este campo; ele viaja na referencia porque a `RefFoto` o exige.
+  BUCKET: 'inspecao',
 }));
 
 import {
@@ -27,6 +30,7 @@ import {
   publicarArtefato,
   verificarIntegridade,
   caminhoDoRelatorio,
+  artefatoDoItemBuscado,
   ESCOPO_RELATORIOS,
   type PdfArtefato,
 } from '../artefatoRelatorio';
@@ -129,5 +133,51 @@ describe('verificarIntegridade', () => {
   it('sem arquivo devolve null — "não deu para verificar" não é "não confere"', async () => {
     baixarMock.mockResolvedValueOnce(null);
     expect(await verificarIntegridade(artefato('qualquer'))).toBeNull();
+  });
+});
+
+/**
+ * Fase 9 · 9E.5 — o caminho que faltava para o documento arquivado.
+ *
+ * O rollout de 25/08/2026 reprovou no passo 11: com `busca_v9` ligada, clicar em
+ * "Visualizar" não abria nada. A tela nova delegava a abertura para a rota
+ * `/relatorios`, que a própria flag impede de renderizar a tela legada. A saída é
+ * a V9 resolver o documento ela mesma — e para isso ela precisa converter o que a
+ * PROJEÇÃO devolve (o caminho, em texto) no que o visualizador exige (uma
+ * `RefFoto`).
+ */
+describe('artefatoDoItemBuscado', () => {
+  const item = (over: Partial<Parameters<typeof artefatoDoItemBuscado>[0]> = {}) => ({
+    pdfRef: 'org-1/relatorios/8f2a.pdf',
+    sha256: 'abc123',
+    paginas: 12,
+    ...over,
+  });
+
+  it('o caminho da projeção vira uma referência que o visualizador aceita', () => {
+    const a = artefatoDoItemBuscado(item());
+    expect(a?.pdfRef.path).toBe('org-1/relatorios/8f2a.pdf');
+    expect(a?.pdfRef.bucket).toBe('inspecao');
+    expect(a?.pdfRef.mimeType).toBe('application/pdf');
+    expect(a?.sha256).toBe('abc123');
+    expect(a?.paginas).toBe(12);
+  });
+
+  it('relatório LEGADO (sem pdfRef) devolve null — é o sinal de cair no fluxo antigo', () => {
+    expect(artefatoDoItemBuscado(item({ pdfRef: null }))).toBeNull();
+    expect(artefatoDoItemBuscado(item({ pdfRef: '   ' }))).toBeNull();
+  });
+
+  it('não fica pendente: o que veio da projeção do servidor já subiu', () => {
+    // `pendente` significa "está no cofre local e o upload ainda não foi
+    // confirmado". Um item que a busca do SERVIDOR devolveu não pode estar nesse
+    // estado — marcar pendente aqui poria um aviso de "ainda subindo" em cima de
+    // documento que subiu meses atrás.
+    expect(artefatoDoItemBuscado(item())?.pendente).toBe(false);
+  });
+
+  it('sem hash gravado o campo fica vazio, e não vira um hash falso', () => {
+    expect(artefatoDoItemBuscado(item({ sha256: null }))?.sha256).toBe('');
+    expect(artefatoDoItemBuscado(item({ paginas: null }))?.paginas).toBe(0);
   });
 });

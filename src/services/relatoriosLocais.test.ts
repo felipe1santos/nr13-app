@@ -166,9 +166,13 @@ describe('contarLocais', () => {
 });
 
 describe('o offline NÃO toca o PDF', () => {
+  // O campo da `RefFoto` é `path`. Este teste nasceu com `caminho` e PASSAVA,
+  // porque o código lia a mesma chave errada — dois erros iguais se cancelando.
+  // Só a medição em produção (25/08/2026) mostrou o efeito: `pdf_ref` nulo em
+  // todo relatório finalizado.
   it('o item local carrega a referência, quando o índice a tem', () => {
     cache.dados['nr13_historico_indice_VP-01'] = [
-      reg('A', { pdfRef: { caminho: 'org/relatorios/uuid.pdf' } }),
+      reg('A', { pdfRef: { bucket: 'inspecao', path: 'org/relatorios/uuid.pdf' } }),
     ];
 
     const item = relatoriosLocais()[0];

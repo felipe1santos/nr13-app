@@ -38,6 +38,7 @@
 begin;
 set local nr13.manutencao = '1';
 delete from public.relatorios_index where org_id = :'ORG'::uuid;
+delete from public.equipamentos_index where org_id = :'ORG'::uuid;
 delete from public.profiles where id = :'ORG'::uuid;
 delete from auth.users  where id = :'ORG'::uuid;
 
@@ -51,8 +52,33 @@ values (:'ORG'::uuid, '00000000-0000-0000-0000-000000000000', 'authenticated',
 insert into public.profiles (id, email, org_id, papel, ativo, role, plano)
 values (:'ORG'::uuid, 'bench9e@local.test', :'ORG'::uuid, 'mestre', true, 'user', 'completo')
 on conflict (id) do update set org_id = excluded.org_id, papel = 'mestre', ativo = true;
+
+-- CATÁLOGO — e ele precisa estar aqui, senão a medição mente.
+--
+-- O escopo ('ativos' é o padrão) decide por `equipamentos_index`, e há uma
+-- guarda: organização SEM catálogo projetado não marca ninguém como excluído e
+-- o escopo não corta (ver 4-bis do SQL). Se o benchmark rodasse sem catálogo, a
+-- guarda desligaria justamente o predicado que se quer medir, e o número sairia
+-- bonito por não ter medido nada.
+--
+-- 500 TAGs, das quais 25 (5 %) NÃO entram: são os equipamentos excluídos, e os
+-- relatórios deles são o conjunto 'historicos'.
+insert into public.equipamentos_index (org_id, tag, descricao, tipo, source_version, source_updated_at)
+select :'ORG'::uuid, 'VP-' || lpad(i::text, 4, '0'), 'Vaso ' || i, 'vaso', 1, now()
+  from generate_series(25, 499) i
+on conflict (org_id, tag) do nothing;
 commit;
 \set QUIET off
+
+-- VACUUM ANTES DE MEDIR, e não é detalhe.
+--
+-- Cada execução deste script apaga 50.000 linhas e reinsere outras 50.000. Sem
+-- vacuum, as mortas ficam na tabela e nos índices, e a MESMA consulta passa a
+-- ler mais páginas a cada rodada — medido aqui: a 1a página saiu de 801 para
+-- 2.600 buffers sem que uma linha de SQL mudasse. Comparar duas execuções
+-- nessas condições é comparar o bloat, não a consulta.
+vacuum (analyze) public.relatorios_index;
+vacuum (analyze) public.equipamentos_index;
 
 -- ---------------------------------------------------------------------------
 -- Gerador de massa — só metadados, incremental.
@@ -118,13 +144,18 @@ declare
   r     record;
   i     int;
   v_consultas text[][] := array[
-    ['1a pagina (sem filtro)',   'select * from public.buscar_relatorios('''', null, null, null, null, null, 51)'],
-    ['pagina profunda (keyset)', 'select * from public.buscar_relatorios('''', null, null, null, date ''2023-06-15'', ''REL-0005000'', 51)'],
-    ['busca por TAG',            'select * from public.buscar_relatorios(''VP-0250'', null, null, null, null, null, 51)'],
-    ['codigo so digitos',        'select * from public.buscar_relatorios(''1786400012345'', null, null, null, null, null, 51)'],
-    ['periodo de 1 mes',         'select * from public.buscar_relatorios('''', null, date ''2025-03-01'', date ''2025-03-31'', null, null, 51)'],
-    ['termo inexistente',        'select * from public.buscar_relatorios(''zzzzznadaexiste'', null, null, null, null, null, 51)'],
-    ['contagem (teto 1000)',     'select * from public.contar_relatorios('''', null, null, null, 1000)']
+    ['1a pagina (sem filtro)',   'select * from public.buscar_relatorios('''', null, null, null, ''ativos'', null, null, 51)'],
+    ['pagina profunda (keyset)', 'select * from public.buscar_relatorios('''', null, null, null, ''ativos'', date ''2023-06-15'', ''REL-0005000'', 51)'],
+    ['busca por TAG',            'select * from public.buscar_relatorios(''VP-0250'', null, null, null, ''ativos'', null, null, 51)'],
+    ['codigo so digitos',        'select * from public.buscar_relatorios(''1786400012345'', null, null, null, ''ativos'', null, null, 51)'],
+    ['periodo de 1 mes',         'select * from public.buscar_relatorios('''', null, date ''2025-03-01'', date ''2025-03-31'', ''ativos'', null, null, 51)'],
+    ['termo inexistente',        'select * from public.buscar_relatorios(''zzzzznadaexiste'', null, null, null, ''ativos'', null, null, 51)'],
+    -- Os dois escopos que a 9E ganhou em 25/08. 'historicos' é o caso RUIM por
+    -- construção: 5 % das linhas casam, então o planner precisa percorrer ~20
+    -- linhas do índice de ordenação para cada uma que vai para a tela.
+    ['escopo historicos',        'select * from public.buscar_relatorios('''', null, null, null, ''historicos'', null, null, 51)'],
+    ['escopo todos',             'select * from public.buscar_relatorios('''', null, null, null, ''todos'', null, null, 51)'],
+    ['contagem (teto 1000)',     'select * from public.contar_relatorios('''', null, null, null, ''ativos'', 1000)']
   ];
 begin
   foreach v_n in array v_tamanhos loop
@@ -164,7 +195,7 @@ set local request.jwt.claims = :'JWT';
 select count(*) as linhas,
        pg_size_pretty(sum(pg_column_size(t))::bigint) as bytes_da_pagina,
        pg_size_pretty((sum(pg_column_size(t)) / greatest(count(*),1))::bigint) as por_linha
-  from public.buscar_relatorios('', null, null, null, null, null, 50) t;
+  from public.buscar_relatorios('', null, null, null, 'ativos', null, null, 50) t;
 \echo '(compare com ~110 KB por relatorio do registro completo: e a diferenca entre'
 \echo ' listar metadados e baixar o acervo)'
 rollback;
@@ -190,6 +221,31 @@ select r.relatorio_id, r.tag, r.emissao
   from public.relatorios_index r
  where r.org_id = :'ORG'::uuid
    and (r.ordem_emissao, r.relatorio_id) < (date '2023-06-15', 'REL-0005000')
+ order by r.ordem_emissao desc, r.relatorio_id desc
+ limit 51;
+
+\echo ''
+\echo 'PLANO · escopo ativos (o EXISTS do catalogo)'
+-- Espelha o predicado de escopo. O que se quer ver: o `EXISTS` virar semi-join
+-- por `equipamentos_index_pkey` — lookup por chave, não varredura — e o `LIMIT`
+-- continuar cortando cedo, porque 95 % das linhas passam.
+explain (analyze, buffers)
+select r.relatorio_id, r.tag, r.emissao
+  from public.relatorios_index r
+ where r.org_id = :'ORG'::uuid
+   and exists (select 1 from public.equipamentos_index e
+                where e.org_id = r.org_id and e.tag = r.tag)
+ order by r.ordem_emissao desc, r.relatorio_id desc
+ limit 51;
+
+\echo ''
+\echo 'PLANO · escopo historicos (5 % das linhas — o caso ruim por construcao)'
+explain (analyze, buffers)
+select r.relatorio_id, r.tag, r.emissao
+  from public.relatorios_index r
+ where r.org_id = :'ORG'::uuid
+   and not exists (select 1 from public.equipamentos_index e
+                    where e.org_id = r.org_id and e.tag = r.tag)
  order by r.ordem_emissao desc, r.relatorio_id desc
  limit 51;
 

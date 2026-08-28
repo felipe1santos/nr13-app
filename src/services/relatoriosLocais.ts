@@ -26,6 +26,26 @@ import type { RelatorioIndiceItem } from '../features/relatorios/tipos';
 import type { FiltrosRelatorios, ItemRelatorio } from './buscaRelatorios';
 
 const PREFIXO = 'nr13_historico_indice_';
+const PREFIXO_INFO = 'nr13_info_';
+
+/**
+ * As TAGs cujo equipamento este aparelho conhece — ou `null` quando ele não
+ * conhece nenhum.
+ *
+ * A DISTINÇÃO ENTRE `null` E CONJUNTO VAZIO É O TESTE INTEIRO. Sob `boot_v9` o
+ * cache não traz a organização inteira: um aparelho pode ter o índice de
+ * relatórios de uma TAG e ainda não ter baixado a ficha dela. Se "não achei a
+ * ficha" virasse "equipamento excluído", o modo offline carimbaria o selo em
+ * equipamento vivo — trocar "não sei" por uma afirmação falsa é o defeito que a
+ * prova offline da 9D já pegou uma vez, no Dashboard.
+ *
+ * Então: só quando o aparelho PROVA que conhece o catálogo — tem ao menos uma
+ * ficha — a ausência de uma TAG passa a significar alguma coisa.
+ */
+function catalogoLocal(): Set<string> | null {
+  const tags = listarChavesComPrefixo(PREFIXO_INFO).map((c) => c.slice(PREFIXO_INFO.length));
+  return tags.length === 0 ? null : new Set(tags);
+}
 
 /** `DD/MM/AAAA` (como o índice guarda) → `AAAA-MM-DD` (como a projeção usa). */
 export function paraIso(br: string | null | undefined): string | null {
@@ -36,7 +56,24 @@ export function paraIso(br: string | null | undefined): string | null {
   return /^\d{4}-\d{2}-\d{2}/.test(br.trim()) ? br.trim().slice(0, 10) : null;
 }
 
-function daIndice(r: RelatorioIndiceItem, tag: string): ItemRelatorio {
+/**
+ * A referência do artefato, quando o índice a tem.
+ *
+ * `RefFoto` guarda o caminho em **`path`**. Ler `caminho` devolvia `null` para
+ * todo relatório finalizado — o campo não existe com esse nome — e a tela ficava
+ * sem por onde abrir o documento arquivado. Medido em produção em 25/08/2026.
+ *
+ * O ARQUIVO continua fora daqui: offline, abrir o PDF depende de ele já estar no
+ * cache de arquivos, e quem resolve isso é `artefatoRelatorio`.
+ */
+function caminhoDoPdf(pdfRef: unknown): string | null {
+  if (!pdfRef) return null;
+  if (typeof pdfRef === 'string') return pdfRef.trim() || null;
+  const p = (pdfRef as { path?: unknown }).path;
+  return typeof p === 'string' && p.trim() !== '' ? p : null;
+}
+
+function daIndice(r: RelatorioIndiceItem, tag: string, ativo: boolean): ItemRelatorio {
   return {
     relatorioId: r.id,
     tag: r.tagVaso || tag,
@@ -50,13 +87,11 @@ function daIndice(r: RelatorioIndiceItem, tag: string): ItemRelatorio {
     execucaoInspecao: paraIso(r.execucaoInspecao),
     proximaInterna: paraIso(r.proximaInspecaoInterna),
     proximaExterna: paraIso(r.proximaInspecaoExterna),
-    // A referência do artefato, quando o índice a tem. O ARQUIVO continua
-    // fora: offline, abrir o PDF depende de ele já estar no cache de arquivos,
-    // e quem resolve isso é `artefatoRelatorio` — não esta função.
-    pdfRef: r.pdfRef ? String((r.pdfRef as { caminho?: string }).caminho ?? '') || null : null,
+    pdfRef: caminhoDoPdf(r.pdfRef),
     sha256: null,
     paginas: null,
     sourceVersion: 0,
+    equipamentoAtivo: ativo,
   };
 }
 
@@ -77,6 +112,10 @@ function casaTermo(item: ItemRelatorio, termo: string): boolean {
 }
 
 function casaFiltros(item: ItemRelatorio, f: FiltrosRelatorios): boolean {
+  // Mesmo default do servidor: sem escolha, mostra o que a tela antiga mostrava.
+  const escopo = f.escopo ?? 'ativos';
+  if (escopo === 'ativos' && !item.equipamentoAtivo) return false;
+  if (escopo === 'historicos' && item.equipamentoAtivo) return false;
   if (f.tipo && item.tipo !== f.tipo) return false;
   // Relatório sem data fica FORA de um período escolhido — a data-sentinela é
   // mecanismo de ordenação, não um fato sobre o documento.
@@ -102,14 +141,16 @@ function ordenar(a: ItemRelatorio, b: ItemRelatorio): number {
  */
 export function relatoriosLocais(filtros: FiltrosRelatorios = {}): ItemRelatorio[] {
   const itens: ItemRelatorio[] = [];
+  const catalogo = catalogoLocal();
 
   for (const chave of listarChavesComPrefixo(PREFIXO)) {
     const tag = chave.slice(PREFIXO.length);
     const lista = ler<RelatorioIndiceItem[]>(chave);
     if (!Array.isArray(lista)) continue;
+    const ativo = catalogo === null || catalogo.has(tag);
     for (const r of lista) {
       if (!r?.id) continue;
-      const item = daIndice(r, tag);
+      const item = daIndice(r, tag, ativo);
       if (casaFiltros(item, filtros)) itens.push(item);
     }
   }

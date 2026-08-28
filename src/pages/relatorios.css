@@ -1103,6 +1103,93 @@
   padding: 14px;
 }
 
+/* -------------------------------------------------------------------------
+   Relatório de equipamento EXCLUÍDO
+   -------------------------------------------------------------------------
+   O selo é informativo, não um alarme: o documento está íntegro, só o
+   equipamento saiu do cadastro. Por isso âmbar, e não vermelho — vermelho diria
+   "algo deu errado com este relatório", e nada deu.                          */
+.rel-aviso-historicos {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  font-size: 13px;
+  color: var(--warn-fg, #92400e);
+  background: var(--warn-bg, #fffbeb);
+  border: 1px solid var(--warn-bd, #fde68a);
+}
+
+.rel-aviso-historicos > span {
+  flex: 1 1 auto;
+}
+
+.rel-cel-tag {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.rel-selo-excluido {
+  flex: 0 0 auto;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--warn-fg, #92400e);
+  background: var(--warn-bg, #fffbeb);
+  border: 1px solid var(--warn-bd, #fde68a);
+}
+
+/* -------------------------------------------------------------------------
+   Documento arquivado aberto DENTRO da busca (9E.5)
+   -------------------------------------------------------------------------
+   O que se vê aqui é o ARQUIVO — o mesmo PDF que subiu no dia da emissão. Não
+   há folha remontada, então esta área não precisa (nem pode) imitar o palco:
+   ela é uma barra de volta, o visualizador e a prova de integridade.          */
+.rel-doc-barra {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.rel-doc-titulo {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.35;
+}
+
+.rel-doc-titulo b {
+  font-size: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rel-doc-titulo span {
+  font-size: 12px;
+  color: var(--muted, #6b7280);
+}
+
+/* O SHA-256 tem 64 caracteres e não cabe em tela de celular sem quebrar. */
+.rel-doc-rodape {
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--muted, #888);
+  word-break: break-all;
+}
+
 /* Celular: a grade vira cartão, com o rótulo antes do valor. */
 @media (max-width: 720px) {
   .rel-linha-cabecalho {

@@ -521,12 +521,21 @@ de `relatorios_index` conforme benchmark.
 - [x] **9E.2** — Índices `9E-b1` a `9E-b4`, um por vez com benchmark
 - [x] **9E.3** — **Contador sem parsear o registro pesado** (o achado G3 da Fase 8)
 - [x] **9E.4** — Estado na URL
-- [ ] **9E.5** — ⛔ **BLOQUEIO: abrir o relatório arquivado a partir da V9.**
-      `aoAbrir` navega para `/relatorios?tag=…&rel=…`, mas com a flag LIGADA essa rota **sempre**
-      monta `RelatoriosV9` (o `modo` vem da flag, não da URL) e a V9 ignora `tag`/`rel`. Com a 9E
-      ligada **não existe caminho para abrir um relatório arquivado**. A V9 precisa resolver o
-      `pdfRef` ela mesma no `VisualizadorPdf`. Nenhum PDF é regenerado; nenhum SHA-256 muda.
-      Registro: `medicoes/2026-08-25-9e-rollout-producao.md`
+- [x] **9E.5** — **Abrir o relatório arquivado a partir da V9** (código pronto em 28/08; o
+      rollout em produção é o que ainda falta). A V9 resolve o `pdfRef` no próprio
+      `VisualizadorPdf` (`artefatoDoItemBuscado`); a rota ganhou a saída `legado=1`
+      (`rotaRelatorios.ts`) e a tela antiga passou a abrir por link (`?tag=…&rel=…`), que é o
+      caminho do relatório anterior ao §7-quater, sem arquivo. Nenhum PDF regenerado; nenhum
+      SHA-256 alterado. Registro: `medicoes/2026-08-28-9e-destravamento.md`
+- [x] **9E.6** — **`pdfRef ->> 'path'` na projeção** (o campo da `RefFoto` não se chama
+      `caminho`). Era o defeito que deixava `pdf_ref` NULO em toda linha, **em silêncio** —
+      inclusive nas que têm artefato e `sha256`. `busca_relatorios.sql` agora RECUSA ser aplicado
+      sobre a projeção velha, e `testes-9e.sql` §6-quater projeta de verdade e exige o caminho.
+- [x] **9E.7** — **Relatório de equipamento EXCLUÍDO**: escopo `ativos` por padrão (o conjunto da
+      tela antiga), aviso com o número dos que ficaram de fora, selo na linha, escopos
+      `historicos`/`todos` na URL, `historicos` na mesma linha da contagem. Guarda: sem
+      `equipamentos_index` projetada ninguém é marcado e o escopo não corta — senão a tela diria
+      "não há relatórios" para quem tem o parque inteiro.
 
 ### Testes
 
@@ -740,6 +749,7 @@ recém-consultado.
 | 25/08 | **Gate 9E (navegador)**: 1k/10k/50k. 50.000 relatórios no banco = **16 linhas** no DOM, heap constante, **zero** requisição de PDF | ✅ |
 | 25/08 | **⛔ ROLLOUT DA 9E REPROVADO — 9E BLOQUEADA.** Passos 1–10 ✅ (SQL, índices, RLS, bundle `index-CuF2FwNz.js`, flag OFF nas 30, piloto na org de teste, busca visível, 15 resultados, `Sem data`, zero PDF). **Passo 11: "Visualizar" não abre nada** — `aoAbrir` navega para uma rota que a própria flag impede de renderizar a tela legada. Rollback ON→OFF conferido: `busca_v9` 0/30, `boot_v9` 2, projeções 23/17/18, 6 índices, tela antiga com os mesmos 3 relatórios da linha de base | ⛔ |
 | 25/08 | **🚪 P9.3 FECHADO ✅ pelo dono. 9D CONCLUÍDA.** Evidência aceita como DISTRIBUÍDA entre laboratório (escala, essencial constante, testes), organização de teste (interface real, offline, fila, reconexão, rollback) e piloto real (rebuild, paridade, boot leve, rollback). **`cmam.caldeiras` NÃO habilitada** — a organização de maior risco não vira requisito artificial para fechar um portão. Expansão a clientes: gradual, com autorização separada. **9E autorizada** | ✅ |
+| 28/08 | **9E DESTRAVADA no código** — três defeitos consertados com teste: (1) a navegação, agora a V9 abre o `pdfRef` no próprio visualizador e a rota tem a saída `legado=1` para o relatório sem arquivo; (2) **`pdfRef ->> 'caminho'` × `path`** na projeção, o NULL silencioso que deixava `pdf_ref` nulo nas 15 linhas, inclusive nas 4 com artefato — agora com guarda no `busca_relatorios.sql` e teste de projeção de verdade; (3) relatório de equipamento excluído com escopo, aviso e selo. **1410/1410** · build verde. **A 9E só sai de BLOQUEADA com o rollout repetido em produção** | 🔧 |
 
 ---
 

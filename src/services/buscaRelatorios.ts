@@ -39,6 +39,30 @@ export const TAMANHO_PAGINA_REL = 50;
 /** Acima disto a tela escreve "mais de 1.000". */
 export const TETO_CONTAGEM_REL = 1000;
 
+/**
+ * Teto PRÓPRIO da contagem de relatórios de equipamento excluído — e bem menor,
+ * por medição.
+ *
+ * Órfão é raro por definição, e contar coisa rara até 1.000 obriga a percorrer a
+ * tabela quase inteira: com 5 % de órfãos em 50.000 relatórios o teto de 1.000
+ * nunca era atingido e a contagem varria as 50.000 linhas — 5.144 buffers contra
+ * os 214 constantes que a 9E.2 mediu. O aviso do cabeçalho não precisa de 1.000.
+ */
+export const TETO_HISTORICOS = 200;
+
+/**
+ * Como o aviso do cabeçalho escreve a quantidade de históricos.
+ *
+ * Acima do teto o número precisa vir com "mais de": imprimir o valor do teto
+ * como se fosse a conta fechada faria a tela afirmar "200" quando são 4.000 — e
+ * o servidor devolve `TETO_HISTORICOS + 1` exatamente para esse caso ser
+ * distinguível de um 200 exato.
+ */
+export function rotuloHistoricos(n: number): string {
+  const plural = `relatório${n === 1 ? '' : 's'}`;
+  return n > TETO_HISTORICOS ? `mais de ${TETO_HISTORICOS} ${plural}` : `${n} ${plural}`;
+}
+
 export interface ItemRelatorio {
   relatorioId: string;
   tag: string;
@@ -57,9 +81,28 @@ export interface ItemRelatorio {
   sha256: string | null;
   paginas: number | null;
   sourceVersion: number;
+  /**
+   * O equipamento desta TAG ainda tem ficha (`nr13_info_<TAG>`)?
+   *
+   * `false` é o relatório HISTÓRICO de um equipamento que saiu do cadastro. O
+   * documento continua inteiro — registro, PDF e SHA-256 —, e a tela o
+   * apresenta marcado. **Nunca vale como motivo para apagar coisa alguma.**
+   */
+  equipamentoAtivo: boolean;
 }
 
+/**
+ * Que metade da lista o usuário quer ver.
+ *
+ * `ativos` é o padrão porque é o que a tela antiga sempre mostrou: ela é
+ * TAG-first — escolhe-se o equipamento e o histórico dele aparece —, então
+ * relatório sem ficha nunca teve por onde ser alcançado. Manter esse conjunto
+ * como default é o que impede a lista de parecer errada no primeiro segundo.
+ */
+export type EscopoRelatorios = 'ativos' | 'historicos' | 'todos';
+
 export interface FiltrosRelatorios {
+  escopo?: EscopoRelatorios;
   termo?: string;
   tipo?: string;
   /** Início do período, `AAAA-MM-DD`. */
@@ -84,6 +127,15 @@ export interface ContagemRelatorios {
   total: number;
   /** `false` significa "mais de `total`" — a contagem tem teto. */
   exato: boolean;
+  /**
+   * Quantos relatórios de equipamento EXCLUÍDO casam com os mesmos filtros.
+   *
+   * Vem junto com a contagem principal, numa chamada só, porque o cabeçalho
+   * precisa dos dois números ao mesmo tempo para dizer "3 relatórios · 12 de
+   * equipamentos excluídos". Buscá-los em chamadas separadas deixaria os dois
+   * números momentaneamente incoerentes na tela.
+   */
+  historicos: number;
 }
 
 export class ErroBuscaRelatorios extends Error {
@@ -112,6 +164,7 @@ interface LinhaRpc {
   sha256: string | null;
   paginas: number | null;
   source_version: number | null;
+  equipamento_ativo?: boolean | null;
 }
 
 function daLinha(l: LinhaRpc): ItemRelatorio {
@@ -132,6 +185,12 @@ function daLinha(l: LinhaRpc): ItemRelatorio {
     sha256: l.sha256,
     paginas: l.paginas,
     sourceVersion: Number(l.source_version ?? 0),
+    // AUSENTE VALE ATIVO. Um servidor ainda sem a coluna devolveria
+    // `undefined` em todas as linhas, e o default `false` carimbaria
+    // "Equipamento excluído" na organização inteira — uma acusação falsa em
+    // cima de relatório assinado. Errar para o lado de "ativo" é o lado barato:
+    // no máximo deixa de marcar um órfão; nunca difama um documento válido.
+    equipamentoAtivo: l.equipamento_ativo !== false,
   };
 }
 
@@ -157,6 +216,7 @@ export async function listarPaginaRelatorios(
       p_tipo: ouNulo(filtros.tipo),
       p_de: ouNulo(filtros.de),
       p_ate: ouNulo(filtros.ate),
+      p_escopo: filtros.escopo ?? 'ativos',
       p_cursor_data: cursor?.data ?? null,
       p_cursor_id: cursor?.id ?? null,
       // Uma linha a mais do que a página: é assim que se sabe que há próxima
@@ -196,6 +256,7 @@ export async function contarRelatorios(
       p_tipo: ouNulo(filtros.tipo),
       p_de: ouNulo(filtros.de),
       p_ate: ouNulo(filtros.ate),
+      p_escopo: filtros.escopo ?? 'ativos',
       p_teto: TETO_CONTAGEM_REL,
     })
     .abortSignal(sinal as AbortSignal);
@@ -203,10 +264,14 @@ export async function contarRelatorios(
   if (error) throw new ErroBuscaRelatorios('Não foi possível contar os relatórios.', error);
 
   const linha = (Array.isArray(data) ? data[0] : data) as
-    | { total?: number; exato?: boolean }
+    | { total?: number; exato?: boolean; historicos?: number }
     | null
     | undefined;
-  return { total: Number(linha?.total ?? 0), exato: linha?.exato !== false };
+  return {
+    total: Number(linha?.total ?? 0),
+    exato: linha?.exato !== false,
+    historicos: Number(linha?.historicos ?? 0),
+  };
 }
 
 /**

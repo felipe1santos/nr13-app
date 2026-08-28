@@ -30,12 +30,16 @@ import {
   ErroBuscaRelatorios,
   contarRelatorios,
   listarPaginaRelatorios,
+  rotuloHistoricos,
   type ContagemRelatorios,
   type CursorRelatorios,
+  type EscopoRelatorios,
   type FiltrosRelatorios,
   type ItemRelatorio,
 } from '../../services/buscaRelatorios';
 import { contarLocais, relatoriosLocais } from '../../services/relatoriosLocais';
+import VisualizadorPdf from '../../components/VisualizadorPdf';
+import { artefatoDoItemBuscado } from './artefatoRelatorio';
 import type { TipoInspecao } from './tipos';
 import '../../pages/relatorios.css';
 
@@ -80,7 +84,13 @@ const TIPOS_INSPECAO: TipoInspecao[] = [
 ];
 
 export interface PropsRelatoriosV9 {
-  /** Abre o relatório — é AQUI, e só aqui, que o PDF é resolvido. */
+  /**
+   * Abre um relatório que esta tela NÃO sabe abrir: o legado, anterior ao
+   * §7-quater, que não tem PDF arquivado e só existe como receita.
+   *
+   * Todo relatório COM arquivo é aberto aqui mesmo, pelo `pdfRef`. Delegar a
+   * abertura por padrão foi o defeito que bloqueou o rollout de 25/08/2026.
+   */
   aoAbrir?: (item: ItemRelatorio) => void;
   /** Volta ao fluxo por equipamento (criar relatório novo). */
   aoEscolherEquipamento?: () => void;
@@ -95,6 +105,13 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento }: PropsRe
   const fTipo = params.get('tipo') ?? '';
   const fDe = params.get('de') ?? '';
   const fAte = params.get('ate') ?? '';
+  // O escopo mora na URL como todo o resto: quem abre o link do histórico
+  // continua no histórico depois de recarregar. Sem parâmetro = 'ativos', que é
+  // o conjunto que a tela antiga sempre mostrou.
+  const escopo: EscopoRelatorios =
+    params.get('escopo') === 'historicos' ? 'historicos'
+    : params.get('escopo') === 'todos' ? 'todos'
+    : 'ativos';
 
   const [itens, setItens] = useState<ItemRelatorio[]>([]);
   const [cursor, setCursor] = useState<CursorRelatorios | null>(null);
@@ -106,10 +123,19 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento }: PropsRe
   /** Respondendo pelo catálogo do aparelho — a tela precisa DIZER isso. */
   const [offline, setOffline] = useState(false);
   const [painelAberto, setPainelAberto] = useState(false);
+  /**
+   * O documento aberto — e o ÚNICO estado desta tela que toca um arquivo.
+   *
+   * Enquanto for `null`, a busca inteira (listar, filtrar, paginar) não resolve
+   * `pdfRef` nenhum: é o critério bloqueante da 9E, e é o que faz a tela custar o
+   * mesmo em 10 e em 10.000 relatórios.
+   */
+  const [aberto, setAberto] = useState<ItemRelatorio | null>(null);
+  const [erroDoc, setErroDoc] = useState<string | null>(null);
 
   const filtros: FiltrosRelatorios = useMemo(
-    () => ({ termo, tipo: fTipo, de: fDe, ate: fAte }),
-    [termo, fTipo, fDe, fAte],
+    () => ({ termo, tipo: fTipo, de: fDe, ate: fAte, escopo }),
+    [termo, fTipo, fDe, fAte, escopo],
   );
 
   /**
@@ -175,7 +201,13 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento }: PropsRe
       if (locais.length > 0) {
         setOffline(true);
         setItens(locais);
-        setContagem({ total: contarLocais(filtros), exato: true });
+        setContagem({
+          total: contarLocais(filtros),
+          exato: true,
+          // Offline o aviso conta pelo mesmo caminho local, para os dois
+          // números continuarem falando do mesmo conjunto.
+          historicos: escopo === 'ativos' ? contarLocais({ ...filtros, escopo: 'historicos' }) : 0,
+        });
         setErro(null);
       } else {
         setOffline(false);
@@ -190,7 +222,7 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento }: PropsRe
     } finally {
       if (minha === geracao.current) setCarregando(false);
     }
-  }, [filtros]);
+  }, [filtros, escopo]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -224,6 +256,60 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento }: PropsRe
 
   function limparTudo() {
     setParams(new URLSearchParams(), { replace: true });
+  }
+
+  /**
+   * ABRIR O DOCUMENTO — o caminho que faltava e que reprovou o rollout de 25/08.
+   *
+   * Relatório finalizado É UM ARQUIVO (§7-quater): a tela serve o PDF arquivado,
+   * byte a byte, e não remonta nada. Por isso o clique resolve aqui mesmo, em vez
+   * de navegar para uma rota que a flag impede de renderizar a tela antiga.
+   *
+   * Sem `pdfRef` o relatório é LEGADO — anterior ao arquivamento — e só a tela
+   * antiga sabe remontá-lo a partir da receita. Aí, e só aí, a abertura é
+   * delegada; o que não pode voltar a acontecer é o clique não fazer nada.
+   */
+  function abrir(r: ItemRelatorio) {
+    setErroDoc(null);
+    if (artefatoDoItemBuscado(r)) setAberto(r);
+    else aoAbrir?.(r);
+  }
+
+  const artefatoAberto = aberto ? artefatoDoItemBuscado(aberto) : null;
+  if (aberto && artefatoAberto) {
+    return (
+      <div className="rel-page rel-doc-aberto">
+        <div className="rel-doc-barra no-print">
+          <button type="button" className="fj-btn fj-btn-ghost" onClick={() => setAberto(null)}>
+            <Icone nome="arrowleft" tam={14} /> Voltar à busca
+          </button>
+          <div className="rel-doc-titulo">
+            <b>{ou(aberto.nome ?? aberto.codigo)}</b>
+            <span>
+              {aberto.tag} · {ou(aberto.tipo)} · emissão {dataBr(aberto.emissao)}
+            </span>
+          </div>
+        </div>
+
+        {erroDoc && (
+          <div className="rel-aviso-erro" role="status">
+            {erroDoc}
+          </div>
+        )}
+
+        <VisualizadorPdf
+          artefato={artefatoAberto}
+          nomeArquivo={aberto.nome ?? aberto.codigo ?? aberto.tag}
+          onErro={setErroDoc}
+        />
+
+        {/* O SHA-256 é o que permite provar depois que o arquivo não foi
+            trocado. Ele é do documento, não da tela, então é exibido junto. */}
+        <p className="rel-doc-rodape no-print">
+          {aberto.paginas ?? '—'} páginas · SHA-256 {aberto.sha256 ?? '—'}
+        </p>
+      </div>
+    );
   }
 
   return (
@@ -286,6 +372,50 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento }: PropsRe
         )}
       </div>
 
+      {/*
+        RELATÓRIO DE EQUIPAMENTO EXCLUÍDO NÃO SOME — E NÃO APARECE SEM AVISO.
+
+        O escopo padrão é `ativos` porque é o que a tela antiga mostrava, e uma
+        lista que de repente triplica parece errada mesmo quando está certa. Mas
+        esconder sem dizer seria a outra metade do erro: quando existe histórico
+        fora do recorte, a tela DIZ quantos são e oferece o clique que os traz.
+      */}
+      {escopo === 'ativos' && (contagem?.historicos ?? 0) > 0 && (
+        <div className="rel-aviso-historicos" role="status">
+          <Icone nome="filter" tam={14} />
+          <span>
+            {/* O rótulo vem do serviço porque acima do teto ele precisa dizer
+                "mais de 200" — o número exato ninguém contou. */}
+            <b>{rotuloHistoricos(contagem!.historicos)}</b> de equipamento excluído
+            {contagem!.historicos === 1 ? ' está' : ' estão'} fora desta lista.
+          </span>
+          <button
+            type="button"
+            className="fj-btn fj-btn-ghost"
+            onClick={() => trocarParam('escopo', 'historicos')}
+          >
+            Ver histórico
+          </button>
+        </div>
+      )}
+
+      {escopo !== 'ativos' && (
+        <div className="rel-aviso-historicos" role="status">
+          <span>
+            {escopo === 'historicos'
+              ? 'Mostrando apenas relatórios de equipamentos excluídos. Eles continuam salvos e podem ser abertos.'
+              : 'Mostrando todos os relatórios, inclusive os de equipamentos excluídos.'}
+          </span>
+          <button
+            type="button"
+            className="fj-btn fj-btn-ghost"
+            onClick={() => trocarParam('escopo', escopo === 'historicos' ? 'todos' : '')}
+          >
+            {escopo === 'historicos' ? 'Ver todos' : 'Voltar aos ativos'}
+          </button>
+        </div>
+      )}
+
       {erro && (
         <div className="rel-aviso-erro" role="status">
           {erro}
@@ -313,6 +443,8 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento }: PropsRe
                 Limpar busca
               </button>
             </>
+          ) : escopo === 'historicos' ? (
+            <p>Nenhum relatório de equipamento excluído.</p>
           ) : (
             <p>Nenhum relatório salvo ainda.</p>
           )}
@@ -351,7 +483,17 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento }: PropsRe
                 <span role="cell" className="rel-cel-nome" title={r.nome ?? r.codigo ?? ''}>
                   {ou(r.nome ?? r.codigo)}
                 </span>
-                <span role="cell">{r.tag}</span>
+                <span role="cell" className="rel-cel-tag">
+                  {r.tag}
+                  {/* Marcar é obrigação: sem isto a linha afirmaria, por
+                      omissão, que o relatório pertence a um equipamento que
+                      ainda está no cadastro. */}
+                  {!r.equipamentoAtivo && (
+                    <span className="rel-selo-excluido" title="O equipamento deste relatório foi excluído do cadastro. O documento continua salvo.">
+                      Equipamento excluído
+                    </span>
+                  )}
+                </span>
                 <span role="cell">
                   <span className="badge-tipo-inspecao">{ou(r.tipo)}</span>
                 </span>
@@ -363,7 +505,7 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento }: PropsRe
                     className="btn-icone cor-azul"
                     title="Visualizar"
                     /* O ÚNICO ponto desta tela que toca o PDF. */
-                    onClick={() => aoAbrir?.(r)}
+                    onClick={() => abrir(r)}
                   >
                     <Icone nome="eye" tam={15} />
                   </button>

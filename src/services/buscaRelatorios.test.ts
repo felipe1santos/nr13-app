@@ -81,6 +81,7 @@ function item(id: string, extra: Partial<ItemRelatorio> = {}): ItemRelatorio {
     sha256: null,
     paginas: null,
     sourceVersion: 0,
+    equipamentoAtivo: true,
     ...extra,
   };
 }
@@ -207,8 +208,8 @@ describe('o PDF não é tocado pela busca (invariante I10)', () => {
 
 describe('contarRelatorios', () => {
   it('devolve o total e se ele é exato', async () => {
-    estado.resposta = [{ total: 128, exato: true }];
-    await expect(contarRelatorios()).resolves.toEqual({ total: 128, exato: true });
+    estado.resposta = [{ total: 128, exato: true, historicos: 0 }];
+    await expect(contarRelatorios()).resolves.toEqual({ total: 128, exato: true, historicos: 0 });
   });
 
   it('teto atingido: a tela precisa poder escrever "mais de N"', async () => {
@@ -219,7 +220,7 @@ describe('contarRelatorios', () => {
 
   it('resposta ausente não vira contagem inventada', async () => {
     estado.resposta = [];
-    await expect(contarRelatorios()).resolves.toEqual({ total: 0, exato: true });
+    await expect(contarRelatorios()).resolves.toEqual({ total: 0, exato: true, historicos: 0 });
   });
 
   it('erro vira exceção — contagem zero seria mentira', async () => {

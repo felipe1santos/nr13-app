@@ -24,10 +24,38 @@
 -- Idempotente.
 -- ============================================================================
 
+-- ---------------------------------------------------------------------------
+-- 0 · GUARDA: a projeção precisa estar CORRIGIDA antes
+-- ---------------------------------------------------------------------------
+-- `projetar_relatorios` lia `pdfRef ->> 'caminho'`, e o campo real da `RefFoto`
+-- é `path` — devolvia NULL em silêncio para todo relatório finalizado. Servir a
+-- busca por cima de uma projeção assim entregaria uma lista bonita e sem
+-- nenhuma referência de PDF.
+--
+-- Esta é a mesma armadilha registrada no ponto de retomada: `auditar_projecao`
+-- CONVERGE com a função velha no banco, porque compara a projeção com o que a
+-- função ATUAL produz. Conferir o `prosrc` é o único jeito de saber.
+do $$
+begin
+  if not exists (
+    select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.proname = 'projetar_relatorios'
+       and p.prosrc like '%''pdfRef'') ->> ''path''%'
+  ) then
+    raise exception using
+      message = 'projetar_relatorios ainda le pdfRef->>''caminho''',
+      hint    = 'Reaplique supabase/busca_manutencao.sql e reprojete antes deste arquivo.';
+  end if;
+end $$;
+
 -- Mudar a lista de colunas devolvidas muda o tipo de retorno, e o Postgres
 -- recusa `create or replace` nesse caso. Ver a mesma nota em busca_consulta.sql.
+-- As assinaturas de 25/08 (sem `p_escopo`) também saem, senão o banco ficaria
+-- com as duas sobrecargas e a chamada por parâmetro nomeado viraria ambígua.
 drop function if exists public.buscar_relatorios(text, text, date, date, date, text, integer);
 drop function if exists public.contar_relatorios(text, text, date, date, integer);
+drop function if exists public.buscar_relatorios(text, text, date, date, text, date, text, integer);
+drop function if exists public.contar_relatorios(text, text, date, date, text, integer);
 
 -- ---------------------------------------------------------------------------
 -- 1 · COLLATION "C" NO DESEMPATE DO KEYSET
@@ -149,6 +177,8 @@ create or replace function public.buscar_relatorios(
   p_tipo          text default null,
   p_de            date default null,
   p_ate           date default null,
+  -- 'ativos' (padrão) | 'historicos' | 'todos' — ver a seção 4-bis.
+  p_escopo        text default 'ativos',
   p_cursor_data   date default null,
   p_cursor_id     text default null,
   p_limite        integer default 50
@@ -169,7 +199,8 @@ returns table (
   pdf_ref                  text,
   sha256                   text,
   paginas                  integer,
-  source_version           integer
+  source_version           integer,
+  equipamento_ativo        boolean
 )
 language plpgsql
 stable
@@ -191,11 +222,41 @@ declare
                         btrim(coalesce(p_termo, '')), '\', '\\'), '%', '\%'), '_', '\_')) || '%';
   v_tipo   text    := nullif(btrim(coalesce(p_tipo, '')), '');
   v_lim    integer := least(greatest(coalesce(p_limite, 50), 1), 200);
+  v_escopo text    := case when lower(coalesce(p_escopo, '')) in ('historicos', 'todos')
+                           then lower(p_escopo) else 'ativos' end;
+  -- Este aparelho... quer dizer, esta ORGANIZAÇÃO tem catálogo projetado?
+  v_cat    boolean;
 begin
   -- FAIL CLOSED: as duas guardas que substituem a policy.
   if v_org is null or v_papel = 'cliente' then
     return;
   end if;
+
+  -- -------------------------------------------------------------------------
+  -- 4-bis · ESCOPO: relatório de equipamento EXCLUÍDO não some, e não mente
+  -- -------------------------------------------------------------------------
+  -- Medido em produção em 25/08/2026, na organização de teste: 15 relatórios na
+  -- projeção, 3 alcançáveis pela tela antiga. Os 12 restantes são de TAGs sem
+  -- `nr13_info_` — o equipamento saiu do cadastro e o histórico ficou. Os
+  -- registros estão vivos, um `nr13_rel_<id>_<TAG>` para cada, com o PDF
+  -- arquivado intacto.
+  --
+  -- A tela antiga nunca os mostrou porque é TAG-first: escolhe-se o equipamento
+  -- e o histórico dele aparece. Sem ficha, não há por onde chegar. A V9 lê a
+  -- projeção direto, e enxerga o que sempre esteve lá.
+  --
+  -- Aqui NADA é apagado nem escondido: o escopo só decide o RECORTE, a coluna
+  -- `equipamento_ativo` viaja em toda linha para a tela poder marcar, e
+  -- `contar_relatorios` devolve quantos ficaram de fora.
+  --
+  -- > **A GUARDA QUE IMPEDE O VAZIO FALSO.** "Ativo" é decidido por
+  -- > `equipamentos_index`, que é PROJEÇÃO. Numa organização cujo rebuild ainda
+  -- > não rodou ela está VAZIA — e sem esta guarda todo relatório viraria órfão,
+  -- > o escopo padrão devolveria lista vazia, e a tela afirmaria "não há
+  -- > relatórios" para quem tem o parque inteiro. É exatamente a mentira que a
+  -- > prova offline da 9D pegou no Dashboard. Sem catálogo projetado a resposta
+  -- > honesta é "não sei": ninguém é marcado como excluído e o escopo não corta.
+  v_cat := exists (select 1 from public.equipamentos_index e where e.org_id = v_org);
 
   -- ---------------------------------------------------------------------
   -- DOIS CAMINHOS, E A SEPARAÇÃO VEIO DE UMA MEDIÇÃO
@@ -219,9 +280,14 @@ begin
     select r.relatorio_id, r.tag, r.codigo, r.nome, r.tipo, r.status, r.profissional,
            r.emissao, r.validade, r.execucao_inspecao,
            r.proxima_inspecao_interna, r.proxima_inspecao_externa,
-           r.pdf_ref, r.sha256, r.paginas, r.source_version
+           r.pdf_ref, r.sha256, r.paginas, r.source_version,
+           (not v_cat or exists (select 1 from public.equipamentos_index e
+                                  where e.org_id = r.org_id and e.tag = r.tag))
       from public.relatorios_index r
      where r.org_id = v_org
+       and (v_escopo = 'todos' or not v_cat
+            or (v_escopo = 'ativos') = exists (select 1 from public.equipamentos_index e
+                                                where e.org_id = r.org_id and e.tag = r.tag))
        -- Keyset: as DUAS colunas descem juntas, então a comparação de tupla
        -- vale como está. Ordenar `emissao desc, relatorio_id asc` obrigaria a
        -- quebrar isto em dois OR e a perder o índice.
@@ -254,11 +320,18 @@ begin
        and (p_ate is null or (r.emissao is not null and r.ordem_emissao <= p_ate))
        and (p_cursor_data is null
             or (r.ordem_emissao, r.relatorio_id) < (p_cursor_data, coalesce(p_cursor_id, '')))
+       -- O escopo entra DENTRO da CTE: filtrar depois obrigaria a materializar
+       -- candidatos que já se sabe que não vão para a tela.
+       and (v_escopo = 'todos' or not v_cat
+            or (v_escopo = 'ativos') = exists (select 1 from public.equipamentos_index e
+                                                where e.org_id = r.org_id and e.tag = r.tag))
   )
   select c.relatorio_id, c.tag, c.codigo, c.nome, c.tipo, c.status, c.profissional,
          c.emissao, c.validade, c.execucao_inspecao,
          c.proxima_inspecao_interna, c.proxima_inspecao_externa,
-         c.pdf_ref, c.sha256, c.paginas, c.source_version
+         c.pdf_ref, c.sha256, c.paginas, c.source_version,
+         (not v_cat or exists (select 1 from public.equipamentos_index e
+                                where e.org_id = c.org_id and e.tag = c.tag))
     from candidatos c
    order by c.ordem_emissao desc, c.relatorio_id desc
    limit v_lim;
@@ -281,9 +354,14 @@ create or replace function public.contar_relatorios(
   p_tipo   text default null,
   p_de     date default null,
   p_ate    date default null,
+  p_escopo text default 'ativos',
   p_teto   integer default 1000
 )
-returns table (total integer, exato boolean)
+-- `historicos` vem NA MESMA LINHA da contagem principal, e não numa segunda
+-- chamada, porque o cabeçalho precisa dos dois números ao mesmo tempo para
+-- escrever "3 relatórios · 12 de equipamentos excluídos". Em chamadas separadas
+-- os dois números apareceriam incoerentes entre si por um instante.
+returns table (total integer, exato boolean, historicos integer)
 language plpgsql
 stable
 security definer
@@ -299,12 +377,19 @@ declare
                        btrim(coalesce(p_termo, '')), '\', '\\'), '%', '\%'), '_', '\_')) || '%';
   v_tipo  text    := nullif(btrim(coalesce(p_tipo, '')), '');
   v_teto  integer := least(greatest(coalesce(p_teto, 1000), 1), 10000);
+  v_escopo text   := case when lower(coalesce(p_escopo, '')) in ('historicos', 'todos')
+                          then lower(p_escopo) else 'ativos' end;
+  v_cat   boolean;
   v_n     integer;
+  v_h     integer;
 begin
   if v_org is null or v_papel = 'cliente' then
-    return query select 0, true;
+    return query select 0, true, 0;
     return;
   end if;
+
+  -- Mesma guarda da busca: sem catálogo projetado ninguém é órfão. Ver 4-bis.
+  v_cat := exists (select 1 from public.equipamentos_index e where e.org_id = v_org);
 
   -- O mesmo predicado da busca, com o mesmo cuidado: `tag` sem `upper` (ela é
   -- gravada em caixa alta) para o índice de prefixo valer, e o período sobre
@@ -323,10 +408,51 @@ begin
          or upper(r.codigo) like v_cod
          or (v_tsq is not null and r.busca @@ v_tsq)
        )
+       and (v_escopo = 'todos' or not v_cat
+            or (v_escopo = 'ativos') = exists (select 1 from public.equipamentos_index e
+                                                where e.org_id = r.org_id and e.tag = r.tag))
      limit v_teto + 1
   ) amostra;
 
-  return query select least(v_n, v_teto), (v_n <= v_teto);
+  -- Quantos ficaram DE FORA por serem de equipamento excluído — com os mesmos
+  -- filtros de texto, tipo e período, senão o aviso do cabeçalho falaria de um
+  -- conjunto diferente do que a lista está mostrando.
+  --
+  -- TETO PRÓPRIO, E BEM MENOR — MEDIDO. O órfão é RARO por definição, e contar
+  -- coisa rara até 1.000 obriga a percorrer a tabela quase inteira: com 5 %% de
+  -- órfãos em 50.000 relatórios, o teto de 1.000 nunca era atingido e a
+  -- contagem varria as 50.000 linhas — **5.144 buffers contra os 214 constantes
+  -- que a 9E.2 tinha medido**, e crescendo com o acervo. O aviso do cabeçalho
+  -- não precisa de 1.000: ele diz "12 relatórios de equipamento excluído", e
+  -- acima de 200 dizer "mais de 200" informa exatamente o mesmo.
+  --
+  -- DEVOLVE 201 QUANDO PASSA DE 200, e não 200: é o sinal que permite à tela
+  -- escrever "mais de 200". Cortar em 200 faria o aviso afirmar um número exato
+  -- que ninguém contou — 200 anunciados onde há 4.000. O front espelha o teto em
+  -- `TETO_HISTORICOS` (`src/services/buscaRelatorios.ts`).
+  if v_cat then
+    select count(*) into v_h from (
+      select 1
+        from public.relatorios_index r
+       where r.org_id = v_org
+         and (v_tipo is null or r.tipo = v_tipo)
+         and (p_de  is null or (r.emissao is not null and r.ordem_emissao >= p_de))
+         and (p_ate is null or (r.emissao is not null and r.ordem_emissao <= p_ate))
+         and (
+           v_termo is null
+           or r.tag like v_cod
+           or upper(r.codigo) like v_cod
+           or (v_tsq is not null and r.busca @@ v_tsq)
+         )
+         and not exists (select 1 from public.equipamentos_index e
+                          where e.org_id = r.org_id and e.tag = r.tag)
+       limit least(v_teto, 200) + 1
+    ) orfaos;
+  else
+    v_h := 0;
+  end if;
+
+  return query select least(v_n, v_teto), (v_n <= v_teto), least(v_h, least(v_teto, 200) + 1);
 end;
 $$;
 
@@ -336,18 +462,18 @@ $$;
 -- REVOGAR DE `public` VEM PRIMEIRO: toda função nova nasce com EXECUTE
 -- concedido a `public`, e `anon` HERDA de `public`. Revogar só de `anon` deixa
 -- `has_function_privilege('anon', …) = true` — medido em 25/08/2026.
-revoke all on function public.buscar_relatorios(text, text, date, date, date, text, integer) from public, anon;
-revoke all on function public.contar_relatorios(text, text, date, date, integer)             from public, anon;
-grant execute on function public.buscar_relatorios(text, text, date, date, date, text, integer) to authenticated;
-grant execute on function public.contar_relatorios(text, text, date, date, integer)             to authenticated;
+revoke all on function public.buscar_relatorios(text, text, date, date, text, date, text, integer) from public, anon;
+revoke all on function public.contar_relatorios(text, text, date, date, text, integer)             from public, anon;
+grant execute on function public.buscar_relatorios(text, text, date, date, text, date, text, integer) to authenticated;
+grant execute on function public.contar_relatorios(text, text, date, date, text, integer)             to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- ROLLBACK
 -- ---------------------------------------------------------------------------
 -- Nada aqui guarda verdade: as colunas são geradas e os índices são derivados.
 --
---   drop function if exists public.buscar_relatorios(text, text, date, date, date, text, integer);
---   drop function if exists public.contar_relatorios(text, text, date, date, integer);
+--   drop function if exists public.buscar_relatorios(text, text, date, date, text, date, text, integer);
+--   drop function if exists public.contar_relatorios(text, text, date, date, text, integer);
 --   drop index    if exists public.relatorios_index_busca_idx;
 --   drop index    if exists public.relatorios_index_codigo_idx;
 --   drop index    if exists public.relatorios_index_ordem_idx;

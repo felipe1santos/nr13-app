@@ -1,4 +1,4 @@
-# PONTO DE RETOMADA — 25/08/2026, fim do dia (9E BLOQUEADA)
+# PONTO DE RETOMADA — 28/08/2026 (9E: defeito consertado, rollout por repetir)
 
 > **Leia só este arquivo para voltar ao trabalho.** Ele diz onde paramos, o que está de pé em
 > produção, e qual é a próxima decisão. Nada aqui depende de lembrar da conversa.
@@ -7,11 +7,11 @@
 
 ## 1 · Onde paramos, em uma linha
 
-**A 9D está CONCLUÍDA (P9.3 fechado em 25/08). A 9E foi construída, medida e REPROVADA no
-rollout: está BLOQUEADA ❌.** O rollout de 14 passos passou em tudo menos no passo 11 — na tela
-nova, clicar em "Visualizar" num relatório arquivado NÃO ABRE NADA. A flag `busca_v9` voltou
-para OFF nas 30 organizações no mesmo dia, e a tela antiga voltou intacta. **A próxima tarefa é
-consertar esse caminho** (§4.1).
+**A 9D está CONCLUÍDA (P9.3 fechado em 25/08). O defeito que bloqueou a 9E foi CONSERTADO em
+28/08 — junto com outros dois que estavam escondidos atrás dele —, mas a 9E só sai de
+BLOQUEADA quando o rollout for repetido em produção.** A flag `busca_v9` segue OFF nas 30. A
+próxima tarefa é APLICAR e MEDIR, na ordem do §4.1: o SQL da projeção primeiro, senão nada mais
+adianta. Registro da correção: `medicoes/2026-08-28-9e-destravamento.md`.
 
 ---
 
@@ -25,11 +25,12 @@ consertar esse caminho** (§4.1).
 | Projeção das 2 orgs | refeita com as funções da 9D; `convergiu: true`, `pendencias: 0` |
 | **Flag `boot_v9`** | **`true` em DUAS**: `99f642d3-…-8d211c` (teste) e `92a28bff-…-488a75` (PILOTO cliente, 25/08); `false` nas outras 28 |
 | **Flag `busca_v9`** | **desligada nas 30** — ligada no piloto e revertida em 25/08 (`medicoes/2026-08-25-9e-rollout-producao.md`) |
-| Front | bundle **`index-CuF2FwNz.js`** publicado no Coolify em 25/08 — já contém a 9E, dormente atrás da flag; `origin/main` em dia |
-| SQL da 9E (`busca_relatorios.sql`) | **APLICADO** — RPCs, coluna gerada e os 4 índices de pé; inertes com a flag OFF |
-| Projeções | `relatorios_index` **23** · `equipamentos_index` **17** · `calibracoes_index` **18** |
+| Front | bundle **`index-CuF2FwNz.js`** publicado no Coolify em 25/08 — contém a 9E **com o defeito**; a correção de 28/08 ainda NÃO foi publicada |
+| SQL da 9E (`busca_relatorios.sql`) | aplicado em 25/08, **VERSÃO ANTIGA** — a de 28/08 (escopo, `equipamento_ativo`, `historicos`) está por aplicar |
+| SQL da projeção (`busca_manutencao.sql`) | **PRECISA SER REAPLICADO** — `pdfRef ->> 'path'`; enquanto não for, `pdf_ref` continua nulo em toda linha |
+| Projeções | `relatorios_index` **23** · `equipamentos_index` **17** · `calibracoes_index` **18** — a de relatórios precisa ser REFEITA depois do passo acima |
 | `app_storage` | inalterada |
-| Suíte | **1320/1320** · build verde |
+| Suíte | **1410/1410** · `tsc -b` limpo · build verde (28/08) |
 
 ---
 
@@ -55,6 +56,14 @@ consertar esse caminho** (§4.1).
    mas com a flag LIGADA essa rota **sempre** renderiza a V9, que ignora `tag` e `rel` — o clique
    não leva a lugar nenhum. Rollback feito e conferido no mesmo dia.
 
+### 3-bis · O que aconteceu em 28/08
+
+7. **Os três defeitos da 9E, consertados com teste** (§4.1 e
+   `medicoes/2026-08-28-9e-destravamento.md`). O segundo é o que importa lembrar: a projeção lia
+   `pdfRef ->> 'caminho'` e o campo se chama `path` — chave inexistente devolve `NULL` sem erro,
+   e a busca inteira ficava sem referência de arquivo. **Nada em produção foi tocado**: são
+   mudanças de código e de SQL, ainda por aplicar.
+
 > **QUATRO ARMADILHAS que já custaram tempo, e voltarão. Leia antes de auditar qualquer coisa.**
 >
 > 1. **O service worker serve o bundle ANTIGO depois do deploy** (`nr13-cache-v8`, cache-first em
@@ -75,34 +84,33 @@ consertar esse caminho** (§4.1).
 
 ## 4 · O QUE FALTA — comece por aqui
 
-### 4.1 · A PRÓXIMA TAREFA: destravar a 9E — abrir o relatório arquivado
+### 4.1 · A PRÓXIMA TAREFA: aplicar e repetir o rollout da 9E
 
-**A 9E está BLOQUEADA por UM defeito, e ele é de front.** Em `src/pages/Relatorios.tsx`:
+**O código está pronto e verificado localmente (1410/1410, build verde). O que falta é
+produção.** Os três defeitos e o desenho de cada correção estão em
+`medicoes/2026-08-28-9e-destravamento.md`; o resumo é:
 
-```jsx
-aoAbrir={(r) => navigate(`/relatorios?tag=${…}&rel=${…}`)}
-```
+1. **Navegação** — a V9 abre o documento ela mesma (`pdfRef` → `VisualizadorPdf`), em vez de
+   navegar para uma rota que a flag impede de renderizar a tela antiga.
+2. **`pdfRef ->> 'caminho'` × `path`** — o campo da `RefFoto` se chama `path`. A projeção lia a
+   chave errada e devolvia `NULL` **sem erro**: `pdf_ref` nulo nas 15 linhas, inclusive nas 4 com
+   artefato e `sha256`. É este o defeito que deixava a tela sem documento nenhum.
+3. **Relatório de equipamento excluído** — escopo `ativos` por padrão (o conjunto de sempre),
+   aviso com o número dos que ficaram de fora, selo na linha e escopos `historicos`/`todos` na
+   URL. Com `equipamentos_index` vazia ninguém é marcado como órfão — a guarda que impede a tela
+   de afirmar "não há relatórios" para quem tem o parque inteiro.
 
-O comentário ao lado diz "a tela legada já sabe fazer isso a partir da TAG" — mas com `busca_v9`
-LIGADA a rota `/relatorios` **sempre** monta `RelatoriosV9` (o `modo` vem da flag, uma vez, e
-nunca da URL), e a V9 lê só `q`, `tipo`, `de` e `ate`. O clique troca a query string e
-re-renderiza a mesma tela. **Com a 9E ligada não existe caminho para abrir um relatório
-arquivado.**
+**A ORDEM IMPORTA, e o primeiro passo é o que não pode ser pulado:**
 
-O conserto é a V9 resolver o documento ela mesma — `pdfRef` → `VisualizadorPdf` — em vez de
-delegar a uma tela que a própria flag impede de existir. `ItemRelatorio` já carrega `pdfRef` e
-`sha256`, então não falta dado; falta o caminho.
+| # | Ação | Como conferir |
+|---|---|---|
+| 1 | Reaplicar **`supabase/busca_manutencao.sql`** | `prosrc` de `projetar_relatorios` contém `->> 'path'` (a auditoria NÃO acusa isto — armadilha nº 2) |
+| 2 | Reprojetar (`reiniciar_rebuild_busca` + `reconstruir_indice_busca`) | nenhuma linha com `sha256` preenchido e `pdf_ref` nulo |
+| 3 | Reaplicar **`supabase/busca_relatorios.sql`** | ele RECUSA rodar se o passo 1 faltou; assinaturas com `p_escopo`, coluna `equipamento_ativo` |
+| 4 | Publicar o front e conferir o bundle | `curl` da raiz, nunca pelo navegador (armadilha nº 1) |
+| 5 | Repetir o roteiro de 14 passos na org de TESTE | **passo 11**: o PDF ABRE; a busca segue com **zero** requisição de PDF; o selo e o aviso aparecem para o órfão |
 
-**Regra que não muda no conserto:** nenhum PDF histórico é regenerado e nenhum SHA-256 muda. O
-defeito não corrompeu nada — a tela nunca chegou a tocar em PDF (zero requisições medidas).
-
-Depois do conserto, repetir o rollout de 14 passos na organização de TESTE, com atenção ao passo
-11, que é o que reprovou.
-
-**Também aguardando decisão do dono (não é defeito):** a V9 lista **15** relatórios onde a legada
-mostrava **3**, porque lista a organização inteira, inclusive órfãos cujo equipamento foi excluído
-(`VASO A23`, `CALD-01`, `VASO 02`). É informação aparecendo, não sumindo — mas é mudança
-visível de comportamento.
+**Regra que não muda:** nenhum PDF histórico é regenerado e nenhum SHA-256 muda.
 
 **Proibido sem nova autorização:** 9F, 9G, PDF vetorial, e habilitar `cmam.caldeiras`.
 
@@ -146,7 +154,7 @@ Organização grande ainda não tem projeção: rodar o rebuild antes de ligar
 | 5 | `nr13_rastreab_` é 396 dos 433 KB do boot | **fica**; a saída é parar de mandar `pdfBase64` no registro |
 | 6 | Modo offline do roteiro | **EXERCITADO em 25/08** — achou 2 defeitos, corrigidos e reprovados (`medicoes/2026-08-25-9d-prova-offline-e-dois-defeitos.md`) |
 | 7 | Cota do Supabase | o painel exibe *"Grace period is over"*. Fora do escopo da Fase 9, decisão sua |
-| 8 | Relatório órfão na lista da 9E | decisão do dono — ver §4.1 |
+| 8 | Relatório órfão na lista da 9E | **RESOLVIDO em 28/08** — escopo `ativos` por padrão + aviso com o número + selo na linha; nada some, nada aparece sem aviso (§4.1) |
 
 ---
 
@@ -204,6 +212,7 @@ commit** (a URL por branch fica em cache do CDN e serve a versão velha) e `setV
 | Desenho da Fase 9 | `docs/superpowers/specs/2026-08-22-fase9-escala-busca-design.md` |
 | **9D em produção: SQL, defeito e roteiro** | `docs/medicoes/2026-08-25-9d-sql-aplicado-producao.md` |
 | **9E: rollout, defeito bloqueante e rollback** | `docs/medicoes/2026-08-25-9e-rollout-producao.md` |
+| **9E: os três defeitos e como foram consertados** | `docs/medicoes/2026-08-28-9e-destravamento.md` |
 | 9E: gates de escala (banco e navegador) | `docs/medicoes/2026-08-25-9e-relatorios-escala.md` |
 | Teto do boot, medido | `docs/medicoes/2026-08-24-9d1-teto-do-boot-producao.md` |
 | P9.2: tela, correção e regressão | `docs/medicoes/2026-08-23-p92-validacao-frontend-8d211c.md` |

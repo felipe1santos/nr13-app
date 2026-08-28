@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import RelatoriosV9 from '../features/relatorios/RelatoriosV9';
+import { alvoLegadoDaUrl, modoRelatorios, urlDoLegado } from '../features/relatorios/rotaRelatorios';
 import { usePalcoDocumento } from '../features/documentos/usePalcoDocumento';
 import { paramsSomenteLeitura, travarIframeSomenteLeitura } from '../features/documentos/somenteLeituraDoc';
 import { drenarPonte } from '../services/ponteTemplates';
@@ -274,6 +275,31 @@ function RelatoriosLegado() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount padrão
     carregarEquipamentos();
   }, [carregarEquipamentos]);
+
+  /**
+   * ABERTURA POR LINK (`?tag=…&rel=…`) — o outro lado do conserto da 9E.5.
+   *
+   * Esta tela é TAG-first: só se chega a um relatório escolhendo o equipamento na
+   * lista. Quem vem da busca nova já sabe qual documento quer, e ficava sem por
+   * onde entrar.
+   *
+   * Se o relatório não estiver no índice daquela TAG (aparelho novo sob `boot_v9`,
+   * cache ainda frio), a tela para no HISTÓRICO da TAG certa — que é um destino
+   * útil, e não a lista de equipamentos de onde o usuário acabou de sair.
+   *
+   * Roda uma vez, na montagem: reagir a cada mudança de URL faria o documento
+   * reabrir sozinho depois de o usuário voltar para a lista.
+   */
+  const alvoUrl = useRef(alvoLegadoDaUrl(window.location.search));
+  useEffect(() => {
+    const alvo = alvoUrl.current;
+    if (!alvo) return;
+    abrirEquipamento(alvo.tag);
+    if (!alvo.rel) return;
+    const item = listarHistorico(alvo.tag).find((i) => i.id === alvo.rel);
+    if (item) void visualizar(item);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- montagem, de propósito
+  }, []);
 
 
   function abrirEquipamento(novaTag: string) {
@@ -1168,16 +1194,24 @@ export default function Relatorios() {
   // A flag é decisão de SESSÃO, lida uma vez no login. Alternar no meio faria a
   // lista trocar de fonte com cursores diferentes, e o usuário veria item
   // repetir ou sumir durante a rolagem.
-  const [modo] = useState<'v9' | 'legado'>(() => (buscaV9Ativa() ? 'v9' : 'legado'));
+  const [flagV9] = useState(() => buscaV9Ativa());
+  const { search } = useLocation();
   const navigate = useNavigate();
 
+  // A URL tem UMA saída explícita da tela nova (`legado=1`), e ela existe por um
+  // motivo só: o relatório salvo antes do §7-quater não tem PDF arquivado, e
+  // remontá-lo é coisa que só a tela antiga sabe fazer. Sem essa saída, a flag
+  // ligada tornava esse documento inalcançável — o defeito do passo 11.
+  const modo = modoRelatorios(flagV9, search);
   if (modo === 'legado') return <RelatoriosLegado />;
 
   return (
     <RelatoriosV9
-      // Abrir o relatório é o ÚNICO caminho que resolve o PDF. A tela legada já
-      // sabe fazer isso a partir da TAG; a V9 leva o usuário até lá.
-      aoAbrir={(r) => navigate(`/relatorios?tag=${encodeURIComponent(r.tag)}&rel=${encodeURIComponent(r.relatorioId)}`)}
+      // A V9 abre sozinha todo relatório COM arquivo (§7-quater) — ela resolve o
+      // `pdfRef` no próprio visualizador. Este callback só é chamado para o
+      // LEGADO sem arquivo, e aí sim leva para a tela antiga, agora por uma rota
+      // que a flag não engole.
+      aoAbrir={(r) => navigate(urlDoLegado(r.tag, r.relatorioId))}
     />
   );
 }

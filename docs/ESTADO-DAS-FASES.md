@@ -133,11 +133,12 @@ DUAS organizações: a de teste (`99f642d3-…-8d211c`) e o piloto real `92a28bf
 | **9D · piloto cliente** | **CONCLUÍDO** (25/08) — `92a28bff…`: paridade 3/3, boot 20 KB × 354 KB, rollback conferido. `medicoes/2026-08-25-9d-piloto-org-cliente.md` |
 | **P9.3** | **FECHADO ✅** (25/08) — evidência DISTRIBUÍDA: laboratório + organização de teste + piloto real |
 | **9E** | **BLOQUEADA ⛔** (25/08) — construída e medida (banco 55×–190× melhor; 50k no banco = 16 linhas no DOM, zero PDF), mas o rollout reprovou: **clicar em "Visualizar" num relatório arquivado não abre nada**. Flag revertida para OFF nas 30. `medicoes/2026-08-25-9e-rollout-producao.md` |
+| **9E · correção** | **CÓDIGO PRONTO** (28/08) — três defeitos consertados com teste: a navegação, o `pdfRef ->> 'caminho'` da projeção (o campo é `path`, e o `NULL` era silencioso) e o recorte do relatório de equipamento excluído. 1410/1410 · build verde. **A 9E segue BLOQUEADA até o rollout ser repetido em produção.** `medicoes/2026-08-28-9e-destravamento.md` |
 
-**Próxima ação exata:** destravar a 9E — fazer `RelatoriosV9` resolver o `pdfRef` ela mesma, em
-vez de navegar para `/relatorios`, rota que com a flag ligada só sabe renderizar a própria V9.
-Depois, repetir o rollout de 14 passos na organização de TESTE. Nenhum PDF histórico é
-regenerado e nenhum SHA-256 muda.
+**Próxima ação exata:** aplicar, NESTA ordem: `busca_manutencao.sql` (o `->> 'path'`) →
+reprojetar → `busca_relatorios.sql` (escopo) → publicar o front → repetir o roteiro de 14 passos
+na organização de TESTE, com atenção ao passo 11. Nenhum PDF histórico é regenerado e nenhum
+SHA-256 muda.
 
 ### ✅ P9.2 FECHADO — 23/08/2026
 

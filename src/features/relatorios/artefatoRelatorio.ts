@@ -29,7 +29,7 @@
  * não foi trocado — é a razão de o artefato existir num registro técnico com
  * responsabilidade de engenheiro.
  */
-import { salvarArquivo, baixarFoto, montarPath, arquivoPendente, type RefFoto } from '../../services/fotos';
+import { salvarArquivo, baixarFoto, montarPath, arquivoPendente, BUCKET, type RefFoto } from '../../services/fotos';
 
 /** O que fica gravado no `RelatorioSalvo` quando o artefato existe. */
 export interface PdfArtefato {
@@ -137,4 +137,39 @@ export function artefatoDe(r: {
 /** Caminho que ESTE relatório usaria — exposto para teste e diagnóstico. */
 export function caminhoDoRelatorio(orgId: string): string {
   return montarPath(orgId, ESCOPO_RELATORIOS, 'pdf');
+}
+
+/**
+ * Fase 9 · 9E.5 — o artefato de uma linha da BUSCA.
+ *
+ * A projeção (`relatorios_index`) guarda o `pdf_ref` como TEXTO: só o caminho
+ * dentro do bucket. O visualizador exige uma `RefFoto`. Esta função é a ponte, e
+ * ela existe para que a tela nova abra o documento SOZINHA — o defeito que
+ * bloqueou o rollout de 25/08/2026 foi justamente delegar essa abertura para uma
+ * rota que a própria flag impede de renderizar a tela legada.
+ *
+ * `null` = relatório LEGADO, salvo antes do §7-quater e sem arquivo arquivado.
+ * Não é erro: é o sinal de que só o fluxo antigo sabe montar aquele documento.
+ *
+ * O bucket e o mime são constantes do sistema, não dados da linha: `baixarFoto`
+ * resolve pelo `path`, e mandar a projeção carregar essas duas colunas seria
+ * engordar o índice com informação que nunca varia.
+ */
+export function artefatoDoItemBuscado(item: {
+  pdfRef: string | null;
+  sha256?: string | null;
+  paginas?: number | null;
+}): PdfArtefato | null {
+  const path = item?.pdfRef?.trim();
+  if (!path) return null;
+  return {
+    pdfRef: { bucket: BUCKET, path, mimeType: 'application/pdf', tamanho: 0 },
+    sha256: item.sha256 ?? '',
+    // O ARQUIVO já está no bucket: quem devolveu esta linha foi o servidor.
+    // "Pendente" é estado do cofre local, e carimbá-lo aqui poria um aviso de
+    // "ainda subindo" em documento emitido meses atrás.
+    pendente: false,
+    geradoEm: '',
+    paginas: item.paginas ?? 0,
+  };
 }
