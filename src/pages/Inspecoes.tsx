@@ -4,13 +4,16 @@ import { listarEquipamentos } from '../features/equipamento/equipamentoService';
 import type { EquipamentoResumo } from '../features/equipamento/tipos';
 import { formatarValor } from '../calc/unidades';
 import ModalNovaInspecaoContainer from '../features/inspecoes/ModalNovaInspecaoContainer';
-import { criarContainer, formulariosDoContainer, listarContainers, removerContainer } from '../features/inspecoes/inspecaoService';
-import { ENSAIOS_DISPONIVEIS, type ContainerInspecao, type TipoEnsaio } from '../features/inspecoes/tipos';
+import ContainerCard from '../features/inspecoes/ContainerCard';
+import InspecoesV9 from '../features/inspecoes/InspecoesV9';
+import { inspecoesV9Ativa } from '../services/storage';
+import { criarContainer, listarContainers, removerContainer } from '../features/inspecoes/inspecaoService';
+import type { ContainerInspecao, TipoEnsaio } from '../features/inspecoes/tipos';
 import '../features/inspecoes/visualizador.css';
 import '../pages/relatorios.css';
 import './inspecoes.css';
 import FotoImg from '../components/FotoImg';
-import { rotaInspecaoContainer, rotaInspecoes } from '../app/rotas';
+import { rotaInspecoes } from '../app/rotas';
 
 const ROTULO_TIPO: Record<string, string> = {
   vaso: 'Vaso de Pressão',
@@ -18,74 +21,7 @@ const ROTULO_TIPO: Record<string, string> = {
   caldeira: 'Caldeira',
 };
 
-function ContainerCard({
-  container,
-  tag,
-  onExcluir,
-}: {
-  container: ContainerInspecao;
-  tag: string;
-  onExcluir: () => void;
-}) {
-  const navigate = useNavigate();
-  const formularios = formulariosDoContainer(container);
-  const [confirmando, setConfirmando] = useState(false);
-
-  function handleExcluir(ev: React.MouseEvent) {
-    ev.stopPropagation();
-    if (!confirmando) { setConfirmando(true); return; }
-    onExcluir();
-  }
-
-  function abrir() {
-    navigate(rotaInspecaoContainer(tag, container.id));
-  }
-
-  return (
-    <div
-      className="container-card container-card-clicavel"
-      onClick={abrir}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => { if (e.key === 'Enter') abrir(); }}
-    >
-      <div className="container-card-header">
-        <div>
-          <div className="container-card-titulo">{container.nome || `Inspeção de ${container.criadoEm}`}</div>
-          <div className="container-card-meta">
-            {container.criadoEm} • {formularios.length} {formularios.length === 1 ? 'item' : 'itens'}
-          </div>
-          <div className="container-card-badges">
-            {container.ensaios.map((e) => (
-              <span key={e} className="badge-item-ensaio">
-                {ENSAIOS_DISPONIVEIS.find((d) => d.value === e)?.label ?? e}
-              </span>
-            ))}
-          </div>
-        </div>
-        <div className="container-card-acoes" onClick={(e) => e.stopPropagation()}>
-          {confirmando ? (
-            <>
-              <button type="button" className="btn-remover" onClick={handleExcluir}>
-                Confirmar
-              </button>
-              <button type="button" className="btn-secundario" onClick={(e) => { e.stopPropagation(); setConfirmando(false); }}>
-                Cancelar
-              </button>
-            </>
-          ) : (
-            <button type="button" className="btn-remover" onClick={handleExcluir}>
-              Excluir
-            </button>
-          )}
-          <span className="container-card-seta" aria-hidden>›</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export default function Inspecoes() {
+function InspecoesLegado() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const tagInicial = params.get('tag') || '';
@@ -213,4 +149,26 @@ export default function Inspecoes() {
       {modalAberto && <ModalNovaInspecaoContainer onClose={() => setModalAberto(false)} onCriar={criar} />}
     </div>
   );
+}
+
+/**
+ * Fase 9 · 9F.1.4 — o interruptor da flag `inspecoes_v9`, por TELA.
+ *
+ * DESLIGADA (padrão, e é o padrão de propósito): a tela acima, byte a byte como
+ * sempre foi — a lista inteira vinda de `listarEquipamentos()`, sem busca.
+ * LIGADA: `InspecoesV9`, com o catálogo do servidor, busca e a contagem de
+ * inspeções contada na projeção.
+ *
+ * ROLLBACK É DESLIGAR A FLAG. Nada precisa ser convertido de volta: a projeção é
+ * derivada e `app_storage` continua sendo a verdade.
+ *
+ * OS DOIS CAMINHOS NÃO FICAM PARA SEMPRE. Quando o rollout terminar, o legado
+ * sai — e é por isso que `InspecoesV9` não importa nada deste arquivo (o cartão
+ * do container mora em `features/inspecoes/ContainerCard.tsx`, usado pelos dois).
+ */
+export default function Inspecoes() {
+  // A flag é decisão de SESSÃO, lida uma vez no login. Alternar no meio faria a
+  // lista trocar de fonte com cursores diferentes no meio da rolagem.
+  const [modo] = useState<'v9' | 'legado'>(() => (inspecoesV9Ativa() ? 'v9' : 'legado'));
+  return modo === 'v9' ? <InspecoesV9 /> : <InspecoesLegado />;
 }
