@@ -102,6 +102,8 @@ declare
   v_unid    text;
   v_base    date;
   v_anos    numeric;
+  -- 9F.1.2 — contagem de containers de inspeção. `null` = não há a chave.
+  v_insp    integer;
 begin
   -- `nr13_info_` é a chave que MANDA: define existência e versão.
   select public.f9_json(s.valor), s.versao, s.atualizado_em
@@ -138,7 +140,7 @@ begin
       proxima_inspecao = null, tem_foto = false, foto_ref = null,
       pmta_mpa = null, pth_mpa = null, resultado = null, volume_m3 = null,
       fluido = null, classe_fluido = null, vida_anos = null, tem_cliente = false,
-      unidade = null, vida_base = null, vida_prox_anos = null,
+      unidade = null, inspecoes = null, vida_base = null, vida_prox_anos = null,
       source_version = excluded.source_version,
       source_updated_at = excluded.source_updated_at,
       projected_at = excluded.projected_at;
@@ -172,6 +174,27 @@ begin
   select public.f9_json(valor) #>> '{}' into v_unid from public.app_storage
    where org_id = p_org and chave = 'nr13_pref_unidade_' || p_tag and deletado_em is null;
 
+  -- 9F.1.2 · A CONTAGEM DE INSPECOES, CONTADA AQUI E NAO NA TELA.
+  --
+  -- `nr13_docs_<TAG>` e o array de containers de inspecao. A tela antiga
+  -- escrevia o badge "N Inspecoes" com `JSON.parse` do array INTEIRO, duas vezes
+  -- por cartao, dentro do render — 11,4 KB por TAG na media medida em producao
+  -- em 28/08/2026, 117 KB na cauda, ~22 MB por quadro com 1.000 equipamentos.
+  -- Aqui o mesmo numero custa um `jsonb_array_length` no servidor, uma vez por
+  -- mutacao, e viaja como inteiro de 4 bytes.
+  --
+  -- `null` QUANDO NAO HA A CHAVE, e nao zero: a distincao entre "contei e nao
+  -- ha nenhum" e "nao contei" e o que impede o badge de afirmar "0 Inspecoes"
+  -- numa organizacao ainda nao reprojetada. `f9_json` ja devolve null para JSON
+  -- ilegivel, e valor que nao seja array tambem vira null — nunca uma contagem
+  -- inventada.
+  select case when jsonb_typeof(public.f9_json(valor)) = 'array'
+              then jsonb_array_length(public.f9_json(valor))
+              else null end
+    into v_insp
+    from public.app_storage
+   where org_id = p_org and chave = 'nr13_docs_' || p_tag and deletado_em is null;
+
   -- proxima_inspecao: FATO derivado só da vida remanescente. A consolidação com
   -- as datas do relatório é da 9F, por junção com relatorios_index — replicar
   -- aqui a regra inteira de `vencimentos.ts` duplicaria lógica de negócio em
@@ -192,7 +215,7 @@ begin
     org_id, tag, descricao, tipo, subtipo, categoria, fabricante, numero_serie,
     localizacao, ano, cliente_nome, cliente_cidade, proxima_inspecao, tem_foto, foto_ref,
     pmta_mpa, pth_mpa, resultado, volume_m3, fluido, classe_fluido, vida_anos,
-    tem_cliente, unidade, vida_base, vida_prox_anos,
+    tem_cliente, unidade, inspecoes, vida_base, vida_prox_anos,
     source_version, source_updated_at, projected_at
   ) values (
     p_org,
@@ -235,6 +258,7 @@ begin
     -- âmbar. O aviso precisa do FATO, não do id — que não tem por que viajar.
     nullif(btrim(coalesce(v_emp ->> 'clienteId', '')), '') is not null,
     nullif(btrim(coalesce(v_unid, '')), ''),
+    v_insp,
     -- 9D · os DOIS FATOS crus da vida remanescente, guardados além da data já
     -- derivada acima. O agregado de vencimentos precisa deles porque a REGRA
     -- continua em TypeScript (`vencimentos.ts`): lá o prazo é
@@ -260,7 +284,7 @@ begin
     resultado = excluded.resultado,       volume_m3 = excluded.volume_m3,
     fluido = excluded.fluido,             classe_fluido = excluded.classe_fluido,
     vida_anos = excluded.vida_anos,       tem_cliente = excluded.tem_cliente,
-    unidade = excluded.unidade,
+    unidade = excluded.unidade,       inspecoes = excluded.inspecoes,
     vida_base = excluded.vida_base,       vida_prox_anos = excluded.vida_prox_anos,
     source_version = excluded.source_version,
     source_updated_at = excluded.source_updated_at,

@@ -226,6 +226,11 @@ export function equipamentosPendentesLocais(): ItemCatalogo[] {
         temCliente: !!emp?.clienteId,
         unidade: ler<string>(`nr13_pref_unidade_${tag}`),
         sourceVersion: 0,
+        // `null`, e não `0`: quem conta os containers é a projeção, e este item
+        // ainda não chegou ao servidor. Contar aqui abrindo `nr13_docs_<TAG>`
+        // seria trazer de volta, por uma porta lateral, exatamente o parse que a
+        // 9F.1 está tirando da lista.
+        inspecoes: null,
         pendente: true,
       } satisfies ItemCatalogo;
     });

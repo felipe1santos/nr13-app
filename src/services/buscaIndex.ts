@@ -52,6 +52,17 @@ export interface ItemCatalogo {
   vidaAnos: number | null;
   /** Tem `clienteId` — sem ele o equipamento não aparece no Portal. */
   temCliente: boolean;
+  /**
+   * Quantos containers de inspeção este equipamento tem — **`null` = não sei**.
+   *
+   * O número vem contado da projeção. A tela antiga o obtinha fazendo
+   * `JSON.parse` de `nr13_docs_<TAG>` INTEIRO, duas vezes por cartão, dentro do
+   * render: 11,4 KB por TAG na média medida em produção, 117 KB na cauda.
+   *
+   * `null` acontece em organização cuja projeção ainda não foi refeita, e NÃO
+   * pode virar `0`: seria a tela afirmando "nenhuma inspeção" sem ter contado.
+   */
+  inspecoes: number | null;
   unidade: string | null;
   /** Versão da verdade que originou esta linha. Serve à auditoria e ao merge. */
   sourceVersion: number;
@@ -77,6 +88,18 @@ export function textoCliente(item: {
   clienteCidade: string | null;
 }): string {
   return [item.clienteNome, item.clienteCidade].filter(Boolean).join(' · ');
+}
+
+/**
+ * O que o badge de inspeções escreve — ou `null`, quando não há o que escrever.
+ *
+ * Existe aqui, e não dentro da tela, pela mesma razão de `textoCliente`: a regra
+ * de "não sei ≠ zero" precisa de UM lugar só, testável sem DOM. A suíte roda em
+ * `environment: 'node'`, então regra que mora no JSX não tem teste.
+ */
+export function rotuloInspecoes(n: number | null): string | null {
+  if (n === null) return null;
+  return `${n} ${n === 1 ? 'Inspeção' : 'Inspeções'}`;
 }
 
 export interface FiltrosBusca {
@@ -129,6 +152,8 @@ interface LinhaRpc {
   tem_cliente: boolean | null;
   unidade: string | null;
   source_version: number | null;
+  /** 9F.1.2 — opcional de propósito: servidor sem a coluna manda `undefined`. */
+  inspecoes?: number | null;
 }
 
 /** `numeric` do Postgres chega como STRING no PostgREST — nunca como número. */
@@ -164,6 +189,11 @@ function daLinha(l: LinhaRpc): ItemCatalogo {
     temCliente: l.tem_cliente === true,
     unidade: l.unidade,
     sourceVersion: l.source_version ?? 0,
+    // AUSENTE E NULL VIRAM `null`, E ZERO CONTINUA ZERO. Um `?? 0` aqui seria a
+    // tela afirmando "nenhuma inspeção" numa organização cuja projeção nem foi
+    // refeita — o mesmo defeito do painel que inventava zero (prova offline da
+    // 9D), e o oposto do que a 9E fez com `equipamento_ativo`.
+    inspecoes: l.inspecoes === null || l.inspecoes === undefined ? null : Number(l.inspecoes),
   };
 }
 

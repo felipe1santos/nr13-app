@@ -106,6 +106,19 @@ create table if not exists public.equipamentos_index (
   tem_cliente       boolean     not null default false,
   unidade           text,
 
+  -- 9F.1.2 · quantos containers de inspeção a TAG tem.
+  --
+  -- SEM `not null` e SEM `default 0`, de propósito: numa organização cuja
+  -- projeção ainda não foi refeita a coluna precisa ficar NULA, e a tela
+  -- precisa poder distinguir "não sei" de "nenhuma inspeção". Um default 0 aqui
+  -- faria o badge afirmar "0 Inspeções" para um parque inteiro que ninguém
+  -- contou — o mesmo defeito do painel que inventava zero (prova offline da 9D).
+  --
+  -- A contagem existe porque a tela antiga a obtinha com `JSON.parse` de
+  -- `nr13_docs_<TAG>` INTEIRO, duas vezes por cartão, dentro do render: média
+  -- de 11,4 KB por TAG medida em produção em 28/08/2026, 117 KB na cauda.
+  inspecoes         integer,
+
   -- Identidade fonte ↔ projeção
   source_version    integer     not null,
   source_updated_at timestamptz not null,
@@ -258,3 +271,6 @@ alter table public.equipamentos_index add column if not exists classe_fluido tex
 alter table public.equipamentos_index add column if not exists vida_anos     numeric;
 alter table public.equipamentos_index add column if not exists tem_cliente   boolean not null default false;
 alter table public.equipamentos_index add column if not exists unidade       text;
+-- 9F.1.2 — nasce NULA em toda linha já projetada, e assim fica até a
+-- reprojeção. É o que permite a tela dizer "não sei" em vez de "zero".
+alter table public.equipamentos_index add column if not exists inspecoes     integer;

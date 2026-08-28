@@ -27,7 +27,7 @@ function item(tag: string, extra: Partial<ItemCatalogo> = {}): ItemCatalogo {
     numeroSerie: null, localizacao: null, ano: null, clienteNome: null, clienteCidade: null,
     proximaInspecao: null,
     temFoto: false, fotoRef: null, pmtaMpa: null, pthMpa: null, resultado: null,
-    volumeM3: null, fluido: null, classeFluido: null, vidaAnos: null, temCliente: false,
+    volumeM3: null, fluido: null, classeFluido: null, vidaAnos: null, temCliente: false, inspecoes: null,
     unidade: null, sourceVersion: 1,
     ...extra,
   };

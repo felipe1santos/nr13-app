@@ -53,7 +53,7 @@ function item(tag: string, extra: Partial<ItemCatalogo> = {}): ItemCatalogo {
     proximaInspecao: null,
     temFoto: false, fotoRef: null, pmtaMpa: null, pthMpa: null, resultado: null,
     volumeM3: null, fluido: null, classeFluido: null, vidaAnos: null, temCliente: false,
-    unidade: null, sourceVersion: 0,
+    unidade: null, sourceVersion: 0, inspecoes: null,
     ...extra,
   };
 }

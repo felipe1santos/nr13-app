@@ -26,6 +26,29 @@
 -- recusa `create or replace` nesse caso. Sem estes drops, aplicar este arquivo
 -- numa base que já tem a versão anterior falha com "cannot change return type
 -- of existing function" — e o deploy pararia no meio.
+-- ---------------------------------------------------------------------------
+-- 0 · GUARDA: a coluna da 9F.1.2 precisa existir ANTES
+-- ---------------------------------------------------------------------------
+-- Esta consulta devolve `inspecoes`. Sem a coluna em `equipamentos_index`, o
+-- `create` abaixo falharia no meio do deploy — com a RPC velha JÁ derrubada
+-- pelos `drop`, e a tela sem catálogo nenhum até alguém perceber. Falhar ANTES
+-- de derrubar é a diferença entre um deploy interrompido e uma tela morta.
+--
+-- Mesma ideia da guarda que a 9E pôs em `busca_relatorios.sql`, e pelo mesmo
+-- motivo: a ordem de aplicação dos arquivos não pode depender de memória.
+do $guarda$
+begin
+  if not exists (
+    select 1 from information_schema.columns
+     where table_schema = 'public' and table_name = 'equipamentos_index'
+       and column_name = 'inspecoes'
+  ) then
+    raise exception using
+      message = 'equipamentos_index.inspecoes nao existe',
+      hint    = 'Aplique supabase/busca_index.sql (9F.1.2) antes deste arquivo.';
+  end if;
+end $guarda$;
+
 drop function if exists public.buscar_equipamentos(text, text, text, text, integer);
 drop function if exists public.contar_equipamentos(text, text, text, integer);
 
@@ -165,7 +188,11 @@ returns table (
   vida_anos        numeric,
   tem_cliente      boolean,
   unidade          text,
-  source_version   integer
+  source_version   integer,
+  -- 9F.1.2 · quantos containers de inspeção a TAG tem. `null` = não contado
+  -- (organização cuja projeção ainda não foi refeita) — e a tela precisa dessa
+  -- diferença para omitir o badge em vez de escrever "0 Inspeções".
+  inspecoes        integer
 )
 language plpgsql
 stable
@@ -203,7 +230,8 @@ begin
          e.proxima_inspecao,
          e.tem_foto, e.foto_ref,
          e.pmta_mpa, e.pth_mpa, e.resultado, e.volume_m3, e.fluido,
-         e.classe_fluido, e.vida_anos, e.tem_cliente, e.unidade, e.source_version
+         e.classe_fluido, e.vida_anos, e.tem_cliente, e.unidade, e.source_version,
+         e.inspecoes
     from public.equipamentos_index e
    where e.org_id = v_org
      and (p_cursor is null or e.tag > p_cursor)

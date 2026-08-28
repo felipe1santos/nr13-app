@@ -81,6 +81,11 @@ begin
   -- `projetar_calibracoes` no fim. Uma etapa própria aqui criaria uma segunda
   -- máquina de estados, convergindo em ritmo diferente do rebuild.
   elsif p_chave like 'nr13_calibracoes_%' then v_tag := substring(p_chave from 18);
+  -- 9F.1.2 · os containers de inspeção entram pela MESMA porta, e por isso a
+  -- contagem do badge nunca fica velha: criar ou excluir um container reprojeta
+  -- a TAG na mesma transação da escrita. A alternativa — a tela contar sozinha —
+  -- é exatamente o `JSON.parse` de 11,4 KB por cartão que a 9F.1 está tirando.
+  elsif p_chave like 'nr13_docs_%' then v_tag := substring(p_chave from 11);
   else
     return;  -- família não projetável: comportamento empresarial normal
   end if;
