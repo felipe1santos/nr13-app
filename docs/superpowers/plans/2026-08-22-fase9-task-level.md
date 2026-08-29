@@ -639,9 +639,28 @@ no clique** · offline · o histórico por equipamento continua funcionando.
       (7 testes) + `chaveDoConjunto`, que devolve a rolagem ao topo quando a lista passa a ser
       outra. `/equipamentos` e `/relatorios` herdam a correção.
 
-> **ESTADO EM 29/08: implementada, medida em 1k/10k/50k e corrigida (1446/1446, build verde).
-> NADA foi aplicado em produção e NENHUMA flag foi ligada.** Falta o SQL, a reprojeção e o
-> roteiro na organização de teste — nesta ordem, e só com autorização.
+- [x] **9F.1.7** — **ROLLOUT EM PRODUÇÃO (29/08)**, autorizado pelo dono: 5 arquivos de SQL
+      aplicados na ordem (a partir do SHA `98e04cb`), org de TESTE reprojetada
+      (`convergiu: true`, pendências 0, paridade do badge **4/4**), front publicado
+      (bundle `index-DkxtOk2G.js`, com `inspecoes_v9`, conferido por `curl`), roteiro rodado
+      com a flag ligada **só** em `99f642d3-…-8d211c` e **rollback no mesmo dia** —
+      `inspecoes_v9` **0 de 30**. Busca em produção = **2 requisições**
+      (`buscar_equipamentos` + `contar_equipamentos`), **zero PDF**, **zero `app_storage`**;
+      escolher o equipamento = 1 requisição filtrada por aquela TAG.
+      Registro: `medicoes/2026-08-29-9f1-rollout-producao.md`
+
+> **ESTADO EM 29/08 (fim do dia): 9F.1 implementada, medida em 1k/10k/50k, corrigida
+> (1446/1446, build verde) e COM ROLLOUT FEITO E REVERTIDO na organização de teste.**
+> A flag está desligada nas 30 e **nenhuma conta cliente foi tocada**. A 9F.2 não foi iniciada.
+>
+> **DUAS COISAS QUE O ROLLOUT NÃO PROVOU, e não valem por inferência:** (1) **escala** — a org
+> de teste tem 4 equipamentos, então virtualização/keyset/paginação seguem provados só em
+> laboratório (1k/10k/50k), a MESMA limitação declarada no fechamento da 9E; (2) **cache frio
+> e offline** sob `inspecoes_v9`, não exercitados.
+>
+> **A divergência de registro achada no preflight** (dois dos cinco arquivos de SQL já estavam
+> aplicados em produção sem constar em lugar nenhum) está descrita no registro do rollout. O
+> trabalho parou e só seguiu com decisão do dono: reaplicar os cinco.
 
 ### Testes — ANTES da mudança
 
@@ -853,6 +872,9 @@ recém-consultado.
 | 28/08 | **9E DESTRAVADA no código** — três defeitos consertados com teste: (1) a navegação, agora a V9 abre o `pdfRef` no próprio visualizador e a rota tem a saída `legado=1` para o relatório sem arquivo; (2) **`pdfRef ->> 'caminho'` × `path`** na projeção, o NULL silencioso que deixava `pdf_ref` nulo nas 15 linhas, inclusive nas 4 com artefato — agora com guarda no `busca_relatorios.sql` e teste de projeção de verdade; (3) relatório de equipamento excluído com escopo, aviso e selo. **1410/1410** · build verde. **A 9E só sai de BLOQUEADA com o rollout repetido em produção** | 🔧 |
 | 28/08 | **ROLLOUT DA 9E REPETIDO EM PRODUÇÃO — PASSOU.** `busca_manutencao.sql` aplicado (`prosrc` com `->> 'path'`) → reprojeção só de relatórios nas orgs já projetadas (**linhas com `sha256` e sem `pdf_ref`: 11 → 0**) → `busca_relatorios.sql` aplicado (1 sobrecarga de cada, anon=false/auth=true, 6 índices) → front `a944845` publicado (**o nome do bundle NÃO mudou; a prova foi a string literal**) → flag ON na org de teste: 3 resultados (paridade), aviso de 12 excluídos, `Sem data`, busca por TAG, termo inexistente, período, **zero PDF**. **Passo 11 APROVADO**: dois relatórios abertos (13 e 18 páginas), SHA-256 da tela **igual ao do banco**, incl. um de equipamento EXCLUÍDO; legado sem artefato abriu por `legado=1`. Rollback ON→OFF conferido: 0/30, boot_v9 2, 22/17/18, 6 índices, tela antiga com os mesmos 3. Falta só a decisão do dono | ✅ |
 | 28/08 | **🚪 9E FECHADA ✅ pelo dono.** Aceito como provado: SQL aplicado · projeção corrigida · `pdf_ref`/`path` · busca em produção · RLS · índices · busca V9 · ativos e históricos de equipamento excluído · abertura real do PDF · SHA-256 · zero PDF durante a busca · rollback · 1410/1410 · build verde · árvore limpa · **nenhuma conta pagante habilitada**. **DUAS LIMITAÇÕES DECLARADAS, não aprovadas por inferência:** cache frio sob `boot_v9` (não exercitado no rollout) e paginação/keyset (laboratório com 50.000; a org de teste tem 12). **`busca_v9` fica OFF nas 30 — não habilitar em cliente. A 9F NÃO está autorizada** | ✅ |
+| 29/08 | **9F.1 GATE DE NAVEGADOR** em 1k/10k/50k contra o Supabase local: **11 linhas e 395 nós** nos três degraus, zero PDF, zero `nr13_docs_` na lista; `testes-9f.sql` **12/12**. O gate achou um defeito real — buscar com a lista rolada deixava a área VAZIA anunciando "11 resultados" — corrigido com TDD (`faixaVisivel` + `chaveDoConjunto`), e `/equipamentos` e `/relatorios` herdaram. **1446/1446** · build verde | ✅ |
+| 29/08 | **⚠️ DIVERGÊNCIA DE REGISTRO no preflight do rollout da 9F.1.** O registro dizia "produção intocada"; o banco tinha **2 dos 5** arquivos aplicados (`busca_index` e `busca_manutencao`, marcador `nr13_docs_` em `projetar_equipamento`, que só existe pós-`b555ddb`). Estado intermediário SEM leitor, logo sem defeito de operação — mas registro errado. **O trabalho parou e foi reportado antes de qualquer escrita**; decisão do dono: reaplicar os cinco | ⚠️ |
+| 29/08 | **ROLLOUT DA 9F.1 EM PRODUÇÃO — PASSOU, e foi revertido no mesmo dia.** SQL 5/5 aplicado do SHA `98e04cb` e verificado por marcador (`projetar_chave` com `nr13_docs_` **false→true**; retorno de `buscar_equipamentos` com `inspecoes` **false→true**; grants anon=false/auth=true; `definir_inspecoes_v9` revogada de authenticated) → org de TESTE reprojetada (`convergiu: true`, pendências 0, badge **1/null/null/null** batendo com a verdade) → front publicado, bundle **`index-DkxtOk2G.js`** com `inspecoes_v9` conferido por `curl` → flag ON só na org de teste: paridade **4 = 4**, busca por TAG, termo inexistente com mensagem, limpar, **2 requisições por busca** e **zero PDF**, semeadura sob demanda filtrada pela TAG, container e dados de campo intactos → **rollback: `inspecoes_v9` 0/30**, `boot_v9` 2, `busca_v9` 0, projeções 17/22/18, tela legada idêntica à linha de base. **NÃO provado: escala (4 equipamentos) e cache frio/offline.** 9F.2 não iniciada | ✅ |
 
 ---
 

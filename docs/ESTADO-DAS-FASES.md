@@ -6,7 +6,7 @@
 > **REGRA:** este arquivo é atualizado NO MOMENTO em que o estado muda — commit, push,
 > redeploy, validação, portão. Não no fim da fase.
 
-**Última atualização:** 29/08/2026 — 9E FECHADA · 9F.1 medida em 1k/10k/50k (sem rollout)
+**Última atualização:** 29/08/2026 — 9E FECHADA · 9F.1 com rollout FEITO na org de teste e revertido
 **Branch:** `main` · **Suíte:** 1446 testes / 119 arquivos, 0 falhas · **Build:** verde
 
 > ### 🔖 VOLTANDO DEPOIS DE UMA PAUSA? Leia [`PONTO-DE-RETOMADA.md`](PONTO-DE-RETOMADA.md).
@@ -120,7 +120,8 @@ habilitar em cliente sem autorização nova.**
 > requisito artificial para fechar um portão. A expansão para clientes é **gradual, com
 > autorização separada**.
 
-**9E FECHADA ✅** (28/08). **9F e 9G continuam NÃO autorizadas — a 9F não começa sozinha.**
+**9E FECHADA ✅** (28/08). **A 9F.1 foi autorizada e teve o rollout feito em 29/08 (org de teste,
+revertido no mesmo dia). A 9F.2 em diante e a 9G continuam NÃO autorizadas — não começam sozinhas.**
 
 | | |
 |---|---|
@@ -139,11 +140,12 @@ habilitar em cliente sem autorização nova.**
 
 | **9E** | **🚪 FECHADA ✅ pelo dono em 28/08/2026** — com DUAS limitações declaradas, que **não** contam como aprovadas: (1) **cache frio sob `boot_v9` NÃO foi exercitado** no rollout da organização de teste; (2) **paginação/keyset** foi validada em laboratório com 50.000 relatórios, mas **não** exercitada na organização de teste, que tem 12. Nenhuma das duas vale por inferência |
 
-**Próxima ação exata:** **NENHUMA sem autorização.** A **9F.1 (`/inspecoes`) está implementada e
-verificada localmente** (commits `b555ddb` e `ef10c90`) — mas **nada foi aplicado em produção e
-nenhuma flag foi ligada**. Falta o gate de navegador, o SQL, a reprojeção e o roteiro na
-organização de teste. As demais telas da 9F **não** foram iniciadas.
-Registro: `medicoes/2026-08-28-9f1-inspecoes-implementada.md`. `busca_v9` segue **OFF nas 30** — **não habilitar em cliente nenhum**; nenhuma conta
+| **9F.1** | **IMPLEMENTADA · MEDIDA · COM ROLLOUT FEITO E REVERTIDO** (29/08). Gate de navegador em 1k/10k/50k (**11 linhas / 395 nós** constantes, zero PDF) + `testes-9f.sql` 12/12 (`medicoes/2026-08-29-9f1-gate-navegador.md`). Rollout em produção: 5 arquivos de SQL aplicados, org de TESTE reprojetada (`convergiu: true`, badge **1/null/null/null** batendo com a verdade), bundle `index-DkxtOk2G.js` publicado, roteiro com a flag ON só na org de teste (paridade **4 = 4**, **2 requisições por busca**, zero PDF, semeadura por TAG, dados de campo intactos) e **rollback: `inspecoes_v9` 0/30** (`medicoes/2026-08-29-9f1-rollout-producao.md`). **NÃO provado: escala (a org tem 4 equipamentos) e cache frio/offline** |
+
+**Próxima ação exata:** **NENHUMA sem autorização.** A 9F.1 está entregue, medida e revertida;
+a decisão de habilitá-la em alguma organização — e quando — é do dono. As demais telas da 9F
+(**9F.2 em diante**) **não** foram iniciadas.
+Registro: `medicoes/2026-08-29-9f1-rollout-producao.md`. `busca_v9` segue **OFF nas 30** — **não habilitar em cliente nenhum**; nenhuma conta
 pagante foi habilitada. Nenhum PDF histórico foi regenerado e nenhum SHA-256 mudou.
 
 ### ✅ P9.2 FECHADO — 23/08/2026

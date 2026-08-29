@@ -1,4 +1,4 @@
-# PONTO DE RETOMADA — 29/08/2026 (9E FECHADA ✅ · 9F.1 medida em 50k, sem rollout)
+# PONTO DE RETOMADA — 29/08/2026 (9E FECHADA ✅ · 9F.1 COM ROLLOUT FEITO na org de teste, e revertido)
 
 > **Leia só este arquivo para voltar ao trabalho.** Ele diz onde paramos, o que está de pé em
 > produção, e qual é a próxima decisão. Nada aqui depende de lembrar da conversa.
@@ -16,6 +16,14 @@ inferência: cache frio sob `boot_v9` e paginação/keyset. **A 9F não está au
 Evidências em
 `medicoes/2026-08-28-9e-rollout-producao.md`; as correções em
 `medicoes/2026-08-28-9e-destravamento.md`.
+
+**Em 29/08 o dono autorizou o rollout da 9F.1** e ele foi FEITO: os 5 arquivos de SQL
+aplicados, a org de teste reprojetada, o front publicado (`98e04cb`), o roteiro rodado com
+`inspecoes_v9` ligada **só** em `99f642d3-…-8d211c` e **rollback no mesmo dia** — a flag está
+desligada nas 30. Registro: `medicoes/2026-08-29-9f1-rollout-producao.md`. O preflight achou
+uma divergência de REGISTRO (dois dos cinco arquivos já estavam aplicados sem estar escrito
+em lugar nenhum); o trabalho parou, foi reportado, e a decisão do dono foi reaplicar os cinco.
+**A 9F.2 NÃO foi iniciada.**
 
 ---
 
@@ -35,7 +43,10 @@ Evidências em
 | Projeções | `relatorios_index` **22** · `equipamentos_index` **17** · `calibracoes_index` **18** · pendências **0**. Reprojetada: linhas com `sha256` e sem `pdf_ref` **11 → 0** |
 | `app_storage` | inalterada |
 | Suíte | **1446/1446** · `tsc -b` limpo · build verde (29/08) |
-| **Flag `inspecoes_v9`** | **não existe no banco ainda** — o SQL da 9F.1 não foi aplicado. Tela nova pronta e dormente |
+| SQL da 9F.1 (5 arquivos) | **APLICADO em 29/08**: `busca_index` · `busca_manutencao` · `busca_index_rpc` · `busca_consulta` · `inspecoes_v9_flag`. Verificado por marcador no banco — `medicoes/2026-08-29-9f1-rollout-producao.md` |
+| **Flag `inspecoes_v9`** | existe e está **desligada nas 30**. Ligada só na org de TESTE em 29/08, roteiro rodado, e **revertida no mesmo dia** |
+| Bundle publicado | **`index-DkxtOk2G.js`** (commit `98e04cb`), contém a string `inspecoes_v9` — conferido por `curl`, fora do navegador |
+| Projeção da org de teste | reprojetada com a contagem de inspeções: `convergiu: true`, pendências 0, paridade 4/4 (1 / null / null / null) |
 
 ---
 
@@ -154,8 +165,10 @@ defeitos e o desenho de cada correção estão em
 
 **Regra que não muda:** nenhum PDF histórico é regenerado e nenhum SHA-256 muda.
 
-**Proibido sem nova autorização:** iniciar a **9F**, a 9G, PDF vetorial, habilitar `cmam.caldeiras`
-e **habilitar `busca_v9` em qualquer organização cliente**.
+**Proibido sem nova autorização:** iniciar a **9F.2** (e as demais telas da 9F), a 9G, PDF
+vetorial, habilitar `cmam.caldeiras`, **habilitar `busca_v9` em qualquer organização cliente**
+e **habilitar `inspecoes_v9` em qualquer organização cliente**. A 9F.1 teve autorização própria
+em 29/08, já usada: rollout feito na org de teste e revertido.
 
 ### 4.1-bis · A expansão do `boot_v9` (gradual, autorização separada)
 
@@ -254,6 +267,8 @@ commit** (a URL por branch fica em cache do CDN e serve a versão velha) e `setV
 | Plano da Fase 9 (9D fechada, 9E–9G abertas) | `docs/superpowers/plans/2026-08-22-fase9-task-level.md` |
 | Desenho da Fase 9 | `docs/superpowers/specs/2026-08-22-fase9-escala-busca-design.md` |
 | **9D em produção: SQL, defeito e roteiro** | `docs/medicoes/2026-08-25-9d-sql-aplicado-producao.md` |
+| **9F.1: o rollout em produção (SQL, reprojeção, roteiro, rollback)** | `docs/medicoes/2026-08-29-9f1-rollout-producao.md` |
+| 9F.1: gate de navegador em 1k/10k/50k | `docs/medicoes/2026-08-29-9f1-gate-navegador.md` |
 | **9E: rollout, defeito bloqueante e rollback** | `docs/medicoes/2026-08-25-9e-rollout-producao.md` |
 | **9E: os três defeitos e como foram consertados** | `docs/medicoes/2026-08-28-9e-destravamento.md` |
 | **9E: o rollout de 28/08 que passou (evidências)** | `docs/medicoes/2026-08-28-9e-rollout-producao.md` |
@@ -270,6 +285,7 @@ commit** (a URL por branch fica em cache do CDN e serve a versão velha) e `setV
 |---|---|---|
 | O boot leve de uma organização | `select public.definir_boot_v9('<ORG>', false);` | instantâneo, nada se perde — **testado em 25/08** |
 | A busca nova de uma organização | `select public.definir_busca_v9('<ORG>', false);` | idem |
+| A `/inspecoes` nova de uma organização | `select public.definir_inspecoes_v9('<ORG>', false);` | instantâneo, nada é convertido de volta — **testado em 29/08** |
 | O agregado de vencimentos | bloco ROLLBACK no fim de `vencimentos_agregado.sql` | as projeções são derivadas |
 | As funções da RLS voltarem a `VOLATILE` | `supabase/rls_funcoes_estaveis_rollback.sql` | instantâneo |
 | A Fase 9 inteira sair do banco | `busca_index_rpc_rollback.sql` **e depois** `fase9_rollback.sql` | **nenhum dado empresarial se perde** |
