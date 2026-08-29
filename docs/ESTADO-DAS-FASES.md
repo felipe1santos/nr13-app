@@ -6,8 +6,8 @@
 > **REGRA:** este arquivo é atualizado NO MOMENTO em que o estado muda — commit, push,
 > redeploy, validação, portão. Não no fim da fase.
 
-**Última atualização:** 29/08/2026 — 9F.1 rollada e revertida · 9F.2 pronta LOCALMENTE (produção intocada)
-**Branch:** `main` · **Suíte:** 1482 testes / 124 arquivos, 0 falhas · **Build:** verde
+**Última atualização:** 29/08/2026 — 9F.1 e 9F.2 rolladas na org de teste e revertidas (flags OFF nas 30)
+**Branch:** `main` · **Suíte:** 1483 testes / 124 arquivos, 0 falhas · **Build:** verde
 
 > ### 🔖 VOLTANDO DEPOIS DE UMA PAUSA? Leia [`PONTO-DE-RETOMADA.md`](PONTO-DE-RETOMADA.md).
 > Ele tem o estado de produção, o que falta decidir (a **9D**) e **todos os endereços de acesso** —
@@ -120,9 +120,9 @@ habilitar em cliente sem autorização nova.**
 > requisito artificial para fechar um portão. A expansão para clientes é **gradual, com
 > autorização separada**.
 
-**9E FECHADA ✅** (28/08). **A 9F.1 foi rollada em produção e revertida no mesmo dia (29/08); a
-9F.2 está pronta e medida LOCALMENTE, com produção intocada. A 9F.3 em diante e a 9G continuam
-NÃO autorizadas — não começam sozinhas.**
+**9E FECHADA ✅** (28/08). **A 9F.1 e a 9F.2 foram rolladas na organização de teste em 29/08 e
+revertidas no mesmo dia — `inspecoes_v9` e `prontuarios_v9` estão OFF nas 30. A 9F.3 em diante e
+a 9G continuam NÃO autorizadas — não começam sozinhas. P9.4 aguarda decisão do dono.**
 
 | | |
 |---|---|

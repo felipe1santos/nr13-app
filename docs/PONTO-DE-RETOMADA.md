@@ -1,4 +1,4 @@
-# PONTO DE RETOMADA — 29/08/2026 (9F.1 rollada e revertida · 9F.2 pronta LOCALMENTE, sem produção)
+# PONTO DE RETOMADA — 29/08/2026 (9F.1 e 9F.2 rolladas na org de teste e revertidas; flags OFF)
 
 > **Leia só este arquivo para voltar ao trabalho.** Ele diz onde paramos, o que está de pé em
 > produção, e qual é a próxima decisão. Nada aqui depende de lembrar da conversa.
@@ -47,7 +47,11 @@ em lugar nenhum); o trabalho parou, foi reportado, e a decisão do dono foi reap
 | **Flag `inspecoes_v9`** | existe e está **desligada nas 30**. Ligada só na org de TESTE em 29/08, roteiro rodado, e **revertida no mesmo dia** |
 | Bundle publicado | **`index-DkxtOk2G.js`** (commit `98e04cb`), contém a string `inspecoes_v9` — conferido por `curl`, fora do navegador |
 | Projeção da org de teste | reprojetada com a contagem de inspeções: `convergiu: true`, pendências 0, paridade 4/4 (1 / null / null / null) |
-| **9F.2 (`/prontuarios`)** | **pronta e medida LOCALMENTE** (29/08) — 5 arquivos de SQL alterados/criados, gate 1k/10k/50k, 6 folhas idênticas ao legado. **Nada em produção**: a coluna `tem_prontuario` e a flag `prontuarios_v9` existem só no banco local. Registro: `medicoes/2026-08-29-9f2-prontuarios.md` |
+| SQL da 9F.2 (5 arquivos) | **APLICADO em 29/08** — mesma ordem da 9F.1, agora com `tem_prontuario` e `prontuarios_v9_flag`. Verificado por marcador: `projetar_chave` despacha `nr13_prontuario_`, a RPC devolve a coluna, grants anon=false/auth=true |
+| **Flag `prontuarios_v9`** | existe e está **desligada nas 30**. Ligada só na org de TESTE em 29/08, roteiro rodado, e **revertida no mesmo dia** |
+| Bundle publicado | **`index-DUDKIbuX.js`** (commit `6342041`), contém `prontuarios_v9` — conferido por `curl` |
+| Projeção da org de teste | reprojetada com o badge de prontuário: paridade **4/4** (true / false / false / false) e a `inspecoes` da 9F.1 **preservada** |
+| **9F.2 (`/prontuarios`)** | **ROLLADA na org de teste e REVERTIDA** (29/08). As 6 folhas do prontuário: texto **idêntico byte a byte** entre V9 e legado. Registros: `medicoes/2026-08-29-9f2-prontuarios.md` (construção) e `medicoes/2026-08-29-9f2-rollout-producao.md` (rollout) |
 
 ---
 
@@ -290,3 +294,27 @@ commit** (a URL por branch fica em cache do CDN e serve a versão velha) e `setV
 | O agregado de vencimentos | bloco ROLLBACK no fim de `vencimentos_agregado.sql` | as projeções são derivadas |
 | As funções da RLS voltarem a `VOLATILE` | `supabase/rls_funcoes_estaveis_rollback.sql` | instantâneo |
 | A Fase 9 inteira sair do banco | `busca_index_rpc_rollback.sql` **e depois** `fase9_rollback.sql` | **nenhum dado empresarial se perde** |
+
+---
+
+## 8 · 9F.2 — rollout feito e revertido (29/08/2026)
+
+Autorizado pelo dono, executado na ordem combinada: preflight (sem divergência) → 5 arquivos
+de SQL → marcadores, RLS e grants → reprojeção **só** da org de teste (paridade 4/4) → deploy
+(`index-DUDKIbuX.js`, conferido por `curl`) → baseline OFF → flag ON só na org de teste →
+roteiro → **rollback**: `prontuarios_v9` **0 de 30**, `busca_v9` 0, `boot_v9` 2,
+`inspecoes_v9` 0, `auditar_projecao` `convergiu: true` com pendências 0.
+
+**A prova que fecha o risco bloqueante:** as 6 folhas do prontuário abriram com conteúdo real
+e, reabertas pelo caminho legado, saíram com texto **idêntico byte a byte**.
+
+> **ARMADILHA NOVA — o botão Redeploy do Coolify que não faz nada.** Com a aba aberta há horas,
+> a sessão do Livewire vence: o botão aceita o clique, não dá erro, não registra deployment e o
+> bundle em produção continua o antigo. **Recarregue a página do Coolify antes de clicar**, e
+> confira o resultado pelo BUNDLE (`curl`), nunca pelo clique.
+
+**Não provado neste rollout, e declarado:** escala (a org de teste tem 4 equipamentos — keyset
+e virtualização seguem provados só em laboratório); o estado `null` do badge (em produção não
+existe, porque a org foi reprojetada); cache frio/offline sob a flag.
+
+**Decisão pendente do dono:** P9.4 e a autorização (ou não) da 9F.3.
