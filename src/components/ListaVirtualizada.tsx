@@ -25,6 +25,7 @@
  * barra de rolagem até a primeira medição.
  */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { faixaVisivel } from './faixaVisivel';
 
 export interface PropsListaVirtualizada<T> {
   itens: T[];
@@ -40,6 +41,19 @@ export interface PropsListaVirtualizada<T> {
   /** Chamado quando a rolagem se aproxima do fim — "carregar mais". */
   aoChegarNoFim?: () => void;
   rodape?: React.ReactNode;
+  /**
+   * Muda quando a LISTA passa a ser outra (busca nova, filtro trocado) — e
+   * então a rolagem volta ao topo.
+   *
+   * Sem isto o usuário busca com a lista rolada, o cabeçalho escreve "11
+   * resultados" e ele continua parado onde estava: no meio de um conteúdo que
+   * não existe mais. O clamp de `faixaVisivel` garante que algo seja desenhado;
+   * esta chave garante que seja o COMEÇO do que ele pediu.
+   *
+   * Opcional de propósito: rolagem que volta sozinha em lista que só cresceu
+   * (paginação) seria um sequestro do lugar do usuário.
+   */
+  chaveDoConjunto?: string;
 }
 
 export default function ListaVirtualizada<T>({
@@ -51,6 +65,7 @@ export default function ListaVirtualizada<T>({
   folga = 2,
   aoChegarNoFim,
   rodape,
+  chaveDoConjunto,
 }: PropsListaVirtualizada<T>) {
   const raiz = useRef<HTMLDivElement | null>(null);
   const grade = useRef<HTMLDivElement | null>(null);
@@ -107,10 +122,12 @@ export default function ListaVirtualizada<T>({
       : (rolador as HTMLElement).getBoundingClientRect();
     const alturaJanela = caixaRolador.height || 800;
     const acima = Math.max(0, caixaRolador.top - caixa.top);
-    const primeiraVisivel = Math.floor(acima / altura);
-    const cabem = Math.ceil(alturaJanela / altura);
-    const de = Math.max(0, primeiraVisivel - folga);
-    const ate = Math.max(de + 1, Math.min(totalLinhas, primeiraVisivel + cabem + folga));
+
+    // A CONTA MORA FORA, e a mudança não é estética: enquanto ela vivia aqui,
+    // nenhum teste a alcançava (a suíte roda sem DOM) — e foi por isso que o
+    // defeito da janela vazia atravessou os gates da 9C e da 9E, aparecendo só
+    // no navegador, na 9F.1. Ver `faixaVisivel.test.ts`.
+    const { de, ate } = faixaVisivel({ acima, alturaJanela, alturaLinha: altura, totalLinhas, folga });
     setFaixa((antiga) => (antiga.de === de && antiga.ate === ate ? antiga : { de, ate }));
 
     // "Carregar mais" quando falta menos de uma janela para o fim. A folga de
@@ -118,6 +135,19 @@ export default function ListaVirtualizada<T>({
     const fundo = caixa.bottom - (caixaRolador.top + alturaJanela);
     if (fimRef.current && fundo < alturaJanela) fimRef.current();
   }, [altura, folga, totalLinhas, rolador]);
+
+  // CONJUNTO NOVO, ROLAGEM NO COMECO. Ver `chaveDoConjunto`: buscar com a lista
+  // rolada deixava o usuario olhando para o vazio, com o cabecalho anunciando
+  // resultados que existiam. Medido no gate de navegador da 9F.1, com 50.000.
+  const conjuntoAnterior = useRef(chaveDoConjunto);
+  useEffect(() => {
+    if (chaveDoConjunto === undefined) return;
+    if (conjuntoAnterior.current === chaveDoConjunto) return;
+    conjuntoAnterior.current = chaveDoConjunto;
+    if (rolador === window) window.scrollTo({ top: 0 });
+    else (rolador as HTMLElement).scrollTop = 0;
+    recalcular();
+  }, [chaveDoConjunto, rolador, recalcular]);
 
   useEffect(() => {
     recalcular();

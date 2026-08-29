@@ -286,6 +286,10 @@ export default function InspecoesV9() {
             chaveDe={(i) => i.tag}
             alturaEstimada={ALT_LINHA}
             classeGrade="lista-cards-horiz"
+            // Busca nova é lista nova: a rolagem volta ao começo. Sem isto, quem
+            // busca com a lista rolada fica olhando para o vazio enquanto o
+            // cabeçalho anuncia resultados — medido no gate com 50.000.
+            chaveDoConjunto={termo}
             aoChegarNoFim={carregarMais}
             rodape={
               carregandoMais ? (

@@ -6,8 +6,8 @@
 > **REGRA:** este arquivo é atualizado NO MOMENTO em que o estado muda — commit, push,
 > redeploy, validação, portão. Não no fim da fase.
 
-**Última atualização:** 28/08/2026 — 9E FECHADA · 9F.1 implementada (sem rollout)
-**Branch:** `main` · **Suíte:** 1439 testes / 117 arquivos, 0 falhas · **Build:** verde
+**Última atualização:** 29/08/2026 — 9E FECHADA · 9F.1 medida em 1k/10k/50k (sem rollout)
+**Branch:** `main` · **Suíte:** 1446 testes / 119 arquivos, 0 falhas · **Build:** verde
 
 > ### 🔖 VOLTANDO DEPOIS DE UMA PAUSA? Leia [`PONTO-DE-RETOMADA.md`](PONTO-DE-RETOMADA.md).
 > Ele tem o estado de produção, o que falta decidir (a **9D**) e **todos os endereços de acesso** —

@@ -1,4 +1,4 @@
-# PONTO DE RETOMADA — 28/08/2026 (9E FECHADA ✅ · 9F.1 implementada, sem rollout)
+# PONTO DE RETOMADA — 29/08/2026 (9E FECHADA ✅ · 9F.1 medida em 50k, sem rollout)
 
 > **Leia só este arquivo para voltar ao trabalho.** Ele diz onde paramos, o que está de pé em
 > produção, e qual é a próxima decisão. Nada aqui depende de lembrar da conversa.
@@ -34,7 +34,7 @@ Evidências em
 | SQL da projeção (`busca_manutencao.sql`) | **APLICADO em 28/08** — `pdfRef ->> 'path'` conferido no `prosrc` |
 | Projeções | `relatorios_index` **22** · `equipamentos_index` **17** · `calibracoes_index` **18** · pendências **0**. Reprojetada: linhas com `sha256` e sem `pdf_ref` **11 → 0** |
 | `app_storage` | inalterada |
-| Suíte | **1439/1439** · `tsc -b` limpo · build verde (28/08) |
+| Suíte | **1446/1446** · `tsc -b` limpo · build verde (29/08) |
 | **Flag `inspecoes_v9`** | **não existe no banco ainda** — o SQL da 9F.1 não foi aplicado. Tela nova pronta e dormente |
 
 ---

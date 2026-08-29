@@ -44,9 +44,15 @@ select u.id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authentic
   from (values (:'ORG_A'::uuid, 'a9f@local.test'),
                (:'ORG_B'::uuid, 'b9f@local.test')) u(id, email);
 
+-- `on conflict` porque o trigger `handle_new_user` JA cria a linha de perfil ao
+-- inserir em auth.users. Sem isto o script morre com duplicate key na segunda
+-- execucao — e um teste que so roda uma vez nao e teste.
 insert into public.profiles (id, email, org_id, papel, ativo, role, plano) values
   (:'ORG_A'::uuid, 'a9f@local.test', :'ORG_A'::uuid, 'mestre', true, 'user', 'completo'),
-  (:'ORG_B'::uuid, 'b9f@local.test', :'ORG_B'::uuid, 'mestre', true, 'user', 'completo');
+  (:'ORG_B'::uuid, 'b9f@local.test', :'ORG_B'::uuid, 'mestre', true, 'user', 'completo')
+on conflict (id) do update set
+  email = excluded.email, org_id = excluded.org_id, papel = excluded.papel,
+  ativo = excluded.ativo, role = excluded.role, plano = excluded.plano;
 
 -- Quatro equipamentos na org A, cada um exercitando um caso da regra:
 --   VP-CONTA  → 3 containers

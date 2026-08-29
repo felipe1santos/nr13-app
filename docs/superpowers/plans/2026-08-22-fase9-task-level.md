@@ -626,10 +626,22 @@ no clique** · offline · o histórico por equipamento continua funcionando.
       novo** em `flag.ts`: banco sem a coluna nova não derruba `busca_v9` e `boot_v9` junto — o
       estado normal entre publicar o bundle e aplicar o SQL
 
-> **ESTADO EM 28/08: implementada e verificada localmente (1439/1439, build verde). NADA foi
-> aplicado em produção e NENHUMA flag foi ligada.** Falta o gate de navegador (1k/10k/50k), o SQL,
-> a reprojeção e o roteiro na organização de teste — nesta ordem, e só com autorização.
-> Registro: `medicoes/2026-08-28-9f1-inspecoes-implementada.md`
+- [x] **9F.1.5** — **GATE DE NAVEGADOR** (29/08): 1k/10k/50k na tela real, contra o Supabase local.
+      **11 linhas e 395 nós nos três degraus**, heap ~28–30 MB, **zero PDF e zero `nr13_docs_` na
+      lista**; montar a tela = 2 requisições e 26,3 KB; abrir equipamento = 1 requisição de 0,7 KB
+      com as chaves daquela TAG; paridade do badge (3 / 0 / ausente) conferida na tela.
+      **`testes-9f.sql` executado: 12/12 PASSA.**
+      Registro: `medicoes/2026-08-29-9f1-gate-navegador.md`
+- [x] **9F.1.6** — **Defeito achado pelo gate e corrigido com TDD:** buscar com a lista rolada
+      deixava a área da lista VAZIA, anunciando "11 resultados" no cabeçalho. A conta da faixa
+      vivia dentro de `ListaVirtualizada`, onde **nenhum teste a alcançava** (a suíte roda sem
+      DOM) — e foi por isso que atravessou os gates da 9C e da 9E. Extraída para `faixaVisivel`
+      (7 testes) + `chaveDoConjunto`, que devolve a rolagem ao topo quando a lista passa a ser
+      outra. `/equipamentos` e `/relatorios` herdam a correção.
+
+> **ESTADO EM 29/08: implementada, medida em 1k/10k/50k e corrigida (1446/1446, build verde).
+> NADA foi aplicado em produção e NENHUMA flag foi ligada.** Falta o SQL, a reprojeção e o
+> roteiro na organização de teste — nesta ordem, e só com autorização.
 
 ### Testes — ANTES da mudança
 
