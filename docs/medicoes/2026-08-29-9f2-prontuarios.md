@@ -243,3 +243,84 @@ na mesma etapa.
 | Produção | **intocada** — nenhum SQL aplicado, nenhum deploy, nenhuma flag |
 | `prontuarios_v9` | existe só no banco **local**; em produção a coluna nem foi criada |
 | 9F.3 | não iniciada |
+
+---
+
+## 9 · A flutuação da suíte — investigada, explicada e corrigida (29/08)
+
+O fechamento anterior declarou uma ressalva: **1 teste falhou em 1 de 6 execuções**, e a
+identidade não tinha sido capturada (a execução era foreground, sem log salvo). O dono recusou
+rollout em cima de flutuação não explicada. Certo.
+
+### Como foi reproduzida
+
+Execuções sequenciais não reproduzem: **6/6 verdes** com o servidor de desenvolvimento de pé.
+O que reproduz é **contenção de CPU** — a condição real do dia, quando a suíte rodou junto com
+Vite, Chrome, Docker e o laboratório de 50.000. Rodando **duas suítes em paralelo**:
+
+| par | suíte A | suíte B |
+|---|---|---|
+| 1 | **1 falhou** / 1481 | 1482 ✓ |
+| 2 | 1482 ✓ | 1482 ✓ |
+| 3 | **1 falhou** / 1481 | 1482 ✓ |
+
+**2 falhas em 6 execuções**, e sempre o MESMO teste:
+
+```
+src/services/palcoTrava.test.ts > trava — fallback sem Web Locks
+  > sem Web Locks, uma aba VIVA responde ao broadcast e impede a tomada
+AssertionError: expected true to be false
+```
+
+### A causa
+
+O teste era uma **corrida contra o relógio de parede**:
+
+1. a aba 1 toma a trava e continua viva;
+2. o relógio injetado avança além do TTL;
+3. a aba 2 chama `adquirirTrava(..., { esperaMs: 200 })`;
+4. `alguemReivindica` pergunta no `BroadcastChannel` e espera **200 ms REAIS**;
+5. o `BroadcastChannel` do Node entrega de forma **assíncrona**. Sob carga, a resposta da aba 1
+   chega DEPOIS do timeout;
+6. a aba 2 conclui "ninguém reivindica" e **toma** a trava → `obtida: true` onde o teste espera
+   `false`.
+
+As durações registradas confirmam: **293 ms** e **510 ms** para uma janela de 200 ms.
+
+**Mecanismo provado, não deduzido:** encurtando a espera para `esperaMs: 1`, o teste falha
+**3 de 3** — sempre com a mesma asserção.
+
+### Classificação
+
+**Flakiness de TESTE por dependência de tempo real.** Não é defeito do produto, não é ordem de
+testes, não é estado compartilhado entre arquivos e não é falso positivo: o produto se comporta
+exatamente como projetado (janela curta de pergunta e, no silêncio, assume a posse). Quem estava
+errado era o teste, que tratava "a resposta chega em 200 ms" como garantia.
+
+### A correção
+
+Duas camadas, ambas no teste — **nenhuma linha de produção mudou**:
+
+1. **`respostaDaAbaViva()`** — antes de medir, o teste prova que o canal está entregando e que a
+   aba viva responde, esperando por **CONDIÇÃO** (voltas do event loop), no mesmo padrão do
+   `ate()` de `cacheLocal.test.ts`. Isso tira da medição a parte da corrida que é "listener
+   ainda não registrado";
+2. **janela folgada** (`esperaMs: 2_000` no lugar de 200). Ela **não deixa o teste lento**:
+   `alguemReivindica` resolve no instante em que a resposta chega — o teto só é atingido se
+   ninguém responder, que é exatamente a regressão que se quer ver falhar.
+
+E um **teste novo** fixa o contrato que a corrida escondia: com `esperaMs: 0` não há pergunta ao
+canal, e a expiração sozinha **aceita** tomar a trava de uma aba viva.
+
+### Verificação
+
+| | |
+|---|---|
+| Arquivo isolado, 5 execuções | **21/21** em todas (era 20 testes; +1 do contrato) |
+| **O cenário que reproduzia** (3 pares em paralelo = 6 suítes) | **6/6 verdes**, 1483 testes |
+| 5 execuções consecutivas da suíte completa | **1483/1483** nas cinco |
+| `tsc -b` | limpo |
+| `npm run build` | verde |
+
+A ressalva está fechada: a flutuação tem causa nomeada, mecanismo reproduzido sob demanda e
+correção verificada no ambiente que a produzia.

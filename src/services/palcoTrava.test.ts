@@ -27,6 +27,35 @@ const ctx = (tabId: string, relatorioId = 'rel-1', tag = 'ACA 2040'): ContextoMo
 
 const navReal = globalThis.navigator;
 
+/**
+ * Espera até a aba dona responder `ocupado` no canal de posse.
+ *
+ * Espera por CONDIÇÃO, não por tempo: ou a resposta chega em alguma volta do
+ * event loop, ou o teste falha alto dizendo isso. É o mesmo padrão do `ate()`
+ * de `cacheLocal.test.ts`, e existe pela mesma razão — o BroadcastChannel do
+ * Node entrega de forma assíncrona, e teste que depende de relógio de parede
+ * vira flaky sob carga.
+ */
+async function respostaDaAbaViva(tabIdEsperado: string, voltas = 200): Promise<void> {
+  const canal = new BroadcastChannel('nr13_palco_posse');
+  try {
+    let respondeu = false;
+    canal.onmessage = (e: MessageEvent) => {
+      const m = e.data as { tipo?: string; dono?: { tabId?: string } };
+      if (m?.tipo === 'ocupado' && m.dono?.tabId === tabIdEsperado) respondeu = true;
+    };
+    for (let i = 0; i < voltas && !respondeu; i++) {
+      canal.postMessage({ tipo: 'pergunta', tabId: 'aba-sonda' });
+      await new Promise((r) => setImmediate(r));
+    }
+    if (!respondeu) {
+      throw new Error(`a aba ${tabIdEsperado} não respondeu ao canal em ${voltas} voltas`);
+    }
+  } finally {
+    canal.close();
+  }
+}
+
 function semWebLocks(): void {
   Object.defineProperty(globalThis, 'navigator', {
     value: {},
@@ -209,12 +238,44 @@ describe('trava — fallback sem Web Locks', () => {
     // Aba 1 toma posse e CONTINUA viva (não zeramos a posse em memória).
     await adquirirTrava(ctx('aba-1'), { esperaMs: 0 });
 
+    // O canal precisa estar ENTREGANDO antes de a medição começar: a aba 1 só
+    // responde depois que `ouvirPerguntas()` registrou o listener, e o
+    // BroadcastChannel do Node entrega de forma ASSÍNCRONA. Provar isso aqui
+    // tira da medição a parte da corrida que é "listener ainda não pronto".
+    await respostaDaAbaViva('aba-1');
+
     // Prazo venceu, mas ela ainda está lá para responder.
     t += TTL_TRAVA_MS + 1;
 
-    const r = await adquirirTrava(ctx('aba-2', 'rel-2'), { esperaMs: 200 });
+    // ESPERA FOLGADA, e ela NÃO deixa o teste lento: `alguemReivindica` resolve
+    // no instante em que a resposta chega — o teto só é atingido quando
+    // ninguém responde, que é justamente a regressão que se quer ver falhar.
+    //
+    // Era 200 ms, e isso tornava o teste uma CORRIDA contra o relógio de
+    // parede: sob carga (medido com duas suítes em paralelo, 2 falhas em 6
+    // execuções) a resposta chegava depois do timeout, a aba 2 concluía
+    // "ninguém reivindica" e TOMAVA a trava — `expected true to be false`. O
+    // mecanismo foi confirmado encurtando a espera para 1 ms, que reprova 3/3.
+    const r = await adquirirTrava(ctx('aba-2', 'rel-2'), { esperaMs: 2_000 });
     expect(r.obtida).toBe(false);
     expect(donoAtual()?.tabId).toBe('aba-1');
+  });
+
+  it('espera ZERO não pergunta ao canal: com o prazo vencido, a trava é tomada', async () => {
+    // O contrato de `esperaMs` explicitado — é ele que a corrida acima
+    // escondia. Sem janela de pergunta, sobra só a expiração, e ela sozinha
+    // aceita tomar a trava de uma aba que ainda está viva.
+    semWebLocks();
+    let t = 2_000_000;
+    definirRelogio(() => t);
+
+    await adquirirTrava(ctx('aba-1'), { esperaMs: 0 });
+    await respostaDaAbaViva('aba-1');
+    t += TTL_TRAVA_MS + 1;
+
+    const r = await adquirirTrava(ctx('aba-2', 'rel-2'), { esperaMs: 0 });
+    expect(r.obtida).toBe(true);
+    expect(donoAtual()?.tabId).toBe('aba-2');
   });
 });
 
