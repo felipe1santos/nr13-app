@@ -52,6 +52,19 @@ const CHAVE_BOOT = 'nr13_boot_v9';
 const CHAVE_INSPECOES = 'nr13_inspecoes_v9';
 
 /**
+ * Fase 9 · 9F.2.4 — a tela `/prontuarios` pela projeção.
+ *
+ * QUARTA flag por tela, mesma regra das outras três: ligar uma não liga as
+ * demais, e o rollback é desligar esta sozinha.
+ *
+ * DEFAULT DESLIGADA. Aqui isso pesa mais que nas anteriores: com a flag ligada,
+ * a tela deixa de hidratar a organização e o documento passa a depender da
+ * semeadura sob demanda. Organização sem a flag continua na tela antiga, que
+ * funciona sem backfill nenhum.
+ */
+const CHAVE_PRONTUARIOS = 'nr13_prontuarios_v9';
+
+/**
  * MEMOIZADA de propósito: qual implementação está ativa é decisão de SESSÃO,
  * tomada no login. Reler o `localStorage` a cada chamada deixaria o caminho
  * trocar no meio da sessão se algo limpasse o storage — e a v2, que não guarda
@@ -62,6 +75,7 @@ let emMemoria: boolean | null = null;
 let buscaEmMemoria: boolean | null = null;
 let bootEmMemoria: boolean | null = null;
 let inspecoesEmMemoria: boolean | null = null;
+let prontuariosEmMemoria: boolean | null = null;
 
 export function armazenamentoV2Ativo(): boolean {
   if (emMemoria !== null) return emMemoria;
@@ -140,6 +154,33 @@ export function definirInspecoesV9(ativa: boolean): void {
 }
 
 /**
+ * A tela nova de `/prontuarios` está ligada para esta organização?
+ *
+ * Memoizada pela mesma razão das outras: qual tela responde é decisão de
+ * SESSÃO, tomada no login.
+ */
+export function prontuariosV9Ativa(): boolean {
+  if (prontuariosEmMemoria !== null) return prontuariosEmMemoria;
+  try {
+    prontuariosEmMemoria = localStorage.getItem(CHAVE_PRONTUARIOS) === '1';
+  } catch {
+    prontuariosEmMemoria = false;
+  }
+  return prontuariosEmMemoria;
+}
+
+/** Gravada no login a partir do que o servidor informou para a organização. */
+export function definirProntuariosV9(ativa: boolean): void {
+  prontuariosEmMemoria = ativa;
+  try {
+    if (ativa) localStorage.setItem(CHAVE_PRONTUARIOS, '1');
+    else localStorage.removeItem(CHAVE_PRONTUARIOS);
+  } catch {
+    // idem `definirArmazenamentoV2`: a decisão desta sessão continua valendo.
+  }
+}
+
+/**
  * O boot leve está ligado para esta organização?
  *
  * EXIGE A v2. `hidratarEssencial` e `carregarEquipamento` só existem lá; ligada
@@ -175,6 +216,7 @@ export function zerarFlagEmMemoria(): void {
   buscaEmMemoria = null;
   bootEmMemoria = null;
   inspecoesEmMemoria = null;
+  prontuariosEmMemoria = null;
 }
 
 /**
@@ -200,7 +242,7 @@ export async function sincronizarFlagDoServidor(): Promise<boolean> {
     const { data, error } = await supabase
       .from('org_sync')
       // TODAS as flags saem na MESMA consulta — nenhum round-trip novo no boot.
-      .select('v2_ativa, busca_v9, boot_v9, inspecoes_v9')
+      .select('v2_ativa, busca_v9, boot_v9, inspecoes_v9, prontuarios_v9')
       .eq('org_id', escopo.id)
       .maybeSingle();
     // Erro pode ser offline OU banco sem a migração armazenamento_v2.sql. Nos
@@ -210,7 +252,7 @@ export async function sincronizarFlagDoServidor(): Promise<boolean> {
     // consulta mais antiga faria o banco que tem `busca_v9` mas ainda não tem
     // `boot_v9` — o estado da produção quando a 9D foi escrita — perder a
     // busca no boot seguinte: uma flag desligando a outra, sem ninguém pedir.
-    if (error) return await sincronizarSemColunaInspecoes(escopo.id);
+    if (error) return await sincronizarSemColunaProntuarios(escopo.id);
 
     // AUSÊNCIA DE LINHA = ORGANIZAÇÃO NOVA = v2 (11/08/2026).
     //
@@ -230,7 +272,13 @@ export async function sincronizarFlagDoServidor(): Promise<boolean> {
     // inverso é o que custou uma semana no `cmam`: bundle na v1 contra servidor
     // em v2, escrita direta recusada em silêncio e a conta aparecendo vazia.
     const linha = data as
-      | { v2_ativa?: boolean; busca_v9?: boolean; boot_v9?: boolean; inspecoes_v9?: boolean }
+      | {
+          v2_ativa?: boolean;
+          busca_v9?: boolean;
+          boot_v9?: boolean;
+          inspecoes_v9?: boolean;
+          prontuarios_v9?: boolean;
+        }
       | null;
     definirArmazenamentoV2(linha ? linha.v2_ativa === true : true);
 
@@ -242,6 +290,8 @@ export async function sincronizarFlagDoServidor(): Promise<boolean> {
     definirBootV9(linha?.boot_v9 === true);
     // 9F.1.4 · a tela de inspeções segue a mesma regra: ligar é ato explícito.
     definirInspecoesV9(linha?.inspecoes_v9 === true);
+    // 9F.2.4 · idem para a tela de prontuários.
+    definirProntuariosV9(linha?.prontuarios_v9 === true);
     return armazenamentoV2Ativo();
   } catch {
     return armazenamentoV2Ativo();
@@ -272,6 +322,37 @@ export async function sincronizarFlagDoServidor(): Promise<boolean> {
  * ou seja, o estado NORMAL de todo deploy. Sem este degrau, o primeiro boot
  * depois da publicação apagaria `busca_v9` e `boot_v9` de quem as tem ligadas.
  */
+/**
+ * Degrau NOVO (9F.2.4): banco sem a coluna `prontuarios_v9`, mas com as três que
+ * já estão em produção. Só a tela de prontuários fica desligada.
+ *
+ * Mesma razão do degrau da 9F.1.4, um nível acima: é o estado do banco entre
+ * publicar o bundle e aplicar o SQL. Sem ele, o primeiro boot depois da
+ * publicação apagaria `busca_v9`, `boot_v9` e `inspecoes_v9` de quem as tem
+ * ligadas.
+ */
+async function sincronizarSemColunaProntuarios(orgId: string): Promise<boolean> {
+  definirProntuariosV9(false);
+  try {
+    const { data, error } = await supabase
+      .from('org_sync')
+      .select('v2_ativa, busca_v9, boot_v9, inspecoes_v9')
+      .eq('org_id', orgId)
+      .maybeSingle();
+    if (error) return await sincronizarSemColunaInspecoes(orgId);
+    const linha = data as
+      | { v2_ativa?: boolean; busca_v9?: boolean; boot_v9?: boolean; inspecoes_v9?: boolean }
+      | null;
+    definirArmazenamentoV2(linha ? linha.v2_ativa === true : true);
+    definirBuscaV9(linha?.busca_v9 === true);
+    definirBootV9(linha?.boot_v9 === true);
+    definirInspecoesV9(linha?.inspecoes_v9 === true);
+    return armazenamentoV2Ativo();
+  } catch {
+    return armazenamentoV2Ativo();
+  }
+}
+
 async function sincronizarSemColunaInspecoes(orgId: string): Promise<boolean> {
   definirInspecoesV9(false);
   try {

@@ -1,4 +1,4 @@
-# PONTO DE RETOMADA — 29/08/2026 (9E FECHADA ✅ · 9F.1 COM ROLLOUT FEITO na org de teste, e revertido)
+# PONTO DE RETOMADA — 29/08/2026 (9F.1 rollada e revertida · 9F.2 pronta LOCALMENTE, sem produção)
 
 > **Leia só este arquivo para voltar ao trabalho.** Ele diz onde paramos, o que está de pé em
 > produção, e qual é a próxima decisão. Nada aqui depende de lembrar da conversa.
@@ -47,6 +47,7 @@ em lugar nenhum); o trabalho parou, foi reportado, e a decisão do dono foi reap
 | **Flag `inspecoes_v9`** | existe e está **desligada nas 30**. Ligada só na org de TESTE em 29/08, roteiro rodado, e **revertida no mesmo dia** |
 | Bundle publicado | **`index-DkxtOk2G.js`** (commit `98e04cb`), contém a string `inspecoes_v9` — conferido por `curl`, fora do navegador |
 | Projeção da org de teste | reprojetada com a contagem de inspeções: `convergiu: true`, pendências 0, paridade 4/4 (1 / null / null / null) |
+| **9F.2 (`/prontuarios`)** | **pronta e medida LOCALMENTE** (29/08) — 5 arquivos de SQL alterados/criados, gate 1k/10k/50k, 6 folhas idênticas ao legado. **Nada em produção**: a coluna `tem_prontuario` e a flag `prontuarios_v9` existem só no banco local. Registro: `medicoes/2026-08-29-9f2-prontuarios.md` |
 
 ---
 

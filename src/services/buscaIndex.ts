@@ -63,6 +63,18 @@ export interface ItemCatalogo {
    * pode virar `0`: seria a tela afirmando "nenhuma inspeção" sem ter contado.
    */
   inspecoes: number | null;
+  /**
+   * Este equipamento tem prontuário salvo — **`null` = não sei** (9F.2.2).
+   *
+   * A tela antiga decidia isso chamando `carregarProntuario(tag)` dentro do
+   * render, uma vez por cartão: `JSON.parse` do prontuário INTEIRO para escolher
+   * entre duas palavras. Medido em produção em 29/08/2026: média de 6,6 KB por
+   * TAG, máximo de 25,7 KB.
+   *
+   * `null` acontece em organização cuja projeção ainda não foi refeita, e NÃO
+   * pode virar `false`: seria a tela afirmando "Sem Prontuário" sem ter olhado.
+   */
+  temProntuario: boolean | null;
   unidade: string | null;
   /** Versão da verdade que originou esta linha. Serve à auditoria e ao merge. */
   sourceVersion: number;
@@ -100,6 +112,21 @@ export function textoCliente(item: {
 export function rotuloInspecoes(n: number | null): string | null {
   if (n === null) return null;
   return `${n} ${n === 1 ? 'Inspeção' : 'Inspeções'}`;
+}
+
+/**
+ * O que o badge de prontuário escreve — ou `null`, quando não há o que escrever.
+ *
+ * Mesma razão de existir de `rotuloInspecoes`: a regra "não sei ≠ não tem"
+ * precisa de UM lugar só, testável sem DOM.
+ *
+ *   `true`  → "Prontuário OK"   · o equipamento tem prontuário salvo
+ *   `false` → "Sem Prontuário"  · olhei, e não há
+ *   `null`  → nada              · ninguém olhou (projeção não refeita)
+ */
+export function rotuloProntuario(tem: boolean | null): string | null {
+  if (tem === null) return null;
+  return tem ? 'Prontuário OK' : 'Sem Prontuário';
 }
 
 export interface FiltrosBusca {
@@ -154,6 +181,8 @@ interface LinhaRpc {
   source_version: number | null;
   /** 9F.1.2 — opcional de propósito: servidor sem a coluna manda `undefined`. */
   inspecoes?: number | null;
+  /** 9F.2.2 — idem: banco sem a migração da 9F.2 manda `undefined`. */
+  tem_prontuario?: boolean | null;
 }
 
 /** `numeric` do Postgres chega como STRING no PostgREST — nunca como número. */
@@ -194,6 +223,12 @@ function daLinha(l: LinhaRpc): ItemCatalogo {
     // refeita — o mesmo defeito do painel que inventava zero (prova offline da
     // 9D), e o oposto do que a 9E fez com `equipamento_ativo`.
     inspecoes: l.inspecoes === null || l.inspecoes === undefined ? null : Number(l.inspecoes),
+    // MESMA REGRA, e pelo mesmo motivo: ausente e `null` viram `null`; `false`
+    // continua `false`. Um `=== true` puro aqui transformaria "não sei" em
+    // "não tem" — a tela afirmando ausência de prontuário numa organização cuja
+    // projeção ainda não foi refeita.
+    temProntuario:
+      l.tem_prontuario === null || l.tem_prontuario === undefined ? null : l.tem_prontuario === true,
   };
 }
 

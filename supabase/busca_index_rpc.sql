@@ -86,6 +86,23 @@ begin
   -- a TAG na mesma transação da escrita. A alternativa — a tela contar sozinha —
   -- é exatamente o `JSON.parse` de 11,4 KB por cartão que a 9F.1 está tirando.
   elsif p_chave like 'nr13_docs_%' then v_tag := substring(p_chave from 11);
+  -- 9F.2.2 · o PRONTUÁRIO entra pela mesma porta, e é isso que impede o badge
+  -- de envelhecer: salvar ou excluir o prontuário reprojeta a TAG na mesma
+  -- transação da escrita.
+  --
+  -- AS DUAS EXCLUSÕES ABAIXO VÊM ANTES, e cada uma evita um defeito concreto:
+  --
+  --   · `nr13_prontuario_atual` é o documento EM MONTAGEM, chave global escrita
+  --     ao abrir o visualizador. Sem esta linha, ela casaria o `like` e a
+  --     projeção tentaria reprojetar um equipamento de TAG "atual" — um
+  --     fantasma pesquisável, criado por quem só espiou um documento;
+  --   · `nr13_prontuario_meta_<TAG>` é o nº do relatório e a data de emissão,
+  --     também criados ao ABRIR o visualizador. Reprojetar por ela é inofensivo,
+  --     mas a TAG sairia como "meta_<TAG>" — outro fantasma. Ela não altera o
+  --     fato "tem prontuário", então simplesmente não despacha.
+  elsif p_chave = 'nr13_prontuario_atual' then return;
+  elsif p_chave like 'nr13_prontuario_meta_%' then return;
+  elsif p_chave like 'nr13_prontuario_%' then v_tag := substring(p_chave from 17);
   else
     return;  -- família não projetável: comportamento empresarial normal
   end if;

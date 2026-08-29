@@ -47,6 +47,16 @@ begin
       message = 'equipamentos_index.inspecoes nao existe',
       hint    = 'Aplique supabase/busca_index.sql (9F.1.2) antes deste arquivo.';
   end if;
+  -- 9F.2.2 · a coluna desta etapa, pela MESMA razao: falhar ANTES de derrubar.
+  if not exists (
+    select 1 from information_schema.columns
+     where table_schema = 'public' and table_name = 'equipamentos_index'
+       and column_name = 'tem_prontuario'
+  ) then
+    raise exception using
+      message = 'equipamentos_index.tem_prontuario nao existe',
+      hint    = 'Aplique supabase/busca_index.sql (9F.2.2) antes deste arquivo.';
+  end if;
 end $guarda$;
 
 drop function if exists public.buscar_equipamentos(text, text, text, text, integer);
@@ -192,7 +202,11 @@ returns table (
   -- 9F.1.2 · quantos containers de inspeção a TAG tem. `null` = não contado
   -- (organização cuja projeção ainda não foi refeita) — e a tela precisa dessa
   -- diferença para omitir o badge em vez de escrever "0 Inspeções".
-  inspecoes        integer
+  inspecoes        integer,
+  -- 9F.2.2 · tem prontuário salvo. `null` = não verificado (organização cuja
+  -- projeção ainda não foi refeita) — e a tela precisa dessa diferença para
+  -- omitir o badge em vez de escrever "Sem Prontuário".
+  tem_prontuario   boolean
 )
 language plpgsql
 stable
@@ -231,7 +245,7 @@ begin
          e.tem_foto, e.foto_ref,
          e.pmta_mpa, e.pth_mpa, e.resultado, e.volume_m3, e.fluido,
          e.classe_fluido, e.vida_anos, e.tem_cliente, e.unidade, e.source_version,
-         e.inspecoes
+         e.inspecoes, e.tem_prontuario
     from public.equipamentos_index e
    where e.org_id = v_org
      and (p_cursor is null or e.tag > p_cursor)

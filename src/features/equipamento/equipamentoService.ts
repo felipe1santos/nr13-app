@@ -26,6 +26,22 @@ export async function listarEquipamentos(): Promise<EquipamentoResumo[]> {
     .filter((r): r is EquipamentoResumo => r !== null);
 }
 
+/**
+ * O resumo de UMA TAG, montado do que já está no cache.
+ *
+ * Exportado na 9F.2 para as telas que carregam um equipamento por vez
+ * (`/prontuarios`) reaproveitarem exatamente a mesma composição da lista antiga
+ * — categoria, memorial, capa e unidade saem das mesmas chaves, na mesma
+ * precedência. Montar isso de novo na tela nova é como as divergências de
+ * cartão nasceram na 9C.
+ *
+ * NÃO vai ao servidor: quem semeia é `carregarEquipamento`, e a ordem
+ * (semear → montar) é responsabilidade de quem chama.
+ */
+export function montarResumoDoCache(tag: string): EquipamentoResumo | null {
+  return montarResumo(tag);
+}
+
 function montarResumo(tag: string): EquipamentoResumo | null {
   const info = ler<InfoEquipamento>(`nr13_info_${tag}`);
   if (!info) return null;
@@ -231,6 +247,10 @@ export function equipamentosPendentesLocais(): ItemCatalogo[] {
         // seria trazer de volta, por uma porta lateral, exatamente o parse que a
         // 9F.1 está tirando da lista.
         inspecoes: null,
+        // Idem para o prontuário (9F.2.2): abrir `nr13_prontuario_<TAG>` aqui
+        // para responder "tem ou não tem" devolveria o `JSON.parse` de 6,6 KB
+        // por item que esta etapa está removendo do render.
+        temProntuario: null,
         pendente: true,
       } satisfies ItemCatalogo;
     });

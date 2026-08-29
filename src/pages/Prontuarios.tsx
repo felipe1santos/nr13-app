@@ -4,6 +4,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { Icone } from '../components/Icone';
 import { listarEquipamentos } from '../features/equipamento/equipamentoService';
 import type { EquipamentoResumo } from '../features/equipamento/tipos';
+import CatalogoProntuariosV9 from '../features/prontuarios/CatalogoProntuariosV9';
+import {
+  abrirEquipamentoParaProntuario,
+  deveHidratarListaLegada,
+} from '../features/prontuarios/catalogoProntuarios';
+import { prontuariosV9Ativa } from '../services/flag';
 import { formatarValor } from '../calc/unidades';
 import {
   carregarProntuario,
@@ -257,6 +263,11 @@ function getLabelsDimensoes(tipo: string, subtipo: string): Record<keyof Dimensa
 
 export default function Prontuarios() {
   const [tela, setTela] = useState<Tela>('equipamentos');
+  // Decisão de SESSÃO (memoizada em `flag.ts`), lida uma vez: qual lista
+  // responde por esta tela. Só a LISTA e o momento da semeadura mudam — o
+  // formulário e o visualizador são os mesmos nos dois caminhos.
+  const [v9] = useState(() => prontuariosV9Ativa());
+  const [termoBusca, setTermoBusca] = useState('');
   const [equipamentos, setEquipamentos] = useState<EquipamentoResumo[]>([]);
   const [tag, setTag] = useState('');
   const [dados, setDados] = useState<ProntuarioDados>(dadosPadrao(''));
@@ -323,8 +334,12 @@ export default function Prontuarios() {
   }, [tela, versao]);
 
   const carregarEquipamentos = useCallback(async () => {
+    // 9F.2.1 · com a flag ligada, a lista vem da projeção e NINGUÉM hidrata a
+    // organização: `listarEquipamentos()` começa com `await lerTudo()` e é ele
+    // que desfaz o boot leve da 9D na primeira visita a esta tela.
+    if (!deveHidratarListaLegada(v9)) return;
     setEquipamentos(await listarEquipamentos());
-  }, []);
+  }, [v9]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount padrão
@@ -356,6 +371,18 @@ export default function Prontuarios() {
     setAssinantes(novo);
     gravarAssinantes(tag, novo);
     setVersao((v) => v + 1);
+  }
+
+  /**
+   * 9F.2.3 — o caminho da tela nova: SEMEIA a TAG e só então abre.
+   *
+   * A ordem é o teste inteiro (`catalogoProntuarios.test.ts`). Sem a semeadura,
+   * o cache não tem a TAG, o palco não acha nada para materializar e as seis
+   * folhas do prontuário imprimem "-" — sem erro nenhum na tela.
+   */
+  async function abrirPorTag(tag: string) {
+    const { resumo } = await abrirEquipamentoParaProntuario(tag);
+    if (resumo) await abrirEquipamento(resumo);
   }
 
   async function abrirEquipamento(eq: EquipamentoResumo) {
@@ -633,7 +660,18 @@ export default function Prontuarios() {
     <div className="prontuarios-page">
       <h1>Prontuários</h1>
 
-      {tela === 'equipamentos' && (
+      {/* 9F.2.1 · a lista da projeção, com busca e virtualização. O que vem
+          depois dela — formulário e visualizador — é o MESMO nos dois
+          caminhos. */}
+      {tela === 'equipamentos' && v9 && (
+        <CatalogoProntuariosV9
+          termo={termoBusca}
+          aoMudarTermo={setTermoBusca}
+          aoEscolher={(tag) => void abrirPorTag(tag)}
+        />
+      )}
+
+      {tela === 'equipamentos' && !v9 && (
         <div className="bloco-dados">
           <h3>Equipamentos Cadastrados</h3>
           {equipamentos.length === 0 ? (

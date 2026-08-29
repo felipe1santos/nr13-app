@@ -679,9 +679,43 @@ consulta medida na 9C/9E.2.
 
 ---
 
-## 9F.2…9F.6 · demais telas — NÃO INICIADAS
+## 9F.2 · `/prontuarios` — IMPLEMENTADA LOCALMENTE (29/08)
 
-`/prontuarios` · `/calibracoes` · `/livro-registro` · `/vencimentos` + `/dashboard` (§15) ·
+- [x] **9F.2.0** — AS-IS com medida em produção: `nr13_prontuario_` = 15 chaves / 10 orgs,
+      média **6,6 KB**, maior **25,7 KB** → ~6,6 MB de `JSON.parse` por quadro com 1.000
+      equipamentos, para escrever um booleano
+- [x] **9F.2.1** — `features/prontuarios/CatalogoProntuariosV9.tsx`: catálogo do servidor, com
+      busca, keyset e virtualização, **sem RPC nova**. Só a LISTA é nova — o formulário e o
+      visualizador são os mesmos nos dois caminhos, e duplicá-los criaria duas versões de um
+      documento assinado por engenheiro
+- [x] **9F.2.2** — `tem_prontuario boolean` NULLABLE + dispatch de `nr13_prontuario_` +
+      `rotuloProntuario`. **`null` nunca vira `false`**
+- [x] **9F.2.3** — `abrirEquipamentoParaProntuario`: semeia e só então lê. Medido na tela:
+      `semear:app_storage` → `ler:nr13_prontuario_ZZ-DOC`
+- [x] **9F.2.4** — flag `prontuarios_v9` + **degrau de recuo novo** que preserva `busca_v9`,
+      `boot_v9` e `inspecoes_v9`
+- [x] **9F.2.5** — **GATE DE NAVEGADOR** 1k/10k/50k: **11 linhas e 395 nós** nos três degraus,
+      heap 30–32 MB, **2 requisições** para montar, **zero PDF**, **zero leitura de
+      `nr13_prontuario_`**; rolagem profunda 13 linhas / 421 nós / 0 long tasks; abrir
+      equipamento = 1 requisição de 4,7 KB filtrada pela TAG; **as 6 folhas com texto IDÊNTICO
+      ao caminho legado**, byte a byte
+- [x] **9F.2.6** — `scripts/fase9/testes-9f2.sql`, **18/18 PASSA**. Ele achou um defeito real:
+      a coluna não estava no `on conflict … do update set`, então só a PRIMEIRA projeção da TAG
+      gravava — badge eternamente vazio em organização já projetada, sem erro na tela
+
+> **ESTADO: implementada, medida e corrigida. NADA aplicado em produção, nenhuma flag de
+> cliente ligada.** Falta o SQL em produção, a reprojeção e o roteiro na organização de teste —
+> nesta ordem, e só com autorização. Registro: `medicoes/2026-08-29-9f2-prontuarios.md`.
+>
+> **Pendência herdada, medida e NÃO corrigida:** `Prontuarios.tsx:292` lê o croqui direto do
+> `localStorage`, que na v2 é só o palco. Defeito ANTERIOR a esta etapa, igual nos dois
+> caminhos da flag. A medição mostrou que o palco **não é limpo** ao sair do documento (a chave
+> sobrevive até a um reload), então hoje o indicador acerta por resíduo — a consequência para o
+> usuário não foi demonstrada. Ver §7 do registro.
+
+## 9F.3…9F.6 · demais telas — NÃO INICIADAS
+
+`/calibracoes` · `/livro-registro` · `/vencimentos` + `/dashboard` (§15) ·
 `/empresas`. Cada uma repete o molde: entender o caminho atual → escopo → testes antes →
 benchmark → medir DOM/heap/rede → commit próprio → aprovação antes do rollout.
 

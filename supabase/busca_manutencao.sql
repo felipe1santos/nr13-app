@@ -104,6 +104,8 @@ declare
   v_anos    numeric;
   -- 9F.1.2 — contagem de containers de inspeção. `null` = não há a chave.
   v_insp    integer;
+  -- 9F.2.2 — tem prontuário salvo? `null` = não olhei (linha não reprojetada).
+  v_pront   boolean;
 begin
   -- `nr13_info_` é a chave que MANDA: define existência e versão.
   select public.f9_json(s.valor), s.versao, s.atualizado_em
@@ -140,7 +142,8 @@ begin
       proxima_inspecao = null, tem_foto = false, foto_ref = null,
       pmta_mpa = null, pth_mpa = null, resultado = null, volume_m3 = null,
       fluido = null, classe_fluido = null, vida_anos = null, tem_cliente = false,
-      unidade = null, inspecoes = null, vida_base = null, vida_prox_anos = null,
+      unidade = null, inspecoes = null, tem_prontuario = null,
+      vida_base = null, vida_prox_anos = null,
       source_version = excluded.source_version,
       source_updated_at = excluded.source_updated_at,
       projected_at = excluded.projected_at;
@@ -195,6 +198,30 @@ begin
     from public.app_storage
    where org_id = p_org and chave = 'nr13_docs_' || p_tag and deletado_em is null;
 
+  -- 9F.2.2 · O BADGE DE PRONTUARIO, VERIFICADO AQUI E NAO NO RENDER.
+  --
+  -- A tela antiga chamava `carregarProntuario(tag)` DENTRO do render, um por
+  -- cartao — `JSON.parse` do prontuario INTEIRO para decidir entre duas
+  -- palavras. Medido em producao em 29/08/2026: media de 6,6 KB por TAG e
+  -- maximo de 25,7 KB; com 1.000 equipamentos, ~6,6 MB de parse por quadro.
+  --
+  -- Aqui e uma existencia de linha, e viaja como booleano.
+  --
+  -- `true`/`false` SEMPRE que esta funcao roda: se ela rodou, alguem olhou, e
+  -- "olhei e nao ha" e um fato tao util quanto "ha". O `null` fica reservado
+  -- para a linha que esta funcao ainda NAO tocou — organizacao nao reprojetada.
+  -- Essa e a distincao que impede o badge de escrever "Sem Prontuario" sobre um
+  -- parque que ninguem verificou.
+  --
+  -- `nr13_prontuario_meta_<TAG>` NAO conta: e o numero do relatorio e a data de
+  -- emissao, criados ao ABRIR o visualizador. Confundir as duas marcaria como
+  -- "tem prontuario" quem so espiou o documento. A comparacao e por igualdade
+  -- exata da chave, entao o prefixo mais longo nao interfere.
+  select exists (
+    select 1 from public.app_storage
+     where org_id = p_org and chave = 'nr13_prontuario_' || p_tag and deletado_em is null
+  ) into v_pront;
+
   -- proxima_inspecao: FATO derivado só da vida remanescente. A consolidação com
   -- as datas do relatório é da 9F, por junção com relatorios_index — replicar
   -- aqui a regra inteira de `vencimentos.ts` duplicaria lógica de negócio em
@@ -215,7 +242,7 @@ begin
     org_id, tag, descricao, tipo, subtipo, categoria, fabricante, numero_serie,
     localizacao, ano, cliente_nome, cliente_cidade, proxima_inspecao, tem_foto, foto_ref,
     pmta_mpa, pth_mpa, resultado, volume_m3, fluido, classe_fluido, vida_anos,
-    tem_cliente, unidade, inspecoes, vida_base, vida_prox_anos,
+    tem_cliente, unidade, inspecoes, tem_prontuario, vida_base, vida_prox_anos,
     source_version, source_updated_at, projected_at
   ) values (
     p_org,
@@ -259,6 +286,7 @@ begin
     nullif(btrim(coalesce(v_emp ->> 'clienteId', '')), '') is not null,
     nullif(btrim(coalesce(v_unid, '')), ''),
     v_insp,
+    v_pront,
     -- 9D · os DOIS FATOS crus da vida remanescente, guardados além da data já
     -- derivada acima. O agregado de vencimentos precisa deles porque a REGRA
     -- continua em TypeScript (`vencimentos.ts`): lá o prazo é
@@ -285,6 +313,12 @@ begin
     fluido = excluded.fluido,             classe_fluido = excluded.classe_fluido,
     vida_anos = excluded.vida_anos,       tem_cliente = excluded.tem_cliente,
     unidade = excluded.unidade,       inspecoes = excluded.inspecoes,
+    -- 9F.2.2 · SEM esta linha, a coluna so era gravada na PRIMEIRA projecao da
+    -- TAG: toda reprojeção — mutacao ou rebuild — deixava o valor antigo (ou o
+    -- `null` de quem nunca foi verificado). O `testes-9f2.sql` pegou isso em
+    -- quatro blocos de uma vez; sem ele, o badge ficaria eternamente vazio em
+    -- organizacao ja projetada, e ninguem veria erro nenhum.
+    tem_prontuario = excluded.tem_prontuario,
     vida_base = excluded.vida_base,       vida_prox_anos = excluded.vida_prox_anos,
     source_version = excluded.source_version,
     source_updated_at = excluded.source_updated_at,

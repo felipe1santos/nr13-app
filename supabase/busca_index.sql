@@ -119,6 +119,19 @@ create table if not exists public.equipamentos_index (
   -- de 11,4 KB por TAG medida em produção em 28/08/2026, 117 KB na cauda.
   inspecoes         integer,
 
+  -- 9F.2.2 · este equipamento tem prontuário salvo?
+  --
+  -- SEM `not null` e SEM `default false`, pelo MESMO motivo de `inspecoes`
+  -- logo acima: numa organização ainda não reprojetada a coluna precisa ficar
+  -- NULA, e a tela precisa distinguir "não sei" de "não tem". Um
+  -- `default false` aqui faria o badge escrever "Sem Prontuário" sobre um
+  -- parque inteiro que ninguém verificou.
+  --
+  -- Existe porque a tela antiga decidia isso com `carregarProntuario(tag)`
+  -- DENTRO do render, um por cartão: `JSON.parse` do prontuário INTEIRO —
+  -- média de 6,6 KB por TAG medida em produção em 29/08/2026, 25,7 KB no maior.
+  tem_prontuario    boolean,
+
   -- Identidade fonte ↔ projeção
   source_version    integer     not null,
   source_updated_at timestamptz not null,
@@ -274,3 +287,6 @@ alter table public.equipamentos_index add column if not exists unidade       tex
 -- 9F.1.2 — nasce NULA em toda linha já projetada, e assim fica até a
 -- reprojeção. É o que permite a tela dizer "não sei" em vez de "zero".
 alter table public.equipamentos_index add column if not exists inspecoes     integer;
+-- 9F.2.2 — idem: nasce NULA em toda linha já projetada, e assim fica até a
+-- reprojeção. É o que permite a tela dizer "não sei" em vez de "não tem".
+alter table public.equipamentos_index add column if not exists tem_prontuario boolean;
