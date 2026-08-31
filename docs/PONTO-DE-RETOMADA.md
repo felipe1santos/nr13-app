@@ -25,13 +25,29 @@ implementar: sem tocar em `src`, em schema, em SQL de produção, em flags nem e
 análise está em `medicoes/2026-08-31-9f3-calibracoes-as-is.md`. **A implementação da 9F.3 não
 está autorizada.**
 
-> **AVISO DE PRODUÇÃO (31/08, 03h):** o painel do Supabase mostra a faixa vermelha
-> **"Services restricted · Your projects are unable to serve requests as your organization has
-> used up its quota"** e o selo **EXCEEDING USAGE LIMITS** no projeto. É uma escalada em cima do
-> aviso de cota já registrado em `armazenamento/cota-supabase-ago-2026`: antes era período de
-> graça, agora é restrição declarada. O SQL Editor do painel ainda responde (as consultas desta
-> análise rodaram), mas o app dos clientes pode estar sendo recusado. **É decisão de cobrança,
-> não de código — nada da Fase 9 conserta isso.**
+> ## 🔴 PRODUÇÃO FORA DO AR (31/08/2026) — LEIA ANTES DE QUALQUER COISA
+>
+> **O Supabase está recusando TODAS as requisições do NR-13 com HTTP 402.** Login, leitura do
+> `app_storage`, RPC, Storage/PDF e Edge Functions: **todos em 402**. O site abre (o front é
+> estático, servido pelo Coolify), o login falha. O banco está vivo e ocioso (CPU 2%).
+>
+> **Causa: cota de `Cached Egress` da ORGANIZAÇÃO em 8,32 GB de 5 GB (166%).** A organização
+> `meu SaaS delivery` tem DOIS projetos e uma cota só: **`menuzia` consumiu 8,262 GB (99,35%)**
+> e o `SAAS NR13` consumiu **0,054 GB (0,65%)**. **O NR-13 é vítima, não causa.**
+>
+> **É cobrança, não código — nada da Fase 9 conserta isso.** Só há duas saídas: subir para o
+> plano **Pro** (~US$ 25/mês, levanta a restrição na hora) ou **esperar 20 de setembro de
+> 2026**, quando o ciclo de faturamento reinicia. Pausar o `menuzia` NÃO destrava: o consumo
+> deste ciclo já aconteceu.
+>
+> **Enquanto durar: nenhum rollout da Fase 9 pode ser validado** — o roteiro precisa da tela, e
+> a tela não autentica. Trabalho local (código, testes, build) segue normal.
+>
+> Diagnóstico completo, com os testes de endpoint e a evidência por projeto:
+> `medicoes/2026-08-31-supabase-cota-estourada.md`.
+>
+> **Atenção específica:** o `kiwify_webhook` é Edge Function e está em 402 — **pagamento
+> aprovado não chega ao banco** enquanto isso durar; reconciliar depois.
 
 **Em 29/08 o dono autorizou o rollout da 9F.1** e ele foi FEITO: os 5 arquivos de SQL
 aplicados, a org de teste reprojetada, o front publicado (`98e04cb`), o roteiro rodado com
