@@ -340,6 +340,13 @@ API version`).
 **É problema do ambiente, não da 9F.3.** Nada de código mudou, nada de produção foi tocado, e
 as medidas de 50.003 do §8 seguem válidas — foram tiradas antes, com a massa íntegra.
 
+> **ARMADILHA DE MEDIÇÃO, e ela quase me enganou:** `docker info --format '{{.ServerVersion}}'`
+> devolve **exit 0 com string VAZIA** quando o engine está em erro. Um loop de espera escrito
+> como `until docker info --format ... >/dev/null; do sleep; done` termina **na primeira
+> tentativa** e anuncia "engine pronto" com o Docker ainda quebrado. Esperar pelo código de
+> saída não serve aqui — o teste honesto é `docker ps -a` LISTAR algo, ou o valor do format não
+> ser vazio.
+
 **Para retomar** (ação do dono): sair do Docker Desktop pela bandeja (*Quit*, não *Restart*) e
 abrir de novo; depois `npx supabase start`. **Não** usar *Troubleshoot → Clean/Purge data*: isso
 apaga o volume do Postgres local e levaria junto o schema da Fase 9 aplicado ali.
