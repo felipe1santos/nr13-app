@@ -315,3 +315,33 @@ no componente, o teste quebra na assertiva certa. Restaurado o arquivo, 9/9.
 > `CatalogoCalibracoesV9`.
 
 Suíte: **1517/1517** (128 arquivos).
+
+---
+
+## 10 · 1.000 e 10.000 — TENTATIVA BLOQUEADA PELO DOCKER (31/08, 18h30)
+
+Depois do restart do Docker Desktop, a tentativa de fechar os dois degraus faltantes **não
+saiu do passo 1**. Sintomas medidos, na ordem:
+
+| comando | resultado |
+|---|---|
+| `docker ps -a` | **vazio**, sem erro — nenhum container listado |
+| `docker version --format {{.Server.Version}}` | **vazio**, exit 0 |
+| `docker info` | `500 Internal Server Error … /v1.55/info` |
+| `npx supabase status` | `LegacyStatusDbInspectError` — 500 ao inspecionar `supabase_db_nr13-app` |
+| `npx supabase start` | `LegacyDockerLifecycleInspectError` — mesmo 500 |
+| loop de espera de ~3 min | desistiu; engine ainda em erro |
+
+O CLI e o engine estão discordando: o `supabase` acha que o container `supabase_db_nr13-app`
+existe (e recebe 500 ao inspecioná-lo), enquanto o `docker ps -a` não lista container nenhum. A
+mensagem sugere incompatibilidade de versão de API (`check if the server supports the requested
+API version`).
+
+**É problema do ambiente, não da 9F.3.** Nada de código mudou, nada de produção foi tocado, e
+as medidas de 50.003 do §8 seguem válidas — foram tiradas antes, com a massa íntegra.
+
+**Para retomar** (ação do dono): sair do Docker Desktop pela bandeja (*Quit*, não *Restart*) e
+abrir de novo; depois `npx supabase start`. **Não** usar *Troubleshoot → Clean/Purge data*: isso
+apaga o volume do Postgres local e levaria junto o schema da Fase 9 aplicado ali.
+
+Depois disso, os dois degraus são rápidos — o roteiro está no §8.5.
