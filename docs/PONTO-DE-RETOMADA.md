@@ -370,13 +370,19 @@ SQL aplicam limpo no **Supabase local** (que está no mesmo estado de schema da 
 build verde, árvore limpa. Commit `4af6f13`. Registro:
 `medicoes/2026-08-31-9f3-calibracoes.md`.
 
-> **O QUE FALTA NA 9F.3, e por quê:** o **gate de navegador** (DOM, heap, requisições, zero
-> `JSON.parse` de `nr13_calibracoes_` na lista, busca, virtualização, semear→ler na tela, e o
-> histórico com conteúdo real). A massa de laboratório já está gerada nos três degraus
-> (1.000 / 10.000 / 50.000) e o `dev` está no ar contra o local — mas a janela do Chrome está
-> **minimizada** (viewport 0×0, `screen: [0,0]`, aba `hidden`) e **sem sessão**. Para retomar:
-> restaurar a janela do Chrome e fazer login no laboratório local (`lab9f@local.test`), depois
-> rodar o gate.
+> **O GATE DE NAVEGADOR RODOU EM 50.000 E PASSOU.** Com 50.003 equipamentos na projeção: **11
+> cartões, 398 nós de DOM, 30 MB de heap**, **2 requisições por busca** (`buscar_equipamentos` +
+> `contar_equipamentos`) e **zero** a `app_storage` — o cache do aparelho ficou com **39 chaves**.
+> Os TRÊS estados do rótulo apareceram na tela, **inclusive o `null`** (o rótulo some), que é a
+> limitação nº 2 declarada no fechamento da 9F.2. **A prova bloqueante:** apagadas as 10 chaves
+> do `ZZ-CAL` no IndexedDB e recarregada a página, o histórico abriu com **2 componentes, 1 lote
+> e "2/2 calibrados"** — e as 10 chaves voltaram ao cache. Foi a semeadura que as trouxe.
+
+> **O QUE FALTA NA 9F.3:** os degraus de **1.000 e 10.000 não foram medidos NA TELA** — o daemon
+> do Docker travou sob a carga dos geradores. Os números de servidor existem nos três degraus e
+> são constantes (430 / 36 / 2 buffers). Para retomar: rodar
+> `scripts/fase9/lab-9f3-massa.sql` com `-v n=1000`, abrir
+> `http://localhost:5173/calibracoes` e repetir o §8.1 do registro.
 
 > **DOIS ACHADOS QUE VALEM PARA O ROLLOUT:** (1) `reconstruir_indice_busca` é RETOMÁVEL e vira
 > **no-op** com o cursor no fim — organização já reconstruída **não** repreenche coluna nova, e

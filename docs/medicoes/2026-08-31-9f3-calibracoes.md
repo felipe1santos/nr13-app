@@ -156,14 +156,11 @@ real, sempre.**
 
 ## 6 · O que NÃO foi provado — declarado, não presumido
 
-1. **O gate de navegador não foi executado.** A massa de laboratório está gerada nos três
-   degraus (1.000 / 10.000 / 50.000, com paridade `ZZ-TRES` / `ZZ-NENHUMA` / `ZZ-CAL`), o
-   `dev` está no ar contra o Supabase local e as flags `calibracoes_v9` + `boot_v9` estão
-   ligadas só na organização de laboratório — mas a janela do Chrome está **minimizada**
-   (viewport 0×0, aba `hidden`) e **sem sessão**. Faltam, portanto: DOM, heap, requisições,
-   **zero `JSON.parse` de `nr13_calibracoes_` na lista**, busca na tela, virtualização,
-   abertura do equipamento, ordem `semear → ler` medida na tela, e o histórico com conteúdo
-   REAL.
+1. **O gate de navegador rodou em 50.000 e PASSOU** (§8). O que ficou de fora: **os degraus de
+   1.000 e 10.000 não foram medidos NA TELA** — o daemon do Docker travou sob a carga dos
+   geradores no meio da regeneração da massa. Os números de SERVIDOR existem nos três degraus
+   (§3) e mostram custo constante; o que falta é a repetição de DOM/heap nos dois menores, que
+   é o caso mais fácil, não o mais difícil.
 2. **Produção intocada.** O SQL da 9F.3 **não** foi aplicado lá, e não poderia ser validado
    agora: o gateway responde 402 a tudo.
 3. **Escala em produção** segue não exercitada, como nas 9F.1 e 9F.2.
@@ -178,5 +175,94 @@ real, sempre.**
 | Suíte | **1508/1508** (+25) · `tsc` limpo · build verde |
 | `calibracoes_v9` | existe; **ligada só na organização de laboratório local** |
 | Produção | **nada aplicado, nada ligado, nada publicado** |
-| Gate de navegador | **PENDENTE** |
+| Gate de navegador | **PASSOU em 50.000** (§8) — 11 cartões / 398 nós / 30 MB, 2 requisições por busca, zero `app_storage`, os 3 estados do rótulo (inclusive o `null`), e o histórico abrindo com conteúdo REAL depois de apagar as 10 chaves do cache. **1.000 e 10.000 não medidos na tela** |
 | 9F.4 · 9G · PDF vetorial | **não iniciados** |
+
+---
+
+## 8 · GATE DE NAVEGADOR — 50.000 (31/08/2026, laboratório local)
+
+> Executado depois de restaurar a janela do Chrome (ela estava minimizada, com
+> `screen: [0,0]`; a saída foi abrir a aba num **outro** janela do mesmo perfil — o
+> `localStorage` é por origem, então a sessão valeu).
+
+Organização de laboratório, `calibracoes_v9` **e** `boot_v9` ligadas só nela.
+
+### 8.1 · A lista, com 50.003 equipamentos no banco
+
+| | |
+|---|---|
+| cartões no DOM | **11** |
+| nós no DOM | **398** |
+| heap | **30 MB** |
+| campo de busca | presente — *"Buscar por TAG, equipamento, fabricante ou cliente…"* |
+| cabeçalho | "mais de 1.000 resultados" |
+| **chaves no cache do aparelho** | **39** — com **50.003** na projeção. A lista **não hidratou nada** |
+
+### 8.2 · Requisições por busca: **2**, e nenhuma de `app_storage`
+
+Medido com um espião em `window.fetch`, ao digitar `ZZ-CAL`:
+
+```
+POST /rest/v1/rpc/buscar_equipamentos   {p_termo:"ZZ-CAL", …, p_limite:51}
+POST /rest/v1/rpc/contar_equipamentos   {p_termo:"ZZ-CAL", …, p_teto:1000}
+```
+
+**Zero** requisição a `app_storage`, e portanto **zero `JSON.parse` de
+`nr13_calibracoes_` para desenhar a lista** — que é o defeito que esta etapa remove.
+
+### 8.3 · Os TRÊS estados do rótulo, na tela
+
+| TAG | valor na projeção | o que a tela escreveu |
+|---|---|---|
+| `ZZ-CAL` | 2 | **"2 calibrações"** |
+| `ZZ-TRES` | 3 | **"3 calibrações"** |
+| `ZZ-NENHUMA` | 0 | **"Nenhuma calibração"** |
+| `VP-00100` · `VP-01000` · `VP-01500` | 3 | **"3 calibrações"** |
+| `VP-00150` | 0 | **"Nenhuma calibração"** |
+| `VP-00120` a `VP-00123` | **`null`** | **(SEM RÓTULO)** — o rótulo SOME |
+
+> **O estado `null` foi exercitado NA TELA.** É a limitação nº 2 que ficou declarada no
+> fechamento da 9F.2 (lá o badge `null` nunca apareceu em produção, porque a org tinha sido
+> reprojetada). Aqui ele aparece, e o rótulo some — a tela não afirma ausência que ninguém mediu.
+
+E o **proprietário** (`CLIENTE CALIBRACAO LTDA · Vila Velha`) veio na MESMA linha da projeção,
+em vez das três leituras de `nr13_emp_<TAG>` por quadro da tela antiga.
+
+### 8.4 · A PROVA BLOQUEANTE — semear antes de ler
+
+O risco desta etapa é o histórico abrir vazio **sem erro nenhum**. Para provar que não abre,
+não basta clicar: é preciso garantir que o dado **não estava** no aparelho.
+
+1. **10 chaves do `ZZ-CAL` apagadas do IndexedDB** — `nr13_calibracoes_`,
+   `nr13_componentes_cal_`, `nr13_lotes_cal_`, os dois `nr13_calibracao_item_<id>`,
+   `nr13_info_`, `nr13_emp_`, `nr13_cat_`, `nr13_calc_`, `nr13_pref_unidade_`;
+2. recarregada a página (o `Map` em memória morre junto);
+3. buscado `ZZ-CAL` — o cartão **ainda dizia "2 calibrações"**, porque o número vem do
+   SERVIDOR, não do cache;
+4. clicado.
+
+**O histórico abriu com conteúdo REAL:**
+
+```
+Calibrações — ZZ-CAL
+COMPONENTES DO EQUIPAMENTO
+  MANOMETRO LABORATORIO   S/N SER-MAN-001   MANÔMETRO
+  VALVULA LABORATORIO     S/N SER-PSV-002   PSV
+Lotes de calibração
+  LOTE DE LABORATORIO 9F3    2/2 calibrados    COMPLETO
+```
+
+As três famílias estavam lá: os **2 componentes**, o **1 lote**, e o "**2/2 calibrados**" — que
+só é possível cruzando o lote com a lista de calibrações. Depois do clique, **as 10 chaves
+apagadas voltaram ao cache: 10 de 10**. Foi a semeadura que as trouxe.
+
+### 8.5 · O que este gate NÃO cobriu
+
+- **1.000 e 10.000 não foram medidos na tela.** O daemon do Docker travou sob a carga dos
+  geradores no meio da regeneração da massa. O degrau de 50.000 — o mais difícil — passou, e os
+  números de SERVIDOR nos três degraus estão no §3, mas a medição de DOM/heap nos dois degraus
+  menores **fica declarada como não feita**.
+- `pg_stat_statements` não devolveu as chamadas da abertura (a extensão existe e o reset
+  funciona, mas as consultas não apareceram); a evidência da semeadura veio do **cache antes ×
+  depois**, que é mais direta.
