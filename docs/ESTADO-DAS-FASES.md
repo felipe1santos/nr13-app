@@ -6,7 +6,7 @@
 > **REGRA:** este arquivo é atualizado NO MOMENTO em que o estado muda — commit, push,
 > redeploy, validação, portão. Não no fim da fase.
 
-**Última atualização:** 29/08/2026 — 9F.1 e 9F.2 rolladas na org de teste e revertidas (flags OFF nas 30)
+**Última atualização:** 31/08/2026 — **P9.4 FECHADO ✅ · 9F.2 CONCLUÍDA ✅** (flags de tela OFF nas 30); análise AS-IS da 9F.3 escrita
 **Branch:** `main` · **Suíte:** 1483 testes / 124 arquivos, 0 falhas · **Build:** verde
 
 > ### 🔖 VOLTANDO DEPOIS DE UMA PAUSA? Leia [`PONTO-DE-RETOMADA.md`](PONTO-DE-RETOMADA.md).
@@ -104,7 +104,7 @@ Sempre use um destes. Nunca "concluído".
 | **4** | Portal: arquitetura de leitura (A-02) | ✅ **CONCLUÍDA** | **P3 FECHADO ✅** aprovado 20/08 | `plans/2026-08-20-fase4-task-level.md` |
 | **5** | Fotos: thumbnail, EXIF, teto de altura (A-08) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** | — | `plans/2026-08-20-fase5-task-level.md` · `medicoes/2026-08-20-fase5-producao-antes-depois.md` |
 | **6** | Recuperação do fallback base64 (A-10) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** nas 3 famílias, com SHA-256 idêntico | — | `plans/2026-08-20-fase6-task-level.md` |
-| **9** | Escala, busca e carregamento sob demanda | 🟢 **9A–9E CONCLUÍDAS** · `boot_v9` em 2 orgs (teste + piloto real); **`busca_v9` OFF nas 30**; `cmam.caldeiras` NÃO habilitada | **P9.1 ✅** · **P9.2 ✅** (23/08) · **P9.3 ✅** (25/08) · **9E FECHADA ✅** (28/08) · P9.4…P9.5 | `plans/2026-08-22-fase9-task-level.md` · `specs/2026-08-22-fase9-escala-busca-design.md` |
+| **9** | Escala, busca e carregamento sob demanda | 🟢 **9A–9E + 9F.1 + 9F.2 CONCLUÍDAS** · `boot_v9` em 2 orgs (teste + piloto real); **`busca_v9`, `inspecoes_v9` e `prontuarios_v9` OFF nas 30**; `cmam.caldeiras` NÃO habilitada | **P9.1 ✅** · **P9.2 ✅** (23/08) · **P9.3 ✅** (25/08) · **9E FECHADA ✅** (28/08) · **P9.4 ✅** (31/08) · P9.5 | `plans/2026-08-22-fase9-task-level.md` · `specs/2026-08-22-fase9-escala-busca-design.md` |
 | **8** | Escala, dataset e medições | ✅ **CONCLUÍDA** (22/08) — diagnóstico aprovado; o critério de produto **NÃO PASSA em grande escala**, e isso é o mandato da Fase 9 | — | `plans/2026-08-22-fase8-task-level.md` · `medicoes/2026-08-22-fase8-fechamento.md` |
 | **7** | Logo e rubrica por conteúdo (A-05) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** (7A EXPAND + 7B SWITCH, Portal e offline real) | **P4 FECHADO ✅** aprovado 22/08 | `plans/2026-08-20-fase7-task-level.md` · `medicoes/2026-08-20-fase7b-validacao-producao.md` |
 | **8** | Escala, dataset determinístico e medições (A-17) | 🟡 **PLANEJADA** — AS-IS, dataset e plano de medição escritos; **nenhuma massa gerada** | — | `plans/2026-08-22-fase8-task-level.md` |
@@ -121,8 +121,10 @@ habilitar em cliente sem autorização nova.**
 > autorização separada**.
 
 **9E FECHADA ✅** (28/08). **A 9F.1 e a 9F.2 foram rolladas na organização de teste em 29/08 e
-revertidas no mesmo dia — `inspecoes_v9` e `prontuarios_v9` estão OFF nas 30. A 9F.3 em diante e
-a 9G continuam NÃO autorizadas — não começam sozinhas. P9.4 aguarda decisão do dono.**
+revertidas no mesmo dia — `inspecoes_v9` e `prontuarios_v9` estão OFF nas 30. Em 31/08 o dono
+FECHOU o P9.4 e deu a 9F.2 por CONCLUÍDA, e autorizou APENAS a ANÁLISE da 9F.3 (`/calibracoes`).
+A implementação da 9F.3, a 9F.4, a 9G e o PDF vetorial continuam NÃO autorizados — não começam
+sozinhos.**
 
 | | |
 |---|---|
@@ -143,9 +145,15 @@ a 9G continuam NÃO autorizadas — não começam sozinhas. P9.4 aguarda decisã
 
 | **9F.1** | **IMPLEMENTADA · MEDIDA · COM ROLLOUT FEITO E REVERTIDO** (29/08). Gate de navegador em 1k/10k/50k (**11 linhas / 395 nós** constantes, zero PDF) + `testes-9f.sql` 12/12 (`medicoes/2026-08-29-9f1-gate-navegador.md`). Rollout em produção: 5 arquivos de SQL aplicados, org de TESTE reprojetada (`convergiu: true`, badge **1/null/null/null** batendo com a verdade), bundle `index-DkxtOk2G.js` publicado, roteiro com a flag ON só na org de teste (paridade **4 = 4**, **2 requisições por busca**, zero PDF, semeadura por TAG, dados de campo intactos) e **rollback: `inspecoes_v9` 0/30** (`medicoes/2026-08-29-9f1-rollout-producao.md`). **NÃO provado: escala (a org tem 4 equipamentos) e cache frio/offline** |
 
-**Próxima ação exata:** **NENHUMA sem autorização.** A 9F.1 está entregue, medida e revertida;
-a decisão de habilitá-la em alguma organização — e quando — é do dono. As demais telas da 9F
-(**9F.2 em diante**) **não** foram iniciadas.
+| **9F.2** | **CONCLUÍDA ✅** (rollout em 29/08, fechada pelo dono em 31/08). `/prontuarios` passou a listar da projeção, com a coluna `tem_prontuario` **nullable** (`null` = "não sei", nunca `false`) e o contrato **semear antes de ler** (`abrirEquipamentoParaProntuario`). Gate de navegador 1k/10k/50k, `testes-9f2.sql` **18/18** (uma assertiva achou um defeito REAL: faltava `tem_prontuario` no `on conflict do update`), e a prova bloqueante cumprida — as **6 folhas do prontuário com texto idêntico byte a byte** entre V9 e legado, em laboratório e em produção. Rollout na org de TESTE e **rollback no mesmo dia: `prontuarios_v9` 0/30**. Registros: `medicoes/2026-08-29-9f2-prontuarios.md` (construção) e `medicoes/2026-08-29-9f2-rollout-producao.md` (rollout) |
+
+| **P9.4** | **🚪 FECHADO ✅ pelo dono em 31/08/2026** — com TRÊS limitações declaradas, que **não** contam como aprovadas e **não** valem por inferência: (1) **escala em produção não exercitada** (a org de teste tem 4 equipamentos; 1k/10k/50k só em laboratório); (2) **o estado `null` do badge não exercitado em produção** (a org foi reprojetada, então toda linha tem `true`/`false`); (3) **cache frio / offline sob `prontuarios_v9` não exercitado** |
+
+**Próxima ação exata:** **NENHUMA sem autorização.** A 9F.1 e a 9F.2 estão entregues, medidas e
+revertidas; a decisão de habilitá-las em alguma organização — e quando — é do dono. A **9F.3
+(`/calibracoes`) tem apenas a ANÁLISE autorizada** e escrita
+(`medicoes/2026-08-31-9f3-calibracoes-as-is.md`); a implementação **não** foi iniciada e não
+começa sozinha.
 Registro: `medicoes/2026-08-29-9f1-rollout-producao.md`. `busca_v9` segue **OFF nas 30** — **não habilitar em cliente nenhum**; nenhuma conta
 pagante foi habilitada. Nenhum PDF histórico foi regenerado e nenhum SHA-256 mudou.
 

@@ -1,4 +1,4 @@
-# PONTO DE RETOMADA — 29/08/2026 (9F.1 e 9F.2 rolladas na org de teste e revertidas; flags OFF)
+# PONTO DE RETOMADA — 31/08/2026 (P9.4 FECHADO · 9F.2 CONCLUÍDA · só a ANÁLISE da 9F.3 autorizada)
 
 > **Leia só este arquivo para voltar ao trabalho.** Ele diz onde paramos, o que está de pé em
 > produção, e qual é a próxima decisão. Nada aqui depende de lembrar da conversa.
@@ -16,6 +16,22 @@ inferência: cache frio sob `boot_v9` e paginação/keyset. **A 9F não está au
 Evidências em
 `medicoes/2026-08-28-9e-rollout-producao.md`; as correções em
 `medicoes/2026-08-28-9e-destravamento.md`.
+
+**EM 31/08 O DONO FECHOU O P9.4 e deu a 9F.2 por CONCLUÍDA.** Três limitações ficam
+REGISTRADAS e **não** valem por inferência: (1) escala em produção não exercitada; (2) o estado
+`null` do badge não exercitado em produção; (3) cache frio/offline sob `prontuarios_v9` não
+exercitado. Em seguida ele autorizou **APENAS a ANÁLISE da 9F.3 (`/calibracoes`)** — AS-IS, sem
+implementar: sem tocar em `src`, em schema, em SQL de produção, em flags nem em clientes. A
+análise está em `medicoes/2026-08-31-9f3-calibracoes-as-is.md`. **A implementação da 9F.3 não
+está autorizada.**
+
+> **AVISO DE PRODUÇÃO (31/08, 03h):** o painel do Supabase mostra a faixa vermelha
+> **"Services restricted · Your projects are unable to serve requests as your organization has
+> used up its quota"** e o selo **EXCEEDING USAGE LIMITS** no projeto. É uma escalada em cima do
+> aviso de cota já registrado em `armazenamento/cota-supabase-ago-2026`: antes era período de
+> graça, agora é restrição declarada. O SQL Editor do painel ainda responde (as consultas desta
+> análise rodaram), mas o app dos clientes pode estar sendo recusado. **É decisão de cobrança,
+> não de código — nada da Fase 9 conserta isso.**
 
 **Em 29/08 o dono autorizou o rollout da 9F.1** e ele foi FEITO: os 5 arquivos de SQL
 aplicados, a org de teste reprojetada, o front publicado (`98e04cb`), o roteiro rodado com
@@ -317,4 +333,19 @@ e, reabertas pelo caminho legado, saíram com texto **idêntico byte a byte**.
 e virtualização seguem provados só em laboratório); o estado `null` do badge (em produção não
 existe, porque a org foi reprojetada); cache frio/offline sob a flag.
 
-**Decisão pendente do dono:** P9.4 e a autorização (ou não) da 9F.3.
+**Decisão tomada em 31/08:** **P9.4 FECHADO ✅ · 9F.2 CONCLUÍDA ✅**, com as três limitações
+acima permanecendo REGISTRADAS — elas não foram aprovadas por inferência.
+
+---
+
+## 9 · 9F.3 (`/calibracoes`) — só a ANÁLISE está autorizada (31/08/2026)
+
+O dono autorizou **apenas o AS-IS**: sem tocar em `src`, schema, SQL de produção, flags ou
+clientes. O documento é `medicoes/2026-08-31-9f3-calibracoes-as-is.md`.
+
+**O defeito-alvo, em uma linha:** `Calibracoes.tsx:417` roda `listarCalibracoes(eq.tag).length`
+**dentro do `.map()` do render** — um `JSON.parse` por cartão, a cada quadro; e o mount chama
+`listarEquipamentos()`, que é `lerTudo()` da organização inteira para desenhar uma lista que só
+precisa de `nr13_info_` e `nr13_emp_`.
+
+**Implementar a 9F.3 NÃO está autorizado.**

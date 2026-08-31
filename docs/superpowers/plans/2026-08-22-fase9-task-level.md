@@ -713,11 +713,24 @@ consulta medida na 9C/9E.2.
 > sobrevive até a um reload), então hoje o indicador acerta por resíduo — a consequência para o
 > usuário não foi demonstrada. Ver §7 do registro.
 
-## 9F.3…9F.6 · demais telas — NÃO INICIADAS
+## 9F.3 · `/calibracoes` — SÓ A ANÁLISE AUTORIZADA (31/08)
 
-`/calibracoes` · `/livro-registro` · `/vencimentos` + `/dashboard` (§15) ·
-`/empresas`. Cada uma repete o molde: entender o caminho atual → escopo → testes antes →
-benchmark → medir DOM/heap/rede → commit próprio → aprovação antes do rollout.
+- [x] **9F.3.0** — AS-IS escrito e medido em produção:
+      `medicoes/2026-08-31-9f3-calibracoes-as-is.md`. O defeito-alvo confirmado no código:
+      **`Calibracoes.tsx:417` roda `listarCalibracoes(eq.tag).length` DENTRO do `.map()` do
+      render** (um `JSON.parse` por cartão, por quadro), com `proprietarioDe` lido três vezes
+      no mesmo quadro; o mount chama `listarEquipamentos()` → **`lerTudo()`**. Medido no banco:
+      na maior organização, **369 linhas / 780 KB** hidratados para uma lista que precisa de
+      **53 KB** — 93% de desperdício. A tela **não tem busca, paginação nem virtualização**.
+      Reaproveitáveis: `calibracoes_index` **já existe** (18 linhas em produção) e
+      `carregarEquipamento(tag)` **já semeia as 4 famílias** de chave de calibração.
+- [ ] **9F.3.1…9F.3.6** — escopo escrito no §7 do AS-IS. **NÃO AUTORIZADO** — não começa sozinho.
+
+## 9F.4…9F.6 · demais telas — NÃO INICIADAS
+
+`/livro-registro` · `/vencimentos` + `/dashboard` (§15) · `/empresas`. Cada uma repete o molde:
+entender o caminho atual → escopo → testes antes → benchmark → medir DOM/heap/rede → commit
+próprio → aprovação antes do rollout.
 
 **Dashboard offline:** a UI mostra a **hora do último sync** — nunca apresenta dado antigo como
 recém-consultado.
@@ -738,7 +751,7 @@ recém-consultado.
 
 | Portão | Depois de | Exige |
 |---|---|---|
-| **P9.4** | 9E + 9F | Todas as telas migradas, cada uma validada sob flag |
+| **P9.4** | 9E + 9F | **🚪 FECHADO ✅ pelo dono em 31/08/2026**, com a 9F.2 dada por CONCLUÍDA. TRÊS limitações ficam REGISTRADAS e **não** valem por inferência: (1) escala em produção não exercitada; (2) estado `null` do badge não exercitado em produção; (3) cache frio/offline sob `prontuarios_v9` não exercitado |
 | **P9.5** | 9G + benchmarks | Caminho legado removido · **benchmarks depois publicados** · todos os critérios finais |
 
 ---
@@ -911,6 +924,7 @@ recém-consultado.
 | 29/08 | **ROLLOUT DA 9F.1 EM PRODUÇÃO — PASSOU, e foi revertido no mesmo dia.** SQL 5/5 aplicado do SHA `98e04cb` e verificado por marcador (`projetar_chave` com `nr13_docs_` **false→true**; retorno de `buscar_equipamentos` com `inspecoes` **false→true**; grants anon=false/auth=true; `definir_inspecoes_v9` revogada de authenticated) → org de TESTE reprojetada (`convergiu: true`, pendências 0, badge **1/null/null/null** batendo com a verdade) → front publicado, bundle **`index-DkxtOk2G.js`** com `inspecoes_v9` conferido por `curl` → flag ON só na org de teste: paridade **4 = 4**, busca por TAG, termo inexistente com mensagem, limpar, **2 requisições por busca** e **zero PDF**, semeadura sob demanda filtrada pela TAG, container e dados de campo intactos → **rollback: `inspecoes_v9` 0/30**, `boot_v9` 2, `busca_v9` 0, projeções 17/22/18, tela legada idêntica à linha de base. **NÃO provado: escala (4 equipamentos) e cache frio/offline.** 9F.2 não iniciada | ✅ |
 | 29/08 | **A FLUTUAÇÃO DA SUÍTE, EXPLICADA.** 1 teste falhava em ~1 de 6 execuções. Não reproduz em série (6/6 verdes); reproduz sob **contenção** (2 suítes em paralelo: 2 falhas em 6), sempre o mesmo: `palcoTrava.test.ts > sem Web Locks, uma aba VIVA responde ao broadcast e impede a tomada`. Causa: corrida contra o relógio — `esperaMs: 200` REAIS contra a entrega ASSÍNCRONA do BroadcastChannel; sob carga a resposta chegava depois do timeout e a aba 2 TOMAVA a trava. Mecanismo provado encurtando para 1 ms (reprova 3/3). **Flakiness de TESTE, produto intacto.** Corrigido com espera por CONDIÇÃO + janela folgada, mais um teste do contrato de `esperaMs`. Depois: 6/6 sob contenção, 5 execuções consecutivas **1483/1483**, tsc limpo, build verde | ✅ |
 | 29/08 | **ROLLOUT DA 9F.2 EM PRODUÇÃO — PASSOU, e foi revertido no mesmo dia.** Preflight **sem divergência**; 5 arquivos de SQL do SHA `6342041`; marcadores conferidos (dispatch de `nr13_prontuario_`, RPC devolvendo `tem_prontuario`, upsert com `excluded`, grants anon=false/auth=true, `definir_prontuarios_v9` revogada); reprojeção SÓ da org de teste com paridade **4/4** e a `inspecoes` da 9F.1 preservada; bundle **`index-DUDKIbuX.js`** conferido por `curl`; baseline OFF; flag ON só na org de teste: paridade da lista e dos badges, busca, termo inexistente, limpar, **ordem semear→ler medida**, zero PDF, e **as 6 folhas do prontuário IDÊNTICAS byte a byte** ao caminho legado; rollback: `prontuarios_v9` **0/30**, auditoria `convergiu: true`, pendências 0, projeções 17/22/18. **NÃO provado:** escala (4 equipamentos), estado `null` do badge em produção, cache frio/offline. **Armadilha nova: o botão Redeploy do Coolify não dispara nada com a sessão do Livewire velha — recarregar a página antes, e conferir pelo bundle.** 9F.3 não iniciada; P9.4 aguarda o dono | ✅ |
+| 31/08 | **P9.4 FECHADO pelo dono · 9F.2 CONCLUÍDA**, com as três limitações declaradas seguindo REGISTRADAS (escala em produção; estado `null` do badge em produção; cache frio/offline sob a flag) — nenhuma delas vale por inferência. Autorizada **só a ANÁLISE da 9F.3** (`/calibracoes`), AS-IS, sem tocar em `src`, schema, SQL de produção, flags ou clientes: `medicoes/2026-08-31-9f3-calibracoes-as-is.md`. Confirmado no código que **`Calibracoes.tsx:417` roda `listarCalibracoes` dentro do render**, e que o mount cai em `lerTudo()`. Medido em produção por consulta de LEITURA: 803 linhas vivas / 3,23 MB; 9 listas de calibração (média 2,1 KB, maior 8,9 KB); 21 itens (21,1 KB); `calibracoes_index` com 18 linhas; e a maior organização hidratando **369 linhas / 780 KB** para desenhar uma lista que precisa de **53 KB**. Achado do painel do Supabase, que **não é da Fase 9**: o projeto passou do período de graça para **"Services restricted" / EXCEEDING USAGE LIMITS** — o app dos clientes pode estar sendo recusado. Implementação da 9F.3 **não iniciada** | ✅ |
 
 ---
 
