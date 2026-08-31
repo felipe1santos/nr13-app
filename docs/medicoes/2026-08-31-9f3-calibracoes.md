@@ -156,11 +156,7 @@ real, sempre.**
 
 ## 6 · O que NÃO foi provado — declarado, não presumido
 
-1. **O gate de navegador rodou em 50.000 e PASSOU** (§8). O que ficou de fora: **os degraus de
-   1.000 e 10.000 não foram medidos NA TELA** — o daemon do Docker travou sob a carga dos
-   geradores no meio da regeneração da massa. Os números de SERVIDOR existem nos três degraus
-   (§3) e mostram custo constante; o que falta é a repetição de DOM/heap nos dois menores, que
-   é o caso mais fácil, não o mais difícil.
+1. ~~Degraus de 1.000 e 10.000~~ — **FEITOS em 31/08** (§11). O gate passou nos TRÊS.
 2. **Produção intocada.** O SQL da 9F.3 **não** foi aplicado lá, e não poderia ser validado
    agora: o gateway responde 402 a tudo.
 3. **Escala em produção** segue não exercitada, como nas 9F.1 e 9F.2.
@@ -175,7 +171,7 @@ real, sempre.**
 | Suíte | **1508/1508** (+25) · `tsc` limpo · build verde |
 | `calibracoes_v9` | existe; **ligada só na organização de laboratório local** |
 | Produção | **nada aplicado, nada ligado, nada publicado** |
-| Gate de navegador | **PASSOU em 50.000** (§8) — 11 cartões / 398 nós / 30 MB, 2 requisições por busca, zero `app_storage`, os 3 estados do rótulo (inclusive o `null`), e o histórico abrindo com conteúdo REAL depois de apagar as 10 chaves do cache. **1.000 e 10.000 não medidos na tela** |
+| Gate de navegador | **PASSOU nos TRÊS degraus** (§8 e §11) — 1.000, 10.000 e 50.000, com DOM e heap constantes. Antes só 50.000 (§8) — 11 cartões / 398 nós / 30 MB, 2 requisições por busca, zero `app_storage`, os 3 estados do rótulo (inclusive o `null`), e o histórico abrindo com conteúdo REAL depois de apagar as 10 chaves do cache. **1.000 e 10.000 não medidos na tela** |
 | 9F.4 · 9G · PDF vetorial | **não iniciados** |
 
 ---
@@ -352,3 +348,114 @@ abrir de novo; depois `npx supabase start`. **Não** usar *Troubleshoot → Clea
 apaga o volume do Postgres local e levaria junto o schema da Fase 9 aplicado ali.
 
 Depois disso, os dois degraus são rápidos — o roteiro está no §8.5.
+
+---
+
+## 11 · GATE COMPLETO NOS TRÊS DEGRAUS (31/08/2026, 18h50–19h10)
+
+Depois do restart do Docker Desktop, os containers voltaram (`Up 2 days`, sem downtime real —
+o engine é que estava inconsistente). A massa interrompida de 10.000 foi **descartada** e cada
+degrau foi regenerado do zero com `lab-9f3-massa.sql`.
+
+### 11.1 · Quadro comparativo — 1.000 × 10.000 × 50.000
+
+| medida | 1.000 | 10.000 | 50.000 |
+|---|---|---|---|
+| no banco (`equipamentos_index`) | **1.003** | **10.003** | **50.003** |
+| `calibracoes` nulas / zero / >0 | 980 / 11 / 12 | 9.800 / 101 / 102 | 49.000 / 501 / 502 |
+| `calibracoes_index` | 5 | 5 | 5 |
+| **cartões no DOM** | **11** | **11** | **11** |
+| **nós no DOM** | **398** | **398** | **398** |
+| **heap** | **29–30 MB** | **30 MB** | **30 MB** |
+| contagem no cabeçalho | "mais de 1.000 resultados" | "mais de 1.000 resultados" | "mais de 1.000 resultados" |
+| campo de busca | presente | presente | presente |
+| **requisições por busca** | **2** | **2** | **2** |
+| requisições a `app_storage` na lista | **0** | **0** | **0** |
+| **chaves no cache do aparelho** | **29–39** | **29–39** | **39** |
+| altura reservada (virtualização) | 4.511 px | 4.511 px | — |
+| keyset: altura após rolar | **8.711 px** (+1 página) | **+2 páginas** | — |
+| prova bloqueante (semear → ler) | ✅ **10/10** chaves | ✅ **10/10** chaves | ✅ **10/10** chaves |
+
+**O DOM e o heap não se mexem entre 1.000 e 50.000.** É a mesma linha que os buffers do
+servidor (§3) contam do outro lado: o custo por página não cresce com o parque.
+
+### 11.2 · Itens do roteiro, um a um
+
+| item | 1.000 | 10.000 | como foi verificado |
+|---|---|---|---|
+| quantidade real no banco | 1.003 | 10.003 | `select count(*)` na projeção |
+| quantidade apresentada | "mais de 1.000" | "mais de 1.000" | texto do cabeçalho |
+| DOM | 398 | 398 | `querySelectorAll('*').length` |
+| heap | 29 MB | 30 MB | `performance.memory` |
+| requests | 2 por busca | 2 por busca | espião em `window.fetch` |
+| busca | `ZZ-` → **3 resultados** | `ZZ-` → **3 resultados** | rótulos conferidos |
+| termo inexistente | 0 cartões + mensagem | "Nenhum resultado" + mensagem | `XPTO-NAO-EXISTE-9F3` |
+| limpar busca | volta a 11 / "mais de 1.000" | volta a 11 / "mais de 1.000" | campo esvaziado |
+| keyset | +1 página, altura 4.511 → 8.711 | +2 páginas, "Carregando mais…" na tela | rolagem real |
+| virtualização | 11 no DOM com altura de 4.511 px | idem | janela trocou: VP-00007..VP-00019 → VP-00041..VP-00050 |
+| zero `lerTudo()` na lista | ✅ | ✅ | cache com 29–39 chaves para 1.003 e 10.003 na projeção |
+| zero `JSON.parse` de `nr13_calibracoes_` | ✅ | ✅ | nenhuma requisição a `app_storage`; o cartão mostra a contagem **com o cache apagado** |
+| leitura pesada antes de abrir | ✅ nenhuma | ✅ nenhuma | as 4 famílias só entram no cache DEPOIS do clique |
+| `null` ≠ `0` | `VP-0012*` → **sem rótulo** | `VP-0012*` → **sem rótulo** (110 resultados) | os 3 estados na tela |
+| abertura sob demanda | ✅ | ✅ | 10 chaves apagadas voltam |
+| semear → ler | ✅ | ✅ | histórico com conteúdo real com o cache vazio |
+| histórico | ✅ | ✅ | "LOTE DE LABORATORIO 9F3 · 2/2 calibrados · COMPLETO" |
+| componentes / lotes | ✅ 2 e 1 | ✅ 2 e 1 | com número de série |
+| certificado | ✅ | ✅ | `nr13_calibracao_item_cal-lab-1/2` entre as 10 que voltaram |
+| paridade com o legado | ✅ | ✅ | ver §11.4 |
+
+### 11.3 · Os três estados do rótulo, na tela, nos dois degraus
+
+| TAG | projeção | tela |
+|---|---|---|
+| `ZZ-CAL` | 2 | **"2 calibrações"** |
+| `ZZ-TRES` | 3 | **"3 calibrações"** |
+| `ZZ-NENHUMA` | 0 | **"Nenhuma calibração"** |
+| `VP-00050` | 0 | **"Nenhuma calibração"** (visto na tela, na rolagem) |
+| `VP-00120`…`VP-00122` | **`null`** | **sem rótulo** |
+
+### 11.4 · PARIDADE COM O LEGADO — flag OFF × ON
+
+`definir_calibracoes_v9(lab, false)` + limpeza da flag local + recarga:
+
+| | flag ON (9F.3) | flag OFF (legado) |
+|---|---|---|
+| campo de busca | **presente** | **ausente** |
+| filtros | busca por texto | **2 `<select>`** (tipo e proprietário) |
+| rótulo do `ZZ-CAL` | "2 calibrações" | "2 Calibraç6es" — mesmo NÚMERO |
+| **histórico do `ZZ-CAL`** | 2 componentes · 1 lote · "2/2 calibrados · COMPLETO" | **texto IDÊNTICO** |
+
+O que vem DEPOIS da lista não foi duplicado, e a prova é essa: o mesmo equipamento abre o mesmo
+histórico pelos dois caminhos. A única diferença é o rótulo do cartão, que mudou de propósito
+("2 Calibrações" → "2 calibrações", e `0` passou a ser "Nenhuma calibração" em vez de
+"0 Calibrações").
+
+### 11.5 · DUAS ARMADILHAS DE MEDIÇÃO, e as duas quase viraram defeito falso
+
+> **1 · `elemento.scrollTop = N` NÃO exercita a virtualização.** Definindo `scrollTop` por
+> JavaScript, a janela desenhada **não mudava** — sempre `VP-00001..VP-00011`, em qualquer
+> posição. Parecia defeito grave. Com **rolagem real de roda do mouse** no mesmo ponto, a janela
+> trocou na hora (`VP-00007..VP-00019`). A virtualização está correta; o método é que estava
+> errado. **Rolagem se mede rolando.**
+>
+> **2 · Ler o DOM logo depois de digitar mede a lista ANTIGA.** A busca tem debounce e a
+> resposta é assíncrona: com 2,5 s de espera, uma leitura pegou os cartões anteriores e pareceu
+> que a busca não filtrava. Com 4,5 s, o resultado certo. **O que se lê cedo demais é a tela de
+> antes.**
+
+E uma observação que **não** é defeito, mas é honesta: depois de apagar chaves do IndexedDB, um
+boot levou **mais de 30 segundos** em "Carregando…". É cache frio reconstruindo — o mesmo
+cenário que segue declarado como não exercitado em produção.
+
+### 11.6 · Testes rodados no fim, contra o banco recuperado
+
+| arquivo | resultado |
+|---|---|
+| `scripts/fase9/testes-9f3.sql` | **31/31** |
+| `scripts/fase9/testes-9f2.sql` | **18/18** |
+| `scripts/fase9/testes-9f.sql` (9F.1) | **12/12** |
+| suíte vitest | **1517/1517** (128 arquivos) |
+| `tsc -b` + build | **verde** |
+
+**61/61 nas assertivas SQL das três etapas da 9F.** As colunas `inspecoes` e `tem_prontuario`
+seguem de pé depois da `calibracoes`.

@@ -378,11 +378,11 @@ build verde, árvore limpa. Commit `4af6f13`. Registro:
 > do `ZZ-CAL` no IndexedDB e recarregada a página, o histórico abriu com **2 componentes, 1 lote
 > e "2/2 calibrados"** — e as 10 chaves voltaram ao cache. Foi a semeadura que as trouxe.
 
-> **O QUE FALTA NA 9F.3:** os degraus de **1.000 e 10.000 não foram medidos NA TELA** — o daemon
-> do Docker travou sob a carga dos geradores. Os números de servidor existem nos três degraus e
-> são constantes (430 / 36 / 2 buffers). Para retomar: rodar
-> `scripts/fase9/lab-9f3-massa.sql` com `-v n=1000`, abrir
-> `http://localhost:5173/calibracoes` e repetir o §8.1 do registro.
+> **O GATE FOI COMPLETADO NOS TRÊS DEGRAUS em 31/08** (1.000 · 10.000 · 50.000). **DOM em 398
+> nós, 11 cartões e heap em 30 MB — constantes nos três**, 2 requisições por busca, zero a
+> `app_storage`, keyset carregando páginas novas, os três estados do rótulo na tela (incluindo
+> o `null`), e **paridade do histórico com o legado**: o mesmo equipamento abre o mesmo texto
+> com a flag ON e OFF. SQL das três etapas da 9F: **61/61**. Suíte 1517/1517, build verde.
 
 > **DOIS ACHADOS QUE VALEM PARA O ROLLOUT:** (1) `reconstruir_indice_busca` é RETOMÁVEL e vira
 > **no-op** com o cursor no fim — organização já reconstruída **não** repreenche coluna nova, e
