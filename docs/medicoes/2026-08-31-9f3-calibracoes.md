@@ -266,3 +266,16 @@ apagadas voltaram ao cache: 10 de 10**. Foi a semeadura que as trouxe.
 - `pg_stat_statements` não devolveu as chamadas da abertura (a extensão existe e o reset
   funciona, mas as consultas não apareceram); a evidência da semeadura veio do **cache antes ×
   depois**, que é mais direta.
+
+### 8.6 · Estado do laboratório ao fim (para quem retomar)
+
+O gerador de 10.000 foi **interrompido no meio** e o daemon do Docker ficou travado — `docker ps`
+deixou de responder. Consequências, e nenhuma delas afeta o que foi provado:
+
+- **A massa da organização de laboratório pode estar inconsistente** (o script começa apagando
+  `equipamentos_index` e `app_storage` da org). Antes de medir 1.000 ou 10.000, rode o
+  `lab-9f3-massa.sql` do zero — ele é idempotente e recria tudo, inclusive as TAGs de paridade.
+- **Nada de produção foi tocado**, e nada do que está no §8 depende deste estado: aquelas medidas
+  foram tiradas com a massa de 50.003 íntegra, e estão registradas.
+- Para destravar: reiniciar o Docker Desktop (derruba o Supabase local junto; ele sobe de novo
+  com `npx supabase start`).
