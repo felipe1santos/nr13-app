@@ -6,8 +6,8 @@
 > **REGRA:** este arquivo é atualizado NO MOMENTO em que o estado muda — commit, push,
 > redeploy, validação, portão. Não no fim da fase.
 
-**Última atualização:** 31/08/2026 — **P9.4 FECHADO ✅ · 9F.2 CONCLUÍDA ✅** (flags de tela OFF nas 30); análise AS-IS da 9F.3 escrita
-**Branch:** `main` · **Suíte:** 1483 testes / 124 arquivos, 0 falhas · **Build:** verde
+**Última atualização:** 31/08/2026 — **9F.3 IMPLEMENTADA LOCALMENTE** (gate de navegador pendente); produção em HTTP 402 por cota, nada aplicado lá
+**Branch:** `main` · **Suíte:** 1508 testes / 127 arquivos, 0 falhas · **Build:** verde
 
 > ### 🔖 VOLTANDO DEPOIS DE UMA PAUSA? Leia [`PONTO-DE-RETOMADA.md`](PONTO-DE-RETOMADA.md).
 > Ele tem o estado de produção, o que falta decidir (a **9D**) e **todos os endereços de acesso** —
@@ -148,6 +148,8 @@ sozinhos.**
 | **9F.2** | **CONCLUÍDA ✅** (rollout em 29/08, fechada pelo dono em 31/08). `/prontuarios` passou a listar da projeção, com a coluna `tem_prontuario` **nullable** (`null` = "não sei", nunca `false`) e o contrato **semear antes de ler** (`abrirEquipamentoParaProntuario`). Gate de navegador 1k/10k/50k, `testes-9f2.sql` **18/18** (uma assertiva achou um defeito REAL: faltava `tem_prontuario` no `on conflict do update`), e a prova bloqueante cumprida — as **6 folhas do prontuário com texto idêntico byte a byte** entre V9 e legado, em laboratório e em produção. Rollout na org de TESTE e **rollback no mesmo dia: `prontuarios_v9` 0/30**. Registros: `medicoes/2026-08-29-9f2-prontuarios.md` (construção) e `medicoes/2026-08-29-9f2-rollout-producao.md` (rollout) |
 
 | **P9.4** | **🚪 FECHADO ✅ pelo dono em 31/08/2026** — com TRÊS limitações declaradas, que **não** contam como aprovadas e **não** valem por inferência: (1) **escala em produção não exercitada** (a org de teste tem 4 equipamentos; 1k/10k/50k só em laboratório); (2) **o estado `null` do badge não exercitado em produção** (a org foi reprojetada, então toda linha tem `true`/`false`); (3) **cache frio / offline sob `prontuarios_v9` não exercitado** |
+
+| **9F.3** | **IMPLEMENTADA LOCALMENTE** (31/08) — `/calibracoes` pela projeção, com busca, keyset e virtualização; a contagem sai de `calibracoes_index` (a mesma tabela do painel de vencimentos), nunca do `.length` do array. `testes-9f3.sql` **31/31** em 3 execuções contra o Supabase LOCAL, suíte **1508/1508**, build verde. O teste bloqueante de semeadura foi verificado ficando VERMELHO. **Gate de navegador PENDENTE** (janela do Chrome minimizada). **Produção intocada** — e não poderia ser validada agora: o gateway responde HTTP 402 por cota. Registro: `medicoes/2026-08-31-9f3-calibracoes.md` |
 
 **Próxima ação exata:** **NENHUMA sem autorização.** A 9F.1 e a 9F.2 estão entregues, medidas e
 revertidas; a decisão de habilitá-las em alguma organização — e quando — é do dono. A **9F.3

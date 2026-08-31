@@ -1,4 +1,4 @@
-# PONTO DE RETOMADA — 31/08/2026 (P9.4 FECHADO · 9F.2 CONCLUÍDA · só a ANÁLISE da 9F.3 autorizada)
+# PONTO DE RETOMADA — 31/08/2026 (9F.3 construída LOCALMENTE · produção em HTTP 402 por cota)
 
 > **Leia só este arquivo para voltar ao trabalho.** Ele diz onde paramos, o que está de pé em
 > produção, e qual é a próxima decisão. Nada aqui depende de lembrar da conversa.
@@ -364,4 +364,25 @@ clientes. O documento é `medicoes/2026-08-31-9f3-calibracoes-as-is.md`.
 `listarEquipamentos()`, que é `lerTudo()` da organização inteira para desenhar uma lista que só
 precisa de `nr13_info_` e `nr13_emp_`.
 
-**Implementar a 9F.3 NÃO está autorizado.**
+**EM 31/08 O DONO AUTORIZOU A IMPLEMENTAÇÃO, e ela foi FEITA — toda LOCAL.** Os 5 arquivos de
+SQL aplicam limpo no **Supabase local** (que está no mesmo estado de schema da produção) e o
+`testes-9f3.sql` dá **31/31** em três execuções seguidas. Suíte **1508/1508**, `tsc` limpo,
+build verde, árvore limpa. Commit `4af6f13`. Registro:
+`medicoes/2026-08-31-9f3-calibracoes.md`.
+
+> **O QUE FALTA NA 9F.3, e por quê:** o **gate de navegador** (DOM, heap, requisições, zero
+> `JSON.parse` de `nr13_calibracoes_` na lista, busca, virtualização, semear→ler na tela, e o
+> histórico com conteúdo real). A massa de laboratório já está gerada nos três degraus
+> (1.000 / 10.000 / 50.000) e o `dev` está no ar contra o local — mas a janela do Chrome está
+> **minimizada** (viewport 0×0, `screen: [0,0]`, aba `hidden`) e **sem sessão**. Para retomar:
+> restaurar a janela do Chrome e fazer login no laboratório local (`lab9f@local.test`), depois
+> rodar o gate.
+
+> **DOIS ACHADOS QUE VALEM PARA O ROLLOUT:** (1) `reconstruir_indice_busca` é RETOMÁVEL e vira
+> **no-op** com o cursor no fim — organização já reconstruída **não** repreenche coluna nova, e
+> devolve `processadas: 0` parecendo sucesso; o rollout reprojeta **TAG a TAG**, como na 9F.1 e
+> na 9F.2. (2) `tsc --noEmit` passou limpo enquanto `npm run build` apontava 4 erros —
+> **validar sempre pelo build real**.
+
+**O rollout da 9F.3 em produção NÃO está autorizado — e hoje nem seria possível validar: o
+gateway responde 402 a tudo.**

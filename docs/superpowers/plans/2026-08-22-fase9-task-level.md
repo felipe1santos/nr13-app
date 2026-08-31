@@ -724,7 +724,28 @@ consulta medida na 9C/9E.2.
       **53 KB** — 93% de desperdício. A tela **não tem busca, paginação nem virtualização**.
       Reaproveitáveis: `calibracoes_index` **já existe** (18 linhas em produção) e
       `carregarEquipamento(tag)` **já semeia as 4 famílias** de chave de calibração.
-- [ ] **9F.3.1…9F.3.6** — escopo escrito no §7 do AS-IS. **NÃO AUTORIZADO** — não começa sozinho.
+- [x] **9F.3.1** — coluna `calibracoes integer` NULLABLE + a projeção contando de
+      `calibracoes_index` DEPOIS de `projetar_calibracoes`, com `calibracoes = excluded.calibracoes`
+      no upsert (o defeito que a 9F.2 pagou uma vez, assertiva escrita ANTES da função).
+- [x] **9F.3.2** — `buscar_equipamentos` devolve a coluna; `ItemCatalogo.calibracoes: number | null`
+      e `rotuloCalibracoes()`. `null` nunca vira `0`.
+- [x] **9F.3.3** — `catalogoCalibracoes.ts`: `abrirEquipamentoParaCalibracoes` semeia antes de ler,
+      e `abrirPorTag` em `Calibracoes.tsx`.
+- [x] **9F.3.4** — `CatalogoCalibracoesV9.tsx`: lista da projeção, busca (que a tela NUNCA teve),
+      keyset e virtualização. O proprietário sai da mesma linha, em vez de 3 leituras por quadro.
+- [x] **9F.3.5** — flag `calibracoes_v9` + o **degrau novo** da escada de recuo, com teste que
+      exercita a queda inteira (banco anterior a toda a 9F ainda preserva `busca_v9`/`boot_v9`).
+- [x] **9F.3.6** — `testes-9f3.sql` **31/31** em 3 execuções · 25 testes de unidade novos ·
+      suíte **1508/1508** · `tsc` limpo · build verde. O teste bloqueante de semeadura foi
+      **verificado ficando VERMELHO** (removendo `nr13_componentes_cal_` das famílias por TAG).
+- [ ] **9F.3 · GATE DE NAVEGADOR** — PENDENTE. Massa gerada em 1k/10k/50k e `dev` no ar contra o
+      Supabase local; parou porque a janela do Chrome está minimizada (viewport 0×0) e sem sessão.
+- [ ] **9F.3 · ROLLOUT** — NÃO AUTORIZADO, e hoje impossível de validar: produção em HTTP 402.
+
+> **Achado que vale para TODO rollout daqui em diante:** `reconstruir_indice_busca` é RETOMÁVEL
+> e vira **no-op** com o cursor no fim (`etapa = concluido`) — devolve `processadas: 0` e parece
+> sucesso, sem repreencher coluna nova. Reprojetar **TAG a TAG**, ou chamar
+> `reiniciar_rebuild_busca()` antes. Descoberto pelo `testes-9f3.sql` falhando na SEGUNDA execução.
 
 ## 9F.4…9F.6 · demais telas — NÃO INICIADAS
 
