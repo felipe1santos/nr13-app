@@ -279,3 +279,39 @@ deixou de responder. Consequências, e nenhuma delas afeta o que foi provado:
   foram tiradas com a massa de 50.003 íntegra, e estão registradas.
 - Para destravar: reiniciar o Docker Desktop (derruba o Supabase local junto; ele sobe de novo
   com `npx supabase start`).
+
+---
+
+## 9 · A TRAVA CONTRA A REGRESSÃO (31/08, depois do gate de 50k)
+
+O dono destacou, com razão, que `listarCalibracoes(eq.tag)` **não pode voltar** ao render da
+lista. Conferir isso à mão não trava nada: "tirei" não é um estado, é uma decisão que a próxima
+edição desfaz sem querer — alguém acrescenta uma coluna no cartão, precisa de um dado, e chama o
+serviço ali mesmo. E o defeito volta **sem erro nenhum**: a tela fica correta e fica lenta.
+
+`src/features/calibracoes/listaSemParse.test.ts` (**9 testes**) lê o ARQUIVO da lista nova, sem
+os comentários, e exige que ele não toque em nada que custe por cartão:
+
+| trava | por quê |
+|---|---|
+| não chama `listarCalibracoes` | é o `JSON.parse` por cartão que a etapa removeu — e daria número diferente do painel de vencimentos |
+| não chama `listarComponentes` / `listarLotes` | mesmas famílias, mesmo custo |
+| não lê `nr13_emp_` | o proprietário vem na linha da projeção; a tela antiga lê 3× por quadro |
+| não chama `ler(` do storage | nenhuma leitura de cache por cartão |
+| não chama `lerTudo` / `listarEquipamentos` | é o mount que a etapa remove |
+| não importa de `pages/` | a 9G remove o caminho antigo sem levar a lista nova junto |
+| **usa** `rotuloCalibracoes` | é lá que a regra `null` ≠ `0` mora, e ela tem teste |
+
+E mais duas sobre o contrato de abertura: `carregarEquipamento` aparece **antes** de
+`listarCalibracoes(` no arquivo, e `lerTudo` não aparece.
+
+**Verificado ficando VERMELHO:** injetando `import { listarCalibracoes } from './calibracaoService'`
+no componente, o teste quebra na assertiva certa. Restaurado o arquivo, 9/9.
+
+> **A tela LEGADA continua chamando `listarCalibracoes` no render (`Calibracoes.tsx:484`), e
+> deve mesmo.** Com a flag desligada o comportamento tem que ser exatamente o de hoje. O teste
+> olha só o componente da flag ligada. Confirmado por leitura: a chamada está dentro do ramo
+> `tela === 'equipamentos' && !v9` (linha 445), e o ramo `&& v9` (linha 431) só monta o
+> `CatalogoCalibracoesV9`.
+
+Suíte: **1517/1517** (128 arquivos).
