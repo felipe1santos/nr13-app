@@ -14,6 +14,13 @@ import {
 } from '../features/calibracoes/calibracaoService';
 import type { DadosCalibracao, DadosManometro, DadosPSV } from '../features/calibracoes/tipos';
 import VisualizadorCalibracao from '../features/calibracoes/VisualizadorCalibracao';
+// 9F.3 · a lista pela projeção e o contrato de semeadura da TAG.
+import CatalogoCalibracoesV9 from '../features/calibracoes/CatalogoCalibracoesV9';
+import {
+  abrirEquipamentoParaCalibracoes,
+  deveHidratarListaLegada,
+} from '../features/calibracoes/catalogoCalibracoes';
+import { calibracoesV9Ativa } from '../services/flag';
 import {
   criarLote,
   excluirComponente,
@@ -211,6 +218,15 @@ export default function Calibracoes() {
   });
   const [filtroTipo, setFiltroTipo] = useState<'todos' | TipoEquipamento>('todos');
   const [filtroProp, setFiltroProp] = useState('');
+  /**
+   * 9F.3.5 · qual lista responde. Lido UMA vez, no primeiro render: trocar a
+   * fonte no meio da sessão faria a rolagem alternar entre dois cursores, e o
+   * usuário veria itens repetirem ou sumirem. É a mesma decisão de sessão de
+   * `armazenamentoV2Ativo`.
+   */
+  const [v9] = useState(() => calibracoesV9Ativa());
+  /** Termo da busca da lista nova. A antiga não tem campo de texto. */
+  const [termoBusca, setTermoBusca] = useState('');
   const [toast, setToast] = useState('');
   // Componentes (válvulas/manômetros) + lotes de calibração do equipamento aberto
   const [eqAtual, setEqAtual] = useState<EquipamentoResumo | null>(null);
@@ -237,8 +253,13 @@ export default function Calibracoes() {
   );
 
   const carregarEquipamentos = useCallback(async () => {
+    // 9F.3.3 · com a flag ligada NINGUÉM hidrata: a lista vem da projeção e o
+    // equipamento chega por semeadura, ao ser escolhido. `listarEquipamentos()`
+    // começa com `await lerTudo()`, e é ele que desfaz o boot leve da 9D na
+    // primeira visita a esta tela.
+    if (!deveHidratarListaLegada(v9)) return;
     setEquipamentos(await listarEquipamentos());
-  }, []);
+  }, [v9]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -278,6 +299,33 @@ export default function Calibracoes() {
     setCals([...lista].sort((a, b) => parseDateBR(b.dataCalibracao || b.criadoEm) - parseDateBR(a.dataCalibracao || a.criadoEm)));
     setComponentes(listarComponentes(eq.tag));
     setLotes(listarLotes(eq.tag));
+    setConfirmandoId(null);
+    setTela('historico');
+  }
+
+  /**
+   * 9F.3.3 · abrir pela TAG, vinda do catálogo do servidor.
+   *
+   * SEMEIA ANTES DE LER. Com a flag ligada a lista não hidratou nada, então as
+   * quatro famílias desta tela (`nr13_calibracoes_`, `nr13_componentes_cal_`,
+   * `nr13_lotes_cal_` e, por id, `nr13_calibracao_item_`) só existem no cache
+   * depois de `carregarEquipamento`. Ler antes abriria o histórico VAZIO — e
+   * sem erro nenhum, que é a forma cara de errar. A ordem mora em
+   * `abrirEquipamentoParaCalibracoes` e é travada por
+   * `semeaduraCalibracoes.test.ts`.
+   */
+  async function abrirPorTag(tagEscolhida: string) {
+    const aberto = await abrirEquipamentoParaCalibracoes(tagEscolhida);
+    setTag(tagEscolhida);
+    setEqAtual(aberto.resumo);
+    setCals(
+      [...aberto.calibracoes].sort(
+        (a, b) =>
+          parseDateBR(b.dataCalibracao || b.criadoEm) - parseDateBR(a.dataCalibracao || a.criadoEm),
+      ),
+    );
+    setComponentes(aberto.componentes);
+    setLotes(aberto.lotes);
     setConfirmandoId(null);
     setTela('historico');
   }
@@ -374,8 +422,27 @@ export default function Calibracoes() {
           "Certificados" (src/pages/Certificados.tsx) — esta tela cuida só das
           calibrações dos acessórios do cliente (manômetros/PSV por equipamento). */}
 
-      {/* ── EQUIPAMENTOS ─────────────────────────────── */}
-      {tela === 'equipamentos' && (
+      {/* ── EQUIPAMENTOS · LISTA NOVA (9F.3, sob `calibracoes_v9`) ──────
+          Vem da projeção, com busca, keyset e virtualização. A contagem de
+          calibrações chega pronta do servidor, em vez de um `JSON.parse` por
+          cartão a cada quadro. O que vem DEPOIS da lista é o mesmo dos dois
+          lados — o histórico, o formulário e o certificado não foram
+          duplicados. */}
+      {tela === 'equipamentos' && v9 && (
+        <div className="bloco-dados">
+          <div className="meta-card-header">
+            <h3>Selecione o Equipamento</h3>
+          </div>
+          <CatalogoCalibracoesV9
+            termo={termoBusca}
+            aoMudarTermo={setTermoBusca}
+            aoEscolher={(t) => void abrirPorTag(t)}
+          />
+        </div>
+      )}
+
+      {/* ── EQUIPAMENTOS · LISTA LEGADA ──────────────── */}
+      {tela === 'equipamentos' && !v9 && (
         <div className="bloco-dados">
           <div className="meta-card-header">
             <h3>Selecione o Equipamento</h3>

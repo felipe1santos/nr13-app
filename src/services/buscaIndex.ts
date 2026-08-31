@@ -75,6 +75,20 @@ export interface ItemCatalogo {
    * pode virar `false`: seria a tela afirmando "Sem Prontuário" sem ter olhado.
    */
   temProntuario: boolean | null;
+  /**
+   * Quantas calibrações esta TAG tem — **`null` = não sei** (9F.3.1).
+   *
+   * O número vem contado de `calibracoes_index`, a MESMA tabela que alimenta o
+   * painel de vencimentos. A tela antiga o obtinha rodando
+   * `listarCalibracoes(tag).length` dentro do `.map()` do render — um
+   * `JSON.parse` da lista inteira por cartão, a cada quadro: média de 2,1 KB por
+   * TAG medida em produção em 31/08/2026, 8,9 KB na maior.
+   *
+   * `null` acontece em organização cuja projeção ainda não foi refeita, e NÃO
+   * pode virar `0`. Este é o `null` mais perigoso da fase: é o número que o
+   * usuário lê para decidir que uma válvula não precisa calibrar.
+   */
+  calibracoes: number | null;
   unidade: string | null;
   /** Versão da verdade que originou esta linha. Serve à auditoria e ao merge. */
   sourceVersion: number;
@@ -127,6 +141,27 @@ export function rotuloInspecoes(n: number | null): string | null {
 export function rotuloProntuario(tem: boolean | null): string | null {
   if (tem === null) return null;
   return tem ? 'Prontuário OK' : 'Sem Prontuário';
+}
+
+/**
+ * O que a linha de calibrações escreve — ou `null`, quando não há o que dizer.
+ *
+ * Mesma razão de existir de `rotuloInspecoes` e `rotuloProntuario`: a regra
+ * "não sei ≠ zero" precisa de UM lugar só, testável sem DOM.
+ *
+ *   `3`    → "3 calibrações"      · contei
+ *   `1`    → "1 calibração"       · singular
+ *   `0`    → "Nenhuma calibração" · contei, e não há
+ *   `null` → nada                 · ninguém contou (projeção não refeita)
+ *
+ * O `0` escreve por extenso, e não "0 calibrações", porque nesta tela ele é a
+ * informação principal do cartão — quem abre `/calibracoes` está procurando
+ * exatamente o equipamento que ainda não tem nenhuma.
+ */
+export function rotuloCalibracoes(n: number | null): string | null {
+  if (n === null) return null;
+  if (n === 0) return 'Nenhuma calibração';
+  return `${n} ${n === 1 ? 'calibração' : 'calibrações'}`;
 }
 
 export interface FiltrosBusca {
@@ -183,6 +218,13 @@ interface LinhaRpc {
   inspecoes?: number | null;
   /** 9F.2.2 — idem: banco sem a migração da 9F.2 manda `undefined`. */
   tem_prontuario?: boolean | null;
+  /**
+   * 9F.3.1 — idem: banco sem a migração da 9F.3 manda `undefined`.
+   *
+   * Aceita `string` porque o PostgREST decide sozinho se um inteiro viaja como
+   * número ou como texto, e o mapeamento não pode depender dessa escolha.
+   */
+  calibracoes?: number | string | null;
 }
 
 /** `numeric` do Postgres chega como STRING no PostgREST — nunca como número. */
@@ -229,6 +271,11 @@ function daLinha(l: LinhaRpc): ItemCatalogo {
     // projeção ainda não foi refeita.
     temProntuario:
       l.tem_prontuario === null || l.tem_prontuario === undefined ? null : l.tem_prontuario === true,
+    // 9F.3.1 · MESMA regra das duas acima, e aqui ela é a que mais custa errar:
+    // um `?? 0` faria a tela escrever "Nenhuma calibração" sobre um acessório
+    // que ninguém contou — e é esse número que o usuário lê para decidir que
+    // uma válvula não precisa calibrar.
+    calibracoes: l.calibracoes === null || l.calibracoes === undefined ? null : Number(l.calibracoes),
   };
 }
 

@@ -23,7 +23,7 @@ function eq(extra: Partial<ItemCatalogo> = {}): ItemCatalogo {
     clienteNome: null, clienteCidade: null,
     proximaInspecao: null, temFoto: false, fotoRef: null, pmtaMpa: null, pthMpa: null,
     resultado: null, volumeM3: null, fluido: null, classeFluido: null, vidaAnos: null,
-    temCliente: false, unidade: null, sourceVersion: 1, inspecoes: null, temProntuario: null,
+    temCliente: false, unidade: null, sourceVersion: 1, inspecoes: null, temProntuario: null, calibracoes: null,
     ...extra,
   };
 }

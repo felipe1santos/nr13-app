@@ -251,6 +251,14 @@ export function equipamentosPendentesLocais(): ItemCatalogo[] {
         // para responder "tem ou não tem" devolveria o `JSON.parse` de 6,6 KB
         // por item que esta etapa está removendo do render.
         temProntuario: null,
+        // Idem para as calibrações (9F.3.1), e aqui a tentação é maior porque a
+        // lista está no aparelho: `listarCalibracoes(tag).length` responderia
+        // na hora. Mas seria o `JSON.parse` por cartão que esta etapa está
+        // removendo do render, de volta por uma porta lateral — e daria um
+        // número DIFERENTE do que o servidor vai projetar, porque item sem `id`
+        // não entra em `calibracoes_index`. Duas contagens para a mesma coisa é
+        // como as divergências de cartão nasceram na 9C.
+        calibracoes: null,
         pendente: true,
       } satisfies ItemCatalogo;
     });

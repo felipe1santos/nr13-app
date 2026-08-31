@@ -132,6 +132,22 @@ create table if not exists public.equipamentos_index (
   -- média de 6,6 KB por TAG medida em produção em 29/08/2026, 25,7 KB no maior.
   tem_prontuario    boolean,
 
+  -- 9F.3.1 · quantas calibrações a TAG tem.
+  --
+  -- SEM `not null` e SEM `default 0`, pelo MESMO motivo das duas colunas acima:
+  -- numa organização ainda não reprojetada a coluna fica NULA, e a tela precisa
+  -- distinguir "não sei" de "nenhuma calibração". Aqui o default 0 seria o pior
+  -- dos três: a tela afirmaria "0 calibrações" sobre um acessório, e é esse
+  -- número que o usuário lê para decidir que uma válvula não precisa calibrar.
+  --
+  -- Diferente das outras duas, esta NÃO é contada varrendo `app_storage`: sai de
+  -- `calibracoes_index`, que já existe desde o agregado de vencimentos e já tem
+  -- uma linha por calibração. A tela antiga obtinha o mesmo número rodando
+  -- `listarCalibracoes(tag).length` DENTRO do `.map()` do render — um
+  -- `JSON.parse` da lista inteira por cartão, a cada quadro: média de 2,1 KB por
+  -- TAG medida em produção em 31/08/2026, 8,9 KB na maior.
+  calibracoes       integer,
+
   -- Identidade fonte ↔ projeção
   source_version    integer     not null,
   source_updated_at timestamptz not null,
@@ -290,3 +306,6 @@ alter table public.equipamentos_index add column if not exists inspecoes     int
 -- 9F.2.2 — idem: nasce NULA em toda linha já projetada, e assim fica até a
 -- reprojeção. É o que permite a tela dizer "não sei" em vez de "não tem".
 alter table public.equipamentos_index add column if not exists tem_prontuario boolean;
+-- 9F.3.1 — idem: nasce NULA em toda linha já projetada, e assim fica até a
+-- reprojeção. É o que permite a tela dizer "não sei" em vez de "zero".
+alter table public.equipamentos_index add column if not exists calibracoes   integer;

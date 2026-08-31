@@ -106,6 +106,8 @@ declare
   v_insp    integer;
   -- 9F.2.2 — tem prontuário salvo? `null` = não olhei (linha não reprojetada).
   v_pront   boolean;
+  -- 9F.3.1 — quantas calibrações. `null` = não contei (linha não reprojetada).
+  v_cal     integer;
 begin
   -- `nr13_info_` é a chave que MANDA: define existência e versão.
   select public.f9_json(s.valor), s.versao, s.atualizado_em
@@ -142,7 +144,7 @@ begin
       proxima_inspecao = null, tem_foto = false, foto_ref = null,
       pmta_mpa = null, pth_mpa = null, resultado = null, volume_m3 = null,
       fluido = null, classe_fluido = null, vida_anos = null, tem_cliente = false,
-      unidade = null, inspecoes = null, tem_prontuario = null,
+      unidade = null, inspecoes = null, tem_prontuario = null, calibracoes = null,
       vida_base = null, vida_prox_anos = null,
       source_version = excluded.source_version,
       source_updated_at = excluded.source_updated_at,
@@ -238,11 +240,28 @@ begin
   -- para não haver duas máquinas de estado convergindo em ritmos diferentes.
   perform public.projetar_calibracoes(p_org, p_tag);
 
+  -- 9F.3.1 · a contagem de calibrações da TAG.
+  --
+  -- Lida de `calibracoes_index` e NÃO de `app_storage`, e lida DEPOIS do
+  -- `projetar_calibracoes` logo acima — nessa ordem o número é o da projeção
+  -- recém-refeita, não o da anterior. Contar o array de `nr13_calibracoes_`
+  -- daria um número que pode divergir do que o resto do sistema usa: é
+  -- `calibracoes_index` que alimenta o painel de vencimentos, e duas contagens
+  -- diferentes para a mesma coisa é como as divergências de cartão nasceram.
+  --
+  -- Nunca fica `null` aqui: se esta função rodou, alguém contou, e "contei e não
+  -- há" é `0`. O `null` fica reservado para a linha que esta função ainda não
+  -- tocou — que é a distinção que impede o cartão de escrever "0 calibrações"
+  -- sobre um acessório que ninguém verificou.
+  select count(*)::integer into v_cal
+    from public.calibracoes_index
+   where org_id = p_org and tag = p_tag;
+
   insert into public.equipamentos_index as e (
     org_id, tag, descricao, tipo, subtipo, categoria, fabricante, numero_serie,
     localizacao, ano, cliente_nome, cliente_cidade, proxima_inspecao, tem_foto, foto_ref,
     pmta_mpa, pth_mpa, resultado, volume_m3, fluido, classe_fluido, vida_anos,
-    tem_cliente, unidade, inspecoes, tem_prontuario, vida_base, vida_prox_anos,
+    tem_cliente, unidade, inspecoes, tem_prontuario, calibracoes, vida_base, vida_prox_anos,
     source_version, source_updated_at, projected_at
   ) values (
     p_org,
@@ -287,6 +306,7 @@ begin
     nullif(btrim(coalesce(v_unid, '')), ''),
     v_insp,
     v_pront,
+    v_cal,
     -- 9D · os DOIS FATOS crus da vida remanescente, guardados além da data já
     -- derivada acima. O agregado de vencimentos precisa deles porque a REGRA
     -- continua em TypeScript (`vencimentos.ts`): lá o prazo é
@@ -319,6 +339,10 @@ begin
     -- quatro blocos de uma vez; sem ele, o badge ficaria eternamente vazio em
     -- organizacao ja projetada, e ninguem veria erro nenhum.
     tem_prontuario = excluded.tem_prontuario,
+    -- 9F.3.1 - pelo MESMO motivo da linha acima, e o defeito que a 9F.2 ja
+    -- pagou uma vez: sem esta linha a contagem so seria gravada na PRIMEIRA
+    -- projecao, e toda reprojeicao deixaria o numero velho no lugar.
+    calibracoes = excluded.calibracoes,
     vida_base = excluded.vida_base,       vida_prox_anos = excluded.vida_prox_anos,
     source_version = excluded.source_version,
     source_updated_at = excluded.source_updated_at,

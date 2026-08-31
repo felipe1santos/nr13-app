@@ -80,6 +80,12 @@ begin
   -- 9D · os acessórios entram pela MESMA porta: `projetar_equipamento` chama
   -- `projetar_calibracoes` no fim. Uma etapa própria aqui criaria uma segunda
   -- máquina de estados, convergindo em ritmo diferente do rebuild.
+  --
+  -- 9F.3.1 · a CONTAGEM de calibrações do cartão pega carona nesta MESMA linha,
+  -- sem precisar de despacho novo: salvar ou excluir uma calibração já
+  -- reprojeta a TAG, e `projetar_equipamento` recalcula `calibracoes` de
+  -- `calibracoes_index` depois de refazê-la. `nr13_calibracao_item_<id>` NÃO
+  -- despacha, e não deve: é o certificado, não a lista, e não muda a contagem.
   elsif p_chave like 'nr13_calibracoes_%' then v_tag := substring(p_chave from 18);
   -- 9F.1.2 · os containers de inspeção entram pela MESMA porta, e por isso a
   -- contagem do badge nunca fica velha: criar ou excluir um container reprojeta
