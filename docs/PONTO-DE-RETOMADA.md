@@ -1,4 +1,8 @@
-# PONTO DE RETOMADA — 31/08/2026 (9F.3 construída LOCALMENTE · produção em HTTP 402 por cota)
+# PONTO DE RETOMADA — 31/08/2026 (9F.3 COMPLETA local, aguardando aprovação · produção em 402 · WSL exige reboot)
+
+> **A DECISÃO QUE ESTÁ NA SUA MÃO:** aprovar (ou não) a **9F.3 local**. Ela está construída,
+> medida e provada — falta só a sua palavra. O ROLLOUT em produção é decisão separada, e hoje
+> nem seria possível: o gateway responde 402.
 
 > **Leia só este arquivo para voltar ao trabalho.** Ele diz onde paramos, o que está de pé em
 > produção, e qual é a próxima decisão. Nada aqui depende de lembrar da conversa.
@@ -24,6 +28,28 @@ exercitado. Em seguida ele autorizou **APENAS a ANÁLISE da 9F.3 (`/calibracoes`
 implementar: sem tocar em `src`, em schema, em SQL de produção, em flags nem em clientes. A
 análise está em `medicoes/2026-08-31-9f3-calibracoes-as-is.md`. **A implementação da 9F.3 não
 está autorizada.**
+
+> ## 🔧 AMBIENTE — PRIMEIRA COISA AO VOLTAR (31/08, fim do dia)
+>
+> **REINICIE O WINDOWS antes de qualquer trabalho local.** O `WSLService` ficou preso em
+> `StopPending` e não sai desse estado sem reboot.
+>
+> **A causa raiz, achada no log do Docker** (`%LOCALAPPDATA%\Docker\log\host\com.docker.backend.exe.log`):
+> não era o Docker, era o **WSL travado** — `wsl.exe -l -v --all` dava `CommandTimedOut`, e a VM
+> `vmmemWSL` (PID 21696) estava de pé **desde 28/08** sem morrer nem com `wsl --shutdown`. O
+> Docker Desktop ficava eternamente "carregando" porque não conseguia listar as distros.
+>
+> **Já corrigido e não precisa refazer:** `com.docker.service` passou de `Stopped/Manual` para
+> **`Running/Automatic`**; a VM travada foi morta; os processos zumbis (8, alguns de 28/08) foram
+> limpos; o `wsl.exe` voltou a responder em vez de pendurar.
+>
+> **Depois do reboot:** abrir o Docker Desktop → `npx supabase start` → conferir com
+> `docker ps -a` **LISTANDO** os containers `supabase_*` (nunca pelo exit code — ver
+> `docker info` mente).
+>
+> **O volume do Postgres local SOBREVIVE ao reboot**: o schema da Fase 9 continua aplicado lá.
+> **Nunca usar** *Troubleshoot → Clean / Purge data*, que apagaria justamente isso. E nesta
+> máquina **nunca usar o botão *Restart*** do Docker Desktop — ele deixa a instância velha viva.
 
 > ## 🔴 PRODUÇÃO FORA DO AR (31/08/2026) — LEIA ANTES DE QUALQUER COISA
 >
