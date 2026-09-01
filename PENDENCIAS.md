@@ -251,6 +251,21 @@ banco. Em ordem de urgência.
   compra não tenha passado pela Kiwify, ou que o parser do webhook não encontre o campo —
   o payload real dela não é público e o parser lê por tentativa (ver §11 do CLAUDE.md).
 
+  > **Conferido na Kiwify em 01/09/2026** (`dashboard.kiwify.com/subscriptions`): existem
+  > **7 assinaturas ativas** na conta, mas só **3 são do produto NR13-Solutions** —
+  > `engyuricesar@gmail.com` (04/08), `cmam.caldeiras@gmail.com` (24/07) e
+  > `adm@gyncal.eng.br` (18/06), a R$ 176,80 líquidos cada. As outras 4 são de outros
+  > produtos do mesmo vendedor (Menuzia, PSI-GRO ×3) e nunca devem entrar em conta nenhuma
+  > do NR-13.
+  >
+  > Enquanto o `kiwify_subscription_id` não for gravado, o painel de Faturamento classifica
+  > por `classificarConta.ts`: vigente **com** assinatura ou prazo = *Pagante*; vigente
+  > **sem** assinatura e **sem vencimento nenhum** = *Vitalícia*; e a lista
+  > `CONTAS_INTERNAS` (`teste@gmail.com`) = *Interna*. Os três tipos aparecem na tabela,
+  > justamente para um erro de classificação ficar visível em vez de sumir dentro do total.
+  > Quando o webhook começar a gravar, a classificação passa a ser automática e essa lista
+  > deixa de importar.
+
 ---
 
 ## 1. Deploy manual (feito pelo dono do projeto, fora do código)
@@ -260,6 +275,36 @@ banco. Em ordem de urgência.
       trigger `handle_new_user`: não pode sobrescrever `org_id`/`papel`/`cliente_id`.
 - [ ] **Rodar `supabase/admin_stats.sql`** no SQL Editor (idempotente; cria `admin_usage_stats()`
       para o painel Admin — sem isso as colunas de uso mostram "—").
+- [ ] **Rodar `supabase/admin_series.sql`** no SQL Editor (idempotente; cria
+      `admin_series_uso(dias)`, a série DIÁRIA que alimenta os gráficos de Relatórios,
+      Equipamentos e Inspeções da aba "Visão geral"). Sem ele esses três gráficos ficam
+      zerados com a nota "Rode supabase/admin_series.sql para popular"; os gráficos de
+      Acessos e Contas cadastradas vêm de `login_events`/`profiles` e já funcionam.
+- [ ] **Edge Function `admin_infra`** — é o que tira Egress, Requisições e CPU/RAM do "—" na
+      Visão geral. Sem ela o resto do painel funciona inteiro (os números do próprio banco
+      são reais); só a faixa de infra fica vazia, com a instrução na tela.
+
+      1. Dashboard → Edge Functions → Deploy a new function → nome **`admin_infra`** →
+         colar `supabase/functions/admin_infra/index.ts`. **Verify JWT LIGADO** (ao
+         contrário do `kiwify_webhook`): aqui quem chama é o app logado, e o Bearer do
+         usuário é justamente o que autentica — a função ainda confere `role = 'admin'`.
+      2. Edge Functions → Secrets:
+
+         | secret | valor |
+         |---|---|
+         | `SUPABASE_PAT` | Personal Access Token — supabase.com/dashboard/account/tokens |
+         | `SUPABASE_PROJECT_REF` | `qqsesrntfvmdxqxrfvmw` |
+         | `SUPABASE_ORG_SLUG` | opcional; sem ele a cota do plano pode vir vazia |
+
+      **O token NÃO pode virar `VITE_*`.** Ele manda em todos os projetos da organização
+      (inclusive pausar e apagar) e `VITE_*` vai para o bundle, que é arquivo público —
+      mesma armadilha da chave do Google logo abaixo, com estrago maior.
+
+      **Conferir depois do deploy:** se algum campo continuar em "—", a tela imprime em
+      letra miúda qual endpoint falhou e com que HTTP. A Management API não documenta
+      publicamente todos esses números, então o `index.ts` lê por tentativa (mesma
+      disciplina do parser da Kiwify, §11 do CLAUDE.md) — endpoint que mude de forma
+      apaga UM cartão, não derruba o painel. Ajustar o caminho no arquivo quando aparecer.
 - [ ] **Deploy das Edge Functions** `org_admin` e `portal_cliente` (Dashboard → Edge Functions).
 - [ ] **E-mail de troca de senha:** Authentication → Email Templates → "Reset Password" com
       `{{ .Token }}` no corpo (código de 6 dígitos). Exemplo:

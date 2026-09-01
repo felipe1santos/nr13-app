@@ -1,0 +1,979 @@
+/* ===========================================================================
+   TEMA ESCURO DO PAINEL ADMIN (01/09/2026)
+   ===========================================================================
+
+   Paleta do painel do Supabase — quase-preto, verde de acento, texto cinza
+   claro. Vive em arquivo próprio, importado DEPOIS de `admin.css`, e todo
+   seletor é prefixado por `.admin-standalone`. As três coisas são de propósito:
+
+   · `.admin-standalone .admin-card` (0,2,0) vence `.admin-card` (0,1,0) sem
+     precisar de `!important`. Assim a estrutura de layout que já funciona
+     continua valendo e só a cor muda — reescrever 1000 linhas de posicionamento
+     para trocar de tema seria refazer o que não está quebrado.
+   · O prefixo é a cerca: CSS é global depois de importado, e um seletor solto
+     pintaria de preto qualquer tela do sistema que use o mesmo nome de classe.
+   · Arquivo separado deixa óbvio o que é tema e o que é estrutura, para a
+     próxima troca de visual mexer num arquivo só.
+
+   Os tokens ficam em `.admin-standalone`, não em `:root`, pelo mesmo motivo da
+   cerca.
+   =========================================================================== */
+
+.admin-standalone {
+  /* Superfícies, do fundo da página para a frente */
+  --adm-bg: #121212;
+  --adm-bg-2: #171717;
+  --adm-card: #1c1c1c;
+  --adm-card-2: #202020;
+  --adm-borda: #2e2e2e;
+  --adm-borda-forte: #3d3d3d;
+
+  /* Tinta */
+  --adm-txt: #ededed;
+  --adm-txt-2: #a0a0a0;
+  --adm-txt-3: #707070;
+
+  /* Acentos. O verde é o do Supabase; os outros só aparecem nos gráficos, para
+     que cinco linhas empilhadas não virem cinco linhas verdes idênticas. */
+  --adm-verde: #3ecf8e;
+  --adm-verde-esc: #24b47e;
+  --adm-ambar: #f5a623;
+  --adm-vermelho: #f87171;
+  --adm-azul: #60a5fa;
+  --adm-roxo: #a78bfa;
+  --adm-ciano: #22d3ee;
+
+  background: var(--adm-bg);
+  color: var(--adm-txt);
+  /* Faz o navegador pintar scrollbar e controles nativos no escuro também —
+     sem isso, a barra de rolagem branca denuncia o tema pela metade. */
+  color-scheme: dark;
+}
+
+/* ── Cromo da página ─────────────────────────────────────────────────────── */
+
+.admin-standalone .admin-topbar {
+  background: var(--adm-bg-2);
+  border-bottom: 1px solid var(--adm-borda);
+  box-shadow: none;
+  color: var(--adm-txt);
+}
+.admin-standalone .admin-topbar-logo {
+  color: var(--adm-txt);
+}
+.admin-standalone .admin-topbar-sair,
+.admin-standalone .admin-instalar {
+  border-color: var(--adm-borda-forte);
+  color: var(--adm-txt-2);
+}
+.admin-standalone .admin-topbar-sair:hover,
+.admin-standalone .admin-instalar:hover {
+  background: var(--adm-card-2);
+  color: var(--adm-txt);
+}
+
+.admin-standalone .admin-header h1 {
+  color: var(--adm-txt);
+}
+
+.admin-standalone .admin-btn-refresh {
+  background: var(--adm-card);
+  border-color: var(--adm-borda-forte);
+  color: var(--adm-txt);
+}
+.admin-standalone .admin-btn-refresh:hover:not(:disabled) {
+  border-color: var(--adm-verde);
+  color: var(--adm-verde);
+  box-shadow: none;
+}
+
+.admin-standalone .admin-super-btn {
+  color: var(--adm-txt-2);
+}
+.admin-standalone .admin-super-btn:hover {
+  background: var(--adm-card-2);
+}
+.admin-standalone .admin-super-avatar {
+  background: var(--adm-verde-esc);
+  color: #06281c;
+}
+.admin-standalone .admin-super-panel {
+  background: var(--adm-card);
+  border: 1px solid var(--adm-borda);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+  color: var(--adm-txt);
+}
+.admin-standalone .admin-super-panel-head strong {
+  color: var(--adm-txt);
+}
+.admin-standalone .admin-super-dados > div {
+  border-color: var(--adm-borda);
+}
+.admin-standalone .admin-super-dados span {
+  color: var(--adm-txt-3);
+}
+.admin-standalone .admin-super-dados strong {
+  color: var(--adm-txt);
+}
+.admin-standalone .admin-super-trocar {
+  background: var(--adm-card-2);
+  border-color: var(--adm-borda-forte);
+  color: var(--adm-txt);
+}
+.admin-standalone .admin-super-trocar:hover {
+  border-color: var(--adm-verde);
+  color: var(--adm-verde);
+}
+
+/* ── Abas ────────────────────────────────────────────────────────────────── */
+
+/* A regra antiga desenha as abas como uma "pílula" (fundo #e9eef0, cantos
+   arredondados, `width: fit-content`). O tema troca isso por sublinhado, no
+   estilo do painel do Supabase — então precisa zerar fundo, raio e padding, e
+   voltar a ocupar a largura toda; sobrar só a cor deixaria uma caixa clara
+   flutuando sobre o preto. */
+.admin-standalone .admin-abas {
+  background: transparent;
+  border-radius: 0;
+  border-bottom: 1px solid var(--adm-borda);
+  padding: 0;
+  gap: 2px;
+  width: auto;
+}
+.admin-standalone .admin-aba {
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  color: var(--adm-txt-3);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 10px 14px;
+}
+.admin-standalone .admin-aba:hover {
+  background: transparent;
+  color: var(--adm-txt);
+}
+.admin-standalone .admin-aba.ativa {
+  background: transparent;
+  color: var(--adm-txt);
+  border-bottom-color: var(--adm-verde);
+}
+
+/* ── Cards, formulários e tabelas que já existiam ────────────────────────── */
+
+.admin-standalone .admin-card,
+.admin-standalone .admin-novo,
+.admin-standalone .admin-orfaos,
+.admin-standalone .admin-crescimento,
+.admin-standalone .admin-card-metrica,
+.admin-standalone .admin-tabela-wrap,
+.admin-standalone .admin-leads-bar {
+  background: var(--adm-card);
+  border: 1px solid var(--adm-borda);
+  box-shadow: none;
+  color: var(--adm-txt);
+}
+.admin-standalone .admin-card-num,
+.admin-standalone .admin-card-metrica strong,
+.admin-standalone .admin-crescimento > h2 {
+  color: var(--adm-txt);
+}
+.admin-standalone .admin-card-label,
+.admin-standalone .admin-card-metrica .rot,
+.admin-standalone .admin-card-metrica small,
+.admin-standalone .admin-novo-titulo,
+.admin-standalone .admin-orfaos-sub,
+.admin-standalone .admin-leads-info {
+  color: var(--adm-txt-3);
+}
+.admin-standalone .admin-card.vencendo .admin-card-num {
+  color: var(--adm-ambar);
+}
+
+.admin-standalone .admin-novo input,
+.admin-standalone .admin-busca,
+.admin-standalone .admin-orfaos select,
+.admin-standalone .admin-leads-filtro,
+.admin-standalone .admin-email-assunto,
+.admin-standalone .admin-email-corpo {
+  background: var(--adm-bg-2);
+  border: 1px solid var(--adm-borda-forte);
+  color: var(--adm-txt);
+}
+.admin-standalone .admin-novo input::placeholder,
+.admin-standalone .admin-busca::placeholder {
+  color: var(--adm-txt-3);
+}
+.admin-standalone .admin-novo input:focus,
+.admin-standalone .admin-busca:focus,
+.admin-standalone .admin-email-corpo:focus {
+  border-color: var(--adm-verde);
+  box-shadow: 0 0 0 3px rgba(62, 207, 142, 0.14);
+  outline: none;
+}
+
+.admin-standalone .admin-novo-btn,
+.admin-standalone .admin-leads-acoes button.principal,
+.admin-standalone .admin-email-acoes .enviar {
+  background: var(--adm-verde);
+  border-color: var(--adm-verde);
+  color: #06281c;
+}
+.admin-standalone .admin-novo-btn:hover:not(:disabled),
+.admin-standalone .admin-leads-acoes button.principal:hover:not(:disabled) {
+  background: var(--adm-verde-esc);
+}
+
+.admin-standalone .admin-leads-acoes button,
+.admin-standalone .admin-acoes .b,
+.admin-standalone .admin-lead-acoes-cel button,
+.admin-standalone .admin-email-toolbar button,
+.admin-standalone .admin-email-acoes .cancelar {
+  background: var(--adm-card-2);
+  border: 1px solid var(--adm-borda-forte);
+  color: var(--adm-txt-2);
+}
+.admin-standalone .admin-leads-acoes button:hover:not(:disabled),
+.admin-standalone .admin-acoes .b:hover,
+.admin-standalone .admin-lead-acoes-cel button:hover,
+.admin-standalone .admin-email-toolbar button:hover {
+  border-color: var(--adm-verde);
+  color: var(--adm-verde);
+}
+.admin-standalone .admin-lead-acoes-cel button.perigo:hover {
+  border-color: var(--adm-vermelho);
+  color: var(--adm-vermelho);
+}
+
+.admin-standalone .admin-tabela {
+  color: var(--adm-txt);
+}
+.admin-standalone .admin-tabela thead th {
+  background: var(--adm-bg-2);
+  color: var(--adm-txt-3);
+  border-bottom: 1px solid var(--adm-borda);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.admin-standalone .admin-tabela td {
+  border-bottom: 1px solid var(--adm-borda);
+}
+.admin-standalone .admin-tabela tbody tr:hover {
+  background: var(--adm-card-2);
+}
+.admin-standalone .admin-tabela tr.lead-sel {
+  background: rgba(62, 207, 142, 0.08);
+}
+.admin-standalone .admin-email {
+  color: var(--adm-txt);
+}
+.admin-standalone .admin-vazio,
+.admin-standalone .admin-ultimo-acesso,
+.admin-standalone .admin-nota {
+  color: var(--adm-txt-3);
+}
+.admin-standalone .admin-tabela-consumo {
+  color: var(--adm-txt);
+}
+.admin-standalone .admin-tabela-consumo td {
+  border-color: var(--adm-borda);
+}
+
+/* Selos: fundo translúcido do próprio tom, não pastel claro — pastel sobre
+   preto vira mancha e apaga o texto. */
+.admin-standalone .admin-badge.ativo,
+.admin-standalone .admin-badge-assinatura.ativa {
+  background: rgba(62, 207, 142, 0.14);
+  border: 1px solid rgba(62, 207, 142, 0.3);
+  color: var(--adm-verde);
+}
+.admin-standalone .admin-badge.pendente,
+.admin-standalone .admin-badge-assinatura.graca,
+.admin-standalone .admin-badge-assinatura.trial,
+.admin-standalone .admin-badge-trial,
+.admin-standalone .admin-dias.critico {
+  background: rgba(245, 166, 35, 0.14);
+  border: 1px solid rgba(245, 166, 35, 0.3);
+  color: var(--adm-ambar);
+}
+.admin-standalone .admin-badge.expirado,
+.admin-standalone .admin-badge-assinatura.somente_leitura,
+.admin-standalone .admin-dias.expirado {
+  background: rgba(248, 113, 113, 0.14);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  color: var(--adm-vermelho);
+}
+.admin-standalone .admin-dias.ok {
+  color: var(--adm-txt-2);
+}
+.admin-standalone .admin-dias.sem {
+  color: var(--adm-txt-3);
+}
+.admin-standalone .admin-badge-origem,
+.admin-standalone .admin-badge-papel,
+.admin-standalone .admin-selo-pagante,
+.admin-standalone .admin-badge-assinatura.cancelada_no_prazo {
+  background: var(--adm-card-2);
+  border: 1px solid var(--adm-borda-forte);
+  color: var(--adm-txt-2);
+}
+
+.admin-standalone .admin-erro {
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  color: var(--adm-vermelho);
+}
+.admin-standalone .admin-aviso {
+  background: rgba(62, 207, 142, 0.1);
+  border: 1px solid rgba(62, 207, 142, 0.35);
+  color: var(--adm-verde);
+}
+
+.admin-standalone .admin-menu {
+  background: var(--adm-card);
+  border: 1px solid var(--adm-borda);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+}
+.admin-standalone .admin-menu button {
+  color: var(--adm-txt-2);
+}
+.admin-standalone .admin-menu button:hover {
+  background: var(--adm-card-2);
+  color: var(--adm-txt);
+}
+.admin-standalone .admin-menu button.perigo {
+  color: var(--adm-vermelho);
+}
+.admin-standalone .admin-menu button.destaque {
+  color: var(--adm-verde);
+}
+
+.admin-standalone .admin-email-modal,
+.admin-standalone .admin-imp-drop {
+  background: var(--adm-card);
+  border: 1px solid var(--adm-borda);
+  color: var(--adm-txt);
+}
+.admin-standalone .admin-email-overlay {
+  background: rgba(0, 0, 0, 0.7);
+}
+.admin-standalone .admin-email-label,
+.admin-standalone .admin-email-sub,
+.admin-standalone .admin-email-dica {
+  color: var(--adm-txt-3);
+}
+/* A pré-visualização mostra o e-mail como ele CHEGA na caixa do lead, e e-mail
+   chega em fundo claro. Escurecer aqui mentiria sobre o resultado. */
+.admin-standalone .admin-email-preview {
+  background: #fff;
+  color: #17272e;
+}
+
+/* Trechos de código citados nas notas de migração */
+.admin-standalone .admin-nota code,
+.admin-standalone .admin-email-dica code,
+.admin-standalone .admin-email-sub code,
+.admin-standalone .adm-infra-nota code,
+.admin-standalone .adm-grafico-nota code,
+.admin-standalone .adm-rodape-nota code {
+  background: var(--adm-bg-2);
+  border: 1px solid var(--adm-borda);
+  border-radius: 4px;
+  color: var(--adm-verde);
+  padding: 1px 5px;
+}
+
+/* Substitutos das cores que estavam em `style={{}}` no JSX — inline vence CSS,
+   e um `!important` para cada uma seria pior do que mover para cá. */
+.admin-standalone .adm-inline-aviso {
+  font-size: 13px;
+  color: var(--adm-ambar);
+}
+.admin-standalone .adm-inline-muted {
+  font-size: 12.5px;
+  color: var(--adm-txt-3);
+}
+.admin-standalone .adm-inline-sub {
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--adm-txt-3);
+}
+
+/* ===========================================================================
+   Visão Geral
+   =========================================================================== */
+
+.admin-standalone .adm-visao {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Faixa de status + cartão do projeto. `minmax(0, 1fr)` na primeira coluna
+   impede que um texto longo dentro de um card estoure a grade para fora da
+   tela — sem isso, `1fr` respeita o conteúdo mínimo e a página ganha rolagem
+   horizontal. */
+.admin-standalone .adm-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 16px;
+  /* `start`, não `stretch`: esticar a faixa até a altura do cartão do projeto
+     deixava cada cartão de status com 190px de altura e um oceano de vazio
+     dentro. Sobra um vão embaixo da faixa, e ele só aparece enquanto a nota de
+     configuração da Edge está visível (que é o que deixa o cartão alto) —
+     cartão de dado errado é pior que um espaço em branco. */
+  align-items: start;
+}
+
+/* TRÊS colunas fixas, não `auto-fit`: são exatamente 6 cartões, e o auto-fit
+   cabia 4 na primeira linha e deixava dois buracos na segunda. 3×2 fecha as
+   duas linhas cheias. */
+.admin-standalone .adm-status-grade {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  /* Altura da linha pelo conteúdo. `1fr` aqui inflava cada cartão até a altura
+     do cartão do projeto ao lado. */
+  grid-auto-rows: auto;
+}
+
+.admin-standalone .adm-status {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  background: var(--adm-card);
+  border: 1px solid var(--adm-borda);
+  border-radius: 10px;
+  padding: 15px 16px;
+}
+.admin-standalone .adm-status-ico {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  border-radius: 9px;
+  background: var(--adm-card-2);
+  border: 1px solid var(--adm-borda);
+  color: var(--adm-txt-2);
+}
+.admin-standalone .adm-status.verde .adm-status-ico {
+  color: var(--adm-verde);
+  border-color: rgba(62, 207, 142, 0.35);
+}
+.admin-standalone .adm-status.ambar .adm-status-ico {
+  color: var(--adm-ambar);
+  border-color: rgba(245, 166, 35, 0.35);
+}
+.admin-standalone .adm-status-txt {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.admin-standalone .adm-status-rot {
+  font-size: 10.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--adm-txt-3);
+}
+.admin-standalone .adm-status-val {
+  font-family: var(--font-display, inherit);
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--adm-txt);
+}
+.admin-standalone .adm-status-det {
+  font-size: 11.5px;
+  color: var(--adm-txt-3);
+  /* Detalhe longo corta com reticências em vez de empurrar a largura do card. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Cartão do projeto Supabase */
+.admin-standalone .adm-infra {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: var(--adm-card);
+  border: 1px solid var(--adm-borda);
+  border-radius: 10px;
+  padding: 16px;
+}
+.admin-standalone .adm-infra-head {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+.admin-standalone .adm-infra-ico {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: rgba(62, 207, 142, 0.12);
+  border: 1px solid rgba(62, 207, 142, 0.3);
+  color: var(--adm-verde);
+}
+.admin-standalone .adm-infra-head strong {
+  display: block;
+  font-size: 13.5px;
+  color: var(--adm-txt);
+}
+.admin-standalone .adm-infra-head small {
+  display: block;
+  font-size: 11.5px;
+  color: var(--adm-txt-3);
+}
+
+.admin-standalone .adm-infra-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+.admin-standalone .adm-infra-rot {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+  margin-bottom: 5px;
+}
+.admin-standalone .adm-infra-rot span {
+  color: var(--adm-txt-3);
+}
+.admin-standalone .adm-infra-rot strong {
+  color: var(--adm-txt);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.admin-standalone .adm-barra {
+  height: 5px;
+  border-radius: 3px;
+  background: var(--adm-bg-2);
+  border: 1px solid var(--adm-borda);
+  overflow: hidden;
+}
+.admin-standalone .adm-barra-fill {
+  display: block;
+  height: 100%;
+  background: var(--adm-verde);
+  transition: width 0.3s ease;
+}
+.admin-standalone .adm-barra-fill.atencao {
+  background: var(--adm-ambar);
+}
+.admin-standalone .adm-barra-fill.critico {
+  background: var(--adm-vermelho);
+}
+
+.admin-standalone .adm-infra-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.admin-standalone .adm-infra-chips span {
+  font-size: 11.5px;
+  color: var(--adm-txt-3);
+  background: var(--adm-card-2);
+  border: 1px solid var(--adm-borda);
+  border-radius: 6px;
+  padding: 4px 9px;
+}
+.admin-standalone .adm-infra-chips b {
+  color: var(--adm-txt);
+  font-weight: 600;
+}
+
+.admin-standalone .adm-infra-nota {
+  margin: 0;
+  padding-top: 11px;
+  border-top: 1px solid var(--adm-borda);
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--adm-txt-3);
+}
+.admin-standalone .adm-infra-nota strong {
+  color: var(--adm-txt-2);
+}
+
+/* Cabeçalho das séries + seletor de janela */
+.admin-standalone .adm-serie-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--adm-borda);
+  padding-top: 16px;
+}
+.admin-standalone .adm-serie-resumo {
+  font-size: 13px;
+  color: var(--adm-txt-3);
+}
+.admin-standalone .adm-serie-resumo strong {
+  color: var(--adm-txt);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.admin-standalone .adm-janela {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  background: var(--adm-card);
+  border: 1px solid var(--adm-borda);
+  border-radius: 8px;
+}
+.admin-standalone .adm-janela button {
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: var(--adm-txt-3);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 12px;
+}
+.admin-standalone .adm-janela button:hover {
+  color: var(--adm-txt);
+}
+.admin-standalone .adm-janela button.ativa {
+  background: var(--adm-card-2);
+  color: var(--adm-txt);
+}
+
+/* Grade de gráficos */
+/* Três colunas fixas pelo mesmo motivo da faixa de status: são 6 gráficos, e o
+   `auto-fit` encaixava 5 na primeira linha deixando o sexto sozinho embaixo. */
+.admin-standalone .adm-graficos {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.admin-standalone .adm-grafico {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  background: var(--adm-card);
+  border: 1px solid var(--adm-borda);
+  border-radius: 10px;
+  padding: 14px 15px 12px;
+}
+.admin-standalone .adm-grafico-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.admin-standalone .adm-grafico-tit {
+  font-size: 10.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--adm-txt-3);
+}
+.admin-standalone .adm-delta {
+  font-size: 11px;
+  font-weight: 600;
+}
+.admin-standalone .adm-delta.sobe {
+  color: var(--adm-verde);
+}
+.admin-standalone .adm-delta.desce {
+  color: var(--adm-vermelho);
+}
+.admin-standalone .adm-grafico-num {
+  font-family: var(--font-display, inherit);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--adm-txt);
+  font-variant-numeric: tabular-nums;
+}
+
+/* O SVG tem viewBox fixo e estica na largura: a resolução do traço não depende
+   do tamanho renderizado, e a linha ocupa o card inteiro. */
+.admin-standalone .adm-spark {
+  display: block;
+  width: 100%;
+  height: 64px;
+}
+.admin-standalone .adm-spark-vazio {
+  height: 64px;
+  display: grid;
+  place-items: center;
+  font-size: 11.5px;
+  color: var(--adm-txt-3);
+  border: 1px dashed var(--adm-borda);
+  border-radius: 6px;
+}
+.admin-standalone .adm-grafico-eixo {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--adm-txt-3);
+  font-variant-numeric: tabular-nums;
+}
+.admin-standalone .adm-grafico-nota {
+  font-size: 10.5px;
+  color: var(--adm-txt-3);
+}
+.admin-standalone .adm-grafico.vazio {
+  opacity: 0.75;
+}
+
+.admin-standalone .adm-rodape-nota {
+  margin: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--adm-borda);
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--adm-txt-3);
+}
+
+/* ===========================================================================
+   Faturamento
+   =========================================================================== */
+
+.admin-standalone .adm-faturamento {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.admin-standalone .adm-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
+}
+.admin-standalone .adm-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--adm-card);
+  border: 1px solid var(--adm-borda);
+  border-radius: 10px;
+  padding: 16px;
+}
+.admin-standalone .adm-kpi.destaque {
+  border-color: rgba(62, 207, 142, 0.4);
+  background: linear-gradient(160deg, rgba(62, 207, 142, 0.09), var(--adm-card) 60%);
+}
+.admin-standalone .adm-kpi-rot {
+  font-size: 10.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--adm-txt-3);
+}
+.admin-standalone .adm-kpi-val {
+  font-family: var(--font-display, inherit);
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--adm-txt);
+  font-variant-numeric: tabular-nums;
+}
+.admin-standalone .adm-kpi.destaque .adm-kpi-val {
+  color: var(--adm-verde);
+}
+.admin-standalone .adm-kpi small {
+  font-size: 11.5px;
+  color: var(--adm-txt-3);
+}
+
+/* ── Telas estreitas ─────────────────────────────────────────────────────── */
+
+@media (max-width: 1000px) {
+  /* O cartão do projeto desce para baixo da faixa de status em vez de espremer
+     as duas colunas até o número quebrar linha. */
+  .admin-standalone .adm-hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 1180px) {
+  .admin-standalone .adm-graficos {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 860px) {
+  .admin-standalone .adm-status-grade {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .admin-standalone .adm-status-grade,
+  .admin-standalone .adm-graficos {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .admin-standalone .adm-serie-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  /* Seis abas não cabem em tela de celular: rolam na horizontal em vez de
+     quebrarem em três linhas de botão. */
+  .admin-standalone .admin-abas {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+  .admin-standalone .admin-aba {
+    white-space: nowrap;
+  }
+}
+
+/* ===========================================================================
+   Selos de tipo de conta (Faturamento)
+   =========================================================================== */
+
+.admin-standalone .adm-tipo {
+  display: inline-block;
+  border-radius: 5px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.admin-standalone .adm-tipo.pagante {
+  background: rgba(62, 207, 142, 0.14);
+  border: 1px solid rgba(62, 207, 142, 0.35);
+  color: var(--adm-verde);
+}
+.admin-standalone .adm-tipo.cortesia {
+  background: rgba(96, 165, 250, 0.14);
+  border: 1px solid rgba(96, 165, 250, 0.35);
+  color: var(--adm-azul);
+}
+.admin-standalone .adm-tipo.interna,
+.admin-standalone .adm-tipo.inativa {
+  background: var(--adm-card-2);
+  border: 1px solid var(--adm-borda-forte);
+  color: var(--adm-txt-3);
+}
+
+/* ===========================================================================
+   Botão de troca de tema
+   =========================================================================== */
+
+.admin-standalone .admin-tema-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--adm-borda-forte);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--adm-txt-2);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+.admin-standalone .admin-tema-btn:hover {
+  background: var(--adm-card-2);
+  color: var(--adm-txt);
+}
+
+/* ===========================================================================
+   TEMA CLARO
+   ===========================================================================
+
+   Só os TOKENS mudam. Todas as regras acima leem cor por variável, então trocar
+   os valores aqui repinta a tela inteira sem duplicar um único seletor de
+   layout — e uma regra nova de componente já nasce funcionando nos dois temas.
+
+   O verde é mais escuro que o do tema escuro (#16a34a contra #3ecf8e): o verde
+   claro do Supabase tem contraste de sobra sobre preto e some sobre branco.
+   =========================================================================== */
+
+.admin-standalone[data-tema='claro'] {
+  --adm-bg: #f6f6f5;
+  --adm-bg-2: #ffffff;
+  --adm-card: #ffffff;
+  --adm-card-2: #f1f1f0;
+  --adm-borda: #e4e4e3;
+  --adm-borda-forte: #d3d3d1;
+
+  --adm-txt: #18181b;
+  --adm-txt-2: #52525b;
+  --adm-txt-3: #71717a;
+
+  --adm-verde: #16a34a;
+  --adm-verde-esc: #15803d;
+  --adm-ambar: #b45309;
+  --adm-vermelho: #dc2626;
+  --adm-azul: #2563eb;
+  --adm-roxo: #7c3aed;
+  --adm-ciano: #0891b2;
+
+  color-scheme: light;
+}
+
+/* Botão sólido: no escuro o texto é verde-escuro sobre verde claro; no claro
+   isso inverte para branco sobre verde escuro, senão o rótulo desaparece. */
+.admin-standalone[data-tema='claro'] .admin-novo-btn,
+.admin-standalone[data-tema='claro'] .admin-leads-acoes button.principal,
+.admin-standalone[data-tema='claro'] .admin-email-acoes .enviar,
+.admin-standalone[data-tema='claro'] .admin-super-avatar {
+  color: #ffffff;
+}
+
+/* Sombras pensadas para fundo preto viram borrão cinza sobre branco. */
+.admin-standalone[data-tema='claro'] .admin-super-panel,
+.admin-standalone[data-tema='claro'] .admin-menu {
+  box-shadow: 0 12px 28px rgba(24, 24, 27, 0.12);
+}
+.admin-standalone[data-tema='claro'] .admin-email-overlay {
+  background: rgba(24, 24, 27, 0.45);
+}
+
+/* Preenchimento translúcido dos selos: 14% de opacidade sobre preto vira um
+   tom legível; sobre branco fica lavado. */
+.admin-standalone[data-tema='claro'] .admin-badge.ativo,
+.admin-standalone[data-tema='claro'] .admin-badge-assinatura.ativa,
+.admin-standalone[data-tema='claro'] .adm-tipo.pagante {
+  background: rgba(22, 163, 74, 0.1);
+  border-color: rgba(22, 163, 74, 0.28);
+}
+.admin-standalone[data-tema='claro'] .admin-badge.pendente,
+.admin-standalone[data-tema='claro'] .admin-badge-assinatura.graca,
+.admin-standalone[data-tema='claro'] .admin-badge-assinatura.trial,
+.admin-standalone[data-tema='claro'] .admin-badge-trial,
+.admin-standalone[data-tema='claro'] .admin-dias.critico {
+  background: rgba(180, 83, 9, 0.1);
+  border-color: rgba(180, 83, 9, 0.28);
+}
+.admin-standalone[data-tema='claro'] .admin-badge.expirado,
+.admin-standalone[data-tema='claro'] .admin-badge-assinatura.somente_leitura,
+.admin-standalone[data-tema='claro'] .admin-dias.expirado,
+.admin-standalone[data-tema='claro'] .admin-erro {
+  background: rgba(220, 38, 38, 0.08);
+  border-color: rgba(220, 38, 38, 0.28);
+}
+.admin-standalone[data-tema='claro'] .adm-tipo.cortesia {
+  background: rgba(37, 99, 235, 0.1);
+  border-color: rgba(37, 99, 235, 0.28);
+}
+.admin-standalone[data-tema='claro'] .admin-aviso {
+  background: rgba(22, 163, 74, 0.08);
+  border-color: rgba(22, 163, 74, 0.28);
+}
+.admin-standalone[data-tema='claro'] .adm-kpi.destaque {
+  background: linear-gradient(160deg, rgba(22, 163, 74, 0.07), var(--adm-card) 60%);
+  border-color: rgba(22, 163, 74, 0.32);
+}
+.admin-standalone[data-tema='claro'] .admin-tabela tr.lead-sel {
+  background: rgba(22, 163, 74, 0.07);
+}

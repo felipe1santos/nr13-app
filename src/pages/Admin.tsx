@@ -26,7 +26,33 @@ import {
   type UsoStats,
   type StorageStats,
 } from './adminMetricas';
+import {
+  MENSALIDADE_PADRAO,
+  calcularFaturamento,
+  serieDiaria,
+  type PontoSerie,
+} from '../features/admin/painelAdmin';
+import PainelVisaoGeral from '../features/admin/PainelVisaoGeral';
+import PainelFaturamento from '../features/admin/PainelFaturamento';
+import { classificarConta } from '../features/admin/classificarConta';
+import { gravarTema, lerTema, proximoTema, type TemaAdmin } from '../features/admin/temaAdmin';
+import { lerInfra, type InfraSupabase } from '../features/admin/infraSupabase';
 import './admin.css';
+// DEPOIS do admin.css de propósito: o tema escuro sobrescreve as cores claras
+// daquele arquivo, e em empate de especificidade quem vem por último vence.
+import './admin-tema.css';
+
+/** Abas do painel. As duas primeiras são leitura; as outras, gestão de contas. */
+type Aba = 'visao' | 'faturamento' | 'clientes' | 'trial' | 'acessos' | 'leads';
+
+/** Uma linha de `admin_series_uso()` — ver `supabase/admin_series.sql`. */
+interface LinhaSerieUso {
+  dia: string;
+  relatorios: number;
+  equipamentos: number;
+  inspecoes: number;
+  fotos: number;
+}
 
 interface Profile {
   id: string;
@@ -258,7 +284,21 @@ export default function Admin() {
   // Menu "Ações": posição fixa (viewport) para não ser cortado pelo overflow da tabela.
   const [menuAcoes, setMenuAcoes] = useState<{ id: string; x: number; y: number } | null>(null);
   const [superAberto, setSuperAberto] = useState(false);
-  const [aba, setAba] = useState<'clientes' | 'trial' | 'acessos' | 'leads'>('clientes');
+  const [aba, setAba] = useState<Aba>('visao');
+  // Tema do painel. Inicializado do localStorage no primeiro render (e não num
+  // efeito) para a tela não nascer escura e piscar para clara em quem escolheu
+  // o claro.
+  const [tema, setTema] = useState<TemaAdmin>(() => lerTema());
+  // Janela dos gráficos, em dias. 30 é o padrão do painel do Supabase e o
+  // período que casa com o ciclo de cobrança.
+  const [janela, setJanela] = useState<7 | 30 | 90>(30);
+  // Infra do projeto Supabase (egress/requisições/CPU). `null` = a Edge
+  // `admin_infra` não está publicada ou sem token — a faixa mostra "—" com a
+  // instrução, e nada mais da tela depende disso.
+  const [infra, setInfra] = useState<InfraSupabase | null>(null);
+  // Série diária de atividade (admin_series_uso). `null` = admin_series.sql
+  // ainda não rodou neste ambiente.
+  const [serieUso, setSerieUso] = useState<LinhaSerieUso[] | null>(null);
   // Flag global do cadastro automático de trial (config_global; null = migração não rodou)
   const [cadastroAuto, setCadastroAuto] = useState<boolean | null>(null);
   const [salvandoFlag, setSalvandoFlag] = useState(false);
@@ -341,6 +381,18 @@ export default function Admin() {
         for (const s of stData as StorageStats[]) m.set(s.escopo, s);
         setStorage(m);
       }
+
+      // Série diária de atividade para os gráficos. Antes de rodar
+      // supabase/admin_series.sql a função não existe: os gráficos que dependem
+      // dela mostram "sem dados" e os que vêm de login_events seguem normais.
+      const { data: serieData, error: serieErr } = await supabase.rpc('admin_series_uso', {
+        dias: 90,
+      });
+      setSerieUso(serieErr || !Array.isArray(serieData) ? null : (serieData as LinhaSerieUso[]));
+
+      // Infra do projeto (egress, requisições, CPU/RAM) via Edge `admin_infra`.
+      // Nunca lança e nunca bloqueia: sem a função publicada, devolve null.
+      setInfra(await lerInfra());
 
       // Leads importados (planilha/cadastro manual). Antes de rodar leads_setup.sql
       // a tabela não existe: a aba mostra aviso de migração pendente.
@@ -625,6 +677,109 @@ export default function Admin() {
     ).size;
     return { total, pendentes, ativosHoje, vencendo };
   }, [profiles, eventos]);
+
+  // ── Visão Geral e Faturamento ─────────────────────────────────────────────
+
+  /** Abas de gestão de conta — as que usam a busca, os formulários e a tabela. */
+  const ehGestao = aba !== 'visao' && aba !== 'faturamento';
+
+  /**
+   * Contas separadas por tipo para o Faturamento (ver `classificarConta.ts`).
+   *
+   * Só entram os MESTRES: sub-login não tem assinatura própria — ele usa a do
+   * cliente que o criou, e contá-lo dobraria a receita daquela conta.
+   *
+   * Conferido contra a Kiwify em 01/09/2026: das 7 assinaturas ativas da conta,
+   * só 3 são do produto NR13-Solutions. As demais são de outros produtos do
+   * mesmo vendedor e nunca deveriam aparecer aqui. Somado a isso há uma conta
+   * vitalícia e a conta interna do dono — as três coisas separadas em baldes
+   * distintos, todas VISÍVEIS, nenhuma apagada.
+   */
+  const contas = useMemo(() => {
+    const mestres = profiles.filter((p) => !p.papel || p.papel === 'mestre');
+    const pagantes: Profile[] = [];
+    const cortesia: Profile[] = [];
+    const internas: Profile[] = [];
+    for (const p of mestres) {
+      const tipo = classificarConta(p);
+      if (tipo === 'pagante') pagantes.push(p);
+      else if (tipo === 'cortesia') cortesia.push(p);
+      else if (tipo === 'interna') internas.push(p);
+      // 'inativa' fica de fora dos três baldes de propósito: são os trials e
+      // expirados, que já têm aba própria e não dizem nada sobre receita.
+    }
+    return { pagantes, cortesia, internas };
+  }, [profiles]);
+
+  const assinantes = contas.pagantes;
+
+  const faturamento = useMemo(
+    () => calcularFaturamento(assinantes.length, MENSALIDADE_PADRAO),
+    [assinantes],
+  );
+
+  /**
+   * Séries dos gráficos.
+   *
+   * Duas fontes, e a diferença importa na leitura:
+   *  · `login_events` e `profiles.criado_em` têm carimbo de tempo REAL de quando
+   *    o fato aconteceu — acesso e cadastro são exatos.
+   *  · `admin_series_uso` agrupa por `app_storage.atualizado_em`, que é
+   *    ATIVIDADE na chave, não criação (ver o cabeçalho do admin_series.sql).
+   * Os rótulos na tela dizem qual é qual; trocar um pelo outro faria "vasos
+   * criados" contar edição de ficha antiga.
+   */
+  const series = useMemo(() => {
+    const agora = new Date();
+    const acessos = serieDiaria(
+      eventos.filter((e) => e.tipo === 'login').map((e) => e.criado_em),
+      janela,
+      agora,
+    );
+    const cadastros = serieDiaria(
+      profiles.filter((p) => p.role !== 'admin').map((p) => p.criado_em),
+      janela,
+      agora,
+    );
+    // A RPC devolve um dia por linha; expandir para uma lista de "eventos" e
+    // reusar `serieDiaria` mantém UM único lugar que preenche dia vazio com
+    // zero — duas implementações de calendário divergiriam na virada do mês.
+    const doBanco = (campo: keyof Omit<LinhaSerieUso, 'dia'>): PontoSerie[] => {
+      const porDia = new Map<string, number>();
+      for (const l of serieUso ?? []) porDia.set(l.dia, (porDia.get(l.dia) ?? 0) + (l[campo] ?? 0));
+      const vazio = serieDiaria([], janela, agora);
+      return vazio.map((p) => ({ dia: p.dia, valor: porDia.get(p.dia) ?? 0 }));
+    };
+    return {
+      acessos,
+      cadastros,
+      relatorios: doBanco('relatorios'),
+      equipamentos: doBanco('equipamentos'),
+      inspecoes: doBanco('inspecoes'),
+      requisicoes: infra?.serieRequisicoes ?? null,
+    };
+  }, [eventos, profiles, serieUso, janela, infra]);
+
+  /** Totais do parque, para os cartões de status no alto da Visão Geral. */
+  const totais = useMemo(() => {
+    let banco = 0;
+    let base64 = 0;
+    let equipamentos = 0;
+    let relatorios = 0;
+    for (const u of uso.values()) {
+      banco += u.bytes_total ?? 0;
+      base64 += u.bytes_base64 ?? 0;
+      equipamentos += (u.equip_vaso ?? 0) + (u.equip_caldeira ?? 0) + (u.equip_autoclave ?? 0);
+      relatorios += u.relatorios ?? 0;
+    }
+    let bucket = 0;
+    let arquivos = 0;
+    for (const s of storage.values()) {
+      bucket += s.bytes ?? 0;
+      arquivos += s.arquivos ?? 0;
+    }
+    return { banco, bucket, base64, equipamentos, relatorios, arquivos };
+  }, [uso, storage]);
 
   async function criarUsuario(e: React.FormEvent) {
     e.preventDefault();
@@ -929,7 +1084,7 @@ export default function Admin() {
   const minhasMetricas = meuPerfil ? metricas.get(meuPerfil.id) : undefined;
 
   return (
-    <div className="admin-standalone">
+    <div className="admin-standalone" data-tema={tema}>
       <header className="admin-topbar">
         <span className="admin-topbar-logo">NR-13 · Admin</span>
         <div className="admin-topbar-right">
@@ -976,6 +1131,19 @@ export default function Admin() {
               </div>
             )}
           </div>
+          <button
+            type="button"
+            className="admin-tema-btn"
+            title={tema === 'escuro' ? 'Mudar para o tema claro' : 'Mudar para o tema escuro'}
+            aria-label={tema === 'escuro' ? 'Mudar para o tema claro' : 'Mudar para o tema escuro'}
+            onClick={() => {
+              const novo = proximoTema(tema);
+              setTema(novo);
+              gravarTema(novo);
+            }}
+          >
+            {tema === 'escuro' ? '☀' : '☾'}
+          </button>
           <BotaoInstalarPWA className="admin-instalar" />
           <button type="button" className="admin-topbar-sair" onClick={sair}>
             Sair
@@ -990,6 +1158,58 @@ export default function Admin() {
           </button>
         </div>
 
+      {/* Abas. As duas primeiras são leitura (dashboard e receita); as outras
+          são gestão de conta e trazem junto os formulários e a busca. */}
+      <div className="admin-abas">
+        <button
+          type="button"
+          className={`admin-aba${aba === 'visao' ? ' ativa' : ''}`}
+          onClick={() => setAba('visao')}
+        >
+          Visão geral
+        </button>
+        <button
+          type="button"
+          className={`admin-aba${aba === 'faturamento' ? ' ativa' : ''}`}
+          onClick={() => setAba('faturamento')}
+        >
+          Faturamento
+        </button>
+        <button
+          type="button"
+          className={`admin-aba${aba === 'clientes' ? ' ativa' : ''}`}
+          onClick={() => setAba('clientes')}
+        >
+          Clientes pagantes
+        </button>
+        <button
+          type="button"
+          className={`admin-aba${aba === 'trial' ? ' ativa' : ''}`}
+          onClick={() => setAba('trial')}
+        >
+          Testes e expirados
+        </button>
+        <button
+          type="button"
+          className={`admin-aba${aba === 'acessos' ? ' ativa' : ''}`}
+          onClick={() => setAba('acessos')}
+        >
+          Sub-logins
+        </button>
+        <button
+          type="button"
+          className={`admin-aba${aba === 'leads' ? ' ativa' : ''}`}
+          onClick={() => setAba('leads')}
+        >
+          Leads{leads.length > 0 ? ` · ${leads.length}` : ''}
+        </button>
+      </div>
+
+      {erro && <p className="admin-erro">{erro}</p>}
+      {aviso && <p className="admin-aviso">{aviso}</p>}
+
+      {ehGestao && (
+      <>
       <div className="admin-cards">
         <div className="admin-card">
           <span className="admin-card-num">{resumo.total}</span>
@@ -1009,14 +1229,11 @@ export default function Admin() {
         </div>
       </div>
 
-      {erro && <p className="admin-erro">{erro}</p>}
-      {aviso && <p className="admin-aviso">{aviso}</p>}
-
       {/* Interruptor global do cadastro automático de leads (teste 48h) */}
       <div className="admin-novo" style={{ alignItems: 'center' }}>
         <span className="admin-novo-titulo">Cadastro automático (teste 48h)</span>
         {cadastroAuto === null ? (
-          <span style={{ fontSize: 13, color: '#8a6d1a' }}>
+          <span className="adm-inline-aviso">
             Rode <code>supabase/trial_setup.sql</code> no SQL Editor para habilitar esta opção.
           </span>
         ) : (
@@ -1030,7 +1247,7 @@ export default function Admin() {
               />
               Permitir cadastro automático
             </label>
-            <span style={{ fontSize: 12.5, color: 'var(--muted, #667085)' }}>
+            <span className="adm-inline-muted">
               {cadastroAuto
                 ? 'LIGADO: o botão "Testar gratuitamente por 2 dias" aparece na tela de login.'
                 : 'Desligado: novos leads veem "cadastro temporariamente indisponível".'}
@@ -1136,38 +1353,6 @@ export default function Admin() {
         </button>
       </form>
 
-      {/* Abas: clientes pagantes (foco) × acessos criados pelos clientes (sub-logins/portal) */}
-      <div className="admin-abas">
-        <button
-          type="button"
-          className={`admin-aba${aba === 'clientes' ? ' ativa' : ''}`}
-          onClick={() => setAba('clientes')}
-        >
-          Clientes pagantes
-        </button>
-        <button
-          type="button"
-          className={`admin-aba${aba === 'trial' ? ' ativa' : ''}`}
-          onClick={() => setAba('trial')}
-        >
-          Testes e expirados
-        </button>
-        <button
-          type="button"
-          className={`admin-aba${aba === 'acessos' ? ' ativa' : ''}`}
-          onClick={() => setAba('acessos')}
-        >
-          Acessos dos clientes (sub-logins)
-        </button>
-        <button
-          type="button"
-          className={`admin-aba${aba === 'leads' ? ' ativa' : ''}`}
-          onClick={() => setAba('leads')}
-        >
-          Leads{leads.length > 0 ? ` · ${leads.length}` : ''}
-        </button>
-      </div>
-
       <input
         className="admin-busca"
         type="search"
@@ -1175,8 +1360,32 @@ export default function Admin() {
         value={busca}
         onChange={(e) => setBusca(e.target.value)}
       />
+      </>
+      )}
 
-      {aba === 'leads' ? (
+      {aba === 'visao' ? (
+        <PainelVisaoGeral
+          series={series}
+          janela={janela}
+          setJanela={setJanela}
+          infra={infra}
+          totais={totais}
+          resumo={resumo}
+          assinantes={assinantes.length}
+          serieUsoAusente={serieUso === null}
+        />
+      ) : aba === 'faturamento' ? (
+        <PainelFaturamento
+          faturamento={faturamento}
+          assinantes={assinantes}
+          cortesia={contas.cortesia}
+          internas={contas.internas}
+          uso={uso}
+          storage={storage}
+          metas={metas}
+          metricas={metricas}
+        />
+      ) : aba === 'leads' ? (
         <>
           {leadsImp === null && (
             <p className="admin-nota">
@@ -1434,7 +1643,7 @@ export default function Admin() {
                       <span className="admin-badge-trial" title="Conta criada pelo cadastro automático (teste 48h)"> TRIAL</span>
                     )}
                     {infoLead && (
-                      <div style={{ fontSize: 11.5, color: 'var(--muted, #667085)', fontWeight: 400 }}>{infoLead}</div>
+                      <div className="adm-inline-sub">{infoLead}</div>
                     )}
                   </td>
                   <td data-label="Status">
@@ -1482,13 +1691,13 @@ export default function Admin() {
         </table>
         </div>
       )}
-        {aba !== 'leads' && uso.size === 0 && !carregando && (
+        {ehGestao && aba !== 'leads' && uso.size === 0 && !carregando && (
           <p className="admin-nota">
             Métricas de uso (equipamentos, inspeções, relatórios…) exibem "—" até rodar
             <code> supabase/admin_stats.sql</code> no SQL Editor do Supabase.
           </p>
         )}
-        {aba !== 'leads' && uso.size > 0 && storage.size === 0 && !carregando && (
+        {ehGestao && aba !== 'leads' && uso.size > 0 && storage.size === 0 && !carregando && (
           <p className="admin-nota">
             As colunas de arquivos exibem "—" até rodar
             <code> supabase/admin_storage_stats.sql</code> no SQL Editor do Supabase.
