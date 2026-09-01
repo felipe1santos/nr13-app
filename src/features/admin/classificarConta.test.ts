@@ -26,6 +26,40 @@ describe('classificarConta', () => {
     expect(classificarConta(conta({ kiwify_subscription_id: null }))).toBe('pagante');
   });
 
+  it('kiwify_email preenchido basta para ser pagante, mesmo sem prazo nenhum', () => {
+    // É a marcação manual do painel (o webhook não grava `kiwify_subscription_id`
+    // — pendência 0.4). Sem esta regra, `engyuricesar@gmail.com`, que tem
+    // assinatura ativa na Kiwify desde 04/08/2026, caía em "Vitalícia" e sumia
+    // do MRR.
+    const marcado = conta({
+      kiwify_subscription_id: null,
+      kiwify_email: 'engyuricesar@gmail.com',
+      acesso_expira_em: null,
+      assinatura_ate: null,
+    });
+    expect(classificarConta(marcado)).toBe('pagante');
+  });
+
+  it('desmarcar (kiwify_email nulo) devolve a conta para vitalícia', () => {
+    const desmarcado = conta({
+      kiwify_subscription_id: null,
+      kiwify_email: null,
+      acesso_expira_em: null,
+      assinatura_ate: null,
+    });
+    expect(classificarConta(desmarcado)).toBe('cortesia');
+  });
+
+  it('e-mail vazio não conta como marcação', () => {
+    const vazio = conta({
+      kiwify_subscription_id: null,
+      kiwify_email: '   ',
+      acesso_expira_em: null,
+      assinatura_ate: null,
+    });
+    expect(classificarConta(vazio)).toBe('cortesia');
+  });
+
   it('vitalícia (sem assinatura e sem vencimento nenhum) é cortesia, não pagante', () => {
     const v = conta({ kiwify_subscription_id: null, acesso_expira_em: null, assinatura_ate: null });
     expect(classificarConta(v)).toBe('cortesia');

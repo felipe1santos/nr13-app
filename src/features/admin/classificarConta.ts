@@ -44,6 +44,8 @@ export interface ContaClassificavel {
   acesso_expira_em: string | null;
   assinatura_ate?: string | null;
   kiwify_subscription_id?: string | null;
+  /** E-mail do checkout. Também serve de marcação manual — ver `ehClienteKiwify`. */
+  kiwify_email?: string | null;
 }
 
 /**
@@ -78,11 +80,34 @@ export function classificarConta(c: ContaClassificavel): TipoConta {
   const venceu = c.acesso_expira_em && new Date(c.acesso_expira_em).getTime() < Date.now();
   if (venceu) return 'inativa';
 
-  const temAssinatura = !!c.kiwify_subscription_id;
   const semPrazo = !c.acesso_expira_em && !c.assinatura_ate;
-  if (!temAssinatura && semPrazo) return 'cortesia';
+  if (!ehClienteKiwify(c) && semPrazo) return 'cortesia';
 
   return 'pagante';
+}
+
+/**
+ * A conta tem vínculo com a Kiwify?
+ *
+ * `kiwify_email` conta junto com `kiwify_subscription_id` porque, enquanto o
+ * webhook não grava o id (pendência 0.4 do PENDENCIAS.md — em 01/09/2026 ele
+ * está NULO em todas as contas), o `kiwify_email` é o que o painel grava ao
+ * marcar uma conta como pagante à mão.
+ *
+ * **Por que a marcação usa esse campo e não outro:** `kiwify_email` é
+ * informativo — nenhum gate de acesso o consulta. `assinatura_ate` e
+ * `acesso_expira_em` consultam: gravar uma data ali para "marcar pagante"
+ * poderia deixar um cliente somente-leitura no dia em que essa data vencesse.
+ * E o campo ainda tem um efeito colateral bom: é por e-mail que o webhook
+ * procura o perfil, então preenchê-lo aumenta a chance de um pagamento futuro
+ * casar sozinho.
+ *
+ * Caso real: `engyuricesar@gmail.com` tem assinatura ATIVA na Kiwify desde
+ * 04/08/2026 e, sem `kiwify_subscription_id` nem prazo gravado, era
+ * classificado como "Vitalícia" e ficava fora do MRR.
+ */
+function ehClienteKiwify(c: ContaClassificavel): boolean {
+  return !!c.kiwify_subscription_id?.trim() || !!c.kiwify_email?.trim();
 }
 
 export const ROTULO_TIPO: Record<TipoConta, string> = {

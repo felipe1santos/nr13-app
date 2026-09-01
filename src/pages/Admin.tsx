@@ -843,6 +843,44 @@ export default function Admin() {
     }
   }
 
+  /**
+   * Marca (ou desmarca) uma conta como PAGANTE, para o MRR do Faturamento.
+   *
+   * Grava um campo só: `kiwify_email`. A escolha é deliberada e vale registrar,
+   * porque a alternativa óbvia é perigosa. Marcar pagante gravando
+   * `assinatura_ate`/`acesso_expira_em` — que é o que o vínculo manual de evento
+   * órfão faz — mexeria nas colunas que a RLS usa (`assinatura_permite_escrita`,
+   * `acesso_vigente`): no dia em que a data vencesse, um cliente pagante viraria
+   * somente-leitura por causa de um rótulo de painel. `kiwify_email` não é lido
+   * por gate nenhum, e ainda tem efeito colateral bom — é por e-mail que o
+   * webhook procura o perfil quando um pagamento chega.
+   *
+   * A trigger `proteger_campos_assinatura` reverteria esta escrita para usuário
+   * comum; ela abre exceção para `is_admin()`, que é quem está nesta tela.
+   */
+  async function alternarPagante(conta: { id: string; email: string | null }, pagante: boolean) {
+    setAcaoEmAndamento(conta.id);
+    setErro(null);
+    setAviso(null);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ kiwify_email: pagante ? conta.email : null })
+        .eq('id', conta.id);
+      if (error) throw error;
+      setAviso(
+        pagante
+          ? `${conta.email} marcada como PAGANTE — passa a entrar no MRR. Acesso não foi alterado.`
+          : `${conta.email} passou para VITALÍCIA — sai do MRR. Acesso não foi alterado.`,
+      );
+      await carregar();
+    } catch (e: unknown) {
+      setErro(e instanceof Error ? e.message : 'Falha ao alterar a cobrança da conta.');
+    } finally {
+      setAcaoEmAndamento(null);
+    }
+  }
+
   // Reenvia o e-mail de confirmação de cadastro (código) para conta ainda não confirmada.
   async function reenviarConfirmacao(p: Profile) {
     if (!p.email) return;
@@ -1384,6 +1422,8 @@ export default function Admin() {
           storage={storage}
           metas={metas}
           metricas={metricas}
+          ocupado={acaoEmAndamento}
+          onAlternarPagante={(c, pagante) => void alternarPagante(c, pagante)}
         />
       ) : aba === 'leads' ? (
         <>

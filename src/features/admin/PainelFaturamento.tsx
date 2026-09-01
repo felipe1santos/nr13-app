@@ -55,6 +55,8 @@ export default function PainelFaturamento({
   storage,
   metas,
   metricas,
+  onAlternarPagante,
+  ocupado,
 }: {
   faturamento: Faturamento;
   assinantes: ContaLinha[];
@@ -64,6 +66,10 @@ export default function PainelFaturamento({
   storage: Map<string, StorageStats>;
   metas: Map<string, MetaLogin>;
   metricas: Map<string, MetricaSessao>;
+  /** Marca/desmarca a conta como pagante. Ver `ehClienteKiwify`. */
+  onAlternarPagante: (conta: ContaLinha, pagante: boolean) => void;
+  /** Id da conta com ação em andamento, para travar o botão daquela linha. */
+  ocupado: string | null;
 }) {
   // Uma lista só, com o tipo carimbado, para a tabela mostrar tudo junto.
   // Mais ativos primeiro dentro de cada balde: quem emite relatório é quem
@@ -119,6 +125,7 @@ export default function PainelFaturamento({
               <th>Equipamentos</th>
               <th>Relatórios</th>
               <th>Consumo</th>
+              <th>Cobrança</th>
             </tr>
           </thead>
           <tbody>
@@ -150,12 +157,37 @@ export default function PainelFaturamento({
                   <td data-label="Equipamentos">{u ? equipamentos : '—'}</td>
                   <td data-label="Relatórios">{u ? u.relatorios : '—'}</td>
                   <td data-label="Consumo">{u || st ? fmtBytes(consumo) : '—'}</td>
+                  {/* A conta interna não tem cobrança nenhuma — botão ali só
+                      convidaria a marcar como cliente a conta do próprio dono. */}
+                  <td data-label="Cobrança">
+                    {p.tipo === 'interna' ? (
+                      '—'
+                    ) : (
+                      <button
+                        type="button"
+                        className="b b-acoes"
+                        disabled={ocupado === p.id}
+                        title={
+                          p.tipo === 'pagante'
+                            ? 'Passar para vitalícia (não entra no MRR)'
+                            : 'Marcar como pagante (entra no MRR)'
+                        }
+                        onClick={() => onAlternarPagante(p, p.tipo !== 'pagante')}
+                      >
+                        {ocupado === p.id
+                          ? 'Salvando…'
+                          : p.tipo === 'pagante'
+                            ? '→ Vitalícia'
+                            : '→ Pagante'}
+                      </button>
+                    )}
+                  </td>
                 </tr>
               );
             })}
             {linhas.length === 0 && (
               <tr>
-                <td colSpan={10} className="admin-vazio">
+                <td colSpan={11} className="admin-vazio">
                   Nenhuma conta ativa. Testes e expirados ficam na aba "Testes e expirados".
                 </td>
               </tr>
@@ -170,8 +202,18 @@ export default function PainelFaturamento({
         vencimento nenhum. <strong>Interna</strong> = conta do próprio dono do produto. Sub-logins
         não aparecem: eles usam a assinatura do cliente que os criou, e contá-los dobraria aquela
         receita. Se alguma linha estiver no tipo errado, o motivo é a conta não ter{' '}
-        <code>kiwify_subscription_id</code> nem prazo gravado — dá para corrigir pelo Admin sem
-        mexer em nada do banco.
+        <code>kiwify_subscription_id</code> nem prazo gravado — corrija pelo botão da coluna
+        Cobrança.
+      </p>
+
+      <p className="adm-rodape-nota">
+        O botão <strong>Cobrança</strong> grava só <code>kiwify_email</code>, que é campo
+        informativo: <strong>não mexe em acesso</strong>. <code>assinatura_ate</code> e{' '}
+        <code>acesso_expira_em</code> ficam intactos, então marcar ou desmarcar não bloqueia nem
+        libera ninguém. Ele existe porque o webhook da Kiwify ainda não grava{' '}
+        <code>kiwify_subscription_id</code> (pendência 0.4); quando passar a gravar, a
+        classificação vira automática e a marcação fica redundante. Preencher esse e-mail ainda
+        ajuda: é por ele que o webhook procura o perfil quando um pagamento chega.
       </p>
     </section>
   );
