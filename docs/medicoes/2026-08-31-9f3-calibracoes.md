@@ -459,3 +459,68 @@ cenário que segue declarado como não exercitado em produção.
 
 **61/61 nas assertivas SQL das três etapas da 9F.** As colunas `inspecoes` e `tem_prontuario`
 seguem de pé depois da `calibracoes`.
+
+---
+
+## 12 · REVALIDAÇÃO APÓS A RECUPERAÇÃO DO WSL (01/09/2026)
+
+O §10 acima ficou como o último estado visível para quem lesse o histórico de commits, e a
+impressão que sobrou foi de que **1.000 e 10.000 continuavam pendentes**. Não continuavam: o
+§11 é posterior ao §10 e fechou os três degraus no mesmo dia, 18h50–19h10. Este bloco existe
+para desfazer essa leitura e provar que o fechamento sobreviveu à queda do ambiente.
+
+### 12.1 · O que travou o ambiente, e o que era
+
+Entre 31/08 e 01/09 o Docker ficou inutilizável. A causa **não era o Docker nem o WSL**:
+
+```
+WslService   Status = StopPending   PID = 6624   C:\Program Files\WSL\wslservice.exe
+```
+
+Serviço preso no meio do encerramento. Todo comando de WSL (`--shutdown`, `--status`,
+`-l -v`) espera por ele e pendura — não é lentidão, é espera por algo que nunca conclui.
+O resto da pilha estava íntegro (`vmcompute`, `hns`, `HvHost`, `vmms` todos *Running*;
+`LxssManager` não existe porque o WSL moderno usa `WslService`), e **nenhuma VM estava
+rodando** (`vmmem`/`vmmemWSL` ausentes) — por isso matar o processo travado, com elevação,
+não interrompia escrita nenhuma. Conserto: matar o PID e `Start-Service WslService`.
+
+**Por que o reboot anterior não resolveu:** `LastBootUpTime` apontava 28/08, quatro dias
+antes. Ou o reboot não ocorreu, ou foi *Desligar* em vez de *Reiniciar* — com o Fast Startup
+do Windows, desligar hiberna e restaura a sessão do kernel, trazendo o serviço travado de
+volta no mesmo estado. Some-se que o Docker Desktop está no auto-start e chama o WSL logo no
+login, re-travando antes de dar tempo de olhar.
+
+### 12.2 · Prova de que o laboratório sobreviveu
+
+| item | evidência |
+|---|---|
+| `docker info` | **29.7.2** (conferido pelo CONTEÚDO — ver a armadilha do §10) |
+| stack Supabase local | 11 containers `Up`, `supabase_db` *healthy* |
+| volumes | `supabase_db_nr13-app`, `supabase_storage_nr13-app`, `supabase_edge_runtime_nr13-app` |
+| `docker_data.vhdx` | **12.708 MB**, intacto |
+| dado da org de laboratório | **11.009** chaves em `app_storage` |
+| projeção | `equipamentos_index` **12.486** · `calibracoes_index` **5** |
+| os três estados do rótulo | `NULL` 12.283 · `0` 101 · `>0` 102 — preservados |
+
+Nenhum volume foi recriado, nenhuma massa regenerada, o gate de 50.000 **não** foi repetido.
+
+### 12.3 · Assertivas rodadas hoje contra o banco recuperado
+
+| arquivo | resultado |
+|---|---|
+| `scripts/fase9/testes-9f3.sql` | **31/31** · 0 falhas |
+| `scripts/fase9/testes-9f2.sql` | **18/18** · 0 falhas |
+| `scripts/fase9/testes-9f.sql` (9F.1) | **12/12** · 0 falhas |
+| suíte vitest | **1561/1561** (131 arquivos) |
+| `tsc` + build | verde |
+
+Todas com `ON_ERROR_STOP=1` e saída 0. **61/61**, os mesmos números de 31/08 — o fechamento
+da 9F.3 é reprodutível depois de o ambiente cair e voltar.
+
+> A suíte subiu de 1517 para 1561 porque entraram, entre 31/08 e hoje, o painel admin novo e
+> a trava de massa contra produção (§12 do CLAUDE.md). Nenhum teste da 9F foi alterado.
+
+### 12.4 · Estado da 9F.3
+
+**Fechada localmente.** O que falta é rollout, e ele não foi iniciado: `calibracoes_v9`
+permanece **OFF** em produção.
