@@ -16,6 +16,7 @@ import { prng, inteiro, dataBR, uuid, MARCO } from './prng.mjs';
 import {
   PREFIXO, ORGS_DE_TESTE, tagDaSeed, ehTagDaSeed, tagDaChave,
   podeApagar, podeEscrever, validarAlvo, FAMILIAS_PROIBIDAS,
+  REF_PRODUCAO_NR13, refDoProjeto, ehProducaoProibida,
 } from './seguranca.mjs';
 import { chavesDoEquipamento } from './conteudo.mjs';
 import { jpegSintetico, pdfSintetico, pngSintetico, desvio, MARCA } from './arquivos.mjs';
@@ -187,8 +188,9 @@ test('recusa sem --confirmar-org-de-teste', () => {
   assert.equal(r.ok, false);
 });
 
-test('recusa produção sem a variável de ambiente extra', () => {
-  const url = 'https://qqsesrntfvmdxqxrfvmw.supabase.co';
+test('recusa qualquer URL de produção sem a variável de ambiente extra', () => {
+  // Projeto Supabase qualquer (não o do NR-13): continua valendo a 6ª trava.
+  const url = 'https://outroprojetoqualquer.supabase.co';
   const sem = validarAlvo({ org: ORG, perfil: 'estrutural', url, confirmou: true, producaoPermitida: false });
   assert.equal(sem.ok, false);
   assert.equal(sem.ehProducao, true);
@@ -196,10 +198,75 @@ test('recusa produção sem a variável de ambiente extra', () => {
   assert.equal(com.ok, true);
 });
 
+// ── a trava que NÃO tem override (regra de 01/09/2026) ──────────────────────
+//
+// O ciclo de 20/ago–20/set fechou com 8,32 GB de Cached Egress contra 5 GB de
+// cota, e os picos batem dia a dia com os gates de 1k/10k/50k da Fase 9 rodados
+// contra o banco de produção. A regra passou a ser: massa NUNCA toca o projeto
+// de produção do NR-13. Não é preferência, é trava.
+
+test('BLOQUEIO ABSOLUTO: o ref de produção do NR-13 é recusado', () => {
+  const url = `https://${REF_PRODUCAO_NR13}.supabase.co`;
+  const r = validarAlvo({ org: ORG, perfil: 'estrutural', url, confirmou: true });
+  assert.equal(r.ok, false);
+  assert.equal(r.producaoProibida, true);
+  assert.ok(r.erros.some((e) => e.includes(REF_PRODUCAO_NR13)));
+});
+
+test('NR13_PERMITIR_PRODUCAO NÃO destrava o ref de produção — é o ponto da regra', () => {
+  // Este é o teste que impede a trava de virar decorativa: se algum dia alguém
+  // "consertar" a variável de ambiente para voltar a funcionar, isto quebra.
+  const url = `https://${REF_PRODUCAO_NR13}.supabase.co`;
+  const r = validarAlvo({ org: ORG, perfil: 'estrutural', url, confirmou: true, producaoPermitida: true });
+  assert.equal(r.ok, false);
+  assert.equal(r.producaoProibida, true);
+});
+
+test('o bloqueio ignora maiúsculas, porta e caminho na URL', () => {
+  for (const url of [
+    `https://${REF_PRODUCAO_NR13.toUpperCase()}.supabase.co`,
+    `https://${REF_PRODUCAO_NR13}.supabase.co/`,
+    `https://${REF_PRODUCAO_NR13}.supabase.co:443/rest/v1/`,
+  ]) {
+    const r = validarAlvo({ org: ORG, perfil: 'estrutural', url, confirmou: true, producaoPermitida: true });
+    assert.equal(r.ok, false, url);
+    assert.equal(r.producaoProibida, true, url);
+  }
+});
+
+test('FAIL-CLOSED: sem URL o alvo é recusado, não assumido como local', () => {
+  // O modo antigo tratava URL ausente como "não é produção" e seguia. Se a
+  // variável de ambiente sumir do .env, o gerador não pode adivinhar o alvo.
+  for (const url of [undefined, null, '', '   ']) {
+    const r = validarAlvo({ org: ORG, perfil: 'estrutural', url, confirmou: true });
+    assert.equal(r.ok, false, String(url));
+    assert.ok(r.erros.some((e) => e.includes('--url')));
+  }
+});
+
+test('refDoProjeto extrai o ref só de host supabase.co', () => {
+  assert.equal(refDoProjeto('https://abc123.supabase.co'), 'abc123');
+  assert.equal(refDoProjeto('https://abc123.supabase.co/rest/v1/'), 'abc123');
+  assert.equal(refDoProjeto('http://localhost:54321'), null);
+  assert.equal(refDoProjeto('http://127.0.0.1:54321'), null);
+  assert.equal(refDoProjeto('nao-e-url'), null);
+  assert.equal(refDoProjeto(null), null);
+});
+
+test('ehProducaoProibida é a trava usada também pela limpeza', () => {
+  assert.equal(ehProducaoProibida(`https://${REF_PRODUCAO_NR13}.supabase.co`), true);
+  assert.equal(ehProducaoProibida('https://outroprojeto.supabase.co'), false);
+  assert.equal(ehProducaoProibida('http://localhost:54321'), false);
+  // Fail-closed também aqui: URL ilegível conta como proibida.
+  assert.equal(ehProducaoProibida(''), true);
+  assert.equal(ehProducaoProibida(null), true);
+});
+
 test('aceita o alvo local completo', () => {
   const r = validarAlvo({ org: ORG, perfil: 'estrutural', url: 'http://127.0.0.1:54321', confirmou: true });
   assert.equal(r.ok, true);
   assert.equal(r.ehProducao, false);
+  assert.equal(r.producaoProibida, false);
 });
 
 // ── arquivos sintéticos ─────────────────────────────────────────────────────

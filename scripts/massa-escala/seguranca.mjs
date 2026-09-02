@@ -11,6 +11,63 @@
 /** Prefixo de toda TAG gerada. Qualquer varredura reconhece. */
 export const PREFIXO = 'ZZ-SCALE-F8-';
 
+// ─── TRAVA SEM OVERRIDE: o projeto de produção do NR-13 ─────────────────────
+//
+// **Regra permanente, 01/09/2026: massa de escala NUNCA toca produção.**
+//
+// O que a motivou, medido: o ciclo de 20/ago a 20/set fechou com **8,32 GB de
+// Cached Egress contra 5 GB de cota** (166%), o grace period venceu em 16/08 e
+// o projeto ficou marcado `EXCEEDING USAGE LIMITS` — a um passo de responder
+// 402 para os clientes pagantes. A distribuição diária do consumo bate dia a
+// dia com os gates da Fase 9 rodados contra o banco de produção (picos em
+// 21-23/08 com a instalação da 9A/9B/9C, 25/08 com os 50.000 relatórios da 9E,
+// e o maior deles em 29/08, ~1,8 GB, no gate de 50k da 9F.1). Nos dois dias
+// seguintes, sem laboratório rodando, o consumo foi a zero. Quinze usuários
+// ativos não produzem 8 GB; os gates produzem.
+//
+// Por que esta trava não aceita `NR13_PERMITIR_PRODUCAO`: a variável existe
+// para o caso legítimo de apontar o gerador a um projeto Supabase hospedado
+// que seja descartável. Contra o projeto que atende cliente pagante não existe
+// caso legítimo — e uma trava que se destrava com uma variável de ambiente é
+// exatamente a que se destrava às 2 da manhã, no meio de um gate, "só para
+// medir uma coisa". Por isso a lista abaixo é verificada ANTES de qualquer
+// permissão e não consulta flag nenhuma.
+//
+// Produção passa a servir só para: rollout controlado, organização de teste,
+// poucos registros reais, validação funcional e rollback.
+
+/** Ref do projeto Supabase de PRODUÇÃO do NR-13. */
+export const REF_PRODUCAO_NR13 = 'qqsesrntfvmdxqxrfvmw';
+
+/** Refs onde massa/benchmark/stress é proibido em absoluto. */
+export const REFS_PROIBIDOS = [REF_PRODUCAO_NR13];
+
+/**
+ * Ref do projeto a partir da URL, ou `null` quando não é um host Supabase
+ * hospedado (`localhost`, `127.0.0.1`, qualquer coisa que não seja
+ * `<ref>.supabase.co`).
+ */
+export function refDoProjeto(url) {
+  if (typeof url !== 'string' || !url.trim()) return null;
+  const m = url.trim().match(/^https?:\/\/([a-z0-9-]+)\.supabase\.(?:co|in)\b/i);
+  return m ? m[1].toLowerCase() : null;
+}
+
+/**
+ * A URL aponta para um projeto onde massa é PROIBIDA?
+ *
+ * **Fail-closed:** URL ausente, vazia ou ilegível devolve `true`. Um alvo que
+ * não dá para identificar não pode ser tratado como seguro — foi assim que a
+ * versão anterior deixava passar: `undefined` não casava o regex de produção e
+ * seguia adiante como se fosse local.
+ */
+export function ehProducaoProibida(url) {
+  if (typeof url !== 'string' || !url.trim()) return true;
+  const ref = refDoProjeto(url);
+  if (ref === null) return false; // local declarado: liberado
+  return REFS_PROIBIDOS.includes(ref);
+}
+
 /**
  * Organizações onde a massa pode nascer. Lista BRANCA, e curta de propósito.
  *
@@ -132,9 +189,27 @@ export function validarAlvo({ org, perfil, url, confirmou, producaoPermitida }) 
   if (!perfil) erros.push('--perfil é obrigatório: estrutural | realista');
   else if (!['estrutural', 'realista'].includes(perfil)) erros.push(`perfil inválido: ${perfil}`);
   if (!confirmou) erros.push('--confirmar-org-de-teste é obrigatório');
-  const ehProducao = typeof url === 'string' && /\.supabase\.co/.test(url);
-  if (ehProducao && !producaoPermitida) {
+
+  // FAIL-CLOSED: sem URL o alvo é desconhecido, e desconhecido não é "local".
+  const temUrl = typeof url === 'string' && url.trim() !== '';
+  if (!temUrl) {
+    erros.push('--url é obrigatório (ou VITE_SUPABASE_URL/MASSA_URL no ambiente) — alvo não pode ser adivinhado');
+  }
+
+  const ehProducao = temUrl && refDoProjeto(url) !== null;
+  const producaoProibida = ehProducaoProibida(url);
+
+  // A ordem importa: o bloqueio absoluto é avaliado ANTES da permissão, e não
+  // a consulta. `producaoPermitida` não aparece nesta condição de propósito.
+  if (producaoProibida && temUrl) {
+    erros.push(
+      `PROIBIDO: ${refDoProjeto(url)} é o projeto de PRODUÇÃO do NR-13 (${REF_PRODUCAO_NR13}). ` +
+        'Massa, benchmark e gate de escala rodam só em Supabase local (npx supabase start). ' +
+        'Esta trava não tem variável de ambiente que a destrave — ver o cabeçalho de seguranca.mjs.',
+    );
+  } else if (ehProducao && !producaoPermitida) {
     erros.push('URL de produção exige NR13_PERMITIR_PRODUCAO=1 (e org na lista branca)');
   }
-  return { ok: erros.length === 0, erros, ehProducao };
+
+  return { ok: erros.length === 0, erros, ehProducao, producaoProibida: producaoProibida && temUrl };
 }

@@ -26,7 +26,10 @@
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
-import { podeApagar, ORGS_DE_TESTE, PREFIXO, tagDaChave, ehTagDaSeed } from './seguranca.mjs';
+import {
+  podeApagar, ORGS_DE_TESTE, PREFIXO, tagDaChave, ehTagDaSeed,
+  ehProducaoProibida, refDoProjeto, REF_PRODUCAO_NR13,
+} from './seguranca.mjs';
 
 const argv = process.argv.slice(2);
 const arg = (n, p = null) => { const i = argv.indexOf(`--${n}`); return i === -1 ? p : argv[i + 1]; };
@@ -48,6 +51,19 @@ function env() {
 const ENV = env();
 const URL_SB = arg('url', process.env.MASSA_URL || ENV.VITE_SUPABASE_URL);
 const ANON = process.env.MASSA_ANON || ENV.VITE_SUPABASE_ANON_KEY;
+
+// Trava sem override, ANTES de qualquer outra checagem: este script apaga, e
+// apagar no banco errado não tem desfazer. Ver o cabeçalho de `seguranca.mjs`.
+// Fail-closed: URL ausente também cai aqui.
+if (ehProducaoProibida(URL_SB)) {
+  const ref = refDoProjeto(URL_SB);
+  console.error(
+    ref === REF_PRODUCAO_NR13
+      ? `RECUSADO: ${ref} é o projeto de PRODUÇÃO do NR-13. A limpeza da massa roda só em Supabase local.`
+      : 'RECUSADO: alvo indefinido (--url ausente ou ilegível). O script não adivinha o banco que vai apagar.',
+  );
+  process.exit(1);
+}
 
 if (!ORG || !ORGS_DE_TESTE.includes(ORG)) {
   console.error('RECUSADO: --org obrigatório e precisa estar na lista de organizações de teste.');

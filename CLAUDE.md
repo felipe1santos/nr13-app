@@ -694,3 +694,44 @@ A regra vive em 3 lugares que precisam concordar: `src/features/assinatura/maqui
 
 O payload real da Kiwify não é público: o parser lê por tentativa. Validar com uma compra de teste
 e, se o e-mail vier em campo não previsto, acrescentar o caminho em `parser.ts` **com teste**.
+
+---
+
+## 12. Escala e laboratório — produção não é banco de teste (01/09/2026)
+
+> **REGRA QUE NÃO SE QUEBRA:** massa de escala, benchmark, gate de 1k/10k/50k e stress
+> test rodam **somente em Supabase local** (`npx supabase start`). O projeto de produção
+> do NR-13 — **`qqsesrntfvmdxqxrfvmw`** — nunca recebe massa.
+
+**O que motivou a regra, medido.** O ciclo de 20/ago a 20/set fechou com **8,32 GB de
+Cached Egress contra 5 GB de cota (166%)**, excedente de 3,32 GB. O grace period venceu
+em 16/08 e o projeto passou a exibir `EXCEEDING USAGE LIMITS` — a um passo de responder
+**402** para os clientes pagantes. A distribuição diária bate dia a dia com os gates da
+Fase 9 rodados contra o banco de produção: picos de ~1 GB/dia em 21–23/08 (instalação da
+9A/9B/9C), 25/08 (os 50.000 relatórios da 9E) e o maior deles em **29/08, ~1,8 GB** (gate
+de 50k da 9F.1). Nos dois dias seguintes, sem laboratório rodando, o consumo foi a zero.
+Quinze usuários ativos no mês não produzem 8 GB — os gates produzem.
+
+**Produção passa a servir só para:** rollout controlado, organização de teste, poucos
+registros reais, validação funcional e rollback.
+
+**Onde a trava vive:** `scripts/massa-escala/seguranca.mjs`.
+
+| peça | o que faz |
+|---|---|
+| `REF_PRODUCAO_NR13` / `REFS_PROIBIDOS` | lista de refs onde massa é proibida em absoluto |
+| `refDoProjeto(url)` | extrai `<ref>` de `https://<ref>.supabase.co`; `null` para local |
+| `ehProducaoProibida(url)` | a trava; **fail-closed** — URL ausente/ilegível conta como proibida |
+| `validarAlvo(...)` | usada por `gerar.mjs`; avalia o bloqueio **antes** de qualquer permissão |
+
+**`NR13_PERMITIR_PRODUCAO=1` NÃO destrava esta regra**, e há teste que garante isso
+(`massa.test.mjs`). A variável continua existindo para o caso legítimo de apontar o
+gerador a um projeto hospedado descartável; contra o projeto que atende cliente pagante
+não existe caso legítimo. Uma trava que se destrava com variável de ambiente é a que se
+destrava às 2 da manhã, no meio de um gate, "só para medir uma coisa".
+
+**`limpar.mjs` também é travado** — ele é o que APAGA, e antes desta mudança não tinha
+guarda de produção nenhuma: bastava `--org` na lista branca e uma URL de produção.
+
+Testes: `node --test scripts/massa-escala/massa.test.mjs` (35). A suíte do app segue em
+`src/**/*.test.ts` e não cobre `scripts/` — os dois runners são separados de propósito.
