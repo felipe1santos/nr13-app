@@ -461,3 +461,43 @@ A 7A é a versão que **sabe ler** referência. Depois que qualquer writer da 7B
 snapshot com `logoRef`/`assinaturaRef`, voltar para antes da 7A faria o leitor antigo ignorar
 a referência e cair no dado **vivo** — e aí um documento histórico passaria a exibir a logo
 atual. É exatamente o cenário que o dono recusou ao aprovar o modelo EXPAND → VALIDAR → SWITCH.
+
+---
+
+## SELO DA TOPBAR: conflito não é falha (02/09/2026) — PROPOSTA, NÃO IMPLEMENTADA
+
+**O que acontece hoje.** A topbar mostra `⚠ N falhas` em vermelho para itens em
+`estado: 'conflito'` — decisões aguardando o usuário, que o sistema tratou CORRETAMENTE. O
+código já separa os dois conceitos (`sync.ts`): `conflito` fica fora de `DEFINITIVAS` e fora de
+`RECUSAS_DEFINITIVAS`, `drenar()` o pula, e `Pendencias.tsx:62` já filtra
+`i.estado !== 'conflito'` para a lista de "pendentes". Quem não separa é o SELO.
+
+**Por que importa.** Medido na conta `teste@gmail.com`: duas emissões recusadas pelo piso de
+versão de um equipamento excluído de propósito ficaram treze dias exibindo "2 falhas" em
+vermelho. Não havia falha, não havia retentativa, não havia nada quebrado — havia uma pergunta
+não respondida. Chamar isso de falha empurra urgência onde não existe e, pior, gasta a cor
+vermelha: quando aparecer uma falha de verdade (sessão expirada, cota, sem permissão), ela terá
+o mesmo peso visual de uma decisão que pode esperar. Registro completo:
+`docs/medicoes/2026-09-02-fila-conflitos-equipe-teste.md`.
+
+**Proposta — três estados, e não dois:**
+
+| estado | quando | selo | cor |
+|---|---|---|---|
+| a subir | `aguardando`, sem erro | `Sincronizar (N)` | âmbar (hoje) |
+| **decisão** | `estado === 'conflito'` | **`N aguardando você`** | **azul/neutro, ícone de pergunta** |
+| falha | `permissao`, `cota`, `sessao`, `desconhecido` | `N falhas` | vermelho (hoje) |
+| encerrada | `estado === 'encerrado'` | fora da contagem (já é assim) | — |
+
+**Onde mexe:** `storage.contarPendencias()` (a fonte do selo) passa a devolver os três números
+em vez de um; `SyncStatus` desenha o terceiro selo; `Pendencias.tsx` já tem a separação e não
+muda. Nenhuma mudança de servidor, de fila ou de dado — é só leitura e desenho.
+
+**Cuidados:**
+- O selo de decisão precisa **levar para `/pendencias`** com o card já visível; um número que
+  não diz o que fazer é pior que o vermelho de hoje.
+- `encerrado` continua fora da contagem, como já está — nem falha nem decisão.
+- Teste que trave a regra: item em `conflito` NUNCA entra na contagem de falhas.
+
+**Decisão pendente do dono:** o texto exato do selo (`N aguardando você` × `N decisões` ×
+`N pendências aguardando decisão`) e se o azul compete demais com o âmbar do "Sincronizar".

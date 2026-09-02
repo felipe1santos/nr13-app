@@ -747,9 +747,29 @@ consulta medida na 9C/9E.2.
 > sucesso, sem repreencher coluna nova. Reprojetar **TAG a TAG**, ou chamar
 > `reiniciar_rebuild_busca()` antes. Descoberto pelo `testes-9f3.sql` falhando na SEGUNDA execução.
 
-## 9F.4…9F.6 · demais telas — NÃO INICIADAS
+## 9F.4 · `/livro-registro` — SÓ A ANÁLISE AUTORIZADA (02/09)
 
-`/livro-registro` · `/vencimentos` + `/dashboard` (§15) · `/empresas`. Cada uma repete o molde:
+- [x] **9F.4.0** — AS-IS escrito e medido em produção:
+      `medicoes/2026-09-02-9f4-livro-registro-as-is.md`. O defeito-alvo confirmado no código:
+      **`LivroRegistro.tsx:257` chama `lerTudo()`** — a hidratação INTEGRAL, e esta é a ÚNICA
+      tela que ainda faz isso, porque o livro **não tem projeção**. Medido: a org de 39
+      equipamentos com **1 livro** baixa **780 KB** para desenhar UMA linha de tabela cujo livro
+      pesa 7,2 KB (**95,7 %** de desperdício); o pior em proporção é **99,4 %** (308 KB para 553
+      bytes). **Só 6 das 30 orgs têm livro** — as outras 24 pagam a hidratação inteira para
+      chegar a uma tela vazia. Universo real: **11 livros**, o maior com 10 entradas / 22 KB —
+      logo o gargalo NÃO é o volume do livro, é a hidratação que a tela dispara para achá-lo.
+      Diferente da 9F.3, o parse **não** roda no render (`montarLinhas` é do `useState`), mas
+      descarta 38 dos 39 equipamentos que acabou de parsear. Sem busca, sem paginação, sem
+      virtualização. Reaproveitáveis: `equipamentos_index` já traz tag/descrição/tipo/categoria;
+      faltam só `livro_entradas` e `livro_ultima`. **`projetar_chave` NÃO despacha
+      `nr13_livro_%`** — é a única peça de servidor a acrescentar além das colunas.
+      **Declarado fora de escopo:** o LACRE (§7-quinquies) não migra para a projeção — conferir
+      o lacre no servidor com o dado do servidor seria o servidor atestando a si mesmo.
+- [ ] **9F.4.1…9F.4.6** — NÃO INICIADAS. Escopo proposto no §6 do registro, aguardando decisão.
+
+## 9F.5…9F.6 · demais telas — NÃO INICIADAS
+
+`/vencimentos` + `/dashboard` (§15) · `/empresas`. Cada uma repete o molde:
 entender o caminho atual → escopo → testes antes → benchmark → medir DOM/heap/rede → commit
 próprio → aprovação antes do rollout.
 
