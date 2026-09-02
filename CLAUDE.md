@@ -735,3 +735,30 @@ guarda de produção nenhuma: bastava `--org` na lista branca e uma URL de produ
 
 Testes: `node --test scripts/massa-escala/massa.test.mjs` (35). A suíte do app segue em
 `src/**/*.test.ts` e não cobre `scripts/` — os dois runners são separados de propósito.
+
+---
+
+## 13. SQL em produção se confere por HASH, não por leitura (02/09/2026)
+
+> **REGRA QUE NÃO SE QUEBRA:** antes de rodar um arquivo `.sql` no SQL Editor do
+> dashboard, compare o **SHA-256 do texto que está no editor** com o do arquivo do
+> commit validado. Só rode se for igual.
+
+O que motivou, medido no rollout da 9F.3: o texto chega ao editor por transcrição
+(base64 → `atob` → `setValue`, porque o Monaco fecha aspas e colchetes sozinho e
+corrompe SQL digitado). Num dos cinco arquivos a transcrição trocou **um byte** —
+`array_agg` virou `array_agh`, no offset 5233 de 16.263. Tamanho idêntico, invisível
+na tela.
+
+Aquele arquivo (`busca_consulta.sql`) começa com dois `drop function if exists`,
+obrigatórios porque o tipo de retorno da RPC muda. Rodar o texto corrompido teria
+falhado **depois** dos drops: `buscar_equipamentos` derrubada e a tela de equipamentos
+sem catálogo nenhum — a "tela morta" contra a qual o próprio arquivo põe guarda no topo.
+
+Localizar é barato: hash por bloco de 2 KB para achar o bloco, depois por 64 bytes
+dentro dele. **"Success" não é verificação** — confirma que o servidor executou o que
+recebeu, não que recebeu o que você escreveu. Depois de rodar, conferir por
+estrutura/`prosrc`/`proacl`, nunca pela mensagem.
+
+Registro completo do rollout, com a ordem dos arquivos e o que foi verificado em cada
+um: `docs/medicoes/2026-08-31-9f3-calibracoes.md` §13.

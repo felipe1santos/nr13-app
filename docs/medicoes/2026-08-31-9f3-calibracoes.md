@@ -524,3 +524,97 @@ da 9F.3 é reprodutível depois de o ambiente cair e voltar.
 
 **Fechada localmente.** O que falta é rollout, e ele não foi iniciado: `calibracoes_v9`
 permanece **OFF** em produção.
+
+---
+
+## 13 · ROLLOUT CONTROLADO EM PRODUÇÃO (02/09/2026)
+
+Projeto `qqsesrntfvmdxqxrfvmw`, organização de teste `99f642d3-6efd-446d-9e76-d234ad8d211c`
+(`teste@gmail.com`). Aplicação pelo SQL Editor do dashboard, sem Personal Access Token.
+
+### 13.1 · A conferência que passou a valer mais que o "Success"
+
+Cada arquivo foi injetado no editor por base64 e teve o **SHA-256 do texto no editor
+comparado com o do arquivo do commit validado** ANTES de rodar. Não é zelo decorativo: no
+arquivo 3 o hash **divergiu** — mesmo tamanho, um byte trocado. Localizado por hashes de
+bloco (2 KB → 64 B), o defeito era `array_agg` → `array_ag**h**` no offset 5233, corrupção da
+transcrição do base64. Rodar aquilo teria falhado DEPOIS dos dois `drop function`, deixando
+`buscar_equipamentos` derrubada — exatamente a "tela morta" contra a qual o próprio
+`busca_consulta.sql` põe guarda no topo. Corrigido, o hash bateu e o arquivo rodou.
+
+> **REGRA:** SQL colado em produção se confere por hash contra o arquivo do commit, nunca
+> por leitura. Um byte é invisível em 16 KB e o "Success" não distingue os dois.
+
+### 13.2 · Ordem aplicada, e o que foi verificado depois de cada um
+
+| # | arquivo | verificação por estrutura/`prosrc` |
+|---|---|---|
+| 1 | `busca_index.sql` | `calibracoes` `integer` / nullable / **sem default**; 0 linhas não-nulas de 17; policies de `equipamentos_index` e `relatorios_index` presentes |
+| 2 | `busca_manutencao.sql` | `projetar_equipamento` chama `projetar_calibracoes`, conta de `calibracoes_index` e grava `calibracoes` no `on conflict`; `reconstruir_indice_busca` com o no-op explícito; `execute` negado a `anon`/`authenticated` nas 8 de manutenção |
+| 3 | `busca_consulta.sql` | `buscar_equipamentos` com **27** colunas de saída, devolve e seleciona `calibracoes`, `security definer`, `execute` só para `authenticated` |
+| 4 | `busca_index_rpc.sql` | `projetar_chave` despacha `nr13_calibracoes_` (offset 18), exclui `nr13_prontuario_meta_`, e **não** despacha `nr13_calibracao_item_`; `aplicar_mutacao_storage` chama `projetar_chave`, mantém pendência e guarda de assinatura, e **não** consulta `v2_ativa` |
+| 5 | `calibracoes_v9_flag.sql` | coluna `boolean not null default false`; `definir_calibracoes_v9` existe com `execute` negado a `anon` e `authenticated` |
+
+**Guarda de colunas antes do arquivo 2:** `vida_base`, `vida_prox_anos`, `execucao_inspecao`,
+`data_ref`, `componente_id`, `prox_calibracao` e `calibracoes` conferidas uma a uma — corpo de
+função plpgsql não é validado na criação, e coluna ausente só falharia na reprojeção.
+
+**Dois falsos positivos, registrados para não virarem lenda:**
+`nr13_calibracao_item` aparece no `prosrc` de `projetar_chave` **só em comentário**
+(confirmado por varredura linha a linha, ignorando linhas `--`). E `anon` tem `execute` em
+`aplicar_mutacao_storage` por **grant explícito pré-existente** do `armazenamento_v2.sql` —
+não veio deste rollout, e a função recusa `auth.uid()` nulo.
+
+### 13.3 · Reprojeção TAG a TAG — os três estados, medidos em produção
+
+Nenhum rebuild global. `projetar_equipamento(org, tag)`, uma TAG por vez.
+
+Depois de reprojetar **só** `ZZ-TESTE-P2`:
+
+| TAG | `calibracoes` | leitura | `projected_at` |
+|---|---|---|---|
+| ZZ-TESTE-P2 | **1** | contei, há | 02/09 04:11 |
+| COMPRESSOR V8-15/200L | **NULL** | não contei | 29/08 19:39 |
+| DASDSA | **NULL** | não contei | 29/08 19:39 |
+| ZZ-FASE3 | **NULL** | não contei | 29/08 19:39 |
+
+**É a prova de que `NULL` ≠ `0` em produção:** reprojetar uma TAG não tocou nas outras. Em
+seguida as três restantes foram reprojetadas e foram para **0** — estado que surgiu
+naturalmente (elas realmente não têm calibração), não fabricado por INSERT.
+
+Convergência ao fim: `auditar_projecao` com `convergiu: true`, pendências **0** na org e **0**
+em todas; `calibracoes` não-nula em **4** linhas, **todas** da org de teste e **0** fora dela.
+
+### 13.4 · Flag ON, validação, e volta
+
+A tela em produção já servia o bundle com `calibracoes_v9` (conferido no `index-*.js`), então
+o teste ON/OFF é real e não simulado.
+
+| momento | o que a tela mostrou |
+|---|---|
+| OFF (baseline) | filtros tipo/proprietário, PMTA, `0 Calibrações` ×3 e `1 Calibrações` |
+| ON | catálogo do servidor com busca por TAG/fabricante/cliente ("4 resultados"), fotos, cliente com cidade, `Nenhuma calibração` ×3 e `1 calibração` |
+| ON · abrir `ZZ-TESTE-P2` | semeadura sob demanda trouxe o componente `PSV-GATE-9F3` e o lote de 01/09/2026, **1/1 calibrado · COMPLETO** — o risco declarado do §7 do `calibracoes_v9_flag.sql`, exercido e aprovado |
+| ON · abrir `DASDSA` (0) | "Nenhum componente" / "Nenhum lote ainda", sem erro |
+| OFF (rollback) | tela **idêntica** ao baseline |
+
+Depois do rollback: `calibracoes_v9` **0 ON** entre 30 orgs; `busca_v9`, `inspecoes_v9` e
+`prontuarios_v9` em 0; `boot_v9` nas **mesmas duas** organizações de antes; `v2_ativa` 30;
+pendências 0. As 4 contagens projetadas **permanecem** — são fato derivado, e desligar a flag
+muda quem lê, não o que foi contado.
+
+### 13.5 · O que ficou provado ONDE
+
+**PROVADO EM PRODUÇÃO:** os cinco arquivos aplicados e verificados por estrutura; `NULL` e
+`>0` coexistindo na mesma organização; `0` surgindo de reprojeção legítima; fluxo real de
+calibração criado pela interface e lido pela projeção; flag ON e OFF com paridade funcional;
+rollback sem perda; nenhuma outra organização afetada.
+
+**PROVADO SOMENTE EM LABORATÓRIO/TESTES:** escala de 1k/10k/50k (§8 e §11), volume de
+degradação do rótulo, e o comportamento do `0` em massa — laboratório local, nunca produção
+(§12 do CLAUDE.md).
+
+### 13.6 · Estado ao fim
+
+Produção com o esquema da 9F.3 instalado e **`calibracoes_v9` OFF em todas as 30
+organizações**. Nenhum cliente teve a tela alterada. `cmam.caldeiras` intocada.
