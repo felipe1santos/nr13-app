@@ -747,7 +747,27 @@ consulta medida na 9C/9E.2.
 > sucesso, sem repreencher coluna nova. Reprojetar **TAG a TAG**, ou chamar
 > `reiniciar_rebuild_busca()` antes. Descoberto pelo `testes-9f3.sql` falhando na SEGUNDA execução.
 
-## 9F.4 · `/livro-registro` — SÓ A ANÁLISE AUTORIZADA (02/09)
+## 9F.4 · `/livro-registro` — **CONCLUÍDA ✅ pelo dono em 03/09/2026**
+
+> **🚪 9F.4 APROVADA E FECHADA.** Rollout controlado de 16 passos executado por inteiro em
+> produção (`medicoes/2026-09-03-9f4-rollout-producao.md`): 6/6 SQL aplicados e verificados,
+> deploy confirmado pelo bundle, `livro_v9` ON só em `teste@gmail.com`, **zero `lerTudo()` na
+> lista** (2 requisições, ambas RPC), busca aprovada, abertura sob demanda aprovada, Livro
+> completo real aprovado, lacres/SHA reais aprovados, **paridade OFF × ON byte a byte**,
+> rollback aprovado. **`livro_v9` OFF nas 30 organizações**, demais flags preservadas,
+> clientes intocados, `EQUIPE TESTE` e `VASO A23` intactos, pendências 0, auditoria
+> convergente, suíte/build verdes.
+>
+> **DUAS limitações ficam DECLARADAS e não são bloqueantes:**
+> 1. **`Último registro = MAX(data)`** — regra aprovada e provada em laboratório; em produção
+>    os livros reais não apresentaram divergência de ordem, e o dono decidiu **não** acrescentar
+>    ocorrência manual para forçar o caso (entrada de livro é imutável).
+> 2. **Escala / keyset / índice parcial** — provados em laboratório. **NÃO repetir massa em
+>    produção.**
+>
+> **Não ligar `livro_v9` para nenhuma organização de cliente sem autorização nova.**
+
+### Histórico da análise (02/09)
 
 - [x] **9F.4.0** — AS-IS escrito e medido em produção:
       `medicoes/2026-09-02-9f4-livro-registro-as-is.md`. O defeito-alvo confirmado no código:
@@ -794,14 +814,54 @@ consulta medida na 9C/9E.2.
 > executado — o grupo de abas do Chrome foi substituído no meio do trabalho. O que existe é
 > medição de servidor e prova estática de ausência de `lerTudo()`.
 
-## 9F.5…9F.6 · demais telas — NÃO INICIADAS
+## 9F.5 · `/vencimentos` + `/dashboard` — SÓ A ANÁLISE AUTORIZADA (03/09)
 
-`/vencimentos` + `/dashboard` (§15) · `/empresas`. Cada uma repete o molde:
-entender o caminho atual → escopo → testes antes → benchmark → medir DOM/heap/rede → commit
-próprio → aprovação antes do rollout.
+- [x] **9F.5.0** — AS-IS escrito e medido em produção:
+      `medicoes/2026-09-03-9f5-vencimentos-dashboard-as-is.md`.
+
+> **A ANÁLISE MUDOU O ESCOPO DA ETAPA.** O agregado do servidor **já existe, já está aplicado
+> em produção (25/08) e já está ligado** — `vencimentos_org(p_limite)` +
+> `src/services/vencimentosServidor.ts` (9D.5), com selo de procedência, KPIs que sabem dizer
+> "não sei" e lista truncada declarada. **O que falta não é construir: é desacoplar.**
+> `carregarPainel()` decide por **`bootV9Ativo()`** — a flag do BOOT — em vez de flag própria.
+> Nas 2 orgs com `boot_v9` ON o painel já vem do servidor; nas 28 restantes ele varre o cache.
+>
+> **Medido hoje** (org de teste, `boot_v9` ON): `/dashboard` por navegação SPA = **1
+> requisição** (`rpc/vencimentos_org`) e **zero `app_storage`**; `/vencimentos` em boot completo
+> = 17 requisições, com **`vencimentos_org` chamado DUAS vezes** (`Layout.tsx:138` + o hook da
+> página). Selo "Dados de 13:43" funcionando.
+>
+> **Caminho local (28 orgs):** `listarVencimentos()` faz **4 `JSON.parse` por equipamento**
+> (`info`, `vida`, `historico_indice`, `calibracoes`) + 1 varredura de prefixo. Sem busca, sem
+> paginação, sem virtualização em nenhuma das duas telas.
+>
+> **NÃO precisa de projeção nova nem de SQL novo.** `equipamentos_index`, `relatorios_index` e
+> `calibracoes_index` já têm tudo. **Risco para documentos/PDF: nenhum** — as telas não tocam
+> template, artefato nem chave por TAG.
+>
+> **Desenho proposto (NÃO implementado):** `vencimentos_v9_flag.sql` no molde das seis
+> anteriores · 7º degrau em `flag.ts` · `if (vencimentosV9Ativa() || bootV9Ativo())` — a
+> disjunção evita regredir as 2 orgs que hoje dependem de `boot_v9` · resolver a chamada dupla
+> antes do rollout.
+>
+> **Implementação NÃO autorizada.**
+
+### Achado fora do escopo, registrado em 03/09
+
+**`/relatorios` é a única tela de lista sem flag** (`Relatorios.tsx:271` →
+`listarEquipamentos()` → `await lerTudo()`), e `montarResumo` lê **5 chaves por equipamento**,
+incluindo **`nr13_fotos_`** — a família mais pesada do sistema. `storageV2.lerTudo` tem janela
+de 60 s e hidratação incremental, o que esconde o custo em navegação rápida, mas com cache frio
+ou sob `boot_v9` ela volta a baixar a organização. Decidir se vira 9F.5-bis ou entra na 9F.6.
+
+## 9F.6 · `/empresas` — NÃO INICIADA
+
+Busca na lista local. Mesmo molde: entender o caminho atual → escopo → testes antes →
+benchmark → medir DOM/heap/rede → commit próprio → aprovação antes do rollout.
 
 **Dashboard offline:** a UI mostra a **hora do último sync** — nunca apresenta dado antigo como
-recém-consultado.
+recém-consultado. **Implementado e no ar** (`SeloPainel`), mas **nunca exercitado com a rede
+desligada** — fica declarado.
 
 ---
 

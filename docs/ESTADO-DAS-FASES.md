@@ -104,7 +104,10 @@ Sempre use um destes. Nunca "concluído".
 | **4** | Portal: arquitetura de leitura (A-02) | ✅ **CONCLUÍDA** | **P3 FECHADO ✅** aprovado 20/08 | `plans/2026-08-20-fase4-task-level.md` |
 | **5** | Fotos: thumbnail, EXIF, teto de altura (A-08) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** | — | `plans/2026-08-20-fase5-task-level.md` · `medicoes/2026-08-20-fase5-producao-antes-depois.md` |
 | **6** | Recuperação do fallback base64 (A-10) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** nas 3 famílias, com SHA-256 idêntico | — | `plans/2026-08-20-fase6-task-level.md` |
-| **9** | Escala, busca e carregamento sob demanda | 🟢 **9A–9E + 9F.1 + 9F.2 CONCLUÍDAS** · `boot_v9` em 2 orgs (teste + piloto real); **`busca_v9`, `inspecoes_v9` e `prontuarios_v9` OFF nas 30**; `cmam.caldeiras` NÃO habilitada | **P9.1 ✅** · **P9.2 ✅** (23/08) · **P9.3 ✅** (25/08) · **9E FECHADA ✅** (28/08) · **P9.4 ✅** (31/08) · P9.5 | `plans/2026-08-22-fase9-task-level.md` · `specs/2026-08-22-fase9-escala-busca-design.md` |
+| **9** | Escala, busca e carregamento sob demanda | 🟢 **9A–9E + 9F.1…9F.4 CONCLUÍDAS** · `boot_v9` em 2 orgs (teste + piloto real); **`busca_v9`, `inspecoes_v9`, `prontuarios_v9`, `calibracoes_v9` e `livro_v9` OFF nas 30**; `cmam.caldeiras` NÃO habilitada. **9F.5 = só ANÁLISE autorizada** (03/09) | **P9.1 ✅** · **P9.2 ✅** (23/08) · **P9.3 ✅** (25/08) · **9E ✅** (28/08) · **P9.4 ✅** (31/08) · **9F.4 ✅** (03/09) · P9.5 | `plans/2026-08-22-fase9-task-level.md` · `specs/2026-08-22-fase9-escala-busca-design.md` |
+| **10C** | **Especificação/mapeamento visual do novo documento** | 🟡 **REGISTRADA, NÃO INICIADA** (03/09) — ver §"Novo layout documental" | — | *(a escrever)* |
+| **11** | **Novo relatório em PDF vetorial/híbrido** no padrão da 10C | 🟡 **REGISTRADA, NÃO INICIADA** (03/09) | — | *(a escrever)* |
+| **12** | **Expansão do padrão** ao Prontuário e demais documentos autorizados | 🟡 **REGISTRADA, NÃO INICIADA** (03/09) | — | *(a escrever)* |
 | **8** | Escala, dataset e medições | ✅ **CONCLUÍDA** (22/08) — diagnóstico aprovado; o critério de produto **NÃO PASSA em grande escala**, e isso é o mandato da Fase 9 | — | `plans/2026-08-22-fase8-task-level.md` · `medicoes/2026-08-22-fase8-fechamento.md` |
 | **7** | Logo e rubrica por conteúdo (A-05) | ✅ **CONCLUÍDA · VALIDADA EM PRODUÇÃO** (7A EXPAND + 7B SWITCH, Portal e offline real) | **P4 FECHADO ✅** aprovado 22/08 | `plans/2026-08-20-fase7-task-level.md` · `medicoes/2026-08-20-fase7b-validacao-producao.md` |
 | **8** | Escala, dataset determinístico e medições (A-17) | 🟡 **PLANEJADA** — AS-IS, dataset e plano de medição escritos; **nenhuma massa gerada** | — | `plans/2026-08-22-fase8-task-level.md` |
@@ -395,6 +398,47 @@ de integridade. Correção **não** implementada; pendência registrada em `PEND
 **Ressalvas que ficam registradas** (não bloqueiam, mas não devem ser esquecidas): drenagem
 offline não exercitada manualmente; primeiro clique em "Manter a minha" sem efeito, não
 diagnosticado.
+
+---
+
+## Novo layout documental e PDF vetorial — REGISTRADO EM 03/09/2026, NÃO INICIADO
+
+> **Decisão do dono, registrada para o futuro. Nenhum template foi alterado, e nenhum
+> será antes da autorização de cada fase.**
+
+O arquivo **`relatorio-nr13.html`**, a ser fornecido pelo dono, é a **referência visual
+oficial** da futura reformulação documental.
+
+> ⚠️ **PENDENTE DE ENTREGA:** em 03/09/2026 o arquivo **ainda não estava no repositório
+> nem foi anexado na sessão**. A Fase 10C não pode começar sem ele — é a fonte da
+> especificação. Quando chegar, guardar em `docs/referencias/relatorio-nr13.html` e
+> registrar o SHA-256, porque referência visual que muda em silêncio produz duas
+> especificações diferentes com o mesmo nome.
+
+| Fase | O quê |
+|---|---|
+| **10C** | Especificação e **mapeamento visual**: o que cada bloco do padrão representa, de qual chave do §2 do `CLAUDE.md` ele sai, e como se comporta em A4 e no celular |
+| **11** | **Novo relatório já em PDF vetorial/híbrido** usando esse padrão — deixa de nascer de `html2canvas` rasterizado |
+| **12** | Expansão do padrão ao **Prontuário** e demais documentos autorizados |
+
+### FORA desta mudança — preservados como estão
+
+- certificados de calibração;
+- **Livro / Registro de Segurança**;
+- **capa** do Registro de Segurança;
+- **termo de abertura**;
+- **documentos históricos imutáveis** (todo relatório com `pdfRef` — §7-quater do
+  `CLAUDE.md`: relatório finalizado é ARQUIVO, não receita; ele não se remonta, e por isso
+  não pode ser "reformatado" retroativamente).
+
+### Restrições que já valem, antes de escrever a primeira linha
+
+- **Nada de retrofit.** Aplicar o layout novo a um relatório já emitido reescreveria um
+  registro técnico assinado. O padrão novo vale para emissões novas.
+- O PDF vetorial muda **como o documento é desenhado**, não **o que ele contém**: as regras
+  de injeção do §2 e a ordem do §7 do `CLAUDE.md` continuam valendo.
+- As regras de folha do §5 (máx. 4 fotos, overflow em folha nova, sem corte, sem vazio)
+  continuam sendo o critério de aceite.
 
 ---
 

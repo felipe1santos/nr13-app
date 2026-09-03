@@ -1,7 +1,22 @@
-# PONTO DE RETOMADA — 03/09/2026 (9F.4 ROLLOUT COMPLETO em produção · flag de volta para OFF)
+# PONTO DE RETOMADA — 03/09/2026 (9F.4 FECHADA ✅ · 9F.5 analisada, implementação não autorizada)
 
-> **A DECISÃO QUE ESTÁ NA SUA MÃO HOJE:** ligar `livro_v9` para a primeira organização de
-> CLIENTE, ou fechar a 9F.4 com o rollout na organização de teste.
+> **9F.4 = CONCLUÍDA ✅**, aprovada pelo dono em 03/09, com duas limitações DECLARADAS e não
+> bloqueantes: a divergência de `Último registro = MAX(data)` (provada só em laboratório) e a
+> escala/keyset/índice (idem — **não repetir massa em produção**).
+> **Não ligar `livro_v9` para nenhuma organização de cliente agora.**
+>
+> **A DECISÃO QUE ESTÁ NA SUA MÃO AGORA:** autorizar (ou não) a **implementação da 9F.5**. A
+> análise está em `medicoes/2026-09-03-9f5-vencimentos-dashboard-as-is.md` e o resumo é curto:
+> o agregado do servidor **já existe e já está em produção desde 25/08** — falta **desacoplá-lo
+> do `boot_v9`** e dar a ele flag própria. Não precisa de projeção nova nem de SQL de schema.
+> Medido: `/dashboard` por SPA = **1 requisição** e zero `app_storage`; `/vencimentos` no boot
+> chama `vencimentos_org` **duas vezes**. **Nenhum risco para documentos/PDF.**
+>
+> Também registrado, sem implementar: **Fase 10C / 11 / 12** — o novo layout documental e o PDF
+> vetorial, com `relatorio-nr13.html` como referência visual oficial. **O arquivo ainda não foi
+> entregue** (ver `ESTADO-DAS-FASES.md`).
+>
+> ---
 >
 > O rollout de 16 passos foi executado inteiro em 03/09 (`2026-09-03-9f4-rollout-producao.md`):
 > seis SQL aplicados e verificados por hash e por `prosrc`, reprojeção TAG a TAG só na org de
