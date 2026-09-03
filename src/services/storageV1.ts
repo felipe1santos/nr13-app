@@ -97,11 +97,12 @@ const CHAVES_PRESERVADAS = new Set([
   'nr13_assinatura_ate',
   'nr13_assinatura_sucesso_pendente',
 
-  // Flags de caminho (armazenamento v2 e busca v9): são decisão de sessão vinda
-  // do servidor, não cache de dado. Apagá-las aqui faria a próxima leitura cair
-  // no caminho antigo sem que nada avisasse.
+  // Flag de caminho do ARMAZENAMENTO: é decisão de sessão vinda do servidor, não
+  // cache de dado. Apagá-la aqui faria a próxima leitura cair no caminho antigo
+  // sem que nada avisasse.
+  //
+  // 9G.3 · `nr13_busca_v9` saía junto e foi removida: a flag não existe mais.
   'nr13_armazenamento_v2',
-  'nr13_busca_v9',
 
   // Fila de sincronização offline: NÃO pode ser apagada pelo reconcile/limparCacheDados,
   // senão perderíamos as operações pendentes (escritas/deletes feitos offline).

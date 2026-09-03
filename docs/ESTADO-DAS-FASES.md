@@ -6,13 +6,26 @@
 > **REGRA:** este arquivo é atualizado NO MOMENTO em que o estado muda — commit, push,
 > redeploy, validação, portão. Não no fim da fase.
 
-**Última atualização:** 31/08/2026 — **9F.3 IMPLEMENTADA LOCALMENTE** (gate de navegador pendente); produção em HTTP 402 por cota, nada aplicado lá
-**Branch:** `main` · **Suíte:** 1508 testes / 127 arquivos, 0 falhas · **Build:** verde
+**Última atualização:** 03/09/2026 — **FASE 9 CONCLUÍDA ✅** · 8/8 flags foram a 30/30, gate global verde e os CAMINHOS LEGADOS REMOVIDOS do cliente e dos testes. Falta só o `drop` das colunas no banco (inerte: ninguém mais as lê).
+**Branch:** `main` · **Suíte:** 1608 testes / 135 arquivos, 0 falhas · **Build:** verde · **Bundle:** `assets/index-sRCLN57V.js`
 
 > ### 🔖 VOLTANDO DEPOIS DE UMA PAUSA? Leia [`PONTO-DE-RETOMADA.md`](PONTO-DE-RETOMADA.md).
 > Ele tem o estado de produção, o que falta decidir (a **9D**) e **todos os endereços de acesso** —
 > sistema, Supabase e Coolify.
 
+
+## ✅ FASE 9 — CONCLUÍDA (03/09/2026)
+
+| | |
+|---|---|
+| rollout | as **6 ondas** da 9G.3 em **30/30 organizações**, com auditoria convergindo nas trinta e 0 pendências |
+| gate global | 8 telas navegadas com **hidratação integral ZERO**, livro real com cadeia íntegra, busca, offline e recuperação |
+| remoção | caminhos legados **fora** do cliente e dos testes (−2.966 linhas). `flag.ts` foi de 9 flags e uma escada de 8 degraus para **UMA** (`v2_ativa`, que não é da Fase 9) |
+| preservado | boot leve (virou o único caminho), fila durável, offline, RLS, PDFs e Livro históricos, e a saída `legado=1` para relatório sem PDF arquivado |
+| pendente | `supabase/fase9_remocao_flags.sql` **NÃO aplicado** — o editor SQL do dashboard não carregou em nenhuma das quatro tentativas. É inerte: o cliente já não lê as colunas, elas apenas ocupam espaço em `org_sync` |
+| medições | `medicoes/2026-09-03-9g3-ondas-1-a-6-e-gate-global.md` e `medicoes/2026-09-03-9g3-remocao-legados.md` |
+
+---
 
 ## ✅ P1, P2 e P3 APROVADOS · FASE 4 CONCLUÍDA
 
