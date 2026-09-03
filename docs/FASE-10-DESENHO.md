@@ -294,6 +294,15 @@ do campo novo significa o comportamento antigo**. Sem retrofit, sem varredura.
 | filtros: **data, equipamento/TAG, empresa, tipo** | quatro eixos |
 | **depois**: badges RASCUNHO / FINALIZADO | entra junto com a 10B.1 |
 
+> **CORREÇÃO (03/09/2026, medido em produção):** as duas frases acima estavam
+> ERRADAS. Com `busca_v9` ligada, `/relatorios` **já lista RELATÓRIOS** — a tela
+> da 9E (`RelatoriosV9`), ordenada por data decrescente, com filtro de período e
+> tipo — e as RPCs `buscar_relatorios`/`contar_relatorios` **já existem em
+> produção**. O roteamento é `busca_v9 ON → RelatoriosV9`; o catálogo da 9F.6 só
+> aparece com `busca_v9` OFF. Logo, o que falta para a Fase 10 nesta tela é
+> menos do que estava escrito: **badges RASCUNHO/FINALIZADO, ícone PDF à
+> esquerda e o filtro por EMPRESA.**
+
 **A boa notícia:** `relatorios_index` já tem `emissao`, `validade`, `tipo`,
 `status`, `profissional`, `tag`, `codigo`, `pdf_ref` e o índice `(org_id, tag)`.
 Falta uma RPC de listagem (`buscar_relatorios`) com keyset **por data**, no molde
