@@ -200,9 +200,13 @@ parse, 8 da escada de flags.
   imutabilidade; a massa da 9F.4 usa `VL-*` e `ZZ-LIV`, criadas e removidas pelo
   próprio script.
 
-## 10 · Roteiro de rollout controlado (NÃO EXECUTADO)
+## 10 · Roteiro de rollout controlado — EXECUTADO EM PARTE (03/09/2026)
 
-Nada disto foi feito. É a proposta para quando houver autorização.
+> **Registro do que foi feito: `2026-09-03-9f4-rollout-producao.md`.** Os passos 1, 2, 3,
+> 4 e 6 abaixo foram executados em produção; o passo 5 (flag ON e validação da tela) NÃO,
+> porque o bundle publicado em `app.nr13sistema.com.br` ainda não tem o front da 9F.4 —
+> `livro_v9`, `buscar_livros`, `contar_livros`, `livro_entradas` e `livro_ultima` aparecem
+> **0 vezes** nele. `livro_v9` ficou **OFF nas 30 organizações**.
 
 1. Aplicar em produção, **nesta ordem**, conferindo cada arquivo **por SHA-256
    antes de rodar** (§13 do `CLAUDE.md`) e por `prosrc` depois:

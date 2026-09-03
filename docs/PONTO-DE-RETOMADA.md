@@ -1,8 +1,22 @@
-# PONTO DE RETOMADA — 31/08/2026 (9F.3 COMPLETA local, aguardando aprovação · produção em 402 · WSL exige reboot)
+# PONTO DE RETOMADA — 03/09/2026 (9F.4: SQL EM PRODUÇÃO, flag OFF · falta publicar o front)
 
-> **A DECISÃO QUE ESTÁ NA SUA MÃO:** aprovar (ou não) a **9F.3 local**. Ela está construída,
-> medida e provada — falta só a sua palavra. O ROLLOUT em produção é decisão separada, e hoje
-> nem seria possível: o gateway responde 402.
+> **A DECISÃO QUE ESTÁ NA SUA MÃO HOJE:** publicar (ou não) o front da **9F.4** no Coolify.
+> Os seis arquivos SQL da 9F.4 já estão aplicados e verificados em produção
+> (`2026-09-03-9f4-rollout-producao.md`), a organização de teste está reprojetada e a RPC
+> `buscar_livros` responde certo sob a identidade real dela. **`livro_v9` está OFF nas 30
+> organizações** e vai continuar até o bundle publicado conter a 9F.4 — hoje ele tem **0**
+> ocorrências de `livro_v9`/`buscar_livros`/`contar_livros`/`livro_entradas`/`livro_ultima`.
+> Sem o deploy, ligar a flag não muda nada na tela e a validação não teria significado.
+>
+> **Estado do schema é aditivo e inerte:** duas colunas nulas, duas funções novas, um índice
+> parcial e uma flag desligada. O bundle publicado não chama nada disso, e o
+> `buscar_equipamentos` que ele chama só ganhou duas colunas no fim do retorno.
+>
+> **Armadilha de ferramenta que custou caro (§8 do registro):** no SQL Editor do dashboard,
+> aba com `document.visibilityState === 'hidden'` não repinta o Monaco, cola conteúdo velho
+> no `ctrl+v` e **o Run não dispara** — sem erro nenhum. Conferir `visible` ANTES de agir.
+
+> **Histórico abaixo (31/08):** a 9F.3 local aguardava aprovação e produção respondia 402.
 
 > **Leia só este arquivo para voltar ao trabalho.** Ele diz onde paramos, o que está de pé em
 > produção, e qual é a próxima decisão. Nada aqui depende de lembrar da conversa.
