@@ -62,7 +62,13 @@ export default function Vencimentos() {
             <div className="fj-kpi-label">Vencidos</div>
             <div className="fj-kpi-value" style={{ color: (kpis.vencidos ?? 0) > 0 ? 'var(--crit)' : undefined }}>{textoContador(kpis.vencidos)}</div>
             <div className={`fj-kpi-delta ${(kpis.vencidos ?? 0) > 0 ? 'down' : 'up'}`}>
-              {(kpis.vencidos ?? 0) > 0 ? 'ação imediata' : 'nenhum vencido'}
+              {/* Ver o mesmo bloco em `Dashboard.tsx`: indefinido é "não contei",
+                  e "nenhum vencido" é afirmação sobre prazo de equipamento. */}
+              {kpis.vencidos === undefined
+                ? 'sem resposta do servidor'
+                : kpis.vencidos > 0
+                  ? 'ação imediata'
+                  : 'nenhum vencido'}
             </div>
           </div>
           <div className="fj-kpi-icon" style={{ background: 'var(--crit-bg)', color: 'var(--crit)' }}>

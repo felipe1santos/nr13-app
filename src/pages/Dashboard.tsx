@@ -126,7 +126,15 @@ export default function Dashboard() {
             <div className="fj-kpi-label">Vencidos</div>
             <div className="fj-kpi-value" style={{ color: (kpis.vencidos ?? 0) > 0 ? 'var(--crit)' : undefined }}>{textoContador(kpis.vencidos)}</div>
             <div className={`fj-kpi-delta ${(kpis.vencidos ?? 0) > 0 ? 'down' : 'up'}`}>
-              {(kpis.vencidos ?? 0) > 0 ? 'ação imediata' : 'nenhum vencido'}
+              {/* Contador INDEFINIDO é "o servidor não respondeu", não zero. O
+                  `?? 0` daqui fazia o número exibir "—" e a legenda logo abaixo
+                  afirmar "nenhum vencido" — a única frase da tela que não se
+                  pode dizer sem ter contado. Visto no gate offline da 9F.5. */}
+              {kpis.vencidos === undefined
+                ? 'sem resposta do servidor'
+                : kpis.vencidos > 0
+                  ? 'ação imediata'
+                  : 'nenhum vencido'}
             </div>
           </div>
           <div className="fj-kpi-icon" style={{ background: 'var(--crit-bg)', color: 'var(--crit)' }}>

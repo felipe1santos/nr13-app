@@ -31,7 +31,7 @@ import {
   listarVencimentos,
   ordenarVencimentos,
 } from './vencimentos';
-import { bootV9Ativo } from './flag';
+import { bootV9Ativo, vencimentosV9Ativa } from './flag';
 import { listarChavesComPrefixo } from './storage';
 import type { ItemVencimento } from './vencimentos';
 
@@ -179,13 +179,30 @@ export async function painelDoServidor(
 /**
  * O painel, da fonte que valer para esta organização.
  *
- * Sem `boot_v9` nada muda: o cache está completo e o cálculo local é o de
- * sempre. Com a flag ligada o cache NÃO tem a organização, então consultar o
- * local aqui devolveria zero e ainda pagaria a varredura — o pior dos dois
- * mundos.
+ * Sem nenhuma das duas flags nada muda: o cache está completo e o cálculo local
+ * é o de sempre.
+ *
+ * ## A DISJUNÇÃO (9F.5.2), e por que ela não é preguiça
+ *
+ * `vencimentos_v9` é a flag DESTA tela; `boot_v9` é a flag do BOOT. Elas somam.
+ *
+ *   · `vencimentos_v9` ligada → agregado do servidor, mesmo com o cache
+ *     completo. É o que permite ligar o painel numa organização sem mexer no
+ *     boot dela;
+ *   · `boot_v9` ligada → agregado do servidor OBRIGATORIAMENTE, mesmo com
+ *     `vencimentos_v9` desligada. Sob boot leve o cache NÃO tem a organização:
+ *     `listarVencimentos()` aqui contaria zero equipamentos e a tela diria
+ *     "tudo em dia" sobre uma conta que nunca foi lida. Trocar um painel certo
+ *     por um painel vazio não é rollback, é o defeito.
+ *
+ * Por isso o rollback de `vencimentos_v9` NÃO devolve ao caminho local quem tem
+ * boot leve — e é o teste que carrega o risco em `vencimentosDisjuncao.test.ts`.
  */
-export async function carregarPainel(hoje: Date = new Date()): Promise<PainelVencimentos> {
-  if (bootV9Ativo()) return painelDoServidor(hoje);
+export async function carregarPainel(
+  hoje: Date = new Date(),
+  opcoes: { forcar?: boolean } = {},
+): Promise<PainelVencimentos> {
+  if (vencimentosV9Ativa() || bootV9Ativo()) return agregadoCompartilhado(hoje, opcoes.forcar);
 
   const itens = listarVencimentos(hoje);
   const total = listarChavesComPrefixo('nr13_info_').length;
@@ -196,6 +213,48 @@ export async function carregarPainel(hoje: Date = new Date()): Promise<PainelVen
     truncado: false,
     restantes: 0,
   };
+}
+
+/**
+ * Fase 9 · 9F.5.3 — janela em que dois consumidores dividem UMA agregação.
+ *
+ * Curta de propósito: ela existe para colapsar o boot, onde `Layout` (sino e
+ * contador do menu) e a página pedem o mesmo painel com milissegundos de
+ * diferença. Não é cache de sessão — recarga por dado alterado ou volta de foco
+ * passa `forcar` e nunca a consulta.
+ */
+export const JANELA_PAINEL_MS = 3_000;
+
+let painelEmVoo: Promise<PainelVencimentos> | null = null;
+let painelEm = 0;
+
+/** Descarta a janela. Usada pelos testes e por quem sabe que o dado mudou. */
+export function invalidarPainel(): void {
+  painelEmVoo = null;
+  painelEm = 0;
+}
+
+/**
+ * O agregado, compartilhado dentro da janela.
+ *
+ * Duas regras que o teste trava:
+ *   · resposta com ERRO não fica guardada. Segurar uma falha de rede por três
+ *     segundos transformaria um tropeço momentâneo em "não sei" para todo mundo
+ *     que pedisse o painel nesse intervalo;
+ *   · `forcar` invalida ANTES de consultar — quem recarrega porque algo mudou
+ *     não pode receber o número de antes da mudança.
+ */
+function agregadoCompartilhado(hoje: Date, forcar?: boolean): Promise<PainelVencimentos> {
+  if (forcar) invalidarPainel();
+
+  if (painelEmVoo && Date.now() - painelEm < JANELA_PAINEL_MS) return painelEmVoo;
+
+  painelEm = Date.now();
+  painelEmVoo = painelDoServidor(hoje).then((p) => {
+    if (p.erro) invalidarPainel();
+    return p;
+  });
+  return painelEmVoo;
 }
 
 function texto(v: unknown): string | null {
@@ -229,20 +288,24 @@ export function usePainelVencimentos(): PainelVencimentos & { carregando: boolea
 
   useEffect(() => {
     let vivo = true;
-    const atualizar = () => {
-      void carregarPainel().then((p) => {
+    // 9F.5.3 · a montagem NÃO força: é ela que divide a agregação com o `Layout`
+    // e mata a segunda chamada do boot. Os dois gatilhos de RECARGA forçam —
+    // quem recarrega porque o dado mudou não pode receber o número de antes.
+    const atualizar = (forcar: boolean) => {
+      void carregarPainel(new Date(), { forcar }).then((p) => {
         if (!vivo) return;
         setPainel(p);
         setCarregando(false);
       });
     };
-    atualizar();
-    const cancelarAssinatura = assinarDadosAlterados(atualizar);
-    window.addEventListener('focus', atualizar);
+    atualizar(false);
+    const recarregar = () => atualizar(true);
+    const cancelarAssinatura = assinarDadosAlterados(recarregar);
+    window.addEventListener('focus', recarregar);
     return () => {
       vivo = false;
       cancelarAssinatura();
-      window.removeEventListener('focus', atualizar);
+      window.removeEventListener('focus', recarregar);
     };
   }, []);
 

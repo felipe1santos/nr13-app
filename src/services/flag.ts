@@ -95,6 +95,39 @@ const CHAVE_CALIBRACOES = 'nr13_calibracoes_v9';
 const CHAVE_LIVRO = 'nr13_livro_v9';
 
 /**
+ * Fase 9 · 9F.5.1 — o painel de `/vencimentos` e `/dashboard` pelo AGREGADO.
+ *
+ * SÉTIMA flag por tela, e a única que nasce para CORRIGIR UM ACOPLAMENTO em vez
+ * de habilitar código novo: `vencimentos_org` está aplicado em produção desde
+ * 25/08 e `vencimentosServidor.ts` desde a 9D.5. O que faltava era a flag —
+ * `carregarPainel()` decidia por `bootV9Ativo()`, a flag do BOOT.
+ *
+ * **A REGRA DA DISJUNÇÃO:** esta flag SOMA a `boot_v9`, nunca a substitui. Sob
+ * `boot_v9` o cache local NÃO tem a organização (é esse o ponto do boot leve), e
+ * um painel que caísse no caminho local ali contaria zero equipamentos e diria
+ * "tudo em dia" sobre uma organização inteira que nunca leu. Ver
+ * `carregarPainel` em `vencimentosServidor.ts`.
+ */
+const CHAVE_VENCIMENTOS = 'nr13_vencimentos_v9';
+
+/**
+ * Fase 9 · 9F.6.1 — o CATÁLOGO de `/relatorios` pela projeção.
+ *
+ * OITAVA e última flag por tela. `/relatorios` era a única lista sem par: ela
+ * montava o seletor de equipamentos com `listarEquipamentos()` — logo
+ * `lerTudo()` — e ainda lia CINCO chaves por equipamento em `montarResumo`,
+ * incluindo `nr13_fotos_`, a família mais pesada do sistema.
+ *
+ * A flag troca a FONTE DO CATÁLOGO e nada mais. O PDF, a geração do relatório e
+ * o histórico não são tocados por ela em nenhuma das duas posições: depois do
+ * clique é o código de sempre, lendo as chaves de sempre — semeadas sob demanda
+ * em vez de baixadas em massa.
+ *
+ * DEFAULT DESLIGADA.
+ */
+const CHAVE_RELATORIOS = 'nr13_relatorios_v9';
+
+/**
  * MEMOIZADA de propósito: qual implementação está ativa é decisão de SESSÃO,
  * tomada no login. Reler o `localStorage` a cada chamada deixaria o caminho
  * trocar no meio da sessão se algo limpasse o storage — e a v2, que não guarda
@@ -108,6 +141,8 @@ let inspecoesEmMemoria: boolean | null = null;
 let prontuariosEmMemoria: boolean | null = null;
 let calibracoesEmMemoria: boolean | null = null;
 let livroEmMemoria: boolean | null = null;
+let vencimentosEmMemoria: boolean | null = null;
+let relatoriosEmMemoria: boolean | null = null;
 
 export function armazenamentoV2Ativo(): boolean {
   if (emMemoria !== null) return emMemoria;
@@ -267,6 +302,60 @@ export function definirLivroV9(ativa: boolean): void {
 }
 
 /**
+ * O painel de vencimentos vem do AGREGADO do servidor para esta organização?
+ *
+ * Memoizada pela mesma razão das outras. NÃO é a única condição: quem decide é
+ * `carregarPainel`, que soma esta flag a `bootV9Ativo()` — ver `CHAVE_VENCIMENTOS`.
+ */
+export function vencimentosV9Ativa(): boolean {
+  if (vencimentosEmMemoria !== null) return vencimentosEmMemoria;
+  try {
+    vencimentosEmMemoria = localStorage.getItem(CHAVE_VENCIMENTOS) === '1';
+  } catch {
+    vencimentosEmMemoria = false;
+  }
+  return vencimentosEmMemoria;
+}
+
+/** Gravada no login a partir do que o servidor informou para a organização. */
+export function definirVencimentosV9(ativa: boolean): void {
+  vencimentosEmMemoria = ativa;
+  try {
+    if (ativa) localStorage.setItem(CHAVE_VENCIMENTOS, '1');
+    else localStorage.removeItem(CHAVE_VENCIMENTOS);
+  } catch {
+    // idem `definirArmazenamentoV2`: a decisão desta sessão continua valendo.
+  }
+}
+
+/**
+ * O catálogo novo de `/relatorios` está ligado para esta organização?
+ *
+ * Memoizada como as outras: a fonte da lista é decisão de SESSÃO. Trocar no meio
+ * faria a rolagem alternar entre duas fontes com cursores diferentes.
+ */
+export function relatoriosV9Ativa(): boolean {
+  if (relatoriosEmMemoria !== null) return relatoriosEmMemoria;
+  try {
+    relatoriosEmMemoria = localStorage.getItem(CHAVE_RELATORIOS) === '1';
+  } catch {
+    relatoriosEmMemoria = false;
+  }
+  return relatoriosEmMemoria;
+}
+
+/** Gravada no login a partir do que o servidor informou para a organização. */
+export function definirRelatoriosV9(ativa: boolean): void {
+  relatoriosEmMemoria = ativa;
+  try {
+    if (ativa) localStorage.setItem(CHAVE_RELATORIOS, '1');
+    else localStorage.removeItem(CHAVE_RELATORIOS);
+  } catch {
+    // idem `definirArmazenamentoV2`: a decisão desta sessão continua valendo.
+  }
+}
+
+/**
  * O boot leve está ligado para esta organização?
  *
  * EXIGE A v2. `hidratarEssencial` e `carregarEquipamento` só existem lá; ligada
@@ -330,7 +419,7 @@ export async function sincronizarFlagDoServidor(): Promise<boolean> {
     const { data, error } = await supabase
       .from('org_sync')
       // TODAS as flags saem na MESMA consulta — nenhum round-trip novo no boot.
-      .select('v2_ativa, busca_v9, boot_v9, inspecoes_v9, prontuarios_v9, calibracoes_v9, livro_v9')
+      .select('v2_ativa, busca_v9, boot_v9, inspecoes_v9, prontuarios_v9, calibracoes_v9, livro_v9, vencimentos_v9, relatorios_v9')
       .eq('org_id', escopo.id)
       .maybeSingle();
     // Erro pode ser offline OU banco sem a migração armazenamento_v2.sql. Nos
@@ -340,7 +429,7 @@ export async function sincronizarFlagDoServidor(): Promise<boolean> {
     // consulta mais antiga faria o banco que tem `busca_v9` mas ainda não tem
     // `boot_v9` — o estado da produção quando a 9D foi escrita — perder a
     // busca no boot seguinte: uma flag desligando a outra, sem ninguém pedir.
-    if (error) return await sincronizarSemColunaLivro(escopo.id);
+    if (error) return await sincronizarSemColunaRelatorios(escopo.id);
 
     // AUSÊNCIA DE LINHA = ORGANIZAÇÃO NOVA = v2 (11/08/2026).
     //
@@ -368,6 +457,8 @@ export async function sincronizarFlagDoServidor(): Promise<boolean> {
           prontuarios_v9?: boolean;
           calibracoes_v9?: boolean;
           livro_v9?: boolean;
+          vencimentos_v9?: boolean;
+          relatorios_v9?: boolean;
         }
       | null;
     definirArmazenamentoV2(linha ? linha.v2_ativa === true : true);
@@ -386,6 +477,11 @@ export async function sincronizarFlagDoServidor(): Promise<boolean> {
     definirCalibracoesV9(linha?.calibracoes_v9 === true);
     // 9F.4.5 · idem para a tela do livro de registro.
     definirLivroV9(linha?.livro_v9 === true);
+    // 9F.5.1 · idem para o painel de vencimentos/dashboard. Ligar é ato
+    // explícito; quem já tem `boot_v9` continua no agregado pela disjunção.
+    definirVencimentosV9(linha?.vencimentos_v9 === true);
+    // 9F.6.1 · idem para o catálogo de relatórios.
+    definirRelatoriosV9(linha?.relatorios_v9 === true);
     return armazenamentoV2Ativo();
   } catch {
     return armazenamentoV2Ativo();
@@ -445,6 +541,98 @@ export async function sincronizarFlagDoServidor(): Promise<boolean> {
  * `inspecoes_v9`, `prontuarios_v9` e `calibracoes_v9` de quem as tem ligadas:
  * uma flag desligando as outras cinco, sem ninguém pedir.
  */
+/**
+ * Degrau NOVO (9F.5.1): banco sem a coluna `vencimentos_v9`, mas com as seis que
+ * já estão em produção. Só o painel de vencimentos fica no caminho antigo.
+ *
+ * Mesma razão de todos os degraus anteriores, um nível acima: é o estado do
+ * banco entre publicar o bundle e aplicar o SQL — o estado NORMAL de todo
+ * deploy. Sem ele, o primeiro boot depois da publicação apagaria as seis flags
+ * de quem as tem ligadas.
+ *
+ * Aqui o "caminho antigo" NÃO é necessariamente o local: `carregarPainel` soma
+ * esta flag a `bootV9Ativo()`, então uma organização com boot leve continua
+ * recebendo o agregado do servidor mesmo com este degrau acionado. É o ponto da
+ * disjunção.
+ */
+/**
+ * Degrau NOVO (9F.6.1): banco sem a coluna `relatorios_v9`, mas com as sete que
+ * já existem. Só o catálogo de relatórios fica no caminho antigo.
+ *
+ * É o topo da escada, e a escada já tem oito degraus: cada etapa da 9F
+ * acrescentou um, e o teste do último é o único lugar onde a queda inteira é
+ * exercitada de uma vez.
+ */
+async function sincronizarSemColunaRelatorios(orgId: string): Promise<boolean> {
+  definirRelatoriosV9(false);
+  try {
+    const { data, error } = await supabase
+      .from('org_sync')
+      .select(
+        'v2_ativa, busca_v9, boot_v9, inspecoes_v9, prontuarios_v9, calibracoes_v9, livro_v9, vencimentos_v9',
+      )
+      .eq('org_id', orgId)
+      .maybeSingle();
+    if (error) return await sincronizarSemColunaVencimentos(orgId);
+    const linha = data as
+      | {
+          v2_ativa?: boolean;
+          busca_v9?: boolean;
+          boot_v9?: boolean;
+          inspecoes_v9?: boolean;
+          prontuarios_v9?: boolean;
+          calibracoes_v9?: boolean;
+          livro_v9?: boolean;
+          vencimentos_v9?: boolean;
+        }
+      | null;
+    definirArmazenamentoV2(linha ? linha.v2_ativa === true : true);
+    definirBuscaV9(linha?.busca_v9 === true);
+    definirBootV9(linha?.boot_v9 === true);
+    definirInspecoesV9(linha?.inspecoes_v9 === true);
+    definirProntuariosV9(linha?.prontuarios_v9 === true);
+    definirCalibracoesV9(linha?.calibracoes_v9 === true);
+    definirLivroV9(linha?.livro_v9 === true);
+    definirVencimentosV9(linha?.vencimentos_v9 === true);
+    return armazenamentoV2Ativo();
+  } catch {
+    return armazenamentoV2Ativo();
+  }
+}
+
+async function sincronizarSemColunaVencimentos(orgId: string): Promise<boolean> {
+  definirVencimentosV9(false);
+  try {
+    const { data, error } = await supabase
+      .from('org_sync')
+      .select('v2_ativa, busca_v9, boot_v9, inspecoes_v9, prontuarios_v9, calibracoes_v9, livro_v9')
+      .eq('org_id', orgId)
+      .maybeSingle();
+    if (error) return await sincronizarSemColunaLivro(orgId);
+    const linha = data as
+      | {
+          v2_ativa?: boolean;
+          busca_v9?: boolean;
+          boot_v9?: boolean;
+          inspecoes_v9?: boolean;
+          prontuarios_v9?: boolean;
+          calibracoes_v9?: boolean;
+          livro_v9?: boolean;
+        }
+      | null;
+    definirArmazenamentoV2(linha ? linha.v2_ativa === true : true);
+    definirBuscaV9(linha?.busca_v9 === true);
+    definirBootV9(linha?.boot_v9 === true);
+    definirInspecoesV9(linha?.inspecoes_v9 === true);
+    definirProntuariosV9(linha?.prontuarios_v9 === true);
+    definirCalibracoesV9(linha?.calibracoes_v9 === true);
+    definirLivroV9(linha?.livro_v9 === true);
+    return armazenamentoV2Ativo();
+  } catch {
+    return armazenamentoV2Ativo();
+  }
+}
+
 async function sincronizarSemColunaLivro(orgId: string): Promise<boolean> {
   definirLivroV9(false);
   try {
@@ -584,3 +772,38 @@ async function sincronizarSemColunaBusca(orgId: string): Promise<boolean> {
 
 export const CHAVE_FLAG_V2 = CHAVE;
 export const CHAVE_FLAG_BUSCA_V9 = CHAVE_BUSCA;
+
+/**
+ * TODAS as chaves de flag deste módulo, numa lista só.
+ *
+ * ## Por que a lista existe (achado do gate da 9F.5/9F.6, 03/09/2026)
+ *
+ * `purgarCacheV1` varre o `localStorage` apagando tudo que comece com `nr13_`,
+ * preservando uma lista explícita. Essa lista tinha DUAS flags — a da v2 e a da
+ * busca — e as outras SETE eram apagadas a cada boot em que a purga rodasse.
+ *
+ * O comentário que acrescentou `nr13_busca_v9` lá já dizia o motivo, e ele vale
+ * igual para todas: num boot em que a purga rode antes de
+ * `sincronizarFlagDoServidor` responder — offline, ou rede lenta — a sessão usa
+ * o caminho antigo mesmo com o servidor dizendo o contrário.
+ *
+ * Para a 9F.5 esse erro NÃO cai no lado barato. Com `boot_v9` também apagada, o
+ * painel escolhe o caminho LOCAL sobre um cache que o boot leve nunca encheu:
+ * "0 equipamentos, tudo em dia" numa organização inteira. É exatamente o que a
+ * regra da disjunção existe para impedir.
+ *
+ * Por isso a correção não foi acrescentar mais dois nomes à lista de lá: é ESTA
+ * lista que a purga consome, e `migracaoV1.flagsPreservadas.test.ts` quebra se
+ * uma flag nova nascer fora dela.
+ */
+export const CHAVES_FLAG: readonly string[] = [
+  CHAVE,
+  CHAVE_BUSCA,
+  CHAVE_BOOT,
+  CHAVE_INSPECOES,
+  CHAVE_PRONTUARIOS,
+  CHAVE_CALIBRACOES,
+  CHAVE_LIVRO,
+  CHAVE_VENCIMENTOS,
+  CHAVE_RELATORIOS,
+];

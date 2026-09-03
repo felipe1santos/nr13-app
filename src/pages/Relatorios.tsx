@@ -8,6 +8,12 @@ import { drenarPonte } from '../services/ponteTemplates';
 import { ler, salvar, buscaV9Ativa } from '../services/storage';
 import RecusaPalco from '../components/RecusaPalco';
 import { listarEquipamentos } from '../features/equipamento/equipamentoService';
+import { relatoriosV9Ativa } from '../services/flag';
+import CatalogoRelatoriosV9 from '../features/relatorios/CatalogoRelatoriosV9';
+import {
+  abrirEquipamentoParaRelatorio,
+  deveHidratarListaLegada,
+} from '../features/relatorios/catalogoRelatorios';
 import type { EquipamentoResumo } from '../features/equipamento/tipos';
 import { formatarValor } from '../calc/unidades';
 import ModalNovaInspecao from '../features/relatorios/ModalNovaInspecao';
@@ -121,6 +127,10 @@ function metaPadrao(tipo: TipoInspecao): RelatorioMeta {
 
 function RelatoriosLegado() {
   const [tela, setTela] = useState<Tela>('equipamentos');
+  // 9F.6 · decisão de SESSÃO, como nas outras seis telas: qual catálogo responde
+  // não pode trocar no meio da navegação.
+  const [catalogoV9] = useState(() => relatoriosV9Ativa());
+  const [termoCatalogo, setTermoCatalogo] = useState('');
   const [equipamentos, setEquipamentos] = useState<EquipamentoResumo[]>([]);
   const [tag, setTag] = useState('');
   const [etapaModal, setEtapaModal] = useState<EtapaModal>('nenhuma');
@@ -268,8 +278,13 @@ function RelatoriosLegado() {
   );
 
   const carregarEquipamentos = useCallback(async () => {
+    // 9F.6 · com o catálogo novo NINGUÉM hidrata: a lista vem da projeção e o
+    // equipamento chega por semeadura, ao ser escolhido. `listarEquipamentos()`
+    // começa com `await lerTudo()` — a hidratação INTEGRAL — e ainda lê CINCO
+    // chaves por equipamento, `nr13_fotos_` inclusive, só para desenhar cartões.
+    if (!deveHidratarListaLegada(catalogoV9)) return;
     setEquipamentos(await listarEquipamentos());
-  }, []);
+  }, [catalogoV9]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount padrão
@@ -302,9 +317,16 @@ function RelatoriosLegado() {
   }, []);
 
 
-  function abrirEquipamento(novaTag: string) {
+  async function abrirEquipamento(novaTag: string) {
     setTag(novaTag);
-    setHistorico(listarHistorico(novaTag));
+    // 9F.6 · sob o catálogo novo a TAG ainda não está no cache: semear ANTES de
+    // ler, senão o histórico abre VAZIO num equipamento que TEM relatórios — e
+    // sem erro nenhum, que é o que torna esse defeito caro. A ordem mora em
+    // `abrirEquipamentoParaRelatorio`, onde a suíte alcança (o ambiente de teste
+    // é `node`, sem render). Com a flag desligada é a leitura de sempre.
+    setHistorico(
+      catalogoV9 ? await abrirEquipamentoParaRelatorio(novaTag) : listarHistorico(novaTag),
+    );
     setDocumentos(null);
     setMeta(null);
     setSelecionados(new Set());
@@ -745,7 +767,13 @@ function RelatoriosLegado() {
       {tela === 'equipamentos' && (
         <div className="bloco-dados">
           <h3>Equipamentos Cadastrados</h3>
-          {equipamentos.length === 0 ? (
+          {catalogoV9 ? (
+            <CatalogoRelatoriosV9
+              termo={termoCatalogo}
+              aoMudarTermo={setTermoCatalogo}
+              aoEscolher={(t) => void abrirEquipamento(t)}
+            />
+          ) : equipamentos.length === 0 ? (
             <p className="dashboard-vazio">Nenhum equipamento cadastrado ainda.</p>
           ) : (
             <div className="lista-cards-horiz">

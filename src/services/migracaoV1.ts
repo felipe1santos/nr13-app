@@ -25,7 +25,7 @@
 import { CHAVE_MANIFESTO } from './palco';
 import { CHAVE_DONO, donoAtual, travaExpirada } from './palcoTrava';
 import { CHAVE_PONTE } from './ponteTemplates';
-import { CHAVE_FLAG_BUSCA_V9, CHAVE_FLAG_V2 } from './flag';
+import { CHAVES_FLAG } from './flag';
 
 export const CHAVE_FILA_V1 = 'nr13_fila_sync';
 
@@ -93,16 +93,19 @@ const PRESERVADAS = new Set([
   'nr13_assinatura_sucesso_pendente',
   // identidade e controle do armazenamento
   'nr13_dispositivo_id',
-  CHAVE_FLAG_V2,
-  // A flag da busca v9 entra aqui pelo MESMO motivo da v2, e a falta dela foi
-  // achada rodando a tela no navegador: a purga varria `nr13_*` e levava a
-  // flag junto. Num boot em que a purga rodasse antes de
-  // `sincronizarFlagDoServidor` responder — offline, por exemplo — a sessão
-  // usaria o caminho antigo mesmo com o servidor dizendo o contrário.
+  // TODAS as flags, da lista única de `flag.ts` — nunca nome a nome.
   //
-  // O erro cai para o lado barato (a tela antiga funciona), mas é SILENCIOSO, e
-  // faria o rollout parecer instável sem que ninguém achasse o motivo.
-  CHAVE_FLAG_BUSCA_V9,
+  // Aqui estavam só duas delas (a da v2 e a da busca), escritas à mão, e as
+  // outras SETE eram apagadas a cada boot em que esta purga rodasse. Num boot
+  // em que ela rode antes de `sincronizarFlagDoServidor` responder — offline,
+  // ou rede lenta — a sessão usa o caminho antigo mesmo com o servidor dizendo
+  // o contrário. Para o painel de vencimentos isso não cai no lado barato:
+  // sem `boot_v9` e sem `vencimentos_v9`, ele calcula no cache que o boot leve
+  // nunca encheu e escreve "tudo em dia" sobre a organização inteira.
+  //
+  // Achado no gate de navegador da 9F.5/9F.6 (03/09/2026). A lista mora em
+  // `flag.ts` para que a PRÓXIMA flag entre aqui sozinha.
+  ...CHAVES_FLAG,
   CHAVE_FILA_V1,
   // palco e ponte com os templates em iframe
   CHAVE_MANIFESTO,

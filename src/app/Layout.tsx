@@ -134,8 +134,12 @@ export default function Layout() {
     Promise.all([import('../services/vencimentosServidor'), import('../services/eventos')])
       .then(([painel, eventos]) => {
         if (!vivo) return;
-        const atualizar = () => {
-          void painel.carregarPainel().then((p) => {
+        // 9F.5.3 · a montagem não força: `Layout` e a página pedem o mesmo
+        // agregado com milissegundos de diferença, e era daí que saía a SEGUNDA
+        // chamada de `vencimentos_org` por boot. A recarga por dado alterado
+        // força, porque aí o número de antes está errado por definição.
+        const atualizar = (forcar = false) => {
+          void painel.carregarPainel(new Date(), { forcar }).then((p) => {
             if (!vivo) return;
             // Contador INDEFINIDO = o servidor não respondeu (25/08/2026).
             // Aqui, diferente dos KPIs do painel, existe uma fonte local
@@ -148,7 +152,7 @@ export default function Layout() {
           });
         };
         atualizar();
-        cancelarAssinatura = eventos.assinarDadosAlterados(atualizar);
+        cancelarAssinatura = eventos.assinarDadosAlterados(() => atualizar(true));
       })
       .catch(() => {});
     return () => {

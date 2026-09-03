@@ -23,8 +23,15 @@ vi.mock('./supabase', () => ({
   supabase: { rpc: vi.fn(async () => ({ data: resposta.data, error: resposta.error })) },
 }));
 
-const flag = vi.hoisted(() => ({ bootV9: false }));
-vi.mock('./flag', () => ({ bootV9Ativo: () => flag.bootV9 }));
+const flag = vi.hoisted(() => ({ bootV9: false, vencimentosV9: false }));
+// 9F.5.2 · `carregarPainel` passou a somar as duas flags. O mock precisa expor
+// as duas, senão o módulo real chamaria `undefined()` e o teste falharia por
+// infraestrutura, não por comportamento. A disjunção em si é exercitada em
+// `vencimentosDisjuncao.test.ts`.
+vi.mock('./flag', () => ({
+  bootV9Ativo: () => flag.bootV9,
+  vencimentosV9Ativa: () => flag.vencimentosV9,
+}));
 
 const local = vi.hoisted(() => ({ chamou: false }));
 vi.mock('./vencimentos', async () => {
