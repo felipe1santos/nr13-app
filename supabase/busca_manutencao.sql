@@ -294,6 +294,19 @@ begin
 
   if jsonb_typeof(v_livro) = 'array' then
     v_liv_n := jsonb_array_length(v_livro);
+    -- REGRA OFICIAL, APROVADA PELO DONO EM 02/09/2026 — NÃO "CORRIJA" DE VOLTA.
+    --
+    -- `Último registro` = o registro com a MAIOR DATA cronológica válida, e NÃO
+    -- o último elemento do array. Ocorrência manual, retificação e outros
+    -- eventos entram no livro FORA de ordem cronológica.
+    --
+    -- O caminho legado (`LivroRegistro.montarLinhas`) usa
+    -- `entradas[entradas.length - 1].data` e por isso mostra uma data diferente:
+    -- medido no gate, 15/05/2026 no legado contra 03/08/2026 aqui, para o mesmo
+    -- livro. A divergência é CORREÇÃO SEMÂNTICA APROVADA, não regressão — quem
+    -- for "restaurar a paridade com o legado" estará restaurando o erro.
+    -- Travada por `scripts/fase9/testes-9f4.sql`, bloco 2.
+    --
     -- A data da ÚLTIMA entrada. `max` sobre as datas convertidas, e não o último
     -- elemento do array: entrada retificadora e ocorrência manual entram fora de
     -- ordem cronológica, e a lista mostra "último registro", não "último salvo".

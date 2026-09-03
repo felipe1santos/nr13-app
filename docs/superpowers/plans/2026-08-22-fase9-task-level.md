@@ -1056,3 +1056,15 @@ recém-consultado.
 > **Proibições que seguem valendo:** não ligar `boot_v9` para organização de cliente sem a
 > pré-condição do §4.1 do ponto de retomada · não ligar `busca_v9` para outras organizações · não rodar backfill global · não migrar `/relatorios` · não tocar nos 40+
 > templates · não iniciar a Fase 10 · não iniciar PDF vetorial.
+
+> **9F.4 · REGRA OFICIAL DE `Último registro` (aprovada pelo dono em 02/09/2026):** é o
+> registro com a **MAIOR DATA cronológica válida**, e não o último elemento do array —
+> ocorrência manual e retificação entram fora de ordem. O legado usa o último elemento e por
+> isso mostra data diferente (15/05 × 03/08 no livro do gate). **É correção semântica
+> aprovada, não regressão: não "restaure a paridade" com o legado.** Travada por
+> `testes-9f4.sql` §2 e comentada em `busca_manutencao.sql`.
+>
+> **GATE LOCAL DA 9F.4 APROVADO em 02/09**, incluindo o gate de navegador (§11 de
+> `medicoes/2026-09-02-9f4-implementacao-e-gate.md`). A não-virtualização da lista acumulada
+> fica DECLARADA e **não bloqueia**: página inicial de 50, zero long tasks, poucos livros em
+> produção. **9F.4 LOCAL = APROVADA · PRONTA PARA ROLLOUT CONTROLADO.**

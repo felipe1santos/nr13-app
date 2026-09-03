@@ -363,3 +363,36 @@ paridade do §11.7 foi feita em **1k**, onde o legado ainda roda.
 
 **Nenhum defeito de produto encontrado no gate.** Os dois obstáculos (§11.2) eram ambiente, e
 a única divergência funcional (§11.7) é uma correção deliberada que aguarda decisão.
+
+---
+
+## 12 · DECISÃO DO DONO — 02/09/2026
+
+**Gate local APROVADO.** `9F.4 LOCAL = APROVADA` · `9F.4 = PRONTA PARA ROLLOUT CONTROLADO`.
+
+### 12.1 · `Último registro = MAX(data)` — regra oficial
+
+A divergência do §11.7 foi **aprovada como correção semântica**:
+
+> `Último registro` significa o registro com a **MAIOR DATA cronológica válida** do Livro de
+> Registro. **Não** significa o último elemento do array.
+>
+> Motivo: ocorrências manuais, retificações e outros eventos podem ser inseridos fora de ordem
+> cronológica.
+>
+> | | cálculo | resultado no livro do gate |
+> |---|---|---|
+> | legado | último elemento do array | 15/05/2026 |
+> | **V9** | **`max` das datas** | **03/08/2026** |
+>
+> **NÃO É REGRESSÃO.** Uma futura tentativa de "corrigir a paridade" com o legado estaria
+> restaurando o comportamento errado.
+
+Registrada em quatro lugares, de propósito: aqui, no `PONTO-DE-RETOMADA.md`, no plano
+task-level e **no próprio `busca_manutencao.sql`**, junto do código que a implementa.
+
+### 12.2 · Virtualização — limitação declarada, não bloqueante
+
+O dono aceitou a não-virtualização da lista acumulada, com os motivos: página inicial limitada
+a 50, zero long tasks no gate, produção com poucos livros hoje, e o problema extremo só depois
+de acumular muitas páginas. **Não adicionar virtualização sem evidência de necessidade real.**

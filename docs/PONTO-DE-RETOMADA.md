@@ -418,3 +418,62 @@ build verde, árvore limpa. Commit `4af6f13`. Registro:
 
 **O rollout da 9F.3 em produção NÃO está autorizado — e hoje nem seria possível validar: o
 gateway responde 402 a tudo.**
+
+---
+
+# ATUALIZAÇÃO — 02/09/2026 · 9F.3 EM PRODUÇÃO · 9F.4 LOCAL APROVADA
+
+## A · 9F.3 — rollout controlado FEITO e revertido (02/09)
+
+Os cinco arquivos aplicados em produção, verificados por estrutura/`prosrc`. Reprojeção TAG a
+TAG só na organização de teste; `NULL` e `>0` coexistindo provados; flag ON, validada, e
+rollback para OFF. **`calibracoes_v9` OFF nas 30 organizações.** Registro:
+`medicoes/2026-08-31-9f3-calibracoes.md` §13.
+
+> **REGRA QUE NASCEU DALI, e vale para todo SQL daqui em diante:** o texto colado no editor se
+> confere por **SHA-256 contra o arquivo do commit**, ANTES de rodar. Num dos cinco arquivos a
+> transcrição trocou UM byte (`array_agg` → `array_agh`); como aquele arquivo começa com dois
+> `drop function`, rodá-lo teria derrubado `buscar_equipamentos` e deixado a tela sem catálogo.
+> Está no §13 do `CLAUDE.md`.
+
+## B · 9F.4 (`/livro-registro`) — LOCAL APROVADA ✅ · PRONTA PARA ROLLOUT CONTROLADO ✅
+
+Implementada, medida e testada **só em local**. Gate de servidor e **gate de navegador**
+executados nos três degraus (1k/10k/50k): DOM, heap, requests e bytes praticamente idênticos
+entre 10k e 50k, zero `app_storage` ao abrir a lista, keyset sem duplicados, abertura sob
+demanda provada pela rede. Registros: `medicoes/2026-09-02-9f4-livro-registro-as-is.md` e
+`medicoes/2026-09-02-9f4-implementacao-e-gate.md` (o gate de navegador é o §11).
+
+O dono **aprovou o gate local em 02/09** e declarou a limitação de não virtualizar a lista
+acumulada como **não bloqueante**: página inicial limitada a 50, zero long tasks no gate,
+produção com poucos livros hoje, e o problema extremo só aparece depois de acumular muitas
+páginas. **Não adicionar virtualização sem evidência de necessidade real.**
+
+### ⚠ REGRA OFICIAL DE `Último registro` — NÃO "CORRIJA" ISTO DE VOLTA
+
+**`Último registro` significa o registro com a MAIOR DATA cronológica válida do livro.**
+Não é "o último elemento do array".
+
+| caminho | como calcula | resultado no livro do gate |
+|---|---|---|
+| legado | `entradas[entradas.length - 1].data` | 15/05/2026 |
+| **V9 (correto)** | **`max` das datas válidas** | **03/08/2026** |
+
+Ocorrências manuais, retificações e outros eventos entram no livro **fora de ordem
+cronológica** — por isso o último elemento não é o registro mais recente.
+
+> **A divergência entre os dois caminhos é uma CORREÇÃO SEMÂNTICA APROVADA pelo dono em
+> 02/09/2026, e NÃO é regressão.** Se um dia alguém for "restaurar a paridade com o legado",
+> estará restaurando o comportamento ERRADO. A regra está travada por teste no
+> `scripts/fase9/testes-9f4.sql` (bloco 2: "a data é o `max`, não o último elemento").
+
+## C · O que está autorizado agora
+
+**SOMENTE o rollout controlado da 9F.4 em produção**, no mesmo protocolo das 9F.1/9F.2/9F.3.
+Ao fim, `livro_v9` volta OFF em todas as organizações.
+
+**NÃO autorizados:** 9F.5, 9G, Fase 10, PDF vetorial.
+
+**Proibido no rollout:** massa 1k/10k/50k em produção; tocar `cmam.caldeiras`; tocar cliente;
+apagar ou regenerar livro; apagar ou regenerar PDF histórico; tocar `EQUIPE TESTE` de forma
+destrutiva.
