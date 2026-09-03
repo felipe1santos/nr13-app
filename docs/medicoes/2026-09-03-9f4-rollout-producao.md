@@ -1,4 +1,4 @@
-# 9F.4 · ROLLOUT CONTROLADO EM PRODUÇÃO — SQL APLICADO, FLAG NÃO LIGADA
+# 9F.4 · ROLLOUT CONTROLADO EM PRODUÇÃO — COMPLETO, E DE VOLTA PARA OFF
 
 **03/09/2026** · projeto `qqsesrntfvmdxqxrfvmw` (org Supabase **SAAS-NR13**, projeto
 **SAAS NR13**), conta `perone.fs@gmail.com`. Organização de teste
@@ -8,10 +8,17 @@ Commit do gate: `a5d2778`. Commit aplicado: `9743f21` — os seis arquivos são 
 ao gate, exceto `busca_manutencao.sql`, que ganhou **só comentário** (+13 linhas, o bloco
 da REGRA OFICIAL de `Último registro = MAX(data)`).
 
-> **O QUE ESTE ARQUIVO REGISTRA:** os passos 1–9 e 15–16 do roteiro do §10 do
-> `2026-09-02-9f4-implementacao-e-gate.md` foram executados. Os passos **10–14**
-> (ligar `livro_v9`, validar a tela, rollback) **NÃO** foram — e a razão está no §5.
-> `livro_v9` está **OFF nas 30 organizações**, que é onde o roteiro mandava terminar.
+> **O QUE ESTE ARQUIVO REGISTRA:** o roteiro do §10 do
+> `2026-09-02-9f4-implementacao-e-gate.md` foi executado **inteiro**, em duas etapas do
+> mesmo dia: primeiro os seis SQL e a reprojeção (§§1–4), depois o deploy do front, a flag
+> ligada só na organização de teste, a validação na tela e o rollback (§§5–8).
+>
+> **`livro_v9` terminou OFF nas 30 organizações**, que é onde o roteiro mandava parar.
+> Nenhum cliente teve a tela alterada, `cmam.caldeiras` e `EQUIPE TESTE` seguem intocadas, e
+> **nada foi escrito em `app_storage`** durante todo o rollout.
+>
+> Duas coisas ficaram **declaradas como não provadas**, e não valem por inferência: a
+> divergência de `Último registro = MAX(data)` (§8.1) e a escala (§10).
 
 ---
 
@@ -107,76 +114,161 @@ fora de ordem cronológica (`24/06`, `02/07`, … `20/07`, `12/08`) e ainda mist
 equipamentos 4/4 (0 faltando, 0 sobrando, 0 defasadas), relatórios 5/5 (idem).
 `busca_pendencias` **0** no banco inteiro.
 
-## 5 · POR QUE A FLAG NÃO FOI LIGADA — o front da 9F.4 não está publicado
 
-O bundle de `https://app.nr13sistema.com.br` foi baixado e contado:
+## 5 · Deploy do front — publicado pelo Coolify
 
-| marcador | ocorrências em `assets/index-qZO32iqH.js` (3,2 MB) |
-|---|---|
-| `busca_v9` · `boot_v9` · `inspecoes_v9` · `prontuarios_v9` · `calibracoes_v9` | 1 cada |
-| **`livro_v9`** · **`buscar_livros`** · **`contar_livros`** · **`livro_entradas`** · **`livro_ultima`** | **0** |
+O bundle anterior (`assets/index-qZO32iqH.js`) tinha **0** ocorrências de `livro_v9`,
+`buscar_livros`, `contar_livros`, `livro_entradas` e `livro_ultima` — o front da 9F.4 estava
+no `main` e não no ar. O dono autorizou o Claude a publicar sozinho, em caráter permanente.
 
-O código da 9F.4 está no `main` (`a5d2778`), mas o deploy do front é manual (Coolify) e
-não foi feito. Ligar `livro_v9` contra este bundle **não mudaria nada na tela** — e um
-"OK, a tela continuou igual" seria um resultado sem significado, que é o pior tipo de
-evidência. Os passos 10–14 ficam **não executados**, e a flag fica OFF.
+Redeploy disparado no Coolify (aplicação *NOVO - APP - NR13*), importando
+`felipe1santos/nr13-app:main` no commit **`dd80bb0c4da8a7e2afbd0fb571870fcea420b9e1`** —
+exatamente o que havia sido pushado.
 
-> **Isto NÃO é a repetição do bug do `cmam`** (§2-ter do `CLAUDE.md`, bundle v1 contra
-> servidor v2). Lá o servidor passou a RECUSAR o que o bundle antigo fazia. Aqui o schema
-> só ACRESCENTA: duas colunas nulas, duas funções novas e uma flag desligada. O bundle
-> publicado não chama nenhuma delas, e `buscar_equipamentos` — que ele chama — ganhou duas
-> colunas no fim do retorno, que ele ignora.
+**Conferido pelo BUNDLE, não pelo clique** (`assets/index-B0NvLXJL.js`, 3.188.343 B):
 
-### O que foi provado no lugar, direto no banco
+| marcador | antes | depois |
+|---|---|---|
+| `livro_v9` · `buscar_livros` · `contar_livros` | 0 | **1** cada |
+| `livro_entradas` · `livro_ultima` | 0 | **2** cada |
+| `nr13_livro_v9` | 0 | **1** |
+| `busca_v9` · `boot_v9` · `inspecoes_v9` · `prontuarios_v9` · `calibracoes_v9` | 1 | 1 (intactas) |
 
-Sob a identidade da organização de teste (`set local role authenticated` +
-`request.jwt.claims` com o `sub` do mestre), numa transação somente leitura:
+## 6 · Baseline com a flag OFF
 
-| prova | resultado |
-|---|---|
-| `org_atual()` / `papel_atual()` | `99f642d3-…` / `mestre` |
-| `buscar_livros('')` | 2 linhas — `COMPRESSOR V8-15/200L` (1 · 2026-08-19) e `ZZ-FASE3` (2 · 2026-08-21). As duas TAGs com `0` ficaram **fora**, pelo predicado do índice |
-| `contar_livros('')` | `{ total: 2, exato: true }` |
-| busca por TAG `ZZ-FASE3` | 1 linha, exata |
-| termo inexistente | 0 linhas |
-| keyset com `p_cursor = 'COMPRESSOR V8-15/200L'` | 1 linha (`ZZ-FASE3`), sem repetir a anterior |
-| `execute` como `authenticated` | funcionou — o grant do arquivo 5 está certo |
+`/livro-registro` no bundle novo, `livro_v9` ainda OFF:
 
-**O índice parcial existe com o predicado certo, mas NÃO foi provado em uso em produção:**
-com 17 linhas na tabela o planner escolhe `Seq Scan` (3 buffers, 0,142 ms), como deve. A
-prova de que o índice muda o custo é a do laboratório (§3 do registro da 9F.4: 125.623
-buffers sem ele contra 22 com ele, em 1.002 equipamentos). Produção é pequena demais para
-exercitá-lo, e por regra (§12 do `CLAUDE.md`) não vai receber massa.
+```
+2 LIVROS GERADOS
+ZZ-FASE3               Vaso de Pressão  CAT. III  2 registros  21/08/2026
+COMPRESSOR V8-15/200L  Vaso de Pressão  —         1 registro   19/08/2026
+```
 
-## 6 · Estado final
+Sem campo de busca e sem paginação — o caminho legado, hidratando a organização.
+
+## 7 · Flag ON só em `teste@gmail.com` — o que foi medido
+
+`definir_livro_v9('99f642d3-…', true)` → `livro_v9` ON em **1** organização de 30. Nenhuma
+outra flag tocada. O app resincronizou no boot (`nr13_livro_v9 = "1"`).
+
+### 7.1 · A prova central: o `lerTudo()` sumiu
+
+| ação | requisições | detalhe |
+|---|---|---|
+| abrir `/livro-registro` | **2** | `rpc/buscar_livros` + `rpc/contar_livros`. **`app_storage`: 0** |
+| busca `ZZ` | 2 | 1 resultado, exato. `app_storage`: 0 |
+| busca `COMPRESSOR` | 2 | 1 resultado. `app_storage`: 0 |
+| busca `NAOEXISTE-XPTO` | 2 | "Nenhum resultado". `app_storage`: 0 |
+| limpar a busca | 2 | volta a "2 resultados". `app_storage`: 0 |
+
+`transferSize` volta `0` por falta de `Timing-Allow-Origin` no CORS do Supabase; o que vale
+aqui é a **contagem e o destino** de cada requisição.
+
+### 7.2 · Abertura sob demanda — 2 requisições, ambas POR TAG
+
+Ao clicar "Abrir livro", exatamente **2** chamadas a `app_storage`, e nenhuma outra:
+
+1. a **semeadura da TAG** — 36 famílias de chave de `chavesDoEquipamento(tag)`
+   (`nr13_info_`, `nr13_livro_`, `nr13_livro_config_`, `nr13_termo_livro_`, `nr13_cat_`,
+   `nr13_calc_`, `nr13_emp_`, `nr13_laudo_`, `nr13_assinantes_rel_`, …), **daquela TAG só**;
+2. os `nr13_rel_` **daquela TAG**, que alimentam os links "Ver / Imprimir".
+
+> **O gate local mediu 1 requisição, produção mede 2.** Não é regressão: a massa do
+> laboratório (`ZZ-LIV`) não tinha relatório salvo, então a segunda chamada não existia lá.
+> As duas são por-TAG e limitadas — nenhuma varre a organização.
+
+### 7.3 · O livro montado, com lacre REAL
+
+Diferente do laboratório (onde a massa nascia sem `sha256` e o selo dizia "Sem lacre"), aqui
+as entradas são reais e lacradas:
+
+| | ZZ-FASE3 | COMPRESSOR V8-15/200L |
+|---|---|---|
+| cabeçalho | `ZZ-FASE3 — Vaso de Pressão`, CAT. III | `COMPRESSOR V8-15/200L — Vaso de Pressão` |
+| contagem | 2 REGISTRO(S) | 1 REGISTRO(S) |
+| cadeia | **"Cadeia de registros íntegra"** | idem |
+| registros | nº 000001 `F54425F4` · nº 000002 `4F5D1FFE`, ambos **Íntegro** | nº 000001 `FA750775`, **Íntegro** |
+| datas | 21/08/2026 ×2 | 19/08/2026 |
+| relatórios | REL-1787282142486 · REL-1787282922043 | REL-1787152599432 |
+| termo, ocorrência, PDF | presentes | presentes |
+
+"Ver livro completo" montou os três iframes (`CAPA-LIVRO-REGISTRO`, `TERMO-ABERTURA`,
+`LIVRO-REGISTRO`) com **0 requisições novas** — o palco já tinha tudo — e com **dado real**:
+TAG, classe/grupo/categoria, `MDK ENG`, CNPJ, "este livro contém 50 folhas". **Zero "-"**,
+que é o sintoma de família de chave faltando no palco (§2-ter do `CLAUDE.md`).
+
+"Ver / Imprimir" montou a folha individual do registro **sem `window.print()`, sem
+`window.open` e sem requisição**. Nenhum PDF histórico foi regenerado.
+
+### 7.4 · Nada foi escrito
+
+`app_storage` da organização: **0 escritas** na janela de 2 horas que cobre todo o rollout.
+Os quatro livros permaneceram com versão e bytes idênticos aos do levantamento inicial —
+`COMPRESSOR` 518 B/v1, `EQUIPE TESTE` 1.182 B/v2, `VASO A23` 22.091 B/v1, `ZZ-FASE3`
+1.225 B/v2. **`EQUIPE TESTE` intocada.**
+
+## 8 · Rollback e paridade — provada por SHA-256
+
+`definir_livro_v9('99f642d3-…', false)` → `livro_v9` **0 ON**. O app resincronizou
+(`nr13_livro_v9` sumiu do `localStorage`), a lista voltou a "2 LIVROS GERADOS", sem busca,
+na ordem legada — **idêntica ao baseline do §6**.
+
+**O livro aberto é byte a byte o mesmo nos dois caminhos:**
+
+| livro | bytes | SHA-256 com a flag ON | com a flag OFF |
+|---|---|---|---|
+| ZZ-FASE3 | 914 | `8abd064376b0a3bb14bd9e9c74ff19dd277d5164cb1d6e58dc5a1afd894bd0e7` | **igual** |
+| COMPRESSOR V8-15/200L | 708 | `5f6a9aa07e37e0021c762008c22ec5df50e4f2287b8da2cc0f4c7c5f37627c24` | **igual** |
+
+Diferenças ficaram **só na lista**, e todas esperadas: o rótulo (`2 resultados` × `2 LIVROS
+GERADOS`), a ordem (o novo pagina por TAG crescente, o legado não) e a existência do campo de
+busca.
+
+### 8.1 · `Último registro = MAX(data)` — verificado, mas a divergência NÃO foi exercitada
+
+Os valores na tela (`21/08/2026` e `19/08/2026`) batem com o `max` das datas da verdade em
+`app_storage`, e a cadeia UI → `buscar_livros` → coluna `livro_ultima` → `max` está provada.
+
+**Mas os dois livros da organização têm todas as entradas na mesma data**, então `MAX(data)`
+e "último elemento do array" coincidem — o caso que a regra corrige não aparece. Exercitá-lo
+exigiria acrescentar uma ocorrência manual com data anterior, e entrada de livro é imutável.
+**O dono decidiu não acrescentar.** A divergência segue provada **só no laboratório**
+(15/05 × 03/08 no gate). `VASO A23`, que tem 10 entradas fora de ordem (`24/06` … `12/08`) e
+ainda mistura formato de data, é livro órfão e não aparece em nenhum dos dois caminhos.
+
+## 9 · Estado final
 
 | | |
 |---|---|
-| `livro_v9` | **OFF nas 30 organizações** (nunca foi ligada) |
+| `livro_v9` | **OFF nas 30 organizações** |
 | `busca_v9` · `inspecoes_v9` · `prontuarios_v9` · `calibracoes_v9` | 0 |
-| `boot_v9` | **as mesmas 2** organizações de antes |
+| `boot_v9` | **as mesmas 2** organizações de antes (`92a28bff…`, `99f642d3…`) |
 | `v2_ativa` | 30 |
 | `busca_pendencias` | 0 |
+| `auditar_projecao` (org teste) | `convergiu: true`, equipamentos 4/4, relatórios 5/5 |
 | `livro_entradas` não-nula | 4 linhas, **todas** da org de teste; **0** fora dela |
 | `cmam.caldeiras` | `CMP001` com `livro_entradas = null`, `projected_at` de 28/08 — **intocada** |
-| clientes | nenhum tocado; nenhum livro, lacre ou PDF histórico alterado |
+| escritas em `app_storage` | **0** em toda a janela do rollout |
+| front publicado | `assets/index-B0NvLXJL.js`, commit `dd80bb0` |
 
-Suíte local depois de tudo: **vitest 1608/1608** · **`massa.test.mjs` 35/35** · `npm run
-build` verde.
+Suíte local: **vitest 1608/1608** · **`massa.test.mjs` 35/35** · `npm run build` verde.
 
-## 7 · O que ficou provado ONDE
+## 10 · O que ficou provado ONDE
 
-**PROVADO EM PRODUÇÃO:** os seis arquivos aplicados, cada um conferido por hash antes e
-por estrutura/`prosrc`/ACL depois; `null`, `0` e `N` coexistindo na mesma organização;
-reprojeção TAG a TAG sem tocar as vizinhas; contagem e `MAX(data)` batendo com a verdade
-em `app_storage`; `buscar_livros`/`contar_livros` respondendo sob a identidade real da
-organização, com busca, keyset e o filtro "tem livro"; nenhuma outra organização afetada.
+**PROVADO EM PRODUÇÃO:** os seis arquivos aplicados, conferidos por hash antes e por
+estrutura/`prosrc`/ACL depois; `null`, `0` e `N` coexistindo na mesma organização; reprojeção
+TAG a TAG sem tocar as vizinhas; contagem e `MAX(data)` batendo com a verdade; deploy do front
+conferido pelo bundle; **zero `app_storage` ao abrir a lista e ao buscar**; abertura sob
+demanda limitada à TAG; livro, termo, capa, timeline, cadeia e lacre reais e íntegros;
+paridade do documento **byte a byte** entre ON e OFF; rollback sem perda; **zero escritas**;
+nenhuma outra organização afetada.
 
-**NÃO PROVADO (e não presumido):** a tela `/livro-registro` com a flag ligada — lista,
-busca, abertura do livro, timeline, termo, lacre, ocorrência manual, PDF e rollback
-visual. Depende do deploy do front. E o índice parcial em uso, que precisa de escala.
+**NÃO PROVADO, e declarado:** a divergência de `MAX(data)` (§8.1); escala — a organização tem
+4 equipamentos, e keyset, paginação e o índice parcial em uso seguem provados só em
+laboratório (com 17 linhas o planner escolhe `Seq Scan`, como deve); cache frio e offline sob
+a flag; `Exportar PDF` do livro, não acionado de propósito.
 
-## 8 · Duas armadilhas de ferramenta, registradas para não custarem duas vezes
+## 11 · Três armadilhas de ferramenta, registradas para não custarem duas vezes
 
 1. **Aba oculta do Chrome mata o SQL Editor.** Com `document.visibilityState === 'hidden'`
    o Monaco não repinta, o `ctrl+v` cola o conteúdo ANTERIOR do clipboard (a área de
@@ -194,12 +286,15 @@ visual. Depende do deploy do front. E o índice parcial em uso, que precisa de e
    `drop`/`delete`/`truncate` **fora de comentário** — é preciso confirmar em "Run query",
    e não confirmar é indistinguível de "o Run não funcionou".
 
-## 9 · O que falta, em ordem
+3. **Aba oculta também mata o `ctrl+Return` — mas NÃO o `.click()`.** A saída, achada depois
+   de horas: `element.click()` no botão **Run** dispara a consulta mesmo com a aba em
+   `visibilityState: hidden`; o `ctrl+Return` sintético não chega. E aba oculta tem timer
+   estrangulado, então a espera pela resposta precisa ser longa (até 30 s) e em laço, não um
+   `setTimeout` curto. Com isso o rollout inteiro roda sem exigir que o dono deixe a aba em
+   primeiro plano — que era o que vinha travando a sessão.
 
-1. **Decisão do dono:** publicar o front da 9F.4 no Coolify.
-2. Com o bundle no ar, repetir os passos 10–14: baseline com a flag OFF → `livro_v9` ON
-   **só** em `teste@gmail.com` → lista, busca e abertura do Livro → `Último registro` =
-   `MAX(data)` na tela → timeline, termo, lacre, ocorrência manual e PDF existente →
-   rollback para OFF → conferir que as seis flags anteriores seguem intactas.
-3. O par `COMPRESSOR V8-15/200L` (1 entrada) e `ZZ-FASE3` (2 entradas) é o material de
-   validação: são os únicos dois livros da organização com equipamento no catálogo.
+## 12 · O que falta
+
+1. **Decisão do dono:** ligar `livro_v9` para a primeira organização de cliente, ou fechar a
+   9F.4 com o rollout na organização de teste.
+2. As limitações do §10 continuam **registradas** — não valem por inferência.

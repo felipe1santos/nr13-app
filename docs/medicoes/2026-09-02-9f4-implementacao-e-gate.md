@@ -200,13 +200,16 @@ parse, 8 da escada de flags.
   imutabilidade; a massa da 9F.4 usa `VL-*` e `ZZ-LIV`, criadas e removidas pelo
   próprio script.
 
-## 10 · Roteiro de rollout controlado — EXECUTADO EM PARTE (03/09/2026)
+## 10 · Roteiro de rollout controlado — EXECUTADO POR INTEIRO (03/09/2026)
 
-> **Registro do que foi feito: `2026-09-03-9f4-rollout-producao.md`.** Os passos 1, 2, 3,
-> 4 e 6 abaixo foram executados em produção; o passo 5 (flag ON e validação da tela) NÃO,
-> porque o bundle publicado em `app.nr13sistema.com.br` ainda não tem o front da 9F.4 —
-> `livro_v9`, `buscar_livros`, `contar_livros`, `livro_entradas` e `livro_ultima` aparecem
-> **0 vezes** nele. `livro_v9` ficou **OFF nas 30 organizações**.
+> **Registro do que foi feito: `2026-09-03-9f4-rollout-producao.md`.** Os seis passos abaixo
+> foram executados em produção, incluindo o deploy do front (`assets/index-B0NvLXJL.js`,
+> commit `dd80bb0`), a flag ligada só na organização de teste, a validação na tela e o
+> rollback. `livro_v9` terminou **OFF nas 30 organizações**.
+>
+> Medido com a flag ON: abrir `/livro-registro` = **2 requisições** (`buscar_livros` +
+> `contar_livros`) e **zero** a `app_storage`; abrir um livro = 2 chamadas, ambas por TAG; e
+> o documento do livro é **byte a byte idêntico** nos dois caminhos (SHA-256 conferido).
 
 1. Aplicar em produção, **nesta ordem**, conferindo cada arquivo **por SHA-256
    antes de rodar** (§13 do `CLAUDE.md`) e por `prosrc` depois:

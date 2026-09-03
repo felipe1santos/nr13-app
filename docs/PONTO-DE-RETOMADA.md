@@ -1,20 +1,33 @@
-# PONTO DE RETOMADA — 03/09/2026 (9F.4: SQL EM PRODUÇÃO, flag OFF · falta publicar o front)
+# PONTO DE RETOMADA — 03/09/2026 (9F.4 ROLLOUT COMPLETO em produção · flag de volta para OFF)
 
-> **A DECISÃO QUE ESTÁ NA SUA MÃO HOJE:** publicar (ou não) o front da **9F.4** no Coolify.
-> Os seis arquivos SQL da 9F.4 já estão aplicados e verificados em produção
-> (`2026-09-03-9f4-rollout-producao.md`), a organização de teste está reprojetada e a RPC
-> `buscar_livros` responde certo sob a identidade real dela. **`livro_v9` está OFF nas 30
-> organizações** e vai continuar até o bundle publicado conter a 9F.4 — hoje ele tem **0**
-> ocorrências de `livro_v9`/`buscar_livros`/`contar_livros`/`livro_entradas`/`livro_ultima`.
-> Sem o deploy, ligar a flag não muda nada na tela e a validação não teria significado.
+> **A DECISÃO QUE ESTÁ NA SUA MÃO HOJE:** ligar `livro_v9` para a primeira organização de
+> CLIENTE, ou fechar a 9F.4 com o rollout na organização de teste.
 >
-> **Estado do schema é aditivo e inerte:** duas colunas nulas, duas funções novas, um índice
-> parcial e uma flag desligada. O bundle publicado não chama nada disso, e o
-> `buscar_equipamentos` que ele chama só ganhou duas colunas no fim do retorno.
+> O rollout de 16 passos foi executado inteiro em 03/09 (`2026-09-03-9f4-rollout-producao.md`):
+> seis SQL aplicados e verificados por hash e por `prosrc`, reprojeção TAG a TAG só na org de
+> teste (`null`/`0`/`N` coexistindo), front publicado (`assets/index-B0NvLXJL.js`, commit
+> `dd80bb0`), flag ON só em `teste@gmail.com`, tela validada e **rollback para OFF**.
 >
-> **Armadilha de ferramenta que custou caro (§8 do registro):** no SQL Editor do dashboard,
-> aba com `document.visibilityState === 'hidden'` não repinta o Monaco, cola conteúdo velho
-> no `ctrl+v` e **o Run não dispara** — sem erro nenhum. Conferir `visible` ANTES de agir.
+> **O número que importa:** abrir `/livro-registro` com a flag ON = **2 requisições**
+> (`rpc/buscar_livros` + `rpc/contar_livros`) e **ZERO** a `app_storage`. O `lerTudo()` saiu da
+> última tela que ainda o fazia. Abrir um livro = 2 chamadas, ambas **por TAG**. E o documento
+> do livro é **byte a byte idêntico** com a flag ON e OFF (SHA-256 conferido nos dois livros).
+>
+> **Estado agora:** `livro_v9` OFF nas 30 · demais flags 9F em 0 · `boot_v9` nas mesmas 2 ·
+> `v2_ativa` 30 · pendências 0 · `livro_entradas` não-nula só na org de teste · **0 escritas**
+> em `app_storage` durante todo o rollout · `cmam.caldeiras` e `EQUIPE TESTE` intocadas.
+>
+> **Declarado como NÃO provado** (não vale por inferência): a divergência de
+> `Último registro = MAX(data)` — os dois livros da org de teste têm as entradas na mesma data,
+> e o dono decidiu não acrescentar ocorrência manual para forçar o caso; e a **escala** — com
+> 17 linhas o planner escolhe `Seq Scan`, então keyset, paginação e o índice parcial em uso
+> seguem provados só em laboratório.
+>
+> **Armadilha de ferramenta que custou a sessão (§11 do registro):** no SQL Editor do
+> dashboard, aba com `document.visibilityState === 'hidden'` não repinta o Monaco, cola
+> conteúdo velho no `ctrl+v` e **não dispara o Run pelo `ctrl+Return`**. A saída: `.click()` no
+> botão Run **funciona** em aba oculta — com espera longa e em laço, porque timer de aba
+> oculta é estrangulado. Com isso não é preciso pedir foco ao dono.
 
 > **Histórico abaixo (31/08):** a 9F.3 local aguardava aprovação e produção respondia 402.
 
@@ -303,7 +316,19 @@ Organização grande ainda não tem projeção: rodar o rebuild antes de ligar
 | Coolify — deploy do front | `http://187.77.34.112:8000/project/ngg0g8oo0sw0wk8ggw8wso4o/environment/vwcgcgsogsswwck8w04c0c0w/application/ok40g4s8ko8wgssk8go00sg8` |
 | Repositório | `https://github.com/felipe1santos/nr13-app` · branch **`main`** |
 
-**Publicação:** front = manual no Coolify (botão *Redeploy*; ~95 s) · SQL = manual no SQL Editor ·
+> **AUTORIZAÇÃO PERMANENTE DO DONO (03/09/2026) — o Claude clica o *Redeploy* sozinho.**
+> Não é preciso pedir a cada deploy. O endereço é o da tabela acima
+> (`http://187.77.34.112:8000/project/ngg0g8oo0sw0wk8ggw8wso4o/environment/vwcgcgsogsswwck8w04c0c0w/application/ok40g4s8ko8wgssk8go00sg8`).
+> Continuam valendo, e não são negociáveis: **`git push` antes** (senão o Coolify publica o
+> commit velho); **recarregar a página do Coolify antes de clicar** (sessão do Livewire vence e
+> o botão fica mudo, sem erro); e **conferir o resultado pelo BUNDLE**, com a string literal do
+> marcador — nunca pelo clique nem pelo nome do arquivo.
+>
+> Pré-requisito de ferramenta: a extensão do Chrome precisa ter **`187.77.34.112` liberado nas
+> permissões de site**, senão a navegação volta
+> `Navigation to this domain is not allowed`. Isso é ajuste no painel da extensão, feito uma vez.
+
+**Publicação:** front = **Redeploy no Coolify pelo Claude** (~95 s) · SQL = manual no SQL Editor ·
 Edge = manual no Dashboard. O `git push` sozinho não publica — mas sem ele o Coolify publica o
 commit velho.
 
