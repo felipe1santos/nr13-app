@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { Icone } from '../components/Icone';
 import PaginaA4 from '../components/PaginaA4';
 import { ler, lerTudo, listarChavesComPrefixo } from '../services/storage';
-import { bootV9Ativo } from '../services/flag';
+import { bootV9Ativo, livroV9Ativa } from '../services/flag';
+import CatalogoLivroV9 from '../features/livro/CatalogoLivroV9';
+import { abrirEquipamentoParaLivro, deveHidratarListaLegada } from '../features/livro/catalogoLivro';
 import type { InfoEquipamento } from '../features/equipamento/tipos';
 import { listarFuncionarios } from '../features/cadastros/cadastroService';
 import { adicionarEntradaLivroManual } from '../features/relatorios/relatoriosService';
@@ -73,23 +75,40 @@ const COR_TIPO: Record<string, string> = {
   'Ocorrência': 'crit',
 };
 
+/**
+ * UMA linha, montada do que já está no cache.
+ *
+ * Extraída na 9F.4 para o caminho novo montar só o equipamento ESCOLHIDO —
+ * antes, chegar a uma linha exigia varrer a organização inteira. A composição é
+ * exatamente a mesma dos dois lados da flag, de propósito: montá-la de novo na
+ * tela nova é como as divergências de cartão nasceram na 9C.
+ *
+ * NÃO vai ao servidor: quem semeia é `abrirEquipamentoParaLivro`, e a ordem
+ * (semear → montar) é responsabilidade de quem chama.
+ */
+function montarLinha(tag: string): LinhaLivro | null {
+  try {
+    const info = ler<InfoEquipamento>(`nr13_info_${tag}`);
+    if (!info) return null;
+    const entradas = ler<LivroEntrada[]>(`nr13_livro_${tag}`) ?? [];
+    const cat = ler<{ catFinal?: string }>(`nr13_cat_${tag}`);
+    return {
+      tag,
+      nomeEquip: info.descricao?.trim() || ROTULO_TIPO[info.tipo] || 'Equipamento',
+      entradas,
+      ultimaData: entradas.length > 0 ? entradas[entradas.length - 1].data : '',
+      categoria: cat?.catFinal || '',
+    };
+  } catch {
+    return null; // chave malformada: ignora
+  }
+}
+
 function montarLinhas(): LinhaLivro[] {
   const linhas: LinhaLivro[] = [];
   for (const chave of listarChavesComPrefixo('nr13_info_')) {
-    try {
-      const tag = chave.slice('nr13_info_'.length);
-      const info = ler<InfoEquipamento>(chave);
-      if (!info) continue;
-      const entradas = ler<LivroEntrada[]>(`nr13_livro_${tag}`) ?? [];
-      const cat = ler<{ catFinal?: string }>(`nr13_cat_${tag}`);
-      linhas.push({
-        tag,
-        nomeEquip: info.descricao?.trim() || ROTULO_TIPO[info.tipo] || 'Equipamento',
-        entradas,
-        ultimaData: entradas.length > 0 ? entradas[entradas.length - 1].data : '',
-        categoria: cat?.catFinal || '',
-      });
-    } catch { /* chave malformada: ignora */ }
+    const linha = montarLinha(chave.slice('nr13_info_'.length));
+    if (linha) linhas.push(linha);
   }
   // Com livro primeiro, depois por TAG.
   linhas.sort((a, b) => (b.entradas.length - a.entradas.length) || a.tag.localeCompare(b.tag));
@@ -237,20 +256,33 @@ const FORM_OCORRENCIA_VAZIO: FormOcorrencia = {
 
 export default function LivroRegistro() {
   // Estado (e não useMemo) para poder recarregar a timeline após salvar uma ocorrência manual.
-  const [linhas, setLinhas] = useState<LinhaLivro[]>(() => montarLinhas());
+  //
+  // 9F.4: no caminho novo esta lista começa VAZIA e ganha exatamente UMA linha —
+  // a do equipamento escolhido, montada depois da semeadura. Varrer o cache aqui
+  // sob a flag nova devolveria só o que por acaso já estivesse no aparelho.
+  const [linhas, setLinhas] = useState<LinhaLivro[]>(() =>
+    livroV9Ativa() ? [] : montarLinhas(),
+  );
   const [hidratando, setHidratando] = useState(false);
+  /** Termo da busca do catálogo (só no caminho novo). */
+  const [termoBusca, setTermoBusca] = useState('');
+  /** Abrindo um livro pela lista nova: semeando a TAG antes de ler. */
+  const [abrindo, setAbrindo] = useState(false);
 
-  // Fase 9 · esta tela é a ÚNICA que ainda precisa da organização inteira.
+  // Fase 9 · 9F.4 — a hidratação integral SÓ acontece no caminho legado.
   //
-  // Ela cruza `nr13_info_` com `nr13_livro_<TAG>` de cada equipamento, e o
-  // livro não tem projeção — dar uma a ele é entrega da 9F. Sob `boot_v9` o
-  // cache não tem nada disso, e a tela abriria VAZIA, que é o defeito que a
-  // Fase 9 existe para combater.
+  // Esta tela era a ÚLTIMA do sistema que ainda chamava `lerTudo()`. Ela cruza
+  // `nr13_info_` com `nr13_livro_<TAG>` de cada equipamento, e o livro não tinha
+  // projeção que dissesse quem tem livro — então, sob `boot_v9`, o cache não
+  // teria nada disso e a tela abriria VAZIA.
   //
-  // Então aqui, e só aqui, a hidratação integral acontece SOB DEMANDA, com o
-  // usuário vendo que está carregando. O boot continua leve: quem nunca abre o
-  // livro nunca paga por ele.
+  // Com `livro_v9` LIGADA a lista vem do catálogo (`CatalogoLivroV9`) e este
+  // efeito não roda: `deveHidratarListaLegada` é a decisão, e ela mora no
+  // serviço porque a suíte não renderiza React — regra dentro do JSX não tem
+  // teste. Com a flag desligada, tudo continua exatamente como sempre foi.
+  const v9 = livroV9Ativa();
   useEffect(() => {
+    if (!deveHidratarListaLegada(v9)) return;
     if (!bootV9Ativo()) return;
     let vivo = true;
     setHidratando(true);
@@ -265,8 +297,30 @@ export default function LivroRegistro() {
     return () => {
       vivo = false;
     };
-  }, []);
+  }, [v9]);
   const [tagAberta, setTagAberta] = useState<string | null>(null);
+
+  /**
+   * Abrir um livro vindo da lista NOVA: semear a TAG e só então montar a linha.
+   *
+   * A ordem é o risco inteiro desta etapa. Ler antes de semear abriria o livro
+   * sem entrada nenhuma e SEM ERRO — o usuário concluiria que o registro de
+   * segurança do equipamento sumiu. `abrirEquipamentoParaLivro` garante o
+   * `await`, e `semeaduraLivro.test.ts` guarda a ordem.
+   */
+  const abrirPorTag = async (tag: string) => {
+    setAbrindo(true);
+    try {
+      await abrirEquipamentoParaLivro(tag);
+      const linha = montarLinha(tag);
+      // Sem ficha no cache (offline logo no primeiro acesso), monta o mínimo
+      // para o livro abrir mesmo assim, em vez de não responder ao clique.
+      setLinhas([linha ?? { tag, nomeEquip: tag, entradas: [], ultimaData: '', categoria: '' }]);
+      setTagAberta(tag);
+    } finally {
+      setAbrindo(false);
+    }
+  };
   const [preview, setPreview] = useState<{ tag: string; doc: DocPreview } | null>(null);
   const [imprimindo, setImprimindo] = useState(false);
   const [exportando, setExportando] = useState(false);
@@ -981,10 +1035,30 @@ export default function LivroRegistro() {
             <div className="fj-eyebrow">NR-13 · 13.4.1.9</div>
             <h2>Livros de Registro de Segurança</h2>
           </div>
-          <span className="fj-badge neutro">{comLivro.length} livro{comLivro.length !== 1 ? 's' : ''} gerado{comLivro.length !== 1 ? 's' : ''}</span>
+          {/* No caminho novo quem conta é o servidor, e o número aparece na
+              barra de busca — repetir aqui um `comLivro.length` que só conhece a
+              página carregada diria "1 livro gerado" numa organização com 40. */}
+          {!v9 && (
+            <span className="fj-badge neutro">{comLivro.length} livro{comLivro.length !== 1 ? 's' : ''} gerado{comLivro.length !== 1 ? 's' : ''}</span>
+          )}
         </div>
 
-        {comLivro.length === 0 ? (
+        {v9 ? (
+          <>
+            {/* A semeadura da TAG é uma ida à rede, e o clique precisa
+                responder: sem isto, o usuário clica e a tela fica parada. */}
+            {abrindo && (
+              <div className="rel-rodape-carregando" role="status">
+                Abrindo o livro…
+              </div>
+            )}
+            <CatalogoLivroV9
+              termo={termoBusca}
+              aoMudarTermo={setTermoBusca}
+              aoEscolher={(tag) => void abrirPorTag(tag)}
+            />
+          </>
+        ) : comLivro.length === 0 ? (
           <div className="fj-empty">
             <div className="fj-empty-ic"><Icone nome="book" tam={22} /></div>
             <div className="fj-empty-title">

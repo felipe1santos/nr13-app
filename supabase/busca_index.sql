@@ -309,3 +309,13 @@ alter table public.equipamentos_index add column if not exists tem_prontuario bo
 -- 9F.3.1 — idem: nasce NULA em toda linha já projetada, e assim fica até a
 -- reprojeção. É o que permite a tela dizer "não sei" em vez de "zero".
 alter table public.equipamentos_index add column if not exists calibracoes   integer;
+-- 9F.4.1 — idem: nascem NULAS em toda linha já projetada, e assim ficam até a
+-- reprojeção. É o que permite a tela dizer "não sei" em vez de "nenhum registro".
+--
+-- SÃO CATÁLOGO, NÃO O LIVRO. A verdade do livro continua sendo
+-- `nr13_livro_<TAG>` em `app_storage`: estas duas colunas existem para a LISTA
+-- não precisar baixar a organização inteira só para descobrir quem tem livro.
+-- O conteúdo das entradas, o lacre e a cadeia continuam sendo lidos da verdade,
+-- por TAG, ao abrir o livro — ver §5 do registro da 9F.4.
+alter table public.equipamentos_index add column if not exists livro_entradas integer;
+alter table public.equipamentos_index add column if not exists livro_ultima   date;

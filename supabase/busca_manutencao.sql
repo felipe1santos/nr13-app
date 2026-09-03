@@ -108,6 +108,15 @@ declare
   v_pront   boolean;
   -- 9F.3.1 — quantas calibrações. `null` = não contei (linha não reprojetada).
   v_cal     integer;
+  -- 9F.4.1 — o LIVRO, em duas medidas de CATÁLOGO: quantas entradas e a data da
+  -- última. `null` = não contei (linha não reprojetada), nunca "não tem".
+  --
+  -- O conteúdo das entradas NÃO entra aqui, e nem poderia: o lacre (§7-quinquies)
+  -- é verificado com o conteúdo canônico lido da verdade. Conferir o lacre com o
+  -- que o próprio servidor projetou seria o servidor atestando a si mesmo.
+  v_livro   jsonb;
+  v_liv_n   integer;
+  v_liv_ult date;
 begin
   -- `nr13_info_` é a chave que MANDA: define existência e versão.
   select public.f9_json(s.valor), s.versao, s.atualizado_em
@@ -145,6 +154,7 @@ begin
       pmta_mpa = null, pth_mpa = null, resultado = null, volume_m3 = null,
       fluido = null, classe_fluido = null, vida_anos = null, tem_cliente = false,
       unidade = null, inspecoes = null, tem_prontuario = null, calibracoes = null,
+      livro_entradas = null, livro_ultima = null,
       vida_base = null, vida_prox_anos = null,
       source_version = excluded.source_version,
       source_updated_at = excluded.source_updated_at,
@@ -257,11 +267,51 @@ begin
     from public.calibracoes_index
    where org_id = p_org and tag = p_tag;
 
+  -- 9F.4.1 · o LIVRO em duas medidas de catálogo, direto da VERDADE.
+  --
+  -- Lido de `app_storage` (e não de uma projeção intermediária) porque o livro
+  -- não tem — nem deve ter — tabela própria: ele é registro técnico lacrado, e a
+  -- projeção aqui é só o contador que a LISTA precisa para não baixar a
+  -- organização inteira.
+  --
+  -- Igualdade EXATA da chave, nunca `like`: `nr13_livro_config_<TAG>` é outra
+  -- coisa (a configuração da folha) e casaria um `like 'nr13_livro_%'`, fazendo
+  -- a contagem sair de um objeto que não é lista de entradas.
+  --
+  -- NUNCA fica `null` aqui, e é a regra inteira desta coluna: se esta função
+  -- rodou, alguém contou, e "contei e não há livro" é `0`. O `null` fica
+  -- reservado para a linha que esta função ainda NÃO tocou — organização cuja
+  -- projeção não foi refeita. É essa distinção que impede a lista de afirmar
+  -- "nenhum livro gerado" sobre um parque que ninguém olhou, que seria a tela
+  -- mentindo com a cara mais limpa possível.
+  --
+  -- Vale para os três casos degenerados: chave ausente, array vazio e JSON
+  -- ilegível contam `0` e o equipamento SOBREVIVE na projeção. Mesmo contrato
+  -- de `calibracoes` (9F.3).
+  select public.f9_json(s.valor) into v_livro
+    from public.app_storage s
+   where s.org_id = p_org and s.chave = 'nr13_livro_' || p_tag and s.deletado_em is null;
+
+  if jsonb_typeof(v_livro) = 'array' then
+    v_liv_n := jsonb_array_length(v_livro);
+    -- A data da ÚLTIMA entrada. `max` sobre as datas convertidas, e não o último
+    -- elemento do array: entrada retificadora e ocorrência manual entram fora de
+    -- ordem cronológica, e a lista mostra "último registro", não "último salvo".
+    -- Data ilegível vira `null` por `f9_data` e é ignorada pelo `max`, em vez de
+    -- derrubar a projeção do equipamento inteiro.
+    select max(public.f9_data(e2 ->> 'data')) into v_liv_ult
+      from jsonb_array_elements(v_livro) e2;
+  else
+    v_liv_n   := 0;
+    v_liv_ult := null;  -- sem entrada não há "última data", e isso não é omissão
+  end if;
+
   insert into public.equipamentos_index as e (
     org_id, tag, descricao, tipo, subtipo, categoria, fabricante, numero_serie,
     localizacao, ano, cliente_nome, cliente_cidade, proxima_inspecao, tem_foto, foto_ref,
     pmta_mpa, pth_mpa, resultado, volume_m3, fluido, classe_fluido, vida_anos,
-    tem_cliente, unidade, inspecoes, tem_prontuario, calibracoes, vida_base, vida_prox_anos,
+    tem_cliente, unidade, inspecoes, tem_prontuario, calibracoes,
+    livro_entradas, livro_ultima, vida_base, vida_prox_anos,
     source_version, source_updated_at, projected_at
   ) values (
     p_org,
@@ -307,6 +357,8 @@ begin
     v_insp,
     v_pront,
     v_cal,
+    v_liv_n,
+    v_liv_ult,
     -- 9D · os DOIS FATOS crus da vida remanescente, guardados além da data já
     -- derivada acima. O agregado de vencimentos precisa deles porque a REGRA
     -- continua em TypeScript (`vencimentos.ts`): lá o prazo é
@@ -343,6 +395,12 @@ begin
     -- pagou uma vez: sem esta linha a contagem so seria gravada na PRIMEIRA
     -- projecao, e toda reprojeicao deixaria o numero velho no lugar.
     calibracoes = excluded.calibracoes,
+    -- 9F.4.1 - pelo MESMO motivo das duas linhas acima. Aqui o efeito seria pior
+    -- que um badge vazio: a lista do Livro passa a ser SERVIDA por estas duas
+    -- colunas, entao a contagem velha significaria um livro que ganhou entradas
+    -- e continua aparecendo com o numero antigo, ou pior, sumindo da lista.
+    livro_entradas = excluded.livro_entradas,
+    livro_ultima = excluded.livro_ultima,
     vida_base = excluded.vida_base,       vida_prox_anos = excluded.vida_prox_anos,
     source_version = excluded.source_version,
     source_updated_at = excluded.source_updated_at,

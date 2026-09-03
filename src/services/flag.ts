@@ -78,6 +78,23 @@ const CHAVE_PRONTUARIOS = 'nr13_prontuarios_v9';
 const CHAVE_CALIBRACOES = 'nr13_calibracoes_v9';
 
 /**
+ * Fase 9 · 9F.4.5 — a tela `/livro-registro` pela projeção.
+ *
+ * SEXTA flag por tela, mesma regra das outras cinco: ligar uma não liga as
+ * demais, e o rollback é desligar esta sozinha.
+ *
+ * DEFAULT DESLIGADA, e aqui isso pesa mais que em qualquer etapa anterior: esta
+ * é a ÚLTIMA tela que ainda chamava `lerTudo()`, e com a flag ligada ela deixa
+ * de hidratar a organização. O LIVRO continua vindo da verdade
+ * (`nr13_livro_<TAG>` em `app_storage`), semeado sob demanda ao abrir o
+ * equipamento — a projeção é catálogo, nunca a autoridade do Livro de Registro.
+ *
+ * O lacre, a cadeia e a trava de imutabilidade do banco não são tocados por
+ * esta flag, em nenhuma das duas posições.
+ */
+const CHAVE_LIVRO = 'nr13_livro_v9';
+
+/**
  * MEMOIZADA de propósito: qual implementação está ativa é decisão de SESSÃO,
  * tomada no login. Reler o `localStorage` a cada chamada deixaria o caminho
  * trocar no meio da sessão se algo limpasse o storage — e a v2, que não guarda
@@ -90,6 +107,7 @@ let bootEmMemoria: boolean | null = null;
 let inspecoesEmMemoria: boolean | null = null;
 let prontuariosEmMemoria: boolean | null = null;
 let calibracoesEmMemoria: boolean | null = null;
+let livroEmMemoria: boolean | null = null;
 
 export function armazenamentoV2Ativo(): boolean {
   if (emMemoria !== null) return emMemoria;
@@ -222,6 +240,33 @@ export function definirCalibracoesV9(ativa: boolean): void {
 }
 
 /**
+ * A tela nova de `/livro-registro` está ligada para esta organização?
+ *
+ * Memoizada pela mesma razão das outras: qual tela responde é decisão de
+ * SESSÃO, tomada no login.
+ */
+export function livroV9Ativa(): boolean {
+  if (livroEmMemoria !== null) return livroEmMemoria;
+  try {
+    livroEmMemoria = localStorage.getItem(CHAVE_LIVRO) === '1';
+  } catch {
+    livroEmMemoria = false;
+  }
+  return livroEmMemoria;
+}
+
+/** Gravada no login a partir do que o servidor informou para a organização. */
+export function definirLivroV9(ativa: boolean): void {
+  livroEmMemoria = ativa;
+  try {
+    if (ativa) localStorage.setItem(CHAVE_LIVRO, '1');
+    else localStorage.removeItem(CHAVE_LIVRO);
+  } catch {
+    // idem `definirArmazenamentoV2`: a decisão desta sessão continua valendo.
+  }
+}
+
+/**
  * O boot leve está ligado para esta organização?
  *
  * EXIGE A v2. `hidratarEssencial` e `carregarEquipamento` só existem lá; ligada
@@ -259,6 +304,7 @@ export function zerarFlagEmMemoria(): void {
   inspecoesEmMemoria = null;
   prontuariosEmMemoria = null;
   calibracoesEmMemoria = null;
+  livroEmMemoria = null;
 }
 
 /**
@@ -284,7 +330,7 @@ export async function sincronizarFlagDoServidor(): Promise<boolean> {
     const { data, error } = await supabase
       .from('org_sync')
       // TODAS as flags saem na MESMA consulta — nenhum round-trip novo no boot.
-      .select('v2_ativa, busca_v9, boot_v9, inspecoes_v9, prontuarios_v9, calibracoes_v9')
+      .select('v2_ativa, busca_v9, boot_v9, inspecoes_v9, prontuarios_v9, calibracoes_v9, livro_v9')
       .eq('org_id', escopo.id)
       .maybeSingle();
     // Erro pode ser offline OU banco sem a migração armazenamento_v2.sql. Nos
@@ -294,7 +340,7 @@ export async function sincronizarFlagDoServidor(): Promise<boolean> {
     // consulta mais antiga faria o banco que tem `busca_v9` mas ainda não tem
     // `boot_v9` — o estado da produção quando a 9D foi escrita — perder a
     // busca no boot seguinte: uma flag desligando a outra, sem ninguém pedir.
-    if (error) return await sincronizarSemColunaCalibracoes(escopo.id);
+    if (error) return await sincronizarSemColunaLivro(escopo.id);
 
     // AUSÊNCIA DE LINHA = ORGANIZAÇÃO NOVA = v2 (11/08/2026).
     //
@@ -321,6 +367,7 @@ export async function sincronizarFlagDoServidor(): Promise<boolean> {
           inspecoes_v9?: boolean;
           prontuarios_v9?: boolean;
           calibracoes_v9?: boolean;
+          livro_v9?: boolean;
         }
       | null;
     definirArmazenamentoV2(linha ? linha.v2_ativa === true : true);
@@ -337,6 +384,8 @@ export async function sincronizarFlagDoServidor(): Promise<boolean> {
     definirProntuariosV9(linha?.prontuarios_v9 === true);
     // 9F.3.5 · idem para a tela de calibracoes.
     definirCalibracoesV9(linha?.calibracoes_v9 === true);
+    // 9F.4.5 · idem para a tela do livro de registro.
+    definirLivroV9(linha?.livro_v9 === true);
     return armazenamentoV2Ativo();
   } catch {
     return armazenamentoV2Ativo();
@@ -386,6 +435,47 @@ export async function sincronizarFlagDoServidor(): Promise<boolean> {
  * `busca_v9`, `boot_v9`, `inspecoes_v9` e `prontuarios_v9` de quem as tem
  * ligadas: uma flag desligando as outras, sem ninguém pedir.
  */
+/**
+ * Degrau NOVO (9F.4.5): banco sem a coluna `livro_v9`, mas com as cinco que já
+ * estão em produção. Só a tela do livro de registro fica desligada.
+ *
+ * Mesma razão dos degraus anteriores, um nível acima: é o estado do banco entre
+ * publicar o bundle e aplicar o SQL — ou seja, o estado NORMAL de todo deploy.
+ * Sem ele, o primeiro boot depois da publicação apagaria `busca_v9`, `boot_v9`,
+ * `inspecoes_v9`, `prontuarios_v9` e `calibracoes_v9` de quem as tem ligadas:
+ * uma flag desligando as outras cinco, sem ninguém pedir.
+ */
+async function sincronizarSemColunaLivro(orgId: string): Promise<boolean> {
+  definirLivroV9(false);
+  try {
+    const { data, error } = await supabase
+      .from('org_sync')
+      .select('v2_ativa, busca_v9, boot_v9, inspecoes_v9, prontuarios_v9, calibracoes_v9')
+      .eq('org_id', orgId)
+      .maybeSingle();
+    if (error) return await sincronizarSemColunaCalibracoes(orgId);
+    const linha = data as
+      | {
+          v2_ativa?: boolean;
+          busca_v9?: boolean;
+          boot_v9?: boolean;
+          inspecoes_v9?: boolean;
+          prontuarios_v9?: boolean;
+          calibracoes_v9?: boolean;
+        }
+      | null;
+    definirArmazenamentoV2(linha ? linha.v2_ativa === true : true);
+    definirBuscaV9(linha?.busca_v9 === true);
+    definirBootV9(linha?.boot_v9 === true);
+    definirInspecoesV9(linha?.inspecoes_v9 === true);
+    definirProntuariosV9(linha?.prontuarios_v9 === true);
+    definirCalibracoesV9(linha?.calibracoes_v9 === true);
+    return armazenamentoV2Ativo();
+  } catch {
+    return armazenamentoV2Ativo();
+  }
+}
+
 async function sincronizarSemColunaCalibracoes(orgId: string): Promise<boolean> {
   definirCalibracoesV9(false);
   try {

@@ -92,6 +92,22 @@ begin
   -- a TAG na mesma transação da escrita. A alternativa — a tela contar sozinha —
   -- é exatamente o `JSON.parse` de 11,4 KB por cartão que a 9F.1 está tirando.
   elsif p_chave like 'nr13_docs_%' then v_tag := substring(p_chave from 11);
+  -- 9F.4.1 · o LIVRO entra pela mesma porta, e é o que impede a lista de
+  -- envelhecer: cada relatório salvo acrescenta uma anotação ao livro, e a
+  -- reprojeção acontece na MESMA transação dessa escrita.
+  --
+  -- A EXCLUSÃO ABAIXO VEM ANTES, e evita um fantasma concreto:
+  -- `nr13_livro_config_<TAG>` é a CONFIGURAÇÃO da folha, não a lista de
+  -- entradas. Ela casa `like 'nr13_livro_%'`, e sem esta linha a TAG projetada
+  -- sairia como "config_<TAG>" — um equipamento que não existe, pesquisável,
+  -- criado por quem só mexeu num campo de cabeçalho. É o mesmo defeito que
+  -- `nr13_calc_gv_` e `nr13_prontuario_meta_` já evitam logo acima e abaixo.
+  --
+  -- `nr13_termo_livro_<TAG>` não precisa de exclusão: prefixo diferente, não
+  -- casa. E não despacha de propósito — o termo de abertura não altera a
+  -- contagem de entradas nem a data do último registro.
+  elsif p_chave like 'nr13_livro_config_%' then return;
+  elsif p_chave like 'nr13_livro_%' then v_tag := substring(p_chave from 12);
   -- 9F.2.2 · o PRONTUÁRIO entra pela mesma porta, e é isso que impede o badge
   -- de envelhecer: salvar ou excluir o prontuário reprojeta a TAG na mesma
   -- transação da escrita.

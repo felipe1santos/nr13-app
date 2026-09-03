@@ -89,6 +89,32 @@ export interface ItemCatalogo {
    * usuário lê para decidir que uma válvula não precisa calibrar.
    */
   calibracoes: number | null;
+  /**
+   * Quantas entradas o LIVRO DE REGISTRO desta TAG tem — **`null` = não sei**
+   * (9F.4.1).
+   *
+   * É CATÁLOGO, e a distinção importa mais aqui do que em qualquer outra coluna
+   * desta fase: o livro é registro técnico lacrado, e esta contagem NÃO é
+   * autoridade sobre ele. Ela existe para a lista saber quem tem livro sem
+   * baixar a organização inteira — a tela antiga descobria isso com `lerTudo()`,
+   * medido em 780 KB para desenhar UMA linha na maior organização.
+   *
+   * O conteúdo das entradas, o lacre e a cadeia continuam vindo da verdade
+   * (`nr13_livro_<TAG>`), lidos por TAG ao abrir o livro.
+   *
+   * `null` acontece em organização cuja projeção ainda não foi refeita, e NÃO
+   * pode virar `0`: seria a lista afirmando "nenhum livro gerado" sobre um
+   * parque que ninguém olhou.
+   */
+  livroEntradas: number | null;
+  /**
+   * A data da ÚLTIMA entrada do livro — `null` quando não há entrada com data
+   * legível, o que é um fato e não uma omissão.
+   *
+   * Vem do `max` das datas, e não do último elemento do array: ocorrência manual
+   * e retificação entram no fim da lista com data anterior.
+   */
+  livroUltima: string | null;
   unidade: string | null;
   /** Versão da verdade que originou esta linha. Serve à auditoria e ao merge. */
   sourceVersion: number;
@@ -225,6 +251,13 @@ interface LinhaRpc {
    * número ou como texto, e o mapeamento não pode depender dessa escolha.
    */
   calibracoes?: number | string | null;
+  /**
+   * 9F.4.1 — idem: banco sem a migração da 9F.4 manda `undefined`, e o
+   * `undefined` precisa virar `null` (não sei), nunca `0`.
+   */
+  livro_entradas?: number | string | null;
+  /** `date` do Postgres chega como `AAAA-MM-DD`. */
+  livro_ultima?: string | null;
 }
 
 /** `numeric` do Postgres chega como STRING no PostgREST — nunca como número. */
@@ -276,6 +309,15 @@ function daLinha(l: LinhaRpc): ItemCatalogo {
     // que ninguém contou — e é esse número que o usuário lê para decidir que
     // uma válvula não precisa calibrar.
     calibracoes: l.calibracoes === null || l.calibracoes === undefined ? null : Number(l.calibracoes),
+    // 9F.4.1 · MESMA regra das três acima. Aqui o `?? 0` faria a lista do livro
+    // dizer "nenhum livro de registro gerado ainda" para uma organização inteira
+    // cuja projeção não foi refeita — e o livro é o documento que a fiscalização
+    // pede. "Não sei" precisa continuar sendo "não sei" até alguém contar.
+    livroEntradas:
+      l.livro_entradas === null || l.livro_entradas === undefined
+        ? null
+        : Number(l.livro_entradas),
+    livroUltima: l.livro_ultima ?? null,
   };
 }
 

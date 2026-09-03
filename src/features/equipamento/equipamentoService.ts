@@ -259,6 +259,13 @@ export function equipamentosPendentesLocais(): ItemCatalogo[] {
         // não entra em `calibracoes_index`. Duas contagens para a mesma coisa é
         // como as divergências de cartão nasceram na 9C.
         calibracoes: null,
+        // Idem para o livro (9F.4.1). Aqui a tentação é ainda maior — o livro
+        // está no aparelho e `?? []` responderia de imediato. Mas contar aqui
+        // seria o `JSON.parse` do livro por item, de volta pela porta lateral, e
+        // o livro é a chave mais pesada da TAG. `null` = "ninguém contou", que é
+        // a verdade: este equipamento ainda não chegou ao servidor.
+        livroEntradas: null,
+        livroUltima: null,
         pendente: true,
       } satisfies ItemCatalogo;
     });

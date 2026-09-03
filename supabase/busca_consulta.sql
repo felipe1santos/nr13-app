@@ -67,6 +67,25 @@ begin
       message = 'equipamentos_index.calibracoes nao existe',
       hint    = 'Aplique supabase/busca_index.sql (9F.3.1) antes deste arquivo.';
   end if;
+  -- 9F.4.1 · as colunas desta etapa, pela MESMA razao: falhar ANTES de derrubar.
+  if not exists (
+    select 1 from information_schema.columns
+     where table_schema = 'public' and table_name = 'equipamentos_index'
+       and column_name = 'livro_entradas'
+  ) then
+    raise exception using
+      message = 'equipamentos_index.livro_entradas nao existe',
+      hint    = 'Aplique supabase/busca_index.sql (9F.4.1) antes deste arquivo.';
+  end if;
+  if not exists (
+    select 1 from information_schema.columns
+     where table_schema = 'public' and table_name = 'equipamentos_index'
+       and column_name = 'livro_ultima'
+  ) then
+    raise exception using
+      message = 'equipamentos_index.livro_ultima nao existe',
+      hint    = 'Aplique supabase/busca_index.sql (9F.4.1) antes deste arquivo.';
+  end if;
 end $guarda$;
 
 drop function if exists public.buscar_equipamentos(text, text, text, text, integer);
@@ -220,7 +239,14 @@ returns table (
   -- 9F.3.1 · quantas calibrações a TAG tem. `null` = não contado (organização
   -- cuja projeção ainda não foi refeita) — e a tela precisa dessa diferença para
   -- omitir o rótulo em vez de escrever "0 calibrações".
-  calibracoes      integer
+  calibracoes      integer,
+  -- 9F.4.1 · quantas entradas o livro tem, e a data da última. `null` = não
+  -- contado (organização cuja projeção ainda não foi refeita) — e a tela precisa
+  -- dessa diferença para não afirmar "sem registro" sobre um livro que ninguém
+  -- olhou. São CATÁLOGO: o conteúdo, o lacre e a cadeia continuam vindo da
+  -- verdade, por TAG, ao abrir o livro.
+  livro_entradas   integer,
+  livro_ultima     date
 )
 language plpgsql
 stable
@@ -259,7 +285,8 @@ begin
          e.tem_foto, e.foto_ref,
          e.pmta_mpa, e.pth_mpa, e.resultado, e.volume_m3, e.fluido,
          e.classe_fluido, e.vida_anos, e.tem_cliente, e.unidade, e.source_version,
-         e.inspecoes, e.tem_prontuario, e.calibracoes
+         e.inspecoes, e.tem_prontuario, e.calibracoes,
+         e.livro_entradas, e.livro_ultima
     from public.equipamentos_index e
    where e.org_id = v_org
      and (p_cursor is null or e.tag > p_cursor)

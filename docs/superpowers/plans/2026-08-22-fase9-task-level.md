@@ -765,7 +765,34 @@ consulta medida na 9C/9E.2.
       `nr13_livro_%`** — é a única peça de servidor a acrescentar além das colunas.
       **Declarado fora de escopo:** o LACRE (§7-quinquies) não migra para a projeção — conferir
       o lacre no servidor com o dado do servidor seria o servidor atestando a si mesmo.
-- [ ] **9F.4.1…9F.4.6** — NÃO INICIADAS. Escopo proposto no §6 do registro, aguardando decisão.
+- [x] **9F.4.1** — colunas `livro_entradas integer` e `livro_ultima date` NULLABLE, contadas
+      da VERDADE (`nr13_livro_<TAG>`), com as duas no `on conflict … do update set` (o defeito
+      que a 9F.2 pagou uma vez). `0` = contei e não há; `null` = ninguém contou.
+- [x] **9F.4.2** — dispatch de `nr13_livro_%` em `projetar_chave`, com `nr13_livro_config_%`
+      excluído ANTES. A data do último registro é o `max` das datas, e não o último item do
+      array — ocorrência manual e retificação entram fora de ordem cronológica.
+- [x] **9F.4.3** — `buscar_livros`/`contar_livros` em `supabase/busca_livro.sql` (RPC PRÓPRIA:
+      `buscar_equipamentos` serve 4 telas em produção e não se mexe nela por causa desta) +
+      **índice parcial**, que o benchmark exigiu: sem ele, 125.623 buffers e 79,7 ms para
+      devolver 21 linhas; com ele, 22 buffers e 0,228 ms.
+- [x] **9F.4.4** — `CatalogoLivroV9`: lista da projeção, busca (que a tela nunca teve) e
+      keyset. **Sem virtualização, por medição**: a lista já é filtrada no servidor, então o
+      DOM é no máximo 51 linhas em qualquer degrau — 1k, 10k ou 50k.
+- [x] **9F.4.5** — flag `livro_v9` + o 6º degrau da escada de recuo, com teste que exercita a
+      queda inteira (banco anterior a toda a 9F ainda preserva `busca_v9`/`boot_v9`).
+- [x] **9F.4.6** — `testes-9f4.sql` **32/32** · regressões 9F.1 **12/12**, 9F.2 **18/18**,
+      9F.3 **31/31** · suíte **1608/1608** · `tsc -b` + build verdes. **Gate 1k/10k/50k em
+      Supabase LOCAL**: custo constante (24/54/54 buffers, 2,4 KB por página). Três mutation
+      tests, e o terceiro contrariou a expectativa — está registrado como achado.
+
+> **ESTADO: implementada, medida e testada LOCALMENTE. NADA aplicado em produção, nenhuma
+> flag de cliente ligada** — `livro_v9` não existe no banco de produção. Registros:
+> `medicoes/2026-09-02-9f4-livro-registro-as-is.md` (o AS-IS) e
+> `medicoes/2026-09-02-9f4-implementacao-e-gate.md` (implementação, gate e roteiro de rollout).
+>
+> **Limitação declarada:** o gate de NAVEGADOR (DOM real, heap, requisições da aba) NÃO foi
+> executado — o grupo de abas do Chrome foi substituído no meio do trabalho. O que existe é
+> medição de servidor e prova estática de ausência de `lerTudo()`.
 
 ## 9F.5…9F.6 · demais telas — NÃO INICIADAS
 

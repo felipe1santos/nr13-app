@@ -501,3 +501,29 @@ muda. Nenhuma mudança de servidor, de fila ou de dado — é só leitura e dese
 
 **Decisão pendente do dono:** o texto exato do selo (`N aguardando você` × `N decisões` ×
 `N pendências aguardando decisão`) e se o azul compete demais com o âmbar do "Sincronizar".
+
+---
+
+## 9F.4 · `/livro-registro` — PRONTA LOCALMENTE, DEPLOY NÃO AUTORIZADO (02/09/2026)
+
+Implementada, medida e testada **só em Supabase local**. Produção intocada:
+`livro_v9` não existe lá, nenhuma coluna nova foi criada, nenhum cliente afetado.
+
+**Quando houver autorização**, aplicar em produção nesta ordem, conferindo cada arquivo
+**por SHA-256 antes de rodar** (§13 do CLAUDE.md) e por `prosrc`/estrutura depois:
+
+1. `supabase/busca_index.sql` — as colunas `livro_entradas` / `livro_ultima`
+2. `supabase/busca_manutencao.sql` — a projeção que conta
+3. `supabase/busca_index_rpc.sql` — o dispatch de `nr13_livro_`
+4. `supabase/busca_consulta.sql` — a guarda das colunas novas
+5. `supabase/busca_livro.sql` — `buscar_livros`/`contar_livros` + o índice parcial
+6. `supabase/livro_v9_flag.sql` — a flag, default OFF
+
+Depois: reprojetar **TAG a TAG** só na organização de teste (o rebuild vira no-op com o
+cursor no fim), provar os três estados (`null`/`0`/`N`), ligar a flag só nela, abrir um
+livro real conferindo entradas e lacre, e voltar para OFF.
+
+Roteiro completo e limitações: `docs/medicoes/2026-09-02-9f4-implementacao-e-gate.md` §10.
+
+**Pendência de medição:** o gate de NAVEGADOR (DOM real, heap, requisições) não foi
+executado — só o de servidor. Vale rodar antes do rollout.
