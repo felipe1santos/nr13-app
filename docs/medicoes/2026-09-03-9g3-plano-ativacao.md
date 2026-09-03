@@ -96,11 +96,14 @@ Três degraus, sempre os mesmos:
 A onda 1 está no degrau **b** concluído: `teste@gmail.com` e `gabriel.dadona`
 (as duas que já tinham `boot_v9`). Falta o degrau **c** — 28 organizações.
 
-**Gate do degrau c:** o piloto (a+b) precisa de **pelo menos 48 h no ar com uso
-real** antes de ampliar para as demais. É menor que o gate de onda (7 dias)
-porque aqui a pergunta é outra — "o caminho novo funciona nesta versão do
-código?", não "o caminho novo aguenta uma semana de trabalho?". Sem essa linha, o
-degrau c viraria "ampliar assim que der", que é o oposto de rollout gradual.
+**Gate do degrau c** (revisado com o critério do §3): o degrau `c` não tem prazo
+próprio — ele acontece **dentro da janela de 48 h da onda**, assim que as quatro
+condições do §3.2 estiverem satisfeitas para as organizações que vão entrar. O
+piloto (a+b) é o que dá o sinal; as quatro condições é que liberam.
+
+O relógio da onda **não reinicia** ao ampliar: as 48 h contam do momento em que a
+onda entrou no ar (degrau a). Reiniciar a cada degrau devolveria o calendário de
+sete dias por outro caminho.
 
 ### Por que as ondas não são paralelizadas
 
@@ -113,40 +116,57 @@ diagnosticável.
 
 ## 3 · O que "estável" significa — os números que liberam a onda seguinte
 
-Uma onda só avança quando, para as organizações já ligadas:
+> **CRITÉRIO REVISADO EM 03/09/2026, a pedido do dono, para encurtar o calendário.**
+> O gate de 7 dias por onda foi substituído por 48 h nas ondas 1–5 e 72 h na
+> onda 6, com os 7 dias preservados **uma única vez**, no fim, antes da remoção.
 
-| sinal | limite |
+### 3.1 · Gate por onda
+
+| onda | tempo de estabilidade |
 |---|---|
-| queixa de dado que sumiu | **zero** — é o defeito que a fase inteira existe para não causar |
-| `busca_pendencias` | 0 |
-| `auditar_projecao` | `convergiu: true` |
-| escritas recusadas em `app_storage` | nenhuma nova |
-| tempo em observação | **7 dias corridos** com uso real |
+| **1 a 5** | **48 horas** |
+| **6** (`boot_v9`) | **72 horas** |
+| **depois de TODAS as flags em 30/30** | **7 dias de estabilidade GLOBAL** antes da remoção |
 
-Sete dias porque o ciclo de trabalho do usuário é semanal: inspeção em campo,
-escritório depois. Um defeito que só aparece ao gerar o relatório da semana não
-aparece em dois dias.
+A onda 6 tem 24 h a mais porque é a única que muda o que existe no cache de
+todas as outras telas: um defeito dela não aparece nela, aparece em qualquer
+lugar. E os 7 dias no fim continuam existindo pela razão original — o ciclo de
+trabalho do usuário é semanal (campo, depois escritório), e um defeito que só
+aparece ao gerar o relatório da semana não aparece em dois dias. O que mudou foi
+**onde** esse período é pago: uma vez, no fim, em vez de seis vezes.
 
-### O calendário que isso produz
+### 3.2 · Antes de AMPLIAR cada onda — as quatro condições
+
+Todas obrigatórias, para as organizações que serão ativadas:
+
+| # | condição | como se verifica |
+|---|---|---|
+| 1 | `auditar_projecao` com **`convergiu = true`** para TODAS as orgs que entram | consulta por org, antes de ligar (regra do §1) |
+| 2 | **zero regressão conhecida** | nenhum defeito aberto atribuído à onda em curso |
+| 3 | **zero relato de dado faltando** | é o defeito que a fase inteira existe para não causar |
+| 4 | **rollback funcional** | `definir_<flag>(org,false)` executado e conferido em pelo menos uma organização da onda — provado, não presumido |
+
+A condição 4 não é burocracia: rollback que nunca foi exercitado é hipótese. Ele
+é barato de provar (segundos) e é a única coisa que separa "a onda deu errado" de
+"a onda deu errado e não temos saída".
+
+`busca_pendencias = 0` e "nenhuma escrita recusada em `app_storage`" continuam
+sendo **sinais complementares** — acompanham, não liberam.
+
+### 3.3 · O calendário que isso produz
 
 | | |
 |---|---|
-| ondas | 6 |
-| gate por onda | 7 dias corridos |
-| **até 30/30 nas seis ondas** | **42 dias** — de 03/09/2026 a **~15/10/2026** |
-| + a rodada de remoção (etapa 7) | 1 sessão de trabalho |
-| **total** | **~43 dias** |
+| ondas 1–5 | 5 × 48 h = **10 dias** |
+| onda 6 | **3 dias** |
+| estabilidade global antes da remoção | **7 dias** |
+| **total até poder remover** | **20 dias** — de 03/09/2026 a **~23/09/2026** |
+| + a rodada de remoção (etapa 7) | 1 sessão, **com autorização explícita** |
 
-O modelo é: dia 0 da onda liga os degraus **a** e **b** (piloto), o gate de 7
-dias corre com o piloto no ar e a ampliação para 30/30 acontece dentro da mesma
-janela quando os sinais do §3 estiverem limpos. Onda seguinte no dia 7.
+Eram 43 dias no critério anterior. **20 agora.**
 
-**O que encurtaria:** rodar duas ondas em paralelo — e o preço está no §2, "por
-que as ondas não são paralelizadas". Não vale.
-
-**O que alongaria:** qualquer queixa de dado sumido reinicia o gate daquela onda.
-
----
+**O que alongaria:** qualquer queixa de dado sumido reinicia o gate daquela onda,
+e uma regressão em onda anterior segura a seguinte.
 
 ## 4 · Rollback, por nível
 
@@ -163,10 +183,20 @@ comportamento correto. Para devolver, desliga-se o boot leve.
 
 ---
 
-## 5 · A remoção — só depois de 30/30 estáveis
+## 5 · A remoção — só depois de 30/30 mais 7 dias globais
 
-Quando as oito flags estiverem ON nas 30 organizações e o §3 tiver sido
-satisfeito na última onda:
+> **DUAS PORTAS, e as duas precisam abrir:**
+> 1. as **oito flags ON nas 30 organizações**, com as quatro condições do §3.2
+>    satisfeitas na última onda;
+> 2. **7 dias corridos de estabilidade GLOBAL** depois disso — com tudo ligado,
+>    ao mesmo tempo, sob uso real;
+> 3. **autorização explícita do dono.** Sem ela, nada aqui acontece.
+
+Os 7 dias globais não são o gate de uma onda: são o gate do SISTEMA INTEIRO
+funcionando sem nenhum caminho de recuo sendo exercitado. É a única janela em
+que se observa o conjunto, e não uma tela por vez.
+
+Cumpridas as três portas:
 
 1. **primeiro o código do cliente**: apagar os componentes legados de cada tela,
    `listarEquipamentos()`, `montarResumo()`, o caminho local de
