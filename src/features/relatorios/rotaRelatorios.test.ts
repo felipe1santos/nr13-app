@@ -11,26 +11,23 @@ import { alvoLegadoDaUrl, modoRelatorios, urlDoLegado } from './rotaRelatorios';
  * ambiente (`environment: 'node'`, sem DOM).
  */
 describe('modoRelatorios', () => {
-  it('flag desligada = tela legada, como sempre foi', () => {
-    expect(modoRelatorios(false, '')).toBe('legado');
-    expect(modoRelatorios(false, '?q=vaso')).toBe('legado');
+  // 9G.3 · a flag `busca_v9` saiu da assinatura. A rota agora depende SÓ da URL.
+  it('sem parâmetro = tela nova, que virou a entrada única', () => {
+    expect(modoRelatorios('')).toBe('v9');
+    expect(modoRelatorios('?q=vaso')).toBe('v9');
   });
 
-  it('flag ligada = tela nova', () => {
-    expect(modoRelatorios(true, '')).toBe('v9');
-    expect(modoRelatorios(true, '?q=vaso')).toBe('v9');
-  });
-
-  it('`legado=1` na URL abre a tela antiga MESMO com a flag ligada', () => {
-    // É a saída de emergência para o relatório sem arquivo arquivado: só a tela
-    // antiga sabe remontá-lo. Sem isto, a flag transforma esse documento em
-    // inalcançável — que é exatamente o defeito do passo 11.
-    expect(modoRelatorios(true, '?legado=1&tag=VASO-01&rel=r-9')).toBe('legado');
+  it('`legado=1` na URL abre a tela antiga — e essa saída NÃO foi removida', () => {
+    // Relatório anterior ao §7-quater não tem PDF arquivado, e remontá-lo é
+    // coisa que só a tela antiga sabe fazer. Apagar esta saída junto com a flag
+    // transformaria esse documento em inalcançável — o defeito do passo 11, que
+    // a remoção da 9G.3 não pode reintroduzir.
+    expect(modoRelatorios('?legado=1&tag=VASO-01&rel=r-9')).toBe('legado');
   });
 
   it('só o valor `1` vale — qualquer outro texto não desvia a rota', () => {
-    expect(modoRelatorios(true, '?legado=0')).toBe('v9');
-    expect(modoRelatorios(true, '?legado=talvez')).toBe('v9');
+    expect(modoRelatorios('?legado=0')).toBe('v9');
+    expect(modoRelatorios('?legado=talvez')).toBe('v9');
   });
 });
 

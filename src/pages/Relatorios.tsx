@@ -1,21 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import RelatoriosV9 from '../features/relatorios/RelatoriosV9';
 import { alvoLegadoDaUrl, modoRelatorios, urlDoLegado } from '../features/relatorios/rotaRelatorios';
 import { usePalcoDocumento } from '../features/documentos/usePalcoDocumento';
 import { paramsSomenteLeitura, travarIframeSomenteLeitura } from '../features/documentos/somenteLeituraDoc';
 import { drenarPonte } from '../services/ponteTemplates';
-import { ler, salvar, buscaV9Ativa } from '../services/storage';
+import { ler, salvar } from '../services/storage';
 import RecusaPalco from '../components/RecusaPalco';
-import { listarEquipamentos } from '../features/equipamento/equipamentoService';
-import { relatoriosV9Ativa } from '../services/flag';
 import CatalogoRelatoriosV9 from '../features/relatorios/CatalogoRelatoriosV9';
 import {
   abrirEquipamentoParaRelatorio,
-  deveHidratarListaLegada,
 } from '../features/relatorios/catalogoRelatorios';
-import type { EquipamentoResumo } from '../features/equipamento/tipos';
-import { formatarValor } from '../calc/unidades';
 import ModalNovaInspecao from '../features/relatorios/ModalNovaInspecao';
 import ModalSelecionarContainer from '../features/relatorios/ModalSelecionarContainer';
 import { carregarContainer } from '../features/inspecoes/inspecaoService';
@@ -30,7 +25,6 @@ import {
   gravarInspecaoOrigemAtual,
   gravarMetaAtual,
   carregarRelatorio,
-  contarRelatorios,
   listarHistorico,
   montarListaComTermoAbertura,
   obterAssinantesRel,
@@ -59,7 +53,6 @@ import VisualizadorPdf, { baixarPdfArquivado, imprimirPdfArquivado } from '../co
 import { Icone } from '../components/Icone';
 import './relatorios.css';
 import PaginaA4 from '../components/PaginaA4';
-import FotoImg from '../components/FotoImg';
 
 type Tela = 'equipamentos' | 'historico' | 'visualizador';
 type EtapaModal = 'nenhuma' | 'documentos' | 'container';
@@ -67,12 +60,6 @@ type EtapaModal = 'nenhuma' | 'documentos' | 'container';
 const TIPOS_INSPECAO: TipoInspecao[] = ['Inspeção Inicial', 'Inspeção Periódica', 'Inspeção Extraordinária'];
 
 const hoje = () => new Date().toLocaleDateString('pt-BR');
-
-const ROTULO_TIPO: Record<string, string> = {
-  vaso: 'Vaso de Pressão',
-  autoclave: 'Autoclave',
-  caldeira: 'Caldeira',
-};
 
 const IconeOlho = (
   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -127,11 +114,7 @@ function metaPadrao(tipo: TipoInspecao): RelatorioMeta {
 
 function RelatoriosLegado() {
   const [tela, setTela] = useState<Tela>('equipamentos');
-  // 9F.6 · decisão de SESSÃO, como nas outras seis telas: qual catálogo responde
-  // não pode trocar no meio da navegação.
-  const [catalogoV9] = useState(() => relatoriosV9Ativa());
   const [termoCatalogo, setTermoCatalogo] = useState('');
-  const [equipamentos, setEquipamentos] = useState<EquipamentoResumo[]>([]);
   const [tag, setTag] = useState('');
   const [etapaModal, setEtapaModal] = useState<EtapaModal>('nenhuma');
   const [pendente, setPendente] = useState<{ tipo: TipoInspecao; docs: string[] } | null>(null);
@@ -268,28 +251,8 @@ function RelatoriosLegado() {
     };
   }, [tela, documentos, versao]);
 
-  // UMA contagem por equipamento, recalculada só quando a lista muda. Chamar
-  // `listarHistorico` direto no JSX rodava a leitura por equipamento a CADA
-  // render — com o índice por TAG isso é barato, mas continua sendo trabalho
-  // repetido numa lista que pode ter centenas de itens.
-  const contagemPorTag = useMemo(
-    () => new Map(equipamentos.map((e) => [e.tag, contarRelatorios(e.tag)] as const)),
-    [equipamentos],
-  );
 
-  const carregarEquipamentos = useCallback(async () => {
-    // 9F.6 · com o catálogo novo NINGUÉM hidrata: a lista vem da projeção e o
-    // equipamento chega por semeadura, ao ser escolhido. `listarEquipamentos()`
-    // começa com `await lerTudo()` — a hidratação INTEGRAL — e ainda lê CINCO
-    // chaves por equipamento, `nr13_fotos_` inclusive, só para desenhar cartões.
-    if (!deveHidratarListaLegada(catalogoV9)) return;
-    setEquipamentos(await listarEquipamentos());
-  }, [catalogoV9]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount padrão
-    carregarEquipamentos();
-  }, [carregarEquipamentos]);
 
   /**
    * ABERTURA POR LINK (`?tag=…&rel=…`) — o outro lado do conserto da 9E.5.
@@ -325,7 +288,7 @@ function RelatoriosLegado() {
     // `abrirEquipamentoParaRelatorio`, onde a suíte alcança (o ambiente de teste
     // é `node`, sem render). Com a flag desligada é a leitura de sempre.
     setHistorico(
-      catalogoV9 ? await abrirEquipamentoParaRelatorio(novaTag) : listarHistorico(novaTag),
+      await abrirEquipamentoParaRelatorio(novaTag),
     );
     setDocumentos(null);
     setMeta(null);
@@ -767,47 +730,11 @@ function RelatoriosLegado() {
       {tela === 'equipamentos' && (
         <div className="bloco-dados">
           <h3>Equipamentos Cadastrados</h3>
-          {catalogoV9 ? (
-            <CatalogoRelatoriosV9
-              termo={termoCatalogo}
-              aoMudarTermo={setTermoCatalogo}
-              aoEscolher={(t) => void abrirEquipamento(t)}
-            />
-          ) : equipamentos.length === 0 ? (
-            <p className="dashboard-vazio">Nenhum equipamento cadastrado ainda.</p>
-          ) : (
-            <div className="lista-cards-horiz">
-              {equipamentos.map((eq) => (
-                <button
-                  type="button"
-                  key={eq.tag}
-                  className="card-equipamento-horiz"
-                  onClick={() => abrirEquipamento(eq.tag)}
-                >
-                  <div className="card-eq-img">
-                    {eq.fotoCapa ? <FotoImg foto={eq.fotoCapa} alt={eq.tag} variante="thumb" /> : <span className="card-eq-img-vazio">{eq.tag.slice(0, 2)}</span>}
-                  </div>
-                  <div className="card-eq-info">
-                    <div className="eq-col">
-                      <span className="eq-tag">{eq.tag}</span>
-                      <span className="eq-tipo">{ROTULO_TIPO[eq.info.tipo]}</span>
-                    </div>
-                    <div className="eq-col">
-                      <span className="eq-label">Categoria</span>
-                      <span className="eq-value">{eq.categoria?.catFinal ?? '—'}</span>
-                    </div>
-                    <div className="eq-col">
-                      <span className="eq-label">PMTA</span>
-                      <span className="eq-value">{eq.calculo ? formatarValor(parseFloat(eq.calculo.pmta), eq.unidade) : '—'}</span>
-                    </div>
-                  </div>
-                  <span className={`badge-relatorios ${(contagemPorTag.get(eq.tag) ?? 0) > 0 ? 'tem' : ''}`}>
-                    {contagemPorTag.get(eq.tag) ?? 0} Relatórios
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
+          <CatalogoRelatoriosV9
+            termo={termoCatalogo}
+            aoMudarTermo={setTermoCatalogo}
+            aoEscolher={(t) => void abrirEquipamento(t)}
+          />
         </div>
       )}
 
@@ -1222,7 +1149,6 @@ export default function Relatorios() {
   // A flag é decisão de SESSÃO, lida uma vez no login. Alternar no meio faria a
   // lista trocar de fonte com cursores diferentes, e o usuário veria item
   // repetir ou sumir durante a rolagem.
-  const [flagV9] = useState(() => buscaV9Ativa());
   const { search } = useLocation();
   const navigate = useNavigate();
 
@@ -1230,7 +1156,7 @@ export default function Relatorios() {
   // motivo só: o relatório salvo antes do §7-quater não tem PDF arquivado, e
   // remontá-lo é coisa que só a tela antiga sabe fazer. Sem essa saída, a flag
   // ligada tornava esse documento inalcançável — o defeito do passo 11.
-  const modo = modoRelatorios(flagV9, search);
+  const modo = modoRelatorios(search);
   if (modo === 'legado') return <RelatoriosLegado />;
 
   return (

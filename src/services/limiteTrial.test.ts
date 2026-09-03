@@ -101,20 +101,24 @@ describe('teto de equipamentos no trial', () => {
  * produto, não de segurança — mas um gate que some em silêncio é pior que um
  * gate que não existe, porque ninguém vai procurar.
  */
-describe('teto do trial com o boot leve', () => {
+describe('teto do trial — sempre pela projeção (9G.3)', () => {
   beforeEach(() => {
     flagBoot.ativo = false;
     contagem.total = 0;
   });
 
-  it('sem boot_v9, conta do cache — o caminho de sempre', async () => {
+  it('a contagem vem SEMPRE da projeção — o cache do aparelho não decide', async () => {
+    // 9G.3 · o caminho pelo cache saiu com a flag `boot_v9`. Sob boot leve o
+    // cache não tem a organização: contar ali liberaria o teto do trial para
+    // uma conta que já o estourou.
     localStorage.setItem('nr13_plano', 'trial');
-    comEquipamentos(3);
+    comEquipamentos(3); // o cache MENTE de propósito neste teste
+    contagem.total = 5;
 
     const r = await podeCriarEquipamentoAgora();
 
+    expect(r.atual).toBe(5);
     expect(r.permitido).toBe(false);
-    expect(r.atual).toBe(3);
   });
 
   it('com boot_v9, conta pela PROJEÇÃO — o cache vazio não libera o teto', async () => {

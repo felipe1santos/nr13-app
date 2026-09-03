@@ -21,8 +21,12 @@
  */
 
 /** A tela que `/relatorios` deve montar. */
-export function modoRelatorios(flagAtiva: boolean, search: string): 'v9' | 'legado' {
-  if (!flagAtiva) return 'legado';
+export function modoRelatorios(search: string): 'v9' | 'legado' {
+  // 9G.3 · a flag `busca_v9` saiu. A tela nova é a entrada; a antiga continua
+  // alcançável SÓ por `legado=1`, e ela existe por um motivo que não expirou:
+  // relatório anterior ao §7-quater não tem PDF arquivado, e remontá-lo é coisa
+  // que só a tela antiga sabe fazer. Sem essa saída, o documento fica
+  // inalcançável.
   return new URLSearchParams(search).get('legado') === '1' ? 'legado' : 'v9';
 }
 

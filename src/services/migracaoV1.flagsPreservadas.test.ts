@@ -67,19 +67,30 @@ describe('purgarCacheV1 × as flags de rollout', () => {
     expect(localStorage.getItem('nr13_fotos_VP-1')).toBeNull();
   });
 
-  it('a lista de flags tem as NOVE — a 9F.5 e a 9F.6 incluídas', () => {
-    // Este teste é o alarme de "nasceu flag e ninguém pôs na lista": ele falha
-    // por FALTA, não por excesso, e o número sobe junto com a etapa.
+  it('depois da 9G.3 sobrou UMA flag: a do armazenamento v2', () => {
+    // A lista chegou a ter NOVE. As oito da Fase 9 eram mecanismo de rollout e
+    // saíram com os caminhos legados; `v2_ativa` fica, porque ela separa dois
+    // modelos de ARMAZENAMENTO e desligá-la é rollback de infraestrutura.
+    //
+    // O teste continua sendo o alarme de "nasceu flag e ninguém pôs na lista":
+    // é ele que impede a próxima de nascer fora da proteção da purga.
     expect(new Set(CHAVES_FLAG).size).toBe(CHAVES_FLAG.length); // sem duplicata
-    expect(CHAVES_FLAG).toContain('nr13_vencimentos_v9');
-    expect(CHAVES_FLAG).toContain('nr13_relatorios_v9');
-    expect(CHAVES_FLAG).toContain('nr13_boot_v9');
-    expect(CHAVES_FLAG).toContain('nr13_livro_v9');
-    expect(CHAVES_FLAG).toContain('nr13_inspecoes_v9');
-    expect(CHAVES_FLAG).toContain('nr13_prontuarios_v9');
-    expect(CHAVES_FLAG).toContain('nr13_calibracoes_v9');
-    expect(CHAVES_FLAG).toContain('nr13_busca_v9');
     expect(CHAVES_FLAG).toContain('nr13_armazenamento_v2');
-    expect(CHAVES_FLAG).toHaveLength(9);
+    expect(CHAVES_FLAG).toHaveLength(1);
+  });
+
+  it('e nenhuma flag da Fase 9 sobrou na lista', () => {
+    for (const morta of [
+      'nr13_busca_v9',
+      'nr13_boot_v9',
+      'nr13_inspecoes_v9',
+      'nr13_prontuarios_v9',
+      'nr13_calibracoes_v9',
+      'nr13_livro_v9',
+      'nr13_vencimentos_v9',
+      'nr13_relatorios_v9',
+    ]) {
+      expect(CHAVES_FLAG, `${morta} deveria ter saído na 9G.3`).not.toContain(morta);
+    }
   });
 });

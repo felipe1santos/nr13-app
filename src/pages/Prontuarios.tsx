@@ -1,15 +1,10 @@
 import { usePalcoDocumento } from '../features/documentos/usePalcoDocumento';
 import RecusaPalco from '../components/RecusaPalco';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Icone } from '../components/Icone';
-import { listarEquipamentos } from '../features/equipamento/equipamentoService';
 import type { EquipamentoResumo } from '../features/equipamento/tipos';
 import CatalogoProntuariosV9 from '../features/prontuarios/CatalogoProntuariosV9';
-import {
-  abrirEquipamentoParaProntuario,
-  deveHidratarListaLegada,
-} from '../features/prontuarios/catalogoProntuarios';
-import { prontuariosV9Ativa } from '../services/flag';
+import { abrirEquipamentoParaProntuario } from '../features/prontuarios/catalogoProntuarios';
 import { formatarValor } from '../calc/unidades';
 import {
   carregarProntuario,
@@ -266,9 +261,7 @@ export default function Prontuarios() {
   // Decisão de SESSÃO (memoizada em `flag.ts`), lida uma vez: qual lista
   // responde por esta tela. Só a LISTA e o momento da semeadura mudam — o
   // formulário e o visualizador são os mesmos nos dois caminhos.
-  const [v9] = useState(() => prontuariosV9Ativa());
   const [termoBusca, setTermoBusca] = useState('');
-  const [equipamentos, setEquipamentos] = useState<EquipamentoResumo[]>([]);
   const [tag, setTag] = useState('');
   const [dados, setDados] = useState<ProntuarioDados>(dadosPadrao(''));
   const [versao, setVersao] = useState(0);
@@ -333,22 +326,13 @@ export default function Prontuarios() {
     };
   }, [tela, versao]);
 
-  const carregarEquipamentos = useCallback(async () => {
-    // 9F.2.1 · com a flag ligada, a lista vem da projeção e NINGUÉM hidrata a
-    // organização: `listarEquipamentos()` começa com `await lerTudo()` e é ele
-    // que desfaz o boot leve da 9D na primeira visita a esta tela.
-    if (!deveHidratarListaLegada(v9)) return;
-    setEquipamentos(await listarEquipamentos());
-  }, [v9]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount padrão
-    carregarEquipamentos();
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount padrão
     setClientes(listarClientes());
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount padrão
     setFuncionarios(listarFuncionarios());
-  }, [carregarEquipamentos]);
+  }, []);
 
   // Assinantes do prontuário (engenheiro + técnico): carrega a escolha salva da TAG e, por
   // conveniência, pré-seleciona o engenheiro quando há exatamente 1 cadastrado (e persiste).
@@ -663,7 +647,7 @@ export default function Prontuarios() {
       {/* 9F.2.1 · a lista da projeção, com busca e virtualização. O que vem
           depois dela — formulário e visualizador — é o MESMO nos dois
           caminhos. */}
-      {tela === 'equipamentos' && v9 && (
+      {tela === 'equipamentos' && (
         <CatalogoProntuariosV9
           termo={termoBusca}
           aoMudarTermo={setTermoBusca}
@@ -671,48 +655,6 @@ export default function Prontuarios() {
         />
       )}
 
-      {tela === 'equipamentos' && !v9 && (
-        <div className="bloco-dados">
-          <h3>Equipamentos Cadastrados</h3>
-          {equipamentos.length === 0 ? (
-            <p className="dashboard-vazio">Nenhum equipamento cadastrado ainda.</p>
-          ) : (
-            <div className="lista-cards-horiz">
-              {equipamentos.map((eq) => {
-                const temPront = carregarProntuario(eq.tag) !== null;
-                return (
-                  <button
-                    type="button"
-                    key={eq.tag}
-                    className="card-equipamento-horiz"
-                    onClick={() => void abrirEquipamento(eq)}
-                  >
-                    <div className="card-eq-info" style={{ flex: 1 }}>
-                      <div className="eq-col">
-                        <span className="eq-tag">{eq.tag}</span>
-                        <span className="eq-tipo">{ROTULO_TIPO[eq.info.tipo]}</span>
-                      </div>
-                      <div className="eq-col">
-                        <span className="eq-label">Categoria</span>
-                        <span className="eq-value">{eq.categoria?.catFinal ?? '—'}</span>
-                      </div>
-                      <div className="eq-col">
-                        <span className="eq-label">PMTA</span>
-                        <span className="eq-value">
-                          {eq.calculo ? formatarValor(parseFloat(eq.calculo.pmta), eq.unidade) : '—'}
-                        </span>
-                      </div>
-                    </div>
-                    <span className={`badge-relatorios ${temPront ? 'tem' : ''}`}>
-                      {temPront ? 'Prontuário OK' : 'Sem Prontuário'}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
 
       {tela === 'formulario' && (
         <div className="bloco-dados">

@@ -92,21 +92,33 @@ describe('catalogoRelatorios (serviço) não hidrata', () => {
   });
 });
 
-describe('Relatorios.tsx mantém o caminho antigo ATRÁS da guarda', () => {
-  it('ainda tem `listarEquipamentos` — o rollback não foi removido', () => {
-    // Deliberado: se alguém apagar o caminho antigo antes da 9G, fica vermelho.
-    expect(TELA).toMatch(/listarEquipamentos/);
-  });
-
-  it('mas só o executa quando `deveHidratarListaLegada` deixa', () => {
+describe('9G.3 — o caminho antigo SAIU de Relatorios.tsx', () => {
+  // Estes testes existiam invertidos até 03/09/2026: garantiam que o legado
+  // ficasse enquanto desligar a flag era o rollback. Com as oito flags em 30/30
+  // e o gate global verde, a remoção foi autorizada — e a mesma disciplina que
+  // segurava o legado agora impede que ele volte por descuido.
+  it('a tela NÃO chama mais `listarEquipamentos` — a hidratação integral saiu', () => {
     expect(
       TELA,
-      'Sem a guarda, a tela legada volta a hidratar a organização mesmo com a flag ligada — ' +
-        'que é exatamente o defeito que a etapa removeu.',
-    ).toMatch(/deveHidratarListaLegada/);
+      '`listarEquipamentos()` começa com `await lerTudo()`. Aqui ele baixaria a ' +
+        'organização inteira só para desenhar o seletor de equipamentos.',
+    ).not.toMatch(/listarEquipamentos/);
   });
 
-  it('semeia a TAG ao escolher, sob a flag', () => {
+  it('e não resta guarda de flag (`deveHidratarListaLegada`, `relatoriosV9Ativa`)', () => {
+    expect(TELA).not.toMatch(/deveHidratarListaLegada/);
+    expect(TELA).not.toMatch(/relatoriosV9Ativa/);
+    expect(TELA).not.toMatch(/buscaV9Ativa/);
+  });
+
+  it('semeia a TAG ao escolher — a ordem que impede o histórico vazio', () => {
     expect(TELA).toMatch(/abrirEquipamentoParaRelatorio/);
+  });
+
+  it('mas a SAÍDA para a tela antiga continua existindo', () => {
+    // `legado=1` é o único caminho que remonta relatório anterior ao §7-quater,
+    // que não tem PDF arquivado. Removê-la junto com a flag deixaria esse
+    // documento inalcançável.
+    expect(TELA).toMatch(/modoRelatorios/);
   });
 });

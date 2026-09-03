@@ -19,7 +19,6 @@
  */
 import { isTrial } from './auth';
 import { listarChavesComPrefixo } from './storage';
-import { bootV9Ativo } from './flag';
 import { contar } from './buscaIndex';
 
 export const LIMITE_EQUIPAMENTOS_TRIAL = 3;
@@ -56,7 +55,6 @@ export function equipamentosCadastrados(): number {
  */
 export async function podeCriarEquipamentoAgora(): Promise<ResultadoLimite> {
   if (!isTrial()) return { permitido: true, atual: 0, limite: Infinity, motivo: '' };
-  if (!bootV9Ativo()) return podeCriarEquipamento();
 
   const { total } = await contar();
   return avaliarTeto(total);

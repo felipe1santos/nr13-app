@@ -1,9 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Icone } from '../components/Icone';
-import { listarEquipamentos } from '../features/equipamento/equipamentoService';
-import type { EmpresaEquipamento, EquipamentoResumo, TipoEquipamento } from '../features/equipamento/tipos';
-import { formatarValor } from '../calc/unidades';
-import { ler } from '../services/storage';
+import type { EquipamentoResumo } from '../features/equipamento/tipos';
 import { mascararData } from '../services/mascaras';
 import {
   arquivoCalibracao,
@@ -18,9 +15,7 @@ import VisualizadorCalibracao from '../features/calibracoes/VisualizadorCalibrac
 import CatalogoCalibracoesV9 from '../features/calibracoes/CatalogoCalibracoesV9';
 import {
   abrirEquipamentoParaCalibracoes,
-  deveHidratarListaLegada,
 } from '../features/calibracoes/catalogoCalibracoes';
-import { calibracoesV9Ativa } from '../services/flag';
 import {
   criarLote,
   excluirComponente,
@@ -43,17 +38,6 @@ import RecusaPalco from '../components/RecusaPalco';
 import { usePalcoDocumento } from '../features/documentos/usePalcoDocumento';
 
 type Tela = 'equipamentos' | 'historico' | 'formulario' | 'visualizador' | 'verDados';
-
-function proprietarioDe(tag: string): string {
-  const emp = ler<EmpresaEquipamento>(`nr13_emp_${tag}`);
-  return emp?.razaoSocial || emp?.nomeFantasia || '';
-}
-
-const ROTULO_TIPO: Record<string, string> = {
-  vaso: 'Vaso de Pressão',
-  autoclave: 'Autoclave',
-  caldeira: 'Caldeira',
-};
 
 interface FormDados {
   tipo: 'manometro' | 'psv';
@@ -199,7 +183,6 @@ function parseDateBR(d: string): number {
 
 export default function Calibracoes() {
   const [tela, setTela] = useState<Tela>('equipamentos');
-  const [equipamentos, setEquipamentos] = useState<EquipamentoResumo[]>([]);
   const [tag, setTag] = useState('');
   const [cals, setCals] = useState<DadosCalibracao[]>([]);
   const [calAtual, setCalAtual] = useState<DadosCalibracao | null>(null);
@@ -216,15 +199,12 @@ export default function Calibracoes() {
   const palco = usePalcoDocumento(tag, `cal-${calAtual?.id ?? 'nenhuma'}-${versao}`, {
     pular: tela !== 'visualizador',
   });
-  const [filtroTipo, setFiltroTipo] = useState<'todos' | TipoEquipamento>('todos');
-  const [filtroProp, setFiltroProp] = useState('');
   /**
    * 9F.3.5 · qual lista responde. Lido UMA vez, no primeiro render: trocar a
    * fonte no meio da sessão faria a rolagem alternar entre dois cursores, e o
    * usuário veria itens repetirem ou sumirem. É a mesma decisão de sessão de
    * `armazenamentoV2Ativo`.
    */
-  const [v9] = useState(() => calibracoesV9Ativa());
   /** Termo da busca da lista nova. A antiga não tem campo de texto. */
   const [termoBusca, setTermoBusca] = useState('');
   const [toast, setToast] = useState('');
@@ -237,34 +217,9 @@ export default function Calibracoes() {
   const compFotoRef = useRef<HTMLInputElement>(null);
   const vinculoCalibracao = useRef<{ componenteId: string; loteId: string } | null>(null);
 
-  const proprietarios = useMemo(
-    () => [...new Set(equipamentos.map((e) => proprietarioDe(e.tag)).filter(Boolean))].sort(),
-    [equipamentos],
-  );
 
-  const equipamentosFiltrados = useMemo(
-    () =>
-      equipamentos.filter(
-        (e) =>
-          (filtroTipo === 'todos' || e.info.tipo === filtroTipo) &&
-          (filtroProp === '' || proprietarioDe(e.tag) === filtroProp),
-      ),
-    [equipamentos, filtroTipo, filtroProp],
-  );
 
-  const carregarEquipamentos = useCallback(async () => {
-    // 9F.3.3 · com a flag ligada NINGUÉM hidrata: a lista vem da projeção e o
-    // equipamento chega por semeadura, ao ser escolhido. `listarEquipamentos()`
-    // começa com `await lerTudo()`, e é ele que desfaz o boot leve da 9D na
-    // primeira visita a esta tela.
-    if (!deveHidratarListaLegada(v9)) return;
-    setEquipamentos(await listarEquipamentos());
-  }, [v9]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    carregarEquipamentos();
-  }, [carregarEquipamentos]);
 
   // Pré-rasteriza o certificado em #print-root (1 imagem A4) quando o preview abre — igual ao
   // relatório/prontuário. Sem isto, o Ctrl+P/botão Imprimir cairia no print nativo do iframe
@@ -292,16 +247,6 @@ export default function Calibracoes() {
     };
   }, [tela, calAtual, versao]);
 
-  function abrirEquipamento(eq: EquipamentoResumo) {
-    setTag(eq.tag);
-    setEqAtual(eq);
-    const lista = listarCalibracoes(eq.tag);
-    setCals([...lista].sort((a, b) => parseDateBR(b.dataCalibracao || b.criadoEm) - parseDateBR(a.dataCalibracao || a.criadoEm)));
-    setComponentes(listarComponentes(eq.tag));
-    setLotes(listarLotes(eq.tag));
-    setConfirmandoId(null);
-    setTela('historico');
-  }
 
   /**
    * 9F.3.3 · abrir pela TAG, vinda do catálogo do servidor.
@@ -428,7 +373,7 @@ export default function Calibracoes() {
           cartão a cada quadro. O que vem DEPOIS da lista é o mesmo dos dois
           lados — o histórico, o formulário e o certificado não foram
           duplicados. */}
-      {tela === 'equipamentos' && v9 && (
+      {tela === 'equipamentos' && (
         <div className="bloco-dados">
           <div className="meta-card-header">
             <h3>Selecione o Equipamento</h3>
@@ -442,84 +387,6 @@ export default function Calibracoes() {
       )}
 
       {/* ── EQUIPAMENTOS · LISTA LEGADA ──────────────── */}
-      {tela === 'equipamentos' && !v9 && (
-        <div className="bloco-dados">
-          <div className="meta-card-header">
-            <h3>Selecione o Equipamento</h3>
-          </div>
-
-          <div className="cal-filtros">
-            <div className="cal-filtro-campo">
-              <label>Tipo de Equipamento</label>
-              <select value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value as 'todos' | TipoEquipamento)}>
-                <option value="todos">Todos os tipos</option>
-                <option value="vaso">Vaso de Pressão</option>
-                <option value="autoclave">Autoclave</option>
-                <option value="caldeira">Caldeira</option>
-              </select>
-            </div>
-            <div className="cal-filtro-campo">
-              <label>Proprietário (Empresa Dona)</label>
-              <select value={filtroProp} onChange={(e) => setFiltroProp(e.target.value)}>
-                <option value="">Todos os proprietários</option>
-                {proprietarios.map((p) => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
-              </select>
-            </div>
-            {(filtroTipo !== 'todos' || filtroProp !== '') && (
-              <button type="button" className="btn-secundario cal-filtro-limpar" onClick={() => { setFiltroTipo('todos'); setFiltroProp(''); }}>
-                Limpar filtros
-              </button>
-            )}
-          </div>
-
-          {equipamentos.length === 0 ? (
-            <p className="dashboard-vazio">Nenhum equipamento cadastrado ainda.</p>
-          ) : equipamentosFiltrados.length === 0 ? (
-            <p className="dashboard-vazio">Nenhum equipamento corresponde aos filtros.</p>
-          ) : (
-            <div className="lista-cards-horiz">
-              {equipamentosFiltrados.map((eq) => {
-                const qtd = listarCalibracoes(eq.tag).length;
-                const prop = proprietarioDe(eq.tag);
-                return (
-                  <button
-                    type="button"
-                    key={eq.tag}
-                    className="card-equipamento-horiz"
-                    onClick={() => abrirEquipamento(eq)}
-                  >
-                    <div className="card-eq-info" style={{ flex: 1 }}>
-                      <div className="eq-col">
-                        <span className="eq-tag">{eq.tag}</span>
-                        <span className="eq-tipo">{ROTULO_TIPO[eq.info.tipo]}</span>
-                      </div>
-                      <div className="eq-col">
-                        <span className="eq-label">Proprietário</span>
-                        <span className="eq-value">{prop || '—'}</span>
-                      </div>
-                      <div className="eq-col">
-                        <span className="eq-label">Categoria</span>
-                        <span className="eq-value">{eq.categoria?.catFinal ?? '—'}</span>
-                      </div>
-                      <div className="eq-col">
-                        <span className="eq-label">PMTA</span>
-                        <span className="eq-value">
-                          {eq.calculo ? formatarValor(parseFloat(eq.calculo.pmta), eq.unidade) : '—'}
-                        </span>
-                      </div>
-                    </div>
-                    <span className={`badge-relatorios ${qtd > 0 ? 'tem' : ''}`}>
-                      {qtd} Calibrações
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
 
       {/* ── HISTÓRICO (componentes + lotes) ─────────── */}
       {tela === 'historico' && (

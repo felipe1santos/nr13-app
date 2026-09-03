@@ -90,12 +90,13 @@ describe('carregarPainel · o agregado não sai duas vezes por boot', () => {
     expect(chamadas.n).toBe(2);
   });
 
-  it('o caminho LOCAL não é cacheado — ele já lê do cache do aparelho', async () => {
-    flag.vencimentosV9 = false;
-    flag.bootV9 = false;
+  it('não existe mais caminho LOCAL: o painel vem sempre do agregado', async () => {
+    // 9G.3 · `vencimentos_v9` e `boot_v9` saíram, e com elas o cálculo no
+    // cache do aparelho. Sob boot leve aquele cache não tem a organização, e
+    // contar ali diria "tudo em dia" sobre uma conta que nunca foi lida.
     const p = await carregarPainel(HOJE);
-    expect(p.fonte).toBe('local');
-    expect(chamadas.n).toBe(0);
+    expect(p.fonte).toBe('servidor');
+    expect(chamadas.n).toBe(1);
   });
 
   it('painel com ERRO não fica preso na janela — a próxima tenta de novo', async () => {

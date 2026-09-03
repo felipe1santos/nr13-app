@@ -27,12 +27,8 @@ import {
   conformidadeDe,
   itemDeCalibracao,
   itemDeEquipamento,
-  resumoKpis,
-  listarVencimentos,
   ordenarVencimentos,
 } from './vencimentos';
-import { bootV9Ativo, vencimentosV9Ativa } from './flag';
-import { listarChavesComPrefixo } from './storage';
 import type { ItemVencimento } from './vencimentos';
 
 /** Quantas linhas o servidor devolve. O resto vira `truncado`/`restantes`. */
@@ -202,17 +198,7 @@ export async function carregarPainel(
   hoje: Date = new Date(),
   opcoes: { forcar?: boolean } = {},
 ): Promise<PainelVencimentos> {
-  if (vencimentosV9Ativa() || bootV9Ativo()) return agregadoCompartilhado(hoje, opcoes.forcar);
-
-  const itens = listarVencimentos(hoje);
-  const total = listarChavesComPrefixo('nr13_info_').length;
-  return {
-    itens,
-    kpis: resumoKpis(itens, total),
-    fonte: 'local',
-    truncado: false,
-    restantes: 0,
-  };
+  return agregadoCompartilhado(hoje, opcoes.forcar);
 }
 
 /**

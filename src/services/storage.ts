@@ -21,9 +21,6 @@ import type { ItemFila } from './sync';
 
 export { bloqueadoParaEscrita, ErroBloqueado } from './gateEscrita';
 export { armazenamentoV2Ativo, definirArmazenamentoV2 } from './flag';
-export { buscaV9Ativa, definirBuscaV9 } from './flag';
-export { bootV9Ativo, definirBootV9 } from './flag';
-export { inspecoesV9Ativa, definirInspecoesV9 } from './flag';
 
 const v2Ativo = () => armazenamentoV2Ativo();
 

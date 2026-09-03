@@ -23,16 +23,6 @@ vi.mock('./supabase', () => ({
   supabase: { rpc: vi.fn(async () => ({ data: resposta.data, error: resposta.error })) },
 }));
 
-const flag = vi.hoisted(() => ({ bootV9: false, vencimentosV9: false }));
-// 9F.5.2 · `carregarPainel` passou a somar as duas flags. O mock precisa expor
-// as duas, senão o módulo real chamaria `undefined()` e o teste falharia por
-// infraestrutura, não por comportamento. A disjunção em si é exercitada em
-// `vencimentosDisjuncao.test.ts`.
-vi.mock('./flag', () => ({
-  bootV9Ativo: () => flag.bootV9,
-  vencimentosV9Ativa: () => flag.vencimentosV9,
-}));
-
 const local = vi.hoisted(() => ({ chamou: false }));
 vi.mock('./vencimentos', async () => {
   const real = await vi.importActual<typeof import('./vencimentos')>('./vencimentos');
@@ -47,13 +37,21 @@ vi.mock('./vencimentos', async () => {
 
 vi.mock('./storage', () => ({ listarChavesComPrefixo: () => ['nr13_info_A', 'nr13_info_B'] }));
 
-import { carregarPainel, painelDoServidor, textoContador } from './vencimentosServidor';
+import {
+  carregarPainel,
+  invalidarPainel,
+  painelDoServidor,
+  textoContador,
+} from './vencimentosServidor';
 
 const HOJE = new Date(2026, 7, 24);
 
 beforeEach(() => {
   resposta.data = null;
   resposta.error = null;
+  // 9G.3 · sem o caminho local, TODO teste passa pela janela compartilhada de
+  // 3 s. Sem zerá-la, o segundo teste receberia a resposta do primeiro.
+  invalidarPainel();
 });
 
 describe('painelDoServidor', () => {
@@ -208,25 +206,26 @@ describe('painelDoServidor', () => {
   });
 });
 
-describe('carregarPainel — quem escolhe a fonte', () => {
+describe('carregarPainel — o agregado é a única fonte (9G.3)', () => {
   beforeEach(() => {
-    flag.bootV9 = false;
     local.chamou = false;
   });
 
-  it('sem boot_v9, o painel vem do cache local — o caminho de sempre', async () => {
+  it('o painel vem SEMPRE do agregado — o cache local nem é consultado', async () => {
+    // 9G.3 · o caminho local saiu. Sob boot leve o cache não tem a organização:
+    // consultá-lo devolveria zero e ainda pagaria a varredura.
+    resposta.data = {
+      total_equip: 2, com_prazo: 2, vencidos: 0, a_vencer_30: 0,
+      truncado: false, restantes: 0, itens: [],
+    };
     const painel = await carregarPainel(HOJE);
 
-    expect(painel.fonte).toBe('local');
-    expect(local.chamou).toBe(true);
-    // O total do KPI é a contagem de equipamentos, não a de linhas do painel.
+    expect(painel.fonte).toBe('servidor');
+    expect(local.chamou).toBe(false);
     expect(painel.kpis.total).toBe(2);
   });
 
-  it('com boot_v9, vem do agregado — e o cache local nem é consultado', async () => {
-    // Consultar o cache aqui devolveria zero (o boot leve não baixou a
-    // organização) e ainda pagaria a varredura. É o pior dos dois mundos.
-    flag.bootV9 = true;
+  it('o agregado responde com os números do servidor, sem tocar o cache', async () => {
     resposta.data = {
       total_equip: 9, com_prazo: 9, vencidos: 0, a_vencer_30: 0,
       truncado: false, restantes: 0, itens: [], em: '2026-08-24T12:00:00.000Z',

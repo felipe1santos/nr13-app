@@ -65,7 +65,10 @@ vi.mock('./supabase', () => ({
 }));
 
 vi.mock('./storage', () => ({
+  // 9G.3 · o login hidrata só o ESSENCIAL. `lerTudo` continua no mock porque
+  // outros caminhos do módulo o usam; o que o login chama é o de baixo.
   lerTudo: vi.fn(async () => ({})),
+  hidratarEssencial: vi.fn(async () => ({ chaves: 0, bytes: 0, familias: {} })),
   limparCacheDados: vi.fn(),
 }));
 

@@ -65,11 +65,14 @@ beforeEach(() => {
 });
 
 describe('hidratarNoBoot', () => {
-  it('sem a flag, espera a organização inteira — o caminho de hoje', async () => {
+  it('o boot leve é o ÚNICO caminho: só o essencial, NUNCA lerTudo', async () => {
+    // 9G.3 · a flag `boot_v9` saiu e com ela a resposta `completa`. O boot leve
+    // não foi removido — virou o padrão, e não há mais o que escolher.
     const r = await hidratarNoBoot();
 
-    expect(r.modo).toBe('completa');
-    expect(estado.chamadas).toEqual(['iniciar', 'lerTudo']);
+    expect(r.modo).toBe('essencial');
+    expect(estado.chamadas).toEqual(['iniciar', 'hidratarEssencial']);
+    expect(estado.chamadas).not.toContain('lerTudo');
   });
 
   it('com boot_v9, baixa só o essencial e NÃO chama lerTudo', async () => {
@@ -121,11 +124,11 @@ describe('hidratarNoBoot', () => {
 
   it('falha na hidratação não derruba o boot — abre com o que o aparelho tem', async () => {
     const storage = await import('../services/storage');
-    vi.mocked(storage.lerTudo).mockRejectedValueOnce(new Error('sem rede'));
+    vi.mocked(storage.hidratarEssencial).mockRejectedValueOnce(new Error('sem rede'));
 
     const r = await hidratarNoBoot();
 
-    expect(r.modo).toBe('completa');
+    expect(r.modo).toBe('essencial');
     expect(r.falhou).toBe(true);
   });
 });

@@ -3,10 +3,9 @@ import RecusaPalco from '../components/RecusaPalco';
 import { useEffect, useMemo, useState } from 'react';
 import { Icone } from '../components/Icone';
 import PaginaA4 from '../components/PaginaA4';
-import { ler, lerTudo, listarChavesComPrefixo } from '../services/storage';
-import { bootV9Ativo, livroV9Ativa } from '../services/flag';
+import { ler } from '../services/storage';
 import CatalogoLivroV9 from '../features/livro/CatalogoLivroV9';
-import { abrirEquipamentoParaLivro, deveHidratarListaLegada } from '../features/livro/catalogoLivro';
+import { abrirEquipamentoParaLivro } from '../features/livro/catalogoLivro';
 import type { InfoEquipamento } from '../features/equipamento/tipos';
 import { listarFuncionarios } from '../features/cadastros/cadastroService';
 import { adicionarEntradaLivroManual } from '../features/relatorios/relatoriosService';
@@ -102,17 +101,6 @@ function montarLinha(tag: string): LinhaLivro | null {
   } catch {
     return null; // chave malformada: ignora
   }
-}
-
-function montarLinhas(): LinhaLivro[] {
-  const linhas: LinhaLivro[] = [];
-  for (const chave of listarChavesComPrefixo('nr13_info_')) {
-    const linha = montarLinha(chave.slice('nr13_info_'.length));
-    if (linha) linhas.push(linha);
-  }
-  // Com livro primeiro, depois por TAG.
-  linhas.sort((a, b) => (b.entradas.length - a.entradas.length) || a.tag.localeCompare(b.tag));
-  return linhas;
 }
 
 
@@ -260,10 +248,7 @@ export default function LivroRegistro() {
   // 9F.4: no caminho novo esta lista começa VAZIA e ganha exatamente UMA linha —
   // a do equipamento escolhido, montada depois da semeadura. Varrer o cache aqui
   // sob a flag nova devolveria só o que por acaso já estivesse no aparelho.
-  const [linhas, setLinhas] = useState<LinhaLivro[]>(() =>
-    livroV9Ativa() ? [] : montarLinhas(),
-  );
-  const [hidratando, setHidratando] = useState(false);
+  const [linhas, setLinhas] = useState<LinhaLivro[]>([]);
   /** Termo da busca do catálogo (só no caminho novo). */
   const [termoBusca, setTermoBusca] = useState('');
   /** Abrindo um livro pela lista nova: semeando a TAG antes de ler. */
@@ -280,24 +265,6 @@ export default function LivroRegistro() {
   // efeito não roda: `deveHidratarListaLegada` é a decisão, e ela mora no
   // serviço porque a suíte não renderiza React — regra dentro do JSX não tem
   // teste. Com a flag desligada, tudo continua exatamente como sempre foi.
-  const v9 = livroV9Ativa();
-  useEffect(() => {
-    if (!deveHidratarListaLegada(v9)) return;
-    if (!bootV9Ativo()) return;
-    let vivo = true;
-    setHidratando(true);
-    void lerTudo()
-      .then(() => {
-        if (!vivo) return;
-        setLinhas(montarLinhas());
-      })
-      .finally(() => {
-        if (vivo) setHidratando(false);
-      });
-    return () => {
-      vivo = false;
-    };
-  }, [v9]);
   const [tagAberta, setTagAberta] = useState<string | null>(null);
 
   /**
@@ -341,7 +308,6 @@ export default function LivroRegistro() {
   const [alturaRecorte, setAlturaRecorte] = useState<number | null>(null);
   const funcionarios = useMemo(() => listarFuncionarios(), []);
 
-  const comLivro = linhas.filter((l) => l.entradas.length > 0);
   const linhaAberta = linhas.find((l) => l.tag === tagAberta) ?? null;
 
   // ── Selo de integridade ────────────────────────────────────────────────────
@@ -451,7 +417,13 @@ export default function LivroRegistro() {
       phId: form.phId || null,
       retificaDe: form.retificaDe || undefined,
     });
-    setLinhas(montarLinhas());
+    // 9G.3 · o livro aberto é recomposto pela TAG, não por varredura do cache:
+    // com o boot leve o cache só tem a TAG semeada, e varrer devolveria a mesma
+    // linha por um caminho mais caro — e nenhuma outra.
+    if (tagAberta) {
+      const atualizada = montarLinha(tagAberta);
+      if (atualizada) setLinhas([atualizada]);
+    }
     setModalOcorrencia(false);
     setForm(FORM_OCORRENCIA_VAZIO);
     setErroForm('');
@@ -1035,82 +1007,20 @@ export default function LivroRegistro() {
             <div className="fj-eyebrow">NR-13 · 13.4.1.9</div>
             <h2>Livros de Registro de Segurança</h2>
           </div>
-          {/* No caminho novo quem conta é o servidor, e o número aparece na
-              barra de busca — repetir aqui um `comLivro.length` que só conhece a
-              página carregada diria "1 livro gerado" numa organização com 40. */}
-          {!v9 && (
-            <span className="fj-badge neutro">{comLivro.length} livro{comLivro.length !== 1 ? 's' : ''} gerado{comLivro.length !== 1 ? 's' : ''}</span>
-          )}
         </div>
 
-        {v9 ? (
-          <>
-            {/* A semeadura da TAG é uma ida à rede, e o clique precisa
-                responder: sem isto, o usuário clica e a tela fica parada. */}
-            {abrindo && (
-              <div className="rel-rodape-carregando" role="status">
-                Abrindo o livro…
-              </div>
-            )}
-            <CatalogoLivroV9
-              termo={termoBusca}
-              aoMudarTermo={setTermoBusca}
-              aoEscolher={(tag) => void abrirPorTag(tag)}
-            />
-          </>
-        ) : comLivro.length === 0 ? (
-          <div className="fj-empty">
-            <div className="fj-empty-ic"><Icone nome="book" tam={22} /></div>
-            <div className="fj-empty-title">
-              {hidratando
-                ? 'Carregando os livros de registro…'
-                : linhas.length === 0
-                  ? 'Nenhum equipamento cadastrado'
-                  : 'Nenhum livro de registro gerado ainda'}
-            </div>
-            O livro de registro de cada equipamento é criado automaticamente na primeira inspeção
-            (com termo de abertura) e recebe uma anotação a cada relatório salvo. Ocorrências manuais
-            (manutenções, reparos, substituições) podem ser adicionadas dentro do livro.
-          </div>
-        ) : (
-          <div className="fj-table-wrap">
-            <table className="fj-table">
-              <thead>
-                <tr>
-                  <th>Tag</th>
-                  <th>Categoria</th>
-                  <th>Registros</th>
-                  <th>Último registro</th>
-                  <th>Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {comLivro.map((l) => (
-                  <tr key={l.tag} className="linha-clicavel" onClick={() => setTagAberta(l.tag)}>
-                    {/* data-rot: rótulo por campo quando a tabela vira cartão (forja.css). */}
-                    <td className="cel-titulo">
-                      <div className="fj-tag-cell">
-                        <div className="fj-tag-ico"><Icone nome="book" tam={15} /></div>
-                        <div>
-                          <div className="fj-tag-code">{l.tag}</div>
-                          <div className="fj-eq-name">{l.nomeEquip}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td data-rot="Categoria">{l.categoria ? <span className="fj-badge neutro">Cat. {l.categoria}</span> : <span className="fj-dash">—</span>}</td>
-                    <td className="mono" data-rot="Registros">{l.entradas.length}</td>
-                    <td className="mono" data-rot="Último registro">{l.ultimaData || <span className="fj-dash">—</span>}</td>
-                    <td className="cel-acoes" onClick={(e) => e.stopPropagation()}>
-                      <button type="button" className="fj-btn fj-btn-ghost" onClick={() => setTagAberta(l.tag)}>
-                        <Icone nome="chevright" tam={13} /> Abrir livro
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {/* A semeadura da TAG é uma ida à rede, e o clique precisa responder:
+            sem isto, o usuário clica e a tela fica parada. */}
+        {abrindo && (
+          <div className="rel-rodape-carregando" role="status">
+            Abrindo o livro…
           </div>
         )}
+        <CatalogoLivroV9
+          termo={termoBusca}
+          aoMudarTermo={setTermoBusca}
+          aoEscolher={(tag) => void abrirPorTag(tag)}
+        />
         <div className="fj-panel-foot">
           O livro é preenchido automaticamente (cada relatório salvo adiciona a anotação de inspeção
           correspondente) e também aceita ocorrências manuais — manutenções e reparos entre inspeções —

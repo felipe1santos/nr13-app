@@ -86,22 +86,37 @@ describe('CatalogoLivroV9 não hidrata nem paga por linha', () => {
   });
 });
 
-describe('a tela mantém o caminho legado intacto', () => {
+describe('9G.3 — o caminho legado SAIU da tela', () => {
   const TELA = semComentarios(
     readFileSync(join(process.cwd(), 'src/pages/LivroRegistro.tsx'), 'utf8'),
   );
 
-  it('a tela AINDA tem `lerTudo` — o caminho antigo não foi removido', () => {
-    // A 9F.4 não apaga o legado; isso é entrega da 9G. Se este teste ficar
-    // vermelho, alguém removeu o rollback junto com a etapa.
-    expect(TELA.includes('lerTudo')).toBe(true);
+  // Estes dois testes existiam invertidos até 03/09/2026: eles garantiam que o
+  // legado CONTINUASSE na tela durante o rollout, porque desligar a flag era o
+  // rollback. Com as oito flags em 30/30 e o gate global verde, o dono autorizou
+  // a remoção — e a mesma disciplina que segurava o legado agora impede que ele
+  // volte por descuido.
+  it('a tela NÃO chama mais `lerTudo` — a hidratação integral saiu', () => {
+    expect(
+      TELA.includes('lerTudo'),
+      'A lista do Livro vem de `buscar_livros`. `lerTudo()` aqui baixaria a ' +
+        'organização inteira e desfaria o boot leve na primeira visita.',
+    ).toBe(false);
   });
 
-  it('mas ele está atrás de `deveHidratarListaLegada`', () => {
-    expect(TELA.includes('deveHidratarListaLegada')).toBe(true);
+  it('e não resta guarda de flag (`deveHidratarListaLegada`, `livroV9Ativa`)', () => {
+    expect(TELA.includes('deveHidratarListaLegada')).toBe(false);
+    expect(TELA.includes('livroV9Ativa')).toBe(false);
+    expect(TELA.includes('bootV9Ativo')).toBe(false);
   });
 
-  it('e a abertura pela lista nova semeia antes de montar a linha', () => {
+  it('a lista vem do catálogo do servidor, e só dele', () => {
+    expect(TELA.includes('CatalogoLivroV9')).toBe(true);
+    // `montarLinhas` (plural) varria o cache inteiro; morreu junto com o legado.
+    expect(TELA.includes('montarLinhas')).toBe(false);
+  });
+
+  it('e a abertura pela lista semeia antes de montar a linha', () => {
     expect(TELA.includes('abrirEquipamentoParaLivro')).toBe(true);
     const corpo = TELA.slice(TELA.indexOf('const abrirPorTag'));
     const fim = corpo.indexOf('\n  };');
