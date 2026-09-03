@@ -2,8 +2,9 @@
 // Mantém as chaves localStorage usadas pela UI (nr13_usuario_logado, nr13_plano, nr13_ultimo_acesso,
 // nr13_role) para leitura síncrona no render.
 import { supabase } from './supabase';
-import { lerTudo, limparCacheDados } from './storage';
+import { limparCacheDados } from './storage';
 import { sincronizarFlagDoServidor, zerarFlagEmMemoria, CHAVE_FLAG_V2 } from './flag';
+import { modoHidratacaoDaSessao, executarHidratacao, type ModoHidratacao } from './modoHidratacao';
 import { gravarEstadoLocal, limparEstadoLocal } from './assinatura';
 import { bloqueioEntrada, type ContaParaEntrada, type StatusAssinatura } from '../features/assinatura/maquinaEstados';
 import { classificarFalhaPerfil, ehFalhaDeTransporte, type FalhaPerfil } from './falhaPerfil';
@@ -215,12 +216,47 @@ export function perfilParaEntrada(perfil: {
   };
 }
 
+/**
+ * Fase 9 · 9G.1 — a hidratação do LOGIN também obedece ao boot leve.
+ *
+ * Esta linha era `await lerTudo()`, sem condição nenhuma: **o único caminho de
+ * hidratação integral que a Fase 9 inteira não tinha coberto.** Com `boot_v9`
+ * ligada, o boot pedia só o essencial e o login, segundos antes, já havia
+ * baixado a organização inteira — o boot leve não estava desligado, estava
+ * sendo desfeito.
+ *
+ * As três respostas são as mesmas de `hidratarNoBoot` (`app/bootArmazenamento`),
+ * e precisam continuar sendo — `bootHidratacao.paridade.test.ts` compara as
+ * duas decisões caso a caso:
+ *
+ *   · **cliente do Portal:** não hidrata. Quem entrega o dado dele é a Edge
+ *     `portal_cliente`, que filtra pelos ativos vinculados. A policy do
+ *     Postgres já recusaria a leitura direta, então aqui não havia vazamento —
+ *     havia uma ida à rede que sempre voltava vazia;
+ *   · **`boot_v9` ligada:** só o essencial;
+ *   · **sem a flag:** `lerTudo()`, exatamente como hoje.
+ *
+ * **Por que ainda existe uma hidratação aqui.** Logo depois do login o
+ * `RotaProtegida` chama `hidratarNoBoot()` e espera por ela, então esta chamada
+ * é, hoje, trabalho repetido nos dois modos. Removê-la é limpeza da 9G.3 —
+ * junto com os caminhos legados —, não desta etapa: enquanto as duas existirem,
+ * o que não se pode é elas DISCORDAREM.
+ */
 async function aposEntrar(email: string): Promise<string> {
   localStorage.setItem('nr13_usuario_logado', normalizar(email));
   localStorage.setItem('nr13_ultimo_acesso', new Date().toLocaleString('pt-BR'));
+  // `carregarPerfil` grava `nr13_org_id` e `nr13_papel` e sincroniza as flags do
+  // servidor. As três decisões abaixo dependem disso — e por isso vêm DEPOIS.
   const { plano } = await carregarPerfil();
-  await lerTudo(); // hidrata o cache local (iframes leem do localStorage)
+  await hidratarAposLogin();
   return plano;
+}
+
+/** A decisão isolada, para o teste alcançar (a suíte não faz login de verdade). */
+export async function hidratarAposLogin(): Promise<ModoHidratacao> {
+  const modo = modoHidratacaoDaSessao();
+  await executarHidratacao(modo);
+  return modo;
 }
 
 // ---- Eventos de uso (login/logout) p/ métricas do painel admin ----

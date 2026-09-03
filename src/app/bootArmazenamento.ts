@@ -14,9 +14,8 @@
  * Está num módulo próprio, e não dentro do componente, porque é uma DECISÃO com
  * três respostas e um incidente atrás de cada uma — decisão assim se testa.
  */
-import { iniciarArmazenamento, lerTudo, hidratarEssencial } from '../services/storage';
-import { bootV9Ativo } from '../services/flag';
-import { ehCliente } from '../services/papelSessao';
+import { iniciarArmazenamento } from '../services/storage';
+import { modoHidratacaoDaSessao, executarHidratacao } from '../services/modoHidratacao';
 import type { MedidaEssencial } from '../services/essencial';
 import { migrarHistoricoEmSegundoPlano } from '../features/relatorios/historicoRelatorios';
 import { migrarRubricasEmSegundoPlano } from '../features/relatorios/livroAssinatura';
@@ -66,22 +65,25 @@ export async function hidratarNoBoot(): Promise<ResultadoBoot> {
   // três modos, inclusive o do Portal.
   await iniciarArmazenamento();
 
-  // CLIENTE DO PORTAL NÃO HIDRATA (Fase 0-B, achado A-01). A hidratação roda
-  // antes da Edge `portal_cliente` e não filtra nada: o cliente recebia no
-  // aparelho os dados de todos os ativos da organização. O que ele precisa ver
-  // é depositado por `carregarDadosPortal` → `semearCachePortal`.
-  if (ehCliente()) return { modo: 'nenhuma' };
+  // A REGRA MORA EM `services/modoHidratacao.ts` (9G.1), e não mais aqui.
+  //
+  // Ela era desta função, e o login tinha a sua — escrita antes da flag existir,
+  // e por isso sem ela: `aposEntrar` chamava `lerTudo()` incondicionalmente e
+  // desfazia o boot leve segundos depois de ele acontecer. Duas cópias da mesma
+  // decisão divergem; uma implementação com dois chamadores, não.
+  //
+  // As três respostas e o incidente atrás de cada uma estão documentados lá —
+  // inclusive o CLIENTE DO PORTAL NÃO HIDRATA (Fase 0-B, achado A-01), que
+  // continua sendo a primeira pergunta, antes de qualquer flag.
+  const modo = modoHidratacaoDaSessao();
 
   try {
-    if (bootV9Ativo()) {
-      return { modo: 'essencial', medida: await hidratarEssencial() };
-    }
-    await lerTudo();
-    return { modo: 'completa' };
+    const { medida } = await executarHidratacao(modo);
+    return { modo, medida };
   } catch {
     // `lerTudo` já devolve o snapshot do disco quando o servidor falha; uma
     // exceção inesperada aqui deixaria o app preso em "Carregando…" para
     // sempre — pior do que abrir com o que o aparelho tem.
-    return { modo: bootV9Ativo() ? 'essencial' : 'completa', falhou: true };
+    return { modo, falhou: true };
   }
 }
