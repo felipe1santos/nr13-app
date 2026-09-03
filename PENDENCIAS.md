@@ -527,3 +527,17 @@ Roteiro completo e limitações: `docs/medicoes/2026-09-02-9f4-implementacao-e-g
 
 **Pendência de medição:** o gate de NAVEGADOR (DOM real, heap, requisições) não foi
 executado — só o de servidor. Vale rodar antes do rollout.
+
+### 9F.4 · gate de navegador EXECUTADO (02/09/2026, noite) — e a decisão que ficou
+
+O gate real de navegador foi executado nos três degraus em Supabase local. Resultado no §11 de
+`docs/medicoes/2026-09-02-9f4-implementacao-e-gate.md`: custo constante (DOM 1.214, heap 32 MB,
+2 requests e 6,6 KB tanto em 10k quanto em 50k), **zero requests a `app_storage` ao abrir a
+lista** nos três degraus, keyset sem duplicados em 300 itens, e abertura sob demanda provada
+pela rede (1 request de semeadura DEPOIS do clique).
+
+**DECISÃO PENDENTE DO DONO, antes do rollout:** a coluna "Último registro" diverge entre os
+caminhos — legado `15/05/2026` × novo `03/08/2026`, para o mesmo livro. O legado lê o ÚLTIMO
+ELEMENTO do array; o novo usa o `max` das datas. O novo está certo (a coluna diz "último
+registro", e o mais recente é 03/08), mas é mudança visível e precisa de aprovação explícita.
+

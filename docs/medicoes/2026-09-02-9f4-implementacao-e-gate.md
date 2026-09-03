@@ -185,7 +185,7 @@ parse, 8 da escada de flags.
 
 ## 9 · Limitações — declaradas, não presumidas
 
-- **O gate de NAVEGADOR não foi executado.** DOM real, heap e requisições da aba
+- ~~O gate de NAVEGADOR não foi executado.~~ **EXECUTADO em 02/09 à noite — ver §11.** DOM real, heap e requisições da aba
   não foram medidos: o grupo de abas do Chrome desta sessão foi substituído no
   meio do trabalho e o acesso se perdeu. O que está no §3 é medição de
   **servidor** (buffers, tempo, bytes, linhas por página) e prova **estática** de
@@ -217,3 +217,149 @@ Nada disto foi feito. É a proposta para quando houver autorização.
 5. Baseline com a flag OFF; ligar só na organização de teste; conferir paridade
    da lista e **abrir um livro real**, verificando as entradas e o selo do lacre.
 6. Rollback para OFF e confirmar que as seis flags anteriores seguem intactas.
+
+---
+
+## 11 · GATE REAL DE NAVEGADOR (02/09/2026, noite)
+
+O §9 declarava este gate como **não executado**. Foi executado agora.
+
+### 11.1 · Pré-condições confirmadas antes de medir
+
+| item | evidência |
+|---|---|
+| aplicação | `location.origin` = `http://localhost:5178` |
+| Supabase | `.env.local` → `http://127.0.0.1:54321`, e a stack local respondeu `auth/v1/health` **200** |
+| produção | **0 requests** para `qqsesrntfvmdxqxrfvmw` em toda a sessão, medido no Resource Timing |
+| trava anti-produção | `massa.test.mjs` **35/35** |
+| massa | só `VL-*`/`ZZ-LIV` do `lab-9f4-massa.sql`. **`EQUIPE TESTE` não foi usada** |
+| Menuzia/Dayse | a aba do projeto dela ficou aberta e **não foi tocada** |
+
+### 11.2 · Dois obstáculos de ambiente, e o que eles ensinaram
+
+1. **A stack local estava sem publicar portas.** Todos os containers `Up`, nenhum com
+   mapeamento (`8000/tcp`, não `54321->8000`). O app dava "Failed to fetch" e o Kong parecia
+   saudável. `supabase stop` + `start` recriou os containers com as portas; os **volumes
+   foram preservados** ("Starting database from backup...") e a massa continuou lá.
+2. **Um service worker (`nr13-cache-v8`) controlava `localhost`** e servia bundle antigo por
+   cima do dev. O sintoma era enganoso: React montava, console limpo, e **nenhum handler
+   respondia** — o formulário de login fazia submit HTML nativo em vez de chamar o `onSubmit`.
+   Desregistrar o SW e limpar os caches resolveu na hora. É a armadilha já registrada na
+   memória do projeto, e ela reaparece em `localhost` porque o SW de produção casa a origem.
+
+### 11.3 · A tabela do gate — `livro_v9` ON
+
+| | **1k** | **10k** | **50k** |
+|---|---|---|---|
+| equipamentos no banco | 1.002 | 10.002 | 50.002 |
+| com livro (`>0`) | 11 | 101 | 501 |
+| não contados (`null`) | 10 | 100 | 500 |
+| **na lista** (`null` ou `>0`) | 21 | 201 | 1.001 |
+| **resultados mostrados** | 21 | 50 | 50 |
+| **linhas montadas** | 21 | 50 | 50 |
+| **DOM nodes** | 660 | 1.214 | 1.214 |
+| **heap** | 30,6 MB | 32,0 MB | 32,1 MB |
+| **requests (abertura)** | 2 | 2 | 2 |
+| **bytes** | 2.726 B | 6.580 B | 6.610 B |
+| `buscar_livros` | 1 | 1 | 1 |
+| `contar_livros` | 1 | 1 | 1 |
+| **`app_storage`** | **0** | **0** | **0** |
+| **long tasks** | 0 | 0 | 0 |
+| DCL (carga completa) | 1.801 ms | — | — |
+
+**O custo é constante.** De 10k para 50k — 5× mais equipamentos — DOM, heap, requests e
+bytes são iguais. A página é limitada a 50 por construção.
+
+### 11.4 · As cinco provas pedidas, no navegador
+
+| prova | evidência medida |
+|---|---|
+| zero `lerTudo()` ao abrir | **0 requests a `/rest/v1/app_storage`** nos três degraus |
+| zero download de `nr13_livro_` na lista | idem — a única chamada é a RPC do catálogo |
+| zero parse de livro por equipamento | a lista recebe 6,6 KB de metadados; o livro nunca chega |
+| página limitada | 50 linhas no DOM com 1.001 elegíveis |
+| custo não cresce | tabela do §11.3 |
+
+### 11.5 · Busca e paginação
+
+| caso | resultado | `app_storage` |
+|---|---|---|
+| TAG `ZZ-LIV` | 1 linha, exata | 0 |
+| fabricante `Metalúrgica` | 50 linhas | 0 |
+| cliente `Frigorífico` | 50 linhas | 0 |
+| TAG `VP-01000` | 2 linhas (prefixo + token) | 0 |
+| termo inexistente | 0 linhas, mensagem de vazio | 0 |
+| limpar busca | volta a 50 | 0 |
+
+**Keyset:** seis páginas carregadas — 50 → 100 → 150 → 200 → 250 → **300 itens**,
+**0 duplicados** (300 únicas), ordenação crescente estável (`VP-00050` … `VP-15000`),
+5 requests, **0 a `app_storage`**. Nenhum item perdido.
+
+> **Custo do DOM ao acumular páginas:** 300 linhas = 5.964 nodes, heap 41,6 MB. É o limite
+> conhecido da decisão de não virtualizar: quem rolar as 1.001 linhas do degrau de 50k
+> chegaria a ~20 mil nodes. Fica registrado como o número que decide, se um dia decidir.
+
+### 11.6 · Abertura sob demanda — a ordem, medida na rede
+
+**Antes do clique:** 0 requests de livro, 0 de `app_storage`.
+
+**Ao clicar em "Abrir livro" de `ZZ-LIV`:** exatamente **1 request — `/rest/v1/app_storage`**
+(a semeadura da TAG). Depois dela, o livro montado:
+
+| | conteúdo |
+|---|---|
+| cabeçalho | `ZZ-LIV — Vaso do gate 9F.4`, CAT. III |
+| contagem | **4 REGISTRO(S)** |
+| entradas | nº 000001, 000002, 000003, 000004 |
+| datas | 12/01/2026 · 03/08/2026 · 20/03/2026 · 15/05/2026 |
+| tipos | Inspeção Inicial · Inspeção Periódica · Manutenção Corretiva · Ajuste/Calibração |
+| lacre | "Sem lacre" nas quatro — **correto**: a massa cria entradas sem `sha256`, e entrada sem lacre é ANTIGA, não adulterada. O mecanismo rodou e classificou certo |
+| termo de abertura | presente |
+| ocorrência manual | botão presente |
+| PDF | "Exportar PDF" presente, **não acionado** — nenhum PDF histórico foi regenerado |
+
+### 11.7 · Paridade OFF × ON
+
+**O livro aberto é IDÊNTICO** nos dois caminhos, campo a campo: mesmas 4 entradas, mesmos
+números, mesmas 4 datas, mesmos 4 tipos, mesmo selo de lacre, termo, ocorrência e PDF.
+
+Diferenças na LISTA, todas esperadas: o legado não tem busca, não pagina e mostra o badge
+"1 LIVRO GERADO".
+
+> **UMA DIVERGÊNCIA FUNCIONAL, E ELA É DELIBERADA:** a coluna "Último registro".
+> Legado **15/05/2026** × novo **03/08/2026**, para o mesmo livro.
+>
+> O legado lê `entradas[entradas.length - 1].data` — o último ELEMENTO do array. O novo usa o
+> `max` das datas. A massa tem as entradas fora de ordem cronológica de propósito (12/01,
+> 03/08, 20/03, 15/05), que é o que ocorrência manual e retificação produzem na vida real.
+>
+> **O novo está certo e o legado está errado**: a coluna diz "último registro", e o registro
+> mais recente é 03/08. É correção de defeito, não regressão — mas é mudança visível, está
+> travada por teste (`testes-9f4.sql` §2) e **precisa de decisão do dono** antes do rollout.
+
+> **Nota sobre a contagem da lista no laboratório:** com a flag ON a lista mostra 21 linhas e
+> o legado mostra 1. Não é divergência de produto: a massa grande escreve `livro_entradas`
+> direto na projeção **sem** criar o livro correspondente em `app_storage` (declarado no
+> cabeçalho do `lab-9f4-massa.sql` — gerar 50.000 livros mediria o gerador, não a tela). O
+> legado só enxerga livro real; por isso vê um. As TAGs de paridade (`ZZ-LIV`) passam pela
+> projeção de verdade, e é por elas que a comparação de conteúdo vale.
+
+### 11.8 · O legado não sobrevive a 50k — medido
+
+Com `livro_v9` **OFF** e 50.002 equipamentos, abrir `/livro-registro` **congelou o renderer**:
+o CDP passou a responder `Runtime.evaluate timed out` e a aba precisou ser fechada. É a
+hidratação integral fazendo exatamente o que a etapa existe para impedir. A comparação de
+paridade do §11.7 foi feita em **1k**, onde o legado ainda roda.
+
+### 11.9 · Fechamento
+
+| | |
+|---|---|
+| `testes-9f4.sql` | **32/32** |
+| regressões 9F.3 / 9F.2 / 9F.1 | **31/31** · **18/18** · **12/12** |
+| vitest | **1608/1608** |
+| `massa.test.mjs` | **35/35** |
+| `tsc` + build | verdes |
+
+**Nenhum defeito de produto encontrado no gate.** Os dois obstáculos (§11.2) eram ambiente, e
+a única divergência funcional (§11.7) é uma correção deliberada que aguarda decisão.
