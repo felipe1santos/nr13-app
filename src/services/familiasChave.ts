@@ -98,6 +98,10 @@ const GLOBAIS = new Set([
   'nr13_prontuario_atual',
   'nr13_rastreabilidade',
   'nr13_agenda_notas',
+  // 10B.1 · índice dos relatórios em rascunho. Global de propósito: a tela de
+  // relatórios mostra rascunho de qualquer equipamento, e um índice por TAG
+  // obrigaria a varrer o parque para montar essa lista.
+  'nr13_rascunhos',
 ]);
 
 /**

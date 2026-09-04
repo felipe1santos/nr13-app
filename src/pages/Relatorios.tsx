@@ -35,6 +35,10 @@ import {
   type AssinantesRelatorio,
 } from '../features/relatorios/relatoriosService';
 import { expandirFolhasUltrassom } from '../features/relatorios/ultrassomPaginacao';
+import ModalFinalizar from '../features/relatorios/ModalFinalizar';
+import { validarParaFinalizar, type LaudoConclusao, type ResultadoValidacao } from '../features/relatorios/validacaoFinalizacao';
+import { salvarRascunho as gravarRascunho } from '../features/relatorios/historicoRelatorios';
+import { ehRascunhoConhecido } from '../features/relatorios/rascunhos';
 import { ultimaLacrada, type LivroEntrada } from '../features/relatorios/livroLacre';
 import { listarFuncionarios } from '../features/cadastros/cadastroService';
 import type { Funcionario } from '../features/cadastros/tipos';
@@ -48,7 +52,7 @@ import { mascararData } from '../services/mascaras';
 import { exportarPdf, gerarPdfBytes } from '../features/relatorios/pdfService';
 import { publicarArtefato, artefatoDe } from '../features/relatorios/artefatoRelatorio';
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
-import { temArtefato, type RelatorioIndiceItem, type RelatorioMeta, type RelatorioSalvo, type TipoInspecao } from '../features/relatorios/tipos';
+import { ehRascunho, temArtefato, type RelatorioIndiceItem, type RelatorioMeta, type RelatorioSalvo, type TipoInspecao } from '../features/relatorios/tipos';
 import VisualizadorPdf, { baixarPdfArquivado, imprimirPdfArquivado } from '../components/VisualizadorPdf';
 import { Icone } from '../components/Icone';
 import './relatorios.css';
@@ -156,6 +160,13 @@ function RelatoriosLegado() {
   const [erroSalvar, setErroSalvar] = useState('');
   // Progresso da rasterização — dezenas de segundos num relatório grande.
   const [progressoPdf, setProgressoPdf] = useState<{ feito: number; total: number } | null>(null);
+  // ── Fase 10B.1 · ciclo de vida ─────────────────────────────────────────────
+  /** O documento aberto é um RASCUNHO (novo ainda não salvo, ou salvo em rascunho). */
+  const [modoRascunho, setModoRascunho] = useState(false);
+  const [salvandoRascunho, setSalvandoRascunho] = useState(false);
+  const [toastRascunho, setToastRascunho] = useState(false);
+  /** Preenchido ao abrir o modal de finalização; `null` = modal fechado. */
+  const [validacao, setValidacao] = useState<ResultadoValidacao | null>(null);
   const [renomeandoId, setRenomeandoId] = useState<string | null>(null);
   const [nomeRenomeando, setNomeRenomeando] = useState('');
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
@@ -274,7 +285,16 @@ function RelatoriosLegado() {
     if (!alvo) return;
     abrirEquipamento(alvo.tag);
     if (!alvo.rel) return;
-    const item = listarHistorico(alvo.tag).find((i) => i.id === alvo.rel);
+    // O RASCUNHO NÃO ESTÁ NO ÍNDICE, e é isso que o faz não gerar vencimento
+    // nem aparecer no Portal (10B.1). Procurar só no índice deixava o link de
+    // "continuar editando" parando no histórico do equipamento, sem abrir nada.
+    // O registro existe na mesma chave de sempre, e é o que `visualizar` lê:
+    // ele só usa `id` e `tagVaso` deste item.
+    const item =
+      listarHistorico(alvo.tag).find((i) => i.id === alvo.rel) ??
+      (carregarRelatorio(alvo.rel, alvo.tag)
+        ? ({ id: alvo.rel, tagVaso: alvo.tag } as RelatorioIndiceItem)
+        : undefined);
     if (item) void visualizar(item);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- montagem, de propósito
   }, []);
@@ -433,6 +453,8 @@ function RelatoriosLegado() {
     setDocumentos(comTermo);
     setMeta(novaMeta);
     setSomenteLeitura(false);
+    // Relatório NOVO nasce rascunho — ainda não salvo, e nada oficial produziu.
+    setModoRascunho(true);
     setPendente(null);
     setRelatorioArquivado(null); // relatório NOVO nunca abre no modo arquivo
     setErroSalvar('');
@@ -447,6 +469,10 @@ function RelatoriosLegado() {
     // livroSnapshot) é carregado agora, e só o deste relatório.
     let r = carregarRelatorio(item.id, item.tagVaso);
     if (!r) return;
+    // RASCUNHO: abrir é CONTINUAR EDITANDO de onde parou, não visualizar. Ele
+    // não tem artefato (nunca gerou PDF), então cai no caminho de remontagem —
+    // que aqui é o certo: é o documento em edição, montado dos dados vivos.
+    const rascunho = ehRascunho(r.status) || ehRascunhoConhecido(r.id);
     // ARTEFATO: relatório finalizado no modelo novo NÃO é remontado. Abrir o
     // arquivo é o que garante que ele não mude quando a ficha do equipamento, o
     // memorial, o laudo ou os próprios templates mudarem depois. `documentos` e
@@ -506,7 +532,10 @@ function RelatoriosLegado() {
     await gravarMetaAtual({ ...r.meta, documentos: docsFiltrados });
     setDocumentos(docsFiltrados);
     setMeta(r.meta);
-    setSomenteLeitura(true);
+    // Rascunho volta EDITÁVEL; o resto (legado sem PDF arquivado) segue como
+    // sempre foi: somente leitura, porque já é documento emitido.
+    setSomenteLeitura(!rascunho);
+    setModoRascunho(rascunho);
     setVersao((v) => v + 1);
     setTela('visualizador');
   }
@@ -544,6 +573,9 @@ function RelatoriosLegado() {
     setDocumentos(docsFiltrados);
     setMeta(novaMeta);
     setSomenteLeitura(false);
+    // Duplicado é relatório NOVO: nasce rascunho, como qualquer outro.
+    setModoRascunho(true);
+    setRelatorioArquivado(null);
     setVersao((v) => v + 1);
     setTela('visualizador');
   }
@@ -636,6 +668,82 @@ function RelatoriosLegado() {
    * motivo. Marcar como salvo sem o arquivo seria o pior desfecho possível —
    * o documento pareceria finalizado e não existiria.
    */
+  /**
+   * O relatório montado, como registro. Um lugar só para a montagem, porque
+   * rascunho e finalizado precisam ser o MESMO documento — mudar de estado não
+   * pode trocar o id, o nome nem a TAG.
+   */
+  function montarRegistro(m: RelatorioMeta, docs: string[], extras: Partial<RelatorioSalvo>): RelatorioSalvo {
+    return {
+      id: m.codigo,
+      tagVaso: tag,
+      nome: `Relatorio_${m.tipoInspecao.replace(/ /g, '_')}_${tag}.pdf`,
+      tipo: m.tipoInspecao,
+      data: hoje(),
+      documentos: docs,
+      meta: m,
+      status: 'Aprovado',
+      ...extras,
+    };
+  }
+
+  /**
+   * SALVAR RASCUNHO — persiste tudo e NÃO fecha nada.
+   *
+   * O que ele faz de diferente do finalizar: não gera PDF, não calcula SHA, não
+   * publica no bucket, não entra no índice do equipamento e não deixa o
+   * documento somente-leitura. O usuário pode sair, fechar o navegador, voltar
+   * de outro aparelho e continuar — o registro vai para `app_storage` pela
+   * mesma fila durável de sempre.
+   *
+   * A ponte é drenada aqui também: medição de espessura e laudo são digitados
+   * DENTRO dos iframes e só chegam ao app por `sbSalvar`. Salvar rascunho sem
+   * drenar guardaria o documento sem o que o usuário acabou de digitar — que é
+   * exatamente a queixa que o rascunho veio resolver.
+   */
+  async function salvarRascunhoAtual() {
+    if (!meta || !documentos || somenteLeitura) return;
+    setSalvandoRascunho(true);
+    setErroSalvar('');
+    try {
+      await drenarPonte((chave, valor) => salvar(chave, JSON.parse(valor)));
+      await gravarRascunho(montarRegistro(meta, documentos, { status: 'Rascunho' }));
+      setModoRascunho(true);
+      setToastRascunho(true);
+      setTimeout(() => setToastRascunho(false), 2500);
+    } catch (e) {
+      setErroSalvar(
+        `Não foi possível salvar o rascunho: ${e instanceof Error ? e.message : String(e)}. Tente novamente.`,
+      );
+    } finally {
+      setSalvandoRascunho(false);
+    }
+  }
+
+  /**
+   * Abre o modal de finalização com a conferência já feita.
+   *
+   * A ponte é drenada ANTES de validar: o laudo APTO/INAPTO e a medição de
+   * espessura são digitados dentro do iframe, e validar sem drenar acusaria de
+   * faltando um campo que o usuário acabou de preencher.
+   */
+  async function abrirFinalizacao() {
+    if (!meta || !documentos || somenteLeitura) return;
+    setErroSalvar('');
+    await drenarPonte((chave, valor) => salvar(chave, JSON.parse(valor)));
+    const dadosContainer = meta.containerOrigemId
+      ? ((carregarContainer(tag, meta.containerOrigemId)?.dados ?? {}) as Record<string, unknown>)
+      : {};
+    setValidacao(
+      validarParaFinalizar({
+        meta,
+        documentos,
+        laudo: ler<LaudoConclusao>(`nr13_laudo_${tag}`),
+        dadosContainer,
+      }),
+    );
+  }
+
   async function salvarHistorico() {
     if (!meta || !documentos || somenteLeitura) return; // salvar duas vezes não reabre a edição
     setSalvando(true);
@@ -672,26 +780,30 @@ function RelatoriosLegado() {
       // que nunca chegou ao bucket (medido em 11/08/2026 com upload devolvendo 500).
       const pdfPendente = artefato.pendente;
 
-      const relatorio: RelatorioSalvo = {
-        id: meta.codigo,
-        tagVaso: tag,
-        nome: `Relatorio_${meta.tipoInspecao.replace(/ /g, '_')}_${tag}.pdf`,
-        tipo: meta.tipoInspecao,
-        data: hoje(),
-        documentos,
-        meta,
-        status: 'Aprovado',
+      // FINALIZADO: o `status: 'Aprovado'` vem de `montarRegistro`, e é ele que
+      // faz o registro entrar no índice do equipamento — e só então produzir
+      // vencimento, Portal, Livro e contagem de relatório emitido.
+      const relatorio: RelatorioSalvo = montarRegistro(meta, documentos, {
         ...artefato,
         pdfPendente,
         livroCorte,
-      };
+      });
 
       // 5. Agora sim.
+      // `salvarNoHistorico` grava o registro E o índice, e é aqui — só aqui —
+      // que o rascunho deixa de ser rascunho: `salvarRelatorio` remove o id do
+      // índice de rascunhos ao gravar um 'Aprovado'.
       await salvarNoHistorico(relatorio);
+      // 10B.2 (mapeado, NÃO alterado agora): a entrada do Livro nasce aqui,
+      // automática. A separação decidida — Livro criado À MÃO e depois trancado
+      // — é UMA linha neste ponto, e é o único acoplamento entre finalizar um
+      // relatório e escrever no Livro. Ver `docs/FASE-10-DESENHO.md`.
       await adicionarEntradaLivroAuto(relatorio);
       // Lotes de calibração marcados "vincular ao próximo relatório" capturam este relatório.
       await vincularLotesPendentes(tag, relatorio.id);
       setHistorico(listarHistorico(tag));
+      setModoRascunho(false);
+      setValidacao(null);
       setSomenteLeitura(true);
       // Remonta os iframes para que a folha nasça com ro=1 (sb-storage.js recusa
       // escrita) além da trava de DOM, que o efeito aplica ao ver a flag virar.
@@ -894,19 +1006,48 @@ function RelatoriosLegado() {
             <button type="button" className="btn-secundario barra-btn" onClick={voltarParaHistorico}>
               ← Voltar
             </button>
+            {/* O estado do documento fica À VISTA enquanto ele é editado: um
+                relatório em rascunho não produz vencimento, não entra no Livro
+                e não aparece no Portal, e quem está com ele aberto precisa
+                saber disso sem abrir a lista. */}
+            {modoRascunho && !somenteLeitura && (
+              <span className="rel-chip-rascunho" title="Documento em edição: ainda não gera PDF, vencimento nem entrada no Livro.">
+                <Icone nome="pencil" tam={12} /> Rascunho
+              </span>
+            )}
             <div className="meta-barra-acoes">
               {/* `gerando`: enquanto o contador de folhas está na cara do botão, ele ocupa a
                   linha inteira no celular — truncar "Gerando PDF 3/27..." tiraria justamente
                   o sinal de que o app não travou. */}
+              {/* 10B.1 · DOIS botões, e a separação é o ponto: um guarda o
+                  trabalho e devolve o cursor; o outro fecha o documento para
+                  sempre. Antes havia um só, chamado "Salvar", que finalizava. */}
               {!somenteLeitura && (
-                <button type="button" className={`barra-btn barra-btn-salvar${salvando ? ' is-loading' : ''}${progressoPdf ? ' gerando' : ''}`} onClick={salvarHistorico} disabled={salvando}>
-                  {/* Salvar agora GERA o PDF: num relatório de 30+ folhas são
-                      dezenas de segundos, e sem o contador a tela parece travada. */}
+                <button
+                  type="button"
+                  className={`btn-secundario barra-btn${salvandoRascunho ? ' is-loading' : ''}`}
+                  onClick={salvarRascunhoAtual}
+                  disabled={salvandoRascunho || salvando}
+                >
+                  <Icone nome="filetext" tam={14} />{' '}
+                  {salvandoRascunho ? 'Salvando…' : 'Salvar rascunho'}
+                </button>
+              )}
+              {!somenteLeitura && (
+                <button
+                  type="button"
+                  className={`barra-btn barra-btn-salvar${salvando ? ' is-loading' : ''}${progressoPdf ? ' gerando' : ''}`}
+                  onClick={abrirFinalizacao}
+                  disabled={salvando || salvandoRascunho}
+                >
+                  {/* Finalizar GERA o PDF: num relatório de 30+ folhas são
+                      dezenas de segundos, e sem o contador a tela parece travada.
+                      O contador continua aqui porque o modal fecha ao confirmar. */}
                   {progressoPdf
                     ? `Gerando PDF ${progressoPdf.feito}/${progressoPdf.total}...`
                     : salvando
                       ? 'Finalizando...'
-                      : 'Salvar'}
+                      : 'Finalizar relatório'}
                 </button>
               )}
               <button
@@ -1120,9 +1261,26 @@ function RelatoriosLegado() {
         />
       )}
 
+      {validacao && (
+        <ModalFinalizar
+          validacao={validacao}
+          ocupado={salvando}
+          progresso={progressoPdf}
+          erro={erroSalvar}
+          aoFechar={() => setValidacao(null)}
+          aoConfirmar={() => void salvarHistorico()}
+        />
+      )}
+
       {toastSalvo && (
         <div className="toast-sucesso" role="status">
-          ✓ Relatório salvo com sucesso
+          ✓ Relatório finalizado
+        </div>
+      )}
+
+      {toastRascunho && (
+        <div className="toast-sucesso" role="status">
+          ✓ Rascunho salvo — dá para fechar e continuar depois
         </div>
       )}
     </div>
@@ -1166,6 +1324,17 @@ export default function Relatorios() {
       // LEGADO sem arquivo, e aí sim leva para a tela antiga, agora por uma rota
       // que a flag não engole.
       aoAbrir={(r) => navigate(urlDoLegado(r.tag, r.relatorioId))}
+      // RASCUNHO abre no EDITOR, para continuar de onde parou. Mesma rota do
+      // legado — é a tela que sabe montar o documento a partir dos dados —, e
+      // lá `visualizar` reconhece o rascunho e destrava a edição.
+      aoContinuarRascunho={(r) => navigate(urlDoLegado(r.tag, r.id))}
+      // O CAMINHO DE CRIAR UM RELATÓRIO. Esta ligação não existia: a prop já
+      // estava declarada na V9 desde a 9E, mas ninguém a passava aqui, e a
+      // remoção da tela legada (9G.3) tirou o último caminho que restava — na
+      // prática só se chegava ao editor digitando `?legado=1` na barra de
+      // endereço. Sem isto não há como criar o rascunho que esta fase inteira
+      // existe para guardar.
+      aoEscolherEquipamento={() => navigate('/relatorios?legado=1')}
     />
   );
 }

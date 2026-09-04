@@ -53,7 +53,8 @@
  * Com o id por último, os relatórios sumiriam do Portal até um deploy da Edge.
  */
 import { ler, lerCru, salvar, excluirChave, listarChavesDaTag, bloqueadoParaEscrita } from '../../services/storage';
-import type { RelatorioSalvo, RelatorioIndiceItem } from './tipos';
+import { ehRascunho, type RelatorioSalvo, type RelatorioIndiceItem } from './tipos';
+import { esquecerRascunho, registrarRascunho } from './rascunhos';
 
 /**
  * `nr13_rel_`, e NÃO `nr13_relatorio_`: `nr13_relatorio_meta_atual` é a segunda
@@ -191,12 +192,19 @@ export function legadoDaTag(tag: string): RelatorioSalvo[] {
 export function listarIndice(tag: string): RelatorioIndiceItem[] {
   if (!tag) return [];
   const porId = new Map<string, RelatorioIndiceItem>();
-  for (const item of lerIndiceCru(tag)) porId.set(item.id, item);
+  // O filtro por status é defensivo: nenhum caminho de escrita põe rascunho no
+  // índice, e nada deve depender disso continuar sendo verdade por acidente.
+  for (const item of lerIndiceCru(tag)) if (!ehRascunho(item.status)) porId.set(item.id, item);
 
   // Reparo: registro gravado cujo índice se perdeu numa corrida entre aparelhos.
+  //
+  // RASCUNHO NÃO É REPARADO PARA DENTRO DO ÍNDICE (10B.1). O registro dele mora
+  // na mesma chave do finalizado, e sem este filtro o reparo faria exatamente o
+  // que o modelo evita: colocar um documento em edição no índice, de onde saem
+  // vencimento, Portal e contagens.
   for (const chave of chavesDeRegistro(tag)) {
     const r = ler<RelatorioSalvo>(chave);
-    if (r?.id && !porId.has(r.id)) porId.set(r.id, resumir(r));
+    if (r?.id && !ehRascunho(r.status) && !porId.has(r.id)) porId.set(r.id, resumir(r));
   }
 
   // Legado: ainda não migrado (ou migração parcial). O registro novo VENCE — na
@@ -248,10 +256,35 @@ export function carregarRelatorio(id: string, tag: string): RelatorioSalvo | nul
  * reparo. A ordem inversa produziria um índice apontando para o nada.
  */
 export async function salvarRelatorio(r: RelatorioSalvo): Promise<void> {
+  // Fase 10B.1 · rascunho grava o REGISTRO e não o índice. O índice é a origem
+  // da projeção, e da projeção saem vencimento, Portal e contagens — coisas que
+  // um documento em edição não pode produzir. Ver `rascunhos.ts`.
+  if (ehRascunho(r.status)) {
+    await salvarRascunho(r);
+    return;
+  }
+
   await salvar(chaveRelatorio(r.id, r.tagVaso), r);
 
   const atual = listarIndice(r.tagVaso).filter((i) => i.id !== r.id);
   await salvar(chaveIndice(r.tagVaso), [resumir(r), ...atual].sort((a, b) => ts(b) - ts(a)));
+
+  // Finalizou: some do índice de rascunhos. Sem isto o mesmo relatório
+  // apareceria duas vezes na tela — uma editável e uma trancada.
+  await esquecerRascunho(r.id);
+}
+
+/**
+ * Grava um relatório EM RASCUNHO: o registro completo + o item no índice de
+ * rascunhos. Nada toca `nr13_historico_indice_<TAG>`.
+ *
+ * O registro usa a MESMA chave do relatório finalizado (`nr13_rel_<id>_<TAG>`),
+ * de propósito: finalizar reescreve no lugar, com o mesmo id, e o histórico não
+ * ganha um segundo documento com o mesmo conteúdo.
+ */
+export async function salvarRascunho(r: RelatorioSalvo): Promise<void> {
+  await salvar(chaveRelatorio(r.id, r.tagVaso), r);
+  await registrarRascunho(r);
 }
 
 /**
@@ -263,6 +296,9 @@ export async function excluirRelatorio(id: string, tag: string): Promise<void> {
   await removerDoLegado(id, tag);
   const restante = listarIndice(tag).filter((i) => i.id !== id);
   await salvar(chaveIndice(tag), restante);
+  // Rascunho excluído sai do índice de rascunhos junto. Sem isto a tela
+  // continuaria oferecendo "continuar editando" um registro que não existe.
+  await esquecerRascunho(id);
 }
 
 /**

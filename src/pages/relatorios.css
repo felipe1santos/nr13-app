@@ -1378,3 +1378,61 @@
     letter-spacing: 0.03em;
   }
 }
+
+/* ============================================================================
+   FASE 10B.1 · rascunho
+   ============================================================================ */
+.rel-rascunhos { margin-bottom: 14px; }
+.rel-rascunhos-titulo {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted, #6b7280);
+  margin-bottom: 6px;
+}
+.rel-rascunhos-titulo span {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+  font-size: 11px;
+}
+/* Faixa lateral: dá para ver de longe que aquele bloco é outra coisa, sem
+   pintar a linha inteira de amarelo. */
+.rel-linha-rascunho { border-left: 3px solid var(--blue2, #0C4F9B); }
+.rel-ico-rascunho {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 27px;
+  color: var(--blue2, #0C4F9B);
+}
+.rel-badge-rascunho {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: var(--blue2-bg, #E4EDF9);
+  color: var(--blue2, #0C4F9B);
+}
+/* Selo do editor, ao lado do botão Voltar. */
+.rel-chip-rascunho {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 4px 9px;
+  border-radius: 6px;
+  background: var(--blue2-bg, #E4EDF9);
+  color: var(--blue2, #0C4F9B);
+  white-space: nowrap;
+}

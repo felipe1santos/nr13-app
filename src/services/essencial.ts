@@ -30,7 +30,14 @@
  *   · `nr13_termos_aceite`  — o modal de termos é decidido no boot;
  *   · `nr13_demo_seed`      — marcador do seed do trial, conferido na entrada;
  *   · `nr13_uso_contadores` — contador de uso; minúsculo, e some se não vier;
- *   · `nr13_agenda_notas`   — as notas do calendário do Dashboard.
+ *   · `nr13_agenda_notas`   — os serviços da Agenda;
+ *   · `nr13_rascunhos`      — a lista dos relatórios EM RASCUNHO (10B.1). Cresce
+ *                             com o número de rascunhos ABERTOS, nunca com o
+ *                             parque nem com o histórico, e some quando o
+ *                             relatório é finalizado. Precisa estar no boot
+ *                             porque `/relatorios` mostra rascunho de qualquer
+ *                             equipamento, e sob boot leve nenhuma TAG está no
+ *                             cache para ser varrida.
  *
  * FICAM DE FORA, de propósito:
  *   · `nr13_historico_relatorios` — LEGADO que cresce sem teto (§7-sexies);
@@ -48,6 +55,7 @@ export const CHAVES_ESSENCIAIS: string[] = [
   'nr13_demo_seed',
   'nr13_uso_contadores',
   'nr13_agenda_notas',
+  'nr13_rascunhos',
 ];
 
 /**

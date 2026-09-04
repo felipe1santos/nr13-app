@@ -91,6 +91,20 @@ export interface RelatorioMeta {
   rastreabIds?: string[];
 }
 
+/**
+ * Fase 10B.1 — os dois estados de um relatório.
+ *
+ * `'Aprovado'` sempre significou "finalizado" neste sistema e é o valor gravado
+ * em todo relatório histórico; nada foi renomeado, porque renomear obrigaria a
+ * migrar registros que são justamente os que não se tocam.
+ */
+export type StatusRelatorio = 'Aprovado' | 'Rascunho';
+
+/** Rascunho é o que DIZ que é. Ausente = finalizado (compatibilidade). */
+export function ehRascunho(status: string | null | undefined): boolean {
+  return status === 'Rascunho';
+}
+
 export interface RelatorioSalvo {
   id: string;
   tagVaso: string;
@@ -108,7 +122,20 @@ export interface RelatorioSalvo {
    */
   documentos: string[];
   meta: RelatorioMeta;
-  status: 'Aprovado';
+  /**
+   * Fase 10B.1 · o ciclo de vida do documento.
+   *
+   * `'Aprovado'` = FINALIZADO. É o valor que TODOS os relatórios históricos já
+   * têm, e por isso continua sendo o significado de quem não diz nada:
+   * relatório salvo antes desta fase segue finalizado, sem migração e sem
+   * retrofit.
+   *
+   * `'Rascunho'` = em edição. Não gera PDF, não gera SHA, e — o ponto que faz o
+   * resto funcionar sozinho — **não entra no índice do equipamento**. É por não
+   * entrar que ele não produz vencimento, não altera a próxima inspeção, não
+   * aparece no Portal e não conta como relatório emitido. Ver `rascunhos.ts`.
+   */
+  status: StatusRelatorio;
 
   // ── Artefato imutável (11/08/2026) ───────────────────────────────────────
   /** O PDF no bucket. Presente = relatório finalizado no modelo novo. */
@@ -168,7 +195,7 @@ export interface RelatorioIndiceItem {
   nome: string;
   tipo: TipoInspecao;
   data: string;
-  status: 'Aprovado';
+  status: StatusRelatorio;
   /** `meta.codigo` — o número impresso no documento. */
   codigo: string;
   emissao: string;

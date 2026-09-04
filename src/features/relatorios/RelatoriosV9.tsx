@@ -46,6 +46,7 @@ import {
   filtrarPorEmpresa,
   type MapaEmpresas,
 } from './empresasPorTag';
+import { filtrarRascunhos, listarRascunhos, type RascunhoItem } from './rascunhos';
 import type { TipoInspecao } from './tipos';
 import '../../pages/relatorios.css';
 
@@ -66,6 +67,14 @@ export function dataBr(iso: string | null | undefined): string {
   if (!m) return SEM_DATA;
   if (m[1] === '0001') return SEM_DATA;
   return `${m[3]}/${m[2]}/${m[1]}`;
+}
+
+/** ISO → `DD/MM/AAAA HH:MM`. Usado só no bloco de rascunhos. */
+export function dataHoraBr(iso: string | undefined): string {
+  if (!iso) return SEM_DATA;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return SEM_DATA;
+  return `${d.toLocaleDateString('pt-BR')} ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
 }
 
 /** Campo opcional da linha: ausente vira travessão, como na tela legada. */
@@ -100,9 +109,16 @@ export interface PropsRelatoriosV9 {
   aoAbrir?: (item: ItemRelatorio) => void;
   /** Volta ao fluxo por equipamento (criar relatório novo). */
   aoEscolherEquipamento?: () => void;
+  /**
+   * Continuar um RASCUNHO (10B.1) — abre o editor de onde parou.
+   *
+   * É outro verbo, e por isso outra prop: `aoAbrir` leva a um documento
+   * emitido; este leva a um documento em edição.
+   */
+  aoContinuarRascunho?: (item: RascunhoItem) => void;
 }
 
-export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento }: PropsRelatoriosV9) {
+export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinuarRascunho }: PropsRelatoriosV9) {
   const [params, setParams] = useSearchParams();
 
   // ESTADO NA URL: recarregar, voltar do relatório e compartilhar preservam a
@@ -303,6 +319,22 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento }: PropsRe
   );
 
   /**
+   * 10B.1 · os RASCUNHOS, que não vêm do servidor.
+   *
+   * Eles não estão na projeção de propósito (ver `rascunhos.ts`): é por não
+   * estarem lá que não geram vencimento, não vão ao Portal e não contam como
+   * relatório emitido. A lista deles é local, leve, e é lida uma vez — nenhuma
+   * requisição a mais nesta tela.
+   */
+  const rascunhos = useMemo(() => listarRascunhos(), []);
+  /** Período, empresa e escopo são filtros do SERVIDOR; rascunho não está lá. */
+  const filtroQueNaoAlcancaRascunho = !!(fDe || fAte || fEmpresa) || escopo !== 'ativos';
+  const rascunhosVisiveis = useMemo(
+    () => (filtroQueNaoAlcancaRascunho ? [] : filtrarRascunhos(rascunhos, { termo, tipo: fTipo })),
+    [rascunhos, filtroQueNaoAlcancaRascunho, termo, fTipo],
+  );
+
+  /**
    * Com empresa escolhida, a lista precisa estar INTEIRA antes de o filtro
    * poder ser lido como resposta: filtrar só a primeira página mostraria "3
    * relatórios" para quem tem 40, sem nada na tela dizendo que faltam. Então a
@@ -403,7 +435,7 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento }: PropsRe
             <Icone nome="filter" tam={14} /> Período e tipo
           </button>
           {aoEscolherEquipamento && (
-            <button type="button" className="fj-btn fj-btn-primario" onClick={aoEscolherEquipamento}>
+            <button type="button" className="fj-btn fj-btn-primary" onClick={aoEscolherEquipamento}>
               + Criar relatório
             </button>
           )}
@@ -509,6 +541,62 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento }: PropsRe
             Voltar aos ativos
           </button>
         </div>
+      )}
+
+      {/*
+        RASCUNHOS — em cima, e visualmente separados do que já foi emitido.
+
+        Bloco próprio em vez de misturados na lista: eles não têm data de
+        emissão fixada, não têm PDF e não têm SHA, então não têm o que preencher
+        nas colunas que a lista de baixo mostra. Misturá-los produziria linhas
+        com quatro travessões e um badge — e a diferença entre "documento
+        assinado" e "trabalho em andamento" viraria um detalhe de cor.
+
+        O ícone é OUTRO (lápis), nunca o do PDF: o do PDF significa "existe um
+        arquivo arquivado", e aqui não existe nenhum.
+      */}
+      {rascunhosVisiveis.length > 0 && (
+        <section className="rel-rascunhos" aria-label="Relatórios em rascunho">
+          <h2 className="rel-rascunhos-titulo">
+            <Icone nome="pencil" tam={13} /> Em rascunho ({rascunhosVisiveis.length})
+            <span>não geram vencimento, Livro nem aparecem no Portal</span>
+          </h2>
+          <div className="rel-tabela-v9">
+            {rascunhosVisiveis.map((r) => (
+              <div className="rel-linha rel-linha-rascunho" role="row" key={r.id}>
+                <span role="cell" className="rel-cel-icone">
+                  <span className="rel-ico-rascunho" title="Relatório em edição — ainda não finalizado">
+                    <Icone nome="pencil" tam={14} />
+                  </span>
+                </span>
+                <span role="cell" className="rel-cel-nome" title={r.nome}>
+                  {r.codigo || r.nome}
+                  <small className="rel-cel-empresa">
+                    atualizado em {dataHoraBr(r.atualizadoEm)}
+                  </small>
+                </span>
+                <span role="cell" className="rel-cel-tag">{r.tag}</span>
+                <span role="cell" data-rot="Tipo">
+                  <span className="badge-tipo-inspecao">{ou(r.tipo)}</span>
+                </span>
+                <span role="cell" data-rot="Situação">
+                  <span className="rel-badge-rascunho">RASCUNHO</span>
+                </span>
+                <span role="cell" />
+                <span role="cell" className="rel-cel-acoes">
+                  <button
+                    type="button"
+                    className="btn-icone cor-azul"
+                    title="Continuar editando"
+                    onClick={() => aoContinuarRascunho?.(r)}
+                  >
+                    <Icone nome="pencil" tam={15} />
+                  </button>
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
       )}
 
       {erro && (
