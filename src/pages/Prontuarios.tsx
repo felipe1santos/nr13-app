@@ -23,7 +23,7 @@ import { motorProntuarioAtual } from '../features/relatorios/motorPdf';
 import { gerarProntuarioVetorial } from '../features/relatorios/pdfVetorial/gerarProntuario';
 import { gerarPdfBytes } from '../features/relatorios/pdfService';
 import { publicarArtefato, artefatoDe, baixarArtefato } from '../features/relatorios/artefatoRelatorio';
-import { emissaoAtual, registrarEmissao } from '../features/prontuarios/emissaoProntuario';
+import { emissaoAtual, registrarEmissao, bytesDaEmissao } from '../features/prontuarios/emissaoProntuario';
 import { carregarMinhaEmpresa, listarClientes, listarFuncionarios } from '../features/cadastros/cadastroService';
 import type { Cliente, Funcionario } from '../features/cadastros/tipos';
 import { carregarVaso } from '../features/memorial/vasoMemorialService';
@@ -360,15 +360,18 @@ export default function Prontuarios() {
     }
   }
 
-  /** Abre o documento EMITIDO — o arquivo, nunca uma remontagem. */
+  /**
+   * Abre o documento EMITIDO — o arquivo, nunca uma remontagem.
+   *
+   * Não depende do palco nem dos dados vivos do equipamento: `bytesDaEmissao`
+   * recebe só o registro da emissão e resolve o `pdfRef`. Um documento de meses
+   * atrás abre sem montar folha nenhuma.
+   */
   async function abrirEmitido() {
     if (!emissao) return;
     setErroEmissao('');
     try {
-      const art = artefatoDe(emissao);
-      if (!art) throw new Error('artefato não resolvido');
-      const blob = await baixarArtefato(art);
-      if (!blob) throw new Error('o arquivo não voltou nem do cofre local nem do bucket');
+      const blob = await bytesDaEmissao(emissao, { artefatoDe, baixarArtefato });
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank');
       setTimeout(() => URL.revokeObjectURL(url), 30000);

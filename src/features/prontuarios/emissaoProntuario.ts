@@ -93,3 +93,36 @@ export async function registrarEmissao(
 export function revisaoDe(tag: string, id: string): number {
   return listarEmissoes(tag).findIndex((e) => e.id === id) + 1;
 }
+
+/**
+ * Os bytes de uma emissão ARQUIVADA.
+ *
+ * ## O que esta função deliberadamente NÃO faz
+ *
+ * Não chama gerador, não monta folha, não lê `nr13_info_`, `nr13_calc_` nem
+ * qualquer dado vivo do equipamento, não grava nada e não depende do palco.
+ * Ela recebe o REGISTRO da emissão e devolve o arquivo apontado pelo `pdfRef` —
+ * e é só isso que abrir um documento emitido pode significar.
+ *
+ * Isso não é detalhe de implementação: enquanto a abertura dependia da tela do
+ * visualizador, abrir um documento de meses atrás exigia carregar o equipamento
+ * inteiro e disputar a trava do palco — para exibir um arquivo que já estava
+ * pronto no cofre. Pior, criava a possibilidade de o que aparece na tela ser
+ * remontado dos dados de HOJE em vez de ser o documento daquela emissão.
+ *
+ * `baixarArtefato` tenta o cofre local antes do bucket, então reabrir um
+ * documento recente não gasta egress.
+ */
+export async function bytesDaEmissao(
+  e: Pick<EmissaoProntuario, 'pdfRef' | 'sha256' | 'paginas'>,
+  deps: {
+    artefatoDe: (r: Partial<PdfArtefato> | null | undefined) => PdfArtefato | null;
+    baixarArtefato: (a: Pick<PdfArtefato, 'pdfRef'>) => Promise<Blob | null>;
+  },
+): Promise<Blob> {
+  const art = deps.artefatoDe({ pdfRef: e.pdfRef, sha256: e.sha256, paginas: e.paginas });
+  if (!art) throw new Error('Esta emissão não tem arquivo arquivado.');
+  const blob = await deps.baixarArtefato(art);
+  if (!blob) throw new Error('O arquivo não voltou nem do cofre local nem do bucket.');
+  return blob;
+}

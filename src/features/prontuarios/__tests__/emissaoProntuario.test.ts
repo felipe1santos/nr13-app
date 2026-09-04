@@ -21,7 +21,7 @@ vi.mock('../../../services/supabase', () => ({
   TABELA_STORAGE: 'app_storage',
 }));
 
-import { emissaoAtual, listarEmissoes, registrarEmissao, revisaoDe } from '../emissaoProntuario';
+import { bytesDaEmissao, emissaoAtual, listarEmissoes, registrarEmissao, revisaoDe } from '../emissaoProntuario';
 
 const TAG = 'VP-77';
 
@@ -97,5 +97,77 @@ describe('emitir NÃO sobrescreve — cada emissão é uma revisão', () => {
     expect(e.motor).toBe('atual');
     // Trocar o motor global depois não muda o que ficou gravado.
     expect(emissaoAtual(TAG)!.motor).toBe('atual');
+  });
+});
+
+describe('ABRIR emissão arquivada NÃO regenera nada', () => {
+  // Teste bloqueante: abrir um documento emitido pode significar UMA coisa —
+  // servir os bytes do pdfRef. Se algum dia a abertura passar pelo gerador, por
+  // dados vivos do equipamento ou por gravação, este teste quebra.
+  const BYTES = new Blob([new Uint8Array([1, 2, 3, 4])], { type: 'application/pdf' });
+
+  function deps() {
+    const chamadas: string[] = [];
+    return {
+      chamadas,
+      artefatoDe: (r: unknown) => {
+        chamadas.push('artefatoDe');
+        return r;
+      },
+      baixarArtefato: async () => {
+        chamadas.push('baixarArtefato');
+        return BYTES;
+      },
+    };
+  }
+
+  it('serve os bytes do pdfRef e NADA mais', async () => {
+    const e = await registrarEmissao(TAG, emissao('f'.repeat(64)));
+    const d = deps();
+    const blob = await bytesDaEmissao(e, d as never);
+    expect(blob).toBe(BYTES);
+    // Só duas chamadas, e nenhuma delas é geração.
+    expect(d.chamadas).toEqual(['artefatoDe', 'baixarArtefato']);
+  });
+
+  it('NÃO cria emissão nova nem mexe na lista, mesmo abrindo várias vezes', async () => {
+    const e = await registrarEmissao(TAG, emissao('g'.repeat(64)));
+    const antes = JSON.stringify(listarEmissoes(TAG));
+    await bytesDaEmissao(e, deps() as never);
+    await bytesDaEmissao(e, deps() as never);
+    expect(listarEmissoes(TAG)).toHaveLength(1);
+    expect(JSON.stringify(listarEmissoes(TAG))).toBe(antes);
+  });
+
+  it('NÃO altera sha256 nem pdfRef do registro', async () => {
+    const e = await registrarEmissao(TAG, emissao('h'.repeat(64)));
+    const shaAntes = e.sha256;
+    const pathAntes = e.pdfRef.path;
+    await bytesDaEmissao(e, deps() as never);
+    const depois = emissaoAtual(TAG)!;
+    expect(depois.sha256).toBe(shaAntes);
+    expect(depois.pdfRef.path).toBe(pathAntes);
+  });
+
+  it('basta o REGISTRO: não lê nada do equipamento', async () => {
+    // Nenhuma chave do equipamento existe no storage, e ainda assim abre.
+    localStorage.clear();
+    const solto = {
+      pdfRef: { bucket: 'inspecao', path: 'org/relatorios/x.pdf', mimeType: 'application/pdf', tamanho: 4 },
+      sha256: 'j'.repeat(64),
+      paginas: 6,
+    };
+    const blob = await bytesDaEmissao(solto, deps() as never);
+    expect(blob).toBe(BYTES);
+  });
+
+  it('sem arquivo resolvido ERRA — nunca cai em remontagem silenciosa', async () => {
+    const e = await registrarEmissao(TAG, emissao('i'.repeat(64)));
+    await expect(
+      bytesDaEmissao(e, { artefatoDe: () => null, baixarArtefato: async () => BYTES } as never),
+    ).rejects.toThrow(/não tem arquivo arquivado/);
+    await expect(
+      bytesDaEmissao(e, { artefatoDe: (r: unknown) => r, baixarArtefato: async () => null } as never),
+    ).rejects.toThrow(/não voltou/);
   });
 });
