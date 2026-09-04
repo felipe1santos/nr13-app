@@ -6,13 +6,29 @@
 > **REGRA:** este arquivo é atualizado NO MOMENTO em que o estado muda — commit, push,
 > redeploy, validação, portão. Não no fim da fase.
 
-**Última atualização:** 04/09/2026 — **FASE 11 CONCLUÍDA ✅ · MOTOR VETORIAL É O PADRÃO DE PRODUÇÃO** · as Edges `admin` e `portal_cliente` foram publicadas pelo dashboard e validadas em produção. Raster preservado como rollback.
-**Branch:** `main` · **Suíte:** 1769 testes / 147 arquivos, 0 falhas · **Build:** verde · **Bundle em produção:** `assets/index-s3M_aa12.js` (commit `f6e0629`)
+**Última atualização:** 04/09/2026 — **FASE 12A CONCLUÍDA ✅ · PRONTUÁRIO VETORIAL É O PADRÃO** · e o prontuário passou a ser EMITIDO (bytes → SHA → Storage → pdfRef), coisa que nunca teve. Relatório intocado nesta rodada.
+**Branch:** `main` · **Suíte:** 1801 testes / 149 arquivos, 0 falhas · **Build:** verde · **Bundle em produção:** `assets/index-DUcY11yv.js`
 
 > ### 🔖 VOLTANDO DEPOIS DE UMA PAUSA? Leia [`PONTO-DE-RETOMADA.md`](PONTO-DE-RETOMADA.md).
 > Ele tem o estado de produção, o que falta decidir (a **9D**) e **todos os endereços de acesso** —
 > sistema, Supabase e Coolify.
 
+
+## ✅ FASE 12A — CONCLUÍDA (04/09/2026) · PRONTUÁRIO VETORIAL É O PADRÃO
+
+| | |
+|---|---|
+| o que mudou | o prontuário deixou de ser só IMPRESSO e passou a ser **EMITIDO**: bytes → SHA-256 → Storage → `pdfRef`. Antes, cada impressão remontava as 6 folhas com dados VIVOS, e duas impressões da mesma TAG podiam sair diferentes sem ninguém perceber |
+| motor | `nr13_motor_prontuario = vetorial`, **chave separada** da do relatório — rollback de um não arrasta o outro |
+| prova pós-virada | emissão pelo fluxo normal, **sem `?motorPront=` e sem `?piloto=`**: `motor: "vetorial"` gravado, 6 páginas, 71.426 bytes, upload 200, `pdfPendente:false`, SHA conferido contra o bucket, reabertura servindo o MESMO arquivo |
+| economia | 2,27 MB → 70 KB (**−97%**) e ~4,5× mais rápido |
+| imutabilidade | `nr13_pront_emitido_<TAG>` é uma LISTA: emitir de novo **acrescenta revisão**, nunca sobrescreve um `pdfRef` gravado |
+| defeitos achados pela conferência | data de emissão e Nº fora do corpo; bairro/CEP fora do rodapé; **croqui saindo esticado** (proporção não enviada à primitiva); colisão de id de revisão no mesmo milissegundo |
+| rollback | `definirMotorProntuario('atual')` — gerador antigo, testes e seleção de motor **todos preservados** |
+| fora do escopo, não tocados | Livro, capa do Livro, termo de abertura, certificados, registros trancados, PDFs históricos e o motor do RELATÓRIO |
+| detalhe | `medicoes/2026-09-04-fase12-piloto-prontuario.md` e `medicoes/2026-09-04-fase12a-virada.md` |
+
+---
 
 ## ✅ FASE 11 — CONCLUÍDA (04/09/2026) · O VETORIAL VIROU O PADRÃO
 

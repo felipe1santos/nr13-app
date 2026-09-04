@@ -1,16 +1,18 @@
-# PONTO DE RETOMADA — 04/09/2026 (FASE 11 CONCLUÍDA · VETORIAL É O PADRÃO)
+# PONTO DE RETOMADA — 04/09/2026 (FASE 12A CONCLUÍDA · PRONTUÁRIO VETORIAL)
 
-> **O PDF do relatório passou a ser DESENHADO, não fotografado.** A partir de
-> 04/09/2026 o motor **vetorial é o padrão global** (`nr13_motor_pdf`): texto
-> real selecionável, Carlito embutida, gráfico do teste hidrostático em vetor,
-> A4 exato. Um relatório completo caiu de **7,47 MB / 22,6 s** para
-> **0,65 MB / 1,8 s**.
+> **RELATÓRIO e PRONTUÁRIO são vetoriais em produção.** O relatório virou em
+> 04/09 (`nr13_motor_pdf`) e o prontuário no mesmo dia (`nr13_motor_prontuario`,
+> chave SEPARADA — rollback de um não arrasta o outro).
 >
-> O raster **continua no bundle** e é o rollback: `definirMotorPdf('raster')`.
-> Documento histórico NUNCA muda de motor — abre sempre o `pdfRef` arquivado.
+> **O prontuário passou a ser EMITIDO**, e não só impresso: bytes → SHA-256 →
+> Storage → `pdfRef`. Emitir de novo acrescenta REVISÃO; `pdfRef` gravado nunca
+> é sobrescrito. Documento histórico nunca muda de motor.
 >
-> **Bundle em produção:** `assets/index-s3M_aa12.js` · commit `f6e0629`
-> **Suíte:** 1.769 testes / 147 arquivos · **Build:** verde
+> Raster/gerador antigo continuam no bundle: `definirMotorPdf('raster')` e
+> `definirMotorProntuario('atual')`.
+>
+> **Bundle em produção:** `assets/index-DUcY11yv.js`
+> **Suíte:** 1.801 testes / 149 arquivos · **Build:** verde
 
 ---
 
