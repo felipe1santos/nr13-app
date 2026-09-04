@@ -1205,3 +1205,80 @@
     margin-top: 6px;
   }
 }
+
+/* ============================================================================
+   FASE 10A · coluna do arquivo em /relatorios
+   ============================================================================ */
+/* A grade ganhou a primeira coluna (34px) do ícone de PDF. */
+.rel-linha {
+  grid-template-columns: 34px minmax(160px, 2.4fr) minmax(110px, 1fr) minmax(120px, 1fr)
+    minmax(92px, 0.8fr) minmax(92px, 0.8fr) 64px;
+}
+.rel-cel-icone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* O arquivo enviado é um JPEG quadrado com margem branca em volta da folha.
+   A caixa 3:4 + `cover` + `scale(1.25)` recorta EXATAMENTE a folha — sem
+   redesenhar o ícone e sem depender de editor de imagem. */
+.rel-ico-pdf {
+  width: 22px;
+  height: 29px;
+  object-fit: cover;
+  transform: scale(1.25);
+  border-radius: 2px;
+  display: block;
+}
+.rel-ico-sem-pdf {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 29px;
+  color: var(--muted, #6b7280);
+  opacity: 0.55;
+}
+/* Empresa embaixo do nome do relatório: só aparece quando o mapa TAG → empresa
+   já foi carregado (painel de filtros aberto). Sem ele, a linha fica como era. */
+.rel-cel-empresa {
+  display: block;
+  font-weight: 500;
+  font-size: 11px;
+  color: var(--muted, #6b7280);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rel-filtro-nota {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted, #6b7280);
+}
+
+@media (max-width: 720px) {
+  .rel-linha { grid-template-columns: 1fr; }
+  /* No cartão do celular o ícone volta a ficar em linha com o resto. */
+  .rel-cel-icone { justify-content: flex-start; }
+}
+
+/* Caixa de seleção dentro do painel de filtros (10A: recorte "só com
+   prontuário" / "só com calibração"). Fica aqui, junto de `.rel-filtros-painel`,
+   porque as três telas usam o mesmo painel. */
+.rel-filtro-check {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 7px !important;
+  align-self: center;
+  cursor: pointer;
+}
+.rel-filtro-check input {
+  width: 16px;
+  height: 16px;
+  min-height: 0 !important;
+  accent-color: var(--amber, #FF7A1A);
+  cursor: pointer;
+}
+.pront-filtros,
+.cal-filtros { margin-bottom: 12px; }

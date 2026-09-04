@@ -9,6 +9,7 @@ import { isMestre, papelAtual } from './auth';
  */
 export const MODULOS = [
   'dashboard',
+  'agenda',
   'vencimentos',
   'equipamentos',
   'inspecoes',
@@ -24,6 +25,7 @@ export type Modulo = (typeof MODULOS)[number];
 
 export const ROTULO_MODULO: Record<Modulo, string> = {
   dashboard: 'Dashboard',
+  agenda: 'Agenda',
   vencimentos: 'Vencimentos',
   equipamentos: 'Equipamentos',
   inspecoes: 'Inspeções',
@@ -51,6 +53,12 @@ export function carregarPermissoes(userId: string): Modulo[] | null {
   // tem só 'calibracoes' na lista e perderia acesso a uma tela que já usava — herda aqui.
   if (modulos.includes('calibracoes') && !modulos.includes('certificados')) {
     modulos.push('certificados');
+  }
+  // Mesma herança, mesmo motivo (Fase 10A): a Agenda ERA um painel dentro do
+  // Dashboard e virou tela própria. Quem já tinha 'dashboard' salvo perderia
+  // acesso a algo que usava, sem ninguém ter tirado.
+  if (modulos.includes('dashboard') && !modulos.includes('agenda')) {
+    modulos.push('agenda');
   }
   return modulos;
 }

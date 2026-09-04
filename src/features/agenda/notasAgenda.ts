@@ -18,6 +18,15 @@ const CHAVE = 'nr13_agenda_notas';
 
 export type TipoNota = 'inspecao' | 'manutencao' | 'visita' | 'lembrete';
 
+/**
+ * Fase 10A · o serviço agendado tem ciclo, e o ciclo decide o faturamento.
+ *
+ * `agendado` é o padrão e é o que conta como PREVISTO; `concluido` é o que conta
+ * como REALIZADO. `cancelado` não conta em nenhum dos dois — some das duas
+ * contas, em vez de virar previsto eterno.
+ */
+export type StatusNota = 'agendado' | 'concluido' | 'cancelado';
+
 export interface NotaAgenda {
   id: string;
   /** Data do compromisso em ISO curto, `AAAA-MM-DD`. */
@@ -28,6 +37,35 @@ export interface NotaAgenda {
   /** TAG do equipamento, quando a anotação é sobre um. Opcional. */
   tag?: string;
   criadoEm: string;
+
+  // ── Fase 10A ──────────────────────────────────────────────────────────────
+  /**
+   * REFERÊNCIA ao cliente (`nr13_clientes`), nunca uma cópia dos dados dele.
+   *
+   * Empresa, endereço, responsável (`contato`) e telefone JÁ EXISTEM no cadastro
+   * de clientes. Copiá-los para cá criaria um segundo lugar para a mesma
+   * verdade: corrigir o telefone no cadastro deixaria a agenda mostrando o
+   * antigo, e ninguém saberia qual dos dois vale. O modal resolve pelo id, na
+   * hora de exibir.
+   */
+  clienteId?: string;
+  /** `HH:MM`, 24h. Opcional: nem todo compromisso tem hora marcada. */
+  horario?: string;
+  /** Ausente = `agendado`. Nota criada antes da 10A não vira "concluída". */
+  status?: StatusNota;
+  /** Valor do serviço em reais. Ausente = sem valor informado, que NÃO é zero. */
+  valor?: number;
+}
+
+export const ROTULO_STATUS: Record<StatusNota, string> = {
+  agendado: 'Agendado',
+  concluido: 'Concluído',
+  cancelado: 'Cancelado',
+};
+
+/** Ausente = `agendado`: nota anterior à 10A não pode virar serviço concluído. */
+export function statusDe(n: NotaAgenda): StatusNota {
+  return n.status ?? 'agendado';
 }
 
 export const ROTULO_TIPO_NOTA: Record<TipoNota, string> = {

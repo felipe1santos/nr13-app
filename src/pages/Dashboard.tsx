@@ -1,8 +1,16 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icone } from '../components/Icone';
-import CalendarioVencimentos, { type ModoAgenda } from '../components/CalendarioVencimentos';
 import ModalDetalheEquipamento from '../components/ModalDetalheEquipamento';
+import {
+  ROTULO_TIPO_NOTA,
+  dataDeISO,
+  dataISO,
+  listarNotas,
+  statusDe,
+} from '../features/agenda/notasAgenda';
+import { formatarBRL, resumoDoMes } from '../features/agenda/faturamento';
+import './agenda.css';
 import { textoPrazo } from '../services/vencimentos';
 import type { ItemVencimento } from '../services/vencimentos';
 import { usePainelVencimentos, textoContador } from '../services/vencimentosServidor';
@@ -33,7 +41,21 @@ export default function Dashboard() {
   const [listaExpandida, setListaExpandida] = useState(false);
   const [modalTag, setModalTag] = useState<string | null>(null);
   const [filtroPrazo, setFiltroPrazo] = useState<'todos' | 5 | 30 | 60 | 'vencidos'>('todos');
-  const [agenda, setAgenda] = useState<ModoAgenda>('fechado');
+
+  // Fase 10A · a Agenda saiu do Dashboard e virou tela própria. O que ficou
+  // aqui é RESUMO: previsto, realizado, quantidade e os próximos compromissos.
+  // As notas são chave essencial do boot leve — não custam requisição nenhuma.
+  const notasAgenda = useMemo(() => listarNotas(), []);
+  const resumoAgenda = useMemo(() => {
+    const agora = new Date();
+    return resumoDoMes(notasAgenda, agora.getFullYear(), agora.getMonth());
+  }, [notasAgenda]);
+  const proximosServicos = useMemo(() => {
+    const hojeIso = dataISO(new Date());
+    return notasAgenda
+      .filter((n) => n.data >= hojeIso && statusDe(n) !== 'cancelado')
+      .slice(0, 3);
+  }, [notasAgenda]);
 
   // Recalcula ao montar, ao receber nr13:dados-alterados (mesma aba, ex.: relatório salvo)
   // e sempre que a janela volta ao foco (outra aba/janela).
@@ -263,16 +285,43 @@ export default function Dashboard() {
           <div className="fj-panel-head">
             <div>
               <div className="fj-eyebrow">Agenda</div>
-              <h2>Calendário e anotações</h2>
+              <h2>Serviços do mês</h2>
             </div>
-            {/* Antes levava para a tela de Inspeções. Agora abre a própria agenda no
-                formulário de anotação — o calendário passou a ser também o caderno do
-                usuário, e sair da tela para isso não fazia sentido. */}
-            <button type="button" className="fj-btn fj-btn-primary" onClick={() => setAgenda('nova')}>
-              <Icone nome="plus" tam={14} /> Nova anotação
+            <button type="button" className="fj-btn fj-btn-primary" onClick={() => navigate('/agenda')}>
+              <Icone nome="calendar" tam={14} /> Abrir Agenda
             </button>
           </div>
-          <CalendarioVencimentos itens={itens} modo={agenda} onModo={setAgenda} />
+          <div className="ag-resumo">
+            <div className="ag-resumo-linhas">
+              <div className="ag-resumo-item previsto">
+                <div className="ag-resumo-rot">Previsto</div>
+                <div className="ag-resumo-num">{formatarBRL(resumoAgenda.previsto)}</div>
+              </div>
+              <div className="ag-resumo-item realizado">
+                <div className="ag-resumo-rot">Realizado</div>
+                <div className="ag-resumo-num">{formatarBRL(resumoAgenda.realizado)}</div>
+              </div>
+              <div className="ag-resumo-item">
+                <div className="ag-resumo-rot">Serviços</div>
+                <div className="ag-resumo-num">{resumoAgenda.quantidade}</div>
+              </div>
+            </div>
+            <div className="ag-resumo-proximos">
+              {proximosServicos.length === 0 ? (
+                <div className="agenda-vazia" style={{ padding: '6px 0' }}>
+                  Nada agendado daqui para frente.
+                </div>
+              ) : (
+                proximosServicos.map((n) => (
+                  <div key={n.id} className="ag-resumo-proximo">
+                    <span className="data">{dataDeISO(n.data).toLocaleDateString('pt-BR')}</span>
+                    <span className="titulo">{n.titulo}</span>
+                    <span className="fj-badge info2">{ROTULO_TIPO_NOTA[n.tipo]}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         </div>
 
         <div className="fj-panel">

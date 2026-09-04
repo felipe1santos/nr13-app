@@ -91,6 +91,7 @@ export default function Layout() {
     if (modulosPermitidos === null) return;
     const mapa: [string, string][] = [
       ['/dashboard', 'dashboard'],
+      ['/agenda', 'agenda'],
       ['/vencimentos', 'vencimentos'],
       ['/equipamento', 'equipamentos'],
       ['/inspecoes', 'inspecoes'],
@@ -109,7 +110,7 @@ export default function Layout() {
     const ok = hit[1] !== '__mestre__' && modulosPermitidos.includes(hit[1] as never);
     if (!ok) {
       const destinos: Record<string, string> = {
-        dashboard: '/dashboard', vencimentos: '/vencimentos', equipamentos: '/equipamentos',
+        dashboard: '/dashboard', agenda: '/agenda', vencimentos: '/vencimentos', equipamentos: '/equipamentos',
         inspecoes: '/inspecoes', relatorios: '/relatorios', prontuarios: '/prontuarios',
         calibracoes: '/calibracoes', certificados: '/certificados',
         livro: '/livro-registro', funcionarios: '/funcionarios',

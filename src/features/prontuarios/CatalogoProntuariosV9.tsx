@@ -44,6 +44,14 @@ import type { Contagem, FiltrosBusca, ItemCatalogo } from '../../services/buscaI
 import * as catalogo from '../../services/catalogoLocal';
 import { formatarValor } from '../../calc/unidades';
 import type { SistemaUnidade } from '../../calc/unidades';
+import {
+  RECORTE_PADRAO,
+  TETO_PAGINAS_RECORTE,
+  empresasDoCatalogo,
+  filtrarCatalogo,
+  precisaVarrerTudo,
+  type RecorteCatalogo,
+} from '../../services/recorteCatalogo';
 
 const ROTULO_TIPO: Record<string, string> = {
   vaso: 'Vaso de Pressão',
@@ -76,7 +84,15 @@ export default function CatalogoProntuariosV9({
   const [erro, setErro] = useState<string | null>(null);
   const [offline, setOffline] = useState(false);
 
-  const filtros: FiltrosBusca = useMemo(() => ({ termo }), [termo]);
+  // ── Fase 10A ───────────────────────────────────────────────────────────────
+  // `tipo` viaja na consulta (a RPC tem o parâmetro); prontuário e empresa são
+  // recorte do cliente — ver `filtroProntuarios.ts`.
+  const [fTipo, setFTipo] = useState('');
+  const [filtro, setFiltro] = useState<RecorteCatalogo>(RECORTE_PADRAO);
+  /** Quantas páginas já vieram — o teto da varredura automática. */
+  const [paginas, setPaginas] = useState(1);
+
+  const filtros: FiltrosBusca = useMemo(() => ({ termo, tipo: fTipo }), [termo, fTipo]);
 
   /** A resposta antiga não pode sobrescrever a nova — igual à 9C/9E/9F.1. */
   const geracao = useRef(0);
@@ -99,6 +115,7 @@ export default function CatalogoProntuariosV9({
       setItens(pagina.itens);
       setCursor(pagina.proximoCursor);
       setTemMais(pagina.temMais);
+      setPaginas(1);
 
       void buscaIndex
         .contar(filtros, ctrl.signal)
@@ -156,6 +173,7 @@ export default function CatalogoProntuariosV9({
       });
       setCursor(pagina.proximoCursor);
       setTemMais(pagina.temMais);
+      setPaginas((n) => n + 1);
     } catch {
       setTemMais(false); // sem estourar erro no meio da rolagem
     } finally {
@@ -163,16 +181,97 @@ export default function CatalogoProntuariosV9({
     }
   }, [temMais, carregando, carregandoMais, cursor, filtros, offline]);
 
+  /**
+   * O recorte é do cliente, então a lista precisa estar INTEIRA antes de ele
+   * poder ser lido como resposta: filtrar só a primeira página anunciaria "2
+   * prontuários" a quem tem 30. Enquanto houver filtro ligado e páginas por
+   * vir, a tela continua puxando — até o teto, que existe para o parque grande
+   * não virar uma varredura infinita.
+   */
+  const varrendo = precisaVarrerTudo(filtro) && temMais && !!cursor && paginas < TETO_PAGINAS_RECORTE;
+  useEffect(() => {
+    if (!varrendo || carregando || carregandoMais) return;
+    void carregarMais();
+  }, [varrendo, carregando, carregandoMais, carregarMais]);
+
+  /** A varredura parou no teto: a tela precisa DIZER que pode faltar coisa. */
+  const varreduraIncompleta = precisaVarrerTudo(filtro) && temMais && paginas >= TETO_PAGINAS_RECORTE;
+
+  const empresas = useMemo(() => empresasDoCatalogo(itens), [itens]);
+  const visiveis = useMemo(() => filtrarCatalogo(itens, filtro, (i) => i.temProntuario), [itens, filtro]);
+  /** Com recorte do cliente, quem conta é a tela — a contagem do servidor fala
+      do conjunto sem filtro, e os dois números na mesma linha se contradizem. */
+  const contagemNaTela: Contagem | null = precisaVarrerTudo(filtro)
+    ? { total: visiveis.length, exato: !temMais }
+    : contagem;
+
   return (
     <>
       <BuscaLista
         valor={termo}
         aoMudar={aoMudarTermo}
         placeholder="Buscar por TAG, equipamento, fabricante ou cliente…"
-        carregando={carregando}
-        contagem={contagem}
+        carregando={carregando || varrendo}
+        contagem={contagemNaTela}
         offline={offline}
       />
+
+      <div className="rel-filtros-painel pront-filtros">
+        <label>
+          Tipo
+          <select value={fTipo} onChange={(e) => setFTipo(e.target.value)}>
+            <option value="">Todos</option>
+            {Object.entries(ROTULO_TIPO).map(([valor, rotulo]) => (
+              <option key={valor} value={valor}>
+                {rotulo}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Empresa / cliente
+          <select
+            value={filtro.empresa}
+            onChange={(e) => setFiltro((f) => ({ ...f, empresa: e.target.value }))}
+          >
+            <option value="">Todas</option>
+            {empresas.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </label>
+        {/* O padrão é a tela DOS PRONTUÁRIOS. Quem quiser criar um para um
+            equipamento que ainda não tem desliga o recorte aqui — o caminho
+            continua existindo, só deixou de ser o barulho da lista. */}
+        <label className="rel-filtro-check">
+          <input
+            type="checkbox"
+            checked={filtro.soComDocumento}
+            onChange={(e) => setFiltro((f) => ({ ...f, soComDocumento: e.target.checked }))}
+          />
+          Só equipamentos com prontuário
+        </label>
+        {(fTipo || filtro.empresa || !filtro.soComDocumento) && (
+          <button
+            type="button"
+            className="fj-btn fj-btn-ghost"
+            onClick={() => {
+              setFTipo('');
+              setFiltro(RECORTE_PADRAO);
+            }}
+          >
+            Limpar filtros
+          </button>
+        )}
+        {varreduraIncompleta && (
+          <p className="rel-filtro-nota">
+            O parque é grande demais para varrer inteiro de uma vez: podem faltar prontuários
+            nesta lista. Use a busca por TAG ou o filtro de tipo para estreitar.
+          </p>
+        )}
+      </div>
 
       {erro && (
         <div className="rel-aviso-erro" role="status">
@@ -184,22 +283,24 @@ export default function CatalogoProntuariosV9({
       )}
 
       <div className="bloco-dados">
-        {!carregando && itens.length === 0 && !erro ? (
+        {!carregando && !varrendo && visiveis.length === 0 && !erro ? (
           <p className="dashboard-vazio">
             {termo
               ? `Nenhum equipamento encontrado para ${termo}.`
-              : 'Nenhum equipamento cadastrado ainda.'}
+              : filtro.soComDocumento
+                ? 'Nenhum prontuário salvo ainda. Desmarque "Só equipamentos com prontuário" para criar o primeiro.'
+                : 'Nenhum equipamento cadastrado ainda.'}
           </p>
         ) : (
           <ListaVirtualizada
-            itens={itens}
+            itens={visiveis}
             chaveDe={(i) => i.tag}
             alturaEstimada={ALT_LINHA}
             classeGrade="lista-cards-horiz"
             // Busca nova é lista nova: a rolagem volta ao começo. Sem isto, quem
             // busca com a lista rolada fica olhando para o vazio enquanto o
             // cabeçalho anuncia resultados — o defeito que o gate da 9F.1 pegou.
-            chaveDoConjunto={termo}
+            chaveDoConjunto={`${termo}|${fTipo}|${filtro.empresa}|${filtro.soComDocumento}`}
             aoChegarNoFim={carregarMais}
             rodape={
               carregandoMais ? (

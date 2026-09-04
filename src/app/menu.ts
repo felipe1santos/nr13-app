@@ -29,6 +29,10 @@ export const ITEM_MEUS_DADOS: ItemMenu = {
 
 export const ITENS_TOPO: ItemMenu[] = [
   { id: 'dashboard', to: '/dashboard', label: 'Dashboard', icone: 'grid' },
+  // Fase 10A · a Agenda era um painel de meia largura dentro do Dashboard.
+  // Serviço agendado tem empresa, endereço, responsável, telefone, horário,
+  // status e valor — nada disso cabia lá dentro. Porta própria.
+  { id: 'agenda', to: '/agenda', label: 'Agenda', icone: 'calendar' },
   { id: 'equipamentos', to: '/equipamentos', label: 'Equipamentos', icone: 'box' },
   { id: 'inspecoes', to: '/inspecoes', label: 'Inspeções', icone: 'clipboard' },
 ];
@@ -53,6 +57,7 @@ export const ITEM_ACESSOS: ItemMenu = { id: 'acessos', to: '/acesso', label: 'Ac
 export const TITULOS_ROTA: { prefixo: string; titulo: string; sub: string }[] = [
   { prefixo: '/dashboard', titulo: 'Dashboard', sub: 'Visão geral da operação e indicadores-chave' },
   { prefixo: '/vencimentos', titulo: 'Vencimentos & inspeções', sub: 'Visão geral de prazos e conformidade' },
+  { prefixo: '/agenda', titulo: 'Agenda', sub: 'Serviços agendados, faturamento previsto e realizado' },
   { prefixo: '/equipamento/', titulo: 'Equipamentos', sub: 'Ficha do equipamento' },
   { prefixo: '/equipamentos', titulo: 'Equipamentos', sub: 'Cadastro geral de ativos sob NR-13' },
   { prefixo: '/inspecoes', titulo: 'Inspeções', sub: 'Preenchimento em campo e containers de inspeção' },

@@ -40,6 +40,12 @@ import {
 import { contarLocais, relatoriosLocais } from '../../services/relatoriosLocais';
 import VisualizadorPdf from '../../components/VisualizadorPdf';
 import { artefatoDoItemBuscado } from './artefatoRelatorio';
+import {
+  MAPA_VAZIO,
+  carregarEmpresasPorTag,
+  filtrarPorEmpresa,
+  type MapaEmpresas,
+} from './empresasPorTag';
 import type { TipoInspecao } from './tipos';
 import '../../pages/relatorios.css';
 
@@ -105,6 +111,12 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento }: PropsRe
   const fTipo = params.get('tipo') ?? '';
   const fDe = params.get('de') ?? '';
   const fAte = params.get('ate') ?? '';
+  /**
+   * Fase 10A · empresa/cliente. Filtro do CLIENTE, não da consulta: a projeção
+   * de relatórios não guarda cliente (ver `empresasPorTag.ts`). Ele vive na URL
+   * como os outros para o link continuar reproduzindo a mesma lista.
+   */
+  const fEmpresa = params.get('empresa') ?? '';
   // O escopo mora na URL como todo o resto: quem abre o link do histórico
   // continua no histórico depois de recarregar. Sem parâmetro = 'ativos', que é
   // o conjunto que a tela antiga sempre mostrou.
@@ -132,6 +144,9 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento }: PropsRe
    */
   const [aberto, setAberto] = useState<ItemRelatorio | null>(null);
   const [erroDoc, setErroDoc] = useState<string | null>(null);
+  /** Mapa TAG → empresa. Só é buscado quando o painel de filtros abre. */
+  const [mapaEmpresas, setMapaEmpresas] = useState<MapaEmpresas>(MAPA_VAZIO);
+  const [carregandoEmpresas, setCarregandoEmpresas] = useState(false);
 
   const filtros: FiltrosRelatorios = useMemo(
     () => ({ termo, tipo: fTipo, de: fDe, ate: fAte, escopo }),
@@ -252,7 +267,62 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento }: PropsRe
     }
   }, [temMais, carregando, carregandoMais, cursor, filtros]);
 
-  const temFiltro = !!(termo || fTipo || fDe || fAte);
+  // O mapa de empresas custa uma requisição por 50 equipamentos. Ele só é
+  // buscado quando o painel de filtros abre (ou quando a URL já traz empresa
+  // escolhida): abrir a tela continua custando exatamente o que custava.
+  const precisaMapa = painelAberto || !!fEmpresa;
+  /**
+   * "Já pedi" mora num REF, não no conteúdo do mapa.
+   *
+   * A primeira versão desta guarda perguntava `mapaEmpresas.porTag.size > 0` —
+   * e numa organização em que nenhum equipamento tem cliente o mapa volta
+   * VAZIO, a condição continua falsa para sempre e o efeito se redispara a cada
+   * quadro. Medido no navegador antes de sair daqui: **789 chamadas a
+   * `buscar_equipamentos` em 8 segundos**. Resultado vazio é uma resposta, e
+   * precisa ser lembrado como tal.
+   */
+  const mapaPedido = useRef(false);
+  useEffect(() => {
+    if (!precisaMapa || mapaPedido.current) return;
+    mapaPedido.current = true;
+    const ctrl = new AbortController();
+    setCarregandoEmpresas(true);
+    void carregarEmpresasPorTag(ctrl.signal)
+      .then((m) => setMapaEmpresas(m))
+      .catch(() => {
+        // Falhou: pode tentar de novo quando o painel for reaberto.
+        mapaPedido.current = false;
+      })
+      .finally(() => setCarregandoEmpresas(false));
+    return () => ctrl.abort();
+  }, [precisaMapa]);
+
+  const visiveis = useMemo(
+    () => filtrarPorEmpresa(itens, mapaEmpresas, fEmpresa),
+    [itens, mapaEmpresas, fEmpresa],
+  );
+
+  /**
+   * Com empresa escolhida, a lista precisa estar INTEIRA antes de o filtro
+   * poder ser lido como resposta: filtrar só a primeira página mostraria "3
+   * relatórios" para quem tem 40, sem nada na tela dizendo que faltam. Então a
+   * paginação é puxada até o fim enquanto o filtro estiver ligado.
+   */
+  useEffect(() => {
+    if (!fEmpresa || !temMais || carregando || carregandoMais) return;
+    void carregarMais();
+  }, [fEmpresa, temMais, carregando, carregandoMais, carregarMais]);
+
+  const temFiltro = !!(termo || fTipo || fDe || fAte || fEmpresa);
+
+  /**
+   * Com empresa escolhida a contagem do servidor fala de outro conjunto (ela
+   * não conhece o filtro), então quem conta é a lista da tela. Enquanto ainda
+   * há páginas por vir, `exato: false` — o número ainda vai subir.
+   */
+  const contagemNaTela: ContagemRelatorios | null = fEmpresa
+    ? { total: visiveis.length, exato: !temMais, historicos: 0 }
+    : contagem;
 
   function limparTudo() {
     setParams(new URLSearchParams(), { replace: true });
@@ -320,7 +390,7 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento }: PropsRe
           aoMudar={(t) => trocarParam('q', t)}
           placeholder="Buscar por TAG, equipamento ou nº do relatório…"
           carregando={carregando}
-          contagem={contagem}
+          contagem={contagemNaTela}
           offline={offline}
         >
           <button
@@ -363,10 +433,37 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento }: PropsRe
                 ))}
               </select>
             </label>
+            <label>
+              Empresa / cliente
+              <select
+                value={fEmpresa}
+                onChange={(e) => trocarParam('empresa', e.target.value)}
+                disabled={carregandoEmpresas}
+              >
+                <option value="">
+                  {carregandoEmpresas ? 'Carregando empresas…' : 'Todas'}
+                </option>
+                {mapaEmpresas.empresas.map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </label>
             {temFiltro && (
               <button type="button" className="fj-btn fj-btn-ghost" onClick={limparTudo}>
                 Limpar filtros
               </button>
+            )}
+            {/* O filtro por empresa é do CLIENTE (a projeção de relatórios não
+                guarda cliente). Quando a varredura do catálogo bate no teto, a
+                tela DIZ — filtro que esconde linha calado é o mesmo relato de
+                dado sumido, com outro nome. */}
+            {!mapaEmpresas.completo && (
+              <p className="rel-filtro-nota">
+                O parque é grande demais para varrer inteiro: o filtro por empresa pode não
+                alcançar todos os equipamentos. Use também a busca por TAG.
+              </p>
             )}
           </div>
         )}
@@ -425,7 +522,7 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento }: PropsRe
         </div>
       )}
 
-      {!erro && !carregando && itens.length === 0 && (
+      {!erro && !carregando && visiveis.length === 0 && (
         <div className="rel-vazio" role="status">
           {temFiltro ? (
             <>
@@ -451,9 +548,10 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento }: PropsRe
         </div>
       )}
 
-      {itens.length > 0 && (
+      {visiveis.length > 0 && (
         <div className="rel-tabela-v9" role="table" aria-label="Relatórios">
           <div className="rel-linha rel-linha-cabecalho" role="row">
+            <span role="columnheader" aria-label="Arquivo" />
             <span role="columnheader">Relatório</span>
             <span role="columnheader">TAG</span>
             <span role="columnheader">Tipo</span>
@@ -466,7 +564,7 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento }: PropsRe
               que a organização tem. "Carregar mais" acumula itens no estado, e
               sem isto 20 páginas seriam 1.000 linhas no DOM. */}
           <ListaVirtualizada
-            itens={itens}
+            itens={visiveis}
             chaveDe={(r) => r.relatorioId}
             alturaEstimada={ALT_LINHA}
             classeGrade="rel-corpo-v9"
@@ -480,8 +578,36 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento }: PropsRe
             }
             desenhar={(r) => (
               <div className="rel-linha" role="row">
+                {/* Ícone de PDF: o arquivo real que o dono do sistema mandou
+                    usar (`public/icones/pdf.jpg`). Ele marca o relatório
+                    FINALIZADO — o que tem `pdfRef`, o artefato do §7-quater.
+                    Relatório legado, sem arquivo, ganha a marca vazia: a
+                    diferença entre "tem PDF arquivado" e "só existe como
+                    receita" é o que a coluna comunica.
+
+                    A imagem é decorativa aqui (o texto ao lado já diz o que a
+                    linha é), por isso `alt=""`. E ela NÃO é o PDF: continua
+                    valendo a regra da 9E — listar não toca arquivo nenhum. */}
+                <span role="cell" className="rel-cel-icone">
+                  {r.pdfRef ? (
+                    <img
+                      className="rel-ico-pdf"
+                      src="/icones/pdf.jpg"
+                      alt=""
+                      loading="lazy"
+                      title="Relatório finalizado (PDF arquivado)"
+                    />
+                  ) : (
+                    <span className="rel-ico-sem-pdf" title="Relatório sem PDF arquivado (anterior ao arquivamento)">
+                      <Icone nome="filetext" tam={15} />
+                    </span>
+                  )}
+                </span>
                 <span role="cell" className="rel-cel-nome" title={r.nome ?? r.codigo ?? ''}>
                   {ou(r.nome ?? r.codigo)}
+                  {mapaEmpresas.porTag.get(r.tag) && (
+                    <small className="rel-cel-empresa">{mapaEmpresas.porTag.get(r.tag)}</small>
+                  )}
                 </span>
                 <span role="cell" className="rel-cel-tag">
                   {r.tag}
