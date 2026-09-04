@@ -66,13 +66,11 @@ período e tipo, paginação por keyset e **zero PDF** ao listar.
 Acrescentado:
 
 - **o ícone de PDF que o dono mandou usar** — o arquivo real,
-  `Downloads/pdf-IMAGEM.jpg`, copiado para `public/icones/pdf.jpg` (33.430 B,
-  byte a byte). Ele marca o relatório FINALIZADO (o que tem `pdfRef`); quem não
+  `Downloads/pdf-IMAGEM.jpg`. Ele marca o relatório FINALIZADO (o que tem `pdfRef`); quem não
   tem arquivo — o legado anterior ao §7-quater — recebe a marca vazia, e a
   diferença entre "PDF arquivado" e "só existe como receita" passa a ser
-  visível. O JPEG é quadrado com margem branca; a caixa 3:4 com
-  `object-fit: cover` + `transform: scale(1.25)` recorta **exatamente** a folha,
-  sem redesenhar ícone nenhum;
+  visível. (Na mesma data, §9: o JPEG virou WEBP de 1.802 B, recortado no
+  arquivo.);
 - **filtro por empresa/cliente**, e o nome da empresa embaixo do relatório.
 
 > **O filtro por empresa é do CLIENTE, e há motivo.** `relatorios_index` não
@@ -152,3 +150,66 @@ Depois da correção: **20 chamadas** (exatamente o teto), e a lista para.
 | `tsc -b` | limpo |
 | build | verde |
 | arquivos novos | `pages/Agenda.tsx`, `pages/agenda.css`, `features/agenda/faturamento.ts`, `features/relatorios/empresasPorTag.ts`, `services/recorteCatalogo.ts`, `public/icones/pdf.jpg` |
+
+---
+
+## 9 · 10A.5 — refinamento visual de `/relatorios` (mesma data)
+
+Pedido do dono depois de ver a tela: mais compacta, mais limpa, sem a faixa
+amarela, e com o ícone de PDF leve.
+
+### Ícone
+
+| | antes | depois |
+|---|---|---|
+| arquivo | `pdf.jpg`, 33.430 B | `pdf.webp`, **1.802 B** (18× menor) |
+| recorte | por CSS (`object-fit: cover` + `scale(1.25)`), porque metade do JPEG era margem branca | **no arquivo** — 96×128 já recortado (ffmpeg, `crop=720:960:240:120`, qualidade 90) |
+| nitidez | 1200 px de origem | 96 px para desenhar 20 — folgado até 4× de densidade |
+
+O `transform` saiu junto: ele só existia para esconder a margem.
+
+### Espaçamento (medido em 1440 px, com iframe de viewport fixo)
+
+| | antes | depois |
+|---|---|---|
+| topbar → primeiro relatório | 163 px | **134 px** |
+| bloco de busca | 62 px (campo + faixa da contagem) | **36 px** (uma linha só) |
+| cabeçalho da tabela | 38 px | **28 px** |
+| linha da lista | 53 px | **47 px** |
+| linhas visíveis na mesma tela | 18 | **20** |
+
+A contagem de resultados saiu da faixa de baixo e foi para a mesma linha do
+campo, encostada à direita, com o botão de filtro ao lado — `BuscaLista` ganhou
+a opção `compacto`, e as outras três telas que a usam não mudaram.
+
+### A faixa âmbar
+
+`"12 relatórios de equipamento excluído estão fora desta lista"` **saiu da área
+da listagem**. O escopo virou um `<select>` no painel de filtros
+("Só os do cadastro atual" / "Só de equipamento excluído (N relatórios)" /
+"Todos"), com a contagem no rótulo da opção. Quando o escopo não é o padrão,
+sobra uma linha cinza de uma altura — lista que troca de conjunto sem dizer é a
+mesma queixa de dado sumido.
+
+### Celular (390 px, medido)
+
+Cartão de duas colunas: ícone à esquerda atravessando as linhas, campos à
+direita, e as **duas datas dividindo uma linha só** (168 px → **156 px** por
+cartão). Cada campo recuperou o rótulo por CSS (`data-rot`): sem cabeçalho de
+coluna, "10/05/2026" seguido de "Sem data" não diz qual é a emissão e qual é a
+validade. Sem rolagem horizontal.
+
+### Não mudou
+
+Ordenação por data, filtros, busca, paginação, abertura do documento, `pdfRef`,
+geração de PDF, Livro, certificados e prontuários.
+
+> **Validação visual foi por GEOMETRIA, não por captura de tela:** a janela do
+> Chrome desta máquina está minimizada (0×0), e nesse estado a captura falha e
+> o layout mede errado. As medidas acima vêm de um `<iframe>` de largura fixa
+> dentro da própria página, que tem viewport próprio e layout correto.
+
+**Bundle em produção:** `assets/index-BCZItTcM.js` · CSS `assets/index-CjGKP71z.css` ·
+commit `65dd961`. Conferido no ar: `icones/pdf.webp` presente (1.802 B,
+`image/webp`), `pdf.jpg` com **zero** ocorrências, `rel-aviso-historicos` com
+**zero** ocorrências.

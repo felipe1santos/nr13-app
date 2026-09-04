@@ -7,7 +7,7 @@
 > redeploy, validação, portão. Não no fim da fase.
 
 **Última atualização:** 03/09/2026 — **FASE 10A ENTREGUE ✅** · Agenda em tela própria com faturamento previsto × realizado, e o recorte das listas de /relatorios, /prontuarios e /calibracoes. (Fase 9 concluída na mesma data; falta só o `drop` inerte das colunas.)
-**Branch:** `main` · **Suíte:** 1633 testes / 138 arquivos, 0 falhas · **Build:** verde · **Bundle em produção:** `assets/index-Dr9rMWHr.js` (commit `648f970`)
+**Branch:** `main` · **Suíte:** 1633 testes / 138 arquivos, 0 falhas · **Build:** verde · **Bundle em produção:** `assets/index-BCZItTcM.js` (commit `65dd961`)
 
 > ### 🔖 VOLTANDO DEPOIS DE UMA PAUSA? Leia [`PONTO-DE-RETOMADA.md`](PONTO-DE-RETOMADA.md).
 > Ele tem o estado de produção, o que falta decidir (a **9D**) e **todos os endereços de acesso** —

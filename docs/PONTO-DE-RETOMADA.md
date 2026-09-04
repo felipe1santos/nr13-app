@@ -4,7 +4,7 @@
 > listas passaram a mostrar o que interessa.** A Fase 9 foi concluída na mesma
 > data — o sistema tem um caminho só em cada tela.
 >
-> **Bundle em produção:** `assets/index-Dr9rMWHr.js` · commit `648f970`
+> **Bundle em produção:** `assets/index-BCZItTcM.js` · commit `65dd961`
 > **Suíte:** 1.633 testes / 138 arquivos · **Build:** verde
 
 ---
