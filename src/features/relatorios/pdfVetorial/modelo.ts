@@ -2,7 +2,7 @@ import { ler } from '../../../services/storage';
 import { linhasMemorial } from '../relatoriosService';
 import { SECOES_CHECKLIST } from '../../inspecoes/formularios/FormularioChecklist';
 import type { RelatorioMeta } from '../tipos';
-import { rotuloClasseFluido, rotuloResposta, rotuloResultado, rotuloTipoEquipamento } from './rotulos';
+import { rotuloClasseFluido, rotuloEnquadramento, rotuloResposta, rotuloResultado, rotuloTipoEquipamento } from './rotulos';
 
 /**
  * Fase 11 · o MODELO do relatório completo — a ponte de dados da 10C §11.3,
@@ -118,6 +118,49 @@ export function textoOu(v: string | null | undefined, vazio = '—'): string {
   return v && String(v).trim() !== '' ? String(v).trim() : vazio;
 }
 
+/**
+ * Um número a partir do que ESTÁ no storage — que nem sempre é número.
+ *
+ * `nr13_calc_<TAG>.pmta` é gravado como STRING pelo memorial de vaso
+ * (`pmtaFinal.toFixed(2)`) e pelo de caldeira (`P.toFixed(2)`); só o de
+ * autoclave grava número. O modelo aceitava exclusivamente `number`, então
+ * PMTA e PTH saíam com travessão em vaso e caldeira — a maioria do parque.
+ * Medido e provado em documento emitido (13A, 04/09/2026).
+ *
+ * Aceita `12.5`, `"12.50"` e `"12,50"` (o separador decimal brasileiro
+ * aparece em dado digitado à mão). Recusa o resto: `"--"`, `"N/A"`, `""` e
+ * qualquer texto viram `null`, e travessão continua sendo a resposta honesta
+ * para dado que não existe.
+ */
+export function numeroDoStorage(v: unknown): number | null {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  if (typeof v !== 'string') return null;
+  const limpo = v.trim().replace(',', '.');
+  if (limpo === '' || !/^-?\d+(\.\d+)?$/.test(limpo)) return null;
+  const n = Number(limpo);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Número no formato do documento (pt-BR), sem inventar casas decimais. */
+export function numeroBr(v: unknown, maxDecimais = 3): string | null {
+  const n = numeroDoStorage(v);
+  if (n === null) return null;
+  return n.toLocaleString('pt-BR', { maximumFractionDigits: maxDecimais });
+}
+
+/**
+ * O fluido sem o prefixo da classe.
+ *
+ * `nr13_cat_<TAG>.fluidoInput` guarda a opção inteira — `"A - Fluido
+ * inflamável, combustível (T ≥ 200 °C)"`. A classe tem coluna própria no
+ * documento; repetir a letra dentro do nome do fluido é ruído. É o mesmo
+ * tratamento que `CLASSIFICACAO-RISCO.html` e `PLACA.html` já faziam.
+ */
+export function fluidoSemClasse(v: unknown): string | null {
+  const s = txt(v);
+  return s === null ? null : txt(s.replace(/^[A-D]\s*-\s*/, ''));
+}
+
 export function converterPressao(mpa: number | null): {
   mpa: string | null;
   kgf: string | null;
@@ -202,8 +245,11 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
   const us = (inj.ultrassom ?? {}) as Record<string, unknown>;
   const th = (inj.th ?? {}) as Record<string, unknown>;
 
-  const pmta = converterPressao(typeof calc.pmta === 'number' ? calc.pmta : null);
-  const pth = converterPressao(typeof calc.pth === 'number' ? calc.pth : null);
+  // O storage guarda PMTA/PTH como string em vaso e caldeira e como número em
+  // autoclave. `numeroDoStorage` aceita as duas formas e recusa texto — a
+  // fórmula e o cálculo não são tocados, só a leitura.
+  const pmta = converterPressao(numeroDoStorage(calc.pmta));
+  const pth = converterPressao(numeroDoStorage(calc.pth));
 
   return {
     tag,
@@ -234,9 +280,13 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
       'NÚMERO DE SÉRIE': txt(info.numeroSerie),
       'ANO DE FABRICAÇÃO': txt(info.ano),
       'CÓDIGO DE PROJETO': txt(info.codigoProjeto),
-      'FLUIDO DE OPERAÇÃO': txt(cat.fluido) ?? txt(info.fluido),
-      'CLASSE DO FLUIDO': rotuloClasseFluido(txt(cat.classeFluido)),
-      'VOLUME (m³)': txt(cat.volume),
+      // Os três campos abaixo saíam SEMPRE com travessão: o modelo lia
+      // `cat.fluido`, `cat.classeFluido` e `cat.volume`, e `CategoriaSalva`
+      // não tem nenhum dos três — os nomes reais são `fluidoInput`, `classe`
+      // e `volInput` (13A, provado em documento emitido).
+      'FLUIDO DE OPERAÇÃO': fluidoSemClasse(cat.fluidoInput) ?? fluidoSemClasse(info.fluido),
+      'CLASSE DO FLUIDO': rotuloClasseFluido(txt(cat.classe)),
+      'VOLUME (m³)': numeroBr(info.volume) ?? numeroBr(cat.volInput),
       'GRUPO DE RISCO': txt(cat.grupo),
       'CATEGORIA DO VASO': txt(cat.catFinal),
       'LOCAL DA INSTALAÇÃO': txt(info.localizacao),
@@ -248,10 +298,11 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
     categoria: {
       catFinal: txt(cat.catFinal),
       grupo: txt(cat.grupo),
-      volume: txt(cat.volume),
+      volume: numeroBr(info.volume) ?? numeroBr(cat.volInput),
       // O ENQUADRAMENTO é lido, não recalculado: a base é kPa × m³ > 8 (§4) e
-      // quem decide é `calc/categoria.ts`.
-      enquadramento: txt(cat.enquadramento ?? cat.enquadra),
+      // quem decide é `calc/categoria.ts`, que grava `isEnquadrado`. O modelo
+      // procurava `enquadramento`/`enquadra` — nomes que não existem.
+      enquadramento: rotuloEnquadramento(cat.isEnquadrado),
     },
     componentes: (calc.componentes ?? []).map((c) => ({
       nome: textoOu(txt(c.nome), 'Componente'),

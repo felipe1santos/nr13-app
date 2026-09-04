@@ -83,3 +83,16 @@ export function rotuloLaudo(apto: boolean | null): string | null {
   if (apto === null) return null;
   return apto ? 'APTO' : 'INAPTO';
 }
+
+/**
+ * O enquadramento na NR-13, a partir do `isEnquadrado` de `nr13_cat_<TAG>`.
+ *
+ * `null` (nunca categorizado) NÃO é "não enquadrado": é ausência de resposta, e
+ * o documento diz isso com travessão. Transformar ausência em negativa faria a
+ * folha afirmar que o equipamento está fora da norma sem ninguém ter avaliado.
+ */
+export function rotuloEnquadramento(v: unknown): string | null {
+  if (v === true) return 'Enquadrado na NR-13';
+  if (v === false) return 'Não enquadrado';
+  return null;
+}
