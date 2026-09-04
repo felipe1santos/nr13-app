@@ -6,13 +6,27 @@
 > **REGRA:** este arquivo é atualizado NO MOMENTO em que o estado muda — commit, push,
 > redeploy, validação, portão. Não no fim da fase.
 
-**Última atualização:** 04/09/2026 — **FASE 12A CONCLUÍDA ✅ · PRONTUÁRIO VETORIAL É O PADRÃO** · e o prontuário passou a ser EMITIDO (bytes → SHA → Storage → pdfRef), coisa que nunca teve. Relatório intocado nesta rodada.
-**Branch:** `main` · **Suíte:** 1801 testes / 149 arquivos, 0 falhas · **Build:** verde · **Bundle em produção:** `assets/index-DUcY11yv.js`
+**Última atualização:** 04/09/2026 — **FASE 12 CONCLUÍDA ✅** · hardening final fechado: `portal_cliente` republicada e conferida por SHA, Portal validado, abertura do documento emitido independente do palco e do dado vivo (5 testes bloqueantes), validação no navegador contra o bundle publicado e **inventário dos geradores reais** de documento.
+**Branch:** `main` · **Suíte:** 1806 testes / 149 arquivos, 0 falhas · **Build:** verde · **Bundle em produção:** `assets/index-BhysF4YM.js`
 
 > ### 🔖 VOLTANDO DEPOIS DE UMA PAUSA? Leia [`PONTO-DE-RETOMADA.md`](PONTO-DE-RETOMADA.md).
 > Ele tem o estado de produção, o que falta decidir (a **9D**) e **todos os endereços de acesso** —
 > sistema, Supabase e Coolify.
 
+
+## ✅ FASE 12 — CONCLUÍDA (04/09/2026) · HARDENING FINAL
+
+| | |
+|---|---|
+| Edge | **`portal_cliente` republicada** pelo dashboard. `prefixos.ts` no servidor voltou com o SHA-256 do repo (`acf3b6f1…82a8f`, 7.558 B) e `index.ts` ficou intocado (`7da703c6…cabf`). Repo × produção deixaram de divergir. Boot provado: a função responde `{"erro":"Token inválido"}` — mensagem dela, não do gateway |
+| Portal | 6 provas passando: `nr13_pront_emitido_` negada, `nr13_livro_rascunho_` negada, `nr13_livro_` permitida, TAG alheia negada, relatório legado permitido, pedido misto devolvendo só a chave oficial. Acesso descartável criado e removido pelo fluxo oficial |
+| abrir emitido | `bytesDaEmissao` recebe só o REGISTRO e serve o `pdfRef`: **não** chama gerador, não monta folha, não lê dado vivo do equipamento, não grava e não disputa a trava do palco |
+| imutabilidade | **5 testes bloqueantes** — serve os bytes e nada mais; abrir N vezes não muda a lista; não altera `sha256`/`pdfRef`; abre com o storage VAZIO; sem arquivo resolvido **ERRA** em vez de remontar calado |
+| validação no navegador | contra `index-BhysF4YM.js`: emissão aparece, abre **após reload**, quantidade continua **1**, mesmo `pdfRef`, mesmo SHA (`a0d74335…`), **71.426 bytes** nas duas aberturas, `%PDF-1.3` com 6 páginas. `nr13_motor_prontuario = vetorial` e `nr13_motor_pdf = vetorial` (versão 1, timestamp de antes — o relatório não foi afetado) |
+| inventário | **A** relatório + prontuário (vetoriais) · **B** certificados, Livro, capa, termo, históricos (fora por decisão) · **C** 8 itens, dos quais só DOIS valem Fase 13: a **impressão** do relatório e a do prontuário continuam raster enquanto o PDF já é vetorial. Achado extra: **6 folhas órfãs** em `public/arquivos-prontuario/` com ZERO referências em `src/` |
+| detalhe | `medicoes/2026-09-04-fase12-hardening.md` |
+
+---
 
 ## ✅ FASE 12A — CONCLUÍDA (04/09/2026) · PRONTUÁRIO VETORIAL É O PADRÃO
 

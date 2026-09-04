@@ -1,4 +1,4 @@
-# PONTO DE RETOMADA — 04/09/2026 (FASE 12A CONCLUÍDA · PRONTUÁRIO VETORIAL)
+# PONTO DE RETOMADA — 04/09/2026 (FASE 12 CONCLUÍDA · HARDENING FECHADO)
 
 > **RELATÓRIO e PRONTUÁRIO são vetoriais em produção.** O relatório virou em
 > 04/09 (`nr13_motor_pdf`) e o prontuário no mesmo dia (`nr13_motor_prontuario`,
@@ -11,8 +11,8 @@
 > Raster/gerador antigo continuam no bundle: `definirMotorPdf('raster')` e
 > `definirMotorProntuario('atual')`.
 >
-> **Bundle em produção:** `assets/index-DUcY11yv.js`
-> **Suíte:** 1.801 testes / 149 arquivos · **Build:** verde
+> **Bundle em produção:** `assets/index-BhysF4YM.js`
+> **Suíte:** 1.806 testes / 149 arquivos · **Build:** verde
 
 ---
 
@@ -20,8 +20,11 @@
 
 ### 0 · ~~DEPLOY DAS EDGES~~ — RESOLVIDO em 04/09/2026 ✅
 
-`portal_cliente` (`6225581`) e `admin` (`f6e0629`) foram publicadas **pelo
-dashboard**, sem CLI, e conferidas por SHA-256 contra o repo depois do deploy.
+`portal_cliente` e `admin` (`f6e0629`) foram publicadas **pelo dashboard**, sem
+CLI, e conferidas por SHA-256 contra o repo depois do deploy. `portal_cliente`
+foi **republicada** no fim do dia (hardening da Fase 12) para levar a linha
+`nr13_pront_emitido_` de `FORA_DO_PORTAL`: `prefixos.ts` no servidor volta com
+`acf3b6f1…82a8f` e `index.ts` seguiu intocado.
 
 Validado em produção com um acesso de portal descartável: Livro oficial
 permitido, `nr13_livro_rascunho_*` **negado** (inclusive empacotado junto de uma

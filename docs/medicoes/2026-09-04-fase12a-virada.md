@@ -132,10 +132,10 @@ prontuário emitido é documento do cliente e caberia bem lá —, mas a tela do
 Portal ainda não sabe apresentá-lo, e servir a chave sem tela que a use só
 engorda a carga inicial.
 
-> **Atenção ao repo × produção:** essa linha ainda **não foi publicada** na Edge.
-> O comportamento é idêntico (a família nunca esteve em `PREFIXOS_POR_TAG`, então
-> a Edge já a nega), mas `prefixos.ts` no repo e o publicado divergem por essa
-> linha. Vale republicar `portal_cliente` na próxima janela.
+> **RESOLVIDO em 04/09/2026** (hardening da Fase 12): `portal_cliente` foi
+> republicada pelo dashboard e `prefixos.ts` no servidor volta com o SHA-256 do
+> repo (`acf3b6f1…82a8f`). Repo e produção deixaram de divergir. Registro em
+> `docs/medicoes/2026-09-04-fase12-hardening.md` §1.
 
 ---
 

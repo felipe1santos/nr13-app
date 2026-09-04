@@ -768,8 +768,8 @@ function RelatoriosLegado() {
 
       // 3. PDF do que está montado.
       //
-      // QUAL MOTOR: `motorPdfAtual` decide, e o padrão é o RASTER que está em
-      // produção. A escolha vale só para ESTA finalização — nenhum documento já
+      // QUAL MOTOR: `motorPdfAtual` decide, e em produção a chave está em
+      // VETORIAL desde 04/09/2026. A escolha vale só para ESTA finalização — nenhum documento já
       // emitido é regenerado, porque relatório finalizado é arquivo, não receita
       // (§7-quater). Ver `features/relatorios/motorPdf.ts`.
       setProgressoPdf({ feito: 0, total: documentos.length });

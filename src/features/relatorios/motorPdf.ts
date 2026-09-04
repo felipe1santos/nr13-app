@@ -22,8 +22,10 @@ import { ler, salvar } from '../../services/storage';
  *
  * ## Padrão
  *
- * `raster`. Ausência de valor é ausência de decisão, e a decisão que já está em
- * produção é o raster. Só um valor explícito `'vetorial'` troca o motor.
+ * No CÓDIGO, `raster`: ausência de valor é ausência de decisão, e só a string
+ * exata `'vetorial'` troca o motor. Em PRODUÇÃO a chave está gravada como
+ * `vetorial` desde 04/09/2026 — o padrão do código é o piso do rollback, não o
+ * que sai hoje na finalização. Apagar a chave já é rollback.
  *
  * ## Os dois níveis
  *

@@ -38,10 +38,11 @@ import { medirFotos, montarModeloRelatorio, type ModeloRelatorio } from './model
  *
  * ## O que NÃO muda
  *
- * O gerador raster (`pdfService.gerarPdfBytes`) continua sendo o de produção.
- * Este arquivo não é chamado por nenhum caminho normal do sistema: só pelo
- * painel de comparação, atrás de `?piloto=1`. Nenhum PDF histórico é regenerado
- * (§7-quater), e o Livro, os certificados e o termo de abertura não são tocados.
+ Desde 04/09/2026 este gerador é o PADRÃO das finalizações NOVAS
+ * (`nr13_motor_pdf = vetorial`, gravado em produção). O raster
+ * (`pdfService.gerarPdfBytes`) continua inteiro no bundle como rollback de um
+ * passo. Nenhum PDF histórico é regenerado (§7-quater), e o Livro, os
+ * certificados e o termo de abertura não são tocados.
  */
 
 export interface ResultadoVetorial {
