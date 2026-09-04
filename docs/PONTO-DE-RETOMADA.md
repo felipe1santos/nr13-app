@@ -1,4 +1,4 @@
-# PONTO DE RETOMADA — 04/09/2026 (FASE 10B.2 ENTREGUE ✅)
+# PONTO DE RETOMADA — 04/09/2026 (10B.2 ENTREGUE ✅ · 10C ESPECIFICADA)
 
 > **O Livro deixou de ser escrito sozinho.** Finalizar um relatório não cria mais
 > registro: agora é NOVO REGISTRO → SALVAR (rascunho, editável) → TRANCAR →
@@ -11,6 +11,24 @@
 ---
 
 ## ⚠️ AS DUAS COISAS PENDENTES
+
+### 0 · DEPLOY DA EDGE `portal_cliente` PENDENTE (04/09/2026)
+
+O commit `6225581` endurece a autorização sob demanda: a Edge passa a NEGAR
+`nr13_livro_rascunho_*` por família, antes de permitir por TAG. **O código está
+no repo e testado (`portalSobDemanda.test.ts`), mas a função NÃO foi deployada:**
+o dashboard do Supabase não abre nesta máquina (corpo vazio, mesma falha do SQL
+Editor) e a CLI não tem token.
+
+Para concluir, no terminal do projeto:
+
+```
+npx supabase login
+npx supabase functions deploy portal_cliente --project-ref qqsesrntfvmdxqxrfvmw
+```
+
+Enquanto não for deployada vale o que já valia: o cliente do Portal nunca pede
+essa chave, e o rascunho não contém documento assinado.
 
 ### 1 · `supabase/fase9_remocao_flags.sql` NÃO foi aplicado
 
@@ -60,7 +78,7 @@ o painel de vencimentos vem do **agregado**. Hidratação integral = **0**.
 |---|---|
 | ~~10B.1~~ | **ENTREGUE em 04/09/2026** — `medicoes/2026-09-04-10b1-rascunho-e-finalizacao.md` |
 | ~~10B.2~~ | **ENTREGUE em 04/09/2026** — `medicoes/2026-09-04-10b2-livro-manual.md`. O gatilho `livro_imutavel.sql` NÃO foi afrouxado, como a análise previa |
-| **10C** | novo layout documental — **bloqueado**: o `relatorio-nr13.html` nunca foi entregue |
+| **10C** | **ESPECIFICADA em 04/09/2026** — `FASE-10C-ESPECIFICACAO-LAYOUT.md`. A referência apareceu (`C:\projetos\vender\relatorio-nr13.html`). Faltam 3 decisões do dono: fonte, campos novos (recomendações / próximas inspeções por exame) e checklist em 2 ou 3 folhas |
 | **Fase 11** | PDF vetorial/híbrido |
 
 Desenho de todos em [`FASE-10-DESENHO.md`](FASE-10-DESENHO.md).
