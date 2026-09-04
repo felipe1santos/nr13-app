@@ -862,3 +862,88 @@
   }
   .acesso-acoes .btn-secundario::after { content: attr(title); }
 }
+
+/* ── Fase 12B · escolha do MODELO do relatório (Minha Empresa) ───────────────
+   Card próprio, fora do formulário de cadastro: a configuração é da
+   organização e grava sozinha, sem passar pelo Editar/Salvar dos dados. */
+.modelo-card {
+  margin-top: 16px;
+}
+.modelo-ajuda {
+  margin: 0 0 14px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-muted, #6b7280);
+}
+.modelo-opcoes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+.modelo-opcao {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  text-align: left;
+  background: var(--surface, #fff);
+  border: 1.5px solid var(--border, #d8dbe0);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color .15s, box-shadow .15s, background .15s;
+}
+.modelo-opcao:hover:not(:disabled) {
+  border-color: var(--accent, #d97706);
+}
+.modelo-opcao:disabled {
+  cursor: default;
+  opacity: .7;
+}
+.modelo-opcao.is-ativo {
+  border-color: var(--accent, #d97706);
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, .14);
+}
+.modelo-radio {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--border, #b9bec6);
+}
+.modelo-opcao.is-ativo .modelo-radio {
+  border-color: var(--accent, #d97706);
+  background:
+    radial-gradient(circle at center, var(--accent, #d97706) 0 4px, transparent 4.5px);
+}
+.modelo-texto {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.modelo-texto strong {
+  font-size: 14px;
+}
+.modelo-texto span {
+  font-size: 12px;
+  color: var(--text-muted, #6b7280);
+}
+.modelo-previa {
+  flex: 0 0 auto;
+  width: 42px;
+  height: 59px;
+  border-radius: 3px;
+}
+.modelo-estado,
+.modelo-erro {
+  margin: 10px 0 0;
+  font-size: 12px;
+}
+.modelo-estado { color: var(--text-muted, #6b7280); }
+.modelo-erro { color: #8e2b20; }
+
+@media (max-width: 480px) {
+  .modelo-opcoes { grid-template-columns: 1fr; }
+}

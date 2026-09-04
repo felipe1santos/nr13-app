@@ -89,6 +89,16 @@ export interface RelatorioMeta {
   // Certificados Calibração é soft-replace (versão antiga fica retida com `substituidoEm`), então
   // o PDF congelado aqui por id continua disponível para reimpressão/re-download.
   rastreabIds?: string[];
+  /**
+   * Fase 12B · o MODELO visual congelado quando o rascunho NASCEU.
+   *
+   * `'classico' | 'novo'` — ver `features/relatorios/modeloDocumento.ts`. É o
+   * que impede a configuração da empresa de alcançar um rascunho em andamento:
+   * relatório começado na segunda e finalizado na quinta sai com o desenho da
+   * segunda. Ausente = rascunho anterior a esta fase; aí vale a configuração
+   * atual da empresa.
+   */
+  modeloDocumento?: 'classico' | 'novo';
 }
 
 /**

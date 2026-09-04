@@ -4,6 +4,7 @@ import { carregarMinhaEmpresa, salvarMinhaEmpresa } from '../features/cadastros/
 import type { MinhaEmpresaDados } from '../features/cadastros/tipos';
 import { comprimirImagemComBlob } from '../services/imagem';
 import { paraGravar, ESCOPO_LOGO } from '../services/identidadeVisual';
+import SeletorModeloRelatorio from '../features/relatorios/SeletorModeloRelatorio';
 import './cadastros.css';
 
 export default function MinhaEmpresa() {
@@ -245,6 +246,9 @@ export default function MinhaEmpresa() {
           </div>
         </div>
       )}
+
+      {/* Configuração da ORGANIZAÇÃO, fora do formulário de cadastro — grava sozinha. */}
+      <SeletorModeloRelatorio />
     </div>
   );
 }

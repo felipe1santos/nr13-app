@@ -1,0 +1,129 @@
+import { ler, salvar } from '../../services/storage';
+import type { MotorPdf } from './motorPdf';
+import { motorConfigurado } from './motorPdf';
+
+/**
+ * Fase 12B · o MODELO do relatório — a escolha que a empresa faz.
+ *
+ * ## Duas camadas, e por que elas são separadas
+ *
+ * | camada | quem decide | vocabulário |
+ * |---|---|---|
+ * | **MODELO VISUAL** (aqui) | a EMPRESA, em "Minha Empresa" | `Clássico` / `Novo` |
+ * | **MOTOR TÉCNICO** (`motorPdf.ts`) | o código | `raster` / `vetorial` |
+ *
+ * O modelo é a linguagem do usuário: ele escolhe entre o layout tradicional do
+ * sistema e o padrão novo. O motor é o detalhe de implementação — que o
+ * Clássico é desenhado por `html2canvas` e o Novo por jsPDF com fonte embutida
+ * não é assunto de quem opera o sistema, e mostrar isso na tela transformaria
+ * uma decisão visual numa pergunta técnica que ninguém tem por que responder.
+ *
+ * A tradução é 1:1 e vive só aqui:
+ *
+ * ```
+ * 'classico' → motor 'raster'
+ * 'novo'     → motor 'vetorial'
+ * ```
+ *
+ * Manter os dois nomes não é redundância: o motor continua existindo como
+ * **rollback técnico** (`?motor=` na URL, `definirMotorPdf`) e é o que os
+ * geradores entendem. Se um dia houver um terceiro desenho, ou se o Novo passar
+ * a ter dois motores, esta função é o único lugar que muda.
+ *
+ * ## A configuração é da ORGANIZAÇÃO, não do navegador
+ *
+ * `nr13_modelo_relatorio` é chave GLOBAL, e no armazenamento v2 global já
+ * significa "da organização": o IndexedDB é `nr13_dados_<org_id>` e o
+ * `app_storage` é escopado por org pela RLS. Todo usuário daquela empresa lê a
+ * mesma escolha, em qualquer aparelho — que é exatamente o pedido. Não existe
+ * preferência por usuário nem por navegador, e não foi criado nenhum mecanismo
+ * novo de configuração para isso.
+ *
+ * ## O padrão quando a chave não existe
+ *
+ * Cai no `nr13_motor_pdf` que a organização já tiver. Isso preserva o estado de
+ * quem foi virado antes desta tela existir: a org que recebeu
+ * `nr13_motor_pdf = vetorial` em 04/09/2026 continua no **Novo** sem precisar
+ * reconfigurar, e as demais continuam no **Clássico**. Ler a chave nova sem
+ * esse encadeamento rebaixaria silenciosamente uma organização já virada.
+ */
+export type ModeloDocumento = 'classico' | 'novo';
+
+export const CHAVE_MODELO_RELATORIO = 'nr13_modelo_relatorio';
+
+/** Rótulo e descrição de cada modelo — a tela não inventa texto próprio. */
+export const MODELOS: { valor: ModeloDocumento; rotulo: string; descricao: string }[] = [
+  { valor: 'classico', rotulo: 'Clássico', descricao: 'Layout tradicional do sistema.' },
+  { valor: 'novo', rotulo: 'Novo', descricao: 'Novo padrão visual, mais leve e moderno.' },
+];
+
+/** Só a string exata `'novo'` escolhe o modelo novo. Qualquer outra coisa é Clássico. */
+export function normalizarModelo(v: unknown): ModeloDocumento {
+  return String(v ?? '').trim().toLowerCase() === 'novo' ? 'novo' : 'classico';
+}
+
+/** A tradução — o ÚNICO ponto onde modelo vira motor. */
+export function motorDoModelo(m: ModeloDocumento): MotorPdf {
+  return m === 'novo' ? 'vetorial' : 'raster';
+}
+
+/** O caminho inverso, usado para herdar a configuração antiga da organização. */
+export function modeloDoMotor(motor: MotorPdf): ModeloDocumento {
+  return motor === 'vetorial' ? 'novo' : 'classico';
+}
+
+/**
+ * O modelo escolhido pela empresa.
+ *
+ * Sem a chave nova, herda do motor já configurado (ver o cabeçalho). Storage
+ * ilegível cai no Clássico, que é o comportamento histórico do sistema.
+ */
+export function modeloDaEmpresa(): ModeloDocumento {
+  try {
+    const salvo = ler<{ modelo?: string }>(CHAVE_MODELO_RELATORIO)?.modelo;
+    if (salvo !== undefined && salvo !== null && String(salvo).trim() !== '') {
+      return normalizarModelo(salvo);
+    }
+    return modeloDoMotor(motorConfigurado());
+  } catch {
+    return 'classico';
+  }
+}
+
+/** Grava a escolha da organização. Passa pelo caminho oficial de mutação. */
+export async function definirModeloDaEmpresa(modelo: ModeloDocumento): Promise<void> {
+  await salvar(CHAVE_MODELO_RELATORIO, { modelo: normalizarModelo(modelo), em: new Date().toISOString() });
+}
+
+/**
+ * O motor que ESTE relatório deve usar ao ser finalizado.
+ *
+ * ## A ordem, e o motivo de cada degrau
+ *
+ * 1. **`?motor=` na URL** — porta de rollback/diagnóstico. Vale para uma sessão
+ *    do visualizador e não muda nada para ninguém.
+ * 2. **`meta.modeloDocumento`** — o modelo CONGELADO quando o rascunho nasceu.
+ *    É o degrau que faz a promessa da Fase 12B: mudar a configuração da empresa
+ *    depois não altera um rascunho que já estava em andamento. Sem ele, um
+ *    relatório começado na segunda e finalizado na quinta sairia com o desenho
+ *    de quinta — e o inspetor veria o documento mudar de cara sozinho.
+ * 3. **a configuração atual da empresa** — para rascunho antigo, anterior a esta
+ *    fase, que não tem o campo.
+ *
+ * Documento JÁ FINALIZADO não passa por aqui: ele tem `pdfRef` e é servido como
+ * ARQUIVO (§7-quater). Nenhuma configuração de empresa alcança histórico.
+ */
+export function motorDoRelatorio(
+  meta: { modeloDocumento?: string } | null | undefined,
+  busca = '',
+): MotorPdf {
+  const daUrl = new URLSearchParams(busca).get('motor');
+  if (daUrl !== null && daUrl.trim() !== '') {
+    return daUrl.trim().toLowerCase() === 'vetorial' ? 'vetorial' : 'raster';
+  }
+  const congelado = meta?.modeloDocumento;
+  if (congelado !== undefined && congelado !== null && String(congelado).trim() !== '') {
+    return motorDoModelo(normalizarModelo(congelado));
+  }
+  return motorDoModelo(modeloDaEmpresa());
+}

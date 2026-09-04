@@ -1495,3 +1495,149 @@
 @media (max-width: 720px) {
   .rel-page .rel-cel-acoes { gap: 6px; margin-top: 4px; }
 }
+
+/* ── Fase 12B · visualizador de PDF próprio (pdf.js) ─────────────────────────
+   O leitor do navegador abria a coluna de miniaturas sozinho e somava a barra
+   dele à barra do app: sobrava pouco para o documento. Aqui o app manda —
+   miniaturas FECHADAS por padrão, barra de UMA linha e o resto é papel. */
+.vpdf {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.vpdf-barra {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 4px 0;
+  min-height: 34px;
+}
+.vpdf-btn {
+  height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-main);
+  background: var(--bg-card, #fff);
+  border: 1px solid var(--border-solid, #d8dbe0);
+  border-radius: 7px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.vpdf-btn:hover { border-color: var(--amber, #d97706); }
+.vpdf-btn.is-ativo { background: var(--amber, #d97706); border-color: var(--amber, #d97706); color: #1B1B18; }
+.vpdf-zoom { display: inline-flex; gap: 4px; }
+.vpdf-contador {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  min-width: 54px;
+  text-align: center;
+}
+/* O selo é garantia de integridade, não rodapé de apoio — fica discreto, mas
+   não some: é ele que diz que a tela mostra o arquivo, não uma remontagem. */
+.vpdf-selo {
+  margin-left: auto;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--petroleo, #2b5566);
+  white-space: nowrap;
+}
+.vpdf-btn-aba { flex-shrink: 0; }
+
+.vpdf-corpo {
+  display: flex;
+  gap: 10px;
+  min-width: 0;
+  /* 100dvh (e não vh) porque no celular a barra do navegador entra e sai: com
+     vh o rodapé do documento ficava permanentemente atrás dela. */
+  height: calc(100dvh - 190px);
+  min-height: 360px;
+}
+.vpdf-miniaturas {
+  flex: 0 0 132px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  background: var(--bg-sunken, #f4f5f7);
+  border: 1px solid var(--border-solid, #e2e5e9);
+  border-radius: 8px;
+}
+.vpdf-mini {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 4px;
+  background: none;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.vpdf-mini.is-ativo { border-color: var(--amber, #d97706); }
+.vpdf-mini canvas { width: 110px; height: auto; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.18); }
+
+.vpdf-area {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0 12px;
+  background: var(--bg-sunken, #f4f5f7);
+  border: 1px solid var(--border-solid, #e2e5e9);
+  border-radius: 8px;
+}
+.vpdf-folha {
+  flex: 0 0 auto;
+  background: #fff;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, .16);
+  max-width: 100%;
+}
+.vpdf-canvas { display: block; width: 100%; height: 100%; }
+.vpdf-iframe {
+  width: 100%;
+  height: calc(100dvh - 190px);
+  min-height: 360px;
+  border: 1px solid var(--border-solid, #ddd);
+  border-radius: 8px;
+  background: #fff;
+}
+.vpdf-aviso {
+  padding: 28px 16px;
+  text-align: center;
+  color: var(--text-muted, #777);
+  font-size: 13px;
+}
+.vpdf-aviso-erro { color: #8e2b20; }
+
+@media (max-width: 820px) {
+  .vpdf-barra { gap: 6px; }
+  .vpdf-btn { height: 32px; font-size: 11.5px; padding: 0 9px; }
+  .vpdf-selo { font-size: 10.5px; }
+  /* No celular a coluna de miniaturas comeria a tela inteira: some, e o botão
+     ☰ Páginas continua servindo o mesmo pulo pela numeração. */
+  .vpdf-miniaturas { display: none; }
+  .vpdf-corpo, .vpdf-iframe { height: calc(100dvh - 230px); }
+}
+
+/* Rodapé do documento arquivado: pequeno, quebra o hash sem esticar a página. */
+.vpdf-rodape {
+  margin: 4px 0 0;
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: var(--text-muted, #888);
+}
+.vpdf-rodape code {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  word-break: break-all;
+}

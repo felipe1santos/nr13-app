@@ -50,7 +50,7 @@ import { registrarUso } from '../services/usoMetricas';
 import { documentosBloqueados } from '../services/trial';
 import { mascararData } from '../services/mascaras';
 import { exportarPdf, gerarPdfBytes } from '../features/relatorios/pdfService';
-import { motorPdfAtual } from '../features/relatorios/motorPdf';
+import { modeloDaEmpresa, motorDoRelatorio } from '../features/relatorios/modeloDocumento';
 import { gerarRelatorioVetorial } from '../features/relatorios/pdfVetorial/gerarRelatorio';
 import { publicarArtefato, artefatoDe } from '../features/relatorios/artefatoRelatorio';
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
@@ -102,8 +102,16 @@ const IconePdf = (
   </svg>
 );
 
+/**
+ * A meta de um relatório NOVO.
+ *
+ * `modeloDocumento` é carimbado AQUI, no nascimento do rascunho, e não na
+ * finalização: é isso que faz a configuração da empresa valer para o próximo
+ * relatório sem alcançar o que já estava em andamento (Fase 12B).
+ */
 function metaPadrao(tipo: TipoInspecao): RelatorioMeta {
   return {
+    modeloDocumento: modeloDaEmpresa(),
     codigo: `REL-${Date.now()}`,
     emissao: hoje(),
     validade: '',
@@ -559,7 +567,15 @@ function RelatoriosLegado() {
       expandirFolhasFoto(filtrarFolhasFotoVazias(r.documentos, dadosContainer), dadosContainer),
       dadosContainer,
     );
-    const novaMeta: RelatorioMeta = { ...r.meta, codigo: `REL-${Date.now()}`, emissao: hoje(), documentos: docsFiltrados };
+    // Duplicado é relatório NOVO: nasce com o modelo ATUAL da empresa, não com o
+    // do relatório de origem — mesma regra dos snapshots de empresa/assinantes.
+    const novaMeta: RelatorioMeta = {
+      ...r.meta,
+      modeloDocumento: modeloDaEmpresa(),
+      codigo: `REL-${Date.now()}`,
+      emissao: hoje(),
+      documentos: docsFiltrados,
+    };
     // Regrava nr13_assinantes_rel_<TAG> antes de remontar os iframes (motor de assinatura).
     {
       const funcs = listarFuncionarios();
@@ -770,12 +786,12 @@ function RelatoriosLegado() {
 
       // 3. PDF do que está montado.
       //
-      // QUAL MOTOR: `motorPdfAtual` decide, e em produção a chave está em
-      // VETORIAL desde 04/09/2026. A escolha vale só para ESTA finalização — nenhum documento já
-      // emitido é regenerado, porque relatório finalizado é arquivo, não receita
-      // (§7-quater). Ver `features/relatorios/motorPdf.ts`.
+      // QUAL MOTOR: o MODELO congelado no rascunho manda (Fase 12B). A ordem é
+      // `?motor=` (rollback) → `meta.modeloDocumento` → configuração da empresa.
+      // Nenhum documento já emitido é regenerado, porque relatório finalizado é
+      // arquivo, não receita (§7-quater). Ver `features/relatorios/modeloDocumento.ts`.
       setProgressoPdf({ feito: 0, total: documentos.length });
-      const motor = motorPdfAtual(window.location.search);
+      const motor = motorDoRelatorio(meta, window.location.search);
       const { bytes, paginas, falhasAnexo } =
         motor === 'vetorial'
           ? await gerarRelatorioVetorial(tag, {
@@ -1093,9 +1109,14 @@ function RelatoriosLegado() {
                 {documentosBloqueados() ? <Icone nome="cadeado" tam={14} /> : <Icone nome="download" tam={14} />}{' '}
                 {exportando ? 'Gerando PDF…' : 'Baixar PDF'}
               </button>
-              <button type="button" className="btn-secundario barra-btn" onClick={() => setModalConfig(true)}>
-                <Icone nome="sliders" tam={14} /> Configurações
-              </button>
+              {/* Documento ARQUIVADO não tem o que configurar: a meta está congelada
+                  e todo campo do modal abre bloqueado. O botão só tomava espaço
+                  da barra que agora precisa caber numa linha. */}
+              {fonteDeImpressao(relatorioArquivado) !== 'arquivo' && (
+                <button type="button" className="btn-secundario barra-btn" onClick={() => setModalConfig(true)}>
+                  <Icone nome="sliders" tam={14} /> Configurações
+                </button>
+              )}
             </div>
           </div>
 
@@ -1148,9 +1169,10 @@ function RelatoriosLegado() {
                 nomeArquivo={relatorioArquivado.nome}
                 onErro={setErroSalvar}
               />
-              <p className="no-print" style={{ fontSize: 11, color: 'var(--text-muted, #888)', marginTop: 8, wordBreak: 'break-all' }}>
-                Documento arquivado em {relatorioArquivado.geradoEm?.slice(0, 10) ?? '—'} ·{' '}
-                {relatorioArquivado.paginas ?? '—'} páginas · SHA-256 {relatorioArquivado.sha256 ?? '—'}
+              <p className="no-print vpdf-rodape">
+                Arquivado em {relatorioArquivado.geradoEm?.slice(0, 10) ?? '—'} ·{' '}
+                {relatorioArquivado.paginas ?? '—'} páginas · código de verificação{' '}
+                <code>{relatorioArquivado.sha256 ?? '—'}</code>
               </p>
             </>
           ) : (

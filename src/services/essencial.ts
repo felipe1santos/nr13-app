@@ -68,6 +68,7 @@ export const CHAVES_ESSENCIAIS: string[] = [
   'nr13_relatorios_arquivados',
   'nr13_motor_pdf',
   'nr13_motor_prontuario',
+  'nr13_modelo_relatorio',
 ];
 
 /**

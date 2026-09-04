@@ -117,6 +117,10 @@ const GLOBAIS = new Set([
   // emitido, que abre sempre pelo seu próprio pdfRef.
   'nr13_motor_pdf',
   'nr13_motor_prontuario',
+  // Fase 12B · o MODELO escolhido pela empresa ('classico' | 'novo'). Global
+  // pela mesma razão: é decisão da organização. O motor acima continua sendo o
+  // termo TÉCNICO, e esta chave a escolha que o usuário faz na tela.
+  'nr13_modelo_relatorio',
 ]);
 
 /**
