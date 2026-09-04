@@ -846,6 +846,12 @@ function RelatoriosLegado() {
       setModoRascunho(false);
       setValidacao(null);
       setSomenteLeitura(true);
+      // FINALIZAR já entrega o ARQUIVO na tela (Fase 12B). Antes, a tela
+      // continuava com os iframes montados e `relatorioArquivado` nulo até
+      // alguém reabrir o relatório pelo histórico — e nessa janela "Imprimir"
+      // rasterizava a prévia em vez de servir o PDF que acabara de ser emitido.
+      // O documento é o mesmo; o que mudava era qual caminho a tela usava.
+      setRelatorioArquivado(temArtefato(relatorio) ? relatorio : null);
       // Remonta os iframes para que a folha nasça com ro=1 (sb-storage.js recusa
       // escrita) além da trava de DOM, que o efeito aplica ao ver a flag virar.
       setVersao((v) => v + 1);

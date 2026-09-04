@@ -6,13 +6,28 @@
 > **REGRA:** este arquivo é atualizado NO MOMENTO em que o estado muda — commit, push,
 > redeploy, validação, portão. Não no fim da fase.
 
-**Última atualização:** 04/09/2026 — **FASE 12 CONCLUÍDA ✅** · hardening final fechado: `portal_cliente` republicada e conferida por SHA, Portal validado, abertura do documento emitido independente do palco e do dado vivo (5 testes bloqueantes), validação no navegador contra o bundle publicado e **inventário dos geradores reais** de documento.
-**Branch:** `main` · **Suíte:** 1817 testes / 151 arquivos, 0 falhas · **Build:** verde
+**Última atualização:** 04/09/2026 — **FASE 12B ENTREGUE ✅** (modelo Clássico/Novo por empresa + visualizador próprio) · **FASE 12 CONCLUÍDA ✅** · hardening final fechado: `portal_cliente` republicada e conferida por SHA, Portal validado, abertura do documento emitido independente do palco e do dado vivo (5 testes bloqueantes), validação no navegador contra o bundle publicado e **inventário dos geradores reais** de documento.
+**Branch:** `main` · **Suíte:** 1829 testes / 152 arquivos, 0 falhas · **Build:** verde
 
 > ### 🔖 VOLTANDO DEPOIS DE UMA PAUSA? Leia [`PONTO-DE-RETOMADA.md`](PONTO-DE-RETOMADA.md).
 > Ele tem o estado de produção, o que falta decidir (a **9D**) e **todos os endereços de acesso** —
 > sistema, Supabase e Coolify.
 
+
+## ✅ FASE 12B — ENTREGUE (04/09/2026) · MODELO CLÁSSICO/NOVO + VISUALIZADOR PRÓPRIO
+
+| | |
+|---|---|
+| escolha | **Clássico / Novo** em "Minha Empresa". A tela não diz raster, vetorial, motor nem engine — a tradução 1:1 vive só em `features/relatorios/modeloDocumento.ts` |
+| escopo | `nr13_modelo_relatorio` é chave GLOBAL, e no v2 global já é POR ORGANIZAÇÃO (IndexedDB por org + RLS). Nenhum mecanismo novo de configuração |
+| herança | sem a chave nova, o modelo vem do `nr13_motor_pdf` que a org já tinha — a org virada em 04/09 apareceu marcada em **Novo** sozinha |
+| congelamento | `modeloDocumento` é carimbado no NASCIMENTO do rascunho. Trocar a configuração depois não altera rascunho em andamento; duplicar nasce com o modelo atual |
+| prova A/B/C/D | Clássico → **387.670 B, 1 imagem, 0 fonte**; Novo → **32.219 B, 0 imagem, 4 FontFile2**; rascunho "novo" finalizado com a empresa em Clássico saiu **vetorial**; cada histórico serviu o próprio pdfRef com SHA conferido |
+| visualizador | pdf.js (o mesmo que o `printService` já usava): **miniaturas fechadas**, botão ☰ Páginas, barra de **38px**, ajuste à largura, zoom, render preguiçoso. Sem rolagem horizontal em 1.396px nem em 585px |
+| também | "Configurações" some no documento arquivado; finalizar já entrega o ARQUIVO na tela (antes, "Imprimir" logo após finalizar rasterizava a prévia) |
+| detalhe | `medicoes/2026-09-04-fase12b-modelo-e-visualizador.md` |
+
+---
 
 ## ✅ FASE 12 — CONCLUÍDA (04/09/2026) · HARDENING FINAL
 
