@@ -1,11 +1,12 @@
-# PONTO DE RETOMADA — 04/09/2026 (FASE 10B.1 ENTREGUE ✅)
+# PONTO DE RETOMADA — 04/09/2026 (FASE 10B.2 ENTREGUE ✅)
 
-> **O relatório tem ciclo de vida:** RASCUNHO → salvar → sair → voltar →
-> editar → FINALIZAR → PDF + SHA-256 → imutável. Antes havia um botão só,
-> chamado "Salvar", que finalizava.
+> **O Livro deixou de ser escrito sozinho.** Finalizar um relatório não cria mais
+> registro: agora é NOVO REGISTRO → SALVAR (rascunho, editável) → TRANCAR →
+> cadeia → imutável → Portal. O relatório já tinha ganhado o mesmo ciclo na
+> 10B.1 (rascunho → finalizar → PDF + SHA-256).
 >
-> **Bundle em produção:** `assets/index-CEeowqvM.js` · commit `a311b5a`
-> **Suíte:** 1.660 testes / 140 arquivos · **Build:** verde
+> **Bundle em produção:** `assets/index-CYGSnZwQ.js` · commit `a53a60e`
+> **Suíte:** 1.680 testes / 142 arquivos · **Build:** verde
 
 ---
 
@@ -57,8 +58,8 @@ o painel de vencimentos vem do **agregado**. Hidratação integral = **0**.
 
 | bloco | o que é |
 |---|---|
-| ~~10B.1~~ | **ENTREGUE em 04/09/2026** — ver `medicoes/2026-09-04-10b1-rascunho-e-finalizacao.md` |
-| **10B.2** | Livro/Registro: criação MANUAL do registro + TRANCAR (achado da análise: `livro_imutavel.sql` já tolera entrada sem lacre, então o gatilho NÃO precisa ser afrouxado) |
+| ~~10B.1~~ | **ENTREGUE em 04/09/2026** — `medicoes/2026-09-04-10b1-rascunho-e-finalizacao.md` |
+| ~~10B.2~~ | **ENTREGUE em 04/09/2026** — `medicoes/2026-09-04-10b2-livro-manual.md`. O gatilho `livro_imutavel.sql` NÃO foi afrouxado, como a análise previa |
 | **10C** | novo layout documental — **bloqueado**: o `relatorio-nr13.html` nunca foi entregue |
 | **Fase 11** | PDF vetorial/híbrido |
 

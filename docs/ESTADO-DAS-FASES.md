@@ -6,8 +6,8 @@
 > **REGRA:** este arquivo é atualizado NO MOMENTO em que o estado muda — commit, push,
 > redeploy, validação, portão. Não no fim da fase.
 
-**Última atualização:** 04/09/2026 — **FASE 10B.1 ENTREGUE ✅** · o relatório tem RASCUNHO e FINALIZAR, com modal de conferência e PDF imutável. (10A e 10A.5 entregues em 03/09.)
-**Branch:** `main` · **Suíte:** 1660 testes / 140 arquivos, 0 falhas · **Build:** verde · **Bundle em produção:** `assets/index-CEeowqvM.js` (commit `a311b5a`)
+**Última atualização:** 04/09/2026 — **FASE 10B.2 ENTREGUE ✅** · o Livro de Registro deixou de ser escrito automaticamente: registro MANUAL, salvo como rascunho e TRANCADO por decisão. (10A, 10A.5 e 10B.1 entregues antes.)
+**Branch:** `main` · **Suíte:** 1680 testes / 142 arquivos, 0 falhas · **Build:** verde · **Bundle em produção:** `assets/index-CYGSnZwQ.js` (commit `a53a60e`)
 
 > ### 🔖 VOLTANDO DEPOIS DE UMA PAUSA? Leia [`PONTO-DE-RETOMADA.md`](PONTO-DE-RETOMADA.md).
 > Ele tem o estado de produção, o que falta decidir (a **9D**) e **todos os endereços de acesso** —
