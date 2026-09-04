@@ -11,8 +11,8 @@
 > Raster/gerador antigo continuam no bundle: `definirMotorPdf('raster')` e
 > `definirMotorProntuario('atual')`.
 >
-> **Bundle em produção:** `assets/index-BhysF4YM.js`
-> **Suíte:** 1.806 testes / 149 arquivos · **Build:** verde
+> **Bundle em produção:** `assets/index-DRkCnLH5.js`
+> **Suíte:** 1.817 testes / 151 arquivos · **Build:** verde
 
 ---
 
@@ -83,7 +83,9 @@ o painel de vencimentos vem do **agregado**. Hidratação integral = **0**.
 | ~~10B.1~~ | **ENTREGUE em 04/09/2026** — `medicoes/2026-09-04-10b1-rascunho-e-finalizacao.md` |
 | ~~10B.2~~ | **ENTREGUE em 04/09/2026** — `medicoes/2026-09-04-10b2-livro-manual.md`. O gatilho `livro_imutavel.sql` NÃO foi afrouxado, como a análise previa |
 | **10C** | **ESPECIFICADA em 04/09/2026** — `FASE-10C-ESPECIFICACAO-LAYOUT.md`. A referência apareceu (`C:\projetos\vender\relatorio-nr13.html`). Faltam 3 decisões do dono: fonte, campos novos (recomendações / próximas inspeções por exame) e checklist em 2 ou 3 folhas |
-| **Fase 11** | **RELATÓRIO COMPLETO EM VETOR** — `medicoes/2026-09-04-11-relatorio-completo-vetorial.md`. ~96,5% menos peso e ~50× menos tempo POR PÁGINA. Atrás de `?piloto=1`; **a virada de produção NÃO foi autorizada**. Pendências: impressão física (gate) e decisão sobre folhas de foto vazias |
+| ~~**Fase 11**~~ | **CONCLUÍDA em 04/09/2026** — vetorial é o padrão global do relatório (`nr13_motor_pdf`). Único gate manual restante: **impressão física** |
+| ~~**Fase 12**~~ | **CONCLUÍDA em 04/09/2026** — prontuário vetorial e EMITIDO, `portal_cliente` republicada, e **IMPRIMIR passou a servir o arquivo arquivado** nos dois documentos. Detalhe em `medicoes/2026-09-04-fase12-hardening.md` |
+| **Fase 13** | **não iniciada.** Candidatos já levantados: as 6 folhas órfãs de `public/arquivos-prontuario/` (código morto, ver `PENDENCIAS.md`) |
 
 Desenho de todos em [`FASE-10-DESENHO.md`](FASE-10-DESENHO.md).
 

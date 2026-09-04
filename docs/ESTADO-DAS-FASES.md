@@ -7,7 +7,7 @@
 > redeploy, validação, portão. Não no fim da fase.
 
 **Última atualização:** 04/09/2026 — **FASE 12 CONCLUÍDA ✅** · hardening final fechado: `portal_cliente` republicada e conferida por SHA, Portal validado, abertura do documento emitido independente do palco e do dado vivo (5 testes bloqueantes), validação no navegador contra o bundle publicado e **inventário dos geradores reais** de documento.
-**Branch:** `main` · **Suíte:** 1806 testes / 149 arquivos, 0 falhas · **Build:** verde · **Bundle em produção:** `assets/index-BhysF4YM.js`
+**Branch:** `main` · **Suíte:** 1817 testes / 151 arquivos, 0 falhas · **Build:** verde
 
 > ### 🔖 VOLTANDO DEPOIS DE UMA PAUSA? Leia [`PONTO-DE-RETOMADA.md`](PONTO-DE-RETOMADA.md).
 > Ele tem o estado de produção, o que falta decidir (a **9D**) e **todos os endereços de acesso** —
@@ -23,8 +23,9 @@
 | abrir emitido | `bytesDaEmissao` recebe só o REGISTRO e serve o `pdfRef`: **não** chama gerador, não monta folha, não lê dado vivo do equipamento, não grava e não disputa a trava do palco |
 | imutabilidade | **5 testes bloqueantes** — serve os bytes e nada mais; abrir N vezes não muda a lista; não altera `sha256`/`pdfRef`; abre com o storage VAZIO; sem arquivo resolvido **ERRA** em vez de remontar calado |
 | validação no navegador | contra `index-BhysF4YM.js`: emissão aparece, abre **após reload**, quantidade continua **1**, mesmo `pdfRef`, mesmo SHA (`a0d74335…`), **71.426 bytes** nas duas aberturas, `%PDF-1.3` com 6 páginas. `nr13_motor_prontuario = vetorial` e `nr13_motor_pdf = vetorial` (versão 1, timestamp de antes — o relatório não foi afetado) |
-| inventário | **A** relatório + prontuário (vetoriais) · **B** certificados, Livro, capa, termo, históricos (fora por decisão) · **C** 8 itens, dos quais só DOIS valem Fase 13: a **impressão** do relatório e a do prontuário continuam raster enquanto o PDF já é vetorial. Achado extra: **6 folhas órfãs** em `public/arquivos-prontuario/` com ZERO referências em `src/` |
-| detalhe | `medicoes/2026-09-04-fase12-hardening.md` |
+| inventário | **A** relatório + prontuário (vetoriais) · **B** certificados, Livro, capa, termo, históricos (fora por decisão) · **C** 8 itens. Achado extra: **6 folhas órfãs** em `public/arquivos-prontuario/` com ZERO referências em `src/` — registradas em `PENDENCIAS.md` como código morto candidato à Fase 13, **não removidas** |
+| impressão | **IMPRIMIR passa a servir o ARQUIVO.** Regra única em `features/documentos/fonteImpressao.ts`: com `pdfRef` → arquivo; sem → **prévia**, e o botão diz "Imprimir pré-visualização". O relatório já fazia isso (o item C-1 do inventário estava errado); o **prontuário** era o caso real e foi corrigido, inclusive o Ctrl+P nativo (a pré-rasterização deixa de rodar quando há emissão). **11 testes** provam que VISUALIZAR, BAIXAR e IMPRIMIR pedem o mesmo `pdfRef` e que imprimir não escreve nada |
+| detalhe | `medicoes/2026-09-04-fase12-hardening.md` (§9 para a impressão) |
 
 ---
 

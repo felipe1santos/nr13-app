@@ -220,3 +220,55 @@ hora, pela limpeza do efeito).
 |---|---|
 | suíte | **1.817 testes, 151 arquivos, 0 falhas** |
 | `tsc -b` · `vite build` | limpos |
+
+### Validação no navegador (bundle `assets/index-DRkCnLH5.js`)
+
+Bundle conferido pela string literal `"Imprimir pré-visualização"`. Org de teste,
+pelo fluxo normal, com `window.open`/`URL.createObjectURL` só INSTRUMENTADOS para
+medir (o download foi capturado sem escrever no disco).
+
+**A · Relatório finalizado VETORIAL** — `ZZ-FASE3` / `REL-1788535532968`:
+
+| caminho | bytes | SHA-256 |
+|---|---|---|
+| VISUALIZAR (iframe do visualizador) | 48.685 | `ee62485ee4d718681ce0b7e463c4ec64a73f4799c48dfd40b31f71cb7f254140` |
+| BAIXAR | 48.685 | idêntico |
+| IMPRIMIR | 48.685 | idêntico |
+
+O SHA dos três é o mesmo do índice (`ee62485ee4d71868…`, 12 páginas). Depois de
+imprimir e baixar: índice com **5 entradas, versão 5, `atualizadoEm`
+`15:26:11.302Z`** — o mesmo de antes. Nenhuma escrita.
+
+Na tela do documento arquivado: **sem `.relatorio-preview`**, **sem
+`#print-root`** e **sem a classe `imprimindo-relatorio`** — nem o Ctrl+P nativo
+tem por onde imprimir uma rasterização.
+
+**B · Prontuário EMITIDO** — `COMPRESSOR V8-15/200L`:
+
+| | |
+|---|---|
+| rótulo do botão | **"Imprimir"** (não "pré-visualização") |
+| IMPRIMIR | **71.426 bytes**, SHA `a0d74335a091669c…c953d`, `%PDF-1.3`, **6 páginas** |
+| igual ao registro | sim — mesmo SHA, mesmo `pdfRef` |
+| emissões depois | **1**, id `PRONT-1788540980224-r1`, `versao` 1, `geradoEm` e `atualizadoEm` inalterados |
+| rasterização | `#print-root` ausente e classe vazia **antes e depois** do clique |
+
+**C · PDF histórico RASTER** — `EQUIPE TESTE` / `REL-1786567122300` (12/08/2026):
+
+| | |
+|---|---|
+| VISUALIZAR | **7.042.127 bytes**, SHA `d41a6ca8e0869418…cbccb`, `%PDF-1.3`, 22 páginas |
+| IMPRIMIR | **7.042.127 bytes**, SHA idêntico |
+| conferência | igual ao SHA gravado no índice em 12/08 — **nenhuma regeneração** |
+
+> O caso `previa` (prontuário salvo SEM emissão) **não foi exercido no
+> navegador**: na org de teste o único prontuário salvo é o do COMPRESSOR, e ele
+> já está emitido. Criar um prontuário só para ver um rótulo acrescentaria dado
+> de teste sem necessidade. A ramificação e o texto estão cobertos por teste
+> unitário (`rotuloImpressao`, `fonteDeImpressao`).
+
+> Observado e registrado, sem relação com esta mudança: navegar até o formulário
+> de prontuário do `ZZ-FASE3` deixou **2 escritas em conflito** na fila da org de
+> teste (`nr13_prontuario_meta_ZZ-FASE3` e `nr13_uso_contadores`), ambas
+> `versao_obsoleta` — base local 0 contra versão 2 no servidor. É o caminho de
+> conflito que a v2 já trata pela tela, não um efeito da impressão.
