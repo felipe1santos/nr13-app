@@ -98,3 +98,19 @@
   font-size: 12px;
   color: var(--muted);
 }
+
+/* ── Modo compacto (10A.5): contagem e selo na MESMA linha do campo ──────────
+   Usado em /relatorios, onde a faixa de baixo custava 26 px de altura sem
+   acrescentar informação nenhuma. */
+.busca-lista.compacta { margin-bottom: 0; }
+.busca-lista-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 1 auto;
+  white-space: nowrap;
+}
+@media (max-width: 640px) {
+  /* No celular a linha já quebra; a contagem volta a ocupar a largura toda. */
+  .busca-lista-info { flex: 1 1 100%; order: 3; }
+}

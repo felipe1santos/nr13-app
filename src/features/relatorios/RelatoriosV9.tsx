@@ -74,7 +74,7 @@ function ou(v: string | null | undefined): string {
 }
 
 /** Altura estimada de uma linha; corrigida por medição no primeiro quadro. */
-const ALT_LINHA = 64;
+const ALT_LINHA = 46;
 
 /**
  * Os tipos de inspeção que o filtro oferece.
@@ -392,6 +392,7 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento }: PropsRe
           carregando={carregando}
           contagem={contagemNaTela}
           offline={offline}
+          compacto
         >
           <button
             type="button"
@@ -450,6 +451,20 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento }: PropsRe
                 ))}
               </select>
             </label>
+            {/* O que era a faixa âmbar no meio da tela. A contagem entra no
+                RÓTULO da opção: quem procura o relatório de um equipamento
+                excluído acha aqui, e quem não procura não é interrompido. */}
+            <label>
+              Equipamentos
+              <select value={escopo} onChange={(e) => trocarParam('escopo', e.target.value)}>
+                <option value="">Só os do cadastro atual</option>
+                <option value="historicos">
+                  Só de equipamento excluído
+                  {(contagem?.historicos ?? 0) > 0 ? ` (${rotuloHistoricos(contagem!.historicos)})` : ''}
+                </option>
+                <option value="todos">Todos</option>
+              </select>
+            </label>
             {temFiltro && (
               <button type="button" className="fj-btn fj-btn-ghost" onClick={limparTudo}>
                 Limpar filtros
@@ -470,45 +485,28 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento }: PropsRe
       </div>
 
       {/*
-        RELATÓRIO DE EQUIPAMENTO EXCLUÍDO NÃO SOME — E NÃO APARECE SEM AVISO.
+        RELATÓRIO DE EQUIPAMENTO EXCLUÍDO CONTINUA ALCANÇÁVEL — SÓ SAIU DA
+        FAIXA ÂMBAR NO MEIO DA TELA.
 
-        O escopo padrão é `ativos` porque é o que a tela antiga mostrava, e uma
-        lista que de repente triplica parece errada mesmo quando está certa. Mas
-        esconder sem dizer seria a outra metade do erro: quando existe histórico
-        fora do recorte, a tela DIZ quantos são e oferece o clique que os traz.
+        A faixa dizia "12 relatórios de equipamento excluído estão fora desta
+        lista" acima do primeiro item, em amarelo, todas as vezes. O escopo
+        agora é um `<select>` DENTRO do painel de filtros, com a contagem no
+        próprio rótulo da opção: a informação não se perdeu, deixou de ocupar a
+        área da listagem.
+
+        Quando o escopo NÃO é o padrão, sobra uma linha discreta — cinza, de
+        uma altura — porque uma lista que mudou de conjunto sem dizer é a
+        mesma queixa de dado sumido.
       */}
-      {escopo === 'ativos' && (contagem?.historicos ?? 0) > 0 && (
-        <div className="rel-aviso-historicos" role="status">
-          <Icone nome="filter" tam={14} />
-          <span>
-            {/* O rótulo vem do serviço porque acima do teto ele precisa dizer
-                "mais de 200" — o número exato ninguém contou. */}
-            <b>{rotuloHistoricos(contagem!.historicos)}</b> de equipamento excluído
-            {contagem!.historicos === 1 ? ' está' : ' estão'} fora desta lista.
-          </span>
-          <button
-            type="button"
-            className="fj-btn fj-btn-ghost"
-            onClick={() => trocarParam('escopo', 'historicos')}
-          >
-            Ver histórico
-          </button>
-        </div>
-      )}
-
       {escopo !== 'ativos' && (
-        <div className="rel-aviso-historicos" role="status">
+        <div className="rel-escopo-linha" role="status">
           <span>
             {escopo === 'historicos'
-              ? 'Mostrando apenas relatórios de equipamentos excluídos. Eles continuam salvos e podem ser abertos.'
+              ? 'Mostrando apenas relatórios de equipamentos excluídos.'
               : 'Mostrando todos os relatórios, inclusive os de equipamentos excluídos.'}
           </span>
-          <button
-            type="button"
-            className="fj-btn fj-btn-ghost"
-            onClick={() => trocarParam('escopo', escopo === 'historicos' ? 'todos' : '')}
-          >
-            {escopo === 'historicos' ? 'Ver todos' : 'Voltar aos ativos'}
+          <button type="button" className="fj-link" onClick={() => trocarParam('escopo', '')}>
+            Voltar aos ativos
           </button>
         </div>
       )}
@@ -592,7 +590,7 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento }: PropsRe
                   {r.pdfRef ? (
                     <img
                       className="rel-ico-pdf"
-                      src="/icones/pdf.jpg"
+                      src="/icones/pdf.webp"
                       alt=""
                       loading="lazy"
                       title="Relatório finalizado (PDF arquivado)"
@@ -620,11 +618,14 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento }: PropsRe
                     </span>
                   )}
                 </span>
-                <span role="cell">
+                {/* data-rot: no celular a linha vira cartão e as colunas perdem
+                    o cabeçalho — duas datas seguidas não dizem qual é a emissão
+                    e qual é a validade. O rótulo volta por CSS. */}
+                <span role="cell" data-rot="Tipo">
                   <span className="badge-tipo-inspecao">{ou(r.tipo)}</span>
                 </span>
-                <span role="cell">{dataBr(r.emissao)}</span>
-                <span role="cell">{dataBr(r.validade)}</span>
+                <span role="cell" data-rot="Criação">{dataBr(r.emissao)}</span>
+                <span role="cell" data-rot="Validade">{dataBr(r.validade)}</span>
                 <span role="cell" className="rel-cel-acoes">
                   <button
                     type="button"

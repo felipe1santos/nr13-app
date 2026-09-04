@@ -28,6 +28,17 @@ export interface PropsBuscaLista {
   contagem?: { total: number; exato: boolean } | null;
   /** Ligado quando a busca está respondendo pelo catálogo do aparelho. */
   offline?: boolean;
+  /**
+   * Contagem e selo de offline na MESMA linha do campo, em vez de numa faixa
+   * abaixo dele.
+   *
+   * Existe porque em `/relatorios` a linha de baixo era 26 px (18 de altura + 8
+   * de margem) que empurravam a lista para longe do topo sem acrescentar nada:
+   * o número cabe folgado ao lado do campo. Fica como OPÇÃO, e não como o novo
+   * padrão, porque nas telas de cartões a linha própria continua sendo o lugar
+   * certo — lá o cabeçalho não compete com nada.
+   */
+  compacto?: boolean;
   children?: React.ReactNode;
 }
 
@@ -39,6 +50,7 @@ export default function BuscaLista({
   carregando = false,
   contagem = null,
   offline = false,
+  compacto = false,
   children,
 }: PropsBuscaLista) {
   const [texto, setTexto] = useState(valor);
@@ -100,8 +112,25 @@ export default function BuscaLista({
         ? `${contagem.total} resultado${contagem.total === 1 ? '' : 's'}`
         : `mais de ${contagem.total.toLocaleString('pt-BR')} resultados`;
 
+  /* O mesmo conteúdo nos dois modos — muda só onde ele é pendurado, para o
+     `aria-live` continuar existindo uma vez só. */
+  const info = (
+    <>
+      {/* `aria-live` para quem usa leitor de tela ouvir quantos resultados
+          sobraram sem precisar percorrer a lista. */}
+      <span id={idContagem} className="busca-lista-contagem" aria-live="polite" role="status">
+        {rotuloContagem}
+      </span>
+      {offline && (
+        <span className="busca-lista-selo" title="Sem conexão: a busca está usando o catálogo já baixado neste aparelho.">
+          <Icone nome="cloudoff" tam={13} /> buscando no que está neste aparelho
+        </span>
+      )}
+    </>
+  );
+
   return (
-    <div className="busca-lista">
+    <div className={`busca-lista${compacto ? ' compacta' : ''}`}>
       <div className="busca-lista-linha">
         <div className="fj-search-box busca-lista-campo">
           <Icone nome="search" tam={15} />
@@ -131,21 +160,11 @@ export default function BuscaLista({
             </button>
           )}
         </div>
+        {compacto && <div className="busca-lista-info">{info}</div>}
         {children}
       </div>
 
-      <div className="busca-lista-rodape">
-        {/* `aria-live` para quem usa leitor de tela ouvir quantos resultados
-            sobraram sem precisar percorrer a lista. */}
-        <span id={idContagem} className="busca-lista-contagem" aria-live="polite" role="status">
-          {rotuloContagem}
-        </span>
-        {offline && (
-          <span className="busca-lista-selo" title="Sem conexão: a busca está usando o catálogo já baixado neste aparelho.">
-            <Icone nome="cloudoff" tam={13} /> buscando no que está neste aparelho
-          </span>
-        )}
-      </div>
+      {!compacto && <div className="busca-lista-rodape">{info}</div>}
     </div>
   );
 }

@@ -1223,21 +1223,19 @@
    A caixa 3:4 + `cover` + `scale(1.25)` recorta EXATAMENTE a folha — sem
    redesenhar o ícone e sem depender de editor de imagem. */
 .rel-ico-pdf {
-  width: 22px;
-  height: 29px;
-  object-fit: cover;
-  transform: scale(1.25);
-  border-radius: 2px;
+  width: 20px;
+  height: 27px;
   display: block;
+  border-radius: 2px;
 }
 .rel-ico-sem-pdf {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 29px;
+  width: 20px;
+  height: 27px;
   color: var(--muted, #6b7280);
-  opacity: 0.55;
+  opacity: 0.5;
 }
 /* Empresa embaixo do nome do relatório: só aparece quando o mapa TAG → empresa
    já foi carregado (painel de filtros aberto). Sem ele, a linha fica como era. */
@@ -1282,3 +1280,101 @@
 }
 .pront-filtros,
 .cal-filtros { margin-bottom: 12px; }
+
+/* ============================================================================
+   FASE 10A.5 · /relatorios mais compacta
+   Cabeçalho pequeno, lista logo abaixo, filtro à direita, linha mais baixa.
+   ============================================================================ */
+.rel-page {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 14px 20px 28px;
+}
+
+/* Cabeçalho: campo + contagem + filtro numa linha só. Antes eram três blocos
+   empilhados (campo, faixa da contagem, faixa do aviso) somando 89 px entre a
+   topbar e o primeiro relatório. */
+.rel-page .rel-cabecalho-busca {
+  gap: 8px;
+  margin-bottom: 10px;
+}
+/* Empurra o que vier depois da contagem — o botão de filtro e o de criar — para
+   o canto DIREITO da linha. */
+.rel-page .busca-lista-info { margin-left: auto; }
+.rel-page .busca-lista-linha { gap: 8px; }
+.rel-page .fj-search-box { min-height: 36px; }
+
+.rel-page .rel-filtros-painel {
+  padding: 10px 12px;
+  gap: 10px;
+}
+.rel-page .rel-filtros-painel input,
+.rel-page .rel-filtros-painel select {
+  min-height: 32px;
+  padding: 4px 8px;
+}
+
+/* Linha discreta que substituiu a faixa âmbar. Cinza, uma altura, e só aparece
+   quando o escopo NÃO é o padrão. */
+.rel-escopo-linha {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--muted, #6b7280);
+}
+
+/* ── Linha da lista: menos altura, mesmo conteúdo ── */
+.rel-page .rel-linha {
+  padding: 7px 12px;
+  gap: 8px;
+  font-size: 13px;
+}
+.rel-page .rel-linha-cabecalho {
+  padding: 6px 12px;
+  font-size: 10px;
+}
+.rel-page .rel-cel-nome { font-size: 13px; }
+.rel-page .rel-cel-empresa { font-size: 10.5px; margin-top: 1px; }
+.rel-page .rel-cel-acoes { gap: 4px; }
+.rel-page .rel-cel-icone { justify-content: center; }
+
+/* ── Celular: cartão, mas sem desperdício ── */
+@media (max-width: 720px) {
+  .rel-page { padding: 10px 12px 22px; }
+  /* Cartão de duas colunas: o ícone à esquerda, atravessando as linhas; os
+     campos empilhados à direita. Sem grid-template-areas, porque as células são
+     filhas diretas e o auto-placement já as põe na ordem certa. */
+  .rel-page .rel-linha {
+    grid-template-columns: 30px minmax(0, 1fr) minmax(0, 1fr);
+    row-gap: 2px;
+    padding: 9px 11px;
+  }
+  .rel-page .rel-cel-icone {
+    grid-row: 1 / -1;
+    grid-column: 1;
+    align-self: start;
+    justify-content: flex-start;
+  }
+  /* Nome, TAG, tipo e ações ocupam a largura toda; as DUAS datas dividem uma
+     linha só — elas são curtas, e empilhá-las custava 24 px por cartão. */
+  .rel-page .rel-cel-nome,
+  .rel-page .rel-cel-tag,
+  .rel-page .rel-linha [data-rot='Tipo'],
+  .rel-page .rel-cel-acoes { grid-column: 2 / -1; }
+  .rel-page .rel-linha [data-rot='Criação'] { grid-column: 2; }
+  .rel-page .rel-linha [data-rot='Validade'] { grid-column: 3; }
+  .rel-page .rel-cel-nome { white-space: normal; }
+  .rel-page .rel-cel-acoes { justify-content: flex-start; }
+  /* Sem cabeçalho de coluna no cartão, o rótulo vem antes do valor. */
+  .rel-page .rel-linha [data-rot]::before {
+    content: attr(data-rot) ': ';
+    color: var(--muted, #6b7280);
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+}
