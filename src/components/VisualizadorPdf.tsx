@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { baixarArtefato, type PdfArtefato } from '../features/relatorios/artefatoRelatorio';
 
 /**
@@ -176,14 +176,23 @@ function QuadroPdf({
     return () => ro.disconnect();
   }, [doc, miniaturas]);
 
-  const escala = useMemo(() => {
-    const larguraPagina = paginas[0]?.largura ?? 595;
-    if (!larguraArea || !larguraPagina) return zoom;
-    // −24px: a folga lateral do container. Sem ela a página encosta na barra de
-    // rolagem e o navegador cria rolagem HORIZONTAL na página inteira.
-    const ajuste = (larguraArea - 24) / larguraPagina;
-    return Math.max(0.15, ajuste * zoom);
-  }, [larguraArea, paginas, zoom]);
+  /**
+   * A escala de UMA página. Por página, e não uma só para o documento inteiro:
+   * um relatório leva anexado o PDF do certificado do padrão, que vem do
+   * laboratório em outro tamanho de folha. Com uma escala única, tirada da
+   * primeira página, esses anexos sairiam maiores que a área e criariam
+   * rolagem horizontal — ou seriam espremidos pelo `max-width`, e aí o desenho
+   * mentiria sobre a proporção da folha.
+   */
+  const escalaDe = useCallback(
+    (larguraPagina: number) => {
+      if (!larguraArea || !larguraPagina) return zoom;
+      // −24px: a folga lateral do container. Sem ela a página encosta na barra
+      // de rolagem e o navegador cria rolagem HORIZONTAL na página inteira.
+      return Math.max(0.15, ((larguraArea - 24) / larguraPagina) * zoom);
+    },
+    [larguraArea, zoom],
+  );
 
   const aoRolar = useCallback(() => {
     const el = areaRef.current;
@@ -268,9 +277,9 @@ function QuadroPdf({
                 key={p.numero}
                 data-pagina={p.numero}
                 className="vpdf-folha"
-                style={{ width: Math.round(p.largura * escala), height: Math.round(p.altura * escala) }}
+                style={{ width: Math.round(p.largura * escalaDe(p.largura)), height: Math.round(p.altura * escalaDe(p.largura)) }}
               >
-                <PaginaCanvas doc={doc} numero={p.numero} escala={escala} />
+                <PaginaCanvas doc={doc} numero={p.numero} escala={escalaDe(p.largura)} />
               </div>
             ))}
             {paginas.length === 0 && <div className="vpdf-aviso">Preparando as páginas…</div>}
