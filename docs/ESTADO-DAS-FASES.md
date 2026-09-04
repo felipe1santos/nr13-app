@@ -6,13 +6,27 @@
 > **REGRA:** este arquivo é atualizado NO MOMENTO em que o estado muda — commit, push,
 > redeploy, validação, portão. Não no fim da fase.
 
-**Última atualização:** 03/09/2026 — **FASE 9 CONCLUÍDA ✅** · 8/8 flags foram a 30/30, gate global verde e os CAMINHOS LEGADOS REMOVIDOS do cliente e dos testes. Falta só o `drop` das colunas no banco (inerte: ninguém mais as lê).
-**Branch:** `main` · **Suíte:** 1608 testes / 135 arquivos, 0 falhas · **Build:** verde · **Bundle:** `assets/index-sRCLN57V.js`
+**Última atualização:** 03/09/2026 — **FASE 10A ENTREGUE ✅** · Agenda em tela própria com faturamento previsto × realizado, e o recorte das listas de /relatorios, /prontuarios e /calibracoes. (Fase 9 concluída na mesma data; falta só o `drop` inerte das colunas.)
+**Branch:** `main` · **Suíte:** 1633 testes / 138 arquivos, 0 falhas · **Build:** verde · **Bundle em produção:** `assets/index-Dr9rMWHr.js` (commit `648f970`)
 
 > ### 🔖 VOLTANDO DEPOIS DE UMA PAUSA? Leia [`PONTO-DE-RETOMADA.md`](PONTO-DE-RETOMADA.md).
 > Ele tem o estado de produção, o que falta decidir (a **9D**) e **todos os endereços de acesso** —
 > sistema, Supabase e Coolify.
 
+
+## ✅ FASE 10A — ENTREGUE (03/09/2026)
+
+| | |
+|---|---|
+| Agenda | saiu do Dashboard e virou `/agenda`, item próprio de menu. Número do dia no canto superior esquerdo, serviços escritos na célula, "+ N serviços" no excedente, dia escolhido com círculo AZUL-ESCURO (nunca fundo preto). Clique abre o modal do dia com empresa, endereço, responsável, telefone, tipo, TAG, horário, status, valor e observações — todos resolvidos do cadastro de clientes por `clienteId`, nada duplicado |
+| faturamento | **previsto** (agendado) separado de **realizado** (concluído); cancelado fora das duas contas; nota sem `status` conta como agendada; valor ausente NÃO é zero. Dashboard ficou com o resumo + "Abrir Agenda" |
+| `/relatorios` | ícone de PDF com o arquivo REAL do dono (`public/icones/pdf.jpg`, SHA-256 conferido byte a byte contra o servido em produção), filtro por empresa e a empresa na linha. Lista, ordem e busca da 9E intactas |
+| `/prontuarios` · `/calibracoes` | recorte padrão esconde quem **comprovadamente** não tem o documento (`null` = "ninguém contou" FICA); filtros de tipo e empresa; caixa para desligar o recorte. Foto do equipamento à esquerda já existia e foi conferida |
+| defeito achado | guarda de efeito que se redisparava com mapa vazio — **789 chamadas a `buscar_equipamentos` em 8 s**, medidas no navegador. Corrigido com `ref`; depois: 20 chamadas e para |
+| limitações | filtros de empresa/documento são do CLIENTE (sem SQL novo, editor do Supabase segue fechado) e o filtro por data de atualização do prontuário NÃO foi entregue — a data não existe na projeção. Detalhe em `medicoes/2026-09-03-10a-agenda-e-listas.md` |
+| NÃO iniciado | 10B.1 (rascunho→finalizar), 10B.2 (Livro manual), 10C (layout novo), Fase 11 (PDF vetorial) |
+
+---
 
 ## ✅ FASE 9 — CONCLUÍDA (03/09/2026)
 

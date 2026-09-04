@@ -1,33 +1,39 @@
-# PONTO DE RETOMADA — 03/09/2026 (FASE 9 CONCLUÍDA ✅)
+# PONTO DE RETOMADA — 03/09/2026 (FASE 10A ENTREGUE ✅)
 
-> **A Fase 9 acabou.** As oito flags foram a 30/30, o gate global passou, e os
-> caminhos legados foram REMOVIDOS do cliente e dos testes. O sistema tem hoje
-> **um caminho só** em cada tela.
+> **A Agenda tem tela própria, com faturamento previsto × realizado, e as três
+> listas passaram a mostrar o que interessa.** A Fase 9 foi concluída na mesma
+> data — o sistema tem um caminho só em cada tela.
 >
-> **Bundle em produção:** `assets/index-sRCLN57V.js` · commit `c867894`
-> **Suíte:** 1.608 testes / 135 arquivos · **Build:** verde
+> **Bundle em produção:** `assets/index-Dr9rMWHr.js` · commit `648f970`
+> **Suíte:** 1.633 testes / 138 arquivos · **Build:** verde
 
 ---
 
-## ⚠️ A ÚNICA COISA PENDENTE DA FASE 9
+## ⚠️ AS DUAS COISAS PENDENTES
 
-**`supabase/fase9_remocao_flags.sql` NÃO foi aplicado.** O editor SQL do
-dashboard do Supabase não carregou nas quatro tentativas do fim da sessão.
+### 1 · `supabase/fase9_remocao_flags.sql` NÃO foi aplicado
 
-**Não é urgente e não quebra nada.** O cliente saiu primeiro: o bundle no ar já
-não lê nenhuma das oito colunas (`sincronizarFlagDoServidor` seleciona apenas
-`v2_ativa`). As colunas seguem em `org_sync` sem ninguém as consultar.
+O editor SQL do dashboard do Supabase não carrega (seis tentativas em duas
+sessões). **Não é urgente e não quebra nada:** o bundle no ar já não lê nenhuma
+das oito colunas (`sincronizarFlagDoServidor` seleciona apenas `v2_ativa`).
 
-**Como concluir**, quando o dashboard voltar a abrir:
+Quando o dashboard voltar a abrir: conferir o SHA-256 do texto no editor contra
+`8f3c95e5a429b887346e2897f9f2ca1d0562fefd613fa01dcb902de4036da207`
+(5.733 bytes, LF) — regra do §13 do `CLAUDE.md` — e rodar. O arquivo tem guarda
+própria e não toca em dado nenhum.
 
-1. abrir o SQL Editor do projeto `qqsesrntfvmdxqxrfvmw`;
-2. conferir o SHA-256 do texto no editor contra
-   `8f3c95e5a429b887346e2897f9f2ca1d0562fefd613fa01dcb902de4036da207`
-   (5.733 bytes, LF) — regra do §13 do `CLAUDE.md`;
-3. rodar. O arquivo tem guarda própria: recusa se alguma organização ainda
-   estiver com flag desligada;
-4. conferir depois por estrutura (`information_schema.columns` de `org_sync`
-   deve ficar só com `v2_ativa` entre as flags).
+### 2 · O SQL que tornaria os filtros da 10A server-side
+
+Os filtros por empresa (em `/relatorios`) e o recorte "só com prontuário / só
+com calibração" são feitos NO CLIENTE, porque a projeção não tem as colunas. Em
+produção isso custa **uma requisição** (a maior organização tem 39
+equipamentos); acima de 1.000 a varredura para no teto e a tela avisa.
+
+O que resolve, quando houver SQL:
+- `cliente_nome` em `relatorios_index` + filtro na RPC `buscar_relatorios`;
+- `p_com_prontuario` / `p_com_calibracao` em `buscar_equipamentos`;
+- uma coluna de **data de atualização do prontuário** — sem ela o filtro por
+  data pedido na 10A.3 não existe, e foi declarado como não entregue.
 
 ---
 
@@ -37,46 +43,26 @@ não lê nenhuma das oito colunas (`sincronizarFlagDoServidor` seleciona apenas
 |---|---|
 | projeto Supabase | `qqsesrntfvmdxqxrfvmw` (org **SAAS-NR13**) |
 | organizações | 30 |
-| auditoria de projeção | **30/30 convergindo** |
-| `busca_pendencias` | **0** |
-| flags | as 8 da Fase 9 em **30/30** no banco, e **não lidas** pelo cliente. `v2_ativa` em 30/30 |
+| auditoria de projeção | **30/30 convergindo** · `busca_pendencias` **0** |
+| flags | as 8 da Fase 9 em 30/30 no banco e **não lidas** pelo cliente. `v2_ativa` em 30/30 |
 | conta de teste | `teste@gmail.com` — org `99f642d3-6efd-446d-9e76-d234ad8d211c` |
-
-### O que o sistema faz hoje, em uma linha por tela
 
 Todas as listas vêm da **projeção**, com busca e paginação no servidor; o
 equipamento chega por **semeadura sob demanda**; o boot baixa só o **essencial**;
-o painel de vencimentos vem do **agregado**. Nenhuma tela hidrata a organização
-inteira — medido: **hidratação integral = 0** nas sete.
+o painel de vencimentos vem do **agregado**. Hidratação integral = **0**.
 
 ---
 
-## O que vem a seguir
+## O que vem a seguir — nada iniciado
 
-**Fase 10A — UX / OPERAÇÃO. Autorizada pelo dono, NÃO iniciada.**
+| bloco | o que é |
+|---|---|
+| **10B.1** | relatório RASCUNHO → FINALIZAR → PDF imutável |
+| **10B.2** | Livro/Registro: criação MANUAL do registro + TRANCAR (achado da análise: `livro_imutavel.sql` já tolera entrada sem lacre, então o gatilho NÃO precisa ser afrouxado) |
+| **10C** | novo layout documental — **bloqueado**: o `relatorio-nr13.html` nunca foi entregue |
+| **Fase 11** | PDF vetorial/híbrido |
 
-Cinco entregas, na ordem em que foram pedidas:
-
-1. **Agenda** — sai do Dashboard e vira item próprio de menu; número do dia no
-   canto superior esquerdo; dia selecionado só com contorno/círculo azul-escuro;
-   resumo dos serviços dentro do dia; clique abre modal com empresa, endereço,
-   responsável, telefone, tipo, horário, status e valor.
-2. **Serviços / faturamento** — valor ao cadastrar inspeção/manutenção/serviço,
-   com faturamento **previsto** separado do **realizado**.
-3. **`/relatorios`** — listar relatórios direto, mais recentes primeiro, filtros
-   por data, TAG, empresa e tipo. Ícone à esquerda: **usar o arquivo real de
-   Downloads chamado `pdf-IMAGEM`**, não recriar um ícone genérico.
-4. **`/prontuarios`** — listar prontuários direto, filtros equivalentes.
-5. **`/calibracoes`** — segue por EQUIPAMENTO; ocultar por padrão quem tem 0
-   calibrações; foto do equipamento à esquerda, com placeholder quando faltar.
-
-> **Um achado da sessão que encurta o item 3:** `/relatorios` **já lista
-> relatórios** por data, com filtro de período e tipo — é a tela da 9E
-> (`RelatoriosV9` + `buscar_relatorios`). O que falta ali é o **ícone PDF**, o
-> **filtro por empresa** e, mais tarde, os **badges rascunho/finalizado**.
-
-**NÃO iniciar:** 10B.1 (rascunho/finalização), 10B.2 (Livro manual), 10C (layout
-novo), Fase 11 (PDF vetorial). Desenho de todas em `FASE-10-DESENHO.md`.
+Desenho de todos em [`FASE-10-DESENHO.md`](FASE-10-DESENHO.md).
 
 ---
 
@@ -90,5 +76,4 @@ novo), Fase 11 (PDF vetorial). Desenho de todas em `FASE-10-DESENHO.md`.
 | repo | `felipe1santos/nr13-app`, branch `main` |
 
 **Fluxo de deploy:** push → recarregar a página do Coolify → `Redeploy` →
-esperar sair de *In Progress* → **conferir pelo bundle servido**, nunca pelo
-clique.
+esperar → **conferir pelo bundle servido**, nunca pelo clique.
