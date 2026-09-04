@@ -61,8 +61,21 @@ function emitir(doc: Documento, m: ModeloProntuario): void {
  * rasterizado em 1× vira uma linha serrilhada. Falhar aqui devolve `null`, e a
  * folha diz que o croqui não pôde ser convertido em vez de desenhar outra coisa.
  */
-async function svgParaPng(svg: string, larguraPx = 1800): Promise<string | null> {
-  if (svg.startsWith('data:image')) return svg; // já é imagem (PNG legado)
+async function svgParaPng(svg: string, larguraPx = 1800): Promise<{ png: string; proporcao: number } | null> {
+  if (svg.startsWith('data:image')) {
+    // PNG legado: mede a proporção real dele, sem assumir nada.
+    try {
+      const i = await new Promise<HTMLImageElement>((res, rej) => {
+        const im = new Image();
+        im.onload = () => res(im);
+        im.onerror = () => rej(new Error('png ilegível'));
+        im.src = svg;
+      });
+      return { png: svg, proporcao: i.naturalHeight ? i.naturalWidth / i.naturalHeight : 1 };
+    } catch {
+      return null;
+    }
+  }
   try {
     const limpo = svg.trim().startsWith('<svg') ? svg : `<svg xmlns="http://www.w3.org/2000/svg">${svg}</svg>`;
     const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(limpo);
@@ -81,7 +94,10 @@ async function svgParaPng(svg: string, larguraPx = 1800): Promise<string | null>
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, c.width, c.height);
     ctx.drawImage(img, 0, 0, c.width, c.height);
-    return c.toDataURL('image/png');
+    // A proporção REAL do desenho viaja junto: sem ela o croqui cairia no
+    // recuo 4:3 da primitiva `foto` e sairia ESTICADO. Croqui distorcido num
+    // prontuário é cota errada — pior que croqui ausente.
+    return { png: c.toDataURL('image/png'), proporcao: img.naturalWidth / Math.max(1, img.naturalHeight) };
   } catch {
     return null;
   }
@@ -92,7 +108,7 @@ export async function gerarProntuarioVetorial(tag: string): Promise<ResultadoPro
   const modelo = montarModeloProntuario(tag);
 
   // Croquis rasterizados uma única vez, antes das duas passagens.
-  const cache = new Map<string, string>();
+  const cache = new Map<string, { png: string; proporcao: number }>();
   const croquisFalhos: string[] = [];
   for (const [nome, svg] of [
     ['vista longitudinal', modelo.croqui.longitudinal],
@@ -100,8 +116,8 @@ export async function gerarProntuarioVetorial(tag: string): Promise<ResultadoPro
     ['detalhe do tampo', modelo.croqui.detalheTampo],
   ] as [string, string | null][]) {
     if (!svg) continue;
-    const png = await svgParaPng(svg);
-    if (png) cache.set(svg, png);
+    const convertido = await svgParaPng(svg);
+    if (convertido) cache.set(svg, convertido);
     else croquisFalhos.push(nome);
   }
 
@@ -117,7 +133,7 @@ export async function gerarProntuarioVetorial(tag: string): Promise<ResultadoPro
   const contagem = novoPdf();
   await registrarCarlito(contagem);
   const rascunho = new Documento(contagem, cab, 0);
-  (rascunho as unknown as { __croquis: Map<string, string> }).__croquis = cache;
+  (rascunho as unknown as { __croquis: Map<string, { png: string; proporcao: number }> }).__croquis = cache;
   emitir(rascunho, modelo);
   const total = contagem.getNumberOfPages();
 
@@ -125,7 +141,7 @@ export async function gerarProntuarioVetorial(tag: string): Promise<ResultadoPro
   const pdf = novoPdf();
   await registrarCarlito(pdf);
   const doc = new Documento(pdf, cab, total);
-  (doc as unknown as { __croquis: Map<string, string> }).__croquis = cache;
+  (doc as unknown as { __croquis: Map<string, { png: string; proporcao: number }> }).__croquis = cache;
   emitir(doc, modelo);
 
   return {

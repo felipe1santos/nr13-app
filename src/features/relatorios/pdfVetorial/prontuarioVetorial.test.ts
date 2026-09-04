@@ -25,6 +25,7 @@ import { folhasDoProntuario, montarModeloProntuario } from './modeloProntuario';
 import { conferirCamposProntuario } from './conferenciaProntuario';
 import { secoesDoProntuario } from './folhasProntuario';
 import { paginasProntuario } from '../../prontuarios/tipos';
+import { foto } from './primitivas';
 import {
   CHAVE_MOTOR_PRONTUARIO,
   motorProntuarioAtual,
@@ -208,5 +209,40 @@ describe('paridade: o que a folha ATUAL imprime, o vetorial imprime', () => {
     expect(e).toContain('Centro');
     expect(e).toContain('CEP: 29122-036');
     expect(e).toContain('CNPJ: 00.000.000/0001-00');
+  });
+});
+
+describe('croqui: proporção REAL, nunca 4:3 assumido', () => {
+  // A primitiva `foto` cai em 4:3 quando não recebe proporção. O croqui do
+  // prontuário é desenho COTADO: esticá-lo é imprimir cota errada, que num
+  // documento técnico é pior do que não ter croqui.
+  const CAIXA_CROQUI = { x: 15, y: 40, largura: 180, altura: 76 };
+
+  function desenhado(proporcao?: number) {
+    const chamadas: { w: number; h: number }[] = [];
+    const falso = {
+      setDrawColor() {}, setFillColor() {}, setLineWidth() {}, rect() {},
+      setFont() {}, setFontSize() {}, setTextColor() {}, text() {},
+      addImage(_d: string, _f: string, _x: number, _y: number, w: number, h: number) {
+        chamadas.push({ w, h });
+      },
+    } as unknown as Parameters<typeof foto>[0];
+    foto(falso, 'data:image/png;base64,AAA', CAIXA_CROQUI, proporcao);
+    return chamadas[0];
+  }
+
+  it.each([
+    ['croqui largo (vista longitudinal)', 4.5],
+    ['croqui quase quadrado (vista transversal)', 1.1],
+    ['detalhe alto (tampo)', 0.6],
+  ])('%s mantém a proporção e cabe na caixa', (_n, razao) => {
+    const d = desenhado(razao);
+    expect(d.w / d.h).toBeCloseTo(razao, 3);
+    expect(d.w).toBeLessThanOrEqual(CAIXA_CROQUI.largura + 0.001);
+    expect(d.h).toBeLessThanOrEqual(CAIXA_CROQUI.altura + 0.001);
+  });
+
+  it('sem proporção a primitiva assume 4:3 — por isso o gerador SEMPRE a envia', () => {
+    expect(desenhado(undefined).w / desenhado(undefined).h).toBeCloseTo(4 / 3, 3);
   });
 });

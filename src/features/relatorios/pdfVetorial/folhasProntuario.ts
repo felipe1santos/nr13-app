@@ -367,7 +367,7 @@ export function folhaProntMemorial(doc: Documento, m: ModeloProntuario): void {
  */
 function desenharCroqui(doc: Documento, svgOuPng: string, altura: number): void {
   doc.garantirEspaco(altura + 4);
-  const cache = (doc as unknown as { __croquis?: Map<string, string> }).__croquis;
+  const cache = (doc as unknown as { __croquis?: Map<string, { png: string; proporcao: number }> }).__croquis;
   const pronto = cache?.get(svgOuPng);
   if (!pronto) {
     // Sem a versão rasterizada (o pré-processo não rodou): a folha não inventa
@@ -378,7 +378,9 @@ function desenharCroqui(doc: Documento, svgOuPng: string, altura: number): void 
     });
     return;
   }
-  foto(doc.pdf, pronto, { x: CAIXA.x, y: doc.y, largura: CAIXA.largura, altura });
+  // A proporção REAL vai junto: sem ela a primitiva assume 4:3 e o croqui sai
+  // esticado — cota errada num documento técnico.
+  foto(doc.pdf, pronto.png, { x: CAIXA.x, y: doc.y, largura: CAIXA.largura, altura }, pronto.proporcao);
   doc.y += altura;
 }
 
