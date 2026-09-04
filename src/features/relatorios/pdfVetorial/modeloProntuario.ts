@@ -229,10 +229,15 @@ export function montarModeloProntuario(tag: string): ModeloProntuario {
 
     empresa: {
       razao: textoOu(txt(dados.minhaEmpresaNome ?? empresa.razaoSocial ?? empresa.razao ?? empresa.nome), ''),
+      // Mesma composição do rodapé da folha atual: endereço • bairro •
+      // cidade/UF • CNPJ • CEP. O bairro e o CEP estavam de fora, e a
+      // conferência campo a campo pegou a falta.
       endereco: [
         dados.minhaEmpresaEndereco ?? empresa.endereco,
+        empresa.bairro,
         dados.minhaEmpresaCidade ?? empresa.cidade,
         (dados.minhaEmpresaCnpj ?? empresa.cnpj) ? `CNPJ: ${dados.minhaEmpresaCnpj ?? empresa.cnpj}` : '',
+        empresa.cep ? `CEP: ${empresa.cep}` : '',
       ]
         .filter((p) => p && String(p).trim() !== '')
         .join(' • '),

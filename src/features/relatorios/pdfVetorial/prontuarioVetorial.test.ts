@@ -187,3 +187,26 @@ describe('motor do prontuário — chave SEPARADA da do relatório', () => {
     expect(motorProntuarioConfigurado()).toBe('atual');
   });
 });
+
+describe('paridade: o que a folha ATUAL imprime, o vetorial imprime', () => {
+  // Os dois casos abaixo foram achados pela conferência campo a campo contra
+  // um prontuário real, não por leitura do código. Estavam faltando.
+  it('a DATA DE EMISSÃO e o Nº vêm da meta e chegam ao modelo', () => {
+    localStorage.setItem(`nr13_prontuario_meta_${TAG}`, JSON.stringify({ numero: 'REL-42', emissao: '19/08/2026' }));
+    const m = montarModeloProntuario(TAG);
+    expect(m.numero).toBe('REL-42');
+    expect(m.emissao).toBe('19/08/2026');
+    expect(conferirCamposProntuario(m).vazios).not.toContain('data de emissão');
+  });
+
+  it('o rodapé da executante leva bairro e CEP, como o `footer-empresa` atual', () => {
+    localStorage.setItem('nr13_minha_empresa', JSON.stringify({
+      razaoSocial: 'MDK ENG', endereco: 'Rua X, 1', bairro: 'Centro',
+      cidade: 'Vila Velha', cnpj: '00.000.000/0001-00', cep: '29122-036',
+    }));
+    const e = montarModeloProntuario(TAG).empresa.endereco;
+    expect(e).toContain('Centro');
+    expect(e).toContain('CEP: 29122-036');
+    expect(e).toContain('CNPJ: 00.000.000/0001-00');
+  });
+});

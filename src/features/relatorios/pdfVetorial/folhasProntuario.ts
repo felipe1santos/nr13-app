@@ -220,7 +220,12 @@ export function folhaProntProntuario(doc: Documento, m: ModeloProntuario): void 
   doc.banner('PRONTUÁRIO DO EQUIPAMENTO');
 
   doc.faixa('DADOS GERAIS');
+  // Nº e DATA DE EMISSÃO saem no corpo, como na folha atual (`pront-data-insp`).
+  // Ficavam só no cabeçalho, e a conferência campo a campo pegou a falta: a
+  // data de emissão de um documento assinado não pode depender do cabeçalho.
   tabelaChaveValor(doc, [
+    ['Nº DO PRONTUÁRIO', m.numero],
+    ['DATA DE EMISSÃO', m.emissao],
     ['CONTRATANTE', m.cliente.razao],
     ['CNPJ', m.cliente.cnpj],
   ]);
