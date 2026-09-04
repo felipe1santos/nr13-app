@@ -19,6 +19,11 @@ import type { AssinantesProntuario } from '../features/prontuarios/prontuarioSer
 import type { DimensaoProntuario, ProntuarioDados } from '../features/prontuarios/tipos';
 import { paginasProntuario, temCroqui2d } from '../features/prontuarios/tipos';
 import PainelPilotoProntuario from '../features/relatorios/pdfVetorial/PainelPilotoProntuario';
+import { motorProntuarioAtual } from '../features/relatorios/motorPdf';
+import { gerarProntuarioVetorial } from '../features/relatorios/pdfVetorial/gerarProntuario';
+import { gerarPdfBytes } from '../features/relatorios/pdfService';
+import { publicarArtefato, artefatoDe, baixarArtefato } from '../features/relatorios/artefatoRelatorio';
+import { emissaoAtual, registrarEmissao } from '../features/prontuarios/emissaoProntuario';
 import { carregarMinhaEmpresa, listarClientes, listarFuncionarios } from '../features/cadastros/cadastroService';
 import type { Cliente, Funcionario } from '../features/cadastros/tipos';
 import { carregarVaso } from '../features/memorial/vasoMemorialService';
@@ -282,12 +287,23 @@ export default function Prontuarios() {
   const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
   const [assinantes, setAssinantes] = useState<AssinantesProntuario>({ engenheiroId: null, tecnicoId: null });
   const [imprimindo, setImprimindo] = useState(false);
+  const [emitindo, setEmitindo] = useState(false);
+  const [erroEmissao, setErroEmissao] = useState('');
+  // A emissão vigente do prontuário deste equipamento — `null` = nunca emitido.
+  const [emissao, setEmissao] = useState<ReturnType<typeof emissaoAtual>>(null);
   // Recomputado a cada render — o bump de `versao` no onSalvo do modelador atualiza o indicador.
   const croquiSalvo = tag !== '' && localStorage.getItem(`nr13_croqui2d_${tag}`) !== null;
   // Caldeira e autoclave não têm croqui: as duas folhas que dependem dele saem
   // do documento (ver paginasProntuario). A numeração e o total do rodapé saem
   // desta lista, e a impressão/PDF rasterizam o que ela montou.
   const folhasDoProntuario = paginasProntuario(tipoEquip);
+
+  // A emissão vigente entra no estado quando o visualizador abre: é ela que
+  // decide se a tela oferece "Emitir" ou "Abrir documento emitido".
+  useEffect(() => {
+    setEmissao(tag ? emissaoAtual(tag) : null);
+    setErroEmissao('');
+  }, [tag, versao]);
   // PDF do prontuário do fabricante (nr13_pront_fab_<TAG>) — enviado na ficha do equipamento.
   const prontFabricante = tag !== '' ? lerProntuarioFabricante(tag) : null;
 
@@ -297,6 +313,67 @@ export default function Prontuarios() {
       await imprimirRelatorio('.prontuario-preview');
     } finally {
       setImprimindo(false);
+    }
+  }
+
+  /**
+   * EMITIR: o prontuário vira ARQUIVO.
+   *
+   * Qual motor produz os bytes é decisão de `motorProntuarioAtual` — chave
+   * própria (`nr13_motor_prontuario`), independente da do relatório. Depois
+   * disso o caminho é o mesmo do §7-quater: SHA-256, upload, `pdfRef`, e
+   * reabrir serve o ARQUIVO em vez de remontar as folhas.
+   *
+   * Emitir de novo NÃO sobrescreve: `registrarEmissao` acrescenta uma revisão
+   * e a emissão anterior continua alcançável pelo seu próprio `pdfRef`.
+   */
+  async function emitirProntuario() {
+    if (documentosBloqueados()) return;
+    setEmitindo(true);
+    setErroEmissao('');
+    try {
+      const motor = motorProntuarioAtual(window.location.search);
+      const r =
+        motor === 'vetorial'
+          ? await gerarProntuarioVetorial(tag)
+          : await gerarPdfBytes('.prontuario-preview', { rastreabilidades: false });
+      const artefato = await publicarArtefato(r.bytes, r.paginas);
+      const meta = await obterOuCriarMeta(tag);
+      const emitida = await registrarEmissao(tag, {
+        numero: meta.numero ?? null,
+        emissao: meta.emissao ?? null,
+        motor,
+        pdfRef: artefato.pdfRef,
+        sha256: artefato.sha256,
+        paginas: artefato.paginas,
+        tamanho: r.bytes.byteLength,
+        geradoEm: artefato.geradoEm,
+        // A verdade vem do cofre: upload recusado com o navegador online
+        // também é pendente (medido em 11/08/2026 com o bucket devolvendo 500).
+        pdfPendente: artefato.pendente,
+      });
+      setEmissao(emitida);
+    } catch (e) {
+      setErroEmissao(e instanceof Error ? e.message : 'Falha ao emitir o prontuário.');
+    } finally {
+      setEmitindo(false);
+    }
+  }
+
+  /** Abre o documento EMITIDO — o arquivo, nunca uma remontagem. */
+  async function abrirEmitido() {
+    if (!emissao) return;
+    setErroEmissao('');
+    try {
+      const art = artefatoDe(emissao);
+      if (!art) throw new Error('artefato não resolvido');
+      const blob = await baixarArtefato(art);
+      if (!blob) throw new Error('o arquivo não voltou nem do cofre local nem do bucket');
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+    } catch (e) {
+      setErroEmissao(e instanceof Error ? e.message : 'Falha ao abrir o documento emitido.');
     }
   }
 
@@ -1024,6 +1101,21 @@ export default function Prontuarios() {
                       {documentosBloqueados() && <Icone nome="cadeado" tam={13} />}{' '}
                       {imprimindo ? 'Preparando…' : 'Imprimir'}
                     </button>
+                    <button
+                      type="button"
+                      className={`btn-secundario${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
+                      onClick={emitirProntuario}
+                      disabled={emitindo}
+                      title="Gera o PDF definitivo, calcula o código de verificação e arquiva"
+                    >
+                      {documentosBloqueados() && <Icone nome="cadeado" tam={13} />}{' '}
+                      {emitindo ? 'Emitindo…' : emissao ? 'Emitir nova revisão' : 'Emitir prontuário'}
+                    </button>
+                    {emissao && (
+                      <button type="button" className="btn-secundario" onClick={abrirEmitido}>
+                        Abrir documento emitido
+                      </button>
+                    )}
                     {confirmandoExcluir ? (
                       <>
                         <button type="button" className="btn-remover" onClick={handleExcluir}>
@@ -1082,6 +1174,15 @@ export default function Prontuarios() {
           {palco.estado !== 'pronto' && (
             <RecusaPalco estado={palco.estado} falha={palco.falha} />
           )}
+
+          {emissao && (
+            <p className="pront-emissao">
+              Documento emitido em {emissao.emissao ?? '—'} · {emissao.paginas} páginas ·
+              {' '}código de verificação <code>{emissao.sha256.slice(0, 16)}…</code>
+              {emissao.pdfPendente ? ' · upload pendente' : ' · arquivado'}
+            </p>
+          )}
+          {erroEmissao && <p className="pront-emissao-erro">{erroEmissao}</p>}
 
           {/* Fase 12 · bancada do piloto do prontuário. Atrás de `?piloto=1`:
               produção continua imprimindo pelo caminho de hoje. */}

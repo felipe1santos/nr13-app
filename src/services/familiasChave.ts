@@ -50,6 +50,8 @@ export const POR_TAG = [
   'nr13_modelo3d_',
   'nr13_pref_unidade_',
   'nr13_pront_fab_',
+  // 12A · emissões arquivadas do prontuário (lista por revisão; nunca sobrescreve).
+  'nr13_pront_emitido_',
   // Índice leve do histórico de relatórios do equipamento. Não confundir com
   // `nr13_historico_relatorios` (global, LEGADO — comparação exata em GLOBAIS).
   'nr13_historico_indice_',

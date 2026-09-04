@@ -96,6 +96,18 @@ export const FORA_DO_PORTAL: string[] = [
   // A exclusão aqui é a segunda camada: os rascunhos já vivem em chave separada
   // (`nr13_livro_rascunho_<TAG>`), fora de `nr13_livro_<TAG>`, que é o que o Portal lê.
   'nr13_livro_rascunho_',
+
+  // Fase 12A · emissões arquivadas do PRONTUÁRIO.
+  //
+  // Não é decisão de segurança: o prontuário emitido é documento do cliente e
+  // caberia bem no Portal. Fica de fora porque a tela do Portal ainda não sabe
+  // apresentá-lo — não há listagem, nem visualizador, nem lugar para a revisão.
+  // Servir a chave sem tela que a use só aumentaria o payload da carga inicial.
+  //
+  // Quando o Portal ganhar essa tela, mover para PREFIXOS_POR_TAG (ou para as
+  // buscadas sob demanda, que é o desenho certo: o registro traz pdfRef e SHA,
+  // e o arquivo em si vem pelo portal_arquivo).
+  'nr13_pront_emitido_',
 ];
 
 /**
