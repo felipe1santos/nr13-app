@@ -49,9 +49,21 @@ Os candidatos eram três. Escolhi o primeiro:
 2. **Prévia do relatório = PDF vetorial**, no visualizador pdf.js que a 12B já
    construiu (miniaturas fechadas, ajuste à largura, zoom).
 
-3. **Painel "o que falta"** no lugar do amarelo: com a prévia em PDF não há mais
-   `[contenteditable]` para pintar. A lista de campos vazios passa a ser
-   derivada do MODELO — mais confiável, e ela já é a mesma fonte do PDF.
+3. **Campo vazio em amarelo TAMBÉM na prévia do Modelo Novo**, e um painel
+   "o que falta" como APOIO — correção do dono em 04/09/2026: o painel **não
+   substitui** o amarelo.
+
+   Como isso se resolve sem criar um segundo template: o gerador ganha um
+   **modo** (`'preview'` | `'final'`). Em `preview` ele pinta o fundo
+   amarelo-claro nas células cujo valor é ausente; em `final` não pinta. Mesmo
+   gerador, mesmo layout, mesma paginação — muda só um estado visual. O painel
+   sai da mesma fonte (o modelo), e clicar num item leva ao campo no editor
+   quando isso for simples e seguro.
+
+   A regra aprovada continua valendo por inteiro: **edição/prévia com amarelo,
+   finalização/arquivado sem**. E o modo `preview` não arquiva, não gera SHA
+   nem `pdfRef`, não cria histórico, não mexe em vencimento e não escreve no
+   Livro.
 
 4. **Aposentadoria do caminho de folhas do RELATÓRIO**: palco, ponte,
    `sb-storage`, trava de somente-leitura e o gate de escrita, para essa tela.
@@ -110,7 +122,7 @@ continua exigindo as folhas montadas — e o ganho vira meio ganho.
 | **13A · medição** | varredura do que cada folha do relatório realmente lê e grava; lista fechada de campos editáveis; decisão sobre D3 | não — é documento |
 | **13B · certificados sem DOM** | `CERTIFICADO-CAL-*` desenhada pelo gerador vetorial (ou o PDF do certificado anexado direto), removendo a dependência do `.relatorio-preview` | atrás de flag |
 | **13C · edição em React** | grade de espessuras (ultrassom) e laudo da conclusão como telas próprias, gravando as mesmas chaves | não muda documento |
-| **13D · prévia = PDF** | o visualizador da 12B passa a mostrar o vetorial em vez dos 27 iframes, com "Atualizar prévia" e o painel "o que falta" | **atrás de flag**, com o caminho antigo intacto |
+| **13D · prévia = PDF** | o visualizador da 12B passa a mostrar o vetorial em vez dos 27 iframes, com **"Atualizar prévia"** (nunca a cada tecla, e com aviso de "há alterações não refletidas"), o **amarelo no modo `preview`** e o painel "o que falta" como apoio | **atrás de flag**, com o caminho antigo intacto |
 | **13E · aposentadoria** | palco/ponte/sb-storage desligados **para a tela do relatório**; código preservado para prontuário e livro | depende de 13D validada |
 | **13F · limpeza** | 6 folhas órfãs, `nr13_croqui3d_`, `index.anterior.ts`, `fase9_remocao_flags.sql` | inerte |
 
