@@ -127,8 +127,8 @@ mais a contagem de referências de cada `.html` de `public/`.
 
 | # | nome | onde é gerado | produz PDF/impressão? | vale reformular? | motivo |
 |---|---|---|---|---|---|
-| 1 | **Impressão do relatório** (botão Imprimir) | `Relatorios.tsx:233` → `printService.imprimirRelatorio('.relatorio-preview')` | impressão (html2canvas → `#print-root`) | **sim, candidato à Fase 13** | o PDF já é vetorial, mas o papel ainda sai de uma FOTOGRAFIA das folhas: mesmo documento, duas qualidades. Não é defeito de conteúdo — é a última superfície raster do relatório |
-| 2 | **Impressão do prontuário** (botão Imprimir) | `Prontuarios.tsx:313` → `imprimirRelatorio('.prontuario-preview')` | impressão | **sim, candidato à Fase 13** | mesma assimetria: "Emitir" produz vetorial, "Imprimir" produz raster |
+| 1 | ~~**Impressão do relatório**~~ — **este item estava ERRADO**, ver §9 | `Relatorios.tsx` → `imprimirPdfArquivado` quando há `pdfRef` | impressão do ARQUIVO | **nada a fazer** | o desvio para o arquivo arquivado já existia; o `imprimirRelatorio` raster só alcança relatório NÃO finalizado |
+| 2 | **Impressão do prontuário** (botão Imprimir) | era `Prontuarios.tsx` → `imprimirRelatorio('.prontuario-preview')` | impressão | **CORRIGIDO no mesmo dia — §9** | era o caso real: rasterizava as 6 folhas com os dados VIVOS mesmo com emissão arquivada |
 | 3 | **Baixar PDF de relatório NÃO finalizado** | `Relatorios.tsx:644` → `exportarPdf` | PDF raster | **não** | é rascunho, não documento emitido. Finalizado já baixa o arquivo arquivado (`baixarPdfArquivado`) |
 | 4 | **Portal do Cliente** | `pages/portal/PortalAtivo.tsx` | serve `pdfRef` quando existe; `exportarPdf`/`imprimirRelatorio` só como fallback | **não** | o caminho novo já é o artefato; o fallback só alcança relatório LEGADO sem `pdfRef`, e some sozinho conforme os equipamentos são reinspecionados |
 | 5 | **Prontuário do fabricante** | `features/equipamento/ProntuarioFabricante.tsx` | baixa o arquivo como está | **não** | não é gerado: é um PDF ENVIADO pelo usuário (até 8 MB). Reformatá-lo seria adulterar documento de terceiro |
@@ -162,3 +162,61 @@ Não há gerador de documento fora desta tabela.
 
 Gerador antigo removido, motor raster tocado, Livro alterado, certificado
 alterado, histórico regenerado, teste de massa, Fase 13 iniciada — nada disso.
+
+---
+
+## 9 · Consistência documental: IMPRIMIR passa a servir o arquivo (04/09/2026, mesma data)
+
+O inventário do §6 apontou a impressão como divergente nas duas telas. Conferido
+no código, a divergência era **só do prontuário** — e a correção do §6 fica aqui
+registrada:
+
+- **Relatório:** `prepararEImprimir` (`pages/Relatorios.tsx`) **já** desviava para
+  `imprimirPdfArquivado` quando o relatório tinha `pdfRef`; o `imprimirRelatorio`
+  raster só alcança relatório **não finalizado**. Além disso, a tela de um
+  relatório arquivado nem monta `.relatorio-preview`, então a pré-rasterização
+  para o Ctrl+P nativo não chega a rodar. O item C-1 do §6 estava **errado** e é
+  corrigido aqui.
+- **Prontuário:** era o caso real. O botão rasterizava as seis folhas montadas
+  com os dados VIVOS, mesmo com emissão arquivada.
+
+### A regra passou a ser uma só, e testável
+
+`features/documentos/fonteImpressao.ts`:
+
+```
+documento com pdfRef  → 'arquivo'  (serve os bytes emitidos)
+sem pdfRef            → 'previa'   (rascunho; o botão diz "Imprimir pré-visualização")
+```
+
+O motor **não entra** na decisão: documento arquivado no raster imprime os
+próprios bytes históricos pelo mesmo caminho. `pdfRef` sem `path` conta como
+prévia — registro pela metade não vira download quebrado.
+
+### O Ctrl+P nativo também
+
+`prepararFolhasImpressao` liga a classe `imprimindo-relatorio`, e é ela que faz o
+**Ctrl+P do navegador** imprimir as imagens do `#print-root`. Num prontuário
+emitido isso poria no papel uma rasterização dos dados de hoje com cara de
+documento arquivado. O efeito de pré-rasterização passou a parar quando há
+emissão (e `emissao` entrou nas dependências, para que EMITIR desligue o modo na
+hora, pela limpeza do efeito).
+
+### Provas
+
+`features/documentos/fonteImpressao.test.ts` (6) e
+`features/prontuarios/__tests__/impressaoEmitida.test.ts` (5), todas bloqueantes:
+
+- VISUALIZAR, BAIXAR e IMPRIMIR pedem o **mesmo `pdfRef`** — provado pela lista de
+  pedidos que chegam ao `baixarArtefato`, e pelo SHA/páginas do artefato levado
+  aos três;
+- imprimir **duas vezes** não cria emissão, não muda `geradoEm`, não muda o SHA e
+  não mexe na lista;
+- documento com `motor: 'atual'` (raster) imprime igual — pelo `pdfRef`;
+- sem arquivo no cofre **e** no bucket, imprimir devolve `false` e **não abre
+  nada** — nunca cai calado na prévia.
+
+| | |
+|---|---|
+| suíte | **1.817 testes, 151 arquivos, 0 falhas** |
+| `tsc -b` · `vite build` | limpos |

@@ -24,6 +24,8 @@ import { gerarProntuarioVetorial } from '../features/relatorios/pdfVetorial/gera
 import { gerarPdfBytes } from '../features/relatorios/pdfService';
 import { publicarArtefato, artefatoDe, baixarArtefato } from '../features/relatorios/artefatoRelatorio';
 import { emissaoAtual, registrarEmissao, bytesDaEmissao } from '../features/prontuarios/emissaoProntuario';
+import { fonteDeImpressao, rotuloImpressao } from '../features/documentos/fonteImpressao';
+import { imprimirPdfArquivado } from '../components/VisualizadorPdf';
 import { carregarMinhaEmpresa, listarClientes, listarFuncionarios } from '../features/cadastros/cadastroService';
 import type { Cliente, Funcionario } from '../features/cadastros/tipos';
 import { carregarVaso } from '../features/memorial/vasoMemorialService';
@@ -307,9 +309,26 @@ export default function Prontuarios() {
   // PDF do prontuário do fabricante (nr13_pront_fab_<TAG>) — enviado na ficha do equipamento.
   const prontFabricante = tag !== '' ? lerProntuarioFabricante(tag) : null;
 
+  /**
+   * IMPRIMIR = o ARQUIVO, quando ele existe.
+   *
+   * Prontuário já emitido imprime os bytes do `pdfRef` daquela emissão. Antes
+   * daqui o botão rasterizava as 6 folhas montadas na tela — papel feito com os
+   * dados de HOJE, para um documento assinado meses atrás, e adulterável pelo
+   * DevTools antes do clique. Ver `features/documentos/fonteImpressao.ts`.
+   *
+   * Sem emissão não há arquivo: aí é PRÉ-VISUALIZAÇÃO, o botão diz isso, e nada
+   * é arquivado nem registrado.
+   */
   async function prepararEImprimir() {
     setImprimindo(true);
+    setErroEmissao('');
     try {
+      if (fonteDeImpressao(emissao) === 'arquivo') {
+        const ok = await imprimirPdfArquivado(artefatoDe(emissao)!);
+        if (!ok) setErroEmissao('Não foi possível abrir o PDF para impressão. Verifique a conexão.');
+        return;
+      }
       await imprimirRelatorio('.prontuario-preview');
     } finally {
       setImprimindo(false);
@@ -383,8 +402,15 @@ export default function Prontuarios() {
   // Pré-rasteriza as folhas do prontuário em #print-root assim que o visualizador carrega (e a cada
   // nova versão). Assim o Ctrl+P nativo e o botão imprimem as imagens prontas — 1 folha por A4, sem
   // o navegador quebrar os iframes. Limpa ao sair do visualizador.
+  //
+  // COM EMISSÃO, NÃO. `prepararFolhasImpressao` liga a classe `imprimindo-relatorio`, e é ela que
+  // faz o Ctrl+P NATIVO imprimir as imagens do #print-root. Num prontuário já emitido isso poria
+  // no papel uma rasterização das folhas montadas com os dados de HOJE — parecendo o documento
+  // arquivado e sem sê-lo. Sem a classe, o Ctrl+P cai no fluxo normal do navegador e o caminho
+  // oficial continua sendo o botão, que serve o `pdfRef`.
   useEffect(() => {
     if (tela !== 'visualizador') return;
+    if (fonteDeImpressao(emissao) === 'arquivo') return;
     let cancelado = false;
     const preview = document.querySelector<HTMLElement>('.prontuario-preview');
     if (!preview) return;
@@ -405,7 +431,9 @@ export default function Prontuarios() {
       cancelado = true;
       limparFolhasImpressao();
     };
-  }, [tela, versao]);
+    // `emissao` entra nas dependências para que EMITIR desligue o modo de impressão
+    // rasterizada na hora: a limpeza do efeito é que remove a classe e o #print-root.
+  }, [tela, versao, emissao]);
 
 
   useEffect(() => {
@@ -1102,7 +1130,7 @@ export default function Prontuarios() {
                       disabled={imprimindo}
                     >
                       {documentosBloqueados() && <Icone nome="cadeado" tam={13} />}{' '}
-                      {imprimindo ? 'Preparando…' : 'Imprimir'}
+                      {imprimindo ? 'Preparando…' : rotuloImpressao(fonteDeImpressao(emissao))}
                     </button>
                     <button
                       type="button"

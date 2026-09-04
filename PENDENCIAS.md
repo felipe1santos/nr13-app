@@ -541,3 +541,30 @@ caminhos — legado `15/05/2026` × novo `03/08/2026`, para o mesmo livro. O leg
 ELEMENTO do array; o novo usa o `max` das datas. O novo está certo (a coluna diz "último
 registro", e o mais recente é 03/08), mas é mudança visível e precisa de aprovação explícita.
 
+
+---
+
+## CÓDIGO MORTO: seis folhas de prontuário sem nenhum chamador (04/09/2026)
+
+Achado pelo inventário do hardening da Fase 12
+(`docs/medicoes/2026-09-04-fase12-hardening.md` §6). Em
+`public/arquivos-prontuario/`, seis arquivos têm **ZERO referências em `src/`**:
+
+| arquivo | bytes |
+|---|---|
+| `PRONT-P1.html` | 14.002 |
+| `PRONT-P2.html` | 20.558 |
+| `PRONT-P2B.html` | 6.075 |
+| `PRONT-P3.html` | 14.616 |
+| `PRONT-P4.html` | 9.563 |
+| `PRONT-CARACTERIZACAO.html` | 24.571 |
+
+Todos se intitulam "Prontuário do Vaso de Pressão — Folha N". Entraram no commit
+`d4e1d23` e aparecem só em dois documentos de planejamento de 09/07/2026;
+`PAGINAS_PRONTUARIO`/`paginasProntuario` não os contém e nenhum iframe os abre.
+
+**NÃO remover agora** — decisão do dono em 04/09/2026: ficam registrados como
+candidatos à limpeza na **Fase 13**. Antes de apagar, reconferir por varredura
+(`grep -rl "PRONT-P" src/ public/`), porque template órfão hoje pode ser folha
+prometida amanhã — as `PRONTUARIO-RECONSTITUICAO-1..4` do §8 do `CLAUDE.md` são
+o caso inverso: prometidas e inexistentes.

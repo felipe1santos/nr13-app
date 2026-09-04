@@ -56,6 +56,7 @@ import { publicarArtefato, artefatoDe } from '../features/relatorios/artefatoRel
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
 import { ehRascunho, temArtefato, type RelatorioIndiceItem, type RelatorioMeta, type RelatorioSalvo, type TipoInspecao } from '../features/relatorios/tipos';
 import VisualizadorPdf, { baixarPdfArquivado, imprimirPdfArquivado } from '../components/VisualizadorPdf';
+import { fonteDeImpressao, rotuloImpressao } from '../features/documentos/fonteImpressao';
 import { Icone } from '../components/Icone';
 import './relatorios.css';
 import PaginaA4 from '../components/PaginaA4';
@@ -224,7 +225,8 @@ function RelatoriosLegado() {
       // Relatório finalizado imprime o ARQUIVO. Re-rasterizar a tela produziria
       // um impresso feito com os dados de hoje — e permitiria que uma alteração
       // no DOM saísse no papel como se fosse o documento assinado.
-      if (relatorioArquivado && temArtefato(relatorioArquivado)) {
+      // A regra (e o porquê) em `features/documentos/fonteImpressao.ts`.
+      if (fonteDeImpressao(relatorioArquivado) === 'arquivo') {
         const ok = await imprimirPdfArquivado(artefatoDe(relatorioArquivado)!);
         if (!ok) setErroSalvar('Não foi possível abrir o PDF para impressão. Verifique a conexão.');
         else registrarUso('impressao');
@@ -1080,7 +1082,7 @@ function RelatoriosLegado() {
                 disabled={imprimindo}
               >
                 {documentosBloqueados() && <Icone nome="cadeado" tam={13} />}{' '}
-                {imprimindo ? 'Preparando…' : 'Imprimir'}
+                {imprimindo ? 'Preparando…' : rotuloImpressao(fonteDeImpressao(relatorioArquivado))}
               </button>
               <button
                 type="button"
