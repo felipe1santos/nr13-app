@@ -10,6 +10,7 @@ import {
   LIMITE_CORPO,
   MARGEM,
   PT,
+  ENTRELINHA_RODAPE,
   alturaLinha,
 } from './documentoA4';
 
@@ -292,8 +293,8 @@ export function rodape(ctx: Contexto): void {
   });
 }
 
-/** Altura ocupada pelo rodapé abaixo da régua. */
-const ALTURA_RODAPE_INTERNA = 1.5 + 3 * alturaLinha(FONTE.rodape);
+/** Altura ocupada pelo rodapé abaixo da régua — na entrelinha do `.rod` (1.35). */
+const ALTURA_RODAPE_INTERNA = 1.5 + 3 * alturaLinha(FONTE.rodape, ENTRELINHA_RODAPE);
 
 /** Uma folha nova, já com cabeçalho e rodapé. Devolve o `y` inicial do corpo. */
 export function novaFolha(ctx: Contexto, pagina: number, total: number, primeira = false): number {

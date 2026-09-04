@@ -58,6 +58,14 @@ export interface ModeloRelatorio {
   validade: string | null;
   execucao: string | null;
   fotoCapa: string | null;
+  /**
+   * Fase 12B · a FOTO REAL da placa, quando o usuário enviou uma.
+   *
+   * `null` = desenhar a placa RECONSTRUÍDA a partir dos dados da ficha. Entra
+   * no modelo já resolvida (dataURL + proporção) porque `montarModeloRelatorio`
+   * é síncrono e o arquivo vem do cofre/bucket — quem resolve é o gerador.
+   */
+  placaReal: { dataUrl: string; proporcao: number } | null;
 
   equipamento: Record<string, string | null>;
   pressoes: { rotulo: string; mpa: string | null; kgf: string | null; bar: string | null }[];
@@ -217,6 +225,7 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
     validade: txt(meta?.validade),
     execucao: txt(meta?.execucaoInspecao),
     fotoCapa: txt(fotosFicha.capa) ?? txt(fotosFicha.fotos?.[0]?.base64),
+    placaReal: null,
 
     equipamento: {
       'IDENTIFICAÇÃO / T.A.G.': tag,

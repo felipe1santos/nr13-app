@@ -140,6 +140,10 @@ export class Documento {
   banner(conteudo: string): void {
     const altura = alturaLinha(FONTE.banner) + 1.4;
     this.garantirEspaco(altura + 6); // banner órfão no pé da folha é ruído
+    // `margin: 3mm 0 1.2mm` na referência. O respiro DE CIMA estava faltando, e
+    // é ele que separa o banner da seção anterior — sem ele os blocos colavam.
+    // No topo da folha não se aplica: lá quem manda é a margem do papel.
+    if (this.cursor > CORPO.y) this.cursor += 3;
     this.pdf.setFillColor(COR.fundoCabecalhoTabela);
     this.pdf.setDrawColor(COR.texto);
     this.pdf.setLineWidth(BORDA_FINA);
@@ -154,6 +158,10 @@ export class Documento {
   faixa(conteudo: string): void {
     const altura = alturaLinha(FONTE.faixa) + 1.4;
     this.garantirEspaco(altura + 8);
+    // `margin: 2.4mm 0 0` na referência. Estava a cargo do chamador (`doc.y +=
+    // 2.4`), e só 2 dos 27 pontos faziam — o resto saía colado. Margem é
+    // atributo do elemento, não tarefa de quem o usa.
+    if (this.cursor > CORPO.y) this.cursor += 2.4;
     this.pdf.setFillColor(COR.fundoRotulo);
     this.pdf.setDrawColor(COR.bordaTabela);
     this.pdf.setLineWidth(BORDA_FINA);

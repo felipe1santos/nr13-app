@@ -1,7 +1,9 @@
-import { CAIXA, COR, FONTE } from './documentoA4';
+import { CAIXA, COR, FONTE, PT } from './documentoA4';
 import { secoesPresentes, type SecaoRelatorio } from './composicao';
 import { ALTURA_GRAFICO_TH, desenharGraficoTh, numeroDoTexto, pontosDaCurva } from './graficoTh';
 import { foto } from './primitivas';
+import { FAMILIA } from './carlito';
+import { camposDaPlaca } from '../placaIdentificacao';
 import type { Documento } from './documento';
 import { rotuloLaudo } from './rotulos';
 import { textoOu, type ExameVisual, type FotoModelo, type ModeloRelatorio } from './modelo';
@@ -165,7 +167,6 @@ export function folhaIdentificacao(doc: Documento, m: ModeloRelatorio): void {
   doc.banner('3. IDENTIFICAÇÃO DO EQUIPAMENTO — PLACA');
   tabelaChaveValor(doc, Object.entries(m.equipamento) as [string, string | null][]);
 
-  doc.y += 2.4;
   doc.faixa('PRESSÕES');
   doc.tabela({
     colunas: [0.4, 0.2, 0.2, 0.2],
@@ -178,7 +179,6 @@ export function folhaIdentificacao(doc: Documento, m: ModeloRelatorio): void {
     ]),
   });
 
-  doc.y += 2.4;
   doc.faixa('DATAS');
   doc.tabela({
     colunas: [0.25, 0.25, 0.25, 0.25],
@@ -190,6 +190,85 @@ export function folhaIdentificacao(doc: Documento, m: ModeloRelatorio): void {
         { texto: textoOu(m.validade), valor: true },
       ],
     ],
+  });
+
+  blocoPlaca(doc, m);
+}
+
+/** Altura reservada à placa — a mesma `.foto-larga` da referência (62mm). */
+export const ALTURA_PLACA = 62;
+
+/**
+ * A placa de identificação: a FOTO REAL quando existe, a RECONSTRUÍDA quando não.
+ *
+ * A foto prevalece porque ela é o equipamento; a reconstrução é a leitura que o
+ * sistema faz da ficha. Quando as duas existissem juntas, a foto é a que um
+ * fiscal confere.
+ */
+export function blocoPlaca(doc: Documento, m: ModeloRelatorio): void {
+  doc.faixa('PLACA DE IDENTIFICAÇÃO');
+  doc.garantirEspaco(ALTURA_PLACA + 2);
+  const topo = doc.y;
+  if (m.placaReal) {
+    // `foto` já encaixa DENTRO do quadro mantendo a proporção medida — é o
+    // "contain" pedido, e é o que impede a placa de sair esticada.
+    foto(doc.pdf, m.placaReal.dataUrl, { x: CAIXA.x, y: topo, largura: CAIXA.largura, altura: ALTURA_PLACA }, m.placaReal.proporcao);
+  } else {
+    desenharPlacaReconstruida(doc, m, topo);
+  }
+  doc.y = topo + ALTURA_PLACA;
+}
+
+/**
+ * A placa RECONSTRUÍDA — desenhada, não fotografada.
+ *
+ * Texto, linhas e moldura em vetor: é o mesmo motor que desenha o resto do
+ * documento, então a placa fica selecionável e nítida em qualquer zoom. Nenhum
+ * dado é inventado: campo sem valor na ficha sai com o travessão do documento.
+ */
+function desenharPlacaReconstruida(doc: Documento, m: ModeloRelatorio, topo: number): void {
+  const campos = camposDaPlaca(m.equipamento, m.pressoes);
+  const largura = CAIXA.largura * 0.72;
+  const x = CAIXA.x + (CAIXA.largura - largura) / 2;
+  const alturaTitulo = 8;
+  const linhas = Math.ceil(campos.length / 2);
+  const alturaLinhaPlaca = (ALTURA_PLACA - alturaTitulo - 4) / linhas;
+  const y0 = topo + 2;
+
+  doc.pdf.setDrawColor(COR.texto);
+  doc.pdf.setLineWidth(0.8 * PT);
+  doc.pdf.rect(x, y0, largura, ALTURA_PLACA - 4);
+
+  // Faixa do título, com o nome da empresa executante — é o que uma placa traz.
+  doc.pdf.setFillColor(COR.fundoCabecalhoTabela);
+  doc.pdf.rect(x, y0, largura, alturaTitulo, 'F');
+  doc.pdf.setLineWidth(0.6 * PT);
+  doc.pdf.line(x, y0 + alturaTitulo, x + largura, y0 + alturaTitulo);
+  doc.pdf.setFont(FAMILIA, 'bold');
+  doc.pdf.setFontSize(FONTE.banner);
+  doc.pdf.setTextColor(COR.texto);
+  doc.pdf.text('PLACA DE IDENTIFICAÇÃO — NR-13', x + largura / 2, y0 + alturaTitulo * 0.68, { align: 'center' });
+
+  const meia = largura / 2;
+  campos.forEach((campo, i) => {
+    const coluna = i % 2;
+    const linha = Math.floor(i / 2);
+    const cx = x + coluna * meia;
+    const cy = y0 + alturaTitulo + linha * alturaLinhaPlaca;
+    doc.pdf.setDrawColor(COR.bordaTabela);
+    doc.pdf.setLineWidth(0.4 * PT);
+    if (linha > 0) doc.pdf.line(cx, cy, cx + meia, cy);
+    if (coluna === 1) doc.pdf.line(cx, cy, cx, cy + alturaLinhaPlaca);
+
+    doc.pdf.setFont(FAMILIA, 'bold');
+    doc.pdf.setFontSize(FONTE.nota);
+    doc.pdf.setTextColor(COR.texto);
+    doc.pdf.text(campo[0], cx + 2, cy + alturaLinhaPlaca * 0.42);
+
+    doc.pdf.setFont(FAMILIA, 'normal');
+    doc.pdf.setFontSize(FONTE.tabela);
+    doc.pdf.setTextColor(COR.valor);
+    doc.pdf.text(textoOu(campo[1]), cx + 2, cy + alturaLinhaPlaca * 0.85);
   });
 }
 
@@ -405,7 +484,6 @@ export function folhaUltrassom(doc: Documento, m: ModeloRelatorio): void {
     ],
   });
 
-  doc.y += 2.4;
   doc.faixa('PONTOS DE MEDIÇÃO E MEDIDAS ENCONTRADAS (mm)');
   if (m.ultrassom.pontos.length > 0) {
     const maxMedidas = Math.max(...m.ultrassom.pontos.map((p) => p.medidas.length), 1);
@@ -434,7 +512,6 @@ export function folhaUltrassom(doc: Documento, m: ModeloRelatorio): void {
     doc.texto('Sem pontos de medição registrados.', { tamanho: FONTE.nota, cor: COR.nota, espacoAntes: 2 });
   }
 
-  doc.y += 2.4;
   doc.faixa('INSTRUMENTO DE MEDIÇÃO UTILIZADO');
   doc.tabela({
     compacta: true,
@@ -561,7 +638,8 @@ export function folhaParecer(doc: Documento, m: ModeloRelatorio): void {
 function assinaturas(doc: Documento, m: ModeloRelatorio): void {
   const alturaBloco = 16 + 3 + 3 * 4.2;
   doc.garantirEspaco(alturaBloco + 6);
-  doc.y += 8;
+  // `.assinaturas { margin-top: 6mm }` na referência — eram 8, medidos pelo gate.
+  doc.y += 6;
 
   const larguraQuadro = (CAIXA.largura - 8) / 2;
   const base = doc.y;

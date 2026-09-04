@@ -193,6 +193,10 @@ export const FORA_DO_PALCO = [
   // `LIVRO-REGISTRO.html` é documento legal e imprime só o que está trancado.
   'nr13_livro_rascunho_',
   'nr13_pront_fab_',
+  // 12B · a foto real da placa. Nenhuma folha de `public/` a lê: a placa é
+  // desenhada — ou embutida — pelo gerador vetorial a partir do modelo. Trazer
+  // uma foto para o palco gastaria orçamento de um documento que já é apertado.
+  'nr13_placa_',
   'nr13_componentes_cal_',
   'nr13_lotes_cal_',
   // Esta é lida por um template (`LIVRO-REGISTRO.html`) e mesmo assim fica de

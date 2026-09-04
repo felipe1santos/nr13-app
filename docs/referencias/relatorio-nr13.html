@@ -1,0 +1,1475 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Relatório de Inspeção de Segurança NR-13</title>
+<style>
+/* ============================================================
+   BASE
+   ============================================================ */
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: #6f7378;
+  font-family: "Carlito", "Calibri", "Segoe UI", Arial, sans-serif;
+  font-size: 10pt;
+  color: #000;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ============================================================
+   BARRA DE FERRAMENTAS (nunca imprime)
+   ============================================================ */
+.barra {
+  position: sticky; top: 0; z-index: 50;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 10px 16px;
+  background: #23262b;
+  border-bottom: 1px solid #000;
+  box-shadow: 0 2px 10px rgba(0,0,0,.35);
+}
+.barra .marca-app {
+  font-weight: 700; font-size: 11pt; color: #f2f2f2;
+  letter-spacing: .3px; margin-right: 10px;
+}
+.barra .aviso { margin-left: auto; color: #b9bec6; font-size: 8.5pt; }
+button.bt {
+  font: inherit; font-size: 9.5pt; font-weight: 600;
+  padding: 7px 13px; border-radius: 5px; cursor: pointer;
+  border: 1px solid #4a5058; background: #33383f; color: #eceff3;
+}
+button.bt:hover { background: #3d434b; }
+button.bt.primario { background: #1B3A6B; border-color: #2b5697; color: #fff; }
+button.bt.primario:hover { background: #24498a; }
+button.bt.perigo { border-color: #6b3030; }
+button.bt.perigo:hover { background: #5a2a2a; }
+
+/* ============================================================
+   FOLHA A4
+   ============================================================ */
+.folha {
+  position: relative;
+  width: 210mm; min-height: 297mm;
+  margin: 14px auto;
+  padding: 9mm 15mm 7mm 15mm;
+  background: #fff;
+  box-shadow: 0 3px 14px rgba(0,0,0,.4);
+  display: flex; flex-direction: column;
+  page-break-after: always; break-after: page;
+}
+.folha:last-of-type { page-break-after: auto; break-after: auto; }
+.corpo { flex: 1 1 auto; display: flex; flex-direction: column; }
+.estica { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 12mm; }
+.estica > .campo.bloco { flex: 1 1 auto; }
+.estica > .caixa { flex: 1 1 auto; display: flex; flex-direction: column; }
+.estica > .caixa > .campo.bloco { flex: 1 1 auto; }
+.folha[data-folha="fotos"] .grade-fotos { flex: 1 1 auto; }
+.cartao-foto { display: flex; flex-direction: column; }
+.cartao-foto .slot { flex: 1 1 auto; height: auto; min-height: 40mm; }
+.slot.estica-slot { flex: 1 1 auto; height: auto; min-height: 40mm; }
+
+/* cabeçalho -------------------------------------------------- */
+.cab {
+  display: grid; grid-template-columns: 50mm 1fr;
+  align-items: center; gap: 5mm;
+  padding-bottom: 2mm; margin-bottom: 3.5mm;
+  border-bottom: .6pt solid #808080;
+}
+.cab .logo-slot { height: 14mm; display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; }
+.cab .logo-slot img { max-height: 14mm; max-width: 100%; object-fit: contain; }
+.cab .logo-vazio {
+  width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+  border: 1px dashed #b9b9b9; background: #FFF8C4;
+  font-size: 7.5pt; color: #8a7a2e; text-align: center; line-height: 1.2;
+}
+.cab .titulo-cab { text-align: right; font-size: 8.5pt; }
+.cab .titulo-cab .num-doc { font-weight: 700; font-style: italic; font-size: 10pt; }
+.cab .titulo-cab .pagina { font-size: 7.5pt; margin-top: 1.5mm; }
+.cab .titulo-cab .pagina b { font-style: italic; }
+
+/* rodapé ----------------------------------------------------- */
+.rod {
+  margin-top: 3.5mm; padding-top: 1.5mm;
+  border-top: .6pt solid #808080;
+  text-align: center; font-size: 8.5pt; line-height: 1.35;
+}
+.rod .rod1 { font-weight: 700; }
+
+/* ============================================================
+   TIPOGRAFIA DO DOCUMENTO
+   ============================================================ */
+h1.titulo-doc { font-size: 24pt; font-weight: 700; text-align: center; margin: 4mm 0 1mm; line-height: 1.1; }
+h2.subtitulo-doc { font-size: 14pt; font-weight: 700; text-align: center; margin: 0; }
+p.doc-sigla { font-size: 12pt; font-style: italic; color: #6a6a6a; text-align: center; margin: .8mm 0 4mm; }
+
+h3.secao { font-size: 10pt; font-weight: 700; margin: 3.4mm 0 1.2mm; page-break-after: avoid; }
+h4.sub { font-size: 9.5pt; font-weight: 700; margin: 2.4mm 0 .8mm; }
+
+.banner {
+  border: .6pt solid #000; background: #d9d9d9;
+  text-align: center; font-weight: 700; font-size: 10.5pt;
+  padding: .7mm 0; margin: 3mm 0 1.2mm;
+}
+.faixa {
+  background: #f2f2f2; border: .6pt solid #808080;
+  font-weight: 700; font-size: 9pt; padding: .7mm 2mm; margin: 2.4mm 0 0;
+}
+p.texto, .texto { text-align: justify; line-height: 1.3; margin: 0 0 1.3mm; }
+.item-titulo { font-weight: 700; font-style: italic; margin: 2mm 0 .6mm 6mm; }
+.item-titulo .n { display: inline-block; width: 5mm; }
+.bloco-item { margin-left: 6mm; }
+.rot { font-weight: 700; }
+.centro { text-align: center; }
+.dir { text-align: right; }
+.mini { font-size: 8.5pt; }
+.nota { font-size: 8pt; color: #404040; line-height: 1.25; }
+
+/* ============================================================
+   CAMPOS EDITÁVEIS (amarelo = vazio · azul-escuro = preenchido)
+   ============================================================ */
+.campo {
+  display: inline-block; min-width: 20mm; padding: 0 1mm;
+  color: #1B3A6B; font-weight: 600; outline: none; border-radius: 2px;
+  vertical-align: baseline;
+}
+.campo.vazio { background: #FFF8C4; }
+.campo:focus { background: #FFF3A8; }
+.campo.vazio::before {
+  content: attr(data-ph); color: #9c9377; font-weight: 400; font-style: italic; pointer-events: none;
+}
+.campo.vazio:focus::before { content: ""; }
+.campo.bloco { display: block; width: 100%; min-height: 4.4mm; text-align: justify; line-height: 1.3; }
+.campo.livre { font-weight: 500; }
+
+[contenteditable].texto, [contenteditable].texto-cel { outline: none; }
+[contenteditable].texto:hover, [contenteditable].texto-cel:hover { background: #f6f6f6; }
+[contenteditable].texto:focus, [contenteditable].texto-cel:focus { background: #FFF3A8; }
+
+.toggle {
+  color: #1B3A6B; font-weight: 600; cursor: pointer; padding: 0 1mm;
+  border-radius: 2px; border-bottom: 1px dotted #9bb0cf;
+}
+.toggle:hover { background: #eef3fb; }
+.toggle.neg { color: #8a1d1d; border-bottom-color: #d8a2a2; }
+
+/* ============================================================
+   TABELAS
+   ============================================================ */
+table.tb { width: 100%; border-collapse: collapse; margin: 1.2mm 0; }
+table.tb th, table.tb td {
+  border: .6pt solid #808080; padding: .6mm 1.4mm; font-size: 8.5pt; vertical-align: middle;
+}
+table.tb th { background: #d9d9d9; font-weight: 700; text-align: center; }
+table.tb td.c { text-align: center; }
+table.tb td.rotulo { background: #f2f2f2; font-weight: 700; width: 38%; }
+table.tb tbody tr:nth-child(even) td:not(.rotulo) { background: #fafafa; }
+table.tb .campo { min-width: 8mm; width: 100%; }
+table.tb .campo.auto { width: auto; min-width: 30mm; }
+table.tb.compacta th, table.tb.compacta td { padding: .45mm 1.2mm; font-size: 8pt; }
+
+table.limpa { width: 100%; border-collapse: collapse; }
+table.limpa td { padding: .5mm 0; vertical-align: top; }
+table.limpa td.rot { width: 36mm; white-space: nowrap; padding-right: 2mm; }
+
+td.marca { cursor: pointer; font-weight: 700; font-size: 9.5pt; }
+td.marca:hover { background: #eef3fb !important; }
+col.op { width: 13mm; }
+
+/* ============================================================
+   FOTOS / ASSINATURAS / LOGO
+   ============================================================ */
+.slot {
+  position: relative; cursor: pointer; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  background: #FFF8C4; border: 1px dashed #c9bd7a;
+  color: #8a7a2e; font-size: 8pt; text-align: center; padding: 2mm;
+}
+.slot.tem-img { background: transparent; border: .6pt solid #d0d0d0; padding: 0; }
+.slot img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.slot .rm {
+  position: absolute; top: 2px; right: 2px; width: 18px; height: 18px;
+  line-height: 16px; text-align: center; border-radius: 50%;
+  background: rgba(0,0,0,.55); color: #fff; font-size: 12px; font-weight: 700;
+  cursor: pointer; display: none;
+}
+.slot.tem-img .rm { display: block; }
+.slot-assin { height: 16mm; border-style: dashed; }
+.slot-assin.tem-img { border: none; }
+.foto-capa { height: 92mm; }
+.foto-larga { height: 62mm; }
+
+.grade-fotos { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
+.cartao-foto .slot { height: 74mm; }
+.cartao-foto .legenda { margin-top: 1mm; text-align: center; font-size: 8.5pt; }
+
+.assinaturas { display: grid; grid-template-columns: 1fr 1fr; gap: 8mm; margin-top: 6mm; }
+.assinaturas .quadro { text-align: center; }
+.assinaturas .linha { border-top: .6pt solid #000; margin-top: 1mm; padding-top: 1mm; }
+
+/* ============================================================
+   AUXILIARES DE TELA
+   ============================================================ */
+.bt-linha {
+  font: inherit; font-size: 8.5pt; font-weight: 600;
+  margin: 1mm 2mm 0 0; padding: 3px 9px; cursor: pointer;
+  border: 1px solid #c3c8d0; border-radius: 4px; background: #eef1f5; color: #33465f;
+}
+.bt-linha:hover { background: #e2e7ee; }
+.aviso-estouro {
+  position: absolute; top: 4mm; right: 4mm; z-index: 5;
+  background: #a12222; color: #fff; font-size: 8pt; font-weight: 700;
+  padding: 3px 8px; border-radius: 4px; display: none;
+}
+.folha.estourou .aviso-estouro { display: block; }
+.folha.estourou { outline: 2px solid #a12222; }
+
+/* ============================================================
+   IMPRESSÃO / PDF — vetorial, A4 exato
+   ============================================================ */
+@page { size: A4 portrait; margin: 0; }
+@media print {
+  html, body { background: #fff !important; }
+  .barra, .so-tela, .bt-linha, .aviso-estouro, .slot .rm { display: none !important; }
+  .folha {
+    width: 210mm; height: 297mm; min-height: 297mm; margin: 0;
+    box-shadow: none; outline: none !important;
+    page-break-after: always; break-after: page; overflow: hidden;
+  }
+  .folha:last-of-type { page-break-after: auto; break-after: auto; }
+  .campo, .campo:focus { background: transparent !important; }
+  .campo.vazio::before { content: "" !important; }
+  .toggle { border-bottom: none !important; background: transparent !important; }
+  [contenteditable]:hover, [contenteditable]:focus { background: transparent !important; }
+  .slot { border: none !important; background: transparent !important; color: transparent !important; }
+  .cab .logo-vazio { border: none !important; background: transparent !important; color: transparent !important; }
+  .cartao-foto .slot:not(.tem-img), .foto-capa:not(.tem-img), .foto-larga:not(.tem-img) { border: .4pt solid #cfcfcf !important; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============================ BARRA ============================ -->
+<div class="barra so-tela">
+  <span class="marca-app">Relatório NR-13</span>
+  <button class="bt primario" onclick="imprimir()">Imprimir / Salvar PDF</button>
+  <button class="bt" onclick="addFolhaFotos()">+ Folha de fotos</button>
+  <button class="bt" onclick="rmFolhaFotos()">− Folha de fotos</button>
+  <button class="bt perigo" onclick="limparTudo()">Limpar tudo</button>
+  <span class="aviso">Nada é salvo. Ao fechar, o preenchimento se perde — imprima ou salve o PDF antes.</span>
+</div>
+
+<input type="file" id="entrada-arquivo" accept="image/*" style="display:none">
+
+<!-- ====================== FOLHA 1 — CAPA ====================== -->
+<section class="folha">
+  <div class="aviso-estouro">Conteúdo passou do limite da folha</div>
+  <header class="cab"></header>
+  <div class="corpo">
+    <h1 class="titulo-doc" contenteditable>Relatório de Inspeção de Segurança</h1>
+    <h2 class="subtitulo-doc" contenteditable>Vaso de Pressão — NR-13</h2>
+    <p class="doc-sigla" contenteditable>(Portaria nº 1.082, de 18 de dezembro de 2018)</p>
+
+    <table class="tb" style="margin-top:2mm">
+      <tr>
+        <td class="rotulo" style="width:22%">EQUIPAMENTO</td>
+        <td style="width:36%"><span class="campo" data-sync="equipamento" data-ph="Ex.: Vaso de pressão / Autoclave"></span></td>
+        <td class="rotulo" style="width:14%">T.A.G.</td>
+        <td style="width:28%"><span class="campo" data-sync="tag" data-ph="TAG-001"></span></td>
+      </tr>
+      <tr>
+        <td class="rotulo">CLASSE DO FLUIDO</td><td><span class="campo" data-sync="classe" data-ph="A / B / C / D"></span></td>
+        <td class="rotulo">GRUPO</td><td><span class="campo" data-sync="grupo" data-ph="1 a 5"></span></td>
+      </tr>
+      <tr>
+        <td class="rotulo">CATEGORIA DO VASO</td><td><span class="campo" data-sync="categoria" data-ph="I a V"></span></td>
+        <td class="rotulo">VALIDADE</td><td><span class="campo" data-sync="validade" data-ph="00/00/0000"></span></td>
+      </tr>
+    </table>
+
+    <div class="slot foto-capa estica-slot" data-tipo="foto" style="margin:3mm 0">Clique para adicionar a foto do equipamento</div>
+
+    <table class="tb">
+      <tr><td class="rotulo" style="width:26%">Nº DO RELATÓRIO</td><td><span class="campo" data-sync="numdoc" data-ph="REL-0000/26"></span></td></tr>
+      <tr><td class="rotulo">Nº DA A.R.T. (CREA)</td><td><span class="campo" data-sync="art" data-ph="Ex.: 28027230251234567"></span></td></tr>
+      <tr><td class="rotulo">DATA DA INSPEÇÃO</td><td><span class="campo" data-sync="datainsp" data-ph="00/00/0000"></span></td></tr>
+      <tr><td class="rotulo">SOLICITANTE / CONTRATANTE</td><td><span class="campo" data-sync="contratante" data-ph="Razão social do cliente"></span></td></tr>
+      <tr><td class="rotulo">ENDEREÇO</td><td><span class="campo" data-sync="endereco" data-ph="Rua, nº, bairro, cidade/UF"></span></td></tr>
+      <tr><td class="rotulo">RESPONSÁVEL TÉCNICO</td><td><span class="campo auto" data-sync="engenheiro" data-ph="Nome do engenheiro"></span> &nbsp;•&nbsp; CREA: <span class="campo auto" style="min-width:24mm" data-sync="crea" data-ph="0000000000"></span></td></tr>
+    </table>
+  </div>
+  <footer class="rod"></footer>
+</section>
+
+<!-- ============ FOLHA 2 — SUMÁRIO / OBJETIVO / REFERÊNCIAS ============ -->
+<section class="folha">
+  <div class="aviso-estouro">Conteúdo passou do limite da folha</div>
+  <header class="cab"></header>
+  <div class="corpo">
+    <div class="banner">SUMÁRIO GERAL</div>
+    <table class="tb compacta">
+      <tr><td style="width:8%" class="c">1</td><td contenteditable class="texto-cel">OBJETIVO</td><td class="c" style="width:10%">3</td></tr>
+      <tr><td class="c">2</td><td contenteditable class="texto-cel">DOCUMENTOS DE REFERÊNCIA</td><td class="c">3</td></tr>
+      <tr><td class="c">3</td><td contenteditable class="texto-cel">IDENTIFICAÇÃO DO EQUIPAMENTO</td><td class="c">4</td></tr>
+      <tr><td class="c">4</td><td contenteditable class="texto-cel">CATEGORIZAÇÃO DE RISCO</td><td class="c">5</td></tr>
+      <tr><td class="c">5</td><td contenteditable class="texto-cel">DADOS TÉCNICOS DO EQUIPAMENTO (PRONTUÁRIO)</td><td class="c">6</td></tr>
+      <tr><td class="c">6</td><td contenteditable class="texto-cel">MEMÓRIA DE CÁLCULO DA PMTA</td><td class="c">7</td></tr>
+      <tr><td class="c">7</td><td contenteditable class="texto-cel">EXAMES REALIZADOS</td><td class="c">9</td></tr>
+      <tr><td class="c">7.1</td><td contenteditable class="texto-cel">VERIFICAÇÃO DA DOCUMENTAÇÃO</td><td class="c">10</td></tr>
+      <tr><td class="c">7.2</td><td contenteditable class="texto-cel">EXAME EXTERNO</td><td class="c">13</td></tr>
+      <tr><td class="c">7.3</td><td contenteditable class="texto-cel">EXAME INTERNO</td><td class="c">15</td></tr>
+      <tr><td class="c">7.4</td><td contenteditable class="texto-cel">MEDIÇÃO DE ESPESSURA POR ULTRASSOM</td><td class="c">17</td></tr>
+      <tr><td class="c">7.5</td><td contenteditable class="texto-cel">TESTE HIDROSTÁTICO</td><td class="c">18</td></tr>
+      <tr><td class="c">8</td><td contenteditable class="texto-cel">REGISTROS FOTOGRÁFICOS</td><td class="c">12</td></tr>
+      <tr><td class="c">9</td><td contenteditable class="texto-cel">RECOMENDAÇÕES DE SEGURANÇA</td><td class="c">20</td></tr>
+      <tr><td class="c">10</td><td contenteditable class="texto-cel">PARECER TÉCNICO CONCLUSIVO</td><td class="c">20</td></tr>
+      <tr><td class="c">11</td><td contenteditable class="texto-cel">DATA PARA A PRÓXIMA INSPEÇÃO</td><td class="c">20</td></tr>
+      <tr><td class="c">12</td><td contenteditable class="texto-cel">REGISTRO DE SEGURANÇA</td><td class="c">21</td></tr>
+    </table>
+
+    <h3 class="secao">1. OBJETIVO</h3>
+    <p class="texto" contenteditable>Este relatório tem por objetivo apresentar os resultados da inspeção de segurança realizada no vaso de pressão identificado neste documento, em atendimento à Norma Regulamentadora nº 13 (NR-13) — Caldeiras, Vasos de Pressão, Tubulações e Tanques Metálicos de Armazenamento, aprovada pela Portaria nº 1.082, de 18 de dezembro de 2018, do Ministério do Trabalho e Emprego.</p>
+    <p class="texto" contenteditable>A inspeção contempla o exame da documentação existente, os exames externo e interno, a medição de espessura por ultrassom, a verificação dos dispositivos de segurança e a avaliação da Pressão Máxima de Trabalho Admissível (PMTA), com emissão de parecer técnico conclusivo sobre as condições de segurança e integridade do equipamento.</p>
+
+    <h3 class="secao">2. DOCUMENTOS DE REFERÊNCIA</h3>
+    <table class="tb compacta">
+      <thead><tr><th style="width:26%">Documento</th><th>Título</th></tr></thead>
+      <tbody>
+        <tr><td class="c texto-cel" contenteditable>NR-13</td><td contenteditable class="texto-cel">Caldeiras, Vasos de Pressão, Tubulações e Tanques Metálicos de Armazenamento — Portaria nº 1.082/2018</td></tr>
+        <tr><td class="c texto-cel" contenteditable>ASME VIII Div. 1</td><td contenteditable class="texto-cel">Rules for Construction of Pressure Vessels</td></tr>
+        <tr><td class="c texto-cel" contenteditable>ABNT NBR 16035</td><td contenteditable class="texto-cel">Vasos de pressão e trocadores de calor — Requisitos</td></tr>
+        <tr><td class="c texto-cel" contenteditable>ASME V</td><td contenteditable class="texto-cel">Nondestructive Examination — Ensaios não destrutivos</td></tr>
+        <tr><td class="c"><span class="campo livre" data-ph="Outro documento"></span></td><td><span class="campo livre" data-ph="Título"></span></td></tr>
+      </tbody>
+    </table>
+    <p class="nota" contenteditable>Nota: os documentos acima constituem a base normativa utilizada na execução dos exames e na emissão do parecer técnico deste relatório.</p>
+    <h3 class="secao">2.1 ESCOPO E OBSERVAÇÕES DA INSPEÇÃO</h3>
+    <div class="estica"><span class="campo bloco" data-ph="Descreva o escopo contratado, as limitações do exame (partes inacessíveis, ensaios não executados) e demais observações relevantes."></span></div>
+  </div>
+  <footer class="rod"></footer>
+</section>
+
+<!-- ============ FOLHA 3 — IDENTIFICAÇÃO DO EQUIPAMENTO ============ -->
+<section class="folha">
+  <div class="aviso-estouro">Conteúdo passou do limite da folha</div>
+  <header class="cab"></header>
+  <div class="corpo">
+    <div class="banner">3. IDENTIFICAÇÃO DO EQUIPAMENTO — PLACA</div>
+    <table class="tb">
+      <tr><td class="rotulo">IDENTIFICAÇÃO / T.A.G.</td><td><span class="campo" data-sync="tag" data-ph="TAG-001"></span></td>
+          <td class="rotulo" style="width:22%">TIPO DE EQUIPAMENTO</td><td><span class="campo" data-sync="equipamento" data-ph="Vaso de pressão"></span></td></tr>
+      <tr><td class="rotulo">FABRICANTE</td><td><span class="campo" data-sync="fabricante" data-ph="—"></span></td>
+          <td class="rotulo">NÚMERO DE SÉRIE</td><td><span class="campo" data-sync="serie" data-ph="—"></span></td></tr>
+      <tr><td class="rotulo">ANO DE FABRICAÇÃO</td><td><span class="campo" data-ph="—"></span></td>
+          <td class="rotulo">CÓDIGO DE PROJETO</td><td><span class="campo" data-ph="ASME VIII Div. 1"></span></td></tr>
+      <tr><td class="rotulo">FLUIDO DE OPERAÇÃO</td><td><span class="campo" data-sync="fluido" data-ph="—"></span></td>
+          <td class="rotulo">CLASSE DO FLUIDO</td><td><span class="campo" data-sync="classe" data-ph="—"></span></td></tr>
+      <tr><td class="rotulo">VOLUME (m³)</td><td><span class="campo" data-sync="volume" data-ph="—"></span></td>
+          <td class="rotulo">GRUPO DE RISCO</td><td><span class="campo" data-sync="grupo" data-ph="—"></span></td></tr>
+      <tr><td class="rotulo">CATEGORIA DO VASO</td><td><span class="campo" data-sync="categoria" data-ph="—"></span></td>
+          <td class="rotulo">LOCAL DA INSTALAÇÃO</td><td><span class="campo" data-ph="—"></span></td></tr>
+    </table>
+
+    <div class="faixa">PRESSÕES</div>
+    <table class="tb">
+      <thead><tr><th style="width:28%">GRANDEZA</th><th>MPa</th><th>psi</th><th>kgf/cm²</th></tr></thead>
+      <tbody>
+        <tr><td class="rotulo">PMO — Pressão Máxima de Operação</td><td class="c"><span class="campo livre" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td class="rotulo">PMTA — Pressão Máxima de Trabalho Admissível</td><td class="c"><span class="campo livre" data-sync="pmta" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td class="rotulo">PTH — Pressão de Teste Hidrostático</td><td class="c"><span class="campo livre" data-sync="pth" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td></tr>
+      </tbody>
+    </table>
+
+    <div class="faixa">DATAS</div>
+    <table class="tb">
+      <tr>
+        <td class="rotulo" style="width:25%">EXECUÇÃO DA INSPEÇÃO</td><td><span class="campo" data-sync="datainsp" data-ph="00/00/0000"></span></td>
+        <td class="rotulo" style="width:25%">VALIDADE DA INSPEÇÃO</td><td><span class="campo" data-sync="validade" data-ph="00/0000"></span></td>
+      </tr>
+    </table>
+
+    <h3 class="secao">Registro fotográfico da placa de identificação</h3>
+    <div class="slot foto-larga estica-slot" data-tipo="foto">Clique para adicionar a foto da placa</div>
+  </div>
+  <footer class="rod"></footer>
+</section>
+
+<!-- ============ FOLHA 4 — CATEGORIZAÇÃO DE RISCO ============ -->
+<section class="folha">
+  <div class="aviso-estouro">Conteúdo passou do limite da folha</div>
+  <header class="cab"></header>
+  <div class="corpo">
+    <div class="banner">4. CATEGORIZAÇÃO DE RISCO</div>
+    <p class="texto" contenteditable>Classificação do vaso de pressão conforme o item 13.5.1.2 da norma NR-13.</p>
+
+    <table class="tb">
+      <tr><td class="rotulo">FLUIDO DE TRABALHO</td><td><span class="campo" data-sync="fluido" data-ph="—"></span></td>
+          <td class="rotulo" style="width:24%">CÓDIGO DE PROJETO</td><td><span class="campo" data-ph="ASME VIII Div. 1"></span></td></tr>
+      <tr><td class="rotulo">PRESSÃO MÁX. ADMISSÍVEL (PMTA)</td><td><span class="campo" data-ph="— kPa"></span></td>
+          <td class="rotulo">VOLUME GEOMÉTRICO</td><td><span class="campo" data-sync="volume" data-ph="— m³"></span></td></tr>
+      <tr><td class="rotulo">PRODUTO P.V. (kPa × m³)</td><td><span class="campo" data-ph="—"></span></td>
+          <td class="rotulo">P.V. &gt; 8 — APLICA-SE A NR-13?</td><td><span class="toggle" data-op="SIM|NÃO">SIM</span></td></tr>
+      <tr><td class="rotulo">PRODUTO P.V. PARA RISCO (MPa × m³)</td><td><span class="campo" data-ph="—"></span></td>
+          <td class="rotulo">CLASSE DO FLUIDO</td><td><span class="campo" data-sync="classe" data-ph="—"></span></td></tr>
+      <tr><td class="rotulo">GRUPO POTENCIAL DE RISCO</td><td><span class="campo" data-sync="grupo" data-ph="—"></span></td>
+          <td class="rotulo">CATEGORIA DO VASO</td><td><span class="campo" data-sync="categoria" data-ph="—"></span></td></tr>
+    </table>
+
+    <div class="faixa">MATRIZ DE CATEGORIZAÇÃO — item 13.5.1.2 da NR-13</div>
+    <table class="tb compacta">
+      <thead>
+        <tr>
+          <th rowspan="2" style="width:44%">CLASSE DE FLUIDO (CORPO / TUBO)</th>
+          <th colspan="5">GRUPO POTENCIAL DE RISCO</th>
+        </tr>
+        <tr>
+          <th>1<br>P.V ≥ 100</th><th>2<br>P.V &lt; 100<br>P.V ≥ 30</th><th>3<br>P.V &lt; 30<br>P.V ≥ 2,5</th><th>4<br>P.V &lt; 2,5<br>P.V ≥ 1</th><th>5<br>P.V &lt; 1</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>A</b> — Fluido inflamável; combustível com temperatura ≥ 200 °C; tóxico com limite de tolerância ≤ 20 ppm; hidrogênio; acetileno</td>
+          <td class="c">I</td><td class="c">I</td><td class="c">II</td><td class="c">III</td><td class="c">III</td>
+        </tr>
+        <tr>
+          <td><b>B</b> — Combustível com temperatura menor que 200 °C; tóxico com limite de tolerância &gt; 20 ppm</td>
+          <td class="c">I</td><td class="c">II</td><td class="c">III</td><td class="c">IV</td><td class="c">IV</td>
+        </tr>
+        <tr>
+          <td><b>C</b> — Vapor de água; gases asfixiantes simples; ar comprimido</td>
+          <td class="c">I</td><td class="c">II</td><td class="c">III</td><td class="c">IV</td><td class="c">V</td>
+        </tr>
+        <tr>
+          <td><b>D</b> — Outro fluido</td>
+          <td class="c">II</td><td class="c">III</td><td class="c">IV</td><td class="c">V</td><td class="c">V</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="faixa">OPERAÇÃO DO VASO DE PRESSÃO</div>
+    <table class="tb">
+      <tr>
+        <td class="rotulo" style="width:38%">CATEGORIA DO VASO</td><td><span class="campo" data-sync="categoria" data-ph="—"></span></td>
+      </tr>
+      <tr>
+        <td class="rotulo">É OBRIGATÓRIO OPERADOR TREINADO (ANEXO I-B)?</td><td><span class="toggle" data-op="SIM|NÃO">SIM</span></td>
+      </tr>
+    </table>
+    <p class="nota" contenteditable>Nota: a operação de unidades que possuam vasos de pressão de categorias I ou II deve ser efetuada por profissional capacitado, conforme item “B1.1” do Anexo I desta NR.</p>
+
+    <h3 class="secao">Observações sobre a categorização</h3>
+    <div class="estica"><span class="campo bloco" data-ph="Observações do responsável técnico sobre a classificação do equipamento"></span></div>
+  </div>
+  <footer class="rod"></footer>
+</section>
+
+<!-- ============ FOLHA 5 — DADOS TÉCNICOS / PRONTUÁRIO ============ -->
+<section class="folha">
+  <div class="aviso-estouro">Conteúdo passou do limite da folha</div>
+  <header class="cab"></header>
+  <div class="corpo">
+    <div class="banner">5. DADOS TÉCNICOS DO EQUIPAMENTO — PRONTUÁRIO</div>
+
+    <div class="faixa">DADOS GERAIS</div>
+    <table class="tb">
+      <tr><td class="rotulo" style="width:24%">CONTRATANTE</td><td><span class="campo" data-sync="contratante" data-ph="—"></span></td></tr>
+      <tr><td class="rotulo">ENDEREÇO</td><td><span class="campo" data-sync="endereco" data-ph="—"></span></td></tr>
+    </table>
+
+    <div class="faixa">ASPECTOS CONSTRUTIVOS</div>
+    <table class="tb">
+      <tr><td class="rotulo" style="width:24%">MATERIAL DO CORPO</td><td><span class="campo" data-ph="—"></span></td>
+          <td class="rotulo" style="width:24%">TIPO DE CONSTRUÇÃO</td><td><span class="campo" data-ph="—"></span></td></tr>
+      <tr><td class="rotulo">MATERIAL DO TAMPO 1</td><td><span class="campo" data-ph="—"></span></td>
+          <td class="rotulo">MATERIAL DO TAMPO 2</td><td><span class="campo" data-ph="—"></span></td></tr>
+      <tr><td class="rotulo">VOLUME (m³)</td><td><span class="campo" data-sync="volume" data-ph="—"></span></td>
+          <td class="rotulo">PRESSÃO DE PROJETO</td><td><span class="campo" data-ph="—"></span></td></tr>
+      <tr><td class="rotulo">MARGEM DE CORROSÃO (mm)</td><td><span class="campo" data-ph="—"></span></td>
+          <td class="rotulo">TEMPERATURA DE PROJETO (°C)</td><td><span class="campo" data-ph="—"></span></td></tr>
+      <tr><td class="rotulo">DESCRIÇÃO RESUMIDA</td><td colspan="3"><span class="campo" data-ph="Descrição resumida do equipamento e sua função"></span></td></tr>
+    </table>
+
+    <div class="faixa">ASPECTOS OPERACIONAIS</div>
+    <table class="tb">
+      <thead><tr><th style="width:28%">GRANDEZA</th><th>MPa</th><th>psi</th><th>kgf/cm²</th></tr></thead>
+      <tbody>
+        <tr><td class="rotulo">PMO</td><td class="c"><span class="campo livre" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td class="rotulo">PMTA</td><td class="c"><span class="campo livre" data-sync="pmta" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td class="rotulo">PTH</td><td class="c"><span class="campo livre" data-sync="pth" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td></tr>
+      </tbody>
+    </table>
+
+    <div class="faixa">CATEGORIZAÇÃO DO EQUIPAMENTO</div>
+    <table class="tb">
+      <tr><td class="rotulo" style="width:30%">RELAÇÃO: P (kPa) × V (m³)</td><td><span class="campo" data-ph="—"></span></td>
+          <td class="rotulo" style="width:20%">RESULTADO</td><td><span class="campo" data-ph="—"></span></td></tr>
+      <tr><td class="rotulo">RELAÇÃO: P (MPa) × V (m³)</td><td><span class="campo" data-ph="—"></span></td>
+          <td class="rotulo">RESULTADO</td><td><span class="campo" data-ph="—"></span></td></tr>
+      <tr><td class="rotulo">CLASSIFICAÇÃO DO FLUIDO</td><td><span class="campo" data-sync="classe" data-ph="—"></span></td>
+          <td class="rotulo">GRUPO / CATEGORIA</td><td><span class="campo auto" style="min-width:16mm" data-sync="grupo" data-ph="—"></span> / <span class="campo auto" style="min-width:16mm" data-sync="categoria" data-ph="—"></span></td></tr>
+    </table>
+
+    <p class="nota" contenteditable><b>Legenda:</b> PMO — Pressão Máxima de Operação · PMTA — Pressão Máxima de Trabalho Admissível · PTH — Pressão de Teste Hidrostático.</p>
+    <h3 class="secao">OBSERVAÇÕES E PENDÊNCIAS DO PRONTUÁRIO</h3>
+    <div class="estica"><span class="campo bloco" data-ph="Divergências entre o prontuário e o equipamento, documentos faltantes e providências necessárias."></span></div>
+  </div>
+  <footer class="rod"></footer>
+</section>
+
+<!-- ============ FOLHA 6 — RESUMO DE CÁLCULOS DA PMTA ============ -->
+<section class="folha">
+  <div class="aviso-estouro">Conteúdo passou do limite da folha</div>
+  <header class="cab"></header>
+  <div class="corpo">
+    <div class="banner">6. RESUMO DE CÁLCULOS DA PMTA E ESPESSURA MÍNIMA</div>
+
+    <div class="faixa">PARÂMETROS E RESULTADOS: CASCO PRINCIPAL</div>
+    <table class="tb compacta">
+      <tr><td class="rotulo" style="width:30%">ESPESSURA MÍN. CALCULADA (t)</td><td><span class="campo livre" data-ph="— mm"></span></td>
+          <td class="rotulo" style="width:24%">PMTA CALCULADA (P)</td><td><span class="campo livre" data-ph="— MPa"></span></td></tr>
+      <tr><td class="rotulo">EFICIÊNCIA DA JUNTA (E)</td><td><span class="campo livre" data-ph="—"></span></td>
+          <td class="rotulo">ESP. MÍN. MEDIDA (t)</td><td><span class="campo livre" data-ph="— mm"></span></td></tr>
+      <tr><td class="rotulo">MARGEM DE CORROSÃO (c)</td><td><span class="campo livre" data-ph="— mm"></span></td>
+          <td class="rotulo">RAIO INTERNO (Ri)</td><td><span class="campo livre" data-ph="— mm"></span></td></tr>
+      <tr><td class="rotulo">MATERIAL DO CASCO</td><td><span class="campo livre" data-ph="—"></span></td>
+          <td class="rotulo">TENSÃO ADMISSÍVEL (S)</td><td><span class="campo livre" data-ph="— MPa"></span></td></tr>
+    </table>
+
+    <div class="faixa">PARÂMETROS E RESULTADOS: TAMPO SUPERIOR</div>
+    <table class="tb compacta">
+      <tr><td class="rotulo" style="width:30%">ESPESSURA MÍN. CALCULADA (t)</td><td><span class="campo livre" data-ph="— mm"></span></td>
+          <td class="rotulo" style="width:24%">PMTA CALCULADA (P)</td><td><span class="campo livre" data-ph="— MPa"></span></td></tr>
+      <tr><td class="rotulo">EFICIÊNCIA DA JUNTA (E)</td><td><span class="campo livre" data-ph="—"></span></td>
+          <td class="rotulo">ESP. MÍN. MEDIDA (t)</td><td><span class="campo livre" data-ph="— mm"></span></td></tr>
+      <tr><td class="rotulo">MARGEM DE CORROSÃO (c)</td><td><span class="campo livre" data-ph="— mm"></span></td>
+          <td class="rotulo">RAIO DA COROA (L)</td><td><span class="campo livre" data-ph="— mm"></span></td></tr>
+      <tr><td class="rotulo">MATERIAL DO TAMPO</td><td><span class="campo livre" data-ph="—"></span></td>
+          <td class="rotulo">TENSÃO ADMISSÍVEL (S)</td><td><span class="campo livre" data-ph="— MPa"></span></td></tr>
+    </table>
+
+    <div class="faixa">PARÂMETROS E RESULTADOS: TAMPO INFERIOR</div>
+    <table class="tb compacta">
+      <tr><td class="rotulo" style="width:30%">ESPESSURA MÍN. CALCULADA (t)</td><td><span class="campo livre" data-ph="— mm"></span></td>
+          <td class="rotulo" style="width:24%">PMTA CALCULADA (P)</td><td><span class="campo livre" data-ph="— MPa"></span></td></tr>
+      <tr><td class="rotulo">EFICIÊNCIA DA JUNTA (E)</td><td><span class="campo livre" data-ph="—"></span></td>
+          <td class="rotulo">ESP. MÍN. MEDIDA (t)</td><td><span class="campo livre" data-ph="— mm"></span></td></tr>
+      <tr><td class="rotulo">MARGEM DE CORROSÃO (c)</td><td><span class="campo livre" data-ph="— mm"></span></td>
+          <td class="rotulo">RAIO DA COROA (L)</td><td><span class="campo livre" data-ph="— mm"></span></td></tr>
+      <tr><td class="rotulo">MATERIAL DO TAMPO</td><td><span class="campo livre" data-ph="—"></span></td>
+          <td class="rotulo">TENSÃO ADMISSÍVEL (S)</td><td><span class="campo livre" data-ph="— MPa"></span></td></tr>
+    </table>
+
+    <p class="texto" style="margin-top:3mm">A espessura mínima requerida limitante do sistema é de <span class="campo" data-ph="—"></span> mm, referente ao componente <span class="campo" data-ph="—"></span>.</p>
+    <p class="texto">A PMTA limitante do sistema é de <span class="campo" data-sync="pmta" data-ph="—"></span> MPa, determinada pelo componente <span class="campo" data-ph="—"></span>.</p>
+
+    <h3 class="secao">Conclusão do cálculo</h3>
+    <div class="estica"><span class="campo bloco" data-ph="Parecer sobre a PMTA calculada, espessuras encontradas e adequação do equipamento"></span></div>
+  </div>
+  <footer class="rod"></footer>
+</section>
+
+<!-- ============ FOLHA 7 — MEMÓRIA DE CÁLCULO ============ -->
+<section class="folha">
+  <div class="aviso-estouro">Conteúdo passou do limite da folha</div>
+  <header class="cab"></header>
+  <div class="corpo">
+    <div class="banner">6.1 MEMÓRIA DE CÁLCULO DA PMTA E ESPESSURA MÍNIMA</div>
+    <table class="tb compacta">
+      <tr><td class="rotulo" style="width:22%">T.A.G.</td><td><span class="campo" data-sync="tag" data-ph="—"></span></td>
+          <td class="rotulo" style="width:22%">CÓDIGO DE PROJETO</td><td><span class="campo" data-ph="ASME VIII Div. 1"></span></td></tr>
+    </table>
+    <p class="nota" contenteditable>Fórmulas de referência — ASME VIII Div. 1: casco cilíndrico (UG-27) t = P·R / (S·E − 0,6·P) · tampo torisférico (UG-32) t = 0,885·P·L / (S·E − 0,1·P) · tampo elipsoidal 2:1 t = P·D / (2·S·E − 0,2·P). Espessura requerida = t calculada + margem de corrosão.</p>
+    <div class="estica"><div class="caixa" style="border:.6pt solid #808080; padding:3mm; margin-top:2mm">
+      <span class="campo bloco" data-ph="Digite aqui a memória de cálculo: dados de entrada (P, R, S, E, c), substituição na fórmula, resultado por componente e a comparação com a espessura medida."></span>
+    </div></div>
+  </div>
+  <footer class="rod"></footer>
+</section>
+
+<!-- ============ FOLHA 8 — DADOS E ASPECTOS GERAIS DA INSPEÇÃO ============ -->
+<section class="folha">
+  <div class="aviso-estouro">Conteúdo passou do limite da folha</div>
+  <header class="cab"></header>
+  <div class="corpo">
+    <div class="banner">7. EXAMES REALIZADOS — DADOS GERAIS DA INSPEÇÃO</div>
+
+    <table class="tb">
+      <tr><td class="rotulo" style="width:26%">DATA DE INÍCIO DA INSPEÇÃO</td><td><span class="campo" data-ph="00/00/0000"></span></td>
+          <td class="rotulo" style="width:26%">DATA DE TÉRMINO</td><td><span class="campo" data-ph="00/00/0000"></span></td></tr>
+      <tr><td class="rotulo">EQUIPAMENTO / T.A.G.</td><td><span class="campo" data-sync="tag" data-ph="—"></span></td>
+          <td class="rotulo">Nº DE SÉRIE</td><td><span class="campo" data-sync="serie" data-ph="—"></span></td></tr>
+      <tr><td class="rotulo">Nº DA A.R.T. (CREA)</td><td><span class="campo" data-sync="art" data-ph="—"></span></td>
+          <td class="rotulo">Nº DO RELATÓRIO</td><td><span class="campo" data-sync="numdoc" data-ph="—"></span></td></tr>
+    </table>
+
+    <div class="faixa">NATUREZA DA INSPEÇÃO</div>
+    <table class="tb"><tr>
+      <td class="rotulo" style="width:34%">INICIAL</td><td class="c marca" style="width:16%"></td>
+      <td class="rotulo" style="width:34%">PERIÓDICA</td><td class="c marca" style="width:16%">X</td>
+    </tr>
+    <tr>
+      <td class="rotulo">EXTRAORDINÁRIA</td><td class="c marca"></td>
+      <td class="rotulo">OCORRÊNCIA</td><td class="c marca"></td>
+    </tr></table>
+
+    <div class="faixa">TIPO DE EXAME / ENSAIOS REALIZADOS</div>
+    <table class="tb"><tbody>
+      <tr><td class="rotulo" style="width:34%">EXAME EXTERNO</td><td class="c marca" style="width:16%">X</td>
+          <td class="rotulo" style="width:34%">EXAME INTERNO</td><td class="c marca" style="width:16%">X</td></tr>
+      <tr><td class="rotulo">TESTE HIDROSTÁTICO</td><td class="c marca"></td>
+          <td class="rotulo">ULTRASSOM (MEDIÇÃO DE ESPESSURA)</td><td class="c marca">X</td></tr>
+      <tr><td class="rotulo">LÍQUIDO PENETRANTE</td><td class="c marca"></td>
+          <td class="rotulo">PARTÍCULA MAGNÉTICA</td><td class="c marca"></td></tr>
+    </tbody></table>
+
+    <div class="faixa">RESULTADO DO EXAME VISUAL</div>
+    <table class="tb"><tbody>
+      <tr><td class="rotulo" style="width:34%">VISUAL EXTERNO</td><td class="c" style="width:66%"><span class="toggle" data-op="APROVADO|REPROVADO">APROVADO</span></td></tr>
+      <tr><td class="rotulo">VISUAL INTERNO</td><td class="c"><span class="toggle" data-op="APROVADO|REPROVADO|NÃO APLICÁVEL">APROVADO</span></td></tr>
+    </tbody></table>
+
+    <h3 class="secao">RESULTADO DOS ENSAIOS REALIZADOS</h3>
+    <span class="campo bloco" style="min-height:26mm" data-ph="Descreva o resultado geral dos ensaios executados nesta inspeção"></span>
+
+    <h3 class="secao">OBSERVAÇÕES</h3>
+    <div class="estica"><span class="campo bloco" data-ph="Observações gerais da inspeção"></span></div>
+  </div>
+  <footer class="rod"></footer>
+</section>
+
+<!-- ============ FOLHA 9 — VERIFICAÇÃO DA DOCUMENTAÇÃO ============ -->
+<section class="folha">
+  <div class="aviso-estouro">Conteúdo passou do limite da folha</div>
+  <header class="cab"></header>
+  <div class="corpo">
+    <div class="banner">7.1 VERIFICAÇÃO DA DOCUMENTAÇÃO EXISTENTE NA DATA DA INSPEÇÃO</div>
+    <table class="tb compacta" data-tabela="documentacao">
+      <colgroup><col><col class="op"><col class="op"><col class="op"><col style="width:32%"></colgroup>
+      <thead>
+        <tr><th rowspan="2">Descrição</th><th colspan="3">Situação</th><th rowspan="2">Observação</th></tr>
+        <tr><th>Existe</th><th>Não ident.</th><th>Não aplica</th></tr>
+      </thead>
+      <tbody>
+        <tr><td contenteditable class="texto-cel">Registro de segurança</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td contenteditable class="texto-cel">Desenho do conjunto geral</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td contenteditable class="texto-cel">Prontuário</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td contenteditable class="texto-cel">Memória de cálculo da PMTA das partes do vaso de pressão</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td contenteditable class="texto-cel">Relatório de inspeção inicial</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td contenteditable class="texto-cel">Projeto de instalação do vaso de pressão</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td contenteditable class="texto-cel">Manual de operação para vasos de categoria I e II</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td contenteditable class="texto-cel">Operador qualificado para operação de vasos de categoria I e II</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td contenteditable class="texto-cel">Comprovante de estágio supervisionado</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td contenteditable class="texto-cel">Laudo de teste hidrostático/pneumático</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td contenteditable class="texto-cel">Certificados de calibração dos dispositivos de segurança, onde aplicável</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td contenteditable class="texto-cel">Programa de inspeções com suas datas limites</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td contenteditable class="texto-cel">Recomendações de inspeções anteriores e que não foram realizadas</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td contenteditable class="texto-cel">Mapa de medição de espessuras por ultrassom</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td contenteditable class="texto-cel">A.R.T assinada (Anotação de Responsabilidade Técnica) do profissional habilitado responsável pela documentação/ensaios descritos acima</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td>Nº <span class="campo livre" data-sync="art" data-ph="—"></span></td></tr>
+      </tbody>
+    </table>
+    <button class="bt-linha so-tela" onclick="addLinha(this,'documentacao')">+ documento</button>
+    <button class="bt-linha so-tela" onclick="rmLinha(this,'documentacao')">− última linha</button>
+
+    <h3 class="secao">Comentários sobre a documentação</h3>
+    <div class="estica"><span class="campo bloco" data-ph="Parecer sobre a documentação analisada"></span></div>
+  </div>
+  <footer class="rod"></footer>
+</section>
+
+<!-- ============ FOLHA 10 — CHECKLIST NR-13 (PARTE 1) ============ -->
+<section class="folha">
+  <div class="aviso-estouro">Conteúdo passou do limite da folha</div>
+  <header class="cab"></header>
+  <div class="corpo">
+    <div class="banner">7.1.1 CHECKLIST NR-13 — VASO SOB PRESSÃO (PARTE 1)</div>
+
+    <div class="faixa">RESULTADOS DA INSPEÇÃO</div>
+    <table class="tb compacta">
+      <colgroup><col><col class="op"><col class="op"><col class="op"><col style="width:26%"></colgroup>
+      <thead><tr><th>Item verificado</th><th>Sim</th><th>Não</th><th>N.A.</th><th>Observação</th></tr></thead>
+      <tbody>
+        <tr><td contenteditable class="texto-cel">O vaso possui o produto “P.V.” maior do que 8 (oito), onde “P” é a máxima pressão de operação em kPa e “V” é o volume geométrico em m³? Portanto se enquadra na NR-13?</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td contenteditable class="texto-cel">O vaso constitui risco grave e iminente (RGI)?</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td contenteditable class="texto-cel">Possui placa de identificação com, no mínimo, as informações exigidas pela norma NR-13?</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td contenteditable class="texto-cel">Possui em local visível a identificação do vaso e sua categoria?</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+      </tbody>
+    </table>
+
+    <div class="faixa">EXAME DO PRONTUÁRIO E DO REGISTRO DE SEGURANÇA</div>
+    <table class="tb compacta">
+      <colgroup><col><col class="op"><col class="op"><col class="op"><col style="width:26%"></colgroup>
+      <thead><tr><th>Item verificado</th><th>Sim</th><th>Não</th><th>N.A.</th><th>Observação</th></tr></thead>
+      <tbody>
+        <tr><td contenteditable class="texto-cel">O vaso de pressão possui prontuário?</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td contenteditable class="texto-cel">As características do vaso de pressão conferem com as informações do prontuário?</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td contenteditable class="texto-cel">O vaso de pressão possui livro de registro de segurança conforme a norma NR-13?</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+      </tbody>
+    </table>
+
+    <div class="faixa">EXAME EXTERNO</div>
+    <table class="tb compacta">
+      <colgroup><col><col class="op"><col class="op"><col class="op"><col style="width:26%"></colgroup>
+      <thead><tr><th>Item verificado</th><th>Sim</th><th>Não</th><th>N.A.</th><th>Observação</th></tr></thead>
+      <tbody>
+        <tr><td contenteditable class="texto-cel">Local de instalação do vaso: ambiente aberto / ambiente fechado / outro</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="Especifique"></span></td></tr>
+        <tr><td contenteditable class="texto-cel">O vaso de pressão atende às exigências para o local de instalação, conforme NR-13?</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+      </tbody>
+    </table>
+
+    <div class="faixa">INSTRUMENTOS E DISPOSITIVOS DE SEGURANÇA INSTALADOS</div>
+    <table class="tb compacta">
+      <colgroup><col style="width:34%"><col class="op"><col class="op"><col></colgroup>
+      <thead><tr><th>Instrumento</th><th>Possui</th><th>Calibrado</th><th>Nº do certificado / validade</th></tr></thead>
+      <tbody>
+        <tr><td contenteditable class="texto-cel">Manômetro</td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td contenteditable class="texto-cel">Termômetro</td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td contenteditable class="texto-cel">Vacuômetro</td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td contenteditable class="texto-cel">Pressostato</td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td contenteditable class="texto-cel">Transmissor de pressão</td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td contenteditable class="texto-cel">Válvula de segurança (PSV)</td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+      </tbody>
+    </table>
+    <h3 class="secao">Observações — checklist (parte 1)</h3>
+    <div class="estica"><span class="campo bloco" data-ph="Observações do inspetor sobre os itens verificados nesta folha."></span></div>
+  </div>
+  <footer class="rod"></footer>
+</section>
+
+<!-- ============ FOLHA 11 — CHECKLIST NR-13 (PARTE 2) ============ -->
+<section class="folha">
+  <div class="aviso-estouro">Conteúdo passou do limite da folha</div>
+  <header class="cab"></header>
+  <div class="corpo">
+    <div class="banner">7.1.2 CHECKLIST NR-13 — VASO SOB PRESSÃO (PARTE 2)</div>
+
+    <div class="faixa">EXAME INTERNO</div>
+    <table class="tb compacta">
+      <colgroup><col><col class="op"><col class="op"><col class="op"><col style="width:26%"></colgroup>
+      <thead><tr><th>Item verificado</th><th>Sim</th><th>Não</th><th>N.A.</th><th>Observação</th></tr></thead>
+      <tbody>
+        <tr><td contenteditable class="texto-cel">O vaso de pressão foi examinado internamente?</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td contenteditable class="texto-cel">Caso tenha sido inspecionado internamente, o vaso de pressão, depois de limpo, está em ordem e satisfaz a todas as condições de segurança constantes desta Norma NR-13 observáveis nesse exame?</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td contenteditable class="texto-cel">A parte de caracterização do vaso de pressão acessível a esse exame confere com o que, sobre este, consta do prontuário?</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+      </tbody>
+    </table>
+
+    <div class="faixa">ENSAIO HIDROSTÁTICO E DISPOSITIVOS DE SEGURANÇA</div>
+    <table class="tb compacta">
+      <colgroup><col><col class="op"><col class="op"><col class="op"><col style="width:26%"></colgroup>
+      <thead><tr><th>Item verificado</th><th>Sim</th><th>Não</th><th>N.A.</th><th>Observação</th></tr></thead>
+      <tbody>
+        <tr><td contenteditable class="texto-cel">Foi realizado o teste hidrostático?</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td contenteditable class="texto-cel">Possui válvula ou dispositivos de segurança instalados no vaso de pressão?</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td contenteditable class="texto-cel">O vaso de pressão possui dispositivo físico ou lacre com aviso de advertência para evitar o bloqueio da válvula de segurança ou outro dispositivo de segurança?</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td contenteditable class="texto-cel">O vaso de pressão trabalha em condição de vácuo?</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td contenteditable class="texto-cel">Possui quebra-vácuo?</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td contenteditable class="texto-cel">Foram examinadas todas as válvulas de segurança exigidas?</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td contenteditable class="texto-cel">Foi observada alguma anomalia?</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+      </tbody>
+    </table>
+
+    <div class="faixa">CONSIDERAÇÕES FINAIS DO CHECKLIST</div>
+    <table class="tb compacta">
+      <colgroup><col><col class="op"><col class="op"><col class="op"><col style="width:26%"></colgroup>
+      <thead><tr><th>Item verificado</th><th>Sim</th><th>Não</th><th>N.A.</th><th>Observação</th></tr></thead>
+      <tbody>
+        <tr><td contenteditable class="texto-cel">Os instrumentos e controles do vaso de pressão são mantidos em boas condições operacionais?</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td contenteditable class="texto-cel">Foram realizados ensaios complementares?</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+      </tbody>
+    </table>
+
+    <h3 class="secao">Observações do checklist</h3>
+    <div class="estica"><span class="campo bloco" data-ph="Observações complementares do inspetor"></span></div>
+  </div>
+  <footer class="rod"></footer>
+</section>
+
+<!-- ============ FOLHA 12 — FOTOS DA DOCUMENTAÇÃO ============ -->
+<section class="folha" data-folha="fotos">
+  <div class="aviso-estouro">Conteúdo passou do limite da folha</div>
+  <header class="cab"></header>
+  <div class="corpo">
+    <div class="banner">8. REGISTRO FOTOGRÁFICO — DOCUMENTAÇÃO</div>
+    <div class="grade-fotos" style="margin-top:3mm">
+      <div class="cartao-foto"><div class="slot" data-tipo="foto">Clique para adicionar a foto</div><div class="legenda"><span class="campo" style="min-width:60mm" data-ph="Descrição da foto"></span></div></div>
+      <div class="cartao-foto"><div class="slot" data-tipo="foto">Clique para adicionar a foto</div><div class="legenda"><span class="campo" style="min-width:60mm" data-ph="Descrição da foto"></span></div></div>
+      <div class="cartao-foto"><div class="slot" data-tipo="foto">Clique para adicionar a foto</div><div class="legenda"><span class="campo" style="min-width:60mm" data-ph="Descrição da foto"></span></div></div>
+      <div class="cartao-foto"><div class="slot" data-tipo="foto">Clique para adicionar a foto</div><div class="legenda"><span class="campo" style="min-width:60mm" data-ph="Descrição da foto"></span></div></div>
+    </div>
+  </div>
+  <footer class="rod"></footer>
+</section>
+
+<!-- ============ FOLHA 13 — EXAME EXTERNO ============ -->
+<section class="folha">
+  <div class="aviso-estouro">Conteúdo passou do limite da folha</div>
+  <header class="cab"></header>
+  <div class="corpo">
+    <div class="banner">7.2 EXAME EXTERNO (INSPEÇÃO VISUAL EXTERNA)</div>
+    <table class="tb compacta">
+      <tr><td class="rotulo" style="width:22%">T.A.G. / IDENTIFICAÇÃO</td><td><span class="campo" data-sync="tag" data-ph="—"></span></td>
+          <td class="rotulo" style="width:18%">Nº DE SÉRIE</td><td><span class="campo" data-sync="serie" data-ph="—"></span></td></tr>
+    </table>
+    <table class="tb compacta" data-tabela="ve">
+      <colgroup><col style="width:6%"><col><col class="op"><col class="op"><col class="op"><col style="width:26%"></colgroup>
+      <thead>
+        <tr><th rowspan="2">Nº</th><th rowspan="2">Item de verificação</th><th colspan="3">Foi encontrada alguma não conformidade?</th><th rowspan="2">Observação</th></tr>
+        <tr><th>SIM</th><th>NÃO</th><th>N.A.</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="c">1</td><td contenteditable class="texto-cel">Juntas, conexões e vedações</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td class="c">2</td><td contenteditable class="texto-cel">Elementos de fixação</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td class="c">3</td><td contenteditable class="texto-cel">Cordões de solda</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td class="c">4</td><td contenteditable class="texto-cel">Estruturas de apoio, suporte e içamento</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td class="c">5</td><td contenteditable class="texto-cel">Estrutura física do equipamento</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td class="c">6</td><td contenteditable class="texto-cel">Dispositivo(s) de drenagem</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td class="c">7</td><td contenteditable class="texto-cel">Acúmulo residual ou material</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td class="c">8</td><td contenteditable class="texto-cel">Proteção contra eletricidade estática</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td class="c">9</td><td contenteditable class="texto-cel">Iluminação</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td class="c">10</td><td contenteditable class="texto-cel">Dispositivo(s) de alívio de pressão</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td class="c">11</td><td contenteditable class="texto-cel">Indicador(es) de pressão</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td class="c">12</td><td contenteditable class="texto-cel">Sistema contra bloqueio inadvertido de dispositivo(s) de segurança</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td class="c">13</td><td contenteditable class="texto-cel">Placa de identificação</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td class="c">14</td><td contenteditable class="texto-cel">Acessibilidade e localização do equipamento</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td class="c">15</td><td contenteditable class="texto-cel">Ventilação</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+      </tbody>
+    </table>
+    <button class="bt-linha so-tela" onclick="addLinha(this,'ve')">+ item</button>
+    <button class="bt-linha so-tela" onclick="rmLinha(this,'ve')">− última linha</button>
+
+    <h3 class="secao">Observações gerais</h3>
+    <span class="campo bloco" style="min-height:14mm" data-ph="Observações do exame externo"></span>
+    <h3 class="secao">Conclusão técnica — exame externo</h3>
+    <p class="texto"><span class="rot">Resultado:</span> <span class="toggle" data-op="APROVADO|REPROVADO|APROVADO COM RESSALVAS">APROVADO</span></p>
+    <div class="estica"><span class="campo bloco" data-ph="Conclusão técnica do exame externo"></span></div>
+  </div>
+  <footer class="rod"></footer>
+</section>
+
+<!-- ============ FOLHA 14 — FOTOS EXAME EXTERNO ============ -->
+<section class="folha" data-folha="fotos">
+  <div class="aviso-estouro">Conteúdo passou do limite da folha</div>
+  <header class="cab"></header>
+  <div class="corpo">
+    <div class="banner">8.1 REGISTRO FOTOGRÁFICO — EXAME EXTERNO</div>
+    <div class="grade-fotos" style="margin-top:3mm">
+      <div class="cartao-foto"><div class="slot" data-tipo="foto">Clique para adicionar a foto</div><div class="legenda"><span class="campo" style="min-width:60mm" data-ph="Descrição da foto"></span></div></div>
+      <div class="cartao-foto"><div class="slot" data-tipo="foto">Clique para adicionar a foto</div><div class="legenda"><span class="campo" style="min-width:60mm" data-ph="Descrição da foto"></span></div></div>
+      <div class="cartao-foto"><div class="slot" data-tipo="foto">Clique para adicionar a foto</div><div class="legenda"><span class="campo" style="min-width:60mm" data-ph="Descrição da foto"></span></div></div>
+      <div class="cartao-foto"><div class="slot" data-tipo="foto">Clique para adicionar a foto</div><div class="legenda"><span class="campo" style="min-width:60mm" data-ph="Descrição da foto"></span></div></div>
+    </div>
+  </div>
+  <footer class="rod"></footer>
+</section>
+
+<!-- ============ FOLHA 15 — EXAME INTERNO ============ -->
+<section class="folha">
+  <div class="aviso-estouro">Conteúdo passou do limite da folha</div>
+  <header class="cab"></header>
+  <div class="corpo">
+    <div class="banner">7.3 EXAME INTERNO (INSPEÇÃO VISUAL INTERNA)</div>
+    <table class="tb compacta">
+      <tr><td class="rotulo" style="width:22%">T.A.G. / IDENTIFICAÇÃO</td><td><span class="campo" data-sync="tag" data-ph="—"></span></td>
+          <td class="rotulo" style="width:18%">Nº DE SÉRIE</td><td><span class="campo" data-sync="serie" data-ph="—"></span></td></tr>
+    </table>
+    <table class="tb compacta" data-tabela="vi">
+      <colgroup><col style="width:6%"><col><col class="op"><col class="op"><col class="op"><col style="width:26%"></colgroup>
+      <thead>
+        <tr><th rowspan="2">Nº</th><th rowspan="2">Item de verificação</th><th colspan="3">Foi encontrada alguma não conformidade?</th><th rowspan="2">Observação</th></tr>
+        <tr><th>SIM</th><th>NÃO</th><th>N.A.</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="c">1</td><td contenteditable class="texto-cel">Condição geral das paredes internas</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td class="c">2</td><td contenteditable class="texto-cel">Presença de trincas ou fissuras</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td class="c">3</td><td contenteditable class="texto-cel">Incrustações ou depósitos internos</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td class="c">4</td><td contenteditable class="texto-cel">Erosão ou desgaste da superfície interna</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td class="c">5</td><td contenteditable class="texto-cel">Integridade das soldas internas</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td class="c">6</td><td contenteditable class="texto-cel">Estado das conexões e bocais internos</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td class="c">7</td><td contenteditable class="texto-cel">Revestimento interno (quando aplicável)</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td class="c">8</td><td contenteditable class="texto-cel">Corrosão sob tensão (SCC)</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td class="c">9</td><td contenteditable class="texto-cel">Suportes e estruturas internas</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td class="c">10</td><td contenteditable class="texto-cel">Limpeza interna</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td class="c">11</td><td contenteditable class="texto-cel">Marcas de desgaste ou abrasão</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td class="c">12</td><td contenteditable class="texto-cel">Pontos de corrosão localizada (pite)</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td class="c">13</td><td contenteditable class="texto-cel">Integridade do fundo e tampos internos</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td class="c">14</td><td contenteditable class="texto-cel">Bocas de inspeção e tampas de acesso</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td class="c">15</td><td contenteditable class="texto-cel">Iluminação interna para inspeção</td><td class="c marca"></td><td class="c marca"></td><td class="c marca"></td><td><span class="campo livre" data-ph="—"></span></td></tr>
+      </tbody>
+    </table>
+    <button class="bt-linha so-tela" onclick="addLinha(this,'vi')">+ item</button>
+    <button class="bt-linha so-tela" onclick="rmLinha(this,'vi')">− última linha</button>
+
+    <h3 class="secao">Observações gerais</h3>
+    <span class="campo bloco" style="min-height:14mm" data-ph="Observações do exame interno"></span>
+    <h3 class="secao">Conclusão técnica — exame interno</h3>
+    <p class="texto"><span class="rot">Resultado:</span> <span class="toggle" data-op="APROVADO|REPROVADO|NÃO APLICÁVEL">APROVADO</span></p>
+    <div class="estica"><span class="campo bloco" data-ph="Conclusão técnica do exame interno"></span></div>
+  </div>
+  <footer class="rod"></footer>
+</section>
+
+<!-- ============ FOLHA 16 — FOTOS EXAME INTERNO ============ -->
+<section class="folha" data-folha="fotos">
+  <div class="aviso-estouro">Conteúdo passou do limite da folha</div>
+  <header class="cab"></header>
+  <div class="corpo">
+    <div class="banner">8.2 REGISTRO FOTOGRÁFICO — EXAME INTERNO</div>
+    <div class="grade-fotos" style="margin-top:3mm">
+      <div class="cartao-foto"><div class="slot" data-tipo="foto">Clique para adicionar a foto</div><div class="legenda"><span class="campo" style="min-width:60mm" data-ph="Descrição da foto"></span></div></div>
+      <div class="cartao-foto"><div class="slot" data-tipo="foto">Clique para adicionar a foto</div><div class="legenda"><span class="campo" style="min-width:60mm" data-ph="Descrição da foto"></span></div></div>
+      <div class="cartao-foto"><div class="slot" data-tipo="foto">Clique para adicionar a foto</div><div class="legenda"><span class="campo" style="min-width:60mm" data-ph="Descrição da foto"></span></div></div>
+      <div class="cartao-foto"><div class="slot" data-tipo="foto">Clique para adicionar a foto</div><div class="legenda"><span class="campo" style="min-width:60mm" data-ph="Descrição da foto"></span></div></div>
+    </div>
+  </div>
+  <footer class="rod"></footer>
+</section>
+
+<!-- ============ FOLHA 17 — ULTRASSOM ============ -->
+<section class="folha">
+  <div class="aviso-estouro">Conteúdo passou do limite da folha</div>
+  <header class="cab"></header>
+  <div class="corpo">
+    <div class="banner">7.4 MEDIÇÃO DE ESPESSURA POR ULTRASSOM</div>
+
+    <div class="faixa">INFORMAÇÕES DO COMPONENTE AVALIADO</div>
+    <table class="tb compacta">
+      <tr><td class="rotulo" style="width:20%">EQUIPAMENTO</td><td><span class="campo" data-sync="equipamento" data-ph="—"></span></td>
+          <td class="rotulo" style="width:16%">Nº DE SÉRIE</td><td><span class="campo" data-sync="serie" data-ph="—"></span></td>
+          <td class="rotulo" style="width:12%">ÁREA</td><td><span class="campo" data-ph="—"></span></td></tr>
+    </table>
+
+    <div class="faixa">INFORMAÇÕES PARA O ENSAIO</div>
+    <table class="tb compacta">
+      <tr><td class="rotulo" style="width:22%">APARELHO / Nº DE SÉRIE</td><td><span class="campo" data-ph="—"></span></td>
+          <td class="rotulo" style="width:18%">ACOPLANTE</td><td><span class="campo" data-ph="—"></span></td></tr>
+      <tr><td class="rotulo">TEMP. DA SUPERFÍCIE (°C)</td><td><span class="campo" data-ph="—"></span></td>
+          <td class="rotulo">ESTADO DA SUPERFÍCIE</td><td><span class="campo" data-ph="—"></span></td></tr>
+      <tr><td class="rotulo">CABEÇOTE</td><td><span class="campo" data-ph="—"></span></td>
+          <td class="rotulo">VELOCIDADE SÔNICA</td><td><span class="campo" data-ph="0000 m/s"></span></td></tr>
+    </table>
+
+    <div class="faixa">LOCALIZAÇÃO DOS PONTOS DE MEDIÇÃO E MEDIDAS ENCONTRADAS (mm)</div>
+    <table class="tb compacta" data-tabela="us">
+      <thead><tr><th style="width:26%">REGIÃO / PONTO</th><th>0°</th><th>90°</th><th>180°</th><th>270°</th><th>MENOR VALOR</th><th>ESP. MÍN. REQUERIDA</th></tr></thead>
+      <tbody>
+        <tr><td contenteditable class="texto-cel">Tampo Superior</td><td class="c"><span class="campo livre" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td contenteditable class="texto-cel">Casco 1</td><td class="c"><span class="campo livre" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td contenteditable class="texto-cel">Casco 2</td><td class="c"><span class="campo livre" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td contenteditable class="texto-cel">Casco 3</td><td class="c"><span class="campo livre" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td contenteditable class="texto-cel">Casco 4</td><td class="c"><span class="campo livre" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td contenteditable class="texto-cel">Tampo Inferior</td><td class="c"><span class="campo livre" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td></tr>
+      </tbody>
+    </table>
+    <button class="bt-linha so-tela" onclick="addLinha(this,'us')">+ região</button>
+    <button class="bt-linha so-tela" onclick="rmLinha(this,'us')">− última linha</button>
+
+    <div class="faixa">INSTRUMENTO DE MEDIÇÃO UTILIZADO</div>
+    <table class="tb compacta">
+      <tr><td class="rotulo" style="width:16%">PADRÃO</td><td><span class="campo" data-ph="—"></span></td>
+          <td class="rotulo" style="width:14%">Nº SÉRIE</td><td><span class="campo" data-ph="—"></span></td>
+          <td class="rotulo" style="width:18%">Nº CERTIFICADO</td><td><span class="campo" data-ph="—"></span></td>
+          <td class="rotulo" style="width:12%">VALIDADE</td><td><span class="campo" data-ph="—"></span></td></tr>
+    </table>
+    <p class="nota" contenteditable>O instrumento de medição utilizado foi calibrado por laboratório acreditado pelo INMETRO, com certificado de calibração válido, garantindo a rastreabilidade metrológica e a confiabilidade dos resultados.</p>
+
+    <h3 class="secao">Observações / conclusões do ensaio</h3>
+    <div class="estica"><span class="campo bloco" data-ph="Parecer técnico do ensaio de medição de espessura"></span></div>
+  </div>
+  <footer class="rod"></footer>
+</section>
+
+<!-- ============ FOLHA 18 — TESTE HIDROSTÁTICO ============ -->
+<section class="folha">
+  <div class="aviso-estouro">Conteúdo passou do limite da folha</div>
+  <header class="cab"></header>
+  <div class="corpo">
+    <div class="banner">7.5 REGISTRO DE TESTE HIDROSTÁTICO</div>
+
+    <div class="faixa">DADOS GERAIS</div>
+    <table class="tb compacta">
+      <tr><td class="rotulo" style="width:20%">CLIENTE</td><td><span class="campo" data-sync="contratante" data-ph="—"></span></td>
+          <td class="rotulo" style="width:14%">DOC Nº</td><td><span class="campo" data-sync="numdoc" data-ph="—"></span></td></tr>
+      <tr><td class="rotulo">T.A.G.</td><td><span class="campo" data-sync="tag" data-ph="—"></span></td>
+          <td class="rotulo">EQUIPAMENTO</td><td><span class="campo" data-sync="equipamento" data-ph="—"></span></td></tr>
+      <tr><td class="rotulo">PRESSÃO DE PROJETO</td><td><span class="campo" data-ph="—"></span></td>
+          <td class="rotulo">PRESSÃO DE TRABALHO</td><td><span class="campo" data-ph="—"></span></td></tr>
+    </table>
+
+    <div class="faixa">DADOS DO TESTE</div>
+    <table class="tb compacta">
+      <tr><td class="rotulo" style="width:20%">FLUIDO DE TESTE</td><td><span class="campo" data-ph="Água"></span></td>
+          <td class="rotulo" style="width:16%">PRESSÃO DE TESTE</td><td><span class="campo" data-sync="pth" data-ph="—"></span></td></tr>
+      <tr><td class="rotulo">DURAÇÃO DO TESTE</td><td><span class="campo" data-ph="—"></span></td>
+          <td class="rotulo">TEMP. DO FLUIDO</td><td><span class="campo" data-ph="—"></span></td></tr>
+      <tr><td class="rotulo">NORMAS DE REFERÊNCIA</td><td><span class="campo" data-ph="ASME VIII Div. 1 / NR-13"></span></td>
+          <td class="rotulo">VALIDADE DO LAUDO</td><td><span class="campo" data-ph="—"></span></td></tr>
+      <tr><td class="rotulo">PROCEDIMENTO</td><td colspan="3"><span class="campo" data-ph="Procedimento adotado no teste"></span></td></tr>
+    </table>
+
+    <div class="faixa">GRÁFICO DE PRESSURIZAÇÃO E ESTABILIZAÇÃO</div>
+    <div class="slot" data-tipo="foto" style="height:60mm">Clique para inserir a imagem do gráfico (pressão × tempo)</div>
+
+    <div class="faixa">INSTRUMENTO DE MEDIÇÃO UTILIZADO</div>
+    <table class="tb compacta">
+      <tr><td class="rotulo" style="width:16%">PADRÃO</td><td><span class="campo" data-ph="—"></span></td>
+          <td class="rotulo" style="width:14%">Nº SÉRIE</td><td><span class="campo" data-ph="—"></span></td>
+          <td class="rotulo" style="width:18%">Nº CERTIFICADO</td><td><span class="campo" data-ph="—"></span></td>
+          <td class="rotulo" style="width:12%">VALIDADE</td><td><span class="campo" data-ph="—"></span></td></tr>
+    </table>
+    <p class="nota" contenteditable>O instrumento de medição utilizado foi calibrado por laboratório acreditado pelo INMETRO, com certificado de calibração válido, garantindo a rastreabilidade metrológica e a confiabilidade dos resultados.</p>
+
+    <h3 class="secao">Parecer técnico do teste hidrostático</h3>
+    <div class="estica"><span class="campo bloco" data-ph="Resultado do teste: houve ou não vazamento, deformação ou queda de pressão"></span></div>
+  </div>
+  <footer class="rod"></footer>
+</section>
+
+<!-- ============ FOLHA 19 — FOTOS DO TESTE HIDROSTÁTICO ============ -->
+<section class="folha" data-folha="fotos">
+  <div class="aviso-estouro">Conteúdo passou do limite da folha</div>
+  <header class="cab"></header>
+  <div class="corpo">
+    <div class="banner">8.3 REGISTRO FOTOGRÁFICO — TESTE HIDROSTÁTICO</div>
+    <div class="grade-fotos" style="margin-top:3mm">
+      <div class="cartao-foto"><div class="slot" data-tipo="foto">Clique para adicionar a foto</div><div class="legenda"><span class="campo" style="min-width:60mm" data-ph="Descrição da foto"></span></div></div>
+      <div class="cartao-foto"><div class="slot" data-tipo="foto">Clique para adicionar a foto</div><div class="legenda"><span class="campo" style="min-width:60mm" data-ph="Descrição da foto"></span></div></div>
+      <div class="cartao-foto"><div class="slot" data-tipo="foto">Clique para adicionar a foto</div><div class="legenda"><span class="campo" style="min-width:60mm" data-ph="Descrição da foto"></span></div></div>
+      <div class="cartao-foto"><div class="slot" data-tipo="foto">Clique para adicionar a foto</div><div class="legenda"><span class="campo" style="min-width:60mm" data-ph="Descrição da foto"></span></div></div>
+    </div>
+  </div>
+  <footer class="rod"></footer>
+</section>
+
+<!-- ============ FOLHA 20 — RESULTADO / PARECER CONCLUSIVO ============ -->
+<section class="folha">
+  <div class="aviso-estouro">Conteúdo passou do limite da folha</div>
+  <header class="cab"></header>
+  <div class="corpo">
+    <div class="banner">9. RECOMENDAÇÕES DE SEGURANÇA</div>
+    <table class="tb compacta" data-tabela="recomendacoes">
+      <thead><tr><th style="width:8%">ITEM</th><th>RECOMENDAÇÃO</th><th style="width:20%">PRAZO</th></tr></thead>
+      <tbody>
+        <tr><td class="c">1</td><td><span class="campo livre" data-ph="Descreva a recomendação"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td class="c">2</td><td><span class="campo livre" data-ph="Descreva a recomendação"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td class="c">3</td><td><span class="campo livre" data-ph="Descreva a recomendação"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td></tr>
+        <tr><td class="c">4</td><td><span class="campo livre" data-ph="Descreva a recomendação"></span></td><td class="c"><span class="campo livre" data-ph="—"></span></td></tr>
+      </tbody>
+    </table>
+    <button class="bt-linha so-tela" onclick="addLinha(this,'recomendacoes')">+ recomendação</button>
+    <button class="bt-linha so-tela" onclick="rmLinha(this,'recomendacoes')">− última linha</button>
+
+    <div class="banner">10. PARECER TÉCNICO CONCLUSIVO</div>
+    <table class="tb compacta">
+      <tr><td class="rotulo" style="width:60%">A Pressão Máxima de Trabalho Admissível (PMTA) pode ser mantida?</td>
+          <td class="c"><span class="toggle" data-op="SIM|NÃO">SIM</span></td></tr>
+      <tr><td class="rotulo">Se não, justifique:</td><td><span class="campo livre" data-ph="Justificativa"></span></td></tr>
+      <tr><td class="rotulo">O equipamento está apto a operar nas condições de segurança da NR-13?</td>
+          <td class="c"><span class="toggle" data-op="APTO|INAPTO|APTO COM RESSALVAS">APTO</span></td></tr>
+    </table>
+    <div class="estica"><span class="campo bloco" data-ph="Conclusão final do responsável técnico sobre as condições de segurança e integridade do equipamento"></span></div>
+
+    <div class="banner">11. DATA PARA A PRÓXIMA INSPEÇÃO</div>
+    <table class="tb compacta">
+      <thead><tr><th>EXAME</th><th style="width:24%">PRAZO</th><th style="width:26%">DATA LIMITE</th></tr></thead>
+      <tbody>
+        <tr><td>EXAME VISUAL EXTERNO</td><td class="c"><span class="campo livre" data-ph="— anos"></span></td><td class="c"><span class="campo livre" data-ph="00/00/0000"></span></td></tr>
+        <tr><td>EXAME VISUAL INTERNO</td><td class="c"><span class="campo livre" data-ph="— anos"></span></td><td class="c"><span class="campo livre" data-ph="00/00/0000"></span></td></tr>
+        <tr><td>TESTE HIDROSTÁTICO</td><td class="c"><span class="campo livre" data-ph="— anos"></span></td><td class="c"><span class="campo livre" data-ph="00/00/0000"></span></td></tr>
+      </tbody>
+    </table>
+
+    <p class="dir" style="margin-top:6mm"><span class="campo" data-ph="Cidade"></span>, <span class="campo" data-ph="00 de mês de 0000"></span></p>
+
+    <div class="assinaturas">
+      <div class="quadro">
+        <div class="slot slot-assin" data-tipo="assinatura">Clique para inserir a assinatura</div>
+        <div class="linha">
+          <div style="font-weight:700"><span class="campo" data-sync="engenheiro" data-ph="Nome do engenheiro"></span></div>
+          <div class="mini"><span class="campo livre" data-ph="Engenheiro Mecânico"></span></div>
+          <div class="mini">CREA: <span class="campo livre" data-sync="crea" data-ph="—"></span></div>
+          <div class="mini">A.R.T.: <span class="campo livre" data-sync="art" data-ph="—"></span></div>
+        </div>
+      </div>
+      <div class="quadro">
+        <div class="slot slot-assin" data-tipo="assinatura">Clique para inserir a assinatura</div>
+        <div class="linha">
+          <div style="font-weight:700"><span class="campo" data-ph="Nome do inspetor"></span></div>
+          <div class="mini"><span class="campo livre" data-ph="Inspetor de equipamentos"></span></div>
+          <div class="mini">Registro: <span class="campo livre" data-ph="—"></span></div>
+          <div class="mini"><span class="campo livre" data-ph="—"></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <footer class="rod"></footer>
+</section>
+
+<!-- ============ FOLHA 21 — LIVRO DE REGISTRO DE SEGURANÇA ============ -->
+<section class="folha">
+  <div class="aviso-estouro">Conteúdo passou do limite da folha</div>
+  <header class="cab"></header>
+  <div class="corpo">
+    <div class="banner">12. REGISTRO DE SEGURANÇA — NR-13, ITENS 13.5.1.8 / 13.5.4</div>
+    <p class="nota" contenteditable>Folha individual do Livro de Registro de Segurança do vaso de pressão, para impressão e colagem na folha numerada tipograficamente correspondente do livro físico (caderno de capa dura).</p>
+
+    <table class="tb compacta">
+      <tr><td class="rotulo" style="width:24%">EQUIPAMENTO / T.A.G.</td><td><span class="campo" data-sync="tag" data-ph="—"></span></td>
+          <td class="rotulo" style="width:20%">Nº DO RELATÓRIO</td><td><span class="campo" data-sync="numdoc" data-ph="—"></span></td></tr>
+      <tr><td class="rotulo">Nº DA A.R.T. (CREA)</td><td colspan="3"><span class="campo" data-sync="art" data-ph="—"></span></td></tr>
+    </table>
+
+    <div class="faixa">TIPO DE INSPEÇÃO / OCORRÊNCIA</div>
+    <table class="tb compacta"><tbody>
+      <tr><td class="rotulo" style="width:34%">INICIAL</td><td class="c marca" style="width:16%"></td>
+          <td class="rotulo" style="width:34%">PERIÓDICA</td><td class="c marca" style="width:16%">X</td></tr>
+      <tr><td class="rotulo">EXTRAORDINÁRIA</td><td class="c marca"></td>
+          <td class="rotulo">OCORRÊNCIA</td><td class="c marca"></td></tr>
+    </tbody></table>
+
+    <table class="tb compacta">
+      <tr><td class="rotulo" style="width:24%">DATA DE INÍCIO</td><td><span class="campo" data-ph="00/00/0000"></span></td>
+          <td class="rotulo" style="width:24%">DATA DE TÉRMINO</td><td><span class="campo" data-ph="00/00/0000"></span></td></tr>
+      <tr><td class="rotulo">ENSAIOS / EXAMES REALIZADOS</td><td colspan="3"><span class="campo" data-ph="Ex.: exame externo, exame interno, medição de espessura por ultrassom"></span></td></tr>
+      <tr><td class="rotulo">SITUAÇÃO DO EQUIPAMENTO</td><td colspan="3"><span class="toggle" data-op="APTO PARA OPERAÇÃO|INAPTO PARA OPERAÇÃO|APTO COM RESSALVAS">APTO PARA OPERAÇÃO</span></td></tr>
+    </table>
+
+    <div class="faixa">TERMO DE INSPEÇÃO / OCORRÊNCIAS REGISTRADAS</div>
+    <div class="estica"><div class="caixa" style="border:.6pt solid #808080; border-top:none; padding:3mm">
+      <span class="campo bloco" data-ph="Descreva as ocorrências relevantes capazes de influir nas condições de segurança do vaso de pressão, o resultado da inspeção e a condição operacional do equipamento."></span>
+    </div></div>
+
+    <p class="texto" style="margin-top:3mm">Inspeção realizada por:</p>
+    <div class="assinaturas" style="margin-top:2mm">
+      <div class="quadro">
+        <div class="slot slot-assin" data-tipo="assinatura">Clique para inserir a assinatura</div>
+        <div class="linha">
+          <div style="font-weight:700"><span class="campo" data-sync="engenheiro" data-ph="Nome do engenheiro"></span></div>
+          <div class="mini">CREA: <span class="campo livre" data-sync="crea" data-ph="—"></span></div>
+        </div>
+      </div>
+      <div class="quadro">
+        <div class="slot slot-assin" data-tipo="assinatura">Clique para inserir a assinatura</div>
+        <div class="linha">
+          <div style="font-weight:700"><span class="campo" data-ph="Responsável pelo estabelecimento"></span></div>
+          <div class="mini">Data: <span class="campo livre" data-ph="00/00/0000"></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <footer class="rod"></footer>
+</section>
+
+<!-- ============ MOLDES (não aparecem; usados pelo JS) ============ -->
+<template id="tpl-cab">
+  <div class="logo-slot slot-logo" data-tipo="logo">
+    <div class="logo-vazio">Clique para<br>inserir a logo</div>
+  </div>
+  <div class="titulo-cab">
+    <div class="linha1">
+      <span contenteditable class="texto-cel">RELATÓRIO DE INSPEÇÃO DE SEGURANÇA NR-13 N°</span>
+      <span class="num-doc"><span class="campo" data-sync="numdoc" data-ph="REL-0000/26"></span></span>
+    </div>
+    <div class="pagina">Página <b class="pag-num">1</b> de <b class="pag-tot">21</b></div>
+  </div>
+</template>
+
+<template id="tpl-rod">
+  <div class="rod1"><span class="campo livre" data-sync="rodape1" style="min-width:110mm" data-ph="Razão social da sua empresa LTDA."></span></div>
+  <div class="rod2"><span class="campo livre" data-sync="rodape2" style="min-width:110mm" data-ph="Endereço – Bairro – Cidade/UF • CNPJ: 00.000.000/0000-00 • CEP 00000-000"></span></div>
+  <div class="rod3"><span class="campo livre" data-sync="rodape3" style="min-width:110mm" data-ph="(00) 00000-0000 – www.site.com.br – email@site.com.br"></span></div>
+</template>
+
+<template id="tpl-folha-fotos">
+  <section class="folha" data-folha="fotos">
+    <div class="aviso-estouro">Conteúdo passou do limite da folha</div>
+    <header class="cab"></header>
+    <div class="corpo">
+      <div class="banner" contenteditable>REGISTRO FOTOGRÁFICO</div>
+      <div class="grade-fotos" style="margin-top:3mm">
+        <div class="cartao-foto"><div class="slot" data-tipo="foto">Clique para adicionar a foto</div><div class="legenda"><span class="campo" style="min-width:60mm" data-ph="Descrição da foto"></span></div></div>
+        <div class="cartao-foto"><div class="slot" data-tipo="foto">Clique para adicionar a foto</div><div class="legenda"><span class="campo" style="min-width:60mm" data-ph="Descrição da foto"></span></div></div>
+        <div class="cartao-foto"><div class="slot" data-tipo="foto">Clique para adicionar a foto</div><div class="legenda"><span class="campo" style="min-width:60mm" data-ph="Descrição da foto"></span></div></div>
+        <div class="cartao-foto"><div class="slot" data-tipo="foto">Clique para adicionar a foto</div><div class="legenda"><span class="campo" style="min-width:60mm" data-ph="Descrição da foto"></span></div></div>
+      </div>
+    </div>
+    <footer class="rod"></footer>
+  </section>
+</template>
+
+<script>
+/* ==========================================================================
+   MINI SISTEMA DE RELATÓRIO NR-13 — tudo em memória. Fechou, perdeu.
+   ========================================================================== */
+
+/* ---------- 1. Cabeçalho e rodapé em todas as folhas -------------------- */
+function montarCabecalhosRodapes(raiz) {
+  const tplCab = document.getElementById('tpl-cab');
+  const tplRod = document.getElementById('tpl-rod');
+  raiz.querySelectorAll('.folha').forEach(folha => {
+    const cab = folha.querySelector('.cab');
+    if (cab && !cab.children.length) cab.appendChild(tplCab.content.cloneNode(true));
+    const rod = folha.querySelector('.rod');
+    if (rod && !rod.children.length) rod.appendChild(tplRod.content.cloneNode(true));
+  });
+}
+
+/* ---------- 2. Numeração das páginas ------------------------------------ */
+function renumerarPaginas() {
+  const folhas = document.querySelectorAll('.folha');
+  folhas.forEach((folha, i) => {
+    const n = folha.querySelector('.pag-num');
+    const t = folha.querySelector('.pag-tot');
+    if (n) n.textContent = i + 1;
+    if (t) t.textContent = folhas.length;
+  });
+}
+
+/* ---------- 3. Campos: vazio(amarelo) → preenchido(azul) ---------------- */
+function estadoCampo(el) { el.classList.toggle('vazio', el.textContent.trim() === ''); }
+function prepararCampos(raiz) {
+  raiz.querySelectorAll('.campo').forEach(el => {
+    if (el.dataset.pronto) return;
+    el.dataset.pronto = '1';
+    el.setAttribute('contenteditable', 'true');
+    estadoCampo(el);
+    el.addEventListener('input', () => { estadoCampo(el); sincronizar(el); agendarConferencia(); });
+    el.addEventListener('blur', () => estadoCampo(el));
+  });
+}
+
+/* ---------- 4. Campos espelhados (nº do relatório, TAG, rodapé…) -------- */
+function sincronizar(origem) {
+  const chave = origem.dataset.sync;
+  if (!chave) return;
+  document.querySelectorAll('[data-sync="' + chave + '"]').forEach(alvo => {
+    if (alvo === origem) return;
+    alvo.textContent = origem.textContent;
+    estadoCampo(alvo);
+  });
+}
+
+/* ---------- 5. Colar sempre como texto puro ---------------------------- */
+document.addEventListener('paste', ev => {
+  const alvo = ev.target.closest('[contenteditable]');
+  if (!alvo) return;
+  ev.preventDefault();
+  const txt = (ev.clipboardData || window.clipboardData).getData('text/plain');
+  document.execCommand('insertText', false, txt);
+});
+
+/* ---------- 6. Alternadores e marcação X -------------------------------- */
+document.addEventListener('click', ev => {
+  const tg = ev.target.closest('.toggle');
+  if (tg) {
+    const ops = (tg.dataset.op || 'SIM|NÃO').split('|');
+    const i = ops.indexOf(tg.textContent.trim());
+    const prox = ops[(i + 1) % ops.length];
+    tg.textContent = prox;
+    tg.classList.toggle('neg', /^(NÃO|NC|REPROVADO|INAPTO)/.test(prox));
+    return;
+  }
+  const marca = ev.target.closest('td.marca');
+  if (marca) {
+    const marcado = marca.textContent.trim() === 'X';
+    marca.parentElement.querySelectorAll('td.marca').forEach(c => c.textContent = '');
+    marca.textContent = marcado ? '' : 'X';
+  }
+});
+
+/* ---------- 7. Imagens: logo, foto e assinatura ------------------------- */
+const entrada = document.getElementById('entrada-arquivo');
+let slotAtual = null;
+
+document.addEventListener('click', ev => {
+  if (ev.target.classList.contains('rm')) {
+    const slot = ev.target.closest('.slot, .logo-slot');
+    ev.stopPropagation();
+    limparSlot(slot);
+    return;
+  }
+  const slot = ev.target.closest('.slot, .logo-slot');
+  if (!slot) return;
+  slotAtual = slot;
+  entrada.value = '';
+  entrada.click();
+});
+
+entrada.addEventListener('change', () => {
+  const arq = entrada.files && entrada.files[0];
+  if (!arq || !slotAtual) return;
+  const tipo = slotAtual.dataset.tipo;
+  const cfg = tipo === 'foto'
+    ? { max: 1400, mime: 'image/jpeg', q: 0.82 }
+    : { max: 700,  mime: 'image/png',  q: 1 };
+  reduzirImagem(arq, cfg, dataUrl => aplicarImagem(slotAtual, dataUrl, tipo));
+});
+
+function reduzirImagem(arquivo, cfg, aoTerminar) {
+  const leitor = new FileReader();
+  leitor.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      let w = img.naturalWidth, h = img.naturalHeight;
+      const escala = Math.min(1, cfg.max / Math.max(w, h));
+      w = Math.max(1, Math.round(w * escala));
+      h = Math.max(1, Math.round(h * escala));
+      const cv = document.createElement('canvas');
+      cv.width = w; cv.height = h;
+      const ctx = cv.getContext('2d');
+      if (cfg.mime === 'image/jpeg') { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h); }
+      ctx.drawImage(img, 0, 0, w, h);
+      aoTerminar(cv.toDataURL(cfg.mime, cfg.q));
+    };
+    img.onerror = () => alert('Não consegui ler essa imagem. Tente JPG ou PNG.');
+    img.src = leitor.result;
+  };
+  leitor.readAsDataURL(arquivo);
+}
+
+function aplicarImagem(slot, dataUrl, tipo) {
+  slot.innerHTML = '';
+  const img = document.createElement('img');
+  img.src = dataUrl;
+  slot.appendChild(img);
+  const rm = document.createElement('span');
+  rm.className = 'rm so-tela';
+  rm.textContent = '×';
+  rm.title = 'Remover imagem';
+  slot.appendChild(rm);
+  slot.classList.add('tem-img');
+  if (tipo === 'logo') sincronizarLogo(dataUrl);
+  agendarConferencia();
+}
+
+function sincronizarLogo(dataUrl) {
+  document.querySelectorAll('.slot-logo').forEach(s => {
+    const atual = s.querySelector('img');
+    if (atual && atual.src === dataUrl) return;
+    s.innerHTML = '';
+    const img = document.createElement('img');
+    img.src = dataUrl;
+    s.appendChild(img);
+    const rm = document.createElement('span');
+    rm.className = 'rm so-tela';
+    rm.textContent = '×';
+    s.appendChild(rm);
+    s.classList.add('tem-img');
+  });
+}
+
+function limparSlot(slot) {
+  const eLogo = slot.dataset.tipo === 'logo';
+  const alvos = eLogo ? document.querySelectorAll('.slot-logo') : [slot];
+  alvos.forEach(s => {
+    s.classList.remove('tem-img');
+    s.innerHTML = eLogo
+      ? '<div class="logo-vazio">Clique para<br>inserir a logo</div>'
+      : (s.classList.contains('slot-assin') ? 'Clique para inserir a assinatura' : 'Clique para adicionar a foto');
+  });
+  agendarConferencia();
+}
+
+/* ---------- 8. Linhas de tabela ---------------------------------------- */
+function tabelaDe(botao, nome) {
+  return botao.closest('.corpo').querySelector('table[data-tabela="' + nome + '"] tbody');
+}
+function addLinha(botao, nome) {
+  const corpo = tabelaDe(botao, nome);
+  const modelo = corpo.rows[corpo.rows.length - 1];
+  const nova = modelo.cloneNode(true);
+  nova.querySelectorAll('.campo').forEach(c => { c.textContent = ''; delete c.dataset.pronto; });
+  nova.querySelectorAll('.toggle').forEach(t => { t.textContent = (t.dataset.op || 'SIM').split('|')[0]; t.classList.remove('neg'); });
+  nova.querySelectorAll('td.marca').forEach(t => t.textContent = '');
+  corpo.appendChild(nova);
+  prepararCampos(nova);
+  agendarConferencia();
+}
+function rmLinha(botao, nome) {
+  const corpo = tabelaDe(botao, nome);
+  if (corpo.rows.length > 1) corpo.deleteRow(corpo.rows.length - 1);
+  agendarConferencia();
+}
+
+/* ---------- 9. Folha de fotos extra ------------------------------------ */
+function addFolhaFotos() {
+  const tpl = document.getElementById('tpl-folha-fotos');
+  const nova = tpl.content.cloneNode(true).querySelector('.folha');
+  const folhas = [...document.querySelectorAll('.folha')];
+  const ultimaFoto = folhas.filter(f => f.dataset.folha === 'fotos').pop();
+  const referencia = ultimaFoto || folhas[folhas.length - 1];
+  nova.dataset.extra = "1";
+  referencia.after(nova);
+  montarCabecalhosRodapes(nova.parentElement);
+  prepararCampos(nova);
+  replicarSincronizados();
+  renumerarPaginas();
+  agendarConferencia();
+  nova.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/* remove a última folha de fotos ACRESCENTADA (as folhas fixas do relatório ficam) */
+function rmFolhaFotos() {
+  const extras = [...document.querySelectorAll('.folha[data-extra]')];
+  if (!extras.length) { alert('Não há folha de fotos acrescentada para remover.'); return; }
+  extras[extras.length - 1].remove();
+  renumerarPaginas();
+  agendarConferencia();
+}
+
+function replicarSincronizados() {
+  const vistos = {};
+  document.querySelectorAll('[data-sync]').forEach(el => {
+    const k = el.dataset.sync, v = el.textContent.trim();
+    if (v && !vistos[k]) vistos[k] = v;
+  });
+  document.querySelectorAll('[data-sync]').forEach(el => {
+    const v = vistos[el.dataset.sync];
+    if (v && el.textContent.trim() === '') { el.textContent = v; estadoCampo(el); }
+  });
+  const logo = document.querySelector('.slot-logo.tem-img img');
+  if (logo) sincronizarLogo(logo.src);
+}
+
+/* ---------- 10. Aviso de conteúdo estourando a folha -------------------- */
+let temporizador = null;
+function agendarConferencia() {
+  clearTimeout(temporizador);
+  temporizador = setTimeout(conferirEstouro, 250);
+}
+function conferirEstouro() {
+  const limite = mmParaPx(297);
+  document.querySelectorAll('.folha').forEach(f => {
+    f.classList.toggle('estourou', f.scrollHeight > limite + 2);
+  });
+}
+function mmParaPx(mm) {
+  const teste = document.createElement('div');
+  teste.style.cssText = 'position:absolute;visibility:hidden;height:' + mm + 'mm';
+  document.body.appendChild(teste);
+  const px = teste.getBoundingClientRect().height;
+  teste.remove();
+  return px;
+}
+
+/* ---------- 11. Imprimir / salvar PDF ---------------------------------- */
+function imprimir() {
+  document.activeElement && document.activeElement.blur();
+  document.querySelectorAll('.campo').forEach(estadoCampo);
+  setTimeout(() => window.print(), 60);
+}
+
+/* ---------- 12. Limpar tudo -------------------------------------------- */
+function limparTudo() {
+  if (confirm('Apagar todo o preenchimento e começar um relatório novo?')) location.reload();
+}
+
+/* ---------- 13. Partida ------------------------------------------------- */
+montarCabecalhosRodapes(document);
+prepararCampos(document);
+renumerarPaginas();
+conferirEstouro();
+window.addEventListener('resize', agendarConferencia);
+</script>
+</body>
+</html>

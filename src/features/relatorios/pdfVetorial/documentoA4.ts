@@ -29,8 +29,16 @@ export const CAIXA = {
 
 /** Altura reservada ao cabeçalho (logo 14mm + respiro + régua). */
 export const ALTURA_CABECALHO = 14 + 2 + 3.5;
-/** Altura reservada ao rodapé: régua + 3 linhas de 8.5pt. */
-export const ALTURA_RODAPE = 3.5 + 1.5 + 3 * 3.6;
+/**
+ * Fator de entrelinha do RODAPÉ. A referência usa `line-height: 1.35` só no
+ * `.rod` — o resto do documento é 1.3. Reservar as três linhas com 1.3 deixava
+ * o rodapé 1,34 mm mais curto do que ele ocupa, e a terceira linha encostava na
+ * borda do papel. Achado pelo gate de geometria (04/09/2026).
+ */
+export const ENTRELINHA_RODAPE = 1.35;
+
+/** Altura reservada ao rodapé: margem + respiro + 3 linhas de 8.5pt. */
+export const ALTURA_RODAPE = 3.5 + 1.5 + 3 * (8.5 * (25.4 / 72) * ENTRELINHA_RODAPE);
 
 /** Onde o corpo começa e termina — o que sobra depois de cabeçalho e rodapé. */
 export const CORPO = {

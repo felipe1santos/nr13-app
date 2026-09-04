@@ -108,6 +108,14 @@ export const FORA_DO_PORTAL: string[] = [
   // buscadas sob demanda, que é o desenho certo: o registro traz pdfRef e SHA,
   // e o arquivo em si vem pelo portal_arquivo).
   'nr13_pront_emitido_',
+
+  // Fase 12B · a foto REAL da placa de identificação.
+  //
+  // O cliente já recebe a placa: ela vai DENTRO do PDF do relatório, embutida
+  // na folha de identificação. Servir a chave daria ao Portal a referência de
+  // um arquivo do bucket que a tela dele não abre — e o Portal não tem sessão
+  // para pedir URL assinada de foto avulsa. O documento é o canal.
+  'nr13_placa_',
 ];
 
 /**

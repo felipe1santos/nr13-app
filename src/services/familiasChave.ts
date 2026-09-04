@@ -49,6 +49,8 @@ export const POR_TAG = [
   'nr13_med_grid_',
   'nr13_modelo3d_',
   'nr13_pref_unidade_',
+  // 12B · a foto REAL da placa de identificação (guarda `RefFoto`, nunca base64).
+  'nr13_placa_',
   'nr13_pront_fab_',
   // 12A · emissões arquivadas do prontuário (lista por revisão; nunca sobrescreve).
   'nr13_pront_emitido_',

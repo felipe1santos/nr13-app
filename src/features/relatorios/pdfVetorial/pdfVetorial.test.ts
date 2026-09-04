@@ -30,6 +30,7 @@ import {
   PT,
   alturaLinha,
 } from './documentoA4';
+import { ALTURA_PLACA, blocoPlaca } from './folhas';
 import {
   FOTOS_POR_FOLHA,
   converterPressao,
@@ -428,5 +429,67 @@ describe('conferência campo a campo', () => {
     localStorage.setItem('nr13_laudo_VP-01', JSON.stringify({ apto: false }));
     const c = conferirCampos(montarModeloRelatorio(TAG));
     expect(c.vazios).not.toContain('laudo APTO/INAPTO');
+  });
+});
+
+describe('placa de identificação: reconstruída em VETOR, real como imagem', () => {
+  // Um `Documento` de mentira que só anota o que foi desenhado. O que interessa
+  // não é o pixel — é QUAL primitiva foi usada: texto e traço (vetor) contra
+  // `addImage` (imagem).
+  function bancada(placaReal: { dataUrl: string; proporcao: number } | null) {
+    const imagens: { x: number; y: number; w: number; h: number }[] = [];
+    let textos = 0;
+    let retangulos = 0;
+    let linhas = 0;
+    const pdf = {
+      setDrawColor() {}, setFillColor() {}, setLineWidth() {}, setFont() {}, setFontSize() {}, setTextColor() {},
+      rect() { retangulos++; },
+      line() { linhas++; },
+      text() { textos++; },
+      addImage(_d: string, _f: string, x: number, y: number, w: number, h: number) { imagens.push({ x, y, w, h }); },
+    };
+    const doc = {
+      pdf,
+      y: 60,
+      faixa() {},
+      garantirEspaco() { return false; },
+    } as unknown as Parameters<typeof blocoPlaca>[0];
+    const modelo = {
+      placaReal,
+      equipamento: {
+        FABRICANTE: 'Metalúrgica X',
+        'IDENTIFICAÇÃO / T.A.G.': 'VP-001',
+        'NÚMERO DE SÉRIE': '12345',
+      },
+      pressoes: [{ rotulo: 'PMTA — Pressão Máxima de Trabalho Admissível', kgf: '10,2' }],
+    } as unknown as Parameters<typeof blocoPlaca>[1];
+    blocoPlaca(doc, modelo);
+    return { imagens, textos, retangulos, linhas, doc };
+  }
+
+  it('SEM foto real: a placa é desenhada — zero imagens', () => {
+    const b = bancada(null);
+    expect(b.imagens).toHaveLength(0);
+    // Um rótulo e um valor por campo, mais o título da placa.
+    expect(b.textos).toBeGreaterThanOrEqual(21);
+    expect(b.retangulos).toBeGreaterThanOrEqual(1);
+    expect(b.linhas).toBeGreaterThan(0);
+  });
+
+  it('COM foto real: uma imagem, na proporção medida e dentro da caixa', () => {
+    const b = bancada({ dataUrl: 'data:image/jpeg;base64,AAA', proporcao: 3.2 });
+    expect(b.imagens).toHaveLength(1);
+    const img = b.imagens[0];
+    expect(img.w / img.h).toBeCloseTo(3.2, 3);
+    expect(img.w).toBeLessThanOrEqual(CAIXA.largura + 0.001);
+    expect(img.h).toBeLessThanOrEqual(ALTURA_PLACA + 0.001);
+    // Nenhum texto de placa é desenhado por cima da foto real.
+    expect(b.textos).toBe(0);
+  });
+
+  it('a placa ocupa sempre a mesma altura, com foto ou sem', () => {
+    // Altura estável é o que impede a folha de identificação de mudar de
+    // paginação só porque o usuário enviou (ou tirou) a foto da placa.
+    expect(bancada(null).doc.y).toBe(bancada({ dataUrl: 'data:image/jpeg;base64,AAA', proporcao: 2 }).doc.y);
   });
 });

@@ -1,6 +1,7 @@
 import html2canvas from 'html2canvas';
 import { rastreabilidadesDoRelatorioAberto, resolverPdf } from './rastreabilidadeService';
 import { avisarBloqueioDocumentos } from '../../services/trial';
+import { limparCamposVazios } from '../documentos/camposVazios';
 
 // Impressão própria: o navegador quebra o conteúdo de <iframe> ao imprimir (sai em tiras / só 1
 // página). Aqui rasterizamos cada folha A4 (o body do iframe) em uma imagem e montamos um
@@ -102,6 +103,10 @@ export async function garantirFonteInterHost(): Promise<void> {
 // text-align: justify colapsa os espaços entre palavras. Normaliza tudo SÓ no clone — o
 // preview/navegador continua com o visual original dos templates.
 export function normalizarCloneParaCanvas(doc: Document): void {
+  // O amarelo de campo vazio é auxílio de TELA (Fase 12B). Tirar aqui é o que
+  // impede o realce de virar tinta no papel — e este é o clone que o
+  // html2canvas fotografa, então vale para a impressão E para o PDF raster.
+  limparCamposVazios(doc);
   const win = doc.defaultView;
   if (win) {
     // Tudo que LÊ o layout original roda ANTES de injetar o <style> abaixo — a normalização de

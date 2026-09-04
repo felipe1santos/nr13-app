@@ -4,6 +4,8 @@ import RelatoriosV9 from '../features/relatorios/RelatoriosV9';
 import { alvoLegadoDaUrl, modoRelatorios, urlDoEditor, urlDoLegado } from '../features/relatorios/rotaRelatorios';
 import { usePalcoDocumento } from '../features/documentos/usePalcoDocumento';
 import { paramsSomenteLeitura, travarIframeSomenteLeitura } from '../features/documentos/somenteLeituraDoc';
+import { acompanharCamposVazios } from '../features/documentos/camposVazios';
+import CardPlacaIdentificacao from '../features/relatorios/CardPlacaIdentificacao';
 import { drenarPonte } from '../services/ponteTemplates';
 import { ler, salvar } from '../services/storage';
 import RecusaPalco from '../components/RecusaPalco';
@@ -156,6 +158,30 @@ function RelatoriosLegado() {
     if (!somenteLeitura || tela !== 'visualizador' || palco.estado !== 'pronto') return;
     const iframes = Array.from(previewRef.current?.querySelectorAll('iframe') ?? []);
     const limpezas = iframes.map((f) => travarIframeSomenteLeitura(f));
+    return () => limpezas.forEach((limpar) => limpar());
+  }, [somenteLeitura, tela, palco.estado, documentos, versao]);
+
+  /**
+   * Fase 12B · CAMPO VAZIO EM AMARELO, enquanto o relatório está em edição.
+   *
+   * É o espelho do efeito acima: onde um documento SALVO ganha a trava, um
+   * documento em edição ganha o realce. Os dois nunca coexistem — em documento
+   * fechado não falta nada a preencher, e marcar ali diria o contrário.
+   *
+   * O realce é derivado (campo vazio + modo edição) e não encosta em dado
+   * nenhum. Ver `features/documentos/camposVazios.ts`.
+   */
+  useEffect(() => {
+    if (somenteLeitura || tela !== 'visualizador' || palco.estado !== 'pronto') return;
+    const iframes = Array.from(previewRef.current?.querySelectorAll('iframe') ?? []);
+    const limpezas: (() => void)[] = [];
+    // Os templates só preenchem no `DOMContentLoaded` deles: marcar antes disso
+    // pintaria de amarelo campos que estão a um instante de receber o valor.
+    iframes.forEach((f) => {
+      const ligar = () => limpezas.push(acompanharCamposVazios(f.contentDocument));
+      if (f.contentDocument?.readyState === 'complete') window.setTimeout(ligar, 250);
+      else f.addEventListener('load', () => window.setTimeout(ligar, 250), { once: true });
+    });
     return () => limpezas.forEach((limpar) => limpar());
   }, [somenteLeitura, tela, palco.estado, documentos, versao]);
 
@@ -1061,6 +1087,12 @@ function RelatoriosLegado() {
               <span className="rel-chip-rascunho" title="Documento em edição: ainda não gera PDF, vencimento nem entrada no Livro.">
                 <Icone nome="pencil" tam={12} /> Rascunho
               </span>
+            )}
+            {/* 12B · qual placa a folha de identificação vai levar. Em documento
+                salvo o card só INFORMA — trocar a placa mudaria um documento
+                assinado (§7-ter). */}
+            {fonteDeImpressao(relatorioArquivado) !== 'arquivo' && (
+              <CardPlacaIdentificacao tag={tag} desabilitado={somenteLeitura} onMudou={() => setVersao((v) => v + 1)} />
             )}
             <div className="meta-barra-acoes">
               {/* `gerando`: enquanto o contador de folhas está na cara do botão, ele ocupa a

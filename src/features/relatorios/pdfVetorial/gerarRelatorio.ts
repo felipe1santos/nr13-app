@@ -24,6 +24,7 @@ import {
   folhasTesteHidrostatico,
 } from './folhas';
 import { medirFotos, montarModeloRelatorio, type ModeloRelatorio } from './modelo';
+import { resolverPlacaReal } from '../placaIdentificacao';
 
 /**
  * Fase 11 · o RELATÓRIO COMPLETO em vetor.
@@ -38,7 +39,7 @@ import { medirFotos, montarModeloRelatorio, type ModeloRelatorio } from './model
  *
  * ## O que NÃO muda
  *
- Desde 04/09/2026 este gerador é o PADRÃO das finalizações NOVAS
+ * Desde 04/09/2026 este gerador é o PADRÃO das finalizações NOVAS
  * (`nr13_motor_pdf = vetorial`, gravado em produção). O raster
  * (`pdfService.gerarPdfBytes`) continua inteiro no bundle como rollback de um
  * passo. Nenhum PDF histórico é regenerado (§7-quater), e o Livro, os
@@ -151,6 +152,10 @@ export async function gerarRelatorioVetorial(
 ): Promise<ResultadoVetorial> {
   const inicio = performance.now();
   const modelo = await comFotosMedidas(montarModeloRelatorio(tag));
+  // A placa REAL vem do cofre/bucket, então só dá para resolver aqui — o modelo
+  // é montado de forma síncrona. Sem foto, `placaReal` fica `null` e a folha
+  // desenha a placa reconstruída.
+  modelo.placaReal = await resolverPlacaReal(tag);
 
   const novoPdf = () => new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
   const cab = {
