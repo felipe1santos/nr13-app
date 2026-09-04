@@ -435,13 +435,21 @@ hidratação): idempotente, valida a contagem por equipamento e **não apaga o l
 
 | motor | onde | o que produz |
 |---|---|---|
-| `raster` (**padrão**) | `pdfService.gerarPdfBytes` | html2canvas das folhas montadas — uma fotografia por página |
-| `vetorial` | `pdfVetorial/gerarRelatorio.ts` | texto real, Carlito embutida, tabelas e gráfico desenhados |
+| `raster` (rollback) | `pdfService.gerarPdfBytes` | html2canvas das folhas montadas — uma fotografia por página |
+| `vetorial` (**PADRÃO desde 04/09/2026**) | `pdfVetorial/gerarRelatorio.ts` | texto real, Carlito embutida, tabelas e gráfico desenhados |
 
 Quem escolhe: `features/relatorios/motorPdf.ts`. `?motor=vetorial` na URL vale
 para uma sessão do visualizador; a chave global `nr13_motor_pdf` vale para a
 organização; a URL vence a chave. **Ausência de valor = `raster`** — só a string
 exata `'vetorial'` troca o motor, e é assim que o rollback custa um passo.
+
+> **VIRADO EM 04/09/2026.** `nr13_motor_pdf = {motor:'vetorial'}` está gravado e
+> o vetorial é o **padrão global**. Provado com uma finalização pelo fluxo
+> normal, SEM parâmetro de URL: 12 páginas em 48.685 bytes (~4 KB/página),
+> upload 200, `pdfPendente:false`, SHA conferido e reabertura servindo o MESMO
+> arquivo com zero templates remontados. Os relatórios raster já arquivados
+> foram baixados e conferidos byte a byte — inalterados. O rollback é
+> `definirMotorPdf('raster')`, e o gerador raster continua no bundle.
 
 O vetorial respeita a COMPOSIÇÃO do relatório (`pdfVetorial/composicao.ts`): a
 seção só é emitida se a folha correspondente está em `documentos`. Sem isso o

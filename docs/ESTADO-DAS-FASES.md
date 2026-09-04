@@ -6,13 +6,29 @@
 > **REGRA:** este arquivo é atualizado NO MOMENTO em que o estado muda — commit, push,
 > redeploy, validação, portão. Não no fim da fase.
 
-**Última atualização:** 04/09/2026 — **10B.2 ENTREGUE ✅ · 10C ESPECIFICADA** · Livro manual no ar; especificação do novo layout fechada em `FASE-10C-ESPECIFICACAO-LAYOUT.md`, com 3 decisões pendentes do dono. Deploy da Edge `portal_cliente` PENDENTE (ver PONTO-DE-RETOMADA §0).
-**Branch:** `main` · **Suíte:** 1680 testes / 142 arquivos, 0 falhas · **Build:** verde · **Bundle em produção:** `assets/index-DlcB9h5X.js` (commit `e8ad050`)
+**Última atualização:** 04/09/2026 — **FASE 11 CONCLUÍDA ✅ · MOTOR VETORIAL É O PADRÃO DE PRODUÇÃO** · as Edges `admin` e `portal_cliente` foram publicadas pelo dashboard e validadas em produção. Raster preservado como rollback.
+**Branch:** `main` · **Suíte:** 1769 testes / 147 arquivos, 0 falhas · **Build:** verde · **Bundle em produção:** `assets/index-s3M_aa12.js` (commit `f6e0629`)
 
 > ### 🔖 VOLTANDO DEPOIS DE UMA PAUSA? Leia [`PONTO-DE-RETOMADA.md`](PONTO-DE-RETOMADA.md).
 > Ele tem o estado de produção, o que falta decidir (a **9D**) e **todos os endereços de acesso** —
 > sistema, Supabase e Coolify.
 
+
+## ✅ FASE 11 — CONCLUÍDA (04/09/2026) · O VETORIAL VIROU O PADRÃO
+
+| | |
+|---|---|
+| o que é | o relatório deixou de ser uma FOTOGRAFIA das folhas e passou a ser **desenhado**: texto real selecionável, Carlito embutida (4 subsets CID), tabelas e gráfico do teste hidrostático em vetor, A4 exato |
+| virada | `nr13_motor_pdf = {motor:'vetorial'}`, gravado pela RPC oficial de mutação. **Padrão GLOBAL da organização** — nenhum parâmetro de URL é necessário |
+| prova pós-virada | relatório novo finalizado pelo fluxo normal, **sem `?motor=` e sem `?piloto=`**: `REL-1788535532968`, 12 páginas, **48.685 bytes** (~4 KB/página). Upload 200, `pdfPendente:false`, SHA e tamanho conferidos, reabertura servindo o MESMO arquivo com **0 templates remontados** |
+| o que o vetorial economiza | um relatório completo caiu de **7,47 MB / 22,6 s** para **0,65 MB / 1,8 s**; no cenário simples, **97,9% menor** e 25× mais rápido |
+| históricos | os 3 relatórios raster já arquivados foram baixados e conferidos: **bytes, SHA, páginas e `pdfRef` idênticos**. Trocar o motor alcança SÓ novas finalizações (§7-quater) |
+| rollback | `definirMotorPdf('raster')` — o gerador raster **não foi removido** (segue no bundle) e `?motor=raster` continua forçando-o, provado emitindo em 04/09 |
+| Edges | `admin` (`f6e0629`) e `portal_cliente` (`6225581`) publicadas pelo **dashboard** e conferidas por SHA-256 contra o repo. Portal validado: Livro oficial permitido, `nr13_livro_rascunho_*` negado, TAG alheia negada, relatório legado abrindo |
+| gate pendente | **impressão física** — esta máquina não tem impressora. É gate manual, não falha técnica |
+| detalhe | `medicoes/2026-09-04-fase11-hardening.md` e `medicoes/2026-09-04-fase11-e2e-producao.md` |
+
+---
 
 ## ✅ FASE 10A — ENTREGUE (03/09/2026)
 

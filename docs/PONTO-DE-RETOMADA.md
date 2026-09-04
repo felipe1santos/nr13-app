@@ -1,34 +1,33 @@
-# PONTO DE RETOMADA — 04/09/2026 (FASE 11 · RELATÓRIO COMPLETO EM VETOR)
+# PONTO DE RETOMADA — 04/09/2026 (FASE 11 CONCLUÍDA · VETORIAL É O PADRÃO)
 
-> **O Livro deixou de ser escrito sozinho.** Finalizar um relatório não cria mais
-> registro: agora é NOVO REGISTRO → SALVAR (rascunho, editável) → TRANCAR →
-> cadeia → imutável → Portal. O relatório já tinha ganhado o mesmo ciclo na
-> 10B.1 (rascunho → finalizar → PDF + SHA-256).
+> **O PDF do relatório passou a ser DESENHADO, não fotografado.** A partir de
+> 04/09/2026 o motor **vetorial é o padrão global** (`nr13_motor_pdf`): texto
+> real selecionável, Carlito embutida, gráfico do teste hidrostático em vetor,
+> A4 exato. Um relatório completo caiu de **7,47 MB / 22,6 s** para
+> **0,65 MB / 1,8 s**.
 >
-> **Bundle em produção:** `assets/index-DlcB9h5X.js` · commit `e8ad050`
-> **Suíte:** 1.680 testes / 142 arquivos · **Build:** verde
+> O raster **continua no bundle** e é o rollback: `definirMotorPdf('raster')`.
+> Documento histórico NUNCA muda de motor — abre sempre o `pdfRef` arquivado.
+>
+> **Bundle em produção:** `assets/index-s3M_aa12.js` · commit `f6e0629`
+> **Suíte:** 1.769 testes / 147 arquivos · **Build:** verde
 
 ---
 
 ## ⚠️ AS DUAS COISAS PENDENTES
 
-### 0 · DEPLOY DA EDGE `portal_cliente` PENDENTE (04/09/2026)
+### 0 · ~~DEPLOY DAS EDGES~~ — RESOLVIDO em 04/09/2026 ✅
 
-O commit `6225581` endurece a autorização sob demanda: a Edge passa a NEGAR
-`nr13_livro_rascunho_*` por família, antes de permitir por TAG. **O código está
-no repo e testado (`portalSobDemanda.test.ts`), mas a função NÃO foi deployada:**
-o dashboard do Supabase não abre nesta máquina (corpo vazio, mesma falha do SQL
-Editor) e a CLI não tem token.
+`portal_cliente` (`6225581`) e `admin` (`f6e0629`) foram publicadas **pelo
+dashboard**, sem CLI, e conferidas por SHA-256 contra o repo depois do deploy.
 
-Para concluir, no terminal do projeto:
+Validado em produção com um acesso de portal descartável: Livro oficial
+permitido, `nr13_livro_rascunho_*` **negado** (inclusive empacotado junto de uma
+chave autorizada), TAG de outro cliente negada, relatório legado abrindo.
 
-```
-npx supabase login
-npx supabase functions deploy portal_cliente --project-ref qqsesrntfvmdxqxrfvmw
-```
-
-Enquanto não for deployada vale o que já valia: o cliente do Portal nunca pede
-essa chave, e o rascunho não contém documento assinado.
+**Como publicar Edge sem CLI** (o dashboard só renderiza com a janela do Chrome
+visível; `setValue` do Monaco NÃO publica — tem que ser colagem real, e há um
+modal de confirmação): ver a memória `deploy-edge-pelo-dashboard`.
 
 ### 1 · `supabase/fase9_remocao_flags.sql` NÃO foi aplicado
 
