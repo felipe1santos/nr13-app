@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
+import { mensagemDeErroEdge } from '../services/edgeErro';
 import { Icone } from '../components/Icone';
 import { logout } from '../services/auth';
 import { rotuloStatusAssinatura, rotuloEventoKiwify } from '../services/assinatura';
@@ -623,8 +624,8 @@ export default function Admin() {
       const { data, error } = await supabase.functions.invoke('admin', {
         body: { action: 'enviar_email_leads', assunto: emAssunto, corpo: emCorpo, destinatarios },
       });
-      if (error) throw error;
-      if (data?.erro) throw new Error(data.erro);
+      const falha = await mensagemDeErroEdge(error, data, 'envio dos e-mails');
+      if (falha) throw new Error(falha);
       setEmailAberto(false);
       setAviso(
         `E-mail enviado para ${data.enviados} lead(s).` +
@@ -796,8 +797,8 @@ export default function Admin() {
       const { data, error } = await supabase.functions.invoke('admin', {
         body: { action: 'create_user', email, senha: novaSenhaUser, liberar: true },
       });
-      if (error) throw error;
-      if (data?.erro) throw new Error(data.erro);
+      const falha = await mensagemDeErroEdge(error, data, 'criação da conta');
+      if (falha) throw new Error(falha);
       // Dias de acesso definidos já no cadastro (campo opcional).
       if (data?.id && !isNaN(dias) && dias > 0) {
         const expira = new Date();
@@ -1070,8 +1071,8 @@ export default function Admin() {
       const { data, error } = await supabase.functions.invoke('admin', {
         body: { action: 'reset_password', user_id: p.id, nova_senha: nova },
       });
-      if (error) throw error;
-      if (data?.erro) throw new Error(data.erro);
+      const falha = await mensagemDeErroEdge(error, data, 'troca de senha');
+      if (falha) throw new Error(falha);
       setAviso(`Senha de ${p.email} redefinida.`);
     } catch (e: unknown) {
       setErro(e instanceof Error ? e.message : 'Falha ao resetar senha.');
@@ -1094,8 +1095,8 @@ export default function Admin() {
       const { data, error } = await supabase.functions.invoke('admin', {
         body: { action: 'delete_user', user_id: p.id },
       });
-      if (error) throw error;
-      if (data?.erro) throw new Error(data.erro);
+      const falha = await mensagemDeErroEdge(error, data, 'exclusão');
+      if (falha) throw new Error(falha);
       setProfiles((ps) => ps.filter((x) => x.id !== p.id));
       setAviso(`Usuário ${p.email} excluído.`);
     } catch (e: unknown) {

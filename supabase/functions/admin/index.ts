@@ -88,22 +88,130 @@ Deno.serve(async (req) => {
       const senha = String(body.senha ?? '');
       const liberar = body.liberar !== false; // default: já liberado
       if (!email || senha.length < 6)
-        return json({ erro: 'email e senha (mín. 6) obrigatórios' }, 400);
+        return json({ erro: 'Informe um e-mail e uma senha de no mínimo 6 caracteres.' }, 400);
+
       // Cria já confirmado (sem precisar de e-mail de confirmação).
+      //
+      // `user_metadata` com o papel: `handle_new_user` insere o profile sem a
+      // coluna `papel`, que cai no default. Aqui o default é o certo — conta
+      // nova é dona da própria organização —, mas escrever explícito impede que
+      // uma mudança futura naquele default vire uma conta com papel errado, e
+      // deixa a origem igual à da Edge `org_admin`. Ver
+      // `src/services/perfilOrigem.ts`.
+      let userId: string | null = null;
       const { data: novo, error } = await admin.auth.admin.createUser({
         email,
         password: senha,
         email_confirm: true,
+        user_metadata: { nr13_papel: 'mestre' },
       });
-      if (error) return json({ erro: error.message }, 400);
-      // Garante o perfil liberado (o trigger cria com ativo=false; aqui liberamos).
-      if (novo.user) {
-        await admin
+
+      if (error) {
+        // ESTADO PARCIAL: uma tentativa anterior pode ter criado o usuário no
+        // Auth e falhado depois (rede, perfil, expiração). Sem este bloco, a
+        // retentativa devolvia "A user with this email address has already been
+        // registered" e o administrador ficava sem saída — a conta existia,
+        // não funcionava, e a tela não dizia o que fazer.
+        const jaExiste = /already (been )?registered|already exists/i.test(error.message);
+        if (!jaExiste) return json({ erro: error.message }, 400);
+
+        const { data: lista, error: listErr } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+        if (listErr) return json({ erro: listErr.message }, 400);
+        const existente = lista.users.find((u) => (u.email ?? '').toLowerCase() === email);
+        if (!existente) {
+          return json(
+            { erro: 'Este e-mail já está registrado, mas a conta não foi encontrada. Use outro e-mail.' },
+            400,
+          );
+        }
+
+        // SÓ retoma conta INCOMPLETA. Uma conta que já é dona de organização com
+        // dados, ou que pertence a outra organização, não é "tentativa
+        // anterior" — é conta de gente, e trocar a senha dela por aqui seria
+        // sequestro. Nesse caso o administrador precisa saber o motivo.
+        const { data: perfilExist } = await admin
           .from('profiles')
-          .update({ ativo: liberar, email })
-          .eq('id', novo.user.id);
+          .select('id, org_id, papel, role, ativo')
+          .eq('id', existente.id)
+          .maybeSingle();
+
+        if (perfilExist?.role === 'admin') {
+          return json({ erro: 'Este e-mail pertence a um administrador da plataforma. Use outro e-mail.' }, 400);
+        }
+
+        // Sub-login de OUTRA organização não é tentativa anterior de criar
+        // conta: é usuário de um cliente. Mesmo vazio, retomá-lo aqui o
+        // arrancaria da organização dele e o promoveria a mestre. `criado_por`
+        // preenchido, ou `org_id` de outro, denunciam esse caso.
+        const ehDeOutraOrg =
+          !!perfilExist &&
+          ((perfilExist.org_id && perfilExist.org_id !== existente.id) ||
+            perfilExist.papel !== 'mestre');
+        if (ehDeOutraOrg) {
+          return json(
+            {
+              erro:
+                'Este e-mail já é um acesso interno de outra conta (sub-login ou portal de cliente). ' +
+                'Use outro e-mail.',
+            },
+            400,
+          );
+        }
+
+        const { count: linhas } = await admin
+          .from('app_storage')
+          .select('chave', { count: 'exact', head: true })
+          .eq('org_id', perfilExist?.org_id ?? existente.id);
+
+        if ((linhas ?? 0) > 0) {
+          return json(
+            {
+              erro:
+                'Este e-mail já possui uma conta EM USO, com dados salvos. ' +
+                'Para liberar o acesso dela use "Liberar acesso"; para trocar a senha use "Resetar senha". ' +
+                'Se quiser mesmo uma conta nova, use outro e-mail.',
+            },
+            400,
+          );
+        }
+
+        // Conta vazia: é a tentativa anterior. Retoma — senha nova e confirmada.
+        const { error: pwErr } = await admin.auth.admin.updateUserById(existente.id, {
+          password: senha,
+          email_confirm: true,
+        });
+        if (pwErr) return json({ erro: `A conta existia, mas não foi possível redefinir a senha: ${pwErr.message}` }, 400);
+        userId = existente.id;
+      } else {
+        userId = novo.user?.id ?? null;
       }
-      return json({ ok: true, id: novo.user?.id });
+
+      if (!userId) {
+        return json({ erro: 'A conta foi criada no login, mas o identificador não voltou. Recarregue e confira a lista.' }, 500);
+      }
+
+      // O perfil: `upsert`, não `update`. O trigger normalmente já criou a
+      // linha, mas se ele não existir/falhar, um `update` não acerta linha
+      // nenhuma e devolve sucesso — a conta ficaria no Auth SEM perfil, sem
+      // organização e sem conseguir entrar. E o erro, que antes era
+      // descartado, agora é lido: perfil não gravado é conta que não funciona.
+      const { error: perfilErr } = await admin
+        .from('profiles')
+        .upsert({ id: userId, email, ativo: liberar, org_id: userId, papel: 'mestre' }, { onConflict: 'id' });
+      if (perfilErr) {
+        return json(
+          {
+            erro:
+              'O login foi criado, mas houve erro ao gravar o perfil e vinculá-lo à organização: ' +
+              `${perfilErr.message}. Tente criar de novo com o MESMO e-mail — o sistema retoma esta conta em vez de duplicar.`,
+            id: userId,
+            parcial: true,
+          },
+          500,
+        );
+      }
+
+      return json({ ok: true, id: userId });
     }
 
     if (action === 'reset_password') {

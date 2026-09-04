@@ -1,6 +1,7 @@
 // Cliente da Edge Function `org_admin` — gestão de sub-logins da org pelo MESTRE.
 // (≠ da função `admin`, que é do dono da plataforma.)
 import { supabase } from './supabase';
+import { mensagemDeErroEdge } from './edgeErro';
 
 export interface SubUsuario {
   id: string;
@@ -16,21 +17,12 @@ export interface SubUsuario {
 
 async function chamar<T>(body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke('org_admin', { body });
-  if (error) {
-    // FunctionsHttpError esconde o motivo real no corpo da resposta — extrai o
-    // { erro } devolvido pela função em vez do genérico "non-2xx status code".
-    const ctx = (error as { context?: Response }).context;
-    if (ctx && typeof ctx.json === 'function') {
-      try {
-        const corpo = await ctx.clone().json();
-        if (corpo?.erro) throw new Error(String(corpo.erro));
-      } catch (e) {
-        if (e instanceof Error && e.message && !/json/i.test(e.message)) throw e;
-      }
-    }
-    throw new Error(error.message || 'Falha na função org_admin');
-  }
-  if (data?.erro) throw new Error(String(data.erro));
+  // A extração do motivo real saiu daqui para `edgeErro.ts`: a mesma armadilha
+  // do `FunctionsHttpError` valia para a Edge `admin`, que não tinha o
+  // tratamento e mostrava "non-2xx status code" ao superadmin. Regra que serve
+  // a todas as Edges não mora dentro do cliente de uma delas.
+  const falha = await mensagemDeErroEdge(error, data, 'operação');
+  if (falha) throw new Error(falha);
   return data as T;
 }
 
