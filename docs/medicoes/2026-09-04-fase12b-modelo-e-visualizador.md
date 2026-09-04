@@ -173,3 +173,25 @@ gerador foi removido: raster e vetorial continuam no bundle, com rollback por
 |---|---|
 | suíte | **1.829 testes, 152 arquivos, 0 falhas** |
 | `tsc -b` · `vite build` | limpos |
+
+---
+
+## 6 · Conferência final, no bundle publicado
+
+Bundle em produção: **`assets/index-CYMZFvjL.js`**.
+
+Terceiro relatório de uma folha em `ZZ-TESTE-P2`, com a empresa em **Clássico**,
+para provar o comportamento pós-finalização:
+
+| | |
+|---|---|
+| rascunho nasceu | `modeloDocumento: "classico"` · botão "Imprimir pré-visualização" |
+| ao finalizar | a tela troca sozinha para o ARQUIVO: `.vpdf` presente, `.relatorio-preview` ausente, miniaturas fechadas |
+| botão | passou a ler **"Imprimir"**, e "Configurações" sumiu |
+| imprimir logo após finalizar | serviu **383.403 bytes**, SHA `ced992148191c299` — o mesmo exibido na tela |
+| rasterização | `#print-root` ausente e `body.className` vazio: nada foi rasterizado |
+| conteúdo | 1 `/Subtype /Image`, 0 `FontFile2` — o gerador Clássico, como configurado |
+
+Ficaram na organização de TESTE três relatórios de uma folha em `ZZ-TESTE-P2`
+(dois Clássicos, um Novo). São a evidência das medições acima; nenhum dado de
+cliente real foi tocado.
