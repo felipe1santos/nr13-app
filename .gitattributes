@@ -1,0 +1,4 @@
+# A referência oficial do layout é conferida por SHA-256 pelo gate de geometria
+# (`geometriaReferencia.test.ts`). Normalizar a quebra de linha mudaria os bytes
+# e o hash, e o gate acusaria adulteração de um arquivo que ninguém tocou.
+docs/referencias/relatorio-nr13.html -text
