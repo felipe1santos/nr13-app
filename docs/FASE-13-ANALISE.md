@@ -173,3 +173,46 @@ relatório**.
 
 Se o objetivo for só reduzir dívida sem mexer na tela, **13F sozinha resolve em
 1 rodada** — e é a única parte desta fase sem risco nenhum.
+
+---
+
+## 9 · DECISÃO DA 13B — **B1**, registrada em 04/09/2026
+
+O dono escolheu **B1** entre as duas saídas levantadas pela medição (13A §3):
+
+| | |
+|---|---|
+| folha de calibração (`CERTIFICADO-CAL-*.html`) | montada **fora da tela**, rasterizada **só ela**, visual preservado exatamente |
+| certificado do laboratório (`nr13_rastreab_`) | continua entrando pelo **pdf-lib**, sem rasterizar |
+| redesenhar certificado em vetor | **não agora** |
+
+> **É exceção documental localizada.** A 13B tem de ENCAPSULAR essa necessidade
+> fora da prévia e do editor: montar o que ela precisa, usar, e descartar. O que
+> não pode voltar é a tela principal depender dos 27 iframes por causa dela —
+> isso anularia a 13D e a 13E.
+
+Consequência de projeto que a 13B precisa resolver: a folha lê
+`nr13_calibracao_item_<id>`, `nr13_minha_empresa` e `nr13_relatorio_meta_atual`
+do `localStorage`. Montá-la fora da tela exige materializar **essas chaves** —
+não o documento inteiro. O palco continua existindo para esse recorte, e é só
+isso que sobra dele no caminho do relatório.
+
+---
+
+## 10 · Correção de conteúdo feita ANTES da 13B (04/09/2026)
+
+Autorizada fora da ordem porque documentos novos estavam saindo com dado real
+vazio. Detalhe em `medicoes/2026-09-04-13a-medicao.md` §4; correção no commit
+`e2a4e1b`.
+
+| campo | antes | agora |
+|---|---|---|
+| CLASSE DO FLUIDO | `cat.classeFluido` (inexistente) | `cat.classe` |
+| VOLUME (m³) | `cat.volume` (inexistente) | `info.volume` → `cat.volInput` |
+| FLUIDO DE OPERAÇÃO | `cat.fluido` (inexistente) | `cat.fluidoInput`, sem o prefixo da classe |
+| ENQUADRAMENTO | `cat.enquadramento` (inexistente) | `cat.isEnquadrado`, e `null` continua sendo ausência |
+| PMTA / PTH | só aceitava `number` | `numeroDoStorage` aceita `"1.25"` e `"12,50"`, recusa texto |
+
+E o gate que faltava: **`storageParaModelo.test.ts`** parte do dado gravado e
+exige que ele chegue ao modelo. O gate antigo (`conferencia.ts`) compara o
+modelo consigo mesmo e é cego para chave com nome errado.
