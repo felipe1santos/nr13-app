@@ -796,3 +796,33 @@ estrutura/`prosrc`/`proacl`, nunca pela mensagem.
 
 Registro completo do rollout, com a ordem dos arquivos e o que foi verificado em cada
 um: `docs/medicoes/2026-08-31-9f3-calibracoes.md` §13.
+
+## 14. Ação destrutiva na interface exige identificação EXATA (04/09/2026)
+
+> **REGRA QUE NÃO SE QUEBRA:** automação que EXCLUI registro pela tela precisa
+> provar o alvo por **id → nome no MESMO card → botão dentro daquele card**.
+> Ambiguidade PARA, em vez de escolher.
+
+O que motivou: uma automação tentou excluir a empresa `ZZ TESTE CRIACAO CLIENTE
+LTDA` procurando o botão assim — subir até 6 ancestrais e casar se o texto do
+ancestral contivesse o nome. Um desses ancestrais é o **contêiner da lista
+inteira**, cujo texto contém o nome de todos os registros. A condição deu
+verdadeira para o PRIMEIRO botão Excluir da página e apagou outro cliente
+(`TERCAL`), restaurado depois com os campos capturados antes da exclusão.
+
+O defeito não é o regex: é procurar o alvo pelo TEXTO DE UM ANCESTRAL. Subir na
+árvore aumenta o escopo até englobar a lista toda, e "este elemento contém o
+nome" deixa de significar "este elemento É o registro".
+
+`scripts/automacao/selecaoSegura.mjs` é a regra executável — a busca só DESCE,
+nunca usa `parentElement`, e recusa: sem id, nome divergente, id inexistente,
+id duplicado, nenhum botão ou mais de um. O padrão antigo ficou preservado no
+módulo (`__padraoInseguroSobeAncestrais`) para o teste **demonstrar** que ele
+escolhe o card errado, em vez de a afirmação ficar só no comentário.
+
+Testes: `node --test scripts/automacao/selecaoSegura.test.mjs` (8). O modo
+DIRETÓRIO do `--test` está quebrado no Node 24 deste repositório — vale também
+para `scripts/massa-escala/`; usar sempre o caminho do arquivo.
+
+Não se aplica só a exclusão: vale para qualquer ação irreversível disparada por
+automação (arquivar, trancar registro do Livro, resetar senha).
