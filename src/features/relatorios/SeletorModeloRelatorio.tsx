@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MODELOS, definirModeloDaEmpresa, modeloDaEmpresa, type ModeloDocumento } from './modeloDocumento';
+import { MODELOS_VISIVEIS, definirModeloDaEmpresa, modeloDaEmpresa, type ModeloDocumento } from './modeloDocumento';
 
 /**
  * Fase 12B · a escolha do MODELO do relatório, na tela da empresa.
@@ -22,6 +22,15 @@ import { MODELOS, definirModeloDaEmpresa, modeloDaEmpresa, type ModeloDocumento 
  * São dois SVG inline de ~20 linhas cada — sem imagem, sem download, sem
  * requisição. Uma prévia que custasse peso na página contradiria o motivo de o
  * modelo Novo existir.
+ *
+ * ## Por que hoje aparece UM modelo
+ *
+ * A lista vem de `MODELOS_VISIVEIS`, e o Clássico está fora dela: ele só existe
+ * pelo gerador raster, que fotografa cada folha. Oferecê-lo faria o usuário
+ * escolher, sem saber, entre um documento e a fotografia de um documento. O
+ * componente NÃO foi simplificado para um modelo só — quando o layout Clássico
+ * vetorial existir, basta ele voltar a `MODELOS_OFERECIDOS` e a escolha
+ * reaparece inteira, com a prévia que já está escrita aqui.
  */
 export default function SeletorModeloRelatorio() {
   const [modelo, setModelo] = useState<ModeloDocumento>(() => modeloDaEmpresa());
@@ -53,7 +62,7 @@ export default function SeletorModeloRelatorio() {
       </p>
 
       <div className="modelo-opcoes">
-        {MODELOS.map((m) => (
+        {MODELOS_VISIVEIS.map((m) => (
           <button
             key={m.valor}
             type="button"
@@ -72,6 +81,11 @@ export default function SeletorModeloRelatorio() {
         ))}
       </div>
 
+      {MODELOS_VISIVEIS.length === 1 && (
+        <p className="modelo-estado">
+          Outros modelos aparecem aqui quando ficarem disponíveis.
+        </p>
+      )}
       {salvando && <p className="modelo-estado">Salvando…</p>}
       {erro && <p className="modelo-erro">{erro}</p>}
     </div>

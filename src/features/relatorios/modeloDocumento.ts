@@ -18,12 +18,9 @@ import { motorConfigurado } from './motorPdf';
  * não é assunto de quem opera o sistema, e mostrar isso na tela transformaria
  * uma decisão visual numa pergunta técnica que ninguém tem por que responder.
  *
- * A tradução é 1:1 e vive só aqui:
- *
- * ```
- * 'classico' → motor 'raster'
- * 'novo'     → motor 'vetorial'
- * ```
+ * A tradução vive só aqui, e desde o gate de 04/09/2026 ela tem uma trava:
+ * **nenhum modelo OFERECIDO ao usuário pode cair no motor raster** — ver
+ * `MODELOS_OFERECIDOS` abaixo. Hoje a tela oferece um modelo, e ele é vetorial.
  *
  * Manter os dois nomes não é redundância: o motor continua existindo como
  * **rollback técnico** (`?motor=` na URL, `definirMotorPdf`) e é o que os
@@ -57,14 +54,71 @@ export const MODELOS: { valor: ModeloDocumento; rotulo: string; descricao: strin
   { valor: 'novo', rotulo: 'Novo', descricao: 'Novo padrão visual, mais leve e moderno.' },
 ];
 
+/**
+ * ## A REGRA QUE NÃO SE QUEBRA (12B, gate de 04/09/2026)
+ *
+ * **Nenhum modelo oferecido ao usuário pode sair pelo gerador raster.**
+ *
+ * O raster fotografa cada folha com `html2canvas` e cola a imagem no A4: o PDF
+ * não tem texto, não tem fonte embutida e não se pesquisa. Oferecer isso como
+ * "Clássico" faria o usuário escolher, sem saber, entre um documento e a
+ * fotografia de um documento. Ele existe daqui em diante **só como rollback
+ * técnico** — `?motor=raster` na URL e `definirMotorPdf('raster')` —, fora da
+ * escolha normal da empresa.
+ *
+ * ## Por que o Clássico está FORA da lista oferecida
+ *
+ * O layout Clássico mora nos 27 templates de `public/arquivos-inspecao/`
+ * (14.690 linhas de HTML/CSS). Desenhá-lo no motor vetorial significa um SEGUNDO
+ * conjunto de folhas ao lado de `pdfVetorial/folhas.ts` — trabalho do tamanho da
+ * própria Fase 11, com um portão de fidelidade folha a folha. A ponte de dados
+ * (`modelo.ts`), a paginação e as primitivas JÁ são compartilhadas e continuam
+ * prontas para receber esse segundo layout; o que falta é só o layout.
+ *
+ * Enquanto ele não existir, a tela oferece **um** modelo. Escolher entre dois
+ * desenhos em que um deles é uma fotografia seria pior do que não escolher.
+ */
+export const MODELOS_OFERECIDOS: ModeloDocumento[] = ['novo'];
+
+/** O modelo é oferecido ao usuário hoje? */
+export function modeloOferecido(m: ModeloDocumento): boolean {
+  return MODELOS_OFERECIDOS.includes(m);
+}
+
+/** Os modelos que a tela pode mostrar, com rótulo e descrição. */
+export const MODELOS_VISIVEIS = MODELOS.filter((m) => modeloOferecido(m.valor));
+
+/**
+ * O modelo que vale de fato.
+ *
+ * Modelo gravado (ou congelado num rascunho) que deixou de ser oferecido cai no
+ * primeiro oferecido. É o degrau que garante a regra acima mesmo para quem já
+ * tinha `classico` gravado — inclusive para um rascunho congelado nele.
+ *
+ * Isso ABRE MÃO, de propósito, de uma parte da promessa de congelamento: um
+ * rascunho carimbado como Clássico passa a sair no modelo Novo. A alternativa
+ * seria honrar o congelamento e emitir a fotografia — e a regra nova diz que
+ * documento nenhum sai assim. Congelar serve para o desenho não mudar debaixo
+ * do usuário; não serve para manter vivo um desenho que o sistema retirou.
+ */
+export function modeloEfetivo(m: ModeloDocumento): ModeloDocumento {
+  return modeloOferecido(m) ? m : MODELOS_OFERECIDOS[0];
+}
+
 /** Só a string exata `'novo'` escolhe o modelo novo. Qualquer outra coisa é Clássico. */
 export function normalizarModelo(v: unknown): ModeloDocumento {
   return String(v ?? '').trim().toLowerCase() === 'novo' ? 'novo' : 'classico';
 }
 
-/** A tradução — o ÚNICO ponto onde modelo vira motor. */
+/**
+ * A tradução — o ÚNICO ponto onde modelo vira motor.
+ *
+ * Passa pelo `modeloEfetivo`, então **nenhum modelo oferecido devolve
+ * `raster`**. O raster só é alcançável pela porta de rollback (`?motor=raster`
+ * ou `definirMotorPdf`), que não é escolha de empresa.
+ */
 export function motorDoModelo(m: ModeloDocumento): MotorPdf {
-  return m === 'novo' ? 'vetorial' : 'raster';
+  return modeloEfetivo(m) === 'novo' ? 'vetorial' : 'raster';
 }
 
 /** O caminho inverso, usado para herdar a configuração antiga da organização. */
@@ -73,12 +127,16 @@ export function modeloDoMotor(motor: MotorPdf): ModeloDocumento {
 }
 
 /**
- * O modelo escolhido pela empresa.
+ * O que está GRAVADO para a organização — sem filtrar pelo que é oferecido.
+ *
+ * Existe separado porque a auditoria precisa ver o valor cru: uma org com
+ * `classico` gravado não perdeu a escolha, ela está esperando o layout Clássico
+ * vetorial existir. Para decidir o que sai no PDF, use `modeloDaEmpresa`.
  *
  * Sem a chave nova, herda do motor já configurado (ver o cabeçalho). Storage
  * ilegível cai no Clássico, que é o comportamento histórico do sistema.
  */
-export function modeloDaEmpresa(): ModeloDocumento {
+export function modeloGravado(): ModeloDocumento {
   try {
     const salvo = ler<{ modelo?: string }>(CHAVE_MODELO_RELATORIO)?.modelo;
     if (salvo !== undefined && salvo !== null && String(salvo).trim() !== '') {
@@ -88,6 +146,15 @@ export function modeloDaEmpresa(): ModeloDocumento {
   } catch {
     return 'classico';
   }
+}
+
+/**
+ * O modelo que a empresa usa DE FATO — o gravado, passado pelo filtro do que é
+ * oferecido hoje. É este que carimba um rascunho novo, para que o carimbo não
+ * prometa um desenho que o sistema não emite.
+ */
+export function modeloDaEmpresa(): ModeloDocumento {
+  return modeloEfetivo(modeloGravado());
 }
 
 /** Grava a escolha da organização. Passa pelo caminho oficial de mutação. */
@@ -109,6 +176,11 @@ export async function definirModeloDaEmpresa(modelo: ModeloDocumento): Promise<v
  *    de quinta — e o inspetor veria o documento mudar de cara sozinho.
  * 3. **a configuração atual da empresa** — para rascunho antigo, anterior a esta
  *    fase, que não tem o campo.
+ *
+ * O degrau 2 passa pelo `modeloEfetivo` (dentro de `motorDoModelo`): rascunho
+ * congelado num modelo que foi RETIRADO sai no modelo oferecido, em vez de sair
+ * pelo raster. É a única parte da promessa de congelamento que a regra nova
+ * abre mão, e de propósito.
  *
  * Documento JÁ FINALIZADO não passa por aqui: ele tem `pdfRef` e é servido como
  * ARQUIVO (§7-quater). Nenhuma configuração de empresa alcança histórico.
