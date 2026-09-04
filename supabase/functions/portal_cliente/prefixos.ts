@@ -99,6 +99,44 @@ export const FORA_DO_PORTAL: string[] = [
 ];
 
 /**
+ * Famílias servidas **somente sob demanda** — não entram na carga inicial.
+ *
+ * `nr13_rel_<id>_<TAG>` é o registro COMPLETO de um relatório (~9,3 KB, 30 % do payload
+ * medido). A listagem do Portal precisa só do índice; o registro inteiro só é necessário
+ * quando o cliente abre um relatório LEGADO, anterior ao PDF arquivado (§7-quater).
+ *
+ * Ela não está em `PREFIXOS_POR_TAG` de propósito, e é por isso que esta lista existe: sem
+ * ela, exigir que toda chave pedida estivesse na lista da carga inicial quebraria a abertura
+ * desses relatórios no Portal.
+ */
+export const PREFIXOS_SOB_DEMANDA: string[] = ['nr13_rel_'];
+
+/**
+ * A chave pedida pelo cliente pode ser servida?
+ *
+ * Três perguntas, **nesta ordem**, e a ordem é a regra:
+ *
+ *  1. **está negada?** `FORA_DO_PORTAL` vence tudo. Vem primeiro porque as famílias se
+ *     encaixam: `nr13_livro_rascunho_<TAG>` começa com `nr13_livro_`, que é permitido, e
+ *     termina com `_<TAG>` de um equipamento que é mesmo do cliente. Só a negação explícita,
+ *     avaliada ANTES da permissão, o exclui;
+ *  2. **é de um equipamento deste cliente?** `tags` vem do banco, nunca do corpo do request —
+ *     o pedido diz QUAL chave, jamais A QUEM ela pertence;
+ *  3. **é de uma família prevista?** Sem isto, terminar em `_<TAG>` bastava, e qualquer chave
+ *     futura passava a ser legível pelo cliente no dia em que fosse criada, sem ninguém
+ *     decidir isso.
+ *
+ * Função PURA, e separada da Edge de propósito: é a regra de autorização, e ela precisa de
+ * teste — o runtime da Edge é Deno e não roda na suíte.
+ */
+export function chaveAutorizadaSobDemanda(chave: string, tags: string[]): boolean {
+  if (typeof chave !== 'string' || chave === '') return false;
+  if (FORA_DO_PORTAL.some((p) => chave.startsWith(p))) return false;
+  if (!tags.some((t) => chave.endsWith(`_${t}`))) return false;
+  return [...PREFIXOS_POR_TAG, ...PREFIXOS_SOB_DEMANDA].some((p) => chave.startsWith(p));
+}
+
+/**
  * Prefixo de escopo de ID (não de TAG) que o Portal precisa.
  *
  * `nr13_rastreab_` são os certificados dos instrumentos PADRÃO da executante, anexados ao fim

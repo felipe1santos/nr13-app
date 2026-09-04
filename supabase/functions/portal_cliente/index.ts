@@ -10,7 +10,7 @@
 //   { }  ->  { chaves: { 'nr13_info_<TAG>': '<json>', ... }, tags: ['TAG1', ...] }
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { chavesDoCliente, PREFIXO_RASTREABILIDADE } from './prefixos.ts';
+import { chaveAutorizadaSobDemanda, chavesDoCliente, PREFIXO_RASTREABILIDADE } from './prefixos.ts';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -95,7 +95,12 @@ Deno.serve(async (req) => {
     // passo 2 já resolveu como sendo deste cliente. `tags` vem do banco, nunca do frontend —
     // o corpo do request só diz QUAL chave, jamais A QUEM ela pertence.
     if (pedidas.length > 0) {
-      const autorizadas = pedidas.filter((c) => tags.some((t) => c.endsWith(`_${t}`)));
+      // A autorização mora em `prefixos.ts`, como função pura e testada
+      // (`portalSobDemanda.test.ts`). Ela nega por FAMÍLIA antes de permitir por
+      // TAG: `nr13_livro_rascunho_<TAG>` termina em `_<TAG>` de um equipamento
+      // legítimo e começa com um prefixo permitido — só a negação explícita, e
+      // avaliada primeiro, o mantém fora do Portal.
+      const autorizadas = pedidas.filter((c) => chaveAutorizadaSobDemanda(c, tags));
       // Silêncio deliberado sobre a recusa: devolver "essa não é sua" daria um oráculo de
       // enumeração, o mesmo motivo da D-26 em `portal_arquivo`. Chave não autorizada
       // simplesmente não vem no resultado.
