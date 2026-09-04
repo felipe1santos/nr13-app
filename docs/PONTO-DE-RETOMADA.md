@@ -87,7 +87,7 @@ o painel de vencimentos vem do **agregado**. Hidratação integral = **0**.
 | **10C** | **ESPECIFICADA em 04/09/2026** — `FASE-10C-ESPECIFICACAO-LAYOUT.md`. A referência apareceu (`C:\projetos\vender\relatorio-nr13.html`). Faltam 3 decisões do dono: fonte, campos novos (recomendações / próximas inspeções por exame) e checklist em 2 ou 3 folhas |
 | ~~**Fase 11**~~ | **CONCLUÍDA em 04/09/2026** — vetorial é o padrão global do relatório (`nr13_motor_pdf`). Único gate manual restante: **impressão física** |
 | ~~**Fase 12**~~ | **CONCLUÍDA em 04/09/2026** — prontuário vetorial e EMITIDO, `portal_cliente` republicada, e **IMPRIMIR passou a servir o arquivo arquivado** nos dois documentos. Detalhe em `medicoes/2026-09-04-fase12-hardening.md` |
-| **Fase 13** | **analisada, não iniciada** — `FASE-13-ANALISE.md`. Tema: a PRÉVIA passa a ser o DOCUMENTO (hoje se edita o desenho Clássico e se assina o Novo), com aposentadoria do palco só para a tela do relatório. 6 blocos, 8–9 rodadas |
+| **Fase 13** | **13A FECHADA** (medição) — `medicoes/2026-09-04-13a-medicao.md`. 13B aguarda autorização. Achado grave: 5 campos lidos com nome/tipo errado fazem o Modelo Novo imprimir travessão onde o dado existe |
 
 Desenho de todos em [`FASE-10-DESENHO.md`](FASE-10-DESENHO.md).
 
