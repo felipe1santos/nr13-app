@@ -87,9 +87,15 @@ com quatro diferenças que importam.
 ### O que existe no sistema e NÃO existe na referência
 
 `CHECKLIST-FOTOS.html`, `TERMO-ABERTURA.html`, `CAPA-LIVRO-REGISTRO.html`,
-`CERTIFICADO-CAL-MANOMETRO.html`, `CERTIIFCADO-CAL-PSV.html`,
-`PRONTUARIO-RECONSTITUICAO-*`. **Nenhum é regressão da referência** — ela é um
-formulário genérico de venda, não o sistema. Todos permanecem.
+`CERTIFICADO-CAL-MANOMETRO.html`, `CERTIIFCADO-CAL-PSV.html`.
+**Nenhum é regressão da referência** — ela é um formulário genérico de venda,
+não o sistema. Todos permanecem.
+
+> **Correção (04/09/2026):** esta lista também citava `PRONTUARIO-RECONSTITUICAO-*`.
+> Essas folhas **não existem no repositório** — sem arquivo em `public/`, sem
+> entrada em `DOCUMENTOS_DISPONIVEIS`, sem referência em código. A afirmação
+> vinha do `CLAUDE.md` §8, corrigido junto. Ver
+> `docs/medicoes/2026-09-04-fase11-hardening.md` §4.
 
 ---
 

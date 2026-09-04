@@ -62,11 +62,13 @@ export default function PainelPiloto({ tag, documentos }: { tag: string; documen
     setOcupado('vetor');
     setErro('');
     try {
-      const r = await gerarRelatorioVetorial(tag);
+      const r = await gerarRelatorioVetorial(tag, { documentos, containerSelector: '.relatorio-preview' });
       setVetor({ bytes: r.bytes.byteLength, paginas: r.paginas, ms: r.ms });
       setBytesVetor(r.bytes);
       setConferencia(conferirCampos(r.modelo));
       setArquivado(null);
+      // Certificado que não entrou nunca some calado — nem na bancada.
+      if (r.falhasAnexo.length > 0) setErro(`Não anexados: ${r.falhasAnexo.join(', ')}`);
     } catch (e) {
       setErro(`Vetorial: ${e instanceof Error ? e.message : String(e)}`);
     } finally {

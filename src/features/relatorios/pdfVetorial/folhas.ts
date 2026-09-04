@@ -1,4 +1,6 @@
 import { CAIXA, COR, FONTE } from './documentoA4';
+import { secoesPresentes, type SecaoRelatorio } from './composicao';
+import { ALTURA_GRAFICO_TH, desenharGraficoTh, numeroDoTexto, pontosDaCurva } from './graficoTh';
 import { foto } from './primitivas';
 import type { Documento } from './documento';
 import { rotuloLaudo } from './rotulos';
@@ -62,14 +64,24 @@ function blocoExame(doc: Documento, titulo: string, exame: ExameVisual): void {
   doc.texto(textoOu(exame.conclusao ?? exame.resultado), { cor: COR.valor });
 }
 
+/**
+ * Folha de registro fotográfico — e ela SÓ EXISTE se houver foto.
+ *
+ * Até o hardening da Fase 11 esta função abria a folha ANTES de olhar a lista:
+ * uma inspeção sem foto do exame interno saía com uma página inteira dizendo
+ * "sem registro fotográfico nesta etapa". Cinco etapas sem foto viravam cinco
+ * páginas vazias dentro de um documento assinado por engenheiro — e a ausência
+ * de foto já está dita no corpo do exame, que é onde ela significa alguma coisa.
+ *
+ * A regra agora é a contagem, sem exceção: 0 fotos → 0 folhas; 1–4 → 1;
+ * 5–8 → 2; 9–12 → 3. Quem distribui dentro da folha é `doc.fotos` (4 por folha,
+ * §5, proporção real e `contain`); quem conta as folhas é `folhasDeFotos`.
+ */
 function folhaDeFotos(doc: Documento, titulo: string, lista: FotoModelo[]): void {
+  if (lista.length === 0) return;
   doc.novaFolha();
   const banner = () => doc.banner(titulo);
   banner();
-  if (lista.length === 0) {
-    doc.texto('Sem registro fotográfico nesta etapa.', { tamanho: FONTE.nota, cor: COR.nota, espacoAntes: 2 });
-    return;
-  }
   doc.fotos(lista, banner);
 }
 
@@ -341,24 +353,26 @@ export function folhasChecklist(doc: Documento, m: ModeloRelatorio): void {
 }
 
 // ── 12. FOTOS DA DOCUMENTAÇÃO · e as do checklist ───────────────────────────
-export function folhasFotosDocumentacao(doc: Documento, m: ModeloRelatorio): void {
-  folhaDeFotos(doc, '8. REGISTRO FOTOGRÁFICO — DOCUMENTAÇÃO', m.fotosDocumentacao);
-  if (m.fotosChecklist.length > 0) {
-    folhaDeFotos(doc, '8.0 REGISTRO FOTOGRÁFICO — CHECKLIST', m.fotosChecklist);
-  }
+export function folhasFotosDocumentacao(
+  doc: Documento,
+  m: ModeloRelatorio,
+  tem: { documentacao?: boolean; checklist?: boolean } = {},
+): void {
+  if (tem.documentacao !== false) folhaDeFotos(doc, '8. REGISTRO FOTOGRÁFICO — DOCUMENTAÇÃO', m.fotosDocumentacao);
+  if (tem.checklist !== false) folhaDeFotos(doc, '8.0 REGISTRO FOTOGRÁFICO — CHECKLIST', m.fotosChecklist);
 }
 
 // ── 13 a 16. EXAMES VISUAIS E SUAS FOTOS ────────────────────────────────────
-export function folhasExameExterno(doc: Documento, m: ModeloRelatorio): void {
+export function folhasExameExterno(doc: Documento, m: ModeloRelatorio, comFotos = true): void {
   doc.novaFolha();
   blocoExame(doc, '7.2 EXAME EXTERNO (INSPEÇÃO VISUAL EXTERNA)', m.visualExterno);
-  folhaDeFotos(doc, '8.1 REGISTRO FOTOGRÁFICO — EXAME EXTERNO', m.visualExterno.fotos);
+  if (comFotos) folhaDeFotos(doc, '8.1 REGISTRO FOTOGRÁFICO — EXAME EXTERNO', m.visualExterno.fotos);
 }
 
-export function folhasExameInterno(doc: Documento, m: ModeloRelatorio): void {
+export function folhasExameInterno(doc: Documento, m: ModeloRelatorio, comFotos = true): void {
   doc.novaFolha();
   blocoExame(doc, '7.3 EXAME INTERNO (INSPEÇÃO VISUAL INTERNA)', m.visualInterno);
-  folhaDeFotos(doc, '8.2 REGISTRO FOTOGRÁFICO — EXAME INTERNO', m.visualInterno.fotos);
+  if (comFotos) folhaDeFotos(doc, '8.2 REGISTRO FOTOGRÁFICO — EXAME INTERNO', m.visualInterno.fotos);
 }
 
 // ── 17. ULTRASSOM ───────────────────────────────────────────────────────────
@@ -446,7 +460,7 @@ export function folhaUltrassom(doc: Documento, m: ModeloRelatorio): void {
 }
 
 // ── 18 e 19. TESTE HIDROSTÁTICO E SUAS FOTOS ────────────────────────────────
-export function folhasTesteHidrostatico(doc: Documento, m: ModeloRelatorio): void {
+export function folhasTesteHidrostatico(doc: Documento, m: ModeloRelatorio, comFotos = true): void {
   doc.novaFolha();
   doc.banner('7.5 REGISTRO DE TESTE HIDROSTÁTICO');
   doc.tabela({
@@ -474,7 +488,26 @@ export function folhasTesteHidrostatico(doc: Documento, m: ModeloRelatorio): voi
 
   if (m.th.curva.length > 0) {
     doc.y += 2.4;
-    doc.faixa('CURVA DE PRESSURIZAÇÃO E ESTABILIZAÇÃO');
+    doc.faixa('GRÁFICO DE PRESSURIZAÇÃO E ESTABILIZAÇÃO');
+
+    // O GRÁFICO, em vetor — eixos, faixas, linha, pontos e valores desenhados
+    // com os mesmos dados e os mesmos limiares do Chart.js da folha atual.
+    // Nada de captura de tela: a curva é uma polilinha, e continua nítida em
+    // qualquer zoom e na impressão.
+    const pontos = pontosDaCurva(m.th.curva);
+    if (pontos.some((p) => p.pressao !== null)) {
+      doc.garantirEspaco(ALTURA_GRAFICO_TH + 4);
+      doc.y = desenharGraficoTh(doc.pdf, doc.y, {
+        pontos,
+        pressaoTeste: numeroDoTexto(m.th.pressaoTeste),
+      });
+      doc.y += 2.4;
+    }
+
+    // A TABELA fica: o gráfico mostra o comportamento, a tabela dá o valor
+    // exato de cada leitura — e é a tabela que se lê num documento impresso em
+    // preto e branco.
+    doc.faixa('LEITURAS REGISTRADAS');
     doc.tabela({
       compacta: true,
       colunas: [0.5, 0.5],
@@ -486,7 +519,7 @@ export function folhasTesteHidrostatico(doc: Documento, m: ModeloRelatorio): voi
     });
   }
 
-  folhaDeFotos(doc, '8.3 REGISTRO FOTOGRÁFICO — TESTE HIDROSTÁTICO', m.th.fotos);
+  if (comFotos) folhaDeFotos(doc, '8.3 REGISTRO FOTOGRÁFICO — TESTE HIDROSTÁTICO', m.th.fotos);
 }
 
 // ── 20. RECOMENDAÇÕES, PARECER, PRÓXIMAS INSPEÇÕES E ASSINATURAS ────────────
@@ -561,19 +594,42 @@ function assinaturas(doc: Documento, m: ModeloRelatorio): void {
   });
 }
 
-/** Os títulos do sumário — na ordem em que as folhas são emitidas. */
-export const SECOES_DO_RELATORIO = [
-  'Identificação do equipamento',
-  'Categorização de risco',
-  'Dados técnicos / prontuário',
-  'Resumo dos cálculos da PMTA',
-  'Memória de cálculo',
-  'Dados gerais da inspeção',
-  'Checklist NR-13',
-  'Registro fotográfico da documentação',
-  'Exame externo',
-  'Exame interno',
-  'Medição de espessura por ultrassom',
-  'Teste hidrostático',
-  'Parecer conclusivo e próxima inspeção',
-];
+/**
+ * Os títulos do sumário — na ordem em que as folhas são emitidas, e **só as
+ * que serão emitidas**.
+ *
+ * As seções fotográficas entram conforme a contagem de fotos daquela etapa.
+ * Um sumário que anuncia "Registro fotográfico do exame interno" num relatório
+ * que não tem essa folha é conteúdo errado, não estilo: o leitor procura uma
+ * página que não existe.
+ */
+export function secoesDoRelatorio(
+  m: ModeloRelatorio,
+  tem: Record<SecaoRelatorio, boolean> = TUDO,
+): string[] {
+  const s: string[] = [];
+  const push = (ok: boolean, titulo: string) => {
+    if (ok) s.push(titulo);
+  };
+  push(tem.identificacao, 'Identificação do equipamento');
+  push(tem.categorizacao, 'Categorização de risco');
+  push(tem.dadosTecnicos, 'Dados técnicos / prontuário');
+  push(tem.resumoCalculos, 'Resumo dos cálculos da PMTA');
+  push(tem.memoria, 'Memória de cálculo');
+  push(tem.dadosInspecao, 'Dados gerais da inspeção');
+  push(tem.checklist, 'Checklist NR-13');
+  push(tem.fotosDocumentacao && m.fotosDocumentacao.length > 0, 'Registro fotográfico da documentação');
+  push(tem.fotosChecklist && m.fotosChecklist.length > 0, 'Registro fotográfico do checklist');
+  push(tem.exameExterno, 'Exame externo');
+  push(tem.fotosExterno && m.visualExterno.fotos.length > 0, 'Registro fotográfico do exame externo');
+  push(tem.exameInterno, 'Exame interno');
+  push(tem.fotosInterno && m.visualInterno.fotos.length > 0, 'Registro fotográfico do exame interno');
+  push(tem.ultrassom, 'Medição de espessura por ultrassom');
+  push(tem.th, 'Teste hidrostático');
+  push(tem.fotosTh && m.th.fotos.length > 0, 'Registro fotográfico do teste hidrostático');
+  push(tem.parecer, 'Parecer conclusivo e próxima inspeção');
+  return s;
+}
+
+/** Sem lista de folhas informada, tudo entra — o comportamento do piloto. */
+const TUDO: Record<SecaoRelatorio, boolean> = secoesPresentes(undefined);

@@ -50,6 +50,8 @@ import { registrarUso } from '../services/usoMetricas';
 import { documentosBloqueados } from '../services/trial';
 import { mascararData } from '../services/mascaras';
 import { exportarPdf, gerarPdfBytes } from '../features/relatorios/pdfService';
+import { motorPdfAtual } from '../features/relatorios/motorPdf';
+import { gerarRelatorioVetorial } from '../features/relatorios/pdfVetorial/gerarRelatorio';
 import { publicarArtefato, artefatoDe } from '../features/relatorios/artefatoRelatorio';
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
 import { ehRascunho, temArtefato, type RelatorioIndiceItem, type RelatorioMeta, type RelatorioSalvo, type TipoInspecao } from '../features/relatorios/tipos';
@@ -765,12 +767,24 @@ function RelatoriosLegado() {
       };
 
       // 3. PDF do que está montado.
+      //
+      // QUAL MOTOR: `motorPdfAtual` decide, e o padrão é o RASTER que está em
+      // produção. A escolha vale só para ESTA finalização — nenhum documento já
+      // emitido é regenerado, porque relatório finalizado é arquivo, não receita
+      // (§7-quater). Ver `features/relatorios/motorPdf.ts`.
       setProgressoPdf({ feito: 0, total: documentos.length });
-      const { bytes, paginas, falhasAnexo } = await gerarPdfBytes('.relatorio-preview', {
-        rastreabilidades: true,
-        documentos,
-        onProgresso: (feito, total) => setProgressoPdf({ feito, total }),
-      });
+      const motor = motorPdfAtual(window.location.search);
+      const { bytes, paginas, falhasAnexo } =
+        motor === 'vetorial'
+          ? await gerarRelatorioVetorial(tag, {
+              documentos,
+              containerSelector: '.relatorio-preview',
+            }).then((r) => ({ bytes: r.bytes, paginas: r.paginas, falhasAnexo: r.falhasAnexo }))
+          : await gerarPdfBytes('.relatorio-preview', {
+              rastreabilidades: true,
+              documentos,
+              onProgresso: (feito, total) => setProgressoPdf({ feito, total }),
+            });
 
       // 4. Hash + upload. Offline, `salvarArquivo` deixa no cofre local e
       //    enfileira — o artefato existe, só ainda não chegou ao servidor.

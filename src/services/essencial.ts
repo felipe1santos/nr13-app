@@ -41,7 +41,12 @@
  *   · `nr13_relatorios_arquivados` — ids tirados da lista padrão de
  *                             `/relatorios`. Leve (ids, ~40 bytes cada) e lida
  *                             no boot porque a lista filtra por ela ANTES de
- *                             desenhar.
+ *                             desenhar;
+ *   · `nr13_motor_pdf`      — qual motor gera o PDF de uma finalização NOVA
+ *                             (Fase 11). Um objeto de dois campos. Precisa
+ *                             estar no boot porque a decisão é tomada no
+ *                             "Finalizar", e ler o servidor naquele instante
+ *                             faria a finalização depender da rede.
  *
  * FICAM DE FORA, de propósito:
  *   · `nr13_historico_relatorios` — LEGADO que cresce sem teto (§7-sexies);
@@ -61,6 +66,7 @@ export const CHAVES_ESSENCIAIS: string[] = [
   'nr13_agenda_notas',
   'nr13_rascunhos',
   'nr13_relatorios_arquivados',
+  'nr13_motor_pdf',
 ];
 
 /**

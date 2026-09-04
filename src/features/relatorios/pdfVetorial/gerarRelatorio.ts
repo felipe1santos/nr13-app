@@ -1,8 +1,12 @@
 import { jsPDF } from 'jspdf';
+import { PDFDocument } from 'pdf-lib';
 import { registrarCarlito } from './carlito';
 import { Documento } from './documento';
+import { anexarRastreabilidades } from '../rastreabilidadeService';
+import { anexarFolhasDeCertificado } from './certificados';
+import { secoesPresentes, type SecaoRelatorio } from './composicao';
 import {
-  SECOES_DO_RELATORIO,
+  secoesDoRelatorio,
   folhaCapa,
   folhaCategorizacao,
   folhaDadosInspecao,
@@ -46,25 +50,54 @@ export interface ResultadoVetorial {
   ms: number;
   /** O modelo usado — a comparação campo a campo lê daqui. */
   modelo: ModeloRelatorio;
+  /** Certificados que deviam entrar e não entraram — nunca somem calados. */
+  falhasAnexo: string[];
 }
 
-/** Emite as folhas na ordem da referência. Usado nas duas passagens. */
-function emitir(doc: Documento, m: ModeloRelatorio): void {
-  folhaCapa(doc, m);
-  folhaSumario(doc, m, SECOES_DO_RELATORIO);
-  folhaIdentificacao(doc, m);
-  folhaCategorizacao(doc, m);
-  folhaDadosTecnicos(doc, m);
-  folhaResumoCalculos(doc, m);
-  folhasMemoria(doc, m);
-  folhaDadosInspecao(doc, m);
-  folhasChecklist(doc, m);
-  folhasFotosDocumentacao(doc, m);
-  folhasExameExterno(doc, m);
-  folhasExameInterno(doc, m);
-  folhaUltrassom(doc, m);
-  folhasTesteHidrostatico(doc, m);
-  folhaParecer(doc, m);
+export interface OpcoesVetorial {
+  /**
+   * A lista de folhas do relatório. Sem ela o documento sai sem CERTIFICADO
+   * nenhum: é ela que diz quais tipos de padrão anexar e quais folhas de
+   * calibração existem.
+   */
+  documentos?: string[];
+  /** Anexar os certificados (padrão: sim quando há `documentos`). */
+  certificados?: boolean;
+  /** Onde estão montadas as folhas, para as de calibração. */
+  containerSelector?: string;
+  onProgresso?: (feito: number, total: number) => void;
+}
+
+/**
+ * Emite as folhas na ordem da referência, **respeitando a composição**.
+ *
+ * `tem` diz quais seções aquele relatório contém — vem da mesma lista de folhas
+ * que o visualizador monta. Sem ela, tudo é emitido (a bancada de comparação).
+ *
+ * Isto não é enfeite: medido no gate, um relatório de 8 folhas saía com 14
+ * páginas porque o vetorial emitia ultrassom e teste hidrostático que o
+ * inspetor não tinha selecionado. Paginação diferente é esperada; ENSAIO a mais
+ * num documento assinado é conteúdo errado.
+ */
+function emitir(doc: Documento, m: ModeloRelatorio, tem: Record<SecaoRelatorio, boolean>): void {
+  if (tem.capa) folhaCapa(doc, m);
+  if (tem.sumario) folhaSumario(doc, m, secoesDoRelatorio(m, tem));
+  if (tem.identificacao) folhaIdentificacao(doc, m);
+  if (tem.categorizacao) folhaCategorizacao(doc, m);
+  if (tem.dadosTecnicos) folhaDadosTecnicos(doc, m);
+  if (tem.resumoCalculos) folhaResumoCalculos(doc, m);
+  if (tem.memoria) folhasMemoria(doc, m);
+  if (tem.dadosInspecao) folhaDadosInspecao(doc, m);
+  if (tem.checklist) folhasChecklist(doc, m);
+  folhasFotosDocumentacao(doc, m, {
+    documentacao: tem.fotosDocumentacao,
+    checklist: tem.fotosChecklist,
+  });
+  if (tem.exameExterno) folhasExameExterno(doc, m, tem.fotosExterno);
+  if (tem.exameInterno) folhasExameInterno(doc, m, tem.fotosInterno);
+  if (tem.ultrassom) folhaUltrassom(doc, m);
+  if (tem.th) folhasTesteHidrostatico(doc, m, tem.fotosTh);
+  if (tem.parecer) folhaParecer(doc, m);
 }
 
 /**
@@ -91,7 +124,10 @@ async function comFotosMedidas(m: ModeloRelatorio): Promise<ModeloRelatorio> {
   };
 }
 
-export async function gerarRelatorioVetorial(tag: string): Promise<ResultadoVetorial> {
+export async function gerarRelatorioVetorial(
+  tag: string,
+  opcoes: OpcoesVetorial = {},
+): Promise<ResultadoVetorial> {
   const inicio = performance.now();
   const modelo = await comFotosMedidas(montarModeloRelatorio(tag));
 
@@ -107,15 +143,47 @@ export async function gerarRelatorioVetorial(tag: string): Promise<ResultadoVeto
   const contagem = novoPdf();
   await registrarCarlito(contagem);
   const rascunho = new Documento(contagem, cab, 0);
-  emitir(rascunho, modelo);
+  const tem = secoesPresentes(opcoes.documentos);
+  emitir(rascunho, modelo, tem);
   const total = contagem.getNumberOfPages();
 
   // 2ª passagem: para valer, já com "Página X de Y" correto.
   const pdf = novoPdf();
   await registrarCarlito(pdf);
   const doc = new Documento(pdf, cab, total);
-  emitir(doc, modelo);
+  emitir(doc, modelo, tem);
 
-  const bytes = new Uint8Array(pdf.output('arraybuffer'));
-  return { bytes, paginas: pdf.getNumberOfPages(), ms: Math.round(performance.now() - inicio), modelo };
+  let bytes = new Uint8Array(pdf.output('arraybuffer'));
+  let paginas = pdf.getNumberOfPages();
+  const falhasAnexo: string[] = [];
+
+  // ── CERTIFICADOS ──────────────────────────────────────────────────────────
+  // O corpo do relatório é vetor; os certificados entram DEPOIS e preservados.
+  // Falha em anexar NÃO invalida o relatório — ela volta nomeada, do mesmo
+  // jeito que no gerador raster, para o chamador avisar o usuário.
+  const documentos = opcoes.documentos ?? [];
+  if (opcoes.certificados !== false && documentos.length > 0) {
+    // 1. Folhas de calibração (HTML montado): rasterizadas UMA A UMA.
+    try {
+      const cal = await anexarFolhasDeCertificado(bytes, documentos, opcoes.containerSelector);
+      if (cal.anexadas > 0) bytes = new Uint8Array(cal.bytes);
+      falhasAnexo.push(...cal.falhas);
+    } catch (e) {
+      console.error('Falha ao anexar as folhas de certificado de calibração:', e);
+      falhasAnexo.push('folhas de calibração');
+    }
+    // 2. Certificados dos padrões: PÁGINAS COPIADAS do PDF original (pdf-lib),
+    //    sem rasterizar — é a mesma função que o gerador raster usa.
+    try {
+      const r = await anexarRastreabilidades(bytes.slice().buffer as ArrayBuffer, documentos);
+      if (r.anexados > 0) bytes = new Uint8Array(r.bytes);
+      falhasAnexo.push(...r.falhas);
+    } catch (e) {
+      console.error('Falha ao anexar as rastreabilidades ao relatório vetorial:', e);
+      falhasAnexo.push('certificados padrão');
+    }
+    paginas = (await PDFDocument.load(bytes)).getPageCount();
+  }
+
+  return { bytes, paginas, ms: Math.round(performance.now() - inicio), modelo, falhasAnexo };
 }

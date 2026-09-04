@@ -348,8 +348,16 @@ function pontosUltrassom(
 
 /** 4 fotos por folha (§5) — a mesma constante do sistema. */
 export const FOTOS_POR_FOLHA = 4;
+
+/**
+ * Quantas folhas de registro fotográfico aquela etapa produz.
+ *
+ * **Zero fotos produzem zero folhas.** O piloto devolvia 1 aqui, para manter a
+ * estrutura de seções fixa; o resultado era página em branco dentro de
+ * documento assinado. Estrutura fixa não é motivo para imprimir papel vazio.
+ */
 export function folhasDeFotos(n: number): number {
-  return Math.max(1, Math.ceil(n / FOTOS_POR_FOLHA));
+  return n <= 0 ? 0 : Math.ceil(n / FOTOS_POR_FOLHA);
 }
 
 /**

@@ -427,6 +427,36 @@ hidratação): idempotente, valida a contagem por equipamento e **não apaga o l
 (Portal, assinatura vencida) não migra. O único caminho que ainda reescreve o array antigo
 é a EXCLUSÃO de um relatório, e lá ele só encolhe.
 
+### §7-septies — DOIS MOTORES DE PDF, E QUEM ESCOLHE (Fase 11, 04/09/2026)
+
+> **REGRA QUE NÃO SE QUEBRA:** o motor só decide o PDF de uma finalização
+> **NOVA**. Documento já emitido abre SEMPRE o seu `pdfRef` arquivado. Nenhum
+> PDF histórico é regenerado, nem quando o motor muda (§7-quater).
+
+| motor | onde | o que produz |
+|---|---|---|
+| `raster` (**padrão**) | `pdfService.gerarPdfBytes` | html2canvas das folhas montadas — uma fotografia por página |
+| `vetorial` | `pdfVetorial/gerarRelatorio.ts` | texto real, Carlito embutida, tabelas e gráfico desenhados |
+
+Quem escolhe: `features/relatorios/motorPdf.ts`. `?motor=vetorial` na URL vale
+para uma sessão do visualizador; a chave global `nr13_motor_pdf` vale para a
+organização; a URL vence a chave. **Ausência de valor = `raster`** — só a string
+exata `'vetorial'` troca o motor, e é assim que o rollback custa um passo.
+
+O vetorial respeita a COMPOSIÇÃO do relatório (`pdfVetorial/composicao.ts`): a
+seção só é emitida se a folha correspondente está em `documentos`. Sem isso o
+documento afirmaria ensaios que o inspetor não selecionou.
+
+**Certificados não recebem o novo layout.** O certificado do padrão
+(`nr13_rastreab_`) entra com as páginas COPIADAS do PDF original pelo pdf-lib —
+a mesma `anexarRastreabilidades` do raster; a folha de calibração
+(`CERTIFICADO-CAL-*.html`) é rasterizada individualmente, porque não existe PDF
+de origem. Falha em anexar volta NOMEADA em `falhasAnexo`.
+
+Folha de fotos só existe se houver foto: 0 → 0 folhas, 1–4 → 1, 5–8 → 2. Medições,
+paridade campo a campo e limitações em
+`docs/medicoes/2026-09-04-fase11-hardening.md`.
+
 ### §7-ter — RELATÓRIO SALVO NÃO SE EDITA (05/08/2026)
 
 > **REGRA QUE NÃO SE QUEBRA:** relatório salvo é registro técnico assinado. Depois do
@@ -519,8 +549,12 @@ Certificados de calibração ainda usam o fluxo antigo (ver PENDENCIAS.md).
 > engenheiro não vê. O botão "Croqui 2D do Equipamento" também passou a aparecer só para
 > vaso.
 
-`PRONTUARIO-RECONSTITUICAO-1..4` **não fazem parte** do prontuário — seguem como folhas do
-**relatório** (ver §7).
+> **`PRONTUARIO-RECONSTITUICAO-1..4` NÃO EXISTEM neste repositório (verificado em 04/09/2026).**
+> Este parágrafo dizia que elas "seguem como folhas do relatório (ver §7)" — o §7 não as lista,
+> `DOCUMENTOS_DISPONIVEIS` não as contém, não há arquivo em `public/` com esse nome e nenhuma
+> referência em código (`find public -iname "*recons*"` e `grep -ril reconstitui public/` voltam
+> vazios). Ficam registradas aqui como folhas do prontuário do fabricante que nunca chegaram a
+> ser portadas para este sistema; quem for criá-las começa do zero, não de um arquivo existente.
 
 Ao abrir o visualizador do prontuário (`Prontuarios.tsx`, antes de montar os iframes), o app grava
 `obterOuCriarMeta(tag)` em `nr13_prontuario_meta_<TAG>` (nº do relatório + data de emissão, reusado
