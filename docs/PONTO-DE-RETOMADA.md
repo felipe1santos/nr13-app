@@ -1,11 +1,11 @@
-# PONTO DE RETOMADA — 03/09/2026 (FASE 10A ENTREGUE ✅)
+# PONTO DE RETOMADA — 04/09/2026 (FASE 10B.1 ENTREGUE ✅)
 
-> **A Agenda tem tela própria, com faturamento previsto × realizado, e as três
-> listas passaram a mostrar o que interessa.** A Fase 9 foi concluída na mesma
-> data — o sistema tem um caminho só em cada tela.
+> **O relatório tem ciclo de vida:** RASCUNHO → salvar → sair → voltar →
+> editar → FINALIZAR → PDF + SHA-256 → imutável. Antes havia um botão só,
+> chamado "Salvar", que finalizava.
 >
-> **Bundle em produção:** `assets/index-BCZItTcM.js` · commit `65dd961`
-> **Suíte:** 1.633 testes / 138 arquivos · **Build:** verde
+> **Bundle em produção:** `assets/index-CEeowqvM.js` · commit `a311b5a`
+> **Suíte:** 1.660 testes / 140 arquivos · **Build:** verde
 
 ---
 
@@ -57,7 +57,7 @@ o painel de vencimentos vem do **agregado**. Hidratação integral = **0**.
 
 | bloco | o que é |
 |---|---|
-| **10B.1** | relatório RASCUNHO → FINALIZAR → PDF imutável |
+| ~~10B.1~~ | **ENTREGUE em 04/09/2026** — ver `medicoes/2026-09-04-10b1-rascunho-e-finalizacao.md` |
 | **10B.2** | Livro/Registro: criação MANUAL do registro + TRANCAR (achado da análise: `livro_imutavel.sql` já tolera entrada sem lacre, então o gatilho NÃO precisa ser afrouxado) |
 | **10C** | novo layout documental — **bloqueado**: o `relatorio-nr13.html` nunca foi entregue |
 | **Fase 11** | PDF vetorial/híbrido |
