@@ -7,7 +7,7 @@
 > redeploy, validação, portão. Não no fim da fase.
 
 **Última atualização:** 04/09/2026 — **FASE 12B ENTREGUE ✅** (modelo Clássico/Novo por empresa + visualizador próprio) · **FASE 12 CONCLUÍDA ✅** · hardening final fechado: `portal_cliente` republicada e conferida por SHA, Portal validado, abertura do documento emitido independente do palco e do dado vivo (5 testes bloqueantes), validação no navegador contra o bundle publicado e **inventário dos geradores reais** de documento.
-**Branch:** `main` · **Suíte:** 1829 testes / 152 arquivos, 0 falhas · **Build:** verde
+**Branch:** `main` · **Suíte:** 1835 testes / 152 arquivos, 0 falhas · **Build:** verde
 
 > ### 🔖 VOLTANDO DEPOIS DE UMA PAUSA? Leia [`PONTO-DE-RETOMADA.md`](PONTO-DE-RETOMADA.md).
 > Ele tem o estado de produção, o que falta decidir (a **9D**) e **todos os endereços de acesso** —
@@ -25,6 +25,7 @@
 | prova A/B/C/D | Clássico → **387.670 B, 1 imagem, 0 fonte**; Novo → **32.219 B, 0 imagem, 4 FontFile2**; rascunho "novo" finalizado com a empresa em Clássico saiu **vetorial**; cada histórico serviu o próprio pdfRef com SHA conferido |
 | visualizador | pdf.js (o mesmo que o `printService` já usava): **miniaturas fechadas**, botão ☰ Páginas, barra de **38px**, ajuste à largura, zoom, render preguiçoso. Sem rolagem horizontal em 1.396px nem em 585px |
 | também | "Configurações" some no documento arquivado; finalizar já entrega o ARQUIVO na tela (antes, "Imprimir" logo após finalizar rasterizava a prévia) |
+| **GATE 04/09** | auditoria pedida pelo dono: **o Clássico saía RASTER** (387.670 B, 1 imagem, 0 FontFile2 — html2canvas por folha). Regra nova: nenhum modelo OFERECIDO pode sair pelo raster. Reproduzir o layout Clássico no motor vetorial custaria ~1.500–2.000 linhas + gate folha a folha (o tamanho da Fase 11), então o Clássico **saiu da oferta**: `MODELOS_OFERECIDOS = [novo]`, `modeloEfetivo` derruba modelo retirado no oferecido, e o raster fica só em `?motor=raster`/`definirMotorPdf`. Detalhe: `medicoes/2026-09-04-fase12b-gate-raster.md` |
 | detalhe | `medicoes/2026-09-04-fase12b-modelo-e-visualizador.md` |
 
 ---

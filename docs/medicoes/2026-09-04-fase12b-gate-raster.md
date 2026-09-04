@@ -154,3 +154,38 @@ Configuração por organização, congelamento no rascunho (para modelos
 oferecidos), mini-prévias, visualizador novo, miniaturas fechadas, topbar
 compacta, históricos por `pdfRef`, desktop/mobile — nada foi tocado. Nenhum
 gerador foi removido.
+
+---
+
+## 8 · Validação em produção, depois do gate
+
+Bundle **`assets/index-DKBY80Ef.js`**, conferido pela string
+`"Outros modelos aparecem aqui quando ficarem disponíveis."`.
+
+A organização de teste continuava com **`{"modelo":"classico"}` GRAVADO** — o
+pior caso possível para esta regra.
+
+| exigência | medido |
+|---|---|
+| tela de "Minha Empresa" | mostra **um** modelo, "Novo", marcado como ativo, com a nota de que outros aparecem quando existirem |
+| valor cru preservado | `nr13_modelo_relatorio = {"modelo":"classico","em":"…T20:00:18.312Z"}` — a org não perdeu a escolha |
+| rascunho novo nasceu | **`modeloDocumento: "novo"`** (`REL-1788554033329`), mesmo com `classico` gravado |
+| finalizado | 1 página, SHA `47a510a4d46b4b8b`, `pdfPendente:false` |
+| bytes | **32.477** |
+| `/Subtype /Image` | **0** |
+| `FontFile2` | **4**, com 8 entradas `/BaseFont /Carlito` |
+| `/Type /Font` | presente |
+| MediaBox | `[0 0 595.28 841.89]` — **A4 exato** |
+| assinatura | `%PDF-1.3` |
+| baixar × registro × tela | mesmos 32.477 bytes e mesmo SHA nos três |
+
+> Um PDF com **zero objetos de imagem** e quatro subsets de fonte embutidos não
+> pode ser a fotografia de uma página. O contraste com o Clássico medido antes
+> do gate — 387.670 bytes, 1 imagem, 0 fontes — é a prova direta.
+
+### Históricos intactos
+
+O relatório Clássico **raster** emitido antes do gate foi reaberto **depois**
+dele: **387.670 bytes**, SHA `834a0f909e825941`, 1 imagem, 0 fontes — idênticos
+ao registro. Nenhuma regeneração, nenhum documento reconvertido. Documento com
+`pdfRef` continua sendo servido como arquivo.
