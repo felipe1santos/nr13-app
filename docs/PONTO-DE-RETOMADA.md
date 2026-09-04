@@ -1,4 +1,4 @@
-# PONTO DE RETOMADA — 04/09/2026 (10B.2 ENTREGUE ✅ · 10C ESPECIFICADA)
+# PONTO DE RETOMADA — 04/09/2026 (FASE 11 · PILOTO VETORIAL PROVADO)
 
 > **O Livro deixou de ser escrito sozinho.** Finalizar um relatório não cria mais
 > registro: agora é NOVO REGISTRO → SALVAR (rascunho, editável) → TRANCAR →
@@ -79,7 +79,7 @@ o painel de vencimentos vem do **agregado**. Hidratação integral = **0**.
 | ~~10B.1~~ | **ENTREGUE em 04/09/2026** — `medicoes/2026-09-04-10b1-rascunho-e-finalizacao.md` |
 | ~~10B.2~~ | **ENTREGUE em 04/09/2026** — `medicoes/2026-09-04-10b2-livro-manual.md`. O gatilho `livro_imutavel.sql` NÃO foi afrouxado, como a análise previa |
 | **10C** | **ESPECIFICADA em 04/09/2026** — `FASE-10C-ESPECIFICACAO-LAYOUT.md`. A referência apareceu (`C:\projetos\vender\relatorio-nr13.html`). Faltam 3 decisões do dono: fonte, campos novos (recomendações / próximas inspeções por exame) e checklist em 2 ou 3 folhas |
-| **Fase 11** | PDF vetorial/híbrido |
+| **Fase 11** | **PILOTO PROVADO em 04/09/2026** — `medicoes/2026-09-04-11-piloto-vetorial.md`. 5 folhas em vetor, −93% de peso e 29× mais rápido POR PÁGINA, Carlito embutida, SHA/pdfRef conferidos. Falta expandir às 21 folhas (paginação dentro de tabela é o item nº 1) |
 
 Desenho de todos em [`FASE-10-DESENHO.md`](FASE-10-DESENHO.md).
 
