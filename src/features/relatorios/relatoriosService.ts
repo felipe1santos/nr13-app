@@ -1,7 +1,6 @@
 import { excluirChave, ler, salvar } from '../../services/storage';
 import { emitirDadosAlterados } from '../../services/eventos';
 import { listarFuncionarios } from '../cadastros/cadastroService';
-import { lacrarEntrada, ultimaLacrada, type LivroEntrada as LivroEntradaLacre } from './livroLacre';
 import { camposDaRubrica } from './livroAssinatura';
 import type { Funcionario } from '../cadastros/tipos';
 import {
@@ -62,6 +61,21 @@ export interface LivroEntrada {
   retificaDe?: string;
   /** Texto do termo digitado pelo usuário na folha LIVRO-REGISTRO.html antes de salvar o relatório. */
   termoTexto?: string;
+  // ── Fase 10B.2 ──
+  /**
+   * Estado explícito do registro. Ver `features/livro/estadoRegistro.ts`:
+   * `'trancado'` = oficial e imutável, `'rascunho'` = em edição (e fora de
+   * `nr13_livro_<TAG>`), **ausente** = registro ANTIGO, que também é oficial.
+   */
+  estado?: 'rascunho' | 'trancado';
+  /** ISO do trancamento. Ausente em registro antigo e em rascunho. */
+  trancadoEm?: string;
+  /** ISO da última gravação do RASCUNHO. Some ao trancar. */
+  atualizadoEm?: string;
+  /** SHA-256 do conteúdo canônico — presente só depois de trancado. */
+  sha256?: string;
+  shaAnterior?: string | null;
+  lacradaEm?: string;
 }
 
 /**
@@ -333,11 +347,28 @@ export async function excluirDoHistorico(id: string, tag: string): Promise<void>
   emitirDadosAlterados();
 }
 
-// NR-13 13.5.1.8 — entrada automática no Livro de Registro de Segurança a cada relatório novo
-// (não duplica se já existir, isto é, se for apenas reabertura/edição do mesmo relatório).
-export async function adicionarEntradaLivroAuto(relatorio: RelatorioSalvo): Promise<void> {
+/**
+ * A entrada do Livro correspondente a um relatório — MONTADA, não gravada.
+ *
+ * ── FASE 10B.2: ISTO NÃO É MAIS AUTOMÁTICO ──────────────────────────────────
+ * Até 04/09/2026 esta função era chamada dentro do "salvar" do relatório e
+ * escrevia direto em `nr13_livro_<TAG>`: finalizar um relatório criava, sozinho,
+ * um registro oficial e imutável no Livro de Segurança. O usuário nunca via o
+ * que estava sendo registrado no documento legal do equipamento dele, e não
+ * tinha como revisá-lo antes — depois de gravado, o lacre impede corrigir.
+ *
+ * Agora ela só MONTA a entrada, com os mesmos campos de sempre (ensaios, laudo,
+ * rubrica congelada, termo), e quem decide o que fazer com ela é a tela do
+ * Livro: o registro nasce RASCUNHO, o usuário revisa, e TRANCA quando quiser.
+ *
+ * Devolve `null` quando já existe registro daquele relatório — a mesma guarda de
+ * duplicidade de antes, agora respondida em vez de silenciosa.
+ */
+export async function montarEntradaLivroDoRelatorio(
+  relatorio: RelatorioSalvo,
+): Promise<LivroEntrada | null> {
   const livro = ler<LivroEntrada[]>(chaveLivro(relatorio.tagVaso)) || [];
-  if (livro.some((l) => l.relatorioCodigo === relatorio.meta.codigo)) return;
+  if (livro.some((l) => l.relatorioCodigo === relatorio.meta.codigo)) return null;
 
   // Laudo APTO/INAPTO marcado na folha CONCLUSAO — só vale se for do relatório sendo salvo.
   const laudo = ler<LaudoConclusao>(`nr13_laudo_${relatorio.tagVaso}`);
@@ -380,18 +411,14 @@ export async function adicionarEntradaLivroAuto(relatorio: RelatorioSalvo): Prom
     // Termo digitado na folha do livro ANTES de salvar (nr13_termo_livro_<TAG>): copiado para
     // dentro da entrada e a chave é apagada — rascunho consumido não vaza para o próximo relatório.
     termoTexto: consumirTermoRascunho(relatorio.tagVaso),
-    // Nasce LACRADA: a entrada só existe a partir do momento em que o relatório é salvo,
-    // e daí em diante é imutável (correção = registro de retificação).
-    lacrado: true,
+    // 10B.2 · nasce RASCUNHO. O lacre acontece no TRANCAR, na tela do Livro —
+    // ver `features/livro/rascunhosLivro.ts`. `lacrado: true` sempre foi só uma
+    // flag; o que protege é o hash, e ele passa a ser aplicado no momento em que
+    // o usuário decide que aquele registro é oficial.
+    lacrado: false,
+    estado: 'rascunho',
   };
-  // LACRE CRIPTOGRÁFICO (12/08/2026): a entrada nasce com o hash do próprio
-  // conteúdo e o elo da anterior. `lacrado: true` sempre foi só uma flag — nada
-  // impedia editar a entrada depois e ninguém saberia. Agora editar quebra o
-  // hash, e remover ou reordenar quebra a cadeia. Custa ~180 bytes por entrada:
-  // congelar o livro inteiro em PDF a cada inspeção cresceria ao quadrado, e a
-  // folha daquela inspeção já está dentro do PDF imutável do relatório.
-  const lacrada = await lacrarEntrada(entrada as LivroEntradaLacre, ultimaLacrada(livro as LivroEntradaLacre[]));
-  await salvar(chaveLivro(relatorio.tagVaso), [...livro, lacrada as unknown as LivroEntrada]);
+  return entrada;
 }
 
 // ── Ocorrência manual no Livro de Registro ─────────────────────────────────────
@@ -400,7 +427,7 @@ export async function adicionarEntradaLivroAuto(relatorio: RelatorioSalvo): Prom
 
 // Timestamp para ordenação cronológica: aceita "aaaa-mm-dd" (input date / execucaoInspecao)
 // e "dd/mm/aaaa" (entradas automáticas antigas). Data inválida vai pro fim da lista.
-function timestampDataLivro(data: string): number {
+export function timestampDataLivro(data: string): number {
   const s = (data || '').trim();
   let m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s);
   if (m) return Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
@@ -426,8 +453,7 @@ export interface DadosOcorrenciaManual {
 
 // ASSÍNCRONA desde 14/08/2026: a rubrica sobe ao bucket antes de a entrada
 // nascer, para não voltar a ser embutida em base64 (ver `livroAssinatura.ts`).
-export async function adicionarEntradaLivroManual(
-  tag: string,
+export async function montarEntradaLivroManual(
   dados: DadosOcorrenciaManual,
 ): Promise<LivroEntrada> {
   const func = dados.phId ? listarFuncionarios().find((f) => f.id === dados.phId) : undefined;
@@ -454,10 +480,15 @@ export async function adicionarEntradaLivroManual(
     retificaDe: dados.retificaDe || undefined,
   };
 
-  const livro = ler<LivroEntrada[]>(chaveLivro(tag)) || [];
-  livro.push(entrada);
-  livro.sort((a, b) => timestampDataLivro(a.data) - timestampDataLivro(b.data));
-  await salvar(chaveLivro(tag), livro);
+  // 10B.2 · MONTA e devolve. Não grava, não ordena, não lacra.
+  //
+  // Antes esta função escrevia direto em `nr13_livro_<TAG>` e reordenava o array
+  // por data. As duas coisas saíram, e a segunda por um motivo que virou regra: a
+  // cadeia de lacres é uma sequência de TRANCAMENTOS, e o gatilho do banco
+  // (`livro_imutavel.sql`) exige que a sequência lacrada nova comece pela antiga.
+  // Reordenar o array com entradas lacradas dentro seria recusado pelo servidor.
+  // Quem grava agora é `features/livro/rascunhosLivro.ts` — rascunho primeiro,
+  // trancamento depois, sempre acrescentando ao fim.
   return entrada;
 }
 

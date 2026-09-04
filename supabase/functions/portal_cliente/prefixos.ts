@@ -82,10 +82,21 @@ export const GLOBAIS_LIBERADAS: string[] = ['nr13_minha_empresa', 'nr13_lista_ph
 /**
  * Famílias de `POR_TAG` que o Portal **deliberadamente não busca**, com o motivo.
  *
- * Vazia hoje. Existe para que uma exclusão futura seja explícita e revisável, em vez de virar
- * um prefixo que alguém "esqueceu" de copiar.
+ * Existe para que uma exclusão seja explícita e revisável, em vez de virar um prefixo que
+ * alguém "esqueceu" de copiar.
  */
-export const FORA_DO_PORTAL: string[] = [];
+export const FORA_DO_PORTAL: string[] = [
+  // Fase 10B.2 · registros do Livro de Segurança EM RASCUNHO.
+  //
+  // O cliente enxerga o Livro do equipamento dele, e o Livro é documento legal: ele só pode
+  // ver o que está TRANCADO — registro incorporado à cadeia de integridade, com hash, que o
+  // engenheiro decidiu tornar oficial. Um rascunho é trabalho em andamento; entregá-lo ao
+  // cliente seria mostrar como documento aquilo que ainda pode mudar.
+  //
+  // A exclusão aqui é a segunda camada: os rascunhos já vivem em chave separada
+  // (`nr13_livro_rascunho_<TAG>`), fora de `nr13_livro_<TAG>`, que é o que o Portal lê.
+  'nr13_livro_rascunho_',
+];
 
 /**
  * Prefixo de escopo de ID (não de TAG) que o Portal precisa.

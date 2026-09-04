@@ -15,7 +15,6 @@ import ModalNovaInspecao from '../features/relatorios/ModalNovaInspecao';
 import ModalSelecionarContainer from '../features/relatorios/ModalSelecionarContainer';
 import { carregarContainer } from '../features/inspecoes/inspecaoService';
 import {
-  adicionarEntradaLivroAuto,
   excluirDoHistorico,
   expandirFolhasFoto,
   expandirMemorial,
@@ -794,11 +793,20 @@ function RelatoriosLegado() {
       // que o rascunho deixa de ser rascunho: `salvarRelatorio` remove o id do
       // índice de rascunhos ao gravar um 'Aprovado'.
       await salvarNoHistorico(relatorio);
-      // 10B.2 (mapeado, NÃO alterado agora): a entrada do Livro nasce aqui,
-      // automática. A separação decidida — Livro criado À MÃO e depois trancado
-      // — é UMA linha neste ponto, e é o único acoplamento entre finalizar um
-      // relatório e escrever no Livro. Ver `docs/FASE-10-DESENHO.md`.
-      await adicionarEntradaLivroAuto(relatorio);
+      // 10B.2 · A ENTRADA AUTOMÁTICA NO LIVRO SAIU DAQUI.
+      //
+      // Até 04/09/2026 esta linha era `await adicionarEntradaLivroAuto(relatorio)`:
+      // finalizar um relatório criava, sozinho, um registro OFICIAL E LACRADO no
+      // Livro de Segurança do equipamento. O usuário nunca via o que estava sendo
+      // escrito no documento legal, e depois de lacrado não dava mais para
+      // corrigir — só retificar.
+      //
+      // Agora o registro é criado À MÃO, na tela do Livro, com "+ Novo registro"
+      // (que oferece pré-preenchimento a partir de um relatório finalizado),
+      // nasce RASCUNHO e só vira oficial quando o usuário TRANCA.
+      //
+      // Relatórios e livros históricos não foram tocados: quem já tem registro
+      // continua com ele, lacre e cadeia intactos.
       // Lotes de calibração marcados "vincular ao próximo relatório" capturam este relatório.
       await vincularLotesPendentes(tag, relatorio.id);
       setHistorico(listarHistorico(tag));

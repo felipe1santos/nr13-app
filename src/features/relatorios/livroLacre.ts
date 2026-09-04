@@ -38,6 +38,21 @@ export interface LivroEntrada {
   phCrea: string;
   origem: 'auto' | 'manual';
   criadoEm: string;
+  /**
+   * Fase 10B.2 · o ESTADO do registro, explícito.
+   *
+   * Três valores, e o terceiro é o motivo de o campo existir:
+   *   · `'trancado'` — registro oficial, lacrado, imutável;
+   *   · `'rascunho'` — em edição. **Nunca aparece em `nr13_livro_<TAG>`**: o
+   *     rascunho mora em chave própria (ver `rascunhosLivro.ts`);
+   *   · **ausente** — registro ANTIGO, anterior a esta fase. É oficial.
+   *
+   * "Sem `sha256` = rascunho" seria a leitura errada e cara: o livro tem anos de
+   * entradas anteriores ao lacre (12/08/2026) e entradas manuais que nunca foram
+   * lacradas. Rebaixá-las a rascunho as tiraria da contagem oficial e do Portal
+   * — apagaria registro de segurança de equipamento em operação.
+   */
+  estado?: 'rascunho' | 'trancado';
   [campo: string]: unknown;
 
   // ── Lacre (12/08/2026) ──

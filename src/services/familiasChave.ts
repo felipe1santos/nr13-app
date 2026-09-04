@@ -40,6 +40,10 @@ export const POR_TAG = [
   'nr13_laudo_',
   'nr13_livro_',
   'nr13_livro_config_',
+  // 10B.2 · registros do Livro EM RASCUNHO. Chave separada de `nr13_livro_` de
+  // propósito: é o que os mantém fora da projeção, do Portal e da folha
+  // impressa. O casamento é pelo prefixo MAIS LONGO, então esta vence.
+  'nr13_livro_rascunho_',
   'nr13_lotes_cal_',
   'nr13_med_esp_',
   'nr13_med_grid_',

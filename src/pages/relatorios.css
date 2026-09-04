@@ -1436,3 +1436,54 @@
   color: var(--blue2, #0C4F9B);
   white-space: nowrap;
 }
+
+/* ============================================================================
+   FASE 10B.2 · rascunhos do Livro de Registro
+   ============================================================================ */
+.livro-rascunhos {
+  margin: 16px 0 4px;
+  border: 1px solid var(--line, #E4E1D8);
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: var(--bg-faint, #FBFAF7);
+}
+.livro-rascunhos > h3 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted, #7A8790);
+  margin-bottom: 10px;
+}
+.livro-rascunhos > h3 span {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+}
+.livro-rascunho {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  background: var(--panel, #fff);
+  border: 1px solid var(--line, #E4E1D8);
+  border-left: 3px solid var(--blue2, #0C4F9B);
+  border-radius: 9px;
+  padding: 10px 12px;
+}
+.livro-rascunho + .livro-rascunho { margin-top: 8px; }
+.livro-rascunho-corpo { min-width: 0; flex: 1 1 320px; }
+.livro-rascunho-cab { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.livro-rascunho-desc { font-size: 13px; margin-top: 4px; word-break: break-word; }
+.livro-rascunho-quem { font-size: 11.5px; color: var(--muted, #7A8790); margin-top: 2px; }
+.livro-rascunho-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+
+@media (max-width: 640px) {
+  .livro-rascunho-btns { width: 100%; }
+  .livro-rascunho-btns .fj-btn { flex: 1 1 auto; justify-content: center; }
+}

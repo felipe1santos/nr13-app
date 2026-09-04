@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
-  adicionarEntradaLivroAuto,
-  adicionarEntradaLivroManual,
+  montarEntradaLivroDoRelatorio,
+  montarEntradaLivroManual,
   ensaiosDoRelatorio,
+  timestampDataLivro,
   expandirMemorial,
   type LivroEntrada,
 } from '../relatoriosService';
@@ -74,7 +75,7 @@ describe('ensaiosDoRelatorio — derivação dos ensaios das folhas', () => {
   });
 });
 
-describe('adicionarEntradaLivroAuto — campos novos da entrada', () => {
+describe('montarEntradaLivroDoRelatorio — MONTA a entrada, e NÃO escreve no livro (10B.2)', () => {
   beforeEach(() => localStorage.clear());
 
   function relatorioBase(codigo = 'REL-1'): RelatorioSalvo {
@@ -103,44 +104,53 @@ describe('adicionarEntradaLivroAuto — campos novos da entrada', () => {
     };
   }
 
-  it('grava tipoInspecao, ensaios (de meta.documentos), tecnicoNome e phId dos assinantes', async () => {
+  it('monta tipoInspecao, ensaios (de meta.documentos), tecnicoNome e phId dos assinantes', async () => {
     localStorage.setItem('nr13_assinantes_rel_V1', JSON.stringify({ engenheiroId: 'ph-9', tecnicoId: null }));
-    await adicionarEntradaLivroAuto(relatorioBase());
-    const livro = JSON.parse(localStorage.getItem('nr13_livro_V1')!) as LivroEntrada[];
-    expect(livro).toHaveLength(1);
-    expect(livro[0].tipoInspecao).toBe('Inspeção Periódica');
-    expect(livro[0].ensaios).toEqual(['Medição de espessura (ultrassom)', 'Teste hidrostático']);
-    expect(livro[0].tecnicoNome).toBe('Téc. Teste');
-    expect(livro[0].phId).toBe('ph-9');
+    const entrada = (await montarEntradaLivroDoRelatorio(relatorioBase()))!;
+    expect(entrada.tipoInspecao).toBe('Inspeção Periódica');
+    expect(entrada.ensaios).toEqual(['Medição de espessura (ultrassom)', 'Teste hidrostático']);
+    expect(entrada.tecnicoNome).toBe('Téc. Teste');
+    expect(entrada.phId).toBe('ph-9');
+  });
+
+  it('NÃO grava no livro — finalizar relatório deixou de criar registro', async () => {
+    await montarEntradaLivroDoRelatorio(relatorioBase());
+    // A chave do livro oficial nem passa a existir. É ela que a projeção conta e
+    // que o Portal lê: este é o acoplamento que a 10B.2 removeu.
+    expect(localStorage.getItem('nr13_livro_V1')).toBeNull();
+  });
+
+  it('a entrada montada nasce RASCUNHO e sem lacre', async () => {
+    const entrada = (await montarEntradaLivroDoRelatorio(relatorioBase()))!;
+    expect(entrada.estado).toBe('rascunho');
+    expect(entrada.lacrado).toBe(false);
+    expect(entrada.sha256).toBeUndefined();
   });
 
   it('apto vem de nr13_laudo_<TAG> quando o relatorioCodigo bate; senão null', async () => {
     localStorage.setItem('nr13_laudo_V1', JSON.stringify({ apto: false, relatorioCodigo: 'REL-1', atualizadoEm: 'x' }));
-    await adicionarEntradaLivroAuto(relatorioBase('REL-1'));
-    let livro = JSON.parse(localStorage.getItem('nr13_livro_V1')!) as LivroEntrada[];
-    expect(livro[0].apto).toBe(false);
-
+    expect((await montarEntradaLivroDoRelatorio(relatorioBase('REL-1')))!.apto).toBe(false);
     // laudo de OUTRO relatório não contamina a entrada nova
-    await adicionarEntradaLivroAuto(relatorioBase('REL-2'));
-    livro = JSON.parse(localStorage.getItem('nr13_livro_V1')!) as LivroEntrada[];
-    expect(livro[1].apto).toBeNull();
+    expect((await montarEntradaLivroDoRelatorio(relatorioBase('REL-2')))!.apto).toBeNull();
   });
 
-  it('não duplica entrada do mesmo relatório e mantém campos antigos', async () => {
-    await adicionarEntradaLivroAuto(relatorioBase('REL-1'));
-    await adicionarEntradaLivroAuto(relatorioBase('REL-1'));
-    const livro = JSON.parse(localStorage.getItem('nr13_livro_V1')!) as LivroEntrada[];
-    expect(livro).toHaveLength(1);
-    expect(livro[0].relatorioCodigo).toBe('REL-1');
-    expect(livro[0].phNome).toBe('Eng. Teste');
-    expect(livro[0].origem).toBe('auto');
+  it('recusa montar quando o livro JÁ tem registro daquele relatório', async () => {
+    const entrada = (await montarEntradaLivroDoRelatorio(relatorioBase('REL-1')))!;
+    expect(entrada.relatorioCodigo).toBe('REL-1');
+    expect(entrada.phNome).toBe('Eng. Teste');
+    expect(entrada.origem).toBe('auto');
+
+    // Registro já trancado no livro oficial: a guarda de duplicidade agora
+    // RESPONDE `null`, em vez de não fazer nada em silêncio.
+    localStorage.setItem('nr13_livro_V1', JSON.stringify([{ ...entrada, estado: 'trancado' }]));
+    expect(await montarEntradaLivroDoRelatorio(relatorioBase('REL-1'))).toBeNull();
   });
 });
 
-describe('adicionarEntradaLivroManual — ocorrência manual no livro', () => {
+describe('montarEntradaLivroManual — ocorrência manual no livro', () => {
   beforeEach(() => localStorage.clear());
 
-  function ocorrenciaBase(sobrescrever: Partial<Parameters<typeof adicionarEntradaLivroManual>[1]> = {}) {
+  function ocorrenciaBase(sobrescrever: Partial<Parameters<typeof montarEntradaLivroManual>[0]> = {}) {
     return {
       data: '2026-07-12',
       tipoOcorrencia: 'Manutenção corretiva',
@@ -171,7 +181,7 @@ describe('adicionarEntradaLivroManual — ocorrência manual no livro', () => {
       'nr13_lista_phs',
       JSON.stringify([{ id: 'ph-7', nome: 'Eng. Manual', crea: 'CREA-777', tipo: 'Engenheiro' }]),
     );
-    const entrada = await adicionarEntradaLivroManual('V1', ocorrenciaBase({ phId: 'ph-7' }));
+    const entrada = await montarEntradaLivroManual(ocorrenciaBase({ phId: 'ph-7' }));
 
     expect(entrada.origem).toBe('manual');
     expect(entrada.tipo).toBe('Manutenção corretiva');
@@ -182,52 +192,39 @@ describe('adicionarEntradaLivroManual — ocorrência manual no livro', () => {
     expect(entrada.phNome).toBe('Eng. Manual');
     expect(entrada.phCrea).toBe('CREA-777');
 
-    const livro = JSON.parse(localStorage.getItem('nr13_livro_V1')!) as LivroEntrada[];
-    expect(livro).toHaveLength(1);
-    expect(livro[0].id).toBe(entrada.id);
     // Sem laudo de inspeção: entrada manual não tem apto nem ensaios.
-    expect(livro[0].apto).toBeUndefined();
-    expect(livro[0].ensaios).toBeUndefined();
+    expect(entrada.apto).toBeUndefined();
+    expect(entrada.ensaios).toBeUndefined();
+    // 10B.2: montar NÃO grava. Quem grava é o rascunho, e depois o trancamento.
+    expect(localStorage.getItem('nr13_livro_V1')).toBeNull();
   });
 
   it('sem phId (ou phId inexistente): sem assinatura, phNome/phCrea vazios', async () => {
-    const semPh = await adicionarEntradaLivroManual('V1', ocorrenciaBase({ phId: null }));
+    const semPh = await montarEntradaLivroManual(ocorrenciaBase({ phId: null }));
     expect(semPh.phNome).toBe('');
     expect(semPh.phCrea).toBe('');
     expect(semPh.phId).toBeUndefined();
 
-    const phFantasma = await adicionarEntradaLivroManual('V1', ocorrenciaBase({ phId: 'nao-existe' }));
+    const phFantasma = await montarEntradaLivroManual(ocorrenciaBase({ phId: 'nao-existe' }));
     expect(phFantasma.phNome).toBe('');
     expect(phFantasma.phId).toBeUndefined();
   });
 
-  it('entra cronologicamente entre entradas automáticas (aceita dd/mm/aaaa e aaaa-mm-dd)', async () => {
-    localStorage.setItem(
-      'nr13_livro_V1',
-      JSON.stringify([entradaAutoFake('10/01/2026', 'REL-1'), entradaAutoFake('2026-06-20', 'REL-2')]),
-    );
-    await adicionarEntradaLivroManual('V1', ocorrenciaBase({ data: '2026-03-15' }));
+  it('NÃO toca no livro oficial — nem quando ele já tem entradas', async () => {
+    const antes = JSON.stringify([entradaAutoFake('10/01/2026', 'REL-1'), entradaAutoFake('2026-06-20', 'REL-2')]);
+    localStorage.setItem('nr13_livro_V1', antes);
+    await montarEntradaLivroManual(ocorrenciaBase({ data: '2026-03-15' }));
 
-    const livro = JSON.parse(localStorage.getItem('nr13_livro_V1')!) as LivroEntrada[];
-    expect(livro).toHaveLength(3);
-    expect(livro[0].relatorioCodigo).toBe('REL-1');
-    expect(livro[1].origem).toBe('manual'); // 15/03 fica entre 10/01 e 20/06
-    expect(livro[2].relatorioCodigo).toBe('REL-2');
+    // Antes da 10B.2 esta chamada empurrava a entrada para dentro do array E O
+    // REORDENAVA por data. As duas coisas saíram: reordenar um array com
+    // entradas lacradas é recusado pelo gatilho `livro_imutavel.sql`, que exige
+    // que a sequência lacrada nova comece exatamente pela antiga.
+    expect(localStorage.getItem('nr13_livro_V1')).toBe(antes);
   });
 
-  it('data inválida vai para o fim da lista, sem quebrar', async () => {
-    localStorage.setItem(
-      'nr13_livro_V1',
-      JSON.stringify([entradaAutoFake('2026-06-20', 'REL-2'), entradaAutoFake('10/01/2026', 'REL-1')]),
-    );
-    const entrada = await adicionarEntradaLivroManual('V1', ocorrenciaBase({ data: 'data-quebrada' }));
-    expect(entrada.origem).toBe('manual');
-
-    const livro = JSON.parse(localStorage.getItem('nr13_livro_V1')!) as LivroEntrada[];
-    expect(livro).toHaveLength(3);
-    // Ordenação também reordena as autos por data crescente; a inválida fica por último.
-    expect(livro[0].relatorioCodigo).toBe('REL-1');
-    expect(livro[1].relatorioCodigo).toBe('REL-2');
-    expect(livro[2].origem).toBe('manual');
+  it('a ordenação por data continua existindo, para EXIBIR (não para gravar)', () => {
+    // A tela ordena a timeline; o array guarda a ordem de TRANCAMENTO.
+    expect(timestampDataLivro('10/01/2026')).toBeLessThan(timestampDataLivro('2026-06-20'));
+    expect(timestampDataLivro('data-quebrada')).toBe(Number.MAX_SAFE_INTEGER);
   });
 });

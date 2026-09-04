@@ -189,6 +189,9 @@ export const POR_ID_FILTRADO_POR_TAG = ['nr13_calibracao_item_'];
  */
 export const FORA_DO_PALCO = [
   'nr13_docs_',
+  // 10B.2 · rascunho de registro do Livro. NENHUMA folha o lê — e não pode ler:
+  // `LIVRO-REGISTRO.html` é documento legal e imprime só o que está trancado.
+  'nr13_livro_rascunho_',
   'nr13_pront_fab_',
   'nr13_componentes_cal_',
   'nr13_lotes_cal_',

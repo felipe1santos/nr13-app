@@ -8,7 +8,17 @@ import CatalogoLivroV9 from '../features/livro/CatalogoLivroV9';
 import { abrirEquipamentoParaLivro } from '../features/livro/catalogoLivro';
 import type { InfoEquipamento } from '../features/equipamento/tipos';
 import { listarFuncionarios } from '../features/cadastros/cadastroService';
-import { adicionarEntradaLivroManual } from '../features/relatorios/relatoriosService';
+import { montarEntradaLivroDoRelatorio, montarEntradaLivroManual } from '../features/relatorios/relatoriosService';
+import { carregarRelatorio, listarIndice } from '../features/relatorios/historicoRelatorios';
+import {
+  excluirRascunhoLivro,
+  listarRascunhosLivro,
+  salvarRascunhoLivro,
+  trancarRegistroLivro,
+} from '../features/livro/rascunhosLivro';
+import { somenteOficiais } from '../features/livro/estadoRegistro';
+import { validarRegistroLivro, type ResultadoValidacaoRegistro } from '../features/livro/validacaoRegistro';
+import ModalTrancarRegistro from '../features/livro/ModalTrancarRegistro';
 import { verificarCadeia, verificarEntrada, type LivroEntrada as EntradaLacre } from '../features/relatorios/livroLacre';
 import { exportarPdf, exportarPdfLivroCompleto } from '../features/relatorios/pdfService';
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
@@ -89,7 +99,11 @@ function montarLinha(tag: string): LinhaLivro | null {
   try {
     const info = ler<InfoEquipamento>(`nr13_info_${tag}`);
     if (!info) return null;
-    const entradas = ler<LivroEntrada[]>(`nr13_livro_${tag}`) ?? [];
+    // 10B.2 · a chave oficial só contém registro oficial — o rascunho vive em
+    // `nr13_livro_rascunho_<TAG>`. O filtro aqui é DEFENSIVO: se um rascunho
+    // chegasse a esta chave por qualquer caminho, ele não entraria na contagem
+    // nem na folha impressa, que é o que a projeção e o Portal enxergam.
+    const entradas = somenteOficiais(ler<LivroEntrada[]>(`nr13_livro_${tag}`) ?? []);
     const cat = ler<{ catFinal?: string }>(`nr13_cat_${tag}`);
     return {
       tag,
@@ -283,6 +297,7 @@ export default function LivroRegistro() {
       // Sem ficha no cache (offline logo no primeiro acesso), monta o mínimo
       // para o livro abrir mesmo assim, em vez de não responder ao clique.
       setLinhas([linha ?? { tag, nomeEquip: tag, entradas: [], ultimaData: '', categoria: '' }]);
+      setRascunhos(listarRascunhosLivro(tag) as unknown as LivroEntrada[]);
       setTagAberta(tag);
     } finally {
       setAbrindo(false);
@@ -302,6 +317,16 @@ export default function LivroRegistro() {
   const tagDoPalco = tagAberta ?? preview?.tag ?? '';
   const palco = usePalcoDocumento(tagDoPalco, `livro-${tagDoPalco}`);
   const [erroForm, setErroForm] = useState('');
+  // ── Fase 10B.2 · registros em rascunho ─────────────────────────────────────
+  /** Rascunhos do livro ABERTO. Vivem em `nr13_livro_rascunho_<TAG>`, fora da
+      chave oficial — é o que os mantém fora da projeção, do Portal e da folha. */
+  const [rascunhos, setRascunhos] = useState<LivroEntrada[]>([]);
+  /** id do rascunho sendo editado no modal; `null` = registro novo. */
+  const [editandoId, setEditandoId] = useState<string | null>(null);
+  /** Rascunho escolhido para trancar, já validado. `null` = modal fechado. */
+  const [trancando, setTrancando] = useState<{ id: string; validacao: ResultadoValidacaoRegistro } | null>(null);
+  const [trancandoOcupado, setTrancandoOcupado] = useState(false);
+  const [erroTrancar, setErroTrancar] = useState('');
   // Visão "Histórico": log cronológico em texto puro (sem iframes de folhas).
   const [historico, setHistorico] = useState(false);
   // Altura (px) do recorte VISUAL da folha no modal de preview. null = folha A4 inteira.
@@ -398,17 +423,77 @@ export default function LivroRegistro() {
 
   function abrirModalOcorrencia() {
     setForm(FORM_OCORRENCIA_VAZIO);
+    setEditandoId(null);
     setErroForm('');
     setModalOcorrencia(true);
   }
 
+  /** Reabre um rascunho para continuar de onde parou. */
+  function editarRascunho(r: LivroEntrada) {
+    // A descrição é gravada combinada ("o que foi feito — detalhe"). Na volta ela
+    // vem inteira no primeiro campo: separar por um travessão que o usuário pode
+    // ter digitado quebraria o texto dele no lugar errado.
+    setForm({
+      data: r.data ?? '',
+      tipoOcorrencia: r.tipo ?? '',
+      oQueFoiFeito: r.descricao ?? '',
+      descricao: '',
+      quemRealizou: r.quemRealizou ?? '',
+      phId: (r as { phId?: string }).phId ?? '',
+      retificaDe: r.retificaDe ?? '',
+    });
+    setEditandoId(r.id ?? null);
+    setErroForm('');
+    setModalOcorrencia(true);
+  }
+
+  /**
+   * PRÉ-PREENCHER a partir de um relatório finalizado.
+   *
+   * É o que restou — de propósito — do antigo acoplamento automático: os mesmos
+   * campos (tipo, data de execução, ensaios, laudo, rubrica congelada), agora
+   * como uma OFERTA. Quem decide que existe um registro é o usuário.
+   */
+  async function preencherDeRelatorio(relatorioId: string) {
+    if (!linhaAberta || !relatorioId) return;
+    setErroForm('');
+    const rel = carregarRelatorio(relatorioId, linhaAberta.tag);
+    if (!rel) {
+      // O índice tem o relatório, o registro completo ainda não chegou a este
+      // aparelho (boot leve). Dizer isso é melhor do que um clique que não faz
+      // nada — e melhor ainda do que deixar na tela o erro da escolha anterior.
+      setErroForm('Este relatório ainda não está baixado neste aparelho. Abra-o em Relatórios uma vez e tente de novo.');
+      return;
+    }
+    const entrada = await montarEntradaLivroDoRelatorio(rel);
+    if (!entrada) {
+      setErroForm('Este relatório já tem registro trancado neste livro.');
+      return;
+    }
+    setForm((f) => ({
+      ...f,
+      data: String(entrada.data ?? f.data),
+      tipoOcorrencia: String(entrada.tipo ?? f.tipoOcorrencia),
+      oQueFoiFeito: String(entrada.descricao ?? f.oQueFoiFeito),
+      phId: entrada.phId ?? f.phId,
+    }));
+    setErroForm('');
+  }
+
+  /**
+   * SALVAR — grava o RASCUNHO e mantém tudo editável.
+   *
+   * Nada aqui toca `nr13_livro_<TAG>`: o registro só entra no livro oficial ao
+   * ser TRANCADO. É por isso que ele não conta, não vai ao Portal e não entra na
+   * cadeia enquanto está em rascunho.
+   */
   async function salvarOcorrencia() {
     if (!linhaAberta) return;
     if (!form.data || !form.tipoOcorrencia || !form.oQueFoiFeito.trim()) {
       setErroForm('Preencha a data, o tipo de ocorrência e o que foi feito.');
       return;
     }
-    await adicionarEntradaLivroManual(linhaAberta.tag, {
+    const entrada = await montarEntradaLivroManual({
       data: form.data,
       tipoOcorrencia: form.tipoOcorrencia,
       oQueFoiFeito: form.oQueFoiFeito,
@@ -417,16 +502,45 @@ export default function LivroRegistro() {
       phId: form.phId || null,
       retificaDe: form.retificaDe || undefined,
     });
-    // 9G.3 · o livro aberto é recomposto pela TAG, não por varredura do cache:
-    // com o boot leve o cache só tem a TAG semeada, e varrer devolveria a mesma
-    // linha por um caminho mais caro — e nenhuma outra.
-    if (tagAberta) {
-      const atualizada = montarLinha(tagAberta);
-      if (atualizada) setLinhas([atualizada]);
-    }
+    // Editar um rascunho reescreve o MESMO registro: id novo criaria um segundo
+    // rascunho a cada gravação.
+    await salvarRascunhoLivro(linhaAberta.tag, { ...entrada, id: editandoId ?? entrada.id });
+    setRascunhos(listarRascunhosLivro(linhaAberta.tag) as unknown as LivroEntrada[]);
     setModalOcorrencia(false);
     setForm(FORM_OCORRENCIA_VAZIO);
+    setEditandoId(null);
     setErroForm('');
+  }
+
+  function abrirTrancamento(r: LivroEntrada) {
+    setErroTrancar('');
+    setTrancando({ id: r.id ?? '', validacao: validarRegistroLivro(r as never) });
+  }
+
+  async function confirmarTrancamento() {
+    if (!linhaAberta || !trancando) return;
+    setTrancandoOcupado(true);
+    setErroTrancar('');
+    try {
+      await trancarRegistroLivro(linhaAberta.tag, trancando.id);
+      // 9G.3 · o livro aberto é recomposto pela TAG, não por varredura do cache.
+      const atualizada = montarLinha(linhaAberta.tag);
+      if (atualizada) setLinhas([atualizada]);
+      setRascunhos(listarRascunhosLivro(linhaAberta.tag) as unknown as LivroEntrada[]);
+      setTrancando(null);
+    } catch (e) {
+      setErroTrancar(
+        `Não foi possível trancar o registro: ${e instanceof Error ? e.message : String(e)}. Nada foi alterado.`,
+      );
+    } finally {
+      setTrancandoOcupado(false);
+    }
+  }
+
+  async function apagarRascunho(id: string) {
+    if (!linhaAberta) return;
+    await excluirRascunhoLivro(linhaAberta.tag, id);
+    setRascunhos(listarRascunhosLivro(linhaAberta.tag) as unknown as LivroEntrada[]);
   }
 
   const srcPreview = preview
@@ -486,8 +600,10 @@ export default function LivroRegistro() {
 
           {/* Ações do livro — logo abaixo da capa/termo, onde ficam fáceis de achar */}
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap', marginTop: 14 }}>
+            {/* 10B.2 · o registro do Livro passou a ser ATO DO USUÁRIO. Antes,
+                finalizar um relatório criava um sozinho, já lacrado. */}
             <button type="button" className="fj-btn fj-btn-primary" onClick={abrirModalOcorrencia}>
-              <Icone nome="plus" tam={13} /> Adicionar ocorrência
+              <Icone nome="plus" tam={13} /> Novo registro
             </button>
             <button type="button" className="fj-btn fj-btn-ghost" onClick={() => setHistorico((v) => !v)}>
               <Icone nome="book" tam={13} /> {historico ? 'Voltar à linha do tempo' : 'Histórico'}
@@ -505,6 +621,52 @@ export default function LivroRegistro() {
               {exportandoLivro ? 'Gerando PDF…' : 'Exportar PDF'}
             </button>
           </div>
+
+          {/*
+            RASCUNHOS — seção separada, e separada de verdade.
+
+            Eles não estão em `nr13_livro_<TAG>`: não contam no número de
+            registros, não entram na cadeia, não vão para o Portal e não são
+            impressos na folha do livro. Esta seção é o único lugar do sistema em
+            que eles existem, e sai da tela assim que o último for trancado.
+          */}
+          {rascunhos.length > 0 && (
+            <section className="livro-rascunhos" aria-label="Registros em rascunho">
+              <h3>
+                <Icone nome="pencil" tam={13} /> Rascunhos ({rascunhos.length})
+                <span>não contam como registro, não entram na cadeia e não aparecem no Portal</span>
+              </h3>
+              {rascunhos.map((r) => (
+                <div className="livro-rascunho" key={r.id}>
+                  <div className="livro-rascunho-corpo">
+                    <div className="livro-rascunho-cab">
+                      <span className="lrhist-data">{dataBR(r.data) || '—'}</span>
+                      <span className="lrhist-tipo">{r.tipo || '—'}</span>
+                      <span className="rel-badge-rascunho">RASCUNHO</span>
+                    </div>
+                    <div className="livro-rascunho-desc">{r.descricao || '—'}</div>
+                    {r.quemRealizou && <div className="livro-rascunho-quem">Executado por {r.quemRealizou}</div>}
+                  </div>
+                  <div className="livro-rascunho-btns">
+                    <button type="button" className="fj-btn fj-btn-ghost" onClick={() => editarRascunho(r)}>
+                      <Icone nome="pencil" tam={13} /> Editar
+                    </button>
+                    <button type="button" className="fj-btn fj-btn-primary" onClick={() => abrirTrancamento(r)}>
+                      <Icone nome="cadeado" tam={13} /> Trancar registro
+                    </button>
+                    <button
+                      type="button"
+                      className="fj-btn fj-btn-ghost"
+                      title="Excluir rascunho"
+                      onClick={() => void apagarRascunho(r.id ?? '')}
+                    >
+                      <Icone nome="trash" tam={13} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </section>
+          )}
 
           {historico ? (
             <div className="lrhist">
@@ -896,7 +1058,7 @@ export default function LivroRegistro() {
               <div className="fj-modal-head">
                 <div>
                   <div className="fj-eyebrow">Livro de Registro · {linhaAberta.tag}</div>
-                  <h2>{form.retificaDe ? 'Registro de retificação' : 'Adicionar ocorrência'}</h2>
+                  <h2>{form.retificaDe ? 'Registro de retificação' : editandoId ? 'Editar rascunho' : 'Novo registro'}</h2>
                 </div>
                 <button type="button" className="fj-modal-close" onClick={() => setModalOcorrencia(false)} aria-label="Fechar">
                   <Icone nome="x" tam={15} />
@@ -904,9 +1066,28 @@ export default function LivroRegistro() {
               </div>
               <div style={{ padding: '4px 16px 16px', display: 'grid', gap: 12 }}>
                 <p style={{ margin: 0, fontSize: 12, color: 'var(--muted, #6B7280)' }}>
-                  Registre manutenções, reparos e demais ocorrências realizadas entre inspeções — elas
-                  entram na linha do tempo do livro na ordem cronológica.
+                  Registre a inspeção realizada, manutenções, reparos e demais ocorrências. O registro
+                  é <b>salvo como rascunho</b> e continua editável até você trancá-lo — só o
+                  trancamento o torna oficial e imutável.
                 </p>
+                {/* PRÉ-PREENCHIMENTO a partir de um relatório finalizado: é o que
+                    restou do antigo acoplamento automático, agora como oferta.
+                    Quem decide que existe um registro é o usuário. */}
+                <div className="fj-field">
+                  <label htmlFor="oc-relatorio">Pré-preencher a partir de um relatório finalizado</label>
+                  <select
+                    id="oc-relatorio"
+                    defaultValue=""
+                    onChange={(e) => void preencherDeRelatorio(e.target.value)}
+                  >
+                    <option value="">— preencher à mão —</option>
+                    {listarIndice(linhaAberta.tag).map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.codigo || r.id} · {r.tipo} · {r.emissao || r.data}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 {form.retificaDe && (
                   <div className="fj-badge warn" style={{ justifySelf: 'start' }}>
                     Retifica o registro de{' '}
@@ -987,12 +1168,22 @@ export default function LivroRegistro() {
                     Cancelar
                   </button>
                   <button type="button" className="fj-btn fj-btn-primary" onClick={salvarOcorrencia}>
-                    <Icone nome="check" tam={13} /> Salvar ocorrência
+                    <Icone nome="check" tam={13} /> Salvar rascunho
                   </button>
                 </div>
               </div>
             </div>
           </div>
+        )}
+
+        {trancando && (
+          <ModalTrancarRegistro
+            validacao={trancando.validacao}
+            ocupado={trancandoOcupado}
+            erro={erroTrancar}
+            aoFechar={() => setTrancando(null)}
+            aoConfirmar={() => void confirmarTrancamento()}
+          />
         )}
       </div>
     );
