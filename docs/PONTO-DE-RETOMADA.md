@@ -5,7 +5,7 @@
 > cadeia → imutável → Portal. O relatório já tinha ganhado o mesmo ciclo na
 > 10B.1 (rascunho → finalizar → PDF + SHA-256).
 >
-> **Bundle em produção:** `assets/index-CYGSnZwQ.js` · commit `a53a60e`
+> **Bundle em produção:** `assets/index-DlcB9h5X.js` · commit `e8ad050`
 > **Suíte:** 1.680 testes / 142 arquivos · **Build:** verde
 
 ---

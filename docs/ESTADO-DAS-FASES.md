@@ -7,7 +7,7 @@
 > redeploy, validação, portão. Não no fim da fase.
 
 **Última atualização:** 04/09/2026 — **10B.2 ENTREGUE ✅ · 10C ESPECIFICADA** · Livro manual no ar; especificação do novo layout fechada em `FASE-10C-ESPECIFICACAO-LAYOUT.md`, com 3 decisões pendentes do dono. Deploy da Edge `portal_cliente` PENDENTE (ver PONTO-DE-RETOMADA §0).
-**Branch:** `main` · **Suíte:** 1680 testes / 142 arquivos, 0 falhas · **Build:** verde · **Bundle em produção:** `assets/index-CYGSnZwQ.js` (commit `a53a60e`)
+**Branch:** `main` · **Suíte:** 1680 testes / 142 arquivos, 0 falhas · **Build:** verde · **Bundle em produção:** `assets/index-DlcB9h5X.js` (commit `e8ad050`)
 
 > ### 🔖 VOLTANDO DEPOIS DE UMA PAUSA? Leia [`PONTO-DE-RETOMADA.md`](PONTO-DE-RETOMADA.md).
 > Ele tem o estado de produção, o que falta decidir (a **9D**) e **todos os endereços de acesso** —
