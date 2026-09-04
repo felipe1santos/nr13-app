@@ -6,7 +6,7 @@
 > **REGRA:** este arquivo é atualizado NO MOMENTO em que o estado muda — commit, push,
 > redeploy, validação, portão. Não no fim da fase.
 
-**Última atualização:** 04/09/2026 — **FASE 12B ENTREGUE ✅** (modelo Clássico/Novo por empresa + visualizador próprio) · **FASE 12 CONCLUÍDA ✅** · hardening final fechado: `portal_cliente` republicada e conferida por SHA, Portal validado, abertura do documento emitido independente do palco e do dado vivo (5 testes bloqueantes), validação no navegador contra o bundle publicado e **inventário dos geradores reais** de documento.
+**Última atualização:** 04/09/2026 — **FASE 12B CONCLUÍDA ✅** (modelo por empresa, visualizador próprio, campo vazio em amarelo, placa de identificação e gate de geometria) · **FASE 12 CONCLUÍDA ✅** · **FASE 13: só ANÁLISE** — `FASE-13-ANALISE.md` · hardening final fechado: `portal_cliente` republicada e conferida por SHA, Portal validado, abertura do documento emitido independente do palco e do dado vivo (5 testes bloqueantes), validação no navegador contra o bundle publicado e **inventário dos geradores reais** de documento.
 **Branch:** `main` · **Suíte:** 1835 testes / 152 arquivos, 0 falhas · **Build:** verde
 
 > ### 🔖 VOLTANDO DEPOIS DE UMA PAUSA? Leia [`PONTO-DE-RETOMADA.md`](PONTO-DE-RETOMADA.md).
@@ -14,7 +14,7 @@
 > sistema, Supabase e Coolify.
 
 
-## ✅ FASE 12B — ENTREGUE (04/09/2026) · MODELO CLÁSSICO/NOVO + VISUALIZADOR PRÓPRIO
+## ✅ FASE 12B — CONCLUÍDA (04/09/2026) · MODELO POR EMPRESA, VISUALIZADOR, CAMPO VAZIO E PLACA
 
 | | |
 |---|---|
@@ -26,6 +26,8 @@
 | visualizador | pdf.js (o mesmo que o `printService` já usava): **miniaturas fechadas**, botão ☰ Páginas, barra de **38px**, ajuste à largura, zoom, render preguiçoso. Sem rolagem horizontal em 1.396px nem em 585px |
 | também | "Configurações" some no documento arquivado; finalizar já entrega o ARQUIVO na tela (antes, "Imprimir" logo após finalizar rasterizava a prévia) |
 | **GATE 04/09** | auditoria pedida pelo dono: **o Clássico saía RASTER** (387.670 B, 1 imagem, 0 FontFile2 — html2canvas por folha). Regra nova: nenhum modelo OFERECIDO pode sair pelo raster. Reproduzir o layout Clássico no motor vetorial custaria ~1.500–2.000 linhas + gate folha a folha (o tamanho da Fase 11), então o Clássico **saiu da oferta**: `MODELOS_OFERECIDOS = [novo]`, `modeloEfetivo` derruba modelo retirado no oferecido, e o raster fica só em `?motor=raster`/`definirMotorPdf`. Detalhe: `medicoes/2026-09-04-fase12b-gate-raster.md` |
+| gate anti-raster | o Clássico saía RASTER e foi RETIRADO da oferta: nenhum modelo oferecido pode sair pelo html2canvas. `medicoes/2026-09-04-fase12b-gate-raster.md` |
+| polimento | campo vazio em **#FFF8C4** só na edição (three barreiras impedem chegar ao PDF), **placa de identificação** reconstruída em vetor ou foto real por `RefFoto`, e **gate de geometria** que LÊ a referência — 4 divergências corrigidas. `medicoes/2026-09-04-fase12b-polimento-modelo-novo.md` |
 | detalhe | `medicoes/2026-09-04-fase12b-modelo-e-visualizador.md` |
 
 ---

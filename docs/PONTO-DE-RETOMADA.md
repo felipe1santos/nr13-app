@@ -1,4 +1,4 @@
-# PONTO DE RETOMADA — 04/09/2026 (FASE 12 CONCLUÍDA · HARDENING FECHADO)
+# PONTO DE RETOMADA — 04/09/2026 (FASE 12B CONCLUÍDA · FASE 13 SÓ ANALISADA)
 
 > **RELATÓRIO e PRONTUÁRIO são vetoriais em produção.** O relatório virou em
 > 04/09 (`nr13_motor_pdf`) e o prontuário no mesmo dia (`nr13_motor_prontuario`,
@@ -11,8 +11,10 @@
 > Raster/gerador antigo continuam no bundle: `definirMotorPdf('raster')` e
 > `definirMotorProntuario('atual')`.
 >
-> **Bundle em produção:** `assets/index-DRkCnLH5.js`
-> **Suíte:** 1.817 testes / 151 arquivos · **Build:** verde
+> **Bundle em produção:** `assets/index-Cb-GK4ZC.js`
+> **Suíte:** 1.880 testes / 155 arquivos · **Build:** verde
+>
+> **Fase 13 NÃO iniciada** — só o plano, em `FASE-13-ANALISE.md`.
 
 ---
 
@@ -85,7 +87,7 @@ o painel de vencimentos vem do **agregado**. Hidratação integral = **0**.
 | **10C** | **ESPECIFICADA em 04/09/2026** — `FASE-10C-ESPECIFICACAO-LAYOUT.md`. A referência apareceu (`C:\projetos\vender\relatorio-nr13.html`). Faltam 3 decisões do dono: fonte, campos novos (recomendações / próximas inspeções por exame) e checklist em 2 ou 3 folhas |
 | ~~**Fase 11**~~ | **CONCLUÍDA em 04/09/2026** — vetorial é o padrão global do relatório (`nr13_motor_pdf`). Único gate manual restante: **impressão física** |
 | ~~**Fase 12**~~ | **CONCLUÍDA em 04/09/2026** — prontuário vetorial e EMITIDO, `portal_cliente` republicada, e **IMPRIMIR passou a servir o arquivo arquivado** nos dois documentos. Detalhe em `medicoes/2026-09-04-fase12-hardening.md` |
-| **Fase 13** | **não iniciada.** Candidatos já levantados: as 6 folhas órfãs de `public/arquivos-prontuario/` (código morto, ver `PENDENCIAS.md`) |
+| **Fase 13** | **analisada, não iniciada** — `FASE-13-ANALISE.md`. Tema: a PRÉVIA passa a ser o DOCUMENTO (hoje se edita o desenho Clássico e se assina o Novo), com aposentadoria do palco só para a tela do relatório. 6 blocos, 8–9 rodadas |
 
 Desenho de todos em [`FASE-10-DESENHO.md`](FASE-10-DESENHO.md).
 
