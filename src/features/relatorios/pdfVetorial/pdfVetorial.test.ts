@@ -41,7 +41,7 @@ import { rotuloLaudo, rotuloResposta, rotuloResultado, rotuloTipoEquipamento } f
 import { conferirCampos } from './conferencia';
 import { secoesDoRelatorio } from './folhas';
 import { corDeCalor, escalaY, numeroDoTexto, pontosDaCurva } from './graficoTh';
-import { ehFolhaDeCertificado, indicesDeCertificado } from './certificados';
+import { contarFolhasDeCertificado, ehFolhaDeCertificado, indicesDeCertificado } from './certificados';
 import { arquivoDe, incluiFolha, secoesPresentes } from './composicao';
 import { foto } from './primitivas';
 import { CHAVE_MOTOR_PDF, motorConfigurado, motorPdfAtual } from '../motorPdf';
@@ -249,6 +249,17 @@ describe('certificados — preservados, e cada tipo pelo seu caminho', () => {
     expect(ehFolhaDeCertificado('CERTIIFCADO-CAL-PSV.html?calibId=2')).toBe(true);
     expect(ehFolhaDeCertificado('CAPA.html')).toBe(false);
     expect(ehFolhaDeCertificado('ULTRASSOM.html')).toBe(false);
+  });
+
+  // O "de Y" precisa dizer o tamanho do arquivo que o usuário recebe. Com o
+  // corpo sozinho no denominador, um relatório com certificado terminava em
+  // "22 de 22" dentro de um PDF de 27 páginas.
+  it('as folhas de calibração contam no total — só as que existem no DOM', () => {
+    const docs = ['CAPA.html', 'CERTIFICADO-CAL-MANOMETRO.html?calibId=a', 'CERTIIFCADO-CAL-PSV.html?calibId=b'];
+    // Sem DOM montado (ambiente `node` da suíte), nada é contado: folha que não
+    // será anexada não pode entrar no denominador.
+    expect(contarFolhasDeCertificado(docs, '.nao-existe')).toBe(0);
+    expect(indicesDeCertificado(docs)).toHaveLength(2);
   });
 
   it('as posições batem com a lista de documentos — é por índice que a folha é achada', () => {

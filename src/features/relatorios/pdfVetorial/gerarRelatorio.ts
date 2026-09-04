@@ -2,8 +2,8 @@ import { jsPDF } from 'jspdf';
 import { PDFDocument } from 'pdf-lib';
 import { registrarCarlito } from './carlito';
 import { Documento } from './documento';
-import { anexarRastreabilidades } from '../rastreabilidadeService';
-import { anexarFolhasDeCertificado } from './certificados';
+import { anexarRastreabilidades, contarPaginasRastreabilidades } from '../rastreabilidadeService';
+import { anexarFolhasDeCertificado, contarFolhasDeCertificado } from './certificados';
 import { secoesPresentes, type SecaoRelatorio } from './composicao';
 import {
   secoesDoRelatorio,
@@ -124,6 +124,26 @@ async function comFotosMedidas(m: ModeloRelatorio): Promise<ModeloRelatorio> {
   };
 }
 
+/**
+ * Páginas que serão acrescentadas ao fim: folhas de calibração + certificados
+ * dos padrões. Zero quando o relatório não leva certificado nenhum.
+ */
+async function contarPaginasAnexadas(opcoes: OpcoesVetorial): Promise<number> {
+  const documentos = opcoes.documentos ?? [];
+  if (opcoes.certificados === false || documentos.length === 0) return 0;
+  try {
+    return (
+      contarFolhasDeCertificado(documentos, opcoes.containerSelector) +
+      (await contarPaginasRastreabilidades(documentos))
+    );
+  } catch (e) {
+    // Falhar a contagem não pode derrubar o relatório: sem ela o total volta a
+    // ser só o do corpo, que é o comportamento anterior.
+    console.error('Falha ao contar as páginas anexadas; o total usará só o corpo.', e);
+    return 0;
+  }
+}
+
 export async function gerarRelatorioVetorial(
   tag: string,
   opcoes: OpcoesVetorial = {},
@@ -145,7 +165,16 @@ export async function gerarRelatorioVetorial(
   const rascunho = new Documento(contagem, cab, 0);
   const tem = secoesPresentes(opcoes.documentos);
   emitir(rascunho, modelo, tem);
-  const total = contagem.getNumberOfPages();
+  const paginasDoCorpo = contagem.getNumberOfPages();
+
+  // O "de Y" tem que dizer o tamanho do arquivo que o usuário vai receber, e o
+  // arquivo inclui os certificados anexados ao fim. Sem esta soma, a última
+  // folha de um relatório com certificado dizia "22 de 22" num PDF de 27
+  // páginas. Os anexos não são NUMERADOS — são documentos de terceiro e não se
+  // carimbam (a própria folha CERTIFICADO-CAL esconde o número em produção) —
+  // mas contam no total.
+  const anexas = await contarPaginasAnexadas(opcoes);
+  const total = paginasDoCorpo + anexas;
 
   // 2ª passagem: para valer, já com "Página X de Y" correto.
   const pdf = novoPdf();

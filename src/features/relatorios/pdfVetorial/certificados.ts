@@ -52,6 +52,27 @@ export function indicesDeCertificado(documentos: string[]): number[] {
 }
 
 /**
+ * Quantas páginas as folhas de calibração vão acrescentar.
+ *
+ * Uma por folha MONTADA — cada uma vira exatamente uma página A4. Folha que não
+ * está no DOM não é contada porque também não será anexada; contá-la faria o
+ * "Página X de Y" prometer uma página que não existiria.
+ */
+export function contarFolhasDeCertificado(
+  documentos: string[],
+  containerSelector = '.relatorio-preview',
+): number {
+  // Sem DOM não há folha montada para anexar, logo não há página a contar.
+  // A checagem é explícita porque este módulo também é importado fora do
+  // navegador (a suíte roda em `node`), e um `document` ausente ali não é erro.
+  if (typeof document === 'undefined') return 0;
+  const folhas = document.querySelectorAll<HTMLElement>(
+    `${containerSelector} .pagina-relatorio-a4`,
+  );
+  return indicesDeCertificado(documentos).filter((i) => !!folhas[i]).length;
+}
+
+/**
  * Anexa ao PDF as folhas de certificado que estão montadas no visualizador.
  *
  * Cada índice de `documentos` corresponde a uma `.pagina-relatorio-a4` na mesma

@@ -288,6 +288,34 @@ export function rastreabilidadesDoRelatorioAberto(documentos: string[]): Rastrea
 }
 
 /**
+ * Quantas páginas os certificados dos padrões vão acrescentar ao relatório.
+ *
+ * Existe para o "Página X de Y" do gerador vetorial poder anunciar o tamanho
+ * REAL do documento: o corpo é numerado, os certificados anexados não são (são
+ * documentos de terceiro e não podem ser carimbados), mas eles contam no total —
+ * senão a última folha diz "22 de 22" num arquivo de 27 páginas.
+ *
+ * Conta pelo MESMO caminho que anexa (`resolverPdf`), então o que não abrir aqui
+ * também não abriria lá. Certificado que falhe só entre a contagem e a anexação
+ * volta nomeado em `falhas` do `anexarRastreabilidades` — o usuário é avisado.
+ */
+export async function contarPaginasRastreabilidades(documentos: string[] = []): Promise<number> {
+  const marcadas = rastreabilidadesDoRelatorioAberto(documentos);
+  let paginas = 0;
+  for (const r of marcadas) {
+    try {
+      const pdf = await resolverPdf(r);
+      if (!pdf) continue;
+      const anexo = await PDFDocument.load(base64ParaBytes(pdf), { ignoreEncryption: true });
+      paginas += anexo.getPageCount();
+    } catch {
+      // Ilegível: não conta, e a anexação vai reportar a falha pelo nome.
+    }
+  }
+  return paginas;
+}
+
+/**
  * Anexa ao final do PDF do relatório os certificados dos padrões dos tipos
  * presentes nos documentos (automático — sem flag manual). PDF que falhar ao
  * carregar é pulado (o relatório sai sem ele) e o nome volta em `falhas`.
