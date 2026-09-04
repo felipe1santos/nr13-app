@@ -22,6 +22,16 @@
 
 /** A tela que `/relatorios` deve montar. */
 export function modoRelatorios(search: string): 'v9' | 'legado' {
+  // `editor=1` é a MESMA tela, com o nome certo.
+  //
+  // Aquele arquivo é duas coisas: o visualizador do relatório anterior ao
+  // §7-quater E o único EDITOR do sistema — é ele que monta o documento a
+  // partir dos dados. Chamar de "legado" o caminho por onde se cria um
+  // relatório novo era descrever errado o que se está fazendo, e apareceu na
+  // interface: o botão "+ Criar relatório" levava o usuário a uma URL escrita
+  // `legado=1`. O parâmetro antigo continua valendo — os links já emitidos não
+  // podem parar de abrir.
+  if (new URLSearchParams(search).get('editor') === '1') return 'legado';
   // 9G.3 · a flag `busca_v9` saiu. A tela nova é a entrada; a antiga continua
   // alcançável SÓ por `legado=1`, e ela existe por um motivo que não expirou:
   // relatório anterior ao §7-quater não tem PDF arquivado, e remontá-lo é coisa
@@ -48,4 +58,12 @@ export function alvoLegadoDaUrl(search: string): AlvoLegado | null {
 /** O link que leva um documento específico para a tela antiga. */
 export function urlDoLegado(tag: string, rel: string): string {
   return `/relatorios?legado=1&tag=${encodeURIComponent(tag)}&rel=${encodeURIComponent(rel)}`;
+}
+
+/** O caminho para o EDITOR — criar relatório novo, ou continuar um rascunho. */
+export function urlDoEditor(tag?: string, rel?: string): string {
+  const p = new URLSearchParams({ editor: '1' });
+  if (tag) p.set('tag', tag);
+  if (rel) p.set('rel', rel);
+  return `/relatorios?${p.toString()}`;
 }

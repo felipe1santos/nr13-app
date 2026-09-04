@@ -47,6 +47,16 @@ import {
   type MapaEmpresas,
 } from './empresasPorTag';
 import { filtrarRascunhos, listarRascunhos, type RascunhoItem } from './rascunhos';
+import {
+  arquivarRelatorio,
+  desarquivarRelatorio,
+  filtrarPorArquivo,
+  idsArquivados,
+  type ModoArquivo,
+} from './arquivados';
+import { excluirRelatorio, renomearRelatorio } from './historicoRelatorios';
+import ModalRenomear from './ModalRenomear';
+import ModalRemocao from './ModalRemocao';
 import type { TipoInspecao } from './tipos';
 import '../../pages/relatorios.css';
 
@@ -163,6 +173,15 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
   /** Mapa TAG → empresa. Só é buscado quando o painel de filtros abre. */
   const [mapaEmpresas, setMapaEmpresas] = useState<MapaEmpresas>(MAPA_VAZIO);
   const [carregandoEmpresas, setCarregandoEmpresas] = useState(false);
+
+  // ── Ações por relatório ────────────────────────────────────────────────────
+  /** Ids fora da lista padrão. Arquivar NÃO apaga nada — ver `arquivados.ts`. */
+  const [arquivados, setArquivados] = useState<Set<string>>(() => idsArquivados());
+  const [renomeando, setRenomeando] = useState<{ item: ItemRelatorio; nome: string } | null>(null);
+  const [arquivando, setArquivando] = useState<ItemRelatorio | null>(null);
+  /** Rascunho escolhido para exclusão DEFINITIVA. */
+  const [excluindoRascunho, setExcluindoRascunho] = useState<RascunhoItem | null>(null);
+  const [ocupadoAcao, setOcupadoAcao] = useState(false);
 
   const filtros: FiltrosRelatorios = useMemo(
     () => ({ termo, tipo: fTipo, de: fDe, ate: fAte, escopo }),
@@ -313,9 +332,18 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
     return () => ctrl.abort();
   }, [precisaMapa]);
 
+  /**
+   * O recorte de ARQUIVADOS é do cliente: a projeção do servidor não conhece
+   * esse estado (seria coluna nova, e o SQL Editor segue sem abrir). Arquivar é
+   * raro, então o custo é uma comparação de `Set` por linha já carregada.
+   */
+  const modoArquivo: ModoArquivo =
+    params.get('arquivo') === 'arquivados' ? 'arquivados'
+    : params.get('arquivo') === 'todos' ? 'todos'
+    : 'ativos';
   const visiveis = useMemo(
-    () => filtrarPorEmpresa(itens, mapaEmpresas, fEmpresa),
-    [itens, mapaEmpresas, fEmpresa],
+    () => filtrarPorArquivo(filtrarPorEmpresa(itens, mapaEmpresas, fEmpresa), arquivados, modoArquivo),
+    [itens, mapaEmpresas, fEmpresa, arquivados, modoArquivo],
   );
 
   /**
@@ -326,7 +354,7 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
    * relatório emitido. A lista deles é local, leve, e é lida uma vez — nenhuma
    * requisição a mais nesta tela.
    */
-  const rascunhos = useMemo(() => listarRascunhos(), []);
+  const [rascunhos, setRascunhos] = useState<RascunhoItem[]>(() => listarRascunhos());
   /** Período, empresa e escopo são filtros do SERVIDOR; rascunho não está lá. */
   const filtroQueNaoAlcancaRascunho = !!(fDe || fAte || fEmpresa) || escopo !== 'ativos';
   const rascunhosVisiveis = useMemo(
@@ -344,6 +372,81 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
     if (!fEmpresa || !temMais || carregando || carregandoMais) return;
     void carregarMais();
   }, [fEmpresa, temMais, carregando, carregandoMais, carregarMais]);
+
+  // ── Ações: renomear, arquivar, excluir rascunho ────────────────────────────
+  const [erroAcao, setErroAcao] = useState('');
+
+  async function salvarNome(nome: string) {
+    if (!renomeando) return;
+    setOcupadoAcao(true);
+    setErroAcao('');
+    try {
+      // Só o rótulo. `renomearRelatorio` reescreve `nome` no registro e no
+      // índice; `pdfRef`, `sha256` e os bytes no bucket não são tocados.
+      const ok = await renomearRelatorio(renomeando.item.relatorioId, renomeando.item.tag, nome);
+      if (!ok) {
+        setErroAcao('Não foi possível renomear: o registro deste relatório não está neste aparelho.');
+        return;
+      }
+      // A lista vem do servidor; atualiza a linha em memória para o nome novo
+      // aparecer agora, sem esperar a projeção.
+      setItens((atuais) =>
+        atuais.map((i) => (i.relatorioId === renomeando.item.relatorioId ? { ...i, nome } : i)),
+      );
+      setRenomeando(null);
+    } catch (e) {
+      setErroAcao(`Não foi possível renomear: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setOcupadoAcao(false);
+    }
+  }
+
+  async function confirmarArquivar() {
+    if (!arquivando) return;
+    setOcupadoAcao(true);
+    setErroAcao('');
+    try {
+      await arquivarRelatorio(arquivando.relatorioId, arquivando.tag);
+      setArquivados(idsArquivados());
+      setArquivando(null);
+    } catch (e) {
+      setErroAcao(`Não foi possível arquivar: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setOcupadoAcao(false);
+    }
+  }
+
+  async function desarquivar(id: string) {
+    await desarquivarRelatorio(id);
+    setArquivados(idsArquivados());
+  }
+
+  /**
+   * Exclusão DEFINITIVA de rascunho.
+   *
+   * `excluirRelatorio` apaga as três referências que um rascunho tem: o registro
+   * `nr13_rel_<id>_<TAG>`, a entrada do índice do equipamento (que o rascunho
+   * nem chega a ter) e o item de `nr13_rascunhos`. Tudo pelo caminho oficial de
+   * mutação — a mesma fila durável do resto do sistema, nada de escrita direta.
+   *
+   * As fotos NÃO são apagadas de propósito: elas vivem em `nr13_inspecao_atual`
+   * / `nr13_injecao_atual`, que são do CONTAINER de inspeção e não do rascunho.
+   * Apagá-las levaria junto o trabalho de campo do equipamento.
+   */
+  async function confirmarExcluirRascunho() {
+    if (!excluindoRascunho) return;
+    setOcupadoAcao(true);
+    setErroAcao('');
+    try {
+      await excluirRelatorio(excluindoRascunho.id, excluindoRascunho.tag);
+      setRascunhos(listarRascunhos());
+      setExcluindoRascunho(null);
+    } catch (e) {
+      setErroAcao(`Não foi possível excluir: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setOcupadoAcao(false);
+    }
+  }
 
   const temFiltro = !!(termo || fTipo || fDe || fAte || fEmpresa);
 
@@ -426,6 +529,13 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
           offline={offline}
           compacto
         >
+          {/* O botão de CRIAR vem primeiro: é a ação principal da tela, e ela
+              tinha sumido na reorganização do layout. */}
+          {aoEscolherEquipamento && (
+            <button type="button" className="fj-btn fj-btn-primary" onClick={aoEscolherEquipamento}>
+              <Icone nome="plus" tam={14} /> Criar relatório
+            </button>
+          )}
           <button
             type="button"
             className={`fj-btn fj-btn-ghost${temFiltro ? ' ativo' : ''}`}
@@ -434,11 +544,6 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
           >
             <Icone nome="filter" tam={14} /> Período e tipo
           </button>
-          {aoEscolherEquipamento && (
-            <button type="button" className="fj-btn fj-btn-primary" onClick={aoEscolherEquipamento}>
-              + Criar relatório
-            </button>
-          )}
         </BuscaLista>
 
         {painelAberto && (
@@ -486,6 +591,14 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
             {/* O que era a faixa âmbar no meio da tela. A contagem entra no
                 RÓTULO da opção: quem procura o relatório de um equipamento
                 excluído acha aqui, e quem não procura não é interrompido. */}
+            <label>
+              Lista
+              <select value={modoArquivo} onChange={(e) => trocarParam('arquivo', e.target.value)}>
+                <option value="">Sem os arquivados</option>
+                <option value="arquivados">Só os arquivados</option>
+                <option value="todos">Todos</option>
+              </select>
+            </label>
             <label>
               Equipamentos
               <select value={escopo} onChange={(e) => trocarParam('escopo', e.target.value)}>
@@ -543,6 +656,21 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
         </div>
       )}
 
+      {/* Arquivado NÃO é apagado, e a tela repete isso onde ele reaparece: sem
+          esta linha, um relatório que sumiu da lista padrão parece destruído. */}
+      {modoArquivo !== 'ativos' && (
+        <div className="rel-escopo-linha" role="status">
+          <span>
+            {modoArquivo === 'arquivados'
+              ? 'Mostrando só os relatórios arquivados. Eles continuam inteiros — PDF, código de verificação e histórico intactos.'
+              : 'Mostrando todos, inclusive os arquivados.'}
+          </span>
+          <button type="button" className="fj-link" onClick={() => trocarParam('arquivo', '')}>
+            Voltar à lista padrão
+          </button>
+        </div>
+      )}
+
       {/*
         RASCUNHOS — em cima, e visualmente separados do que já foi emitido.
 
@@ -588,9 +716,21 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
                     type="button"
                     className="btn-icone cor-azul"
                     title="Continuar editando"
+                    aria-label={`Continuar editando ${r.codigo || r.nome}`}
                     onClick={() => aoContinuarRascunho?.(r)}
                   >
                     <Icone nome="pencil" tam={15} />
+                  </button>
+                  {/* Rascunho é o ÚNICO que pode ser destruído: nada nele foi
+                      emitido — sem PDF, sem SHA, sem índice, sem vencimento. */}
+                  <button
+                    type="button"
+                    className="btn-icone"
+                    title="Excluir rascunho definitivamente"
+                    aria-label={`Excluir o rascunho ${r.codigo || r.nome}`}
+                    onClick={() => setExcluindoRascunho(r)}
+                  >
+                    <Icone nome="trash" tam={14} />
                   </button>
                 </span>
               </div>
@@ -632,6 +772,47 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
             <p>Nenhum relatório salvo ainda.</p>
           )}
         </div>
+      )}
+
+      {renomeando && (
+        <ModalRenomear
+          nomeAtual={renomeando.nome}
+          ocupado={ocupadoAcao}
+          erro={erroAcao}
+          aoFechar={() => {
+            setRenomeando(null);
+            setErroAcao('');
+          }}
+          aoSalvar={(nome) => void salvarNome(nome)}
+        />
+      )}
+
+      {arquivando && (
+        <ModalRemocao
+          modo="arquivar"
+          nome={ou(arquivando.nome ?? arquivando.codigo)}
+          ocupado={ocupadoAcao}
+          erro={erroAcao}
+          aoFechar={() => {
+            setArquivando(null);
+            setErroAcao('');
+          }}
+          aoConfirmar={() => void confirmarArquivar()}
+        />
+      )}
+
+      {excluindoRascunho && (
+        <ModalRemocao
+          modo="rascunho"
+          nome={excluindoRascunho.codigo || excluindoRascunho.nome}
+          ocupado={ocupadoAcao}
+          erro={erroAcao}
+          aoFechar={() => {
+            setExcluindoRascunho(null);
+            setErroAcao('');
+          }}
+          aoConfirmar={() => void confirmarExcluirRascunho()}
+        />
       )}
 
       {visiveis.length > 0 && (
@@ -719,10 +900,41 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
                     type="button"
                     className="btn-icone cor-azul"
                     title="Visualizar"
+                    aria-label={`Visualizar ${ou(r.nome ?? r.codigo)}`}
                     /* O ÚNICO ponto desta tela que toca o PDF. */
                     onClick={() => abrir(r)}
                   >
                     <Icone nome="eye" tam={15} />
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-icone"
+                    title="Editar nome"
+                    aria-label={`Editar o nome de ${ou(r.nome ?? r.codigo)}`}
+                    onClick={() => setRenomeando({ item: r, nome: r.nome ?? r.codigo ?? '' })}
+                  >
+                    <Icone nome="pencil" tam={14} />
+                  </button>
+                  {/* Relatório FINALIZADO não tem excluir: ele é um arquivo com
+                      SHA que alimenta vencimento, Portal e Livro. O que existe é
+                      tirar da lista — e a tela diz isso, em vez de oferecer um
+                      botão que promete destruir e não destrói. */}
+                  <button
+                    type="button"
+                    className="btn-icone"
+                    title={arquivados.has(r.relatorioId) ? 'Trazer de volta para a lista' : 'Remover da lista (arquivar)'}
+                    aria-label={
+                      arquivados.has(r.relatorioId)
+                        ? `Trazer ${ou(r.nome ?? r.codigo)} de volta`
+                        : `Arquivar ${ou(r.nome ?? r.codigo)}`
+                    }
+                    onClick={() =>
+                      arquivados.has(r.relatorioId)
+                        ? void desarquivar(r.relatorioId)
+                        : setArquivando(r)
+                    }
+                  >
+                    <Icone nome={arquivados.has(r.relatorioId) ? 'refresh' : 'trash'} tam={14} />
                   </button>
                 </span>
               </div>

@@ -79,3 +79,40 @@
   .mf-acoes { flex-direction: column-reverse; }
   .mf-acoes .fj-btn { width: 100%; justify-content: center; }
 }
+
+/* Editar nome (10B.1/UX) */
+.mr-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted, #7A8790);
+}
+.mr-campo input {
+  border: 1px solid var(--line, #E4E1D8);
+  border-radius: 7px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text, #2D3339);
+  background: var(--panel, #fff);
+}
+.mr-campo input:focus { outline: none; border-color: var(--amber, #FF7A1A); }
+
+/* Exclusão definitiva: o alerta é vermelho porque a ação destrói mesmo. */
+.mf-alerta.mr-perigo {
+  background: var(--crit-bg, #FBEAE9);
+  border-color: var(--crit-line, #F3C6C3);
+}
+.mf-alerta.mr-perigo svg { color: var(--crit, #D5453D); }
+.mr-btn-perigo {
+  background: var(--crit, #D5453D);
+  color: #fff;
+}
+.mr-btn-perigo:hover { background: var(--crit-deep, #B93A33); }

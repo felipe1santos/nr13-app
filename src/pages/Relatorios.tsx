@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import RelatoriosV9 from '../features/relatorios/RelatoriosV9';
-import { alvoLegadoDaUrl, modoRelatorios, urlDoLegado } from '../features/relatorios/rotaRelatorios';
+import { alvoLegadoDaUrl, modoRelatorios, urlDoEditor, urlDoLegado } from '../features/relatorios/rotaRelatorios';
 import { usePalcoDocumento } from '../features/documentos/usePalcoDocumento';
 import { paramsSomenteLeitura, travarIframeSomenteLeitura } from '../features/documentos/somenteLeituraDoc';
 import { drenarPonte } from '../services/ponteTemplates';
@@ -1343,14 +1343,14 @@ export default function Relatorios() {
       // RASCUNHO abre no EDITOR, para continuar de onde parou. Mesma rota do
       // legado — é a tela que sabe montar o documento a partir dos dados —, e
       // lá `visualizar` reconhece o rascunho e destrava a edição.
-      aoContinuarRascunho={(r) => navigate(urlDoLegado(r.tag, r.id))}
+      aoContinuarRascunho={(r) => navigate(urlDoEditor(r.tag, r.id))}
       // O CAMINHO DE CRIAR UM RELATÓRIO. Esta ligação não existia: a prop já
       // estava declarada na V9 desde a 9E, mas ninguém a passava aqui, e a
       // remoção da tela legada (9G.3) tirou o último caminho que restava — na
       // prática só se chegava ao editor digitando `?legado=1` na barra de
       // endereço. Sem isto não há como criar o rascunho que esta fase inteira
       // existe para guardar.
-      aoEscolherEquipamento={() => navigate('/relatorios?legado=1')}
+      aoEscolherEquipamento={() => navigate(urlDoEditor())}
     />
   );
 }

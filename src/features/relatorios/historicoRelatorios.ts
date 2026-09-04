@@ -275,6 +275,27 @@ export async function salvarRelatorio(r: RelatorioSalvo): Promise<void> {
 }
 
 /**
+ * Renomeia o relatório — **só o rótulo**.
+ *
+ * O que muda: o campo `nome` do registro e da linha do índice, que é o texto que
+ * a lista mostra. O que NÃO muda, e é o ponto: `pdfRef`, `sha256`, `paginas`,
+ * `geradoEm`, os bytes no bucket e o conteúdo técnico. O documento emitido não
+ * é tocado — renomear é etiqueta de pasta, não edição de documento assinado
+ * (§7-ter já tratava a renomeação como exceção explícita à trava de edição).
+ *
+ * Devolve `false` quando o registro não existe ou o nome está vazio: gravar um
+ * nome em branco deixaria a lista com uma linha sem identificação nenhuma.
+ */
+export async function renomearRelatorio(id: string, tag: string, nome: string): Promise<boolean> {
+  const novo = nome.trim();
+  if (!novo) return false;
+  const r = carregarRelatorio(id, tag);
+  if (!r) return false;
+  await salvarRelatorio({ ...r, nome: novo });
+  return true;
+}
+
+/**
  * Grava um relatório EM RASCUNHO: o registro completo + o item no índice de
  * rascunhos. Nada toca `nr13_historico_indice_<TAG>`.
  *

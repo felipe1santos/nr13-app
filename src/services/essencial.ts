@@ -37,7 +37,11 @@
  *                             relatório é finalizado. Precisa estar no boot
  *                             porque `/relatorios` mostra rascunho de qualquer
  *                             equipamento, e sob boot leve nenhuma TAG está no
- *                             cache para ser varrida.
+ *                             cache para ser varrida;
+ *   · `nr13_relatorios_arquivados` — ids tirados da lista padrão de
+ *                             `/relatorios`. Leve (ids, ~40 bytes cada) e lida
+ *                             no boot porque a lista filtra por ela ANTES de
+ *                             desenhar.
  *
  * FICAM DE FORA, de propósito:
  *   · `nr13_historico_relatorios` — LEGADO que cresce sem teto (§7-sexies);
@@ -56,6 +60,7 @@ export const CHAVES_ESSENCIAIS: string[] = [
   'nr13_uso_contadores',
   'nr13_agenda_notas',
   'nr13_rascunhos',
+  'nr13_relatorios_arquivados',
 ];
 
 /**

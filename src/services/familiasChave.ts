@@ -106,6 +106,10 @@ const GLOBAIS = new Set([
   // relatórios mostra rascunho de qualquer equipamento, e um índice por TAG
   // obrigaria a varrer o parque para montar essa lista.
   'nr13_rascunhos',
+  // Ids de relatório FINALIZADO tirados da lista padrão de `/relatorios`.
+  // Global porque a tela mostra relatório de todos os equipamentos — e guarda
+  // ids, nunca documentos: arquivar não apaga PDF, SHA nem pdfRef.
+  'nr13_relatorios_arquivados',
 ]);
 
 /**

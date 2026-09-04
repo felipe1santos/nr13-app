@@ -1487,3 +1487,11 @@
   .livro-rascunho-btns { width: 100%; }
   .livro-rascunho-btns .fj-btn { flex: 1 1 auto; justify-content: center; }
 }
+
+/* Ações por relatório (10B.1/UX): três ícones que não podem estourar no
+   celular — a coluna vira uma linha de botões alinhada à esquerda no cartão. */
+.rel-cel-acoes { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.rel-cel-acoes .btn-icone { flex: 0 0 auto; }
+@media (max-width: 720px) {
+  .rel-page .rel-cel-acoes { gap: 6px; margin-top: 4px; }
+}
