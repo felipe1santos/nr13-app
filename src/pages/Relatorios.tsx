@@ -35,6 +35,7 @@ import {
 } from '../features/relatorios/relatoriosService';
 import { expandirFolhasUltrassom } from '../features/relatorios/ultrassomPaginacao';
 import ModalFinalizar from '../features/relatorios/ModalFinalizar';
+import PainelPiloto from '../features/relatorios/pdfVetorial/PainelPiloto';
 import { validarParaFinalizar, type LaudoConclusao, type ResultadoValidacao } from '../features/relatorios/validacaoFinalizacao';
 import { salvarRascunho as gravarRascunho } from '../features/relatorios/historicoRelatorios';
 import { ehRascunhoConhecido } from '../features/relatorios/rascunhos';
@@ -1081,6 +1082,13 @@ function RelatoriosLegado() {
               </button>
             </div>
           </div>
+
+          {/* Fase 11 · bancada do piloto vetorial. Atrás de `?piloto=1`: a
+              geração de produção continua sendo a raster, e nenhum relatório
+              histórico é regenerado. */}
+          {new URLSearchParams(window.location.search).get('piloto') === '1' && (
+            <PainelPiloto tag={tag} documentos={documentos} />
+          )}
 
           {/* Banner flutuante (âmbar/warning) — fora dos iframes, nunca impresso */}
           {faltaRastreabilidade && !avisoRastreabFechado && (

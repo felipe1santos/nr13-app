@@ -1,0 +1,27 @@
+/* Fase 11 · bancada do piloto. Só aparece com ?piloto=1 — nunca imprime. */
+.piloto-painel {
+  border: 1px solid var(--blue2, #0C4F9B);
+  border-left-width: 3px;
+  border-radius: 10px;
+  background: var(--panel, #fff);
+  padding: 12px 14px;
+  margin: 10px 0 14px;
+}
+.piloto-cab { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.piloto-cab b { color: var(--blue2, #0C4F9B); font-size: 13px; }
+.piloto-cab span { font-size: 11.5px; color: var(--muted, #7A8790); }
+.piloto-botoes { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.piloto-tabela { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.piloto-tabela th, .piloto-tabela td {
+  border: 1px solid var(--line, #E4E1D8);
+  padding: 5px 8px;
+  text-align: left;
+}
+.piloto-tabela th { background: var(--steel, #F6F5F2); font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em; }
+.piloto-reducao { font-size: 12.5px; margin-top: 10px; }
+.piloto-sha { font-size: 11.5px; color: var(--muted, #7A8790); margin-top: 8px; word-break: break-all; }
+.piloto-sha code { font-family: var(--font-mono, monospace); }
+.piloto-erro { font-size: 12.5px; margin-top: 8px; color: var(--crit, #D5453D); }
+@media (max-width: 640px) {
+  .piloto-botoes .fj-btn { flex: 1 1 100%; justify-content: center; }
+}
