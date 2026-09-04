@@ -441,3 +441,33 @@ export default function FormularioChecklist({ tag, containerId }: { tag: string;
     </>
   );
 }
+
+/**
+ * Fase 11 · o catálogo do checklist, para quem IMPRIME o documento.
+ *
+ * As perguntas já eram estas — o formulário de campo as usa desde sempre. O que
+ * muda é serem exportadas: o relatório em vetor precisa imprimir o TEXTO da
+ * pergunta, e as respostas são guardadas por `id`. Sem esta lista, a folha
+ * imprimiria `v51-registro-seguranca` no lugar de "Registro de segurança", ou
+ * exigiria uma segunda cópia das perguntas — que é como duas listas começam a
+ * divergir.
+ *
+ * A ordem é a mesma da tela, e os títulos são os mesmos exibidos ao técnico.
+ */
+export interface SecaoChecklist {
+  titulo: string;
+  perguntas: { id: string; texto: string }[];
+}
+
+export const SECOES_CHECKLIST: SecaoChecklist[] = [
+  { titulo: '5.1 Verificação da Documentação Existente', perguntas: SECAO_DOCUMENTACAO },
+  { titulo: '5.2 Resultados da Inspeção', perguntas: SECAO_RESULTADOS_GERAIS },
+  { titulo: 'Exame do Prontuário e Registro de Segurança', perguntas: SECAO_PRONTUARIO },
+  { titulo: 'Exame Externo', perguntas: SECAO_EXAME_EXTERNO },
+  { titulo: 'Exame Interno', perguntas: SECAO_EXAME_INTERNO },
+  { titulo: 'Ensaio Hidrostático', perguntas: SECAO_TH },
+  { titulo: 'Considerações Finais', perguntas: SECAO_FINAL },
+];
+
+/** Os instrumentos conferidos em campo — mesma lista do formulário. */
+export const INSTRUMENTOS_CHECKLIST = INSTRUMENTOS;

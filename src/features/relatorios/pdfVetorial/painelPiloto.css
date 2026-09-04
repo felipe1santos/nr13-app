@@ -25,3 +25,11 @@
 @media (max-width: 640px) {
   .piloto-botoes .fj-btn { flex: 1 1 100%; justify-content: center; }
 }
+.piloto-conferencia {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--steel, #F6F5F2);
+  font-size: 12px;
+}
+.piloto-conferencia p { margin: 4px 0 0; color: var(--muted, #7A8790); }

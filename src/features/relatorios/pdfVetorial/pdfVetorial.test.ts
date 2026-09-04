@@ -34,9 +34,11 @@ import {
   FOTOS_POR_FOLHA,
   converterPressao,
   folhasDeFotos,
-  montarModelo,
+  montarModeloRelatorio,
   textoOu,
-} from './ponteDados';
+} from './modelo';
+import { rotuloLaudo, rotuloResposta, rotuloResultado, rotuloTipoEquipamento } from './rotulos';
+import { conferirCampos } from './conferencia';
 
 const TAG = 'VP-01';
 
@@ -101,11 +103,11 @@ describe('campo sem dado NÃO vira dado inventado', () => {
 
 describe('ponte de dados — lê a verdade que já existe', () => {
   it('modelo vazio não quebra: todo campo ausente vira null', () => {
-    const m = montarModelo(TAG);
+    const m = montarModeloRelatorio(TAG);
     expect(m.tag).toBe(TAG);
     expect(m.equipamento['FABRICANTE']).toBeNull();
     expect(m.pressoes[0].mpa).toBeNull();
-    expect(m.fotos).toEqual([]);
+    expect(m.visualExterno.fotos).toEqual([]);
     expect(m.laudo.apto).toBeNull();
   });
 
@@ -130,7 +132,7 @@ describe('ponte de dados — lê a verdade que já existe', () => {
       }),
     );
 
-    const m = montarModelo(TAG);
+    const m = montarModeloRelatorio(TAG);
     expect(m.equipamento['FABRICANTE']).toBe('ACME');
     expect(m.equipamento['CATEGORIA DO VASO']).toBe('III');
     expect(m.pressoes[0].kgf).toBe('12.24');
@@ -148,7 +150,7 @@ describe('ponte de dados — lê a verdade que já existe', () => {
       'nr13_relatorio_meta_atual',
       JSON.stringify({ codigo: 'REL-8', empresa: { razaoSocial: 'CONGELADA LTDA' } }),
     );
-    expect(montarModelo(TAG).empresa.razao).toBe('CONGELADA LTDA');
+    expect(montarModeloRelatorio(TAG).empresa.razao).toBe('CONGELADA LTDA');
   });
 
   it('descarta foto que não é imagem — nada de string solta virando raster', () => {
@@ -164,8 +166,49 @@ describe('ponte de dados — lê a verdade que já existe', () => {
         },
       }),
     );
-    const m = montarModelo(TAG);
-    expect(m.fotos).toHaveLength(1);
-    expect(m.fotos[0].descricao).toBe('ok');
+    const m = montarModeloRelatorio(TAG);
+    expect(m.visualExterno.fotos).toHaveLength(1);
+    expect(m.visualExterno.fotos[0].descricao).toBe('ok');
+  });
+});
+
+describe('rótulos — o slug guardado não chega cru ao papel', () => {
+  it('traduz o que conhece', () => {
+    expect(rotuloTipoEquipamento('vaso')).toBe('Vaso de Pressão');
+    expect(rotuloResposta('nao')).toBe('NÃO');
+    expect(rotuloResposta('sim')).toBe('SIM');
+    expect(rotuloResultado('aprovado')).toBe('APROVADO');
+  });
+
+  it('slug DESCONHECIDO é devolvido, não apagado — dado feio é melhor que dado sumido', () => {
+    expect(rotuloTipoEquipamento('trocador-de-calor')).toBe('Trocador-de-calor');
+    expect(rotuloResposta('talvez')).toBe('Talvez');
+  });
+
+  it('ausente continua ausente', () => {
+    expect(rotuloTipoEquipamento(null)).toBeNull();
+    expect(rotuloResposta('  ')).toBeNull();
+  });
+
+  it('laudo não marcado NÃO é inapto', () => {
+    expect(rotuloLaudo(null)).toBeNull();
+    expect(rotuloLaudo(true)).toBe('APTO');
+    expect(rotuloLaudo(false)).toBe('INAPTO');
+  });
+});
+
+describe('conferência campo a campo', () => {
+  it('lista por NOME o que sairá em branco', () => {
+    const c = conferirCampos(montarModeloRelatorio(TAG));
+    expect(c.total).toBeGreaterThan(30);
+    expect(c.vazios).toContain('cliente');
+    expect(c.vazios).toContain('laudo APTO/INAPTO');
+    expect(c.preenchidos + c.vazios.length).toBe(c.total);
+  });
+
+  it('campo com dado sai da lista de vazios', () => {
+    localStorage.setItem('nr13_laudo_VP-01', JSON.stringify({ apto: false }));
+    const c = conferirCampos(montarModeloRelatorio(TAG));
+    expect(c.vazios).not.toContain('laudo APTO/INAPTO');
   });
 });

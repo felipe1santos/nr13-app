@@ -35,6 +35,10 @@ export const FAMILIA = 'Carlito';
 const ARQUIVOS = {
   normal: { url: '/fontes/carlito-regular.ttf', vfs: 'Carlito-Regular.ttf' },
   bold: { url: '/fontes/carlito-bold.ttf', vfs: 'Carlito-Bold.ttf' },
+  // A referência usa itálico na sigla da capa e nos títulos de item. Sem os dois
+  // arquivos, o jsPDF cai no regular e a distinção some do documento.
+  italic: { url: '/fontes/carlito-italic.ttf', vfs: 'Carlito-Italic.ttf' },
+  bolditalic: { url: '/fontes/carlito-bolditalic.ttf', vfs: 'Carlito-BoldItalic.ttf' },
 } as const;
 
 type Estilo = keyof typeof ARQUIVOS;
@@ -71,7 +75,7 @@ async function carregar(estilo: Estilo): Promise<string> {
  * e não é. Melhor recusar a geração e dizer por quê.
  */
 export async function registrarCarlito(pdf: jsPDF): Promise<void> {
-  for (const estilo of ['normal', 'bold'] as const) {
+  for (const estilo of ['normal', 'bold', 'italic', 'bolditalic'] as const) {
     const b64 = await carregar(estilo);
     pdf.addFileToVFS(ARQUIVOS[estilo].vfs, b64);
     pdf.addFont(ARQUIVOS[estilo].vfs, FAMILIA, estilo);

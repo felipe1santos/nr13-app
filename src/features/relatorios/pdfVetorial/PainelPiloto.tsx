@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Icone } from '../../../components/Icone';
 import { gerarPdfBytes } from '../pdfService';
 import { publicarArtefato, artefatoDe, baixarArtefato } from '../artefatoRelatorio';
-import { gerarPdfPiloto } from './gerarPiloto';
+import { gerarRelatorioVetorial } from './gerarRelatorio';
+import { conferirCampos, type Conferencia } from './conferencia';
 import './painelPiloto.css';
 
 /**
@@ -41,6 +42,7 @@ export default function PainelPiloto({ tag, documentos }: { tag: string; documen
   const [ocupado, setOcupado] = useState<'' | 'raster' | 'vetor' | 'arquivo'>('');
   const [erro, setErro] = useState('');
   const [bytesVetor, setBytesVetor] = useState<Uint8Array | null>(null);
+  const [conferencia, setConferencia] = useState<Conferencia | null>(null);
 
   async function medirRaster() {
     setOcupado('raster');
@@ -60,9 +62,10 @@ export default function PainelPiloto({ tag, documentos }: { tag: string; documen
     setOcupado('vetor');
     setErro('');
     try {
-      const r = await gerarPdfPiloto(tag);
+      const r = await gerarRelatorioVetorial(tag);
       setVetor({ bytes: r.bytes.byteLength, paginas: r.paginas, ms: r.ms });
       setBytesVetor(r.bytes);
+      setConferencia(conferirCampos(r.modelo));
       setArquivado(null);
     } catch (e) {
       setErro(`Vetorial: ${e instanceof Error ? e.message : String(e)}`);
@@ -186,6 +189,21 @@ export default function PainelPiloto({ tag, documentos }: { tag: string; documen
           {arquivado.path}
           {arquivado.pendente ? ' · upload pendente (offline)' : ' · no bucket'}
         </p>
+      )}
+
+      {conferencia && (
+        <div className="piloto-conferencia">
+          <b>
+            Conferência campo a campo: {conferencia.preenchidos} de {conferencia.total} com dado
+            {conferencia.vazios.length > 0 ? ` · ${conferencia.vazios.length} em branco` : ''}
+          </b>
+          {conferencia.vazios.length > 0 && (
+            <p>
+              Em branco no relatório (e no documento saem como travessão):{' '}
+              {conferencia.vazios.join(' · ')}
+            </p>
+          )}
+        </div>
       )}
 
       {erro && <p className="piloto-erro">{erro}</p>}

@@ -548,7 +548,7 @@ function linhasDeMemorialHTML(html: string): string[] {
 // Mesmo filtro de linhas do template MEMORIAL.html (1:1 por índice) — base da paginação.
 // GV do autoclave (nr13_calc_gv_<TAG>) é mesclado APÓS o principal, na LEITURA — o template
 // MEMORIAL.html faz a mesma concatenação, mantendo o contrato de índices from/to.
-function linhasMemorial(tag: string): string[] {
+export function linhasMemorial(tag: string): string[] {
   const calc = ler<{ memorialHTML?: string }>(`nr13_calc_${tag}`);
   const linhas = calc?.memorialHTML ? linhasDeMemorialHTML(calc.memorialHTML) : [];
   const gv = ler<{ memorialHTML?: string }>(`nr13_calc_gv_${tag}`);

@@ -45,6 +45,17 @@ const ORIGENS = {
     'node_modules/@fontsource/carlito/files/carlito-latin-700-normal.ttf',
     'C:/Windows/Fonts/Carlito-Bold.ttf',
   ],
+  // A referência usa itálico em dois lugares que o documento tem: a sigla da
+  // capa (`p.doc-sigla`) e os títulos de item (`.item-titulo`, que é bold+itálico).
+  // Sem estes dois arquivos o jsPDF cai no regular e a distinção some.
+  italic: [
+    'node_modules/@fontsource/carlito/files/carlito-latin-400-italic.ttf',
+    'C:/Windows/Fonts/Carlito-Italic.ttf',
+  ],
+  bolditalic: [
+    'node_modules/@fontsource/carlito/files/carlito-latin-700-italic.ttf',
+    'C:/Windows/Fonts/Carlito-BoldItalic.ttf',
+  ],
 };
 
 for (const [peso, caminhos] of Object.entries(ORIGENS)) {
