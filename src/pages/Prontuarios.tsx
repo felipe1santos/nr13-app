@@ -18,6 +18,7 @@ import {
 import type { AssinantesProntuario } from '../features/prontuarios/prontuarioService';
 import type { DimensaoProntuario, ProntuarioDados } from '../features/prontuarios/tipos';
 import { paginasProntuario, temCroqui2d } from '../features/prontuarios/tipos';
+import PainelPilotoProntuario from '../features/relatorios/pdfVetorial/PainelPilotoProntuario';
 import { carregarMinhaEmpresa, listarClientes, listarFuncionarios } from '../features/cadastros/cadastroService';
 import type { Cliente, Funcionario } from '../features/cadastros/tipos';
 import { carregarVaso } from '../features/memorial/vasoMemorialService';
@@ -1080,6 +1081,12 @@ export default function Prontuarios() {
 
           {palco.estado !== 'pronto' && (
             <RecusaPalco estado={palco.estado} falha={palco.falha} />
+          )}
+
+          {/* Fase 12 · bancada do piloto do prontuário. Atrás de `?piloto=1`:
+              produção continua imprimindo pelo caminho de hoje. */}
+          {new URLSearchParams(window.location.search).get('piloto') === '1' && (
+            <PainelPilotoProntuario tag={tag} />
           )}
 
           <div className="prontuario-preview">

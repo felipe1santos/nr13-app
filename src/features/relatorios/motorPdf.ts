@@ -70,3 +70,43 @@ export function motorPdfAtual(busca = ''): MotorPdf {
 export async function definirMotorPdf(motor: MotorPdf): Promise<void> {
   await salvar(CHAVE_MOTOR_PDF, { motor: normalizar(motor), em: new Date().toISOString() });
 }
+
+/**
+ * Fase 12 · o motor do PRONTUÁRIO, em chave SEPARADA.
+ *
+ * Deliberadamente NÃO reusa `nr13_motor_pdf`. Relatório e prontuário viraram
+ * em momentos diferentes e podem precisar de rollback independente: se o
+ * prontuário vetorial apresentar problema, desligá-lo não pode arrastar junto
+ * o relatório, que já está validado em produção desde 04/09/2026.
+ *
+ * Padrão: `atual` — o gerador de hoje (impressão rasterizada de
+ * `.prontuario-preview`). Só a string exata `'vetorial'` troca.
+ */
+export const CHAVE_MOTOR_PRONTUARIO = 'nr13_motor_prontuario';
+
+export type MotorProntuario = 'atual' | 'vetorial';
+
+function normalizarProntuario(v: unknown): MotorProntuario {
+  return String(v ?? '').trim().toLowerCase() === 'vetorial' ? 'vetorial' : 'atual';
+}
+
+/** O motor configurado para o prontuário (sem olhar a URL). */
+export function motorProntuarioConfigurado(): MotorProntuario {
+  try {
+    return normalizarProntuario(ler<{ motor?: string }>(CHAVE_MOTOR_PRONTUARIO)?.motor);
+  } catch {
+    return 'atual';
+  }
+}
+
+/** O motor a usar agora: a URL (`?motorPront=`), se disser algo; senão a chave. */
+export function motorProntuarioAtual(busca = ''): MotorProntuario {
+  const daUrl = new URLSearchParams(busca).get('motorPront');
+  if (daUrl !== null && daUrl.trim() !== '') return normalizarProntuario(daUrl);
+  return motorProntuarioConfigurado();
+}
+
+/** Grava a decisão da organização para o prontuário. */
+export async function definirMotorProntuario(motor: MotorProntuario): Promise<void> {
+  await salvar(CHAVE_MOTOR_PRONTUARIO, { motor: normalizarProntuario(motor), em: new Date().toISOString() });
+}

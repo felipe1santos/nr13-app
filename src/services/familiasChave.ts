@@ -114,6 +114,7 @@ const GLOBAIS = new Set([
   // decisão da ORGANIZAÇÃO, não do equipamento — e não alcança documento já
   // emitido, que abre sempre pelo seu próprio pdfRef.
   'nr13_motor_pdf',
+  'nr13_motor_prontuario',
 ]);
 
 /**
