@@ -70,3 +70,44 @@ volta da segunda tabela.
 |---|---|
 | suíte | **1.990 testes, 161 arquivos, 0 falhas** |
 | `tsc -b` · `vite build` | limpos |
+
+---
+
+## 7 · Refino (mesmo dia) — densidade, hierarquia e ações numa linha
+
+Três defeitos medidos na lista entregue horas antes:
+
+| | antes | depois |
+|---|---|---|
+| ações da linha | **3 linhas** (coluna de 64px, `flex-wrap: wrap`) | **1 linha** (coluna própria, `nowrap`) |
+| altura da linha (desktop) | 55 px | **40 px** |
+| nome × metadado | mesmo peso visual | nome escuro/650; código e cliente em cinza, 10,5px, com ponto médio |
+| colunas | 8 | 9 — entrou **PRÓXIMA** |
+
+`PRÓXIMA` é a mais próxima entre `proximaInterna` e `proximaExterna`, as duas
+**já na projeção**: nenhuma requisição, nenhuma leitura de documento, nenhuma
+hidratação. Sem data registrada mostra travessão, e a data-sentinela de
+ordenação (`0001-…`) não vale como resposta. O `title` diz se aquela data é a
+interna ou a externa.
+
+### Celular, medido em 386 px
+
+Duas correções vieram da medição, não do olho:
+
+1. sem faixas explícitas de grade, o auto-placement jogava a SITUAÇÃO para uma
+   linha só dela — cartão de 191px;
+2. com as datas em `nowrap`, `CRIAÇÃO: 05/09/2026` numa linha media 109px numa
+   coluna de 92px, e o valor saía **cortado**.
+
+Com o rótulo acima do valor e as faixas fixas: cartão de **150px**, zero
+elementos clipados, zero overflow, e os três botões de ação na mesma linha.
+
+| | desktop 1400px | celular 386px |
+|---|---|---|
+| overflow horizontal | 0 | 0 |
+| ações na mesma linha | sim (3 botões, mesmo topo) | sim |
+| altura | 40 px por linha | 150 px por cartão |
+| elementos cortados | 0 | 0 |
+
+Bundle validado: `assets/index-D20k6-4j.js` · CSS `assets/index-D4XogbuV.css`
+(e o ajuste final das datas no deploy seguinte).
