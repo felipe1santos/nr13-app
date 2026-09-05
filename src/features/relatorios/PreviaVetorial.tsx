@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Icone } from '../../components/Icone';
+import { VisualizadorPdfBytes } from '../../components/VisualizadorPdf';
 import { textoDoErro } from '../../services/textoDoErro';
 import { gerarPreviaRelatorio } from './pdfVetorial/gerarRelatorio';
 import { montarModeloRelatorio } from './pdfVetorial/modelo';
@@ -41,24 +42,20 @@ export default function PreviaVetorial({
   versaoDados: number;
   onIrPara?: (destino: Exclude<DestinoEdicao, null>) => void;
 }) {
-  const [url, setUrl] = useState<string | null>(null);
+  const [bytes, setBytes] = useState<Uint8Array | null>(null);
   const [paginas, setPaginas] = useState(0);
   const [gerando, setGerando] = useState(false);
   const [erro, setErro] = useState('');
   const [faltando, setFaltando] = useState<ItemFaltante[]>([]);
   const [painelAberto, setPainelAberto] = useState(false);
   const [versaoGerada, setVersaoGerada] = useState<number | null>(null);
-  const urlRef = useRef<string | null>(null);
 
   const gerar = useCallback(async () => {
     setGerando(true);
     setErro('');
     try {
       const r = await gerarPreviaRelatorio(tag, documentos);
-      if (urlRef.current) URL.revokeObjectURL(urlRef.current);
-      const novo = URL.createObjectURL(new Blob([r.bytes.slice()], { type: 'application/pdf' }));
-      urlRef.current = novo;
-      setUrl(novo);
+      setBytes(r.bytes);
       setPaginas(r.paginas);
       setFaltando(oQueFalta(montarModeloRelatorio(tag)));
       setVersaoGerada(versaoDados);
@@ -76,38 +73,33 @@ export default function PreviaVetorial({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- só na montagem; as demais são sob demanda
   }, []);
 
-  useEffect(
-    () => () => {
-      if (urlRef.current) URL.revokeObjectURL(urlRef.current);
-    },
-    [],
-  );
-
   const atrasada = versaoGerada !== null && versaoGerada !== versaoDados;
+
+  // Os controles da prévia moram DENTRO da barra do visualizador — é o que
+  // mantém uma barra só, em vez de uma fileira nossa empilhada sobre a dele.
+  const controles = (
+    <>
+      <button type="button" className={`vpdf-btn${gerando ? ' is-loading' : ''}`} onClick={() => void gerar()} disabled={gerando}>
+        <Icone nome="sliders" tam={13} /> {gerando ? 'Gerando…' : 'Atualizar prévia'}
+      </button>
+      <button
+        type="button"
+        className={`vpdf-btn${painelAberto ? ' is-ativo' : ''}`}
+        onClick={() => setPainelAberto((v) => !v)}
+        aria-pressed={painelAberto}
+      >
+        O que falta{faltando.length > 0 ? ` (${faltando.length})` : ''}
+      </button>
+      {atrasada && (
+        <span className="previa-atrasada" title="A prévia foi gerada antes da última alteração.">
+          Há alterações não refletidas
+        </span>
+      )}
+    </>
+  );
 
   return (
     <div className="previa">
-      <div className="previa-barra no-print">
-        <button type="button" className={`vpdf-btn${gerando ? ' is-loading' : ''}`} onClick={() => void gerar()} disabled={gerando}>
-          <Icone nome="sliders" tam={13} /> {gerando ? 'Gerando…' : 'Atualizar prévia'}
-        </button>
-        {paginas > 0 && <span className="vpdf-contador">{paginas} pág.</span>}
-        <button
-          type="button"
-          className={`vpdf-btn${painelAberto ? ' is-ativo' : ''}`}
-          onClick={() => setPainelAberto((v) => !v)}
-          aria-pressed={painelAberto}
-        >
-          O que falta{faltando.length > 0 ? ` (${faltando.length})` : ''}
-        </button>
-        {atrasada && (
-          <span className="previa-atrasada" title="A prévia foi gerada antes da última alteração.">
-            Há alterações ainda não refletidas na prévia.
-          </span>
-        )}
-        <span className="previa-selo">Prévia — não é o documento emitido</span>
-      </div>
-
       {erro && <p className="med-erro">{erro}</p>}
 
       <div className={`previa-corpo${painelAberto ? ' com-painel' : ''}`}>
@@ -135,8 +127,14 @@ export default function PreviaVetorial({
         )}
 
         <div className="previa-quadro">
-          {url ? (
-            <iframe title="Prévia do relatório" src={`${url}#view=FitH`} />
+          {bytes ? (
+            <VisualizadorPdfBytes
+              bytes={bytes}
+              paginas={paginas}
+              nomeArquivo={`previa-${tag}.pdf`}
+              extras={controles}
+              selo="Prévia — não é o documento emitido"
+            />
           ) : (
             <div className="vpdf-aviso">{gerando ? 'Desenhando o documento…' : 'Sem prévia.'}</div>
           )}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { baixarArtefato, type PdfArtefato } from '../features/relatorios/artefatoRelatorio';
 
 /**
@@ -101,6 +101,48 @@ export default function VisualizadorPdf({
   return <QuadroPdf url={url} bytes={bytes} nomeArquivo={nomeArquivo} paginas={artefato.paginas} />;
 }
 
+/**
+ * 13D · o MESMO visualizador, para bytes que ainda não são um artefato.
+ *
+ * A prévia do relatório em edição é um PDF que existe só na memória: não tem
+ * `pdfRef`, não tem SHA, não está no cofre. Mostrá-la num `<iframe src=blob>`
+ * traria de volta exatamente o que a 12B tirou — a barra do leitor do navegador
+ * somada à do app e a coluna de miniaturas abrindo sozinha, comendo um terço da
+ * largura.
+ *
+ * `extras` entram DENTRO da barra do visualizador; é o que mantém a promessa de
+ * **uma única barra horizontal**, em vez de uma fileira de botões nossa em cima
+ * da dele. `selo` troca "Documento arquivado" pelo aviso que a prévia precisa
+ * dar — ela não é o documento emitido, e isso não pode ficar subentendido.
+ */
+export function VisualizadorPdfBytes({
+  bytes,
+  nomeArquivo,
+  paginas,
+  extras,
+  selo,
+}: {
+  bytes: Uint8Array;
+  nomeArquivo: string;
+  paginas: number;
+  extras?: ReactNode;
+  selo?: string;
+}) {
+  // Cópia própria: o pdf.js pode ficar dono do buffer que recebe, e quem chamou
+  // continua com os bytes dele para baixar ou finalizar.
+  const buf = useMemo(() => bytes.slice().buffer as ArrayBuffer, [bytes]);
+  const [url, setUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const objeto = URL.createObjectURL(new Blob([buf], { type: 'application/pdf' }));
+    setUrl(objeto);
+    return () => URL.revokeObjectURL(objeto);
+  }, [buf]);
+
+  if (!url) return <div className="vpdf-aviso">Preparando o documento…</div>;
+  return <QuadroPdf url={url} bytes={buf} nomeArquivo={nomeArquivo} paginas={paginas} extras={extras} selo={selo} />;
+}
+
 /** Uma página desenhada; `null` enquanto ainda não entrou na tela. */
 type Pagina = { numero: number; largura: number; altura: number };
 
@@ -109,10 +151,14 @@ function QuadroPdf({
   bytes,
   nomeArquivo,
   paginas: paginasDoRegistro,
+  extras,
+  selo = 'Documento arquivado',
 }: {
   url: string;
   bytes: ArrayBuffer | null;
   nomeArquivo: string;
+  extras?: ReactNode;
+  selo?: string;
   paginas: number;
 }) {
   const [doc, setDoc] = useState<PdfDoc | null>(null);
@@ -218,6 +264,7 @@ function QuadroPdf({
   return (
     <div className="vpdf">
       <div className="vpdf-barra no-print">
+        {extras}
         {!semPdfJs && (
           <button
             type="button"
@@ -248,7 +295,7 @@ function QuadroPdf({
           </span>
         )}
         <span className="vpdf-selo" title="Este documento não é remontado: são os bytes arquivados na emissão.">
-          Documento arquivado
+          {selo}
         </span>
         <button type="button" className="vpdf-btn vpdf-btn-aba" onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}>
           Abrir em outra aba
