@@ -6,6 +6,7 @@ import { FAMILIA } from './carlito';
 import { camposDaPlaca } from '../placaIdentificacao';
 import type { CelulaDoc, Documento } from './documento';
 import { rotuloLaudo } from './rotulos';
+import { DESCRICAO_VARIAVEL, prepararFormula, variaveisDaFormula } from './formulaMatematica';
 import { textoOu, type ExameVisual, type FotoModelo, type ModeloRelatorio } from './modelo';
 
 /**
@@ -577,48 +578,108 @@ export function folhaResumoCalculos(doc: Documento, m: ModeloRelatorio): void {
     ]),
   });
 
-  // ── PARÂMETROS POR COMPONENTE ───────────────────────────────────────────
+  // ── MEMORIAL POR COMPONENTE ─────────────────────────────────────────────
   //
-  // A referência dedica uma FAIXA a cada componente (casco, tampo superior,
-  // tampo inferior) com oito parâmetros. Todos já existiam em
-  // `nr13_calc_<TAG>.componentes[]`, gravados pelo motor do memorial: E, S,
-  // raio, margem de corrosão, espessura comercial medida, espessura mínima e a
-  // PMTA daquele componente. Nada é recalculado aqui — o relatório apresenta.
+  // Bloco 1.1 · a folha deixou de ser uma tabela de números soltos e passou a
+  // ler como memorial de engenharia: para cada componente, a EQUAÇÃO aplicada,
+  // os dados que entraram nela (símbolo · descrição · valor · unidade) e o
+  // resultado que o motor produziu.
   //
-  // A tabela do `Documento` já quebra entre folhas repetindo o cabeçalho, então
-  // um equipamento com muitos componentes pagina sozinho, sem corte.
+  // As duas fórmulas — espessura e PMTA — vêm de `nr13_calc_.componentes[]`,
+  // gravadas pelo motor do memorial. O gerador não conhece engenharia: ele
+  // reformata a string para poder desenhar a fração, e imprime.
   for (const c of m.componentes) {
-    doc.faixa(`PARÂMETROS E RESULTADOS: ${c.nome.toUpperCase()}`);
+    doc.faixa(`MEMÓRIA DE CÁLCULO — ${c.nome.toUpperCase()}`);
     const pref = idCampo('componente', c.nome);
+
+    doc.secao('Fórmulas aplicadas');
+    const fT = prepararFormula(c.formulaT);
+    const fP = prepararFormula(c.formulaP);
+    if (fT) doc.formula(fT);
+    if (fP) doc.formula(fP);
+    if (!fT && !fP) {
+      doc.texto('Memorial sem fórmula registrada para este componente.', {
+        tamanho: FONTE.nota,
+        cor: COR.nota,
+      });
+    }
+
+    doc.secao('Dados utilizados');
+    // A legenda descreve só os símbolos que ESTAS fórmulas usam; variável que
+    // não aparece na equação não entra — legenda com símbolo ausente é ruído.
+    const simbolos = variaveisDaFormula(c.formulaT, c.formulaP);
+    const valorDe: Record<string, string | null> = {
+      S: c.s,
+      E: c.e,
+      t: c.espNom,
+      D: c.raio ? String(Number(c.raio) * 2) : null,
+      Ri: c.raio,
+      R: c.raio,
+      L: c.raio,
+      c: c.ca,
+      PMTA: c.pmta,
+    };
     doc.tabela({
       compacta: true,
-      colunas: [0.28, 0.22, 0.28, 0.22],
+      colunas: [0.12, 0.48, 0.22, 0.18],
+      cabecalho: ['SÍMBOLO', 'DESCRIÇÃO', 'VALOR', 'UNIDADE'],
+      linhas: simbolos.map((sim) => {
+        const d = DESCRICAO_VARIAVEL[sim] ?? { descricao: '—', unidade: '—' };
+        return [
+          { texto: sim, centro: true, rotulo: true },
+          { texto: d.descricao },
+          {
+            texto: textoOu(valorDe[sim] ?? null),
+            centro: true,
+            valor: true,
+            id: `${pref}.var-${sim.toLowerCase()}`,
+            rotuloCampo: `${c.nome} — ${d.descricao} (${sim})`,
+          },
+          { texto: d.unidade, centro: true },
+        ];
+      }),
+    });
+
+    doc.secao('Resultados');
+    doc.tabela({
+      compacta: true,
+      colunas: [0.3, 0.2, 0.3, 0.2],
       linhas: [
         [
           { texto: 'ESPESSURA MÍN. CALCULADA (t)', rotulo: true },
           { texto: textoOu(c.espReq), centro: true, valor: true, id: `${pref}.esp-min-calculada`, rotuloCampo: `${c.nome} — espessura mínima calculada` },
-          { texto: 'PMTA CALCULADA (P)', rotulo: true },
-          { texto: textoOu(c.pmta), centro: true, valor: true, id: `${pref}.pmta`, rotuloCampo: `${c.nome} — PMTA calculada` },
-        ],
-        [
-          { texto: 'EFICIÊNCIA DA JUNTA (E)', rotulo: true },
-          { texto: textoOu(c.e), centro: true, valor: true, id: `${pref}.eficiencia`, rotuloCampo: `${c.nome} — eficiência da junta` },
           { texto: 'ESP. MÍN. MEDIDA (t)', rotulo: true },
           { texto: textoOu(c.espNom), centro: true, valor: true, id: `${pref}.esp-medida`, rotuloCampo: `${c.nome} — espessura medida` },
         ],
         [
+          { texto: 'PMTA CALCULADA (P)', rotulo: true },
+          { texto: textoOu(c.pmta), centro: true, valor: true, id: `${pref}.pmta`, rotuloCampo: `${c.nome} — PMTA calculada` },
           { texto: 'MARGEM DE CORROSÃO (c)', rotulo: true },
           { texto: textoOu(c.ca), centro: true, valor: true, id: `${pref}.margem`, rotuloCampo: `${c.nome} — margem de corrosão` },
-          { texto: 'RAIO INTERNO (Ri)', rotulo: true },
-          { texto: textoOu(c.raio), centro: true, valor: true, id: `${pref}.raio`, rotuloCampo: `${c.nome} — raio interno` },
         ],
         [
           { texto: 'MATERIAL', rotulo: true },
-          { texto: textoOu(c.material), centro: true, valor: true, id: `${pref}.material`, rotuloCampo: `${c.nome} — material` },
-          { texto: 'TENSÃO ADMISSÍVEL (S)', rotulo: true },
-          { texto: textoOu(c.s), centro: true, valor: true, id: `${pref}.tensao`, rotuloCampo: `${c.nome} — tensão admissível` },
+          { texto: textoOu(c.material), centro: true, valor: true, colspan: 3, id: `${pref}.material`, rotuloCampo: `${c.nome} — material` },
         ],
       ],
+    });
+
+    // A situação é COMPARAÇÃO entre dois números que já vieram calculados —
+    // não é cálculo de engenharia, é leitura. Sem um dos dois, o documento não
+    // afirma nada.
+    const medida = Number(String(c.espNom ?? '').replace(',', '.'));
+    const requerida = Number(String(c.espReq ?? '').replace(',', '.'));
+    const situacao =
+      Number.isFinite(medida) && Number.isFinite(requerida)
+        ? medida >= requerida
+          ? 'Espessura medida MAIOR OU IGUAL à mínima requerida — componente aprovado no critério de espessura.'
+          : 'Espessura medida MENOR que a mínima requerida — componente reprovado no critério de espessura.'
+        : '';
+    doc.secao('Situação do componente');
+    doc.texto(situacao, {
+      cor: COR.valor,
+      id: `${pref}.situacao`,
+      rotuloCampo: `${c.nome} — situação`,
     });
   }
 

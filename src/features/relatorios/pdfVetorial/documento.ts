@@ -9,6 +9,7 @@ import type { OrigemValor } from '../overridesRelatorio';
 import {
   BORDA_FINA,
   CAIXA,
+  PT,
   COR,
   CORPO,
   FONTE,
@@ -16,6 +17,7 @@ import {
   alturaLinha,
 } from './documentoA4';
 import { cabecalho, foto, rodape, type DadosCabecalho } from './primitivas';
+import type { FormulaDesenhavel } from './formulaMatematica';
 
 /**
  * Fase 11 · o motor do documento — quem sabe QUANDO virar a folha.
@@ -219,10 +221,11 @@ export class Documento {
     rodape({ pdf: this.pdf, cabecalho: this.cab });
     this.cursor = CORPO.y;
 
-    // A logo é a MESMA em todas as folhas; registrar a área clicável em cada
-    // uma encheria a lista de campos com 21 entradas do mesmo campo. A da
-    // primeira folha basta — é onde o revisor está quando percebe a falta.
-    if (this.pagina === 1) {
+    // A área da logo é clicável em TODAS as folhas (Bloco 1.1): o revisor pode
+    // estar na folha 9 quando percebe que a logo falta, e obrigá-lo a voltar à
+    // capa para corrigir seria esconder a ação onde ele não está. Todas as
+    // entradas têm o mesmo id, então abrem o mesmo editor e produzem UM override.
+    {
       this.anotarCampo(
         'cabecalho.logo',
         'Logo da empresa',
@@ -328,6 +331,55 @@ export class Documento {
       // A página do registro é a do início do parágrafo.
       this.campos[this.campos.length - 1].pagina = paginaInicio;
     }
+  }
+
+  /**
+   * Bloco 1.1 · a FÓRMULA desenhada como equação.
+   *
+   * Numerador em cima, traço no meio, denominador embaixo — tudo em texto e
+   * linha VETORIAIS, selecionáveis e nítidos em qualquer zoom. Rasterizar a
+   * fórmula como imagem devolveria ao documento o problema que a Fase 11
+   * inteira existiu para resolver.
+   *
+   * A expressão vem pronta de `prepararFormula`, que só reformata o que o motor
+   * do memorial gravou. Este método não conhece engenharia: ele desenha.
+   */
+  formula(f: FormulaDesenhavel, opcoes: { tamanho?: number; espacoAntes?: number } = {}): void {
+    const tamanho = opcoes.tamanho ?? FONTE.tabela + 0.5;
+    const passo = alturaLinha(tamanho);
+    const altura = f.numerador ? passo * 2.4 : passo * 1.2;
+    this.cursor += opcoes.espacoAntes ?? 1.5;
+    this.garantirEspaco(altura);
+
+    this.pdf.setFont(FAMILIA, 'normal');
+    this.pdf.setFontSize(tamanho);
+    this.pdf.setTextColor(COR.texto);
+
+    const meio = this.cursor + altura / 2;
+    let x = CAIXA.x + 4;
+
+    if (f.lhs) {
+      const rotulo = `${f.lhs} =`;
+      this.pdf.setFont(FAMILIA, 'bold');
+      this.pdf.text(rotulo, x, meio + tamanho * PT * 0.35);
+      x += this.pdf.getTextWidth(rotulo) + 2.5;
+      this.pdf.setFont(FAMILIA, 'normal');
+    }
+
+    if (f.numerador && f.denominador) {
+      const larguraNum = this.pdf.getTextWidth(f.numerador);
+      const larguraDen = this.pdf.getTextWidth(f.denominador);
+      const larguraTraco = Math.max(larguraNum, larguraDen) + 3;
+      this.pdf.text(f.numerador, x + (larguraTraco - larguraNum) / 2, meio - passo * 0.35);
+      this.pdf.setDrawColor(COR.texto);
+      this.pdf.setLineWidth(BORDA_FINA);
+      this.pdf.line(x, meio, x + larguraTraco, meio);
+      this.pdf.text(f.denominador, x + (larguraTraco - larguraDen) / 2, meio + passo * 0.95);
+    } else if (f.expressao) {
+      this.pdf.text(f.expressao, x, meio + tamanho * PT * 0.35);
+    }
+
+    this.cursor += altura;
   }
 
   banner(conteudo: string): void {

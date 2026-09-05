@@ -89,6 +89,10 @@ export interface ModeloRelatorio {
     s: string | null;
     raio: string | null;
     ca: string | null;
+    /** A fórmula da ESPESSURA mínima, exatamente como o motor a gravou. */
+    formulaT: string | null;
+    /** A fórmula da PMTA daquele componente, idem. */
+    formulaP: string | null;
   }[];
   memorial: string[];
 
@@ -406,6 +410,12 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
       s: txt(c.S),
       raio: txt(c.raio),
       ca: txt(c.ca),
+      // As fórmulas vêm do MOTOR do memorial (as tabelas `FORMULAS_*` de
+      // `vasoMemorialService` / `autoclaveMemorialService` / caldeira), nunca do
+      // gerador: o documento imprime a equação que realmente calculou aquele
+      // componente, e não uma que se pareça com ela.
+      formulaT: txt(c.formulaT),
+      formulaP: txt(c.formulaP),
     })),
 
     prontuario: {

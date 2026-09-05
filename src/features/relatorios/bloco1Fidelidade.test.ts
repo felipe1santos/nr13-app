@@ -272,11 +272,13 @@ describe('G · folha 6 recebe os parâmetros reais do memorial', () => {
     expect(c.pmta).toBe('1.05');
   });
 
-  it('a folha desenha uma faixa por componente, e a tabela quebra sozinha', () => {
+  it('a folha desenha um bloco de memorial por componente, e a tabela quebra sozinha', () => {
     const folhas = readFileSync('src/features/relatorios/pdfVetorial/folhas.ts', 'utf8');
-    expect(folhas).toContain('PARÂMETROS E RESULTADOS: ${c.nome.toUpperCase()}');
-    expect(folhas).toContain('EFICIÊNCIA DA JUNTA (E)');
-    expect(folhas).toContain('TENSÃO ADMISSÍVEL (S)');
+    // Bloco 1.1: a faixa por componente virou memorial — fórmulas, dados
+    // utilizados (símbolo · descrição · valor · unidade) e resultados.
+    expect(folhas).toContain('MEMÓRIA DE CÁLCULO — ${c.nome.toUpperCase()}');
+    expect(folhas).toContain("cabecalho: ['SÍMBOLO', 'DESCRIÇÃO', 'VALOR', 'UNIDADE']");
+    expect(folhas).toContain('ESPESSURA MÍN. CALCULADA (t)');
     expect(folhas).toContain('for (const c of m.componentes)');
   });
 
