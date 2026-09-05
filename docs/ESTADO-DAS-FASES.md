@@ -6,7 +6,7 @@
 > **REGRA:** este arquivo é atualizado NO MOMENTO em que o estado muda — commit, push,
 > redeploy, validação, portão. Não no fim da fase.
 
-**Última atualização:** 04/09/2026 — **FASE 12B CONCLUÍDA ✅** (modelo por empresa, visualizador próprio, campo vazio em amarelo, placa de identificação e gate de geometria) · **FASE 12 CONCLUÍDA ✅** · **FASE 13 em curso: 13A (medição) FECHADA** — `medicoes/2026-09-04-13a-medicao.md`. Achado grave: o Modelo Novo perde CLASSE DO FLUIDO, VOLUME, ENQUADRAMENTO, PMTA e PTH por ler campo com nome/tipo errado · hardening final fechado: `portal_cliente` republicada e conferida por SHA, Portal validado, abertura do documento emitido independente do palco e do dado vivo (5 testes bloqueantes), validação no navegador contra o bundle publicado e **inventário dos geradores reais** de documento.
+**Última atualização:** 04/09/2026 — **FASE 12B CONCLUÍDA ✅** (modelo por empresa, visualizador próprio, campo vazio em amarelo, placa de identificação e gate de geometria) · **FASE 12 CONCLUÍDA ✅** · **FASE 13 em curso: 13A e 13B FECHADAS** — `medicoes/2026-09-04-13a-medicao.md`. Achado grave: o Modelo Novo perde CLASSE DO FLUIDO, VOLUME, ENQUADRAMENTO, PMTA e PTH por ler campo com nome/tipo errado · hardening final fechado: `portal_cliente` republicada e conferida por SHA, Portal validado, abertura do documento emitido independente do palco e do dado vivo (5 testes bloqueantes), validação no navegador contra o bundle publicado e **inventário dos geradores reais** de documento.
 **Branch:** `main` · **Suíte:** 1835 testes / 152 arquivos, 0 falhas · **Build:** verde
 
 > ### 🔖 VOLTANDO DEPOIS DE UMA PAUSA? Leia [`PONTO-DE-RETOMADA.md`](PONTO-DE-RETOMADA.md).
