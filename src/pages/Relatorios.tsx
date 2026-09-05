@@ -11,6 +11,7 @@ import ModalLaudo from '../features/relatorios/ModalLaudo';
 import { edicaoAtual, folhaTravadaPelaEdicaoReact } from '../features/relatorios/edicaoReact';
 import PreviaVetorial from '../features/relatorios/PreviaVetorial';
 import { previaAtual } from '../features/relatorios/previaDocumento';
+import { fluxoDaTela, montaIframes, motorPossivel, papelDaPrevia, precisaPalco } from '../features/relatorios/fluxoDocumento';
 import { drenarPonte } from '../services/ponteTemplates';
 import { ler, salvar } from '../services/storage';
 import RecusaPalco from '../components/RecusaPalco';
@@ -54,15 +55,15 @@ import { listarRastreabilidadesAtivas, rastreabilidadesParaRelatorio } from '../
 import { snapshotCalibracoesDosDocs } from '../features/calibracoes/calibracaoService';
 import AnexosRastreabPreview from '../features/relatorios/AnexosRastreabPreview';
 import { registrarUso } from '../services/usoMetricas';
-import { documentosBloqueados } from '../services/trial';
+import { avisarBloqueioDocumentos, documentosBloqueados } from '../services/trial';
 import { mascararData } from '../services/mascaras';
 import { exportarPdf, gerarPdfBytes } from '../features/relatorios/pdfService';
 import { modeloDaEmpresa, motorDoRelatorio } from '../features/relatorios/modeloDocumento';
-import { gerarRelatorioVetorial } from '../features/relatorios/pdfVetorial/gerarRelatorio';
+import { gerarPreviaRelatorio, gerarRelatorioVetorial } from '../features/relatorios/pdfVetorial/gerarRelatorio';
 import { publicarArtefato, artefatoDe } from '../features/relatorios/artefatoRelatorio';
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
 import { ehRascunho, temArtefato, type RelatorioIndiceItem, type RelatorioMeta, type RelatorioSalvo, type TipoInspecao } from '../features/relatorios/tipos';
-import VisualizadorPdf, { baixarPdfArquivado, imprimirPdfArquivado } from '../components/VisualizadorPdf';
+import VisualizadorPdf, { abrirPdfEmAba, baixarPdfArquivado, baixarPdfDeBytes, imprimirPdfArquivado } from '../components/VisualizadorPdf';
 import { fonteDeImpressao, rotuloImpressao } from '../features/documentos/fonteImpressao';
 import { Icone } from '../components/Icone';
 import './relatorios.css';
@@ -155,11 +156,19 @@ function RelatoriosLegado() {
   // 13D · a PRÉVIA é o próprio Modelo Novo. Com a flag desligada, a tela segue
   // montando os 27 iframes — o caminho antigo não foi removido.
   const previaVetorial = previaAtual(window.location.search) === 'vetorial';
+  // 13E · o fluxo desta tela. Dele dependem, juntos: montar (ou não) os
+  // iframes, pular (ou não) o palco, de onde sai o papel da prévia e qual motor
+  // pode desenhar a finalização. Ver `features/relatorios/fluxoDocumento.ts`.
+  const fluxo = fluxoDaTela(previaVetorial ? 'vetorial' : 'iframe', !!relatorioArquivado);
 
   // Palco: materializa no localStorage só as chaves desta TAG antes de montar
   // os iframes. Nenhum iframe pode ser renderizado antes de `pronto` — um
-  // documento meio montado sai impresso com folha faltando.
-  const palco = usePalcoDocumento(tag, `rel-${tag}-${versao}`, { somenteLeitura, pular: !!relatorioArquivado });
+  // documento meio montado sai impresso com folha faltando. Sem iframes o palco
+  // é trabalho por nada, e ainda toma a trava exclusiva da aba.
+  const palco = usePalcoDocumento(tag, `rel-${tag}-${versao}`, {
+    somenteLeitura,
+    pular: !precisaPalco(fluxo),
+  });
 
   // RELATÓRIO SALVO NÃO SE EDITA. `somenteLeitura` é estado React e só alcança a
   // UI React — o conteúdo do documento mora dentro dos iframes, onde os
@@ -168,11 +177,11 @@ function RelatoriosLegado() {
   // que não drena a ponte em documento somente leitura.
   const previewRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!somenteLeitura || tela !== 'visualizador' || palco.estado !== 'pronto') return;
+    if (!montaIframes(fluxo) || !somenteLeitura || tela !== 'visualizador' || palco.estado !== 'pronto') return;
     const iframes = Array.from(previewRef.current?.querySelectorAll('iframe') ?? []);
     const limpezas = iframes.map((f) => travarIframeSomenteLeitura(f));
     return () => limpezas.forEach((limpar) => limpar());
-  }, [somenteLeitura, tela, palco.estado, documentos, versao]);
+  }, [fluxo, somenteLeitura, tela, palco.estado, documentos, versao]);
 
   /**
    * 13D · MODO DOCUMENTO: compacta o cabeçalho do app enquanto se revisa.
@@ -199,7 +208,7 @@ function RelatoriosLegado() {
    * nenhum. Ver `features/documentos/camposVazios.ts`.
    */
   useEffect(() => {
-    if (somenteLeitura || tela !== 'visualizador' || palco.estado !== 'pronto') return;
+    if (!montaIframes(fluxo) || somenteLeitura || tela !== 'visualizador' || palco.estado !== 'pronto') return;
     const iframes = Array.from(previewRef.current?.querySelectorAll('iframe') ?? []);
     const limpezas: (() => void)[] = [];
     // Os templates só preenchem no `DOMContentLoaded` deles: marcar antes disso
@@ -210,7 +219,7 @@ function RelatoriosLegado() {
       else f.addEventListener('load', () => window.setTimeout(ligar, 250), { once: true });
     });
     return () => limpezas.forEach((limpar) => limpar());
-  }, [somenteLeitura, tela, palco.estado, documentos, versao]);
+  }, [fluxo, somenteLeitura, tela, palco.estado, documentos, versao]);
 
   // ÍNDICE, não os relatórios completos (§achado 1, 14/08/2026): a lista exibe
   // nome, TAG, tipo e datas — nenhum snapshot. O registro inteiro só é carregado
@@ -293,6 +302,20 @@ function RelatoriosLegado() {
         else registrarUso('impressao');
         return;
       }
+      // 13E · sem os 27 iframes não há tela para rasterizar: a pré-visualização
+      // do rascunho sai do MESMO gerador da emissão, aberta para o leitor do
+      // sistema imprimir. Continua sem `pdfRef`, sem SHA oficial e sem arquivo
+      // guardado — é prévia, e o botão diz isso.
+      if (papelDaPrevia(fluxo) === 'previa-vetorial') {
+        if (avisarBloqueioDocumentos()) return;
+        const { bytes } = await gerarPreviaRelatorio(tag, documentos ?? []);
+        if (!abrirPdfEmAba(bytes)) {
+          setErroSalvar('Não foi possível abrir a pré-visualização para impressão. Verifique o bloqueador de pop-ups.');
+          return;
+        }
+        registrarUso('impressao');
+        return;
+      }
       await imprimirRelatorio('.relatorio-preview', true, documentos ?? []);
       registrarUso('impressao');
     } finally {
@@ -304,7 +327,9 @@ function RelatoriosLegado() {
   // cada nova versão. Assim o Ctrl+P nativo já imprime as imagens prontas (1 folha por A4), sem
   // pré-visualização e sem quebrar os iframes. Limpa ao sair do visualizador.
   useEffect(() => {
-    if (tela !== 'visualizador' || !documentos) return;
+    // 13E: sem iframes não há folha para pré-rasterizar — o Ctrl+P nativo do
+    // fluxo novo é atendido pelo PDF da prévia, não por imagens do DOM.
+    if (!montaIframes(fluxo) || tela !== 'visualizador' || !documentos) return;
     let cancelado = false;
     const preview = document.querySelector<HTMLElement>('.relatorio-preview');
     if (!preview) return;
@@ -325,7 +350,7 @@ function RelatoriosLegado() {
       cancelado = true;
       limparFolhasImpressao();
     };
-  }, [tela, documentos, versao]);
+  }, [fluxo, tela, documentos, versao]);
 
 
 
@@ -712,7 +737,17 @@ function RelatoriosLegado() {
         return;
       }
       if (!meta) return;
-      await exportarPdf('.relatorio-preview', `Relatorio_${meta.tipoInspecao.replace(/ /g, '_')}_${tag}.pdf`, { rastreabilidades: true, documentos: documentos ?? [] });
+      const nome = `Relatorio_${meta.tipoInspecao.replace(/ /g, '_')}_${tag}.pdf`;
+      // 13E · rascunho no fluxo novo: os bytes do gerador vetorial, gerados
+      // agora. Nada é publicado — baixar uma prévia não emite documento.
+      if (papelDaPrevia(fluxo) === 'previa-vetorial') {
+        if (avisarBloqueioDocumentos()) return;
+        const { bytes } = await gerarRelatorioVetorial(tag, { documentos: documentos ?? [] });
+        baixarPdfDeBytes(bytes, nome);
+        registrarUso('pdf');
+        return;
+      }
+      await exportarPdf('.relatorio-preview', nome, { rastreabilidades: true, documentos: documentos ?? [] });
       registrarUso('pdf');
     } finally {
       setExportando(false);
@@ -844,7 +879,12 @@ function RelatoriosLegado() {
       // Nenhum documento já emitido é regenerado, porque relatório finalizado é
       // arquivo, não receita (§7-quater). Ver `features/relatorios/modeloDocumento.ts`.
       setProgressoPdf({ feito: 0, total: documentos.length });
-      const motor = motorDoRelatorio(meta, window.location.search);
+      // 13E · o raster fotografa `.relatorio-preview`; no fluxo novo não há o
+      // que fotografar, e ele falharia com "o documento não está montado" no
+      // meio da finalização. `motorPossivel` faz a escolha bater com o que a
+      // tela realmente montou — o rollback para raster passa a exigir também
+      // `?previa=iframe`, porque um depende do outro.
+      const motor = motorPossivel(fluxo, motorDoRelatorio(meta, window.location.search));
       const { bytes, paginas, falhasAnexo } =
         motor === 'vetorial'
           ? await gerarRelatorioVetorial(tag, {
@@ -1273,7 +1313,7 @@ function RelatoriosLegado() {
             <RecusaPalco estado={palco.estado} falha={palco.falha} />
           )}
 
-          {previaVetorial && !somenteLeitura && (
+          {fluxo === 'vetorial' && !somenteLeitura && (
             <PreviaVetorial
               tag={tag}
               documentos={documentos}
@@ -1286,8 +1326,13 @@ function RelatoriosLegado() {
             />
           )}
 
-          <div className={`relatorio-preview${previaVetorial && !somenteLeitura ? ' oculta' : ''}`} ref={previewRef}>
-            {palco.estado === 'pronto' &&
+          {/* 13E · o caminho antigo não é mais montado em paralelo. Até a 13D as
+              27 folhas ficavam escondidas por CSS — escondidas, mas carregadas,
+              com palco, ponte e sb-storage servindo cada uma. Aqui elas só
+              existem no fluxo `iframes` (`?previa=iframe`, o rollback). */}
+          <div className="relatorio-preview" ref={previewRef}>
+            {montaIframes(fluxo) &&
+              palco.estado === 'pronto' &&
               documentos.map((doc, i) => {
               const sep = doc.includes('?') ? '&' : '?';
               return (

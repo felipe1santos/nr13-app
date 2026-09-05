@@ -432,6 +432,38 @@ export async function baixarPdfArquivado(artefato: PdfArtefato, nomeArquivo: str
   return true;
 }
 
+/**
+ * 13E · o papel e o arquivo de um documento **em edição**.
+ *
+ * Sem os 27 iframes não há o que rasterizar: a prévia do rascunho passa a sair
+ * dos bytes do mesmo gerador da emissão. É a MESMA mecânica do arquivado (abrir
+ * o PDF e deixar o leitor imprimir), com uma diferença que não pode se perder —
+ * aqui não existe `pdfRef`, não existe SHA oficial e nada é arquivado. É
+ * pré-visualização, e a tela diz isso com essas palavras.
+ */
+export function abrirPdfEmAba(bytes: Uint8Array): boolean {
+  const url = URL.createObjectURL(new Blob([bytes.slice().buffer as ArrayBuffer], { type: 'application/pdf' }));
+  const janela = window.open(url, '_blank', 'noopener,noreferrer');
+  if (!janela) {
+    URL.revokeObjectURL(url);
+    return false;
+  }
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  return true;
+}
+
+/** Baixa bytes gerados agora (rascunho). Não publica nem arquiva nada. */
+export function baixarPdfDeBytes(bytes: Uint8Array, nomeArquivo: string): void {
+  const url = URL.createObjectURL(new Blob([bytes.slice().buffer as ArrayBuffer], { type: 'application/pdf' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nomeArquivo;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
 /** Abre o arquivo arquivado numa aba, onde o usuário usa a impressão do próprio leitor. */
 export async function imprimirPdfArquivado(artefato: PdfArtefato): Promise<boolean> {
   const blob = await baixarArtefato(artefato);

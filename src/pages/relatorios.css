@@ -1710,7 +1710,6 @@
    na 13E) mas saem da vista: eles seguem servindo o certificado e o caminho de
    rollback, e mostrá-los ao lado da prévia devolveria a confusão que a 13D
    existe para acabar. */
-.relatorio-preview.oculta { display: none; }
 
 .previa { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .previa-barra {
