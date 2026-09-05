@@ -1965,15 +1965,23 @@ body.doc-foco .meta-barra-fixa { padding-top: 6px; padding-bottom: 6px; }
     row-gap: 3px;
     padding: 8px 10px 8px 7px;
   }
-  .rel-page .rel-cel-nome { grid-column: 2 / -1; }
-  .rel-page .rel-cel-tag { grid-column: 2 / 4; }
-  .rel-page .rel-linha [data-rot='Tipo'] { grid-column: 2 / 4; }
-  .rel-page .rel-linha [data-rot='Situação'] { grid-column: 4; justify-self: end; }
-  .rel-page .rel-linha [data-rot='Criação'] { grid-column: 2; }
-  .rel-page .rel-linha [data-rot='Validade'] { grid-column: 3; }
-  .rel-page .rel-linha [data-rot='Próxima'] { grid-column: 4; }
+  /* Faixas explícitas: sem elas o auto-placement empurra a SITUAÇÃO para uma
+     linha só dela, e o cartão ganha 22px de altura por nada. */
+  .rel-page .rel-cel-nome { grid-column: 2 / -1; grid-row: 1; }
+  .rel-page .rel-cel-tag { grid-column: 2 / 4; grid-row: 2; }
+  .rel-page .rel-linha [data-rot='Situação'] { grid-column: 4; grid-row: 2; justify-self: end; align-self: center; }
+  .rel-page .rel-linha [data-rot='Tipo'] { grid-column: 2 / -1; grid-row: 3; }
+  .rel-page .rel-linha [data-rot='Criação'] { grid-column: 2; grid-row: 4; }
+  .rel-page .rel-linha [data-rot='Validade'] { grid-column: 3; grid-row: 4; }
+  .rel-page .rel-linha [data-rot='Próxima'] { grid-column: 4; grid-row: 4; }
+  /* Datas curtas não quebram em duas linhas dentro do cartão. */
+  .rel-page .rel-linha [data-rot='Criação'],
+  .rel-page .rel-linha [data-rot='Validade'],
+  .rel-page .rel-linha [data-rot='Próxima'] { white-space: nowrap; font-size: 11px; }
+  .rel-page .rel-linha [data-rot='Situação']::before { content: none; }
   .rel-page .rel-cel-acoes {
     grid-column: 2 / -1;
+    grid-row: 5;
     justify-content: flex-start;
     margin-top: 2px;
     gap: 6px;
