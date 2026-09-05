@@ -250,3 +250,26 @@ describe('os identificadores são semânticos e estáveis', () => {
     expect(readFileSync('src/components/VisualizadorPdf.tsx', 'utf8')).not.toContain('contentEditable');
   });
 });
+
+describe('a placa reconstruída também é editável', () => {
+  const folhas = readFileSync('src/features/relatorios/pdfVetorial/folhas.ts', 'utf8');
+
+  it('cada campo da placa vira um campo livre com id próprio', () => {
+    expect(folhas).toContain("doc.campoLivre(");
+    expect(folhas).toContain("idCampo('placa', campo[0])");
+  });
+
+  it('o que a placa imprime é o valor resolvido, não o da ficha', () => {
+    expect(folhas).toContain('doc.pdf.text(textoOu(valorPlaca)');
+  });
+});
+
+describe('a infraestrutura serve para as folhas que ainda vão ser auditadas', () => {
+  it('qualquer bloco novo vira editável por `campoLivre` ou por `id` na célula', () => {
+    const doc = readFileSync('src/features/relatorios/pdfVetorial/documento.ts', 'utf8');
+    expect(doc).toContain('campoLivre(');
+    expect(doc).toContain('id?: string;');
+    // `texto` também aceita id — é assim que parágrafo/nota entram sem virar tabela.
+    expect(doc).toMatch(/id\?: string;\s*\n\s*rotuloCampo\?: string;\s*\n\s*\} = \{\},/);
+  });
+});

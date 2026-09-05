@@ -453,6 +453,9 @@ describe('placa de identificação: reconstruída em VETOR, real como imagem', (
       y: 60,
       faixa() {},
       garantirEspaco() { return false; },
+      // 13D-bis: a placa passou a resolver override por campo. Na bancada não há
+      // override nenhum —  devolve o valor automático e segue.
+      campoLivre(_id: string, _rot: string, auto: string) { return auto; },
     } as unknown as Parameters<typeof blocoPlaca>[0];
     const modelo = {
       placaReal,

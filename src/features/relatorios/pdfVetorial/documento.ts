@@ -90,6 +90,22 @@ export class Documento {
     return this.campos;
   }
 
+  /**
+   * Para quem desenha FORA de `tabela`/`texto` — hoje a placa reconstruída,
+   * amanhã qualquer bloco novo do gate das 21 folhas: resolve o override e
+   * registra a caixa clicável, sem precisar virar tabela para ser editável.
+   */
+  campoLivre(
+    id: string,
+    rotulo: string,
+    auto: string,
+    caixa: { x: number; y: number; larg: number; alt: number },
+  ): string {
+    const valor = this.resolver(id, auto);
+    this.anotarCampo(id, rotulo, auto, valor, false, caixa);
+    return valor;
+  }
+
   /** O texto que a célula/parágrafo deve mostrar, já com o override aplicado. */
   private resolver(id: string | undefined, auto: string): string {
     if (!id) return auto;

@@ -339,7 +339,17 @@ function desenharPlacaReconstruida(doc: Documento, m: ModeloRelatorio, topo: num
     doc.pdf.setFont(FAMILIA, 'normal');
     doc.pdf.setFontSize(FONTE.tabela);
     doc.pdf.setTextColor(COR.valor);
-    doc.pdf.text(textoOu(campo[1]), cx + 2, cy + alturaLinhaPlaca * 0.85);
+    // A placa é DESENHADA à mão (não é tabela), então o override e a caixa
+    // clicável vêm por `campoLivre`. Ela é reconstrução da ficha: corrigir o
+    // texto aqui é justamente o caso de uso — a placa física pode dizer outra
+    // coisa do que o cadastro.
+    const valorPlaca = doc.campoLivre(
+      idCampo('placa', campo[0]),
+      `Placa — ${campo[0]}`,
+      textoOu(campo[1]),
+      { x: cx, y: cy, larg: meia, alt: alturaLinhaPlaca },
+    );
+    doc.pdf.text(textoOu(valorPlaca), cx + 2, cy + alturaLinhaPlaca * 0.85);
   });
 }
 
