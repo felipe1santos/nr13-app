@@ -6,6 +6,7 @@ import {
   garantirFonteInterHost,
   normalizarCloneParaCanvas,
 } from '../printService';
+import { comFolhaIsolada } from './hostCertificado';
 
 /**
  * Fase 11 · os CERTIFICADOS dentro do relatório vetorial.
@@ -58,39 +59,36 @@ export function indicesDeCertificado(documentos: string[]): number[] {
  * está no DOM não é contada porque também não será anexada; contá-la faria o
  * "Página X de Y" prometer uma página que não existiria.
  */
-export function contarFolhasDeCertificado(
-  documentos: string[],
-  containerSelector = '.relatorio-preview',
-): number {
-  // Sem DOM não há folha montada para anexar, logo não há página a contar.
-  // A checagem é explícita porque este módulo também é importado fora do
+export function contarFolhasDeCertificado(documentos: string[]): number {
+  // Sem DOM não há como montar o host isolado, logo não há página a contar. A
+  // checagem é explícita porque este módulo também é importado fora do
   // navegador (a suíte roda em `node`), e um `document` ausente ali não é erro.
   if (typeof document === 'undefined') return 0;
-  const folhas = document.querySelectorAll<HTMLElement>(
-    `${containerSelector} .pagina-relatorio-a4`,
-  );
-  return indicesDeCertificado(documentos).filter((i) => !!folhas[i]).length;
+  // 13B · a conta passou a ser da LISTA, não da tela. Antes ela perguntava
+  // quais folhas estavam montadas em `.relatorio-preview`: com o documento
+  // fechado a resposta era zero, e o "Página X de Y" prometia menos páginas do
+  // que o arquivo teria. Agora toda folha de certificado da composição será
+  // montada no host isolado, então toda ela conta.
+  return indicesDeCertificado(documentos).length;
 }
 
 /**
- * Anexa ao PDF as folhas de certificado que estão montadas no visualizador.
+ * Anexa ao PDF as folhas de certificado da composição.
  *
- * Cada índice de `documentos` corresponde a uma `.pagina-relatorio-a4` na mesma
- * ordem — é a mesma correspondência que o gerador raster usa. Página que não
- * estiver montada é PULADA e volta em `falhas`: certificado que some sem aviso
- * é o defeito que este projeto passa a vida consertando.
+ * 13B · cada folha é montada SOZINHA num host fora da tela, rasterizada e
+ * descartada. Não há mais correspondência com `.pagina-relatorio-a4`: o
+ * relatório não precisa estar aberto, e o resultado não depende do que está na
+ * tela. Folha que falhar volta em `falhas` — certificado que some sem aviso é o
+ * defeito que este projeto passa a vida consertando.
  */
 export async function anexarFolhasDeCertificado(
   bytes: Uint8Array,
   documentos: string[],
-  containerSelector = '.relatorio-preview',
+  tag: string,
 ): Promise<{ bytes: Uint8Array; anexadas: number; falhas: string[] }> {
   const indices = indicesDeCertificado(documentos);
   if (indices.length === 0) return { bytes, anexadas: 0, falhas: [] };
 
-  const folhas = Array.from(
-    document.querySelectorAll<HTMLElement>(`${containerSelector} .pagina-relatorio-a4`),
-  );
   const doc = await PDFDocument.load(bytes);
   await garantirFonteInterHost();
 
@@ -98,25 +96,21 @@ export async function anexarFolhasDeCertificado(
   const falhas: string[] = [];
 
   for (const i of indices) {
-    const folha = folhas[i];
-    if (!folha) {
-      falhas.push(documentos[i]);
-      continue;
-    }
     try {
-      const iframe = folha.querySelector('iframe');
-      const alvo = iframe?.contentDocument?.body || folha;
-      await aguardarRecursosIframe(iframe?.contentDocument);
-      const canvas = await html2canvas(alvo, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        logging: false,
-        height: ALTURA_A4_PX,
-        windowHeight: ALTURA_A4_PX,
-        onclone: normalizarCloneParaCanvas,
+      const jpgUrl = await comFolhaIsolada(documentos[i], tag, async (alvo, docFolha) => {
+        await aguardarRecursosIframe(docFolha);
+        const canvas = await html2canvas(alvo, {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          logging: false,
+          height: ALTURA_A4_PX,
+          windowHeight: ALTURA_A4_PX,
+          onclone: normalizarCloneParaCanvas,
+        });
+        return canvas.toDataURL('image/jpeg', 0.95);
       });
-      const jpg = await doc.embedJpg(canvas.toDataURL('image/jpeg', 0.95));
+      const jpg = await doc.embedJpg(jpgUrl);
       const pagina = doc.addPage([A4_PT.largura, A4_PT.altura]);
       pagina.drawImage(jpg, { x: 0, y: 0, width: A4_PT.largura, height: A4_PT.altura });
       anexadas++;

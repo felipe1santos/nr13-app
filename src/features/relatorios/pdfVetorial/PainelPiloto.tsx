@@ -62,7 +62,7 @@ export default function PainelPiloto({ tag, documentos }: { tag: string; documen
     setOcupado('vetor');
     setErro('');
     try {
-      const r = await gerarRelatorioVetorial(tag, { documentos, containerSelector: '.relatorio-preview' });
+      const r = await gerarRelatorioVetorial(tag, { documentos });
       setVetor({ bytes: r.bytes.byteLength, paginas: r.paginas, ms: r.ms });
       setBytesVetor(r.bytes);
       setConferencia(conferirCampos(r.modelo));

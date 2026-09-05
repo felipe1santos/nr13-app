@@ -65,8 +65,11 @@ export interface OpcoesVetorial {
   documentos?: string[];
   /** Anexar os certificados (padrão: sim quando há `documentos`). */
   certificados?: boolean;
-  /** Onde estão montadas as folhas, para as de calibração. */
-  containerSelector?: string;
+  /**
+   * 13B · **removido**. As folhas de calibração deixaram de sair da tela: cada
+   * uma é montada sozinha num host isolado (`hostCertificado.ts`). O gerador não
+   * lê mais `.relatorio-preview`, e por isso não há mais container a apontar.
+   */
   onProgresso?: (feito: number, total: number) => void;
 }
 
@@ -135,8 +138,7 @@ async function contarPaginasAnexadas(opcoes: OpcoesVetorial): Promise<number> {
   if (opcoes.certificados === false || documentos.length === 0) return 0;
   try {
     return (
-      contarFolhasDeCertificado(documentos, opcoes.containerSelector) +
-      (await contarPaginasRastreabilidades(documentos))
+      contarFolhasDeCertificado(documentos) + (await contarPaginasRastreabilidades(documentos))
     );
   } catch (e) {
     // Falhar a contagem não pode derrubar o relatório: sem ela o total volta a
@@ -200,7 +202,7 @@ export async function gerarRelatorioVetorial(
   if (opcoes.certificados !== false && documentos.length > 0) {
     // 1. Folhas de calibração (HTML montado): rasterizadas UMA A UMA.
     try {
-      const cal = await anexarFolhasDeCertificado(bytes, documentos, opcoes.containerSelector);
+      const cal = await anexarFolhasDeCertificado(bytes, documentos, tag);
       if (cal.anexadas > 0) bytes = new Uint8Array(cal.bytes);
       falhasAnexo.push(...cal.falhas);
     } catch (e) {

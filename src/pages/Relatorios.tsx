@@ -822,7 +822,6 @@ function RelatoriosLegado() {
         motor === 'vetorial'
           ? await gerarRelatorioVetorial(tag, {
               documentos,
-              containerSelector: '.relatorio-preview',
             }).then((r) => ({ bytes: r.bytes, paginas: r.paginas, falhasAnexo: r.falhasAnexo }))
           : await gerarPdfBytes('.relatorio-preview', {
               rastreabilidades: true,

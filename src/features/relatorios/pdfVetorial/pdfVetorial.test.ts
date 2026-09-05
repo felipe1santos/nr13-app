@@ -255,11 +255,11 @@ describe('certificados — preservados, e cada tipo pelo seu caminho', () => {
   // O "de Y" precisa dizer o tamanho do arquivo que o usuário recebe. Com o
   // corpo sozinho no denominador, um relatório com certificado terminava em
   // "22 de 22" dentro de um PDF de 27 páginas.
-  it('as folhas de calibração contam no total — só as que existem no DOM', () => {
+  it('as folhas de calibração contam no total — pela LISTA, não pela tela', () => {
     const docs = ['CAPA.html', 'CERTIFICADO-CAL-MANOMETRO.html?calibId=a', 'CERTIIFCADO-CAL-PSV.html?calibId=b'];
-    // Sem DOM montado (ambiente `node` da suíte), nada é contado: folha que não
-    // será anexada não pode entrar no denominador.
-    expect(contarFolhasDeCertificado(docs, '.nao-existe')).toBe(0);
+    // 13B · a conta saiu do DOM. Sem `document` (ambiente `node` da suíte) não
+    // há host para montar, então continua zero; no navegador conta as duas.
+    expect(contarFolhasDeCertificado(docs)).toBe(0);
     expect(indicesDeCertificado(docs)).toHaveLength(2);
   });
 
