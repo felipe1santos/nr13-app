@@ -140,3 +140,29 @@ describe('o gerador NÃO reimplementa a engenharia', () => {
     expect(trechoMemorial).not.toMatch(/doc\.formula\([^)]*id:/);
   });
 });
+
+describe('os sinais da fórmula existem na fonte embutida', () => {
+  it('o subconjunto de Carlito inclui ·, −, √ e α', () => {
+    // Sem eles, o jsPDF corta o texto no primeiro caractere ausente: a fórmula
+    // `PMTA = 2·S·E·t / (D + 0,2·t)` saía como `PMTA = 2 / (D + 0,2)`.
+    // Medido em produção em 05/09/2026.
+    const script = readFileSync('scripts/fontes/subset-carlito.mjs', 'utf8');
+    for (const sinal of ['·', '−', '√', 'α']) {
+      expect(script).toContain(sinal);
+    }
+  });
+
+  it('as fórmulas do motor só usam sinais cobertos pelo subconjunto', () => {
+    const script = readFileSync('scripts/fontes/subset-carlito.mjs', 'utf8');
+    const lista = script.slice(script.indexOf('const CARACTERES'), script.indexOf('const ORIGENS'));
+    const doMotor = readFileSync('src/features/memorial/vasoMemorialService.ts', 'utf8');
+    const formulas = [...doMotor.matchAll(/'((?:t|PMTA) = [^']+)'/g)].map((m) => m[1]);
+    expect(formulas.length).toBeGreaterThan(5);
+    for (const f of formulas) {
+      for (const c of f) {
+        if (c === ' ') continue;
+        expect(lista.includes(c), `caractere ausente no subconjunto: ${c} (em ${f})`).toBe(true);
+      }
+    }
+  });
+});

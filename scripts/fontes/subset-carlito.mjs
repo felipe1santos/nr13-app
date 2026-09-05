@@ -34,7 +34,12 @@ const CARACTERES =
   'abcdefghijklmnopqrstuvwxyz{|}~' +
   'ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝ' +
   'àáâãäåæçèéêëìíîïðñòóôõöøùúûüýÿ' +
-  '°²³ªº±×÷–—‘’“”„…•§¶©®™€£¢¥µ≥≤≠→←↑↓✓✗';
+  '°²³ªº±×÷–—‘’“”„…•§¶©®™€£¢¥µ≥≤≠→←↑↓✓✗' +
+  // Bloco 1.1 · os sinais do MEMORIAL. As fórmulas vêm do motor com ponto de
+  // multiplicação (·), sinal de menos tipográfico (−), radical (√) e alfa (α).
+  // Sem eles no subconjunto o texto some a partir do caractere ausente — e a
+  // fórmula sai truncada, que foi o defeito medido em produção em 05/09/2026.
+  '·−√α∙';
 
 const ORIGENS = {
   regular: [
