@@ -223,27 +223,27 @@ describe('painel "o que falta" — complementar ao amarelo, mesma fonte', () => 
   });
 });
 
-describe('rollback: a prévia antiga continua a um passo', () => {
-  it('sem configuração, a prévia é a de sempre (iframe)', () => {
-    expect(previaConfigurada()).toBe('iframe');
-    expect(previaAtual('')).toBe('iframe');
-  });
-
-  it('a chave da organização escolhe a prévia nova', () => {
-    gravarCru(CHAVE_PREVIA, { previa: 'vetorial' });
+describe('a virada da 13E, e o rollback que sobrou', () => {
+  it('sem configuração, a prévia é a NOVA — é assim que as 30 organizações viram', () => {
+    expect(previaConfigurada()).toBe('vetorial');
     expect(previaAtual('')).toBe('vetorial');
   });
 
-  it('a URL vence a chave, nos dois sentidos', () => {
-    gravarCru(CHAVE_PREVIA, { previa: 'vetorial' });
-    expect(previaAtual('?previa=iframe')).toBe('iframe');
-    localStorage.clear();
-    expect(previaAtual('?previa=vetorial')).toBe('vetorial');
+  it('a organização volta ao caminho antigo gravando `iframe`', () => {
+    gravarCru(CHAVE_PREVIA, { previa: 'iframe' });
+    expect(previaAtual('')).toBe('iframe');
   });
 
-  it('valor desconhecido cai no caminho antigo, não em tela em branco', () => {
-    expect(previaAtual('?previa=holograma')).toBe('iframe');
+  it('a URL vence a chave, nos dois sentidos', () => {
+    gravarCru(CHAVE_PREVIA, { previa: 'iframe' });
+    expect(previaAtual('?previa=vetorial')).toBe('vetorial');
+    localStorage.clear();
+    expect(previaAtual('?previa=iframe')).toBe('iframe');
+  });
+
+  it('valor desconhecido fica no padrão novo — o caminho caro precisa ser pedido', () => {
+    expect(previaAtual('?previa=holograma')).toBe('vetorial');
     gravarCru(CHAVE_PREVIA, { previa: 42 });
-    expect(previaConfigurada()).toBe('iframe');
+    expect(previaConfigurada()).toBe('vetorial');
   });
 });

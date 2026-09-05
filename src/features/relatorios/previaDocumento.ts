@@ -15,13 +15,28 @@ import { ler, salvar } from '../../services/storage';
  *
  * **Não alcança documento arquivado.** Relatório com `pdfRef` continua servindo
  * os bytes emitidos (§7-quater), e a prévia nem é montada nesse caso.
+ *
+ * ## 13E · VIRADO EM 05/09/2026 — ausência de valor agora é `vetorial`
+ *
+ * Até a 13D o default era `iframe`, e a prévia nova precisava ser pedida. A
+ * inversão é deliberada e é o que faz a virada alcançar as 30 organizações sem
+ * escrever uma chave em cada uma: quem não configurou nada passa a revisar o
+ * MESMO documento que assina.
+ *
+ * O rollback continua sendo um passo, e agora é ele que precisa ser explícito:
+ * `?previa=iframe` na URL (diagnóstico) ou a chave gravada com `'iframe'`
+ * (organização inteira). Nenhum caminho normal monta os 27 iframes.
+ *
+ * Leitura que FALHA cai no padrão novo, não no antigo: cair no antigo faria uma
+ * falha de storage remontar as 27 folhas em silêncio — o caminho caro, escolhido
+ * por acidente.
  */
 export type Previa = 'iframe' | 'vetorial';
 
 export const CHAVE_PREVIA = 'nr13_previa_documento';
 
 function normalizar(v: unknown): Previa {
-  return String(v ?? '').trim().toLowerCase() === 'vetorial' ? 'vetorial' : 'iframe';
+  return String(v ?? '').trim().toLowerCase() === 'iframe' ? 'iframe' : 'vetorial';
 }
 
 /** A configuração da organização (sem olhar a URL). */
@@ -29,7 +44,7 @@ export function previaConfigurada(): Previa {
   try {
     return normalizar(ler<{ previa?: string }>(CHAVE_PREVIA)?.previa);
   } catch {
-    return 'iframe';
+    return 'vetorial';
   }
 }
 

@@ -126,3 +126,12 @@ describe('o que NÃO foi desligado', () => {
     expect(readFileSync('src/pages/Prontuarios.tsx', 'utf8')).not.toContain('fluxoDaTela');
   });
 });
+
+describe('a virada: sem configuração nenhuma, a organização já está no fluxo novo', () => {
+  it('o default do módulo é `vetorial`, e o rollback é que precisa ser dito', () => {
+    const fonte = readFileSync('src/features/relatorios/previaDocumento.ts', 'utf8');
+    expect(fonte).toContain("=== 'iframe' ? 'iframe' : 'vetorial'");
+    // Leitura que falha não pode remontar 27 iframes em silêncio.
+    expect(fonte).toMatch(/catch \{\s*return 'vetorial';/);
+  });
+});
