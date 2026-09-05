@@ -664,18 +664,24 @@
        crescem para preenchê-la. Com base `auto` a soma dos rótulos estoura e
        "Configurações" cai para a linha de baixo; com base `0` todos ficam do
        mesmo tamanho e esse mesmo rótulo sai cortado. */
-    flex: 1 1 22%;
+    /* 13D: a barra ganhou "Medições" e "Laudo" (13C). Com base de 22% os sete
+       botões dividem a linha em fatias de ~90px e "Imprimir pré-visualização"
+       sai cortado. Com 30% são três por linha, e o rótulo comprido QUEBRA em
+       duas linhas em vez de sumir pela borda. */
+    flex: 1 1 30%;
     min-width: 0;
-    height: 38px;
+    min-height: 38px;
     padding: 0 5px;
     font-size: 11px;
     gap: 4px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    line-height: 1.15;
+    text-align: center;
+    padding-top: 4px;
+    padding-bottom: 4px;
   }
   /* Enquanto conta as folhas, o Salvar toma a linha: cortar "Gerando PDF 3/27..."
      tiraria o único sinal de que o app não travou. */
