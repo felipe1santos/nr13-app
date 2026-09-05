@@ -486,28 +486,42 @@ export function folhaUltrassom(doc: Documento, m: ModeloRelatorio): void {
 
   doc.faixa('PONTOS DE MEDIÇÃO E MEDIDAS ENCONTRADAS (mm)');
   if (m.ultrassom.pontos.length > 0) {
-    const maxMedidas = Math.max(...m.ultrassom.pontos.map((p) => p.medidas.length), 1);
-    const colMedida = 0.48 / maxMedidas;
-    doc.tabela({
-      compacta: true,
-      colunas: [0.26, ...Array(maxMedidas).fill(colMedida), 0.13, 0.13],
-      cabecalho: [
-        'REGIÃO / PONTO',
-        ...Array.from({ length: maxMedidas }, (_, i) => `P${i + 1}`),
-        'MENOR',
-        'REQUERIDA',
-      ],
-      linhas: m.ultrassom.pontos.map((p) => [
-        { texto: p.regiao },
-        ...Array.from({ length: maxMedidas }, (_, i) => ({
-          texto: textoOu(p.medidas[i]),
-          centro: true,
-          valor: true,
-        })),
-        { texto: textoOu(p.menor), centro: true, valor: true },
-        { texto: textoOu(p.requerida), centro: true },
-      ]),
-    });
+    // 13D · UMA TABELA POR REGIÃO. Regiões podem ter contagens de coluna
+    // diferentes (o container define quantos ângulos cada uma tem), e uma
+    // tabela só obrigaria a inventar um cabeçalho comum — foi o que produzia
+    // "P1, P2, P3" no lugar dos ângulos. Cada região imprime os SEUS ângulos,
+    // como a folha clássica sempre fez.
+    const porRegiao = new Map<string, typeof m.ultrassom.pontos>();
+    for (const linha of m.ultrassom.pontos) {
+      const atual = porRegiao.get(linha.regiao) ?? [];
+      atual.push(linha);
+      porRegiao.set(linha.regiao, atual);
+    }
+    for (const [regiao, linhas] of porRegiao) {
+      const angulos = linhas[0]?.angulos ?? [];
+      const colMedida = angulos.length > 0 ? 0.48 / angulos.length : 0.48;
+      doc.secao(regiao);
+      doc.tabela({
+        compacta: true,
+        colunas: [0.26, ...Array(Math.max(angulos.length, 1)).fill(colMedida), 0.13, 0.13],
+        cabecalho: [
+          'PONTO',
+          ...(angulos.length > 0 ? angulos.map((a) => `${a}°`) : ['MEDIDA']),
+          'MENOR',
+          'REQUERIDA',
+        ],
+        linhas: linhas.map((p) => [
+          { texto: p.ponto },
+          ...Array.from({ length: Math.max(angulos.length, 1) }, (_, i) => ({
+            texto: textoOu(p.medidas[i]),
+            centro: true,
+            valor: true,
+          })),
+          { texto: textoOu(p.menor), centro: true, valor: true },
+          { texto: textoOu(p.requerida), centro: true },
+        ]),
+      });
+    }
   } else {
     doc.texto('Sem pontos de medição registrados.', { tamanho: FONTE.nota, cor: COR.nota, espacoAntes: 2 });
   }

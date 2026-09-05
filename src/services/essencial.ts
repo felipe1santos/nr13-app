@@ -70,6 +70,7 @@ export const CHAVES_ESSENCIAIS: string[] = [
   'nr13_motor_prontuario',
   'nr13_modelo_relatorio',
   'nr13_edicao_react',
+  'nr13_previa_documento',
 ];
 
 /**

@@ -9,6 +9,8 @@ import CardPlacaIdentificacao from '../features/relatorios/CardPlacaIdentificaca
 import ModalMedicoes from '../features/relatorios/ModalMedicoes';
 import ModalLaudo from '../features/relatorios/ModalLaudo';
 import { edicaoAtual, folhaTravadaPelaEdicaoReact } from '../features/relatorios/edicaoReact';
+import PreviaVetorial from '../features/relatorios/PreviaVetorial';
+import { previaAtual } from '../features/relatorios/previaDocumento';
 import { drenarPonte } from '../services/ponteTemplates';
 import { ler, salvar } from '../services/storage';
 import RecusaPalco from '../components/RecusaPalco';
@@ -150,6 +152,9 @@ function RelatoriosLegado() {
   const superficieEdicao = edicaoAtual(window.location.search);
   const [modalMedicoes, setModalMedicoes] = useState(false);
   const [modalLaudo, setModalLaudo] = useState(false);
+  // 13D · a PRÉVIA é o próprio Modelo Novo. Com a flag desligada, a tela segue
+  // montando os 27 iframes — o caminho antigo não foi removido.
+  const previaVetorial = previaAtual(window.location.search) === 'vetorial';
 
   // Palco: materializa no localStorage só as chaves desta TAG antes de montar
   // os iframes. Nenhum iframe pode ser renderizado antes de `pronto` — um
@@ -168,6 +173,20 @@ function RelatoriosLegado() {
     const limpezas = iframes.map((f) => travarIframeSomenteLeitura(f));
     return () => limpezas.forEach((limpar) => limpar());
   }, [somenteLeitura, tela, palco.estado, documentos, versao]);
+
+  /**
+   * 13D · MODO DOCUMENTO: compacta o cabeçalho do app enquanto se revisa.
+   *
+   * A classe vive no `body` porque quem desenha o cabeçalho é o `Layout`, e
+   * levar um estado de página até lá exigiria um contexto novo só para encolher
+   * um título. A classe some na saída da tela — inclusive se a aba fechar no
+   * meio, porque o efeito limpa na desmontagem.
+   */
+  useEffect(() => {
+    if (tela !== 'visualizador') return;
+    document.body.classList.add('doc-foco');
+    return () => document.body.classList.remove('doc-foco');
+  }, [tela]);
 
   /**
    * Fase 12B · CAMPO VAZIO EM AMARELO, enquanto o relatório está em edição.
@@ -1254,7 +1273,20 @@ function RelatoriosLegado() {
             <RecusaPalco estado={palco.estado} falha={palco.falha} />
           )}
 
-          <div className="relatorio-preview" ref={previewRef}>
+          {previaVetorial && !somenteLeitura && (
+            <PreviaVetorial
+              tag={tag}
+              documentos={documentos}
+              versaoDados={versao}
+              onIrPara={(destino) => {
+                if (destino === 'medicoes') setModalMedicoes(true);
+                else if (destino === 'laudo') setModalLaudo(true);
+                else setModalConfig(true);
+              }}
+            />
+          )}
+
+          <div className={`relatorio-preview${previaVetorial && !somenteLeitura ? ' oculta' : ''}`} ref={previewRef}>
             {palco.estado === 'pronto' &&
               documentos.map((doc, i) => {
               const sep = doc.includes('?') ? '&' : '?';

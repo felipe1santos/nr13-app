@@ -1,7 +1,7 @@
 import { jsPDF } from 'jspdf';
 import { PDFDocument } from 'pdf-lib';
 import { registrarCarlito } from './carlito';
-import { Documento } from './documento';
+import { Documento, type ModoDocumento } from './documento';
 import { anexarRastreabilidades, contarPaginasRastreabilidades } from '../rastreabilidadeService';
 import { anexarFolhasDeCertificado, contarFolhasDeCertificado } from './certificados';
 import { secoesPresentes, type SecaoRelatorio } from './composicao';
@@ -71,6 +71,13 @@ export interface OpcoesVetorial {
    * lê mais `.relatorio-preview`, e por isso não há mais container a apontar.
    */
   onProgresso?: (feito: number, total: number) => void;
+  /**
+   * 13D · `preview` desenha o MESMO documento com os campos vazios em
+   * amarelo-claro. Não arquiva, não gera SHA oficial, não cria `pdfRef`, não
+   * mexe em vencimento e não escreve no Livro — quem faz isso é o "Finalizar",
+   * e ele nunca passa por aqui em modo preview.
+   */
+  modo?: ModoDocumento;
 }
 
 /**
@@ -170,7 +177,7 @@ export async function gerarRelatorioVetorial(
   // escreve um número provisório que ninguém verá — este PDF é descartado.
   const contagem = novoPdf();
   await registrarCarlito(contagem);
-  const rascunho = new Documento(contagem, cab, 0);
+  const rascunho = new Documento(contagem, cab, 0, opcoes.modo ?? 'final');
   const tem = secoesPresentes(opcoes.documentos);
   emitir(rascunho, modelo, tem);
   const paginasDoCorpo = contagem.getNumberOfPages();
@@ -187,7 +194,7 @@ export async function gerarRelatorioVetorial(
   // 2ª passagem: para valer, já com "Página X de Y" correto.
   const pdf = novoPdf();
   await registrarCarlito(pdf);
-  const doc = new Documento(pdf, cab, total);
+  const doc = new Documento(pdf, cab, total, opcoes.modo ?? 'final');
   emitir(doc, modelo, tem);
 
   let bytes = new Uint8Array(pdf.output('arraybuffer'));
@@ -223,4 +230,27 @@ export async function gerarRelatorioVetorial(
   }
 
   return { bytes, paginas, ms: Math.round(performance.now() - inicio), modelo, falhasAnexo };
+}
+
+/**
+ * 13D · a PRÉVIA do relatório — o mesmo gerador, em modo `preview`.
+ *
+ * Existe como função própria para que o caminho seja impossível de confundir
+ * com o da emissão: ela devolve **bytes e nada mais**. Não publica artefato,
+ * não calcula SHA oficial, não grava `pdfRef`, não toca no histórico, no
+ * vencimento nem no Livro. Quem faz tudo isso é `salvarHistorico`, que chama o
+ * gerador em modo `final`.
+ *
+ * Os certificados ficam de FORA da prévia de propósito: cada folha de
+ * calibração custa uma rasterização no host isolado, e a prévia é para revisar
+ * o corpo do documento. A contagem de páginas do rodapé sai igual à do corpo —
+ * e é por isso que a prévia mostra "Página X de Y" do corpo, não do arquivo
+ * final com anexos.
+ */
+export async function gerarPreviaRelatorio(
+  tag: string,
+  documentos: string[],
+): Promise<{ bytes: Uint8Array; paginas: number; ms: number }> {
+  const r = await gerarRelatorioVetorial(tag, { documentos, certificados: false, modo: 'preview' });
+  return { bytes: r.bytes, paginas: r.paginas, ms: r.ms };
 }

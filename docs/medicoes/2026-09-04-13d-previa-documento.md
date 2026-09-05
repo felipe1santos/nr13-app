@@ -1,0 +1,104 @@
+# 13D · a prévia passa a ser o documento
+
+**04–05/09/2026.** O que o usuário revisa deixa de ser um desenho diferente do
+que ele assina: a prévia é o **mesmo gerador da emissão**, em modo `preview`.
+
+---
+
+## 0 · A paridade do ultrassom (feita primeiro, e de propósito)
+
+A 13C registrou a ressalva; a 13D a fechou antes de qualquer coisa nova.
+
+| | antes | agora |
+|---|---|---|
+| origem da tabela | `us.pontos` / `us.medidas` — o **container** de inspeção | `carregarMedicoes(tag)` — a **grade** (`nr13_med_grid_` + pontos do container) |
+| colunas | `P1..Pn`, genéricas | os **ângulos reais** (`0°`, `90°`, `180°`, `270°`) |
+| agrupamento | uma tabela só | uma tabela por região (tampo superior / casco / tampo inferior) |
+
+Nenhuma chave nova, nenhum dado duplicado: `pontosUltrassom` passou a ler pela
+mesma função que o editor React usa. O documento e o prontuário agora dizem a
+mesma coisa sobre a mesma medição — antes, o que o inspetor digitava alimentava
+o prontuário e **não** aparecia no relatório.
+
+Regra preservada: linha sem medida nenhuma e sem espessura requerida continua
+fora do papel.
+
+---
+
+## 1 · Um gerador, dois modos
+
+`Documento` recebe um 4º argumento, `modo: 'preview' | 'final'` (default
+`'final'`). A única diferença de desenho é a cor de fundo de uma célula de
+valor **vazia**:
+
+```ts
+export function corDeFundo(cel: CelulaDoc, modo: ModoDocumento): string {
+  if (cel.rotulo) return COR.fundoRotulo;
+  if (modo === 'preview' && celulaVazia(cel)) return AMARELO_PREVIA; // #FFF8C4
+  return '#ffffff';
+}
+```
+
+`gerarPreviaRelatorio(tag, documentos)` devolve **bytes, páginas e tempo**. Não
+publica artefato, não calcula SHA oficial, não grava `pdfRef`, não toca em
+histórico, vencimento nem Livro — quem faz isso é `salvarHistorico`, sempre em
+modo `final`. Certificados ficam de fora da prévia: cada folha de calibração
+custa uma rasterização no host isolado (13B), e a prévia é para revisar o corpo.
+
+---
+
+## 2 · O amarelo e o painel, juntos
+
+O painel **"O que falta"** não substitui o amarelo — foi condição explícita do
+dono. Os dois saem da MESMA fonte (`oQueFalta(montarModeloRelatorio(tag))`, o
+modelo que desenha o PDF), então não há como um dizer uma coisa e o outro dizer
+outra:
+
+- o amarelo mostra **onde**, na folha, o campo está vazio;
+- a lista mostra **o quê**, sem rolar doze folhas, e cada item clicável abre o
+  painel certo (Configurações / Medições / Laudo).
+
+`oQueFalta` **não valida**: quem barra a finalização continua sendo
+`validacaoFinalizacao`. Vazio nem sempre é problema — nem toda inspeção tem
+teste hidrostático.
+
+---
+
+## 3 · Atualizar prévia, e o aviso de atrasada
+
+Uma geração na abertura; depois, sob demanda pelo botão. **Nunca por tecla** —
+o vetorial leva ~1,8 s num documento completo, e gerar a cada dígito travaria a
+tela. Enquanto houver edição salva mais nova que a última geração, a barra
+mostra "Há alterações ainda não refletidas na prévia."; prévia silenciosamente
+velha seria pior que prévia nenhuma.
+
+---
+
+## 4 · Flag e rollback
+
+`nr13_previa_documento` (`iframe` | `vetorial`), com `?previa=` vencendo a
+chave. **Ausência de valor = `iframe`**: a prévia antiga das 27 folhas continua
+sendo o padrão, intacta, a um passo de distância. Valor desconhecido também cai
+no caminho antigo — nunca em tela em branco.
+
+Documento **arquivado não é alcançado pela flag**: com `pdfRef`, servem-se os
+bytes emitidos (§7-quater) e a prévia nem é montada.
+
+---
+
+## 5 · Testes
+
+`edicao13d.test.ts` — **22 testes**, em quatro blocos: paridade do ultrassom,
+preview × final (o amarelo não vaza para o final), a prévia não emite, painel e
+flag. O gate da paridade parte da grade salva pelo editor React e exige os
+valores e os ângulos na tabela do Modelo Novo.
+
+| | |
+|---|---|
+| suíte | **1.953 testes, 159 arquivos, 0 falhas** |
+| `tsc -b` · `vite build` | limpos |
+
+## 6 · Fora do escopo, não tocados
+
+13E (desligamento do palco, remoção dos iframes) e 13F (limpeza). Livro,
+Prontuário e certificados seguem como a 13B os deixou.

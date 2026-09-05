@@ -41,10 +41,23 @@ export class Documento {
   private pagina = 0;
   private cursor = 0;
 
-  constructor(pdf: jsPDF, cab: DadosCabecalho, total: number) {
+  /**
+   * 13D · o MODO do documento.
+   *
+   * `preview` é o mesmo desenho do `final` — mesmo layout, mesmos dados, mesma
+   * paginação — com UMA diferença: célula de valor sem dado sai com fundo
+   * amarelo-claro, para o revisor ver o que falta.
+   *
+   * O amarelo é derivado do conteúdo, nunca gravado, e não existe no `final`.
+   * É a mesma regra da 12B, agora dentro do gerador em vez de dentro do iframe.
+   */
+  private readonly modo: ModoDocumento;
+
+  constructor(pdf: jsPDF, cab: DadosCabecalho, total: number, modo: ModoDocumento = 'final') {
     this.pdf = pdf;
     this.cab = cab;
     this.total = total;
+    this.modo = modo;
   }
 
   get paginaAtual(): number {
@@ -57,6 +70,10 @@ export class Documento {
 
   set y(v: number) {
     this.cursor = v;
+  }
+
+  private fundoDaCelula(cel: CelulaDoc): string {
+    return corDeFundo(cel, this.modo);
   }
 
   /** Abre uma folha nova, com cabeçalho e rodapé, e devolve o cursor ao topo. */
@@ -243,7 +260,7 @@ export class Documento {
         const larg = larguras.slice(i, i + span).reduce((a, b) => a + b, 0);
         this.pdf.setLineWidth(BORDA_FINA);
         this.pdf.setDrawColor(COR.bordaTabela);
-        this.pdf.setFillColor(cel.rotulo ? COR.fundoRotulo : '#ffffff');
+        this.pdf.setFillColor(this.fundoDaCelula(cel));
         this.pdf.rect(x, this.cursor, larg, altura, 'FD');
 
         this.pdf.setFont(FAMILIA, cel.rotulo ? 'bold' : 'normal');
@@ -305,6 +322,36 @@ export class Documento {
       }
     }
   }
+}
+
+/** O amarelo-claro da referência, para campo vazio na PRÉVIA. */
+export const AMARELO_PREVIA = '#FFF8C4';
+
+export type ModoDocumento = 'preview' | 'final';
+
+/**
+ * A cor de fundo de uma célula.
+ *
+ * Rótulo tem o cinza da referência; valor tem branco — e, **só em `preview`**,
+ * valor AUSENTE tem o amarelo. Documento final nunca passa pelo ramo do
+ * amarelo, e é isso que o gate `edicao13d.test.ts` exige: o realce é da
+ * revisão, não do documento assinado.
+ *
+ * É função pura, e não um método privado, porque essa é a regra que o dono
+ * escreveu em duas frases ("amarelo na prévia" / "sem amarelo no arquivado") —
+ * regra dessas precisa de um teste que a leia direto, sem instanciar jsPDF.
+ */
+export function corDeFundo(cel: CelulaDoc, modo: ModoDocumento): string {
+  if (cel.rotulo) return COR.fundoRotulo;
+  if (modo === 'preview' && celulaVazia(cel)) return AMARELO_PREVIA;
+  return '#ffffff';
+}
+
+/** Uma célula "de valor" está vazia quando o modelo não tinha o dado. */
+export function celulaVazia(cel: CelulaDoc): boolean {
+  if (!cel.valor) return false;
+  const t = (cel.texto ?? '').trim();
+  return t === '' || t === '—' || t === '-';
 }
 
 export interface CelulaDoc {

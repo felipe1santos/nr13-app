@@ -1,4 +1,5 @@
 import { ler } from '../../../services/storage';
+import { REGIOES, carregarMedicoes, type Regiao } from '../medicoesEspessura';
 import { linhasMemorial } from '../relatoriosService';
 import { SECOES_CHECKLIST } from '../../inspecoes/formularios/FormularioChecklist';
 import type { RelatorioMeta } from '../tipos';
@@ -89,7 +90,22 @@ export interface ModeloRelatorio {
     cabecote: string | null;
     velSonica: string | null;
     resultado: string | null;
-    pontos: { regiao: string; medidas: string[]; menor: string | null; requerida: string | null }[];
+    /**
+     * 13D · uma linha por PONTO medido, com os ângulos da própria região.
+     *
+     * A verdade é `nr13_med_grid_<TAG>` — a mesma chave que o editor React
+     * grava. Antes o modelo lia `medEsp.pontos`/`us.medidas`, que é a
+     * estrutura do CONTAINER de campo: o que o inspetor digitava na grade não
+     * chegava à tabela do documento.
+     */
+    pontos: {
+      regiao: string;
+      ponto: string;
+      angulos: string[];
+      medidas: string[];
+      menor: string | null;
+      requerida: string | null;
+    }[];
     instrumento: { padrao: string | null; serie: string | null; certificado: string | null; validade: string | null };
   };
 
@@ -331,7 +347,7 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
       cabecote: txt(us.cabecote),
       velSonica: txt(us.velSonica),
       resultado: rotuloResultado(us.resultado as string),
-      pontos: pontosUltrassom(us, medEsp),
+      pontos: pontosUltrassom(tag, us, medEsp),
       instrumento: {
         padrao: txt((us.instrumento as Record<string, unknown>)?.padrao),
         serie: txt((us.instrumento as Record<string, unknown>)?.serie),
@@ -384,26 +400,63 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
  * recuo — é ele que existe quando a inspeção veio do celular e o documento
  * ainda não foi aberto.
  */
+const TITULO_REGIAO: Record<Regiao, string> = {
+  ts: 'Tampo superior',
+  casco: 'Casco',
+  ti: 'Tampo inferior',
+};
+
+/**
+ * A tabela de ultrassom, a partir da GRADE que o inspetor edita.
+ *
+ * ## Por que mudou (13D)
+ *
+ * O modelo lia `medEsp.pontos` e `us.medidas` — a estrutura do container de
+ * campo. A grade que o editor React grava (`nr13_med_grid_`) não era lida por
+ * folha nenhuma do relatório: o inspetor digitava e o documento imprimia outra
+ * coisa. Uma verdade documental só existe se o documento ler o que foi
+ * escrito.
+ *
+ * Nenhuma chave nova: a grade já existia e já era gravada pela folha antiga.
+ * O que se acrescenta é a LEITURA, e os ângulos vêm com ela — a tabela deixa de
+ * rotular as colunas como P1, P2… e passa a dizer 0°, 90°, 180°.
+ *
+ * `requerida` continua saindo do container (é a espessura mínima calculada, não
+ * uma medição), e o container segue sendo a fonte quando não há grade — é o que
+ * mantém relatório antigo abrindo igual.
+ */
 function pontosUltrassom(
+  tag: string,
   us: Record<string, unknown>,
   medEsp: Record<string, unknown>,
 ): ModeloRelatorio['ultrassom']['pontos'] {
-  const grade = (medEsp.pontos ?? us.pontos ?? []) as Record<string, unknown>[];
-  const medidas = (medEsp.medidas ?? us.medidas ?? {}) as Record<string, unknown>;
-  return grade
-    .map((p) => {
-      const nome = textoOu(txt(p.nome ?? p.regiao), 'Região');
-      const linha = (medidas[String(p.id ?? nome)] ?? p.valores ?? []) as unknown[];
-      const valores = Array.isArray(linha) ? linha.map((v) => textoOu(txt(v))) : [];
-      const numeros = valores.map((v) => Number(v)).filter((n) => Number.isFinite(n));
-      return {
-        regiao: nome,
-        medidas: valores,
-        menor: numeros.length ? String(Math.min(...numeros)) : null,
-        requerida: txt(p.espMinRequerida ?? p.requerida),
-      };
-    })
-    .filter((p) => p.medidas.length > 0 || p.requerida);
+  const requeridaDe = (id: string): string | null => {
+    const lista = (medEsp.pontos ?? us.pontos ?? []) as Record<string, unknown>[];
+    const achado = lista.find((p) => String(p.id ?? p.nome ?? '') === id);
+    return achado ? txt(achado.espMinRequerida ?? achado.requerida) : null;
+  };
+
+  const { pontos, grade } = carregarMedicoes(tag);
+  const linhas: ModeloRelatorio['ultrassom']['pontos'] = [];
+  for (const regiao of REGIOES) {
+    const daRegiao = pontos.filter((p) => p.regiao === regiao);
+    const g = grade[regiao];
+    daRegiao.forEach((ponto, i) => {
+      const medidas = (g.linhas[i] ?? []).map((v) => textoOu(txt(v)));
+      const numeros = medidas.map((v) => Number(String(v).replace(',', '.'))).filter((n) => Number.isFinite(n));
+      linhas.push({
+        regiao: TITULO_REGIAO[regiao],
+        ponto: ponto.rotulo,
+        angulos: g.angulos,
+        medidas,
+        menor: numeros.length ? String(Math.min(...numeros)).replace('.', ',') : null,
+        requerida: requeridaDe(ponto.id),
+      });
+    });
+  }
+  // Linha sem medida NENHUMA e sem espessura requerida não é informação — é uma
+  // fileira de travessões ocupando papel.
+  return linhas.filter((l) => l.medidas.some((v) => v !== '—') || l.requerida);
 }
 
 /** 4 fotos por folha (§5) — a mesma constante do sistema. */
