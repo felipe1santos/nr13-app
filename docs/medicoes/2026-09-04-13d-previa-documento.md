@@ -102,3 +102,43 @@ valores e os ângulos na tabela do Modelo Novo.
 
 13E (desligamento do palco, remoção dos iframes) e 13F (limpeza). Livro,
 Prontuário e certificados seguem como a 13B os deixou.
+
+---
+
+## 7 · A prévia usa o visualizador do app, não o do navegador
+
+Medido na primeira validação em produção: com a prévia num `<iframe src=blob>`,
+o Chrome abre o **próprio** leitor de PDF — barra dele somada à do app e coluna
+de miniaturas aberta comendo um terço da largura. Era exatamente o que a 12B
+tinha tirado do documento arquivado, voltando pela porta da prévia.
+
+`VisualizadorPdfBytes` é o MESMO componente (pdf.js), para bytes que ainda não
+são artefato. Ele recebe `extras` — os controles da prévia entram DENTRO da
+barra do visualizador, e é assim que "uma única barra horizontal" se cumpre — e
+`selo`, que troca "Documento arquivado" por "Prévia — não é o documento
+emitido".
+
+## 8 · Validação em produção
+
+Org de teste, `ZZ-TESTE-P2`, bundle `assets/index-OibvTDsM.js`.
+
+| | o que foi verificado | resultado |
+|---|---|---|
+| A | grade editada no React → Atualizar prévia | `Casco 1 · 0° = 3,21` na tabela do Modelo Novo, colunas `0° 90° 180° 270°`, uma tabela por região |
+| B | campo vazio na prévia | CONTRATANTE, ENDEREÇO, VALIDADE, APARELHO, ACOPLANTE… em amarelo |
+| C | os MESMOS campos no PDF arquivado | fundo branco, `—` — zero amarelo |
+| D | editar depois de gerar | "Há alterações não refletidas" aparece |
+| E | Atualizar prévia | o aviso some |
+| F | prévia não emite | nenhuma linha de histórico, nenhum `pdfRef`, nenhum SHA enquanto só se gerava prévia |
+| G | finalização | 12 páginas, SHA `172bff565fde2682…`, "Documento arquivado"; reabrir devolve o MESMO SHA |
+| H | desktop | uma barra só (Atualizar prévia · O que falta · Páginas · zoom · selo), miniaturas fechadas, topo do app reduzido |
+| I | 387px | sem overflow horizontal, nenhum elemento clipado, três botões por linha |
+
+**Achado da validação (corrigido):** a barra de ações do celular estava
+calibrada para os quatro botões de antes da 13C; com sete, "Imprimir
+pré-visualização" era cortado (117px de rótulo em 105px de botão). Passou a três
+por linha, com quebra de linha no rótulo.
+
+**Nota de método:** o pdf.js só desenha com a aba **visível** (`rAF` não dispara
+em segundo plano). Validar por script numa aba oculta mostra canvas em branco —
+não é defeito do visualizador.
