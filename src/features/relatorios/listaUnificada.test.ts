@@ -6,6 +6,8 @@ import {
   situacaoDaLinha,
   totalNaTela,
   unificarLista,
+  proximaInspecaoIso,
+  qualProxima,
 } from './listaUnificada';
 import type { ItemRelatorio } from '../../services/buscaRelatorios';
 import type { RascunhoItem } from './rascunhos';
@@ -142,5 +144,55 @@ describe('a tela não tem mais duas listagens (leitura do fonte)', () => {
   it('o ícone vem do sprite do sistema, não de uma imagem solta', () => {
     expect(tela).not.toContain('/icones/pdf.webp');
     expect(tela).toContain('<Icone nome="filetext" tam={15} />');
+  });
+});
+
+describe('a próxima inspeção da linha (refino de 05/09/2026)', () => {
+  it('escolhe a MAIS PRÓXIMA entre interna e externa', () => {
+    expect(proximaInspecaoIso({ proximaInterna: '2027-05-10', proximaExterna: '2026-11-02' })).toBe('2026-11-02');
+    expect(qualProxima({ proximaInterna: '2027-05-10', proximaExterna: '2026-11-02' })).toBe('externa');
+  });
+
+  it('com uma só, é ela', () => {
+    expect(proximaInspecaoIso({ proximaInterna: '2027-05-10', proximaExterna: null })).toBe('2027-05-10');
+    expect(qualProxima({ proximaInterna: '2027-05-10', proximaExterna: null })).toBe('interna');
+  });
+
+  it('sem nenhuma, devolve null — a célula mostra travessão', () => {
+    expect(proximaInspecaoIso({ proximaInterna: null, proximaExterna: undefined })).toBeNull();
+    expect(qualProxima({})).toBeNull();
+  });
+
+  it('a data-sentinela de ordenação não é resposta', () => {
+    expect(proximaInspecaoIso({ proximaInterna: '0001-01-01', proximaExterna: '' })).toBeNull();
+  });
+
+  it('texto que não é data não vira data', () => {
+    expect(proximaInspecaoIso({ proximaInterna: 'a combinar' })).toBeNull();
+  });
+});
+
+describe('o refino: ações numa linha, hierarquia e densidade', () => {
+  const css = readFileSync('src/pages/relatorios.css', 'utf8');
+  const tela = readFileSync('src/features/relatorios/RelatoriosV9.tsx', 'utf8');
+
+  it('a coluna de ações não quebra linha', () => {
+    expect(css).toContain('.rel-cel-acoes { flex-wrap: nowrap;');
+    expect(css).toContain('.rel-page .rel-cel-acoes { gap: 2px; flex-wrap: nowrap; }');
+  });
+
+  it('o nome tem nível próprio, separado do metadado', () => {
+    expect(tela).toContain('className="rel-nome-forte"');
+    expect(tela).toContain('className="rel-cel-meta"');
+    expect(css).toContain('.rel-nome-forte {');
+  });
+
+  it('a coluna de próxima inspeção existe na tela', () => {
+    expect(tela).toContain('<span role="columnheader">Próxima</span>');
+    expect(tela).toContain('proximaInspecao(r)');
+  });
+
+  it('a estimativa de altura da linha acompanhou a densidade', () => {
+    expect(tela).toContain('const ALT_LINHA = 40;');
   });
 });

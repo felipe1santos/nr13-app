@@ -74,3 +74,33 @@ export function rotuloSituacao(s: SituacaoLinha): string {
 export function totalNaTela(rascunhos: number, emitidos: number): number {
   return rascunhos + emitidos;
 }
+
+/**
+ * A PRÓXIMA INSPEÇÃO da linha — a mais próxima entre interna e externa.
+ *
+ * As duas datas já vêm na projeção (`proximaInterna`, `proximaExterna`), então
+ * a coluna não custa requisição, leitura de documento nem hidratação. Quando
+ * só uma existe, é ela. Quando nenhuma existe, `null` — e a célula mostra
+ * travessão, como qualquer outra célula sem dado.
+ *
+ * A data-sentinela `0001-…` é mecanismo interno de ordenação e nunca é uma
+ * resposta: ela vale como ausente.
+ */
+export function proximaInspecaoIso(
+  r: { proximaInterna?: string | null; proximaExterna?: string | null },
+): string | null {
+  const validas = [r.proximaInterna, r.proximaExterna]
+    .map((d) => (d ?? '').trim())
+    .filter((d) => /^\d{4}-\d{2}-\d{2}/.test(d) && !d.startsWith('0001'));
+  if (validas.length === 0) return null;
+  return validas.sort()[0];
+}
+
+/** Qual das duas é a data mostrada — para o `title` dizer o que ela significa. */
+export function qualProxima(
+  r: { proximaInterna?: string | null; proximaExterna?: string | null },
+): 'interna' | 'externa' | null {
+  const escolhida = proximaInspecaoIso(r);
+  if (!escolhida) return null;
+  return (r.proximaInterna ?? '').startsWith(escolhida) ? 'interna' : 'externa';
+}

@@ -1884,3 +1884,102 @@ body.doc-foco .meta-barra-fixa { padding-top: 6px; padding-bottom: 6px; }
   .rel-page .rel-linha [data-rot='Situação'] { grid-column: 2 / -1; }
   .rel-page .rel-marca { width: 24px; height: 24px; }
 }
+
+/* ============================================================================
+   REFINO · 05/09/2026 — densidade, hierarquia e ações numa linha só
+   ============================================================================
+   Três defeitos medidos na lista: os três ícones de ação quebravam em três
+   linhas (a coluna tinha `flex-wrap: wrap` e largura de 64px para 3 botões de
+   26px + espaços), a linha gastava 55px de altura, e o nome do relatório tinha
+   o mesmo peso visual do metadado embaixo dele. */
+
+/* AÇÕES: uma linha, sempre. A largura da coluna é o que os três botões pedem —
+   sem isso o `flex-wrap` volta a agir e os ícones empilham. */
+.rel-cel-acoes { flex-wrap: nowrap; justify-content: flex-end; gap: 2px; }
+.rel-page .rel-cel-acoes { gap: 2px; flex-wrap: nowrap; }
+.rel-page .rel-cel-acoes .btn-icone {
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  flex: 0 0 auto;
+}
+
+/* GRADE: entra PRÓXIMA; a coluna de ações passa a ter largura própria. */
+.rel-page .rel-linha {
+  grid-template-columns: 32px minmax(180px, 2.6fr) minmax(96px, 0.9fr) minmax(104px, 0.9fr)
+    minmax(84px, 0.7fr) minmax(84px, 0.7fr) minmax(84px, 0.7fr) minmax(88px, 0.6fr) 92px;
+  padding: 5px 10px 5px 9px;
+  gap: 8px;
+  min-height: 0;
+  line-height: 1.25;
+}
+.rel-page .rel-linha-cabecalho { padding: 5px 10px 5px 9px; }
+
+/* HIERARQUIA. Nível 1: o nome, escuro e mais pesado. Nível 2: identificação e
+   cliente, menores e em cinza — a mesma informação, sem competir. */
+.rel-page .rel-cel-nome { display: block; font-weight: 500; min-width: 0; }
+.rel-nome-forte {
+  display: block;
+  font-weight: 650;
+  font-size: 12.5px;
+  color: var(--text-main, #1b2430);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rel-cel-meta {
+  display: flex;
+  gap: 8px;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--muted, #7a828d);
+  overflow: hidden;
+  white-space: nowrap;
+}
+.rel-cel-meta span { overflow: hidden; text-overflow: ellipsis; }
+/* O separador entre os metadados é um ponto médio, não uma segunda linha. */
+.rel-cel-meta span + span::before { content: '· '; color: var(--linha, #c9ced6); }
+.rel-cel-meta:empty { display: none; }
+
+/* Menos bolha: o badge de tipo perde o formato de pílula e vira etiqueta. */
+.rel-page .badge-tipo-inspecao {
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 9.5px;
+  letter-spacing: 0.02em;
+}
+.rel-page .rel-selo { border-radius: 4px; padding: 1px 6px; }
+.rel-page .rel-marca { width: 24px; height: 24px; border-radius: 4px; }
+.rel-page .rel-cel-tag { font-size: 12px; }
+
+@media (max-width: 720px) {
+  /* CARTÃO do celular, em quatro faixas:
+       [marca]  nome
+                TAG · empresa (o metadado já vem junto do nome)
+                tipo · situação
+                criação · validade · próxima
+                ações, numa linha só
+     As ações NÃO empilham: `nowrap` e botões de 30px cabem em 300px de tela. */
+  .rel-page .rel-linha {
+    grid-template-columns: 26px repeat(3, minmax(0, 1fr));
+    row-gap: 3px;
+    padding: 8px 10px 8px 7px;
+  }
+  .rel-page .rel-cel-nome { grid-column: 2 / -1; }
+  .rel-page .rel-cel-tag { grid-column: 2 / 4; }
+  .rel-page .rel-linha [data-rot='Tipo'] { grid-column: 2 / 4; }
+  .rel-page .rel-linha [data-rot='Situação'] { grid-column: 4; justify-self: end; }
+  .rel-page .rel-linha [data-rot='Criação'] { grid-column: 2; }
+  .rel-page .rel-linha [data-rot='Validade'] { grid-column: 3; }
+  .rel-page .rel-linha [data-rot='Próxima'] { grid-column: 4; }
+  .rel-page .rel-cel-acoes {
+    grid-column: 2 / -1;
+    justify-content: flex-start;
+    margin-top: 2px;
+    gap: 6px;
+  }
+  .rel-page .rel-cel-acoes .btn-icone { width: 30px; height: 30px; }
+  .rel-page .rel-linha [data-rot]::before { font-size: 9.5px; }
+  /* TAG no cartão não repete o rótulo — ela já se identifica sozinha. */
+  .rel-page .rel-cel-tag[data-rot]::before { content: none; }
+}

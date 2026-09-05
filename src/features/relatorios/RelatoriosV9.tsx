@@ -47,7 +47,14 @@ import {
   type MapaEmpresas,
 } from './empresasPorTag';
 import { filtrarRascunhos, listarRascunhos, type RascunhoItem } from './rascunhos';
-import { rotuloSituacao, situacaoDaLinha, totalNaTela, unificarLista } from './listaUnificada';
+import {
+  proximaInspecaoIso,
+  qualProxima,
+  rotuloSituacao,
+  situacaoDaLinha,
+  totalNaTela,
+  unificarLista,
+} from './listaUnificada';
 import {
   arquivarRelatorio,
   desarquivarRelatorio,
@@ -93,8 +100,21 @@ function ou(v: string | null | undefined): string {
   return v && v.trim() !== '' ? v : '-';
 }
 
+/** A data da próxima inspeção, como a linha a mostra. */
+function proximaInspecao(r: ItemRelatorio): string {
+  const iso = proximaInspecaoIso(r);
+  return iso ? dataBr(iso) : '—';
+}
+
+/** O que aquela data é — a coluna é estreita, e o tooltip completa. */
+function rotuloProxima(r: ItemRelatorio): string {
+  const qual = qualProxima(r);
+  if (!qual) return 'Sem próxima inspeção registrada neste relatório';
+  return qual === 'interna' ? 'Próxima inspeção INTERNA' : 'Próxima inspeção EXTERNA';
+}
+
 /** Altura estimada de uma linha; corrigida por medição no primeiro quadro. */
-const ALT_LINHA = 46;
+const ALT_LINHA = 40;
 
 /**
  * Os tipos de inspeção que o filtro oferece.
@@ -775,6 +795,7 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
             <span role="columnheader">Tipo</span>
             <span role="columnheader">Criação</span>
             <span role="columnheader">Validade</span>
+            <span role="columnheader">Próxima</span>
             <span role="columnheader">Situação</span>
             <span role="columnheader">Ações</span>
           </div>
@@ -813,15 +834,23 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
                       </span>
                     </span>
                     <span role="cell" className="rel-cel-nome" title={r.nome}>
-                      {r.codigo || r.nome}
-                      <small className="rel-cel-empresa">atualizado em {dataHoraBr(r.atualizadoEm)}</small>
+                      <b className="rel-nome-forte">{r.nome || r.codigo}</b>
+                      {/* Nível 2 da hierarquia: identificação e quando foi mexido.
+                          Tudo já está na lista local do rascunho — nenhuma leitura a mais. */}
+                      <small className="rel-cel-meta">
+                        {r.codigo ? <span>{r.codigo}</span> : null}
+                        <span>atualizado em {dataHoraBr(r.atualizadoEm)}</span>
+                      </small>
                     </span>
-                    <span role="cell" className="rel-cel-tag">{r.tag}</span>
+                    <span role="cell" className="rel-cel-tag" data-rot="TAG">{r.tag}</span>
                     <span role="cell" data-rot="Tipo">
                       <span className="badge-tipo-inspecao">{ou(r.tipo)}</span>
                     </span>
                     <span role="cell" data-rot="Criação">{dataBr(r.criadoEm)}</span>
+                    {/* Rascunho não tem validade nem próxima inspeção: nada foi
+                        emitido. Travessão, e não um valor inventado. */}
                     <span role="cell" data-rot="Validade">—</span>
+                    <span role="cell" data-rot="Próxima">—</span>
                     <span role="cell" data-rot="Situação">
                       <span className="rel-selo rel-selo-rascunho">{rotuloSituacao(sit)}</span>
                     </span>
@@ -866,12 +895,17 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
                     </span>
                   </span>
                   <span role="cell" className="rel-cel-nome" title={r.nome ?? r.codigo ?? ''}>
-                    {ou(r.nome ?? r.codigo)}
-                    {mapaEmpresas.porTag.get(r.tag) && (
-                      <small className="rel-cel-empresa">{mapaEmpresas.porTag.get(r.tag)}</small>
-                    )}
+                    <b className="rel-nome-forte">{ou(r.nome ?? r.codigo)}</b>
+                    {/* Nível 2: o número do relatório e o cliente. Os dois já vêm
+                        com a linha — o código está na projeção, e a empresa sai do
+                        mapa TAG → empresa que só existe quando já foi carregado.
+                        Nenhum campo aqui pede leitura de documento. */}
+                    <small className="rel-cel-meta">
+                      {r.codigo && r.nome && r.nome !== r.codigo ? <span>{r.codigo}</span> : null}
+                      {mapaEmpresas.porTag.get(r.tag) && <span>{mapaEmpresas.porTag.get(r.tag)}</span>}
+                    </small>
                   </span>
-                  <span role="cell" className="rel-cel-tag">
+                  <span role="cell" className="rel-cel-tag" data-rot="TAG">
                     {r.tag}
                     {!r.equipamentoAtivo && (
                       <span className="rel-selo-excluido" title="O equipamento deste relatório foi excluído do cadastro. O documento continua salvo.">
@@ -887,6 +921,10 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
                   </span>
                   <span role="cell" data-rot="Criação">{dataBr(r.emissao)}</span>
                   <span role="cell" data-rot="Validade">{dataBr(r.validade)}</span>
+                  {/* PRÓXIMA INSPEÇÃO: já vem na projeção (`proximaInterna` /
+                      `proximaExterna`), então não custa requisição nenhuma. A mais
+                      próxima das duas é a que importa para quem varre a lista. */}
+                  <span role="cell" data-rot="Próxima" title={rotuloProxima(r)}>{proximaInspecao(r)}</span>
                   <span role="cell" data-rot="Situação">
                     <span className={`rel-selo rel-selo-${sit}`}>{rotuloSituacao(sit)}</span>
                   </span>
