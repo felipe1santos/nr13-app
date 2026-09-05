@@ -6,7 +6,6 @@ import {
   situacaoDaLinha,
   totalNaTela,
   unificarLista,
-  type LinhaRelatorio,
 } from './listaUnificada';
 import type { ItemRelatorio } from '../../services/buscaRelatorios';
 import type { RascunhoItem } from './rascunhos';
