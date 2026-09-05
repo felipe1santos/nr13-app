@@ -123,6 +123,7 @@ const GLOBAIS = new Set([
   // pela mesma razão: é decisão da organização. O motor acima continua sendo o
   // termo TÉCNICO, e esta chave a escolha que o usuário faz na tela.
   'nr13_modelo_relatorio',
+  'nr13_edicao_react',
 ]);
 
 /**

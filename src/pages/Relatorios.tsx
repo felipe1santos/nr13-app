@@ -6,6 +6,9 @@ import { usePalcoDocumento } from '../features/documentos/usePalcoDocumento';
 import { paramsSomenteLeitura, travarIframeSomenteLeitura } from '../features/documentos/somenteLeituraDoc';
 import { acompanharCamposVazios } from '../features/documentos/camposVazios';
 import CardPlacaIdentificacao from '../features/relatorios/CardPlacaIdentificacao';
+import ModalMedicoes from '../features/relatorios/ModalMedicoes';
+import ModalLaudo from '../features/relatorios/ModalLaudo';
+import { edicaoAtual, folhaTravadaPelaEdicaoReact } from '../features/relatorios/edicaoReact';
 import { drenarPonte } from '../services/ponteTemplates';
 import { ler, salvar } from '../services/storage';
 import RecusaPalco from '../components/RecusaPalco';
@@ -142,6 +145,11 @@ function RelatoriosLegado() {
   // Relatório finalizado sendo VISTO pelo arquivo (não remontado). Null = fluxo
   // legado. Declarado aqui em cima porque o palco depende dele.
   const [relatorioArquivado, setRelatorioArquivado] = useState<RelatorioSalvo | null>(null);
+  // 13C · qual superfície edita os dois campos que a folha gravava. `iframe` é o
+  // padrão; `react` liga os painéis e trava as folhas correspondentes.
+  const superficieEdicao = edicaoAtual(window.location.search);
+  const [modalMedicoes, setModalMedicoes] = useState(false);
+  const [modalLaudo, setModalLaudo] = useState(false);
 
   // Palco: materializa no localStorage só as chaves desta TAG antes de montar
   // os iframes. Nenhum iframe pode ser renderizado antes de `pronto` — um
@@ -1093,6 +1101,18 @@ function RelatoriosLegado() {
             {fonteDeImpressao(relatorioArquivado) !== 'arquivo' && (
               <CardPlacaIdentificacao tag={tag} desabilitado={somenteLeitura} onMudou={() => setVersao((v) => v + 1)} />
             )}
+            {/* 13C · os DOIS campos do relatório que a folha gravava passam a ser
+                editados aqui. Em documento salvo os botões somem: §7-ter. */}
+            {superficieEdicao === 'react' && !somenteLeitura && fonteDeImpressao(relatorioArquivado) !== 'arquivo' && (
+              <>
+                <button type="button" className="btn-secundario barra-btn" onClick={() => setModalMedicoes(true)}>
+                  <Icone nome="sliders" tam={14} /> Medições
+                </button>
+                <button type="button" className="btn-secundario barra-btn" onClick={() => setModalLaudo(true)}>
+                  <Icone nome="filetext" tam={14} /> Laudo
+                </button>
+              </>
+            )}
             <div className="meta-barra-acoes">
               {/* `gerando`: enquanto o contador de folhas está na cara do botão, ele ocupa a
                   linha inteira no celular — truncar "Gerando PDF 3/27..." tiraria justamente
@@ -1156,6 +1176,22 @@ function RelatoriosLegado() {
               )}
             </div>
           </div>
+
+          {modalMedicoes && (
+            <ModalMedicoes
+              tag={tag}
+              onFechar={() => setModalMedicoes(false)}
+              onSalvou={() => setVersao((v) => v + 1)}
+            />
+          )}
+          {modalLaudo && (
+            <ModalLaudo
+              tag={tag}
+              codigoRelatorio={meta?.codigo ?? ''}
+              onFechar={() => setModalLaudo(false)}
+              onSalvou={() => setVersao((v) => v + 1)}
+            />
+          )}
 
           {/* Fase 11 · bancada do piloto vetorial. Atrás de `?piloto=1`: a
               geração de produção continua sendo a raster, e nenhum relatório
@@ -1227,7 +1263,10 @@ function RelatoriosLegado() {
                   {/* ctx=rel: avisa rel-empresa.js/rel-assinatura.js que a folha roda dentro do
                       visualizador do relatório — usam os snapshots congelados da meta.
                       ro=1: relatório já salvo — sb-storage.js recusa toda escrita da folha. */}
-                  <iframe src={`/arquivos-inspecao/${doc}${sep}tag=${encodeURIComponent(tag)}&page=${i + 1}&ctx=rel${palco.paramsIframe}${paramsSomenteLeitura(somenteLeitura)}`} scrolling="no" title={doc} />
+                  {/* 13C · com a edição no React, ULTRASSOM e CONCLUSAO abrem TRAVADAS:
+                      duas superfícies editáveis para o mesmo dado fariam o último save
+                      apagar o outro. */}
+                  <iframe src={`/arquivos-inspecao/${doc}${sep}tag=${encodeURIComponent(tag)}&page=${i + 1}&ctx=rel${palco.paramsIframe}${paramsSomenteLeitura(somenteLeitura || folhaTravadaPelaEdicaoReact(doc, superficieEdicao))}`} scrolling="no" title={doc} />
                 </PaginaA4>
               );
             })}
