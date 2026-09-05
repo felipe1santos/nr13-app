@@ -12,6 +12,11 @@ import { edicaoAtual, folhaTravadaPelaEdicaoReact } from '../features/relatorios
 import PreviaVetorial from '../features/relatorios/PreviaVetorial';
 import { previaAtual } from '../features/relatorios/previaDocumento';
 import { fluxoDaTela, montaIframes, motorPossivel, papelDaPrevia, precisaPalco } from '../features/relatorios/fluxoDocumento';
+import {
+  carregarOverrides,
+  copiarOverrides,
+  type MapaOverrides,
+} from '../features/relatorios/overridesRelatorio';
 import { drenarPonte } from '../services/ponteTemplates';
 import { ler, salvar } from '../services/storage';
 import RecusaPalco from '../components/RecusaPalco';
@@ -160,6 +165,14 @@ function RelatoriosLegado() {
   // iframes, pular (ou não) o palco, de onde sai o papel da prévia e qual motor
   // pode desenhar a finalização. Ver `features/relatorios/fluxoDocumento.ts`.
   const fluxo = fluxoDaTela(previaVetorial ? 'vetorial' : 'iframe', !!relatorioArquivado);
+  /**
+   * 13D-bis · os overrides manuais do documento aberto.
+   *
+   * Vivem na chave do próprio relatório (`nr13_ovr_<id>_<TAG>`) e são passados
+   * ao gerador tanto na prévia quanto na FINALIZAÇÃO — é o que faz o PDF
+   * arquivado sair exatamente com o texto que o usuário aprovou.
+   */
+  const [overrides, setOverrides] = useState<MapaOverrides>({});
 
   // Palco: materializa no localStorage só as chaves desta TAG antes de montar
   // os iframes. Nenhum iframe pode ser renderizado antes de `pronto` — um
@@ -175,6 +188,12 @@ function RelatoriosLegado() {
   // templates são preenchíveis por design. Esta é a trava de DOM (camada 1); as
   // outras duas são `ro=1` na query (sb-storage.js recusa sbSalvar) e o palco,
   // que não drena a ponte em documento somente leitura.
+  // Trocar de documento troca o conjunto de overrides: eles são DAQUELE
+  // relatório, e carregar os do anterior mostraria texto de outro documento.
+  useEffect(() => {
+    setOverrides(meta?.codigo && tag ? carregarOverrides(meta.codigo, tag) : {});
+  }, [meta?.codigo, tag]);
+
   const previewRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!montaIframes(fluxo) || !somenteLeitura || tela !== 'visualizador' || palco.estado !== 'pronto') return;
@@ -308,7 +327,7 @@ function RelatoriosLegado() {
       // guardado — é prévia, e o botão diz isso.
       if (papelDaPrevia(fluxo) === 'previa-vetorial') {
         if (avisarBloqueioDocumentos()) return;
-        const { bytes } = await gerarPreviaRelatorio(tag, documentos ?? []);
+        const { bytes } = await gerarPreviaRelatorio(tag, documentos ?? [], overrides);
         if (!abrirPdfEmAba(bytes)) {
           setErroSalvar('Não foi possível abrir a pré-visualização para impressão. Verifique o bloqueador de pop-ups.');
           return;
@@ -668,6 +687,11 @@ function RelatoriosLegado() {
     }
     await gravarInspecaoOrigemAtual(dadosContainer);
     await gravarMetaAtual(novaMeta);
+    // 13D-bis · DUPLICAR LEVA AS CORREÇÕES DE TEXTO (decisão de 05/09/2026).
+    // Duplicar existe para emitir a próxima versão daquele documento; jogar os
+    // overrides fora obrigaria a refazer campo a campo, e o desfecho provável
+    // seria emitir de novo com o texto que já tinha sido corrigido.
+    setOverrides(await copiarOverrides(r.meta.codigo, r.tagVaso, novaMeta.codigo, r.tagVaso));
     setDocumentos(docsFiltrados);
     setMeta(novaMeta);
     setSomenteLeitura(false);
@@ -742,7 +766,7 @@ function RelatoriosLegado() {
       // agora. Nada é publicado — baixar uma prévia não emite documento.
       if (papelDaPrevia(fluxo) === 'previa-vetorial') {
         if (avisarBloqueioDocumentos()) return;
-        const { bytes } = await gerarRelatorioVetorial(tag, { documentos: documentos ?? [] });
+        const { bytes } = await gerarRelatorioVetorial(tag, { documentos: documentos ?? [], overrides });
         baixarPdfDeBytes(bytes, nome);
         registrarUso('pdf');
         return;
@@ -781,6 +805,11 @@ function RelatoriosLegado() {
    * rascunho e finalizado precisam ser o MESMO documento — mudar de estado não
    * pode trocar o id, o nome nem a TAG.
    */
+  /** Quantos campos deste documento foram alterados à mão. */
+  function contarOverridesMeta(): number {
+    return Object.keys(overrides).length;
+  }
+
   function montarRegistro(m: RelatorioMeta, docs: string[], extras: Partial<RelatorioSalvo>): RelatorioSalvo {
     return {
       id: m.codigo,
@@ -789,7 +818,10 @@ function RelatoriosLegado() {
       tipo: m.tipoInspecao,
       data: hoje(),
       documentos: docs,
-      meta: m,
+      // 13D-bis · o mapa das correções manuais entra no registro como
+      // rastreabilidade. O PDF já saiu resolvido; isto explica a divergência
+      // entre o documento e a ficha, campo a campo, meses depois.
+      meta: contarOverridesMeta() > 0 ? { ...m, overrides } : m,
       status: 'Aprovado',
       ...extras,
     };
@@ -889,6 +921,9 @@ function RelatoriosLegado() {
         motor === 'vetorial'
           ? await gerarRelatorioVetorial(tag, {
               documentos,
+              // 13D-bis: o MESMO mapa da prévia. O documento emitido é o que
+              // estava na tela — não uma remontagem sem as correções de texto.
+              overrides,
             }).then((r) => ({ bytes: r.bytes, paginas: r.paginas, falhasAnexo: r.falhasAnexo }))
           : await gerarPdfBytes('.relatorio-preview', {
               rastreabilidades: true,
@@ -1318,6 +1353,8 @@ function RelatoriosLegado() {
               tag={tag}
               documentos={documentos}
               versaoDados={versao}
+              idRelatorio={meta?.codigo}
+              onOverrides={setOverrides}
               onIrPara={(destino) => {
                 if (destino === 'medicoes') setModalMedicoes(true);
                 else if (destino === 'laudo') setModalLaudo(true);

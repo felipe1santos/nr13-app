@@ -4,7 +4,7 @@ import { ALTURA_GRAFICO_TH, desenharGraficoTh, numeroDoTexto, pontosDaCurva } fr
 import { foto } from './primitivas';
 import { FAMILIA } from './carlito';
 import { camposDaPlaca } from '../placaIdentificacao';
-import type { Documento } from './documento';
+import type { CelulaDoc, Documento } from './documento';
 import { rotuloLaudo } from './rotulos';
 import { textoOu, type ExameVisual, type FotoModelo, type ModeloRelatorio } from './modelo';
 
@@ -22,15 +22,47 @@ import { textoOu, type ExameVisual, type FotoModelo, type ModeloRelatorio } from
  * passando do fim do papel) deixou de existir.
  */
 
-function tabelaChaveValor(doc: Documento, campos: [string, string | null][], colunas = 2): void {
-  const linhas: { texto: string; rotulo?: boolean; valor?: boolean }[][] = [];
+/**
+ * 13D-bis · o identificador SEMÂNTICO de um campo.
+ *
+ * `equipamento.fabricante`, e nunca `pagina3.linha2.coluna1`: a paginação muda
+ * quando um checklist cresce, e um id posicional passaria a apontar para outro
+ * campo — o override do fabricante apareceria no número de série.
+ *
+ * O slug sai do RÓTULO impresso, que é o nome documental do campo. Rótulo é o
+ * que o usuário lê, o que o gate das 21 folhas vai conferir contra a referência
+ * e o que menos muda; quando um rótulo mudar de fato, o override antigo deixa
+ * de casar e o campo volta ao automático — degradação segura, sem valor
+ * manual pousando no campo errado.
+ */
+export function idCampo(prefixo: string, rotulo: string): string {
+  const slug = rotulo
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return `${prefixo}.${slug}`;
+}
+
+function tabelaChaveValor(
+  doc: Documento,
+  campos: [string, string | null][],
+  colunas = 2,
+  prefixo?: string,
+): void {
+  const linhas: CelulaDoc[][] = [];
   const passo = colunas;
   for (let i = 0; i < campos.length; i += passo) {
-    const linha: { texto: string; rotulo?: boolean; valor?: boolean }[] = [];
+    const linha: CelulaDoc[] = [];
     for (let k = 0; k < passo; k++) {
       const par = campos[i + k];
       linha.push({ texto: par ? par[0] : '', rotulo: !!par });
-      linha.push({ texto: par ? textoOu(par[1]) : '', valor: true });
+      linha.push({
+        texto: par ? textoOu(par[1]) : '',
+        valor: true,
+        ...(par && prefixo ? { id: idCampo(prefixo, par[0]), rotuloCampo: par[0] } : {}),
+      });
     }
     linhas.push(linha);
   }
@@ -38,7 +70,7 @@ function tabelaChaveValor(doc: Documento, campos: [string, string | null][], col
   doc.tabela({ colunas: largura, linhas });
 }
 
-function blocoExame(doc: Documento, titulo: string, exame: ExameVisual): void {
+function blocoExame(doc: Documento, titulo: string, exame: ExameVisual, prefixo = 'exame'): void {
   doc.banner(titulo);
   if (exame.itens.length > 0) {
     doc.tabela({
@@ -60,10 +92,18 @@ function blocoExame(doc: Documento, titulo: string, exame: ExameVisual): void {
   }
 
   doc.secao('Observações gerais');
-  doc.texto(textoOu(exame.observacoes, 'Sem observações.'), { cor: COR.valor });
+  doc.texto(textoOu(exame.observacoes, 'Sem observações.'), {
+    cor: COR.valor,
+    id: `${prefixo}.observacoes`,
+    rotuloCampo: 'Observações gerais',
+  });
 
   doc.secao('Conclusão técnica');
-  doc.texto(textoOu(exame.conclusao ?? exame.resultado), { cor: COR.valor });
+  doc.texto(textoOu(exame.conclusao ?? exame.resultado), {
+    cor: COR.valor,
+    id: `${prefixo}.conclusao`,
+    rotuloCampo: 'Conclusão técnica',
+  });
 }
 
 /**
@@ -95,6 +135,8 @@ export function folhaCapa(doc: Documento, m: ModeloRelatorio): void {
     negrito: true,
     alinhamento: 'center',
     espacoAntes: 4,
+    id: 'capa.titulo',
+    rotuloCampo: 'Título do documento',
   });
   doc.texto(textoOu(m.equipamento['TIPO DE EQUIPAMENTO'], 'Equipamento') + ' · NR-13', {
     tamanho: FONTE.subtituloDoc,
@@ -121,6 +163,11 @@ export function folhaCapa(doc: Documento, m: ModeloRelatorio): void {
       ['VALIDADE', m.validade],
     ],
     1,
+    // O Nº DO RELATÓRIO entra como editável junto do resto: ele é campo
+    // DOCUMENTAL, e o override vale só para o texto impresso. O código que
+    // identifica o registro (`meta.codigo`, a chave do histórico e do rascunho)
+    // não é tocado por isto — quem edita muda o que se lê, não a identidade.
+    'capa',
   );
 
   if (m.fotoCapa) {
@@ -142,11 +189,14 @@ export function folhaSumario(doc: Documento, m: ModeloRelatorio, secoes: string[
   });
 
   doc.banner('1. OBJETIVO');
+  // Texto PADRÃO do sistema: o usuário pode manter, reescrever ou apagar, e
+  // "Restaurar automático" devolve exatamente esta redação.
   doc.texto(
     `Este relatório apresenta o resultado da ${textoOu(m.tipoInspecao, 'inspeção')} de segurança do ` +
       `equipamento ${m.tag}, realizada conforme a Norma Regulamentadora NR-13 do Ministério do ` +
       'Trabalho e Emprego, com o objetivo de avaliar as condições de integridade e de segurança ' +
       'operacional do equipamento.',
+    { id: 'objetivo.texto', rotuloCampo: 'Objetivo do relatório' },
   );
 
   doc.banner('2. DOCUMENTOS DE REFERÊNCIA');
@@ -154,9 +204,26 @@ export function folhaSumario(doc: Documento, m: ModeloRelatorio, secoes: string[
     compacta: true,
     colunas: [0.3, 0.7],
     linhas: [
-      [{ texto: 'NR-13', rotulo: true }, { texto: 'Caldeiras, Vasos de Pressão, Tubulações e Tanques Metálicos de Armazenamento' }],
-      [{ texto: 'ASME Seção VIII Div. 1', rotulo: true }, { texto: 'Regras para construção de vasos de pressão' }],
-      [{ texto: 'ASME Seção V', rotulo: true }, { texto: 'Ensaios não destrutivos' }],
+      [
+        { texto: 'NR-13', rotulo: true },
+        {
+          texto: 'Caldeiras, Vasos de Pressão, Tubulações e Tanques Metálicos de Armazenamento',
+          id: 'referencias.nr13',
+          rotuloCampo: 'Referência NR-13',
+        },
+      ],
+      [
+        { texto: 'ASME Seção VIII Div. 1', rotulo: true },
+        {
+          texto: 'Regras para construção de vasos de pressão',
+          id: 'referencias.asme-viii',
+          rotuloCampo: 'Referência ASME VIII',
+        },
+      ],
+      [
+        { texto: 'ASME Seção V', rotulo: true },
+        { texto: 'Ensaios não destrutivos', id: 'referencias.asme-v', rotuloCampo: 'Referência ASME V' },
+      ],
     ],
   });
 }
@@ -165,17 +232,21 @@ export function folhaSumario(doc: Documento, m: ModeloRelatorio, secoes: string[
 export function folhaIdentificacao(doc: Documento, m: ModeloRelatorio): void {
   doc.novaFolha();
   doc.banner('3. IDENTIFICAÇÃO DO EQUIPAMENTO — PLACA');
-  tabelaChaveValor(doc, Object.entries(m.equipamento) as [string, string | null][]);
+  tabelaChaveValor(doc, Object.entries(m.equipamento) as [string, string | null][], 2, 'equipamento');
 
   doc.faixa('PRESSÕES');
   doc.tabela({
     colunas: [0.4, 0.2, 0.2, 0.2],
     cabecalho: ['GRANDEZA', 'MPa', 'kgf/cm²', 'bar'],
+    // Pressão é campo CALCULADO, e mesmo assim recebe override: a revisão
+    // integral antes da emissão é o requisito. O cálculo do sistema não muda —
+    // o override vive na chave do relatório e só altera o que este documento
+    // imprime.
     linhas: m.pressoes.map((p) => [
       { texto: p.rotulo, rotulo: true },
-      { texto: textoOu(p.mpa), centro: true, valor: true },
-      { texto: textoOu(p.kgf), centro: true, valor: true },
-      { texto: textoOu(p.bar), centro: true, valor: true },
+      { texto: textoOu(p.mpa), centro: true, valor: true, id: idCampo('pressoes', p.rotulo + ' MPa'), rotuloCampo: `${p.rotulo} (MPa)` },
+      { texto: textoOu(p.kgf), centro: true, valor: true, id: idCampo('pressoes', p.rotulo + ' kgf'), rotuloCampo: `${p.rotulo} (kgf/cm²)` },
+      { texto: textoOu(p.bar), centro: true, valor: true, id: idCampo('pressoes', p.rotulo + ' bar'), rotuloCampo: `${p.rotulo} (bar)` },
     ]),
   });
 
@@ -185,9 +256,9 @@ export function folhaIdentificacao(doc: Documento, m: ModeloRelatorio): void {
     linhas: [
       [
         { texto: 'EXECUÇÃO DA INSPEÇÃO', rotulo: true },
-        { texto: textoOu(m.execucao), valor: true },
+        { texto: textoOu(m.execucao), valor: true, id: 'datas.execucao', rotuloCampo: 'Execução da inspeção' },
         { texto: 'VALIDADE DA INSPEÇÃO', rotulo: true },
-        { texto: textoOu(m.validade), valor: true },
+        { texto: textoOu(m.validade), valor: true, id: 'datas.validade', rotuloCampo: 'Validade da inspeção' },
       ],
     ],
   });
@@ -279,17 +350,32 @@ export function folhaCategorizacao(doc: Documento, m: ModeloRelatorio): void {
   doc.tabela({
     colunas: [0.35, 0.65],
     linhas: [
-      [{ texto: 'CLASSE DO FLUIDO', rotulo: true }, { texto: textoOu(m.equipamento['CLASSE DO FLUIDO']), valor: true }],
-      [{ texto: 'GRUPO DE POTENCIAL DE RISCO', rotulo: true }, { texto: textoOu(m.categoria.grupo), valor: true }],
-      [{ texto: 'VOLUME (m³)', rotulo: true }, { texto: textoOu(m.categoria.volume), valor: true }],
-      [{ texto: 'CATEGORIA DO EQUIPAMENTO', rotulo: true }, { texto: textoOu(m.categoria.catFinal), valor: true }],
-      [{ texto: 'ENQUADRAMENTO NA NR-13', rotulo: true }, { texto: textoOu(m.categoria.enquadramento), valor: true }],
+      [
+        { texto: 'CLASSE DO FLUIDO', rotulo: true },
+        { texto: textoOu(m.equipamento['CLASSE DO FLUIDO']), valor: true, id: 'categoria.classe-do-fluido', rotuloCampo: 'Classe do fluido' },
+      ],
+      [
+        { texto: 'GRUPO DE POTENCIAL DE RISCO', rotulo: true },
+        { texto: textoOu(m.categoria.grupo), valor: true, id: 'categoria.grupo', rotuloCampo: 'Grupo de potencial de risco' },
+      ],
+      [
+        { texto: 'VOLUME (m³)', rotulo: true },
+        { texto: textoOu(m.categoria.volume), valor: true, id: 'categoria.volume', rotuloCampo: 'Volume (m³)' },
+      ],
+      [
+        { texto: 'CATEGORIA DO EQUIPAMENTO', rotulo: true },
+        { texto: textoOu(m.categoria.catFinal), valor: true, id: 'categoria.categoria', rotuloCampo: 'Categoria do equipamento' },
+      ],
+      [
+        { texto: 'ENQUADRAMENTO NA NR-13', rotulo: true },
+        { texto: textoOu(m.categoria.enquadramento), valor: true, id: 'categoria.enquadramento', rotuloCampo: 'Enquadramento na NR-13' },
+      ],
     ],
   });
   doc.texto(
     'A categorização segue o item 13.5.1.2 da NR-13: o grupo de potencial de risco resulta do ' +
       'produto pressão × volume, e a categoria, do cruzamento desse grupo com a classe do fluido.',
-    { tamanho: FONTE.nota, cor: COR.nota, espacoAntes: 3 },
+    { tamanho: FONTE.nota, cor: COR.nota, espacoAntes: 3, id: 'categoria.nota', rotuloCampo: 'Nota da categorização' },
   );
 }
 
@@ -444,13 +530,13 @@ export function folhasFotosDocumentacao(
 // ── 13 a 16. EXAMES VISUAIS E SUAS FOTOS ────────────────────────────────────
 export function folhasExameExterno(doc: Documento, m: ModeloRelatorio, comFotos = true): void {
   doc.novaFolha();
-  blocoExame(doc, '7.2 EXAME EXTERNO (INSPEÇÃO VISUAL EXTERNA)', m.visualExterno);
+  blocoExame(doc, '7.2 EXAME EXTERNO (INSPEÇÃO VISUAL EXTERNA)', m.visualExterno, 'exameExterno');
   if (comFotos) folhaDeFotos(doc, '8.1 REGISTRO FOTOGRÁFICO — EXAME EXTERNO', m.visualExterno.fotos);
 }
 
 export function folhasExameInterno(doc: Documento, m: ModeloRelatorio, comFotos = true): void {
   doc.novaFolha();
-  blocoExame(doc, '7.3 EXAME INTERNO (INSPEÇÃO VISUAL INTERNA)', m.visualInterno);
+  blocoExame(doc, '7.3 EXAME INTERNO (INSPEÇÃO VISUAL INTERNA)', m.visualInterno, 'exameInterno');
   if (comFotos) folhaDeFotos(doc, '8.2 REGISTRO FOTOGRÁFICO — EXAME INTERNO', m.visualInterno.fotos);
 }
 
@@ -465,15 +551,15 @@ export function folhaUltrassom(doc: Documento, m: ModeloRelatorio): void {
     linhas: [
       [
         { texto: 'APARELHO', rotulo: true },
-        { texto: textoOu(m.ultrassom.aparelho), valor: true },
+        { texto: textoOu(m.ultrassom.aparelho), valor: true, id: 'ultrassom.aparelho', rotuloCampo: 'Aparelho' },
         { texto: 'ACOPLANTE', rotulo: true },
-        { texto: textoOu(m.ultrassom.acoplante), valor: true },
+        { texto: textoOu(m.ultrassom.acoplante), valor: true, id: 'ultrassom.acoplante', rotuloCampo: 'Acoplante' },
       ],
       [
         { texto: 'TEMP. DA SUPERFÍCIE', rotulo: true },
-        { texto: textoOu(m.ultrassom.tempSup), valor: true },
+        { texto: textoOu(m.ultrassom.tempSup), valor: true, id: 'ultrassom.temperatura', rotuloCampo: 'Temperatura da superfície' },
         { texto: 'ESTADO DA SUPERFÍCIE', rotulo: true },
-        { texto: textoOu(m.ultrassom.estadoSup), valor: true },
+        { texto: textoOu(m.ultrassom.estadoSup), valor: true, id: 'ultrassom.estado-superficie', rotuloCampo: 'Estado da superfície' },
       ],
       [
         { texto: 'CABEÇOTE', rotulo: true },
@@ -560,19 +646,19 @@ export function folhasTesteHidrostatico(doc: Documento, m: ModeloRelatorio, comF
     linhas: [
       [
         { texto: 'FLUIDO DE TESTE', rotulo: true },
-        { texto: textoOu(m.th.fluido), valor: true },
+        { texto: textoOu(m.th.fluido), valor: true, id: 'th.fluido', rotuloCampo: 'Fluido de teste' },
         { texto: 'DATA DO TESTE', rotulo: true },
-        { texto: textoOu(m.th.dataTeste), valor: true },
+        { texto: textoOu(m.th.dataTeste), valor: true, id: 'th.data', rotuloCampo: 'Data do teste' },
       ],
       [
         { texto: 'PRESSÃO DE PROJETO', rotulo: true },
-        { texto: textoOu(m.th.pressaoProjeto), valor: true },
+        { texto: textoOu(m.th.pressaoProjeto), valor: true, id: 'th.pressao-projeto', rotuloCampo: 'Pressão de projeto' },
         { texto: 'PRESSÃO DE TESTE', rotulo: true },
-        { texto: textoOu(m.th.pressaoTeste), valor: true },
+        { texto: textoOu(m.th.pressaoTeste), valor: true, id: 'th.pressao-teste', rotuloCampo: 'Pressão de teste' },
       ],
       [
         { texto: 'RESULTADO', rotulo: true },
-        { texto: textoOu(m.th.resultado), colspan: 3, valor: true },
+        { texto: textoOu(m.th.resultado), colspan: 3, valor: true, id: 'th.resultado', rotuloCampo: 'Resultado do teste hidrostático' },
       ],
     ],
   });
@@ -622,8 +708,17 @@ export function folhaParecer(doc: Documento, m: ModeloRelatorio): void {
     colunas: [0.7, 0.3],
     linhas: [
       [
-        { texto: 'O equipamento está apto a operar nas condições de segurança da NR-13?', rotulo: true },
-        { texto: textoOu(rotuloLaudo(m.laudo.apto)), centro: true, valor: true },
+        {
+          texto: 'O equipamento está apto a operar nas condições de segurança da NR-13?',
+          rotulo: true,
+        },
+        {
+          texto: textoOu(rotuloLaudo(m.laudo.apto)),
+          centro: true,
+          valor: true,
+          id: 'parecer.laudo',
+          rotuloCampo: 'Parecer (APTO / INAPTO)',
+        },
       ],
     ],
   });
@@ -635,15 +730,24 @@ export function folhaParecer(doc: Documento, m: ModeloRelatorio): void {
     colunas: [0.6, 0.4],
     cabecalho: ['EXAME', 'DATA LIMITE'],
     linhas: [
-      [{ texto: 'EXAME VISUAL EXTERNO' }, { texto: textoOu(m.proximas.externa), centro: true, valor: true }],
-      [{ texto: 'EXAME VISUAL INTERNO' }, { texto: textoOu(m.proximas.interna), centro: true, valor: true }],
-      [{ texto: 'TESTE HIDROSTÁTICO' }, { texto: textoOu(m.proximas.th), centro: true, valor: true }],
+      [
+        { texto: 'EXAME VISUAL EXTERNO' },
+        { texto: textoOu(m.proximas.externa), centro: true, valor: true, id: 'proximas.externa', rotuloCampo: 'Próxima — exame visual externo' },
+      ],
+      [
+        { texto: 'EXAME VISUAL INTERNO' },
+        { texto: textoOu(m.proximas.interna), centro: true, valor: true, id: 'proximas.interna', rotuloCampo: 'Próxima — exame visual interno' },
+      ],
+      [
+        { texto: 'TESTE HIDROSTÁTICO' },
+        { texto: textoOu(m.proximas.th), centro: true, valor: true, id: 'proximas.th', rotuloCampo: 'Próxima — teste hidrostático' },
+      ],
     ],
   });
   doc.texto(
     'As datas acima são as registradas na emissão deste relatório e são a mesma fonte que alimenta ' +
       'o controle de vencimentos do sistema.',
-    { tamanho: FONTE.nota, cor: COR.nota, espacoAntes: 2 },
+    { tamanho: FONTE.nota, cor: COR.nota, espacoAntes: 2, id: 'proximas.nota', rotuloCampo: 'Nota das próximas inspeções' },
   );
 
   assinaturas(doc, m);

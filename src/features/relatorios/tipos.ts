@@ -99,6 +99,16 @@ export interface RelatorioMeta {
    * atual da empresa.
    */
   modeloDocumento?: 'classico' | 'novo';
+  /**
+   * 13D-bis · o que foi corrigido À MÃO neste documento, congelado na emissão.
+   *
+   * Não é daqui que o PDF lê — ele já saiu com os valores resolvidos e é
+   * imutável. Isto é RASTREABILIDADE: guarda, por campo, o valor automático que
+   * existia, o texto que o usuário pôs no lugar e quando. Meses depois é o que
+   * explica por que o documento diz uma coisa e a ficha do equipamento diz
+   * outra — sem isso, a divergência pareceria defeito do sistema.
+   */
+  overrides?: Record<string, unknown>;
 }
 
 /**

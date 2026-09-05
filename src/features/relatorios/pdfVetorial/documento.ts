@@ -1,6 +1,12 @@
 import type { jsPDF } from 'jspdf';
 import { FAMILIA } from './carlito';
 import {
+  origemDoValor,
+  resolverValor,
+  type MapaOverrides,
+} from '../overridesRelatorio';
+import type { OrigemValor } from '../overridesRelatorio';
+import {
   BORDA_FINA,
   CAIXA,
   COR,
@@ -53,11 +59,61 @@ export class Documento {
    */
   private readonly modo: ModoDocumento;
 
-  constructor(pdf: jsPDF, cab: DadosCabecalho, total: number, modo: ModoDocumento = 'final') {
+  /**
+   * 13D-bis · os overrides DESTE relatório.
+   *
+   * O gerador resolve o valor na hora de desenhar — automático, manual ou
+   * deliberadamente vazio —, então prévia e PDF final saem do MESMO caminho.
+   * Um resolvedor à parte, aplicado só na prévia, deixaria o documento emitido
+   * diferente do que foi aprovado, que é exatamente o que esta fase evita.
+   */
+  private readonly overrides: MapaOverrides;
+  /** As caixas dos campos editáveis desenhados — a prévia constrói a UI com elas. */
+  private readonly campos: CampoEditavel[] = [];
+
+  constructor(
+    pdf: jsPDF,
+    cab: DadosCabecalho,
+    total: number,
+    modo: ModoDocumento = 'final',
+    overrides: MapaOverrides = {},
+  ) {
     this.pdf = pdf;
     this.cab = cab;
     this.total = total;
     this.modo = modo;
+    this.overrides = overrides;
+  }
+
+  /** Os campos editáveis desta geração, na ordem em que foram desenhados. */
+  get editaveis(): CampoEditavel[] {
+    return this.campos;
+  }
+
+  /** O texto que a célula/parágrafo deve mostrar, já com o override aplicado. */
+  private resolver(id: string | undefined, auto: string): string {
+    if (!id) return auto;
+    return resolverValor(auto, this.overrides[id]) ?? '';
+  }
+
+  private anotarCampo(
+    id: string,
+    rotulo: string,
+    auto: string,
+    valor: string,
+    multilinha: boolean,
+    caixa: { x: number; y: number; larg: number; alt: number },
+  ): void {
+    this.campos.push({
+      id,
+      rotulo,
+      auto,
+      valor,
+      origem: origemDoValor(this.overrides[id]),
+      multilinha,
+      pagina: this.pagina,
+      ...caixa,
+    });
   }
 
   get paginaAtual(): number {
@@ -105,7 +161,7 @@ export class Documento {
   // ── Blocos ────────────────────────────────────────────────────────────────
 
   texto(
-    conteudo: string,
+    conteudoAuto: string,
     opcoes: {
       tamanho?: number;
       negrito?: boolean;
@@ -115,8 +171,17 @@ export class Documento {
       x?: number;
       largura?: number;
       espacoAntes?: number;
+      /** 13D-bis · torna o parágrafo editável, com este identificador. */
+      id?: string;
+      rotuloCampo?: string;
     } = {},
   ): void {
+    // O parágrafo editável mostra o override; sem override, o texto de origem.
+    // Um bloco resolvido para vazio ainda ocupa a caixa mínima de uma linha —
+    // sem isso o campo apagado ficaria sem área clicável para ser desfeito.
+    const conteudo = this.resolver(opcoes.id, conteudoAuto);
+    const inicioY = this.cursor + (opcoes.espacoAntes ?? 0);
+    const paginaInicio = this.pagina;
     const tamanho = opcoes.tamanho ?? FONTE.base;
     const largura = opcoes.largura ?? CAIXA.largura;
     const estilo = opcoes.negrito
@@ -151,6 +216,23 @@ export class Documento {
       this.pdf.setFont(FAMILIA, estilo);
       this.pdf.setFontSize(tamanho);
       this.pdf.setTextColor(opcoes.cor ?? COR.texto);
+    }
+
+    if (opcoes.id) {
+      // Um parágrafo que atravessou a folha tem duas caixas possíveis; a que
+      // vale é a da folha onde ele COMEÇOU — é onde o revisor clicou.
+      const alturaBloco =
+        this.pagina === paginaInicio ? Math.max(passo, this.cursor - inicioY) : LIMITE_CORPO - inicioY;
+      this.anotarCampo(
+        opcoes.id,
+        opcoes.rotuloCampo ?? opcoes.id,
+        conteudoAuto,
+        conteudo,
+        true,
+        { x: opcoes.x ?? CAIXA.x, y: inicioY, larg: largura, alt: alturaBloco },
+      );
+      // A página do registro é a do início do parágrafo.
+      this.campos[this.campos.length - 1].pagina = paginaInicio;
     }
   }
 
@@ -235,7 +317,13 @@ export class Documento {
     this.garantirEspaco(alturaCab + alturaLinha(tamanho) * 2);
     desenharCabecalho();
 
-    for (const linha of opcoes.linhas) {
+    // 13D-bis: o override é resolvido ANTES da medição. Medir o automático e
+    // desenhar o manual daria altura de linha errada — o texto mais longo
+    // estouraria a célula que foi medida pelo mais curto.
+    for (const linhaAuto of opcoes.linhas) {
+      const linha = linhaAuto.map((cel) =>
+        cel.id ? { ...cel, texto: this.resolver(cel.id, cel.texto) } : cel,
+      );
       // Mede.
       let altura = alturaLinha(tamanho) + padY * 2;
       {
@@ -255,9 +343,20 @@ export class Documento {
 
       let x = CAIXA.x;
       let i = 0;
-      for (const cel of linha) {
+      for (let k = 0; k < linha.length; k++) {
+        const cel = linha[k];
         const span = cel.colspan ?? 1;
         const larg = larguras.slice(i, i + span).reduce((a, b) => a + b, 0);
+        if (cel.id) {
+          this.anotarCampo(
+            cel.id,
+            cel.rotuloCampo ?? linhaAuto[k]?.rotuloCampo ?? cel.id,
+            linhaAuto[k]?.texto ?? cel.texto,
+            cel.texto,
+            !!cel.multilinha,
+            { x, y: this.cursor, larg, alt: altura },
+          );
+        }
         this.pdf.setLineWidth(BORDA_FINA);
         this.pdf.setDrawColor(COR.bordaTabela);
         this.pdf.setFillColor(this.fundoDaCelula(cel));
@@ -360,6 +459,42 @@ export interface CelulaDoc {
   centro?: boolean;
   colspan?: number;
   valor?: boolean;
+  /**
+   * 13D-bis · o identificador SEMÂNTICO do campo, quando ele é editável.
+   *
+   * Estável por significado (`equipamento.fabricante`), nunca por posição: a
+   * paginação muda quando um checklist cresce, e um id derivado de página ou
+   * de índice apontaria para outro campo depois disso.
+   */
+  id?: string;
+  /** Como o campo se chama no editor. Sem isto o popover abre sem título. */
+  rotuloCampo?: string;
+  /** Editor de texto longo (observações, conclusões) em vez de uma linha. */
+  multilinha?: boolean;
+}
+
+/**
+ * Um campo editável, do jeito que a interface precisa dele.
+ *
+ * A caixa (`x`,`y`,`larg`,`alt`, em mm) é registrada pelo GERADOR no momento em
+ * que desenha — é o único lugar que sabe onde o texto caiu. A camada React usa
+ * isso para pôr a área clicável exatamente sobre o texto, sem tocar no PDF
+ * pronto: nada de reabrir o arquivo para adivinhar qual texto é qual.
+ */
+export interface CampoEditavel {
+  id: string;
+  rotulo: string;
+  /** O que a fonte automática diz (antes do override). */
+  auto: string;
+  /** O que o documento está mostrando agora. */
+  valor: string;
+  origem: OrigemValor;
+  multilinha: boolean;
+  pagina: number;
+  x: number;
+  y: number;
+  larg: number;
+  alt: number;
 }
 
 export interface FotoDoc {

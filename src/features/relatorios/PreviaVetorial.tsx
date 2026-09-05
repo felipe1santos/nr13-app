@@ -1,13 +1,27 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Icone } from '../../components/Icone';
 import { VisualizadorPdfBytes } from '../../components/VisualizadorPdf';
 import { textoDoErro } from '../../services/textoDoErro';
 import { gerarPreviaRelatorio } from './pdfVetorial/gerarRelatorio';
 import { montarModeloRelatorio } from './pdfVetorial/modelo';
+import type { CampoEditavel } from './pdfVetorial/documento';
 import { oQueFalta, type DestinoEdicao, type ItemFaltante } from './oQueFalta';
+import EditorCampoDocumento from './EditorCampoDocumento';
+import {
+  carregarOverrides,
+  comOverride,
+  contarOverrides,
+  gravarOverrides,
+  overrideDeTexto,
+  semOverride,
+  type MapaOverrides,
+} from './overridesRelatorio';
+
+/** A4 em mm — a régua que converte a caixa do gerador em pixels da tela. */
+const A4 = { largura: 210, altura: 297 };
 
 /**
- * Fase 13D · a PRÉVIA é o documento.
+ * Fase 13D · a PRÉVIA é o documento — e, desde 13D-bis, é onde ele se EDITA.
  *
  * ## O que muda
  *
@@ -16,31 +30,44 @@ import { oQueFalta, type DestinoEdicao, type ItemFaltante } from './oQueFalta';
  * **o mesmo gerador**, em modo `preview` — mesmo layout, mesmos dados, mesma
  * paginação, com os campos vazios em amarelo-claro.
  *
+ * ## A camada de edição
+ *
+ * O gerador devolve, junto dos bytes, ONDE cada campo editável caiu no papel.
+ * Sobre cada página desenhada vai uma camada de botões transparentes nessas
+ * posições: clicar abre o editor daquele campo. O PDF não é tocado — nada de
+ * `contenteditable` no canvas, nada de reabrir o arquivo pronto para adivinhar
+ * qual texto é qual.
+ *
  * ## Por que existe um botão, e não geração automática
  *
  * Gerar o PDF a cada tecla travaria a tela num relatório grande (o vetorial leva
  * ~1,8 s num documento completo). A prévia é gerada quando alguém pede — e,
  * enquanto houver edição mais nova que a última geração, um aviso discreto diz
- * que a prévia está atrasada. Prévia silenciosamente velha seria pior do que
- * prévia nenhuma.
+ * que a prévia está atrasada. Salvar um override é exceção: ali a regeneração é
+ * imediata, porque o usuário acabou de pedir para ver aquela mudança.
  *
  * ## O que ela NÃO faz
  *
  * Não arquiva, não calcula SHA oficial, não grava `pdfRef`, não cria histórico,
- * não mexe em vencimento e não escreve no Livro. `gerarPreviaRelatorio` devolve
- * bytes e nada mais.
+ * não mexe em vencimento e não escreve no Livro.
  */
 export default function PreviaVetorial({
   tag,
   documentos,
   versaoDados,
+  idRelatorio,
   onIrPara,
+  onOverrides,
 }: {
   tag: string;
   documentos: string[];
   /** Muda a cada edição salva — é o que marca a prévia como atrasada. */
   versaoDados: number;
+  /** O id do relatório em edição: é a quem os overrides pertencem. */
+  idRelatorio?: string;
   onIrPara?: (destino: Exclude<DestinoEdicao, null>) => void;
+  /** Avisa a tela do documento quantos campos foram alterados à mão. */
+  onOverrides?: (mapa: MapaOverrides) => void;
 }) {
   const [bytes, setBytes] = useState<Uint8Array | null>(null);
   const [paginas, setPaginas] = useState(0);
@@ -49,22 +76,32 @@ export default function PreviaVetorial({
   const [faltando, setFaltando] = useState<ItemFaltante[]>([]);
   const [painelAberto, setPainelAberto] = useState(false);
   const [versaoGerada, setVersaoGerada] = useState<number | null>(null);
+  const [editaveis, setEditaveis] = useState<CampoEditavel[]>([]);
+  const [overrides, setOverrides] = useState<MapaOverrides>(() =>
+    idRelatorio ? carregarOverrides(idRelatorio, tag) : {},
+  );
+  const [emEdicao, setEmEdicao] = useState<CampoEditavel | null>(null);
+  const [salvandoCampo, setSalvandoCampo] = useState(false);
 
-  const gerar = useCallback(async () => {
-    setGerando(true);
-    setErro('');
-    try {
-      const r = await gerarPreviaRelatorio(tag, documentos);
-      setBytes(r.bytes);
-      setPaginas(r.paginas);
-      setFaltando(oQueFalta(montarModeloRelatorio(tag)));
-      setVersaoGerada(versaoDados);
-    } catch (e) {
-      setErro(textoDoErro(e, 'Não foi possível gerar a prévia.'));
-    } finally {
-      setGerando(false);
-    }
-  }, [tag, documentos, versaoDados]);
+  const gerar = useCallback(
+    async (mapa: MapaOverrides = overrides) => {
+      setGerando(true);
+      setErro('');
+      try {
+        const r = await gerarPreviaRelatorio(tag, documentos, mapa);
+        setBytes(r.bytes);
+        setPaginas(r.paginas);
+        setEditaveis(r.editaveis);
+        setFaltando(oQueFalta(montarModeloRelatorio(tag)));
+        setVersaoGerada(versaoDados);
+      } catch (e) {
+        setErro(textoDoErro(e, 'Não foi possível gerar a prévia.'));
+      } finally {
+        setGerando(false);
+      }
+    },
+    [tag, documentos, versaoDados, overrides],
+  );
 
   // Uma geração na abertura: chegar numa tela vazia com um botão "Atualizar"
   // obrigaria o usuário a pedir o que ele veio ver.
@@ -74,6 +111,38 @@ export default function PreviaVetorial({
   }, []);
 
   const atrasada = versaoGerada !== null && versaoGerada !== versaoDados;
+
+  /** Grava o mapa pelo caminho oficial e redesenha com o resultado. */
+  const aplicar = useCallback(
+    async (mapa: MapaOverrides) => {
+      setSalvandoCampo(true);
+      setErro('');
+      try {
+        if (idRelatorio) await gravarOverrides(idRelatorio, tag, mapa);
+        setOverrides(mapa);
+        onOverrides?.(mapa);
+        setEmEdicao(null);
+        await gerar(mapa);
+      } catch (e) {
+        setErro(textoDoErro(e, 'Não foi possível salvar a alteração deste campo.'));
+      } finally {
+        setSalvandoCampo(false);
+      }
+    },
+    [idRelatorio, tag, gerar, onOverrides],
+  );
+
+  const camposPorPagina = useMemo(() => {
+    const mapa = new Map<number, CampoEditavel[]>();
+    for (const c of editaveis) {
+      const lista = mapa.get(c.pagina) ?? [];
+      lista.push(c);
+      mapa.set(c.pagina, lista);
+    }
+    return mapa;
+  }, [editaveis]);
+
+  const manuais = contarOverrides(overrides);
 
   // Os controles da prévia moram DENTRO da barra do visualizador — é o que
   // mantém uma barra só, em vez de uma fileira nossa empilhada sobre a dele.
@@ -90,6 +159,11 @@ export default function PreviaVetorial({
       >
         O que falta{faltando.length > 0 ? ` (${faltando.length})` : ''}
       </button>
+      {manuais > 0 && (
+        <span className="previa-manuais" title="Campos com texto alterado manualmente neste relatório">
+          {manuais} campo{manuais > 1 ? 's' : ''} alterado{manuais > 1 ? 's' : ''}
+        </span>
+      )}
       {atrasada && (
         <span className="previa-atrasada" title="A prévia foi gerada antes da última alteração.">
           Há alterações não refletidas
@@ -123,6 +197,9 @@ export default function PreviaVetorial({
                 ))}
               </ul>
             )}
+            <p className="previa-painel-dica">
+              Clique em qualquer texto do documento para escrever direto nele.
+            </p>
           </aside>
         )}
 
@@ -134,12 +211,51 @@ export default function PreviaVetorial({
               nomeArquivo={`previa-${tag}.pdf`}
               extras={controles}
               selo="Prévia — não é o documento emitido"
+              sobreposicao={(pagina, largura, altura) => (
+                <div className="previa-camada">
+                  {(camposPorPagina.get(pagina) ?? []).map((c) => (
+                    <button
+                      key={`${c.id}-${c.y}`}
+                      type="button"
+                      className={`previa-alvo${c.origem !== 'auto' ? ' is-manual' : ''}`}
+                      title={
+                        c.origem === 'auto'
+                          ? `${c.rotulo} — clique para editar`
+                          : `${c.rotulo} — alterado manualmente`
+                      }
+                      style={{
+                        left: `${(c.x / A4.largura) * largura}px`,
+                        top: `${(c.y / A4.altura) * altura}px`,
+                        width: `${(c.larg / A4.largura) * largura}px`,
+                        height: `${(c.alt / A4.altura) * altura}px`,
+                      }}
+                      onClick={() => setEmEdicao(c)}
+                    />
+                  ))}
+                </div>
+              )}
             />
           ) : (
             <div className="vpdf-aviso">{gerando ? 'Desenhando o documento…' : 'Sem prévia.'}</div>
           )}
         </div>
       </div>
+
+      {emEdicao && (
+        <div className="previa-modal" onClick={() => !salvandoCampo && setEmEdicao(null)}>
+          <div onClick={(e) => e.stopPropagation()}>
+            <EditorCampoDocumento
+              campo={emEdicao}
+              ocupado={salvandoCampo}
+              onFechar={() => setEmEdicao(null)}
+              onSalvar={(texto) =>
+                void aplicar(comOverride(overrides, emEdicao.id, overrideDeTexto(texto, emEdicao.auto)))
+              }
+              onRestaurar={() => void aplicar(semOverride(overrides, emEdicao.id))}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

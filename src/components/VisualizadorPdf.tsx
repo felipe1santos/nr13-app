@@ -121,12 +121,22 @@ export function VisualizadorPdfBytes({
   paginas,
   extras,
   selo,
+  sobreposicao,
 }: {
   bytes: Uint8Array;
   nomeArquivo: string;
   paginas: number;
   extras?: ReactNode;
   selo?: string;
+  /**
+   * 13D-bis · a camada de EDIÇÃO sobre a página desenhada.
+   *
+   * O visualizador não sabe o que são campos: ele entrega o número da página e
+   * o tamanho em pixels com que a desenhou, e quem chamou decide o que pôr por
+   * cima. É assim que a edição fica em React, sem transformar o canvas nem o
+   * `textLayer` do pdf.js em `contenteditable`.
+   */
+  sobreposicao?: (pagina: number, largura: number, altura: number) => ReactNode;
 }) {
   // Cópia própria: o pdf.js pode ficar dono do buffer que recebe, e quem chamou
   // continua com os bytes dele para baixar ou finalizar.
@@ -140,7 +150,17 @@ export function VisualizadorPdfBytes({
   }, [buf]);
 
   if (!url) return <div className="vpdf-aviso">Preparando o documento…</div>;
-  return <QuadroPdf url={url} bytes={buf} nomeArquivo={nomeArquivo} paginas={paginas} extras={extras} selo={selo} />;
+  return (
+    <QuadroPdf
+      url={url}
+      bytes={buf}
+      nomeArquivo={nomeArquivo}
+      paginas={paginas}
+      extras={extras}
+      selo={selo}
+      sobreposicao={sobreposicao}
+    />
+  );
 }
 
 /** Uma página desenhada; `null` enquanto ainda não entrou na tela. */
@@ -153,12 +173,14 @@ function QuadroPdf({
   paginas: paginasDoRegistro,
   extras,
   selo = 'Documento arquivado',
+  sobreposicao,
 }: {
   url: string;
   bytes: ArrayBuffer | null;
   nomeArquivo: string;
   extras?: ReactNode;
   selo?: string;
+  sobreposicao?: (pagina: number, largura: number, altura: number) => ReactNode;
   paginas: number;
 }) {
   const [doc, setDoc] = useState<PdfDoc | null>(null);
@@ -327,6 +349,11 @@ function QuadroPdf({
                 style={{ width: Math.round(p.largura * escalaDe(p.largura)), height: Math.round(p.altura * escalaDe(p.largura)) }}
               >
                 <PaginaCanvas doc={doc} numero={p.numero} escala={escalaDe(p.largura)} />
+                {sobreposicao?.(
+                  p.numero,
+                  Math.round(p.largura * escalaDe(p.largura)),
+                  Math.round(p.altura * escalaDe(p.largura)),
+                )}
               </div>
             ))}
             {paginas.length === 0 && <div className="vpdf-aviso">Preparando as páginas…</div>}

@@ -86,7 +86,14 @@ export const POR_TAG = [
  * fronteira e o registro seria indexado sob uma TAG inexistente — o mesmo
  * defeito que fez esta tabela deixar de ser regex.
  */
-const POR_ID_E_TAG = ['nr13_rel_'];
+const POR_ID_E_TAG = [
+  'nr13_rel_',
+  // 13D-bis · overrides manuais de UM relatório. Mesmo formato de chave do
+  // registro (id primeiro, TAG por último) e prefixo PRÓPRIO: com
+  // 'nr13_rel_ovr_' o índice do histórico leria este mapa como se fosse um
+  // relatório salvo.
+  'nr13_ovr_',
+];
 
 /** Registros identificados por id próprio, não por TAG de equipamento. */
 const POR_ID = ['nr13_rastreab_', 'nr13_calibracao_item_', 'nr13_permissoes_'];

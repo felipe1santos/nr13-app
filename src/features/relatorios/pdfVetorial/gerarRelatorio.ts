@@ -1,10 +1,11 @@
 import { jsPDF } from 'jspdf';
 import { PDFDocument } from 'pdf-lib';
 import { registrarCarlito } from './carlito';
-import { Documento, type ModoDocumento } from './documento';
+import { Documento, type CampoEditavel, type ModoDocumento } from './documento';
 import { anexarRastreabilidades, contarPaginasRastreabilidades } from '../rastreabilidadeService';
 import { anexarFolhasDeCertificado, contarFolhasDeCertificado } from './certificados';
 import { secoesPresentes, type SecaoRelatorio } from './composicao';
+import type { MapaOverrides } from '../overridesRelatorio';
 import {
   secoesDoRelatorio,
   folhaCapa,
@@ -54,6 +55,12 @@ export interface ResultadoVetorial {
   modelo: ModeloRelatorio;
   /** Certificados que deviam entrar e não entraram — nunca somem calados. */
   falhasAnexo: string[];
+  /**
+   * 13D-bis · onde cada campo editável caiu no papel (mm), com o valor
+   * resolvido e a origem. É com isto que a prévia monta as áreas clicáveis —
+   * o PDF pronto nunca é reaberto para adivinhar qual texto é qual.
+   */
+  editaveis: CampoEditavel[];
 }
 
 export interface OpcoesVetorial {
@@ -71,6 +78,14 @@ export interface OpcoesVetorial {
    * lê mais `.relatorio-preview`, e por isso não há mais container a apontar.
    */
   onProgresso?: (feito: number, total: number) => void;
+  /**
+   * 13D-bis · os overrides manuais DESTE relatório.
+   *
+   * Vão para o `Documento`, que resolve campo a campo no momento de desenhar.
+   * Prévia e emissão usam o MESMO caminho: o PDF arquivado sai exatamente com o
+   * conteúdo que o usuário aprovou na tela.
+   */
+  overrides?: MapaOverrides;
   /**
    * 13D · `preview` desenha o MESMO documento com os campos vazios em
    * amarelo-claro. Não arquiva, não gera SHA oficial, não cria `pdfRef`, não
@@ -177,7 +192,7 @@ export async function gerarRelatorioVetorial(
   // escreve um número provisório que ninguém verá — este PDF é descartado.
   const contagem = novoPdf();
   await registrarCarlito(contagem);
-  const rascunho = new Documento(contagem, cab, 0, opcoes.modo ?? 'final');
+  const rascunho = new Documento(contagem, cab, 0, opcoes.modo ?? 'final', opcoes.overrides ?? {});
   const tem = secoesPresentes(opcoes.documentos);
   emitir(rascunho, modelo, tem);
   const paginasDoCorpo = contagem.getNumberOfPages();
@@ -194,7 +209,7 @@ export async function gerarRelatorioVetorial(
   // 2ª passagem: para valer, já com "Página X de Y" correto.
   const pdf = novoPdf();
   await registrarCarlito(pdf);
-  const doc = new Documento(pdf, cab, total, opcoes.modo ?? 'final');
+  const doc = new Documento(pdf, cab, total, opcoes.modo ?? 'final', opcoes.overrides ?? {});
   emitir(doc, modelo, tem);
 
   let bytes = new Uint8Array(pdf.output('arraybuffer'));
@@ -229,7 +244,14 @@ export async function gerarRelatorioVetorial(
     paginas = (await PDFDocument.load(bytes)).getPageCount();
   }
 
-  return { bytes, paginas, ms: Math.round(performance.now() - inicio), modelo, falhasAnexo };
+  return {
+    bytes,
+    paginas,
+    ms: Math.round(performance.now() - inicio),
+    modelo,
+    falhasAnexo,
+    editaveis: doc.editaveis,
+  };
 }
 
 /**
@@ -250,7 +272,13 @@ export async function gerarRelatorioVetorial(
 export async function gerarPreviaRelatorio(
   tag: string,
   documentos: string[],
-): Promise<{ bytes: Uint8Array; paginas: number; ms: number }> {
-  const r = await gerarRelatorioVetorial(tag, { documentos, certificados: false, modo: 'preview' });
-  return { bytes: r.bytes, paginas: r.paginas, ms: r.ms };
+  overrides: MapaOverrides = {},
+): Promise<{ bytes: Uint8Array; paginas: number; ms: number; editaveis: CampoEditavel[] }> {
+  const r = await gerarRelatorioVetorial(tag, {
+    documentos,
+    certificados: false,
+    modo: 'preview',
+    overrides,
+  });
+  return { bytes: r.bytes, paginas: r.paginas, ms: r.ms, editaveis: r.editaveis };
 }

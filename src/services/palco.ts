@@ -222,6 +222,9 @@ export const FORA_DO_PALCO = [
   'nr13_rel_',
   // Índice leve da listagem. Só a UI React o consome.
   'nr13_historico_indice_',
+  // 13D-bis · overrides manuais de um relatório. Nenhum template HTML os lê:
+  // quem os aplica é o gerador vetorial, em memória, na hora de desenhar.
+  'nr13_ovr_',
 ];
 
 export const CHAVE_MANIFESTO = 'nr13_palco_manifesto';

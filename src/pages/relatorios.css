@@ -1556,6 +1556,8 @@
   background: #fff;
   box-shadow: 0 1px 6px rgba(0, 0, 0, .16);
   max-width: 100%;
+  /* 13D-bis: a camada de edição se posiciona DENTRO da folha. */
+  position: relative;
 }
 .vpdf-canvas { display: block; width: 100%; height: 100%; }
 .vpdf-iframe {
@@ -1995,4 +1997,121 @@ body.doc-foco .meta-barra-fixa { padding-top: 6px; padding-bottom: 6px; }
   .rel-page .rel-linha [data-rot]::before { font-size: 9.5px; }
   /* TAG no cartão não repete o rótulo — ela já se identifica sozinha. */
   .rel-page .rel-cel-tag[data-rot]::before { content: none; }
+}
+
+/* ============================================================================
+   13D-bis · CAMADA DE EDIÇÃO SOBRE O DOCUMENTO
+   ============================================================================
+   Cada campo editável vira um botão transparente na posição exata em que o
+   gerador o desenhou. O PDF não é tocado: a camada é HTML, por cima do canvas.
+   Em repouso ela é invisível — o documento tem que parecer um documento. */
+.previa-camada {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.previa-alvo {
+  position: absolute;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background: transparent;
+  cursor: text;
+  pointer-events: auto;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.previa-alvo:hover,
+.previa-alvo:focus-visible {
+  background: rgba(12, 79, 155, 0.10);
+  border-color: rgba(12, 79, 155, 0.55);
+  outline: none;
+}
+/* Marcador de valor MANUAL: discretíssimo, e só na tela de revisão. No PDF
+   final não existe marcador nenhum — lá está só o valor escolhido. */
+.previa-alvo.is-manual {
+  border-color: rgba(12, 79, 155, 0.30);
+  border-bottom-width: 2px;
+}
+
+.previa-manuais {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--blue2, #0C4F9B);
+  background: var(--blue2-bg, #E4EDF9);
+  border-radius: 4px;
+  padding: 2px 7px;
+  white-space: nowrap;
+}
+.previa-painel-dica {
+  margin: 10px 0 0;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--muted, #6b7280);
+}
+
+/* O editor do campo — modal pequeno, no centro, sem tirar o documento da tela. */
+.previa-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(15, 23, 32, 0.28);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.edcampo {
+  width: min(520px, 100%);
+  background: #fff;
+  border: 1px solid var(--linha, #e0e4e9);
+  border-radius: 6px;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.18);
+  padding: 14px 16px 12px;
+}
+.edcampo-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+.edcampo-x {
+  border: 0;
+  background: none;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--muted, #6b7280);
+  cursor: pointer;
+}
+.edcampo input,
+.edcampo textarea {
+  width: 100%;
+  font: inherit;
+  font-size: 13px;
+  padding: 7px 9px;
+  border: 1px solid var(--linha, #d6dbe2);
+  border-radius: 4px;
+  background: #fff;
+  color: var(--text-main, #1b2430);
+  resize: vertical;
+}
+.edcampo-auto,
+.edcampo-nota {
+  margin: 7px 0 0;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--muted, #6b7280);
+}
+.edcampo-acoes {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+.edcampo-espaco { flex: 1 1 auto; }
+
+@media (max-width: 720px) {
+  .edcampo { width: 100%; }
+  .edcampo-acoes { flex-wrap: wrap; }
 }
