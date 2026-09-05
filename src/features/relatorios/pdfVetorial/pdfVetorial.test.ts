@@ -306,7 +306,7 @@ describe('conversão de pressão — leitura, não recálculo', () => {
   });
 
   it('ausente continua ausente — não vira zero', () => {
-    expect(converterPressao(null)).toEqual({ mpa: null, kgf: null, bar: null });
+    expect(converterPressao(null)).toEqual({ mpa: null, kgf: null, bar: null, psi: null });
     expect(converterPressao(Number.NaN).mpa).toBeNull();
   });
 });

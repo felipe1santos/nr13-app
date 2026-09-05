@@ -243,7 +243,12 @@ export function foto(
 }
 
 /** Cabeçalho da folha: logo à esquerda, nº do relatório e paginação à direita. */
-export function cabecalho(ctx: Contexto, pagina: number, total: number): void {
+export function cabecalho(
+  ctx: Contexto,
+  pagina: number,
+  total: number,
+  destacarLogoVazia = false,
+): void {
   const { pdf } = ctx;
   const y = CAIXA.y;
 
@@ -254,6 +259,18 @@ export function cabecalho(ctx: Contexto, pagina: number, total: number): void {
     } catch {
       // Logo ilegível não pode impedir a emissão do relatório.
     }
+  } else if (destacarLogoVazia) {
+    // Bloco 1 · na PRÉVIA, a área da logo vazia se anuncia — é o
+    // `.cab .logo-vazio` da referência (amarelo, tracejado). No documento
+    // FINAL não sobra nada: nem amarelo, nem moldura, nem legenda.
+    pdf.setDrawColor('#b9b9b9');
+    pdf.setLineWidth(BORDA_FINA);
+    pdf.setFillColor('#FFF8C4');
+    pdf.rect(CAIXA.x, y, 50, 14, 'FD');
+    pdf.setFont(FAMILIA, 'normal');
+    pdf.setFontSize(7.5);
+    corTexto(pdf, '#8a7a2e');
+    pdf.text('Clique para adicionar a logo', CAIXA.x + 25, y + 7.8, { align: 'center' });
   }
 
   const dir = CAIXA.x + CAIXA.largura;

@@ -187,8 +187,13 @@ describe('H · a emissão usa o mesmo mapa da prévia', () => {
   });
 
   it('o gerador entrega os overrides ao Documento nas DUAS passagens', () => {
+    // As duas passagens (contar páginas e desenhar) recebem o mesmo mapa; a
+    // terceira ocorrência é a resolução das IMAGENS de override, feita uma vez
+    // antes das duas.
     const usos = gerador.match(/opcoes\.overrides \?\? \{\}/g) ?? [];
-    expect(usos.length).toBe(2);
+    expect(usos.length).toBe(3);
+    expect(gerador).toContain('new Documento(contagem, cab, 0');
+    expect(gerador).toContain('new Documento(pdf, cab, total');
   });
 
   it('o mapa é congelado no registro como rastreabilidade', () => {

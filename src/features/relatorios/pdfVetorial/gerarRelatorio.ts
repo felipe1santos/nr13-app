@@ -6,6 +6,7 @@ import { anexarRastreabilidades, contarPaginasRastreabilidades } from '../rastre
 import { anexarFolhasDeCertificado, contarFolhasDeCertificado } from './certificados';
 import { secoesPresentes, type SecaoRelatorio } from './composicao';
 import type { MapaOverrides } from '../overridesRelatorio';
+import { resolverImagem } from '../imagensDoDocumento';
 import {
   secoesDoRelatorio,
   folhaCapa,
@@ -181,9 +182,22 @@ export async function gerarRelatorioVetorial(
   // desenha a placa reconstruída.
   modelo.placaReal = await resolverPlacaReal(tag);
 
+  // Bloco 1 · as imagens que o RELATÓRIO trocou (foto de capa, logo).
+  //
+  // O override guarda o caminho do arquivo no cofre; aqui ele vira a imagem.
+  // `branco` (o usuário removeu de propósito) resolve para 'sem imagem' e a
+  // área fica vazia — a foto do cadastro NÃO volta sozinha.
+  const ovr = opcoes.overrides ?? {};
+  const fotoDoRelatorio = await resolverImagem(ovr['capa.foto']?.modo === 'manual' ? ovr['capa.foto'].valor : null);
+  if (fotoDoRelatorio) modelo.fotoCapa = fotoDoRelatorio.dataUrl;
+  else if (ovr['capa.foto']?.modo === 'branco') modelo.fotoCapa = null;
+
+  const logoDoRelatorio = await resolverImagem(ovr['cabecalho.logo']?.modo === 'manual' ? ovr['cabecalho.logo'].valor : null);
+  const logoResolvida = logoDoRelatorio ? logoDoRelatorio.dataUrl : ovr['cabecalho.logo']?.modo === 'branco' ? null : modelo.empresa.logo;
+
   const novoPdf = () => new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
   const cab = {
-    logo: modelo.empresa.logo,
+    logo: logoResolvida,
     numeroRelatorio: modelo.numeroRelatorio,
     rodape: [modelo.empresa.razao, modelo.empresa.endereco, modelo.empresa.contato] as [string, string, string],
   };

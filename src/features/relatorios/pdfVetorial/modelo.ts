@@ -71,8 +71,58 @@ export interface ModeloRelatorio {
   equipamento: Record<string, string | null>;
   pressoes: { rotulo: string; mpa: string | null; kgf: string | null; bar: string | null }[];
   categoria: { catFinal: string | null; grupo: string | null; volume: string | null; enquadramento: string | null };
-  componentes: { nome: string; pmta: string | null; espReq: string | null; espNom: string | null; material: string | null }[];
+  /**
+   * Bloco 1 · os parâmetros de cada componente, como a referência os imprime.
+   *
+   * Tudo já vinha calculado em `nr13_calc_<TAG>.componentes[]` — E, S, D, raio,
+   * margem de corrosão, espessura comercial e as fórmulas. O relatório só
+   * APRESENTA: nenhuma fórmula é reimplementada aqui, e o motor do memorial
+   * continua sendo a única fonte de verdade do cálculo.
+   */
+  componentes: {
+    nome: string;
+    pmta: string | null;
+    espReq: string | null;
+    espNom: string | null;
+    material: string | null;
+    e: string | null;
+    s: string | null;
+    raio: string | null;
+    ca: string | null;
+  }[];
   memorial: string[];
+
+  /**
+   * Bloco 1 · a folha 5 da referência (DADOS TÉCNICOS / PRONTUÁRIO).
+   *
+   * Todos os campos saem de fonte que já existe: `nr13_emp_` (cliente),
+   * `nr13_info_` (construção/descrição) e `nr13_vaso_` (material, margem de
+   * corrosão, temperatura de projeto e pressão de projeto do memorial).
+   */
+  prontuario: {
+    contratante: string | null;
+    endereco: string | null;
+    materialCorpo: string | null;
+    tipoConstrucao: string | null;
+    materialTampo1: string | null;
+    materialTampo2: string | null;
+    volume: string | null;
+    pressaoProjeto: string | null;
+    margemCorrosao: string | null;
+    temperaturaProjeto: string | null;
+    descricaoResumida: string | null;
+  };
+  /** PMO / PMTA / PTH em MPa, psi e kgf/cm² — as unidades da referência. */
+  operacionais: { rotulo: string; mpa: string | null; psi: string | null; kgf: string | null }[];
+  /** A conta do enquadramento e a do grupo de risco, como a referência as mostra. */
+  categorizacaoDetalhe: {
+    pvKpa: string | null;
+    resultadoEnquadramento: string | null;
+    pvMpa: string | null;
+    resultadoGrupo: string | null;
+  };
+  /** Quem assina — a capa da referência traz nome e CREA. */
+  responsavel: { nome: string | null; registro: string | null };
 
   checklist: SecaoChecklistModelo[];
   comentariosDocumentacao: string | null;
@@ -181,9 +231,18 @@ export function converterPressao(mpa: number | null): {
   mpa: string | null;
   kgf: string | null;
   bar: string | null;
+  psi: string | null;
 } {
-  if (mpa === null || !Number.isFinite(mpa)) return { mpa: null, kgf: null, bar: null };
-  return { mpa: mpa.toFixed(3), kgf: (mpa * 10.19716).toFixed(2), bar: (mpa * 10).toFixed(2) };
+  if (mpa === null || !Number.isFinite(mpa)) return { mpa: null, kgf: null, bar: null, psi: null };
+  return {
+    mpa: mpa.toFixed(3),
+    // 1 MPa = 10,19716 kgf/cm² = 10 bar = 145,0377 psi. A referência imprime
+    // psi na folha do prontuário e kgf/cm² nas duas tabelas de pressão —
+    // renomear a coluna sem converter era o erro a evitar.
+    kgf: (mpa * 10.19716).toFixed(2),
+    bar: (mpa * 10).toFixed(2),
+    psi: (mpa * 145.0377).toFixed(1),
+  };
 }
 
 type FotoBruta = { base64?: string; descricao?: string };
@@ -266,6 +325,23 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
   // fórmula e o cálculo não são tocados, só a leitura.
   const pmta = converterPressao(numeroDoStorage(calc.pmta));
   const pth = converterPressao(numeroDoStorage(calc.pth));
+  // PMO é DECLARADA na ficha (pressão máxima de OPERAÇÃO), não calculada: o
+  // memorial calcula PMTA e PTH. Sem valor declarado, a linha sai vazia — e
+  // vazia é a resposta honesta, não a PMTA repetida.
+  const pmo = converterPressao(numeroDoStorage(info.pmoAdotadaMpa));
+
+  // O memorial do vaso guarda os dados construtivos por componente. Ler daqui
+  // é ler a MESMA verdade que gerou o cálculo — nada é recalculado.
+  const vaso = ler<{ P?: number | string; D?: number | string; componentes?: { id?: string; nome?: string; tipo?: string; dados?: Record<string, unknown> }[] }>(
+    `nr13_vaso_${tag}`,
+  ) ?? {};
+  const compsVaso = vaso.componentes ?? [];
+  const achaComp = (...tipos: string[]) =>
+    compsVaso.find((c) => tipos.includes(String(c.tipo ?? ""))) ?? null;
+  const casco = achaComp("casco", "cascoCilindrico", "costado");
+  const tampos = compsVaso.filter((c) => String(c.tipo ?? "").toLowerCase().includes("tampo"));
+  const dadoDe = (c: { dados?: Record<string, unknown> } | null, campo: string) =>
+    c ? txt((c.dados ?? {})[campo]) : null;
 
   return {
     tag,
@@ -326,7 +402,44 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
       espReq: txt(c.tReqMm),
       espNom: txt(c.tNom),
       material: txt(c.material),
+      e: txt(c.E),
+      s: txt(c.S),
+      raio: txt(c.raio),
+      ca: txt(c.ca),
     })),
+
+    prontuario: {
+      contratante: txt(emps.razaoSocial ?? emps.nomeFantasia),
+      endereco: txt([emps.endereco, emps.bairro, emps.cidade, emps.estado].filter(Boolean).join(", ")),
+      materialCorpo: dadoDe(casco, "mat") ?? txt(info.materialCorpo),
+      tipoConstrucao: txt(info.tipoConstrucao),
+      materialTampo1: dadoDe(tampos[0] ?? null, "mat"),
+      materialTampo2: dadoDe(tampos[1] ?? null, "mat"),
+      volume: numeroBr(info.volume) ?? numeroBr(cat.volInput),
+      // A pressão de PROJETO é a que o memorial usou (`nr13_vaso_.P`, em MPa).
+      pressaoProjeto: numeroDoStorage(vaso.P) !== null ? `${numeroDoStorage(vaso.P)!.toFixed(3)} MPa` : null,
+      margemCorrosao: dadoDe(casco, "ca"),
+      temperaturaProjeto: dadoDe(casco, "temp"),
+      descricaoResumida: txt(info.descricaoResumida) ?? txt(info.descricao),
+    },
+    operacionais: [
+      { rotulo: "PMO", mpa: pmo.mpa, psi: pmo.psi, kgf: pmo.kgf },
+      { rotulo: "PMTA", mpa: pmta.mpa, psi: pmta.psi, kgf: pmta.kgf },
+      { rotulo: "PTH", mpa: pth.mpa, psi: pth.psi, kgf: pth.kgf },
+    ],
+    categorizacaoDetalhe: {
+      // `PV_enq` e `PV_cat` são gravados por `calcularESalvarCategoria`; ler
+      // daqui é ler a conta que a calculadora já fez (§4 do CLAUDE.md: o
+      // enquadramento é kPa × m³, o grupo é MPa × m³).
+      pvKpa: numeroBr(cat.PV_enq),
+      resultadoEnquadramento: rotuloEnquadramento(cat.isEnquadrado),
+      pvMpa: numeroBr(cat.PV_cat),
+      resultadoGrupo: txt(cat.grupo) ? `Grupo de risco ${txt(cat.grupo)}` : null,
+    },
+    responsavel: {
+      nome: txt(meta?.assinantes?.engenheiro?.nome ?? meta?.phNome),
+      registro: txt(meta?.assinantes?.engenheiro?.crea ?? meta?.phCrea),
+    },
     // O MESMO extrator que a paginação do template usa — sem reimplementar
     // fórmula nenhuma.
     memorial: linhasMemorial(tag),

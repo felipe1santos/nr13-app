@@ -119,10 +119,12 @@ export class Documento {
     valor: string,
     multilinha: boolean,
     caixa: { x: number; y: number; larg: number; alt: number },
+    tipo: 'texto' | 'imagem' = 'texto',
   ): void {
     this.campos.push({
       id,
       rotulo,
+      tipo,
       auto,
       valor,
       origem: origemDoValor(this.overrides[id]),
@@ -130,6 +132,67 @@ export class Documento {
       pagina: this.pagina,
       ...caixa,
     });
+  }
+
+  /**
+   * Bloco 1 · UMA ÁREA DE IMAGEM do documento (foto de capa, logo, placa).
+   *
+   * Com imagem: desenha em `contain`, centralizada, sem distorcer — a mesma
+   * primitiva das fotos de inspeção.
+   *
+   * Sem imagem: em `preview`, o retângulo sai com o amarelo-claro e a legenda
+   * de convite; no documento FINAL sai apenas o fio cinza da referência
+   * (`.foto-capa:not(.tem-img) { border: .4pt solid #cfcfcf }`) — nunca o
+   * amarelo, nunca a legenda.
+   *
+   * A caixa é registrada como campo editável do tipo `imagem`: é assim que a
+   * prévia consegue pôr o clique EM CIMA da área, sem botão distante no topo.
+   */
+  areaImagem(opcoes: {
+    id: string;
+    rotulo: string;
+    dataUrl: string | null;
+    proporcao?: number;
+    altura: number;
+    x?: number;
+    largura?: number;
+    convite?: string;
+  }): void {
+    const x = opcoes.x ?? CAIXA.x;
+    const largura = opcoes.largura ?? CAIXA.largura;
+    this.garantirEspaco(opcoes.altura);
+    const y = this.cursor;
+
+    if (opcoes.dataUrl) {
+      foto(this.pdf, opcoes.dataUrl, { x, y, largura, altura: opcoes.altura }, opcoes.proporcao);
+    } else {
+      const vazioNaPrevia = this.modo === 'preview';
+      this.pdf.setDrawColor(vazioNaPrevia ? '#c9bd7a' : COR.bordaFoto);
+      this.pdf.setLineWidth(vazioNaPrevia ? BORDA_FINA : 0.4 * (25.4 / 72));
+      if (vazioNaPrevia) {
+        this.pdf.setFillColor(AMARELO_PREVIA);
+        this.pdf.rect(x, y, largura, opcoes.altura, 'FD');
+        this.pdf.setFont(FAMILIA, 'normal');
+        this.pdf.setFontSize(FONTE.nota);
+        this.pdf.setTextColor('#8a7a2e');
+        this.pdf.text(opcoes.convite ?? 'Clique para adicionar a imagem', x + largura / 2, y + opcoes.altura / 2, {
+          align: 'center',
+        });
+      } else {
+        this.pdf.rect(x, y, largura, opcoes.altura);
+      }
+    }
+
+    this.anotarCampo(
+      opcoes.id,
+      opcoes.rotulo,
+      opcoes.dataUrl ? '(imagem)' : '',
+      opcoes.dataUrl ? '(imagem)' : '',
+      false,
+      { x, y, larg: largura, alt: opcoes.altura },
+      'imagem',
+    );
+    this.cursor = y + opcoes.altura;
   }
 
   get paginaAtual(): number {
@@ -152,9 +215,24 @@ export class Documento {
   novaFolha(): void {
     if (this.pagina > 0) this.pdf.addPage();
     this.pagina++;
-    cabecalho({ pdf: this.pdf, cabecalho: this.cab }, this.pagina, this.total);
+    cabecalho({ pdf: this.pdf, cabecalho: this.cab }, this.pagina, this.total, this.modo === 'preview');
     rodape({ pdf: this.pdf, cabecalho: this.cab });
     this.cursor = CORPO.y;
+
+    // A logo é a MESMA em todas as folhas; registrar a área clicável em cada
+    // uma encheria a lista de campos com 21 entradas do mesmo campo. A da
+    // primeira folha basta — é onde o revisor está quando percebe a falta.
+    if (this.pagina === 1) {
+      this.anotarCampo(
+        'cabecalho.logo',
+        'Logo da empresa',
+        this.cab.logo ? '(imagem)' : '',
+        this.cab.logo ? '(imagem)' : '',
+        false,
+        { x: CAIXA.x, y: CAIXA.y, larg: 50, alt: 14 },
+        'imagem',
+      );
+    }
   }
 
   /** Quanto ainda cabe nesta folha. */
@@ -500,6 +578,14 @@ export interface CelulaDoc {
 export interface CampoEditavel {
   id: string;
   rotulo: string;
+  /**
+   * `texto` abre o editor de texto; `imagem` abre o seletor de arquivo.
+   *
+   * A área de imagem é o mesmo mecanismo: id semântico, caixa registrada pelo
+   * gerador e override por relatório. O que muda é o que o override guarda —
+   * o CAMINHO do arquivo no cofre, nunca Base64.
+   */
+  tipo: 'texto' | 'imagem';
   /** O que a fonte automática diz (antes do override). */
   auto: string;
   /** O que o documento está mostrando agora. */

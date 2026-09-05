@@ -1,4 +1,4 @@
-import { CAIXA, COR, FONTE, PT } from './documentoA4';
+import { CAIXA, COR, FONTE, PT, alturaLinha } from './documentoA4';
 import { secoesPresentes, type SecaoRelatorio } from './composicao';
 import { ALTURA_GRAFICO_TH, desenharGraficoTh, numeroDoTexto, pontosDaCurva } from './graficoTh';
 import { foto } from './primitivas';
@@ -138,45 +138,111 @@ export function folhaCapa(doc: Documento, m: ModeloRelatorio): void {
     id: 'capa.titulo',
     rotuloCampo: 'Título do documento',
   });
-  doc.texto(textoOu(m.equipamento['TIPO DE EQUIPAMENTO'], 'Equipamento') + ' · NR-13', {
+  doc.texto(`${textoOu(m.equipamento['TIPO DE EQUIPAMENTO'], 'Equipamento')} — NR-13`, {
     tamanho: FONTE.subtituloDoc,
     negrito: true,
     alinhamento: 'center',
+    id: 'capa.subtitulo',
+    rotuloCampo: 'Subtítulo do documento',
   });
-  doc.texto(textoOu(m.tipoInspecao, 'Inspeção'), {
+  // A referência traz a Portaria logo abaixo do subtítulo; é texto PADRÃO do
+  // documento (não dado do equipamento), e por isso nasce como default
+  // editável — quem precisar citar outra portaria reescreve neste relatório.
+  doc.texto('(Portaria nº 1.082, de 18 de dezembro de 2018)', {
     tamanho: FONTE.sigla,
     italico: true,
     cor: '#6a6a6a',
     alinhamento: 'center',
-    espacoAntes: 1,
+    espacoAntes: 0.8,
+    id: 'capa.portaria',
+    rotuloCampo: 'Portaria de referência',
   });
 
-  doc.y += 3;
-  tabelaChaveValor(
-    doc,
-    [
-      ['CONTRATANTE', m.cliente],
-      ['ENDEREÇO', m.clienteEndereco],
-      ['EQUIPAMENTO / T.A.G.', m.tag],
-      ['Nº DO RELATÓRIO', m.numeroRelatorio],
-      ['DATA DE EMISSÃO', m.emissao],
-      ['VALIDADE', m.validade],
+  doc.y += 2;
+  // Tabela superior da referência: quatro colunas, três linhas.
+  doc.tabela({
+    colunas: [0.22, 0.36, 0.14, 0.28],
+    linhas: [
+      [
+        { texto: 'EQUIPAMENTO', rotulo: true },
+        { texto: textoOu(m.equipamento['TIPO DE EQUIPAMENTO']), valor: true, id: 'capa.equipamento', rotuloCampo: 'Equipamento' },
+        { texto: 'T.A.G.', rotulo: true },
+        { texto: textoOu(m.tag), valor: true, id: 'capa.tag', rotuloCampo: 'T.A.G.' },
+      ],
+      [
+        { texto: 'CLASSE DO FLUIDO', rotulo: true },
+        { texto: textoOu(m.equipamento['CLASSE DO FLUIDO']), valor: true, id: 'capa.classe-do-fluido', rotuloCampo: 'Classe do fluido' },
+        { texto: 'GRUPO', rotulo: true },
+        { texto: textoOu(m.categoria.grupo), valor: true, id: 'capa.grupo', rotuloCampo: 'Grupo de risco' },
+      ],
+      [
+        { texto: 'CATEGORIA DO VASO', rotulo: true },
+        { texto: textoOu(m.categoria.catFinal), valor: true, id: 'capa.categoria', rotuloCampo: 'Categoria' },
+        { texto: 'VALIDADE', rotulo: true },
+        { texto: textoOu(m.validade), valor: true, id: 'capa.validade', rotuloCampo: 'Validade da inspeção' },
+      ],
     ],
-    1,
-    // O Nº DO RELATÓRIO entra como editável junto do resto: ele é campo
-    // DOCUMENTAL, e o override vale só para o texto impresso. O código que
-    // identifica o registro (`meta.codigo`, a chave do histórico e do rascunho)
-    // não é tocado por isto — quem edita muda o que se lê, não a identidade.
-    'capa',
-  );
+  });
 
-  if (m.fotoCapa) {
-    doc.y += 4;
-    foto(doc.pdf, m.fotoCapa, { x: CAIXA.x, y: doc.y, largura: CAIXA.largura, altura: 92 });
-    doc.y += 92;
-  }
+  // ── A FOTO PRINCIPAL, ELÁSTICA ──────────────────────────────────────────
+  //
+  // A referência usa `flex: 1 1 auto` com base de 92 mm: a foto OCUPA o que
+  // sobra entre as duas tabelas. Era isto que faltava — com 92 mm fixos e a
+  // foto no fim da folha, a capa do Modelo Novo terminava com um terço do
+  // papel em branco. Aqui a altura é calculada: o que resta até o rodapé,
+  // menos a tabela de baixo (6 linhas) e os respiros.
+  const ALTURA_TABELA_INFERIOR = 6 * (alturaLinha(FONTE.tabela) + 1.2) + 2;
+  const disponivel = doc.espacoRestante - ALTURA_TABELA_INFERIOR - 6;
+  const alturaFoto = Math.max(40, Math.min(disponivel, 150));
+  doc.y += 3;
+  doc.areaImagem({
+    id: 'capa.foto',
+    rotulo: 'Foto do equipamento (capa)',
+    dataUrl: m.fotoCapa,
+    altura: alturaFoto,
+    convite: 'Clique para adicionar a foto do equipamento',
+  });
+  doc.y += 3;
+
+  // ── BLOCO INFERIOR DE DADOS ─────────────────────────────────────────────
+  doc.tabela({
+    colunas: [0.26, 0.74],
+    linhas: [
+      [
+        { texto: 'Nº DO RELATÓRIO', rotulo: true },
+        { texto: textoOu(m.numeroRelatorio), valor: true, id: 'capa.n-do-relatorio', rotuloCampo: 'Nº do relatório' },
+      ],
+      [
+        { texto: 'Nº DA A.R.T. (CREA)', rotulo: true },
+        // A A.R.T. não existe como cadastro no sistema. Nasce como campo
+        // DOCUMENTAL vazio: amarelo na prévia, preenchido à mão, e nada é
+        // inventado quando ninguém preenche.
+        { texto: '', valor: true, id: 'capa.art', rotuloCampo: 'Nº da A.R.T. (CREA)' },
+      ],
+      [
+        { texto: 'DATA DA INSPEÇÃO', rotulo: true },
+        { texto: textoOu(m.execucao ?? m.emissao), valor: true, id: 'capa.data-da-inspecao', rotuloCampo: 'Data da inspeção' },
+      ],
+      [
+        { texto: 'SOLICITANTE / CONTRATANTE', rotulo: true },
+        { texto: textoOu(m.cliente), valor: true, id: 'capa.contratante', rotuloCampo: 'Solicitante / contratante' },
+      ],
+      [
+        { texto: 'ENDEREÇO', rotulo: true },
+        { texto: textoOu(m.clienteEndereco), valor: true, id: 'capa.endereco', rotuloCampo: 'Endereço' },
+      ],
+      [
+        { texto: 'RESPONSÁVEL TÉCNICO', rotulo: true },
+        {
+          texto: [textoOu(m.responsavel.nome), `CREA: ${textoOu(m.responsavel.registro)}`].join('   •   '),
+          valor: true,
+          id: 'capa.responsavel',
+          rotuloCampo: 'Responsável técnico e CREA',
+        },
+      ],
+    ],
+  });
 }
-
 // ── 2. SUMÁRIO / OBJETIVO / REFERÊNCIAS ─────────────────────────────────────
 export function folhaSumario(doc: Documento, m: ModeloRelatorio, secoes: string[]): void {
   doc.novaFolha();
@@ -393,25 +459,109 @@ export function folhaCategorizacao(doc: Documento, m: ModeloRelatorio): void {
 export function folhaDadosTecnicos(doc: Documento, m: ModeloRelatorio): void {
   doc.novaFolha();
   doc.banner('5. DADOS TÉCNICOS DO EQUIPAMENTO — PRONTUÁRIO');
-  doc.faixa('ASPECTOS CONSTRUTIVOS');
-  if (m.componentes.length > 0) {
-    doc.tabela({
-      compacta: true,
-      colunas: [0.3, 0.18, 0.18, 0.16, 0.18],
-      cabecalho: ['COMPONENTE', 'PMTA (MPa)', 'ESP. REQ. (mm)', 'ESP. NOM.', 'MATERIAL'],
-      linhas: m.componentes.map((c) => [
-        { texto: c.nome },
-        { texto: textoOu(c.pmta), centro: true, valor: true },
-        { texto: textoOu(c.espReq), centro: true, valor: true },
-        { texto: textoOu(c.espNom), centro: true, valor: true },
-        { texto: textoOu(c.material), centro: true },
-      ]),
-    });
-  } else {
-    doc.texto('Memorial sem componentes calculados.', { tamanho: FONTE.nota, cor: COR.nota, espacoAntes: 2 });
-  }
-}
 
+  doc.faixa('DADOS GERAIS');
+  tabelaChaveValor(
+    doc,
+    [
+      ['CONTRATANTE', m.prontuario.contratante],
+      ['ENDEREÇO', m.prontuario.endereco],
+    ],
+    1,
+    'prontuario',
+  );
+
+  doc.faixa('ASPECTOS CONSTRUTIVOS');
+  tabelaChaveValor(
+    doc,
+    [
+      ['MATERIAL DO CORPO', m.prontuario.materialCorpo],
+      ['TIPO DE CONSTRUÇÃO', m.prontuario.tipoConstrucao],
+      ['MATERIAL DO TAMPO 1', m.prontuario.materialTampo1],
+      ['MATERIAL DO TAMPO 2', m.prontuario.materialTampo2],
+      ['VOLUME (m³)', m.prontuario.volume],
+      ['PRESSÃO DE PROJETO', m.prontuario.pressaoProjeto],
+      ['MARGEM DE CORROSÃO (mm)', m.prontuario.margemCorrosao],
+      ['TEMPERATURA DE PROJETO (°C)', m.prontuario.temperaturaProjeto],
+    ],
+    2,
+    'prontuario',
+  );
+  doc.tabela({
+    colunas: [0.3, 0.7],
+    linhas: [
+      [
+        { texto: 'DESCRIÇÃO RESUMIDA', rotulo: true },
+        {
+          texto: textoOu(m.prontuario.descricaoResumida),
+          valor: true,
+          id: 'prontuario.descricao-resumida',
+          rotuloCampo: 'Descrição resumida',
+          multilinha: true,
+        },
+      ],
+    ],
+  });
+
+  // ASPECTOS OPERACIONAIS — MPa · psi · kgf/cm², as unidades da referência.
+  // Os três valores saem convertidos do MESMO número em MPa; nenhuma coluna é
+  // apenas renomeada.
+  doc.faixa('ASPECTOS OPERACIONAIS');
+  doc.tabela({
+    colunas: [0.4, 0.2, 0.2, 0.2],
+    cabecalho: ['GRANDEZA', 'MPa', 'psi', 'kgf/cm²'],
+    linhas: m.operacionais.map((o) => [
+      { texto: o.rotulo, rotulo: true },
+      { texto: textoOu(o.mpa), centro: true, valor: true, id: idCampo('operacionais', o.rotulo + ' MPa'), rotuloCampo: `${o.rotulo} (MPa)` },
+      { texto: textoOu(o.psi), centro: true, valor: true, id: idCampo('operacionais', o.rotulo + ' psi'), rotuloCampo: `${o.rotulo} (psi)` },
+      { texto: textoOu(o.kgf), centro: true, valor: true, id: idCampo('operacionais', o.rotulo + ' kgf'), rotuloCampo: `${o.rotulo} (kgf/cm²)` },
+    ]),
+  });
+  doc.texto(
+    'Legenda: PMO — Pressão Máxima de Operação · PMTA — Pressão Máxima de Trabalho Admissível · ' +
+      'PTH — Pressão de Teste Hidrostático.',
+    { tamanho: FONTE.nota, cor: COR.nota, espacoAntes: 1.2, id: 'prontuario.legenda', rotuloCampo: 'Legenda das pressões' },
+  );
+
+  doc.faixa('CATEGORIZAÇÃO DO EQUIPAMENTO');
+  doc.tabela({
+    colunas: [0.32, 0.18, 0.2, 0.3],
+    linhas: [
+      [
+        { texto: 'RELAÇÃO: P (kPa) × V (m³)', rotulo: true },
+        { texto: textoOu(m.categorizacaoDetalhe.pvKpa), centro: true, valor: true, id: 'categorizacao.pv-kpa', rotuloCampo: 'P (kPa) × V' },
+        { texto: 'RESULTADO', rotulo: true },
+        { texto: textoOu(m.categorizacaoDetalhe.resultadoEnquadramento), valor: true, id: 'categorizacao.resultado-enquadramento', rotuloCampo: 'Resultado do enquadramento' },
+      ],
+      [
+        { texto: 'RELAÇÃO: P (MPa) × V (m³)', rotulo: true },
+        { texto: textoOu(m.categorizacaoDetalhe.pvMpa), centro: true, valor: true, id: 'categorizacao.pv-mpa', rotuloCampo: 'P (MPa) × V' },
+        { texto: 'RESULTADO', rotulo: true },
+        { texto: textoOu(m.categorizacaoDetalhe.resultadoGrupo), valor: true, id: 'categorizacao.resultado-grupo', rotuloCampo: 'Resultado do grupo de risco' },
+      ],
+      [
+        { texto: 'CLASSIFICAÇÃO DO FLUIDO', rotulo: true },
+        { texto: textoOu(m.equipamento['CLASSE DO FLUIDO']), centro: true, valor: true, id: 'categorizacao.classificacao-fluido', rotuloCampo: 'Classificação do fluido' },
+        { texto: 'GRUPO / CATEGORIA', rotulo: true },
+        {
+          texto: `${textoOu(m.categoria.grupo)} / ${textoOu(m.categoria.catFinal)}`,
+          valor: true,
+          id: 'categorizacao.grupo-categoria',
+          rotuloCampo: 'Grupo / categoria',
+        },
+      ],
+    ],
+  });
+
+  // Bloco textual: não existe fonte automática para observações do prontuário.
+  // Nasce vazio (amarelo na prévia) e o engenheiro escreve o que precisa.
+  doc.secao('OBSERVAÇÕES E PENDÊNCIAS DO PRONTUÁRIO');
+  doc.texto('', {
+    cor: COR.valor,
+    id: 'prontuario.observacoes',
+    rotuloCampo: 'Observações e pendências do prontuário',
+  });
+}
 // ── 6. RESUMO DOS CÁLCULOS ──────────────────────────────────────────────────
 export function folhaResumoCalculos(doc: Documento, m: ModeloRelatorio): void {
   doc.novaFolha();
@@ -419,22 +569,67 @@ export function folhaResumoCalculos(doc: Documento, m: ModeloRelatorio): void {
   doc.tabela({
     colunas: [0.4, 0.2, 0.2, 0.2],
     cabecalho: ['GRANDEZA', 'MPa', 'kgf/cm²', 'bar'],
-    linhas: m.pressoes.map((p) => [
-      { texto: p.rotulo, rotulo: true },
-      { texto: textoOu(p.mpa), centro: true, valor: true },
-      { texto: textoOu(p.kgf), centro: true, valor: true },
-      { texto: textoOu(p.bar), centro: true, valor: true },
+    linhas: m.pressoes.map((pr) => [
+      { texto: pr.rotulo, rotulo: true },
+      { texto: textoOu(pr.mpa), centro: true, valor: true, id: idCampo('pressoes', pr.rotulo + ' MPa'), rotuloCampo: `${pr.rotulo} (MPa)` },
+      { texto: textoOu(pr.kgf), centro: true, valor: true, id: idCampo('pressoes', pr.rotulo + ' kgf'), rotuloCampo: `${pr.rotulo} (kgf/cm²)` },
+      { texto: textoOu(pr.bar), centro: true, valor: true, id: idCampo('pressoes', pr.rotulo + ' bar'), rotuloCampo: `${pr.rotulo} (bar)` },
     ]),
   });
+
+  // ── PARÂMETROS POR COMPONENTE ───────────────────────────────────────────
+  //
+  // A referência dedica uma FAIXA a cada componente (casco, tampo superior,
+  // tampo inferior) com oito parâmetros. Todos já existiam em
+  // `nr13_calc_<TAG>.componentes[]`, gravados pelo motor do memorial: E, S,
+  // raio, margem de corrosão, espessura comercial medida, espessura mínima e a
+  // PMTA daquele componente. Nada é recalculado aqui — o relatório apresenta.
+  //
+  // A tabela do `Documento` já quebra entre folhas repetindo o cabeçalho, então
+  // um equipamento com muitos componentes pagina sozinho, sem corte.
+  for (const c of m.componentes) {
+    doc.faixa(`PARÂMETROS E RESULTADOS: ${c.nome.toUpperCase()}`);
+    const pref = idCampo('componente', c.nome);
+    doc.tabela({
+      compacta: true,
+      colunas: [0.28, 0.22, 0.28, 0.22],
+      linhas: [
+        [
+          { texto: 'ESPESSURA MÍN. CALCULADA (t)', rotulo: true },
+          { texto: textoOu(c.espReq), centro: true, valor: true, id: `${pref}.esp-min-calculada`, rotuloCampo: `${c.nome} — espessura mínima calculada` },
+          { texto: 'PMTA CALCULADA (P)', rotulo: true },
+          { texto: textoOu(c.pmta), centro: true, valor: true, id: `${pref}.pmta`, rotuloCampo: `${c.nome} — PMTA calculada` },
+        ],
+        [
+          { texto: 'EFICIÊNCIA DA JUNTA (E)', rotulo: true },
+          { texto: textoOu(c.e), centro: true, valor: true, id: `${pref}.eficiencia`, rotuloCampo: `${c.nome} — eficiência da junta` },
+          { texto: 'ESP. MÍN. MEDIDA (t)', rotulo: true },
+          { texto: textoOu(c.espNom), centro: true, valor: true, id: `${pref}.esp-medida`, rotuloCampo: `${c.nome} — espessura medida` },
+        ],
+        [
+          { texto: 'MARGEM DE CORROSÃO (c)', rotulo: true },
+          { texto: textoOu(c.ca), centro: true, valor: true, id: `${pref}.margem`, rotuloCampo: `${c.nome} — margem de corrosão` },
+          { texto: 'RAIO INTERNO (Ri)', rotulo: true },
+          { texto: textoOu(c.raio), centro: true, valor: true, id: `${pref}.raio`, rotuloCampo: `${c.nome} — raio interno` },
+        ],
+        [
+          { texto: 'MATERIAL', rotulo: true },
+          { texto: textoOu(c.material), centro: true, valor: true, id: `${pref}.material`, rotuloCampo: `${c.nome} — material` },
+          { texto: 'TENSÃO ADMISSÍVEL (S)', rotulo: true },
+          { texto: textoOu(c.s), centro: true, valor: true, id: `${pref}.tensao`, rotuloCampo: `${c.nome} — tensão admissível` },
+        ],
+      ],
+    });
+  }
+
   doc.secao('Conclusão do cálculo');
   doc.texto(
     m.componentes.length > 0
       ? `A PMTA do equipamento é a MENOR entre as ${m.componentes.length} PMTA calculadas por componente.`
       : 'Sem cálculo de componentes registrado para este equipamento.',
-    { cor: COR.valor },
+    { cor: COR.valor, id: 'resumo.conclusao', rotuloCampo: 'Conclusão do cálculo' },
   );
 }
-
 // ── 7. MEMÓRIA DE CÁLCULO (quantas folhas forem precisas) ───────────────────
 export function folhasMemoria(doc: Documento, m: ModeloRelatorio): void {
   doc.novaFolha();
@@ -712,11 +907,47 @@ export function folhasTesteHidrostatico(doc: Documento, m: ModeloRelatorio, comF
 // ── 20. RECOMENDAÇÕES, PARECER, PRÓXIMAS INSPEÇÕES E ASSINATURAS ────────────
 export function folhaParecer(doc: Documento, m: ModeloRelatorio): void {
   doc.novaFolha();
+
+  // ── 9. RECOMENDAÇÕES DE SEGURANÇA ───────────────────────────────────────
+  //
+  // O sistema NÃO tem recomendações estruturadas: não existe formulário, chave
+  // nem campo que as guarde (auditado em 05/09/2026). Inventar uma origem
+  // automática aqui produziria recomendação que ninguém escreveu, num documento
+  // assinado.
+  //
+  // Então a seção existe como a referência a desenha — quatro linhas numeradas
+  // com recomendação e prazo —, cada célula vazia, amarela na prévia e
+  // preenchida à mão. Quando houver origem estruturada, ela entra por aqui sem
+  // mudar o desenho.
+  doc.banner('9. RECOMENDAÇÕES DE SEGURANÇA');
+  doc.tabela({
+    compacta: true,
+    colunas: [0.08, 0.62, 0.3],
+    cabecalho: ['ITEM', 'RECOMENDAÇÃO', 'PRAZO'],
+    linhas: [1, 2, 3, 4].map((n) => [
+      { texto: String(n), centro: true },
+      { texto: '', valor: true, id: `recomendacoes.${n}.texto`, rotuloCampo: `Recomendação ${n}`, multilinha: true },
+      { texto: '', valor: true, centro: true, id: `recomendacoes.${n}.prazo`, rotuloCampo: `Prazo da recomendação ${n}` },
+    ]),
+  });
+
+  doc.y += 3;
   doc.banner('10. PARECER TÉCNICO CONCLUSIVO');
   doc.tabela({
     compacta: true,
     colunas: [0.7, 0.3],
     linhas: [
+      [
+        // A referência pergunta primeiro pela PMTA: manter a PMTA é decisão
+        // técnica separada do "apto a operar". Sem fonte automática — é o
+        // engenheiro que responde neste relatório.
+        { texto: 'A Pressão Máxima de Trabalho Admissível (PMTA) pode ser mantida?', rotulo: true },
+        { texto: '', centro: true, valor: true, id: 'parecer.pmta-mantida', rotuloCampo: 'A PMTA pode ser mantida?' },
+      ],
+      [
+        { texto: 'Se não, justifique:', rotulo: true },
+        { texto: '', valor: true, id: 'parecer.justificativa', rotuloCampo: 'Justificativa da PMTA', multilinha: true },
+      ],
       [
         {
           texto: 'O equipamento está apto a operar nas condições de segurança da NR-13?',

@@ -23,12 +23,15 @@ export default function EditorCampoDocumento({
   onSalvar,
   onRestaurar,
   onFechar,
+  onEscolherImagem,
 }: {
   campo: CampoEditavel;
   ocupado?: boolean;
   onSalvar: (texto: string) => void;
   onRestaurar: () => void;
   onFechar: () => void;
+  /** Só para campos de imagem: o arquivo escolhido pelo usuário. */
+  onEscolherImagem?: (arquivo: File) => void;
 }) {
   const [texto, setTexto] = useState(campo.valor);
   const campoRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
@@ -44,6 +47,61 @@ export default function EditorCampoDocumento({
   }, [campo]);
 
   const manual = campo.origem !== 'auto';
+
+  // ── ÁREA DE IMAGEM ──────────────────────────────────────────────────────
+  //
+  // A troca acontece NO LUGAR da imagem, e não num botão distante no topo:
+  // trocar, remover e voltar ao automático são as três decisões possíveis, e
+  // estão as três aqui. "Remover" grava vazio de propósito (a foto do cadastro
+  // não volta); "Restaurar automático" desfaz a escolha deste relatório.
+  if (campo.tipo === 'imagem') {
+    return (
+      <div className="edcampo" role="dialog" aria-label={`Editar ${campo.rotulo}`}>
+        <div className="edcampo-topo">
+          <strong>{campo.rotulo}</strong>
+          <button type="button" className="edcampo-x" onClick={onFechar} aria-label="Fechar">
+            ×
+          </button>
+        </div>
+        <p className="edcampo-nota">
+          {campo.origem === 'branco'
+            ? 'Área deixada em branco neste relatório.'
+            : campo.valor
+              ? 'Há uma imagem nesta área.'
+              : 'Área sem imagem.'}{' '}
+          Vale só para este relatório — o cadastro do sistema não é alterado.
+        </p>
+        <div className="edcampo-acoes">
+          <label className={`fj-btn fj-btn-primary${ocupado ? ' is-loading' : ''}`}>
+            <Icone nome="upload" tam={13} /> Escolher imagem
+            <input
+              type="file"
+              accept="image/*"
+              hidden
+              disabled={ocupado}
+              onChange={(e) => {
+                const arquivo = e.target.files?.[0];
+                if (arquivo) onEscolherImagem?.(arquivo);
+                e.target.value = '';
+              }}
+            />
+          </label>
+          <button type="button" className="fj-btn fj-btn-ghost" onClick={() => onSalvar('')} disabled={ocupado}>
+            <Icone nome="trash" tam={13} /> Remover imagem
+          </button>
+          <span className="edcampo-espaco" />
+          {manual && (
+            <button type="button" className="fj-btn fj-btn-ghost" onClick={onRestaurar} disabled={ocupado}>
+              <Icone nome="refresh" tam={13} /> Restaurar automático
+            </button>
+          )}
+          <button type="button" className="fj-btn fj-btn-ghost" onClick={onFechar} disabled={ocupado}>
+            Fechar
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="edcampo" role="dialog" aria-label={`Editar ${campo.rotulo}`}>

@@ -7,6 +7,7 @@ import { montarModeloRelatorio } from './pdfVetorial/modelo';
 import type { CampoEditavel } from './pdfVetorial/documento';
 import { oQueFalta, type DestinoEdicao, type ItemFaltante } from './oQueFalta';
 import EditorCampoDocumento from './EditorCampoDocumento';
+import { prepararImagem } from './imagensDoDocumento';
 import {
   carregarOverrides,
   comOverride,
@@ -132,6 +133,28 @@ export default function PreviaVetorial({
     [idRelatorio, tag, gerar, onOverrides],
   );
 
+  /**
+   * Bloco 1 · a imagem escolhida vira override DESTE relatório.
+   *
+   * O arquivo sobe pelo cofre (fila offline por baixo) e o override guarda o
+   * CAMINHO — nunca os bytes. É a mesma razão do §2-bis: Base64 numa chave lida
+   * a cada geração é o que estourou a cota deste sistema uma vez.
+   */
+  const trocarImagem = useCallback(
+    async (campo: CampoEditavel, arquivo: File) => {
+      setSalvandoCampo(true);
+      setErro('');
+      try {
+        const valor = await prepararImagem(arquivo);
+        await aplicar(comOverride(overrides, campo.id, overrideDeTexto(valor, campo.auto)));
+      } catch (e) {
+        setErro(textoDoErro(e, 'Não foi possível usar esta imagem.'));
+      } finally {
+        setSalvandoCampo(false);
+      }
+    },
+    [aplicar, overrides],
+  );
   const camposPorPagina = useMemo(() => {
     const mapa = new Map<number, CampoEditavel[]>();
     for (const c of editaveis) {
@@ -262,6 +285,7 @@ export default function PreviaVetorial({
               campo={emEdicao}
               ocupado={salvandoCampo}
               onFechar={() => setEmEdicao(null)}
+              onEscolherImagem={(arquivo) => void trocarImagem(emEdicao, arquivo)}
               onSalvar={(texto) =>
                 void aplicar(comOverride(overrides, emEdicao.id, overrideDeTexto(texto, emEdicao.auto)))
               }
