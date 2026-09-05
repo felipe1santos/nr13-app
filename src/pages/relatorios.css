@@ -1974,10 +1974,15 @@ body.doc-foco .meta-barra-fixa { padding-top: 6px; padding-bottom: 6px; }
   .rel-page .rel-linha [data-rot='Criação'] { grid-column: 2; grid-row: 4; }
   .rel-page .rel-linha [data-rot='Validade'] { grid-column: 3; grid-row: 4; }
   .rel-page .rel-linha [data-rot='Próxima'] { grid-column: 4; grid-row: 4; }
-  /* Datas curtas não quebram em duas linhas dentro do cartão. */
+  /* As três datas dividem a largura do cartão: em 386px cada uma tem ~92px, e
+     'CRIAÇÃO: 05/09/2026' numa linha só mede 109px — o valor saía cortado. O
+     rótulo sobe para cima do valor, e os dois cabem. */
   .rel-page .rel-linha [data-rot='Criação'],
   .rel-page .rel-linha [data-rot='Validade'],
-  .rel-page .rel-linha [data-rot='Próxima'] { white-space: nowrap; font-size: 11px; }
+  .rel-page .rel-linha [data-rot='Próxima'] { white-space: nowrap; font-size: 11px; line-height: 1.3; }
+  .rel-page .rel-linha [data-rot='Criação']::before,
+  .rel-page .rel-linha [data-rot='Validade']::before,
+  .rel-page .rel-linha [data-rot='Próxima']::before { display: block; font-size: 9px; }
   .rel-page .rel-linha [data-rot='Situação']::before { content: none; }
   .rel-page .rel-cel-acoes {
     grid-column: 2 / -1;
