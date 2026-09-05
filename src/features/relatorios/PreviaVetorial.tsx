@@ -236,7 +236,21 @@ export default function PreviaVetorial({
               )}
             />
           ) : (
-            <div className="vpdf-aviso">{gerando ? 'Desenhando o documento…' : 'Sem prévia.'}</div>
+            <div className="vpdf-aviso">
+              {gerando ? (
+                'Desenhando o documento…'
+              ) : (
+                <>
+                  {/* A geração de abertura pode não completar (aba congelada pelo
+                      navegador, por exemplo). Um aviso morto deixaria o revisor sem
+                      saída; o botão devolve o controle. */}
+                  A prévia ainda não foi desenhada.{' '}
+                  <button type="button" className="fj-btn fj-btn-ghost" onClick={() => void gerar()}>
+                    Gerar prévia
+                  </button>
+                </>
+              )}
+            </div>
           )}
         </div>
       </div>
