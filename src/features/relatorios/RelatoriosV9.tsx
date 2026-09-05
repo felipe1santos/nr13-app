@@ -47,6 +47,7 @@ import {
   type MapaEmpresas,
 } from './empresasPorTag';
 import { filtrarRascunhos, listarRascunhos, type RascunhoItem } from './rascunhos';
+import { rotuloSituacao, situacaoDaLinha, totalNaTela, unificarLista } from './listaUnificada';
 import {
   arquivarRelatorio,
   desarquivarRelatorio,
@@ -363,6 +364,19 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
   );
 
   /**
+   * A LISTA DA TELA — uma só (hotfix de UX, 05/09/2026).
+   *
+   * Antes eram duas tabelas empilhadas, com dois cabeçalhos: a tela parecia
+   * clonada e, para achar um documento, era preciso decidir antes em qual das
+   * duas procurar. Rascunho e emitido convivem na mesma listagem, separados
+   * pelo selo de situação. Ver `listaUnificada.ts`.
+   */
+  const linhas = useMemo(
+    () => unificarLista(rascunhosVisiveis, visiveis),
+    [rascunhosVisiveis, visiveis],
+  );
+
+  /**
    * Com empresa escolhida, a lista precisa estar INTEIRA antes de o filtro
    * poder ser lido como resposta: filtrar só a primeira página mostraria "3
    * relatórios" para quem tem 40, sem nada na tela dizendo que faltam. Então a
@@ -455,9 +469,14 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
    * não conhece o filtro), então quem conta é a lista da tela. Enquanto ainda
    * há páginas por vir, `exato: false` — o número ainda vai subir.
    */
+  // A contagem fala da LISTA que está na tela, e o rascunho está nela desde
+  // o hotfix de 05/09/2026. Contar só os emitidos anunciaria menos linhas do
+  // que se vê — o mesmo relato de 'sumiu' com outro nome.
   const contagemNaTela: ContagemRelatorios | null = fEmpresa
-    ? { total: visiveis.length, exato: !temMais, historicos: 0 }
-    : contagem;
+    ? { total: totalNaTela(rascunhosVisiveis.length, visiveis.length), exato: !temMais, historicos: 0 }
+    : contagem
+      ? { ...contagem, total: totalNaTela(rascunhosVisiveis.length, contagem.total) }
+      : null;
 
   function limparTudo() {
     setParams(new URLSearchParams(), { replace: true });
@@ -671,74 +690,6 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
         </div>
       )}
 
-      {/*
-        RASCUNHOS — em cima, e visualmente separados do que já foi emitido.
-
-        Bloco próprio em vez de misturados na lista: eles não têm data de
-        emissão fixada, não têm PDF e não têm SHA, então não têm o que preencher
-        nas colunas que a lista de baixo mostra. Misturá-los produziria linhas
-        com quatro travessões e um badge — e a diferença entre "documento
-        assinado" e "trabalho em andamento" viraria um detalhe de cor.
-
-        O ícone é OUTRO (lápis), nunca o do PDF: o do PDF significa "existe um
-        arquivo arquivado", e aqui não existe nenhum.
-      */}
-      {rascunhosVisiveis.length > 0 && (
-        <section className="rel-rascunhos" aria-label="Relatórios em rascunho">
-          <h2 className="rel-rascunhos-titulo">
-            <Icone nome="pencil" tam={13} /> Em rascunho ({rascunhosVisiveis.length})
-            <span>não geram vencimento, Livro nem aparecem no Portal</span>
-          </h2>
-          <div className="rel-tabela-v9">
-            {rascunhosVisiveis.map((r) => (
-              <div className="rel-linha rel-linha-rascunho" role="row" key={r.id}>
-                <span role="cell" className="rel-cel-icone">
-                  <span className="rel-ico-rascunho" title="Relatório em edição — ainda não finalizado">
-                    <Icone nome="pencil" tam={14} />
-                  </span>
-                </span>
-                <span role="cell" className="rel-cel-nome" title={r.nome}>
-                  {r.codigo || r.nome}
-                  <small className="rel-cel-empresa">
-                    atualizado em {dataHoraBr(r.atualizadoEm)}
-                  </small>
-                </span>
-                <span role="cell" className="rel-cel-tag">{r.tag}</span>
-                <span role="cell" data-rot="Tipo">
-                  <span className="badge-tipo-inspecao">{ou(r.tipo)}</span>
-                </span>
-                <span role="cell" data-rot="Situação">
-                  <span className="rel-badge-rascunho">RASCUNHO</span>
-                </span>
-                <span role="cell" />
-                <span role="cell" className="rel-cel-acoes">
-                  <button
-                    type="button"
-                    className="btn-icone cor-azul"
-                    title="Continuar editando"
-                    aria-label={`Continuar editando ${r.codigo || r.nome}`}
-                    onClick={() => aoContinuarRascunho?.(r)}
-                  >
-                    <Icone nome="pencil" tam={15} />
-                  </button>
-                  {/* Rascunho é o ÚNICO que pode ser destruído: nada nele foi
-                      emitido — sem PDF, sem SHA, sem índice, sem vencimento. */}
-                  <button
-                    type="button"
-                    className="btn-icone"
-                    title="Excluir rascunho definitivamente"
-                    aria-label={`Excluir o rascunho ${r.codigo || r.nome}`}
-                    onClick={() => setExcluindoRascunho(r)}
-                  >
-                    <Icone nome="trash" tam={14} />
-                  </button>
-                </span>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
       {erro && (
         <div className="rel-aviso-erro" role="status">
           {erro}
@@ -815,7 +766,7 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
         />
       )}
 
-      {visiveis.length > 0 && (
+      {linhas.length > 0 && (
         <div className="rel-tabela-v9" role="table" aria-label="Relatórios">
           <div className="rel-linha rel-linha-cabecalho" role="row">
             <span role="columnheader" aria-label="Arquivo" />
@@ -824,6 +775,7 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
             <span role="columnheader">Tipo</span>
             <span role="columnheader">Criação</span>
             <span role="columnheader">Validade</span>
+            <span role="columnheader">Situação</span>
             <span role="columnheader">Ações</span>
           </div>
 
@@ -831,8 +783,8 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
               que a organização tem. "Carregar mais" acumula itens no estado, e
               sem isto 20 páginas seriam 1.000 linhas no DOM. */}
           <ListaVirtualizada
-            itens={visiveis}
-            chaveDe={(r) => r.relatorioId}
+            itens={linhas}
+            chaveDe={(l) => l.chave}
             alturaEstimada={ALT_LINHA}
             classeGrade="rel-corpo-v9"
             aoChegarNoFim={carregarMais}
@@ -843,102 +795,146 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
                 </div>
               ) : null
             }
-            desenhar={(r) => (
-              <div className="rel-linha" role="row">
-                {/* Ícone de PDF: o arquivo real que o dono do sistema mandou
-                    usar (`public/icones/pdf.jpg`). Ele marca o relatório
-                    FINALIZADO — o que tem `pdfRef`, o artefato do §7-quater.
-                    Relatório legado, sem arquivo, ganha a marca vazia: a
-                    diferença entre "tem PDF arquivado" e "só existe como
-                    receita" é o que a coluna comunica.
+            desenhar={(linha) => {
+              const sit = situacaoDaLinha(linha, arquivados);
 
-                    A imagem é decorativa aqui (o texto ao lado já diz o que a
-                    linha é), por isso `alt=""`. E ela NÃO é o PDF: continua
-                    valendo a regra da 9E — listar não toca arquivo nenhum. */}
-                <span role="cell" className="rel-cel-icone">
-                  {r.pdfRef ? (
-                    <img
-                      className="rel-ico-pdf"
-                      src="/icones/pdf.webp"
-                      alt=""
-                      loading="lazy"
-                      title="Relatório finalizado (PDF arquivado)"
-                    />
-                  ) : (
-                    <span className="rel-ico-sem-pdf" title="Relatório sem PDF arquivado (anterior ao arquivamento)">
+              /* RASCUNHO na MESMA lista (hotfix de UX, 05/09/2026): duas
+                 tabelas empilhadas faziam a tela parecer clonada. A diferença
+                 vive no acento da linha, no ícone e no selo — não numa segunda
+                 tabela. As ações continuam as de sempre: rascunho é o único que
+                 pode ser destruído, porque nada nele foi emitido. */
+              if (linha.tipo === 'rascunho') {
+                const r = linha.rascunho;
+                return (
+                  <div className="rel-linha rel-linha-rascunho" role="row">
+                    <span role="cell" className="rel-cel-icone">
+                      <span className="rel-marca rel-marca-rascunho" title="Relatório em edição — ainda não finalizado">
+                        <Icone nome="pencil" tam={15} />
+                      </span>
+                    </span>
+                    <span role="cell" className="rel-cel-nome" title={r.nome}>
+                      {r.codigo || r.nome}
+                      <small className="rel-cel-empresa">atualizado em {dataHoraBr(r.atualizadoEm)}</small>
+                    </span>
+                    <span role="cell" className="rel-cel-tag">{r.tag}</span>
+                    <span role="cell" data-rot="Tipo">
+                      <span className="badge-tipo-inspecao">{ou(r.tipo)}</span>
+                    </span>
+                    <span role="cell" data-rot="Criação">{dataBr(r.criadoEm)}</span>
+                    <span role="cell" data-rot="Validade">—</span>
+                    <span role="cell" data-rot="Situação">
+                      <span className="rel-selo rel-selo-rascunho">{rotuloSituacao(sit)}</span>
+                    </span>
+                    <span role="cell" className="rel-cel-acoes">
+                      <button
+                        type="button"
+                        className="btn-icone cor-azul"
+                        title="Continuar editando"
+                        aria-label={`Continuar editando ${r.codigo || r.nome}`}
+                        onClick={() => aoContinuarRascunho?.(r)}
+                      >
+                        <Icone nome="pencil" tam={15} />
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-icone"
+                        title="Excluir rascunho definitivamente"
+                        aria-label={`Excluir o rascunho ${r.codigo || r.nome}`}
+                        onClick={() => setExcluindoRascunho(r)}
+                      >
+                        <Icone nome="trash" tam={14} />
+                      </button>
+                    </span>
+                  </div>
+                );
+              }
+
+              const r = linha.item;
+              return (
+                <div className={`rel-linha${sit === 'arquivado' ? ' rel-linha-arquivada' : ''}`} role="row">
+                  {/* A marca do arquivo: quadrada, do sprite do próprio sistema,
+                      e vermelha só quando existe PDF arquivado (§7-quater). O
+                      relatório legado — sem arquivo — fica com a marca neutra, e
+                      o selo diz isso em vez de prometer um documento que não
+                      está lá. Listar continua sem tocar arquivo nenhum. */}
+                  <span role="cell" className="rel-cel-icone">
+                    <span
+                      className={`rel-marca${r.pdfRef ? ' rel-marca-pdf' : ''}`}
+                      title={r.pdfRef ? 'Relatório finalizado (PDF arquivado)' : 'Relatório sem PDF arquivado (anterior ao arquivamento)'}
+                    >
                       <Icone nome="filetext" tam={15} />
                     </span>
-                  )}
-                </span>
-                <span role="cell" className="rel-cel-nome" title={r.nome ?? r.codigo ?? ''}>
-                  {ou(r.nome ?? r.codigo)}
-                  {mapaEmpresas.porTag.get(r.tag) && (
-                    <small className="rel-cel-empresa">{mapaEmpresas.porTag.get(r.tag)}</small>
-                  )}
-                </span>
-                <span role="cell" className="rel-cel-tag">
-                  {r.tag}
-                  {/* Marcar é obrigação: sem isto a linha afirmaria, por
-                      omissão, que o relatório pertence a um equipamento que
-                      ainda está no cadastro. */}
-                  {!r.equipamentoAtivo && (
-                    <span className="rel-selo-excluido" title="O equipamento deste relatório foi excluído do cadastro. O documento continua salvo.">
-                      Equipamento excluído
-                    </span>
-                  )}
-                </span>
-                {/* data-rot: no celular a linha vira cartão e as colunas perdem
-                    o cabeçalho — duas datas seguidas não dizem qual é a emissão
-                    e qual é a validade. O rótulo volta por CSS. */}
-                <span role="cell" data-rot="Tipo">
-                  <span className="badge-tipo-inspecao">{ou(r.tipo)}</span>
-                </span>
-                <span role="cell" data-rot="Criação">{dataBr(r.emissao)}</span>
-                <span role="cell" data-rot="Validade">{dataBr(r.validade)}</span>
-                <span role="cell" className="rel-cel-acoes">
-                  <button
-                    type="button"
-                    className="btn-icone cor-azul"
-                    title="Visualizar"
-                    aria-label={`Visualizar ${ou(r.nome ?? r.codigo)}`}
-                    /* O ÚNICO ponto desta tela que toca o PDF. */
-                    onClick={() => abrir(r)}
-                  >
-                    <Icone nome="eye" tam={15} />
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-icone"
-                    title="Editar nome"
-                    aria-label={`Editar o nome de ${ou(r.nome ?? r.codigo)}`}
-                    onClick={() => setRenomeando({ item: r, nome: r.nome ?? r.codigo ?? '' })}
-                  >
-                    <Icone nome="pencil" tam={14} />
-                  </button>
-                  {/* Relatório FINALIZADO não tem excluir: ele é um arquivo com
-                      SHA que alimenta vencimento, Portal e Livro. O que existe é
-                      tirar da lista — e a tela diz isso, em vez de oferecer um
-                      botão que promete destruir e não destrói. */}
-                  <button
-                    type="button"
-                    className="btn-icone"
-                    title={arquivados.has(r.relatorioId) ? 'Trazer de volta para a lista' : 'Remover da lista (arquivar)'}
-                    aria-label={
-                      arquivados.has(r.relatorioId)
-                        ? `Trazer ${ou(r.nome ?? r.codigo)} de volta`
-                        : `Arquivar ${ou(r.nome ?? r.codigo)}`
-                    }
-                    onClick={() =>
-                      arquivados.has(r.relatorioId)
-                        ? void desarquivar(r.relatorioId)
-                        : setArquivando(r)
-                    }
-                  >
-                    <Icone nome={arquivados.has(r.relatorioId) ? 'refresh' : 'trash'} tam={14} />
-                  </button>
-                </span>
-              </div>
-            )}
+                  </span>
+                  <span role="cell" className="rel-cel-nome" title={r.nome ?? r.codigo ?? ''}>
+                    {ou(r.nome ?? r.codigo)}
+                    {mapaEmpresas.porTag.get(r.tag) && (
+                      <small className="rel-cel-empresa">{mapaEmpresas.porTag.get(r.tag)}</small>
+                    )}
+                  </span>
+                  <span role="cell" className="rel-cel-tag">
+                    {r.tag}
+                    {!r.equipamentoAtivo && (
+                      <span className="rel-selo-excluido" title="O equipamento deste relatório foi excluído do cadastro. O documento continua salvo.">
+                        Equipamento excluído
+                      </span>
+                    )}
+                  </span>
+                  {/* data-rot: no celular a linha vira cartão e as colunas perdem
+                      o cabeçalho — duas datas seguidas não dizem qual é a emissão
+                      e qual é a validade. O rótulo volta por CSS. */}
+                  <span role="cell" data-rot="Tipo">
+                    <span className="badge-tipo-inspecao">{ou(r.tipo)}</span>
+                  </span>
+                  <span role="cell" data-rot="Criação">{dataBr(r.emissao)}</span>
+                  <span role="cell" data-rot="Validade">{dataBr(r.validade)}</span>
+                  <span role="cell" data-rot="Situação">
+                    <span className={`rel-selo rel-selo-${sit}`}>{rotuloSituacao(sit)}</span>
+                  </span>
+                  <span role="cell" className="rel-cel-acoes">
+                    <button
+                      type="button"
+                      className="btn-icone cor-azul"
+                      title="Visualizar"
+                      aria-label={`Visualizar ${ou(r.nome ?? r.codigo)}`}
+                      /* O ÚNICO ponto desta tela que toca o PDF. */
+                      onClick={() => abrir(r)}
+                    >
+                      <Icone nome="eye" tam={15} />
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-icone"
+                      title="Editar nome"
+                      aria-label={`Editar o nome de ${ou(r.nome ?? r.codigo)}`}
+                      onClick={() => setRenomeando({ item: r, nome: r.nome ?? r.codigo ?? '' })}
+                    >
+                      <Icone nome="pencil" tam={14} />
+                    </button>
+                    {/* Relatório FINALIZADO não tem excluir: ele é um arquivo com
+                        SHA que alimenta vencimento, Portal e Livro. O que existe é
+                        tirar da lista — e a tela diz isso, em vez de oferecer um
+                        botão que promete destruir e não destrói. */}
+                    <button
+                      type="button"
+                      className="btn-icone"
+                      title={arquivados.has(r.relatorioId) ? 'Trazer de volta para a lista' : 'Remover da lista (arquivar)'}
+                      aria-label={
+                        arquivados.has(r.relatorioId)
+                          ? `Trazer ${ou(r.nome ?? r.codigo)} de volta`
+                          : `Arquivar ${ou(r.nome ?? r.codigo)}`
+                      }
+                      onClick={() =>
+                        arquivados.has(r.relatorioId)
+                          ? void desarquivar(r.relatorioId)
+                          : setArquivando(r)
+                      }
+                    >
+                      <Icone nome={arquivados.has(r.relatorioId) ? 'refresh' : 'trash'} tam={14} />
+                    </button>
+                  </span>
+                </div>
+              );
+            }}
           />
         </div>
       )}
