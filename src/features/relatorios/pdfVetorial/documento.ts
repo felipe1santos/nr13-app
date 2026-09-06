@@ -228,17 +228,25 @@ export class Documento {
    */
   blocoAteOFim(id: string, rotulo: string, titulo?: string, minAltura = 22, maxAltura = 48): void {
     if (titulo) this.secao(titulo);
-    const disponivel = LIMITE_CORPO - this.cursor;
-    if (disponivel < minAltura) {
-      // Não cabe nem o mínimo: o bloco vai para a folha seguinte inteiro, em
-      // vez de sair espremido no rodapé.
-      this.novaFolha();
-      if (titulo) this.secao(titulo);
-    }
+    // O bloco NUNCA abre folha nova. Ele é o último elemento da folha, e a
+    // sobra que ele ocupa foi medida na 1ª passagem: se o respiro consumir
+    // parte dela, o bloco encolhe — se ele pulasse de página, a 2ª passagem
+    // teria mais folhas que a contagem e o rodapé diria "de 10" num documento
+    // de 11 (medido no prontuário em 06/09/2026).
     // Teto: uma caixa de observações de meia página é tão feia quanto o vazio
     // que ela veio substituir. O espaço que sobra além do teto é distribuído
     // pelas tabelas da folha (`alturaMinima`), não empilhado aqui.
-    const altura = Math.min(maxAltura, Math.max(minAltura, LIMITE_CORPO - this.cursor));
+    const disponivel = LIMITE_CORPO - this.cursor;
+    // Altura: o que sobrou, com teto. O `minAltura` é uma INTENÇÃO, não uma
+    // exigência — sobrando menos que ele, o bloco fica menor em vez de mudar
+    // a paginação. Menos de 6 mm não vira caixa nenhuma.
+    const altura = disponivel < 6 ? 0 : Math.min(maxAltura, Math.max(Math.min(minAltura, disponivel), disponivel));
+    if (altura === 0) {
+      // Sem espaço: o campo continua existindo (o override é por id, não por
+      // caixa), mas nada é desenhado no pé da folha.
+      this.anotarCampo(id, rotulo, '', this.resolver(id, ''), true, { x: CAIXA.x, y: this.cursor, larg: CAIXA.largura, alt: 0 });
+      return;
+    }
     const y = this.cursor;
     const auto = '';
     const valor = this.resolver(id, auto);
