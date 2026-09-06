@@ -195,7 +195,6 @@ export function folhaProntSumario(doc: Documento, m: ModeloProntuario, paginas: 
 // ── 1. ULTRASSOM / MEDIÇÃO DE ESPESSURA ─────────────────────────────────────
 export function folhaProntUltrassom(doc: Documento, m: ModeloProntuario): void {
   doc.novaFolha();
-  doc.abrirSecaoElastica('pront-ultrassom');
   doc.banner('MEDIÇÃO DE ESPESSURA POR ULTRASSOM');
 
   doc.faixa('INFORMAÇÕES DO COMPONENTE AVALIADO');
@@ -242,7 +241,6 @@ export function folhaProntUltrassom(doc: Documento, m: ModeloProntuario): void {
       doc.secao(regiao);
       doc.tabela({
         compacta: true,
-        esticavel: true,
         colunas: [0.26, ...Array(Math.max(angulos.length, 1)).fill(colMedida), 0.13, 0.13],
         cabecalho: [
           'REGIÃO / PONTO',
@@ -292,7 +290,6 @@ export function folhaProntUltrassom(doc: Documento, m: ModeloProntuario): void {
   // assinatura ia ocupar — a folha estourava e o documento ganhava uma página
   // que a contagem da 1ª passagem não previu.
   responsabilidadeTecnica(doc, m, 'PRONT-ULTRASSOM.html');
-  doc.fecharSecaoElastica();
 }
 
 // ── 2. CROQUI 2D COTADO ─────────────────────────────────────────────────────
@@ -384,7 +381,6 @@ export function folhaProntFolhaDados(doc: Documento, m: ModeloProntuario): void 
 // ── 4. PRONTUÁRIO (dados construtivos + categorização) ──────────────────────
 export function folhaProntProntuario(doc: Documento, m: ModeloProntuario): void {
   doc.novaFolha();
-  doc.abrirSecaoElastica('pront-dados');
   doc.banner('PRONTUÁRIO DO EQUIPAMENTO');
 
   doc.faixa('DADOS GERAIS');
@@ -404,11 +400,11 @@ export function folhaProntProntuario(doc: Documento, m: ModeloProntuario): void 
 
   doc.y += 2;
   doc.faixa('ASPECTOS GERAIS DO EQUIPAMENTO');
-  tabelaChaveValor(doc, Object.entries(m.identificacao) as [string, string | null][], 2, true);
+  tabelaChaveValor(doc, Object.entries(m.identificacao) as [string, string | null][]);
 
   doc.y += 2;
   doc.faixa('ASPECTOS CONSTRUTIVOS');
-  tabelaChaveValor(doc, Object.entries(m.construtivos) as [string, string | null][], 2, true);
+  tabelaChaveValor(doc, Object.entries(m.construtivos) as [string, string | null][]);
 
   doc.y += 2;
   doc.faixa('ASPECTOS OPERACIONAIS');
@@ -446,7 +442,6 @@ export function folhaProntProntuario(doc: Documento, m: ModeloProntuario): void 
   );
 
   responsabilidadeTecnica(doc, m, 'PRONT-PRONTUARIO.html');
-  doc.fecharSecaoElastica();
 }
 
 // ── 5. CONTINUAÇÃO (procedimentos, dispositivos, atenção) ───────────────────

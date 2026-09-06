@@ -93,9 +93,13 @@ describe('o mesmo design do relatório', () => {
     expect(folhas).toContain('doc.formula(formula');
   });
 
-  it('as folhas respiram pelo mesmo mecanismo do relatório', () => {
-    expect(folhas).toContain("doc.abrirSecaoElastica('pront-ultrassom')");
-    expect(folhas).toContain("doc.abrirSecaoElastica('pront-dados')");
+  it('o respiro existe, e não nas folhas que terminam em assinatura', () => {
+    // O bloco de responsabilidade técnica pede 30 mm contíguos: crescer as
+    // linhas de uma folha assinada empurra a assinatura para uma página só
+    // dela — foi o que apareceu no prontuário do vaso em 06/09/2026.
+    expect(folhas).toContain("doc.abrirSecaoElastica('pront-sumario')");
+    expect(folhas).not.toContain("doc.abrirSecaoElastica('pront-ultrassom')");
+    expect(folhas).not.toContain("doc.abrirSecaoElastica('pront-dados')");
     expect(gerador).toContain('aoFecharSecaoElastica');
     expect(gerador).toContain("new Documento(p, cab, totalDoRodape, 'final', {}, respiro)");
   });
