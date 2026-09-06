@@ -81,3 +81,34 @@ etapa, emitida pela contagem real.
 | produção | bundle `assets/index-3f_q0wFk.js`, deploy pelo Coolify |
 | documento real | 29 páginas, 28 imagens, sumário com página, matriz da NR-13, checklist em 3 folhas, ultrassom e TH completos |
 | rótulos da referência ausentes | **0 de 291** |
+
+---
+
+## 6 · Acabamento pedido pelo dono (06/09/2026)
+
+Cinco acertos no documento já em paridade, todos validados com relatório
+emitido em produção (bundle `assets/index-Dx06CWIr.js`).
+
+| o que estava errado | o que ficou |
+|---|---|
+| a folha 6.1 imprimia o LaTeX cru do motor (`$$ t_{req} = $$`, cortado pelo jsPDF no primeiro caractere ausente) | fração desenhada, com `T_{util}` em subscrito de verdade — `latexMemorial.ts` traduz notação, não reescreve equação |
+| a placa colada no texto, com centímetros vazios no pé da folha 3 | ocupa até 80 % do espaço livre (mínimo os 62 mm clássicos) e fica **centrada** nele |
+| trocar a placa exigia um botão na barra do topo | a placa INTEIRA é campo de imagem: clicar nela abre o popup; "Remover imagem" devolve a reconstruída. O card sai da barra (segue no rollback `?previa=iframe`) |
+| folha 4 terminando aos dois terços | espaço distribuído pelas tabelas (`alturaMinima`) + bloco de observações com teto de 48 mm |
+| duas colunas amarelas em toda linha respondida do checklist | `semDestaque` na coluna de marcação: o vazio ali É a resposta. Campo de dado vazio continua amarelo |
+
+Dois defeitos que apareceram durante a validação e foram corrigidos na mesma
+rodada: o rótulo era **medido com a fonte normal e desenhado em negrito** (mais
+largo), e "PRODUTO P.V. PARA RISCO (MPa × m³)" saía cortado; e o cabeçalho de
+tabela não quebrava linha, então as cinco faixas da matriz da NR-13 saíram
+sobrepostas.
+
+### O documento de prova
+
+| | |
+|---|---|
+| páginas | 29 (28 + anexo de rastreabilidade) |
+| imagens | 57 — 28 logos, 27 fotos de campo, capa e placa |
+| campos preenchidos à mão | 20 (validade, A.R.T., escopo, observações, recomendações com prazo, parecer, próximas inspeções) |
+| SHA-256 | `ca43603bf58c94ce5d23b99d9d3e3cfe7f16ba887aeeb6c75bed2d7d1a527169` |
+| suíte | 2.100 testes, 166 arquivos, 0 falhas |
