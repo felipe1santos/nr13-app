@@ -625,9 +625,12 @@ export function folhaCategorizacao(doc: Documento, m: ModeloRelatorio): void {
     espacoAntes: 1,
   });
 
+  // As alturas desta folha sao maiores de proposito: o conteudo dela e curto
+  // e fixo, e sem isso a pagina terminava aos dois tercos com um vazio no pe.
   const c = m.categorizacaoFolha;
   doc.tabela({
-    colunas: [0.28, 0.22, 0.28, 0.22],
+    alturaMinima: 12,
+    colunas: [0.26, 0.24, 0.28, 0.22],
     linhas: [
       [
         { texto: 'FLUIDO DE TRABALHO', rotulo: true },
@@ -665,6 +668,7 @@ export function folhaCategorizacao(doc: Documento, m: ModeloRelatorio): void {
   doc.faixa('MATRIZ DE CATEGORIZAÇÃO — item 13.5.1.2 da NR-13');
   doc.tabela({
     compacta: true,
+    alturaMinima: 17,
     colunas: [0.4, 0.12, 0.12, 0.12, 0.12, 0.12],
     cabecalho: ['CLASSE DE FLUIDO (CORPO / TUBO)', ...FAIXAS_PV],
     linhas: MATRIZ_13512.map((linha) => [
@@ -675,6 +679,7 @@ export function folhaCategorizacao(doc: Documento, m: ModeloRelatorio): void {
 
   doc.faixa('OPERAÇÃO DO VASO DE PRESSÃO');
   doc.tabela({
+    alturaMinima: 12,
     colunas: [0.6, 0.4],
     linhas: [
       [

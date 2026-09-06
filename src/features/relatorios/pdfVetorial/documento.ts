@@ -214,7 +214,7 @@ export class Documento {
    * que o dono viu na folha de categorização de risco. O bloco tem altura
    * mínima (nunca vira uma tira) e é campo editável como qualquer outro.
    */
-  blocoAteOFim(id: string, rotulo: string, titulo?: string, minAltura = 22): void {
+  blocoAteOFim(id: string, rotulo: string, titulo?: string, minAltura = 22, maxAltura = 48): void {
     if (titulo) this.secao(titulo);
     const disponivel = LIMITE_CORPO - this.cursor;
     if (disponivel < minAltura) {
@@ -223,7 +223,10 @@ export class Documento {
       this.novaFolha();
       if (titulo) this.secao(titulo);
     }
-    const altura = Math.max(minAltura, LIMITE_CORPO - this.cursor);
+    // Teto: uma caixa de observações de meia página é tão feia quanto o vazio
+    // que ela veio substituir. O espaço que sobra além do teto é distribuído
+    // pelas tabelas da folha (`alturaMinima`), não empilhado aqui.
+    const altura = Math.min(maxAltura, Math.max(minAltura, LIMITE_CORPO - this.cursor));
     const y = this.cursor;
     const auto = '';
     const valor = this.resolver(id, auto);
@@ -522,6 +525,15 @@ export class Documento {
     cabecalho?: string[];
     linhas: CelulaDoc[][];
     compacta?: boolean;
+    /**
+     * Piso da altura de cada linha, em mm.
+     *
+     * Existe para a folha ocupar o papel: a de categorização de risco tem
+     * conteúdo fixo e curto, e terminava aos dois terços da página, com um
+     * vazio no pé. Esticar as linhas distribui esse espaço pelo conteúdo, em
+     * vez de empurrá-lo todo para um retângulo em branco no fim.
+     */
+    alturaMinima?: number;
   }): void {
     const tamanho = opcoes.compacta ? FONTE.tabelaCompacta : FONTE.tabela;
     const padX = 1.4;
@@ -559,13 +571,16 @@ export class Documento {
         cel.id ? { ...cel, texto: this.resolver(cel.id, cel.texto) } : cel,
       );
       // Mede.
-      let altura = alturaLinha(tamanho) + padY * 2;
+      let altura = Math.max(alturaLinha(tamanho) + padY * 2, opcoes.alturaMinima ?? 0);
       {
         let i = 0;
         for (const cel of linha) {
           const span = cel.colspan ?? 1;
           const larg = larguras.slice(i, i + span).reduce((a, b) => a + b, 0) - padX * 2;
-          this.pdf.setFont(FAMILIA, 'normal');
+          // NEGRITO é mais largo. Medir a quebra com a fonte normal e desenhar
+          // em negrito fazia o rótulo passar do fim da célula e ser cortado —
+          // "PRODUTO P.V. PARA RISCO (MPa ×" saiu assim no documento emitido.
+          this.pdf.setFont(FAMILIA, cel.rotulo ? 'bold' : 'normal');
           this.pdf.setFontSize(tamanho);
           const n = (this.pdf.splitTextToSize(cel.texto, larg) as string[]).length;
           altura = Math.max(altura, alturaLinha(tamanho) * Math.max(1, n) + padY * 2);
