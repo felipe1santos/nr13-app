@@ -1,7 +1,10 @@
 import { ler } from '../../../services/storage';
 import { REGIOES, carregarMedicoes, type Regiao } from '../medicoesEspessura';
 import { linhasMemorial } from '../relatoriosService';
-import { SECOES_CHECKLIST } from '../../inspecoes/formularios/FormularioChecklist';
+import { INSTRUMENTOS_CHECKLIST, SECOES_CHECKLIST } from '../../inspecoes/formularios/FormularioChecklist';
+import { ITENS_VISUAL_EXTERNO } from '../../inspecoes/formularios/FormularioVisualExterno';
+import { ITENS_VISUAL_INTERNO } from '../../inspecoes/formularios/FormularioVisualInterno';
+import type { RefFoto } from '../../../services/fotos';
 import type { RelatorioMeta } from '../tipos';
 import { rotuloClasseFluido, rotuloEnquadramento, rotuloResposta, rotuloResultado, rotuloTipoEquipamento } from './rotulos';
 
@@ -26,6 +29,12 @@ export interface ItemChecklist {
   titulo: string;
   resposta: string;
   observacao: string | null;
+  /**
+   * As opções que a pergunta oferece — é o que a folha usa para desenhar as
+   * COLUNAS marcáveis da referência (Existe/Não ident./Não aplica, ou
+   * SIM/NÃO/N.A.) em vez de uma coluna única de texto.
+   */
+  opcoes?: string[];
 }
 
 export interface SecaoChecklistModelo {
@@ -38,14 +47,35 @@ export interface FotoModelo {
   descricao: string;
   /** largura/altura reais — medidas, nunca assumidas. */
   proporcao?: number;
+  /**
+   * A foto no COFRE, quando ela não é Base64.
+   *
+   * Toda foto tirada depois de 10/08/2026 é `{ ref }` — o arquivo mora no
+   * bucket e o registro carrega só o caminho. O modelo é síncrono e não pode
+   * baixar nada; quem resolve é o gerador (`resolverFotos`), antes de medir.
+   * Enquanto isto não existiu, as fotos de campo eram descartadas em silêncio
+   * e o documento saía sem NENHUMA folha de registro fotográfico.
+   */
+  ref?: RefFoto;
 }
 
 export interface ExameVisual {
+  /** T.A.G. e nº de série do cabeçalho da folha de exame, como na referência. */
+  tag: string | null;
+  serie: string | null;
   itens: ItemChecklist[];
   observacoes: string | null;
   conclusao: string | null;
   resultado: string | null;
   fotos: FotoModelo[];
+}
+
+/** Um instrumento conferido em campo (folha do checklist, parte 1). */
+export interface InstrumentoModelo {
+  nome: string;
+  possui: string;
+  calibrado: string;
+  certificado: string | null;
 }
 
 export interface ModeloRelatorio {
@@ -69,7 +99,15 @@ export interface ModeloRelatorio {
   placaReal: { dataUrl: string; proporcao: number } | null;
 
   equipamento: Record<string, string | null>;
-  pressoes: { rotulo: string; mpa: string | null; kgf: string | null; bar: string | null }[];
+  /**
+   * As três pressões da folha 3, nas QUATRO unidades.
+   *
+   * A referência imprime MPa · psi · kgf/cm²; o sistema sempre imprimiu bar na
+   * placa (§7 do CLAUDE.md). As quatro saem da MESMA conversão do valor em
+   * MPa — nenhuma coluna é rótulo trocado. E a linha da PMO existe mesmo
+   * vazia: a referência a tem, e PMO ausente é informação.
+   */
+  pressoes: { rotulo: string; mpa: string | null; psi: string | null; kgf: string | null; bar: string | null }[];
   categoria: { catFinal: string | null; grupo: string | null; volume: string | null; enquadramento: string | null };
   /**
    * Bloco 1 · os parâmetros de cada componente, como a referência os imprime.
@@ -128,7 +166,38 @@ export interface ModeloRelatorio {
   /** Quem assina — a capa da referência traz nome e CREA. */
   responsavel: { nome: string | null; registro: string | null };
 
+  /**
+   * A folha 4 da referência inteira: o que entra na conta e o que sai dela.
+   *
+   * Nada é recalculado — `fluidoTrabalho`, `codigoProjeto`, `pmta` e
+   * `volumeGeometrico` são os MESMOS valores das outras folhas, trazidos para
+   * onde a referência os imprime.
+   */
+  categorizacaoFolha: {
+    fluidoTrabalho: string | null;
+    codigoProjeto: string | null;
+    pmta: string | null;
+    volumeGeometrico: string | null;
+    aplicaNr13: string | null;
+    operadorTreinado: string | null;
+  };
+
+  /** A folha 7 da referência — dados gerais da inspeção. */
+  dadosInspecao: {
+    dataInicio: string | null;
+    dataTermino: string | null;
+    equipamento: string | null;
+    serie: string | null;
+    art: string | null;
+    numeroRelatorio: string | null;
+    ensaios: { rotulo: string; feito: boolean }[];
+    resultadoVisualExterno: string | null;
+    resultadoVisualInterno: string | null;
+  };
+
   checklist: SecaoChecklistModelo[];
+  /** Instrumentos e dispositivos de segurança conferidos em campo. */
+  instrumentos: InstrumentoModelo[];
   comentariosDocumentacao: string | null;
   fotosDocumentacao: FotoModelo[];
   fotosChecklist: FotoModelo[];
@@ -137,6 +206,14 @@ export interface ModeloRelatorio {
   visualInterno: ExameVisual;
 
   ultrassom: {
+    /** INFORMAÇÕES DO COMPONENTE AVALIADO — o cabeçalho da folha na referência. */
+    equipamento: string | null;
+    serie: string | null;
+    area: string | null;
+    espessuraNominal: string | null;
+    material: string | null;
+    data: string | null;
+    observacoes: string | null;
     aparelho: string | null;
     acoplante: string | null;
     tempSup: string | null;
@@ -164,10 +241,28 @@ export interface ModeloRelatorio {
   };
 
   th: {
+    cliente: string | null;
+    docNumero: string | null;
+    tag: string | null;
+    equipamento: string | null;
     fluido: string | null;
     pressaoProjeto: string | null;
+    pressaoTrabalho: string | null;
     pressaoTeste: string | null;
     dataTeste: string | null;
+    /**
+     * Campos que a referência imprime e que o FORMULÁRIO de campo ainda não
+     * coleta (E2E de 05/09/2026). Entram como `null`: a linha existe no
+     * documento, amarela na prévia, e o engenheiro escreve. Suprimi-los da
+     * folha seria esconder do documento uma informação que o laudo pede.
+     */
+    duracao: string | null;
+    tempFluido: string | null;
+    normas: string | null;
+    validadeLaudo: string | null;
+    procedimento: string | null;
+    parecer: string | null;
+    instrumento: { padrao: string | null; serie: string | null; certificado: string | null; validade: string | null };
     resultado: string | null;
     curva: { tempo: string; pressao: string }[];
     fotos: FotoModelo[];
@@ -182,6 +277,21 @@ function txt(v: unknown): string | null {
   if (v === null || v === undefined) return null;
   const s = String(v).trim();
   return s === '' ? null : s;
+}
+
+/**
+ * Data no formato do documento.
+ *
+ * Os formulários de campo usam `<input type="date">`, que grava ISO
+ * (`2026-09-05`). O documento é em português e imprime 05/09/2026 em todas as
+ * outras folhas — o ensaio não pode ser a exceção. Valor que não for ISO passa
+ * intacto: dado digitado à mão já vem no formato certo.
+ */
+export function dataBr(v: unknown): string | null {
+  const s = txt(v);
+  if (s === null) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : s;
 }
 
 export function textoOu(v: string | null | undefined, vazio = '—'): string {
@@ -249,12 +359,26 @@ export function converterPressao(mpa: number | null): {
   };
 }
 
-type FotoBruta = { base64?: string; descricao?: string };
+type FotoBruta = { base64?: string; ref?: RefFoto; descricao?: string };
 
+/**
+ * As fotos de uma etapa, nas DUAS formas em que o sistema as guarda.
+ *
+ * `base64` é o legado (até 10/08/2026); `ref` é o arquivo no cofre, que é o
+ * que toda inspeção nova produz. Descartar a `ref` aqui — o que esta função
+ * fazia — apagava em silêncio todas as fotos de campo do documento vetorial:
+ * 27 fotos e 5 folhas de registro fotográfico a menos, sem erro nenhum na
+ * tela (E2E de 05/09/2026). Quem baixa o arquivo é `resolverFotos`, no
+ * gerador, porque este módulo é síncrono de propósito.
+ */
 function fotos(lista: FotoBruta[] | undefined): FotoModelo[] {
   return (lista ?? [])
-    .map((f) => ({ dataUrl: String(f.base64 ?? ''), descricao: String(f.descricao ?? '') }))
-    .filter((f) => f.dataUrl.startsWith('data:image'));
+    .map((f) => ({
+      dataUrl: String(f.base64 ?? ''),
+      descricao: String(f.descricao ?? ''),
+      ...(f.ref ? { ref: f.ref } : {}),
+    }))
+    .filter((f) => f.dataUrl.startsWith('data:image') || !!f.ref);
 }
 
 /** Itens do checklist com resposta — os sem resposta ficam de fora da folha. */
@@ -262,35 +386,44 @@ function secoesChecklist(
   respostas: Record<string, string>,
   observacoes: Record<string, string>,
 ): SecaoChecklistModelo[] {
+  // TODOS os itens do catálogo entram, respondidos ou não. Filtrar os sem
+  // resposta — o que esta função fazia — renumerava a folha e tornava
+  // indistinguíveis "item não verificado" e "item que não existe" num
+  // documento assinado. A referência imprime a lista inteira, com a marcação
+  // em branco onde não houve resposta.
   return SECOES_CHECKLIST.map((s) => ({
     titulo: s.titulo,
-    itens: s.perguntas
-      .filter((p) => txt(respostas?.[p.id]))
-      .map((p) => ({
-        titulo: p.texto,
-        resposta: textoOu(rotuloResposta(respostas[p.id]), '—'),
-        observacao: txt(observacoes?.[p.id]),
-      })),
-  })).filter((s) => s.itens.length > 0);
+    itens: s.perguntas.map((p) => ({
+      titulo: p.texto,
+      resposta: textoOu(rotuloResposta(respostas?.[p.id]), ''),
+      observacao: txt(observacoes?.[p.id]),
+      opcoes: p.opcoes,
+    })),
+  }));
 }
 
-function exameVisual(bloco: Record<string, unknown> | undefined): ExameVisual {
+function exameVisual(bloco: Record<string, unknown> | undefined, catalogo: string[]): ExameVisual {
   const b = (bloco ?? {}) as {
     itens?: Record<string, string>;
     itemObs?: Record<string, string>;
     observacoes?: string;
     conclusao?: string;
     resultado?: string;
+    serie?: string;
     fotos?: FotoBruta[];
   };
+  // O formulário grava `{ "1": "sim" }`: a CHAVE é a posição no catálogo, não
+  // o texto. Usar a chave como título — o que este mapa fazia — imprimia
+  // "1 · 1 · SIM" na coluna VERIFICAÇÃO do documento assinado.
   return {
-    itens: Object.entries(b.itens ?? {})
-      .filter(([, v]) => txt(v))
-      .map(([titulo, v]) => ({
-        titulo,
-        resposta: textoOu(rotuloResposta(v), '—'),
-        observacao: txt(b.itemObs?.[titulo]),
-      })),
+    tag: null,
+    serie: txt(b.serie),
+    itens: catalogo.map((pergunta, i) => ({
+      titulo: pergunta,
+      resposta: textoOu(rotuloResposta(b.itens?.[String(i + 1)]), ''),
+      observacao: txt(b.itemObs?.[String(i + 1)]),
+      opcoes: ['sim', 'nao', 'na'],
+    })),
     observacoes: txt(b.observacoes),
     conclusao: txt(b.conclusao),
     resultado: rotuloResultado(b.resultado),
@@ -317,12 +450,22 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
   const chk = (insp.checklist ?? {}) as {
     respostas?: Record<string, string>;
     observacoes?: Record<string, string>;
+    instrumentos?: Record<string, boolean>;
+    dataInspecao?: string;
     fotos?: FotoBruta[];
     fotosDocumentacao?: FotoBruta[];
     comentariosDocumentacao?: string;
   };
   const us = (inj.ultrassom ?? {}) as Record<string, unknown>;
   const th = (inj.th ?? {}) as Record<string, unknown>;
+  // Quais ensaios ESTA inspeção teve — a mesma leitura que a folha 7 marca com
+  // X e que a lista de "ensaios realizados" já usava.
+  const respostasDe = (b: unknown) => Object.values(((b ?? {}) as { itens?: Record<string, string> }).itens ?? {});
+  const temExameExterno = respostasDe(inj.visual_externo).some((v) => txt(v) !== null);
+  const temExameInterno = respostasDe(inj.visual_interno).some((v) => txt(v) !== null);
+  const temUltrassom = Array.isArray((us as { pontos?: unknown[] }).pontos)
+    ? ((us as { pontos?: unknown[] }).pontos ?? []).length > 0
+    : false;
 
   // O storage guarda PMTA/PTH como string em vaso e caldeira e como número em
   // autoclave. `numeroDoStorage` aceita as duas formas e recusa texto — a
@@ -388,6 +531,7 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
       'LOCAL DA INSTALAÇÃO': txt(info.localizacao),
     },
     pressoes: [
+      { rotulo: 'PMO — Pressão Máxima de Operação', ...pmo },
       { rotulo: 'PMTA — Pressão Máxima de Trabalho Admissível', ...pmta },
       { rotulo: 'PTH — Pressão de Teste Hidrostático', ...pth },
     ],
@@ -454,15 +598,69 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
     // fórmula nenhuma.
     memorial: linhasMemorial(tag),
 
+    categorizacaoFolha: {
+      fluidoTrabalho: fluidoSemClasse(cat.fluidoInput) ?? fluidoSemClasse(info.fluido),
+      codigoProjeto: txt(info.codigoProjeto),
+      pmta: pmta.kgf ? `${pmta.kgf} kgf/cm²` : null,
+      volumeGeometrico: numeroBr(info.volume) ?? numeroBr(cat.volInput),
+      aplicaNr13: rotuloEnquadramento(cat.isEnquadrado),
+      // A NR-13 exige operador treinado para as categorias I e II (Anexo I-B).
+      // É LEITURA da categoria já decidida, não uma segunda regra de risco.
+      operadorTreinado: txt(cat.catFinal)
+        ? ['I', 'II'].includes(String(cat.catFinal).trim().toUpperCase())
+          ? 'SIM'
+          : 'NÃO'
+        : null,
+    },
+    dadosInspecao: {
+      dataInicio: txt(meta?.execucaoInspecao) ?? txt(chk.dataInspecao),
+      dataTermino: txt(meta?.execucaoInspecao),
+      equipamento: tag,
+      serie: txt(info.numeroSerie),
+      // A A.R.T. não tem campo no sistema (auditado em 06/09/2026): a linha
+      // existe no documento e nasce vazia, para ser preenchida no relatório.
+      art: null,
+      numeroRelatorio: txt(meta?.codigo),
+      ensaios: [
+        { rotulo: 'EXAME EXTERNO', feito: temExameExterno },
+        { rotulo: 'EXAME INTERNO', feito: temExameInterno },
+        { rotulo: 'TESTE HIDROSTÁTICO', feito: !!txt(th.pressaoTeste) },
+        { rotulo: 'ULTRASSOM (MEDIÇÃO DE ESPESSURA)', feito: temUltrassom },
+        { rotulo: 'LÍQUIDO PENETRANTE', feito: false },
+        { rotulo: 'PARTÍCULA MAGNÉTICA', feito: false },
+      ],
+      resultadoVisualExterno: rotuloResultado((inj.visual_externo as Record<string, unknown>)?.resultado as string),
+      resultadoVisualInterno: rotuloResultado((inj.visual_interno as Record<string, unknown>)?.resultado as string),
+    },
+
     checklist: secoesChecklist(chk.respostas ?? {}, chk.observacoes ?? {}),
+    instrumentos: INSTRUMENTOS_CHECKLIST.map((i) => ({
+      nome: i.nome,
+      possui: (chk.instrumentos ?? {})[i.id] ? 'SIM' : '',
+      calibrado: (chk.instrumentos ?? {})[i.calId] ? 'SIM' : '',
+      certificado: null,
+    })),
     comentariosDocumentacao: txt(chk.comentariosDocumentacao),
     fotosDocumentacao: fotos(chk.fotosDocumentacao),
     fotosChecklist: fotos(chk.fotos),
 
-    visualExterno: exameVisual(inj.visual_externo as Record<string, unknown>),
-    visualInterno: exameVisual(inj.visual_interno as Record<string, unknown>),
+    visualExterno: {
+      ...exameVisual(inj.visual_externo as Record<string, unknown>, ITENS_VISUAL_EXTERNO),
+      tag,
+    },
+    visualInterno: {
+      ...exameVisual(inj.visual_interno as Record<string, unknown>, ITENS_VISUAL_INTERNO),
+      tag,
+    },
 
     ultrassom: {
+      equipamento: txt(us.equipamento),
+      serie: txt(us.serie) ?? txt(info.numeroSerie),
+      area: txt(us.area),
+      espessuraNominal: txt(us.espNomCasco),
+      material: txt(us.material),
+      data: dataBr(us.dataUltrassom),
+      observacoes: txt(us.observacoes),
       aparelho: txt(us.aparelho),
       acoplante: txt(us.acoplante),
       tempSup: txt(us.tempSup),
@@ -480,10 +678,27 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
     },
 
     th: {
+      cliente: txt(th.cliente) ?? txt(emps.razaoSocial ?? emps.nomeFantasia),
+      docNumero: txt(th.docNum),
+      tag,
+      equipamento: txt(th.equipamento),
       fluido: txt(th.fluido),
       pressaoProjeto: txt(th.pressaoProj),
+      pressaoTrabalho: txt(th.pressaoTrabalho),
       pressaoTeste: txt(th.pressaoTeste),
-      dataTeste: txt(th.dataTeste),
+      dataTeste: dataBr(th.dataTeste),
+      duracao: txt(th.duracao),
+      tempFluido: txt(th.tempFluido),
+      normas: txt(th.normas),
+      validadeLaudo: txt(th.validadeLaudo),
+      procedimento: txt(th.procedimento),
+      parecer: txt(th.parecer),
+      instrumento: {
+        padrao: txt((th.instrumento as Record<string, unknown>)?.padrao),
+        serie: txt((th.instrumento as Record<string, unknown>)?.serie),
+        certificado: txt((th.instrumento as Record<string, unknown>)?.certificado),
+        validade: txt((th.instrumento as Record<string, unknown>)?.validade),
+      },
       resultado: rotuloResultado(th.resultado as string),
       curva: ((th.curva ?? []) as { tempo?: string; pressao?: string }[])
         .filter((l) => txt(l.tempo) || txt(l.pressao))

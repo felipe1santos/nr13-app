@@ -124,28 +124,34 @@ describe('categoria de risco: o que está no storage chega ao documento', () => 
   });
 });
 
+// A folha 3 tem TRÊS linhas de pressão (PMO, PMTA, PTH). Procurar por
+// RÓTULO em vez de posição é o que impede este teste de quebrar quando a
+// ordem da tabela muda — e foi o que ele fez quando a PMO entrou.
+const pressao = (m: ReturnType<typeof montarModeloRelatorio>, inicio: string) =>
+  m.pressoes.find((p) => p.rotulo.startsWith(inicio))!;
+
 describe('PMTA e PTH: o storage guarda string em vaso e caldeira', () => {
   it('VASO — `toFixed(2)` grava string, e ela chega ao documento', () => {
     // `vasoMemorialService.ts:137` → `pmtaFinal.toFixed(2)`
     gravar(`nr13_calc_${TAG}`, { pmta: '1.25', pth: '1.63', memorialHTML: '' });
     const m = montarModeloRelatorio(TAG);
-    expect(m.pressoes[0].mpa).toBe('1.250');
-    expect(m.pressoes[0].kgf).toBe('12.75');
-    expect(m.pressoes[0].bar).toBe('12.50');
-    expect(m.pressoes[1].mpa).toBe('1.630');
+    expect(pressao(m, 'PMTA').mpa).toBe('1.250');
+    expect(pressao(m, 'PMTA').kgf).toBe('12.75');
+    expect(pressao(m, 'PMTA').bar).toBe('12.50');
+    expect(pressao(m, 'PTH').mpa).toBe('1.630');
   });
 
   it('CALDEIRA — mesma forma, mesmo resultado', () => {
     // `caldeiraMemorialService.ts:121` → `P.toFixed(2)`
     gravar(`nr13_calc_${TAG}`, { pmta: '0.80', pth: '1.20', memorialHTML: '' });
     const m = montarModeloRelatorio(TAG);
-    expect(m.pressoes[0].mpa).toBe('0.800');
-    expect(m.pressoes[1].mpa).toBe('1.200');
+    expect(pressao(m, 'PMTA').mpa).toBe('0.800');
+    expect(pressao(m, 'PTH').mpa).toBe('1.200');
   });
 
   it('AUTOCLAVE — número continua funcionando (não houve regressão)', () => {
     gravar(`nr13_calc_${TAG}`, { pmta: 1.25, pth: 1.63, memorialHTML: '' });
-    expect(montarModeloRelatorio(TAG).pressoes[0].mpa).toBe('1.250');
+    expect(pressao(montarModeloRelatorio(TAG), 'PMTA').mpa).toBe('1.250');
   });
 
   it('sem memorial, PMTA e PTH são AUSÊNCIA', () => {

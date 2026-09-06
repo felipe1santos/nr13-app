@@ -25,7 +25,8 @@ import {
   folhasMemoria,
   folhasTesteHidrostatico,
 } from './folhas';
-import { medirFotos, montarModeloRelatorio, type ModeloRelatorio } from './modelo';
+import { medirFotos, montarModeloRelatorio, type FotoModelo, type ModeloRelatorio } from './modelo';
+import { baixarFoto, blobParaDataUrl } from '../../../services/fotos';
 import { resolverPlacaReal } from '../placaIdentificacao';
 
 /**
@@ -107,25 +108,131 @@ export interface OpcoesVetorial {
  * inspetor não tinha selecionado. Paginação diferente é esperada; ENSAIO a mais
  * num documento assinado é conteúdo errado.
  */
-function emitir(doc: Documento, m: ModeloRelatorio, tem: Record<SecaoRelatorio, boolean>): void {
+function emitir(
+  doc: Documento,
+  m: ModeloRelatorio,
+  tem: Record<SecaoRelatorio, boolean>,
+  paginas: Map<string, number> = new Map(),
+  registrar?: Map<string, number>,
+): void {
+  // O sumário da referência traz a PÁGINA de cada seção. Ela só é conhecida
+  // depois de desenhar — e o gerador já desenhava duas vezes por causa do
+  // "Página X de Y". A 1ª passagem ANOTA (registrar), a 2ª CONSOME
+  // (paginas). Nenhuma passagem extra foi criada para isto.
+  const marcar = (titulo: string) => {
+    if (registrar && !registrar.has(titulo)) registrar.set(titulo, doc.pdf.getNumberOfPages());
+  };
+
   if (tem.capa) folhaCapa(doc, m);
-  if (tem.sumario) folhaSumario(doc, m, secoesDoRelatorio(m, tem));
-  if (tem.identificacao) folhaIdentificacao(doc, m);
-  if (tem.categorizacao) folhaCategorizacao(doc, m);
-  if (tem.dadosTecnicos) folhaDadosTecnicos(doc, m);
-  if (tem.resumoCalculos) folhaResumoCalculos(doc, m);
-  if (tem.memoria) folhasMemoria(doc, m);
-  if (tem.dadosInspecao) folhaDadosInspecao(doc, m);
-  if (tem.checklist) folhasChecklist(doc, m);
+  if (tem.sumario) {
+    folhaSumario(doc, m, secoesDoRelatorio(m, tem), paginas);
+    marcar('Objetivo');
+    marcar('Documentos de referência');
+  }
+  if (tem.identificacao) {
+    folhaIdentificacao(doc, m);
+    marcar('Identificação do equipamento');
+  }
+  if (tem.categorizacao) {
+    folhaCategorizacao(doc, m);
+    marcar('Categorização de risco');
+  }
+  if (tem.dadosTecnicos) {
+    folhaDadosTecnicos(doc, m);
+    marcar('Dados técnicos do equipamento (prontuário)');
+  }
+  if (tem.resumoCalculos) {
+    folhaResumoCalculos(doc, m);
+    marcar('Resumo de cálculos da PMTA');
+  }
+  if (tem.memoria) {
+    folhasMemoria(doc, m);
+    marcar('Memória de cálculo da PMTA');
+  }
+  if (tem.dadosInspecao) {
+    folhaDadosInspecao(doc, m);
+    marcar('Exames realizados');
+  }
+  if (tem.checklist) {
+    const antes = doc.pdf.getNumberOfPages();
+    folhasChecklist(doc, m);
+    // As três folhas do checklist saem juntas; a 1ª é a da documentação e as
+    // outras duas vêm logo depois, na ordem em que folhasChecklist as emite.
+    if (registrar) {
+      registrar.set('Verificação da documentação', antes + 1);
+      registrar.set('Checklist NR-13 — parte 1', Math.min(antes + 2, doc.pdf.getNumberOfPages()));
+      registrar.set('Checklist NR-13 — parte 2', Math.min(antes + 3, doc.pdf.getNumberOfPages()));
+    }
+  }
+  const antesFotosDoc = doc.pdf.getNumberOfPages();
   folhasFotosDocumentacao(doc, m, {
     documentacao: tem.fotosDocumentacao,
     checklist: tem.fotosChecklist,
   });
-  if (tem.exameExterno) folhasExameExterno(doc, m, tem.fotosExterno);
-  if (tem.exameInterno) folhasExameInterno(doc, m, tem.fotosInterno);
-  if (tem.ultrassom) folhaUltrassom(doc, m);
-  if (tem.th) folhasTesteHidrostatico(doc, m, tem.fotosTh);
-  if (tem.parecer) folhaParecer(doc, m);
+  if (registrar && doc.pdf.getNumberOfPages() > antesFotosDoc) {
+    if (tem.fotosDocumentacao && m.fotosDocumentacao.length > 0) {
+      registrar.set('Registro fotográfico — documentação', antesFotosDoc + 1);
+    }
+    if (tem.fotosChecklist && m.fotosChecklist.length > 0) {
+      const inicio = antesFotosDoc + folhasDeFotos(m.fotosDocumentacao, tem.fotosDocumentacao) + 1;
+      registrar.set('Registro fotográfico — checklist', Math.min(inicio, doc.pdf.getNumberOfPages()));
+    }
+  }
+  if (tem.exameExterno) {
+    const antes = doc.pdf.getNumberOfPages();
+    folhasExameExterno(doc, m, tem.fotosExterno);
+    marcarExame(registrar, 'Exame externo', 'Registro fotográfico — exame externo', antes, doc, m.visualExterno.fotos, tem.fotosExterno);
+  }
+  if (tem.exameInterno) {
+    const antes = doc.pdf.getNumberOfPages();
+    folhasExameInterno(doc, m, tem.fotosInterno);
+    marcarExame(registrar, 'Exame interno', 'Registro fotográfico — exame interno', antes, doc, m.visualInterno.fotos, tem.fotosInterno);
+  }
+  if (tem.ultrassom) {
+    folhaUltrassom(doc, m);
+    marcar('Medição de espessura por ultrassom');
+  }
+  if (tem.th) {
+    const antes = doc.pdf.getNumberOfPages();
+    folhasTesteHidrostatico(doc, m, tem.fotosTh);
+    if (registrar) {
+      registrar.set('Teste hidrostático', antes + 1);
+      if (tem.fotosTh && m.th.fotos.length > 0) {
+        registrar.set(
+          'Registro fotográfico — teste hidrostático',
+          Math.max(antes + 1, doc.pdf.getNumberOfPages() - folhasDeFotos(m.th.fotos, true) + 1),
+        );
+      }
+    }
+  }
+  if (tem.parecer) {
+    folhaParecer(doc, m);
+    marcar('Recomendações de segurança');
+    marcar('Parecer técnico conclusivo');
+    marcar('Data para a próxima inspeção');
+  }
+}
+
+/** Quantas folhas uma lista de fotos ocupa — 4 por folha, zero se vazia (§5). */
+function folhasDeFotos(lista: FotoModelo[], habilitada = true): number {
+  return habilitada ? Math.ceil(lista.length / 4) : 0;
+}
+
+function marcarExame(
+  registrar: Map<string, number> | undefined,
+  tituloExame: string,
+  tituloFotos: string,
+  antes: number,
+  doc: Documento,
+  fotos: FotoModelo[],
+  comFotos = true,
+): void {
+  if (!registrar) return;
+  registrar.set(tituloExame, antes + 1);
+  const paginasFotos = folhasDeFotos(fotos, comFotos);
+  if (paginasFotos > 0) {
+    registrar.set(tituloFotos, Math.max(antes + 1, doc.pdf.getNumberOfPages() - paginasFotos + 1));
+  }
 }
 
 /**
@@ -134,13 +241,42 @@ function emitir(doc: Documento, m: ModeloRelatorio, tem: Record<SecaoRelatorio, 
  * O piloto assumia 4:3 e centralizava; foto em retrato ficava com sobra
  * lateral. A proporção real é lida uma vez, aqui, e viaja no modelo.
  */
+/**
+ * As fotos que estão no COFRE viram imagem.
+ *
+ * Toda foto de campo posterior a 10/08/2026 é `{ ref }` — caminho no bucket,
+ * sem bytes. Este passo baixa cada uma (o cofre local primeiro, o bucket
+ * depois) e a devolve como dataURL. Sem ele o documento vetorial saía com ZERO
+ * folha de registro fotográfico mesmo com 27 fotos gravadas, e sem erro
+ * nenhum: o filtro do modelo descartava tudo que não fosse Base64 (E2E de
+ * 05/09/2026).
+ *
+ * Foto que não resolve é DESCARTADA, não inventada — e o console registra.
+ */
+async function resolverFotos(lista: FotoModelo[]): Promise<FotoModelo[]> {
+  const resolvidas = await Promise.all(
+    lista.map(async (f) => {
+      if (f.dataUrl.startsWith('data:image') || !f.ref) return f;
+      try {
+        const blob = await baixarFoto(f.ref);
+        if (!blob) return { ...f, dataUrl: '' };
+        return { ...f, dataUrl: await blobParaDataUrl(blob) };
+      } catch (e) {
+        console.error('Falha ao resolver a foto do cofre para o relatório:', f.ref?.path, e);
+        return { ...f, dataUrl: '' };
+      }
+    }),
+  );
+  return resolvidas.filter((f) => f.dataUrl.startsWith('data:image'));
+}
+
 async function comFotosMedidas(m: ModeloRelatorio): Promise<ModeloRelatorio> {
   const [doc, chk, ve, vi, th] = await Promise.all([
-    medirFotos(m.fotosDocumentacao),
-    medirFotos(m.fotosChecklist),
-    medirFotos(m.visualExterno.fotos),
-    medirFotos(m.visualInterno.fotos),
-    medirFotos(m.th.fotos),
+    resolverFotos(m.fotosDocumentacao).then(medirFotos),
+    resolverFotos(m.fotosChecklist).then(medirFotos),
+    resolverFotos(m.visualExterno.fotos).then(medirFotos),
+    resolverFotos(m.visualInterno.fotos).then(medirFotos),
+    resolverFotos(m.th.fotos).then(medirFotos),
   ]);
   return {
     ...m,
@@ -208,7 +344,8 @@ export async function gerarRelatorioVetorial(
   await registrarCarlito(contagem);
   const rascunho = new Documento(contagem, cab, 0, opcoes.modo ?? 'final', opcoes.overrides ?? {});
   const tem = secoesPresentes(opcoes.documentos);
-  emitir(rascunho, modelo, tem);
+  const paginasDasSecoes = new Map<string, number>();
+  emitir(rascunho, modelo, tem, new Map(), paginasDasSecoes);
   const paginasDoCorpo = contagem.getNumberOfPages();
 
   // O "de Y" tem que dizer o tamanho do arquivo que o usuário vai receber, e o
@@ -224,7 +361,7 @@ export async function gerarRelatorioVetorial(
   const pdf = novoPdf();
   await registrarCarlito(pdf);
   const doc = new Documento(pdf, cab, total, opcoes.modo ?? 'final', opcoes.overrides ?? {});
-  emitir(doc, modelo, tem);
+  emitir(doc, modelo, tem, paginasDasSecoes);
 
   let bytes = new Uint8Array(pdf.output('arraybuffer'));
   let paginas = pdf.getNumberOfPages();

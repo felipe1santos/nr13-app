@@ -7,7 +7,7 @@ import { camposDaPlaca } from '../placaIdentificacao';
 import type { CelulaDoc, Documento } from './documento';
 import { rotuloLaudo } from './rotulos';
 import { DESCRICAO_VARIAVEL, prepararFormula, variaveisDaFormula } from './formulaMatematica';
-import { textoOu, type ExameVisual, type FotoModelo, type ModeloRelatorio } from './modelo';
+import { textoOu, type ExameVisual, type FotoModelo, type ItemChecklist, type ModeloRelatorio } from './modelo';
 
 /**
  * Fase 11 · as 21 folhas do relatório, na ordem da referência.
@@ -71,39 +71,132 @@ function tabelaChaveValor(
   doc.tabela({ colunas: largura, linhas });
 }
 
-function blocoExame(doc: Documento, titulo: string, exame: ExameVisual, prefixo = 'exame'): void {
+/** A resposta guardada, sem acento e em minúsculas — só para COMPARAR. */
+function chaveResposta(v: string | null | undefined): string {
+  return String(v ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+/**
+ * As três marcas de uma resposta SIM / NÃO / N.A.
+ *
+ * A referência não imprime a resposta por extenso: ela marca a coluna. E a
+ * quarta possibilidade — resposta que não é nenhuma das três, como "Ambiente
+ * aberto" ou "Sim (RGI)" — não pode sumir: o `extra` volta para a coluna
+ * OBSERVAÇÃO, porque apagar a resposta do inspetor é pior do que imprimi-la
+ * fora da coluna.
+ */
+export function marcasSimNaoNa(resposta: string | null | undefined): {
+  sim: boolean;
+  nao: boolean;
+  na: boolean;
+  extra: string | null;
+} {
+  const k = chaveResposta(resposta);
+  if (k === '') return { sim: false, nao: false, na: false, extra: null };
+  const na = k === 'na' || k === 'n/a' || k === 'n.a.' || k.startsWith('nao aplica');
+  const nao = !na && k === 'nao';
+  const sim = k === 'sim' || k.startsWith('sim ');
+  const conhecida = na || nao || sim;
+  return { sim, nao, na, extra: conhecida ? null : String(resposta ?? '').trim() || null };
+}
+
+/** As três marcas da folha da DOCUMENTAÇÃO (Existe / Não ident. / Não aplica). */
+export function marcasDocumentacao(resposta: string | null | undefined): {
+  existe: boolean;
+  naoIdent: boolean;
+  naoAplica: boolean;
+} {
+  const k = chaveResposta(resposta);
+  return {
+    existe: k === 'existe',
+    naoIdent: k.startsWith('nao ident'),
+    naoAplica: k.startsWith('nao aplica'),
+  };
+}
+
+function celulaMarca(marcado: boolean, id: string, rotulo: string): CelulaDoc {
+  return { texto: marcado ? 'X' : '', centro: true, valor: true, id, rotuloCampo: rotulo };
+}
+
+/**
+ * O exame visual, como a referência o imprime: os QUINZE itens, numerados, com
+ * a marcação em SIM / NÃO / N.A. e a coluna de observação.
+ *
+ * O que mudou em 06/09/2026: a folha imprimia o NÚMERO do item no lugar da
+ * pergunta (o formulário guarda `{ "1": "sim" }`) e escondia os itens sem
+ * resposta, renumerando o resto. As duas coisas produziam um documento
+ * assinado que não dizia o que foi verificado.
+ */
+function blocoExame(
+  doc: Documento,
+  titulo: string,
+  exame: ExameVisual,
+  prefixo = 'exame',
+  nomeDoExame = 'exame',
+): void {
   doc.banner(titulo);
-  if (exame.itens.length > 0) {
-    doc.tabela({
-      compacta: true,
-      colunas: [0.07, 0.63, 0.3],
-      cabecalho: ['ITEM', 'VERIFICAÇÃO', 'RESULTADO'],
-      linhas: exame.itens.map((it, i) => [
+  doc.tabela({
+    compacta: true,
+    colunas: [0.25, 0.25, 0.25, 0.25],
+    linhas: [
+      [
+        { texto: 'T.A.G. / IDENTIFICAÇÃO', rotulo: true },
+        { texto: textoOu(exame.tag), valor: true, id: `${prefixo}.tag`, rotuloCampo: 'T.A.G. / identificação' },
+        { texto: 'Nº DE SÉRIE', rotulo: true },
+        { texto: textoOu(exame.serie), valor: true, id: `${prefixo}.serie`, rotuloCampo: 'Nº de série' },
+      ],
+    ],
+  });
+
+  // As três colunas marcáveis respondem a UMA pergunta, e ela é o que dá
+  // sentido à marca: sem esta faixa, "X" na coluna SIM não diz se o item está
+  // conforme ou se a não conformidade foi encontrada.
+  doc.faixa('FOI ENCONTRADA ALGUMA NÃO CONFORMIDADE?');
+  doc.tabela({
+    compacta: true,
+    colunas: [0.06, 0.44, 0.08, 0.08, 0.08, 0.26],
+    cabecalho: ['Nº', 'ITEM DE VERIFICAÇÃO', 'SIM', 'NÃO', 'N.A.', 'OBSERVAÇÃO'],
+    linhas: exame.itens.map((it, i) => {
+      const m = marcasSimNaoNa(it.resposta);
+      const obs = [it.observacao, m.extra].filter(Boolean).join(' · ');
+      const base = `${prefixo}.item-${i + 1}`;
+      return [
         { texto: String(i + 1), centro: true },
-        { texto: it.observacao ? `${it.titulo}\n${it.observacao}` : it.titulo },
-        { texto: it.resposta, centro: true, valor: true },
-      ]),
-    });
-  } else {
-    doc.texto('Sem itens registrados para este exame nesta inspeção.', {
-      tamanho: FONTE.nota,
-      cor: COR.nota,
-      espacoAntes: 2,
-    });
-  }
+        { texto: it.titulo },
+        celulaMarca(m.sim, `${base}.sim`, `${i + 1}. ${it.titulo} — SIM`),
+        celulaMarca(m.nao, `${base}.nao`, `${i + 1}. ${it.titulo} — NÃO`),
+        celulaMarca(m.na, `${base}.na`, `${i + 1}. ${it.titulo} — N.A.`),
+        { texto: obs, valor: true, id: `${base}.obs`, rotuloCampo: `${i + 1}. ${it.titulo} — observação`, multilinha: true },
+      ];
+    }),
+  });
 
   doc.secao('Observações gerais');
-  doc.texto(textoOu(exame.observacoes, 'Sem observações.'), {
+  doc.texto(textoOu(exame.observacoes, ''), {
     cor: COR.valor,
     id: `${prefixo}.observacoes`,
     rotuloCampo: 'Observações gerais',
   });
 
-  doc.secao('Conclusão técnica');
-  doc.texto(textoOu(exame.conclusao ?? exame.resultado), {
+  doc.secao(`Conclusão técnica — ${nomeDoExame}`);
+  doc.texto(textoOu(exame.conclusao, ''), {
     cor: COR.valor,
     id: `${prefixo}.conclusao`,
     rotuloCampo: 'Conclusão técnica',
+  });
+  doc.tabela({
+    compacta: true,
+    colunas: [0.3, 0.7],
+    linhas: [
+      [
+        { texto: 'RESULTADO', rotulo: true },
+        { texto: textoOu(exame.resultado), valor: true, id: `${prefixo}.resultado`, rotuloCampo: 'Resultado do exame' },
+      ],
+    ],
   });
 }
 
@@ -245,14 +338,26 @@ export function folhaCapa(doc: Documento, m: ModeloRelatorio): void {
   });
 }
 // ── 2. SUMÁRIO / OBJETIVO / REFERÊNCIAS ─────────────────────────────────────
-export function folhaSumario(doc: Documento, m: ModeloRelatorio, secoes: string[]): void {
+export function folhaSumario(
+  doc: Documento,
+  m: ModeloRelatorio,
+  secoes: SecaoSumario[],
+  paginas: Map<string, number> = new Map(),
+): void {
   doc.novaFolha();
   doc.banner('SUMÁRIO GERAL');
+  // A referência numera com o número DA SEÇÃO (7.1, 7.2…), não com a posição
+  // na lista, e traz a PÁGINA de cada uma. O número da página vem da primeira
+  // passagem do gerador — a mesma que já contava o total do rodapé.
   doc.tabela({
     compacta: true,
-    colunas: [0.12, 0.88],
-    cabecalho: ['ITEM', 'SEÇÃO'],
-    linhas: secoes.map((s, i) => [{ texto: String(i + 1), centro: true }, { texto: s }]),
+    colunas: [0.1, 0.78, 0.12],
+    cabecalho: ['ITEM', 'SEÇÃO', 'PÁG.'],
+    linhas: secoes.map((sec) => [
+      { texto: sec.numero, centro: true, rotulo: true },
+      { texto: sec.titulo },
+      { texto: paginas.has(sec.titulo) ? String(paginas.get(sec.titulo)) : '', centro: true },
+    ]),
   });
 
   doc.banner('1. OBJETIVO');
@@ -270,6 +375,7 @@ export function folhaSumario(doc: Documento, m: ModeloRelatorio, secoes: string[
   doc.tabela({
     compacta: true,
     colunas: [0.3, 0.7],
+    cabecalho: ['DOCUMENTO', 'TÍTULO'],
     linhas: [
       [
         { texto: 'NR-13', rotulo: true },
@@ -280,19 +386,42 @@ export function folhaSumario(doc: Documento, m: ModeloRelatorio, secoes: string[
         },
       ],
       [
-        { texto: 'ASME Seção VIII Div. 1', rotulo: true },
+        { texto: 'ASME VIII Div. 1', rotulo: true },
         {
-          texto: 'Regras para construção de vasos de pressão',
+          texto: 'Rules for Construction of Pressure Vessels',
           id: 'referencias.asme-viii',
           rotuloCampo: 'Referência ASME VIII',
         },
       ],
       [
-        { texto: 'ASME Seção V', rotulo: true },
-        { texto: 'Ensaios não destrutivos', id: 'referencias.asme-v', rotuloCampo: 'Referência ASME V' },
+        { texto: 'ABNT NBR 16035', rotulo: true },
+        {
+          texto: 'Vasos de pressão e trocadores de calor — Requisitos',
+          id: 'referencias.abnt-16035',
+          rotuloCampo: 'Referência ABNT NBR 16035',
+        },
+      ],
+      [
+        { texto: 'ASME V', rotulo: true },
+        {
+          texto: 'Nondestructive Examination — Ensaios não destrutivos',
+          id: 'referencias.asme-v',
+          rotuloCampo: 'Referência ASME V',
+        },
+      ],
+      [
+        // A quinta linha da referência é uma linha EM BRANCO, para o documento
+        // que aquela inspeção usou e o sistema não conhece.
+        { texto: '', valor: true, id: 'referencias.extra-doc', rotuloCampo: 'Documento de referência adicional' },
+        { texto: '', valor: true, id: 'referencias.extra-titulo', rotuloCampo: 'Título do documento adicional' },
       ],
     ],
   });
+
+  // 2.1 — o escopo daquela inspeção. Não existe fonte automática: é o que o
+  // engenheiro delimita, e a referência reserva o bloco para isso.
+  doc.secao('2.1 ESCOPO E OBSERVAÇÕES DA INSPEÇÃO');
+  doc.texto('', { cor: COR.valor, id: 'escopo.texto', rotuloCampo: 'Escopo e observações da inspeção' });
 }
 
 // ── 3. IDENTIFICAÇÃO / PLACA ────────────────────────────────────────────────
@@ -303,8 +432,8 @@ export function folhaIdentificacao(doc: Documento, m: ModeloRelatorio): void {
 
   doc.faixa('PRESSÕES');
   doc.tabela({
-    colunas: [0.4, 0.2, 0.2, 0.2],
-    cabecalho: ['GRANDEZA', 'MPa', 'kgf/cm²', 'bar'],
+    colunas: [0.36, 0.16, 0.16, 0.16, 0.16],
+    cabecalho: ['GRANDEZA', 'MPa', 'psi', 'kgf/cm²', 'bar'],
     // Pressão é campo CALCULADO, e mesmo assim recebe override: a revisão
     // integral antes da emissão é o requisito. O cálculo do sistema não muda —
     // o override vive na chave do relatório e só altera o que este documento
@@ -312,6 +441,7 @@ export function folhaIdentificacao(doc: Documento, m: ModeloRelatorio): void {
     linhas: m.pressoes.map((p) => [
       { texto: p.rotulo, rotulo: true },
       { texto: textoOu(p.mpa), centro: true, valor: true, id: idCampo('pressoes', p.rotulo + ' MPa'), rotuloCampo: `${p.rotulo} (MPa)` },
+      { texto: textoOu(p.psi), centro: true, valor: true, id: idCampo('pressoes', p.rotulo + ' psi'), rotuloCampo: `${p.rotulo} (psi)` },
       { texto: textoOu(p.kgf), centro: true, valor: true, id: idCampo('pressoes', p.rotulo + ' kgf'), rotuloCampo: `${p.rotulo} (kgf/cm²)` },
       { texto: textoOu(p.bar), centro: true, valor: true, id: idCampo('pressoes', p.rotulo + ' bar'), rotuloCampo: `${p.rotulo} (bar)` },
     ]),
@@ -345,6 +475,7 @@ export const ALTURA_PLACA = 62;
  */
 export function blocoPlaca(doc: Documento, m: ModeloRelatorio): void {
   doc.faixa('PLACA DE IDENTIFICAÇÃO');
+  doc.secao('Registro fotográfico da placa de identificação');
   doc.garantirEspaco(ALTURA_PLACA + 2);
   const topo = doc.y;
   if (m.placaReal) {
@@ -421,34 +552,113 @@ function desenharPlacaReconstruida(doc: Documento, m: ModeloRelatorio, topo: num
 }
 
 // ── 4. CATEGORIZAÇÃO DE RISCO ───────────────────────────────────────────────
+/**
+ * A MATRIZ do item 13.5.1.2 — a tabela da norma, como a referência a imprime.
+ *
+ * Ela é a NORMA impressa, não uma conta: as cinco faixas de P.V. e as quatro
+ * classes de fluido são texto fixo do regulamento. A categoria do equipamento
+ * continua vindo de `calc/categoria.ts`; esta tabela só mostra ao leitor de
+ * onde ela saiu.
+ */
+const MATRIZ_13512: { classe: string; descricao: string; categorias: string[] }[] = [
+  {
+    classe: 'A',
+    descricao: 'Fluido inflamável; combustível com temperatura ≥ 200 °C; tóxico com limite de tolerância ≤ 20 ppm; hidrogênio; acetileno',
+    categorias: ['I', 'I', 'II', 'III', 'III'],
+  },
+  {
+    classe: 'B',
+    descricao: 'Combustível com temperatura menor que 200 °C; tóxico com limite de tolerância > 20 ppm',
+    categorias: ['I', 'II', 'III', 'IV', 'IV'],
+  },
+  { classe: 'C', descricao: 'Vapor de água; gases asfixiantes simples; ar comprimido', categorias: ['I', 'II', 'III', 'IV', 'V'] },
+  { classe: 'D', descricao: 'Outro fluido', categorias: ['II', 'III', 'IV', 'V', 'V'] },
+];
+
+// As cinco faixas de P.V. do item 13.5.1.2. O cabeçalho da tabela é de uma
+// linha só, então a quebra da referência vira " · " — o texto é o mesmo.
+const FAIXAS_PV = [
+  '1 · P.V ≥ 100',
+  '2 · P.V < 100 · P.V ≥ 30',
+  '3 · P.V < 30 · P.V ≥ 2,5',
+  '4 · P.V < 2,5 · P.V ≥ 1',
+  '5 · P.V < 1',
+];
+
 export function folhaCategorizacao(doc: Documento, m: ModeloRelatorio): void {
   doc.novaFolha();
   doc.banner('4. CATEGORIZAÇÃO DE RISCO');
+  doc.texto('Classificação do vaso de pressão conforme o item 13.5.1.2 da norma NR-13.', {
+    tamanho: FONTE.nota,
+    cor: COR.nota,
+    espacoAntes: 1,
+  });
+
+  const c = m.categorizacaoFolha;
   doc.tabela({
-    colunas: [0.35, 0.65],
+    colunas: [0.28, 0.22, 0.28, 0.22],
     linhas: [
       [
+        { texto: 'FLUIDO DE TRABALHO', rotulo: true },
+        { texto: textoOu(c.fluidoTrabalho), valor: true, id: 'categoria.fluido-trabalho', rotuloCampo: 'Fluido de trabalho' },
+        { texto: 'CÓDIGO DE PROJETO', rotulo: true },
+        { texto: textoOu(c.codigoProjeto), valor: true, id: 'categoria.codigo-projeto', rotuloCampo: 'Código de projeto' },
+      ],
+      [
+        { texto: 'PRESSÃO MÁX. ADMISSÍVEL (PMTA)', rotulo: true },
+        { texto: textoOu(c.pmta), valor: true, id: 'categoria.pmta', rotuloCampo: 'PMTA na categorização' },
+        { texto: 'VOLUME GEOMÉTRICO', rotulo: true },
+        { texto: textoOu(c.volumeGeometrico), valor: true, id: 'categoria.volume', rotuloCampo: 'Volume geométrico' },
+      ],
+      [
+        { texto: 'PRODUTO P.V. (kPa × m³)', rotulo: true },
+        { texto: textoOu(m.categorizacaoDetalhe.pvKpa), valor: true, id: 'categoria.pv-kpa', rotuloCampo: 'Produto P.V. (kPa × m³)' },
+        { texto: 'P.V. > 8 — APLICA-SE A NR-13?', rotulo: true },
+        { texto: textoOu(c.aplicaNr13), valor: true, id: 'categoria.aplica-nr13', rotuloCampo: 'Aplica-se a NR-13?' },
+      ],
+      [
+        { texto: 'PRODUTO P.V. PARA RISCO (MPa × m³)', rotulo: true },
+        { texto: textoOu(m.categorizacaoDetalhe.pvMpa), valor: true, id: 'categoria.pv-mpa', rotuloCampo: 'Produto P.V. para risco (MPa × m³)' },
         { texto: 'CLASSE DO FLUIDO', rotulo: true },
         { texto: textoOu(m.equipamento['CLASSE DO FLUIDO']), valor: true, id: 'categoria.classe-do-fluido', rotuloCampo: 'Classe do fluido' },
       ],
       [
-        { texto: 'GRUPO DE POTENCIAL DE RISCO', rotulo: true },
+        { texto: 'GRUPO POTENCIAL DE RISCO', rotulo: true },
         { texto: textoOu(m.categoria.grupo), valor: true, id: 'categoria.grupo', rotuloCampo: 'Grupo de potencial de risco' },
-      ],
-      [
-        { texto: 'VOLUME (m³)', rotulo: true },
-        { texto: textoOu(m.categoria.volume), valor: true, id: 'categoria.volume', rotuloCampo: 'Volume (m³)' },
-      ],
-      [
-        { texto: 'CATEGORIA DO EQUIPAMENTO', rotulo: true },
+        { texto: 'CATEGORIA DO VASO', rotulo: true },
         { texto: textoOu(m.categoria.catFinal), valor: true, id: 'categoria.categoria', rotuloCampo: 'Categoria do equipamento' },
-      ],
-      [
-        { texto: 'ENQUADRAMENTO NA NR-13', rotulo: true },
-        { texto: textoOu(m.categoria.enquadramento), valor: true, id: 'categoria.enquadramento', rotuloCampo: 'Enquadramento na NR-13' },
       ],
     ],
   });
+
+  doc.faixa('MATRIZ DE CATEGORIZAÇÃO — item 13.5.1.2 da NR-13');
+  doc.tabela({
+    compacta: true,
+    colunas: [0.4, 0.12, 0.12, 0.12, 0.12, 0.12],
+    cabecalho: ['CLASSE DE FLUIDO (CORPO / TUBO)', ...FAIXAS_PV],
+    linhas: MATRIZ_13512.map((linha) => [
+      { texto: `${linha.classe} — ${linha.descricao}` },
+      ...linha.categorias.map((cat) => ({ texto: cat, centro: true })),
+    ]),
+  });
+
+  doc.faixa('OPERAÇÃO DO VASO DE PRESSÃO');
+  doc.tabela({
+    colunas: [0.6, 0.4],
+    linhas: [
+      [
+        { texto: 'CATEGORIA DO VASO', rotulo: true },
+        { texto: textoOu(m.categoria.catFinal), centro: true, valor: true, id: 'categoria.operacao-categoria', rotuloCampo: 'Categoria do vaso (operação)' },
+      ],
+      [
+        { texto: 'É OBRIGATÓRIO OPERADOR TREINADO (ANEXO I-B)?', rotulo: true },
+        { texto: textoOu(c.operadorTreinado), centro: true, valor: true, id: 'categoria.operador-treinado', rotuloCampo: 'Operador treinado obrigatório?' },
+      ],
+    ],
+  });
+
+  doc.secao('Observações sobre a categorização');
+  doc.texto('', { cor: COR.valor, id: 'categoria.observacoes', rotuloCampo: 'Observações sobre a categorização' });
   doc.texto(
     'A categorização segue o item 13.5.1.2 da NR-13: o grupo de potencial de risco resulta do ' +
       'produto pressão × volume, e a categoria, do cruzamento desse grupo com a classe do fluido.',
@@ -640,7 +850,12 @@ export function folhaResumoCalculos(doc: Documento, m: ModeloRelatorio): void {
       }),
     });
 
-    doc.secao('Resultados');
+    // PARÂMETROS E RESULTADOS — as quatro linhas da referência, com os oito
+    // campos que ela imprime. E, S e o raio já apareciam na legenda dos
+    // símbolos; aqui eles aparecem com o RÓTULO documental, que é o que um
+    // fiscal procura na folha.
+    doc.secao(`Parâmetros e resultados: ${c.nome.toUpperCase()}`);
+    const rotuloRaio = /tampo/i.test(c.nome) ? 'RAIO DA COROA (L)' : 'RAIO INTERNO (Ri)';
     doc.tabela({
       compacta: true,
       colunas: [0.3, 0.2, 0.3, 0.2],
@@ -648,18 +863,26 @@ export function folhaResumoCalculos(doc: Documento, m: ModeloRelatorio): void {
         [
           { texto: 'ESPESSURA MÍN. CALCULADA (t)', rotulo: true },
           { texto: textoOu(c.espReq), centro: true, valor: true, id: `${pref}.esp-min-calculada`, rotuloCampo: `${c.nome} — espessura mínima calculada` },
+          { texto: 'PMTA CALCULADA (P)', rotulo: true },
+          { texto: textoOu(c.pmta), centro: true, valor: true, id: `${pref}.pmta`, rotuloCampo: `${c.nome} — PMTA calculada` },
+        ],
+        [
+          { texto: 'EFICIÊNCIA DA JUNTA (E)', rotulo: true },
+          { texto: textoOu(c.e), centro: true, valor: true, id: `${pref}.eficiencia`, rotuloCampo: `${c.nome} — eficiência da junta` },
           { texto: 'ESP. MÍN. MEDIDA (t)', rotulo: true },
           { texto: textoOu(c.espNom), centro: true, valor: true, id: `${pref}.esp-medida`, rotuloCampo: `${c.nome} — espessura medida` },
         ],
         [
-          { texto: 'PMTA CALCULADA (P)', rotulo: true },
-          { texto: textoOu(c.pmta), centro: true, valor: true, id: `${pref}.pmta`, rotuloCampo: `${c.nome} — PMTA calculada` },
           { texto: 'MARGEM DE CORROSÃO (c)', rotulo: true },
           { texto: textoOu(c.ca), centro: true, valor: true, id: `${pref}.margem`, rotuloCampo: `${c.nome} — margem de corrosão` },
+          { texto: rotuloRaio, rotulo: true },
+          { texto: textoOu(c.raio), centro: true, valor: true, id: `${pref}.raio`, rotuloCampo: `${c.nome} — ${rotuloRaio.toLowerCase()}` },
         ],
         [
-          { texto: 'MATERIAL', rotulo: true },
-          { texto: textoOu(c.material), centro: true, valor: true, colspan: 3, id: `${pref}.material`, rotuloCampo: `${c.nome} — material` },
+          { texto: /tampo/i.test(c.nome) ? 'MATERIAL DO TAMPO' : 'MATERIAL DO CASCO', rotulo: true },
+          { texto: textoOu(c.material), centro: true, valor: true, id: `${pref}.material`, rotuloCampo: `${c.nome} — material` },
+          { texto: 'TENSÃO ADMISSÍVEL (S)', rotulo: true },
+          { texto: textoOu(c.s), centro: true, valor: true, id: `${pref}.tensao`, rotuloCampo: `${c.nome} — tensão admissível` },
         ],
       ],
     });
@@ -695,6 +918,23 @@ export function folhaResumoCalculos(doc: Documento, m: ModeloRelatorio): void {
 export function folhasMemoria(doc: Documento, m: ModeloRelatorio): void {
   doc.novaFolha();
   doc.banner('6.1 MEMÓRIA DE CÁLCULO DA PMTA E ESPESSURA MÍNIMA');
+  doc.tabela({
+    compacta: true,
+    colunas: [0.25, 0.25, 0.25, 0.25],
+    linhas: [
+      [
+        { texto: 'T.A.G.', rotulo: true },
+        { texto: textoOu(m.tag), valor: true, id: 'memoria.tag', rotuloCampo: 'T.A.G. do memorial' },
+        { texto: 'CÓDIGO DE PROJETO', rotulo: true },
+        {
+          texto: textoOu(m.equipamento['CÓDIGO DE PROJETO']),
+          valor: true,
+          id: 'memoria.codigo-projeto',
+          rotuloCampo: 'Código de projeto do memorial',
+        },
+      ],
+    ],
+  });
   if (m.memorial.length === 0) {
     doc.texto('Memorial de cálculo não salvo para este equipamento.', {
       tamanho: FONTE.nota,
@@ -717,70 +957,200 @@ export function folhasMemoria(doc: Documento, m: ModeloRelatorio): void {
 }
 
 // ── 8. DADOS GERAIS DA INSPEÇÃO ─────────────────────────────────────────────
+/** As quatro naturezas de inspeção da NR-13 — marcáveis, como na referência. */
+const NATUREZAS = ['INICIAL', 'PERIÓDICA', 'EXTRAORDINÁRIA', 'OCORRÊNCIA'];
+
 export function folhaDadosInspecao(doc: Documento, m: ModeloRelatorio): void {
   doc.novaFolha();
   doc.banner('7. EXAMES REALIZADOS — DADOS GERAIS DA INSPEÇÃO');
+
+  const d = m.dadosInspecao;
   doc.tabela({
-    colunas: [0.3, 0.7],
+    colunas: [0.25, 0.25, 0.25, 0.25],
     linhas: [
-      [{ texto: 'NATUREZA DA INSPEÇÃO', rotulo: true }, { texto: textoOu(m.tipoInspecao), valor: true }],
-      [{ texto: 'DATA DE EXECUÇÃO', rotulo: true }, { texto: textoOu(m.execucao), valor: true }],
       [
-        { texto: 'ENSAIOS REALIZADOS', rotulo: true },
-        {
-          texto: textoOu(
-            [
-              m.visualExterno.itens.length || m.visualExterno.fotos.length ? 'Exame visual externo' : '',
-              m.visualInterno.itens.length || m.visualInterno.fotos.length ? 'Exame visual interno' : '',
-              m.ultrassom.pontos.length ? 'Medição de espessura (ultrassom)' : '',
-              m.th.pressaoTeste ? 'Teste hidrostático' : '',
-            ]
-              .filter(Boolean)
-              .join(' · '),
-          ),
-          valor: true,
-        },
+        { texto: 'DATA DE INÍCIO DA INSPEÇÃO', rotulo: true },
+        { texto: textoOu(d.dataInicio), valor: true, id: 'inspecao.data-inicio', rotuloCampo: 'Data de início da inspeção' },
+        { texto: 'DATA DE TÉRMINO', rotulo: true },
+        { texto: textoOu(d.dataTermino), valor: true, id: 'inspecao.data-termino', rotuloCampo: 'Data de término' },
       ],
       [
-        { texto: 'RESULTADO', rotulo: true },
-        { texto: textoOu(rotuloLaudo(m.laudo.apto)), valor: true },
+        { texto: 'EQUIPAMENTO / T.A.G.', rotulo: true },
+        { texto: textoOu(d.equipamento), valor: true, id: 'inspecao.equipamento', rotuloCampo: 'Equipamento / T.A.G.' },
+        { texto: 'Nº DE SÉRIE', rotulo: true },
+        { texto: textoOu(d.serie), valor: true, id: 'inspecao.serie', rotuloCampo: 'Nº de série' },
+      ],
+      [
+        { texto: 'Nº DA A.R.T. (CREA)', rotulo: true },
+        { texto: textoOu(d.art), valor: true, id: 'inspecao.art', rotuloCampo: 'Nº da A.R.T. (CREA)' },
+        { texto: 'Nº DO RELATÓRIO', rotulo: true },
+        { texto: textoOu(d.numeroRelatorio), valor: true, id: 'inspecao.numero-relatorio', rotuloCampo: 'Nº do relatório' },
       ],
     ],
   });
+
+  // NATUREZA e ENSAIOS saem MARCADOS, não escritos por extenso: é assim que a
+  // referência os imprime e é o que um fiscal lê de relance.
+  doc.faixa('NATUREZA DA INSPEÇÃO');
+  const naturezaAtual = String(m.tipoInspecao ?? '').toUpperCase();
+  doc.tabela({
+    compacta: true,
+    colunas: [0.35, 0.15, 0.35, 0.15],
+    linhas: [0, 2].map((i) =>
+      [i, i + 1].flatMap((k) => [
+        { texto: NATUREZAS[k], rotulo: true } as CelulaDoc,
+        celulaMarca(
+          naturezaAtual.includes(NATUREZAS[k].replace('Ó', 'O').replace('Á', 'A')) || naturezaAtual.includes(NATUREZAS[k]),
+          `inspecao.natureza-${NATUREZAS[k].toLowerCase()}`,
+          `Natureza — ${NATUREZAS[k]}`,
+        ),
+      ]),
+    ),
+  });
+
+  doc.faixa('TIPO DE EXAME / ENSAIOS REALIZADOS');
+  const e = d.ensaios;
+  doc.tabela({
+    compacta: true,
+    colunas: [0.35, 0.15, 0.35, 0.15],
+    linhas: [0, 2, 4].map((i) =>
+      [i, i + 1].flatMap((k) => [
+        { texto: e[k]?.rotulo ?? '', rotulo: true } as CelulaDoc,
+        celulaMarca(!!e[k]?.feito, `inspecao.ensaio-${k}`, `Ensaio — ${e[k]?.rotulo ?? ''}`),
+      ]),
+    ),
+  });
+
+  doc.faixa('RESULTADO DO EXAME VISUAL');
+  doc.tabela({
+    compacta: true,
+    colunas: [0.5, 0.5],
+    linhas: [
+      [
+        { texto: 'VISUAL EXTERNO', rotulo: true },
+        { texto: textoOu(d.resultadoVisualExterno), centro: true, valor: true, id: 'inspecao.resultado-externo', rotuloCampo: 'Resultado do visual externo' },
+      ],
+      [
+        { texto: 'VISUAL INTERNO', rotulo: true },
+        { texto: textoOu(d.resultadoVisualInterno), centro: true, valor: true, id: 'inspecao.resultado-interno', rotuloCampo: 'Resultado do visual interno' },
+      ],
+    ],
+  });
+
+  doc.secao('RESULTADO DOS ENSAIOS REALIZADOS');
+  doc.texto(textoOu(rotuloLaudo(m.laudo.apto)), {
+    cor: COR.valor,
+    id: 'inspecao.resultado-ensaios',
+    rotuloCampo: 'Resultado dos ensaios realizados',
+  });
+
+  doc.secao('OBSERVAÇÕES');
+  doc.texto('', { cor: COR.valor, id: 'inspecao.observacoes', rotuloCampo: 'Observações da inspeção' });
 }
 
-// ── 9 a 11. CHECKLIST NR-13 ─────────────────────────────────────────────────
+// ── 9 a 11. VERIFICAÇÃO DA DOCUMENTAÇÃO E CHECKLIST NR-13 ───────────────────
+//
+// São TRÊS folhas na referência, e cada uma tem um papel diferente:
+//   7.1   · a documentação existente na data da inspeção (Existe / Não ident. /
+//           Não aplica), com observação por item;
+//   7.1.1 · o checklist parte 1 — enquadramento, prontuário, exame externo e o
+//           quadro de instrumentos e dispositivos de segurança;
+//   7.1.2 · o checklist parte 2 — exame interno, ensaio hidrostático e as
+//           considerações finais.
+//
+// Até 06/09/2026 as três viravam UMA folha com uma coluna RESULTADO de texto:
+// o documento não tinha o quadro de instrumentos, não separava documentação de
+// checklist e escondia todo item sem resposta.
+
+/** Uma seção do checklist, com as marcas SIM / NÃO / N.A. da referência. */
+function tabelaChecklist(doc: Documento, secao: { titulo: string; itens: ItemChecklist[] }, prefixo: string): void {
+  doc.faixa(secao.titulo.toUpperCase());
+  doc.tabela({
+    compacta: true,
+    colunas: [0.5, 0.08, 0.08, 0.08, 0.26],
+    cabecalho: ['ITEM VERIFICADO', 'SIM', 'NÃO', 'N.A.', 'OBSERVAÇÃO'],
+    linhas: secao.itens.map((it, i) => {
+      const marca = marcasSimNaoNa(it.resposta);
+      const base = `${prefixo}.${i + 1}`;
+      const obs = [it.observacao, marca.extra].filter(Boolean).join(' · ');
+      return [
+        { texto: it.titulo },
+        celulaMarca(marca.sim, `${base}.sim`, `${it.titulo} — SIM`),
+        celulaMarca(marca.nao, `${base}.nao`, `${it.titulo} — NÃO`),
+        celulaMarca(marca.na, `${base}.na`, `${it.titulo} — N.A.`),
+        { texto: obs, valor: true, id: `${base}.obs`, rotuloCampo: `${it.titulo} — observação`, multilinha: true },
+      ];
+    }),
+  });
+}
+
 export function folhasChecklist(doc: Documento, m: ModeloRelatorio): void {
+  const secoes = m.checklist;
+  const documentacao = secoes[0];
+  const parte1 = secoes.slice(1, 4);
+  const parte2 = secoes.slice(4);
+
+  // ── 7.1 · VERIFICAÇÃO DA DOCUMENTAÇÃO ────────────────────────────────────
   doc.novaFolha();
-  doc.banner('7.1 CHECKLIST NR-13 — VERIFICAÇÃO E RESULTADOS');
-  if (m.checklist.length === 0) {
-    doc.texto('Nenhum item de checklist respondido nesta inspeção.', {
-      tamanho: FONTE.nota,
-      cor: COR.nota,
-      espacoAntes: 2,
-    });
-    return;
-  }
-  // O layout base é de 2 folhas (decisão C do dono); se o conteúdo real passar,
-  // a paginação automática abre a terceira. NENHUM item é cortado para forçar
-  // duas páginas — a evidência de inspeção não se ajusta ao papel.
-  for (const secao of m.checklist) {
-    doc.faixa(secao.titulo.toUpperCase());
+  doc.banner('7.1 VERIFICAÇÃO DA DOCUMENTAÇÃO EXISTENTE NA DATA DA INSPEÇÃO');
+  if (documentacao) {
     doc.tabela({
       compacta: true,
-      colunas: [0.07, 0.63, 0.3],
-      cabecalho: ['ITEM', 'VERIFICAÇÃO', 'RESULTADO'],
-      linhas: secao.itens.map((it, i) => [
-        { texto: String(i + 1), centro: true },
-        { texto: it.observacao ? `${it.titulo}\n${it.observacao}` : it.titulo },
-        { texto: it.resposta, centro: true, valor: true },
-      ]),
+      colunas: [0.46, 0.09, 0.1, 0.1, 0.25],
+      cabecalho: ['DESCRIÇÃO', 'EXISTE', 'NÃO IDENT.', 'NÃO APLICA', 'OBSERVAÇÃO'],
+      linhas: documentacao.itens.map((it, i) => {
+        const marca = marcasDocumentacao(it.resposta);
+        const base = `documentacao.${i + 1}`;
+        return [
+          { texto: it.titulo },
+          celulaMarca(marca.existe, `${base}.existe`, `${it.titulo} — Existe`),
+          celulaMarca(marca.naoIdent, `${base}.nao-ident`, `${it.titulo} — Não identificado`),
+          celulaMarca(marca.naoAplica, `${base}.nao-aplica`, `${it.titulo} — Não aplica`),
+          { texto: textoOu(it.observacao, ''), valor: true, id: `${base}.obs`, rotuloCampo: `${it.titulo} — observação`, multilinha: true },
+        ];
+      }),
     });
   }
-  if (m.comentariosDocumentacao) {
-    doc.secao('Comentários sobre a documentação');
-    doc.texto(m.comentariosDocumentacao, { cor: COR.valor });
-  }
+  doc.secao('Comentários sobre a documentação');
+  doc.texto(textoOu(m.comentariosDocumentacao, ''), {
+    cor: COR.valor,
+    id: 'documentacao.comentarios',
+    rotuloCampo: 'Comentários sobre a documentação',
+  });
+
+  // ── 7.1.1 · CHECKLIST, PARTE 1 ───────────────────────────────────────────
+  doc.novaFolha();
+  doc.banner('7.1.1 CHECKLIST NR-13 — VASO SOB PRESSÃO (PARTE 1)');
+  parte1.forEach((secao, i) => tabelaChecklist(doc, secao, `checklist1.${i}`));
+
+  doc.faixa('INSTRUMENTOS E DISPOSITIVOS DE SEGURANÇA INSTALADOS');
+  doc.tabela({
+    compacta: true,
+    colunas: [0.34, 0.13, 0.13, 0.4],
+    cabecalho: ['INSTRUMENTO', 'POSSUI', 'CALIBRADO', 'Nº DO CERTIFICADO / VALIDADE'],
+    linhas: m.instrumentos.map((inst, i) => [
+      { texto: inst.nome, rotulo: true },
+      celulaMarca(inst.possui === 'SIM', `instrumentos.${i}.possui`, `${inst.nome} — possui`),
+      celulaMarca(inst.calibrado === 'SIM', `instrumentos.${i}.calibrado`, `${inst.nome} — calibrado`),
+      {
+        texto: textoOu(inst.certificado, ''),
+        valor: true,
+        id: `instrumentos.${i}.certificado`,
+        rotuloCampo: `${inst.nome} — nº do certificado / validade`,
+      },
+    ]),
+  });
+
+  doc.secao('Observações — checklist (parte 1)');
+  doc.texto('', { cor: COR.valor, id: 'checklist1.observacoes', rotuloCampo: 'Observações do checklist (parte 1)' });
+
+  // ── 7.1.2 · CHECKLIST, PARTE 2 ───────────────────────────────────────────
+  doc.novaFolha();
+  doc.banner('7.1.2 CHECKLIST NR-13 — VASO SOB PRESSÃO (PARTE 2)');
+  parte2.forEach((secao, i) => tabelaChecklist(doc, secao, `checklist2.${i}`));
+
+  doc.secao('Observações do checklist');
+  doc.texto('', { cor: COR.valor, id: 'checklist2.observacoes', rotuloCampo: 'Observações do checklist (parte 2)' });
 }
 
 // ── 12. FOTOS DA DOCUMENTAÇÃO · e as do checklist ───────────────────────────
@@ -796,13 +1166,13 @@ export function folhasFotosDocumentacao(
 // ── 13 a 16. EXAMES VISUAIS E SUAS FOTOS ────────────────────────────────────
 export function folhasExameExterno(doc: Documento, m: ModeloRelatorio, comFotos = true): void {
   doc.novaFolha();
-  blocoExame(doc, '7.2 EXAME EXTERNO (INSPEÇÃO VISUAL EXTERNA)', m.visualExterno, 'exameExterno');
+  blocoExame(doc, '7.2 EXAME EXTERNO (INSPEÇÃO VISUAL EXTERNA)', m.visualExterno, 'exameExterno', 'exame externo');
   if (comFotos) folhaDeFotos(doc, '8.1 REGISTRO FOTOGRÁFICO — EXAME EXTERNO', m.visualExterno.fotos);
 }
 
 export function folhasExameInterno(doc: Documento, m: ModeloRelatorio, comFotos = true): void {
   doc.novaFolha();
-  blocoExame(doc, '7.3 EXAME INTERNO (INSPEÇÃO VISUAL INTERNA)', m.visualInterno, 'exameInterno');
+  blocoExame(doc, '7.3 EXAME INTERNO (INSPEÇÃO VISUAL INTERNA)', m.visualInterno, 'exameInterno', 'exame interno');
   if (comFotos) folhaDeFotos(doc, '8.2 REGISTRO FOTOGRÁFICO — EXAME INTERNO', m.visualInterno.fotos);
 }
 
@@ -810,33 +1180,61 @@ export function folhasExameInterno(doc: Documento, m: ModeloRelatorio, comFotos 
 export function folhaUltrassom(doc: Documento, m: ModeloRelatorio): void {
   doc.novaFolha();
   doc.banner('7.4 MEDIÇÃO DE ESPESSURA POR ULTRASSOM');
+
+  // INFORMAÇÕES DO COMPONENTE AVALIADO — a referência abre a folha por aqui, e
+  // os três campos já eram coletados pelo formulário de campo: sem esta tabela
+  // o documento não dizia em QUE equipamento e em que área o ensaio foi feito.
+  doc.faixa('INFORMAÇÕES DO COMPONENTE AVALIADO');
+  doc.tabela({
+    compacta: true,
+    colunas: [0.16, 0.24, 0.14, 0.16, 0.1, 0.2],
+    linhas: [
+      [
+        { texto: 'EQUIPAMENTO', rotulo: true },
+        { texto: textoOu(m.ultrassom.equipamento), valor: true, id: 'ultrassom.equipamento', rotuloCampo: 'Equipamento avaliado' },
+        { texto: 'Nº DE SÉRIE', rotulo: true },
+        { texto: textoOu(m.ultrassom.serie), valor: true, id: 'ultrassom.serie', rotuloCampo: 'Nº de série (ultrassom)' },
+        { texto: 'ÁREA', rotulo: true },
+        { texto: textoOu(m.ultrassom.area), valor: true, id: 'ultrassom.area', rotuloCampo: 'Área avaliada' },
+      ],
+      [
+        { texto: 'ESPESSURA NOMINAL', rotulo: true },
+        { texto: textoOu(m.ultrassom.espessuraNominal), valor: true, id: 'ultrassom.espessura-nominal', rotuloCampo: 'Espessura nominal' },
+        { texto: 'MATERIAL', rotulo: true },
+        { texto: textoOu(m.ultrassom.material), valor: true, id: 'ultrassom.material', rotuloCampo: 'Material (ultrassom)' },
+        { texto: 'DATA', rotulo: true },
+        { texto: textoOu(m.ultrassom.data), valor: true, id: 'ultrassom.data', rotuloCampo: 'Data do ensaio' },
+      ],
+    ],
+  });
+
   doc.faixa('INFORMAÇÕES PARA O ENSAIO');
   doc.tabela({
     compacta: true,
     colunas: [0.25, 0.25, 0.25, 0.25],
     linhas: [
       [
-        { texto: 'APARELHO', rotulo: true },
-        { texto: textoOu(m.ultrassom.aparelho), valor: true, id: 'ultrassom.aparelho', rotuloCampo: 'Aparelho' },
+        { texto: 'APARELHO / Nº DE SÉRIE', rotulo: true },
+        { texto: textoOu(m.ultrassom.aparelho), valor: true, id: 'ultrassom.aparelho', rotuloCampo: 'Aparelho / nº de série' },
         { texto: 'ACOPLANTE', rotulo: true },
         { texto: textoOu(m.ultrassom.acoplante), valor: true, id: 'ultrassom.acoplante', rotuloCampo: 'Acoplante' },
       ],
       [
-        { texto: 'TEMP. DA SUPERFÍCIE', rotulo: true },
+        { texto: 'TEMP. DA SUPERFÍCIE (°C)', rotulo: true },
         { texto: textoOu(m.ultrassom.tempSup), valor: true, id: 'ultrassom.temperatura', rotuloCampo: 'Temperatura da superfície' },
         { texto: 'ESTADO DA SUPERFÍCIE', rotulo: true },
         { texto: textoOu(m.ultrassom.estadoSup), valor: true, id: 'ultrassom.estado-superficie', rotuloCampo: 'Estado da superfície' },
       ],
       [
         { texto: 'CABEÇOTE', rotulo: true },
-        { texto: textoOu(m.ultrassom.cabecote), valor: true },
+        { texto: textoOu(m.ultrassom.cabecote), valor: true, id: 'ultrassom.cabecote', rotuloCampo: 'Cabeçote' },
         { texto: 'VELOCIDADE SÔNICA', rotulo: true },
-        { texto: textoOu(m.ultrassom.velSonica), valor: true },
+        { texto: textoOu(m.ultrassom.velSonica), valor: true, id: 'ultrassom.velocidade', rotuloCampo: 'Velocidade sônica' },
       ],
     ],
   });
 
-  doc.faixa('PONTOS DE MEDIÇÃO E MEDIDAS ENCONTRADAS (mm)');
+  doc.faixa('LOCALIZAÇÃO DOS PONTOS DE MEDIÇÃO E MEDIDAS ENCONTRADAS (mm)');
   if (m.ultrassom.pontos.length > 0) {
     // 13D · UMA TABELA POR REGIÃO. Regiões podem ter contagens de coluna
     // diferentes (o container define quantos ângulos cada uma tem), e uma
@@ -857,10 +1255,10 @@ export function folhaUltrassom(doc: Documento, m: ModeloRelatorio): void {
         compacta: true,
         colunas: [0.26, ...Array(Math.max(angulos.length, 1)).fill(colMedida), 0.13, 0.13],
         cabecalho: [
-          'PONTO',
+          'REGIÃO / PONTO',
           ...(angulos.length > 0 ? angulos.map((a) => `${a}°`) : ['MEDIDA']),
-          'MENOR',
-          'REQUERIDA',
+          'MENOR VALOR',
+          'ESP. MÍN. REQUERIDA',
         ],
         linhas: linhas.map((p) => [
           { texto: p.ponto },
@@ -878,53 +1276,125 @@ export function folhaUltrassom(doc: Documento, m: ModeloRelatorio): void {
     doc.texto('Sem pontos de medição registrados.', { tamanho: FONTE.nota, cor: COR.nota, espacoAntes: 2 });
   }
 
-  doc.faixa('INSTRUMENTO DE MEDIÇÃO UTILIZADO');
+  blocoInstrumentoPadrao(doc, m.ultrassom.instrumento, 'ultrassom');
+
+  doc.secao('Observações / conclusões do ensaio');
+  doc.texto(textoOu(m.ultrassom.observacoes, ''), {
+    cor: COR.valor,
+    id: 'ultrassom.observacoes',
+    rotuloCampo: 'Observações / conclusões do ensaio',
+  });
+
   doc.tabela({
     compacta: true,
-    colunas: [0.25, 0.25, 0.25, 0.25],
+    colunas: [0.3, 0.7],
     linhas: [
       [
-        { texto: 'PADRÃO', rotulo: true },
-        { texto: textoOu(m.ultrassom.instrumento.padrao), valor: true },
-        { texto: 'Nº SÉRIE', rotulo: true },
-        { texto: textoOu(m.ultrassom.instrumento.serie), valor: true },
-      ],
-      [
-        { texto: 'Nº CERTIFICADO', rotulo: true },
-        { texto: textoOu(m.ultrassom.instrumento.certificado), valor: true },
-        { texto: 'VALIDADE', rotulo: true },
-        { texto: textoOu(m.ultrassom.instrumento.validade), valor: true },
+        { texto: 'RESULTADO DO ENSAIO', rotulo: true },
+        { texto: textoOu(m.ultrassom.resultado), valor: true, id: 'ultrassom.resultado', rotuloCampo: 'Resultado do ensaio' },
       ],
     ],
   });
+}
 
-  doc.secao('Resultado do ensaio');
-  doc.texto(textoOu(m.ultrassom.resultado), { cor: COR.valor });
+/**
+ * O quadro do instrumento PADRÃO — o mesmo nas folhas de ultrassom e de teste
+ * hidrostático, porque é o mesmo quadro na referência: PADRÃO, Nº SÉRIE,
+ * Nº CERTIFICADO e VALIDADE numa linha só.
+ */
+function blocoInstrumentoPadrao(
+  doc: Documento,
+  inst: { padrao: string | null; serie: string | null; certificado: string | null; validade: string | null },
+  prefixo: string,
+): void {
+  doc.faixa('INSTRUMENTO DE MEDIÇÃO UTILIZADO');
+  doc.tabela({
+    compacta: true,
+    colunas: [0.12, 0.26, 0.1, 0.16, 0.14, 0.22],
+    linhas: [
+      [
+        { texto: 'PADRÃO', rotulo: true },
+        { texto: textoOu(inst.padrao), valor: true, id: `${prefixo}.instrumento.padrao`, rotuloCampo: 'Instrumento padrão' },
+        { texto: 'Nº SÉRIE', rotulo: true },
+        { texto: textoOu(inst.serie), valor: true, id: `${prefixo}.instrumento.serie`, rotuloCampo: 'Nº de série do padrão' },
+        { texto: 'Nº CERTIFICADO', rotulo: true },
+        { texto: textoOu(inst.certificado), valor: true, id: `${prefixo}.instrumento.certificado`, rotuloCampo: 'Nº do certificado do padrão' },
+      ],
+      [
+        { texto: 'VALIDADE', rotulo: true },
+        { texto: textoOu(inst.validade), valor: true, colspan: 5, id: `${prefixo}.instrumento.validade`, rotuloCampo: 'Validade do certificado do padrão' },
+      ],
+    ],
+  });
 }
 
 // ── 18 e 19. TESTE HIDROSTÁTICO E SUAS FOTOS ────────────────────────────────
 export function folhasTesteHidrostatico(doc: Documento, m: ModeloRelatorio, comFotos = true): void {
   doc.novaFolha();
   doc.banner('7.5 REGISTRO DE TESTE HIDROSTÁTICO');
+
+  doc.faixa('DADOS GERAIS');
   doc.tabela({
     compacta: true,
-    colunas: [0.25, 0.25, 0.25, 0.25],
+    colunas: [0.22, 0.28, 0.22, 0.28],
+    linhas: [
+      [
+        { texto: 'CLIENTE', rotulo: true },
+        { texto: textoOu(m.th.cliente), valor: true, id: 'th.cliente', rotuloCampo: 'Cliente (TH)' },
+        { texto: 'DOC Nº', rotulo: true },
+        { texto: textoOu(m.th.docNumero), valor: true, id: 'th.doc-numero', rotuloCampo: 'Documento nº (TH)' },
+      ],
+      [
+        { texto: 'T.A.G.', rotulo: true },
+        { texto: textoOu(m.th.tag), valor: true, id: 'th.tag', rotuloCampo: 'T.A.G. (TH)' },
+        { texto: 'EQUIPAMENTO', rotulo: true },
+        { texto: textoOu(m.th.equipamento), valor: true, id: 'th.equipamento', rotuloCampo: 'Equipamento (TH)' },
+      ],
+      [
+        { texto: 'PRESSÃO DE PROJETO', rotulo: true },
+        { texto: textoOu(m.th.pressaoProjeto), valor: true, id: 'th.pressao-projeto', rotuloCampo: 'Pressão de projeto (TH)' },
+        { texto: 'PRESSÃO DE TRABALHO', rotulo: true },
+        { texto: textoOu(m.th.pressaoTrabalho), valor: true, id: 'th.pressao-trabalho', rotuloCampo: 'Pressão de trabalho (TH)' },
+      ],
+    ],
+  });
+
+  // DADOS DO TESTE — duração, temperatura do fluido, normas, validade do laudo
+  // e procedimento estão na referência e o formulário de campo ainda não os
+  // coleta (E2E de 05/09/2026). A linha existe e nasce vazia: amarela na
+  // prévia, preenchida à mão. Escondê-la seria tirar do laudo o que ele afirma.
+  doc.faixa('DADOS DO TESTE');
+  doc.tabela({
+    compacta: true,
+    colunas: [0.22, 0.28, 0.22, 0.28],
     linhas: [
       [
         { texto: 'FLUIDO DE TESTE', rotulo: true },
         { texto: textoOu(m.th.fluido), valor: true, id: 'th.fluido', rotuloCampo: 'Fluido de teste' },
-        { texto: 'DATA DO TESTE', rotulo: true },
-        { texto: textoOu(m.th.dataTeste), valor: true, id: 'th.data', rotuloCampo: 'Data do teste' },
-      ],
-      [
-        { texto: 'PRESSÃO DE PROJETO', rotulo: true },
-        { texto: textoOu(m.th.pressaoProjeto), valor: true, id: 'th.pressao-projeto', rotuloCampo: 'Pressão de projeto' },
         { texto: 'PRESSÃO DE TESTE', rotulo: true },
         { texto: textoOu(m.th.pressaoTeste), valor: true, id: 'th.pressao-teste', rotuloCampo: 'Pressão de teste' },
       ],
       [
+        { texto: 'DURAÇÃO DO TESTE', rotulo: true },
+        { texto: textoOu(m.th.duracao, ''), valor: true, id: 'th.duracao', rotuloCampo: 'Duração do teste' },
+        { texto: 'TEMP. DO FLUIDO', rotulo: true },
+        { texto: textoOu(m.th.tempFluido, ''), valor: true, id: 'th.temp-fluido', rotuloCampo: 'Temperatura do fluido' },
+      ],
+      [
+        { texto: 'NORMAS DE REFERÊNCIA', rotulo: true },
+        { texto: textoOu(m.th.normas, ''), valor: true, id: 'th.normas', rotuloCampo: 'Normas de referência (TH)' },
+        { texto: 'VALIDADE DO LAUDO', rotulo: true },
+        { texto: textoOu(m.th.validadeLaudo, ''), valor: true, id: 'th.validade-laudo', rotuloCampo: 'Validade do laudo (TH)' },
+      ],
+      [
+        { texto: 'PROCEDIMENTO', rotulo: true },
+        { texto: textoOu(m.th.procedimento, ''), colspan: 3, valor: true, id: 'th.procedimento', rotuloCampo: 'Procedimento do teste', multilinha: true },
+      ],
+      [
+        { texto: 'DATA DO TESTE', rotulo: true },
+        { texto: textoOu(m.th.dataTeste), valor: true, id: 'th.data', rotuloCampo: 'Data do teste' },
         { texto: 'RESULTADO', rotulo: true },
-        { texto: textoOu(m.th.resultado), colspan: 3, valor: true, id: 'th.resultado', rotuloCampo: 'Resultado do teste hidrostático' },
+        { texto: textoOu(m.th.resultado), valor: true, id: 'th.resultado', rotuloCampo: 'Resultado do teste hidrostático' },
       ],
     ],
   });
@@ -961,6 +1431,15 @@ export function folhasTesteHidrostatico(doc: Documento, m: ModeloRelatorio, comF
       ]),
     });
   }
+
+  blocoInstrumentoPadrao(doc, m.th.instrumento, 'th');
+
+  doc.secao('Parecer técnico do teste hidrostático');
+  doc.texto(textoOu(m.th.parecer, ''), {
+    cor: COR.valor,
+    id: 'th.parecer',
+    rotuloCampo: 'Parecer técnico do teste hidrostático',
+  });
 
   if (comFotos) folhaDeFotos(doc, '8.3 REGISTRO FOTOGRÁFICO — TESTE HIDROSTÁTICO', m.th.fotos);
 }
@@ -1027,21 +1506,27 @@ export function folhaParecer(doc: Documento, m: ModeloRelatorio): void {
 
   doc.y += 3;
   doc.banner('11. DATA PARA A PRÓXIMA INSPEÇÃO');
+  // A referência tem TRÊS colunas: exame, PRAZO (o intervalo normativo, em
+  // anos) e a data limite. O prazo não tem fonte automática — quem o define é
+  // a categoria e o julgamento do engenheiro —, então nasce editável.
   doc.tabela({
     compacta: true,
-    colunas: [0.6, 0.4],
-    cabecalho: ['EXAME', 'DATA LIMITE'],
+    colunas: [0.45, 0.25, 0.3],
+    cabecalho: ['EXAME', 'PRAZO', 'DATA LIMITE'],
     linhas: [
       [
         { texto: 'EXAME VISUAL EXTERNO' },
+        { texto: '', centro: true, valor: true, id: 'proximas.prazo-externa', rotuloCampo: 'Prazo — exame visual externo' },
         { texto: textoOu(m.proximas.externa), centro: true, valor: true, id: 'proximas.externa', rotuloCampo: 'Próxima — exame visual externo' },
       ],
       [
         { texto: 'EXAME VISUAL INTERNO' },
+        { texto: '', centro: true, valor: true, id: 'proximas.prazo-interna', rotuloCampo: 'Prazo — exame visual interno' },
         { texto: textoOu(m.proximas.interna), centro: true, valor: true, id: 'proximas.interna', rotuloCampo: 'Próxima — exame visual interno' },
       ],
       [
         { texto: 'TESTE HIDROSTÁTICO' },
+        { texto: '', centro: true, valor: true, id: 'proximas.prazo-th', rotuloCampo: 'Prazo — teste hidrostático' },
         { texto: textoOu(m.proximas.th), centro: true, valor: true, id: 'proximas.th', rotuloCampo: 'Próxima — teste hidrostático' },
       ],
     ],
@@ -1101,31 +1586,47 @@ function assinaturas(doc: Documento, m: ModeloRelatorio): void {
  * que não tem essa folha é conteúdo errado, não estilo: o leitor procura uma
  * página que não existe.
  */
+export interface SecaoSumario {
+  /** O número DA SEÇÃO na referência (7.1, 7.2…), não a posição na lista. */
+  numero: string;
+  titulo: string;
+}
+
 export function secoesDoRelatorio(
   m: ModeloRelatorio,
   tem: Record<SecaoRelatorio, boolean> = TUDO,
-): string[] {
-  const s: string[] = [];
-  const push = (ok: boolean, titulo: string) => {
-    if (ok) s.push(titulo);
+): SecaoSumario[] {
+  const s: SecaoSumario[] = [];
+  const push = (ok: boolean, numero: string, titulo: string) => {
+    if (ok) s.push({ numero, titulo });
   };
-  push(tem.identificacao, 'Identificação do equipamento');
-  push(tem.categorizacao, 'Categorização de risco');
-  push(tem.dadosTecnicos, 'Dados técnicos / prontuário');
-  push(tem.resumoCalculos, 'Resumo dos cálculos da PMTA');
-  push(tem.memoria, 'Memória de cálculo');
-  push(tem.dadosInspecao, 'Dados gerais da inspeção');
-  push(tem.checklist, 'Checklist NR-13');
-  push(tem.fotosDocumentacao && m.fotosDocumentacao.length > 0, 'Registro fotográfico da documentação');
-  push(tem.fotosChecklist && m.fotosChecklist.length > 0, 'Registro fotográfico do checklist');
-  push(tem.exameExterno, 'Exame externo');
-  push(tem.fotosExterno && m.visualExterno.fotos.length > 0, 'Registro fotográfico do exame externo');
-  push(tem.exameInterno, 'Exame interno');
-  push(tem.fotosInterno && m.visualInterno.fotos.length > 0, 'Registro fotográfico do exame interno');
-  push(tem.ultrassom, 'Medição de espessura por ultrassom');
-  push(tem.th, 'Teste hidrostático');
-  push(tem.fotosTh && m.th.fotos.length > 0, 'Registro fotográfico do teste hidrostático');
-  push(tem.parecer, 'Parecer conclusivo e próxima inspeção');
+  // Os números são os da referência. Eles NÃO se renumeram quando uma seção
+  // não é emitida: "7.4" é o nome da seção de ultrassom no documento e no
+  // vocabulário de quem lê o relatório, e mudá-lo por causa da composição
+  // faria a mesma seção ter nomes diferentes em dois relatórios da mesma TAG.
+  push(tem.sumario, '1', 'Objetivo');
+  push(tem.sumario, '2', 'Documentos de referência');
+  push(tem.identificacao, '3', 'Identificação do equipamento');
+  push(tem.categorizacao, '4', 'Categorização de risco');
+  push(tem.dadosTecnicos, '5', 'Dados técnicos do equipamento (prontuário)');
+  push(tem.resumoCalculos, '6', 'Resumo de cálculos da PMTA');
+  push(tem.memoria, '6.1', 'Memória de cálculo da PMTA');
+  push(tem.dadosInspecao, '7', 'Exames realizados');
+  push(tem.checklist, '7.1', 'Verificação da documentação');
+  push(tem.checklist, '7.1.1', 'Checklist NR-13 — parte 1');
+  push(tem.checklist, '7.1.2', 'Checklist NR-13 — parte 2');
+  push(tem.exameExterno, '7.2', 'Exame externo');
+  push(tem.exameInterno, '7.3', 'Exame interno');
+  push(tem.ultrassom, '7.4', 'Medição de espessura por ultrassom');
+  push(tem.th, '7.5', 'Teste hidrostático');
+  push(tem.fotosDocumentacao && m.fotosDocumentacao.length > 0, '8', 'Registro fotográfico — documentação');
+  push(tem.fotosChecklist && m.fotosChecklist.length > 0, '8.0', 'Registro fotográfico — checklist');
+  push(tem.fotosExterno && m.visualExterno.fotos.length > 0, '8.1', 'Registro fotográfico — exame externo');
+  push(tem.fotosInterno && m.visualInterno.fotos.length > 0, '8.2', 'Registro fotográfico — exame interno');
+  push(tem.fotosTh && m.th.fotos.length > 0, '8.3', 'Registro fotográfico — teste hidrostático');
+  push(tem.parecer, '9', 'Recomendações de segurança');
+  push(tem.parecer, '10', 'Parecer técnico conclusivo');
+  push(tem.parecer, '11', 'Data para a próxima inspeção');
   return s;
 }
 

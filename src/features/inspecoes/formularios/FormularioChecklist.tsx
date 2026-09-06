@@ -124,6 +124,10 @@ const INSTRUMENTOS = [
   { id: 'inst-vac', calId: 'inst-vac-cal', nome: 'Vacuômetro' },
   { id: 'inst-press', calId: 'inst-press-cal', nome: 'Pressostato' },
   { id: 'inst-trans', calId: 'inst-trans-cal', nome: 'Transmissor de pressão' },
+  // A PSV está na lista da referência e é o dispositivo de segurança que a
+  // NR-13 cobra; sem ela o quadro de instrumentos do relatório saía com cinco
+  // linhas onde o documento base tem seis.
+  { id: 'inst-psv', calId: 'inst-psv-cal', nome: 'Válvula de segurança (PSV)' },
 ];
 
 // `base64` só sobrevive para as fotos gravadas antes de 10/08/2026; as novas
@@ -456,17 +460,18 @@ export default function FormularioChecklist({ tag, containerId }: { tag: string;
  */
 export interface SecaoChecklist {
   titulo: string;
-  perguntas: { id: string; texto: string }[];
+  /** `opcoes` diz QUAIS colunas marcáveis a folha do relatório desenha. */
+  perguntas: { id: string; texto: string; opcoes?: string[] }[];
 }
 
 export const SECOES_CHECKLIST: SecaoChecklist[] = [
   { titulo: '5.1 Verificação da Documentação Existente', perguntas: SECAO_DOCUMENTACAO },
   { titulo: '5.2 Resultados da Inspeção', perguntas: SECAO_RESULTADOS_GERAIS },
-  { titulo: 'Exame do Prontuário e Registro de Segurança', perguntas: SECAO_PRONTUARIO },
+  { titulo: 'Exame do Prontuário e do Registro de Segurança', perguntas: SECAO_PRONTUARIO },
   { titulo: 'Exame Externo', perguntas: SECAO_EXAME_EXTERNO },
   { titulo: 'Exame Interno', perguntas: SECAO_EXAME_INTERNO },
-  { titulo: 'Ensaio Hidrostático', perguntas: SECAO_TH },
-  { titulo: 'Considerações Finais', perguntas: SECAO_FINAL },
+  { titulo: 'Ensaio Hidrostático e Dispositivos de Segurança', perguntas: SECAO_TH },
+  { titulo: 'Considerações Finais do Checklist', perguntas: SECAO_FINAL },
 ];
 
 /** Os instrumentos conferidos em campo — mesma lista do formulário. */

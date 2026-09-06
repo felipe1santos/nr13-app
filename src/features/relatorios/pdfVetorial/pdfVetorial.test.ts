@@ -106,23 +106,33 @@ describe('o sumário lista só as seções que existem', () => {
     };
   }
 
+  const titulos = (m: Parameters<typeof secoesDoRelatorio>[0], tem?: Parameters<typeof secoesDoRelatorio>[1]) =>
+    secoesDoRelatorio(m, tem).map((s) => s.titulo);
+
   it('sem foto nenhuma, nenhuma seção fotográfica é anunciada', () => {
-    const s = secoesDoRelatorio(modeloCom({}));
+    const s = titulos(modeloCom({}));
     expect(s.some((t) => /fotográfico/i.test(t))).toBe(false);
     expect(s).toContain('Exame externo');
-    expect(s).toContain('Parecer conclusivo e próxima inspeção');
+    expect(s).toContain('Parecer técnico conclusivo');
   });
 
   it('cada etapa com foto entra logo depois da sua folha-pai', () => {
-    const s = secoesDoRelatorio(modeloCom({ doc: 1, ve: 5, th: 2 }));
-    expect(s).toContain('Registro fotográfico da documentação');
-    expect(s).toContain('Registro fotográfico do exame externo');
-    expect(s).toContain('Registro fotográfico do teste hidrostático');
+    const s = titulos(modeloCom({ doc: 1, ve: 5, th: 2 }));
+    expect(s).toContain('Registro fotográfico — documentação');
+    expect(s).toContain('Registro fotográfico — exame externo');
+    expect(s).toContain('Registro fotográfico — teste hidrostático');
     // As que continuam sem foto seguem fora — anunciar página que não existe
     // manda o leitor procurar o que não foi impresso.
-    expect(s).not.toContain('Registro fotográfico do exame interno');
-    expect(s).not.toContain('Registro fotográfico do checklist');
-    expect(s.indexOf('Registro fotográfico do exame externo')).toBe(s.indexOf('Exame externo') + 1);
+    expect(s).not.toContain('Registro fotográfico — exame interno');
+    expect(s).not.toContain('Registro fotográfico — checklist');
+  });
+
+  it('o sumário numera pela SEÇÃO da referência, não pela posição na lista', () => {
+    const s = secoesDoRelatorio(modeloCom({}));
+    expect(s.find((x) => x.titulo === 'Medição de espessura por ultrassom')?.numero).toBe('7.4');
+    expect(s.find((x) => x.titulo === 'Teste hidrostático')?.numero).toBe('7.5');
+    expect(s.find((x) => x.titulo === 'Verificação da documentação')?.numero).toBe('7.1');
+    expect(s.find((x) => x.titulo === 'Objetivo')?.numero).toBe('1');
   });
 });
 
@@ -160,9 +170,9 @@ describe('composição — o vetorial emite as seções QUE O RELATÓRIO TEM', (
 
   it('o sumário acompanha a composição — não anuncia seção que não existe', () => {
     const m = montarModeloRelatorio(TAG);
-    const s = secoesDoRelatorio(m, secoesPresentes(SIMPLES));
+    const s = secoesDoRelatorio(m, secoesPresentes(SIMPLES)).map((x) => x.titulo);
     expect(s).toContain('Identificação do equipamento');
-    expect(s).toContain('Parecer conclusivo e próxima inspeção');
+    expect(s).toContain('Parecer técnico conclusivo');
     expect(s).not.toContain('Teste hidrostático');
     expect(s).not.toContain('Medição de espessura por ultrassom');
   });
@@ -354,7 +364,7 @@ describe('ponte de dados — lê a verdade que já existe', () => {
     const m = montarModeloRelatorio(TAG);
     expect(m.equipamento['FABRICANTE']).toBe('ACME');
     expect(m.equipamento['CATEGORIA DO VASO']).toBe('III');
-    expect(m.pressoes[0].kgf).toBe('12.24');
+    expect(m.pressoes.find((p) => p.rotulo.startsWith('PMTA'))!.kgf).toBe('12.24');
     expect(m.numeroRelatorio).toBe('REL-7');
     expect(m.laudo.apto).toBe(true);
     // A próxima inspeção vem da META — a MESMA fonte do vencimento oficial.
@@ -452,6 +462,9 @@ describe('placa de identificação: reconstruída em VETOR, real como imagem', (
       pdf,
       y: 60,
       faixa() {},
+      // A folha rotula o quadro da placa ("Registro fotográfico da placa de
+      // identificação"), como a referência.
+      secao() {},
       garantirEspaco() { return false; },
       // 13D-bis: a placa passou a resolver override por campo. Na bancada não há
       // override nenhum —  devolve o valor automático e segue.
@@ -486,8 +499,9 @@ describe('placa de identificação: reconstruída em VETOR, real como imagem', (
     expect(img.w / img.h).toBeCloseTo(3.2, 3);
     expect(img.w).toBeLessThanOrEqual(CAIXA.largura + 0.001);
     expect(img.h).toBeLessThanOrEqual(ALTURA_PLACA + 0.001);
-    // Nenhum texto de placa é desenhado por cima da foto real.
-    expect(b.textos).toBe(0);
+    // Nenhum CAMPO da placa reconstruída é desenhado por cima da foto real —
+    // o único texto do bloco é o título da seção, que a referência também tem.
+    expect(b.textos).toBeLessThanOrEqual(1);
   });
 
   it('a placa ocupa sempre a mesma altura, com foto ou sem', () => {

@@ -28,6 +28,18 @@ const ITENS = [
   'Ventilação',
 ];
 
+/**
+ * O catálogo de verificações desta folha, para o DOCUMENTO.
+ *
+ * O formulário grava `itens: { "1": "sim" }` — só o número. Sem esta lista
+ * exportada o relatório imprimia "1", "2" na coluna VERIFICAÇÃO no lugar da
+ * pergunta (medido no E2E de 05/09/2026). A ORDEM é o identificador: o item n
+ * do formulário é `ITENS_VISUAL_EXTERNO[n - 1]`, e por isso nenhum item pode ser removido
+ * do meio da lista — some a pergunta de toda inspeção já gravada.
+ */
+export const ITENS_VISUAL_EXTERNO = ITENS;
+
+
 interface DadosVisual {
   contratante: string;
   rastreabilidade: string;
