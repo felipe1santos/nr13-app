@@ -1,5 +1,6 @@
 import type { jsPDF } from 'jspdf';
 import { FAMILIA } from './carlito';
+import { pedacosComSubscrito } from './latexMemorial';
 import {
   origemDoValor,
   resolverValor,
@@ -114,7 +115,15 @@ export class Documento {
     return resolverValor(auto, this.overrides[id]) ?? '';
   }
 
-  private anotarCampo(
+  /**
+   * Registra uma área clicável do documento.
+   *
+   * Público porque nem todo campo nasce de uma tabela: a placa de
+   * identificação é desenhada à mão e precisa registrar a SUA área — é o que
+   * permite trocá-la clicando nela, dentro do documento, em vez de por um
+   * botão na barra do topo.
+   */
+  anotarCampo(
     id: string,
     rotulo: string,
     auto: string,
@@ -195,6 +204,55 @@ export class Documento {
       'imagem',
     );
     this.cursor = y + opcoes.altura;
+  }
+
+  /**
+   * Um bloco de texto livre que ocupa o que RESTA da folha.
+   *
+   * A referência reserva um retângulo grande para observações no pé de várias
+   * folhas; imprimir uma linha só deixava um terço de página em branco — foi o
+   * que o dono viu na folha de categorização de risco. O bloco tem altura
+   * mínima (nunca vira uma tira) e é campo editável como qualquer outro.
+   */
+  blocoAteOFim(id: string, rotulo: string, titulo?: string, minAltura = 22): void {
+    if (titulo) this.secao(titulo);
+    const disponivel = LIMITE_CORPO - this.cursor;
+    if (disponivel < minAltura) {
+      // Não cabe nem o mínimo: o bloco vai para a folha seguinte inteiro, em
+      // vez de sair espremido no rodapé.
+      this.novaFolha();
+      if (titulo) this.secao(titulo);
+    }
+    const altura = Math.max(minAltura, LIMITE_CORPO - this.cursor);
+    const y = this.cursor;
+    const auto = '';
+    const valor = this.resolver(id, auto);
+
+    const vazio = valor.trim() === '';
+    this.pdf.setDrawColor(COR.bordaTabela);
+    this.pdf.setLineWidth(BORDA_FINA);
+    if (vazio && this.modo === 'preview') {
+      this.pdf.setFillColor(AMARELO_PREVIA);
+      this.pdf.rect(CAIXA.x, y, CAIXA.largura, altura, 'FD');
+    } else {
+      this.pdf.rect(CAIXA.x, y, CAIXA.largura, altura);
+    }
+
+    if (!vazio) {
+      this.pdf.setFont(FAMILIA, 'normal');
+      this.pdf.setFontSize(FONTE.tabela);
+      this.pdf.setTextColor(COR.valor);
+      const linhas = this.pdf.splitTextToSize(valor, CAIXA.largura - 4) as string[];
+      let cy = y + 1.4;
+      for (const l of linhas) {
+        if (cy + alturaLinha(FONTE.tabela) > y + altura) break;
+        this.pdf.text(l, CAIXA.x + 2, cy + alturaLinha(FONTE.tabela) * 0.78);
+        cy += alturaLinha(FONTE.tabela);
+      }
+    }
+
+    this.anotarCampo(id, rotulo, auto, valor, true, { x: CAIXA.x, y, larg: CAIXA.largura, alt: altura });
+    this.cursor = y + altura;
   }
 
   get paginaAtual(): number {
@@ -344,6 +402,36 @@ export class Documento {
    * A expressão vem pronta de `prepararFormula`, que só reformata o que o motor
    * do memorial gravou. Este método não conhece engenharia: ele desenha.
    */
+  /**
+   * A largura que um texto ocupa quando os `_{...}` viram subscrito.
+   *
+   * Medir com `getTextWidth` do texto cru contaria as chaves e o sublinhado, e
+   * a fração sairia descentralizada — o traço mais largo que o numerador de um
+   * lado e cortando o denominador do outro.
+   */
+  private larguraComSubscrito(texto: string, tamanho: number): number {
+    let largura = 0;
+    for (const p of pedacosComSubscrito(texto)) {
+      this.pdf.setFontSize(p.subscrito ? tamanho * 0.72 : tamanho);
+      largura += this.pdf.getTextWidth(p.texto);
+    }
+    this.pdf.setFontSize(tamanho);
+    return largura;
+  }
+
+  /** Escreve o texto com os `_{...}` desenhados como índice de verdade. */
+  private textoComSubscrito(texto: string, x: number, linhaBase: number, tamanho: number): number {
+    let cx = x;
+    for (const p of pedacosComSubscrito(texto)) {
+      this.pdf.setFontSize(p.subscrito ? tamanho * 0.72 : tamanho);
+      const y = p.subscrito ? linhaBase + tamanho * PT * 0.28 : linhaBase;
+      this.pdf.text(p.texto, cx, y);
+      cx += this.pdf.getTextWidth(p.texto);
+    }
+    this.pdf.setFontSize(tamanho);
+    return cx - x;
+  }
+
   formula(f: FormulaDesenhavel, opcoes: { tamanho?: number; espacoAntes?: number } = {}): void {
     const tamanho = opcoes.tamanho ?? FONTE.tabela + 0.5;
     const passo = alturaLinha(tamanho);
@@ -359,24 +447,24 @@ export class Documento {
     let x = CAIXA.x + 4;
 
     if (f.lhs) {
-      const rotulo = `${f.lhs} =`;
       this.pdf.setFont(FAMILIA, 'bold');
-      this.pdf.text(rotulo, x, meio + tamanho * PT * 0.35);
-      x += this.pdf.getTextWidth(rotulo) + 2.5;
+      const largura = this.textoComSubscrito(f.lhs, x, meio + tamanho * PT * 0.35, tamanho);
+      this.pdf.text(' =', x + largura, meio + tamanho * PT * 0.35);
+      x += largura + this.pdf.getTextWidth(' =') + 2.5;
       this.pdf.setFont(FAMILIA, 'normal');
     }
 
     if (f.numerador && f.denominador) {
-      const larguraNum = this.pdf.getTextWidth(f.numerador);
-      const larguraDen = this.pdf.getTextWidth(f.denominador);
+      const larguraNum = this.larguraComSubscrito(f.numerador, tamanho);
+      const larguraDen = this.larguraComSubscrito(f.denominador, tamanho);
       const larguraTraco = Math.max(larguraNum, larguraDen) + 3;
-      this.pdf.text(f.numerador, x + (larguraTraco - larguraNum) / 2, meio - passo * 0.35);
+      this.textoComSubscrito(f.numerador, x + (larguraTraco - larguraNum) / 2, meio - passo * 0.35, tamanho);
       this.pdf.setDrawColor(COR.texto);
       this.pdf.setLineWidth(BORDA_FINA);
       this.pdf.line(x, meio, x + larguraTraco, meio);
-      this.pdf.text(f.denominador, x + (larguraTraco - larguraDen) / 2, meio + passo * 0.95);
+      this.textoComSubscrito(f.denominador, x + (larguraTraco - larguraDen) / 2, meio + passo * 0.95, tamanho);
     } else if (f.expressao) {
-      this.pdf.text(f.expressao, x, meio + tamanho * PT * 0.35);
+      this.textoComSubscrito(f.expressao, x, meio + tamanho * PT * 0.35, tamanho);
     }
 
     this.cursor += altura;
@@ -594,7 +682,7 @@ export function corDeFundo(cel: CelulaDoc, modo: ModoDocumento): string {
 
 /** Uma célula "de valor" está vazia quando o modelo não tinha o dado. */
 export function celulaVazia(cel: CelulaDoc): boolean {
-  if (!cel.valor) return false;
+  if (!cel.valor || cel.semDestaque) return false;
   const t = (cel.texto ?? '').trim();
   return t === '' || t === '—' || t === '-';
 }
@@ -602,6 +690,15 @@ export function celulaVazia(cel: CelulaDoc): boolean {
 export interface CelulaDoc {
   texto: string;
   rotulo?: boolean;
+  /**
+   * A célula fica vazia SEM virar amarelo na prévia.
+   *
+   * É o caso das colunas de marcação: numa linha SIM / NÃO / N.A., duas das
+   * três estão sempre vazias, e é isso que significa a resposta. Pintá-las de
+   * amarelo dizia "falta preencher" em cima de um item já respondido — a
+   * prévia inteira ficava amarela justamente onde o inspetor tinha trabalhado.
+   */
+  semDestaque?: boolean;
   centro?: boolean;
   colspan?: number;
   valor?: boolean;

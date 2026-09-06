@@ -1191,8 +1191,14 @@ function RelatoriosLegado() {
             )}
             {/* 12B · qual placa a folha de identificação vai levar. Em documento
                 salvo o card só INFORMA — trocar a placa mudaria um documento
-                assinado (§7-ter). */}
-            {fonteDeImpressao(relatorioArquivado) !== 'arquivo' && (
+                assinado (§7-ter).
+
+                Na PRÉVIA VETORIAL o card não aparece: a placa é clicável no
+                próprio documento (campo de imagem `placa.foto`), que é onde o
+                usuário está olhando quando percebe que quer trocá-la. O card
+                continua existindo para o rollback `?previa=iframe`, onde o
+                desenho vive dentro de um iframe e não aceita o clique. */}
+            {fonteDeImpressao(relatorioArquivado) !== 'arquivo' && papelDaPrevia(fluxo) !== 'previa-vetorial' && (
               <CardPlacaIdentificacao tag={tag} desabilitado={somenteLeitura} onMudou={() => setVersao((v) => v + 1)} />
             )}
             {/* 13C · os DOIS campos do relatório que a folha gravava passam a ser

@@ -63,12 +63,20 @@ export default function EditorCampoDocumento({
             ×
           </button>
         </div>
+        {/* A placa é o caso em que "sem imagem" NÃO é um vazio: é a placa
+            reconstruída com os dados da ficha, que é o padrão do documento.
+            Dizer "área em branco" ali seria mentira sobre o que vai sair
+            impresso. */}
         <p className="edcampo-nota">
-          {campo.origem === 'branco'
-            ? 'Área deixada em branco neste relatório.'
-            : campo.valor
-              ? 'Há uma imagem nesta área.'
-              : 'Área sem imagem.'}{' '}
+          {campo.id === 'placa.foto'
+            ? campo.valor
+              ? 'Este relatório está usando a FOTO da placa. Remover devolve a placa reconstruída com os dados da ficha.'
+              : 'Este relatório está usando a placa RECONSTRUÍDA com os dados da ficha. Escolha uma imagem para usar a foto da placa real.'
+            : campo.origem === 'branco'
+              ? 'Área deixada em branco neste relatório.'
+              : campo.valor
+                ? 'Há uma imagem nesta área.'
+                : 'Área sem imagem.'}{' '}
           Vale só para este relatório — o cadastro do sistema não é alterado.
         </p>
         <div className="edcampo-acoes">

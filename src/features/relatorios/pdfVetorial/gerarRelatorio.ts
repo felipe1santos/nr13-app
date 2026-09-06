@@ -328,6 +328,16 @@ export async function gerarRelatorioVetorial(
   if (fotoDoRelatorio) modelo.fotoCapa = fotoDoRelatorio.dataUrl;
   else if (ovr['capa.foto']?.modo === 'branco') modelo.fotoCapa = null;
 
+  // A PLACA do documento: o override vale para ESTE relatório e vence a foto
+  // do equipamento. `branco` (o usuário clicou "Remover imagem" na placa) volta
+  // para a placa RECONSTRUÍDA — que é informação verdadeira, não um vazio.
+  const placaDoRelatorio = await resolverImagem(ovr['placa.foto']?.modo === 'manual' ? ovr['placa.foto'].valor : null);
+  if (placaDoRelatorio) {
+    modelo.placaReal = { dataUrl: placaDoRelatorio.dataUrl, proporcao: placaDoRelatorio.proporcao ?? 1.6 };
+  } else if (ovr['placa.foto']?.modo === 'branco') {
+    modelo.placaReal = null;
+  }
+
   const logoDoRelatorio = await resolverImagem(ovr['cabecalho.logo']?.modo === 'manual' ? ovr['cabecalho.logo'].valor : null);
   const logoResolvida = logoDoRelatorio ? logoDoRelatorio.dataUrl : ovr['cabecalho.logo']?.modo === 'branco' ? null : modelo.empresa.logo;
 

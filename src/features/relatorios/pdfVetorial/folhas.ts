@@ -1,4 +1,4 @@
-import { CAIXA, COR, FONTE, PT, alturaLinha } from './documentoA4';
+import { CAIXA, COR, FONTE, LIMITE_CORPO, PT, alturaLinha } from './documentoA4';
 import { secoesPresentes, type SecaoRelatorio } from './composicao';
 import { ALTURA_GRAFICO_TH, desenharGraficoTh, numeroDoTexto, pontosDaCurva } from './graficoTh';
 import { foto } from './primitivas';
@@ -7,6 +7,7 @@ import { camposDaPlaca } from '../placaIdentificacao';
 import type { CelulaDoc, Documento } from './documento';
 import { rotuloLaudo } from './rotulos';
 import { DESCRICAO_VARIAVEL, prepararFormula, variaveisDaFormula } from './formulaMatematica';
+import { formulaDoLatex } from './latexMemorial';
 import { textoOu, type ExameVisual, type FotoModelo, type ItemChecklist, type ModeloRelatorio } from './modelo';
 
 /**
@@ -118,8 +119,15 @@ export function marcasDocumentacao(resposta: string | null | undefined): {
   };
 }
 
+/**
+ * Uma coluna de marcação.
+ *
+ * `semDestaque` porque numa linha de três colunas duas estão sempre vazias — e
+ * o vazio ali É a resposta, não uma pendência. Sem isso a prévia pintava de
+ * amarelo dois terços de todo checklist respondido.
+ */
 function celulaMarca(marcado: boolean, id: string, rotulo: string): CelulaDoc {
-  return { texto: marcado ? 'X' : '', centro: true, valor: true, id, rotuloCampo: rotulo };
+  return { texto: marcado ? 'X' : '', centro: true, valor: true, semDestaque: true, id, rotuloCampo: rotulo };
 }
 
 /**
@@ -477,15 +485,38 @@ export function blocoPlaca(doc: Documento, m: ModeloRelatorio): void {
   doc.faixa('PLACA DE IDENTIFICAÇÃO');
   doc.secao('Registro fotográfico da placa de identificação');
   doc.garantirEspaco(ALTURA_PLACA + 2);
-  const topo = doc.y;
+
+  // A placa é a ÚLTIMA coisa da folha 3, então o que sobra abaixo dela é o
+  // fim do papel. Desenhá-la colada no topo desse espaço deixava um vazio de
+  // vários centímetros embaixo — o defeito que o dono apontou. Ela agora ocupa
+  // até 80% do espaço livre (nunca menos que a altura clássica de 62 mm) e
+  // fica CENTRADA no que restou.
+  const livre = LIMITE_CORPO - doc.y;
+  const altura = Math.max(ALTURA_PLACA, Math.min(livre - 4, livre * 0.8));
+  const topo = doc.y + Math.max(0, (livre - altura) / 2);
+
   if (m.placaReal) {
     // `foto` já encaixa DENTRO do quadro mantendo a proporção medida — é o
     // "contain" pedido, e é o que impede a placa de sair esticada.
-    foto(doc.pdf, m.placaReal.dataUrl, { x: CAIXA.x, y: topo, largura: CAIXA.largura, altura: ALTURA_PLACA }, m.placaReal.proporcao);
+    foto(doc.pdf, m.placaReal.dataUrl, { x: CAIXA.x, y: topo, largura: CAIXA.largura, altura }, m.placaReal.proporcao);
   } else {
-    desenharPlacaReconstruida(doc, m, topo);
+    desenharPlacaReconstruida(doc, m, topo, altura);
   }
-  doc.y = topo + ALTURA_PLACA;
+
+  // A ÁREA INTEIRA da placa é clicável (13D-bis, tipo imagem): o usuário troca
+  // a placa reconstruída por uma foto clicando NELA, dentro do documento, em
+  // vez de procurar um botão na barra do topo. "Remover imagem" devolve a
+  // reconstrução — ela é o padrão, não um vazio.
+  doc.anotarCampo(
+    'placa.foto',
+    'Foto da placa de identificação',
+    m.placaReal ? '(imagem)' : '',
+    m.placaReal ? '(imagem)' : '',
+    false,
+    { x: CAIXA.x, y: topo, larg: CAIXA.largura, alt: altura },
+    'imagem',
+  );
+  doc.y = topo + altura;
 }
 
 /**
@@ -495,18 +526,18 @@ export function blocoPlaca(doc: Documento, m: ModeloRelatorio): void {
  * documento, então a placa fica selecionável e nítida em qualquer zoom. Nenhum
  * dado é inventado: campo sem valor na ficha sai com o travessão do documento.
  */
-function desenharPlacaReconstruida(doc: Documento, m: ModeloRelatorio, topo: number): void {
+function desenharPlacaReconstruida(doc: Documento, m: ModeloRelatorio, topo: number, alturaTotal = ALTURA_PLACA): void {
   const campos = camposDaPlaca(m.equipamento, m.pressoes);
   const largura = CAIXA.largura * 0.72;
   const x = CAIXA.x + (CAIXA.largura - largura) / 2;
   const alturaTitulo = 8;
   const linhas = Math.ceil(campos.length / 2);
-  const alturaLinhaPlaca = (ALTURA_PLACA - alturaTitulo - 4) / linhas;
+  const alturaLinhaPlaca = (alturaTotal - alturaTitulo - 4) / linhas;
   const y0 = topo + 2;
 
   doc.pdf.setDrawColor(COR.texto);
   doc.pdf.setLineWidth(0.8 * PT);
-  doc.pdf.rect(x, y0, largura, ALTURA_PLACA - 4);
+  doc.pdf.rect(x, y0, largura, alturaTotal - 4);
 
   // Faixa do título, com o nome da empresa executante — é o que uma placa traz.
   doc.pdf.setFillColor(COR.fundoCabecalhoTabela);
@@ -657,13 +688,16 @@ export function folhaCategorizacao(doc: Documento, m: ModeloRelatorio): void {
     ],
   });
 
-  doc.secao('Observações sobre a categorização');
-  doc.texto('', { cor: COR.valor, id: 'categoria.observacoes', rotuloCampo: 'Observações sobre a categorização' });
   doc.texto(
     'A categorização segue o item 13.5.1.2 da NR-13: o grupo de potencial de risco resulta do ' +
       'produto pressão × volume, e a categoria, do cruzamento desse grupo com a classe do fluido.',
-    { tamanho: FONTE.nota, cor: COR.nota, espacoAntes: 3, id: 'categoria.nota', rotuloCampo: 'Nota da categorização' },
+    { tamanho: FONTE.nota, cor: COR.nota, espacoAntes: 2, id: 'categoria.nota', rotuloCampo: 'Nota da categorização' },
   );
+
+  // O bloco de observações é o ÚLTIMO da folha e cresce até o fim dela. A
+  // referência reserva um retângulo grande para ele; deixá-lo do tamanho de
+  // uma linha era o que deixava um terço da folha 4 em branco.
+  doc.blocoAteOFim('categoria.observacoes', 'Observações sobre a categorização', 'Observações sobre a categorização');
 }
 
 // ── 5. DADOS TÉCNICOS / PRONTUÁRIO ──────────────────────────────────────────
@@ -947,6 +981,15 @@ export function folhasMemoria(doc: Documento, m: ModeloRelatorio): void {
   // entre folhas é do documento — não há orçamento de linhas a manter aqui,
   // porque quem mede a folha é quem desenha.
   for (const linha of m.memorial) {
+    // As equações vêm em LaTeX (`$ t_{req} = \frac{...}{...} $`), que é o que
+    // o KaTeX renderiza na tela. Imprimir a string crua punha código-fonte no
+    // documento assinado — e o jsPDF ainda cortava no primeiro símbolo ausente.
+    // Aqui elas viram fração desenhada, com subscrito de verdade.
+    const formula = formulaDoLatex(linha);
+    if (formula) {
+      doc.formula(formula, { espacoAntes: 1.2 });
+      continue;
+    }
     const titulo = /^MEMORIAL DE C[ÁA]LCULO\b/i.test(linha);
     doc.texto(linha, {
       tamanho: titulo ? FONTE.secao : FONTE.tabela,

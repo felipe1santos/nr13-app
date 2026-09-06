@@ -448,6 +448,7 @@ describe('placa de identificação: reconstruída em VETOR, real como imagem', (
   // `addImage` (imagem).
   function bancada(placaReal: { dataUrl: string; proporcao: number } | null) {
     const imagens: { x: number; y: number; w: number; h: number }[] = [];
+    const campos: Record<string, unknown>[] = [];
     let textos = 0;
     let retangulos = 0;
     let linhas = 0;
@@ -466,6 +467,9 @@ describe('placa de identificação: reconstruída em VETOR, real como imagem', (
       // identificação"), como a referência.
       secao() {},
       garantirEspaco() { return false; },
+      // A área INTEIRA da placa é registrada como campo de imagem: é o clique
+      // que troca a placa reconstruída pela foto, dentro do documento.
+      anotarCampo(id: string, _r: string, _a: string, _v: string, _m: boolean, caixa: object, tipo?: string) { campos.push({ id, tipo, ...caixa }); },
       // 13D-bis: a placa passou a resolver override por campo. Na bancada não há
       // override nenhum —  devolve o valor automático e segue.
       campoLivre(_id: string, _rot: string, auto: string) { return auto; },
@@ -480,7 +484,7 @@ describe('placa de identificação: reconstruída em VETOR, real como imagem', (
       pressoes: [{ rotulo: 'PMTA — Pressão Máxima de Trabalho Admissível', kgf: '10,2' }],
     } as unknown as Parameters<typeof blocoPlaca>[1];
     blocoPlaca(doc, modelo);
-    return { imagens, textos, retangulos, linhas, doc };
+    return { imagens, textos, retangulos, linhas, campos, doc };
   }
 
   it('SEM foto real: a placa é desenhada — zero imagens', () => {
@@ -508,5 +512,27 @@ describe('placa de identificação: reconstruída em VETOR, real como imagem', (
     // Altura estável é o que impede a folha de identificação de mudar de
     // paginação só porque o usuário enviou (ou tirou) a foto da placa.
     expect(bancada(null).doc.y).toBe(bancada({ dataUrl: 'data:image/jpeg;base64,AAA', proporcao: 2 }).doc.y);
+  });
+
+  it('a placa fica CENTRADA no espaço que sobra, e não colada no topo', () => {
+    // A placa é o último bloco da folha 3. Desenhá-la logo abaixo do texto
+    // deixava vários centímetros vazios no pé da página — apontado pelo dono
+    // em 06/09/2026. Agora ela cresce e centra no espaço livre.
+    const b = bancada(null);
+    const topoDaPlaca = Math.min(...b.campos.map((c) => Number(c.y)));
+    const alturaDaPlaca = Math.max(...b.campos.map((c) => Number(c.alt)));
+    expect(topoDaPlaca).toBeGreaterThan(60); // o cursor entrou em 60
+    expect(alturaDaPlaca).toBeGreaterThan(ALTURA_PLACA); // usou o espaço livre
+    const sobraAbaixo = LIMITE_CORPO - (topoDaPlaca + alturaDaPlaca);
+    expect(Math.abs(sobraAbaixo - (topoDaPlaca - 60))).toBeLessThan(1); // centrada
+  });
+
+  it('a placa inteira é um campo de imagem clicável — sem botão na barra', () => {
+    for (const b of [bancada(null), bancada({ dataUrl: 'data:image/jpeg;base64,AAA', proporcao: 2 })]) {
+      const placa = b.campos.find((c) => c.id === 'placa.foto');
+      expect(placa).toBeTruthy();
+      expect(placa!.tipo).toBe('imagem');
+      expect(Number(placa!.larg)).toBe(CAIXA.largura);
+    }
   });
 });
