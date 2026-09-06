@@ -273,7 +273,13 @@ export function folhaProntUltrassom(doc: Documento, m: ModeloProntuario): void {
   if (m.tipoEquipamento === 'vaso' && m.croqui.longitudinal) {
     doc.y += 2;
     doc.faixa('CROQUI DO EQUIPAMENTO');
-    desenharCroqui(doc, m.croqui.longitudinal, 62);
+    // A altura se ajusta ao que resta da folha, reservando o quadro do
+    // instrumento e o bloco de assinatura (30 mm). Com 62 mm fixos, a
+    // assinatura ia sozinha para uma folha só dela — uma página com um traço
+    // e um nome. O croqui é desenho vetorial rasterizado em 3×: encolher não
+    // custa nitidez, e a vista cotada em tamanho cheio é a folha 2.
+    const espacoCroqui = Math.max(34, Math.min(62, LIMITE_CORPO - doc.y - 52));
+    desenharCroqui(doc, m.croqui.longitudinal, espacoCroqui);
   }
 
   doc.y += 2;
