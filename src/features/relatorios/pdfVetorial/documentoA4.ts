@@ -63,6 +63,14 @@ export const COR = {
   bordaTabela: '#808080',
   fundoCabecalhoTabela: '#d9d9d9',
   fundoRotulo: '#f2f2f2',
+  // Medição de espessura: a MAIOR leitura em azul-petróleo sobre azul claro, a
+  // MENOR em vermelho sobre vermelho claro. Numa grade de 40 números, é a menor
+  // que decide se o equipamento continua operando — e ela precisa ser achada
+  // sem o leitor varrer a tabela célula a célula.
+  fundoMaiorEspessura: '#ddeef3',
+  textoMaiorEspessura: '#0b4f60',
+  fundoMenorEspessura: '#fbe4e4',
+  textoMenorEspessura: '#a11c1c',
   fundoZebra: '#fafafa',
   bordaFoto: '#cfcfcf',
   nota: '#404040',

@@ -74,18 +74,26 @@ export class Documento {
   /** As caixas dos campos editáveis desenhados — a prévia constrói a UI com elas. */
   private readonly campos: CampoEditavel[] = [];
 
+  /** O que a 1ª passagem mediu de sobra em cada seção elástica. */
+  private readonly respiro: RespiroMedido;
+  private secaoElastica: string | null = null;
+  private extraPorLinha = 0;
+  private linhasElasticas = 0;
+
   constructor(
     pdf: jsPDF,
     cab: DadosCabecalho,
     total: number,
     modo: ModoDocumento = 'final',
     overrides: MapaOverrides = {},
+    respiro: RespiroMedido = {},
   ) {
     this.pdf = pdf;
     this.cab = cab;
     this.total = total;
     this.modo = modo;
     this.overrides = overrides;
+    this.respiro = respiro;
   }
 
   /** Os campos editáveis desta geração, na ordem em que foram desenhados. */
@@ -256,6 +264,52 @@ export class Documento {
 
     this.anotarCampo(id, rotulo, auto, valor, true, { x: CAIXA.x, y, larg: CAIXA.largura, alt: altura });
     this.cursor = y + altura;
+  }
+
+  /**
+   * O RESPIRO de uma seção — como uma folha deixa de terminar no meio do papel
+   * sem virar uma caixa vazia gigante.
+   *
+   * A folha de verificação da documentação e a de ultrassom têm conteúdo curto
+   * e fixo: sobravam oito, dez centímetros no pé. Encher isso com um bloco em
+   * branco troca um defeito por outro; o certo é dar o espaço ao CONTEÚDO.
+   *
+   * O gerador já desenha o documento duas vezes (o "Página X de Y" precisa do
+   * total antes da primeira folha). A 1ª passagem MEDE quanto sobrou em cada
+   * seção elástica e quantas linhas poderiam crescer; a 2ª distribui essa
+   * sobra entre elas. Nenhuma passagem nova foi criada.
+   *
+   * O fator 0,9 é o que impede a distribuição de empurrar conteúdo para uma
+   * folha a mais — o que faria a 2ª passagem ter mais páginas que a contagem
+   * da 1ª, e o rodapé mentir. O teto por linha existe pelo mesmo motivo e
+   * porque uma linha de 2 cm não fica melhor, fica estranha.
+   */
+  abrirSecaoElastica(chave: string): void {
+    this.secaoElastica = chave;
+    this.linhasElasticas = 0;
+    const medido = this.respiro[chave];
+    this.extraPorLinha = medido && medido.linhas > 0 ? Math.min(6, (medido.sobra * 0.9) / medido.linhas) : 0;
+  }
+
+  /**
+   * Avisado quando uma seção elástica fecha. Quem escuta é a 1ª passagem do
+   * gerador, que guarda a medida para a 2ª distribuir.
+   */
+  aoFecharSecaoElastica: ((m: { chave: string; sobra: number; linhas: number }) => void) | null = null;
+
+  /** Fecha a seção e ANOTA o que sobrou nela — só a 1ª passagem usa isto. */
+  fecharSecaoElastica(): { chave: string; sobra: number; linhas: number } | null {
+    if (this.secaoElastica === null) return null;
+    const medida = {
+      chave: this.secaoElastica,
+      sobra: Math.max(0, LIMITE_CORPO - this.cursor),
+      linhas: this.linhasElasticas,
+    };
+    this.secaoElastica = null;
+    this.extraPorLinha = 0;
+    this.linhasElasticas = 0;
+    this.aoFecharSecaoElastica?.(medida);
+    return medida;
   }
 
   get paginaAtual(): number {
@@ -526,6 +580,11 @@ export class Documento {
     linhas: CelulaDoc[][];
     compacta?: boolean;
     /**
+     * A linha desta tabela participa do RESPIRO da seção: ela pode crescer
+     * para a folha não terminar no meio do papel. Ver `abrirSecaoElastica`.
+     */
+    esticavel?: boolean;
+    /**
      * Piso da altura de cada linha, em mm.
      *
      * Existe para a folha ocupar o papel: a de categorização de risco tem
@@ -585,7 +644,14 @@ export class Documento {
         cel.id ? { ...cel, texto: this.resolver(cel.id, cel.texto) } : cel,
       );
       // Mede.
-      let altura = Math.max(alturaLinha(tamanho) + padY * 2, opcoes.alturaMinima ?? 0);
+      let altura = Math.max(
+        alturaLinha(tamanho) + padY * 2,
+        opcoes.alturaMinima ?? 0,
+      );
+      if (opcoes.esticavel) {
+        altura += this.extraPorLinha;
+        this.linhasElasticas++;
+      }
       {
         let i = 0;
         for (const cel of linha) {
@@ -625,9 +691,17 @@ export class Documento {
         this.pdf.setFillColor(this.fundoDaCelula(cel));
         this.pdf.rect(x, this.cursor, larg, altura, 'FD');
 
-        this.pdf.setFont(FAMILIA, cel.rotulo ? 'bold' : 'normal');
+        this.pdf.setFont(FAMILIA, cel.rotulo || cel.destaque ? 'bold' : 'normal');
         this.pdf.setFontSize(tamanho);
-        this.pdf.setTextColor(cel.valor ? COR.valor : COR.texto);
+        this.pdf.setTextColor(
+          cel.destaque === 'maior'
+            ? COR.textoMaiorEspessura
+            : cel.destaque === 'menor'
+              ? COR.textoMenorEspessura
+              : cel.valor
+                ? COR.valor
+                : COR.texto,
+        );
         const linhasCel = this.pdf.splitTextToSize(cel.texto, larg - padX * 2) as string[];
         let yc = this.cursor + padY;
         for (const l of linhasCel) {
@@ -704,6 +778,10 @@ export type ModoDocumento = 'preview' | 'final';
  * regra dessas precisa de um teste que a leia direto, sem instanciar jsPDF.
  */
 export function corDeFundo(cel: CelulaDoc, modo: ModoDocumento): string {
+  // O destaque vale nos DOIS modos: ele é conteúdo do documento, não uma
+  // marcação de revisão como o amarelo da prévia.
+  if (cel.destaque === 'maior') return COR.fundoMaiorEspessura;
+  if (cel.destaque === 'menor') return COR.fundoMenorEspessura;
   if (cel.rotulo) return COR.fundoRotulo;
   if (modo === 'preview' && celulaVazia(cel)) return AMARELO_PREVIA;
   return '#ffffff';
@@ -715,6 +793,12 @@ export function celulaVazia(cel: CelulaDoc): boolean {
   const t = (cel.texto ?? '').trim();
   return t === '' || t === '—' || t === '-';
 }
+
+/**
+ * O que a 1ª passagem mediu por seção elástica: quanto sobrou no pé da folha e
+ * quantas linhas poderiam ter crescido.
+ */
+export type RespiroMedido = Record<string, { sobra: number; linhas: number }>;
 
 export interface CelulaDoc {
   texto: string;
@@ -728,6 +812,13 @@ export interface CelulaDoc {
    * prévia inteira ficava amarela justamente onde o inspetor tinha trabalhado.
    */
   semDestaque?: boolean;
+  /**
+   * Realce de leitura: a MAIOR e a MENOR espessura medida de uma região.
+   *
+   * É informação, não enfeite — a menor leitura é a que define a vida
+   * remanescente do equipamento, e numa grade de dezenas de números ela some.
+   */
+  destaque?: 'maior' | 'menor';
   centro?: boolean;
   colspan?: number;
   valor?: boolean;

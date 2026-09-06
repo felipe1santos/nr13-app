@@ -1135,10 +1135,12 @@ export function folhasChecklist(doc: Documento, m: ModeloRelatorio): void {
 
   // ── 7.1 · VERIFICAÇÃO DA DOCUMENTAÇÃO ────────────────────────────────────
   doc.novaFolha();
+  doc.abrirSecaoElastica('documentacao');
   doc.banner('7.1 VERIFICAÇÃO DA DOCUMENTAÇÃO EXISTENTE NA DATA DA INSPEÇÃO');
   if (documentacao) {
     doc.tabela({
       compacta: true,
+      esticavel: true,
       colunas: [0.46, 0.09, 0.1, 0.1, 0.25],
       cabecalho: ['DESCRIÇÃO', 'EXISTE', 'NÃO IDENT.', 'NÃO APLICA', 'OBSERVAÇÃO'],
       linhas: documentacao.itens.map((it, i) => {
@@ -1154,12 +1156,14 @@ export function folhasChecklist(doc: Documento, m: ModeloRelatorio): void {
       }),
     });
   }
-  doc.secao('Comentários sobre a documentação');
-  doc.texto(textoOu(m.comentariosDocumentacao, ''), {
-    cor: COR.valor,
-    id: 'documentacao.comentarios',
-    rotuloCampo: 'Comentários sobre a documentação',
-  });
+  doc.blocoAteOFim(
+    'documentacao.comentarios',
+    'Comentários sobre a documentação',
+    'Comentários sobre a documentação',
+    18,
+    32,
+  );
+  doc.fecharSecaoElastica();
 
   // ── 7.1.1 · CHECKLIST, PARTE 1 ───────────────────────────────────────────
   doc.novaFolha();
@@ -1220,8 +1224,43 @@ export function folhasExameInterno(doc: Documento, m: ModeloRelatorio, comFotos 
 }
 
 // ── 17. ULTRASSOM ───────────────────────────────────────────────────────────
+/** O número de uma leitura de espessura — aceita "6,32" e "6.32". */
+function medidaNumero(v: string | null | undefined): number | null {
+  const n = Number(String(v ?? '').trim().replace(',', '.'));
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/**
+ * A MAIOR e a MENOR leitura de uma região.
+ *
+ * A comparação é por região, e não pela folha inteira: é dentro do costado, do
+ * tampo, que a diferença entre pontos significa desgaste. Só as leituras dos
+ * ângulos entram — a coluna MENOR VALOR é derivada delas e repetiria o
+ * destaque no lugar errado.
+ */
+export function extremosDaRegiao(
+  linhas: { medidas: string[] }[],
+): { maior: number | null; menor: number | null } {
+  const valores = linhas.flatMap((l) => l.medidas.map(medidaNumero)).filter((n): n is number => n !== null);
+  if (valores.length < 2) return { maior: null, menor: null };
+  return { maior: Math.max(...valores), menor: Math.min(...valores) };
+}
+
+function destaqueDaMedida(
+  valor: string | null | undefined,
+  maior: number | null,
+  menor: number | null,
+): { destaque?: 'maior' | 'menor' } {
+  const n = medidaNumero(valor);
+  if (n === null) return {};
+  if (menor !== null && n === menor) return { destaque: 'menor' };
+  if (maior !== null && n === maior) return { destaque: 'maior' };
+  return {};
+}
+
 export function folhaUltrassom(doc: Documento, m: ModeloRelatorio): void {
   doc.novaFolha();
+  doc.abrirSecaoElastica('ultrassom');
   doc.banner('7.4 MEDIÇÃO DE ESPESSURA POR ULTRASSOM');
 
   // INFORMAÇÕES DO COMPONENTE AVALIADO — a referência abre a folha por aqui, e
@@ -1293,9 +1332,11 @@ export function folhaUltrassom(doc: Documento, m: ModeloRelatorio): void {
     for (const [regiao, linhas] of porRegiao) {
       const angulos = linhas[0]?.angulos ?? [];
       const colMedida = angulos.length > 0 ? 0.48 / angulos.length : 0.48;
+      const { maior, menor } = extremosDaRegiao(linhas);
       doc.secao(regiao);
       doc.tabela({
         compacta: true,
+        esticavel: true,
         colunas: [0.26, ...Array(Math.max(angulos.length, 1)).fill(colMedida), 0.13, 0.13],
         cabecalho: [
           'REGIÃO / PONTO',
@@ -1303,16 +1344,32 @@ export function folhaUltrassom(doc: Documento, m: ModeloRelatorio): void {
           'MENOR VALOR',
           'ESP. MÍN. REQUERIDA',
         ],
-        linhas: linhas.map((p) => [
-          { texto: p.ponto },
-          ...Array.from({ length: Math.max(angulos.length, 1) }, (_, i) => ({
-            texto: textoOu(p.medidas[i]),
-            centro: true,
-            valor: true,
-          })),
-          { texto: textoOu(p.menor), centro: true, valor: true },
-          { texto: textoOu(p.requerida), centro: true },
-        ]),
+        linhas: linhas.map((p) => {
+          const pref = idCampo('ultrassom', `${regiao} ${p.ponto}`);
+          return [
+            { texto: p.ponto },
+            // Cada leitura é editável no próprio documento: a grade vem da
+            // seção Inspeções, mas corrigir um número na hora da revisão não
+            // pode exigir voltar ao formulário de campo.
+            ...Array.from({ length: Math.max(angulos.length, 1) }, (_, i) => ({
+              texto: textoOu(p.medidas[i]),
+              centro: true,
+              valor: true,
+              id: `${pref}.m${i}`,
+              rotuloCampo: `${p.ponto} — ${angulos[i] ? `${angulos[i]}°` : 'medida'}`,
+              ...destaqueDaMedida(p.medidas[i], maior, menor),
+            })),
+            {
+              texto: textoOu(p.menor),
+              centro: true,
+              valor: true,
+              id: `${pref}.menor`,
+              rotuloCampo: `${p.ponto} — menor valor`,
+              ...destaqueDaMedida(p.menor, maior, menor),
+            },
+            { texto: textoOu(p.requerida), centro: true, valor: true, id: `${pref}.requerida`, rotuloCampo: `${p.ponto} — espessura mínima requerida` },
+          ];
+        }),
       });
     }
   } else {
@@ -1338,6 +1395,7 @@ export function folhaUltrassom(doc: Documento, m: ModeloRelatorio): void {
       ],
     ],
   });
+  doc.fecharSecaoElastica();
 }
 
 /**

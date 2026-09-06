@@ -1,7 +1,7 @@
 import { jsPDF } from 'jspdf';
 import { PDFDocument } from 'pdf-lib';
 import { registrarCarlito } from './carlito';
-import { Documento, type CampoEditavel, type ModoDocumento } from './documento';
+import { Documento, type CampoEditavel, type ModoDocumento, type RespiroMedido } from './documento';
 import { anexarRastreabilidades, contarPaginasRastreabilidades } from '../rastreabilidadeService';
 import { anexarFolhasDeCertificado, contarFolhasDeCertificado } from './certificados';
 import { secoesPresentes, type SecaoRelatorio } from './composicao';
@@ -355,6 +355,14 @@ export async function gerarRelatorioVetorial(
   const rascunho = new Documento(contagem, cab, 0, opcoes.modo ?? 'final', opcoes.overrides ?? {});
   const tem = secoesPresentes(opcoes.documentos);
   const paginasDasSecoes = new Map<string, number>();
+  const respiro: RespiroMedido = {};
+  // A 1ª passagem também MEDE o que sobrou no pé das folhas elásticas — a de
+  // verificação da documentação e a de ultrassom têm conteúdo curto e fixo, e
+  // terminavam no meio do papel. A 2ª passagem distribui essa sobra entre as
+  // linhas, em vez de empurrar tudo para um retângulo em branco.
+  rascunho.aoFecharSecaoElastica = (m) => {
+    respiro[m.chave] = { sobra: m.sobra, linhas: m.linhas };
+  };
   emitir(rascunho, modelo, tem, new Map(), paginasDasSecoes);
   const paginasDoCorpo = contagem.getNumberOfPages();
 
@@ -370,7 +378,7 @@ export async function gerarRelatorioVetorial(
   // 2ª passagem: para valer, já com "Página X de Y" correto.
   const pdf = novoPdf();
   await registrarCarlito(pdf);
-  const doc = new Documento(pdf, cab, total, opcoes.modo ?? 'final', opcoes.overrides ?? {});
+  const doc = new Documento(pdf, cab, total, opcoes.modo ?? 'final', opcoes.overrides ?? {}, respiro);
   emitir(doc, modelo, tem, paginasDasSecoes);
 
   let bytes = new Uint8Array(pdf.output('arraybuffer'));

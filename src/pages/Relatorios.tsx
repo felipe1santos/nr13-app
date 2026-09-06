@@ -1202,12 +1202,22 @@ function RelatoriosLegado() {
               <CardPlacaIdentificacao tag={tag} desabilitado={somenteLeitura} onMudou={() => setVersao((v) => v + 1)} />
             )}
             {/* 13C · os DOIS campos do relatório que a folha gravava passam a ser
-                editados aqui. Em documento salvo os botões somem: §7-ter. */}
+                editados aqui. Em documento salvo os botões somem: §7-ter.
+
+                MEDIÇÕES sai da barra na prévia vetorial (06/09/2026): a grade
+                de espessuras é PUXADA da seção Inspeções, e corrigir um número
+                na revisão se faz clicando na própria célula do documento —
+                cada leitura é um campo editável. Um botão no topo para digitar
+                de novo o que já veio do campo convidava a duas verdades para o
+                mesmo número. O botão continua no rollback `?previa=iframe`,
+                onde a grade vive dentro do iframe. */}
             {superficieEdicao === 'react' && !somenteLeitura && fonteDeImpressao(relatorioArquivado) !== 'arquivo' && (
               <>
-                <button type="button" className="btn-secundario barra-btn" onClick={() => setModalMedicoes(true)}>
-                  <Icone nome="sliders" tam={14} /> Medições
-                </button>
+                {papelDaPrevia(fluxo) !== 'previa-vetorial' && (
+                  <button type="button" className="btn-secundario barra-btn" onClick={() => setModalMedicoes(true)}>
+                    <Icone nome="sliders" tam={14} /> Medições
+                  </button>
+                )}
                 <button type="button" className="btn-secundario barra-btn" onClick={() => setModalLaudo(true)}>
                   <Icone nome="filetext" tam={14} /> Laudo
                 </button>
