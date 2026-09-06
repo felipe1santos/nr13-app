@@ -45,6 +45,8 @@ export interface DadosCabecalho {
   numeroRelatorio: string;
   /** As três linhas do rodapé (razão social, endereço/CNPJ, contato). */
   rodape: [string, string, string];
+  /** A linha do alto: qual documento é este. Sem valor, é o relatório. */
+  titulo?: string;
 }
 
 function corTexto(pdf: jsPDF, cor: string): void {
@@ -277,7 +279,10 @@ export function cabecalho(
   pdf.setFont(FAMILIA, 'normal');
   pdf.setFontSize(FONTE.cabecalho);
   corTexto(pdf, COR.texto);
-  pdf.text('RELATÓRIO DE INSPEÇÃO DE SEGURANÇA NR-13 N°', dir, y + 5, { align: 'right' });
+  // O prontuário usa o MESMO cabeçalho do relatório — mesma logo, mesma
+  // régua, mesma paginação — e só troca a linha que diz qual documento é
+  // este. Sem isso, o prontuário saía carimbado como relatório de inspeção.
+  pdf.text(ctx.cabecalho.titulo ?? 'RELATÓRIO DE INSPEÇÃO DE SEGURANÇA NR-13 N°', dir, y + 5, { align: 'right' });
   pdf.setFont(FAMILIA, 'bold');
   pdf.setFontSize(FONTE.numDoc);
   pdf.text(ctx.cabecalho.numeroRelatorio || '—', dir, y + 9.5, { align: 'right' });

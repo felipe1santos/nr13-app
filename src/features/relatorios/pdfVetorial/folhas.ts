@@ -185,12 +185,7 @@ function blocoExame(
     }),
   });
 
-  doc.secao('Observações gerais');
-  doc.texto(textoOu(exame.observacoes, ''), {
-    cor: COR.valor,
-    id: `${prefixo}.observacoes`,
-    rotuloCampo: 'Observações gerais',
-  });
+  doc.blocoAteOFim(`${prefixo}.observacoes`, 'Observações gerais', 'Observações gerais', 16, 40);
 
   doc.secao(`Conclusão técnica — ${nomeDoExame}`);
   doc.texto(textoOu(exame.conclusao, ''), {
@@ -432,7 +427,7 @@ export function folhaSumario(
 
   // 2.1 — o escopo daquela inspeção. Não existe fonte automática: é o que o
   // engenheiro delimita, e a referência reserva o bloco para isso.
-  doc.blocoAteOFim('escopo.texto', 'Escopo e observações da inspeção', '2.1 ESCOPO E OBSERVAÇÕES DA INSPEÇÃO', 18, 36);
+  doc.blocoAteOFim('escopo.texto', 'Escopo e observações da inspeção', '2.1 ESCOPO E OBSERVAÇÕES DA INSPEÇÃO', 18, 56);
   doc.fecharSecaoElastica();
 }
 
@@ -814,7 +809,7 @@ export function folhaDadosTecnicos(doc: Documento, m: ModeloRelatorio): void {
     'Observações e pendências do prontuário',
     'OBSERVAÇÕES E PENDÊNCIAS DO PRONTUÁRIO',
     18,
-    34,
+    56,
   );
   doc.fecharSecaoElastica();
 }
@@ -1173,7 +1168,7 @@ export function folhasChecklist(doc: Documento, m: ModeloRelatorio): void {
     'Comentários sobre a documentação',
     'Comentários sobre a documentação',
     18,
-    32,
+    52,
   );
   doc.fecharSecaoElastica();
 
@@ -1202,7 +1197,7 @@ export function folhasChecklist(doc: Documento, m: ModeloRelatorio): void {
     ]),
   });
 
-  doc.blocoAteOFim('checklist1.observacoes', 'Observações do checklist (parte 1)', 'Observações — checklist (parte 1)', 16, 30);
+  doc.blocoAteOFim('checklist1.observacoes', 'Observações do checklist (parte 1)', 'Observações — checklist (parte 1)', 16, 52);
   doc.fecharSecaoElastica();
 
   // ── 7.1.2 · CHECKLIST, PARTE 2 ───────────────────────────────────────────
@@ -1211,7 +1206,7 @@ export function folhasChecklist(doc: Documento, m: ModeloRelatorio): void {
   doc.banner('7.1.2 CHECKLIST NR-13 — VASO SOB PRESSÃO (PARTE 2)');
   parte2.forEach((secao, i) => tabelaChecklist(doc, secao, `checklist2.${i}`));
 
-  doc.blocoAteOFim('checklist2.observacoes', 'Observações do checklist (parte 2)', 'Observações do checklist', 16, 30);
+  doc.blocoAteOFim('checklist2.observacoes', 'Observações do checklist (parte 2)', 'Observações do checklist', 16, 52);
   doc.fecharSecaoElastica();
 }
 
@@ -1557,7 +1552,7 @@ export function folhasTesteHidrostatico(doc: Documento, m: ModeloRelatorio, comF
 
   blocoInstrumentoPadrao(doc, m.th.instrumento, 'th');
 
-  doc.blocoAteOFim('th.parecer', 'Parecer técnico do teste hidrostático', 'Parecer técnico do teste hidrostático', 18, 34);
+  doc.blocoAteOFim('th.parecer', 'Parecer técnico do teste hidrostático', 'Parecer técnico do teste hidrostático', 18, 50);
   doc.fecharSecaoElastica();
 
   if (comFotos) folhaDeFotos(doc, '8.3 REGISTRO FOTOGRÁFICO — TESTE HIDROSTÁTICO', m.th.fotos);

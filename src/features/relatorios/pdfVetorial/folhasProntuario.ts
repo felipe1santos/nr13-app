@@ -1,7 +1,9 @@
-import { CAIXA, COR, FONTE } from './documentoA4';
+import { CAIXA, COR, FONTE, LIMITE_CORPO } from './documentoA4';
 import { foto } from './primitivas';
-import type { Documento } from './documento';
+import type { CelulaDoc, Documento } from './documento';
 import { textoOu } from './modelo';
+import { extremosDaRegiao } from './folhas';
+import { formulaDoLatex } from './latexMemorial';
 import type { ModeloProntuario } from './modeloProntuario';
 
 /**
@@ -67,6 +69,129 @@ function responsabilidadeTecnica(doc: Documento, m: ModeloProntuario, folha: str
   });
 }
 
+/**
+ * A CAPA do prontuário — o mesmo desenho da capa do relatório.
+ *
+ * Os dois documentos saem da mesma empresa, para o mesmo equipamento, e vão
+ * para a mesma pasta: capa diferente faz um deles parecer de outro sistema. O
+ * que muda é o CONTEÚDO — aqui não há laudo nem validade de inspeção, e sim a
+ * identificação construtiva e o número do prontuário.
+ */
+export function folhaProntCapa(doc: Documento, m: ModeloProntuario): void {
+  doc.novaFolha();
+  doc.y += 6;
+  doc.texto('Prontuário do Equipamento', { tamanho: FONTE.tituloDoc, negrito: true, alinhamento: 'center' });
+  doc.texto(`${textoOu(m.identificacao['TIPO DE EQUIPAMENTO'], 'Equipamento')} — NR-13`, {
+    tamanho: FONTE.subtituloDoc,
+    alinhamento: 'center',
+    espacoAntes: 1.5,
+  });
+  doc.texto('(Portaria nº 1.082, de 18 de dezembro de 2018)', {
+    tamanho: FONTE.nota,
+    cor: COR.nota,
+    alinhamento: 'center',
+    espacoAntes: 1,
+  });
+
+  doc.y += 5;
+  doc.tabela({
+    colunas: [0.22, 0.28, 0.22, 0.28],
+    linhas: [
+      [
+        { texto: 'EQUIPAMENTO', rotulo: true },
+        { texto: textoOu(m.identificacao['TIPO DE EQUIPAMENTO']), valor: true },
+        { texto: 'T.A.G.', rotulo: true },
+        { texto: textoOu(m.tag), valor: true },
+      ],
+      [
+        { texto: 'CLASSE DO FLUIDO', rotulo: true },
+        { texto: textoOu(m.categoria.classeFluido), valor: true },
+        { texto: 'GRUPO', rotulo: true },
+        { texto: textoOu(m.categoria.grupo), valor: true },
+      ],
+      [
+        { texto: 'CATEGORIA', rotulo: true },
+        { texto: textoOu(m.categoria.categoria), valor: true },
+        { texto: 'REVISÃO', rotulo: true },
+        { texto: textoOu(m.revisao), valor: true },
+      ],
+    ],
+  });
+
+  // A foto do equipamento ocupa o miolo da capa, como no relatório: o espaço
+  // que sobra é dela, com um piso para ela não virar uma tarja.
+  doc.y += 3;
+  const disponivel = LIMITE_CORPO - doc.y - 62;
+  const alturaFoto = Math.max(40, Math.min(disponivel, 150));
+  if (m.fotoCapa) {
+    foto(doc.pdf, m.fotoCapa, { x: CAIXA.x, y: doc.y, largura: CAIXA.largura, altura: alturaFoto });
+    doc.y += alturaFoto + 3;
+  }
+
+  doc.tabela({
+    colunas: [0.3, 0.7],
+    linhas: [
+      [
+        { texto: 'Nº DO PRONTUÁRIO', rotulo: true },
+        { texto: textoOu(m.numero), valor: true },
+      ],
+      [
+        { texto: 'DATA DE EMISSÃO', rotulo: true },
+        { texto: textoOu(m.emissao), valor: true },
+      ],
+      [
+        { texto: 'CONTRATANTE', rotulo: true },
+        { texto: textoOu(m.cliente.razao), valor: true },
+      ],
+      [
+        { texto: 'ENDEREÇO', rotulo: true },
+        { texto: textoOu(m.cliente.endereco), valor: true },
+      ],
+      [
+        { texto: 'RESPONSÁVEL TÉCNICO', rotulo: true },
+        {
+          texto: `${textoOu(m.responsavel.nome, '')}${m.responsavel.registro ? ` • CREA: ${m.responsavel.registro}` : ''}`.trim() || '—',
+          valor: true,
+        },
+      ],
+    ],
+  });
+}
+
+/**
+ * O SUMÁRIO, com a página real de cada folha.
+ *
+ * Mesmo mecanismo do relatório: a 1ª passagem do gerador anota onde cada seção
+ * começou, a 2ª imprime. Um sumário sem página é um índice que não indexa.
+ */
+export function folhaProntSumario(doc: Documento, m: ModeloProntuario, paginas: Map<string, number> = new Map()): void {
+  doc.novaFolha();
+  doc.abrirSecaoElastica('pront-sumario');
+  doc.banner('SUMÁRIO DO PRONTUÁRIO');
+  const secoes = secoesDoProntuario(m);
+  doc.tabela({
+    compacta: true,
+    esticavel: true,
+    colunas: [0.1, 0.78, 0.12],
+    cabecalho: ['ITEM', 'SEÇÃO', 'PÁG.'],
+    linhas: secoes.map((titulo, i) => [
+      { texto: String(i + 1), centro: true, rotulo: true },
+      { texto: titulo },
+      { texto: paginas.has(titulo) ? String(paginas.get(titulo)) : '', centro: true },
+    ]),
+  });
+
+  doc.banner('OBJETIVO DO PRONTUÁRIO');
+  doc.texto(
+    'Este prontuário reúne os dados construtivos, os parâmetros de projeto e os registros de ' +
+      `integridade do equipamento ${m.tag}, em atendimento ao item 13.5.1.4 da NR-13. Ele acompanha o ` +
+      'equipamento durante toda a sua vida útil e é atualizado a cada inspeção de segurança.',
+  );
+
+  doc.blocoAteOFim('pront.observacoes-gerais', 'Observações gerais', 'OBSERVAÇÕES GERAIS', 18, 40);
+  doc.fecharSecaoElastica();
+}
+
 // ── 1. ULTRASSOM / MEDIÇÃO DE ESPESSURA ─────────────────────────────────────
 export function folhaProntUltrassom(doc: Documento, m: ModeloProntuario): void {
   doc.novaFolha();
@@ -92,25 +217,61 @@ export function folhaProntUltrassom(doc: Documento, m: ModeloProntuario): void {
   doc.y += 2;
   doc.faixa('LOCALIZAÇÃO DOS PONTOS DE MEDIÇÃO E MEDIDAS ENCONTRADAS (mm)');
   if (m.ultrassom.pontos.length > 0) {
-    const maxMed = Math.max(...m.ultrassom.pontos.map((p) => p.medidas.length), 1);
-    const col = 0.48 / maxMed;
-    doc.tabela({
-      compacta: true,
-      colunas: [0.26, ...Array(maxMed).fill(col), 0.13, 0.13],
-      cabecalho: ['REGIÃO / PONTO', ...Array.from({ length: maxMed }, (_, i) => `P${i + 1}`), 'MENOR', 'REQUERIDA'],
-      linhas: m.ultrassom.pontos.map((p) => [
-        { texto: p.regiao },
-        ...Array.from({ length: maxMed }, (_, i) => ({ texto: textoOu(p.medidas[i]), centro: true, valor: true })),
-        { texto: textoOu(p.menor), centro: true, valor: true },
-        { texto: textoOu(p.requerida), centro: true },
-      ]),
-    });
+    // Uma tabela por REGIÃO, com os ângulos dela e o realce da maior e da menor
+    // leitura — exatamente como na folha 7.4 do relatório. Os dois documentos
+    // falam do mesmo ensaio; ler diferente em cada um é o que confunde quem
+    // confere.
+    const porRegiao = new Map<string, typeof m.ultrassom.pontos>();
+    for (const linha of m.ultrassom.pontos) {
+      const atual = porRegiao.get(linha.regiao) ?? [];
+      atual.push(linha);
+      porRegiao.set(linha.regiao, atual);
+    }
+    for (const [regiao, linhas] of porRegiao) {
+      const angulos = linhas[0]?.angulos ?? [];
+      const colMedida = angulos.length > 0 ? 0.48 / angulos.length : 0.48;
+      const { maior, menor } = extremosDaRegiao(linhas);
+      const marca = (v: string | null | undefined): { destaque?: 'maior' | 'menor' } => {
+        const n = Number(String(v ?? '').replace(',', '.'));
+        if (!Number.isFinite(n) || n <= 0) return {};
+        if (menor !== null && n === menor) return { destaque: 'menor' };
+        if (maior !== null && n === maior) return { destaque: 'maior' };
+        return {};
+      };
+      doc.secao(regiao);
+      doc.tabela({
+        compacta: true,
+        esticavel: true,
+        colunas: [0.26, ...Array(Math.max(angulos.length, 1)).fill(colMedida), 0.13, 0.13],
+        cabecalho: [
+          'REGIÃO / PONTO',
+          ...(angulos.length > 0 ? angulos.map((a) => `${a}°`) : ['MEDIDA']),
+          'MENOR VALOR',
+          'ESP. MÍN. REQUERIDA',
+        ],
+        linhas: linhas.map((p) => [
+          { texto: p.ponto },
+          ...Array.from({ length: Math.max(angulos.length, 1) }, (_, i) => ({
+            texto: textoOu(p.medidas[i]),
+            centro: true,
+            valor: true,
+            ...marca(p.medidas[i]),
+          })) as CelulaDoc[],
+          { texto: textoOu(p.menor), centro: true, valor: true, ...marca(p.menor) },
+          { texto: textoOu(p.requerida), centro: true, valor: true },
+        ]),
+      });
+    }
   } else {
     doc.texto('Sem pontos de medição registrados.', { tamanho: FONTE.nota, cor: COR.nota, espacoAntes: 2 });
   }
 
-  // O croqui longitudinal é DESENHO: entra como figura, e só aqui.
-  if (m.croqui.longitudinal) {
+  // O croqui longitudinal é DESENHO: entra como figura, e só aqui — e SÓ
+  // PARA VASO DE PRESSÃO. O editor de croqui nunca soube desenhar caldeira nem
+  // autoclave (§8 do CLAUDE.md); um desenho genérico num prontuário assinado
+  // afirma uma geometria que não é a do equipamento. Sem croqui, o espaço fica
+  // em branco: ausência é informação, desenho errado não.
+  if (m.tipoEquipamento === 'vaso' && m.croqui.longitudinal) {
     doc.y += 2;
     doc.faixa('CROQUI DO EQUIPAMENTO');
     desenharCroqui(doc, m.croqui.longitudinal, 62);
@@ -335,6 +496,14 @@ export function folhaProntMemorial(doc: Documento, m: ModeloProntuario): void {
     doc.y += 2;
     doc.faixa('MEMÓRIA DE CÁLCULO');
     for (const linha of m.memorial) {
+      // As equações do motor vêm em LaTeX; aqui viram fração desenhada, com
+      // subscrito, como na folha 6.1 do relatório. Imprimir a string crua punha
+      // código-fonte num documento assinado.
+      const formula = formulaDoLatex(linha);
+      if (formula) {
+        doc.formula(formula, { espacoAntes: 1.2 });
+        continue;
+      }
       const titulo = /^MEMORIAL DE C[ÁA]LCULO\b/i.test(linha);
       doc.texto(linha, {
         tamanho: titulo ? FONTE.secao : FONTE.tabela,

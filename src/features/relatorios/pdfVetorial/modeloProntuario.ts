@@ -2,7 +2,8 @@ import { ler } from '../../../services/storage';
 import { linhasMemorial } from '../relatoriosService';
 import { obterAssinantes } from '../../prontuarios/prontuarioService';
 import type { ProntuarioDados } from '../../prontuarios/tipos';
-import { converterPressao, textoOu, type FotoModelo } from './modelo';
+import { converterPressao, numeroDoStorage, pontosUltrassom, textoOu, type FotoModelo } from './modelo';
+import type { RelatorioMeta } from '../tipos';
 import { rotuloClasseFluido, rotuloTipoEquipamento } from './rotulos';
 
 /**
@@ -38,6 +39,10 @@ import { rotuloClasseFluido, rotuloTipoEquipamento } from './rotulos';
 
 export interface PontoEspessura {
   regiao: string;
+  /** O ponto dentro da região ("Casco 3"). */
+  ponto: string;
+  /** Os ângulos daquela região — 0°, 90°, 180°, 270°, ou os que ela tiver. */
+  angulos: string[];
   medidas: string[];
   menor: string | null;
   requerida: string | null;
@@ -95,7 +100,11 @@ export interface ModeloProntuario {
     categoria: string | null;
   };
 
-  pressoes: { rotulo: string; mpa: string | null; kgf: string | null; bar: string | null }[];
+  /** PMO, PMTA e PTH nas quatro unidades — as mesmas colunas do relatório. */
+  pressoes: { rotulo: string; mpa: string | null; psi: string | null; kgf: string | null; bar: string | null }[];
+  /** A capa: quem assina e a foto do equipamento. */
+  responsavel: { nome: string | null; registro: string | null };
+  fotoCapa: string | null;
   componentes: ComponenteProntuario[];
   memorial: string[];
 
@@ -170,24 +179,17 @@ function assinantesDe(tag: string, folhas: readonly string[]): AssinanteProntuar
   );
 }
 
-/** Pontos de medição — mesma origem e mesma preferência do relatório (§7). */
-function pontosEspessura(medEsp: Record<string, unknown>): PontoEspessura[] {
-  const grade = (medEsp.pontos ?? []) as Record<string, unknown>[];
-  const medidas = (medEsp.medidas ?? {}) as Record<string, unknown>;
-  return grade
-    .map((p) => {
-      const nome = textoOu(txt(p.nome ?? p.regiao), 'Região');
-      const linha = (medidas[String(p.id ?? nome)] ?? p.valores ?? []) as unknown[];
-      const valores = Array.isArray(linha) ? linha.map((v) => textoOu(txt(v))) : [];
-      const nums = valores.map((v) => Number(v)).filter((n) => Number.isFinite(n));
-      return {
-        regiao: nome,
-        medidas: valores,
-        menor: nums.length ? String(Math.min(...nums)) : null,
-        requerida: txt(p.espMinRequerida ?? p.requerida),
-      };
-    })
-    .filter((p) => p.medidas.length > 0 || p.requerida);
+/**
+ * Pontos de medição — a MESMA função do relatório.
+ *
+ * O prontuário tinha uma leitura própria da grade: colunas genéricas "P1, P2"
+ * em vez dos ângulos da região, e o menor valor recalculado aqui. Dois
+ * caminhos para o mesmo ensaio, dentro do mesmo sistema, é a receita para dois
+ * documentos que se contradizem — e é o relatório que já lê a grade certa
+ * (`nr13_med_grid_<TAG>`, a chave que o editor grava).
+ */
+function pontosEspessura(tag: string, medEsp: Record<string, unknown>): PontoEspessura[] {
+  return pontosUltrassom(tag, medEsp, medEsp);
 }
 
 export function montarModeloProntuario(tag: string): ModeloProntuario {
@@ -205,6 +207,7 @@ export function montarModeloProntuario(tag: string): ModeloProntuario {
   const croqui = ler<{ longitudinal?: string; transversal?: string; detalheTampo?: string }>(`nr13_croqui2d_${tag}`) ?? {};
   const folhaDados = ler<Record<string, unknown>>(`nr13_folha_dados_${tag}`) ?? {};
   const fotos = ler<{ capa?: string; fotos?: { base64?: string; descricao?: string }[] }>(`nr13_fotos_${tag}`) ?? {};
+  const metaRel = ler<RelatorioMeta>('nr13_relatorio_meta_atual');
 
   const tipo = textoOu(txt(info.tipo), 'vaso');
   const pmta = converterPressao(typeof calc.pmta === 'number' ? calc.pmta : null);
@@ -299,9 +302,18 @@ export function montarModeloProntuario(tag: string): ModeloProntuario {
     },
 
     pressoes: [
+      { rotulo: 'PMO — Pressão Máxima de Operação', ...converterPressao(numeroDoStorage(info.pmoAdotadaMpa)) },
       { rotulo: 'PMTA — Pressão Máxima de Trabalho Admissível', ...pmta },
       { rotulo: 'PTH — Pressão de Teste Hidrostático', ...pth },
     ],
+    // A capa do prontuário traz o responsável e a foto do equipamento, como a
+    // do relatório. A fonte é a mesma: o snapshot da meta quando existe, o
+    // cadastro vivo quando não.
+    responsavel: {
+      nome: txt(metaRel?.assinantes?.engenheiro?.nome ?? metaRel?.phNome),
+      registro: txt(metaRel?.assinantes?.engenheiro?.crea ?? metaRel?.phCrea),
+    },
+    fotoCapa: txt(fotos.capa) ?? txt(fotos.fotos?.[0]?.base64),
     componentes: (calc.componentes ?? []).map((c) => ({
       nome: textoOu(txt(c.nome), 'Componente'),
       pmta: txt(c.pmtaMpa),
@@ -320,7 +332,7 @@ export function montarModeloProntuario(tag: string): ModeloProntuario {
       velSonica: txt(medEsp.velSonica),
       tempSup: txt(medEsp.tempSup),
       estadoSup: txt(medEsp.estadoSup),
-      pontos: pontosEspessura(medEsp),
+      pontos: pontosEspessura(tag, medEsp),
       instrumento: {
         padrao: txt((medEsp.instrumento as Record<string, unknown>)?.padrao),
         serie: txt((medEsp.instrumento as Record<string, unknown>)?.serie),

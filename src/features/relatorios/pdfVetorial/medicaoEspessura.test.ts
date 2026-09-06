@@ -101,7 +101,9 @@ describe('o respiro das folhas curtas', () => {
     // aí o "Página X de Y" contado na 1ª passagem passaria a mentir.
     expect(documento).toContain('Math.min(TETO_RESPIRO_LINHA, util / medido.linhas)');
     expect(documento).toContain('const RESERVA_RESPIRO = 14');
-    expect(documento).toContain('const TETO_RESPIRO_LINHA = 10');
+    // Dois milímetros: o respiro é acerto de proporção, não preenchedor. Com
+    // dez, as linhas do checklist e das recomendações dobravam de altura.
+    expect(documento).toContain('const TETO_RESPIRO_LINHA = 2;');
   });
 
   it('as duas folhas curtas do relatório abrem e fecham a seção elástica', () => {

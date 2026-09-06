@@ -763,7 +763,7 @@ const TITULO_REGIAO: Record<Regiao, string> = {
  * uma medição), e o container segue sendo a fonte quando não há grade — é o que
  * mantém relatório antigo abrindo igual.
  */
-function pontosUltrassom(
+export function pontosUltrassom(
   tag: string,
   us: Record<string, unknown>,
   medEsp: Record<string, unknown>,

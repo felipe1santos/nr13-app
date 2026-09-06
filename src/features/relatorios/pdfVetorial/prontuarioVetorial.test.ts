@@ -91,7 +91,9 @@ describe('o modelo LÊ — não calcula', () => {
     expect(m.construtivos['MATERIAL DO CORPO']).toBe('SA-516');
     expect(m.categoria.categoria).toBe('III');
     // Conversão de pressão: o MESMO fator do relatório, sem recálculo local.
-    expect(m.pressoes[0].kgf).toBe('12.24');
+    // A tabela tem TRÊS linhas desde 06/09/2026 (PMO, PMTA, PTH) — por isso a
+    // busca é pelo rótulo, e não pela posição.
+    expect(m.pressoes.find((p) => p.rotulo.startsWith('PMTA'))!.kgf).toBe('12.24');
     expect(m.numero).toBe('REL-9');
     expect(m.revisao).toBe('02');
   });

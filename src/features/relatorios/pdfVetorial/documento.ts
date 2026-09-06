@@ -824,11 +824,18 @@ export type RespiroMedido = Record<string, { sobra: number; linhas: number; folh
 /**
  * Quanto uma linha pode crescer para a folha respirar, em mm.
  *
- * Dez milímetros é o dobro de uma linha compacta: acima disso a tabela deixa
- * de parecer uma tabela. Abaixo, uma folha de checklist com 15 itens continua
- * terminando seis centímetros antes do rodapé — foi o que se mediu com 6 mm.
+ * DOIS milímetros, e a razão é a lição de 06/09/2026: com 10 mm o vazio do pé
+ * da página sumia, mas as linhas do checklist, dos exames e das recomendações
+ * ficavam com o dobro da altura — a tabela deixava de parecer tabela, que é
+ * pior do que a margem em branco que ela veio consertar.
+ *
+ * O respiro é um ACERTO FINO de proporção, não um preenchedor: dois
+ * milímetros por linha são imperceptíveis numa linha e somam três centímetros
+ * numa folha de quinze itens. O espaço que ainda sobrar é do bloco de
+ * observações, que é onde uma área grande em branco tem sentido — ali ela é
+ * lugar de escrever.
  */
-const TETO_RESPIRO_LINHA = 10;
+const TETO_RESPIRO_LINHA = 2;
 
 /**
  * O que NÃO se distribui, em mm.
