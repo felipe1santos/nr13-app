@@ -287,8 +287,12 @@ export function folhaProntUltrassom(doc: Documento, m: ModeloProntuario): void {
     ['VALIDADE', m.ultrassom.instrumento.validade],
   ]);
 
-  doc.fecharSecaoElastica();
+  // A seção fecha DEPOIS da assinatura: ela pede 30 mm de `garantirEspaco`, e
+  // medir a sobra antes dela fazia o respiro distribuir um espaço que a
+  // assinatura ia ocupar — a folha estourava e o documento ganhava uma página
+  // que a contagem da 1ª passagem não previu.
   responsabilidadeTecnica(doc, m, 'PRONT-ULTRASSOM.html');
+  doc.fecharSecaoElastica();
 }
 
 // ── 2. CROQUI 2D COTADO ─────────────────────────────────────────────────────
@@ -441,8 +445,8 @@ export function folhaProntProntuario(doc: Documento, m: ModeloProntuario): void 
     { tamanho: FONTE.nota, cor: COR.nota, espacoAntes: 2 },
   );
 
-  doc.fecharSecaoElastica();
   responsabilidadeTecnica(doc, m, 'PRONT-PRONTUARIO.html');
+  doc.fecharSecaoElastica();
 }
 
 // ── 5. CONTINUAÇÃO (procedimentos, dispositivos, atenção) ───────────────────
