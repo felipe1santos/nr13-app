@@ -288,7 +288,7 @@ export class Documento {
     this.secaoElastica = chave;
     this.linhasElasticas = 0;
     const medido = this.respiro[chave];
-    this.extraPorLinha = medido && medido.linhas > 0 ? Math.min(6, (medido.sobra * 0.9) / medido.linhas) : 0;
+    this.extraPorLinha = medido && medido.linhas > 0 ? Math.min(TETO_RESPIRO_LINHA, (medido.sobra * 0.9) / medido.linhas) : 0;
   }
 
   /**
@@ -799,6 +799,15 @@ export function celulaVazia(cel: CelulaDoc): boolean {
  * quantas linhas poderiam ter crescido.
  */
 export type RespiroMedido = Record<string, { sobra: number; linhas: number }>;
+
+/**
+ * Quanto uma linha pode crescer para a folha respirar, em mm.
+ *
+ * Dez milímetros é o dobro de uma linha compacta: acima disso a tabela deixa
+ * de parecer uma tabela. Abaixo, uma folha de checklist com 15 itens continua
+ * terminando seis centímetros antes do rodapé — foi o que se mediu com 6 mm.
+ */
+const TETO_RESPIRO_LINHA = 10;
 
 export interface CelulaDoc {
   texto: string;

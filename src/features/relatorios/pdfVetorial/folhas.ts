@@ -166,6 +166,7 @@ function blocoExame(
   doc.faixa('FOI ENCONTRADA ALGUMA NÃO CONFORMIDADE?');
   doc.tabela({
     compacta: true,
+    esticavel: true,
     colunas: [0.06, 0.44, 0.08, 0.08, 0.08, 0.26],
     cabecalho: ['Nº', 'ITEM DE VERIFICAÇÃO', 'SIM', 'NÃO', 'N.A.', 'OBSERVAÇÃO'],
     linhas: exame.itens.map((it, i) => {
@@ -703,6 +704,7 @@ export function folhaCategorizacao(doc: Documento, m: ModeloRelatorio): void {
 // ── 5. DADOS TÉCNICOS / PRONTUÁRIO ──────────────────────────────────────────
 export function folhaDadosTecnicos(doc: Documento, m: ModeloRelatorio): void {
   doc.novaFolha();
+  doc.abrirSecaoElastica('prontuario');
   doc.banner('5. DADOS TÉCNICOS DO EQUIPAMENTO — PRONTUÁRIO');
 
   doc.faixa('DADOS GERAIS');
@@ -800,12 +802,14 @@ export function folhaDadosTecnicos(doc: Documento, m: ModeloRelatorio): void {
 
   // Bloco textual: não existe fonte automática para observações do prontuário.
   // Nasce vazio (amarelo na prévia) e o engenheiro escreve o que precisa.
-  doc.secao('OBSERVAÇÕES E PENDÊNCIAS DO PRONTUÁRIO');
-  doc.texto('', {
-    cor: COR.valor,
-    id: 'prontuario.observacoes',
-    rotuloCampo: 'Observações e pendências do prontuário',
-  });
+  doc.blocoAteOFim(
+    'prontuario.observacoes',
+    'Observações e pendências do prontuário',
+    'OBSERVAÇÕES E PENDÊNCIAS DO PRONTUÁRIO',
+    18,
+    34,
+  );
+  doc.fecharSecaoElastica();
 }
 // ── 6. RESUMO DOS CÁLCULOS ──────────────────────────────────────────────────
 export function folhaResumoCalculos(doc: Documento, m: ModeloRelatorio): void {
@@ -1110,6 +1114,7 @@ function tabelaChecklist(doc: Documento, secao: { titulo: string; itens: ItemChe
   doc.faixa(secao.titulo.toUpperCase());
   doc.tabela({
     compacta: true,
+    esticavel: true,
     colunas: [0.5, 0.08, 0.08, 0.08, 0.26],
     cabecalho: ['ITEM VERIFICADO', 'SIM', 'NÃO', 'N.A.', 'OBSERVAÇÃO'],
     linhas: secao.itens.map((it, i) => {
@@ -1167,12 +1172,14 @@ export function folhasChecklist(doc: Documento, m: ModeloRelatorio): void {
 
   // ── 7.1.1 · CHECKLIST, PARTE 1 ───────────────────────────────────────────
   doc.novaFolha();
+  doc.abrirSecaoElastica('checklist1');
   doc.banner('7.1.1 CHECKLIST NR-13 — VASO SOB PRESSÃO (PARTE 1)');
   parte1.forEach((secao, i) => tabelaChecklist(doc, secao, `checklist1.${i}`));
 
   doc.faixa('INSTRUMENTOS E DISPOSITIVOS DE SEGURANÇA INSTALADOS');
   doc.tabela({
     compacta: true,
+    esticavel: true,
     colunas: [0.34, 0.13, 0.13, 0.4],
     cabecalho: ['INSTRUMENTO', 'POSSUI', 'CALIBRADO', 'Nº DO CERTIFICADO / VALIDADE'],
     linhas: m.instrumentos.map((inst, i) => [
@@ -1188,16 +1195,17 @@ export function folhasChecklist(doc: Documento, m: ModeloRelatorio): void {
     ]),
   });
 
-  doc.secao('Observações — checklist (parte 1)');
-  doc.texto('', { cor: COR.valor, id: 'checklist1.observacoes', rotuloCampo: 'Observações do checklist (parte 1)' });
+  doc.blocoAteOFim('checklist1.observacoes', 'Observações do checklist (parte 1)', 'Observações — checklist (parte 1)', 16, 30);
+  doc.fecharSecaoElastica();
 
   // ── 7.1.2 · CHECKLIST, PARTE 2 ───────────────────────────────────────────
   doc.novaFolha();
+  doc.abrirSecaoElastica('checklist2');
   doc.banner('7.1.2 CHECKLIST NR-13 — VASO SOB PRESSÃO (PARTE 2)');
   parte2.forEach((secao, i) => tabelaChecklist(doc, secao, `checklist2.${i}`));
 
-  doc.secao('Observações do checklist');
-  doc.texto('', { cor: COR.valor, id: 'checklist2.observacoes', rotuloCampo: 'Observações do checklist (parte 2)' });
+  doc.blocoAteOFim('checklist2.observacoes', 'Observações do checklist (parte 2)', 'Observações do checklist', 16, 30);
+  doc.fecharSecaoElastica();
 }
 
 // ── 12. FOTOS DA DOCUMENTAÇÃO · e as do checklist ───────────────────────────
@@ -1213,13 +1221,17 @@ export function folhasFotosDocumentacao(
 // ── 13 a 16. EXAMES VISUAIS E SUAS FOTOS ────────────────────────────────────
 export function folhasExameExterno(doc: Documento, m: ModeloRelatorio, comFotos = true): void {
   doc.novaFolha();
+  doc.abrirSecaoElastica('exameExterno');
   blocoExame(doc, '7.2 EXAME EXTERNO (INSPEÇÃO VISUAL EXTERNA)', m.visualExterno, 'exameExterno', 'exame externo');
+  doc.fecharSecaoElastica();
   if (comFotos) folhaDeFotos(doc, '8.1 REGISTRO FOTOGRÁFICO — EXAME EXTERNO', m.visualExterno.fotos);
 }
 
 export function folhasExameInterno(doc: Documento, m: ModeloRelatorio, comFotos = true): void {
   doc.novaFolha();
+  doc.abrirSecaoElastica('exameInterno');
   blocoExame(doc, '7.3 EXAME INTERNO (INSPEÇÃO VISUAL INTERNA)', m.visualInterno, 'exameInterno', 'exame interno');
+  doc.fecharSecaoElastica();
   if (comFotos) folhaDeFotos(doc, '8.2 REGISTRO FOTOGRÁFICO — EXAME INTERNO', m.visualInterno.fotos);
 }
 
@@ -1432,11 +1444,13 @@ function blocoInstrumentoPadrao(
 // ── 18 e 19. TESTE HIDROSTÁTICO E SUAS FOTOS ────────────────────────────────
 export function folhasTesteHidrostatico(doc: Documento, m: ModeloRelatorio, comFotos = true): void {
   doc.novaFolha();
+  doc.abrirSecaoElastica('th');
   doc.banner('7.5 REGISTRO DE TESTE HIDROSTÁTICO');
 
   doc.faixa('DADOS GERAIS');
   doc.tabela({
     compacta: true,
+    esticavel: true,
     colunas: [0.22, 0.28, 0.22, 0.28],
     linhas: [
       [
@@ -1467,6 +1481,7 @@ export function folhasTesteHidrostatico(doc: Documento, m: ModeloRelatorio, comF
   doc.faixa('DADOS DO TESTE');
   doc.tabela({
     compacta: true,
+    esticavel: true,
     colunas: [0.22, 0.28, 0.22, 0.28],
     linhas: [
       [
@@ -1535,12 +1550,8 @@ export function folhasTesteHidrostatico(doc: Documento, m: ModeloRelatorio, comF
 
   blocoInstrumentoPadrao(doc, m.th.instrumento, 'th');
 
-  doc.secao('Parecer técnico do teste hidrostático');
-  doc.texto(textoOu(m.th.parecer, ''), {
-    cor: COR.valor,
-    id: 'th.parecer',
-    rotuloCampo: 'Parecer técnico do teste hidrostático',
-  });
+  doc.blocoAteOFim('th.parecer', 'Parecer técnico do teste hidrostático', 'Parecer técnico do teste hidrostático', 18, 34);
+  doc.fecharSecaoElastica();
 
   if (comFotos) folhaDeFotos(doc, '8.3 REGISTRO FOTOGRÁFICO — TESTE HIDROSTÁTICO', m.th.fotos);
 }
@@ -1560,9 +1571,11 @@ export function folhaParecer(doc: Documento, m: ModeloRelatorio): void {
   // com recomendação e prazo —, cada célula vazia, amarela na prévia e
   // preenchida à mão. Quando houver origem estruturada, ela entra por aqui sem
   // mudar o desenho.
+  doc.abrirSecaoElastica('parecer');
   doc.banner('9. RECOMENDAÇÕES DE SEGURANÇA');
   doc.tabela({
     compacta: true,
+    esticavel: true,
     colunas: [0.08, 0.62, 0.3],
     cabecalho: ['ITEM', 'RECOMENDAÇÃO', 'PRAZO'],
     linhas: [1, 2, 3, 4].map((n) => [
@@ -1576,6 +1589,7 @@ export function folhaParecer(doc: Documento, m: ModeloRelatorio): void {
   doc.banner('10. PARECER TÉCNICO CONCLUSIVO');
   doc.tabela({
     compacta: true,
+    esticavel: true,
     colunas: [0.7, 0.3],
     linhas: [
       [
@@ -1612,6 +1626,7 @@ export function folhaParecer(doc: Documento, m: ModeloRelatorio): void {
   // a categoria e o julgamento do engenheiro —, então nasce editável.
   doc.tabela({
     compacta: true,
+    esticavel: true,
     colunas: [0.45, 0.25, 0.3],
     cabecalho: ['EXAME', 'PRAZO', 'DATA LIMITE'],
     linhas: [
@@ -1638,6 +1653,7 @@ export function folhaParecer(doc: Documento, m: ModeloRelatorio): void {
     { tamanho: FONTE.nota, cor: COR.nota, espacoAntes: 2, id: 'proximas.nota', rotuloCampo: 'Nota das próximas inspeções' },
   );
 
+  doc.fecharSecaoElastica();
   assinaturas(doc, m);
 }
 

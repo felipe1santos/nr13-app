@@ -246,7 +246,9 @@ describe('F · override na folha 5 muda só o relatório', () => {
     const folhas = readFileSync('src/features/relatorios/pdfVetorial/folhas.ts', 'utf8');
     expect(folhas).toContain("'prontuario'");
     expect(folhas).toContain("id: 'prontuario.descricao-resumida'");
-    expect(folhas).toContain("id: 'prontuario.observacoes'");
+    // As observações do prontuário viraram um BLOCO que ocupa o pé da folha
+    // (06/09/2026) — o id continua o mesmo, o override também.
+    expect(folhas).toContain("'prontuario.observacoes'");
     expect(folhas).toContain("id: 'categorizacao.pv-kpa'");
   });
 

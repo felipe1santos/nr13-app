@@ -99,7 +99,8 @@ describe('o respiro das folhas curtas', () => {
   it('a distribuição é conservadora: 0,9 da sobra e teto por linha', () => {
     // Distribuir a sobra inteira empurraria conteúdo para uma folha a mais, e
     // aí o "Página X de Y" contado na 1ª passagem passaria a mentir.
-    expect(documento).toContain('Math.min(6, (medido.sobra * 0.9) / medido.linhas)');
+    expect(documento).toContain('Math.min(TETO_RESPIRO_LINHA, (medido.sobra * 0.9) / medido.linhas)');
+    expect(documento).toContain('const TETO_RESPIRO_LINHA = 10');
   });
 
   it('as duas folhas curtas do relatório abrem e fecham a seção elástica', () => {
