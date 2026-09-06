@@ -36,7 +36,9 @@ describe('o croqui 2D é do VASO — caldeira e autoclave ficam sem ele', () => 
     // Um equipamento que já foi vaso e virou caldeira ainda tem
     // `nr13_croqui2d_<TAG>` gravado. Sem a condição, o desenho antigo apareceria
     // num prontuário de caldeira — geometria que não é a do equipamento.
-    expect(folhas).toContain("if (m.tipoEquipamento === 'vaso' && m.croqui.longitudinal)");
+    expect(folhas).toContain("m.tipoEquipamento === 'vaso' && m.croqui.longitudinal");
+    // E o desenho só entra na folha 1 quando cabe junto da assinatura.
+    expect(folhas).toContain("espacoCroqui >= 34");
   });
 
   it('o sumário não anuncia croqui em caldeira nem em autoclave', () => {

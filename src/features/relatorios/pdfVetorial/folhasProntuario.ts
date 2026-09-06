@@ -317,11 +317,7 @@ export function folhaProntCroqui(doc: Documento, m: ModeloProntuario): void {
       espacoAntes: 3,
     });
   } else {
-    for (const [titulo, svg] of presentes) {
-      doc.faixa(titulo);
-      desenharCroqui(doc, svg!, presentes.length > 2 ? 52 : 76);
-      doc.y += 2;
-    }
+    desenharPranchaDeVistas(doc, m, presentes);
   }
 
   if (m.dimensoes.length > 0) {
@@ -538,6 +534,65 @@ export function folhaProntMemorial(doc: Documento, m: ModeloProntuario): void {
 }
 
 /**
+ * A PRANCHA de vistas: a longitudinal grande à esquerda, as outras duas
+ * empilhadas à direita.
+ *
+ * O equipamento é comprido: numa pilha de três faixas de largura inteira, a
+ * vista longitudinal ficava com 5 cm de altura e as cotas viravam risco. Do
+ * jeito da prancha técnica — a principal ocupando a coluna larga em toda a
+ * altura, as auxiliares ao lado — nenhuma das três é suprimida e a que se lê
+ * de perto é a que ganha espaço.
+ *
+ * Com uma ou duas vistas, a divisão não faz sentido: aí cada uma ocupa a
+ * largura inteira, que é como elas já saíam.
+ */
+function desenharPranchaDeVistas(
+  doc: Documento,
+  m: ModeloProntuario,
+  presentes: [string, string | null][],
+): void {
+  const alturaTabela = m.dimensoes.length > 0 ? 12 + m.dimensoes.length * 6 : 0;
+  const disponivel = LIMITE_CORPO - doc.y - alturaTabela - 34;
+
+  if (presentes.length < 3) {
+    for (const [titulo, svg] of presentes) {
+      doc.faixa(titulo);
+      desenharCroqui(doc, svg!, Math.max(50, Math.min(96, disponivel / presentes.length - 10)));
+      doc.y += 2;
+    }
+    return;
+  }
+
+  const [principal, ...auxiliares] = presentes;
+  const alturaPrancha = Math.max(70, Math.min(150, disponivel));
+  const larguraEsq = CAIXA.largura * 0.6 - 3;
+  const larguraDir = CAIXA.largura * 0.4 - 3;
+  const xDir = CAIXA.x + larguraEsq + 6;
+  const topo = doc.y;
+  const alturaFaixa = 6.4;
+
+  // Coluna esquerda: a vista principal, em toda a altura da prancha.
+  doc.faixa(principal[0]);
+  desenharCroqui(doc, principal[1]!, alturaPrancha - alturaFaixa, {
+    x: CAIXA.x,
+    largura: larguraEsq,
+    y: doc.y,
+  });
+
+  // Coluna direita: as auxiliares, uma sob a outra, dividindo a mesma altura.
+  const alturaCada = (alturaPrancha - alturaFaixa * auxiliares.length) / auxiliares.length;
+  let y = topo;
+  for (const [titulo, svg] of auxiliares) {
+    doc.y = y;
+    doc.faixaEm(titulo, { x: xDir, largura: larguraDir });
+    desenharCroqui(doc, svg!, alturaCada, { x: xDir, largura: larguraDir, y: doc.y });
+    y += alturaCada + alturaFaixa;
+  }
+
+  doc.y = topo + alturaPrancha + 3;
+}
+
+/**
  * Pinta um croqui SVG na folha.
  *
  * **Isto é o único raster do prontuário vetorial, e é declarado.** O croqui é um
@@ -549,8 +604,13 @@ export function folhaProntMemorial(doc: Documento, m: ModeloProntuario): void {
  * Fica registrado como a diferença conhecida entre os dois motores no
  * prontuário: nas demais folhas não há uma única imagem.
  */
-function desenharCroqui(doc: Documento, svgOuPng: string, altura: number): void {
-  doc.garantirEspaco(altura + 4);
+function desenharCroqui(
+  doc: Documento,
+  svgOuPng: string,
+  altura: number,
+  caixa?: { x: number; largura: number; y?: number },
+): void {
+  if (!caixa) doc.garantirEspaco(altura + 4);
   const cache = (doc as unknown as { __croquis?: Map<string, { png: string; proporcao: number }> }).__croquis;
   const pronto = cache?.get(svgOuPng);
   if (!pronto) {
@@ -564,8 +624,13 @@ function desenharCroqui(doc: Documento, svgOuPng: string, altura: number): void 
   }
   // A proporção REAL vai junto: sem ela a primitiva assume 4:3 e o croqui sai
   // esticado — cota errada num documento técnico.
-  foto(doc.pdf, pronto.png, { x: CAIXA.x, y: doc.y, largura: CAIXA.largura, altura }, pronto.proporcao);
-  doc.y += altura;
+  const x = caixa?.x ?? CAIXA.x;
+  const largura = caixa?.largura ?? CAIXA.largura;
+  const y = caixa?.y ?? doc.y;
+  foto(doc.pdf, pronto.png, { x, y, largura, altura }, pronto.proporcao);
+  // Com caixa explícita quem manda no cursor é o chamador: é ele que sabe se
+  // ainda há outro desenho ao lado.
+  if (!caixa) doc.y += altura;
 }
 
 /** Os títulos do sumário do prontuário — na ordem em que as folhas saem. */

@@ -586,6 +586,27 @@ export class Documento {
     this.cursor += altura;
   }
 
+  /**
+   * Uma faixa dentro de uma CAIXA — usada quando a folha tem duas colunas.
+   *
+   * A `faixa` normal ocupa a largura útil inteira, que é o certo para o
+   * documento em coluna única. A prancha de croquis do prontuário põe a vista
+   * principal ao lado das auxiliares, e cada uma precisa do seu próprio
+   * rótulo, do tamanho da sua coluna.
+   */
+  faixaEm(conteudo: string, caixa: { x: number; largura: number }): void {
+    const altura = alturaLinha(FONTE.faixa) + 1.4;
+    this.pdf.setFillColor(COR.fundoRotulo);
+    this.pdf.setDrawColor(COR.bordaTabela);
+    this.pdf.setLineWidth(BORDA_FINA);
+    this.pdf.rect(caixa.x, this.cursor, caixa.largura, altura, 'FD');
+    this.pdf.setFont(FAMILIA, 'bold');
+    this.pdf.setFontSize(FONTE.faixa);
+    this.pdf.setTextColor(COR.texto);
+    this.pdf.text(conteudo, caixa.x + 2, this.cursor + altura * 0.74);
+    this.cursor += altura;
+  }
+
   secao(conteudo: string): void {
     this.texto(conteudo, { tamanho: FONTE.secao, negrito: true, espacoAntes: 3.4 });
   }
