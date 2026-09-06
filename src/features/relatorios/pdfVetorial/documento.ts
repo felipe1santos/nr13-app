@@ -539,7 +539,17 @@ export class Documento {
     const padX = 1.4;
     const padY = opcoes.compacta ? 0.45 : 0.6;
     const larguras = opcoes.colunas.map((f) => f * CAIXA.largura);
-    const alturaCab = alturaLinha(tamanho) + padY * 2;
+    // O cabeçalho QUEBRA em várias linhas quando o título não cabe na coluna.
+    // Sem isto, o rótulo era desenhado inteiro a partir do centro da célula e
+    // invadia a vizinha: as faixas de P.V. da matriz da NR-13 saíram
+    // sobrepostas, ilegíveis, no documento emitido.
+    const linhasDoCab = (opcoes.cabecalho ?? []).map((titulo, i) => {
+      this.pdf.setFont(FAMILIA, 'bold');
+      this.pdf.setFontSize(tamanho);
+      return this.pdf.splitTextToSize(titulo, larguras[i] - padX * 2) as string[];
+    });
+    const maxLinhasCab = linhasDoCab.reduce((n, l) => Math.max(n, l.length), 1);
+    const alturaCab = alturaLinha(tamanho) * maxLinhasCab + padY * 2;
 
     const desenharCabecalho = () => {
       if (!opcoes.cabecalho) return;
@@ -552,9 +562,13 @@ export class Documento {
         this.pdf.setFont(FAMILIA, 'bold');
         this.pdf.setFontSize(tamanho);
         this.pdf.setTextColor(COR.texto);
-        this.pdf.text(opcoes.cabecalho[i], x + larguras[i] / 2, this.cursor + alturaCab * 0.72, {
-          align: 'center',
-        });
+        const linhas = linhasDoCab[i];
+        // Verticalmente centrado: com uma linha só o resultado é o de sempre.
+        let y = this.cursor + padY + (alturaCab - padY * 2 - alturaLinha(tamanho) * linhas.length) / 2;
+        for (const l of linhas) {
+          this.pdf.text(l, x + larguras[i] / 2, y + alturaLinha(tamanho) * 0.78, { align: 'center' });
+          y += alturaLinha(tamanho);
+        }
         x += larguras[i];
       }
       this.cursor += alturaCab;

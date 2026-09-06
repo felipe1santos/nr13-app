@@ -106,7 +106,10 @@ function exigenciasDaReferencia(): Exigencia[] {
   return saida;
 }
 
-const fonte = normalizar(FONTES.map((f) => readFileSync(f, 'utf8')).join(' '));
+// O `\n` de uma string do código é uma QUEBRA no papel — no cabeçalho da
+// matriz da NR-13, por exemplo. Trocá-lo por espaço antes de normalizar impede
+// que a busca procure um "n" que só existe no código-fonte.
+const fonte = normalizar(FONTES.map((f) => readFileSync(f, 'utf8').replace(/\\n/g, ' ')).join(' '));
 const exigencias = exigenciasDaReferencia();
 const compostos = new Set(COMPOSTOS.map(normalizar));
 

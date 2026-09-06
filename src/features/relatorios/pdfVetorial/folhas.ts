@@ -606,15 +606,10 @@ const MATRIZ_13512: { classe: string; descricao: string; categorias: string[] }[
   { classe: 'D', descricao: 'Outro fluido', categorias: ['II', 'III', 'IV', 'V', 'V'] },
 ];
 
-// As cinco faixas de P.V. do item 13.5.1.2. O cabeçalho da tabela é de uma
-// linha só, então a quebra da referência vira " · " — o texto é o mesmo.
-const FAIXAS_PV = [
-  '1 · P.V ≥ 100',
-  '2 · P.V < 100 · P.V ≥ 30',
-  '3 · P.V < 30 · P.V ≥ 2,5',
-  '4 · P.V < 2,5 · P.V ≥ 1',
-  '5 · P.V < 1',
-];
+// As cinco faixas de P.V. do item 13.5.1.2, na MESMA quebra da referência:
+// o número do grupo em cima, os limites embaixo. O cabeçalho da tabela quebra
+// linha, então o texto cabe na coluna em vez de invadir a vizinha.
+const FAIXAS_PV = ['1\nP.V ≥ 100', '2\nP.V < 100\nP.V ≥ 30', '3\nP.V < 30\nP.V ≥ 2,5', '4\nP.V < 2,5\nP.V ≥ 1', '5\nP.V < 1'];
 
 export function folhaCategorizacao(doc: Documento, m: ModeloRelatorio): void {
   doc.novaFolha();
