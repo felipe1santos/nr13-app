@@ -52,6 +52,7 @@ function tabelaChaveValor(
   campos: [string, string | null][],
   colunas = 2,
   prefixo?: string,
+  esticavel = false,
 ): void {
   const linhas: CelulaDoc[][] = [];
   const passo = colunas;
@@ -69,7 +70,7 @@ function tabelaChaveValor(
     linhas.push(linha);
   }
   const largura = colunas === 2 ? [0.22, 0.28, 0.22, 0.28] : [0.3, 0.7];
-  doc.tabela({ colunas: largura, linhas });
+  doc.tabela({ colunas: largura, linhas, esticavel });
 }
 
 /** A resposta guardada, sem acento e em minúsculas — só para COMPARAR. */
@@ -354,12 +355,14 @@ export function folhaSumario(
   paginas: Map<string, number> = new Map(),
 ): void {
   doc.novaFolha();
+  doc.abrirSecaoElastica('sumario');
   doc.banner('SUMÁRIO GERAL');
   // A referência numera com o número DA SEÇÃO (7.1, 7.2…), não com a posição
   // na lista, e traz a PÁGINA de cada uma. O número da página vem da primeira
   // passagem do gerador — a mesma que já contava o total do rodapé.
   doc.tabela({
     compacta: true,
+    esticavel: true,
     colunas: [0.1, 0.78, 0.12],
     cabecalho: ['ITEM', 'SEÇÃO', 'PÁG.'],
     linhas: secoes.map((sec) => [
@@ -429,8 +432,8 @@ export function folhaSumario(
 
   // 2.1 — o escopo daquela inspeção. Não existe fonte automática: é o que o
   // engenheiro delimita, e a referência reserva o bloco para isso.
-  doc.secao('2.1 ESCOPO E OBSERVAÇÕES DA INSPEÇÃO');
-  doc.texto('', { cor: COR.valor, id: 'escopo.texto', rotuloCampo: 'Escopo e observações da inspeção' });
+  doc.blocoAteOFim('escopo.texto', 'Escopo e observações da inspeção', '2.1 ESCOPO E OBSERVAÇÕES DA INSPEÇÃO', 18, 36);
+  doc.fecharSecaoElastica();
 }
 
 // ── 3. IDENTIFICAÇÃO / PLACA ────────────────────────────────────────────────
@@ -716,6 +719,7 @@ export function folhaDadosTecnicos(doc: Documento, m: ModeloRelatorio): void {
     ],
     1,
     'prontuario',
+    true,
   );
 
   doc.faixa('ASPECTOS CONSTRUTIVOS');
@@ -733,6 +737,7 @@ export function folhaDadosTecnicos(doc: Documento, m: ModeloRelatorio): void {
     ],
     2,
     'prontuario',
+    true,
   );
   doc.tabela({
     colunas: [0.3, 0.7],
@@ -755,6 +760,7 @@ export function folhaDadosTecnicos(doc: Documento, m: ModeloRelatorio): void {
   // apenas renomeada.
   doc.faixa('ASPECTOS OPERACIONAIS');
   doc.tabela({
+    esticavel: true,
     colunas: [0.4, 0.2, 0.2, 0.2],
     cabecalho: ['GRANDEZA', 'MPa', 'psi', 'kgf/cm²'],
     linhas: m.operacionais.map((o) => [
@@ -772,6 +778,7 @@ export function folhaDadosTecnicos(doc: Documento, m: ModeloRelatorio): void {
 
   doc.faixa('CATEGORIZAÇÃO DO EQUIPAMENTO');
   doc.tabela({
+    esticavel: true,
     colunas: [0.32, 0.18, 0.2, 0.3],
     linhas: [
       [
