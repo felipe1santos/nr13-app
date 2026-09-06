@@ -38,7 +38,12 @@ function responsabilidadeTecnica(doc: Documento, m: ModeloProntuario, folha: str
   const assinam = m.assinantes.filter((a) => a.folhas.includes(folha));
   if (assinam.length === 0) return;
 
-  doc.garantirEspaco(30);
+  // O bloco inteiro é reservado ANTES de desenhar qualquer parte dele: faixa,
+  // rubrica, linha, nome, função e registro. Com 30 mm a conta ficava curta e
+  // a quebra caía no meio — a folha seguinte abria com o nome do engenheiro
+  // solto, sem a linha nem a rubrica acima dele.
+  const alturaAssinatura = 6 + 7 + 2 + 15 + 1 + 3 * 4.4;
+  doc.garantirEspaco(alturaAssinatura);
   doc.y += 6;
   doc.faixa('RESPONSABILIDADE TÉCNICA');
   doc.y += 2;
