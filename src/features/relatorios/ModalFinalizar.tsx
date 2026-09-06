@@ -1,6 +1,7 @@
 import { Icone } from '../../components/Icone';
 import type { ResultadoValidacao } from './validacaoFinalizacao';
 import './modalFinalizar.css';
+import './modalCriarRelatorio.css';
 
 /**
  * Fase 10B.1 · o aviso antes do ponto sem volta.
@@ -20,6 +21,8 @@ export default function ModalFinalizar({
   ocupado,
   progresso,
   erro,
+  nome,
+  aoMudarNome,
   aoFechar,
   aoConfirmar,
 }: {
@@ -27,6 +30,9 @@ export default function ModalFinalizar({
   ocupado: boolean;
   progresso: { feito: number; total: number } | null;
   erro: string;
+  /** Nome de EXIBIÇÃO do documento — etiqueta, não identidade. */
+  nome?: string;
+  aoMudarNome?: (n: string) => void;
   aoFechar: () => void;
   aoConfirmar: () => void;
 }) {
@@ -54,6 +60,29 @@ export default function ModalFinalizar({
         </div>
 
         <div className="mf-corpo">
+          {/* NOME DO DOCUMENTO. É o último momento em que ele pode ser
+              escolhido sem virar renomeação — e o único em que a pessoa
+              está olhando para o documento inteiro. Trocar aqui NÃO muda
+              id, código, SHA-256, pdfRef nem os bytes: o nome é a etiqueta
+              da pasta, e é assim que o §7-ter já tratava a renomeação. */}
+          {aoMudarNome && (
+            <div className="mf-nome">
+              <label htmlFor="mf-nome-doc">Nome do documento</label>
+              <input
+                id="mf-nome-doc"
+                value={nome ?? ''}
+                onChange={(e) => aoMudarNome(e.target.value)}
+                disabled={ocupado}
+                spellCheck={false}
+                placeholder="Relatorio_Inspecao_Periodica_TAG.pdf"
+              />
+              <small>
+                É como o relatório aparece na lista e no arquivo baixado. O número do
+                relatório e o código de verificação não mudam.
+              </small>
+            </div>
+          )}
+
           <div className="mf-alerta">
             <Icone nome="alerttri" tam={18} />
             <div>

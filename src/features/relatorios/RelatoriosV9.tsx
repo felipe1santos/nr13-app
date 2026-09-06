@@ -63,7 +63,15 @@ import {
   type ModoArquivo,
 } from './arquivados';
 import { excluirRelatorio, renomearRelatorio } from './historicoRelatorios';
+import ModalFiltrosRelatorios, {
+  FILTRO_VAZIO,
+  temAlgumFiltro,
+  type RecorteSituacao,
+  type ValoresFiltro,
+} from './ModalFiltrosRelatorios';
+import ModalNovaInspecao from './ModalNovaInspecao';
 import ModalRenomear from './ModalRenomear';
+import ModalSelecionarEquipamento from './ModalSelecionarEquipamento';
 import ModalRemocao from './ModalRemocao';
 import type { TipoInspecao } from './tipos';
 import '../../pages/relatorios.css';
@@ -138,8 +146,20 @@ export interface PropsRelatoriosV9 {
    * abertura por padrão foi o defeito que bloqueou o rollout de 25/08/2026.
    */
   aoAbrir?: (item: ItemRelatorio) => void;
-  /** Volta ao fluxo por equipamento (criar relatório novo). */
-  aoEscolherEquipamento?: () => void;
+  /**
+   * CRIAR um relatório: a tela já perguntou tudo — equipamento, tipo e quais
+   * folhas — e entrega a decisão pronta. Quem recebe abre o editor.
+   *
+   * A configuração vem junto de propósito. Antes esta prop era um
+   * `() => void` que navegava para uma tela de seleção, e a montagem
+   * perguntava tudo de novo do outro lado; agora a pergunta acontece uma vez
+   * só, em modal, com a lista intacta atrás.
+   */
+  aoEscolherEquipamento?: (escolha?: {
+    tag: string;
+    tipo: TipoInspecao;
+    documentos: string[];
+  }) => void;
   /**
    * Continuar um RASCUNHO (10B.1) — abre o editor de onde parou.
    *
@@ -164,6 +184,12 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
    * como os outros para o link continuar reproduzindo a mesma lista.
    */
   const fEmpresa = params.get('empresa') ?? '';
+  /**
+   * Recorte por SITUAÇÃO. Exato e sem consulta nova: rascunho é registro local,
+   * finalizado é o que veio do servidor, arquivado é o modo de lista. Mora na
+   * URL como os outros — o link precisa reproduzir a mesma lista.
+   */
+  const fSituacao = (params.get('situacao') ?? '') as RecorteSituacao;
   // O escopo mora na URL como todo o resto: quem abre o link do histórico
   // continua no histórico depois de recarregar. Sem parâmetro = 'ativos', que é
   // o conjunto que a tela antiga sempre mostrou.
@@ -182,6 +208,19 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
   /** Respondendo pelo catálogo do aparelho — a tela precisa DIZER isso. */
   const [offline, setOffline] = useState(false);
   const [painelAberto, setPainelAberto] = useState(false);
+  /**
+   * O fluxo de CRIAR, em dois passos, sem sair da rota.
+   *
+   * `null` = fechado; `{ passo: 1 }` = escolhendo o equipamento;
+   * `{ passo: 2, ... }` = configurando o que já foi escolhido. O passo 2
+   * guarda o resumo do equipamento porque é o que o cabeçalho dele mostra —
+   * e ele veio junto da seleção, sem leitura nova.
+   */
+  const [criacao, setCriacao] = useState<
+    | null
+    | { passo: 1 }
+    | { passo: 2; tag: string; descricao: string | null; tipoEq: string | null }
+  >(null);
   /**
    * O documento aberto — e o ÚNICO estado desta tela que toca um arquivo.
    *
@@ -362,10 +401,20 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
     params.get('arquivo') === 'arquivados' ? 'arquivados'
     : params.get('arquivo') === 'todos' ? 'todos'
     : 'ativos';
-  const visiveis = useMemo(
-    () => filtrarPorArquivo(filtrarPorEmpresa(itens, mapaEmpresas, fEmpresa), arquivados, modoArquivo),
-    [itens, mapaEmpresas, fEmpresa, arquivados, modoArquivo],
-  );
+  const visiveis = useMemo(() => {
+    const base = filtrarPorArquivo(
+      filtrarPorEmpresa(itens, mapaEmpresas, fEmpresa),
+      arquivados,
+      modoArquivo,
+    );
+    // SITUAÇÃO: recorte exato, sem consulta nova. "Só rascunhos" tira os
+    // emitidos; "só finalizados" tira os arquivados desta lista (arquivado é
+    // outra situação, não um finalizado com etiqueta).
+    if (fSituacao === 'rascunho') return [];
+    if (fSituacao === 'finalizado') return base.filter((r) => !arquivados.has(r.relatorioId));
+    if (fSituacao === 'arquivado') return base.filter((r) => arquivados.has(r.relatorioId));
+    return base;
+  }, [itens, mapaEmpresas, fEmpresa, arquivados, modoArquivo, fSituacao]);
 
   /**
    * 10B.1 · os RASCUNHOS, que não vêm do servidor.
@@ -376,8 +425,18 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
    * requisição a mais nesta tela.
    */
   const [rascunhos, setRascunhos] = useState<RascunhoItem[]>(() => listarRascunhos());
-  /** Período, empresa e escopo são filtros do SERVIDOR; rascunho não está lá. */
-  const filtroQueNaoAlcancaRascunho = !!(fDe || fAte || fEmpresa) || escopo !== 'ativos';
+  /**
+   * Período, empresa e escopo são filtros do SERVIDOR; rascunho não está lá.
+   *
+   * A situação entra na mesma conta: pedir "finalizado" ou "arquivado" exclui
+   * o rascunho por definição — ele não é nem um nem outro.
+   */
+  const filtroQueNaoAlcancaRascunho =
+    !!(fDe || fAte || fEmpresa) ||
+    escopo !== 'ativos' ||
+    fSituacao === 'finalizado' ||
+    fSituacao === 'arquivado' ||
+    modoArquivo === 'arquivados';
   const rascunhosVisiveis = useMemo(
     () => (filtroQueNaoAlcancaRascunho ? [] : filtrarRascunhos(rascunhos, { termo, tipo: fTipo })),
     [rascunhos, filtroQueNaoAlcancaRascunho, termo, fTipo],
@@ -482,7 +541,49 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
     }
   }
 
-  const temFiltro = !!(termo || fTipo || fDe || fAte || fEmpresa);
+  /**
+   * O recorte inteiro, num objeto — é o que o modal edita como rascunho.
+   *
+   * A URL continua sendo a fonte da verdade; isto é a leitura dela. O termo de
+   * BUSCA fica de fora de propósito: ele é da barra, não do filtro, e some do
+   * "Limpar filtros" pelo mesmo motivo — apagar o que a pessoa digitou ao
+   * limpar o período seria o filtro comendo a busca.
+   */
+  const filtroAtual: ValoresFiltro = {
+    de: fDe,
+    ate: fAte,
+    tipo: fTipo,
+    empresa: fEmpresa,
+    situacao: fSituacao,
+    escopo,
+    arquivo: modoArquivo,
+  };
+
+  /**
+   * Aplica o rascunho do modal na URL, DE UMA VEZ.
+   *
+   * De uma vez importa: sete `trocarParam` seguidos são sete `setParams`, e
+   * como cada um parte do `params` do render atual, os últimos apagariam os
+   * primeiros. É o mesmo motivo de `trocarParam` existir com `replace`.
+   */
+  function aplicarFiltro(v: ValoresFiltro) {
+    const novos = new URLSearchParams(params);
+    const por = (chave: string, valor: string, vazio = '') => {
+      if (valor && valor !== vazio) novos.set(chave, valor);
+      else novos.delete(chave);
+    };
+    por('de', v.de);
+    por('ate', v.ate);
+    por('tipo', v.tipo);
+    por('empresa', v.empresa);
+    por('situacao', v.situacao);
+    por('escopo', v.escopo, 'ativos');
+    por('arquivo', v.arquivo, 'ativos');
+    setParams(novos, { replace: true });
+    setPainelAberto(false);
+  }
+
+  const temFiltro = temAlgumFiltro(filtroAtual);
 
   /**
    * Com empresa escolhida a contagem do servidor fala de outro conjunto (ela
@@ -498,8 +599,15 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
       ? { ...contagem, total: totalNaTela(rascunhosVisiveis.length, contagem.total) }
       : null;
 
+  /**
+   * Limpa o RECORTE e preserva o termo digitado.
+   *
+   * Antes zerava a URL inteira, busca junto: quem tinha buscado "AUTOCLAVE" e
+   * clicava em "limpar filtros" via o texto sumir do campo. Filtro e busca são
+   * duas coisas, e o botão de uma não manda na outra.
+   */
   function limparTudo() {
-    setParams(new URLSearchParams(), { replace: true });
+    aplicarFiltro(FILTRO_VAZIO);
   }
 
   /**
@@ -559,114 +667,96 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
   return (
     <div className="rel-page">
       <div className="rel-cabecalho-busca">
+        {/* BARRA · filtro à esquerda, busca ocupando o meio, criar à direita.
+            O que RECORTA a lista vem antes dela; o campo cresce com a janela; a
+            ação de criar fica no extremo oposto, sozinha, onde o olho procura a
+            ação principal. Antes os três estavam à direita, na ordem
+            criar → filtro, com o campo espremido à esquerda. */}
         <BuscaLista
           valor={termo}
           aoMudar={(t) => trocarParam('q', t)}
-          placeholder="Buscar por TAG, equipamento ou nº do relatório…"
+          placeholder="Buscar por TAG, equipamento, nome ou nº do relatório…"
           carregando={carregando}
           contagem={contagemNaTela}
           offline={offline}
           compacto
+          antes={
+            <button
+              type="button"
+              className={`fj-btn fj-btn-ghost rel-btn-filtro${temFiltro ? ' filtro-ativo' : ''}`}
+              aria-haspopup="dialog"
+              onClick={() => setPainelAberto(true)}
+            >
+              <Icone nome="filter" tam={14} /> <span className="rel-btn-rotulo">Período e tipo</span>
+            </button>
+          }
         >
-          {/* O botão de CRIAR vem primeiro: é a ação principal da tela, e ela
-              tinha sumido na reorganização do layout. */}
           {aoEscolherEquipamento && (
-            <button type="button" className="fj-btn fj-btn-primary" onClick={aoEscolherEquipamento}>
-              <Icone nome="plus" tam={14} /> Criar relatório
+            <button
+              type="button"
+              className="fj-btn fj-btn-primary rel-btn-criar"
+              aria-haspopup="dialog"
+              onClick={() => setCriacao({ passo: 1 })}
+            >
+              <Icone nome="plus" tam={14} /> <span className="rel-btn-rotulo">Criar relatório</span>
             </button>
           )}
-          <button
-            type="button"
-            className={`fj-btn fj-btn-ghost${temFiltro ? ' ativo' : ''}`}
-            aria-expanded={painelAberto}
-            onClick={() => setPainelAberto((v) => !v)}
-          >
-            <Icone nome="filter" tam={14} /> Período e tipo
-          </button>
         </BuscaLista>
 
-        {painelAberto && (
-          <div className="rel-filtros-painel">
-            {/* Só filtros com suporte REAL na consulta: período e tipo. Status e
-                profissional existem na projeção mas ainda não têm índice — o
-                gate 9E-b4 exige benchmark antes, e filtro sem índice numa
-                organização grande é uma varredura disfarçada de recurso. */}
-            <label>
-              De
-              <input type="date" value={fDe} onChange={(e) => trocarParam('de', e.target.value)} />
-            </label>
-            <label>
-              Até
-              <input type="date" value={fAte} onChange={(e) => trocarParam('ate', e.target.value)} />
-            </label>
-            <label>
-              Tipo
-              <select value={fTipo} onChange={(e) => trocarParam('tipo', e.target.value)}>
-                <option value="">Todos</option>
-                {TIPOS_INSPECAO.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Empresa / cliente
-              <select
-                value={fEmpresa}
-                onChange={(e) => trocarParam('empresa', e.target.value)}
-                disabled={carregandoEmpresas}
-              >
-                <option value="">
-                  {carregandoEmpresas ? 'Carregando empresas…' : 'Todas'}
-                </option>
-                {mapaEmpresas.empresas.map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {/* O que era a faixa âmbar no meio da tela. A contagem entra no
-                RÓTULO da opção: quem procura o relatório de um equipamento
-                excluído acha aqui, e quem não procura não é interrompido. */}
-            <label>
-              Lista
-              <select value={modoArquivo} onChange={(e) => trocarParam('arquivo', e.target.value)}>
-                <option value="">Sem os arquivados</option>
-                <option value="arquivados">Só os arquivados</option>
-                <option value="todos">Todos</option>
-              </select>
-            </label>
-            <label>
-              Equipamentos
-              <select value={escopo} onChange={(e) => trocarParam('escopo', e.target.value)}>
-                <option value="">Só os do cadastro atual</option>
-                <option value="historicos">
-                  Só de equipamento excluído
-                  {(contagem?.historicos ?? 0) > 0 ? ` (${rotuloHistoricos(contagem!.historicos)})` : ''}
-                </option>
-                <option value="todos">Todos</option>
-              </select>
-            </label>
-            {temFiltro && (
-              <button type="button" className="fj-btn fj-btn-ghost" onClick={limparTudo}>
-                Limpar filtros
-              </button>
-            )}
-            {/* O filtro por empresa é do CLIENTE (a projeção de relatórios não
-                guarda cliente). Quando a varredura do catálogo bate no teto, a
-                tela DIZ — filtro que esconde linha calado é o mesmo relato de
-                dado sumido, com outro nome. */}
-            {!mapaEmpresas.completo && (
-              <p className="rel-filtro-nota">
-                O parque é grande demais para varrer inteiro: o filtro por empresa pode não
-                alcançar todos os equipamentos. Use também a busca por TAG.
-              </p>
-            )}
-          </div>
-        )}
       </div>
+
+      {/* FILTRO EM MODAL. O painel antigo abria empurrando a lista para baixo e
+          aplicava a cada `onChange` — mexer no "De" disparava consulta antes de
+          o "Até" existir. Aqui o recorte é RASCUNHO até o Aplicar, e por isso
+          existe um Cancelar de verdade. */}
+      {painelAberto && (
+        <ModalFiltrosRelatorios
+          valores={filtroAtual}
+          tipos={TIPOS_INSPECAO}
+          empresas={mapaEmpresas.empresas}
+          carregandoEmpresas={carregandoEmpresas}
+          empresasIncompletas={!mapaEmpresas.completo}
+          rotuloHistoricos={
+            (contagem?.historicos ?? 0) > 0 ? ` (${rotuloHistoricos(contagem!.historicos)})` : ''
+          }
+          aoAplicar={aplicarFiltro}
+          aoFechar={() => setPainelAberto(false)}
+        />
+      )}
+
+      {/* CRIAR · passo 1. A lista continua atrás, no mesmo estado: busca,
+          rolagem e filtro sobrevivem ao cancelamento. */}
+      {criacao?.passo === 1 && (
+        <ModalSelecionarEquipamento
+          aoFechar={() => setCriacao(null)}
+          aoEscolher={(tag, item) =>
+            setCriacao({
+              passo: 2,
+              tag,
+              descricao: item?.descricao ?? null,
+              tipoEq: item?.tipo ?? null,
+            })
+          }
+        />
+      )}
+
+      {/* CRIAR · passo 2. É o MESMO `ModalNovaInspecao` que o editor sempre
+          usou — tipo de inspeção, folhas e lotes de calibração saem da
+          lógica que já existe. Aqui ele só ganhou de quem está falando e o
+          caminho de volta. Confirmar entrega a escolha pronta ao pai, que
+          abre o editor. */}
+      {criacao?.passo === 2 && (
+        <ModalNovaInspecao
+          tag={criacao.tag}
+          resumo={{ tag: criacao.tag, descricao: criacao.descricao, tipo: criacao.tipoEq }}
+          aoVoltar={() => setCriacao({ passo: 1 })}
+          onClose={() => setCriacao(null)}
+          onGerar={(tipo, documentos) => {
+            setCriacao(null);
+            aoEscolherEquipamento?.({ tag: criacao.tag, tipo, documentos });
+          }}
+        />
+      )}
 
       {/*
         RELATÓRIO DE EQUIPAMENTO EXCLUÍDO CONTINUA ALCANÇÁVEL — SÓ SAIU DA
@@ -788,9 +878,16 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
 
       {linhas.length > 0 && (
         <div className="rel-tabela-v9" role="table" aria-label="Relatórios">
+          {/* CAIXA DE ENTRADA · uma linha por documento.
+              O nome do relatório tinha o número do documento e a empresa
+              EMPILHADOS embaixo dele. Duas informações na mesma célula fazem a
+              linha crescer e a varredura vertical parar de funcionar: o olho
+              não sabe mais onde uma linha termina. O número virou COLUNA, com
+              cabeçalho próprio; a célula do nome tem uma linha e só uma. */}
           <div className="rel-linha rel-linha-cabecalho" role="row">
             <span role="columnheader" aria-label="Arquivo" />
             <span role="columnheader">Relatório</span>
+            <span role="columnheader">Nº relatório</span>
             <span role="columnheader">TAG</span>
             <span role="columnheader">Tipo</span>
             <span role="columnheader">Criação</span>
@@ -835,18 +932,18 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
                     </span>
                     <span role="cell" className="rel-cel-nome" title={r.nome}>
                       <b className="rel-nome-forte">{r.nome || r.codigo}</b>
-                      {/* Nível 2 da hierarquia: identificação e quando foi mexido.
-                          Tudo já está na lista local do rascunho — nenhuma leitura a mais. */}
-                      <small className="rel-cel-meta">
-                        {r.codigo ? <span>{r.codigo}</span> : null}
-                        <span>atualizado em {dataHoraBr(r.atualizadoEm)}</span>
-                      </small>
+                    </span>
+                    {/* O "atualizado em" saiu da célula do nome e virou o
+                        tooltip da criação: é metadado de quem já achou a linha,
+                        não critério de varredura. */}
+                    <span role="cell" className="rel-cel-codigo" data-rot="Nº relatório" title={r.codigo}>
+                      {ou(r.codigo)}
                     </span>
                     <span role="cell" className="rel-cel-tag" data-rot="TAG">{r.tag}</span>
-                    <span role="cell" data-rot="Tipo">
-                      <span className="badge-tipo-inspecao">{ou(r.tipo)}</span>
+                    <span role="cell" className="rel-cel-tipo" data-rot="Tipo">{ou(r.tipo)}</span>
+                    <span role="cell" data-rot="Criação" title={`atualizado em ${dataHoraBr(r.atualizadoEm)}`}>
+                      {dataBr(r.criadoEm)}
                     </span>
-                    <span role="cell" data-rot="Criação">{dataBr(r.criadoEm)}</span>
                     {/* Rascunho não tem validade nem próxima inspeção: nada foi
                         emitido. Travessão, e não um valor inventado. */}
                     <span role="cell" data-rot="Validade">—</span>
@@ -896,14 +993,19 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
                   </span>
                   <span role="cell" className="rel-cel-nome" title={r.nome ?? r.codigo ?? ''}>
                     <b className="rel-nome-forte">{ou(r.nome ?? r.codigo)}</b>
-                    {/* Nível 2: o número do relatório e o cliente. Os dois já vêm
-                        com a linha — o código está na projeção, e a empresa sai do
-                        mapa TAG → empresa que só existe quando já foi carregado.
-                        Nenhum campo aqui pede leitura de documento. */}
-                    <small className="rel-cel-meta">
-                      {r.codigo && r.nome && r.nome !== r.codigo ? <span>{r.codigo}</span> : null}
-                      {mapaEmpresas.porTag.get(r.tag) && <span>{mapaEmpresas.porTag.get(r.tag)}</span>}
-                    </small>
+                  </span>
+                  {/* RASTREABILIDADE em coluna própria. O `title` da empresa
+                      guarda o cliente sem gastar uma coluna: ele só existe
+                      quando o mapa TAG → empresa já foi carregado (varredura do
+                      catálogo), e coluna que às vezes está vazia por falta de
+                      dado carregado é pior do que coluna que não existe. */}
+                  <span
+                    role="cell"
+                    className="rel-cel-codigo"
+                    data-rot="Nº relatório"
+                    title={mapaEmpresas.porTag.get(r.tag) ?? r.codigo ?? ''}
+                  >
+                    {ou(r.codigo)}
                   </span>
                   <span role="cell" className="rel-cel-tag" data-rot="TAG">
                     {r.tag}
@@ -916,9 +1018,11 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
                   {/* data-rot: no celular a linha vira cartão e as colunas perdem
                       o cabeçalho — duas datas seguidas não dizem qual é a emissão
                       e qual é a validade. O rótulo volta por CSS. */}
-                  <span role="cell" data-rot="Tipo">
-                    <span className="badge-tipo-inspecao">{ou(r.tipo)}</span>
-                  </span>
+                  {/* O tipo era um badge azul PREENCHIDO, repetido em toda
+                      linha: numa lista onde quase tudo é "Inspeção Periódica",
+                      a mancha de cor não distingue nada e come a atenção que a
+                      situação precisa. Virou texto. */}
+                  <span role="cell" className="rel-cel-tipo" data-rot="Tipo">{ou(r.tipo)}</span>
                   <span role="cell" data-rot="Criação">{dataBr(r.emissao)}</span>
                   <span role="cell" data-rot="Validade">{dataBr(r.validade)}</span>
                   {/* PRÓXIMA INSPEÇÃO: já vem na projeção (`proximaInterna` /

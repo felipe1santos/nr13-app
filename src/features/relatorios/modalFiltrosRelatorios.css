@@ -1,0 +1,104 @@
+/* Filtro de /relatorios em modal — ver o cabeçalho do .tsx.
+   A base (overlay, caixa, cabeçalho, fechar) vem do `forja.css`; aqui fica só
+   o que é deste modal. */
+
+.mfr-box {
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+}
+
+.mfr-corpo {
+  padding: 16px 24px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  /* A rolagem é do CORPO, não da caixa: cabeçalho e ações ficam sempre
+     visíveis. Num filtro com sete seções, rolar a caixa inteira esconde o
+     "Aplicar" — o usuário mexe em tudo e não acha como confirmar. */
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.mfr-secao h3 {
+  margin: 0 0 7px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted, #6b7280);
+}
+
+.mfr-secao select,
+.mfr-datas input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border-solid, #e4e1d8);
+  border-radius: 8px;
+  background: var(--panel, #fff);
+  color: var(--text-main, #2d3339);
+  font-family: var(--font-base);
+  font-size: 13px;
+}
+.mfr-secao select:focus,
+.mfr-datas input:focus {
+  outline: 2px solid var(--amber, #ff7a1a);
+  outline-offset: 1px;
+  border-color: transparent;
+}
+
+.mfr-datas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.mfr-datas label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11.5px;
+  color: var(--muted, #6b7280);
+}
+
+.mfr-atalhos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+.mfr-atalhos .fj-btn { font-size: 11.5px; padding: 6px 10px; min-height: 0; }
+.mfr-limpa-periodo { font-size: 11.5px; }
+
+.mfr-nota {
+  margin: 6px 0 0;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--muted, #6b7280);
+}
+
+.mfr-acoes {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 24px 18px;
+  border-top: 1px solid var(--line, #e4e1d8);
+  margin-top: 10px;
+}
+.mfr-acoes-dir { display: flex; gap: 8px; }
+.mfr-limpar:disabled { opacity: 0.45; cursor: not-allowed; }
+
+@media (max-width: 640px) {
+  /* Celular: a caixa ocupa quase a tela inteira e as ações viram uma faixa
+     fixa embaixo, para o teclado virtual não empurrar o "Aplicar" para fora. */
+  .mfr-box { max-width: none; max-height: 92vh; }
+  .mfr-corpo { padding: 14px 16px 6px; gap: 14px; }
+  .mfr-acoes {
+    padding: 12px 16px 16px;
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+  .mfr-acoes-dir { display: grid; grid-template-columns: 1fr 1fr; }
+  .mfr-datas { grid-template-columns: 1fr; }
+}

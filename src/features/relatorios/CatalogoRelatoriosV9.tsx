@@ -50,15 +50,39 @@ const ROTULO_TIPO: Record<string, string> = {
 export interface PropsCatalogoRelatorios {
   termo: string;
   aoMudarTermo: (termo: string) => void;
-  /** Escolher um equipamento: o pai semeia a TAG e abre o histórico. */
-  aoEscolher: (tag: string) => void;
+  /**
+   * Escolher um equipamento: o pai semeia a TAG e abre o histórico.
+   *
+   * O ITEM vem junto porque o passo seguinte da criação precisa mostrar de qual
+   * equipamento se trata (descrição e tipo), e buscá-lo de novo pela TAG seria
+   * uma leitura a mais para um dado que acabou de passar por aqui.
+   */
+  aoEscolher: (tag: string, item?: ItemCatalogo) => void;
+  /**
+   * `selecao` é o catálogo DENTRO do modal de criar relatório.
+   *
+   * A diferença não é estética. No cartão normal o elemento mais visível da
+   * direita é "12 Relatórios" — a contagem do histórico. Dentro do modal de
+   * CRIAR, essa é a informação errada em destaque: quem está ali não quer
+   * consultar o histórico, quer escolher um equipamento, e a contagem responde
+   * a pergunta de outra tela.
+   *
+   * Além de sair da linha, a contagem deixa de ser BUSCADA: era uma chamada ao
+   * servidor por página só para desenhar um número que este modo não mostra.
+   */
+  modo?: 'lista' | 'selecao';
 }
 
 export default function CatalogoRelatoriosV9({
   termo,
   aoMudarTermo,
   aoEscolher,
+  modo = 'lista',
 }: PropsCatalogoRelatorios) {
+  // Em ref, e não em estado: a decisão é do momento da montagem e não muda no
+  // meio da vida do componente — usá-la em `useCallback` sem virar dependência
+  // é o que mantém `buscar` estável.
+  const ehSelecao = useRef(modo === 'selecao');
   const [itens, setItens] = useState<ItemCatalogo[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [temMais, setTemMais] = useState(false);
@@ -82,6 +106,8 @@ export default function CatalogoRelatoriosV9({
    * uma informação a menos por uma tela a menos.
    */
   const contarDaPagina = useCallback(async (tags: string[], minha: number) => {
+    // No modo seleção a contagem não é desenhada — então não é pedida.
+    if (ehSelecao.current) return;
     const mapa = await contagensPorTag(tags);
     if (minha !== geracao.current) return;
     setPorTag((antigo) => {
@@ -205,8 +231,34 @@ export default function CatalogoRelatoriosV9({
         </p>
       ) : (
         <>
-          <div className="lista-cards-horiz">
-            {itens.map((eq) => (
+          <div className={modo === 'selecao' ? 'sel-eq-lista' : 'lista-cards-horiz'}>
+            {modo === 'selecao'
+              ? itens.map((eq) => (
+                  <button
+                    type="button"
+                    key={eq.tag}
+                    className="sel-eq-linha"
+                    onClick={() => aoEscolher(eq.tag, eq)}
+                  >
+                    <span className="sel-eq-foto">
+                      {eq.fotoRef ? (
+                        <FotoImg foto={{ ref: eq.fotoRef }} alt={eq.tag} variante="thumb" />
+                      ) : (
+                        <span className="sel-eq-foto-vazia">{eq.tag.slice(0, 2)}</span>
+                      )}
+                    </span>
+                    <span className="sel-eq-texto">
+                      <span className="sel-eq-tag">{eq.tag}</span>
+                      <span className="sel-eq-sub">{eq.descricao ?? '—'}</span>
+                    </span>
+                    <span className="sel-eq-col">{ROTULO_TIPO[eq.tipo ?? ''] ?? eq.tipo ?? '—'}</span>
+                    <span className="sel-eq-col">{eq.clienteNome ?? '—'}</span>
+                    <span className="sel-eq-col sel-eq-cat">
+                      {eq.categoria ? `Categoria ${eq.categoria}` : '—'}
+                    </span>
+                  </button>
+                ))
+              : itens.map((eq) => (
               <button
                 type="button"
                 key={eq.tag}

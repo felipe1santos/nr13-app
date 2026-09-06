@@ -181,10 +181,21 @@ describe('o refino: ações numa linha, hierarquia e densidade', () => {
     expect(css).toContain('.rel-page .rel-cel-acoes { gap: 2px; flex-wrap: nowrap; }');
   });
 
-  it('o nome tem nível próprio, separado do metadado', () => {
+  /**
+   * ESTE TESTE FOI INVERTIDO em 06/09/2026, de propósito.
+   *
+   * Ele exigia que a célula do nome tivesse DOIS níveis: o nome em cima e
+   * `rel-cel-meta` embaixo, com o código do relatório e o cliente. Aquilo era
+   * o refino de 05/09 — e virou o defeito da rodada seguinte: duas linhas por
+   * documento fazem a altura variar e a varredura vertical parar de
+   * funcionar. O número do relatório virou COLUNA.
+   */
+  it('a célula do nome tem UMA linha — o metadado saiu dela', () => {
     expect(tela).toContain('className="rel-nome-forte"');
-    expect(tela).toContain('className="rel-cel-meta"');
+    expect(tela).not.toContain('className="rel-cel-meta"');
     expect(css).toContain('.rel-nome-forte {');
+    // A regra que esconde qualquer volta acidental do empilhamento.
+    expect(css).toContain('.rel-page .rel-cel-nome .rel-cel-meta { display: none; }');
   });
 
   it('a coluna de próxima inspeção existe na tela', () => {

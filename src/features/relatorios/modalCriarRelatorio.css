@@ -1,0 +1,178 @@
+/* Criar relatório em dois passos, sem sair de /relatorios.
+   A base do modal (overlay, caixa, cabeçalho, fechar) vem do `forja.css`. */
+
+.mcr-box {
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  /* Altura fixa, e não `max-height`: a lista interna é virtualizada por
+     rolagem, e uma caixa que cresce com o conteúdo faria o modal pular de
+     tamanho a cada busca. */
+  height: min(78vh, 640px);
+}
+
+.mcr-corpo {
+  padding: 14px 20px 18px;
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1;
+}
+/* A busca do catálogo gruda no topo do corpo: rolar a lista não pode levar
+   embora o campo que a filtra. */
+.mcr-corpo-lista .busca-lista {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--panel, #fff);
+  padding-bottom: 8px;
+  margin-bottom: 4px;
+}
+
+/* ── A linha de seleção do equipamento ───────────────────────────────────
+   Compacta e só com o que ajuda a ESCOLHER: foto, TAG, nome, tipo, cliente e
+   categoria. Sem contagem de relatórios — é a pergunta de outra tela, e ela
+   nem chega a ser pedida ao servidor neste modo. */
+.sel-eq-lista {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line, #e4e1d8);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.sel-eq-linha {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 0.9fr);
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  border-bottom: 1px solid var(--line, #eef0f3);
+  border-left: 3px solid transparent;
+  background: var(--panel, #fff);
+  text-align: left;
+  font-family: var(--font-base);
+  font-size: 12.5px;
+  color: var(--text-main, #2d3339);
+  cursor: pointer;
+  min-height: 44px;
+}
+.sel-eq-linha:last-child { border-bottom: none; }
+.sel-eq-linha:hover { background: var(--surface-2, #f8f9fb); border-left-color: var(--amber, #ff7a1a); }
+.sel-eq-linha:focus-visible {
+  outline: 2px solid var(--amber, #ff7a1a);
+  outline-offset: -2px;
+}
+
+.sel-eq-foto {
+  width: 30px;
+  height: 30px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--surface-2, #f5f6f8);
+  border: 1px solid var(--line, #e4e1d8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+.sel-eq-foto img { width: 100%; height: 100%; object-fit: cover; }
+.sel-eq-foto-vazia {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted, #6b7280);
+  letter-spacing: 0.02em;
+}
+
+.sel-eq-texto { display: flex; flex-direction: column; min-width: 0; }
+.sel-eq-tag {
+  font-weight: 650;
+  font-size: 12.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sel-eq-sub {
+  font-size: 11px;
+  color: var(--muted, #6b7280);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sel-eq-col {
+  font-size: 11.5px;
+  color: var(--muted, #6b7280);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.sel-eq-cat { text-align: right; }
+
+/* ── O resumo do equipamento no passo 2 ─────────────────────────────────── */
+.mni-resumo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 12px;
+  margin-bottom: 14px;
+  border: 1px solid var(--line, #e4e1d8);
+  border-left: 3px solid var(--amber, #ff7a1a);
+  border-radius: 8px;
+  background: var(--surface-2, #f8f9fb);
+}
+.mni-resumo-txt { display: flex; flex-direction: column; min-width: 0; }
+.mni-resumo-txt strong { font-size: 13px; }
+.mni-resumo-txt span {
+  font-size: 11.5px;
+  color: var(--muted, #6b7280);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mni-trocar { flex: 0 0 auto; font-size: 11.5px; padding: 6px 10px; }
+
+/* ── O nome do documento, no modal de finalizar ─────────────────────────── */
+.mf-nome {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 14px;
+}
+.mf-nome label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted, #6b7280);
+}
+.mf-nome input {
+  padding: 9px 11px;
+  border: 1px solid var(--border-solid, #e4e1d8);
+  border-radius: 8px;
+  background: var(--panel, #fff);
+  font-family: var(--font-base);
+  font-size: 13px;
+  color: var(--text-main, #2d3339);
+  caret-color: var(--amber-deep, #d9640c);
+}
+.mf-nome input:focus {
+  outline: none;
+  border-color: var(--amber-deep, #d9640c);
+  box-shadow: 0 0 0 3px rgba(255, 122, 26, 0.16);
+}
+.mf-nome small { font-size: 11px; line-height: 1.4; color: var(--muted, #6b7280); }
+
+@media (max-width: 640px) {
+  /* Celular: o modal ocupa quase a tela, e a linha de seleção perde as colunas
+     de apoio — em 386px cinco colunas dariam ~60px cada e todo valor sairia
+     cortado. Ficam a foto, a TAG e o nome, que é o que identifica. */
+  .mcr-box { max-width: none; height: 88vh; }
+  .mcr-corpo { padding: 12px 14px 16px; }
+  .sel-eq-linha { grid-template-columns: 34px minmax(0, 1fr); min-height: 48px; }
+  .sel-eq-col { display: none; }
+  .mni-resumo { flex-direction: column; align-items: stretch; }
+  .mni-trocar { align-self: flex-start; }
+}

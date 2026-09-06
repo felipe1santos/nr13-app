@@ -4,6 +4,7 @@ import type { DadosCalibracao } from '../calibracoes/tipos';
 import { listarLotes, salvarLote, type LoteCal } from '../calibracoes/componentesService';
 import { DOCUMENTOS_DISPONIVEIS, type TipoInspecao } from './tipos';
 import '../equipamento/equipamento.css';
+import './modalCriarRelatorio.css';
 
 const TIPOS: TipoInspecao[] = ['Inspeção Inicial', 'Inspeção Periódica', 'Inspeção Extraordinária'];
 
@@ -41,6 +42,16 @@ interface Props {
   onClose: () => void;
   onGerar: (tipo: TipoInspecao, documentos: string[]) => void;
   tag?: string;
+  /**
+   * Passo 2 da criação em `/relatorios`: o resumo do equipamento já escolhido.
+   *
+   * Sem ele o modal abre falando de "documentos a agrupar" sem dizer de qual
+   * equipamento — no fluxo antigo isso não incomodava porque a TAG estava na
+   * tela atrás; em modal sobre a LISTA, a tela atrás fala de outra coisa.
+   */
+  resumo?: { tag: string; descricao?: string | null; tipo?: string | null };
+  /** "← Trocar equipamento": volta ao passo 1 sem sair da rota. */
+  aoVoltar?: () => void;
 }
 
 // Item selecionável da seção "Calibrações": um LOTE inteiro (todas as calibrações da
@@ -64,7 +75,7 @@ function contagemPorTipo(certs: DadosCalibracao[]): string {
   return partes.join(', ');
 }
 
-export default function ModalNovaInspecao({ onClose, onGerar, tag = '' }: Props) {
+export default function ModalNovaInspecao({ onClose, onGerar, tag = '', resumo, aoVoltar }: Props) {
   const [tipo, setTipo] = useState<TipoInspecao>('Inspeção Periódica');
   const [marcados, setMarcados] = useState<string[]>(
     DOCUMENTOS_DISPONIVEIS.filter((d) => !ENSAIOS.has(d)),
@@ -130,12 +141,27 @@ export default function ModalNovaInspecao({ onClose, onGerar, tag = '' }: Props)
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" style={{ maxWidth: 560 }} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>Configurar Novo Relatório</h3>
+          <h3>Configurar novo relatório</h3>
           <button type="button" className="btn-close-modal" onClick={onClose}>
             ×
           </button>
         </div>
         <div className="modal-body">
+          {resumo && (
+            <div className="mni-resumo">
+              <div className="mni-resumo-txt">
+                <strong>{resumo.tag}</strong>
+                <span>
+                  {[resumo.descricao, resumo.tipo].filter(Boolean).join(' · ') || 'Equipamento'}
+                </span>
+              </div>
+              {aoVoltar && (
+                <button type="button" className="fj-btn fj-btn-ghost mni-trocar" onClick={aoVoltar}>
+                  ← Trocar equipamento
+                </button>
+              )}
+            </div>
+          )}
           <div className="campo-bloco-modal">
             <label className="label-bloco-modal">Tipo de Inspeção</label>
             <select value={tipo} onChange={(e) => setTipo(e.target.value as TipoInspecao)}>

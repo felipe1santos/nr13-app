@@ -57,6 +57,66 @@ const PECAS = [
       <span class="badge-relatorios tem">Prontuário</span></button></div>`,
   },
   {
+    nome: 'rel-linha · linha da lista de relatorios (desktop = 10 colunas)',
+    html: `<div class="rel-page"><div class="rel-tabela-v9">
+      <div class="rel-linha rel-linha-cabecalho" role="row">
+        <span></span><span>Relatório</span><span>Nº relatório</span><span>TAG</span>
+        <span>Tipo</span><span>Criação</span><span>Validade</span><span>Próxima</span>
+        <span>Situação</span><span>Ações</span>
+      </div>
+      <div class="rel-linha" role="row">
+        <span class="rel-cel-icone"><span class="rel-marca rel-marca-pdf"></span></span>
+        <span class="rel-cel-nome"><b class="rel-nome-forte">Relatorio_Inspeção_Periódica_ZZ-FASE3.pdf</b></span>
+        <span class="rel-cel-codigo" data-rot="Nº relatório">REL-1788571268261</span>
+        <span class="rel-cel-tag" data-rot="TAG">ZZ-FASE3</span>
+        <span class="rel-cel-tipo" data-rot="Tipo">Inspeção Periódica</span>
+        <span data-rot="Criação">05/09/2026</span>
+        <span data-rot="Validade">05/09/2027</span>
+        <span data-rot="Próxima">05/03/2027</span>
+        <span data-rot="Situação"><span class="rel-selo rel-selo-finalizado">FINALIZADO</span></span>
+        <span class="rel-cel-acoes">
+          <button class="btn-icone cor-azul">V</button>
+          <button class="btn-icone">R</button>
+          <button class="btn-icone">A</button>
+        </span>
+      </div>
+      <div class="rel-linha rel-linha-rascunho" role="row">
+        <span class="rel-cel-icone"><span class="rel-marca rel-marca-rascunho"></span></span>
+        <span class="rel-cel-nome"><b class="rel-nome-forte">Relatorio_Inspeção_Inicial_ZZ-CALDEIRA-TESTE.pdf</b></span>
+        <span class="rel-cel-codigo" data-rot="Nº relatório">REL-1788999111222</span>
+        <span class="rel-cel-tag" data-rot="TAG">ZZ-CALDEIRA-TESTE</span>
+        <span class="rel-cel-tipo" data-rot="Tipo">Inspeção Inicial</span>
+        <span data-rot="Criação">06/09/2026</span>
+        <span data-rot="Validade">—</span>
+        <span data-rot="Próxima">—</span>
+        <span data-rot="Situação"><span class="rel-selo rel-selo-rascunho">RASCUNHO</span></span>
+        <span class="rel-cel-acoes">
+          <button class="btn-icone cor-azul">E</button>
+          <button class="btn-icone">X</button>
+        </span>
+      </div>
+    </div></div>`,
+  },
+  {
+    nome: 'barra de /relatorios · filtro, busca e criar',
+    html: `<div class="rel-page"><div class="busca-lista compacta"><div class="busca-lista-linha">
+      <button class="fj-btn fj-btn-ghost rel-btn-filtro"><span class="rel-btn-rotulo">Período e tipo</span></button>
+      <div class="fj-search-box busca-lista-campo"><input placeholder="Buscar por TAG, equipamento, nome ou nº do relatório"></div>
+      <div class="busca-lista-info"><span class="busca-lista-contagem">27 resultados</span></div>
+      <button class="fj-btn fj-btn-primary rel-btn-criar"><span class="rel-btn-rotulo">Criar relatório</span></button>
+    </div></div></div>`,
+  },
+  {
+    nome: 'sel-eq-linha · seleção de equipamento no modal',
+    html: `<div class="sel-eq-lista"><button class="sel-eq-linha">
+      <span class="sel-eq-foto"><span class="sel-eq-foto-vazia">ZZ</span></span>
+      <span class="sel-eq-texto"><span class="sel-eq-tag">ZZ-FASE3</span><span class="sel-eq-sub">Vaso de pressão de teste</span></span>
+      <span class="sel-eq-col">Vaso de Pressão</span>
+      <span class="sel-eq-col">Cliente de teste LTDA</span>
+      <span class="sel-eq-col sel-eq-cat">Categoria III</span>
+    </button></div>`,
+  },
+  {
     nome: 'botões lado a lado (as duas famílias)',
     html: `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <button class="btn-primario">Salvar</button>
@@ -81,8 +141,11 @@ const MEDIR = `(doc => {
   }
   const botoes = [...doc.querySelectorAll('button')].map(b =>
     b.className.trim() + '=' + Math.round(b.getBoundingClientRect().height));
+  // Altura de cada LINHA da lista de relatorios — a densidade pedida (38–44px).
+  const alturaLinhas = [...doc.querySelectorAll('.rel-linha:not(.rel-linha-cabecalho)')]
+    .map(l => Math.round(l.getBoundingClientRect().height));
   return { largura: doc.documentElement.clientWidth,
-           scrollH: doc.documentElement.scrollWidth, pecas: r, botoes };
+           scrollH: doc.documentElement.scrollWidth, pecas: r, botoes, alturaLinhas };
 })`;
 
 const filho = `<!doctype html><meta charset="utf-8">
@@ -164,6 +227,7 @@ for (const l of LARGURAS) {
   // celular, que é o alvo de toque. Só os botões de AÇÃO precisam bater entre si.
   const acoes = d.botoes.filter((b) => /btn-primario|btn-secundario|fj-btn/.test(b));
   const alturas = new Set(acoes.map((b) => b.split('=')[1]));
+  if (d.alturaLinhas?.length) console.log(`  linhas da lista: ${d.alturaLinhas.join(', ')}px`);
   console.log(`  botões: ${d.botoes.join('  ')}`);
   if (alturas.size > 1) {
     console.log(`  !! alturas de botão divergentes: ${[...alturas].join(', ')}`);

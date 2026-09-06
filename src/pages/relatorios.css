@@ -2118,3 +2118,268 @@ body.doc-foco .meta-barra-fixa { padding-top: 6px; padding-bottom: 6px; }
 
 /* UX 06/09/2026 · dica da tela de SELEÇÃO de equipamento (criar relatório). */
 .selecao-dica { margin: 0 0 10px; font-size: 12.5px; color: var(--text-muted, #6b7280); }
+
+/* ============================================================================
+   REFINO CIRÚRGICO · 06/09/2026 — /relatorios como caixa de entrada
+   ============================================================================
+   O que motivou, olhando a lista de 27 documentos de uma conta real: a célula
+   do nome tinha DUAS linhas (nome em cima, "REL-1788571268261 · atualizado em"
+   embaixo), o tipo era um badge azul preenchido repetido em toda linha, e a
+   situação era outra pílula colorida ao lado. Três manchas de cor por linha,
+   altura variável, e nenhuma coluna onde procurar o número do relatório.
+
+   A regra desta rodada: UMA linha visual por documento, informação em COLUNA,
+   e cor só onde ela decide alguma coisa. */
+
+/* GRADE · a rastreabilidade virou coluna, entre o nome e a TAG. */
+.rel-page .rel-linha {
+  grid-template-columns:
+    30px                     /* marca do arquivo            */
+    minmax(190px, 2.4fr)     /* RELATÓRIO (nome, 1 linha)   */
+    minmax(112px, 1fr)       /* Nº RELATÓRIO                */
+    minmax(92px, 0.85fr)     /* TAG                         */
+    minmax(104px, 0.95fr)    /* TIPO                        */
+    minmax(80px, 0.65fr)     /* CRIAÇÃO                     */
+    minmax(80px, 0.65fr)     /* VALIDADE                    */
+    minmax(80px, 0.65fr)     /* PRÓXIMA                     */
+    minmax(84px, 0.6fr)      /* SITUAÇÃO                    */
+    92px;                    /* AÇÕES                       */
+  /* DENSIDADE: 6px em cima e embaixo de um conteúdo de 26px dá 38px de linha,
+     que é o piso da faixa pedida sem sacrificar a leitura. O `align-items`
+     centra tudo — o alinhamento vertical era o que mais denunciava a linha de
+     altura variável. */
+  padding: 6px 10px 6px 9px;
+  align-items: center;
+}
+.rel-page .rel-linha-cabecalho { padding: 6px 10px 6px 9px; }
+
+/* NOME · uma linha. `min-width:0` é o que permite ao ellipsis funcionar dentro
+   de um item de grade: sem ele a célula cresce até caber o texto inteiro e
+   empurra as colunas da direita para fora. O nome completo fica no `title`. */
+.rel-page .rel-cel-nome { display: block; min-width: 0; }
+.rel-page .rel-nome-forte {
+  display: block;
+  font-weight: 600;
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: var(--text-main, #1b2430);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* A segunda linha da célula do nome não existe mais. A regra fica declarada
+   para que qualquer volta acidental do empilhamento apareça como código morto,
+   e não como uma linha de 18px que ninguém pediu. */
+.rel-page .rel-cel-nome .rel-cel-meta { display: none; }
+
+/* Nº RELATÓRIO · monoespaçado, porque é um código que se compara dígito a
+   dígito, e cinza, porque é identificação e não título. */
+.rel-page .rel-cel-codigo {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  color: var(--muted, #6b7280);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* TIPO · sem pílula. Azul escuro e peso 650 já separam o campo do resto da
+   linha; o fundo azul preenchido só repetia a mesma cor 27 vezes. */
+.rel-page .rel-cel-tipo {
+  font-size: 11.5px;
+  font-weight: 650;
+  color: var(--blue2, #0c4f9b);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+/* O badge do tipo sai de cena nesta lista (segue valendo em outras telas). */
+.rel-page .rel-linha .badge-tipo-inspecao {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--blue2, #0c4f9b);
+  font-weight: 650;
+}
+
+/* SITUAÇÃO · o finalizado é a REGRA, e regra não precisa de destaque: texto
+   cinza, sem fundo e sem borda. O rascunho é a exceção que pede ação, e fica
+   com o único badge da linha — roxo sóbrio, não semáforo. */
+.rel-page .rel-selo {
+  display: inline-block;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  border-radius: 3px;
+  padding: 1px 6px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.rel-page .rel-selo-finalizado {
+  background: none;
+  border-color: transparent;
+  padding: 0;
+  color: var(--muted, #6b7280);
+  font-weight: 600;
+}
+.rel-page .rel-selo-rascunho {
+  background: #f1ecfb;
+  color: #5b21b6;
+  border-color: #ddd0f5;
+}
+.rel-page .rel-selo-arquivado {
+  background: none;
+  border-color: transparent;
+  padding: 0;
+  color: #9aa1ab;
+  font-weight: 600;
+}
+/* "Sem arquivo" continua sendo aviso: e o relatorio legado sem PDF, e essa e a
+   unica situacao da lista em que o documento prometido pode nao estar la. */
+.rel-page .rel-selo-sem-arquivo {
+  background: #fdf6e3;
+  color: #8a6d1f;
+  border-color: #eddfb6;
+}
+
+/* O acento do rascunho acompanha o badge — azul e roxo na mesma linha eram
+   duas famílias dizendo a mesma coisa. */
+.rel-page .rel-linha-rascunho { border-left-color: #7c3aed; }
+.rel-marca-rascunho {
+  border-color: #ddd0f5;
+  background: #f1ecfb;
+  color: #5b21b6;
+}
+
+/* BARRA · filtro, busca e criar na mesma linha, o campo ocupando o vão. */
+.rel-page .busca-lista.compacta .busca-lista-linha { flex-wrap: nowrap; }
+.rel-page .busca-lista-campo { flex: 1 1 auto; min-width: 0; }
+.rel-page .rel-btn-filtro,
+.rel-page .rel-btn-criar { flex: 0 0 auto; white-space: nowrap; }
+.rel-page .busca-lista-info { flex: 0 0 auto; white-space: nowrap; }
+
+/* BUSCA · fundo branco e borda neutra, como campo de digitação de verdade; o
+   cinza do `fj-search-box` fazia o campo parecer desabilitado. O foco é âmbar
+   — anel discreto, não borda piscando —, e o caret também: é ele que pisca,
+   que é o que o olho espera de um campo em edição. */
+.rel-page .busca-lista-campo {
+  background: var(--panel, #fff);
+  border-color: var(--border-solid, #e4e1d8);
+  caret-color: var(--amber-deep, #d9640c);
+}
+.rel-page .busca-lista-campo:focus-within {
+  border-color: var(--amber-deep, #d9640c);
+  box-shadow: 0 0 0 3px rgba(255, 122, 26, 0.16);
+}
+.rel-page .busca-lista-campo input { caret-color: var(--amber-deep, #d9640c); }
+
+/* AÇÕES · alinhadas à direita, numa linha, com área clicável igual. */
+.rel-page .rel-cel-acoes { display: flex; justify-content: flex-end; gap: 2px; flex-wrap: nowrap; }
+.rel-page .rel-cel-acoes .btn-icone {
+  width: 26px;
+  height: 26px;
+  min-height: 0;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+/* ── QUANDO A TABELA CABE, E O QUE ACONTECE QUANDO NÃO CABE ──────────────
+   Medido em headless com o CSS do build: as dez colunas somam 944px de largura
+   mínima mais 72px de espaçamento — 1.016px. Em 768px elas TRANSBORDAVAM, e a
+   quebra para cartão só valia a partir de 720px: entre 721 e 1.023 a lista saía
+   pela direita da tela.
+
+   São duas correções, e as duas precisam existir:
+
+   1. o CARTÃO passa a valer até 1.023px. Dez colunas não cabem num tablet — não
+      é ajuste de largura, é conta que não fecha;
+   2. acima disso, a tabela ganha ROLAGEM PRÓPRIA com `min-width`. A largura da
+      janela não é a largura disponível: o menu lateral come ~230px, e numa
+      janela de 1.100px o conteúdo tem 870. Sem isto a página inteira rolaria de
+      lado; com isto a rolagem é da tabela, dentro da caixa dela. */
+@media (min-width: 1024px) {
+  .rel-page .rel-tabela-v9 { overflow-x: auto; }
+  .rel-page .rel-linha { min-width: 1016px; }
+}
+
+/* ── CELULAR E TABLET (§21): cartão compacto, não dez colunas ────────────── */
+@media (max-width: 1023px) {
+  /* O cartão, em CINCO faixas — não uma por campo:
+       [marca] nome ................................. [situação]
+               Nº relatório · TAG
+               tipo
+               CRIAÇÃO      VALIDADE      PRÓXIMA
+                 valor        valor        valor
+               ações
+     Uma faixa por campo dava 161px de cartão em 386px, medido. Agrupar o que
+     é curto derruba para ~115px sem cortar nada: o número e a TAG dividem uma
+     linha, e as três datas dividem outra com o rótulo EM CIMA do valor —
+     'CRIAÇÃO: 05/09/2026' numa linha só mede 109px, e em 386px cada uma tem
+     ~110px de coluna. */
+  .rel-page .rel-linha {
+    grid-template-columns: 26px repeat(3, minmax(0, 1fr));
+    row-gap: 2px;
+    padding: 9px 10px 9px 7px;
+    align-items: start;
+  }
+  .rel-page .rel-cel-icone { grid-column: 1; grid-row: 1 / span 2; align-self: start; }
+  .rel-page .rel-cel-nome { grid-column: 2 / 4; grid-row: 1; }
+  .rel-page .rel-linha [data-rot='Situação'] { grid-column: 4; grid-row: 1; justify-self: end; align-self: center; }
+  .rel-page .rel-cel-codigo { grid-column: 2 / 4; grid-row: 2; }
+  .rel-page .rel-cel-tag { grid-column: 4; grid-row: 2; justify-self: end; }
+  .rel-page .rel-cel-tipo { grid-column: 2 / -1; grid-row: 3; }
+  .rel-page .rel-linha [data-rot='Criação'] { grid-column: 2; grid-row: 4; }
+  .rel-page .rel-linha [data-rot='Validade'] { grid-column: 3; grid-row: 4; }
+  .rel-page .rel-linha [data-rot='Próxima'] { grid-column: 4; grid-row: 4; }
+  .rel-page .rel-linha [data-rot='Criação']::before,
+  .rel-page .rel-linha [data-rot='Validade']::before,
+  .rel-page .rel-linha [data-rot='Próxima']::before { display: block; font-size: 9px; }
+  .rel-page .rel-cel-acoes { grid-column: 2 / -1; grid-row: 5; justify-content: flex-start; margin-top: 3px; }
+  /* No cartão o alvo volta a 34px: são três botões numa faixa de ~300px, e
+     44px cada empurraria o terceiro para fora. Ainda acima do mínimo de 32px
+     que o dedo alcança quando os alvos estão separados. */
+  .rel-page .rel-cel-acoes .btn-icone { width: 34px; height: 34px; }
+  /* As três datas viram "RÓTULO valor" numa linha cada — em 386px elas não
+     cabem lado a lado sem cortar o valor. */
+  .rel-page .rel-linha [data-rot='Criação'],
+  .rel-page .rel-linha [data-rot='Validade'],
+  .rel-page .rel-linha [data-rot='Próxima'],
+  .rel-page .rel-cel-codigo,
+  .rel-page .rel-cel-tag,
+  .rel-page .rel-cel-tipo { font-size: 11px; line-height: 1.35; white-space: nowrap; }
+  .rel-page .rel-linha [data-rot]::before { display: inline; font-size: 9.5px; }
+  .rel-page .rel-cel-codigo[data-rot]::before,
+  .rel-page .rel-cel-tag[data-rot]::before { content: none; }
+  .rel-page .rel-linha [data-rot='Situação']::before { content: none; }
+  .rel-page .rel-cel-nome { white-space: nowrap; }
+
+}
+
+/* ── BARRA no celular (§22): [filtro] [busca ocupando o resto] [+] ────────
+   Só em 640px, e não junto do cartão: num tablet os três cabem com texto, e
+   esconder o rótulo ali seria trocar clareza por espaço que existe.
+
+   A ALTURA é declarada junto da largura. Sem o rótulo o botão fica sem
+   conteúdo, e "largura 44 + padding 0" deu 2px de altura na medição — um
+   botão invisível que ainda ocupava o lugar do certo. */
+@media (max-width: 640px) {
+  .rel-page .busca-lista.compacta .busca-lista-linha { flex-wrap: nowrap; gap: 6px; }
+  .rel-page .rel-btn-rotulo { display: none; }
+  .rel-page .rel-btn-filtro,
+  .rel-page .rel-btn-criar {
+    padding: 0;
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+    justify-content: center;
+  }
+  /* A contagem sai da linha da barra — ela é informação, e ali disputava com
+     o campo o pouco espaço que existe. */
+  .rel-page .busca-lista-info { display: none; }
+}

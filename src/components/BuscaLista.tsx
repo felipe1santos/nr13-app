@@ -39,6 +39,16 @@ export interface PropsBuscaLista {
    * certo — lá o cabeçalho não compete com nada.
    */
   compacto?: boolean;
+  /**
+   * O que vai ANTES do campo, na mesma linha.
+   *
+   * A barra de `/relatorios` precisa da ordem filtro → busca → criar: o filtro
+   * é o que RECORTA a lista e por isso vem antes dela, e a ação de criar mora no
+   * extremo oposto, onde o olho a procura. Sem este ponto de entrada, tudo que
+   * o pai passasse caía depois do campo (`children`), e a única saída seria
+   * cada tela remontar a barra por conta própria.
+   */
+  antes?: React.ReactNode;
   children?: React.ReactNode;
 }
 
@@ -51,6 +61,7 @@ export default function BuscaLista({
   contagem = null,
   offline = false,
   compacto = false,
+  antes,
   children,
 }: PropsBuscaLista) {
   const [texto, setTexto] = useState(valor);
@@ -132,6 +143,7 @@ export default function BuscaLista({
   return (
     <div className={`busca-lista${compacto ? ' compacta' : ''}`}>
       <div className="busca-lista-linha">
+        {antes}
         <div className="fj-search-box busca-lista-campo">
           <Icone nome="search" tam={15} />
           <input

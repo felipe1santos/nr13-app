@@ -1,0 +1,285 @@
+/**
+ * GATE do refino de `/relatorios` (06/09/2026).
+ *
+ * ## Por que este gate lê ARQUIVO em vez de renderizar
+ *
+ * A suíte deste projeto roda em `environment: 'node'`, sem DOM: não há como
+ * montar `RelatoriosV9` e clicar. O que dá para travar é a ESTRUTURA — que a
+ * célula do nome tenha uma linha só, que a coluna do número exista, que o botão
+ * de criar abra um diálogo em vez de navegar. É menos do que um teste de
+ * interação e é mais do que nada: cada afirmação aqui é um defeito que já
+ * apareceu na tela e não pode voltar em silêncio.
+ *
+ * O que NÃO está aqui, e por isso foi verificado no navegador: se o modal
+ * realmente abre, se o foco fica preso dentro dele e se o editor abre no passo
+ * certo. Ver `docs/medicoes/2026-09-06-refino-relatorios.md`.
+ */
+import { readFileSync } from 'node:fs';
+import { describe, expect, it } from 'vitest';
+import { FILTRO_VAZIO, atalhoPeriodo, temAlgumFiltro } from './ModalFiltrosRelatorios';
+import { nomeDoDocumento, nomeSugerido } from './nomeDocumento';
+
+const tela = readFileSync('src/features/relatorios/RelatoriosV9.tsx', 'utf8');
+const css = readFileSync('src/pages/relatorios.css', 'utf8');
+const rota = readFileSync('src/features/relatorios/rotaRelatorios.ts', 'utf8');
+const editor = readFileSync('src/pages/Relatorios.tsx', 'utf8');
+const modalFiltro = readFileSync('src/features/relatorios/ModalFiltrosRelatorios.tsx', 'utf8');
+const modalEquip = readFileSync('src/features/relatorios/ModalSelecionarEquipamento.tsx', 'utf8');
+const modalConfig = readFileSync('src/features/relatorios/ModalNovaInspecao.tsx', 'utf8');
+const catalogo = readFileSync('src/features/relatorios/CatalogoRelatoriosV9.tsx', 'utf8');
+
+describe('1 · /relatorios continua sendo a lista canônica única', () => {
+  it('a tela da lista não monta um segundo catálogo de equipamentos', () => {
+    // O catálogo só aparece DENTRO do modal de criar. Se ele voltasse para o
+    // corpo da tela, seria a segunda lista que a auditoria anterior removeu.
+    expect(tela).not.toContain('<CatalogoRelatoriosV9');
+    expect(modalEquip).toContain('<CatalogoRelatoriosV9');
+  });
+
+  it('o catálogo do modal não pede nem mostra a contagem de relatórios', () => {
+    expect(catalogo).toContain('if (ehSelecao.current) return;');
+    expect(modalEquip).toContain('modo="selecao"');
+  });
+});
+
+describe('2 · o nome do relatório ocupa uma linha', () => {
+  it('a célula do nome tem só o nome', () => {
+    expect(tela).toContain('className="rel-nome-forte"');
+    expect(tela).not.toContain('className="rel-cel-meta"');
+  });
+
+  it('o texto que não couber some em ellipsis, com o nome inteiro no title', () => {
+    expect(css).toContain('.rel-page .rel-nome-forte {');
+    expect(css).toMatch(/\.rel-page \.rel-nome-forte \{[^}]*text-overflow: ellipsis;/s);
+    expect(css).toMatch(/\.rel-page \.rel-nome-forte \{[^}]*white-space: nowrap;/s);
+    expect(tela).toContain('title={r.nome ?? r.codigo ?? \'\'}');
+  });
+});
+
+describe('3 e 4 · a rastreabilidade tem coluna própria', () => {
+  it('existe o cabeçalho e a célula', () => {
+    expect(tela).toContain('<span role="columnheader">Nº relatório</span>');
+    expect(tela).toContain('className="rel-cel-codigo"');
+  });
+
+  it('a grade tem as dez colunas, na ordem pedida', () => {
+    // A declaração que vale é a ÚLTIMA fora de `@media` — este arquivo tem
+    // camadas de refino empilhadas e a cascata resolve pela ordem. Ela se
+    // identifica pela primeira coluna, a marca do arquivo.
+    const grade = [...css.matchAll(/grid-template-columns:\s*30px([\s\S]*?);/g)].pop();
+    expect(grade).toBeDefined();
+    // `minmax(190px, 2.4fr)` tem espaço dentro: separar por espaço partiria a
+    // coluna em duas. O token é a função inteira, ou uma palavra sem espaço.
+    const colunas = ('30px' + grade![1])
+      .replace(/\/\*[\s\S]*?\*\//g, ' ')
+      .match(/minmax\([^)]*\)|\S+/g)!;
+    // marca, nome, nº, TAG, tipo, criação, validade, próxima, situação, ações
+    expect(colunas.length).toBe(10);
+    expect(colunas[0]).toBe('30px');
+    expect(colunas[9]).toBe('92px');
+  });
+
+  it('o cabeçalho da lista tem as mesmas dez colunas', () => {
+    const bloco = /rel-linha rel-linha-cabecalho[\s\S]*?<\/div>/.exec(tela)![0];
+    expect((bloco.match(/role="columnheader"/g) ?? []).length).toBe(10);
+  });
+});
+
+describe('5, 6 e 7 · situação e tipo sem mancha de cor', () => {
+  it('finalizado é texto, sem fundo e sem pílula', () => {
+    const regra = /\.rel-page \.rel-selo-finalizado \{([\s\S]*?)\}/.exec(css)![1];
+    expect(regra).toContain('background: none');
+    expect(regra).toContain('padding: 0');
+  });
+
+  it('rascunho mantém destaque, em roxo', () => {
+    const regra = /\.rel-page \.rel-selo-rascunho \{([\s\S]*?)\}/.exec(css)![1];
+    expect(regra).toContain('#f1ecfb');
+    expect(regra).toContain('#5b21b6');
+  });
+
+  it('o tipo perdeu o fundo azul preenchido', () => {
+    expect(tela).toContain('className="rel-cel-tipo"');
+    const regra = /\.rel-page \.rel-linha \.badge-tipo-inspecao \{([\s\S]*?)\}/.exec(css)![1];
+    expect(regra).toContain('background: none');
+    const tipo = /\.rel-page \.rel-cel-tipo \{([\s\S]*?)\}/.exec(css)![1];
+    expect(tipo).toContain('var(--blue2');
+    expect(tipo).toContain('font-weight: 650');
+  });
+});
+
+describe('8 · a barra na ordem filtro → busca → criar', () => {
+  it('o filtro vai no slot `antes` e o criar depois do campo', () => {
+    const barra = /<BuscaLista[\s\S]*?<\/BuscaLista>/.exec(tela)![0];
+    const posFiltro = barra.indexOf('rel-btn-filtro');
+    const posCriar = barra.indexOf('rel-btn-criar');
+    const posAntes = barra.indexOf('antes={');
+    expect(posAntes).toBeGreaterThan(-1);
+    expect(posFiltro).toBeGreaterThan(posAntes);
+    expect(posCriar).toBeGreaterThan(posFiltro);
+  });
+
+  it('o campo é branco e o foco é âmbar — anel, não borda piscando', () => {
+    // Há mais de uma regra para o campo (largura, depois cor). A que pinta é
+    // a que declara `background`.
+    const regras = [...css.matchAll(/\.rel-page \.busca-lista-campo \{([\s\S]*?)\}/g)].map(
+      (m) => m[1],
+    );
+    const pintura = regras.find((r) => r.includes('background:'));
+    expect(pintura).toBeDefined();
+    expect(pintura!).toContain('background: var(--panel');
+    expect(pintura!).toContain('caret-color: var(--amber-deep');
+    expect(css).toContain('.rel-page .busca-lista-campo:focus-within {');
+    // Nada de animação no contorno: só o caret pisca, que é o do navegador.
+    expect(css).not.toMatch(/\.busca-lista-campo[^{]*\{[^}]*animation:/);
+  });
+
+  it('a busca anuncia os campos que alcança', () => {
+    expect(tela).toContain('Buscar por TAG, equipamento, nome ou nº do relatório…');
+  });
+});
+
+describe('9 · o filtro abre em modal', () => {
+  it('não sobrou painel embaixo da barra', () => {
+    expect(tela).not.toContain('rel-filtros-painel');
+    expect(tela).toContain('<ModalFiltrosRelatorios');
+  });
+
+  it('o modal é diálogo, com ESC e armadilha de foco', () => {
+    expect(modalFiltro).toContain('role="dialog"');
+    expect(modalFiltro).toContain('aria-modal="true"');
+    expect(modalFiltro).toContain("e.key === 'Escape'");
+    expect(modalFiltro).toContain("e.key !== 'Tab'");
+  });
+
+  it('tem Limpar, Cancelar e Aplicar — e só aplica no Aplicar', () => {
+    expect(modalFiltro).toContain('Limpar filtros');
+    expect(modalFiltro).toContain('Cancelar');
+    expect(modalFiltro).toContain('Aplicar');
+    expect(modalFiltro).toContain('onClick={aoFechar}');
+    // O estado é rascunho: `aoAplicar` recebe o objeto inteiro de uma vez.
+    expect(modalFiltro).toContain('onClick={() => aoAplicar(v)}');
+    expect(tela).toContain('function aplicarFiltro(v: ValoresFiltro)');
+  });
+
+  it('o recorte vazio é o padrão, e o "tem filtro" concorda com ele', () => {
+    expect(temAlgumFiltro(FILTRO_VAZIO)).toBe(false);
+    expect(temAlgumFiltro({ ...FILTRO_VAZIO, tipo: 'Inspeção Periódica' })).toBe(true);
+    expect(temAlgumFiltro({ ...FILTRO_VAZIO, situacao: 'rascunho' })).toBe(true);
+    expect(temAlgumFiltro({ ...FILTRO_VAZIO, escopo: 'todos' })).toBe(true);
+  });
+
+  it('os atalhos de período devolvem AAAA-MM-DD coerentes', () => {
+    const hoje = new Date(2026, 8, 6); // 06/09/2026
+    expect(atalhoPeriodo('mes', hoje)).toEqual({ de: '2026-09-01', ate: '2026-09-06' });
+    expect(atalhoPeriodo('ano', hoje)).toEqual({ de: '2026-01-01', ate: '2026-09-06' });
+    expect(atalhoPeriodo('12m', hoje)).toEqual({ de: '2025-09-06', ate: '2026-09-06' });
+  });
+});
+
+describe('10, 11, 12 e 13 · criar sem sair da rota', () => {
+  it('o botão criar abre diálogo, não navega', () => {
+    const barra = /<BuscaLista[\s\S]*?<\/BuscaLista>/.exec(tela)![0];
+    expect(barra).toContain('aria-haspopup="dialog"');
+    expect(barra).toContain("onClick={() => setCriacao({ passo: 1 })}");
+    expect(barra).not.toContain('navigate(');
+  });
+
+  it('escolher o equipamento leva ao passo 2, no mesmo lugar', () => {
+    expect(tela).toContain("criacao?.passo === 1");
+    expect(tela).toContain("criacao?.passo === 2");
+    expect(tela).toContain('setCriacao({\n              passo: 2,');
+  });
+
+  it('o passo 2 é o MESMO modal de configuração de sempre', () => {
+    // Nada de um segundo formulário de tipo/documentos: é o componente que o
+    // editor já usava, com um cabeçalho a mais.
+    expect(tela).toContain('<ModalNovaInspecao');
+    expect(modalConfig).toContain('Configurar novo relatório');
+    expect(modalConfig).toContain('DOCUMENTOS_DISPONIVEIS.map');
+  });
+
+  it('dá para trocar de equipamento sem fechar o fluxo', () => {
+    expect(modalConfig).toContain('← Trocar equipamento');
+    expect(tela).toContain('aoVoltar={() => setCriacao({ passo: 1 })}');
+  });
+});
+
+describe('14 · confirmar abre o editor com a escolha pronta', () => {
+  it('a configuração viaja no state da navegação, não na URL', () => {
+    expect(editor).toContain("navigate(urlDoEditor(escolha.tag), { state: escolha })");
+    expect(editor).toContain('const escolhaPronta = useRef(');
+    expect(editor).toContain('avancarParaEtapaContainer(pronta.tipo, pronta.documentos)');
+  });
+
+  it('`urlDoEditor` continua sendo a mesma rota de sempre', () => {
+    expect(rota).toContain("const p = new URLSearchParams({ editor: '1' });");
+  });
+});
+
+describe('15 · o legado continua alcançável', () => {
+  it('`?legado=1` ainda leva à tela antiga', () => {
+    expect(rota).toContain("return new URLSearchParams(search).get('legado') === '1' ? 'legado' : 'v9';");
+    expect(rota).toContain('export function urlDoLegado(tag: string, rel: string): string {');
+  });
+
+  it('a tela nova continua delegando o relatório SEM arquivo', () => {
+    expect(editor).toContain('aoAbrir={(r) => navigate(urlDoLegado(r.tag, r.relatorioId))}');
+  });
+
+  it('o fluxo normal de criação não usa `legado=1`', () => {
+    const bloco = /aoEscolherEquipamento=\{[\s\S]*?\}\n/.exec(editor)![0];
+    expect(bloco).toContain('urlDoEditor');
+    expect(bloco).not.toContain('urlDoLegado');
+  });
+});
+
+describe('nome do documento · etiqueta, nunca identidade', () => {
+  it('o campo existe no modal de finalizar', () => {
+    const mf = readFileSync('src/features/relatorios/ModalFinalizar.tsx', 'utf8');
+    expect(mf).toContain('id="mf-nome-doc"');
+    expect(mf).toContain('Nome do documento');
+    // Sem `window.prompt` em lugar nenhum deste fluxo.
+    expect(mf).not.toContain('window.prompt');
+    expect(editor).not.toContain('window.prompt');
+  });
+
+  it('um lugar só decide o nome — lista, registro e arquivo não divergem', () => {
+    expect(editor).toContain('nomeDoDocumento(nomeEscolhido, meta.tipoInspecao, tag)');
+    expect(editor).toContain('nomeDoDocumento(nomeEscolhido, m.tipoInspecao, tag)');
+    // O template escrito à mão não pode voltar.
+    expect(editor).not.toContain("`Relatorio_${meta.tipoInspecao.replace(/ /g, '_')}_${tag}.pdf`");
+  });
+
+  it('o id do registro continua sendo o CÓDIGO, não o nome', () => {
+    expect(editor).toContain('id: m.codigo,');
+  });
+
+  it('trocar o nome não inventa nome vazio', () => {
+    expect(nomeDoDocumento('', 'Inspeção Periódica', 'V-1')).toBe(
+      nomeSugerido('Inspeção Periódica', 'V-1'),
+    );
+  });
+});
+
+describe('20 e 21 · densidade e celular', () => {
+  it('a linha do desktop tem 6px de respiro — 38px com o conteúdo', () => {
+    expect(css).toMatch(/\.rel-page \.rel-linha \{[\s\S]*?padding: 6px 10px 6px 9px;/);
+    expect(css).toMatch(/\.rel-page \.rel-linha \{[\s\S]*?align-items: center;/);
+  });
+
+  it('no celular a linha vira cartão de três colunas, não dez', () => {
+    const movel = css.slice(css.lastIndexOf('@media (max-width: 1023px)'));
+    expect(movel).toContain('grid-template-columns: 26px repeat(3, minmax(0, 1fr));');
+    // O rótulo dos botões só some em 640px: num tablet os três cabem com texto.
+    const barraMovel = css.slice(css.lastIndexOf('@media (max-width: 640px)'));
+    expect(barraMovel).toContain('.rel-page .rel-btn-rotulo { display: none; }');
+  });
+
+  it('o alvo de toque das ações continua acima de 32px no cartão', () => {
+    const movel = css.slice(css.lastIndexOf('@media (max-width: 1023px)'));
+    const acoes = /\.rel-page \.rel-cel-acoes \.btn-icone \{([\s\S]*?)\}/.exec(movel)![1];
+    const alt = /height: (\d+)px/.exec(acoes)![1];
+    expect(Number(alt)).toBeGreaterThanOrEqual(34);
+  });
+});

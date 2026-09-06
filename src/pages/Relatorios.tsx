@@ -48,6 +48,7 @@ import {
 } from '../features/relatorios/relatoriosService';
 import { expandirFolhasUltrassom } from '../features/relatorios/ultrassomPaginacao';
 import ModalFinalizar from '../features/relatorios/ModalFinalizar';
+import { nomeDoDocumento, nomeSugerido } from '../features/relatorios/nomeDocumento';
 import PainelPiloto from '../features/relatorios/pdfVetorial/PainelPiloto';
 import { validarParaFinalizar, type LaudoConclusao, type ResultadoValidacao } from '../features/relatorios/validacaoFinalizacao';
 import { salvarRascunho as gravarRascunho } from '../features/relatorios/historicoRelatorios';
@@ -161,6 +162,15 @@ function RelatoriosLegado() {
   const [termoCatalogo, setTermoCatalogo] = useState('');
   const [tag, setTag] = useState('');
   const [etapaModal, setEtapaModal] = useState<EtapaModal>('nenhuma');
+  /**
+   * O nome ESCOLHIDO para o documento. `null` = ninguém escolheu, e vale o
+   * sugerido — que é o que o sistema sempre usou.
+   *
+   * Mora aqui, e não dentro do modal de finalizar, porque o mesmo nome vale
+   * para o registro, para a lista e para o arquivo baixado; um estado por
+   * lugar seria o começo dos três discordarem.
+   */
+  const [nomeEscolhido, setNomeEscolhido] = useState<string | null>(null);
   const [pendente, setPendente] = useState<{ tipo: TipoInspecao; docs: string[] } | null>(null);
   const [documentos, setDocumentos] = useState<string[] | null>(null);
   const [meta, setMeta] = useState<RelatorioMeta | null>(null);
@@ -404,8 +414,36 @@ function RelatoriosLegado() {
    * Roda uma vez, na montagem: reagir a cada mudança de URL faria o documento
    * reabrir sozinho depois de o usuário voltar para a lista.
    */
+  /**
+   * A CONFIGURAÇÃO já escolhida em `/relatorios` (tipo e folhas).
+   *
+   * Vem no `state` da navegação, não na URL: são dezenas de nomes de
+   * arquivo, e uma query com isso dentro seria ilegível, quebraria ao ser
+   * copiada e viraria um segundo formato de "o que compõe o relatório" —
+   * quando o formato de verdade é o `documentos` do registro.
+   *
+   * Lida uma vez, na montagem. Sem ela, nada muda: o editor abre e pergunta,
+   * que é o caminho de sempre e o que o `?legado=1` continua fazendo.
+   */
+  const escolhaPronta = useRef(
+    (window.history.state?.usr ?? null) as
+      | { tag: string; tipo: TipoInspecao; documentos: string[] }
+      | null,
+  );
+
   const alvoUrl = useRef(alvoLegadoDaUrl(window.location.search));
   useEffect(() => {
+    // Veio de `/relatorios` com tudo escolhido: nem lista de equipamento
+    // nem modal de configuração — direto para a escolha do container, que é
+    // o passo que ainda não foi respondido.
+    const pronta = escolhaPronta.current;
+    if (pronta?.tag) {
+      void (async () => {
+        await abrirEquipamento(pronta.tag);
+        avancarParaEtapaContainer(pronta.tipo, pronta.documentos);
+      })();
+      return;
+    }
     const alvo = alvoUrl.current;
     if (!alvo) return;
     abrirEquipamento(alvo.tag);
@@ -792,7 +830,7 @@ function RelatoriosLegado() {
         return;
       }
       if (!meta) return;
-      const nome = `Relatorio_${meta.tipoInspecao.replace(/ /g, '_')}_${tag}.pdf`;
+      const nome = nomeDoDocumento(nomeEscolhido, meta.tipoInspecao, tag);
       // 13E · rascunho no fluxo novo: os bytes do gerador vetorial, gerados
       // agora. Nada é publicado — baixar uma prévia não emite documento.
       if (papelDaPrevia(fluxo) === 'previa-vetorial') {
@@ -845,7 +883,9 @@ function RelatoriosLegado() {
     return {
       id: m.codigo,
       tagVaso: tag,
-      nome: `Relatorio_${m.tipoInspecao.replace(/ /g, '_')}_${tag}.pdf`,
+      // O nome é a ETIQUETA. O `id` acima continua sendo o código do
+      // relatório, e é ele que carrega a identidade do documento.
+      nome: nomeDoDocumento(nomeEscolhido, m.tipoInspecao, tag),
       tipo: m.tipoInspecao,
       data: hoje(),
       documentos: docs,
@@ -1600,6 +1640,10 @@ function RelatoriosLegado() {
           ocupado={salvando}
           progresso={progressoPdf}
           erro={erroSalvar}
+          // O campo nasce com o nome sugerido preenchido: quem não quiser
+          // mexer segue exatamente como antes.
+          nome={nomeEscolhido ?? nomeSugerido(meta?.tipoInspecao ?? "", tag)}
+          aoMudarNome={setNomeEscolhido}
           aoFechar={() => setValidacao(null)}
           aoConfirmar={() => void salvarHistorico()}
         />
@@ -1667,7 +1711,14 @@ export default function Relatorios() {
       // prática só se chegava ao editor digitando `?legado=1` na barra de
       // endereço. Sem isto não há como criar o rascunho que esta fase inteira
       // existe para guardar.
-      aoEscolherEquipamento={() => navigate(urlDoEditor())}
+      // O modal de criar já perguntou equipamento, tipo e folhas. A escolha
+      // viaja no `state` da navegação: o editor abre no passo do container, em
+      // vez de repetir as duas perguntas do outro lado da rota.
+      aoEscolherEquipamento={(escolha) =>
+        escolha
+          ? navigate(urlDoEditor(escolha.tag), { state: escolha })
+          : navigate(urlDoEditor())
+      }
     />
   );
 }
