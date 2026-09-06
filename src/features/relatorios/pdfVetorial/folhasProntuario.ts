@@ -141,7 +141,10 @@ export function folhaProntIdentificacao(doc: Documento, m: ModeloProntuario): vo
 
 // ── 2. DADOS TÉCNICOS ───────────────────────────────────────────────────────
 export function folhaProntDadosTecnicos(doc: Documento, m: ModeloProntuario): void {
-  doc.novaFolha();
+  // Sem `novaFolha`: as seções FLUEM. Forçar uma folha por seção deixava
+  // metade de cada página em branco — a identificação terminava a 10 cm do
+  // topo e a medição a 12, num documento que se queria compacto. Quem quebra
+  // a folha é o `Documento`, quando ela enche.
   doc.banner('2. DADOS TÉCNICOS E CATEGORIZAÇÃO');
 
   doc.faixa('ASPECTOS CONSTRUTIVOS');
@@ -210,7 +213,6 @@ export function folhaProntDadosTecnicos(doc: Documento, m: ModeloProntuario): vo
 
 // ── 3. MEDIÇÃO DE ESPESSURA ─────────────────────────────────────────────────
 export function folhaProntUltrassom(doc: Documento, m: ModeloProntuario): void {
-  doc.novaFolha();
   doc.banner('3. MEDIÇÃO DE ESPESSURA POR ULTRASSOM');
 
   doc.faixa('INFORMAÇÕES DO ENSAIO');
@@ -338,6 +340,9 @@ function desenharGradeEspessura(doc: Documento, m: ModeloProntuario): void {
 
 // ── 4. CROQUI — SÓ PARA VASO DE PRESSÃO ─────────────────────────────────────
 export function folhaProntCroqui(doc: Documento, m: ModeloProntuario): void {
+  // Esta é a única que abre folha: a prancha de vistas precisa da altura
+  // inteira, e espremê-la no que sobrou da página anterior devolveria o
+  // croqui-risco que a prancha veio consertar.
   doc.novaFolha();
   doc.banner('4. CROQUI 2D COTADO E DIMENSÕES');
 
@@ -386,7 +391,6 @@ export function folhaProntCroqui(doc: Documento, m: ModeloProntuario): void {
 
 // ── 5. MEMORIAL + ASSINATURA ────────────────────────────────────────────────
 export function folhaProntMemorial(doc: Documento, m: ModeloProntuario, numero = 5): void {
-  doc.novaFolha();
   doc.banner(`${numero}. RESUMO DOS CÁLCULOS`);
 
   if (m.componentes.length > 0) {
