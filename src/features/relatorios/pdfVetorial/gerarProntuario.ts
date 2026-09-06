@@ -187,7 +187,11 @@ export async function gerarProntuarioVetorial(tag: string): Promise<ResultadoPro
       // 90° ocupa a coluna inteira, que é como uma prancha técnica põe a vista
       // principal quando o desenho é comprido. É a MESMA imagem — nada é
       // redesenhado, e as cotas giram junto.
-      if (convertido.proporcao > 2.2) {
+      // A versão girada é preparada SEMPRE para a vista principal: quem decide
+      // se usa é a folha, comparando qual das duas preenche melhor a coluna.
+      // Decidir aqui por proporção falhava quando o SVG traz margem branca —
+      // a proporção do arquivo não é a do desenho dentro dele.
+      if (nome === 'vista longitudinal') {
         const girada = await girar90(convertido.png);
         if (girada) cache.set(`${svg}#girado`, girada);
       }

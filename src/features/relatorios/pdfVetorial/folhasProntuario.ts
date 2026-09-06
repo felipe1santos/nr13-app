@@ -613,8 +613,20 @@ function desenharPranchaDeVistas(
   // Coluna esquerda: a vista principal, em toda a altura da prancha — girada
   // quando o desenho é comprido demais para a coluna (o gerador preparou a
   // versão em pé; sem ela, cai na deitada de sempre).
-  const cache = (doc as unknown as { __croquis?: Map<string, unknown> }).__croquis;
-  const chavePrincipal = cache?.has(`${principal[1]}#girado`) ? `${principal[1]}#girado` : principal[1]!;
+  // Qual orientação preenche melhor a coluna: a que, ao caber inteira dentro
+  // dela, ocupa mais área. Numa coluna alta e estreita, a vista comprida
+  // deitada usa 15% do espaço e girada usa quase tudo — e é a mesma imagem,
+  // com as mesmas cotas.
+  const cache = (doc as unknown as { __croquis?: Map<string, { proporcao: number }> }).__croquis;
+  const alturaUtil = alturaPrancha - alturaFaixa;
+  const areaNa = (p?: { proporcao: number }) => {
+    if (!p || !p.proporcao) return 0;
+    const escala = Math.min(larguraEsq / p.proporcao > alturaUtil ? alturaUtil * p.proporcao : larguraEsq, larguraEsq);
+    return escala * (escala / p.proporcao);
+  };
+  const girada = cache?.get(`${principal[1]}#girado`);
+  const chavePrincipal =
+    girada && areaNa(girada) > areaNa(cache?.get(principal[1]!)) ? `${principal[1]}#girado` : principal[1]!;
   doc.faixa(principal[0]);
   desenharCroqui(doc, chavePrincipal, alturaPrancha - alturaFaixa, {
     x: CAIXA.x,
