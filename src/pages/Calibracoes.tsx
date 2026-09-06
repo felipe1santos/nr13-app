@@ -181,6 +181,61 @@ function parseDateBR(d: string): number {
   return new Date(`${p[2]}-${p[1]}-${p[0]}`).getTime();
 }
 
+/**
+ * Campo de nome do lote — o que era `window.prompt`.
+ *
+ * Nasce com foco e com o texto selecionado, para que digitar substitua o nome
+ * sugerido (o comportamento que o `prompt` dava de graça e que se perde ao
+ * trocar por um input comum). Enter confirma, Esc cancela; nome vazio não
+ * confirma, e a regra de nome não vazio é a mesma de antes.
+ */
+function CampoNomeLote({
+  valor,
+  aoMudar,
+  aoConfirmar,
+  aoCancelar,
+}: {
+  valor: string;
+  aoMudar: (v: string) => void;
+  aoConfirmar: (v: string) => void | Promise<void>;
+  aoCancelar: () => void;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    ref.current?.focus();
+    ref.current?.select();
+  }, []);
+  const confirmar = () => {
+    const nome = valor.trim();
+    if (!nome) return;
+    void aoConfirmar(nome);
+  };
+  return (
+    <div className="cal-lote-nome">
+      <input
+        ref={ref}
+        value={valor}
+        onChange={(e) => aoMudar(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            confirmar();
+          }
+          if (e.key === 'Escape') aoCancelar();
+        }}
+        placeholder="Nome do lote de calibração"
+        aria-label="Nome do lote de calibração"
+      />
+      <button type="button" className="btn-primario" onClick={confirmar} disabled={!valor.trim()}>
+        Salvar
+      </button>
+      <button type="button" className="btn-secundario" onClick={aoCancelar}>
+        Cancelar
+      </button>
+    </div>
+  );
+}
+
 export default function Calibracoes() {
   const [tela, setTela] = useState<Tela>('equipamentos');
   const [tag, setTag] = useState('');
@@ -214,6 +269,19 @@ export default function Calibracoes() {
   const [lotes, setLotes] = useState<LoteCal[]>([]);
   const [compForm, setCompForm] = useState<ComponenteCal | null>(null);
   const [loteAberto, setLoteAberto] = useState<string | null>(null);
+  /**
+   * UX · nomear o lote SEM `window.prompt`.
+   *
+   * Criar e renomear um lote passavam por um diálogo do navegador: fora do
+   * design do sistema, sem foco controlado, e no celular ele é uma folha do
+   * SO que cobre a tela e não mostra o que está sendo nomeado. Agora o campo
+   * nasce na própria lista, já preenchido com o nome sugerido e com o texto
+   * selecionado — Enter confirma, Esc cancela.
+   *
+   * `null` = nenhum campo aberto; `{ id: null }` = criando; `{ id }` =
+   * renomeando aquele lote.
+   */
+  const [loteNome, setLoteNome] = useState<{ id: string | null; nome: string } | null>(null);
   const compFotoRef = useRef<HTMLInputElement>(null);
   const vinculoCalibracao = useRef<{ componenteId: string; loteId: string } | null>(null);
 
@@ -553,23 +621,33 @@ export default function Calibracoes() {
               <button
                 type="button"
                 className="btn-primario"
-                disabled={componentes.length === 0}
+                disabled={componentes.length === 0 || loteNome?.id === null}
                 title={componentes.length === 0 ? 'Cadastre os componentes primeiro' : undefined}
-                onClick={async () => {
+                onClick={() =>
                   // Nome definido pelo usuário facilita achar o lote no modal do relatório.
-                  const nome = window.prompt(
-                    'Nome do lote de calibração:',
-                    `Lote de calibração — ${new Date().toLocaleDateString('pt-BR')}`,
-                  );
-                  if (nome === null) return;
-                  const lote = await criarLote(tag, nome);
-                  setLotes(listarLotes(tag));
-                  setLoteAberto(lote.id);
-                }}
+                  setLoteNome({
+                    id: null,
+                    nome: `Lote de calibração — ${new Date().toLocaleDateString('pt-BR')}`,
+                  })
+                }
               >
                 + Novo lote de calibração
               </button>
             </div>
+
+            {loteNome?.id === null && (
+              <CampoNomeLote
+                valor={loteNome.nome}
+                aoMudar={(nome) => setLoteNome({ id: null, nome })}
+                aoCancelar={() => setLoteNome(null)}
+                aoConfirmar={async (nome) => {
+                  const lote = await criarLote(tag, nome);
+                  setLotes(listarLotes(tag));
+                  setLoteAberto(lote.id);
+                  setLoteNome(null);
+                }}
+              />
+            )}
 
             {lotes.length === 0 ? (
               <p className="dashboard-vazio" style={{ padding: '14px 0' }}>
@@ -581,6 +659,18 @@ export default function Calibracoes() {
                 const aberto = loteAberto === lote.id;
                 return (
                   <div key={lote.id} className="cal-lote">
+                    {loteNome?.id === lote.id ? (
+                      <CampoNomeLote
+                        valor={loteNome.nome}
+                        aoMudar={(nome) => setLoteNome({ id: lote.id, nome })}
+                        aoCancelar={() => setLoteNome(null)}
+                        aoConfirmar={async (nome) => {
+                          await salvarLote(tag, { ...lote, descricao: nome });
+                          setLotes(listarLotes(tag));
+                          setLoteNome(null);
+                        }}
+                      />
+                    ) : (
                     <div className="cal-lote-head-row">
                       <button type="button" className="cal-lote-head" onClick={() => setLoteAberto(aberto ? null : lote.id)}>
                         <Icone nome={aberto ? 'chevdown' : 'chevright'} tam={14} />
@@ -599,16 +689,12 @@ export default function Calibracoes() {
                         className="btn-icone cor-azul"
                         title="Renomear lote"
                         style={{ marginRight: 10, flexShrink: 0 }}
-                        onClick={async () => {
-                          const nome = window.prompt('Nome do lote:', lote.descricao);
-                          if (nome === null || !nome.trim()) return;
-                          await salvarLote(tag, { ...lote, descricao: nome.trim() });
-                          setLotes(listarLotes(tag));
-                        }}
+                        onClick={() => setLoteNome({ id: lote.id, nome: lote.descricao })}
                       >
                         <Icone nome="pencil" tam={14} />
                       </button>
                     </div>
+                    )}
                     {aberto && (
                       <div className="cal-lote-corpo">
                         {componentes.map((c) => {
@@ -650,23 +736,27 @@ export default function Calibracoes() {
                             </div>
                           );
                         })}
-                        <div style={{ textAlign: 'right', marginTop: 8 }}>
-                          <button
-                            type="button"
-                            className="btn-secundario"
-                            onClick={async () => {
-                              if (calsDoLote.length > 0) {
-                                window.alert('Este lote tem certificados emitidos — exclua os certificados primeiro.');
-                                return;
-                              }
-                              if (!window.confirm('Excluir este lote vazio?')) return;
-                              await excluirLote(tag, lote.id);
-                              setLotes(listarLotes(tag));
-                            }}
-                          >
-                            Excluir lote
-                          </button>
-                        </div>
+                        {/* UX · o botão só existe quando a ação existe. Antes ele
+                            estava sempre lá, cinza como um "Cancelar", e com
+                            certificado emitido respondia com um `alert` de
+                            reprovação. Agora o lote com certificado nem oferece a
+                            exclusão — a regra continua a MESMA, só deixou de ser
+                            ensinada por recusa. */}
+                        {calsDoLote.length === 0 && (
+                          <div style={{ textAlign: 'right', marginTop: 8 }}>
+                            <button
+                              type="button"
+                              className="fj-btn fj-btn-danger"
+                              onClick={async () => {
+                                if (!window.confirm('Excluir este lote vazio?')) return;
+                                await excluirLote(tag, lote.id);
+                                setLotes(listarLotes(tag));
+                              }}
+                            >
+                              <Icone nome="trash" tam={13} /> Excluir lote
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

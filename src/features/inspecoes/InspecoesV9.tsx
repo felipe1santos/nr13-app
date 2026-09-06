@@ -221,7 +221,11 @@ export default function InspecoesV9() {
             <button type="button" className="btn-secundario" onClick={() => trocarParam('tag', '')}>
               ← Voltar
             </button>
-            <strong>{tag}</strong>
+            {/* UX · a MESMA trilha de /relatorios e /prontuarios: chevron + chip
+                da TAG. Aqui era um `<strong>` solto, e a trilha lia diferente
+                em cada módulo do sistema. */}
+            <span className="breadcrumb-chevron">›</span>
+            <span className="crumb-tag-chip">{tag}</span>
           </div>
           <div className="meta-card-header">
             <h3>

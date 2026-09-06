@@ -614,3 +614,41 @@
   .cal-comp-item { flex-wrap: wrap; }
   .cal-lote-head-row { flex-wrap: wrap; }
 }
+
+/* ── Nome do lote na própria lista (UX, 06/09/2026) ─────────────────────────
+   Substitui o `window.prompt` de criar/renomear lote. Ocupa a mesma faixa da
+   linha do lote para que a troca não empurre a lista. */
+.cal-lote-nome {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  margin-top: 8px;
+  border: 1px solid var(--amber);
+  border-radius: 8px;
+  background: var(--panel);
+}
+.cal-lote-nome input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border-solid);
+  border-radius: 7px;
+  font-family: var(--font-base);
+  font-size: 13px;
+  color: var(--text-main);
+  background: var(--panel);
+}
+.cal-lote-nome input:focus {
+  outline: 2px solid var(--amber);
+  outline-offset: 1px;
+  border-color: transparent;
+}
+
+@media (max-width: 640px) {
+  /* 386px: o campo ocupa a linha inteira e os botões dividem a de baixo. */
+  .cal-lote-nome { flex-wrap: wrap; }
+  .cal-lote-nome input { flex: 1 0 100%; }
+  .cal-lote-nome .btn-primario,
+  .cal-lote-nome .btn-secundario { flex: 1; }
+}
