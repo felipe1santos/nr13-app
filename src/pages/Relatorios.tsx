@@ -74,7 +74,9 @@ import { Icone } from '../components/Icone';
 import './relatorios.css';
 import PaginaA4 from '../components/PaginaA4';
 
-type Tela = 'equipamentos' | 'historico' | 'visualizador';
+// `criacao` é a etapa entre escolher o equipamento e montar o documento: ela
+// não mostra lista nenhuma, só o modal de folhas por cima.
+type Tela = 'equipamentos' | 'criacao' | 'historico' | 'visualizador';
 type EtapaModal = 'nenhuma' | 'documentos' | 'container';
 
 const TIPOS_INSPECAO: TipoInspecao[] = ['Inspeção Inicial', 'Inspeção Periódica', 'Inspeção Extraordinária'];
@@ -141,7 +143,21 @@ function metaPadrao(tipo: TipoInspecao): RelatorioMeta {
 
 
 function RelatoriosLegado() {
+  const navegar = useNavigate();
   const [tela, setTela] = useState<Tela>('equipamentos');
+
+  /**
+   * UX · esta tela tem DOIS papéis, e eles não podem se misturar.
+   *
+   * 1. CRIAÇÃO (`?editor=1` sem relatório): escolher o equipamento e montar o
+   *    documento. O histórico daquele equipamento não interessa aqui — a lista
+   *    canônica de relatórios é `/relatorios`, e mostrar uma segunda lista no
+   *    meio do caminho de criar era a duplicidade que o dono apontou.
+   * 2. LEGADO (`?legado=1&tag=…`): abrir um relatório salvo antes do
+   *    §7-quater, que não tem PDF arquivado e só esta tela sabe remontar. Aí
+   *    sim o histórico da TAG é o destino útil.
+   */
+  const criando = useRef(alvoLegadoDaUrl(window.location.search) === null);
   const [termoCatalogo, setTermoCatalogo] = useState('');
   const [tag, setTag] = useState('');
   const [etapaModal, setEtapaModal] = useState<EtapaModal>('nenhuma');
@@ -422,6 +438,15 @@ function RelatoriosLegado() {
     setDocumentos(null);
     setMeta(null);
     setSelecionados(new Set());
+    // Criação vai DIRETO para a montagem: equipamento escolhido → documentos.
+    // Antes passava pelo "Histórico de Relatórios" daquele equipamento, com
+    // outro "+ Criar Relatório" dentro — dois cliques a mais e uma segunda
+    // lista para a mesma coisa.
+    if (criando.current) {
+      setTela('criacao');
+      setEtapaModal('documentos');
+      return;
+    }
     setTela('historico');
   }
 
@@ -432,6 +457,12 @@ function RelatoriosLegado() {
   function voltarParaHistorico() {
     setRelatorioArquivado(null);
     setErroSalvar('');
+    // No fluxo de CRIAÇÃO o "voltar" devolve à lista canônica — não a um
+    // histórico paralelo que o usuário nunca pediu para ver.
+    if (criando.current) {
+      navegar('/relatorios');
+      return;
+    }
     setHistorico(listarHistorico(tag));
     setDocumentos(null);
     setMeta(null);
@@ -1015,12 +1046,47 @@ function RelatoriosLegado() {
     <div className="relatorios-page">
       {tela === 'equipamentos' && (
         <div className="bloco-dados">
-          <h3>Equipamentos Cadastrados</h3>
+          <div className="meta-breadcrumb">
+            <button type="button" className="btn-secundario" onClick={() => navegar('/relatorios')}>
+              ← Voltar
+            </button>
+            <span className="breadcrumb-chevron">›</span>
+            <span className="crumb-tag-chip">Novo relatório</span>
+          </div>
+          <div className="meta-card-header">
+            <h3>Para qual equipamento?</h3>
+          </div>
+          <p className="selecao-dica">
+            Escolha o equipamento e o sistema abre a montagem do relatório. O histórico completo fica
+            em Relatórios.
+          </p>
           <CatalogoRelatoriosV9
             termo={termoCatalogo}
             aoMudarTermo={setTermoCatalogo}
             aoEscolher={(t) => void abrirEquipamento(t)}
           />
+        </div>
+      )}
+
+      {/* CRIAÇÃO · o equipamento já foi escolhido e o modal de montagem está
+          aberto por cima. A tela atrás não mostra lista nenhuma: fechar o modal
+          devolve à escolha do equipamento. */}
+      {tela === 'criacao' && (
+        <div className="bloco-dados">
+          <div className="meta-breadcrumb">
+            <button type="button" className="btn-secundario" onClick={voltarParaEquipamentos}>
+              ← Voltar
+            </button>
+            <span className="breadcrumb-chevron">›</span>
+            <span className="crumb-tag-chip">{tag}</span>
+          </div>
+          <div className="meta-card-header">
+            <h3>Novo relatório — {tag}</h3>
+          </div>
+          <p className="selecao-dica">Selecione as folhas do documento para continuar.</p>
+          <button type="button" className="btn-primario" onClick={abrirEtapaDocumentos}>
+            Escolher as folhas
+          </button>
         </div>
       )}
 
@@ -1511,7 +1577,14 @@ function RelatoriosLegado() {
       )}
 
       {etapaModal === 'documentos' && (
-        <ModalNovaInspecao onClose={() => setEtapaModal('nenhuma')} onGerar={avancarParaEtapaContainer} tag={tag} />
+        <ModalNovaInspecao
+          onClose={() => {
+            setEtapaModal('nenhuma');
+            if (criando.current && tela === 'criacao') voltarParaEquipamentos();
+          }}
+          onGerar={avancarParaEtapaContainer}
+          tag={tag}
+        />
       )}
       {etapaModal === 'container' && (
         <ModalSelecionarContainer

@@ -38,6 +38,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import BuscaLista from '../../components/BuscaLista';
 import ListaVirtualizada from '../../components/ListaVirtualizada';
 import FotoImg from '../../components/FotoImg';
+import { Icone } from '../../components/Icone';
 import * as buscaIndex from '../../services/buscaIndex';
 import { rotuloProntuario } from '../../services/buscaIndex';
 import type { Contagem, FiltrosBusca, ItemCatalogo } from '../../services/buscaIndex';
@@ -62,18 +63,32 @@ const ROTULO_TIPO: Record<string, string> = {
 /** Altura estimada de uma linha; corrigida por medição no primeiro quadro. */
 const ALT_LINHA = 92;
 
+/** Altura da LINHA do histórico — compacta, no padrão de `/relatorios`. */
+const ALT_LINHA_LISTA = 46;
+
 export interface PropsCatalogoProntuarios {
   /** Termo aplicado — mora na URL, no pai. */
   termo: string;
   aoMudarTermo: (termo: string) => void;
   /** Escolher um equipamento: o pai semeia a TAG e abre o formulário. */
   aoEscolher: (tag: string) => void;
+  /**
+   * UX · o mesmo catálogo serve a dois momentos, e eles não são a mesma tela.
+   *
+   * `lista` é o HISTÓRICO: os equipamentos que TÊM prontuário, em linha
+   * compacta, que é o que o menu "Prontuários" abre.
+   * `selecao` é a CRIAÇÃO: todos os equipamentos, para escolher um. Sem
+   * recorte por documento — quem vai criar o primeiro prontuário de um
+   * equipamento não pode ser filtrado para fora da própria lista.
+   */
+  modo?: 'lista' | 'selecao';
 }
 
 export default function CatalogoProntuariosV9({
   termo,
   aoMudarTermo,
   aoEscolher,
+  modo = 'lista',
 }: PropsCatalogoProntuarios) {
   const [itens, setItens] = useState<ItemCatalogo[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -88,7 +103,11 @@ export default function CatalogoProntuariosV9({
   // `tipo` viaja na consulta (a RPC tem o parâmetro); prontuário e empresa são
   // recorte do cliente — ver `filtroProntuarios.ts`.
   const [fTipo, setFTipo] = useState('');
-  const [filtro, setFiltro] = useState<RecorteCatalogo>(RECORTE_PADRAO);
+  // Na seleção o recorte nasce DESLIGADO: a lista é de equipamentos, não de
+  // prontuários existentes.
+  const [filtro, setFiltro] = useState<RecorteCatalogo>(
+    modo === 'selecao' ? { ...RECORTE_PADRAO, soComDocumento: false } : RECORTE_PADRAO,
+  );
   /** Quantas páginas já vieram — o teto da varredura automática. */
   const [paginas, setPaginas] = useState(1);
 
@@ -295,8 +314,8 @@ export default function CatalogoProntuariosV9({
           <ListaVirtualizada
             itens={visiveis}
             chaveDe={(i) => i.tag}
-            alturaEstimada={ALT_LINHA}
-            classeGrade="lista-cards-horiz"
+            alturaEstimada={modo === 'lista' ? ALT_LINHA_LISTA : ALT_LINHA}
+            classeGrade={modo === 'lista' ? 'pront-lista' : 'lista-cards-horiz'}
             // Busca nova é lista nova: a rolagem volta ao começo. Sem isto, quem
             // busca com a lista rolada fica olhando para o vazio enquanto o
             // cabeçalho anuncia resultados — o defeito que o gate da 9F.1 pegou.
@@ -309,7 +328,26 @@ export default function CatalogoProntuariosV9({
                 </div>
               ) : null
             }
-            desenhar={(item) => (
+            desenhar={(item) =>
+              modo === 'lista' ? (
+                <button type="button" className="pront-linha" onClick={() => aoEscolher(item.tag)}>
+                  <span className="pront-linha-icone" aria-hidden>
+                    <Icone nome="book" tam={16} />
+                  </span>
+                  <span className="pront-linha-nome">
+                    <strong>{item.tag}</strong>
+                    <span className="pront-linha-sub">{item.descricao ?? '—'}</span>
+                  </span>
+                  <span className="pront-linha-col">{item.tipo ? (ROTULO_TIPO[item.tipo] ?? item.tipo) : '—'}</span>
+                  <span className="pront-linha-col">{item.clienteNome ?? '—'}</span>
+                  <span className="pront-linha-col">{item.categoria ? `Categoria ${item.categoria}` : '—'}</span>
+                  {rotuloProntuario(item.temProntuario) && (
+                    <span className={`badge-relatorios ${item.temProntuario ? 'tem' : ''}`}>
+                      {rotuloProntuario(item.temProntuario)}
+                    </span>
+                  )}
+                </button>
+              ) : (
               <button
                 type="button"
                 className="card-equipamento-horiz"
@@ -350,7 +388,8 @@ export default function CatalogoProntuariosV9({
                   </span>
                 )}
               </button>
-            )}
+              )
+            }
           />
         )}
       </div>

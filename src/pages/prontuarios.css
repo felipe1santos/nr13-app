@@ -228,3 +228,59 @@
     max-width: none;
   }
 }
+
+/* ── UX 06/09/2026 · a LISTA de prontuários, em linha compacta ──────────────
+   O mesmo peso visual de /relatorios: retangular, pouco arredondamento, nome
+   forte e metadado secundário discreto. O card alto com foto continua no modo
+   SELEÇÃO, onde a foto ajuda a reconhecer o equipamento. */
+.pront-lista { display: flex; flex-direction: column; }
+
+.pront-linha {
+  display: grid;
+  grid-template-columns: 26px minmax(180px, 1.6fr) 1fr 1.2fr 1fr auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 12px;
+  border: 1px solid var(--border-solid, #e5e7eb);
+  border-left: 3px solid var(--marca, #f97316);
+  border-radius: 4px;
+  margin-bottom: 6px;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+.pront-linha:hover { background: #fafafa; }
+
+.pront-linha-icone { color: var(--marca, #f97316); display: flex; }
+.pront-linha-nome { display: flex; flex-direction: column; min-width: 0; }
+.pront-linha-nome strong { font-size: 13px; line-height: 1.25; }
+.pront-linha-sub,
+.pront-linha-col {
+  font-size: 11.5px;
+  color: var(--text-muted, #6b7280);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Dica das telas de SELEÇÃO (relatório e prontuário). */
+.selecao-dica { margin: 0 0 10px; font-size: 12.5px; color: var(--text-muted, #6b7280); }
+
+/* Mobile: a linha vira faixa em duas alturas, sem rolagem horizontal. */
+@media (max-width: 780px) {
+  .pront-linha {
+    grid-template-columns: 22px 1fr auto;
+    grid-template-areas:
+      'icone nome badge'
+      '.     meta  meta';
+    row-gap: 2px;
+  }
+  .pront-linha-icone { grid-area: icone; }
+  .pront-linha-nome { grid-area: nome; }
+  .pront-linha .badge-relatorios { grid-area: badge; }
+  /* As três colunas de metadado viram uma linha só, separadas por ponto. */
+  .pront-linha-col { grid-area: meta; display: inline; }
+  .pront-linha-col + .pront-linha-col::before { content: ' · '; }
+}

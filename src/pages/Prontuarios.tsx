@@ -53,7 +53,7 @@ import '../pages/relatorios.css';
 import './prontuarios.css';
 import PaginaA4 from '../components/PaginaA4';
 
-type Tela = 'equipamentos' | 'formulario' | 'visualizador';
+type Tela = 'equipamentos' | 'formulario' | 'visualizador' | 'selecao';
 
 const ROTULO_TIPO: Record<string, string> = {
   vaso: 'Vaso de Pressão',
@@ -774,12 +774,48 @@ export default function Prontuarios() {
       {/* 9F.2.1 · a lista da projeção, com busca e virtualização. O que vem
           depois dela — formulário e visualizador — é o MESMO nos dois
           caminhos. */}
+      {/* UX · o menu abre o HISTÓRICO de prontuários, não a lista de
+          equipamentos. Escolher o equipamento é etapa da CRIAÇÃO, e mora na
+          tela 'selecao' — a mesma separação feita em /relatorios. */}
       {tela === 'equipamentos' && (
-        <CatalogoProntuariosV9
-          termo={termoBusca}
-          aoMudarTermo={setTermoBusca}
-          aoEscolher={(tag) => void abrirPorTag(tag)}
-        />
+        <>
+          <div className="meta-card-header">
+            <h3>Prontuários salvos</h3>
+            <button type="button" className="fj-btn fj-btn-primary" onClick={() => setTela('selecao')}>
+              <Icone nome="plus" tam={14} /> Criar prontuário
+            </button>
+          </div>
+          <CatalogoProntuariosV9
+            termo={termoBusca}
+            aoMudarTermo={setTermoBusca}
+            aoEscolher={(tag) => void abrirPorTag(tag)}
+          />
+        </>
+      )}
+
+      {tela === 'selecao' && (
+        <>
+          <div className="meta-breadcrumb">
+            <button type="button" className="btn-secundario" onClick={() => setTela('equipamentos')}>
+              ← Voltar
+            </button>
+            <span className="breadcrumb-chevron">›</span>
+            <span className="crumb-tag-chip">Novo prontuário</span>
+          </div>
+          <div className="meta-card-header">
+            <h3>Para qual equipamento?</h3>
+          </div>
+          <p className="selecao-dica">
+            Escolha o equipamento e o sistema abre o prontuário dele. O histórico completo fica em
+            Prontuários.
+          </p>
+          <CatalogoProntuariosV9
+            modo="selecao"
+            termo={termoBusca}
+            aoMudarTermo={setTermoBusca}
+            aoEscolher={(tag) => void abrirPorTag(tag)}
+          />
+        </>
       )}
 
 
