@@ -387,7 +387,7 @@ export function folhaProntCroqui(doc: Documento, m: ModeloProntuario): void {
 // ── 5. MEMORIAL + ASSINATURA ────────────────────────────────────────────────
 export function folhaProntMemorial(doc: Documento, m: ModeloProntuario, numero = 5): void {
   doc.novaFolha();
-  doc.banner(`${numero}. MEMORIAL DE CÁLCULO`);
+  doc.banner(`${numero}. RESUMO DOS CÁLCULOS`);
 
   if (m.componentes.length > 0) {
     doc.faixa('PARÂMETROS E RESULTADOS POR COMPONENTE');
@@ -403,25 +403,29 @@ export function folhaProntMemorial(doc: Documento, m: ModeloProntuario, numero =
         { texto: textoOu(c.material), centro: true },
       ]),
     });
-  }
 
-  if (m.memorial.length > 0) {
-    doc.faixa('MEMÓRIA DE CÁLCULO');
-    for (const linha of m.memorial) {
-      // As equações do motor vêm em LaTeX; aqui viram fração desenhada, com
-      // subscrito. Imprimir a string crua punha código-fonte num documento
-      // assinado.
-      const formula = formulaDoLatex(linha);
-      if (formula) {
-        doc.formula(formula, { espacoAntes: 1.2 });
-        continue;
+    // AS EQUAÇÕES, não o desenvolvimento numérico.
+    //
+    // A memória de cálculo linha a linha — parâmetros, substituição, status —
+    // ocupava quatro folhas e é do RELATÓRIO, que registra a inspeção em que
+    // ela foi feita. O prontuário é consulta: importa qual equação rege cada
+    // componente e o que ela produziu. As fórmulas vêm do motor
+    // (nr13_calc_.componentes[]), nunca daqui.
+    const comFormula = m.componentes.filter((c) => c.formulaT || c.formulaP);
+    if (comFormula.length > 0) {
+      doc.faixa('EQUAÇÕES APLICADAS');
+      for (const c of comFormula) {
+        doc.secao(c.nome.toUpperCase());
+        const fT = formulaDoLatex(c.formulaT ? `$$ ${c.formulaT} $$` : '');
+        const fP = formulaDoLatex(c.formulaP ? `$$ ${c.formulaP} $$` : '');
+        if (fT) doc.formula(fT, { espacoAntes: 0.8 });
+        if (fP) doc.formula(fP, { espacoAntes: 0.8 });
       }
-      const titulo = /^MEMORIAL DE C[ÁA]LCULO\b/i.test(linha);
-      doc.texto(linha, {
-        tamanho: titulo ? FONTE.secao : FONTE.tabela,
-        negrito: titulo,
-        espacoAntes: titulo ? 2.5 : 0,
-      });
+      doc.texto(
+        'A memória de cálculo completa — parâmetros de entrada, substituição numérica e verificação ' +
+          'passo a passo — consta do relatório de inspeção de segurança do equipamento.',
+        { tamanho: FONTE.nota, cor: COR.nota, espacoAntes: 2 },
+      );
     }
   } else {
     doc.texto('Memorial de cálculo não salvo para este equipamento.', {

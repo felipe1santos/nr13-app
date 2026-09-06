@@ -54,6 +54,10 @@ export interface ComponenteProntuario {
   espReq: string | null;
   espNom: string | null;
   material: string | null;
+  /** As equações que o MOTOR usou naquele componente — o prontuário as mostra
+   * no lugar da memória de cálculo linha a linha, que é do relatório. */
+  formulaT: string | null;
+  formulaP: string | null;
 }
 
 export interface DimensaoLinha {
@@ -320,6 +324,8 @@ export function montarModeloProntuario(tag: string): ModeloProntuario {
       espReq: txt(c.tReqMm),
       espNom: txt(c.tNom),
       material: txt(c.material),
+      formulaT: txt(c.formulaT),
+      formulaP: txt(c.formulaP),
     })),
     // O MESMO extrator do template e do relatório.
     memorial: linhasMemorial(tag),

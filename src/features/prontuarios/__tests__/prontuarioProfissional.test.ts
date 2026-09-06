@@ -97,9 +97,15 @@ describe('modelo próprio: compacto, com UMA assinatura no fim', () => {
     expect(folhas).toContain("destaque: 'maior'");
   });
 
-  it('o memorial sai em álgebra, não em LaTeX cru', () => {
-    expect(folhas).toContain('formulaDoLatex(linha)');
-    expect(folhas).toContain('doc.formula(formula');
+  it('o resumo traz as EQUAÇÕES, não a memória linha a linha', () => {
+    // A memória completa — parâmetros, substituição, status — ocupava quatro
+    // folhas e é do RELATÓRIO, que registra a inspeção em que ela foi feita.
+    expect(folhas).toContain('EQUAÇÕES APLICADAS');
+    expect(folhas).toContain('formulaDoLatex(c.formulaT');
+    expect(folhas).toContain('formulaDoLatex(c.formulaP');
+    expect(folhas).not.toContain('for (const linha of m.memorial)');
+    // ...e o documento diz onde ela está.
+    expect(folhas).toContain('A memória de cálculo completa');
   });
 
   it('a prancha põe a vista principal ao lado das auxiliares', () => {
