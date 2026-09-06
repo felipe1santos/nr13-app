@@ -1573,7 +1573,9 @@ export function folhaParecer(doc: Documento, m: ModeloRelatorio): void {
   doc.banner('9. RECOMENDAÇÕES DE SEGURANÇA');
   doc.tabela({
     compacta: true,
-    alturaMinima: 9,
+    // Sem altura mínima: a linha de recomendação tem a mesma altura das outras
+    // do documento. Ela é campo de escrita, mas quem dá espaço para escrever é
+    // o editor da prévia, não uma célula inflada no papel.
     colunas: [0.08, 0.62, 0.3],
     cabecalho: ['ITEM', 'RECOMENDAÇÃO', 'PRAZO'],
     linhas: [1, 2, 3, 4].map((n) => [
