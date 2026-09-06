@@ -294,7 +294,8 @@ export class Documento {
     this.folhaDaSecao = 1;
     this.linhasNaFolhaAtual = 0;
     const medido = this.respiro[chave];
-    this.extraPorLinha = medido && medido.linhas > 0 ? Math.min(TETO_RESPIRO_LINHA, (medido.sobra * 0.9) / medido.linhas) : 0;
+    const util = medido ? Math.max(0, medido.sobra - RESERVA_RESPIRO) : 0;
+    this.extraPorLinha = medido && medido.linhas > 0 ? Math.min(TETO_RESPIRO_LINHA, util / medido.linhas) : 0;
   }
 
   /**
@@ -828,6 +829,17 @@ export type RespiroMedido = Record<string, { sobra: number; linhas: number; folh
  * terminando seis centímetros antes do rodapé — foi o que se mediu com 6 mm.
  */
 const TETO_RESPIRO_LINHA = 10;
+
+/**
+ * O que NÃO se distribui, em mm.
+ *
+ * Toda tabela pede `garantirEspaco(cabeçalho + 2 linhas)` antes de começar: se
+ * o respiro consumir a sobra inteira, a tabela seguinte não cabe e quebra para
+ * uma folha nova — a seção ganha uma página, e o total do rodapé, contado na
+ * 1ª passagem, passa a mentir. Catorze milímetros é exatamente o que esse
+ * `garantirEspaco` exige numa tabela compacta.
+ */
+const RESERVA_RESPIRO = 14;
 
 export interface CelulaDoc {
   texto: string;
