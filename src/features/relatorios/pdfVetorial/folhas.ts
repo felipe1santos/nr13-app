@@ -167,7 +167,6 @@ function blocoExame(
   doc.faixa('FOI ENCONTRADA ALGUMA NÃO CONFORMIDADE?');
   doc.tabela({
     compacta: true,
-    esticavel: true,
     colunas: [0.06, 0.44, 0.08, 0.08, 0.08, 0.26],
     cabecalho: ['Nº', 'ITEM DE VERIFICAÇÃO', 'SIM', 'NÃO', 'N.A.', 'OBSERVAÇÃO'],
     linhas: exame.itens.map((it, i) => {
@@ -185,8 +184,6 @@ function blocoExame(
     }),
   });
 
-  doc.blocoAteOFim(`${prefixo}.observacoes`, 'Observações gerais', 'Observações gerais', 16, 40);
-
   doc.secao(`Conclusão técnica — ${nomeDoExame}`);
   doc.texto(textoOu(exame.conclusao, ''), {
     cor: COR.valor,
@@ -203,6 +200,8 @@ function blocoExame(
       ],
     ],
   });
+
+  doc.blocoAteOFim(`${prefixo}.observacoes`, 'Observações gerais', 'Observações gerais', 16, 44);
 }
 
 /**
@@ -1116,7 +1115,6 @@ function tabelaChecklist(doc: Documento, secao: { titulo: string; itens: ItemChe
   doc.faixa(secao.titulo.toUpperCase());
   doc.tabela({
     compacta: true,
-    esticavel: true,
     colunas: [0.5, 0.08, 0.08, 0.08, 0.26],
     cabecalho: ['ITEM VERIFICADO', 'SIM', 'NÃO', 'N.A.', 'OBSERVAÇÃO'],
     linhas: secao.itens.map((it, i) => {
@@ -1147,7 +1145,6 @@ export function folhasChecklist(doc: Documento, m: ModeloRelatorio): void {
   if (documentacao) {
     doc.tabela({
       compacta: true,
-      esticavel: true,
       colunas: [0.46, 0.09, 0.1, 0.1, 0.25],
       cabecalho: ['DESCRIÇÃO', 'EXISTE', 'NÃO IDENT.', 'NÃO APLICA', 'OBSERVAÇÃO'],
       linhas: documentacao.itens.map((it, i) => {
@@ -1181,7 +1178,6 @@ export function folhasChecklist(doc: Documento, m: ModeloRelatorio): void {
   doc.faixa('INSTRUMENTOS E DISPOSITIVOS DE SEGURANÇA INSTALADOS');
   doc.tabela({
     compacta: true,
-    esticavel: true,
     colunas: [0.34, 0.13, 0.13, 0.4],
     cabecalho: ['INSTRUMENTO', 'POSSUI', 'CALIBRADO', 'Nº DO CERTIFICADO / VALIDADE'],
     linhas: m.instrumentos.map((inst, i) => [
@@ -1350,7 +1346,6 @@ export function folhaUltrassom(doc: Documento, m: ModeloRelatorio): void {
       doc.secao(regiao);
       doc.tabela({
         compacta: true,
-        esticavel: true,
         colunas: [0.26, ...Array(Math.max(angulos.length, 1)).fill(colMedida), 0.13, 0.13],
         cabecalho: [
           'REGIÃO / PONTO',
@@ -1392,13 +1387,6 @@ export function folhaUltrassom(doc: Documento, m: ModeloRelatorio): void {
 
   blocoInstrumentoPadrao(doc, m.ultrassom.instrumento, 'ultrassom');
 
-  doc.secao('Observações / conclusões do ensaio');
-  doc.texto(textoOu(m.ultrassom.observacoes, ''), {
-    cor: COR.valor,
-    id: 'ultrassom.observacoes',
-    rotuloCampo: 'Observações / conclusões do ensaio',
-  });
-
   doc.tabela({
     compacta: true,
     colunas: [0.3, 0.7],
@@ -1409,6 +1397,14 @@ export function folhaUltrassom(doc: Documento, m: ModeloRelatorio): void {
       ],
     ],
   });
+
+  doc.blocoAteOFim(
+    'ultrassom.observacoes',
+    'Observações / conclusões do ensaio',
+    'Observações / conclusões do ensaio',
+    16,
+    48,
+  );
   doc.fecharSecaoElastica();
 }
 
@@ -1577,7 +1573,7 @@ export function folhaParecer(doc: Documento, m: ModeloRelatorio): void {
   doc.banner('9. RECOMENDAÇÕES DE SEGURANÇA');
   doc.tabela({
     compacta: true,
-    esticavel: true,
+    alturaMinima: 9,
     colunas: [0.08, 0.62, 0.3],
     cabecalho: ['ITEM', 'RECOMENDAÇÃO', 'PRAZO'],
     linhas: [1, 2, 3, 4].map((n) => [
@@ -1591,7 +1587,6 @@ export function folhaParecer(doc: Documento, m: ModeloRelatorio): void {
   doc.banner('10. PARECER TÉCNICO CONCLUSIVO');
   doc.tabela({
     compacta: true,
-    esticavel: true,
     colunas: [0.7, 0.3],
     linhas: [
       [
@@ -1628,7 +1623,6 @@ export function folhaParecer(doc: Documento, m: ModeloRelatorio): void {
   // a categoria e o julgamento do engenheiro —, então nasce editável.
   doc.tabela({
     compacta: true,
-    esticavel: true,
     colunas: [0.45, 0.25, 0.3],
     cabecalho: ['EXAME', 'PRAZO', 'DATA LIMITE'],
     linhas: [
