@@ -41,7 +41,14 @@ import { contagensPorTag } from './catalogoRelatorios';
 import { formatarValor } from '../../calc/unidades';
 import type { SistemaUnidade } from '../../calc/unidades';
 
-const ROTULO_TIPO: Record<string, string> = {
+/**
+ * O tipo do equipamento como se escreve, e não como se guarda.
+ *
+ * Exportado porque o modal de criar mostra o mesmo rótulo no resumo do passo 2:
+ * ele estava imprimindo o valor cru (`vaso`) logo abaixo do nome, num lugar
+ * onde a lista ao lado escrevia 'Vaso de Pressão'.
+ */
+export const ROTULO_TIPO: Record<string, string> = {
   vaso: 'Vaso de Pressão',
   caldeira: 'Caldeira',
   autoclave: 'Autoclave',

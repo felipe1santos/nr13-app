@@ -69,6 +69,7 @@ import ModalFiltrosRelatorios, {
   type RecorteSituacao,
   type ValoresFiltro,
 } from './ModalFiltrosRelatorios';
+import { ROTULO_TIPO } from './CatalogoRelatoriosV9';
 import ModalNovaInspecao from './ModalNovaInspecao';
 import ModalRenomear from './ModalRenomear';
 import ModalSelecionarEquipamento from './ModalSelecionarEquipamento';
@@ -734,7 +735,7 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
               passo: 2,
               tag,
               descricao: item?.descricao ?? null,
-              tipoEq: item?.tipo ?? null,
+              tipoEq: item?.tipo ? (ROTULO_TIPO[item.tipo] ?? item.tipo) : null,
             })
           }
         />

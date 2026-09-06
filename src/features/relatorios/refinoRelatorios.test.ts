@@ -217,6 +217,30 @@ describe('14 · confirmar abre o editor com a escolha pronta', () => {
   });
 });
 
+describe('o backdrop da criação NÃO é o histórico da TAG', () => {
+  /**
+   * Defeito medido no navegador em 06/09/2026, depois de a criação virar modal.
+   *
+   * O modal levava a `?editor=1&tag=…`. O editor decide seu papel por 'tem TAG
+   * na URL?' — que agora respondia SIM — e caía no ramo do legado: montava o
+   * 'Histórico de Relatórios' daquele equipamento atrás do modal do container.
+   * A segunda lista voltava, escondida atrás de um modal.
+   */
+  it('vir com a escolha pronta conta como criação', () => {
+    expect(editor).toContain(
+      'escolhaPronta.current !== null || alvoLegadoDaUrl(window.location.search) === null,',
+    );
+    // A ordem importa: `criando` lê `escolhaPronta`, então ela vem antes.
+    expect(editor.indexOf('const escolhaPronta = useRef(')).toBeLessThan(
+      editor.indexOf('const criando = useRef('),
+    );
+  });
+
+  it('o resumo do passo 2 mostra o tipo por extenso, não o valor cru', () => {
+    expect(tela).toContain('ROTULO_TIPO[item.tipo] ?? item.tipo');
+    expect(catalogo).toContain('export const ROTULO_TIPO');
+  });
+});
 describe('15 · o legado continua alcançável', () => {
   it('`?legado=1` ainda leva à tela antiga', () => {
     expect(rota).toContain("return new URLSearchParams(search).get('legado') === '1' ? 'legado' : 'v9';");

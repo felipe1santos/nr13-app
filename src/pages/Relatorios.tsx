@@ -148,17 +148,44 @@ function RelatoriosLegado() {
   const [tela, setTela] = useState<Tela>('equipamentos');
 
   /**
+   * A CONFIGURAÇÃO já escolhida no modal de `/relatorios` (tipo e folhas).
+   *
+   * Vem no `state` da navegação, não na URL: são dezenas de nomes de arquivo, e
+   * uma query com isso dentro seria ilegível, quebraria ao ser copiada e viraria
+   * um segundo formato de "o que compõe o relatório" — quando o formato de
+   * verdade é o `documentos` do registro.
+   *
+   * Lida uma vez, na montagem. Sem ela nada muda: o editor abre e pergunta, que
+   * é o caminho de sempre e o que o `?legado=1` continua fazendo.
+   */
+  const escolhaPronta = useRef(
+    (window.history.state?.usr ?? null) as
+      | { tag: string; tipo: TipoInspecao; documentos: string[] }
+      | null,
+  );
+
+  /**
    * UX · esta tela tem DOIS papéis, e eles não podem se misturar.
    *
-   * 1. CRIAÇÃO (`?editor=1` sem relatório): escolher o equipamento e montar o
-   *    documento. O histórico daquele equipamento não interessa aqui — a lista
-   *    canônica de relatórios é `/relatorios`, e mostrar uma segunda lista no
-   *    meio do caminho de criar era a duplicidade que o dono apontou.
+   * 1. CRIAÇÃO (`?editor=1`): montar o documento. O histórico daquele
+   *    equipamento não interessa aqui — a lista canônica de relatórios é
+   *    `/relatorios`, e mostrar uma segunda lista no meio do caminho de criar
+   *    era a duplicidade que o dono apontou.
    * 2. LEGADO (`?legado=1&tag=…`): abrir um relatório salvo antes do
    *    §7-quater, que não tem PDF arquivado e só esta tela sabe remontar. Aí
    *    sim o histórico da TAG é o destino útil.
    */
-  const criando = useRef(alvoLegadoDaUrl(window.location.search) === null);
+  const criando = useRef(
+    // Vir COM a escolha pronta é criação, mesmo havendo `tag` na URL.
+    //
+    // Sem esta parte, o modal de criar levava a `?editor=1&tag=…`, o teste de
+    // "tem TAG na URL?" respondia sim, e o fluxo caía no ramo do LEGADO: a
+    // tela montava o "Histórico de Relatórios" daquele equipamento atrás do
+    // modal do container — de volta a segunda lista que a auditoria anterior
+    // removeu, agora escondida atrás de um modal. Medido no navegador em
+    // 06/09/2026.
+    escolhaPronta.current !== null || alvoLegadoDaUrl(window.location.search) === null,
+  );
   const [termoCatalogo, setTermoCatalogo] = useState('');
   const [tag, setTag] = useState('');
   const [etapaModal, setEtapaModal] = useState<EtapaModal>('nenhuma');
@@ -425,12 +452,6 @@ function RelatoriosLegado() {
    * Lida uma vez, na montagem. Sem ela, nada muda: o editor abre e pergunta,
    * que é o caminho de sempre e o que o `?legado=1` continua fazendo.
    */
-  const escolhaPronta = useRef(
-    (window.history.state?.usr ?? null) as
-      | { tag: string; tipo: TipoInspecao; documentos: string[] }
-      | null,
-  );
-
   const alvoUrl = useRef(alvoLegadoDaUrl(window.location.search));
   useEffect(() => {
     // Veio de `/relatorios` com tudo escolhido: nem lista de equipamento
