@@ -376,11 +376,25 @@ export async function gerarRelatorioVetorial(
   const total = paginasDoCorpo + anexas;
 
   // 2ª passagem: para valer, já com "Página X de Y" correto.
-  const pdf = novoPdf();
-  await registrarCarlito(pdf);
-  const doc = new Documento(pdf, cab, total, opcoes.modo ?? 'final', opcoes.overrides ?? {}, respiro);
-  emitir(doc, modelo, tem, paginasDasSecoes);
+  const desenhar = async (totalDoRodape: number) => {
+    const p = novoPdf();
+    await registrarCarlito(p);
+    const d = new Documento(p, cab, totalDoRodape, opcoes.modo ?? 'final', opcoes.overrides ?? {}, respiro);
+    emitir(d, modelo, tem, paginasDasSecoes);
+    return d;
+  };
 
+  let doc = await desenhar(total);
+
+  // O RODAPÉ NÃO PODE MENTIR: se a 2ª passagem terminar com um número de
+  // folhas diferente do que a 1ª contou — o respiro pode mudar uma quebra —,
+  // o documento é desenhado de novo com o total certo. Custa uma passagem, e
+  // só no caso em que o "de Y" estaria errado.
+  if (doc.pdf.getNumberOfPages() !== total - anexas) {
+    doc = await desenhar(doc.pdf.getNumberOfPages() + anexas);
+  }
+
+  const pdf = doc.pdf;
   let bytes = new Uint8Array(pdf.output('arraybuffer'));
   let paginas = pdf.getNumberOfPages();
   const falhasAnexo: string[] = [];

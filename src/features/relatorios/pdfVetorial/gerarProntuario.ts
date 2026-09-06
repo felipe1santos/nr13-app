@@ -177,11 +177,32 @@ export async function gerarProntuarioVetorial(tag: string): Promise<ResultadoPro
   const total = contagem.getNumberOfPages();
 
   // 2ª passagem: para valer.
-  const pdf = novoPdf();
-  await registrarCarlito(pdf);
-  const doc = new Documento(pdf, cab, total, 'final', {}, respiro);
-  (doc as unknown as { __croquis: Map<string, { png: string; proporcao: number }> }).__croquis = cache;
-  emitir(doc, modelo, paginasDasSecoes);
+  const desenhar = (totalDoRodape: number) => {
+    const p = novoPdf();
+    return registrarCarlito(p).then(() => {
+      const d = new Documento(p, cab, totalDoRodape, 'final', {}, respiro);
+      (d as unknown as { __croquis: Map<string, { png: string; proporcao: number }> }).__croquis = cache;
+      emitir(d, modelo, paginasDasSecoes);
+      return p;
+    });
+  };
+
+  let pdf = await desenhar(total);
+
+  // O RODAPÉ NÃO PODE MENTIR.
+  //
+  // A 1ª passagem conta as folhas; a 2ª desenha com esse total. Quando o
+  // respiro (ou qualquer coisa que dependa da 1ª medição) muda a quebra, a 2ª
+  // passagem sai com uma folha a mais e o rodapé anuncia "Página 1 de 10" num
+  // documento de 11 — foi o que se mediu no prontuário em 06/09/2026.
+  //
+  // Em vez de caçar cada causa possível, o gerador CONFERE: se o número de
+  // folhas não bater com o que o rodapé afirma, desenha de novo com o número
+  // certo. Acontece raramente, custa uma passagem, e o documento nunca sai
+  // dizendo um total que não é o dele.
+  if (pdf.getNumberOfPages() !== total) {
+    pdf = await desenhar(pdf.getNumberOfPages());
+  }
 
   return {
     bytes: new Uint8Array(pdf.output('arraybuffer')),

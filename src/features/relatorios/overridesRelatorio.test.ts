@@ -193,7 +193,9 @@ describe('H · a emissão usa o mesmo mapa da prévia', () => {
     const usos = gerador.match(/opcoes\.overrides \?\? \{\}/g) ?? [];
     expect(usos.length).toBe(3);
     expect(gerador).toContain('new Documento(contagem, cab, 0');
-    expect(gerador).toContain('new Documento(pdf, cab, total');
+    // A passagem de desenho virou função (`desenhar`): o gerador a repete
+    // quando o total do rodapé não bate, e ali o mapa tem de ser o mesmo.
+    expect(gerador).toContain('new Documento(p, cab, totalDoRodape');
   });
 
   it('o mapa é congelado no registro como rastreabilidade', () => {

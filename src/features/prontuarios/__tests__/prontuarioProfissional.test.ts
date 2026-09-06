@@ -97,7 +97,7 @@ describe('o mesmo design do relatório', () => {
     expect(folhas).toContain("doc.abrirSecaoElastica('pront-ultrassom')");
     expect(folhas).toContain("doc.abrirSecaoElastica('pront-dados')");
     expect(gerador).toContain('aoFecharSecaoElastica');
-    expect(gerador).toContain("new Documento(pdf, cab, total, 'final', {}, respiro)");
+    expect(gerador).toContain("new Documento(p, cab, totalDoRodape, 'final', {}, respiro)");
   });
 
   it('o sumário recebe a página real, colhida na 1ª passagem', () => {
