@@ -79,6 +79,10 @@ export class Documento {
   private secaoElastica: string | null = null;
   private extraPorLinha = 0;
   private linhasElasticas = 0;
+  /** Em que folha DA SEÇÃO o cursor está (1 = a primeira). */
+  private folhaDaSecao = 0;
+  /** Quantas linhas esticáveis já saíram na folha atual da seção. */
+  private linhasNaFolhaAtual = 0;
 
   constructor(
     pdf: jsPDF,
@@ -287,6 +291,8 @@ export class Documento {
   abrirSecaoElastica(chave: string): void {
     this.secaoElastica = chave;
     this.linhasElasticas = 0;
+    this.folhaDaSecao = 1;
+    this.linhasNaFolhaAtual = 0;
     const medido = this.respiro[chave];
     this.extraPorLinha = medido && medido.linhas > 0 ? Math.min(TETO_RESPIRO_LINHA, (medido.sobra * 0.9) / medido.linhas) : 0;
   }
@@ -295,19 +301,23 @@ export class Documento {
    * Avisado quando uma seção elástica fecha. Quem escuta é a 1ª passagem do
    * gerador, que guarda a medida para a 2ª distribuir.
    */
-  aoFecharSecaoElastica: ((m: { chave: string; sobra: number; linhas: number }) => void) | null = null;
+  aoFecharSecaoElastica: ((m: { chave: string; sobra: number; linhas: number; folhaFinal: number }) => void) | null = null;
 
   /** Fecha a seção e ANOTA o que sobrou nela — só a 1ª passagem usa isto. */
-  fecharSecaoElastica(): { chave: string; sobra: number; linhas: number } | null {
+  fecharSecaoElastica(): { chave: string; sobra: number; linhas: number; folhaFinal: number } | null {
     if (this.secaoElastica === null) return null;
     const medida = {
       chave: this.secaoElastica,
       sobra: Math.max(0, LIMITE_CORPO - this.cursor),
-      linhas: this.linhasElasticas,
+      // Só as linhas da ÚLTIMA folha dividem a sobra dela.
+      linhas: this.linhasNaFolhaAtual,
+      folhaFinal: this.folhaDaSecao,
     };
     this.secaoElastica = null;
     this.extraPorLinha = 0;
     this.linhasElasticas = 0;
+    this.folhaDaSecao = 0;
+    this.linhasNaFolhaAtual = 0;
     this.aoFecharSecaoElastica?.(medida);
     return medida;
   }
@@ -332,6 +342,10 @@ export class Documento {
   novaFolha(): void {
     if (this.pagina > 0) this.pdf.addPage();
     this.pagina++;
+    if (this.secaoElastica !== null) {
+      this.folhaDaSecao++;
+      this.linhasNaFolhaAtual = 0;
+    }
     cabecalho({ pdf: this.pdf, cabecalho: this.cab }, this.pagina, this.total, this.modo === 'preview');
     rodape({ pdf: this.pdf, cabecalho: this.cab });
     this.cursor = CORPO.y;
@@ -648,9 +662,15 @@ export class Documento {
         alturaLinha(tamanho) + padY * 2,
         opcoes.alturaMinima ?? 0,
       );
-      if (opcoes.esticavel) {
-        altura += this.extraPorLinha;
+      if (opcoes.esticavel && this.secaoElastica !== null) {
+        // O crescimento acontece SÓ na última folha da seção — a que tinha
+        // espaço sobrando. Esticar as anteriores empurraria conteúdo para
+        // frente e a seção ganharia uma folha: foi o que aconteceu na
+        // primeira versão, e o rodapé passou a dizer "de 29" num PDF de 30.
+        const medido = this.respiro[this.secaoElastica];
+        if (!medido || medido.folhaFinal === this.folhaDaSecao) altura += this.extraPorLinha;
         this.linhasElasticas++;
+        this.linhasNaFolhaAtual++;
       }
       {
         let i = 0;
@@ -798,7 +818,7 @@ export function celulaVazia(cel: CelulaDoc): boolean {
  * O que a 1ª passagem mediu por seção elástica: quanto sobrou no pé da folha e
  * quantas linhas poderiam ter crescido.
  */
-export type RespiroMedido = Record<string, { sobra: number; linhas: number }>;
+export type RespiroMedido = Record<string, { sobra: number; linhas: number; folhaFinal: number }>;
 
 /**
  * Quanto uma linha pode crescer para a folha respirar, em mm.

@@ -361,7 +361,7 @@ export async function gerarRelatorioVetorial(
   // terminavam no meio do papel. A 2ª passagem distribui essa sobra entre as
   // linhas, em vez de empurrar tudo para um retângulo em branco.
   rascunho.aoFecharSecaoElastica = (m) => {
-    respiro[m.chave] = { sobra: m.sobra, linhas: m.linhas };
+    respiro[m.chave] = { sobra: m.sobra, linhas: m.linhas, folhaFinal: m.folhaFinal };
   };
   emitir(rascunho, modelo, tem, new Map(), paginasDasSecoes);
   const paginasDoCorpo = contagem.getNumberOfPages();

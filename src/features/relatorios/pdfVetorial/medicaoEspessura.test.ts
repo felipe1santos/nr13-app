@@ -110,3 +110,20 @@ describe('o respiro das folhas curtas', () => {
     expect((folhas.match(/doc\.fecharSecaoElastica\(\)/g) ?? []).length).toBeGreaterThanOrEqual(2);
   });
 });
+
+describe('o respiro nunca cria uma página a mais', () => {
+  const documento = readFileSync('src/features/relatorios/pdfVetorial/documento.ts', 'utf8');
+
+  it('só a última folha da seção estica', () => {
+    // Primeira versão esticava todas as folhas da seção: o conteúdo empurrado
+    // ganhou uma página, e o rodapé — contado na 1ª passagem — passou a dizer
+    // "Página 29 de 29" num PDF de 30. Medido em produção em 06/09/2026.
+    expect(documento).toContain('medido.folhaFinal === this.folhaDaSecao');
+    expect(documento).toContain('linhas: this.linhasNaFolhaAtual');
+  });
+
+  it('a folha da seção é contada em novaFolha', () => {
+    expect(documento).toContain('this.folhaDaSecao++');
+    expect(documento).toContain('this.linhasNaFolhaAtual = 0');
+  });
+});
