@@ -18,6 +18,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { FILTRO_VAZIO, atalhoPeriodo, temAlgumFiltro } from './ModalFiltrosRelatorios';
 import { nomeDoDocumento, nomeSugerido } from './nomeDocumento';
+import { papelDaTelaLegada } from './rotaRelatorios';
 
 const tela = readFileSync('src/features/relatorios/RelatoriosV9.tsx', 'utf8');
 const css = readFileSync('src/pages/relatorios.css', 'utf8');
@@ -219,21 +220,38 @@ describe('14 · confirmar abre o editor com a escolha pronta', () => {
 
 describe('o backdrop da criação NÃO é o histórico da TAG', () => {
   /**
-   * Defeito medido no navegador em 06/09/2026, depois de a criação virar modal.
+   * HISTÓRICO DESTE TESTE — ele já falhou duas vezes, de dois jeitos.
    *
-   * O modal levava a `?editor=1&tag=…`. O editor decide seu papel por 'tem TAG
-   * na URL?' — que agora respondia SIM — e caía no ramo do legado: montava o
-   * 'Histórico de Relatórios' daquele equipamento atrás do modal do container.
-   * A segunda lista voltava, escondida atrás de um modal.
+   * 1ª tentativa (06/09, manhã): a tela decidia seu papel por
+   *    `alvoLegadoDaUrl(search) === null`, ou seja "tem `tag` na URL?". O modal
+   *    de criar passou a mandar a TAG, a resposta virou "sim", e o fluxo caiu
+   *    no ramo do legado.
+   * 2ª tentativa (06/09, tarde): passou-se a aceitar também "veio com a escolha
+   *    pronta". Isso cobria o caminho de CRIAR e deixava de fora o de
+   *    CONTINUAR RASCUNHO — `?editor=1&tag=…&rel=…`, que navega sem `state`.
+   *    Era essa a URL do bug relatado.
+   *
+   * A correção definitiva não é mais uma condição: é a rota DIZER o papel.
+   * `?editor=1` é editor, `?legado=1` é legado, e nenhuma das duas se deduz do
+   * resto da query.
    */
-  it('vir com a escolha pronta conta como criação', () => {
-    expect(editor).toContain(
-      'escolhaPronta.current !== null || alvoLegadoDaUrl(window.location.search) === null,',
-    );
-    // A ordem importa: `criando` lê `escolhaPronta`, então ela vem antes.
-    expect(editor.indexOf('const escolhaPronta = useRef(')).toBeLessThan(
-      editor.indexOf('const criando = useRef('),
-    );
+  it('o papel vem da ROTA, não de heurística sobre a query', () => {
+    expect(rota).toContain("export function papelDaTelaLegada(search: string): 'editor' | 'legado' {");
+    expect(editor).toContain('const papel = useRef(papelDaTelaLegada(window.location.search));');
+    // A pergunta que errou duas vezes não decide mais nada.
+    expect(editor).not.toContain('alvoLegadoDaUrl(window.location.search) === null');
+  });
+
+  it('`?editor=1` é editor com ou sem tag e rel', () => {
+    expect(papelDaTelaLegada('?editor=1')).toBe('editor');
+    expect(papelDaTelaLegada('?editor=1&tag=ZZ-TESTE-P2')).toBe('editor');
+    // A URL exata do bug relatado.
+    expect(papelDaTelaLegada('?editor=1&tag=ZZ-TESTE-P2&rel=REL-1788571268261')).toBe('editor');
+  });
+
+  it('`?legado=1` continua sendo legado', () => {
+    expect(papelDaTelaLegada('?legado=1&tag=ZZ-TESTE-P2')).toBe('legado');
+    expect(papelDaTelaLegada('?legado=1&tag=X&rel=REL-1')).toBe('legado');
   });
 
   it('o resumo do passo 2 mostra o tipo por extenso, não o valor cru', () => {
@@ -241,6 +259,83 @@ describe('o backdrop da criação NÃO é o histórico da TAG', () => {
     expect(catalogo).toContain('export const ROTULO_TIPO');
   });
 });
+
+describe('a segunda lista não existe no fluxo moderno', () => {
+  it('o "Histórico de Relatórios" só renderiza no papel legado', () => {
+    // Guarda ESTRUTURAL: mesmo que `tela` chegue a 'historico' por outro
+    // caminho, no papel editor o bloco não é montado.
+    expect(editor).toContain("{tela === 'historico' && papel.current === 'legado' && (");
+    // E o título existe uma vez só no arquivo — não há uma segunda cópia.
+    expect((editor.match(/<h3>Histórico de Relatórios<\/h3>/g) ?? []).length).toBe(1);
+  });
+
+  it('o segundo "+ Criar Relatório" saiu', () => {
+    // Fora de comentário: o que conta é o texto RENDERIZADO. Os comentários
+    // que explicam a remoção citam o rótulo antigo, e devem poder citá-lo.
+    const semComentarios = editor
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/^\s*\/\/.*$/gm, '');
+    expect(semComentarios).not.toContain('+ Criar Relatório');
+    // Criar é ação da lista canônica, e lá o botão continua.
+    expect(tela).toContain('Criar relatório');
+  });
+
+  it('abrir o equipamento não decide mais a tela sozinho', () => {
+    // Era `abrirEquipamento` que fazia `setTela('historico')` no fim, e por
+    // isso TODO caminho que carregasse um equipamento passava pela segunda
+    // lista. Agora quem chama diz por que está abrindo.
+    const corpo = /async function abrirEquipamento\([\s\S]*?\n  \}/.exec(editor)![0];
+    expect(corpo).not.toContain("setTela('historico')");
+    expect(corpo).not.toContain("setTela('criacao')");
+    expect(editor).toContain('async function escolherEquipamento(novaTag: string)');
+  });
+
+  it('a lista canônica não tem outra tabela de relatórios dentro', () => {
+    expect(tela).not.toContain('meta-table');
+    expect((tela.match(/rel-tabela-v9/g) ?? []).length).toBeGreaterThan(0);
+  });
+});
+
+describe('`rel=` aponta para um documento, e o destino é o documento', () => {
+  it('não resolvendo, o editor volta para a lista canônica', () => {
+    // ANTES: `visualizar` retornava cedo, em silêncio, e a tela FICAVA no
+    // histórico por TAG. Uma lista que aparece quando algo falha é pior do que
+    // um erro — ela parece um destino.
+    expect(editor).toContain('async function abrirDocumentoDaUrl(tagAlvo: string, rel: string)');
+    expect(editor).toContain('if (item && (await visualizar(item))) return;');
+    expect(editor).toContain("navegar('/relatorios', { replace: true });");
+  });
+
+  it('`visualizar` informa quando o registro não existe', () => {
+    const corpo = /async function visualizar\(item: RelatorioIndiceItem\): Promise<boolean> \{[\s\S]*?\n    if \(!r\) return false;/.exec(
+      editor,
+    );
+    expect(corpo).not.toBeNull();
+  });
+
+  it('sem `rel`, o editor não fica numa lista', () => {
+    expect(editor).toContain("if (papel.current === 'legado') setTela('historico');");
+    expect(editor).toContain("else navegar('/relatorios', { replace: true });");
+  });
+});
+
+describe('quem gera as URLs do editor e do legado', () => {
+  it('só o dispatcher navega, e cada verbo tem seu destino', () => {
+    // Quatro produtores, e nenhum outro arquivo do app monta essas rotas.
+    expect(editor).toContain('aoAbrir={(r) => navigate(urlDoLegado(r.tag, r.relatorioId))}');
+    expect(editor).toContain('aoContinuarRascunho={(r) => navigate(urlDoEditor(r.tag, r.id))}');
+    expect(editor).toContain('navigate(urlDoEditor(escolha.tag), { state: escolha })');
+    expect(editor).toContain('navigate(urlDoEditor())');
+  });
+
+  it('a lista canônica abre o finalizado nela mesma, sem navegar', () => {
+    // `abrir` resolve o artefato no próprio visualizador; `aoAbrir` só é
+    // chamado para o legado SEM arquivo. É o que impede o clique em
+    // "visualizar" de virar uma volta pelo histórico.
+    expect(tela).toContain('if (artefatoDoItemBuscado(r)) setAberto(r);');
+  });
+});
+
 describe('15 · o legado continua alcançável', () => {
   it('`?legado=1` ainda leva à tela antiga', () => {
     expect(rota).toContain("return new URLSearchParams(search).get('legado') === '1' ? 'legado' : 'v9';");

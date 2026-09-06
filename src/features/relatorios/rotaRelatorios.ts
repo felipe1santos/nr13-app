@@ -40,6 +40,28 @@ export function modoRelatorios(search: string): 'v9' | 'legado' {
   return new URLSearchParams(search).get('legado') === '1' ? 'legado' : 'v9';
 }
 
+/**
+ * QUAL DOS DOIS PAPÉIS aquele arquivo está exercendo.
+ *
+ * `pages/Relatorios.tsx` é DUAS telas num componente só, e confundi-las foi o
+ * defeito relatado em 06/09/2026: `/relatorios?editor=1&tag=…&rel=…` mostrava
+ * o "Histórico de Relatórios" daquele equipamento — uma segunda lista, com
+ * outro "+ Criar Relatório" dentro — em pleno fluxo moderno.
+ *
+ * - `editor`  (`?editor=1`): CRIAR ou CONTINUAR um documento. A lista canônica
+ *   é `/relatorios`, e este papel NUNCA mostra lista de relatório nenhuma. Se
+ *   o `rel=` não resolver, o destino é `/relatorios` — não um histórico
+ *   paralelo onde o usuário fica parado sem entender o que aconteceu.
+ * - `legado` (`?legado=1`): abrir documento anterior ao §7-quater, que não tem
+ *   PDF arquivado e só esta tela sabe remontar. AQUI o histórico por TAG é
+ *   legítimo: é a única forma de achar um documento que não está na projeção.
+ *
+ * A decisão NÃO pode sair de "tem `tag` na URL?". Foi essa a pergunta que a
+ * correção anterior usou, e as duas rotas têm `tag`.
+ */
+export function papelDaTelaLegada(search: string): 'editor' | 'legado' {
+  return new URLSearchParams(search).get('editor') === '1' ? 'editor' : 'legado';
+}
 /** Para onde a tela legada deve ir ao abrir, quando a URL pede um documento. */
 export interface AlvoLegado {
   tag: string;

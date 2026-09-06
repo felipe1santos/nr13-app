@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import RelatoriosV9 from '../features/relatorios/RelatoriosV9';
-import { alvoLegadoDaUrl, modoRelatorios, urlDoEditor, urlDoLegado } from '../features/relatorios/rotaRelatorios';
+import {
+  alvoLegadoDaUrl,
+  modoRelatorios,
+  papelDaTelaLegada,
+  urlDoEditor,
+  urlDoLegado,
+} from '../features/relatorios/rotaRelatorios';
 import { usePalcoDocumento } from '../features/documentos/usePalcoDocumento';
 import { paramsSomenteLeitura, travarIframeSomenteLeitura } from '../features/documentos/somenteLeituraDoc';
 import { acompanharCamposVazios } from '../features/documentos/camposVazios';
@@ -165,27 +171,27 @@ function RelatoriosLegado() {
   );
 
   /**
-   * UX · esta tela tem DOIS papéis, e eles não podem se misturar.
+   * O PAPEL desta tela, decidido pela ROTA — nunca por heurística.
    *
-   * 1. CRIAÇÃO (`?editor=1`): montar o documento. O histórico daquele
-   *    equipamento não interessa aqui — a lista canônica de relatórios é
-   *    `/relatorios`, e mostrar uma segunda lista no meio do caminho de criar
-   *    era a duplicidade que o dono apontou.
-   * 2. LEGADO (`?legado=1&tag=…`): abrir um relatório salvo antes do
-   *    §7-quater, que não tem PDF arquivado e só esta tela sabe remontar. Aí
-   *    sim o histórico da TAG é o destino útil.
+   * 1. `editor` (`?editor=1`): criar ou continuar um documento. A lista
+   *    canônica é `/relatorios`, e este papel NUNCA mostra lista de relatório.
+   * 2. `legado` (`?legado=1&tag=…`): abrir documento anterior ao §7-quater,
+   *    sem PDF arquivado, que só esta tela sabe remontar. Aí o histórico por
+   *    TAG é o destino legítimo — é a única forma de achar um documento que
+   *    não está na projeção.
+   *
+   * ## O QUE ESTAVA ERRADO (06/09/2026)
+   *
+   * A decisão era `alvoLegadoDaUrl(search) === null`, ou seja "tem `tag` na
+   * URL?". As DUAS rotas têm `tag`. Resultado:
+   * `/relatorios?editor=1&tag=…&rel=…` — a URL que "continuar editando" gera —
+   * era classificada como legado e montava o "Histórico de Relatórios" daquele
+   * equipamento, com outra tabela e outro "+ Criar Relatório" dentro. No
+   * caminho feliz o histórico era um piscar, porque `visualizar` trocava a tela
+   * logo depois; quando o registro não carregava, `visualizar` voltava cedo e o
+   * usuário FICAVA na segunda lista. Foi assim que o dono a encontrou.
    */
-  const criando = useRef(
-    // Vir COM a escolha pronta é criação, mesmo havendo `tag` na URL.
-    //
-    // Sem esta parte, o modal de criar levava a `?editor=1&tag=…`, o teste de
-    // "tem TAG na URL?" respondia sim, e o fluxo caía no ramo do LEGADO: a
-    // tela montava o "Histórico de Relatórios" daquele equipamento atrás do
-    // modal do container — de volta a segunda lista que a auditoria anterior
-    // removeu, agora escondida atrás de um modal. Medido no navegador em
-    // 06/09/2026.
-    escolhaPronta.current !== null || alvoLegadoDaUrl(window.location.search) === null,
-  );
+  const papel = useRef(papelDaTelaLegada(window.location.search));
   const [termoCatalogo, setTermoCatalogo] = useState('');
   const [tag, setTag] = useState('');
   const [etapaModal, setEtapaModal] = useState<EtapaModal>('nenhuma');
@@ -466,22 +472,54 @@ function RelatoriosLegado() {
       return;
     }
     const alvo = alvoUrl.current;
-    if (!alvo) return;
-    abrirEquipamento(alvo.tag);
-    if (!alvo.rel) return;
-    // O RASCUNHO NÃO ESTÁ NO ÍNDICE, e é isso que o faz não gerar vencimento
-    // nem aparecer no Portal (10B.1). Procurar só no índice deixava o link de
-    // "continuar editando" parando no histórico do equipamento, sem abrir nada.
-    // O registro existe na mesma chave de sempre, e é o que `visualizar` lê:
-    // ele só usa `id` e `tagVaso` deste item.
-    const item =
-      listarHistorico(alvo.tag).find((i) => i.id === alvo.rel) ??
-      (carregarRelatorio(alvo.rel, alvo.tag)
-        ? ({ id: alvo.rel, tagVaso: alvo.tag } as RelatorioIndiceItem)
-        : undefined);
-    if (item) void visualizar(item);
+    if (!alvo) {
+      // `?editor=1` puro: escolher o equipamento é o passo que falta. O
+      // `legado=1` sem TAG não tem destino — cai na escolha, como sempre.
+      return;
+    }
+    void (async () => {
+      await abrirEquipamento(alvo.tag);
+      if (!alvo.rel) {
+        // Sem documento pedido: no legado, o histórico daquela TAG É o destino.
+        // No editor, não existe destino sem documento — a lista canônica é
+        // `/relatorios`, e criar já teria trazido a escolha pronta.
+        if (papel.current === 'legado') setTela('historico');
+        else navegar('/relatorios', { replace: true });
+        return;
+      }
+      await abrirDocumentoDaUrl(alvo.tag, alvo.rel);
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- montagem, de propósito
   }, []);
+
+  /**
+   * O `rel=` da URL aponta para UM documento — então o destino é o documento.
+   *
+   * Não resolvendo (registro ainda não hidratado, id de outra organização, link
+   * antigo), o editor volta para `/relatorios`. Antes ele simplesmente PARAVA:
+   * `visualizar` retornava cedo e a tela ficava no histórico por TAG, que é a
+   * segunda lista. Uma lista que aparece quando algo falha é pior do que um
+   * erro — ela parece um destino.
+   */
+  async function abrirDocumentoDaUrl(tagAlvo: string, rel: string) {
+    // O RASCUNHO NÃO ESTÁ NO ÍNDICE, e é isso que o faz não gerar vencimento
+    // nem aparecer no Portal (10B.1). Procurar só no índice deixava o link de
+    // "continuar editando" sem abrir nada. O registro existe na mesma chave de
+    // sempre, e é o que `visualizar` lê: ele só usa `id` e `tagVaso`.
+    const item =
+      listarHistorico(tagAlvo).find((i) => i.id === rel) ??
+      (carregarRelatorio(rel, tagAlvo)
+        ? ({ id: rel, tagVaso: tagAlvo } as RelatorioIndiceItem)
+        : undefined);
+    if (item && (await visualizar(item))) return;
+    if (papel.current === 'legado') {
+      // No legado o histórico da TAG é o lugar certo para procurar: o documento
+      // pode estar lá com outro id, e não existe projeção que o encontre.
+      setTela('historico');
+      return;
+    }
+    navegar('/relatorios', { replace: true });
+  }
 
 
   async function abrirEquipamento(novaTag: string) {
@@ -497,11 +535,16 @@ function RelatoriosLegado() {
     setDocumentos(null);
     setMeta(null);
     setSelecionados(new Set());
-    // Criação vai DIRETO para a montagem: equipamento escolhido → documentos.
-    // Antes passava pelo "Histórico de Relatórios" daquele equipamento, com
-    // outro "+ Criar Relatório" dentro — dois cliques a mais e uma segunda
-    // lista para a mesma coisa.
-    if (criando.current) {
+    // NÃO decide a tela. Quem chama sabe por que está abrindo o equipamento —
+    // criar um documento, continuar um, ou consultar o histórico legado —, e
+    // misturar as três decisões aqui dentro foi o que fez a rota do editor
+    // cair no histórico.
+  }
+
+  /** Escolher o equipamento na lista: criar (editor) ou consultar (legado). */
+  async function escolherEquipamento(novaTag: string) {
+    await abrirEquipamento(novaTag);
+    if (papel.current === 'editor') {
       setTela('criacao');
       setEtapaModal('documentos');
       return;
@@ -513,12 +556,17 @@ function RelatoriosLegado() {
     setTela('equipamentos');
   }
 
+  /**
+   * O "voltar" do visualizador.
+   *
+   * No papel `editor` devolve à lista canônica; só no `legado` volta ao
+   * histórico por TAG — que ali é de onde a pessoa veio, e a única lista que
+   * enxerga aquele documento.
+   */
   function voltarParaHistorico() {
     setRelatorioArquivado(null);
     setErroSalvar('');
-    // No fluxo de CRIAÇÃO o "voltar" devolve à lista canônica — não a um
-    // histórico paralelo que o usuário nunca pediu para ver.
-    if (criando.current) {
+    if (papel.current === 'editor') {
       navegar('/relatorios');
       return;
     }
@@ -663,11 +711,19 @@ function RelatoriosLegado() {
 
   // Re-hidrata as chaves "atuais" que os templates leem do localStorage ANTES de remontar os
   // iframes, senão um relatório reaberto exibe a meta/dados de campo do último relatório gerado.
-  async function visualizar(item: RelatorioIndiceItem) {
+  /**
+   * Abre um documento. Devolve `false` quando o registro não existe.
+   *
+   * O retorno existe porque antes ela apenas retornava, em silêncio, deixando
+   * a tela onde estivesse — e onde estivesse era o histórico por TAG, a
+   * segunda lista. Quem chama precisa saber que falhou para escolher um
+   * destino honesto.
+   */
+  async function visualizar(item: RelatorioIndiceItem): Promise<boolean> {
     // A lista é o ÍNDICE. O registro completo (meta com snapshots, documentos,
     // livroSnapshot) é carregado agora, e só o deste relatório.
     let r = carregarRelatorio(item.id, item.tagVaso);
-    if (!r) return;
+    if (!r) return false;
     // RASCUNHO: abrir é CONTINUAR EDITANDO de onde parou, não visualizar. Ele
     // não tem artefato (nunca gerou PDF), então cai no caminho de remontagem —
     // que aqui é o certo: é o documento em edição, montado dos dados vivos.
@@ -687,7 +743,7 @@ function RelatoriosLegado() {
       setSomenteLeitura(true);
       setErroSalvar('');
       setTela('visualizador');
-      return;
+      return true;
     }
 
     let dadosContainer: unknown = {};
@@ -737,6 +793,7 @@ function RelatoriosLegado() {
     setModoRascunho(rascunho);
     setVersao((v) => v + 1);
     setTela('visualizador');
+    return true;
   }
 
   async function duplicar(item: RelatorioIndiceItem) {
@@ -1124,7 +1181,7 @@ function RelatoriosLegado() {
           <CatalogoRelatoriosV9
             termo={termoCatalogo}
             aoMudarTermo={setTermoCatalogo}
-            aoEscolher={(t) => void abrirEquipamento(t)}
+            aoEscolher={(t) => void escolherEquipamento(t)}
           />
         </div>
       )}
@@ -1151,7 +1208,15 @@ function RelatoriosLegado() {
         </div>
       )}
 
-      {tela === 'historico' && (
+      {/* HISTÓRICO POR TAG · SÓ NO PAPEL LEGADO.
+          Esta é a segunda lista de relatórios do sistema, e ela existe por um
+          motivo que não expirou: documento anterior ao §7-quater não está na
+          projeção, não tem PDF arquivado, e não há como alcançá-lo pela lista
+          canônica. Fora disso ela não pode aparecer — e a guarda é ESTRUTURAL,
+          não uma transição de estado que alguém esqueça de cobrir: mesmo que
+          `tela` chegue a 'historico' por outro caminho, no papel `editor` este
+          bloco não renderiza. */}
+      {tela === 'historico' && papel.current === 'legado' && (
         <div className="bloco-dados">
           <div className="meta-breadcrumb">
             <button type="button" className="btn-secundario" onClick={voltarParaEquipamentos}>
@@ -1193,8 +1258,18 @@ function RelatoriosLegado() {
                   ))}
                 </div>
               )}
-              <button type="button" className="btn-primario" onClick={abrirEtapaDocumentos}>
-                + Criar Relatório
+              {/* O "+ Criar Relatório" SAIU daqui (06/09/2026).
+                  Criar um relatório é a ação da lista canônica, e um segundo
+                  botão com o mesmo verbo em outra tela é exatamente a
+                  duplicidade que esta rodada elimina. Quem está no histórico
+                  legado veio consultar um documento antigo. */}
+              <button
+                type="button"
+                className="btn-secundario"
+                onClick={() => navegar('/relatorios')}
+                title="A criação de relatórios acontece na lista principal"
+              >
+                Ir para Relatórios
               </button>
             </div>
           </div>
@@ -1641,7 +1716,7 @@ function RelatoriosLegado() {
         <ModalNovaInspecao
           onClose={() => {
             setEtapaModal('nenhuma');
-            if (criando.current && tela === 'criacao') voltarParaEquipamentos();
+            if (papel.current === 'editor' && tela === 'criacao') voltarParaEquipamentos();
           }}
           onGerar={avancarParaEtapaContainer}
           tag={tag}
