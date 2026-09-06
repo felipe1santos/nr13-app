@@ -311,4 +311,17 @@ h1, h2, h3, h4, .titulo-display {
 
   /* barras de navegação quebram linha */
   .meta-breadcrumb { flex-wrap: wrap; }
+
+  /* UX · ALVO DE TOQUE (06/09/2026). O botão do sistema tem 34px de altura —
+     bom no mouse, curto no dedo: o mínimo recomendado é 44px, e este sistema é
+     preenchido EM CAMPO, no celular, que é o §1 do CLAUDE.md. Vale para as
+     duas famílias, que desde hoje têm a mesma métrica. Só `min-height`: o
+     padding continua o do desktop, então nada muda onde o botão já era alto. */
+  .btn-primario,
+  .btn-secundario,
+  .fj-btn { min-height: 44px; }
+
+  /* Exceção: botão só-de-ícone dentro de linha de lista. Ele já é quadrado e
+     esticá-lo desalinharia a linha inteira; o alvo dele cresce por padding. */
+  .btn-icone { min-height: 38px; min-width: 38px; }
 }

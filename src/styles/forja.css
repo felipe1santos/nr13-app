@@ -86,7 +86,11 @@
 
 /* ===== Botões ===== */
 .fj-btn {
-  border: none;
+  /* UX · `1px transparent`, não `none`. Com `border:none` o botão do Forja
+     saía 2px MAIS BAIXO que o `.btn-primario` (32 contra 34), e as duas
+     famílias aparecem lado a lado — em Prontuários, na barra de ações do
+     relatório. Medido em headless com o CSS de produção. */
+  border: 1px solid transparent;
   border-radius: 8px;
   font-weight: 600;
   font-size: 12.5px;
