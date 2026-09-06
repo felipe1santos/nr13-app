@@ -2,17 +2,12 @@ import { jsPDF } from 'jspdf';
 import { registrarCarlito } from './carlito';
 import { Documento } from './documento';
 import {
-  folhaProntCapa,
-  folhaProntContinuacao,
   folhaProntCroqui,
-  folhaProntFolhaDados,
+  folhaProntDadosTecnicos,
+  folhaProntIdentificacao,
   folhaProntMemorial,
-  folhaProntProntuario,
-  folhaProntSumario,
-  secoesDoProntuario,
+  folhaProntUltrassom,
 } from './folhasProntuario';
-import { folhaProntUltrassom } from './folhasProntuario';
-import type { RespiroMedido } from './documento';
 import { montarModeloProntuario, type ModeloProntuario } from './modeloProntuario';
 
 /**
@@ -54,34 +49,23 @@ export interface ResultadoProntuario {
  * usa esse mapa para o sumário trazer a página real. É o mesmo mecanismo do
  * relatório e não custa uma passagem a mais.
  */
-function emitir(
-  doc: Documento,
-  m: ModeloProntuario,
-  paginas: Map<string, number> = new Map(),
-  registrar?: Map<string, number>,
-): void {
-  const titulos = secoesDoProntuario(m);
-  let i = 0;
-  const secao = (fn: () => void) => {
-    const inicio = doc.pdf.getNumberOfPages() + 1;
-    fn();
-    if (registrar && titulos[i]) registrar.set(titulos[i], inicio);
-    i++;
-  };
-
-  folhaProntCapa(doc, m);
-  folhaProntSumario(doc, m, paginas);
-  secao(() => folhaProntUltrassom(doc, m));
-  if (m.tipoEquipamento === 'vaso') {
-    // Croqui e folha de dados só existem para VASO (§8): caldeira e autoclave
-    // não têm modelo de croqui, e um desenho genérico num prontuário assinado
-    // afirmaria uma geometria que não é a do equipamento.
-    secao(() => folhaProntCroqui(doc, m));
-    secao(() => folhaProntFolhaDados(doc, m));
-  }
-  secao(() => folhaProntProntuario(doc, m));
-  secao(() => folhaProntContinuacao(doc, m));
-  secao(() => folhaProntMemorial(doc, m));
+/**
+ * As folhas, na ordem — quatro para caldeira e autoclave, cinco para vaso.
+ *
+ * Sem capa e sem sumário: o prontuário é documento de consulta, e duas folhas
+ * para anunciar quatro é o oposto de compacto. A assinatura sai UMA vez, na
+ * última folha.
+ */
+function emitir(doc: Documento, m: ModeloProntuario): void {
+  const temCroqui = m.tipoEquipamento === 'vaso';
+  folhaProntIdentificacao(doc, m);
+  folhaProntDadosTecnicos(doc, m);
+  folhaProntUltrassom(doc, m);
+  // Croqui e dimensões só para VASO (§8): caldeira e autoclave não têm modelo
+  // de croqui, e um desenho genérico num documento assinado afirmaria uma
+  // geometria que não é a do equipamento.
+  if (temCroqui) folhaProntCroqui(doc, m);
+  folhaProntMemorial(doc, m, temCroqui ? 5 : 4);
 }
 
 /**
@@ -215,21 +199,16 @@ export async function gerarProntuarioVetorial(tag: string): Promise<ResultadoPro
   await registrarCarlito(contagem);
   const rascunho = new Documento(contagem, cab, 0);
   (rascunho as unknown as { __croquis: Map<string, { png: string; proporcao: number }> }).__croquis = cache;
-  const paginasDasSecoes = new Map<string, number>();
-  const respiro: RespiroMedido = {};
-  rascunho.aoFecharSecaoElastica = (medida) => {
-    respiro[medida.chave] = { sobra: medida.sobra, linhas: medida.linhas, folhaFinal: medida.folhaFinal };
-  };
-  emitir(rascunho, modelo, new Map(), paginasDasSecoes);
+  emitir(rascunho, modelo);
   const total = contagem.getNumberOfPages();
 
   // 2ª passagem: para valer.
   const desenhar = (totalDoRodape: number) => {
     const p = novoPdf();
     return registrarCarlito(p).then(() => {
-      const d = new Documento(p, cab, totalDoRodape, 'final', {}, respiro);
+      const d = new Documento(p, cab, totalDoRodape);
       (d as unknown as { __croquis: Map<string, { png: string; proporcao: number }> }).__croquis = cache;
-      emitir(d, modelo, paginasDasSecoes);
+      emitir(d, modelo);
       return p;
     });
   };

@@ -60,7 +60,7 @@ describe('a composição do prontuário espelha a tela — uma fonte só', () =>
     localStorage.setItem(`nr13_info_${TAG}`, JSON.stringify({ tipo: 'caldeira' }));
     const s = secoesDoProntuario(montarModeloProntuario(TAG));
     expect(s).not.toContain('Croqui 2D cotado');
-    expect(s).toContain('Resumo dos cálculos');
+    expect(s).toContain('Memorial de cálculo');
   });
 });
 

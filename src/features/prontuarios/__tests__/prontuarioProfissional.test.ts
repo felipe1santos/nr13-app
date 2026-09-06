@@ -25,60 +25,69 @@ describe('o croqui 2D é do VASO — caldeira e autoclave ficam sem ele', () => 
   const folhas = readFileSync('src/features/relatorios/pdfVetorial/folhasProntuario.ts', 'utf8');
   const gerador = readFileSync('src/features/relatorios/pdfVetorial/gerarProntuario.ts', 'utf8');
 
-  it('as folhas de croqui e de dados só são emitidas para vaso', () => {
-    expect(gerador).toContain("if (m.tipoEquipamento === 'vaso')");
-    const trecho = gerador.slice(gerador.indexOf("if (m.tipoEquipamento === 'vaso')"), gerador.indexOf('secao(() => folhaProntProntuario'));
-    expect(trecho).toContain('folhaProntCroqui');
-    expect(trecho).toContain('folhaProntFolhaDados');
+  it('a folha de croqui só é emitida para vaso', () => {
+    expect(gerador).toContain("const temCroqui = m.tipoEquipamento === 'vaso'");
+    expect(gerador).toContain('if (temCroqui) folhaProntCroqui(doc, m)');
   });
 
-  it('o desenho na folha de ultrassom também é condicionado ao tipo', () => {
-    // Um equipamento que já foi vaso e virou caldeira ainda tem
-    // `nr13_croqui2d_<TAG>` gravado. Sem a condição, o desenho antigo apareceria
-    // num prontuário de caldeira — geometria que não é a do equipamento.
-    expect(folhas).toContain("m.tipoEquipamento === 'vaso' && m.croqui.longitudinal");
-    // E o desenho só entra na folha 1 quando cabe junto da assinatura.
-    expect(folhas).toContain("espacoCroqui >= 34");
+  it('a numeração da última folha acompanha a existência do croqui', () => {
+    // Sem croqui, o memorial é a seção 4; com croqui, a 5. Um documento que
+    // pula de "3" para "5" faz o leitor procurar a folha que não existe.
+    expect(gerador).toContain('folhaProntMemorial(doc, m, temCroqui ? 5 : 4)');
   });
 
-  it('o sumário não anuncia croqui em caldeira nem em autoclave', () => {
-    expect(secoesDoProntuario(modelo('vaso'))).toContain('Croqui 2D cotado');
-    expect(secoesDoProntuario(modelo('vaso'))).toContain('Folha de dados');
+  it('as seções acompanham o tipo do equipamento', () => {
+    expect(secoesDoProntuario(modelo('vaso'))).toEqual([
+      'Identificação do equipamento',
+      'Dados técnicos e categorização',
+      'Medição de espessura por ultrassom',
+      'Croqui 2D cotado e dimensões',
+      'Memorial de cálculo',
+    ]);
     for (const tipo of ['caldeira', 'autoclave']) {
-      const s = secoesDoProntuario(modelo(tipo));
-      expect(s, tipo).not.toContain('Croqui 2D cotado');
-      expect(s, tipo).not.toContain('Folha de dados');
-      // O que sobra continua completo: ultrassom, prontuário, procedimentos e
-      // memorial saem para todo tipo de equipamento.
-      expect(s).toEqual([
+      expect(secoesDoProntuario(modelo(tipo)), tipo).toEqual([
+        'Identificação do equipamento',
+        'Dados técnicos e categorização',
         'Medição de espessura por ultrassom',
-        'Prontuário do equipamento',
-        'Procedimentos e dispositivos de segurança',
-        'Resumo dos cálculos',
+        'Memorial de cálculo',
       ]);
     }
   });
+
+  it('a folha de croqui existe só uma vez no arquivo de folhas', () => {
+    expect((folhas.match(/export function folhaProntCroqui/g) ?? []).length).toBe(1);
+  });
 });
 
-describe('o mesmo design do relatório', () => {
+describe('modelo próprio: compacto, com UMA assinatura no fim', () => {
   const folhas = readFileSync('src/features/relatorios/pdfVetorial/folhasProntuario.ts', 'utf8');
   const gerador = readFileSync('src/features/relatorios/pdfVetorial/gerarProntuario.ts', 'utf8');
   const primitivas = readFileSync('src/features/relatorios/pdfVetorial/primitivas.ts', 'utf8');
 
-  it('tem capa e sumário, emitidos nessa ordem', () => {
-    expect(folhas).toContain('export function folhaProntCapa');
-    expect(folhas).toContain('export function folhaProntSumario');
-    const i = gerador.indexOf('folhaProntCapa(doc, m)');
-    const j = gerador.indexOf('folhaProntSumario(doc, m, paginas)');
-    const k = gerador.indexOf('secao(() => folhaProntUltrassom');
-    expect(i).toBeGreaterThan(0);
-    expect(j).toBeGreaterThan(i);
-    expect(k).toBeGreaterThan(j);
+  it('quatro ou cinco folhas — sem capa e sem sumário', () => {
+    // Capa e sumário custavam duas folhas para anunciar quatro. O prontuário é
+    // documento de consulta, não de leitura corrida.
+    expect(folhas).not.toContain('folhaProntCapa');
+    expect(folhas).not.toContain('folhaProntSumario');
+    expect(gerador).not.toContain('folhaProntSumario');
+    const chamadas = (gerador.match(/folhaPront[A-Za-z]+\(doc, m/g) ?? []).length;
+    expect(chamadas).toBe(5); // identificação, dados, ultrassom, croqui, memorial
+  });
+
+  it('a assinatura sai UMA vez, na última folha', () => {
+    expect((folhas.match(/responsabilidadeTecnica\(doc, m\)/g) ?? []).length).toBe(1);
+    const memorial = folhas.slice(folhas.indexOf('export function folhaProntMemorial'));
+    expect(memorial).toContain('responsabilidadeTecnica(doc, m)');
+  });
+
+  it('as folhas de croqui e de dados derivadas viraram UMA', () => {
+    // A folha de dados tinha meia dúzia de campos e custava uma página.
+    expect(folhas).not.toContain('folhaProntFolhaDados');
+    expect(folhas).toContain('DADOS DERIVADOS DO MODELO');
   });
 
   it('o cabeçalho diz PRONTUÁRIO — e não relatório de inspeção', () => {
     expect(gerador).toContain("titulo: 'PRONTUÁRIO DO EQUIPAMENTO — NR-13 N°'");
-    // O default do cabeçalho continua o do relatório: nada muda lá.
     expect(primitivas).toContain("ctx.cabecalho.titulo ?? 'RELATÓRIO DE INSPEÇÃO DE SEGURANÇA NR-13 N°'");
   });
 
@@ -86,8 +95,6 @@ describe('o mesmo design do relatório', () => {
     expect(folhas).toContain('extremosDaRegiao');
     expect(folhas).toContain("destaque: 'menor'");
     expect(folhas).toContain("destaque: 'maior'");
-    expect(folhas).toContain('MENOR VALOR');
-    expect(folhas).toContain('ESP. MÍN. REQUERIDA');
   });
 
   it('o memorial sai em álgebra, não em LaTeX cru', () => {
@@ -95,20 +102,10 @@ describe('o mesmo design do relatório', () => {
     expect(folhas).toContain('doc.formula(formula');
   });
 
-  it('o respiro existe, e não nas folhas que terminam em assinatura', () => {
-    // O bloco de responsabilidade técnica pede 30 mm contíguos: crescer as
-    // linhas de uma folha assinada empurra a assinatura para uma página só
-    // dela — foi o que apareceu no prontuário do vaso em 06/09/2026.
-    expect(folhas).toContain("doc.abrirSecaoElastica('pront-sumario')");
-    expect(folhas).not.toContain("doc.abrirSecaoElastica('pront-ultrassom')");
-    expect(folhas).not.toContain("doc.abrirSecaoElastica('pront-dados')");
-    expect(gerador).toContain('aoFecharSecaoElastica');
-    expect(gerador).toContain("new Documento(p, cab, totalDoRodape, 'final', {}, respiro)");
-  });
-
-  it('o sumário recebe a página real, colhida na 1ª passagem', () => {
-    expect(gerador).toContain('paginasDasSecoes');
-    expect(gerador).toContain('registrar.set(titulos[i], inicio)');
+  it('a prancha põe a vista principal ao lado das auxiliares', () => {
+    expect(folhas).toContain('desenharPranchaDeVistas');
+    expect(folhas).toContain('faixaEm');
+    expect(folhas).toContain('#girado');
   });
 });
 
