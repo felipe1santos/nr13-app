@@ -74,3 +74,42 @@ As duas são independentes das do relatório: um rollback aqui não mexe lá.
 | produção | bundle `assets/index-hNtzNnJT.js` |
 | vaso (ZZ-FASE3) | 10 páginas, rodapé conferido, prancha com a longitudinal em pé |
 | caldeira (ZZ-CALDEIRA-TESTE) | 6 páginas, sem croqui |
+
+---
+
+## 7 · Modelo próprio (a segunda rodada)
+
+A primeira versão era o relatório com outro conteúdo — capa, sumário e uma
+assinatura por folha — e saía com **dez páginas**. Capa e sumário custavam duas
+folhas para anunciar quatro; a mesma responsabilidade técnica se repetia seis
+vezes, e cada repetição pede ~40 mm contíguos.
+
+O prontuário passou a ter modelo próprio:
+
+| folha | conteúdo |
+|---|---|
+| 1 | identificação do equipamento, contratante, controle do documento e a foto |
+| 2 | dados técnicos: construtivos, pressões (4 unidades), categorização, procedimentos, dispositivos, pontos de atenção — e a medição de espessura na sequência |
+| 3 | croqui cotado, dimensões reais e dados derivados (**só vaso**) |
+| 4 | resumo dos cálculos, as equações do motor e a **única assinatura** |
+
+Três decisões que encolheram o documento:
+
+1. **as seções FLUEM.** Cada uma abria página própria e metade de cada folha
+   ficava em branco. Só a primeira folha e a do croqui abrem página — a prancha
+   precisa da altura inteira;
+2. **as EQUAÇÕES no lugar da memória linha a linha.** O desenvolvimento
+   numérico ocupava quatro folhas e é do relatório, que registra a inspeção em
+   que ele foi feito. Aqui fica a tabela por componente e as equações
+   desenhadas, com uma nota dizendo onde está o resto;
+3. **uma assinatura, no fim.**
+
+Medido no vaso ZZ-FASE3: **10 → 4 páginas**, com 17, 126, 16 e 54 mm de sobra.
+Caldeira e autoclave: 3 folhas.
+
+### O "download sozinho" não era do sistema
+
+Para enviar o PDF ao dono eu havia instalado, no console daquela aba, um
+patch em `URL.createObjectURL` que salvava todo blob PDF — e ele disparava um
+download a cada prévia gerada. O patch morre no reload e não existe no código;
+conferido depois: abrir o prontuário não baixa nada.
