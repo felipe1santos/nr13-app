@@ -163,21 +163,26 @@ describe('conferência campo a campo', () => {
 });
 
 describe('motor do prontuário — chave SEPARADA da do relatório', () => {
-  it('padrão é ATUAL: ausência de decisão não troca o que está em produção', () => {
-    expect(motorProntuarioConfigurado()).toBe('atual');
-    expect(motorProntuarioAtual('')).toBe('atual');
+  it('padrão é VETORIAL: é o documento que a prévia da tela mostra', () => {
+    // Virado em 06/09/2026: sem chave, o prontuário sai VETORIAL — é o mesmo
+    // documento que a prévia da tela mostra.
+    expect(motorProntuarioConfigurado()).toBe('vetorial');
+    expect(motorProntuarioAtual('')).toBe('vetorial');
   });
 
-  it('só "vetorial" troca; qualquer outra coisa é atual', () => {
-    localStorage.setItem(CHAVE_MOTOR_PRONTUARIO, JSON.stringify({ motor: 'vetorial' }));
-    expect(motorProntuarioConfigurado()).toBe('vetorial');
-    localStorage.setItem(CHAVE_MOTOR_PRONTUARIO, JSON.stringify({ motor: 'sim' }));
+  it('só "atual" faz o rollback; qualquer outra coisa é o documento novo', () => {
+    localStorage.setItem(CHAVE_MOTOR_PRONTUARIO, JSON.stringify({ motor: 'atual' }));
     expect(motorProntuarioConfigurado()).toBe('atual');
+    // Valor de uma versão futura, ou lixo, não pode devolver o gerador antigo
+    // sem alguém ter pedido: o padrão é o documento que a tela mostra.
+    localStorage.setItem(CHAVE_MOTOR_PRONTUARIO, JSON.stringify({ motor: 'sim' }));
+    expect(motorProntuarioConfigurado()).toBe('vetorial');
   });
 
   it('a URL usa `motorPront`, e não colide com a do relatório', () => {
-    expect(motorProntuarioAtual('?motorPront=vetorial')).toBe('vetorial');
-    // `?motor=` é do RELATÓRIO: não pode virar o prontuário por tabela.
+    expect(motorProntuarioAtual('?motorPront=atual')).toBe('atual');
+    // `?motor=` é do RELATÓRIO: não pode mexer no prontuário por tabela.
+    localStorage.setItem(CHAVE_MOTOR_PRONTUARIO, JSON.stringify({ motor: 'atual' }));
     expect(motorProntuarioAtual('?motor=vetorial')).toBe('atual');
   });
 
@@ -186,8 +191,10 @@ describe('motor do prontuário — chave SEPARADA da do relatório', () => {
     // o relatório tem a sua própria chave; esta não o alcança
     expect(motorPdfAtual('')).toBe('raster');
     localStorage.clear();
-    localStorage.setItem('nr13_motor_pdf', JSON.stringify({ motor: 'vetorial' }));
-    expect(motorProntuarioConfigurado()).toBe('atual');
+    // A chave do RELATÓRIO não alcança o prontuário: pedir rollback num não
+    // pode virar o outro.
+    localStorage.setItem('nr13_motor_pdf', JSON.stringify({ motor: 'raster' }));
+    expect(motorProntuarioConfigurado()).toBe('vetorial');
   });
 });
 

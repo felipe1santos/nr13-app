@@ -19,7 +19,7 @@ import type { ModeloProntuario } from './modeloProntuario';
  * CLAUDE.md). Quem decide é o modelo, que já veio filtrado.
  */
 
-function tabelaChaveValor(doc: Documento, campos: [string, string | null][], colunas = 2): void {
+function tabelaChaveValor(doc: Documento, campos: [string, string | null][], colunas = 2, esticavel = false): void {
   const linhas: { texto: string; rotulo?: boolean; valor?: boolean }[][] = [];
   for (let i = 0; i < campos.length; i += colunas) {
     const linha: { texto: string; rotulo?: boolean; valor?: boolean }[] = [];
@@ -30,7 +30,7 @@ function tabelaChaveValor(doc: Documento, campos: [string, string | null][], col
     }
     linhas.push(linha);
   }
-  doc.tabela({ colunas: colunas === 2 ? [0.22, 0.28, 0.22, 0.28] : [0.3, 0.7], linhas });
+  doc.tabela({ colunas: colunas === 2 ? [0.22, 0.28, 0.22, 0.28] : [0.3, 0.7], linhas, esticavel });
 }
 
 /** Bloco de responsabilidade técnica — o rodapé assinado das folhas. */
@@ -195,6 +195,7 @@ export function folhaProntSumario(doc: Documento, m: ModeloProntuario, paginas: 
 // ── 1. ULTRASSOM / MEDIÇÃO DE ESPESSURA ─────────────────────────────────────
 export function folhaProntUltrassom(doc: Documento, m: ModeloProntuario): void {
   doc.novaFolha();
+  doc.abrirSecaoElastica('pront-ultrassom');
   doc.banner('MEDIÇÃO DE ESPESSURA POR ULTRASSOM');
 
   doc.faixa('INFORMAÇÕES DO COMPONENTE AVALIADO');
@@ -286,6 +287,7 @@ export function folhaProntUltrassom(doc: Documento, m: ModeloProntuario): void {
     ['VALIDADE', m.ultrassom.instrumento.validade],
   ]);
 
+  doc.fecharSecaoElastica();
   responsabilidadeTecnica(doc, m, 'PRONT-ULTRASSOM.html');
 }
 
@@ -378,6 +380,7 @@ export function folhaProntFolhaDados(doc: Documento, m: ModeloProntuario): void 
 // ── 4. PRONTUÁRIO (dados construtivos + categorização) ──────────────────────
 export function folhaProntProntuario(doc: Documento, m: ModeloProntuario): void {
   doc.novaFolha();
+  doc.abrirSecaoElastica('pront-dados');
   doc.banner('PRONTUÁRIO DO EQUIPAMENTO');
 
   doc.faixa('DADOS GERAIS');
@@ -397,11 +400,11 @@ export function folhaProntProntuario(doc: Documento, m: ModeloProntuario): void 
 
   doc.y += 2;
   doc.faixa('ASPECTOS GERAIS DO EQUIPAMENTO');
-  tabelaChaveValor(doc, Object.entries(m.identificacao) as [string, string | null][]);
+  tabelaChaveValor(doc, Object.entries(m.identificacao) as [string, string | null][], 2, true);
 
   doc.y += 2;
   doc.faixa('ASPECTOS CONSTRUTIVOS');
-  tabelaChaveValor(doc, Object.entries(m.construtivos) as [string, string | null][]);
+  tabelaChaveValor(doc, Object.entries(m.construtivos) as [string, string | null][], 2, true);
 
   doc.y += 2;
   doc.faixa('ASPECTOS OPERACIONAIS');
@@ -438,6 +441,7 @@ export function folhaProntProntuario(doc: Documento, m: ModeloProntuario): void 
     { tamanho: FONTE.nota, cor: COR.nota, espacoAntes: 2 },
   );
 
+  doc.fecharSecaoElastica();
   responsabilidadeTecnica(doc, m, 'PRONT-PRONTUARIO.html');
 }
 
@@ -446,14 +450,19 @@ export function folhaProntContinuacao(doc: Documento, m: ModeloProntuario): void
   doc.novaFolha();
   doc.banner('PROCEDIMENTOS, DISPOSITIVOS DE SEGURANÇA E PONTOS DE ATENÇÃO');
 
+  // Os três são texto redigido pelo engenheiro. Cada um ocupa um terço do que
+  // resta da folha, em vez de uma linha solta seguida de meia página vazia.
+  const terco = Math.max(28, (LIMITE_CORPO - doc.y - 34) / 3);
   doc.secao('6 · Procedimentos de inspeção');
-  doc.texto(textoOu(m.procedimentos, 'Não informado.'), { cor: COR.valor });
+  doc.texto(textoOu(m.procedimentos, ''), { cor: COR.valor });
+  doc.y = Math.min(LIMITE_CORPO - 8, doc.y + terco * 0.4);
 
   doc.secao('7 · Dispositivos de segurança');
-  doc.texto(textoOu(m.dispositivos, 'Não informado.'), { cor: COR.valor });
+  doc.texto(textoOu(m.dispositivos, ''), { cor: COR.valor });
+  doc.y = Math.min(LIMITE_CORPO - 8, doc.y + terco * 0.4);
 
   doc.secao('8 · Atenção');
-  doc.texto(textoOu(m.atencao, 'Não informado.'), { cor: COR.valor });
+  doc.texto(textoOu(m.atencao, ''), { cor: COR.valor });
 
   responsabilidadeTecnica(doc, m, 'PRONT-CONTINUACAO.html');
 }
@@ -465,11 +474,12 @@ export function folhaProntMemorial(doc: Documento, m: ModeloProntuario): void {
 
   doc.faixa('PRESSÕES');
   doc.tabela({
-    colunas: [0.4, 0.2, 0.2, 0.2],
-    cabecalho: ['GRANDEZA', 'MPa', 'kgf/cm²', 'bar'],
+    colunas: [0.36, 0.16, 0.16, 0.16, 0.16],
+    cabecalho: ['GRANDEZA', 'MPa', 'psi', 'kgf/cm²', 'bar'],
     linhas: m.pressoes.map((p) => [
       { texto: p.rotulo, rotulo: true },
       { texto: textoOu(p.mpa), centro: true, valor: true },
+      { texto: textoOu(p.psi), centro: true, valor: true },
       { texto: textoOu(p.kgf), centro: true, valor: true },
       { texto: textoOu(p.bar), centro: true, valor: true },
     ]),

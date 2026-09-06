@@ -2,13 +2,17 @@ import { jsPDF } from 'jspdf';
 import { registrarCarlito } from './carlito';
 import { Documento } from './documento';
 import {
+  folhaProntCapa,
   folhaProntContinuacao,
   folhaProntCroqui,
   folhaProntFolhaDados,
   folhaProntMemorial,
   folhaProntProntuario,
-  folhaProntUltrassom,
+  folhaProntSumario,
+  secoesDoProntuario,
 } from './folhasProntuario';
+import { folhaProntUltrassom } from './folhasProntuario';
+import type { RespiroMedido } from './documento';
 import { montarModeloProntuario, type ModeloProntuario } from './modeloProntuario';
 
 /**
@@ -43,15 +47,41 @@ export interface ResultadoProntuario {
   croquisFalhos: string[];
 }
 
-function emitir(doc: Documento, m: ModeloProntuario): void {
-  folhaProntUltrassom(doc, m);
+/**
+ * As folhas, na ordem — capa e sumário na frente, como no relatório.
+ *
+ * `registrar` recebe, na 1ª passagem, a página em que cada seção começou; a 2ª
+ * usa esse mapa para o sumário trazer a página real. É o mesmo mecanismo do
+ * relatório e não custa uma passagem a mais.
+ */
+function emitir(
+  doc: Documento,
+  m: ModeloProntuario,
+  paginas: Map<string, number> = new Map(),
+  registrar?: Map<string, number>,
+): void {
+  const titulos = secoesDoProntuario(m);
+  let i = 0;
+  const secao = (fn: () => void) => {
+    const inicio = doc.pdf.getNumberOfPages() + 1;
+    fn();
+    if (registrar && titulos[i]) registrar.set(titulos[i], inicio);
+    i++;
+  };
+
+  folhaProntCapa(doc, m);
+  folhaProntSumario(doc, m, paginas);
+  secao(() => folhaProntUltrassom(doc, m));
   if (m.tipoEquipamento === 'vaso') {
-    folhaProntCroqui(doc, m);
-    folhaProntFolhaDados(doc, m);
+    // Croqui e folha de dados só existem para VASO (§8): caldeira e autoclave
+    // não têm modelo de croqui, e um desenho genérico num prontuário assinado
+    // afirmaria uma geometria que não é a do equipamento.
+    secao(() => folhaProntCroqui(doc, m));
+    secao(() => folhaProntFolhaDados(doc, m));
   }
-  folhaProntProntuario(doc, m);
-  folhaProntContinuacao(doc, m);
-  folhaProntMemorial(doc, m);
+  secao(() => folhaProntProntuario(doc, m));
+  secao(() => folhaProntContinuacao(doc, m));
+  secao(() => folhaProntMemorial(doc, m));
 }
 
 /**
@@ -126,6 +156,10 @@ export async function gerarProntuarioVetorial(tag: string): Promise<ResultadoPro
     logo: modelo.empresa.logo,
     numeroRelatorio: modelo.numero ?? '',
     rodape: [modelo.empresa.razao, modelo.empresa.endereco, modelo.empresa.contato] as [string, string, string],
+    // O prontuário usa o cabeçalho do relatório e só troca esta linha: um
+    // documento carimbado com o nome do outro é erro de conteúdo, não de
+    // estilo.
+    titulo: 'PRONTUÁRIO DO EQUIPAMENTO — NR-13 N°',
   };
 
   // 1ª passagem: contar. Mesmo motivo da Fase 11 — `putTotalPages` não é
@@ -134,15 +168,20 @@ export async function gerarProntuarioVetorial(tag: string): Promise<ResultadoPro
   await registrarCarlito(contagem);
   const rascunho = new Documento(contagem, cab, 0);
   (rascunho as unknown as { __croquis: Map<string, { png: string; proporcao: number }> }).__croquis = cache;
-  emitir(rascunho, modelo);
+  const paginasDasSecoes = new Map<string, number>();
+  const respiro: RespiroMedido = {};
+  rascunho.aoFecharSecaoElastica = (medida) => {
+    respiro[medida.chave] = { sobra: medida.sobra, linhas: medida.linhas, folhaFinal: medida.folhaFinal };
+  };
+  emitir(rascunho, modelo, new Map(), paginasDasSecoes);
   const total = contagem.getNumberOfPages();
 
   // 2ª passagem: para valer.
   const pdf = novoPdf();
   await registrarCarlito(pdf);
-  const doc = new Documento(pdf, cab, total);
+  const doc = new Documento(pdf, cab, total, 'final', {}, respiro);
   (doc as unknown as { __croquis: Map<string, { png: string; proporcao: number }> }).__croquis = cache;
-  emitir(doc, modelo);
+  emitir(doc, modelo, paginasDasSecoes);
 
   return {
     bytes: new Uint8Array(pdf.output('arraybuffer')),

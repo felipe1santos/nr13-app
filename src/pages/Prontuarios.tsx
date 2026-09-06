@@ -20,6 +20,9 @@ import type { DimensaoProntuario, ProntuarioDados } from '../features/prontuario
 import { paginasProntuario, temCroqui2d } from '../features/prontuarios/tipos';
 import PainelPilotoProntuario from '../features/relatorios/pdfVetorial/PainelPilotoProntuario';
 import { motorProntuarioAtual } from '../features/relatorios/motorPdf';
+import { previaProntuarioAtual } from '../features/prontuarios/previaProntuario';
+import PreviaProntuarioVetorial from '../features/prontuarios/PreviaProntuarioVetorial';
+import { abrirPdfEmAba } from '../components/VisualizadorPdf';
 import { gerarProntuarioVetorial } from '../features/relatorios/pdfVetorial/gerarProntuario';
 import { gerarPdfBytes } from '../features/relatorios/pdfService';
 import { publicarArtefato, artefatoDe, baixarArtefato } from '../features/relatorios/artefatoRelatorio';
@@ -277,7 +280,11 @@ export default function Prontuarios() {
   // Palco: as 6 folhas do prontuário leem localStorage no DOMContentLoaded.
   // Nenhum iframe antes de `pronto` — prontuário meio montado sai impresso com
   // folha faltando.
-  const palco = usePalcoDocumento(tag, `pront-${tag}-${versao}`);
+  // A prévia vetorial é o DOCUMENTO: sem os seis iframes, e por isso sem
+  // palco. O palco existe para materializar as chaves que os templates HTML
+  // leem — sem template, materializar não serve a ninguém.
+  const previaPront = previaProntuarioAtual(window.location.search);
+  const palco = usePalcoDocumento(tag, `pront-${tag}-${versao}`, { pular: previaPront === 'vetorial' });
   const [confirmandoExcluir, setConfirmandoExcluir] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [mostrarModelador, setMostrarModelador] = useState(false);
@@ -327,6 +334,15 @@ export default function Prontuarios() {
       if (fonteDeImpressao(emissao) === 'arquivo') {
         const ok = await imprimirPdfArquivado(artefatoDe(emissao)!);
         if (!ok) setErroEmissao('Não foi possível abrir o PDF para impressão. Verifique a conexão.');
+        return;
+      }
+      if (previaPront === 'vetorial') {
+        // Sem arquivo emitido, o que se imprime é a PRÉ-VISUALIZAÇÃO — e ela
+        // sai do mesmo gerador da emissão, não de uma rasterização da tela.
+        const r = await gerarProntuarioVetorial(tag);
+        if (!abrirPdfEmAba(r.bytes)) {
+          setErroEmissao('Não foi possível abrir a pré-visualização para impressão. Verifique o bloqueador de pop-ups.');
+        }
         return;
       }
       await imprimirRelatorio('.prontuario-preview');
@@ -410,6 +426,8 @@ export default function Prontuarios() {
   // oficial continua sendo o botão, que serve o `pdfRef`.
   useEffect(() => {
     if (tela !== 'visualizador') return;
+    // Prévia vetorial não tem iframe para rasterizar: o documento já é PDF.
+    if (previaPront === 'vetorial') return;
     if (fonteDeImpressao(emissao) === 'arquivo') return;
     let cancelado = false;
     const preview = document.querySelector<HTMLElement>('.prontuario-preview');
@@ -1221,6 +1239,13 @@ export default function Prontuarios() {
             <PainelPilotoProntuario tag={tag} />
           )}
 
+          {previaPront === 'vetorial' ? (
+            <PreviaProntuarioVetorial
+              tag={tag}
+              versao={versao}
+              nomeArquivo={`Prontuario_${tag}.pdf`}
+            />
+          ) : (
           <div className="prontuario-preview">
             {palco.estado === 'pronto' &&
               folhasDoProntuario.map((doc, i) => (
@@ -1237,6 +1262,7 @@ export default function Prontuarios() {
               </PaginaA4>
             ))}
           </div>
+          )}
         </>
       )}
 

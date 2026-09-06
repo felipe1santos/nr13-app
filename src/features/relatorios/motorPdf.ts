@@ -81,15 +81,23 @@ export async function definirMotorPdf(motor: MotorPdf): Promise<void> {
  * prontuário vetorial apresentar problema, desligá-lo não pode arrastar junto
  * o relatório, que já está validado em produção desde 04/09/2026.
  *
- * Padrão: `atual` — o gerador de hoje (impressão rasterizada de
- * `.prontuario-preview`). Só a string exata `'vetorial'` troca.
+ * **Padrão: `vetorial` desde 06/09/2026.** O prontuário passou a ser
+ * desenhado, não fotografado, e a PRÉVIA da tela é o mesmo documento
+ * (`nr13_previa_prontuario`). Deixar a emissão no motor antigo enquanto a tela
+ * mostra o novo faria o usuário aprovar um documento e assinar outro.
+ *
+ * O rollback custa um passo e continua existindo: `?motorPront=atual` para uma
+ * sessão, `definirMotorProntuario('atual')` para a organização — e aí a tela
+ * precisa voltar junto, com `?previaPront=iframe`.
  */
 export const CHAVE_MOTOR_PRONTUARIO = 'nr13_motor_prontuario';
 
 export type MotorProntuario = 'atual' | 'vetorial';
 
 function normalizarProntuario(v: unknown): MotorProntuario {
-  return String(v ?? '').trim().toLowerCase() === 'vetorial' ? 'vetorial' : 'atual';
+  // Só a string exata 'atual' volta ao gerador antigo. Ausência, lixo ou valor
+  // de uma versão futura caem no documento novo, que é o padrão.
+  return String(v ?? '').trim().toLowerCase() === 'atual' ? 'atual' : 'vetorial';
 }
 
 /** O motor configurado para o prontuário (sem olhar a URL). */
@@ -97,7 +105,9 @@ export function motorProntuarioConfigurado(): MotorProntuario {
   try {
     return normalizarProntuario(ler<{ motor?: string }>(CHAVE_MOTOR_PRONTUARIO)?.motor);
   } catch {
-    return 'atual';
+    // Storage indisponível não escolhe motor antigo por acidente: o vetorial é
+    // o padrão, e é ele que a prévia da tela mostra.
+    return 'vetorial';
   }
 }
 
