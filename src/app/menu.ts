@@ -61,7 +61,10 @@ export const TITULOS_ROTA: { prefixo: string; titulo: string; sub: string }[] = 
   { prefixo: '/equipamento/', titulo: 'Equipamentos', sub: 'Ficha do equipamento' },
   { prefixo: '/equipamentos', titulo: 'Equipamentos', sub: 'Cadastro geral de ativos sob NR-13' },
   { prefixo: '/inspecoes', titulo: 'Inspeções', sub: 'Preenchimento em campo e containers de inspeção' },
-  { prefixo: '/relatorios', titulo: 'Relatórios', sub: 'Histórico de inspeções por equipamento' },
+  // 'por equipamento' descrevia a tela ANTIGA, em que se escolhia um
+  // equipamento para ver o histórico dele. A lista canônica é da organização
+  // inteira, e o subtítulo dizia o contrário logo acima dela.
+  { prefixo: '/relatorios', titulo: 'Relatórios', sub: 'Todos os relatórios da organização' },
   { prefixo: '/prontuarios', titulo: 'Prontuários', sub: 'Prontuários e reconstituições' },
   { prefixo: '/calibracoes', titulo: 'Calibrações', sub: 'Calibrações dos equipamentos e acessórios' },
   { prefixo: '/certificados', titulo: 'Certificados', sub: 'Certificados de calibração dos padrões de medição' },
