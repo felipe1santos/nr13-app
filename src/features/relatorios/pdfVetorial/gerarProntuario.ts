@@ -133,6 +133,39 @@ async function svgParaPng(svg: string, larguraPx = 1800): Promise<{ png: string;
   }
 }
 
+/**
+ * Gira um PNG em 90° — a vista longitudinal "em pé" na prancha.
+ *
+ * O giro é da IMAGEM já rasterizada, não do SVG: assim as cotas, os textos e
+ * as linhas vão juntos, exatamente como o editor os desenhou. Falhar devolve
+ * `null`, e a folha usa a versão deitada.
+ */
+async function girar90(png: string): Promise<{ png: string; proporcao: number } | null> {
+  try {
+    const img = await new Promise<HTMLImageElement>((res, rej) => {
+      const i = new Image();
+      i.onload = () => res(i);
+      i.onerror = () => rej(new Error('png ilegível'));
+      i.src = png;
+    });
+    const c = document.createElement('canvas');
+    c.width = img.naturalHeight;
+    c.height = img.naturalWidth;
+    const ctx = c.getContext('2d');
+    if (!ctx) return null;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, c.width, c.height);
+    // -90°: o equipamento fica com a frente para a direita, e a cota de
+    // comprimento sobe pela folha em vez de atravessá-la.
+    ctx.translate(0, c.height);
+    ctx.rotate(-Math.PI / 2);
+    ctx.drawImage(img, 0, 0);
+    return { png: c.toDataURL('image/png'), proporcao: c.width / Math.max(1, c.height) };
+  } catch {
+    return null;
+  }
+}
+
 export async function gerarProntuarioVetorial(tag: string): Promise<ResultadoProntuario> {
   const inicio = performance.now();
   const modelo = montarModeloProntuario(tag);
@@ -147,8 +180,18 @@ export async function gerarProntuarioVetorial(tag: string): Promise<ResultadoPro
   ] as [string, string | null][]) {
     if (!svg) continue;
     const convertido = await svgParaPng(svg);
-    if (convertido) cache.set(svg, convertido);
-    else croquisFalhos.push(nome);
+    if (convertido) {
+      cache.set(svg, convertido);
+      // A vista longitudinal de um vaso é uma faixa larga e baixa: numa coluna
+      // alta e estreita ela vira um risco no meio do branco. A versão GIRADA
+      // 90° ocupa a coluna inteira, que é como uma prancha técnica põe a vista
+      // principal quando o desenho é comprido. É a MESMA imagem — nada é
+      // redesenhado, e as cotas giram junto.
+      if (convertido.proporcao > 2.2) {
+        const girada = await girar90(convertido.png);
+        if (girada) cache.set(`${svg}#girado`, girada);
+      }
+    } else croquisFalhos.push(nome);
   }
 
   const novoPdf = () => new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });

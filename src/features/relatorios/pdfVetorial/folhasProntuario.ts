@@ -610,9 +610,13 @@ function desenharPranchaDeVistas(
   const topo = doc.y;
   const alturaFaixa = 6.4;
 
-  // Coluna esquerda: a vista principal, em toda a altura da prancha.
+  // Coluna esquerda: a vista principal, em toda a altura da prancha — girada
+  // quando o desenho é comprido demais para a coluna (o gerador preparou a
+  // versão em pé; sem ela, cai na deitada de sempre).
+  const cache = (doc as unknown as { __croquis?: Map<string, unknown> }).__croquis;
+  const chavePrincipal = cache?.has(`${principal[1]}#girado`) ? `${principal[1]}#girado` : principal[1]!;
   doc.faixa(principal[0]);
-  desenharCroqui(doc, principal[1]!, alturaPrancha - alturaFaixa, {
+  desenharCroqui(doc, chavePrincipal, alturaPrancha - alturaFaixa, {
     x: CAIXA.x,
     largura: larguraEsq,
     y: doc.y,
