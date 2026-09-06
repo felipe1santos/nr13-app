@@ -112,3 +112,59 @@ sobrepostas.
 | campos preenchidos à mão | 20 (validade, A.R.T., escopo, observações, recomendações com prazo, parecer, próximas inspeções) |
 | SHA-256 | `ca43603bf58c94ce5d23b99d9d3e3cfe7f16ba887aeeb6c75bed2d7d1a527169` |
 | suíte | 2.100 testes, 166 arquivos, 0 falhas |
+
+---
+
+## 7 · Espaço em branco, realce da espessura e a grade que vem das Inspeções
+
+### O respiro das folhas
+
+O documento terminava no meio do papel em quase toda folha tabular. Medido no
+PDF emitido, em milímetros de sobra abaixo do último traço:
+
+| folha | antes | depois |
+|---|---|---|
+| exame externo | 115 | **19** |
+| exame interno | 118 | **15** |
+| ultrassom | 94 | **15** |
+| teste hidrostático | 32 | **23** |
+| parecer / próxima inspeção | 119 | **19** |
+| prontuário | 118 | **48** (34 são o bloco de observações) |
+| verificação da documentação | 66 | **52** (32 são o bloco de comentários) |
+| checklist parte 1 / parte 2 | 90 / 116 | **55 / 59** (idem) |
+
+**Como**: o gerador já desenhava o documento duas vezes — o "Página X de Y"
+precisa do total antes da primeira folha. A 1ª passagem passou a MEDIR, por
+seção elástica, quanto sobrou e quantas linhas poderiam crescer; a 2ª
+distribui. Nenhuma passagem nova.
+
+Duas travas, cada uma achada por um defeito real:
+
+- **o crescimento é só na última folha da seção.** Esticando todas, o conteúdo
+  empurrado ganhou uma página e o rodapé — contado na 1ª passagem — passou a
+  dizer "Página 29 de 29" num PDF de 30;
+- **`RESERVA_RESPIRO = 14 mm` não é distribuída.** É o `garantirEspaco` que
+  toda tabela pede antes de começar: sem reservá-lo, a última tabela da seção
+  não cabia e quebrava para uma folha nova — o mesmo sintoma pelo outro
+  caminho. Sobra menor que a reserva não distribui nada.
+
+### O realce da medição de espessura
+
+A MAIOR leitura de cada região sai em azul-petróleo negrito sobre azul claro; a
+MENOR, em vermelho sobre vermelho claro. Os extremos são **por região** — o
+desgaste se lê dentro do costado, dentro do tampo —, e o realce vale também no
+PDF emitido: é conteúdo, não marcação de revisão.
+
+### A grade vem das Inspeções
+
+Cada leitura, o menor valor e a espessura mínima requerida viraram campos com
+id próprio: clicar na célula do documento abre o editor. O botão **Medições**
+saiu da barra do topo na prévia vetorial — redigitar ali o que já veio do campo
+criava uma segunda verdade para o mesmo número. Ele continua no rollback
+`?previa=iframe`.
+
+### Documento de prova
+
+29 páginas, rodapé conferido contra o total real, SHA
+`753741cf812d8e7e561b46ac7a7c87a44a1db5add8d9504f0f5d3e11ad707555`.
+Suíte: **2.114 testes, 167 arquivos, 0 falhas**.
