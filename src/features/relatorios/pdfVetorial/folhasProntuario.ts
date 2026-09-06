@@ -270,16 +270,16 @@ export function folhaProntUltrassom(doc: Documento, m: ModeloProntuario): void {
   // autoclave (§8 do CLAUDE.md); um desenho genérico num prontuário assinado
   // afirma uma geometria que não é a do equipamento. Sem croqui, o espaço fica
   // em branco: ausência é informação, desenho errado não.
-  if (m.tipoEquipamento === 'vaso' && m.croqui.longitudinal) {
+  // ...e só quando ele CABE junto do resto. A folha de ultrassom tem a grade
+  // inteira, o quadro do instrumento e a assinatura (30 mm contíguos); com o
+  // croqui espremido no meio, a assinatura ia sozinha para a folha seguinte —
+  // uma página com um traço e um nome. Sem espaço, o croqui simplesmente não
+  // sai aqui: a vista cotada, em tamanho cheio, é a folha 2.
+  const espacoCroqui = LIMITE_CORPO - doc.y - 54;
+  if (m.tipoEquipamento === 'vaso' && m.croqui.longitudinal && espacoCroqui >= 34) {
     doc.y += 2;
     doc.faixa('CROQUI DO EQUIPAMENTO');
-    // A altura se ajusta ao que resta da folha, reservando o quadro do
-    // instrumento e o bloco de assinatura (30 mm). Com 62 mm fixos, a
-    // assinatura ia sozinha para uma folha só dela — uma página com um traço
-    // e um nome. O croqui é desenho vetorial rasterizado em 3×: encolher não
-    // custa nitidez, e a vista cotada em tamanho cheio é a folha 2.
-    const espacoCroqui = Math.max(34, Math.min(62, LIMITE_CORPO - doc.y - 52));
-    desenharCroqui(doc, m.croqui.longitudinal, espacoCroqui);
+    desenharCroqui(doc, m.croqui.longitudinal, Math.min(62, espacoCroqui - 8));
   }
 
   doc.y += 2;
