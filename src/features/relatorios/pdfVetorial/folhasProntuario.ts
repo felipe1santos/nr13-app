@@ -222,49 +222,83 @@ export function folhaProntUltrassom(doc: Documento, m: ModeloProntuario): void {
   doc.y += 2;
   doc.faixa('LOCALIZAÇÃO DOS PONTOS DE MEDIÇÃO E MEDIDAS ENCONTRADAS (mm)');
   if (m.ultrassom.pontos.length > 0) {
-    // Uma tabela por REGIÃO, com os ângulos dela e o realce da maior e da menor
-    // leitura — exatamente como na folha 7.4 do relatório. Os dois documentos
-    // falam do mesmo ensaio; ler diferente em cada um é o que confunde quem
-    // confere.
+    // UMA tabela quando todas as regiões medem nos MESMOS ângulos — que é o
+    // caso normal (0°, 90°, 180°, 270°). Repetir o cabeçalho a cada região
+    // custava três cabeçalhos e três títulos numa folha que ainda precisa
+    // caber o croqui, o quadro do instrumento e a assinatura; era isso que
+    // mandava a assinatura para uma página só dela. Com ângulos diferentes
+    // entre regiões, cada uma volta a ter a sua tabela: um cabeçalho comum
+    // inventaria ângulos que aquela região não mediu.
     const porRegiao = new Map<string, typeof m.ultrassom.pontos>();
     for (const linha of m.ultrassom.pontos) {
       const atual = porRegiao.get(linha.regiao) ?? [];
       atual.push(linha);
       porRegiao.set(linha.regiao, atual);
     }
-    for (const [regiao, linhas] of porRegiao) {
-      const angulos = linhas[0]?.angulos ?? [];
-      const colMedida = angulos.length > 0 ? 0.48 / angulos.length : 0.48;
-      const { maior, menor } = extremosDaRegiao(linhas);
-      const marca = (v: string | null | undefined): { destaque?: 'maior' | 'menor' } => {
-        const n = Number(String(v ?? '').replace(',', '.'));
-        if (!Number.isFinite(n) || n <= 0) return {};
-        if (menor !== null && n === menor) return { destaque: 'menor' };
-        if (maior !== null && n === maior) return { destaque: 'maior' };
-        return {};
-      };
-      doc.secao(regiao);
+    const angulosDe = (l: { angulos: string[] }) => l.angulos.join('|');
+    const mesmosAngulos = new Set(m.ultrassom.pontos.map(angulosDe)).size === 1;
+    const { maior, menor } = extremosDaRegiao(m.ultrassom.pontos);
+    const marca = (v: string | null | undefined): { destaque?: 'maior' | 'menor' } => {
+      const n = Number(String(v ?? '').replace(',', '.'));
+      if (!Number.isFinite(n) || n <= 0) return {};
+      if (menor !== null && n === menor) return { destaque: 'menor' };
+      if (maior !== null && n === maior) return { destaque: 'maior' };
+      return {};
+    };
+
+    if (mesmosAngulos) {
+      const angulos = m.ultrassom.pontos[0]?.angulos ?? [];
+      const colMedida = angulos.length > 0 ? 0.4 / angulos.length : 0.4;
       doc.tabela({
         compacta: true,
-        colunas: [0.26, ...Array(Math.max(angulos.length, 1)).fill(colMedida), 0.13, 0.13],
+        colunas: [0.22, 0.16, ...Array(Math.max(angulos.length, 1)).fill(colMedida), 0.11, 0.11],
         cabecalho: [
-          'REGIÃO / PONTO',
+          'REGIÃO',
+          'PONTO',
           ...(angulos.length > 0 ? angulos.map((a) => `${a}°`) : ['MEDIDA']),
-          'MENOR VALOR',
-          'ESP. MÍN. REQUERIDA',
+          'MENOR',
+          'ESP. MÍN. REQ.',
         ],
-        linhas: linhas.map((p) => [
+        linhas: m.ultrassom.pontos.map((p) => [
+          { texto: p.regiao },
           { texto: p.ponto },
-          ...Array.from({ length: Math.max(angulos.length, 1) }, (_, i) => ({
+          ...(Array.from({ length: Math.max(angulos.length, 1) }, (_, i) => ({
             texto: textoOu(p.medidas[i]),
             centro: true,
             valor: true,
             ...marca(p.medidas[i]),
-          })) as CelulaDoc[],
+          })) as CelulaDoc[]),
           { texto: textoOu(p.menor), centro: true, valor: true, ...marca(p.menor) },
           { texto: textoOu(p.requerida), centro: true, valor: true },
         ]),
       });
+    } else {
+      for (const [regiao, linhas] of porRegiao) {
+        const angulos = linhas[0]?.angulos ?? [];
+        const colMedida = angulos.length > 0 ? 0.48 / angulos.length : 0.48;
+        doc.secao(regiao);
+        doc.tabela({
+          compacta: true,
+          colunas: [0.26, ...Array(Math.max(angulos.length, 1)).fill(colMedida), 0.13, 0.13],
+          cabecalho: [
+            'REGIÃO / PONTO',
+            ...(angulos.length > 0 ? angulos.map((a) => `${a}°`) : ['MEDIDA']),
+            'MENOR VALOR',
+            'ESP. MÍN. REQUERIDA',
+          ],
+          linhas: linhas.map((p) => [
+            { texto: p.ponto },
+            ...(Array.from({ length: Math.max(angulos.length, 1) }, (_, i) => ({
+              texto: textoOu(p.medidas[i]),
+              centro: true,
+              valor: true,
+              ...marca(p.medidas[i]),
+            })) as CelulaDoc[]),
+            { texto: textoOu(p.menor), centro: true, valor: true, ...marca(p.menor) },
+            { texto: textoOu(p.requerida), centro: true, valor: true },
+          ]),
+        });
+      }
     }
   } else {
     doc.texto('Sem pontos de medição registrados.', { tamanho: FONTE.nota, cor: COR.nota, espacoAntes: 2 });
