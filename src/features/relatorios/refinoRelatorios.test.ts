@@ -286,6 +286,42 @@ describe('nome do documento · etiqueta, nunca identidade', () => {
   });
 });
 
+describe('18 e 19 · ícones e ações', () => {
+  /** Os blocos de ação de cada linha (finalizado e rascunho). */
+  const blocos = [...tela.matchAll(/className="rel-cel-acoes"([\s\S]*?)<\/span>/g)].map((m) => m[1]);
+
+  it('todo ícone vem do sprite do sistema — nenhum SVG solto na lista', () => {
+    expect(tela).not.toContain('<svg');
+    expect(tela).toContain('import { Icone }');
+  });
+
+  it('os ícones de AÇÃO têm todos o mesmo tamanho', () => {
+    // O `eye` saía com 15 e os vizinhos com 14 — 1px de diferença, que aparece
+    // justamente porque os três ficam encostados um no outro.
+    expect(blocos.length).toBeGreaterThan(0);
+    for (const b of blocos) {
+      const tam = [...b.matchAll(/tam=\{(\d+)\}/g)].map((m) => m[1]);
+      expect(tam.length).toBeGreaterThan(0);
+      expect(new Set(tam).size).toBe(1);
+      expect(tam[0]).toBe('14');
+    }
+  });
+
+  it('toda ação tem tooltip e rótulo para leitor de tela', () => {
+    for (const b of blocos) {
+      const botoes = (b.match(/<button/g) ?? []).length;
+      expect((b.match(/title=/g) ?? []).length).toBe(botoes);
+      expect((b.match(/aria-label=/g) ?? []).length).toBe(botoes);
+    }
+  });
+
+  it('as ações ficam numa linha só, alinhadas à direita', () => {
+    expect(css).toContain(
+      '.rel-page .rel-cel-acoes { display: flex; justify-content: flex-end; gap: 2px; flex-wrap: nowrap; }',
+    );
+  });
+});
+
 describe('20 e 21 · densidade e celular', () => {
   it('a linha do desktop tem 6px de respiro — 38px com o conteúdo', () => {
     expect(css).toMatch(/\.rel-page \.rel-linha \{[\s\S]*?padding: 6px 10px 6px 9px;/);

@@ -960,7 +960,7 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
                         aria-label={`Continuar editando ${r.codigo || r.nome}`}
                         onClick={() => aoContinuarRascunho?.(r)}
                       >
-                        <Icone nome="pencil" tam={15} />
+                        <Icone nome="pencil" tam={14} />
                       </button>
                       <button
                         type="button"
@@ -1042,7 +1042,7 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
                       /* O ÚNICO ponto desta tela que toca o PDF. */
                       onClick={() => abrir(r)}
                     >
-                      <Icone nome="eye" tam={15} />
+                      <Icone nome="eye" tam={14} />
                     </button>
                     <button
                       type="button"
