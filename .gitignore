@@ -29,3 +29,6 @@ dist-ssr
 *.sw?
 docs/medicoes/massa-f8-*.json
 supabase/.temp/
+
+# scripts de medição de PDF, criados durante a validação e descartáveis
+*-tmp.mjs
