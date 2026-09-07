@@ -1038,6 +1038,11 @@ export default function Prontuarios() {
               </div>
             </div>
             <div className="pront-form-grid">
+              {/* ORDEM que não deixa buraco na grade: o campo largo ocupa a
+                  linha inteira, e os curtos vêm em PARES. Antes era Razão
+                  (largo) · CNPJ · Endereço (largo) · Cidade · Estado ·
+                  Telefone — o CNPJ ficava sozinho numa linha, com meia linha
+                  vazia ao lado, e o mesmo acontecia com o Telefone. */}
               <CampoProntuario
                 rotulo="Razão Social"
                 valor={dados.empresaRazaoSocial ?? ''}
@@ -1050,6 +1055,12 @@ export default function Prontuarios() {
                 valor={dados.empresaCnpj ?? ''}
                 aoMudar={(v) => set('empresaCnpj', v)}
                 automatico={autoPreenchidos.has('empresaCnpj')}
+              />
+              <CampoProntuario
+                rotulo="Telefone"
+                valor={dados.empresaTelefone ?? ''}
+                aoMudar={(v) => set('empresaTelefone', v)}
+                automatico={autoPreenchidos.has('empresaTelefone')}
               />
               <CampoProntuario
                 rotulo="Endereço"
@@ -1069,12 +1080,6 @@ export default function Prontuarios() {
                 valor={dados.empresaEstado ?? ''}
                 aoMudar={(v) => set('empresaEstado', v)}
                 automatico={autoPreenchidos.has('empresaEstado')}
-              />
-              <CampoProntuario
-                rotulo="Telefone"
-                valor={dados.empresaTelefone ?? ''}
-                aoMudar={(v) => set('empresaTelefone', v)}
-                automatico={autoPreenchidos.has('empresaTelefone')}
               />
             </div>
           </div>
