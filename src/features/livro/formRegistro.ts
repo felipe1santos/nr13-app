@@ -29,6 +29,19 @@ export interface FormOcorrencia {
   phId: string;
   /** Preenchido quando este registro RETIFICA outro já lacrado. */
   retificaDe: string;
+  /**
+   * O TERMO que sai impresso no livro.
+   *
+   * Vazio = "use a sugestão": o texto acompanha os campos enquanto o usuário
+   * não escreve o dele. Assim que ele escreve, este campo vence e nada mais o
+   * sobrescreve — é o mesmo contrato que a folha já respeita para o termo
+   * congelado das entradas automáticas.
+   */
+  termoTexto: string;
+  /** Código do relatório de origem, quando veio do pré-preenchimento. */
+  relatorioCodigo?: string;
+  /** Laudo APTO/INAPTO herdado do relatório; `null`/ausente = não marcado. */
+  apto?: boolean | null;
 }
 
 export const FORM_OCORRENCIA_VAZIO: FormOcorrencia = {
@@ -39,4 +52,5 @@ export const FORM_OCORRENCIA_VAZIO: FormOcorrencia = {
   quemRealizou: '',
   phId: '',
   retificaDe: '',
+  termoTexto: '',
 };

@@ -99,7 +99,6 @@ const PECAS = [
         <div class="livro-toolbar-acoes">
           <button class="fj-btn fj-btn-primary">+ Novo registro</button>
           <span class="livro-toolbar-sep"></span>
-          <button class="fj-btn fj-btn-ghost">Histórico</button>
           <button class="fj-btn fj-btn-ghost">Ver livro completo</button>
           <button class="fj-btn fj-btn-ghost">Exportar PDF</button>
         </div>
@@ -113,7 +112,30 @@ const PECAS = [
       </div>
       <div class="livro-cadeia"><span>Cadeia íntegra — todos os registros lacrados mantêm a sequência de hashes.</span>
         <span class="reg-ajuda"><button class="reg-ajuda-btn">i</button></span></div>
+      <div class="fj-panel-head livro-lista-head">
+        <h3>Registros do livro</h3>
+        <span class="livro-lista-contagem">1 lacrado · 1 em rascunho</span>
+      </div>
       <ul class="livro-timeline">
+        <li class="livro-timeline-item rascunho">
+          <span class="livro-timeline-marco"></span>
+          <div class="livro-timeline-corpo">
+            <div class="livro-timeline-topo">
+              <span class="livro-timeline-rascunho">Rascunho</span>
+              <span class="livro-timeline-data">05/09/2026</span>
+              <span class="fj-badge neutro">Manutenção corretiva</span>
+              <span class="selo-flat manual">manual</span>
+            </div>
+            <div class="livro-timeline-desc">Troca da válvula de segurança — assento com vazamento</div>
+            <div class="livro-timeline-meta"><span>Manutenção Industrial XYZ</span></div>
+          </div>
+          <div class="livro-timeline-acoes">
+            <button class="btn-icone">o</button>
+            <button class="btn-icone">e</button>
+            <button class="fj-btn fj-btn-primary livro-btn-trancar">Trancar</button>
+            <button class="btn-icone cor-vermelho">x</button>
+          </div>
+        </li>
         <li class="livro-timeline-item">
           <span class="livro-timeline-marco"></span>
           <div class="livro-timeline-corpo">
@@ -138,7 +160,7 @@ const PECAS = [
     </div></div>`,
   },
   {
-    nome: 'modal "Novo registro" (ilustração + formulário)',
+    nome: 'modal "Novo registro" (formulário + prévia)',
     html: `<div class="fj-modal-overlay reg-modal-overlay" style="position:relative;inset:auto;padding:12px">
       <div class="fj-modal-box reg-modal">
         <div class="fj-modal-head reg-modal-head">
@@ -146,15 +168,6 @@ const PECAS = [
           <button class="fj-modal-close">x</button>
         </div>
         <div class="reg-modal-corpo">
-          <aside class="reg-modal-lado">
-            <figure class="reg-modal-figura"><img src="https://app.nr13sistema.com.br/ilustracoes/registro-seguranca.webp" alt="ilustração"></figure>
-            <ol class="reg-modal-passos">
-              <li><b>Descreva a ocorrência</b><span>A inspeção realizada, uma manutenção, um reparo ou a troca de um dispositivo de segurança.</span></li>
-              <li><b>Salve como rascunho</b><span>Fica só seu: não conta como registro, não vai para o Portal do Cliente e não entra na folha impressa.</span></li>
-              <li><b>Tranque quando estiver certo</b><span>A partir dele o registro é oficial, entra na numeração do livro e não pode mais ser editado.</span></li>
-            </ol>
-            <p class="reg-modal-nota"><span>Cada registro trancado é lacrado com o hash do próprio conteúdo e o elo do anterior.</span></p>
-          </aside>
           <div class="reg-modal-form">
             <div class="reg-modal-prefill">
               <div class="reg-modal-prefill-topo">
@@ -172,17 +185,43 @@ const PECAS = [
               <div class="fj-field"><label>O que foi feito <em>obrigatório</em></label>
                 <input placeholder="Ex.: Troca da válvula de segurança">
                 <small>Uma linha, do jeito que deve aparecer no livro.</small></div>
-              <div class="fj-field"><label>Descrição</label><textarea rows="4"></textarea></div>
+              <div class="fj-field"><label>Descrição</label><textarea rows="3"></textarea></div>
+            </div>
+            <div class="reg-modal-grupo">
+              <h3>Termo de Inspeção:</h3>
+              <div class="fj-field"><label>Texto que sai no livro
+                <button class="reg-modal-restaurar">restaurar sugestão</button></label>
+                <textarea rows="5">Em 19/08/2026, executou-se inspeção de segurança periódica, conforme item 13.5.4 da NR-13, pela empresa habilitada MDK ENG, em obediência à Portaria Mtb nº 3.214, onde o equipamento a que se refere o relatório de inspeção n° REL-1787152599432 está apto a operar dentro da PMTA estipulada.</textarea>
+                <small>Escreva do seu jeito: o texto acima é só uma sugestão.</small></div>
             </div>
             <div class="reg-modal-grupo">
               <h3>Responsáveis</h3>
               <div class="reg-modal-linha">
-                <div class="fj-field"><label>Quem realizou</label><input placeholder="Empresa ou técnico executante"></div>
-                <div class="fj-field"><label>Responsável que assina</label><select><option>Sem assinatura</option></select>
-                  <small>Pode ficar em branco no rascunho e ser escolhido antes de trancar.</small></div>
+                <div class="fj-field"><label>Quem realizou</label><input></div>
+                <div class="fj-field"><label>Responsável que assina</label><select><option>Sem assinatura</option></select></div>
               </div>
             </div>
           </div>
+          <aside class="reg-modal-lado">
+            <div class="reg-modal-abas">
+              <button class="ativa">Prévia</button><button>Como funciona</button>
+            </div>
+            <div class="reg-modal-lado-corpo">
+              <div class="prev-doc">
+                <div class="prev-doc-topo"><span class="prev-doc-eyebrow">Registro de Segurança · NR-13</span>
+                  <strong>Vaso de pressão de teste</strong><span class="prev-doc-tag">ZZ-FASE3</span></div>
+                <dl class="prev-doc-campos">
+                  <div><dt>Data</dt><dd>2026-08-19</dd></div>
+                  <div><dt>Tipo</dt><dd>Inspeção Periódica</dd></div>
+                </dl>
+                <div class="prev-doc-bloco"><span class="prev-doc-rot">Termo de Inspeção:</span>
+                  <p class="prev-doc-termo">Em 19/08/2026, executou-se inspeção de segurança periódica, conforme item 13.5.4 da NR-13, pela empresa habilitada MDK ENG, em obediência à Portaria Mtb nº 3.214, onde o equipamento a que se refere o relatório de inspeção n° REL-1787152599432 está apto a operar dentro da PMTA estipulada.</p></div>
+                <div class="prev-doc-bloco"><span class="prev-doc-rot">Descrição do registro</span>
+                  <p>Relatório de inspeção gerado</p></div>
+                <p class="prev-doc-nota">Prévia do conteúdo. A folha impressa do livro é gerada a partir deste registro.</p>
+              </div>
+            </div>
+          </aside>
         </div>
         <div class="reg-modal-acoes">
           <span class="reg-modal-acoes-dica">Salva como rascunho — você tranca depois.</span>
@@ -238,7 +277,7 @@ const MEDIR = `(doc => {
     // apareceria antes: sem a coluna 2 declarada, o span cai na coluna do
     // número e mede 22px — uma palavra por linha, sem transbordar nada.
     // (Sem crase neste comentario: ele vive dentro de um template literal.)
-    passos: [...doc.querySelectorAll('.reg-modal-passos li > span')]
+    passos: [...doc.querySelectorAll('.prev-doc-bloco p')]
       .map(s => Math.round(s.getBoundingClientRect().width)),
   } : null;
   const barra = doc.querySelector('.livro-topo');

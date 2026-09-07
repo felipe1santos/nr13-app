@@ -483,3 +483,61 @@
 /* O "i" ao lado do título da sessão precisa de ar: colado no "ç" ele parece
    parte da palavra. */
 .reg-hero h2 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* ── LISTA ÚNICA DE REGISTROS (07/09/2026) ───────────────────────────────────
+   "Linha do tempo" e "Histórico" eram dois modos para os mesmos registros, e os
+   rascunhos moravam numa terceira seção acima. Virou uma lista só: o rascunho
+   aparece no lugar cronológico dele, marcado como rascunho. */
+.livro-lista-head {
+  margin-top: 6px;
+  padding: 12px 20px;
+  gap: 10px;
+}
+.livro-lista-head h3 {
+  margin: 0;
+  border: none;
+  padding: 0;
+  font-family: var(--font-display);
+  font-size: 14px;
+}
+.livro-lista-contagem { font-size: 11.5px; color: var(--muted, #7a8790); }
+
+/* O rascunho se distingue por dois sinais discretos — borda tracejada e a
+   etiqueta — e não por uma caixa colorida: ele é um registro do livro em
+   preparo, não um aviso. */
+.livro-timeline-item.rascunho {
+  border-style: dashed;
+  border-color: var(--border-dashed, #d8d5cc);
+  background: var(--bg-faint, #fbfaf7);
+}
+.livro-timeline-item.rascunho .livro-timeline-marco {
+  background: transparent;
+  border: 2px solid var(--muted, #7a8790);
+}
+.livro-timeline-rascunho {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 20px;
+  border: 1px dashed var(--border-dashed, #d8d5cc);
+  color: var(--muted, #7a8790);
+  background: #fff;
+}
+
+/* Ações por item: ícones para o que é secundário, botão só para trancar — que
+   é a ação que muda o estado do registro para sempre. */
+.livro-timeline-acoes { display: flex; align-items: center; gap: 6px; }
+.livro-btn-trancar { white-space: nowrap; }
+
+@media (max-width: 640px) {
+  .livro-lista-head { padding: 10px 14px; }
+  /* As quatro ações do rascunho não cabem ao lado do texto: viram uma faixa. */
+  .livro-timeline-item .livro-timeline-acoes {
+    width: 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+  .livro-timeline-acoes .btn-icone { width: 44px; height: 44px; }
+}

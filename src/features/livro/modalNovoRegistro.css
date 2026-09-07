@@ -12,7 +12,7 @@
    ============================================================================ */
 
 .reg-modal {
-  max-width: 940px;
+  max-width: 1020px;
   display: flex;
   flex-direction: column;
   /* Quem rola é o corpo — o cabeçalho e os botões de ação ficam sempre à vista,
@@ -56,7 +56,6 @@
    direita no desktop. `order` só reordena o que já é irmão — a ordem de
    tabulação não muda, e não há nada focável dentro dela. */
 .reg-modal-lado {
-  order: 2;
   flex: 0 0 292px;
   padding: 18px 20px 22px;
   border-left: 1px solid var(--blue-line, #c9dcf0);
@@ -317,21 +316,12 @@
 /* ── TABLET ──────────────────────────────────────────────────────────────
    Abaixo de 900px as duas colunas espremem o formulário. A coluna de apoio
    sobe para o topo e a ilustração encolhe: ela orienta, não é o conteúdo. */
+/* A faixa antiga (ilustração deitada no topo) saiu na 4ª rodada: a coluna da
+   direita agora é a PRÉVIA, e prévia no topo empurraria o formulário para fora
+   da tela. O empilhamento — com a prévia DEPOIS do formulário — está no bloco
+   de 900px logo adiante. */
 @media (max-width: 900px) {
   .reg-modal-corpo { flex-direction: column; }
-  .reg-modal-lado {
-    order: 0;
-    flex: 0 0 auto;
-    border-left: none;
-    border-bottom: 1px solid var(--blue-line, #c9dcf0);
-    display: grid;
-    grid-template-columns: 168px 1fr;
-    align-items: start;
-    gap: 14px 16px;
-    padding: 16px 18px;
-  }
-  .reg-modal-figura { grid-row: span 2; }
-  .reg-modal-nota { grid-column: 2; }
 }
 
 /* ── CELULAR ─────────────────────────────────────────────────────────────── */
@@ -362,4 +352,182 @@
     box-sizing: border-box;
   }
   .reg-ajuda-pop { left: auto; right: -6px; }
+}
+
+/* ============================================================================
+   4ª RODADA (07/09/2026) — menos caixas, cantos mais retos, prévia à direita.
+
+   O modal tinha caixa dentro de caixa: cada grupo com moldura, o bloco azul do
+   pré-preenchimento, a nota, a figura em cartão. Agora quem separa é o ESPAÇO e
+   um filete; o raio caiu de 12-14px para 8px, que é o desenho corporativo que
+   o resto do sistema usa em campo e botão.
+   ============================================================================ */
+.reg-modal { border-radius: 10px; }
+.reg-modal-form .fj-field input,
+.reg-modal-form .fj-field select,
+.reg-modal-form .fj-field textarea { border-radius: 6px; }
+
+/* Pré-preenchimento: sem caixa colorida — um filete azul à esquerda basta para
+   dizer "isto é uma oferta, não um campo obrigatório". */
+.reg-modal-prefill {
+  border: none;
+  border-left: 3px solid var(--blue, #457dc1);
+  border-radius: 0;
+  background: transparent;
+  padding: 2px 0 2px 12px;
+}
+.reg-modal-prefill select { border-radius: 6px; border-color: var(--line, #e4e1d8); }
+
+/* ── COLUNA DA PRÉVIA ────────────────────────────────────────────────────── */
+.reg-modal-lado {
+  flex: 0 0 340px;
+  padding: 0;
+  gap: 0;
+  background: var(--bg-faint, #fbfaf7);
+  border-left: 1px solid var(--line, #e4e1d8);
+}
+.reg-modal-abas {
+  display: flex;
+  gap: 2px;
+  padding: 10px 12px 0;
+  border-bottom: 1px solid var(--line, #e4e1d8);
+  flex-shrink: 0;
+}
+.reg-modal-abas button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted, #7a8790);
+  cursor: pointer;
+}
+.reg-modal-abas button.ativa {
+  color: var(--text-main, #2d3339);
+  border-bottom-color: var(--amber, #ff7a1a);
+}
+.reg-modal-abas button:focus-visible { outline: 2px solid var(--amber, #ff7a1a); outline-offset: -2px; }
+
+/* A prévia rola sozinha: o formulário é longo, e acompanhar o texto crescendo
+   não pode obrigar a rolar a coluna inteira. */
+.reg-modal-lado-corpo {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.reg-modal-lado-corpo .reg-modal-figura { border-radius: 8px; }
+.reg-modal-nota { border-radius: 8px; }
+
+/* ── A PRÉVIA (o "documento") ────────────────────────────────────────────── */
+.prev-doc {
+  background: #fff;
+  border: 1px solid var(--line, #e4e1d8);
+  border-radius: 8px;
+  padding: 16px 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.prev-doc-topo { display: flex; flex-direction: column; gap: 2px; }
+.prev-doc-eyebrow {
+  font-size: 9.5px;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--amber-deep, #d9640c);
+}
+.prev-doc-topo strong { font-family: var(--font-display); font-size: 14px; }
+.prev-doc-tag { font-family: var(--font-mono); font-size: 11px; color: var(--muted, #7a8790); }
+
+.prev-doc-campos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: 0;
+  padding: 10px 0;
+  border-top: 1px solid var(--line, #e4e1d8);
+  border-bottom: 1px solid var(--line, #e4e1d8);
+}
+.prev-doc-campos dt {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted, #7a8790);
+  font-weight: 700;
+}
+.prev-doc-campos dd { margin: 1px 0 0; font-size: 12.5px; color: var(--text-main, #2d3339); }
+
+.prev-doc-bloco { display: flex; flex-direction: column; gap: 4px; }
+.prev-doc-rot {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  font-weight: 700;
+  color: var(--muted, #7a8790);
+}
+.prev-doc-bloco p {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-main, #2d3339);
+  /* O termo pode ter quebras de linha do usuário — a prévia respeita. */
+  white-space: pre-wrap;
+}
+.prev-doc-termo { text-align: justify; }
+
+.prev-doc-pes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line, #e4e1d8);
+}
+.prev-doc-pes span { display: flex; flex-direction: column; font-size: 12px; }
+.prev-doc-pes b {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted, #7a8790);
+}
+.prev-doc-nota {
+  margin: 0;
+  font-size: 10.5px;
+  line-height: 1.45;
+  color: var(--text-faint, #aeb4b9);
+}
+
+/* "restaurar sugestão": ação de texto, não botão — ela desfaz, não avança. */
+.reg-modal-restaurar {
+  margin-left: auto;
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 10px;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--link, #1e3a8a);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+@media (max-width: 900px) {
+  /* A prévia desce para depois do formulário: numa tela estreita, primeiro se
+     escreve, depois se confere. */
+  .reg-modal-lado {
+    flex: 0 0 auto;
+    border-left: none;
+    border-top: 1px solid var(--line, #e4e1d8);
+    display: block;
+  }
+  .reg-modal-lado-corpo { padding: 12px 14px 16px; }
 }

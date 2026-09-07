@@ -2,19 +2,25 @@
  * "Novo registro" — o modal que cria (ou continua) um registro do Livro de
  * Registro de Segurança.
  *
- * ## Por que virou componente, e por que ganhou duas colunas
+ * ## O que ele resolve
  *
- * Ele nasceu como um bloco inline dentro de `pages/LivroRegistro.tsx`: 120
- * linhas de JSX com estilo escrito à mão em `style={{...}}`, sete campos
- * empilhados em coluna única e um parágrafo cinza de três linhas no topo. O
- * usuário chegava nele sem saber o que ia acontecer com o que digitasse — se
- * já valia como documento oficial, se dava para continuar depois.
+ * Ele nasceu como um bloco inline na página: 120 linhas de JSX com estilo em
+ * `style={{...}}`, sete campos empilhados e um parágrafo cinza no topo. Quem
+ * preenchia não sabia o que ia acontecer com o que digitasse — nem como o
+ * registro ficaria escrito.
  *
- * A coluna da direita responde isso ANTES do primeiro campo: a ilustração
- * (inspetor, registros e o cadeado do lacre) mostra do que se trata, e três
- * passos curtos dizem o ciclo — rascunho → continuar depois → trancar. É o
- * mesmo padrão do "Como funciona" de Calibrações, aqui embutido no próprio
- * modal porque é uma explicação de UMA ação, não de uma sessão inteira.
+ * Hoje o modal tem duas colunas: o formulário à esquerda e, à direita, a
+ * **prévia viva** do registro (o que está sendo escrito, já com o termo
+ * redigido) ou a ajuda, na aba ao lado. A prévia é a aba padrão de propósito:
+ * a dúvida do usuário é "como isso vai sair", e a resposta precisa estar na
+ * tela, não a um clique.
+ *
+ * ## O termo é EDITÁVEL
+ *
+ * O texto do Termo era montado só dentro da folha `LIVRO-REGISTRO.html` e
+ * chegava pronto — o usuário descobria a redação depois de trancar, quando não
+ * dá mais para mudar. Agora ele é um campo: nasce com a sugestão na redação da
+ * folha (ver `termoRegistro.ts`) e o que o usuário escrever vence.
  *
  * ## O que ele NÃO mudou
  *
@@ -22,9 +28,11 @@
  * continua gravando RASCUNHO (`nr13_livro_rascunho_<TAG>`), e só o trancamento
  * — que acontece na tela, não aqui — torna o registro oficial e imutável.
  */
-import { useEffect, useId, useRef } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Icone } from '../../components/Icone';
 import PopoverAjuda from './PopoverAjuda';
+import PreviaRegistro from './PreviaRegistro';
+import { descricaoCombinada, termoSugerido, tituloTermo, type DadosPrevia } from './termoRegistro';
 import type { FormOcorrencia } from './formRegistro';
 import { TIPOS_OCORRENCIA } from './formRegistro';
 import './modalNovoRegistro.css';
@@ -41,6 +49,8 @@ export interface OpcaoAssinante {
 
 export default function ModalNovoRegistro({
   tag,
+  equipamento,
+  empresa,
   modo,
   form,
   aoMudarForm,
@@ -48,11 +58,16 @@ export default function ModalNovoRegistro({
   assinantes,
   avisoRetificacao,
   erro,
+  abaInicial = 'previa',
   aoPreencherDeRelatorio,
   aoSalvar,
   aoFechar,
 }: {
   tag: string;
+  /** Nome do equipamento, para o cabeçalho da prévia. */
+  equipamento: string;
+  /** Razão social da executante — é ela que o Termo cita. */
+  empresa: string;
   modo: 'novo' | 'editar' | 'retificar';
   form: FormOcorrencia;
   aoMudarForm: (f: FormOcorrencia) => void;
@@ -61,6 +76,8 @@ export default function ModalNovoRegistro({
   /** Aviso do registro que está sendo retificado (a página monta o texto). */
   avisoRetificacao?: string;
   erro: string;
+  /** `previa` (padrão) ou `ajuda` — o olho da lista abre direto na prévia. */
+  abaInicial?: 'previa' | 'ajuda';
   aoPreencherDeRelatorio: (id: string) => void;
   aoSalvar: () => void;
   aoFechar: () => void;
@@ -68,6 +85,7 @@ export default function ModalNovoRegistro({
   const caixa = useRef<HTMLDivElement>(null);
   const primeiro = useRef<HTMLInputElement>(null);
   const idTitulo = useId();
+  const [aba, setAba] = useState<'previa' | 'ajuda'>(abaInicial);
 
   const titulo =
     modo === 'retificar' ? 'Registro de retificação' : modo === 'editar' ? 'Editar rascunho' : 'Novo registro';
@@ -119,6 +137,39 @@ export default function ModalNovoRegistro({
     ? TIPOS_OCORRENCIA
     : [form.tipoOcorrencia, ...TIPOS_OCORRENCIA];
 
+  /*
+   * O termo SUGERIDO acompanha os campos enquanto o usuário não escreve o dele.
+   * No instante em que ele digita, `form.termoTexto` passa a existir e vence —
+   * mudar a data depois disso não pode reescrever o texto de alguém.
+   */
+  const sugestao = useMemo(
+    () =>
+      termoSugerido({
+        tipo: form.tipoOcorrencia,
+        data: form.data,
+        empresa,
+        relatorioCodigo: form.relatorioCodigo,
+        apto: form.apto,
+        descricao: descricaoCombinada(form.oQueFoiFeito, form.descricao),
+      }),
+    [form.tipoOcorrencia, form.data, form.relatorioCodigo, form.apto, form.oQueFoiFeito, form.descricao, empresa],
+  );
+  const termoEfetivo = form.termoTexto.trim() ? form.termoTexto : sugestao;
+
+  const previa: DadosPrevia = {
+    tag,
+    equipamento,
+    empresa,
+    data: form.data,
+    tipo: form.tipoOcorrencia,
+    oQueFoiFeito: form.oQueFoiFeito,
+    descricao: form.descricao,
+    quemRealizou: form.quemRealizou,
+    assinante: assinantes.find((a) => a.id === form.phId)?.rotulo ?? '',
+    termo: termoEfetivo,
+    relatorioCodigo: form.relatorioCodigo,
+  };
+
   return (
     <div
       className="fj-modal-overlay reg-modal-overlay"
@@ -142,54 +193,8 @@ export default function ModalNovoRegistro({
         </div>
 
         <div className="reg-modal-corpo">
-          {/* Coluna de apoio. Vem antes no DOM (é o que se lê primeiro) e vai
-              para a DIREITA no desktop pelo `order` — no celular ela volta a
-              ser o topo, que é onde a ilustração ajuda. Não tem nada focável,
-              então a ordem de tabulação não muda. */}
-          <aside className="reg-modal-lado">
-            <figure className="reg-modal-figura">
-              <img
-                src="/ilustracoes/registro-seguranca.webp"
-                alt="Inspetor com o registro em mãos ao lado da pasta de registros do equipamento, protegida por um cadeado"
-                loading="lazy"
-                decoding="async"
-              />
-            </figure>
-            <ol className="reg-modal-passos">
-              <li>
-                <b>Descreva a ocorrência</b>
-                <span>
-                  A inspeção realizada, uma manutenção, um reparo ou a troca de um dispositivo de
-                  segurança.
-                </span>
-              </li>
-              <li>
-                <b>Salve como rascunho</b>
-                <span>
-                  Fica só seu: não conta como registro, não vai para o Portal do Cliente e não entra
-                  na folha impressa. Dá para fechar e continuar depois.
-                </span>
-              </li>
-              <li>
-                <b>Tranque quando estiver certo</b>
-                <span>
-                  O trancamento é feito na tela do equipamento. A partir dele o registro é oficial,
-                  entra na numeração do livro e não pode mais ser editado nem apagado.
-                </span>
-              </li>
-            </ol>
-            <p className="reg-modal-nota">
-              <Icone nome="cadeado" tam={13} />
-              <span>
-                Cada registro trancado é lacrado com o hash do próprio conteúdo e o elo do anterior —
-                é o que prova que o livro não foi alterado depois.
-              </span>
-            </p>
-          </aside>
-
           <div className="reg-modal-form">
-            {/* Pré-preenchimento: oferta, não caminho obrigatório — por isso ele
-                fica destacado num bloco à parte, acima dos campos. */}
+            {/* Pré-preenchimento: oferta, não caminho obrigatório. */}
             <div className="reg-modal-prefill">
               <div className="reg-modal-prefill-topo">
                 <label htmlFor="oc-relatorio">Pré-preencher a partir de um relatório finalizado</label>
@@ -268,11 +273,41 @@ export default function ModalNovoRegistro({
                 <label htmlFor="oc-desc">Descrição</label>
                 <textarea
                   id="oc-desc"
-                  rows={4}
+                  rows={3}
                   placeholder="Detalhes da ocorrência, peças substituídas, condições encontradas…"
                   value={form.descricao}
                   onChange={(e) => set('descricao', e.target.value)}
                 />
+              </div>
+            </div>
+
+            {/* O TERMO, editável. A sugestão é ponto de partida; o texto do
+                usuário vence e é o que fica gravado no registro. */}
+            <div className="reg-modal-grupo">
+              <h3>{tituloTermo(form.tipoOcorrencia)}</h3>
+              <div className="fj-field">
+                <label htmlFor="oc-termo">
+                  Texto que sai no livro
+                  {form.termoTexto.trim() && (
+                    <button
+                      type="button"
+                      className="reg-modal-restaurar"
+                      onClick={() => set('termoTexto', '')}
+                    >
+                      restaurar sugestão
+                    </button>
+                  )}
+                </label>
+                <textarea
+                  id="oc-termo"
+                  rows={5}
+                  value={termoEfetivo}
+                  onChange={(e) => set('termoTexto', e.target.value)}
+                />
+                <small>
+                  Escreva do seu jeito: o texto acima é só uma sugestão, e o que ficar aqui é o que
+                  vai impresso no livro.
+                </small>
               </div>
             </div>
 
@@ -311,6 +346,78 @@ export default function ModalNovoRegistro({
               </p>
             )}
           </div>
+
+          {/* Coluna direita: a prévia viva, com a ajuda na aba ao lado. */}
+          <aside className="reg-modal-lado">
+            <div className="reg-modal-abas" role="tablist" aria-label="Prévia e ajuda">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={aba === 'previa'}
+                className={aba === 'previa' ? 'ativa' : ''}
+                onClick={() => setAba('previa')}
+              >
+                <Icone nome="eye" tam={12} /> Prévia
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={aba === 'ajuda'}
+                className={aba === 'ajuda' ? 'ativa' : ''}
+                onClick={() => setAba('ajuda')}
+              >
+                <Icone nome="book" tam={12} /> Como funciona
+              </button>
+            </div>
+
+            <div className="reg-modal-lado-corpo">
+              {aba === 'previa' ? (
+                <PreviaRegistro dados={previa} />
+              ) : (
+                <>
+                  <figure className="reg-modal-figura">
+                    <img
+                      src="/ilustracoes/registro-seguranca.webp"
+                      alt="Inspetor com o registro em mãos ao lado da pasta de registros do equipamento, protegida por um cadeado"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </figure>
+                  <ol className="reg-modal-passos">
+                    <li>
+                      <b>Descreva a ocorrência</b>
+                      <span>
+                        A inspeção realizada, uma manutenção, um reparo ou a troca de um dispositivo
+                        de segurança.
+                      </span>
+                    </li>
+                    <li>
+                      <b>Salve como rascunho</b>
+                      <span>
+                        Fica só seu: não conta como registro, não vai para o Portal do Cliente e não
+                        entra na folha impressa. Dá para fechar e continuar depois.
+                      </span>
+                    </li>
+                    <li>
+                      <b>Tranque quando estiver certo</b>
+                      <span>
+                        O trancamento é feito na tela do equipamento. A partir dele o registro é
+                        oficial, entra na numeração do livro e não pode mais ser editado nem
+                        apagado.
+                      </span>
+                    </li>
+                  </ol>
+                  <p className="reg-modal-nota">
+                    <Icone nome="cadeado" tam={13} />
+                    <span>
+                      Cada registro trancado é lacrado com o hash do próprio conteúdo e o elo do
+                      anterior — é o que prova que o livro não foi alterado depois.
+                    </span>
+                  </p>
+                </>
+              )}
+            </div>
+          </aside>
         </div>
 
         <div className="reg-modal-acoes">

@@ -11,7 +11,11 @@ import { identificacaoDe } from '../features/equipamento/identificacaoEquipament
 import FotoImg from '../components/FotoImg';
 import type { FotoArmazenada } from '../services/fotos';
 import { listarFuncionarios } from '../features/cadastros/cadastroService';
-import { montarEntradaLivroDoRelatorio, montarEntradaLivroManual } from '../features/relatorios/relatoriosService';
+import {
+  montarEntradaLivroDoRelatorio,
+  montarEntradaLivroManual,
+  timestampDataLivro,
+} from '../features/relatorios/relatoriosService';
 import { carregarRelatorio, listarIndice } from '../features/relatorios/historicoRelatorios';
 import {
   excluirRascunhoLivro,
@@ -25,6 +29,7 @@ import ModalTrancarRegistro from '../features/livro/ModalTrancarRegistro';
 import ModalNovoRegistro from '../features/livro/ModalNovoRegistro';
 import PopoverAjuda from '../features/livro/PopoverAjuda';
 import { FORM_OCORRENCIA_VAZIO, type FormOcorrencia } from '../features/livro/formRegistro';
+import { descricaoCombinada, termoSugerido } from '../features/livro/termoRegistro';
 import { verificarCadeia, verificarEntrada, type LivroEntrada as EntradaLacre } from '../features/relatorios/livroLacre';
 import { exportarPdf, exportarPdfLivroCompleto } from '../features/relatorios/pdfService';
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
@@ -322,6 +327,18 @@ export default function LivroRegistro() {
    * e da capa do relatório (a marcada como capa, ou a primeira). `null` quando
    * o equipamento não tem foto — o cabeçalho mostra o marcador neutro.
    */
+  /**
+   * A razão social da executante — é ela que o Termo cita ("pela empresa
+   * habilitada X"). Do cadastro `nr13_minha_empresa`, a mesma fonte que a folha
+   * do livro usa; sem cadastro, a folha escreveria o marcador, e a prévia
+   * escreve o mesmo, em vez de inventar um nome.
+   */
+  const nomeEmpresaExecutante = useMemo(() => {
+    const emp = ler<{ razao?: string; fantasia?: string }>('nr13_minha_empresa');
+    return (emp?.razao || emp?.fantasia || '').trim();
+  }, []);
+
+
   const fotoDoEquipamento = useMemo<FotoArmazenada | null>(() => {
     if (!tagAberta) return null;
     const fotos = ler<FotoEquipamento[]>(`nr13_fotos_${tagAberta}`) ?? [];
@@ -337,17 +354,44 @@ export default function LivroRegistro() {
   const [rascunhos, setRascunhos] = useState<LivroEntrada[]>([]);
   /** id do rascunho sendo editado no modal; `null` = registro novo. */
   const [editandoId, setEditandoId] = useState<string | null>(null);
+  /** Aba com que o modal abre: o olho da lista pede a prévia, o lápis o formulário. */
+  const [abaModal, setAbaModal] = useState<'previa' | 'ajuda'>('previa');
   /** Rascunho escolhido para trancar, já validado. `null` = modal fechado. */
   const [trancando, setTrancando] = useState<{ id: string; validacao: ResultadoValidacaoRegistro } | null>(null);
   const [trancandoOcupado, setTrancandoOcupado] = useState(false);
   const [erroTrancar, setErroTrancar] = useState('');
   // Visão "Histórico": log cronológico em texto puro (sem iframes de folhas).
-  const [historico, setHistorico] = useState(false);
   // Altura (px) do recorte VISUAL da folha no modal de preview. null = folha A4 inteira.
   const [alturaRecorte, setAlturaRecorte] = useState<number | null>(null);
   const funcionarios = useMemo(() => listarFuncionarios(), []);
 
   const linhaAberta = linhas.find((l) => l.tag === tagAberta) ?? null;
+
+  /**
+   * A LISTA ÚNICA: rascunhos e registros lacrados, em ordem cronológica.
+   *
+   * O `numero` vem da posição no array OFICIAL, não da posição nesta lista: a
+   * numeração do livro é a ordem dos trancamentos, e um rascunho no meio não
+   * pode empurrar o "#000002" de um registro já emitido. Rascunho não recebe
+   * número nenhum — ele ganha o seu ao ser trancado.
+   */
+  const itensDoLivro = useMemo(() => {
+    const oficiais = (linhaAberta?.entradas ?? []).map((entrada, i) => ({
+      entrada,
+      numero: i + 1,
+      rascunho: false,
+      i,
+    }));
+    const emRascunho = rascunhos.map((entrada, i) => ({
+      entrada,
+      numero: 0,
+      rascunho: true,
+      i,
+    }));
+    return [...oficiais, ...emRascunho].sort(
+      (a, b) => timestampDataLivro(a.entrada.data) - timestampDataLivro(b.entrada.data),
+    );
+  }, [linhaAberta, rascunhos]);
 
   // ── Selo de integridade ────────────────────────────────────────────────────
   // O lacre (hash + elo) já protege o livro; sem mostrá-lo, protege em silêncio.
@@ -437,13 +481,20 @@ export default function LivroRegistro() {
 
   function abrirModalOcorrencia() {
     setForm(FORM_OCORRENCIA_VAZIO);
+    setAbaModal('previa');
     setEditandoId(null);
     setErroForm('');
     setModalOcorrencia(true);
   }
 
-  /** Reabre um rascunho para continuar de onde parou. */
-  function editarRascunho(r: LivroEntrada) {
+  /**
+   * Reabre um rascunho para continuar de onde parou.
+   *
+   * `aba` decide o que o usuário vê primeiro: o OLHO da lista abre na prévia
+   * (ele quer LER o rascunho), o lápis abre no formulário. Nos dois casos é o
+   * mesmo modal e o mesmo rascunho — ver e editar deixaram de ser dois lugares.
+   */
+  function editarRascunho(r: LivroEntrada, aba: 'previa' | 'ajuda' = 'previa') {
     // A descrição é gravada combinada ("o que foi feito — detalhe"). Na volta ela
     // vem inteira no primeiro campo: separar por um travessão que o usuário pode
     // ter digitado quebraria o texto dele no lugar errado.
@@ -455,7 +506,12 @@ export default function LivroRegistro() {
       quemRealizou: r.quemRealizou ?? '',
       phId: (r as { phId?: string }).phId ?? '',
       retificaDe: r.retificaDe ?? '',
+      // O termo digitado volta como está. Vazio = a sugestão volta a valer.
+      termoTexto: (r as { termoTexto?: string }).termoTexto ?? '',
+      relatorioCodigo: r.relatorioCodigo || undefined,
+      apto: r.apto ?? null,
     });
+    setAbaModal(aba);
     setEditandoId(r.id ?? null);
     setErroForm('');
     setModalOcorrencia(true);
@@ -506,6 +562,18 @@ export default function LivroRegistro() {
    * ser TRANCADO. É por isso que ele não conta, não vai ao Portal e não entra na
    * cadeia enquanto está em rascunho.
    */
+  /** O termo efetivo: o texto do usuário ou, na falta dele, a sugestão. */
+  function termoDoFormulario(): string {
+    return termoSugerido({
+      tipo: form.tipoOcorrencia,
+      data: form.data,
+      empresa: nomeEmpresaExecutante,
+      relatorioCodigo: form.relatorioCodigo,
+      apto: form.apto,
+      descricao: descricaoCombinada(form.oQueFoiFeito, form.descricao),
+    });
+  }
+
   async function salvarOcorrencia() {
     if (!linhaAberta) return;
     if (!form.data || !form.tipoOcorrencia || !form.oQueFoiFeito.trim()) {
@@ -520,6 +588,12 @@ export default function LivroRegistro() {
       quemRealizou: form.quemRealizou,
       phId: form.phId || null,
       retificaDe: form.retificaDe || undefined,
+      // O termo vai GRAVADO, inclusive quando o usuário não mexeu nele: guardar
+      // só o texto editado deixaria a folha remontar a frase com os dados de
+      // AMANHÃ (razão social nova, por exemplo) num registro já trancado.
+      termoTexto: form.termoTexto.trim() || termoDoFormulario(),
+      relatorioCodigo: form.relatorioCodigo,
+      apto: form.apto ?? null,
     });
     // Editar um rascunho reescreve o MESMO registro: id novo criaria um segundo
     // rascunho a cada gravação.
@@ -609,9 +683,6 @@ export default function LivroRegistro() {
                 <Icone nome="plus" tam={13} /> Novo registro
               </button>
               <span className="livro-toolbar-sep" aria-hidden />
-              <button type="button" className="fj-btn fj-btn-ghost" onClick={() => setHistorico((v) => !v)}>
-                <Icone nome="book" tam={13} /> {historico ? 'Linha do tempo' : 'Histórico'}
-              </button>
               <button type="button" className="fj-btn fj-btn-ghost" onClick={() => setLivroCompleto(true)}>
                 <Icone nome="eye" tam={13} /> Ver livro completo
               </button>
@@ -675,205 +746,24 @@ export default function LivroRegistro() {
             </button>
           </div>
 
+
           {/*
-            RASCUNHOS — seção separada, e separada de verdade.
+            UMA LISTA SÓ (07/09/2026).
 
-            Eles não estão em `nr13_livro_<TAG>`: não contam no número de
-            registros, não entram na cadeia, não vão para o Portal e não são
-            impressos na folha do livro. Esta seção é o único lugar do sistema em
-            que eles existem, e sai da tela assim que o último for trancado.
+            A tela tinha dois modos — "Linha do tempo" e "Histórico" — que
+            mostravam os MESMOS registros com desenhos diferentes, e os
+            rascunhos numa terceira seção acima. Três lugares para uma coisa: o
+            usuário trocava de modo procurando o registro que estava no outro.
+            Agora é uma lista, em ordem cronológica, com o rascunho no meio dela
+            marcado como rascunho — que é onde ele está na vida real.
           */}
-          {rascunhos.length > 0 && (
-            <section className="livro-rascunhos" aria-label="Registros em rascunho">
-              <h3>
-                <Icone nome="pencil" tam={13} /> Rascunhos ({rascunhos.length})
-                <span>não contam como registro, não entram na cadeia e não aparecem no Portal</span>
-              </h3>
-              {rascunhos.map((r) => (
-                <div className="livro-rascunho" key={r.id}>
-                  <div className="livro-rascunho-corpo">
-                    <div className="livro-rascunho-cab">
-                      <span className="lrhist-data">{dataBR(r.data) || '—'}</span>
-                      <span className="lrhist-tipo">{r.tipo || '—'}</span>
-                      <span className="rel-badge-rascunho">RASCUNHO</span>
-                    </div>
-                    <div className="livro-rascunho-desc">{r.descricao || '—'}</div>
-                    {r.quemRealizou && <div className="livro-rascunho-quem">Executado por {r.quemRealizou}</div>}
-                  </div>
-                  <div className="livro-rascunho-btns">
-                    <button type="button" className="fj-btn fj-btn-ghost" onClick={() => editarRascunho(r)}>
-                      <Icone nome="pencil" tam={13} /> Editar
-                    </button>
-                    <button type="button" className="fj-btn fj-btn-primary" onClick={() => abrirTrancamento(r)}>
-                      <Icone nome="cadeado" tam={13} /> Trancar registro
-                    </button>
-                    <button
-                      type="button"
-                      className="fj-btn fj-btn-ghost"
-                      title="Excluir rascunho"
-                      onClick={() => void apagarRascunho(r.id ?? '')}
-                    >
-                      <Icone nome="trash" tam={13} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </section>
-          )}
-
-          {historico ? (
-            <div className="lrhist">
-              <div className="lrhist-head">
-                <div>
-                  <div className="fj-eyebrow">Histórico do livro — log cronológico</div>
-                  <h3 className="lrhist-title">{linhaAberta.tag} · {linhaAberta.entradas.length} registro(s)</h3>
-                  {/* Veredicto do livro INTEIRO. Um lacre que ninguém vê protege
-                      em silêncio; esta barra é o que transforma a verificação em
-                      informação para quem responde tecnicamente pelo registro. */}
-                  {cadeiaOk !== null && (
-                    <div
-                      className="no-print"
-                      style={{
-                        margin: '8px 0 4px', padding: '8px 12px', borderRadius: 8, fontSize: 12.5,
-                        border: `1px solid ${cadeiaOk ? '#1f7a45' : '#c0392b'}`,
-                        background: cadeiaOk ? '#eef8f1' : '#fdf0ee',
-                        color: cadeiaOk ? '#155c33' : '#8e2b20',
-                      }}
-                    >
-                      {cadeiaOk ? (
-                        <>
-                          <strong>Cadeia de registros íntegra.</strong> Cada entrada lacrada guarda o
-                          hash do próprio conteúdo e o elo da anterior — editar, remover ou reordenar
-                          qualquer registro seria detectado aqui.
-                        </>
-                      ) : (
-                        <>
-                          <strong>ATENÇÃO: a cadeia de registros não confere.</strong> Um ou mais
-                          registros foram alterados, removidos ou reordenados depois de emitidos.
-                          Veja os marcados abaixo.
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <button type="button" className="fj-btn fj-btn-ghost" onClick={() => setHistorico(false)}>
-                  ← Voltar à linha do tempo
-                </button>
-              </div>
-
-              {linhaAberta.entradas.length === 0 ? (
-                <div className="lrhist-vazio">
-                  <div className="lrhist-vazio-ic"><Icone nome="book" tam={20} /></div>
-                  <strong>Nenhum registro no histórico</strong>
-                  <span>
-                    O histórico é alimentado automaticamente a cada relatório salvo e pelas ocorrências
-                    manuais lançadas neste livro.
-                  </span>
-                </div>
-              ) : (
-                <ol className="lrhist-log">
-                  {linhaAberta.entradas.map((entrada, i) => {
-                    const numeroRegistro = String(i + 1).padStart(6, '0');
-                    const idxRetificada = entrada.retificaDe
-                      ? linhaAberta.entradas.findIndex((e) => e.id === entrada.retificaDe)
-                      : -1;
-                    const retificada = idxRetificada >= 0 ? linhaAberta.entradas[idxRetificada] : undefined;
-                    const mostraApto = entrada.origem !== 'manual' && (entrada.apto === true || entrada.apto === false);
-                    return (
-                      <li key={entrada.id ?? `h-${i}`} className="lrhist-linha">
-                        <span className="lrhist-num">#{numeroRegistro}</span>
-                        <div className="lrhist-corpo">
-                          <div className="lrhist-cab">
-                            <span className="lrhist-data">{dataBR(entrada.data) || '—'}</span>
-                            <span className="lrhist-tipo">{entrada.tipo}</span>
-                            {mostraApto && (
-                              <span className={`lrhist-selo ${entrada.apto ? 'ok' : 'crit'}`}>
-                                {entrada.apto ? 'APTO' : 'INAPTO'}
-                              </span>
-                            )}
-                            {entrada.origem === 'manual' && <span className="lrhist-selo neutro">MANUAL</span>}
-                            {entrada.retificaDe && <span className="lrhist-selo warn">RETIFICAÇÃO</span>}
-                            {/* Selo do lacre. A entrada ANTIGA (anterior a 12/08/2026) não ganha
-                                marca de alerta: acusar anos de registros legítimos ensinaria o
-                                usuário a ignorar o selo, que é o pior desfecho de um alarme. */}
-                            {selos[entrada.id ?? ''] === 'integra' && (
-                              <span className="lrhist-selo ok" title={`Lacrado em ${entrada.lacradaEm?.slice(0, 10) ?? '—'} · SHA-256 ${entrada.sha256}`}>
-                                🔒 LACRADO
-                              </span>
-                            )}
-                            {selos[entrada.id ?? ''] === 'adulterada' && (
-                              <span className="lrhist-selo crit" title="O conteúdo deste registro não confere com o hash gravado na emissão.">
-                                ⚠ ALTERADO APÓS A EMISSÃO
-                              </span>
-                            )}
-                            {selos[entrada.id ?? ''] === 'elo_quebrado' && (
-                              <span className="lrhist-selo crit" title="O elo com o registro anterior não confere: algum registro foi removido ou reordenado.">
-                                ⚠ CADEIA QUEBRADA
-                              </span>
-                            )}
-                            {selos[entrada.id ?? ''] === 'sem_lacre' && (
-                              <span className="lrhist-selo neutro" title="Registro anterior à adoção do lacre criptográfico (12/08/2026).">
-                                SEM LACRE
-                              </span>
-                            )}
-                          </div>
-
-                          {retificada && (
-                            <div className="lrhist-ret">
-                              ↳ retifica o registro{' '}
-                              <span className="lrhist-forte">#{String(idxRetificada + 1).padStart(6, '0')}</span> de{' '}
-                              <span className="lrhist-forte">{retificada.data}</span>
-                              {retificada.relatorioCodigo && (
-                                <> — relatório <span className="lrhist-forte">{retificada.relatorioCodigo}</span></>
-                              )}
-                            </div>
-                          )}
-
-                          {entrada.descricao && <p className="lrhist-desc">{entrada.descricao}</p>}
-
-                          <div className="lrhist-campos">
-                            {entrada.relatorioCodigo && (
-                              <span className="lrhist-campo">
-                                <span className="lrhist-rot">relatório</span>
-                                <span className="lrhist-forte">{entrada.relatorioCodigo}</span>
-                              </span>
-                            )}
-                            {entrada.phNome && (
-                              <span className="lrhist-campo">
-                                <span className="lrhist-rot">resp. técnico</span>
-                                <span className="lrhist-val">{entrada.phNome}</span>
-                              </span>
-                            )}
-                            {entrada.tecnicoNome && (
-                              <span className="lrhist-campo">
-                                <span className="lrhist-rot">técnico</span>
-                                <span className="lrhist-val">{entrada.tecnicoNome}</span>
-                              </span>
-                            )}
-                            {entrada.quemRealizou && (
-                              <span className="lrhist-campo">
-                                <span className="lrhist-rot">executante</span>
-                                <span className="lrhist-val">{entrada.quemRealizou}</span>
-                              </span>
-                            )}
-                            {entrada.ensaios && entrada.ensaios.length > 0 && (
-                              <span className="lrhist-campo">
-                                <span className="lrhist-rot">ensaios</span>
-                                <span className="lrhist-val">{entrada.ensaios.join(' · ')}</span>
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ol>
-              )}
-            </div>
-          ) : (
-          <>
-          <div className="fj-panel-head" style={{ marginTop: 22, marginBottom: 6 }}>
-            <h3 style={{ margin: 0, border: 'none', padding: 0, fontSize: 14 }}>Linha do tempo — ordem cronológica</h3>
+          <div className="fj-panel-head livro-lista-head">
+            <h3>Registros do livro</h3>
+            <span className="livro-lista-contagem">
+              {linhaAberta.entradas.length} lacrado{linhaAberta.entradas.length === 1 ? '' : 's'}
+              {rascunhos.length > 0 &&
+                ` · ${rascunhos.length} em rascunho`}
+            </span>
           </div>
 
           {/* Veredicto do livro inteiro, acima da linha do tempo. */}
@@ -909,21 +799,24 @@ export default function LivroRegistro() {
             </div>
           )}
 
-          {linhaAberta.entradas.length === 0 ? (
+          {itensDoLivro.length === 0 ? (
             <p className="dashboard-vazio" style={{ padding: '14px 0' }}>Nenhum registro lançado ainda neste livro.</p>
           ) : (
             <ul className="livro-timeline">
-              {linhaAberta.entradas.map((entrada, i) => {
+              {itensDoLivro.map(({ entrada, numero, rascunho, i }) => {
                 const cor = COR_TIPO[entrada.tipo] ?? 'neutro';
                 // Os 8 primeiros dígitos do SHA-256 REAL. Vazio = entrada antiga,
                 // sem lacre — e aí nenhum código é exibido, em vez de inventar um.
                 const cripto = entrada.sha256 ? entrada.sha256.slice(0, 8).toUpperCase() : '';
-                const numeroRegistro = String(i + 1).padStart(6, '0');
+                const numeroRegistro = numero ? String(numero).padStart(6, '0') : '';
                 const retificada = entrada.retificaDe
                   ? linhaAberta.entradas.find((e) => e.id === entrada.retificaDe)
                   : undefined;
                 return (
-                  <li key={entrada.id ?? i} className="livro-timeline-item">
+                  <li
+                    key={entrada.id ?? `${rascunho ? 'r' : 'o'}-${i}`}
+                    className={`livro-timeline-item${rascunho ? ' rascunho' : ''}`}
+                  >
                     <span className="livro-timeline-marco" />
                     <div className="livro-timeline-corpo">
                       {/* Cabeçalho da linha: número do registro, data, tipo e o
@@ -932,7 +825,14 @@ export default function LivroRegistro() {
                           metadados (onde disputava espaço com o SHA) porque é
                           por ele que um registro é citado. */}
                       <div className="livro-timeline-topo">
-                        <span className="livro-timeline-num">#{numeroRegistro}</span>
+                        {/* Rascunho não tem número: a numeração do livro é a
+                            ordem dos TRANCAMENTOS, e dar um número agora seria
+                            prometer uma posição que só o trancamento define. */}
+                        {rascunho ? (
+                          <span className="livro-timeline-rascunho">Rascunho</span>
+                        ) : (
+                          <span className="livro-timeline-num">#{numeroRegistro}</span>
+                        )}
                         <span className="livro-timeline-data">{dataBR(entrada.data)}</span>
                         <span className={`fj-badge ${cor}`}>{entrada.tipo}</span>
                         {/* Sem selo Apto/Inapto para ocorrência manual — não é laudo de inspeção. */}
@@ -1003,27 +903,76 @@ export default function LivroRegistro() {
                     {/* Largura mínima de 190px vinha inline e, no celular, sobrava uma
                         coluna de ~60px para a descrição — uma palavra por linha. Agora é
                         classe, e abaixo de 640px a ação cai para a linha de baixo. */}
+                    {/*
+                      AS AÇÕES, pelo ESTADO do registro.
+
+                      Rascunho: ver (abre o modal na prévia), editar, trancar e
+                      excluir. Lacrado: ver/imprimir a folha — e só. A ausência
+                      do lápis num registro trancado não é economia de espaço, é
+                      a regra: registro consumado não se edita, se retifica.
+                    */}
                     <div className="livro-timeline-acoes">
-                      <button
-                        type="button"
-                        className={`fj-btn fj-btn-ghost${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
-                        onClick={() =>
-                          setPreview({
-                            tag: linhaAberta.tag,
-                            doc: { arquivo: 'LIVRO-REGISTRO.html', titulo: `Registro_${entrada.data.replace(/\//g, '-')}`, entradaId: entrada.id ?? '', idx: i },
-                          })
-                        }
-                      >
-                        {documentosBloqueados() ? <Icone nome="cadeado" tam={13} /> : <Icone nome="eye" tam={13} />} Ver / Imprimir
-                      </button>
-                      {/* Registro salvo é imutável: ver e imprimir é tudo o que o livro permite. */}
+                      {rascunho ? (
+                        <>
+                          <button
+                            type="button"
+                            className="btn-icone"
+                            title="Ver como vai ficar"
+                            aria-label="Ver o rascunho"
+                            onClick={() => editarRascunho(entrada, 'previa')}
+                          >
+                            <Icone nome="eye" tam={14} />
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-icone"
+                            title="Editar rascunho"
+                            aria-label="Editar o rascunho"
+                            onClick={() => editarRascunho(entrada, 'ajuda')}
+                          >
+                            <Icone nome="pencil" tam={14} />
+                          </button>
+                          <button
+                            type="button"
+                            className="fj-btn fj-btn-primary livro-btn-trancar"
+                            onClick={() => abrirTrancamento(entrada)}
+                          >
+                            <Icone nome="cadeado" tam={13} /> Trancar
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-icone cor-vermelho"
+                            title="Excluir rascunho"
+                            aria-label="Excluir o rascunho"
+                            onClick={() => void apagarRascunho(entrada.id ?? '')}
+                          >
+                            <Icone nome="trash" tam={14} />
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          className={`fj-btn fj-btn-ghost${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
+                          onClick={() =>
+                            setPreview({
+                              tag: linhaAberta.tag,
+                              doc: {
+                                arquivo: 'LIVRO-REGISTRO.html',
+                                titulo: `Registro_${entrada.data.replace(/\//g, '-')}`,
+                                entradaId: entrada.id ?? '',
+                                idx: i,
+                              },
+                            })
+                          }
+                        >
+                          {documentosBloqueados() ? <Icone nome="cadeado" tam={13} /> : <Icone nome="eye" tam={13} />} Ver / Imprimir
+                        </button>
+                      )}
                     </div>
                   </li>
                 );
               })}
             </ul>
-          )}
-          </>
           )}
         </div>
 
@@ -1135,6 +1084,9 @@ export default function LivroRegistro() {
         {modalOcorrencia && (
           <ModalNovoRegistro
             tag={linhaAberta.tag}
+            equipamento={linhaAberta.nomeEquip}
+            empresa={nomeEmpresaExecutante}
+            abaInicial={abaModal}
             modo={form.retificaDe ? 'retificar' : editandoId ? 'editar' : 'novo'}
             form={form}
             aoMudarForm={setForm}

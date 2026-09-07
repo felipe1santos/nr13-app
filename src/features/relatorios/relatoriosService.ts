@@ -449,6 +449,20 @@ export interface DadosOcorrenciaManual {
   phId: string | null;
   /** Preenchido quando a ocorrência é um REGISTRO DE RETIFICAÇÃO de uma entrada já lacrada. */
   retificaDe?: string;
+  /**
+   * O TERMO que sai impresso na folha do livro (07/09/2026).
+   *
+   * A folha `LIVRO-REGISTRO.html` já preferia `entrada.termoTexto` ao texto que
+   * ela mesma monta — era assim que o termo digitado durante a montagem de um
+   * relatório ficava congelado na entrada. O registro manual passa a usar o
+   * mesmo campo: o usuário escreve no modal, e o que ele escreveu é o que a
+   * folha imprime.
+   */
+  termoTexto?: string;
+  /** Código do relatório de origem, quando o registro nasceu do pré-preenchimento. */
+  relatorioCodigo?: string;
+  /** Laudo APTO/INAPTO herdado do relatório de origem. */
+  apto?: boolean | null;
 }
 
 // ASSÍNCRONA desde 14/08/2026: a rubrica sobe ao bucket antes de a entrada
@@ -464,7 +478,14 @@ export async function montarEntradaLivroManual(
     data: dados.data,
     tipo: dados.tipoOcorrencia,
     descricao,
-    relatorioCodigo: '', // ocorrência manual não nasce de relatório
+    // Vazio quando o registro é manual de ponta a ponta; preenchido quando o
+    // usuário usou o pré-preenchimento — e aí o termo cita esse número.
+    relatorioCodigo: dados.relatorioCodigo ?? '',
+    // O campo só EXISTE quando há laudo: ocorrência manual não tem APTO/INAPTO,
+    // e um `null` gravado ali seria um campo dizendo "não sei" onde a pergunta
+    // não se aplica.
+    ...(dados.apto === true || dados.apto === false ? { apto: dados.apto } : {}),
+    termoTexto: dados.termoTexto?.trim() || undefined,
     phNome: func?.nome ?? '',
     phCrea: func?.crea ?? '',
     origem: 'manual',

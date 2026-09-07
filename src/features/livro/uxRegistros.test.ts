@@ -186,10 +186,12 @@ describe('a tela do equipamento tem UMA barra de ferramentas', () => {
     );
     expect(barra.match(/fj-btn-primary/g)).toHaveLength(1);
     expect(barra).toContain('Novo registro');
-    // As utilitárias continuam todas ali — a barra não escondeu ação nenhuma.
-    for (const t of ['Histórico', 'Ver livro completo', 'Exportar PDF']) {
+    // As utilitárias continuam ali. "Histórico" SAIU na 4ª rodada: ele trocava
+    // de modo de visualização, e agora existe uma lista só.
+    for (const t of ['Ver livro completo', 'Exportar PDF']) {
       expect(barra).toContain(t);
     }
+    expect(barra).not.toContain('Histórico');
   });
 
   it('o botão de voltar saiu do cabeçalho e não ficou duplicado', () => {
@@ -247,10 +249,11 @@ describe('o modal "Novo registro"', () => {
   });
 
   it('no desktop o formulário fica à esquerda e o apoio à direita', () => {
-    // A coluna de apoio vem antes no DOM (é o que se lê primeiro) e vai para a
-    // direita pelo `order` — sem nada focável dentro, a tabulação não muda.
-    expect(cssModal).toContain('order: 2;');
-    expect(modal.indexOf('reg-modal-lado')).toBeLessThan(modal.indexOf('reg-modal-form'));
+    // 4ª rodada: a coluna de apoio virou PRÉVIA + ajuda e passou a ter botões
+    // (as abas). Com foco dentro dela, o DOM precisa seguir a leitura — form
+    // primeiro, apoio depois — e o `order` do CSS saiu junto.
+    expect(modal.indexOf('reg-modal-form')).toBeLessThan(modal.indexOf('reg-modal-lado'));
+    expect(modal).toContain('role="tablist"');
   });
 
   it('empilha no tablet e no celular, com botões de 44px', () => {
@@ -464,8 +467,137 @@ describe('linha do tempo', () => {
   });
 
   it('no celular a ação da linha tem 44px', () => {
+    // O último bloco de 640px é o da lista única (4ª rodada); a regra do botão
+    // "Ver / Imprimir" continua no bloco anterior.
+    expect(css).toContain('.livro-timeline-acoes .fj-btn {');
     const movel = css.slice(css.lastIndexOf('@media (max-width: 640px)'));
-    expect(movel).toContain('.livro-timeline-acoes .fj-btn {');
-    expect(movel).toContain('height: 44px;');
+    expect(movel).toContain('.livro-timeline-acoes .btn-icone { width: 44px; height: 44px; }');
+  });
+});
+
+/* ══ Quarta rodada (07/09/2026): uma lista só, prévia viva, termo editável ══ */
+
+const previaTsx = readFileSync('src/features/livro/PreviaRegistro.tsx', 'utf8');
+const termoTs = readFileSync('src/features/livro/termoRegistro.ts', 'utf8');
+const servico = readFileSync('src/features/relatorios/relatoriosService.ts', 'utf8');
+
+describe('uma única forma de ver os registros', () => {
+  it('o modo "Histórico" acabou — estado, botão e bloco', () => {
+    const limpo = semComentarios(pagina);
+    expect(limpo).not.toContain('setHistorico');
+    expect(limpo).not.toContain('lrhist-log');
+    expect(limpo).not.toContain("{historico ? (");
+  });
+
+  it('os rascunhos entraram NA lista, não numa seção acima', () => {
+    expect(semComentarios(pagina)).not.toContain('className="livro-rascunhos"');
+    expect(pagina).toContain('const itensDoLivro = useMemo');
+    expect(pagina).toContain('itensDoLivro.map(({ entrada, numero, rascunho, i })');
+  });
+
+  it('a numeração continua sendo a dos TRANCAMENTOS', () => {
+    // O rascunho não recebe número: a posição no livro é definida no
+    // trancamento, e numerá-lo agora empurraria o "#000002" de um registro já
+    // emitido.
+    expect(pagina).toContain('numero: i + 1,');
+    expect(pagina).toContain('numero: 0,');
+    expect(pagina).toContain('<span className="livro-timeline-rascunho">Rascunho</span>');
+  });
+
+  it('a ordem é cronológica, pela mesma regra de data do serviço', () => {
+    expect(pagina).toContain('timestampDataLivro(a.entrada.data) - timestampDataLivro(b.entrada.data)');
+  });
+});
+
+describe('ações por estado do registro', () => {
+  it('rascunho: ver, editar, trancar e excluir', () => {
+    const bloco = pagina.slice(pagina.indexOf('className="livro-timeline-acoes"'));
+    expect(bloco).toContain('Ver o rascunho');
+    expect(bloco).toContain('Editar o rascunho');
+    expect(bloco).toContain('Trancar');
+    expect(bloco).toContain('Excluir o rascunho');
+  });
+
+  it('lacrado: só ver/imprimir — a imutabilidade não é opcional', () => {
+    // O lápis não aparece para registro trancado. Registro consumado não se
+    // edita, se retifica.
+    const bloco = pagina.slice(
+      pagina.indexOf('className="livro-timeline-acoes"'),
+      pagina.indexOf('</li>', pagina.indexOf('className="livro-timeline-acoes"')),
+    );
+    const semRascunho = bloco.slice(bloco.indexOf(') : ('));
+    expect(semRascunho).toContain('Ver / Imprimir');
+    expect(semRascunho).not.toContain('Editar');
+    expect(semRascunho).not.toContain('Trancar');
+  });
+});
+
+describe('prévia viva do registro', () => {
+  it('o modal mostra a prévia, e ela é a aba padrão', () => {
+    expect(modal).toContain('<PreviaRegistro dados={previa} />');
+    expect(modal).toContain("abaInicial = 'previa'");
+    expect(modal).toContain('role="tablist"');
+  });
+
+  it('a prévia acompanha o que está sendo digitado', () => {
+    // Ela é montada dos campos do formulário, não de algo gravado.
+    expect(modal).toContain('const previa: DadosPrevia = {');
+    expect(modal).toContain('oQueFoiFeito: form.oQueFoiFeito,');
+    expect(modal).toContain('termo: termoEfetivo,');
+  });
+
+  it('a prévia não se anuncia como o documento final', () => {
+    // Ela não é a folha A4 (moldura, cabeçalho com logo, assinatura impressa).
+    // Dizer que é seria prometer fidelidade que este bloco não entrega.
+    expect(previaTsx).toContain('A folha impressa do livro');
+  });
+
+  it('o olho da lista abre o rascunho NA prévia', () => {
+    expect(pagina).toContain("editarRascunho(entrada, 'previa')");
+    expect(pagina).toContain('abaInicial={abaModal}');
+  });
+});
+
+describe('o termo é editável', () => {
+  it('existe campo, com sugestão e restauração', () => {
+    expect(modal).toContain('id="oc-termo"');
+    expect(modal).toContain('value={termoEfetivo}');
+    expect(modal).toContain('restaurar sugestão');
+  });
+
+  it('o texto do usuário VENCE a sugestão', () => {
+    // Mudar a data depois de escrever não pode reescrever o texto de alguém.
+    expect(modal).toContain('const termoEfetivo = form.termoTexto.trim() ? form.termoTexto : sugestao;');
+    expect(termoTs).toContain('export function termoSugerido');
+  });
+
+  it('a sugestão é a redação da FOLHA, não uma paráfrase', () => {
+    // Divergir aqui mostraria uma prévia que não é o documento.
+    expect(termoTs).toContain('conforme item 13.5.4 ');
+    expect(termoTs).toContain('em obediência à Portaria Mtb nº 3.214');
+    expect(termoTs).toContain('foi considerado INAPTO a operar nas condições atuais');
+  });
+
+  it('o termo vai GRAVADO no registro, inclusive quando não foi editado', () => {
+    // Guardar só o texto editado deixaria a folha remontar a frase com os dados
+    // de amanhã (razão social nova) num registro já trancado.
+    expect(pagina).toContain('termoTexto: form.termoTexto.trim() || termoDoFormulario()');
+    expect(servico).toContain('termoTexto: dados.termoTexto?.trim() || undefined,');
+  });
+
+  it('reabrir o rascunho traz o termo digitado de volta', () => {
+    expect(pagina).toContain("termoTexto: (r as { termoTexto?: string }).termoTexto ?? ''");
+  });
+});
+
+describe('o modal ficou mais reto', () => {
+  it('menos caixa: o pré-preenchimento virou filete', () => {
+    expect(cssModal).toContain('border-left: 3px solid var(--blue, #457dc1);');
+    expect(cssModal).toContain('background: transparent;');
+  });
+
+  it('raio menor, de software corporativo', () => {
+    expect(cssModal).toContain('.reg-modal { border-radius: 10px; }');
+    expect(cssModal).toContain('.reg-modal-form .fj-field textarea { border-radius: 6px; }');
   });
 });
