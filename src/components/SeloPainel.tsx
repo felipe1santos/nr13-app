@@ -39,6 +39,19 @@ export default function SeloPainel({
 
   const hora = painel.em?.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
+  // 07/09/2026 · o agregado respondeu, a consulta dos certificados de padrão
+  // não. Os contadores que eles alimentam já viram "—" (ver `KpisPainel`); esta
+  // linha diz POR QUÊ, senão o painel parece completo com uma família inteira
+  // faltando — o defeito de origem, agora em silêncio.
+  if (painel.certificadosOk === false) {
+    return (
+      <div className="fj-selo-painel erro" role="status">
+        {hora ? `Dados de ${hora}` : 'Dados do servidor'} · os certificados dos padrões não
+        puderam ser conferidos nesta consulta
+      </div>
+    );
+  }
+
   return (
     <div className="fj-selo-painel" role="status">
       {hora ? `Dados de ${hora}` : 'Dados do servidor'}

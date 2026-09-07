@@ -24,7 +24,35 @@ const ICONE_TIPO: Record<string, Parameters<typeof Icone>[0]['nome']> = {
   Autoclave: 'box',
   'Manômetro': 'manometro',
   'Válvula de Segurança': 'valvula-psv',
+  // Os PADRÕES de bancada (07/09/2026). Ícone do instrumento onde ele existe,
+  // e o de documento no resto: a linha é sobre o CERTIFICADO dele.
+  'Manômetro padrão': 'manometro',
+  'Válvula PSV padrão': 'valvula-psv',
+  'Bloco padrão de espessura': 'sigma',
+  'Pressostato padrão': 'gauge',
+  'Termostato padrão': 'gauge',
+  'Manovacuômetro padrão': 'manometro',
+  'Termômetro padrão': 'gauge',
+  'Instrumento padrão': 'filetext',
 };
+
+/**
+ * A CATEGORIA de cada linha, dita em voz alta (07/09/2026).
+ *
+ * A lista deixou de ser só de equipamento: um certificado de padrão e a
+ * calibração do manômetro instalado no vaso viram linhas vizinhas, com prazos
+ * parecidos e nomes parecidos. Sem o rótulo, o usuário não sabe se precisa
+ * chamar o laboratório ou parar o equipamento.
+ */
+const ROTULO_ORIGEM: Record<ItemVencimento['origem'], string> = {
+  inspecao: 'Inspeção',
+  calibracao: 'Calibração',
+  certificado: 'Certificado',
+};
+
+function ChipOrigem({ origem }: { origem: ItemVencimento['origem'] }) {
+  return <span className={`orig-chip orig-${origem}`}>{ROTULO_ORIGEM[origem]}</span>;
+}
 
 function BadgeStatus({ status }: { status: ItemVencimento['status'] }) {
   if (status === 'crit') return <span className="fj-badge crit">Crítico</span>;
@@ -69,8 +97,12 @@ export default function Dashboard() {
   const kpis = painel.kpis;
 
   const vencidos = itens.filter((i) => i.status === 'crit');
-  const alertas = itens.filter((i) => i.status === 'crit' || i.status === 'warn').slice(0, 5);
   const comPrazo = itens.filter((i) => i.status !== 'semPrazo');
+  // A consulta só está COMPLETA quando o agregado respondeu e os certificados
+  // dos padrões foram conferidos. Enquanto não estiver, a lista não pode
+  // afirmar ausência — ver o estado vazio, mais abaixo.
+  const consultaIncompleta =
+    painel.carregando || painel.erro === true || painel.certificadosOk === false;
   const filtrados = comPrazo.filter((i) => {
     if (filtroPrazo === 'todos') return true;
     if (filtroPrazo === 'vencidos') return (i.dias ?? 0) < 0;
@@ -120,33 +152,41 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ===== KPIs ===== */}
-      <SeloPainel painel={painel} />
+      {/* ===== KPIs =====
+           Compactos desde 07/09/2026: o pedido do dono era ganhar altura acima
+           da dobra sem perder informação. O que saiu foi ESPAÇO (padding,
+           respiros, a pílula do rodapé), não conteúdo — rótulo, número e
+           legenda continuam os quatro. O filete colorido à esquerda substitui
+           a cor de fundo: dá identidade a cada card sem pintar a tela. */}
       <div className="fj-kpi-row">
-        <div className="fj-kpi">
+        <div className="fj-kpi k-azul">
           <div>
             <div className="fj-kpi-label">Equipamentos cadastrados</div>
             <div className="fj-kpi-value">{textoContador(kpis.total)}</div>
             <div className="fj-kpi-delta flat">ativos sob NR-13</div>
           </div>
-          <div className="fj-kpi-icon" style={{ background: 'var(--blue-bg)', color: 'var(--blue)' }}>
-            <Icone nome="box" tam={18} />
+          <div className="fj-kpi-icon">
+            <Icone nome="box" tam={17} />
           </div>
         </div>
-        <div className="fj-kpi">
+        <div className="fj-kpi k-ambar">
           <div>
             <div className="fj-kpi-label">Próximos a vencer <span className="mono" style={{ fontSize: 10 }}>(30d)</span></div>
-            <div className="fj-kpi-value" style={{ color: 'var(--warn)' }}>{textoContador(kpis.aVencer30)}</div>
-            <div className="fj-kpi-delta flat">inspeções e calibrações</div>
+            <div className="fj-kpi-value">{textoContador(kpis.aVencer30)}</div>
+            {/* A legenda mudou junto com a regra: a janela de 30 dias passou a
+                contar TAMBÉM os certificados dos padrões (07/09/2026). Dizer só
+                "inspeções e calibrações" descreveria um número que já não é
+                esse. */}
+            <div className="fj-kpi-delta flat">inspeções, calibrações e certificados</div>
           </div>
-          <div className="fj-kpi-icon" style={{ background: 'var(--warn-bg)', color: 'var(--warn)' }}>
-            <Icone nome="calendar" tam={18} />
+          <div className="fj-kpi-icon">
+            <Icone nome="calendar" tam={17} />
           </div>
         </div>
-        <div className="fj-kpi">
+        <div className="fj-kpi k-vermelho">
           <div>
             <div className="fj-kpi-label">Vencidos</div>
-            <div className="fj-kpi-value" style={{ color: (kpis.vencidos ?? 0) > 0 ? 'var(--crit)' : undefined }}>{textoContador(kpis.vencidos)}</div>
+            <div className="fj-kpi-value">{textoContador(kpis.vencidos)}</div>
             <div className={`fj-kpi-delta ${(kpis.vencidos ?? 0) > 0 ? 'down' : 'up'}`}>
               {/* Contador INDEFINIDO é "o servidor não respondeu", não zero. O
                   `?? 0` daqui fazia o número exibir "—" e a legenda logo abaixo
@@ -159,29 +199,37 @@ export default function Dashboard() {
                   : 'nenhum vencido'}
             </div>
           </div>
-          <div className="fj-kpi-icon" style={{ background: 'var(--crit-bg)', color: 'var(--crit)' }}>
-            <Icone nome="alerttri" tam={18} />
+          <div className="fj-kpi-icon">
+            <Icone nome="alerttri" tam={17} />
           </div>
         </div>
-        <div className="fj-kpi">
+        <div className="fj-kpi k-verde">
           <div>
             <div className="fj-kpi-label">Taxa de conformidade</div>
             {/* Conformidade indefinida = o painel não pôde ser lido. Mostrar
                 100 % aqui seria a mentira mais cara desta tela. */}
             <div className="fj-kpi-value">
               {kpis.conformidade === undefined ? '—' : kpis.conformidade.toLocaleString('pt-BR')}
-              <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--muted)' }}>%</span>
+              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--muted)' }}>%</span>
             </div>
+            {/* O texto diz o ESCOPO da métrica (§13 da rodada): ela mede os
+                itens COM PRAZO deste painel — inspeções, calibrações e
+                certificados —, não a conformidade normativa da planta. */}
             <div className={`fj-kpi-delta ${(kpis.conformidade ?? 0) >= 90 ? 'up' : 'down'}`}>
               <Icone nome="trendup" tam={11} />{' '}
-              {kpis.conformidade === undefined ? 'sem resposta do servidor' : 'itens com prazo em dia'}
+              {kpis.conformidade === undefined ? 'sem resposta do servidor' : 'dos prazos deste painel em dia'}
             </div>
           </div>
-          <div className="fj-kpi-icon" style={{ background: 'var(--ok-bg)', color: 'var(--ok)' }}>
-            <Icone nome="checkcircle" tam={18} />
+          <div className="fj-kpi-icon">
+            <Icone nome="checkcircle" tam={17} />
           </div>
         </div>
       </div>
+      {/* O selo de procedência desceu para DEPOIS dos indicadores e virou uma
+          linha fina: no topo ele criava uma faixa vazia entre o cabeçalho da
+          página e os cards. Continua dizendo a hora do agregado, o
+          truncamento e a falha — só não ocupa mais uma faixa inteira. */}
+      <SeloPainel painel={painel} />
 
       {/* ===== COLUNAS (mockup): esquerda = Minha Empresa + Prazos; direita = Agenda + Alertas.
            Cada coluna empilha seus painéis de forma independente — sem buraco quando o
@@ -194,8 +242,12 @@ export default function Dashboard() {
         <div className="fj-panel">
           <div className="fj-panel-head">
             <div>
+              {/* O título deixou de dizer "Equipamentos" em 07/09/2026: a lista
+                  agrega inspeção do equipamento, calibração do acessório e
+                  certificado do padrão de bancada — e certificado de padrão
+                  não é equipamento nenhum. */}
               <div className="fj-eyebrow">Prazos</div>
-              <h2>Equipamentos próximos do vencimento</h2>
+              <h2>Prazos e vencimentos</h2>
             </div>
             {(kpis.vencidos ?? 0) > 0 && <span className="fj-badge crit">{kpis.vencidos} vencido{(kpis.vencidos ?? 0) > 1 ? 's' : ''}</span>}
           </div>
@@ -217,11 +269,26 @@ export default function Dashboard() {
               </button>
             ))}
           </div>
-          {comPrazo.length === 0 ? (
+          {/* ESTADO VAZIO SÓ DEPOIS DE CONFERIR (§21 da rodada, 07/09/2026).
+              "Nenhum prazo cadastrado" é uma AFIRMAÇÃO sobre a organização, e
+              foi ela que escondeu o certificado do usuário. Enquanto a consulta
+              não voltou inteira — carregando, com erro, ou com os certificados
+              não conferidos — a tela diz o que não sabe, e nunca "não há". */}
+          {consultaIncompleta ? (
+            <div className="fj-empty">
+              <div className="fj-empty-ic"><Icone nome="cloudoff" tam={22} /></div>
+              <div className="fj-empty-title">
+                {painel.carregando ? 'Consultando os prazos…' : 'Prazos não conferidos'}
+              </div>
+              {painel.carregando
+                ? 'Um instante — o painel está sendo montado a partir dos dados da organização.'
+                : 'O servidor não respondeu por completo. Recarregue a página: nada foi apagado, e esta lista não representa a organização.'}
+            </div>
+          ) : comPrazo.length === 0 ? (
             <div className="fj-empty">
               <div className="fj-empty-ic"><Icone nome="calendar" tam={22} /></div>
               <div className="fj-empty-title">Nenhum prazo cadastrado</div>
-              Calcule a Vida Remanescente na ficha do equipamento ou cadastre calibrações para acompanhar os vencimentos aqui.
+              Calcule a Vida Remanescente na ficha do equipamento, cadastre calibrações ou registre a validade dos certificados dos padrões para acompanhar os vencimentos aqui.
             </div>
           ) : tabela.length === 0 ? (
             <div className="fj-empty">
@@ -255,7 +322,7 @@ export default function Dashboard() {
                           </div>
                         </div>
                       </td>
-                      <td data-rot="Origem">{it.origem === 'calibracao' ? 'Calibração' : 'Inspeção'}</td>
+                      <td data-rot="Origem"><ChipOrigem origem={it.origem} /></td>
                       <td className="mono col-ultima" data-rot="Última">{it.ultima ? it.ultima.toLocaleDateString('pt-BR') : <span className="fj-dash">—</span>}</td>
                       <td className="mono" data-rot="Vencimento">{it.vencimento ? it.vencimento.toLocaleDateString('pt-BR') : <span className="fj-dash">—</span>}</td>
                       {/* `folgado`: mais de 60 dias até vencer. Selo azul, para o olho
@@ -321,41 +388,6 @@ export default function Dashboard() {
                 ))
               )}
             </div>
-          </div>
-        </div>
-
-        <div className="fj-panel">
-          <div className="fj-panel-head">
-            <div>
-              <div className="fj-eyebrow">Prioridade</div>
-              <h2>Alertas críticos</h2>
-            </div>
-            <button type="button" className="fj-link" onClick={() => navigate('/vencimentos')}>Ver todos</button>
-          </div>
-          <div className="alist">
-            {alertas.length === 0 ? (
-              <div className="agenda-vazia" style={{ padding: '16px 0' }}>Nenhum alerta crítico. Tudo em dia.</div>
-            ) : (
-              alertas.map((it, i) => (
-                <div key={`${it.tag}${i}`} className="alist-item" role="button" tabIndex={0} onClick={() => irParaItem(it)} onKeyDown={(e) => e.key === 'Enter' && irParaItem(it)}>
-                  <div className="alist-ic" style={{ background: `var(--${it.status}-bg)`, color: `var(--${it.status})` }}>
-                    <Icone nome="alerttri" tam={16} />
-                  </div>
-                  <div className="alist-main">
-                    <div className="alist-title">
-                      {it.origem === 'calibracao' ? 'Vencimento de calibração' : 'Vencimento de inspeção'}
-                    </div>
-                    <div className="alist-sub">
-                      {it.tag} · {it.tipoEquip}
-                      {it.pertenceA ? ` (${it.pertenceA})` : ''}
-                    </div>
-                  </div>
-                  <span className="alist-badge" style={{ background: `var(--${it.status}-bg)`, color: `var(--${it.status})` }}>
-                    {it.status === 'crit' ? 'Atrasado' : 'Alta'}
-                  </span>
-                </div>
-              ))
-            )}
           </div>
         </div>
         </div>

@@ -37,6 +37,17 @@ vi.mock('./vencimentos', async () => {
 
 vi.mock('./storage', () => ({ listarChavesComPrefixo: () => ['nr13_info_A', 'nr13_info_B'] }));
 
+// Os certificados dos padrões (07/09/2026) chegam por consulta PRÓPRIA, e não
+// pelo agregado — eles não pertencem a equipamento nenhum. Aqui ela é
+// controlada: o padrão é "conferiu e não há", que é o cenário destes casos.
+const certs = vi.hoisted(() => ({
+  itens: [] as unknown[],
+  ok: true,
+}));
+vi.mock('./certificadosVencimentos', () => ({
+  certificadosDoServidor: vi.fn(async () => ({ itens: certs.itens, ok: certs.ok })),
+}));
+
 import {
   carregarPainel,
   invalidarPainel,
@@ -49,6 +60,8 @@ const HOJE = new Date(2026, 7, 24);
 beforeEach(() => {
   resposta.data = null;
   resposta.error = null;
+  certs.itens = [];
+  certs.ok = true;
   // 9G.3 · sem o caminho local, TODO teste passa pela janela compartilhada de
   // 3 s. Sem zerá-la, o segundo teste receberia a resposta do primeiro.
   invalidarPainel();

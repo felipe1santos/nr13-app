@@ -1,6 +1,8 @@
 /* Dashboard Forja (design/painel_dashboard.html) */
 .dash-page {
-  padding: 22px 30px 60px;
+  /* 07/09/2026 · o topo perdeu 8px: entre o cabeçalho da página e os
+     indicadores sobrava faixa vazia, e a dobra é o espaço mais caro da tela. */
+  padding: 14px 30px 60px;
   max-width: 1440px;
   margin: 0 auto;
 }
@@ -84,9 +86,12 @@
 
 /* grids: duas colunas independentes — cada uma empilha seus painéis, sem buraco
    quando um painel da outra coluna é mais alto */
+/* 2.15fr : 1fr — a lista de prazos herdou a largura que o card "Alertas
+   críticos" ocupava na coluna da direita (removido em 07/09/2026). Ela agora
+   mostra também certificados e acessórios, e precisa do espaço. */
 .dash-cols {
   display: grid;
-  grid-template-columns: 1.65fr 1fr;
+  grid-template-columns: 2.15fr 1fr;
   gap: 16px;
   margin-bottom: 16px;
   align-items: start;
@@ -502,12 +507,45 @@
    Só aparece quando os números vêm do agregado do servidor: hora da consulta,
    aviso de lista truncada, ou "sem resposta". Discreto de propósito — é
    contexto, não alerta; o alerta desta tela é o banner de vencidos. */
+/* O selo de procedência: linha fina, depois dos indicadores. Ficava acima
+   deles, criando uma faixa vazia entre o cabeçalho e o primeiro card. */
 .fj-selo-painel {
-  font-size: 11px;
+  font-size: 10.5px;
   color: var(--muted);
-  margin: 0 0 8px;
+  margin: -4px 0 12px;
   letter-spacing: 0.2px;
 }
 .fj-selo-painel.erro {
   color: var(--crit);
+}
+
+/* ===== CATEGORIA DE CADA LINHA (07/09/2026) =====
+   A lista agrega três domínios; sem rótulo, "Manômetro" (acessório do vaso) e
+   "Manômetro padrão" (o da bancada) são duas linhas indistinguíveis. Cores
+   discretas: fundo claro da família e texto no tom firme. */
+.orig-chip {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 5px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+.orig-inspecao {
+  background: var(--blue2-bg);
+  color: var(--blue2);
+  border-color: var(--blue2-line);
+}
+.orig-calibracao {
+  background: var(--petroleo-bg);
+  color: var(--petroleo);
+  border-color: var(--petroleo-line);
+}
+.orig-certificado {
+  background: var(--amber-bg);
+  color: var(--amber-deep);
+  border-color: #F5D8BC;
 }

@@ -25,11 +25,13 @@ import { supabase } from './supabase';
 import { assinarDadosAlterados } from './eventos';
 import {
   conformidadeDe,
+  dedupVencimentos,
   itemDeCalibracao,
   itemDeEquipamento,
   ordenarVencimentos,
 } from './vencimentos';
 import type { ItemVencimento } from './vencimentos';
+import { certificadosDoServidor } from './certificadosVencimentos';
 
 /** Quantas linhas o servidor devolve. O resto vira `truncado`/`restantes`. */
 export const LIMITE_PAINEL = 500;
@@ -74,6 +76,14 @@ export interface PainelVencimentos {
   truncado: boolean;
   restantes: number;
   erro?: boolean;
+  /**
+   * `false` = os certificados dos padrões NÃO puderam ser conferidos nesta
+   * carga (a consulta de metadados falhou), embora o agregado tenha
+   * respondido. A tela precisa dizer isso: sem o aviso, o painel pareceria
+   * completo com uma família inteira faltando — que é exatamente o defeito de
+   * 07/09/2026, agora em versão silenciosa.
+   */
+  certificadosOk?: boolean;
 }
 
 interface FatoServidor {
@@ -109,14 +119,23 @@ export async function painelDoServidor(
     restantes: 0,
   };
 
-  let dados: RespostaAgregado | null = null;
-  try {
-    const { data, error } = await supabase.rpc('vencimentos_org', { p_limite: limite });
-    if (error || !data) return { ...vazio, erro: true };
-    dados = data as RespostaAgregado;
-  } catch {
-    return { ...vazio, erro: true };
-  }
+  // As duas consultas saem JUNTAS: são independentes, e serializá-las somaria
+  // uma ida ao servidor ao boot da tela de entrada do sistema.
+  const [respostaAgregado, certificados] = await Promise.all([
+    (async () => {
+      try {
+        const { data, error } = await supabase.rpc('vencimentos_org', { p_limite: limite });
+        if (error || !data) return null;
+        return data as RespostaAgregado;
+      } catch {
+        return null;
+      }
+    })(),
+    certificadosDoServidor(hoje),
+  ]);
+
+  if (!respostaAgregado) return { ...vazio, erro: true };
+  const dados: RespostaAgregado = respostaAgregado;
 
   const itens: ItemVencimento[] = [];
   for (const fato of dados.itens ?? []) {
@@ -153,22 +172,44 @@ export async function painelDoServidor(
     );
   }
 
-  const comPrazo = Number(dados.com_prazo ?? 0);
-  const vencidos = Number(dados.vencidos ?? 0);
+  // ── Os certificados dos padrões entram na LISTA e nos CONTADORES ──────────
+  //
+  // Na lista sem passar pelo truncamento: a consulta traz a família inteira da
+  // organização (metadados, ver `certificadosVencimentos`), então nenhum
+  // certificado fica de fora por causa do teto das linhas do agregado.
+  //
+  // Nos contadores porque o agregado do servidor NÃO os conhece: ele soma
+  // `equipamentos_index` + `calibracoes_index`. Somar aqui é o que faz o KPI
+  // "A VENCER (30 DIAS)" concordar com a lista logo abaixo dele — foi
+  // justamente a discordância que o usuário viu (certificado com validade em
+  // 20 dias, e o painel dizendo que não havia nada a vencer).
+  //
+  // `total` NÃO recebe os certificados: aquele KPI conta EQUIPAMENTOS
+  // CADASTRADOS, e certificado de padrão é instrumento de bancada, não
+  // equipamento sob NR-13. Somá-lo ali inflaria o parque do cliente.
+  const certVencidos = certificados.itens.filter((i) => i.status === 'crit').length;
+  const certAVencer30 = certificados.itens.filter((i) => i.status === 'warn').length;
+  const certComPrazo = certificados.itens.filter((i) => i.status !== 'semPrazo').length;
+
+  const comPrazo = Number(dados.com_prazo ?? 0) + certComPrazo;
+  const vencidos = Number(dados.vencidos ?? 0) + certVencidos;
   const em = dados.em ? new Date(dados.em) : undefined;
 
   return {
-    itens: ordenarVencimentos(itens),
+    itens: ordenarVencimentos(dedupVencimentos([...itens, ...certificados.itens])),
     kpis: {
       total: Number(dados.total_equip ?? 0),
-      aVencer30: Number(dados.a_vencer_30 ?? 0),
-      vencidos,
-      conformidade: conformidadeDe(comPrazo, vencidos),
+      // Certificados NÃO conferidos (`ok: false`) não viram zero: os três
+      // contadores que eles alimentam passam a "—". Ver `KpisPainel`.
+      aVencer30: certificados.ok ? Number(dados.a_vencer_30 ?? 0) + certAVencer30 : undefined,
+      vencidos: certificados.ok ? vencidos : undefined,
+      conformidade: certificados.ok ? conformidadeDe(comPrazo, vencidos) : undefined,
     },
     fonte: 'servidor',
     em: em && !isNaN(em.getTime()) ? em : undefined,
     truncado: dados.truncado === true,
     restantes: Number(dados.restantes ?? 0),
+    certificadosOk: certificados.ok,
   };
 }
 

@@ -14,7 +14,27 @@ const ICONE_TIPO: Record<string, Parameters<typeof Icone>[0]['nome']> = {
   Autoclave: 'box',
   'Manômetro': 'gauge',
   'Válvula de Segurança': 'tool',
+  // Os PADRÕES de bancada (07/09/2026) — ver o mesmo mapa em `Dashboard.tsx`.
+  'Manômetro padrão': 'manometro',
+  'Válvula PSV padrão': 'valvula-psv',
+  'Bloco padrão de espessura': 'sigma',
+  'Pressostato padrão': 'gauge',
+  'Termostato padrão': 'gauge',
+  'Manovacuômetro padrão': 'manometro',
+  'Termômetro padrão': 'gauge',
+  'Instrumento padrão': 'filetext',
 };
+
+/** A categoria da linha. Mesma regra e mesmos rótulos do Dashboard. */
+const ROTULO_ORIGEM: Record<ItemVencimento['origem'], string> = {
+  inspecao: 'Inspeção',
+  calibracao: 'Calibração',
+  certificado: 'Certificado',
+};
+
+function ChipOrigem({ origem }: { origem: ItemVencimento['origem'] }) {
+  return <span className={`orig-chip orig-${origem}`}>{ROTULO_ORIGEM[origem]}</span>;
+}
 
 function BadgeStatus({ status }: { status: ItemVencimento['status'] }) {
   if (status === 'crit') return <span className="fj-badge crit">Crítico</span>;
@@ -100,15 +120,29 @@ export default function Vencimentos() {
           <div className="fj-panel-head">
             <div>
               <div className="fj-eyebrow">Prazos</div>
-              <h2>Equipamentos próximos do vencimento</h2>
+              {/* Renomeado em 07/09/2026: a lista agrega inspeção, calibração
+                  de acessório e certificado de padrão. Ver `Dashboard.tsx`. */}
+              <h2>Prazos e vencimentos</h2>
             </div>
             {(kpis.vencidos ?? 0) > 0 && <span className="fj-badge crit">{kpis.vencidos} vencido{(kpis.vencidos ?? 0) > 1 ? 's' : ''}</span>}
           </div>
-          {itens.length === 0 ? (
+          {/* Estado vazio SÓ depois de conferir (§21 da rodada): enquanto a
+              consulta não voltou inteira, a tela não afirma ausência. */}
+          {painel.carregando || painel.erro === true || painel.certificadosOk === false ? (
+            <div className="fj-empty">
+              <div className="fj-empty-ic"><Icone nome="cloudoff" tam={22} /></div>
+              <div className="fj-empty-title">
+                {painel.carregando ? 'Consultando os prazos…' : 'Prazos não conferidos'}
+              </div>
+              {painel.carregando
+                ? 'Um instante — a lista está sendo montada a partir dos dados da organização.'
+                : 'O servidor não respondeu por completo. Recarregue a página: nada foi apagado, e esta lista não representa a organização.'}
+            </div>
+          ) : itens.length === 0 ? (
             <div className="fj-empty">
               <div className="fj-empty-ic"><Icone nome="calendar" tam={22} /></div>
-              <div className="fj-empty-title">Nenhum equipamento cadastrado</div>
-              Cadastre equipamentos e calcule a Vida Remanescente para acompanhar prazos aqui.
+              <div className="fj-empty-title">Nenhum prazo cadastrado</div>
+              Cadastre equipamentos, calibrações ou a validade dos certificados dos padrões para acompanhar prazos aqui.
             </div>
           ) : (
             <div className="fj-table-wrap">
@@ -134,7 +168,7 @@ export default function Vencimentos() {
                           </div>
                         </div>
                       </td>
-                      <td data-rot="Origem">{it.origem === 'calibracao' ? 'Calibração' : 'Inspeção'}</td>
+                      <td data-rot="Origem"><ChipOrigem origem={it.origem} /></td>
                       <td className="mono" data-rot="Última">{it.ultima ? it.ultima.toLocaleDateString('pt-BR') : <span className="fj-dash">—</span>}</td>
                       <td className="mono" data-rot="Vencimento">{it.vencimento ? it.vencimento.toLocaleDateString('pt-BR') : <span className="fj-dash">—</span>}</td>
                       {/* `folgado`: mais de 60 dias até vencer — mesmo selo azul do

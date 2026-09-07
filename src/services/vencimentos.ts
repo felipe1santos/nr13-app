@@ -14,7 +14,15 @@ export interface ItemVencimento {
   tag: string;
   nome: string;
   tipoEquip: string;                 // rótulo humano ('Vaso de Pressão', 'Manômetro'…)
-  origem: 'inspecao' | 'calibracao';
+  /**
+   * De onde o prazo vem:
+   *   · `inspecao`    — do relatório (ou da vida remanescente) do equipamento;
+   *   · `calibracao`  — do acessório instalado no equipamento (manômetro, PSV);
+   *   · `certificado` — do CERTIFICADO do instrumento PADRÃO usado no ensaio
+   *     (`nr13_rastreab_`). São coisas diferentes e não podem se confundir: um
+   *     é a válvula do vaso, o outro é a válvula-padrão da bancada.
+   */
+  origem: 'inspecao' | 'calibracao' | 'certificado';
   pertenceA?: string;                // TAG pai (acessórios de calibração)
   ultima?: Date;
   vencimento?: Date;
@@ -24,20 +32,60 @@ export interface ItemVencimento {
 
 const MS_DIA = 86_400_000;
 
+/**
+ * Uma data de calendário REAL, ou `null`.
+ *
+ * `new Date(2026, 12, 32)` não é inválida para o JavaScript: ela TRANSBORDA
+ * para 01/02/2027. Era assim que `32/13/2026` — digitação errada, importação
+ * torta — virava um vencimento plausível em vez de ser recusado (07/09/2026).
+ * A volta ao mesmo dia/mês/ano é o que separa data de lixo bem formatado.
+ */
+function dataExata(ano: number, mes: number, dia: number): Date | null {
+  const d = new Date(ano, mes - 1, dia);
+  if (isNaN(d.getTime())) return null;
+  if (d.getFullYear() !== ano || d.getMonth() !== mes - 1 || d.getDate() !== dia) return null;
+  return d;
+}
+
 /** Aceita 'dd/mm/aaaa', 'aaaa-mm-dd' e 'ddmmaaaa' (dado antigo digitado sem máscara). */
 export function parseDataFlex(s: string | undefined | null): Date | null {
   if (!s) return null;
   const br = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s.trim()) ?? /^(\d{2})(\d{2})(\d{4})$/.exec(s.trim());
-  if (br) {
-    const d = new Date(Number(br[3]), Number(br[2]) - 1, Number(br[1]));
-    return isNaN(d.getTime()) ? null : d;
-  }
+  if (br) return dataExata(Number(br[3]), Number(br[2]), Number(br[1]));
   const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(s.trim());
-  if (iso) {
-    const d = new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
-    return isNaN(d.getTime()) ? null : d;
-  }
+  if (iso) return dataExata(Number(iso[1]), Number(iso[2]), Number(iso[3]));
   return null;
+}
+
+/**
+ * A janela em que uma data de prazo é PLAUSÍVEL (07/09/2026).
+ *
+ * `parseDataFlex` aceita qualquer data bem formada, e é o certo para ele: ele
+ * também ordena históricos e desenha o Portal. Aqui, no motor de PRAZOS, uma
+ * data fora desta janela não é um vencimento — é sentinela de dado velho, e
+ * exibi-la produz "Vencido há 20.703 dias" no topo do Dashboard, empurrando
+ * para baixo o que realmente vence esta semana.
+ *
+ * As sentinelas vistas no sistema: `01/01/1970` (epoch de um campo que veio
+ * como `0`), `1900-01-01` e `0000-00-00` (herança de importação). O teto
+ * existe pela razão oposta — `9999-12-31` como "nunca vence" abriria uma linha
+ * dizendo "vence em 2.9 milhões de dias".
+ */
+export const ANO_MIN_PRAZO = 1990;
+export const ANO_MAX_PRAZO = 2200;
+
+/**
+ * A data de um PRAZO. Como `parseDataFlex`, mais a recusa das sentinelas.
+ *
+ * Devolve `null` — e `null` aqui significa "não há prazo", que a tela mostra
+ * como "Sem prazo cadastrado". Nunca uma data inventada.
+ */
+export function parseDataPrazo(s: string | undefined | null): Date | null {
+  const d = parseDataFlex(s);
+  if (!d) return null;
+  const ano = d.getFullYear();
+  if (ano < ANO_MIN_PRAZO || ano > ANO_MAX_PRAZO) return null;
+  return d;
 }
 
 export function statusPrazo(venc: Date, hoje: Date): { dias: number; status: 'crit' | 'warn' | 'ok' } {
@@ -94,6 +142,24 @@ export interface FatosEquipamento {
   relProxExterna?: string | null;
 }
 
+/**
+ * Fatos de UM certificado de instrumento PADRÃO (`nr13_rastreab_<id>`).
+ *
+ * O painel nunca leu esta família — foi o defeito relatado em 07/09/2026:
+ * certificado com validade dentro de 30 dias não aparecia em lugar nenhum.
+ */
+export interface FatosCertificado {
+  id: string;
+  nome?: string | null;
+  /** `tipoInstrumento`: 'manometro' | 'valvula' | 'ultrassom' | 'bloco'… */
+  tipo?: string | null;
+  /** Nº do certificado do padrão, para a linha da tela. */
+  certificado?: string | null;
+  validade?: string | null;
+  /** Soft-replace: registro substituído não vence — quem vence é o que o trocou. */
+  substituidoEm?: string | null;
+}
+
 /** Fatos de UMA calibração — a que já venceu a disputa por componente. */
 export interface FatosCalibracao {
   tag: string;
@@ -127,7 +193,7 @@ export function itemDeEquipamento(f: FatosEquipamento, hoje: Date): ItemVencimen
   // como reserva, e um relatório recente SEM datas não faz procurar num
   // anterior — a regra sempre olhou só o mais recente.
   const doRelatorio = [f.relProxInterna, f.relProxExterna]
-    .map(parseDataFlex)
+    .map(parseDataPrazo)
     .filter((d): d is Date => d !== null);
   const vencimento =
     doRelatorio.length > 0
@@ -136,7 +202,7 @@ export function itemDeEquipamento(f: FatosEquipamento, hoje: Date): ItemVencimen
 
   const ultima =
     doRelatorio.length > 0
-      ? (parseDataFlex(f.relExecucao ?? null) ?? parseDataFlex(f.relEmissao ?? null) ?? undefined)
+      ? (parseDataPrazo(f.relExecucao ?? null) ?? parseDataPrazo(f.relEmissao ?? null) ?? undefined)
       : prazoDaVida(f)?.ultima;
 
   if (!vencimento) return { tag: f.tag, nome, tipoEquip, origem: 'inspecao', status: 'semPrazo' };
@@ -145,7 +211,7 @@ export function itemDeEquipamento(f: FatosEquipamento, hoje: Date): ItemVencimen
 }
 
 function prazoDaVida(f: FatosEquipamento): { ultima: Date; vencimento: Date } | null {
-  const base = parseDataFlex(f.vidaBase ?? null);
+  const base = parseDataPrazo(f.vidaBase ?? null);
   const anos = f.vidaProxAnos;
   if (!base || typeof anos !== 'number' || anos < 0) return null;
   return { ultima: base, vencimento: somarAnosEmMeses(base, anos) };
@@ -154,7 +220,7 @@ function prazoDaVida(f: FatosEquipamento): { ultima: Date; vencimento: Date } | 
 /** A linha do painel para um acessório. `null` sem próxima calibração — igual ao caminho antigo. */
 export function itemDeCalibracao(f: FatosCalibracao, hoje: Date): ItemVencimento | null {
   const hojeZero = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
-  const venc = parseDataFlex(f.proxCalibracao ?? null);
+  const venc = parseDataPrazo(f.proxCalibracao ?? null);
   if (!venc) return null;
 
   const tipoAc = f.tipo === 'psv' ? 'Válvula de Segurança' : 'Manômetro';
@@ -168,7 +234,54 @@ export function itemDeCalibracao(f: FatosCalibracao, hoje: Date): ItemVencimento
     tipoEquip: tipoAc,
     origem: 'calibracao',
     pertenceA: f.tag,
-    ultima: parseDataFlex(f.dataCalibracao ?? null) ?? undefined,
+    ultima: parseDataPrazo(f.dataCalibracao ?? null) ?? undefined,
+    vencimento: venc,
+    dias,
+    status,
+  };
+}
+
+/**
+ * O rótulo humano de cada instrumento padrão. As chaves são as do
+ * `TipoInstrumento` de `rastreabilidadeService`; um tipo novo lá sem entrada
+ * aqui cai em "Instrumento padrão" — e o gate
+ * `vencimentosCertificados.test.ts` reprova a omissão.
+ */
+export const ROTULO_PADRAO: Record<string, string> = {
+  manometro: 'Manômetro padrão',
+  valvula: 'Válvula PSV padrão',
+  ultrassom: 'Bloco padrão de espessura',
+  bloco: 'Bloco padrão de espessura',
+  pressostato: 'Pressostato padrão',
+  termostato: 'Termostato padrão',
+  manovacuometro: 'Manovacuômetro padrão',
+  termometro: 'Termômetro padrão',
+  outro: 'Instrumento padrão',
+};
+
+/**
+ * A linha do painel para um certificado de padrão.
+ *
+ * `null` em dois casos, e os dois são regra: registro SUBSTITUÍDO (soft-replace
+ * — quem vence é o que o trocou) e validade ausente/ilegível. Inventar prazo
+ * onde não há data é o oposto do que este motor faz.
+ */
+export function itemDeCertificado(f: FatosCertificado, hoje: Date): ItemVencimento | null {
+  if (f.substituidoEm) return null;
+  const hojeZero = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+  const venc = parseDataPrazo(f.validade ?? null);
+  if (!venc) return null;
+
+  const rotulo = ROTULO_PADRAO[f.tipo ?? ''] ?? 'Instrumento padrão';
+  const { dias, status } = statusPrazo(venc, hojeZero);
+  return {
+    // A "TAG" é rótulo de tela: o nº do certificado quando existe, senão o
+    // nome do instrumento. Certificado de padrão NÃO pertence a equipamento
+    // nenhum — vale para a organização inteira.
+    tag: f.certificado?.trim() || f.nome?.trim() || rotulo,
+    nome: f.nome?.trim() || rotulo,
+    tipoEquip: rotulo,
+    origem: 'certificado',
     vencimento: venc,
     dias,
     status,
@@ -240,7 +353,65 @@ export function listarVencimentos(hoje: Date = new Date()): ItemVencimento[] {
     } catch { /* chave malformada: ignora */ }
   }
 
-  return ordenarVencimentos(itens);
+  // ── Certificados dos instrumentos PADRÃO (nr13_rastreab_<id>) ──
+  // Não pertencem a equipamento: são da organização. Ficavam de fora do painel
+  // inteiro — nem aqui nem no agregado do servidor.
+  for (const chave of listarChavesComPrefixo('nr13_rastreab_')) {
+    try {
+      const r = ler<{
+        id?: string;
+        nome?: string;
+        tipoInstrumento?: string;
+        certificadoPadrao?: string;
+        validade?: string;
+        substituidoEm?: string;
+      }>(chave);
+      if (!r) continue;
+      const linha = itemDeCertificado(
+        {
+          id: r.id ?? chave.slice('nr13_rastreab_'.length),
+          nome: r.nome,
+          tipo: r.tipoInstrumento,
+          certificado: r.certificadoPadrao,
+          validade: r.validade,
+          substituidoEm: r.substituidoEm,
+        },
+        hojeZero,
+      );
+      if (linha) itens.push(linha);
+    } catch { /* registro malformado: ignora */ }
+  }
+
+  return ordenarVencimentos(dedupVencimentos(itens));
+}
+
+/**
+ * A IDENTIDADE de uma linha do painel, para não exibi-la duas vezes.
+ *
+ * O painel passou a somar TRÊS fontes (relatório, calibração e certificado de
+ * padrão), e duas delas podem chegar pelo servidor e pelo cache na mesma
+ * carga. Duplicata no painel não é só feiúra: ela conta duas vezes em
+ * "vencidos" e derruba a conformidade de uma organização que está em dia.
+ *
+ * A chave não usa `dias`: ele é derivado de `hoje` e mudaria a identidade da
+ * mesma linha entre duas renderizações do mesmo dia.
+ */
+export function chaveIdentidade(i: ItemVencimento): string {
+  const venc = i.vencimento ? i.vencimento.toISOString().slice(0, 10) : '';
+  return [i.origem, i.pertenceA ?? '', i.tag, i.nome, venc].join('|');
+}
+
+/** Mantém a PRIMEIRA ocorrência de cada identidade, preservando a ordem. */
+export function dedupVencimentos(itens: ItemVencimento[]): ItemVencimento[] {
+  const vistos = new Set<string>();
+  const saida: ItemVencimento[] = [];
+  for (const i of itens) {
+    const k = chaveIdentidade(i);
+    if (vistos.has(k)) continue;
+    vistos.add(k);
+    saida.push(i);
+  }
+  return saida;
 }
 
 /**
