@@ -203,8 +203,12 @@ export default function CatalogoLivroV9({
 
           <ul className="reg-lista">
             {itens.map((l) => {
-              const nome =
-                l.descricao?.trim() || (l.tipo ? ROTULO_TIPO[l.tipo] : '') || 'Equipamento';
+              /* Só o nome PRÓPRIO do equipamento vai na segunda linha. O rótulo
+                 do tipo já é o badge ao lado: sem esta separação, o cadastro
+                 sem descrição imprimia "Vaso de Pressão" duas vezes na mesma
+                 linha — medido em produção em 07/09/2026. */
+              const nome = l.descricao?.trim() ?? '';
+              const rotuloTipo = l.tipo ? ROTULO_TIPO[l.tipo] : '';
               const registros = metricaRegistros(l.livroEntradas);
               return (
                 <li key={l.tag}>
@@ -216,7 +220,9 @@ export default function CatalogoLivroV9({
                     type="button"
                     className="reg-card"
                     onClick={() => aoEscolher(l.tag)}
-                    aria-label={`Abrir os registros de ${l.tag} — ${nome}`}
+                    aria-label={`Abrir os registros de ${l.tag}${
+                      nome || rotuloTipo ? ` — ${nome || rotuloTipo}` : ''
+                    }`}
                   >
                     <span className="reg-card-ic" aria-hidden>
                       <Icone nome={(l.tipo && ICONE_TIPO[l.tipo]) || 'book'} tam={18} />
@@ -224,15 +230,15 @@ export default function CatalogoLivroV9({
 
                     <span className="reg-card-id">
                       <strong className="reg-card-tag">{l.tag}</strong>
-                      <span className="reg-card-nome" title={nome}>
-                        {nome}
-                      </span>
+                      {nome && (
+                        <span className="reg-card-nome" title={nome}>
+                          {nome}
+                        </span>
+                      )}
                     </span>
 
                     <span className="reg-card-marcas">
-                      {l.tipo && ROTULO_TIPO[l.tipo] && (
-                        <span className="fj-badge neutro">{ROTULO_TIPO[l.tipo]}</span>
-                      )}
+                      {rotuloTipo && <span className="fj-badge neutro">{rotuloTipo}</span>}
                       {l.categoria && <span className="fj-badge info2">Cat. {l.categoria}</span>}
                     </span>
 

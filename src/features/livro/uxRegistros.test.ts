@@ -136,3 +136,13 @@ describe('o texto de abertura descreve o comportamento de HOJE', () => {
     expect(catalogo).toContain('Nenhum registro de segurança ainda');
   });
 });
+
+describe('o card não repete a mesma informação duas vezes', () => {
+  it('a segunda linha é o nome PRÓPRIO; o tipo é só o badge', () => {
+    // Medido em produção em 07/09/2026: cadastro sem descrição caía no rótulo
+    // do tipo e a linha saía com "Vaso de Pressão" no nome E no badge ao lado.
+    expect(catalogo).toContain("const nome = l.descricao?.trim() ?? '';");
+    expect(catalogo).toContain('{nome && (');
+    expect(semComentarios(catalogo)).not.toContain("l.descricao?.trim() || (l.tipo ?");
+  });
+});
