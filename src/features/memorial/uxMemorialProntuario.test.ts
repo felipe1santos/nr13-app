@@ -125,7 +125,11 @@ describe('prontuário: o modal de criação', () => {
     expect(prontuarios).toContain('className="mcr-intro"');
     expect(prontuarios).toContain('/ilustracoes/escolher-equipamento.webp');
     expect(prontuarios).toContain('<strong>Escolha o equipamento</strong>');
-    expect(prontuarios).toContain('O sistema abre o documento em');
+    expect(prontuarios).toContain('Selecione ao lado o equipamento');
+    // Os três passos dizem o que acontece DEPOIS da escolha — o que a versão
+    // de uma linha só não cabia.
+    expect(prontuarios).toContain('className="mcr-intro-passos"');
+    expect(prontuarios).toContain('salva como rascunho');
   });
 
   it('a introdução é OPCIONAL — o modal de relatório não a recebe', () => {
@@ -153,7 +157,46 @@ describe('prontuário: o modal de criação', () => {
     expect(cssModal).toContain('aspect-ratio: 620 / 413;');
     expect(cssModal).toContain('object-fit: contain;');
     const movel = cssModal.slice(cssModal.lastIndexOf('@media (max-width: 640px)'));
-    expect(movel).toContain('.mcr-intro img { width: min(150px, 46%);');
+    expect(movel).toContain('.mcr-intro img { width: 92px; }');
+  });
+
+  it('lista à esquerda, apoio à direita — e só a lista rola', () => {
+    // A abertura ficava ACIMA da lista e empurrava os equipamentos para fora do
+    // modal. Ao lado, a ilustração cabe grande e a lista continua sendo o que o
+    // olho encontra primeiro.
+    expect(modalSel).toContain('className="mcr-corpo-2col"');
+    expect(modalSel).toContain('className="mcr-col-lista mcr-corpo-lista"');
+    expect(modalSel).toContain('<aside className="mcr-col-apoio">');
+    expect(cssModal).toContain('grid-template-columns: minmax(0, 1fr) 320px;');
+    // Se a coluna de apoio rolasse junto, a explicação sumiria no primeiro giro
+    // da roda. `ListaVirtualizada` sobe até o ancestral rolável mais próximo,
+    // que passa a ser a coluna da lista.
+    expect(cssModal).toMatch(/\.mcr-col-lista \{[\s\S]*?overflow-y: auto;/);
+  });
+
+  it('a variante de duas colunas é uma CLASSE, não só o seletor :has()', () => {
+    // `:has` é recente; a largura do modal não pode depender do navegador.
+    expect(modalSel).toContain("intro ? ' mcr-box-2col' : ''");
+    expect(cssModal).toContain('.mcr-box-2col { max-width: 1000px; }');
+  });
+
+  it('a linha da lista fica compacta dentro do modal', () => {
+    // O card da tela de equipamentos tem 92px — ele mostra um parque inteiro.
+    // Aqui a pergunta é "qual destes?". A `ListaVirtualizada` MEDE a linha real,
+    // então compactar não desalinha a virtualização.
+    expect(cssModal).toContain('.mcr-corpo-2col .card-equipamento-horiz {');
+    expect(cssModal).toContain('padding: 7px 12px;');
+    expect(cssModal).toContain('.mcr-corpo-2col .card-eq-img { width: 40px; height: 40px;');
+  });
+
+  it('no tablet e no celular o apoio vai para CIMA, deitado', () => {
+    const t = cssModal.slice(cssModal.indexOf('@media (max-width: 900px)'));
+    expect(t).toContain('grid-template-columns: 1fr;');
+    expect(t).toContain('order: -1;');
+    // Deitado (imagem ao lado do texto) e sem os passos: no alto de uma tela
+    // estreita, a lista é que precisa do espaço.
+    expect(t).toContain('flex-direction: row;');
+    expect(t).toContain('.mcr-intro-passos { display: none; }');
   });
 
   it('o modal continua diálogo, com ESC e armadilha de foco', () => {

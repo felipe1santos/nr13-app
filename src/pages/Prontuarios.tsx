@@ -957,10 +957,9 @@ export default function Prontuarios() {
         <ModalSelecionarEquipamento
           sobre="Criar prontuário"
           aoFechar={() => setCriando(false)}
-          /* O modal abria direto na lista, sem dizer o que a escolha provoca.
-             A ilustração e as duas linhas abaixo dela respondem isso antes da
-             busca — e ficam COMPACTAS de propósito: a lista continua sendo o
-             conteúdo do modal. */
+          /* Coluna de apoio, à DIREITA da lista: a ilustração cabe grande sem
+             empurrar equipamento nenhum, e os três passos dizem o que acontece
+             depois da escolha. */
           intro={
             <div className="mcr-intro">
               <img
@@ -970,10 +969,12 @@ export default function Prontuarios() {
                 decoding="async"
               />
               <strong>Escolha o equipamento</strong>
-              <p>
-                Selecione o equipamento que receberá o prontuário. O sistema abre o documento em
-                seguida, com os dados que já existem na ficha preenchidos.
-              </p>
+              <p>Selecione ao lado o equipamento que vai receber o prontuário.</p>
+              <ul className="mcr-intro-passos">
+                <li>O documento abre já com os dados da ficha preenchidos.</li>
+                <li>Você completa o que faltar e salva como rascunho.</li>
+                <li>A emissão acontece depois, quando o prontuário estiver pronto.</li>
+              </ul>
             </div>
           }
         >

@@ -177,54 +177,149 @@
   .mni-trocar { align-self: flex-start; }
 }
 
-/* ── BLOCO DE ABERTURA DO MODAL (07/09/2026) ────────────────────────────────
-   Ilustração + duas linhas explicando o que a escolha provoca. Fica ACIMA da
-   busca — que continua grudada no topo ao rolar — e some da rolagem quando o
-   usuário desce para a lista, porque é introdução, não conteúdo. */
+/* ============================================================================
+   MODAL "CRIAR PRONTUÁRIO" — DUAS COLUNAS (07/09/2026)
+
+   A abertura ficava ACIMA da lista e empurrava os equipamentos para fora do
+   modal: quem abriu para escolher via, primeiro, um desenho. Agora a lista fica
+   à esquerda (rolando) e o apoio à direita (parado), no cinza-azulado da
+   própria ilustração.
+
+   Tudo aqui é escopado em `.mcr-corpo-2col`: o modal de criar RELATÓRIO não
+   recebe introdução e continua exatamente como estava.
+   ============================================================================ */
+.mcr-box-2col { max-width: 1000px; }
+
+.mcr-corpo-2col {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Só a lista rola. `ListaVirtualizada` sobe até o ancestral rolável mais
+   próximo — que passa a ser esta coluna. */
+.mcr-col-lista {
+  overflow-y: auto;
+  min-height: 0;
+  padding: 14px 16px 18px 20px;
+}
+
+.mcr-col-apoio {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 20px 22px;
+  border-left: 1px solid var(--blue-line, #c9dcf0);
+  /* O fundo da própria arte: cinza-azulado claro, subindo para o branco. */
+  background: linear-gradient(180deg, #f2f6fc 0%, #e9f0f8 100%);
+  overflow-y: auto;
+}
+
 .mcr-intro {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 3px;
-  margin: 0 0 14px;
-  padding: 14px 16px 16px;
-  border-radius: 12px;
-  border: 1px solid var(--blue-line, #c9dcf0);
-  background: linear-gradient(180deg, #f6f9fd 0%, #eef4fb 100%);
+  gap: 4px;
 }
 .mcr-intro img {
   display: block;
-  /* A arte é 3:2. Altura curta de propósito: a lista é o conteúdo do modal. */
-  width: min(230px, 62%);
+  /* Grande: é a coluna dela. */
+  width: 100%;
+  max-width: 250px;
   aspect-ratio: 620 / 413;
   object-fit: contain;
   height: auto;
-  margin-bottom: 6px;
+  margin-bottom: 10px;
 }
 .mcr-intro strong {
   font-family: var(--font-display);
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text-main, #2d3339);
 }
 .mcr-intro p {
   margin: 0;
-  max-width: 52ch;
-  font-size: 12px;
+  font-size: 12.5px;
   line-height: 1.5;
   color: var(--muted, #7a8790);
 }
-
-@media (max-width: 640px) {
-  /* No celular a altura é o recurso escasso: a ilustração encolhe para a lista
-     continuar visível sem rolagem. */
-  .mcr-intro { padding: 10px 12px 12px; margin-bottom: 10px; }
-  .mcr-intro img { width: min(150px, 46%); margin-bottom: 4px; }
-  .mcr-intro p { font-size: 11.5px; }
+/* Os passos ficam alinhados à ESQUERDA mesmo com o bloco centralizado: lista
+   com marcador centralizada não se lê, cada linha começa num lugar. */
+.mcr-intro-passos {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  text-align: left;
+  width: 100%;
+}
+.mcr-intro-passos li {
+  position: relative;
+  padding-left: 20px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted, #7a8790);
+}
+.mcr-intro-passos li::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 6px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--blue, #457dc1);
 }
 
-/* Ajuste medido no navegador (07/09/2026): com 230px a abertura empurrava a
-   segunda linha da lista para fora do modal. A ilustração é apoio — 180px
-   bastam para reconhecê-la, e a lista continua sendo o conteúdo. */
-.mcr-intro { padding: 12px 14px 13px; gap: 2px; }
-.mcr-intro img { width: min(180px, 52%); margin-bottom: 4px; }
+/* ── A LISTA, MAIS COMPACTA DENTRO DO MODAL ─────────────────────────────────
+   O card da tela de equipamentos tem 92px de altura — ele mostra um parque
+   inteiro. Aqui a pergunta é "qual destes?", e caber mais equipamentos sem
+   rolar vale mais que o respiro. A `ListaVirtualizada` MEDE a linha real, então
+   compactar não desalinha a virtualização. */
+.mcr-corpo-2col .lista-cards-horiz { gap: 7px; margin-top: 10px; }
+.mcr-corpo-2col .card-equipamento-horiz {
+  padding: 7px 12px;
+  gap: 12px;
+  border-radius: 10px;
+}
+.mcr-corpo-2col .card-eq-img { width: 40px; height: 40px; border-radius: 8px; }
+.mcr-corpo-2col .card-eq-info { gap: 10px; }
+.mcr-corpo-2col .eq-tag { font-size: 13px; }
+.mcr-corpo-2col .eq-tipo { font-size: 10px; }
+.mcr-corpo-2col .eq-label { font-size: 9px; }
+.mcr-corpo-2col .eq-value { font-size: 12px; }
+.mcr-corpo-2col .card-equipamento-horiz .badge-relatorios { font-size: 10px; padding: 3px 8px; }
+/* A busca gruda no topo da coluna que rola. */
+.mcr-corpo-2col .busca-lista {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--panel, #fff);
+  padding-bottom: 8px;
+  margin-bottom: 0;
+}
+
+@media (max-width: 900px) {
+  /* Sem largura para duas colunas: o apoio volta para cima, com a ilustração
+     menor — a lista precisa aparecer sem rolagem. */
+  .mcr-corpo-2col { grid-template-columns: 1fr; }
+  .mcr-col-apoio {
+    order: -1;
+    border-left: none;
+    border-bottom: 1px solid var(--blue-line, #c9dcf0);
+    padding: 12px 16px 14px;
+  }
+  .mcr-intro { flex-direction: row; align-items: center; text-align: left; gap: 14px; }
+  .mcr-intro img { width: 120px; margin-bottom: 0; flex: 0 0 auto; }
+  .mcr-intro-passos { display: none; }
+  .mcr-col-lista { padding: 12px 14px 16px; }
+}
+
+@media (max-width: 640px) {
+  .mcr-intro img { width: 92px; }
+  .mcr-intro strong { font-size: 13.5px; }
+  .mcr-intro p { font-size: 11.5px; }
+}

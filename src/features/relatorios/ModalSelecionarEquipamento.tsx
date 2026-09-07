@@ -96,7 +96,10 @@ export default function ModalSelecionarEquipamento({
       aria-modal="true"
       aria-label={`${sobre} — ${titulo}`}
     >
-      <div className="fj-modal-box mcr-box" ref={caixa}>
+      {/* A classe (e não só o `:has()` do CSS) declara a variante de duas
+          colunas: `:has` é recente, e a largura do modal não pode depender do
+          navegador do usuário. */}
+      <div className={`fj-modal-box mcr-box${intro ? ' mcr-box-2col' : ''}`} ref={caixa}>
         <div className="fj-modal-head">
           <div>
             <div className="fj-eyebrow">{sobre}</div>
@@ -107,10 +110,26 @@ export default function ModalSelecionarEquipamento({
           </button>
         </div>
 
-        <div className="mcr-corpo mcr-corpo-lista">
-          {intro}
-          {children}
-        </div>
+        {/*
+          DUAS COLUNAS quando há introdução (07/09/2026).
+
+          A abertura vinha ACIMA da lista e empurrava os equipamentos para fora
+          do modal: quem abriu para escolher um equipamento via, primeiro, um
+          desenho. Ao lado, a ilustração pode ser maior e a lista continua sendo
+          a primeira coisa que o olho encontra.
+
+          Só a COLUNA DA LISTA rola — a de apoio fica parada, senão a explicação
+          desapareceria no primeiro giro da roda. `ListaVirtualizada` sobe até o
+          ancestral rolável mais próximo, que passa a ser essa coluna.
+        */}
+        {intro ? (
+          <div className="mcr-corpo-2col">
+            <div className="mcr-col-lista mcr-corpo-lista">{children}</div>
+            <aside className="mcr-col-apoio">{intro}</aside>
+          </div>
+        ) : (
+          <div className="mcr-corpo mcr-corpo-lista">{children}</div>
+        )}
       </div>
     </div>
   );

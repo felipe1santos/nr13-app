@@ -43,42 +43,48 @@ const PECAS = [
     </div>`,
   },
   {
-    nome: 'prontuário · modal de criação com a abertura',
+    nome: 'prontuário · modal de criação (lista + apoio)',
     html: `<div class="fj-modal-overlay" style="position:relative;inset:auto;padding:12px">
-      <div class="fj-modal-box mcr-box">
+      <div class="fj-modal-box mcr-box mcr-box-2col">
         <div class="fj-modal-head">
           <div><div class="fj-eyebrow">Criar prontuário</div><h2>Selecione o equipamento</h2></div>
           <button class="fj-modal-close">x</button>
         </div>
-        <div class="mcr-corpo mcr-corpo-lista">
-          <div class="mcr-intro">
-            <img src="${IMG_PRONTUARIO}" alt="">
-            <strong>Escolha o equipamento</strong>
-            <p>Selecione o equipamento que receberá o prontuário. O sistema abre o documento em
-            seguida, com os dados que já existem na ficha preenchidos.</p>
+        <div class="mcr-corpo-2col">
+          <div class="mcr-col-lista mcr-corpo-lista">
+            <div class="busca-lista compacta"><div class="busca-lista-linha">
+              <div class="fj-search-box busca-lista-campo"><input placeholder="Buscar por TAG, equipamento, fabricante ou cliente"></div>
+              <div class="busca-lista-info"><span class="busca-lista-contagem">5 resultados</span></div>
+            </div></div>
+            <div class="lista-cards-horiz">
+              ${[
+                ['ZZ-FASE3', 'Vaso de Pressão', 'III', '2.25 MPa'],
+                ['COMPRESSOR V8-15/200L', 'Vaso de Pressão', '—', '—'],
+                ['DASDSA', 'Vaso de Pressão', 'I', '1.10 MPa'],
+                ['ZZ-CALDEIRA-TESTE', 'Caldeira', 'A', '—'],
+              ].map(([tag, tipo, cat, pmta]) => `<button class="card-equipamento-horiz">
+                <div class="card-eq-img"><span class="card-eq-img-vazio">${tag.slice(0,2)}</span></div>
+                <div class="card-eq-info">
+                  <div class="eq-col"><span class="eq-tag">${tag}</span><span class="eq-tipo">${tipo}</span></div>
+                  <div class="eq-col"><span class="eq-label">Categoria</span><span class="eq-value">${cat}</span></div>
+                  <div class="eq-col"><span class="eq-label">PMTA</span><span class="eq-value">${pmta}</span></div>
+                </div>
+                <span class="badge-relatorios tem">Prontuário OK</span>
+              </button>`).join('')}
+            </div>
           </div>
-          <div class="busca-lista compacta"><div class="busca-lista-linha">
-            <div class="fj-search-box busca-lista-campo"><input placeholder="Buscar por TAG, equipamento, fabricante ou cliente"></div>
-            <div class="busca-lista-info"><span class="busca-lista-contagem">5 resultados</span></div>
-          </div></div>
-          <div class="sel-eq-lista">
-            <button class="sel-eq-linha">
-              <span class="sel-eq-foto"><span class="sel-eq-foto-vazia">ZZ</span></span>
-              <span class="sel-eq-texto"><span class="sel-eq-tag">ZZ-FASE3</span>
-                <span class="sel-eq-sub">Vaso de pressão de teste</span></span>
-              <span class="sel-eq-col">Vaso de Pressão</span>
-              <span class="sel-eq-col">Cliente de teste LTDA</span>
-              <span class="sel-eq-col sel-eq-cat">Categoria III</span>
-            </button>
-            <button class="sel-eq-linha">
-              <span class="sel-eq-foto"><span class="sel-eq-foto-vazia">CO</span></span>
-              <span class="sel-eq-texto"><span class="sel-eq-tag">COMPRESSOR V8-15/200L</span>
-                <span class="sel-eq-sub">Vaso de Pressão</span></span>
-              <span class="sel-eq-col">Vaso de Pressão</span>
-              <span class="sel-eq-col">—</span>
-              <span class="sel-eq-col sel-eq-cat">—</span>
-            </button>
-          </div>
+          <aside class="mcr-col-apoio">
+            <div class="mcr-intro">
+              <img src="${IMG_PRONTUARIO}" alt="">
+              <strong>Escolha o equipamento</strong>
+              <p>Selecione ao lado o equipamento que vai receber o prontuário.</p>
+              <ul class="mcr-intro-passos">
+                <li>O documento abre já com os dados da ficha preenchidos.</li>
+                <li>Você completa o que faltar e salva como rascunho.</li>
+                <li>A emissão acontece depois, quando o prontuário estiver pronto.</li>
+              </ul>
+            </div>
+          </aside>
         </div>
       </div></div>`,
   },
@@ -102,8 +108,17 @@ const MEDIR = `(doc => {
     return { w: Math.round(b.width), h: Math.round(b.height),
              fit: getComputedStyle(im).objectFit, carregou: im.complete && im.naturalWidth > 0 };
   };
-  const lista = doc.querySelector('.sel-eq-lista');
+  const lista = doc.querySelector('.lista-cards-horiz');
+  const linhas = [...doc.querySelectorAll('.card-equipamento-horiz')]
+    .map(c => Math.round(c.getBoundingClientRect().height));
+  const colLista = doc.querySelector('.mcr-col-lista');
+  const colApoio = doc.querySelector('.mcr-col-apoio');
   const intro = doc.querySelector('.mcr-intro');
+  const larguras = colLista && colApoio
+    ? { lista: Math.round(colLista.getBoundingClientRect().width),
+        apoio: Math.round(colApoio.getBoundingClientRect().width),
+        ladoALado: Math.abs(colLista.getBoundingClientRect().top - colApoio.getBoundingClientRect().top) < 10 }
+    : null;
   const caixa = doc.querySelector('.mcr-box');
   return {
     largura: doc.documentElement.clientWidth,
@@ -115,6 +130,7 @@ const MEDIR = `(doc => {
     fracaoIntro: intro && caixa
       ? Math.round((intro.getBoundingClientRect().height / caixa.getBoundingClientRect().height) * 100)
       : null,
+    linhas, larguras,
     listaVisivel: lista && caixa
       ? lista.getBoundingClientRect().top < caixa.getBoundingClientRect().bottom
       : null,
@@ -203,10 +219,24 @@ for (const l of LARGURAS) {
       falhas++;
     } else console.log(`  ok · ilustração do ${nome}: ${im.w}x${im.h} (${im.fit})`);
   }
-  if (d.fracaoIntro > 45) {
-    console.log(`  FALHA · a abertura ocupa ${d.fracaoIntro}% do modal (> 45%)`);
-    falhas++;
-  } else console.log(`  ok · abertura ocupa ${d.fracaoIntro}% do modal, lista visível: ${d.listaVisivel}`);
+  if (d.larguras) {
+    const { lista, apoio, ladoALado } = d.larguras;
+    if (l > 900 && (!ladoALado || lista <= apoio)) {
+      console.log(`  FALHA · colunas: lista ${lista}px, apoio ${apoio}px, lado a lado: ${ladoALado}`);
+      falhas++;
+    } else console.log(`  ok · lista ${lista}px / apoio ${apoio}px (lado a lado: ${ladoALado})`);
+  }
+  if (d.linhas && d.linhas.length) {
+    const alt = Math.max(...d.linhas);
+    // O card da tela de equipamentos tem 92px. Dentro do modal a pergunta é
+    // "qual destes?", e caber mais equipamentos vale mais que o respiro.
+    // No celular o card EMPILHA (regra global de `relatorios.css`), e aí a
+    // altura maior é o comportamento certo: as colunas viram linhas.
+    if (l > 640 && alt > 70) {
+      console.log(`  FALHA · linha da lista com ${alt}px (esperado <= 70)`);
+      falhas++;
+    } else console.log(`  ok · linhas da lista com ${Math.min(...d.linhas)}–${alt}px`);
+  }
 }
 console.log(falhas === 0 ? '\nRESULTADO: sem falha.' : `\nRESULTADO: ${falhas} falha(s).`);
 process.exit(falhas === 0 ? 0 : 1);
