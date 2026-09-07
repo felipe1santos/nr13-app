@@ -28,8 +28,13 @@ const resposta = vi.hoisted(() => ({ data: null as unknown, error: null as unkno
 
 vi.mock('./supabase', () => ({
   supabase: {
-    rpc: vi.fn(async () => {
-      chamadas.n += 1;
+    // Conta SÓ o agregado. Desde 07/09/2026 a mesma carga do painel dispara
+    // também `certificados_padrao_org` (os certificados dos padrões, que não
+    // pertencem a equipamento e por isso não estão no agregado) — as duas saem
+    // JUNTAS, num `Promise.all`. Contar as duas aqui transformaria "uma
+    // agregação por boot" em "duas", medindo outra coisa.
+    rpc: vi.fn(async (nome: string) => {
+      if (nome === 'vencimentos_org') chamadas.n += 1;
       return { data: resposta.data, error: resposta.error };
     }),
   },

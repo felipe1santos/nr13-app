@@ -38,7 +38,7 @@ Todas as fontes de data do sistema, e o que cada uma é.
 | 1 | Inspeção do equipamento (relatório mais recente) | localStorage + `app_storage` | `nr13_rel_<id>_<TAG>` / índice `nr13_historico_indice_<TAG>` / `relatorios_index` | `proximaInspecaoInterna`, `proximaInspecaoExterna` (vale a **menor**) | sim | sim | sim | RPC `vencimentos_org` → `itemDeEquipamento`, origem `inspecao` |
 | 2 | Vida remanescente (reserva do item 1) | idem | `nr13_vida_<TAG>` / `equipamentos_index.vida_base`, `vida_prox_anos` | `entrada.dataAtual` (ou `calculadoEm`) + `proximaInspecaoAnos` | sim | sim | sim | mesma RPC; só entra quando o relatório não tem prazo |
 | 3 | Calibração de acessório instalado (manômetro, PSV do equipamento) | idem | `nr13_calibracoes_<TAG>` / `calibracoes_index.prox_calibracao` | `dataProxCalibracao` | sim | sim | sim | mesma RPC → `itemDeCalibracao`, origem `calibracao`; só a calibração mais recente por componente |
-| 4 | **Certificado do instrumento PADRÃO** (manômetro padrão, PSV padrão, bloco de espessura, e os demais `TipoInstrumento`) | idem | `nr13_rastreab_<id>` — **sem projeção** | `validade` | **NÃO** ← o defeito | **NÃO** | **sim** | **NOVO:** consulta de metadados em `app_storage` (`certificadosVencimentos.ts`) → `itemDeCertificado`, origem `certificado` |
+| 4 | **Certificado do instrumento PADRÃO** (manômetro padrão, PSV padrão, bloco de espessura, e os demais `TipoInstrumento`) | idem | `nr13_rastreab_<id>` — sem projeção; lido por função | `validade` | **NÃO** ← o defeito | **NÃO** | **sim** | **NOVO:** RPC `certificados_padrao_org()` (metadados, sem o PDF) → `itemDeCertificado`, origem `certificado` |
 | 5 | Padrão usado DENTRO de um certificado de calibração | idem | `nr13_calibracoes_<TAG>` → `padraoVal` | `padraoVal` | não | não | **não** | é registro HISTÓRICO ("com que padrão esta calibração foi feita"), não prazo vigente. O prazo vigente daquele padrão é o item 4 |
 | 6 | Validade do relatório | idem | `meta.validade` / `RelatorioIndiceItem.validade` | `validade` | não | não | **pendência declarada** (§6) | não agregado nesta rodada — ver "Limitações" |
 | 7 | Validade da válvula na lista de relatórios | derivado | `validadeValvula` / `validadesPorRelatorio(tag)` | — | não | não | não | é a mesma data do item 3 (vem do lote de calibração). Agregá-la duplicaria a linha |
@@ -50,34 +50,62 @@ Todas as fontes de data do sistema, e o que cada uma é.
 
 ## 3. O que mudou
 
-### 3.1 A fonte que faltava
+### 3.1 A fonte que faltava — e a armadilha no meio do caminho
 
-`src/services/certificadosVencimentos.ts` — consulta de **metadados** sobre
-`app_storage`, no servidor:
+A primeira implementação tentou resolver **sem SQL nenhum**, com a extração
+JSON do próprio PostgREST:
 
 ```
-select chave, deletado_em,
-       nome:valor->>"nome",
-       tipo:valor->>"tipoInstrumento",
-       certificado:valor->>"certificadoPadrao",
-       validade:valor->>"validade",
-       substituidoEm:valor->>"substituidoEm"
- where <org_id|user_id> = <escopo>  and chave like 'nr13_rastreab_%'
+select=chave,validade:valor->>"validade",tipo:valor->>"tipoInstrumento"
+      &chave=like.nr13_rastreab_%
 ```
 
-Três decisões que carregam a regra:
+Ela foi **medida em produção antes de ser declarada pronta**, e é bom que
+tenha sido: o PostgREST **aceita a sintaxe, responde HTTP 200, devolve as
+linhas certas — e todos os campos projetados vêm `null`.**
+
+```
+[{"chave":"nr13_rastreab_5264…","deletado_em":null,
+  "nome":null,"tipo":null,"validade":null}, …]
+```
+
+`app_storage.valor` é `text`, não `json`. O operador `->>` sobre texto não
+extrai **e não reclama**: devolve vazio. O painel teria voltado a dizer
+"Nenhum prazo cadastrado" sobre um certificado que está lá — a queixa
+original outra vez, com roupa nova, e agora com um teste verde por cima.
+
+A leitura passou então a ser uma FUNÇÃO,
+`supabase/vencimentos_certificados.sql` → `certificados_padrao_org()`, onde o
+`::jsonb` é explícito:
+
+```sql
+nullif(j.v ->> 'tipoInstrumento', '')  -- j.v = s.valor::jsonb, com guarda
+```
+
+Quatro decisões que carregam a regra:
 
 * **o PDF não trafega.** `valor` guarda o registro COMPLETO no servidor —
-  inclusive o `pdfBase64` que o cache local nem chega a ver (CLAUDE.md §2-bis).
-  A projeção por campo é feita pelo Postgres: chegam cinco strings curtas por
+  inclusive o arquivo em base64, que o cache local nem chega a ver (CLAUDE.md
+  §2-bis). A extração é feita pelo Postgres: chegam cinco strings curtas por
   certificado. Baixar `valor` inteiro para ler uma data traria megabytes;
-* **as chaves JSON vão entre aspas** (`->>"tipoInstrumento"`). Sem elas o nome
-  do campo dependeria de como o PostgREST normaliza maiúsculas, e um
-  `tipoinstrumento` inexistente voltaria `null` **em silêncio** — o certificado
-  viraria uma linha genérica em vez de sumir com erro;
-* **nenhuma migração SQL.** A família tem dezenas de linhas por organização, e
-  criar projeção nova custaria um rollout no SQL Editor (CLAUDE.md §13) para um
-  volume que não pede projeção.
+* **o cast tem guarda.** `valor` é texto livre: um registro corrompido não pode
+  derrubar a consulta inteira e apagar o painel de quem tem 20 certificados
+  sãos. O `::jsonb` mora num `lateral` com teste de formato;
+* **o escopo é aplicado DENTRO da função** (`org_id = org_atual()`, e o papel
+  `cliente` do Portal não passa). Quem chama não escolhe organização;
+* **`security definer` sem `anon`.** `revoke all … from public, anon` vem antes
+  do `grant … to authenticated` — toda função nova nasce executável por
+  `public`, e `anon` herda de `public`. Conferido depois de aplicar:
+  `proacl = {postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}`.
+
+**Aplicado em produção em 07/09/2026**, com a disciplina do CLAUDE.md §13: o
+texto foi transcrito por base64 e o SHA-256 do que estava DENTRO do editor foi
+comparado com o do arquivo do commit —
+`2c7ecd336890fd37858b8e4ddadb4790c7f2e93baabb38b3c75b979da4432ac6`, igual —
+antes de rodar. O arquivo é só `create`: não há `drop` nenhum, e portanto não
+há caminho pelo qual ele derrube objeto existente. Conferência depois de rodar
+por `pg_proc` (nome, `prosecdef`, `proacl`, retorno) e por chamada real
+autenticada, que devolveu os campos **preenchidos**.
 
 ### 3.2 A regra, no mesmo lugar das outras
 
@@ -192,7 +220,7 @@ filete à esquerda + ícone + número, sem fundo colorido.
    não projeta essa coluna: incluí-la exigiria migração SQL em produção
    (CLAUDE.md §13). Fica registrado como decisão desta rodada, não como
    esquecimento;
-2. **A consulta de certificados é por organização inteira, com teto de 2.000
+2. **A leitura de certificados é por organização inteira, com teto de 2.000
    linhas.** É folgado para a família (um ativo por tipo + versões
    substituídas), mas é teto: uma organização que passe disso teria certificados
    fora da conta. Não há aviso de truncamento nessa consulta específica;

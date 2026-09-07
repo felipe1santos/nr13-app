@@ -11,25 +11,21 @@
  * agregado do servidor (`vencimentos_org`) agrega `equipamentos_index` e
  * `calibracoes_index`, e certificado de padrão não está em projeção nenhuma.
  *
- * ## Por que uma consulta própria, e não uma coluna nova na projeção
+ * ## Por que uma leitura própria, e não uma coluna nova na projeção
  *
  * Certificado de padrão **não pertence a equipamento**: é da organização (um
  * por `tipoInstrumento` entre os ativos). Não cabe em `equipamentos_index` nem
- * em `calibracoes_index`, e criar uma projeção nova custaria migração SQL em
- * produção (§13) para uma família que tem dezenas de linhas, não milhares.
+ * em `calibracoes_index` — as duas são indexadas por TAG.
  *
- * ## O que esta consulta NÃO traz: o PDF
+ * ## O que esta leitura NÃO traz: o PDF
  *
  * `valor` guarda o registro COMPLETO no servidor — inclusive `pdfBase64`, que
  * o cache local nem chega a ver (§2-bis). Baixar `valor` inteiro para ler uma
- * data seria trazer megabytes de PDF por causa de um `validade`. Por isso a
- * projeção é por CAMPO (`valor->>"validade"`), feita pelo Postgres: chegam ao
- * navegador cinco strings curtas por certificado.
- *
- * Escopo por organização (`org_id`/`user_id`) além da RLS: a política já
- * filtra, o `.eq` é o segundo cinto.
+ * data seria trazer megabytes de PDF por causa de um `validade`. A extração é
+ * por CAMPO, feita pelo Postgres: chegam ao navegador cinco strings curtas por
+ * certificado.
  */
-import { supabase, escopoStorageAtual, TABELA_STORAGE } from './supabase';
+import { supabase } from './supabase';
 import { itemDeCertificado } from './vencimentos';
 import type { ItemVencimento } from './vencimentos';
 
@@ -45,21 +41,22 @@ export const PREFIXO_RASTREAB = 'nr13_rastreab_';
 export const LIMITE_CERTIFICADOS = 2_000;
 
 /**
- * Só os campos que a linha do painel precisa. Cada um é extraído do JSON pelo
- * servidor; `valor` inteiro nunca trafega.
+ * A função que faz a extração — `supabase/vencimentos_certificados.sql`.
  *
- * As chaves vão entre aspas porque são camelCase: sem as aspas o nome do campo
- * dependeria de como o PostgREST normaliza maiúsculas, e `tipoInstrumento`
- * viraria `tipoinstrumento` — que não existe no registro, e devolveria `null`
- * em silêncio (o certificado apareceria como "Instrumento padrão" genérico).
+ * ## POR QUE UMA RPC, E NÃO `select=validade:valor->>"validade"`
+ *
+ * Foi assim que este módulo nasceu, e o PostgREST ACEITOU: HTTP 200, as linhas
+ * certas, e TODOS os campos projetados em `null`. `app_storage.valor` é
+ * `text`, não `json`; `->>` sobre texto não extrai nem reclama — devolve
+ * vazio. Medido em produção (org 99f642d3, 07/09/2026): dois registros
+ * `nr13_rastreab_` voltaram com nome, tipo e validade nulos, e o painel disse
+ * "Nenhum prazo cadastrado" sobre um certificado que estava lá.
+ *
+ * Era a queixa original outra vez, com outra roupa. Na função o `::jsonb` é
+ * explícito, o cast tem guarda contra registro corrompido, e o `pdfBase64`
+ * continua sem sair do servidor.
  */
-export const COLUNAS_CERTIFICADO =
-  'chave, deletado_em,' +
-  ' nome:valor->>"nome",' +
-  ' tipo:valor->>"tipoInstrumento",' +
-  ' certificado:valor->>"certificadoPadrao",' +
-  ' validade:valor->>"validade",' +
-  ' substituidoEm:valor->>"substituidoEm"';
+export const RPC_CERTIFICADOS = 'certificados_padrao_org';
 
 interface LinhaCertificado {
   chave?: string | null;
@@ -68,6 +65,8 @@ interface LinhaCertificado {
   tipo?: string | null;
   certificado?: string | null;
   validade?: string | null;
+  /** Vem `substituido_em` da função; o campo camelCase é o do cache local. */
+  substituido_em?: string | null;
   substituidoEm?: string | null;
 }
 
@@ -98,7 +97,7 @@ export function itensDeLinhas(linhas: LinhaCertificado[], hoje: Date): ItemVenci
         tipo: linha?.tipo ?? null,
         certificado: linha?.certificado ?? null,
         validade: linha?.validade ?? null,
-        substituidoEm: linha?.substituidoEm ?? null,
+        substituidoEm: linha?.substituido_em ?? linha?.substituidoEm ?? null,
       },
       hoje,
     );
@@ -107,23 +106,24 @@ export function itensDeLinhas(linhas: LinhaCertificado[], hoje: Date): ItemVenci
   return itens;
 }
 
-/** Os certificados de padrão da organização, direto do servidor. */
+/**
+ * Os certificados de padrão da organização, direto do servidor.
+ *
+ * O escopo é aplicado DENTRO da função (`org_id = org_atual()`, e o papel
+ * `cliente` não passa): quem chama não escolhe organização.
+ *
+ * `ok: false` cobre também a função AUSENTE — enquanto o SQL não estiver
+ * aplicado, o painel diz que não conferiu os certificados em vez de afirmar
+ * que não há nenhum.
+ */
 export async function certificadosDoServidor(
   hoje: Date = new Date(),
 ): Promise<CertificadosDoPainel> {
   try {
-    const escopo = await escopoStorageAtual();
-    if (!escopo) return { itens: [], ok: false };
-
-    const { data, error } = await supabase
-      .from(TABELA_STORAGE)
-      .select(COLUNAS_CERTIFICADO)
-      .eq(escopo.coluna, escopo.id)
-      .like('chave', `${PREFIXO_RASTREAB}%`)
-      .limit(LIMITE_CERTIFICADOS);
-
+    const { data, error } = await supabase.rpc(RPC_CERTIFICADOS);
     if (error || !data) return { itens: [], ok: false };
-    return { itens: itensDeLinhas(data as unknown as LinhaCertificado[], hoje), ok: true };
+    const linhas = (data as unknown as LinhaCertificado[]).slice(0, LIMITE_CERTIFICADOS);
+    return { itens: itensDeLinhas(linhas, hoje), ok: true };
   } catch {
     return { itens: [], ok: false };
   }

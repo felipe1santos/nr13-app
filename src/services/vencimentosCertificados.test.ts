@@ -36,8 +36,8 @@ import {
 } from './vencimentos';
 import type { ItemVencimento } from './vencimentos';
 import {
-  COLUNAS_CERTIFICADO,
   PREFIXO_RASTREAB,
+  RPC_CERTIFICADOS,
   itensDeLinhas,
 } from './certificadosVencimentos';
 
@@ -304,17 +304,31 @@ describe('6 · GATE — um tipo NOVO de padrão não pode ficar de fora', () => 
     }
   });
 
-  it('a consulta do servidor projeta TODOS os campos que a regra lê', () => {
-    // Se um campo sumir do `select`, ele chega `null` e o certificado vira uma
+  it('a função do servidor extrai TODOS os campos que a regra lê', () => {
+    const sql = readFileSync('supabase/vencimentos_certificados.sql', 'utf8');
+    // Se um campo sumir da função, ele chega `null` e o certificado vira uma
     // linha muda — sem validade, sem tipo, sem nº. Silencioso, como o defeito.
     for (const campo of ['nome', 'tipoInstrumento', 'certificadoPadrao', 'validade', 'substituidoEm']) {
-      expect(COLUNAS_CERTIFICADO).toContain(`"${campo}"`);
+      expect(sql).toContain(`->> '${campo}'`);
     }
-    // Os nomes vão entre ASPAS por causa do camelCase.
-    expect(COLUNAS_CERTIFICADO).not.toContain('->>tipoInstrumento');
-    // E o PDF NUNCA entra: `valor` inteiro traria o base64 do certificado.
-    expect(COLUNAS_CERTIFICADO).not.toMatch(/(^|[\s,])valor([\s,]|$)/);
-    expect(COLUNAS_CERTIFICADO).not.toContain('pdfBase64');
+    // O CAST EXPLÍCITO é o ponto do arquivo. `valor` é `text`, e `->>` sobre
+    // texto devolve NULL **sem erro nenhum** — foi assim que a primeira
+    // tentativa (PostgREST puro, `select=validade:valor->>"validade"`) passou
+    // com HTTP 200 e escondeu o certificado outra vez, medido em produção.
+    expect(sql).toContain('::jsonb');
+    // O PDF nunca sai do servidor.
+    expect(sql).not.toContain('pdfBase64');
+    expect(sql).not.toMatch(/\bs\.valor\s+as\b/i);
+    // A função é a que o cliente chama, com o mesmo nome…
+    expect(sql).toContain(`function public.${RPC_CERTIFICADOS}()`);
+    // …é `security definer` e NÃO é executável por sessão anônima…
+    expect(sql).toContain('security definer');
+    expect(sql).toContain(
+      `revoke all on function public.${RPC_CERTIFICADOS}() from public, anon;`,
+    );
+    // …e o escopo é aplicado DENTRO dela: quem chama não escolhe organização.
+    expect(sql).toContain('org_id = public.org_atual()');
+    expect(sql).toContain("public.papel_atual(), '') <> 'cliente'");
   });
 
   it('servidor e cache local varrem o MESMO prefixo de família', () => {
@@ -339,12 +353,10 @@ describe('6 · GATE — um tipo NOVO de padrão não pode ficar de fora', () => 
 });
 
 describe('7 · o painel não depende do cache do aparelho', () => {
-  it('a consulta dos certificados é por METADADO, no servidor, e por organização', () => {
+  it('a leitura dos certificados é por METADADO, no servidor', () => {
     const fonte = readFileSync('src/services/certificadosVencimentos.ts', 'utf8');
-    expect(fonte).toContain('.like(\'chave\', `${PREFIXO_RASTREAB}%`)');
-    expect(fonte).toContain('escopoStorageAtual');
-    expect(fonte).toContain('.eq(escopo.coluna, escopo.id)');
-    // Nada de hidratação integral para desenhar um painel.
+    expect(fonte).toContain('supabase.rpc(RPC_CERTIFICADOS)');
+    // Nada de hidratação integral para desenhar um painel, e nenhum PDF.
     expect(fonte).not.toContain('lerTudo');
     expect(fonte).not.toContain('resolverPdf');
   });
