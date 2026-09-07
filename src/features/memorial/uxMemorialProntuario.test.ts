@@ -206,3 +206,23 @@ describe('prontuário: o modal de criação', () => {
     expect(modalSel).toContain('aria-label="Fechar"');
   });
 });
+
+describe('o modal não vira caixa dentro de caixa', () => {
+  it('o painel branco da TELA é neutralizado dentro do modal', () => {
+    // O catálogo traz `bloco-dados painel-lista` junto — com borda, raio e um
+    // `min-height` de 58vh que abria um vazio embaixo dos equipamentos. No
+    // modal, a moldura é o próprio modal.
+    const css = readFileSync('src/features/relatorios/modalCriarRelatorio.css', 'utf8');
+    expect(css).toContain('.mcr-corpo-2col .bloco-dados.painel-lista {');
+    expect(css).toContain('min-height: 0;');
+    expect(css).toContain('.mcr-corpo-2col .lista-virt { padding: 0; }');
+  });
+
+  it('a arte de fundo branco vira um cartão, de propósito', () => {
+    // Sobre o cinza-azulado da coluna, um PNG/JPG de fundo branco aparece como
+    // um retângulo solto. Com borda e raio ele passa a ser um cartão.
+    const css = readFileSync('src/features/relatorios/modalCriarRelatorio.css', 'utf8');
+    expect(css).toContain('.mcr-col-apoio .mcr-intro img {');
+    expect(css).toContain('border-radius: 14px;');
+  });
+});

@@ -323,3 +323,27 @@
   .mcr-intro strong { font-size: 13.5px; }
   .mcr-intro p { font-size: 11.5px; }
 }
+
+/* O catálogo traz o painel branco da TELA (`bloco-dados painel-lista`) junto:
+   dentro do modal isso vira caixa dentro de caixa, e o `min-height` de 58vh do
+   painel abre um vazio embaixo dos equipamentos. No modal a moldura é o próprio
+   modal. */
+.mcr-corpo-2col .bloco-dados.painel-lista {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  min-height: 0;
+  padding: 0;
+}
+.mcr-corpo-2col .lista-virt { padding: 0; }
+
+/* A arte tem fundo branco. Sobre o cinza-azulado da coluna ela aparecia como um
+   retângulo branco solto — então ele passa a ser um cartão, de propósito. */
+.mcr-col-apoio .mcr-intro img {
+  background: #fff;
+  border: 1px solid var(--blue-line, #c9dcf0);
+  border-radius: 14px;
+  padding: 10px;
+  box-sizing: border-box;
+}
