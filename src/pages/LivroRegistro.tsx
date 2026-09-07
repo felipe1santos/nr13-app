@@ -19,12 +19,18 @@ import {
 import { somenteOficiais } from '../features/livro/estadoRegistro';
 import { validarRegistroLivro, type ResultadoValidacaoRegistro } from '../features/livro/validacaoRegistro';
 import ModalTrancarRegistro from '../features/livro/ModalTrancarRegistro';
+import ModalNovoRegistro from '../features/livro/ModalNovoRegistro';
+import { FORM_OCORRENCIA_VAZIO, type FormOcorrencia } from '../features/livro/formRegistro';
 import { verificarCadeia, verificarEntrada, type LivroEntrada as EntradaLacre } from '../features/relatorios/livroLacre';
 import { exportarPdf, exportarPdfLivroCompleto } from '../features/relatorios/pdfService';
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
 import { documentosBloqueados } from '../services/trial';
 import './dashboard-novo.css';
 import './relatorios.css';
+/* A barra de ferramentas desta tela vive no CSS da sessão. Importado aqui de
+   propósito: ele chegaria pelo `CatalogoLivroV9` de qualquer jeito, mas a tela
+   que usa a regra é esta. */
+import '../features/livro/listaRegistros.css';
 
 interface LivroEntrada {
   id?: string;
@@ -226,35 +232,9 @@ function medirFundoConteudo(doc: Document | null | undefined): number | null {
 }
 
 // Tipos de ocorrência manual (manutenções pontuais entre inspeções — NR-13 13.4.1.9).
-const TIPOS_OCORRENCIA = [
-  'Manutenção corretiva',
-  'Manutenção preventiva',
-  'Reparo',
-  'Substituição de dispositivo',
-  'Ajuste/Calibração',
-  'Outra ocorrência',
-];
-
-interface FormOcorrencia {
-  data: string;
-  tipoOcorrencia: string;
-  oQueFoiFeito: string;
-  descricao: string;
-  quemRealizou: string;
-  phId: string;
-  /** id da entrada lacrada que esta ocorrência retifica (vazio = ocorrência comum). */
-  retificaDe: string;
-}
-
-const FORM_OCORRENCIA_VAZIO: FormOcorrencia = {
-  data: '',
-  tipoOcorrencia: '',
-  oQueFoiFeito: '',
-  descricao: '',
-  quemRealizou: '',
-  phId: '',
-  retificaDe: '',
-};
+/* Os tipos de ocorrência, o tipo do formulário e o estado vazio moram em
+   `features/livro/formRegistro.ts` desde 07/09/2026: o modal virou componente
+   próprio (`ModalNovoRegistro`) e os dois precisam do MESMO tipo. */
 
 export default function LivroRegistro() {
   // Estado (e não useMemo) para poder recarregar a timeline após salvar uma ocorrência manual.
@@ -558,9 +538,6 @@ export default function LivroRegistro() {
         <div className="fj-panel">
           <div className="fj-panel-head">
             <div>
-              <button type="button" className="btn-secundario" style={{ marginBottom: 10 }} onClick={() => { setTagAberta(null); setLivroCompleto(false); }}>
-                ← Todos os equipamentos
-              </button>
               <div className="fj-eyebrow">NR-13 · 13.4.1.9 · Livro de Registro de Segurança</div>
               <h2>
                 {linhaAberta.tag} <span className="fj-eq-name" style={{ fontWeight: 400 }}>— {linhaAberta.nomeEquip}</span>
@@ -569,6 +546,49 @@ export default function LivroRegistro() {
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               {linhaAberta.categoria && <span className="fj-badge neutro">Cat. {linhaAberta.categoria}</span>}
               <span className="fj-badge info2">{linhaAberta.entradas.length} registro(s)</span>
+            </div>
+          </div>
+
+          {/*
+            BARRA DE FERRAMENTAS — uma faixa só (07/09/2026).
+
+            Antes: o "← Todos os equipamentos" ficava dentro do cabeçalho e as
+            quatro ações numa fileira SOLTA no meio da tela, entre os cards e a
+            linha do tempo, alinhada à direita e sem moldura — parecia sobra de
+            layout. Agora é uma barra única: trilha à esquerda (o mesmo
+            `meta-breadcrumb` de /relatorios, /prontuarios e /inspecoes), ações à
+            direita, com "Novo registro" como primária.
+          */}
+          <div className="livro-toolbar">
+            <div className="meta-breadcrumb">
+              <button type="button" className="btn-secundario" onClick={() => { setTagAberta(null); setLivroCompleto(false); }}>
+                ← Todos os equipamentos
+              </button>
+              <span className="breadcrumb-chevron">›</span>
+              <span className="crumb-tag-chip">{linhaAberta.tag}</span>
+            </div>
+            <div className="livro-toolbar-acoes">
+              {/* 10B.2 · o registro do Livro passou a ser ATO DO USUÁRIO. Antes,
+                  finalizar um relatório criava um sozinho, já lacrado. */}
+              <button type="button" className="fj-btn fj-btn-primary" onClick={abrirModalOcorrencia}>
+                <Icone nome="plus" tam={13} /> Novo registro
+              </button>
+              <span className="livro-toolbar-sep" aria-hidden />
+              <button type="button" className="fj-btn fj-btn-ghost" onClick={() => setHistorico((v) => !v)}>
+                <Icone nome="book" tam={13} /> {historico ? 'Linha do tempo' : 'Histórico'}
+              </button>
+              <button type="button" className="fj-btn fj-btn-ghost" onClick={() => setLivroCompleto(true)}>
+                <Icone nome="eye" tam={13} /> Ver livro completo
+              </button>
+              <button
+                type="button"
+                className={`fj-btn fj-btn-ghost${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
+                onClick={() => void exportarLivroPdf()}
+                disabled={exportandoLivro}
+              >
+                {documentosBloqueados() ? <Icone nome="cadeado" tam={13} /> : <Icone nome="download" tam={13} />}{' '}
+                {exportandoLivro ? 'Gerando PDF…' : 'Exportar PDF'}
+              </button>
             </div>
           </div>
 
@@ -595,30 +615,6 @@ export default function LivroRegistro() {
                 <strong>Termo de Abertura</strong>
                 <span>NR-13, item 13.4.1.9</span>
               </div>
-            </button>
-          </div>
-
-          {/* Ações do livro — logo abaixo da capa/termo, onde ficam fáceis de achar */}
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap', marginTop: 14 }}>
-            {/* 10B.2 · o registro do Livro passou a ser ATO DO USUÁRIO. Antes,
-                finalizar um relatório criava um sozinho, já lacrado. */}
-            <button type="button" className="fj-btn fj-btn-primary" onClick={abrirModalOcorrencia}>
-              <Icone nome="plus" tam={13} /> Novo registro
-            </button>
-            <button type="button" className="fj-btn fj-btn-ghost" onClick={() => setHistorico((v) => !v)}>
-              <Icone nome="book" tam={13} /> {historico ? 'Voltar à linha do tempo' : 'Histórico'}
-            </button>
-            <button type="button" className="fj-btn fj-btn-ghost" onClick={() => setLivroCompleto(true)}>
-              <Icone nome="eye" tam={13} /> Ver livro completo
-            </button>
-            <button
-              type="button"
-              className={`fj-btn fj-btn-ghost${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
-              onClick={() => void exportarLivroPdf()}
-              disabled={exportandoLivro}
-            >
-              {documentosBloqueados() ? <Icone nome="cadeado" tam={13} /> : <Icone nome="download" tam={13} />}{' '}
-              {exportandoLivro ? 'Gerando PDF…' : 'Exportar PDF'}
             </button>
           </div>
 
@@ -1053,127 +1049,31 @@ export default function LivroRegistro() {
         )}
 
         {modalOcorrencia && (
-          <div className="fj-modal-overlay" onClick={(e) => e.target === e.currentTarget && setModalOcorrencia(false)}>
-            <div className="fj-modal-box" style={{ maxWidth: 560 }}>
-              <div className="fj-modal-head">
-                <div>
-                  <div className="fj-eyebrow">Livro de Registro · {linhaAberta.tag}</div>
-                  <h2>{form.retificaDe ? 'Registro de retificação' : editandoId ? 'Editar rascunho' : 'Novo registro'}</h2>
-                </div>
-                <button type="button" className="fj-modal-close" onClick={() => setModalOcorrencia(false)} aria-label="Fechar">
-                  <Icone nome="x" tam={15} />
-                </button>
-              </div>
-              <div style={{ padding: '4px 16px 16px', display: 'grid', gap: 12 }}>
-                <p style={{ margin: 0, fontSize: 12, color: 'var(--muted, #6B7280)' }}>
-                  Registre a inspeção realizada, manutenções, reparos e demais ocorrências. O registro
-                  é <b>salvo como rascunho</b> e continua editável até você trancá-lo — só o
-                  trancamento o torna oficial e imutável.
-                </p>
-                {/* PRÉ-PREENCHIMENTO a partir de um relatório finalizado: é o que
-                    restou do antigo acoplamento automático, agora como oferta.
-                    Quem decide que existe um registro é o usuário. */}
-                <div className="fj-field">
-                  <label htmlFor="oc-relatorio">Pré-preencher a partir de um relatório finalizado</label>
-                  <select
-                    id="oc-relatorio"
-                    defaultValue=""
-                    onChange={(e) => void preencherDeRelatorio(e.target.value)}
-                  >
-                    <option value="">— preencher à mão —</option>
-                    {listarIndice(linhaAberta.tag).map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.codigo || r.id} · {r.tipo} · {r.emissao || r.data}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                {form.retificaDe && (
-                  <div className="fj-badge warn" style={{ justifySelf: 'start' }}>
-                    Retifica o registro de{' '}
-                    {linhaAberta.entradas.find((e) => e.id === form.retificaDe)?.data ?? '—'} — o registro
-                    lacrado permanece no livro; esta é uma entrada nova de correção.
-                  </div>
-                )}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-                  <div className="fj-field">
-                    <label htmlFor="oc-data">Data da ocorrência *</label>
-                    <input
-                      id="oc-data"
-                      type="date"
-                      value={form.data}
-                      onChange={(e) => setForm({ ...form, data: e.target.value })}
-                    />
-                  </div>
-                  <div className="fj-field">
-                    <label htmlFor="oc-tipo">Tipo de ocorrência *</label>
-                    <select
-                      id="oc-tipo"
-                      value={form.tipoOcorrencia}
-                      onChange={(e) => setForm({ ...form, tipoOcorrencia: e.target.value })}
-                    >
-                      <option value="">Selecione…</option>
-                      {TIPOS_OCORRENCIA.map((t) => (
-                        <option key={t} value={t}>{t}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                <div className="fj-field">
-                  <label htmlFor="oc-feito">O que foi feito *</label>
-                  <input
-                    id="oc-feito"
-                    type="text"
-                    placeholder="Ex.: Troca da válvula de segurança"
-                    value={form.oQueFoiFeito}
-                    onChange={(e) => setForm({ ...form, oQueFoiFeito: e.target.value })}
-                  />
-                </div>
-                <div className="fj-field">
-                  <label htmlFor="oc-desc">Descrição</label>
-                  <textarea
-                    id="oc-desc"
-                    rows={3}
-                    placeholder="Detalhes da ocorrência, peças substituídas, condições encontradas…"
-                    value={form.descricao}
-                    onChange={(e) => setForm({ ...form, descricao: e.target.value })}
-                  />
-                </div>
-                <div className="fj-field">
-                  <label htmlFor="oc-quem">Quem realizou</label>
-                  <input
-                    id="oc-quem"
-                    type="text"
-                    placeholder="Ex.: empresa/técnico executante"
-                    value={form.quemRealizou}
-                    onChange={(e) => setForm({ ...form, quemRealizou: e.target.value })}
-                  />
-                </div>
-                <div className="fj-field">
-                  <label htmlFor="oc-ph">Responsável que assina</label>
-                  <select id="oc-ph" value={form.phId} onChange={(e) => setForm({ ...form, phId: e.target.value })}>
-                    <option value="">— sem assinatura —</option>
-                    {funcionarios.map((f) => (
-                      <option key={f.id} value={f.id}>
-                        {f.nome}{f.crea ? ` — ${f.crea}` : ''}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                {erroForm && (
-                  <div className="fj-badge crit" role="alert" style={{ justifySelf: 'start' }}>{erroForm}</div>
-                )}
-                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                  <button type="button" className="fj-btn fj-btn-ghost" onClick={() => setModalOcorrencia(false)}>
-                    Cancelar
-                  </button>
-                  <button type="button" className="fj-btn fj-btn-primary" onClick={salvarOcorrencia}>
-                    <Icone nome="check" tam={13} /> Salvar rascunho
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+          <ModalNovoRegistro
+            tag={linhaAberta.tag}
+            modo={form.retificaDe ? 'retificar' : editandoId ? 'editar' : 'novo'}
+            form={form}
+            aoMudarForm={setForm}
+            relatorios={listarIndice(linhaAberta.tag).map((r) => ({
+              id: r.id,
+              rotulo: `${r.codigo || r.id} · ${r.tipo} · ${r.emissao || r.data}`,
+            }))}
+            assinantes={funcionarios.map((f) => ({
+              id: f.id,
+              rotulo: `${f.nome}${f.crea ? ` — ${f.crea}` : ''}`,
+            }))}
+            avisoRetificacao={
+              form.retificaDe
+                ? `Retifica o registro de ${
+                    linhaAberta.entradas.find((e) => e.id === form.retificaDe)?.data ?? '—'
+                  } — o registro lacrado permanece no livro; esta é uma entrada nova de correção.`
+                : undefined
+            }
+            erro={erroForm}
+            aoPreencherDeRelatorio={(id) => void preencherDeRelatorio(id)}
+            aoSalvar={() => void salvarOcorrencia()}
+            aoFechar={() => setModalOcorrencia(false)}
+          />
         )}
 
         {trancando && (

@@ -86,6 +86,93 @@ const PECAS = [
       </div></div></div>`,
   },
   {
+    nome: 'barra de ferramentas da tela do equipamento',
+    html: `<div class="dash-page"><div class="fj-panel">
+      <div class="fj-panel-head">
+        <div><div class="fj-eyebrow">NR-13 · 13.4.1.9 · Livro de Registro de Segurança</div>
+        <h2>ZZ-FASE3 <span class="fj-eq-name">— Vaso de pressão de teste</span></h2></div>
+        <div style="display:flex;gap:8px"><span class="fj-badge neutro">Cat. III</span>
+        <span class="fj-badge info2">2 registro(s)</span></div>
+      </div>
+      <div class="livro-toolbar">
+        <div class="meta-breadcrumb">
+          <button class="btn-secundario">← Todos os equipamentos</button>
+          <span class="breadcrumb-chevron">›</span>
+          <span class="crumb-tag-chip">ZZ-FASE3</span>
+        </div>
+        <div class="livro-toolbar-acoes">
+          <button class="fj-btn fj-btn-primary">+ Novo registro</button>
+          <span class="livro-toolbar-sep"></span>
+          <button class="fj-btn fj-btn-ghost">Histórico</button>
+          <button class="fj-btn fj-btn-ghost">Ver livro completo</button>
+          <button class="fj-btn fj-btn-ghost">Exportar PDF</button>
+        </div>
+      </div>
+      <div class="livro-fixos">
+        <button class="livro-doc-card"><span class="livro-doc-ic capa">C</span>
+          <div><strong>Capa do Livro</strong><span>Identificação e classificação NR-13</span></div></button>
+        <button class="livro-doc-card"><span class="livro-doc-ic termo">T</span>
+          <div><strong>Termo de Abertura</strong><span>NR-13, item 13.4.1.9</span></div></button>
+      </div>
+    </div></div>`,
+  },
+  {
+    nome: 'modal "Novo registro" (ilustração + formulário)',
+    html: `<div class="fj-modal-overlay reg-modal-overlay" style="position:relative;inset:auto;padding:12px">
+      <div class="fj-modal-box reg-modal">
+        <div class="fj-modal-head reg-modal-head">
+          <div><div class="fj-eyebrow">Livro de Registro · ZZ-FASE3</div><h2>Novo registro</h2></div>
+          <button class="fj-modal-close">x</button>
+        </div>
+        <div class="reg-modal-corpo">
+          <aside class="reg-modal-lado">
+            <figure class="reg-modal-figura"><img src="https://app.nr13sistema.com.br/ilustracoes/registro-seguranca.webp" alt="ilustração"></figure>
+            <ol class="reg-modal-passos">
+              <li><b>Descreva a ocorrência</b><span>A inspeção realizada, uma manutenção, um reparo ou a troca de um dispositivo de segurança.</span></li>
+              <li><b>Salve como rascunho</b><span>Fica só seu: não conta como registro, não vai para o Portal do Cliente e não entra na folha impressa.</span></li>
+              <li><b>Tranque quando estiver certo</b><span>A partir dele o registro é oficial, entra na numeração do livro e não pode mais ser editado.</span></li>
+            </ol>
+            <p class="reg-modal-nota"><span>Cada registro trancado é lacrado com o hash do próprio conteúdo e o elo do anterior.</span></p>
+          </aside>
+          <div class="reg-modal-form">
+            <div class="reg-modal-prefill">
+              <div class="reg-modal-prefill-topo">
+                <label>Pré-preencher a partir de um relatório finalizado</label>
+                <span class="reg-ajuda"><button class="reg-ajuda-btn">i</button></span>
+              </div>
+              <select><option>Preencher manualmente</option></select>
+            </div>
+            <div class="reg-modal-grupo">
+              <h3>Ocorrência</h3>
+              <div class="reg-modal-linha">
+                <div class="fj-field"><label>Data da ocorrência <em>obrigatório</em></label><input type="date"></div>
+                <div class="fj-field"><label>Tipo de ocorrência <em>obrigatório</em></label><select><option>Selecione…</option></select></div>
+              </div>
+              <div class="fj-field"><label>O que foi feito <em>obrigatório</em></label>
+                <input placeholder="Ex.: Troca da válvula de segurança">
+                <small>Uma linha, do jeito que deve aparecer no livro.</small></div>
+              <div class="fj-field"><label>Descrição</label><textarea rows="4"></textarea></div>
+            </div>
+            <div class="reg-modal-grupo">
+              <h3>Responsáveis</h3>
+              <div class="reg-modal-linha">
+                <div class="fj-field"><label>Quem realizou</label><input placeholder="Empresa ou técnico executante"></div>
+                <div class="fj-field"><label>Responsável que assina</label><select><option>Sem assinatura</option></select>
+                  <small>Pode ficar em branco no rascunho e ser escolhido antes de trancar.</small></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="reg-modal-acoes">
+          <span class="reg-modal-acoes-dica">Salva como rascunho — você tranca depois.</span>
+          <div class="reg-modal-acoes-btns">
+            <button class="fj-btn fj-btn-ghost">Cancelar</button>
+            <button class="fj-btn fj-btn-primary">Salvar rascunho</button>
+          </div>
+        </div>
+      </div></div>`,
+  },
+  {
     nome: 'estado vazio ilustrado',
     html: `<div class="dash-page"><div class="fj-panel"><div class="reg-vazio">
       <span class="reg-vazio-ic">L</span>
@@ -114,8 +201,26 @@ const MEDIR = `(doc => {
     nomeCortado: (() => { const n = c.querySelector('.reg-card-nome');
       return n.scrollWidth > n.clientWidth + 1; })(),
   }));
+  const modal = doc.querySelector('.reg-modal');
+  const fig = doc.querySelector('.reg-modal-figura img');
+  const janela = modal ? {
+    largura: Math.round(modal.getBoundingClientRect().width),
+    img: fig ? Math.round(fig.getBoundingClientRect().width) + 'x' + Math.round(fig.getBoundingClientRect().height) : null,
+    fit: fig ? getComputedStyle(fig).objectFit : null,
+    // O formulário não pode ficar mais estreito que a coluna de apoio: se ficar,
+    // a ilustração virou a protagonista de um modal de cadastro.
+    form: Math.round(doc.querySelector('.reg-modal-form').getBoundingClientRect().width),
+    lado: Math.round(doc.querySelector('.reg-modal-lado').getBoundingClientRect().width),
+    botoes: [...doc.querySelectorAll('.reg-modal-acoes-btns .fj-btn')]
+      .map(b => Math.round(b.getBoundingClientRect().height)),
+  } : null;
+  const barra = doc.querySelector('.livro-toolbar');
+  const toolbar = barra ? {
+    altura: Math.round(barra.getBoundingClientRect().height),
+    botoes: [...barra.querySelectorAll('.fj-btn')].map(b => Math.round(b.getBoundingClientRect().height)),
+  } : null;
   return { largura: doc.documentElement.clientWidth,
-           scrollH: doc.documentElement.scrollWidth, pecas: r, cards };
+           scrollH: doc.documentElement.scrollWidth, pecas: r, cards, janela, toolbar };
 })`;
 
 const filho = `<!doctype html><meta charset="utf-8">
@@ -201,6 +306,27 @@ for (const l of LARGURAS) {
   // O nome longo TEM que ser cortado com reticências — se ele não corta, é
   // porque empurrou o card, e aí o transbordo acima já teria acusado.
   console.log(`  nome longo cortado: ${d.cards.map((c) => (c.nomeCortado ? 'sim' : 'não')).join(', ')}`);
+
+  if (d.toolbar) {
+    const alt = d.toolbar.botoes;
+    if (l <= 640 && Math.min(...alt) < 44) {
+      console.log(`  FALHA · botão da toolbar com ${Math.min(...alt)}px (< 44px no dedo)`);
+      falhas++;
+    } else console.log(`  ok · toolbar ${d.toolbar.altura}px, botões ${Math.min(...alt)}–${Math.max(...alt)}px`);
+  }
+  if (d.janela) {
+    const j = d.janela;
+    console.log(`  modal ${j.largura}px · form ${j.form}px · apoio ${j.lado}px · img ${j.img} (${j.fit})`);
+    // Acima de 900px as duas colunas convivem; o formulário tem que ser o maior.
+    if (l > 900 && j.form <= j.lado) {
+      console.log('  FALHA · o formulário ficou mais estreito que a coluna de apoio');
+      falhas++;
+    }
+    if (l <= 640 && Math.min(...j.botoes) < 44) {
+      console.log(`  FALHA · botão do modal com ${Math.min(...j.botoes)}px (< 44px no dedo)`);
+      falhas++;
+    } else console.log(`  ok · botões do modal ${Math.min(...j.botoes)}–${Math.max(...j.botoes)}px`);
+  }
 }
 console.log(falhas === 0 ? '\nRESULTADO: sem falha.' : `\nRESULTADO: ${falhas} falha(s).`);
 process.exit(falhas === 0 ? 0 : 1);

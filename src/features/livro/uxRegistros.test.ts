@@ -146,3 +146,160 @@ describe('o card não repete a mesma informação duas vezes', () => {
     expect(semComentarios(catalogo)).not.toContain("l.descricao?.trim() || (l.tipo ?");
   });
 });
+
+/* ══ Segunda rodada (07/09/2026): toolbar da tela interna + modal ══ */
+
+const modal = readFileSync('src/features/livro/ModalNovoRegistro.tsx', 'utf8');
+const cssModal = readFileSync('src/features/livro/modalNovoRegistro.css', 'utf8');
+
+describe('a tela do equipamento tem UMA barra de ferramentas', () => {
+  it('as ações saíram da fileira solta e entraram na faixa', () => {
+    // Antes: `<div style={{ display: 'flex', ..., justifyContent: 'flex-end' }}>`
+    // no meio da tela, sem moldura, entre os cards e a linha do tempo.
+    expect(pagina).toContain('className="livro-toolbar"');
+    expect(pagina).toContain('className="livro-toolbar-acoes"');
+    expect(semComentarios(pagina)).not.toContain("justifyContent: 'flex-end', flexWrap: 'wrap', marginTop: 14");
+  });
+
+  it('a trilha é a MESMA dos outros módulos', () => {
+    // `meta-breadcrumb` + chevron + chip da TAG: /relatorios, /prontuarios,
+    // /inspecoes e /calibracoes já leem assim.
+    const barra = pagina.slice(pagina.indexOf('className="livro-toolbar"'));
+    expect(barra).toContain('className="meta-breadcrumb"');
+    expect(barra).toContain('className="breadcrumb-chevron"');
+    expect(barra).toContain('className="crumb-tag-chip"');
+  });
+
+  it('"Novo registro" é a única primária da barra', () => {
+    const barra = pagina.slice(
+      pagina.indexOf('className="livro-toolbar-acoes"'),
+      pagina.indexOf('Capa e Termo'),
+    );
+    expect(barra.match(/fj-btn-primary/g)).toHaveLength(1);
+    expect(barra).toContain('Novo registro');
+    // As utilitárias continuam todas ali — a barra não escondeu ação nenhuma.
+    for (const t of ['Histórico', 'Ver livro completo', 'Exportar PDF']) {
+      expect(barra).toContain(t);
+    }
+  });
+
+  it('o botão de voltar saiu do cabeçalho e não ficou duplicado', () => {
+    // Sem os comentários: o de cima cita o rótulo ao explicar de onde ele saiu.
+    expect(semComentarios(pagina).match(/← Todos os equipamentos/g)).toHaveLength(1);
+  });
+
+  it('no celular os botões da barra têm 44px', () => {
+    const movel = css.slice(css.indexOf('@media (max-width: 640px)', css.indexOf('.livro-toolbar')));
+    expect(movel).toContain('height: 44px;');
+  });
+});
+
+describe('o modal "Novo registro"', () => {
+  it('virou componente próprio, com diálogo, ESC e armadilha de foco', () => {
+    expect(pagina).toContain('<ModalNovoRegistro');
+    expect(modal).toContain('role="dialog"');
+    expect(modal).toContain('aria-modal="true"');
+    expect(modal).toContain('aria-labelledby={idTitulo}');
+    expect(modal).toContain("e.key === 'Escape'");
+    expect(modal).toContain("e.key !== 'Tab'");
+  });
+
+  it('a regra de gravação NÃO mudou de lugar', () => {
+    // O modal só desenha: quem valida e grava o rascunho continua sendo a
+    // página, com `montarEntradaLivroManual` + `salvarRascunhoLivro`.
+    expect(pagina).toContain('await salvarRascunhoLivro(linhaAberta.tag,');
+    expect(modal).not.toContain('salvarRascunhoLivro');
+    expect(modal).not.toContain('montarEntradaLivro');
+  });
+
+  it('usa a ilustração desta sessão, leve e sem esticar', () => {
+    expect(modal).toContain('/ilustracoes/registro-seguranca.webp');
+    expect(modal).toContain('loading="lazy"');
+    const b = readFileSync('public/ilustracoes/registro-seguranca.webp');
+    expect(b.slice(8, 12).toString()).toBe('WEBP');
+    expect(b.length).toBeLessThan(150_000);
+    expect(cssModal).toContain('aspect-ratio: 1 / 1;');
+    expect(cssModal).toContain('object-fit: contain;');
+  });
+
+  it('a ilustração tem alt descritivo — não o nome do arquivo', () => {
+    const alt = /alt="([^"]+)"/.exec(modal)![1];
+    expect(alt.length).toBeGreaterThan(40);
+    expect(alt).not.toContain('.webp');
+  });
+
+  it('explica o ciclo do registro: rascunho → continuar → trancar', () => {
+    expect(modal).toContain('Salve como rascunho');
+    expect(modal).toContain('continuar depois');
+    expect(modal).toContain('Tranque quando estiver certo');
+    // O que o rascunho NÃO é — a dúvida que o parágrafo cinza antigo não tirava.
+    expect(modal).toContain('não conta como registro');
+    expect(modal).toContain('não pode mais ser editado');
+  });
+
+  it('no desktop o formulário fica à esquerda e o apoio à direita', () => {
+    // A coluna de apoio vem antes no DOM (é o que se lê primeiro) e vai para a
+    // direita pelo `order` — sem nada focável dentro, a tabulação não muda.
+    expect(cssModal).toContain('order: 2;');
+    expect(modal.indexOf('reg-modal-lado')).toBeLessThan(modal.indexOf('reg-modal-form'));
+  });
+
+  it('empilha no tablet e no celular, com botões de 44px', () => {
+    expect(cssModal).toContain('@media (max-width: 900px)');
+    expect(cssModal).toContain('flex-direction: column;');
+    const movel = cssModal.slice(cssModal.indexOf('@media (max-width: 640px)'));
+    expect(movel).toContain('height: 44px;');
+  });
+});
+
+describe('o campo "Pré-preencher a partir de um relatório finalizado"', () => {
+  it('tem o "i" com popover acessível', () => {
+    expect(modal).toContain('aria-label="O que é pré-preencher"');
+    expect(modal).toContain('aria-expanded={aberto}');
+    expect(modal).toContain('aria-controls={idPop}');
+    expect(modal).toContain('role="note"');
+  });
+
+  it('o ESC fecha o POPOVER sem derrubar o modal', () => {
+    // Sem o `stopPropagation`, um ESC para fechar a explicação fecharia o modal
+    // inteiro e levaria junto o que já tinha sido digitado.
+    expect(modal).toContain('e.stopPropagation();');
+  });
+
+  it('o texto descreve o que `preencherDeRelatorio` faz DE VERDADE', () => {
+    // Conferido no código: copia data, tipo, descrição e responsável para o
+    // formulário, que continua editável, e não grava nada sozinho.
+    expect(modal).toContain('copia para os campos abaixo');
+    expect(modal).toContain('Tudo continua');
+    expect(modal).toContain('revise e complete antes de salvar');
+  });
+
+  it('a opção padrão deixou de ser "— preencher à mão —"', () => {
+    expect(modal).toContain('Preencher manualmente');
+    expect(semComentarios(modal)).not.toContain('preencher à mão');
+    expect(semComentarios(pagina)).not.toContain('preencher à mão');
+  });
+
+  it('"sem assinatura" também perdeu os travessões', () => {
+    expect(modal).toContain('<option value="">Sem assinatura</option>');
+  });
+});
+
+describe('hierarquia do formulário', () => {
+  it('os campos estão agrupados, com dois por linha no desktop', () => {
+    expect(modal).toContain('<h3>Ocorrência</h3>');
+    expect(modal).toContain('<h3>Responsáveis</h3>');
+    expect(cssModal).toContain('grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));');
+  });
+
+  it('o obrigatório é uma marca no rótulo, não um asterisco solto', () => {
+    expect(modal).toContain('<em>obrigatório</em>');
+    expect(semComentarios(modal)).not.toContain('*</label>');
+  });
+
+  it('o rodapé diz o que o botão faz antes de ele ser clicado', () => {
+    expect(modal).toContain('Salva como rascunho — você tranca depois.');
+    expect(modal).toContain('Salvar rascunho');
+    expect(modal).toContain('Cancelar');
+  });
+});
