@@ -1,0 +1,240 @@
+/* ============================================================================
+   REGISTROS DE SEGURANÇA — a lista de equipamentos (07/09/2026)
+
+   A tela era uma `fj-table` crua: cinco colunas de texto, um ícone de 15px e um
+   botão fantasma. A tela de DENTRO — a que o dono aprovou — fala outro idioma:
+   chips de ícone tingidos (`.livro-doc-ic.capa` roxo, `.termo` verde), cards
+   arredondados que sobem no hover e um badge colorido para a contagem.
+
+   Este arquivo traz esse idioma para a primeira tela. Nada de vocabulário novo:
+   o cabeçalho é o `painel-lista` de /relatorios e /prontuarios, os badges são
+   os `fj-badge` de sempre, o hover é o mesmo do `.livro-doc-card`.
+   ============================================================================ */
+
+.reg-painel { margin-top: 2px; }
+
+.reg-lista {
+  list-style: none;
+  margin: 0;
+  padding: 12px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* O card é a linha inteira, e é um `button`: a área clicável no dedo é a linha
+   toda, não um alvo de 13px na ponta direita. */
+.reg-card {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 14px;
+  border: 1px solid var(--line, #e4e1d8);
+  border-radius: 12px;
+  background: var(--panel, #fff);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+/* O MESMO realce do `.livro-doc-card` da tela de dentro. */
+.reg-card:hover {
+  border-color: var(--blue2, #0c4f9b);
+  box-shadow: 0 4px 12px rgba(12, 79, 155, 0.1);
+}
+.reg-card:focus-visible {
+  outline: 2px solid var(--amber, #ff7a1a);
+  outline-offset: 2px;
+}
+.reg-card:active { transform: translateY(1px); }
+
+/* Chip do tipo do equipamento — o mesmo desenho do chip da capa/termo. */
+.reg-card-ic {
+  width: 44px;
+  height: 44px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--purple-bg, #f1edff);
+  color: var(--purple, #7c5cfc);
+}
+
+.reg-card-id { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.reg-card-tag {
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--text-main, #2d3339);
+}
+.reg-card-nome {
+  font-size: 12px;
+  color: var(--muted, #7a8790);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reg-card-marcas { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+/* Os dois números que o olho procura: quantos registros e quando foi o último.
+   Número grande em cima, palavra pequena embaixo — a hierarquia que a coluna
+   `mono` da tabela não tinha. */
+.reg-card-metricas { display: flex; align-items: stretch; gap: 8px; }
+.reg-metrica {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  min-width: 78px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: var(--bg-faint, #fbfaf7);
+  border: 1px solid var(--line, #e4e1d8);
+}
+.reg-metrica b {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--blue2, #0c4f9b);
+}
+.reg-metrica small {
+  font-size: 10px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--muted, #7a8790);
+}
+.reg-metrica-data { min-width: 104px; }
+.reg-metrica-data b { font-size: 13px; color: var(--text-main, #2d3339); }
+
+/* Afordamento da ação principal. Não é um `button` dentro de outro: o card
+   inteiro já é o botão. */
+.reg-card-acao {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--line, #e4e1d8);
+  background: var(--steel, #f6f5f2);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-main, #2d3339);
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.reg-card:hover .reg-card-acao {
+  background: var(--amber-bg, #fff1e6);
+  border-color: var(--amber, #ff7a1a);
+  color: var(--amber-deep, #d9640c);
+}
+
+/* ── VAZIO ───────────────────────────────────────────────────────────────── */
+.reg-vazio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  margin: 6px 20px 22px;
+  padding: 34px 22px;
+  border: 1px dashed var(--border-dashed, #d8d5cc);
+  border-radius: 14px;
+  background: var(--bg-faint, #fbfaf7);
+}
+.reg-vazio-ic {
+  width: 54px;
+  height: 54px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+  background: var(--purple-bg, #f1edff);
+  color: var(--purple, #7c5cfc);
+}
+.reg-vazio strong { font-family: var(--font-display); font-size: 14.5px; }
+.reg-vazio p {
+  margin: 0;
+  max-width: 52ch;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--muted, #7a8790);
+}
+
+/* ── TABLET ──────────────────────────────────────────────────────────────
+   As duas métricas e o afordamento não cabem na mesma linha da identidade sem
+   espremer o nome do equipamento. Elas descem para uma segunda faixa, alinhadas
+   sob o texto — e a linha continua sendo UM card. */
+@media (max-width: 1023px) {
+  .reg-card {
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    row-gap: 12px;
+  }
+  .reg-card-marcas { grid-column: 2 / -1; grid-row: 2; }
+  .reg-card-metricas { grid-column: 2 / 3; grid-row: 3; }
+  .reg-card-acao { grid-column: 3 / 4; grid-row: 3; justify-self: end; align-self: end; }
+}
+
+/* ── CELULAR ─────────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .reg-lista { padding: 10px 12px 14px; gap: 9px; }
+  .reg-card {
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: 10px;
+    padding: 12px;
+  }
+  .reg-card-ic { width: 40px; height: 40px; border-radius: 10px; }
+  .reg-card-marcas { grid-column: 1 / -1; grid-row: 2; }
+  .reg-card-metricas { grid-column: 1 / -1; grid-row: 3; }
+  .reg-metrica { flex: 1; min-width: 0; }
+  /* O afordamento vira a barra do card: no dedo, 44px de altura. */
+  .reg-card-acao {
+    grid-column: 1 / -1;
+    grid-row: 4;
+    justify-content: center;
+    height: 44px;
+    box-sizing: border-box;
+  }
+  .reg-vazio { margin: 4px 12px 16px; padding: 26px 16px; }
+}
+
+/* ── BLOCO DE ABERTURA DA TELA ───────────────────────────────────────────────
+   Mora aqui, e não em `dashboard-novo.css`, porque só existe nesta tela — o
+   arquivo do dashboard já carrega estilo de meia dúzia de telas. */
+.reg-hero { align-items: flex-start; }
+.reg-hero-txt { min-width: 0; flex: 1 1 420px; }
+.reg-hero-txt p {
+  margin: 6px 0 0;
+  max-width: 78ch;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--muted, #7a8790);
+}
+/* O mesmo chip tingido da capa e do termo, na tela de dentro. */
+.reg-hero-ic {
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  border-radius: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--purple-bg, #f1edff);
+  color: var(--purple, #7c5cfc);
+}
+
+@media (max-width: 640px) {
+  /* No celular o ícone gastaria 52px de largura útil sem dizer nada que o
+     título já não diga. */
+  .reg-hero-ic { display: none; }
+  .reg-hero-txt p { font-size: 12px; }
+}

@@ -1193,18 +1193,35 @@ export default function LivroRegistro() {
   return (
     <div className="dash-page">
       <div className="fj-panel">
-        <div className="fj-panel-head">
-          <div>
+        {/* Bloco de abertura: o mesmo `fj-panel-head` com filete âmbar das
+            outras telas, com uma descrição curta e o chip de ícone que a tela
+            de DENTRO já usa (capa/termo). */}
+        <div className="fj-panel-head reg-hero">
+          <div className="reg-hero-txt">
             <div className="fj-eyebrow">NR-13 · 13.4.1.9</div>
-            <h2>Livros de Registro de Segurança</h2>
+            <h2>Registros de Segurança</h2>
+            {/* Descreve o comportamento de HOJE. Até a Fase 10B.2 o registro
+                nascia sozinho ao salvar um relatório, e este rodapé dizia isso;
+                desde 04/09/2026 o lançamento é ato do usuário
+                (`Relatorios.tsx:1105`), e o texto antigo prometia um
+                preenchimento automático que não acontece mais. */}
+            <p>
+              O histórico de cada equipamento — inspeções, manutenções e reparos — em ordem
+              cronológica, com cada registro lacrado no momento em que é trancado. Abra um
+              equipamento para ler a linha do tempo, lançar um novo registro ou exportar o
+              documento completo.
+            </p>
           </div>
+          <span className="reg-hero-ic" aria-hidden>
+            <Icone nome="shield" tam={26} />
+          </span>
         </div>
 
         {/* A semeadura da TAG é uma ida à rede, e o clique precisa responder:
             sem isto, o usuário clica e a tela fica parada. */}
         {abrindo && (
           <div className="rel-rodape-carregando" role="status">
-            Abrindo o livro…
+            Abrindo os registros…
           </div>
         )}
         <CatalogoLivroV9
@@ -1212,11 +1229,6 @@ export default function LivroRegistro() {
           aoMudarTermo={setTermoBusca}
           aoEscolher={(tag) => void abrirPorTag(tag)}
         />
-        <div className="fj-panel-foot">
-          O livro é preenchido automaticamente (cada relatório salvo adiciona a anotação de inspeção
-          correspondente) e também aceita ocorrências manuais — manutenções e reparos entre inspeções —
-          pelo botão "Adicionar ocorrência" dentro do livro de cada equipamento.
-        </div>
       </div>
     </div>
   );

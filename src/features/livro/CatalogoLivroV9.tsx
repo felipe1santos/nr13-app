@@ -49,12 +49,20 @@ import BuscaLista from '../../components/BuscaLista';
 import { Icone } from '../../components/Icone';
 import * as buscaLivro from './buscaLivro';
 import type { ItemLivro } from './buscaLivro';
-import { rotuloRegistros } from './catalogoLivro';
+import { metricaRegistros, rotuloRegistros } from './catalogoLivro';
+import './listaRegistros.css';
 
 const ROTULO_TIPO: Record<string, string> = {
   vaso: 'Vaso de Pressão',
   caldeira: 'Caldeira',
   autoclave: 'Autoclave',
+};
+
+/** O mesmo ícone por tipo do Dashboard — o equipamento tem uma cara só. */
+const ICONE_TIPO: Record<string, Parameters<typeof Icone>[0]['nome']> = {
+  vaso: 'cylinder',
+  caldeira: 'flame',
+  autoclave: 'box',
 };
 
 export interface PropsCatalogoLivro {
@@ -177,71 +185,82 @@ export default function CatalogoLivroV9({
       )}
 
       {!carregando && itens.length === 0 && !erro ? (
-        <p className="dashboard-vazio">
-          {termo
-            ? `Nenhum livro encontrado para ${termo}.`
-            : 'Nenhum livro de registro gerado ainda'}
-        </p>
+        <VazioRegistros termo={termo} />
       ) : (
-        <div className="fj-table-wrap">
-          <table className="fj-table">
-            <thead>
-              <tr>
-                <th>Tag</th>
-                <th>Categoria</th>
-                <th>Registros</th>
-                <th>Último registro</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {itens.map((l) => (
-                <tr key={l.tag} className="linha-clicavel" onClick={() => aoEscolher(l.tag)}>
-                  <td className="cel-titulo">
-                    <div className="fj-tag-cell">
-                      <div className="fj-tag-ico">
-                        <Icone nome="book" tam={15} />
-                      </div>
-                      <div>
-                        <div className="fj-tag-code">{l.tag}</div>
-                        <div className="fj-eq-name">
-                          {l.descricao?.trim() || (l.tipo ? ROTULO_TIPO[l.tipo] : '') || 'Equipamento'}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td data-rot="Categoria">
-                    {l.categoria ? (
-                      <span className="fj-badge neutro">Cat. {l.categoria}</span>
-                    ) : (
-                      <span className="fj-dash">—</span>
-                    )}
-                  </td>
-                  {/* Em branco quando ninguém contou. "Sem registro" ali seria
-                      afirmar uma ausência que não foi medida. */}
-                  <td className="mono" data-rot="Registros">
-                    {rotuloRegistros(l.livroEntradas) || <span className="fj-dash">—</span>}
-                  </td>
-                  <td className="mono" data-rot="Último registro">
-                    {l.livroUltima ? (
-                      formatarData(l.livroUltima)
-                    ) : (
-                      <span className="fj-dash">—</span>
-                    )}
-                  </td>
-                  <td className="cel-acoes" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      type="button"
-                      className="fj-btn fj-btn-ghost"
-                      onClick={() => aoEscolher(l.tag)}
-                    >
-                      <Icone nome="chevright" tam={13} /> Abrir livro
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        /* `painel-lista`: o mesmo cabeçalho com filete âmbar e contagem de
+           /relatorios e /prontuarios. Com um ou dois equipamentos, o piso de
+           altura é o que impede a caixa branca de virar uma tira. */
+        <div className="bloco-dados painel-lista reg-painel">
+          <div className="painel-lista-head" role="presentation">
+            <span className="painel-lista-titulo">
+              <strong>Equipamentos com registros</strong>
+              <span>Cada linha é o histórico de segurança de um equipamento</span>
+            </span>
+            <span className="painel-lista-contagem">
+              {itens.length} {itens.length === 1 ? 'equipamento' : 'equipamentos'}
+            </span>
+          </div>
+
+          <ul className="reg-lista">
+            {itens.map((l) => {
+              const nome =
+                l.descricao?.trim() || (l.tipo ? ROTULO_TIPO[l.tipo] : '') || 'Equipamento';
+              const registros = metricaRegistros(l.livroEntradas);
+              return (
+                <li key={l.tag}>
+                  {/* O card INTEIRO é o botão: a área clicável é a linha toda,
+                      no dedo e no mouse. "Abrir registros" é o afordamento
+                      visual dessa mesma ação — não um segundo botão dentro de
+                      outro, que é HTML inválido. */}
+                  <button
+                    type="button"
+                    className="reg-card"
+                    onClick={() => aoEscolher(l.tag)}
+                    aria-label={`Abrir os registros de ${l.tag} — ${nome}`}
+                  >
+                    <span className="reg-card-ic" aria-hidden>
+                      <Icone nome={(l.tipo && ICONE_TIPO[l.tipo]) || 'book'} tam={18} />
+                    </span>
+
+                    <span className="reg-card-id">
+                      <strong className="reg-card-tag">{l.tag}</strong>
+                      <span className="reg-card-nome" title={nome}>
+                        {nome}
+                      </span>
+                    </span>
+
+                    <span className="reg-card-marcas">
+                      {l.tipo && ROTULO_TIPO[l.tipo] && (
+                        <span className="fj-badge neutro">{ROTULO_TIPO[l.tipo]}</span>
+                      )}
+                      {l.categoria && <span className="fj-badge info2">Cat. {l.categoria}</span>}
+                    </span>
+
+                    <span className="reg-card-metricas">
+                      {/* Travessão + "não contado" quando ninguém contou — ver
+                          `metricaRegistros`. */}
+                      <span
+                        className="reg-metrica"
+                        title={rotuloRegistros(l.livroEntradas) || 'Registros ainda não contados'}
+                      >
+                        <b>{registros.valor}</b>
+                        <small>{registros.legenda}</small>
+                      </span>
+                      <span className="reg-metrica reg-metrica-data">
+                        <b>{l.livroUltima ? formatarData(l.livroUltima) : '—'}</b>
+                        <small>último registro</small>
+                      </span>
+                    </span>
+
+                    <span className="reg-card-acao" aria-hidden>
+                      Abrir registros <Icone nome="chevright" tam={13} />
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+
           {temMais && (
             <div className="rel-rodape-carregando">
               <button
@@ -257,6 +276,40 @@ export default function CatalogoLivroV9({
         </div>
       )}
     </>
+  );
+}
+
+/**
+ * O vazio com cara de estado, não de frase perdida no branco.
+ *
+ * Dois textos diferentes de propósito: "a busca não achou" e "ainda não existe"
+ * são situações distintas, e a segunda precisa dizer o que fazer em seguida.
+ */
+function VazioRegistros({ termo }: { termo: string }) {
+  return (
+    <div className="reg-vazio">
+      <span className="reg-vazio-ic" aria-hidden>
+        <Icone nome="book" tam={26} />
+      </span>
+      {termo ? (
+        <>
+          <strong>Nenhum equipamento encontrado para "{termo}"</strong>
+          <p>Tente outra TAG, o nome do equipamento, o fabricante ou o cliente.</p>
+        </>
+      ) : (
+        <>
+          <strong>Nenhum registro de segurança ainda</strong>
+          {/* Descreve o que faz um equipamento aparecer aqui, e nada além
+              disso: o lançamento acontece DENTRO do equipamento (botão "Novo
+              registro"), e apontar para um caminho que esta tela não abre seria
+              mandar o usuário procurar um botão que ele não tem. */}
+          <p>
+            O equipamento entra nesta lista quando recebe o primeiro registro — a inspeção ou
+            uma ocorrência de manutenção lançada no histórico dele.
+          </p>
+        </>
+      )}
+    </div>
   );
 }
 

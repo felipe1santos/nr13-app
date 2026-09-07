@@ -233,3 +233,23 @@ describe('rotuloRegistros: os três estados, separados', () => {
     expect(rotuloRegistros(null)).toBe('');
   });
 });
+
+describe('metricaRegistros: o mesmo fato, partido para o card', () => {
+  it('número e palavra, com plural certo', async () => {
+    const { metricaRegistros } = await import('./catalogoLivro');
+    expect(metricaRegistros(3)).toEqual({ valor: '3', legenda: 'registros' });
+    expect(metricaRegistros(1)).toEqual({ valor: '1', legenda: 'registro' });
+  });
+
+  it('`0` continua sendo um fato declarado', async () => {
+    const { metricaRegistros } = await import('./catalogoLivro');
+    expect(metricaRegistros(0)).toEqual({ valor: '0', legenda: 'sem registro' });
+  });
+
+  it('`null` vira travessão e "não contado" — nunca "0"', async () => {
+    // O card destaca o número. Escrever `0` num destaque, para uma organização
+    // que ninguém reprojetou, é a mesma mentira do `?? 0` — em corpo maior.
+    const { metricaRegistros } = await import('./catalogoLivro');
+    expect(metricaRegistros(null)).toEqual({ valor: '—', legenda: 'não contado' });
+  });
+});

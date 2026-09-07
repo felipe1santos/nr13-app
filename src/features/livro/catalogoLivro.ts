@@ -120,3 +120,21 @@ export function rotuloRegistros(livroEntradas: number | null): string {
   if (livroEntradas === 0) return 'Sem registro';
   return `${livroEntradas} registro${livroEntradas === 1 ? '' : 's'}`;
 }
+
+/**
+ * O MESMO rótulo, partido em número e legenda — é o que o card da lista
+ * destaca (número grande, palavra pequena embaixo).
+ *
+ * A regra do `null` não muda de lugar por causa do desenho: continua aqui, onde
+ * a suíte alcança. O que ele vira na tela é um travessão com a legenda "não
+ * contado" — dizer "0 registros" seria afirmar uma ausência que ninguém mediu,
+ * e num livro de registro de segurança essa afirmação não é enfeite.
+ */
+export function metricaRegistros(livroEntradas: number | null): {
+  valor: string;
+  legenda: string;
+} {
+  if (livroEntradas === null) return { valor: '—', legenda: 'não contado' };
+  if (livroEntradas === 0) return { valor: '0', legenda: 'sem registro' };
+  return { valor: String(livroEntradas), legenda: livroEntradas === 1 ? 'registro' : 'registros' };
+}

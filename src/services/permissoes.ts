@@ -33,7 +33,7 @@ export const ROTULO_MODULO: Record<Modulo, string> = {
   prontuarios: 'Prontuários',
   calibracoes: 'Calibrações',
   certificados: 'Certificados dos padrões',
-  livro: 'Livro Registro',
+  livro: 'Registros de Segurança',
   funcionarios: 'Cadastrar Funcionários',
   clientes: 'Cadastrar Clientes',
 };

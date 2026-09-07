@@ -47,7 +47,10 @@ export const ITENS_BAIXO: ItemMenu[] = [
   { id: 'prontuarios', to: '/prontuarios', label: 'Prontuários', icone: 'book' },
   { id: 'calibracoes', to: '/calibracoes', label: 'Calibrações', icone: 'sliders' },
   { id: 'certificados', to: '/certificados', label: 'Certificados', icone: 'shield' },
-  { id: 'livro', to: '/livro-registro', label: 'Livro Registro', icone: 'filetext' },
+  // A ROTA continua `/livro-registro` — links já emitidos e a memória muscular
+  // de quem usa não podem quebrar por uma troca de rótulo. O nome na INTERFACE
+  // é 'Registros de Segurança'.
+  { id: 'livro', to: '/livro-registro', label: 'Registros de Segurança', icone: 'filetext' },
 ];
 
 // Só o mestre enxerga (gestão de sub-logins).
@@ -68,7 +71,11 @@ export const TITULOS_ROTA: { prefixo: string; titulo: string; sub: string }[] = 
   { prefixo: '/prontuarios', titulo: 'Prontuários', sub: 'Prontuários e reconstituições' },
   { prefixo: '/calibracoes', titulo: 'Calibrações', sub: 'Calibrações dos equipamentos e acessórios' },
   { prefixo: '/certificados', titulo: 'Certificados', sub: 'Certificados de calibração dos padrões de medição' },
-  { prefixo: '/livro-registro', titulo: 'Livro Registro', sub: 'Livros de registro de segurança por equipamento' },
+  {
+    prefixo: '/livro-registro',
+    titulo: 'Registros de Segurança',
+    sub: 'O histórico de cada equipamento, exigido pela NR-13',
+  },
   { prefixo: '/funcionarios', titulo: 'Funcionários', sub: 'Profissionais habilitados e equipe' },
   { prefixo: '/empresas', titulo: 'Clientes', sub: 'Empresas clientes cadastradas' },
   { prefixo: '/minha-empresa', titulo: 'Meus dados', sub: 'Dados da empresa executante' },
