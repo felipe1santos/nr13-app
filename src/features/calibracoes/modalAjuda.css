@@ -1,0 +1,154 @@
+/* Modal de ajuda contextual — ver o cabeçalho do .tsx.
+   A base (overlay, caixa, botão fechar) vem do `forja.css`. */
+
+.ajuda-box {
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  /* A caixa nunca passa da tela; quem rola é o corpo, para o cabeçalho e o
+     botão de sair ficarem sempre visíveis. */
+  max-height: 88vh;
+}
+
+/* ── ANIMAÇÃO ──────────────────────────────────────────────────────────────
+   Discreta de propósito: o modal aparece, não salta. 8px de subida e 0,985 de
+   escala — o suficiente para o olho registrar a origem do movimento sem que
+   ele chame atenção para si. */
+.ajuda-overlay { animation: ajuda-fundo 180ms ease-out; }
+.ajuda-box { animation: ajuda-entra 200ms cubic-bezier(0.16, 1, 0.3, 1); }
+
+@keyframes ajuda-fundo {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes ajuda-entra {
+  from { opacity: 0; transform: translateY(10px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Quem pediu menos movimento não recebe nenhum — o modal continua abrindo. */
+@media (prefers-reduced-motion: reduce) {
+  .ajuda-overlay,
+  .ajuda-box { animation: none; }
+}
+
+/* ── CABEÇALHO ─────────────────────────────────────────────────────────── */
+.ajuda-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 24px 14px;
+  border-bottom: 1px solid var(--line, #e4e1d8);
+}
+.ajuda-head-txt { min-width: 0; }
+.ajuda-head .fj-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 3px;
+}
+.ajuda-head h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 19px;
+  letter-spacing: -0.01em;
+}
+.ajuda-head p {
+  margin: 4px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted, #6b7280);
+  max-width: 60ch;
+}
+
+/* ── CORPO ─────────────────────────────────────────────────────────────── */
+.ajuda-corpo {
+  padding: 16px 24px 6px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* A ilustração é 3:1. `aspect-ratio` + `contain` garantem que ela nunca
+   estique nem corte, em qualquer largura. */
+.ajuda-figura {
+  margin: 0 0 18px;
+  padding: 6px 0;
+  border-radius: 10px;
+  background: var(--surface-2, #f8f9fb);
+}
+.ajuda-figura img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 2172 / 724;
+  object-fit: contain;
+  height: auto;
+}
+
+.ajuda-passos {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: passo;
+}
+.ajuda-passos li {
+  display: grid;
+  grid-template-columns: 26px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+.ajuda-passos li::before {
+  counter-increment: passo;
+  content: counter(passo);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--amber, #ff7a1a);
+  color: var(--amber-txt, #241505);
+  font-size: 12px;
+  font-weight: 700;
+}
+.ajuda-passos b { display: block; font-size: 13px; margin-bottom: 2px; }
+.ajuda-passos span { font-size: 12.5px; line-height: 1.55; color: var(--muted, #6b7280); }
+.ajuda-passos ul { margin: 5px 0 0; padding-left: 18px; }
+.ajuda-passos li li { display: list-item; margin-bottom: 2px; }
+.ajuda-passos li li::before { content: none; }
+
+.ajuda-nota {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 18px 0 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fdf6e3;
+  color: #8a6d1f;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.ajuda-nota svg { flex: 0 0 auto; margin-top: 1px; }
+
+.ajuda-acoes {
+  display: flex;
+  justify-content: flex-end;
+  padding: 14px 24px 18px;
+  border-top: 1px solid var(--line, #e4e1d8);
+  margin-top: 16px;
+}
+
+@media (max-width: 640px) {
+  /* Quase toda a largura, com margem pequena — o overlay do forja já dá 12px. */
+  .ajuda-box { max-width: none; max-height: 92vh; }
+  .ajuda-head { padding: 16px 16px 12px; }
+  .ajuda-head h2 { font-size: 17px; }
+  .ajuda-corpo { padding: 14px 16px 6px; }
+  .ajuda-acoes { padding: 12px 16px 16px; }
+  .ajuda-acoes .fj-btn { width: 100%; }
+  .ajuda-figura { margin-bottom: 14px; }
+}

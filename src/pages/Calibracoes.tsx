@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icone } from '../components/Icone';
 import ModalComponente from '../features/calibracoes/ModalComponente';
-import ModalAjudaCalibracoes from '../features/calibracoes/ModalAjudaCalibracoes';
+import AjudaCalibracoes from '../features/calibracoes/AjudaCalibracoes';
 import '../features/calibracoes/ilustracoes.css';
 import type { EquipamentoResumo } from '../features/equipamento/tipos';
 import { mascararData } from '../services/mascaras';
@@ -455,6 +455,19 @@ export default function Calibracoes() {
             termo={termoBusca}
             aoMudarTermo={setTermoBusca}
             aoEscolher={(t) => void abrirPorTag(t)}
+            acoes={
+              /* [i] Informações na barra da SESSÃO: a explicação do fluxo com a
+                 ilustração, sem ocupar área fixa acima da lista. */
+              <button
+                type="button"
+                className="fj-btn fj-btn-ghost cal-btn-info"
+                aria-haspopup="dialog"
+                onClick={() => setAjudaAberta(true)}
+              >
+                <Icone nome="alerttri" tam={13} />{" "}
+                <span className="pront-btn-rotulo">Informações</span>
+              </button>
+            }
           />
         </div>
       )}
@@ -610,9 +623,24 @@ export default function Calibracoes() {
             )}
 
             {lotes.length === 0 ? (
-              <p className="dashboard-vazio" style={{ padding: '14px 0' }}>
-                Nenhum lote ainda. Cada inspeção gera um lote com a calibração de todos os componentes.
-              </p>
+              /* ESTADO VAZIO ilustrado — e SÓ aqui, onde não há nada para
+                 operar. Havendo um lote sequer, a ilustração sai de cena: ela
+                 não pode ocupar área fixa acima do trabalho. */
+              <div className="cal-vazio">
+                <img
+                  className="pront-ilustra"
+                  src="/ilustracoes/fluxo-calibracao.webp"
+                  alt="Fluxo da calibração: os acessórios do equipamento, o lote e o técnico calibrando"
+                  loading="lazy"
+                  decoding="async"
+                />
+                <h3>Nenhuma calibração registrada</h3>
+                <p>
+                  Cada inspeção gera um <b>lote</b> com a calibração dos componentes deste
+                  equipamento. Use “+ Novo lote de calibração” acima para começar
+                  {componentes.length === 0 ? " — antes, cadastre os componentes." : "."}
+                </p>
+              </div>
             ) : (
               lotes.map((lote) => {
                 const calsDoLote = cals.filter((c) => c.loteId === lote.id);
@@ -1122,7 +1150,7 @@ export default function Calibracoes() {
         </div>
       )}
 
-      {ajudaAberta && <ModalAjudaCalibracoes aoFechar={() => setAjudaAberta(false)} />}
+      {ajudaAberta && <AjudaCalibracoes aoFechar={() => setAjudaAberta(false)} />}
 
       {toast && (
         <div className="toast-sucesso" role="status">

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icone, type NomeIcone } from '../components/Icone';
-import ModalAjudaCalibracoes from '../features/calibracoes/ModalAjudaCalibracoes';
+import AjudaCertificados from '../features/calibracoes/AjudaCertificados';
 import '../features/calibracoes/ilustracoes.css';
 import {
   LIMITE_PDF_KB,
@@ -234,12 +234,19 @@ export default function Certificados() {
           errado. */}
       <div className="cert-intro cert-intro-compacta">
         <h2>Certificados de calibração dos padrões</h2>
-        <button type="button" className="cal-ajuda-link" onClick={() => setAjudaAberta(true)}>
-          <Icone nome="alerttri" tam={12} /> Como funciona
+        {/* [i] Informações — a explicação inteira vive no modal, com a
+            ilustração do fluxo. */}
+        <button
+          type="button"
+          className="fj-btn fj-btn-ghost cal-btn-info"
+          aria-haspopup="dialog"
+          onClick={() => setAjudaAberta(true)}
+        >
+          <Icone nome="alerttri" tam={13} /> Informações
         </button>
       </div>
 
-      {ajudaAberta && <ModalAjudaCalibracoes aoFechar={() => setAjudaAberta(false)} />}
+      {ajudaAberta && <AjudaCertificados aoFechar={() => setAjudaAberta(false)} />}
 
       <div className="cert-cards">
         {PADROES.map((p) => {

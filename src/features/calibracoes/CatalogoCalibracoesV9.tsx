@@ -82,12 +82,15 @@ export interface PropsCatalogoCalibracoes {
   aoMudarTermo: (termo: string) => void;
   /** Escolher um equipamento: o pai semeia a TAG e abre o histórico. */
   aoEscolher: (tag: string) => void;
+  /** O que vai à DIREITA da barra — o [i] Informações da sessão. */
+  acoes?: React.ReactNode;
 }
 
 export default function CatalogoCalibracoesV9({
   termo,
   aoMudarTermo,
   aoEscolher,
+  acoes,
 }: PropsCatalogoCalibracoes) {
   const [itens, setItens] = useState<ItemCatalogo[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -247,7 +250,9 @@ export default function CatalogoCalibracoesV9({
             <Icone nome="filter" tam={14} /> <span className="pront-btn-rotulo">Filtrar</span>
           </button>
         }
-      />
+      >
+        {acoes}
+      </BuscaLista>
 
       {filtroAberto && (
         <ModalFiltrosProntuarios

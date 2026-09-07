@@ -11,7 +11,9 @@ const pagina = readFileSync('src/pages/Calibracoes.tsx', 'utf8');
 const catalogo = readFileSync('src/features/calibracoes/CatalogoCalibracoesV9.tsx', 'utf8');
 const certificados = readFileSync('src/pages/Certificados.tsx', 'utf8');
 const modalComp = readFileSync('src/features/calibracoes/ModalComponente.tsx', 'utf8');
-const modalAjuda = readFileSync('src/features/calibracoes/ModalAjudaCalibracoes.tsx', 'utf8');
+const modalAjuda = readFileSync('src/features/calibracoes/ModalAjuda.tsx', 'utf8');
+const ajudaCal = readFileSync('src/features/calibracoes/AjudaCalibracoes.tsx', 'utf8');
+const ajudaCert = readFileSync('src/features/calibracoes/AjudaCertificados.tsx', 'utf8');
 const cssIlustra = readFileSync('src/features/calibracoes/ilustracoes.css', 'utf8');
 
 /** O código, sem comentários — eles citam os rótulos antigos de propósito. */
@@ -49,7 +51,7 @@ describe('o texto explicativo virou ajuda contextual', () => {
   it('Calibrações troca o parágrafo fixo por "Como funciona"', () => {
     expect(semComentarios(pagina)).not.toContain('cal-eq-sub');
     expect(pagina).toContain('Como funciona');
-    expect(pagina).toContain('<ModalAjudaCalibracoes');
+    expect(pagina).toContain('<AjudaCalibracoes');
   });
 
   it('Certificados troca os três parágrafos por uma linha', () => {
@@ -57,15 +59,15 @@ describe('o texto explicativo virou ajuda contextual', () => {
     expect(limpo).not.toContain('Aqui você injeta o');
     expect(limpo).not.toContain('cert-intro-nota');
     expect(certificados).toContain('cert-intro-compacta');
-    expect(certificados).toContain('<ModalAjudaCalibracoes');
+    expect(certificados).toContain('<AjudaCertificados');
   });
 
   it('o texto foi REAPROVEITADO, não jogado fora', () => {
     // As quatro ideias do texto antigo continuam ali, em passos numerados.
-    expect(modalAjuda).toContain('certificado de calibração de cada instrumento');
-    expect(modalAjuda).toContain('rastreabilidade');
-    expect(modalAjuda).toContain('um certificado por padrão');
-    expect(modalAjuda).toContain('anexa o PDF do padrão');
+    expect(ajudaCert).toContain('instrumentos usados como PADRÃO');
+    expect(ajudaCert).toContain('rastreabilidade');
+    expect(ajudaCert).toContain('um certificado por padrão');
+    expect(ajudaCert).toContain('copiadas para o fim do documento');
   });
 
   it('a ajuda é um diálogo, fechável pelo ESC', () => {
@@ -74,22 +76,120 @@ describe('o texto explicativo virou ajuda contextual', () => {
   });
 });
 
-describe('ilustrações', () => {
-  it('são SVG no componente — sem arquivo, sem requisição, sem dependência', () => {
-    expect(modalAjuda).toContain('<svg');
-    expect(modalAjuda).not.toContain('<img');
-    expect(modalAjuda).not.toMatch(/from '(?!\.|react)/);
+describe('ilustrações de onboarding', () => {
+  /*
+   * Elas deixaram de ser SVG de traço desenhado no componente e passaram a ser
+   * a arte que o dono produziu — WebP de ~44 KB, servido de `public/`. O
+   * desenho real diz mais do que qualquer esquema que eu montasse com linhas.
+   */
+  it('cada sessão usa a SUA ilustração', () => {
+    expect(ajudaCal).toContain('/ilustracoes/fluxo-calibracao.webp');
+    expect(ajudaCert).toContain('/ilustracoes/rastreabilidade-padroes.webp');
+    // Trocadas, elas explicariam a sessão errada.
+    expect(ajudaCal).not.toContain('rastreabilidade-padroes');
+    expect(ajudaCert).not.toContain('fluxo-calibracao');
   });
 
-  it('têm rótulo para leitor de tela', () => {
-    expect(modalAjuda).toContain('role="img"');
-    expect(modalAjuda).toContain('aria-label=');
+  it('os arquivos existem e são leves', () => {
+    for (const nome of ['fluxo-calibracao.webp', 'rastreabilidade-padroes.webp']) {
+      const b = readFileSync(`public/ilustracoes/${nome}`);
+      expect(b.length).toBeGreaterThan(1000);
+      // Os originais tinham ~1 MB cada. Acima de 150 KB, a ajuda passaria a
+      // custar mais do que o resto da tela.
+      expect(b.length).toBeLessThan(150_000);
+      expect(b.slice(8, 12).toString()).toBe('WEBP');
+    }
   });
 
-  it('usam as variáveis do tema, e cor só onde a atenção deve cair', () => {
-    expect(cssIlustra).toContain('stroke: var(--muted');
-    expect(cssIlustra).toContain('.il-marca,');
-    expect(cssIlustra).toMatch(/\.il-marca \{ fill: var\(--amber/);
+  it('não esticam: proporção fixa e `contain`', () => {
+    const css = readFileSync('src/features/calibracoes/modalAjuda.css', 'utf8');
+    expect(css).toContain('aspect-ratio: 2172 / 724;');
+    expect(css).toContain('object-fit: contain;');
+  });
+
+  it('têm alt descritivo — não o nome do arquivo', () => {
+    for (const fonte of [ajudaCal, ajudaCert]) {
+      const alt = /alt="([^"]+)"/.exec(fonte)![1];
+      expect(alt.length).toBeGreaterThan(40);
+      expect(alt).not.toContain('.webp');
+    }
+  });
+
+  it('carregam sob demanda — a ajuda não pesa no boot da tela', () => {
+    expect(modalAjuda).toContain('loading="lazy"');
+    expect(modalAjuda).toContain('decoding="async"');
+  });
+});
+
+describe('o modal de ajuda', () => {
+  const css = readFileSync('src/features/calibracoes/modalAjuda.css', 'utf8');
+
+  it('anima com discrição, e não anima para quem pediu menos movimento', () => {
+    expect(css).toContain('translateY(10px) scale(0.985)');
+    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)[\s\S]*?animation: none;/);
+  });
+
+  it('tem título ligado ao diálogo e foco inicial na saída', () => {
+    expect(modalAjuda).toContain('aria-labelledby={idTitulo}');
+    expect(modalAjuda).toContain('fechar.current?.focus();');
+  });
+
+  it('fecha por X, ESC, overlay e botão — é informativo, nada se perde', () => {
+    expect(modalAjuda).toContain('aria-label="Fechar"');
+    expect(modalAjuda).toContain("e.key === 'Escape'");
+    expect(modalAjuda).toContain('e.target === e.currentTarget && aoFechar()');
+    expect(modalAjuda).toContain('>\n            Entendi\n          </button>');
+  });
+
+  it('o corpo rola, e o cabeçalho e o botão de sair ficam', () => {
+    expect(css).toContain('max-height: 88vh;');
+    expect(css).toMatch(/\.ajuda-corpo \{[\s\S]*?overflow-y: auto;/);
+  });
+});
+
+describe('o texto descreve o comportamento REAL', () => {
+  it('a reutilização automática declara as DUAS condições', () => {
+    /*
+     * Conferido no código: `tiposPadraoDoRelatorio` só devolve um tipo quando o
+     * documento correspondente está na lista (ULTRASSOM.html, ou uma folha
+     * `?calibId=`), e `rastreabilidadesParaRelatorio` descarta quem está com a
+     * caixa "Injetar no final do relatório" desmarcada.
+     *
+     * Uma promessa genérica aqui faria o usuário entregar um documento
+     * acreditando que o certificado está dentro.
+     */
+    expect(ajudaCert).toContain('inclui a folha');
+    expect(ajudaCert).toContain('Injetar no final do relatório');
+    expect(ajudaCert).toContain('o mais recente que tenha PDF');
+  });
+
+  it('cita os três tipos que o sistema realmente aceita', () => {
+    for (const t of ['bloco padrão de espessura', 'manômetro padrão', 'válvula PSV padrão']) {
+      expect(ajudaCert).toContain(t);
+    }
+  });
+
+  it('não promete que o PDF do padrão é alterado', () => {
+    expect(ajudaCert).toContain('não é alterado');
+    expect(ajudaCert).toContain('copiadas para o fim do documento');
+  });
+
+  it('a ajuda de calibrações descreve o fluxo da tela', () => {
+    for (const t of ['Cadastre os acessórios', 'Crie um lote', 'Calibre os acessórios']) {
+      expect(ajudaCal).toContain(t);
+    }
+    // O vínculo com o relatório é real (`vincularProximoRelatorio`).
+    expect(ajudaCal).toContain('vinculado àquele relatório');
+  });
+});
+
+describe('estado vazio ilustrado', () => {
+  it('aparece só quando NÃO há lote', () => {
+    expect(pagina).toContain('lotes.length === 0 ? (');
+    expect(pagina).toContain('className="cal-vazio"');
+    // Havendo um lote, a ilustração sai de cena.
+    const bloco = /lotes\.length === 0 \? \([\s\S]*?\) : \(/.exec(pagina)![0];
+    expect(bloco).toContain('/ilustracoes/fluxo-calibracao.webp');
   });
 });
 
@@ -114,8 +214,8 @@ describe('a barra de Calibrações', () => {
   });
 
   it('no celular o botão de filtro fica quadrado, com altura declarada', () => {
-    const movel = cssIlustra.slice(cssIlustra.lastIndexOf('@media (max-width: 640px)'));
-    expect(movel).toContain('.calibracoes-page .pront-btn-rotulo { display: none; }');
+    expect(cssIlustra).toContain('.calibracoes-page .pront-btn-rotulo { display: none; }');
+    const movel = cssIlustra.slice(cssIlustra.indexOf('@media (max-width: 640px)'));
     // Sem rótulo e com `padding: 0`, um botão sem altura declarada mede 2px.
     expect(movel).toContain('height: 44px;');
   });
