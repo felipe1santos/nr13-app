@@ -303,3 +303,14 @@ describe('hierarquia do formulário', () => {
     expect(modal).toContain('Cancelar');
   });
 });
+
+describe('os passos do modal cabem na coluna certa', () => {
+  it('título e texto ficam na segunda coluna da grade', () => {
+    // Visto em produção em 07/09/2026: sem esta regra o `<span>` era
+    // auto-posicionado na linha de baixo, na coluna de 22px do número, e o
+    // texto saía com UMA PALAVRA POR LINHA. Não transborda nada — por isso a
+    // medição de transbordo não pegava, e a de largura do texto pega.
+    expect(cssModal).toContain('.reg-modal-passos li > b,');
+    expect(cssModal).toContain('.reg-modal-passos li > span { grid-column: 2; }');
+  });
+});

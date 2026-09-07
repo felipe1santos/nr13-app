@@ -213,6 +213,12 @@ const MEDIR = `(doc => {
     lado: Math.round(doc.querySelector('.reg-modal-lado').getBoundingClientRect().width),
     botoes: [...doc.querySelectorAll('.reg-modal-acoes-btns .fj-btn')]
       .map(b => Math.round(b.getBoundingClientRect().height)),
+    // Largura do TEXTO de cada passo. Foi assim que o defeito de produção
+    // apareceria antes: sem a coluna 2 declarada, o span cai na coluna do
+    // número e mede 22px — uma palavra por linha, sem transbordar nada.
+    // (Sem crase neste comentario: ele vive dentro de um template literal.)
+    passos: [...doc.querySelectorAll('.reg-modal-passos li > span')]
+      .map(s => Math.round(s.getBoundingClientRect().width)),
   } : null;
   const barra = doc.querySelector('.livro-toolbar');
   const toolbar = barra ? {
@@ -322,6 +328,10 @@ for (const l of LARGURAS) {
       console.log('  FALHA · o formulário ficou mais estreito que a coluna de apoio');
       falhas++;
     }
+    if (Math.min(...j.passos) < 120) {
+      console.log(`  FALHA · texto dos passos com ${Math.min(...j.passos)}px de largura`);
+      falhas++;
+    } else console.log(`  ok · passos com ${Math.min(...j.passos)}px de texto`);
     if (l <= 640 && Math.min(...j.botoes) < 44) {
       console.log(`  FALHA · botão do modal com ${Math.min(...j.botoes)}px (< 44px no dedo)`);
       falhas++;

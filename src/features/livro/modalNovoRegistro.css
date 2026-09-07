@@ -112,6 +112,11 @@
   font-size: 11px;
   font-weight: 700;
 }
+/* O título e o texto ficam os DOIS na segunda coluna. Sem isto o `<span>` é
+   auto-posicionado na linha seguinte, na coluna de 22px do número — e o texto
+   sai com uma palavra por linha (visto em produção em 07/09/2026). */
+.reg-modal-passos li > b,
+.reg-modal-passos li > span { grid-column: 2; }
 .reg-modal-passos b { display: block; font-size: 12.5px; color: var(--text-main, #2d3339); }
 .reg-modal-passos span { font-size: 11.5px; line-height: 1.5; color: var(--muted, #7a8790); }
 
