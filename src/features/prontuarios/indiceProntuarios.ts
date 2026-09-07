@@ -225,12 +225,46 @@ export async function reconciliar(): Promise<number> {
     if (!tag || conhecidos.has(idRascunho(tag))) continue;
     if (listarEmissoes(tag).length > 0) continue;
     const dados = ler<ProntuarioDados>(chave);
-    if (!dados) continue;
-    novos.push(docDeRascunho(tag, dados, null, dados.criadoEm || new Date(0).toISOString()));
+    /*
+     * O PREFIXO PEGA MAIS DO QUE OS DADOS — medido em produção em 06/09/2026.
+     *
+     * `nr13_prontuario_` também casa com `nr13_prontuario_meta_<TAG>` (o número
+     * e a data do documento, §8) e com `nr13_prontuario_assinantes_`. A
+     * varredura criava linhas fantasma com TAG `meta_COMPRESSOR V8-15/200L`,
+     * sem cliente e com data de 1970.
+     *
+     * O teste não é o nome da chave: é o CONTEÚDO. `ProntuarioDados` carrega a
+     * própria TAG, e ela tem que bater com a do nome da chave. Um registro que
+     * não sabe de quem é não vira linha na lista.
+     */
+    if (!dados || typeof dados !== "object") continue;
+    if (typeof dados.tag !== "string" || dados.tag !== tag) continue;
+    // Sem `criadoEm` a data fica VAZIA. `new Date(0)` imprimia 01/01/1970 na
+    // coluna — um dado falso é pior do que um travessão.
+    novos.push(docDeRascunho(tag, dados, null, dados.criadoEm || ""));
   }
 
-  if (novos.length === 0) return 0;
-  await salvar(CHAVE_INDICE_PRONT, ordenar([...atual, ...novos]));
+  /*
+   * PURGA das linhas fantasma que a varredura por prefixo criou antes da
+   * correção acima. Elas já estão gravadas no índice de quem abriu a tela, e
+   * `reconciliar` só acrescenta — então precisam sair por nome.
+   *
+   * O critério é ESTREITO de propósito: só entrada de RASCUNHO cuja TAG começa
+   * por um sufixo de chave conhecido (`meta_`, `assinantes_`) e que não tem
+   * registro de dados correspondente. Nenhuma dessas três condições vale para
+   * um equipamento de verdade, e a regra de nunca apagar o que veio de outro
+   * aparelho continua valendo para todo o resto.
+   */
+  const fantasma = (d: DocumentoProntuario) =>
+    d.situacao === "rascunho" &&
+    /^(meta|assinantes)_/.test(d.tag) &&
+    ler<ProntuarioDados>(`${PREFIXO_DADOS}${d.tag}`)?.tag !== d.tag;
+
+  const limpos = atual.filter((d) => !fantasma(d));
+  const removidas = atual.length - limpos.length;
+
+  if (novos.length === 0 && removidas === 0) return 0;
+  await salvar(CHAVE_INDICE_PRONT, ordenar([...limpos, ...novos]));
   return novos.length;
 }
 

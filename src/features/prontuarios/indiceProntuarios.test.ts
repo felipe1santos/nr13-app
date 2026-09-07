@@ -174,3 +174,56 @@ describe('remoção e busca', () => {
     expect(filtrarDocumentos(lista, '')).toHaveLength(2);
   });
 });
+
+describe('a varredura por prefixo pega mais do que os dados', () => {
+  /*
+   * Defeito medido em produção em 06/09/2026, com a lista já no ar.
+   *
+   * `nr13_prontuario_` também casa com `nr13_prontuario_meta_<TAG>` — o número
+   * e a data do documento (§8) — e com `nr13_prontuario_assinantes_`. A lista
+   * ganhou linhas fantasma com TAG `meta_COMPRESSOR V8-15/200L`, sem cliente e
+   * com data de 01/01/1970.
+   */
+  it('a chave de META não vira uma linha', async () => {
+    await salvar('nr13_prontuario_meta_A', { numero: 'REL-1', emissao: '06/09/2026' });
+    expect(await reconciliar()).toBe(0);
+    expect(listarDocumentos()).toHaveLength(0);
+    await salvar('nr13_prontuario_meta_A', null);
+  });
+
+  it('o teste é o CONTEÚDO: a TAG do registro tem que bater com a da chave', async () => {
+    // Um registro que não sabe de quem é não vira linha na lista.
+    await salvar('nr13_prontuario_A', { tag: 'OUTRA', descricao: 'x', empresaRazaoSocial: '' });
+    expect(await reconciliar()).toBe(0);
+    await salvar('nr13_prontuario_A', { tag: 'A', descricao: 'x', empresaRazaoSocial: '' });
+    expect(await reconciliar()).toBe(1);
+  });
+
+  it('sem `criadoEm` a data fica vazia — nunca 1970', async () => {
+    await salvar('nr13_prontuario_A', { tag: 'A', descricao: 'x', empresaRazaoSocial: '' });
+    await reconciliar();
+    expect(listarDocumentos()[0].atualizadoEm).toBe('');
+  });
+
+  it('as linhas fantasma já gravadas são purgadas', async () => {
+    // Elas já estão no índice de quem abriu a tela, e `reconciliar` só
+    // acrescenta — então precisam sair por nome.
+    await salvar(CHAVE_INDICE_PRONT, [
+      docDeRascunho('meta_A', null, null),
+      docDeRascunho('assinantes_B', null, null),
+      docDeRascunho('C', { descricao: 'real', empresaRazaoSocial: '' }, null),
+    ]);
+    await reconciliar();
+    expect(listarDocumentos().map((d) => d.tag)).toEqual(['C']);
+  });
+
+  it('a purga NÃO alcança um equipamento de verdade', async () => {
+    // Só entrada de rascunho, com sufixo de chave conhecido, E sem registro de
+    // dados. Um equipamento real falha nas três.
+    await salvar('nr13_prontuario_meta_X', { tag: 'meta_X', descricao: 'existe mesmo', empresaRazaoSocial: '' });
+    await salvar(CHAVE_INDICE_PRONT, [docDeRascunho('meta_X', { descricao: 'existe mesmo', empresaRazaoSocial: '' }, null)]);
+    await reconciliar();
+    expect(listarDocumentos().map((d) => d.tag)).toEqual(['meta_X']);
+    await salvar('nr13_prontuario_meta_X', null);
+  });
+});
