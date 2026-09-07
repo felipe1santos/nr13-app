@@ -252,3 +252,109 @@ filete à esquerda + ícone + número, sem fundo colorido.
   agregado soma os certificados aos três contadores.
 
 Suíte completa do app: **179 arquivos, 2.498 casos, verde.**
+
+---
+
+## 8. E2E em produção — 07/09/2026
+
+Feito na organização de teste `99f642d3` (conta `teste@gmail.com`), com
+entidades `ZZ-*` descartáveis, poucos casos e nenhuma geração em massa.
+
+### Antes (estado inicial, bundle novo já no ar)
+
+Painel: **"Nenhum prazo cadastrado"**, "Ver todos os vencimentos (0)" — com um
+certificado `ZZ-F6-001` cadastrado, validade 07/12/2026, PDF anexado. É a
+queixa reproduzida.
+
+*(Este primeiro estado é o que revelou a armadilha do §3.1: o bundle
+intermediário já lia a família, mas pelo PostgREST, e recebia campos nulos.)*
+
+### TESTE A — certificado com validade em ~20 dias
+
+Cadastrado pela UI no card **Manômetro padrão**: `ZZ-TESTE E2E Manômetro
+padrão`, nº `ZZ-E2E-30D`, validade **27/09/2026**, PDF anexado, salvo e
+sincronizado (confirmado pela RPC, que devolveu o registro com todos os campos
+preenchidos).
+
+| filtro | resultado |
+|---|---|
+| Todos | **aparece** — `ZZ-E2E-30D · Manômetro padrão · CERTIFICADO · 27/09/2026 · Vence em 20 dias · ATENÇÃO` |
+| 30 dias | **aparece** |
+| 60 dias | **aparece** |
+| 5 dias | **NÃO aparece** ("Nada neste filtro") |
+
+Card "PRÓXIMOS A VENCER (30D)": 0 → **1**.
+
+### TESTE B — certificado VENCIDO
+
+Cadastrado no card **Válvula PSV padrão**: nº `ZZ-E2E-VENCIDO`, validade
+**30/08/2026** (8 dias atrás), PDF anexado.
+
+* aparece no topo da lista: *Vencido há 8 dias · CRÍTICO*;
+* card "VENCIDOS": 0 → **1**;
+* **TAXA DE CONFORMIDADE: 100 % → 66,7 %** — o certificado vencido deixou de
+  conviver com "tudo em dia", que era o §13 do pedido;
+* banner crítico: *"1 certificado vencido requer atenção imediata"*.
+
+### TESTE C — vencimento de INSPEÇÃO (o que já funcionava, ainda funciona)
+
+Vida Remanescente calculada e salva em `ZZ-TESTE-P2` (10,00 mm em 07/09/2021 →
+6,13 mm em 07/09/2026, mínima 6,00 mm): taxa 0,7741 mm/ano, próxima inspeção
+0,08 anos → **07/10/2026**.
+
+Painel com os três domínios juntos:
+
+| linha | categoria | vencimento | prazo |
+|---|---|---|---|
+| ZZ-E2E-VENCIDO | CERTIFICADO | 30/08/2026 | Vencido há 8 dias |
+| ZZ-E2E-30D | CERTIFICADO | 27/09/2026 | Vence em 20 dias |
+| ZZ-TESTE-P2 | INSPEÇÃO | 07/10/2026 | Vence em 30 dias |
+| ZZ-F6-001 | CERTIFICADO | 07/12/2026 | Vence em 91 dias |
+
+Contadores: **A VENCER (30D) = 2** (1 certificado + 1 inspeção — o exemplo do
+§11 do pedido, ao pé da letra), **VENCIDOS = 1**, **CONFORMIDADE = 75 %**
+(4 com prazo, 1 vencido).
+
+### TESTE D — o painel não depende do cache deste navegador
+
+Não havia um segundo aparelho autorizado, e limpar o cache local desta conta
+apagaria **3 pendências de sincronização ainda não resolvidas** (conflitos de
+06/09 esperando decisão do dono) — destruí-las para produzir uma evidência
+seria o oposto do que esta rodada conserta. A prova foi feita por
+INSTRUMENTAÇÃO, que é mais forte que o cache limpo:
+
+`Storage.prototype.getItem` e `indexedDB.open` foram interceptados e o painel,
+recarregado. Chaves lidas durante a montagem:
+
+```
+["nr13_assinatura_status", "nr13_assinatura_ate", "nr13_plano",
+ "sb-…-auth-token"]           ← nenhuma de vencimento
+indexedDB aberto: nenhum
+linhas renderizadas: 4
+```
+
+Nenhuma leitura de `nr13_rastreab_`, `nr13_info_` ou `nr13_calibracoes_`, e
+nenhum banco local aberto: as quatro linhas vieram inteiras das duas RPCs. Um
+aparelho que nunca abriu a tela de Certificados vê exatamente o mesmo painel.
+
+### Limpeza
+
+Os dois certificados de teste foram removidos **pelo fluxo oficial** (botão
+Excluir do card, que faz o soft-delete marcando `substituidoEm`) — nenhum
+delete cru. A identificação do alvo seguiu o CLAUDE.md §14: nº do certificado →
+card que contém aquele nº e nenhum outro → botão dentro daquele card, com
+recusa em caso de ambiguidade.
+
+Estado final conferido: **A VENCER = 1, VENCIDOS = 0, CONFORMIDADE = 100 %**,
+banner ausente, lista com `ZZ-TESTE-P2` (inspeção) e `ZZ-F6-001`
+(certificado). Os registros substituídos continuam no servidor e **não**
+produzem prazo — a regra do soft-replace, provada de ponta a ponta.
+
+**O que ficou de propósito:** a Vida Remanescente de `ZZ-TESTE-P2`. Não existe
+"desfazer" oficial para um cálculo salvo, e apagá-lo exigiria escrita crua.
+Equipamento `ZZ-*` descartável; o dono recalcula quando quiser.
+
+**Fora do escopo, observado:** a conta tem **3 conflitos de sincronização**
+aguardando decisão do usuário (tela Pendências, de 06/09/2026) e o projeto
+Supabase exibe `EXCEEDING USAGE LIMITS` com o aviso "Grace period is over".
+Nenhum dos dois foi tocado.
