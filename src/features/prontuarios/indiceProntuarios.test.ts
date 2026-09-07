@@ -3,6 +3,7 @@ import {
   CHAVE_INDICE_PRONT,
   docDeEmissao,
   docDeRascunho,
+  ehChaveIrma,
   encerrarRascunho,
   filtrarDocumentos,
   idRascunho,
@@ -225,5 +226,32 @@ describe('a varredura por prefixo pega mais do que os dados', () => {
     await reconciliar();
     expect(listarDocumentos().map((d) => d.tag)).toEqual(['meta_X']);
     await salvar('nr13_prontuario_meta_X', null);
+  });
+});
+
+describe('as chaves IRMÃS do prefixo', () => {
+  it('a tabela reconhece as três, e não confunde uma TAG', () => {
+    expect(ehChaveIrma('atual')).toBe(true);
+    expect(ehChaveIrma('meta_VP-01')).toBe(true);
+    expect(ehChaveIrma('assinantes_VP-01')).toBe(true);
+    // Uma TAG de verdade não é chave irmã — nem uma que comece parecido.
+    expect(ehChaveIrma('VP-01')).toBe(false);
+    expect(ehChaveIrma('ATUAL-01')).toBe(false);
+    expect(ehChaveIrma('metalurgica')).toBe(false);
+  });
+
+  it('`nr13_prontuario_atual` não vira linha', async () => {
+    // Ela é a cópia de trabalho que os templates leem — apareceu na lista como
+    // um documento da TAG "atual".
+    await salvar('nr13_prontuario_atual', { tag: 'A', descricao: 'Vaso', empresaRazaoSocial: '' });
+    expect(await reconciliar()).toBe(0);
+    expect(listarDocumentos()).toHaveLength(0);
+    await salvar('nr13_prontuario_atual', null);
+  });
+
+  it('a linha "atual" já gravada é purgada', async () => {
+    await salvar(CHAVE_INDICE_PRONT, [docDeRascunho('atual', null, null)]);
+    await reconciliar();
+    expect(listarDocumentos()).toHaveLength(0);
   });
 });

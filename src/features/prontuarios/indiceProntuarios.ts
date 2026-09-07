@@ -46,6 +46,30 @@ export const CHAVE_INDICE_PRONT = 'nr13_pront_indice';
 const PREFIXO_EMISSAO = 'nr13_pront_emitido_';
 const PREFIXO_DADOS = 'nr13_prontuario_';
 
+/**
+ * As chaves IRMÃS que o prefixo `nr13_prontuario_` também casa.
+ *
+ * Elas não são o prontuário de nenhum equipamento, e cada uma virou uma linha
+ * fantasma na lista antes de esta tabela existir:
+ *
+ * - `nr13_prontuario_atual` — a cópia de trabalho que os templates em iframe
+ *   leem no `DOMContentLoaded`. Apareceu como um documento da TAG "atual";
+ * - `nr13_prontuario_meta_<TAG>` — o número e a data do documento (§8).
+ *   Apareceu como "meta_COMPRESSOR V8-15/200L", sem cliente e com data de 1970;
+ * - `nr13_prontuario_assinantes_<TAG>` — quem assina.
+ *
+ * A tabela é EXPLÍCITA, e não uma regra esperta sobre o nome: é o mesmo motivo
+ * de `familiasChave` existir no armazenamento — dedução por regex errou lá, e
+ * erraria aqui na primeira TAG que começasse com uma dessas palavras.
+ */
+const IRMAS_DO_PREFIXO = ['atual'];
+const IRMAS_COM_TAG = ['meta_', 'assinantes_'];
+
+/** O sufixo do nome da chave é uma TAG de equipamento, ou uma chave irmã? */
+export function ehChaveIrma(sufixo: string): boolean {
+  return IRMAS_DO_PREFIXO.includes(sufixo) || IRMAS_COM_TAG.some((p) => sufixo.startsWith(p));
+}
+
 export type SituacaoDocumento = 'rascunho' | 'emitido';
 
 /**
@@ -222,7 +246,7 @@ export async function reconciliar(): Promise<number> {
    */
   for (const chave of listarChavesComPrefixo(PREFIXO_DADOS)) {
     const tag = chave.slice(PREFIXO_DADOS.length);
-    if (!tag || conhecidos.has(idRascunho(tag))) continue;
+    if (!tag || ehChaveIrma(tag) || conhecidos.has(idRascunho(tag))) continue;
     if (listarEmissoes(tag).length > 0) continue;
     const dados = ler<ProntuarioDados>(chave);
     /*
@@ -256,8 +280,8 @@ export async function reconciliar(): Promise<number> {
    * aparelho continua valendo para todo o resto.
    */
   const fantasma = (d: DocumentoProntuario) =>
-    d.situacao === "rascunho" &&
-    /^(meta|assinantes)_/.test(d.tag) &&
+    d.situacao === 'rascunho' &&
+    ehChaveIrma(d.tag) &&
     ler<ProntuarioDados>(`${PREFIXO_DADOS}${d.tag}`)?.tag !== d.tag;
 
   const limpos = atual.filter((d) => !fantasma(d));
