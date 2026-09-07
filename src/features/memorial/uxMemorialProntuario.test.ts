@@ -213,7 +213,9 @@ describe('o modal não vira caixa dentro de caixa', () => {
     // `min-height` de 58vh que abria um vazio embaixo dos equipamentos. No
     // modal, a moldura é o próprio modal.
     const css = readFileSync('src/features/relatorios/modalCriarRelatorio.css', 'utf8');
-    expect(css).toContain('.mcr-corpo-2col .bloco-dados.painel-lista {');
+    // Sem exigir `.painel-lista`: no modo SELEÇÃO o catálogo usa só
+    // `bloco-dados`, e o seletor mais específico não alcançava (visto na tela).
+    expect(css).toContain('.mcr-corpo-2col .bloco-dados {');
     expect(css).toContain('min-height: 0;');
     expect(css).toContain('.mcr-corpo-2col .lista-virt { padding: 0; }');
   });

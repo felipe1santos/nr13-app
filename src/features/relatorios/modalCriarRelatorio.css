@@ -324,11 +324,12 @@
   .mcr-intro p { font-size: 11.5px; }
 }
 
-/* O catálogo traz o painel branco da TELA (`bloco-dados painel-lista`) junto:
+/* O catálogo traz o painel branco da TELA (`bloco-dados`, com ou sem
+   `painel-lista`) junto:
    dentro do modal isso vira caixa dentro de caixa, e o `min-height` de 58vh do
    painel abre um vazio embaixo dos equipamentos. No modal a moldura é o próprio
    modal. */
-.mcr-corpo-2col .bloco-dados.painel-lista {
+.mcr-corpo-2col .bloco-dados {
   border: none;
   border-radius: 0;
   background: transparent;
