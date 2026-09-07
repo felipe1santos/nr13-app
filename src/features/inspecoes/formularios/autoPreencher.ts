@@ -213,6 +213,13 @@ export interface PrefillTH {
   cliente?: string;
   equipamento?: string;
   pressaoProj?: string;
+  /**
+   * Pressão de TRABALHO. Não é campo novo em lugar nenhum: é a PMO que o
+   * usuário já declarou no card "Pressões da Documentação" da ficha, convertida
+   * para kgf/cm² como as outras duas desta folha. Criar uma fonte própria para
+   * ela seria pedir o mesmo número duas vezes.
+   */
+  pressaoTrabalho?: string;
   pressaoTeste?: string;
   fluido?: string;
 }
@@ -231,6 +238,7 @@ export function prefillTH(tag: string): PrefillTH {
   // Pressões adotadas na ficha têm prioridade sobre as calculadas no memorial (ambas em MPa).
   const calc = lerSeguro<CalculoComComponentes>(`nr13_calc_${tag}`);
   por(saida, 'pressaoProj', mpaParaKgf(info?.pmtaAdotadaMpa) ?? mpaParaKgf(calc?.pmta));
+  por(saida, 'pressaoTrabalho', mpaParaKgf(info?.pmoAdotadaMpa));
   por(saida, 'pressaoTeste', mpaParaKgf(info?.pthAdotadaMpa) ?? mpaParaKgf(calc?.pth));
 
   const cat = lerSeguro<CategoriaSalva>(`nr13_cat_${tag}`);

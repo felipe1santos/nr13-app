@@ -195,6 +195,7 @@ function montarStorage() {
       estadoSup: 'ESTADO-E2E',
       cabecote: '2.25 mhz',
       velSonica: '5920',
+      observacoes: 'OBSERVACOES-US-E2E',
       resultado: 'aprovado',
       pontos: [
         { id: 'c1', rotulo: 'Casco 1', regiao: 'casco' },
@@ -214,6 +215,13 @@ function montarStorage() {
       pressaoProj: '12,75',
       pressaoTeste: '16,60',
       fluido: 'Água Potável',
+      pressaoTrabalho: '8,16',
+      duracao: '30 min',
+      tempFluido: '22 °C',
+      normas: 'ASME VIII Div.1 / NR-13',
+      validadeLaudo: '07/09/2031',
+      procedimento: 'PROCEDIMENTO-TH-E2E',
+      parecer: 'PARECER-TH-E2E',
       resultado: 'aprovado',
       curva: [{ tempo: '0', pressao: '0' }, { tempo: '10', pressao: '16,6' }],
       fotos: [],
@@ -424,5 +432,40 @@ describe('emissão vetorial: o documento sai com o que o usuário salvou', () =>
     expect(previa.editaveis.map((e) => `${e.id}=${e.valor}`)).toEqual(
       final.editaveis.map((e) => `${e.id}=${e.valor}`),
     );
+  });
+});
+
+describe('os campos que o formulário passou a coletar (07/09/2026) chegam ao PAPEL', () => {
+  it('os sete campos do teste hidrostático são desenhados na folha', async () => {
+    const { editaveis } = await gerarRelatorioVetorial(TAG, { documentos: DOCUMENTOS, certificados: false });
+    expect(campo(editaveis, 'th.pressao-trabalho')).toBe('8,16');
+    expect(campo(editaveis, 'th.duracao')).toBe('30 min');
+    expect(campo(editaveis, 'th.temp-fluido')).toBe('22 °C');
+    expect(campo(editaveis, 'th.normas')).toBe('ASME VIII Div.1 / NR-13');
+    expect(campo(editaveis, 'th.validade-laudo')).toBe('07/09/2031');
+    expect(campo(editaveis, 'th.procedimento')).toBe('PROCEDIMENTO-TH-E2E');
+    expect(campo(editaveis, 'th.parecer')).toBe('PARECER-TH-E2E');
+  });
+
+  it('a observação do ultrassom é desenhada na folha', async () => {
+    const { editaveis } = await gerarRelatorioVetorial(TAG, { documentos: DOCUMENTOS, certificados: false });
+    expect(campo(editaveis, 'ultrassom.observacoes')).toBe('OBSERVACOES-US-E2E');
+  });
+
+  it('e continuam editáveis por override, sem tocar no ensaio', async () => {
+    // O ensaio agora tem fonte; o override continua sendo a camada de cima.
+    // `branco` apaga só neste relatório — o container fica intacto.
+    const antes = localStorage.getItem('nr13_injecao_atual');
+    const r = await gerarRelatorioVetorial(TAG, {
+      documentos: DOCUMENTOS,
+      certificados: false,
+      overrides: {
+        'th.parecer': { modo: 'manual', valor: 'PARECER-SO-NESTE-RELATORIO', auto: 'PARECER-TH-E2E', em: '2026-09-07' },
+        'ultrassom.observacoes': { modo: 'branco', auto: 'OBSERVACOES-US-E2E', em: '2026-09-07' },
+      },
+    });
+    expect(campo(r.editaveis, 'th.parecer')).toBe('PARECER-SO-NESTE-RELATORIO');
+    expect(campo(r.editaveis, 'ultrassom.observacoes')).toBe('');
+    expect(localStorage.getItem('nr13_injecao_atual')).toBe(antes);
   });
 });

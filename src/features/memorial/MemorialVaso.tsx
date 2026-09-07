@@ -16,6 +16,7 @@ import {
 } from './vasoMemorialService';
 import { comLoadingGlobal } from '../../app/loadingGlobal';
 import { emitirAviso } from '../../services/eventos';
+import { avisarCamposFaltando, avisarGereOCalculo } from './avisoMemorial';
 import { useAvisoSairSemSalvar } from './useAvisoSairSemSalvar';
 import './memorial.css';
 
@@ -233,13 +234,12 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
   }
 
   async function salvar() {
-    if (!resumo) { alert('Gere o cálculo antes de salvar.'); return; }
+    if (!resumo) { avisarGereOCalculo(); return; }
     const erros = validarCamposVaso(vaso);
     if (erros.length > 0) {
-      alert('Preencha os seguintes campos antes de salvar:\n• ' + erros.join('\n• '));
+      avisarCamposFaltando(erros);
       return;
     }
-    if (!window.confirm('Salvar o cálculo do memorial? Os dados ficarão disponíveis em "Ver Memorial".')) return;
     setSalvando(true);
     try {
       // Recalcula com os INPUTS ATUAIS: `resumo` guarda o último "Gerar Cálculo" e o usuário

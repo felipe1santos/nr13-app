@@ -14,6 +14,7 @@ import {
 import type { ResultadoCalculo } from '../../calc/tipos';
 import { comLoadingGlobal } from '../../app/loadingGlobal';
 import { emitirAviso } from '../../services/eventos';
+import { avisarCamposFaltando, avisarGereOCalculo } from './avisoMemorial';
 import { useAvisoSairSemSalvar } from './useAvisoSairSemSalvar';
 import './memorial.css';
 
@@ -100,7 +101,7 @@ function MemorialAutoclaveInner({ tag, subtipo }: Props) {
       : undefined;
 
   async function salvar() {
-    if (!resultado) { alert('Gere o cálculo antes de salvar.'); return; }
+    if (!resultado) { avisarGereOCalculo(); return; }
     const erros: string[] = [];
     if (!dados.pressao || Number(dados.pressao) <= 0) erros.push('Pressão de Projeto (P)');
     if (!dados.tensao || Number(dados.tensao) <= 0) erros.push('Tensão Admissível (S)');
@@ -115,10 +116,9 @@ function MemorialAutoclaveInner({ tag, subtipo }: Props) {
       if (!dados.espacamento || Number(dados.espacamento) <= 0) erros.push('Passo entre tirantes (a)');
     }
     if (erros.length > 0) {
-      alert('Preencha os seguintes campos antes de salvar:\n• ' + erros.join('\n• '));
+      avisarCamposFaltando(erros);
       return;
     }
-    if (!window.confirm('Salvar o cálculo do memorial? Os dados ficarão disponíveis em "Ver Memorial".')) return;
     setSalvando(true);
     try {
       await comLoadingGlobal('Salvando memorial...', async () => {

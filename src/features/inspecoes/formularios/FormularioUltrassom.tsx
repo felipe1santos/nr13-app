@@ -104,6 +104,15 @@ interface Dados {
   estadoSup: string;
   cabecote: string;
   velSonica: string;
+  /**
+   * Observações / conclusões do ensaio.
+   *
+   * A folha 7.4 do relatório sempre teve este bloco e o modelo sempre o leu
+   * (`ultrassom.observacoes`) — o formulário é que não coletava, então ele saía
+   * em branco em todo laudo. É o mesmo campo do exame visual, no ensaio a que
+   * pertence: nada de segunda chave.
+   */
+  observacoes: string;
   resultado: ResultadoEnsaioValor;
   medidas: Medidas;
   /** Pontos de medição do container. Ausente em dados antigos => PONTOS_PADRAO. */
@@ -187,6 +196,7 @@ function dadosPadrao(): Dados {
     estadoSup: '',
     cabecote: '',
     velSonica: '5920',
+    observacoes: '',
     resultado: '',
     medidas: medidasVazias(),
     pontos: PONTOS_PADRAO.map((p) => ({ ...p })),
@@ -434,6 +444,26 @@ export default function FormularioUltrassom({ tag, containerId }: { tag: string;
             </div>
           );
         })}
+      </div>
+
+      <div className="formulario-secao">
+        <h3>Observações / Conclusões do Ensaio</h3>
+        <textarea
+          rows={4}
+          style={{
+            width: '100%',
+            padding: 12,
+            border: '1px solid var(--border-solid)',
+            borderRadius: 8,
+            fontSize: 14,
+            fontFamily: 'inherit',
+            resize: 'vertical',
+            boxSizing: 'border-box',
+          }}
+          placeholder="Observações sobre a medição de espessura, pontos críticos, comparação com a espessura mínima requerida..."
+          value={dados.observacoes}
+          onChange={(e) => set('observacoes', e.target.value)}
+        />
       </div>
 
       <ResultadoEnsaio valor={dados.resultado} onChange={(v) => set('resultado', v)} />

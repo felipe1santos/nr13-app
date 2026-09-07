@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
 
 if (typeof globalThis.localStorage === 'undefined') {
   const store = new Map<string, string>();
@@ -526,5 +527,109 @@ describe('nenhum campo em branco em silêncio', () => {
       if (valor === null || String(valor).trim() === '') vazios.push(`prontuario.${nome}`);
     }
     expect(vazios).toEqual([]);
+  });
+});
+
+// ── 10 · OS CAMPOS QUE O FORMULÁRIO PASSOU A COLETAR (07/09/2026) ───────────
+/**
+ * O E2E de 07/09/2026 fechou com sete campos do TH e um do ultrassom saindo em
+ * branco no documento — e a causa não era leitor errado, era **fonte
+ * inexistente**: a folha imprimia campos que nenhum formulário coletava.
+ *
+ * Agora eles são do ensaio. Estes testes travam o par: o formulário grava com
+ * ESTE nome, e o modelo lê deste nome. Trocar um sem o outro quebra aqui, e não
+ * num documento assinado.
+ */
+describe('TH: os campos novos do formulário chegam ao documento', () => {
+  const COMPLETO = {
+    cliente: 'CLIENTE-TH-E2E',
+    docNum: 'DOC-TH-E2E',
+    equipamento: 'EQUIP-TH-E2E',
+    dataTeste: '2026-09-07',
+    pressaoProj: '12,75',
+    pressaoTrabalho: '8,16',
+    pressaoTeste: '16,60',
+    fluido: 'Água Potável',
+    duracao: '30 min',
+    tempFluido: '22 °C',
+    normas: 'ASME VIII Div.1 / NR-13',
+    validadeLaudo: '07/09/2031',
+    procedimento: 'PROCEDIMENTO-TH-E2E',
+    parecer: 'PARECER-TH-E2E',
+    resultado: 'aprovado',
+    curva: [{ tempo: '0', pressao: '0' }],
+    fotos: [],
+  };
+
+  it('os sete campos que faltavam saem preenchidos', () => {
+    gravar('nr13_injecao_atual', { th: COMPLETO });
+    const t = montarModeloRelatorio(TAG).th;
+    expect(t.pressaoTrabalho).toBe('8,16');
+    expect(t.duracao).toBe('30 min');
+    expect(t.tempFluido).toBe('22 °C');
+    expect(t.normas).toBe('ASME VIII Div.1 / NR-13');
+    expect(t.validadeLaudo).toBe('07/09/2031');
+    expect(t.procedimento).toBe('PROCEDIMENTO-TH-E2E');
+    expect(t.parecer).toBe('PARECER-TH-E2E');
+  });
+
+  it('os campos que já chegavam continuam chegando', () => {
+    gravar('nr13_injecao_atual', { th: COMPLETO });
+    const t = montarModeloRelatorio(TAG).th;
+    expect(t.cliente).toBe('CLIENTE-TH-E2E');
+    expect(t.docNumero).toBe('DOC-TH-E2E');
+    expect(t.pressaoTeste).toBe('16,60');
+    expect(t.resultado).toBe('APROVADO');
+  });
+
+  it('ensaio ANTIGO (sem os campos novos) não quebra — sai vazio, como antes', () => {
+    // Inspeção gravada antes desta rodada não tem as chaves novas. Ela precisa
+    // continuar abrindo, com aqueles campos em branco para preenchimento manual.
+    const antigo = { ...COMPLETO } as Record<string, unknown>;
+    for (const k of ['pressaoTrabalho', 'duracao', 'tempFluido', 'normas', 'validadeLaudo', 'procedimento', 'parecer']) delete antigo[k];
+    gravar('nr13_injecao_atual', { th: antigo });
+    const t = montarModeloRelatorio(TAG).th;
+    expect(t.pressaoTrabalho).toBeNull();
+    expect(t.parecer).toBeNull();
+    expect(t.cliente).toBe('CLIENTE-TH-E2E');
+  });
+});
+
+describe('ultrassom: a observação do ensaio chega ao documento', () => {
+  it('`observacoes` do formulário sai na folha', () => {
+    gravar('nr13_injecao_atual', { ultrassom: { equipamento: 'EQ', observacoes: 'OBSERVACOES-US-E2E' } });
+    expect(montarModeloRelatorio(TAG).ultrassom.observacoes).toBe('OBSERVACOES-US-E2E');
+  });
+
+  it('ensaio sem observação continua saindo vazio, não quebrado', () => {
+    gravar('nr13_injecao_atual', { ultrassom: { equipamento: 'EQ' } });
+    expect(montarModeloRelatorio(TAG).ultrassom.observacoes).toBeNull();
+  });
+
+  it('a fonte é a MESMA do ensaio — não há segunda chave paralela', () => {
+    // Se algum dia a observação passar a morar noutro lugar, este teste é quem
+    // avisa: o documento lê do container, e é lá que o formulário grava.
+    gravar('nr13_injecao_atual', { ultrassom: { observacoes: 'DO-CONTAINER' } });
+    gravar(`nr13_med_esp_${TAG}`, { observacoes: 'DE-OUTRO-LUGAR' });
+    expect(montarModeloRelatorio(TAG).ultrassom.observacoes).toBe('DO-CONTAINER');
+  });
+});
+
+describe('formulário e modelo usam o MESMO nome de campo', () => {
+  it('TH: cada campo lido pelo modelo existe no tipo do formulário', () => {
+    // Varredura de fonte: o par formulário↔modelo é o que quebrou antes, e ele
+    // não aparece em nenhum teste de valor — os dois lados podem estar
+    // internamente corretos e mesmo assim não se encontrarem.
+    const form = readFileSync('src/features/inspecoes/formularios/FormularioTH.tsx', 'utf8');
+    const bloco = form.slice(form.indexOf('interface DadosTH'), form.indexOf('function dadosPadrao'));
+    for (const campo of ['pressaoTrabalho', 'duracao', 'tempFluido', 'normas', 'validadeLaudo', 'procedimento', 'parecer']) {
+      expect(bloco).toContain(`${campo}:`);
+    }
+  });
+
+  it('ultrassom: `observacoes` existe no tipo do formulário', () => {
+    const form = readFileSync('src/features/inspecoes/formularios/FormularioUltrassom.tsx', 'utf8');
+    const bloco = form.slice(form.indexOf('interface Dados'), form.indexOf('function linhaVazia'));
+    expect(bloco).toContain('observacoes:');
   });
 });
