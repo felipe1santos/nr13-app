@@ -164,6 +164,39 @@ const PECAS = [
     </div></div></div>`,
   },
   {
+    nome: 'topo do formulario do prontuario (barra + resumo)',
+    html: `<div class="prontuarios-page"><div class="bloco-dados pront-topo">
+      <div class="pront-barra">
+        <button class="fj-btn fj-btn-ghost pront-barra-voltar">← <span class="pront-btn-rotulo">Voltar</span></button>
+        <div class="pront-barra-id"><strong>Prontuário — ZZ-FASE3</strong><span>rascunho</span></div>
+        <div class="pront-visualizador-acoes">
+          <button class="fj-btn fj-btn-ghost"><span class="pront-btn-rotulo">Pré-visualizar</span><span class="pront-btn-icone">o</span></button>
+          <button class="fj-btn fj-btn-primary">Salvar rascunho</button>
+        </div>
+      </div>
+      <div class="pront-resumo">
+        <span><b>Equipamento</b>Vaso de pressão de teste</span>
+        <span><b>Tipo</b>Vaso de Pressão</span>
+        <span><b>Cliente</b>Posto Shell Prime</span>
+        <span><b>Categoria</b>III</span>
+      </div>
+    </div></div>`,
+  },
+  {
+    nome: 'secao do formulario (grade + campo automatico)',
+    html: `<div class="prontuarios-page"><div class="pront-form-secao">
+      <div class="pront-form-secao-titulo">Empresa Proprietária</div>
+      <div class="pront-form-grid">
+        <div class="pront-campo pront-campo-full"><label>Razão Social<span class="pront-selo-auto">auto</span></label><input class="campo-auto" value="POSTO SHELL PRIME LTDA"></div>
+        <div class="pront-campo"><label>CNPJ<span class="pront-selo-auto">auto</span></label><input class="campo-auto" value="00.000.000/0001-00"></div>
+        <div class="pront-campo"><label>Telefone</label><input value=""></div>
+        <div class="pront-campo pront-campo-full"><label>Endereço<span class="pront-selo-auto">auto</span></label><input class="campo-auto" value="Av. Brasil, 1000"></div>
+        <div class="pront-campo"><label>Cidade</label><input value=""></div>
+        <div class="pront-campo"><label>Estado</label><input value=""></div>
+      </div>
+    </div></div>`,
+  },
+  {
     nome: 'botões lado a lado (as duas famílias)',
     html: `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <button class="btn-primario">Salvar</button>
