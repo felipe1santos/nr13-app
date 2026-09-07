@@ -1020,7 +1020,12 @@ export default function LivroRegistro() {
                         <button
                           type="button"
                           className={`fj-btn fj-btn-ghost${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
-                          onClick={() =>
+                          onClick={() => {
+                            // Guarda a ENTRADA: é dela que a ficha eletrônica é
+                            // montada. A folha A4 continua vindo do iframe, na
+                            // aba ao lado.
+                            setRegistroAberto({ entrada, numero });
+                            setModoVisual('ficha');
                             setPreview({
                               tag: linhaAberta.tag,
                               doc: {
@@ -1029,10 +1034,10 @@ export default function LivroRegistro() {
                                 entradaId: entrada.id ?? '',
                                 idx: i,
                               },
-                            })
-                          }
+                            });
+                          }}
                         >
-                          {documentosBloqueados() ? <Icone nome="cadeado" tam={13} /> : <Icone nome="eye" tam={13} />} Ver / Imprimir
+                          {documentosBloqueados() ? <Icone nome="cadeado" tam={13} /> : <Icone nome="eye" tam={13} />} Ver registro
                         </button>
                       )}
                     </div>

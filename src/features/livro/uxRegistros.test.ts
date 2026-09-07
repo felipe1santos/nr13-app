@@ -527,7 +527,9 @@ describe('ações por estado do registro', () => {
       pagina.indexOf('</li>', pagina.indexOf('className="livro-timeline-acoes"')),
     );
     const semRascunho = bloco.slice(bloco.indexOf(') : ('));
-    expect(semRascunho).toContain('Ver / Imprimir');
+    // "Ver registro" desde a 5ª rodada: o que abre é a FICHA, e a folha A4 fica
+    // na aba ao lado — o rótulo antigo prometia impressão como ação primária.
+    expect(semRascunho).toContain('Ver registro');
     expect(semRascunho).not.toContain('Editar');
     expect(semRascunho).not.toContain('Trancar');
   });
@@ -624,6 +626,10 @@ describe('detalhes vistos na prévia, em produção', () => {
 
 describe('a ficha eletrônica é a visualização principal', () => {
   it('o registro salvo abre na FICHA, com a folha A4 ao lado', () => {
+    // O clique da lista guarda a ENTRADA e escolhe a ficha. Sem isso o
+    // visualizador abre VAZIO — a ficha não tem dado e o A4 está escondido
+    // (visto em produção em 07/09/2026, quando o patch não pegou este botão).
+    expect(pagina).toContain('setRegistroAberto({ entrada, numero })');
     expect(pagina).toContain("setModoVisual('ficha')");
     expect(pagina).toContain('livro-visual-modos');
     expect(pagina).toContain('Folha A4');
