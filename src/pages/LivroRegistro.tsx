@@ -29,7 +29,12 @@ import ModalTrancarRegistro from '../features/livro/ModalTrancarRegistro';
 import ModalNovoRegistro from '../features/livro/ModalNovoRegistro';
 import PopoverAjuda from '../features/livro/PopoverAjuda';
 import { FORM_OCORRENCIA_VAZIO, type FormOcorrencia } from '../features/livro/formRegistro';
-import { descricaoCombinada, termoSugerido } from '../features/livro/termoRegistro';
+import PreviaRegistro from '../features/livro/PreviaRegistro';
+import {
+  descricaoCombinada,
+  termoSugerido,
+  type DadosPrevia,
+} from '../features/livro/termoRegistro';
 import { verificarCadeia, verificarEntrada, type LivroEntrada as EntradaLacre } from '../features/relatorios/livroLacre';
 import { exportarPdf, exportarPdfLivroCompleto } from '../features/relatorios/pdfService';
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
@@ -306,6 +311,20 @@ export default function LivroRegistro() {
     }
   };
   const [preview, setPreview] = useState<{ tag: string; doc: DocPreview } | null>(null);
+  /*
+   * O QUE O VISUALIZADOR MOSTRA PRIMEIRO (07/09/2026).
+   *
+   * 'ficha' é a leitura eletrônica do registro; 'a4' é a folha para imprimir e
+   * colar no livro físico. A ficha é o padrão porque é o que o usuário faz o
+   * tempo todo — a folha ele gera uma vez, na hora de imprimir. A capa e o
+   * termo de abertura não têm ficha: são documentos de papel, e abrem em A4.
+   */
+  const [modoVisual, setModoVisual] = useState<'ficha' | 'a4'>('ficha');
+  /** A entrada aberta no visualizador, quando o que se vê é um registro. */
+  const [registroAberto, setRegistroAberto] = useState<{
+    entrada: LivroEntrada;
+    numero: number;
+  } | null>(null);
   const [imprimindo, setImprimindo] = useState(false);
   const [exportando, setExportando] = useState(false);
   const [modalOcorrencia, setModalOcorrencia] = useState(false);
@@ -574,6 +593,41 @@ export default function LivroRegistro() {
    * ser TRANCADO. É por isso que ele não conta, não vai ao Portal e não entra na
    * cadeia enquanto está em rascunho.
    */
+  /**
+   * Os dados da FICHA de um registro já gravado.
+   *
+   * `termoTexto` ausente é entrada ANTIGA (anterior a 07/09/2026) ou automática
+   * de relatório: aí a ficha mostra a mesma frase que a folha montaria, pela
+   * mesma regra — o registro não fica sem termo na tela por ter sido criado
+   * antes de o campo existir.
+   */
+  function dadosDaEntrada(e: LivroEntrada): DadosPrevia {
+    const termo = (e as { termoTexto?: string }).termoTexto?.trim();
+    return {
+      tag: linhaAberta?.tag ?? '',
+      equipamento: linhaAberta?.nomeEquip ?? '',
+      empresa: nomeEmpresaExecutante,
+      data: e.data,
+      tipo: e.tipo,
+      // A descrição já vem combinada na entrada gravada.
+      oQueFoiFeito: e.descricao ?? '',
+      descricao: '',
+      quemRealizou: e.quemRealizou ?? '',
+      assinante: e.phNome ?? '',
+      relatorioCodigo: e.relatorioCodigo || undefined,
+      termo:
+        termo ||
+        termoSugerido({
+          tipo: e.tipo,
+          data: e.data,
+          empresa: nomeEmpresaExecutante,
+          relatorioCodigo: e.relatorioCodigo || undefined,
+          apto: e.apto,
+          descricao: e.descricao ?? '',
+        }),
+    };
+  }
+
   /** O termo efetivo: o texto do usuário ou, na falta dele, a sugestão. */
   function termoDoFormulario(): string {
     return termoSugerido({
@@ -734,7 +788,7 @@ export default function LivroRegistro() {
             <button
               type="button"
               className="livro-doc-card"
-              onClick={() => setPreview({ tag: linhaAberta.tag, doc: { arquivo: 'CAPA-LIVRO-REGISTRO.html', titulo: 'Capa do Livro de Registro' } })}
+              onClick={() => { setRegistroAberto(null); setModoVisual('a4'); setPreview({ tag: linhaAberta.tag, doc: { arquivo: 'CAPA-LIVRO-REGISTRO.html', titulo: 'Capa do Livro de Registro' } }); }}
             >
               {/* Ícones trocados em 07/09/2026 para dizer o que cada folha é:
                   a capa é o LIVRO; o termo é o documento lavrado e assinado que
@@ -749,7 +803,7 @@ export default function LivroRegistro() {
             <button
               type="button"
               className="livro-doc-card"
-              onClick={() => setPreview({ tag: linhaAberta.tag, doc: { arquivo: 'TERMO-ABERTURA.html', titulo: 'Termo de Abertura' } })}
+              onClick={() => { setRegistroAberto(null); setModoVisual('a4'); setPreview({ tag: linhaAberta.tag, doc: { arquivo: 'TERMO-ABERTURA.html', titulo: 'Termo de Abertura' } }); }}
             >
               <span className="livro-doc-ic termo"><Icone nome="checkcircle" tam={16} /></span>
               <div>
@@ -1001,27 +1055,80 @@ export default function LivroRegistro() {
                   <Icone nome="x" tam={15} />
                 </button>
               </div>
-              <div className="no-print" style={{ display: 'flex', gap: 8, padding: '0 16px' }}>
-                <button
-                  type="button"
-                  className={`btn-secundario${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
-                  onClick={() => void imprimirPreview()}
-                  disabled={imprimindo}
-                >
-                  {documentosBloqueados() && <Icone nome="cadeado" tam={13} />}{' '}
-                  {imprimindo ? 'Preparando…' : 'Imprimir'}
-                </button>
-                <button
-                  type="button"
-                  className={`barra-btn barra-btn-pdf${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
-                  onClick={() => void baixarPreview()}
-                  disabled={exportando}
-                >
-                  {documentosBloqueados() ? <Icone nome="cadeado" tam={13} /> : <Icone nome="download" tam={13} />}{' '}
-                  {exportando ? 'Gerando PDF…' : 'Baixar PDF'}
-                </button>
+              {/* A barra do visualizador: à esquerda, o QUE se está vendo
+                  (ficha eletrônica ou folha A4); à direita, o que fazer com a
+                  folha. Imprimir e baixar só aparecem no modo A4 — imprimir a
+                  ficha não é o que ninguém quer, e o botão ali só confundiria. */}
+              <div className="no-print livro-visual-barra">
+                {registroAberto && (
+                  <div className="livro-visual-modos" role="tablist" aria-label="Formato do registro">
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={modoVisual === 'ficha'}
+                      className={modoVisual === 'ficha' ? 'ativa' : ''}
+                      onClick={() => setModoVisual('ficha')}
+                    >
+                      <Icone nome="filetext" tam={12} /> Registro
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={modoVisual === 'a4'}
+                      className={modoVisual === 'a4' ? 'ativa' : ''}
+                      onClick={() => setModoVisual('a4')}
+                    >
+                      <Icone nome="planilha" tam={12} /> Folha A4
+                    </button>
+                  </div>
+                )}
+                {modoVisual === 'a4' && (
+                  <div className="livro-visual-acoes">
+                    <button
+                      type="button"
+                      className={`btn-secundario${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
+                      onClick={() => void imprimirPreview()}
+                      disabled={imprimindo}
+                    >
+                      {documentosBloqueados() && <Icone nome="cadeado" tam={13} />}{' '}
+                      {imprimindo ? 'Preparando…' : 'Imprimir'}
+                    </button>
+                    <button
+                      type="button"
+                      className={`barra-btn barra-btn-pdf${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
+                      onClick={() => void baixarPreview()}
+                      disabled={exportando}
+                    >
+                      {documentosBloqueados() ? <Icone nome="cadeado" tam={13} /> : <Icone nome="download" tam={13} />}{' '}
+                      {exportando ? 'Gerando PDF…' : 'Baixar PDF'}
+                    </button>
+                  </div>
+                )}
               </div>
-              <div style={{ padding: 16 }} className="relatorio-preview">
+
+              {registroAberto && modoVisual === 'ficha' && (
+                <div className="livro-visual-ficha">
+                  <PreviaRegistro
+                    dados={dadosDaEntrada(registroAberto.entrada)}
+                    selo={
+                      registroAberto.entrada.sha256
+                        ? {
+                            texto: `#${String(registroAberto.numero).padStart(6, '0')} · Lacrado`,
+                            tom: 'lacrado',
+                          }
+                        : undefined
+                    }
+                  />
+                </div>
+              )}
+
+              {/* O iframe da folha continua MONTADO mesmo na ficha, só
+                  escondido: ele mede a altura do conteúdo no `onLoad`, e
+                  desmontá-lo faria a medição recomeçar a cada troca de aba. */}
+              <div
+                style={{ padding: 16, display: modoVisual === 'a4' ? undefined : 'none' }}
+                className="relatorio-preview"
+              >
                 {/* Recorte só VISUAL: encolhe a caixa da folha, nunca o documento (ver
                     medirFundoConteudo). Sem medição válida, fica a folha A4 inteira. */}
                 <div

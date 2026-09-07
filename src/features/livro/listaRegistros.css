@@ -541,3 +541,44 @@
   }
   .livro-timeline-acoes .btn-icone { width: 44px; height: 44px; }
 }
+
+/* ── VISUALIZADOR DO REGISTRO: ficha primeiro, folha A4 ao lado ─────────────
+   A sessão nasceu apontada para o papel. Quem usa o sistema lê registro na
+   tela o tempo todo e imprime a folha uma vez — então o padrão inverteu. */
+.livro-visual-barra {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 16px 0;
+}
+.livro-visual-modos { display: flex; gap: 2px; }
+.livro-visual-modos button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted, #7a8790);
+  cursor: pointer;
+}
+.livro-visual-modos button.ativa {
+  color: var(--text-main, #2d3339);
+  border-bottom-color: var(--amber, #ff7a1a);
+}
+.livro-visual-modos button:focus-visible { outline: 2px solid var(--amber, #ff7a1a); outline-offset: -2px; }
+.livro-visual-acoes { display: flex; gap: 8px; align-items: center; }
+.livro-visual-ficha { padding: 14px 16px 18px; }
+
+@media (max-width: 640px) {
+  .livro-visual-barra { padding: 8px 12px 0; }
+  .livro-visual-acoes { width: 100%; }
+  .livro-visual-acoes > * { flex: 1; justify-content: center; height: 44px; box-sizing: border-box; }
+  .livro-visual-ficha { padding: 12px; }
+}

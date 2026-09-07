@@ -1,84 +1,100 @@
 /**
- * A PRÉVIA do registro — o que está sendo escrito, na forma em que será lido.
+ * O REGISTRO ELETRÔNICO — a ficha que o sistema guarda.
  *
- * ## O que ela é, e o que ela não é
+ * ## A inversão de prioridade (07/09/2026)
  *
- * É o conteúdo do registro na ordem e com os rótulos da folha
- * `LIVRO-REGISTRO.html`: identificação, termo, descrição, executante e quem
- * assina. **Não é a folha A4**: a folha tem cabeçalho da empresa com logo,
- * moldura, numeração e o bloco de assinatura desenhado para impressão, e é
- * gerada a partir do que está GRAVADO. Chamar isto de "documento final" seria
- * prometer fidelidade tipográfica que este bloco não entrega — por isso o
- * rodapé diz, em uma linha, o que ele é.
+ * Esta sessão nasceu apontada para o papel: tudo era a folha A4 de
+ * `LIVRO-REGISTRO.html`, e a tela era um caminho até ela. Mas quem usa o
+ * sistema passa quase todo o tempo LENDO registro na tela — a folha existe para
+ * imprimir e colar no livro físico, uma vez.
  *
- * O que ela garante é o que faltava: o usuário lê o texto que digitou, com o
- * termo já redigido, antes de salvar — e não descobre a redação só depois de
- * trancar, quando não dá mais para mudar.
+ * Então a ficha eletrônica virou a visualização principal, e o A4 uma opção ao
+ * lado. Ela é uma FICHA, não um fac-símile: sem moldura de papel, sem margem de
+ * impressão, com a hierarquia que a leitura em tela pede — data em azul escuro,
+ * tipo em petróleo, descrição em cinza.
+ *
+ * ## Ela não substitui a folha
+ *
+ * O documento que a fiscalização lê continua sendo a folha, gerada do registro
+ * gravado. Por isso o rodapé diz de onde ela vem e o visualizador oferece
+ * "Folha A4" ao lado: esconder isso faria o usuário achar que o card é o
+ * documento legal.
  */
 import { dataParaBR, descricaoCombinada, tituloTermo, type DadosPrevia } from './termoRegistro';
 
-export default function PreviaRegistro({ dados }: { dados: DadosPrevia }) {
+export default function PreviaRegistro({
+  dados,
+  /** Selo do estado, quando há um: "Rascunho" ou "#000003 · Lacrado". */
+  selo,
+}: {
+  dados: DadosPrevia;
+  selo?: { texto: string; tom: 'rascunho' | 'lacrado' };
+}) {
   const descricao = descricaoCombinada(dados.oQueFoiFeito, dados.descricao);
   return (
-    <div className="prev-doc" aria-label="Prévia do registro">
-      <div className="prev-doc-topo">
-        <span className="prev-doc-eyebrow">Registro de Segurança · NR-13</span>
-        <strong>{dados.equipamento || dados.tag}</strong>
-        <span className="prev-doc-tag">{dados.tag}</span>
-      </div>
+    <article className="ficha-reg" aria-label="Registro de segurança">
+      <header className="ficha-reg-topo">
+        <div className="ficha-reg-id">
+          <span className="ficha-reg-eyebrow">Registro de Segurança · NR-13</span>
+          <strong className="ficha-reg-equip">{dados.equipamento || dados.tag}</strong>
+          <span className="ficha-reg-tag">{dados.tag}</span>
+        </div>
+        {selo && <span className={`ficha-reg-selo ${selo.tom}`}>{selo.texto}</span>}
+      </header>
 
-      <dl className="prev-doc-campos">
-        <div>
-          <dt>Data</dt>
-          {/* A prévia é o documento em português: `2026-09-07` é o formato do
-              `<input type="date">`, não o do livro. */}
-          <dd>{dataParaBR(dados.data) || '—'}</dd>
-        </div>
-        <div>
-          <dt>Tipo</dt>
-          <dd>{dados.tipo || '—'}</dd>
-        </div>
+      {/* Os dados que identificam o registro, em destaque: a data em azul
+          escuro e o tipo em petróleo. É por eles que um registro é procurado
+          numa lista de dez anos. */}
+      <div className="ficha-reg-destaques">
+        <span className="ficha-reg-dado">
+          <small>Data da ocorrência</small>
+          <b className="ficha-reg-data">{dataParaBR(dados.data) || '—'}</b>
+        </span>
+        <span className="ficha-reg-dado">
+          <small>Tipo</small>
+          <b className="ficha-reg-tipo">{dados.tipo || '—'}</b>
+        </span>
         {dados.relatorioCodigo && (
-          <div>
-            <dt>Relatório</dt>
-            <dd>{dados.relatorioCodigo}</dd>
-          </div>
+          <span className="ficha-reg-dado">
+            <small>Relatório</small>
+            <b className="ficha-reg-rel">{dados.relatorioCodigo}</b>
+          </span>
         )}
-      </dl>
-
-      <div className="prev-doc-bloco">
-        <span className="prev-doc-rot">{tituloTermo(dados.tipo)}</span>
-        {/* `pre-wrap`: o usuário pode ter quebrado linhas no termo, e a prévia
-            precisa respeitar isso — senão ele vê um parágrafo que não escreveu. */}
-        <p className="prev-doc-termo">{dados.termo || '—'}</p>
       </div>
 
-      <div className="prev-doc-bloco">
-        <span className="prev-doc-rot">Descrição do registro</span>
-        <p>{descricao || '—'}</p>
-      </div>
+      <section className="ficha-reg-bloco">
+        <h4>{tituloTermo(dados.tipo)}</h4>
+        {/* `pre-wrap`: o usuário pode ter quebrado linhas no termo, e a ficha
+            respeita — senão ele vê um parágrafo que não escreveu. */}
+        <p className="ficha-reg-termo">{dados.termo || '—'}</p>
+      </section>
+
+      <section className="ficha-reg-bloco">
+        <h4>Descrição do registro</h4>
+        <p className="ficha-reg-desc">{descricao || '—'}</p>
+      </section>
 
       {(dados.quemRealizou || dados.assinante) && (
-        <div className="prev-doc-pes">
+        <footer className="ficha-reg-pes">
           {dados.quemRealizou && (
             <span>
-              <b>Executado por</b>
+              <small>Executado por</small>
               {dados.quemRealizou}
             </span>
           )}
           {dados.assinante && (
             <span>
-              <b>Responsável técnico</b>
+              <small>Responsável técnico</small>
               {dados.assinante}
             </span>
           )}
-        </div>
+        </footer>
       )}
 
-      <p className="prev-doc-nota">
-        Prévia do conteúdo. A folha impressa do livro, com cabeçalho, moldura e assinatura, é gerada
-        a partir deste registro.
+      <p className="ficha-reg-nota">
+        Esta é a ficha do registro no sistema. A folha para imprimir e colar no livro físico é
+        gerada a partir dela.
       </p>
-    </div>
+    </article>
   );
 }

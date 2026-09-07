@@ -207,19 +207,28 @@ const PECAS = [
               <button class="ativa">Prévia</button><button>Como funciona</button>
             </div>
             <div class="reg-modal-lado-corpo">
-              <div class="prev-doc">
-                <div class="prev-doc-topo"><span class="prev-doc-eyebrow">Registro de Segurança · NR-13</span>
-                  <strong>Vaso de pressão de teste</strong><span class="prev-doc-tag">ZZ-FASE3</span></div>
-                <dl class="prev-doc-campos">
-                  <div><dt>Data</dt><dd>2026-08-19</dd></div>
-                  <div><dt>Tipo</dt><dd>Inspeção Periódica</dd></div>
-                </dl>
-                <div class="prev-doc-bloco"><span class="prev-doc-rot">Termo de Inspeção:</span>
-                  <p class="prev-doc-termo">Em 19/08/2026, executou-se inspeção de segurança periódica, conforme item 13.5.4 da NR-13, pela empresa habilitada MDK ENG, em obediência à Portaria Mtb nº 3.214, onde o equipamento a que se refere o relatório de inspeção n° REL-1787152599432 está apto a operar dentro da PMTA estipulada.</p></div>
-                <div class="prev-doc-bloco"><span class="prev-doc-rot">Descrição do registro</span>
-                  <p>Relatório de inspeção gerado</p></div>
-                <p class="prev-doc-nota">Prévia do conteúdo. A folha impressa do livro é gerada a partir deste registro.</p>
-              </div>
+              <article class="ficha-reg">
+                <header class="ficha-reg-topo">
+                  <div class="ficha-reg-id">
+                    <span class="ficha-reg-eyebrow">Registro de Segurança · NR-13</span>
+                    <strong class="ficha-reg-equip">Vaso de pressão de teste</strong>
+                    <span class="ficha-reg-tag">ZZ-FASE3</span>
+                  </div>
+                  <span class="ficha-reg-selo rascunho">Rascunho</span>
+                </header>
+                <div class="ficha-reg-destaques">
+                  <span class="ficha-reg-dado"><small>Data da ocorrência</small><b class="ficha-reg-data">19/08/2026</b></span>
+                  <span class="ficha-reg-dado"><small>Tipo</small><b class="ficha-reg-tipo">Inspeção Periódica</b></span>
+                  <span class="ficha-reg-dado"><small>Relatório</small><b class="ficha-reg-rel">REL-1787152599432</b></span>
+                </div>
+                <section class="ficha-reg-bloco"><h4>Termo de Inspeção:</h4>
+                  <p class="ficha-reg-termo">Em 19/08/2026, executou-se inspeção de segurança periódica, conforme item 13.5.4 da NR-13, pela empresa habilitada MDK ENG, em obediência à Portaria Mtb nº 3.214, onde o equipamento a que se refere o relatório de inspeção n° REL-1787152599432 está apto a operar dentro da PMTA estipulada.</p></section>
+                <section class="ficha-reg-bloco"><h4>Descrição do registro</h4>
+                  <p class="ficha-reg-desc">Relatório de inspeção gerado</p></section>
+                <footer class="ficha-reg-pes"><span><small>Executado por</small>Manutenção Industrial XYZ</span>
+                  <span><small>Responsável técnico</small>funciona01</span></footer>
+                <p class="ficha-reg-nota">Esta é a ficha do registro no sistema.</p>
+              </article>
             </div>
           </aside>
         </div>
@@ -277,7 +286,7 @@ const MEDIR = `(doc => {
     // apareceria antes: sem a coluna 2 declarada, o span cai na coluna do
     // número e mede 22px — uma palavra por linha, sem transbordar nada.
     // (Sem crase neste comentario: ele vive dentro de um template literal.)
-    passos: [...doc.querySelectorAll('.prev-doc-bloco p')]
+    passos: [...doc.querySelectorAll('.ficha-reg-bloco p')]
       .map(s => Math.round(s.getBoundingClientRect().width)),
   } : null;
   const barra = doc.querySelector('.livro-topo');

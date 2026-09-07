@@ -427,84 +427,6 @@
 .reg-modal-lado-corpo .reg-modal-figura { border-radius: 8px; }
 .reg-modal-nota { border-radius: 8px; }
 
-/* ── A PRÉVIA (o "documento") ────────────────────────────────────────────── */
-.prev-doc {
-  background: #fff;
-  border: 1px solid var(--line, #e4e1d8);
-  border-radius: 8px;
-  padding: 16px 16px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.prev-doc-topo { display: flex; flex-direction: column; gap: 2px; }
-.prev-doc-eyebrow {
-  font-size: 9.5px;
-  letter-spacing: 0.9px;
-  text-transform: uppercase;
-  font-weight: 700;
-  color: var(--amber-deep, #d9640c);
-}
-.prev-doc-topo strong { font-family: var(--font-display); font-size: 14px; }
-.prev-doc-tag { font-family: var(--font-mono); font-size: 11px; color: var(--muted, #7a8790); }
-
-.prev-doc-campos {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 18px;
-  margin: 0;
-  padding: 10px 0;
-  border-top: 1px solid var(--line, #e4e1d8);
-  border-bottom: 1px solid var(--line, #e4e1d8);
-}
-.prev-doc-campos dt {
-  font-size: 9.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--muted, #7a8790);
-  font-weight: 700;
-}
-.prev-doc-campos dd { margin: 1px 0 0; font-size: 12.5px; color: var(--text-main, #2d3339); }
-
-.prev-doc-bloco { display: flex; flex-direction: column; gap: 4px; }
-.prev-doc-rot {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  font-weight: 700;
-  color: var(--muted, #7a8790);
-}
-.prev-doc-bloco p {
-  margin: 0;
-  font-size: 12.5px;
-  line-height: 1.6;
-  color: var(--text-main, #2d3339);
-  /* O termo pode ter quebras de linha do usuário — a prévia respeita. */
-  white-space: pre-wrap;
-}
-.prev-doc-termo { text-align: justify; }
-
-.prev-doc-pes {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding-top: 10px;
-  border-top: 1px solid var(--line, #e4e1d8);
-}
-.prev-doc-pes span { display: flex; flex-direction: column; font-size: 12px; }
-.prev-doc-pes b {
-  font-size: 9.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--muted, #7a8790);
-}
-.prev-doc-nota {
-  margin: 0;
-  font-size: 10.5px;
-  line-height: 1.45;
-  color: var(--text-faint, #aeb4b9);
-}
-
 /* "restaurar sugestão": ação de texto, não botão — ela desfaz, não avança. */
 .reg-modal-restaurar {
   margin-left: auto;
@@ -531,3 +453,121 @@
   }
   .reg-modal-lado-corpo { padding: 12px 14px 16px; }
 }
+
+/* ============================================================================
+   5ª RODADA (07/09/2026) — a FICHA ELETRÔNICA e um modal mais reto.
+
+   A prévia deixou de imitar papel: é a ficha do registro no sistema, com a
+   hierarquia que a leitura em tela pede. A folha A4 continua existindo, ao
+   lado, para imprimir e colar no livro físico.
+   ============================================================================ */
+
+/* Menos moldura no modal inteiro: 6px de raio, e o que separa é o espaço. */
+.reg-modal { border-radius: 6px; }
+.reg-modal-form .fj-field input,
+.reg-modal-form .fj-field select,
+.reg-modal-form .fj-field textarea,
+.reg-modal-prefill select { border-radius: 4px; }
+.reg-modal-figura,
+.reg-modal-nota,
+.reg-ajuda-pop { border-radius: 5px; }
+
+.ficha-reg {
+  background: #fff;
+  border: 1px solid var(--line, #e4e1d8);
+  border-radius: 5px;
+  padding: 18px 18px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ficha-reg-topo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--blue2, #0c4f9b);
+}
+.ficha-reg-id { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.ficha-reg-eyebrow {
+  font-size: 9.5px;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--amber-deep, #d9640c);
+}
+.ficha-reg-equip {
+  font-family: var(--font-display);
+  font-size: 15px;
+  line-height: 1.25;
+  color: var(--text-main, #2d3339);
+}
+.ficha-reg-tag { font-family: var(--font-mono); font-size: 11px; color: var(--muted, #7a8790); }
+
+.ficha-reg-selo {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+.ficha-reg-selo.lacrado { background: var(--purple-bg, #f1edff); color: var(--purple, #7c5cfc); }
+.ficha-reg-selo.rascunho {
+  background: #fff;
+  color: var(--muted, #7a8790);
+  border: 1px dashed var(--border-dashed, #d8d5cc);
+}
+
+/* Os destaques: cada dado com o rótulo pequeno em cima e o valor colorido
+   embaixo. É o que se lê de relance. */
+.ficha-reg-destaques { display: flex; flex-wrap: wrap; gap: 8px 26px; }
+.ficha-reg-dado { display: flex; flex-direction: column; gap: 1px; }
+.ficha-reg-dado small {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 700;
+  color: var(--muted, #7a8790);
+}
+.ficha-reg-data {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  color: var(--blue2, #0c4f9b);
+}
+.ficha-reg-tipo { font-size: 14px; color: var(--petroleo, #0a5a6e); }
+.ficha-reg-rel { font-family: var(--font-mono); font-size: 12px; color: var(--muted, #7a8790); }
+
+.ficha-reg-bloco { display: flex; flex-direction: column; gap: 3px; }
+.ficha-reg-bloco h4 {
+  margin: 0;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  font-weight: 700;
+  color: var(--petroleo, #0a5a6e);
+}
+.ficha-reg-bloco p { margin: 0; font-size: 12.5px; line-height: 1.6; white-space: pre-wrap; }
+.ficha-reg-termo { color: var(--text-main, #2d3339); text-align: justify; }
+.ficha-reg-desc { color: var(--muted, #7a8790); }
+
+.ficha-reg-pes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line, #e4e1d8);
+}
+.ficha-reg-pes span { display: flex; flex-direction: column; font-size: 12px; }
+.ficha-reg-pes small {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 700;
+  color: var(--muted, #7a8790);
+}
+.ficha-reg-nota { margin: 0; font-size: 10.5px; line-height: 1.45; color: var(--text-faint, #aeb4b9); }

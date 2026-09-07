@@ -470,8 +470,9 @@ describe('linha do tempo', () => {
     // O último bloco de 640px é o da lista única (4ª rodada); a regra do botão
     // "Ver / Imprimir" continua no bloco anterior.
     expect(css).toContain('.livro-timeline-acoes .fj-btn {');
-    const movel = css.slice(css.lastIndexOf('@media (max-width: 640px)'));
-    expect(movel).toContain('.livro-timeline-acoes .btn-icone { width: 44px; height: 44px; }');
+    // Não é mais o ÚLTIMO bloco de 640px do arquivo (o visualizador entrou
+    // depois): procura a regra, não a posição dela.
+    expect(css).toContain('.livro-timeline-acoes .btn-icone { width: 44px; height: 44px; }');
   });
 });
 
@@ -549,7 +550,7 @@ describe('prévia viva do registro', () => {
   it('a prévia não se anuncia como o documento final', () => {
     // Ela não é a folha A4 (moldura, cabeçalho com logo, assinatura impressa).
     // Dizer que é seria prometer fidelidade que este bloco não entrega.
-    expect(previaTsx).toContain('A folha impressa do livro');
+    expect(previaTsx).toContain('A folha para imprimir e colar no livro físico');
   });
 
   it('o olho da lista abre o rascunho NA prévia', () => {
@@ -616,5 +617,64 @@ describe('detalhes vistos na prévia, em produção', () => {
     // ANTES do trancamento: sem a entrada nova e sem o termo digitado.
     expect(pagina).toContain('livro-${tagDoPalco}-v${versaoLivro}');
     expect(pagina).toContain('setVersaoLivro((v) => v + 1)');
+  });
+});
+
+/* ══ Quinta rodada (07/09/2026): ficha eletrônica primeiro, A4 ao lado ══ */
+
+describe('a ficha eletrônica é a visualização principal', () => {
+  it('o registro salvo abre na FICHA, com a folha A4 ao lado', () => {
+    expect(pagina).toContain("setModoVisual('ficha')");
+    expect(pagina).toContain('livro-visual-modos');
+    expect(pagina).toContain('Folha A4');
+    expect(pagina).toContain('<PreviaRegistro');
+  });
+
+  it('capa e termo de abertura abrem direto em A4 — não têm ficha', () => {
+    // São documentos de papel: não existe "registro eletrônico" deles.
+    const capa = pagina.slice(pagina.indexOf("'CAPA-LIVRO-REGISTRO.html', titulo") - 220, pagina.indexOf("'CAPA-LIVRO-REGISTRO.html', titulo"));
+    expect(capa).toContain("setModoVisual('a4')");
+  });
+
+  it('imprimir e baixar PDF só aparecem no modo A4', () => {
+    // Imprimir a ficha não é o que ninguém quer; o botão ali só confundiria.
+    expect(pagina).toContain("{modoVisual === 'a4' && (");
+  });
+
+  it('o iframe da folha continua montado, só escondido', () => {
+    // Ele mede a altura do conteúdo no `onLoad`; desmontar faria a medição
+    // recomeçar a cada troca de aba.
+    expect(pagina).toContain("display: modoVisual === 'a4' ? undefined : 'none'");
+  });
+
+  it('a ficha de um registro antigo não fica sem termo', () => {
+    // `termoTexto` ausente = entrada anterior ao campo (ou automática): a ficha
+    // mostra a MESMA frase que a folha montaria, pela mesma regra.
+    expect(pagina).toContain('function dadosDaEntrada');
+    expect(pagina).toContain('termo ||');
+  });
+});
+
+describe('a ficha tem hierarquia de leitura, não cara de papel', () => {
+  it('data em azul escuro, tipo em petróleo, descrição em cinza', () => {
+    expect(cssModal).toContain('.ficha-reg-data {');
+    expect(cssModal).toContain('color: var(--blue2, #0c4f9b);');
+    expect(cssModal).toContain('.ficha-reg-tipo { font-size: 14px; color: var(--petroleo, #0a5a6e); }');
+    expect(cssModal).toContain('.ficha-reg-desc { color: var(--muted, #7a8790); }');
+  });
+
+  it('o selo diz o estado do registro na própria ficha', () => {
+    expect(previaTsx).toContain("selo?: { texto: string; tom: 'rascunho' | 'lacrado' }");
+    expect(cssModal).toContain('.ficha-reg-selo.lacrado');
+    expect(cssModal).toContain('.ficha-reg-selo.rascunho');
+  });
+
+  it('a ficha não se apresenta como o documento legal', () => {
+    expect(previaTsx).toContain('Esta é a ficha do registro no sistema');
+  });
+
+  it('o modal ficou mais reto ainda: 6px', () => {
+    expect(cssModal).toContain('.reg-modal { border-radius: 6px; }');
+    expect(cssModal).toContain('.reg-modal-prefill select { border-radius: 4px; }');
   });
 });
