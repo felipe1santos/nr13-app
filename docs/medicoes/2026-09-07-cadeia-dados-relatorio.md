@@ -240,3 +240,106 @@ TH, 3 fotos:
 
 O número de imagens ser **menor que o de páginas** é a prova mecânica de que
 nenhuma folha virou fotografia: no motor raster ele seria ≥ o total de páginas.
+
+---
+
+## 7. E2E em produção — o documento emitido
+
+Rodado em 07/09/2026 contra `app.nr13sistema.com.br`, bundle `index-Cvn4SIgw.js`
+(o deploy desta correção), organização de teste, equipamento **ZZ-REL-E2E**
+criado para isto. Nenhum equipamento real foi tocado.
+
+### O caminho, na ordem em que o usuário o percorre
+
+| passo | resultado |
+|---|---|
+| criar equipamento, preencher a ficha (10 campos sentinela) | salvo; **F5 → tudo permanece** |
+| pressões da documentação: PMTA 0,8 · PMO 0,6 · PTH 1,04 MPa | salvas |
+| categoria: 1,25 m³ × 0,8 MPa, fluido inflamável | Classe A · Grupo 4 · **Categoria III** · P×V 1000 kPa·m³ · ENQUADRA |
+| memorial ASME VIII (3 componentes, materiais sentinela) | **PMTA calculada 1,17 MPa**, PTH 1,52, APROVADO; F5 → permanece |
+| foto de identificação | enviada ao cofre |
+| container de inspeção com os 5 ensaios | checklist (15 itens + comentários), exame externo, exame interno, ultrassom (6 pontos × 4 ângulos), TH (curva de 3 pontos) |
+| F5 na inspeção | **5/5 "Preenchido"** |
+| criar relatório → equipamento → inspeção A → 17 documentos | rascunho, prévia vetorial de 18 páginas |
+
+### O que o documento mostra (lido campo a campo na prévia, em produção)
+
+| campo | valor no documento | era antes |
+|---|---|---|
+| Foto de capa | **a foto enviada** | **em branco** |
+| MATERIAL DO CORPO | `MATERIAL-CASCO-E2E` | **em branco** |
+| MATERIAL DO TAMPO 1 / 2 | `MATERIAL-TAMPO1-E2E` / `MATERIAL-TAMPO2-E2E` | **em branco** |
+| MARGEM DE CORROSÃO | `1.6` | **em branco** |
+| TEMPERATURA DE PROJETO | `120` | **em branco** |
+| Placa — PMTA / PTH | **8.16 / 10.61 kgf/cm²** (a ADOTADA, 0,8/1,04 MPa — não a calculada 1,17) | **em branco** |
+| Instrumento padrão (ultrassom) | `ZZ-TESTE-F6 Bloco padrão` · série `F6-0001` · cert. `ZZ-F6-001` · val. `07/12/2026` | **quatro travessões** |
+| Comentários sobre a documentação | `COMENTARIO-DOC-E2E` | **caixa vazia** |
+| Observações gerais (externo / interno) | `OBSERVACOES-VE-E2E` / `OBSERVACOES-VI-E2E` | **caixa vazia** |
+| Fabricante, nº de série, cód. projeto, local, cliente, categoria | todos os sentinelas | já chegavam |
+
+"O que falta" listou 4 pendências **reais** (validade, laudo, próximas datas) e
+foi a **zero** depois de preenchidas. Nenhum campo corrigido apareceu ali —
+que é a distinção que o gate protege: perda de dado não é pendência do usuário.
+
+### Placa e overrides
+
+- placa nasce **RECONSTRUÍDA** — 10 campos de texto vetorial, clicáveis;
+- "Escolher imagem" no bloco da placa → a foto substitui e os 10 campos somem
+  (585 → 575 áreas editáveis);
+- "Remover imagem" → **a reconstruída volta** (575 → 585);
+- override de FABRICANTE → `FABRICANTE-OVERRIDE-E2E`, "1 campo alterado";
+  **sobreviveu ao F5** e à reabertura do rascunho pela lista;
+- a FICHA continuou com `FABRICANTE-E2E-2026` — o override não vazou para o cadastro.
+
+### A emissão
+
+```
+pdfRef   inspecao/99f642d3-…/relatorios/29374b57-5600-45b2-b003-0b3b5e7ee317.pdf
+sha256   8f3d52905baba945c247b737d34f37877c23882487fd338365841253f1f549a9
+páginas  19 (18 do corpo + 1 do certificado do padrão anexado)
+bytes    97.542  (~5 KB/página)
+pdfPendente  false
+```
+
+O arquivo **baixado do bucket** tem 97.542 bytes e SHA-256
+`8f3d5290…f549a9` — **idêntico** ao gravado no registro.
+
+Texto extraído do PDF final com pdf.js: **24.747 caracteres em 19 páginas**, e
+todos os sentinelas presentes — inclusive os quatro blocos de texto livre, o
+instrumento padrão, os três materiais e as pressões adotadas. Texto real,
+selecionável; nenhuma página rasterizada.
+
+O **sumário traz as páginas reais** (2, 3, 4, 5, 7, 9, 10…18), calculadas na 1ª
+passagem — não números fixos. E não anuncia seção fotográfica, porque esta
+inspeção não teve foto de exame.
+
+Reaberto pela lista **em aba nova**, sem passar por ficha, memorial ou inspeção:
+selo "Documento arquivado", 19 páginas, **zero** áreas editáveis e nenhum botão
+de edição. Serve o arquivo; não remonta nada (§7-quater).
+
+### O que NÃO foi executado, e por quê
+
+- **Cache frio total** (limpar o IndexedDB e reidratar do servidor): a conta
+  tinha **3 escritas pendentes de sincronização** que não são deste teste, e
+  apagar o cache local as descartaria. O gate de unidade cobre a mesma
+  propriedade — `cadeiaDados.test.ts` monta o modelo a partir de um storage
+  recém-criado, sem nenhuma tela ter sido aberta antes. A reabertura em aba
+  nova, acima, cobre a parte que dava para cobrir sem risco.
+- **Fotos de exame**: a inspeção foi salva sem fotos de VE/VI/TH, então o
+  documento saiu sem folha de registro fotográfico — que é o comportamento
+  correto (§5: zero fotos, zero folhas). A regra das 4 por folha está coberta
+  por teste (`pdfVetorial.test.ts`).
+- **Instrumento padrão do TH**: saiu com travessão porque esta organização
+  **não tem certificado do tipo `manometro`** cadastrado. Ausência real da
+  fonte, não perda de dado — cadastrar um faz o bloco preencher, pelo mesmo
+  caminho que o do ultrassom preencheu.
+
+### Defeito encontrado no caminho (fora do escopo desta correção)
+
+`MemorialVaso.salvar()` chama `alert()` quando a validação falha
+(`MemorialVaso.tsx:236` e `:239`). Um `alert()` **congela a aba inteira** — CDP,
+automação e a própria interface param até alguém clicar OK. Custou três
+tentativas de salvar o memorial neste E2E, e para um usuário de campo com o
+celular na mão o sintoma é "o sistema travou". Trocar por `emitirAviso` (que o
+mesmo arquivo já usa no sucesso) resolve. **Não alterado nesta rodada** — está
+fora do que foi pedido.
