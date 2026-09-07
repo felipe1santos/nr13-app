@@ -230,7 +230,7 @@ export default function Certificados() {
           Eram três parágrafos fixos no topo, em toda visita, explicando algo
           que se lê uma vez — e que empurravam os três cartões (o trabalho)
           para baixo da dobra em telas curtas. O texto foi reaproveitado quase
-          inteiro em `ModalAjudaCalibracoes`: ele estava certo, estava no lugar
+          inteiro em `AjudaCertificados`: ele estava certo, estava no lugar
           errado. */}
       <div className="cert-intro cert-intro-compacta">
         <h2>Certificados de calibração dos padrões</h2>
