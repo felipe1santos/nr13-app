@@ -31,7 +31,9 @@ describe('a seção se chama "Registros de Segurança"', () => {
   });
 
   it('o cabeçalho da primeira tela e a ação da linha trocaram', () => {
-    expect(pagina).toContain('<h2>Registros de Segurança</h2>');
+    // O `<h2>` agora abriga o "i" da sessão, então o rótulo e a tag ficam em
+    // linhas diferentes.
+    expect(pagina).toMatch(/<h2>\s*Registros de Segurança/);
     expect(semComentarios(pagina)).not.toContain('Livros de Registro de Segurança');
     expect(catalogo).toContain('Abrir registros');
     expect(semComentarios(catalogo)).not.toContain('Abrir livro');
@@ -83,11 +85,11 @@ describe('a lista deixou de ser tabela', () => {
     expect(catalogo).toContain('último registro');
   });
 
-  it('o cabeçalho da lista é o `painel-lista` das outras telas', () => {
-    // Mesmo filete âmbar e mesma contagem de /relatorios e /prontuarios —
-    // idioma existente, não vocabulário novo.
+  it('a lista fica num `painel-lista`, como nas outras telas', () => {
+    // O CABEÇALHO do painel saiu na 3ª rodada (repetia o título da tela e a
+    // contagem que a busca já mostra). O painel fica pelo piso de altura, que é
+    // o que impede a caixa branca de virar uma tira com dois equipamentos.
     expect(catalogo).toContain('className="bloco-dados painel-lista reg-painel"');
-    expect(catalogo).toContain('painel-lista-contagem');
   });
 
   it('o realce do card é o MESMO do card da tela de dentro', () => {
@@ -128,7 +130,9 @@ describe('o texto de abertura descreve o comportamento de HOJE', () => {
     const limpo = semComentarios(pagina);
     expect(limpo).not.toContain('preenchido automaticamente');
     expect(limpo).not.toContain('Adicionar ocorrência');
-    expect(pagina).toContain('cada registro lacrado no momento em que é trancado');
+    // O texto agora vive no popover do título; o que ele diz continua sendo o
+    // ciclo real: rascunho → trancado → cadeia de integridade.
+    expect(pagina).toContain('numeração do livro e passa a integrar a cadeia de integridade');
   });
 
   it('o vazio separa "a busca não achou" de "ainda não existe"', () => {
@@ -151,12 +155,15 @@ describe('o card não repete a mesma informação duas vezes', () => {
 
 const modal = readFileSync('src/features/livro/ModalNovoRegistro.tsx', 'utf8');
 const cssModal = readFileSync('src/features/livro/modalNovoRegistro.css', 'utf8');
+const popoverAjuda = readFileSync('src/features/livro/PopoverAjuda.tsx', 'utf8');
 
 describe('a tela do equipamento tem UMA barra de ferramentas', () => {
   it('as ações saíram da fileira solta e entraram na faixa', () => {
     // Antes: `<div style={{ display: 'flex', ..., justifyContent: 'flex-end' }}>`
     // no meio da tela, sem moldura, entre os cards e a linha do tempo.
-    expect(pagina).toContain('className="livro-toolbar"');
+    // 3ª rodada: a faixa separada virou o cabeçalho ÚNICO — identificação,
+    // ações e foto no mesmo bloco.
+    expect(pagina).toContain('className="fj-panel-head livro-topo"');
     expect(pagina).toContain('className="livro-toolbar-acoes"');
     expect(semComentarios(pagina)).not.toContain("justifyContent: 'flex-end', flexWrap: 'wrap', marginTop: 14");
   });
@@ -164,10 +171,12 @@ describe('a tela do equipamento tem UMA barra de ferramentas', () => {
   it('a trilha é a MESMA dos outros módulos', () => {
     // `meta-breadcrumb` + chevron + chip da TAG: /relatorios, /prontuarios,
     // /inspecoes e /calibracoes já leem assim.
-    const barra = pagina.slice(pagina.indexOf('className="livro-toolbar"'));
-    expect(barra).toContain('className="meta-breadcrumb"');
+    const barra = pagina.slice(pagina.indexOf('className="fj-panel-head livro-topo"'));
+    expect(barra).toContain('meta-breadcrumb livro-topo-trilha');
     expect(barra).toContain('className="breadcrumb-chevron"');
-    expect(barra).toContain('className="crumb-tag-chip"');
+    // O chip da TAG saiu da trilha na 3ª rodada: a TAG é o `<h2>` logo abaixo,
+    // e repeti-la 6px acima gastava a linha que o eyebrow da norma ocupa.
+    expect(barra).toContain('NR-13 · 13.4.1.9 · Livro de Registro de Segurança');
   });
 
   it('"Novo registro" é a única primária da barra', () => {
@@ -254,16 +263,17 @@ describe('o modal "Novo registro"', () => {
 
 describe('o campo "Pré-preencher a partir de um relatório finalizado"', () => {
   it('tem o "i" com popover acessível', () => {
-    expect(modal).toContain('aria-label="O que é pré-preencher"');
-    expect(modal).toContain('aria-expanded={aberto}');
-    expect(modal).toContain('aria-controls={idPop}');
-    expect(modal).toContain('role="note"');
+    // O botão virou `PopoverAjuda` na 3ª rodada; o modal declara o rótulo.
+    expect(modal).toContain('rotulo="O que é pré-preencher"');
+    expect(popoverAjuda).toContain('aria-expanded={aberto}');
+    expect(popoverAjuda).toContain('aria-controls={idPop}');
+    expect(popoverAjuda).toContain('role="note"');
   });
 
   it('o ESC fecha o POPOVER sem derrubar o modal', () => {
     // Sem o `stopPropagation`, um ESC para fechar a explicação fecharia o modal
     // inteiro e levaria junto o que já tinha sido digitado.
-    expect(modal).toContain('e.stopPropagation();');
+    expect(popoverAjuda).toContain('e.stopPropagation();');
   });
 
   it('o texto descreve o que `preencherDeRelatorio` faz DE VERDADE', () => {
@@ -331,5 +341,131 @@ describe('o pré-preenchimento entrega o que o texto promete', () => {
     expect(modal).toContain('const tipos = TIPOS_OCORRENCIA.includes(form.tipoOcorrencia)');
     expect(modal).toContain('[form.tipoOcorrencia, ...TIPOS_OCORRENCIA]');
     expect(modal).toContain('{tipos.map((t) => (');
+  });
+});
+
+/* ══ Terceira rodada (07/09/2026): refino final das duas telas ══ */
+
+const popover = readFileSync('src/features/livro/PopoverAjuda.tsx', 'utf8');
+const busca = readFileSync('src/features/livro/buscaLivro.ts', 'utf8');
+
+describe('tela principal, refinada', () => {
+  it('o cabeçalho "Equipamentos com registros" saiu', () => {
+    const limpo = semComentarios(catalogo);
+    expect(limpo).not.toContain('Equipamentos com registros');
+    expect(limpo).not.toContain('painel-lista-head');
+    // O painel fica: é o piso de altura que impede a caixa virar uma tira.
+    expect(catalogo).toContain('bloco-dados painel-lista reg-painel');
+  });
+
+  it('o parágrafo do topo virou o "i" ao lado do título', () => {
+    const limpo = semComentarios(pagina);
+    expect(limpo).not.toContain('em ordem\n              cronológica, com cada registro lacrado');
+    expect(pagina).toContain('rotulo="Como funcionam os Registros de Segurança"');
+    expect(pagina).toContain('<PopoverAjuda');
+  });
+
+  it('o "i" é um só componente, usado nos três lugares', () => {
+    // Modal (pré-preencher), título da sessão e selo da cadeia. Três cópias
+    // seriam três comportamentos de ESC diferentes daqui a um mês.
+    expect(popover).toContain('export default function PopoverAjuda');
+    expect(popover).toContain('e.stopPropagation();');
+    expect(modal).toContain("from './PopoverAjuda'");
+    expect(pagina).toContain("from '../features/livro/PopoverAjuda'");
+  });
+
+  it('a foto do equipamento entra no card, em miniatura', () => {
+    expect(catalogo).toContain('className="reg-card-foto"');
+    expect(catalogo).toContain('variante="thumb"');
+    // Sem foto, o chip do tipo continua identificando o equipamento.
+    expect(catalogo).toContain('className="reg-card-ic"');
+    expect(css).toContain('object-fit: cover;');
+  });
+
+  it('a foto vem da projeção que JÁ tem a coluna — sem migração', () => {
+    // `buscar_livros` não devolve `foto_ref`, e trocar a assinatura da RPC em
+    // produção por causa de uma miniatura custaria o rollout do §13 do
+    // CLAUDE.md. `equipamentos_index` já tem a coluna, o grant e a mesma RLS.
+    expect(busca).toContain("from('equipamentos_index')");
+    expect(busca).toContain("select('tag,foto_ref')");
+    expect(busca).toContain('.in(');
+    // Enfeite não derruba a lista: a função engole o erro.
+    expect(busca).toContain('return {};');
+  });
+
+  it('o hover da linha é sutil — fundo, não salto', () => {
+    expect(css).toContain('.reg-card:hover { background: var(--bg-faint, #fbfaf7); }');
+  });
+});
+
+describe('tela interna, refinada', () => {
+  it('identificação, ações e foto no MESMO bloco', () => {
+    expect(pagina).toContain('className="fj-panel-head livro-topo"');
+    expect(pagina).toContain('className="livro-topo-id"');
+    expect(pagina).toContain('className="livro-topo-foto"');
+    // A faixa separada de ferramentas saiu: eram três faixas empilhadas.
+    expect(semComentarios(pagina)).not.toContain('<div className="livro-toolbar">');
+  });
+
+  it('a foto é a REAL do equipamento, do cache já semeado', () => {
+    expect(pagina).toContain('identificacaoDe(fotos)');
+    expect(pagina).toContain('nr13_fotos_${tagAberta}');
+    expect(pagina).toContain('variante="thumb"');
+    // Legado: as fotos anteriores ao bucket moram em `src`.
+    expect(pagina).toContain('base64: capa.src');
+  });
+
+  it('os ícones de Capa e Termo dizem o que cada folha é', () => {
+    // A partir da classe do chip, e não até o rótulo: o comentário acima do JSX
+    // cita os dois nomes, e a fatia "até o rótulo" sairia vazia.
+    const capa = pagina.slice(pagina.indexOf('livro-doc-ic capa'), pagina.indexOf('livro-doc-ic capa') + 90);
+    const termo = pagina.slice(pagina.indexOf('livro-doc-ic termo'), pagina.indexOf('livro-doc-ic termo') + 90);
+    expect(capa).toContain('nome="book"');
+    expect(termo).toContain('nome="checkcircle"');
+  });
+
+  it('os cards de Capa e Termo ficaram mais baixos', () => {
+    expect(css).toContain('.livro-doc-card { padding: 10px 13px; gap: 10px; }');
+    expect(css).toContain('.livro-doc-ic { width: 32px; height: 32px;');
+  });
+
+  it('o selo da cadeia cabe numa linha, com o porquê no "i"', () => {
+    expect(pagina).toContain('className={`livro-cadeia no-print');
+    expect(pagina).toContain('<strong>Cadeia íntegra</strong>');
+    expect(pagina).toContain('rotulo="O que é a cadeia de registros"');
+    // O ALERTA continua inteiro: esconder o motivo da quebra atrás de um clique
+    // seria esconder justamente o que importa.
+    expect(pagina).toContain('A cadeia de registros não confere.');
+  });
+});
+
+describe('linha do tempo', () => {
+  it('acende no hover — fundo, marco e ação', () => {
+    expect(css).toContain('.livro-timeline-item:hover {');
+    expect(css).toContain('.livro-timeline-item:hover .livro-timeline-marco {');
+    expect(css).toContain('.livro-timeline-item:hover .fj-btn-ghost {');
+    // Transição curta: 160ms, dentro da faixa pedida (150–200ms).
+    expect(css).toContain('transition: background 0.16s ease, border-color 0.16s ease;');
+  });
+
+  it('o número do registro identifica a entrada, no cabeçalho dela', () => {
+    expect(pagina).toContain('<span className="livro-timeline-num">#{numeroRegistro}</span>');
+    expect(semComentarios(pagina)).not.toContain('selo-flat info2">Registro nº');
+  });
+
+  it('LACRADO é status; ÍNTEGRO é verde discreto; SHA é metadado', () => {
+    // Os dois NÃO são a mesma coisa: um é a presença do selo, o outro é o
+    // veredicto de recalculá-lo. Trocar um pelo outro afirmaria verificação
+    // onde há só hash gravado.
+    expect(pagina).toContain('className="livro-timeline-lacre"');
+    expect(pagina).toContain('className="livro-timeline-integro"');
+    expect(pagina).toContain('selo-flat crypto');
+    expect(css).toContain('.livro-timeline-integro {');
+  });
+
+  it('no celular a ação da linha tem 44px', () => {
+    const movel = css.slice(css.lastIndexOf('@media (max-width: 640px)'));
+    expect(movel).toContain('.livro-timeline-acoes .fj-btn {');
+    expect(movel).toContain('height: 44px;');
   });
 });

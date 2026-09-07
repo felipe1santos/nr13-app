@@ -46,7 +46,9 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import BuscaLista from '../../components/BuscaLista';
+import FotoImg from '../../components/FotoImg';
 import { Icone } from '../../components/Icone';
+import type { RefFoto } from '../../services/fotos';
 import * as buscaLivro from './buscaLivro';
 import type { ItemLivro } from './buscaLivro';
 import { metricaRegistros, rotuloRegistros } from './catalogoLivro';
@@ -84,6 +86,8 @@ export default function CatalogoLivroV9({
   const [carregandoMais, setCarregandoMais] = useState(false);
   const [contagem, setContagem] = useState<buscaLivro.ContagemLivros | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  /** Foto de identificação por TAG. Enfeite: chega depois e nunca bloqueia. */
+  const [fotos, setFotos] = useState<Record<string, RefFoto>>({});
 
   const filtro = useMemo(() => termo, [termo]);
 
@@ -113,6 +117,15 @@ export default function CatalogoLivroV9({
           if (minha === geracao.current) setContagem(c);
         })
         .catch(() => undefined); // contador é enfeite: nunca derruba a lista
+
+      // As miniaturas vêm DEPOIS e à parte, pelo mesmo motivo do contador: a
+      // lista aparece na primeira resposta, e a foto entra quando chegar.
+      void buscaLivro
+        .fotosDasTags(pagina.itens.map((i) => i.tag), ctrl.signal)
+        .then((f) => {
+          if (minha === geracao.current) setFotos(f);
+        })
+        .catch(() => undefined);
     } catch (e) {
       if (minha !== geracao.current) return;
       if (ctrl.signal.aborted) return;
@@ -153,6 +166,12 @@ export default function CatalogoLivroV9({
       });
       setCursor(pagina.proximoCursor);
       setTemMais(pagina.temMais);
+      // As fotos da página nova ENTRAM no mapa; as antigas ficam, senão os
+      // cards já desenhados perderiam a miniatura ao carregar mais.
+      void buscaLivro
+        .fotosDasTags(pagina.itens.map((i) => i.tag))
+        .then((f) => setFotos((atual) => ({ ...atual, ...f })))
+        .catch(() => undefined);
     } catch {
       setTemMais(false); // sem estourar erro no meio da rolagem
     } finally {
@@ -187,20 +206,11 @@ export default function CatalogoLivroV9({
       {!carregando && itens.length === 0 && !erro ? (
         <VazioRegistros termo={termo} />
       ) : (
-        /* `painel-lista`: o mesmo cabeçalho com filete âmbar e contagem de
-           /relatorios e /prontuarios. Com um ou dois equipamentos, o piso de
-           altura é o que impede a caixa branca de virar uma tira. */
+        /* O cabeçalho "Equipamentos com registros" saiu (07/09/2026): repetia o
+           título da tela e a contagem que a busca já mostra na linha de cima. O
+           `painel-lista` fica pelo piso de altura, que é o que impede a caixa
+           branca de virar uma tira com dois equipamentos. */
         <div className="bloco-dados painel-lista reg-painel">
-          <div className="painel-lista-head" role="presentation">
-            <span className="painel-lista-titulo">
-              <strong>Equipamentos com registros</strong>
-              <span>Cada linha é o histórico de segurança de um equipamento</span>
-            </span>
-            <span className="painel-lista-contagem">
-              {itens.length} {itens.length === 1 ? 'equipamento' : 'equipamentos'}
-            </span>
-          </div>
-
           <ul className="reg-lista">
             {itens.map((l) => {
               /* Só o nome PRÓPRIO do equipamento vai na segunda linha. O rótulo
@@ -224,9 +234,25 @@ export default function CatalogoLivroV9({
                       nome || rotuloTipo ? ` — ${nome || rotuloTipo}` : ''
                     }`}
                   >
-                    <span className="reg-card-ic" aria-hidden>
-                      <Icone nome={(l.tipo && ICONE_TIPO[l.tipo]) || 'book'} tam={18} />
-                    </span>
+                    {/* A FOTO do equipamento, quando existe. `variante="thumb"`
+                        é a miniatura de 400px (~16 KB) que a lista de
+                        equipamentos já usa — a foto cheia custaria ~1 MB por
+                        card. Sem foto, fica o chip do tipo, que continua
+                        identificando o equipamento. */}
+                    {fotos[l.tag] ? (
+                      <span className="reg-card-foto">
+                        <FotoImg
+                          foto={{ ref: fotos[l.tag] }}
+                          alt={`Foto do equipamento ${l.tag}`}
+                          variante="thumb"
+                          placeholder=""
+                        />
+                      </span>
+                    ) : (
+                      <span className="reg-card-ic" aria-hidden>
+                        <Icone nome={(l.tipo && ICONE_TIPO[l.tipo]) || 'book'} tam={18} />
+                      </span>
+                    )}
 
                     <span className="reg-card-id">
                       <strong className="reg-card-tag">{l.tag}</strong>

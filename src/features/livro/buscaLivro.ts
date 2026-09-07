@@ -10,6 +10,7 @@
  * ele é lido da verdade, por TAG, em `catalogoLivro.abrirEquipamentoParaLivro`.
  */
 import { supabase } from '../../services/supabase';
+import { ehRef, type RefFoto } from '../../services/fotos';
 
 /** Página pedida ao servidor. O `+1` detecta "tem mais" sem uma segunda ida. */
 const TAMANHO_PAGINA = 50;
@@ -122,4 +123,44 @@ export async function contar(termo = '', sinal?: AbortSignal): Promise<ContagemL
     total: Number(linha?.total ?? 0),
     exato: linha?.exato !== false,
   };
+}
+
+/**
+ * As fotos de identificação das TAGs que estão na tela.
+ *
+ * ## Por que uma consulta à TABELA, e não uma coluna nova na RPC
+ *
+ * `buscar_livros` devolve só o que a lista desenhava até 07/09/2026. Acrescentar
+ * `foto_ref` a ela significa `drop function` + `create function` em produção —
+ * o procedimento do §13 do CLAUDE.md, com hash conferido byte a byte — por causa
+ * de uma miniatura. `equipamentos_index` já tem a coluna, já tem `grant select`
+ * para `authenticated`, e a RLS dela é a mesma guarda da RPC (org do usuário e
+ * papel diferente de `cliente`). Uma requisição a mais por página, nenhuma
+ * migração.
+ *
+ * **Não lança.** Miniatura é enfeite: falhar aqui não pode derrubar a lista de
+ * registros de segurança. Sem resposta, os cards ficam com o chip do tipo.
+ */
+export async function fotosDasTags(
+  tags: string[],
+  sinal?: AbortSignal,
+): Promise<Record<string, RefFoto>> {
+  if (tags.length === 0) return {};
+  try {
+    const { data, error } = await supabase
+      .from('equipamentos_index')
+      .select('tag,foto_ref')
+      .in('tag', tags)
+      .abortSignal(sinal as AbortSignal);
+    if (error || !data) return {};
+    const mapa: Record<string, RefFoto> = {};
+    for (const linha of data as { tag: string; foto_ref: unknown }[]) {
+      // `ehRef` e não `if (foto_ref)`: a coluna é `jsonb` e pode guardar
+      // qualquer coisa que a projeção tenha escrito um dia.
+      if (ehRef(linha.foto_ref)) mapa[linha.tag] = linha.foto_ref;
+    }
+    return mapa;
+  } catch {
+    return {};
+  }
 }

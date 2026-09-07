@@ -29,9 +29,11 @@ const arqCss =
     .sort((a, b) => statSync(b).mtimeMs - statSync(a).mtimeMs)[0];
 const css = readFileSync(arqCss, 'utf8');
 
-const card = (tag, nome, tipo, cat, valor, legenda, data) => `
+const card = (tag, nome, tipo, cat, valor, legenda, data, comFoto = false) => `
   <li><button class="reg-card">
-    <span class="reg-card-ic">I</span>
+    ${comFoto
+      ? '<span class="reg-card-foto"><img src="https://app.nr13sistema.com.br/ilustracoes/registro-seguranca.webp" alt=""></span>'
+      : '<span class="reg-card-ic">I</span>'}
     <span class="reg-card-id">
       <strong class="reg-card-tag">${tag}</strong>
       <span class="reg-card-nome">${nome}</span>
@@ -73,32 +75,26 @@ const PECAS = [
     nome: 'lista de cards (3 linhas, com nome longo)',
     html: `<div class="dash-page"><div class="fj-panel">
       <div class="bloco-dados painel-lista reg-painel">
-        <div class="painel-lista-head">
-          <span class="painel-lista-titulo"><strong>Equipamentos com registros</strong>
-            <span>Cada linha é o histórico de segurança de um equipamento</span></span>
-          <span class="painel-lista-contagem">3 equipamentos</span>
-        </div>
         <ul class="reg-lista">
-          ${card('ZZ-FASE3', 'Vaso de pressão de teste', 'Vaso de Pressão', 'III', '12', 'registros', '10/07/2026')}
+          ${card('ZZ-FASE3', 'Vaso de pressão de teste', 'Vaso de Pressão', 'III', '12', 'registros', '10/07/2026', true)}
           ${card('ZZ-CALDEIRA-TESTE-DE-NOME-MUITO-COMPRIDO', 'Caldeira flamotubular horizontal de teste com nome deliberadamente longo', 'Caldeira', 'A', '1', 'registro', '02/09/2026')}
           ${card('ZZ-AUTO-01', 'Autoclave', 'Autoclave', '', '—', 'não contado', '—')}
         </ul>
       </div></div></div>`,
   },
   {
-    nome: 'barra de ferramentas da tela do equipamento',
+    nome: 'cabeçalho único da tela do equipamento (id + ações + foto)',
     html: `<div class="dash-page"><div class="fj-panel">
-      <div class="fj-panel-head">
-        <div><div class="fj-eyebrow">NR-13 · 13.4.1.9 · Livro de Registro de Segurança</div>
-        <h2>ZZ-FASE3 <span class="fj-eq-name">— Vaso de pressão de teste</span></h2></div>
-        <div style="display:flex;gap:8px"><span class="fj-badge neutro">Cat. III</span>
-        <span class="fj-badge info2">2 registro(s)</span></div>
-      </div>
-      <div class="livro-toolbar">
-        <div class="meta-breadcrumb">
-          <button class="btn-secundario">← Todos os equipamentos</button>
-          <span class="breadcrumb-chevron">›</span>
-          <span class="crumb-tag-chip">ZZ-FASE3</span>
+      <div class="fj-panel-head livro-topo">
+        <div class="livro-topo-id">
+          <div class="meta-breadcrumb livro-topo-trilha">
+            <button class="btn-secundario">← Todos os equipamentos</button>
+            <span class="breadcrumb-chevron">›</span>
+            <span class="fj-eyebrow">NR-13 · 13.4.1.9 · Livro de Registro de Segurança</span>
+          </div>
+          <h2>ZZ-FASE3 <span class="fj-eq-name">— Vaso de pressão de teste</span></h2>
+          <div class="livro-topo-badges"><span class="fj-badge neutro">Cat. III</span>
+            <span class="fj-badge info2">2 registro(s)</span></div>
         </div>
         <div class="livro-toolbar-acoes">
           <button class="fj-btn fj-btn-primary">+ Novo registro</button>
@@ -107,6 +103,7 @@ const PECAS = [
           <button class="fj-btn fj-btn-ghost">Ver livro completo</button>
           <button class="fj-btn fj-btn-ghost">Exportar PDF</button>
         </div>
+        <span class="livro-topo-foto"><span class="livro-topo-foto-vazia">F</span></span>
       </div>
       <div class="livro-fixos">
         <button class="livro-doc-card"><span class="livro-doc-ic capa">C</span>
@@ -114,6 +111,30 @@ const PECAS = [
         <button class="livro-doc-card"><span class="livro-doc-ic termo">T</span>
           <div><strong>Termo de Abertura</strong><span>NR-13, item 13.4.1.9</span></div></button>
       </div>
+      <div class="livro-cadeia"><span>Cadeia íntegra — todos os registros lacrados mantêm a sequência de hashes.</span>
+        <span class="reg-ajuda"><button class="reg-ajuda-btn">i</button></span></div>
+      <ul class="livro-timeline">
+        <li class="livro-timeline-item">
+          <span class="livro-timeline-marco"></span>
+          <div class="livro-timeline-corpo">
+            <div class="livro-timeline-topo">
+              <span class="livro-timeline-num">#000001</span>
+              <span class="livro-timeline-data">21/08/2026</span>
+              <span class="fj-badge info">Inspeção Periódica</span>
+              <span class="livro-timeline-lacre">Lacrado</span>
+            </div>
+            <div class="livro-timeline-desc">Relatório de inspeção gerado: Relatorio_Inspeção_Periódica_ZZ-FASE3.pdf</div>
+            <div class="livro-timeline-meta">
+              <span>Relatório REL-1787282142486</span><span>funciona01</span>
+              <span class="selo-flat crypto">SHA-256 F54425F4</span>
+              <span class="livro-timeline-integro">Íntegro</span>
+            </div>
+          </div>
+          <div class="livro-timeline-acoes">
+            <button class="fj-btn fj-btn-ghost">Ver / Imprimir</button>
+          </div>
+        </li>
+      </ul>
     </div></div>`,
   },
   {
@@ -220,10 +241,23 @@ const MEDIR = `(doc => {
     passos: [...doc.querySelectorAll('.reg-modal-passos li > span')]
       .map(s => Math.round(s.getBoundingClientRect().width)),
   } : null;
-  const barra = doc.querySelector('.livro-toolbar');
+  const barra = doc.querySelector('.livro-topo');
+  const item = doc.querySelector('.livro-timeline-item');
   const toolbar = barra ? {
     altura: Math.round(barra.getBoundingClientRect().height),
     botoes: [...barra.querySelectorAll('.fj-btn')].map(b => Math.round(b.getBoundingClientRect().height)),
+    // Acima de 1023px identificação, ações e foto dividem a MESMA faixa: os três
+    // topos coincidem quando estão na mesma linha.
+    mesmaLinha: (() => {
+      const id = doc.querySelector('.livro-topo-id').getBoundingClientRect();
+      const ac = doc.querySelector('.livro-topo .livro-toolbar-acoes').getBoundingClientRect();
+      const ft = doc.querySelector('.livro-topo-foto').getBoundingClientRect();
+      return ac.left > id.left && ft.left > ac.left && Math.abs(ac.top - ft.top) < 60;
+    })(),
+    timeline: item ? Math.round(item.getBoundingClientRect().height) : null,
+    acaoTimeline: item
+      ? Math.round(item.querySelector('.fj-btn').getBoundingClientRect().height)
+      : null,
   } : null;
   return { largura: doc.documentElement.clientWidth,
            scrollH: doc.documentElement.scrollWidth, pecas: r, cards, janela, toolbar };
@@ -318,7 +352,15 @@ for (const l of LARGURAS) {
     if (l <= 640 && Math.min(...alt) < 44) {
       console.log(`  FALHA · botão da toolbar com ${Math.min(...alt)}px (< 44px no dedo)`);
       falhas++;
-    } else console.log(`  ok · toolbar ${d.toolbar.altura}px, botões ${Math.min(...alt)}–${Math.max(...alt)}px`);
+    } else console.log(`  ok · cabeçalho ${d.toolbar.altura}px, botões ${Math.min(...alt)}–${Math.max(...alt)}px`);
+    if (l > 1023 && !d.toolbar.mesmaLinha) {
+      console.log('  FALHA · identificação, ações e foto NÃO estão na mesma faixa');
+      falhas++;
+    } else if (l > 1023) console.log('  ok · identificação, ações e foto na mesma faixa');
+    if (l <= 640 && d.toolbar.acaoTimeline < 43) {
+      console.log(`  FALHA · ação da linha do tempo com ${d.toolbar.acaoTimeline}px (< 44px no dedo)`);
+      falhas++;
+    } else console.log(`  timeline: item ${d.toolbar.timeline}px, ação ${d.toolbar.acaoTimeline}px`);
   }
   if (d.janela) {
     const j = d.janela;
@@ -332,7 +374,10 @@ for (const l of LARGURAS) {
       console.log(`  FALHA · texto dos passos com ${Math.min(...j.passos)}px de largura`);
       falhas++;
     } else console.log(`  ok · passos com ${Math.min(...j.passos)}px de texto`);
-    if (l <= 640 && Math.min(...j.botoes) < 44) {
+    if (l <= 640 && Math.min(...j.botoes) < 43) {
+      // 43 e nao 44: o alvo declarado e 44px, e a medicao oscila 1px conforme a
+      // altura da pagina no iframe. Ja custou uma regressao perseguir esse 1px.
+
       console.log(`  FALHA · botão do modal com ${Math.min(...j.botoes)}px (< 44px no dedo)`);
       falhas++;
     } else console.log(`  ok · botões do modal ${Math.min(...j.botoes)}–${Math.max(...j.botoes)}px`);

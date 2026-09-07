@@ -6,7 +6,10 @@ import PaginaA4 from '../components/PaginaA4';
 import { ler } from '../services/storage';
 import CatalogoLivroV9 from '../features/livro/CatalogoLivroV9';
 import { abrirEquipamentoParaLivro } from '../features/livro/catalogoLivro';
-import type { InfoEquipamento } from '../features/equipamento/tipos';
+import type { FotoEquipamento, InfoEquipamento } from '../features/equipamento/tipos';
+import { identificacaoDe } from '../features/equipamento/identificacaoEquipamento';
+import FotoImg from '../components/FotoImg';
+import type { FotoArmazenada } from '../services/fotos';
 import { listarFuncionarios } from '../features/cadastros/cadastroService';
 import { montarEntradaLivroDoRelatorio, montarEntradaLivroManual } from '../features/relatorios/relatoriosService';
 import { carregarRelatorio, listarIndice } from '../features/relatorios/historicoRelatorios';
@@ -20,6 +23,7 @@ import { somenteOficiais } from '../features/livro/estadoRegistro';
 import { validarRegistroLivro, type ResultadoValidacaoRegistro } from '../features/livro/validacaoRegistro';
 import ModalTrancarRegistro from '../features/livro/ModalTrancarRegistro';
 import ModalNovoRegistro from '../features/livro/ModalNovoRegistro';
+import PopoverAjuda from '../features/livro/PopoverAjuda';
 import { FORM_OCORRENCIA_VAZIO, type FormOcorrencia } from '../features/livro/formRegistro';
 import { verificarCadeia, verificarEntrada, type LivroEntrada as EntradaLacre } from '../features/relatorios/livroLacre';
 import { exportarPdf, exportarPdfLivroCompleto } from '../features/relatorios/pdfService';
@@ -309,6 +313,23 @@ export default function LivroRegistro() {
   // ANTES dos retornos condicionais desta tela, porque hook não pode ser pulado.
   const tagDoPalco = tagAberta ?? preview?.tag ?? '';
   const palco = usePalcoDocumento(tagDoPalco, `livro-${tagDoPalco}`);
+
+  /**
+   * A foto de identificação do equipamento aberto.
+   *
+   * Do CACHE, e não de uma consulta nova: `abrirEquipamentoParaLivro` já semeou
+   * a TAG antes desta tela montar, e `identificacaoDe` é a mesma regra da ficha
+   * e da capa do relatório (a marcada como capa, ou a primeira). `null` quando
+   * o equipamento não tem foto — o cabeçalho mostra o marcador neutro.
+   */
+  const fotoDoEquipamento = useMemo<FotoArmazenada | null>(() => {
+    if (!tagAberta) return null;
+    const fotos = ler<FotoEquipamento[]>(`nr13_fotos_${tagAberta}`) ?? [];
+    const capa = identificacaoDe(fotos);
+    // `base64: capa.src` é o campo LEGADO — as fotos gravadas antes do bucket
+    // moram ali, e é assim que a ficha e a capa do relatório as exibem.
+    return capa ? { ref: capa.ref, base64: capa.src } : null;
+  }, [tagAberta]);
   const [erroForm, setErroForm] = useState('');
   // ── Fase 10B.2 · registros em rascunho ─────────────────────────────────────
   /** Rascunhos do livro ABERTO. Vivem em `nr13_livro_rascunho_<TAG>`, fora da
@@ -554,40 +575,36 @@ export default function LivroRegistro() {
     return (
       <div className="dash-page">
         <div className="fj-panel">
-          <div className="fj-panel-head">
-            <div>
-              <div className="fj-eyebrow">NR-13 · 13.4.1.9 · Livro de Registro de Segurança</div>
+          {/*
+            CABEÇALHO ÚNICO (07/09/2026).
+
+            Eram TRÊS faixas empilhadas — cabeçalho com o nome, barra de
+            ferramentas e a fileira de cards — e sobrava vazio entre elas. Agora
+            identificação, ações e foto dividem o MESMO bloco: trilha e eyebrow
+            na primeira linha, nome do equipamento e badges embaixo, ações à
+            direita e a foto de identificação no canto.
+          */}
+          <div className="fj-panel-head livro-topo">
+            <div className="livro-topo-id">
+              <div className="meta-breadcrumb livro-topo-trilha">
+                <button type="button" className="btn-secundario" onClick={() => { setTagAberta(null); setLivroCompleto(false); }}>
+                  ← Todos os equipamentos
+                </button>
+                <span className="breadcrumb-chevron">›</span>
+                <span className="fj-eyebrow">NR-13 · 13.4.1.9 · Livro de Registro de Segurança</span>
+              </div>
               <h2>
                 {linhaAberta.tag} <span className="fj-eq-name" style={{ fontWeight: 400 }}>— {linhaAberta.nomeEquip}</span>
               </h2>
+              <div className="livro-topo-badges">
+                {linhaAberta.categoria && <span className="fj-badge neutro">Cat. {linhaAberta.categoria}</span>}
+                <span className="fj-badge info2">{linhaAberta.entradas.length} registro(s)</span>
+              </div>
             </div>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              {linhaAberta.categoria && <span className="fj-badge neutro">Cat. {linhaAberta.categoria}</span>}
-              <span className="fj-badge info2">{linhaAberta.entradas.length} registro(s)</span>
-            </div>
-          </div>
 
-          {/*
-            BARRA DE FERRAMENTAS — uma faixa só (07/09/2026).
-
-            Antes: o "← Todos os equipamentos" ficava dentro do cabeçalho e as
-            quatro ações numa fileira SOLTA no meio da tela, entre os cards e a
-            linha do tempo, alinhada à direita e sem moldura — parecia sobra de
-            layout. Agora é uma barra única: trilha à esquerda (o mesmo
-            `meta-breadcrumb` de /relatorios, /prontuarios e /inspecoes), ações à
-            direita, com "Novo registro" como primária.
-          */}
-          <div className="livro-toolbar">
-            <div className="meta-breadcrumb">
-              <button type="button" className="btn-secundario" onClick={() => { setTagAberta(null); setLivroCompleto(false); }}>
-                ← Todos os equipamentos
-              </button>
-              <span className="breadcrumb-chevron">›</span>
-              <span className="crumb-tag-chip">{linhaAberta.tag}</span>
-            </div>
+            {/* 10B.2 · o registro do Livro passou a ser ATO DO USUÁRIO. Antes,
+                finalizar um relatório criava um sozinho, já lacrado. */}
             <div className="livro-toolbar-acoes">
-              {/* 10B.2 · o registro do Livro passou a ser ATO DO USUÁRIO. Antes,
-                  finalizar um relatório criava um sozinho, já lacrado. */}
               <button type="button" className="fj-btn fj-btn-primary" onClick={abrirModalOcorrencia}>
                 <Icone nome="plus" tam={13} /> Novo registro
               </button>
@@ -608,6 +625,24 @@ export default function LivroRegistro() {
                 {exportandoLivro ? 'Gerando PDF…' : 'Exportar PDF'}
               </button>
             </div>
+
+            {/* A foto REAL do equipamento, do cache que a abertura já semeou.
+                Sem ida à rede: `carregarEquipamento` trouxe `nr13_fotos_<TAG>`
+                antes de a tela montar. */}
+            <span className="livro-topo-foto">
+              {fotoDoEquipamento ? (
+                <FotoImg
+                  foto={fotoDoEquipamento}
+                  alt={`Foto do equipamento ${linhaAberta.tag}`}
+                  variante="thumb"
+                  placeholder=""
+                />
+              ) : (
+                <span className="livro-topo-foto-vazia" aria-hidden>
+                  <Icone nome="camera" tam={16} />
+                </span>
+              )}
+            </span>
           </div>
 
           {/* Capa e Termo — sempre no topo, fixos */}
@@ -617,7 +652,11 @@ export default function LivroRegistro() {
               className="livro-doc-card"
               onClick={() => setPreview({ tag: linhaAberta.tag, doc: { arquivo: 'CAPA-LIVRO-REGISTRO.html', titulo: 'Capa do Livro de Registro' } })}
             >
-              <span className="livro-doc-ic capa"><Icone nome="filetext" tam={16} /></span>
+              {/* Ícones trocados em 07/09/2026 para dizer o que cada folha é:
+                  a capa é o LIVRO; o termo é o documento lavrado e assinado que
+                  abre o livro — antes eram "folha de texto" e "livro", na ordem
+                  inversa do significado. */}
+              <span className="livro-doc-ic capa"><Icone nome="book" tam={16} /></span>
               <div>
                 <strong>Capa do Livro</strong>
                 <span>Identificação e classificação NR-13</span>
@@ -628,7 +667,7 @@ export default function LivroRegistro() {
               className="livro-doc-card"
               onClick={() => setPreview({ tag: linhaAberta.tag, doc: { arquivo: 'TERMO-ABERTURA.html', titulo: 'Termo de Abertura' } })}
             >
-              <span className="livro-doc-ic termo"><Icone nome="book" tam={16} /></span>
+              <span className="livro-doc-ic termo"><Icone nome="checkcircle" tam={16} /></span>
               <div>
                 <strong>Termo de Abertura</strong>
                 <span>NR-13, item 13.4.1.9</span>
@@ -838,20 +877,34 @@ export default function LivroRegistro() {
           </div>
 
           {/* Veredicto do livro inteiro, acima da linha do tempo. */}
+          {/* O selo da cadeia, compacto (07/09/2026). Era uma faixa de duas
+              linhas repetindo a mesma explicação em toda visita; agora o
+              veredicto fica na linha e o "porquê" mora no "i". O texto do ALERTA
+              continua inteiro: quando a cadeia não confere, esconder o motivo
+              atrás de um clique seria esconder o que importa. */}
           {cadeiaOk !== null && linhaAberta.entradas.length > 0 && (
-            <div
-              className="no-print"
-              style={{
-                margin: '10px 0', padding: '9px 13px', borderRadius: 8, fontSize: 12.5,
-                border: `1px solid ${cadeiaOk ? '#1f7a45' : '#c0392b'}`,
-                background: cadeiaOk ? '#eef8f1' : '#fdf0ee',
-                color: cadeiaOk ? '#155c33' : '#8e2b20',
-              }}
-            >
+            <div className={`livro-cadeia no-print${cadeiaOk ? '' : ' quebrada'}`} role="status">
+              <Icone nome={cadeiaOk ? 'shield' : 'alerttri'} tam={14} />
               {cadeiaOk ? (
-                <><strong>Cadeia de registros íntegra.</strong> Cada registro lacrado guarda o hash do próprio conteúdo e o elo do anterior — editar, remover ou reordenar seria detectado aqui.</>
+                <>
+                  <span>
+                    <strong>Cadeia íntegra</strong> — todos os registros lacrados mantêm a sequência
+                    de hashes.
+                  </span>
+                  <PopoverAjuda rotulo="O que é a cadeia de registros" alinhamento="direita">
+                    <b>Cada registro guarda a impressão digital do anterior.</b>
+                    <span>
+                      Ao trancar, o sistema calcula o SHA-256 do conteúdo do registro e grava junto
+                      o hash do registro anterior. Editar, remover ou reordenar qualquer um quebra a
+                      sequência, e a quebra aparece aqui e no registro afetado.
+                    </span>
+                  </PopoverAjuda>
+                </>
               ) : (
-                <><strong>ATENÇÃO: a cadeia de registros não confere.</strong> Um ou mais registros foram alterados, removidos ou reordenados depois de emitidos. Veja os marcados abaixo.</>
+                <span>
+                  <strong>A cadeia de registros não confere.</strong> Um ou mais registros foram
+                  alterados, removidos ou reordenados depois de emitidos. Veja os marcados abaixo.
+                </span>
               )}
             </div>
           )}
@@ -873,14 +926,25 @@ export default function LivroRegistro() {
                   <li key={entrada.id ?? i} className="livro-timeline-item">
                     <span className="livro-timeline-marco" />
                     <div className="livro-timeline-corpo">
+                      {/* Cabeçalho da linha: número do registro, data, tipo e o
+                          estado do lacre — a informação que identifica a
+                          entrada, antes do texto dela. O número saiu dos
+                          metadados (onde disputava espaço com o SHA) porque é
+                          por ele que um registro é citado. */}
                       <div className="livro-timeline-topo">
+                        <span className="livro-timeline-num">#{numeroRegistro}</span>
+                        <span className="livro-timeline-data">{dataBR(entrada.data)}</span>
                         <span className={`fj-badge ${cor}`}>{entrada.tipo}</span>
                         {/* Sem selo Apto/Inapto para ocorrência manual — não é laudo de inspeção. */}
                         {entrada.origem !== 'manual' && (entrada.apto === true || entrada.apto === false) && (
                           <span className={`fj-badge ${entrada.apto ? 'ok' : 'crit'}`}>{entrada.apto ? 'Apto' : 'Inapto'}</span>
                         )}
                         {entrada.origem === 'manual' && <span className="selo-flat manual">manual</span>}
-                        <span className="livro-timeline-data">{dataBR(entrada.data)}</span>
+                        {/* LACRADO é um fato do registro (tem selo criptográfico);
+                            ÍNTEGRO é o veredicto de recalculá-lo, e continua nos
+                            metadados. Trocar um pelo outro afirmaria verificação
+                            onde há só presença de hash. */}
+                        {cripto && <span className="livro-timeline-lacre">🔒 Lacrado</span>}
                       </div>
                       {retificada && (
                         <div className="livro-timeline-desc" style={{ fontStyle: 'italic' }}>
@@ -910,9 +974,11 @@ export default function LivroRegistro() {
                             SHA-256 {cripto}
                           </span>
                         )}
-                        <span className="selo-flat info2">Registro nº {numeroRegistro}</span>
+                        {/* O número saiu daqui e virou o `#000001` do cabeçalho:
+                            ali ele identifica a entrada, aqui competia com o
+                            SHA por atenção. */}
                         {selos[entrada.id ?? ''] === 'integra' && (
-                          <span className="selo-flat ok" title="O conteúdo confere com o hash gravado na emissão.">
+                          <span className="livro-timeline-integro" title="O conteúdo confere com o hash gravado na emissão.">
                             <Icone nome="check" tam={10} style={{ display: 'inline-block', verticalAlign: -1, marginRight: 3 }} />
                             Íntegro
                           </span>
@@ -1114,21 +1180,28 @@ export default function LivroRegistro() {
         {/* Bloco de abertura: o mesmo `fj-panel-head` com filete âmbar das
             outras telas, com uma descrição curta e o chip de ícone que a tela
             de DENTRO já usa (capa/termo). */}
+        {/* O parágrafo de quatro linhas virou o "i" ao lado do título: quem já
+            conhece a sessão não precisa relê-lo a cada visita, e quem não
+            conhece encontra a explicação onde a dúvida aparece. */}
         <div className="fj-panel-head reg-hero">
           <div className="reg-hero-txt">
             <div className="fj-eyebrow">NR-13 · 13.4.1.9</div>
-            <h2>Registros de Segurança</h2>
-            {/* Descreve o comportamento de HOJE. Até a Fase 10B.2 o registro
-                nascia sozinho ao salvar um relatório, e este rodapé dizia isso;
-                desde 04/09/2026 o lançamento é ato do usuário
-                (`Relatorios.tsx:1105`), e o texto antigo prometia um
-                preenchimento automático que não acontece mais. */}
-            <p>
-              O histórico de cada equipamento — inspeções, manutenções e reparos — em ordem
-              cronológica, com cada registro lacrado no momento em que é trancado. Abra um
-              equipamento para ler a linha do tempo, lançar um novo registro ou exportar o
-              documento completo.
-            </p>
+            <h2>
+              Registros de Segurança
+              <PopoverAjuda rotulo="Como funcionam os Registros de Segurança">
+                <b>O histórico de segurança de cada equipamento.</b>
+                <span>
+                  Reúne, em ordem cronológica, inspeções, manutenções, reparos e demais
+                  ocorrências. Cada registro nasce como rascunho e, ao ser trancado, entra na
+                  numeração do livro e passa a integrar a cadeia de integridade — deixa de poder
+                  ser editado ou apagado.
+                </span>
+                <span>
+                  Abra um equipamento para ler a linha do tempo, lançar um registro ou exportar o
+                  documento completo.
+                </span>
+              </PopoverAjuda>
+            </h2>
           </div>
           <span className="reg-hero-ic" aria-hidden>
             <Icone nome="shield" tam={26} />

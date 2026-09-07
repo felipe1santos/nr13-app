@@ -22,8 +22,9 @@
  * continua gravando RASCUNHO (`nr13_livro_rascunho_<TAG>`), e só o trancamento
  * — que acontece na tela, não aqui — torna o registro oficial e imutável.
  */
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import { Icone } from '../../components/Icone';
+import PopoverAjuda from './PopoverAjuda';
 import type { FormOcorrencia } from './formRegistro';
 import { TIPOS_OCORRENCIA } from './formRegistro';
 import './modalNovoRegistro.css';
@@ -337,58 +338,22 @@ export default function ModalNovoRegistro({
  * campos — que continuam editáveis — e não grava nada sozinho. As duas recusas
  * possíveis (relatório ainda não baixado neste aparelho, relatório que já tem
  * registro trancado) aparecem como erro no próprio modal.
+ *
+ * O botão e o comportamento do ESC vivem em `PopoverAjuda`, compartilhado com
+ * o "i" do título da sessão e o da cadeia de registros.
  */
 function AjudaPrefill() {
-  const [aberto, setAberto] = useState(false);
-  const raiz = useRef<HTMLSpanElement>(null);
-  const idPop = useId();
-
-  useEffect(() => {
-    if (!aberto) return;
-    function fora(e: MouseEvent) {
-      if (!raiz.current?.contains(e.target as Node)) setAberto(false);
-    }
-    function tecla(e: KeyboardEvent) {
-      // Só o popover fecha: o ESC não pode derrubar o modal inteiro e levar
-      // junto o que já foi digitado.
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        setAberto(false);
-      }
-    }
-    document.addEventListener('mousedown', fora);
-    document.addEventListener('keydown', tecla, true);
-    return () => {
-      document.removeEventListener('mousedown', fora);
-      document.removeEventListener('keydown', tecla, true);
-    };
-  }, [aberto]);
-
   return (
-    <span className="reg-ajuda" ref={raiz}>
-      <button
-        type="button"
-        className="reg-ajuda-btn"
-        aria-label="O que é pré-preencher"
-        aria-expanded={aberto}
-        aria-controls={idPop}
-        onClick={() => setAberto((v) => !v)}
-      >
-        i
-      </button>
-      {aberto && (
-        <span className="reg-ajuda-pop" id={idPop} role="note">
-          <b>Aproveita um relatório já emitido.</b>
-          <span>
-            Escolha um relatório finalizado deste equipamento e o sistema copia para os campos abaixo
-            a data, o tipo, a descrição da inspeção e o responsável que assinou. Tudo continua
-            editável: revise e complete antes de salvar.
-          </span>
-          <span>
-            Prefere escrever do zero? Deixe em <b>Preencher manualmente</b>.
-          </span>
-        </span>
-      )}
-    </span>
+    <PopoverAjuda rotulo="O que é pré-preencher">
+      <b>Aproveita um relatório já emitido.</b>
+      <span>
+        Escolha um relatório finalizado deste equipamento e o sistema copia para os campos abaixo
+        a data, o tipo, a descrição da inspeção e o responsável que assinou. Tudo continua
+        editável: revise e complete antes de salvar.
+      </span>
+      <span>
+        Prefere escrever do zero? Deixe em <b>Preencher manualmente</b>.
+      </span>
+    </PopoverAjuda>
   );
 }

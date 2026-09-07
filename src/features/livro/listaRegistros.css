@@ -291,3 +291,191 @@
   }
   .livro-fixos { padding: 12px 12px 2px; }
 }
+
+/* ============================================================================
+   REFINO FINAL (07/09/2026) — cabeçalho único, foto do equipamento, cards
+   compactos e a linha do tempo que acende no hover.
+   ============================================================================ */
+
+/* ── FOTO NO CARD DA LISTA ───────────────────────────────────────────────── */
+.reg-card-foto {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 11px;
+  overflow: hidden;
+  border: 1px solid var(--line, #e4e1d8);
+  background: var(--steel, #f6f5f2);
+}
+.reg-card-foto > div,
+.reg-card-foto img {
+  width: 100%;
+  height: 100%;
+  /* `cover`: a miniatura é 4:3 e o quadro é quadrado. `contain` deixaria duas
+     tarjas cinzas em cada card. */
+  object-fit: cover;
+  display: block;
+}
+
+/* Hover mais discreto e mais presente ao mesmo tempo: o fundo mal muda, a borda
+   e a sombra é que dizem que a linha está viva. */
+.reg-card:hover { background: var(--bg-faint, #fbfaf7); }
+
+/* ── CABEÇALHO ÚNICO DA TELA DO EQUIPAMENTO ──────────────────────────────── */
+.livro-topo {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 14px 20px;
+}
+.livro-topo-id { flex: 1 1 320px; min-width: 0; }
+/* A trilha e o eyebrow dividem a primeira linha; o `meta-breadcrumb` traz 14px
+   de margem para o uso dele em página inteira. */
+.livro-topo-trilha { margin-bottom: 6px; gap: 8px; flex-wrap: wrap; }
+.livro-topo-trilha .btn-secundario { padding: 5px 10px; font-size: 12px; }
+.livro-topo .fj-panel-head h2,
+.livro-topo h2 { margin: 0; }
+.livro-topo-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+
+.livro-topo .livro-toolbar-acoes { flex: 0 0 auto; }
+
+.livro-topo-foto {
+  flex: 0 0 auto;
+  width: 78px;
+  height: 62px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--line, #e4e1d8);
+  background: var(--steel, #f6f5f2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.livro-topo-foto > div,
+.livro-topo-foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.livro-topo-foto-vazia { color: var(--text-faint, #aeb4b9); display: flex; }
+
+/* ── CARDS CAPA / TERMO, MAIS BAIXOS ─────────────────────────────────────── */
+.livro-fixos { padding: 14px 20px 2px; gap: 10px; }
+.livro-doc-card { padding: 10px 13px; gap: 10px; }
+.livro-doc-ic { width: 32px; height: 32px; border-radius: 9px; }
+.livro-doc-card strong { font-size: 13px; }
+.livro-doc-card span { font-size: 11px; }
+
+/* ── SELO DA CADEIA, EM UMA LINHA ────────────────────────────────────────── */
+.livro-cadeia {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 20px 2px;
+  padding: 8px 12px;
+  border-radius: 9px;
+  font-size: 12.5px;
+  border: 1px solid var(--ok-line, #bfe9d6);
+  background: var(--ok-bg, #e7f6ef);
+  color: #155c33;
+}
+.livro-cadeia svg { flex: 0 0 auto; }
+.livro-cadeia > span { flex: 1; min-width: 0; }
+.livro-cadeia.quebrada {
+  border-color: var(--crit-line, #f3c6c3);
+  background: var(--crit-bg, #fbeae9);
+  color: #8e2b20;
+}
+/* Dentro da faixa verde o "i" acompanha a cor do selo. */
+.livro-cadeia .reg-ajuda-btn { border-color: #1f7a45; color: #1f7a45; }
+.livro-cadeia .reg-ajuda-btn:hover { background: #1f7a45; color: #fff; }
+
+/* ── LINHA DO TEMPO ──────────────────────────────────────────────────────── */
+.livro-timeline { padding: 10px 14px 18px; display: flex; flex-direction: column; gap: 2px; }
+
+/* Cada registro vira uma linha-card: a borda inferior some e quem separa é o
+   espaço. É o que permite o item inteiro acender no hover sem que o realce
+   pareça vazar para o vizinho. */
+.livro-timeline-item {
+  gap: 12px;
+  padding: 12px 12px;
+  border-bottom: none;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  transition: background 0.16s ease, border-color 0.16s ease;
+}
+.livro-timeline-item:hover {
+  background: var(--bg-faint, #fbfaf7);
+  border-color: var(--line, #e4e1d8);
+}
+/* O marco acende junto — é ele que liga o item à linha do tempo. */
+.livro-timeline-marco { transition: transform 0.16s ease, box-shadow 0.16s ease; }
+.livro-timeline-item:hover .livro-timeline-marco {
+  transform: scale(1.25);
+  box-shadow: 0 0 0 3px var(--blue2-bg, #e4edf9);
+}
+.livro-timeline-item:hover .livro-timeline-meta { color: var(--text-main, #2d3339); }
+.livro-timeline-item:hover .fj-btn-ghost {
+  border-color: var(--blue2, #0c4f9b);
+  color: var(--blue2, #0c4f9b);
+}
+
+/* Cabeçalho da entrada: número, data, tipo, lacre. */
+.livro-timeline-topo { gap: 8px; }
+.livro-timeline-num {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--muted, #7a8790);
+  background: var(--steel, #f6f5f2);
+  border: 1px solid var(--line, #e4e1d8);
+  border-radius: 6px;
+  padding: 2px 7px;
+}
+.livro-timeline-lacre {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: var(--purple-bg, #f1edff);
+  color: var(--purple, #7c5cfc);
+}
+.livro-timeline-desc { margin-top: 5px; line-height: 1.45; }
+.livro-timeline-meta { gap: 6px 12px; margin-top: 7px; transition: color 0.16s ease; }
+/* "Íntegro" é verde discreto, não badge: o destaque da linha é o tipo do
+   registro, e transformar cada metadado em cápsula colorida achata a hierarquia. */
+.livro-timeline-integro {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 700;
+  color: var(--ok, #1fa971);
+}
+.livro-timeline-acoes { align-self: center; }
+.livro-timeline-acoes .fj-btn { transition: border-color 0.16s ease, color 0.16s ease; }
+
+@media (max-width: 1023px) {
+  /* As ações descem para uma faixa própria abaixo da identificação, sem sair do
+     mesmo bloco. */
+  .livro-topo { align-items: flex-start; }
+  .livro-topo .livro-toolbar-acoes { order: 3; width: 100%; }
+}
+
+@media (max-width: 640px) {
+  .livro-topo { padding: 12px 14px; gap: 12px; }
+  .livro-topo-foto { width: 56px; height: 46px; }
+  .livro-fixos { padding: 12px 12px 2px; }
+  .livro-cadeia { margin: 10px 12px 2px; }
+  .livro-timeline { padding: 8px 10px 14px; }
+  .livro-timeline-item { padding: 12px 10px; }
+  .livro-timeline-acoes { align-self: stretch; }
+}
+
+@media (max-width: 640px) {
+  /* "Ver / Imprimir" é o único alvo de toque da linha do tempo: no dedo ele
+     mede 44px e ocupa a largura do card, como as demais ações da sessão. */
+  .livro-timeline-acoes .fj-btn {
+    width: 100%;
+    height: 44px;
+    box-sizing: border-box;
+    justify-content: center;
+  }
+}
