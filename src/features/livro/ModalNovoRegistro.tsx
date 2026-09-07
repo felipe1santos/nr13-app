@@ -106,6 +106,18 @@ export default function ModalNovoRegistro({
   const set = <K extends keyof FormOcorrencia>(campo: K, v: FormOcorrencia[K]) =>
     aoMudarForm({ ...form, [campo]: v });
 
+  /*
+   * O tipo que vem do PRÉ-PREENCHIMENTO não está na lista de ocorrências
+   * manuais: um relatório traz "Inspeção Periódica", e a lista oferece
+   * manutenção, reparo, substituição… Sem esta linha o `<select>` recebia um
+   * valor sem opção correspondente e exibia VAZIO — o usuário via o campo
+   * obrigatório em branco depois de pré-preencher, e o "Salvar" recusava
+   * (medido em produção em 07/09/2026).
+   */
+  const tipos = TIPOS_OCORRENCIA.includes(form.tipoOcorrencia) || !form.tipoOcorrencia
+    ? TIPOS_OCORRENCIA
+    : [form.tipoOcorrencia, ...TIPOS_OCORRENCIA];
+
   return (
     <div
       className="fj-modal-overlay reg-modal-overlay"
@@ -228,7 +240,7 @@ export default function ModalNovoRegistro({
                     onChange={(e) => set('tipoOcorrencia', e.target.value)}
                   >
                     <option value="">Selecione…</option>
-                    {TIPOS_OCORRENCIA.map((t) => (
+                    {tipos.map((t) => (
                       <option key={t} value={t}>
                         {t}
                       </option>

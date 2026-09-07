@@ -314,3 +314,22 @@ describe('os passos do modal cabem na coluna certa', () => {
     expect(cssModal).toContain('.reg-modal-passos li > span { grid-column: 2; }');
   });
 });
+
+describe('o pré-preenchimento entrega o que o texto promete', () => {
+  it('a data do relatório é convertida para o formato do campo', () => {
+    // `<input type="date">` só aceita `aaaa-mm-dd`. A entrada montada traz a
+    // data do relatório, que pode vir `dd/mm/aaaa`: atribuída direto, o campo
+    // ficava VAZIO sem erro nenhum — medido em produção em 07/09/2026.
+    expect(pagina).toContain('function paraISO(data: string): string {');
+    expect(pagina).toContain('data: paraISO(String(entrada.data ?? ');
+  });
+
+  it('o tipo vindo do relatório aparece no select', () => {
+    // "Inspeção Periódica" não está entre as ocorrências manuais. Sem entrar na
+    // lista, o campo obrigatório ficava em branco depois de pré-preencher e o
+    // "Salvar rascunho" recusava.
+    expect(modal).toContain('const tipos = TIPOS_OCORRENCIA.includes(form.tipoOcorrencia)');
+    expect(modal).toContain('[form.tipoOcorrencia, ...TIPOS_OCORRENCIA]');
+    expect(modal).toContain('{tipos.map((t) => (');
+  });
+});

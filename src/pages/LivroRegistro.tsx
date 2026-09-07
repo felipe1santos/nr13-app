@@ -81,6 +81,19 @@ function dataBR(data: string | undefined): string {
   return iso ? `${iso[3]}/${iso[2]}/${iso[1]}` : bruta;
 }
 
+/**
+ * O caminho de volta: `dd/mm/aaaa` → `aaaa-mm-dd`, que é o único formato que o
+ * `<input type="date">` aceita. Já em ISO, devolve como está; qualquer outra
+ * coisa devolve vazio — melhor o campo em branco do que uma data inventada num
+ * registro de segurança.
+ */
+function paraISO(data: string): string {
+  const bruta = data.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(bruta)) return bruta;
+  const br = bruta.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return br ? `${br[3]}-${br[2]}-${br[1]}` : '';
+}
+
 // Cor do badge por tipo de entrada — mesma paleta de badges do sistema (fj-badge), só varia
 // a cor por tipo pra dar leitura rápida rolando a linha do tempo.
 const COR_TIPO: Record<string, string> = {
@@ -452,7 +465,12 @@ export default function LivroRegistro() {
     }
     setForm((f) => ({
       ...f,
-      data: String(entrada.data ?? f.data),
+      // `<input type="date">` só aceita `aaaa-mm-dd`. A entrada montada traz a
+      // data do relatório, que pode vir em `dd/mm/aaaa` — atribuir isso ao
+      // campo o deixa VAZIO, sem erro nenhum, e o usuário perde o único campo
+      // obrigatório que o pré-preenchimento deveria ter resolvido (medido em
+      // produção em 07/09/2026).
+      data: paraISO(String(entrada.data ?? '')) || f.data,
       tipoOcorrencia: String(entrada.tipo ?? f.tipoOcorrencia),
       oQueFoiFeito: String(entrada.descricao ?? f.oQueFoiFeito),
       phId: entrada.phId ?? f.phId,
