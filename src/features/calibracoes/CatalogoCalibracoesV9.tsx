@@ -47,6 +47,8 @@ import ModalFiltrosProntuarios, {
 import './ilustracoes.css';
 import ListaVirtualizada from '../../components/ListaVirtualizada';
 import FotoImg from '../../components/FotoImg';
+import { formatarValor } from '../../calc/unidades';
+import type { SistemaUnidade } from '../../calc/unidades';
 import * as buscaIndex from '../../services/buscaIndex';
 import { rotuloCalibracoes, textoCliente } from '../../services/buscaIndex';
 import type { Contagem, FiltrosBusca, ItemCatalogo } from '../../services/buscaIndex';
@@ -281,6 +283,10 @@ export default function CatalogoCalibracoesV9({
         </div>
       )}
 
+      {/* A instrução de uso da tela, discreta: a lista aqui não é o fim, é o
+          começo — escolher o equipamento é o que abre lotes e componentes. */}
+      <p className="cal-instrucao">[ selecione o equipamento para iniciar ]</p>
+
       <div className="bloco-dados">
         {!carregando && !varrendo && visiveis.length === 0 && !erro ? (
           <p className="dashboard-vazio">
@@ -321,7 +327,7 @@ export default function CatalogoCalibracoesV9({
                     <span className="card-eq-img-vazio">{item.tag.slice(0, 2)}</span>
                   )}
                 </div>
-                <div className="card-eq-info">
+                <div className="card-eq-info cal-card-info">
                   <div className="eq-col">
                     <span className="eq-tag">{item.tag}</span>
                     <span className="eq-tipo">
@@ -334,9 +340,24 @@ export default function CatalogoCalibracoesV9({
                         `ler('nr13_emp_' + tag)` — três vezes por quadro. */}
                     <span className="eq-value">{textoCliente(item) || '—'}</span>
                   </div>
+                  {/* Fabricante, categoria e PMTA vêm da MESMA linha da
+                      projeção que já era buscada: nenhuma consulta a mais, e
+                      nenhum dado inventado — o campo que não existe some. */}
+                  <div className="eq-col">
+                    <span className="eq-label">Fabricante</span>
+                    <span className="eq-value">{item.fabricante?.trim() || '—'}</span>
+                  </div>
                   <div className="eq-col">
                     <span className="eq-label">Categoria</span>
                     <span className="eq-value">{item.categoria ?? '—'}</span>
+                  </div>
+                  <div className="eq-col">
+                    <span className="eq-label">PMTA</span>
+                    <span className="eq-value">
+                      {item.pmtaMpa !== null
+                        ? formatarValor(item.pmtaMpa, (item.unidade as SistemaUnidade) ?? 'SI')
+                        : '—'}
+                    </span>
                   </div>
                 </div>
                 {/* O rótulo SOME quando ninguém contou. "Nenhuma calibração" ali

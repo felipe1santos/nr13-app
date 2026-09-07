@@ -44,6 +44,14 @@ export interface RecorteCatalogo {
   empresa: string;
   /** Categoria de risco, como vem em `categoria`. Vazio = todas. */
   categoria?: string;
+  /**
+   * Fabricante exato, como vem em `fabricante`. Vazio = todos.
+   *
+   * Do CLIENTE, como empresa e categoria: `buscar_equipamentos` não tem
+   * parâmetro para ele. Vale o mesmo aviso de varredura — o `<select>` oferece
+   * os fabricantes das páginas já trazidas, e a tela diz quando parou no teto.
+   */
+  fabricante?: string;
 }
 
 export const RECORTE_PADRAO: RecorteCatalogo = { soComDocumento: true, empresa: '' };
@@ -67,7 +75,10 @@ export function filtrarCatalogo<
   // `categoria` entra como OPCIONAL: quem já chamava esta função passando só
   // `clienteNome` (calibrações, e os testes) continua compilando. Exigir o
   // campo novo obrigaria a mexer em chamador que não usa filtro por categoria.
-  T extends Pick<ItemCatalogo, 'clienteNome'> & { categoria?: string | null },
+  T extends Pick<ItemCatalogo, 'clienteNome'> & {
+    categoria?: string | null;
+    fabricante?: string | null;
+  },
 >(
   itens: T[],
   recorte: RecorteCatalogo,
@@ -83,6 +94,7 @@ export function filtrarCatalogo<
     }
     if (recorte.empresa && (i.clienteNome ?? '').trim() !== recorte.empresa) return false;
     if (recorte.categoria && (i.categoria ?? '').trim() !== recorte.categoria) return false;
+    if (recorte.fabricante && (i.fabricante ?? '').trim() !== recorte.fabricante) return false;
     return true;
   });
 }
@@ -95,6 +107,16 @@ export function categoriasDoCatalogo(itens: Pick<ItemCatalogo, 'categoria'>[]): 
     if (c) cats.add(c);
   }
   return [...cats].sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
+}
+
+/** Fabricantes distintos, ordenados — o que o `<select>` oferece. */
+export function fabricantesDoCatalogo(itens: { fabricante?: string | null }[]): string[] {
+  const nomes = new Set<string>();
+  for (const i of itens) {
+    const f = i.fabricante?.trim();
+    if (f) nomes.add(f);
+  }
+  return [...nomes].sort((a, b) => a.localeCompare(b, 'pt-BR'));
 }
 
 /** Nomes de cliente distintos, ordenados — o que o `<select>` oferece. */
@@ -114,6 +136,10 @@ export function empresasDoCatalogo(itens: Pick<ItemCatalogo, 'clienteNome'>[]): 
  */
 export function precisaVarrerTudo(recorte: RecorteCatalogo): boolean {
   return (
-    recorte.soComDocumento || !!recorte.soSemDocumento || !!recorte.empresa || !!recorte.categoria
+    recorte.soComDocumento ||
+    !!recorte.soSemDocumento ||
+    !!recorte.empresa ||
+    !!recorte.categoria ||
+    !!recorte.fabricante
   );
 }

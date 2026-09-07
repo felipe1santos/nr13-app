@@ -22,6 +22,17 @@ import ModalImportarPlanilha from './ModalImportarPlanilha';
 import { extensaoAceita } from './importarPlanilhaService';
 import { equipamentosPendentesLocais } from './equipamentoService';
 import BuscaLista from '../../components/BuscaLista';
+import ModalFiltrosEquipamentos, {
+  temAlgumFiltroEquip,
+  type ValoresFiltroEquip,
+} from './ModalFiltrosEquipamentos';
+import {
+  TETO_PAGINAS_RECORTE,
+  empresasDoCatalogo,
+  fabricantesDoCatalogo,
+  filtrarCatalogo,
+  precisaVarrerTudo,
+} from '../../services/recorteCatalogo';
 import ListaVirtualizada from '../../components/ListaVirtualizada';
 import { Icone } from '../../components/Icone';
 import FotoImg from '../../components/FotoImg';
@@ -30,7 +41,6 @@ import type { Contagem, FiltrosBusca, ItemCatalogo } from '../../services/buscaI
 import * as catalogo from '../../services/catalogoLocal';
 import { isTrial } from '../../services/auth';
 import { MSG_BLOQUEIO_IMPORTACAO } from '../../services/trial';
-import { emitirAviso } from '../../services/eventos';
 import { formatarValor } from '../../calc/unidades';
 import { rotaEquipamento } from '../../app/rotas';
 import type { SistemaUnidade } from '../../calc/unidades';
@@ -73,6 +83,20 @@ export default function EquipamentosV9() {
   const [arquivoSolto, setArquivoSolto] = useState<File | null>(null);
   const [arrastando, setArrastando] = useState(false);
   const [erroArrasto, setErroArrasto] = useState<string | null>(null);
+  const [filtroAberto, setFiltroAberto] = useState(false);
+  /*
+   * O filtro da barra: `tipo` e `categoria` continuam na URL (são parâmetros
+   * da RPC e sobrevivem ao F5); `empresa` e `fabricante` são recorte do
+   * cliente, e por isso vivem em estado — a URL guardaria um filtro que a
+   * consulta não sabe aplicar.
+   */
+  const [recorte, setRecorte] = useState({ empresa: '', fabricante: '' });
+  const [paginas, setPaginas] = useState(1);
+
+  const filtroUi: ValoresFiltroEquip = useMemo(
+    () => ({ tipo: fTipo, categoria: fCategoria, ...recorte }),
+    [fTipo, fCategoria, recorte],
+  );
 
   const filtros: FiltrosBusca = useMemo(
     () => ({ termo, tipo: fTipo, categoria: fCategoria }),
@@ -185,6 +209,8 @@ export default function EquipamentosV9() {
       });
       setCursor(pagina.proximoCursor);
       setTemMais(pagina.temMais);
+      // Conta as páginas para o teto da varredura do recorte do cliente.
+      setPaginas((n) => n + 1);
     } catch {
       setTemMais(false); // sem estourar erro no meio da rolagem
     } finally {
@@ -192,20 +218,41 @@ export default function EquipamentosV9() {
     }
   }, [temMais, carregando, carregandoMais, cursor, offline, filtros]);
 
-  const temFiltro = !!(termo || fTipo || fCategoria);
+  const temFiltro = !!(termo || fTipo || fCategoria || recorte.empresa || recorte.fabricante);
+
+  /*
+   * O recorte do cliente (empresa/fabricante) só pode ser lido como resposta
+   * com a lista inteira em mãos: recortar a primeira página anunciaria "3
+   * equipamentos da Petrobras" a quem tem 30. O teto existe para o parque
+   * grande não virar varredura infinita — e o modal diz quando ele é atingido.
+   */
+  const recorteAtivo = { soComDocumento: false, ...recorte };
+  const varrendo =
+    precisaVarrerTudo(recorteAtivo) && temMais && !!cursor && paginas < TETO_PAGINAS_RECORTE;
+  useEffect(() => {
+    if (!varrendo || carregando || carregandoMais) return;
+    void carregarMais();
+  }, [varrendo, carregando, carregandoMais, carregarMais]);
+
+  const varreduraIncompleta =
+    precisaVarrerTudo(recorteAtivo) && temMais && paginas >= TETO_PAGINAS_RECORTE;
+
+  const empresas = useMemo(() => empresasDoCatalogo(itens), [itens]);
+  const fabricantes = useMemo(() => fabricantesDoCatalogo(itens), [itens]);
+  const visiveis = useMemo(
+    // `() => true`: aqui não há recorte por documento — esta é a lista de
+    // equipamentos, e todos entram. O filtro que resta é empresa/fabricante.
+    () => filtrarCatalogo(itens, recorteAtivo, () => true),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [itens, recorte.empresa, recorte.fabricante],
+  );
+  const contagemNaTela: Contagem | null = precisaVarrerTudo(recorteAtivo)
+    ? { total: visiveis.length, exato: !temMais }
+    : contagem;
 
   function limparFiltros() {
     setParams(new URLSearchParams(), { replace: true });
-  }
-
-  function abrirImportacao() {
-    if (isTrial()) {
-      emitirAviso({ variante: 'alerta', titulo: 'Recurso do plano contratado', texto: MSG_BLOQUEIO_IMPORTACAO });
-      return;
-    }
-    setArquivoSolto(null);
-    setErroArrasto(null);
-    setImportAberto(true);
+    setRecorte({ empresa: '', fabricante: '' });
   }
 
   function aoArrastarSobre(e: React.DragEvent) {
@@ -245,73 +292,83 @@ export default function EquipamentosV9() {
 
   return (
     <div className="dashboard-page">
-      <div className="fj-page-head equip-head">
-        <div className="equip-head-esq">
-          <div className="sub">Equipamentos</div>
-          <div className="equip-visao" role="group" aria-label="Modo de visualização">
-            <button
-              type="button"
-              className={`equip-visao-btn${visao === 'grade' ? ' ativo' : ''}`}
-              onClick={() => setVisao('grade')}
-              aria-pressed={visao === 'grade'}
-              title="Ver em grade"
-            >
-              <Icone nome="grid" tam={15} />
-            </button>
-            <button
-              type="button"
-              className={`equip-visao-btn${visao === 'lista' ? ' ativo' : ''}`}
-              onClick={() => setVisao('lista')}
-              aria-pressed={visao === 'lista'}
-              title="Ver em lista"
-            >
-              <Icone nome="filetext" tam={15} />
-            </button>
-          </div>
-        </div>
-        <div className="equip-head-acoes">
-          {!isTrial() && (
-            <button type="button" className="fj-btn fj-btn-ghost" onClick={abrirImportacao}>
-              <Icone nome="planilha" tam={14} /> Importar planilha
-            </button>
-          )}
-          <button type="button" className="fj-btn fj-btn-primary" onClick={() => setModalAberto(true)}>
-            <Icone nome="plus" tam={14} /> Criar equipamento
-          </button>
-        </div>
-      </div>
+      {/*
+        BARRA ÚNICA (07/09/2026).
 
-      {/* A BUSCA FICA VISÍVEL. Era o achado da Fase 8: o campo existia atrás do
-          botão "Filtrar", e não pesquisava fabricante nem nº de série. */}
+        Eram DUAS faixas: um cabeçalho com "Equipamentos", a alternância de
+        visualização, "Importar planilha" e "Criar equipamento"; e, abaixo, a
+        busca com dois `<select>` sempre abertos e um "Limpar filtros". Sete
+        controles em duas linhas para uma tela cuja ação é procurar um
+        equipamento. Agora: contexto e visualização à esquerda, busca no meio,
+        funil e criar à direita — o mesmo arranjo de /relatorios e /prontuarios.
+      */}
       <BuscaLista
         valor={termo}
         aoMudar={(t) => trocarParam('q', t)}
         placeholder="Buscar por TAG, descrição, fabricante, nº de série, cliente…"
-        carregando={carregando}
-        contagem={contagem}
+        carregando={carregando || varrendo}
+        contagem={contagemNaTela}
         offline={offline}
+        compacto
+        antes={
+          <div className="equip-barra-esq">
+            <span className="equip-barra-titulo">Equipamentos</span>
+            <div className="equip-visao" role="group" aria-label="Modo de visualização">
+              <button
+                type="button"
+                className={`equip-visao-btn${visao === 'grade' ? ' ativo' : ''}`}
+                onClick={() => setVisao('grade')}
+                aria-pressed={visao === 'grade'}
+                title="Ver em grade"
+              >
+                <Icone nome="grid" tam={15} />
+              </button>
+              <button
+                type="button"
+                className={`equip-visao-btn${visao === 'lista' ? ' ativo' : ''}`}
+                onClick={() => setVisao('lista')}
+                aria-pressed={visao === 'lista'}
+                title="Ver em lista"
+              >
+                <Icone nome="filetext" tam={15} />
+              </button>
+            </div>
+          </div>
+        }
       >
-        <select className="fj-fselect" value={fTipo} onChange={(e) => trocarParam('tipo', e.target.value)} aria-label="Filtrar por tipo">
-          <option value="">Tipo · Todos</option>
-          <option value="vaso">Vaso de Pressão</option>
-          <option value="caldeira">Caldeira</option>
-          <option value="autoclave">Autoclave</option>
-        </select>
-        <select
-          className="fj-fselect"
-          value={fCategoria}
-          onChange={(e) => trocarParam('categoria', e.target.value)}
-          aria-label="Filtrar por categoria"
+        {/* O funil no lugar dos selects: os filtros abrem num modal central. */}
+        <button
+          type="button"
+          className={`fj-btn fj-btn-ghost equip-btn-filtro${temAlgumFiltroEquip(filtroUi) ? ' filtro-ativo' : ''}`}
+          aria-haspopup="dialog"
+          onClick={() => setFiltroAberto(true)}
         >
-          <option value="">Categoria · Todas</option>
-          {['I', 'II', 'III', 'IV', 'V'].map((c) => (
-            <option key={c} value={c}>{c}</option>
-          ))}
-        </select>
-        {temFiltro && (
-          <button type="button" className="fj-link" onClick={limparFiltros}>Limpar filtros</button>
-        )}
+          <Icone nome="filter" tam={14} /> <span className="equip-btn-rotulo">Filtrar</span>
+        </button>
+        <button type="button" className="fj-btn fj-btn-primary equip-btn-criar" onClick={() => setModalAberto(true)}>
+          <Icone nome="plus" tam={14} /> <span className="equip-btn-rotulo">Criar equipamento</span>
+        </button>
       </BuscaLista>
+
+      {filtroAberto && (
+        <ModalFiltrosEquipamentos
+          valores={filtroUi}
+          empresas={empresas}
+          fabricantes={fabricantes}
+          varreduraIncompleta={varreduraIncompleta}
+          aoAplicar={(v) => {
+            // Tipo e categoria vão para a URL (a consulta os aplica); empresa e
+            // fabricante ficam no recorte do cliente.
+            const novos = new URLSearchParams(params);
+            if (v.tipo) novos.set('tipo', v.tipo); else novos.delete('tipo');
+            if (v.categoria) novos.set('categoria', v.categoria); else novos.delete('categoria');
+            setParams(novos, { replace: true });
+            setRecorte({ empresa: v.empresa, fabricante: v.fabricante });
+            setFiltroAberto(false);
+          }}
+          aoFechar={() => setFiltroAberto(false)}
+        />
+      )}
 
       {erroArrasto && <p className="erro-form" style={{ marginBottom: 12 }}>{erroArrasto}</p>}
 
@@ -339,7 +396,7 @@ export default function EquipamentosV9() {
               <div key={i} className={visao === 'lista' ? 'card-equipamento-horiz esqueleto' : 'plate-card esqueleto'} />
             ))}
           </div>
-        ) : itens.length === 0 ? (
+        ) : visiveis.length === 0 ? (
           <div className="fj-empty">
             <div className="fj-empty-ic"><Icone nome={temFiltro ? 'search' : 'box'} tam={22} /></div>
             <div className="fj-empty-title">
@@ -348,7 +405,7 @@ export default function EquipamentosV9() {
             {temFiltro ? (
               <button type="button" className="fj-link" onClick={limparFiltros}>Limpar a busca e os filtros</button>
             ) : (
-              <>Clique em "Criar equipamento" para começar — ou arraste uma planilha aqui para importar vários de uma vez.</>
+              <>Clique em "Criar equipamento" para começar.</>
             )}
           </div>
         ) : (

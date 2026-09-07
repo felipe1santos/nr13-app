@@ -181,3 +181,53 @@
     justify-content: center;
   }
 }
+
+/* ── A INSTRUÇÃO DA TELA (07/09/2026) ───────────────────────────────────────
+   A lista de /calibracoes não é o fim: escolher o equipamento é o que abre os
+   lotes e os componentes. A linha diz isso em roxo discreto, no idioma que a
+   sessão já usa nos badges de contagem. */
+.cal-instrucao {
+  margin: 0 0 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--purple, #7c5cfc);
+}
+
+/* ── O CARD DA LISTA, COM MAIS DO QUE JÁ VEM DA PROJEÇÃO ────────────────────
+   Eram três blocos (TAG/tipo, proprietário, categoria) num card que ocupa a
+   largura da tela. Agora cinco, em colunas de largura própria — sem consulta
+   nova: fabricante, categoria e PMTA já vinham na mesma linha. */
+.cal-card-info {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.6fr) minmax(0, 1.2fr) 82px 108px;
+  gap: 14px;
+  align-items: center;
+}
+.cal-card-info .eq-value,
+.cal-card-info .eq-tipo {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 1180px) {
+  /* Fabricante é o primeiro a sair: é o campo mais longo e o menos usado para
+     ESCOLHER o equipamento que vai calibrar. */
+  .cal-card-info { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.4fr) 82px 108px; }
+  .cal-card-info .eq-col:nth-child(3) { display: none; }
+}
+
+@media (max-width: 860px) {
+  .cal-card-info { grid-template-columns: minmax(0, 1fr) 82px 108px; }
+  .cal-card-info .eq-col:nth-child(2) { display: none; }
+}
+
+@media (max-width: 640px) {
+  /* No celular o card já empilha (regra global de `relatorios.css`): aqui só
+     não pode sobrar grade de uma coluna com colunas escondidas. */
+  .cal-card-info { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+  .cal-card-info .eq-col:nth-child(2),
+  .cal-card-info .eq-col:nth-child(3) { display: flex; }
+  .cal-instrucao { font-size: 11px; }
+}

@@ -1069,3 +1069,83 @@
   .plate-card.esqueleto,
   .card-equipamento-horiz.esqueleto { animation: none; background: var(--panel); }
 }
+
+/* ============================================================================
+   BARRA ÚNICA DE /EQUIPAMENTOS (07/09/2026)
+
+   Eram duas faixas — cabeçalho com título, visualização, "Importar planilha" e
+   "Criar equipamento"; e a busca com dois `<select>` abertos e um "Limpar
+   filtros". Agora é uma linha: contexto e visualização à esquerda, busca no
+   meio, funil e criar à direita.
+   ============================================================================ */
+.equip-barra-esq {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.equip-barra-titulo {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text-main, #2d3339);
+}
+
+/* O funil substitui os selects. Roxo é a cor de "recorte" no sistema (a
+   contagem do painel-lista usa a mesma família), e é ela que acende quando há
+   filtro ativo. */
+.equip-btn-filtro {
+  position: relative;
+  transition: border-color 0.15s, color 0.15s, box-shadow 0.15s;
+}
+.equip-btn-filtro:hover {
+  border-color: var(--purple, #7c5cfc);
+  color: var(--purple, #7c5cfc);
+}
+/* O acendimento do clique: um pulso curto, uma vez — não uma animação eterna
+   pedindo atenção. */
+.equip-btn-filtro:active { animation: equip-filtro-pulso 260ms ease-out; }
+@keyframes equip-filtro-pulso {
+  from { box-shadow: 0 0 0 0 rgba(124, 92, 252, 0.45); }
+  to { box-shadow: 0 0 0 8px rgba(124, 92, 252, 0); }
+}
+.equip-btn-filtro.filtro-ativo {
+  border-color: var(--purple, #7c5cfc);
+  color: var(--purple, #7c5cfc);
+  background: var(--purple-bg, #f1edff);
+}
+/* Bolinha do estado: há filtro aplicado, mesmo com o rótulo escondido no
+   celular. */
+.equip-btn-filtro.filtro-ativo::after {
+  content: '';
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--purple, #7c5cfc);
+}
+@media (prefers-reduced-motion: reduce) {
+  .equip-btn-filtro:active { animation: none; }
+}
+
+@media (max-width: 900px) {
+  /* Sem espaço para o título: a topbar do sistema já diz em que tela se está. */
+  .equip-barra-titulo { display: none; }
+}
+
+@media (max-width: 640px) {
+  /* Os rótulos saem e ficam os ícones, com o alvo de toque de sempre. */
+  .equip-btn-rotulo { display: none; }
+  .equip-btn-filtro,
+  .equip-btn-criar {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    justify-content: center;
+    box-sizing: border-box;
+  }
+  .equip-visao-btn { width: 40px; height: 38px; }
+}
