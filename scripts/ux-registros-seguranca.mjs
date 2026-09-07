@@ -83,38 +83,41 @@ const PECAS = [
       </div></div></div>`,
   },
   {
-    nome: 'cabeçalho único da tela do equipamento (id + ações + foto)',
+    nome: 'tela do equipamento (cabeçalho 2 linhas + faixa + lista)',
     html: `<div class="dash-page"><div class="fj-panel">
       <div class="fj-panel-head livro-topo">
-        <div class="livro-topo-id">
+        <div class="livro-topo-l1">
           <div class="meta-breadcrumb livro-topo-trilha">
             <button class="btn-secundario">← Todos os equipamentos</button>
             <span class="breadcrumb-chevron">›</span>
             <span class="fj-eyebrow">NR-13 · 13.4.1.9 · Livro de Registro de Segurança</span>
           </div>
-          <h2>ZZ-FASE3 <span class="fj-eq-name">— Vaso de pressão de teste</span></h2>
-          <div class="livro-topo-badges"><span class="fj-badge neutro">Cat. III</span>
-            <span class="fj-badge info2">2 registro(s)</span></div>
+          <div class="livro-toolbar-acoes">
+            <button class="fj-btn fj-btn-primary">+ Novo registro</button>
+            <button class="fj-btn fj-btn-ghost">Ver livro completo</button>
+            <button class="fj-btn fj-btn-ghost">Exportar PDF</button>
+          </div>
+          <span class="livro-topo-foto"><span class="livro-topo-foto-vazia">F</span></span>
         </div>
-        <div class="livro-toolbar-acoes">
-          <button class="fj-btn fj-btn-primary">+ Novo registro</button>
-          <span class="livro-toolbar-sep"></span>
-          <button class="fj-btn fj-btn-ghost">Ver livro completo</button>
-          <button class="fj-btn fj-btn-ghost">Exportar PDF</button>
+        <div class="livro-topo-l2">
+          <h2>ZZ-FASE3</h2>
+          <span class="livro-topo-tipo">Vaso de pressão de teste</span>
+          <span class="livro-topo-cat">Cat. III</span>
         </div>
-        <span class="livro-topo-foto"><span class="livro-topo-foto-vazia">F</span></span>
       </div>
       <div class="livro-fixos">
-        <button class="livro-doc-card"><span class="livro-doc-ic capa">C</span>
-          <div><strong>Capa do Livro</strong><span>Identificação e classificação NR-13</span></div></button>
-        <button class="livro-doc-card"><span class="livro-doc-ic termo">T</span>
-          <div><strong>Termo de Abertura</strong><span>NR-13, item 13.4.1.9</span></div></button>
-      </div>
-      <div class="livro-cadeia"><span>Cadeia íntegra — todos os registros lacrados mantêm a sequência de hashes.</span>
-        <span class="reg-ajuda"><button class="reg-ajuda-btn">i</button></span></div>
-      <div class="fj-panel-head livro-lista-head">
-        <h3>Registros do livro</h3>
-        <span class="livro-lista-contagem">1 lacrado · 1 em rascunho</span>
+        <div class="livro-fixos-docs">
+          <button class="livro-doc-card"><span class="livro-doc-ic capa">C</span>
+            <div><strong>Capa do Livro</strong><span>Identificação e classificação</span></div></button>
+          <button class="livro-doc-card"><span class="livro-doc-ic termo">T</span>
+            <div><strong>Termo de Abertura</strong><span>NR-13, item 13.4.1.9</span></div></button>
+        </div>
+        <div class="livro-resumo">
+          <span class="livro-resumo-num"><b>4</b><small>registros</small></span>
+          <span class="livro-resumo-txt">3 lacrados · 1 rascunho</span>
+          <span class="livro-resumo-cadeia">Cadeia íntegra
+            <span class="reg-ajuda"><button class="reg-ajuda-btn">i</button></span></span>
+        </div>
       </div>
       <ul class="livro-timeline">
         <li class="livro-timeline-item rascunho">
@@ -123,8 +126,8 @@ const PECAS = [
             <div class="livro-timeline-topo">
               <span class="livro-timeline-rascunho">Rascunho</span>
               <span class="livro-timeline-data">05/09/2026</span>
-              <span class="fj-badge neutro">Manutenção corretiva</span>
-              <span class="selo-flat manual">manual</span>
+              <span class="livro-timeline-tipo t-neutro">Manutenção corretiva</span>
+              <span class="livro-timeline-origem">manual</span>
             </div>
             <div class="livro-timeline-desc">Troca da válvula de segurança — assento com vazamento</div>
             <div class="livro-timeline-meta"><span>Manutenção Industrial XYZ</span></div>
@@ -142,7 +145,7 @@ const PECAS = [
             <div class="livro-timeline-topo">
               <span class="livro-timeline-num">#000001</span>
               <span class="livro-timeline-data">21/08/2026</span>
-              <span class="fj-badge info">Inspeção Periódica</span>
+              <span class="livro-timeline-tipo t-info">Inspeção Periódica</span>
               <span class="livro-timeline-lacre">Lacrado</span>
             </div>
             <div class="livro-timeline-desc">Relatório de inspeção gerado: Relatorio_Inspeção_Periódica_ZZ-FASE3.pdf</div>
@@ -153,7 +156,7 @@ const PECAS = [
             </div>
           </div>
           <div class="livro-timeline-acoes">
-            <button class="fj-btn fj-btn-ghost">Ver / Imprimir</button>
+            <button class="fj-btn fj-btn-ghost">Ver registro</button>
           </div>
         </li>
       </ul>
@@ -337,12 +340,20 @@ const MEDIR = `(doc => {
     // Acima de 1023px identificação, ações e foto dividem a MESMA faixa: os três
     // topos coincidem quando estão na mesma linha.
     mesmaLinha: (() => {
-      const id = doc.querySelector('.livro-topo-id').getBoundingClientRect();
-      const ac = doc.querySelector('.livro-topo .livro-toolbar-acoes').getBoundingClientRect();
+      const id = doc.querySelector('.livro-topo-l1 .meta-breadcrumb').getBoundingClientRect();
+      const ac = doc.querySelector('.livro-topo-l1 .livro-toolbar-acoes').getBoundingClientRect();
       const ft = doc.querySelector('.livro-topo-foto').getBoundingClientRect();
       return ac.left > id.left && ft.left > ac.left && Math.abs(ac.top - ft.top) < 60;
     })(),
     timeline: item ? Math.round(item.getBoundingClientRect().height) : null,
+    // As quatro ações do rascunho precisam estar na MESMA linha: se empilharem,
+    // o card do rascunho cresce e a lista vira uma coluna de blocos altos.
+    acoesNaLinha: (() => {
+      const a = [...doc.querySelectorAll('.livro-timeline-item.rascunho .livro-timeline-acoes > *')];
+      if (a.length < 2) return null;
+      const topos = a.map(x => Math.round(x.getBoundingClientRect().top));
+      return Math.max(...topos) - Math.min(...topos) < 8;
+    })(),
     acaoTimeline: item
       ? Math.round(item.querySelector('.fj-btn').getBoundingClientRect().height)
       : null,
@@ -449,6 +460,10 @@ for (const l of LARGURAS) {
       console.log(`  FALHA · ação da linha do tempo com ${d.toolbar.acaoTimeline}px (< 44px no dedo)`);
       falhas++;
     } else console.log(`  timeline: item ${d.toolbar.timeline}px, ação ${d.toolbar.acaoTimeline}px`);
+    if (d.toolbar.acoesNaLinha === false) {
+      console.log('  FALHA · as ações do rascunho empilharam');
+      falhas++;
+    } else if (d.toolbar.acoesNaLinha) console.log('  ok · ações do rascunho na horizontal');
   }
   if (d.janela) {
     const j = d.janela;

@@ -725,8 +725,17 @@ export default function LivroRegistro() {
             na primeira linha, nome do equipamento e badges embaixo, ações à
             direita e a foto de identificação no canto.
           */}
+          {/*
+            DUAS LINHAS, e só (07/09/2026).
+
+            LINHA 1: volta + trilha da norma à esquerda, ações e a foto à
+            direita. LINHA 2: TAG, tipo e categoria — a identificação, junta.
+            Antes a identificação e as ações disputavam a mesma linha e os
+            badges abriam uma terceira; o cabeçalho passava de 110px sem dizer
+            nada a mais.
+          */}
           <div className="fj-panel-head livro-topo">
-            <div className="livro-topo-id">
+            <div className="livro-topo-l1">
               <div className="meta-breadcrumb livro-topo-trilha">
                 <button type="button" className="btn-secundario" onClick={() => { setTagAberta(null); setLivroCompleto(false); }}>
                   ← Todos os equipamentos
@@ -734,120 +743,107 @@ export default function LivroRegistro() {
                 <span className="breadcrumb-chevron">›</span>
                 <span className="fj-eyebrow">NR-13 · 13.4.1.9 · Livro de Registro de Segurança</span>
               </div>
-              <h2>
-                {linhaAberta.tag} <span className="fj-eq-name" style={{ fontWeight: 400 }}>— {linhaAberta.nomeEquip}</span>
-              </h2>
-              <div className="livro-topo-badges">
-                {linhaAberta.categoria && <span className="fj-badge neutro">Cat. {linhaAberta.categoria}</span>}
-                <span className="fj-badge info2">{linhaAberta.entradas.length} registro(s)</span>
+
+              {/* 10B.2 · o registro do Livro passou a ser ATO DO USUÁRIO. Antes,
+                  finalizar um relatório criava um sozinho, já lacrado. */}
+              <div className="livro-toolbar-acoes">
+                <button type="button" className="fj-btn fj-btn-primary" onClick={abrirModalOcorrencia}>
+                  <Icone nome="plus" tam={13} /> Novo registro
+                </button>
+                <button type="button" className="fj-btn fj-btn-ghost" onClick={() => setLivroCompleto(true)}>
+                  <Icone nome="eye" tam={13} /> Ver livro completo
+                </button>
+                <button
+                  type="button"
+                  className={`fj-btn fj-btn-ghost${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
+                  onClick={() => void exportarLivroPdf()}
+                  disabled={exportandoLivro}
+                >
+                  {documentosBloqueados() ? <Icone nome="cadeado" tam={13} /> : <Icone nome="download" tam={13} />}{' '}
+                  {exportandoLivro ? 'Gerando PDF…' : 'Exportar PDF'}
+                </button>
               </div>
+
+              {/* A foto REAL do equipamento, do cache que a abertura já semeou.
+                  Sem ida à rede: `carregarEquipamento` trouxe `nr13_fotos_<TAG>`
+                  antes de a tela montar. */}
+              <span className="livro-topo-foto">
+                {fotoDoEquipamento ? (
+                  <FotoImg
+                    foto={fotoDoEquipamento}
+                    alt={`Foto do equipamento ${linhaAberta.tag}`}
+                    variante="thumb"
+                    placeholder=""
+                  />
+                ) : (
+                  <span className="livro-topo-foto-vazia" aria-hidden>
+                    <Icone nome="camera" tam={16} />
+                  </span>
+                )}
+              </span>
             </div>
 
-            {/* 10B.2 · o registro do Livro passou a ser ATO DO USUÁRIO. Antes,
-                finalizar um relatório criava um sozinho, já lacrado. */}
-            <div className="livro-toolbar-acoes">
-              <button type="button" className="fj-btn fj-btn-primary" onClick={abrirModalOcorrencia}>
-                <Icone nome="plus" tam={13} /> Novo registro
-              </button>
-              <span className="livro-toolbar-sep" aria-hidden />
-              <button type="button" className="fj-btn fj-btn-ghost" onClick={() => setLivroCompleto(true)}>
-                <Icone nome="eye" tam={13} /> Ver livro completo
+            <div className="livro-topo-l2">
+              <h2>{linhaAberta.tag}</h2>
+              <span className="livro-topo-tipo">{linhaAberta.nomeEquip}</span>
+              {linhaAberta.categoria && (
+                <span className="livro-topo-cat">Cat. {linhaAberta.categoria}</span>
+              )}
+            </div>
+          </div>
+
+          {/*
+            FAIXA UTILITÁRIA: documentos do livro à esquerda, estado à direita.
+
+            Os dois cards eram um grid `auto-fit` que esticava até o fim da
+            tela — dois painéis enormes para dois atalhos. Agora eles têm
+            largura própria, e o espaço que sobrava passou a carregar o resumo
+            do livro, que antes ocupava uma faixa verde inteira embaixo.
+          */}
+          <div className="livro-fixos">
+            <div className="livro-fixos-docs">
+              <button
+                type="button"
+                className="livro-doc-card"
+                onClick={() => { setRegistroAberto(null); setModoVisual('a4'); setPreview({ tag: linhaAberta.tag, doc: { arquivo: 'CAPA-LIVRO-REGISTRO.html', titulo: 'Capa do Livro de Registro' } }); }}
+              >
+                {/* A capa é o LIVRO; o termo é o documento lavrado que o abre —
+                    daí o livro e o carimbo de conformidade. */}
+                <span className="livro-doc-ic capa"><Icone nome="book" tam={15} /></span>
+                <div>
+                  <strong>Capa do Livro</strong>
+                  <span>Identificação e classificação</span>
+                </div>
               </button>
               <button
                 type="button"
-                className={`fj-btn fj-btn-ghost${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
-                onClick={() => void exportarLivroPdf()}
-                disabled={exportandoLivro}
+                className="livro-doc-card"
+                onClick={() => { setRegistroAberto(null); setModoVisual('a4'); setPreview({ tag: linhaAberta.tag, doc: { arquivo: 'TERMO-ABERTURA.html', titulo: 'Termo de Abertura' } }); }}
               >
-                {documentosBloqueados() ? <Icone nome="cadeado" tam={13} /> : <Icone nome="download" tam={13} />}{' '}
-                {exportandoLivro ? 'Gerando PDF…' : 'Exportar PDF'}
+                <span className="livro-doc-ic termo"><Icone nome="clipboard" tam={15} /></span>
+                <div>
+                  <strong>Termo de Abertura</strong>
+                  <span>NR-13, item 13.4.1.9</span>
+                </div>
               </button>
             </div>
 
-            {/* A foto REAL do equipamento, do cache que a abertura já semeou.
-                Sem ida à rede: `carregarEquipamento` trouxe `nr13_fotos_<TAG>`
-                antes de a tela montar. */}
-            <span className="livro-topo-foto">
-              {fotoDoEquipamento ? (
-                <FotoImg
-                  foto={fotoDoEquipamento}
-                  alt={`Foto do equipamento ${linhaAberta.tag}`}
-                  variante="thumb"
-                  placeholder=""
-                />
-              ) : (
-                <span className="livro-topo-foto-vazia" aria-hidden>
-                  <Icone nome="camera" tam={16} />
-                </span>
-              )}
-            </span>
-          </div>
-
-          {/* Capa e Termo — sempre no topo, fixos */}
-          <div className="livro-fixos">
-            <button
-              type="button"
-              className="livro-doc-card"
-              onClick={() => { setRegistroAberto(null); setModoVisual('a4'); setPreview({ tag: linhaAberta.tag, doc: { arquivo: 'CAPA-LIVRO-REGISTRO.html', titulo: 'Capa do Livro de Registro' } }); }}
-            >
-              {/* Ícones trocados em 07/09/2026 para dizer o que cada folha é:
-                  a capa é o LIVRO; o termo é o documento lavrado e assinado que
-                  abre o livro — antes eram "folha de texto" e "livro", na ordem
-                  inversa do significado. */}
-              <span className="livro-doc-ic capa"><Icone nome="book" tam={16} /></span>
-              <div>
-                <strong>Capa do Livro</strong>
-                <span>Identificação e classificação NR-13</span>
-              </div>
-            </button>
-            <button
-              type="button"
-              className="livro-doc-card"
-              onClick={() => { setRegistroAberto(null); setModoVisual('a4'); setPreview({ tag: linhaAberta.tag, doc: { arquivo: 'TERMO-ABERTURA.html', titulo: 'Termo de Abertura' } }); }}
-            >
-              <span className="livro-doc-ic termo"><Icone nome="checkcircle" tam={16} /></span>
-              <div>
-                <strong>Termo de Abertura</strong>
-                <span>NR-13, item 13.4.1.9</span>
-              </div>
-            </button>
-          </div>
-
-
-          {/*
-            UMA LISTA SÓ (07/09/2026).
-
-            A tela tinha dois modos — "Linha do tempo" e "Histórico" — que
-            mostravam os MESMOS registros com desenhos diferentes, e os
-            rascunhos numa terceira seção acima. Três lugares para uma coisa: o
-            usuário trocava de modo procurando o registro que estava no outro.
-            Agora é uma lista, em ordem cronológica, com o rascunho no meio dela
-            marcado como rascunho — que é onde ele está na vida real.
-          */}
-          <div className="fj-panel-head livro-lista-head">
-            <h3>Registros do livro</h3>
-            <span className="livro-lista-contagem">
-              {linhaAberta.entradas.length} lacrado{linhaAberta.entradas.length === 1 ? '' : 's'}
-              {rascunhos.length > 0 &&
-                ` · ${rascunhos.length} em rascunho`}
-            </span>
-          </div>
-
-          {/* Veredicto do livro inteiro, acima da linha do tempo. */}
-          {/* O selo da cadeia, compacto (07/09/2026). Era uma faixa de duas
-              linhas repetindo a mesma explicação em toda visita; agora o
-              veredicto fica na linha e o "porquê" mora no "i". O texto do ALERTA
-              continua inteiro: quando a cadeia não confere, esconder o motivo
-              atrás de um clique seria esconder o que importa. */}
-          {cadeiaOk !== null && linhaAberta.entradas.length > 0 && (
-            <div className={`livro-cadeia no-print${cadeiaOk ? '' : ' quebrada'}`} role="status">
-              <Icone nome={cadeiaOk ? 'shield' : 'alerttri'} tam={14} />
-              {cadeiaOk ? (
-                <>
-                  <span>
-                    <strong>Cadeia íntegra</strong> — todos os registros lacrados mantêm a sequência
-                    de hashes.
-                  </span>
+            {/* O estado do livro em três números e um selo. O veredicto da
+                cadeia só aparece quando há registro lacrado para verificar —
+                dizer "íntegra" sobre livro vazio não afirma nada. */}
+            <div className="livro-resumo">
+              <span className="livro-resumo-num">
+                <b>{itensDoLivro.length}</b>
+                <small>registro{itensDoLivro.length === 1 ? '' : 's'}</small>
+              </span>
+              <span className="livro-resumo-txt">
+                {linhaAberta.entradas.length} lacrado{linhaAberta.entradas.length === 1 ? '' : 's'}
+                {rascunhos.length > 0 && ` · ${rascunhos.length} rascunho${rascunhos.length === 1 ? '' : 's'}`}
+              </span>
+              {cadeiaOk !== null && linhaAberta.entradas.length > 0 && (
+                <span className={`livro-resumo-cadeia${cadeiaOk ? '' : ' quebrada'}`}>
+                  <Icone nome={cadeiaOk ? 'shield' : 'alerttri'} tam={12} />
+                  {cadeiaOk ? 'Cadeia íntegra' : 'Cadeia não confere'}
                   <PopoverAjuda rotulo="O que é a cadeia de registros" alinhamento="direita">
                     <b>Cada registro guarda a impressão digital do anterior.</b>
                     <span>
@@ -856,15 +852,11 @@ export default function LivroRegistro() {
                       sequência, e a quebra aparece aqui e no registro afetado.
                     </span>
                   </PopoverAjuda>
-                </>
-              ) : (
-                <span>
-                  <strong>A cadeia de registros não confere.</strong> Um ou mais registros foram
-                  alterados, removidos ou reordenados depois de emitidos. Veja os marcados abaixo.
                 </span>
               )}
             </div>
-          )}
+          </div>
+
 
           {itensDoLivro.length === 0 ? (
             <p className="dashboard-vazio" style={{ padding: '14px 0' }}>Nenhum registro lançado ainda neste livro.</p>
@@ -901,17 +893,27 @@ export default function LivroRegistro() {
                           <span className="livro-timeline-num">#{numeroRegistro}</span>
                         )}
                         <span className="livro-timeline-data">{dataBR(entrada.data)}</span>
-                        <span className={`fj-badge ${cor}`}>{entrada.tipo}</span>
+                        {/* O tipo é METADADO, não etiqueta: cor no texto, sem
+                            fundo. Com o fundo cheio, cada linha da lista tinha
+                            três adesivos coloridos disputando o olho com o
+                            texto do registro. */}
+                        <span className={`livro-timeline-tipo t-${cor}`}>{entrada.tipo}</span>
                         {/* Sem selo Apto/Inapto para ocorrência manual — não é laudo de inspeção. */}
                         {entrada.origem !== 'manual' && (entrada.apto === true || entrada.apto === false) && (
-                          <span className={`fj-badge ${entrada.apto ? 'ok' : 'crit'}`}>{entrada.apto ? 'Apto' : 'Inapto'}</span>
+                          <span className={`livro-timeline-laudo ${entrada.apto ? 'ok' : 'crit'}`}>
+                            {entrada.apto ? 'Apto' : 'Inapto'}
+                          </span>
                         )}
-                        {entrada.origem === 'manual' && <span className="selo-flat manual">manual</span>}
+                        {entrada.origem === 'manual' && <span className="livro-timeline-origem">manual</span>}
                         {/* LACRADO é um fato do registro (tem selo criptográfico);
                             ÍNTEGRO é o veredicto de recalculá-lo, e continua nos
                             metadados. Trocar um pelo outro afirmaria verificação
                             onde há só presença de hash. */}
-                        {cripto && <span className="livro-timeline-lacre">🔒 Lacrado</span>}
+                        {cripto && (
+                          <span className="livro-timeline-lacre">
+                            <Icone nome="cadeado" tam={11} /> Lacrado
+                          </span>
+                        )}
                       </div>
                       {retificada && (
                         <div className="livro-timeline-desc" style={{ fontStyle: 'italic' }}>

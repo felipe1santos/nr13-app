@@ -161,9 +161,12 @@ describe('a tela do equipamento tem UMA barra de ferramentas', () => {
   it('as ações saíram da fileira solta e entraram na faixa', () => {
     // Antes: `<div style={{ display: 'flex', ..., justifyContent: 'flex-end' }}>`
     // no meio da tela, sem moldura, entre os cards e a linha do tempo.
-    // 3ª rodada: a faixa separada virou o cabeçalho ÚNICO — identificação,
-    // ações e foto no mesmo bloco.
+    // 3ª rodada: a faixa separada virou o cabeçalho ÚNICO. 6ª: ele passou a ser
+    // resolvido em DUAS linhas — trilha/ações/foto em cima, identificação
+    // embaixo.
     expect(pagina).toContain('className="fj-panel-head livro-topo"');
+    expect(pagina).toContain('className="livro-topo-l1"');
+    expect(pagina).toContain('className="livro-topo-l2"');
     expect(pagina).toContain('className="livro-toolbar-acoes"');
     expect(semComentarios(pagina)).not.toContain("justifyContent: 'flex-end', flexWrap: 'wrap', marginTop: 14");
   });
@@ -180,9 +183,11 @@ describe('a tela do equipamento tem UMA barra de ferramentas', () => {
   });
 
   it('"Novo registro" é a única primária da barra', () => {
+    // Só a faixa de ações da LINHA 1 — depois dela vem a foto e, mais abaixo,
+    // o "Trancar" primário dos rascunhos, que é outra coisa.
     const barra = pagina.slice(
       pagina.indexOf('className="livro-toolbar-acoes"'),
-      pagina.indexOf('Capa e Termo'),
+      pagina.indexOf('className="livro-topo-foto"'),
     );
     expect(barra.match(/fj-btn-primary/g)).toHaveLength(1);
     expect(barra).toContain('Novo registro');
@@ -404,7 +409,7 @@ describe('tela principal, refinada', () => {
 describe('tela interna, refinada', () => {
   it('identificação, ações e foto no MESMO bloco', () => {
     expect(pagina).toContain('className="fj-panel-head livro-topo"');
-    expect(pagina).toContain('className="livro-topo-id"');
+    expect(pagina).toContain('className="livro-topo-l2"');
     expect(pagina).toContain('className="livro-topo-foto"');
     // A faixa separada de ferramentas saiu: eram três faixas empilhadas.
     expect(semComentarios(pagina)).not.toContain('<div className="livro-toolbar">');
@@ -424,21 +429,27 @@ describe('tela interna, refinada', () => {
     const capa = pagina.slice(pagina.indexOf('livro-doc-ic capa'), pagina.indexOf('livro-doc-ic capa') + 90);
     const termo = pagina.slice(pagina.indexOf('livro-doc-ic termo'), pagina.indexOf('livro-doc-ic termo') + 90);
     expect(capa).toContain('nome="book"');
-    expect(termo).toContain('nome="checkcircle"');
+    // 6ª rodada: a prancheta lê melhor como "documento lavrado" do que o
+    // círculo de confirmação, que no sistema significa APROVADO.
+    expect(termo).toContain('nome="clipboard"');
   });
 
   it('os cards de Capa e Termo ficaram mais baixos', () => {
-    expect(css).toContain('.livro-doc-card { padding: 10px 13px; gap: 10px; }');
-    expect(css).toContain('.livro-doc-ic { width: 32px; height: 32px;');
+    // 6ª rodada: além de baixos, com largura PRÓPRIA — eles são atalhos, não
+    // painéis, e esticavam até o fim da tela num grid `auto-fit`.
+    expect(css).toContain('.livro-doc-card {');
+    expect(css).toContain('width: 232px;');
+    expect(css).toContain('.livro-doc-ic { width: 28px; height: 28px; border-radius: 6px; }');
   });
 
-  it('o selo da cadeia cabe numa linha, com o porquê no "i"', () => {
-    expect(pagina).toContain('className={`livro-cadeia no-print');
-    expect(pagina).toContain('<strong>Cadeia íntegra</strong>');
+  it('a integridade virou pílula no resumo, não faixa isolada', () => {
+    // A faixa verde ocupava uma linha inteira repetindo a mesma explicação em
+    // toda visita. O veredicto foi para o resumo do livro; o porquê, para o "i".
+    expect(semComentarios(pagina)).not.toContain('livro-cadeia no-print');
+    expect(pagina).toContain('livro-resumo-cadeia');
+    expect(pagina).toContain('Cadeia íntegra');
+    expect(pagina).toContain('Cadeia não confere');
     expect(pagina).toContain('rotulo="O que é a cadeia de registros"');
-    // O ALERTA continua inteiro: esconder o motivo da quebra atrás de um clique
-    // seria esconder justamente o que importa.
-    expect(pagina).toContain('A cadeia de registros não confere.');
   });
 });
 
@@ -682,5 +693,88 @@ describe('a ficha tem hierarquia de leitura, não cara de papel', () => {
   it('o modal ficou mais reto ainda: 6px', () => {
     expect(cssModal).toContain('.reg-modal { border-radius: 6px; }');
     expect(cssModal).toContain('.reg-modal-prefill select { border-radius: 4px; }');
+  });
+});
+
+/* ══ Sexta rodada (07/09/2026): a tela do equipamento, mais baixa ══ */
+
+describe('cabeçalho em duas linhas', () => {
+  it('linha 1 tem trilha, ações e foto; linha 2, a identificação', () => {
+    const l1 = pagina.slice(pagina.indexOf('livro-topo-l1'), pagina.indexOf('livro-topo-l2'));
+    expect(l1).toContain('meta-breadcrumb livro-topo-trilha');
+    expect(l1).toContain('livro-toolbar-acoes');
+    expect(l1).toContain('livro-topo-foto');
+    const l2 = pagina.slice(pagina.indexOf('livro-topo-l2'));
+    expect(l2).toContain('<h2>{linhaAberta.tag}</h2>');
+    expect(l2).toContain('livro-topo-tipo');
+    expect(l2).toContain('livro-topo-cat');
+  });
+
+  it('a categoria acompanha o nome, e não uma terceira linha de badges', () => {
+    expect(semComentarios(pagina)).not.toContain('livro-topo-badges');
+    expect(css).toContain('.livro-topo-l2 {');
+  });
+});
+
+describe('faixa utilitária: documentos à esquerda, estado à direita', () => {
+  it('os cards viraram atalhos de largura própria', () => {
+    expect(pagina).toContain('className="livro-fixos-docs"');
+    expect(css).toContain('.livro-fixos-docs { display: flex; gap: 10px; flex-wrap: wrap; }');
+    expect(css).toContain('width: 232px;');
+  });
+
+  it('o resumo do livro fica no canto direito da MESMA faixa', () => {
+    expect(pagina).toContain('className="livro-resumo"');
+    expect(pagina).toContain('livro-resumo-num');
+    expect(pagina).toContain('lacrado');
+    expect(pagina).toContain('rascunho');
+    expect(css).toContain('.livro-resumo {');
+    expect(css).toContain('margin-left: auto;');
+  });
+
+  it('o veredicto da cadeia só aparece havendo registro lacrado', () => {
+    // Dizer "íntegra" sobre livro vazio não afirma nada.
+    expect(pagina).toContain('{cadeiaOk !== null && linhaAberta.entradas.length > 0 && (');
+  });
+
+  it('o título "Registros do livro" saiu', () => {
+    const limpo = semComentarios(pagina);
+    expect(limpo).not.toContain('Registros do livro');
+    expect(limpo).not.toContain('livro-lista-head');
+  });
+});
+
+describe('metadados da lista sem adesivo colorido', () => {
+  it('o tipo é texto colorido, não badge com fundo', () => {
+    expect(pagina).toContain('className={`livro-timeline-tipo t-${cor}`}');
+    expect(semComentarios(pagina)).not.toContain('className={`fj-badge ${cor}`}');
+    expect(css).toContain('.livro-timeline-tipo.t-info { color: var(--blue, #457dc1); }');
+  });
+
+  it('LACRADO virou cadeado verde, sem cápsula roxa', () => {
+    expect(pagina).toContain('<Icone nome="cadeado" tam={11} /> Lacrado');
+    const bloco = css.slice(css.lastIndexOf('.livro-timeline-lacre {'));
+    expect(bloco).toContain('background: none;');
+    expect(bloco).toContain('color: var(--ok, #1fa971);');
+  });
+
+  it('APTO/INAPTO e "manual" também perderam o fundo', () => {
+    expect(pagina).toContain('className="livro-timeline-origem"');
+    expect(pagina).toContain('livro-timeline-laudo');
+    expect(semComentarios(pagina)).not.toContain('selo-flat manual');
+  });
+});
+
+describe('ações do rascunho na horizontal', () => {
+  it('a faixa de ações não empilha', () => {
+    // Empilhadas, elas faziam o card do rascunho crescer e a lista virava uma
+    // coluna de blocos altos.
+    expect(css).toContain('.livro-timeline-acoes { flex-direction: row; flex-wrap: nowrap; }');
+  });
+
+  it('no celular elas continuam numa linha, com alvo de 44px', () => {
+    const movel = css.slice(css.lastIndexOf('@media (max-width: 640px)'));
+    expect(movel).toContain('overflow-x: auto;');
+    expect(movel).toContain('.livro-timeline-acoes .btn-icone { width: 44px; height: 44px; flex: 0 0 auto; }');
   });
 });

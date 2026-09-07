@@ -582,3 +582,203 @@
   .livro-visual-acoes > * { flex: 1; justify-content: center; height: 44px; box-sizing: border-box; }
   .livro-visual-ficha { padding: 12px; }
 }
+
+/* ============================================================================
+   6ª RODADA (07/09/2026) — a tela do equipamento, mais baixa.
+
+   O cabeçalho abria três linhas (trilha, nome, badges) porque identificação e
+   ações disputavam a mesma; os dois cards de documento esticavam até o fim da
+   tela; e o estado do livro ocupava um título intermediário MAIS uma faixa
+   verde. Tudo isso virou: duas linhas no topo, uma faixa utilitária com os
+   documentos à esquerda e o resumo à direita, e a lista logo abaixo.
+   ============================================================================ */
+
+/* ── CABEÇALHO EM DUAS LINHAS ────────────────────────────────────────────── */
+.livro-topo {
+  display: block;
+  padding: 10px 20px 12px;
+}
+.livro-topo-l1 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.livro-topo-l1 .meta-breadcrumb { margin-bottom: 0; flex: 1 1 auto; min-width: 0; }
+.livro-topo-l1 .livro-toolbar-acoes { flex: 0 0 auto; }
+
+/* Linha 2: a identificação junta — TAG, nome do equipamento e categoria. */
+.livro-topo-l2 {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.livro-topo-l2 h2 {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 17px;
+  letter-spacing: 0.01em;
+}
+.livro-topo-tipo { font-size: 13px; color: var(--muted, #7a8790); }
+.livro-topo-cat {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 3px;
+  background: var(--steel, #f6f5f2);
+  color: var(--muted, #7a8790);
+}
+.livro-topo-foto { width: 62px; height: 50px; border-radius: 6px; }
+
+/* ── FAIXA UTILITÁRIA: documentos à esquerda, estado à direita ───────────── */
+.livro-fixos {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--line, #e4e1d8);
+  background: var(--bg-faint, #fbfaf7);
+}
+/* Largura própria: os cards são ATALHOS, não painéis. */
+.livro-fixos-docs { display: flex; gap: 10px; flex-wrap: wrap; }
+.livro-doc-card {
+  width: 232px;
+  padding: 8px 12px;
+  gap: 9px;
+  border-radius: 6px;
+  background: #fff;
+}
+.livro-doc-ic { width: 28px; height: 28px; border-radius: 6px; }
+.livro-doc-card strong { font-size: 12.5px; }
+.livro-doc-card span { font-size: 10.5px; }
+
+/* O estado do livro: três números e um selo, no canto direito da faixa. */
+.livro-resumo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+.livro-resumo-num { display: flex; align-items: baseline; gap: 5px; }
+.livro-resumo-num b {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  color: var(--blue2, #0c4f9b);
+}
+.livro-resumo-num small {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 700;
+  color: var(--muted, #7a8790);
+}
+.livro-resumo-txt { font-size: 11.5px; color: var(--muted, #7a8790); }
+/* A integridade vira uma pílula discreta — era uma faixa verde de duas linhas
+   repetindo a mesma explicação em toda visita. O "porquê" está no "i". */
+.livro-resumo-cadeia {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 20px;
+  border: 1px solid var(--ok-line, #bfe9d6);
+  background: var(--ok-bg, #e7f6ef);
+  color: #14724a;
+  font-size: 11px;
+  font-weight: 600;
+}
+.livro-resumo-cadeia.quebrada {
+  border-color: var(--crit-line, #f3c6c3);
+  background: var(--crit-bg, #fbeae9);
+  color: #8e2b20;
+}
+.livro-resumo-cadeia .reg-ajuda-btn {
+  width: 15px;
+  height: 15px;
+  font-size: 10px;
+  border-color: currentColor;
+  color: inherit;
+}
+.livro-resumo-cadeia .reg-ajuda-btn:hover { background: currentColor; color: #fff; }
+
+/* ── LISTA: metadados sem adesivo colorido ───────────────────────────────── */
+.livro-timeline { padding: 8px 14px 16px; }
+.livro-timeline-item { padding: 10px 12px; gap: 11px; }
+.livro-timeline-topo { gap: 7px 10px; }
+
+/* Tipo do registro: cor no texto, sem fundo. */
+.livro-timeline-tipo {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.livro-timeline-tipo.t-ok { color: var(--ok, #1fa971); }
+.livro-timeline-tipo.t-info { color: var(--blue, #457dc1); }
+.livro-timeline-tipo.t-warn { color: var(--warn, #b8860b); }
+.livro-timeline-tipo.t-crit { color: var(--crit, #d5453d); }
+.livro-timeline-tipo.t-neutro { color: var(--muted, #7a8790); }
+
+.livro-timeline-laudo {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.livro-timeline-laudo.ok { color: var(--ok, #1fa971); }
+.livro-timeline-laudo.crit { color: var(--crit, #d5453d); }
+
+.livro-timeline-origem {
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-faint, #aeb4b9);
+}
+
+/* LACRADO: cadeado verde, sem a cápsula roxa. */
+.livro-timeline-lacre {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  background: none;
+  color: var(--ok, #1fa971);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* ── AÇÕES DO RASCUNHO NA HORIZONTAL ─────────────────────────────────────── */
+.livro-timeline-acoes { flex-direction: row; flex-wrap: nowrap; }
+.livro-timeline-acoes .btn-icone { width: 30px; height: 30px; }
+.livro-btn-trancar { padding: 6px 11px; font-size: 12px; }
+
+@media (max-width: 900px) {
+  .livro-topo-l1 .livro-toolbar-acoes { order: 3; width: 100%; }
+  .livro-resumo { margin-left: 0; width: 100%; }
+}
+
+@media (max-width: 640px) {
+  .livro-topo { padding: 10px 14px 12px; }
+  .livro-topo-foto { width: 46px; height: 38px; }
+  .livro-fixos { padding: 10px 12px; }
+  .livro-doc-card { width: 100%; }
+  .livro-fixos-docs { width: 100%; }
+  /* No dedo as quatro ações do rascunho continuam numa linha, com alvo de
+     44px — a lista fica rolável na horizontal só nesse trecho, e não a tela. */
+  .livro-timeline-item .livro-timeline-acoes {
+    width: 100%;
+    justify-content: flex-start;
+    overflow-x: auto;
+  }
+  .livro-timeline-acoes .btn-icone { width: 44px; height: 44px; flex: 0 0 auto; }
+  .livro-timeline-acoes .fj-btn { flex: 0 0 auto; width: auto; }
+}
