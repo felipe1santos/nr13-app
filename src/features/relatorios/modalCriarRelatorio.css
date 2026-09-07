@@ -176,3 +176,49 @@
   .mni-resumo { flex-direction: column; align-items: stretch; }
   .mni-trocar { align-self: flex-start; }
 }
+
+/* ── BLOCO DE ABERTURA DO MODAL (07/09/2026) ────────────────────────────────
+   Ilustração + duas linhas explicando o que a escolha provoca. Fica ACIMA da
+   busca — que continua grudada no topo ao rolar — e some da rolagem quando o
+   usuário desce para a lista, porque é introdução, não conteúdo. */
+.mcr-intro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 3px;
+  margin: 0 0 14px;
+  padding: 14px 16px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--blue-line, #c9dcf0);
+  background: linear-gradient(180deg, #f6f9fd 0%, #eef4fb 100%);
+}
+.mcr-intro img {
+  display: block;
+  /* A arte é 3:2. Altura curta de propósito: a lista é o conteúdo do modal. */
+  width: min(230px, 62%);
+  aspect-ratio: 620 / 413;
+  object-fit: contain;
+  height: auto;
+  margin-bottom: 6px;
+}
+.mcr-intro strong {
+  font-family: var(--font-display);
+  font-size: 14px;
+  color: var(--text-main, #2d3339);
+}
+.mcr-intro p {
+  margin: 0;
+  max-width: 52ch;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted, #7a8790);
+}
+
+@media (max-width: 640px) {
+  /* No celular a altura é o recurso escasso: a ilustração encolhe para a lista
+     continuar visível sem rolagem. */
+  .mcr-intro { padding: 10px 12px 12px; margin-bottom: 10px; }
+  .mcr-intro img { width: min(150px, 46%); margin-bottom: 4px; }
+  .mcr-intro p { font-size: 11.5px; }
+}

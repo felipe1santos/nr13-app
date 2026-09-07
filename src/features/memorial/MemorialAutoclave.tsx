@@ -13,6 +13,7 @@ import {
 } from './autoclaveMemorialService';
 import type { ResultadoCalculo } from '../../calc/tipos';
 import { comLoadingGlobal } from '../../app/loadingGlobal';
+import { emitirAviso } from '../../services/eventos';
 import { useAvisoSairSemSalvar } from './useAvisoSairSemSalvar';
 import './memorial.css';
 
@@ -123,9 +124,21 @@ function MemorialAutoclaveInner({ tag, subtipo }: Props) {
       await comLoadingGlobal('Salvando memorial...', async () => {
         await salvarDadosAutoclave(tag, subtipo, dados);
         await salvarResultadoAutoclave(tag, subtipo, dados, resultado);
-      });
+      }, { minimoMs: 1500 });
       setDirty(false);
-      window.alert('Memorial salvo com sucesso!');
+      emitirAviso({
+        variante: 'sucesso',
+        titulo: 'Cálculo salvo',
+        texto: 'O memorial de cálculo foi salvo com sucesso no sistema.',
+      });
+    } catch (e) {
+      // Ver o mesmo bloco em `MemorialVaso`: erro de gravação não pode sair da
+      // tela igual a um sucesso.
+      emitirAviso({
+        variante: 'erro',
+        titulo: 'Não foi possível salvar',
+        texto: `O memorial NÃO foi salvo: ${e instanceof Error ? e.message : String(e)}`,
+      });
     } finally {
       setSalvando(false);
     }
@@ -246,7 +259,7 @@ function MemorialAutoclaveInner({ tag, subtipo }: Props) {
               log={resultado?.log ?? []}
               animado={calcCount > 0}
               showPlaceholder={calcCount === 0}
-              placeholder={'>> Insira os dados estruturais e clique em "Gerar Cálculo"...'}
+              placeholder="Preencha os dados estruturais do equipamento e clique em Gerar Cálculo para ver o memorial técnico desta geometria."
             />
           </TerminalMemorial>
         </div>
@@ -320,7 +333,7 @@ function MemorialAutoclaveInner({ tag, subtipo }: Props) {
               log={resultado?.log ?? []}
               animado={calcCount > 0}
               showPlaceholder={calcCount === 0}
-              placeholder={'>> Insira os dados estruturais e clique em "Gerar Cálculo"...'}
+              placeholder="Preencha os dados estruturais do equipamento e clique em Gerar Cálculo para ver o memorial técnico desta geometria."
             />
           </TerminalMemorial>
         </div>

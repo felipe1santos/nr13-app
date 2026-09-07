@@ -171,10 +171,31 @@ export default function MemorialLog({ log, animado = false, placeholder, showPla
 
   const linhasVisiveis = linhas.slice(0, visivel);
 
+  /*
+   * ANTES DO CÁLCULO (07/09/2026).
+   *
+   * Era uma linha de prompt (`>> Insira os dados estruturais…`) num painel de
+   * meia tela: quase tudo vazio, e a instrução perdida no canto superior. Agora
+   * é um estado de onboarding — a ilustração do memorial (a folha cotada sobre
+   * a mesa de trabalho) e a mesma instrução, no centro da área.
+   *
+   * A frase continua vindo de QUEM CHAMA: a caldeira pede "dados da caldeira",
+   * o vaso e o autoclave pedem "dados estruturais". O `>>` do terminal saiu do
+   * texto porque o bloco deixou de ser terminal.
+   */
   if (showPlaceholder && log.length === 0) {
     return (
-      <div className={`memorial-log ${className ?? ''}`} ref={containerRef}>
-        <span className="calc-terminal-prompt">{placeholder ?? '>> ...'}</span>
+      <div className={`memorial-log memorial-log-vazio ${className ?? ''}`} ref={containerRef}>
+        <figure className="memorial-vazio-fig">
+          <img
+            src="/ilustracoes/memorial-calculo.webp"
+            alt="Folha de memorial com o desenho cotado do equipamento sobre a mesa de trabalho, ao lado do computador e da calculadora"
+            loading="lazy"
+            decoding="async"
+          />
+        </figure>
+        <strong>Memorial ainda não gerado</strong>
+        <p>{placeholder ?? 'Preencha os dados do equipamento e gere o cálculo.'}</p>
       </div>
     );
   }

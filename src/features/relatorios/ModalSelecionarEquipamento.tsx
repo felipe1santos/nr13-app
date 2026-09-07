@@ -30,12 +30,19 @@ import './modalCriarRelatorio.css';
 export default function ModalSelecionarEquipamento({
   titulo = 'Selecione o equipamento',
   sobre = 'Criar relatório',
+  intro,
   children,
   aoFechar,
 }: {
   /** O que se está escolhendo — muda entre relatório e prontuário. */
   titulo?: string;
   sobre?: string;
+  /**
+   * Bloco de abertura opcional, entre o cabeçalho e a lista (ilustração +
+   * explicação curta). Opcional de propósito: o modal de relatório abre em
+   * cima de uma lista que o usuário acabou de ver e não precisa da introdução.
+   */
+  intro?: ReactNode;
   /**
    * O CATÁLOGO. Cada módulo tem o seu (relatórios e prontuários leem
    * projeções e recortes diferentes), e é ele que muda entre um e outro — a
@@ -100,7 +107,10 @@ export default function ModalSelecionarEquipamento({
           </button>
         </div>
 
-        <div className="mcr-corpo mcr-corpo-lista">{children}</div>
+        <div className="mcr-corpo mcr-corpo-lista">
+          {intro}
+          {children}
+        </div>
       </div>
     </div>
   );

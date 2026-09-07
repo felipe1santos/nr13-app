@@ -12,6 +12,7 @@ import {
   type ResumoMemorialCaldeira,
 } from './caldeiraMemorialService';
 import { comLoadingGlobal } from '../../app/loadingGlobal';
+import { emitirAviso } from '../../services/eventos';
 import { useAvisoSairSemSalvar } from './useAvisoSairSemSalvar';
 import './memorial.css';
 
@@ -90,9 +91,21 @@ function MemorialCaldeiraInner({ tag }: Props) {
       await comLoadingGlobal('Salvando memorial...', async () => {
         await salvarCaldeira(tag, cald);
         await salvarResumoCaldeira(tag, resumo);
-      });
+      }, { minimoMs: 1500 });
       setDirty(false);
-      window.alert('Memorial salvo com sucesso!');
+      emitirAviso({
+        variante: 'sucesso',
+        titulo: 'Cálculo salvo',
+        texto: 'O memorial de cálculo foi salvo com sucesso no sistema.',
+      });
+    } catch (e) {
+      // Ver o mesmo bloco em `MemorialVaso`: erro de gravação não pode sair da
+      // tela igual a um sucesso.
+      emitirAviso({
+        variante: 'erro',
+        titulo: 'Não foi possível salvar',
+        texto: `O memorial NÃO foi salvo: ${e instanceof Error ? e.message : String(e)}`,
+      });
     } finally {
       setSalvando(false);
     }
@@ -269,7 +282,7 @@ function MemorialCaldeiraInner({ tag }: Props) {
           log={logParaMostrar}
           animado={calcCount > 0}
           showPlaceholder={calcCount === 0}
-          placeholder={'>> Insira os dados da caldeira e clique em "Gerar Cálculo"...'}
+          placeholder="Preencha os dados da caldeira e clique em Gerar Cálculo para ver o memorial técnico desta geometria."
         />
       </TerminalMemorial>
     </div>

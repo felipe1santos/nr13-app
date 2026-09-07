@@ -1525,3 +1525,48 @@
   color: #9AA1AD;
   margin: 6px 0 0;
 }
+
+/* ── ANTES DO CÁLCULO: estado de onboarding (07/09/2026) ────────────────────
+   Era uma linha de prompt num painel de meia tela. Agora a área traz a
+   ilustração do memorial e a instrução, centradas — ver `MemorialLog`. */
+.memorial-log-vazio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 4px;
+  /* Um pouco acima do centro: o olho lê melhor um bloco que não está colado no
+     meio exato de uma área alta. */
+  padding: 8% 18px 12%;
+  min-height: 260px;
+}
+.memorial-vazio-fig {
+  margin: 0 0 10px;
+  width: min(260px, 68%);
+}
+.memorial-vazio-fig img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+  height: auto;
+}
+.memorial-log-vazio strong {
+  font-family: 'Space Grotesk', var(--font-display, inherit), sans-serif;
+  font-size: 14px;
+  color: #2d3339;
+}
+.memorial-log-vazio p {
+  margin: 0;
+  max-width: 46ch;
+  font-family: var(--font-base, system-ui), sans-serif;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: #7a8790;
+}
+
+@media (max-width: 640px) {
+  .memorial-log-vazio { padding: 22px 14px 26px; min-height: 0; }
+  .memorial-vazio-fig { width: min(190px, 60%); margin-bottom: 8px; }
+}

@@ -479,3 +479,7 @@
     justify-content: center;
   }
 }
+
+/* O "i" ao lado do título da sessão precisa de ar: colado no "ç" ele parece
+   parte da palavra. */
+.reg-hero h2 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }

@@ -957,6 +957,25 @@ export default function Prontuarios() {
         <ModalSelecionarEquipamento
           sobre="Criar prontuário"
           aoFechar={() => setCriando(false)}
+          /* O modal abria direto na lista, sem dizer o que a escolha provoca.
+             A ilustração e as duas linhas abaixo dela respondem isso antes da
+             busca — e ficam COMPACTAS de propósito: a lista continua sendo o
+             conteúdo do modal. */
+          intro={
+            <div className="mcr-intro">
+              <img
+                src="/ilustracoes/escolher-equipamento.webp"
+                alt="Folha de prontuário sobre outras folhas, com campos preenchidos e itens marcados"
+                loading="lazy"
+                decoding="async"
+              />
+              <strong>Escolha o equipamento</strong>
+              <p>
+                Selecione o equipamento que receberá o prontuário. O sistema abre o documento em
+                seguida, com os dados que já existem na ficha preenchidos.
+              </p>
+            </div>
+          }
         >
           <CatalogoProntuariosV9
             modo="selecao"

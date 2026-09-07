@@ -15,6 +15,7 @@ import {
   type VasoSalvo,
 } from './vasoMemorialService';
 import { comLoadingGlobal } from '../../app/loadingGlobal';
+import { emitirAviso } from '../../services/eventos';
 import { useAvisoSairSemSalvar } from './useAvisoSairSemSalvar';
 import './memorial.css';
 
@@ -249,9 +250,23 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
       await comLoadingGlobal('Salvando memorial...', async () => {
         await salvarVaso(tag, vaso, sufixo);
         await salvarResumoVaso(tag, resumoAtual, sufixo);
-      });
+      }, { minimoMs: 1500 });
       setDirty(false);
-      window.alert('Memorial salvo com sucesso!');
+      emitirAviso({
+        variante: 'sucesso',
+        titulo: 'Cálculo salvo',
+        texto: 'O memorial de cálculo foi salvo com sucesso no sistema.',
+      });
+    } catch (e) {
+      // O erro REAL, com o texto do erro. Antes ele subia como rejeição não
+      // tratada: a tela ficava idêntica à de um salvamento bem-sucedido, sem
+      // aviso nenhum — e o usuário só descobria que o memorial não fora salvo
+      // ao voltar à ficha.
+      emitirAviso({
+        variante: 'erro',
+        titulo: 'Não foi possível salvar',
+        texto: `O memorial NÃO foi salvo: ${e instanceof Error ? e.message : String(e)}`,
+      });
     } finally {
       setSalvando(false);
     }
@@ -546,7 +561,7 @@ function MemorialVasoInner({ tag, sufixo = '', titulo = 'Memorial de Cálculo', 
           log={logParaMostrar}
           animado={calcCount > 0}
           showPlaceholder={calcCount === 0}
-          placeholder={'>> Insira os dados estruturais e clique em "Gerar Cálculo"...'}
+          placeholder="Preencha os dados estruturais do equipamento e clique em Gerar Cálculo para ver o memorial técnico desta geometria."
         />
       </TerminalMemorial>
 
