@@ -242,6 +242,46 @@ const PECAS = [
       </div></div>`,
   },
   {
+    nome: 'visualizador do registro (ficha + abas)',
+    html: `<div class="fj-modal-overlay" style="position:relative;inset:auto;padding:12px">
+      <div class="fj-modal-box" style="max-width:900px">
+        <div class="fj-modal-head">
+          <div><div class="fj-eyebrow">REGISTRO_2026-09-07</div><h2>ZZ-FASE3</h2></div>
+          <button class="fj-modal-close">x</button>
+        </div>
+        <div class="livro-visual-barra">
+          <div class="livro-visual-modos">
+            <button class="ativa">Registro</button><button>Folha A4</button>
+          </div>
+          <div class="livro-visual-acoes">
+            <button class="btn-secundario">Imprimir</button>
+            <button class="barra-btn barra-btn-pdf">Baixar PDF</button>
+          </div>
+        </div>
+        <div class="livro-visual-ficha">
+          <article class="ficha-reg">
+            <header class="ficha-reg-topo">
+              <div class="ficha-reg-id">
+                <span class="ficha-reg-eyebrow">Registro de Segurança · NR-13</span>
+                <strong class="ficha-reg-equip">Vaso de pressão de teste</strong>
+                <span class="ficha-reg-tag">ZZ-FASE3</span>
+              </div>
+              <span class="ficha-reg-selo lacrado">#000003 · Lacrado</span>
+            </header>
+            <div class="ficha-reg-destaques">
+              <span class="ficha-reg-dado"><small>Data da ocorrência</small><b class="ficha-reg-data">07/09/2026</b></span>
+              <span class="ficha-reg-dado"><small>Tipo</small><b class="ficha-reg-tipo">Manutenção corretiva</b></span>
+            </div>
+            <section class="ficha-reg-bloco"><h4>Termo de Ocorrência:</h4>
+              <p class="ficha-reg-termo">Em 07/09/2026 foi executada manutenção corretiva no vaso de pressão: substituição da válvula de segurança por unidade calibrada, com teste funcional aprovado.</p></section>
+            <section class="ficha-reg-bloco"><h4>Descrição do registro</h4>
+              <p class="ficha-reg-desc">Troca da válvula de segurança — Assento apresentava vazamento.</p></section>
+            <p class="ficha-reg-nota">Esta é a ficha do registro no sistema.</p>
+          </article>
+        </div>
+      </div></div>`,
+  },
+  {
     nome: 'estado vazio ilustrado',
     html: `<div class="dash-page"><div class="fj-panel"><div class="reg-vazio">
       <span class="reg-vazio-ic">L</span>
