@@ -252,3 +252,32 @@ manualmente" e assinante em "Sem assinatura".
 
 `uxRegistros.test.ts` foi de 16 para **38 casos**; suíte completa **2358 testes,
 175 arquivos**, `tsc -b` e `npm run build` limpos.
+
+## 10 · Conferência final do pré-preenchimento (bundle `assets/index-8Dwb6TOK.js`)
+
+Escolhendo `REL-1788715003775 · Inspeção Periódica · 06/09/2026` no modal, em
+produção, os quatro campos que o "i" promete chegam:
+
+| campo | valor |
+|---|---|
+| Data da ocorrência | `2026-09-06` (o campo mostra 06/09/2026) |
+| Tipo de ocorrência | **Inspeção Periódica** — entrou na lista de opções |
+| O que foi feito | "Relatório de inspeção gerado: Relatorio_Inspeção_Periódica_ZZ-FASE3.pdf" |
+| Responsável que assina | funciona01 |
+
+O modal foi fechado em **Cancelar**: nenhum rascunho foi criado na conta durante
+a validação (`document.querySelectorAll('.livro-rascunho').length === 0`).
+
+**Observação fora do escopo desta rodada, registrada porque foi medida:**
+escolher um relatório trava a aba por alguns segundos — em uma das tentativas o
+`Runtime.evaluate` estourou 45s esperando a thread principal. `carregarRelatorio`
++ `montarEntradaLivroDoRelatorio` fazem trabalho pesado (registro completo com
+base64 e a rubrica) de forma síncrona para a UI. Não foi alterado aqui: é
+comportamento anterior a esta rodada e mexer nisso é performance de dados, não
+UX de layout.
+
+**Armadilha de verificação, para a próxima vez:** ao esperar um deploy, comparar
+com o hash servido AGORA, não com o hash de dois deploys atrás. A primeira
+espera deu "novo bundle" em 15 segundos porque o JS já tinha mudado no deploy
+anterior — e a conferência funcional rodou contra o build errado, mostrando os
+campos vazios de novo.
