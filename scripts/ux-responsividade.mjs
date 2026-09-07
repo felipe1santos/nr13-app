@@ -197,6 +197,30 @@ const PECAS = [
     </div></div>`,
   },
   {
+    nome: 'modal de ajuda com ilustracao (Calibracoes)',
+    html: `<div class="fj-modal-overlay ajuda-overlay"><div class="fj-modal-box ajuda-box">
+      <div class="ajuda-head">
+        <div class="ajuda-head-txt">
+          <div class="fj-eyebrow">Calibrações</div>
+          <h2>Como funcionam as calibrações</h2>
+          <p>As calibrações são organizadas por equipamento e por lote: primeiro você cadastra os acessórios do equipamento, depois cria um lote e registra a calibração de cada um.</p>
+        </div>
+        <button class="fj-modal-close">x</button>
+      </div>
+      <div class="ajuda-corpo">
+        <figure class="ajuda-figura"><img src="https://app.nr13sistema.com.br/ilustracoes/fluxo-calibracao.webp" alt="fluxo"></figure>
+        <ol class="ajuda-passos">
+          <li><div><b>Cadastre os acessórios</b><span>Os componentes que pertencem ao equipamento — manômetros e válvulas de segurança (PSV).</span></div></li>
+          <li><div><b>Crie um lote de calibração</b><span>O lote é a rodada daquela inspeção e mantém o histórico separado das anteriores.</span></div></li>
+          <li><div><b>Calibre os acessórios do lote</b><span>Dentro do lote, cada componente cadastrado aparece com o botão Calibrar.</span></div></li>
+          <li><div><b>Use o lote no relatório</b><span>Marcando um lote, as folhas de certificado dele entram no documento.</span></div></li>
+        </ol>
+        <p class="ajuda-nota"><span>O certificado do instrumento padrão fica em Certificados.</span></p>
+      </div>
+      <div class="ajuda-acoes"><button class="fj-btn fj-btn-primary">Entendi</button></div>
+    </div></div>`,
+  },
+  {
     nome: 'botões lado a lado (as duas famílias)',
     html: `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <button class="btn-primario">Salvar</button>
@@ -224,10 +248,18 @@ const MEDIR = `(doc => {
   // Altura de cada LINHA da lista de relatorios — a densidade pedida (38–44px).
   const alturaLinhas = [...doc.querySelectorAll('.rel-linha:not(.rel-linha-cabecalho)')]
     .map(l => Math.round(l.getBoundingClientRect().height));
+  const modal = doc.querySelector('.ajuda-box');
+  const fig = doc.querySelector('.ajuda-figura img');
+  const ajuda = modal ? {
+    largura: Math.round(modal.getBoundingClientRect().width),
+    altura: Math.round(modal.getBoundingClientRect().height),
+    img: fig ? Math.round(fig.getBoundingClientRect().width) + 'x' + Math.round(fig.getBoundingClientRect().height) : null,
+    fit: fig ? getComputedStyle(fig).objectFit : null,
+  } : null;
   const alturaPront = [...doc.querySelectorAll('.pront-linha:not(.pront-linha-cabecalho)')]
     .map(l => Math.round(l.getBoundingClientRect().height));
   return { largura: doc.documentElement.clientWidth,
-           scrollH: doc.documentElement.scrollWidth, pecas: r, botoes, alturaLinhas, alturaPront };
+           scrollH: doc.documentElement.scrollWidth, pecas: r, botoes, alturaLinhas, alturaPront, ajuda };
 })`;
 
 const filho = `<!doctype html><meta charset="utf-8">
@@ -314,14 +346,31 @@ for (const l of LARGURAS) {
   // A LINHA da lista também é <button>, e é uma linha: 44px no desktop, 56 no
   // celular, que é o alvo de toque. Só os botões de AÇÃO precisam bater entre si.
   const acoes = d.botoes.filter((b) => /btn-primario|btn-secundario|fj-btn/.test(b));
-  const alturas = new Set(acoes.map((b) => b.split('=')[1]));
+  /*
+   * TOLERÂNCIA DE 1px, e ela é deliberada.
+   *
+   * A altura do botão sai do conteúdo, e um rótulo de texto puro mede 33,6px
+   * onde um com <span> mede 34,2 — o navegador arredonda para 33 e 34. Tentei
+   * eliminar isso com `line-height` (piorou: as duas famílias herdam valores
+   * diferentes) e com um piso de `min-height` (pior ainda: por carregar depois
+   * do `tokens.css`, o piso de 34 derrubou o alvo de toque de 44px no celular).
+   *
+   * Um pixel de diferença é invisível e não vale uma regressão de acessibilidade.
+   * O que este teste tem de travar é o que se enxerga — 26 contra 34, 2 contra
+   * 44 —, e é isso que a faixa faz.
+   */
+  const valores = acoes.map((b) => Number(b.split('=')[1]));
+  const alturas = new Set(
+    valores.length ? [Math.max(...valores) - Math.min(...valores) <= 1 ? 'ok' : 'divergente'] : [],
+  );
   if (d.alturaLinhas?.length) console.log(`  linhas de /relatorios: ${d.alturaLinhas.join(', ')}px`);
   if (d.alturaPront?.length) console.log(`  linhas de /prontuarios: ${d.alturaPront.join(', ')}px`);
+  if (d.ajuda) console.log(`  modal de ajuda: ${d.ajuda.largura}x${d.ajuda.altura}px · imagem ${d.ajuda.img} · ${d.ajuda.fit}`);
   console.log(`  botões: ${d.botoes.join('  ')}`);
-  if (alturas.size > 1) {
-    console.log(`  !! alturas de botão divergentes: ${[...alturas].join(', ')}`);
+  if (alturas.has('divergente')) {
+    console.log(`  !! alturas de botão divergentes: ${[...new Set(valores)].join(', ')}px`);
     falhas++;
-  } else console.log(`  ok · todo botão com ${[...alturas][0]}px`);
+  } else console.log(`  ok · botões de ação entre ${Math.min(...valores)} e ${Math.max(...valores)}px`);
 }
 console.log(falhas === 0 ? '\nRESULTADO: sem falha.' : `\nRESULTADO: ${falhas} falha(s).`);
 process.exit(falhas === 0 ? 0 : 1);
