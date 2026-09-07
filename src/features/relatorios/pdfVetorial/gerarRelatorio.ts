@@ -313,6 +313,13 @@ export async function gerarRelatorioVetorial(
 ): Promise<ResultadoVetorial> {
   const inicio = performance.now();
   const modelo = await comFotosMedidas(montarModeloRelatorio(tag));
+  // A foto de CAPA da ficha mora no cofre desde 10/08/2026 (`{ ref }`, sem
+  // bytes) — o mesmo caminho das fotos de campo, e por isso o mesmo resolvedor.
+  // Sem este passo a capa fica vazia mesmo com a foto visível na ficha.
+  if (!modelo.fotoCapa && modelo.fotoCapaRef) {
+    const [resolvida] = await resolverFotos([{ dataUrl: '', descricao: '', ref: modelo.fotoCapaRef }]);
+    modelo.fotoCapa = resolvida?.dataUrl ?? null;
+  }
   // A placa REAL vem do cofre/bucket, então só dá para resolver aqui — o modelo
   // é montado de forma síncrona. Sem foto, `placaReal` fica `null` e a folha
   // desenha a placa reconstruída.

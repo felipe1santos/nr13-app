@@ -355,3 +355,42 @@ export async function anexarRastreabilidades(
 
   return { bytes: await doc.save(), anexados, falhas };
 }
+
+/**
+ * O PADRÃO que preenche o bloco "INSTRUMENTO DE MEDIÇÃO UTILIZADO" de uma folha.
+ *
+ * ## Por que existe (06/09/2026)
+ *
+ * `ULTRASSOM.html:807` e `TESTE-HIDROSTATICO.html:669` sempre preencheram esse
+ * bloco a partir DAQUI — do cadastro de Certificados, escolhido por
+ * `tipoInstrumento`. O modelo do documento vetorial lia `ultrassom.instrumento`
+ * / `th.instrumento` **do container de inspeção**, e nenhum formulário de campo
+ * grava esses campos: o bloco saía com quatro travessões em todo relatório do
+ * Modelo Novo, num documento que afirma rastreabilidade metrológica.
+ *
+ * A regra de escolha é a MESMA das folhas, e mora aqui para ser uma só:
+ *
+ * 1. registro do tipo pedido, preferindo o vinculado a esta TAG;
+ * 2. entre os LEGADOS (sem `tipoInstrumento`), o marcado "injetar no relatório";
+ * 3. entre os legados, o que o nome identifica (`/ultra.?s?om|espessura/`);
+ * 4. `null` — e `null` vira travessão, que é a resposta honesta.
+ *
+ * Versão soft-substituída nunca preenche folha nova (§ `nr13_rastreab_`): ela
+ * só continua resolvível por id, para os relatórios já emitidos.
+ */
+export function padraoDoEnsaio(
+  tipo: TipoInstrumento,
+  tag?: string | null,
+  nomeLegado?: RegExp,
+): Rastreabilidade | null {
+  const validos = listarRastreabilidadesAtivas().filter((r) => aplicaAoEquipamento(r, tag));
+  const doTipo = validos.filter((r) => r.tipoInstrumento === tipo);
+  const semTipo = validos.filter((r) => !r.tipoInstrumento);
+  return (
+    doTipo.find((r) => r.tags?.length) ??
+    doTipo[0] ??
+    semTipo.find((r) => injetaNoRelatorio(r) && r.injetarNoRelatorio === true) ??
+    (nomeLegado ? semTipo.find((r) => nomeLegado.test(r.nome ?? '')) : undefined) ??
+    null
+  );
+}

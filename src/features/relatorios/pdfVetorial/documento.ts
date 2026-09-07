@@ -225,8 +225,21 @@ export class Documento {
    * folhas; imprimir uma linha só deixava um terço de página em branco — foi o
    * que o dono viu na folha de categorização de risco. O bloco tem altura
    * mínima (nunca vira uma tira) e é campo editável como qualquer outro.
+   *
+   * ## `auto` — o que o SISTEMA já sabe (06/09/2026)
+   *
+   * O bloco nascia SEMPRE vazio: o valor automático estava fixado em `''`
+   * dentro do método. Quatro campos que o inspetor preenche em campo caíam aqui
+   * e desapareciam do documento sem erro nenhum — os comentários sobre a
+   * documentação, as observações gerais dos exames externo e interno e as
+   * observações do ultrassom. O usuário digitava no celular e o relatório saía
+   * com a caixa em branco.
+   *
+   * Passar `auto` mantém o bloco no lugar e faz o que ele já fazia quando não
+   * há fonte (nascer vazio e amarelo na prévia), sem perder o que existe. O
+   * override manual continua vencendo, e `branco` continua apagando.
    */
-  blocoAteOFim(id: string, rotulo: string, titulo?: string, minAltura = 22, maxAltura = 48): void {
+  blocoAteOFim(id: string, rotulo: string, titulo?: string, minAltura = 22, maxAltura = 48, auto = ''): void {
     if (titulo) this.secao(titulo);
     // O bloco NUNCA abre folha nova. Ele é o último elemento da folha, e a
     // sobra que ele ocupa foi medida na 1ª passagem: se o respiro consumir
@@ -244,11 +257,10 @@ export class Documento {
     if (altura === 0) {
       // Sem espaço: o campo continua existindo (o override é por id, não por
       // caixa), mas nada é desenhado no pé da folha.
-      this.anotarCampo(id, rotulo, '', this.resolver(id, ''), true, { x: CAIXA.x, y: this.cursor, larg: CAIXA.largura, alt: 0 });
+      this.anotarCampo(id, rotulo, auto, this.resolver(id, auto), true, { x: CAIXA.x, y: this.cursor, larg: CAIXA.largura, alt: 0 });
       return;
     }
     const y = this.cursor;
-    const auto = '';
     const valor = this.resolver(id, auto);
 
     const vazio = valor.trim() === '';

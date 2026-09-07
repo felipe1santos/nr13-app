@@ -201,7 +201,17 @@ function blocoExame(
     ],
   });
 
-  doc.blocoAteOFim(`${prefixo}.observacoes`, 'Observações gerais', 'Observações gerais', 16, 44);
+  // As observações gerais do exame vêm do FORMULÁRIO de campo (`observacoes`).
+  // O bloco as ignorava — nascia vazio por construção —, então o que o inspetor
+  // escreveu no celular sumia do documento sem erro nenhum.
+  doc.blocoAteOFim(
+    `${prefixo}.observacoes`,
+    'Observações gerais',
+    'Observações gerais',
+    16,
+    44,
+    textoOu(exame.observacoes, ''),
+  );
 }
 
 /**
@@ -1160,12 +1170,15 @@ export function folhasChecklist(doc: Documento, m: ModeloRelatorio): void {
       }),
     });
   }
+  // `comentariosDocumentacao` é do checklist de campo — o parecer livre sobre a
+  // documentação analisada. Ele já estava no modelo e não chegava ao papel.
   doc.blocoAteOFim(
     'documentacao.comentarios',
     'Comentários sobre a documentação',
     'Comentários sobre a documentação',
     18,
     52,
+    textoOu(m.comentariosDocumentacao, ''),
   );
   doc.fecharSecaoElastica();
 
@@ -1404,6 +1417,7 @@ export function folhaUltrassom(doc: Documento, m: ModeloRelatorio): void {
     'Observações / conclusões do ensaio',
     16,
     48,
+    textoOu(m.ultrassom.observacoes, ''),
   );
   doc.fecharSecaoElastica();
 }
@@ -1548,7 +1562,14 @@ export function folhasTesteHidrostatico(doc: Documento, m: ModeloRelatorio, comF
 
   blocoInstrumentoPadrao(doc, m.th.instrumento, 'th');
 
-  doc.blocoAteOFim('th.parecer', 'Parecer técnico do teste hidrostático', 'Parecer técnico do teste hidrostático', 18, 50);
+  doc.blocoAteOFim(
+    'th.parecer',
+    'Parecer técnico do teste hidrostático',
+    'Parecer técnico do teste hidrostático',
+    18,
+    50,
+    textoOu(m.th.parecer, ''),
+  );
   doc.fecharSecaoElastica();
 
   if (comFotos) folhaDeFotos(doc, '8.3 REGISTRO FOTOGRÁFICO — TESTE HIDROSTÁTICO', m.th.fotos);

@@ -1,6 +1,7 @@
 import { ler } from '../../../services/storage';
 import { REGIOES, carregarMedicoes, type Regiao } from '../medicoesEspessura';
 import { linhasMemorial } from '../relatoriosService';
+import { padraoDoEnsaio, type Rastreabilidade, type TipoInstrumento } from '../rastreabilidadeService';
 import { INSTRUMENTOS_CHECKLIST, SECOES_CHECKLIST } from '../../inspecoes/formularios/FormularioChecklist';
 import { ITENS_VISUAL_EXTERNO } from '../../inspecoes/formularios/FormularioVisualExterno';
 import { ITENS_VISUAL_INTERNO } from '../../inspecoes/formularios/FormularioVisualInterno';
@@ -89,6 +90,16 @@ export interface ModeloRelatorio {
   validade: string | null;
   execucao: string | null;
   fotoCapa: string | null;
+  /**
+   * A foto de capa que mora no COFRE (`{ ref }`), quando é esse o caso.
+   *
+   * `nr13_fotos_<TAG>` é uma LISTA de `{ id, src, ref, isCapa }`. O modelo a
+   * lia como um objeto `{ capa, fotos[].base64 }` — forma que o sistema nunca
+   * gravou —, e por isso a capa NUNCA saía no Modelo Novo. Desde 10/08/2026 a
+   * foto nova nem tem base64: `src` vem vazio e a imagem está no bucket. Quem
+   * baixa é o gerador, porque este módulo é síncrono de propósito.
+   */
+  fotoCapaRef: RefFoto | null;
   /**
    * Fase 12B · a FOTO REAL da placa, quando o usuário enviou uma.
    *
@@ -381,6 +392,92 @@ function fotos(lista: FotoBruta[] | undefined): FotoModelo[] {
     .filter((f) => f.dataUrl.startsWith('data:image') || !!f.ref);
 }
 
+interface ComponenteDoMemorial {
+  id?: string;
+  nome?: string;
+  tipo?: string;
+  dados?: Record<string, unknown>;
+}
+
+/**
+ * O memorial salvo, seja qual for o tipo do equipamento.
+ *
+ * `vasoMemorialService.chaveVaso` grava em três chaves: `nr13_vaso_<TAG>`
+ * (vaso), `nr13_vaso_ac_corpo_<TAG>` (corpo do autoclave) e
+ * `nr13_vaso_cald_<TAG>` (caldeira). O modelo lia só a primeira — a folha de
+ * dados técnicos de autoclave e de caldeira saía inteira em branco, com o
+ * memorial calculado e salvo.
+ */
+function memorialDoEquipamento(tag: string): { P?: number | string; D?: number | string; componentes?: ComponenteDoMemorial[] } {
+  for (const chave of [`nr13_vaso_${tag}`, `nr13_vaso_ac_corpo_${tag}`, `nr13_vaso_cald_${tag}`]) {
+    const v = ler<{ P?: number | string; D?: number | string; componentes?: ComponenteDoMemorial[] }>(chave);
+    if (v && Array.isArray(v.componentes) && v.componentes.length > 0) return v;
+  }
+  return {};
+}
+
+/**
+ * A foto de CAPA do equipamento, na forma em que a ficha realmente a guarda.
+ *
+ * `nr13_fotos_<TAG>` é uma **lista** de `{ id, src, ref, isCapa }`
+ * (`FotoEquipamento[]`, gravada por `FotoIdentificacao.tsx`). O modelo lia um
+ * objeto `{ capa, fotos[].base64 }` — nome de campo que nenhuma parte do
+ * sistema escreve —, então `fotoCapa` era `null` em 100% dos relatórios do
+ * Modelo Novo, mesmo com a foto visível na ficha.
+ *
+ * `src` é o base64 LEGADO (até 10/08/2026); `ref` é o arquivo no cofre, que é o
+ * que toda foto nova produz. As duas formas voltam daqui: a segunda o gerador
+ * resolve antes de desenhar.
+ */
+function fotoDeCapa(tag: string): { dataUrl: string | null; ref: RefFoto | null } {
+  const lista = ler<{ src?: string; ref?: RefFoto; isCapa?: boolean }[]>(`nr13_fotos_${tag}`);
+  if (!Array.isArray(lista) || lista.length === 0) return { dataUrl: null, ref: null };
+  const util = (f: { src?: string; ref?: RefFoto }) => !!f?.ref?.path || !!txt(f?.src);
+  // A marcada como capa é a escolha do usuário; sem marcação, a ficha mostra a
+  // primeira — e o documento não pode discordar da tela.
+  const escolhida = lista.find((f) => f?.isCapa && util(f)) ?? lista.find(util) ?? null;
+  if (!escolhida) return { dataUrl: null, ref: null };
+  const src = txt(escolhida.src);
+  return {
+    dataUrl: src && src.startsWith('data:image') ? src : null,
+    ref: escolhida.ref?.path ? escolhida.ref : null,
+  };
+}
+
+/**
+ * O bloco "INSTRUMENTO DE MEDIÇÃO UTILIZADO" de uma folha de ensaio.
+ *
+ * A fonte é o cadastro de Certificados (`nr13_rastreab_`), escolhido por
+ * `tipoInstrumento` — exatamente como as folhas HTML sempre fizeram. O modelo
+ * lia `ultrassom.instrumento` / `th.instrumento` do CONTAINER de inspeção, e
+ * nenhum formulário de campo grava esses campos: o bloco saía com quatro
+ * travessões num documento que afirma rastreabilidade metrológica.
+ *
+ * O que o inspetor tiver digitado na folha vence — por isso o valor do
+ * container entra primeiro, quando existe.
+ */
+function instrumentoDoEnsaio(
+  tipo: TipoInstrumento,
+  tag: string,
+  doContainer: Record<string, unknown> | undefined,
+  nomeLegado?: RegExp,
+): { padrao: string | null; serie: string | null; certificado: string | null; validade: string | null } {
+  let r: Rastreabilidade | null = null;
+  try {
+    r = padraoDoEnsaio(tipo, tag, nomeLegado);
+  } catch {
+    // Cadastro corrompido não derruba o documento: o bloco sai vazio, como antes.
+    r = null;
+  }
+  const c = (doContainer ?? {}) as Record<string, unknown>;
+  return {
+    padrao: txt(c.padrao) ?? txt(r?.nome) ?? txt(r?.aparelho),
+    serie: txt(c.serie) ?? txt(r?.numeroSerie),
+    certificado: txt(c.certificado) ?? txt(r?.certificadoPadrao),
+    validade: dataBr(c.validade) ?? dataBr(r?.validade),
+  };
+}
+
 /** Itens do checklist com resposta — os sem resposta ficam de fora da folha. */
 function secoesChecklist(
   respostas: Record<string, string>,
@@ -438,7 +535,7 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
   const calc = ler<{ pmta?: number; pth?: number; componentes?: Record<string, unknown>[] }>(`nr13_calc_${tag}`) ?? {};
   const laudo = ler<{ apto?: boolean | null }>(`nr13_laudo_${tag}`);
   const emps = ler<Record<string, unknown>>(`nr13_emp_${tag}`) ?? {};
-  const fotosFicha = ler<{ capa?: string; fotos?: FotoBruta[] }>(`nr13_fotos_${tag}`) ?? {};
+  const capa = fotoDeCapa(tag);
   const medEsp = ler<Record<string, unknown>>(`nr13_med_esp_${tag}`) ?? {};
 
   // Os dados de campo vivem em DUAS chaves, e a duplicação é obrigatória (§2):
@@ -470,8 +567,20 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
   // O storage guarda PMTA/PTH como string em vaso e caldeira e como número em
   // autoclave. `numeroDoStorage` aceita as duas formas e recusa texto — a
   // fórmula e o cálculo não são tocados, só a leitura.
-  const pmta = converterPressao(numeroDoStorage(calc.pmta));
-  const pth = converterPressao(numeroDoStorage(calc.pth));
+  //
+  // ── A ADOTADA VENCE A CALCULADA ──────────────────────────────────────────
+  // `nr13_info_.pmtaAdotadaMpa` / `.pthAdotadaMpa` são as pressões da
+  // DOCUMENTAÇÃO do equipamento (placa do fabricante, prontuário original),
+  // digitadas no card "Pressões da Documentação" e sempre em MPa. `PLACA.html`
+  // (l. 555) e `PRONTUARIO.html` (l. 711) preferem essas desde sempre; o
+  // vetorial lia só o memorial, então equipamento SEM memorial saía com PMTA e
+  // PTH em branco no documento inteiro — inclusive na placa reconstruída.
+  //
+  // O que NÃO se faz aqui: derivar PTH de PMTA. Vaso usa 1,3 e caldeira 1,5
+  // (§3), e o fator é do motor do memorial. Multiplicar aqui criaria uma
+  // segunda verdade, errada para caldeira, dentro de um documento assinado.
+  const pmta = converterPressao(numeroDoStorage(info.pmtaAdotadaMpa) ?? numeroDoStorage(calc.pmta));
+  const pth = converterPressao(numeroDoStorage(info.pthAdotadaMpa) ?? numeroDoStorage(calc.pth));
   // PMO é DECLARADA na ficha (pressão máxima de OPERAÇÃO), não calculada: o
   // memorial calcula PMTA e PTH. Sem valor declarado, a linha sai vazia — e
   // vazia é a resposta honesta, não a PMTA repetida.
@@ -479,14 +588,32 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
 
   // O memorial do vaso guarda os dados construtivos por componente. Ler daqui
   // é ler a MESMA verdade que gerou o cálculo — nada é recalculado.
-  const vaso = ler<{ P?: number | string; D?: number | string; componentes?: { id?: string; nome?: string; tipo?: string; dados?: Record<string, unknown> }[] }>(
-    `nr13_vaso_${tag}`,
-  ) ?? {};
+  //
+  // A chave depende do TIPO do equipamento: vaso grava em `nr13_vaso_<TAG>`,
+  // autoclave em `nr13_vaso_ac_corpo_<TAG>` e caldeira em `nr13_vaso_cald_`
+  // (ver `chaveVaso` em `vasoMemorialService`). Ler só a primeira deixava a
+  // folha de dados técnicos INTEIRA em branco para autoclave e caldeira.
+  const vaso = memorialDoEquipamento(tag);
   const compsVaso = vaso.componentes ?? [];
-  const achaComp = (...tipos: string[]) =>
-    compsVaso.find((c) => tipos.includes(String(c.tipo ?? ""))) ?? null;
-  const casco = achaComp("casco", "cascoCilindrico", "costado");
-  const tampos = compsVaso.filter((c) => String(c.tipo ?? "").toLowerCase().includes("tampo"));
+  //
+  // ── COMO SE ACHA O CASCO ─────────────────────────────────────────────────
+  // `TipoComponenteVaso` é `cilindrico | esferico | eliptico | toroesferico |
+  // plano | planoAparafusado | cone` — nunca "casco" nem "tampo". Procurar por
+  // esses nomes (o que este trecho fazia) não achava nada, e MATERIAL DO CORPO,
+  // MARGEM DE CORROSÃO, TEMPERATURA DE PROJETO e os dois MATERIAIS DE TAMPO
+  // saíam em branco em todo relatório.
+  //
+  // O `id` é o identificador estável do memorial (`casco`, `tampo1`, `tampo2`,
+  // criados por `MemorialVaso.novoComponentes`); o tipo e o nome são os recuos
+  // para memorial montado à mão ou importado.
+  const ehCasco = (c: { id?: string; nome?: string; tipo?: string }) =>
+    String(c.id ?? '') === 'casco' ||
+    /casco|costado|corpo|cilindr/i.test(String(c.nome ?? '')) ||
+    String(c.tipo ?? '') === 'cilindrico';
+  const ehTampo = (c: { id?: string; nome?: string }) =>
+    /^tampo/i.test(String(c.id ?? '')) || /tampo|espelho/i.test(String(c.nome ?? ''));
+  const casco = compsVaso.find(ehCasco) ?? null;
+  const tampos = compsVaso.filter(ehTampo);
   const dadoDe = (c: { dados?: Record<string, unknown> } | null, campo: string) =>
     c ? txt((c.dados ?? {})[campo]) : null;
 
@@ -509,7 +636,8 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
     emissao: txt(meta?.emissao),
     validade: txt(meta?.validade),
     execucao: txt(meta?.execucaoInspecao),
-    fotoCapa: txt(fotosFicha.capa) ?? txt(fotosFicha.fotos?.[0]?.base64),
+    fotoCapa: capa.dataUrl,
+    fotoCapaRef: capa.ref,
     placaReal: null,
 
     equipamento: {
@@ -613,8 +741,11 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
         : null,
     },
     dadosInspecao: {
-      dataInicio: txt(meta?.execucaoInspecao) ?? txt(chk.dataInspecao),
-      dataTermino: txt(meta?.execucaoInspecao),
+      // `<input type="date">` do checklist grava ISO (`2026-09-07`); o resto do
+      // documento é pt-BR. `dataBr` deixa passar intacto o que já vem
+      // formatado, então a data digitada no modal continua igual.
+      dataInicio: dataBr(meta?.execucaoInspecao) ?? dataBr(chk.dataInspecao),
+      dataTermino: dataBr(meta?.execucaoInspecao),
       equipamento: tag,
       serie: txt(info.numeroSerie),
       // A A.R.T. não tem campo no sistema (auditado em 06/09/2026): a linha
@@ -669,12 +800,12 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
       velSonica: txt(us.velSonica),
       resultado: rotuloResultado(us.resultado as string),
       pontos: pontosUltrassom(tag, us, medEsp),
-      instrumento: {
-        padrao: txt((us.instrumento as Record<string, unknown>)?.padrao),
-        serie: txt((us.instrumento as Record<string, unknown>)?.serie),
-        certificado: txt((us.instrumento as Record<string, unknown>)?.certificado),
-        validade: txt((us.instrumento as Record<string, unknown>)?.validade),
-      },
+      instrumento: instrumentoDoEnsaio(
+        'ultrassom',
+        tag,
+        us.instrumento as Record<string, unknown> | undefined,
+        /ultra.?s?om|espessura/i,
+      ),
     },
 
     th: {
@@ -693,12 +824,14 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
       validadeLaudo: txt(th.validadeLaudo),
       procedimento: txt(th.procedimento),
       parecer: txt(th.parecer),
-      instrumento: {
-        padrao: txt((th.instrumento as Record<string, unknown>)?.padrao),
-        serie: txt((th.instrumento as Record<string, unknown>)?.serie),
-        certificado: txt((th.instrumento as Record<string, unknown>)?.certificado),
-        validade: txt((th.instrumento as Record<string, unknown>)?.validade),
-      },
+      // O padrão do TH é o MANÔMETRO — é a pressão que se mede num teste
+      // hidrostático. O regex de nome legado é o da própria folha.
+      instrumento: instrumentoDoEnsaio(
+        'manometro',
+        tag,
+        th.instrumento as Record<string, unknown> | undefined,
+        /man[oô]metro|press[aã]o/i,
+      ),
       resultado: rotuloResultado(th.resultado as string),
       curva: ((th.curva ?? []) as { tempo?: string; pressao?: string }[])
         .filter((l) => txt(l.tempo) || txt(l.pressao))
