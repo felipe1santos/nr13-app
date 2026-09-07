@@ -1439,11 +1439,23 @@ export default function Prontuarios() {
             </button>
             <div className="pront-barra-id">
               <strong>{tag}</strong>
-              <span>
+              {/* A FAIXA DE METADADOS SUBIU PARA CÁ (07/09/2026). "Documento
+                  emitido em … · 3 páginas · código de verificação …" era um
+                  parágrafo de largura inteira entre a barra e a prévia, e
+                  empurrava o documento para baixo em toda abertura. */}
+              <span title={emissao ? `Código de verificação: ${emissao.sha256}` : undefined}>
                 {visualizandoSemSalvar
                   ? 'pré-visualização · não salvo'
                   : emissao
-                    ? `emitido · rev. ${String(revisaoAtual).padStart(2, '0')}`
+                    ? [
+                        `emitido · rev. ${String(revisaoAtual).padStart(2, '0')}`,
+                        emissao.emissao,
+                        `${emissao.paginas} páginas`,
+                        emissao.pdfPendente ? 'no aparelho' : 'arquivado',
+                        `verificação ${emissao.sha256.slice(0, 8)}…`,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')
                     : 'rascunho'}
               </span>
             </div>
@@ -1454,9 +1466,16 @@ export default function Prontuarios() {
                   </button>
                 ) : (
                   <>
-                    <button type="button" className="fj-btn fj-btn-ghost" onClick={() => setTela('formulario')}>
-                      Editar
-                    </button>
+                    {/* SEM emissão, editar é a ação óbvia e fica na linha.
+                        COM emissão, o que está na tela é um ARQUIVO que não se
+                        edita: a ação principal passa a ser emitir a próxima
+                        revisão, e "Editar dados" desce para o menu — ele prepara
+                        a revisão seguinte, não altera a que está aberta. */}
+                    {!emissao && (
+                      <button type="button" className="fj-btn fj-btn-ghost" onClick={() => setTela('formulario')}>
+                        Editar
+                      </button>
+                    )}
                     <button
                       type="button"
                       className={`fj-btn fj-btn-primary${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
@@ -1479,6 +1498,7 @@ export default function Prontuarios() {
                       bloqueado={documentosBloqueados()}
                       aoImprimir={prepararEImprimir}
                       aoAbrirEmitido={abrirEmitido}
+                      aoEditar={emissao ? () => setTela('formulario') : undefined}
                       aoExcluir={() => setExcluindoTag(tag)}
                     />
                   </>
@@ -1543,13 +1563,12 @@ export default function Prontuarios() {
             <RecusaPalco estado={palco.estado} falha={palco.falha} />
           )}
 
-          {emissao && (
-            <p className="pront-emissao">
-              Documento emitido em {emissao.emissao ?? '—'} · {emissao.paginas} páginas ·
-              {' '}código de verificação <code>{emissao.sha256.slice(0, 16)}…</code>
-              {emissao.pdfPendente ? ' · upload pendente' : ' · arquivado'}
-            </p>
-          )}
+          {/* O parágrafo "Documento emitido em … · 3 páginas · código de
+              verificação …" SAIU: ele tinha largura inteira, ficava entre a
+              barra e a prévia e empurrava o documento para baixo em toda
+              abertura. O mesmo texto virou a segunda linha da barra. O ERRO de
+              emissão continua abaixo: é excepcional, precisa ser lido, e não
+              cabe numa linha discreta. */}
           {erroEmissao && <p className="pront-emissao-erro">{erroEmissao}</p>}
 
           {/* Fase 12 · bancada do piloto do prontuário. Atrás de `?piloto=1`:

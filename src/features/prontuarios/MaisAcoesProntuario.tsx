@@ -27,6 +27,7 @@ export default function MaisAcoesProntuario({
   bloqueado,
   aoImprimir,
   aoAbrirEmitido,
+  aoEditar,
   aoExcluir,
 }: {
   temEmissao: boolean;
@@ -36,6 +37,14 @@ export default function MaisAcoesProntuario({
   bloqueado: boolean;
   aoImprimir: () => void;
   aoAbrirEmitido: () => void;
+  /**
+   * "Editar dados" — só quando HÁ emissão.
+   *
+   * Sem emissão, editar é a ação óbvia e mora na barra. Com emissão, o que
+   * está na tela é um ARQUIVO que não se edita: editar aqui prepara a PRÓXIMA
+   * revisão, e por isso desce para o menu com o nome do que faz.
+   */
+  aoEditar?: () => void;
   aoExcluir: () => void;
 }) {
   const [aberto, setAberto] = useState(false);
@@ -91,6 +100,11 @@ export default function MaisAcoesProntuario({
           {temEmissao && (
             <button type="button" role="menuitem" onClick={executar(aoAbrirEmitido)}>
               <Icone nome="eye" tam={14} /> Abrir documento emitido
+            </button>
+          )}
+          {aoEditar && (
+            <button type="button" role="menuitem" onClick={executar(aoEditar)}>
+              <Icone nome="pencil" tam={14} /> Editar dados (nova revisão)
             </button>
           )}
           <div className="mais-acoes-sep" role="separator" />
