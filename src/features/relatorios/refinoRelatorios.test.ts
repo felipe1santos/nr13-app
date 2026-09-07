@@ -25,21 +25,30 @@ const css = readFileSync('src/pages/relatorios.css', 'utf8');
 const rota = readFileSync('src/features/relatorios/rotaRelatorios.ts', 'utf8');
 const editor = readFileSync('src/pages/Relatorios.tsx', 'utf8');
 const modalFiltro = readFileSync('src/features/relatorios/ModalFiltrosRelatorios.tsx', 'utf8');
-const modalEquip = readFileSync('src/features/relatorios/ModalSelecionarEquipamento.tsx', 'utf8');
 const modalConfig = readFileSync('src/features/relatorios/ModalNovaInspecao.tsx', 'utf8');
 const catalogo = readFileSync('src/features/relatorios/CatalogoRelatoriosV9.tsx', 'utf8');
 
 describe('1 · /relatorios continua sendo a lista canônica única', () => {
-  it('a tela da lista não monta um segundo catálogo de equipamentos', () => {
-    // O catálogo só aparece DENTRO do modal de criar. Se ele voltasse para o
-    // corpo da tela, seria a segunda lista que a auditoria anterior removeu.
-    expect(tela).not.toContain('<CatalogoRelatoriosV9');
-    expect(modalEquip).toContain('<CatalogoRelatoriosV9');
+  it('o catálogo de equipamentos só existe DENTRO do modal de criar', () => {
+    /*
+     * A moldura do modal virou compartilhada com `/prontuarios`, então o
+     * catálogo passou a ser montado AQUI, como filho dela — antes ele morava
+     * dentro do arquivo do modal. O que precisa continuar verdadeiro é a
+     * posição: ele aparece uma vez só, e entre a abertura e o fechamento do
+     * modal. No corpo da tela, seria a segunda lista que a auditoria removeu.
+     */
+    expect((tela.match(/<CatalogoRelatoriosV9/g) ?? []).length).toBe(1);
+    const abre = tela.indexOf('<ModalSelecionarEquipamento');
+    const fecha = tela.indexOf('</ModalSelecionarEquipamento>');
+    const cat = tela.indexOf('<CatalogoRelatoriosV9');
+    expect(abre).toBeGreaterThan(-1);
+    expect(cat).toBeGreaterThan(abre);
+    expect(cat).toBeLessThan(fecha);
   });
 
   it('o catálogo do modal não pede nem mostra a contagem de relatórios', () => {
     expect(catalogo).toContain('if (ehSelecao.current) return;');
-    expect(modalEquip).toContain('modo="selecao"');
+    expect(tela).toContain('modo="selecao"');
   });
 });
 
@@ -189,7 +198,9 @@ describe('10, 11, 12 e 13 · criar sem sair da rota', () => {
   it('escolher o equipamento leva ao passo 2, no mesmo lugar', () => {
     expect(tela).toContain("criacao?.passo === 1");
     expect(tela).toContain("criacao?.passo === 2");
-    expect(tela).toContain('setCriacao({\n              passo: 2,');
+    // Sem casar a indentação: o catálogo mudou de arquivo para dentro do modal
+    // e o bloco andou dois níveis. O que importa é a transição, não o recuo.
+    expect(tela).toMatch(/setCriacao\(\{\s*passo: 2,/);
   });
 
   it('o passo 2 é o MESMO modal de configuração de sempre', () => {

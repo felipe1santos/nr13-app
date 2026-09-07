@@ -117,6 +117,53 @@ const PECAS = [
     </button></div>`,
   },
   {
+    nome: 'pront-linha · lista de prontuarios (desktop = 8 colunas)',
+    html: `<div class="prontuarios-page"><div class="pront-lista">
+      <div class="pront-linha pront-linha-cabecalho">
+        <span></span><span>Equipamento</span><span>Tipo</span><span>Empresa / cliente</span>
+        <span>Categoria</span><span>Emitido em</span><span>Situação</span>
+        <span class="pront-col-acoes">Ações</span>
+      </div>
+      <div class="pront-linha pront-linha-emitido">
+        <span class="pront-linha-icone"></span>
+        <span class="pront-linha-nome"><strong>Vaso de pressão de teste</strong><span class="pront-linha-sub">ZZ-FASE3</span></span>
+        <span class="pront-linha-col">Vaso de Pressão</span>
+        <span class="pront-linha-col">Cliente de teste LTDA</span>
+        <span class="pront-linha-col">III</span>
+        <span class="pront-linha-col pront-linha-data">06/09/2026</span>
+        <span class="pront-linha-situacao"><span class="pront-selo pront-selo-emitido">EMITIDO</span></span>
+        <span class="pront-linha-acoes">
+          <button class="btn-icone cor-azul">V</button>
+          <button class="btn-icone">E</button>
+          <button class="btn-icone cor-vermelho">X</button>
+        </span>
+      </div>
+      <div class="pront-linha pront-linha-salvo">
+        <span class="pront-linha-icone"></span>
+        <span class="pront-linha-nome"><strong>ZZ-CALDEIRA-TESTE</strong><span class="pront-linha-sub">ZZ-CALDEIRA-TESTE</span></span>
+        <span class="pront-linha-col">Caldeira</span>
+        <span class="pront-linha-col">—</span>
+        <span class="pront-linha-col">—</span>
+        <span class="pront-linha-col pront-linha-data">—</span>
+        <span class="pront-linha-situacao"><span class="pront-selo pront-selo-salvo">SALVO</span></span>
+        <span class="pront-linha-acoes">
+          <button class="btn-icone cor-azul">V</button>
+          <button class="btn-icone">E</button>
+          <button class="btn-icone cor-vermelho">X</button>
+        </span>
+      </div>
+    </div></div>`,
+  },
+  {
+    nome: 'barra de /prontuarios · filtro, busca e criar',
+    html: `<div class="prontuarios-page"><div class="busca-lista compacta"><div class="busca-lista-linha">
+      <button class="fj-btn fj-btn-ghost pront-btn-filtro"><span class="pront-btn-rotulo">Filtrar</span></button>
+      <div class="fj-search-box busca-lista-campo"><input placeholder="Buscar por TAG, equipamento, fabricante ou cliente"></div>
+      <div class="busca-lista-info"><span class="busca-lista-contagem">12 resultados</span></div>
+      <button class="fj-btn fj-btn-primary pront-btn-criar"><span class="pront-btn-rotulo">Criar prontuário</span></button>
+    </div></div></div>`,
+  },
+  {
     nome: 'botões lado a lado (as duas famílias)',
     html: `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <button class="btn-primario">Salvar</button>
@@ -144,8 +191,10 @@ const MEDIR = `(doc => {
   // Altura de cada LINHA da lista de relatorios — a densidade pedida (38–44px).
   const alturaLinhas = [...doc.querySelectorAll('.rel-linha:not(.rel-linha-cabecalho)')]
     .map(l => Math.round(l.getBoundingClientRect().height));
+  const alturaPront = [...doc.querySelectorAll('.pront-linha:not(.pront-linha-cabecalho)')]
+    .map(l => Math.round(l.getBoundingClientRect().height));
   return { largura: doc.documentElement.clientWidth,
-           scrollH: doc.documentElement.scrollWidth, pecas: r, botoes, alturaLinhas };
+           scrollH: doc.documentElement.scrollWidth, pecas: r, botoes, alturaLinhas, alturaPront };
 })`;
 
 const filho = `<!doctype html><meta charset="utf-8">
@@ -168,7 +217,13 @@ ${LARGURAS.map((l) => `<iframe data-l="${l}" style="width:${l}px" srcdoc="${filh
 addEventListener('load', () => {
   const saida = {};
   for (const f of document.querySelectorAll('iframe')) {
-    saida[f.dataset.l] = (${MEDIR})(f.contentDocument);
+    // innerWidth inclui a barra de rolagem; clientWidth nao. A largura PEDIDA
+    // se confere pelo primeiro — senao uma pagina que cresceu e ganhou barra
+    // vertical seria reprovada pelos 10px que o navegador tirou dela.
+    // (Sem crase neste comentario: ele vive dentro de um template literal.)
+    const r = (${MEDIR})(f.contentDocument);
+    r.viewport = f.contentWindow.innerWidth;
+    saida[f.dataset.l] = r;
   }
   const pre = document.createElement('pre');
   pre.id = 'MEDIDA';
@@ -209,7 +264,7 @@ let falhas = 0;
 for (const l of LARGURAS) {
   const d = tudo[l];
   console.log(`\n### ${l}px  (viewport medido = ${d.largura}px, scrollWidth = ${d.scrollH}px)`);
-  if (d.largura !== l) {
+  if ((d.viewport ?? d.largura) !== l) {
     console.log(`  !! viewport não bateu com o pedido`);
     falhas++;
   }
@@ -227,7 +282,8 @@ for (const l of LARGURAS) {
   // celular, que é o alvo de toque. Só os botões de AÇÃO precisam bater entre si.
   const acoes = d.botoes.filter((b) => /btn-primario|btn-secundario|fj-btn/.test(b));
   const alturas = new Set(acoes.map((b) => b.split('=')[1]));
-  if (d.alturaLinhas?.length) console.log(`  linhas da lista: ${d.alturaLinhas.join(', ')}px`);
+  if (d.alturaLinhas?.length) console.log(`  linhas de /relatorios: ${d.alturaLinhas.join(', ')}px`);
+  if (d.alturaPront?.length) console.log(`  linhas de /prontuarios: ${d.alturaPront.join(', ')}px`);
   console.log(`  botões: ${d.botoes.join('  ')}`);
   if (alturas.size > 1) {
     console.log(`  !! alturas de botão divergentes: ${[...alturas].join(', ')}`);

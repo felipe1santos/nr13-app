@@ -69,7 +69,7 @@ import ModalFiltrosRelatorios, {
   type RecorteSituacao,
   type ValoresFiltro,
 } from './ModalFiltrosRelatorios';
-import { ROTULO_TIPO } from './CatalogoRelatoriosV9';
+import CatalogoRelatoriosV9, { ROTULO_TIPO } from './CatalogoRelatoriosV9';
 import ModalNovaInspecao from './ModalNovaInspecao';
 import ModalRenomear from './ModalRenomear';
 import ModalSelecionarEquipamento from './ModalSelecionarEquipamento';
@@ -209,6 +209,9 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
   /** Respondendo pelo catálogo do aparelho — a tela precisa DIZER isso. */
   const [offline, setOffline] = useState(false);
   const [painelAberto, setPainelAberto] = useState(false);
+  /** Termo do catálogo DENTRO do modal de criar — local, nunca na URL: a URL
+      guarda a busca da LISTA, e digitar aqui recortaria a lista atrás. */
+  const [termoCriacao, setTermoCriacao] = useState('');
   /**
    * O fluxo de CRIAR, em dois passos, sem sair da rota.
    *
@@ -728,17 +731,21 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
       {/* CRIAR · passo 1. A lista continua atrás, no mesmo estado: busca,
           rolagem e filtro sobrevivem ao cancelamento. */}
       {criacao?.passo === 1 && (
-        <ModalSelecionarEquipamento
-          aoFechar={() => setCriacao(null)}
-          aoEscolher={(tag, item) =>
-            setCriacao({
-              passo: 2,
-              tag,
-              descricao: item?.descricao ?? null,
-              tipoEq: item?.tipo ? (ROTULO_TIPO[item.tipo] ?? item.tipo) : null,
-            })
-          }
-        />
+        <ModalSelecionarEquipamento sobre="Criar relatório" aoFechar={() => setCriacao(null)}>
+          <CatalogoRelatoriosV9
+            modo="selecao"
+            termo={termoCriacao}
+            aoMudarTermo={setTermoCriacao}
+            aoEscolher={(tag, item) =>
+              setCriacao({
+                passo: 2,
+                tag,
+                descricao: item?.descricao ?? null,
+                tipoEq: item?.tipo ? (ROTULO_TIPO[item.tipo] ?? item.tipo) : null,
+              })
+            }
+          />
+        </ModalSelecionarEquipamento>
       )}
 
       {/* CRIAR · passo 2. É o MESMO `ModalNovaInspecao` que o editor sempre

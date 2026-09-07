@@ -30,8 +30,20 @@ import type { ItemCatalogo } from './buscaIndex';
 export interface RecorteCatalogo {
   /** Padrão das duas telas: esconder quem comprovadamente não tem o documento. */
   soComDocumento: boolean;
+  /**
+   * O INVERSO: mostrar SÓ quem comprovadamente não tem.
+   *
+   * É a pergunta "o que ainda falta fazer?", e ela não é o complemento
+   * automático de `soComDocumento`: aqui o `null` sai da lista, porque afirmar
+   * que falta prontuário num equipamento que ninguém verificou mandaria o
+   * usuário refazer um documento que talvez exista. As duas opções tratam o
+   * não-medido do lado seguro, e os lados seguros são opostos.
+   */
+  soSemDocumento?: boolean;
   /** Nome exato do cliente, como vem em `clienteNome`. Vazio = todos. */
   empresa: string;
+  /** Categoria de risco, como vem em `categoria`. Vazio = todas. */
+  categoria?: string;
 }
 
 export const RECORTE_PADRAO: RecorteCatalogo = { soComDocumento: true, empresa: '' };
@@ -51,16 +63,38 @@ export function possuiDocumento(valor: boolean | number | null | undefined): boo
   return typeof valor === 'number' ? valor > 0 : valor;
 }
 
-export function filtrarCatalogo<T extends Pick<ItemCatalogo, 'clienteNome'>>(
+export function filtrarCatalogo<
+  // `categoria` entra como OPCIONAL: quem já chamava esta função passando só
+  // `clienteNome` (calibrações, e os testes) continua compilando. Exigir o
+  // campo novo obrigaria a mexer em chamador que não usa filtro por categoria.
+  T extends Pick<ItemCatalogo, 'clienteNome'> & { categoria?: string | null },
+>(
   itens: T[],
   recorte: RecorteCatalogo,
   documentoDe: (item: T) => boolean | number | null | undefined,
 ): T[] {
   return itens.filter((i) => {
     if (recorte.soComDocumento && !possuiDocumento(documentoDe(i))) return false;
+    // "Só sem documento" exige a AUSÊNCIA MEDIDA: `null` não entra.
+    if (recorte.soSemDocumento) {
+      const v = documentoDe(i);
+      if (v === null || v === undefined) return false;
+      if (possuiDocumento(v)) return false;
+    }
     if (recorte.empresa && (i.clienteNome ?? '').trim() !== recorte.empresa) return false;
+    if (recorte.categoria && (i.categoria ?? '').trim() !== recorte.categoria) return false;
     return true;
   });
+}
+
+/** Categorias distintas, ordenadas — o que o `<select>` oferece. */
+export function categoriasDoCatalogo(itens: Pick<ItemCatalogo, 'categoria'>[]): string[] {
+  const cats = new Set<string>();
+  for (const i of itens) {
+    const c = i.categoria?.trim();
+    if (c) cats.add(c);
+  }
+  return [...cats].sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
 }
 
 /** Nomes de cliente distintos, ordenados — o que o `<select>` oferece. */
@@ -79,5 +113,7 @@ export function empresasDoCatalogo(itens: Pick<ItemCatalogo, 'clienteNome'>[]): 
  * Enquanto houver recorte ligado e páginas por vir, a tela continua puxando.
  */
 export function precisaVarrerTudo(recorte: RecorteCatalogo): boolean {
-  return recorte.soComDocumento || !!recorte.empresa;
+  return (
+    recorte.soComDocumento || !!recorte.soSemDocumento || !!recorte.empresa || !!recorte.categoria
+  );
 }

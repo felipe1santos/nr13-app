@@ -46,19 +46,64 @@ import * as catalogo from '../../services/catalogoLocal';
 import { formatarValor } from '../../calc/unidades';
 import type { SistemaUnidade } from '../../calc/unidades';
 import {
-  RECORTE_PADRAO,
   TETO_PAGINAS_RECORTE,
+  categoriasDoCatalogo,
   empresasDoCatalogo,
   filtrarCatalogo,
   precisaVarrerTudo,
   type RecorteCatalogo,
 } from '../../services/recorteCatalogo';
+import ModalFiltrosProntuarios, {
+  FILTRO_PRONT_PADRAO,
+  temAlgumFiltroPront,
+  type ValoresFiltroPront,
+} from './ModalFiltrosProntuarios';
+import { emissaoAtual } from './emissaoProntuario';
+import '../../pages/prontuarios.css';
 
-const ROTULO_TIPO: Record<string, string> = {
+export const ROTULO_TIPO: Record<string, string> = {
   vaso: 'Vaso de Pressão',
   autoclave: 'Autoclave',
   caldeira: 'Caldeira',
 };
+
+/** O que o filtro oferece como tipo — a mesma tabela, em forma de lista. */
+const TIPOS_FILTRO = Object.entries(ROTULO_TIPO).map(([valor, rotulo]) => ({ valor, rotulo }));
+
+/**
+ * A SITUAÇÃO de um prontuário, e de onde cada uma sai.
+ *
+ * `emitido` vem de `nr13_pront_emitido_<TAG>` — a lista de emissões da Fase 12,
+ * ~180 bytes por revisão, lida do cache em memória. É lida SÓ para as linhas
+ * que estão na tela (a lista é virtualizada, ~15 por vez); ler o prontuário
+ * inteiro por linha é o que a 9F.2 removeu daqui, e não volta.
+ *
+ * `salvo` e `sem` saem de `temProntuario`, que é COLUNA da projeção.
+ * `null` continua sendo `null`: sem selo, porque ninguém verificou.
+ */
+type SituacaoPront = 'emitido' | 'salvo' | 'sem' | null;
+
+export function situacaoDoItem(
+  temProntuario: boolean | null | undefined,
+  temEmissao: boolean,
+): SituacaoPront {
+  if (temEmissao) return 'emitido';
+  if (temProntuario === null || temProntuario === undefined) return null;
+  return temProntuario ? 'salvo' : 'sem';
+}
+
+const ROTULO_SITUACAO: Record<Exclude<SituacaoPront, null>, string> = {
+  emitido: 'EMITIDO',
+  salvo: 'SALVO',
+  sem: 'SEM PRONTUÁRIO',
+};
+
+/** `AAAA-MM-DD…` ou ISO → `DD/MM/AAAA`. Vazio vira travessão. */
+export function dataCurta(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : '—';
+}
 
 /** Altura estimada de uma linha; corrigida por medição no primeiro quadro. */
 const ALT_LINHA = 92;
@@ -82,6 +127,18 @@ export interface PropsCatalogoProntuarios {
    * equipamento não pode ser filtrado para fora da própria lista.
    */
   modo?: 'lista' | 'selecao';
+  /**
+   * O que vai à DIREITA da barra — o "+ Criar prontuário" do pai.
+   *
+   * Vem por prop porque a barra é UMA linha: filtro, busca e ação principal no
+   * mesmo conjunto. Antes o botão de criar morava num cabeçalho ACIMA da busca,
+   * e a tela tinha três faixas empilhadas antes da primeira linha da lista.
+   */
+  acoes?: React.ReactNode;
+  /** Abrir os dados do prontuário para edição (lápis da linha). */
+  aoEditar?: (tag: string) => void;
+  /** Excluir o prontuário daquele equipamento (lixeira da linha). */
+  aoExcluir?: (tag: string) => void;
 }
 
 export default function CatalogoProntuariosV9({
@@ -89,6 +146,9 @@ export default function CatalogoProntuariosV9({
   aoMudarTermo,
   aoEscolher,
   modo = 'lista',
+  acoes,
+  aoEditar,
+  aoExcluir,
 }: PropsCatalogoProntuarios) {
   const [itens, setItens] = useState<ItemCatalogo[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -102,12 +162,25 @@ export default function CatalogoProntuariosV9({
   // ── Fase 10A ───────────────────────────────────────────────────────────────
   // `tipo` viaja na consulta (a RPC tem o parâmetro); prontuário e empresa são
   // recorte do cliente — ver `filtroProntuarios.ts`.
-  const [fTipo, setFTipo] = useState('');
-  // Na seleção o recorte nasce DESLIGADO: a lista é de equipamentos, não de
-  // prontuários existentes.
-  const [filtro, setFiltro] = useState<RecorteCatalogo>(
-    modo === 'selecao' ? { ...RECORTE_PADRAO, soComDocumento: false } : RECORTE_PADRAO,
+  /**
+   * O recorte inteiro, num objeto — é o que o modal edita como rascunho.
+   *
+   * Na SELEÇÃO ele nasce sem recorte nenhum: a lista ali é de equipamentos,
+   * para escolher um, e quem vai criar o PRIMEIRO prontuário de um equipamento
+   * não pode ser filtrado para fora da própria lista.
+   */
+  const [f, setF] = useState<ValoresFiltroPront>(
+    modo === 'selecao' ? { tipo: '', empresa: '', categoria: '', situacao: '' } : FILTRO_PRONT_PADRAO,
   );
+  const [filtroAberto, setFiltroAberto] = useState(false);
+  const fTipo = f.tipo;
+  /** O recorte do CLIENTE, derivado do filtro — `tipo` vai na consulta. */
+  const filtro: RecorteCatalogo = {
+    soComDocumento: f.situacao === 'com',
+    soSemDocumento: f.situacao === 'sem',
+    empresa: f.empresa,
+    categoria: f.categoria,
+  };
   /** Quantas páginas já vieram — o teto da varredura automática. */
   const [paginas, setPaginas] = useState(1);
 
@@ -217,6 +290,7 @@ export default function CatalogoProntuariosV9({
   const varreduraIncompleta = precisaVarrerTudo(filtro) && temMais && paginas >= TETO_PAGINAS_RECORTE;
 
   const empresas = useMemo(() => empresasDoCatalogo(itens), [itens]);
+  const categorias = useMemo(() => categoriasDoCatalogo(itens), [itens]);
   const visiveis = useMemo(() => filtrarCatalogo(itens, filtro, (i) => i.temProntuario), [itens, filtro]);
   /** Com recorte do cliente, quem conta é a tela — a contagem do servidor fala
       do conjunto sem filtro, e os dois números na mesma linha se contradizem. */
@@ -226,6 +300,9 @@ export default function CatalogoProntuariosV9({
 
   return (
     <>
+      {/* BARRA · filtro à esquerda, busca ocupando o vão, criar à direita —
+          o mesmo conjunto de trabalho de `/relatorios`. Na SELEÇÃO a barra é só
+          o campo: dentro do modal não há o que filtrar nem o que criar. */}
       <BuscaLista
         valor={termo}
         aoMudar={aoMudarTermo}
@@ -233,64 +310,37 @@ export default function CatalogoProntuariosV9({
         carregando={carregando || varrendo}
         contagem={contagemNaTela}
         offline={offline}
-      />
+        compacto={modo === 'lista'}
+        antes={
+          modo === 'lista' ? (
+            <button
+              type="button"
+              className={`fj-btn fj-btn-ghost pront-btn-filtro${temAlgumFiltroPront(f) ? ' filtro-ativo' : ''}`}
+              aria-haspopup="dialog"
+              onClick={() => setFiltroAberto(true)}
+            >
+              <Icone nome="filter" tam={14} /> <span className="pront-btn-rotulo">Filtrar</span>
+            </button>
+          ) : undefined
+        }
+      >
+        {modo === 'lista' ? acoes : null}
+      </BuscaLista>
 
-      <div className="rel-filtros-painel pront-filtros">
-        <label>
-          Tipo
-          <select value={fTipo} onChange={(e) => setFTipo(e.target.value)}>
-            <option value="">Todos</option>
-            {Object.entries(ROTULO_TIPO).map(([valor, rotulo]) => (
-              <option key={valor} value={valor}>
-                {rotulo}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Empresa / cliente
-          <select
-            value={filtro.empresa}
-            onChange={(e) => setFiltro((f) => ({ ...f, empresa: e.target.value }))}
-          >
-            <option value="">Todas</option>
-            {empresas.map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
-        </label>
-        {/* O padrão é a tela DOS PRONTUÁRIOS. Quem quiser criar um para um
-            equipamento que ainda não tem desliga o recorte aqui — o caminho
-            continua existindo, só deixou de ser o barulho da lista. */}
-        <label className="rel-filtro-check">
-          <input
-            type="checkbox"
-            checked={filtro.soComDocumento}
-            onChange={(e) => setFiltro((f) => ({ ...f, soComDocumento: e.target.checked }))}
-          />
-          Só equipamentos com prontuário
-        </label>
-        {(fTipo || filtro.empresa || !filtro.soComDocumento) && (
-          <button
-            type="button"
-            className="fj-btn fj-btn-ghost"
-            onClick={() => {
-              setFTipo('');
-              setFiltro(RECORTE_PADRAO);
-            }}
-          >
-            Limpar filtros
-          </button>
-        )}
-        {varreduraIncompleta && (
-          <p className="rel-filtro-nota">
-            O parque é grande demais para varrer inteiro de uma vez: podem faltar prontuários
-            nesta lista. Use a busca por TAG ou o filtro de tipo para estreitar.
-          </p>
-        )}
-      </div>
+      {filtroAberto && (
+        <ModalFiltrosProntuarios
+          valores={f}
+          tipos={TIPOS_FILTRO}
+          empresas={empresas}
+          categorias={categorias}
+          varreduraIncompleta={varreduraIncompleta}
+          aoAplicar={(v) => {
+            setF(v);
+            setFiltroAberto(false);
+          }}
+          aoFechar={() => setFiltroAberto(false)}
+        />
+      )}
 
       {erro && (
         <div className="rel-aviso-erro" role="status">
@@ -307,10 +357,28 @@ export default function CatalogoProntuariosV9({
             {termo
               ? `Nenhum equipamento encontrado para ${termo}.`
               : filtro.soComDocumento
-                ? 'Nenhum prontuário salvo ainda. Desmarque "Só equipamentos com prontuário" para criar o primeiro.'
-                : 'Nenhum equipamento cadastrado ainda.'}
+                ? 'Nenhum prontuário salvo ainda. Use "+ Criar prontuário" para fazer o primeiro.'
+                : filtro.soSemDocumento
+                  ? 'Todos os equipamentos já têm prontuário.'
+                  : 'Nenhum equipamento cadastrado ainda.'}
           </p>
         ) : (
+          <>
+          {/* CABEÇALHO DA LISTA. Sem ele, cinco valores em sequência não dizem
+              qual é o quê — e no modo seleção ele não existe, porque lá a lista
+              é de escolha, não de leitura. */}
+          {modo === 'lista' && (
+            <div className="pront-linha pront-linha-cabecalho" role="row" aria-hidden>
+              <span />
+              <span>Equipamento</span>
+              <span>Tipo</span>
+              <span>Empresa / cliente</span>
+              <span>Categoria</span>
+              <span>Emitido em</span>
+              <span>Situação</span>
+              <span className="pront-col-acoes">Ações</span>
+            </div>
+          )}
           <ListaVirtualizada
             itens={visiveis}
             chaveDe={(i) => i.tag}
@@ -330,23 +398,12 @@ export default function CatalogoProntuariosV9({
             }
             desenhar={(item) =>
               modo === 'lista' ? (
-                <button type="button" className="pront-linha" onClick={() => aoEscolher(item.tag)}>
-                  <span className="pront-linha-icone" aria-hidden>
-                    <Icone nome="book" tam={16} />
-                  </span>
-                  <span className="pront-linha-nome">
-                    <strong>{item.tag}</strong>
-                    <span className="pront-linha-sub">{item.descricao ?? '—'}</span>
-                  </span>
-                  <span className="pront-linha-col">{item.tipo ? (ROTULO_TIPO[item.tipo] ?? item.tipo) : '—'}</span>
-                  <span className="pront-linha-col">{item.clienteNome ?? '—'}</span>
-                  <span className="pront-linha-col">{item.categoria ? `Categoria ${item.categoria}` : '—'}</span>
-                  {rotuloProntuario(item.temProntuario) && (
-                    <span className={`badge-relatorios ${item.temProntuario ? 'tem' : ''}`}>
-                      {rotuloProntuario(item.temProntuario)}
-                    </span>
-                  )}
-                </button>
+                <LinhaProntuario
+                  item={item}
+                  aoAbrir={aoEscolher}
+                  aoEditar={aoEditar}
+                  aoExcluir={aoExcluir}
+                />
               ) : (
               <button
                 type="button"
@@ -391,8 +448,96 @@ export default function CatalogoProntuariosV9({
               )
             }
           />
+          </>
         )}
       </div>
     </>
+  );
+}
+
+/**
+ * Uma linha do histórico de prontuários.
+ *
+ * Componente à parte porque ela LÊ a emissão vigente daquele equipamento, e
+ * isso precisa acontecer uma vez por linha RENDERIZADA — a lista é virtualizada,
+ * então são ~15, não o parque inteiro. `emissaoAtual` lê um array de ~180 bytes
+ * por revisão do cache em memória; o que a 9F.2 tirou daqui foi
+ * `carregarProntuario(tag)` no render, que eram 6,6 KB de `JSON.parse` por
+ * cartão, e isso não volta.
+ */
+function LinhaProntuario({
+  item,
+  aoAbrir,
+  aoEditar,
+  aoExcluir,
+}: {
+  item: ItemCatalogo;
+  aoAbrir: (tag: string) => void;
+  aoEditar?: (tag: string) => void;
+  aoExcluir?: (tag: string) => void;
+}) {
+  const emissao = useMemo(() => emissaoAtual(item.tag), [item.tag]);
+  const situacao = situacaoDoItem(item.temProntuario, !!emissao);
+  const nome = item.descricao?.trim() || item.tag;
+  return (
+    <div className={`pront-linha${situacao ? ` pront-linha-${situacao}` : ''}`} role="row">
+      <span className="pront-linha-icone" aria-hidden>
+        <Icone nome="book" tam={15} />
+      </span>
+      {/* O nome do equipamento é o título; a TAG, a identificação embaixo — e
+          ela não some quando a descrição existe, porque é por TAG que este
+          sistema conversa. */}
+      <span className="pront-linha-nome" title={nome}>
+        <strong>{nome}</strong>
+        <span className="pront-linha-sub">{item.tag}</span>
+      </span>
+      <span className="pront-linha-col">{item.tipo ? (ROTULO_TIPO[item.tipo] ?? item.tipo) : '—'}</span>
+      <span className="pront-linha-col" title={item.clienteNome ?? ''}>{item.clienteNome ?? '—'}</span>
+      <span className="pront-linha-col">{item.categoria ?? '—'}</span>
+      {/* A data é a da EMISSÃO arquivada. Prontuário salvo e não emitido não
+          tem data de documento — travessão, e não a data de hoje. */}
+      <span className="pront-linha-col pront-linha-data">{dataCurta(emissao?.geradoEm)}</span>
+      <span className="pront-linha-situacao">
+        {situacao ? (
+          <span className={`pront-selo pront-selo-${situacao}`}>{ROTULO_SITUACAO[situacao]}</span>
+        ) : (
+          /* `null` não é `false`: sem selo, porque ninguém verificou. */
+          <span className="fj-dash">—</span>
+        )}
+      </span>
+      <span className="pront-linha-acoes">
+        <button
+          type="button"
+          className="btn-icone cor-azul"
+          title={situacao === 'sem' || situacao === null ? 'Criar o prontuário deste equipamento' : 'Abrir o prontuário'}
+          aria-label={`Abrir o prontuário de ${item.tag}`}
+          onClick={() => aoAbrir(item.tag)}
+        >
+          <Icone nome="eye" tam={14} />
+        </button>
+        {aoEditar && (
+          <button
+            type="button"
+            className="btn-icone"
+            title="Editar os dados do prontuário"
+            aria-label={`Editar os dados do prontuário de ${item.tag}`}
+            onClick={() => aoEditar(item.tag)}
+          >
+            <Icone nome="pencil" tam={14} />
+          </button>
+        )}
+        {aoExcluir && situacao !== 'sem' && situacao !== null && (
+          <button
+            type="button"
+            className="btn-icone cor-vermelho"
+            title="Excluir o prontuário deste equipamento"
+            aria-label={`Excluir o prontuário de ${item.tag}`}
+            onClick={() => aoExcluir(item.tag)}
+          >
+            <Icone nome="trash" tam={14} />
+          </button>
+        )}
+      </span>
+    </div>
   );
 }

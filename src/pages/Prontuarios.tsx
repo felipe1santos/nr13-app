@@ -4,6 +4,11 @@ import { useEffect, useState } from 'react';
 import { Icone } from '../components/Icone';
 import type { EquipamentoResumo } from '../features/equipamento/tipos';
 import CatalogoProntuariosV9 from '../features/prontuarios/CatalogoProntuariosV9';
+// A MESMA moldura de modal usada em `/relatorios`: overlay, cabeçalho, ESC e
+// armadilha de foco iguais nos dois módulos. O que muda por dentro é o
+// catálogo, que é a única parte diferente entre um e outro.
+import ModalSelecionarEquipamento from '../features/relatorios/ModalSelecionarEquipamento';
+import ModalExcluirProntuario from '../features/prontuarios/ModalExcluirProntuario';
 import { abrirEquipamentoParaProntuario } from '../features/prontuarios/catalogoProntuarios';
 import { formatarValor } from '../calc/unidades';
 import {
@@ -53,7 +58,15 @@ import '../pages/relatorios.css';
 import './prontuarios.css';
 import PaginaA4 from '../components/PaginaA4';
 
-type Tela = 'equipamentos' | 'formulario' | 'visualizador' | 'selecao';
+/**
+ * As telas de `/prontuarios`.
+ *
+ * `selecao` SAIU (06/09/2026): escolher o equipamento era uma tela inteira,
+ * com trilha e botão de voltar, no meio do caminho de criar — a mesma
+ * duplicidade corrigida em `/relatorios`. Virou modal sobre a lista, que
+ * continua atrás no mesmo estado.
+ */
+type Tela = 'equipamentos' | 'formulario' | 'visualizador';
 
 const ROTULO_TIPO: Record<string, string> = {
   vaso: 'Vaso de Pressão',
@@ -269,6 +282,10 @@ function getLabelsDimensoes(tipo: string, subtipo: string): Record<keyof Dimensa
 
 export default function Prontuarios() {
   const [tela, setTela] = useState<Tela>('equipamentos');
+  /** O modal de escolher o equipamento para um prontuário NOVO. */
+  const [criando, setCriando] = useState(false);
+  /** Termo do catálogo DENTRO do modal — separado do da lista, que fica atrás. */
+  const [termoCriacao, setTermoCriacao] = useState('');
   // Decisão de SESSÃO (memoizada em `flag.ts`), lida uma vez: qual lista
   // responde por esta tela. Só a LISTA e o momento da semeadura mudam — o
   // formulário e o visualizador são os mesmos nos dois caminhos.
@@ -286,6 +303,16 @@ export default function Prontuarios() {
   const previaPront = previaProntuarioAtual(window.location.search);
   const palco = usePalcoDocumento(tag, `pront-${tag}-${versao}`, { pular: previaPront === 'vetorial' });
   const [confirmandoExcluir, setConfirmandoExcluir] = useState(false);
+  /**
+   * A TAG cujo prontuário a LISTA está pedindo para excluir.
+   *
+   * Estado próprio, e não o `confirmandoExcluir` do visualizador: aquele
+   * pertence ao documento aberto, e reusá-lo faria a confirmação da lista
+   * aparecer dentro de um prontuário que a pessoa nem abriu.
+   */
+  const [excluindoTag, setExcluindoTag] = useState<string | null>(null);
+  /** Bump para a lista refazer a busca depois de uma exclusão. */
+  const [versaoLista, setVersaoLista] = useState(0);
   const [salvando, setSalvando] = useState(false);
   const [mostrarModelador, setMostrarModelador] = useState(false);
   const [tipoEquip, setTipoEquip] = useState('vaso');
@@ -491,9 +518,18 @@ export default function Prontuarios() {
    * o cache não tem a TAG, o palco não acha nada para materializar e as seis
    * folhas do prontuário imprimem "-" — sem erro nenhum na tela.
    */
-  async function abrirPorTag(tag: string) {
+  /**
+   * Abre o prontuário de uma TAG.
+   *
+   * `editar` força o FORMULÁRIO. Sem ele vale a regra de sempre: prontuário
+   * existente abre no visualizador, inexistente abre no formulário — é o
+   * comportamento que a lista já tinha no clique da linha, e ele não mudou.
+   */
+  async function abrirPorTag(tag: string, opcoes?: { editar?: boolean }) {
     const { resumo } = await abrirEquipamentoParaProntuario(tag);
-    if (resumo) await abrirEquipamento(resumo);
+    if (!resumo) return;
+    await abrirEquipamento(resumo);
+    if (opcoes?.editar) setTela('formulario');
   }
 
   async function abrirEquipamento(eq: EquipamentoResumo) {
@@ -777,45 +813,66 @@ export default function Prontuarios() {
       {/* UX · o menu abre o HISTÓRICO de prontuários, não a lista de
           equipamentos. Escolher o equipamento é etapa da CRIAÇÃO, e mora na
           tela 'selecao' — a mesma separação feita em /relatorios. */}
+      {/* LISTA CANÔNICA · uma barra, uma lista. O botão de criar vai DENTRO da
+          barra (à direita da busca), em vez de num cabeçalho acima dela: eram
+          três faixas empilhadas antes da primeira linha do conteúdo. */}
       {tela === 'equipamentos' && (
-        <>
-          <div className="meta-card-header">
-            <h3>Prontuários salvos</h3>
-            <button type="button" className="fj-btn fj-btn-primary" onClick={() => setTela('selecao')}>
-              <Icone nome="plus" tam={14} /> Criar prontuário
+        <CatalogoProntuariosV9
+          key={versaoLista}
+          termo={termoBusca}
+          aoMudarTermo={setTermoBusca}
+          aoEscolher={(tag) => void abrirPorTag(tag)}
+          aoEditar={(tag) => void abrirPorTag(tag, { editar: true })}
+          aoExcluir={(tag) => setExcluindoTag(tag)}
+          acoes={
+            <button
+              type="button"
+              className="fj-btn fj-btn-primary pront-btn-criar"
+              aria-haspopup="dialog"
+              onClick={() => setCriando(true)}
+            >
+              <Icone nome="plus" tam={14} />{' '}
+              <span className="pront-btn-rotulo">Criar prontuário</span>
             </button>
-          </div>
-          <CatalogoProntuariosV9
-            termo={termoBusca}
-            aoMudarTermo={setTermoBusca}
-            aoEscolher={(tag) => void abrirPorTag(tag)}
-          />
-        </>
+          }
+        />
       )}
 
-      {tela === 'selecao' && (
-        <>
-          <div className="meta-breadcrumb">
-            <button type="button" className="btn-secundario" onClick={() => setTela('equipamentos')}>
-              ← Voltar
-            </button>
-            <span className="breadcrumb-chevron">›</span>
-            <span className="crumb-tag-chip">Novo prontuário</span>
-          </div>
-          <div className="meta-card-header">
-            <h3>Para qual equipamento?</h3>
-          </div>
-          <p className="selecao-dica">
-            Escolha o equipamento e o sistema abre o prontuário dele. O histórico completo fica em
-            Prontuários.
-          </p>
+      {/* CRIAR · a lista continua atrás, no mesmo estado. Cancelar devolve
+          exatamente o que havia antes — busca, filtro e rolagem. */}
+      {/* EXCLUIR pela lista. A regra é a MESMA de sempre
+          (`excluirProntuario`); o que muda é o lugar de onde ela é chamada.
+          Modal, e não `confirm()`, porque a ação apaga um documento técnico. */}
+      {excluindoTag && (
+        <ModalExcluirProntuario
+          tag={excluindoTag}
+          temEmissao={!!emissaoAtual(excluindoTag)}
+          aoFechar={() => setExcluindoTag(null)}
+          aoConfirmar={async () => {
+            await excluirProntuario(excluindoTag);
+            setExcluindoTag(null);
+            // A lista relê sozinha: a projeção é a fonte, e o selo daquela
+            // linha passa a sair do que o servidor souber na próxima busca.
+            setVersaoLista((v) => v + 1);
+          }}
+        />
+      )}
+
+      {criando && (
+        <ModalSelecionarEquipamento
+          sobre="Criar prontuário"
+          aoFechar={() => setCriando(false)}
+        >
           <CatalogoProntuariosV9
             modo="selecao"
-            termo={termoBusca}
-            aoMudarTermo={setTermoBusca}
-            aoEscolher={(tag) => void abrirPorTag(tag)}
+            termo={termoCriacao}
+            aoMudarTermo={setTermoCriacao}
+            aoEscolher={(tag) => {
+              setCriando(false);
+              void abrirPorTag(tag);
+            }}
           />
-        </>
+        </ModalSelecionarEquipamento>
       )}
 
 

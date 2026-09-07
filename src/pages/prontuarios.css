@@ -284,3 +284,165 @@
   .pront-linha-col { grid-area: meta; display: inline; }
   .pront-linha-col + .pront-linha-col::before { content: ' · '; }
 }
+
+/* ============================================================================
+   UX 06/09/2026 (2ª rodada) · /prontuarios com barra única e colunas
+   ============================================================================
+   O que a tela tinha antes da primeira linha da lista: um cabeçalho com título
+   e o botão de criar, a busca numa faixa própria, e um painel com três filtros
+   sempre abertos. Três faixas empilhadas para chegar ao conteúdo — e em 386px
+   o painel empilhava de novo e empurrava a lista para fora da primeira tela.
+
+   Agora: uma barra (filtro · busca · criar), um cabeçalho de colunas, e a
+   lista. A identidade dos prontuários fica: o acento âmbar na lateral da linha
+   e o ícone de livro continuam sendo o que distingue esta tela de /relatorios. */
+
+/* ── BARRA · uma linha ─────────────────────────────────────────────────── */
+.prontuarios-page .busca-lista.compacta .busca-lista-linha { flex-wrap: nowrap; }
+.prontuarios-page .busca-lista-campo { flex: 1 1 auto; min-width: 0; }
+.prontuarios-page .pront-btn-filtro,
+.prontuarios-page .pront-btn-criar { flex: 0 0 auto; white-space: nowrap; }
+.prontuarios-page .busca-lista-info { flex: 0 0 auto; white-space: nowrap; }
+
+/* Campo branco com foco âmbar, igual ao de /relatorios: o cinza do
+   `fj-search-box` fazia o campo parecer desabilitado. */
+.prontuarios-page .busca-lista-campo {
+  background: var(--panel, #fff);
+  border-color: var(--border-solid, #e4e1d8);
+  caret-color: var(--amber-deep, #d9640c);
+}
+.prontuarios-page .busca-lista-campo:focus-within {
+  border-color: var(--amber-deep, #d9640c);
+  box-shadow: 0 0 0 3px rgba(255, 122, 26, 0.16);
+}
+.prontuarios-page .busca-lista-campo input { caret-color: var(--amber-deep, #d9640c); }
+
+/* ── LISTA · cabeçalho e colunas ───────────────────────────────────────── */
+.pront-linha {
+  /* equipamento · tipo · empresa · categoria · emitido em · situação · ações */
+  grid-template-columns:
+    26px
+    minmax(170px, 2fr)
+    minmax(96px, 1fr)
+    minmax(110px, 1.3fr)
+    minmax(64px, 0.6fr)
+    minmax(84px, 0.7fr)
+    minmax(96px, 0.8fr)
+    96px;
+  gap: 10px;
+  padding: 5px 10px;
+  margin-bottom: 4px;
+  /* A linha deixou de ser um <button>: ela tem botões DENTRO. Um botão dentro
+     de outro é HTML inválido, e o clique do de fora engolia o de dentro. */
+  cursor: default;
+}
+
+.pront-linha-cabecalho {
+  min-height: 0;
+  padding: 6px 10px;
+  margin-bottom: 6px;
+  background: var(--surface-2, #f6f7f9);
+  border-left-color: transparent;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted, #6b7280);
+  cursor: default;
+}
+.pront-linha-cabecalho:hover { background: var(--surface-2, #f6f7f9); }
+.pront-linha-cabecalho .pront-col-acoes { text-align: right; }
+
+/* O acento lateral diz a SITUAÇÃO — sem pintar a linha inteira. */
+.pront-linha-emitido { border-left-color: #1d7a43; }
+.pront-linha-salvo { border-left-color: var(--marca, #f97316); }
+.pront-linha-sem { border-left-color: var(--border-solid, #e5e7eb); }
+
+.pront-linha-nome strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pront-linha-data { font-variant-numeric: tabular-nums; }
+
+/* ── SITUAÇÃO · um selo discreto, e só onde ele decide algo ────────────── */
+.pront-linha-situacao { min-width: 0; }
+.pront-selo {
+  display: inline-block;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 1px 6px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+/* EMITIDO é o estado que vale como documento — é o único com fundo. */
+.pront-selo-emitido { background: #eaf6ee; color: #1d7a43; border-color: #cfe8d9; }
+/* SALVO e SEM são texto: são a regra e a ausência, não notícia. */
+.pront-selo-salvo { color: var(--amber-deep, #d9640c); }
+.pront-selo-sem { color: var(--text-muted, #9aa1ab); font-weight: 600; }
+
+/* ── AÇÕES ─────────────────────────────────────────────────────────────── */
+.pront-linha-acoes {
+  display: flex;
+  justify-content: flex-end;
+  gap: 2px;
+  flex-wrap: nowrap;
+}
+.pront-linha-acoes .btn-icone {
+  width: 26px;
+  height: 26px;
+  min-height: 0;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+/* ── CELULAR E TABLET · cartão, não oito colunas ───────────────────────── */
+@media (max-width: 1023px) {
+  /* O cabeçalho de colunas não existe no cartão: cada valor leva o próprio
+     rótulo, e repetir a régua em cima seria uma linha morta. */
+  .pront-linha-cabecalho { display: none; }
+
+  .pront-linha {
+    grid-template-columns: 24px minmax(0, 1fr) auto;
+    grid-template-areas:
+      'icone nome     situacao'
+      '.     meta     meta'
+      '.     acoes    acoes';
+    row-gap: 3px;
+    padding: 8px 10px;
+    align-items: start;
+  }
+  .pront-linha-icone { grid-area: icone; align-self: center; }
+  .pront-linha-nome { grid-area: nome; }
+  .pront-linha-situacao { grid-area: situacao; justify-self: end; align-self: center; }
+  /* Tipo, empresa, categoria e data viram uma linha só, com ponto médio —
+     quatro faixas custariam 60px por cartão sem dizer mais nada. */
+  .pront-linha-col { grid-area: meta; display: inline; }
+  .pront-linha-col + .pront-linha-col::before { content: ' · '; color: var(--border-solid, #d1d5db); }
+  .pront-linha-acoes { grid-area: acoes; justify-content: flex-start; margin-top: 2px; }
+  .pront-linha-acoes .btn-icone { width: 34px; height: 34px; }
+}
+
+@media (max-width: 640px) {
+  /* Barra: [filtro] [busca] [+], os dois botões quadrados. A altura é
+     declarada junto da largura — sem rótulo e com `padding: 0`, o botão sai
+     com 2px de altura. */
+  .prontuarios-page .busca-lista.compacta .busca-lista-linha { gap: 6px; }
+  .prontuarios-page .pront-btn-rotulo { display: none; }
+  .prontuarios-page .pront-btn-filtro,
+  .prontuarios-page .pront-btn-criar {
+    padding: 0;
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+    justify-content: center;
+  }
+  .prontuarios-page .busca-lista-info { display: none; }
+}
