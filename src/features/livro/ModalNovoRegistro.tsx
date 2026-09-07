@@ -96,13 +96,16 @@ export default function ModalNovoRegistro({
     primeiro.current?.focus();
   }, []);
 
+  /*
+   * ESC NÃO FECHA ESTE MODAL (07/09/2026).
+   *
+   * Ele é a exceção deliberada da sessão: o formulário pode ter dez minutos de
+   * texto escrito à mão, e ESC — como o clique no fundo — é o gesto que se dá
+   * sem querer. O foco preso e o `aria-modal` continuam; o único caminho de
+   * saída é o X, que pergunta antes de descartar.
+   */
   useEffect(() => {
     function aoTeclar(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        aoFechar();
-        return;
-      }
       if (e.key !== 'Tab' || !caixa.current) return;
       const focaveis = caixa.current.querySelectorAll<HTMLElement>(
         'button, input, select, textarea, a[href], [tabindex]:not([tabindex="-1"])',
@@ -120,10 +123,27 @@ export default function ModalNovoRegistro({
     }
     document.addEventListener('keydown', aoTeclar);
     return () => document.removeEventListener('keydown', aoTeclar);
-  }, [aoFechar]);
+  }, []);
 
   const set = <K extends keyof FormOcorrencia>(campo: K, v: FormOcorrencia[K]) =>
     aoMudarForm({ ...form, [campo]: v });
+
+  /*
+   * SAIR SEM SALVAR PERGUNTA ANTES.
+   *
+   * O estado da abertura fica congelado numa ref — e não em `useState` — porque
+   * ele não pode mudar quando o formulário muda; se mudasse, nada seria
+   * "alteração". Comparar por JSON basta: são sete campos de texto, e a
+   * pergunta é "mudou alguma coisa?", não "o que mudou".
+   */
+  const inicial = useRef(JSON.stringify(form));
+  const [confirmandoSaida, setConfirmandoSaida] = useState(false);
+  const alterado = JSON.stringify(form) !== inicial.current;
+
+  function tentarFechar() {
+    if (alterado) setConfirmandoSaida(true);
+    else aoFechar();
+  }
 
   /*
    * O tipo que vem do PRÉ-PREENCHIMENTO não está na lista de ocorrências
@@ -154,7 +174,17 @@ export default function ModalNovoRegistro({
       }),
     [form.tipoOcorrencia, form.data, form.relatorioCodigo, form.apto, form.oQueFoiFeito, form.descricao, empresa],
   );
-  const termoEfetivo = form.termoTexto.trim() ? form.termoTexto : sugestao;
+  /*
+   * A REGRA DO TERMO, em uma linha: `null` é "ainda não editado" — só aí a
+   * sugestão manda. Qualquer string do usuário vence, INCLUSIVE a vazia.
+   *
+   * Era `form.termoTexto.trim() ? form.termoTexto : sugestao`, e o defeito
+   * saía direto dali: apagar a última letra devolvia `''`, o ternário escolhia
+   * a sugestão e o `value` do textarea reescrevia a frase inteira. O usuário
+   * não conseguia esvaziar o campo — nem com Ctrl+A e Delete.
+   */
+  const editouTermo = form.termoTexto !== null;
+  const termoEfetivo = editouTermo ? (form.termoTexto as string) : sugestao;
 
   const previa: DadosPrevia = {
     tag,
@@ -171,10 +201,10 @@ export default function ModalNovoRegistro({
   };
 
   return (
-    <div
-      className="fj-modal-overlay reg-modal-overlay"
-      onClick={(e) => e.target === e.currentTarget && aoFechar()}
-    >
+    /* O CLIQUE NO FUNDO NÃO FECHA. É o gesto acidental mais comum, e aqui ele
+       descartaria um formulário inteiro. Sem `onClick` no overlay: não há o
+       que dar errado. */
+    <div className="fj-modal-overlay reg-modal-overlay">
       <div
         className="fj-modal-box reg-modal"
         ref={caixa}
@@ -187,7 +217,7 @@ export default function ModalNovoRegistro({
             <div className="fj-eyebrow">Livro de Registro · {tag}</div>
             <h2 id={idTitulo}>{titulo}</h2>
           </div>
-          <button type="button" className="fj-modal-close" onClick={aoFechar} aria-label="Fechar">
+          <button type="button" className="fj-modal-close" onClick={tentarFechar} aria-label="Fechar">
             <Icone nome="x" tam={15} />
           </button>
         </div>
@@ -288,11 +318,15 @@ export default function ModalNovoRegistro({
               <div className="fj-field">
                 <label htmlFor="oc-termo">
                   Texto que sai no livro
-                  {form.termoTexto.trim() && (
+                  {/* "Restaurar" devolve o campo ao estado INTOCADO (`null`) —
+                      é o único caminho de volta para a sugestão, e ele é do
+                      usuário. Aparece assim que ele edita, mesmo que tenha
+                      apagado tudo: é justamente aí que o botão serve. */}
+                  {editouTermo && (
                     <button
                       type="button"
                       className="reg-modal-restaurar"
-                      onClick={() => set('termoTexto', '')}
+                      onClick={() => set('termoTexto', null)}
                     >
                       restaurar sugestão
                     </button>
@@ -424,14 +458,38 @@ export default function ModalNovoRegistro({
           {/* O que acontece ao salvar, escrito ao lado do botão que salva. */}
           <span className="reg-modal-acoes-dica">Salva como rascunho — você tranca depois.</span>
           <div className="reg-modal-acoes-btns">
-            <button type="button" className="fj-btn fj-btn-ghost" onClick={aoFechar}>
-              Cancelar
-            </button>
+            {/* "Cancelar" saiu: dois caminhos de descarte é um a mais do que o
+                necessário, e o do rodapé ficava ao lado do que SALVA. Quem
+                quiser sair usa o X, que pergunta. */}
             <button type="button" className="fj-btn fj-btn-primary" onClick={aoSalvar}>
               <Icone nome="check" tam={13} /> Salvar rascunho
             </button>
           </div>
         </div>
+
+        {/* A confirmação de saída, DENTRO da caixa: ela pertence a este modal,
+            e um segundo overlay por cima do primeiro escureceria a tela duas
+            vezes. Nada de `window.confirm` — o sistema tem o seu desenho. */}
+        {confirmandoSaida && (
+          <div className="reg-modal-descarte" role="alertdialog" aria-label="Alterações não salvas">
+            <div className="reg-modal-descarte-caixa">
+              <strong>Há alterações ainda não salvas.</strong>
+              <p>Fechar agora descarta o que você escreveu neste registro.</p>
+              <div className="reg-modal-descarte-btns">
+                <button
+                  type="button"
+                  className="fj-btn fj-btn-primary"
+                  onClick={() => setConfirmandoSaida(false)}
+                >
+                  Continuar editando
+                </button>
+                <button type="button" className="fj-btn fj-btn-ghost" onClick={aoFechar}>
+                  Descartar e fechar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

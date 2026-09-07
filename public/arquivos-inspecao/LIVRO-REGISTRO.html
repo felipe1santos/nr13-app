@@ -633,10 +633,18 @@
             }
 
             // Aplica um texto congelado por cima do texto gerado (quando houver) e trava a edição.
+            // `texto` é STRING quando a entrada tem termo gravado — inclusive a
+            // string VAZIA, que é o usuário dizendo "este registro não leva termo".
+            // `null`/`undefined` é entrada antiga, sem o campo: aí fica o texto que
+            // esta folha montou, que é o comportamento de sempre.
+            //
+            // Antes a checagem era `if (texto && texto.trim())`, e ela tratava
+            // "apagado" e "nunca preenchido" como a mesma coisa: quem apagava o termo
+            // no app via a frase automática reaparecer no papel.
             function aplicarTermoSomenteLeitura(texto) {
                 const el = document.getElementById('termo-texto');
                 if (!el) return;
-                if (texto && texto.trim()) el.textContent = texto;
+                if (typeof texto === 'string') el.textContent = texto;
                 el.setAttribute('contenteditable', 'false');
             }
 
@@ -768,7 +776,7 @@
                 if (entradaId || (idx !== null && idx !== '')) {
                     // Registro já consumado: texto congelado da entrada, SEMPRE somente leitura.
                     const entrada = renderizarModoHistorico(tag, entradaId, idx);
-                    aplicarTermoSomenteLeitura(entrada && typeof entrada.termoTexto === 'string' ? entrada.termoTexto : '');
+                    aplicarTermoSomenteLeitura(entrada && typeof entrada.termoTexto === 'string' ? entrada.termoTexto : null);
                 } else {
                     // Relatório em montagem/salvo — a própria função decide se o termo é editável.
                     renderizarModoRelatorioAtual(tag);

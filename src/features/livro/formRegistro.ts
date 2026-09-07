@@ -32,12 +32,20 @@ export interface FormOcorrencia {
   /**
    * O TERMO que sai impresso no livro.
    *
-   * Vazio = "use a sugestão": o texto acompanha os campos enquanto o usuário
-   * não escreve o dele. Assim que ele escreve, este campo vence e nada mais o
-   * sobrescreve — é o mesmo contrato que a folha já respeita para o termo
-   * congelado das entradas automáticas.
+   * ## `null` e `''` são coisas DIFERENTES (07/09/2026)
+   *
+   * - **`null`** — o usuário ainda não tocou no campo. A sugestão manda, e ela
+   *   acompanha data, tipo e descrição enquanto ninguém escrever;
+   * - **`''`** — ele apagou tudo, de propósito. Fica vazio;
+   * - **texto** — é dele, e nada o sobrescreve.
+   *
+   * Este campo já foi `string`, com a regra "vazio = use a sugestão". O efeito
+   * era um defeito relatado: apagar a última letra (ou dar Ctrl+A e Delete)
+   * fazia a sugestão inteira reaparecer, e o campo não podia ficar vazio. Um
+   * `||` sobre string trata "apagado" e "nunca preenchido" como o mesmo estado
+   * — e num campo que vai impresso num livro legal eles não são.
    */
-  termoTexto: string;
+  termoTexto: string | null;
   /** Código do relatório de origem, quando veio do pré-preenchimento. */
   relatorioCodigo?: string;
   /** Laudo APTO/INAPTO herdado do relatório; `null`/ausente = não marcado. */
@@ -52,5 +60,7 @@ export const FORM_OCORRENCIA_VAZIO: FormOcorrencia = {
   quemRealizou: '',
   phId: '',
   retificaDe: '',
-  termoTexto: '',
+  // `null`, e nao `''`: o campo nasce INTOCADO, e a sugestao manda ate a
+  // primeira tecla.
+  termoTexto: null,
 };

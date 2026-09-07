@@ -537,8 +537,10 @@ export default function LivroRegistro() {
       quemRealizou: r.quemRealizou ?? '',
       phId: (r as { phId?: string }).phId ?? '',
       retificaDe: r.retificaDe ?? '',
-      // O termo digitado volta como está. Vazio = a sugestão volta a valer.
-      termoTexto: (r as { termoTexto?: string }).termoTexto ?? '',
+      /* O termo volta EXATAMENTE como foi salvo: `''` é um termo apagado de
+         propósito e continua vazio; AUSENTE é registro antigo, e aí o campo
+         nasce intocado (`null`) para a sugestão poder valer. */
+      termoTexto: (r as { termoTexto?: string }).termoTexto ?? null,
       relatorioCodigo: r.relatorioCodigo || undefined,
       apto: r.apto ?? null,
     });
@@ -628,8 +630,15 @@ export default function LivroRegistro() {
     };
   }
 
-  /** O termo efetivo: o texto do usuário ou, na falta dele, a sugestão. */
+  /**
+   * O termo EFETIVO do formulário.
+   *
+   * `null` = campo intocado, e só aí a sugestão vale. String do usuário vence
+   * sempre — inclusive a VAZIA, que é ele dizendo "este registro não leva
+   * termo". Um `||` aqui devolveria a sugestão a quem acabou de apagá-la.
+   */
   function termoDoFormulario(): string {
+    if (form.termoTexto !== null) return form.termoTexto;
     return termoSugerido({
       tipo: form.tipoOcorrencia,
       data: form.data,
@@ -657,7 +666,7 @@ export default function LivroRegistro() {
       // O termo vai GRAVADO, inclusive quando o usuário não mexeu nele: guardar
       // só o texto editado deixaria a folha remontar a frase com os dados de
       // AMANHÃ (razão social nova, por exemplo) num registro já trancado.
-      termoTexto: form.termoTexto.trim() || termoDoFormulario(),
+      termoTexto: termoDoFormulario(),
       relatorioCodigo: form.relatorioCodigo,
       apto: form.apto ?? null,
     });

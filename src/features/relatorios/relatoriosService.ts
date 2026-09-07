@@ -485,7 +485,10 @@ export async function montarEntradaLivroManual(
     // e um `null` gravado ali seria um campo dizendo "não sei" onde a pergunta
     // não se aplica.
     ...(dados.apto === true || dados.apto === false ? { apto: dados.apto } : {}),
-    termoTexto: dados.termoTexto?.trim() || undefined,
+    // `?? undefined`, e NÃO `|| undefined`: a string vazia é um termo apagado
+    // de propósito e precisa ser gravada como tal. Com o `||`, apagar o termo
+    // virava "campo ausente" — e a folha, sem campo, remonta a frase sozinha.
+    termoTexto: dados.termoTexto ?? undefined,
     phNome: func?.nome ?? '',
     phCrea: func?.crea ?? '',
     origem: 'manual',

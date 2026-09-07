@@ -216,7 +216,9 @@ describe('o modal "Novo registro"', () => {
     expect(modal).toContain('role="dialog"');
     expect(modal).toContain('aria-modal="true"');
     expect(modal).toContain('aria-labelledby={idTitulo}');
-    expect(modal).toContain("e.key === 'Escape'");
+    // ESC deixou de fechar ESTE modal no hotfix de 07/09/2026 (formulário
+    // longo, gesto acidental). O foco preso e o `aria-modal` ficam — ver
+    // `termoModal.test.ts`.
     expect(modal).toContain("e.key !== 'Tab'");
   });
 
@@ -581,7 +583,9 @@ describe('o termo é editável', () => {
 
   it('o texto do usuário VENCE a sugestão', () => {
     // Mudar a data depois de escrever não pode reescrever o texto de alguém.
-    expect(modal).toContain('const termoEfetivo = form.termoTexto.trim() ? form.termoTexto : sugestao;');
+    // A regra virou `null` vs string (o `trim()` fazia a sugestão voltar
+    // quando o campo era esvaziado). Ver `termoModal.test.ts`.
+    expect(modal).toContain('const termoEfetivo = editouTermo ? (form.termoTexto as string) : sugestao;');
     expect(termoTs).toContain('export function termoSugerido');
   });
 
@@ -595,12 +599,14 @@ describe('o termo é editável', () => {
   it('o termo vai GRAVADO no registro, inclusive quando não foi editado', () => {
     // Guardar só o texto editado deixaria a folha remontar a frase com os dados
     // de amanhã (razão social nova) num registro já trancado.
-    expect(pagina).toContain('termoTexto: form.termoTexto.trim() || termoDoFormulario()');
-    expect(servico).toContain('termoTexto: dados.termoTexto?.trim() || undefined,');
+    expect(pagina).toContain('termoTexto: termoDoFormulario(),');
+    // O `|| undefined` saiu no hotfix: ele trocava o termo APAGADO por campo
+    // ausente, e a folha remontava a frase. Ver `termoModal.test.ts`.
+    expect(servico).toContain('termoTexto: dados.termoTexto ?? undefined,');
   });
 
   it('reabrir o rascunho traz o termo digitado de volta', () => {
-    expect(pagina).toContain("termoTexto: (r as { termoTexto?: string }).termoTexto ?? ''");
+    expect(pagina).toContain("termoTexto: (r as { termoTexto?: string }).termoTexto ?? null,");
   });
 });
 

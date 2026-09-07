@@ -571,3 +571,53 @@
   color: var(--muted, #7a8790);
 }
 .ficha-reg-nota { margin: 0; font-size: 10.5px; line-height: 1.45; color: var(--text-faint, #aeb4b9); }
+
+/* ── CONFIRMAÇÃO DE SAÍDA (07/09/2026) ──────────────────────────────────────
+   Dentro da caixa, e não num segundo overlay: escurecer a tela duas vezes é
+   uma camada a mais para dizer uma frase. */
+.reg-modal-descarte {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(20, 24, 28, 0.42);
+  border-radius: 6px;
+}
+.reg-modal-descarte-caixa {
+  background: #fff;
+  border-radius: 5px;
+  border: 1px solid var(--line, #e4e1d8);
+  box-shadow: 0 14px 34px rgba(20, 24, 28, 0.22);
+  padding: 18px 20px 16px;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.reg-modal-descarte-caixa strong { font-family: var(--font-display); font-size: 14px; }
+.reg-modal-descarte-caixa p {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted, #7a8790);
+}
+.reg-modal-descarte-btns {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+/* "Continuar editando" é a primária: o caminho seguro é o que se acerta sem
+   ler. "Descartar" fica em ghost, ao lado. */
+.reg-modal-descarte-btns .fj-btn { flex: 1; justify-content: center; }
+
+@media (max-width: 640px) {
+  .reg-modal-descarte-btns .fj-btn { height: 44px; box-sizing: border-box; }
+}
+
+/* A confirmação é `position: absolute` sobre a caixa — que precisa ser o
+   contexto de posicionamento dela. */
+.reg-modal { position: relative; }
