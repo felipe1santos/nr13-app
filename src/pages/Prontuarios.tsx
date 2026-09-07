@@ -6,6 +6,7 @@ import type { EquipamentoResumo } from '../features/equipamento/tipos';
 import CatalogoProntuariosV9 from '../features/prontuarios/CatalogoProntuariosV9';
 import ListaProntuariosV9 from '../features/prontuarios/ListaProntuariosV9';
 import MaisAcoesProntuario from '../features/prontuarios/MaisAcoesProntuario';
+import CampoProntuario from '../features/prontuarios/CampoProntuario';
 import type { DocumentoProntuario } from '../features/prontuarios/indiceProntuarios';
 // A MESMA moldura de modal usada em `/relatorios`: overlay, cabeçalho, ESC e
 // armadilha de foco iguais nos dois módulos. O que muda por dentro é o
@@ -333,6 +334,18 @@ export default function Prontuarios() {
   const [jaExistia, setJaExistia] = useState(false);
   /** Bump para a lista refazer a busca depois de uma exclusão. */
   const [versaoLista, setVersaoLista] = useState(0);
+  /**
+   * Os campos cujo valor NA TELA veio do sistema.
+   *
+   * `abrirEquipamento` já sabia disso — montava o conjunto `preenchidos` e o
+   * jogava fora. A diferença importante é o filtro: um campo que o memorial
+   * preencheu MAS que o usuário já tinha editado mostra o valor DELE, e marcar
+   * esse como automático seria mentir sobre a origem do dado. Por isso o
+   * conjunto guardado é o dos campos em que o valor final ainda é o do sistema.
+   *
+   * Ele não é persistido: é derivado da abertura, e a próxima recalcula.
+   */
+  const [autoPreenchidos, setAutoPreenchidos] = useState<Set<string>>(new Set());
   const [salvando, setSalvando] = useState(false);
   const [mostrarModelador, setMostrarModelador] = useState(false);
   const [tipoEquip, setTipoEquip] = useState('vaso');
@@ -753,6 +766,16 @@ export default function Prontuarios() {
         finais.dimensoes = dimsTemDado ? existente.dimensoes : base.dimensoes;
       }
 
+      // Só continua "automático" o campo em que o valor final é o do sistema.
+      setAutoPreenchidos(
+        new Set(
+          [...preenchidos].filter(
+            (k) =>
+              (finais as unknown as Record<string, unknown>)[k] ===
+              (base as unknown as Record<string, unknown>)[k],
+          ),
+        ),
+      );
       setDados(finais);
       setMostrarModelador(false);
       gravarProntuarioAtual(finais);
@@ -774,6 +797,14 @@ export default function Prontuarios() {
 
   function set<K extends keyof ProntuarioDados>(campo: K, valor: ProntuarioDados[K]) {
     setDados((d) => ({ ...d, [campo]: valor }));
+    // Digitou: o valor deixou de ser do sistema, e o selo "auto" some. Sem
+    // isto o campo continuaria anunciando uma origem que já não é a dele.
+    setAutoPreenchidos((s) => {
+      if (!s.has(campo as string)) return s;
+      const n = new Set(s);
+      n.delete(campo as string);
+      return n;
+    });
   }
 
   function setDim(i: number, campo: keyof DimensaoProntuario, valor: string) {
@@ -931,18 +962,55 @@ export default function Prontuarios() {
 
 
       {tela === 'formulario' && (
+        <>
+          {/* UMA BARRA. Eram três faixas empilhadas antes do primeiro campo:
+              trilha com "← Voltar {tag}", cabeçalho com "Prontuário — {tag}", e
+              as ações lá embaixo, no fim do formulário — o usuário rolava a
+              tela inteira para salvar. Agora: voltar, identificação, situação e
+              ações na mesma linha, no topo, sempre alcançáveis. */}
+          <div className="bloco-dados pront-topo">
+            <div className="pront-barra">
+              <button
+                type="button"
+                className="fj-btn fj-btn-ghost pront-barra-voltar"
+                onClick={() => setTela('equipamentos')}
+              >
+                ← <span className="pront-btn-rotulo">Voltar</span>
+              </button>
+              <div className="pront-barra-id">
+                <strong>{jaExistia ? 'Prontuário' : 'Novo prontuário'} — {tag}</strong>
+                <span>{emissao ? `emitido · rev. ${String(revisaoAtual).padStart(2, '0')}` : 'rascunho'}</span>
+              </div>
+              <div className="pront-visualizador-acoes">
+                <button type="button" className="fj-btn fj-btn-ghost" onClick={visualizar}>
+                  <span className="pront-btn-rotulo">Pré-visualizar</span>
+                  <span className="pront-btn-icone" aria-hidden>
+                    <Icone nome="eye" tam={14} />
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className={`fj-btn fj-btn-primary${salvando ? ' is-loading' : ''}`}
+                  onClick={salvar}
+                  disabled={salvando}
+                >
+                  {salvando ? 'Salvando…' : 'Salvar rascunho'}
+                </button>
+              </div>
+            </div>
+
+            {/* RESUMO · o que identifica o documento, numa faixa de uma linha.
+                Ele responde "estou no equipamento certo?" sem rolar até os
+                campos, que é a pergunta de quem volta a um rascunho. */}
+            <div className="pront-resumo">
+              <span><b>Equipamento</b>{dados.descricao?.trim() || '—'}</span>
+              <span><b>Tipo</b>{ROTULO_TIPO[tipoEquip] ?? tipoEquip ?? '—'}</span>
+              <span><b>Cliente</b>{dados.empresaRazaoSocial?.trim() || '—'}</span>
+              <span><b>Categoria</b>{dados.categoria?.trim() || '—'}</span>
+            </div>
+          </div>
+
         <div className="bloco-dados">
-          <div className="meta-breadcrumb">
-            <button type="button" className="btn-secundario" onClick={() => setTela('equipamentos')}>
-              ← Voltar
-            </button>
-            <strong>{tag}</strong>
-          </div>
-          <div className="meta-card-header" style={{ marginBottom: 16 }}>
-            <h3>
-              {jaExistia ? 'Prontuário' : 'Novo prontuário'} — {tag}
-            </h3>
-          </div>
 
           {/* Empresa Proprietária — editável */}
           <div className="pront-form-secao">
@@ -970,30 +1038,44 @@ export default function Prontuarios() {
               </div>
             </div>
             <div className="pront-form-grid">
-              <div className="pront-campo pront-campo-full">
-                <label>Razão Social</label>
-                <input value={dados.empresaRazaoSocial ?? ''} onChange={(e) => set('empresaRazaoSocial', e.target.value)} />
-              </div>
-              <div className="pront-campo">
-                <label>CNPJ</label>
-                <input value={dados.empresaCnpj ?? ''} onChange={(e) => set('empresaCnpj', e.target.value)} />
-              </div>
-              <div className="pront-campo pront-campo-full">
-                <label>Endereço</label>
-                <input value={dados.empresaEndereco ?? ''} onChange={(e) => set('empresaEndereco', e.target.value)} />
-              </div>
-              <div className="pront-campo">
-                <label>Cidade</label>
-                <input value={dados.empresaCidade ?? ''} onChange={(e) => set('empresaCidade', e.target.value)} />
-              </div>
-              <div className="pront-campo">
-                <label>Estado</label>
-                <input value={dados.empresaEstado ?? ''} onChange={(e) => set('empresaEstado', e.target.value)} />
-              </div>
-              <div className="pront-campo">
-                <label>Telefone</label>
-                <input value={dados.empresaTelefone ?? ''} onChange={(e) => set('empresaTelefone', e.target.value)} />
-              </div>
+              <CampoProntuario
+                rotulo="Razão Social"
+                valor={dados.empresaRazaoSocial ?? ''}
+                aoMudar={(v) => set('empresaRazaoSocial', v)}
+                automatico={autoPreenchidos.has('empresaRazaoSocial')}
+                largo
+              />
+              <CampoProntuario
+                rotulo="CNPJ"
+                valor={dados.empresaCnpj ?? ''}
+                aoMudar={(v) => set('empresaCnpj', v)}
+                automatico={autoPreenchidos.has('empresaCnpj')}
+              />
+              <CampoProntuario
+                rotulo="Endereço"
+                valor={dados.empresaEndereco ?? ''}
+                aoMudar={(v) => set('empresaEndereco', v)}
+                automatico={autoPreenchidos.has('empresaEndereco')}
+                largo
+              />
+              <CampoProntuario
+                rotulo="Cidade"
+                valor={dados.empresaCidade ?? ''}
+                aoMudar={(v) => set('empresaCidade', v)}
+                automatico={autoPreenchidos.has('empresaCidade')}
+              />
+              <CampoProntuario
+                rotulo="Estado"
+                valor={dados.empresaEstado ?? ''}
+                aoMudar={(v) => set('empresaEstado', v)}
+                automatico={autoPreenchidos.has('empresaEstado')}
+              />
+              <CampoProntuario
+                rotulo="Telefone"
+                valor={dados.empresaTelefone ?? ''}
+                aoMudar={(v) => set('empresaTelefone', v)}
+                automatico={autoPreenchidos.has('empresaTelefone')}
+              />
             </div>
           </div>
 
@@ -1029,36 +1111,53 @@ export default function Prontuarios() {
           <div className="pront-form-secao">
             <div className="pront-form-secao-titulo">Identificação do Vaso de Pressão</div>
             <div className="pront-form-grid cols-1">
-              <div className="pront-campo">
-                <label>Descrição</label>
-                <input value={dados.descricao} onChange={(e) => set('descricao', e.target.value)} />
-              </div>
+              <CampoProntuario
+                rotulo="Descrição"
+                valor={dados.descricao}
+                aoMudar={(v) => set('descricao', v)}
+                automatico={autoPreenchidos.has('descricao')}
+              />
             </div>
             <div className="pront-form-grid">
-              <div className="pront-campo">
-                <label>Data de Fabricação</label>
-                <input value={dados.dataFabricacao} onChange={(e) => set('dataFabricacao', e.target.value)} placeholder="DD/MM/AAAA" />
-              </div>
-              <div className="pront-campo">
-                <label>Classe do Fluído</label>
-                <input value={dados.classeFluid} onChange={(e) => set('classeFluid', e.target.value)} />
-              </div>
-              <div className="pront-campo">
-                <label>Categoria do Vaso</label>
-                <input value={dados.categoria} onChange={(e) => set('categoria', e.target.value)} />
-              </div>
-              <div className="pront-campo">
-                <label>Grupo de Potencial de Risco</label>
-                <input value={dados.grupoPotencialRisco} onChange={(e) => set('grupoPotencialRisco', e.target.value)} />
-              </div>
-              <div className="pront-campo pront-campo-full">
-                <label>Modelo</label>
-                <input value={dados.modelo} onChange={(e) => set('modelo', e.target.value)} />
-              </div>
-              <div className="pront-campo pront-campo-full">
-                <label>Características Funcionais</label>
-                <input value={dados.caracteristicasFuncionais} onChange={(e) => set('caracteristicasFuncionais', e.target.value)} />
-              </div>
+              <CampoProntuario
+                rotulo="Data de Fabricação"
+                valor={dados.dataFabricacao}
+                aoMudar={(v) => set('dataFabricacao', v)}
+                automatico={autoPreenchidos.has('dataFabricacao')}
+                placeholder="DD/MM/AAAA"
+              />
+              <CampoProntuario
+                rotulo="Classe do Fluído"
+                valor={dados.classeFluid}
+                aoMudar={(v) => set('classeFluid', v)}
+                automatico={autoPreenchidos.has('classeFluid')}
+              />
+              <CampoProntuario
+                rotulo="Categoria do Vaso"
+                valor={dados.categoria}
+                aoMudar={(v) => set('categoria', v)}
+                automatico={autoPreenchidos.has('categoria')}
+              />
+              <CampoProntuario
+                rotulo="Grupo de Potencial de Risco"
+                valor={dados.grupoPotencialRisco}
+                aoMudar={(v) => set('grupoPotencialRisco', v)}
+                automatico={autoPreenchidos.has('grupoPotencialRisco')}
+              />
+              <CampoProntuario
+                rotulo="Modelo"
+                valor={dados.modelo}
+                aoMudar={(v) => set('modelo', v)}
+                automatico={autoPreenchidos.has('modelo')}
+                largo
+              />
+              <CampoProntuario
+                rotulo="Características Funcionais"
+                valor={dados.caracteristicasFuncionais}
+                aoMudar={(v) => set('caracteristicasFuncionais', v)}
+                automatico={autoPreenchidos.has('caracteristicasFuncionais')}
+                largo
+              />
             </div>
           </div>
 
@@ -1066,38 +1165,54 @@ export default function Prontuarios() {
           <div className="pront-form-secao">
             <div className="pront-form-secao-titulo">Dados do Projeto</div>
             <div className="pront-form-grid cols-3">
-              <div className="pront-campo">
-                <label>Código do Projeto</label>
-                <input value={dados.codigoProjeto} onChange={(e) => set('codigoProjeto', e.target.value)} />
-              </div>
-              <div className="pront-campo">
-                <label>Ano de Edição</label>
-                <input value={dados.anoEdicao} onChange={(e) => set('anoEdicao', e.target.value)} />
-              </div>
-              <div className="pront-campo">
-                <label>Pressão de Teste Hidrostático</label>
-                <input value={dados.pressaoTH} onChange={(e) => set('pressaoTH', e.target.value)} />
-              </div>
-              <div className="pront-campo">
-                <label>Pressão Máxima de Operação</label>
-                <input value={dados.pressaoMaxOp} onChange={(e) => set('pressaoMaxOp', e.target.value)} />
-              </div>
-              <div className="pront-campo">
-                <label>Pressão de Projeto (PMTA)</label>
-                <input value={dados.pressaoProjeto} onChange={(e) => set('pressaoProjeto', e.target.value)} />
-              </div>
-              <div className="pront-campo">
-                <label>Nº de Série</label>
-                <input value={dados.nroSerie} onChange={(e) => set('nroSerie', e.target.value)} />
-              </div>
-              <div className="pront-campo">
-                <label>PMTA</label>
-                <input value={dados.pmta} onChange={(e) => set('pmta', e.target.value)} />
-              </div>
-              <div className="pront-campo">
-                <label>Sobreespessura para Corrosão</label>
-                <input value={dados.sobreespessura} onChange={(e) => set('sobreespessura', e.target.value)} />
-              </div>
+              <CampoProntuario
+                rotulo="Código do Projeto"
+                valor={dados.codigoProjeto}
+                aoMudar={(v) => set('codigoProjeto', v)}
+                automatico={autoPreenchidos.has('codigoProjeto')}
+              />
+              <CampoProntuario
+                rotulo="Ano de Edição"
+                valor={dados.anoEdicao}
+                aoMudar={(v) => set('anoEdicao', v)}
+                automatico={autoPreenchidos.has('anoEdicao')}
+              />
+              <CampoProntuario
+                rotulo="Pressão de Teste Hidrostático"
+                valor={dados.pressaoTH}
+                aoMudar={(v) => set('pressaoTH', v)}
+                automatico={autoPreenchidos.has('pressaoTH')}
+              />
+              <CampoProntuario
+                rotulo="Pressão Máxima de Operação"
+                valor={dados.pressaoMaxOp}
+                aoMudar={(v) => set('pressaoMaxOp', v)}
+                automatico={autoPreenchidos.has('pressaoMaxOp')}
+              />
+              <CampoProntuario
+                rotulo="Pressão de Projeto (PMTA)"
+                valor={dados.pressaoProjeto}
+                aoMudar={(v) => set('pressaoProjeto', v)}
+                automatico={autoPreenchidos.has('pressaoProjeto')}
+              />
+              <CampoProntuario
+                rotulo="Nº de Série"
+                valor={dados.nroSerie}
+                aoMudar={(v) => set('nroSerie', v)}
+                automatico={autoPreenchidos.has('nroSerie')}
+              />
+              <CampoProntuario
+                rotulo="PMTA"
+                valor={dados.pmta}
+                aoMudar={(v) => set('pmta', v)}
+                automatico={autoPreenchidos.has('pmta')}
+              />
+              <CampoProntuario
+                rotulo="Sobreespessura para Corrosão"
+                valor={dados.sobreespessura}
+                aoMudar={(v) => set('sobreespessura', v)}
+                automatico={autoPreenchidos.has('sobreespessura')}
+              />
             </div>
           </div>
 
@@ -1105,38 +1220,54 @@ export default function Prontuarios() {
           <div className="pront-form-secao">
             <div className="pront-form-secao-titulo">Especificações dos Materiais</div>
             <div className="pront-form-grid">
-              <div className="pront-campo">
-                <label>Temperatura de Projeto</label>
-                <input value={dados.tempProjeto} onChange={(e) => set('tempProjeto', e.target.value)} />
-              </div>
-              <div className="pront-campo">
-                <label>Tipo de Tampos</label>
-                <input value={dados.tipoTampos} onChange={(e) => set('tipoTampos', e.target.value)} />
-              </div>
-              <div className="pront-campo">
-                <label>Fundo / Corpo</label>
-                <input value={dados.fundoCorpo} onChange={(e) => set('fundoCorpo', e.target.value)} />
-              </div>
-              <div className="pront-campo">
-                <label>Tampa</label>
-                <input value={dados.tampa} onChange={(e) => set('tampa', e.target.value)} />
-              </div>
-              <div className="pront-campo">
-                <label>Manípulos de Fechamento</label>
-                <input value={dados.manipulos} onChange={(e) => set('manipulos', e.target.value)} />
-              </div>
-              <div className="pront-campo">
-                <label>Prisioneiros de Fechamento</label>
-                <input value={dados.prisioneiros} onChange={(e) => set('prisioneiros', e.target.value)} />
-              </div>
-              <div className="pront-campo">
-                <label>Aro</label>
-                <input value={dados.aro} onChange={(e) => set('aro', e.target.value)} />
-              </div>
-              <div className="pront-campo">
-                <label>Luvas, Tubos, Conexões</label>
-                <input value={dados.luvConexoes} onChange={(e) => set('luvConexoes', e.target.value)} />
-              </div>
+              <CampoProntuario
+                rotulo="Temperatura de Projeto"
+                valor={dados.tempProjeto}
+                aoMudar={(v) => set('tempProjeto', v)}
+                automatico={autoPreenchidos.has('tempProjeto')}
+              />
+              <CampoProntuario
+                rotulo="Tipo de Tampos"
+                valor={dados.tipoTampos}
+                aoMudar={(v) => set('tipoTampos', v)}
+                automatico={autoPreenchidos.has('tipoTampos')}
+              />
+              <CampoProntuario
+                rotulo="Fundo / Corpo"
+                valor={dados.fundoCorpo}
+                aoMudar={(v) => set('fundoCorpo', v)}
+                automatico={autoPreenchidos.has('fundoCorpo')}
+              />
+              <CampoProntuario
+                rotulo="Tampa"
+                valor={dados.tampa}
+                aoMudar={(v) => set('tampa', v)}
+                automatico={autoPreenchidos.has('tampa')}
+              />
+              <CampoProntuario
+                rotulo="Manípulos de Fechamento"
+                valor={dados.manipulos}
+                aoMudar={(v) => set('manipulos', v)}
+                automatico={autoPreenchidos.has('manipulos')}
+              />
+              <CampoProntuario
+                rotulo="Prisioneiros de Fechamento"
+                valor={dados.prisioneiros}
+                aoMudar={(v) => set('prisioneiros', v)}
+                automatico={autoPreenchidos.has('prisioneiros')}
+              />
+              <CampoProntuario
+                rotulo="Aro"
+                valor={dados.aro}
+                aoMudar={(v) => set('aro', v)}
+                automatico={autoPreenchidos.has('aro')}
+              />
+              <CampoProntuario
+                rotulo="Luvas, Tubos, Conexões"
+                valor={dados.luvConexoes}
+                aoMudar={(v) => set('luvConexoes', v)}
+                automatico={autoPreenchidos.has('luvConexoes')}
+              />
             </div>
           </div>
 
@@ -1240,29 +1371,38 @@ export default function Prontuarios() {
           <div className="pront-form-secao">
             <div className="pront-form-secao-titulo">Revisão</div>
             <div className="pront-form-grid">
-              <div className="pront-campo">
-                <label>Revisão</label>
-                <input value={dados.revisao} onChange={(e) => set('revisao', e.target.value)} />
-              </div>
-              <div className="pront-campo">
-                <label>Data de Revisão</label>
-                <input value={dados.dataRevisao} onChange={(e) => set('dataRevisao', e.target.value)} placeholder="DD/MM/AAAA" />
-              </div>
+              <CampoProntuario
+                rotulo="Revisão"
+                valor={dados.revisao}
+                aoMudar={(v) => set('revisao', v)}
+                automatico={autoPreenchidos.has('revisao')}
+              />
+              <CampoProntuario
+                rotulo="Data de Revisão"
+                valor={dados.dataRevisao}
+                aoMudar={(v) => set('dataRevisao', v)}
+                automatico={autoPreenchidos.has('dataRevisao')}
+                placeholder="DD/MM/AAAA"
+              />
             </div>
           </div>
 
+          {/* O rodapé repete o SALVAR — e só ele. Quem terminou de preencher
+              está no fim da página, e mandá-lo rolar de volta ao topo para
+              salvar seria trocar uma rolagem por outra. As demais ações moram
+              na barra, uma vez só. */}
           <div className="pront-acoes-criar">
-            <button type="button" className="btn-secundario" onClick={() => setTela('equipamentos')}>
-              Cancelar
-            </button>
-            <button type="button" className="btn-secundario" onClick={visualizar}>
-              Pré-visualizar
-            </button>
-            <button type="button" className={`btn-primario ${salvando ? 'is-loading' : ''}`} onClick={salvar} disabled={salvando}>
-              {salvando ? 'Salvando...' : 'Salvar Prontuário'}
+            <button
+              type="button"
+              className={`fj-btn fj-btn-primary${salvando ? ' is-loading' : ''}`}
+              onClick={salvar}
+              disabled={salvando}
+            >
+              {salvando ? 'Salvando…' : 'Salvar rascunho'}
             </button>
           </div>
         </div>
+        </>
       )}
 
       {tela === 'visualizador' && (

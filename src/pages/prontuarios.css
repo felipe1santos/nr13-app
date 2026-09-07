@@ -570,3 +570,171 @@
   .pront-visualizador-acoes { order: 3; flex: 1 1 100%; justify-content: flex-end; }
   .pront-barra-voltar .pront-btn-rotulo { display: none; }
 }
+
+/* ============================================================================
+   06/09/2026 · O FORMULÁRIO DO PRONTUÁRIO
+   ============================================================================
+   O que ele era: sete seções, cada uma com título em faixa cheia de fundo, e
+   grades com 14px de espaçamento e 14px de recheio. Somando as sete, o
+   formulário media mais de duas telas de altura para 31 campos — a maior parte
+   disso era ar entre eles. E como cada seção repetia a faixa escura do título,
+   nenhuma se destacava: sete cabeçalhos com o mesmo peso não fazem hierarquia,
+   fazem listra.
+
+   Três mudanças, e nenhuma delas é "encolher tudo":
+   1. o espaçamento cai onde não carrega informação (entre campos, dentro da
+      seção) e é MANTIDO onde separa assunto (entre seções);
+   2. o título da seção perde a faixa e vira texto — ele identifica, não anuncia;
+   3. a grade deixa de ter buracos: campo curto não ocupa mais meia linha
+      sozinho.
+   ============================================================================ */
+
+/* ── SEÇÃO ─────────────────────────────────────────────────────────────── */
+.pront-form-secao {
+  border: 1px solid var(--border-solid);
+  border-radius: 10px;
+  overflow: visible;
+  margin-bottom: 12px;
+  background: var(--bg-card, #fff);
+}
+
+/* O título vira texto sobre o próprio cartão. A linha fina embaixo separa sem
+   pintar uma faixa inteira. */
+.pront-form-secao-titulo {
+  background: none;
+  border-bottom: 1px solid var(--border-solid);
+  padding: 9px 14px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted, #6b7280);
+}
+
+/* ── GRADE ─────────────────────────────────────────────────────────────── */
+.pront-form-grid {
+  /* 10px entre campos e 12/14 de recheio: o suficiente para o olho separar dois
+     rótulos, sem os 14+14 que faziam cada linha custar 62px. */
+  gap: 10px 12px;
+  padding: 12px 14px;
+}
+/* Duas grades seguidas dentro da mesma seção (o padrão do arquivo: uma
+   `cols-1` com o campo largo, outra com o resto) não podem somar dois
+   recheios verticais — vira um vão no meio da seção. */
+.pront-form-grid + .pront-form-grid { padding-top: 0; }
+
+/* Três colunas no desktop largo para os blocos de campo curto (pressões,
+   materiais). Em telas médias eles voltam a duas, e a leitura continua. */
+.pront-form-grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 1180px) {
+  .pront-form-grid.cols-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* ── CAMPO ─────────────────────────────────────────────────────────────── */
+.pront-campo { gap: 3px; min-width: 0; }
+
+.pront-campo label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  line-height: 1.3;
+}
+
+.pront-campo input,
+.pront-campo textarea,
+.pront-campo select {
+  padding: 7px 9px;
+  font-size: 12.5px;
+  border-radius: 7px;
+  caret-color: var(--amber-deep, #d9640c);
+}
+.pront-campo input:focus,
+.pront-campo textarea:focus,
+.pront-campo select:focus {
+  border-color: var(--amber-deep, #d9640c);
+  box-shadow: 0 0 0 3px rgba(255, 122, 26, 0.16);
+}
+.pront-campo textarea { min-height: 52px; }
+
+/* ── CAMPO AUTOMÁTICO ──────────────────────────────────────────────────── */
+/* Fundo levemente acinzentado: diz "isto veio do sistema" sem parecer
+   desabilitado — porque não está. O campo continua totalmente editável, e ao
+   digitar ele fica branco, porque o valor deixou de ser do sistema. */
+.pront-campo input.campo-auto {
+  background: var(--surface-2, #f6f7f9);
+  border-style: dashed;
+}
+.pront-campo input.campo-auto:focus {
+  background: var(--bg-card, #fff);
+  border-style: solid;
+}
+
+.pront-selo-auto {
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--surface-2, #f0f1f4);
+  color: var(--muted, #8b929b);
+  border: 1px solid var(--border-solid, #e4e1d8);
+  cursor: help;
+}
+
+/* ── RESUMO no topo ────────────────────────────────────────────────────── */
+.pront-resumo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 22px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line, #e4e1d8);
+  font-size: 12px;
+  color: var(--text-main, #2d3339);
+}
+.pront-resumo span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pront-resumo b {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted, #6b7280);
+}
+
+/* ── RODAPÉ do formulário ──────────────────────────────────────────────── */
+.pront-acoes-criar { padding: 4px 0 2px; }
+
+/* O ícone dos botões da barra só aparece quando o rótulo some (celular). */
+.pront-btn-icone { display: none; }
+
+@media (max-width: 900px) {
+  .pront-form-grid,
+  .pront-form-grid.cols-3 { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+  .prontuarios-page { padding: 12px; }
+  .pront-form-secao { margin-bottom: 10px; }
+  .pront-form-grid { padding: 11px 12px; gap: 10px; }
+  .pront-form-secao-titulo { padding: 8px 12px 7px; }
+  /* Alvo de toque: em campo o prontuário é preenchido com o dedo. */
+  .pront-campo input,
+  .pront-campo select { min-height: 40px; }
+  /* Na barra, "Pré-visualizar" vira ícone — três rótulos não cabem em 386px. */
+  .pront-barra .pront-btn-rotulo { display: none; }
+  .pront-btn-icone { display: inline-flex; }
+  /* …menos o do botão primário, que precisa dizer o que faz. */
+  .pront-barra .fj-btn-primary { font-size: 12px; padding: 0 12px; }
+  .pront-resumo { gap: 4px 16px; font-size: 11.5px; }
+}

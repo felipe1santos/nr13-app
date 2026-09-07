@@ -30,6 +30,7 @@ const modalExcluir = readFileSync('src/features/prontuarios/ModalExcluirProntuar
 const servico = readFileSync('src/features/prontuarios/prontuarioService.ts', 'utf8');
 const lista = readFileSync('src/features/prontuarios/ListaProntuariosV9.tsx', 'utf8');
 const maisAcoes = readFileSync('src/features/prontuarios/MaisAcoesProntuario.tsx', 'utf8');
+const campo = readFileSync('src/features/prontuarios/CampoProntuario.tsx', 'utf8');
 
 describe('lista canônica única', () => {
   it('a tela de escolher equipamento deixou de ser uma TELA', () => {
@@ -297,7 +298,13 @@ describe('a exclusão saiu da barra', () => {
 
 describe('a barra do visualizador é uma linha', () => {
   it('as ações principais são duas; o resto está no menu', () => {
-    const barra = /<div className="pront-barra">[\s\S]*?<\/div>\n          <\/div>/.exec(pagina)![0];
+    // Há DUAS barras `pront-barra` desde 06/09 — o formulário ganhou a sua. A
+    // do visualizador é a que vive dentro do bloco daquela tela.
+    const barra = pagina.slice(
+      pagina.indexOf("{tela === 'visualizador' && ("),
+      pagina.indexOf("{palco.estado !== 'pronto'"),
+    );
+    expect(barra.length).toBeGreaterThan(100);
     expect(barra).toContain('Editar');
     expect(barra).toContain('<MaisAcoesProntuario');
     // Imprimir e abrir o emitido saíram da linha principal.
@@ -310,8 +317,123 @@ describe('a barra do visualizador é uma linha', () => {
   });
 
   it('no celular a barra quebra em duas linhas organizadas', () => {
-    const movel = css.slice(css.lastIndexOf('@media (max-width: 640px)'));
-    expect(movel).toContain('.pront-barra-id { flex: 1 1 100%; order: 2; }');
+    // Procura no arquivo inteiro: há mais de um bloco de 640px desde que o
+    // formulário ganhou o seu.
+    expect(css).toContain('.pront-barra-id { flex: 1 1 100%; order: 2; }');
+  });
+});
+
+describe('o formulário: uma barra, campos agrupados, sem ar sobrando', () => {
+  /** O bloco do formulário, isolado das outras telas do arquivo. */
+  const form = pagina.slice(
+    pagina.indexOf("{tela === 'formulario' && ("),
+    pagina.indexOf("{tela === 'visualizador' && ("),
+  );
+
+  it('as três faixas do topo viraram UMA barra, com as ações', () => {
+    // Eram: trilha "← Voltar {tag}", cabeçalho "Prontuário — {tag}", e as ações
+    // no fim do formulário — o usuário rolava a tela inteira para salvar.
+    expect(form).not.toContain('meta-breadcrumb');
+    expect(form).not.toContain('meta-card-header');
+    expect(form).toContain('className="pront-barra"');
+    expect(form).toContain('Salvar rascunho');
+    expect(form).toContain('Pré-visualizar');
+  });
+
+  it('o resumo diz de qual documento se trata, sem rolar', () => {
+    expect(form).toContain('className="pront-resumo"');
+    for (const r of ['Equipamento', 'Tipo', 'Cliente', 'Categoria']) {
+      expect(form).toContain(`<b>${r}</b>`);
+    }
+  });
+
+  it('o rodapé repete só o SALVAR', () => {
+    const rodape = /<div className="pront-acoes-criar">[\s\S]*?<\/div>/.exec(form)![0];
+    expect((rodape.match(/<button/g) ?? []).length).toBe(1);
+    expect(rodape).toContain('Salvar rascunho');
+    // Cancelar saiu: o "Voltar" da barra faz a mesma coisa, e dois verbos para
+    // a mesma ação em telas diferentes é o que confunde.
+    expect(rodape).not.toContain('Cancelar');
+  });
+
+  it('os 31 campos de texto passaram a ser um componente só', () => {
+    // Escritos à mão, eles impediam qualquer mudança transversal — como marcar
+    // o que veio do sistema — de acontecer sem editar 31 lugares.
+    expect((pagina.match(/<CampoProntuario/g) ?? []).length).toBe(31);
+    expect(form).not.toMatch(/<div className="pront-campo">\s*<label>[^<]+<\/label>\s*<input value=\{dados\./);
+  });
+});
+
+describe('campo automático × campo digitado', () => {
+  it('o conjunto que a abertura montava deixou de ser jogado fora', () => {
+    // `preenchidos` era calculado em `abrirEquipamento` e descartado.
+    expect(pagina).toContain('const [autoPreenchidos, setAutoPreenchidos]');
+    expect(pagina).toContain('setAutoPreenchidos(');
+  });
+
+  it('só conta como automático o campo cujo valor final é o do sistema', () => {
+    // Um campo que o memorial preencheu mas que o usuário já editou mostra o
+    // valor DELE; marcá-lo como automático mentiria sobre a origem do dado.
+    expect(pagina).toContain('[...preenchidos].filter(');
+  });
+
+  it('digitar apaga a marca', () => {
+    const corpo = /function set<K extends keyof ProntuarioDados>[\s\S]*?\n  \}/.exec(pagina)![0];
+    expect(corpo).toContain('setAutoPreenchidos(');
+    expect(corpo).toContain('n.delete(campo as string);');
+  });
+
+  it('o campo automático continua EDITÁVEL — muda o fundo, não o acesso', () => {
+    expect(campo).toContain('className={automatico ? \'campo-auto\' : undefined}');
+    // Nada de `disabled`: o valor do sistema é ponto de partida, não sentença.
+    expect(campo).not.toContain('disabled');
+    expect(css).toContain('.pront-campo input.campo-auto {');
+    // Ao focar ele volta a branco: passou a ser um campo em edição.
+    expect(css).toContain('.pront-campo input.campo-auto:focus {');
+  });
+
+  it('o selo explica de onde veio o valor', () => {
+    expect(campo).toContain('pront-selo-auto');
+    expect(campo).toContain('Preenchido automaticamente');
+    expect(campo).toContain('Pode ser alterado.');
+  });
+});
+
+describe('densidade e grade', () => {
+  it('o espaçamento caiu entre campos e foi mantido entre seções', () => {
+    // A regra que vale no desktop é a que está FORA de `@media` — a última do
+    // arquivo é a versão de celular, que aperta um pouco mais.
+    expect(css).toMatch(/\.pront-form-grid \{[^}]*gap: 10px 12px;/);
+    expect(css).toMatch(/\.pront-form-grid \{[^}]*padding: 12px 14px;/);
+    // Duas grades seguidas na mesma seção não somam dois recheios verticais.
+    expect(css).toContain('.pront-form-grid + .pront-form-grid { padding-top: 0; }');
+  });
+
+  it('o título da seção perdeu a faixa de fundo', () => {
+    // Sete faixas escuras com o mesmo peso não fazem hierarquia, fazem listra.
+    expect(css).toMatch(/\.pront-form-secao-titulo \{[^}]*background: none;/);
+  });
+
+  it('três colunas no desktop largo, duas no médio, uma no celular', () => {
+    expect(css).toContain('.pront-form-grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }');
+    expect(css).toMatch(/@media \(max-width: 1180px\)[\s\S]*?cols-3 \{ grid-template-columns: repeat\(2/);
+    expect(css).toMatch(/@media \(max-width: 900px\)[\s\S]*?grid-template-columns: 1fr;/);
+  });
+
+  it('no celular o campo tem alvo de toque', () => {
+    // O prontuário é preenchido em campo, com o dedo.
+    expect(css).toMatch(/\.pront-campo input,\s*\.pront-campo select \{ min-height: 40px; \}/);
+  });
+});
+
+describe('o croqui continua no formulário', () => {
+  it('a seção existe e o botão do editor está nela', () => {
+    const form = pagina.slice(
+      pagina.indexOf("{tela === 'formulario' && ("),
+      pagina.indexOf("{tela === 'visualizador' && ("),
+    );
+    expect(form).toContain('Dimensões e Croqui 2D');
+    expect(form).toContain('Croqui 2D do Equipamento');
   });
 });
 
