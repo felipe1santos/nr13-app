@@ -116,7 +116,18 @@ export default function Dashboard() {
     setAlertaDispensado(true);
   }
 
+  /**
+   * Onde o usuário resolve ESTE prazo.
+   *
+   * Certificado de padrão não pertence a equipamento: a "TAG" da linha é o nº
+   * do certificado, e mandar isso para `/equipamento/<tag>` abria uma ficha
+   * que não existe. Ele se resolve na tela de Certificados.
+   */
   function irParaItem(it: ItemVencimento) {
+    if (it.origem === 'certificado') {
+      navigate('/certificados');
+      return;
+    }
     navigate(rotaEquipamento(it.pertenceA ?? it.tag));
   }
 
@@ -130,9 +141,14 @@ export default function Dashboard() {
             <span className="pulse-dot" />
           </div>
           <div className="alert-body">
+            {/* "1 equipamento vencido" era mentira desde que a lista passou a
+                agregar certificados de padrão (07/09/2026): o primeiro
+                vencido desta conta é um certificado de PSV padrão, que não é
+                equipamento nenhum. O texto agora nomeia a categoria do item
+                que está no banner. */}
             <div className="alert-title">
               {vencidos.length === 1
-                ? '1 equipamento vencido requer atenção imediata'
+                ? `1 ${ROTULO_ORIGEM[primeiroVencido.origem].toLowerCase()} vencid${primeiroVencido.origem === 'inspecao' ? 'a' : 'o'} requer atenção imediata`
                 : `${vencidos.length} itens vencidos requerem atenção imediata`}
             </div>
             <div className="alert-sub">
@@ -143,7 +159,8 @@ export default function Dashboard() {
           </div>
           <div className="alert-actions">
             <button type="button" className="btn-alert" onClick={() => irParaItem(primeiroVencido)}>
-              Ver equipamento <Icone nome="arrowright" tam={13} />
+              {primeiroVencido.origem === 'certificado' ? 'Ver certificados' : 'Ver equipamento'}{' '}
+              <Icone nome="arrowright" tam={13} />
             </button>
             <button type="button" className="btn-alert-ghost" title="Dispensar" onClick={dispensarAlerta}>
               <Icone nome="x" tam={15} />
@@ -305,8 +322,19 @@ export default function Dashboard() {
                   <tr><th>Tag</th><th>Origem</th><th className="col-ultima">Última</th><th>Vencimento</th><th>Prazo</th><th>Status</th></tr>
                 </thead>
                 <tbody>
+                  {/* Certificado de padrão não tem ficha de equipamento: a
+                      linha leva para Certificados, que é onde ele se resolve.
+                      Ver `irParaItem`. */}
                   {tabela.map((it, i) => (
-                    <tr key={`${it.tag}${i}`} style={{ cursor: 'pointer' }} onClick={() => setModalTag(it.pertenceA ?? it.tag)}>
+                    <tr
+                      key={`${it.tag}${i}`}
+                      style={{ cursor: 'pointer' }}
+                      onClick={() =>
+                        it.origem === 'certificado'
+                          ? navigate('/certificados')
+                          : setModalTag(it.pertenceA ?? it.tag)
+                      }
+                    >
                       {/* data-rot: rótulo de cada campo quando a tabela vira cartão no
                           celular (forja.css) — sem cabeçalho, três datas seguidas não
                           dizem qual é a última inspeção e qual é o vencimento. */}

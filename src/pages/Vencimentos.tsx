@@ -49,7 +49,16 @@ export default function Vencimentos() {
   const itens = painel.itens;
   const kpis = painel.kpis;
 
+  /**
+   * Onde o usuário resolve ESTE prazo. Certificado de padrão não pertence a
+   * equipamento — a "TAG" da linha é o nº do certificado, e mandá-lo para
+   * `/equipamento/<tag>` abria uma ficha inexistente. Igual ao Dashboard.
+   */
   function irParaItem(it: ItemVencimento) {
+    if (it.origem === 'certificado') {
+      navigate('/certificados');
+      return;
+    }
     navigate(rotaEquipamento(it.pertenceA ?? it.tag));
   }
 
