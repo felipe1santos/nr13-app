@@ -14,6 +14,7 @@ import {
   temAlgumFiltroPront,
 } from './ModalFiltrosProntuarios';
 import { dataCurta, situacaoDoItem } from './CatalogoProntuariosV9';
+import { dataDoc, rotuloRevisao } from './ListaProntuariosV9';
 import {
   RECORTE_PADRAO,
   categoriasDoCatalogo,
@@ -27,6 +28,8 @@ const css = readFileSync('src/pages/prontuarios.css', 'utf8');
 const modalFiltro = readFileSync('src/features/prontuarios/ModalFiltrosProntuarios.tsx', 'utf8');
 const modalExcluir = readFileSync('src/features/prontuarios/ModalExcluirProntuario.tsx', 'utf8');
 const servico = readFileSync('src/features/prontuarios/prontuarioService.ts', 'utf8');
+const lista = readFileSync('src/features/prontuarios/ListaProntuariosV9.tsx', 'utf8');
+const maisAcoes = readFileSync('src/features/prontuarios/MaisAcoesProntuario.tsx', 'utf8');
 
 describe('lista canônica única', () => {
   it('a tela de escolher equipamento deixou de ser uma TELA', () => {
@@ -194,30 +197,121 @@ describe('situação da linha', () => {
   });
 });
 
-describe('a linha: colunas, ações e integridade', () => {
+describe('a lista canônica: uma linha por DOCUMENTO', () => {
+  /*
+   * A rodada anterior fez a lista mostrar um EQUIPAMENTO por linha, com selo
+   * "Prontuário OK". Um equipamento com três revisões emitidas era uma linha
+   * só, e as duas anteriores — documentos assinados, com pdfRef e SHA próprios
+   * — não tinham onde ser vistas. O cabeçalho e a linha migraram para
+   * `ListaProntuariosV9`; o catálogo continua sendo o SELETOR de equipamento,
+   * dentro do modal de criar.
+   */
+  it('a página monta a lista de documentos, não o catálogo de equipamentos', () => {
+    expect(pagina).toContain('<ListaProntuariosV9');
+    // O catálogo só aparece dentro do modal de criar.
+    const abre = pagina.indexOf('<ModalSelecionarEquipamento');
+    const cat = pagina.indexOf('<CatalogoProntuariosV9');
+    const fecha = pagina.indexOf('</ModalSelecionarEquipamento>');
+    expect(cat).toBeGreaterThan(abre);
+    expect(cat).toBeLessThan(fecha);
+  });
+
   it('tem cabeçalho de colunas, e ele não aparece no cartão do celular', () => {
-    expect(catalogo).toContain('pront-linha pront-linha-cabecalho');
+    expect(lista).toContain('pront-linha pront-linha-cabecalho');
     const movel = css.slice(css.lastIndexOf('@media (max-width: 1023px)'));
-    expect(movel).toContain('.pront-linha-cabecalho { display: none; }');
+    expect(css).toContain('.pront-linha-cabecalho { display: none; }');
+    expect(movel).toContain('grid-template-columns: 24px minmax(0, 1fr) auto;');
   });
 
-  it('a linha deixou de ser um <button> — ela tem botões dentro', () => {
-    // Botão dentro de botão é HTML inválido, e o clique de fora engolia o de
-    // dentro: as ações da linha não funcionariam.
-    expect(catalogo).not.toContain('<button type="button" className="pront-linha"');
-    expect(catalogo).toContain('className={`pront-linha${');
+  it('a coluna de REVISÃO existe e o rascunho não inventa número', () => {
+    expect(lista).toContain('<span>Revisão</span>');
+    expect(rotuloRevisao({ situacao: 'emitido', revisao: 2 })).toBe('Rev. 02');
+    expect(rotuloRevisao({ situacao: 'emitido', revisao: null })).toBe('—');
+    // Rascunho ainda não é revisão.
+    expect(rotuloRevisao({ situacao: 'rascunho', revisao: null })).toBe('—');
   });
 
-  it('toda ação tem tooltip e rótulo de leitor de tela', () => {
-    const bloco = /className="pront-linha-acoes"([\s\S]*?)<\/span>\s*<\/div>/.exec(catalogo)![1];
-    const botoes = (bloco.match(/<button/g) ?? []).length;
-    expect(botoes).toBe(3);
-    expect((bloco.match(/title=/g) ?? []).length).toBe(botoes);
-    expect((bloco.match(/aria-label=/g) ?? []).length).toBe(botoes);
+  it('a data vem do documento, e vazio vira travessão', () => {
+    expect(dataDoc('2026-09-06T10:00:00.000Z')).toBe('06/09/2026');
+    expect(dataDoc(null)).toBe('—');
+    expect(dataDoc('')).toBe('—');
   });
 
-  it('não se oferece excluir o que não existe', () => {
-    expect(catalogo).toContain("aoExcluir && situacao !== 'sem' && situacao !== null");
+  it('a lista não toca PDF para listar', () => {
+    // A mesma regra bloqueante de /relatorios: `temArquivo` é booleano, e o
+    // arquivo só é resolvido no clique.
+    expect(lista).not.toContain('baixarArtefato');
+    expect(lista).not.toContain('bytesDaEmissao');
+  });
+
+  it('a linha não é um <button> — ela tem botão dentro', () => {
+    expect(lista).not.toContain('<button type="button" className="pront-linha"');
+    expect(lista).toContain('className={`pront-linha pront-linha-${doc.situacao}`}');
+  });
+});
+
+describe('rascunho e emitido, na tela', () => {
+  it('salvar grava a linha de rascunho no índice', () => {
+    expect(pagina).toContain('await registrarDocumento(docDeRascunho(tag, dados, meta.numero ?? null));');
+  });
+
+  it('emitir grava a revisão e encerra o rascunho', () => {
+    expect(pagina).toContain('docDeEmissao(emitida, revisao, ');
+    expect(pagina).toContain('await encerrarRascunho(tag);');
+    // A posição na lista É a revisão — `registrarEmissao` nunca sobrescreve.
+    expect(pagina).toContain('listarEmissoes(tag).findIndex((x) => x.id === emitida.id) + 1');
+  });
+
+  it('abrir da lista respeita o estado: rascunho edita, emitido serve o arquivo', () => {
+    expect(pagina).toContain("await abrirPorTag(doc.tag, { editar: doc.situacao === 'rascunho' });");
+  });
+});
+
+describe('a exclusão saiu da barra', () => {
+  it('não há mais botão de excluir em destaque no visualizador', () => {
+    // Era um botão vermelho na linha principal, do mesmo tamanho dos outros,
+    // que virava "Confirmar Exclusão" no primeiro clique.
+    // Fora de comentário: o que conta é o texto RENDERIZADO. O comentário que
+    // explica a remoção cita os rótulos antigos, e deve poder citá-los.
+    const semComentarios = pagina
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/^\s*\/\/.*$/gm, '');
+    expect(semComentarios).not.toContain('Excluir Prontuário');
+    expect(semComentarios).not.toContain('Confirmar Exclusão');
+    expect(pagina).not.toContain('function handleExcluir');
+  });
+
+  it('ela vive no menu "Mais ações", separada e por último', () => {
+    expect(maisAcoes).toContain('Excluir prontuário…');
+    expect(maisAcoes).toContain('mais-acoes-sep');
+    const sep = maisAcoes.indexOf('mais-acoes-sep');
+    const excluir = maisAcoes.indexOf('Excluir prontuário…');
+    expect(excluir).toBeGreaterThan(sep);
+  });
+
+  it('e continua abrindo o modal que diz o que NÃO é apagado', () => {
+    expect(pagina).toContain('<ModalExcluirProntuario');
+    expect(modalExcluir).toContain('O que continua salvo');
+  });
+});
+
+describe('a barra do visualizador é uma linha', () => {
+  it('as ações principais são duas; o resto está no menu', () => {
+    const barra = /<div className="pront-barra">[\s\S]*?<\/div>\n          <\/div>/.exec(pagina)![0];
+    expect(barra).toContain('Editar');
+    expect(barra).toContain('<MaisAcoesProntuario');
+    // Imprimir e abrir o emitido saíram da linha principal.
+    expect(barra).not.toContain('Abrir documento emitido');
+  });
+
+  it('os assinantes ficam recolhidos', () => {
+    expect(pagina).toContain('<details className="pront-assinantes-caixa">');
+    expect(pagina).toContain('pront-assinantes-resumo');
+  });
+
+  it('no celular a barra quebra em duas linhas organizadas', () => {
+    const movel = css.slice(css.lastIndexOf('@media (max-width: 640px)'));
+    expect(movel).toContain('.pront-barra-id { flex: 1 1 100%; order: 2; }');
   });
 });
 

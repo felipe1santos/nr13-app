@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icone } from '../components/Icone';
+import ModalComponente from '../features/calibracoes/ModalComponente';
+import ModalAjudaCalibracoes from '../features/calibracoes/ModalAjudaCalibracoes';
+import '../features/calibracoes/ilustracoes.css';
 import type { EquipamentoResumo } from '../features/equipamento/tipos';
 import { mascararData } from '../services/mascaras';
 import {
@@ -268,6 +271,8 @@ export default function Calibracoes() {
   const [componentes, setComponentes] = useState<ComponenteCal[]>([]);
   const [lotes, setLotes] = useState<LoteCal[]>([]);
   const [compForm, setCompForm] = useState<ComponenteCal | null>(null);
+  /** "Como funciona" — o texto que era faixa fixa no topo da tela. */
+  const [ajudaAberta, setAjudaAberta] = useState(false);
   const [loteAberto, setLoteAberto] = useState<string | null>(null);
   /**
    * UX · nomear o lote SEM `window.prompt`.
@@ -282,7 +287,6 @@ export default function Calibracoes() {
    * renomeando aquele lote.
    */
   const [loteNome, setLoteNome] = useState<{ id: string | null; nome: string } | null>(null);
-  const compFotoRef = useRef<HTMLInputElement>(null);
   const vinculoCalibracao = useRef<{ componenteId: string; loteId: string } | null>(null);
 
 
@@ -443,9 +447,9 @@ export default function Calibracoes() {
           duplicados. */}
       {tela === 'equipamentos' && (
         <div className="bloco-dados">
-          <div className="meta-card-header">
-            <h3>Selecione o Equipamento</h3>
-          </div>
+          {/* O cabeçalho "Selecione o Equipamento" saiu: o título da página já
+              diz Calibrações, a barra logo abaixo diz o que fazer, e a faixa
+              custava 40px acima do conteúdo em toda visita. */}
           <CatalogoCalibracoesV9
             termo={termoBusca}
             aoMudarTermo={setTermoBusca}
@@ -480,10 +484,15 @@ export default function Calibracoes() {
                 </div>
                 <div className="cal-eq-info">
                   <h3 style={{ margin: 0, border: 'none', padding: 0 }}>Calibrações — {tag}</h3>
-                  <p className="cal-eq-sub">
-                    Cadastre as válvulas e manômetros do equipamento uma única vez; a cada inspeção,
-                    abra um novo lote e calibre os mesmos componentes.
-                  </p>
+                  {/* O parágrafo fixo virou AJUDA. Ele explicava em duas linhas
+                      algo que se lê uma vez, e ocupava a altura em toda visita. */}
+                  <button
+                    type="button"
+                    className="cal-ajuda-link"
+                    onClick={() => setAjudaAberta(true)}
+                  >
+                    <Icone nome="alerttri" tam={12} /> Como funciona
+                  </button>
                 </div>
               </div>
 
@@ -548,71 +557,21 @@ export default function Calibracoes() {
               </div>
             </div>
 
+            {/* O formulário do componente virou MODAL (06/09/2026).
+                Ele nascia inline, embaixo do painel: clicar em "+ Adicionar"
+                empurrava os lotes para baixo e, no celular, abria os campos
+                fora da primeira tela — o usuário clicava e nada parecia
+                acontecer. Ver `ModalComponente`. */}
             {compForm && (
-              <div className="cal-comp-form">
-                <div className="cal-form-grid cols-4" style={{ padding: 0, marginBottom: 10 }}>
-                  <div className="cal-campo">
-                    <label>Tipo</label>
-                    <select
-                      value={compForm.tipo}
-                      onChange={(e) => setCompForm({ ...compForm, tipo: e.target.value as 'manometro' | 'psv' })}
-                    >
-                      <option value="manometro">Manômetro</option>
-                      <option value="psv">Válvula de Segurança (PSV)</option>
-                    </select>
-                  </div>
-                  <div className="cal-campo">
-                    <label>Nome / identificação *</label>
-                    <input value={compForm.nome} onChange={(e) => setCompForm({ ...compForm, nome: e.target.value })} placeholder="Ex: PSV-01" />
-                  </div>
-                  <div className="cal-campo">
-                    <label>Fabricante</label>
-                    <input value={compForm.fabricante ?? ''} onChange={(e) => setCompForm({ ...compForm, fabricante: e.target.value })} />
-                  </div>
-                  <div className="cal-campo">
-                    <label>Nº de série</label>
-                    <input value={compForm.serie ?? ''} onChange={(e) => setCompForm({ ...compForm, serie: e.target.value })} />
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                  <input
-                    ref={compFotoRef}
-                    type="file"
-                    accept="image/*"
-                    style={{ display: 'none' }}
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      const reader = new FileReader();
-                      // A `fotoRef` do arquivo anterior morre junto: mantê-la faria
-                      // `salvarComponente` gravar a referência velha e descartar em
-                      // silêncio a foto que o usuário acabou de escolher.
-                      reader.onload = (ev) =>
-                        setCompForm((f) =>
-                          f ? { ...f, foto: String(ev.target?.result ?? ''), fotoRef: undefined } : f,
-                        );
-                      reader.readAsDataURL(file);
-                    }}
-                  />
-                  <button type="button" className="btn-secundario" onClick={() => compFotoRef.current?.click()}>
-                    <Icone nome="camera" tam={13} /> {compForm.foto ? 'Trocar foto' : 'Foto (opcional)'}
-                  </button>
-                  {compForm.foto && <img src={compForm.foto} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--line)' }} />}
-                  <button
-                    type="button"
-                    className="btn-primario"
-                    onClick={async () => {
-                      if (!compForm.nome.trim()) return;
-                      await salvarComponente(tag, compForm);
-                      setComponentes(listarComponentes(tag));
-                      setCompForm(null);
-                    }}
-                  >
-                    Salvar componente
-                  </button>
-                  <button type="button" className="btn-secundario" onClick={() => setCompForm(null)}>Cancelar</button>
-                </div>
-              </div>
+              <ModalComponente
+                valor={compForm}
+                aoFechar={() => setCompForm(null)}
+                aoSalvar={async (c) => {
+                  await salvarComponente(tag, c);
+                  setComponentes(listarComponentes(tag));
+                  setCompForm(null);
+                }}
+              />
             )}
 
             {/* ── LOTES DE CALIBRAÇÃO ── */}
@@ -1161,6 +1120,8 @@ export default function Calibracoes() {
           <VisualizadorCalibracao dados={calAtual} />
         </div>
       )}
+
+      {ajudaAberta && <ModalAjudaCalibracoes aoFechar={() => setAjudaAberta(false)} />}
 
       {toast && (
         <div className="toast-sucesso" role="status">

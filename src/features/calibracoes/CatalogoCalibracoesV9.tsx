@@ -38,6 +38,13 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import BuscaLista from '../../components/BuscaLista';
+import { Icone } from '../../components/Icone';
+import ModalFiltrosProntuarios, {
+  FILTRO_PRONT_PADRAO,
+  temAlgumFiltroPront,
+  type ValoresFiltroPront,
+} from '../prontuarios/ModalFiltrosProntuarios';
+import './ilustracoes.css';
 import ListaVirtualizada from '../../components/ListaVirtualizada';
 import FotoImg from '../../components/FotoImg';
 import * as buscaIndex from '../../services/buscaIndex';
@@ -52,6 +59,13 @@ import {
   precisaVarrerTudo,
   type RecorteCatalogo,
 } from '../../services/recorteCatalogo';
+
+/** O que o filtro oferece como tipo — a mesma tabela, em forma de lista. */
+const TIPOS_FILTRO = [
+  { valor: 'vaso', rotulo: 'Vaso de Pressão' },
+  { valor: 'caldeira', rotulo: 'Caldeira' },
+  { valor: 'autoclave', rotulo: 'Autoclave' },
+];
 
 const ROTULO_TIPO: Record<string, string> = {
   vaso: 'Vaso de Pressão',
@@ -89,6 +103,9 @@ export default function CatalogoCalibracoesV9({
   // recorte do cliente — ver `recorteCatalogo.ts`. O padrão esconde quem tem
   // **0 calibrações**; quem tem `null` (ninguém contou) continua na lista.
   const [fTipo, setFTipo] = useState('');
+  /** O que o modal edita — traduzido para `fTipo` + `recorte` no Aplicar. */
+  const [filtroUi, setFiltroUi] = useState<ValoresFiltroPront>(FILTRO_PRONT_PADRAO);
+  const [filtroAberto, setFiltroAberto] = useState(false);
   const [recorte, setRecorte] = useState<RecorteCatalogo>(RECORTE_PADRAO);
   /** Quantas páginas já vieram — o teto da varredura automática. */
   const [paginas, setPaginas] = useState(1);
@@ -207,6 +224,11 @@ export default function CatalogoCalibracoesV9({
 
   return (
     <>
+      {/* BARRA ÚNICA · filtro e busca na mesma linha.
+          O painel de filtros ficava aberto entre a busca e a lista, com três
+          controles que a maioria das visitas não usa — a mesma faixa que saiu
+          de /prontuarios. Aqui ele reusa o MESMO modal, no modo de
+          equipamentos: são a mesma pergunta, feita em duas telas. */}
       <BuscaLista
         valor={termo}
         aoMudar={aoMudarTermo}
@@ -214,63 +236,36 @@ export default function CatalogoCalibracoesV9({
         carregando={carregando || varrendo}
         contagem={contagemNaTela}
         offline={offline}
-      />
-
-      <div className="rel-filtros-painel cal-filtros">
-        <label>
-          Tipo
-          <select value={fTipo} onChange={(e) => setFTipo(e.target.value)}>
-            <option value="">Todos</option>
-            {Object.entries(ROTULO_TIPO).map(([valor, rotulo]) => (
-              <option key={valor} value={valor}>
-                {rotulo}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Proprietário
-          <select
-            value={recorte.empresa}
-            onChange={(e) => setRecorte((r) => ({ ...r, empresa: e.target.value }))}
-          >
-            <option value="">Todos</option>
-            {empresas.map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
-        </label>
-        {/* O padrão é a tela de QUEM TEM calibração. Cadastrar a primeira de um
-            equipamento continua possível — basta desmarcar. */}
-        <label className="rel-filtro-check">
-          <input
-            type="checkbox"
-            checked={recorte.soComDocumento}
-            onChange={(e) => setRecorte((r) => ({ ...r, soComDocumento: e.target.checked }))}
-          />
-          Só equipamentos com calibração
-        </label>
-        {(fTipo || recorte.empresa || !recorte.soComDocumento) && (
+        compacto
+        antes={
           <button
             type="button"
-            className="fj-btn fj-btn-ghost"
-            onClick={() => {
-              setFTipo('');
-              setRecorte(RECORTE_PADRAO);
-            }}
+            className={`fj-btn fj-btn-ghost pront-btn-filtro${temAlgumFiltroPront(filtroUi) ? ' filtro-ativo' : ''}`}
+            aria-haspopup="dialog"
+            onClick={() => setFiltroAberto(true)}
           >
-            Limpar filtros
+            <Icone nome="filter" tam={14} /> <span className="pront-btn-rotulo">Filtrar</span>
           </button>
-        )}
-        {varreduraIncompleta && (
-          <p className="rel-filtro-nota">
-            O parque é grande demais para varrer inteiro de uma vez: podem faltar equipamentos
-            nesta lista. Use a busca por TAG ou o filtro de tipo para estreitar.
-          </p>
-        )}
-      </div>
+        }
+      />
+
+      {filtroAberto && (
+        <ModalFiltrosProntuarios
+          valores={filtroUi}
+          modo="equipamentos"
+          tipos={TIPOS_FILTRO}
+          empresas={empresas}
+          categorias={[]}
+          varreduraIncompleta={varreduraIncompleta}
+          aoAplicar={(v) => {
+            setFiltroUi(v);
+            setFTipo(v.tipo);
+            setRecorte({ soComDocumento: v.situacao === 'com', soSemDocumento: v.situacao === 'sem', empresa: v.empresa });
+            setFiltroAberto(false);
+          }}
+          aoFechar={() => setFiltroAberto(false)}
+        />
+      )}
 
       {erro && (
         <div className="rel-aviso-erro" role="status">

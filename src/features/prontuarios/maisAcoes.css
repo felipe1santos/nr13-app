@@ -1,0 +1,70 @@
+/* Menu "Mais ações" — ver o cabeçalho do .tsx. */
+
+.mais-acoes { position: relative; flex: 0 0 auto; }
+
+.mais-acoes-botao {
+  min-width: 34px;
+  padding: 0 10px;
+  font-size: 16px;
+  line-height: 1;
+  letter-spacing: 1px;
+}
+
+.mais-acoes-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 40;
+  min-width: 232px;
+  display: flex;
+  flex-direction: column;
+  padding: 5px;
+  border: 1px solid var(--line, #e4e1d8);
+  border-radius: 9px;
+  background: var(--panel, #fff);
+  box-shadow: 0 10px 28px rgba(20, 24, 28, 0.14);
+}
+
+.mais-acoes-menu button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  text-align: left;
+  font-family: var(--font-base);
+  font-size: 12.5px;
+  color: var(--text-main, #2d3339);
+  cursor: pointer;
+  /* Alvo de toque: no celular o menu é a forma de alcançar estas ações. */
+  min-height: 40px;
+}
+.mais-acoes-menu button:hover:not(:disabled) { background: var(--surface-2, #f6f7f9); }
+.mais-acoes-menu button:disabled { opacity: 0.5; cursor: not-allowed; }
+.mais-acoes-menu button:focus-visible {
+  outline: 2px solid var(--amber, #ff7a1a);
+  outline-offset: -2px;
+}
+
+.mais-acoes-sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--line, #e4e1d8);
+}
+
+/* A ação destrutiva é a última, separada, e só fica vermelha ao ser mirada —
+   em repouso ela não deve puxar o olho. */
+.mais-acoes-perigo { color: var(--crit, #b42318); }
+.mais-acoes-perigo:hover:not(:disabled) { background: var(--crit-bg, #fdeeec) !important; }
+
+@media (max-width: 640px) {
+  /* Em tela estreita o menu ancora pela direita da barra e nunca sai da tela. */
+  .mais-acoes-menu {
+    right: 0;
+    min-width: 0;
+    width: max(200px, 62vw);
+  }
+}

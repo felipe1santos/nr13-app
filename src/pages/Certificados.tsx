@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icone, type NomeIcone } from '../components/Icone';
+import ModalAjudaCalibracoes from '../features/calibracoes/ModalAjudaCalibracoes';
+import '../features/calibracoes/ilustracoes.css';
 import {
   LIMITE_PDF_KB,
   erroCotaLocal,
@@ -88,6 +90,8 @@ function formatarValidade(valor: string): string {
 export default function Certificados() {
   const [itens, setItens] = useState<Rastreabilidade[]>(() => listarRastreabilidadesAtivas());
   const [form, setForm] = useState<Rastreabilidade | null>(null);
+  /** "Como funciona" — o texto que era faixa fixa no topo da tela. */
+  const [ajudaAberta, setAjudaAberta] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
@@ -222,19 +226,20 @@ export default function Certificados() {
 
   return (
     <div className="certificados-page">
-      <div className="cert-intro">
+      {/* O BLOCO EXPLICATIVO VIROU AJUDA (06/09/2026).
+          Eram três parágrafos fixos no topo, em toda visita, explicando algo
+          que se lê uma vez — e que empurravam os três cartões (o trabalho)
+          para baixo da dobra em telas curtas. O texto foi reaproveitado quase
+          inteiro em `ModalAjudaCalibracoes`: ele estava certo, estava no lugar
+          errado. */}
+      <div className="cert-intro cert-intro-compacta">
         <h2>Certificados de calibração dos padrões</h2>
-        <p>
-          Aqui você injeta o <b>certificado de calibração de cada equipamento padrão</b> de medição e
-          preenche as respectivas <b>rastreabilidades</b>. É um certificado por padrão, válido para
-          todos os equipamentos: ao gerar um relatório, o sistema anexa sozinho o PDF do padrão
-          usado no ensaio e leva os dados de rastreabilidade para dentro da folha correspondente.
-        </p>
-        <p className="cert-intro-nota">
-          <Icone nome="alerttri" tam={14} /> Faça isso uma vez e mantenha atualizado quando o
-          certificado vencer.
-        </p>
+        <button type="button" className="cal-ajuda-link" onClick={() => setAjudaAberta(true)}>
+          <Icone nome="alerttri" tam={12} /> Como funciona
+        </button>
       </div>
+
+      {ajudaAberta && <ModalAjudaCalibracoes aoFechar={() => setAjudaAberta(false)} />}
 
       <div className="cert-cards">
         {PADROES.map((p) => {

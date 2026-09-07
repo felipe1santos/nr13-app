@@ -1,0 +1,169 @@
+/* ============================================================================
+   ILUSTRAÇÕES — ajuda contextual e estado vazio
+   ============================================================================
+   Regras que valem para todas, e que existem para elas não virarem enfeite:
+
+   1. são SVG no próprio componente. Sem arquivo, sem requisição, sem
+      dependência — e acompanham o tema, porque as cores saem das variáveis;
+   2. são de TRAÇO, na paleta do sistema. Uma ilustração colorida no meio de uma
+      tela operacional compete com o dado, que é o que a pessoa veio ver;
+   3. aparecem só onde não há trabalho para fazer: ajuda pedida e estado vazio
+      de primeira visita. Nunca sobre uma lista com conteúdo.
+   ============================================================================ */
+
+.ilustra {
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  height: auto;
+  margin: 0 auto 18px;
+}
+
+/* Traço: a estrutura do desenho. */
+.ilustra .il-traco,
+.pront-ilustra .il-traco {
+  fill: none;
+  stroke: var(--muted, #6b7280);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+/* Linha: o conteúdo dentro da estrutura (texto de um papel, cotas). */
+.ilustra .il-linha,
+.pront-ilustra .il-linha {
+  fill: none;
+  stroke: var(--muted, #6b7280);
+  stroke-width: 2;
+  stroke-linecap: round;
+  opacity: 0.5;
+}
+/* Guia: eixo e apoio — o mais discreto de todos. */
+.ilustra .il-guia,
+.pront-ilustra .il-guia {
+  fill: none;
+  stroke: var(--muted, #6b7280);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 4;
+  opacity: 0.4;
+}
+/* Papel: o fundo claro de um documento. */
+.ilustra .il-papel,
+.pront-ilustra .il-papel { fill: var(--surface-2, #f6f7f9); }
+/* Marca: o único ponto de cor — onde a atenção deve cair. */
+.ilustra .il-marca,
+.pront-ilustra .il-marca { fill: var(--amber, #ff7a1a); opacity: 0.85; }
+
+.ilustra .il-seta {
+  fill: none;
+  stroke: var(--amber, #ff7a1a);
+  stroke-width: 2;
+  stroke-linecap: round;
+  marker-end: none;
+  opacity: 0.7;
+}
+
+.ilustra-calibracao { max-width: 380px; }
+
+/* ── ESTADO VAZIO ─────────────────────────────────────────────────────── */
+.pront-vazio,
+.cal-vazio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 4px;
+  padding: 34px 18px 40px;
+  border: 1px dashed var(--border-solid, #e4e1d8);
+  border-radius: 10px;
+  background: var(--panel, #fff);
+}
+.pront-vazio h3,
+.cal-vazio h3 {
+  margin: 6px 0 0;
+  font-size: 15px;
+  border: none;
+  padding: 0;
+}
+.pront-vazio p,
+.cal-vazio p {
+  margin: 0;
+  max-width: 52ch;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--muted, #6b7280);
+}
+
+.pront-ilustra {
+  display: block;
+  width: 100%;
+  max-width: 240px;
+  height: auto;
+  margin: 0 auto 6px;
+}
+
+@media (max-width: 640px) {
+  .pront-vazio,
+  .cal-vazio { padding: 24px 14px 28px; }
+  .ilustra { max-width: 260px; margin-bottom: 14px; }
+  .pront-ilustra { max-width: 190px; }
+}
+
+/* ── Ajuda contextual: o link discreto que substituiu a faixa fixa ─────── */
+.cal-ajuda-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 0;
+  border: none;
+  background: none;
+  font-family: var(--font-base);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--amber-deep, #d9640c);
+  cursor: pointer;
+}
+.cal-ajuda-link:hover { text-decoration: underline; }
+.cal-ajuda-link:focus-visible {
+  outline: 2px solid var(--amber, #ff7a1a);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Certificados: a intro perdeu os três parágrafos e virou uma linha. */
+.cert-intro-compacta {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.cert-intro-compacta h2 { margin: 0; }
+
+
+/* ── Barra única também em /calibracoes ────────────────────────────────── */
+.calibracoes-page .busca-lista.compacta .busca-lista-linha { flex-wrap: nowrap; }
+.calibracoes-page .busca-lista-campo {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: var(--panel, #fff);
+  border-color: var(--border-solid, #e4e1d8);
+  caret-color: var(--amber-deep, #d9640c);
+}
+.calibracoes-page .busca-lista-campo:focus-within {
+  border-color: var(--amber-deep, #d9640c);
+  box-shadow: 0 0 0 3px rgba(255, 122, 26, 0.16);
+}
+.calibracoes-page .pront-btn-filtro { flex: 0 0 auto; white-space: nowrap; }
+.calibracoes-page .busca-lista-info { flex: 0 0 auto; white-space: nowrap; }
+
+@media (max-width: 640px) {
+  .calibracoes-page .pront-btn-rotulo { display: none; }
+  .calibracoes-page .pront-btn-filtro {
+    padding: 0;
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+    justify-content: center;
+  }
+  .calibracoes-page .busca-lista-info { display: none; }
+}

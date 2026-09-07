@@ -50,12 +50,23 @@ export const FILTRO_PRONT_VAZIO: ValoresFiltroPront = {
  */
 export const FILTRO_PRONT_PADRAO: ValoresFiltroPront = { ...FILTRO_PRONT_VAZIO, situacao: 'com' };
 
-export function temAlgumFiltroPront(v: ValoresFiltroPront): boolean {
+/**
+ * Há recorte ativo? É o que acende o botão da barra e habilita o "Limpar".
+ *
+ * O PADRÃO é parâmetro porque as duas listas têm padrões diferentes: a de
+ * DOCUMENTOS abre mostrando tudo (rascunho e emitido são as duas metades da
+ * mesma lista); a de EQUIPAMENTOS abre mostrando quem TEM prontuário. Comparar
+ * as duas com o mesmo padrão acenderia o filtro numa tela que ninguém filtrou.
+ */
+export function temAlgumFiltroPront(
+  v: ValoresFiltroPront,
+  padrao: ValoresFiltroPront = FILTRO_PRONT_PADRAO,
+): boolean {
   return (
-    v.tipo !== '' ||
-    v.empresa !== '' ||
-    v.categoria !== '' ||
-    v.situacao !== FILTRO_PRONT_PADRAO.situacao
+    v.tipo !== padrao.tipo ||
+    v.empresa !== padrao.empresa ||
+    v.categoria !== padrao.categoria ||
+    v.situacao !== padrao.situacao
   );
 }
 
@@ -65,6 +76,7 @@ export default function ModalFiltrosProntuarios({
   empresas,
   categorias,
   varreduraIncompleta,
+  modo = 'equipamentos',
   aoAplicar,
   aoFechar,
 }: {
@@ -74,9 +86,20 @@ export default function ModalFiltrosProntuarios({
   categorias: readonly string[];
   /** A varredura parou no teto — o recorte do cliente pode não ver tudo. */
   varreduraIncompleta: boolean;
+  /**
+   * O que a lista atrás está listando.
+   *
+   * `documentos` é a lista canônica: cada linha é um prontuário emitido ou um
+   * rascunho, e ali "tipo do equipamento" e "categoria" não são filtros — o
+   * índice de documentos não carrega esses campos, e oferecer um seletor que
+   * não filtra nada é pior do que não oferecer. `equipamentos` é o catálogo
+   * dentro do modal de criar, onde os quatro fazem sentido.
+   */
+  modo?: 'documentos' | 'equipamentos';
   aoAplicar: (v: ValoresFiltroPront) => void;
   aoFechar: () => void;
 }) {
+  const padraoDoModo = modo === 'documentos' ? FILTRO_PRONT_VAZIO : FILTRO_PRONT_PADRAO;
   const [v, setV] = useState<ValoresFiltroPront>(valores);
   const caixa = useRef<HTMLDivElement>(null);
   const primeiro = useRef<HTMLSelectElement>(null);
@@ -143,16 +166,28 @@ export default function ModalFiltrosProntuarios({
               value={v.situacao}
               onChange={(e) => set('situacao', e.target.value as SituacaoProntuario)}
             >
-              <option value="com">Com prontuário</option>
-              <option value="sem">Sem prontuário ainda</option>
-              <option value="">Todos os equipamentos</option>
+              {modo === 'documentos' ? (
+                <>
+                  <option value="">Todos os documentos</option>
+                  <option value="com">Só emitidos</option>
+                  <option value="sem">Só rascunhos</option>
+                </>
+              ) : (
+                <>
+                  <option value="com">Com prontuário</option>
+                  <option value="sem">Sem prontuário ainda</option>
+                  <option value="">Todos os equipamentos</option>
+                </>
+              )}
             </select>
             <p className="mfp-nota">
-              O padrão é mostrar quem já tem prontuário. "Sem prontuário ainda" é a lista de quem
-              falta — útil para saber o que ainda precisa ser feito.
+              {modo === 'documentos'
+                ? 'Rascunho é trabalho em aberto; emitido é documento definitivo, com código de verificação.'
+                : 'O padrão é mostrar quem já tem prontuário. "Sem prontuário ainda" é a lista de quem falta — útil para saber o que ainda precisa ser feito.'}
             </p>
           </section>
 
+          {modo === 'equipamentos' && (
           <section className="mfp-secao">
             <h3>Tipo do equipamento</h3>
             <select value={v.tipo} onChange={(e) => set('tipo', e.target.value)}>
@@ -164,6 +199,7 @@ export default function ModalFiltrosProntuarios({
               ))}
             </select>
           </section>
+          )}
 
           <section className="mfp-secao">
             <h3>Empresa / cliente</h3>
@@ -177,6 +213,7 @@ export default function ModalFiltrosProntuarios({
             </select>
           </section>
 
+          {modo === 'equipamentos' && (
           <section className="mfp-secao">
             <h3>Categoria</h3>
             <select value={v.categoria} onChange={(e) => set('categoria', e.target.value)}>
@@ -188,6 +225,7 @@ export default function ModalFiltrosProntuarios({
               ))}
             </select>
           </section>
+          )}
 
           {varreduraIncompleta && (
             <p className="mfp-nota mfp-aviso">
@@ -202,8 +240,12 @@ export default function ModalFiltrosProntuarios({
           <button
             type="button"
             className="fj-btn fj-btn-ghost mfp-limpar"
-            onClick={() => setV(FILTRO_PRONT_PADRAO)}
-            disabled={!temAlgumFiltroPront(v)}
+            /* No modo DOCUMENTOS o padrão é mostrar tudo — rascunho e emitido
+               são as duas metades da mesma lista. No de EQUIPAMENTOS o padrão é
+               "com prontuário", senão limpar transformaria a lista de
+               prontuários na lista de equipamentos. */
+            onClick={() => setV(padraoDoModo)}
+            disabled={!temAlgumFiltroPront(v, padraoDoModo)}
           >
             Limpar filtros
           </button>

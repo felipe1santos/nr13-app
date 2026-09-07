@@ -4,6 +4,9 @@ import { useEffect, useState } from 'react';
 import { Icone } from '../components/Icone';
 import type { EquipamentoResumo } from '../features/equipamento/tipos';
 import CatalogoProntuariosV9 from '../features/prontuarios/CatalogoProntuariosV9';
+import ListaProntuariosV9 from '../features/prontuarios/ListaProntuariosV9';
+import MaisAcoesProntuario from '../features/prontuarios/MaisAcoesProntuario';
+import type { DocumentoProntuario } from '../features/prontuarios/indiceProntuarios';
 // A MESMA moldura de modal usada em `/relatorios`: overlay, cabeçalho, ESC e
 // armadilha de foco iguais nos dois módulos. O que muda por dentro é o
 // catálogo, que é a única parte diferente entre um e outro.
@@ -31,7 +34,19 @@ import { abrirPdfEmAba } from '../components/VisualizadorPdf';
 import { gerarProntuarioVetorial } from '../features/relatorios/pdfVetorial/gerarProntuario';
 import { gerarPdfBytes } from '../features/relatorios/pdfService';
 import { publicarArtefato, artefatoDe, baixarArtefato } from '../features/relatorios/artefatoRelatorio';
-import { emissaoAtual, registrarEmissao, bytesDaEmissao } from '../features/prontuarios/emissaoProntuario';
+import {
+  emissaoAtual,
+  listarEmissoes,
+  registrarEmissao,
+  bytesDaEmissao,
+} from '../features/prontuarios/emissaoProntuario';
+import {
+  docDeEmissao,
+  docDeRascunho,
+  encerrarRascunho,
+  registrarDocumento,
+  removerDoIndice,
+} from '../features/prontuarios/indiceProntuarios';
 import { fonteDeImpressao, rotuloImpressao } from '../features/documentos/fonteImpressao';
 import { imprimirPdfArquivado } from '../components/VisualizadorPdf';
 import { carregarMinhaEmpresa, listarClientes, listarFuncionarios } from '../features/cadastros/cadastroService';
@@ -289,7 +304,6 @@ export default function Prontuarios() {
   // Decisão de SESSÃO (memoizada em `flag.ts`), lida uma vez: qual lista
   // responde por esta tela. Só a LISTA e o momento da semeadura mudam — o
   // formulário e o visualizador são os mesmos nos dois caminhos.
-  const [termoBusca, setTermoBusca] = useState('');
   const [tag, setTag] = useState('');
   const [dados, setDados] = useState<ProntuarioDados>(dadosPadrao(''));
   const [versao, setVersao] = useState(0);
@@ -302,13 +316,11 @@ export default function Prontuarios() {
   // leem — sem template, materializar não serve a ninguém.
   const previaPront = previaProntuarioAtual(window.location.search);
   const palco = usePalcoDocumento(tag, `pront-${tag}-${versao}`, { pular: previaPront === 'vetorial' });
-  const [confirmandoExcluir, setConfirmandoExcluir] = useState(false);
   /**
    * A TAG cujo prontuário a LISTA está pedindo para excluir.
    *
-   * Estado próprio, e não o `confirmandoExcluir` do visualizador: aquele
-   * pertence ao documento aberto, e reusá-lo faria a confirmação da lista
-   * aparecer dentro de um prontuário que a pessoa nem abriu.
+   * Uma TAG, e não um booleano: a exclusão é pedida de dois lugares (a lista e
+   * o menu do visualizador) e o modal precisa saber DE QUEM está falando.
    */
   const [excluindoTag, setExcluindoTag] = useState<string | null>(null);
   /**
@@ -335,6 +347,8 @@ export default function Prontuarios() {
   const [erroEmissao, setErroEmissao] = useState('');
   // A emissão vigente do prontuário deste equipamento — `null` = nunca emitido.
   const [emissao, setEmissao] = useState<ReturnType<typeof emissaoAtual>>(null);
+  /** Qual revisão está aberta — a posição da emissão vigente na lista da TAG. */
+  const revisaoAtual = emissao ? listarEmissoes(tag).findIndex((x) => x.id === emissao.id) + 1 : 0;
   // Recomputado a cada render — o bump de `versao` no onSalvo do modelador atualiza o indicador.
   const croquiSalvo = tag !== '' && localStorage.getItem(`nr13_croqui2d_${tag}`) !== null;
   // Caldeira e autoclave não têm croqui: as duas folhas que dependem dele saem
@@ -423,6 +437,15 @@ export default function Prontuarios() {
         pdfPendente: artefato.pendente,
       });
       setEmissao(emitida);
+      // UMA LINHA POR REVISÃO. `registrarEmissao` acrescenta e nunca
+      // sobrescreve, então a posição na lista É o número da revisão.
+      const revisao = listarEmissoes(tag).findIndex((x) => x.id === emitida.id) + 1;
+      await registrarDocumento(
+        docDeEmissao(emitida, revisao, dados.descricao || null, dados.empresaRazaoSocial || null),
+      );
+      // O trabalho em aberto virou documento: manter as duas linhas anunciaria
+      // um rascunho que não existe mais.
+      await encerrarRascunho(tag);
     } catch (e) {
       setErroEmissao(e instanceof Error ? e.message : 'Falha ao emitir o prontuário.');
     } finally {
@@ -533,6 +556,17 @@ export default function Prontuarios() {
    * existente abre no visualizador, inexistente abre no formulário — é o
    * comportamento que a lista já tinha no clique da linha, e ele não mudou.
    */
+  /**
+   * Abrir uma linha da lista canônica.
+   *
+   * RASCUNHO abre no formulário — é trabalho em aberto, e o verbo é continuar.
+   * EMITIDO abre o equipamento e o visualizador, que serve o ARQUIVO daquela
+   * emissão (§7-quater): documento emitido não é remontado.
+   */
+  async function abrirDocumento(doc: DocumentoProntuario) {
+    await abrirPorTag(doc.tag, { editar: doc.situacao === 'rascunho' });
+  }
+
   async function abrirPorTag(tag: string, opcoes?: { editar?: boolean }) {
     const { resumo } = await abrirEquipamentoParaProntuario(tag);
     if (!resumo) return;
@@ -546,7 +580,6 @@ export default function Prontuarios() {
     setTag(eq.tag);
     setTipoEquip(eq.info.tipo);
     setSubtipoEquip(eq.info.subtipo || '');
-    setConfirmandoExcluir(false);
     const conts = listarContainers(eq.tag);
     setContainers(conts);
     // Lista fresca de funcionários (pode ter mudado desde o mount) + assinantes salvos da TAG.
@@ -783,12 +816,22 @@ export default function Prontuarios() {
     setTela('visualizador');
   }
 
+  /**
+   * SALVAR = guardar o RASCUNHO. Não emite nada.
+   *
+   * O trabalho fica gravado em `nr13_prontuario_<TAG>` — sincroniza pela v2,
+   * sobrevive a fechar o navegador e pode ser retomado de outro aparelho. A
+   * linha no índice é o que o faz aparecer na lista como trabalho em aberto,
+   * em vez de ficar invisível até alguém abrir aquele equipamento.
+   */
   async function salvar() {
     setSalvando(true);
     try {
-      salvarProntuario(tag, dados);
+      await salvarProntuario(tag, dados);
       gravarProntuarioAtual(dados);
-      await obterOuCriarMeta(tag);
+      const meta = await obterOuCriarMeta(tag);
+      await registrarDocumento(docDeRascunho(tag, dados, meta.numero ?? null));
+      setJaExistia(true);
       setVersao((v) => v + 1);
       setVisualizandoSemSalvar(false);
       setTela('visualizador');
@@ -803,13 +846,15 @@ export default function Prontuarios() {
   const valorAssinante = (id: string | null, lista: Funcionario[]) =>
     id && lista.some((f) => f.id === id) ? id : '';
 
-  function handleExcluir() {
-    if (!confirmandoExcluir) { setConfirmandoExcluir(true); return; }
-    excluirProntuario(tag);
-    setConfirmandoExcluir(false);
-    setDados(dadosPadrao(tag));
-    setTela('formulario');
-  }
+  /*
+   * O `handleExcluir` de dois cliques SAIU (06/09/2026).
+   *
+   * Ele era um botão vermelho na barra que virava "Confirmar Exclusão" no
+   * primeiro clique — uma confirmação que não explicava nada e ficava no mesmo
+   * lugar do botão que a disparou. A exclusão agora mora no menu "Mais ações" e
+   * abre `ModalExcluirProntuario`, que diz o que NÃO é apagado: os PDFs já
+   * emitidos e o croqui.
+   */
 
 
   return (
@@ -825,14 +870,13 @@ export default function Prontuarios() {
       {/* LISTA CANÔNICA · uma barra, uma lista. O botão de criar vai DENTRO da
           barra (à direita da busca), em vez de num cabeçalho acima dela: eram
           três faixas empilhadas antes da primeira linha do conteúdo. */}
+      {/* LISTA CANÔNICA · uma linha por DOCUMENTO — cada revisão emitida e
+          cada rascunho em aberto. O catálogo de EQUIPAMENTOS continua existindo
+          e continua sendo o passo 1 da criação, dentro do modal. */}
       {tela === 'equipamentos' && (
-        <CatalogoProntuariosV9
-          key={versaoLista}
-          termo={termoBusca}
-          aoMudarTermo={setTermoBusca}
-          aoEscolher={(tag) => void abrirPorTag(tag)}
-          aoEditar={(tag) => void abrirPorTag(tag, { editar: true })}
-          aoExcluir={(tag) => setExcluindoTag(tag)}
+        <ListaProntuariosV9
+          versao={versaoLista}
+          aoAbrir={(doc) => void abrirDocumento(doc)}
           acoes={
             <button
               type="button"
@@ -859,6 +903,7 @@ export default function Prontuarios() {
           aoFechar={() => setExcluindoTag(null)}
           aoConfirmar={async () => {
             await excluirProntuario(excluindoTag);
+            await removerDoIndice(excluindoTag);
             setExcluindoTag(null);
             // A lista relê sozinha: a projeção é a fonte, e o selo daquela
             // linha passa a sair do que o servidor souber na próxima busca.
@@ -1222,75 +1267,89 @@ export default function Prontuarios() {
 
       {tela === 'visualizador' && (
         <>
-          <div className="bloco-dados">
-            <div className="meta-breadcrumb">
-              <button
-                type="button"
-                className="btn-secundario"
-                onClick={() => setTela(visualizandoSemSalvar ? 'formulario' : 'equipamentos')}
-              >
-                {visualizandoSemSalvar ? '← Voltar para Edição' : '← Voltar'}
-              </button>
-              <strong>{tag}{visualizandoSemSalvar ? ' — Pré-visualização (não salvo)' : ''}</strong>
+          {/* BARRA ÚNICA E COMPACTA.
+              Eram três faixas empilhadas — trilha, cabeçalho com título, e uma
+              linha com até seis botões do mesmo tamanho —, mais os dois selects
+              de assinatura, tudo acima do documento. Agora: uma linha só, com o
+              voltar, a identificação, as ações principais e um "Mais ações" que
+              guarda o que é raro. O documento ganhou o espaço de volta. */}
+          <div className="bloco-dados pront-topo">
+          <div className="pront-barra">
+            <button
+              type="button"
+              className="fj-btn fj-btn-ghost pront-barra-voltar"
+              onClick={() => setTela(visualizandoSemSalvar ? 'formulario' : 'equipamentos')}
+            >
+              ← <span className="pront-btn-rotulo">{visualizandoSemSalvar ? 'Edição' : 'Voltar'}</span>
+            </button>
+            <div className="pront-barra-id">
+              <strong>{tag}</strong>
+              <span>
+                {visualizandoSemSalvar
+                  ? 'pré-visualização · não salvo'
+                  : emissao
+                    ? `emitido · rev. ${String(revisaoAtual).padStart(2, '0')}`
+                    : 'rascunho'}
+              </span>
             </div>
-            <div className="meta-card-header">
-              <h3>Prontuário — {tag}</h3>
-              <div className="pront-visualizador-acoes">
+            <div className="pront-visualizador-acoes">
                 {visualizandoSemSalvar ? (
                   <button type="button" className={`btn-primario ${salvando ? 'is-loading' : ''}`} onClick={salvar} disabled={salvando}>
                     {salvando ? 'Salvando...' : 'Salvar Definitivamente'}
                   </button>
                 ) : (
                   <>
-                    <button type="button" className="btn-secundario" onClick={() => setTela('formulario')}>
+                    <button type="button" className="fj-btn fj-btn-ghost" onClick={() => setTela('formulario')}>
                       Editar
                     </button>
                     <button
                       type="button"
-                      className={`btn-secundario${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
-                      onClick={prepararEImprimir}
-                      disabled={imprimindo}
-                    >
-                      {documentosBloqueados() && <Icone nome="cadeado" tam={13} />}{' '}
-                      {imprimindo ? 'Preparando…' : rotuloImpressao(fonteDeImpressao(emissao))}
-                    </button>
-                    <button
-                      type="button"
-                      className={`btn-secundario${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
+                      className={`fj-btn fj-btn-primary${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
                       onClick={emitirProntuario}
                       disabled={emitindo}
                       title="Gera o PDF definitivo, calcula o código de verificação e arquiva"
                     >
                       {documentosBloqueados() && <Icone nome="cadeado" tam={13} />}{' '}
-                      {emitindo ? 'Emitindo…' : emissao ? 'Emitir nova revisão' : 'Emitir prontuário'}
+                      {emitindo ? 'Emitindo…' : emissao ? 'Emitir revisão' : 'Emitir'}
                     </button>
-                    {emissao && (
-                      <button type="button" className="btn-secundario" onClick={abrirEmitido}>
-                        Abrir documento emitido
-                      </button>
-                    )}
-                    {confirmandoExcluir ? (
-                      <>
-                        <button type="button" className="btn-remover" onClick={handleExcluir}>
-                          Confirmar Exclusão
-                        </button>
-                        <button type="button" className="btn-secundario" onClick={() => setConfirmandoExcluir(false)}>
-                          Cancelar
-                        </button>
-                      </>
-                    ) : (
-                      <button type="button" className="btn-remover" onClick={handleExcluir}>
-                        Excluir Prontuário
-                      </button>
-                    )}
+                    {/* MAIS AÇÕES · o que é raro sai da linha principal.
+                        Imprimir e abrir o emitido continuam a um clique de
+                        distância; a exclusão vive SÓ aqui, porque prontuário não
+                        é descartável — ela existe para o rascunho que nasceu
+                        errado, não como ação de rotina. */}
+                    <MaisAcoesProntuario
+                      temEmissao={!!emissao}
+                      imprimindo={imprimindo}
+                      rotuloImprimir={rotuloImpressao(fonteDeImpressao(emissao))}
+                      bloqueado={documentosBloqueados()}
+                      aoImprimir={prepararEImprimir}
+                      aoAbrirEmitido={abrirEmitido}
+                      aoExcluir={() => setExcluindoTag(tag)}
+                    />
                   </>
                 )}
-              </div>
             </div>
+          </div>
 
-            {/* Assinantes do prontuário — gravados em nr13_assinantes_pront_<TAG> antes do remount
-                dos iframes (as folhas lerão a chave no motor de assinatura). */}
-            <div className="pront-assinantes">
+            {/* ASSINANTES · recolhidos por padrão.
+                Eram dois selects largos numa faixa própria acima do documento,
+                sempre visíveis — e são escolhidos uma vez, não a cada abertura.
+                O resumo diz quem assina; o detalhe abre a um clique. Continuam
+                gravados em nr13_assinantes_pront_<TAG> antes do remount dos
+                iframes (as folhas leem a chave no motor de assinatura). */}
+            <details className="pront-assinantes-caixa">
+              <summary>
+                <Icone nome="pencil" tam={13} /> Assinaturas
+                <span className="pront-assinantes-resumo">
+                  {[
+                    engenheiros.find((f) => f.id === assinantes.engenheiroId)?.nome,
+                    tecnicos.find((f) => f.id === assinantes.tecnicoId)?.nome,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ') || 'nenhuma definida'}
+                </span>
+              </summary>
+              <div className="pront-assinantes">
               <div className="pront-assinante-campo">
                 <label htmlFor="pront-sel-engenheiro">Engenheiro (assina)</label>
                 <select
@@ -1321,7 +1380,8 @@ export default function Prontuarios() {
                   ))}
                 </select>
               </div>
-            </div>
+              </div>
+            </details>
           </div>
 
           {palco.estado !== 'pronto' && (

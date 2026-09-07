@@ -446,3 +446,127 @@
   }
   .prontuarios-page .busca-lista-info { display: none; }
 }
+
+/* ============================================================================
+   06/09/2026 · BARRAS COMPACTAS E LISTA DE DOCUMENTOS
+   ============================================================================ */
+
+/* ── A lista canônica: uma linha por DOCUMENTO ─────────────────────────── */
+.pront-linha {
+  /* documento · TAG · cliente · revisão · data · situação · ações */
+  grid-template-columns:
+    26px
+    minmax(170px, 2fr)
+    minmax(96px, 1fr)
+    minmax(110px, 1.2fr)
+    minmax(72px, 0.6fr)
+    minmax(84px, 0.7fr)
+    minmax(96px, 0.8fr)
+    56px;
+}
+
+.pront-linha-emitido { border-left-color: #1d7a43; }
+.pront-linha-rascunho { border-left-color: var(--marca, #f97316); }
+
+.pront-selo-emitido { background: #eaf6ee; color: #1d7a43; border-color: #cfe8d9; }
+.pront-selo-rascunho { color: var(--amber-deep, #d9640c); }
+/* "No aparelho": o upload não subiu. É aviso, e por isso tem fundo. */
+.pront-selo-pendente {
+  background: #fdf6e3;
+  color: #8a6d1f;
+  border-color: #eddfb6;
+  margin-left: 4px;
+}
+.pront-linha-situacao { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; }
+
+/* ── A barra do visualizador do prontuário: UMA linha ──────────────────── */
+.pront-topo { padding: 10px 12px; }
+
+.pront-barra {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.pront-barra-voltar { flex: 0 0 auto; }
+.pront-barra-id {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1 1 auto;
+  line-height: 1.25;
+}
+.pront-barra-id strong {
+  font-size: 13.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pront-barra-id span {
+  font-size: 11px;
+  color: var(--text-muted, #6b7280);
+}
+.pront-visualizador-acoes {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+}
+
+/* ── Assinantes recolhidos ─────────────────────────────────────────────── */
+.pront-assinantes-caixa {
+  margin-top: 8px;
+  border-top: 1px solid var(--line, #e4e1d8);
+  padding-top: 8px;
+}
+.pront-assinantes-caixa > summary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted, #6b7280);
+  list-style: none;
+  padding: 2px 0;
+}
+.pront-assinantes-caixa > summary::-webkit-details-marker { display: none; }
+.pront-assinantes-caixa > summary::after {
+  content: '▾';
+  margin-left: auto;
+  font-size: 10px;
+  opacity: 0.7;
+}
+.pront-assinantes-caixa[open] > summary::after { content: '▴'; }
+.pront-assinantes-resumo {
+  font-weight: 500;
+  color: var(--text-main, #2d3339);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.pront-assinantes-caixa .pront-assinantes { margin-top: 10px; }
+
+@media (max-width: 1023px) {
+  /* No cartão a linha de documento segue o mesmo desenho da rodada anterior. */
+  .pront-linha {
+    grid-template-columns: 24px minmax(0, 1fr) auto;
+    grid-template-areas:
+      'icone nome     situacao'
+      '.     meta     meta'
+      '.     acoes    acoes';
+  }
+}
+
+@media (max-width: 640px) {
+  /* A barra do prontuário quebra em duas linhas ORGANIZADAS: identificação em
+     cima, ações embaixo ocupando a largura — em vez de os botões espremerem o
+     nome do equipamento até ele sumir. */
+  .pront-barra { gap: 8px; }
+  .pront-barra-id { flex: 1 1 100%; order: 2; }
+  .pront-barra-voltar { order: 1; }
+  .pront-visualizador-acoes { order: 3; flex: 1 1 100%; justify-content: flex-end; }
+  .pront-barra-voltar .pront-btn-rotulo { display: none; }
+}
