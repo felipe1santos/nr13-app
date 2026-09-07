@@ -1,0 +1,23 @@
+/* Avatar de funcionário — ver o cabeçalho do .tsx para o porquê das iniciais. */
+.avatar-pessoa {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--surface-2, #f0f1f4);
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  user-select: none;
+}
+
+/* A linha do funcionário passa a ter o avatar antes do nome. */
+.cad-item-card .cad-item-pessoa {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+  flex: 1;
+}

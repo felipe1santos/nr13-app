@@ -454,7 +454,14 @@ export default function Prontuarios() {
       // sobrescreve, então a posição na lista É o número da revisão.
       const revisao = listarEmissoes(tag).findIndex((x) => x.id === emitida.id) + 1;
       await registrarDocumento(
-        docDeEmissao(emitida, revisao, dados.descricao || null, dados.empresaRazaoSocial || null),
+        docDeEmissao(
+          emitida,
+          revisao,
+          dados.descricao || null,
+          dados.empresaRazaoSocial || null,
+          ROTULO_TIPO[tipoEquip] ?? tipoEquip ?? null,
+          dados.categoria || null,
+        ),
       );
       // O trabalho em aberto virou documento: manter as duas linhas anunciaria
       // um rascunho que não existe mais.
@@ -861,7 +868,9 @@ export default function Prontuarios() {
       await salvarProntuario(tag, dados);
       gravarProntuarioAtual(dados);
       const meta = await obterOuCriarMeta(tag);
-      await registrarDocumento(docDeRascunho(tag, dados, meta.numero ?? null));
+      await registrarDocumento(
+        docDeRascunho(tag, dados, meta.numero ?? null, undefined, ROTULO_TIPO[tipoEquip] ?? tipoEquip ?? null),
+      );
       setJaExistia(true);
       setVersao((v) => v + 1);
       setVisualizandoSemSalvar(false);
@@ -890,7 +899,8 @@ export default function Prontuarios() {
 
   return (
     <div className="prontuarios-page">
-      <h1>Prontuários</h1>
+      {/* O <h1> saiu: a topbar já mostra o título e o subtítulo da seção, e
+          repeti-lo custava ~40px acima do conteúdo em toda visita. */}
 
       {/* 9F.2.1 · a lista da projeção, com busca e virtualização. O que vem
           depois dela — formulário e visualizador — é o MESMO nos dois

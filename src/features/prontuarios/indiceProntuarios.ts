@@ -88,6 +88,16 @@ export interface DocumentoProntuario {
   equipamento: string | null;
   /** Cliente, quando o cadastro o tinha. Nunca é buscado só para o índice. */
   cliente: string | null;
+  /**
+   * Tipo do equipamento e categoria de risco — só nas entradas gravadas a
+   * partir de 07/09/2026.
+   *
+   * Existem para o filtro da lista. São OPCIONAIS de propósito: as entradas
+   * antigas não os têm, e o filtro só oferece o seletor quando há valor —
+   * um seletor que filtra tudo para fora sem explicação é pior do que nenhum.
+   */
+  tipo?: string | null;
+  categoria?: string | null;
   situacao: SituacaoDocumento;
   /** Número da revisão, base 1. `null` no rascunho: ele ainda não é revisão. */
   revisao: number | null;
@@ -163,15 +173,18 @@ export async function removerDoIndice(tag: string): Promise<void> {
 /** A entrada de rascunho, montada a partir dos dados salvos. */
 export function docDeRascunho(
   tag: string,
-  dados: Pick<ProntuarioDados, 'descricao' | 'empresaRazaoSocial'> | null,
+  dados: Partial<Pick<ProntuarioDados, 'descricao' | 'empresaRazaoSocial' | 'categoria'>> | null,
   numero: string | null,
   agora = new Date().toISOString(),
+  tipo: string | null = null,
 ): DocumentoProntuario {
   return {
     id: idRascunho(tag),
     tag,
     equipamento: dados?.descricao?.trim() || null,
     cliente: dados?.empresaRazaoSocial?.trim() || null,
+    tipo,
+    categoria: dados?.categoria?.trim() || null,
     situacao: 'rascunho',
     revisao: null,
     numero,
@@ -188,12 +201,16 @@ export function docDeEmissao(
   revisao: number,
   equipamento: string | null,
   cliente: string | null,
+  tipo: string | null = null,
+  categoria: string | null = null,
 ): DocumentoProntuario {
   return {
     id: e.id,
     tag: e.tag,
     equipamento,
     cliente,
+    tipo,
+    categoria,
     situacao: 'emitido',
     revisao,
     numero: e.numero,
@@ -231,7 +248,7 @@ export async function reconciliar(): Promise<number> {
     const emissoes = listarEmissoes(tag);
     emissoes.forEach((e, i) => {
       if (conhecidos.has(e.id)) return;
-      novos.push(docDeEmissao(e, i + 1, equipamento, cliente));
+      novos.push(docDeEmissao(e, i + 1, equipamento, cliente, null, dados?.categoria?.trim() || null));
     });
   }
 

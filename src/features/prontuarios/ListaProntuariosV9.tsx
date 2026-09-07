@@ -31,11 +31,13 @@ import {
   reconciliar,
   type DocumentoProntuario,
 } from './indiceProntuarios';
-import ModalFiltrosProntuarios, {
-  FILTRO_PRONT_VAZIO,
-  temAlgumFiltroPront,
-  type ValoresFiltroPront,
-} from './ModalFiltrosProntuarios';
+import ModalFiltrosDocumentos, {
+  FILTRO_DOC_VAZIO,
+  passaNoFiltro,
+  temFiltroDoc,
+  type FiltroDocumentos,
+} from './ModalFiltrosDocumentos';
+import { listarClientes } from '../cadastros/cadastroService';
 import '../../pages/prontuarios.css';
 
 /** Altura estimada da linha; corrigida por medição no primeiro quadro. */
@@ -66,7 +68,7 @@ export interface PropsListaProntuarios {
 export default function ListaProntuariosV9({ aoAbrir, acoes, versao = 0 }: PropsListaProntuarios) {
   const [docs, setDocs] = useState<DocumentoProntuario[]>(() => listarDocumentos());
   const [termo, setTermo] = useState('');
-  const [f, setF] = useState<ValoresFiltroPront>(FILTRO_PRONT_VAZIO);
+  const [f, setF] = useState<FiltroDocumentos>(FILTRO_DOC_VAZIO);
   const [filtroAberto, setFiltroAberto] = useState(false);
 
   /**
@@ -88,18 +90,14 @@ export default function ListaProntuariosV9({ aoAbrir, acoes, versao = 0 }: Props
     setDocs(listarDocumentos());
   }, [versao]);
 
-  const clientes = useMemo(
-    () => [...new Set(docs.map((d) => d.cliente).filter(Boolean) as string[])].sort(),
-    [docs],
-  );
+  /* Os clientes CADASTRADOS — é deles que sai a logo do filtro. A lista é
+     lida uma vez; ela é pequena e local. */
+  const clientes = useMemo(() => listarClientes(), []);
 
-  const visiveis = useMemo(() => {
-    let lista = filtrarDocumentos(docs, termo);
-    if (f.empresa) lista = lista.filter((d) => (d.cliente ?? '') === f.empresa);
-    if (f.situacao === 'com') lista = lista.filter((d) => d.situacao === 'emitido');
-    if (f.situacao === 'sem') lista = lista.filter((d) => d.situacao === 'rascunho');
-    return lista;
-  }, [docs, termo, f]);
+  const visiveis = useMemo(
+    () => filtrarDocumentos(docs, termo).filter((d) => passaNoFiltro(d, f)),
+    [docs, termo, f],
+  );
 
   return (
     <>
@@ -113,7 +111,7 @@ export default function ListaProntuariosV9({ aoAbrir, acoes, versao = 0 }: Props
         antes={
           <button
             type="button"
-            className={`fj-btn fj-btn-ghost pront-btn-filtro${temAlgumFiltroPront(f, FILTRO_PRONT_VAZIO) ? ' filtro-ativo' : ''}`}
+            className={`fj-btn fj-btn-ghost pront-btn-filtro${temFiltroDoc(f) ? ' filtro-ativo' : ''}`}
             aria-haspopup="dialog"
             onClick={() => setFiltroAberto(true)}
           >
@@ -125,13 +123,10 @@ export default function ListaProntuariosV9({ aoAbrir, acoes, versao = 0 }: Props
       </BuscaLista>
 
       {filtroAberto && (
-        <ModalFiltrosProntuarios
+        <ModalFiltrosDocumentos
           valores={f}
-          modo="documentos"
-          tipos={[]}
-          empresas={clientes}
-          categorias={[]}
-          varreduraIncompleta={false}
+          docs={docs}
+          clientes={clientes}
           aoAplicar={(v) => {
             setF(v);
             setFiltroAberto(false);
@@ -141,7 +136,7 @@ export default function ListaProntuariosV9({ aoAbrir, acoes, versao = 0 }: Props
       )}
 
       {visiveis.length === 0 ? (
-        <VazioProntuarios temFiltro={!!termo || temAlgumFiltroPront(f, FILTRO_PRONT_VAZIO)} />
+        <VazioProntuarios temFiltro={!!termo || temFiltroDoc(f)} />
       ) : (
         <div className="bloco-dados">
           <div className="pront-linha pront-linha-cabecalho" role="row" aria-hidden>
@@ -159,7 +154,7 @@ export default function ListaProntuariosV9({ aoAbrir, acoes, versao = 0 }: Props
             chaveDe={(d) => d.id}
             alturaEstimada={ALT_LINHA}
             classeGrade="pront-lista"
-            chaveDoConjunto={`${termo}|${f.empresa}|${f.situacao}`}
+            chaveDoConjunto={`${termo}|${JSON.stringify(f)}`}
             desenhar={(d) => <LinhaDocumento doc={d} aoAbrir={aoAbrir} />}
           />
         </div>

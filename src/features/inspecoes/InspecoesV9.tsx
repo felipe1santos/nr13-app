@@ -215,7 +215,7 @@ export default function InspecoesV9() {
   if (tag) {
     return (
       <div className="inspecoes-page">
-        <h1>Inspeções</h1>
+        {/* O <h1> saiu: a topbar já mostra o título da seção. */}
         <div className="bloco-dados">
           <div className="meta-breadcrumb">
             <button type="button" className="btn-secundario" onClick={() => trocarParam('tag', '')}>
@@ -259,7 +259,7 @@ export default function InspecoesV9() {
   // ── TELA DA LISTA ──────────────────────────────────────────────────────────
   return (
     <div className="inspecoes-page">
-      <h1>Inspeções</h1>
+      {/* O <h1> saiu: a topbar já mostra o título da seção. */}
 
       <BuscaLista
         valor={termo}

@@ -253,11 +253,12 @@ describe('a lista canônica: uma linha por DOCUMENTO', () => {
 
 describe('rascunho e emitido, na tela', () => {
   it('salvar grava a linha de rascunho no índice', () => {
-    expect(pagina).toContain('await registrarDocumento(docDeRascunho(tag, dados, meta.numero ?? null));');
+    expect(pagina).toContain('docDeRascunho(tag, dados, meta.numero ?? null');
   });
 
   it('emitir grava a revisão e encerra o rascunho', () => {
-    expect(pagina).toContain('docDeEmissao(emitida, revisao, ');
+    expect(pagina).toContain('docDeEmissao(');
+    expect(pagina).toContain('          revisao,');
     expect(pagina).toContain('await encerrarRascunho(tag);');
     // A posição na lista É a revisão — `registrarEmissao` nunca sobrescreve.
     expect(pagina).toContain('listarEmissoes(tag).findIndex((x) => x.id === emitida.id) + 1');

@@ -1,10 +1,28 @@
+/* SHELL DA PÁGINA · alinhado ao de /relatorios em 07/09/2026.
+
+   Medido em produção, com 1.154px de área disponível:
+
+   | tela          | largura | h1 na página | topo até o conteúdo |
+   |---------------|---------|--------------|---------------------|
+   | /relatorios   |   1.144 | não          |  61px               |
+   | /prontuarios  |   1.000 | sim          | 157px               |
+   | /calibracoes  |   1.000 | sim          | 174px               |
+   | /inspecoes    |   1.000 | sim          | 208px               |
+
+   Duas causas, e as duas estavam aqui: `max-width: 1000px` numa área de
+   1.154 — a lista virava uma caixa estreita no meio da tela, com 154px de
+   margem morta —, e `padding: 24px` + `gap: 18px` somados a um `<h1>` que
+   REPETIA o título que a topbar já mostra.
+
+   `/relatorios` não tinha nenhum dos dois, e é por isso que ela já estava
+   compacta. Agora as três seguem o mesmo shell. */
 .calibracoes-page {
-  padding: 24px;
-  max-width: 1000px;
+  padding: 14px 20px 28px;
+  max-width: 1400px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 12px;
 }
 
 .cal-preview {

@@ -86,3 +86,139 @@
   }
   .mfp-acoes-dir { display: grid; grid-template-columns: 1fr 1fr; }
 }
+
+/* ── Filtro de DOCUMENTOS (07/09/2026) ─────────────────────────────────────
+   Mais largo que o de equipamentos porque tem duas colunas de seletor curto e
+   duas listas roláveis (empresa e equipamento). */
+.mfd-box { max-width: 560px; }
+
+.mfd-atalhos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.mfd-atalhos .fj-btn { font-size: 11.5px; padding: 6px 10px; min-height: 0; }
+
+.mfd-datas { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mfd-datas label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11.5px;
+  color: var(--muted, #6b7280);
+}
+.mfd-datas input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border-solid, #e4e1d8);
+  border-radius: 8px;
+  background: var(--panel, #fff);
+  font-family: var(--font-base);
+  font-size: 13px;
+}
+
+/* Duas seções curtas dividindo a linha — situação e revisão, tipo e categoria. */
+.mfd-linha { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.mfd-busca {
+  width: 100%;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  border: 1px solid var(--border-solid, #e4e1d8);
+  border-radius: 8px;
+  background: var(--panel, #fff);
+  font-family: var(--font-base);
+  font-size: 12.5px;
+  caret-color: var(--amber-deep, #d9640c);
+}
+.mfd-busca:focus {
+  outline: none;
+  border-color: var(--amber-deep, #d9640c);
+  box-shadow: 0 0 0 3px rgba(255, 122, 26, 0.16);
+}
+
+/* ── Empresa, com a logo REAL do cadastro ─────────────────────────────── */
+.mfd-empresas,
+.mfd-equipamentos {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  /* Rolagem própria: com 30 clientes a lista não pode empurrar o "Aplicar"
+     para fora da caixa. */
+  max-height: 172px;
+  overflow-y: auto;
+  padding: 3px;
+  border: 1px solid var(--line, #e4e1d8);
+  border-radius: 8px;
+  background: var(--surface-2, #f8f9fb);
+}
+
+.mfd-empresa,
+.mfd-equipamento {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: none;
+  text-align: left;
+  font-family: var(--font-base);
+  font-size: 12.5px;
+  color: var(--text-main, #2d3339);
+  cursor: pointer;
+  min-height: 36px;
+}
+.mfd-empresa:hover,
+.mfd-equipamento:hover { background: var(--panel, #fff); }
+.mfd-empresa.ativa,
+.mfd-equipamento.ativo {
+  background: var(--panel, #fff);
+  border-color: var(--amber, #ff7a1a);
+  font-weight: 600;
+}
+.mfd-empresa:focus-visible,
+.mfd-equipamento:focus-visible { outline: 2px solid var(--amber, #ff7a1a); outline-offset: -2px; }
+
+.mfd-logo {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--panel, #fff);
+  border: 1px solid var(--line, #e4e1d8);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted, #6b7280);
+}
+.mfd-logo img { width: 100%; height: 100%; object-fit: contain; }
+.mfd-logo-todas { color: var(--muted, #6b7280); }
+.mfd-empresa-nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.mfd-equipamento { flex-direction: column; align-items: flex-start; gap: 1px; }
+.mfd-equipamento strong { font-size: 12.5px; }
+.mfd-equipamento span {
+  font-size: 11px;
+  color: var(--muted, #6b7280);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+@media (max-width: 640px) {
+  .mfd-box { max-width: none; }
+  .mfd-linha,
+  .mfd-datas { grid-template-columns: 1fr; }
+  .mfd-empresas,
+  .mfd-equipamentos { max-height: 148px; }
+  .mfd-empresa,
+  .mfd-equipamento { min-height: 42px; }
+}

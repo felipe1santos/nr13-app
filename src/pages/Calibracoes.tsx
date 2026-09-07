@@ -433,7 +433,8 @@ export default function Calibracoes() {
 
   return (
     <div className="calibracoes-page">
-      <h1>Calibrações</h1>
+      {/* O <h1> saiu: a topbar já mostra o título e o subtítulo da seção, e
+          repeti-lo custava ~40px acima do conteúdo em toda visita. */}
 
       {/* Os certificados dos instrumentos PADRÃO saíram daqui para o menu próprio
           "Certificados" (src/pages/Certificados.tsx) — esta tela cuida só das

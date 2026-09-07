@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Icone } from '../components/Icone';
+import AvatarPessoa from '../features/cadastros/AvatarPessoa';
 import { listarFuncionarios, salvarFuncionario, excluirFuncionario } from '../features/cadastros/cadastroService';
 import type { Funcionario } from '../features/cadastros/tipos';
 import { PAGINAS_PRONTUARIO } from '../features/prontuarios/tipos';
@@ -376,6 +377,11 @@ export default function Funcionarios() {
         <div className="cad-lista">
           {funcionarios.map((f) => (
             <div key={f.id} className="cad-item-card">
+              {/* AVATAR antes do nome. Sem foto no cadastro: iniciais, com cor
+                  derivada do próprio nome — é o que faz achar alguém numa
+                  lista. Ver `AvatarPessoa`. */}
+              <div className="cad-item-pessoa">
+              <AvatarPessoa nome={f.nome} />
               <div className="cad-item-info">
                 <div className="cad-item-nome">{f.nome}</div>
                 <div className="cad-item-meta">
@@ -383,6 +389,7 @@ export default function Funcionarios() {
                   {f.crea && <span>{f.crea}</span>}
                   <span>{f.assinatura ? 'Assinatura cadastrada' : 'Sem assinatura'}</span>
                 </div>
+              </div>
               </div>
               <div className="cad-item-acoes">
                 <button type="button" className="btn-editar-pencil" onClick={() => editarFuncionario(f)} title="Editar">
