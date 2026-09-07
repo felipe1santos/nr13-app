@@ -65,8 +65,13 @@ export function termoSugerido(d: DadosTermo): string {
   const empresa = d.empresa.trim() || 'NOME DA EMPRESA NÃO INFORMADO';
 
   if (!ehInspecao(d.tipo)) {
-    const desc = (d.descricao ?? '').trim() || '--';
-    return `Em ${dataBR}, registrou-se a seguinte ocorrência relevante para a segurança do equipamento: ${desc}.`;
+    // O ponto final só entra se a descrição não terminar com um. A folha
+    // concatena `${descricao}.` sem essa checagem e sai com ".." quando o
+    // usuário já pontuou — visto na prévia em 07/09/2026. Aqui a frase é
+    // sugestão editável, e sair pontuada errado convida a corrigir à mão.
+    const bruta = (d.descricao ?? '').trim() || '--';
+    const desc = /[.!?]$/.test(bruta) ? bruta : `${bruta}.`;
+    return `Em ${dataBR}, registrou-se a seguinte ocorrência relevante para a segurança do equipamento: ${desc}`;
   }
 
   const situacao =

@@ -601,3 +601,20 @@ describe('o modal ficou mais reto', () => {
     expect(cssModal).toContain('.reg-modal-form .fj-field textarea { border-radius: 6px; }');
   });
 });
+
+describe('detalhes vistos na prévia, em produção', () => {
+  it('a data aparece em português, não no formato do input', () => {
+    expect(previaTsx).toContain('dataParaBR(dados.data)');
+  });
+
+  it('a sugestão de ocorrência não sai com ponto duplicado', () => {
+    expect(termoTs).toContain('/[.!?]$/.test(bruta)');
+  });
+
+  it('o palco é refeito quando o livro muda', () => {
+    // Trancar e clicar em "Ver / Imprimir" abria a folha com o palco montado
+    // ANTES do trancamento: sem a entrada nova e sem o termo digitado.
+    expect(pagina).toContain('livro-${tagDoPalco}-v${versaoLivro}');
+    expect(pagina).toContain('setVersaoLivro((v) => v + 1)');
+  });
+});

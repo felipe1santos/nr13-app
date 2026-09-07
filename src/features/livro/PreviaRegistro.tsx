@@ -15,7 +15,7 @@
  * termo já redigido, antes de salvar — e não descobre a redação só depois de
  * trancar, quando não dá mais para mudar.
  */
-import { descricaoCombinada, tituloTermo, type DadosPrevia } from './termoRegistro';
+import { dataParaBR, descricaoCombinada, tituloTermo, type DadosPrevia } from './termoRegistro';
 
 export default function PreviaRegistro({ dados }: { dados: DadosPrevia }) {
   const descricao = descricaoCombinada(dados.oQueFoiFeito, dados.descricao);
@@ -30,7 +30,9 @@ export default function PreviaRegistro({ dados }: { dados: DadosPrevia }) {
       <dl className="prev-doc-campos">
         <div>
           <dt>Data</dt>
-          <dd>{dados.data || '—'}</dd>
+          {/* A prévia é o documento em português: `2026-09-07` é o formato do
+              `<input type="date">`, não o do livro. */}
+          <dd>{dataParaBR(dados.data) || '—'}</dd>
         </div>
         <div>
           <dt>Tipo</dt>

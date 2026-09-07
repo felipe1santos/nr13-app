@@ -316,8 +316,20 @@ export default function LivroRegistro() {
   // Palco do livro. A TAG ativa é a do equipamento aberto ou a da pré-visualização
   // — as duas montam folhas que leem localStorage no DOMContentLoaded. O hook fica
   // ANTES dos retornos condicionais desta tela, porque hook não pode ser pulado.
+  /** Sobe a cada gravação no livro — é o que força o palco a ser refeito. */
+  const [versaoLivro, setVersaoLivro] = useState(0);
+
   const tagDoPalco = tagAberta ?? preview?.tag ?? '';
-  const palco = usePalcoDocumento(tagDoPalco, `livro-${tagDoPalco}`);
+  /*
+   * O PALCO precisa ser REMONTADO quando o livro muda.
+   *
+   * Ele materializa as chaves da TAG no localStorage uma vez, no id do
+   * documento — e o id era fixo (`livro-<TAG>`). Resultado medido em produção
+   * em 07/09/2026: trancar um registro e clicar em "Ver / Imprimir" abria a
+   * folha com o palco montado ANTES do trancamento, sem a entrada nova e sem o
+   * termo digitado. A versão entra no id: livro alterado, palco refeito.
+   */
+  const palco = usePalcoDocumento(tagDoPalco, `livro-${tagDoPalco}-v${versaoLivro}`);
 
   /**
    * A foto de identificação do equipamento aberto.
@@ -620,6 +632,7 @@ export default function LivroRegistro() {
       const atualizada = montarLinha(linhaAberta.tag);
       if (atualizada) setLinhas([atualizada]);
       setRascunhos(listarRascunhosLivro(linhaAberta.tag) as unknown as LivroEntrada[]);
+      setVersaoLivro((v) => v + 1);
       setTrancando(null);
     } catch (e) {
       setErroTrancar(
