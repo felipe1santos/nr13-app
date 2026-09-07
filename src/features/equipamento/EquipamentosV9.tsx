@@ -410,10 +410,18 @@ export default function EquipamentosV9() {
           </div>
         ) : (
           <ListaVirtualizada
-            itens={itens}
+            // `visiveis`, não `itens`: é aqui que o recorte por cliente e
+            // fabricante aparece. Com `itens`, o contador dizia "1 resultado" e
+            // a grade continuava com os cinco — visto em produção em
+            // 07/09/2026.
+            itens={visiveis}
             chaveDe={(i) => i.tag}
             alturaEstimada={visao === 'lista' ? ALT_LISTA : ALT_GRADE}
             classeGrade={visao === 'lista' ? 'lista-cards-horiz equip-lista' : 'vasos-grid'}
+            // Conjunto novo, rolagem no começo: filtrar com a lista rolada
+            // deixaria o usuário olhando para o vazio enquanto o cabeçalho
+            // anuncia resultados.
+            chaveDoConjunto={`${termo}|${fTipo}|${fCategoria}|${recorte.empresa}|${recorte.fabricante}`}
             aoChegarNoFim={carregarMais}
             rodape={rodape}
             desenhar={(item) =>

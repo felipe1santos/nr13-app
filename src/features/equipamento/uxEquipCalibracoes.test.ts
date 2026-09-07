@@ -147,3 +147,16 @@ describe('/calibracoes: instrução e card', () => {
     expect(cssCal).toContain('@media (max-width: 860px)');
   });
 });
+
+describe('o recorte precisa chegar à LISTA, não só ao contador', () => {
+  it('a lista desenha `visiveis`', () => {
+    // Visto em produção em 07/09/2026: com `itens`, o contador dizia "1
+    // resultado" e a grade continuava mostrando os cinco equipamentos.
+    expect(equip).toContain('itens={visiveis}');
+    expect(equip).not.toContain('itens={itens}');
+  });
+
+  it('filtro novo devolve a rolagem ao topo', () => {
+    expect(equip).toContain('chaveDoConjunto={`${termo}|${fTipo}|${fCategoria}|${recorte.empresa}|${recorte.fabricante}`}');
+  });
+});
