@@ -126,7 +126,9 @@ describe('a tela não tem mais duas listagens (leitura do fonte)', () => {
   });
 
   it('existe UMA `rel-tabela-v9` na tela', () => {
-    expect(tela.match(/className="rel-tabela-v9"/g) ?? []).toHaveLength(1);
+    // A classe ganhou `painel-lista` ao lado (07/09/2026); o que este teste
+    // trava é que exista UMA tabela, não a string exata do atributo.
+    expect(tela.match(/className="rel-tabela-v9[^"]*"/g) ?? []).toHaveLength(1);
   });
 
   it('a lista renderizada é a unificada', () => {

@@ -154,6 +154,9 @@ export default function CatalogoLivroV9({
 
   return (
     <>
+      {/* `compacto`: a contagem entra na MESMA linha do campo. Sem isso ela
+          ocupa uma faixa própria abaixo dele — 26px entre a busca e o primeiro
+          livro, que é a mesma banda que saiu das outras telas. */}
       <BuscaLista
         valor={termo}
         aoMudar={aoMudarTermo}
@@ -161,6 +164,7 @@ export default function CatalogoLivroV9({
         carregando={carregando}
         contagem={contagem}
         offline={false}
+        compacto
       />
 
       {erro && (

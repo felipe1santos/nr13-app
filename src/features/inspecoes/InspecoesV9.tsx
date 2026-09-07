@@ -279,7 +279,19 @@ export default function InspecoesV9() {
         </div>
       )}
 
-      <div className="bloco-dados">
+      <div className="bloco-dados painel-lista">
+        {/* Mesmo cabeçalho de /relatorios e /prontuarios: filete âmbar, nome da
+            seção e a contagem. Com poucos equipamentos a caixa branca continua
+            tendo presença, em vez de virar uma faixa curta num vão cinza. */}
+        <div className="painel-lista-head" role="presentation">
+          <span className="painel-lista-titulo">
+            <strong>Equipamentos</strong>
+            <span>Escolha um para ver e preencher as inspeções dele</span>
+          </span>
+          <span className="painel-lista-contagem">
+            {itens.length} {itens.length === 1 ? 'equipamento' : 'equipamentos'}
+          </span>
+        </div>
         {!carregando && itens.length === 0 && !erro ? (
           <p className="dashboard-vazio">
             {termo ? `Nenhum equipamento encontrado para ${termo}.` : 'Nenhum equipamento cadastrado ainda.'}

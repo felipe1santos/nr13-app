@@ -623,3 +623,110 @@
     color: #111;
   }
 }
+
+/* ============================================================================
+   07/09/2026 · O PAINEL DA LISTA — presença visual e altura mínima
+   ============================================================================
+   Dois defeitos que só aparecem com POUCO conteúdo, e por isso escaparam:
+
+   1. a caixa branca terminava logo abaixo da última linha. Com três documentos
+      numa tela de 900px, o resultado é uma faixa branca curta boiando num vão
+      cinza — a tela não parece uma seção do sistema, parece um erro de
+      carregamento;
+   2. a lista não tinha cabeçalho próprio. O nome da seção vem da topbar, que
+      fica longe, e entre ela e a primeira linha havia só a barra de busca.
+
+   A correção usa o idioma que o sistema já tem: o filete âmbar de
+   `.bloco-dados h3::before` e o `fj-eyebrow`. Nada de vocabulário novo.
+   ============================================================================ */
+
+/* O painel ocupa o que sobra da altura da janela, com um piso generoso.
+   `min-height` e não `height`: com muitos itens ele cresce normalmente. */
+.painel-lista {
+  display: flex;
+  flex-direction: column;
+  min-height: min(58vh, 520px);
+}
+
+/* O cabeçalho da lista: filete âmbar, nome da seção e a contagem à direita. */
+.painel-lista-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 14px 11px 16px;
+  border-bottom: 1px solid var(--border-solid, #e4e1d8);
+  background: linear-gradient(180deg, #fcfbf9 0%, var(--panel, #fff) 100%);
+}
+.painel-lista-head::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--amber, #ff7a1a);
+}
+.painel-lista-titulo {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.painel-lista-titulo strong {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text-main, #2d3339);
+}
+.painel-lista-titulo span {
+  font-size: 11px;
+  color: var(--text-muted, #6b7280);
+}
+/* A contagem é badge, não texto solto: é o número que o olho procura. */
+.painel-lista-contagem {
+  flex: 0 0 auto;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 20px;
+  background: #f1ecfb;
+  color: #5b21b6;
+  border: 1px solid #ddd0f5;
+  white-space: nowrap;
+}
+
+/* O corpo cresce e empurra o rodapé do painel para baixo — é ele que faz a
+   caixa branca continuar mesmo com três linhas. */
+.painel-lista-corpo { flex: 1; min-height: 0; }
+
+@media (max-width: 640px) {
+  /* No celular a altura da janela é o recurso escasso: o piso sai de cena e o
+     painel volta a medir o conteúdo. */
+  .painel-lista { min-height: 0; }
+  .painel-lista-head { padding: 10px 12px 10px 14px; }
+  .painel-lista-titulo strong { font-size: 13px; }
+}
+
+/* Dentro de `.bloco-dados` o recheio de 20px afastaria o cabeçalho das bordas
+   — ele precisa ir de ponta a ponta, como o do `fj-panel`. */
+.bloco-dados.painel-lista { padding: 0; overflow: hidden; }
+.bloco-dados.painel-lista .painel-lista-corpo,
+.bloco-dados.painel-lista .lista-virt { padding: 10px 12px 12px; }
+
+/* A busca dentro de um `fj-panel` (Livro) ganha o mesmo respiro das outras
+   telas, e o campo branco com foco âmbar do padrão. */
+.fj-panel > .busca-lista { padding: 12px 20px 0; margin-bottom: 10px; }
+.fj-panel > .busca-lista .busca-lista-campo {
+  background: var(--panel);
+  border-color: var(--line);
+  caret-color: var(--amber-deep);
+}
+.fj-panel > .busca-lista .busca-lista-campo:focus-within {
+  border-color: var(--amber-deep);
+  box-shadow: 0 0 0 3px rgba(255, 122, 26, 0.16);
+}

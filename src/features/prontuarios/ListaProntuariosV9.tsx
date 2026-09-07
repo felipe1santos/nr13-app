@@ -138,7 +138,19 @@ export default function ListaProntuariosV9({ aoAbrir, acoes, versao = 0 }: Props
       {visiveis.length === 0 ? (
         <VazioProntuarios temFiltro={!!termo || temFiltroDoc(f)} />
       ) : (
-        <div className="bloco-dados">
+        <div className="bloco-dados painel-lista">
+          {/* Mesmo cabeçalho de /relatorios: filete âmbar, nome da seção e a
+              contagem. É o idioma que o sistema já usa em `.bloco-dados h3` e
+              no `fj-panel-head` — nada de vocabulário novo. */}
+          <div className="painel-lista-head" role="presentation">
+            <span className="painel-lista-titulo">
+              <strong>Prontuários e revisões</strong>
+              <span>Cada linha é um documento — rascunho ou revisão emitida</span>
+            </span>
+            <span className="painel-lista-contagem">
+              {visiveis.length} {visiveis.length === 1 ? 'linha' : 'linhas'}
+            </span>
+          </div>
           <div className="pront-linha pront-linha-cabecalho" role="row" aria-hidden>
             <span />
             <span>Documento</span>
