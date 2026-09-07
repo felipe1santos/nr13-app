@@ -311,6 +311,14 @@ export default function Prontuarios() {
    * aparecer dentro de um prontuário que a pessoa nem abriu.
    */
   const [excluindoTag, setExcluindoTag] = useState<string | null>(null);
+  /**
+   * Este prontuário já existia quando foi aberto?
+   *
+   * Só para o TÍTULO do formulário. Ele dizia "Novo Prontuário" mesmo ao editar
+   * um prontuário já EMITIDO — o cabeçalho contava uma história diferente da
+   * que o botão "Emitir" e o selo da lista contavam.
+   */
+  const [jaExistia, setJaExistia] = useState(false);
   /** Bump para a lista refazer a busca depois de uma exclusão. */
   const [versaoLista, setVersaoLista] = useState(0);
   const [salvando, setSalvando] = useState(false);
@@ -534,6 +542,7 @@ export default function Prontuarios() {
 
   async function abrirEquipamento(eq: EquipamentoResumo) {
     const existente = carregarProntuario(eq.tag);
+    setJaExistia(!!existente);
     setTag(eq.tag);
     setTipoEquip(eq.info.tipo);
     setSubtipoEquip(eq.info.subtipo || '');
@@ -885,7 +894,9 @@ export default function Prontuarios() {
             <strong>{tag}</strong>
           </div>
           <div className="meta-card-header" style={{ marginBottom: 16 }}>
-            <h3>Novo Prontuário — {tag}</h3>
+            <h3>
+              {jaExistia ? 'Prontuário' : 'Novo prontuário'} — {tag}
+            </h3>
           </div>
 
           {/* Empresa Proprietária — editável */}
