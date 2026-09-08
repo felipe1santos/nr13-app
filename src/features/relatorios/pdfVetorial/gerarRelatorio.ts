@@ -345,6 +345,15 @@ export async function gerarRelatorioVetorial(
     modelo.placaReal = null;
   }
 
+  // A LOGO da empresa também mora no cofre desde 10/08/2026, e o snapshot
+  // congelado do relatório NÃO leva o base64 (`snapshotEmpresa` o remove quando
+  // há `logoRef`). Sem este passo o cabeçalho de todas as 23 folhas sai vazio
+  // com a logo cadastrada e visível em "Meus dados".
+  if (!modelo.empresa.logo && modelo.empresa.logoRef) {
+    const [logo] = await resolverFotos([{ dataUrl: '', descricao: '', ref: modelo.empresa.logoRef }]);
+    modelo.empresa = { ...modelo.empresa, logo: logo?.dataUrl ?? null };
+  }
+
   const logoDoRelatorio = await resolverImagem(ovr['cabecalho.logo']?.modo === 'manual' ? ovr['cabecalho.logo'].valor : null);
   const logoResolvida = logoDoRelatorio ? logoDoRelatorio.dataUrl : ovr['cabecalho.logo']?.modo === 'branco' ? null : modelo.empresa.logo;
 

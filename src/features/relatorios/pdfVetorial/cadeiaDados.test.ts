@@ -672,3 +672,41 @@ describe('matriz de categorização: de onde saem os realces', () => {
     expect(m.categoria.grupo).toBeNull();
   });
 });
+
+// ── 12 · A LOGO DA EMPRESA (07/09/2026) ─────────────────────────────────────
+/**
+ * `snapshotEmpresa()` tira o base64 da logo do snapshot congelado quando existe
+ * `logoRef` — pela mesma razão do §2-bis. Quem resolvia a referência eram os
+ * templates, pelo palco; o gerador vetorial lia só `logo`, e o cabeçalho das 23
+ * folhas saía vazio com a logo cadastrada e visível na tela.
+ */
+describe('logo da empresa: as duas formas em que ela é guardada', () => {
+  it('base64 no cadastro (legado) chega direto', () => {
+    gravar('nr13_minha_empresa', { razao: 'MDK ENG', logo: 'data:image/png;base64,AAAA' });
+    expect(montarModeloRelatorio(TAG).empresa.logo).toBe('data:image/png;base64,AAAA');
+  });
+
+  it('logo NO COFRE viaja como referência, para o gerador baixar', () => {
+    const ref = { bucket: 'inspecao', path: 'org/logos/abc.jpg' };
+    gravar('nr13_minha_empresa', { razao: 'MDK ENG', logoRef: ref });
+    const m = montarModeloRelatorio(TAG);
+    expect(m.empresa.logo).toBeNull();
+    expect(m.empresa.logoRef).toEqual(ref);
+  });
+
+  it('o snapshot congelado do relatório vence o cadastro vivo (§7-bis)', () => {
+    const ref = { bucket: 'inspecao', path: 'org/logos/congelada.jpg' };
+    gravar('nr13_minha_empresa', { razao: 'DEPOIS', logoRef: { bucket: 'inspecao', path: 'org/logos/nova.jpg' } });
+    gravar('nr13_relatorio_meta_atual', { codigo: 'R1', empresa: { razao: 'NA ÉPOCA', logoRef: ref } });
+    const m = montarModeloRelatorio(TAG);
+    expect(m.empresa.razao).toBe('NA ÉPOCA');
+    expect(m.empresa.logoRef).toEqual(ref);
+  });
+
+  it('sem logo nenhuma, os dois campos são ausência', () => {
+    gravar('nr13_minha_empresa', { razao: 'MDK ENG' });
+    const m = montarModeloRelatorio(TAG);
+    expect(m.empresa.logo).toBeNull();
+    expect(m.empresa.logoRef).toBeNull();
+  });
+});

@@ -81,7 +81,18 @@ export interface InstrumentoModelo {
 
 export interface ModeloRelatorio {
   tag: string;
-  empresa: { razao: string; endereco: string; contato: string; logo: string | null };
+  /**
+   * A empresa executante — e a LOGO nas duas formas em que ela existe.
+   *
+   * `snapshotEmpresa()` REMOVE o base64 do snapshot congelado quando existe
+   * `logoRef` (§2-bis: imagem grande dentro de uma chave lida a cada geração
+   * foi o que estourou a cota deste sistema). Quem resolvia a referência eram
+   * os templates, pelo palco. O gerador vetorial lia só `logo` — e a logo
+   * sumia de todo relatório de organização que trocou a dela depois de
+   * 10/08/2026: cabeçalho amarelo na prévia, vazio no documento emitido. É o
+   * mesmo defeito da foto de capa, noutra imagem.
+   */
+  empresa: { razao: string; endereco: string; contato: string; logo: string | null; logoRef: RefFoto | null };
   numeroRelatorio: string;
   cliente: string | null;
   clienteEndereco: string | null;
@@ -628,6 +639,7 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
         .filter((p) => p && String(p).trim() !== '')
         .join(' – '),
       logo: txt(emp.logo ?? emp.logoUrl),
+      logoRef: (emp.logoRef as RefFoto | undefined)?.path ? (emp.logoRef as RefFoto) : null,
     },
     numeroRelatorio: textoOu(txt(meta?.codigo), ''),
     cliente: txt(emps.razaoSocial ?? emps.nomeFantasia),
