@@ -219,7 +219,7 @@ function montarStorage() {
       duracao: '30 min',
       tempFluido: '22 °C',
       normas: 'ASME VIII Div.1 / NR-13',
-      validadeLaudo: '07/09/2031',
+      validadeLaudo: '2031-09-07',
       procedimento: 'PROCEDIMENTO-TH-E2E',
       parecer: 'PARECER-TH-E2E',
       resultado: 'aprovado',

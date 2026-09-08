@@ -553,7 +553,7 @@ describe('TH: os campos novos do formulário chegam ao documento', () => {
     duracao: '30 min',
     tempFluido: '22 °C',
     normas: 'ASME VIII Div.1 / NR-13',
-    validadeLaudo: '07/09/2031',
+    validadeLaudo: '2031-09-07',
     procedimento: 'PROCEDIMENTO-TH-E2E',
     parecer: 'PARECER-TH-E2E',
     resultado: 'aprovado',
@@ -571,6 +571,18 @@ describe('TH: os campos novos do formulário chegam ao documento', () => {
     expect(t.validadeLaudo).toBe('07/09/2031');
     expect(t.procedimento).toBe('PROCEDIMENTO-TH-E2E');
     expect(t.parecer).toBe('PARECER-TH-E2E');
+  });
+
+  it('a validade do laudo sai em pt-BR, como a data do teste ao lado', () => {
+    // O campo é <input type="date"> e chegou ao papel como '2031-09-07' na
+    // mesma tabela em que DATA DO TESTE já saía '07/09/2026' (E2E de 07/09/2026).
+    gravar('nr13_injecao_atual', { th: { ...COMPLETO, validadeLaudo: '2031-09-07' } });
+    expect(montarModeloRelatorio(TAG).th.validadeLaudo).toBe('07/09/2031');
+  });
+
+  it('data já formatada à mão passa intacta', () => {
+    gravar('nr13_injecao_atual', { th: { ...COMPLETO, validadeLaudo: '31/12/2030' } });
+    expect(montarModeloRelatorio(TAG).th.validadeLaudo).toBe('31/12/2030');
   });
 
   it('os campos que já chegavam continuam chegando', () => {

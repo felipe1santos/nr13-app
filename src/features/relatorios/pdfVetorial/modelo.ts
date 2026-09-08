@@ -821,7 +821,11 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
       duracao: txt(th.duracao),
       tempFluido: txt(th.tempFluido),
       normas: txt(th.normas),
-      validadeLaudo: txt(th.validadeLaudo),
+      // `<input type="date">` do formulário grava ISO. Este campo entrou no
+      // ensaio em 07/09/2026 e chegou ao papel como `2031-09-07`, ao lado de
+      // uma DATA DO TESTE em `07/09/2026` — duas datas em formatos diferentes
+      // na mesma tabela. `dataBr` deixa passar intacto o que já vem formatado.
+      validadeLaudo: dataBr(th.validadeLaudo),
       procedimento: txt(th.procedimento),
       parecer: txt(th.parecer),
       // O padrão do TH é o MANÔMETRO — é a pressão que se mede num teste
