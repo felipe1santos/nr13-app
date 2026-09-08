@@ -519,3 +519,103 @@ observações da categorização.
 
 "Nenhuma pendência encontrada" na finalização; o documento arquivado abre com
 **zero campos editáveis** (§7-quater).
+
+---
+
+## 10. A varredura do que o sistema tinha e o documento omitia (08/09/2026)
+
+Pergunta do dono: *"tem alguma informação na ficha ou em algum lugar do sistema
+que não está sendo puxada para o relatório?"*. Saíram nove itens.
+
+### 10.1 · A rubrica — a terceira imagem com o mesmo defeito
+
+`snapshotAssinantes()` faz o que `snapshotEmpresa()` faz: com `assinaturaRef`,
+a dataURL **sai** do snapshot congelado (§2-bis). O modelo lia só `assinatura`.
+
+Medido no relatório emitido em 07/09: o snapshot do engenheiro traz
+`[nome, funcao, crea, assinaturaRef, camposExtras, folhasRelatorio]` — **sem
+`assinatura`**. Aquele documento saiu sem a rubrica.
+
+É a terceira vez que a mesma migração para o cofre apaga uma imagem do
+documento, e a única em que o resultado **parece completo**:
+
+| imagem | achado |
+|---|---|
+| foto de capa | 06/09 |
+| logo da empresa | 07/09 |
+| **rubrica do assinante** | 08/09 |
+
+Daí o gate transversal `imagensDoCofre.test.ts`: toda imagem do documento tem
+de existir no modelo nas duas formas (`x` e `xRef`) e passar pelo MESMO
+`resolverFotos`. Ele também trava a PREMISSA — se um dia os snapshots deixarem
+de remover a dataURL, o teste avisa em vez de o comentário envelhecer sozinho.
+
+### 10.2 · A espessura mínima requerida
+
+Vazia em 100% dos relatórios. Era lida de `medEsp.pontos[].espMinRequerida`,
+campo que **nenhuma tela do sistema grava** (`PontoME` tem só id, rótulo e
+região). O número existe e é o do memorial: `componentes[].tReqMm`, o mesmo que
+a ficha mostra em "ESP. MÍN. CASCO".
+
+`requeridaDoMemorial()` distribui esse valor pelas três regiões da grade,
+casando pelo NOME do componente. Nada é recalculado; o digitado à mão vence.
+Sem ela, a tabela entrega vinte e quatro números e nenhuma resposta.
+
+### 10.3 · Os outros sete
+
+| # | item | onde entrou |
+|---|---|---|
+| 3 | CNPJ do contratante | junto do nome dele, na capa |
+| 4 | Edição e adenda | campo próprio na folha 3, **ao lado** do código — não dentro dele, porque "CÓDIGO DE PROJETO" alimenta a placa reconstruída e placa física traz o código sozinho |
+| 5 | Subtipo / orientação | campo próprio. **Vaso não tem subtipo na ficha** (`ModalCriarEquipamento` devolve `''`): a orientação dele vive no memorial, e o campo lê os dois |
+| 6 | Vida remanescente | pé da folha 7.4, depois do resultado — é a conclusão que a medição existe para produzir |
+| 7 | Croqui | **revertido a pedido do dono**, depois de implementado |
+| 8 | Campos extras do assinante | bloco do responsável, pares COMPLETOS, teto de 3 |
+| 9 | Telefone / e-mail do cliente | folha 5. Pessoa de contato e atividade: **fora** |
+
+Campos que só existem quando têm valor (`opcional()`): chave presente e vazia
+viraria travessão no papel e pendência falsa em "O que falta".
+
+**A decisão do item 8, campo a campo.** `CampoExtraFuncionario` é um par
+rótulo+valor LIVRE — não há conjunto fixo a auditar. A UI sugere
+"Certificação: SNQC 12345", e o motor do prontuário os imprime como linhas
+pequenas depois do CREA. Decisão: entram os pares com **os dois lados
+preenchidos** (mesma regra do `pront-assinatura.js`), até três por assinante.
+Par pela metade vira "Certificação:" pendurado no laudo; e sem teto, seis
+certificações empurrariam a assinatura para uma folha sozinha, separada do
+parecer que ela assina.
+
+**A decisão do item 9.** A capa da referência tem SOLICITANTE e ENDEREÇO, e
+nada de contato. CNPJ e endereço+CEP foram para onde ela os tem; telefone e
+e-mail para a folha 5, que já é o bloco do contratante. Pessoa de contato e
+atividade principal ficaram de fora: não há lugar documental para elas, e abrir
+seção para encaixar dado é inventar estrutura.
+
+### 10.4 · A folha 7.4 revista como conjunto
+
+componente avaliado → informações do ensaio → localização e medidas (com a
+requerida ao lado de cada leitura) → instrumento padrão → resultado → **vida
+remanescente** → observações. Continua em uma página.
+
+### 10.5 · E2E (`ZZ-TESTE-VISUAL`)
+
+```
+nome     TESTE-XXXXXXXXXXX-V2.pdf
+pdfRef   inspecao/…/relatorios/4fca9a20-148a-44aa-bb36-fc67bea1d7b1.pdf
+sha256   ab3f3321f3d7fcc5054211c916f49bf61c7bad2588eb21d1b611ccd90a3e121a
+páginas  24   ·   bytes 378.522   ·   30.380 caracteres de texto
+```
+
+SHA do arquivo baixado do bucket **idêntico**. **10 imagens** no arquivo (eram
+6 antes das rubricas); a página 23 tem 3 — logo e as **duas rubricas**,
+desenhadas sobre as linhas de assinatura. O snapshot daquele relatório traz
+`assinaturaRef` e nenhum `assinatura`: é o cenário exato do defeito, agora
+resolvido.
+
+Conferidos no PDF: `CNPJ: 12.345.678/0001-90` · `Ed. 2019 · Adenda A19-2021` ·
+`Vertical` · `(27) 3350-7700` · `TAXA DE CORROSÃO 0,1562` · `SOBREMETAL 6,14` ·
+`VIDA REMANESCENTE 39,3` · `PRÓXIMA INSPEÇÃO 6` · `ESP. MÍN. REQUERIDA 6,993`.
+
+**Não provado em produção:** os campos extras do assinante — nenhum dos dois
+funcionários da conta tem par cadastrado. Cobertos por teste, no modelo e no
+papel.
