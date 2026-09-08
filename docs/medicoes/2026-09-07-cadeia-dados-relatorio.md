@@ -436,3 +436,86 @@ vetorial e selecionável. A folha 7.5, lida do PDF final:
 - **`FLUIDO DE TESTE` sai com o prefixo da classe** (`A - Fluido inflamável…`)
   porque o prefill copia `cat.fluidoInput` inteiro. É dado do ensaio e o usuário
   edita; não foi tocado por estar fora do escopo.
+
+---
+
+## 9. Folha 4 redesenhada + E2E visual completo (08/09/2026)
+
+### 9.1 · O que estava errado no desenho
+
+A parte de cima da folha 4 era `doc.tabela`: vinte células coladas, borda de
+0,6 pt em cada lado, rótulo e valor com o mesmo peso e fundo cinza em toda
+coluna ímpar. Dez campos assim viram planilha — e os três RESULTADOS da seção
+(classe, grupo, categoria) ficavam indistinguíveis das entradas da conta.
+
+### 9.2 · O que passou a ser
+
+`Documento.pilulas()`: cada campo numa caixa própria de canto arredondado e
+filete claro, separada da vizinha por um vão, com o rótulo pequeno em caixa
+alta e o **valor em azul ao lado, na mesma linha**. Os três resultados ganharam
+uma fileira só deles, em âmbar, com o valor numa segunda linha e corpo maior.
+
+A MATRIZ deixou de ser tabela e passou a ser desenhada, porque a referência tem
+cabeçalho em dois níveis (`GRUPO POTENCIAL DE RISCO` sobre as cinco colunas, e
+sob ele o número do grupo com a sua faixa de P.V.), a faixa `CATEGORIAS`
+mesclada e a coluna da classe com a letra em cima da lista de fluidos.
+
+**Os três realces, em dois tons.** O suave (`#fdf6e3`) marca as duas ENTRADAS
+da consulta — a linha da classe e a coluna do grupo. O âmbar (`#f8e7b0`, com
+borda mais grossa e negrito) marca o RESULTADO, a célula do cruzamento. Um tom
+só faria a resposta sumir no meio do caminho que leva até ela.
+
+Defeito achado ao conferir o render: a letra da classe. O modelo entrega
+`"Classe C"`, não `"C"`; comparar o texto inteiro não casava com nada e a linha
+ficava sem realce enquanto a coluna acendia — o cruzamento aparecia com uma
+entrada só. Corrigido por regex, com teste.
+
+### 9.3 · A logo que não chegava (achada neste E2E)
+
+Com a logo cadastrada e visível em "Meus dados", o cabeçalho das 23 folhas saía
+amarelo na prévia e vazio no PDF. `snapshotEmpresa()` **remove** o base64 do
+snapshot congelado quando existe `logoRef` (§2-bis); quem resolvia a referência
+eram os templates, pelo palco, e o gerador vetorial lia só `logo`. Toda
+organização que trocou a logo depois de 10/08/2026 emitia relatório sem logo.
+É o mesmo defeito da foto de capa, noutra imagem, e a correção é a mesma.
+
+### 9.4 · O E2E visual, de ponta a ponta
+
+`ZZ-TESTE-VISUAL`, criado do zero, com as imagens de `Pictures/nr13`:
+
+| etapa | o que entrou |
+|---|---|
+| empresa | MDK ENGENHARIA E INSPEÇÕES LTDA, CNPJ, contato, endereço e **logo nova** |
+| ficha | CONFAB INDUSTRIAL, série VS-2019-77410, ASME VIII Div. 1, Casa de Utilidades — Setor B |
+| cliente | PETROQUÍMICA LITORAL S.A., Serra/ES |
+| pressões da documentação | PMTA 1,2 · PMO 0,9 · PTH 1,56 MPa |
+| categoria | vapor de água → **Classe C · Grupo 3 · Categoria III** (P·V = 13,913 MPa·m³) |
+| memorial | ASTM A516 Gr. 70, Ø 1600, PMTA calculada 1,64 MPa, APROVADO |
+| foto de identificação | `vaso3.png` |
+| inspeção | checklist (15 itens + comentários + 2 fotos), exame externo e interno (observações, conclusão, 1 foto cada), ultrassom (24 medidas + **observações**), TH (**os 7 campos novos** + curva + 1 foto) |
+
+F5 em cada etapa: tudo permaneceu. `Pressão de trabalho` abriu com **9.18
+kgf/cm²** — a PMO da ficha, pelo prefill novo. Memorial salvou **sem congelar**
+a aba (o `alert()` saiu).
+
+### 9.5 · O documento emitido
+
+```
+nome     TESTE-XXXXXXXXXXX.pdf
+pdfRef   inspecao/…/relatorios/d1277d9f-d3f2-4c81-b104-9f36fdab5803.pdf
+sha256   14ec67ca3ccf2ad2df19594ae8d494983e0934a2a8592a0963c3b64b08f5c8f4
+páginas  24   ·   bytes 340.791   ·   pdfPendente false
+```
+
+Arquivo baixado do bucket: **SHA idêntico**. Texto extraído: **28.893
+caracteres** — vetorial e selecionável. **6 imagens** no arquivo inteiro (logo,
+capa e as fotos de campo): nenhuma página rasterizada.
+
+Conferidos no PDF final: `MDK ENGENHARIA` · `PETROQUÍMICA LITORAL` · `CONFAB
+INDUSTRIAL` · `VS-2019-77410` · `ASTM A516 Gr. 70` · `Vapor de água` · `Classe
+C` · medidas `13,10` · `30 min` · `24 °C` · `VALIDADE DO LAUDO 07/09/2031` ·
+as observações dos dois exames, do ultrassom, do checklist, o parecer do TH e as
+observações da categorização.
+
+"Nenhuma pendência encontrada" na finalização; o documento arquivado abre com
+**zero campos editáveis** (§7-quater).
