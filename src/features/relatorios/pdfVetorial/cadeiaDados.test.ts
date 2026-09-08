@@ -645,3 +645,30 @@ describe('formulário e modelo usam o MESMO nome de campo', () => {
     expect(bloco).toContain('observacoes:');
   });
 });
+
+// ── 11 · OS TRÊS REALCES DA MATRIZ (07/09/2026) ─────────────────────────────
+/**
+ * A matriz do item 13.5.1.2 passou a ACENDER a linha da classe, a coluna do
+ * grupo e a célula onde as duas se cruzam. A escolha de quais acender é lida do
+ * modelo — nada é recalculado —, e o ponto frágil é o FORMATO do que chega: o
+ * modelo entrega `"Classe A"`, não `"A"`. Comparar o texto inteiro com a letra
+ * da linha não casava com nada, e a linha ficava sem realce enquanto a coluna
+ * acendia: o cruzamento aparecia sem uma das duas entradas.
+ */
+describe('matriz de categorização: de onde saem os realces', () => {
+  it('a classe chega ao documento como "Classe X" — é desse texto que a letra sai', () => {
+    gravar(`nr13_cat_${TAG}`, CATEGORIA);
+    expect(montarModeloRelatorio(TAG).equipamento['CLASSE DO FLUIDO']).toBe('Classe A');
+  });
+
+  it('o grupo chega como o NÚMERO da coluna, em texto', () => {
+    gravar(`nr13_cat_${TAG}`, CATEGORIA);
+    expect(montarModeloRelatorio(TAG).categoria.grupo).toBe('4');
+  });
+
+  it('sem categorização não há o que acender — e nada é chutado', () => {
+    const m = montarModeloRelatorio(TAG);
+    expect(m.equipamento['CLASSE DO FLUIDO']).toBeNull();
+    expect(m.categoria.grupo).toBeNull();
+  });
+});

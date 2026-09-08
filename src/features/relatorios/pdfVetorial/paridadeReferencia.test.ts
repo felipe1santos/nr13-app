@@ -59,6 +59,29 @@ const COMPOSTOS = [
   '90°',
   '180°',
   '270°',
+  // ── Folha 4, redesenhada em 07/09/2026 ────────────────────────────────────
+  // O conteúdo continua o da referência; o que mudou é que ele deixou de ser
+  // texto literal no código. Cada um é conferido logo abaixo, à parte.
+  //
+  // O cabeçalho da matriz virou dois níveis desenhados à mão: o número do
+  // grupo sai de `String(i + 1)` e a faixa de P.V. vem de `FAIXAS_PV`, uma
+  // linha por vez — a referência as traz na mesma célula.
+  '1 P.V ≥ 100',
+  '2 P.V < 100 P.V ≥ 30',
+  '3 P.V < 30 P.V ≥ 2,5',
+  '4 P.V < 2,5 P.V ≥ 1',
+  '5 P.V < 1',
+  // "CLASSE DE FLUIDO" e "(CORPO / TUBO)" são duas linhas com estilos
+  // diferentes (azul e itálico cinza), como na referência.
+  'CLASSE DE FLUIDO (CORPO / TUBO)',
+  // A referência tem UM campo (`P.V > 8`) que o sistema resolve por
+  // `simNaoDoEnquadramento`. O rótulo antigo, que juntava a pergunta e a
+  // consequência numa frase só, deixou de existir.
+  'P.V. > 8 — APLICA-SE A NR-13?',
+  // A faixa "MATRIZ DE CATEGORIZAÇÃO" saiu: a matriz passou a ser anunciada
+  // pela mesma frase da referência ("Matriz de categoria conforme item…"), em
+  // texto corrido, em vez de por uma barra cinza que a referência não tem.
+  'MATRIZ DE CATEGORIZAÇÃO — item 13.5.1.2 da NR-13',
 ];
 
 function limpo(s: string): string {
@@ -141,6 +164,39 @@ describe('paridade com o relatório-base: nenhum rótulo, coluna ou faixa fica p
     // Os ângulos são calculados a partir do número de colunas da região
     // (`angulosDaRegiao`), e não escritos: uma região com 6 colunas imprime 6.
     expect(folhas).toContain('angulos.map((a) => `${a}°`)');
+  });
+
+  it('folha 4: o cabeçalho da matriz é montado — número do grupo + faixa de P.V.', () => {
+    const folhas = readFileSync('src/features/relatorios/pdfVetorial/folhas.ts', 'utf8');
+    // O número sai do índice; as faixas, uma linha por vez, de FAIXAS_PV.
+    expect(folhas).toContain('doc.pdf.text(String(i + 1)');
+    for (const faixa of ['P.V ≥ 100', 'P.V < 100', 'P.V ≥ 30', 'P.V < 30', 'P.V ≥ 2,5', 'P.V < 2,5', 'P.V ≥ 1', 'P.V < 1']) {
+      expect(folhas, `faixa de P.V. ausente: ${faixa}`).toContain(faixa);
+    }
+    // As duas linhas do título da coluna da classe.
+    expect(folhas).toContain("'CLASSE DE FLUIDO'");
+    expect(folhas).toContain("'(CORPO / TUBO)'");
+    expect(folhas).toContain("'GRUPO POTENCIAL DE RISCO'");
+    expect(folhas).toContain("'CATEGORIAS'");
+  });
+
+  it('folha 4: os dez campos do resumo continuam na folha', () => {
+    const folhas = readFileSync('src/features/relatorios/pdfVetorial/folhas.ts', 'utf8');
+    for (const rotulo of [
+      'Fluido de trabalho',
+      'Código de projeto',
+      'Pressão máx. admissível (PMTA)',
+      'Volume geométrico',
+      'Produto P.V. (kPa × m³)',
+      'P.V. > 8 (kPa × m³)',
+      'Produto P.V. para risco (MPa × m³)',
+      'NR-13 deve ser aplicada?',
+      'Classe do fluido',
+      'Grupo potencial de risco',
+      'Categoria do vaso',
+    ]) {
+      expect(folhas, `campo do resumo ausente: ${rotulo}`).toContain(rotulo);
+    }
   });
 });
 

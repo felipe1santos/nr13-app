@@ -619,6 +619,88 @@ export class Documento {
     this.cursor += altura;
   }
 
+  /**
+   * Um bloco de resumo em PÍLULAS — rótulo e valor na mesma linha, cada par
+   * dentro da sua própria caixinha de borda fina.
+   *
+   * ## Por que existe (07/09/2026)
+   *
+   * A folha de categorização de risco usava `tabela()`: uma grade colada, com
+   * borda de 0,6 pt em cada célula, rótulo e valor com o mesmo peso e o mesmo
+   * fundo cinza em toda coluna ímpar. Dez campos assim viram uma planilha —
+   * tudo com a mesma importância, nada que o olho encontre primeiro. Foi o que
+   * o dono recusou.
+   *
+   * Aqui cada campo é uma caixa independente, separada da vizinha por um vão:
+   * o rótulo é pequeno e em caixa alta, o valor vem ao lado em azul, e a borda
+   * é um filete claro em vez de uma grade. É o desenho da referência
+   * (`5.3.6 CLASSIFICAÇÃO DO VASO`).
+   *
+   * `destaque` é para os RESULTADOS da seção — classe, grupo, categoria: borda
+   * âmbar, fundo creme e valor maior. São três campos entre dez; sem isso eles
+   * se perdem no meio das entradas da conta.
+   *
+   * Continua tudo vetorial e continua tudo editável: cada pílula registra a sua
+   * área como campo, igual a uma célula de tabela.
+   */
+  pilulas(fileiras: PilulaDoc[][], opcoes: { vao?: number } = {}): void {
+    const vao = opcoes.vao ?? 2;
+    for (const fileira of fileiras) {
+      if (fileira.length === 0) continue;
+      const alta = fileira.some((p) => p.destaque);
+      const altura = alta ? 9.6 : 6.8;
+      const tamRotulo = FONTE.nota;
+      const tamValor = alta ? FONTE.base : FONTE.tabela;
+      this.garantirEspaco(altura + vao);
+
+      const largura = (CAIXA.largura - vao * (fileira.length - 1)) / fileira.length;
+      fileira.forEach((p, i) => {
+        const x = CAIXA.x + i * (largura + vao);
+        const y = this.cursor;
+        const valor = this.resolver(p.id, p.valor);
+        if (p.id) {
+          this.anotarCampo(p.id, p.rotuloCampo ?? p.rotulo, p.valor, valor, false, {
+            x,
+            y,
+            larg: largura,
+            alt: altura,
+          });
+        }
+
+        const vazio = valor.trim() === '' || valor.trim() === '—';
+        this.pdf.setLineWidth(BORDA_FINA);
+        this.pdf.setDrawColor(p.destaque ? COR.bordaRealce : COR.filete);
+        this.pdf.setFillColor(
+          p.destaque ? COR.fundoRealceSuave : vazio && this.modo === 'preview' ? AMARELO_PREVIA : '#ffffff',
+        );
+        // Cantos arredondados: é o que tira o ar de planilha sem tirar a
+        // precisão da caixa. 1,2 mm — a referência usa o mesmo raio discreto.
+        this.pdf.roundedRect(x, y, largura, altura, 1.2, 1.2, 'FD');
+
+        this.pdf.setFont(FAMILIA, 'bold');
+        this.pdf.setFontSize(tamRotulo);
+        this.pdf.setTextColor(COR.texto);
+        const rotulo = p.rotulo.toLocaleUpperCase('pt-BR');
+        this.pdf.text(rotulo, x + 2.2, y + altura * (alta ? 0.42 : 0.68));
+
+        this.pdf.setFont(FAMILIA, p.destaque ? 'bold' : 'normal');
+        this.pdf.setFontSize(tamValor);
+        this.pdf.setTextColor(p.destaque ? COR.textoRealce : COR.valor);
+        // O valor fica na MESMA linha do rótulo (é o desenho da referência) —
+        // exceto no destaque, onde ele desce para uma segunda linha e ganha
+        // corpo, porque ali o valor é a resposta e o rótulo é só a legenda.
+        if (p.destaque) {
+          this.pdf.text(valor.trim() || '—', x + 2.2, y + altura * 0.86);
+        } else {
+          const larguraRotulo = (this.pdf.getStringUnitWidth(rotulo) * tamRotulo) / this.pdf.internal.scaleFactor;
+          this.pdf.text(valor.trim() || '—', x + 2.2 + larguraRotulo + 2.4, y + altura * 0.68);
+        }
+      });
+      this.cursor += altura + vao;
+    }
+    this.cursor -= vao;
+  }
+
   secao(conteudo: string): void {
     this.texto(conteudo, { tamanho: FONTE.secao, negrito: true, espacoAntes: 3.4 });
   }
@@ -962,4 +1044,21 @@ export interface FotoDoc {
   descricao: string;
   /** largura/altura reais da imagem. Sem isto o desenho assumiria 4:3. */
   proporcao?: number;
+}
+
+/**
+ * Um campo do bloco de resumo em pílulas: rótulo curto, valor ao lado.
+ *
+ * `destaque` marca os campos que são o RESULTADO da seção — na folha 4, a
+ * classe do fluido, o grupo de potencial de risco e a categoria do vaso. Eles
+ * ganham borda âmbar, fundo creme e o valor numa segunda linha, com corpo
+ * maior: são a resposta que a folha inteira existe para dar.
+ */
+export interface PilulaDoc {
+  rotulo: string;
+  valor: string;
+  /** Editável (13D-bis). Sem id, a pílula é só desenho. */
+  id?: string;
+  rotuloCampo?: string;
+  destaque?: boolean;
 }

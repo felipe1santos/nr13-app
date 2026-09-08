@@ -1,4 +1,4 @@
-import { CAIXA, COR, FONTE, LIMITE_CORPO, PT, alturaLinha } from './documentoA4';
+import { BORDA_FINA, CAIXA, COR, FONTE, LIMITE_CORPO, PT, alturaLinha } from './documentoA4';
 import { secoesPresentes, type SecaoRelatorio } from './composicao';
 import { ALTURA_GRAFICO_TH, desenharGraficoTh, numeroDoTexto, pontosDaCurva } from './graficoTh';
 import { foto } from './primitivas';
@@ -599,25 +599,203 @@ function desenharPlacaReconstruida(doc: Documento, m: ModeloRelatorio, topo: num
  * continua vindo de `calc/categoria.ts`; esta tabela só mostra ao leitor de
  * onde ela saiu.
  */
-const MATRIZ_13512: { classe: string; descricao: string; categorias: string[] }[] = [
+const MATRIZ_13512: { classe: string; itens: string[]; categorias: string[] }[] = [
   {
     classe: 'A',
-    descricao: 'Fluido inflamável; combustível com temperatura ≥ 200 °C; tóxico com limite de tolerância ≤ 20 ppm; hidrogênio; acetileno',
+    itens: [
+      'Fluido inflamável, combustível com temperatura igual ou superior a 200 °C',
+      'Tóxico com limite de tolerância ≤ 20 ppm',
+      'Hidrogênio',
+      'Acetileno',
+    ],
     categorias: ['I', 'I', 'II', 'III', 'III'],
   },
   {
     classe: 'B',
-    descricao: 'Combustível com temperatura menor que 200 °C; tóxico com limite de tolerância > 20 ppm',
+    itens: ['Combustível com temperatura menor que 200 °C', 'Tóxico com limite de tolerância > 20 ppm'],
     categorias: ['I', 'II', 'III', 'IV', 'IV'],
   },
-  { classe: 'C', descricao: 'Vapor de água; gases asfixiantes simples; ar comprimido', categorias: ['I', 'II', 'III', 'IV', 'V'] },
-  { classe: 'D', descricao: 'Outro fluido', categorias: ['II', 'III', 'IV', 'V', 'V'] },
+  {
+    classe: 'C',
+    itens: ['Vapor de água', 'Gases asfixiantes simples', 'Ar comprimido'],
+    categorias: ['I', 'II', 'III', 'IV', 'V'],
+  },
+  { classe: 'D', itens: ['Outro fluido'], categorias: ['II', 'III', 'IV', 'V', 'V'] },
 ];
 
-// As cinco faixas de P.V. do item 13.5.1.2, na MESMA quebra da referência:
-// o número do grupo em cima, os limites embaixo. O cabeçalho da tabela quebra
-// linha, então o texto cabe na coluna em vez de invadir a vizinha.
-const FAIXAS_PV = ['1\nP.V ≥ 100', '2\nP.V < 100\nP.V ≥ 30', '3\nP.V < 30\nP.V ≥ 2,5', '4\nP.V < 2,5\nP.V ≥ 1', '5\nP.V < 1'];
+// As cinco faixas de P.V. do item 13.5.1.2: o NÚMERO do grupo em cima, os
+// limites embaixo, em corpo menor — como na referência.
+const FAIXAS_PV = [['P.V ≥ 100'], ['P.V < 100', 'P.V ≥ 30'], ['P.V < 30', 'P.V ≥ 2,5'], ['P.V < 2,5', 'P.V ≥ 1'], ['P.V < 1']];
+
+/**
+ * A MATRIZ do item 13.5.1.2, desenhada à mão — e com os TRÊS realces.
+ *
+ * ## Por que não é `doc.tabela`
+ *
+ * A referência traz um cabeçalho em dois níveis ("GRUPO POTENCIAL DE RISCO"
+ * abrangendo as cinco colunas, e sob ele o número do grupo com a sua faixa),
+ * uma faixa "CATEGORIAS" mesclada, e a coluna da classe com a letra em cima da
+ * lista de fluidos. Nada disso cabe numa grade de células iguais.
+ *
+ * ## Os três realces, e por que são dois tons
+ *
+ * O amarelo aqui não é decoração: ele mostra **como a categoria foi obtida**.
+ * A linha da classe e a coluna do grupo são as duas ENTRADAS da consulta e
+ * levam o tom suave; a célula onde elas se cruzam é o RESULTADO e leva o tom
+ * âmbar, com borda. Pintar tudo do mesmo tom faria a resposta desaparecer no
+ * meio do caminho que leva até ela.
+ *
+ * A matriz continua sendo a NORMA impressa: nada aqui calcula. `classe` e
+ * `grupo` chegam prontos de `calc/categoria.ts`, e quando não há categorização
+ * salva os dois vêm nulos e a tabela sai sem realce nenhum — nunca com um
+ * palpite.
+ */
+/**
+ * "SIM" / "NÃO" a partir do rótulo de enquadramento, para o campo `P.V. > 8`.
+ *
+ * Apresentação, não conta: quem decide o enquadramento é `calc/categoria.ts`
+ * (base kPa × m³ > 8, §4 do CLAUDE.md), e o modelo já entrega a decisão pronta
+ * em `aplicaNr13`. Aqui ela só é dita na forma que aquele campo pede. Sem
+ * categorização salva o valor é ausente, e ausente continua ausente.
+ */
+function simNaoDoEnquadramento(rotulo: string | null): string {
+  const t = (rotulo ?? '').trim();
+  if (t === '' || t === '—') return '—';
+  return /^não/i.test(t) ? 'NÃO' : 'SIM';
+}
+
+function matrizCategorizacao(doc: Documento, classe: string | null, grupo: string | null): void {
+  const larguraClasse = CAIXA.largura * 0.4;
+  const larguraGrupo = (CAIXA.largura - larguraClasse) / 5;
+  const iGrupo = grupo && /^[1-5]$/.test(grupo.trim()) ? Number(grupo.trim()) - 1 : -1;
+  // O modelo entrega "Classe A" (é o rótulo que a folha de identificação
+  // imprime), não a letra solta. Comparar o texto inteiro com 'A' não casava
+  // com nada, e a linha da classe saía sem realce enquanto a coluna do grupo
+  // acendia — o cruzamento ficava sem uma das duas entradas.
+  const letra = /\b([A-D])\b/.exec((classe ?? '').trim().toUpperCase())?.[1] ?? '';
+
+  const px = (t: number) => t * PT;
+  const alturaTopo = 5.2;
+  const alturaSub = 11.2;
+  const alturaCategorias = 4.8;
+  const alturaCab = alturaTopo + alturaSub + alturaCategorias;
+  const alturaLinhaClasse = (n: number) => Math.max(13, 7 + n * 3.6);
+  const alturaCorpo = MATRIZ_13512.reduce((s, l) => s + alturaLinhaClasse(l.itens.length), 0);
+
+  doc.garantirEspaco(alturaCab + alturaCorpo);
+  const x0 = CAIXA.x;
+  let y = doc.y;
+  const xGrupo = (i: number) => x0 + larguraClasse + i * larguraGrupo;
+
+  doc.pdf.setLineWidth(BORDA_FINA);
+  doc.pdf.setDrawColor(COR.bordaTabela);
+
+  // ── Cabeçalho, nível 1: a coluna da classe (alta, atravessa os 3 níveis) e
+  //    a faixa "GRUPO POTENCIAL DE RISCO" sobre as cinco colunas.
+  doc.pdf.setFillColor(COR.fundoRotulo);
+  doc.pdf.rect(x0, y, larguraClasse, alturaCab, 'FD');
+  doc.pdf.rect(x0 + larguraClasse, y, larguraGrupo * 5, alturaTopo, 'FD');
+  doc.pdf.setFont(FAMILIA, 'bold');
+  doc.pdf.setFontSize(FONTE.nota);
+  doc.pdf.setTextColor(COR.texto);
+  doc.pdf.text('GRUPO POTENCIAL DE RISCO', x0 + larguraClasse + (larguraGrupo * 5) / 2, y + alturaTopo * 0.72, {
+    align: 'center',
+  });
+
+  doc.pdf.setFontSize(FONTE.tabela);
+  doc.pdf.setTextColor(COR.valor);
+  doc.pdf.text('CLASSE DE FLUIDO', x0 + larguraClasse / 2, y + alturaCab * 0.42, { align: 'center' });
+  doc.pdf.setFont(FAMILIA, 'italic');
+  doc.pdf.setFontSize(FONTE.nota);
+  doc.pdf.setTextColor(COR.nota);
+  doc.pdf.text('(CORPO / TUBO)', x0 + larguraClasse / 2, y + alturaCab * 0.42 + 3.4, { align: 'center' });
+
+  // ── Cabeçalho, nível 2: número do grupo + faixa de P.V. A coluna do grupo
+  //    CALCULADO é a que acende — é uma das duas entradas da consulta.
+  FAIXAS_PV.forEach((faixa, i) => {
+    const x = xGrupo(i);
+    const aceso = i === iGrupo;
+    doc.pdf.setFillColor(aceso ? COR.fundoRealce : COR.fundoRotulo);
+    doc.pdf.setDrawColor(aceso ? COR.bordaRealce : COR.bordaTabela);
+    doc.pdf.setLineWidth(aceso ? BORDA_FINA * 2 : BORDA_FINA);
+    doc.pdf.rect(x, y + alturaTopo, larguraGrupo, alturaSub, 'FD');
+    doc.pdf.setLineWidth(BORDA_FINA);
+    doc.pdf.setDrawColor(COR.bordaTabela);
+
+    doc.pdf.setFont(FAMILIA, 'bold');
+    doc.pdf.setFontSize(FONTE.tabela);
+    doc.pdf.setTextColor(aceso ? COR.textoRealce : COR.texto);
+    doc.pdf.text(String(i + 1), x + larguraGrupo / 2, y + alturaTopo + 3.8, { align: 'center' });
+    doc.pdf.setFont(FAMILIA, 'normal');
+    doc.pdf.setFontSize(FONTE.nota);
+    doc.pdf.setTextColor(aceso ? COR.textoRealce : COR.nota);
+    faixa.forEach((l, k) => {
+      doc.pdf.text(l, x + larguraGrupo / 2, y + alturaTopo + 7.6 + k * 3.1, { align: 'center' });
+    });
+  });
+
+  // ── Cabeçalho, nível 3: a faixa "CATEGORIAS", mesclada sobre as 5 colunas.
+  doc.pdf.setFillColor(COR.fundoRotulo);
+  doc.pdf.rect(x0 + larguraClasse, y + alturaTopo + alturaSub, larguraGrupo * 5, alturaCategorias, 'FD');
+  doc.pdf.setFont(FAMILIA, 'bold');
+  doc.pdf.setFontSize(FONTE.nota);
+  doc.pdf.setTextColor(COR.texto);
+  doc.pdf.text(
+    'CATEGORIAS',
+    x0 + larguraClasse + (larguraGrupo * 5) / 2,
+    y + alturaTopo + alturaSub + alturaCategorias * 0.72,
+    { align: 'center' },
+  );
+
+  y += alturaCab;
+
+  // ── Corpo: uma faixa por classe de fluido.
+  for (const linha of MATRIZ_13512) {
+    const alt = alturaLinhaClasse(linha.itens.length);
+    const daClasse = linha.classe === letra;
+
+    // A célula da CLASSE — a segunda entrada da consulta.
+    doc.pdf.setFillColor(daClasse ? COR.fundoRealceSuave : '#ffffff');
+    doc.pdf.setDrawColor(daClasse ? COR.bordaRealce : COR.bordaTabela);
+    doc.pdf.setLineWidth(daClasse ? BORDA_FINA * 2 : BORDA_FINA);
+    doc.pdf.rect(x0, y, larguraClasse, alt, 'FD');
+    doc.pdf.setLineWidth(BORDA_FINA);
+    doc.pdf.setDrawColor(COR.bordaTabela);
+
+    doc.pdf.setFont(FAMILIA, 'bold');
+    doc.pdf.setFontSize(FONTE.tabela);
+    doc.pdf.setTextColor(daClasse ? COR.textoRealce : COR.texto);
+    doc.pdf.text(linha.classe, x0 + 2.2, y + 4.2);
+    doc.pdf.setFont(FAMILIA, 'normal');
+    doc.pdf.setFontSize(FONTE.nota);
+    doc.pdf.setTextColor(daClasse ? COR.textoRealce : COR.nota);
+    linha.itens.forEach((it, k) => {
+      const partes = doc.pdf.splitTextToSize(`- ${it}`, larguraClasse - 5) as string[];
+      doc.pdf.text(partes[0], x0 + 3, y + 8.2 + k * 3.6);
+    });
+
+    // As cinco categorias. A do CRUZAMENTO é o resultado: tom âmbar e borda.
+    linha.categorias.forEach((cat, i) => {
+      const x = xGrupo(i);
+      const cruzamento = daClasse && i === iGrupo;
+      doc.pdf.setFillColor(cruzamento ? COR.fundoRealce : daClasse || i === iGrupo ? COR.fundoRealceSuave : '#ffffff');
+      doc.pdf.setDrawColor(cruzamento ? COR.bordaRealce : COR.bordaTabela);
+      doc.pdf.setLineWidth(cruzamento ? BORDA_FINA * 2.5 : BORDA_FINA);
+      doc.pdf.rect(x, y, larguraGrupo, alt, 'FD');
+      doc.pdf.setLineWidth(BORDA_FINA);
+      doc.pdf.setDrawColor(COR.bordaTabela);
+
+      doc.pdf.setFont(FAMILIA, cruzamento ? 'bold' : 'normal');
+      doc.pdf.setFontSize(cruzamento ? FONTE.base : FONTE.tabela);
+      doc.pdf.setTextColor(cruzamento ? COR.textoRealce : COR.texto);
+      doc.pdf.text(cat, x + larguraGrupo / 2, y + alt / 2 + px(cruzamento ? 3.6 : 3), { align: 'center' });
+    });
+
+    y += alt;
+  }
+
+  doc.y = y;
+}
 
 export function folhaCategorizacao(doc: Documento, m: ModeloRelatorio): void {
   doc.novaFolha();
@@ -628,73 +806,61 @@ export function folhaCategorizacao(doc: Documento, m: ModeloRelatorio): void {
     espacoAntes: 1,
   });
 
-  // As alturas desta folha sao maiores de proposito: o conteudo dela e curto
-  // e fixo, e sem isso a pagina terminava aos dois tercos com um vazio no pe.
+  // ── O RESUMO, em pílulas ──────────────────────────────────────────────────
+  // Era uma grade de 20 células coladas, com o mesmo peso visual em rótulo e
+  // valor: dez campos assim viram planilha, e a resposta da folha (classe,
+  // grupo, categoria) ficava indistinguível das entradas da conta. Agora cada
+  // campo é uma caixa própria, rótulo pequeno e valor em azul ao lado — e os
+  // três RESULTADOS ganham uma fileira só deles, em âmbar.
   const c = m.categorizacaoFolha;
-  doc.tabela({
-    alturaMinima: 12,
-    colunas: [0.26, 0.24, 0.28, 0.22],
-    linhas: [
-      [
-        { texto: 'FLUIDO DE TRABALHO', rotulo: true },
-        { texto: textoOu(c.fluidoTrabalho), valor: true, id: 'categoria.fluido-trabalho', rotuloCampo: 'Fluido de trabalho' },
-        { texto: 'CÓDIGO DE PROJETO', rotulo: true },
-        { texto: textoOu(c.codigoProjeto), valor: true, id: 'categoria.codigo-projeto', rotuloCampo: 'Código de projeto' },
-      ],
-      [
-        { texto: 'PRESSÃO MÁX. ADMISSÍVEL (PMTA)', rotulo: true },
-        { texto: textoOu(c.pmta), valor: true, id: 'categoria.pmta', rotuloCampo: 'PMTA na categorização' },
-        { texto: 'VOLUME GEOMÉTRICO', rotulo: true },
-        { texto: textoOu(c.volumeGeometrico), valor: true, id: 'categoria.volume', rotuloCampo: 'Volume geométrico' },
-      ],
-      [
-        { texto: 'PRODUTO P.V. (kPa × m³)', rotulo: true },
-        { texto: textoOu(m.categorizacaoDetalhe.pvKpa), valor: true, id: 'categoria.pv-kpa', rotuloCampo: 'Produto P.V. (kPa × m³)' },
-        { texto: 'P.V. > 8 — APLICA-SE A NR-13?', rotulo: true },
-        { texto: textoOu(c.aplicaNr13), valor: true, id: 'categoria.aplica-nr13', rotuloCampo: 'Aplica-se a NR-13?' },
-      ],
-      [
-        { texto: 'PRODUTO P.V. PARA RISCO (MPa × m³)', rotulo: true },
-        { texto: textoOu(m.categorizacaoDetalhe.pvMpa), valor: true, id: 'categoria.pv-mpa', rotuloCampo: 'Produto P.V. para risco (MPa × m³)' },
-        { texto: 'CLASSE DO FLUIDO', rotulo: true },
-        { texto: textoOu(m.equipamento['CLASSE DO FLUIDO']), valor: true, id: 'categoria.classe-do-fluido', rotuloCampo: 'Classe do fluido' },
-      ],
-      [
-        { texto: 'GRUPO POTENCIAL DE RISCO', rotulo: true },
-        { texto: textoOu(m.categoria.grupo), valor: true, id: 'categoria.grupo', rotuloCampo: 'Grupo de potencial de risco' },
-        { texto: 'CATEGORIA DO VASO', rotulo: true },
-        { texto: textoOu(m.categoria.catFinal), valor: true, id: 'categoria.categoria', rotuloCampo: 'Categoria do equipamento' },
-      ],
+  doc.y += 1.5;
+  doc.pilulas([
+    [
+      { rotulo: 'Fluido de trabalho', valor: textoOu(c.fluidoTrabalho), id: 'categoria.fluido-trabalho', rotuloCampo: 'Fluido de trabalho' },
+      { rotulo: 'Código de projeto', valor: textoOu(c.codigoProjeto), id: 'categoria.codigo-projeto', rotuloCampo: 'Código de projeto' },
     ],
-  });
+    [
+      { rotulo: 'Pressão máx. admissível (PMTA)', valor: textoOu(c.pmta), id: 'categoria.pmta', rotuloCampo: 'PMTA na categorização' },
+      { rotulo: 'Volume geométrico', valor: textoOu(c.volumeGeometrico), id: 'categoria.volume', rotuloCampo: 'Volume geométrico' },
+    ],
+    [
+      { rotulo: 'Produto P.V. (kPa × m³)', valor: textoOu(m.categorizacaoDetalhe.pvKpa), id: 'categoria.pv-kpa', rotuloCampo: 'Produto P.V. (kPa × m³)' },
+      // A referência traz DOIS campos a partir do mesmo enquadramento: a
+      // resposta da comparação (`P.V > 8`) e a sua consequência (`NR-13 deve
+      // ser aplicada?`). O dado é um só — `cat.isEnquadrado` —, e cada campo
+      // apresenta a sua face dele. Nada é recalculado nem inventado aqui.
+      { rotulo: 'P.V. > 8 (kPa × m³)', valor: simNaoDoEnquadramento(c.aplicaNr13), id: 'categoria.aplica-nr13', rotuloCampo: 'P.V. > 8 (kPa × m³)?' },
+    ],
+    [
+      { rotulo: 'Produto P.V. para risco (MPa × m³)', valor: textoOu(m.categorizacaoDetalhe.pvMpa), id: 'categoria.pv-mpa', rotuloCampo: 'Produto P.V. para risco (MPa × m³)' },
+      { rotulo: 'NR-13 deve ser aplicada?', valor: textoOu(c.aplicaNr13), id: 'categoria.nr13-aplicada', rotuloCampo: 'NR-13 deve ser aplicada?' },
+    ],
+    [
+      { rotulo: 'Classe do fluido', valor: textoOu(m.equipamento['CLASSE DO FLUIDO']), id: 'categoria.classe-do-fluido', rotuloCampo: 'Classe do fluido', destaque: true },
+      { rotulo: 'Grupo potencial de risco', valor: textoOu(m.categoria.grupo), id: 'categoria.grupo', rotuloCampo: 'Grupo de potencial de risco', destaque: true },
+      { rotulo: 'Categoria do vaso', valor: textoOu(m.categoria.catFinal), id: 'categoria.categoria', rotuloCampo: 'Categoria do equipamento', destaque: true },
+    ],
+  ]);
 
-  doc.faixa('MATRIZ DE CATEGORIZAÇÃO — item 13.5.1.2 da NR-13');
-  doc.tabela({
-    compacta: true,
-    alturaMinima: 17,
-    colunas: [0.4, 0.12, 0.12, 0.12, 0.12, 0.12],
-    cabecalho: ['CLASSE DE FLUIDO (CORPO / TUBO)', ...FAIXAS_PV],
-    linhas: MATRIZ_13512.map((linha) => [
-      { texto: `${linha.classe} — ${linha.descricao}` },
-      ...linha.categorias.map((cat) => ({ texto: cat, centro: true })),
-    ]),
+  doc.y += 3.4;
+  doc.texto('Matriz de categoria conforme item 13.5.1.2 da norma NR-13.', {
+    tamanho: FONTE.nota,
+    cor: COR.nota,
   });
+  doc.y += 1.4;
+  matrizCategorizacao(doc, m.equipamento['CLASSE DO FLUIDO'], m.categoria.grupo);
 
+  doc.y += 3.4;
   doc.faixa('OPERAÇÃO DO VASO DE PRESSÃO');
-  doc.tabela({
-    alturaMinima: 12,
-    colunas: [0.6, 0.4],
-    linhas: [
-      [
-        { texto: 'CATEGORIA DO VASO', rotulo: true },
-        { texto: textoOu(m.categoria.catFinal), centro: true, valor: true, id: 'categoria.operacao-categoria', rotuloCampo: 'Categoria do vaso (operação)' },
-      ],
-      [
-        { texto: 'É OBRIGATÓRIO OPERADOR TREINADO (ANEXO I-B)?', rotulo: true },
-        { texto: textoOu(c.operadorTreinado), centro: true, valor: true, id: 'categoria.operador-treinado', rotuloCampo: 'Operador treinado obrigatório?' },
-      ],
+  doc.y += 1.5;
+  // A mesma pílula do resumo: a faixa de baixo tem de parecer parte da folha,
+  // não um bloco de outra tabela colado no pé.
+  doc.pilulas([
+    [
+      { rotulo: 'Categoria do vaso', valor: textoOu(m.categoria.catFinal), id: 'categoria.operacao-categoria', rotuloCampo: 'Categoria do vaso (operação)' },
+      { rotulo: 'É obrigatório operador treinado (anexo I-B)?', valor: textoOu(c.operadorTreinado), id: 'categoria.operador-treinado', rotuloCampo: 'Operador treinado obrigatório?' },
     ],
-  });
+  ]);
 
   doc.texto(
     'A categorização segue o item 13.5.1.2 da NR-13: o grupo de potencial de risco resulta do ' +

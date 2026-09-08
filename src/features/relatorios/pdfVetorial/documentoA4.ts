@@ -74,6 +74,21 @@ export const COR = {
   fundoZebra: '#fafafa',
   bordaFoto: '#cfcfcf',
   nota: '#404040',
+  // Matriz da NR-13: mostrar de onde a categoria saiu.
+  //
+  // Dois níveis, de propósito. O SUAVE marca as duas ENTRADAS da consulta — a
+  // linha da classe do fluido e a coluna do grupo de risco. O forte marca o
+  // RESULTADO, a célula onde as duas se cruzam. Um nível só faria a linha
+  // inteira competir com a resposta; e amarelo forte numa tabela impressa em
+  // preto e branco vira uma tarja cinza sobre o texto.
+  fundoRealceSuave: '#fdf6e3',
+  fundoRealce: '#f8e7b0',
+  bordaRealce: '#c9a227',
+  textoRealce: '#6b4f07',
+  // Rótulo pequeno dos blocos de resumo — cinza médio, para o VALOR ficar
+  // sendo a coisa que o olho encontra primeiro.
+  rotuloDiscreto: '#5a5a5a',
+  filete: '#d4d4d4',
 } as const;
 
 /** Tamanhos em pt, como no CSS da referência. */

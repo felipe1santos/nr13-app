@@ -469,3 +469,55 @@ describe('os campos que o formulário passou a coletar (07/09/2026) chegam ao PA
     expect(localStorage.getItem('nr13_injecao_atual')).toBe(antes);
   });
 });
+
+describe('folha 4 · categorização de risco (redesenho de 07/09/2026)', () => {
+  it('o resumo é um bloco de PÍLULAS, não uma grade de células', async () => {
+    const { editaveis } = await gerarRelatorioVetorial(TAG, { documentos: DOCUMENTOS, certificados: false });
+    // Os dez campos da referência continuam existindo e continuam editáveis —
+    // o que mudou foi o desenho, não o conteúdo.
+    for (const id of [
+      'categoria.fluido-trabalho',
+      'categoria.codigo-projeto',
+      'categoria.pmta',
+      'categoria.volume',
+      'categoria.pv-kpa',
+      'categoria.aplica-nr13',
+      'categoria.pv-mpa',
+      'categoria.nr13-aplicada',
+      'categoria.classe-do-fluido',
+      'categoria.grupo',
+      'categoria.categoria',
+    ]) {
+      expect(editaveis.some((e) => e.id === id)).toBe(true);
+    }
+  });
+
+  it('`P.V. > 8` e `NR-13 deve ser aplicada?` dizem a mesma decisão de formas diferentes', async () => {
+    const { editaveis } = await gerarRelatorioVetorial(TAG, { documentos: DOCUMENTOS, certificados: false });
+    // Enquadrado (o fixture tem `isEnquadrado: true`): um campo responde a
+    // comparação, o outro nomeia a consequência. Dois textos, uma fonte só.
+    expect(campo(editaveis, 'categoria.aplica-nr13')).toBe('SIM');
+    expect(campo(editaveis, 'categoria.nr13-aplicada')).toBe('Enquadrado na NR-13');
+  });
+
+  it('a folha 4 continua cabendo em UMA página', async () => {
+    // O redesenho trocou uma grade compacta por caixas com vão. Se ele
+    // empurrasse a matriz para a folha seguinte, a seção perderia a leitura
+    // que ela existe para dar — o resumo e a matriz lado a lado.
+    const so4 = await gerarRelatorioVetorial(TAG, {
+      documentos: ['CAPA.html', 'CLASSIFICACAO-RISCO.html'],
+      certificados: false,
+    });
+    expect(so4.paginas).toBe(2);
+  });
+
+  it('a matriz continua vetorial — nenhuma imagem entrou na folha', async () => {
+    const r = await gerarRelatorioVetorial(TAG, {
+      documentos: ['CLASSIFICACAO-RISCO.html'],
+      certificados: false,
+    });
+    const cru = new TextDecoder('latin1').decode(r.bytes);
+    expect((cru.match(/\/Subtype\s*\/Image/g) ?? []).length).toBe(0);
+    expect(r.paginas).toBe(1);
+  });
+});
