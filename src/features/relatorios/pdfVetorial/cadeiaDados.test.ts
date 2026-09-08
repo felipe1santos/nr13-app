@@ -22,7 +22,7 @@ vi.mock('../../../services/supabase', () => ({
   TABELA_STORAGE: 'app_storage',
 }));
 
-import { montarModeloRelatorio } from './modelo';
+import { montarModeloRelatorio, requeridaDoMemorial } from './modelo';
 import { calcularCategoriaNR13 } from '../../../calc/categoria';
 import type { CategoriaSalva, EmpresaEquipamento, FotoEquipamento, InfoEquipamento } from '../../equipamento/tipos';
 import type { Rastreabilidade } from '../rastreabilidadeService';
@@ -65,7 +65,7 @@ function gravar(chave: string, valor: unknown) {
 const INFO: InfoEquipamento = {
   tag: TAG,
   tipo: 'vaso',
-  subtipo: '',
+  subtipo: 'vertical',
   descricao: 'DESCRICAO-E2E',
   fabricante: 'FABRICANTE-E2E-2026',
   ano: '2024',
@@ -246,6 +246,10 @@ describe('identificação: a ficha inteira chega à folha 3', () => {
     expect(e['NÚMERO DE SÉRIE']).toBe('SERIE-E2E-987654');
     expect(e['ANO DE FABRICAÇÃO']).toBe('2024');
     expect(e['CÓDIGO DE PROJETO']).toBe('PROJ-E2E-ASME');
+    // Edição e adenda em campo PRÓPRIO: 'CÓDIGO DE PROJETO' alimenta também a
+    // placa reconstruída, e placa física traz o código sozinho.
+    expect(e['EDIÇÃO / ADENDA']).toBe('Ed. 2021 · Adenda ADENDA-E2E');
+    expect(e['SUBTIPO / ORIENTAÇÃO']).toBe('Vertical');
     expect(e['LOCAL DA INSTALAÇÃO']).toBe('SETOR-E2E');
     expect(e['TIPO DE EQUIPAMENTO']).toBe('Vaso de Pressão');
     expect(e['FLUIDO DE OPERAÇÃO']).toBe('Fluido inflamável, combustível (T ≥ 200 °C)');
@@ -259,7 +263,10 @@ describe('identificação: a ficha inteira chega à folha 3', () => {
     fichaCompleta();
     const m = montarModeloRelatorio(TAG);
     expect(m.cliente).toBe('CLIENTE-E2E LTDA');
-    expect(m.clienteEndereco).toBe('RUA-E2E, 100, CIDADE-E2E, SP');
+    // O endereço passou a levar bairro e CEP — é o endereço do CONTRATANTE
+    // num laudo, e metade dele não identifica lugar nenhum.
+    expect(m.clienteEndereco).toBe('RUA-E2E, 100, BAIRRO-E2E, CIDADE-E2E, SP');
+    expect(m.clienteCnpj).toBe('00.000.000/0001-00');
   });
 });
 
@@ -708,5 +715,139 @@ describe('logo da empresa: as duas formas em que ela é guardada', () => {
     const m = montarModeloRelatorio(TAG);
     expect(m.empresa.logo).toBeNull();
     expect(m.empresa.logoRef).toBeNull();
+  });
+});
+
+// ── 13 · O QUE ESTAVA CADASTRADO E O DOCUMENTO OMITIA (08/09/2026) ──────────
+/**
+ * Varredura feita a pedido do dono: "tem alguma informação na ficha ou em
+ * algum lugar do sistema que não está sendo puxada para o relatório?". Nove
+ * itens saíram dela; estes são os que se provam no MODELO.
+ */
+describe('rubrica do assinante: as duas formas, sem contaminação', () => {
+  const ENG = { nome: 'Eng. Marina Duarte', funcao: 'Engenheira Mecânica', crea: 'CREA-ES 0301234567' };
+  const TEC = { nome: 'Téc. Bruno Ferraz', funcao: 'Inspetor N2', crea: 'SNQC 4455' };
+
+  it('rubrica NO COFRE viaja como referência (o defeito de 08/09/2026)', () => {
+    const ref = { bucket: 'inspecao', path: 'org/assinaturas/eng.png' };
+    gravar('nr13_relatorio_meta_atual', { codigo: 'R1', assinantes: { engenheiro: { ...ENG, assinaturaRef: ref }, tecnico: null } });
+    const a = montarModeloRelatorio(TAG).assinantes[0];
+    expect(a.rubrica).toBeNull();
+    expect(a.rubricaRef).toEqual(ref);
+  });
+
+  it('rubrica em dataURL (legado) continua chegando direto', () => {
+    gravar('nr13_relatorio_meta_atual', { codigo: 'R1', assinantes: { engenheiro: { ...ENG, assinatura: 'data:image/png;base64,AAAA' }, tecnico: null } });
+    const a = montarModeloRelatorio(TAG).assinantes[0];
+    expect(a.rubrica).toBe('data:image/png;base64,AAAA');
+    expect(a.rubricaRef).toBeNull();
+  });
+
+  it('cada assinante fica com a SUA rubrica — nada de contaminação', () => {
+    const rEng = { bucket: 'inspecao', path: 'org/assinaturas/ENG.png' };
+    const rTec = { bucket: 'inspecao', path: 'org/assinaturas/TEC.png' };
+    gravar('nr13_relatorio_meta_atual', {
+      codigo: 'R1',
+      assinantes: { engenheiro: { ...ENG, assinaturaRef: rEng }, tecnico: { ...TEC, assinaturaRef: rTec } },
+    });
+    const [eng, tec] = montarModeloRelatorio(TAG).assinantes;
+    expect(eng.nome).toBe(ENG.nome);
+    expect(eng.rubricaRef).toEqual(rEng);
+    expect(tec.nome).toBe(TEC.nome);
+    expect(tec.rubricaRef).toEqual(rTec);
+  });
+
+  it('campos extras: par COMPLETO entra, pela metade não', () => {
+    gravar('nr13_relatorio_meta_atual', {
+      codigo: 'R1',
+      assinantes: {
+        engenheiro: {
+          ...ENG,
+          camposExtras: [
+            { rotulo: 'Certificação', valor: 'SNQC N2 12345' },
+            { rotulo: 'Validade', valor: '' },
+            { rotulo: '', valor: '2030' },
+          ],
+        },
+        tecnico: null,
+      },
+    });
+    expect(montarModeloRelatorio(TAG).assinantes[0].camposExtras).toEqual([
+      { rotulo: 'Certificação', valor: 'SNQC N2 12345' },
+    ]);
+  });
+});
+
+describe('espessura mínima requerida: sai do MEMORIAL, não de campo manual', () => {
+  const COMPS = [
+    { nome: 'Tampo Superior', tReqMm: 3.81 },
+    { nome: 'Casco Cilíndrico', tReqMm: 10.26 },
+    { nome: 'Tampo Inferior', tReqMm: 3.9 },
+  ];
+
+  it('cada região da grade recebe a requerida do SEU componente', () => {
+    expect(requeridaDoMemorial(COMPS)).toEqual({ ts: '3,81', casco: '10,26', ti: '3,9' });
+  });
+
+  it('com um tampo só, ele vale para as duas pontas', () => {
+    expect(requeridaDoMemorial([{ nome: 'Tampo', tReqMm: 4.2 }, { nome: 'Casco', tReqMm: 9 }])).toEqual({
+      ts: '4,2',
+      casco: '9',
+      ti: '4,2',
+    });
+  });
+
+  it('sem memorial não há requerida — e nada é chutado', () => {
+    expect(requeridaDoMemorial(undefined)).toEqual({ ts: null, casco: null, ti: null });
+    expect(requeridaDoMemorial([])).toEqual({ ts: null, casco: null, ti: null });
+  });
+
+  it('chega à tabela de ultrassom, ao lado da medida', () => {
+    gravar(`nr13_calc_${TAG}`, { pmta: '1', pth: '1.3', memorialHTML: '', componentes: COMPS });
+    gravar('nr13_injecao_atual', {
+      ultrassom: {
+        pontos: [{ id: 'c1', rotulo: 'Casco 1', regiao: 'casco' }],
+        colunas: { ts: 4, casco: 4, ti: 4 },
+        medidas: { c1: { '0': '13,10', '90': '13,25', '180': '13,40', '270': '13,55' } },
+      },
+    });
+    const p = montarModeloRelatorio(TAG).ultrassom.pontos[0];
+    expect(p.menor).toBe('13,1');
+    expect(p.requerida).toBe('10,26'); // é o que permite comparar medida × requerida
+  });
+});
+
+describe('vida remanescente: leitura do que a ficha já calculou', () => {
+  it('taxa, sobremetal, vida e prazo chegam ao documento', () => {
+    gravar(`nr13_vida_${TAG}`, {
+      taxaMmAno: 0.1234,
+      sobremetalMm: 2.84,
+      vidaAnos: 23.1,
+      prazoNR13Anos: 10,
+      proximaInspecaoAnos: 6,
+    });
+    expect(montarModeloRelatorio(TAG).ultrassom.vida).toEqual({
+      taxaMmAno: '0,1234',
+      sobremetalMm: '2,84',
+      vidaAnos: '23,1',
+      prazoNr13Anos: '10',
+      proximaInspecaoAnos: '6',
+    });
+  });
+
+  it('sem cálculo salvo, tudo ausente — o bloco não aparece com zeros', () => {
+    const v = montarModeloRelatorio(TAG).ultrassom.vida;
+    expect(Object.values(v).every((x) => x === null)).toBe(true);
+  });
+});
+
+describe('croqui na folha de ultrassom', () => {
+  it('é o MESMO SVG do prontuário — nenhuma fonte nova', () => {
+    gravar(`nr13_croqui2d_${TAG}`, { longitudinal: '<svg><rect/></svg>', transversal: '<svg/>' });
+    expect(montarModeloRelatorio(TAG).ultrassom.croqui).toBe('<svg><rect/></svg>');
+  });
+
+  it('sem croqui salvo, ausência — a folha não desenha nada genérico', () => {
+    expect(montarModeloRelatorio(TAG).ultrassom.croqui).toBeNull();
   });
 });

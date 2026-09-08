@@ -96,3 +96,32 @@ export function rotuloEnquadramento(v: unknown): string | null {
   if (v === false) return 'Não enquadrado';
   return null;
 }
+
+/**
+ * O SUBTIPO do equipamento, como o documento o nomeia.
+ *
+ * `InfoEquipamento.subtipo` guarda o valor do cadastro em minúsculas
+ * (`vertical`, `flamotubular`, `retangular`…). Ele era escolhido na criação do
+ * equipamento e **nunca chegava a documento nenhum** — e "Vaso de Pressão" sem
+ * dizer se é vertical ou horizontal descreve metade do equipamento; numa
+ * caldeira, flamotubular ou aquatubular muda o ensaio.
+ *
+ * Valor desconhecido volta capitalizado em vez de sumir: cadastro futuro que
+ * acrescente um subtipo continua aparecendo, ainda que sem tradução.
+ */
+const SUBTIPO: Record<string, string> = {
+  vertical: 'Vertical',
+  horizontal: 'Horizontal',
+  retangular: 'Retangular',
+  cilindrica: 'Cilíndrica',
+  flamotubular: 'Flamotubular',
+  aquatubular: 'Aquatubular',
+  mista: 'Mista',
+  eletrica: 'Elétrica',
+};
+
+export function rotuloSubtipo(v: string | null | undefined): string | null {
+  const t = (v ?? '').trim();
+  if (t === '') return null;
+  return SUBTIPO[t.toLowerCase()] ?? t.charAt(0).toLocaleUpperCase('pt-BR') + t.slice(1);
+}

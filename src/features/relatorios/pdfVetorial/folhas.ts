@@ -333,7 +333,14 @@ export function folhaCapa(doc: Documento, m: ModeloRelatorio): void {
       ],
       [
         { texto: 'SOLICITANTE / CONTRATANTE', rotulo: true },
-        { texto: textoOu(m.cliente), valor: true, id: 'capa.contratante', rotuloCampo: 'Solicitante / contratante' },
+        // O CNPJ do contratante estava cadastrado em `nr13_emp_` e não ia a
+        // lugar nenhum. Num laudo, é ele que identifica quem contratou.
+        {
+          texto: [textoOu(m.cliente), m.clienteCnpj ? `CNPJ: ${m.clienteCnpj}` : null].filter(Boolean).join('   •   '),
+          valor: true,
+          id: 'capa.contratante',
+          rotuloCampo: 'Solicitante / contratante',
+        },
       ],
       [
         { texto: 'ENDEREÇO', rotulo: true },
@@ -886,6 +893,10 @@ export function folhaDadosTecnicos(doc: Documento, m: ModeloRelatorio): void {
     [
       ['CONTRATANTE', m.prontuario.contratante],
       ['ENDEREÇO', m.prontuario.endereco],
+      // Telefone e e-mail do cliente entram AQUI, e não na capa: a referência
+      // não tem linha de contato na capa, e criar uma seria inventar seção
+      // para encaixar dado. Esta folha já é o bloco do contratante.
+      ['TELEFONE / E-MAIL', m.clienteContato],
     ],
     1,
     'prontuario',
@@ -1506,6 +1517,33 @@ export function folhaUltrassom(doc: Documento, m: ModeloRelatorio): void {
   });
 
   doc.faixa('LOCALIZAÇÃO DOS PONTOS DE MEDIÇÃO E MEDIDAS ENCONTRADAS (mm)');
+  // ── CROQUI DOS PONTOS ─────────────────────────────────────────────────────
+  // A folha `ULTRASSOM.html` sempre desenhou o croqui do vaso, e o Modelo Novo
+  // o perdeu na virada. Ele é o que diz ONDE a leitura foi tirada: uma tabela
+  // de espessuras sem o desenho obriga o leitor a adivinhar a que altura do
+  // costado está cada número. O PNG vem do MESMO pré-processo do prontuário,
+  // guardado no documento pelo gerador — sem ele, a folha segue sem o desenho.
+  {
+    const svg = m.ultrassom.croqui;
+    const cache = (doc as unknown as { __croquis?: Map<string, { png: string; proporcao: number }> }).__croquis;
+    const pronto = svg ? cache?.get(svg) : undefined;
+    if (pronto) {
+      // Sem faixa própria: ele está DENTRO de "LOCALIZAÇÃO DOS PONTOS DE
+      // MEDIÇÃO E MEDIDAS ENCONTRADAS", e duas barras cinzas coladas partiriam
+      // em dois o que a referência trata como uma seção só.
+      //
+      // Altura contida (44 mm): a TABELA vem logo abaixo e é ela que carrega os
+      // números. Um croqui que empurrasse a tabela para a folha seguinte
+      // separaria o desenho da medição que ele localiza — o oposto do que ele
+      // veio fazer.
+      const altura = 44;
+      doc.garantirEspaco(altura + 4);
+      doc.y += 1.5;
+      foto(doc.pdf, pronto.png, { x: CAIXA.x, y: doc.y, largura: CAIXA.largura, altura }, pronto.proporcao);
+      doc.y += altura + 2;
+    }
+  }
+
   if (m.ultrassom.pontos.length > 0) {
     // 13D · UMA TABELA POR REGIÃO. Regiões podem ter contagens de coluna
     // diferentes (o container define quantos ângulos cada uma tem), e uma
@@ -1576,6 +1614,41 @@ export function folhaUltrassom(doc: Documento, m: ModeloRelatorio): void {
       ],
     ],
   });
+
+  // ── VIDA REMANESCENTE ─────────────────────────────────────────────────────
+  // O card da ficha calcula taxa de corrosão, sobremetal, vida em anos e o
+  // prazo da NR-13 — e NENHUM documento lia isso. É a conclusão que a medição
+  // de espessura existe para produzir: sem ela, a folha entrega vinte e quatro
+  // números e nenhuma resposta. Só sai quando há cálculo salvo; o bloco não
+  // aparece vazio para não sugerir que a conta foi feita e deu nada.
+  const v = m.ultrassom.vida;
+  if (v.taxaMmAno || v.vidaAnos || v.proximaInspecaoAnos) {
+    doc.faixa('VIDA REMANESCENTE (TAXA DE CORROSÃO)');
+    doc.tabela({
+      compacta: true,
+      colunas: [0.25, 0.25, 0.25, 0.25],
+      linhas: [
+        [
+          { texto: 'TAXA DE CORROSÃO (mm/ano)', rotulo: true },
+          { texto: textoOu(v.taxaMmAno), centro: true, valor: true, id: 'vida.taxa', rotuloCampo: 'Taxa de corrosão (mm/ano)' },
+          { texto: 'SOBREMETAL (mm)', rotulo: true },
+          { texto: textoOu(v.sobremetalMm), centro: true, valor: true, id: 'vida.sobremetal', rotuloCampo: 'Sobremetal (mm)' },
+        ],
+        [
+          { texto: 'VIDA REMANESCENTE (anos)', rotulo: true },
+          { texto: textoOu(v.vidaAnos), centro: true, valor: true, id: 'vida.anos', rotuloCampo: 'Vida remanescente (anos)' },
+          { texto: 'PRÓXIMA INSPEÇÃO (anos)', rotulo: true },
+          {
+            texto: textoOu(v.proximaInspecaoAnos ?? v.prazoNr13Anos),
+            centro: true,
+            valor: true,
+            id: 'vida.proxima',
+            rotuloCampo: 'Próxima inspeção pela vida remanescente (anos)',
+          },
+        ],
+      ],
+    });
+  }
 
   doc.blocoAteOFim(
     'ultrassom.observacoes',
@@ -1842,8 +1915,25 @@ export function folhaParecer(doc: Documento, m: ModeloRelatorio): void {
   assinaturas(doc, m);
 }
 
+/**
+ * Quantos campos extras cabem no quadro de assinatura.
+ *
+ * TRÊS, e o limite é do papel: o bloco é o último elemento da folha e a sua
+ * altura entra no `garantirEspaco`. Sem teto, um cadastro com seis
+ * certificações empurraria a assinatura para uma folha nova — e uma folha só
+ * com a assinatura, separada do parecer que ela assina, é pior do que uma
+ * certificação a menos impressa.
+ */
+const EXTRAS_POR_ASSINANTE = 3;
+
 function assinaturas(doc: Documento, m: ModeloRelatorio): void {
-  const alturaBloco = 16 + 3 + 3 * 4.2;
+  // A altura acompanha o assinante com MAIS campos extras: fixá-la em três
+  // linhas fazia o texto passar do fim do papel quando havia extras.
+  const extras = Math.min(
+    EXTRAS_POR_ASSINANTE,
+    m.assinantes.reduce((n, a) => Math.max(n, a.camposExtras.length), 0),
+  );
+  const alturaBloco = 16 + 3 + (3 + extras) * 4.2;
   doc.garantirEspaco(alturaBloco + 6);
   // `.assinaturas { margin-top: 6mm }` na referência — eram 8, medidos pelo gate.
   doc.y += 6;
@@ -1869,6 +1959,18 @@ function assinaturas(doc: Documento, m: ModeloRelatorio): void {
     doc.texto(a.funcao, { tamanho: FONTE.mini, alinhamento: 'center', x, largura: larguraQuadro });
     if (a.registro) {
       doc.texto(`CREA / Registro: ${a.registro}`, {
+        tamanho: FONTE.mini,
+        alinhamento: 'center',
+        x,
+        largura: larguraQuadro,
+      });
+    }
+    // Os CAMPOS EXTRAS do funcionário — registro em conselho, certificação
+    // SNQC, validade. O motor do prontuário sempre os imprimiu; o do relatório
+    // os ignorava, e quem cadastrou uma certificação de END não a via no laudo
+    // que a exige.
+    for (const c of a.camposExtras.slice(0, EXTRAS_POR_ASSINANTE)) {
+      doc.texto([c.rotulo, c.valor].filter(Boolean).join(': '), {
         tamanho: FONTE.mini,
         alinhamento: 'center',
         x,

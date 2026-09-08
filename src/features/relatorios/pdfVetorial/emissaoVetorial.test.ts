@@ -16,6 +16,22 @@ if (typeof globalThis.localStorage === 'undefined') {
   };
 }
 
+// O COFRE, no teste: qualquer referência devolve um PNG. É o que permite
+// provar que a rubrica com `assinaturaRef` chega ao papel — o defeito de
+// 08/09/2026 era justamente o gerador nunca chamar este caminho.
+vi.mock('../../../services/fotos', async (original) => {
+  const real = await original<typeof import('../../../services/fotos')>();
+  return {
+    ...real,
+    baixarFoto: async () => new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' }),
+    // PNG DIFERENTE do da capa: o jsPDF deduplica imagens idênticas, e com o
+    // mesmo byte a contagem de XObjects não mudaria — o teste não conseguiria
+    // distinguir 'a rubrica entrou' de 'a rubrica sumiu'.
+    blobParaDataUrl: async () =>
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAIAAAB7QOjdAAAAD0lEQVR4nGNgYGBoaGgAAAMHAYHq5YhcAAAAAElFTkSuQmCC',
+  };
+});
+
 vi.mock('../../../services/supabase', () => ({
   supabase: { from: () => ({ upsert: async () => ({ error: null }) }), storage: {} },
   escopoStorageAtual: async () => null,
@@ -60,12 +76,14 @@ function gravar(chave: string, valor: unknown) {
 const INFO: InfoEquipamento = {
   tag: TAG,
   tipo: 'vaso',
-  subtipo: '',
+  subtipo: 'vertical',
   descricao: 'DESCRICAO-E2E',
   fabricante: 'FABRICANTE-E2E-2026',
   ano: '2024',
   numeroSerie: 'SERIE-E2E-987654',
   codigoProjeto: 'PROJ-E2E-ASME',
+  edicao: '2019',
+  adenda: 'A19-2021',
   localizacao: 'SETOR-E2E',
   tipoConstrucao: 'CONSTRUCAO-E2E',
   descricaoResumida: 'RESUMIDA-E2E',
@@ -91,6 +109,8 @@ const CLIENTE: EmpresaEquipamento = {
   bairro: 'BAIRRO-E2E',
   cidade: 'CIDADE-E2E',
   estado: 'SP',
+  telefone: '(27) 3350-7700',
+  email: 'contato@zz-e2e.test',
 };
 
 const DOCUMENTOS = [
@@ -519,5 +539,79 @@ describe('folha 4 · categorização de risco (redesenho de 07/09/2026)', () => 
     const cru = new TextDecoder('latin1').decode(r.bytes);
     expect((cru.match(/\/Subtype\s*\/Image/g) ?? []).length).toBe(0);
     expect(r.paginas).toBe(1);
+  });
+});
+
+describe('o que estava cadastrado e o documento omitia (08/09/2026)', () => {
+  /** O relatório com um engenheiro cuja rubrica mora no COFRE. */
+  async function comRubricaNoCofre() {
+    const meta = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual')!);
+    gravar('nr13_relatorio_meta_atual', {
+      ...meta,
+      assinantes: {
+        engenheiro: {
+          nome: 'ENGENHEIRO-E2E',
+          funcao: 'Engenheiro Mecânico',
+          crea: 'CREA-ES 0301234567',
+          assinaturaRef: { bucket: 'inspecao', path: 'org/assinaturas/eng.png' },
+          camposExtras: [
+            { rotulo: 'Certificação', valor: 'SNQC N2 12345' },
+            { rotulo: 'Incompleto', valor: '' },
+          ],
+        },
+        tecnico: null,
+      },
+    });
+    return gerarRelatorioVetorial(TAG, { documentos: DOCUMENTOS, certificados: false });
+  }
+
+  it('a RUBRICA do engenheiro é desenhada quando ela mora no cofre', async () => {
+    // O defeito: `snapshotAssinantes` tira a dataURL quando há `assinaturaRef`,
+    // e o gerador lia só a dataURL — documento assinado saía sem assinatura.
+    const semCofre = await gerarRelatorioVetorial(TAG, { documentos: DOCUMENTOS, certificados: false });
+    const comCofre = await comRubricaNoCofre();
+    expect(comCofre.modelo.assinantes[0].rubrica).toMatch(/^data:image\/png/);
+    // A rubrica é raster (é uma imagem); o resto da folha continua vetor —
+    // por isso o arquivo ganha UMA imagem, não uma página inteira.
+    const antes = (new TextDecoder('latin1').decode(semCofre.bytes).match(/\/Subtype\s*\/Image/g) ?? []).length;
+    const depois = (new TextDecoder('latin1').decode(comCofre.bytes).match(/\/Subtype\s*\/Image/g) ?? []).length;
+    expect(depois).toBeGreaterThan(antes);
+    expect(depois).toBeLessThan(comCofre.paginas);
+  });
+
+  it('os campos extras ÚTEIS entram no bloco do responsável; os pela metade, não', async () => {
+    const r = await comRubricaNoCofre();
+    expect(r.modelo.assinantes[0].camposExtras).toEqual([{ rotulo: 'Certificação', valor: 'SNQC N2 12345' }]);
+  });
+
+  it('ESP. MÍN. REQUERIDA sai do memorial e chega à tabela', async () => {
+    const { modelo } = await gerarRelatorioVetorial(TAG, { documentos: DOCUMENTOS, certificados: false });
+    // O fixture tem UM componente (`Casco Cilíndrico`, tReqMm 6.2) e os dois
+    // pontos são do casco.
+    expect(modelo.ultrassom.pontos.every((p) => p.requerida === '6,2')).toBe(true);
+  });
+
+  it('CNPJ do contratante, edição/adenda e subtipo estão no papel', async () => {
+    const { editaveis } = await gerarRelatorioVetorial(TAG, { documentos: DOCUMENTOS, certificados: false });
+    expect(campo(editaveis, 'capa.contratante')).toContain('CNPJ: 00.000.000/0001-00');
+    expect(campo(editaveis, 'equipamento.edicao-adenda')).toBe('Ed. 2019 · Adenda A19-2021');
+    expect(campo(editaveis, 'equipamento.subtipo-orientacao')).toBe('Vertical');
+  });
+
+  it('telefone e e-mail do cliente saem na folha 5, não numa seção nova na capa', async () => {
+    const { editaveis } = await gerarRelatorioVetorial(TAG, { documentos: DOCUMENTOS, certificados: false });
+    expect(editaveis.some((e) => e.id === 'capa.contato-cliente')).toBe(false);
+    expect(campo(editaveis, 'prontuario.telefone-e-mail')).toBe('(27) 3350-7700 · contato@zz-e2e.test');
+  });
+
+  it('VIDA REMANESCENTE só aparece quando a ficha calculou', async () => {
+    const sem = await gerarRelatorioVetorial(TAG, { documentos: DOCUMENTOS, certificados: false });
+    expect(campo(sem.editaveis, 'vida.taxa')).toBeNull();
+
+    gravar(`nr13_vida_${TAG}`, { taxaMmAno: 0.12, sobremetalMm: 2.8, vidaAnos: 23.1, proximaInspecaoAnos: 6 });
+    const com = await gerarRelatorioVetorial(TAG, { documentos: DOCUMENTOS, certificados: false });
+    expect(campo(com.editaveis, 'vida.taxa')).toBe('0,12');
+    expect(campo(com.editaveis, 'vida.anos')).toBe('23,1');
+    expect(campo(com.editaveis, 'vida.proxima')).toBe('6');
   });
 });

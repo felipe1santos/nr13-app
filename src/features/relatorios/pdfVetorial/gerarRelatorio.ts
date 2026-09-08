@@ -28,6 +28,7 @@ import {
 import { medirFotos, montarModeloRelatorio, type FotoModelo, type ModeloRelatorio } from './modelo';
 import { baixarFoto, blobParaDataUrl } from '../../../services/fotos';
 import { resolverPlacaReal } from '../placaIdentificacao';
+import { svgParaPng } from './gerarProntuario';
 
 /**
  * Fase 11 · o RELATÓRIO COMPLETO em vetor.
@@ -354,8 +355,35 @@ export async function gerarRelatorioVetorial(
     modelo.empresa = { ...modelo.empresa, logo: logo?.dataUrl ?? null };
   }
 
+  // E as RUBRICAS, pela mesma razão e pelo mesmo caminho — `snapshotAssinantes`
+  // congela `assinaturaRef` OU a dataURL, nunca as duas. Sem este passo o
+  // documento sai SEM a assinatura do engenheiro, que é o pior lugar possível
+  // para uma imagem faltar.
+  modelo.assinantes = await Promise.all(
+    modelo.assinantes.map(async (a) => {
+      if (a.rubrica || !a.rubricaRef) return a;
+      const [img] = await resolverFotos([{ dataUrl: '', descricao: '', ref: a.rubricaRef }]);
+      return { ...a, rubrica: img?.dataUrl ?? null };
+    }),
+  );
+
   const logoDoRelatorio = await resolverImagem(ovr['cabecalho.logo']?.modo === 'manual' ? ovr['cabecalho.logo'].valor : null);
   const logoResolvida = logoDoRelatorio ? logoDoRelatorio.dataUrl : ovr['cabecalho.logo']?.modo === 'branco' ? null : modelo.empresa.logo;
+
+  // O CROQUI do vaso, para a folha de ultrassom. O prontuário já fazia este
+  // pré-processo (SVG → PNG 3×, com a proporção real medida) — a função é a
+  // mesma, para não existirem dois rasterizadores de croqui com resultados
+  // diferentes. Falha aqui não derruba nada: a folha simplesmente sai sem o
+  // desenho, como saía antes.
+  const croquis = new Map<string, { png: string; proporcao: number }>();
+  if (modelo.ultrassom.croqui) {
+    try {
+      const png = await svgParaPng(modelo.ultrassom.croqui, 1400);
+      if (png) croquis.set(modelo.ultrassom.croqui, png);
+    } catch (e) {
+      console.error('Falha ao converter o croqui para o relatório:', e);
+    }
+  }
 
   const novoPdf = () => new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
   const cab = {
@@ -369,6 +397,7 @@ export async function gerarRelatorioVetorial(
   const contagem = novoPdf();
   await registrarCarlito(contagem);
   const rascunho = new Documento(contagem, cab, 0, opcoes.modo ?? 'final', opcoes.overrides ?? {});
+  (rascunho as unknown as { __croquis?: Map<string, { png: string; proporcao: number }> }).__croquis = croquis;
   const tem = secoesPresentes(opcoes.documentos);
   const paginasDasSecoes = new Map<string, number>();
   const respiro: RespiroMedido = {};
@@ -396,6 +425,7 @@ export async function gerarRelatorioVetorial(
     const p = novoPdf();
     await registrarCarlito(p);
     const d = new Documento(p, cab, totalDoRodape, opcoes.modo ?? 'final', opcoes.overrides ?? {}, respiro);
+    (d as unknown as { __croquis?: Map<string, { png: string; proporcao: number }> }).__croquis = croquis;
     emitir(d, modelo, tem, paginasDasSecoes);
     return d;
   };

@@ -7,7 +7,7 @@ import { ITENS_VISUAL_EXTERNO } from '../../inspecoes/formularios/FormularioVisu
 import { ITENS_VISUAL_INTERNO } from '../../inspecoes/formularios/FormularioVisualInterno';
 import type { RefFoto } from '../../../services/fotos';
 import type { RelatorioMeta } from '../tipos';
-import { rotuloClasseFluido, rotuloEnquadramento, rotuloResposta, rotuloResultado, rotuloTipoEquipamento } from './rotulos';
+import { rotuloClasseFluido, rotuloEnquadramento, rotuloResposta, rotuloResultado, rotuloSubtipo, rotuloTipoEquipamento } from './rotulos';
 
 /**
  * Fase 11 · o MODELO do relatório completo — a ponte de dados da 10C §11.3,
@@ -95,6 +95,18 @@ export interface ModeloRelatorio {
   empresa: { razao: string; endereco: string; contato: string; logo: string | null; logoRef: RefFoto | null };
   numeroRelatorio: string;
   cliente: string | null;
+  /** CNPJ do CONTRATANTE. Cadastrado desde sempre, nunca impresso. */
+  clienteCnpj: string | null;
+  /**
+   * Telefone e e-mail do cliente, numa linha — vão para a folha 5, ao lado de
+   * contratante e endereço.
+   *
+   * A PESSOA de contato (`emps.contato`) e a ATIVIDADE principal ficam de
+   * fora de propósito: a referência não tem lugar documental para elas, e
+   * abrir uma seção só para encaixá-las seria inventar estrutura. Elas
+   * continuam no cadastro, onde servem.
+   */
+  clienteContato: string | null;
   clienteEndereco: string | null;
   tipoInspecao: string | null;
   emissao: string | null;
@@ -260,6 +272,36 @@ export interface ModeloRelatorio {
       requerida: string | null;
     }[];
     instrumento: { padrao: string | null; serie: string | null; certificado: string | null; validade: string | null };
+    /**
+     * O CROQUI do vaso — a vista longitudinal do editor 2D.
+     *
+     * A folha ULTRASSOM.html sempre o desenhou (12 referências no template) e o
+     * Modelo Novo o perdeu na virada. Ele é o que diz ONDE estão os pontos: uma
+     * tabela de espessuras sem o desenho obriga o leitor a adivinhar a que
+     * altura do costado cada leitura foi tirada.
+     *
+     * É o MESMO SVG do prontuário (`nr13_croqui2d_<TAG>.longitudinal`), gerado
+     * pelo editor de croqui. Continua vetorial na origem; vira PNG só na hora
+     * de pintar, como no prontuário.
+     */
+    croqui: string | null;
+    /**
+     * A VIDA REMANESCENTE do equipamento, calculada no card da ficha.
+     *
+     * `nr13_vida_<TAG>` guarda taxa de corrosão, sobremetal, vida em anos e o
+     * prazo da NR-13 — e NENHUM documento do sistema a lia. É justamente a
+     * conclusão que a medição de espessura existe para produzir: sem ela, a
+     * folha entrega vinte e quatro números e nenhuma resposta.
+     *
+     * Só LEITURA: quem calcula é `calc/vidaRemanescente.ts`, pelo card da ficha.
+     */
+    vida: {
+      taxaMmAno: string | null;
+      sobremetalMm: string | null;
+      vidaAnos: string | null;
+      prazoNr13Anos: string | null;
+      proximaInspecaoAnos: string | null;
+    };
   };
 
   th: {
@@ -292,7 +334,31 @@ export interface ModeloRelatorio {
 
   laudo: { apto: boolean | null };
   proximas: { interna: string | null; externa: string | null; th: string | null };
-  assinantes: { nome: string; funcao: string; registro: string; rubrica: string | null }[];
+  /**
+   * Quem assina — e a RUBRICA nas duas formas em que ela existe.
+   *
+   * `snapshotAssinantes()` faz o mesmo que `snapshotEmpresa()`: quando o
+   * funcionário tem `assinaturaRef` (rubrica no cofre), a dataURL **sai** do
+   * snapshot congelado. O modelo lia só `assinatura`, então o documento saía
+   * **sem a assinatura do engenheiro** — medido no relatório emitido em
+   * 08/09/2026, cujo snapshot traz `assinaturaRef` e nenhum `assinatura`.
+   *
+   * É a terceira imagem com o mesmo defeito (capa → logo → rubrica), e num
+   * documento assinado por engenheiro é a pior das três. Quem baixa é o
+   * gerador, pelo cofre, como nas outras duas.
+   *
+   * `camposExtras` são as linhas que o funcionário acrescenta ao próprio bloco
+   * de assinatura (registro em conselho, certificação SNQC, validade). O motor
+   * do prontuário já as imprime; o do relatório as ignorava.
+   */
+  assinantes: {
+    nome: string;
+    funcao: string;
+    registro: string;
+    rubrica: string | null;
+    rubricaRef: RefFoto | null;
+    camposExtras: { rotulo: string; valor: string }[];
+  }[];
 }
 
 function txt(v: unknown): string | null {
@@ -489,6 +555,80 @@ function instrumentoDoEnsaio(
   };
 }
 
+/**
+ * A espessura mínima requerida de cada REGIÃO da grade, vinda do memorial.
+ *
+ * `nr13_calc_.componentes[].tReqMm` é o número que o motor calculou e que a
+ * ficha mostra em "ESP. MÍN. CASCO" / "ESP. MÍN. TAMPO". Aqui ele só é
+ * distribuído pelas três regiões da grade de ultrassom — nada é recalculado.
+ *
+ * O casamento é pelo NOME do componente, que é o que o memorial grava
+ * (`Casco Cilíndrico`, `Tampo Superior`, `Tampo Inferior`/`Tampo Esquerdo`…).
+ * Com um tampo só, ele vale para as duas pontas; sem componente de tampo
+ * nenhum, a região fica sem requerida — e vazio continua sendo vazio.
+ */
+export function requeridaDoMemorial(
+  componentes: Record<string, unknown>[] | undefined,
+): Record<Regiao, string | null> {
+  const lista = componentes ?? [];
+  const dos = (re: RegExp) => lista.filter((c) => re.test(String(c?.nome ?? '')));
+  const valor = (c: Record<string, unknown> | undefined) => (c ? numeroBr(c.tReqMm) : null);
+  const tampos = dos(/tampo|espelho|calota/i);
+  return {
+    ts: valor(tampos.find((c) => /superior|direit/i.test(String(c.nome))) ?? tampos[0]),
+    casco: valor(dos(/casco|costado|corpo|cilindr/i)[0]),
+    ti: valor(tampos.find((c) => /inferior|esquerd/i.test(String(c.nome))) ?? tampos[tampos.length - 1]),
+  };
+}
+
+/**
+ * Uma entrada da tabela de identificação que só existe quando tem valor.
+ *
+ * `equipamento` é percorrido inteiro pela folha 3 E por `oQueFalta`: uma chave
+ * presente e vazia vira travessão no papel e pendência na lista. Para campos
+ * que nem todo equipamento tem — subtipo de vaso, adenda de um código antigo —
+ * isso seria acusar o usuário de não preencher o que não existe.
+ */
+function opcional(rotulo: string, valor: string | null): Record<string, string> {
+  return valor ? { [rotulo]: valor } : {};
+}
+
+/**
+ * O subtipo do equipamento, de onde ele realmente está.
+ *
+ * Caldeira e autoclave gravam `InfoEquipamento.subtipo` na criação
+ * (`flamotubular`, `cilindrica`…). **Vaso não**: `ModalCriarEquipamento`
+ * devolve `''` para ele, e a orientação do vaso é escolhida no MEMORIAL
+ * (`VasoSalvo.orientacao`: vertical / horizontal). Ler só a ficha deixaria o
+ * campo vazio justamente no tipo mais comum.
+ */
+function subtipoDoEquipamento(subtipo: unknown, orientacao: unknown): string | null {
+  return rotuloSubtipo(txt(subtipo)) ?? rotuloSubtipo(txt(orientacao));
+}
+
+/**
+ * A rubrica de um assinante, nas duas formas, mais os campos extras dele.
+ *
+ * `snapshotAssinantes()` congela `assinaturaRef` OU `assinatura`, nunca as
+ * duas: com referência, a dataURL sai do snapshot (§2-bis). Ler só a dataURL
+ * deixava o documento sem assinatura nenhuma.
+ */
+function rubricaDe(
+  a: { assinatura?: string; assinaturaRef?: RefFoto; camposExtras?: { rotulo?: string; valor?: string }[] } | null | undefined,
+): { rubrica: string | null; rubricaRef: RefFoto | null; camposExtras: { rotulo: string; valor: string }[] } {
+  return {
+    rubrica: txt(a?.assinatura),
+    rubricaRef: a?.assinaturaRef?.path ? a.assinaturaRef : null,
+    // Os DOIS lados são obrigatórios, e é a mesma regra do motor do prontuário
+    // (`pront-assinatura.js`: `if (!ex.rotulo || !ex.valor) continue`). Um par
+    // pela metade vira "Certificação:" pendurado no laudo — cadastro
+    // incompleto não é informação.
+    camposExtras: (a?.camposExtras ?? [])
+      .map((c) => ({ rotulo: textoOu(txt(c?.rotulo), ''), valor: textoOu(txt(c?.valor), '') }))
+      .filter((c) => c.rotulo !== '' && c.valor !== ''),
+  };
+}
+
 /** Itens do checklist com resposta — os sem resposta ficam de fora da folha. */
 function secoesChecklist(
   respostas: Record<string, string>,
@@ -548,6 +688,8 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
   const emps = ler<Record<string, unknown>>(`nr13_emp_${tag}`) ?? {};
   const capa = fotoDeCapa(tag);
   const medEsp = ler<Record<string, unknown>>(`nr13_med_esp_${tag}`) ?? {};
+  const vida = ler<Record<string, unknown>>(`nr13_vida_${tag}`) ?? {};
+  const croqui = ler<{ longitudinal?: string }>(`nr13_croqui2d_${tag}`) ?? {};
 
   // Os dados de campo vivem em DUAS chaves, e a duplicação é obrigatória (§2):
   // checklist grava em `inspecao`, os ensaios em `injecao`.
@@ -624,6 +766,12 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
   const ehTampo = (c: { id?: string; nome?: string }) =>
     /^tampo/i.test(String(c.id ?? '')) || /tampo|espelho/i.test(String(c.nome ?? ''));
   const casco = compsVaso.find(ehCasco) ?? null;
+  const edicaoAdenda = txt(
+    [info.edicao ? `Ed. ${txt(info.edicao)}` : null, info.adenda ? `Adenda ${txt(info.adenda)}` : null]
+      .filter(Boolean)
+      .join(" · "),
+  );
+  const subtipoOuOrientacao = subtipoDoEquipamento(info.subtipo, (vaso as { orientacao?: unknown }).orientacao);
   const tampos = compsVaso.filter(ehTampo);
   const dadoDe = (c: { dados?: Record<string, unknown> } | null, campo: string) =>
     c ? txt((c.dados ?? {})[campo]) : null;
@@ -643,7 +791,9 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
     },
     numeroRelatorio: textoOu(txt(meta?.codigo), ''),
     cliente: txt(emps.razaoSocial ?? emps.nomeFantasia),
-    clienteEndereco: txt([emps.endereco, emps.cidade, emps.estado].filter(Boolean).join(', ')),
+    clienteCnpj: txt(emps.cnpj),
+    clienteContato: [emps.telefone, emps.email].map(txt).filter(Boolean).join(" · ") || null,
+    clienteEndereco: txt([emps.endereco, emps.bairro, emps.cidade ?? emps.localidade, emps.estado, emps.cep ? `CEP ${emps.cep}` : null].filter(Boolean).join(", ")),
     tipoInspecao: txt(meta?.tipoInspecao),
     emissao: txt(meta?.emissao),
     validade: txt(meta?.validade),
@@ -655,10 +805,12 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
     equipamento: {
       'IDENTIFICAÇÃO / T.A.G.': tag,
       'TIPO DE EQUIPAMENTO': rotuloTipoEquipamento(txt(info.tipo) ?? txt(info.descricao)),
+      ...opcional('SUBTIPO / ORIENTAÇÃO', subtipoOuOrientacao),
       FABRICANTE: txt(info.fabricante),
       'NÚMERO DE SÉRIE': txt(info.numeroSerie),
       'ANO DE FABRICAÇÃO': txt(info.ano),
       'CÓDIGO DE PROJETO': txt(info.codigoProjeto),
+      ...opcional('EDIÇÃO / ADENDA', edicaoAdenda),
       // Os três campos abaixo saíam SEMPRE com travessão: o modelo lia
       // `cat.fluido`, `cat.classeFluido` e `cat.volume`, e `CategoriaSalva`
       // não tem nenhum dos três — os nomes reais são `fluidoInput`, `classe`
@@ -811,7 +963,15 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
       cabecote: txt(us.cabecote),
       velSonica: txt(us.velSonica),
       resultado: rotuloResultado(us.resultado as string),
-      pontos: pontosUltrassom(tag, us, medEsp),
+      pontos: pontosUltrassom(tag, us, medEsp, requeridaDoMemorial(calc.componentes)),
+      croqui: txt(croqui.longitudinal),
+      vida: {
+        taxaMmAno: numeroBr(vida.taxaMmAno, 4),
+        sobremetalMm: numeroBr(vida.sobremetalMm),
+        vidaAnos: numeroBr(vida.vidaAnos, 1),
+        prazoNr13Anos: numeroBr(vida.prazoNR13Anos, 1),
+        proximaInspecaoAnos: numeroBr(vida.proximaInspecaoAnos, 1),
+      },
       instrumento: instrumentoDoEnsaio(
         'ultrassom',
         tag,
@@ -867,13 +1027,13 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
         nome: textoOu(meta?.assinantes?.engenheiro?.nome ?? meta?.phNome, ''),
         funcao: textoOu(meta?.assinantes?.engenheiro?.funcao, 'Engenheiro'),
         registro: textoOu(meta?.assinantes?.engenheiro?.crea ?? meta?.phCrea, ''),
-        rubrica: txt(meta?.assinantes?.engenheiro?.assinatura),
+        ...rubricaDe(meta?.assinantes?.engenheiro),
       },
       {
         nome: textoOu(meta?.assinantes?.tecnico?.nome ?? meta?.tecnicoNome, ''),
         funcao: textoOu(meta?.assinantes?.tecnico?.funcao, 'Inspetor'),
         registro: textoOu(meta?.assinantes?.tecnico?.crea, ''),
-        rubrica: txt(meta?.assinantes?.tecnico?.assinatura),
+        ...rubricaDe(meta?.assinantes?.tecnico),
       },
     ].filter((a) => a.nome !== ''),
   };
@@ -908,19 +1068,34 @@ const TITULO_REGIAO: Record<Regiao, string> = {
  * O que se acrescenta é a LEITURA, e os ângulos vêm com ela — a tabela deixa de
  * rotular as colunas como P1, P2… e passa a dizer 0°, 90°, 180°.
  *
- * `requerida` continua saindo do container (é a espessura mínima calculada, não
- * uma medição), e o container segue sendo a fonte quando não há grade — é o que
- * mantém relatório antigo abrindo igual.
+ * ## A espessura mínima REQUERIDA (08/09/2026)
+ *
+ * Ela é a coluna que dá sentido à tabela: sem ela o leitor vê vinte e quatro
+ * números e não sabe se aprovam ou reprovam. Saía vazia em **todos** os
+ * relatórios, porque era lida de `medEsp.pontos[].espMinRequerida` — campo que
+ * nenhuma tela do sistema grava (o `PontoME` do formulário tem só `id`,
+ * `rotulo` e `regiao`).
+ *
+ * O número existe, e é o do MEMORIAL: `nr13_calc_.componentes[].tReqMm`, o
+ * mesmo que a ficha mostra em "ESP. MÍN. CASCO". Cada região da grade casa com
+ * o componente que o memorial calculou — tampo superior com o tampo, casco com
+ * o casco —, e é dele que a requerida passa a vir. Nada é recalculado aqui: o
+ * valor sai pronto do motor.
+ *
+ * O container continua sendo consultado primeiro: se alguém tiver digitado uma
+ * requerida à mão, ela vence.
  */
 export function pontosUltrassom(
   tag: string,
   us: Record<string, unknown>,
   medEsp: Record<string, unknown>,
+  requeridaPorRegiao: Record<Regiao, string | null> = { ts: null, casco: null, ti: null },
 ): ModeloRelatorio['ultrassom']['pontos'] {
-  const requeridaDe = (id: string): string | null => {
+  const requeridaDe = (id: string, regiao: Regiao): string | null => {
     const lista = (medEsp.pontos ?? us.pontos ?? []) as Record<string, unknown>[];
     const achado = lista.find((p) => String(p.id ?? p.nome ?? '') === id);
-    return achado ? txt(achado.espMinRequerida ?? achado.requerida) : null;
+    // O digitado à mão vence; sem ele, a do memorial daquela região.
+    return (achado ? txt(achado.espMinRequerida ?? achado.requerida) : null) ?? requeridaPorRegiao[regiao];
   };
 
   const { pontos, grade } = carregarMedicoes(tag);
@@ -937,7 +1112,7 @@ export function pontosUltrassom(
         angulos: g.angulos,
         medidas,
         menor: numeros.length ? String(Math.min(...numeros)).replace('.', ',') : null,
-        requerida: requeridaDe(ponto.id),
+        requerida: requeridaDe(ponto.id, regiao),
       });
     });
   }
