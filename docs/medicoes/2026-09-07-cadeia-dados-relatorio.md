@@ -343,3 +343,96 @@ tentativas de salvar o memorial neste E2E, e para um usuário de campo com o
 celular na mão o sintoma é "o sistema travou". Trocar por `emitirAviso` (que o
 mesmo arquivo já usa no sucesso) resolve. **Não alterado nesta rodada** — está
 fora do que foi pedido.
+
+---
+
+## 8. Fechamento das pendências (07/09/2026, mesma data)
+
+As três pendências que a §7 registrou foram resolvidas. O pipeline
+ficha → inspeção → relatório **não foi reaberto**.
+
+### 8.1 · Memorial: o `alert()` saiu
+
+`alert()` e `confirm()` **param o renderer** — nada pinta, nada responde, e a
+aba parece travada. As três telas (vaso, caldeira, autoclave) tinham o mesmo
+trio no `salvar()`: dois `alert` de validação e um `confirm` de "salvar mesmo?".
+
+Os avisos vão agora por `emitirAviso` → `ModalAviso`, o mesmo caminho que essas
+telas já usavam para o sucesso e para o erro de gravação (`avisoMemorial.ts`).
+O `confirm` saiu inteiro: pedia confirmação de uma ação que o usuário acabara de
+pedir clicando em **Salvar**, e cujo resultado já é anunciado.
+
+**A validação continua impedindo o salvamento** — só o veículo mudou.
+
+Medido em produção: cálculo gerado, temperatura do tampo apagada, clique em
+Salvar → modal do app **"Preencha os seguintes campos antes de salvar · Tampo
+Esquerdo: Temperatura"**, campo marcado em amarelo na tela, e a aba respondeu em
+**1.983 ms** (o tempo do próprio `sleep` do teste). Antes: minutos de CDP morto.
+
+### 8.2 · Teste hidrostático: sete campos
+
+`pressaoTrabalho`, `duracao`, `tempFluido`, `normas`, `validadeLaudo`,
+`procedimento` e `parecer` já eram lidos pelo modelo e desenhados na folha 7.5 —
+faltava quem os coletasse. Entraram no `DadosTH` com **os nomes que o modelo já
+lê**, dentro do mesmo `dados.th` do container: nenhuma chave nova.
+
+`pressaoTrabalho` **não virou fonte nova**: nasce pré-preenchida da **PMO
+adotada** na ficha, pelo mesmo caminho que a pressão de projeto já usava a PMTA.
+Medido: PMO 0,6 MPa → campo abriu com **6.12 kgf/cm²**.
+
+`normas` nasce com `ASME VIII Div.1 / NR-13` — o mesmo texto que a folha HTML
+antiga trazia impresso, e editável.
+
+### 8.3 · Ultrassom: observações
+
+Um campo, mesma história: a folha 7.4 tem o bloco, o modelo lê
+`ultrassom.observacoes`, o formulário não coletava.
+
+### 8.4 · Resíduo achado ao conferir o PDF
+
+A validade do laudo saiu **`2031-09-07`** na mesma tabela em que a data do teste
+saía `07/09/2026` — o campo é `<input type="date">` e era o único dos campos de
+data do TH sem `dataBr`. Corrigido e reemitido.
+
+### 8.5 · E2E cirúrgico (só os caminhos alterados)
+
+Container `INSPECAO-A-E2E` do `ZZ-REL-E2E`, já existente. Os campos novos
+apareceram num ensaio **gravado antes desta rodada** — a compatibilidade com
+dado antigo é o primeiro resultado.
+
+| | |
+|---|---|
+| preencher TH (duração, temp., validade, procedimento, parecer) + observação do US | salvo, sem diálogo nativo |
+| **F5 nos dois ensaios** | `6.12 · 30 min · 22 °C · ASME VIII Div.1 / NR-13 · 2031-09-07 · PROCEDIMENTO-TH-E2E · PARECER-TH-E2E` e `OBSERVACOES-US-E2E` |
+| relatório novo → finalizar | 19 páginas |
+
+```
+pdfRef   inspecao/…/relatorios/9604aed1-cef6-44f0-8c7d-1ce635f79fe7.pdf
+sha256   e4f4b3f9247b41e00c0bb1ec66beb48a9b8f8882ce4ae1fa582c1c593f952b49
+bytes    97.525   ·   páginas 19   ·   pdfPendente false
+```
+
+Arquivo baixado do bucket: **SHA idêntico**. Texto extraído: 23.083 caracteres —
+vetorial e selecionável. A folha 7.5, lida do PDF final:
+
+> PRESSÃO DE PROJETO 8.16 · **PRESSÃO DE TRABALHO 6.12** · FLUIDO DE TESTE … ·
+> PRESSÃO DE TESTE 10.61 · **DURAÇÃO DO TESTE 30 min** · **TEMP. DO FLUIDO 22 °C** ·
+> **NORMAS DE REFERÊNCIA ASME VIII Div.1 / NR-13** · **VALIDADE DO LAUDO 07/09/2031** ·
+> **PROCEDIMENTO PROCEDIMENTO-TH-E2E** · DATA DO TESTE 07/09/2026 · RESULTADO APROVADO
+
+`PARECER-TH-E2E` e `OBSERVACOES-US-E2E` presentes; nenhum `2031-09-07` no arquivo.
+
+### 8.6 · O que segue pendente
+
+- **Prova de cache frio**: continua adiada. A conta ainda tem **3 escritas
+  pendentes de sincronização que não são deste teste**, e apagar o IndexedDB as
+  descartaria. Fazer quando a fila estiver limpa.
+- **Três `window.confirm` fora do fluxo `salvar()`** congelam a aba do mesmo
+  jeito: "Remover este bocal do memorial?" (`MemorialVaso.tsx:193`), "Limpar
+  todos os campos da calculadora?" (`:220`) e o de sair sem salvar
+  (`useAvisoSairSemSalvar.ts:17`). Ficaram de fora porque são confirmações
+  destrutivas e trocá-las muda o gesto do usuário — não era o que esta rodada
+  pedia.
+- **`FLUIDO DE TESTE` sai com o prefixo da classe** (`A - Fluido inflamável…`)
+  porque o prefill copia `cat.fluidoInput` inteiro. É dado do ensaio e o usuário
+  edita; não foi tocado por estar fora do escopo.
