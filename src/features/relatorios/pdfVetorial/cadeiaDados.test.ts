@@ -841,13 +841,3 @@ describe('vida remanescente: leitura do que a ficha já calculou', () => {
   });
 });
 
-describe('croqui na folha de ultrassom', () => {
-  it('é o MESMO SVG do prontuário — nenhuma fonte nova', () => {
-    gravar(`nr13_croqui2d_${TAG}`, { longitudinal: '<svg><rect/></svg>', transversal: '<svg/>' });
-    expect(montarModeloRelatorio(TAG).ultrassom.croqui).toBe('<svg><rect/></svg>');
-  });
-
-  it('sem croqui salvo, ausência — a folha não desenha nada genérico', () => {
-    expect(montarModeloRelatorio(TAG).ultrassom.croqui).toBeNull();
-  });
-});

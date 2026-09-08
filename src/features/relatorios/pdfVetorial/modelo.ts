@@ -273,19 +273,6 @@ export interface ModeloRelatorio {
     }[];
     instrumento: { padrao: string | null; serie: string | null; certificado: string | null; validade: string | null };
     /**
-     * O CROQUI do vaso — a vista longitudinal do editor 2D.
-     *
-     * A folha ULTRASSOM.html sempre o desenhou (12 referências no template) e o
-     * Modelo Novo o perdeu na virada. Ele é o que diz ONDE estão os pontos: uma
-     * tabela de espessuras sem o desenho obriga o leitor a adivinhar a que
-     * altura do costado cada leitura foi tirada.
-     *
-     * É o MESMO SVG do prontuário (`nr13_croqui2d_<TAG>.longitudinal`), gerado
-     * pelo editor de croqui. Continua vetorial na origem; vira PNG só na hora
-     * de pintar, como no prontuário.
-     */
-    croqui: string | null;
-    /**
      * A VIDA REMANESCENTE do equipamento, calculada no card da ficha.
      *
      * `nr13_vida_<TAG>` guarda taxa de corrosão, sobremetal, vida em anos e o
@@ -689,7 +676,6 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
   const capa = fotoDeCapa(tag);
   const medEsp = ler<Record<string, unknown>>(`nr13_med_esp_${tag}`) ?? {};
   const vida = ler<Record<string, unknown>>(`nr13_vida_${tag}`) ?? {};
-  const croqui = ler<{ longitudinal?: string }>(`nr13_croqui2d_${tag}`) ?? {};
 
   // Os dados de campo vivem em DUAS chaves, e a duplicação é obrigatória (§2):
   // checklist grava em `inspecao`, os ensaios em `injecao`.
@@ -964,7 +950,6 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
       velSonica: txt(us.velSonica),
       resultado: rotuloResultado(us.resultado as string),
       pontos: pontosUltrassom(tag, us, medEsp, requeridaDoMemorial(calc.componentes)),
-      croqui: txt(croqui.longitudinal),
       vida: {
         taxaMmAno: numeroBr(vida.taxaMmAno, 4),
         sobremetalMm: numeroBr(vida.sobremetalMm),

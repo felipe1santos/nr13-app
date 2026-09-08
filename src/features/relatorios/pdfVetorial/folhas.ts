@@ -1517,33 +1517,6 @@ export function folhaUltrassom(doc: Documento, m: ModeloRelatorio): void {
   });
 
   doc.faixa('LOCALIZAÇÃO DOS PONTOS DE MEDIÇÃO E MEDIDAS ENCONTRADAS (mm)');
-  // ── CROQUI DOS PONTOS ─────────────────────────────────────────────────────
-  // A folha `ULTRASSOM.html` sempre desenhou o croqui do vaso, e o Modelo Novo
-  // o perdeu na virada. Ele é o que diz ONDE a leitura foi tirada: uma tabela
-  // de espessuras sem o desenho obriga o leitor a adivinhar a que altura do
-  // costado está cada número. O PNG vem do MESMO pré-processo do prontuário,
-  // guardado no documento pelo gerador — sem ele, a folha segue sem o desenho.
-  {
-    const svg = m.ultrassom.croqui;
-    const cache = (doc as unknown as { __croquis?: Map<string, { png: string; proporcao: number }> }).__croquis;
-    const pronto = svg ? cache?.get(svg) : undefined;
-    if (pronto) {
-      // Sem faixa própria: ele está DENTRO de "LOCALIZAÇÃO DOS PONTOS DE
-      // MEDIÇÃO E MEDIDAS ENCONTRADAS", e duas barras cinzas coladas partiriam
-      // em dois o que a referência trata como uma seção só.
-      //
-      // Altura contida (44 mm): a TABELA vem logo abaixo e é ela que carrega os
-      // números. Um croqui que empurrasse a tabela para a folha seguinte
-      // separaria o desenho da medição que ele localiza — o oposto do que ele
-      // veio fazer.
-      const altura = 44;
-      doc.garantirEspaco(altura + 4);
-      doc.y += 1.5;
-      foto(doc.pdf, pronto.png, { x: CAIXA.x, y: doc.y, largura: CAIXA.largura, altura }, pronto.proporcao);
-      doc.y += altura + 2;
-    }
-  }
-
   if (m.ultrassom.pontos.length > 0) {
     // 13D · UMA TABELA POR REGIÃO. Regiões podem ter contagens de coluna
     // diferentes (o container define quantos ângulos cada uma tem), e uma

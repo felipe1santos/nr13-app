@@ -75,7 +75,7 @@ function emitir(doc: Documento, m: ModeloProntuario): void {
  * rasterizado em 1× vira uma linha serrilhada. Falhar aqui devolve `null`, e a
  * folha diz que o croqui não pôde ser convertido em vez de desenhar outra coisa.
  */
-export async function svgParaPng(svg: string, larguraPx = 1800): Promise<{ png: string; proporcao: number } | null> {
+async function svgParaPng(svg: string, larguraPx = 1800): Promise<{ png: string; proporcao: number } | null> {
   if (svg.startsWith('data:image')) {
     // PNG legado: mede a proporção real dele, sem assumir nada.
     try {
