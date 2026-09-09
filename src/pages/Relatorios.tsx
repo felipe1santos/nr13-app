@@ -14,6 +14,7 @@ import { usePalcoDocumento } from '../features/documentos/usePalcoDocumento';
 import { paramsSomenteLeitura, travarIframeSomenteLeitura } from '../features/documentos/somenteLeituraDoc';
 import { acompanharCamposVazios } from '../features/documentos/camposVazios';
 import CardPlacaIdentificacao from '../features/relatorios/CardPlacaIdentificacao';
+import MenuMais from '../components/MenuMais';
 import ModalMedicoes from '../features/relatorios/ModalMedicoes';
 import ModalLaudo from '../features/relatorios/ModalLaudo';
 import { edicaoAtual, folhaTravadaPelaEdicaoReact } from '../features/relatorios/edicaoReact';
@@ -1571,9 +1572,14 @@ function RelatoriosLegado() {
                       : 'Finalizar relatório'}
                 </button>
               )}
+              {/* 10/09/2026 · no celular estes três descem para o "⋯". A barra
+                  media 140 px em TRÊS linhas (388 px de viewport), sobre 49 px
+                  de topbar: 189 px de moldura antes do documento, num aparelho
+                  de 841 px. Voltar, salvar e finalizar continuam à vista;
+                  imprimir, baixar e configurar são de uma vez por documento. */}
               <button
                 type="button"
-                className={`btn-secundario barra-btn${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
+                className={`btn-secundario barra-btn mmais-oculto-movel${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
                 onClick={prepararEImprimir}
                 disabled={imprimindo}
               >
@@ -1582,7 +1588,7 @@ function RelatoriosLegado() {
               </button>
               <button
                 type="button"
-                className={`barra-btn barra-btn-pdf${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
+                className={`barra-btn barra-btn-pdf mmais-oculto-movel${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
                 onClick={baixarPdf}
                 disabled={exportando}
               >
@@ -1593,10 +1599,38 @@ function RelatoriosLegado() {
                   e todo campo do modal abre bloqueado. O botão só tomava espaço
                   da barra que agora precisa caber numa linha. */}
               {fonteDeImpressao(relatorioArquivado) !== 'arquivo' && (
-                <button type="button" className="btn-secundario barra-btn" onClick={() => setModalConfig(true)}>
+                <button type="button" className="btn-secundario barra-btn mmais-oculto-movel" onClick={() => setModalConfig(true)}>
                   <Icone nome="sliders" tam={14} /> Configurações
                 </button>
               )}
+              {/* O "⋯" só existe abaixo de 640px (regra no CSS do componente):
+                  em tela larga a barra cabe inteira, e esconder ação onde há
+                  espaço é trocar clareza por nada. */}
+              <MenuMais
+                acoes={[
+                  {
+                    rotulo: imprimindo ? 'Preparando…' : rotuloImpressao(fonteDeImpressao(relatorioArquivado)),
+                    aoEscolher: () => void prepararEImprimir(),
+                    desabilitado: imprimindo,
+                    icone: <Icone nome={documentosBloqueados() ? 'cadeado' : 'filetext'} tam={15} />,
+                  },
+                  {
+                    rotulo: exportando ? 'Gerando PDF…' : 'Baixar PDF',
+                    aoEscolher: () => void baixarPdf(),
+                    desabilitado: exportando,
+                    icone: <Icone nome={documentosBloqueados() ? 'cadeado' : 'download'} tam={15} />,
+                  },
+                  ...(fonteDeImpressao(relatorioArquivado) !== 'arquivo'
+                    ? [
+                        {
+                          rotulo: 'Configurações',
+                          aoEscolher: () => setModalConfig(true),
+                          icone: <Icone nome="sliders" tam={15} />,
+                        },
+                      ]
+                    : []),
+                ]}
+              />
             </div>
           </div>
 

@@ -1,0 +1,59 @@
+/* O "⋯" das barras de ação (10/09/2026). Ver `MenuMais.tsx`. */
+
+.mmais { position: relative; display: inline-flex; flex: 0 0 auto; }
+
+.mmais-botao {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  padding: 0;
+}
+
+.mmais-lista {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 60;
+  min-width: 216px;
+  max-width: calc(100vw - 24px);
+  display: flex;
+  flex-direction: column;
+  padding: 5px;
+  border: 1px solid var(--border-solid, #e4e1d8);
+  border-radius: 10px;
+  background: var(--bg-card, #fff);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.16);
+}
+
+.mmais-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  /* 44px de alvo também aqui: o menu existe para o celular. */
+  min-height: 44px;
+  padding: 8px 11px;
+  border: none;
+  border-radius: 7px;
+  background: none;
+  font-family: var(--font-base);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main, #2d3339);
+  text-align: left;
+  cursor: pointer;
+}
+.mmais-item:hover:not(:disabled) { background: var(--bg-soft, #f7f6f2); }
+/* Desabilitado continua VISÍVEL: sumir esconderia a existência da ação. */
+.mmais-item:disabled { opacity: 0.45; cursor: not-allowed; }
+.mmais-item.is-destrutiva { color: var(--status-erro-text, #d5453d); }
+.mmais-item svg { flex: 0 0 auto; }
+
+/* Só no celular o menu entra em cena: em tela larga a barra cabe inteira, e
+   esconder ação onde há espaço é trocar clareza por nada. */
+.mmais { display: none; }
+@media (max-width: 640px) {
+  .mmais { display: inline-flex; }
+  .mmais-oculto-movel { display: none !important; }
+}
