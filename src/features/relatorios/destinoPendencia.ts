@@ -86,6 +86,13 @@ const SECAO_POR_PREFIXO: Record<string, string> = {
   checklist: 'Checklist NR-13',
   externo: 'Exame visual externo',
   interno: 'Exame visual interno',
+  // Os ids REAIS das duas tabelas de exame visual (`exameExterno.item-3.obs`).
+  // Enquanto a observação por item era dispensada, elas não chegavam à barra e
+  // ninguém percebeu que `externo`/`interno` acima nunca casavam com nada; com
+  // a allowlist reduzida à autorizada, as 28 observações apareceram — todas sob
+  // o título genérico "Documento".
+  exameExterno: 'Exame visual externo',
+  exameInterno: 'Exame visual interno',
   ultrassom: 'Ultrassom',
   vida: 'Vida remanescente',
   th: 'Teste hidrostático',

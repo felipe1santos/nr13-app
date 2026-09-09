@@ -839,6 +839,13 @@ export class Documento {
 
       if (this.garantirEspaco(altura)) desenharCabecalho();
 
+      // Uma linha "que ainda não existe": todas as células de valor dela estão
+      // vazias. A conta é da linha JÁ RESOLVIDA (com os overrides aplicados), e
+      // não do que a folha declarou — senão a recomendação que o usuário acabou
+      // de escrever continuaria contando como linha em branco.
+      const linhaEmBranco =
+        linha.some((c) => c.linhaOpcional) && linha.filter((c) => c.valor).every((c) => celulaVazia(c));
+
       let x = CAIXA.x;
       let i = 0;
       for (let k = 0; k < linha.length; k++) {
@@ -855,7 +862,9 @@ export class Documento {
             { x, y: this.cursor, larg, alt: altura },
             'texto',
             // MESMA função que decide o amarelo: `corDeFundo` chama `celulaVazia`.
-            this.classificar(celulaVazia(cel), cel.opcional),
+            // `linhaOpcional`: linha inteira em branco não é pendência — ver o
+            // campo em `CelulaDoc`.
+            this.classificar(celulaVazia(cel), cel.opcional || (!!cel.linhaOpcional && linhaEmBranco)),
           );
         }
         this.pdf.setLineWidth(BORDA_FINA);
@@ -1061,6 +1070,22 @@ export interface CelulaDoc {
    * numa coluna ao lado, e o comentário é do inspetor se ele quiser.
    */
   opcional?: boolean;
+  /**
+   * A célula pertence a uma LINHA QUE SÓ EXISTE SE ALGUÉM COMEÇAR A PREENCHÊ-LA.
+   *
+   * É o caso das recomendações de segurança: a tabela nasce com quatro linhas em
+   * branco, e um relatório pode legitimamente não ter recomendação nenhuma —
+   * obrigar o engenheiro a inventar quatro seria o contrário do que o documento
+   * pede. Mas assim que ele escrever a recomendação 1, o PRAZO dela passa a
+   * faltar de verdade.
+   *
+   * Regra: enquanto TODAS as células de valor da linha estiverem vazias, nenhuma
+   * é pendência; com uma preenchida, as outras da mesma linha viram críticas.
+   *
+   * O valor identifica a linha e só precisa ser único dentro da tabela — as
+   * células da mesma linha compartilham a string.
+   */
+  linhaOpcional?: string;
   /**
    * Realce de leitura: a MAIOR e a MENOR espessura medida de uma região.
    *

@@ -66,6 +66,9 @@ describe('para onde o clique leva', () => {
     expect(secaoDoCampo('proximas.prazo-interna')).toBe('Próximas inspeções');
     expect(secaoDoCampo('instrumentos.0.certificado')).toBe('Instrumentos de medição');
     expect(secaoDoCampo('checklist2.observacoes')).toBe('Checklist NR-13');
+    // Os ids reais dos exames visuais — o prefixo é `exameExterno`, não `externo`.
+    expect(secaoDoCampo('exameExterno.item-3.obs')).toBe('Exame visual externo');
+    expect(secaoDoCampo('exameInterno.item-12.obs')).toBe('Exame visual interno');
     // Prefixo novo não some da barra: cai num título genérico.
     expect(secaoDoCampo('coisanova.campo')).toBe('Documento');
   });

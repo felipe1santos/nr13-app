@@ -653,21 +653,73 @@ describe('gate · amarelo crítico sem alerta é falha', () => {
     expect(orfas.map((i) => i.id), 'pendência sem campo no documento').toEqual([]);
   });
 
-  it('as observações POR ITEM ficam de fora — e são as ÚNICAS de fora', async () => {
+  it('a allowlist é EXATAMENTE a autorizada — observação de documentação e de checklist', async () => {
     const { editaveis } = await gerarRelatorioVetorial(TAG, { documentos: DOCUMENTOS, certificados: false, modo: 'preview' });
     const opcionais = editaveis.filter((c) => c.pendencia === 'opcional').map((c) => c.id);
-    expect(opcionais.length, 'nenhum campo opcional encontrado — a allowlist não está sendo exercida').toBeGreaterThan(0);
-    // A allowlist inteira: observação por item de documentação, checklist e
-    // exame visual. Qualquer outro id aqui é uma exclusão nova, e exclusão nova
-    // se declara antes de existir.
-    const forbidden = opcionais.filter((id) => !id.endsWith('.obs'));
-    expect(forbidden, `opcional fora da allowlist declarada: ${forbidden.join(', ')}`).toEqual([]);
+    expect(opcionais.length, 'nenhum campo opcional — a allowlist não está sendo exercida').toBeGreaterThan(0);
+
+    // Duas famílias, e SÓ elas:
+    //  · `documentacao.<n>.obs`     — verificação da documentação
+    //  · `checklist<x>.<secao>.<n>.obs` — checklists NR-13
+    // Mais a linha de recomendação ENQUANTO ELA ESTIVER INTEIRA EM BRANCO, que
+    // é outra coisa: não é "campo facultativo", é linha que ainda não existe.
+    const daAllowlist = (id: string) =>
+      /^documentacao\.\d+\.obs$/.test(id) ||
+      /^checklist\d*(\.\d+)+\.obs$/.test(id) ||
+      /^recomendacoes\.\d+\.(texto|prazo)$/.test(id);
+    const forbidden = opcionais.filter((id) => !daAllowlist(id));
+    expect(forbidden, `opcional fora da allowlist autorizada: ${forbidden.join(', ')}`).toEqual([]);
   });
 
-  it('a barra NÃO contém observação por item', async () => {
+  it('a observação do EXAME VISUAL é crítica — a allowlist não foi ampliada', async () => {
+    // Ela tem a mesma forma das outras duas, e por isso eu a havia incluído por
+    // analogia em 09/09/2026. O dono não autorizou: ampliar sozinho o que não
+    // alerta esconde pendência de um documento assinado.
     const { editaveis } = await gerarRelatorioVetorial(TAG, { documentos: DOCUMENTOS, certificados: false, modo: 'preview' });
-    const comObs = oQueFalta(editaveis).filter((i) => i.id.endsWith('.obs'));
-    expect(comObs.map((i) => i.id)).toEqual([]);
+    const doExame = editaveis.filter((c) => /^exame(Externo|Interno)\.item-\d+\.obs$/.test(c.id));
+    expect(doExame.length, 'o documento de teste não tem observação de exame visual').toBeGreaterThan(0);
+    expect(doExame.every((c) => c.pendencia !== 'opcional')).toBe(true);
+  });
+
+  it('linha de recomendação INTEIRA em branco não alerta', async () => {
+    const { editaveis } = await gerarRelatorioVetorial(TAG, { documentos: DOCUMENTOS, certificados: false, modo: 'preview' });
+    const rec = editaveis.filter((c) => c.id.startsWith('recomendacoes.'));
+    expect(rec.length).toBeGreaterThan(0);
+    expect(rec.every((c) => c.pendencia === 'opcional')).toBe(true);
+    expect(oQueFalta(editaveis).some((i) => i.id.startsWith('recomendacoes.'))).toBe(false);
+  });
+
+  it('começou a preencher a recomendação, o PRAZO dela passa a faltar', async () => {
+    const { editaveis } = await gerarRelatorioVetorial(TAG, {
+      documentos: DOCUMENTOS,
+      certificados: false,
+      modo: 'preview',
+      overrides: {
+        'recomendacoes.2.texto': { modo: 'manual', valor: 'Substituir a válvula de segurança', auto: '', em: '2026-09-09T00:00:00Z' },
+      },
+    });
+    const pend = oQueFalta(editaveis).map((i) => i.id);
+    // A linha 2 passou a existir: o prazo dela é pendência.
+    expect(pend).toContain('recomendacoes.2.prazo');
+    // O texto que ele acabou de escrever, não.
+    expect(pend).not.toContain('recomendacoes.2.texto');
+    // E as outras três linhas continuam sem existir.
+    expect(pend.filter((id) => /^recomendacoes\.[134]\./.test(id))).toEqual([]);
+  });
+
+  it('a barra não contém a observação da DOCUMENTAÇÃO nem a do CHECKLIST — e contém a do exame', async () => {
+    // Este teste dizia "a barra NÃO contém observação por item", com a
+    // allowlist de três famílias. Com a allowlist reduzida às duas
+    // autorizadas, a observação do exame visual VOLTA para a barra — e é
+    // exatamente isso que precisa estar travado, dos dois lados.
+    const { editaveis } = await gerarRelatorioVetorial(TAG, { documentos: DOCUMENTOS, certificados: false, modo: 'preview' });
+    const naBarra = oQueFalta(editaveis).map((i) => i.id);
+
+    const dispensadas = naBarra.filter((id) => /^(documentacao\.\d+|checklist\d*(\.\d+)+)\.obs$/.test(id));
+    expect(dispensadas, 'observação dispensada não pode alertar').toEqual([]);
+
+    const doExame = naBarra.filter((id) => /^exame(Externo|Interno)\.item-\d+\.obs$/.test(id));
+    expect(doExame.length, 'a observação do exame visual precisa alertar').toBeGreaterThan(0);
   });
 
   it('preencher o campo tira a pendência — e apagar traz de volta', async () => {

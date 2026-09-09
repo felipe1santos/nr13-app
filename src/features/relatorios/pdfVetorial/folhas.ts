@@ -179,10 +179,14 @@ function blocoExame(
         celulaMarca(m.sim, `${base}.sim`, `${i + 1}. ${it.titulo} — SIM`),
         celulaMarca(m.nao, `${base}.nao`, `${i + 1}. ${it.titulo} — NÃO`),
         celulaMarca(m.na, `${base}.na`, `${i + 1}. ${it.titulo} — N.A.`),
-        // FACULTATIVA: a resposta do item está nas três colunas ao lado; o
-        // comentário é do inspetor se ele quiser. Continua amarela e editável,
-        // mas fora de 'o que falta revisar'.
-        { texto: obs, valor: true, opcional: true, id: `${base}.obs`, rotuloCampo: `${i + 1}. ${it.titulo} — observação`, multilinha: true },
+        // 09/09/2026 · esta NÃO é opcional, por decisão do dono.
+        //
+        // Ela tem a mesma forma das observações da documentação e dos
+        // checklists (resposta marcada na coluna ao lado, comentário livre), e
+        // eu a havia incluído na allowlist por analogia. A allowlist autorizada
+        // é só aquelas duas — e ampliar sozinho o que NÃO alerta é o tipo de
+        // decisão que esconde pendência de um documento assinado.
+        { texto: obs, valor: true, id: `${base}.obs`, rotuloCampo: `${i + 1}. ${it.titulo} — observação`, multilinha: true },
       ];
     }),
   });
@@ -2003,8 +2007,13 @@ export function folhaParecer(doc: Documento, m: ModeloRelatorio): void {
     cabecalho: ['ITEM', 'RECOMENDAÇÃO', 'PRAZO'],
     linhas: [1, 2, 3, 4].map((n) => [
       { texto: String(n), centro: true },
-      { texto: '', valor: true, id: `recomendacoes.${n}.texto`, rotuloCampo: `Recomendação ${n}`, multilinha: true },
-      { texto: '', valor: true, centro: true, id: `recomendacoes.${n}.prazo`, rotuloCampo: `Prazo da recomendação ${n}` },
+      // LINHA QUE SÓ EXISTE SE ALGUÉM COMEÇAR A PREENCHÊ-LA: a tabela nasce com
+      // quatro linhas em branco, e um relatório pode não ter recomendação
+      // nenhuma — as quatro vazias somavam oito pendências e mandavam o
+      // engenheiro inventar recomendação. Escrita a recomendação 1, o PRAZO
+      // dela passa a faltar de verdade. Ver `linhaOpcional` em `CelulaDoc`.
+      { texto: '', valor: true, linhaOpcional: `rec-${n}`, id: `recomendacoes.${n}.texto`, rotuloCampo: `Recomendação ${n}`, multilinha: true },
+      { texto: '', valor: true, centro: true, linhaOpcional: `rec-${n}`, id: `recomendacoes.${n}.prazo`, rotuloCampo: `Prazo da recomendação ${n}` },
     ]),
   });
 
