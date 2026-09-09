@@ -2163,12 +2163,15 @@ body.doc-foco .meta-barra-fixa { padding-top: 6px; padding-bottom: 6px; }
    de um item de grade: sem ele a célula cresce até caber o texto inteiro e
    empurra as colunas da direita para fora. O nome completo fica no `title`. */
 .rel-page .rel-cel-nome { display: block; min-width: 0; }
+/* 10/09/2026 · preto puro e peso normal, a pedido do dono: o nome do
+   documento é o dado da linha, e o negrito o fazia competir com o cabeçalho da
+   tabela. A hierarquia das colunas não mudou. */
 .rel-page .rel-nome-forte {
   display: block;
-  font-weight: 600;
+  font-weight: 400;
   font-size: 12.5px;
   line-height: 1.35;
-  color: var(--text-main, #1b2430);
+  color: #000;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

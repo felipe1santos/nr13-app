@@ -5,6 +5,7 @@ import { mesclarPreenchimento, prefillTH } from './autoPreencher';
 import ResultadoEnsaio, { type ResultadoEnsaioValor } from './ResultadoEnsaio';
 import { salvarFoto, type RefFoto } from '../../../services/fotos';
 import FotoImg from '../../../components/FotoImg';
+import FeedbackSalvamento, { useSalvamento } from '../../../components/FeedbackSalvamento';
 
 const ESTILO_DICA = { fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 } as const;
 const DICA_AUTO = 'Campos preenchidos automaticamente a partir do cadastro; edite se necessário.';
@@ -104,9 +105,11 @@ export default function FormularioTH({ tag, containerId }: { tag: string; contai
     mesclarPreenchimento(dadosPadrao(), prefillTH(tag), carregarDadosFormulario<DadosTH>(tag, containerId, 'th')),
   );
   useAutosaveFormulario(tag, containerId, 'th', dados);
-  const [salvando, setSalvando] = useState(false);
-  const [salvoOk, setSalvoOk] = useState(false);
-  const [erroSalvar, setErroSalvar] = useState('');
+  // 10/09/2026 · o aviso de salvamento passou a ser UM componente do sistema
+  // (`FeedbackSalvamento`). Antes cada formulário tinha a sua cópia — quatro
+  // versões da mesma ideia, e o ultrassom sem nenhuma.
+  const salvamento = useSalvamento();
+  const salvando = salvamento.salvando;
   const inputRef = useRef<HTMLInputElement>(null);
 
   function set(chave: keyof DadosTH, valor: string) {
@@ -133,8 +136,9 @@ export default function FormularioTH({ tag, containerId }: { tag: string; contai
       const ref = await salvarFoto(arquivo, `${tag}/th`);
       setDados((d) => ({ ...d, fotos: [...d.fotos, { ref, descricao: '' }] }));
     } catch {
-      setErroSalvar('Erro ao processar imagem. Tente outra foto.');
-      setTimeout(() => setErroSalvar(''), 4000);
+      // Falha ao processar a imagem também é falha de salvamento aos olhos do
+      // usuário: ele anexou uma foto e ela não ficou. Mesmo aviso, mesmo lugar.
+      salvamento.falhar('Erro ao processar a imagem. Tente outra foto.');
     }
     if (inputRef.current) inputRef.current.value = '';
   }
@@ -148,22 +152,7 @@ export default function FormularioTH({ tag, containerId }: { tag: string; contai
   }
 
   async function salvar() {
-    setSalvando(true);
-    setSalvoOk(false);
-    setErroSalvar('');
-    const inicio = Date.now();
-    try {
-      await salvarDadosFormulario(tag, containerId, 'th', dados);
-      // Garante ao menos 600ms visíveis de "Salvando..." para o usuário perceber
-      const restante = 600 - (Date.now() - inicio);
-      if (restante > 0) await new Promise((r) => setTimeout(r, restante));
-      setSalvoOk(true);
-      setTimeout(() => setSalvoOk(false), 3000);
-    } catch (err) {
-      setErroSalvar('Erro ao salvar: ' + String(err));
-    } finally {
-      setSalvando(false);
-    }
+    await salvamento.executar(() => salvarDadosFormulario(tag, containerId, 'th', dados));
   }
 
   const nFotos = dados.fotos.length;
@@ -345,23 +334,17 @@ export default function FormularioTH({ tag, containerId }: { tag: string; contai
         </label>
       </div>
 
-      {erroSalvar && (
-        <div style={{ background: '#fee2e2', color: '#b91c1c', padding: '10px 14px', borderRadius: 6, fontSize: 13, fontWeight: 600 }}>
-          {erroSalvar}
-        </div>
-      )}
-
       <div className="formulario-acoes-fixas">
-        <button
-          type="button"
-          className="btn-primario"
-          onClick={salvar}
-          disabled={salvando}
-          style={salvoOk ? { background: '#16a34a' } : undefined}
-        >
-          {salvando ? 'Salvando...' : salvoOk ? '✓ Salvo com sucesso!' : 'Salvar'}
+        <button type="button" className="btn-primario" onClick={salvar} disabled={salvando}>
+          {salvando ? 'Salvando...' : 'Salvar'}
         </button>
       </div>
+      <FeedbackSalvamento
+        estado={salvamento.estado}
+        erro={salvamento.erro}
+        aoTentarNovamente={() => void salvar()}
+        aoFechar={salvamento.limpar}
+      />
     </>
   );
 }

@@ -377,19 +377,23 @@ export default function ModalCriarRelatorio({ tag, resumo, aoVoltar, onClose, on
                       checked={containerId === r.id}
                       onChange={() => setContainerId(r.id)}
                     />
+                    {/* DUAS LINHAS, altura fixa. Os ícones dos ensaios ficam na
+                        MESMA linha da meta: como bloco próprio eles somavam uma
+                        terceira linha e o cartão chegava a 153 px no celular —
+                        um container virava um painel. */}
                     <span className="wz-container-txt">
                       <strong>{r.nome}</strong>
                       <small>
+                        <span className="wz-container-icones" aria-hidden="true">
+                          {r.salvos.map((e) => (
+                            <span key={e.ensaio} title={e.rotulo}>
+                              <Icone nome={ICONE_ENSAIO[e.ensaio] ?? 'filetext'} tam={13} />
+                            </span>
+                          ))}
+                        </span>
                         {r.data} · {rotuloConteudo(r)}
                         {r.responsavel ? ` · ${r.responsavel}` : ''}
                       </small>
-                      <span className="wz-container-icones" aria-hidden="true">
-                        {r.salvos.map((e) => (
-                          <span key={e.ensaio} title={e.rotulo}>
-                            <Icone nome={ICONE_ENSAIO[e.ensaio] ?? 'filetext'} tam={14} />
-                          </span>
-                        ))}
-                      </span>
                     </span>
                     <button
                       type="button"

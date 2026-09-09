@@ -1,0 +1,109 @@
+/* O aviso de salvamento — um só para o sistema inteiro (10/09/2026).
+   Discreto de propósito: ele confirma um clique, não interrompe o trabalho.
+   Nada de PNG; o círculo e o check são SVG do próprio sistema. */
+
+.fbs-fundo {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  padding: 16px;
+}
+/* Só o erro captura o clique: ele tem botão, e some por ação do usuário. O
+   sucesso não pode roubar um toque que estava indo para a tela. */
+.fbs-erro { pointer-events: auto; background: rgba(17, 24, 33, 0.28); }
+
+.fbs-caixa {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  min-width: 132px;
+  max-width: min(92vw, 340px);
+  padding: 18px 22px;
+  border-radius: 14px;
+  background: var(--bg-card, #fff);
+  border: 1px solid var(--border-solid, #e4e1d8);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.16);
+  animation: fbs-entra 160ms ease-out;
+}
+.fbs-erro .fbs-caixa { pointer-events: auto; }
+
+@keyframes fbs-entra {
+  from { opacity: 0; transform: scale(0.94); }
+  to { opacity: 1; transform: none; }
+}
+
+.fbs-texto {
+  font-family: var(--font-base);
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--text-main, #2d3339);
+  text-align: center;
+  line-height: 1.35;
+}
+
+/* ── Spinner ─────────────────────────────────────────────────────────────── */
+.fbs-spinner { display: inline-flex; }
+.fbs-spinner svg { animation: fbs-gira 900ms linear infinite; }
+.fbs-trilha { stroke: var(--border-solid, #e4e1d8); }
+.fbs-arco {
+  stroke: var(--blue2, #0c4f9b);
+  stroke-dasharray: 100;
+  stroke-dashoffset: 72;
+}
+@keyframes fbs-gira { to { transform: rotate(360deg); transform-origin: 50% 50%; } }
+
+/* ── Sucesso e erro ──────────────────────────────────────────────────────── */
+.fbs-marca {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  animation: fbs-marca-entra 200ms ease-out;
+}
+.fbs-ok { background: var(--status-ok-bg, #e7f6ee); color: var(--status-ok-text, #14804a); }
+.fbs-falha { background: var(--status-erro-bg, #fdeceb); color: var(--status-erro-text, #b3261e); }
+@keyframes fbs-marca-entra {
+  from { opacity: 0; transform: scale(0.6); }
+  to { opacity: 1; transform: none; }
+}
+
+.fbs-acoes { display: flex; gap: 8px; margin-top: 2px; }
+.fbs-btn {
+  min-height: 34px;
+  padding: 7px 13px;
+  border: 1px solid var(--border-solid, #e4e1d8);
+  border-radius: 8px;
+  background: var(--bg-card, #fff);
+  font-family: var(--font-base);
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--text-main, #2d3339);
+  cursor: pointer;
+}
+.fbs-btn-forte {
+  border-color: var(--blue2, #0c4f9b);
+  background: var(--blue2, #0c4f9b);
+  color: #fff;
+}
+.fbs-btn:hover { filter: brightness(0.97); }
+
+@media (max-width: 640px) {
+  /* Dedo: os botões do erro sobem para 44px. O aviso de sucesso continua
+     pequeno — ele não é para ser tocado. */
+  .fbs-btn { min-height: 44px; padding: 10px 14px; }
+  .fbs-caixa { min-width: 118px; padding: 16px 18px; }
+}
+
+/* Quem pediu menos movimento fica com o estado, sem o giro. */
+@media (prefers-reduced-motion: reduce) {
+  .fbs-spinner svg { animation-duration: 2.4s; }
+  .fbs-caixa,
+  .fbs-marca { animation: none; }
+}

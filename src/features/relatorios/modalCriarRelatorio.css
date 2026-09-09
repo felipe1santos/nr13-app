@@ -669,23 +669,40 @@
 /* ── Etapa 2 · os containers ───────────────────────────────────────────────
    Cartão, e não linha de lista: cada um carrega três informações (nome, o que
    tem salvo dentro, quem fez) e um botão próprio. */
-.wz-containers { display: flex; flex-direction: column; gap: 8px; }
+/* LISTA, e não pilha de cartões.
+   Um container ocupava um bloco enorme e dez faziam o modal crescer sem fim.
+   Aqui a lista tem teto e rola por dentro: o cabeçalho, o stepper e o rodapé
+   ficam parados, e só o miolo se mexe. A altura da LINHA não muda com a
+   quantidade — 10 e 20 containers são a mesma linha, mais vezes. */
+.wz-containers {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-solid);
+  border-radius: 10px;
+  overflow-y: auto;
+  /* Teto em linhas, não em pixels mágicos: ~4,5 linhas deixa claro que a lista
+     continua abaixo, sem empurrar o rodapé para fora. */
+  max-height: 292px;
+}
 
 .wz-container {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
-  border: 1px solid var(--border-solid);
-  border-radius: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-solid);
   background: var(--bg-card, #fff);
   cursor: pointer;
-  min-height: 56px;
+  height: 64px;
+  flex: 0 0 auto;
 }
-.wz-container:hover { border-color: var(--blue2, #0C4F9B); }
+.wz-container:last-child { border-bottom: none; }
+.wz-container:hover { background: var(--bg-soft, #f7f6f2); }
+/* Selecionado por FAIXA lateral, não por sombra: dentro de uma lista com
+   borda única, a sombra de 2 px vazava por cima da linha vizinha. */
 .wz-container.is-sel {
-  border-color: var(--blue2, #0C4F9B);
-  box-shadow: 0 0 0 2px rgba(12, 79, 155, 0.14);
+  background: var(--blue2-bg, #eef5fd);
+  box-shadow: inset 3px 0 0 var(--blue2, #0C4F9B);
 }
 .wz-container input[type='radio'] {
   width: 17px;
@@ -702,8 +719,19 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.wz-container-txt small { font-size: 11.5px; color: var(--text-muted); }
-.wz-container-icones { display: inline-flex; gap: 6px; color: var(--blue2, #0C4F9B); margin-top: 2px; }
+.wz-container-txt small {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Os ícones dos ensaios entram NA linha da meta. Como bloco próprio somavam uma
+   terceira linha, e o cartão passava de 150 px no celular. */
+.wz-container-icones { display: inline-flex; gap: 5px; color: var(--blue2, #0C4F9B); flex: 0 0 auto; }
 /* "Não usar container" é uma escolha, não um item de menos: mesmo cartão, sem
    marcação que a rebaixe a opção de segunda classe. */
 .wz-container-sem .wz-container-txt strong { font-weight: 600; }
@@ -884,7 +912,7 @@
   .wz-passo-rot { display: none; }
   .wz-passo-rot-curto { display: inline; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* Dedo: cartão e olho passam de 44px. */
-  .wz-container { min-height: 60px; padding: 11px 12px; }
+  .wz-container { height: 68px; padding: 9px 12px; }
   .wz-olho { width: 44px; height: 44px; }
   .wz-container-txt strong { white-space: normal; }
   .wz-revisao { grid-template-columns: 1fr; }
@@ -895,4 +923,24 @@
   .wz-preview-lista li { flex-wrap: wrap; }
   .wz-preview-rodape .btn-primario,
   .wz-preview-rodape .btn-secundario { flex: 1 1 0; }
+}
+
+/* ── Densidade do assistente (10/09/2026) ───────────────────────────────────
+   O "ar morto" medido: 14 px depois do resumo do equipamento, 14 px entre cada
+   bloco e 18 px antes do rodapé, somados a um cartão de container de 153 px no
+   celular. Nada aqui muda o modal antigo — todas as regras são escopadas em
+   `.wz-modal`. */
+.wz-modal .mni-body { padding: 12px 20px 14px; gap: 11px; }
+.wz-modal .mni-resumo { margin-bottom: 0; padding: 7px 11px; }
+.wz-modal .mni-secao { margin-bottom: 7px; }
+.wz-modal .campo-bloco-modal { margin: 0; }
+/* O rodapé é barra de ação, não bloco: 44 px de altura útil em qualquer tela. */
+.wz-modal .mni-rodape { padding: 11px 20px; }
+
+@media (max-width: 640px) {
+  .wz-modal .mni-body { padding: 11px 14px 12px; gap: 10px; }
+  .wz-modal .mni-rodape { padding: 10px 14px; }
+  /* A lista de containers ganha o teto do celular: mais baixa, porque o
+     cabeçalho, o stepper e o rodapé já comem altura fixa. */
+  .wz-containers { max-height: 252px; }
 }

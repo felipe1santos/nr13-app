@@ -6,6 +6,7 @@ import { mesclarPreenchimento, prefillVisual } from './autoPreencher';
 import ResultadoEnsaio, { type ResultadoEnsaioValor } from './ResultadoEnsaio';
 import { salvarFoto, type RefFoto } from '../../../services/fotos';
 import FotoImg from '../../../components/FotoImg';
+import FeedbackSalvamento, { useSalvamento } from '../../../components/FeedbackSalvamento';
 
 const ESTILO_DICA = { fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 } as const;
 const DICA_AUTO = 'Campos preenchidos automaticamente a partir do cadastro; edite se necessário.';
@@ -86,9 +87,11 @@ export default function FormularioVisualInterno({ tag, containerId }: { tag: str
       ),
   );
   useAutosaveFormulario(tag, containerId, 'visual_interno', dados);
-  const [salvando, setSalvando] = useState(false);
-  const [salvoOk, setSalvoOk] = useState(false);
-  const [erroSalvar, setErroSalvar] = useState('');
+  // 10/09/2026 · o aviso de salvamento passou a ser UM componente do sistema
+  // (`FeedbackSalvamento`). Antes cada formulário tinha a sua cópia — quatro
+  // versões da mesma ideia, e o ultrassom sem nenhuma.
+  const salvamento = useSalvamento();
+  const salvando = salvamento.salvando;
 
   function set<K extends keyof DadosVisual>(k: K, v: DadosVisual[K]) {
     setDados((d) => ({ ...d, [k]: v }));
@@ -123,19 +126,7 @@ export default function FormularioVisualInterno({ tag, containerId }: { tag: str
   }
 
   async function salvar() {
-    setSalvando(true); setSalvoOk(false); setErroSalvar('');
-    const inicio = Date.now();
-    try {
-      await salvarDadosFormulario(tag, containerId, 'visual_interno', dados);
-      const restante = 600 - (Date.now() - inicio);
-      if (restante > 0) await new Promise((r) => setTimeout(r, restante));
-      setSalvoOk(true);
-      setTimeout(() => setSalvoOk(false), 3000);
-    } catch (err) {
-      setErroSalvar('Erro ao salvar: ' + String(err));
-    } finally {
-      setSalvando(false);
-    }
+    await salvamento.executar(() => salvarDadosFormulario(tag, containerId, 'visual_interno', dados));
   }
 
   return (
@@ -255,21 +246,17 @@ export default function FormularioVisualInterno({ tag, containerId }: { tag: str
         </div>
       </div>
 
-      {erroSalvar && (
-        <div style={{ color: '#dc2626', padding: 12, background: '#fee2e2', borderRadius: 8 }}>{erroSalvar}</div>
-      )}
-
       <div className="formulario-acoes-fixas">
-        <button
-          type="button"
-          className="btn-primario"
-          onClick={salvar}
-          disabled={salvando}
-          style={salvoOk ? { background: '#16a34a' } : undefined}
-        >
-          {salvando ? 'Salvando...' : salvoOk ? '✓ Salvo com sucesso!' : 'Salvar Checklist Visual'}
+        <button type="button" className="btn-primario" onClick={salvar} disabled={salvando}>
+          {salvando ? 'Salvando...' : 'Salvar Checklist Visual'}
         </button>
       </div>
+      <FeedbackSalvamento
+        estado={salvamento.estado}
+        erro={salvamento.erro}
+        aoTentarNovamente={() => void salvar()}
+        aoFechar={salvamento.limpar}
+      />
     </>
   );
 }

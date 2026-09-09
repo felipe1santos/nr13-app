@@ -3,6 +3,7 @@ import { carregarDadosFormulario, salvarDadosFormulario } from '../inspecaoServi
 import { useAutosaveFormulario } from '../useAutosaveFormulario';
 import { mesclarPreenchimento, prefillUltrassom } from './autoPreencher';
 import ResultadoEnsaio, { type ResultadoEnsaioValor } from './ResultadoEnsaio';
+import FeedbackSalvamento, { useSalvamento } from '../../../components/FeedbackSalvamento';
 
 const ESTILO_DICA = { fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 } as const;
 const DICA_AUTO = 'Campos preenchidos automaticamente a partir do cadastro; edite se necessário.';
@@ -223,7 +224,11 @@ export default function FormularioUltrassom({ tag, containerId }: { tag: string;
     };
   });
   useAutosaveFormulario(tag, containerId, 'ultrassom', dados);
-  const [salvando, setSalvando] = useState(false);
+  // 10/09/2026 · este era o ÚNICO dos cinco formulários de campo sem nenhuma
+  // confirmação: o dado ia para o armazenamento e a tela não dizia nada. Os
+  // outros quatro tinham, cada um, a sua própria cópia da mesma ideia.
+  const salvamento = useSalvamento();
+  const salvando = salvamento.salvando;
   const [removendo, setRemovendo] = useState<string | null>(null);
 
   function set(chave: keyof Dados, valor: string) {
@@ -287,12 +292,7 @@ export default function FormularioUltrassom({ tag, containerId }: { tag: string;
   }
 
   async function salvar() {
-    setSalvando(true);
-    try {
-      await salvarDadosFormulario(tag, containerId, 'ultrassom', dados);
-    } finally {
-      setSalvando(false);
-    }
+    await salvamento.executar(() => salvarDadosFormulario(tag, containerId, 'ultrassom', dados));
   }
 
   return (
@@ -473,6 +473,13 @@ export default function FormularioUltrassom({ tag, containerId }: { tag: string;
           {salvando ? 'Salvando...' : 'Salvar'}
         </button>
       </div>
+
+      <FeedbackSalvamento
+        estado={salvamento.estado}
+        erro={salvamento.erro}
+        aoTentarNovamente={() => void salvar()}
+        aoFechar={salvamento.limpar}
+      />
     </>
   );
 }

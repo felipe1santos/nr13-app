@@ -4,6 +4,7 @@ import { useAutosaveFormulario } from '../useAutosaveFormulario';
 import RespostaSegmentada from './RespostaSegmentada';
 import { salvarFoto, type RefFoto } from '../../../services/fotos';
 import FotoImg from '../../../components/FotoImg';
+import FeedbackSalvamento, { useSalvamento } from '../../../components/FeedbackSalvamento';
 
 const OPCOES_EXISTE = ['Existe', 'Não identificado', 'Não aplica'];
 const OPCOES_SIM_NAO = ['Sim', 'Não'];
@@ -225,9 +226,11 @@ export default function FormularioChecklist({ tag, containerId }: { tag: string;
     () => ({ ...dadosPadrao(), ...(carregarDadosFormulario<DadosChecklist>(tag, containerId, 'checklist') ?? {}) }),
   );
   useAutosaveFormulario(tag, containerId, 'checklist', dados);
-  const [salvando, setSalvando] = useState(false);
-  const [salvoOk, setSalvoOk] = useState(false);
-  const [erroSalvar, setErroSalvar] = useState(false);
+  // 10/09/2026 · o aviso de salvamento passou a ser UM componente do sistema
+  // (`FeedbackSalvamento`). Antes cada formulário tinha a sua cópia — quatro
+  // versões da mesma ideia, e o ultrassom sem nenhuma.
+  const salvamento = useSalvamento();
+  const salvando = salvamento.salvando;
   const inputFotoRef = useRef<HTMLInputElement>(null);
   const inputFotoDocRef = useRef<HTMLInputElement>(null);
 
@@ -262,19 +265,10 @@ export default function FormularioChecklist({ tag, containerId }: { tag: string;
   }
 
   async function salvar() {
-    setSalvando(true);
-    setErroSalvar(false);
-    try {
-      await salvarDadosFormulario(tag, containerId, 'checklist', dados);
-      setSalvoOk(true);
-      setTimeout(() => setSalvoOk(false), 2500);
-    } catch {
-      // Falha ao salvar (ex.: cota do localStorage estourada por excesso de fotos) precisa avisar
-      // o usuário — senão ele acha que salvou e perde o preenchimento.
-      setErroSalvar(true);
-    } finally {
-      setSalvando(false);
-    }
+    // Falha ao salvar (ex.: cota estourada por excesso de fotos) precisa avisar
+    // o usuário — senão ele acha que salvou e perde o preenchimento. Quem
+    // mostra o aviso agora é o componente único.
+    await salvamento.executar(() => salvarDadosFormulario(tag, containerId, 'checklist', dados));
   }
 
   return (
@@ -427,21 +421,16 @@ export default function FormularioChecklist({ tag, containerId }: { tag: string;
       </div>
 
       <div className="formulario-acoes-fixas">
-        <button
-          type="button"
-          className="btn-primario"
-          onClick={salvar}
-          disabled={salvando}
-          style={salvoOk ? { background: '#16a34a' } : undefined}
-        >
-          {salvando ? 'Salvando...' : salvoOk ? 'Salvo!' : 'Salvar Checklist'}
+        <button type="button" className="btn-primario" onClick={salvar} disabled={salvando}>
+          {salvando ? 'Salvando...' : 'Salvar Checklist'}
         </button>
-        {erroSalvar && (
-          <div style={{ color: '#dc2626', fontSize: 13, marginTop: 8, fontWeight: 600 }}>
-            Falha ao salvar. Verifique o espaço de armazenamento (muitas fotos?) e tente novamente.
-          </div>
-        )}
       </div>
+      <FeedbackSalvamento
+        estado={salvamento.estado}
+        erro={salvamento.erro}
+        aoTentarNovamente={() => void salvar()}
+        aoFechar={salvamento.limpar}
+      />
     </>
   );
 }
