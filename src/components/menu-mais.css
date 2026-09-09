@@ -7,6 +7,7 @@
   align-items: center;
   justify-content: center;
   width: 44px;
+  min-height: 44px;
   padding: 0;
 }
 
@@ -56,4 +57,12 @@
 @media (max-width: 640px) {
   .mmais { display: inline-flex; }
   .mmais-oculto-movel { display: none !important; }
+}
+
+/* Abaixo de 640px os rótulos perdem a palavra redundante — "Salvar rascunho"
+   vira "Salvar", "Finalizar relatório" vira "Finalizar" —, e é isso que faz a
+   barra caber em UMA linha. Medido: 140px em três linhas antes da rodada, 96
+   com o "⋯", e uma linha depois disto. */
+@media (max-width: 640px) {
+  .barra-btn-extra { display: none; }
 }

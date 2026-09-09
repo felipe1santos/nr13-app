@@ -1552,7 +1552,13 @@ function RelatoriosLegado() {
                   disabled={salvandoRascunho || salvando}
                 >
                   <Icone nome="filetext" tam={14} />{' '}
-                  {salvandoRascunho ? 'Salvando…' : 'Salvar rascunho'}
+                  {salvandoRascunho ? (
+                    'Salvando…'
+                  ) : (
+                    <>
+                      Salvar<span className="barra-btn-extra"> rascunho</span>
+                    </>
+                  )}
                 </button>
               )}
               {!somenteLeitura && (
@@ -1569,7 +1575,11 @@ function RelatoriosLegado() {
                     ? `Gerando PDF ${progressoPdf.feito}/${progressoPdf.total}...`
                     : salvando
                       ? 'Finalizando...'
-                      : 'Finalizar relatório'}
+                      : (
+                          <>
+                            Finalizar<span className="barra-btn-extra"> relatório</span>
+                          </>
+                        )}
                 </button>
               )}
               {/* 10/09/2026 · no celular estes três descem para o "⋯". A barra
