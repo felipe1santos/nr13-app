@@ -50,9 +50,12 @@ export interface DadosGraficoTh {
 
 /** O primeiro número de um texto — a MESMA leitura do template (`/[\d.]+/`). */
 export function numeroDoTexto(v: string | null | undefined): number | null {
-  const m = String(v ?? '').match(/[\d.]+/);
+  // A VÍRGULA conta. O campo é preenchido por técnico brasileiro, e "25,5"
+  // casava só o "25" no regex anterior — a linha tracejada da pressão de teste
+  // saía no lugar errado, num gráfico cujos pontos usam a mesma escala.
+  const m = String(v ?? '').match(/[\d.,]+/);
   if (!m) return null;
-  const n = Number.parseFloat(m[0]);
+  const n = Number.parseFloat(m[0].replace(',', '.'));
   return Number.isFinite(n) ? n : null;
 }
 

@@ -179,9 +179,15 @@ describe('composição — o vetorial emite as seções QUE O RELATÓRIO TEM', (
 });
 
 describe('curva do teste hidrostático — os números são os do template', () => {
-  it('lê a pressão de teste pelo MESMO regex da folha', () => {
+  it('lê a pressão de teste aceitando VÍRGULA — divergência deliberada do template', () => {
     expect(numeroDoTexto('18.0 kgf/cm²')).toBe(18);
-    expect(numeroDoTexto('12,5 bar')).toBe(12); // igual ao template: /[\d.]+/ para no separador
+    // 10/09/2026 · aqui ESTE teste dizia `toBe(12)`, "igual ao template:
+    // /[\d.]+/ para no separador". Era paridade com um template que erra: o
+    // campo é preenchido por técnico brasileiro, e truncar 12,5 em 12 põe a
+    // linha tracejada da pressão de teste no lugar errado, num gráfico cujos
+    // pontos já eram lidos com vírgula por `pontosDaCurva`. A paridade com o
+    // legado não vale um número errado no laudo.
+    expect(numeroDoTexto('12,5 bar')).toBe(12.5);
     expect(numeroDoTexto('—')).toBeNull();
     expect(numeroDoTexto(null)).toBeNull();
   });

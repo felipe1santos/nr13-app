@@ -186,15 +186,15 @@ export default function FormularioTH({ tag, containerId }: { tag: string; contai
           </label>
           <label>
             Pressão de Projeto (kgf/cm²)
-            <input type="number" step="0.01" value={dados.pressaoProj} onChange={(e) => set('pressaoProj', e.target.value)} />
+            <input type="text" inputMode="decimal" value={dados.pressaoProj} onChange={(e) => set('pressaoProj', e.target.value)} />
           </label>
           <label>
             Pressão de Trabalho (kgf/cm²)
-            <input type="number" step="0.01" value={dados.pressaoTrabalho} onChange={(e) => set('pressaoTrabalho', e.target.value)} />
+            <input type="text" inputMode="decimal" value={dados.pressaoTrabalho} onChange={(e) => set('pressaoTrabalho', e.target.value)} />
           </label>
           <label>
             Pressão de Teste (kgf/cm²)
-            <input type="number" step="0.01" value={dados.pressaoTeste} onChange={(e) => set('pressaoTeste', e.target.value)} />
+            <input type="text" inputMode="decimal" value={dados.pressaoTeste} onChange={(e) => set('pressaoTeste', e.target.value)} />
           </label>
           <label>
             Fluido Utilizado
@@ -265,11 +265,11 @@ export default function FormularioTH({ tag, containerId }: { tag: string; contai
             <div className="linha-medida-campos">
               <label>
                 Tempo (min)
-                <input type="number" value={linha.tempo} onChange={(e) => setLinha(i, 'tempo', e.target.value)} />
+                <input type="text" inputMode="decimal" value={linha.tempo} onChange={(e) => setLinha(i, 'tempo', e.target.value)} />
               </label>
               <label>
                 Pressão (kgf/cm²)
-                <input type="number" step="0.01" value={linha.pressao} onChange={(e) => setLinha(i, 'pressao', e.target.value)} />
+                <input type="text" inputMode="decimal" value={linha.pressao} onChange={(e) => setLinha(i, 'pressao', e.target.value)} />
               </label>
             </div>
             {dados.curva.length > 1 && (

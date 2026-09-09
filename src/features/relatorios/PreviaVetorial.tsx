@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Icone } from '../../components/Icone';
 import { VisualizadorPdfBytes } from '../../components/VisualizadorPdf';
 import { textoDoErro } from '../../services/textoDoErro';
 import { gerarPreviaRelatorio } from './pdfVetorial/gerarRelatorio';
 import type { CampoEditavel } from './pdfVetorial/documento';
 import { oQueFalta, type DestinoEdicao, type ItemFaltante } from './oQueFalta';
+import { agruparPendencias, proximoDoGrupo, type GrupoPendencia } from './agruparPendencias';
 import EditorCampoDocumento from './EditorCampoDocumento';
 import { prepararImagem } from './imagensDoDocumento';
 import {
@@ -76,6 +77,24 @@ export default function PreviaVetorial({
   const [erro, setErro] = useState('');
   const [faltando, setFaltando] = useState<ItemFaltante[]>([]);
   const [painelAberto, setPainelAberto] = useState(false);
+  /**
+   * 10/09/2026 · a barra passa a mostrar AÇÕES, não células.
+   *
+   * A detecção continua campo a campo — `faltando` tem os cem. O que muda é
+   * a apresentação: `agruparPendencias` funde por campo do painel e por
+   * seção, e é a contagem de GRUPOS que vai para o botão. Ver o cabeçalho de
+   * `agruparPendencias.ts`.
+   */
+  const grupos = useMemo(() => agruparPendencias(faltando), [faltando]);
+  /** O último campo visitado de cada grupo — clicar de novo avança na seção. */
+  const ultimoDoGrupo = useRef<Map<string, string>>(new Map());
+
+  function irAteGrupo(g: GrupoPendencia) {
+    const alvo = proximoDoGrupo(g, ultimoDoGrupo.current.get(g.id) ?? null);
+    ultimoDoGrupo.current.set(g.id, alvo.id);
+    irAtePendencia(alvo);
+  }
+
   /** O campo que a barra pediu para mostrar — some depois de 1,5 s. */
   const [destacado, setDestacado] = useState<string | null>(null);
   const [irParaPonto, setIrParaPonto] = useState<{ pagina: number; fracaoY: number; pedido: number } | null>(null);
@@ -186,7 +205,7 @@ export default function PreviaVetorial({
         onClick={() => setPainelAberto((v) => !v)}
         aria-pressed={painelAberto}
       >
-        O que falta{faltando.length > 0 ? ` (${faltando.length})` : ''}
+        O que falta{grupos.length > 0 ? ` (${grupos.length})` : ''}
       </button>
       {manuais > 0 && (
         <span className="previa-manuais" title="Campos com texto alterado manualmente neste relatório">
@@ -234,17 +253,6 @@ export default function PreviaVetorial({
     return () => window.clearTimeout(t);
   }, [destacado]);
 
-  /** As pendências agrupadas por seção, preservando a ordem das folhas. */
-  const agrupadas = useMemo(() => {
-    const mapa = new Map<string, ItemFaltante[]>();
-    for (const f of faltando) {
-      const atual = mapa.get(f.secao);
-      if (atual) atual.push(f);
-      else mapa.set(f.secao, [f]);
-    }
-    return [...mapa.entries()];
-  }, [faltando]);
-
   return (
     <div className="previa">
       {erro && <p className="med-erro">{erro}</p>}
@@ -256,34 +264,37 @@ export default function PreviaVetorial({
             {faltando.length === 0 ? (
               <p className="previa-painel-vazio">Nada em branco no documento.</p>
             ) : (
-              /* Agrupado por SEÇÃO do documento — a mesma ordem em que as
-                 folhas saem. Quem revisa lê a lista com o documento do lado; um
-                 punhado de nomes soltos obriga a procurar de que folha cada um é. */
-              <div className="previa-pend-lista">
-                {agrupadas.map(([secao, itens]) => (
-                  <section key={secao}>
-                    <h5>{secao}</h5>
-                    <ul>
-                      {itens.map((f) => (
-                        <li key={f.id}>
-                          <button type="button" onClick={() => irAtePendencia(f)} title={`${f.nome} — página ${f.pagina}`}>
-                            <span className="previa-pend-nome">{f.nome}</span>
-                            <span className="previa-pend-pag">
-                              {f.onde === 'configuracoes'
-                                ? 'Configurações'
-                                : f.onde === 'medicoes'
-                                  ? 'Medições'
-                                  : f.onde === 'laudo'
-                                    ? 'Laudo'
-                                    : `p. ${f.pagina}`}
-                            </span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </section>
+              /* UM item por AÇÃO, na ordem das folhas. O grupo diz quantos
+                 campos carrega; clicar leva ao primeiro deles e, de novo, ao
+                 seguinte — sem listar os cem. */
+              <ul className="previa-pend-lista">
+                {grupos.map((g) => (
+                  <li key={g.id}>
+                    <button
+                      type="button"
+                      onClick={() => irAteGrupo(g)}
+                      title={
+                        g.detalhe
+                          ? `${g.titulo} — ${g.detalhe}. Clique para ir ao primeiro.`
+                          : `${g.titulo} — página ${g.primeiro.pagina}`
+                      }
+                    >
+                      <span className="previa-pend-nome">{g.titulo}</span>
+                      <span className="previa-pend-pag">
+                        {g.detalhe
+                          ? g.detalhe
+                          : g.primeiro.onde === 'configuracoes'
+                            ? 'Configurações'
+                            : g.primeiro.onde === 'medicoes'
+                              ? 'Medições'
+                              : g.primeiro.onde === 'laudo'
+                                ? 'Laudo'
+                                : `p. ${g.primeiro.pagina}`}
+                      </span>
+                    </button>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
             <p className="previa-painel-dica">
               Clique em qualquer texto do documento para escrever direto nele.

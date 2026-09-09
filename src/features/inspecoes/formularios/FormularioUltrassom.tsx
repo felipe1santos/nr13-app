@@ -319,7 +319,7 @@ export default function FormularioUltrassom({ tag, containerId }: { tag: string;
           </label>
           <label>
             Esp. Nominal Casco (mm)
-            <input type="number" step="0.01" value={dados.espNomCasco} onChange={(e) => set('espNomCasco', e.target.value)} />
+            <input type="text" inputMode="decimal" value={dados.espNomCasco} onChange={(e) => set('espNomCasco', e.target.value)} />
           </label>
           <label>
             Ano de Fabricação
@@ -358,7 +358,7 @@ export default function FormularioUltrassom({ tag, containerId }: { tag: string;
           </label>
           <label>
             Velocidade Sônica (m/s)
-            <input type="number" value={dados.velSonica} onChange={(e) => set('velSonica', e.target.value)} />
+            <input type="text" inputMode="decimal" value={dados.velSonica} onChange={(e) => set('velSonica', e.target.value)} />
           </label>
         </div>
       </div>
@@ -395,8 +395,8 @@ export default function FormularioUltrassom({ tag, containerId }: { tag: string;
                       <label key={ang}>
                         {ang}°
                         <input
-                          type="number"
-                          step="0.01"
+                          type="text"
+                          inputMode="decimal"
                           value={dados.medidas[c.id]?.[ang] ?? ''}
                           onChange={(e) => setMedida(c.id, ang, e.target.value)}
                         />
