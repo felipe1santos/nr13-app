@@ -430,8 +430,10 @@
     grid-template-columns: 24px minmax(0, 1fr) auto;
     grid-template-areas:
       'icone nome     situacao'
-      '.     meta     meta'
-      '.     acoes    acoes';
+      /* 10/09/2026 · as ações entram NA linha da meta, no canto direito. Como
+         faixa própria elas custavam 34 px + gap por registro — a linha inteira
+         media 110 px, e a ação de um item ficava mais alta do que o item. */
+      '.     meta     acoes';
     row-gap: 3px;
     padding: 8px 10px;
     align-items: start;
@@ -443,8 +445,11 @@
      quatro faixas custariam 60px por cartão sem dizer mais nada. */
   .pront-linha-col { grid-area: meta; display: inline; }
   .pront-linha-col + .pront-linha-col::before { content: ' · '; color: var(--border-solid, #d1d5db); }
-  .pront-linha-acoes { grid-area: acoes; justify-content: flex-start; margin-top: 2px; }
-  .pront-linha-acoes .btn-icone { width: 34px; height: 34px; }
+  /* Alinhadas à direita e HORIZONTAIS, no fim da linha da meta. */
+  .pront-linha-acoes { grid-area: acoes; justify-content: flex-end; align-self: center; margin-top: 0; }
+  /* O alvo do dedo é 44px; o desenho do ícone continua pequeno (a área
+     clicável é do botão, não do glifo). */
+  .pront-linha-acoes .btn-icone { width: 44px; height: 44px; }
 }
 
 @media (max-width: 640px) {
@@ -573,8 +578,10 @@
     grid-template-columns: 24px minmax(0, 1fr) auto;
     grid-template-areas:
       'icone nome     situacao'
-      '.     meta     meta'
-      '.     acoes    acoes';
+      /* 10/09/2026 · as ações entram NA linha da meta, no canto direito. Como
+         faixa própria elas custavam 34 px + gap por registro — a linha inteira
+         media 110 px, e a ação de um item ficava mais alta do que o item. */
+      '.     meta     acoes';
   }
 }
 

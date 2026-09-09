@@ -444,16 +444,34 @@ describe('20 e 21 · densidade e celular', () => {
     expect(css).toMatch(/\.rel-page \.rel-linha \{[\s\S]*?align-items: center;/);
   });
 
-  it('no celular a linha vira cartão de três colunas, não dez', () => {
+  it('no celular a linha é LISTA, não pilha de cartões', () => {
+    // 10/09/2026 · era uma grade de 4 colunas e 5 faixas — quatro de conteúdo
+    // e uma só para os três botões, 125 px por registro medidos em 390 px.
+    // Agora a linha flui: identidade e situação em cima, o resto numa frase
+    // com "·", ações no fim da última linha.
     const movel = css.slice(css.lastIndexOf('@media (max-width: 1023px)'));
-    expect(movel).toContain('grid-template-columns: 26px repeat(3, minmax(0, 1fr));');
+    expect(movel).toContain('display: flex;');
+    expect(movel).toContain('flex-wrap: wrap;');
+    expect(movel).toContain(".rel-page .rel-linha [data-rot='Situação'] { order: 3; flex: 0 0 auto; margin-left: auto; }");
+    // As ações não podem voltar a ser uma faixa própria.
+    expect(movel).toMatch(/\.rel-page \.rel-cel-acoes \{[^}]*margin-left: auto;/);
     // O rótulo dos botões só some em 640px: num tablet os três cabem com texto.
     const barraMovel = css.slice(css.lastIndexOf('@media (max-width: 640px)'));
     expect(barraMovel).toContain('.rel-page .rel-btn-rotulo { display: none; }');
   });
 
-  it('o alvo de toque das ações continua acima de 32px no cartão', () => {
+  it('as três datas continuam identificadas, e nenhum campo sumiu', () => {
+    // Numa frase separada por "·", três datas seguidas não dizem qual é qual.
     const movel = css.slice(css.lastIndexOf('@media (max-width: 1023px)'));
+    for (const rot of ['criação', 'validade', 'próxima']) {
+      expect(movel, rot).toContain(`content: '${rot}';`);
+    }
+    // Nenhuma célula é escondida no celular — o que mudou foi o arranjo.
+    expect(movel).not.toMatch(/\[data-rot='(Validade|Próxima|Criação)'\][^{]*\{[^}]*display: none/);
+  });
+
+  it('o alvo de toque das ações continua declarado', () => {
+    const movel = css.slice(css.indexOf('@media (max-width: 1023px)'));
     const acoes = /\.rel-page \.rel-cel-acoes \.btn-icone \{([\s\S]*?)\}/.exec(movel)![1];
     const alt = /height: (\d+)px/.exec(acoes)![1];
     expect(Number(alt)).toBeGreaterThanOrEqual(34);

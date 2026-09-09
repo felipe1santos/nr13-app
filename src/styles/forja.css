@@ -856,7 +856,8 @@
   }
   /* "Última" some no celular — é a coluna que o próprio painel já esconde no
      desktop estreito, e no cartão ela aparecia quase sempre como travessão. */
-  .fj-table tbody tr:has(.cel-titulo) td.col-ultima { display: none; }
+  .fj-table tbody tr:has(.cel-titulo) td.col-ultima,
+  .fj-table tbody tr:has(.cel-titulo) td[data-rot='Última'] { display: none; }
   /* Ações continuam HORIZONTAIS, no fim da linha 2. */
   .fj-table tbody tr:has(.cel-titulo) td.cel-acoes {
     order: 6;
