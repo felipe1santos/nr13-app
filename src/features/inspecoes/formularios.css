@@ -97,9 +97,16 @@
 
 .linha-medida-campos {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  /* `minmax(0, 1fr)`, e não `1fr`: o input de texto tem largura mínima própria
+     (~170px no Chrome) e `1fr` não encolhe abaixo do min-content. Medido em
+     388px: duas colunas de 181px dentro de um bloco de 286px, com a segunda
+     cortada. O `min-width: 0` no campo é a outra metade da mesma regra. */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
+.linha-medida-campos label,
+.linha-medida-campos input,
+.linha-medida-campos select { min-width: 0; }
 
 .linha-medida-campos label {
   display: flex;
@@ -212,7 +219,9 @@
 /* Fotos (TH) */
 .fotos-formulario-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  /* Mesma regra da grade de medições: o mínimo zero evita que o conteúdo da
+     célula (imagem ou legenda longa) estique a trilha além do bloco. */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
