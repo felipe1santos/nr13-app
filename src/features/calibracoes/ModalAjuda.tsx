@@ -38,6 +38,8 @@ export default function ModalAjuda({
   subtitulo,
   ilustracao,
   alt,
+  proporcao,
+  layout = 'faixa',
   passos,
   nota,
   aoFechar,
@@ -49,6 +51,21 @@ export default function ModalAjuda({
   /** Caminho em `public/ilustracoes/`. */
   ilustracao: string;
   alt: string;
+  /**
+   * `largura / altura` da arte. O padrão é a faixa 3:1 das primeiras
+   * ilustrações; declarar a proporção REAL é o que impede a arte de aparecer
+   * em letterbox — foi assim que uma arte 3:2 acabou dentro de um slot 3:1,
+   * com tarja cinza dos dois lados de uma imagem de fundo branco.
+   */
+  proporcao?: string;
+  /**
+   * `faixa` (padrão): a arte é um banner do topo, largura inteira.
+   * `lateral`: a arte é APOIO no canto superior direito, ao lado dos dois
+   * primeiros passos, e os demais passam por baixo dela ocupando a largura
+   * toda. Serve para arte que não é panorâmica — e evita a coluna morta que
+   * uma imagem alta cria quando reserva uma faixa vertical até o rodapé.
+   */
+  layout?: 'faixa' | 'lateral';
   passos: PassoAjuda[];
   nota?: React.ReactNode;
   aoFechar: () => void;
@@ -121,24 +138,75 @@ export default function ModalAjuda({
           </button>
         </div>
 
-        <div className="ajuda-corpo">
-          {/* `contain` e proporção fixa: a ilustração é 3:1 e não pode esticar
-              nem cortar. `loading="lazy"` porque ela só existe se alguém abrir
-              a ajuda — não pesa no carregamento da tela. */}
-          <figure className="ajuda-figura">
-            <img src={ilustracao} alt={alt} loading="lazy" decoding="async" />
-          </figure>
-
-          <ol className="ajuda-passos">
-            {passos.map((p) => (
-              <li key={p.titulo}>
-                <div>
-                  <b>{p.titulo}</b>
-                  <span>{p.texto}</span>
-                </div>
-              </li>
-            ))}
-          </ol>
+        <div className={`ajuda-corpo${layout === 'lateral' ? ' ajuda-corpo-lateral' : ''}`}>
+          {/* `contain` e proporção declarada: a arte nunca estica nem corta.
+              `loading="lazy"` porque ela só existe se alguém abrir a ajuda —
+              não pesa no carregamento da tela. */}
+          {layout === 'faixa' ? (
+            <>
+              <figure className="ajuda-figura">
+                <img
+                  src={ilustracao}
+                  alt={alt}
+                  loading="lazy"
+                  decoding="async"
+                  style={proporcao ? { aspectRatio: proporcao } : undefined}
+                />
+              </figure>
+              <ol className="ajuda-passos">
+                {passos.map((p, i) => (
+                  <li key={p.titulo}>
+                    <span className="ajuda-num" aria-hidden="true">{i + 1}</span>
+                    <div>
+                      <b>{p.titulo}</b>
+                      <span>{p.texto}</span>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </>
+          ) : (
+            <>
+              {/* LINHA DE CIMA: os dois primeiros passos à esquerda, a arte à
+                  direita. A arte termina AQUI — o que vem depois volta a usar
+                  a largura inteira, e é isso que elimina a coluna morta. */}
+              <div className="ajuda-topo">
+                <ol className="ajuda-passos ajuda-passos-topo">
+                  {passos.slice(0, 2).map((p, i) => (
+                    <li key={p.titulo}>
+                      <span className="ajuda-num" aria-hidden="true">{i + 1}</span>
+                      <div>
+                        <b>{p.titulo}</b>
+                        <span>{p.texto}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+                <figure className="ajuda-arte">
+                  <img
+                    src={ilustracao}
+                    alt={alt}
+                    loading="lazy"
+                    decoding="async"
+                    style={proporcao ? { aspectRatio: proporcao } : undefined}
+                  />
+                </figure>
+              </div>
+              {passos.length > 2 && (
+                <ol className="ajuda-passos ajuda-passos-base">
+                  {passos.slice(2).map((p, i) => (
+                    <li key={p.titulo}>
+                      <span className="ajuda-num" aria-hidden="true">{i + 3}</span>
+                      <div>
+                        <b>{p.titulo}</b>
+                        <span>{p.texto}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </>
+          )}
 
           {nota && (
             <p className="ajuda-nota">

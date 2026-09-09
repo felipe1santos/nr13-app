@@ -95,24 +95,29 @@
   counter-reset: passo;
 }
 .ajuda-passos li {
-  display: grid;
-  grid-template-columns: 26px 1fr;
+  display: flex;
   gap: 12px;
-  align-items: start;
+  align-items: flex-start;
+  min-width: 0;
 }
-.ajuda-passos li::before {
-  counter-increment: passo;
-  content: counter(passo);
+/* 10/09/2026 · o número saiu do `::before` com `counter` e virou elemento:
+   com a arte lateral os passos vivem em DUAS listas, e o contador reiniciava
+   na segunda. Azul-petróleo no lugar do âmbar — o âmbar é a cor de AÇÃO do
+   sistema, e quatro círculos laranja num modal informativo disputavam a
+   atenção com o botão que fecha. */
+.ajuda-num {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex: 0 0 auto;
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  background: var(--amber, #ff7a1a);
-  color: var(--amber-txt, #241505);
+  background: var(--blue2, #0c4f9b);
+  color: #fff;
   font-size: 12px;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 .ajuda-passos b { display: block; font-size: 13px; margin-bottom: 2px; }
 .ajuda-passos span { font-size: 12.5px; line-height: 1.55; color: var(--muted, #6b7280); }
@@ -151,4 +156,89 @@
   .ajuda-acoes { padding: 12px 16px 16px; }
   .ajuda-acoes .fj-btn { width: 100%; }
   .ajuda-figura { margin-bottom: 14px; }
+}
+
+/* ============================================================================
+   LAYOUT `lateral` — a arte como APOIO, não como faixa (10/09/2026)
+   ============================================================================
+   O que estava errado: a arte dos containers é 3:2 e o slot da faixa é 3:1,
+   com fundo cinza. Uma imagem de fundo BRANCO entrava em letterbox — duas
+   tarjas cinza dos lados — e ainda tomava a largura inteira do modal, criando
+   um bloco enorme antes de qualquer texto.
+
+   Aqui ela vira apoio no canto superior direito, ao lado dos dois primeiros
+   passos, e ACABA ali: os passos seguintes passam por baixo usando a largura
+   toda. Sem coluna morta. */
+
+.ajuda-topo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 200px;
+  gap: 18px 22px;
+  align-items: start;
+  margin-bottom: 18px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line, #e4e1d8);
+}
+
+/* A moldura da arte acompanha o fundo da PRÓPRIA imagem — branco, com uma
+   borda de 1px em vez do bloco cinza. */
+.ajuda-arte {
+  margin: 0;
+  padding: 10px;
+  border: 1px solid var(--line, #e4e1d8);
+  border-radius: 12px;
+  background: #fff;
+}
+.ajuda-arte img {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* A proporção real vem do componente (`proporcao`); esta é a reserva. */
+  object-fit: contain;
+}
+
+/* Os dois primeiros passos ficam em coluna, ao lado da arte. */
+.ajuda-passos-topo { gap: 16px; }
+
+/* Os passos de baixo dividem a largura em duas colunas: é o que faz a parte
+   inferior do modal ser usada, em vez de virar uma pilha estreita. */
+.ajuda-passos-base {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px 22px;
+}
+
+/* O item vira flex (era grid de 26px + 1fr, que dependia do `::before`). */
+.ajuda-corpo-lateral .ajuda-passos li {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  min-width: 0;
+}
+.ajuda-corpo-lateral .ajuda-passos li > div { min-width: 0; }
+/* Mais contraste no título do passo, texto de apoio em cinza legível. */
+.ajuda-corpo-lateral .ajuda-passos b {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-main, #2d3339);
+  margin-bottom: 3px;
+}
+.ajuda-corpo-lateral .ajuda-passos span:not(.ajuda-num) {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--muted, #6b7280);
+}
+
+@media (max-width: 760px) {
+  /* Uma coluna: título e introdução, a arte, e os quatro passos em fila. */
+  .ajuda-topo {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+    margin-bottom: 14px;
+    padding-bottom: 14px;
+  }
+  /* A arte vem ANTES dos passos e encolhe — no celular ela é contexto, não
+     conteúdo, e não pode empurrar o texto para baixo da dobra. */
+  .ajuda-arte { order: -1; justify-self: center; width: 100%; max-width: 240px; padding: 8px; }
+  .ajuda-passos-base { grid-template-columns: minmax(0, 1fr); gap: 14px; }
 }

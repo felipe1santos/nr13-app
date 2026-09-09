@@ -232,24 +232,33 @@
 
 /* O "i" da ajuda, ao lado do título da sessão. Discreto: ele não compete com
    "+ Nova Inspeção", que é a ação da tela. */
+/* Botão de AJUDA, com identidade própria: lilás claro com o "i" em roxo
+   escuro. Ele não é ação da tela — é informação —, e o cinza neutro anterior
+   o fazia parecer um botão desabilitado ao lado do "+ Nova Inspeção". */
 .btn-info-secao {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
-  margin-left: 8px;
+  width: 27px;
+  height: 27px;
+  margin-left: 9px;
   padding: 0;
   vertical-align: middle;
-  border: 1px solid var(--border-solid, #e4e1d8);
+  border: 1px solid #ddd3f2;
   border-radius: 50%;
-  background: var(--bg-card, #fff);
-  color: var(--text-muted, #6b7280);
+  background: #f3effd;
+  color: #5b3aa6;
   cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
 }
 .btn-info-secao:hover {
-  color: var(--blue2, #0c4f9b);
-  border-color: var(--blue2, #0c4f9b);
+  background: #e8e0fb;
+  border-color: #c3b1ea;
+  color: #462c85;
+}
+.btn-info-secao:focus-visible {
+  outline: 2px solid #5b3aa6;
+  outline-offset: 2px;
 }
 
 /* ── Modal de renomear ───────────────────────────────────────────────────── */

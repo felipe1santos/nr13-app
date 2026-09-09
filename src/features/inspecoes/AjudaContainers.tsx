@@ -23,15 +23,15 @@ export default function AjudaContainers({ aoFechar }: { aoFechar: () => void }) 
       subtitulo="Um container é uma RODADA de inspeção daquele equipamento: ele agrupa os ensaios que você vai fazer em campo e guarda o que foi preenchido em cada um."
       ilustracao="/ilustracoes/container-inspecao.webp"
       alt="Uma pilha de formulários de inspeção, com o de cima mostrando campos preenchidos e itens marcados"
+      proporcao="626 / 417"
+      layout="lateral"
       passos={[
         {
           titulo: 'Crie ou escolha um container',
           texto: (
             <>
-              Em <b>+ Nova Inspeção</b> você dá um nome à rodada e marca quais ensaios ela terá —
-              checklist, exame visual externo e interno, medição de espessura, teste hidrostático.
-              O container <b>pertence àquele equipamento</b>, e as rodadas anteriores continuam
-              inteiras: a inspeção do ano passado não é sobrescrita pela deste ano.
+              Em <b>+ Nova Inspeção</b>, dê um nome à rodada e marque os ensaios dela. O container
+              pertence àquele equipamento, e as rodadas anteriores continuam inteiras.
             </>
           ),
         },
@@ -39,23 +39,27 @@ export default function AjudaContainers({ aoFechar }: { aoFechar: () => void }) 
           titulo: 'Preencha os ensaios',
           texto: (
             <>
-              Abrindo o container, cada ensaio aparece com <b>Preencher</b> e o seu estado —
-              Pendente ou Preenchido. Os formulários são feitos para o celular, em campo, e salvam
-              no aparelho mesmo sem rede. Atenção à diferença: marcar um ensaio na criação apenas
-              o <b>atribui</b>; ele só passa a existir no documento depois de <b>preenchido e
-              salvo</b>.
+              Cada ensaio abre com <b>Preencher</b> e mostra o estado — Pendente ou Preenchido. Os
+              formulários são feitos para o celular, em campo.
             </>
           ),
         },
         {
-          titulo: 'Use o container ao gerar o relatório',
+          titulo: 'Salve os dados do container',
           texto: (
             <>
-              Em <b>Relatórios → Criar relatório</b>, a etapa <b>Inspeção</b> lista os containers
-              deste equipamento e diz quantos ensaios cada um tem <b>com dados salvos</b>. O que
-              você escolher é injetado no documento — as respostas, as medições e as fotos entram
-              nas folhas correspondentes. Dá para gerar sem container também, e aí as folhas de
-              ensaio saem em branco.
+              Marcar um ensaio na criação apenas o <b>atribui</b>. Ele só passa a existir no
+              documento depois de <b>preenchido e salvo</b> — e o salvamento funciona sem rede.
+            </>
+          ),
+        },
+        {
+          titulo: 'Use o container no relatório',
+          texto: (
+            <>
+              Em <b>Relatórios → Criar relatório</b>, a etapa <b>Inspeção</b> lista os containers e
+              diz quantos ensaios cada um tem com dados salvos. O escolhido é injetado no
+              documento.
             </>
           ),
         },
