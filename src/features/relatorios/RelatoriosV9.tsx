@@ -995,7 +995,7 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
                         validade digitada aparecia como se não tivesse nenhuma.
                         Isso NÃO o torna prazo oficial: o vencimento sai do
                         índice do equipamento, e rascunho não entra lá (ver o
-                        cabeçalho de ). Aqui é só o que a tela
+                        cabeçalho de rascunhos.ts). Aqui é só o que a tela
                         mostra, do índice leve — sem abrir o registro. */}
                     <span role="cell" data-rot="Validade">{ou(r.validade)}</span>
                     <span role="cell" data-rot="Próxima" title={rotuloProximaRascunho(r)}>

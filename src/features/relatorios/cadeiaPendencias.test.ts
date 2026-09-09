@@ -168,4 +168,18 @@ describe('a barra navega, e o destaque é temporário', () => {
   it('quem pediu menos movimento fica com o realce, sem o pulso', () => {
     expect(css).toContain('@media (prefers-reduced-motion: reduce)');
   });
+
+  it('o efeito do foco não cancela o próprio quadro', () => {
+    // 09/09/2026 · medido no app: o modal abria e o input ficava SEM foco.
+    // A versão anterior agendava o `requestAnimationFrame` e, na mesma
+    // passagem, chamava `setFocoConfig(null)` — o render seguinte rodava a
+    // limpeza do efeito, que era `cancelAnimationFrame`, e matava o quadro
+    // antes de ele focar. O estado só pode ser limpo DEPOIS de aplicar.
+    const efeito = tela.slice(tela.indexOf('if (!modalConfig || !focoConfig) return;'));
+    const corpo = efeito.slice(0, efeito.indexOf('}, [modalConfig, focoConfig]);'));
+    expect(corpo.indexOf('classList.add(\'campo-destacado\')')).toBeLessThan(corpo.indexOf('setFocoConfig(null)'));
+    // E o quadro sozinho não basta: `requestAnimationFrame` não roda em aba
+    // oculta, que é onde metade desta medição acontece.
+    expect(corpo).toContain('window.setTimeout(aplicar,');
+  });
 });

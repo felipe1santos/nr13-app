@@ -332,21 +332,39 @@ function RelatoriosLegado() {
    */
   const [focoConfig, setFocoConfig] = useState<string | null>(null);
 
-  // Foco + destaque de ~1,5 s no campo pedido. O `requestAnimationFrame`
-  // espera o modal pintar; sem ele o `querySelector` roda antes de o input
-  // existir.
+  // Foco + destaque de ~1,5 s no campo pedido. Espera o modal PINTAR: sem isso
+  // o `querySelector` roda antes de o input existir.
+  //
+  // 09/09/2026 · esta versão nasceu cancelando o próprio quadro. Ela agendava o
+  // `requestAnimationFrame` e, na MESMA passagem, chamava `setFocoConfig(null)`
+  // — o que dispara um novo render, e o render roda a limpeza do efeito, que
+  // era `cancelAnimationFrame`. O quadro morria antes de focar. Medido no app:
+  // o modal abria e o input ficava sem foco e sem destaque, exatamente o
+  // trabalho que a barra existe para poupar.
+  //
+  // Duas mudanças: o estado só é limpo DEPOIS de aplicar (não antes), e o
+  // `setTimeout` é a rede de segurança do `requestAnimationFrame`, que não roda
+  // em aba oculta.
   useEffect(() => {
     if (!modalConfig || !focoConfig) return;
-    const id = requestAnimationFrame(() => {
+    let aplicado = false;
+    const aplicar = () => {
+      if (aplicado) return;
       const alvo = document.querySelector<HTMLInputElement>(`.rel-modal [name="${focoConfig}"]`);
       if (!alvo) return;
+      aplicado = true;
       alvo.focus();
       alvo.select?.();
       alvo.classList.add('campo-destacado');
       window.setTimeout(() => alvo.classList.remove('campo-destacado'), 1500);
-    });
-    setFocoConfig(null);
-    return () => cancelAnimationFrame(id);
+      setFocoConfig(null);
+    };
+    const quadro = requestAnimationFrame(aplicar);
+    const relogio = window.setTimeout(aplicar, 120);
+    return () => {
+      cancelAnimationFrame(quadro);
+      window.clearTimeout(relogio);
+    };
   }, [modalConfig, focoConfig]);
   const [imprimindo, setImprimindo] = useState(false);
   const [filtroAberto, setFiltroAberto] = useState(false);
