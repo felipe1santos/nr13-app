@@ -41,9 +41,8 @@ import type { Contagem, FiltrosBusca, ItemCatalogo } from '../../services/buscaI
 import * as catalogo from '../../services/catalogoLocal';
 import { isTrial } from '../../services/auth';
 import { MSG_BLOQUEIO_IMPORTACAO } from '../../services/trial';
-import { formatarValor } from '../../calc/unidades';
+import { formatarValor, unidadeValida } from '../../calc/unidades';
 import { rotaEquipamento } from '../../app/rotas';
-import type { SistemaUnidade } from '../../calc/unidades';
 import './equipamento.css';
 import './importar.css';
 import '../../pages/dashboard.css';
@@ -472,7 +471,7 @@ function pendentesQueCasam(filtros: FiltrosBusca): ItemCatalogo[] {
 
 /** A linha do modo lista — mesmas colunas da tela antiga. */
 function LinhaCatalogo({ item, aoAbrir }: { item: ItemCatalogo; aoAbrir: () => void }) {
-  const unidade = (item.unidade as SistemaUnidade) || 'SI';
+  const unidade = unidadeValida(item.unidade);
   return (
     <button type="button" className="card-equipamento-horiz" onClick={aoAbrir}>
       <div className="card-eq-img">

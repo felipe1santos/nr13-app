@@ -19,7 +19,7 @@ import { useState, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { textoCliente, type ItemCatalogo } from '../../services/buscaIndex';
 import type { SistemaUnidade } from '../../calc/unidades';
-import { FATORES_CONVERSAO, formatarValor } from '../../calc/unidades';
+import { FATORES_CONVERSAO, formatarValor, unidadeValida } from '../../calc/unidades';
 import { salvarUnidade } from './equipamentoService';
 import { Icone } from '../../components/Icone';
 import FotoImg from '../../components/FotoImg';
@@ -41,7 +41,9 @@ function vidaInfo(anos: number | null): { texto: string; pct: number; cor: strin
 
 export default function CardCatalogo({ item }: { item: ItemCatalogo }) {
   const navigate = useNavigate();
-  const [unidade, setUnidade] = useState<SistemaUnidade>((item.unidade as SistemaUnidade) || 'SI');
+  // `unidadeValida`, e não um cast: a projeção devolve `unidade` como string
+  // livre, e um valor fora do domínio quebrava o render do cartão inteiro.
+  const [unidade, setUnidade] = useState<SistemaUnidade>(() => unidadeValida(item.unidade));
 
   const tipo = item.tipo ?? 'vaso';
   const rotuloTipo =
