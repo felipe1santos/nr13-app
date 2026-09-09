@@ -1848,10 +1848,16 @@ body.doc-foco .meta-barra-fixa { padding-top: 6px; padding-bottom: 6px; }
   background: var(--surface-2, #f5f6f8);
   color: var(--muted, #6b7280);
 }
+/* 09/09/2026 · o quadro ficou NEUTRO porque o ícone passou a ter cor própria.
+   Com o fundo rosa e a folha em #b42318, a tarja vermelha do ícone caía sobre
+   vermelho e sobre rosa — três tons da mesma cor, e nenhum deles destacando
+   nada. Agora a folha é cinza e a caixa é branca: a tarja é a única coisa
+   vermelha, e é ela que diz "PDF" antes de qualquer leitura. A caixa continua
+   existindo para alinhar com a marca do rascunho e a do legado. */
 .rel-marca-pdf {
-  border-color: #f3c9c4;
-  background: #fdeeec;
-  color: #b42318;
+  border-color: #e0e4e9;
+  background: var(--bg-card, #fff);
+  color: #55606b;
 }
 .rel-marca-rascunho {
   border-color: #cfdcf1;

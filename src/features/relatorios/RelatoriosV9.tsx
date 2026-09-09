@@ -999,17 +999,20 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
               const r = linha.item;
               return (
                 <div className={`rel-linha${sit === 'arquivado' ? ' rel-linha-arquivada' : ''}`} role="row">
-                  {/* A marca do arquivo: quadrada, do sprite do próprio sistema,
-                      e vermelha só quando existe PDF arquivado (§7-quater). O
-                      relatório legado — sem arquivo — fica com a marca neutra, e
-                      o selo diz isso em vez de prometer um documento que não
-                      está lá. Listar continua sem tocar arquivo nenhum. */}
+                  {/* A marca do arquivo: quadrada, do sprite do próprio sistema.
+                      Com PDF arquivado (§7-quater) ela é o ícone `pdf` — o MESMO
+                      do menu da seção, com a tarja vermelha. O relatório legado,
+                      sem arquivo, fica com a folha neutra do `filetext`: a
+                      diferença entre os dois é justamente "existe o PDF?", e
+                      dar a tarja de PDF a quem não tem arquivo prometeria um
+                      documento que não está lá. Listar continua sem tocar
+                      arquivo nenhum. */}
                   <span role="cell" className="rel-cel-icone">
                     <span
                       className={`rel-marca${r.pdfRef ? ' rel-marca-pdf' : ''}`}
                       title={r.pdfRef ? 'Relatório finalizado (PDF arquivado)' : 'Relatório sem PDF arquivado (anterior ao arquivamento)'}
                     >
-                      <Icone nome="filetext" tam={15} />
+                      <Icone nome={r.pdfRef ? 'pdf' : 'filetext'} tam={r.pdfRef ? 17 : 15} />
                     </span>
                   </span>
                   <span role="cell" className="rel-cel-nome" title={r.nome ?? r.codigo ?? ''}>

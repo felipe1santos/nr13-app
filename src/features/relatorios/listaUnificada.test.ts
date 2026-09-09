@@ -145,7 +145,10 @@ describe('a tela não tem mais duas listagens (leitura do fonte)', () => {
 
   it('o ícone vem do sprite do sistema, não de uma imagem solta', () => {
     expect(tela).not.toContain('/icones/pdf.webp');
-    expect(tela).toContain('<Icone nome="filetext" tam={15} />');
+    // 09/09/2026 · o relatório COM arquivo passou a usar o ícone `pdf` (o mesmo
+    // do menu da seção); o legado, sem arquivo, continua com a folha neutra.
+    // A diferença entre os dois é justamente "existe o PDF?".
+    expect(tela).toContain("nome={r.pdfRef ? 'pdf' : 'filetext'}");
   });
 });
 
