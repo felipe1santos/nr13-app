@@ -60,7 +60,10 @@ describe('as cores do realce', () => {
 
   it('o realce é desenhado em NEGRITO e com a cor própria', () => {
     const documento = readFileSync('src/features/relatorios/pdfVetorial/documento.ts', 'utf8');
-    expect(documento).toContain("cel.rotulo || cel.destaque ? 'bold' : 'normal'");
+    // O peso saiu do laço e virou `negritoDaCelula` (08/09/2026), que trata
+    // rótulo, realce de espessura E as marcas de veredito no mesmo lugar.
+    expect(documento).toContain('if (cel.rotulo || cel.destaque) return true;');
+    expect(documento).toContain("negritoDaCelula(cel) ? 'bold' : 'normal'");
     expect(documento).toContain('COR.textoMaiorEspessura');
     expect(documento).toContain('COR.textoMenorEspessura');
   });

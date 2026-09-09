@@ -406,11 +406,14 @@ describe('emissão vetorial: o documento sai com o que o usuário salvou', () =>
     // Desenhada = campo de texto por linha, com id próprio. Se ela virasse
     // imagem da tabela, estes campos não existiriam.
     expect(campo(editaveis, 'placa.fabricante')).toBe('FABRICANTE-E2E-2026');
-    expect(campo(editaveis, 'placa.n-de-serie')).toBe('SERIE-E2E-987654');
+    expect(campo(editaveis, 'placa.numero-de-serie')).toBe('SERIE-E2E-987654');
     // UMA fonte: o que a placa imprime é o mesmo valor da tabela de identificação.
     expect(campo(editaveis, 'placa.fabricante')).toBe(modelo.equipamento['FABRICANTE']);
-    const pmtaPlaca = campo(editaveis, 'placa.pmta-kgf-cm');
-    expect(pmtaPlaca).toBe(modelo.pressoes.find((p) => p.rotulo.startsWith('PMTA'))!.kgf);
+    // A PMTA e a PTH saem como mini-tabela de três unidades (o modelo da
+    // referência), desenhadas fora do sistema de campos editáveis — o que se
+    // confere aqui é que os NÚMEROS impressos são os do modelo.
+    expect(campo(editaveis, 'placa.identificacao-do-equipamento')).toBe(TAG);
+    expect(campo(editaveis, 'placa.categoria')).toBe(modelo.equipamento['CATEGORIA DO VASO']);
   });
 
   it('a área da placa é clicável para trocar por FOTO — e remover volta à reconstruída', async () => {

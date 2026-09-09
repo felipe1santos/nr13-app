@@ -1,9 +1,9 @@
 import { BORDA_FINA, CAIXA, COR, FONTE, LIMITE_CORPO, PT, alturaLinha } from './documentoA4';
 import { secoesPresentes, type SecaoRelatorio } from './composicao';
 import { ALTURA_GRAFICO_TH, desenharGraficoTh, numeroDoTexto, pontosDaCurva } from './graficoTh';
-import { foto } from './primitivas';
+import { foto, imagemEncaixada } from './primitivas';
 import { FAMILIA } from './carlito';
-import { camposDaPlaca } from '../placaIdentificacao';
+import { PROPORCAO_PLACA, layoutDaPlaca } from '../placaIdentificacao';
 import type { CelulaDoc, Documento } from './documento';
 import { rotuloLaudo } from './rotulos';
 import { DESCRICAO_VARIAVEL, prepararFormula, variaveisDaFormula } from './formulaMatematica';
@@ -515,7 +515,11 @@ export function blocoPlaca(doc: Documento, m: ModeloRelatorio): void {
     // "contain" pedido, e é o que impede a placa de sair esticada.
     foto(doc.pdf, m.placaReal.dataUrl, { x: CAIXA.x, y: topo, largura: CAIXA.largura, altura }, m.placaReal.proporcao);
   } else {
-    desenharPlacaReconstruida(doc, m, topo, altura);
+    // A placa reconstruída tem a PROPORÇÃO da referência: a largura sai da
+    // altura, não da largura do papel. Esticá-la de margem a margem produzia
+    // uma faixa achatada que não se parece com placa de equipamento nenhuma.
+    const larguraPlaca = Math.min(CAIXA.largura * 0.86, altura * PROPORCAO_PLACA);
+    desenharPlacaReconstruida(doc, m, topo, altura, larguraPlaca);
   }
 
   // A ÁREA INTEIRA da placa é clicável (13D-bis, tipo imagem): o usuário troca
@@ -540,60 +544,180 @@ export function blocoPlaca(doc: Documento, m: ModeloRelatorio): void {
  * Texto, linhas e moldura em vetor: é o mesmo motor que desenha o resto do
  * documento, então a placa fica selecionável e nítida em qualquer zoom. Nenhum
  * dado é inventado: campo sem valor na ficha sai com o travessão do documento.
+ *
+ * ## O modelo (08/09/2026)
+ *
+ * Segue a referência que o dono mandou: logo da empresa no canto, título
+ * centrado, fio de separação, e daí para baixo QUADROS com o valor grande
+ * dentro e o nome do campo pequeno **por fora, embaixo**. É como uma placa de
+ * equipamento é lida — o valor primeiro, o rótulo depois, se preciso.
+ *
+ * A versão anterior era uma grade `RÓTULO | valor` de duas colunas: informação
+ * certa, aparência de planilha. As duas pressões viraram mini-tabelas de três
+ * unidades (MPa · psi · kgf/cm²), que é como a placa física as traz, e a
+ * CATEGORIA ganhou um quadro alto no fim.
+ *
+ * A largura sai da ALTURA disponível, pela proporção da referência
+ * (`PROPORCAO_PLACA`): esticar a placa até a largura do papel produziria uma
+ * faixa achatada que não se parece com placa nenhuma.
  */
-function desenharPlacaReconstruida(doc: Documento, m: ModeloRelatorio, topo: number, alturaTotal = ALTURA_PLACA): void {
-  const campos = camposDaPlaca(m.equipamento, m.pressoes);
-  const largura = CAIXA.largura * 0.72;
+function desenharPlacaReconstruida(
+  doc: Documento,
+  m: ModeloRelatorio,
+  topo: number,
+  alturaTotal: number,
+  largura: number,
+): void {
+  const fileiras = layoutDaPlaca(m.equipamento, m.pressoes, { execucao: m.execucao, validade: m.validade });
   const x = CAIXA.x + (CAIXA.largura - largura) / 2;
-  const alturaTitulo = 8;
-  const linhas = Math.ceil(campos.length / 2);
-  const alturaLinhaPlaca = (alturaTotal - alturaTitulo - 4) / linhas;
-  const y0 = topo + 2;
+  const y0 = topo;
 
+  // Moldura externa grossa — é o corpo da placa.
   doc.pdf.setDrawColor(COR.texto);
-  doc.pdf.setLineWidth(0.8 * PT);
-  doc.pdf.rect(x, y0, largura, alturaTotal - 4);
+  doc.pdf.setLineWidth(1.0 * PT);
+  doc.pdf.rect(x, y0, largura, alturaTotal);
 
-  // Faixa do título, com o nome da empresa executante — é o que uma placa traz.
-  doc.pdf.setFillColor(COR.fundoCabecalhoTabela);
-  doc.pdf.rect(x, y0, largura, alturaTitulo, 'F');
-  doc.pdf.setLineWidth(0.6 * PT);
-  doc.pdf.line(x, y0 + alturaTitulo, x + largura, y0 + alturaTitulo);
+  const pad = Math.min(4, largura * 0.03);
+  const xi = x + pad;
+  const larguraUtil = largura - pad * 2;
+
+  // ── CABEÇALHO: logo + título + fio ────────────────────────────────────────
+  const alturaCab = Math.max(9, alturaTotal * 0.085);
+  if (m.empresa?.logo) {
+    try {
+      imagemEncaixada(
+        doc.pdf,
+        m.empresa.logo,
+        { x: xi, y: y0 + pad * 0.6, largura: larguraUtil * 0.17, altura: alturaCab * 0.8 },
+        { alinhamento: 'left' },
+      );
+    } catch {
+      // Logo ilegível não impede a placa de sair.
+    }
+  }
   doc.pdf.setFont(FAMILIA, 'bold');
   doc.pdf.setFontSize(FONTE.banner);
   doc.pdf.setTextColor(COR.texto);
-  doc.pdf.text('PLACA DE IDENTIFICAÇÃO — NR-13', x + largura / 2, y0 + alturaTitulo * 0.68, { align: 'center' });
+  doc.pdf.text('PLACA DE IDENTIFICAÇÃO', x + largura / 2, y0 + alturaCab * 0.72, { align: 'center' });
+  doc.pdf.setDrawColor(COR.texto);
+  doc.pdf.setLineWidth(BORDA_FINA);
+  doc.pdf.line(xi, y0 + alturaCab + 1, xi + larguraUtil, y0 + alturaCab + 1);
 
-  const meia = largura / 2;
-  campos.forEach((campo, i) => {
-    const coluna = i % 2;
-    const linha = Math.floor(i / 2);
-    const cx = x + coluna * meia;
-    const cy = y0 + alturaTitulo + linha * alturaLinhaPlaca;
-    doc.pdf.setDrawColor(COR.bordaTabela);
-    doc.pdf.setLineWidth(0.4 * PT);
-    if (linha > 0) doc.pdf.line(cx, cy, cx + meia, cy);
-    if (coluna === 1) doc.pdf.line(cx, cy, cx, cy + alturaLinhaPlaca);
+  // ── FIEIRAS ───────────────────────────────────────────────────────────────
+  // Cada fieira é (quadro + rótulo embaixo). O peso da CATEGORIA é maior: ela
+  // é o campo pelo qual um fiscal procura a placa.
+  const unidades = fileiras.reduce((t, f) => t + (f.fator ?? 1), 0);
+  const disponivel = alturaTotal - alturaCab - pad * 2 - 1;
+  const alturaUnidade = disponivel / unidades;
+  const alturaRotulo = Math.min(3.6, alturaUnidade * 0.34);
+  const gap = Math.min(1.4, alturaUnidade * 0.12);
 
+  let y = y0 + alturaCab + 1 + pad * 0.6;
+  fileiras.forEach((fileira) => {
+    const alturaFileira = alturaUnidade * (fileira.fator ?? 1);
+    const alturaQuadro = alturaFileira - alturaRotulo - gap;
+    let cx = xi;
+    fileira.celulas.forEach((cel) => {
+      const larguraCel = larguraUtil * cel.peso;
+      // Espaço entre quadros vizinhos da mesma fieira, como na referência.
+      const vao = fileira.celulas.length > 1 ? 1.6 : 0;
+      const larg = larguraCel - (fileira.celulas.length > 1 ? vao : 0);
+
+      if (cel.tipo === 'pressao') {
+        desenharPressaoDaPlaca(doc, cel, cx, y, larg, alturaQuadro);
+      } else {
+        doc.pdf.setDrawColor(COR.texto);
+        doc.pdf.setLineWidth(BORDA_FINA);
+        doc.pdf.rect(cx, y, larg, alturaQuadro);
+
+        // A placa é DESENHADA à mão (não é tabela), então o override e a caixa
+        // clicável vêm por `campoLivre`. Ela é reconstrução da ficha: corrigir
+        // o texto aqui é justamente o caso de uso — a placa física pode dizer
+        // outra coisa do que o cadastro.
+        const valor = doc.campoLivre(
+          idCampo('placa', cel.rotulo),
+          `Placa — ${cel.rotulo}`,
+          textoOu(cel.valor),
+          { x: cx, y, larg, alt: alturaQuadro },
+        );
+        doc.pdf.setFont(FAMILIA, 'bold');
+        doc.pdf.setFontSize(tamanhoDoValorDaPlaca(doc, valor, larg, alturaQuadro, (fileira.fator ?? 1) > 2));
+        doc.pdf.setTextColor(COR.texto);
+        doc.pdf.text(valor, cx + larg / 2, y + alturaQuadro * 0.5 + alturaQuadro * 0.16, {
+          align: 'center',
+          maxWidth: larg - 3,
+        });
+      }
+
+      // O RÓTULO, pequeno, por FORA do quadro — a marca do modelo.
+      doc.pdf.setFont(FAMILIA, 'normal');
+      doc.pdf.setFontSize(FONTE.nota - 0.5);
+      doc.pdf.setTextColor(COR.rotuloDiscreto);
+      doc.pdf.text(cel.rotulo, cx + larg / 2, y + alturaQuadro + alturaRotulo * 0.8, {
+        align: 'center',
+        maxWidth: larguraCel,
+      });
+
+      cx += larguraCel;
+    });
+    y += alturaFileira;
+  });
+}
+
+/**
+ * O corpo do valor dentro do quadro da placa.
+ *
+ * O valor é o que se lê de longe, então ele começa grande e só encolhe se não
+ * couber — nome de fabricante longo não pode vazar do quadro nem virar duas
+ * linhas amassadas.
+ */
+function tamanhoDoValorDaPlaca(
+  doc: Documento,
+  texto: string,
+  largura: number,
+  altura: number,
+  alta: boolean,
+): number {
+  const teto = alta ? 20 : Math.min(13, altura / PT * 0.62);
+  for (let pt = teto; pt > 6; pt -= 0.5) {
+    doc.pdf.setFont(FAMILIA, 'bold');
+    doc.pdf.setFontSize(pt);
+    if (doc.pdf.getTextWidth(texto) <= largura - 3) return pt;
+  }
+  return 6;
+}
+
+/** O bloco de uma pressão: cabeçalho de unidades + os três valores. */
+function desenharPressaoDaPlaca(
+  doc: Documento,
+  cel: { colunas: { unidade: string; valor: string | null }[] },
+  x: number,
+  y: number,
+  largura: number,
+  altura: number,
+): void {
+  const alturaCab = altura * 0.46;
+  const col = largura / cel.colunas.length;
+
+  doc.pdf.setFillColor(COR.fundoCabecalhoTabela);
+  doc.pdf.rect(x, y, largura, alturaCab, 'F');
+  doc.pdf.setDrawColor(COR.texto);
+  doc.pdf.setLineWidth(BORDA_FINA);
+  doc.pdf.rect(x, y, largura, altura);
+  doc.pdf.line(x, y + alturaCab, x + largura, y + alturaCab);
+
+  cel.colunas.forEach((c, i) => {
+    const cx = x + i * col;
+    if (i > 0) doc.pdf.line(cx, y, cx, y + altura);
     doc.pdf.setFont(FAMILIA, 'bold');
     doc.pdf.setFontSize(FONTE.nota);
     doc.pdf.setTextColor(COR.texto);
-    doc.pdf.text(campo[0], cx + 2, cy + alturaLinhaPlaca * 0.42);
-
-    doc.pdf.setFont(FAMILIA, 'normal');
-    doc.pdf.setFontSize(FONTE.tabela);
-    doc.pdf.setTextColor(COR.valor);
-    // A placa é DESENHADA à mão (não é tabela), então o override e a caixa
-    // clicável vêm por `campoLivre`. Ela é reconstrução da ficha: corrigir o
-    // texto aqui é justamente o caso de uso — a placa física pode dizer outra
-    // coisa do que o cadastro.
-    const valorPlaca = doc.campoLivre(
-      idCampo('placa', campo[0]),
-      `Placa — ${campo[0]}`,
-      textoOu(campo[1]),
-      { x: cx, y: cy, larg: meia, alt: alturaLinhaPlaca },
-    );
-    doc.pdf.text(textoOu(valorPlaca), cx + 2, cy + alturaLinhaPlaca * 0.85);
+    doc.pdf.text(c.unidade, cx + col / 2, y + alturaCab * 0.72, { align: 'center', maxWidth: col - 1 });
+    doc.pdf.setFontSize(Math.min(FONTE.tabela + 1, (altura - alturaCab) / PT * 0.62));
+    doc.pdf.text(textoOu(c.valor), cx + col / 2, y + alturaCab + (altura - alturaCab) * 0.72, {
+      align: 'center',
+      maxWidth: col - 1,
+    });
   });
 }
 
@@ -671,7 +795,7 @@ function simNaoDoEnquadramento(rotulo: string | null): string {
   return /^não/i.test(t) ? 'NÃO' : 'SIM';
 }
 
-function matrizCategorizacao(doc: Documento, classe: string | null, grupo: string | null): void {
+export function matrizCategorizacao(doc: Documento, classe: string | null, grupo: string | null): void {
   const larguraClasse = CAIXA.largura * 0.4;
   const larguraGrupo = (CAIXA.largura - larguraClasse) / 5;
   const iGrupo = grupo && /^[1-5]$/.test(grupo.trim()) ? Number(grupo.trim()) - 1 : -1;
@@ -691,7 +815,14 @@ function matrizCategorizacao(doc: Documento, classe: string | null, grupo: strin
 
   doc.garantirEspaco(alturaCab + alturaCorpo);
   const x0 = CAIXA.x;
-  let y = doc.y;
+  const yTopoMatriz = doc.y;
+  let y = yTopoMatriz;
+  // A geometria da célula do RESULTADO, guardada para o corredor âmbar ser
+  // traçado depois de toda a matriz — desenhado durante o laço, ele seria
+  // coberto pelo preenchimento branco das linhas seguintes.
+  // Caixa mutável, e não um `let`: o TypeScript não segue atribuição feita
+  // dentro de callback e estreitaria o tipo para `never` na leitura de baixo.
+  const alvo: { cel: { x: number; y: number; alt: number } | null } = { cel: null };
   const xGrupo = (i: number) => x0 + larguraClasse + i * larguraGrupo;
 
   doc.pdf.setLineWidth(BORDA_FINA);
@@ -722,7 +853,10 @@ function matrizCategorizacao(doc: Documento, classe: string | null, grupo: strin
   FAIXAS_PV.forEach((faixa, i) => {
     const x = xGrupo(i);
     const aceso = i === iGrupo;
-    doc.pdf.setFillColor(aceso ? COR.fundoRealce : COR.fundoRotulo);
+    // Tom SUAVE: o cabeçalho do grupo é uma ENTRADA da consulta, não a
+    // resposta. O âmbar forte fica reservado ao cruzamento, senão dois lugares
+    // da matriz disputam o olho com a mesma intensidade.
+    doc.pdf.setFillColor(aceso ? COR.fundoRealceSuave : COR.fundoRotulo);
     doc.pdf.setDrawColor(aceso ? COR.bordaRealce : COR.bordaTabela);
     doc.pdf.setLineWidth(aceso ? BORDA_FINA * 2 : BORDA_FINA);
     doc.pdf.rect(x, y + alturaTopo, larguraGrupo, alturaSub, 'FD');
@@ -782,10 +916,16 @@ function matrizCategorizacao(doc: Documento, classe: string | null, grupo: strin
     });
 
     // As cinco categorias. A do CRUZAMENTO é o resultado: tom âmbar e borda.
+    //
+    // 08/09/2026 · SÓ O CRUZAMENTO ACENDE. Antes a linha inteira da classe e a
+    // coluna inteira do grupo saíam pintadas de amarelo-claro: onze células
+    // acesas numa matriz de vinte, e o olho não achava a resposta no meio
+    // delas. O que liga as duas entradas ao resultado agora é o CORREDOR
+    // desenhado abaixo — linha, não preenchimento.
     linha.categorias.forEach((cat, i) => {
       const x = xGrupo(i);
       const cruzamento = daClasse && i === iGrupo;
-      doc.pdf.setFillColor(cruzamento ? COR.fundoRealce : daClasse || i === iGrupo ? COR.fundoRealceSuave : '#ffffff');
+      doc.pdf.setFillColor(cruzamento ? COR.fundoRealce : '#ffffff');
       doc.pdf.setDrawColor(cruzamento ? COR.bordaRealce : COR.bordaTabela);
       doc.pdf.setLineWidth(cruzamento ? BORDA_FINA * 2.5 : BORDA_FINA);
       doc.pdf.rect(x, y, larguraGrupo, alt, 'FD');
@@ -796,9 +936,47 @@ function matrizCategorizacao(doc: Documento, classe: string | null, grupo: strin
       doc.pdf.setFontSize(cruzamento ? FONTE.base : FONTE.tabela);
       doc.pdf.setTextColor(cruzamento ? COR.textoRealce : COR.texto);
       doc.pdf.text(cat, x + larguraGrupo / 2, y + alt / 2 + px(cruzamento ? 3.6 : 3), { align: 'center' });
+
+      if (cruzamento) alvo.cel = { x, y, alt };
     });
 
     y += alt;
+  }
+
+  // ── O CORREDOR ÂMBAR ──────────────────────────────────────────────────────
+  //
+  // A ligação visual entre as duas entradas da consulta e a resposta. São as
+  // BORDAS do caminho que acendem — a faixa horizontal da linha da classe, da
+  // célula da classe até o resultado, e a faixa vertical da coluna do grupo, do
+  // cabeçalho até o resultado.
+  //
+  // Por que as bordas e não uma seta pelo meio: uma linha traçada no centro da
+  // coluna passaria por cima das letras das outras categorias, riscando "I",
+  // "II", "III" pelo caminho. Pela borda ela conduz o olho sem tocar em texto
+  // nenhum, e some quando o documento é impresso em preto e branco sem virar
+  // uma tarja sobre a tabela.
+  //
+  // Só é desenhado quando as DUAS entradas existem: meia consulta não tem
+  // caminho, e uma linha partindo para lugar nenhum afirmaria um resultado que
+  // o sistema não calculou.
+  const cel = alvo.cel;
+  if (cel && iGrupo >= 0 && letra !== '') {
+    doc.pdf.setDrawColor(COR.bordaRealce);
+    doc.pdf.setLineWidth(BORDA_FINA * 1.6);
+    // Horizontal: da borda direita da célula da classe até o resultado.
+    const xIni = x0 + larguraClasse;
+    doc.pdf.line(xIni, cel.y, cel.x, cel.y);
+    doc.pdf.line(xIni, cel.y + cel.alt, cel.x, cel.y + cel.alt);
+    // Vertical: do fim do cabeçalho (abaixo da faixa CATEGORIAS) até o topo do
+    // resultado. Se o resultado é a primeira classe, os dois pontos coincidem e
+    // não há trecho a desenhar.
+    const yIni = yTopoMatriz + alturaCab;
+    if (cel.y > yIni + 0.2) {
+      doc.pdf.line(cel.x, yIni, cel.x, cel.y);
+      doc.pdf.line(cel.x + larguraGrupo, yIni, cel.x + larguraGrupo, cel.y);
+    }
+    doc.pdf.setLineWidth(BORDA_FINA);
+    doc.pdf.setDrawColor(COR.bordaTabela);
   }
 
   doc.y = y;
@@ -1273,8 +1451,13 @@ export function folhaDadosInspecao(doc: Documento, m: ModeloRelatorio): void {
   });
 
   doc.secao('RESULTADO DOS ENSAIOS REALIZADOS');
+  // NEGRITO: este é o VEREDITO da folha de ensaios, e sai como parágrafo — não
+  // passa pelo `negritoDaCelula`, que só alcança tabela. Um "APTO" no peso do
+  // texto corrido é a informação mais importante da folha impressa igual a uma
+  // observação qualquer.
   doc.texto(textoOu(rotuloLaudo(m.laudo.apto)), {
     cor: COR.valor,
+    negrito: m.laudo.apto !== null,
     id: 'inspecao.resultado-ensaios',
     rotuloCampo: 'Resultado dos ensaios realizados',
   });
@@ -1917,8 +2100,10 @@ function assinaturas(doc: Documento, m: ModeloRelatorio): void {
     const x = CAIXA.x + i * (larguraQuadro + 8);
     if (a.rubrica) {
       try {
-        const formato = a.rubrica.startsWith('data:image/png') ? 'PNG' : 'JPEG';
-        doc.pdf.addImage(a.rubrica, formato, x + larguraQuadro / 2 - 20, base, 40, 16, undefined, 'FAST');
+        // `40×16` é o quadro sobre a linha de assinatura; a rubrica se encaixa
+        // dentro dele na proporção real. Rubrica é imagem digitalizada de
+        // caneta — deformá-la descaracteriza a assinatura de um engenheiro.
+        imagemEncaixada(doc.pdf, a.rubrica, { x: x + larguraQuadro / 2 - 20, y: base, largura: 40, altura: 16 });
       } catch {
         // Rubrica ilegível não impede o documento de sair assinado por nome.
       }

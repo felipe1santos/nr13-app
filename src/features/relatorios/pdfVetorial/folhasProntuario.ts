@@ -1,5 +1,5 @@
 import { CAIXA, COR, FONTE, LIMITE_CORPO } from './documentoA4';
-import { foto } from './primitivas';
+import { foto, imagemEncaixada } from './primitivas';
 import type { CelulaDoc, Documento } from './documento';
 import { textoOu } from './modelo';
 import { extremosDaRegiao } from './folhas';
@@ -76,8 +76,8 @@ function responsabilidadeTecnica(doc: Documento, m: ModeloProntuario): void {
     const x = CAIXA.x + i * (largura + 8);
     if (a.rubrica) {
       try {
-        const formato = a.rubrica.startsWith('data:image/png') ? 'PNG' : 'JPEG';
-        doc.pdf.addImage(a.rubrica, formato, x + largura / 2 - 20, base, 40, 15, undefined, 'FAST');
+        // Mesma regra do relatório: quadro fixo, proporção real (ver `foto`).
+        imagemEncaixada(doc.pdf, a.rubrica, { x: x + largura / 2 - 20, y: base, largura: 40, altura: 15 });
       } catch {
         // Rubrica ilegível não impede o documento de sair assinado por nome.
       }

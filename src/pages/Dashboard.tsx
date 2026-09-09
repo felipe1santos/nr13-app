@@ -11,8 +11,8 @@ import {
 } from '../features/agenda/notasAgenda';
 import { formatarBRL, resumoDoMes } from '../features/agenda/faturamento';
 import './agenda.css';
-import { textoPrazo } from '../services/vencimentos';
-import type { ItemVencimento } from '../services/vencimentos';
+import { FILTROS_PRAZO, FILTRO_PRAZO_PADRAO, noFiltroPrazo, textoPrazo } from '../services/vencimentos';
+import type { FiltroPrazo, ItemVencimento } from '../services/vencimentos';
 import { usePainelVencimentos, textoContador } from '../services/vencimentosServidor';
 import SeloPainel from '../components/SeloPainel';
 import './dashboard-novo.css';
@@ -68,7 +68,7 @@ export default function Dashboard() {
   );
   const [listaExpandida, setListaExpandida] = useState(false);
   const [modalTag, setModalTag] = useState<string | null>(null);
-  const [filtroPrazo, setFiltroPrazo] = useState<'todos' | 5 | 30 | 60 | 'vencidos'>('todos');
+  const [filtroPrazo, setFiltroPrazo] = useState<FiltroPrazo>(FILTRO_PRAZO_PADRAO);
 
   // Fase 10A · a Agenda saiu do Dashboard e virou tela própria. O que ficou
   // aqui é RESUMO: previsto, realizado, quantidade e os próximos compromissos.
@@ -103,11 +103,9 @@ export default function Dashboard() {
   // afirmar ausência — ver o estado vazio, mais abaixo.
   const consultaIncompleta =
     painel.carregando || painel.erro === true || painel.certificadosOk === false;
-  const filtrados = comPrazo.filter((i) => {
-    if (filtroPrazo === 'todos') return true;
-    if (filtroPrazo === 'vencidos') return (i.dias ?? 0) < 0;
-    return (i.dias ?? -1) >= 0 && (i.dias ?? Infinity) <= filtroPrazo;
-  });
+  // A regra vive em `vencimentos.ts` (função pura, com teste) — aqui só se
+  // aplica. Ela era três ternários dentro do JSX, e por isso nunca teve teste.
+  const filtrados = comPrazo.filter((i) => noFiltroPrazo(i, filtroPrazo));
   const tabela = listaExpandida ? filtrados : filtrados.slice(0, 6);
   const primeiroVencido = vencidos[0];
 
@@ -269,13 +267,7 @@ export default function Dashboard() {
             {(kpis.vencidos ?? 0) > 0 && <span className="fj-badge crit">{kpis.vencidos} vencido{(kpis.vencidos ?? 0) > 1 ? 's' : ''}</span>}
           </div>
           <div className="prazo-filtros">
-            {([
-              ['todos', 'Todos'],
-              [5, '5 dias'],
-              [30, '30 dias'],
-              [60, '60 dias'],
-              ['vencidos', 'Vencidos'],
-            ] as const).map(([valor, rotulo]) => (
+            {FILTROS_PRAZO.map(([valor, rotulo]) => (
               <button
                 key={String(valor)}
                 type="button"
@@ -311,7 +303,7 @@ export default function Dashboard() {
             <div className="fj-empty">
               <div className="fj-empty-ic"><Icone nome="filter" tam={22} /></div>
               <div className="fj-empty-title">Nada neste filtro</div>
-              Nenhum item {filtroPrazo === 'vencidos' ? 'vencido' : `vencendo em até ${filtroPrazo} dias`}.
+              Nenhum item {filtroPrazo === 'vencidos' ? 'vencido' : `vencido ou vencendo em até ${filtroPrazo} dias`}.
             </div>
           ) : (
             <div className="fj-table-wrap">

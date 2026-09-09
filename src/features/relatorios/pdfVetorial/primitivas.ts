@@ -215,11 +215,41 @@ export function tabela(
 }
 
 /**
+ * A PROPORÇÃO REAL de uma imagem, lida dos bytes dela (08/09/2026).
+ *
+ * `jsPDF.getImageProperties` decodifica o cabeçalho do PNG/JPEG e devolve
+ * largura e altura de verdade. É síncrono e não depende de DOM — roda igual no
+ * navegador e na suíte (`environment: 'node'`), que é o motivo de ele ser
+ * preferido ao `Image` do `resolverFotos`.
+ *
+ * O `proporcao` que os chamadores passam continua valendo como SEGUNDA opção
+ * (é o que serve o croqui, que chega como SVG rasterizado em canvas), e o
+ * 4/3 histórico continua como último recurso. O que mudou é a ORDEM: antes o
+ * palpite vinha primeiro, e imagem sem palpite era desenhada como 4:3
+ * qualquer que fosse o formato dela.
+ */
+function proporcaoReal(pdf: jsPDF, dataUrl: string, informada?: number): number {
+  try {
+    const p = pdf.getImageProperties(dataUrl) as { width?: number; height?: number };
+    if (p && p.width && p.height) return p.width / p.height;
+  } catch {
+    // Formato que o jsPDF não sabe medir cai no palpite — nunca impede o desenho.
+  }
+  if (informada && informada > 0) return informada;
+  return 4 / 3;
+}
+
+/**
  * Uma FOTO — o único raster do documento.
  *
  * `object-fit: contain` feito à mão: a imagem cabe inteira dentro do quadro,
  * centralizada, sem esticar. Esticar foto de inspeção é adulterar evidência
  * técnica, e é o que aconteceria com um `addImage` que preenchesse a caixa.
+ *
+ * **O quadro é o LIMITE, não o formato.** A moldura cinza é desenhada no
+ * tamanho pedido; a imagem se encaixa dentro dela na proporção que ela tem de
+ * verdade. Foto de celular em pé (3:4) numa caixa larga sai estreita e
+ * centralizada — que é o certo — em vez de achatada para caber.
  */
 export function foto(
   pdf: jsPDF,
@@ -231,7 +261,7 @@ export function foto(
   pdf.setLineWidth(0.4 * PT);
   pdf.rect(quadro.x, quadro.y, quadro.largura, quadro.altura);
 
-  const razao = proporcao && proporcao > 0 ? proporcao : 4 / 3;
+  const razao = proporcaoReal(pdf, dataUrl, proporcao);
   let larg = quadro.largura;
   let alt = larg / razao;
   if (alt > quadro.altura) {
@@ -241,7 +271,54 @@ export function foto(
   const x = quadro.x + (quadro.largura - larg) / 2;
   const y = quadro.y + (quadro.altura - alt) / 2;
   const formato = dataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG';
-  pdf.addImage(dataUrl, formato, x, y, larg, alt, undefined, 'FAST');
+  try {
+    pdf.addImage(dataUrl, formato, x, y, larg, alt, undefined, 'FAST');
+  } catch {
+    // Arquivo corrompido (truncado no upload, byte perdido no cofre) fazia o
+    // jsPDF lançar `wrong PNG signature` e **derrubava a emissão inteira** —
+    // uma foto ilegível custava o relatório. A moldura já foi desenhada: o
+    // quadro sai vazio, e o resto do documento continua.
+  }
+}
+
+/**
+ * Uma imagem SEM moldura, encaixada num quadro — logo e rubrica.
+ *
+ * Mesma conta do `foto()`, sem o retângulo cinza. Existe porque logo e rubrica
+ * eram desenhadas com largura e altura FIXAS (`50×14` a logo, `40×16` a
+ * rubrica): toda logo que não fosse exatamente 25:7 saía deformada, e foi
+ * assim que a logo do cliente apareceu esticada no cabeçalho de todas as
+ * páginas do relatório.
+ *
+ * `alinhamento` decide o que fazer com a sobra horizontal: a logo do cabeçalho
+ * encosta à esquerda (o resto da faixa é do nº do relatório), a rubrica
+ * centraliza sobre a linha de assinatura.
+ */
+export function imagemEncaixada(
+  pdf: jsPDF,
+  dataUrl: string,
+  quadro: { x: number; y: number; largura: number; altura: number },
+  opcoes: { alinhamento?: 'left' | 'center'; proporcao?: number } = {},
+): void {
+  const razao = proporcaoReal(pdf, dataUrl, opcoes.proporcao);
+  let larg = quadro.largura;
+  let alt = larg / razao;
+  if (alt > quadro.altura) {
+    alt = quadro.altura;
+    larg = alt * razao;
+  }
+  const x = opcoes.alinhamento === 'left'
+    ? quadro.x
+    : quadro.x + (quadro.largura - larg) / 2;
+  // Vertical: sempre centralizada. Logo colada no topo da faixa brigaria com o
+  // fio do cabeçalho.
+  const y = quadro.y + (quadro.altura - alt) / 2;
+  const formato = dataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+  try {
+    pdf.addImage(dataUrl, formato, x, y, larg, alt, undefined, 'FAST');
+  } catch {
+    // Mesma razão do `foto()`: imagem ilegível não derruba o documento.
+  }
 }
 
 /** Cabeçalho da folha: logo à esquerda, nº do relatório e paginação à direita. */
@@ -256,8 +333,11 @@ export function cabecalho(
 
   if (ctx.cabecalho.logo) {
     try {
-      const formato = ctx.cabecalho.logo.startsWith('data:image/png') ? 'PNG' : 'JPEG';
-      pdf.addImage(ctx.cabecalho.logo, formato, CAIXA.x, y, 50, 14, undefined, 'FAST');
+      // `50×14` é o QUADRO da logo na faixa do cabeçalho, não o tamanho dela:
+      // a imagem se encaixa dentro, à esquerda, na proporção que tem. Antes ela
+      // era esticada até esse retângulo, e logo quadrada saía achatada em todas
+      // as páginas do documento.
+      imagemEncaixada(pdf, ctx.cabecalho.logo, { x: CAIXA.x, y, largura: 50, altura: 14 }, { alinhamento: 'left' });
     } catch {
       // Logo ilegível não pode impedir a emissão do relatório.
     }

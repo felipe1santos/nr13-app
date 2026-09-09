@@ -125,26 +125,103 @@ export async function resolverPlacaReal(
 }
 
 /**
- * Os campos da placa reconstruída, na ordem em que uma placa real os traz.
+ * ## O LAYOUT da placa reconstruída (08/09/2026)
  *
- * Função pura sobre o modelo já montado — nada de leitura de storage aqui, para
- * que o desenho e o teste vejam exatamente a mesma coisa.
+ * A primeira versão era uma grade de duas colunas com `RÓTULO` em negrito à
+ * esquerda e o valor ao lado — uma tabela, e placa de equipamento não é tabela.
+ * Numa placa de verdade o **valor é o que se lê de longe**: ele vem grande,
+ * dentro de um quadro, e o nome do campo aparece pequeno **por baixo**.
+ *
+ * O modelo é a referência que o dono mandou (`2832c492-…`): fieiras de largura
+ * cheia para o que é único (TAG, tipo, fabricante, código de projeto), fieiras
+ * partidas para o que anda em par (série + ano, fluido + classe), as duas
+ * pressões como mini-tabelas de três unidades (MPa · psi · kgf/cm²) e a
+ * CATEGORIA num quadro alto no fim — que é o campo pelo qual um fiscal procura.
+ *
+ * ### Por que isto é uma função pura, e não desenho
+ *
+ * O desenho vive em `folhas.ts` e precisa de jsPDF. A ESCOLHA de quais campos
+ * entram, em que ordem e com que peso é regra do documento, e é ela que tem de
+ * ser testável sem gerar PDF. `peso` é fração da largura da placa; as fieiras
+ * somam 1.
+ *
+ * **Nada é inventado.** Campo ausente na ficha entra com `null`, e o desenho o
+ * imprime como travessão, igual ao resto do relatório.
  */
-export function camposDaPlaca(
+
+/** Uma célula da placa: um campo simples ou o bloco de três unidades de pressão. */
+export type CelulaPlaca =
+  | { tipo: 'campo'; rotulo: string; valor: string | null; peso: number }
+  | {
+      tipo: 'pressao';
+      rotulo: string;
+      peso: number;
+      colunas: { unidade: string; valor: string | null }[];
+    };
+
+export interface FileiraPlaca {
+  celulas: CelulaPlaca[];
+  /**
+   * Altura da fieira em múltiplos da fieira comum. Duas escapam do 1:
+   * a de PRESSÕES, que empilha cabeçalho de unidade + valor dentro do mesmo
+   * quadro (com fator 1 o texto saía com metade do corpo do resto da placa), e
+   * a da CATEGORIA, que é o campo pelo qual um fiscal procura.
+   */
+  fator?: number;
+}
+
+/** Proporção largura ÷ altura da placa da referência (770 × 840 px). */
+export const PROPORCAO_PLACA = 0.92;
+
+export function layoutDaPlaca(
   equipamento: Record<string, string | null>,
-  pressoes: { rotulo: string; kgf: string | null }[],
-): [string, string | null][] {
-  const pressao = (inicio: string) => pressoes.find((p) => p.rotulo.toUpperCase().startsWith(inicio))?.kgf ?? null;
+  pressoes: { rotulo: string; mpa?: string | null; psi?: string | null; kgf: string | null }[],
+  datas: { execucao?: string | null; validade?: string | null } = {},
+): FileiraPlaca[] {
+  const eq = (chave: string) => equipamento[chave] ?? null;
+  const pressao = (inicio: string): { unidade: string; valor: string | null }[] => {
+    const p = pressoes.find((x) => x.rotulo.toUpperCase().startsWith(inicio));
+    return [
+      { unidade: 'MPa', valor: p?.mpa ?? null },
+      { unidade: 'psi', valor: p?.psi ?? null },
+      { unidade: 'kgf/cm²', valor: p?.kgf ?? null },
+    ];
+  };
+  const campo = (rotulo: string, valor: string | null, peso: number): CelulaPlaca =>
+    ({ tipo: 'campo', rotulo, valor, peso });
+
   return [
-    ['FABRICANTE', equipamento['FABRICANTE'] ?? null],
-    ['IDENTIFICAÇÃO / TAG', equipamento['IDENTIFICAÇÃO / T.A.G.'] ?? null],
-    ['Nº DE SÉRIE', equipamento['NÚMERO DE SÉRIE'] ?? null],
-    ['ANO DE FABRICAÇÃO', equipamento['ANO DE FABRICAÇÃO'] ?? null],
-    ['CÓDIGO DE PROJETO', equipamento['CÓDIGO DE PROJETO'] ?? null],
-    ['FLUIDO', equipamento['FLUIDO DE OPERAÇÃO'] ?? null],
-    ['PMTA (kgf/cm²)', pressao('PMTA')],
-    ['PTH (kgf/cm²)', pressao('PTH')],
-    ['VOLUME (m³)', equipamento['VOLUME (m³)'] ?? null],
-    ['CATEGORIA NR-13', equipamento['CATEGORIA DO VASO'] ?? null],
+    { celulas: [campo('IDENTIFICAÇÃO DO EQUIPAMENTO', eq('IDENTIFICAÇÃO / T.A.G.'), 1)] },
+    { celulas: [campo('TIPO DE EQUIPAMENTO', eq('TIPO DE EQUIPAMENTO'), 1)] },
+    { celulas: [campo('FABRICANTE', eq('FABRICANTE'), 1)] },
+    {
+      celulas: [
+        campo('NÚMERO DE SÉRIE', eq('NÚMERO DE SÉRIE'), 0.66),
+        campo('ANO DE FABRICAÇÃO', eq('ANO DE FABRICAÇÃO'), 0.34),
+      ],
+    },
+    { celulas: [campo('CÓDIGO DE PROJETO', eq('CÓDIGO DE PROJETO'), 1)] },
+    {
+      celulas: [
+        campo('FLUIDO DE OPERAÇÃO', eq('FLUIDO DE OPERAÇÃO'), 0.76),
+        campo('CLASSE', eq('CLASSE DO FLUIDO'), 0.24),
+      ],
+    },
+    {
+      fator: 1.5,
+      celulas: [
+        { tipo: 'pressao', rotulo: 'PMTA', peso: 0.5, colunas: pressao('PMTA') },
+        { tipo: 'pressao', rotulo: 'PTH', peso: 0.5, colunas: pressao('PTH') },
+      ],
+    },
+    {
+      celulas: [
+        campo('VOLUME (m³)', eq('VOLUME (m³)'), 0.22),
+        campo('GRUPO DE RISCO', eq('GRUPO DE RISCO'), 0.24),
+        campo('EXECUÇÃO DA INSPEÇÃO', datas.execucao ?? null, 0.32),
+        campo('VALIDADE', datas.validade ?? null, 0.22),
+      ],
+    },
+    { fator: 2.1, celulas: [campo('CATEGORIA', eq('CATEGORIA DO VASO'), 1)] },
   ];
 }

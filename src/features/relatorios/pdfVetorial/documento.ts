@@ -804,7 +804,7 @@ export class Documento {
           // NEGRITO é mais largo. Medir a quebra com a fonte normal e desenhar
           // em negrito fazia o rótulo passar do fim da célula e ser cortado —
           // "PRODUTO P.V. PARA RISCO (MPa ×" saiu assim no documento emitido.
-          this.pdf.setFont(FAMILIA, cel.rotulo ? 'bold' : 'normal');
+          this.pdf.setFont(FAMILIA, negritoDaCelula(cel) ? 'bold' : 'normal');
           this.pdf.setFontSize(tamanho);
           const n = (this.pdf.splitTextToSize(cel.texto, larg) as string[]).length;
           altura = Math.max(altura, alturaLinha(tamanho) * Math.max(1, n) + padY * 2);
@@ -835,7 +835,7 @@ export class Documento {
         this.pdf.setFillColor(this.fundoDaCelula(cel));
         this.pdf.rect(x, this.cursor, larg, altura, 'FD');
 
-        this.pdf.setFont(FAMILIA, cel.rotulo || cel.destaque ? 'bold' : 'normal');
+        this.pdf.setFont(FAMILIA, negritoDaCelula(cel) ? 'bold' : 'normal');
         this.pdf.setFontSize(tamanho);
         this.pdf.setTextColor(
           cel.destaque === 'maior'
@@ -929,6 +929,42 @@ export function corDeFundo(cel: CelulaDoc, modo: ModoDocumento): string {
   if (cel.rotulo) return COR.fundoRotulo;
   if (modo === 'preview' && celulaVazia(cel)) return AMARELO_PREVIA;
   return '#ffffff';
+}
+
+/**
+ * As MARCAS DE VEREDITO do documento — o que sai em negrito, sempre.
+ *
+ * 08/09/2026 · o `X` da natureza da inspeção, dos exames realizados e das
+ * colunas SIM/NÃO/N.A. era desenhado no mesmo peso do texto corrido, e o
+ * `APROVADO`/`REPROVADO` dos ensaios também. São exatamente os caracteres que
+ * um auditor procura na folha, e num relatório impresso em preto e branco um
+ * "X" fino no meio de uma grade de trinta células se perde.
+ *
+ * A regra mora no RENDERIZADOR, não em cada chamada: as marcas nascem em
+ * lugares diferentes (`celulaMarca`, `rotuloResultado`, `rotuloLaudo`,
+ * `marcasDocumentacao`) e uma flag por chamador garantiria que a próxima folha
+ * a imprimir um veredito esqueceria de passá-la.
+ */
+const MARCAS_FORTES = new Set([
+  'X',
+  'APROVADO',
+  'REPROVADO',
+  'APROVADO COM RESSALVAS',
+  'APTO',
+  'INAPTO',
+]);
+
+/**
+ * O peso da célula. Rótulo e realce de espessura já eram negrito; as marcas de
+ * veredito passaram a ser.
+ *
+ * Exportada porque a MEDIÇÃO da quebra de linha e o DESENHO precisam concordar:
+ * negrito é mais largo, e medir com uma fonte para desenhar com outra corta
+ * texto no fim da célula (foi o que aconteceu com "PRODUTO P.V. PARA RISCO").
+ */
+export function negritoDaCelula(cel: CelulaDoc): boolean {
+  if (cel.rotulo || cel.destaque) return true;
+  return MARCAS_FORTES.has((cel.texto ?? '').trim().toUpperCase());
 }
 
 /** Uma célula "de valor" está vazia quando o modelo não tinha o dado. */

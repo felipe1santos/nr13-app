@@ -138,6 +138,17 @@
   background: var(--crit);
   border-color: var(--crit);
 }
+/* 08/09/2026 · com "Todos" fora, o chip virou o único jeito de mudar a janela
+   do painel — e no celular ele tinha 24px de altura, metade do alvo de dedo.
+   Só a altura cresce; a tipografia do desktop fica como está. */
+@media (max-width: 720px) {
+  .prazo-filtros { gap: 8px; }
+  .prazo-chip {
+    min-height: 40px;
+    padding: 9px 16px;
+    font-size: 12.5px;
+  }
+}
 
 /* lista de alertas */
 .alist { padding: 6px 18px 14px; }

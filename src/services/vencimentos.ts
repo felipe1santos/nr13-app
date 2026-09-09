@@ -471,3 +471,51 @@ export function textoPrazo(item: ItemVencimento): string {
 // agregado do servidor (aquele). Se ficasse aqui, os dois módulos importariam
 // um ao outro. Este arquivo é a camada de baixo — regra e leitura do cache — e
 // não conhece o servidor.
+
+/**
+ * ## O FILTRO DE PRAZO DO PAINEL (08/09/2026)
+ *
+ * Os chips eram `Todos · 5 · 30 · 60 · Vencidos`. Duas coisas estavam erradas
+ * ali, e nenhuma é estética:
+ *
+ * 1. **"Todos" não é um prazo.** Ele desligava o painel de prazos e o
+ *    transformava numa listagem do parque inteiro — que é o que a tela
+ *    `/vencimentos` já faz, com busca e paginação.
+ * 2. **"5 dias" chegava tarde.** Reinspeção de vaso se agenda com semanas de
+ *    antecedência; cinco dias é o prazo de quem já perdeu o prazo.
+ *
+ * A régua passa a ser `15 · 30 · 60 · 90 · Vencidos`.
+ *
+ * ### A regra é CUMULATIVA, e inclui o vencido
+ *
+ * `dias <= N` — o que vence em 3 dias aparece em 15, em 30, em 60 e em 90.
+ * E o que JÁ VENCEU aparece em todas elas, porque `dias` é negativo.
+ *
+ * Essa última parte é deliberada e é a razão de a regra ter saído do JSX: com
+ * "Todos" removido, o filtro mais largo passou a ser "90 dias", e se ele
+ * excluísse os negativos o usuário abriria o Dashboard sem ver **nenhum item
+ * vencido** — exatamente a informação mais urgente do painel. O chip
+ * "Vencidos" continua existindo para isolá-los (`dias < 0`), que é uma
+ * pergunta diferente de "o que preciso resolver nos próximos 90 dias".
+ *
+ * `semPrazo` (sem `dias`) nunca entra: não há o que filtrar em algo que não
+ * tem data. A tela já o exclui antes, via `status !== 'semPrazo'`.
+ */
+export type FiltroPrazo = 15 | 30 | 60 | 90 | 'vencidos';
+
+export const FILTROS_PRAZO: ReadonlyArray<readonly [FiltroPrazo, string]> = [
+  [15, '15 dias'],
+  [30, '30 dias'],
+  [60, '60 dias'],
+  [90, '90 dias'],
+  ['vencidos', 'Vencidos'],
+] as const;
+
+/** O filtro que o painel usa ao abrir: a janela mais larga. */
+export const FILTRO_PRAZO_PADRAO: FiltroPrazo = 90;
+
+export function noFiltroPrazo(item: Pick<ItemVencimento, 'dias'>, filtro: FiltroPrazo): boolean {
+  if (item.dias === undefined) return false;
+  if (filtro === 'vencidos') return item.dias < 0;
+  return item.dias <= filtro;
+}

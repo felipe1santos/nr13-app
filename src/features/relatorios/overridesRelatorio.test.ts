@@ -262,12 +262,15 @@ describe('a placa reconstruída também é editável', () => {
   const folhas = readFileSync('src/features/relatorios/pdfVetorial/folhas.ts', 'utf8');
 
   it('cada campo da placa vira um campo livre com id próprio', () => {
+    // O layout virou fieiras de células (08/09/2026) — o id passou a sair do
+    // rótulo da CÉLULA, não do par de colunas antigo.
     expect(folhas).toContain("doc.campoLivre(");
-    expect(folhas).toContain("idCampo('placa', campo[0])");
+    expect(folhas).toContain("idCampo('placa', cel.rotulo)");
   });
 
   it('o que a placa imprime é o valor resolvido, não o da ficha', () => {
-    expect(folhas).toContain('doc.pdf.text(textoOu(valorPlaca)');
+    expect(folhas).toContain('const valor = doc.campoLivre(');
+    expect(folhas).toContain('doc.pdf.text(valor, cx + larg / 2');
   });
 });
 

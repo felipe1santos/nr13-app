@@ -23,7 +23,7 @@ vi.mock('../../services/supabase', () => ({
 
 import { salvar } from '../../services/storage';
 import {
-  camposDaPlaca,
+  layoutDaPlaca,
   chavePlaca,
   lerPlacaReal,
   removerPlacaReal,
@@ -46,52 +46,109 @@ beforeEach(() => localStorage.clear());
 describe('placa RECONSTRUÍDA: dados reais, nada inventado', () => {
   const equipamento = {
     'IDENTIFICAÇÃO / T.A.G.': 'VP-001',
+    'TIPO DE EQUIPAMENTO': 'Vaso de Pressão',
     FABRICANTE: 'Metalúrgica X',
     'NÚMERO DE SÉRIE': '12345',
     'ANO DE FABRICAÇÃO': '2019',
     'CÓDIGO DE PROJETO': 'ASME VIII Div. 1',
     'FLUIDO DE OPERAÇÃO': 'Ar comprimido',
+    'CLASSE DO FLUIDO': 'Classe C',
     'VOLUME (m³)': '0,2',
+    'GRUPO DE RISCO': '4',
     'CATEGORIA DO VASO': 'IV',
   };
   const pressoes = [
-    { rotulo: 'PMO — Pressão Máxima de Operação', kgf: '8' },
-    { rotulo: 'PMTA — Pressão Máxima de Trabalho Admissível', kgf: '10,2' },
-    { rotulo: 'PTH — Pressão de Teste Hidrostático', kgf: '13,3' },
+    { rotulo: 'PMO — Pressão Máxima de Operação', mpa: '0,8', psi: '116', kgf: '8' },
+    { rotulo: 'PMTA — Pressão Máxima de Trabalho Admissível', mpa: '1,0', psi: '145', kgf: '10,2' },
+    { rotulo: 'PTH — Pressão de Teste Hidrostático', mpa: '1,3', psi: '189', kgf: '13,3' },
   ];
+  const datas = { execucao: '21/08/2026', validade: '21/08/2028' };
 
-  it('traz os campos que uma placa real traz, na ordem', () => {
-    const campos = camposDaPlaca(equipamento, pressoes);
-    expect(campos.map((c) => c[0])).toEqual([
+  const rotulos = (fs: ReturnType<typeof layoutDaPlaca>) =>
+    fs.flatMap((f) => f.celulas.map((c) => c.rotulo));
+
+  it('as fieiras seguem a referência, na ordem', () => {
+    expect(rotulos(layoutDaPlaca(equipamento, pressoes, datas))).toEqual([
+      'IDENTIFICAÇÃO DO EQUIPAMENTO',
+      'TIPO DE EQUIPAMENTO',
       'FABRICANTE',
-      'IDENTIFICAÇÃO / TAG',
-      'Nº DE SÉRIE',
+      'NÚMERO DE SÉRIE',
       'ANO DE FABRICAÇÃO',
       'CÓDIGO DE PROJETO',
-      'FLUIDO',
-      'PMTA (kgf/cm²)',
-      'PTH (kgf/cm²)',
+      'FLUIDO DE OPERAÇÃO',
+      'CLASSE',
+      'PMTA',
+      'PTH',
       'VOLUME (m³)',
-      'CATEGORIA NR-13',
+      'GRUPO DE RISCO',
+      'EXECUÇÃO DA INSPEÇÃO',
+      'VALIDADE',
+      'CATEGORIA',
     ]);
   });
 
-  it('os valores vêm da ficha, e a pressão vem da tabela de pressões', () => {
-    const campos = Object.fromEntries(camposDaPlaca(equipamento, pressoes));
-    expect(campos['FABRICANTE']).toBe('Metalúrgica X');
-    expect(campos['Nº DE SÉRIE']).toBe('12345');
-    expect(campos['PMTA (kgf/cm²)']).toBe('10,2');
-    expect(campos['PTH (kgf/cm²)']).toBe('13,3');
-    expect(campos['CATEGORIA NR-13']).toBe('IV');
+  it('cada fieira ocupa a largura inteira: os pesos somam 1', () => {
+    for (const f of layoutDaPlaca(equipamento, pressoes, datas)) {
+      const soma = f.celulas.reduce((t, c) => t + c.peso, 0);
+      expect(soma, `fieira ${f.celulas.map((c) => c.rotulo).join(' + ')}`).toBeCloseTo(1, 5);
+    }
+  });
+
+  it('os valores vêm da ficha, das pressões e das datas do relatório', () => {
+    const fs = layoutDaPlaca(equipamento, pressoes, datas);
+    const campo = (r: string) => {
+      const c = fs.flatMap((f) => f.celulas).find((x) => x.rotulo === r);
+      return c && c.tipo === 'campo' ? c.valor : undefined;
+    };
+    expect(campo('IDENTIFICAÇÃO DO EQUIPAMENTO')).toBe('VP-001');
+    expect(campo('TIPO DE EQUIPAMENTO')).toBe('Vaso de Pressão');
+    expect(campo('FABRICANTE')).toBe('Metalúrgica X');
+    expect(campo('NÚMERO DE SÉRIE')).toBe('12345');
+    expect(campo('CLASSE')).toBe('Classe C');
+    expect(campo('GRUPO DE RISCO')).toBe('4');
+    expect(campo('EXECUÇÃO DA INSPEÇÃO')).toBe('21/08/2026');
+    expect(campo('VALIDADE')).toBe('21/08/2028');
+    expect(campo('CATEGORIA')).toBe('IV');
+  });
+
+  it('PMTA e PTH saem nas TRÊS unidades da referência — e são as pressões certas', () => {
+    const fs = layoutDaPlaca(equipamento, pressoes, datas);
+    const bloco = (r: string) => {
+      const c = fs.flatMap((f) => f.celulas).find((x) => x.rotulo === r);
+      return c && c.tipo === 'pressao' ? c.colunas : undefined;
+    };
+    expect(bloco('PMTA')).toEqual([
+      { unidade: 'MPa', valor: '1,0' },
+      { unidade: 'psi', valor: '145' },
+      { unidade: 'kgf/cm²', valor: '10,2' },
+    ]);
+    // PTH nunca pode trazer os números da PMTA: é a pressão de ENSAIO.
+    expect(bloco('PTH')).toEqual([
+      { unidade: 'MPa', valor: '1,3' },
+      { unidade: 'psi', valor: '189' },
+      { unidade: 'kgf/cm²', valor: '13,3' },
+    ]);
+  });
+
+  it('a CATEGORIA é a fieira MAIS ALTA — é o destaque da placa', () => {
+    const fs = layoutDaPlaca(equipamento, pressoes, datas);
+    const maisAlta = [...fs].sort((a, b) => (b.fator ?? 1) - (a.fator ?? 1))[0];
+    expect(maisAlta.celulas[0].rotulo).toBe('CATEGORIA');
+    // A fieira das PRESSÕES também escapa do 1: ela empilha unidade + valor no
+    // mesmo quadro, e com altura comum o número saía com metade do corpo.
+    const pressoesFileira = fs.find((f) => f.celulas.some((c) => c.tipo === 'pressao'))!;
+    expect(pressoesFileira.fator).toBeGreaterThan(1);
+    expect(pressoesFileira.fator!).toBeLessThan(maisAlta.fator!);
   });
 
   it('dado que não existe fica NULO — a placa não inventa', () => {
-    const campos = Object.fromEntries(camposDaPlaca({}, []));
-    expect(campos['FABRICANTE']).toBeNull();
-    expect(campos['PMTA (kgf/cm²)']).toBeNull();
-    expect(campos['ANO DE FABRICAÇÃO']).toBeNull();
-    // Nenhum valor "de exemplo" escapou para a placa.
-    expect(Object.values(campos).every((v) => v === null)).toBe(true);
+    const fs = layoutDaPlaca({}, [], {});
+    const valores = fs.flatMap((f) =>
+      f.celulas.flatMap((c) => (c.tipo === 'campo' ? [c.valor] : c.colunas.map((x) => x.valor))),
+    );
+    expect(valores.every((v) => v === null)).toBe(true);
+    // E a ESTRUTURA continua completa: placa vazia é uma placa, não um buraco.
+    expect(rotulos(fs)).toHaveLength(15);
   });
 });
 

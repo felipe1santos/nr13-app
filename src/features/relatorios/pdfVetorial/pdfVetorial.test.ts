@@ -457,6 +457,9 @@ describe('placa de identificação: reconstruída em VETOR, real como imagem', (
       rect() { retangulos++; },
       line() { linhas++; },
       text() { textos++; },
+      // O corpo do valor da placa encolhe até caber no quadro; a bancada mede
+      // proporcional ao número de caracteres, que basta para o laço terminar.
+      getTextWidth(t: string) { return String(t).length * 1.8; },
       addImage(_d: string, _f: string, x: number, y: number, w: number, h: number) { imagens.push({ x, y, w, h }); },
     };
     const doc = {
