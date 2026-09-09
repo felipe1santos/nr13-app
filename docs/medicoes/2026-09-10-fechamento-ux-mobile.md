@@ -170,3 +170,43 @@ ela encolhe para 84 px e fica ao lado do primeiro bloco.
    o caminho para ter altura e alvo juntos.
 4. **A barra do editor não chegou a uma linha** (96 px, duas).
 5. **`ZZ RENOMEADO — …`** ficou em `ZZ-FASE3`: é o container do E2E de rename.
+
+---
+
+## 9. Redesenho do modal de ajuda (10/09/2026, 2ª passada)
+
+**A causa do "ficou feio":** a arte dos containers é **3:2** e o slot da faixa
+é **3:1**, com fundo cinza. Uma imagem de fundo BRANCO entrava em letterbox —
+tarja cinza dos dois lados — e ainda tomava a largura inteira antes de qualquer
+texto.
+
+`ModalAjuda` ganhou `layout="lateral"` e `proporcao`. Calibrações e
+Certificados continuam em `faixa`, que é o certo para as artes panorâmicas
+delas (conferido: banner de 648 px, proporção 3.0, intacto).
+
+### Desktop (1197 px de viewport, caixa de 709 px)
+
+| | medido |
+|---|---|
+| arte | 197 × 138 px, canto superior **direito** (x 475 de 709), y 158 |
+| fundo da moldura | `rgb(255,255,255)` — branco, como a própria imagem |
+| proporção da imagem | **1.50** (626/417) — não deformada |
+| item 1 e 2 | à esquerda da arte, x 24, y 158 e 280 |
+| item 3 e 4 | **abaixo**, em duas colunas: x 24 e x 359, mesma y 424 |
+| coluna morta | **não existe** — `base.top >= arte.bottom` |
+| número do passo | `rgb(12,79,155)`, azul-petróleo |
+| botão "i" | fundo `rgb(243,239,253)`, glifo `rgb(91,58,166)` |
+| overflow | 0 |
+
+### Celular (388 px, caixa de 359 × 763 numa tela de 844)
+
+| | medido |
+|---|---|
+| ordem | título → introdução → **arte** → os 4 passos |
+| arte | 236 × 163, centralizada, proporção 1.50 |
+| passos | **uma coluna**, todos em x 16, largura 314 |
+| corpo | rola por dentro; cabeçalho e "Entendi" ficam parados |
+| overflow | 0 |
+
+O número do passo saiu do `::before` com `counter`: com duas listas (topo e
+base) o contador reiniciava do 1 na segunda. Virou elemento com o índice.
