@@ -26,6 +26,7 @@
  */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { faixaVisivel } from './faixaVisivel';
+import { alturaAceita, alturaDeLinha } from './alturaDeLinha';
 
 export interface PropsListaVirtualizada<T> {
   itens: T[];
@@ -146,8 +147,12 @@ export default function ListaVirtualizada<T>({
     conjuntoAnterior.current = chaveDoConjunto;
     if (rolador === window) window.scrollTo({ top: 0 });
     else (rolador as HTMLElement).scrollTop = 0;
+    // A altura medida é MONÓTONA (ver `alturaAceita`), então ela precisa de um
+    // ponto de recomeço: outra lista tem outros itens, e a maior altura da
+    // anterior não descreve mais nada.
+    setAltura(alturaEstimada);
     recalcular();
-  }, [chaveDoConjunto, rolador, recalcular]);
+  }, [chaveDoConjunto, rolador, recalcular, alturaEstimada]);
 
   useEffect(() => {
     recalcular();
@@ -155,12 +160,20 @@ export default function ListaVirtualizada<T>({
     // navegador segura o quadro da rolagem esperando para descobrir.
     const alvo = rolador as unknown as EventTarget;
     alvo.addEventListener('scroll', recalcular, { passive: true });
-    window.addEventListener('resize', recalcular);
+    // O RESIZE também zera a altura: mudar a largura muda quantas colunas
+    // cabem, e com outra contagem de colunas a linha tem outra altura. Sem
+    // isto, girar o telefone deixaria a lista com o espaçador da orientação
+    // anterior — e, sendo monótona, ela nunca encolheria de volta.
+    const aoRedimensionar = () => {
+      setAltura(alturaEstimada);
+      recalcular();
+    };
+    window.addEventListener('resize', aoRedimensionar);
     return () => {
       alvo.removeEventListener('scroll', recalcular);
-      window.removeEventListener('resize', recalcular);
+      window.removeEventListener('resize', aoRedimensionar);
     };
-  }, [recalcular, rolador]);
+  }, [recalcular, rolador, alturaEstimada]);
 
   /**
    * Mede a grade REAL: quantas colunas o CSS resolveu e quanto mede uma linha.
@@ -196,14 +209,28 @@ export default function ListaVirtualizada<T>({
     //
     // A distância entre o topo de duas linhas consecutivas já inclui o
     // espaçamento e NÃO depende de quantos itens a última linha tem.
-    const medida =
-      filhos.length > nColunas
-        ? filhos[nColunas].offsetTop - filhos[0].offsetTop
-        : filhos[0].getBoundingClientRect().height;
+    //
+    // 09/09/2026 · O QUINTO, e é o MESMO LAÇO por outra porta. O ramo de
+    // recuo — quando só uma linha está desenhada — media
+    // `getBoundingClientRect().height`, que NÃO inclui o `row-gap`. Medido no
+    // cartão do catálogo em uma coluna: 688 contra 706, com `row-gap: 18px`.
+    // Alternar entre as duas grandezas realimenta a faixa e o React corta com
+    // "Maximum update depth exceeded" — que sobe até o `errorElement` e vira
+    // "Ocorreu um erro inesperado" ao rolar. A conta mora em
+    // `alturaDeLinha.ts`, com teste, pela mesma razão do `faixaVisivel`.
+    const rowGap = parseFloat(getComputedStyle(g).rowGap) || 0;
+    const medida = alturaDeLinha({
+      topoPrimeiro: filhos[0].offsetTop,
+      topoProximaLinha: filhos.length > nColunas ? filhos[nColunas].offsetTop : null,
+      alturaPrimeiro: filhos[0].getBoundingClientRect().height,
+      rowGap,
+    });
 
-    // Tolerância de 1 px: sem ela, um arredondamento sub-pixel realimentaria a
-    // medição para sempre.
-    if (medida > 0) setAltura((antes) => (Math.abs(medida - antes) > 1 ? medida : antes));
+    // A altura SÓ CRESCE — ver `alturaAceita`. Aceitar a medida mais recente
+    // fazia a altura oscilar entre dois valores (cartões de alturas diferentes
+    // na mesma lista) e realimentar a faixa até o React cortar com
+    // "Maximum update depth exceeded".
+    setAltura((antes) => alturaAceita(antes, medida));
   }, []);
 
   // A CADA RENDER, sem lista de dependências — de propósito.
