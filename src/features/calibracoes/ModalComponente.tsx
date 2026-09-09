@@ -17,6 +17,7 @@
  * `salvarComponente`, com a mesma validação de nome obrigatório.
  */
 import { useEffect, useRef, useState } from 'react';
+import FeedbackSalvamento, { useSalvamento } from '../../components/FeedbackSalvamento';
 import { Icone } from '../../components/Icone';
 import FotoImg from '../../components/FotoImg';
 import type { ComponenteCal } from './componentesService';
@@ -33,7 +34,8 @@ export default function ModalComponente({
   aoFechar: () => void;
 }) {
   const [c, setC] = useState<ComponenteCal>(valor);
-  const [salvando, setSalvando] = useState(false);
+  const salvamento = useSalvamento();
+  const salvando = salvamento.salvando;
   const caixa = useRef<HTMLDivElement>(null);
   const primeiro = useRef<HTMLInputElement>(null);
   const arquivo = useRef<HTMLInputElement>(null);
@@ -74,14 +76,11 @@ export default function ModalComponente({
 
   const podeSalvar = c.nome.trim() !== '';
 
+  // 10/09/2026 · gravava e fechava, sem dizer nada — e a falha era engolida
+  // pelo `finally`. Mesmo aviso do resto do sistema.
   async function salvar() {
     if (!podeSalvar) return;
-    setSalvando(true);
-    try {
-      await aoSalvar(c);
-    } finally {
-      setSalvando(false);
-    }
+    await salvamento.executar(async () => { await aoSalvar(c); });
   }
 
   return (
@@ -186,6 +185,13 @@ export default function ModalComponente({
           </button>
         </div>
       </div>
+
+      <FeedbackSalvamento
+        estado={salvamento.estado}
+        erro={salvamento.erro}
+        aoTentarNovamente={() => void salvar()}
+        aoFechar={salvamento.limpar}
+      />
     </div>
   );
 }

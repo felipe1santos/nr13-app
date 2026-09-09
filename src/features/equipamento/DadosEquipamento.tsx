@@ -3,21 +3,22 @@ import { Icone } from '../../components/Icone';
 import type { InfoEquipamento } from './tipos';
 import { salvarInfo } from './equipamentoService';
 import Campo from '../memorial/Campo';
+import FeedbackSalvamento, { useSalvamento } from '../../components/FeedbackSalvamento';
 
 export default function DadosEquipamento({ info, onSalvo }: { info: InfoEquipamento; onSalvo: (i: InfoEquipamento) => void }) {
   const [editando, setEditando] = useState(false);
   const [local, setLocal] = useState(info);
-  const [salvando, setSalvando] = useState(false);
+  const salvamento = useSalvamento();
+  const salvando = salvamento.salvando;
 
+  // 10/09/2026 · a ficha gravava e a tela apenas saía do modo edição —
+  // nenhuma confirmação, e a falha era engolida pelo `finally`. Mesmo aviso do
+  // resto do sistema.
   async function salvar() {
-    setSalvando(true);
-    try {
-      await salvarInfo(local);
-      onSalvo(local);
-      setEditando(false);
-    } finally {
-      setSalvando(false);
-    }
+    const ok = await salvamento.executar(() => salvarInfo(local));
+    if (!ok) return;
+    onSalvo(local);
+    setEditando(false);
   }
 
   return (
@@ -123,6 +124,13 @@ export default function DadosEquipamento({ info, onSalvo }: { info: InfoEquipame
           </div>
         </div>
       )}
+
+      <FeedbackSalvamento
+        estado={salvamento.estado}
+        erro={salvamento.erro}
+        aoTentarNovamente={() => void salvar()}
+        aoFechar={salvamento.limpar}
+      />
     </div>
   );
 }
