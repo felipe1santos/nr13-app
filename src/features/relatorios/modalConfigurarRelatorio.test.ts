@@ -109,7 +109,10 @@ describe('a rodada de UX não tocou na regra', () => {
 });
 
 describe('o CSS do modal não vaza para as outras telas', () => {
-  const bloco = css.slice(css.indexOf('MODAL "CONFIGURAR NOVO RELATÓRIO"'));
+  // O bloco do modal termina onde começa o do assistente (09/09/2026), que tem
+  // o seu próprio prefixo e o seu próprio teste logo abaixo.
+  const inicioWizard = css.indexOf('O ASSISTENTE DE CRIAÇÃO');
+  const bloco = css.slice(css.indexOf('MODAL "CONFIGURAR NOVO RELATÓRIO"'), inicioWizard);
 
   it('toda regra do modal é escopada em .mni-', () => {
     // `.modal-content`, `.btn-primario` e `.item-documento-check` são
@@ -118,6 +121,17 @@ describe('o CSS do modal não vaza para as outras telas', () => {
     const seletores = [...bloco.matchAll(/^\.([a-z][\w-]*)/gm)].map((m) => m[1]);
     for (const s of seletores) {
       expect(s.startsWith('mni-'), `seletor global no bloco do modal: .${s}`).toBe(true);
+    }
+  });
+
+  it('toda regra do assistente é escopada em .wz-', () => {
+    // Mesma regra, mesmo motivo: o assistente reaproveita `.modal-content`,
+    // `.item-documento-check` e `.btn-primario`, que são de todo mundo.
+    const wizard = css.slice(inicioWizard);
+    expect(wizard.length, 'o bloco do assistente sumiu do CSS').toBeGreaterThan(500);
+    const seletores = [...wizard.matchAll(/^\.([a-z][\w-]*)/gm)].map((m) => m[1]);
+    for (const s of seletores) {
+      expect(s.startsWith('wz-'), `seletor global no bloco do assistente: .${s}`).toBe(true);
     }
   });
 

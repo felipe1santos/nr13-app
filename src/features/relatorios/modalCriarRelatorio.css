@@ -581,3 +581,318 @@
   .mni-rodape .btn-secundario { flex: 1 1 0; }
   .mni-auto-texto small { white-space: normal; }
 }
+
+/* ============================================================================
+   O ASSISTENTE DE CRIAÇÃO (09/09/2026)
+   ----------------------------------------------------------------------------
+   Um shell só, três miolos. Tudo escopado em `.wz-`; a moldura, o cabeçalho, a
+   lista de checkboxes e o rodapé continuam sendo os do `.mni-modal`, que já
+   estavam certos — o que mudou é o que vive dentro deles.
+   ============================================================================ */
+
+/* A caixa precisa ser o contexto de posicionamento do painel do olho. */
+.wz-modal { max-width: 660px; position: relative; }
+
+/* ── Barra de etapas ────────────────────────────────────────────────────────
+   Baixa de propósito: ela orienta, não é conteúdo. Em tela estreita os rótulos
+   longos dão lugar aos curtos (`.wz-passo-rot-curto`) em vez de quebrarem em
+   duas linhas e dobrarem a altura da barra. */
+.wz-passos {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 22px 12px;
+  list-style: none;
+  border-bottom: 1px solid var(--border-solid);
+}
+.wz-passo { flex: 1 1 0; min-width: 0; }
+/* O traço que liga uma etapa à seguinte. */
+.wz-passo + .wz-passo { position: relative; padding-left: 10px; }
+.wz-passo + .wz-passo::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 8px;
+  height: 1px;
+  background: var(--border-solid);
+}
+.wz-passo-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  min-width: 0;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  font-family: var(--font-base);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-align: left;
+  cursor: default;
+}
+.wz-passo.is-feito .wz-passo-btn { cursor: pointer; color: var(--text-main); }
+.wz-passo.is-feito .wz-passo-btn:hover { background: var(--bg-soft); }
+.wz-passo.is-atual .wz-passo-btn { color: var(--blue2, #0C4F9B); font-weight: 750; }
+.wz-passo.is-futuro .wz-passo-btn { opacity: 0.55; }
+
+.wz-passo-num {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1;
+}
+.wz-passo.is-atual .wz-passo-num {
+  background: var(--blue2, #0C4F9B);
+  border-color: var(--blue2, #0C4F9B);
+  color: #fff;
+}
+.wz-passo.is-feito .wz-passo-num {
+  background: var(--status-ok-text, #14804a);
+  border-color: var(--status-ok-text, #14804a);
+  color: #fff;
+}
+.wz-passo-rot { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wz-passo-rot-curto { display: none; }
+
+/* ── Etapa 2 · os containers ───────────────────────────────────────────────
+   Cartão, e não linha de lista: cada um carrega três informações (nome, o que
+   tem salvo dentro, quem fez) e um botão próprio. */
+.wz-containers { display: flex; flex-direction: column; gap: 8px; }
+
+.wz-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-solid);
+  border-radius: 10px;
+  background: var(--bg-card, #fff);
+  cursor: pointer;
+  min-height: 56px;
+}
+.wz-container:hover { border-color: var(--blue2, #0C4F9B); }
+.wz-container.is-sel {
+  border-color: var(--blue2, #0C4F9B);
+  box-shadow: 0 0 0 2px rgba(12, 79, 155, 0.14);
+}
+.wz-container input[type='radio'] {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+  accent-color: var(--blue2, #0C4F9B);
+}
+.wz-container-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
+.wz-container-txt strong {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--text-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wz-container-txt small { font-size: 11.5px; color: var(--text-muted); }
+.wz-container-icones { display: inline-flex; gap: 6px; color: var(--blue2, #0C4F9B); margin-top: 2px; }
+/* "Não usar container" é uma escolha, não um item de menos: mesmo cartão, sem
+   marcação que a rebaixe a opção de segunda classe. */
+.wz-container-sem .wz-container-txt strong { font-weight: 600; }
+
+.wz-olho {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border-solid);
+  border-radius: 8px;
+  background: var(--bg-card, #fff);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.wz-olho:hover { color: var(--blue2, #0C4F9B); border-color: var(--blue2, #0C4F9B); }
+
+.wz-vazio {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* ── Etapa 3 · revisão ─────────────────────────────────────────────────── */
+.wz-revisao {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.wz-rev-larga { grid-column: 1 / -1; }
+.wz-rev-bloco {
+  border: 1px solid var(--border-solid);
+  border-radius: 10px;
+  padding: 11px 13px;
+  background: var(--bg-card, #fff);
+  min-width: 0;
+}
+.wz-rev-bloco h4 {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.wz-rev-cont {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--bg-soft);
+  color: var(--text-main);
+  letter-spacing: 0;
+}
+.wz-rev-forte { margin: 0; font-size: 13.5px; font-weight: 650; color: var(--text-main); }
+.wz-rev-sub { margin: 2px 0 0; font-size: 11.5px; color: var(--text-muted); }
+.wz-rev-ajuda { margin: 9px 0 6px; font-size: 11.5px; color: var(--text-muted); }
+.wz-rev-lista {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 2px 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 170px;
+  overflow-y: auto;
+}
+.wz-rev-lista li {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--text-main);
+  min-width: 0;
+}
+.wz-rev-lista li svg { color: var(--status-ok-text, #14804a); flex: 0 0 auto; }
+.wz-rev-ensaios {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-solid);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.wz-rev-ensaios .item-documento-check { border-bottom: 1px solid var(--border-solid); }
+.wz-rev-ensaios .item-documento-check:last-child { border-bottom: none; }
+
+/* ── O olho ────────────────────────────────────────────────────────────────
+   Dentro da caixa do assistente (`position:absolute`), e não um segundo modal:
+   nada abaixo é desmontado, então fechar devolve a etapa 2 com o radio, a
+   rolagem e as folhas exatamente onde estavam. */
+.wz-preview {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(17, 24, 33, 0.45);
+  border-radius: inherit;
+}
+.wz-preview-caixa {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 420px;
+  max-height: 100%;
+  border-radius: 12px;
+  background: var(--bg-card, #fff);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+}
+.wz-preview-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-solid);
+}
+.wz-preview-head h4 { margin: 2px 0 0; font-size: 14.5px; font-weight: 700; color: var(--text-main); }
+.wz-preview-corpo { padding: 12px 14px; overflow-y: auto; min-height: 0; flex: 1; }
+.wz-preview-meta { margin: 0 0 10px; font-size: 11.5px; color: var(--text-muted); }
+.wz-preview-titulo {
+  margin: 12px 0 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.wz-preview-titulo:first-of-type { margin-top: 0; }
+.wz-preview-lista {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.wz-preview-lista li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+.wz-preview-lista li.is-ok { color: var(--text-main); }
+.wz-preview-lista li svg { color: var(--status-ok-text, #14804a); flex: 0 0 auto; }
+.wz-preview-vazio {
+  flex: 0 0 auto;
+  width: 11px;
+  height: 11px;
+  border: 1.5px solid var(--border-solid);
+  border-radius: 50%;
+}
+.wz-preview-nome { flex: 0 1 auto; min-width: 0; }
+.wz-preview-detalhe { margin-left: auto; font-size: 11px; color: var(--text-muted); text-align: right; }
+.wz-preview-nada { margin: 0; font-size: 12px; color: var(--text-muted); }
+.wz-preview-rodape {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 11px 14px;
+  border-top: 1px solid var(--border-solid);
+}
+.wz-preview-rodape .btn-primario,
+.wz-preview-rodape .btn-secundario { padding: 8px 14px; font-size: 12.5px; }
+
+@media (max-width: 640px) {
+  .wz-passos { padding: 0 15px 10px; gap: 2px; }
+  .wz-passo + .wz-passo { padding-left: 6px; }
+  .wz-passo + .wz-passo::before { width: 4px; }
+  .wz-passo-btn { padding: 6px 4px; gap: 5px; font-size: 11.5px; }
+  .wz-passo-rot { display: none; }
+  .wz-passo-rot-curto { display: inline; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Dedo: cartão e olho passam de 44px. */
+  .wz-container { min-height: 60px; padding: 11px 12px; }
+  .wz-olho { width: 44px; height: 44px; }
+  .wz-container-txt strong { white-space: normal; }
+  .wz-revisao { grid-template-columns: 1fr; }
+  .wz-rev-lista { grid-template-columns: 1fr; max-height: 200px; }
+  .wz-preview { padding: 10px; }
+  .wz-preview-caixa { max-width: none; }
+  .wz-preview-detalhe { margin-left: 0; }
+  .wz-preview-lista li { flex-wrap: wrap; }
+  .wz-preview-rodape .btn-primario,
+  .wz-preview-rodape .btn-secundario { flex: 1 1 0; }
+}

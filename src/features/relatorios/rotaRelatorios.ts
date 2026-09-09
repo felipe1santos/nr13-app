@@ -89,3 +89,56 @@ export function urlDoEditor(tag?: string, rel?: string): string {
   if (rel) p.set('rel', rel);
   return `/relatorios?${p.toString()}`;
 }
+
+/**
+ * A ESCOLHA PRONTA que `/relatorios` entrega ao editor pelo `state` da
+ * navegação. Ver `ModalCriarRelatorio`.
+ */
+export interface EscolhaPronta {
+  tag: string;
+  tipo: string;
+  documentos: string[];
+  /**
+   * `null` = relatório sem dados de campo. **`undefined` = state antigo**, de
+   * antes de 09/09/2026, em que o container ainda era escolhido do lado do
+   * editor. Os três casos são diferentes e a tela precisa distingui-los.
+   */
+  containerId?: string | null;
+}
+
+export function escolhaProntaDoState(state: unknown): EscolhaPronta | null {
+  if (!state || typeof state !== 'object') return null;
+  const s = state as Record<string, unknown>;
+  if (typeof s.tag !== 'string' || s.tag.trim() === '') return null;
+  if (!Array.isArray(s.documentos)) return null;
+  return {
+    tag: s.tag,
+    tipo: String(s.tipo ?? ''),
+    documentos: s.documentos.filter((d): d is string => typeof d === 'string'),
+    ...(s.containerId === undefined ? {} : { containerId: (s.containerId as string | null) ?? null }),
+  };
+}
+
+/**
+ * COM QUE TELA O EDITOR NASCE — e a razão de esta função existir.
+ *
+ * O bloco "Para qual equipamento?" é o valor INICIAL de `useState<Tela>`, e o
+ * efeito de montagem só troca a tela depois. Quando a criação já vinha
+ * decidida, o modal do container abria em cima do seletor de equipamento: a
+ * pergunta que o usuário acabou de responder, de volta na tela, atrás de um
+ * modal. Não era um piscar — ficava lá até o "Gerar Documento".
+ *
+ * A decisão precisa ser SÍNCRONA, antes da primeira pintura, e é por isso que
+ * ela é uma função pura sobre o `state` e não um `useEffect`.
+ *
+ * - `montando`: veio decidido de `/relatorios`. Nenhuma pergunta a fazer.
+ * - `criacao`: veio o equipamento e as folhas, mas não o container (state
+ *   antigo). O fundo é a tela do equipamento JÁ escolhido, nunca o seletor.
+ * - `equipamentos`: ninguém decidiu nada — `?editor=1` puro ou `?legado=1`
+ *   sem TAG. Aí o seletor é o destino certo.
+ */
+export function telaInicialDoEditor(state: unknown): 'montando' | 'criacao' | 'equipamentos' {
+  const escolha = escolhaProntaDoState(state);
+  if (!escolha) return 'equipamentos';
+  return escolha.containerId === undefined ? 'criacao' : 'montando';
+}

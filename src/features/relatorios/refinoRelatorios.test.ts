@@ -25,7 +25,10 @@ const css = readFileSync('src/pages/relatorios.css', 'utf8');
 const rota = readFileSync('src/features/relatorios/rotaRelatorios.ts', 'utf8');
 const editor = readFileSync('src/pages/Relatorios.tsx', 'utf8');
 const modalFiltro = readFileSync('src/features/relatorios/ModalFiltrosRelatorios.tsx', 'utf8');
-const modalConfig = readFileSync('src/features/relatorios/ModalNovaInspecao.tsx', 'utf8');
+// O assistente de 09/09/2026. Ele substituiu `ModalNovaInspecao` NO FLUXO
+// MODERNO; o modal antigo continua servindo o editor legado (`?legado=1`), e
+// por isso a leitura dele saiu daqui em vez de o arquivo ser apagado.
+const wizard = readFileSync('src/features/relatorios/ModalCriarRelatorio.tsx', 'utf8');
 const catalogo = readFileSync('src/features/relatorios/CatalogoRelatoriosV9.tsx', 'utf8');
 
 describe('1 · /relatorios continua sendo a lista canônica única', () => {
@@ -203,20 +206,20 @@ describe('10, 11, 12 e 13 · criar sem sair da rota', () => {
     expect(tela).toMatch(/setCriacao\(\{\s*passo: 2,/);
   });
 
-  it('o passo 2 é o MESMO modal de configuração de sempre', () => {
-    // Nada de um segundo formulário de tipo/documentos: é o componente que o
-    // editor já usava, com um cabeçalho a mais.
-    expect(tela).toContain('<ModalNovaInspecao');
-    // O título ganhou capitalização de título em 09/09, seguindo a referência.
-    expect(modalConfig).toContain('Configurar Novo Relatório');
-    // A lista de baixo passou a excluir o que subiu para o bloco de injeção
-    // automática — os documentos continuam vindo do MESMO catálogo.
-    expect(modalConfig).toContain('const naLista = DOCUMENTOS_DISPONIVEIS.filter(');
-    expect(modalConfig).toContain('naLista.map((doc)');
+  it('o passo 2 é o ASSISTENTE, e a lista de documentos é o catálogo inteiro', () => {
+    // 09/09/2026 · era `<ModalNovaInspecao`, que entregava a escolha SEM
+    // container e obrigava o editor a perguntar do outro lado da rota. Agora é
+    // `<ModalCriarRelatorio`, que faz as três perguntas antes de navegar.
+    expect(tela).toContain('<ModalCriarRelatorio');
+    expect(wizard).toContain('Configurar novo relatório');
+    // A lista deixou de ser um recorte: o bloco azul que retirava itens dela
+    // saiu, e as folhas voltam a ser o catálogo canônico inteiro.
+    expect(wizard).toContain('DOCUMENTOS_DISPONIVEIS.map((doc)');
+    expect(wizard).not.toContain('const naLista =');
   });
 
   it('dá para trocar de equipamento sem fechar o fluxo', () => {
-    expect(modalConfig).toContain('← Trocar equipamento');
+    expect(wizard).toContain('← Trocar equipamento');
     expect(tela).toContain('aoVoltar={() => setCriacao({ passo: 1 })}');
   });
 });
@@ -225,7 +228,10 @@ describe('14 · confirmar abre o editor com a escolha pronta', () => {
   it('a configuração viaja no state da navegação, não na URL', () => {
     expect(editor).toContain("navigate(urlDoEditor(escolha.tag), { state: escolha })");
     expect(editor).toContain('const escolhaPronta = useRef(');
-    expect(editor).toContain('avancarParaEtapaContainer(pronta.tipo, pronta.documentos)');
+    // O container chega junto: é o que faz o editor não ter mais pergunta
+    // nenhuma — e, por isso, não precisar montar tela nenhuma antes do
+    // documento. Ver `wizardCriacao.test.ts`.
+    expect(editor).toContain('await finalizarGeracao(pronta.containerId, pendenteDaEscolha)');
   });
 
   it('`urlDoEditor` continua sendo a mesma rota de sempre', () => {

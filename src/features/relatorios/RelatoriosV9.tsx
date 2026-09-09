@@ -70,7 +70,7 @@ import ModalFiltrosRelatorios, {
   type ValoresFiltro,
 } from './ModalFiltrosRelatorios';
 import CatalogoRelatoriosV9, { ROTULO_TIPO } from './CatalogoRelatoriosV9';
-import ModalNovaInspecao from './ModalNovaInspecao';
+import ModalCriarRelatorio from './ModalCriarRelatorio';
 import ModalRenomear from './ModalRenomear';
 import ModalSelecionarEquipamento from './ModalSelecionarEquipamento';
 import ModalRemocao from './ModalRemocao';
@@ -180,11 +180,18 @@ export interface PropsRelatoriosV9 {
    * `() => void` que navegava para uma tela de seleção, e a montagem
    * perguntava tudo de novo do outro lado; agora a pergunta acontece uma vez
    * só, em modal, com a lista intacta atrás.
+   *
+   * `containerId` entrou em 09/09/2026 e é o que fecha o fluxo: com ele, o
+   * editor não tem mais NENHUMA pergunta a fazer, e por isso não precisa
+   * montar tela nenhuma antes do documento. `null` é resposta legítima —
+   * "relatório sem dados de inspeção" — e é o valor que `finalizarGeracao`
+   * sempre aceitou.
    */
   aoEscolherEquipamento?: (escolha?: {
     tag: string;
     tipo: TipoInspecao;
     documentos: string[];
+    containerId: string | null;
   }) => void;
   /**
    * Continuar um RASCUNHO (10B.1) — abre o editor de onde parou.
@@ -773,20 +780,24 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
         </ModalSelecionarEquipamento>
       )}
 
-      {/* CRIAR · passo 2. É o MESMO `ModalNovaInspecao` que o editor sempre
-          usou — tipo de inspeção, folhas e lotes de calibração saem da
-          lógica que já existe. Aqui ele só ganhou de quem está falando e o
-          caminho de volta. Confirmar entrega a escolha pronta ao pai, que
-          abre o editor. */}
+      {/* CRIAR · passo 2. O ASSISTENTE INTEIRO, num shell só: folhas →
+          inspeção → revisão. Ele fica montado do começo ao fim, e a navegação
+          para o editor acontece uma vez, no "Gerar Documento", já com o
+          container decidido.
+
+          Antes daqui saía só `{tipo, documentos}`, e o container era escolhido
+          do OUTRO lado da rota, num segundo modal — que abria em cima da tela
+          "Para qual equipamento?" porque a tela de fundo do editor nunca era
+          trocada. Era esse o fluxo duplicado. */}
       {criacao?.passo === 2 && (
-        <ModalNovaInspecao
+        <ModalCriarRelatorio
           tag={criacao.tag}
           resumo={{ tag: criacao.tag, descricao: criacao.descricao, tipo: criacao.tipoEq }}
           aoVoltar={() => setCriacao({ passo: 1 })}
           onClose={() => setCriacao(null)}
-          onGerar={(tipo, documentos) => {
+          onGerar={(escolha) => {
             setCriacao(null);
-            aoEscolherEquipamento?.({ tag: criacao.tag, tipo, documentos });
+            aoEscolherEquipamento?.({ tag: criacao.tag, ...escolha });
           }}
         />
       )}

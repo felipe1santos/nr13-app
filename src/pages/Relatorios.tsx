@@ -3,8 +3,10 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import RelatoriosV9 from '../features/relatorios/RelatoriosV9';
 import {
   alvoLegadoDaUrl,
+  escolhaProntaDoState,
   modoRelatorios,
   papelDaTelaLegada,
+  telaInicialDoEditor,
   urlDoEditor,
   urlDoLegado,
 } from '../features/relatorios/rotaRelatorios';
@@ -83,7 +85,13 @@ import PaginaA4 from '../components/PaginaA4';
 
 // `criacao` é a etapa entre escolher o equipamento e montar o documento: ela
 // não mostra lista nenhuma, só o modal de folhas por cima.
-type Tela = 'equipamentos' | 'criacao' | 'historico' | 'visualizador';
+/**
+ * `montando` (09/09/2026) é a tela de quem NÃO tem pergunta nenhuma a fazer: a
+ * criação chegou decidida de `/relatorios` e o editor só precisa montar o
+ * documento. Ela existe para que o valor inicial de `tela` nunca mais seja o
+ * seletor de equipamento num fluxo que já escolheu o equipamento.
+ */
+type Tela = 'equipamentos' | 'montando' | 'criacao' | 'historico' | 'visualizador';
 type EtapaModal = 'nenhuma' | 'documentos' | 'container';
 
 const TIPOS_INSPECAO: TipoInspecao[] = ['Inspeção Inicial', 'Inspeção Periódica', 'Inspeção Extraordinária'];
@@ -152,10 +160,10 @@ function metaPadrao(tipo: TipoInspecao): RelatorioMeta {
 
 function RelatoriosLegado() {
   const navegar = useNavigate();
-  const [tela, setTela] = useState<Tela>('equipamentos');
 
   /**
-   * A CONFIGURAÇÃO já escolhida no modal de `/relatorios` (tipo e folhas).
+   * A CONFIGURAÇÃO já escolhida no assistente de `/relatorios` — tipo, folhas
+   * e, desde 09/09/2026, o CONTAINER.
    *
    * Vem no `state` da navegação, não na URL: são dezenas de nomes de arquivo, e
    * uma query com isso dentro seria ilegível, quebraria ao ser copiada e viraria
@@ -165,11 +173,16 @@ function RelatoriosLegado() {
    * Lida uma vez, na montagem. Sem ela nada muda: o editor abre e pergunta, que
    * é o caminho de sempre e o que o `?legado=1` continua fazendo.
    */
-  const escolhaPronta = useRef(
-    (window.history.state?.usr ?? null) as
-      | { tag: string; tipo: TipoInspecao; documentos: string[] }
-      | null,
-  );
+  const escolhaPronta = useRef(escolhaProntaDoState(window.history.state?.usr));
+
+  /**
+   * A tela de fundo nasce decidida, e não em `useEffect`.
+   *
+   * Era daqui que saía a duplicidade: `useState<Tela>('equipamentos')` pintava
+   * "Para qual equipamento?" e o efeito de montagem só abria o modal do
+   * container por cima — sem nunca trocar o fundo. Ver `telaInicialDoEditor`.
+   */
+  const [tela, setTela] = useState<Tela>(() => telaInicialDoEditor(window.history.state?.usr));
 
   /**
    * O PAPEL desta tela, decidido pela ROTA — nunca por heurística.
@@ -205,7 +218,10 @@ function RelatoriosLegado() {
    * lugar seria o começo dos três discordarem.
    */
   const [nomeEscolhido, setNomeEscolhido] = useState<string | null>(null);
-  const [pendente, setPendente] = useState<{ tipo: TipoInspecao; docs: string[] } | null>(null);
+  // `pendenteEstado` no nome porque `finalizarGeracao` também aceita a escolha
+  // por parâmetro: o React não teria gravado este estado a tempo quando a
+  // criação chega pronta de `/relatorios`.
+  const [pendenteEstado, setPendente] = useState<{ tipo: TipoInspecao; docs: string[] } | null>(null);
   const [documentos, setDocumentos] = useState<string[] | null>(null);
   const [meta, setMeta] = useState<RelatorioMeta | null>(null);
   const [somenteLeitura, setSomenteLeitura] = useState(false);
@@ -504,14 +520,21 @@ function RelatoriosLegado() {
    */
   const alvoUrl = useRef(alvoLegadoDaUrl(window.location.search));
   useEffect(() => {
-    // Veio de `/relatorios` com tudo escolhido: nem lista de equipamento
-    // nem modal de configuração — direto para a escolha do container, que é
-    // o passo que ainda não foi respondido.
+    // Veio de `/relatorios` com tudo escolhido — INCLUSIVE o container. Não há
+    // pergunta nenhuma a fazer: monta o documento e mostra o documento.
     const pronta = escolhaPronta.current;
     if (pronta?.tag) {
       void (async () => {
         await abrirEquipamento(pronta.tag);
-        avancarParaEtapaContainer(pronta.tipo, pronta.documentos);
+        const pendenteDaEscolha = { tipo: pronta.tipo as TipoInspecao, docs: pronta.documentos };
+        if (pronta.containerId !== undefined) {
+          await finalizarGeracao(pronta.containerId, pendenteDaEscolha);
+          return;
+        }
+        // `state` ANTIGO (antes do assistente): traz folhas mas não container.
+        // O fundo é a tela do equipamento já escolhido — nunca o seletor.
+        setTela('criacao');
+        avancarParaEtapaContainer(pronta.tipo as TipoInspecao, pronta.documentos);
       })();
       return;
     }
@@ -701,12 +724,29 @@ function RelatoriosLegado() {
     setVersao((v) => v + 1);
   }
 
+  /**
+   * O caminho ANTIGO, preservado: abre o modal do container dentro do editor.
+   *
+   * Continua servindo `?legado=1` e o `state` sem `containerId`. O que ele não
+   * pode mais fazer é rodar com `tela === 'equipamentos'` — quem chama troca a
+   * tela antes, senão o modal abre em cima do seletor de equipamento.
+   */
   function avancarParaEtapaContainer(tipo: TipoInspecao, docsSelecionados: string[]) {
     setPendente({ tipo, docs: docsSelecionados });
     setEtapaModal('container');
   }
 
-  async function finalizarGeracao(containerId: string | null) {
+  /**
+   * `escolhaDireta` existe porque `pendente` é estado do React: quando a
+   * criação chega pronta de `/relatorios`, ela é usada NA MESMA passagem em que
+   * seria gravada, e ler o estado aqui daria `null`. Quem vem pelo modal do
+   * container continua caindo no `pendente` de sempre.
+   */
+  async function finalizarGeracao(
+    containerId: string | null,
+    escolhaDireta?: { tipo: TipoInspecao; docs: string[] },
+  ) {
+    const pendente = escolhaDireta ?? pendenteEstado;
     if (!pendente) return;
     setEtapaModal('nenhuma');
     const validos = filtrarDocumentosValidos(pendente.docs);
@@ -1206,7 +1246,28 @@ function RelatoriosLegado() {
 
   return (
     <div className="relatorios-page">
-      {tela === 'equipamentos' && (
+      {/* MONTANDO · a criação chegou decidida de `/relatorios`.
+          Existe para que o fundo NUNCA seja o seletor de equipamento num fluxo
+          que já escolheu o equipamento — a duplicidade que esta tela tinha. */}
+      {tela === 'montando' && (
+        <div className="bloco-dados">
+          <div className="meta-breadcrumb">
+            <span className="crumb-tag-chip">{tag || 'Novo relatório'}</span>
+          </div>
+          <div className="meta-card-header">
+            <h3>Montando o documento…</h3>
+          </div>
+          <p className="selecao-dica">
+            Reunindo as folhas escolhidas e os dados da inspeção deste equipamento.
+          </p>
+        </div>
+      )}
+
+      {/* SELETOR DE EQUIPAMENTO · só quando ninguém escolheu nada.
+          A guarda é ESTRUTURAL, e não uma transição de estado que alguém
+          esqueça de cobrir: com escolha pronta no `state`, este bloco não
+          renderiza nem por um quadro. */}
+      {tela === 'equipamentos' && !escolhaPronta.current && (
         <div className="bloco-dados">
           <div className="meta-breadcrumb">
             <button type="button" className="btn-secundario" onClick={() => navegar('/relatorios')}>
