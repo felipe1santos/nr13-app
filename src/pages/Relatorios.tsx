@@ -529,7 +529,9 @@ function RelatoriosLegado() {
     if (pronta?.tag) {
       void (async () => {
         await abrirEquipamento(pronta.tag);
-        const pendenteDaEscolha = { tipo: pronta.tipo as TipoInspecao, docs: pronta.documentos };
+        // A TAG vai JUNTO: `setTag` acabou de ser chamado e o estado só
+        // muda no próximo render — ver o cabeçalho de `finalizarGeracao`.
+        const pendenteDaEscolha = { tipo: pronta.tipo as TipoInspecao, docs: pronta.documentos, tag: pronta.tag };
         if (pronta.containerId !== undefined) {
           await finalizarGeracao(pronta.containerId, pendenteDaEscolha);
           return;
@@ -748,22 +750,42 @@ function RelatoriosLegado() {
    * criação chega pronta de `/relatorios`, ela é usada NA MESMA passagem em que
    * seria gravada, e ler o estado aqui daria `null`. Quem vem pelo modal do
    * container continua caindo no `pendente` de sempre.
+   *
+   * ## E `tag` tem exatamente o mesmo problema (10/09/2026)
+   *
+   * `tag` também é estado. No caminho do assistente, `finalizarGeracao` roda
+   * no MESMO tick de `abrirEquipamento`, que acabou de chamar `setTag` — e
+   * `tag` ainda vale `''`. `carregarContainer('', id)` lê a chave
+   * `nr13_docs_` (sem TAG), não acha nada, e o documento sai com TODOS os
+   * ensaios em branco: checklist, exames, ultrassom e teste hidrostático.
+   *
+   * Medido em produção, com o container "Inspeção da IA" completo:
+   * `meta.containerOrigemId` gravado certo (não depende de `tag`) e
+   * `nr13_injecao_atual` / `nr13_inspecao_atual` **vazias**. Era este o
+   * "TH que não chega ao relatório".
+   *
+   * Por isso a TAG vem por parâmetro junto da escolha, e não do estado.
    */
   async function finalizarGeracao(
     containerId: string | null,
-    escolhaDireta?: { tipo: TipoInspecao; docs: string[] },
+    escolhaDireta?: { tipo: TipoInspecao; docs: string[]; tag?: string },
   ) {
     const pendente = escolhaDireta ?? pendenteEstado;
     if (!pendente) return;
+    // A TAG do parâmetro vence a do estado — ver o bloco acima.
+    const tagAtual = escolhaDireta?.tag?.trim() || tag;
     setEtapaModal('nenhuma');
     const validos = filtrarDocumentosValidos(pendente.docs);
     // Carrega o container ANTES de montar: a auto-injeção das folhas de fotos depende de haver
     // fotos de campo (VE/VI/TH) — sem fotos, a folha não entra.
-    const dadosContainer = containerId ? (carregarContainer(tag, containerId)?.dados ?? {}) : {};
+    const dadosContainer = containerId ? (carregarContainer(tagAtual, containerId)?.dados ?? {}) : {};
+    // TODAS estas leituras são por TAG — memorial, pontos de ultrassom, livro
+    // de registro. Com a TAG vazia, o documento sai sem memorial e sem as
+    // folhas expandidas, além de sem os dados de campo.
     const comTermo = expandirFolhasUltrassom(
-      tag,
+      tagAtual,
       expandirFolhasFoto(
-        expandirMemorial(tag, montarListaComTermoAbertura(tag, validos, dadosContainer)),
+        expandirMemorial(tagAtual, montarListaComTermoAbertura(tagAtual, validos, dadosContainer)),
         dadosContainer,
       ),
       dadosContainer,
@@ -775,7 +797,7 @@ function RelatoriosLegado() {
     // iframes e espelha engenheiro/técnico na meta (livro de registro usa phNome/phCrea).
     const funcs = listarFuncionarios();
     setFuncionarios(funcs);
-    const a = carregarAssinantesRel(tag, funcs);
+    const a = carregarAssinantesRel(tagAtual, funcs);
     novaMeta = aplicarAssinantesNaMeta(novaMeta, a, funcs);
     // Congela empresa + assinantes na meta (relatório salvo não muda com trocas futuras).
     novaMeta.empresa = snapshotEmpresa();

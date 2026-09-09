@@ -205,3 +205,50 @@ describe('legado · os caminhos que continuam existindo', () => {
     expect(tela).toContain('ModalNovaInspecao');
   });
 });
+
+describe('gate · a TAG não pode vir do estado do React na geração', () => {
+  const tela = readFileSync('src/pages/Relatorios.tsx', 'utf8');
+  const corpo = tela.slice(
+    tela.indexOf('async function finalizarGeracao('),
+    tela.indexOf('// Re-hidrata as chaves "atuais"'),
+  );
+
+  it('`finalizarGeracao` recebe a TAG por parâmetro', () => {
+    // 10/09/2026 · medido em produção com o container "Inspeção da IA"
+    // completo: `meta.containerOrigemId` gravado certo e
+    // `nr13_injecao_atual`/`nr13_inspecao_atual` VAZIAS. A causa é que
+    // `finalizarGeracao` roda no MESMO tick de `abrirEquipamento`, que acabou
+    // de chamar `setTag` — e `tag` ainda vale ''. `carregarContainer('', id)`
+    // lê a chave `nr13_docs_` e não acha nada, e o documento sai com todos os
+    // ensaios em branco.
+    expect(corpo).toContain('escolhaDireta?: { tipo: TipoInspecao; docs: string[]; tag?: string }');
+    expect(corpo).toContain("const tagAtual = escolhaDireta?.tag?.trim() || tag;");
+  });
+
+  it('nenhuma leitura por TAG dentro da geração usa o ESTADO', () => {
+    // Todas são leituras por chave `<algo>_<TAG>`: container, memorial,
+    // pontos de ultrassom, livro e assinantes. Uma delas com a TAG vazia
+    // basta para o documento sair sem aquela parte.
+    for (const chamada of [
+      'carregarContainer(tagAtual, containerId)',
+      'expandirFolhasUltrassom(\n      tagAtual,',
+      'expandirMemorial(tagAtual, montarListaComTermoAbertura(tagAtual, validos, dadosContainer))',
+      'carregarAssinantesRel(tagAtual, funcs)',
+    ]) {
+      expect(corpo, chamada).toContain(chamada);
+    }
+    // E nenhuma sobrou com a variável de estado.
+    for (const proibido of [
+      'carregarContainer(tag,',
+      'expandirMemorial(tag,',
+      'montarListaComTermoAbertura(tag,',
+      'carregarAssinantesRel(tag,',
+    ]) {
+      expect(corpo.includes(proibido), proibido).toBe(false);
+    }
+  });
+
+  it('quem chama do assistente ENTREGA a TAG', () => {
+    expect(tela).toContain('docs: pronta.documentos, tag: pronta.tag }');
+  });
+});
