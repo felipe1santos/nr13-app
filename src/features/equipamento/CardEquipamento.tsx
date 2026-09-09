@@ -9,6 +9,7 @@ import { Icone } from '../../components/Icone';
 import './equipamento.css';
 import FotoImg from '../../components/FotoImg';
 import { rotaEquipamento } from '../../app/rotas';
+import { COR_VIDA, vidaDaBarra, type VidaBarra } from './barraVida';
 
 const ROTULO_TIPO: Record<string, string> = {
   vaso: 'Vaso de Pressão',
@@ -26,15 +27,23 @@ interface VidaSalva {
   vidaAnos?: number | null;
 }
 
-// Vida remanescente bruta do cálculo salvo — a barra usa escala interna só como visual.
-function vidaInfo(tag: string): { texto: string; pct: number; cor: string } | null {
+/**
+ * Vida remanescente do cálculo salvo.
+ *
+ * Aqui mora só a LEITURA (`nr13_vida_<TAG>` do cache) — o que fazer com o
+ * número vem de `vidaRemanescente.ts`, o mesmo módulo que o `CardCatalogo` usa.
+ * Os dois cartões precisam mostrar a mesma coisa (P9.2), e a regra estava
+ * copiada nos dois arquivos.
+ */
+function vidaInfo(tag: string): VidaBarra | null {
   const vida = ler<VidaSalva>(`nr13_vida_${tag}`);
   if (!vida) return null;
-  if (typeof vida.vidaAnos !== 'number') return { texto: 'Indeterminada', pct: 0, cor: '#AEB4B9' };
-  const anos = vida.vidaAnos;
-  const pct = Math.max(0, Math.min(100, Math.round((anos / 10) * 100)));
-  const cor = pct > 50 ? 'var(--ok)' : pct > 25 ? 'var(--warn)' : 'var(--crit)';
-  return { texto: `${anos.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} anos`, pct, cor };
+  // Cálculo existe mas sem o número: "Indeterminada" é diferente de "não
+  // calculado", e não pinta a barra de vermelho.
+  if (typeof vida.vidaAnos !== 'number') {
+    return { texto: 'Indeterminada', pct: 0, cor: COR_VIDA.indefinida };
+  }
+  return vidaDaBarra(vida.vidaAnos);
 }
 
 export default function CardEquipamento({ item }: { item: EquipamentoResumo }) {
@@ -136,14 +145,14 @@ export default function CardEquipamento({ item }: { item: EquipamentoResumo }) {
         <div className="plate-life">
           <div className="plate-life-top">
             <span className="plate-life-label">Vida remanescente</span>
-            <span className="plate-life-val" style={{ color: vida ? vida.cor : '#AEB4B9' }}>
+            <span className="plate-life-val" style={{ color: vida ? vida.cor : COR_VIDA.indefinida }}>
               {vida ? vida.texto : 'Não calculado'}
             </span>
           </div>
           <div className="plate-life-track">
             <div
               className="plate-life-fill"
-              style={{ width: `${vida?.pct ?? 0}%`, background: vida ? vida.cor : '#AEB4B9' }}
+              style={{ width: `${vida?.pct ?? 0}%`, background: vida ? vida.cor : COR_VIDA.indefinida }}
             />
           </div>
         </div>

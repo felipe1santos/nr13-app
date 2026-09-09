@@ -633,13 +633,22 @@ export default function Login() {
               ? 'Entrar no Sistema'
               : 'Criar Conta'}
         </button>
+        {/* 09/09/2026 · o botão "Teste grátis por 48h" saiu da tela de login, a
+            pedido do dono.
+
+            O CÓDIGO do trial continua inteiro e intocado: a tela `modo ===
+            'trial'` (com o formulário do lead e a confirmação por e-mail), a
+            Edge `trial` que ativa a conta, o seed de demonstração e a flag do
+            Admin. O que sai é a OFERTA.
+
+            Consequência declarada: sem este botão, `modo` nunca chega a
+            `'trial'` — ele nasce em `'entrar'` e não há leitura de query
+            string. Ou seja, o cadastro automático fica sem porta de entrada
+            até que alguém a devolva (o botão de volta, ou ler `?modo=` no
+            `useState` acima). O trial que JÁ está ativo em alguma conta não é
+            afetado: quem ativou continua entrando pelo login normal. */}
         {modo === 'entrar' ? (
           <div className="login-links-grid">
-            {trialPermitido && (
-              <button type="button" className="btn-login btn-trial col-toda" onClick={() => irPara('trial')}>
-                Teste grátis por 48h
-              </button>
-            )}
             <button type="button" className="btn-link-login col-toda" onClick={() => irPara('recuperar')}>
               Esqueci / trocar senha
             </button>

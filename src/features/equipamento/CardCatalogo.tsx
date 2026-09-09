@@ -24,6 +24,7 @@ import { salvarUnidade } from './equipamentoService';
 import { Icone } from '../../components/Icone';
 import FotoImg from '../../components/FotoImg';
 import { rotaEquipamento } from '../../app/rotas';
+import { COR_VIDA, vidaDaBarra } from './barraVida';
 import './equipamento.css';
 
 const ROTULO_TIPO: Record<string, string> = {
@@ -32,12 +33,9 @@ const ROTULO_TIPO: Record<string, string> = {
   caldeira: 'Caldeira',
 };
 
-function vidaInfo(anos: number | null): { texto: string; pct: number; cor: string } | null {
-  if (anos == null) return null;
-  const pct = Math.max(0, Math.min(100, Math.round((anos / 10) * 100)));
-  const cor = pct > 50 ? 'var(--ok)' : pct > 25 ? 'var(--warn)' : 'var(--crit)';
-  return { texto: `${anos.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} anos`, pct, cor };
-}
+// A regra da barra de vida mora em `barraVida.ts`: ela é a MESMA do
+// `CardEquipamento`, e o P9.2 exige que os dois mostrem a mesma coisa com a
+// flag ligada e desligada. Copiada, ela divergiria na primeira mudança.
 
 export default function CardCatalogo({ item }: { item: ItemCatalogo }) {
   const navigate = useNavigate();
@@ -49,7 +47,7 @@ export default function CardCatalogo({ item }: { item: ItemCatalogo }) {
   const rotuloTipo =
     (ROTULO_TIPO[tipo] ?? tipo) +
     (item.subtipo && item.subtipo !== 'flamotubular' ? ` (${item.subtipo})` : '');
-  const vida = vidaInfo(item.vidaAnos);
+  const vida = vidaDaBarra(item.vidaAnos);
   // MESMO texto do cartão antigo: nome (razão social primeiro) · cidade.
   const empresaTxt = textoCliente(item);
 
@@ -142,14 +140,14 @@ export default function CardCatalogo({ item }: { item: ItemCatalogo }) {
         <div className="plate-life">
           <div className="plate-life-top">
             <span className="plate-life-label">Vida remanescente</span>
-            <span className="plate-life-val" style={{ color: vida ? vida.cor : '#AEB4B9' }}>
+            <span className="plate-life-val" style={{ color: vida ? vida.cor : COR_VIDA.indefinida }}>
               {vida ? vida.texto : 'Não calculado'}
             </span>
           </div>
           <div className="plate-life-track">
             <div
               className="plate-life-fill"
-              style={{ width: `${vida?.pct ?? 0}%`, background: vida ? vida.cor : '#AEB4B9' }}
+              style={{ width: `${vida?.pct ?? 0}%`, background: vida ? vida.cor : COR_VIDA.indefinida }}
             />
           </div>
         </div>
