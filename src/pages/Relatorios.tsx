@@ -1602,8 +1602,16 @@ function RelatoriosLegado() {
                 </PaginaA4>
               );
             })}
-            {/* PDFs dos certificados padrão no fim — o preview mostra o pacote completo. */}
-            <AnexosRastreabPreview key={`anexos-${versao}`} documentos={documentos} />
+            {/* PDFs dos certificados padrão no fim — o preview mostra o pacote completo.
+                SÓ no fluxo de iframes (09/09/2026). Este bloco estava FORA da guarda
+                acima, então no fluxo vetorial — que é o padrão desde a 13E — ele
+                desenhava as páginas do certificado como IMAGENS num `.relatorio-preview`
+                vazio, logo abaixo do visualizador. Era a causa dos "dois documentos":
+                outro contêiner, outro fundo, outra rolagem, e um vão entre eles. No
+                vetorial os anexos entram nos próprios bytes da prévia. */}
+            {montaIframes(fluxo) && (
+              <AnexosRastreabPreview key={`anexos-${versao}`} documentos={documentos} />
+            )}
           </div>
           </>
           )}

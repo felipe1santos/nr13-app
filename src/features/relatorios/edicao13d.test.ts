@@ -181,9 +181,13 @@ describe('a prévia não emite documento', () => {
     expect(previa).not.toMatch(/pdfRef|sha256|publicarArtefato|salvarHistorico/);
   });
 
-  it('roda em modo preview e sem certificados', () => {
+  it('roda em modo preview e COM os anexos', () => {
     expect(previa).toContain("modo: 'preview'");
-    expect(previa).toContain('certificados: false');
+    // 09/09/2026 · os certificados passaram a entrar na prévia. Eles ficavam de
+    // fora para poupar a rasterização das folhas de calibração, e o resultado
+    // era uma prévia de outro documento — a tela preenchia o buraco com um
+    // segundo bloco de imagens embaixo do visualizador.
+    expect(previa).toContain('certificados: true');
   });
 
   it('o gerador só usa o amarelo quando quem chamou pediu preview', () => {

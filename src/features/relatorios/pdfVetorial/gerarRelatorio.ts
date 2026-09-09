@@ -474,11 +474,23 @@ export async function gerarRelatorioVetorial(
  * vencimento nem no Livro. Quem faz tudo isso é `salvarHistorico`, que chama o
  * gerador em modo `final`.
  *
- * Os certificados ficam de FORA da prévia de propósito: cada folha de
- * calibração custa uma rasterização no host isolado, e a prévia é para revisar
- * o corpo do documento. A contagem de páginas do rodapé sai igual à do corpo —
- * e é por isso que a prévia mostra "Página X de Y" do corpo, não do arquivo
- * final com anexos.
+ * ## Os ANEXOS entram na prévia (09/09/2026)
+ *
+ * Eles ficavam de fora para poupar a rasterização das folhas de calibração, e
+ * isso quebrava a promessa da Fase 13D: a prévia deixava de ser o documento. Na
+ * tela o buraco era preenchido por OUTRO bloco — `AnexosRastreabPreview`,
+ * imagens soltas embaixo do visualizador —, e o resultado parecia dois
+ * documentos, com um vão entre eles.
+ *
+ * Agora a prévia gera com `certificados: true`: os anexos entram nos MESMOS
+ * bytes, pelo mesmo caminho da emissão (páginas copiadas pelo pdf-lib, sem
+ * rasterizar, sem carimbo por cima), e o visualizador rola do corpo para o
+ * anexo sem costura. O "Página X de Y" passa a contar o arquivo inteiro, que é
+ * o número que o documento emitido vai ter.
+ *
+ * O custo é real e conhecido: cada folha de calibração da composição custa uma
+ * rasterização no host isolado. Ele é aceito porque prévia que não mostra o
+ * anexo é prévia de outro documento.
  */
 export async function gerarPreviaRelatorio(
   tag: string,
@@ -487,7 +499,7 @@ export async function gerarPreviaRelatorio(
 ): Promise<{ bytes: Uint8Array; paginas: number; ms: number; editaveis: CampoEditavel[] }> {
   const r = await gerarRelatorioVetorial(tag, {
     documentos,
-    certificados: false,
+    certificados: true,
     modo: 'preview',
     overrides,
   });
