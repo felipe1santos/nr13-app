@@ -52,7 +52,11 @@ export const DESTINO_POR_CAMPO: Record<string, DestinoCampo> = {
   'proximas.externa': { onde: 'configuracoes', campo: 'proximaExterna' },
   'capa.art': { onde: 'configuracoes', campo: 'art' },
   'inspecao.art': { onde: 'configuracoes', campo: 'art' },
-  'capa.responsavel': { onde: 'configuracoes', campo: 'tecnicoNome' },
+  // "RESPONSÁVEL TÉCNICO" da capa é o ENGENHEIRO, não o técnico: o modelo o
+  // monta de `meta.assinantes.engenheiro` (nome + CREA), com `phNome`/`phCrea`
+  // de reserva. Esta linha mandava para o campo de texto "Técnico" — o revisor
+  // digitava ali e a capa continuava vazia. Achado na auditoria de 09/09/2026.
+  'capa.responsavel': { onde: 'configuracoes', campo: 'engenheiroId' },
 
   // ── Grade de medições ────────────────────────────────────────────────────
   'ultrassom.espessura-nominal': { onde: 'medicoes' },

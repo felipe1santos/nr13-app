@@ -49,6 +49,16 @@ describe('para onde o clique leva', () => {
     }
   });
 
+  it('o RESPONSÁVEL TÉCNICO da capa leva ao ENGENHEIRO, não ao técnico', () => {
+    // A capa monta essa linha de `meta.assinantes.engenheiro` (nome + CREA).
+    // O destino apontava para o campo de texto "Técnico": o revisor digitava
+    // ali e a capa continuava vazia.
+    expect(DESTINO_POR_CAMPO['capa.responsavel']?.campo).toBe('engenheiroId');
+    // E o select precisa ter esse `name`, senão o foco não acha ninguém.
+    const tela = readFileSync('src/pages/Relatorios.tsx', 'utf8');
+    expect(tela).toContain('name="engenheiroId"');
+  });
+
   it('a A.R.T. da capa e a dos exames apontam para o MESMO campo', () => {
     // São duas linhas do documento e um dado só. Antes eram dois campos
     // documentais independentes, que podiam divergir no mesmo relatório.

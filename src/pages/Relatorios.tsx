@@ -1728,6 +1728,9 @@ function RelatoriosLegado() {
                           trocar assinante não teria efeito — select desabilitado. */}
                       <select
                         id="rel-sel-engenheiro"
+                        // O `name` é o endereço do foco vindo da barra de
+                        // pendências (`DESTINO_POR_CAMPO`), como nos inputs.
+                        name="engenheiroId"
                         value={valorAssinante(assinantes.engenheiroId, engenheiros)}
                         disabled={somenteLeitura}
                         onChange={(e) => trocarAssinanteRel('engenheiroId', e.target.value)}
@@ -1744,6 +1747,7 @@ function RelatoriosLegado() {
                       <label htmlFor="rel-sel-tecnico">Técnico (assina)</label>
                       <select
                         id="rel-sel-tecnico"
+                        name="tecnicoId"
                         value={valorAssinante(assinantes.tecnicoId, tecnicos)}
                         disabled={somenteLeitura}
                         onChange={(e) => trocarAssinanteRel('tecnicoId', e.target.value)}
