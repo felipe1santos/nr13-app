@@ -828,7 +828,11 @@
 
 .plate-meta-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* `minmax(0, 1fr)` e não `1fr`: a célula tem um filho `nowrap`, e sem o
+     mínimo zero a trilha cresce até o texto inteiro em vez de reticenciar. Em
+     390px isso dava uma coluna de 382px dentro de um cartão de 307px — medido
+     em 10/09/2026, valor cortado na tela. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 9px 14px;
   margin-bottom: 13px;
   padding-top: 11px;

@@ -771,3 +771,123 @@
   border-color: var(--amber-deep);
   box-shadow: 0 0 0 3px rgba(255, 122, 26, 0.16);
 }
+
+
+/* ==========================================================================
+   LISTA COMPACTA NO CELULAR — auditoria de 10/09/2026
+   ==========================================================================
+   Medido em 390 px (viewport real de 387 px, dentro de um iframe de largura
+   fixa: a janela do Chrome da máquina de teste reporta `outerWidth: 0` e
+   recusa redimensionamento).
+
+   O que havia: a tabela virava UM CARTÃO por registro, com cada propriedade
+   em sua própria linha — ORIGEM, ÚLTIMA, VENCIMENTO, PRAZO, STATUS, uma
+   embaixo da outra. **224–230 px por item.** Três itens enchiam a tela.
+
+   Coleção de muitos registros não é cartão: é lista. A linha passa a ter
+   duas alturas —
+
+     [ícone] ZZ-TESTE-P2                              ATENÇÃO
+             Vaso de Pressão
+             Inspeção · 08/11/2026 · vence em 60 dias
+
+   — com os terciários numa frase separada por "·", e não em título+valor.
+   Nada foi escondido além da coluna "Última" no celular, que já é a coluna
+   que o próprio painel esconde no desktop estreito.
+
+   O empilhamento antigo (`display:flex` por célula com o rótulo do
+   `data-rot`) continua valendo para tabelas que não têm `cel-titulo` — é
+   dele que dependem listas com poucas colunas. */
+@media (max-width: 640px) {
+  .fj-table tbody { gap: 0; }
+
+  .fj-table tbody tr:has(.cel-titulo) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0 6px;
+    padding: 9px 12px;
+    /* Divisória leve em vez de cartão: sem raio grande, sem sombra, sem
+       margem entre um item e o outro. Para lista longa, a régua é mais
+       legível do que uma pilha de caixas. */
+    border: none;
+    border-bottom: 1px solid var(--line);
+    border-radius: 0;
+  }
+  .fj-table tbody tr:has(.cel-titulo):last-child { border-bottom: none; }
+
+  .fj-table tbody tr:has(.cel-titulo) td {
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+    padding: 0 !important;
+    font-size: 11.5px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  /* Os rótulos saem: "ORIGEM Certificado" vira "Certificado". */
+  .fj-table tbody tr:has(.cel-titulo) td::before { content: none !important; }
+
+  /* Linha 1: identidade à esquerda, status à direita. O título CRESCE, e é
+     isso que empurra o resto para a segunda linha sem nenhum truque de
+     largura. */
+  .fj-table tbody tr:has(.cel-titulo) td.cel-titulo {
+    display: block;
+    order: 1;
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+    padding: 0 !important;
+    border-bottom: none;
+  }
+  .fj-table tbody tr:has(.cel-titulo) td[data-rot='Status'] {
+    order: 2;
+    margin-left: auto;
+  }
+  /* Linha 2: origem · vencimento · prazo, com o ponto como separador. */
+  .fj-table tbody tr:has(.cel-titulo) td[data-rot='Origem'] { order: 3; margin-top: 2px; }
+  .fj-table tbody tr:has(.cel-titulo) td[data-rot='Vencimento'] { order: 4; margin-top: 2px; }
+  .fj-table tbody tr:has(.cel-titulo) td[data-rot='Prazo'] { order: 5; margin-top: 2px; }
+  .fj-table tbody tr:has(.cel-titulo) td[data-rot='Vencimento']::before,
+  .fj-table tbody tr:has(.cel-titulo) td[data-rot='Prazo']::before {
+    content: '·' !important;
+    margin-right: 6px;
+    color: var(--line);
+  }
+  /* "Última" some no celular — é a coluna que o próprio painel já esconde no
+     desktop estreito, e no cartão ela aparecia quase sempre como travessão. */
+  .fj-table tbody tr:has(.cel-titulo) td.col-ultima { display: none; }
+  /* Ações continuam HORIZONTAIS, no fim da linha 2. */
+  .fj-table tbody tr:has(.cel-titulo) td.cel-acoes {
+    order: 6;
+    margin-left: auto;
+    margin-top: 2px;
+  }
+  .fj-table tbody tr:has(.cel-titulo) td.cel-acoes .fj-btn {
+    width: auto;
+    min-height: 36px;
+    padding: 0 10px;
+  }
+
+  /* O chip de origem e o selo de prazo perdem o fundo: dentro de uma frase
+     eles viram três caixinhas competindo com o status, que é o que importa. */
+  .fj-table tbody tr:has(.cel-titulo) .orig-chip,
+  .fj-table tbody tr:has(.cel-titulo) .fj-prazo {
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: 11.5px;
+    font-weight: 500;
+  }
+
+  /* ── ALVO DE TOQUE DOS BOTÕES DE ÍCONE ───────────────────────────────────
+     Medido em `/relatorios`: 23 botões de ação com 34 px de altura. O desenho
+     do ícone não muda — cresce a área que o dedo acerta. */
+  .btn-icone {
+    width: 44px;
+    height: 44px;
+  }
+
+  /* A gaveta lateral: 35 px por item, num alvo que se usa com o polegar. */
+  .nav-item { min-height: 44px; }
+}
