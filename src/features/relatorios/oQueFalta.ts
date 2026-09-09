@@ -1,92 +1,101 @@
-import type { ModeloRelatorio } from './pdfVetorial/modelo';
+import type { CampoEditavel } from './pdfVetorial/documento';
 
 /**
  * Fase 13D · a lista do que ainda falta preencher.
  *
- * ## O que ela é, e o que ela não é
+ * ## O que ela é
  *
  * É **apoio** ao amarelo da prévia, não substituto: o amarelo mostra ONDE, no
  * documento, o campo está vazio; a lista mostra O QUÊ, sem o revisor precisar
- * rolar doze folhas. As duas saem da mesma fonte — o modelo que desenha o PDF —,
- * então não há como uma dizer uma coisa e a outra dizer outra.
+ * rolar vinte folhas.
  *
- * **Não valida nada.** Quem barra a finalização continua sendo
+ * ## 09/09/2026 · ELA PASSOU A SAIR DO GERADOR
+ *
+ * Até aqui esta função era uma **segunda lista, escrita à mão** sobre o modelo:
+ * uma dúzia de campos escolhidos a dedo (`marcar('Cliente', m.cliente)`, e
+ * assim por diante). O documento, enquanto isso, pintava de amarelo TODO campo
+ * de valor vazio — dezenas deles. O revisor via a folha cheia de amarelo e a
+ * barra dizendo "faltam 3".
+ *
+ * Agora a fonte é a MESMA que desenha: cada campo registrado pelo gerador traz
+ * a sua `pendencia`, decidida no ponto exato que decide o amarelo
+ * (`Documento.classificar`). Não há como uma dizer uma coisa e a outra dizer
+ * outra — e `pendenciasSemAlerta.test.ts` quebra se alguém tentar.
+ *
+ * **Nada de varrer pixel.** O gerador já sabe id, rótulo, página, caixa, valor
+ * e se ficou vazio; procurar amarelo no PDF renderizado seria adivinhar o que
+ * já está declarado.
+ *
+ * ## O que ela NÃO faz
+ *
+ * **Não valida.** Quem barra a finalização continua sendo
  * `validacaoFinalizacao`: obrigatório faltando bloqueia, opcional faltando
- * avisa. Esta lista não conhece essa diferença de propósito — ela responde
- * "o que está vazio", e vazio nem sempre é problema (nem toda inspeção tem
- * teste hidrostático).
- *
- * `onde` é o destino do clique: qual painel abre para preencher aquilo. `null`
- * quando o campo vem de uma tela fora do relatório (a ficha do equipamento, o
- * memorial), e nesse caso o item só informa.
+ * avisa. Esta lista responde "o que está vazio", e vazio nem sempre impede a
+ * emissão (nem toda inspeção tem teste hidrostático).
  */
+import { DESTINO_POR_CAMPO, secaoDoCampo } from './destinoPendencia';
+
+/** Onde o clique leva para preencher aquilo. */
 export type DestinoEdicao = 'configuracoes' | 'medicoes' | 'laudo' | null;
 
 export interface ItemFaltante {
+  /** Nome humano, curto — o que a barra lateral escreve. */
   nome: string;
+  /** O painel que abre para preencher. `null` = o campo se edita no documento. */
   onde: DestinoEdicao;
-}
-
-function vazio(v: string | null | undefined): boolean {
-  const t = (v ?? '').trim();
-  return t === '' || t === '—' || t === '-';
+  /** O id semântico do campo no documento — é por ele que o clique navega. */
+  id: string;
+  /** Em que página do PDF ele foi desenhado (1-based). */
+  pagina: number;
+  /** A seção do documento, para o agrupamento discreto da barra. */
+  secao: string;
+  /** No modal de Configurações: qual campo focar. */
+  campoConfig?: string;
 }
 
 /**
- * Os campos vazios do documento, na ordem em que aparecem nas folhas.
+ * As pendências CRÍTICAS do documento, na ordem em que aparecem nas folhas.
  *
  * A ordem importa: quem revisa lê a lista com o documento do lado, e uma lista
- * fora de ordem obriga a procurar. Cobre o que o documento imprime — não a ficha
- * inteira do equipamento.
+ * fora de ordem obriga a procurar. Ela é a ordem de desenho, que é a ordem das
+ * páginas.
+ *
+ * Campos repetidos por folha entram UMA vez — a logo do cabeçalho é registrada
+ * em todas as páginas de propósito (para ser clicável em qualquer uma), e
+ * listá-la vinte vezes transformaria a barra num muro.
  */
-export function oQueFalta(m: ModeloRelatorio): ItemFaltante[] {
-  const faltando: ItemFaltante[] = [];
-  const marcar = (nome: string, valor: string | null | undefined, onde: DestinoEdicao = null) => {
-    if (vazio(valor)) faltando.push({ nome, onde });
-  };
+export function oQueFalta(campos: CampoEditavel[]): ItemFaltante[] {
+  const vistos = new Set<string>();
+  const itens: ItemFaltante[] = [];
 
-  // Capa e cabeçalho
-  marcar('Número do relatório', m.numeroRelatorio, 'configuracoes');
-  marcar('Cliente', m.cliente);
-  marcar('Data da inspeção', m.execucao, 'configuracoes');
-  marcar('Validade da inspeção', m.validade, 'configuracoes');
-
-  // Identificação — os campos da ficha do equipamento
-  for (const [nome, valor] of Object.entries(m.equipamento)) {
-    marcar(rotuloAmigavel(nome), valor);
+  for (const c of campos) {
+    if (c.pendencia !== 'critica') continue;
+    if (vistos.has(c.id)) continue;
+    vistos.add(c.id);
+    const destino = DESTINO_POR_CAMPO[c.id];
+    itens.push({
+      nome: nomeCurto(c.rotulo),
+      onde: destino?.onde ?? null,
+      id: c.id,
+      pagina: c.pagina,
+      secao: secaoDoCampo(c.id),
+      ...(destino?.campo ? { campoConfig: destino.campo } : {}),
+    });
   }
-
-  // Pressões
-  for (const p of m.pressoes) {
-    marcar(p.rotulo.split('—')[0].trim(), p.mpa);
-  }
-
-  // Categorização
-  marcar('Categoria NR-13', m.categoria.catFinal);
-  marcar('Grupo de risco', m.categoria.grupo);
-  marcar('Enquadramento na NR-13', m.categoria.enquadramento);
-
-  // Ensaios
-  if (m.ultrassom.pontos.length === 0) {
-    faltando.push({ nome: 'Medições de espessura', onde: 'medicoes' });
-  } else {
-    const semMedida = m.ultrassom.pontos.filter((p) => p.medidas.every((v) => vazio(v)));
-    for (const p of semMedida) faltando.push({ nome: `Medição · ${p.ponto}`, onde: 'medicoes' });
-  }
-
-  // Parecer
-  marcar('Laudo (apto / inapto)', m.laudo.apto === null ? null : 'ok', 'laudo');
-  marcar('Próxima inspeção interna', m.proximas.interna, 'configuracoes');
-  marcar('Próxima inspeção externa', m.proximas.externa, 'configuracoes');
-
-  // Assinatura
-  if (m.assinantes.length === 0) faltando.push({ nome: 'Assinantes', onde: 'configuracoes' });
-
-  return faltando;
+  return itens;
 }
 
-/** Os rótulos do documento são em caixa alta; a lista fala como gente. */
-function rotuloAmigavel(nome: string): string {
-  const s = nome.toLocaleLowerCase('pt-BR');
-  return s.charAt(0).toLocaleUpperCase('pt-BR') + s.slice(1);
+/**
+ * O rótulo do campo vira o nome da barra.
+ *
+ * Os rótulos do documento são em caixa alta e às vezes carregam o contexto
+ * inteiro ("3. Válvula de segurança — observação"). A barra é estreita: fica o
+ * essencial, com a primeira letra maiúscula.
+ */
+function nomeCurto(rotulo: string): string {
+  const s = rotulo.trim();
+  // Tudo em caixa alta vira caixa de frase; um rótulo já misto é mantido, porque
+  // ele foi escrito assim de propósito.
+  const base = s === s.toLocaleUpperCase('pt-BR') ? s.toLocaleLowerCase('pt-BR') : s;
+  return base.charAt(0).toLocaleUpperCase('pt-BR') + base.slice(1);
 }

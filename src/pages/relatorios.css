@@ -2428,3 +2428,75 @@ body.doc-foco .meta-barra-fixa { padding-top: 6px; padding-bottom: 6px; }
    Vazio ele ainda ocupava ~40px logo abaixo do visualizador, e era o resto do
    vão que fazia a prévia parecer ter algo mais embaixo. */
 .relatorio-preview:empty { display: none; }
+
+/* ============================================================================
+   PENDÊNCIAS · a barra que leva até o campo (09/09/2026)
+
+   A barra deixou de ser uma lista solta de nomes e passou a ser navegação:
+   agrupada por seção do documento, cada item diz onde o campo está (a página,
+   ou o painel que o preenche) e o clique leva a vista até ele.
+   ============================================================================ */
+.previa-pend-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.previa-pend-lista section { display: flex; flex-direction: column; gap: 3px; }
+/* O título da seção é discreto de propósito: ele organiza, não compete com os
+   itens — que são o que o revisor veio ler. */
+.previa-pend-lista h5 {
+  margin: 0;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted, #8b949e);
+}
+.previa-painel li button {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+}
+.previa-pend-nome { flex: 1 1 auto; min-width: 0; }
+/* Onde resolver: "p. 16" para o campo que se edita na folha; o nome do painel
+   quando ele não se edita ali. Sem isto, clicar era uma aposta. */
+.previa-pend-pag {
+  flex: 0 0 auto;
+  font-size: 10px;
+  color: var(--text-muted, #8b949e);
+  font-variant-numeric: tabular-nums;
+}
+
+/* O DESTAQUE de ~1,5 s — no documento e no campo das Configurações.
+
+   Âmbar mais forte que o amarelo-claro da prévia, com um halo curto. Não é
+   animação de entrada: é o olho encontrar o campo depois da rolagem. A
+   transição sai por completo quando a classe cai, e o campo volta ao amarelo
+   normal. */
+@keyframes nr13-pulsa-campo {
+  0% { box-shadow: 0 0 0 0 rgba(217, 119, 6, 0.55); }
+  70% { box-shadow: 0 0 0 10px rgba(217, 119, 6, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(217, 119, 6, 0); }
+}
+.previa-alvo.is-destacado {
+  background: rgba(250, 204, 21, 0.55);
+  outline: 2px solid #d97706;
+  outline-offset: -1px;
+  border-radius: 3px;
+  animation: nr13-pulsa-campo 1.5s ease-out;
+}
+.rel-modal .campo-destacado {
+  outline: 2px solid #d97706;
+  outline-offset: 1px;
+  background: #fffbeb;
+  animation: nr13-pulsa-campo 1.5s ease-out;
+}
+
+/* Quem pediu para reduzir movimento fica com o realce, sem o pulso. */
+@media (prefers-reduced-motion: reduce) {
+  .previa-alvo.is-destacado,
+  .rel-modal .campo-destacado { animation: none; }
+}

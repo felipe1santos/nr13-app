@@ -195,35 +195,58 @@ describe('a prévia não emite documento', () => {
   });
 });
 
-describe('painel "o que falta" — complementar ao amarelo, mesma fonte', () => {
-  it('lista os campos vazios do MESMO modelo que desenha o PDF', () => {
-    comContainer();
-    const itens = oQueFalta(montarModeloRelatorio(TAG));
-    const nomes = itens.map((i) => i.nome);
-    expect(nomes).toContain('Número do relatório');
-    expect(nomes).toContain('Laudo (apto / inapto)');
-  });
-
-  it('cada item vazio aponta para onde se preenche, quando é dentro do relatório', () => {
-    comContainer();
-    const itens = oQueFalta(montarModeloRelatorio(TAG));
-    expect(itens.find((i) => i.nome === 'Número do relatório')?.onde).toBe('configuracoes');
-    expect(itens.find((i) => i.nome === 'Laudo (apto / inapto)')?.onde).toBe('laudo');
-  });
-
-  it('campo preenchido sai da lista', () => {
-    comContainer();
-    gravarCru(`nr13_laudo_${TAG}`, { apto: true });
-    const nomes = oQueFalta(montarModeloRelatorio(TAG)).map((i) => i.nome);
-    expect(nomes).not.toContain('Laudo (apto / inapto)');
-  });
-
-  it('sem ponto de medição nenhum, aponta a grade — e não uma linha por ponto', () => {
-    const itens = oQueFalta({
-      ...montarModeloRelatorio(TAG),
-      ultrassom: { ...montarModeloRelatorio(TAG).ultrassom, pontos: [] },
+describe('painel "o que falta" — agora derivado do GERADOR', () => {
+  /** Um campo como o gerador o registra. */
+  const campo = (id: string, rotulo: string, pendencia: 'critica' | 'opcional' | 'nenhuma', pagina = 1) =>
+    ({
+      id, rotulo, pendencia, tipo: 'texto' as const, auto: '', valor: '',
+      origem: 'auto' as const, multilinha: false, pagina, x: 0, y: 0, larg: 10, alt: 5,
     });
-    expect(itens.filter((i) => i.onde === 'medicoes').map((i) => i.nome)).toEqual(['Medições de espessura']);
+
+  it('lista os campos CRÍTICOS, e só eles', () => {
+    const itens = oQueFalta([
+      campo('capa.n-do-relatorio', 'Nº DO RELATÓRIO', 'critica'),
+      campo('documentacao.1.obs', 'Prontuário — observação', 'opcional'),
+      campo('capa.tag', 'T.A.G.', 'nenhuma'),
+    ]);
+    expect(itens.map((i) => i.id)).toEqual(['capa.n-do-relatorio']);
+  });
+
+  it('cada item aponta para onde se preenche', () => {
+    const itens = oQueFalta([
+      campo('proximas.interna', 'PRÓXIMA INSPEÇÃO INTERNA', 'critica'),
+      campo('parecer.laudo', 'PARECER (APTO / INAPTO)', 'critica'),
+      campo('ultrassom.resultado', 'RESULTADO', 'critica'),
+    ]);
+    const onde = Object.fromEntries(itens.map((i) => [i.id, i.onde]));
+    expect(onde['proximas.interna']).toBe('configuracoes');
+    expect(onde['parecer.laudo']).toBe('laudo');
+    // Campo que se edita na própria folha: sem painel, a navegação é até ele.
+    expect(onde['ultrassom.resultado']).toBeNull();
+  });
+
+  it('o item carrega a PÁGINA e o id — é com eles que o clique navega', () => {
+    const [i] = oQueFalta([campo('th.duracao', 'DURAÇÃO DO TESTE', 'critica', 17)]);
+    expect(i.pagina).toBe(17);
+    expect(i.id).toBe('th.duracao');
+    expect(i.secao).toBe('Teste hidrostático');
+  });
+
+  it('campo repetido em várias folhas entra UMA vez', () => {
+    // A logo é registrada em toda página, de propósito (é clicável em todas).
+    const logo = (p: number) => campo('cabecalho.logo', 'Logo da empresa', 'critica', p);
+    expect(oQueFalta([logo(1), logo(2), logo(3)])).toHaveLength(1);
+  });
+
+  it('o campo de Configurações diz QUAL input focar', () => {
+    const [i] = oQueFalta([campo('capa.art', 'Nº DA A.R.T. (CREA)', 'critica')]);
+    expect(i.onde).toBe('configuracoes');
+    expect(i.campoConfig).toBe('art');
+  });
+
+  it('o nome sai do rótulo do gerador, em caixa de frase', () => {
+    const [i] = oQueFalta([campo('th.duracao', 'DURAÇÃO DO TESTE', 'critica')]);
+    expect(i.nome).toBe('Duração do teste');
   });
 });
 

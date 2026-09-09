@@ -69,6 +69,24 @@ export interface RelatorioMeta {
   phNome: string;
   phCrea: string;
   tecnicoNome: string;
+  /**
+   * Nº da A.R.T. (Anotação de Responsabilidade Técnica) registrada no CREA.
+   *
+   * NÃO é o CREA do engenheiro (`phCrea`): o CREA identifica o PROFISSIONAL e é
+   * o mesmo em todos os relatórios dele; a ART identifica o CONTRATO desta
+   * inspeção e muda a cada trabalho. Confundir os dois põe o registro do
+   * engenheiro no lugar do número do serviço, num documento que a fiscalização
+   * usa para achar a ART no CREA.
+   *
+   * Até 09/09/2026 o documento tinha a linha (`capa.art` e `inspecao.art`) e o
+   * sistema não tinha o campo: ela nascia vazia e só se preenchia clicando na
+   * folha, em DOIS lugares independentes que podiam divergir no mesmo
+   * documento. Agora se preenche uma vez nas Configurações e alimenta os dois.
+   *
+   * Opcional no tipo por compatibilidade: relatório salvo antes desta data não
+   * tem a chave, e ausência é vazio.
+   */
+  art?: string;
   // id do container de inspeção (nr13_docs_<TAG>) cujos dados de campo foram injetados nesse relatório.
   containerOrigemId?: string;
   // Lista final de documentos do relatório (na ordem montada). Gravada na meta pra que os

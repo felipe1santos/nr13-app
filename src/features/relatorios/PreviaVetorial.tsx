@@ -3,7 +3,6 @@ import { Icone } from '../../components/Icone';
 import { VisualizadorPdfBytes } from '../../components/VisualizadorPdf';
 import { textoDoErro } from '../../services/textoDoErro';
 import { gerarPreviaRelatorio } from './pdfVetorial/gerarRelatorio';
-import { montarModeloRelatorio } from './pdfVetorial/modelo';
 import type { CampoEditavel } from './pdfVetorial/documento';
 import { oQueFalta, type DestinoEdicao, type ItemFaltante } from './oQueFalta';
 import EditorCampoDocumento from './EditorCampoDocumento';
@@ -66,7 +65,8 @@ export default function PreviaVetorial({
   versaoDados: number;
   /** O id do relatório em edição: é a quem os overrides pertencem. */
   idRelatorio?: string;
-  onIrPara?: (destino: Exclude<DestinoEdicao, null>) => void;
+  /** `campo`: no modal de Configurações, qual input focar e destacar. */
+  onIrPara?: (destino: Exclude<DestinoEdicao, null>, campo?: string) => void;
   /** Avisa a tela do documento quantos campos foram alterados à mão. */
   onOverrides?: (mapa: MapaOverrides) => void;
 }) {
@@ -76,6 +76,9 @@ export default function PreviaVetorial({
   const [erro, setErro] = useState('');
   const [faltando, setFaltando] = useState<ItemFaltante[]>([]);
   const [painelAberto, setPainelAberto] = useState(false);
+  /** O campo que a barra pediu para mostrar — some depois de 1,5 s. */
+  const [destacado, setDestacado] = useState<string | null>(null);
+  const [irParaPonto, setIrParaPonto] = useState<{ pagina: number; fracaoY: number; pedido: number } | null>(null);
   const [versaoGerada, setVersaoGerada] = useState<number | null>(null);
   const [editaveis, setEditaveis] = useState<CampoEditavel[]>([]);
   const [overrides, setOverrides] = useState<MapaOverrides>(() =>
@@ -93,7 +96,10 @@ export default function PreviaVetorial({
         setBytes(r.bytes);
         setPaginas(r.paginas);
         setEditaveis(r.editaveis);
-        setFaltando(oQueFalta(montarModeloRelatorio(tag)));
+        // As pendências saem dos CAMPOS que o gerador acabou de desenhar — a
+        // mesma fonte do amarelo. Antes vinham de uma segunda lista, montada
+        // sobre o modelo, que cobria uma dúzia de campos.
+        setFaltando(oQueFalta(r.editaveis));
         setVersaoGerada(versaoDados);
       } catch (e) {
         setErro(textoDoErro(e, 'Não foi possível gerar a prévia.'));
@@ -195,6 +201,50 @@ export default function PreviaVetorial({
     </>
   );
 
+  /**
+   * O clique numa pendência LEVA ATÉ O CAMPO.
+   *
+   * Não basta abrir a página: o campo pode estar no pé de uma folha A4, e uma
+   * barra que só diz "está na 16" devolve ao revisor o trabalho que ela veio
+   * poupar. Aqui: rola até a posição exata, e o campo pisca por 1,5 s.
+   *
+   * Quando o campo NÃO se edita na folha (datas, ART, quem assina), o destino é
+   * o painel que o preenche — mandá-lo para a folha seria levá-lo a um lugar
+   * onde ele não consegue resolver o que a barra apontou.
+   */
+  const irAtePendencia = useCallback(
+    (f: ItemFaltante) => {
+      if (f.onde) {
+        onIrPara?.(f.onde as Exclude<DestinoEdicao, null>, f.campoConfig);
+        return;
+      }
+      const campo = editaveis.find((c) => c.id === f.id);
+      if (!campo) return;
+      setIrParaPonto({ pagina: campo.pagina, fracaoY: campo.y / A4.altura, pedido: Date.now() });
+      setDestacado(f.id);
+    },
+    [editaveis, onIrPara],
+  );
+
+  // O destaque dura 1,5 s e se apaga sozinho. Um realce permanente viraria mais
+  // uma cor no documento; o que se quer é o olho achar o campo e seguir.
+  useEffect(() => {
+    if (!destacado) return;
+    const t = window.setTimeout(() => setDestacado(null), 1500);
+    return () => window.clearTimeout(t);
+  }, [destacado]);
+
+  /** As pendências agrupadas por seção, preservando a ordem das folhas. */
+  const agrupadas = useMemo(() => {
+    const mapa = new Map<string, ItemFaltante[]>();
+    for (const f of faltando) {
+      const atual = mapa.get(f.secao);
+      if (atual) atual.push(f);
+      else mapa.set(f.secao, [f]);
+    }
+    return [...mapa.entries()];
+  }, [faltando]);
+
   return (
     <div className="previa">
       {erro && <p className="med-erro">{erro}</p>}
@@ -206,19 +256,34 @@ export default function PreviaVetorial({
             {faltando.length === 0 ? (
               <p className="previa-painel-vazio">Nada em branco no documento.</p>
             ) : (
-              <ul>
-                {faltando.map((f, i) => (
-                  <li key={`${f.nome}-${i}`}>
-                    {f.onde && onIrPara ? (
-                      <button type="button" onClick={() => onIrPara(f.onde as Exclude<DestinoEdicao, null>)}>
-                        {f.nome}
-                      </button>
-                    ) : (
-                      <span>{f.nome}</span>
-                    )}
-                  </li>
+              /* Agrupado por SEÇÃO do documento — a mesma ordem em que as
+                 folhas saem. Quem revisa lê a lista com o documento do lado; um
+                 punhado de nomes soltos obriga a procurar de que folha cada um é. */
+              <div className="previa-pend-lista">
+                {agrupadas.map(([secao, itens]) => (
+                  <section key={secao}>
+                    <h5>{secao}</h5>
+                    <ul>
+                      {itens.map((f) => (
+                        <li key={f.id}>
+                          <button type="button" onClick={() => irAtePendencia(f)} title={`${f.nome} — página ${f.pagina}`}>
+                            <span className="previa-pend-nome">{f.nome}</span>
+                            <span className="previa-pend-pag">
+                              {f.onde === 'configuracoes'
+                                ? 'Configurações'
+                                : f.onde === 'medicoes'
+                                  ? 'Medições'
+                                  : f.onde === 'laudo'
+                                    ? 'Laudo'
+                                    : `p. ${f.pagina}`}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
                 ))}
-              </ul>
+              </div>
             )}
             <p className="previa-painel-dica">
               Clique em qualquer texto do documento para escrever direto nele.
@@ -234,13 +299,16 @@ export default function PreviaVetorial({
               nomeArquivo={`previa-${tag}.pdf`}
               extras={controles}
               selo="Prévia — não é o documento emitido"
+              irParaPonto={irParaPonto ?? undefined}
               sobreposicao={(pagina, largura, altura) => (
                 <div className="previa-camada">
                   {(camposPorPagina.get(pagina) ?? []).map((c) => (
                     <button
                       key={`${c.id}-${c.y}`}
                       type="button"
-                      className={`previa-alvo${c.origem !== 'auto' ? ' is-manual' : ''}`}
+                      className={`previa-alvo${c.origem !== 'auto' ? ' is-manual' : ''}${
+                        destacado === c.id ? ' is-destacado' : ''
+                      }`}
                       title={
                         c.origem === 'auto'
                           ? `${c.rotulo} — clique para editar`

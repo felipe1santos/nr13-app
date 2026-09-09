@@ -122,6 +122,7 @@ export function VisualizadorPdfBytes({
   extras,
   selo,
   sobreposicao,
+  irParaPonto,
 }: {
   bytes: Uint8Array;
   nomeArquivo: string;
@@ -137,6 +138,19 @@ export function VisualizadorPdfBytes({
    * `textLayer` do pdf.js em `contenteditable`.
    */
   sobreposicao?: (pagina: number, largura: number, altura: number) => ReactNode;
+  /**
+   * 09/09/2026 · levar a vista até UM PONTO do documento.
+   *
+   * Não basta abrir a página: a barra "o que falta revisar" aponta para um
+   * campo, e o campo pode estar no pé de uma folha A4. `fracaoY` é a posição
+   * vertical dele DENTRO da página (0 = topo, 1 = pé), e o visualizador é quem
+   * sabe converter isso em pixels, porque só ele sabe a escala com que
+   * desenhou.
+   *
+   * `pedido` muda a cada clique — inclusive no MESMO campo. Sem ele, clicar
+   * duas vezes na mesma pendência não faria nada na segunda.
+   */
+  irParaPonto?: { pagina: number; fracaoY: number; pedido: number };
 }) {
   // Cópia própria: o pdf.js pode ficar dono do buffer que recebe, e quem chamou
   // continua com os bytes dele para baixar ou finalizar.
@@ -159,6 +173,7 @@ export function VisualizadorPdfBytes({
       extras={extras}
       selo={selo}
       sobreposicao={sobreposicao}
+      irParaPonto={irParaPonto}
     />
   );
 }
@@ -174,6 +189,7 @@ function QuadroPdf({
   extras,
   selo = 'Documento arquivado',
   sobreposicao,
+  irParaPonto,
 }: {
   url: string;
   bytes: ArrayBuffer | null;
@@ -181,6 +197,8 @@ function QuadroPdf({
   extras?: ReactNode;
   selo?: string;
   sobreposicao?: (pagina: number, largura: number, altura: number) => ReactNode;
+  /** Ver `VisualizadorPdfBytes`: levar a vista até um ponto do documento. */
+  irParaPonto?: { pagina: number; fracaoY: number; pedido: number };
   paginas: number;
 }) {
   const [doc, setDoc] = useState<PdfDoc | null>(null);
@@ -274,6 +292,23 @@ function QuadroPdf({
       }
     }
   }, []);
+
+  /**
+   * Rola até o ponto pedido. O campo fica a 28% do topo da área — bem dentro do
+   * campo de visão, e não colado na borda, que é onde o olho não o encontra.
+   */
+  useEffect(() => {
+    if (!irParaPonto) return;
+    const el = areaRef.current;
+    if (!el) return;
+    const folha = el.querySelector<HTMLElement>(`[data-pagina="${irParaPonto.pagina}"]`);
+    if (!folha) return;
+    const dentro = folha.offsetHeight * Math.max(0, Math.min(1, irParaPonto.fracaoY));
+    const topo = folha.offsetTop + dentro - el.clientHeight * 0.28;
+    el.scrollTo({ top: Math.max(0, topo), behavior: 'smooth' });
+    // `paginas.length`: enquanto o pdf.js não montou as folhas não há aonde ir,
+    // e o pedido é reexecutado quando elas aparecem.
+  }, [irParaPonto, paginas.length]);
 
   function irPara(n: number) {
     const el = areaRef.current;

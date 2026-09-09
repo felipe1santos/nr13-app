@@ -179,7 +179,10 @@ function blocoExame(
         celulaMarca(m.sim, `${base}.sim`, `${i + 1}. ${it.titulo} — SIM`),
         celulaMarca(m.nao, `${base}.nao`, `${i + 1}. ${it.titulo} — NÃO`),
         celulaMarca(m.na, `${base}.na`, `${i + 1}. ${it.titulo} — N.A.`),
-        { texto: obs, valor: true, id: `${base}.obs`, rotuloCampo: `${i + 1}. ${it.titulo} — observação`, multilinha: true },
+        // FACULTATIVA: a resposta do item está nas três colunas ao lado; o
+        // comentário é do inspetor se ele quiser. Continua amarela e editável,
+        // mas fora de 'o que falta revisar'.
+        { texto: obs, valor: true, opcional: true, id: `${base}.obs`, rotuloCampo: `${i + 1}. ${it.titulo} — observação`, multilinha: true },
       ];
     }),
   });
@@ -322,10 +325,11 @@ export function folhaCapa(doc: Documento, m: ModeloRelatorio): void {
       ],
       [
         { texto: 'Nº DA A.R.T. (CREA)', rotulo: true },
-        // A A.R.T. não existe como cadastro no sistema. Nasce como campo
-        // DOCUMENTAL vazio: amarelo na prévia, preenchido à mão, e nada é
-        // inventado quando ninguém preenche.
-        { texto: '', valor: true, id: 'capa.art', rotuloCampo: 'Nº da A.R.T. (CREA)' },
+        // A A.R.T. vem das Configurações do Relatório (`meta.art`) — a MESMA
+        // fonte da folha de exames. Até 09/09/2026 as duas eram campos
+        // documentais independentes, preenchidos à mão um por um, e podiam
+        // divergir dentro do mesmo documento.
+        { texto: textoOu(m.dadosInspecao.art, ''), valor: true, id: 'capa.art', rotuloCampo: 'Nº da A.R.T. (CREA)' },
       ],
       [
         { texto: 'DATA DA INSPEÇÃO', rotulo: true },
@@ -1496,7 +1500,8 @@ function tabelaChecklist(doc: Documento, secao: { titulo: string; itens: ItemChe
         celulaMarca(marca.sim, `${base}.sim`, `${it.titulo} — SIM`),
         celulaMarca(marca.nao, `${base}.nao`, `${it.titulo} — NÃO`),
         celulaMarca(marca.na, `${base}.na`, `${it.titulo} — N.A.`),
-        { texto: obs, valor: true, id: `${base}.obs`, rotuloCampo: `${it.titulo} — observação`, multilinha: true },
+        // FACULTATIVA — ver a nota do exame visual.
+        { texto: obs, valor: true, opcional: true, id: `${base}.obs`, rotuloCampo: `${it.titulo} — observação`, multilinha: true },
       ];
     }),
   });
@@ -1525,7 +1530,9 @@ export function folhasChecklist(doc: Documento, m: ModeloRelatorio): void {
           celulaMarca(marca.existe, `${base}.existe`, `${it.titulo} — Existe`),
           celulaMarca(marca.naoIdent, `${base}.nao-ident`, `${it.titulo} — Não identificado`),
           celulaMarca(marca.naoAplica, `${base}.nao-aplica`, `${it.titulo} — Não aplica`),
-          { texto: textoOu(it.observacao, ''), valor: true, id: `${base}.obs`, rotuloCampo: `${it.titulo} — observação`, multilinha: true },
+          // FACULTATIVA: Existe / Não identificado / Não aplica já responde o
+          // item. A observação é comentário livre.
+          { texto: textoOu(it.observacao, ''), valor: true, opcional: true, id: `${base}.obs`, rotuloCampo: `${it.titulo} — observação`, multilinha: true },
         ];
       }),
     });

@@ -49,6 +49,26 @@ export interface RascunhoItem {
   /** ISO. Serve para ordenar: o que foi mexido por último aparece primeiro. */
   atualizadoEm: string;
   criadoEm: string;
+  /**
+   * 09/09/2026 · os METADADOS que a lista mostra, no formato do documento
+   * (DD/MM/AAAA), copiados da meta do rascunho.
+   *
+   * Por que aqui e não lendo o registro: a lista de `/relatorios` desenha
+   * dezenas de linhas, e o registro do rascunho carrega documentos, overrides e
+   * snapshots — abrir um por linha para ler três datas é o oposto do índice
+   * leve do §7-sexies. Estes campos somam ~40 bytes ao item.
+   *
+   * Eles NÃO fazem o rascunho virar prazo oficial: o vencimento sai de
+   * `nr13_historico_indice_<TAG>`, e o rascunho continua fora dele — ver o
+   * cabeçalho deste arquivo. Aqui é só o que a TELA mostra.
+   *
+   * Opcionais: rascunho gravado antes desta data não tem os campos, e ausência
+   * vira travessão na lista, como já era.
+   */
+  validade?: string;
+  proximaInterna?: string;
+  proximaExterna?: string;
+  emissao?: string;
 }
 
 function lerCru(): RascunhoItem[] {
@@ -81,6 +101,12 @@ export function resumirRascunho(r: RelatorioSalvo, agora = new Date().toISOStrin
     codigo: r.meta?.codigo ?? r.id,
     criadoEm: anterior?.criadoEm ?? agora,
     atualizadoEm: agora,
+    // Só o que a lista mostra. Vazio não vira chave: um `validade: ''` no
+    // índice ocuparia espaço para dizer o mesmo que a ausência já diz.
+    ...(r.meta?.validade ? { validade: r.meta.validade } : {}),
+    ...(r.meta?.proximaInspecaoInterna ? { proximaInterna: r.meta.proximaInspecaoInterna } : {}),
+    ...(r.meta?.proximaInspecaoExterna ? { proximaExterna: r.meta.proximaInspecaoExterna } : {}),
+    ...(r.meta?.emissao ? { emissao: r.meta.emissao } : {}),
   };
 }
 

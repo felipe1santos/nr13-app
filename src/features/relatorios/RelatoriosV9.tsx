@@ -115,6 +115,31 @@ function proximaInspecao(r: ItemRelatorio): string {
   return iso ? dataBr(iso) : '—';
 }
 
+/**
+ * A próxima inspeção de um RASCUNHO, entre a interna e a externa.
+ *
+ * Mesma regra da linha emitida (`proximaInspecaoIso`): a mais próxima é a que
+ * importa para quem varre a lista. A diferença é a fonte — aqui as datas vêm no
+ * formato do documento (DD/MM/AAAA), do índice leve, e não em ISO da projeção.
+ */
+function proximaDoRascunho(r: RascunhoItem): string {
+  const datas = [r.proximaInterna, r.proximaExterna].filter((d): d is string => !!d && d.trim() !== '');
+  if (datas.length === 0) return '—';
+  return datas.sort((a, b) => ordenavel(a).localeCompare(ordenavel(b)))[0];
+}
+
+/** DD/MM/AAAA → AAAA-MM-DD, só para comparar. Formato estranho fica no fim. */
+function ordenavel(br: string): string {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})/.exec(br.trim());
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : '9999';
+}
+
+function rotuloProximaRascunho(r: RascunhoItem): string {
+  const escolhida = proximaDoRascunho(r);
+  if (escolhida === '—') return 'Sem próxima inspeção preenchida neste rascunho';
+  return escolhida === r.proximaInterna ? 'Próxima inspeção INTERNA' : 'Próxima inspeção EXTERNA';
+}
+
 /** O que aquela data é — a coluna é estreita, e o tooltip completa. */
 function rotuloProxima(r: ItemRelatorio): string {
   const qual = qualProxima(r);
@@ -965,10 +990,17 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
                     <span role="cell" data-rot="Criação" title={`atualizado em ${dataHoraBr(r.atualizadoEm)}`}>
                       {dataBr(r.criadoEm)}
                     </span>
-                    {/* Rascunho não tem validade nem próxima inspeção: nada foi
-                        emitido. Travessão, e não um valor inventado. */}
-                    <span role="cell" data-rot="Validade">—</span>
-                    <span role="cell" data-rot="Próxima">—</span>
+                    {/* 09/09/2026 · o rascunho MOSTRA o que já foi preenchido.
+                        Antes eram dois travessões fixos, e um rascunho com
+                        validade digitada aparecia como se não tivesse nenhuma.
+                        Isso NÃO o torna prazo oficial: o vencimento sai do
+                        índice do equipamento, e rascunho não entra lá (ver o
+                        cabeçalho de ). Aqui é só o que a tela
+                        mostra, do índice leve — sem abrir o registro. */}
+                    <span role="cell" data-rot="Validade">{ou(r.validade)}</span>
+                    <span role="cell" data-rot="Próxima" title={rotuloProximaRascunho(r)}>
+                      {proximaDoRascunho(r)}
+                    </span>
                     <span role="cell" data-rot="Situação">
                       <span className="rel-selo rel-selo-rascunho">{rotuloSituacao(sit)}</span>
                     </span>

@@ -145,6 +145,7 @@ function metaPadrao(tipo: TipoInspecao): RelatorioMeta {
     phNome: '',
     phCrea: '',
     tecnicoNome: '',
+    art: '',
   };
 }
 
@@ -322,6 +323,31 @@ function RelatoriosLegado() {
   const [nomeRenomeando, setNomeRenomeando] = useState('');
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
   const [modalConfig, setModalConfig] = useState(false);
+  /**
+   * Qual campo das Configurações a barra de pendências pediu para focar.
+   *
+   * Guardado em estado, e não passado direto ao input, porque o modal só existe
+   * no DOM depois de aberto: o foco tem de acontecer no efeito que roda quando
+   * ele monta.
+   */
+  const [focoConfig, setFocoConfig] = useState<string | null>(null);
+
+  // Foco + destaque de ~1,5 s no campo pedido. O `requestAnimationFrame`
+  // espera o modal pintar; sem ele o `querySelector` roda antes de o input
+  // existir.
+  useEffect(() => {
+    if (!modalConfig || !focoConfig) return;
+    const id = requestAnimationFrame(() => {
+      const alvo = document.querySelector<HTMLInputElement>(`.rel-modal [name="${focoConfig}"]`);
+      if (!alvo) return;
+      alvo.focus();
+      alvo.select?.();
+      alvo.classList.add('campo-destacado');
+      window.setTimeout(() => alvo.classList.remove('campo-destacado'), 1500);
+    });
+    setFocoConfig(null);
+    return () => cancelAnimationFrame(id);
+  }, [modalConfig, focoConfig]);
   const [imprimindo, setImprimindo] = useState(false);
   const [filtroAberto, setFiltroAberto] = useState(false);
   const [filtroTipos, setFiltroTipos] = useState<Set<TipoInspecao>>(() => new Set(TIPOS_INSPECAO));
@@ -1573,10 +1599,17 @@ function RelatoriosLegado() {
               versaoDados={versao}
               idRelatorio={meta?.codigo}
               onOverrides={setOverrides}
-              onIrPara={(destino) => {
+              onIrPara={(destino, campo) => {
                 if (destino === 'medicoes') setModalMedicoes(true);
                 else if (destino === 'laudo') setModalLaudo(true);
-                else setModalConfig(true);
+                else {
+                  setModalConfig(true);
+                  // O campo pedido pela barra lateral: foco + destaque de 1,5 s.
+                  // Abrir o modal e deixar o revisor procurar qual das nove
+                  // caixas ele veio preencher devolveria o trabalho que a barra
+                  // existe para poupar.
+                  setFocoConfig(campo ?? null);
+                }
               }}
             />
           )}
@@ -1628,31 +1661,46 @@ function RelatoriosLegado() {
                   <div className="rel-config-grid">
                     <div className="meta-barra-campo">
                       <label>Código</label>
-                      <input value={meta.codigo} disabled />
+                      <input name="codigo" value={meta.codigo} disabled />
                     </div>
                     <div className="meta-barra-campo">
                       <label>Emissão</label>
-                      <input placeholder="DD/MM/AAAA" inputMode="numeric" value={meta.emissao} readOnly={somenteLeitura} onChange={(e) => setCampoData('emissao', e.target.value)} />
+                      <input placeholder="DD/MM/AAAA" inputMode="numeric" name="emissao" value={meta.emissao} readOnly={somenteLeitura} onChange={(e) => setCampoData('emissao', e.target.value)} />
                     </div>
                     <div className="meta-barra-campo">
                       <label>Validade</label>
-                      <input placeholder="DD/MM/AAAA" inputMode="numeric" value={meta.validade} readOnly={somenteLeitura} onChange={(e) => setCampoData('validade', e.target.value)} />
+                      <input placeholder="DD/MM/AAAA" inputMode="numeric" name="validade" value={meta.validade} readOnly={somenteLeitura} onChange={(e) => setCampoData('validade', e.target.value)} />
                     </div>
                     <div className="meta-barra-campo">
                       <label>Execução Insp.</label>
-                      <input placeholder="DD/MM/AAAA" inputMode="numeric" value={meta.execucaoInspecao} readOnly={somenteLeitura} onChange={(e) => setCampoData('execucaoInspecao', e.target.value)} />
+                      <input placeholder="DD/MM/AAAA" inputMode="numeric" name="execucaoInspecao" value={meta.execucaoInspecao} readOnly={somenteLeitura} onChange={(e) => setCampoData('execucaoInspecao', e.target.value)} />
                     </div>
                     <div className="meta-barra-campo">
                       <label>Próx. Interna</label>
-                      <input placeholder="DD/MM/AAAA" inputMode="numeric" value={meta.proximaInspecaoInterna} readOnly={somenteLeitura} onChange={(e) => setCampoData('proximaInspecaoInterna', e.target.value)} />
+                      <input placeholder="DD/MM/AAAA" inputMode="numeric" name="proximaInterna" value={meta.proximaInspecaoInterna} readOnly={somenteLeitura} onChange={(e) => setCampoData('proximaInspecaoInterna', e.target.value)} />
                     </div>
                     <div className="meta-barra-campo">
                       <label>Próx. Externa</label>
-                      <input placeholder="DD/MM/AAAA" inputMode="numeric" value={meta.proximaInspecaoExterna} readOnly={somenteLeitura} onChange={(e) => setCampoData('proximaInspecaoExterna', e.target.value)} />
+                      <input placeholder="DD/MM/AAAA" inputMode="numeric" name="proximaExterna" value={meta.proximaInspecaoExterna} readOnly={somenteLeitura} onChange={(e) => setCampoData('proximaInspecaoExterna', e.target.value)} />
                     </div>
                     <div className="meta-barra-campo">
                       <label>Técnico</label>
-                      <input value={meta.tecnicoNome} readOnly={somenteLeitura} onChange={(e) => setCampoMeta('tecnicoNome', e.target.value)} />
+                      <input name="tecnicoNome" value={meta.tecnicoNome} readOnly={somenteLeitura} onChange={(e) => setCampoMeta('tecnicoNome', e.target.value)} />
+                    </div>
+                    {/* Nº da A.R.T. — o número do CONTRATO desta inspeção no
+                        CREA, que não é o CREA do engenheiro (esse vem do
+                        cadastro do funcionário). Até 09/09/2026 a linha existia
+                        no documento sem campo no sistema: era preenchida
+                        clicando na folha, em dois lugares que podiam divergir. */}
+                    <div className="rel-campo">
+                      <label>Nº da A.R.T.</label>
+                      <input
+                        name="art"
+                        value={meta.art ?? ''}
+                        readOnly={somenteLeitura}
+                        placeholder="ART do CREA desta inspeção"
+                        onChange={(e) => setCampoMeta('art', e.target.value)}
+                      />
                     </div>
                     {/* Assinantes do relatório (motor de assinatura) — gravados em
                         nr13_assinantes_rel_<TAG> antes do remount dos iframes. */}

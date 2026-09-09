@@ -41,6 +41,7 @@ vi.mock('../../../services/supabase', () => ({
 
 import { gerarRelatorioVetorial } from './gerarRelatorio';
 import { zerarCacheFontes } from './carlito';
+import { oQueFalta } from '../oQueFalta';
 import type { CategoriaSalva, EmpresaEquipamento, InfoEquipamento } from '../../equipamento/tipos';
 
 /**
@@ -616,5 +617,90 @@ describe('o que estava cadastrado e o documento omitia (08/09/2026)', () => {
     expect(campo(com.editaveis, 'vida.taxa')).toBe('0,12');
     expect(campo(com.editaveis, 'vida.anos')).toBe('23,1');
     expect(campo(com.editaveis, 'vida.proxima')).toBe('6');
+  });
+});
+
+/**
+ * 09/09/2026 · O GATE CENTRAL DAS PENDÊNCIAS.
+ *
+ * A regra que o dono pediu, em uma frase: **todo campo que a prévia pinta de
+ * amarelo por falta de informação relevante tem que aparecer na barra "o que
+ * falta revisar"** — e o contrário também: nada na barra pode apontar para um
+ * campo que não existe no documento.
+ *
+ * Antes desta rodada `oQueFalta` era uma segunda lista, escrita à mão sobre o
+ * modelo, com uma dúzia de campos. O documento pintava dezenas de áreas
+ * amarelas e a barra dizia "faltam 3". Este gate impede a volta disso: a
+ * comparação é feita sobre o documento GERADO DE VERDADE, campo a campo.
+ *
+ * Nada de varrer pixel: o gerador declara `pendencia` no mesmo ponto em que
+ * decide o amarelo, e é isso que se compara.
+ */
+describe('gate · amarelo crítico sem alerta é falha', () => {
+  it('TODO campo crítico do documento tem uma pendência correspondente', async () => {
+    const { editaveis } = await gerarRelatorioVetorial(TAG, { documentos: DOCUMENTOS, certificados: false, modo: 'preview' });
+    const criticos = new Set(editaveis.filter((c) => c.pendencia === 'critica').map((c) => c.id));
+    const naBarra = new Set(oQueFalta(editaveis).map((i) => i.id));
+
+    const semAlerta = [...criticos].filter((id) => !naBarra.has(id));
+    expect(semAlerta, `campos amarelos sem alerta na barra: ${semAlerta.join(', ')}`).toEqual([]);
+  });
+
+  it('TODA pendência da barra aponta para um campo REAL do documento', async () => {
+    const { editaveis } = await gerarRelatorioVetorial(TAG, { documentos: DOCUMENTOS, certificados: false, modo: 'preview' });
+    const ids = new Set(editaveis.map((c) => c.id));
+    const orfas = oQueFalta(editaveis).filter((i) => !ids.has(i.id));
+    expect(orfas.map((i) => i.id), 'pendência sem campo no documento').toEqual([]);
+  });
+
+  it('as observações POR ITEM ficam de fora — e são as ÚNICAS de fora', async () => {
+    const { editaveis } = await gerarRelatorioVetorial(TAG, { documentos: DOCUMENTOS, certificados: false, modo: 'preview' });
+    const opcionais = editaveis.filter((c) => c.pendencia === 'opcional').map((c) => c.id);
+    expect(opcionais.length, 'nenhum campo opcional encontrado — a allowlist não está sendo exercida').toBeGreaterThan(0);
+    // A allowlist inteira: observação por item de documentação, checklist e
+    // exame visual. Qualquer outro id aqui é uma exclusão nova, e exclusão nova
+    // se declara antes de existir.
+    const forbidden = opcionais.filter((id) => !id.endsWith('.obs'));
+    expect(forbidden, `opcional fora da allowlist declarada: ${forbidden.join(', ')}`).toEqual([]);
+  });
+
+  it('a barra NÃO contém observação por item', async () => {
+    const { editaveis } = await gerarRelatorioVetorial(TAG, { documentos: DOCUMENTOS, certificados: false, modo: 'preview' });
+    const comObs = oQueFalta(editaveis).filter((i) => i.id.endsWith('.obs'));
+    expect(comObs.map((i) => i.id)).toEqual([]);
+  });
+
+  it('preencher o campo tira a pendência — e apagar traz de volta', async () => {
+    const semArt = await gerarRelatorioVetorial(TAG, { documentos: DOCUMENTOS, certificados: false, modo: 'preview' });
+    expect(oQueFalta(semArt.editaveis).some((i) => i.id === 'capa.art')).toBe(true);
+
+    const comArt = await gerarRelatorioVetorial(TAG, {
+      documentos: DOCUMENTOS,
+      certificados: false,
+      modo: 'preview',
+      overrides: { 'capa.art': { modo: 'manual', valor: 'ART-E2E-987654', auto: '', em: '2026-09-09T00:00:00Z' } },
+    });
+    expect(oQueFalta(comArt.editaveis).some((i) => i.id === 'capa.art')).toBe(false);
+
+    // `branco` é o vazio DELIBERADO da arquitetura de overrides: continua vazio,
+    // continua amarelo, continua pendente.
+    const branco = await gerarRelatorioVetorial(TAG, {
+      documentos: DOCUMENTOS,
+      certificados: false,
+      modo: 'preview',
+      overrides: { 'capa.art': { modo: 'branco', auto: '', em: '2026-09-09T00:00:00Z' } },
+    });
+    expect(oQueFalta(branco.editaveis).some((i) => i.id === 'capa.art')).toBe(true);
+  });
+
+  it('o INVENTÁRIO da cobertura, para o registro da auditoria', async () => {
+    const { editaveis } = await gerarRelatorioVetorial(TAG, { documentos: DOCUMENTOS, certificados: false, modo: 'preview' });
+    const por = (p: string) => editaveis.filter((c) => c.pendencia === p).length;
+    const itens = oQueFalta(editaveis);
+    // Não é asserção de número exato (o documento muda) — é a INVARIANTE:
+    // críticos distintos == pendências na barra.
+    const criticosDistintos = new Set(editaveis.filter((c) => c.pendencia === 'critica').map((c) => c.id)).size;
+    expect(itens).toHaveLength(criticosDistintos);
+    expect(por('critica') + por('opcional') + por('nenhuma')).toBe(editaveis.length);
   });
 });

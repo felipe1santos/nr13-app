@@ -898,9 +898,11 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
       dataTermino: dataBr(meta?.execucaoInspecao),
       equipamento: tag,
       serie: txt(info.numeroSerie),
-      // A A.R.T. não tem campo no sistema (auditado em 06/09/2026): a linha
-      // existe no documento e nasce vazia, para ser preenchida no relatório.
-      art: null,
+      // 09/09/2026 · a A.R.T. passou a ter campo próprio nas Configurações do
+      // Relatório: `meta.art`. Antes ela nascia vazia e era preenchida
+      // clicando na folha, em dois lugares independentes — capa e exames — que
+      // podiam divergir no mesmo documento. Agora os dois leem daqui.
+      art: txt(meta?.art),
       numeroRelatorio: txt(meta?.codigo),
       ensaios: [
         { rotulo: 'EXAME EXTERNO', feito: temExameExterno },

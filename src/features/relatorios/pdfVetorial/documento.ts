@@ -117,8 +117,21 @@ export class Documento {
     caixa: { x: number; y: number; larg: number; alt: number },
   ): string {
     const valor = this.resolver(id, auto);
-    this.anotarCampo(id, rotulo, auto, valor, false, caixa);
+    const t = valor.trim();
+    this.anotarCampo(id, rotulo, auto, valor, false, caixa, 'texto', this.classificar(t === '' || t === '—' || t === '-'));
     return valor;
+  }
+
+  /**
+   * A classificação do campo, no MESMO ponto que decide o amarelo.
+   *
+   * `vazio` é a condição que pinta o amarelo na prévia; `opcional` diz que
+   * esse vazio é aceitável. Manter as duas juntas aqui é o que impede a barra
+   * lateral de discordar do documento.
+   */
+  private classificar(vazio: boolean, opcional = false): Pendencia {
+    if (!vazio) return 'nenhuma';
+    return opcional ? 'opcional' : 'critica';
   }
 
   /** O texto que a célula/parágrafo deve mostrar, já com o override aplicado. */
@@ -143,10 +156,12 @@ export class Documento {
     multilinha: boolean,
     caixa: { x: number; y: number; larg: number; alt: number },
     tipo: 'texto' | 'imagem' = 'texto',
+    pendencia: Pendencia = 'nenhuma',
   ): void {
     this.campos.push({
       id,
       rotulo,
+      pendencia,
       tipo,
       auto,
       valor,
@@ -214,6 +229,7 @@ export class Documento {
       false,
       { x, y, larg: largura, alt: opcoes.altura },
       'imagem',
+      this.classificar(!opcoes.dataUrl),
     );
     this.cursor = y + opcoes.altura;
   }
@@ -257,7 +273,8 @@ export class Documento {
     if (altura === 0) {
       // Sem espaço: o campo continua existindo (o override é por id, não por
       // caixa), mas nada é desenhado no pé da folha.
-      this.anotarCampo(id, rotulo, auto, this.resolver(id, auto), true, { x: CAIXA.x, y: this.cursor, larg: CAIXA.largura, alt: 0 });
+      const semEspaco = this.resolver(id, auto);
+      this.anotarCampo(id, rotulo, auto, semEspaco, true, { x: CAIXA.x, y: this.cursor, larg: CAIXA.largura, alt: 0 }, 'texto', this.classificar(semEspaco.trim() === ''));
       return;
     }
     const y = this.cursor;
@@ -286,7 +303,7 @@ export class Documento {
       }
     }
 
-    this.anotarCampo(id, rotulo, auto, valor, true, { x: CAIXA.x, y, larg: CAIXA.largura, alt: altura });
+    this.anotarCampo(id, rotulo, auto, valor, true, { x: CAIXA.x, y, larg: CAIXA.largura, alt: altura }, 'texto', this.classificar(vazio));
     this.cursor = y + altura;
   }
 
@@ -384,6 +401,7 @@ export class Documento {
         false,
         { x: CAIXA.x, y: CAIXA.y, larg: 50, alt: 14 },
         'imagem',
+        this.classificar(!this.cab.logo),
       );
     }
   }
@@ -477,6 +495,8 @@ export class Documento {
         conteudo,
         true,
         { x: opcoes.x ?? CAIXA.x, y: inicioY, larg: largura, alt: alturaBloco },
+        'texto',
+        this.classificar(conteudo.trim() === ''),
       );
       // A página do registro é a do início do parágrafo.
       this.campos[this.campos.length - 1].pagina = paginaInicio;
@@ -659,12 +679,17 @@ export class Documento {
         const y = this.cursor;
         const valor = this.resolver(p.id, p.valor);
         if (p.id) {
-          this.anotarCampo(p.id, p.rotuloCampo ?? p.rotulo, p.valor, valor, false, {
-            x,
-            y,
-            larg: largura,
-            alt: altura,
-          });
+          const t = valor.trim();
+          this.anotarCampo(
+            p.id,
+            p.rotuloCampo ?? p.rotulo,
+            p.valor,
+            valor,
+            false,
+            { x, y, larg: largura, alt: altura },
+            'texto',
+            this.classificar(t === '' || t === '—'),
+          );
         }
 
         const vazio = valor.trim() === '' || valor.trim() === '—';
@@ -828,6 +853,9 @@ export class Documento {
             cel.texto,
             !!cel.multilinha,
             { x, y: this.cursor, larg, alt: altura },
+            'texto',
+            // MESMA função que decide o amarelo: `corDeFundo` chama `celulaVazia`.
+            this.classificar(celulaVazia(cel), cel.opcional),
           );
         }
         this.pdf.setLineWidth(BORDA_FINA);
@@ -1020,6 +1048,20 @@ export interface CelulaDoc {
    */
   semDestaque?: boolean;
   /**
+   * O vazio desta célula é FACULTATIVO — ela continua amarela na prévia (o
+   * usuário pode escrever ali), mas não entra na lista "o que falta revisar".
+   *
+   * Declarado no ponto onde a célula nasce, e não deduzido do rótulo: uma
+   * regra como `label.includes('observação')` daria falso negativo no dia em
+   * que uma observação passasse a ser exigida (e há observações exigidas neste
+   * documento — a conclusão de cada exame, por exemplo).
+   *
+   * Hoje são as observações POR ITEM: verificação da documentação, checklists
+   * e exames visuais. Todas seguem a mesma forma — a resposta está marcada
+   * numa coluna ao lado, e o comentário é do inspetor se ele quiser.
+   */
+  opcional?: boolean;
+  /**
    * Realce de leitura: a MAIOR e a MENOR espessura medida de uma região.
    *
    * É informação, não enfeite — a menor leitura é a que define a vida
@@ -1051,9 +1093,27 @@ export interface CelulaDoc {
  * isso para pôr a área clicável exatamente sobre o texto, sem tocar no PDF
  * pronto: nada de reabrir o arquivo para adivinhar qual texto é qual.
  */
+/**
+ * A CLASSIFICAÇÃO de um campo do documento quanto a estar por preencher.
+ *
+ * Ela nasce no gerador, no MESMO ponto que decide o amarelo da prévia — não é
+ * uma segunda lista mantida à mão, que foi o defeito de `oQueFalta` até
+ * 09/09/2026: a barra lateral cobria uma dúzia de campos escolhidos a dedo
+ * enquanto o documento mostrava dezenas de áreas amarelas.
+ *
+ * | valor | amarelo na prévia | entra em "o que falta" |
+ * |---|---|---|
+ * | `critica` | sim | sim |
+ * | `opcional` | sim | não |
+ * | `nenhuma` | não | não |
+ */
+export type Pendencia = 'critica' | 'opcional' | 'nenhuma';
+
 export interface CampoEditavel {
   id: string;
   rotulo: string;
+  /** Ver . É esta a fonte da barra lateral e do contador. */
+  pendencia: Pendencia;
   /**
    * `texto` abre o editor de texto; `imagem` abre o seletor de arquivo.
    *
