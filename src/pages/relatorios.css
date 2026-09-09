@@ -2341,14 +2341,17 @@ body.doc-foco .meta-barra-fixa { padding-top: 6px; padding-bottom: 6px; }
   .rel-page .rel-linha [data-rot='Situação'] { grid-column: 4; grid-row: 1; justify-self: end; align-self: center; }
   .rel-page .rel-cel-codigo { grid-column: 2 / 4; grid-row: 2; }
   .rel-page .rel-cel-tag { grid-column: 4; grid-row: 2; justify-self: end; }
-  .rel-page .rel-cel-tipo { grid-column: 2 / -1; grid-row: 3; }
+  /* 10/09/2026 · o tipo cede a última coluna para as AÇÕES, que antes tinham
+     uma faixa só delas na linha 5 — 34 px + gap por registro, medidos em
+     390px. A ação de um item ficava mais alta do que metade do item. */
+  .rel-page .rel-cel-tipo { grid-column: 2 / 4; grid-row: 3; }
   .rel-page .rel-linha [data-rot='Criação'] { grid-column: 2; grid-row: 4; }
   .rel-page .rel-linha [data-rot='Validade'] { grid-column: 3; grid-row: 4; }
   .rel-page .rel-linha [data-rot='Próxima'] { grid-column: 4; grid-row: 4; }
   .rel-page .rel-linha [data-rot='Criação']::before,
   .rel-page .rel-linha [data-rot='Validade']::before,
   .rel-page .rel-linha [data-rot='Próxima']::before { display: block; font-size: 9px; }
-  .rel-page .rel-cel-acoes { grid-column: 2 / -1; grid-row: 5; justify-content: flex-start; margin-top: 3px; }
+  .rel-page .rel-cel-acoes { grid-column: 4; grid-row: 3; justify-content: flex-end; align-self: center; margin-top: 0; }
   /* No cartão o alvo volta a 34px: são três botões numa faixa de ~300px, e
      44px cada empurraria o terceiro para fora. Ainda acima do mínimo de 32px
      que o dedo alcança quando os alvos estão separados. */
@@ -2504,68 +2507,3 @@ body.doc-foco .meta-barra-fixa { padding-top: 6px; padding-bottom: 6px; }
   .rel-modal .campo-destacado { animation: none; }
 }
 
-/* ── /relatorios no celular · LISTA, não pilha de cartões (10/09/2026) ──────
-   Medido em 390 px: 125 px por registro. Quatro faixas de conteúdo mais uma
-   faixa só para os três botões de ação — a ação de um item ficava mais alta
-   do que metade do item.
-
-   Agora a linha flui: identidade e situação em cima; o resto numa frase
-   separada por "·", com as ações no fim, HORIZONTAIS. Nenhum campo saiu. */
-@media (max-width: 1023px) {
-  .rel-page .rel-linha {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0 6px;
-    row-gap: 2px;
-  }
-  .rel-page .rel-cel-icone { order: 1; flex: 0 0 auto; align-self: center; }
-  .rel-page .rel-cel-nome { order: 2; flex: 1 1 auto; min-width: 0; }
-  .rel-page .rel-linha [data-rot='Situação'] { order: 3; flex: 0 0 auto; margin-left: auto; }
-  .rel-page .rel-cel-codigo { order: 4; }
-  .rel-page .rel-cel-tag { order: 5; }
-  .rel-page .rel-cel-tipo { order: 6; }
-  .rel-page .rel-linha [data-rot='Criação'] { order: 7; }
-  .rel-page .rel-linha [data-rot='Validade'] { order: 8; }
-  .rel-page .rel-linha [data-rot='Próxima'] { order: 9; }
-  /* As ações ficam no fim da última linha, encostadas à direita. */
-  .rel-page .rel-cel-acoes {
-    order: 10;
-    flex: 0 0 auto;
-    margin-left: auto;
-    margin-top: 0;
-    justify-content: flex-end;
-  }
-  /* O separador entre os campos da frase. O primeiro (código) não leva. */
-  .rel-page .rel-cel-tag::before,
-  .rel-page .rel-cel-tipo::before,
-  .rel-page .rel-linha [data-rot='Criação']::before,
-  .rel-page .rel-linha [data-rot='Validade']::before,
-  .rel-page .rel-linha [data-rot='Próxima']::before {
-    content: '·';
-    display: inline;
-    margin-right: 5px;
-    font-size: 11px;
-    font-weight: 400;
-    letter-spacing: 0;
-    color: var(--border-solid, #d1d5db);
-  }
-  /* Rótulo curto ANTES do valor só nas três datas: "09/09 · - · —" sem
-     rótulo não diz qual data é qual. */
-  .rel-page .rel-linha [data-rot='Criação'],
-  .rel-page .rel-linha [data-rot='Validade'],
-  .rel-page .rel-linha [data-rot='Próxima'] { display: inline-flex; align-items: baseline; gap: 4px; }
-  .rel-page .rel-linha [data-rot='Criação']::after { content: 'criação'; }
-  .rel-page .rel-linha [data-rot='Validade']::after { content: 'validade'; }
-  .rel-page .rel-linha [data-rot='Próxima']::after { content: 'próxima'; }
-  .rel-page .rel-linha [data-rot='Criação']::after,
-  .rel-page .rel-linha [data-rot='Validade']::after,
-  .rel-page .rel-linha [data-rot='Próxima']::after {
-    order: -1;
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 0.4px;
-    text-transform: uppercase;
-    color: var(--text-muted, #6b7280);
-  }
-}

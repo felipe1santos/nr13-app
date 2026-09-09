@@ -444,30 +444,28 @@ describe('20 e 21 · densidade e celular', () => {
     expect(css).toMatch(/\.rel-page \.rel-linha \{[\s\S]*?align-items: center;/);
   });
 
-  it('no celular a linha é LISTA, não pilha de cartões', () => {
-    // 10/09/2026 · era uma grade de 4 colunas e 5 faixas — quatro de conteúdo
-    // e uma só para os três botões, 125 px por registro medidos em 390 px.
-    // Agora a linha flui: identidade e situação em cima, o resto numa frase
-    // com "·", ações no fim da última linha.
+  it('no celular a linha tem QUATRO faixas, e as ações não têm faixa própria', () => {
+    // 10/09/2026 · eram cinco faixas: quatro de conteúdo e uma só para os três
+    // botões — 125 px por registro, medidos em 390 px, com a ação de um item
+    // mais alta do que metade do item. As ações passaram para a linha do tipo,
+    // encostadas à direita.
     const movel = css.slice(css.lastIndexOf('@media (max-width: 1023px)'));
-    expect(movel).toContain('display: flex;');
-    expect(movel).toContain('flex-wrap: wrap;');
-    expect(movel).toContain(".rel-page .rel-linha [data-rot='Situação'] { order: 3; flex: 0 0 auto; margin-left: auto; }");
-    // As ações não podem voltar a ser uma faixa própria.
-    expect(movel).toMatch(/\.rel-page \.rel-cel-acoes \{[^}]*margin-left: auto;/);
+    expect(movel).toContain('grid-template-columns: 26px repeat(3, minmax(0, 1fr));');
+    expect(movel).toContain('.rel-page .rel-cel-tipo { grid-column: 2 / 4; grid-row: 3; }');
+    expect(movel).toContain('.rel-page .rel-cel-acoes { grid-column: 4; grid-row: 3;');
+    expect(movel).toContain('justify-content: flex-end;');
+    // Nenhuma linha 5: se voltar, o cartão volta a crescer.
+    expect(movel).not.toMatch(/grid-row: 5/);
     // O rótulo dos botões só some em 640px: num tablet os três cabem com texto.
     const barraMovel = css.slice(css.lastIndexOf('@media (max-width: 640px)'));
     expect(barraMovel).toContain('.rel-page .rel-btn-rotulo { display: none; }');
   });
 
-  it('as três datas continuam identificadas, e nenhum campo sumiu', () => {
-    // Numa frase separada por "·", três datas seguidas não dizem qual é qual.
+  it('nenhum campo da linha some no celular', () => {
     const movel = css.slice(css.lastIndexOf('@media (max-width: 1023px)'));
-    for (const rot of ['criação', 'validade', 'próxima']) {
-      expect(movel, rot).toContain(`content: '${rot}';`);
-    }
-    // Nenhuma célula é escondida no celular — o que mudou foi o arranjo.
     expect(movel).not.toMatch(/\[data-rot='(Validade|Próxima|Criação)'\][^{]*\{[^}]*display: none/);
+    // As três datas continuam com rótulo, senão não se sabe qual é qual.
+    expect(movel).toContain("[data-rot='Criação']::before,");
   });
 
   it('o alvo de toque das ações continua declarado', () => {
