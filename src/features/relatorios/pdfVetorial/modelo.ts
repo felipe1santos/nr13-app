@@ -951,7 +951,7 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
       cabecote: txt(us.cabecote),
       velSonica: txt(us.velSonica),
       resultado: rotuloResultado(us.resultado as string),
-      pontos: pontosUltrassom(tag, us, medEsp, requeridaDoMemorial(calc.componentes)),
+      pontos: pontosUltrassom(tag, us, medEsp, requeridaDoMemorial(calc.componentes), meta?.containerOrigemId ?? null),
       vida: {
         taxaMmAno: numeroBr(vida.taxaMmAno, 4),
         sobremetalMm: numeroBr(vida.sobremetalMm),
@@ -1077,6 +1077,7 @@ export function pontosUltrassom(
   us: Record<string, unknown>,
   medEsp: Record<string, unknown>,
   requeridaPorRegiao: Record<Regiao, string | null> = { ts: null, casco: null, ti: null },
+  containerAtual: string | null = null,
 ): ModeloRelatorio['ultrassom']['pontos'] {
   const requeridaDe = (id: string, regiao: Regiao): string | null => {
     const lista = (medEsp.pontos ?? us.pontos ?? []) as Record<string, unknown>[];
@@ -1085,7 +1086,9 @@ export function pontosUltrassom(
     return (achado ? txt(achado.espMinRequerida ?? achado.requerida) : null) ?? requeridaPorRegiao[regiao];
   };
 
-  const { pontos, grade } = carregarMedicoes(tag);
+  // O container DESTE documento: sem ele, a grade de outra inspeção do mesmo
+  // equipamento sobrepõe as medições escolhidas. Ver `montarGrade`.
+  const { pontos, grade } = carregarMedicoes(tag, containerAtual);
   const linhas: ModeloRelatorio['ultrassom']['pontos'] = [];
   for (const regiao of REGIOES) {
     const daRegiao = pontos.filter((p) => p.regiao === regiao);

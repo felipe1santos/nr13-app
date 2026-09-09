@@ -35,14 +35,21 @@ const TITULO: Record<Regiao, string> = {
  */
 export default function ModalMedicoes({
   tag,
+  containerId,
   onFechar,
   onSalvou,
 }: {
   tag: string;
+  /**
+   * O container deste documento. Ele CARIMBA a grade: sem dono, a grade de uma
+   * inspeção passa a valer para outra do mesmo equipamento — e o laudo sai com
+   * espessuras que ninguém mediu ali. Ver `montarGrade`.
+   */
+  containerId?: string | null;
   onFechar: () => void;
   onSalvou?: () => void;
 }) {
-  const inicial = useMemo(() => carregarMedicoes(tag), [tag]);
+  const inicial = useMemo(() => carregarMedicoes(tag, containerId ?? null), [tag, containerId]);
   const [grade, setGrade] = useState<GradeMedicoes>(inicial.grade);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
@@ -61,7 +68,7 @@ export default function ModalMedicoes({
     setSalvando(true);
     setErro('');
     try {
-      await salvarMedicoes(tag, grade);
+      await salvarMedicoes(tag, grade, containerId ?? null);
       setSujo(false);
       onSalvou?.();
       onFechar();

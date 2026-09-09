@@ -1669,6 +1669,7 @@ function RelatoriosLegado() {
           {modalMedicoes && (
             <ModalMedicoes
               tag={tag}
+              containerId={meta?.containerOrigemId ?? null}
               onFechar={() => setModalMedicoes(false)}
               onSalvou={() => setVersao((v) => v + 1)}
             />

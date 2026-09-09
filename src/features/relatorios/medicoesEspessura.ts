@@ -132,35 +132,66 @@ export function minimoDaRegiao(grade: GradeRegiao | undefined): string {
  * Monta a grade a partir do que existe hoje.
  *
  * Ordem das fontes, e cada uma tem um motivo:
- * 1. `nr13_med_grid_<TAG>` — o que já foi digitado antes;
+ * 1. `nr13_med_grid_<TAG>` — a correção digitada DENTRO daquele documento;
  * 2. `nr13_injecao_atual.ultrassom.medidas` — o que veio do container de campo;
  * 3. vazio.
  *
  * A forma da grade (pontos e ângulos) vem SEMPRE do container, não do que está
  * gravado: se o inspetor acrescentou um ponto na inspeção, a linha nova precisa
  * aparecer, e o valor antigo dos outros pontos precisa continuar no lugar.
+ *
+ * ## O DONO DA GRADE (10/09/2026)
+ *
+ * `nr13_med_grid_<TAG>` é uma chave por EQUIPAMENTO, não por inspeção. Sem
+ * saber de qual container ela veio, a grade de uma inspeção antiga sobrepunha
+ * as medições do container escolhido agora — e o laudo saía com espessuras de
+ * OUTRA inspeção.
+ *
+ * Medido em produção: container "Inspeção da IA" com 24 medições
+ * (9,41 · 9,38 · 9,45 …) e o PDF arquivado imprimindo 6.32 · 6.23 · 6.11, de
+ * uma rodada anterior do mesmo vaso. Número errado num documento assinado é
+ * pior do que campo vazio: ninguém desconfia de um número.
+ *
+ * Agora a grade guarda `containerId`. Ela só prevalece sobre o container
+ * quando é DELE — a correção manual dentro do documento continua vencendo, e a
+ * grade de outra inspeção deixa de existir para este.
+ *
+ * Grade LEGADA (sem `containerId`) perde para um container que tenha medida
+ * naquela célula: ela pode ser de qualquer inspeção, e dado de campo
+ * identificado vale mais do que dado órfão. Onde o container não tem nada, ela
+ * continua valendo — é o caso de quem digitou tudo à mão antes desta data.
  */
 export function montarGrade(
   pontos: PontoMedicao[],
   colunas: Record<Regiao, number>,
-  gradeSalva: Partial<GradeMedicoes> | null,
+  gradeSalva: (Partial<GradeMedicoes> & { containerId?: string | null }) | null,
   medidasDoContainer: Record<string, Record<string, unknown>> | null,
+  containerAtual: string | null = null,
 ): GradeMedicoes {
+  // A grade só manda se for do container que está em uso. Sem dono declarado
+  // (legado), ela cede a célula que o container souber preencher.
+  const donoConfere = gradeSalva?.containerId != null && gradeSalva.containerId === containerAtual;
+  const gradeOrfa = gradeSalva?.containerId == null;
+  const gradeVale = donoConfere || gradeOrfa;
   const saida = {} as GradeMedicoes;
   for (const regiao of REGIOES) {
     const angulos = angulosDaRegiao(colunas[regiao]);
     const daRegiao = pontos.filter((p) => p.regiao === regiao);
     const salva = gradeSalva?.[regiao];
     const linhas = daRegiao.map((ponto, i) => {
-      const anterior = salva?.linhas?.[i] ?? [];
+      const anterior = gradeVale ? (salva?.linhas?.[i] ?? []) : [];
       const doContainer = medidasDoContainer?.[ponto.id] ?? {};
       return angulos.map((ang, j) => {
-        // A grade salva é posicional; o container é por ângulo. Quando as duas
-        // existem, a digitada vence — ela é a mais recente.
-        const gravado = anterior[j];
-        if (gravado !== undefined && String(gravado).trim() !== '') return String(gravado);
         const doCampo = doContainer[ang];
-        return doCampo === undefined || doCampo === null ? '' : String(doCampo).replace('.', ',');
+        const temCampo = doCampo !== undefined && doCampo !== null && String(doCampo).trim() !== '';
+        // A grade salva é posicional; o container é por ângulo. Quando as duas
+        // existem, a digitada vence — MAS só se for daquele container. Grade
+        // órfã perde para o dado de campo identificado.
+        const gravado = anterior[j];
+        const gravadoVale =
+          gravado !== undefined && String(gravado).trim() !== '' && (donoConfere || !temCampo);
+        if (gravadoVale) return String(gravado);
+        return temCampo ? String(doCampo).replace('.', ',') : '';
       });
     });
     saida[regiao] = { angulos, linhas };
@@ -190,7 +221,11 @@ export function espessurasMinimas(
 }
 
 /** Lê tudo o que o editor precisa para abrir. */
-export function carregarMedicoes(tag: string): {
+export function carregarMedicoes(
+  tag: string,
+  /** O container deste documento — ver "O DONO DA GRADE" em `montarGrade`. */
+  containerAtual: string | null = null,
+): {
   pontos: PontoMedicao[];
   colunas: Record<Regiao, number>;
   grade: GradeMedicoes;
@@ -202,8 +237,9 @@ export function carregarMedicoes(tag: string): {
   const grade = montarGrade(
     pontos,
     colunas,
-    ler<Partial<GradeMedicoes>>(chaveGrade(tag)),
+    ler<Partial<GradeMedicoes> & { containerId?: string | null }>(chaveGrade(tag)),
     (us?.medidas as Record<string, Record<string, unknown>>) ?? null,
+    containerAtual,
   );
   return { pontos, colunas, grade };
 }
@@ -214,7 +250,12 @@ export function carregarMedicoes(tag: string): {
  * sobreviva ao offline e que um conflito vire conflito, e não sobrescrita
  * silenciosa.
  */
-export async function salvarMedicoes(tag: string, grade: GradeMedicoes): Promise<void> {
-  await salvar(chaveGrade(tag), grade);
+export async function salvarMedicoes(
+  tag: string,
+  grade: GradeMedicoes,
+  /** Carimba o DONO: sem ele a grade volta a poder contaminar outra inspeção. */
+  containerAtual: string | null = null,
+): Promise<void> {
+  await salvar(chaveGrade(tag), { ...grade, containerId: containerAtual });
   await salvar(chaveEspessuras(tag), espessurasMinimas(ler<Record<string, unknown>>(chaveEspessuras(tag)), grade));
 }

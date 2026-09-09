@@ -129,12 +129,44 @@ describe('A · o dado que já existe abre igual no editor', () => {
     expect(grade.casco.linhas[0][2]).toBe('');
   });
 
-  it('o que foi DIGITADO vence o que veio do campo', () => {
+  it('o que foi DIGITADO NAQUELE container vence o que veio do campo', () => {
     gravarCru('nr13_injecao_atual', {
       ultrassom: { pontos: [{ id: 'c1', rotulo: 'C1', regiao: 'casco' }], medidas: { c1: { '0': 7.2 } } },
     });
-    gravarCru(chaveGrade(TAG), { casco: { angulos: ['0', '90', '180', '270'], linhas: [['6,80', '', '', '']] } });
-    expect(carregarMedicoes(TAG).grade.casco.linhas[0][0]).toBe('6,80');
+    gravarCru(chaveGrade(TAG), {
+      containerId: 'cont-A',
+      casco: { angulos: ['0', '90', '180', '270'], linhas: [['6,80', '', '', '']] },
+    });
+    expect(carregarMedicoes(TAG, 'cont-A').grade.casco.linhas[0][0]).toBe('6,80');
+  });
+
+  it('grade de OUTRO container não sobrepõe o escolhido agora', () => {
+    // 10/09/2026 · este teste dizia só a primeira metade, e a chave é por
+    // EQUIPAMENTO. Medido em produção: container "Inspeção da IA" com 24
+    // medições novas e o PDF arquivado imprimindo 6.32 · 6.23 · 6.11, de uma
+    // rodada anterior do mesmo vaso. Número errado num laudo assinado é pior
+    // do que campo vazio — ninguém desconfia de um número.
+    gravarCru('nr13_injecao_atual', {
+      ultrassom: { pontos: [{ id: 'c1', rotulo: 'C1', regiao: 'casco' }], medidas: { c1: { '0': 7.2 } } },
+    });
+    gravarCru(chaveGrade(TAG), {
+      containerId: 'cont-VELHO',
+      casco: { angulos: ['0', '90', '180', '270'], linhas: [['6,80', '', '', '']] },
+    });
+    expect(carregarMedicoes(TAG, 'cont-NOVO').grade.casco.linhas[0][0]).toBe('7,2');
+  });
+
+  it('grade LEGADA (sem dono) cede a célula que o container sabe preencher', () => {
+    gravarCru('nr13_injecao_atual', {
+      ultrassom: { pontos: [{ id: 'c1', rotulo: 'C1', regiao: 'casco' }], medidas: { c1: { '0': 7.2 } } },
+    });
+    gravarCru(chaveGrade(TAG), { casco: { angulos: ['0', '90', '180', '270'], linhas: [['6,80', '9,9', '', '']] } });
+    const g = carregarMedicoes(TAG, 'cont-NOVO').grade.casco.linhas[0];
+    // O container tem 0°: ele vence a grade órfã.
+    expect(g[0]).toBe('7,2');
+    // Em 90° o container não tem nada — quem digitou à mão antes desta data
+    // não perde o trabalho.
+    expect(g[1]).toBe('9,9');
   });
 
   it('ponto novo na inspeção ganha linha, e os antigos não se perdem', () => {
@@ -165,9 +197,16 @@ describe('B · salvar grava as MESMAS chaves, no MESMO formato', () => {
     ti: { angulos: ['0', '180'], linhas: [['', '']] },
   };
 
-  it('a grade vai inteira para `nr13_med_grid_`', async () => {
+  it('a grade vai inteira para `nr13_med_grid_`, com o DONO carimbado', async () => {
+    await salvarMedicoes(TAG, grade, 'cont-A');
+    // O conteúdo é o mesmo de sempre; o que entrou foi o `containerId`, e é ele
+    // que impede a grade de contaminar outra inspeção do mesmo equipamento.
+    expect(ler(chaveGrade(TAG))).toEqual({ ...grade, containerId: 'cont-A' });
+  });
+
+  it('salvar SEM container ainda funciona, e a grade fica órfã', async () => {
     await salvarMedicoes(TAG, grade);
-    expect(ler(chaveGrade(TAG))).toEqual(grade);
+    expect(ler<Record<string, unknown>>(chaveGrade(TAG))?.containerId).toBeNull();
   });
 
   it('`nr13_med_esp_` recebe o MÍNIMO de cada região, com vírgula', async () => {
