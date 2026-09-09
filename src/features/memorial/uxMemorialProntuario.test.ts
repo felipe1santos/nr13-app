@@ -156,7 +156,11 @@ describe('prontuário: o modal de criação', () => {
     expect(b.length).toBeLessThan(150_000);
     expect(cssModal).toContain('aspect-ratio: 620 / 413;');
     expect(cssModal).toContain('object-fit: contain;');
-    const movel = cssModal.slice(cssModal.lastIndexOf('@media (max-width: 640px)'));
+    // O arquivo tem mais de um `@media (max-width: 640px)` (o modal de
+    // configuração ganhou o seu em 09/09). Pegar o ÚLTIMO passou a ser pegar o
+    // bloco errado — o que importa é o bloco que fala da ilustração.
+    const inicio = cssModal.indexOf('@media (max-width: 640px)', cssModal.indexOf('.mcr-intro-passos'));
+    const movel = cssModal.slice(inicio, cssModal.indexOf('}', cssModal.indexOf('.mcr-intro p { font-size', inicio)));
     expect(movel).toContain('.mcr-intro img { width: 92px; }');
   });
 

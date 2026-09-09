@@ -975,7 +975,7 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
                     <span role="cell" className="rel-cel-acoes">
                       <button
                         type="button"
-                        className="btn-icone cor-azul"
+                        className="btn-icone"
                         title="Continuar editando"
                         aria-label={`Continuar editando ${r.codigo || r.nome}`}
                         onClick={() => aoContinuarRascunho?.(r)}
@@ -984,7 +984,7 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
                       </button>
                       <button
                         type="button"
-                        className="btn-icone"
+                        className="btn-icone cor-doc-forte"
                         title="Excluir rascunho definitivamente"
                         aria-label={`Excluir o rascunho ${r.codigo || r.nome}`}
                         onClick={() => setExcluindoRascunho(r)}
@@ -1056,7 +1056,7 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
                   <span role="cell" className="rel-cel-acoes">
                     <button
                       type="button"
-                      className="btn-icone cor-azul"
+                      className="btn-icone cor-doc"
                       title="Visualizar"
                       aria-label={`Visualizar ${ou(r.nome ?? r.codigo)}`}
                       /* O ÚNICO ponto desta tela que toca o PDF. */
@@ -1079,7 +1079,9 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
                         botão que promete destruir e não destrói. */}
                     <button
                       type="button"
-                      className="btn-icone"
+                      /* Vermelho só quando o gesto RETIRA da lista. Desarquivar traz de
+                         volta — pintar de vermelho a volta diria o contrário do que faz. */
+                      className={`btn-icone${arquivados.has(r.relatorioId) ? '' : ' cor-doc-forte'}`}
                       title={arquivados.has(r.relatorioId) ? 'Trazer de volta para a lista' : 'Remover da lista (arquivar)'}
                       aria-label={
                         arquivados.has(r.relatorioId)

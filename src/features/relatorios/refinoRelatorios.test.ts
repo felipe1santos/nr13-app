@@ -207,8 +207,12 @@ describe('10, 11, 12 e 13 · criar sem sair da rota', () => {
     // Nada de um segundo formulário de tipo/documentos: é o componente que o
     // editor já usava, com um cabeçalho a mais.
     expect(tela).toContain('<ModalNovaInspecao');
-    expect(modalConfig).toContain('Configurar novo relatório');
-    expect(modalConfig).toContain('DOCUMENTOS_DISPONIVEIS.map');
+    // O título ganhou capitalização de título em 09/09, seguindo a referência.
+    expect(modalConfig).toContain('Configurar Novo Relatório');
+    // A lista de baixo passou a excluir o que subiu para o bloco de injeção
+    // automática — os documentos continuam vindo do MESMO catálogo.
+    expect(modalConfig).toContain('const naLista = DOCUMENTOS_DISPONIVEIS.filter(');
+    expect(modalConfig).toContain('naLista.map((doc)');
   });
 
   it('dá para trocar de equipamento sem fechar o fluxo', () => {

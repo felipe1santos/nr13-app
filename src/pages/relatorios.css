@@ -2383,3 +2383,36 @@ body.doc-foco .meta-barra-fixa { padding-top: 6px; padding-bottom: 6px; }
      o campo o pouco espaço que existe. */
   .rel-page .busca-lista-info { display: none; }
 }
+
+/* ============================================================================
+   O VOCABULÁRIO DE COR DAS AÇÕES DA LISTA (09/09/2026)
+
+   A coluna "Ações" tinha três famílias: olho azul, lápis azul, lixeira neutra —
+   e ao lado delas a marca vermelha do PDF. Quatro cores para três gestos, e
+   nenhuma delas dizia de que gesto se tratava.
+
+   Passa a ser: o que fala do DOCUMENTO é vermelho-tinto (a mesma cor da marca
+   do arquivo, `.rel-marca-pdf`), o que RETIRA é vermelho mais forte, e o que
+   apenas edita um rótulo é neutro. Só cor: nenhuma regra de ação muda, e
+   `arquivar` continua sendo arquivar.
+
+   Escopado em `.rel-page` — `.btn-icone.cor-azul` é usado por Prontuários,
+   Calibrações e Certificados, e ali o azul continua certo. */
+.rel-page .btn-icone.cor-doc { color: #b42318; }
+.rel-page .btn-icone.cor-doc:hover {
+  background: #fdeeec;
+  border-color: #f3c9c4;
+  color: #912018;
+}
+
+.rel-page .btn-icone.cor-doc-forte { color: #c0392b; }
+.rel-page .btn-icone.cor-doc-forte:hover {
+  background: #fdeeec;
+  border-color: #f3c9c4;
+  color: #8f1d13;
+}
+
+/* O lápis é o único gesto que não toca no documento — ele renomeia o rótulo da
+   lista. Fica neutro, e escurece no hover como qualquer outro. */
+.rel-page .rel-cel-acoes .btn-icone:not(.cor-doc):not(.cor-doc-forte) { color: var(--text-muted); }
+.rel-page .rel-cel-acoes .btn-icone:not(.cor-doc):not(.cor-doc-forte):hover { color: var(--text-main); }

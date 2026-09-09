@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { arquivoCalibracao, listarCalibracoes } from '../calibracoes/calibracaoService';
 import type { DadosCalibracao } from '../calibracoes/tipos';
 import { listarLotes, salvarLote, type LoteCal } from '../calibracoes/componentesService';
+import { listarContainers } from '../inspecoes/inspecaoService';
+import { DOCS_POR_FORMULARIO, type FormularioEnsaio } from '../inspecoes/tipos';
 import { DOCUMENTOS_DISPONIVEIS, type TipoInspecao } from './tipos';
 import '../equipamento/equipamento.css';
 import './modalCriarRelatorio.css';
@@ -9,7 +11,8 @@ import './modalCriarRelatorio.css';
 const TIPOS: TipoInspecao[] = ['Inspeção Inicial', 'Inspeção Periódica', 'Inspeção Extraordinária'];
 
 // Ensaios importados da inspeção de campo: começam DESMARCADOS para o usuário escolher o que imprimir.
-// Recebem o selo (⚠ + bolinha amarela) indicando que o conteúdo vem importado da inspeção.
+// Quando existe container com o formulário preenchido, eles sobem para o bloco de
+// "Injeção Automática" (ver `automaticos`); sem container, ficam na lista com o selo de aviso.
 const ENSAIOS = new Set<string>([
   'VISUAL-EXTERNO.html',
   'VISUAL-INTERNO.html',
@@ -38,6 +41,21 @@ const ROTULOS: Record<string, string> = {
   'LIVRO-REGISTRO.html': 'Livro de Registro de Segurança (NR-13)',
 };
 
+/**
+ * Nome curto do ensaio no bloco azul.
+ *
+ * O rótulo da LISTA carrega a composição da folha entre parênteses ("checklist +
+ * folhas de fotos"), que ali é útil — o usuário está escolhendo folhas. No bloco
+ * de injeção a pergunta é outra: "o que veio de campo?". "Medição de Espessura"
+ * responde; "Laudo de Ultrassom (checklist + folhas de fotos)" atrapalha.
+ */
+const ROTULO_CURTO: Record<string, string> = {
+  'ULTRASSOM.html': 'Medição de Espessura',
+  'VISUAL-EXTERNO.html': 'Inspeção Visual Externa',
+  'VISUAL-INTERNO.html': 'Inspeção Visual Interna',
+  'TESTE-HIDROSTATICO.html': 'Teste Hidrostático',
+};
+
 interface Props {
   onClose: () => void;
   onGerar: (tipo: TipoInspecao, documentos: string[]) => void;
@@ -64,6 +82,23 @@ interface ItemCalibracao {
   lote?: LoteCal;
 }
 
+/**
+ * Uma linha do bloco "Injeção Automática": o que o sistema ACHOU salvo para
+ * este equipamento, e que o usuário decide levar ou não para o documento.
+ *
+ * `origem` é o que a linha de baixo mostra ("Container: …"). Ela é sempre um
+ * dado real — container que existe, lote que existe. Nada é inventado: sem
+ * fonte, o item não entra neste bloco (fica na lista comum).
+ */
+interface ItemAutomatico {
+  chave: string;
+  rotulo: string;
+  origem: string;
+  marcado: boolean;
+  alternar: () => void;
+  titulo: string;
+}
+
 const tsDoId = (id: string) => Number(/-(\d+)$/.exec(id)?.[1] ?? 0);
 
 function contagemPorTipo(certs: DadosCalibracao[]): string {
@@ -73,6 +108,39 @@ function contagemPorTipo(certs: DadosCalibracao[]): string {
   if (man) partes.push(`${man} manômetro${man > 1 ? 's' : ''}`);
   if (psv) partes.push(`${psv} válvula${psv > 1 ? 's' : ''}`);
   return partes.join(', ');
+}
+
+/** O documento do relatório → o formulário de campo que o alimenta. */
+const FORM_DO_DOC = new Map<string, FormularioEnsaio>(
+  (Object.entries(DOCS_POR_FORMULARIO) as [FormularioEnsaio, string[]][])
+    .flatMap(([form, docs]) => docs.map((d) => [d, form] as [string, FormularioEnsaio])),
+);
+
+/**
+ * Para cada ensaio, o CONTAINER que tem esse formulário PREENCHIDO.
+ *
+ * "Preenchido" é `container.dados[formulario]` existir — é o mesmo critério que
+ * o resto do sistema usa para saber se o técnico salvou aquele formulário em
+ * campo. Container criado e nunca aberto não conta: prometer injeção de um
+ * formulário vazio é pior do que não prometer nada.
+ *
+ * Mais de um container com o mesmo formulário é caso real (reinspeção): mostra
+ * o mais recente e diz quantos outros existem, em vez de escolher em silêncio.
+ */
+function origemDeCampo(tag: string): Map<string, string> {
+  const mapa = new Map<string, string>();
+  if (!tag) return mapa;
+  const containers = listarContainers(tag);
+  for (const doc of ENSAIOS) {
+    const form = FORM_DO_DOC.get(doc);
+    if (!form) continue;
+    const comDado = containers.filter((c) => c.dados && c.dados[form] !== undefined);
+    if (comDado.length === 0) continue;
+    const recente = comDado[comDado.length - 1];
+    const extras = comDado.length - 1;
+    mapa.set(doc, `Container: ${recente.nome}${extras > 0 ? ` (+${extras})` : ''}`);
+  }
+  return mapa;
 }
 
 export default function ModalNovaInspecao({ onClose, onGerar, tag = '', resumo, aoVoltar }: Props) {
@@ -104,6 +172,8 @@ export default function ModalNovaInspecao({ onClose, onGerar, tag = '', resumo, 
   }, [tag]);
   const [calibSelecionados, setCalibSelecionados] = useState<Set<string>>(new Set());
 
+  const origens = useMemo(() => origemDeCampo(tag), [tag]);
+
   function toggle(doc: string) {
     setMarcados((m) => (m.includes(doc) ? m.filter((d) => d !== doc) : [...m, doc]));
   }
@@ -116,6 +186,38 @@ export default function ModalNovaInspecao({ onClose, onGerar, tag = '', resumo, 
       return n;
     });
   }
+
+  /**
+   * O conteúdo do bloco azul. É uma VISTA sobre os dois estados que já existiam
+   * (`marcados` e `calibSelecionados`) — nenhum estado novo, nenhuma regra nova:
+   * marcar aqui é exatamente marcar a mesma caixa que estava na lista.
+   */
+  const automaticos = useMemo<ItemAutomatico[]>(() => {
+    const doCampo: ItemAutomatico[] = DOCUMENTOS_DISPONIVEIS.filter(
+      (d) => ENSAIOS.has(d) && origens.has(d),
+    ).map((doc) => ({
+      chave: doc,
+      rotulo: ROTULO_CURTO[doc] ?? ROTULOS[doc] ?? doc,
+      origem: origens.get(doc)!,
+      marcado: marcados.includes(doc),
+      alternar: () => toggle(doc),
+      titulo: 'Dados de campo já salvos neste equipamento — marque para injetar no relatório',
+    }));
+    const dasCalibracoes: ItemAutomatico[] = itensCalibracao.map((i) => ({
+      chave: `cal:${i.id}`,
+      rotulo: i.rotulo,
+      origem: i.lote ? 'Lote de calibração' : 'Calibração avulsa',
+      marcado: calibSelecionados.has(i.id),
+      alternar: () => toggleCalib(i.id),
+      titulo:
+        'Injeta todos os certificados de calibração do lote e anexa os PDFs dos padrões (por tipo) ao final do relatório',
+    }));
+    return [...doCampo, ...dasCalibracoes];
+  }, [origens, marcados, itensCalibracao, calibSelecionados]);
+
+  // O que sobe para o bloco azul sai da lista de baixo — senão a mesma caixa
+  // apareceria duas vezes, e desmarcar numa "desmarcaria sozinha" na outra.
+  const naLista = DOCUMENTOS_DISPONIVEIS.filter((d) => !origens.has(d));
 
   async function gerar() {
     const ordenados = DOCUMENTOS_DISPONIVEIS.filter((d) => marcados.includes(d));
@@ -139,14 +241,14 @@ export default function ModalNovaInspecao({ onClose, onGerar, tag = '', resumo, 
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" style={{ maxWidth: 560 }} onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h3>Configurar novo relatório</h3>
-          <button type="button" className="btn-close-modal" onClick={onClose}>
+      <div className="modal-content mni-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header mni-header">
+          <h3>Configurar Novo Relatório</h3>
+          <button type="button" className="btn-close-modal" onClick={onClose} aria-label="Fechar">
             ×
           </button>
         </div>
-        <div className="modal-body">
+        <div className="modal-body mni-body">
           {resumo && (
             <div className="mni-resumo">
               <div className="mni-resumo-txt">
@@ -163,8 +265,15 @@ export default function ModalNovaInspecao({ onClose, onGerar, tag = '', resumo, 
             </div>
           )}
           <div className="campo-bloco-modal">
-            <label className="label-bloco-modal">Tipo de Inspeção</label>
-            <select value={tipo} onChange={(e) => setTipo(e.target.value as TipoInspecao)}>
+            <label className="label-bloco-modal" htmlFor="mni-tipo">
+              Tipo de Inspeção
+            </label>
+            <select
+              id="mni-tipo"
+              className="mni-select"
+              value={tipo}
+              onChange={(e) => setTipo(e.target.value as TipoInspecao)}
+            >
               {TIPOS.map((t) => (
                 <option key={t} value={t}>
                   {t}
@@ -173,12 +282,50 @@ export default function ModalNovaInspecao({ onClose, onGerar, tag = '', resumo, 
             </select>
           </div>
 
+          {/* ── INJEÇÃO AUTOMÁTICA ────────────────────────────────────────────
+              O bloco só existe quando há o que injetar. Um painel azul dizendo
+              "o sistema localizou formulários salvos" com nada dentro afirmaria
+              o contrário do que é verdade. */}
+          {automaticos.length > 0 && (
+            <div className="mni-auto">
+              <div className="mni-auto-titulo">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M13 2 4.5 13.5H11l-1 8.5 8.5-11.5H12l1-8.5z" />
+                </svg>
+                Injeção Automática de Dados (Containers)
+              </div>
+              <p className="mni-auto-sub">
+                O sistema localizou formulários salvos para este equipamento. Marque abaixo o que
+                deseja injetar automaticamente neste relatório:
+              </p>
+              <div className="mni-auto-lista">
+                {automaticos.map((a) => (
+                  <label key={a.chave} className="mni-auto-item" title={a.titulo}>
+                    <input type="checkbox" checked={a.marcado} onChange={a.alternar} />
+                    <span className="mni-auto-texto">
+                      <strong>{a.rotulo}</strong>
+                      <small>{a.origem}</small>
+                    </span>
+                    <span className="mni-auto-ok" title="Dados salvos e disponíveis" aria-hidden="true">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="campo-bloco-modal">
-            <label className="label-bloco-modal">
-              Documentos a agrupar <span className="texto-ajuda-modal-inline">↓ Selecione os documentos abaixo que irão compor o seu relatório</span>
-            </label>
+            <div className="mni-secao">
+              <span className="label-bloco-modal">Documentos a agrupar</span>
+              <span className="texto-ajuda-modal-inline">
+                ↓ Selecione os documentos abaixo que irão compor o seu relatório
+              </span>
+            </div>
             <div className="lista-documentos-scroll">
-              {DOCUMENTOS_DISPONIVEIS.map((doc) => (
+              {naLista.map((doc) => (
                 <label key={doc} className="item-documento-check">
                   <input type="checkbox" checked={marcados.includes(doc)} onChange={() => toggle(doc)} />
                   {(ROTULOS[doc] || doc).toUpperCase()}
@@ -194,40 +341,19 @@ export default function ModalNovaInspecao({ onClose, onGerar, tag = '', resumo, 
                   )}
                 </label>
               ))}
-              {itensCalibracao.length > 0 && (
-                <>
-                  <div style={{ marginTop: 10, marginBottom: 4, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--accent-2)', letterSpacing: '0.04em' }}>
-                    Calibrações
-                  </div>
-                  {itensCalibracao.map((i) => (
-                    <label
-                      key={i.id}
-                      className="item-documento-check"
-                      title="Injeta todos os certificados de calibração do lote e anexa os PDFs dos padrões (por tipo) ao final do relatório"
-                      style={{ color: '#1d4ed8', fontWeight: 600 }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={calibSelecionados.has(i.id)}
-                        onChange={() => toggleCalib(i.id)}
-                        style={{ accentColor: '#1d4ed8' }}
-                      />
-                      {i.rotulo.toUpperCase()}
-                    </label>
-                  ))}
-                </>
-              )}
             </div>
           </div>
+        </div>
 
-          <div className="modal-actions">
-            <button type="button" className="btn-secundario" onClick={onClose}>
-              Cancelar
-            </button>
-            <button type="button" className="btn-primario" onClick={() => void gerar()} disabled={marcados.length === 0}>
-              Gerar Documento
-            </button>
-          </div>
+        {/* O rodapé saiu do corpo rolável: com a lista longa, "Gerar Documento"
+            ficava abaixo da dobra do modal e só aparecia depois de rolar tudo. */}
+        <div className="modal-actions mni-rodape">
+          <button type="button" className="btn-secundario" onClick={onClose}>
+            Cancelar
+          </button>
+          <button type="button" className="btn-primario" onClick={() => void gerar()} disabled={marcados.length === 0}>
+            Gerar Documento
+          </button>
         </div>
       </div>
     </div>
