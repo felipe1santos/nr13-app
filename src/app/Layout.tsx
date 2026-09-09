@@ -342,11 +342,20 @@ export default function Layout() {
               const dias = diasParaExpirar();
               if (dias === null || dias > 30 || dias < 0) return null;
               return (
+                /* 10/09/2026 · a frase virou DUAS: o fato e a instrução. No
+                   celular medi 62 px e três linhas para um aviso — a instrução
+                   sai e sobra a barra de uma linha, com o fato inteiro. Em
+                   tela larga as duas continuam juntas. */
                 <div className="aviso-expiracao" role="alert">
                   <Icone nome="alerttri" tam={16} />
-                  {dias === 0
-                    ? 'Seu acesso ao sistema vence HOJE. Contate o administrador para renovar.'
-                    : `Faltam ${dias} dia${dias === 1 ? '' : 's'} para o seu acesso ao sistema vencer. Contate o administrador para renovar.`}
+                  <span className="aviso-expiracao-fato">
+                    {dias === 0
+                      ? 'Seu acesso vence HOJE'
+                      : `Faltam ${dias} dia${dias === 1 ? '' : 's'} para o seu acesso vencer`}
+                  </span>
+                  <span className="aviso-expiracao-instrucao">
+                    Contate o administrador para renovar.
+                  </span>
                 </div>
               );
             })()}

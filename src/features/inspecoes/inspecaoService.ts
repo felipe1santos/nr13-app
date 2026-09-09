@@ -53,6 +53,34 @@ export function carregarContainer(tag: string, id: string): ContainerInspecao | 
   return listarContainers(tag).find((c) => c.id === id) ?? null;
 }
 
+/**
+ * RENOMEAR o container — 10/09/2026.
+ *
+ * Só o rótulo muda. O `id` é a identidade: é por ele que os ensaios são
+ * abertos (`/inspecoes/:tag/:containerId/:formulario`) e é ele que fica em
+ * `meta.containerOrigemId` do relatório. Trocar o nome não pode encostar nisso,
+ * e é por isso que esta função reescreve o item inteiro preservando `id`,
+ * `criadoEm`, `ensaios` e `dados`.
+ *
+ * Nome vazio é recusado: um container sem nome vira "Inspeção de <data>" na
+ * criação, e deixar o usuário apagá-lo devolveria à lista uma linha sem
+ * identidade.
+ */
+export async function renomearContainer(tag: string, id: string, nome: string): Promise<void> {
+  const limpo = nome.trim();
+  if (!limpo) throw new Error('O nome do container não pode ficar vazio.');
+  const atuais = listarContainers(tag);
+  // Mesma guarda de `salvarDadosFormulario`: com o cache ainda não hidratado,
+  // gravar a lista sem o container apagaria os outros no servidor.
+  if (!atuais.some((c) => c.id === id)) {
+    throw new Error('Container de inspeção não encontrado no cache — recarregue antes de renomear.');
+  }
+  await salvar(
+    chave(tag),
+    atuais.map((c) => (c.id === id ? { ...c, nome: limpo } : c)),
+  );
+}
+
 // Lista os formulários distintos atribuídos a um container, sem duplicar quando vários ensaios
 // apontam pro mesmo formulário (ex.: visual_interno/visual_externo => checklist único).
 export function formulariosDoContainer(container: ContainerInspecao): FormularioEnsaio[] {

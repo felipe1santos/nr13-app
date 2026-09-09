@@ -944,3 +944,35 @@
      cabeçalho, o stepper e o rodapé já comem altura fixa. */
   .wz-containers { max-height: 252px; }
 }
+
+/* ── Etapa 3 · a ilustração (10/09/2026) ────────────────────────────────────
+   Ela acompanha os DOIS primeiros blocos (equipamento e tipo) e termina ali:
+   `grid-row: 1` a prende à primeira faixa, e os blocos seguintes voltam a
+   ocupar a largura toda. Reservar uma coluna até o fim do modal deixaria dois
+   vazios embaixo dela.
+
+   `object-fit: contain` + a proporção declarada no HTML: a arte não deforma. */
+.wz-rev-arte {
+  grid-column: 3;
+  grid-row: 1;
+  align-self: center;
+  justify-self: end;
+  width: 100%;
+  max-width: 150px;
+  height: auto;
+  aspect-ratio: 626 / 417;
+  object-fit: contain;
+}
+/* Com a arte, a primeira faixa passa a ter três colunas; as de baixo continuam
+   em duas, e as largas continuam atravessando tudo. */
+.wz-revisao { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; }
+.wz-rev-larga { grid-column: 1 / -1; }
+
+@media (max-width: 640px) {
+  /* No celular a arte encolhe e fica ao lado do primeiro bloco — acima do
+     texto ela custaria uma faixa inteira num modal que já é alto. */
+  .wz-revisao { grid-template-columns: minmax(0, 1fr) auto; }
+  .wz-rev-arte { grid-column: 2; max-width: 84px; }
+}
+
+/* Quem pediu menos movimento não muda nada aqui: a arte é estática. */

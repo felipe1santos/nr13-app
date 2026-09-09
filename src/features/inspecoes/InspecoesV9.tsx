@@ -40,8 +40,11 @@ import { formatarValor } from '../../calc/unidades';
 import type { SistemaUnidade } from '../../calc/unidades';
 import ModalNovaInspecaoContainer from './ModalNovaInspecaoContainer';
 import ContainerCard from './ContainerCard';
+import ModalRenomearContainer from './ModalRenomearContainer';
+import AjudaContainers from './AjudaContainers';
 import { abrirEquipamentoParaInspecao } from './catalogoInspecoes';
 import { criarContainer, listarContainers, removerContainer } from './inspecaoService';
+import { Icone } from '../../components/Icone';
 import type { ContainerInspecao, TipoEnsaio } from './tipos';
 import './visualizador.css';
 import '../../pages/relatorios.css';
@@ -76,6 +79,9 @@ export default function InspecoesV9() {
   const [containers, setContainers] = useState<ContainerInspecao[]>([]);
   const [abrindo, setAbrindo] = useState(false);
   const [modalAberto, setModalAberto] = useState(false);
+  // 10/09/2026 · renomear a rodada e a ajuda da sessão.
+  const [renomeando, setRenomeando] = useState<ContainerInspecao | null>(null);
+  const [ajudaAberta, setAjudaAberta] = useState(false);
 
   const filtros: FiltrosBusca = useMemo(() => ({ termo }), [termo]);
 
@@ -230,6 +236,19 @@ export default function InspecoesV9() {
           <div className="meta-card-header">
             <h3>
               Containers de Inspeção <span className="tag-equipamento-roxa">{tag}</span>
+              {/* A ajuda fica JUNTO do título, e não numa faixa fixa de texto
+                  no topo: é conteúdo que se lê uma vez e empurraria o trabalho
+                  para baixo da dobra em toda visita. Mesmo padrão de
+                  Calibrações e Certificados. */}
+              <button
+                type="button"
+                className="btn-info-secao"
+                title="Como funcionam os containers de inspeção"
+                aria-label="Como funcionam os containers de inspeção"
+                onClick={() => setAjudaAberta(true)}
+              >
+                <Icone nome="info" tam={15} />
+              </button>
             </h3>
             <button type="button" className="btn-primario" onClick={() => setModalAberto(true)}>
               + Nova Inspeção
@@ -243,7 +262,13 @@ export default function InspecoesV9() {
           ) : (
             <div className="containers-lista">
               {containers.map((c) => (
-                <ContainerCard key={c.id} container={c} tag={tag} onExcluir={() => excluir(c.id)} />
+                <ContainerCard
+                  key={c.id}
+                  container={c}
+                  tag={tag}
+                  onExcluir={() => excluir(c.id)}
+                  onRenomear={() => setRenomeando(c)}
+                />
               ))}
             </div>
           )}
@@ -252,6 +277,17 @@ export default function InspecoesV9() {
         {modalAberto && (
           <ModalNovaInspecaoContainer onClose={() => setModalAberto(false)} onCriar={criar} />
         )}
+        {renomeando && (
+          <ModalRenomearContainer
+            tag={tag}
+            container={renomeando}
+            aoFechar={() => setRenomeando(null)}
+            // Relê do cache: `renomearContainer` já gravou, e reler é o que faz
+            // o nome novo aparecer na lista sem esperar a próxima visita.
+            aoRenomear={() => setContainers(listarContainers(tag))}
+          />
+        )}
+        {ajudaAberta && <AjudaContainers aoFechar={() => setAjudaAberta(false)} />}
       </div>
     );
   }

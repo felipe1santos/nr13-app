@@ -438,6 +438,18 @@ export default function ModalCriarRelatorio({ tag, resumo, aoVoltar, onClose, on
           {/* ══ ETAPA 3 · REVISAR ═════════════════════════════════════════ */}
           {passo === 3 && (
             <div className="wz-revisao">
+              {/* A ilustração acompanha o PRIMEIRO bloco, no canto superior
+                  direito, e sai do fluxo depois dele — nada de reservar uma
+                  coluna até o fim do modal e deixar dois vazios embaixo. */}
+              <img
+                className="wz-rev-arte"
+                src="/ilustracoes/container-inspecao.webp"
+                alt=""
+                aria-hidden="true"
+                width={626}
+                height={417}
+                loading="lazy"
+              />
               <section className="wz-rev-bloco">
                 <h4>Equipamento</h4>
                 <p className="wz-rev-forte">{resumo.tag}</p>

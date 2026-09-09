@@ -13,7 +13,7 @@ export type NomeIcone =
   | 'flame' | 'fan' | 'cylinder' | 'tool' | 'filetext' | 'pencil' | 'eye' | 'copy'
   | 'trash' | 'filter' | 'search' | 'book' | 'camera' | 'upload' | 'check'
   | 'building' | 'gauge' | 'refresh' | 'calculator' | 'download' | 'shield'
-  | 'valvula-psv' | 'manometro' | 'link' | 'sigma' | 'cadeado'
+  | 'valvula-psv' | 'manometro' | 'link' | 'sigma' | 'cadeado' | 'info'
   // Ícones GENÉRICOS de planilha (importação). Não reproduzem logotipo registrado
   // de nenhuma suíte — são desenhos próprios no traço do sprite, diferenciados
   // por cor via a prop `style` (verde/verde/azul/neutro) + rótulo textual ao lado.
@@ -48,6 +48,9 @@ const PATHS: Record<NomeIcone, ReactNode> = {
   trendup: (<><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" /></>),
   map: (<><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" /><line x1="8" y1="2" x2="8" y2="18" /><line x1="16" y1="6" x2="16" y2="22" /></>),
   checkcircle: (<><circle cx="12" cy="12" r="9" /><polyline points="16 9 11 14 8 11" /></>),
+  // O "i" da ajuda contextual. O ponto é uma linha de 0,1px com ponta redonda:
+  // um <circle> preenchido destoaria do traço vazado do resto do sprite.
+  info: (<><circle cx="12" cy="12" r="9" /><line x1="12" y1="11" x2="12" y2="16.5" /><line x1="12" y1="7.6" x2="12" y2="7.7" /></>),
   calendar: (<><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></>),
   plus: (<><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></>),
   x: (<><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></>),

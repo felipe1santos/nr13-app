@@ -170,11 +170,12 @@ describe('a tela nova não pode voltar a varrer a organização', () => {
   });
 
   it('só toca container pelo caminho sob demanda, e nos handlers de criar/excluir', () => {
-    // `listarContainers` aparece nos dois handlers (depois de criar e depois de
-    // excluir), onde a TAG já está escolhida e o cache já foi semeado. Se esse
-    // número crescer, alguém pôs a leitura de volta na lista.
+    // `listarContainers` aparece nos handlers que MUDAM a lista — criar,
+    // excluir e, desde 10/09/2026, renomear —, onde a TAG já está escolhida e o
+    // cache já foi semeado. Se esse número crescer sem um handler novo, alguém
+    // pôs a leitura de volta na lista de equipamentos.
     const usos = fonte.match(/listarContainers\(/g) ?? [];
-    expect(usos).toHaveLength(2);
+    expect(usos).toHaveLength(3);
     expect(fonte).toMatch(/abrirEquipamentoParaInspecao\(tag\)/);
   });
 });

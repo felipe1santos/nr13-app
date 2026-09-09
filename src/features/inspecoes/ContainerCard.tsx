@@ -20,10 +20,13 @@ export default function ContainerCard({
   container,
   tag,
   onExcluir,
+  onRenomear,
 }: {
   container: ContainerInspecao;
   tag: string;
   onExcluir: () => void;
+  /** Abre o modal de renomear. Sem ele o lápis não aparece. */
+  onRenomear?: () => void;
 }) {
   const navigate = useNavigate();
   const formularios = formulariosDoContainer(container);
@@ -62,6 +65,25 @@ export default function ContainerCard({
           </div>
         </div>
         <div className="container-card-acoes" onClick={(e) => e.stopPropagation()}>
+          {/* Renomear vem ANTES de excluir: é a ação frequente, e a destrutiva
+              não pode ser a primeira coisa que o dedo encontra. */}
+          {onRenomear && !confirmando && (
+            <button
+              type="button"
+              className="btn-icone cont-card-renomear"
+              title="Renomear container"
+              aria-label={`Renomear ${container.nome || 'container'}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onRenomear();
+              }}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 20h9" />
+                <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+              </svg>
+            </button>
+          )}
           {confirmando ? (
             <>
               <button type="button" className="btn-remover" onClick={handleExcluir}>

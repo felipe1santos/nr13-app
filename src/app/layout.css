@@ -455,8 +455,21 @@
   margin: 16px 24px 0;
 }
 .aviso-expiracao svg { flex-shrink: 0; }
-@media (max-width: 560px) {
-  .aviso-expiracao { margin: 12px 12px 0; font-size: 12.5px; }
+.aviso-expiracao-fato { font-weight: 700; }
+.aviso-expiracao-instrucao { font-weight: 500; opacity: 0.92; }
+
+@media (max-width: 640px) {
+  /* BARRA de uma linha, não bloco de texto. Medido em fixture a 388px: com a
+     frase inteira o aviso ocupava 62 px e três linhas. A instrução sai; o
+     fato — quantos dias faltam — fica inteiro. */
+  .aviso-expiracao {
+    margin: 10px 12px 0;
+    padding: 9px 12px;
+    font-size: 12.5px;
+    line-height: 1.3;
+    gap: 8px;
+  }
+  .aviso-expiracao-instrucao { display: none; }
 }
 
 /* ── Boas-vindas + termos de uso do trial (ModalTermos) ────────────────────── */

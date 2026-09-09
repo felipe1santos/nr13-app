@@ -444,18 +444,20 @@ describe('20 e 21 · densidade e celular', () => {
     expect(css).toMatch(/\.rel-page \.rel-linha \{[\s\S]*?align-items: center;/);
   });
 
-  it('no celular a linha tem QUATRO faixas, e as ações não têm faixa própria', () => {
+  it('no celular a linha é grade determinística, com o alvo do dedo em 44px', () => {
     // 10/09/2026 · eram cinco faixas: quatro de conteúdo e uma só para os três
     // botões — 125 px por registro, medidos em 390 px, com a ação de um item
     // mais alta do que metade do item. As ações passaram para a linha do tipo,
     // encostadas à direita.
     const movel = css.slice(css.lastIndexOf('@media (max-width: 1023px)'));
     expect(movel).toContain('grid-template-columns: 26px repeat(3, minmax(0, 1fr));');
-    expect(movel).toContain('.rel-page .rel-cel-tipo { grid-column: 2 / 4; grid-row: 3; }');
-    expect(movel).toContain('.rel-page .rel-cel-acoes { grid-column: 4; grid-row: 3;');
+    expect(movel).toContain('.rel-page .rel-cel-tipo { grid-column: 2 / -1; grid-row: 3; }');
+    // 10/09/2026 · o alvo de 44px tem prioridade sobre a altura (item 3 da
+    // rodada): três botões de 44px pedem ~140px, e a última coluna da grade
+    // tem ~87px em 387px de viewport. As ações voltam a ter faixa, agora com
+    // o alvo certo — o custo em altura está medido na documentação.
+    expect(movel).toContain('.rel-page .rel-cel-acoes { grid-column: 2 / -1; grid-row: 4;');
     expect(movel).toContain('justify-content: flex-end;');
-    // Nenhuma linha 5: se voltar, o cartão volta a crescer.
-    expect(movel).not.toMatch(/grid-row: 5/);
     // O rótulo dos botões só some em 640px: num tablet os três cabem com texto.
     const barraMovel = css.slice(css.lastIndexOf('@media (max-width: 640px)'));
     expect(barraMovel).toContain('.rel-page .rel-btn-rotulo { display: none; }');
@@ -472,6 +474,8 @@ describe('20 e 21 · densidade e celular', () => {
     const movel = css.slice(css.indexOf('@media (max-width: 1023px)'));
     const acoes = /\.rel-page \.rel-cel-acoes \.btn-icone \{([\s\S]*?)\}/.exec(movel)![1];
     const alt = /height: (\d+)px/.exec(acoes)![1];
-    expect(Number(alt)).toBeGreaterThanOrEqual(34);
+    // 44, e não 34: o item 3 da rodada de 10/09/2026 proibiu resolver a
+    // largura encolhendo o alvo do dedo.
+    expect(Number(alt)).toBeGreaterThanOrEqual(44);
   });
 });

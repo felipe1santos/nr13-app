@@ -99,12 +99,10 @@ describe('o texto da linha não estoura com 1, 5, 10 ou 20', () => {
 });
 
 describe('celular', () => {
-  const movel = css.slice(css.lastIndexOf('@media (max-width: 640px)'));
-
   it('a linha cresce para o dedo, e a lista encolhe o teto', () => {
     const geral = css.slice(css.indexOf('@media (max-width: 640px)'));
     expect(geral).toContain('.wz-container { height: 68px;');
-    expect(movel).toContain('.wz-containers { max-height: 252px; }');
+    expect(geral).toContain('.wz-containers { max-height: 252px; }');
   });
 
   it('o olho tem 44 px', () => {
