@@ -95,25 +95,48 @@ describe('a revisão só lista ensaio REALMENTE salvo', () => {
 });
 
 describe('gate · "Para qual equipamento?" não volta ao fluxo moderno', () => {
+  const CRIAR = '?editor=1&tag=ZZ-1';
+
   it('escolha COM container abre montando — nem seletor, nem modal', () => {
     expect(
-      telaInicialDoEditor({ tag: 'ZZ-1', tipo: 'Inspeção Periódica', documentos: ['CAPA.html'], containerId: 'c1' }),
+      telaInicialDoEditor(
+        { tag: 'ZZ-1', tipo: 'Inspeção Periódica', documentos: ['CAPA.html'], containerId: 'c1' },
+        CRIAR,
+      ),
     ).toBe('montando');
     // `null` é decisão tomada ("sem container"), não ausência de decisão.
     expect(
-      telaInicialDoEditor({ tag: 'ZZ-1', tipo: 'Inspeção Periódica', documentos: ['CAPA.html'], containerId: null }),
+      telaInicialDoEditor(
+        { tag: 'ZZ-1', tipo: 'Inspeção Periódica', documentos: ['CAPA.html'], containerId: null },
+        CRIAR,
+      ),
     ).toBe('montando');
   });
 
   it('state ANTIGO (sem containerId) cai em criacao, nunca no seletor', () => {
-    expect(telaInicialDoEditor({ tag: 'ZZ-1', tipo: 'Inspeção Periódica', documentos: ['CAPA.html'] })).toBe('criacao');
+    expect(telaInicialDoEditor({ tag: 'ZZ-1', tipo: 'Inspeção Periódica', documentos: ['CAPA.html'] }, CRIAR)).toBe(
+      'criacao',
+    );
   });
 
-  it('sem escolha nenhuma o seletor CONTINUA sendo o destino certo', () => {
-    // `?editor=1` puro e `?legado=1` sem TAG — os dois caminhos que ainda
-    // precisam perguntar. A tela não foi removida; ela saiu do fluxo moderno.
+  it('CONTINUAR EDITANDO um rascunho não passa pelo seletor', () => {
+    // Medido em 09/09/2026: "continuar editando" gera esta URL SEM state, e o
+    // seletor de equipamento aparecia por quatro quadros antes de o rascunho
+    // abrir. O `rel=` já diz que o destino é um documento.
+    expect(telaInicialDoEditor(null, '?editor=1&tag=ZZ-1&rel=REL-9')).toBe('montando');
+    // O mesmo vale para o documento legado.
+    expect(telaInicialDoEditor(null, '?legado=1&tag=ZZ-1&rel=REL-9')).toBe('montando');
+  });
+
+  it('`?legado=1` sem documento começa no histórico daquela TAG', () => {
+    expect(telaInicialDoEditor(null, '?legado=1&tag=ZZ-1')).toBe('historico');
+  });
+
+  it('sem escolha e sem TAG o seletor CONTINUA sendo o destino certo', () => {
+    // `?editor=1` puro — o caminho que ainda precisa perguntar. A tela não foi
+    // removida; ela saiu do fluxo moderno.
     for (const s of [null, undefined, {}, { tag: '' }, { tag: 'ZZ-1' }, 'lixo', { documentos: [] }]) {
-      expect(telaInicialDoEditor(s), JSON.stringify(s)).toBe('equipamentos');
+      expect(telaInicialDoEditor(s, '?editor=1'), JSON.stringify(s)).toBe('equipamentos');
     }
   });
 
@@ -146,7 +169,14 @@ describe('gate · o fluxo moderno não monta a tela intermediária', () => {
   });
 
   it('a tela de fundo nasce decidida, e não em efeito', () => {
-    expect(tela).toContain('useState<Tela>(() => telaInicialDoEditor(window.history.state?.usr))');
+    expect(tela).toContain('telaInicialDoEditor(window.history.state?.usr, window.location.search)');
+  });
+
+  it('pedir o seletor DE PROPÓSITO ainda funciona', () => {
+    // A guarda olha `escolhaPronta.current`; sem limpá-la, o "← Voltar" da
+    // tela de criação não renderizaria nada.
+    const voltar = tela.slice(tela.indexOf('function voltarParaEquipamentos()'));
+    expect(voltar.slice(0, 400)).toContain('escolhaPronta.current = null;');
   });
 
   it('com container decidido, o editor gera direto — sem o modal do container', () => {

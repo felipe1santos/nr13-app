@@ -182,7 +182,9 @@ function RelatoriosLegado() {
    * "Para qual equipamento?" e o efeito de montagem só abria o modal do
    * container por cima — sem nunca trocar o fundo. Ver `telaInicialDoEditor`.
    */
-  const [tela, setTela] = useState<Tela>(() => telaInicialDoEditor(window.history.state?.usr));
+  const [tela, setTela] = useState<Tela>(() =>
+    telaInicialDoEditor(window.history.state?.usr, window.location.search),
+  );
 
   /**
    * O PAPEL desta tela, decidido pela ROTA — nunca por heurística.
@@ -620,6 +622,10 @@ function RelatoriosLegado() {
   }
 
   function voltarParaEquipamentos() {
+    // Pedir o seletor DE PROPÓSITO é o único caminho que o abre depois de uma
+    // escolha pronta: a guarda do bloco olha esta ref, e sem limpá-la o
+    // "← Voltar" da tela de criação não renderizaria nada.
+    escolhaPronta.current = null;
     setTela('equipamentos');
   }
 

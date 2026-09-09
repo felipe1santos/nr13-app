@@ -475,7 +475,7 @@ export default function ModalCriarRelatorio({ tag, resumo, aoVoltar, onClose, on
                       {escolhido.data}
                       {escolhido.responsavel ? ` · ${escolhido.responsavel}` : ''}
                       {escolhido.totalFotos > 0 ? ` · ${escolhido.totalFotos} foto${escolhido.totalFotos > 1 ? 's' : ''}` : ''}
-                      {escolhido.totalMedicoes > 0 ? ` · ${escolhido.totalMedicoes} medição${escolhido.totalMedicoes > 1 ? 'ões' : ''}` : ''}
+                      {escolhido.totalMedicoes > 0 ? ` · ${escolhido.totalMedicoes} ${escolhido.totalMedicoes > 1 ? 'medições' : 'medição'}` : ''}
                     </p>
                     {revisaveis.length > 0 ? (
                       <>
@@ -584,7 +584,7 @@ export default function ModalCriarRelatorio({ tag, resumo, aoVoltar, onClose, on
                           {[
                             e.data,
                             e.respostas > 0 ? `${e.respostas} resposta${e.respostas > 1 ? 's' : ''}` : null,
-                            e.medicoes > 0 ? `${e.medicoes} medição${e.medicoes > 1 ? 'ões' : ''}` : null,
+                            e.medicoes > 0 ? `${e.medicoes} ${e.medicoes > 1 ? 'medições' : 'medição'}` : null,
                             e.fotos > 0 ? `${e.fotos} foto${e.fotos > 1 ? 's' : ''}` : null,
                             e.resultado,
                           ]

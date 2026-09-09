@@ -131,14 +131,31 @@ export function escolhaProntaDoState(state: unknown): EscolhaPronta | null {
  * A decisão precisa ser SÍNCRONA, antes da primeira pintura, e é por isso que
  * ela é uma função pura sobre o `state` e não um `useEffect`.
  *
- * - `montando`: veio decidido de `/relatorios`. Nenhuma pergunta a fazer.
+ * - `montando`: veio decidido de `/relatorios`, ou a URL aponta para UM
+ *   documento (`rel=`). Nenhuma pergunta a fazer.
  * - `criacao`: veio o equipamento e as folhas, mas não o container (state
  *   antigo). O fundo é a tela do equipamento JÁ escolhido, nunca o seletor.
- * - `equipamentos`: ninguém decidiu nada — `?editor=1` puro ou `?legado=1`
- *   sem TAG. Aí o seletor é o destino certo.
+ * - `historico`: `?legado=1&tag=…` sem documento — ali o histórico por TAG É o
+ *   destino, e começar nele evita o mesmo piscar.
+ * - `equipamentos`: ninguém decidiu nada — `?editor=1` puro, sem TAG. Aí o
+ *   seletor é o destino certo, e ele continua existindo para isso.
+ *
+ * A URL entrou nesta conta em 09/09/2026, medido: "continuar editando" gera
+ * `?editor=1&tag=…&rel=…` SEM state, e o seletor de equipamento aparecia por
+ * quatro quadros antes de o rascunho abrir. O `rel=` já diz que o destino é um
+ * documento; perguntar o equipamento nunca foi uma opção nesse caminho.
  */
-export function telaInicialDoEditor(state: unknown): 'montando' | 'criacao' | 'equipamentos' {
+export function telaInicialDoEditor(
+  state: unknown,
+  search: string,
+): 'montando' | 'criacao' | 'historico' | 'equipamentos' {
   const escolha = escolhaProntaDoState(state);
-  if (!escolha) return 'equipamentos';
-  return escolha.containerId === undefined ? 'criacao' : 'montando';
+  if (escolha) return escolha.containerId === undefined ? 'criacao' : 'montando';
+  const alvo = alvoLegadoDaUrl(search);
+  if (!alvo) return 'equipamentos';
+  if (alvo.rel) return 'montando';
+  // TAG sem documento: no legado é o histórico daquela TAG; no editor não há
+  // destino, e o efeito devolve para `/relatorios` — em qualquer dos dois, o
+  // seletor de equipamento não é resposta.
+  return papelDaTelaLegada(search) === 'legado' ? 'historico' : 'montando';
 }
