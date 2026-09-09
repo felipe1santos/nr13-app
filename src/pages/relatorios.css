@@ -2416,3 +2416,9 @@ body.doc-foco .meta-barra-fixa { padding-top: 6px; padding-bottom: 6px; }
    lista. Fica neutro, e escurece no hover como qualquer outro. */
 .rel-page .rel-cel-acoes .btn-icone:not(.cor-doc):not(.cor-doc-forte) { color: var(--text-muted); }
 .rel-page .rel-cel-acoes .btn-icone:not(.cor-doc):not(.cor-doc-forte):hover { color: var(--text-main); }
+
+/* O contêiner das folhas do fluxo de iframes fica VAZIO no fluxo vetorial —
+   as folhas não são montadas e, desde 09/09, o bloco de anexos também não.
+   Vazio ele ainda ocupava ~40px logo abaixo do visualizador, e era o resto do
+   vão que fazia a prévia parecer ter algo mais embaixo. */
+.relatorio-preview:empty { display: none; }

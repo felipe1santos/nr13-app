@@ -17,7 +17,10 @@ export type NomeIcone =
   // Ícones GENÉRICOS de planilha (importação). Não reproduzem logotipo registrado
   // de nenhuma suíte — são desenhos próprios no traço do sprite, diferenciados
   // por cor via a prop `style` (verde/verde/azul/neutro) + rótulo textual ao lado.
-  | 'planilha' | 'planilha-nuvem' | 'planilha-calc' | 'planilha-csv';
+  | 'planilha' | 'planilha-nuvem' | 'planilha-calc' | 'planilha-csv'
+  // Documento PDF: folha com o canto dobrado e a tarja vermelha. É o ÚNICO
+  // ícone do sprite com cor própria — ver a nota em PATHS.
+  | 'pdf';
 
 const PATHS: Record<NomeIcone, ReactNode> = {
   grid: (<><rect x="3" y="3" width="7" height="7" rx="1.2" /><rect x="14" y="3" width="7" height="7" rx="1.2" /><rect x="14" y="14" width="7" height="7" rx="1.2" /><rect x="3" y="14" width="7" height="7" rx="1.2" /></>),
@@ -147,6 +150,47 @@ const PATHS: Record<NomeIcone, ReactNode> = {
       <path d="M10.5 17.3V19h3v-1.7" />
       <line x1="9.5" y1="20.5" x2="14.5" y2="20.5" />
       <line x1="12" y1="19" x2="12" y2="22" />
+    </>
+  ),
+
+  /**
+   * DOCUMENTO PDF — a folha com o canto dobrado e a tarja vermelha.
+   *
+   * É o **único** ícone do sprite que carrega cor própria, e isso é deliberado:
+   * o resto do sprite é traço em `currentColor` justamente para herdar o estado
+   * do lugar onde está (ativo, hover, desabilitado). Aqui a tarja vermelha É a
+   * informação — é o que faz o olho reconhecer "documento PDF" antes de ler o
+   * rótulo, e é a mesma cor da marca que já identifica cada linha da lista de
+   * relatórios (`.rel-marca-pdf`, #b42318).
+   *
+   * A folha continua em `currentColor`: no menu ela acende junto com o item
+   * selecionado, como todos os outros. Só a tarja fica fixa.
+   *
+   * Desenhado — não é o PNG. Em 17px um raster de 1240px sairia borrado, e o
+   * sprite existe exatamente para não depender de arquivo de imagem.
+   */
+  pdf: (
+    <>
+      {/* A folha e o canto dobrado, no traço do sprite. */}
+      <path d="M14 2.5H6.5a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2.5 14 8 19.5 8" />
+      {/* UMA linha de texto. Em 17px — o tamanho do menu — duas já viram uma
+          mancha só, e a tarja precisa do espaço. */}
+      <line x1="7.5" y1="11.4" x2="13" y2="11.4" />
+      {/* A TARJA, sangrando dos dois lados como no ícone de referência.
+          Alta e larga de propósito: é ela que faz o ícone ser reconhecido a 17px. */}
+      <rect x="1.8" y="13.6" width="20.4" height="7.2" rx="0.7" fill="#D91E18" stroke="none" />
+      {/* "PDF" em traço branco. Não é `<text>`: um sprite não pode depender da
+          fonte da página, e texto de 4px não sobrevive à rasterização da tela. */}
+      <g stroke="#ffffff" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" fill="none">
+        {/* P */}
+        <path d="M4.6 19.4v-4h1.5a1.15 1.15 0 0 1 0 2.3H4.6" />
+        {/* D */}
+        <path d="M9.4 19.4v-4h1.1a2 2 0 0 1 0 4z" />
+        {/* F */}
+        <path d="M15.6 19.4v-4h2.4" />
+        <line x1="15.6" y1="17.5" x2="17.5" y2="17.5" />
+      </g>
     </>
   ),
 };

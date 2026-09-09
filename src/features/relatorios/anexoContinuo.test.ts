@@ -136,3 +136,34 @@ describe('a emissão continua produzindo UM arquivo, e o SHA é dele', () => {
     expect(tela).toContain("fluxo === 'vetorial' && !somenteLeitura && (");
   });
 });
+
+describe('o ícone da seção Relatórios', () => {
+  const icones = readFileSync('src/components/Icone.tsx', 'utf8');
+  const menu = readFileSync('src/app/menu.ts', 'utf8');
+
+  it('o menu usa o ícone do documento que a seção produz', () => {
+    // Era `barchart` — gráfico de barras para a tela que lista documentos.
+    expect(menu).toContain("{ id: 'relatorios', to: '/relatorios', label: 'Relatórios', icone: 'pdf' },");
+  });
+
+  it('é desenhado no sprite, não um arquivo de imagem', () => {
+    // Um PNG de 1240px sai borrado nos 17px do menu, e o sprite existe para não
+    // depender de arquivo.
+    expect(icones).toContain('  pdf: (');
+    expect(icones).not.toMatch(/<img|\.png|\.webp/);
+  });
+
+  it('a folha herda a cor do item; só a TARJA é fixa', () => {
+    const bloco = icones.slice(icones.indexOf('  pdf: ('), icones.indexOf('};', icones.indexOf('  pdf: (')));
+    // Exatamente duas cores literais: o vermelho da tarja e o branco das letras.
+    const cores = bloco.match(/#[0-9A-Fa-f]{3,6}/g) ?? [];
+    expect(new Set(cores)).toEqual(new Set(['#D91E18', '#ffffff']));
+    // E a folha continua sem cor própria — ela é `currentColor` pelo CSS do sprite.
+    expect(bloco).toContain('<path d="M14 2.5H6.5a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V8z" />');
+  });
+
+  it('o resto do sprite continua sem cor própria', () => {
+    const outros = icones.slice(icones.indexOf('const PATHS'), icones.indexOf('  pdf: ('));
+    expect(outros).not.toMatch(/fill="#|stroke="#/);
+  });
+});

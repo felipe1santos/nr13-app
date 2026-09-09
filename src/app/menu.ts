@@ -43,7 +43,10 @@ export const ITENS_CADASTRAR: ItemMenu[] = [
 ];
 
 export const ITENS_BAIXO: ItemMenu[] = [
-  { id: 'relatorios', to: '/relatorios', label: 'Relatórios', icone: 'barchart' },
+  // 09/09/2026 · era 'barchart' — gráfico de barras para a tela que lista
+  // DOCUMENTOS. O ícone agora é o do arquivo que a seção produz, e é o mesmo
+  // desenho que marca cada linha da lista.
+  { id: 'relatorios', to: '/relatorios', label: 'Relatórios', icone: 'pdf' },
   { id: 'prontuarios', to: '/prontuarios', label: 'Prontuários', icone: 'book' },
   { id: 'calibracoes', to: '/calibracoes', label: 'Calibrações', icone: 'sliders' },
   { id: 'certificados', to: '/certificados', label: 'Certificados', icone: 'shield' },
