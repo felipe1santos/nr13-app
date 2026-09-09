@@ -459,7 +459,7 @@ describe('20 e 21 · densidade e celular', () => {
     expect(movel).toContain('.rel-page .rel-cel-acoes { grid-column: 2 / -1; grid-row: 4;');
     expect(movel).toContain('justify-content: flex-end;');
     // O rótulo dos botões só some em 640px: num tablet os três cabem com texto.
-    const barraMovel = css.slice(css.lastIndexOf('@media (max-width: 640px)'));
+    const barraMovel = css.slice(css.indexOf('@media (max-width: 640px)'));
     expect(barraMovel).toContain('.rel-page .rel-btn-rotulo { display: none; }');
   });
 

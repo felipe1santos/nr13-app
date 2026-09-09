@@ -2511,3 +2511,9 @@ body.doc-foco .meta-barra-fixa { padding-top: 6px; padding-bottom: 6px; }
   .rel-modal .campo-destacado { animation: none; }
 }
 
+
+/* 10/09/2026 · alvo do dedo na barra do editor. `.meta-barra-fixa .barra-btn`
+   fixa 34px de altura, e o `min-height` do menu perdia por especificidade. */
+@media (max-width: 640px) {
+  .meta-barra-fixa .barra-btn { height: 44px; }
+}
