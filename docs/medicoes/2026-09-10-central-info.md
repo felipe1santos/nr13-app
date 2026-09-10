@@ -182,6 +182,59 @@ registrado aqui.
    (o Portal tem layout próprio, sem este menu). Está citado dentro dos guias de
    Clientes e de Acessos.
 
+## Segunda passada — UX (mesmo dia)
+
+Depois de ver a tela pronta, o dono pediu cinco mudanças. Todas entraram, e uma
+delas virou padrão da casa.
+
+| pedido | o que mudou |
+|---|---|
+| setas ligando os cartões numerados | `::after` no gap, escondida no fim de cada fileira por `nth-child`. Foi por isso que as colunas viraram FIXAS por faixa (4 · 3 · 2 · 1): com `auto-fill` não há como saber qual cartão fecha a fileira, e a seta apontaria para o vazio da margem. Doze etapas fecham exato nas quatro contagens; no celular a seta gira para baixo |
+| clicar na etapa abre um modal com "Ir à seção" | `ModalJornada`, com `?etapa=<n>` |
+| "Guia completo" abre a jornada inteira, avançando pela seta, com progresso no topo | o MESMO componente, começando do zero. A barra de progresso também navega: cada traço é uma etapa e clicar salta para ela |
+| guias por seção mais completos | passos novos em equipamentos, funcionários, inspeções, relatórios, dashboard e acessos |
+| FAQ só com a resposta, sem "Ver o guia" | botão removido |
+| sem ilustração no guia, só o ícone | `ilustracao` saiu do tipo e dos guias |
+
+Um componente só para os dois usos do modal, e a razão é de uso: quem abre a
+etapa 3 e entende **quer ver a 4**. Dois modais separados deixariam o primeiro
+sem saída.
+
+### Três decisões de UX que não foram pedidas, mas a tela pedia
+
+1. **A faixa de identificação emagreceu de 96 px para 54 px** — e virou padrão
+   para toda tela nova. A topbar já diz o nome da tela; repetir em corpo de
+   manchete gastava a dobra com o que o usuário já sabia. Com ela fina, as doze
+   etapas da jornada cabem inteiras na primeira tela.
+2. **A busca acompanha a rolagem.** Jornada + quatro categorias + 29 perguntas:
+   voltar ao topo para procurar é atrito puro.
+3. **O FAQ abre cortado em 8**, com "Ver todas as 29 perguntas". Buscando, vem
+   inteiro — cortar o resultado de uma busca esconderia a resposta procurada.
+
+### Duas perguntas novas sobre acesso
+
+"Meus funcionários e colaboradores podem acessar o sistema também?" responde o
+controle de acesso inteiro: os três tipos de login (mestre, equipe, cliente do
+Portal), que colaborador não paga assinatura separada, a permissão módulo a
+módulo, os dois perfis e o que só o mestre faz. A segunda — "uma pessoa começa a
+inspeção no celular e outra gera o relatório" — diz que inspeção e documento
+pertencem à organização, não a quem os criou.
+
+### Medido em produção
+
+| largura | jornada | cards | seta | overflow |
+|---|---|---|---|---|
+| 1400 | 4 col | 3 col | → | não |
+| 1000 | 3 col | 2 col | → | não |
+| 768 | 2 col | 2 col | → | não |
+| 390 / 386 | 1 col | 1 col | ↓ | não |
+
+Faixa com 54 px; busca colada no topo depois de 900 px de rolagem; FAQ com 8 de
+29. Jornada: abre na etapa clicada, avança pela seta e pelo teclado, salta pela
+barra de progresso, e a última traz "Concluir" em vez de "Próxima etapa".
+
+Suíte: **2.951 passando**, 48 gates da central.
+
 ## Ponto de retomada
 
 - Avaliar a dica discreta de primeiro acesso ("Precisa de ajuda? Veja o guia de
