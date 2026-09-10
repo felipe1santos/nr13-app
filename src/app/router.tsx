@@ -20,6 +20,7 @@ import Empresas from '../pages/Empresas';
 import Funcionarios from '../pages/Funcionarios';
 import Admin from '../pages/Admin';
 import Acesso from '../pages/Acesso';
+import Info from '../pages/Info';
 import PortalLayout from '../pages/portal/PortalLayout';
 import PortalAtivos from '../pages/portal/PortalAtivos';
 import PortalAtivo from '../pages/portal/PortalAtivo';
@@ -82,6 +83,7 @@ export const router = createBrowserRouter([
                   { path: '/minha-empresa', element: <MinhaEmpresa /> },
                   { path: '/empresas', element: <Empresas /> },
                   { path: '/funcionarios', element: <Funcionarios /> },
+                  { path: '/info', element: <Info /> },
                   { path: '/acesso', element: <Acesso /> },
                 ],
               },

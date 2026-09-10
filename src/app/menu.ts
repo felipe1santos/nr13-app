@@ -54,6 +54,16 @@ export const ITENS_BAIXO: ItemMenu[] = [
   // de quem usa não podem quebrar por uma troca de rótulo. O nome na INTERFACE
   // é 'Registros de Segurança'.
   { id: 'livro', to: '/livro-registro', label: 'Registros de Segurança', icone: 'filetext' },
+  /**
+   * A central de ajuda (10/09/2026).
+   *
+   * Fica no FIM do grupo, depois de tudo o que ela explica: quem chega aqui já
+   * passou o olho no menu e não achou o que procurava. E fica FORA do controle
+   * de permissão por módulo, de propósito — o inspetor com acesso só a
+   * Inspeções é justamente quem mais precisa de ajuda, e esconder a
+   * documentação de quem tem menos permissão é o contrário do que ela serve.
+   */
+  { id: 'info', to: '/info', label: 'Info', icone: 'info' },
 ];
 
 // Só o mestre enxerga (gestão de sub-logins).
@@ -82,6 +92,7 @@ export const TITULOS_ROTA: { prefixo: string; titulo: string; sub: string }[] = 
   { prefixo: '/funcionarios', titulo: 'Funcionários', sub: 'Profissionais habilitados e equipe' },
   { prefixo: '/empresas', titulo: 'Clientes', sub: 'Empresas clientes cadastradas' },
   { prefixo: '/minha-empresa', titulo: 'Meus dados', sub: 'Dados da empresa executante' },
+  { prefixo: '/info', titulo: 'Info', sub: 'Central de ajuda: guias, fluxo do sistema e dúvidas frequentes' },
   { prefixo: '/acesso', titulo: 'Acessos', sub: 'Logins da sua equipe e permissões' },
   { prefixo: '/pendencias', titulo: 'Sincronização', sub: 'O que ainda não subiu para o servidor' },
 ];

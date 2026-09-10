@@ -83,7 +83,9 @@ export default function Layout() {
   const permitido = (id: string) => modulosPermitidos === null || modulosPermitidos.includes(id as never);
   const itensTopo = ITENS_TOPO.filter((i) => permitido(i.id));
   const itensCadastrar = ITENS_CADASTRAR.filter((i) => permitido(i.id));
-  const itensBaixo = ITENS_BAIXO.filter((i) => permitido(i.id));
+  // `info` é a exceção: a central de ajuda não é um módulo de operação e não
+  // se esconde de ninguém. Ver o comentário em `menu.ts`.
+  const itensBaixo = ITENS_BAIXO.filter((i) => i.id === 'info' || permitido(i.id));
 
   // Guard leve de rota: usuário com permissões restritas que cair numa rota
   // não permitida é levado ao primeiro módulo permitido.
