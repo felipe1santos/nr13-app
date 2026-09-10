@@ -83,7 +83,13 @@ describe('modelo próprio: compacto, com UMA assinatura no fim', () => {
   it('as folhas de croqui e de dados derivadas viraram UMA', () => {
     // A folha de dados tinha meia dúzia de campos e custava uma página.
     expect(folhas).not.toContain('folhaProntFolhaDados');
-    expect(folhas).toContain('DADOS DERIVADOS DO MODELO');
+    // O conteúdo dela entra pela folha do croqui, não por folha própria.
+    expect(folhas).toContain('medidasDerivadas(doc, m.folhaDados)');
+    const croqui = folhas.slice(
+      folhas.indexOf('export function folhaProntCroqui'),
+      folhas.indexOf('function medidasDerivadas'),
+    );
+    expect(croqui).toContain('medidasDerivadas(doc, m.folhaDados)');
   });
 
   it('o cabeçalho diz PRONTUÁRIO — e não relatório de inspeção', () => {

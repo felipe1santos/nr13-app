@@ -4,7 +4,8 @@ import type { CelulaDoc, Documento } from './documento';
 import { textoOu } from './modelo';
 import { extremosDaRegiao } from './folhas';
 import { formulaDoLatex } from './latexMemorial';
-import type { ModeloProntuario } from './modeloProntuario';
+import type { FolhaDadosProntuario, ModeloProntuario } from './modeloProntuario';
+import { COLUNAS_DIMENSAO, rotulosDimensoes } from '../../prontuarios/rotulosDimensoes';
 
 /**
  * O PRONTUÁRIO — modelo próprio, em 4 ou 5 folhas.
@@ -362,10 +363,13 @@ export function folhaProntCroqui(doc: Documento, m: ModeloProntuario): void {
   if (m.dimensoes.length > 0) {
     doc.y += 2;
     doc.faixa('DIMENSÕES REAIS');
+    // Os cabeçalhos vêm dos MESMOS rótulos do formulário — com a unidade, e
+    // com o nome que aquele tipo de equipamento usa. Ver `rotulosDimensoes`.
+    const r = rotulosDimensoes(m.tipoEquipamento, m.subtipo);
     doc.tabela({
       compacta: true,
       colunas: [0.2, 0.11, 0.11, 0.14, 0.11, 0.11, 0.11, 0.11],
-      cabecalho: ['MODELO', 'Ø', 'ALTURA', 'COMPRIMENTO', 'e CORPO', 'e FUNDO', 'e TAMPA', 'VOLUME'],
+      cabecalho: COLUNAS_DIMENSAO.map((c) => r[c].toLocaleUpperCase('pt-BR')),
       linhas: m.dimensoes.map((d) => [
         { texto: d.modelo },
         { texto: d.diametro, centro: true, valor: true },
@@ -381,11 +385,75 @@ export function folhaProntCroqui(doc: Documento, m: ModeloProntuario): void {
 
   // A folha de dados derivada do modelo entra aqui, e não numa folha própria:
   // são poucos campos, e separá-los custava uma página inteira.
-  const campos = Object.entries(m.folhaDados).filter(([, v]) => v !== null) as [string, string][];
-  if (campos.length > 0) {
+  medidasDerivadas(doc, m.folhaDados);
+}
+
+/**
+ * As medidas que o modelo do croqui DERIVA — comprimento total, circunferência,
+ * pesos, componentes e bocais.
+ *
+ * Isto já foi um despejo de JSON (ver `FolhaDadosProntuario`). Cada bloco aqui
+ * existe porque o `PRONT-FOLHA-DADOS.html` e o `PRONT-CROQUI2D.html` já o
+ * tinham; o que a folha vetorial fazia era imprimir a estrutura interna do
+ * payload no lugar do conteúdo dele.
+ *
+ * `geradoEm` ficou de fora de propósito: é o carimbo de quando o payload foi
+ * calculado, não uma medida do equipamento, e o documento já traz a data de
+ * emissão no cabeçalho de toda folha.
+ */
+function medidasDerivadas(doc: Documento, fd: FolhaDadosProntuario): void {
+  const medidas: [string, string | null][] = [
+    ['ORIENTAÇÃO', fd.orientacao],
+    ['COMPRIMENTO TOTAL', fd.comprimentoTotal],
+    ['CIRCUNFERÊNCIA', fd.circunferencia],
+    ['PESO VAZIO', fd.pesoVazio],
+    ["PESO CHEIO D'ÁGUA", fd.pesoCheio],
+    ['PESO EM OPERAÇÃO', fd.pesoOperacao],
+  ].filter(([, v]) => v !== null) as [string, string][];
+
+  if (medidas.length > 0) {
     doc.y += 2;
-    doc.faixa('DADOS DERIVADOS DO MODELO');
-    tabelaChaveValor(doc, campos);
+    doc.faixa('MEDIDAS DERIVADAS DO MODELO');
+    tabelaChaveValor(doc, medidas);
+    if (fd.notaSuporte) {
+      // O modelador não soma o peso de pés/selas. Sem esta linha, o peso vazio
+      // do documento seria lido como o peso do conjunto — e ele não é.
+      doc.texto('Pesos calculados para o casco, os tampos e os bocais; o suporte (pés/selas) não está incluído.', {
+        tamanho: FONTE.nota,
+        cor: COR.nota,
+        espacoAntes: 1,
+      });
+    }
+  }
+
+  if (fd.dimensoes.length > 0) {
+    doc.y += 2;
+    doc.faixa('DIMENSÕES POR COMPONENTE');
+    doc.tabela({
+      compacta: true,
+      colunas: [1],
+      linhas: fd.dimensoes.map((linha) => [{ texto: linha }]),
+    });
+  }
+
+  if (fd.bocais.length > 0) {
+    doc.y += 2;
+    doc.faixa('LISTA DE BOCAIS');
+    doc.tabela({
+      compacta: true,
+      colunas: [0.1, 0.24, 0.09, 0.14, 0.13, 0.1, 0.12, 0.08],
+      cabecalho: ['TAG', 'SERVIÇO', 'DN', 'Ø × t (mm)', 'FLANGE', 'LOCAL', 'POS. LONG.', 'ÂNGULO'],
+      linhas: fd.bocais.map((b) => [
+        { texto: b.tag },
+        { texto: b.servico },
+        { texto: b.dn, centro: true, valor: true },
+        { texto: b.diametroEspessura, centro: true, valor: true },
+        { texto: b.flange, centro: true },
+        { texto: b.local, centro: true },
+        { texto: b.posicao, centro: true, valor: true },
+        { texto: b.angulo, centro: true, valor: true },
+      ]),
+    });
   }
 }
 

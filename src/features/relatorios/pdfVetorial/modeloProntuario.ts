@@ -2,7 +2,7 @@ import { ler } from '../../../services/storage';
 import { linhasMemorial } from '../relatoriosService';
 import { obterAssinantes } from '../../prontuarios/prontuarioService';
 import type { ProntuarioDados } from '../../prontuarios/tipos';
-import { converterPressao, numeroDoStorage, pontosUltrassom, textoOu, type FotoModelo } from './modelo';
+import { converterPressao, numeroBr, numeroDoStorage, pontosUltrassom, textoOu, type FotoModelo } from './modelo';
 import type { RelatorioMeta } from '../tipos';
 import { rotuloClasseFluido, rotuloTipoEquipamento } from './rotulos';
 
@@ -60,6 +60,55 @@ export interface ComponenteProntuario {
   formulaP: string | null;
 }
 
+/**
+ * Um bocal do modelo do croqui, já pronto para a folha.
+ *
+ * As colunas são as mesmas da "Lista de Bocais" do `PRONT-FOLHA-DADOS.html`
+ * — o documento vetorial não inventa apresentação nova para um dado que já
+ * tinha a sua.
+ */
+export interface BocalProntuario {
+  tag: string;
+  servico: string;
+  dn: string;
+  diametroEspessura: string;
+  flange: string;
+  local: string;
+  posicao: string;
+  angulo: string;
+}
+
+/**
+ * As medidas DERIVADAS do modelo do croqui 2D — comprimento, circunferência,
+ * pesos, bocais e a descrição de cada componente.
+ *
+ * Isto era `Record<string, string | null>`, preenchido com
+ * `JSON.stringify` de tudo que não fosse texto. O resultado no papel:
+ *
+ * ```
+ * pesos   {"vazioKg":417.62295507194204,"cheioDaguaKg":1417.5657167707932,…}
+ * circunferenciaMm   1610.694553495487
+ * ```
+ *
+ * JSON cru, chave em camelCase, float com doze casas — dentro de um prontuário
+ * assinado. O tipo genérico foi a causa: com um saco de strings, a folha não
+ * tinha o que renderizar além de chave e valor. Estruturar o modelo é o que
+ * devolve a apresentação, e as unidades, que o template legado já tinha.
+ */
+export interface FolhaDadosProntuario {
+  orientacao: string | null;
+  comprimentoTotal: string | null;
+  circunferencia: string | null;
+  pesoVazio: string | null;
+  pesoCheio: string | null;
+  pesoOperacao: string | null;
+  /** Suporte tipo pés/selas: o modelador não soma o peso dele. */
+  notaSuporte: boolean;
+  /** Uma linha por componente ("Casco cilíndrico — Ø500 mm × 4.926 mm, t=6,35 mm"). */
+  dimensoes: string[];
+  bocais: BocalProntuario[];
+}
+
 export interface DimensaoLinha {
   modelo: string;
   diametro: string;
@@ -83,6 +132,8 @@ export interface AssinanteProntuario {
 export interface ModeloProntuario {
   tag: string;
   tipoEquipamento: string;
+  /** Necessário para rotular as colunas de dimensão — ver `rotulosDimensoes`. */
+  subtipo: string;
   numero: string | null;
   emissao: string | null;
   revisao: string | null;
@@ -127,7 +178,7 @@ export interface ModeloProntuario {
   /** SVGs do croqui 2D. Desenho, não fotografia — vira imagem só na hora de pintar. */
   croqui: { longitudinal: string | null; transversal: string | null; detalheTampo: string | null };
   dimensoes: DimensaoLinha[];
-  folhaDados: Record<string, string | null>;
+  folhaDados: FolhaDadosProntuario;
 
   procedimentos: string | null;
   dispositivos: string | null;
@@ -196,6 +247,55 @@ function pontosEspessura(tag: string, medEsp: Record<string, unknown>): PontoEsp
   return pontosUltrassom(tag, medEsp, medEsp);
 }
 
+/**
+ * `nr13_folha_dados_<TAG>` → o bloco de medidas derivadas, já com unidade e
+ * número em pt-BR.
+ *
+ * As casas decimais não são estéticas: o modelador devolve
+ * `circunferenciaMm: 1610.694553495487`, e doze casas num documento técnico
+ * afirmam uma precisão de 10⁻⁹ mm que a medida não tem. Uma casa é o que o
+ * template legado imprimia (`fmtNumPtBRCompacto`), e é o que a trena lê.
+ */
+function folhaDadosDe(bruto: Record<string, unknown>): FolhaDadosProntuario {
+  const pesos = (bruto.pesos ?? {}) as Record<string, unknown>;
+  const bocais = Array.isArray(bruto.bocais) ? (bruto.bocais as Record<string, unknown>[]) : [];
+  const dimensoes = Array.isArray(bruto.dimensoes) ? (bruto.dimensoes as Record<string, unknown>[]) : [];
+  const orientacao = txt(bruto.orientacao);
+
+  const medida = (v: unknown, unidade: string): string | null => {
+    const n = numeroBr(v, 1);
+    return n === null ? null : `${n} ${unidade}`;
+  };
+
+  return {
+    orientacao: orientacao === null ? null : orientacao.charAt(0).toLocaleUpperCase('pt-BR') + orientacao.slice(1),
+    comprimentoTotal: medida(bruto.comprimentoTotalMm, 'mm'),
+    circunferencia: medida(bruto.circunferenciaMm, 'mm'),
+    pesoVazio: medida(pesos.vazioKg, 'kg'),
+    pesoCheio: medida(pesos.cheioDaguaKg, 'kg'),
+    pesoOperacao: medida(pesos.operacaoKg, 'kg'),
+    notaSuporte: pesos.notaSuporte === true,
+    dimensoes: dimensoes.map((d) => txt(d.texto)).filter((x): x is string => x !== null),
+    bocais: bocais.map((b) => {
+      // Ø × t numa coluna só: são duas medidas do mesmo furo, e separá-las
+      // custaria duas colunas de oito para um número de três dígitos.
+      const d = numeroBr(b.diametroMm, 1);
+      const e = numeroBr(b.espessuraMm, 1);
+      const local = txt(b.local);
+      return {
+        tag: textoOu(txt(b.id)),
+        servico: textoOu(txt(b.servico)),
+        dn: textoOu(txt(b.dn)),
+        diametroEspessura: d === null && e === null ? '—' : `Ø${d ?? '—'} × ${e ?? '—'}`,
+        flange: textoOu(txt(b.flange)),
+        local: local === null ? '—' : local === 'casco' ? 'Casco' : local === 'tampo1' ? 'Tampo 1' : local === 'tampo2' ? 'Tampo 2' : local,
+        posicao: textoOu(medida(b.posicaoAxialMm, 'mm')),
+        angulo: textoOu(numeroBr(b.anguloGraus, 0) === null ? null : `${numeroBr(b.anguloGraus, 0)}°`),
+      };
+    }),
+  };
+}
+
 export function montarModeloProntuario(tag: string): ModeloProntuario {
   const dados = ler<ProntuarioDados>(`nr13_prontuario_${tag}`) ?? ({} as ProntuarioDados);
   const meta = ler<{ numero?: string; emissao?: string }>(`nr13_prontuario_meta_${tag}`);
@@ -229,6 +329,7 @@ export function montarModeloProntuario(tag: string): ModeloProntuario {
   return {
     tag,
     tipoEquipamento: tipo,
+    subtipo: textoOu(txt(info.subtipo), ''),
     numero: txt(meta?.numero),
     emissao: txt(meta?.emissao),
     revisao: txt(dados.revisao),
@@ -352,19 +453,23 @@ export function montarModeloProntuario(tag: string): ModeloProntuario {
       transversal: txt(croqui.transversal),
       detalheTampo: txt(croqui.detalheTampo),
     },
-    dimensoes: (dados.dimensoes ?? []).map((d) => ({
-      modelo: textoOu(txt(d.modelo), ''),
-      diametro: textoOu(txt(d.diametro)),
-      altura: textoOu(txt(d.altura)),
-      comprimento: textoOu(txt(d.comprimento)),
-      espCorpo: textoOu(txt(d.espCorpo)),
-      espFundo: textoOu(txt(d.espFundo)),
-      espTampa: textoOu(txt(d.espTampa)),
-      volume: textoOu(txt(d.volume)),
-    })),
-    folhaDados: Object.fromEntries(
-      Object.entries(folhaDados).map(([k, v]) => [k, txt(typeof v === 'object' ? JSON.stringify(v) : v)]),
-    ),
+    // `numeroBr ?? txt`: o campo é livre, e o usuário pode digitar "2 × 500"
+    // ou "s/ tampo". Número vira pt-BR; o que não for número passa intacto,
+    // em vez de virar travessão.
+    dimensoes: (dados.dimensoes ?? []).map((d) => {
+      const medida = (v: unknown) => textoOu(numeroBr(v, 2) ?? txt(v));
+      return {
+        modelo: textoOu(txt(d.modelo), ''),
+        diametro: medida(d.diametro),
+        altura: medida(d.altura),
+        comprimento: medida(d.comprimento),
+        espCorpo: medida(d.espCorpo),
+        espFundo: medida(d.espFundo),
+        espTampa: medida(d.espTampa),
+        volume: medida(d.volume),
+      };
+    }),
+    folhaDados: folhaDadosDe(folhaDados),
 
     procedimentos: txt(calc.procedimentos),
     dispositivos: txt(calc.dispositivos),

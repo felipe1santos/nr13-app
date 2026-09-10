@@ -26,6 +26,7 @@ import {
 } from '../features/prontuarios/prontuarioService';
 import type { AssinantesProntuario } from '../features/prontuarios/prontuarioService';
 import type { DimensaoProntuario, ProntuarioDados } from '../features/prontuarios/tipos';
+import { rotulosDimensoes } from '../features/prontuarios/rotulosDimensoes';
 import { paginasProntuario, temCroqui2d } from '../features/prontuarios/tipos';
 import PainelPilotoProntuario from '../features/relatorios/pdfVetorial/PainelPilotoProntuario';
 import { motorProntuarioAtual } from '../features/relatorios/motorPdf';
@@ -247,54 +248,6 @@ function rotuloContainer(c: ContainerInspecao): string {
   return `Inspeção de ${c.criadoEm}${preenchido ? '' : ' (vazio)'}`;
 }
 
-function getLabelsDimensoes(tipo: string, subtipo: string): Record<keyof DimensaoProntuario, string> {
-  if (tipo === 'autoclave' && subtipo === 'retangular') {
-    return {
-      modelo: 'Modelo / Fabricante',
-      diametro: 'Largura interna (mm)',
-      altura: 'Altura interna (mm)',
-      comprimento: 'Comprimento interno (mm)',
-      espCorpo: 'Esp. Corpo (mm)',
-      espFundo: 'Profundidade (mm)',
-      espTampa: 'Esp. Porta/Tampa (mm)',
-      volume: 'Volume (L)',
-    };
-  }
-  if (tipo === 'autoclave') {
-    return {
-      modelo: 'Modelo / Fabricante',
-      diametro: 'Ø Câmara (mm)',
-      altura: 'Compr. Câmara (mm)',
-      comprimento: 'Comprimento (mm)',
-      espCorpo: 'Esp. Corpo (mm)',
-      espFundo: 'Esp. Fundo (mm)',
-      espTampa: 'Esp. Tampa/Porta (mm)',
-      volume: 'Volume (L)',
-    };
-  }
-  if (tipo === 'caldeira') {
-    return {
-      modelo: 'Modelo / Fabricante',
-      diametro: 'Ø Externo Corpo (mm)',
-      altura: 'Comprimento Total (mm)',
-      comprimento: 'Comprimento (mm)',
-      espCorpo: 'Esp. Costado (mm)',
-      espFundo: 'Esp. Tampo (mm)',
-      espTampa: 'Esp. Espelho (mm)',
-      volume: subtipo === 'aquatubular' ? 'Prod. Vapor (kg/h)' : 'Volume d\'água (L)',
-    };
-  }
-  return {
-    modelo: 'Modelo / Fabricante',
-    diametro: 'Ø Diâm. Interno (mm)',
-    altura: 'Alt. Corpo (mm)',
-    comprimento: 'Comprimento (mm)',
-    espCorpo: 'Esp. Chapa Corpo (mm)',
-    espFundo: 'Esp. Chapa Fundo (mm)',
-    espTampa: 'Esp. Tampa (mm)',
-    volume: 'Volume (L)',
-  };
-}
 
 export default function Prontuarios() {
   const [tela, setTela] = useState<Tela>('equipamentos');
@@ -1312,7 +1265,7 @@ export default function Prontuarios() {
 
             {/* Linha única de dimensões adaptada por tipo de equipamento */}
             {(() => {
-              const lbls = getLabelsDimensoes(tipoEquip, subtipoEquip);
+              const lbls = rotulosDimensoes(tipoEquip, subtipoEquip);
               const dim = dados.dimensoes?.[0] ?? linhaVazia();
               const campos = ['modelo', 'diametro', 'comprimento', 'altura', 'espCorpo', 'espFundo', 'espTampa', 'volume'] as const;
               return (
