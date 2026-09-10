@@ -1231,6 +1231,9 @@ export function folhaResumoCalculos(doc: Documento, m: ModeloRelatorio): void {
     // não aparece na equação não entra — legenda com símbolo ausente é ruído.
     const simbolos = variaveisDaFormula(c.formulaT, c.formulaP);
     const valorDe: Record<string, string | null> = {
+      // P estava FORA deste mapa: a legenda imprimia "—" para a variável
+      // principal das duas fórmulas logo acima (10/09/2026).
+      P: c.p,
       S: c.s,
       E: c.e,
       t: c.espNom,

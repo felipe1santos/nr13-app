@@ -156,6 +156,8 @@ export interface ModeloRelatorio {
     pmta: string | null;
     espReq: string | null;
     espNom: string | null;
+    /** Pressão de PROJETO (MPa) — a variável P das fórmulas. Ver o mapa `valorDe`. */
+    p: string | null;
     material: string | null;
     e: string | null;
     s: string | null;
@@ -827,6 +829,18 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
       pmta: txt(c.pmtaMpa),
       espReq: txt(c.tReqMm),
       espNom: txt(c.tNom),
+      // A PRESSÃO DE PROJETO do componente (10/09/2026).
+      //
+      // Ela é a variável P das duas fórmulas que a folha imprime logo acima da
+      // legenda — `t = P·D / (2·S·E − 0,2·P)`. Sem ela, a legenda de símbolos
+      // saía com "—" no P em TODO componente: o documento mostrava a equação e
+      // omitia o valor da sua principal variável, num relatório assinado.
+      //
+      // A fonte sempre existiu: é o `P` de `nr13_vaso_<TAG>` — exatamente o
+      // número que o motor do memorial usou para calcular `tReqMm`. Nada é
+      // recalculado aqui; o componente só passou a carregar o que já estava
+      // gravado ao lado dele.
+      p: numeroDoStorage(vaso.P) !== null ? String(numeroDoStorage(vaso.P)) : null,
       material: txt(c.material),
       e: txt(c.E),
       s: txt(c.S),

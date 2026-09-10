@@ -841,3 +841,54 @@ describe('vida remanescente: leitura do que a ficha já calculou', () => {
   });
 });
 
+
+// ── P · A PRESSÃO DE PROJETO NA LEGENDA DE SÍMBOLOS ──────────────────────────
+describe('a variável P das fórmulas do memorial (10/09/2026)', () => {
+  /**
+   * Medido em produção no relatório "RELATORIO DA IA": a folha de cada
+   * componente imprime a fórmula `t = P·D / (2·S·E − 0,2·P)` e, logo abaixo, a
+   * legenda de símbolos com o valor de cada variável. O P saía como "—" em
+   * TODOS os componentes — o documento mostrava a equação e omitia o valor da
+   * sua principal variável, num relatório assinado.
+   *
+   * A fonte sempre existiu: `nr13_vaso_<TAG>.P`, o mesmo número que o motor
+   * usou para calcular a espessura requerida. Faltava carregá-lo no modelo e
+   * pô-lo no mapa `valorDe` da legenda.
+   */
+  it('chega ao modelo a partir de `nr13_vaso_<TAG>.P`', () => {
+    fichaCompleta();
+    gravar(`nr13_calc_${TAG}`, {
+      pmta: '1.25',
+      pth: '1.63',
+      memorialHTML: '',
+      componentes: [
+        { nome: 'Casco Cilíndrico', pmtaMpa: '1.25', tReqMm: '5.15', tNom: '9.53', formulaT: 't = P·Ri / (S·E − 0,6·P)' },
+      ],
+    });
+
+    const m = montarModeloRelatorio(TAG);
+    expect(m.componentes).toHaveLength(1);
+    expect(m.componentes[0].p).toBe('1');
+  });
+
+  it('sem memorial gravado continua nulo — vazio é vazio', () => {
+    gravar(`nr13_info_${TAG}`, INFO);
+    gravar(`nr13_calc_${TAG}`, {
+      pmta: '1.25',
+      pth: '1.63',
+      memorialHTML: '',
+      componentes: [{ nome: 'Casco Cilíndrico', pmtaMpa: '1.25' }],
+    });
+
+    expect(montarModeloRelatorio(TAG).componentes[0].p).toBeNull();
+  });
+
+  it('a legenda de símbolos conhece o P', () => {
+    // O mapa `valorDe` de `folhas.ts` tinha S, E, t, D, Ri, R, L, c e PMTA —
+    // e não tinha P. Sem esta linha, o modelo carregaria o valor e a folha
+    // continuaria imprimindo travessão.
+    const folhas = readFileSync('src/features/relatorios/pdfVetorial/folhas.ts', 'utf8');
+    const mapa = folhas.slice(folhas.indexOf('const valorDe: Record<string, string | null> = {'));
+    expect(mapa.slice(0, 400)).toContain('P: c.p,');
+  });
+});
