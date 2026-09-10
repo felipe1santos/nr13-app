@@ -214,7 +214,7 @@
   .info-fluxo-passo:nth-child(3n)::after { content: none; }
   .info-fluxo-passo:last-child::after { content: none; }
 }
-@media (max-width: 760px) {
+@media (max-width: 820px) {
   .info-fluxo { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .info-fluxo-passo:nth-child(3n)::after { content: ''; }
   .info-fluxo-passo:nth-child(2n)::after { content: none; }

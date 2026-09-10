@@ -249,6 +249,9 @@ describe('gate · a tela', () => {
     expect(css).toContain('grid-template-columns: repeat(4, minmax(0, 1fr))');
     expect(css).toContain('grid-template-columns: repeat(3, minmax(0, 1fr))');
     expect(css).toContain('grid-template-columns: repeat(2, minmax(0, 1fr))');
+    // 768px (o tablet de referência) precisa cair em DUAS colunas: com três, o
+    // cartão fica com 240px e o texto quebra em quatro linhas.
+    expect(css).toContain('@media (max-width: 820px)');
     expect(css).toContain('.info-fluxo-passo:nth-child(4n)::after');
     expect(css).toContain('.info-fluxo-passo:last-child::after');
   });
