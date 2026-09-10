@@ -237,7 +237,9 @@ export default function Layout() {
               <NavItem key={item.id} item={item} />
             ))}
 
-            {itensCadastrar.length > 0 && (
+            {/* O grupo abre também para o mestre que só tem Acessos: ele é o
+                único item do grupo que não passa pelo filtro de permissão. */}
+            {(itensCadastrar.length > 0 || isMestre()) && (
               <>
                 <button
                   type="button"
@@ -254,6 +256,12 @@ export default function Layout() {
                   {itensCadastrar.map((item) => (
                     <NavItem key={item.id} item={item} sub />
                   ))}
+                  {/* 10/09/2026 · Acessos passou a morar DENTRO de Cadastrar.
+                      Ele é o cadastro dos logins da equipe — mesma natureza de
+                      Funcionários e Clientes. Solto no fim do menu, ficava entre
+                      as telas de operação, que é onde ninguém procura por
+                      "criar um login para o meu técnico". */}
+                  {isMestre() && <NavItem item={ITEM_ACESSOS} sub />}
                 </div>
               </>
             )}
@@ -261,7 +269,6 @@ export default function Layout() {
             {itensBaixo.map((item) => (
               <NavItem key={item.id} item={item} />
             ))}
-            {isMestre() && <NavItem item={ITEM_ACESSOS} />}
           </nav>
 
           <div className="nav-spacer" />

@@ -97,6 +97,19 @@ export interface Guia {
  * As dependências são reais: sem equipamento não há inspeção; sem container
  * preenchido o relatório sai sem dados de campo; sem funcionário cadastrado não
  * há quem assine.
+ *
+ * ## O QUE NÃO ENTRA NA JORNADA (10/09/2026)
+ *
+ * Calibrações dos acessórios e certificados dos padrões saíram daqui — eram a
+ * etapa 7 de 12. Decisão do dono, e ela está certa: **nem toda inspeção precisa
+ * calibrar padrão**. O certificado do bloco de espessura vale meses e serve a
+ * todos os equipamentos; a calibração dos acessórios só existe quando o
+ * equipamento tem manômetro ou PSV instalado.
+ *
+ * Pôr no caminho principal algo que às vezes não se faz ensina a pessoa a pular
+ * etapa — e uma jornada em que se aprende a pular etapa deixa de ser jornada.
+ * Os dois continuam com guia próprio, entre os guias por seção, como operação
+ * avulsa do sistema.
  */
 export interface EtapaJornada {
   titulo: string;
@@ -200,20 +213,6 @@ export const PRIMEIROS_PASSOS: EtapaJornada[] = [
     rota: '/equipamentos',
     rotaRotulo: 'Ir para Equipamentos',
     icone: 'shield',
-  },
-  {
-    titulo: 'Prepare os padrões',
-    texto: 'Certificados dos instrumentos e calibrações dos acessórios.',
-    detalhe:
-      'São duas coisas diferentes e as duas alimentam o relatório: os CERTIFICADOS são dos instrumentos com que você mede (bloco padrão, manômetro padrão, PSV padrão); as CALIBRAÇÕES são dos acessórios instalados no equipamento inspecionado.',
-    pontos: [
-      'Certificados: nº, validade e o PDF, com a caixa "Injetar no final do relatório" marcada',
-      'Calibrações: cadastre os acessórios do equipamento e crie um lote da rodada',
-      'É um certificado por padrão, válido para todos os equipamentos',
-    ],
-    rota: '/certificados',
-    rotaRotulo: 'Ir para Certificados',
-    icone: 'sliders',
   },
   {
     titulo: 'Crie a inspeção',

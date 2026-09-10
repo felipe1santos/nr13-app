@@ -167,6 +167,18 @@ export default function Info() {
               </li>
             ))}
           </ol>
+
+          {/* Calibrações e certificados saíram da jornada de propósito — nem
+              toda inspeção precisa deles. Dizer isso aqui evita que a ausência
+              pareça esquecimento. */}
+          <p className="info-fluxo-nota">
+            <Icone nome="info" tam={13} />
+            <span>
+              <strong>Calibrações</strong> e <strong>certificados dos padrões</strong> não fazem
+              parte da jornada: são operações à parte, feitas quando o equipamento ou o ensaio
+              pedem. Os guias delas estão logo abaixo.
+            </span>
+          </p>
         </section>
       )}
 

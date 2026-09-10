@@ -157,6 +157,23 @@
 .info-secao-topo > div { flex: 1; min-width: min(100%, 260px); }
 .info-fluxo-guia { min-height: 38px; flex: 0 0 auto; }
 
+/* A nota do que NÃO está na jornada. Discreta: ela evita que a ausência de
+   calibrações pareça esquecimento, e não disputa espaço com as etapas. */
+.info-fluxo-nota {
+  margin: 12px 0 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  background: var(--surface-2, #f6f8fa);
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-muted, #6b7280);
+}
+.info-fluxo-nota svg { flex: 0 0 auto; margin-top: 2px; color: #5b3aa6; }
+.info-fluxo-nota strong { color: var(--text-main, #111); font-weight: 700; }
+
 .info-fluxo {
   list-style: none;
   margin: 0;
@@ -644,16 +661,18 @@
      seta gira para baixo junto. */
   .info-fluxo { grid-template-columns: 1fr; gap: 20px 0; }
   .info-fluxo-passo > button { min-height: 64px; padding: 11px; }
-  .info-fluxo-passo:nth-child(2n)::after,
-  .info-fluxo-passo:nth-child(3n)::after { content: ''; }
-  .info-fluxo-passo:last-child::after { content: none; }
+  /* Em coluna única TODOS voltam a ter seta — só o último não tem. Reativar
+     item a item (2n, 3n) deixava o 4, o 8 e o 12 sem seta: a regra base os
+     desliga por serem fim de fileira no desktop, e ninguém os religava. */
   .info-fluxo-passo::after {
+    content: '';
     top: auto;
     bottom: -16px;
     right: 50%;
     margin: 0 -7px 0 0;
     transform: rotate(135deg);
   }
+  .info-fluxo-passo:last-child::after { content: none; }
   .info-secao-topo { gap: 10px; }
   .info-fluxo-guia { width: 100%; min-height: 44px; justify-content: center; }
   .info-jor-acoes { flex-wrap: wrap; }

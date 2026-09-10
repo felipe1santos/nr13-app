@@ -11,7 +11,7 @@ import {
   normalizar,
   type CategoriaInfo,
 } from './infoConteudo';
-import { ITENS_BAIXO, TITULOS_ROTA } from '../../app/menu';
+import { ITEM_ACESSOS, ITENS_BAIXO, TITULOS_ROTA } from '../../app/menu';
 
 /**
  * A CENTRAL INFO.
@@ -284,10 +284,28 @@ describe('a jornada', () => {
     }
   });
 
-  it('as 12 etapas fecham as fileiras de 4, 3, 2 e 1 — nenhuma seta órfã', () => {
-    for (const colunas of [4, 3, 2, 1]) {
-      expect(PRIMEIROS_PASSOS.length % colunas, `com ${colunas} colunas`).toBe(0);
-    }
+  it('nenhuma seta órfã — a regra é do CSS, não da contagem', () => {
+    // A primeira versão deste gate exigia que o número de etapas fosse
+    // divisível por 4, 3, 2 e 1. Era a invariante ERRADA: ela quebrou no dia em
+    // que uma etapa saiu do fluxo, e a tela continuava correta. Quem garante
+    // que nenhuma seta aponta para o vazio é o par de regras abaixo — fim de
+    // fileira e último item.
+    expect(css).toContain('.info-fluxo-passo:nth-child(4n)::after,');
+    expect(css).toContain('.info-fluxo-passo:last-child::after { content: none; }');
+  });
+
+  it('calibrações e certificados NÃO estão na jornada', () => {
+    // Nem toda inspeção calibra padrão. Pôr no caminho principal algo que às
+    // vezes não se faz ensina a pessoa a pular etapa.
+    const titulos = PRIMEIROS_PASSOS.map((p) => p.titulo);
+    expect(titulos).not.toContain('Prepare os padrões');
+    for (const t of titulos) expect(t.toLocaleLowerCase('pt-BR')).not.toContain('calibra');
+    // ...mas continuam com guia próprio, e a tela diz que a ausência é
+    // deliberada.
+    expect(GUIAS.map((g) => g.id)).toContain('calibracoes');
+    expect(GUIAS.map((g) => g.id)).toContain('certificados');
+    expect(pagina).toContain('info-fluxo-nota');
+    expect(pagina).toContain('não fazem');
   });
 
   it('clicar num cartão abre a jornada NAQUELA etapa', () => {
@@ -346,10 +364,15 @@ describe('a jornada', () => {
     expect(guia).toContain('<Icone nome={guia.icone}');
   });
 
-  it('no celular a seta gira para baixo', () => {
+  it('no celular a seta gira para baixo — e TODOS a recebem de volta', () => {
+    // Reativar item a item (2n, 3n) deixava o 4 e o 8 sem seta: a regra base os
+    // desliga por serem fim de fileira no desktop, e ninguém os religava.
     const celular = css.slice(css.indexOf('@media (max-width: 640px)') + 30);
     expect(celular).toContain('transform: rotate(135deg)');
     expect(celular).toContain('grid-template-columns: 1fr');
+    expect(celular).not.toContain(".info-fluxo-passo:nth-child(2n)::after");
+    const bloco = celular.slice(celular.indexOf('.info-fluxo-passo::after'));
+    expect(bloco.slice(0, 220)).toContain("content: ''");
   });
 });
 
@@ -421,5 +444,38 @@ describe('gate · a página longa não cansa', () => {
   it('o botão "ver todas" é alvo de dedo', () => {
     const bloco = css.slice(css.indexOf('.info-faq-mais {'));
     expect(bloco.slice(0, 300)).toContain('min-height: 44px');
+  });
+});
+
+/**
+ * ACESSOS mora dentro de CADASTRAR (10/09/2026, pedido do dono).
+ *
+ * Ele é o cadastro dos logins da equipe — mesma natureza de Funcionários e
+ * Clientes. Solto no fim do menu, ficava entre as telas de operação, que é onde
+ * ninguém procura por "criar um login para o meu técnico".
+ */
+describe('gate · Acessos no grupo Cadastrar', () => {
+  const layout = readFileSync('src/app/Layout.tsx', 'utf8');
+  const subnav = layout.slice(layout.indexOf('className={`subnav'), layout.indexOf('{itensBaixo.map'));
+
+  it('é renderizado como SUBITEM, dentro do grupo', () => {
+    expect(subnav).toContain('<NavItem item={ITEM_ACESSOS} sub />');
+  });
+
+  it('não sobrou solto no fim do menu', () => {
+    const depois = layout.slice(layout.indexOf('{itensBaixo.map'));
+    expect(depois.slice(0, 400)).not.toContain('ITEM_ACESSOS');
+  });
+
+  it('o grupo abre para o mestre mesmo sem outro cadastro permitido', () => {
+    // Acessos é o único item do grupo que não passa pelo filtro de permissão:
+    // sem esta condição, um mestre com Funcionários e Clientes bloqueados
+    // perderia a porta de Acessos junto.
+    expect(layout).toContain('{(itensCadastrar.length > 0 || isMestre()) && (');
+  });
+
+  it('a rota e o rótulo não mudaram', () => {
+    expect(ITEM_ACESSOS.to).toBe('/acesso');
+    expect(ITEM_ACESSOS.label).toBe('Acessos');
   });
 });
