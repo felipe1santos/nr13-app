@@ -908,7 +908,8 @@ export class Documento {
     const POR_FOLHA = 4;
     const col = (CAIXA.largura - 4) / 2;
     const altQuadro = 74;
-    const altLegenda = 5;
+    // Duas linhas de legenda, e não uma (10/09/2026). Ver `legendaEmDuasLinhas`.
+    const altLegenda = 9;
     const altBloco = altQuadro + altLegenda + 4;
 
     for (let i = 0; i < itens.length; i++) {
@@ -929,8 +930,12 @@ export class Documento {
       this.pdf.setFont(FAMILIA, 'normal');
       this.pdf.setFontSize(FONTE.mini);
       this.pdf.setTextColor(COR.texto);
-      const legenda = (this.pdf.splitTextToSize(itens[i].descricao || '', col) as string[])[0] ?? '';
-      this.pdf.text(legenda, x + col / 2, y + altQuadro + 3.4, { align: 'center' });
+      const linhas = legendaEmDuasLinhas(
+        this.pdf.splitTextToSize(itens[i].descricao || '', col) as string[],
+      );
+      linhas.forEach((texto, n) => {
+        this.pdf.text(texto, x + col / 2, y + altQuadro + 3.4 + n * 3.4, { align: 'center' });
+      });
 
       // Depois da última foto da folha, o cursor desce o bloco inteiro.
       if (posicao === POR_FOLHA - 1 || i === itens.length - 1) {
@@ -939,6 +944,26 @@ export class Documento {
       }
     }
   }
+}
+
+/**
+ * A legenda de uma foto, em até DUAS linhas.
+ *
+ * Antes só a primeira linha era desenhada — `splitTextToSize(...)[0]` — e o
+ * resto sumia. Medido no "RELATORIO DA IA": a legenda "Memorial de cálculo —
+ * Folha de rosto do memorial da PMTA de casco e tampos." saiu cortada em
+ * "…de casco e", no meio da frase, sem reticência nenhuma. O inspetor digita a
+ * legenda e parte dela desaparece do documento assinado, em silêncio.
+ *
+ * Duas linhas cobrem a legenda descritiva que o formulário pede; o que passar
+ * disso termina em reticência, que é o sinal honesto de que há mais texto.
+ * Cortar em algum ponto é inevitável — a folha tem 4 fotos e tamanho fixo —,
+ * mas o corte precisa APARECER.
+ */
+export function legendaEmDuasLinhas(linhas: string[]): string[] {
+  if (linhas.length <= 2) return linhas.filter((l) => l !== '');
+  const segunda = linhas[1].replace(/\s+\S*$/, '').trimEnd();
+  return [linhas[0], `${segunda || linhas[1]}…`];
 }
 
 /** O amarelo-claro da referência, para campo vazio na PRÉVIA. */
