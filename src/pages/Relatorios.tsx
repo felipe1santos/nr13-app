@@ -813,6 +813,8 @@ function RelatoriosLegado() {
     setDocumentos(comTermo);
     setMeta(novaMeta);
     setSomenteLeitura(false);
+    // Nome AUTOMÁTICO: relatório novo não herda o rótulo de nenhum outro.
+    setNomeEscolhido(null);
     // Relatório NOVO nasce rascunho — ainda não salvo, e nada oficial produziu.
     setModoRascunho(true);
     setPendente(null);
@@ -900,6 +902,15 @@ function RelatoriosLegado() {
     await gravarMetaAtual({ ...r.meta, documentos: docsFiltrados });
     setDocumentos(docsFiltrados);
     setMeta(r.meta);
+    // O NOME JÁ ESCOLHIDO VOLTA COM O DOCUMENTO (10/09/2026).
+    //
+    // `nomeEscolhido` só era preenchido no modal de finalizar. Reabrir um
+    // rascunho o deixava em `null`, e o "Salvar rascunho" seguinte remontava o
+    // registro com `nomeDoDocumento(null, ...)` — o nome automático. Medido em
+    // produção: o rascunho renomeado para "RELATORIO DA IA" voltou a
+    // "Relatorio_Inspeção_Periódica_ZZ-FASE3.pdf" no primeiro save depois de
+    // reabrir, sem nenhum aviso. Renomear virava trabalho que se perde sozinho.
+    setNomeEscolhido(r.nome?.trim() ? r.nome : null);
     // Rascunho volta EDITÁVEL; o resto (legado sem PDF arquivado) segue como
     // sempre foi: somente leitura, porque já é documento emitido.
     setSomenteLeitura(!rascunho);
@@ -955,6 +966,9 @@ function RelatoriosLegado() {
     setDocumentos(docsFiltrados);
     setMeta(novaMeta);
     setSomenteLeitura(false);
+    // O rótulo NÃO vem junto: o duplicado é outro documento, e herdar o nome
+    // deixaria dois relatórios com a mesma etiqueta na lista.
+    setNomeEscolhido(null);
     // Duplicado é relatório NOVO: nasce rascunho, como qualquer outro.
     setModoRascunho(true);
     setRelatorioArquivado(null);

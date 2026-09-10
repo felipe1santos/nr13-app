@@ -41,3 +41,32 @@ describe('gate · a linha do rascunho oferece renomear', () => {
     expect(tela).toContain('setRenomeando({ id: r.relatorioId, tag: r.tag');
   });
 });
+
+/**
+ * ...e o nome sobrevive ao "Salvar rascunho" seguinte.
+ *
+ * Medido em produção em 10/09/2026: o rascunho renomeado para "RELATORIO DA IA"
+ * voltou a "Relatorio_Inspeção_Periódica_ZZ-FASE3.pdf" no PRIMEIRO save depois
+ * de reabrir, sem aviso nenhum. `nomeEscolhido` só era preenchido no modal de
+ * finalizar; reabrir deixava o estado em `null`, e `montarRegistro` remontava o
+ * registro com `nomeDoDocumento(null, ...)` — o nome automático. Renomear virava
+ * trabalho que se perde sozinho.
+ */
+describe('gate · o nome escolhido volta com o documento', () => {
+  const tela = readFileSync('src/pages/Relatorios.tsx', 'utf8');
+
+  it('abrir um relatório recupera o nome gravado', () => {
+    const abrir = tela.slice(tela.indexOf('let r = carregarRelatorio(item.id, item.tagVaso);'));
+    const corpo = abrir.slice(0, abrir.indexOf('async function duplicar('));
+    expect(corpo).toContain("setNomeEscolhido(r.nome?.trim() ? r.nome : null)");
+    // ...e antes do bump de versão que remonta a tela.
+    expect(corpo.indexOf('setNomeEscolhido')).toBeLessThan(corpo.indexOf('setVersao((v) => v + 1)'));
+  });
+
+  it('relatório NOVO e DUPLICADO nascem sem rótulo herdado', () => {
+    expect(tela).toContain('// Nome AUTOMÁTICO: relatório novo não herda o rótulo de nenhum outro.');
+    expect(tela).toContain('// O rótulo NÃO vem junto: o duplicado é outro documento, e herdar o nome');
+    // Três chamadas: a de abrir e as duas que zeram.
+    expect((tela.match(/setNomeEscolhido\(/g) ?? []).length).toBeGreaterThanOrEqual(3);
+  });
+});
