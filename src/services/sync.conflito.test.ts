@@ -361,3 +361,95 @@ describe('migração das cópias antigas', () => {
     expect(conflitoDaChave(CHAVE)?.remoto?.valor).toBe(SERVIDOR);
   });
 });
+
+describe('o conflito ÓRFÃO — "Manter a minha" que não fazia nada', () => {
+  /**
+   * Medido em produção em 10/09/2026, conta `teste@gmail.com`, com o container
+   * "Inspeção da IA" já preenchido: `nr13_docs_ZZ-FASE3` em conflito e o botão
+   * "Manter a minha" sem NENHUM efeito — a tela continuava cobrando a mesma
+   * decisão, sem erro e sem aviso.
+   *
+   * A causa não estava no botão: enquanto o conflito espera, o autosave regrava
+   * a chave e `registrarNaMemoria` CONDENSA, apagando da fila justamente o item
+   * que o conflito aponta. `resolverMantendoLocal` então caía num
+   * `if (!original) return` silencioso.
+   */
+
+  it('a condensação REAPONTA o conflito para a mutação que existe', async () => {
+    const original = await emConflito();
+
+    // O usuário continua digitando: nova gravação da MESMA chave.
+    const novo = await pendencia('{"origem":"celular-em-campo","obs":"mais texto"}');
+
+    expect(novo.mutationId).not.toBe(original.mutationId);
+    expect(itemDaChave(CHAVE)?.mutationId).toBe(novo.mutationId);
+    expect(conflitoDaChave(CHAVE)?.mutationId).toBe(novo.mutationId);
+  });
+
+  it('decidir depois de condensar envia o texto MAIS NOVO, não o do conflito', async () => {
+    await emConflito();
+    await pendencia('{"origem":"celular-em-campo","obs":"mais texto"}');
+
+    await resolverMantendoLocal(CHAVE);
+
+    expect(conflitoDaChave(CHAVE)?.resolucao?.escolha).toBe('local');
+    const naFila = itemDaChave(CHAVE);
+    expect(naFila?.valor).toContain('mais texto');
+    // A base tem de ser a do SERVIDOR, senão a RPC recusa para sempre.
+    expect(naFila?.versaoBase).toBe(7);
+  });
+
+  it('com o item da fila SUMIDO, ainda decide — usando o que o aparelho tem', async () => {
+    const original = await emConflito();
+
+    // Simula o estado encontrado em produção: o conflito sobreviveu ao item.
+    await aplicarAtomico(ORG, [{ store: 'fila', acao: 'delete', chave: original.mutationId }]);
+    zerarFilaMemoria();
+    expect(itemDaChave(CHAVE)).toBeNull();
+
+    await resolverMantendoLocal(CHAVE);
+
+    expect(conflitoDaChave(CHAVE)?.resolucao?.escolha).toBe('local');
+    expect(itemDaChave(CHAVE)?.valor).toBe(LOCAL);
+    expect(itemDaChave(CHAVE)?.versaoBase).toBe(7);
+  });
+
+  it('sem fila e sem dado local, encerra a cobrança em vez de travar', async () => {
+    const original = await emConflito();
+    await aplicarAtomico(ORG, [{ store: 'fila', acao: 'delete', chave: original.mutationId }]);
+    zerarFilaMemoria();
+    zerarMemoria();
+    definirOrg(ORG);
+
+    await resolverMantendoLocal(CHAVE);
+
+    expect(conflitoDaChave(CHAVE)?.resolucao?.escolha).toBe('local');
+    expect(itemDaChave(CHAVE)).toBeNull();
+  });
+
+  it('quando a fila VENCE sozinha, o conflito para de ser cobrado', async () => {
+    await emConflito();
+    expect(conflitoDaChave(CHAVE)?.resolucao).toBeUndefined();
+
+    // A gravação seguinte da mesma chave sobe com sucesso.
+    await pendencia('{"origem":"celular-em-campo","obs":"subiu"}');
+    rpc.mockResolvedValue({ data: { status: 'aplicado', versao: 8 }, error: null });
+    await drenar();
+
+    expect(listarFila()).toEqual([]);
+    // Decisão nenhuma restou: o valor deste aparelho É o do servidor.
+    expect(conflitoDaChave(CHAVE)?.resolucao?.escolha).toBe('local');
+    expect(conflitoDaChave(CHAVE)?.remoto?.valor).toBe(SERVIDOR); // o lado perdedor não é apagado
+  });
+
+  it('o registro resolvido sobrevive ao recarregar o aparelho', async () => {
+    await emConflito();
+    await pendencia('{"origem":"celular-em-campo","obs":"mais texto"}');
+    await resolverMantendoLocal(CHAVE);
+
+    zerarConflitosMemoria();
+    await carregarConflitosDoDisco();
+
+    expect(conflitoDaChave(CHAVE)?.resolucao?.escolha).toBe('local');
+  });
+});

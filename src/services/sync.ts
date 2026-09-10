@@ -186,6 +186,12 @@ export function registrarNaMemoria(item: ItemFila): void {
     // Condensação: a mutação anterior deixou de existir e não pode continuar
     // sendo cobrada no manifesto como se tivesse se perdido.
     removerPendencia(anterior.mutationId);
+    // ...e o conflito aberto daquela chave apontava para ela. Reapontar aqui é
+    // o que mantém "Manter a minha" ligado a uma mutação que existe de verdade.
+    const c = conflitos.get(item.chave);
+    if (c && !c.resolucao && c.mutationId === anterior.mutationId) {
+      conflitos.set(item.chave, { ...c, mutationId: item.mutationId });
+    }
   }
   fila.set(item.mutationId, item);
   registrarPendencias([item]);
@@ -455,6 +461,9 @@ async function enviarItem(item: ItemFila): Promise<boolean> {
     const local = obterRegistro(item.chave);
     if (local) await gravarAtomico([{ chave: item.chave, registro: { ...local, versao: r.versao } }]);
     await removerDaFila(item.mutationId);
+    // O valor deste aparelho é agora o do servidor: um conflito ainda aberto
+    // nesta chave virou pergunta sem resposta possível.
+    await encerrarConflitoVencidoPelaFila(item.chave);
     return true;
   }
 
@@ -635,23 +644,41 @@ export async function tentarNovamente(mutationId: string): Promise<void> {
 export async function resolverMantendoLocal(chave: string): Promise<void> {
   const c = conflitos.get(chave);
   if (!c || c.resolucao) return;
-  const original = c.mutationId ? fila.get(c.mutationId) : null;
-  if (!original) return;
 
-  const novo: ItemFila = {
-    mutationId: crypto.randomUUID(),
-    resolveDe: original.mutationId,
-    op: original.op,
-    chave: original.chave,
-    valor: original.valor,
-    // A base é a versão do SERVIDOR. Sem isso a RPC recusaria para sempre: o
-    // servidor está numa versão que o aparelho nunca esperou.
-    versaoBase: c.remoto?.versao ?? original.versaoBase,
-    dispositivo: idDispositivo(),
-    criadoEm: new Date().toISOString(),
-    tentativas: 0,
-    estado: 'aguardando',
-  };
+  // "A minha" é o que ESTE aparelho tem AGORA, não a fotografia do instante em
+  // que o conflito foi detectado. Enquanto o conflito espera decisão o usuário
+  // continua trabalhando: o autosave regrava a chave e `registrarNaMemoria`
+  // CONDENSA, apagando da fila justamente o item que o conflito aponta.
+  //
+  // Medido em produção em 10/09/2026, com o container "Inspeção da IA" já
+  // preenchido: `nr13_docs_ZZ-FASE3` em conflito, `mutationId` apontando para
+  // um item inexistente e o botão "Manter a minha" fazendo NADA — sem erro, sem
+  // aviso, sem mudança na tela. Um botão que não faz nada é pior do que um que
+  // falha: o usuário acredita que decidiu.
+  const original = c.mutationId ? (fila.get(c.mutationId) ?? null) : null;
+  const atual = original ?? itemDaChave(chave);
+  const registroLocal = obterRegistro(chave);
+
+  const novo: ItemFila | null =
+    atual || registroLocal
+      ? {
+          mutationId: crypto.randomUUID(),
+          ...(atual ? { resolveDe: atual.mutationId } : {}),
+          op: atual?.op ?? 'set',
+          chave,
+          valor: atual ? atual.valor : registroLocal?.valor,
+          // A base é a versão do SERVIDOR. Sem isso a RPC recusaria para sempre: o
+          // servidor está numa versão que o aparelho nunca esperou.
+          versaoBase: c.remoto?.versao ?? atual?.versaoBase ?? registroLocal?.versao ?? 0,
+          dispositivo: idDispositivo(),
+          criadoEm: new Date().toISOString(),
+          tentativas: 0,
+          estado: 'aguardando',
+        }
+      : // Sem item na fila e sem registro local não sobrou nada para enviar: a
+        // decisão vira apenas encerrar a cobrança. O lado do servidor continua
+        // guardado em `remoto`.
+        null;
 
   const resolvido: RegistroConflito = {
     ...c,
@@ -661,18 +688,43 @@ export async function resolverMantendoLocal(chave: string): Promise<void> {
 
   const org = orgAtual();
   if (org) {
-    await aplicarAtomico(org, [
-      { store: 'fila', acao: 'put', chave: novo.mutationId, valor: novo },
-      { store: 'fila', acao: 'delete', chave: original.mutationId },
-      { store: 'conflitos', acao: 'put', chave, valor: resolvido },
-    ]);
+    const ops: Parameters<typeof aplicarAtomico>[1] = [];
+    if (novo) ops.push({ store: 'fila', acao: 'put', chave: novo.mutationId, valor: novo });
+    if (atual) ops.push({ store: 'fila', acao: 'delete', chave: atual.mutationId });
+    ops.push({ store: 'conflitos', acao: 'put', chave, valor: resolvido });
+    await aplicarAtomico(org, ops);
   }
 
-  fila.delete(original.mutationId);
-  removerPendencia(original.mutationId);
-  fila.set(novo.mutationId, novo);
-  registrarPendencias([novo]);
+  if (atual) {
+    fila.delete(atual.mutationId);
+    removerPendencia(atual.mutationId);
+  }
+  if (novo) {
+    fila.set(novo.mutationId, novo);
+    registrarPendencias([novo]);
+  }
   conflitos.set(chave, resolvido);
+}
+
+/**
+ * Encerra o conflito que a própria fila já resolveu.
+ *
+ * Quando uma escrita POSTERIOR da mesma chave sobe com sucesso, o valor deste
+ * aparelho passou a ser o do servidor — não existe mais decisão a tomar. Sem
+ * isto o registro do conflito sobrevivia à vitória, apontando para um item que
+ * já saiu da fila, e a tela cobrava para sempre uma escolha que nada mudaria.
+ *
+ * Marca como resolvido em vez de apagar: o lado perdedor continua guardado até
+ * o descarte explícito, como em toda decisão de conflito.
+ */
+export async function encerrarConflitoVencidoPelaFila(chave: string): Promise<void> {
+  const c = conflitos.get(chave);
+  if (!c || c.resolucao) return;
+  await persistirConflito({
+    ...c,
+    mutationId: null,
+    resolucao: { escolha: 'local', em: new Date().toISOString() },
+  });
 }
 
 /**
