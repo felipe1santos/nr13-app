@@ -116,6 +116,10 @@ const GLOBAIS = new Set([
   'nr13_prontuario_atual',
   'nr13_rastreabilidade',
   'nr13_agenda_notas',
+  // 10/09/2026 · a biblioteca de RECOMENDAÇÕES da empresa. Global porque ela é
+  // da organização e não de um equipamento: é criada num relatório e usada em
+  // todos os outros. Nenhuma folha de `public/` a lê — fica fora do palco.
+  'nr13_predef_recomendacoes',
   // 10B.1 · índice dos relatórios em rascunho. Global de propósito: a tela de
   // relatórios mostra rascunho de qualquer equipamento, e um índice por TAG
   // obrigaria a varrer o parque para montar essa lista.
