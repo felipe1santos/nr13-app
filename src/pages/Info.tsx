@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { Icone } from '../components/Icone';
 import ModalGuia from '../features/info/ModalGuia';
+import ModalJornada from '../features/info/ModalJornada';
 import {
   CATEGORIAS,
   FAQ,
@@ -25,25 +26,27 @@ import './info.css';
  * a inspeção pende do equipamento, que marcar um ensaio não é preenchê-lo e
  * que rascunho não gera prazo.
  *
- * ## A ordem da tela
+ * ## Duas profundidades, de propósito
  *
- * 1. **busca** — a maioria chega com uma dúvida, não querendo ler tudo;
- * 2. **o fluxo** — a resposta para "por onde começo", que é a pergunta nº 1;
- * 3. **guias por assunto** — em quatro categorias, na ordem em que o trabalho
- *    acontece: primeiros passos → operação → documentação → gestão;
- * 4. **dúvidas frequentes** — escritas na língua de quem pergunta.
+ * **"Comece por aqui"** é a jornada: doze cartões curtos, ligados por setas,
+ * que se lêem em vinte segundos. Clicar num deles abre a etapa com o porquê e
+ * o que se preenche — e de lá se avança de etapa em etapa, com progresso no
+ * topo. É para aprender o CAMINHO.
  *
- * Buscar filtra as três seções de baixo AO MESMO TEMPO. Uma busca que devolve
- * só guias, com o FAQ intacto abaixo, faria o usuário concluir que não há
- * resposta quando ela está três dedos abaixo.
+ * **"Guias"** é a referência por assunto: passo a passo detalhado, com
+ * pré-requisitos e as regras que o usuário precisa saber mesmo sem perguntar.
+ * É para resolver uma tarefa específica.
+ *
+ * Misturar as duas foi o erro da primeira versão: o cartão numerado abria a
+ * mesma coisa que o card de guia, e a jornada virava um índice sem valor
+ * próprio.
  *
  * ## Deep link
  *
- * `/info?guia=<id>` abre o guia direto. É o que permite apontar para uma ajuda
- * específica de qualquer lugar do sistema sem duplicar o texto.
+ * `/info?guia=<id>` abre um guia direto; `/info?etapa=<n>` abre a jornada
+ * naquela etapa.
  */
 export default function Info() {
-  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const [termo, setTermo] = useState('');
 
@@ -54,16 +57,19 @@ export default function Info() {
 
   const abertoId = params.get('guia');
   const aberto = abertoId ? guiaPorId(abertoId) : null;
+  const etapaParam = params.get('etapa');
+  const etapa = etapaParam === null ? null : Number(etapaParam);
+  const jornadaAberta =
+    etapa !== null && Number.isInteger(etapa) && etapa >= 0 && etapa < PRIMEIROS_PASSOS.length
+      ? etapa
+      : null;
 
-  const abrir = (id: string) => {
-    const p = new URLSearchParams(params);
-    p.set('guia', id);
-    setParams(p, { replace: false });
-  };
-  const fechar = () => {
+  const trocar = (chave: 'guia' | 'etapa', valor: string | null) => {
     const p = new URLSearchParams(params);
     p.delete('guia');
-    setParams(p, { replace: true });
+    p.delete('etapa');
+    if (valor !== null) p.set(chave, valor);
+    setParams(p, { replace: valor === null });
   };
 
   return (
@@ -110,15 +116,32 @@ export default function Info() {
 
       {!buscando && (
         <section className="info-secao" aria-labelledby="info-fluxo">
-          <h2 id="info-fluxo">Comece por aqui</h2>
-          <p className="info-secao-sub">
-            O caminho do sistema, na ordem em que o trabalho acontece. Cada etapa depende da
-            anterior.
-          </p>
+          <div className="info-secao-topo">
+            <div>
+              <h2 id="info-fluxo">Comece por aqui</h2>
+              <p className="info-secao-sub">
+                A jornada do sistema, na ordem em que o trabalho acontece. Clique numa etapa para
+                entendê-la.
+              </p>
+            </div>
+            <button type="button" className="btn-secundario info-fluxo-guia" onClick={() => trocar('etapa', '0')}>
+              <Icone nome="book" tam={13} /> Guia completo
+            </button>
+          </div>
+
+          {/* A seta entre os cartões é CSS (`::after`), e é escondida no fim de
+              cada fileira por `nth-child` — por isso as colunas são fixas por
+              faixa em vez de `auto-fill`: com contagem variável não há como
+              saber qual cartão termina a fileira, e a seta apontaria para o
+              vazio da margem. */}
           <ol className="info-fluxo">
             {PRIMEIROS_PASSOS.map((p, i) => (
               <li key={p.titulo} className="info-fluxo-passo">
-                <button type="button" onClick={() => navigate(p.rota)}>
+                <button
+                  type="button"
+                  onClick={() => trocar('etapa', String(i))}
+                  aria-label={`Etapa ${i + 1}: ${p.titulo}`}
+                >
                   <span className="info-fluxo-n" aria-hidden>
                     {i + 1}
                   </span>
@@ -133,15 +156,18 @@ export default function Info() {
               </li>
             ))}
           </ol>
-          <button type="button" className="btn-secundario info-fluxo-guia" onClick={() => abrir('comecar')}>
-            <Icone nome="book" tam={13} /> Abrir o guia completo
-          </button>
         </section>
       )}
 
       {guias.length > 0 && (
         <section className="info-secao" aria-labelledby="info-guias">
-          <h2 id="info-guias">Guias</h2>
+          <h2 id="info-guias">Guias por seção</h2>
+          {!buscando && (
+            <p className="info-secao-sub">
+              A referência detalhada de cada módulo: o que precisa existir antes, o passo a passo e
+              as regras que valem ali.
+            </p>
+          )}
           {CATEGORIAS.map((cat) => {
             const daCategoria = guiasDaCategoria(cat.id, guias);
             if (daCategoria.length === 0) return null;
@@ -157,7 +183,7 @@ export default function Info() {
                 <ul className="info-cards">
                   {daCategoria.map((g) => (
                     <li key={g.id}>
-                      <button type="button" className="info-card" onClick={() => abrir(g.id)}>
+                      <button type="button" className="info-card" onClick={() => trocar('guia', g.id)}>
                         <span className="info-card-ic" aria-hidden>
                           <Icone nome={g.icone} tam={16} />
                         </span>
@@ -188,11 +214,6 @@ export default function Info() {
                   <summary>{f.pergunta}</summary>
                   <div className="info-faq-corpo">
                     <p>{f.resposta}</p>
-                    {f.guia && (
-                      <button type="button" className="info-faq-link" onClick={() => abrir(f.guia!)}>
-                        Ver o guia <Icone nome="arrowright" tam={12} />
-                      </button>
-                    )}
                   </div>
                 </details>
               </li>
@@ -208,7 +229,10 @@ export default function Info() {
         </p>
       )}
 
-      {aberto && <ModalGuia guia={aberto} aoFechar={fechar} />}
+      {aberto && <ModalGuia guia={aberto} aoFechar={() => trocar('guia', null)} />}
+      {jornadaAberta !== null && (
+        <ModalJornada inicio={jornadaAberta} aoFechar={() => trocar('etapa', null)} />
+      )}
     </div>
   );
 }

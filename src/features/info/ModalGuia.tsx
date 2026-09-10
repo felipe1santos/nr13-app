@@ -87,15 +87,6 @@ export default function ModalGuia({
         </header>
 
         <div className="info-modal-corpo">
-          {guia.ilustracao && (
-            <img
-              className="info-modal-arte"
-              src={guia.ilustracao}
-              alt={guia.ilustracaoAlt ?? ''}
-              loading="lazy"
-            />
-          )}
-
           {guia.preRequisitos.length > 0 && (
             <section className="info-pre">
               <h3>Antes de começar</h3>

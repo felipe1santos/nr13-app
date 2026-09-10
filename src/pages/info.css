@@ -121,24 +121,55 @@
   color: var(--text-muted, #6b7280);
 }
 
-/* ── Fluxo (Comece por aqui) ──────────────────────────────────────────────── */
+/* ── A JORNADA (Comece por aqui) ──────────────────────────────────────────────
+   Doze cartões ligados por uma SETA. A seta é `::after` do cartão, desenhada no
+   meio do `gap`, e é escondida no fim de cada fileira por `nth-child`.
+
+   É por isso que as colunas são FIXAS por faixa em vez de `auto-fill`: com a
+   contagem variando conforme a largura não há como saber qual cartão fecha a
+   fileira, e a seta apontaria para o vazio da margem. Com 4 · 3 · 2 · 1 e doze
+   etapas, toda fileira fecha exata. */
+.info-secao-topo {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.info-secao-topo > div { flex: 1; min-width: min(100%, 260px); }
+.info-fluxo-guia { min-height: 38px; flex: 0 0 auto; }
+
 .info-fluxo {
   list-style: none;
-  margin: 0 0 12px;
+  margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px 26px;
 }
-/* O conector: uma linha fina saindo do número, ligando as etapas. Ele some no
-   celular, onde a coluna única já é a ordem. */
-.info-fluxo-passo {
-  position: relative;
-  min-width: 0;
+.info-fluxo-passo { position: relative; min-width: 0; }
+
+/* A seta, no meio do gap de 26px. */
+.info-fluxo-passo::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: -20px;
+  width: 14px;
+  height: 14px;
+  margin-top: -7px;
+  border-top: 1.6px solid #b9c6d6;
+  border-right: 1.6px solid #b9c6d6;
+  transform: rotate(45deg);
+  pointer-events: none;
 }
+/* Fim de fileira e última etapa: sem seta. */
+.info-fluxo-passo:nth-child(4n)::after,
+.info-fluxo-passo:last-child::after { content: none; }
+
 .info-fluxo-passo > button {
   width: 100%;
-  min-height: 74px;
+  height: 100%;
+  min-height: 78px;
   display: flex;
   align-items: flex-start;
   gap: 10px;
@@ -154,6 +185,7 @@
   border-color: #0c4f9b;
   background: #f7fbff;
 }
+.info-fluxo-passo > button:focus-visible { outline: 2px solid #0c4f9b; outline-offset: 2px; }
 .info-fluxo-n {
   flex: 0 0 auto;
   width: 22px;
@@ -166,28 +198,130 @@
   font-size: 11px;
   font-weight: 800;
 }
-.info-fluxo-ic {
-  flex: 0 0 auto;
-  margin-top: 1px;
-  color: #0c4f9b;
-}
-.info-fluxo-txt {
-  min-width: 0;
-  display: grid;
-  gap: 3px;
-}
-.info-fluxo-txt strong {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-main, #111);
-}
+.info-fluxo-ic { flex: 0 0 auto; margin-top: 1px; color: #0c4f9b; }
+.info-fluxo-txt { min-width: 0; display: grid; gap: 3px; }
+.info-fluxo-txt strong { font-size: 13px; font-weight: 700; color: var(--text-main, #111); }
 .info-fluxo-txt em {
   font-style: normal;
   font-size: 11.5px;
   line-height: 1.45;
   color: var(--text-muted, #6b7280);
 }
-.info-fluxo-guia { min-height: 40px; }
+
+@media (max-width: 1040px) {
+  .info-fluxo { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .info-fluxo-passo:nth-child(4n)::after { content: ''; }
+  .info-fluxo-passo:nth-child(3n)::after { content: none; }
+  .info-fluxo-passo:last-child::after { content: none; }
+}
+@media (max-width: 760px) {
+  .info-fluxo { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .info-fluxo-passo:nth-child(3n)::after { content: ''; }
+  .info-fluxo-passo:nth-child(2n)::after { content: none; }
+  .info-fluxo-passo:last-child::after { content: none; }
+}
+
+/* ── A jornada aberta ─────────────────────────────────────────────────────── */
+.info-jornada { max-width: 640px; }
+
+.info-jor-topo {
+  padding: 16px 20px 14px;
+  border-bottom: 1px solid var(--border-soft, #eceef1);
+}
+.info-jor-topo-linha { display: flex; align-items: center; gap: 12px; }
+.info-jor-eyebrow {
+  flex: 1;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #0c4f9b;
+}
+
+/* A barra de progresso é também a NAVEGAÇÃO: cada traço é uma etapa, e clicar
+   salta para ela. Quem está estudando não quer avançar doze vezes para reler a
+   segunda. */
+.info-jor-barra {
+  display: flex;
+  gap: 4px;
+  margin: 10px 0 14px;
+}
+.info-jor-traco {
+  flex: 1;
+  height: 4px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--border-soft, #e6e9ed);
+  cursor: pointer;
+}
+/* A área clicável cresce sem engordar o traço: 4px de traço é invisível ao
+   dedo, e 4px de alvo não se acerta. */
+.info-jor-traco { position: relative; }
+.info-jor-traco::before {
+  content: '';
+  position: absolute;
+  inset: -11px 0;
+}
+.info-jor-traco.is-feito { background: #9dc3e8; }
+.info-jor-traco.is-atual { background: #0c4f9b; }
+.info-jor-traco:focus-visible { outline: 2px solid #0c4f9b; outline-offset: 3px; }
+
+.info-jor-cab { display: flex; align-items: center; gap: 11px; }
+.info-jor-ic {
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: #eef5fd;
+  color: #0c4f9b;
+}
+.info-jor-titulo {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text-main, #111);
+  outline: none;
+}
+
+.info-jor-corpo { gap: 14px; }
+.info-jor-detalhe {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--text-muted, #4b5563);
+}
+.info-jor-pontos ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
+.info-jor-pontos li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text-main, #111);
+}
+.info-jor-pontos li svg { flex: 0 0 auto; margin-top: 3px; color: #0f766e; }
+.info-jor-proxima {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--surface-2, #f6f8fa);
+  font-size: 12px;
+  color: var(--text-muted, #6b7280);
+}
+.info-jor-proxima strong { color: var(--text-main, #111); }
+
+.info-jor-acoes { align-items: center; }
+.info-jor-nav { flex: 0 0 auto; width: 42px; justify-content: center; padding: 0; }
+.info-jor-secao { flex: 1; justify-content: center; }
+.info-jor-nav-frente { flex: 0 0 auto; }
+
 
 /* ── Categorias e cards de guia ───────────────────────────────────────────── */
 .info-cat { margin-top: 16px; }
@@ -295,22 +429,6 @@
   line-height: 1.6;
   color: var(--text-muted, #4b5563);
 }
-.info-faq-link {
-  margin-top: 9px;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  min-height: 32px;
-  padding: 0 10px;
-  border: 1px solid var(--border-solid, #d8dbe0);
-  border-radius: 7px;
-  background: transparent;
-  font-size: 12px;
-  font-weight: 600;
-  color: #0c4f9b;
-  cursor: pointer;
-}
-.info-faq-link:hover { background: #f7fbff; border-color: #0c4f9b; }
 
 .info-vazio {
   margin: 0;
@@ -395,13 +513,6 @@
   padding: 16px 20px 20px;
   display: grid;
   gap: 18px;
-}
-.info-modal-arte {
-  width: 100%;
-  max-width: 340px;
-  justify-self: center;
-  border-radius: 10px;
-  background: #fff;
 }
 .info-modal-corpo h3 {
   margin: 0 0 8px;
@@ -490,9 +601,26 @@
 
   .info-busca { min-height: 46px; }
 
-  /* Uma coluna: o fluxo é uma ordem, e ordem se lê de cima para baixo. */
-  .info-fluxo { grid-template-columns: 1fr; gap: 7px; }
-  .info-fluxo-passo > button { min-height: 60px; padding: 10px 11px; }
+  /* Uma coluna: o fluxo é uma ordem, e ordem se lê de cima para baixo — e a
+     seta gira para baixo junto. */
+  .info-fluxo { grid-template-columns: 1fr; gap: 20px 0; }
+  .info-fluxo-passo > button { min-height: 64px; padding: 11px; }
+  .info-fluxo-passo:nth-child(2n)::after,
+  .info-fluxo-passo:nth-child(3n)::after { content: ''; }
+  .info-fluxo-passo:last-child::after { content: none; }
+  .info-fluxo-passo::after {
+    top: auto;
+    bottom: -16px;
+    right: 50%;
+    margin: 0 -7px 0 0;
+    transform: rotate(135deg);
+  }
+  .info-secao-topo { gap: 10px; }
+  .info-fluxo-guia { width: 100%; min-height: 44px; justify-content: center; }
+  .info-jor-acoes { flex-wrap: wrap; }
+  .info-jor-secao { order: 3; flex-basis: 100%; }
+  .info-jor-nav, .info-jor-nav-frente { min-height: 44px; }
+  .info-jor-nav-frente { flex: 1; justify-content: center; }
 
   .info-cards { grid-template-columns: 1fr; }
   .info-card { min-height: 60px; }
@@ -507,7 +635,6 @@
   .info-modal-topo { padding: 14px 15px 12px; }
   .info-modal-titulo { font-size: 16px; }
   .info-modal-corpo { padding: 14px 15px 18px; }
-  .info-modal-arte { max-width: 100%; }
   .info-modal-acoes { padding: 11px 15px; }
   .info-modal-acoes button { flex: 1; min-height: 44px; justify-content: center; }
   .info-modal-x { width: 44px; height: 44px; }

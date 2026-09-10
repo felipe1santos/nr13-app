@@ -81,89 +81,209 @@ export interface Guia {
   /** Rota real do sistema, para o botão "Ir para…". */
   rota?: string;
   rotaRotulo?: string;
-  /** Ilustração já existente em `public/ilustracoes/`, quando couber. */
-  ilustracao?: string;
-  ilustracaoAlt?: string;
 }
 
 /**
- * O fluxo do sistema, em ordem — auditado contra as telas em 10/09/2026.
+ * O FLUXO do sistema, em ordem — auditado contra as telas em 10/09/2026.
+ *
+ * Duas leituras da MESMA jornada, e é de propósito:
+ *
+ * - na tela, cada etapa é um cartão curto, ligado ao próximo por uma seta. É o
+ *   "onde estou e o que vem depois", que se lê em vinte segundos;
+ * - no modal, a mesma etapa abre com `detalhe` e `pontos` — o porquê e o que se
+ *   preenche ali. Quem quiser estudar a jornada inteira avança de etapa em
+ *   etapa pela própria seta, com a barra de progresso no topo.
  *
  * As dependências são reais: sem equipamento não há inspeção; sem container
- * preenchido o relatório sai sem dados de campo; sem funcionário cadastrado
- * não há quem assine.
+ * preenchido o relatório sai sem dados de campo; sem funcionário cadastrado não
+ * há quem assine.
  */
-export const PRIMEIROS_PASSOS: { titulo: string; texto: string; rota: string; icone: NomeIcone }[] = [
+export interface EtapaJornada {
+  titulo: string;
+  /** Uma linha, no cartão. */
+  texto: string;
+  /** O parágrafo do modal: por que esta etapa existe. */
+  detalhe: string;
+  /** O que se preenche ou decide ali. */
+  pontos: string[];
+  rota: string;
+  rotaRotulo: string;
+  icone: NomeIcone;
+}
+
+export const PRIMEIROS_PASSOS: EtapaJornada[] = [
   {
     titulo: 'Configure sua empresa',
-    texto: 'Razão social, CNPJ, endereço, contato e a logo. É o que aparece no cabeçalho de todas as folhas.',
+    texto: 'Razão social, CNPJ, endereço, contato e a logo.',
+    detalhe:
+      'Tudo que se repete em cabeçalho e rodapé de documento sai daqui — você preenche uma vez e não digita de novo. É a primeira etapa porque um relatório emitido antes disso sai sem a sua identificação, e documento assinado não se corrige depois.',
+    pontos: [
+      'Razão social, nome fantasia e CNPJ',
+      'Endereço completo, telefone e e-mail',
+      'A logo, que vai ao topo de cada folha',
+    ],
     rota: '/minha-empresa',
+    rotaRotulo: 'Ir para Meus dados',
     icone: 'building',
   },
   {
     titulo: 'Cadastre quem assina',
-    texto: 'Engenheiro e técnico, com CREA/registro e a imagem da assinatura. Sem isso o documento sai sem assinatura.',
+    texto: 'Engenheiro e técnico, com registro e imagem da assinatura.',
+    detalhe:
+      'O sistema carimba a assinatura nas folhas a partir deste cadastro. Sem um profissional cadastrado, o bloco de responsabilidade técnica sai vazio — e é justamente ele que dá validade ao laudo.',
+    pontos: [
+      'Tipo: Engenheiro (assina o laudo) ou Inspetor (executa o ensaio)',
+      'CREA ou registro, e a função como deve aparecer sob a assinatura',
+      'A imagem da assinatura',
+      'Quais folhas cada um assina — há listas separadas para relatório e prontuário',
+    ],
     rota: '/funcionarios',
+    rotaRotulo: 'Ir para Funcionários',
     icone: 'users',
   },
   {
     titulo: 'Cadastre o cliente',
-    texto: 'A empresa proprietária do equipamento. Vira o contratante do relatório e do prontuário.',
+    texto: 'A empresa proprietária do equipamento.',
+    detalhe:
+      'O cliente vira o CONTRATANTE do relatório e do prontuário. Ele é vinculado ao equipamento na ficha, e daí em diante razão social, CNPJ e endereço entram sozinhos em todo documento daquele ativo.',
+    pontos: [
+      'Razão social, CNPJ e atividade principal',
+      'Endereço completo — há busca no Google para preencher a partir do nome',
+      'Opcional: um login de Portal do Cliente, somente leitura',
+    ],
     rota: '/empresas',
+    rotaRotulo: 'Ir para Clientes',
     icone: 'briefcase',
   },
   {
     titulo: 'Cadastre o equipamento',
-    texto: 'TAG, tipo e a ficha. Nada operacional funciona sem ele — é a raiz de todo o resto.',
+    texto: 'TAG, tipo e a ficha completa.',
+    detalhe:
+      'O equipamento é a raiz do sistema: inspeção, relatório, prontuário, calibração e prazo pendem dele. Criar é rápido — TAG e tipo —, mas é a FICHA que alimenta a capa, a placa reconstruída e a caracterização de risco.',
+    pontos: [
+      'TAG (a identificação única) e o tipo: vaso, caldeira ou autoclave',
+      'Fabricante, ano, nº de série, código de projeto e localização',
+      'O cliente proprietário',
+      'PMTA, PMO e PTH adotadas — quando preenchidas, vencem as calculadas',
+      'A foto de capa',
+      'Vários de uma vez: a tela aceita importação por planilha',
+    ],
     rota: '/equipamentos',
+    rotaRotulo: 'Ir para Equipamentos',
     icone: 'box',
   },
   {
     titulo: 'Calcule o memorial',
-    texto: 'Casco, tampos, material e pressão. Dele saem a PMTA, a espessura mínima e a categoria de risco.',
+    texto: 'Casco, tampos, material e pressão de projeto.',
+    detalhe:
+      'Do memorial saem a PMTA do equipamento, a espessura mínima requerida de cada componente e a base da categoria de risco. Sem ele, as folhas de cálculo do relatório saem vazias e a categorização não tem pressão para trabalhar.',
+    pontos: [
+      'Pressão de projeto e diâmetro interno',
+      'Por componente: tensão admissível, eficiência da junta, espessura comercial, margem de corrosão, material e temperatura',
+      'Σ Gerar Cálculo e depois Salvar',
+      'A PMTA do equipamento é a MENOR entre as calculadas por componente',
+    ],
     rota: '/equipamentos',
+    rotaRotulo: 'Ir para Equipamentos',
     icone: 'calculator',
   },
   {
-    titulo: 'Prepare os padrões',
-    texto: 'Certificados dos instrumentos padrão e as calibrações dos acessórios do equipamento.',
-    rota: '/certificados',
+    titulo: 'Categorize',
+    texto: 'Volume e classe do fluido — a categoria sai sozinha.',
+    detalhe:
+      'Com a PMTA do memorial, o volume e a classe do fluido, o sistema devolve o enquadramento na norma, o produto pressão × volume, o grupo de potencial de risco e a categoria final. Recalcular o memorial atualiza a categoria sozinho.',
+    pontos: [
+      'Volume geométrico em m³',
+      'Classe do fluido (A, B, C ou D, com a descrição de cada uma)',
+      'A categoria aparece na capa, na placa e na folha de caracterização',
+    ],
+    rota: '/equipamentos',
+    rotaRotulo: 'Ir para Equipamentos',
     icone: 'shield',
   },
   {
+    titulo: 'Prepare os padrões',
+    texto: 'Certificados dos instrumentos e calibrações dos acessórios.',
+    detalhe:
+      'São duas coisas diferentes e as duas alimentam o relatório: os CERTIFICADOS são dos instrumentos com que você mede (bloco padrão, manômetro padrão, PSV padrão); as CALIBRAÇÕES são dos acessórios instalados no equipamento inspecionado.',
+    pontos: [
+      'Certificados: nº, validade e o PDF, com a caixa "Injetar no final do relatório" marcada',
+      'Calibrações: cadastre os acessórios do equipamento e crie um lote da rodada',
+      'É um certificado por padrão, válido para todos os equipamentos',
+    ],
+    rota: '/certificados',
+    rotaRotulo: 'Ir para Certificados',
+    icone: 'sliders',
+  },
+  {
     titulo: 'Crie a inspeção',
-    texto: 'Um container por rodada de inspeção, com os ensaios que você vai fazer.',
+    texto: 'Um container por rodada, com os ensaios que serão feitos.',
+    detalhe:
+      'O container é a rodada de inspeção daquele equipamento. Ele agrupa os ensaios da ocasião e mantém o histórico separado: criar o container deste ano não toca no do ano passado.',
+    pontos: [
+      'Escolha o equipamento e clique em + Nova Inspeção',
+      'Dê um nome à rodada',
+      'Marque os ensaios: checklist, visual externo, visual interno, ultrassom e teste hidrostático',
+    ],
     rota: '/inspecoes',
+    rotaRotulo: 'Ir para Inspeções',
     icone: 'clipboard',
   },
   {
     titulo: 'Preencha em campo',
-    texto: 'Checklist, exames visuais, ultrassom e teste hidrostático — pelo celular, e salvando cada um.',
+    texto: 'Pelo celular, salvando cada formulário.',
+    detalhe:
+      'Os formulários foram feitos para o celular, e o salvamento funciona sem rede: o que você preencher offline sobe quando o sinal voltar. Marcar o ensaio na criação apenas o ATRIBUI — ele só existe para o documento depois de preenchido e salvo.',
+    pontos: [
+      'Cada ensaio abre em Preencher e mostra Pendente ou Preenchido',
+      'Fotos com legenda: 4 por folha; a quinta abre uma folha nova',
+      'Cada formulário tem o próprio botão de salvar',
+    ],
     rota: '/inspecoes',
+    rotaRotulo: 'Ir para Inspeções',
     icone: 'camera',
   },
   {
     titulo: 'Gere o relatório',
-    texto: 'O assistente pergunta o equipamento, as folhas e qual inspeção fornece os dados de campo.',
+    texto: 'O assistente em três etapas.',
+    detalhe:
+      'O assistente pergunta uma vez o equipamento e depois só três coisas: quais folhas compõem o documento, qual inspeção fornece os dados de campo e a revisão antes de gerar. O documento nasce como rascunho.',
+    pontos: [
+      'Etapa 1 — o tipo de inspeção e as folhas do relatório',
+      'Etapa 2 — o container, com a contagem de ensaios preenchidos e um olho para conferir antes',
+      'Etapa 3 — revisar e gerar',
+    ],
     rota: '/relatorios',
+    rotaRotulo: 'Ir para Relatórios',
     icone: 'pdf',
   },
   {
     titulo: 'Revise em rascunho',
-    texto: 'A barra "O que falta" aponta cada campo em branco. Rascunho continua editável o tempo que precisar.',
+    texto: 'A barra "O que falta" aponta cada campo em branco.',
+    detalhe:
+      'Enquanto for rascunho, o documento continua editável: você pode fechar, voltar depois e corrigir qualquer campo clicando nele. A correção vale só para aquele relatório — nenhum cadastro do sistema é alterado.',
+    pontos: [
+      'A barra agrupa os campos vazios por assunto e leva até cada um',
+      'Configurações: nº, datas, validade, próximas inspeções, A.R.T. e quem assina',
+      'Predefinições: recomendações guardadas da sua empresa, aplicadas com um clique',
+      'Rascunho não gera prazo, não entra no Portal e não vira registro de segurança',
+    ],
     rota: '/relatorios',
+    rotaRotulo: 'Ir para Relatórios',
     icone: 'pencil',
   },
   {
-    titulo: 'Finalize',
-    texto: 'O documento vira oficial, é arquivado e deixa de ser editável.',
-    rota: '/relatorios',
-    icone: 'cadeado',
-  },
-  {
-    titulo: 'Acompanhe os prazos',
-    texto: 'As datas do relatório finalizado passam a alimentar o Dashboard e a tela de Vencimentos.',
+    titulo: 'Finalize e acompanhe',
+    texto: 'O documento vira oficial e as datas passam a valer.',
+    detalhe:
+      'Finalizar arquiva o documento: a partir daí abrir, imprimir, baixar e o Portal do Cliente entregam exatamente o mesmo arquivo, mesmo que a ficha mude depois. E só então as datas dele passam a alimentar o Dashboard.',
+    pontos: [
+      'O conteúdo não muda mais — para alterar algo, use Duplicar',
+      'O prazo é a menor data entre próxima interna e próxima externa',
+      'A régua 15/30/60/90 dias é cumulativa; Vencidos isola o que já passou',
+    ],
     rota: '/dashboard',
+    rotaRotulo: 'Ir para o Dashboard',
     icone: 'grid',
   },
 ];
@@ -212,8 +332,6 @@ export const GUIAS: Guia[] = [
     depois: 'O equipamento passa a aparecer no Dashboard com a data da próxima inspeção.',
     rota: '/equipamentos',
     rotaRotulo: 'Ir para Equipamentos',
-    ilustracao: '/ilustracoes/escolher-equipamento.webp',
-    ilustracaoAlt: 'Um técnico escolhendo um equipamento numa lista de ativos',
   },
   {
     id: 'empresa',
@@ -270,6 +388,11 @@ export const GUIAS: Guia[] = [
         titulo: 'Escolha as folhas que ele assina',
         texto:
           'Há duas listas, uma do prontuário e outra do relatório, com "Marcar todas". Por padrão o engenheiro assina tudo e o inspetor, nenhuma.',
+      },
+      {
+        titulo: 'Use no documento',
+        texto:
+          'No relatório, o modal Configurações traz os seletores Engenheiro (assina) e Técnico (assina) com os profissionais cadastrados aqui. No prontuário, os mesmos seletores ficam no visualizador.',
       },
     ],
     observacoes: [
@@ -346,6 +469,16 @@ export const GUIAS: Guia[] = [
         titulo: 'Envie a foto de capa',
         texto: 'A foto marcada como capa é a que aparece na primeira página do relatório.',
       },
+      {
+        titulo: 'Registre a vida remanescente',
+        texto:
+          'O card de vida remanescente compara a espessura anterior com a atual e devolve a taxa de corrosão, o sobremetal e a vida em anos. Ele serve de reserva para o prazo quando o relatório não traz as datas de próxima inspeção.',
+      },
+      {
+        titulo: 'Anexe o prontuário do fabricante',
+        texto:
+          'Se você tem o PDF original do fabricante, o card correspondente o guarda junto do equipamento — e as páginas dele entram no fim do relatório.',
+      },
     ],
     observacoes: [
       'A unidade de medida é escolhida dentro da ficha e reflete em todo o sistema. A categoria de risco NUNCA é convertida — ela tem base própria.',
@@ -355,8 +488,6 @@ export const GUIAS: Guia[] = [
     depois: 'O equipamento passa a aparecer em Inspeções, Relatórios, Prontuários, Calibrações e Registros de Segurança.',
     rota: '/equipamentos',
     rotaRotulo: 'Ir para Equipamentos',
-    ilustracao: '/ilustracoes/escolher-equipamento.webp',
-    ilustracaoAlt: 'Um técnico escolhendo um equipamento numa lista de ativos',
   },
   {
     id: 'memorial',
@@ -399,8 +530,6 @@ export const GUIAS: Guia[] = [
     depois: 'A PMTA calculada alimenta a categoria de risco e as folhas de memorial do relatório.',
     rota: '/equipamentos',
     rotaRotulo: 'Ir para Equipamentos',
-    ilustracao: '/ilustracoes/memorial-calculo.webp',
-    ilustracaoAlt: 'Croqui de um vaso de pressão ao lado das fórmulas do memorial de cálculo',
   },
   {
     id: 'categoria',
@@ -456,7 +585,12 @@ export const GUIAS: Guia[] = [
       {
         titulo: 'Salve',
         texto:
-          'Cada formulário tem o próprio botão de salvar. O salvamento funciona sem rede: o que você preencher offline sobe quando o sinal voltar.',
+          'Cada formulário tem o próprio botão de salvar. O salvamento funciona sem rede: o que você preencher offline sobe quando o sinal voltar, e o selo no topo da tela diz quando ainda há coisa por subir.',
+      },
+      {
+        titulo: 'Confira o estado antes de sair de campo',
+        texto:
+          'O cartão do container mostra quantos ensaios estão preenchidos. Um ensaio ainda Pendente significa que aquele bloco sairá vazio no relatório — é a última chance de voltar ao equipamento.',
       },
     ],
     observacoes: [
@@ -468,8 +602,6 @@ export const GUIAS: Guia[] = [
     depois: 'O container passa a ser escolhível na etapa "Inspeção" do assistente de criação de relatório.',
     rota: '/inspecoes',
     rotaRotulo: 'Ir para Inspeções',
-    ilustracao: '/ilustracoes/container-inspecao.webp',
-    ilustracaoAlt: 'Uma pilha de formulários de inspeção, com o de cima preenchido',
   },
   {
     id: 'fotos',
@@ -537,8 +669,6 @@ export const GUIAS: Guia[] = [
     depois: 'As validades das calibrações passam a aparecer no Dashboard como prazos de origem "calibração".',
     rota: '/calibracoes',
     rotaRotulo: 'Ir para Calibrações',
-    ilustracao: '/ilustracoes/fluxo-calibracao.webp',
-    ilustracaoAlt: 'Fluxo em quatro etapas: equipamento, cadastro dos acessórios, lote e calibração concluída',
   },
   {
     id: 'certificados',
@@ -577,8 +707,6 @@ export const GUIAS: Guia[] = [
     depois: 'O bloco de rastreabilidade das folhas de ultrassom e de teste hidrostático passa a se preencher sozinho.',
     rota: '/certificados',
     rotaRotulo: 'Ir para Certificados',
-    ilustracao: '/ilustracoes/rastreabilidade-padroes.webp',
-    ilustracaoAlt: 'Bancada com instrumentos padrão ao lado dos certificados e do calendário de validade',
   },
 
   // ── DOCUMENTAÇÃO ─────────────────────────────────────────────────────────
@@ -607,6 +735,16 @@ export const GUIAS: Guia[] = [
         titulo: 'Etapa 3 — Revisar e gerar',
         texto:
           'O resumo do que foi escolhido, com a possibilidade de desmarcar um ensaio que não deve sair no documento. Clique em Gerar Documento.',
+      },
+      {
+        titulo: 'Preencha as Configurações',
+        texto:
+          'No documento aberto, o botão Configurações reúne nº do relatório, data de emissão, data de execução da inspeção, validade, próximas inspeções interna e externa, o número da A.R.T. e quem assina. "Aplicar ao documento" grava e refaz a folha na hora.',
+      },
+      {
+        titulo: 'Feche o que a barra apontar',
+        texto:
+          'A barra "O que falta" agrupa os campos em branco por assunto e leva até cada um. Clicar em qualquer texto do documento abre o editor daquele campo, e a correção vale só para este relatório.',
       },
     ],
     observacoes: [
@@ -801,8 +939,6 @@ export const GUIAS: Guia[] = [
     ],
     rota: '/livro-registro',
     rotaRotulo: 'Ir para Registros de Segurança',
-    ilustracao: '/ilustracoes/registro-seguranca.webp',
-    ilustracaoAlt: 'Livro de registro de segurança aberto, com a linha do tempo do equipamento',
   },
 
   // ── GESTÃO ───────────────────────────────────────────────────────────────
@@ -825,6 +961,11 @@ export const GUIAS: Guia[] = [
         titulo: 'Leia a coluna Origem',
         texto:
           'Ela diz de onde o prazo veio: inspeção (do relatório do equipamento), calibração (de um acessório instalado) ou certificado (de um instrumento padrão).',
+      },
+      {
+        titulo: 'Entenda as três origens',
+        texto:
+          'INSPEÇÃO é o prazo do equipamento, tirado do último relatório finalizado. CALIBRAÇÃO é a validade de um acessório instalado nele — o manômetro, a válvula de segurança. CERTIFICADO é a validade do instrumento PADRÃO que você usa para medir. São coisas diferentes e não podem se confundir: uma é a válvula do vaso, a outra é a válvula-padrão da bancada.',
       },
       { titulo: 'Aprofunde em Vencimentos', texto: 'A tela dedicada traz a lista completa, com busca e paginação.' },
     ],
@@ -870,29 +1011,47 @@ export const GUIAS: Guia[] = [
     categoria: 'gestao',
     icone: 'key',
     chaves: ['acesso', 'login', 'senha', 'permissão', 'equipe', 'portal', 'sub-login', 'gerente', 'inspetor'],
-    preRequisitos: ['Ser o usuário mestre da conta'],
+    preRequisitos: ['Ser o usuário mestre da conta (o login que criou a organização)'],
     passos: [
-      { titulo: 'Abra Acessos', texto: 'A lista dos logins da sua organização. Só o mestre entra nesta tela.' },
       {
-        titulo: 'Crie o acesso',
+        titulo: 'Entenda os três tipos de login',
         texto:
-          'Escolha o perfil: Gerente (vê tudo por padrão) ou Inspetor (nasce com acesso apenas a Inspeções).',
+          'MESTRE é o login que criou a conta: ele vê tudo, é o único que abre Meus dados e Acessos, e é quem cria os demais. EQUIPE são os logins dos seus colaboradores, com permissão que você escolhe módulo a módulo. CLIENTE é o login do Portal, somente leitura, que enxerga apenas os equipamentos daquela empresa.',
       },
       {
-        titulo: 'Marque os módulos',
+        titulo: 'Abra Acessos e crie o login da equipe',
         texto:
-          'A permissão é por módulo: Dashboard, Agenda, Vencimentos, Equipamentos, Inspeções, Relatórios, Prontuários, Calibrações, Certificados, Registros de Segurança e os cadastros.',
+          'Informe o e-mail e a senha inicial do colaborador. O login nasce dentro da SUA organização: ele enxerga os mesmos equipamentos, inspeções e documentos que você — nada é duplicado e nada é separado por pessoa.',
+      },
+      {
+        titulo: 'Escolha o perfil',
+        texto:
+          'Gerente nasce com todos os módulos marcados; Inspetor nasce com apenas Inspeções. O perfil é só a pré-marcação — depois você ajusta a lista item a item.',
+      },
+      {
+        titulo: 'Marque os módulos permitidos',
+        texto:
+          'São doze: Dashboard, Agenda, Vencimentos, Equipamentos, Inspeções, Relatórios, Prontuários, Calibrações, Certificados, Registros de Segurança, Cadastrar Funcionários e Cadastrar Clientes. O que não for marcado não aparece na barra lateral daquela pessoa, e digitar o endereço na barra do navegador também não abre — ela é levada de volta ao primeiro módulo permitido.',
+      },
+      {
+        titulo: 'Ajuste ou bloqueie depois',
+        texto:
+          'A lista de Acessos mostra cada login com o estado (liberado ou bloqueado) e permite trocar a senha e mudar as permissões a qualquer momento. Bloquear tira o acesso sem apagar nada do que a pessoa produziu.',
       },
       {
         titulo: 'Portal do Cliente',
         texto:
-          'Em Clientes, cada empresa pode ganhar um login próprio para acompanhar os equipamentos e documentos dela — somente leitura.',
+          'Em Cadastrar → Clientes, cada empresa pode ganhar um login próprio. Ele abre um portal somente leitura com os equipamentos e os documentos finalizados daquele cliente — sem acesso ao resto do sistema e sem ver nenhuma outra empresa.',
       },
     ],
     observacoes: [
-      'O menu e as rotas seguem a permissão: o que não foi marcado nem aparece na barra lateral.',
-      'O cliente do Portal não enxerga nada de outras empresas.',
+      'Colaborador NÃO paga assinatura separada: os logins da equipe pertencem à sua organização.',
+      'O inspetor que só tem Inspeções continua enxergando a central de ajuda — ela não se esconde de ninguém.',
+      'Rascunho, inspeção e documento são da ORGANIZAÇÃO, não da pessoa: quem começa uma inspeção em campo pode ter o relatório gerado por outra pessoa no escritório.',
+      'O cliente do Portal nunca vê rascunho — só documento finalizado.',
+      'Só o mestre cria, bloqueia e muda permissão. Um gerente com todos os módulos ainda não abre Acessos nem Meus dados.',
     ],
+    depois: 'A pessoa entra com o e-mail e a senha que você criou e já enxerga os módulos liberados.',
     rota: '/acesso',
     rotaRotulo: 'Ir para Acessos',
   },
@@ -901,8 +1060,6 @@ export const GUIAS: Guia[] = [
 export interface PerguntaFaq {
   pergunta: string;
   resposta: string;
-  /** Guia relacionado, para o botão "Ver o guia". */
-  guia?: string;
 }
 
 export const FAQ: PerguntaFaq[] = [
@@ -910,161 +1067,144 @@ export const FAQ: PerguntaFaq[] = [
     pergunta: 'Por onde começo?',
     resposta:
       'Configure Meus dados (empresa e logo), cadastre quem assina em Funcionários e o cliente em Clientes. Depois cadastre o equipamento — é dele que tudo o mais depende.',
-    guia: 'comecar',
   },
   {
     pergunta: 'Preciso cadastrar o equipamento antes de criar uma inspeção?',
     resposta:
       'Sim. A inspeção pertence a um equipamento: a tela de Inspeções pede que você escolha um antes de criar a rodada.',
-    guia: 'equipamentos',
   },
   {
     pergunta: 'O que é um container de inspeção?',
     resposta:
       'É uma rodada de inspeção daquele equipamento. Dentro dele você marca quais ensaios serão feitos e guarda o que foi coletado em campo. As rodadas anteriores continuam inteiras.',
-    guia: 'inspecoes',
   },
   {
     pergunta: 'Posso fazer a inspeção pelo celular?',
     resposta:
       'Sim — os formulários foram feitos para isso. E o salvamento funciona sem rede: o que você preencher offline sobe quando o sinal voltar.',
-    guia: 'inspecoes',
   },
   {
     pergunta: 'Posso fechar uma inspeção e continuar depois?',
     resposta: 'Pode. O que foi salvo permanece, e o ensaio volta a abrir no ponto em que estava.',
-    guia: 'inspecoes',
   },
   {
     pergunta: 'Marquei o ensaio na criação. Por que ele não aparece no relatório?',
     resposta:
       'Marcar o ensaio apenas o atribui ao container. Ele só chega ao documento depois de preenchido e SALVO no formulário.',
-    guia: 'inspecoes',
   },
   {
     pergunta: 'Como gero um relatório?',
     resposta:
       'Relatórios → Criar relatório. O assistente pergunta o equipamento, quais folhas entram e qual inspeção fornece os dados de campo.',
-    guia: 'relatorio',
   },
   {
     pergunta: 'De onde vêm os dados do relatório?',
     resposta:
       'Da sua empresa, do cadastro do cliente, da ficha do equipamento, do memorial, da categorização, do container de inspeção escolhido, dos certificados e do modal Configurações.',
-    guia: 'de-onde-vem',
   },
   {
     pergunta: 'Qual a diferença entre rascunho e finalizado?',
     resposta:
       'Rascunho continua editável e não gera prazo nem entra no Portal. Finalizado é o documento oficial: fica arquivado e o conteúdo não muda mais.',
-    guia: 'rascunho',
   },
   {
     pergunta: 'Posso editar um relatório depois de finalizado?',
     resposta:
       'Não. O que existe é Duplicar: nasce um relatório novo, editável, e o documento assinado continua intacto. Renomear é a única coisa que se pode mudar — é etiqueta de pasta, não conteúdo.',
-    guia: 'rascunho',
   },
   {
     pergunta: 'Como adiciono uma foto e a legenda dela?',
     resposta:
       'Dentro do formulário do ensaio, em + Adicionar Foto. Cada foto tem um campo de texto logo abaixo — é ele que sai impresso sob a imagem. Depois, salve o formulário.',
-    guia: 'fotos',
   },
   {
     pergunta: 'Quantas fotos cabem por folha?',
     resposta: 'Quatro. A quinta abre uma folha nova com o mesmo cabeçalho, e assim por diante.',
-    guia: 'fotos',
   },
   {
     pergunta: 'Como cadastro um certificado de calibração do meu instrumento?',
     resposta:
       'Em Certificados. São três padrões: bloco padrão de espessura, manômetro padrão e válvula PSV padrão. Informe instrumento, nº, validade e anexe o PDF.',
-    guia: 'certificados',
   },
   {
     pergunta: 'Cadastrei o certificado e ele não foi para o relatório. Por quê?',
     resposta:
       'Duas condições precisam valer ao mesmo tempo: o relatório tem de incluir a folha daquele ensaio, e a caixa "Injetar no final do relatório" no cartão do padrão tem de estar marcada.',
-    guia: 'certificados',
   },
   {
     pergunta: 'Qual a diferença entre Calibrações e Certificados?',
     resposta:
       'Calibrações são os acessórios DO EQUIPAMENTO (o manômetro e a válvula instalados nele). Certificados são os instrumentos PADRÃO que você usa para medir. Um é o que se inspeciona; o outro é com o que se inspeciona.',
-    guia: 'calibracoes',
   },
   {
     pergunta: 'Por que determinado prazo não aparece no Dashboard?',
     resposta:
       'Ou não há data cadastrada, ou o relatório ainda é rascunho. Rascunho não gera prazo — o Dashboard só conta documento finalizado.',
-    guia: 'dashboard',
   },
   {
     pergunta: 'O que significam os chips 15, 30, 60 e 90 dias?',
     resposta:
       'São janelas de prazo, e são cumulativas: o que vence em 3 dias aparece em todas. O chip Vencidos isola o que já passou da data.',
-    guia: 'dashboard',
   },
   {
     pergunta: 'Como funciona o prontuário?',
     resposta:
       'Você cria, preenche as seções, desenha o croqui (só vaso de pressão) e emite. Emitir de novo não sobrescreve: cria uma revisão nova, e a anterior continua existindo.',
-    guia: 'prontuarios',
   },
   {
     pergunta: 'O que significa trancar um Registro de Segurança?',
     resposta:
       'Trancar entra o registro na numeração do livro e o torna definitivo: ele não pode mais ser editado nem apagado. Enquanto for rascunho, pode.',
-    guia: 'livro',
+  },
+  {
+    pergunta: 'Meus funcionários e colaboradores podem acessar o sistema também?',
+    resposta:
+      'Podem, e sem pagar assinatura separada: em Acessos, o usuário mestre cria um login para cada pessoa da equipe. O login nasce dentro da sua organização — a pessoa enxerga os mesmos equipamentos, inspeções e documentos que você, nada é duplicado. O que muda é a PERMISSÃO: você marca, módulo a módulo, o que cada uma pode abrir (Dashboard, Agenda, Vencimentos, Equipamentos, Inspeções, Relatórios, Prontuários, Calibrações, Certificados, Registros de Segurança e os dois cadastros). O que não for marcado nem aparece na barra lateral daquela pessoa, e digitar o endereço no navegador também não abre. Há dois perfis para acelerar: Gerente nasce com tudo marcado, Inspetor nasce só com Inspeções — o típico do técnico que preenche em campo pelo celular. Depois dá para ajustar as permissões, trocar a senha ou bloquear o acesso, e bloquear não apaga nada do que a pessoa produziu. Só o mestre entra em Acessos e em Meus dados, mesmo que um gerente tenha todos os módulos. E há um terceiro tipo, diferente: o login de Portal do Cliente, criado em Cadastrar → Clientes, que dá à empresa proprietária uma área somente leitura com os equipamentos e os documentos finalizados dela — sem ver rascunho, sem ver nenhuma outra empresa e sem entrar no resto do sistema.',
+  },
+  {
+    pergunta: 'Uma pessoa começa a inspeção no celular e outra gera o relatório. Funciona?',
+    resposta:
+      'Funciona, e é o uso previsto. Inspeção, rascunho e documento pertencem à ORGANIZAÇÃO, não a quem os criou: o inspetor preenche os ensaios em campo — inclusive sem rede — e, de volta à internet, os dados sobem e ficam disponíveis para quem for montar o relatório no escritório.',
   },
   {
     pergunta: 'Como cadastro um engenheiro para assinar?',
     resposta:
       'Cadastrar → Funcionários. Informe nome, CREA/registro, o tipo Engenheiro e envie a imagem da assinatura. Depois escolha-o no modal Configurações do relatório.',
-    guia: 'funcionarios',
   },
   {
     pergunta: 'Como troco a logo da empresa?',
     resposta:
       'Em Meus dados. A logo nova passa a valer para os documentos seguintes; os já finalizados mantêm a que tinham na emissão.',
-    guia: 'empresa',
   },
   {
     pergunta: 'O sistema calcula a categoria sozinho?',
     resposta:
       'Sim. Com o volume, a PMTA do memorial e a classe do fluido, o card Categoria NR-13 devolve o enquadramento, o grupo de risco e a categoria final.',
-    guia: 'categoria',
   },
   {
     pergunta: 'Preenchi um campo nas Configurações e o documento não mudou.',
     resposta:
       'Clique em "Aplicar ao documento" no rodapé do modal. Ele grava e refaz a prévia — o campo passa a aparecer na folha.',
-    guia: 'relatorio',
   },
   {
     pergunta: 'Posso trocar a placa de identificação por uma foto?',
     resposta:
       'Pode, e a troca vale só para aquele relatório. Um relatório novo do mesmo equipamento volta a trazer a placa reconstruída com os dados da ficha.',
-    guia: 'equipamentos',
   },
   {
     pergunta: 'Escrevo as mesmas recomendações em todo relatório. Dá para guardar?',
     resposta:
       'Dá. Na barra do documento, ao lado de "O que falta", o botão Predefinições guarda conjuntos de recomendações da sua empresa e os aplica com um clique em qualquer relatório.',
-    guia: 'de-onde-vem',
   },
   {
     pergunta: 'Posso cadastrar vários equipamentos de uma vez?',
     resposta:
       'Pode: a tela de Equipamentos aceita importação por planilha (.xlsx, .xls, .ods ou .csv). Também funciona arrastando o arquivo para cima da lista.',
-    guia: 'equipamentos',
   },
   {
     pergunta: 'Meu cliente pode acompanhar os documentos dele?',
     resposta:
       'Pode. Em Clientes, cada empresa pode ganhar um login de Portal do Cliente: uma área somente-leitura com os equipamentos e documentos dela.',
-    guia: 'acessos',
   },
 ];
 

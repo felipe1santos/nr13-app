@@ -7,7 +7,6 @@ import {
   PRIMEIROS_PASSOS,
   buscarFaq,
   buscarGuias,
-  guiaPorId,
   guiasDaCategoria,
   normalizar,
   type CategoriaInfo,
@@ -103,20 +102,11 @@ describe('conteúdo', () => {
     }
   });
 
-  it('toda ilustração citada existe em public/ilustracoes', () => {
-    // Asset ausente vira imagem quebrada no meio da ajuda.
-    for (const g of GUIAS) {
-      if (!g.ilustracao) continue;
-      expect(() => readFileSync(`public${g.ilustracao}`), g.id).not.toThrow();
-      expect(g.ilustracaoAlt, `${g.id} sem alt`).toBeTruthy();
-    }
-  });
-
-  it('todo FAQ que aponta um guia aponta um guia que existe', () => {
-    for (const f of FAQ) {
-      if (!f.guia) continue;
-      expect(guiaPorId(f.guia), f.pergunta).not.toBeNull();
-    }
+  it('o FAQ traz só a RESPOSTA — sem botão para o guia', () => {
+    // Decisão do dono: quem abre a pergunta quer a resposta ali, não um desvio.
+    const pagina = readFileSync('src/pages/Info.tsx', 'utf8');
+    expect(pagina).not.toContain('Ver o guia');
+    for (const f of FAQ) expect(f.resposta.trim().length, f.pergunta).toBeGreaterThan(40);
   });
 
   it('nenhuma pergunta repetida', () => {
@@ -253,9 +243,109 @@ describe('gate · a tela', () => {
     expect(celular).not.toMatch(/\bwidth:\s*\d{3,}px/);
   });
 
-  it('as grades usam minmax(min(100%, …)) — 1fr sozinho não encolhe', () => {
-    expect(css).toContain('minmax(min(100%, 250px), 1fr)');
+  it('as colunas do fluxo são FIXAS por faixa — a seta depende disso', () => {
+    // Com `auto-fill` não há como saber qual cartão fecha a fileira, e a seta
+    // do último apontaria para o vazio da margem.
+    expect(css).toContain('grid-template-columns: repeat(4, minmax(0, 1fr))');
+    expect(css).toContain('grid-template-columns: repeat(3, minmax(0, 1fr))');
+    expect(css).toContain('grid-template-columns: repeat(2, minmax(0, 1fr))');
+    expect(css).toContain('.info-fluxo-passo:nth-child(4n)::after');
+    expect(css).toContain('.info-fluxo-passo:last-child::after');
+  });
+
+  it('os cards de guia continuam encolhendo — 1fr sozinho não encolhe', () => {
     expect(css).toContain('minmax(min(100%, 330px), 1fr)');
     expect(css).toContain('min-width: 0');
+  });
+});
+
+/**
+ * A JORNADA — "Comece por aqui" (10/09/2026).
+ *
+ * O cartão numerado abre a etapa; a etapa avança pela seta; o "Guia completo"
+ * é a mesma coisa começando do zero. Um componente só, porque quem abre a
+ * etapa 3 e entende quer ver a 4 — dois modais separados deixariam o primeiro
+ * sem saída.
+ */
+describe('a jornada', () => {
+  const pagina = readFileSync('src/pages/Info.tsx', 'utf8');
+  const modal = readFileSync('src/features/info/ModalJornada.tsx', 'utf8');
+  const css = readFileSync('src/pages/info.css', 'utf8');
+
+  it('toda etapa tem detalhe, pontos e destino real', () => {
+    for (const e of PRIMEIROS_PASSOS) {
+      expect(e.detalhe.trim().length, e.titulo).toBeGreaterThan(80);
+      expect(e.pontos.length, e.titulo).toBeGreaterThanOrEqual(3);
+      expect(e.rotaRotulo.trim(), e.titulo).not.toBe('');
+      expect(ROTAS_REAIS.has(e.rota), `${e.titulo} → ${e.rota}`).toBe(true);
+    }
+  });
+
+  it('as 12 etapas fecham as fileiras de 4, 3, 2 e 1 — nenhuma seta órfã', () => {
+    for (const colunas of [4, 3, 2, 1]) {
+      expect(PRIMEIROS_PASSOS.length % colunas, `com ${colunas} colunas`).toBe(0);
+    }
+  });
+
+  it('clicar num cartão abre a jornada NAQUELA etapa', () => {
+    expect(pagina).toContain("trocar('etapa', String(i))");
+    expect(pagina).toContain("params.get('etapa')");
+    expect(pagina).toContain('<ModalJornada inicio={jornadaAberta}');
+  });
+
+  it('"Guia completo" é a mesma jornada, da etapa zero', () => {
+    expect(pagina).toContain("trocar('etapa', '0')");
+    expect(pagina).toContain('Guia completo');
+  });
+
+  it('índice fora da faixa não abre nada', () => {
+    // `?etapa=99` ou `?etapa=abc` na barra do navegador não pode quebrar a tela.
+    expect(pagina).toContain('Number.isInteger(etapa) && etapa >= 0 && etapa < PRIMEIROS_PASSOS.length');
+  });
+
+  it('a barra de progresso navega, e o alvo dela é clicável de verdade', () => {
+    expect(modal).toContain('role="tablist"');
+    expect(modal).toContain('aria-selected={n === i}');
+    expect(modal).toContain('onClick={() => setI(n)}');
+    // 4px de traço não se acerta com o dedo: a área cresce por ::before.
+    expect(css).toContain('.info-jor-traco::before');
+    expect(css).toContain('inset: -11px 0');
+  });
+
+  it('as setas do teclado andam pela jornada', () => {
+    expect(modal).toContain("e.key === 'ArrowRight'");
+    expect(modal).toContain("e.key === 'ArrowLeft'");
+  });
+
+  it('a última etapa conclui em vez de avançar para o nada', () => {
+    expect(modal).toContain("i === total - 1 ? aoFechar() : ir(1)");
+    expect(modal).toContain("i === total - 1 ? 'Concluir' : 'Próxima etapa'");
+  });
+
+  it('cada etapa tem o botão que leva à seção', () => {
+    expect(modal).toContain('navigate(etapa.rota)');
+    expect(modal).toContain('{etapa.rotaRotulo}');
+  });
+
+  it('o contrato de acessibilidade vale aqui também', () => {
+    expect(modal).toContain('role="dialog"');
+    expect(modal).toContain('aria-modal="true"');
+    expect(modal).toContain('aria-labelledby="jornada-titulo"');
+    expect(modal).toContain("e.key === 'Escape'");
+    expect(modal).toContain("e.key !== 'Tab'");
+    expect(modal).toContain('origem?.focus?.()');
+    expect(modal).toContain('aria-label="Fechar a jornada"');
+  });
+
+  it('o guia por seção NÃO tem ilustração — só o ícone do card', () => {
+    const guia = readFileSync('src/features/info/ModalGuia.tsx', 'utf8');
+    expect(guia).not.toContain('info-modal-arte');
+    expect(guia).toContain('<Icone nome={guia.icone}');
+  });
+
+  it('no celular a seta gira para baixo', () => {
+    const celular = css.slice(css.indexOf('@media (max-width: 640px)') + 30);
+    expect(celular).toContain('transform: rotate(135deg)');
+    expect(celular).toContain('grid-template-columns: 1fr');
   });
 });
