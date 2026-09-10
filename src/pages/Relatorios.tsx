@@ -229,6 +229,14 @@ function RelatoriosLegado() {
   const [meta, setMeta] = useState<RelatorioMeta | null>(null);
   const [somenteLeitura, setSomenteLeitura] = useState(false);
   const [versao, setVersao] = useState(0);
+  /**
+   * Sobe quando um PAINEL grava — Configurações, Medições ou Laudo. A prévia
+   * vetorial refaz o documento sozinha nesse caso: o usuário chegou ali pela
+   * barra "O que falta", preencheu e mandou aplicar; pedir que ele procure um
+   * segundo botão com outro nome para ver o efeito é devolver o trabalho que a
+   * barra existe para poupar. Ver `PreviaVetorial`.
+   */
+  const [aplicadoEm, setAplicadoEm] = useState(0);
   // Relatório finalizado sendo VISTO pelo arquivo (não remontado). Null = fluxo
   // legado. Declarado aqui em cima porque o palco depende dele.
   const [relatorioArquivado, setRelatorioArquivado] = useState<RelatorioSalvo | null>(null);
@@ -449,7 +457,7 @@ function RelatoriosLegado() {
       // guardado — é prévia, e o botão diz isso.
       if (papelDaPrevia(fluxo) === 'previa-vetorial') {
         if (avisarBloqueioDocumentos()) return;
-        const { bytes } = await gerarPreviaRelatorio(tag, documentos ?? [], overrides);
+        const { bytes } = await gerarPreviaRelatorio(tag, documentos ?? [], overrides, meta?.codigo);
         if (!abrirPdfEmAba(bytes)) {
           setErroSalvar('Não foi possível abrir a pré-visualização para impressão. Verifique o bloqueador de pop-ups.');
           return;
@@ -1019,6 +1027,10 @@ function RelatoriosLegado() {
     if (!meta || somenteLeitura) return; // o botão some em relatório salvo; aqui o dado também
     await gravarMetaAtual(meta);
     setVersao((v) => v + 1);
+    // ...e o documento se refaz: quem clica aqui está mandando aplicar no
+    // documento, não só guardar a meta. Ver `aplicadoEm`.
+    setAplicadoEm(Date.now());
+    setModalConfig(false);
   }
 
   async function baixarPdf() {
@@ -1040,7 +1052,7 @@ function RelatoriosLegado() {
       // agora. Nada é publicado — baixar uma prévia não emite documento.
       if (papelDaPrevia(fluxo) === 'previa-vetorial') {
         if (avisarBloqueioDocumentos()) return;
-        const { bytes } = await gerarRelatorioVetorial(tag, { documentos: documentos ?? [], overrides });
+        const { bytes } = await gerarRelatorioVetorial(tag, { documentos: documentos ?? [], overrides, idRelatorio: meta.codigo });
         baixarPdfDeBytes(bytes, nome);
         registrarUso('pdf');
         return;
@@ -1200,6 +1212,8 @@ function RelatoriosLegado() {
               // 13D-bis: o MESMO mapa da prévia. O documento emitido é o que
               // estava na tela — não uma remontagem sem as correções de texto.
               overrides,
+              // ...e a mesma placa: a foto pertence a ESTE documento.
+              idRelatorio: meta.codigo,
             }).then((r) => ({ bytes: r.bytes, paginas: r.paginas, falhasAnexo: r.falhasAnexo }))
           : await gerarPdfBytes('.relatorio-preview', {
               rastreabilidades: true,
@@ -1549,7 +1563,12 @@ function RelatoriosLegado() {
                 continua existindo para o rollback `?previa=iframe`, onde o
                 desenho vive dentro de um iframe e não aceita o clique. */}
             {fonteDeImpressao(relatorioArquivado) !== 'arquivo' && papelDaPrevia(fluxo) !== 'previa-vetorial' && (
-              <CardPlacaIdentificacao tag={tag} desabilitado={somenteLeitura} onMudou={() => setVersao((v) => v + 1)} />
+              <CardPlacaIdentificacao
+                tag={tag}
+                idRelatorio={meta?.codigo ?? ''}
+                desabilitado={somenteLeitura}
+                onMudou={() => setVersao((v) => v + 1)}
+              />
             )}
             {/* 13C · os DOIS campos do relatório que a folha gravava passam a ser
                 editados aqui. Em documento salvo os botões somem: §7-ter.
@@ -1685,7 +1704,7 @@ function RelatoriosLegado() {
               tag={tag}
               containerId={meta?.containerOrigemId ?? null}
               onFechar={() => setModalMedicoes(false)}
-              onSalvou={() => setVersao((v) => v + 1)}
+              onSalvou={() => { setVersao((v) => v + 1); setAplicadoEm(Date.now()); }}
             />
           )}
           {modalLaudo && (
@@ -1693,7 +1712,7 @@ function RelatoriosLegado() {
               tag={tag}
               codigoRelatorio={meta?.codigo ?? ''}
               onFechar={() => setModalLaudo(false)}
-              onSalvou={() => setVersao((v) => v + 1)}
+              onSalvou={() => { setVersao((v) => v + 1); setAplicadoEm(Date.now()); }}
             />
           )}
 
@@ -1763,6 +1782,7 @@ function RelatoriosLegado() {
               tag={tag}
               documentos={documentos}
               versaoDados={versao}
+              aplicadoEm={aplicadoEm}
               idRelatorio={meta?.codigo}
               onOverrides={setOverrides}
               onIrPara={(destino, campo) => {
@@ -1927,8 +1947,12 @@ function RelatoriosLegado() {
                 </div>
                 <div className="rel-modal-acoes">
                   {!somenteLeitura && (
-                    <button type="button" className="btn-secundario" onClick={() => { atualizarMetadados(); }}>
-                      Atualizar
+                    // "Atualizar" não dizia o quê. O botão grava a meta E refaz
+                    // o documento — o nome passou a dizer isso, porque era
+                    // possível clicar, ver a mesma folha e concluir que o campo
+                    // não tinha sido aceito.
+                    <button type="button" className="btn-primario" onClick={() => { void atualizarMetadados(); }}>
+                      Aplicar ao documento
                     </button>
                   )}
                 </div>

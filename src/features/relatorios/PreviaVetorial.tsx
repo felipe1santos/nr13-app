@@ -56,6 +56,7 @@ export default function PreviaVetorial({
   tag,
   documentos,
   versaoDados,
+  aplicadoEm,
   idRelatorio,
   onIrPara,
   onOverrides,
@@ -64,6 +65,11 @@ export default function PreviaVetorial({
   documentos: string[];
   /** Muda a cada edição salva — é o que marca a prévia como atrasada. */
   versaoDados: number;
+  /**
+   * Carimbo de quando um PAINEL gravou (Configurações, Medições, Laudo). Muda
+   * → a prévia se refaz sozinha. Ver o efeito que o consome.
+   */
+  aplicadoEm?: number;
   /** O id do relatório em edição: é a quem os overrides pertencem. */
   idRelatorio?: string;
   /** `campo`: no modal de Configurações, qual input focar e destacar. */
@@ -111,7 +117,7 @@ export default function PreviaVetorial({
       setGerando(true);
       setErro('');
       try {
-        const r = await gerarPreviaRelatorio(tag, documentos, mapa);
+        const r = await gerarPreviaRelatorio(tag, documentos, mapa, idRelatorio);
         setBytes(r.bytes);
         setPaginas(r.paginas);
         setEditaveis(r.editaveis);
@@ -126,7 +132,7 @@ export default function PreviaVetorial({
         setGerando(false);
       }
     },
-    [tag, documentos, versaoDados, overrides],
+    [tag, documentos, versaoDados, overrides, idRelatorio],
   );
 
   // Uma geração na abertura: chegar numa tela vazia com um botão "Atualizar"
@@ -135,6 +141,34 @@ export default function PreviaVetorial({
     void gerar();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- só na montagem; as demais são sob demanda
   }, []);
+
+  /**
+   * O QUE SAI DE UM PAINEL VOLTA PARA O DOCUMENTO SOZINHO (10/09/2026).
+   *
+   * A prévia é gerada sob demanda porque desenhar 30 folhas custa caro, e
+   * `versaoDados` só a marca como ATRASADA. Mas há um caminho em que esperar o
+   * usuário pedir de novo é errado: ele clicou numa pendência da barra, a barra
+   * abriu o painel (Configurações, Medições ou Laudo), ele preencheu e mandou
+   * aplicar. Aí o pedido já foi feito.
+   *
+   * Medido em produção: preencher o Nº da A.R.T. vindo do "O que falta" e
+   * clicar em "Atualizar" não mudava nada na tela — o campo continuava amarelo
+   * e a pendência continuava na lista. Havia um segundo botão, com outro nome
+   * ("Atualizar prévia"), em outro canto da barra. Quem edita pelo painel não
+   * tem por que descobrir isso.
+   *
+   * `aplicadoEm` só muda quando um painel GRAVA. Trocar de folha, abrir e
+   * fechar o modal ou salvar rascunho continuam sem regerar nada.
+   */
+  const primeiroAplicado = useRef(true);
+  useEffect(() => {
+    if (primeiroAplicado.current) {
+      primeiroAplicado.current = false;
+      return;
+    }
+    void gerar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só o carimbo do painel dispara
+  }, [aplicadoEm]);
 
   const atrasada = versaoGerada !== null && versaoGerada !== versaoDados;
 

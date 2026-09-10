@@ -19,6 +19,26 @@ import { comprimirImagemComBlob } from '../../services/imagem';
  * Remover a foto devolve a reconstruída, sem nenhum passo extra: a chave
  * simplesmente deixa de existir.
  *
+ * ## A ESCOLHA É DE UM RELATÓRIO, NÃO DO EQUIPAMENTO (10/09/2026)
+ *
+ * A chave era `nr13_placa_<TAG>`, por EQUIPAMENTO. Consequência medida: uma
+ * foto enviada num relatório passava a substituir a placa reconstruída em
+ * TODOS os relatórios daquele equipamento, para sempre — inclusive nos que
+ * seriam emitidos meses depois, por outra pessoa, sem que nada na tela dissesse
+ * que aquela imagem tinha vindo de outro documento.
+ *
+ * Trocar a placa por uma foto é uma decisão PONTUAL: vale para o documento em
+ * que foi tomada. A chave passou a ser `nr13_placa_<idRelatorio>_<TAG>` — o
+ * mesmo formato dos overrides (`nr13_ovr_<id>_<TAG>`, id primeiro e TAG por
+ * último, por causa do filtro da Edge do Portal).
+ *
+ * Sem `idRelatorio` não há foto: o padrão do documento é a placa
+ * RECONSTRUÍDA, e um relatório novo nasce com ela.
+ *
+ * As chaves antigas por TAG ficam INERTES. Nada as lê e nada as escreve; os
+ * relatórios já emitidos que embutiram aquela imagem continuam intactos, porque
+ * documento finalizado é servido pelo `pdfRef` e nunca remontado (§7-quater).
+ *
  * ## Onde o arquivo mora
  *
  * No mesmo lugar das outras fotos do sistema (`services/fotos.ts`): bucket
@@ -42,20 +62,29 @@ export interface PlacaReal {
 
 export const PREFIXO_PLACA = 'nr13_placa_';
 
-export function chavePlaca(tag: string): string {
-  return `${PREFIXO_PLACA}${tag}`;
+/**
+ * `nr13_placa_<idRelatorio>_<TAG>`.
+ *
+ * O id é sanitizado do mesmo jeito que em `chaveRelatorio()`: um `_` dentro
+ * dele moveria a fronteira que `familiasChave` usa para achar a TAG.
+ */
+export function chavePlaca(tag: string, idRelatorio: string): string {
+  return `${PREFIXO_PLACA}${idRelatorio.replace(/_/g, '-')}_${tag}`;
 }
 
-/** O registro da foto real, se houver. `null` = usar a placa reconstruída. */
-export function lerPlacaReal(tag: string): PlacaReal | null {
-  if (!tag) return null;
-  const p = ler<PlacaReal>(chavePlaca(tag));
+/**
+ * O registro da foto real DESTE relatório, se houver.
+ * `null` = usar a placa reconstruída, que é o padrão do documento.
+ */
+export function lerPlacaReal(tag: string, idRelatorio?: string | null): PlacaReal | null {
+  if (!tag || !idRelatorio) return null;
+  const p = ler<PlacaReal>(chavePlaca(tag, idRelatorio));
   return p?.ref?.path ? p : null;
 }
 
-/** Existe foto real? Síncrono, para a UI decidir o que mostrar. */
-export function temPlacaReal(tag: string): boolean {
-  return lerPlacaReal(tag) !== null;
+/** Existe foto real neste relatório? Síncrono, para a UI decidir o que mostrar. */
+export function temPlacaReal(tag: string, idRelatorio?: string | null): boolean {
+  return lerPlacaReal(tag, idRelatorio) !== null;
 }
 
 /**
@@ -65,7 +94,11 @@ export function temPlacaReal(tag: string): boolean {
  * placa tirada no celular chega com 4–8 MB, e a placa é um retângulo de texto —
  * a compressão não custa legibilidade e evita subir o arquivo inteiro.
  */
-export async function definirPlacaReal(tag: string, arquivo: File): Promise<PlacaReal> {
+export async function definirPlacaReal(
+  tag: string,
+  idRelatorio: string,
+  arquivo: File,
+): Promise<PlacaReal> {
   const { blob, dataUrl } = await comprimirImagemComBlob(arquivo, 1400);
   const ref = await salvarArquivo(blob, 'placa', 'jpg', 'image/jpeg');
   const registro: PlacaReal = {
@@ -77,7 +110,7 @@ export async function definirPlacaReal(tag: string, arquivo: File): Promise<Plac
     proporcao: await medirProporcao(dataUrl),
     enviadoEm: new Date().toISOString(),
   };
-  await salvar(chavePlaca(tag), registro);
+  await salvar(chavePlaca(tag, idRelatorio), registro);
   return registro;
 }
 
@@ -98,8 +131,8 @@ function medirProporcao(dataUrl: string): Promise<number> {
  * essa imagem continuam existindo, e o arquivo é o que o `pdfRef` daquele
  * documento carrega. Remover aqui é desfazer a ESCOLHA, não apagar histórico.
  */
-export async function removerPlacaReal(tag: string): Promise<void> {
-  await excluirChave(chavePlaca(tag));
+export async function removerPlacaReal(tag: string, idRelatorio: string): Promise<void> {
+  await excluirChave(chavePlaca(tag, idRelatorio));
 }
 
 /**
@@ -110,8 +143,9 @@ export async function removerPlacaReal(tag: string): Promise<void> {
  */
 export async function resolverPlacaReal(
   tag: string,
+  idRelatorio?: string | null,
 ): Promise<{ dataUrl: string; proporcao: number } | null> {
-  const placa = lerPlacaReal(tag);
+  const placa = lerPlacaReal(tag, idRelatorio);
   if (!placa) return null;
   try {
     const blob = await baixarFoto(placa.ref);

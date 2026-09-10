@@ -152,41 +152,82 @@ describe('placa RECONSTRUÍDA: dados reais, nada inventado', () => {
   });
 });
 
-describe('placa REAL: existe, prevalece e some', () => {
+describe('placa REAL: a escolha é de UM relatório', () => {
+  /**
+   * 10/09/2026 · a chave era `nr13_placa_<TAG>`, por EQUIPAMENTO.
+   *
+   * Consequência medida no "RELATORIO DA IA": a foto enviada num relatório
+   * substituía a placa reconstruída em TODOS os relatórios daquele equipamento,
+   * para sempre — inclusive nos emitidos meses depois, por outra pessoa, sem
+   * nada na tela dizendo que a imagem tinha vindo de outro documento.
+   *
+   * Trocar a placa por uma foto é decisão PONTUAL. Relatório novo nasce com a
+   * placa reconstruída.
+   */
+  const REL = 'REL-1789004119133';
+  const OUTRO = 'REL-1789999999999';
+
   it('sem registro, a placa é a reconstruída', () => {
-    expect(lerPlacaReal(TAG)).toBeNull();
-    expect(temPlacaReal(TAG)).toBe(false);
+    expect(lerPlacaReal(TAG, REL)).toBeNull();
+    expect(temPlacaReal(TAG, REL)).toBe(false);
   });
 
-  it('com registro, a real prevalece', async () => {
-    await salvar(chavePlaca(TAG), REGISTRO);
-    expect(temPlacaReal(TAG)).toBe(true);
-    expect(lerPlacaReal(TAG)!.ref.path).toBe('org/placa/abc.jpg');
-    expect(lerPlacaReal(TAG)!.proporcao).toBe(2.4);
+  it('com registro, a real prevalece NAQUELE relatório', async () => {
+    await salvar(chavePlaca(TAG, REL), REGISTRO);
+    expect(temPlacaReal(TAG, REL)).toBe(true);
+    expect(lerPlacaReal(TAG, REL)!.ref.path).toBe('org/placa/abc.jpg');
+    expect(lerPlacaReal(TAG, REL)!.proporcao).toBe(2.4);
+  });
+
+  it('OUTRO relatório do mesmo equipamento nasce com a reconstruída', async () => {
+    await salvar(chavePlaca(TAG, REL), REGISTRO);
+    expect(temPlacaReal(TAG, OUTRO)).toBe(false);
+    expect(lerPlacaReal(TAG, OUTRO)).toBeNull();
+  });
+
+  it('sem relatório não há foto — o padrão do documento é a reconstruída', async () => {
+    await salvar(chavePlaca(TAG, REL), REGISTRO);
+    expect(lerPlacaReal(TAG)).toBeNull();
+    expect(lerPlacaReal(TAG, '')).toBeNull();
+    expect(lerPlacaReal(TAG, null)).toBeNull();
+  });
+
+  it('a chave por TAG que existia antes ficou INERTE', async () => {
+    // Chave no formato velho, gravada por uma versão anterior do sistema.
+    await salvar(`nr13_placa_${TAG}`, REGISTRO);
+    expect(lerPlacaReal(TAG, REL)).toBeNull();
+    expect(lerPlacaReal(TAG, OUTRO)).toBeNull();
   });
 
   it('REMOVER devolve a reconstruída, sem passo extra', async () => {
-    await salvar(chavePlaca(TAG), REGISTRO);
-    await removerPlacaReal(TAG);
-    expect(lerPlacaReal(TAG)).toBeNull();
-    expect(temPlacaReal(TAG)).toBe(false);
+    await salvar(chavePlaca(TAG, REL), REGISTRO);
+    await removerPlacaReal(TAG, REL);
+    expect(lerPlacaReal(TAG, REL)).toBeNull();
+    expect(temPlacaReal(TAG, REL)).toBe(false);
   });
 
   it('registro pela metade não conta como placa real', async () => {
     // Sem `path` não há arquivo a servir; tratar como real deixaria a folha sem
     // placa NENHUMA — nem a foto, nem a reconstrução.
-    await salvar(chavePlaca(TAG), { ...REGISTRO, ref: { ...REGISTRO.ref, path: '' } });
-    expect(lerPlacaReal(TAG)).toBeNull();
+    await salvar(chavePlaca(TAG, REL), { ...REGISTRO, ref: { ...REGISTRO.ref, path: '' } });
+    expect(lerPlacaReal(TAG, REL)).toBeNull();
   });
 
-  it('a chave é por TAG e o registro NÃO guarda base64', async () => {
-    await salvar(chavePlaca(TAG), REGISTRO);
-    expect(chavePlaca(TAG)).toBe(`nr13_placa_${TAG}`);
-    expect(escopoDaChave(chavePlaca(TAG))).toBe('tag');
-    expect(tagDaChave(chavePlaca(TAG))).toBe(TAG);
-    const cru = localStorage.getItem(chavePlaca(TAG)) ?? '';
+  it('a chave leva id e TAG, nessa ordem, e NÃO guarda base64', async () => {
+    await salvar(chavePlaca(TAG, REL), REGISTRO);
+    // A TAG fica no FIM: é assim que a Edge do Portal seleciona as chaves.
+    expect(chavePlaca(TAG, REL)).toBe(`nr13_placa_${REL}_${TAG}`);
+    expect(chavePlaca(TAG, REL).endsWith(`_${TAG}`)).toBe(true);
+    expect(escopoDaChave(chavePlaca(TAG, REL))).toBe('tag');
+    expect(tagDaChave(chavePlaca(TAG, REL))).toBe(TAG);
+    const cru = localStorage.getItem(chavePlaca(TAG, REL)) ?? '';
     expect(cru).not.toContain('data:image');
     expect(cru).toContain('org/placa/abc.jpg');
+  });
+
+  it('id com `_` não move a fronteira da TAG', () => {
+    // `chaveRelatorio` faz a mesma sanitização, e pelo mesmo motivo.
+    expect(tagDaChave(chavePlaca(TAG, 'REL_COM_UNDERSCORE'))).toBe(TAG);
   });
 
   it('a família fica FORA do palco: nenhuma folha de public/ lê a placa', () => {

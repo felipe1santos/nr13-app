@@ -49,8 +49,6 @@ export const POR_TAG = [
   'nr13_med_grid_',
   'nr13_modelo3d_',
   'nr13_pref_unidade_',
-  // 12B · a foto REAL da placa de identificação (guarda `RefFoto`, nunca base64).
-  'nr13_placa_',
   'nr13_pront_fab_',
   // 12A · emissões arquivadas do prontuário (lista por revisão; nunca sobrescreve).
   'nr13_pront_emitido_',
@@ -93,6 +91,11 @@ const POR_ID_E_TAG = [
   // 'nr13_rel_ovr_' o índice do histórico leria este mapa como se fosse um
   // relatório salvo.
   'nr13_ovr_',
+  // 12B · a foto REAL da placa de identificação (guarda `RefFoto`, nunca
+  // base64). Era família por TAG até 10/09/2026, e por isso a foto enviada num
+  // relatório passava a valer para TODOS os relatórios daquele equipamento —
+  // ver o cabeçalho de `placaIdentificacao.ts`.
+  'nr13_placa_',
 ];
 
 /** Registros identificados por id próprio, não por TAG de equipamento. */

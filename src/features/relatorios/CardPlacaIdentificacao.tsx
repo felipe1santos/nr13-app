@@ -25,14 +25,21 @@ import { definirPlacaReal, lerPlacaReal, removerPlacaReal } from './placaIdentif
  */
 export default function CardPlacaIdentificacao({
   tag,
+  idRelatorio,
   desabilitado,
   onMudou,
 }: {
   tag: string;
+  /**
+   * A quem a foto pertence. Trocar a placa é decisão de UM documento: a chave é
+   * `nr13_placa_<id>_<TAG>` desde 10/09/2026, e um relatório novo nasce com a
+   * placa reconstruída. Ver `placaIdentificacao.ts`.
+   */
+  idRelatorio: string;
   desabilitado?: boolean;
   onMudou?: () => void;
 }) {
-  const [placa, setPlaca] = useState(() => lerPlacaReal(tag));
+  const [placa, setPlaca] = useState(() => lerPlacaReal(tag, idRelatorio));
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState('');
   const entrada = useRef<HTMLInputElement>(null);
@@ -44,7 +51,7 @@ export default function CardPlacaIdentificacao({
     setOcupado(true);
     setErro('');
     try {
-      setPlaca(await definirPlacaReal(tag, arquivo));
+      setPlaca(await definirPlacaReal(tag, idRelatorio, arquivo));
       onMudou?.();
     } catch (err) {
       setErro(err instanceof Error ? err.message : 'Não foi possível enviar a foto da placa.');
@@ -57,7 +64,7 @@ export default function CardPlacaIdentificacao({
     setOcupado(true);
     setErro('');
     try {
-      await removerPlacaReal(tag);
+      await removerPlacaReal(tag, idRelatorio);
       setPlaca(null);
       onMudou?.();
     } catch (err) {

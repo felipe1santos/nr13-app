@@ -95,6 +95,15 @@ export interface OpcoesVetorial {
    * e ele nunca passa por aqui em modo preview.
    */
   modo?: ModoDocumento;
+  /**
+   * O código do relatório em edição.
+   *
+   * É por ele que a FOTO da placa é encontrada: a escolha de trocar a placa
+   * reconstruída por uma fotografia vale para UM documento, não para o
+   * equipamento (ver `placaIdentificacao.ts`). Sem id, o documento sai com a
+   * placa reconstruída — que é o padrão.
+   */
+  idRelatorio?: string;
 }
 
 /**
@@ -323,7 +332,7 @@ export async function gerarRelatorioVetorial(
   // A placa REAL vem do cofre/bucket, então só dá para resolver aqui — o modelo
   // é montado de forma síncrona. Sem foto, `placaReal` fica `null` e a folha
   // desenha a placa reconstruída.
-  modelo.placaReal = await resolverPlacaReal(tag);
+  modelo.placaReal = await resolverPlacaReal(tag, opcoes.idRelatorio);
 
   // Bloco 1 · as imagens que o RELATÓRIO trocou (foto de capa, logo).
   //
@@ -496,12 +505,14 @@ export async function gerarPreviaRelatorio(
   tag: string,
   documentos: string[],
   overrides: MapaOverrides = {},
+  idRelatorio?: string,
 ): Promise<{ bytes: Uint8Array; paginas: number; ms: number; editaveis: CampoEditavel[] }> {
   const r = await gerarRelatorioVetorial(tag, {
     documentos,
     certificados: true,
     modo: 'preview',
     overrides,
+    idRelatorio,
   });
   return { bytes: r.bytes, paginas: r.paginas, ms: r.ms, editaveis: r.editaveis };
 }
