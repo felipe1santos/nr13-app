@@ -273,7 +273,12 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
   // ── Ações por relatório ────────────────────────────────────────────────────
   /** Ids fora da lista padrão. Arquivar NÃO apaga nada — ver `arquivados.ts`. */
   const [arquivados, setArquivados] = useState<Set<string>>(() => idsArquivados());
-  const [renomeando, setRenomeando] = useState<{ item: ItemRelatorio; nome: string } | null>(null);
+  /**
+   * O que está sendo renomeado. `id`+`tag` em vez do item inteiro porque
+   * RASCUNHO também se renomeia (10/09/2026) e ele é um `RascunhoItem`, não um
+   * `ItemRelatorio` — as duas linhas precisam do MESMO modal.
+   */
+  const [renomeando, setRenomeando] = useState<{ id: string; tag: string; nome: string } | null>(null);
   const [arquivando, setArquivando] = useState<ItemRelatorio | null>(null);
   /** Rascunho escolhido para exclusão DEFINITIVA. */
   const [excluindoRascunho, setExcluindoRascunho] = useState<RascunhoItem | null>(null);
@@ -512,16 +517,18 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
     try {
       // Só o rótulo. `renomearRelatorio` reescreve `nome` no registro e no
       // índice; `pdfRef`, `sha256` e os bytes no bucket não são tocados.
-      const ok = await renomearRelatorio(renomeando.item.relatorioId, renomeando.item.tag, nome);
+      const ok = await renomearRelatorio(renomeando.id, renomeando.tag, nome);
       if (!ok) {
         setErroAcao('Não foi possível renomear: o registro deste relatório não está neste aparelho.');
         return;
       }
       // A lista vem do servidor; atualiza a linha em memória para o nome novo
       // aparecer agora, sem esperar a projeção.
-      setItens((atuais) =>
-        atuais.map((i) => (i.relatorioId === renomeando.item.relatorioId ? { ...i, nome } : i)),
-      );
+      setItens((atuais) => atuais.map((i) => (i.relatorioId === renomeando.id ? { ...i, nome } : i)));
+      // O rascunho vem do índice LOCAL (`rascunhos.ts`), que `renomearRelatorio`
+      // já reescreveu — mas a lista em memória precisa acompanhar, senão o nome
+      // novo só apareceria no próximo carregamento da tela.
+      setRascunhos((atuais) => atuais.map((i) => (i.id === renomeando.id ? { ...i, nome } : i)));
       setRenomeando(null);
     } catch (e) {
       setErroAcao(`Não foi possível renomear: ${e instanceof Error ? e.message : String(e)}`);
@@ -1025,6 +1032,23 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
                       >
                         <Icone nome="pencil" tam={14} />
                       </button>
+                      {/* 10/09/2026 · o rascunho também se renomeia.
+                          O nome só podia ser escolhido no modal de FINALIZAR,
+                          então quem quisesse identificar um documento em
+                          andamento pela lista precisava finalizá-lo primeiro —
+                          exatamente o contrário do que o rascunho existe para
+                          permitir. `renomearRelatorio` já roteia o rascunho
+                          para `salvarRascunho`, que reescreve o registro e o
+                          índice local; faltava só a porta. */}
+                      <button
+                        type="button"
+                        className="btn-icone"
+                        title="Editar nome"
+                        aria-label={`Editar o nome do rascunho ${r.codigo || r.nome}`}
+                        onClick={() => setRenomeando({ id: r.id, tag: r.tag, nome: r.nome ?? r.codigo ?? '' })}
+                      >
+                        <Icone nome="filetext" tam={14} />
+                      </button>
                       <button
                         type="button"
                         className="btn-icone cor-doc-forte"
@@ -1115,7 +1139,7 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
                       className="btn-icone"
                       title="Editar nome"
                       aria-label={`Editar o nome de ${ou(r.nome ?? r.codigo)}`}
-                      onClick={() => setRenomeando({ item: r, nome: r.nome ?? r.codigo ?? '' })}
+                      onClick={() => setRenomeando({ id: r.relatorioId, tag: r.tag, nome: r.nome ?? r.codigo ?? '' })}
                     >
                       <Icone nome="pencil" tam={14} />
                     </button>
