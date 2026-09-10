@@ -352,3 +352,74 @@ describe('a jornada', () => {
     expect(celular).toContain('grid-template-columns: 1fr');
   });
 });
+
+/**
+ * A FAIXA DE IDENTIFICAÇÃO É FINA (10/09/2026, pedido do dono).
+ *
+ * "Pode ficar mais fina verticalmente, não ocupa muito espaço na tela.
+ * Padronize isso para tudo." Um bloco que só diz onde você está não é
+ * conteúdo — ele identifica e sai da frente.
+ */
+describe('gate · a faixa da tela não come a dobra', () => {
+  const css = readFileSync('src/pages/info.css', 'utf8');
+  const bloco = css.slice(css.indexOf('.info-hero {'), css.indexOf('/* ── Busca'));
+
+  it('uma linha só: ícone, título e subtítulo lado a lado', () => {
+    expect(bloco).toContain('padding: 10px 14px');
+    expect(bloco).toContain('.info-hero-txt');
+    expect(bloco).toContain('align-items: baseline');
+  });
+
+  it('o título não é um h1 de página inteira', () => {
+    // A topbar do sistema já diz o nome da tela; repetir em 20px era duplicar
+    // a informação em corpo de manchete.
+    expect(bloco).toMatch(/\.info-hero h1 \{[^}]*font-size: 15px/);
+  });
+
+  it('o ícone acompanha — 32px, não 52', () => {
+    expect(bloco).toMatch(/\.info-hero-ic \{[^}]*width: 32px/);
+  });
+
+  it('no celular o subtítulo desce para a linha de baixo em vez de esticar a faixa', () => {
+    const celular = css.slice(css.indexOf('@media (max-width: 640px)') + 30);
+    expect(celular).toContain('.info-hero p { flex-basis: 100%');
+  });
+});
+
+/**
+ * UX da página longa (10/09/2026).
+ *
+ * A central tem jornada, quatro categorias de guia e 29 perguntas. Duas
+ * decisões que vieram de olhar a tela rolada até o fim.
+ */
+describe('gate · a página longa não cansa', () => {
+  const pagina = readFileSync('src/pages/Info.tsx', 'utf8');
+  const css = readFileSync('src/pages/info.css', 'utf8');
+
+  it('a busca acompanha a rolagem', () => {
+    // Voltar ao topo para procurar é atrito puro numa página desse tamanho.
+    const bloco = css.slice(css.indexOf('.info-busca {'), css.indexOf('.info-busca-x'));
+    expect(bloco).toContain('position: sticky');
+    expect(bloco).toContain('top: 0');
+    expect(bloco).toContain('z-index: 5');
+  });
+
+  it('o FAQ abre cortado em 8, com saída para o resto', () => {
+    // 29 perguntas fechadas em fila é uma parede: quem chega para ler desiste
+    // antes de rolar.
+    expect(pagina).toContain('faq.slice(0, 8)');
+    expect(pagina).toContain('Ver todas as {faq.length} perguntas');
+    expect(FAQ.length).toBeGreaterThan(8);
+  });
+
+  it('BUSCANDO, o FAQ vem inteiro', () => {
+    // Cortar o resultado de uma busca esconderia justamente a resposta que a
+    // pessoa foi procurar.
+    expect(pagina).toContain('buscando || faqInteiro ? faq : faq.slice(0, 8)');
+  });
+
+  it('o botão "ver todas" é alvo de dedo', () => {
+    const bloco = css.slice(css.indexOf('.info-faq-mais {'));
+    expect(bloco.slice(0, 300)).toContain('min-height: 44px');
+  });
+});

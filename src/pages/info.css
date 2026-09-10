@@ -18,52 +18,70 @@
   gap: 22px;
 }
 
-/* ── Hero ─────────────────────────────────────────────────────────────────── */
+/* ── Faixa de identificação ───────────────────────────────────────────────────
+   FINA de propósito (10/09/2026, pedido do dono). Um bloco de identificação não
+   é conteúdo — ele diz onde você está e sai da frente. Aqui: uma linha só no
+   desktop, com o ícone à esquerda, o título e o subtítulo ao lado.
+
+   A altura caiu de 96 px para 54 px, e é o que faltava para a primeira etapa da
+   jornada caber na dobra sem rolar. Padrão para as demais telas. */
 .info-hero {
   display: flex;
   align-items: center;
-  gap: 18px;
-  padding: 20px 22px;
+  gap: 12px;
+  padding: 10px 14px;
   border: 1px solid var(--border-solid, #d8dbe0);
-  border-left: 4px solid #5b3aa6;
-  border-radius: 12px;
-  background: linear-gradient(180deg, #fbfaff 0%, #fff 60%);
+  border-left: 3px solid #5b3aa6;
+  border-radius: 10px;
+  background: #fbfaff;
+}
+.info-hero-txt {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 .info-hero h1 {
-  margin: 2px 0 4px;
-  font-size: 20px;
+  margin: 0;
+  font-size: 15px;
   font-weight: 800;
   color: var(--text-main, #111);
 }
 .info-hero p {
   margin: 0;
-  font-size: 13px;
-  line-height: 1.5;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.45;
   color: var(--text-muted, #6b7280);
-  max-width: 62ch;
 }
 .info-hero-eyebrow {
-  display: inline-block;
-  font-size: 10.5px;
+  flex: 0 0 auto;
+  font-size: 9.5px;
   font-weight: 800;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: #5b3aa6;
 }
 .info-hero-ic {
-  margin-left: auto;
   flex: 0 0 auto;
-  width: 52px;
-  height: 52px;
+  width: 32px;
+  height: 32px;
   display: grid;
   place-items: center;
-  border-radius: 12px;
+  border-radius: 8px;
   background: #f3effd;
   color: #5b3aa6;
 }
 
 /* ── Busca ────────────────────────────────────────────────────────────────── */
+/* A busca ACOMPANHA a rolagem (10/09/2026): a página é longa — jornada, quatro
+   categorias de guia e o FAQ —, e voltar ao topo para procurar é atrito puro.
+   O container que rola é o do Layout, então o sticky se prende a ele. */
 .info-busca {
+  position: sticky;
+  top: 0;
+  z-index: 5;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -73,6 +91,7 @@
   border-radius: 10px;
   background: var(--surface, #fff);
   color: var(--text-muted, #6b7280);
+  box-shadow: 0 6px 14px -10px rgba(17, 20, 24, 0.5);
 }
 .info-busca:focus-within {
   border-color: #0c4f9b;
@@ -430,6 +449,24 @@
   color: var(--text-muted, #4b5563);
 }
 
+.info-faq-mais {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px dashed var(--border-solid, #d8dbe0);
+  border-radius: 10px;
+  background: transparent;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #0c4f9b;
+  cursor: pointer;
+}
+.info-faq-mais:hover { background: #f7fbff; border-style: solid; border-color: #0c4f9b; }
+
 .info-vazio {
   margin: 0;
   padding: 22px 16px;
@@ -595,9 +632,11 @@
 @media (max-width: 640px) {
   .info-page { gap: 18px; padding-bottom: 28px; }
 
-  .info-hero { padding: 15px 16px; gap: 12px; }
-  .info-hero h1 { font-size: 17px; }
-  .info-hero-ic { width: 42px; height: 42px; }
+  .info-hero { padding: 9px 12px; gap: 10px; }
+  .info-hero-txt { gap: 2px; }
+  .info-hero h1 { font-size: 14.5px; }
+  .info-hero p { flex-basis: 100%; font-size: 11.5px; }
+  .info-hero-ic { width: 30px; height: 30px; }
 
   .info-busca { min-height: 46px; }
 

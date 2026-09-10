@@ -49,11 +49,24 @@ import './info.css';
 export default function Info() {
   const [params, setParams] = useSearchParams();
   const [termo, setTermo] = useState('');
+  /**
+   * O FAQ abre CORTADO (10/09/2026).
+   *
+   * Vinte e nove perguntas fechadas em fila é uma parede: quem chega para ler
+   * desiste antes de rolar, e quem chega com uma dúvida específica usa a busca.
+   * As oito primeiras cobrem o que mais se pergunta; o resto continua a um
+   * clique, e a busca sempre mostra tudo que casa.
+   */
+  const [faqInteiro, setFaqInteiro] = useState(false);
 
   const guias = useMemo(() => buscarGuias(termo), [termo]);
   const faq = useMemo(() => buscarFaq(termo), [termo]);
   const buscando = termo.trim() !== '';
   const nada = buscando && guias.length === 0 && faq.length === 0;
+  // Buscando, a lista vem inteira: cortar o resultado de uma busca esconderia
+  // justamente a resposta que a pessoa foi procurar.
+  const faqVisivel = buscando || faqInteiro ? faq : faq.slice(0, 8);
+  const faqCortado = faq.length - faqVisivel.length;
 
   const abertoId = params.get('guia');
   const aberto = abertoId ? guiaPorId(abertoId) : null;
@@ -74,18 +87,16 @@ export default function Info() {
 
   return (
     <div className="info-page">
+      {/* Faixa FINA: identifica a tela e sai da frente. Ver o comentário no CSS. */}
       <header className="info-hero">
-        <div>
+        <span className="info-hero-ic" aria-hidden>
+          <Icone nome="info" tam={17} />
+        </span>
+        <div className="info-hero-txt">
           <span className="info-hero-eyebrow">Info</span>
           <h1>Central de ajuda do NR-13</h1>
-          <p>
-            Entenda o fluxo do sistema, siga os guias passo a passo e tire dúvidas sobre cada
-            módulo.
-          </p>
+          <p>Entenda o fluxo, siga os guias e tire dúvidas sobre cada módulo.</p>
         </div>
-        <span className="info-hero-ic" aria-hidden>
-          <Icone nome="info" tam={26} />
-        </span>
       </header>
 
       <div className="info-busca">
@@ -208,7 +219,7 @@ export default function Info() {
         <section className="info-secao" aria-labelledby="info-faq">
           <h2 id="info-faq">Dúvidas frequentes</h2>
           <ul className="info-faq">
-            {faq.map((f) => (
+            {faqVisivel.map((f) => (
               <li key={f.pergunta}>
                 <details>
                   <summary>{f.pergunta}</summary>
@@ -219,6 +230,12 @@ export default function Info() {
               </li>
             ))}
           </ul>
+          {faqCortado > 0 && (
+            <button type="button" className="info-faq-mais" onClick={() => setFaqInteiro(true)}>
+              Ver todas as {faq.length} perguntas
+              <Icone nome="chevdown" tam={13} />
+            </button>
+          )}
         </section>
       )}
 
