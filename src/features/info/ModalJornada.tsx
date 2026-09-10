@@ -106,8 +106,8 @@ export default function ModalJornada({
           </div>
 
           {/* A barra de progresso é também a NAVEGAÇÃO: cada traço é a etapa, e
-              clicar salta para ela. Quem está estudando não quer avançar doze
-              vezes para reler a segunda. */}
+              clicar salta para ela. Quem está estudando não quer avançar etapa
+              por etapa para reler a segunda. */}
           <div
             className="info-jor-barra"
             role="tablist"

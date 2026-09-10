@@ -141,13 +141,17 @@
 }
 
 /* ── A JORNADA (Comece por aqui) ──────────────────────────────────────────────
-   Doze cartões ligados por uma SETA. A seta é `::after` do cartão, desenhada no
-   meio do `gap`, e é escondida no fim de cada fileira por `nth-child`.
+   Os cartões numerados, ligados por uma SETA. A seta é `::after` do cartão,
+   desenhada no meio do `gap`, e some em dois casos: no fim de cada fileira
+   (`nth-child`) e no último cartão (`:last-child`).
 
    É por isso que as colunas são FIXAS por faixa em vez de `auto-fill`: com a
    contagem variando conforme a largura não há como saber qual cartão fecha a
-   fileira, e a seta apontaria para o vazio da margem. Com 4 · 3 · 2 · 1 e doze
-   etapas, toda fileira fecha exata. */
+   fileira, e a seta apontaria para o vazio da margem.
+
+   O que garante que nenhuma seta aponte para o nada são essas DUAS regras — não
+   a contagem de etapas ser divisível pelas colunas. Com 11 etapas a última
+   fileira fica curta, e é o `:last-child` quem a fecha. */
 .info-secao-topo {
   display: flex;
   align-items: flex-start;
@@ -275,8 +279,8 @@
 }
 
 /* A barra de progresso é também a NAVEGAÇÃO: cada traço é uma etapa, e clicar
-   salta para ela. Quem está estudando não quer avançar doze vezes para reler a
-   segunda. */
+   salta para ela. Quem está estudando não quer avançar etapa por etapa para
+   reler a segunda. */
 .info-jor-barra {
   display: flex;
   gap: 4px;

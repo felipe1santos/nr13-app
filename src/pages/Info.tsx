@@ -28,7 +28,7 @@ import './info.css';
  *
  * ## Duas profundidades, de propósito
  *
- * **"Comece por aqui"** é a jornada: doze cartões curtos, ligados por setas,
+ * **"Comece por aqui"** é a jornada: cartões curtos, ligados por setas,
  * que se lêem em vinte segundos. Clicar num deles abre a etapa com o porquê e
  * o que se preenche — e de lá se avança de etapa em etapa, com progresso no
  * topo. É para aprender o CAMINHO.

@@ -72,7 +72,7 @@ Meus dados → Funcionários → Clientes
      Dashboard / Vencimentos  ← só documento FINALIZADO gera prazo
 ```
 
-Doze etapas na tela inicial, cada uma com o botão que leva à rota real.
+Onze etapas na tela inicial, cada uma com o botão que leva à rota real.
 
 ---
 
@@ -189,7 +189,7 @@ delas virou padrão da casa.
 
 | pedido | o que mudou |
 |---|---|
-| setas ligando os cartões numerados | `::after` no gap, escondida no fim de cada fileira por `nth-child`. Foi por isso que as colunas viraram FIXAS por faixa (4 · 3 · 2 · 1): com `auto-fill` não há como saber qual cartão fecha a fileira, e a seta apontaria para o vazio da margem. Doze etapas fecham exato nas quatro contagens; no celular a seta gira para baixo |
+| setas ligando os cartões numerados | `::after` no gap, escondida no fim de cada fileira por `nth-child`. Foi por isso que as colunas viraram FIXAS por faixa (4 · 3 · 2 · 1): com `auto-fill` não há como saber qual cartão fecha a fileira, e a seta apontaria para o vazio da margem. no celular a seta gira para baixo |
 | clicar na etapa abre um modal com "Ir à seção" | `ModalJornada`, com `?etapa=<n>` |
 | "Guia completo" abre a jornada inteira, avançando pela seta, com progresso no topo | o MESMO componente, começando do zero. A barra de progresso também navega: cada traço é uma etapa e clicar salta para ela |
 | guias por seção mais completos | passos novos em equipamentos, funcionários, inspeções, relatórios, dashboard e acessos |
@@ -204,8 +204,8 @@ sem saída.
 
 1. **A faixa de identificação emagreceu de 96 px para 54 px** — e virou padrão
    para toda tela nova. A topbar já diz o nome da tela; repetir em corpo de
-   manchete gastava a dobra com o que o usuário já sabia. Com ela fina, as doze
-   etapas da jornada cabem inteiras na primeira tela.
+   manchete gastava a dobra com o que o usuário já sabia. Com ela fina, a
+   jornada inteira cabe na primeira tela.
 2. **A busca acompanha a rolagem.** Jornada + quatro categorias + 29 perguntas:
    voltar ao topo para procurar é atrito puro.
 3. **O FAQ abre cortado em 8**, com "Ver todas as 29 perguntas". Buscando, vem
@@ -234,6 +234,67 @@ Faixa com 54 px; busca colada no topo depois de 900 px de rolagem; FAQ com 8 de
 barra de progresso, e a última traz "Concluir" em vez de "Próxima etapa".
 
 Suíte: **2.951 passando**, 48 gates da central.
+
+## Terceira passada — o menu e o que NÃO é jornada (mesmo dia)
+
+Dois pedidos do dono, e o segundo mudou o conteúdo, não a tela.
+
+### Acessos passou para dentro de "Cadastrar"
+
+O menu tinha `Cadastrar ▾ (Funcionários · Clientes)` e, lá embaixo, solto entre
+Certificados e Registros de Segurança, um **Acessos**. Acessos é o cadastro dos
+logins da equipe — mesma natureza dos outros dois. Solto no fim, ficava no meio
+das telas de OPERAÇÃO, que é onde ninguém procura por "criar um login para o meu
+técnico".
+
+```
+Cadastrar ▾
+├ Funcionários  → /funcionarios
+├ Clientes      → /empresas
+└ Acessos       → /acesso
+```
+
+Detalhe que precisou de cuidado: Acessos é o único item do grupo que **não passa
+pelo filtro de permissão** — é do mestre, sempre. A condição do grupo era
+`itensCadastrar.length > 0`; um mestre com Funcionários e Clientes bloqueados
+perderia a porta de Acessos junto. Virou
+`(itensCadastrar.length > 0 || isMestre())`.
+
+### "Prepare os padrões" saiu da jornada (12 → 11 etapas)
+
+Palavras do dono: *"nem sempre precisa calibrar padrões"*. A razão é mais forte
+do que "é uma coisa à parte": **pôr no caminho principal algo que às vezes não se
+faz ensina a pessoa a pular etapa**, e uma jornada em que se aprende a pular
+etapa deixa de ser jornada. O certificado do bloco de espessura vale meses e
+serve a todo o parque; a calibração dos acessórios só existe quando há manômetro
+ou PSV instalado.
+
+Os dois continuam com guia completo em **Operação**. Sob o fluxo entrou uma nota
+discreta, para a ausência não parecer esquecimento:
+
+> ⓘ **Calibrações** e **certificados dos padrões** não fazem parte da jornada:
+> são operações à parte, feitas quando o equipamento ou o ensaio pedem. Os guias
+> delas estão logo abaixo.
+
+### Dois defeitos que a mudança revelou
+
+**1. O gate era a invariante errada.** Ele exigia
+`PRIMEIROS_PASSOS.length % colunas === 0` para 4, 3, 2 e 1 — e quebrou quando a
+etapa saiu, com a TELA continuando correta. Quem garante que nenhuma seta aponta
+para o vazio são as duas regras de CSS (`nth-child(4n)::after` para o fim da
+fileira e `:last-child::after` para o último cartão), não a contagem. O gate
+passou a afirmar as regras; a divisibilidade nunca foi requisito.
+
+**2. No celular, as etapas 4 e 8 ficaram sem seta.** A regra base as desliga por
+serem fim de fileira no desktop, e o bloco de coluna única religava só `2n` e
+`3n` — nunca `4n`. Corrigido redeclarando `.info-fluxo-passo::after` inteiro no
+bloco do celular e desligando apenas `:last-child`.
+
+Conferido em produção: subitens de Cadastrar = Funcionários · Clientes ·
+Acessos; fim do menu = Certificados · Registros de Segurança · Info; onze etapas
+com setas 1→2→3→4, 5→6→7→8, 9→10→11, nenhuma órfã.
+
+Suíte: **2.956 passando**, 53 gates da central. Commit `529924e`.
 
 ## Ponto de retomada
 
