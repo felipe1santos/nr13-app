@@ -72,8 +72,28 @@ function dataUrlParaBlob(dataUrl: string): Blob {
 
 export interface LoteCal {
   id: string;
-  criadoEm: string;      // dd/mm/aaaa
+  criadoEm: string;      // dd/mm/aaaa — quando o REGISTRO foi feito
   descricao: string;     // ex.: "Calibração inspeção 07/2026"
+  /**
+   * A data em que a calibração foi EXECUTADA (dd/mm/aaaa).
+   *
+   * Não é o mesmo que `criadoEm`: lança-se em setembro uma calibração feita em
+   * agosto. Ausente = lote anterior a 11/09/2026, e aí `criadoEm` é a única
+   * data que ele tem — ver `dataDoLote`.
+   */
+  data?: string;
+  /**
+   * Os ids dos componentes que ESTE lote cobre.
+   *
+   * O lote não guardava isso: o accordion renderizava todos os componentes do
+   * equipamento e o "2/2" comparava com o parque de HOJE. Cadastrar um
+   * manômetro novo fazia todo lote antigo "Completo" voltar a "Em andamento",
+   * retroativamente, sem nada ter mudado naqueles lotes.
+   *
+   * Ausente = lote legado, que de fato não sabe o que cobria: `itensDoLote`
+   * devolve todos os componentes, que é exatamente o comportamento antigo.
+   */
+  itens?: string[];
   /** Relatório (meta.codigo) a que o lote inteiro está vinculado. */
   relatorioId?: string;
   /** Fila: o próximo relatório salvo deste equipamento captura o lote. */

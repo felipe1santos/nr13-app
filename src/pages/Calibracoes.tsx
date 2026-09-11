@@ -5,6 +5,7 @@ import AjudaCalibracoes from '../features/calibracoes/AjudaCalibracoes';
 import '../features/calibracoes/ilustracoes.css';
 import type { EquipamentoResumo } from '../features/equipamento/tipos';
 import { mascararData } from '../services/mascaras';
+import { rotuloTipoEquipamento } from '../features/relatorios/pdfVetorial/rotulos';
 import {
   arquivoCalibracao,
   calcularErro,
@@ -14,6 +15,18 @@ import {
 } from '../features/calibracoes/calibracaoService';
 import type { DadosCalibracao, DadosManometro, DadosPSV } from '../features/calibracoes/tipos';
 import ModalResultados from '../features/calibracoes/ModalResultados';
+import ModalNovoLote from '../features/calibracoes/ModalNovoLote';
+import ModalDetalhesLote from '../features/calibracoes/ModalDetalhesLote';
+import {
+  FILTRO_LOTES_VAZIO,
+  dataDoLote,
+  filtrarLotes,
+  ordenarLotes,
+  podeExcluirLote,
+  progressoLote,
+  type FiltroLotes,
+  type SituacaoLote,
+} from '../features/calibracoes/lote';
 import {
   ROTULO_ACESSORIO,
   clienteDoEquipamento,
@@ -41,7 +54,6 @@ import {
 } from '../features/calibracoes/catalogoCalibracoes';
 import {
   criarLote,
-  excluirComponente,
   excluirLote,
   fotoDoComponente,
   listarComponentes,
@@ -52,6 +64,7 @@ import {
   type LoteCal,
 } from '../features/calibracoes/componentesService';
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
+import { exportarPdf } from '../features/relatorios/pdfService';
 import { documentosBloqueados } from '../services/trial';
 import '../pages/relatorios.css';
 import './calibracoes.css';
@@ -223,60 +236,6 @@ function parseDateBR(d: string): number {
   return new Date(`${p[2]}-${p[1]}-${p[0]}`).getTime();
 }
 
-/**
- * Campo de nome do lote — o que era `window.prompt`.
- *
- * Nasce com foco e com o texto selecionado, para que digitar substitua o nome
- * sugerido (o comportamento que o `prompt` dava de graça e que se perde ao
- * trocar por um input comum). Enter confirma, Esc cancela; nome vazio não
- * confirma, e a regra de nome não vazio é a mesma de antes.
- */
-function CampoNomeLote({
-  valor,
-  aoMudar,
-  aoConfirmar,
-  aoCancelar,
-}: {
-  valor: string;
-  aoMudar: (v: string) => void;
-  aoConfirmar: (v: string) => void | Promise<void>;
-  aoCancelar: () => void;
-}) {
-  const ref = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    ref.current?.focus();
-    ref.current?.select();
-  }, []);
-  const confirmar = () => {
-    const nome = valor.trim();
-    if (!nome) return;
-    void aoConfirmar(nome);
-  };
-  return (
-    <div className="cal-lote-nome">
-      <input
-        ref={ref}
-        value={valor}
-        onChange={(e) => aoMudar(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            confirmar();
-          }
-          if (e.key === 'Escape') aoCancelar();
-        }}
-        placeholder="Nome do lote de calibração"
-        aria-label="Nome do lote de calibração"
-      />
-      <button type="button" className="btn-primario" onClick={confirmar} disabled={!valor.trim()}>
-        Salvar
-      </button>
-      <button type="button" className="btn-secundario" onClick={aoCancelar}>
-        Cancelar
-      </button>
-    </div>
-  );
-}
 
 export default function Calibracoes() {
   const [tela, setTela] = useState<Tela>('equipamentos');
@@ -319,6 +278,22 @@ export default function Calibracoes() {
    */
   const [editandoAcessorio, setEditandoAcessorio] = useState(false);
   const [loteAberto, setLoteAberto] = useState<string | null>(null);
+  /** Criação (`lote: null`) ou edição de um lote; `null` = modal fechado. */
+  const [loteEditando, setLoteEditando] = useState<{ novo: boolean; lote: LoteCal | null } | null>(null);
+  const [filtroLotes, setFiltroLotes] = useState<FiltroLotes>(FILTRO_LOTES_VAZIO);
+  /**
+   * De onde a calibração veio: o lote e o acessório.
+   *
+   * A tela dizia só "Nova Calibração — Manômetro". Quem chega nela depois de
+   * navegar pelo lote precisa ver EM QUE lote está gravando — e ter como
+   * voltar para ele, não para a lista.
+   */
+  const [contextoForm, setContextoForm] = useState<{
+    loteId: string;
+    loteNome: string;
+    loteData: string;
+    componente: string;
+  } | null>(null);
   /**
    * UX · nomear o lote SEM `window.prompt`.
    *
@@ -331,7 +306,6 @@ export default function Calibracoes() {
    * `null` = nenhum campo aberto; `{ id: null }` = criando; `{ id }` =
    * renomeando aquele lote.
    */
-  const [loteNome, setLoteNome] = useState<{ id: string | null; nome: string } | null>(null);
   const vinculoCalibracao = useRef<{ componenteId: string; loteId: string } | null>(null);
 
 
@@ -394,8 +368,26 @@ export default function Calibracoes() {
 
   // Calibração SEMPRE parte de um componente cadastrado dentro de um lote:
   // pré-preenche o formulário com os dados do instrumento e vincula os ids.
-  function novaForm(tipo: 'manometro' | 'psv', comp?: ComponenteCal, loteId?: string) {
+  function novaForm(
+    tipo: 'manometro' | 'psv',
+    comp?: ComponenteCal,
+    loteId?: string,
+    /**
+     * A data de EXECUÇÃO do lote semeia a do certificado.
+     *
+     * Calibração de acessório é lançada dias depois de feita, e o formulário
+     * nascia com "hoje" — a data do registro, não a do ensaio. O lote passou a
+     * ter a data certa (§7), e é dela que cada certificado parte; continua
+     * editável item a item, porque nem sempre os acessórios são calibrados no
+     * mesmo dia.
+     */
+    dataLote?: string,
+  ) {
     const base = formPadrao(tipo, tag);
+    if (dataLote && dataLote.trim() !== '') {
+      base.dataCalibracao = dataLote;
+      base.dataProxCalibracao = proximaCalibracao(dataLote);
+    }
     if (comp) {
       base.nome = comp.nome;
       base.instrumento = comp.nome;
@@ -413,6 +405,16 @@ export default function Calibracoes() {
       if (comp.tipo === 'psv') base.pressaoAjuste = comp.pressaoAjuste ?? '';
     }
     vinculoCalibracao.current = comp && loteId ? { componenteId: comp.id, loteId } : null;
+    setContextoForm(
+      comp && loteId
+        ? {
+            loteId,
+            loteNome: lotes.find((l) => l.id === loteId)?.descricao ?? '',
+            loteData: dataLote ?? '',
+            componente: comp.nome,
+          }
+        : null,
+    );
     setEditandoAcessorio(comecaEditando(base));
     setForm(base);
     setTela('formulario');
@@ -479,6 +481,31 @@ export default function Calibracoes() {
     setResultadosAbertos(false);
   }
 
+  // Os lotes que a lista mostra: ordenados pela data de EXECUÇÃO (não pela de
+  // registro) e passados pela busca/situação. Ver `lote.ts`.
+  const lotesVisiveis = filtrarLotes(ordenarLotes(lotes), filtroLotes, componentes, cals);
+  const loteAbertoObj = loteAberto ? (lotes.find((l) => l.id === loteAberto) ?? null) : null;
+
+  /**
+   * Baixar o PDF de UM certificado de calibração.
+   *
+   * Ele é GERADO do registro, e não servido de um arquivo: diferente de
+   * relatório e prontuário (§7-quater), certificado de calibração nunca teve
+   * artefato arquivado — a folha sempre foi re-renderizada. Está documentado em
+   * `docs/medicoes/2026-09-11-ux-calibracoes.md` para as duas coisas não se
+   * confundirem.
+   *
+   * A folha precisa estar MONTADA para ser rasterizada, e quem a monta é o
+   * visor dentro do modal do lote — por isso o seletor é o do visor.
+   */
+  async function baixarPdfCalibracao(cal: DadosCalibracao) {
+    const nome = `${cal.numeroCertificado || 'certificado'}-${cal.nome || cal.tipo}`.replace(
+      /[^\w.-]+/g,
+      '-',
+    );
+    await exportarPdf('.mlote-visor-folha, .cal-preview', nome);
+  }
+
   function mostrarToast(msg: string) {
     setToast(msg);
     window.setTimeout(() => setToast(''), 2600);
@@ -502,11 +529,6 @@ export default function Calibracoes() {
     }
   }
 
-  const statusLabel = (s: string) => {
-    if (s === 'aprovado') return 'Aprovado';
-    if (s === 'reprovado') return 'Reprovado';
-    return 'Pendente';
-  };
 
   return (
     <div className="calibracoes-page">
@@ -551,108 +573,91 @@ export default function Calibracoes() {
 
       {/* ── EQUIPAMENTOS · LISTA LEGADA ──────────────── */}
 
-      {/* ── HISTÓRICO (componentes + lotes) ─────────── */}
+      {/* ── EQUIPAMENTO: CABEÇALHO + LISTA DE LOTES (11/09/2026) ───────────
+          Três regiões, e só três: a faixa do equipamento com os acessórios em
+          linha, a lista de lotes em UMA LINHA cada, e os modais.
+
+          O accordion saiu. Ele despejava todos os componentes do equipamento
+          embaixo de cada lote aberto: dois lotes com cinco acessórios eram dez
+          blocos empilhados antes do próximo lote, e a página crescia sem
+          limite. Consultar um lote agora é um modal SOBRE a lista — fechar
+          devolve o lugar exato onde se estava. */}
       {tela === 'historico' && (
         <>
           <div className="bloco-dados">
-            {/* Cabeçalho: Voltar compacto + foto + título à esquerda; painel de componentes
-               ocupa o canto superior direito (antes era uma faixa vazia). */}
-            <div className="cal-eq-header">
-              <div className="cal-eq-main">
-                <button
-                  type="button"
-                  className="btn-secundario cal-btn-voltar"
-                  onClick={() => setTela('equipamentos')}
-                >
-                  ← Voltar
-                </button>
-                <div className="cal-eq-foto">
-                  {eqAtual?.fotoCapa ? (
-                    <FotoImg foto={eqAtual.fotoCapa} alt={`Foto de ${tag}`} variante="thumb" />
-                  ) : (
-                    <Icone nome="cylinder" tam={34} />
-                  )}
-                </div>
-                <div className="cal-eq-info">
-                  <h3 style={{ margin: 0, border: 'none', padding: 0 }}>Calibrações — {tag}</h3>
-                  {/* O parágrafo fixo virou AJUDA. Ele explicava em duas linhas
-                      algo que se lê uma vez, e ocupava a altura em toda visita. */}
-                  <button
-                    type="button"
-                    className="cal-ajuda-link"
-                    onClick={() => setAjudaAberta(true)}
-                  >
-                    <Icone nome="alerttri" tam={12} /> Como funciona
+            <div className="cal-faixa">
+              <button
+                type="button"
+                className="btn-secundario cal-btn-voltar"
+                onClick={() => setTela('equipamentos')}
+              >
+                ← Voltar
+              </button>
+              <div className="cal-faixa-foto">
+                {eqAtual?.fotoCapa ? (
+                  <FotoImg foto={eqAtual.fotoCapa} alt={`Foto de ${tag}`} variante="thumb" />
+                ) : (
+                  <Icone nome="cylinder" tam={26} />
+                )}
+              </div>
+              <div className="cal-faixa-id">
+                <h3>Calibrações — {tag}</h3>
+                <span>
+                  {rotuloTipoEquipamento(eqAtual?.info.tipo) ?? 'Equipamento'}
+                  <button type="button" className="cal-ajuda-link" onClick={() => setAjudaAberta(true)}>
+                    <Icone nome="alerttri" tam={11} /> Como funciona
                   </button>
-                </div>
+                </span>
               </div>
 
-              {/* ── COMPONENTES DO EQUIPAMENTO (painel compacto no topo direito) ── */}
-              <div className="cal-eq-comps">
-                <div className="cal-eq-comps-head">
-                  <span className="cal-eq-comps-title">Componentes do equipamento</span>
-                  {!compForm && (
+              {/* Os acessórios em LINHA, não numa coluna à direita. São três a
+                  seis por equipamento, e a faixa rola na horizontal em vez de
+                  empurrar os lotes para baixo. */}
+              <div className="cal-acessorios" role="list" aria-label="Acessórios do equipamento">
+                {componentes.map((c) => (
+                  <div key={c.id} className="cal-acess" role="listitem">
+                    <span className="cal-acess-foto" aria-hidden>
+                      {fotoDoComponente(c) ? (
+                        <FotoImg foto={fotoDoComponente(c)} alt="" placeholder="" variante="thumb" />
+                      ) : (
+                        <Icone nome={c.tipo === 'psv' ? 'valvula-psv' : 'manometro'} tam={16} />
+                      )}
+                    </span>
+                    <span className="cal-acess-txt">
+                      <strong>{c.nome}</strong>
+                      <em>
+                        {c.tipo === 'psv' ? 'Válvula PSV' : 'Manômetro'}
+                        {c.serie ? ` · S/N ${c.serie}` : ''}
+                      </em>
+                    </span>
                     <button
                       type="button"
-                      className="btn-secundario cal-btn-add-comp"
-                      onClick={() =>
-                        setCompForm({
-                          id: `comp-${Date.now()}`,
-                          tipo: 'manometro',
-                          nome: '',
-                          criadoEm: new Date().toLocaleDateString('pt-BR'),
-                        })
-                      }
+                      className="btn-icone cor-cinza cal-acess-editar"
+                      title="Editar acessório"
+                      aria-label={`Editar ${c.nome}`}
+                      onClick={() => setCompForm({ ...c })}
                     >
-                      + Adicionar
+                      <Icone nome="pencil" tam={12} />
                     </button>
-                  )}
-                </div>
-                {componentes.length === 0 && !compForm ? (
-                  <p className="cal-eq-comps-vazio">
-                    Nenhum componente. Adicione as válvulas e manômetros deste equipamento.
-                  </p>
-                ) : (
-                  <div className="cal-eq-comps-lista" role="list" aria-label="Componentes do equipamento">
-                    {componentes.map((c) => (
-                      <div key={c.id} className="cal-comp-item compacto">
-                        <div className="cal-comp-foto">
-                          {fotoDoComponente(c) ? <FotoImg foto={fotoDoComponente(c)} alt={c.nome} placeholder="" variante="thumb" /> : <Icone nome={c.tipo === 'psv' ? 'valvula-psv' : 'manometro'} tam={20} />}
-                        </div>
-                        <div className="cal-comp-nome">
-                          <strong>{c.nome}</strong>
-                          <span>{[c.fabricante, c.serie && `S/N ${c.serie}`].filter(Boolean).join(' · ') || '—'}</span>
-                        </div>
-                        <span className={`badge-cal-tipo ${c.tipo}`}>{c.tipo === 'manometro' ? 'Manômetro' : 'PSV'}</span>
-                        <div style={{ display: 'flex', gap: 4 }}>
-                          <button type="button" className="btn-icone cor-cinza" title="Editar" aria-label="Editar" onClick={() => setCompForm({ ...c })}>
-                            <Icone nome="pencil" tam={13} />
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-icone cor-vermelho"
-                            title="Excluir componente" aria-label="Excluir componente"
-                            onClick={async () => {
-                              if (!window.confirm(`Excluir o componente ${c.nome}? Os certificados já emitidos continuam no histórico.`)) return;
-                              await excluirComponente(tag, c.id);
-                              setComponentes(listarComponentes(tag));
-                            }}
-                          >
-                            <Icone nome="trash" tam={13} />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
                   </div>
-                )}
+                ))}
+                <button
+                  type="button"
+                  className="cal-acess-add"
+                  onClick={() =>
+                    setCompForm({
+                      id: `comp-${Date.now()}`,
+                      tipo: 'manometro',
+                      nome: '',
+                      criadoEm: new Date().toLocaleDateString('pt-BR'),
+                    })
+                  }
+                >
+                  <Icone nome="plus" tam={14} /> Adicionar
+                </button>
               </div>
             </div>
 
-            {/* O formulário do componente virou MODAL (06/09/2026).
-                Ele nascia inline, embaixo do painel: clicar em "+ Adicionar"
-                empurrava os lotes para baixo e, no celular, abria os campos
-                fora da primeira tela — o usuário clicava e nada parecia
-                acontecer. Ver `ModalComponente`. */}
             {compForm && (
               <ModalComponente
                 valor={compForm}
@@ -665,44 +670,42 @@ export default function Calibracoes() {
               />
             )}
 
-            {/* ── LOTES DE CALIBRAÇÃO ── */}
-            <div className="meta-card-header" style={{ marginTop: 18 }}>
-              <h3 style={{ margin: 0, border: 'none', padding: 0, fontSize: 14 }}>Lotes de calibração</h3>
+            {/* ── BARRA DA LISTA ────────────────────────────────────────── */}
+            <div className="cal-lotes-barra">
+              <div className="cal-lotes-busca">
+                <Icone nome="search" tam={14} />
+                <input
+                  type="search"
+                  value={filtroLotes.termo}
+                  onChange={(e) => setFiltroLotes((f) => ({ ...f, termo: e.target.value }))}
+                  placeholder="Buscar lote, data ou acessório…"
+                  aria-label="Buscar lote"
+                />
+              </div>
+              <select
+                className="cal-lotes-situacao"
+                value={filtroLotes.situacao}
+                onChange={(e) =>
+                  setFiltroLotes((f) => ({ ...f, situacao: e.target.value as SituacaoLote }))
+                }
+                aria-label="Situação do lote"
+              >
+                <option value="todos">Todas as situações</option>
+                <option value="andamento">Em andamento</option>
+                <option value="completo">Completo</option>
+              </select>
               <button
                 type="button"
-                className="btn-primario"
-                disabled={componentes.length === 0 || loteNome?.id === null}
-                title={componentes.length === 0 ? 'Cadastre os componentes primeiro' : undefined}
-                onClick={() =>
-                  // Nome definido pelo usuário facilita achar o lote no modal do relatório.
-                  setLoteNome({
-                    id: null,
-                    nome: `Lote de calibração — ${new Date().toLocaleDateString('pt-BR')}`,
-                  })
-                }
+                className="btn-primario cal-lotes-novo"
+                disabled={componentes.length === 0}
+                title={componentes.length === 0 ? 'Cadastre os acessórios primeiro' : undefined}
+                onClick={() => setLoteEditando({ novo: true, lote: null })}
               >
-                + Novo lote de calibração
+                <Icone nome="plus" tam={14} /> Novo lote
               </button>
             </div>
 
-            {loteNome?.id === null && (
-              <CampoNomeLote
-                valor={loteNome.nome}
-                aoMudar={(nome) => setLoteNome({ id: null, nome })}
-                aoCancelar={() => setLoteNome(null)}
-                aoConfirmar={async (nome) => {
-                  const lote = await criarLote(tag, nome);
-                  setLotes(listarLotes(tag));
-                  setLoteAberto(lote.id);
-                  setLoteNome(null);
-                }}
-              />
-            )}
-
             {lotes.length === 0 ? (
-              /* ESTADO VAZIO ilustrado — e SÓ aqui, onde não há nada para
-                 operar. Havendo um lote sequer, a ilustração sai de cena: ela
-                 não pode ocupar área fixa acima do trabalho. */
               <div className="cal-vazio">
                 <img
                   className="pront-ilustra"
@@ -713,186 +716,121 @@ export default function Calibracoes() {
                 />
                 <h3>Nenhuma calibração registrada</h3>
                 <p>
-                  Cada inspeção gera um <b>lote</b> com a calibração dos componentes deste
-                  equipamento. Use “+ Novo lote de calibração” acima para começar
-                  {componentes.length === 0 ? " — antes, cadastre os componentes." : "."}
+                  Cada inspeção gera um <b>lote</b> com a calibração dos acessórios deste
+                  equipamento. Use “Novo lote” acima para começar
+                  {componentes.length === 0 ? ' — antes, cadastre os acessórios.' : '.'}
                 </p>
               </div>
+            ) : lotesVisiveis.length === 0 ? (
+              <p className="cal-lotes-nada">
+                Nenhum lote para esse filtro.{' '}
+                <button type="button" onClick={() => setFiltroLotes(FILTRO_LOTES_VAZIO)}>
+                  Limpar
+                </button>
+              </p>
             ) : (
-              lotes.map((lote) => {
-                const calsDoLote = cals.filter((c) => c.loteId === lote.id);
-                const aberto = loteAberto === lote.id;
-                return (
-                  <div key={lote.id} className="cal-lote">
-                    {loteNome?.id === lote.id ? (
-                      <CampoNomeLote
-                        valor={loteNome.nome}
-                        aoMudar={(nome) => setLoteNome({ id: lote.id, nome })}
-                        aoCancelar={() => setLoteNome(null)}
-                        aoConfirmar={async (nome) => {
-                          await salvarLote(tag, { ...lote, descricao: nome });
-                          setLotes(listarLotes(tag));
-                          setLoteNome(null);
-                        }}
-                      />
-                    ) : (
-                    <div className="cal-lote-head-row">
-                      <button type="button" className="cal-lote-head" onClick={() => setLoteAberto(aberto ? null : lote.id)}>
-                        <Icone nome={aberto ? 'chevdown' : 'chevright'} tam={14} />
-                        <strong>{lote.descricao}</strong>
-                        <span className="cal-lote-meta">
-                          {calsDoLote.length}/{componentes.length} calibrado{calsDoLote.length !== 1 ? 's' : ''}
-                        </span>
-                        {calsDoLote.length >= componentes.length && componentes.length > 0 ? (
-                          <span className="badge-cal-status aprovado">Completo</span>
-                        ) : (
-                          <span className="badge-cal-status pendente">Em andamento</span>
-                        )}
-                      </button>
+              <ul className="cal-lotes" role="list">
+                {lotesVisiveis.map((lote) => {
+                  const p = progressoLote(lote, componentes, cals);
+                  return (
+                    <li key={lote.id} className="cal-lote-linha">
                       <button
                         type="button"
-                        className="btn-icone cor-azul"
-                        title="Renomear lote" aria-label="Renomear lote"
-                        style={{ marginRight: 10, flexShrink: 0 }}
-                        onClick={() => setLoteNome({ id: lote.id, nome: lote.descricao })}
+                        className="cal-lote-abrir"
+                        onClick={() => setLoteAberto(lote.id)}
+                        aria-label={`Ver o lote ${lote.descricao}`}
                       >
-                        <Icone nome="pencil" tam={14} />
+                        <span className="cal-lote-nome">{lote.descricao}</span>
+                        <span className="cal-lote-data">{dataDoLote(lote)}</span>
+                        <span className="cal-lote-itens">
+                          {p.feitos}/{p.total}
+                        </span>
+                        <span className={`mlote-selo${p.completo ? ' completo' : ' pendente'}`}>
+                          {p.completo ? 'Completo' : 'Em andamento'}
+                        </span>
                       </button>
-                    </div>
-                    )}
-                    {aberto && (
-                      <div className="cal-lote-corpo">
-                        {componentes.map((c) => {
-                          const cal = calsDoLote.find((x) => x.componenteId === c.id);
-                          return (
-                            <div key={c.id} className="cal-comp-item">
-                              <div className="cal-comp-foto">
-                                {fotoDoComponente(c) ? <FotoImg foto={fotoDoComponente(c)} alt={c.nome} placeholder="" variante="thumb" /> : <Icone nome={c.tipo === 'psv' ? 'valvula-psv' : 'manometro'} tam={24} />}
-                              </div>
-                              <div className="cal-comp-nome">
-                                <strong>{c.nome}</strong>
-                                <span>{cal ? `Calibrado em ${cal.dataCalibracao || cal.criadoEm}` : 'Aguardando calibração neste lote'}</span>
-                              </div>
-                              {cal ? (
-                                <>
-                                  <span className={`badge-cal-status ${cal.statusConclusao || 'pendente'}`}>{statusLabel(cal.statusConclusao)}</span>
-                                  <div style={{ display: 'flex', gap: 6 }}>
-                                    <button type="button" className="btn-icone cor-azul" title="Ver o que foi preenchido" aria-label="Ver o que foi preenchido" onClick={() => abrirVerDados(cal)}>
-                                      <Icone nome="eye" tam={15} />
-                                    </button>
-                                    <button type="button" className="btn-icone cor-azul" title="Ver o certificado" aria-label="Ver o certificado" onClick={() => abrirVisualizador(cal)}>
-                                      <Icone nome="filetext" tam={15} />
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className="btn-icone cor-vermelho"
-                                      title="Excluir certificado" aria-label="Excluir certificado"
-                                      onClick={() => window.confirm('Excluir este certificado?') && excluir(cal.id)}
-                                    >
-                                      <Icone nome="trash" tam={14} />
-                                    </button>
-                                  </div>
-                                </>
-                              ) : (
-                                <button type="button" className="btn-primario" onClick={() => novaForm(c.tipo, c, lote.id)}>
-                                  Calibrar
-                                </button>
-                              )}
-                            </div>
-                          );
-                        })}
-                        {/* UX · o botão só existe quando a ação existe. Antes ele
-                            estava sempre lá, cinza como um "Cancelar", e com
-                            certificado emitido respondia com um `alert` de
-                            reprovação. Agora o lote com certificado nem oferece a
-                            exclusão — a regra continua a MESMA, só deixou de ser
-                            ensinada por recusa. */}
-                        {calsDoLote.length === 0 && (
-                          <div style={{ textAlign: 'right', marginTop: 8 }}>
-                            <button
-                              type="button"
-                              className="fj-btn fj-btn-danger"
-                              onClick={async () => {
-                                if (!window.confirm('Excluir este lote vazio?')) return;
-                                await excluirLote(tag, lote.id);
-                                setLotes(listarLotes(tag));
-                              }}
-                            >
-                              <Icone nome="trash" tam={13} /> Excluir lote
-                            </button>
-                          </div>
+                      <div className="cal-lote-acoes">
+                        <button
+                          type="button"
+                          className="btn-icone cor-azul"
+                          title="Ver lote"
+                          aria-label={`Ver o lote ${lote.descricao}`}
+                          onClick={() => setLoteAberto(lote.id)}
+                        >
+                          <Icone nome="eye" tam={15} />
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-icone cor-cinza"
+                          title="Editar lote"
+                          aria-label={`Editar o lote ${lote.descricao}`}
+                          onClick={() => setLoteEditando({ novo: false, lote })}
+                        >
+                          <Icone nome="pencil" tam={14} />
+                        </button>
+                        {/* A exclusão só existe enquanto o lote não tem
+                            certificado — a MESMA regra de antes, agora sem o
+                            botão que só sabia recusar. */}
+                        {podeExcluirLote(lote.id, cals) && (
+                          <button
+                            type="button"
+                            className="btn-icone cor-vermelho"
+                            title="Excluir lote"
+                            aria-label={`Excluir o lote ${lote.descricao}`}
+                            onClick={async () => {
+                              if (!window.confirm(`Excluir o lote "${lote.descricao}"?`)) return;
+                              await excluirLote(tag, lote.id);
+                              setLotes(listarLotes(tag));
+                            }}
+                          >
+                            <Icone nome="trash" tam={14} />
+                          </button>
                         )}
                       </div>
-                    )}
-                  </div>
-                );
-              })
-            )}
-
-            {/* ── CALIBRAÇÕES AVULSAS (antes dos lotes) ── */}
-            {cals.some((c) => !c.loteId) && (
-              <>
-                <div className="meta-card-header" style={{ marginTop: 22 }}>
-                  <h3 style={{ margin: 0, border: 'none', padding: 0, fontSize: 14 }}>Calibrações avulsas (antigas)</h3>
-                </div>
-                <table className="cal-historico-table">
-                  <thead>
-                    <tr>
-                      <th>Nome do Item</th>
-                      <th>Tipo</th>
-                      <th>Data Calibração</th>
-                      <th>Próx. Calibração</th>
-                      <th>Status</th>
-                      <th>Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {cals.filter((c) => !c.loteId).map((c) => (
-                      <tr key={c.id}>
-                        <td data-label="Item" style={{ fontWeight: 600 }}>{c.nome}</td>
-                        <td data-label="Tipo">
-                          <span className={`badge-cal-tipo ${c.tipo}`}>
-                            {c.tipo === 'manometro' ? 'Manômetro' : 'PSV'}
-                          </span>
-                        </td>
-                        <td data-label="Data Calibração">{c.dataCalibracao || '—'}</td>
-                        <td data-label="Próx. Calibração">{c.dataProxCalibracao || '—'}</td>
-                        <td data-label="Status">
-                          <span className={`badge-cal-status ${c.statusConclusao || 'pendente'}`}>
-                            {statusLabel(c.statusConclusao)}
-                          </span>
-                        </td>
-                        <td data-label="Ações" className="acoes-relatorio-icones">
-                          {confirmandoId === c.id ? (
-                            <>
-                              <button type="button" className="btn-remover" onClick={() => excluir(c.id)}>
-                                Confirmar
-                              </button>
-                              <button type="button" className="btn-secundario" onClick={() => setConfirmandoId(null)}>
-                                Cancelar
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <button type="button" className="btn-icone cor-azul" title="Ver o que foi preenchido" aria-label="Ver o que foi preenchido" onClick={() => abrirVerDados(c)}>
-                                <Icone nome="eye" tam={15} />
-                              </button>
-                              <button type="button" className="btn-icone cor-azul" title="Ver como fica o documento" aria-label="Ver como fica o documento" onClick={() => abrirVisualizador(c)}>
-                                <Icone nome="filetext" tam={15} />
-                              </button>
-                              <button type="button" className="btn-icone cor-vermelho" title="Excluir" aria-label="Excluir" onClick={() => setConfirmandoId(c.id)}>
-                                <Icone nome="trash" tam={14} />
-                              </button>
-                            </>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </>
+                    </li>
+                  );
+                })}
+              </ul>
             )}
           </div>
+
+          {loteEditando && (
+            <ModalNovoLote
+              componentes={componentes}
+              lote={loteEditando.lote}
+              aoFechar={() => setLoteEditando(null)}
+              aoSalvar={async ({ nome, data, itens }) => {
+                const alvo = loteEditando.lote;
+                if (alvo) {
+                  await salvarLote(tag, { ...alvo, descricao: nome, data, itens });
+                } else {
+                  const criado = await criarLote(tag, nome);
+                  await salvarLote(tag, { ...criado, descricao: nome, data, itens });
+                }
+                setLotes(listarLotes(tag));
+                setLoteEditando(null);
+              }}
+            />
+          )}
+
+          {loteAbertoObj && (
+            <ModalDetalhesLote
+              lote={loteAbertoObj}
+              tag={tag}
+              componentes={componentes}
+              calibracoes={cals}
+              aoFechar={() => setLoteAberto(null)}
+              aoCalibrar={(c) => {
+                setLoteAberto(null);
+                novaForm(c.tipo, c, loteAbertoObj.id, dataDoLote(loteAbertoObj));
+              }}
+              aoVerDados={(cal) => {
+                setLoteAberto(null);
+                abrirVerDados(cal);
+              }}
+              aoBaixarPdf={baixarPdfCalibracao}
+            />
+          )}
         </>
       )}
 
@@ -900,14 +838,40 @@ export default function Calibracoes() {
       {tela === 'formulario' && (
         <div className="bloco-dados">
           <div className="meta-breadcrumb">
-            <button type="button" className="btn-secundario" onClick={() => setTela('historico')}>
-              ← Voltar
+            <button
+              type="button"
+              className="btn-secundario"
+              onClick={() => {
+                // Voltar ao LOTE de onde se veio, não à lista: é de lá que o
+                // usuário saiu, e é lá que ele vê o que ainda falta calibrar.
+                const volta = contextoForm?.loteId ?? null;
+                setTela('historico');
+                setLoteAberto(volta);
+              }}
+            >
+              ← {contextoForm ? 'Voltar ao lote' : 'Voltar'}
             </button>
             <strong>{tag}</strong>
           </div>
-          <div className="meta-card-header" style={{ marginBottom: 16 }}>
+          <div className="meta-card-header" style={{ marginBottom: 12 }}>
             <h3>Nova Calibração — {form.tipo === 'manometro' ? 'Manômetro' : 'Válvula de Segurança (PSV)'}</h3>
           </div>
+          {contextoForm && (
+            <div className="cal-ctx" role="note">
+              <span>
+                <em>Lote</em>
+                <strong>{contextoForm.loteNome || '—'}</strong>
+              </span>
+              <span>
+                <em>Data</em>
+                <strong>{contextoForm.loteData || form.dataCalibracao}</strong>
+              </span>
+              <span>
+                <em>Acessório</em>
+                <strong>{contextoForm.componente}</strong>
+              </span>
+            </div>
+          )}
 
           {/* Identificação */}
           <div className="cal-form-secao">
@@ -940,7 +904,10 @@ export default function Calibracoes() {
               quando está preenchido. Viram resumo; a edição fica atrás de um
               botão, para a correção pontual daquele certificado. */}
           <div className="cal-form-secao">
-            <div className="cal-form-secao-titulo">Dados do Item Calibrado</div>
+            <div className="cal-form-secao-titulo">
+              Dados do Item Calibrado
+              <span className="cal-secao-fonte">cadastro do acessório</span>
+            </div>
 
             {!editandoAcessorio ? (
               <div className="cal-acessorio">
@@ -1005,7 +972,10 @@ export default function Calibracoes() {
 
           {/* Condições Ambientais */}
           <div className="cal-form-secao">
-            <div className="cal-form-secao-titulo">Condições Ambientais</div>
+            <div className="cal-form-secao-titulo">
+              Condições Ambientais
+              <span className="cal-secao-fonte execucao">desta calibração</span>
+            </div>
             <div className="cal-form-grid cols-3">
               <div className="cal-campo">
                 <label>Temperatura do Ar</label>
@@ -1072,6 +1042,7 @@ export default function Calibracoes() {
           <div className="cal-form-secao">
             <div className="cal-form-secao-titulo">
               Resultados Obtidos ({form.tipo === 'manometro' ? 'Manômetro' : 'PSV'})
+              <span className="cal-secao-fonte execucao">desta calibração</span>
             </div>
             <div className="cal-resultados-cartao">
               <div className="cal-resultados-resumo">
