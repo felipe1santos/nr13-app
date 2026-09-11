@@ -139,3 +139,125 @@ existem:
 | `itens` | todos os componentes de hoje | é exatamente o comportamento atual — o lote legado não sabe o que cobria |
 
 Nenhuma migração, nenhuma reescrita de registro antigo.
+
+---
+
+# Novo fluxo — implementado
+
+## Cabeçalho
+
+Faixa única de **67 px** (1400 px): Voltar · foto de 44 px · TAG + tipo + "Como
+funciona" · acessórios EM LINHA à direita, com `overflow-x: auto`. Eles eram
+uma coluna à direita que empurrava os lotes — o trabalho — para fora da
+primeira tela.
+
+No celular a faixa quebra em três linhas (187 px) e os acessórios ganham
+`scroll-snap-type: x proximate`: arrastar para NO acessório, não no meio dele.
+
+## Componentes
+
+Mini-cartão horizontal de 40 px com foto/ícone, nome, tipo e série, e o lápis
+para editar. `+ Adicionar` ao fim da faixa. O cadastro estrutural não mudou —
+segue sendo a fonte mestre (`ComponenteCal`).
+
+## Lotes
+
+Lista única, **44 px por linha** no desktop e **64 px** no celular:
+
+```
+LOTE CALIBRACAO IA 2026        11/09/2026   1/2   EM ANDAMENTO   👁 ✎ 🗑
+```
+
+Acima dela, a barra `[Buscar lote, data ou acessório…] [Situação] [+ Novo lote]`.
+A busca casa o nome, a data **e o nome dos acessórios** do lote — "quando o
+PSV-01 foi calibrado?" é a pergunta que se faz aqui, e ela não se responde
+procurando pelo nome do lote.
+
+Ordem: pela data de EXECUÇÃO, do mais recente ao mais antigo.
+
+## Nova calibração
+
+`Calibrar` leva à tela dedicada, agora com o contexto no topo
+(`Lote · Data · Acessório`) e `← Voltar ao lote`, que **reabre o lote** de onde
+se veio — não a lista. A data do lote semeia `dataCalibracao` e
+`dataProxCalibracao` (+12 meses), ambas editáveis.
+
+Cada seção diz de onde vem: `cadastro do acessório` (azul) contra
+`desta calibração` (verde).
+
+## Histórico
+
+`historicoDoComponente` ordena as calibrações de um acessório do mais recente
+ao mais antigo. O modal do lote mostra, por item, calibração, próxima e
+certificado.
+
+## PDF
+
+`Visualizar PDF` abre a folha DENTRO do modal do lote; `Voltar ao lote` devolve
+o lote no estado anterior (comprovado: `visor:false, lote:"LOTE CALIBRACAO IA
+2026"`). ESC fecha primeiro a folha, depois o lote.
+
+`Baixar PDF` passou a existir e usa `exportarPdf`. Ele **gera** do registro —
+ver a auditoria: certificado de calibração nunca teve artefato arquivado.
+
+## Dashboard
+
+Inalterado. A cadeia foi conferida DEPOIS da mudança.
+
+## Mobile
+
+| largura | overflow-X | altura/lote | acessórios rolam | faixa |
+|---|---|---|---|---|
+| 1400 | não | 44 px | não | 67 px |
+| 768 | não | 44 px | não | 123 px |
+| 390 | não | 64 px | **sim** | 187 px |
+| 386 | não | 64 px | **sim** | 187 px |
+
+Medido com iframe de largura fixa contra a produção. Meta do §25 (60–85 px por
+lote): cumprida.
+
+## E2E
+
+Equipamento `ZZ-TESTE-P2`, lote `LOTE CALIBRACAO IA 2026`, data `11/09/2026`,
+2 itens selecionados:
+
+| passo | resultado |
+|---|---|
+| criar lote | modal com nome, data e itens; `2 de 2 selecionados` |
+| lista | **uma linha**, 44 px: `LOTE CALIBRACAO IA 2026 · 11/09/2026 · 0/2 · EM ANDAMENTO` |
+| abrir pelo olho | modal com os 2 itens; ambos `PENDENTE` + `Calibrar` |
+| calibrar `man` | contexto `LOTE · DATA · ACESSÓRIO`; acessório já preenchido (`kjhk`, `WIKA 232.50`, `jkhhkj`, `0 a 10 kgf/cm²`); padrão de `RBC-2026/44120`; datas `11/09/2026` → `11/09/2027`; `0 de 6 pontos` |
+| preencher | `6 de 6 pontos medidos · maior erro 0,20 kgf/cm²` |
+| salvar | linha passou a `1/2 · EM ANDAMENTO` |
+| **F5** | lista intacta; lote continua `1/2` |
+| reabrir lote | `man` = `APROVADO`, com fabricante/modelo/série/faixa, `CALIBRAÇÃO 11/09/2026`, `PRÓXIMA 11/09/2027`, `CERT-1789136379319`; `PSV-GATE-9F3` = `PENDENTE` + `Calibrar` |
+| visualizar PDF | folha completa dentro do modal, com bloco 5 preenchido e as 6 linhas de resultado |
+| voltar ao lote | `visor:false`, lote reaberto no mesmo estado |
+| **Dashboard** | `MANÔMETRO-jkhhkj · pertence a ZZ-TESTE-P2 · CALIBRAÇÃO · 11/09/2026 → 11/09/2027 · Vence em 365 dias · OPERACIONAL` |
+
+## Defeito encontrado depois do primeiro deploy
+
+`.cal-lote-nome` era o CONTÊINER do campo de renomear (06/09), com borda âmbar
+e fundo de painel. A lista nova usa o mesmo nome de classe para o NOME do lote:
+o resultado era uma caixa com cara de input em volta de cada nome, numa lista
+que não tem campo nenhum. Removido com o bloco do cabeçalho antigo — 215 linhas
+de CSS órfão a menos.
+
+## Pendências
+
+- **Calibração salva não se edita.** `salvar()` sempre cria `cal-${Date.now()}`;
+  corrigir um certificado é excluir e refazer. Não foi alterado nesta rodada
+  (§10: documentar a regra atual antes de inventar trava nova). É a decisão de
+  produto mais óbvia daqui.
+- **Condições ambientais** seguem manuais — não há fonte no sistema.
+- 16 classes `.cal-` órfãs de UIs anteriores a esta rodada (`cal-add-card*`,
+  `cal-tipo-*`, `cal-filtros`, `cal-historico-table`) continuam no CSS. Não
+  foram tocadas por não pertencerem a esta mudança.
+- A faixa do equipamento ocupa 187 px em 386/390 px. Dentro do razoável (ainda
+  cabem ~7 lotes na tela), mas é o ponto mais gordo do celular.
+
+## Ponto de retomada
+
+Decidir se calibração salva passa a ser editável — e, se sim, se a edição
+mantém o id (corrige o certificado) ou cria versão nova com soft-replace, como
+`nr13_rastreab_` faz.
