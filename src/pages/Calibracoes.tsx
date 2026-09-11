@@ -15,12 +15,16 @@ import {
 import type { DadosCalibracao, DadosManometro, DadosPSV } from '../features/calibracoes/tipos';
 import ModalResultados from '../features/calibracoes/ModalResultados';
 import {
+  ROTULO_ACESSORIO,
   clienteDoEquipamento,
+  comecaEditando,
   motivoPadrao,
   padraoSugerido,
   pontosDoComponente,
   proximaCalibracao,
+  resumoAcessorio,
   unidadeDoComponente,
+  type CampoAcessorio,
 } from '../features/calibracoes/preencherCalibracao';
 import {
   maiorErro,
@@ -309,6 +313,11 @@ export default function Calibracoes() {
   /** "Como funciona" — o texto que era faixa fixa no topo da tela. */
   const [ajudaAberta, setAjudaAberta] = useState(false);
   const [resultadosAbertos, setResultadosAbertos] = useState(false);
+  /**
+   * A seção do acessório abre FECHADA (resumo) quando o cadastro do componente
+   * já respondeu por ela. Ver `comecaEditando`.
+   */
+  const [editandoAcessorio, setEditandoAcessorio] = useState(false);
   const [loteAberto, setLoteAberto] = useState<string | null>(null);
   /**
    * UX · nomear o lote SEM `window.prompt`.
@@ -404,6 +413,7 @@ export default function Calibracoes() {
       if (comp.tipo === 'psv') base.pressaoAjuste = comp.pressaoAjuste ?? '';
     }
     vinculoCalibracao.current = comp && loteId ? { componenteId: comp.id, loteId } : null;
+    setEditandoAcessorio(comecaEditando(base));
     setForm(base);
     setTela('formulario');
   }
@@ -922,31 +932,66 @@ export default function Calibracoes() {
             </div>
           </div>
 
-          {/* Dados do Item Calibrado */}
+          {/* ── O ACESSÓRIO ───────────────────────────────────────────────
+              Fabricante, modelo, série e faixa são característica do
+              instrumento: não mudam de uma calibração para a outra, e já vêm
+              do cadastro do componente. Continuavam desenhados como cinco
+              caixas abertas — e campo editável parece trabalho a fazer mesmo
+              quando está preenchido. Viram resumo; a edição fica atrás de um
+              botão, para a correção pontual daquele certificado. */}
           <div className="cal-form-secao">
             <div className="cal-form-secao-titulo">Dados do Item Calibrado</div>
+
+            {!editandoAcessorio ? (
+              <div className="cal-acessorio">
+                <dl className="cal-acessorio-lista">
+                  {resumoAcessorio(form).itens.map((i) => (
+                    <div key={i.campo}>
+                      <dt>{i.rotulo}</dt>
+                      <dd className={i.valor === '' ? 'vazio' : undefined}>{i.valor || '—'}</dd>
+                    </div>
+                  ))}
+                </dl>
+                <div className="cal-acessorio-pe">
+                  <span>
+                    <Icone nome="checkcircle" tam={13} /> Do cadastro do componente — para mudar
+                    sempre, edite o componente em <strong>Componentes do Equipamento</strong>.
+                  </span>
+                  <button
+                    type="button"
+                    className="btn-secundario"
+                    onClick={() => setEditandoAcessorio(true)}
+                  >
+                    <Icone nome="pencil" tam={13} /> Ajustar só neste certificado
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="cal-form-grid cols-3">
+                  {(Object.keys(ROTULO_ACESSORIO) as CampoAcessorio[]).map((campo) => (
+                    <div className="cal-campo" key={campo}>
+                      <label>{ROTULO_ACESSORIO[campo]}</label>
+                      <input
+                        value={form[campo]}
+                        onChange={(e) => set(campo, e.target.value)}
+                        placeholder={campo === 'instrumento' ? form.nome : undefined}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <p className="cal-auto-aviso cal-auto-aviso-falta">
+                  <Icone nome="alerttri" tam={13} />
+                  <span>
+                    O que for digitado aqui vale <strong>só para este certificado</strong>. Para
+                    valer em todas as calibrações, edite o componente.
+                  </span>
+                </p>
+              </>
+            )}
+
+            {/* As datas são da RODADA, não do acessório — ficam sempre abertas. */}
             <div className="cal-form-grid cols-3">
-              <div className="cal-campo">
-                <label>Instrumento</label>
-                <input value={form.instrumento} onChange={(e) => set('instrumento', e.target.value)} placeholder={form.nome} />
-              </div>
-              <div className="cal-campo">
-                <label>Fabricante</label>
-                <input value={form.fabricante} onChange={(e) => set('fabricante', e.target.value)} />
-              </div>
-              <div className="cal-campo">
-                <label>Modelo</label>
-                <input value={form.modelo} onChange={(e) => set('modelo', e.target.value)} />
-              </div>
-              <div className="cal-campo">
-                <label>Lote / Série</label>
-                <input value={form.serie} onChange={(e) => set('serie', e.target.value)} />
-              </div>
-              <div className="cal-campo">
-                <label>Referência</label>
-                <input value={form.referencia} onChange={(e) => set('referencia', e.target.value)} />
-              </div>
-              <div className="cal-campo" />
               <div className="cal-campo">
                 <label>Data da Calibração</label>
                 <input value={form.dataCalibracao} onChange={(e) => set('dataCalibracao', mascararData(e.target.value))} placeholder="DD/MM/AAAA" inputMode="numeric" />

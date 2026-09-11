@@ -742,3 +742,72 @@
      do formulário, e é o que se aperta com o polegar, em campo. */
   .cal-res-botao { width: 100%; justify-content: center; }
 }
+
+/* ── RESUMO DO ACESSÓRIO ───────────────────────────────────────────────────
+   O que é característica do instrumento (fabricante, modelo, série, faixa) se
+   LÊ, não se preenche: já veio do cadastro do componente. Desenhado como
+   campo, parecia trabalho pendente — cinco caixas abertas no meio de um
+   formulário longo pedem atenção que o dado não precisa. */
+.cal-acessorio {
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 10px;
+  background: var(--surface-2, #f9fafb);
+  overflow: hidden;
+}
+.cal-acessorio-lista {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+  gap: 12px 18px;
+  margin: 0;
+  padding: 14px 16px;
+}
+.cal-acessorio-lista > div { min-width: 0; }
+.cal-acessorio-lista dt {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted, #6b7280);
+  margin-bottom: 3px;
+}
+.cal-acessorio-lista dd {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text, #111827);
+  word-break: break-word;
+}
+.cal-acessorio-lista dd.vazio { color: var(--text-faint, #9ca3af); }
+
+.cal-acessorio-pe {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border, #e5e7eb);
+  background: var(--surface, #fff);
+}
+.cal-acessorio-pe > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text-muted, #6b7280);
+  min-width: 0;
+}
+.cal-acessorio-pe svg { flex: 0 0 auto; color: #059669; }
+.cal-acessorio-pe button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 640px) {
+  .cal-acessorio-pe { align-items: stretch; }
+  /* 44 px no dedo, como o resto do sistema em campo. */
+  .cal-acessorio-pe button { width: 100%; justify-content: center; min-height: 44px; }
+}

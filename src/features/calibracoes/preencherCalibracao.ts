@@ -140,6 +140,60 @@ export function pontosDoComponente(comp?: ComponenteCal | null): string[] {
   return p.length > 0 ? p.slice(0, PONTOS_NA_FOLHA) : ['', '', '', '', ''];
 }
 
+/**
+ * Os campos do acessório que **não mudam entre calibrações**.
+ *
+ * São característica do instrumento: o fabricante, o modelo, o número de série
+ * e a faixa não se alteram de uma rodada para a outra. Todos já vêm do cadastro
+ * do componente (`novaForm`), mas continuavam desenhados como cinco caixas de
+ * texto abertas no meio do formulário — e campo editável parece trabalho a
+ * fazer mesmo quando já está preenchido. Viraram resumo; a edição fica atrás de
+ * um botão, para o caso pontual daquele certificado.
+ */
+export const CAMPOS_DO_ACESSORIO = [
+  'instrumento',
+  'fabricante',
+  'modelo',
+  'serie',
+  'referencia',
+] as const;
+
+export type CampoAcessorio = (typeof CAMPOS_DO_ACESSORIO)[number];
+
+export const ROTULO_ACESSORIO: Record<CampoAcessorio, string> = {
+  instrumento: 'Instrumento',
+  fabricante: 'Fabricante',
+  modelo: 'Modelo',
+  serie: 'Lote / Série',
+  referencia: 'Referência',
+};
+
+export interface ResumoAcessorio {
+  itens: { campo: CampoAcessorio; rotulo: string; valor: string }[];
+  /** Quantos saíram do cadastro em branco — vão para o certificado como `----`. */
+  faltando: number;
+}
+
+export function resumoAcessorio(valores: Record<CampoAcessorio, string>): ResumoAcessorio {
+  const itens = CAMPOS_DO_ACESSORIO.map((campo) => ({
+    campo,
+    rotulo: ROTULO_ACESSORIO[campo],
+    valor: (valores[campo] ?? '').trim(),
+  }));
+  return { itens, faltando: itens.filter((i) => i.valor === '').length };
+}
+
+/**
+ * O resumo abre JÁ EDITÁVEL quando não há o que resumir.
+ *
+ * Calibração avulsa, ou componente cadastrado só com o nome: fechar a seção
+ * mostraria cinco travessões e um botão, escondendo justamente o trabalho que
+ * ainda precisa ser feito.
+ */
+export function comecaEditando(valores: Record<CampoAcessorio, string>): boolean {
+  return resumoAcessorio(valores).faltando > 0;
+}
+
 /** Unidade do componente, com o padrão da NR-13 para pressão. */
 export const UNIDADE_PADRAO = 'kgf/cm²';
 export const UNIDADES = [UNIDADE_PADRAO, 'bar', 'MPa', 'psi'];

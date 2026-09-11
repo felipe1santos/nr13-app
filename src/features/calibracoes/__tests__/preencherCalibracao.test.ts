@@ -23,12 +23,15 @@ vi.mock('../../../services/supabase', () => ({
 }));
 
 import {
+  CAMPOS_DO_ACESSORIO,
   clienteDoEquipamento,
+  comecaEditando,
   motivoPadrao,
   padraoSugerido,
   pontosDeTexto,
   pontosDoComponente,
   proximaCalibracao,
+  resumoAcessorio,
   textoDePontos,
   unidadeDoComponente,
 } from '../preencherCalibracao';
@@ -216,6 +219,41 @@ describe('o que não muda fica no cadastro do componente', () => {
   });
 });
 
+describe('o acessório se lê, não se preenche', () => {
+  const cheio = {
+    instrumento: 'Manômetro principal',
+    fabricante: 'WIKA',
+    modelo: '232.50',
+    serie: 'MP-0091',
+    referencia: '0 a 10 kgf/cm²',
+  };
+
+  it('os cinco campos fixos do instrumento entram no resumo', () => {
+    // Fabricante, modelo, série e faixa não mudam de uma rodada para a outra:
+    // são característica do acessório, e vêm do cadastro do componente.
+    const r = resumoAcessorio(cheio);
+    expect(r.itens.map((i) => i.campo)).toEqual([...CAMPOS_DO_ACESSORIO]);
+    expect(r.faltando).toBe(0);
+  });
+
+  it('conta o que veio em branco — é o que sai como travessão no certificado', () => {
+    expect(resumoAcessorio({ ...cheio, modelo: '', referencia: '  ' }).faltando).toBe(2);
+  });
+
+  it('abre FECHADO quando o cadastro já respondeu por tudo', () => {
+    expect(comecaEditando(cheio)).toBe(false);
+  });
+
+  it('abre EDITANDO quando falta dado — esconder mostraria só travessões', () => {
+    // Calibração avulsa, ou componente cadastrado só com o nome: fechar a
+    // seção esconderia justamente o trabalho que ainda precisa ser feito.
+    expect(comecaEditando({ ...cheio, fabricante: '' })).toBe(true);
+    expect(
+      comecaEditando({ instrumento: '', fabricante: '', modelo: '', serie: '', referencia: '' }),
+    ).toBe(true);
+  });
+});
+
 describe('os resultados: um ponto no lugar de duas tabelas', () => {
   it('as duas tabelas viram uma lista de pontos', () => {
     const pontos = paraPontos(
@@ -312,6 +350,12 @@ describe('as regras ficam no código', () => {
     expect(template).toContain('id="inj-unid-c"');
     expect(template).toContain("inj('inj-unid-c', c.unidade)");
     expect(template).toContain("inj('inj-unid-d', c.unidade)");
+  });
+
+  it('o que é fixo do acessório não é mais cinco caixas abertas', () => {
+    // Campo editável parece trabalho a fazer mesmo quando já está preenchido.
+    expect(pagina).toContain('cal-acessorio-lista');
+    expect(pagina).toContain('Ajustar só neste certificado');
   });
 
   it('a folha tem uma linha com id para CADA ponto que o modal aceita', () => {
