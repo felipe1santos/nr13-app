@@ -21,6 +21,12 @@ import FeedbackSalvamento, { useSalvamento } from '../../components/FeedbackSalv
 import { Icone } from '../../components/Icone';
 import FotoImg from '../../components/FotoImg';
 import type { ComponenteCal } from './componentesService';
+import {
+  UNIDADES,
+  pontosDeTexto,
+  textoDePontos,
+  unidadeDoComponente,
+} from './preencherCalibracao';
 import '../relatorios/modalFiltrosRelatorios.css';
 import './modalComponente.css';
 
@@ -133,9 +139,71 @@ export default function ModalComponente({
               <input value={c.fabricante ?? ''} onChange={(e) => set('fabricante', e.target.value)} />
             </label>
             <label className="mcomp-campo">
+              <span>Modelo</span>
+              <input value={c.modelo ?? ''} onChange={(e) => set('modelo', e.target.value)} />
+            </label>
+            <label className="mcomp-campo">
               <span>Nº de série</span>
               <input value={c.serie ?? ''} onChange={(e) => set('serie', e.target.value)} />
             </label>
+          </div>
+
+          {/* ── O QUE SE REPETE EM TODA CALIBRAÇÃO ──────────────────────────
+              Guardado aqui, some do formulário de calibração: ele passa a
+              nascer preenchido. Tudo opcional — quem não quiser cadastrar
+              continua digitando na hora, como antes. */}
+          <div className="mcomp-bloco">
+            <div className="mcomp-bloco-titulo">
+              <Icone nome="refresh" tam={13} />
+              <span>Preenchimento automático das calibrações</span>
+            </div>
+            <p className="mcomp-bloco-ajuda">
+              Estes dados não mudam de uma calibração para a outra. Preenchidos uma vez, aparecem
+              prontos em todo certificado deste componente.
+            </p>
+            <div className="mcomp-grid">
+              <label className="mcomp-campo">
+                <span>Faixa / referência</span>
+                <input
+                  value={c.referencia ?? ''}
+                  onChange={(e) => set('referencia', e.target.value)}
+                  placeholder="Ex: 0 a 10 kgf/cm²"
+                />
+              </label>
+              <label className="mcomp-campo">
+                <span>Unidade</span>
+                <select value={unidadeDoComponente(c)} onChange={(e) => set('unidade', e.target.value)}>
+                  {UNIDADES.map((u) => (
+                    <option key={u} value={u}>
+                      {u}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {c.tipo === 'manometro' ? (
+                <label className="mcomp-campo mcomp-campo-full">
+                  <span>Pontos de calibração</span>
+                  <input
+                    value={textoDePontos(c.pontos)}
+                    onChange={(e) => set('pontos', pontosDeTexto(e.target.value))}
+                    placeholder="Ex: 0, 2, 4, 6, 8, 10"
+                  />
+                  <em className="mcomp-dica">
+                    Separe por vírgula. É a coluna “valor do padrão” do certificado — vinha em branco
+                    e era digitada duas vezes, uma para cada sentido.
+                  </em>
+                </label>
+              ) : (
+                <label className="mcomp-campo">
+                  <span>Pressão de ajuste</span>
+                  <input
+                    value={c.pressaoAjuste ?? ''}
+                    onChange={(e) => set('pressaoAjuste', e.target.value)}
+                    placeholder="Ex: 8,5"
+                  />
+                </label>
+              )}
+            </div>
           </div>
 
           <div className="mcomp-foto">

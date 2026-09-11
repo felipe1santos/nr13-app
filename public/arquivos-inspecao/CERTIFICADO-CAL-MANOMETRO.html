@@ -331,7 +331,7 @@
             <div class="results-wrapper">
                 <div>
                     <table class="content-table" style="margin-bottom: 0;">
-                        <tr><td colspan="3" style="background: #e5e7eb; font-weight: 900; font-size: 11px;">SENTIDO CRESCENTE (Kgf/cm²)</td></tr>
+                        <tr><td colspan="3" style="background: #e5e7eb; font-weight: 900; font-size: 11px;">SENTIDO CRESCENTE (<span id="inj-unid-c">Kgf/cm²</span>)</td></tr>
                         <tr class="bg-light-grey">
                             <td width="33%">VALOR CONVENCIONAL</td>
                             <td width="33%">VALOR NOMINAL</td>
@@ -353,7 +353,7 @@
 
                 <div>
                     <table class="content-table" style="margin-bottom: 0;">
-                        <tr><td colspan="3" style="background: #e5e7eb; font-weight: 900; font-size: 11px;">SENTIDO DECRESCENTE (Kgf/cm²)</td></tr>
+                        <tr><td colspan="3" style="background: #e5e7eb; font-weight: 900; font-size: 11px;">SENTIDO DECRESCENTE (<span id="inj-unid-d">Kgf/cm²</span>)</td></tr>
                         <tr class="bg-light-grey">
                             <td width="33%">VALOR CONVENCIONAL</td>
                             <td width="33%">VALOR NOMINAL</td>
@@ -480,6 +480,11 @@
                     }
                     inj('inj-incerteza-d', c.incertezaD);
                     inj('inj-coef-d', c.coefD);
+                    // A unidade é escolhida no cadastro do componente. Estava
+                    // fixa em Kgf/cm² nos dois títulos: quem calibrasse em bar
+                    // via a própria medição rotulada com a unidade errada.
+                    inj('inj-unid-c', c.unidade);
+                    inj('inj-unid-d', c.unidade);
                     if (c.statusConclusao) {
                         var spanSt = document.getElementById('texto-status');
                         var spanMot = document.getElementById('texto-motivo');

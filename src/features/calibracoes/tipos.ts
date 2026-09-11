@@ -34,6 +34,15 @@ interface DadosCalibracaoBase {
   padraoVal: string;
   statusConclusao: 'aprovado' | 'reprovado' | '';
   textoMotivo: string;
+  /**
+   * Unidade das medições, escolhida no cadastro do componente.
+   *
+   * Os dois títulos de tabela do `CERTIFICADO-CAL-MANOMETRO.html` traziam
+   * `Kgf/cm²` fixo no HTML: quem calibrasse em bar via a própria medição
+   * rotulada com a unidade errada no documento emitido. Ausente = registro
+   * anterior a 10/09/2026; o template mantém o texto que já tinha.
+   */
+  unidade?: string;
 }
 
 export interface DadosManometro extends DadosCalibracaoBase {

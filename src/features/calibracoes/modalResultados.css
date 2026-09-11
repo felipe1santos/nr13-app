@@ -1,0 +1,261 @@
+/* ── MODAL DE RESULTADOS DA CALIBRAÇÃO ──────────────────────────────────────
+   Uma linha por PONTO. As colunas são fixas (não `auto-fit`) porque a leitura
+   é comparativa: o olho vai de "valor do padrão" para "leitura" e para o erro
+   na mesma altura, e colunas que mudam de largura conforme o conteúdo
+   quebrariam esse alinhamento entre linhas.
+
+   Os campos têm 40 px de altura — abaixo disso o polegar erra a célula, e
+   este é o formulário que se preenche em campo, no celular, de pé. */
+
+.mres-box {
+  max-width: 880px;
+  display: flex;
+  flex-direction: column;
+  max-height: min(92vh, 900px);
+}
+
+.mres-sub {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--text-muted, #6b7280);
+}
+.mres-sub strong { color: var(--text, #111827); }
+
+.mres-corpo {
+  padding: 14px 18px 4px;
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.mres-ajuda {
+  margin: 0 0 12px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-muted, #6b7280);
+}
+
+/* A barra de progresso é TEXTO, não uma régua colorida: o número de pontos é
+   pequeno (cinco, seis) e "3 de 5" se lê mais rápido do que uma barra 60%. */
+.mres-barra {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  background: var(--surface-2, #f4f5f7);
+  border: 1px solid var(--border, #e5e7eb);
+  font-size: 12.5px;
+  color: var(--text-muted, #6b7280);
+}
+.mres-progresso strong { color: var(--text, #111827); font-size: 14px; }
+.mres-pior {
+  font-size: 12px;
+  color: #92400e;
+  background: #fef3c7;
+  border-radius: 999px;
+  padding: 2px 10px;
+}
+
+.mres-tabela { display: flex; flex-direction: column; gap: 6px; }
+
+.mres-cabecalho,
+.mres-linha {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) minmax(0, 1fr) 64px minmax(0, 1fr) 64px;
+  gap: 8px;
+  align-items: center;
+}
+
+.mres-cabecalho {
+  padding: 0 2px 2px;
+}
+.mres-cabecalho > span {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted, #6b7280);
+  line-height: 1.25;
+  display: flex;
+  flex-direction: column;
+}
+/* A unidade vive dentro do cabeçalho, em vez de repetida em cada campo: no
+   documento ela aparece uma vez, no título da tabela — a tela espelha isso. */
+.mres-cabecalho em {
+  font-style: normal;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 10px;
+  color: var(--text-faint, #9ca3af);
+}
+.mres-col-erro { text-align: center; align-items: center; }
+
+.mres-n {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text-faint, #9ca3af);
+  text-align: center;
+}
+
+.mres-campo { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+/* No desktop o cabeçalho da tabela é quem rotula — repetir em cada linha
+   viraria cinco vezes a mesma palavra numa coluna de cinco pontos. */
+.mres-campo > span { display: none; }
+
+.mres-linha input {
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--border, #d1d5db);
+  border-radius: 8px;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  background: var(--surface, #fff);
+  color: var(--text, #111827);
+}
+.mres-linha input:focus {
+  outline: none;
+  border-color: var(--acento, #d97706);
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.16);
+}
+
+.mres-erro {
+  text-align: center;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint, #9ca3af);
+}
+.mres-erro.tem { color: #1d4ed8; font-weight: 700; }
+
+.mres-linha-acoes {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 0 2px;
+}
+
+.mres-incertezas {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px 0 4px;
+  margin-top: 6px;
+  border-top: 1px solid var(--border, #e5e7eb);
+}
+.mres-inc-grupo { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.mres-inc-titulo {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted, #6b7280);
+}
+.mres-inc-grupo label,
+.mres-psv label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.mres-inc-grupo label > span,
+.mres-psv label > span {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted, #6b7280);
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.mres-psv label em {
+  font-style: normal;
+  font-weight: 600;
+  color: var(--text-faint, #9ca3af);
+}
+.mres-inc-grupo input,
+.mres-psv input {
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--border, #d1d5db);
+  border-radius: 8px;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  background: var(--surface, #fff);
+  color: var(--text, #111827);
+}
+.mres-inc-grupo input:focus,
+.mres-psv input:focus {
+  outline: none;
+  border-color: var(--acento, #d97706);
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.16);
+}
+.mres-copiar { grid-column: 1 / -1; justify-self: start; }
+
+.mres-psv {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.mres-acoes {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 18px 16px;
+  border-top: 1px solid var(--border, #e5e7eb);
+}
+
+/* ── CELULAR ──────────────────────────────────────────────────────────────
+   A grade de seis colunas não cabe em 390 px. Cada ponto vira um CARTÃO com
+   os rótulos ao lado do campo — a tabela horizontal com rolagem lateral era
+   justamente o que tornava o preenchimento em campo insuportável. */
+@media (max-width: 720px) {
+  .mres-cabecalho { display: none; }
+
+  .mres-tabela { gap: 10px; }
+
+  .mres-linha {
+    grid-template-columns: 1fr 56px;
+    gap: 8px 10px;
+    padding: 10px 12px 12px;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 10px;
+    background: var(--surface-2, #f9fafb);
+    position: relative;
+  }
+  .mres-n {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    font-size: 10px;
+  }
+  /* O primeiro campo (valor do padrão) ocupa a largura toda: ele é o que
+     identifica o ponto, e normalmente já vem preenchido do cadastro. */
+  .mres-campo-vc { grid-column: 1 / -1; }
+
+  /* Sem cabeçalho de tabela, o rótulo tem de estar no campo. */
+  .mres-campo > span {
+    display: block;
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted, #6b7280);
+  }
+  /* O erro alinha com o CAMPO, não com o topo da célula — senão ele flutua na
+     altura do rótulo e deixa de dizer a que leitura pertence. */
+  .mres-erro { align-self: end; height: 40px; display: flex; align-items: center; justify-content: center; }
+
+  .mres-incertezas,
+  .mres-psv { grid-template-columns: 1fr; }
+
+  .mres-acoes { padding: 12px; }
+  .mres-acoes .fj-btn { flex: 1; }
+}

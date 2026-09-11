@@ -16,6 +16,26 @@ export interface ComponenteCal {
   fabricante?: string;
   modelo?: string;
   serie?: string;
+  /**
+   * ── O QUE NÃO MUDA ENTRE CALIBRAÇÕES (10/09/2026) ──────────────────────
+   *
+   * A faixa do manômetro, os pontos em que ele é verificado e a pressão de
+   * ajuste da válvula são característica do INSTRUMENTO, não da rodada. O
+   * formulário de calibração pedia todos eles de novo a cada certificado — e
+   * a coluna "valor convencional", que é sempre a mesma sequência de pontos,
+   * era redigitada dez vezes por calibração (cinco no sentido crescente,
+   * cinco no decrescente).
+   *
+   * Cadastrados aqui uma vez, viram sugestão em toda calibração seguinte.
+   */
+  /** Faixa / referência do instrumento — "0 a 10 kgf/cm²". */
+  referencia?: string;
+  /** Unidade dos pontos e das leituras. */
+  unidade?: string;
+  /** Pontos de calibração (valores convencionais), em ordem crescente. */
+  pontos?: string[];
+  /** Pressão de ajuste da válvula (PSV) — vem da placa dela, não da rodada. */
+  pressaoAjuste?: string;
   /** LEGADO: base64 das fotos gravadas antes de 11/08/2026. Novas nascem ''. */
   foto?: string;
   /**

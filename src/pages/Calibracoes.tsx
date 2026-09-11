@@ -13,6 +13,22 @@ import {
   salvarCalibracao,
 } from '../features/calibracoes/calibracaoService';
 import type { DadosCalibracao, DadosManometro, DadosPSV } from '../features/calibracoes/tipos';
+import ModalResultados from '../features/calibracoes/ModalResultados';
+import {
+  clienteDoEquipamento,
+  motivoPadrao,
+  padraoSugerido,
+  pontosDoComponente,
+  proximaCalibracao,
+  unidadeDoComponente,
+} from '../features/calibracoes/preencherCalibracao';
+import {
+  maiorErro,
+  paraLinhas,
+  paraPontos,
+  resumoPontos,
+  type PontoCal,
+} from '../features/calibracoes/resultadosCalibracao';
 import VisualizadorCalibracao from '../features/calibracoes/VisualizadorCalibracao';
 // 9F.3 · a lista pela projeção e o contrato de semeadura da TAG.
 import CatalogoCalibracoesV9 from '../features/calibracoes/CatalogoCalibracoesV9';
@@ -65,6 +81,16 @@ interface FormDados {
   padraoVal: string;
   statusConclusao: 'aprovado' | 'reprovado' | '';
   textoMotivo: string;
+  /** Unidade das medições — vem do cadastro do componente. */
+  unidade: string;
+  /**
+   * Quem forneceu o padrão do bloco 5, para a tela poder DIZER isso.
+   *
+   * Preencher quatro campos sozinho e não avisar é pior do que não preencher:
+   * o usuário não sabe se aquilo veio do cadastro ou de uma calibração antiga,
+   * e passa a conferir tudo à mão de qualquer jeito.
+   */
+  padraoOrigem: string | null;
   crescente: Array<{ vc: string; vi: string }>;
   incertezaC: string;
   coefC: string;
@@ -78,17 +104,18 @@ interface FormDados {
   coef: string;
 }
 
-function empresaAutoFill() {
-  try {
-    const emp = JSON.parse(localStorage.getItem('nr13_minha_empresa') || '{}');
-    const razao = emp.razao || emp.fantasia || '';
-    const partes = [emp.endereco, emp.bairro, emp.cidade].filter(Boolean);
-    return { empresa: razao, endereco: partes.join(', ') };
-  } catch { return { empresa: '', endereco: '' }; }
-}
-
-function formPadrao(tipo: 'manometro' | 'psv' = 'manometro'): FormDados {
-  const { empresa, endereco } = empresaAutoFill();
+/**
+ * O formulário nasce com o que o sistema já sabe.
+ *
+ * O que estava aqui lia `localStorage.getItem('nr13_minha_empresa')` DIRETO.
+ * Numa organização v2 o `localStorage` é só o palco (§2-ter): a chave não está
+ * lá, a leitura devolvia `{}` e o bloco "DADOS DO CLIENTE / SOLICITANTE" do
+ * certificado saía `----` em toda calibração — sem erro nenhum na tela.
+ * Ver `preencherCalibracao.ts`.
+ */
+function formPadrao(tipo: 'manometro' | 'psv' = 'manometro', tag = ''): FormDados {
+  const { empresa, endereco } = tag ? clienteDoEquipamento(tag) : { empresa: '', endereco: '' };
+  const padrao = tag ? padraoSugerido(tipo, tag) : null;
   const hoje = new Date().toLocaleDateString('pt-BR');
   return {
     tipo,
@@ -103,16 +130,20 @@ function formPadrao(tipo: 'manometro' | 'psv' = 'manometro'): FormDados {
     serie: '',
     referencia: '',
     dataCalibracao: hoje,
-    dataProxCalibracao: '',
+    // Sem valor aqui, o template mantém o próprio texto de exemplo e o
+    // certificado emitido imprime literalmente "DD/MM/AAAA" como se fosse data.
+    dataProxCalibracao: proximaCalibracao(hoje),
     tempAr: '',
     umidade: '',
     local: '',
-    padraoInst: '',
-    padraoSerie: '',
-    padraoCert: '',
-    padraoVal: '',
+    padraoInst: padrao?.padraoInst ?? '',
+    padraoSerie: padrao?.padraoSerie ?? '',
+    padraoCert: padrao?.padraoCert ?? '',
+    padraoVal: padrao?.padraoVal ?? '',
     statusConclusao: '',
     textoMotivo: '',
+    unidade: 'kgf/cm²',
+    padraoOrigem: padrao?.origem ?? null,
     crescente: Array.from({ length: 5 }, () => ({ vc: '', vi: '' })),
     incertezaC: '',
     coefC: '',
@@ -152,7 +183,11 @@ function converterForm(form: FormDados, tag: string, id: string): DadosCalibraca
     padraoCert: form.padraoCert,
     padraoVal: form.padraoVal,
     statusConclusao: form.statusConclusao,
-    textoMotivo: form.textoMotivo,
+    // Status escolhido e motivo em branco fechava a frase da conclusão em "o
+    // mesmo", sem ponto final — o template costura status e motivo numa frase
+    // só. O texto padrão é o MESMO do seletor da folha.
+    textoMotivo: form.textoMotivo.trim() || motivoPadrao(form.statusConclusao),
+    unidade: form.unidade,
   };
 
   if (form.tipo === 'manometro') {
@@ -273,6 +308,7 @@ export default function Calibracoes() {
   const [compForm, setCompForm] = useState<ComponenteCal | null>(null);
   /** "Como funciona" — o texto que era faixa fixa no topo da tela. */
   const [ajudaAberta, setAjudaAberta] = useState(false);
+  const [resultadosAbertos, setResultadosAbertos] = useState(false);
   const [loteAberto, setLoteAberto] = useState<string | null>(null);
   /**
    * UX · nomear o lote SEM `window.prompt`.
@@ -350,13 +386,22 @@ export default function Calibracoes() {
   // Calibração SEMPRE parte de um componente cadastrado dentro de um lote:
   // pré-preenche o formulário com os dados do instrumento e vincula os ids.
   function novaForm(tipo: 'manometro' | 'psv', comp?: ComponenteCal, loteId?: string) {
-    const base = formPadrao(tipo);
+    const base = formPadrao(tipo, tag);
     if (comp) {
       base.nome = comp.nome;
       base.instrumento = comp.nome;
       base.fabricante = comp.fabricante ?? '';
       base.modelo = comp.modelo ?? '';
       base.serie = comp.serie ?? '';
+      base.referencia = comp.referencia ?? '';
+      base.unidade = unidadeDoComponente(comp);
+      // Os pontos de calibração são do INSTRUMENTO. Vindos do cadastro, a
+      // coluna "valor do padrão" das duas tabelas já nasce preenchida — era
+      // ela que se redigitava dez vezes por certificado.
+      const pontos = pontosDoComponente(comp);
+      base.crescente = pontos.map((vc) => ({ vc, vi: '' }));
+      base.decrescente = pontos.map((vc) => ({ vc, vi: '' }));
+      if (comp.tipo === 'psv') base.pressaoAjuste = comp.pressaoAjuste ?? '';
     }
     vinculoCalibracao.current = comp && loteId ? { componenteId: comp.id, loteId } : null;
     setForm(base);
@@ -386,20 +431,42 @@ export default function Calibracoes() {
     setForm((f) => ({ ...f, [campo]: valor }));
   }
 
-  function setCrescente(i: number, campo: 'vc' | 'vi', valor: string) {
-    setForm((f) => {
-      const arr = [...f.crescente];
-      arr[i] = { ...arr[i], [campo]: valor };
-      return { ...f, crescente: arr };
-    });
-  }
+  /**
+   * As duas tabelas da folha, vistas como uma lista de PONTOS.
+   *
+   * O formulário guarda `crescente[]` e `decrescente[]` porque é assim que o
+   * certificado imprime e é assim que `DadosManometro` grava. Quem preenche,
+   * porém, trabalha por ponto: um valor no padrão, duas leituras. A conversão
+   * fica aqui, e o formato gravado não muda — ver `resultadosCalibracao.ts`.
+   */
+  const pontos: PontoCal[] = paraPontos(form.crescente, form.decrescente);
+  const resumoResultados = resumoPontos(pontos);
+  const piorErro = maiorErro(pontos);
+  const temResultados =
+    form.tipo === 'manometro'
+      ? resumoResultados.feitos > 0
+      : [form.pressaoAbertura, form.pressaoAjuste, form.fechamento].some((v) => v.trim() !== '');
 
-  function setDecrescente(i: number, campo: 'vc' | 'vi', valor: string) {
-    setForm((f) => {
-      const arr = [...f.decrescente];
-      arr[i] = { ...arr[i], [campo]: valor };
-      return { ...f, decrescente: arr };
-    });
+  function aplicarResultados(v: {
+    manometro: { pontos: PontoCal[]; incertezaC: string; coefC: string; incertezaD: string; coefD: string };
+    psv: { pressaoAbertura: string; pressaoAjuste: string; fechamento: string; incerteza: string; coef: string };
+  }) {
+    const linhas = paraLinhas(v.manometro.pontos);
+    setForm((f) => ({
+      ...f,
+      crescente: linhas.crescente.map((l) => ({ vc: l.vc, vi: l.vi })),
+      decrescente: linhas.decrescente.map((l) => ({ vc: l.vc, vi: l.vi })),
+      incertezaC: v.manometro.incertezaC,
+      coefC: v.manometro.coefC,
+      incertezaD: v.manometro.incertezaD,
+      coefD: v.manometro.coefD,
+      pressaoAbertura: v.psv.pressaoAbertura,
+      pressaoAjuste: v.psv.pressaoAjuste,
+      fechamento: v.psv.fechamento,
+      incerteza: v.psv.incerteza,
+      coef: v.psv.coef,
+    }));
+    setResultadosAbertos(false);
   }
 
   function mostrarToast(msg: string) {
@@ -910,9 +977,29 @@ export default function Calibracoes() {
             </div>
           </div>
 
-          {/* Padrões */}
+          {/* Padrões — preenchidos do cadastro de Certificados (ver
+              `padraoSugerido`). Continuam editáveis: o cadastro é a fonte
+              usual, não uma trava. */}
           <div className="cal-form-secao">
             <div className="cal-form-secao-titulo">Padrões Utilizados e Rastreabilidade</div>
+            {form.padraoOrigem ? (
+              <p className="cal-auto-aviso">
+                <Icone nome="checkcircle" tam={13} />
+                <span>
+                  Preenchido a partir do certificado <strong>{form.padraoOrigem}</strong>, cadastrado
+                  em Certificados. Pode ser editado aqui sem alterar o cadastro.
+                </span>
+              </p>
+            ) : (
+              <p className="cal-auto-aviso cal-auto-aviso-falta">
+                <Icone nome="alerttri" tam={13} />
+                <span>
+                  Nenhum padrão de {form.tipo === 'manometro' ? 'manômetro' : 'válvula'} cadastrado em{' '}
+                  <strong>Certificados</strong> — estes campos saem em branco no documento se não
+                  forem preenchidos.
+                </span>
+              </p>
+            )}
             <div className="cal-form-grid cols-4">
               <div className="cal-campo">
                 <label>Instrumento Padrão</label>
@@ -933,105 +1020,53 @@ export default function Calibracoes() {
             </div>
           </div>
 
-          {/* Resultados — Manômetro */}
-          {form.tipo === 'manometro' && (
-            <div className="cal-form-secao">
-              <div className="cal-form-secao-titulo">Resultados Obtidos (Manômetro)</div>
-              <div className="cal-tabelas-duplas">
-                <div>
-                  <div className="cal-subtabela-titulo">Sentido Crescente (kgf/cm²)</div>
-                  <table className="cal-tabela-resultados">
-                    <thead>
-                      <tr>
-                        <th>Valor Convencional</th>
-                        <th>Valor Nominal</th>
-                        <th>Erro</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {form.crescente.map((row, i) => (
-                        <tr key={i}>
-                          <td><input value={row.vc} onChange={(e) => setCrescente(i, 'vc', e.target.value)} /></td>
-                          <td><input value={row.vi} onChange={(e) => setCrescente(i, 'vi', e.target.value)} /></td>
-                          <td className="erro-calc">{row.vc && row.vi ? calcularErro(row.vc, row.vi) : '—'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  <div className="cal-form-grid" style={{ padding: '10px 0 0', gap: 10 }}>
-                    <div className="cal-campo">
-                      <label>Incerteza de Medição</label>
-                      <input value={form.incertezaC} onChange={(e) => set('incertezaC', e.target.value)} />
-                    </div>
-                    <div className="cal-campo">
-                      <label>Coeficiente k</label>
-                      <input value={form.coefC} onChange={(e) => set('coefC', e.target.value)} />
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <div className="cal-subtabela-titulo">Sentido Decrescente (kgf/cm²)</div>
-                  <table className="cal-tabela-resultados">
-                    <thead>
-                      <tr>
-                        <th>Valor Convencional</th>
-                        <th>Valor Nominal</th>
-                        <th>Erro</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {form.decrescente.map((row, i) => (
-                        <tr key={i}>
-                          <td><input value={row.vc} onChange={(e) => setDecrescente(i, 'vc', e.target.value)} /></td>
-                          <td><input value={row.vi} onChange={(e) => setDecrescente(i, 'vi', e.target.value)} /></td>
-                          <td className="erro-calc">{row.vc && row.vi ? calcularErro(row.vc, row.vi) : '—'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  <div className="cal-form-grid" style={{ padding: '10px 0 0', gap: 10 }}>
-                    <div className="cal-campo">
-                      <label>Incerteza de Medição</label>
-                      <input value={form.incertezaD} onChange={(e) => set('incertezaD', e.target.value)} />
-                    </div>
-                    <div className="cal-campo">
-                      <label>Coeficiente k</label>
-                      <input value={form.coefD} onChange={(e) => set('coefD', e.target.value)} />
-                    </div>
-                  </div>
-                </div>
-              </div>
+          {/* ── RESULTADOS OBTIDOS ────────────────────────────────────────
+              Vinte células nuas no meio do formulário viraram um RESUMO com um
+              botão. O preenchimento mora no modal, onde cabe uma linha por
+              ponto, o erro ao vivo e o progresso — ver `ModalResultados`. */}
+          <div className="cal-form-secao">
+            <div className="cal-form-secao-titulo">
+              Resultados Obtidos ({form.tipo === 'manometro' ? 'Manômetro' : 'PSV'})
             </div>
-          )}
-
-          {/* Resultados — PSV */}
-          {form.tipo === 'psv' && (
-            <div className="cal-form-secao">
-              <div className="cal-form-secao-titulo">Resultados Obtidos (PSV)</div>
-              <div className="cal-form-grid cols-3">
-                <div className="cal-campo">
-                  <label>Pressão de Abertura</label>
-                  <input value={form.pressaoAbertura} onChange={(e) => set('pressaoAbertura', e.target.value)} />
-                </div>
-                <div className="cal-campo">
-                  <label>Pressão de Ajuste</label>
-                  <input value={form.pressaoAjuste} onChange={(e) => set('pressaoAjuste', e.target.value)} />
-                </div>
-                <div className="cal-campo">
-                  <label>Fechamento</label>
-                  <input value={form.fechamento} onChange={(e) => set('fechamento', e.target.value)} />
-                </div>
-                <div className="cal-campo">
-                  <label>Incerteza de Medição</label>
-                  <input value={form.incerteza} onChange={(e) => set('incerteza', e.target.value)} />
-                </div>
-                <div className="cal-campo">
-                  <label>Coeficiente k</label>
-                  <input value={form.coef} onChange={(e) => set('coef', e.target.value)} />
-                </div>
+            <div className="cal-resultados-cartao">
+              <div className="cal-resultados-resumo">
+                {form.tipo === 'manometro' ? (
+                  <>
+                    <span className="cal-res-num">
+                      <strong>{resumoResultados.feitos}</strong> de {resumoResultados.total || 0}
+                    </span>
+                    <span className="cal-res-rot">pontos medidos</span>
+                    {piorErro !== null && (
+                      <span className="cal-res-erro">
+                        maior erro <strong>{piorErro}</strong> {form.unidade}
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <span className="cal-res-num">
+                      <strong>{[form.pressaoAbertura, form.pressaoAjuste, form.fechamento].filter((v) => v.trim() !== '').length}</strong> de 3
+                    </span>
+                    <span className="cal-res-rot">pressões registradas</span>
+                  </>
+                )}
               </div>
+              <button
+                type="button"
+                className="btn-primario cal-res-botao"
+                onClick={() => setResultadosAbertos(true)}
+              >
+                <Icone nome="sliders" tam={14} />
+                {temResultados ? 'Revisar resultados' : 'Preencher resultados'}
+              </button>
             </div>
-          )}
+            {!temResultados && (
+              <p className="cal-auto-aviso cal-auto-aviso-falta">
+                <Icone nome="alerttri" tam={13} />
+                <span>Sem medições, as tabelas do certificado saem com travessões.</span>
+              </p>
+            )}
+          </div>
 
           {/* Conclusão */}
           <div className="cal-form-secao">
@@ -1063,6 +1098,30 @@ export default function Calibracoes() {
               Salvar e Visualizar
             </button>
           </div>
+
+          {resultadosAbertos && (
+            <ModalResultados
+              tipo={form.tipo}
+              unidade={form.unidade}
+              nome={form.nome}
+              manometro={{
+                pontos,
+                incertezaC: form.incertezaC,
+                coefC: form.coefC,
+                incertezaD: form.incertezaD,
+                coefD: form.coefD,
+              }}
+              psv={{
+                pressaoAbertura: form.pressaoAbertura,
+                pressaoAjuste: form.pressaoAjuste,
+                fechamento: form.fechamento,
+                incerteza: form.incerteza,
+                coef: form.coef,
+              }}
+              aoConfirmar={aplicarResultados}
+              aoFechar={() => setResultadosAbertos(false)}
+            />
+          )}
         </div>
       )}
 
