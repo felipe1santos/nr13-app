@@ -70,6 +70,26 @@ export function temAlgumFiltroPront(
   );
 }
 
+/**
+ * O ASSUNTO da lista que está sendo filtrada.
+ *
+ * O modal é compartilhado com a tela de Calibrações (`CatalogoCalibracoesV9`),
+ * e lá ele abria escrito "Prontuários / Filtrar prontuários", com a opção
+ * "Com prontuário" filtrando, na verdade, quem tem CALIBRAÇÃO. O usuário lia
+ * sobre um documento que não é o daquela tela.
+ */
+export interface AssuntoFiltro {
+  titulo: string;
+  singular: string;
+  plural: string;
+}
+
+const ASSUNTO_PADRAO: AssuntoFiltro = {
+  titulo: 'Prontuários',
+  singular: 'prontuário',
+  plural: 'prontuários',
+};
+
 export default function ModalFiltrosProntuarios({
   valores,
   tipos,
@@ -77,6 +97,7 @@ export default function ModalFiltrosProntuarios({
   categorias,
   varreduraIncompleta,
   modo = 'equipamentos',
+  assunto = ASSUNTO_PADRAO,
   aoAplicar,
   aoFechar,
 }: {
@@ -96,6 +117,8 @@ export default function ModalFiltrosProntuarios({
    * dentro do modal de criar, onde os quatro fazem sentido.
    */
   modo?: 'documentos' | 'equipamentos';
+  /** O documento de que esta lista trata — ver `AssuntoFiltro`. */
+  assunto?: AssuntoFiltro;
   aoAplicar: (v: ValoresFiltroPront) => void;
   aoFechar: () => void;
 }) {
@@ -145,13 +168,13 @@ export default function ModalFiltrosProntuarios({
       onClick={(e) => e.target === e.currentTarget && aoFechar()}
       role="dialog"
       aria-modal="true"
-      aria-label="Filtrar prontuários"
+      aria-label={`Filtrar ${assunto.plural}`}
     >
       <div className="fj-modal-box mfp-box" ref={caixa}>
         <div className="fj-modal-head">
           <div>
-            <div className="fj-eyebrow">Prontuários</div>
-            <h2>Filtrar prontuários</h2>
+            <div className="fj-eyebrow">{assunto.titulo}</div>
+            <h2>Filtrar {assunto.plural}</h2>
           </div>
           <button type="button" className="fj-modal-close" onClick={aoFechar} aria-label="Fechar">
             <Icone nome="x" tam={15} />
@@ -174,8 +197,8 @@ export default function ModalFiltrosProntuarios({
                 </>
               ) : (
                 <>
-                  <option value="com">Com prontuário</option>
-                  <option value="sem">Sem prontuário ainda</option>
+                  <option value="com">Com {assunto.singular}</option>
+                  <option value="sem">Sem {assunto.singular} ainda</option>
                   <option value="">Todos os equipamentos</option>
                 </>
               )}
@@ -183,7 +206,7 @@ export default function ModalFiltrosProntuarios({
             <p className="mfp-nota">
               {modo === 'documentos'
                 ? 'Rascunho é trabalho em aberto; emitido é documento definitivo, com código de verificação.'
-                : 'O padrão é mostrar quem já tem prontuário. "Sem prontuário ainda" é a lista de quem falta — útil para saber o que ainda precisa ser feito.'}
+                : `O padrão é mostrar quem já tem ${assunto.singular}. "Sem ${assunto.singular} ainda" é a lista de quem falta — útil para saber o que ainda precisa ser feito.`}
             </p>
           </section>
 

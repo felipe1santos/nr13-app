@@ -24,6 +24,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icone } from '../../components/Icone';
 import { calcularErro } from './calibracaoService';
 import {
+  PONTOS_NA_FOLHA,
+  cabeMaisUmPonto,
   maiorErro,
   pontoVazio,
   resumoPontos,
@@ -243,9 +245,13 @@ export default function ModalResultados({
             </div>
 
             <div className="mres-linha-acoes">
+              {/* O teto é o da FOLHA. Deixar acrescentar o sétimo ponto seria
+                  aceitar uma medição que o certificado não imprime — e some
+                  sem aviso, que é o defeito que este trabalho inteiro ataca. */}
               <button
                 type="button"
                 className="fj-btn fj-btn-ghost"
+                disabled={!cabeMaisUmPonto(man.pontos)}
                 onClick={() => setMan((m) => ({ ...m, pontos: [...m.pontos, pontoVazio()] }))}
               >
                 <Icone nome="plus" tam={13} /> Acrescentar ponto
@@ -258,6 +264,11 @@ export default function ModalResultados({
                 >
                   Remover o último
                 </button>
+              )}
+              {!cabeMaisUmPonto(man.pontos) && (
+                <span className="mres-teto">
+                  O certificado imprime {PONTOS_NA_FOLHA} pontos.
+                </span>
               )}
             </div>
 

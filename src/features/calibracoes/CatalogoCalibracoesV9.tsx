@@ -260,6 +260,10 @@ export default function CatalogoCalibracoesV9({
         <ModalFiltrosProntuarios
           valores={filtroUi}
           modo="equipamentos"
+          // O modal é o mesmo de Prontuários; sem isto ele abria escrito
+          // "Filtrar prontuários" numa tela de calibrações, e a opção
+          // "Com prontuário" filtrava, na verdade, quem tem calibração.
+          assunto={{ titulo: 'Calibrações', singular: 'calibração', plural: 'calibrações' }}
           tipos={TIPOS_FILTRO}
           empresas={empresas}
           categorias={[]}

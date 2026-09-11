@@ -615,13 +615,13 @@ export default function Calibracoes() {
                         </div>
                         <span className={`badge-cal-tipo ${c.tipo}`}>{c.tipo === 'manometro' ? 'Manômetro' : 'PSV'}</span>
                         <div style={{ display: 'flex', gap: 4 }}>
-                          <button type="button" className="btn-icone cor-cinza" title="Editar" onClick={() => setCompForm({ ...c })}>
+                          <button type="button" className="btn-icone cor-cinza" title="Editar" aria-label="Editar" onClick={() => setCompForm({ ...c })}>
                             <Icone nome="pencil" tam={13} />
                           </button>
                           <button
                             type="button"
                             className="btn-icone cor-vermelho"
-                            title="Excluir componente"
+                            title="Excluir componente" aria-label="Excluir componente"
                             onClick={async () => {
                               if (!window.confirm(`Excluir o componente ${c.nome}? Os certificados já emitidos continuam no histórico.`)) return;
                               await excluirComponente(tag, c.id);
@@ -742,7 +742,7 @@ export default function Calibracoes() {
                       <button
                         type="button"
                         className="btn-icone cor-azul"
-                        title="Renomear lote"
+                        title="Renomear lote" aria-label="Renomear lote"
                         style={{ marginRight: 10, flexShrink: 0 }}
                         onClick={() => setLoteNome({ id: lote.id, nome: lote.descricao })}
                       >
@@ -767,16 +767,16 @@ export default function Calibracoes() {
                                 <>
                                   <span className={`badge-cal-status ${cal.statusConclusao || 'pendente'}`}>{statusLabel(cal.statusConclusao)}</span>
                                   <div style={{ display: 'flex', gap: 6 }}>
-                                    <button type="button" className="btn-icone cor-azul" title="Ver o que foi preenchido" onClick={() => abrirVerDados(cal)}>
+                                    <button type="button" className="btn-icone cor-azul" title="Ver o que foi preenchido" aria-label="Ver o que foi preenchido" onClick={() => abrirVerDados(cal)}>
                                       <Icone nome="eye" tam={15} />
                                     </button>
-                                    <button type="button" className="btn-icone cor-azul" title="Ver o certificado" onClick={() => abrirVisualizador(cal)}>
+                                    <button type="button" className="btn-icone cor-azul" title="Ver o certificado" aria-label="Ver o certificado" onClick={() => abrirVisualizador(cal)}>
                                       <Icone nome="filetext" tam={15} />
                                     </button>
                                     <button
                                       type="button"
                                       className="btn-icone cor-vermelho"
-                                      title="Excluir certificado"
+                                      title="Excluir certificado" aria-label="Excluir certificado"
                                       onClick={() => window.confirm('Excluir este certificado?') && excluir(cal.id)}
                                     >
                                       <Icone nome="trash" tam={14} />
@@ -864,13 +864,13 @@ export default function Calibracoes() {
                             </>
                           ) : (
                             <>
-                              <button type="button" className="btn-icone cor-azul" title="Ver o que foi preenchido" onClick={() => abrirVerDados(c)}>
+                              <button type="button" className="btn-icone cor-azul" title="Ver o que foi preenchido" aria-label="Ver o que foi preenchido" onClick={() => abrirVerDados(c)}>
                                 <Icone nome="eye" tam={15} />
                               </button>
-                              <button type="button" className="btn-icone cor-azul" title="Ver como fica o documento" onClick={() => abrirVisualizador(c)}>
+                              <button type="button" className="btn-icone cor-azul" title="Ver como fica o documento" aria-label="Ver como fica o documento" onClick={() => abrirVisualizador(c)}>
                                 <Icone nome="filetext" tam={15} />
                               </button>
-                              <button type="button" className="btn-icone cor-vermelho" title="Excluir" onClick={() => setConfirmandoId(c.id)}>
+                              <button type="button" className="btn-icone cor-vermelho" title="Excluir" aria-label="Excluir" onClick={() => setConfirmandoId(c.id)}>
                                 <Icone nome="trash" tam={14} />
                               </button>
                             </>

@@ -1,6 +1,7 @@
 import { ler } from '../../services/storage';
 import { padraoDoEnsaio, tipoPadraoDoCertificado } from '../relatorios/rastreabilidadeService';
 import type { ComponenteCal } from './componentesService';
+import { PONTOS_NA_FOLHA } from './resultadosCalibracao';
 
 /**
  * O que o sistema JÁ SABE quando o usuário abre uma calibração nova.
@@ -126,10 +127,17 @@ export function motivoPadrao(status: 'aprovado' | 'reprovado' | ''): string {
   return '';
 }
 
-/** Os pontos de calibração do componente, ou cinco linhas em branco. */
+/**
+ * Os pontos de calibração do componente, ou cinco linhas em branco.
+ *
+ * O corte em `PONTOS_NA_FOLHA` não é preferência de tela: é o número de linhas
+ * que as tabelas do certificado imprimem. Cadastrar sete pontos e medir os sete
+ * faria o sétimo sumir do documento emitido, em silêncio — a tela avisa no
+ * cadastro, e aqui a sugestão já entra no tamanho que cabe.
+ */
 export function pontosDoComponente(comp?: ComponenteCal | null): string[] {
   const p = (comp?.pontos ?? []).map((x) => String(x ?? '').trim()).filter((x) => x !== '');
-  return p.length > 0 ? p : ['', '', '', '', ''];
+  return p.length > 0 ? p.slice(0, PONTOS_NA_FOLHA) : ['', '', '', '', ''];
 }
 
 /** Unidade do componente, com o padrão da NR-13 para pressão. */

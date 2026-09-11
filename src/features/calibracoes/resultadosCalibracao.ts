@@ -34,9 +34,26 @@ export interface LinhaGravada {
   erro: string;
 }
 
+/**
+ * Quantos pontos a FOLHA imprime — o teto real, não uma preferência de tela.
+ *
+ * As duas tabelas do `CERTIFICADO-CAL-MANOMETRO.html` têm seis linhas cada.
+ * Medido em produção: cadastrar seis pontos e medir os seis fazia o SEXTO
+ * sumir do documento emitido, porque a última linha do HTML existia mas não
+ * tinha `id` para receber injeção — perda silenciosa de uma medição dentro de
+ * um certificado assinado. Os ids foram criados; este número é o que impede o
+ * mesmo estrago no sentido contrário, quando alguém acrescentar o sétimo.
+ */
+export const PONTOS_NA_FOLHA = 6;
+
 /** Linha vazia — o ponto ainda não existe. */
 export function pontoVazio(): PontoCal {
   return { vc: '', viC: '', viD: '' };
+}
+
+/** `true` quando ainda cabe um ponto no certificado. */
+export function cabeMaisUmPonto(pontos: PontoCal[]): boolean {
+  return pontos.length < PONTOS_NA_FOLHA;
 }
 
 /**

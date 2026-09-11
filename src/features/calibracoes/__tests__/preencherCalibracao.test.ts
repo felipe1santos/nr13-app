@@ -33,6 +33,8 @@ import {
   unidadeDoComponente,
 } from '../preencherCalibracao';
 import {
+  PONTOS_NA_FOLHA,
+  cabeMaisUmPonto,
   maiorErro,
   paraLinhas,
   paraPontos,
@@ -193,6 +195,15 @@ describe('o que não muda fica no cadastro do componente', () => {
     expect(pontosDoComponente({ pontos: [] } as never)).toHaveLength(5);
   });
 
+  it('corta no que a FOLHA imprime, em vez de sugerir ponto que some', () => {
+    // Medido em produção: seis pontos cadastrados, seis medidos, e o SEXTO não
+    // aparecia no certificado — a última linha do HTML existia sem `id` para
+    // receber injeção. Os ids foram criados; o corte impede o mesmo estrago
+    // quando alguém cadastrar o sétimo.
+    const dez = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    expect(pontosDoComponente({ pontos: dez } as never)).toHaveLength(PONTOS_NA_FOLHA);
+  });
+
   it('a lista aceita vírgula, ponto-e-vírgula e quebra de linha', () => {
     expect(pontosDeTexto('0, 2; 4\n6,  8 ')).toEqual(['0', '2', '4', '6', '8']);
     expect(pontosDeTexto('')).toEqual([]);
@@ -301,6 +312,24 @@ describe('as regras ficam no código', () => {
     expect(template).toContain('id="inj-unid-c"');
     expect(template).toContain("inj('inj-unid-c', c.unidade)");
     expect(template).toContain("inj('inj-unid-d', c.unidade)");
+  });
+
+  it('a folha tem uma linha com id para CADA ponto que o modal aceita', () => {
+    // A 6ª linha das duas tabelas existia no HTML sem `id`: o ponto 6 medido
+    // era descartado em silêncio no documento emitido.
+    for (let i = 1; i <= PONTOS_NA_FOLHA; i++) {
+      expect(template).toContain(`id="inj-vcv-${i}"`);
+      expect(template).toContain(`id="inj-vic-${i}"`);
+      expect(template).toContain(`id="inj-vcv-d-${i}"`);
+      expect(template).toContain(`id="inj-vid-${i}"`);
+    }
+    expect(template).not.toContain(`id="inj-vcv-${PONTOS_NA_FOLHA + 1}"`);
+  });
+
+  it('o modal para de aceitar ponto no teto da folha', () => {
+    const cheio = Array.from({ length: PONTOS_NA_FOLHA }, () => ({ vc: '1', viC: '', viD: '' }));
+    expect(cabeMaisUmPonto(cheio)).toBe(false);
+    expect(cabeMaisUmPonto(cheio.slice(1))).toBe(true);
   });
 
   it('os resultados são preenchidos pelo modal, não por vinte células soltas', () => {

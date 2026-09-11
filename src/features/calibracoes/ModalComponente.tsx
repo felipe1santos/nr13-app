@@ -21,6 +21,7 @@ import FeedbackSalvamento, { useSalvamento } from '../../components/FeedbackSalv
 import { Icone } from '../../components/Icone';
 import FotoImg from '../../components/FotoImg';
 import type { ComponenteCal } from './componentesService';
+import { PONTOS_NA_FOLHA } from './resultadosCalibracao';
 import {
   UNIDADES,
   pontosDeTexto,
@@ -189,8 +190,9 @@ export default function ModalComponente({
                     placeholder="Ex: 0, 2, 4, 6, 8, 10"
                   />
                   <em className="mcomp-dica">
-                    Separe por vírgula. É a coluna “valor do padrão” do certificado — vinha em branco
-                    e era digitada duas vezes, uma para cada sentido.
+                    {(c.pontos ?? []).length > PONTOS_NA_FOLHA
+                      ? `O certificado imprime ${PONTOS_NA_FOLHA} pontos — os demais não entram no documento.`
+                      : 'Separe por vírgula. É a coluna “valor do padrão” do certificado — vinha em branco e era digitada duas vezes, uma para cada sentido.'}
                   </em>
                 </label>
               ) : (

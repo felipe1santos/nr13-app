@@ -259,3 +259,11 @@
   .mres-acoes { padding: 12px; }
   .mres-acoes .fj-btn { flex: 1; }
 }
+
+/* O teto de pontos é uma informação, não um erro: o usuário atingiu o que a
+   folha imprime. Tom neutro, ao lado do botão que ficou desligado. */
+.mres-teto {
+  align-self: center;
+  font-size: 11.5px;
+  color: var(--text-muted, #6b7280);
+}
