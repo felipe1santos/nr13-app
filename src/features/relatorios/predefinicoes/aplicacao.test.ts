@@ -7,7 +7,7 @@ import {
   overridesDaAplicacao,
   planoAplicacao,
 } from './aplicacao';
-import { idPermitido } from './camposPredefiniveis';
+import { CAMPOS_PREDEFINIVEIS, idPermitido } from './camposPredefiniveis';
 import type { Predefinicao } from './modelo';
 import type { MapaOverrides } from '../overridesRelatorio';
 
@@ -126,6 +126,80 @@ describe('PROTEÇÃO CONTRA SOBRESCRITA', () => {
   it('campo AUSENTE nunca vira override, nem no modo substituir', () => {
     const p = planoAplicacao(P({ 'th.normas': 'ASME' }), []);
     expect(overridesDaAplicacao({}, p, 'substituir')).toEqual({});
+  });
+});
+
+/**
+ * A REGRA DO DONO (12/09/2026): predefinição preenche o que está VAZIO; o que o
+ * sistema puxa de outra seção — ficha do equipamento, inspeção de campo —
+ * prevalece.
+ *
+ * A allowlist já cuida da maior parte (ficha, memorial, categorização, medições
+ * e laudo nem são predefiníveis). Estes testes cobrem os três campos que a
+ * allowlist admite e que MESMO ASSIM têm fonte: os do teste hidrostático, que
+ * vêm do container de inspeção.
+ */
+describe('o dado que vem da inspeção PREVALECE', () => {
+  const comTh = (valor: string, origem: 'auto' | 'manual') => ({
+    ...campo('th.procedimento', valor),
+    origem,
+  });
+
+  it('preenchido pela inspeção → protegido, e nem `substituir` escreve', () => {
+    const p = planoAplicacao(P({ 'th.procedimento': 'texto do escritório' }), [
+      comTh('Pressurização em degraus de 25%, conforme respondido em campo.', 'auto'),
+    ]);
+    expect(p.itens[0].estado).toBe('protegido');
+    expect(p.totalProtegidos).toBe(1);
+    expect(p.totalConflitos).toBe(0);
+    expect(itensQueSeraoEscritos(p, 'vazios')).toEqual([]);
+    expect(itensQueSeraoEscritos(p, 'substituir')).toEqual([]);
+    expect(overridesDaAplicacao({}, p, 'substituir')).toEqual({});
+  });
+
+  it('a tela diz DE ONDE veio o valor que prevaleceu', () => {
+    const p = planoAplicacao(P({ 'th.normas': 'x' }), [
+      { ...campo('th.normas', 'ASME PCC-2'), origem: 'auto' },
+    ]);
+    expect(p.itens[0].fonte).toBe('container de inspeção');
+  });
+
+  it('a inspeção NÃO respondeu aquilo → a predefinição preenche normalmente', () => {
+    // Aqui ela não substitui dado nenhum: preenche um buraco. É o caso comum de
+    // quem gera o relatório sem container.
+    const p = planoAplicacao(P({ 'th.procedimento': 'procedimento padrão da empresa' }), [
+      comTh('', 'auto'),
+    ]);
+    expect(p.itens[0].estado).toBe('preenche');
+    expect(itensQueSeraoEscritos(p, 'vazios')).toHaveLength(1);
+  });
+
+  it('texto que o PRÓPRIO usuário digitou no campo não fica trancado para ele', () => {
+    // `origem: 'manual'` = já existe override daquele campo neste relatório. Sem
+    // esta parte da condição, o usuário perderia o direito de trocar o que ele
+    // mesmo escreveu ali.
+    const p = planoAplicacao(P({ 'th.procedimento': 'novo texto' }), [
+      comTh('escrito à mão neste relatório', 'manual'),
+    ]);
+    expect(p.itens[0].estado).toBe('conflito');
+    expect(itensQueSeraoEscritos(p, 'vazios')).toEqual([]);
+    expect(itensQueSeraoEscritos(p, 'substituir')).toHaveLength(1);
+  });
+
+  it('campo SEM fonte externa com valor automático segue substituível por escolha', () => {
+    // `objetivo.texto` tem uma redação PADRÃO escrita pelo próprio gerador —
+    // não é dado puxado de outra seção. Trocá-la pela redação da empresa é o
+    // uso mais óbvio de uma predefinição, e continua possível.
+    const p = planoAplicacao(P({ 'objetivo.texto': 'a redação da empresa' }), [
+      { ...campo('objetivo.texto', 'redação padrão do sistema'), origem: 'auto' },
+    ]);
+    expect(p.itens[0].estado).toBe('conflito');
+    expect(itensQueSeraoEscritos(p, 'substituir')).toHaveLength(1);
+  });
+
+  it('a allowlist marca os TRÊS campos de fonte externa, e só eles', () => {
+    const comFonte = CAMPOS_PREDEFINIVEIS.filter((c) => c.fonteExterna).map((c) => c.id);
+    expect(comFonte).toEqual(['th.procedimento', 'th.normas', 'th.parecer']);
   });
 });
 

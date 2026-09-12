@@ -4,7 +4,7 @@ import {
   overrideDeTexto,
   type MapaOverrides,
 } from '../overridesRelatorio';
-import { rotuloDoCampo } from './camposPredefiniveis';
+import { campoPredefinivel, rotuloDoCampo } from './camposPredefiniveis';
 import { idsDoConjunto, type Predefinicao } from './modelo';
 
 /**
@@ -21,11 +21,12 @@ import { idsDoConjunto, type Predefinicao } from './modelo';
  * campo, o que está no documento hoje e o que a predefinição propõe. O usuário
  * lê, escolhe o modo e só então confirma.
  *
- * ## Os quatro estados de um campo no plano
+ * ## Os cinco estados de um campo no plano
  *
  * | estado | quando | o que acontece |
  * |---|---|---|
  * | `ausente` | o campo não foi desenhado neste relatório | nada, e a tela diz por quê |
+ * | `protegido` | o dado veio de outra seção do sistema e já está preenchido | **nada, em modo nenhum** |
  * | `igual` | o documento já diz exatamente isso | nada |
  * | `preenche` | o campo está vazio | preenchido nos dois modos |
  * | `conflito` | há conteúdo diferente escrito ali | só no modo `substituir` |
@@ -34,6 +35,32 @@ import { idsDoConjunto, type Predefinicao } from './modelo';
  * teste hidrostático aplicado num relatório sem a folha de TH gravaria
  * overrides para campos que ninguém desenha, e o usuário veria "8 campos
  * preenchidos" e nenhuma mudança no papel.
+ *
+ * ## `protegido` — o dado automático prevalece (12/09/2026)
+ *
+ * Regra do dono: **predefinição preenche o que está vazio; o que o sistema puxa
+ * de outra seção — ficha do equipamento, inspeção de campo — prevalece.**
+ *
+ * A allowlist já cuida da maior parte disso, deixando de fora todo campo
+ * alimentado por ficha, memorial, categorização, medições e laudo. Sobravam
+ * TRÊS que ela admite e que mesmo assim têm fonte: `th.procedimento`,
+ * `th.normas` e `th.parecer` vêm do container de inspeção. Eles nascem vazios
+ * quando a inspeção não respondeu aquilo — e aí a predefinição é bem-vinda —,
+ * mas quando vêm preenchidos representam o que o técnico apurou em campo.
+ *
+ * Por isso `protegido` **não é um conflito mais forte**: é a ausência de
+ * escolha. `substituir` não o alcança, e o botão nunca o conta. Trocar por
+ * automação o que a inspeção respondeu faria o documento contradizer o ensaio
+ * que ele relata — e ninguém reconheceria isso lendo o PDF.
+ *
+ * O campo continua corrigível **à mão**, clicando nele no documento: é um gesto
+ * individual, sobre aquele valor, com o automático guardado no override. O que
+ * não existe é a via em lote.
+ *
+ * A condição tem três partes, e as três importam: o campo declara
+ * `fonteExterna`, o valor que está no papel **não** está vazio, e ele veio da
+ * FONTE (`origem === 'auto'`). Sem a terceira, um texto que o próprio usuário
+ * digitou naquele campo ficaria trancado para ele mesmo.
  *
  * ## Os modos
  *
@@ -45,7 +72,7 @@ import { idsDoConjunto, type Predefinicao } from './modelo';
  */
 export type ModoAplicacao = 'vazios' | 'substituir';
 
-export type EstadoCampoPlano = 'ausente' | 'igual' | 'preenche' | 'conflito';
+export type EstadoCampoPlano = 'ausente' | 'protegido' | 'igual' | 'preenche' | 'conflito';
 
 export interface ItemPlano {
   id: string;
@@ -57,6 +84,8 @@ export interface ItemPlano {
   estado: EstadoCampoPlano;
   /** O valor automático do campo, que o override precisa guardar. */
   auto: string;
+  /** Só em `protegido`: de onde o sistema puxou o valor que prevalece. */
+  fonte?: string;
 }
 
 export interface PlanoAplicacao {
@@ -69,6 +98,8 @@ export interface PlanoAplicacao {
   totalAusentes: number;
   /** Quantos já dizem exatamente o que a predefinição propõe. */
   totalIguais: number;
+  /** Quantos o sistema já preencheu de outra seção — e nenhum modo escreve. */
+  totalProtegidos: number;
 }
 
 /**
@@ -93,6 +124,16 @@ export function planoAplicacao(p: Predefinicao, editaveis: CampoEditavel[]): Pla
       continue;
     }
     const atual = campo.valor ?? '';
+    const fonte = campoPredefinivel(id)?.fonteExterna;
+
+    // O dado que o sistema puxou de outra seção prevalece. Esta checagem vem
+    // ANTES de `igual`/`preenche`/`conflito` porque ela não é uma variação de
+    // conflito: é a retirada da escolha.
+    if (fonte && atual.trim() !== '' && campo.origem === 'auto') {
+      itens.push({ id, rotulo, atual, novo, estado: 'protegido', auto: campo.auto ?? '', fonte });
+      continue;
+    }
+
     const estado: EstadoCampoPlano =
       atual.trim() === novo.trim() ? 'igual' : atual.trim() === '' ? 'preenche' : 'conflito';
     itens.push({ id, rotulo, atual, novo, estado, auto: campo.auto ?? '' });
@@ -104,10 +145,18 @@ export function planoAplicacao(p: Predefinicao, editaveis: CampoEditavel[]): Pla
     totalConflitos: itens.filter((i) => i.estado === 'conflito').length,
     totalAusentes: itens.filter((i) => i.estado === 'ausente').length,
     totalIguais: itens.filter((i) => i.estado === 'igual').length,
+    totalProtegidos: itens.filter((i) => i.estado === 'protegido').length,
   };
 }
 
-/** Os itens que o modo escolhido realmente escreve. */
+/**
+ * Os itens que o modo escolhido realmente escreve.
+ *
+ * A lista é de INCLUSÃO: só `preenche` (nos dois modos) e `conflito` (só em
+ * `substituir`). `ausente`, `igual` e `protegido` ficam de fora por não
+ * estarem aqui — não há modo que os alcance, e não há como um modo novo
+ * alcançá-los por descuido.
+ */
 export function itensQueSeraoEscritos(plano: PlanoAplicacao, modo: ModoAplicacao): ItemPlano[] {
   return plano.itens.filter(
     (i) => i.estado === 'preenche' || (modo === 'substituir' && i.estado === 'conflito'),

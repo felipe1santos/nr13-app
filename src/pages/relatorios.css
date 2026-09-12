@@ -3064,6 +3064,25 @@ body.doc-foco .meta-barra-fixa { padding-top: 6px; padding-bottom: 6px; }
 .predef-rev-lista > li.e-ausente,
 .predef-rev-lista > li.e-igual { opacity: .68; }
 
+/* `protegido`: o dado veio de outra seção do sistema (hoje, do container de
+   inspeção) e NENHUM modo o escreve. Cor de informação, não de erro — não há
+   nada errado ali; há uma escolha que não existe. */
+.predef-rev-lista > li.e-protegido {
+  border-left: 3px solid var(--blue2-line, #C4D9F0);
+  background: var(--blue2-bg, #E4EDF9);
+}
+.predef-rev-protegido {
+  padding: 6px 8px;
+  border-radius: 7px;
+  background: var(--panel, #fff);
+  color: var(--text, #2D3339);
+}
+.predef-rev-contagem li.e-protegido {
+  background: var(--blue2-bg, #E4EDF9);
+  border-color: var(--blue2-line, #C4D9F0);
+  color: var(--blue2, #0C4F9B);
+}
+
 .predef-rev-nome {
   display: flex;
   align-items: center;

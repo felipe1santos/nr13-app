@@ -60,6 +60,29 @@ export interface CampoPredefinivel {
   opcoes?: string[];
   /** Texto de apoio, quando o rótulo sozinho não diz onde aquilo sai. */
   ajuda?: string;
+  /**
+   * DE ONDE O SISTEMA JÁ PUXA ESTE CAMPO — quando puxa de algum lugar.
+   *
+   * A maioria dos 23 nasce vazia: não existe formulário, chave nem cálculo que
+   * os alimente, e por isso uma predefinição é a única automação possível ali.
+   * Três não: `th.procedimento`, `th.normas` e `th.parecer` são preenchidos pelo
+   * **container de inspeção** — o que o técnico respondeu em campo.
+   *
+   * Campo com fonte externa que JÁ VEIO PREENCHIDO é `protegido`: a
+   * predefinição não o escreve em modo nenhum, nem com a escolha explícita de
+   * substituir (ver `aplicacao.ts`). O dado de campo prevalece sobre o texto
+   * guardado no escritório — trocá-lo por automação faria o documento
+   * contradizer a inspeção que ele relata.
+   *
+   * Vindo vazio (a inspeção não respondeu aquilo, ou o relatório foi gerado sem
+   * container), a predefinição preenche normalmente: aí ela não está
+   * substituindo dado nenhum.
+   *
+   * O usuário continua podendo corrigir o campo à mão, clicando nele no
+   * documento — gesto individual, com o valor automático registrado no
+   * override. O que não existe é a via automática em lote.
+   */
+  fonteExterna?: string;
 }
 
 /**
@@ -154,18 +177,24 @@ export const CAMPOS_PREDEFINIVEIS: CampoPredefinivel[] = [
     rotulo: 'Procedimento do teste hidrostático',
     grupo: 'Teste hidrostático',
     tipo: 'textoLongo',
+    fonteExterna: 'container de inspeção',
+    ajuda: 'Se a inspeção de campo já respondeu este item, o que veio dela prevalece.',
   },
   {
     id: 'th.normas',
     rotulo: 'Normas de referência (TH)',
     grupo: 'Teste hidrostático',
     tipo: 'texto',
+    fonteExterna: 'container de inspeção',
+    ajuda: 'Se a inspeção de campo já respondeu este item, o que veio dela prevalece.',
   },
   {
     id: 'th.parecer',
     rotulo: 'Parecer técnico do teste hidrostático',
     grupo: 'Teste hidrostático',
     tipo: 'textoLongo',
+    fonteExterna: 'container de inspeção',
+    ajuda: 'Se a inspeção de campo já respondeu este item, o que veio dela prevalece.',
   },
   ...recomendacoes(),
   {

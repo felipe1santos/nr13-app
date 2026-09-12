@@ -73,6 +73,13 @@ export default function RevisaoAplicacao({
               este valor
             </li>
           )}
+          {plano.totalProtegidos > 0 && (
+            <li className="e-protegido">
+              <strong>{plano.totalProtegidos}</strong>{' '}
+              {plano.totalProtegidos === 1 ? 'vem' : 'vêm'} da inspeção e{' '}
+              {plano.totalProtegidos === 1 ? 'prevalece' : 'prevalecem'}
+            </li>
+          )}
           {plano.totalAusentes > 0 && (
             <li>
               <strong>{plano.totalAusentes}</strong> não {plano.totalAusentes === 1 ? 'existe' : 'existem'}{' '}
@@ -127,16 +134,32 @@ export default function RevisaoAplicacao({
               <li key={it.id} className={`e-${it.estado}${vai ? ' vai-escrever' : ''}`}>
                 <div className="predef-rev-nome">
                   <Icone
-                    nome={vai ? 'check' : it.estado === 'ausente' ? 'alerttri' : 'x'}
+                    nome={
+                      vai
+                        ? 'check'
+                        : it.estado === 'protegido'
+                          ? 'cadeado'
+                          : it.estado === 'ausente'
+                            ? 'alerttri'
+                            : 'x'
+                    }
                     tam={12}
                   />
                   <span>{it.rotulo}</span>
                   {it.estado === 'ausente' && <em>não existe neste relatório</em>}
                   {it.estado === 'igual' && <em>já está com este valor</em>}
                   {it.estado === 'conflito' && !vai && <em>mantido como está</em>}
+                  {/* O estado que NENHUM modo alcança. A frase diz de onde veio o
+                      dado, porque "protegido" sozinho não explica nada a quem
+                      esperava ver o campo preenchido. */}
+                  {it.estado === 'protegido' && (
+                    <em>preenchido pel{it.fonte === 'container de inspeção' ? 'a inspeção de campo' : 'o sistema'} — prevalece</em>
+                  )}
                 </div>
 
-                {it.estado === 'conflito' ? (
+                {it.estado === 'protegido' ? (
+                  <p className="predef-rev-valor predef-rev-protegido">{it.atual}</p>
+                ) : it.estado === 'conflito' ? (
                   <div className="predef-rev-troca">
                     <div className="predef-rev-antes">
                       <span>valor atual</span>

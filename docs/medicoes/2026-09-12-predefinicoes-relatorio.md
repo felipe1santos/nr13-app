@@ -137,8 +137,8 @@ fonte automática** — texto redigido à mão que se repete de inspeção em in
 | Escopo | `escopo.texto` | texto longo |
 | Categorização de risco | `categoria.nota` | texto longo |
 | Exames realizados | `inspecao.observacoes` | texto longo |
-| Teste hidrostático | `th.procedimento`, `th.parecer` | texto longo |
-| Teste hidrostático | `th.normas` | texto |
+| Teste hidrostático ✱ | `th.procedimento`, `th.parecer` | texto longo |
+| Teste hidrostático ✱ | `th.normas` | texto |
 | Recomendações | `recomendacoes.1..4.texto` | texto longo |
 | Recomendações | `recomendacoes.1..4.prazo` | texto |
 | Parecer técnico | `parecer.pmta-mantida` | opção (SIM / NÃO / N/A) |
@@ -149,6 +149,11 @@ fonte automática** — texto redigido à mão que se repete de inspeção em in
 **23 campos.** `camposPredefiniveis.test.ts` confere cada um contra o próprio
 `folhas.ts`: um id escrito errado aqui seria um campo que o conjunto promete preencher
 e nunca preenche — falha silenciosa, o defeito mais caro deste sistema.
+
+**✱ Os três do teste hidrostático são a exceção:** eles TÊM fonte — o container de
+inspeção. Quando vêm preenchidos de campo, o dado da inspeção prevalece e a predefinição
+não os escreve em modo nenhum (estado `protegido`, §4). Vindo vazios, ela preenche. Os
+outros 20 nascem vazios no gerador.
 
 ### Campos PROIBIDOS
 
@@ -187,6 +192,43 @@ override aplicado). Quatro estados:
 `ausente` é o que impede a falha silenciosa: um conjunto com campos do teste
 hidrostático aplicado num relatório sem a folha de TH gravaria overrides para campos
 que ninguém desenha, e o contador diria "8 preenchidos" com três no papel.
+
+### `protegido` — o dado automático prevalece (12/09/2026)
+
+Regra do dono, acrescentada depois da primeira entrega: **predefinição preenche o que está
+vazio; o que o sistema puxa de outra seção — ficha do equipamento, inspeção de campo —
+prevalece.**
+
+A allowlist já cobria quase tudo: nenhum campo alimentado por ficha, memorial,
+categorização, medições ou laudo é predefinível. A auditoria campo a campo encontrou
+**três exceções** que a allowlist admitia e que mesmo assim têm fonte:
+
+| campo | fonte | verificado em |
+|---|---|---|
+| `th.procedimento` | container de inspeção (`nr13_injecao_atual` → `m.th.procedimento`) | `modelo.ts:698,1002` |
+| `th.normas` | idem | `modelo.ts:996` |
+| `th.parecer` | idem | `modelo.ts:1003` |
+
+Eles ganharam `fonteExterna` na allowlist. Quando o valor no papel **não está vazio E veio
+da fonte** (`origem === 'auto'`), o plano os classifica como `protegido`: nenhum modo os
+escreve — nem `substituir`. `itensQueSeraoEscritos` é uma lista de **inclusão**, então
+`protegido` fica de fora por não estar lá, e um modo novo não o alcança por descuido.
+
+As três partes da condição importam:
+
+- **`fonteExterna`** — sem isso, `objetivo.texto` (cuja redação padrão é escrita pelo
+  próprio gerador, não puxada de outra seção) ficaria trancado, e substituí-la pela redação
+  da empresa é o uso mais óbvio de uma predefinição;
+- **valor não vazio** — se a inspeção não respondeu aquele item, a predefinição preenche
+  normalmente: ali ela não substitui dado nenhum;
+- **`origem === 'auto'`** — sem isso, o texto que o próprio usuário digitou naquele campo
+  ficaria trancado para ele mesmo.
+
+O campo continua corrigível **à mão**, clicando nele no documento: gesto individual, sobre
+aquele valor, com o automático guardado no override. O que não existe é a via em lote.
+
+Os outros 20 campos da allowlist nascem vazios no gerador — não há fonte que possa
+prevalecer sobre eles.
 
 ### Os modos
 
@@ -298,13 +340,13 @@ vale independentemente de a UI chegar lá, que é a regra do §7-ter.
 
 ## 7. Testes
 
-`npx vitest run src/features/relatorios/predefinicoes` — **128 testes, 4 arquivos**.
+`npx vitest run src/features/relatorios/predefinicoes` — **134 testes, 4 arquivos**.
 
 | arquivo | o que trava |
 |---|---|
 | `camposPredefiniveis.test.ts` | todo id da allowlist existe em `folhas.ts`; 30 ids proibidos estão FORA; ordem das folhas; tipos e rótulos |
 | `modelo.test.ts` | saneamento aplica a allowlist na leitura; valor vazio preservado; migração do modelo antigo; criar/editar/duplicar/excluir; conjunto do sistema não persistido e não forjável; busca; **escopo da organização e as 3 camadas de isolamento** |
-| `aplicacao.test.ts` | os 4 estados do plano; modo padrão não toca no conflito; substituir só com escolha explícita; `branco` para valor vazio; mapa anterior preservado; uma gravação só; documento finalizado bloqueado |
+| `aplicacao.test.ts` | os 5 estados do plano; modo padrão não toca no conflito; substituir só com escolha explícita; **`protegido` — dado da inspeção que nenhum modo escreve**, com as 3 partes da condição cobertas uma a uma; `branco` para valor vazio; mapa anterior preservado; uma gravação só; documento finalizado bloqueado |
 | `interfacePredefinicoes.test.ts` | título e conceito novos; "Como funciona" clicável e empilhado; sem `prompt`/`confirm`/`alert`; tipos de editor corretos; sucesso só depois do `await`; revisão com antes→depois; **mobile 386px sem overflow** |
 
 Suíte inteira: **208 arquivos, 3143 testes, todos passando**. `npm run build` verde.
@@ -369,6 +411,21 @@ lab@local.test    (org A) → mesma consulta                                    
 ```
 
 Nenhuma linha vaza. O filtro é da RLS, não do bundle.
+
+### O que NÃO foi provado no navegador
+
+O estado `protegido` está coberto por **seis testes** contra a função de plano real
+(`aplicacao.test.ts`), e não por uma passagem no navegador. Reproduzi-lo na tela exige um
+container de inspeção com o teste hidrostático respondido, e o laboratório não tem nenhum
+container (`nr13_inspecao_atual` está vazio). Cheguei a injetar um `th.procedimento` em
+`nr13_injecao_atual` para forçar o cenário; a aba passou a recarregar sozinha antes de eu
+montar o relatório com a folha de TH, parei de insistir e **removi a chave injetada**
+(`delete` com `nr13.manutencao`, conferido depois: a chave não existe mais).
+
+Fica como o único item da entrega validado só por teste. A validação na tela é barata assim
+que existir um container com TH: criar o relatório incluindo `TESTE-HIDROSTATICO.html`,
+aplicar um conjunto que declare `th.procedimento` e conferir que a linha sai com cadeado,
+fora das duas contagens de escrita.
 
 ---
 
