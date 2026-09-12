@@ -7,13 +7,14 @@ import type { CampoEditavel } from './pdfVetorial/documento';
 import { oQueFalta, type DestinoEdicao, type ItemFaltante } from './oQueFalta';
 import { agruparPendencias, proximoDoGrupo, type GrupoPendencia } from './agruparPendencias';
 import EditorCampoDocumento from './EditorCampoDocumento';
-import ModalPredefinicoes from './ModalPredefinicoes';
+import ModalPredefinicoes from './predefinicoes/ModalPredefinicoes';
+import { listarPredefinicoes, type Predefinicao } from './predefinicoes/modelo';
+import { listaComSistema } from './predefinicoes/conjuntoSistema';
 import {
-  aplicarPredefinicao,
-  listarPredefinicoes,
-  recomendacoesDoDocumento,
-  type PredefinicaoRecomendacoes,
-} from './predefinicoes';
+  overridesDaAplicacao,
+  type ModoAplicacao,
+  type PlanoAplicacao,
+} from './predefinicoes/aplicacao';
 import { prepararImagem } from './imagensDoDocumento';
 import {
   carregarOverrides,
@@ -118,10 +119,8 @@ export default function PreviaVetorial({
   );
   const [emEdicao, setEmEdicao] = useState<CampoEditavel | null>(null);
   const [salvandoCampo, setSalvandoCampo] = useState(false);
-  /** A biblioteca de recomendações da empresa — ver `predefinicoes.ts`. */
-  const [predefinicoes, setPredefinicoes] = useState<PredefinicaoRecomendacoes[]>(() =>
-    listarPredefinicoes(),
-  );
+  /** As predefinições da organização — ver `predefinicoes/modelo.ts`. */
+  const [predefinicoes, setPredefinicoes] = useState<Predefinicao[]>(() => listarPredefinicoes());
   const [modalPredef, setModalPredef] = useState(false);
 
   const gerar = useCallback(
@@ -227,35 +226,23 @@ export default function PreviaVetorial({
     [aplicar, overrides],
   );
   /**
-   * As recomendações que o documento tem AGORA — o que o botão "Guardar" leva
-   * para a biblioteca. Sai de `editaveis`, que é o que o gerador acabou de
-   * desenhar: valor resolvido, override já aplicado.
-   */
-  const recomendacoesAtuais = useMemo(
-    () => recomendacoesDoDocumento(Object.fromEntries(editaveis.map((c) => [c.id, c.valor]))),
-    [editaveis],
-  );
-
-  /**
-   * Aplicar uma predefinição = escrever as quatro linhas de uma vez.
+   * Aplicar uma predefinição = escrever os campos do PLANO, de uma vez.
    *
-   * Vira override do relatório aberto, exatamente como se cada linha tivesse
-   * sido digitada na folha — inclusive as que a predefinição deixa VAZIAS, que
-   * viram `branco` e voltam a ser cobradas pela barra "O que falta". Um mapa
-   * só, uma gravação só, uma geração só: aplicar campo a campo redesenharia o
-   * documento oito vezes.
+   * O plano já foi revisado pelo usuário na tela de aplicação: ele sabe quais
+   * campos serão escritos, quais já tinham conteúdo e o que escolheu fazer com
+   * eles. Aqui só resta virar override do relatório aberto, exatamente como se
+   * cada campo tivesse sido digitado na folha — inclusive os que a predefinição
+   * deixa VAZIOS, que viram `branco` e voltam a ser cobrados pela barra "O que
+   * falta".
+   *
+   * Um mapa só, uma gravação só, uma geração só: aplicar campo a campo
+   * redesenharia o documento uma vez por campo.
    */
-  const usarPredefinicao = useCallback(
-    async (p: PredefinicaoRecomendacoes) => {
-      const valores = aplicarPredefinicao(p);
-      let mapa = overrides;
-      for (const [id, texto] of Object.entries(valores)) {
-        const auto = editaveis.find((c) => c.id === id)?.auto ?? '';
-        mapa = comOverride(mapa, id, overrideDeTexto(texto, auto));
-      }
-      await aplicar(mapa);
+  const aplicarPlanoPredefinicao = useCallback(
+    async (plano: PlanoAplicacao, modo: ModoAplicacao) => {
+      await aplicar(overridesDaAplicacao(overrides, plano, modo));
     },
-    [aplicar, editaveis, overrides],
+    [aplicar, overrides],
   );
 
   const camposPorPagina = useMemo(() => {
@@ -286,16 +273,18 @@ export default function PreviaVetorial({
         O que falta{grupos.length > 0 ? ` (${grupos.length})` : ''}
       </button>
       {/* Ao lado do "O que falta" de propósito: os dois respondem à mesma
-          pergunta — "o que ainda falta escrever aqui" —, e a biblioteca é a
-          resposta pronta para a parte que se repete de relatório em relatório. */}
+          pergunta — "o que ainda falta escrever aqui" —, e as predefinições são
+          a resposta pronta para a parte que se repete de relatório em relatório. */}
       <button
         type="button"
         className="vpdf-btn"
         onClick={() => setModalPredef(true)}
-        title="Recomendações guardadas para reusar em qualquer relatório"
+        title="Conjuntos de campos guardados para reusar em qualquer relatório"
       >
-        <Icone nome="book" tam={13} /> Predefinições
-        {predefinicoes.length > 0 ? ` (${predefinicoes.length})` : ''}
+        {/* O número conta o que o MODAL lista — o conjunto do sistema incluído.
+            Contar só os gravados faria o botão dizer "Predefinições" a uma
+            organização nova e abrir com um item dentro. */}
+        <Icone nome="book" tam={13} /> Predefinições ({listaComSistema(predefinicoes).length})
       </button>
       {manuais > 0 && (
         <span className="previa-manuais" title="Campos com texto alterado manualmente neste relatório">
@@ -467,10 +456,10 @@ export default function PreviaVetorial({
       {modalPredef && (
         <ModalPredefinicoes
           lista={predefinicoes}
-          atuais={recomendacoesAtuais}
+          editaveis={editaveis}
           onFechar={() => setModalPredef(false)}
           onLista={setPredefinicoes}
-          onUsar={usarPredefinicao}
+          onAplicar={aplicarPlanoPredefinicao}
         />
       )}
     </div>

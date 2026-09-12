@@ -119,7 +119,15 @@ const GLOBAIS = new Set([
   // 10/09/2026 · a biblioteca de RECOMENDAÇÕES da empresa. Global porque ela é
   // da organização e não de um equipamento: é criada num relatório e usada em
   // todos os outros. Nenhuma folha de `public/` a lê — fica fora do palco.
+  //
+  // 12/09/2026 · virou `nr13_predef_relatorio`, um conjunto de CAMPOS e não só
+  // as quatro recomendações. A chave antiga continua listada porque continua
+  // sendo LIDA (fallback da migração, ver `predefinicoes/modelo.ts`): tirá-la
+  // daqui faria `escopoDaChave` devolver 'global' por desconhecimento em vez de
+  // por decisão — o mesmo resultado hoje, e uma armadilha no dia em que a regra
+  // de desconhecidas mudar.
   'nr13_predef_recomendacoes',
+  'nr13_predef_relatorio',
   // 10B.1 · índice dos relatórios em rascunho. Global de propósito: a tela de
   // relatórios mostra rascunho de qualquer equipamento, e um índice por TAG
   // obrigaria a varrer o parque para montar essa lista.

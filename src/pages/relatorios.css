@@ -2518,99 +2518,686 @@ body.doc-foco .meta-barra-fixa { padding-top: 6px; padding-bottom: 6px; }
   .meta-barra-fixa .barra-btn { height: 44px; }
 }
 
-/* ── PREDEFINIÇÕES DE RECOMENDAÇÕES (10/09/2026) ───────────────────────────
-   A biblioteca da empresa, aberta pelo botão ao lado de "O que falta". O
-   conteúdo de cada conjunto fica À VISTA antes de aplicar: recomendação de
-   segurança entra em documento assinado. */
-.predef-modal { max-width: 720px; width: 100%; }
 
-.predef-ajuda {
-  margin: 0 0 14px;
-  font-size: 12.5px;
-  line-height: 1.5;
-  color: var(--text-muted, #6b7280);
+/* ── GERENCIADOR DE PREDEFINIÇÕES DO RELATÓRIO (12/09/2026) ────────────────
+   Um shell só, quatro vistas (lista, detalhe, editor, revisão). Cabeçalho e
+   rodapé FIXOS, corpo rolável: uma organização com trinta conjuntos empurraria
+   os botões para fora da tela no celular.
+
+   Overlay próprio, e não `.modal-overlay`: este modal abre uma segunda camada
+   por cima (ajuda, confirmação de exclusão) e precisa de z-index em degraus. */
+.predef-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 16px;
+  background: rgba(20, 24, 28, .55);
+}
+.predef-overlay-topo { z-index: 4010; background: rgba(20, 24, 28, .4); }
+
+.predef-modal {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 760px;
+  /* O teto é da JANELA, não do conteúdo: é o que mantém o rodapé visível e o
+     corpo rolando por dentro. */
+  max-height: min(88vh, 860px);
+  background: var(--panel, #fff);
+  border: 1px solid var(--line, #E4E1D8);
+  border-radius: 14px;
+  box-shadow: 0 24px 60px rgba(20, 24, 28, .28);
+  overflow: hidden;
+}
+.predef-modal-ajuda { max-width: 560px; }
+.predef-modal-confirma { max-width: 460px; }
+
+/* ── Cabeçalho ───────────────────────────────────────────────────────────── */
+.predef-cab {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--line, #E4E1D8);
+  background: var(--bg-faint, #FBFAF7);
+}
+.predef-cab-txt { flex: 1; min-width: 0; }
+.predef-cab-txt h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--ink, #14181C);
+  /* O nome de um conjunto pode ser longo; o cabeçalho não pode crescer sem fim
+     nem empurrar o X para fora. */
+  overflow-wrap: anywhere;
+}
+.predef-cab-txt p {
+  margin: 3px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted, #7A8790);
+}
+.predef-cab-acoes { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+
+/* "Como funciona" precisa PARECER clicável — o defeito anterior era um texto
+   de ajuda indistinguível de parágrafo. Borda, fundo e ícone resolvem. */
+.predef-como {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 5px 11px;
+  border: 1px solid var(--blue2-line, #C4D9F0);
+  border-radius: 999px;
+  background: var(--blue2-bg, #E4EDF9);
+  color: var(--blue2, #0C4F9B);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.predef-como:hover { background: #D6E6F7; }
+
+.predef-x {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted, #7A8790);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+.predef-x:hover { background: var(--menu-hover, #F2EFE7); color: var(--ink, #14181C); }
+
+.predef-voltar {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line, #E4E1D8);
+  border-radius: 8px;
+  background: var(--panel, #fff);
+  color: var(--text, #2D3339);
+  cursor: pointer;
+}
+.predef-voltar:hover { background: var(--steel, #F6F5F2); }
+
+/* ── Corpo rolável ───────────────────────────────────────────────────────── */
+.predef-corpo {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 16px 20px;
 }
 
-.predef-corpo { max-height: 46vh; overflow-y: auto; }
+.predef-sucesso {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  padding: 9px 20px;
+  background: var(--ok-bg, #E7F6EF);
+  border-bottom: 1px solid var(--ok-line, #BFE9D6);
+  color: #0F7A52;
+  font-size: 12.5px;
+  font-weight: 600;
+}
 
+/* ── Rodapé fixo ─────────────────────────────────────────────────────────── */
+.predef-rodape {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 20px;
+  border-top: 1px solid var(--line, #E4E1D8);
+  background: var(--bg-faint, #FBFAF7);
+}
+.predef-espaco { flex: 1 1 auto; }
+.predef-rodape-nota { font-size: 11.5px; color: var(--muted, #7A8790); }
+
+/* ── Barra da lista: busca + criar ───────────────────────────────────────── */
+.predef-barra {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--line, #E4E1D8);
+}
+.predef-busca {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  /* `min-width: 0` porque este é um item flex que precisa poder encolher
+     abaixo da largura do placeholder — sem ele a barra estoura em 386px. */
+  flex: 1 1 200px;
+  min-width: 0;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--line, #E4E1D8);
+  border-radius: 9px;
+  background: var(--panel, #fff);
+  color: var(--muted, #7A8790);
+}
+.predef-busca input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text, #2D3339);
+}
+.predef-busca button {
+  border: 0;
+  background: transparent;
+  color: var(--muted, #7A8790);
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+/* ── A lista: UMA LINHA por conjunto ─────────────────────────────────────── */
 .predef-vazio {
   margin: 0;
-  padding: 18px 16px;
-  border: 1px dashed var(--border-solid, #d8dbe0);
+  padding: 22px 18px;
+  border: 1px dashed var(--border-dashed, #D8D5CC);
   border-radius: 10px;
   font-size: 13px;
   line-height: 1.55;
-  color: var(--text-muted, #6b7280);
+  color: var(--muted, #7A8790);
+  text-align: center;
 }
 
 .predef-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 
-.predef-item {
-  border: 1px solid var(--border-solid, #d8dbe0);
+.predef-linha {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px 6px 6px;
+  border: 1px solid var(--line, #E4E1D8);
   border-radius: 10px;
-  overflow: hidden;
-  background: var(--surface, #fff);
+  background: var(--panel, #fff);
 }
-.predef-item.is-aberta { border-color: var(--blue2, #0c4f9b); }
+.predef-linha:hover { border-color: var(--blue2-line, #C4D9F0); background: var(--bg-faint, #FBFAF7); }
 
-.predef-cabeca {
-  width: 100%;
-  min-height: 46px;
+/* O alvo é a LINHA inteira: clicar em qualquer ponto abre o detalhe. */
+.predef-linha-alvo {
+  flex: 1 1 auto;
+  /* `min-width: 0` outra vez: sem ele o nome longo empurra as ações para fora
+     da linha em vez de reticenciar. */
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
+  padding: 6px 4px;
   border: 0;
   background: transparent;
-  cursor: pointer;
-  text-align: left;
   font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
-.predef-cabeca:hover { background: var(--surface-2, #f6f7f9); }
+.predef-linha-icone {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: var(--blue2-bg, #E4EDF9);
+  color: var(--blue2, #0C4F9B);
+}
+.predef-linha-txt { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.predef-linha-nome {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink, #14181C);
+  overflow-wrap: anywhere;
+}
+.predef-linha-meta { font-size: 11.5px; color: var(--muted, #7A8790); }
 
-.predef-nome { flex: 1; font-size: 13.5px; font-weight: 700; color: var(--text-main, #111); }
-.predef-resumo { font-size: 11.5px; color: var(--text-muted, #6b7280); white-space: nowrap; }
-
-.predef-conteudo { padding: 2px 12px 12px; border-top: 1px solid var(--border-soft, #eceef1); }
-
-.predef-itens { margin: 10px 0 12px; padding-left: 20px; display: grid; gap: 8px; }
-.predef-itens li { font-size: 12.5px; line-height: 1.5; }
-.predef-texto { display: block; color: var(--text-main, #111); }
-.predef-prazo {
-  display: inline-block;
-  margin-top: 3px;
+.predef-selo {
   padding: 1px 7px;
   border-radius: 999px;
-  background: var(--surface-2, #f1f3f5);
+  background: var(--amber-bg, #FFF1E6);
+  border: 1px solid #F5D3B4;
+  color: var(--amber-deep, #D9640C);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.predef-linha-acoes { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; }
+.predef-usar { min-height: 32px; padding: 5px 14px; font-size: 12.5px; }
+
+/* ── Menu de mais ações ──────────────────────────────────────────────────── */
+.predef-menu { position: relative; }
+.predef-menu-btn {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--line, #E4E1D8);
+  border-radius: 8px;
+  background: var(--panel, #fff);
+  color: var(--text, #2D3339);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+.predef-menu-btn:hover { background: var(--steel, #F6F5F2); }
+.predef-menu-lista {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 20;
+  min-width: 168px;
+  list-style: none;
+  margin: 0;
+  padding: 5px;
+  border: 1px solid var(--line, #E4E1D8);
+  border-radius: 10px;
+  background: var(--panel, #fff);
+  box-shadow: 0 12px 28px rgba(20, 24, 28, .18);
+}
+.predef-menu-lista button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--text, #2D3339);
+  text-align: left;
+  cursor: pointer;
+}
+.predef-menu-lista button:hover { background: var(--menu-hover, #F2EFE7); }
+.predef-menu-lista button.e-perigo { color: var(--crit, #D5453D); }
+.predef-menu-lista button.e-perigo:hover { background: var(--crit-bg, #FBEAE9); }
+
+/* ── Formulário (criar / editar) ─────────────────────────────────────────── */
+.predef-bloco {
+  margin: 0 0 16px;
+  padding: 14px 16px 16px;
+  border: 1px solid var(--line, #E4E1D8);
+  border-radius: 12px;
+  background: var(--panel, #fff);
+  /* Um fieldset tem largura mínima intrínseca que ignora o contêiner; sem isto
+     o formulário rola na horizontal em 386px. */
+  min-width: 0;
+}
+.predef-bloco legend {
+  padding: 0 6px;
   font-size: 11px;
-  color: var(--text-muted, #6b7280);
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--muted, #7A8790);
+}
+.predef-bloco-nota {
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--muted, #7A8790);
 }
 
-.predef-acoes-item { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.predef-confirma { font-size: 12px; color: var(--text-main, #111); }
-
-.predef-guardar {
-  margin-top: 14px;
-  padding-top: 14px;
-  border-top: 1px solid var(--border-soft, #eceef1);
+.predef-campo { display: block; margin-bottom: 12px; }
+.predef-campo > span {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text, #2D3339);
 }
-.predef-guardar-rot { display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 8px; }
-.predef-guardar-rot em { font-style: normal; font-weight: 400; color: var(--text-muted, #6b7280); }
-.predef-guardar-linha { display: flex; gap: 8px; flex-wrap: wrap; }
-/* `minmax(0, ...)` não se aplica aqui: o input é flex e precisa do min-width 0
-   para poder encolher abaixo do tamanho do placeholder no celular. */
-.predef-guardar-linha input {
-  flex: 1;
+.predef-campo > span b { color: var(--crit, #D5453D); }
+.predef-campo input {
+  width: 100%;
   min-width: 0;
   min-height: 40px;
   padding: 8px 11px;
-  border: 1px solid var(--border-solid, #d8dbe0);
-  border-radius: 8px;
+  border: 1px solid var(--line, #E4E1D8);
+  border-radius: 9px;
+  background: var(--panel, #fff);
+  font: inherit;
   font-size: 13px;
+  color: var(--text, #2D3339);
+}
+.predef-campo input:focus { outline: 2px solid var(--blue2-line, #C4D9F0); outline-offset: 1px; }
+
+.predef-aviso {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: -6px 0 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--warn-line, #F0DBA6);
+  border-radius: 9px;
+  background: var(--warn-bg, #FBF1DC);
+  color: #7A5A08;
+  font-size: 12px;
+  line-height: 1.45;
 }
 
+.predef-grupo { margin-bottom: 14px; }
+.predef-grupo h5 {
+  margin: 0 0 7px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--border-dashed, #D8D5CC);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--blue2, #0C4F9B);
+}
+.predef-campos { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.predef-campos > li { padding: 3px 0; border-radius: 8px; }
+.predef-campos > li.is-marcado { background: var(--bg-faint, #FBFAF7); padding: 6px 8px; }
+
+.predef-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  min-height: 30px;
+  cursor: pointer;
+}
+.predef-check input { margin-top: 3px; width: 16px; height: 16px; flex: 0 0 auto; accent-color: var(--blue2, #0C4F9B); }
+.predef-check-txt { flex: 1; min-width: 0; font-size: 12.5px; line-height: 1.4; color: var(--text, #2D3339); }
+.predef-check-txt em {
+  display: block;
+  margin-top: 2px;
+  font-style: normal;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--muted, #7A8790);
+}
+
+.predef-valor { margin: 6px 0 2px 25px; }
+.predef-valor input,
+.predef-valor select,
+.predef-valor textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid var(--line, #E4E1D8);
+  border-radius: 8px;
+  background: var(--panel, #fff);
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text, #2D3339);
+}
+.predef-valor textarea { resize: vertical; }
+
+/* ── Resumo / detalhe ────────────────────────────────────────────────────── */
+.predef-resumo-cab {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 0 0 10px;
+  font-size: 13px;
+}
+.predef-resumo-cab span { font-size: 11.5px; color: var(--muted, #7A8790); }
+
+.predef-resumo-lista { margin: 0; display: grid; gap: 9px; }
+.predef-resumo-lista > div {
+  padding: 9px 11px;
+  border: 1px solid var(--line, #E4E1D8);
+  border-left: 3px solid var(--blue2-line, #C4D9F0);
+  border-radius: 9px;
+  background: var(--bg-faint, #FBFAF7);
+}
+.predef-resumo-lista dt {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  color: var(--muted, #7A8790);
+}
+.predef-resumo-lista dd {
+  margin: 3px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text, #2D3339);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.predef-resumo-lista dd.e-vazio { color: var(--muted, #7A8790); font-style: italic; }
+
+.predef-det-desc {
+  margin: 0 0 14px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text, #2D3339);
+}
+
+/* ── Revisão antes de aplicar ────────────────────────────────────────────── */
+.predef-rev-cab { margin-bottom: 12px; }
+.predef-rev-cab h4 { margin: 0; font-size: 14.5px; color: var(--ink, #14181C); overflow-wrap: anywhere; }
+.predef-rev-cab p { margin: 3px 0 0; font-size: 12px; color: var(--muted, #7A8790); line-height: 1.45; }
+
+.predef-rev-contagem {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 0 0 14px;
+  padding: 0;
+}
+.predef-rev-contagem li {
+  padding: 4px 10px;
+  border: 1px solid var(--line, #E4E1D8);
+  border-radius: 999px;
+  background: var(--steel, #F6F5F2);
+  font-size: 11.5px;
+  color: var(--text, #2D3339);
+}
+.predef-rev-contagem li.e-ok { background: var(--ok-bg, #E7F6EF); border-color: var(--ok-line, #BFE9D6); color: #0F7A52; }
+.predef-rev-contagem li.e-conflito { background: var(--warn-bg, #FBF1DC); border-color: var(--warn-line, #F0DBA6); color: #7A5A08; }
+
+.predef-modos {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--warn-line, #F0DBA6);
+  border-radius: 11px;
+  background: var(--warn-bg, #FBF1DC);
+  min-width: 0;
+}
+.predef-modos legend {
+  padding: 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #7A5A08;
+}
+.predef-modos label {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  cursor: pointer;
+}
+.predef-modos label.is-ativo { background: var(--panel, #fff); border-color: var(--warn-line, #F0DBA6); }
+.predef-modos input { margin-top: 2px; width: 16px; height: 16px; flex: 0 0 auto; accent-color: var(--amber-deep, #D9640C); }
+.predef-modos label span { flex: 1; min-width: 0; }
+.predef-modos strong { display: block; font-size: 12.5px; color: var(--ink, #14181C); }
+.predef-modos em { display: block; margin-top: 2px; font-style: normal; font-size: 11.5px; color: #7A5A08; }
+
+.predef-rev-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.predef-rev-lista > li {
+  padding: 9px 11px;
+  border: 1px solid var(--line, #E4E1D8);
+  border-radius: 10px;
+  background: var(--panel, #fff);
+}
+.predef-rev-lista > li.vai-escrever { border-left: 3px solid var(--ok, #1FA971); background: var(--bg-faint, #FBFAF7); }
+.predef-rev-lista > li.e-ausente,
+.predef-rev-lista > li.e-igual { opacity: .68; }
+
+.predef-rev-nome {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink, #14181C);
+}
+.predef-rev-nome em {
+  font-style: normal;
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--muted, #7A8790);
+}
+.predef-rev-valor {
+  margin: 5px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text, #2D3339);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Antes e depois. Em duas colunas no desktop; empilhado no celular, com a seta
+   deitada — uma seta para a direita entre blocos empilhados aponta para nada. */
+.predef-rev-troca {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  margin-top: 7px;
+  color: var(--muted, #7A8790);
+}
+.predef-rev-troca > div { min-width: 0; }
+.predef-rev-troca span {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--muted, #7A8790);
+}
+.predef-rev-troca p {
+  margin: 2px 0 0;
+  padding: 6px 8px;
+  border-radius: 7px;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.predef-rev-antes p { background: var(--crit-bg, #FBEAE9); color: #8C2E29; text-decoration: line-through; }
+.predef-rev-depois p { background: var(--ok-bg, #E7F6EF); color: #0F7A52; }
+
+/* ── Ajuda ───────────────────────────────────────────────────────────────── */
+.predef-ajuda-intro { margin: 0 0 11px; font-size: 12.5px; line-height: 1.6; color: var(--text, #2D3339); }
+.predef-passos { list-style: none; margin: 16px 0; padding: 0; display: grid; gap: 11px; }
+.predef-passos li { display: flex; gap: 11px; align-items: flex-start; }
+.predef-passo-n {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--blue2, #0C4F9B);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+.predef-passos strong { font-size: 12.5px; color: var(--ink, #14181C); }
+.predef-passos p { margin: 2px 0 0; font-size: 12px; line-height: 1.5; color: var(--muted, #7A8790); }
+
+.predef-ajuda-nota {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  padding: 11px 13px;
+  border: 1px solid var(--blue2-line, #C4D9F0);
+  border-radius: 10px;
+  background: var(--blue2-bg, #E4EDF9);
+  color: var(--blue2, #0C4F9B);
+}
+.predef-ajuda-nota p { margin: 0; font-size: 12px; line-height: 1.55; }
+
+.predef-confirma-nome {
+  margin: 0 0 10px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink, #14181C);
+  overflow-wrap: anywhere;
+}
+
+/* ── Celular (validado em 386px) ─────────────────────────────────────────── */
 @media (max-width: 640px) {
-  .predef-corpo { max-height: 52vh; }
-  .predef-acoes-item button { flex: 1; min-height: 44px; }
-  .predef-guardar-linha button { flex: 1; min-height: 44px; }
+  .predef-overlay { padding: 0; align-items: flex-end; }
+  .predef-modal {
+    max-width: 100%;
+    max-height: 94vh;
+    border-radius: 14px 14px 0 0;
+    border-bottom: 0;
+  }
+  .predef-overlay-topo { padding: 12px; align-items: center; }
+  .predef-overlay-topo .predef-modal { border-radius: 14px; border-bottom: 1px solid var(--line, #E4E1D8); }
+
+  .predef-cab { padding: 14px 14px 11px; }
+  .predef-cab-txt h3 { font-size: 15px; }
+  /* No celular o rótulo "Como funciona" sai e fica só o ícone: o cabeçalho tem
+     de caber com o título numa linha legível. */
+  .predef-como span { display: none; }
+  .predef-como { width: 32px; padding: 0; justify-content: center; }
+
+  .predef-corpo { padding: 14px; }
+  .predef-barra { padding: 10px 14px; }
+  .predef-barra .fj-btn { flex: 1 1 auto; min-height: 44px; justify-content: center; }
+  .predef-rodape { padding: 11px 14px; flex-wrap: wrap; }
+  .predef-rodape .fj-btn { flex: 1 1 auto; min-height: 44px; justify-content: center; }
+  .predef-rodape-nota { flex: 1 1 100%; margin-bottom: 6px; }
+
+  /* A linha vira duas faixas: identificação em cima, ações embaixo, cada uma
+     com alvo de 44px. Espremer nome, Usar e o menu em 386px corta o nome. */
+  .predef-linha { flex-wrap: wrap; padding: 8px 10px; }
+  .predef-linha-alvo { flex: 1 1 100%; padding: 2px 0; }
+  .predef-linha-acoes { flex: 1 1 100%; justify-content: flex-end; }
+  .predef-usar { min-height: 40px; padding: 8px 18px; }
+  .predef-menu-btn { width: 40px; height: 40px; }
+
+  .predef-bloco { padding: 12px 12px 14px; }
+  .predef-valor { margin-left: 0; }
+  .predef-modos label { padding: 10px; }
+
+  /* Empilhado: a seta deita para continuar apontando do antes para o depois. */
+  .predef-rev-troca { grid-template-columns: minmax(0, 1fr); }
+  .predef-rev-troca > svg { transform: rotate(90deg); justify-self: center; }
 }
