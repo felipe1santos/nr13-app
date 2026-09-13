@@ -363,3 +363,242 @@
     width: 100%;
   }
 }
+
+/* ── CERTIFICADOS: modais e estado vazio (13/09/2026) ──────────────────────
+   O formulário era um painel ABAIXO dos cards, com scroll automático até ele.
+   Virou modal central: o card que originou a edição continua à vista, e no
+   celular o formulário não nasce fora da tela. */
+
+/* Badge "Cadastrado": check + verde. Os outros dois estados seguem neutros —
+   cor é para o que está resolvido, senão os três cards competem entre si. */
+.cert-badge-ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Estado vazio com ilustração. A imagem tem fundo branco e o sistema não tem
+   tema escuro (conferido em 13/09/2026) — se um dia tiver, ela precisa de uma
+   moldura clara própria, não de `mix-blend-mode`, que come o traço cinza. */
+.cert-card-vazio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 14px 12px;
+  border: 1px dashed var(--border-dashed, #D8D5CC);
+  border-radius: 10px;
+  background: var(--bg-faint, #FBFAF7);
+  text-align: center;
+}
+.cert-card-vazio img {
+  width: 100%;
+  max-width: 132px;
+  height: auto;
+  opacity: .9;
+}
+.cert-card-vazio p {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted, #7A8790);
+}
+
+.cert-btn-ver { display: inline-flex; align-items: center; gap: 6px; }
+
+/* ── Modal do formulário ───────────────────────────────────────────────── */
+.certm-overlay,
+.certv-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 16px;
+  background: rgba(20, 24, 28, .55);
+}
+
+.certm-modal,
+.certv-modal {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  /* O teto é da JANELA: mantém o rodapé (onde fica Salvar) sempre visível, com
+     o corpo rolando por dentro. */
+  max-height: min(90vh, 880px);
+  background: var(--panel, #fff);
+  border: 1px solid var(--line, #E4E1D8);
+  border-radius: 14px;
+  box-shadow: 0 24px 60px rgba(20, 24, 28, .28);
+  overflow: hidden;
+}
+.certm-modal { max-width: 680px; }
+.certv-modal { max-width: 900px; height: min(90vh, 880px); }
+
+.certm-cab,
+.certv-cab {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--line, #E4E1D8);
+  background: var(--bg-faint, #FBFAF7);
+}
+/* `min-width: 0` é o que deixa o título encolher em vez de empurrar o × para
+   fora do cabeçalho num celular. */
+.certm-cab-txt,
+.certv-cab-txt { flex: 1; min-width: 0; }
+.certm-cab-txt h3,
+.certv-cab-txt h3 {
+  margin: 0;
+  font-size: 15.5px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--ink, #14181C);
+  overflow-wrap: anywhere;
+}
+.certm-cab-txt p,
+.certv-cab-txt p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--muted, #7A8790);
+  overflow-wrap: anywhere;
+}
+
+.certm-x,
+.certv-x,
+.doc-x {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted, #7A8790);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+.certm-x:hover,
+.certv-x:hover,
+.doc-x:hover { background: var(--menu-hover, #F2EFE7); color: var(--ink, #14181C); }
+.certm-x:disabled { opacity: .45; cursor: default; }
+
+.certm-corpo {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 16px 18px;
+}
+
+.certm-secao {
+  margin: 0 0 10px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--border-dashed, #D8D5CC);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--muted, #7A8790);
+}
+.certm-secao:not(:first-child) { margin-top: 18px; }
+
+/* `minmax(0, 1fr)` e não `1fr`: `1fr` não encolhe abaixo do conteúdo e o campo
+   de data estoura a coluna no celular. */
+.certm-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.certm-full { grid-column: 1 / -1; }
+.certm-grid .fj-field { min-width: 0; }
+.certm-grid input {
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+}
+
+.certm-upload {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.certm-limite {
+  flex: 1 1 100%;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--muted, #7A8790);
+}
+
+.certm-rodape,
+.certv-rodape,
+.doc-rodape {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--line, #E4E1D8);
+  background: var(--bg-faint, #FBFAF7);
+}
+.certm-espaco,
+.certv-espaco,
+.doc-espaco { flex: 1 1 auto; }
+
+/* ── Modal de visualização do certificado ──────────────────────────────── */
+.certv-corpo {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  background: var(--steel, #F6F5F2);
+}
+.certv-frame {
+  flex: 1;
+  width: 100%;
+  border: 0;
+}
+.certv-aviso {
+  margin: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 24px;
+  font-size: 13px;
+  color: var(--muted, #7A8790);
+  text-align: center;
+}
+.certv-falha { color: var(--crit, #D5453D); }
+
+@media (max-width: 640px) {
+  .certm-overlay,
+  .certv-overlay { padding: 0; align-items: flex-end; }
+  .certm-modal,
+  .certv-modal {
+    max-width: 100%;
+    max-height: 94vh;
+    border-radius: 14px 14px 0 0;
+    border-bottom: 0;
+  }
+  .certv-modal { height: 94vh; }
+  .certm-cab,
+  .certv-cab { padding: 14px; }
+  .certm-corpo { padding: 14px; }
+  /* Uma coluna: dois campos lado a lado em 386px deixam cada um com ~170px,
+     estreito demais para uma data ou um número de série. */
+  .certm-grid { grid-template-columns: minmax(0, 1fr); }
+  .certm-rodape,
+  .certv-rodape { padding: 11px 14px; }
+  .certm-rodape .btn-primario,
+  .certm-rodape .btn-secundario {
+    flex: 1 1 auto;
+    min-height: 44px;
+    justify-content: center;
+  }
+  .certm-espaco { display: none; }
+  .cert-btn-ver { flex: 1 1 auto; min-height: 44px; justify-content: center; }
+}

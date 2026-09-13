@@ -311,3 +311,94 @@
   .container-card-acoes .btn-remover { min-height: 44px; padding: 0 12px; }
   .mrc-modal { max-width: none; }
 }
+
+/* ── MODAL "VER DOCUMENTO" do ensaio (13/09/2026) ──────────────────────────
+   A folha do relatório daquele ensaio, no centro da tela. A rota já existia
+   (`?documento=1`) e não tinha botão nenhum apontando para ela. */
+
+.doc-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 16px;
+  background: rgba(20, 24, 28, .6);
+}
+
+.doc-modal {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  /* A folha é A4: o modal é largo de propósito, senão a página sai reduzida a
+     ponto de o texto não poder ser conferido, que é o motivo de abri-lo. */
+  max-width: 980px;
+  height: min(92vh, 1000px);
+  background: var(--panel, #fff);
+  border: 1px solid var(--line, #E4E1D8);
+  border-radius: 14px;
+  box-shadow: 0 24px 60px rgba(20, 24, 28, .3);
+  overflow: hidden;
+}
+
+.doc-cab {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--line, #E4E1D8);
+  background: var(--bg-faint, #FBFAF7);
+}
+.doc-cab-txt { flex: 1; min-width: 0; }
+.doc-cab-txt h3 {
+  margin: 0;
+  font-size: 15.5px;
+  font-weight: 700;
+  color: var(--ink, #14181C);
+  overflow-wrap: anywhere;
+}
+.doc-cab-txt p { margin: 2px 0 0; font-size: 12px; color: var(--muted, #7A8790); }
+
+.doc-corpo {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px;
+  background: var(--steel, #F6F5F2);
+}
+
+.prevdoc-aviso {
+  margin: 0;
+  padding: 28px 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted, #7A8790);
+}
+
+.doc-nota {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--muted, #7A8790);
+}
+
+@media (max-width: 640px) {
+  .doc-overlay { padding: 0; align-items: flex-end; }
+  .doc-modal {
+    max-width: 100%;
+    height: 95vh;
+    border-radius: 14px 14px 0 0;
+    border-bottom: 0;
+  }
+  .doc-cab { padding: 14px; }
+  /* A folha A4 não cabe em 386px: o corpo rola nos dois eixos, e essa é a
+     exceção legítima da regra de não rolar na horizontal — é um documento de
+     largura fixa, como uma tabela. */
+  .doc-corpo { padding: 10px; }
+  .doc-rodape { padding: 11px 14px; flex-wrap: wrap; }
+  .doc-nota { flex: 1 1 100%; margin-bottom: 6px; }
+  .doc-rodape .btn-secundario { flex: 1 1 auto; min-height: 44px; justify-content: center; }
+}

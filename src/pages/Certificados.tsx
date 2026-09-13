@@ -1,12 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Icone, type NomeIcone } from '../components/Icone';
 import AjudaCertificados from '../features/calibracoes/AjudaCertificados';
+import ModalCertificado from '../features/calibracoes/ModalCertificado';
+import ModalVerCertificado from '../features/calibracoes/ModalVerCertificado';
+import FeedbackSalvamento, { useSalvamento } from '../components/FeedbackSalvamento';
 import '../features/calibracoes/ilustracoes.css';
-import {
-  LIMITE_PDF_KB,
-  erroCotaLocal,
-  validarPdfCertificado,
-} from '../features/relatorios/certificadoUpload';
+import { erroCotaLocal, validarPdfCertificado } from '../features/relatorios/certificadoUpload';
 import {
   injetaNoRelatorio,
   listarRastreabilidades,
@@ -92,15 +91,12 @@ export default function Certificados() {
   const [form, setForm] = useState<Rastreabilidade | null>(null);
   /** "Como funciona" — o texto que era faixa fixa no topo da tela. */
   const [ajudaAberta, setAjudaAberta] = useState(false);
-  const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
-  const fileRef = useRef<HTMLInputElement>(null);
-  const painelRef = useRef<HTMLDivElement>(null);
-
-  // Abrir o formulário no fim da página deixaria o usuário sem ver o que abriu.
-  useEffect(() => {
-    if (form) painelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }, [form]);
+  /** Qual certificado está aberto no visualizador de PDF. `null` = nenhum. */
+  const [vendo, setVendo] = useState<Rastreabilidade | null>(null);
+  // O aviso de salvar do sistema inteiro — centralizado, com o check só depois
+  // do await. Ver `components/FeedbackSalvamento`.
+  const salvamento = useSalvamento();
 
   function recarregar() {
     setItens(listarRastreabilidadesAtivas());
@@ -133,7 +129,9 @@ export default function Certificados() {
     const validacao = validarPdfCertificado(file);
     if (!validacao.ok) {
       setErro(validacao.erro);
-      if (fileRef.current) fileRef.current.value = ''; // permite reescolher o MESMO arquivo
+      // O input do arquivo vive dentro do modal e ele mesmo se limpa a cada
+      // escolha (ver `ModalCertificado`), então reescolher o MESMO arquivo
+      // continua disparando o `change`.
       return;
     }
     setErro('');
@@ -161,8 +159,10 @@ export default function Certificados() {
       return;
     }
     setErro('');
-    setSalvando(true);
-    try {
+    const pdfTamanho = form.pdfBase64.length;
+    // O aviso "salvando → salvo" fica com o hook; o check só aparece depois do
+    // await, e a falha de cota é LANÇADA para não virar um sucesso otimista.
+    const ok = await salvamento.executar(async () => {
       // IMUTABILIDADE: editar não sobrescreve — grava uma VERSÃO NOVA (id novo) e marca a
       // antiga como substituída. Relatórios salvos referenciam a versão pelo id
       // (meta.rastreabIds) e continuam com o PDF congelado da época.
@@ -185,16 +185,15 @@ export default function Certificados() {
       // falhasse em silêncio só apareceria na hora de imprimir o relatório.
       const persistido = listarRastreabilidades().find((r) => r.id === registro.id);
       if (!persistido || !(await resolverPdf(persistido))) {
-        setErro(erroCotaLocal(form.pdfBase64.length));
-        return;
+        throw new Error(erroCotaLocal(pdfTamanho));
       }
       // Só depois do novo estar seguro: aposenta a versão editada e os duplicados do tipo.
       if (editando) await salvarRastreabilidade({ ...editando, substituidoEm: agora });
       for (const d of duplicados) await salvarRastreabilidade({ ...d, substituidoEm: agora });
+    });
+    if (ok) {
       setForm(null);
       recarregar();
-    } finally {
-      setSalvando(false);
     }
   }
 
@@ -263,7 +262,12 @@ export default function Certificados() {
                   <strong>{p.titulo}</strong>
                   <span>{p.sub}</span>
                 </div>
+                {/* "Cadastrado" ganha check e verde: é o estado que o usuário
+                    procura ao bater o olho na tela, e um badge neutro fazia os
+                    três cards parecerem iguais. Os outros dois estados seguem
+                    neutros de propósito — cor é para o que está resolvido. */}
                 <span className={`fj-badge ${completo && injeta ? 'cert-badge-ok' : 'neutro'}`}>
+                  {completo && injeta && <Icone nome="check" tam={12} />}
                   {!completo ? 'Pendente' : injeta ? 'Cadastrado' : 'Fora do relatório'}
                 </span>
               </div>
@@ -302,9 +306,14 @@ export default function Certificados() {
                   </div>
                 </dl>
               ) : (
-                <p className="cert-card-vazio">
-                  Nenhum certificado cadastrado para este padrão.
-                </p>
+                /* Estado vazio com ilustração: um card que só diz "nenhum
+                   certificado" em texto some no meio dos outros dois. A imagem
+                   é decorativa — `alt` vazio para o leitor de tela não anunciar
+                   um desenho que não acrescenta informação ao texto ao lado. */
+                <div className="cert-card-vazio">
+                  <img src="/ilustracoes/certificado-vazio.jpg" alt="" loading="lazy" />
+                  <p>Nenhum certificado cadastrado para este padrão.</p>
+                </div>
               )}
 
               {r && (
@@ -321,6 +330,19 @@ export default function Certificados() {
               <div className="cert-card-acoes">
                 {r ? (
                   <>
+                    {/* Ver o PDF é o gesto mais frequente depois de cadastrar —
+                        conferir validade e se é mesmo o documento certo. Fica
+                        primeiro, e só existe quando há arquivo para abrir. */}
+                    {completo && (
+                      <button
+                        type="button"
+                        className="fj-btn fj-btn-ghost cert-btn-ver"
+                        onClick={() => setVendo(r)}
+                        title="Visualizar certificado"
+                      >
+                        <Icone nome="eye" tam={14} /> Ver certificado
+                      </button>
+                    )}
                     <button
                       type="button"
                       className="fj-btn cert-btn-icone"
@@ -352,117 +374,34 @@ export default function Certificados() {
       </div>
 
       {form && padraoDoForm && (
-        <div className="cert-form" ref={painelRef}>
-          <div className="cert-form-cab">
-            <div>
-              <strong>{padraoDoForm.titulo}</strong>
-              <span>{padraoDoForm.sub}</span>
-            </div>
-            <button type="button" className="fj-btn fj-btn-ghost" onClick={() => { setForm(null); setErro(''); }}>
-              <Icone nome="x" tam={14} /> Fechar
-            </button>
-          </div>
-
-          <div className="cert-form-grid">
-            <div className="fj-field">
-              <label>Instrumento / padrão *</label>
-              <input
-                value={form.nome}
-                onChange={(e) => set('nome', e.target.value)}
-                placeholder={
-                  form.tipoInstrumento === 'ultrassom'
-                    ? 'Ex: Bloco padrão BP-01'
-                    : form.tipoInstrumento === 'valvula'
-                      ? 'Ex: Bancada de teste PSV-01'
-                      : 'Ex: Manômetro padrão MP-01'
-                }
-              />
-            </div>
-            <div className="fj-field">
-              <label>Nº do certificado</label>
-              <input value={form.certificadoPadrao} onChange={(e) => set('certificadoPadrao', e.target.value)} />
-            </div>
-            <div className="fj-field">
-              <label>Validade</label>
-              <input type="date" value={form.validade} onChange={(e) => set('validade', e.target.value)} />
-            </div>
-            <div className="fj-field">
-              <label>Aparelho / modelo</label>
-              <input value={form.aparelho ?? ''} onChange={(e) => set('aparelho', e.target.value)} placeholder="Ex: CYGNUS 6278" />
-            </div>
-            <div className="fj-field">
-              <label>Fabricante</label>
-              <input value={form.fabricante ?? ''} onChange={(e) => set('fabricante', e.target.value)} />
-            </div>
-            <div className="fj-field">
-              <label>Nº de série</label>
-              <input value={form.numeroSerie ?? ''} onChange={(e) => set('numeroSerie', e.target.value)} />
-            </div>
-          </div>
-
-          {form.tipoInstrumento === 'ultrassom' && (
-            <>
-              <div className="cert-form-secao">Dados padrão do ensaio (injetados na folha de ultrassom)</div>
-              <div className="cert-form-grid">
-                <div className="fj-field">
-                  <label>Acoplante</label>
-                  <input value={form.acoplante ?? ''} onChange={(e) => set('acoplante', e.target.value)} placeholder="Ex: Gel" />
-                </div>
-                <div className="fj-field">
-                  <label>Cabeçote</label>
-                  <input value={form.cabecote ?? ''} onChange={(e) => set('cabecote', e.target.value)} placeholder="Ex: 2.25 mhz" />
-                </div>
-                <div className="fj-field">
-                  <label>Velocidade sônica</label>
-                  <input value={form.velocidadeSonica ?? ''} onChange={(e) => set('velocidadeSonica', e.target.value)} placeholder="Ex: 5920" />
-                </div>
-                <div className="fj-field">
-                  <label>Estado da superfície</label>
-                  <input value={form.estadoSuperficie ?? ''} onChange={(e) => set('estadoSuperficie', e.target.value)} placeholder="Ex: Pintada" />
-                </div>
-                <div className="fj-field">
-                  <label>Temp. da superfície</label>
-                  <input value={form.tempSuperficie ?? ''} onChange={(e) => set('tempSuperficie', e.target.value)} placeholder="Ex: Ambiente" />
-                </div>
-              </div>
-            </>
-          )}
-
-          <div className="cert-form-secao">PDF do certificado</div>
-          <div className="cert-upload">
-            <input
-              ref={fileRef}
-              type="file"
-              accept="application/pdf,.pdf"
-              style={{ display: 'none' }}
-              onChange={(e) => e.target.files?.[0] && lerPdf(e.target.files[0])}
-            />
-            <button type="button" className="fj-btn fj-btn-ghost" onClick={() => fileRef.current?.click()}>
-              <Icone nome="upload" tam={14} /> {form.pdfBase64 ? 'Trocar PDF' : 'Anexar PDF *'}
-            </button>
-            {form.pdfBase64 && (
-              <span className="cert-ok">
-                <Icone nome="check" tam={13} /> PDF anexado
-              </span>
-            )}
-            <span className="cert-limite">
-              Arquivo PDF de até <b>{LIMITE_PDF_KB} KB</b> (2 MB). Certificados escaneados costumam
-              ter 200–800 KB; se o seu passar do limite, comprima em ilovepdf.com/compress_pdf.
-            </span>
-          </div>
-
-          {erro && <p className="cert-erro">{erro}</p>}
-
-          <div className="cert-form-acoes">
-            <button type="button" className="btn-primario" onClick={salvar} disabled={salvando}>
-              {salvando ? 'Salvando...' : 'Salvar certificado'}
-            </button>
-            <button type="button" className="btn-secundario" onClick={() => { setForm(null); setErro(''); }}>
-              Cancelar
-            </button>
-          </div>
-        </div>
+        <ModalCertificado
+          form={form}
+          titulo={padraoDoForm.titulo}
+          subtitulo={padraoDoForm.sub}
+          ocupado={salvamento.salvando}
+          erro={erro}
+          onCampo={set}
+          onArquivo={lerPdf}
+          onSalvar={() => void salvar()}
+          onFechar={() => { setForm(null); setErro(''); }}
+        />
       )}
+
+      {vendo && (
+        <ModalVerCertificado
+          registro={vendo}
+          titulo={PADROES.find((p) => p.tipo === vendo.tipoInstrumento)?.titulo ?? 'Certificado'}
+          onFechar={() => setVendo(null)}
+        />
+      )}
+
+      {/* O aviso de salvar do sistema: centralizado, e o check só depois do
+          await. Fica FORA do modal para sobreviver ao fechamento dele. */}
+      <FeedbackSalvamento
+        estado={salvamento.estado}
+        erro={salvamento.erro}
+        aoFechar={salvamento.limpar}
+      />
 
       {/* Registros de tipos sem rota de injeção (cadastrados quando o formulário
           deixava escolher qualquer tipo) não são mais listados: nenhuma folha os

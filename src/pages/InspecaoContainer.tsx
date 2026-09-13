@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Icone } from '../components/Icone';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { carregarContainer, formulariosDoContainer } from '../features/inspecoes/inspecaoService';
+import ModalDocumentoEnsaio from '../features/inspecoes/ModalDocumentoEnsaio';
 import { ROTULO_FORMULARIO } from '../features/inspecoes/tipos';
 import type { FormularioEnsaio } from '../features/inspecoes/tipos';
 import type { NomeIcone } from '../components/Icone';
@@ -23,6 +24,8 @@ export default function InspecaoContainer() {
   const { tag = '', containerId = '' } = useParams<{ tag: string; containerId: string }>();
   const navigate = useNavigate();
   const container = carregarContainer(tag, containerId);
+  /** Qual ensaio está com a folha aberta no modal. `null` = nenhum. */
+  const [documentoAberto, setDocumentoAberto] = useState<FormularioEnsaio | null>(null);
 
   useEffect(() => {
     if (!container) navigate(rotaInspecoes(tag));
@@ -68,6 +71,21 @@ export default function InspecaoContainer() {
                 </div>
                 <div className="item-container-acoes">
                   {preenchido && (
+                    /* À ESQUERDA do "Ver preenchido" de propósito: a ordem é a
+                       do que a pessoa quer saber primeiro — como fica no papel —,
+                       e só depois os campos crus. Abre em modal porque a
+                       pergunta se faz no meio do preenchimento, e sair da página
+                       custa o lugar na lista de ensaios. */
+                    <button
+                      type="button"
+                      className="btn-visualizar"
+                      onClick={() => setDocumentoAberto(f)}
+                      title="Ver como este ensaio sai no relatório"
+                    >
+                      <Icone nome="filetext" tam={14} /> Ver documento
+                    </button>
+                  )}
+                  {preenchido && (
                     <button type="button" className="btn-visualizar" onClick={() => navigate(`${base}/${f}?visualizar=1`)}>
                       <Icone nome="eye" tam={14} /> Ver preenchido
                     </button>
@@ -81,6 +99,15 @@ export default function InspecaoContainer() {
           })}
         </ul>
       </div>
+
+      {documentoAberto && (
+        <ModalDocumentoEnsaio
+          tag={tag}
+          containerId={containerId}
+          formulario={documentoAberto}
+          onFechar={() => setDocumentoAberto(null)}
+        />
+      )}
     </div>
   );
 }

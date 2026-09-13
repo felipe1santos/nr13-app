@@ -1,50 +1,17 @@
-import { useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { DOCS_POR_FORMULARIO, ROTULO_FORMULARIO, type FormularioEnsaio } from '../features/inspecoes/tipos';
+import { ROTULO_FORMULARIO, type FormularioEnsaio } from '../features/inspecoes/tipos';
 import FormularioUltrassom from '../features/inspecoes/formularios/FormularioUltrassom';
 import FormularioChecklist from '../features/inspecoes/formularios/FormularioChecklist';
 import FormularioVisualExterno from '../features/inspecoes/formularios/FormularioVisualExterno';
 import FormularioVisualInterno from '../features/inspecoes/formularios/FormularioVisualInterno';
 import FormularioTH from '../features/inspecoes/formularios/FormularioTH';
 import VisualizadorFormulario from '../features/inspecoes/VisualizadorFormulario';
-import { carregarContainer, carregarDadosFormulario } from '../features/inspecoes/inspecaoService';
-import { gravarInspecaoOrigemAtual, gravarMetaAtual } from '../features/relatorios/relatoriosService';
-import type { RelatorioMeta } from '../features/relatorios/tipos';
+import PreviewDocumento from '../features/inspecoes/PreviewDocumento';
+import { carregarDadosFormulario } from '../features/inspecoes/inspecaoService';
 import '../features/inspecoes/formularios.css';
 import '../features/inspecoes/visualizador.css';
 import './relatorios.css';
-import PaginaA4 from '../components/PaginaA4';
 import { rotaEquipamento, rotaInspecaoContainer, rotaInspecaoFormulario } from '../app/rotas';
-
-// Pré-visualização "como o documento ficará": grava os dados de campo do container nas chaves que
-// os templates de public/arquivos-inspecao/ leem e renderiza os mesmos iframes do relatório.
-function PreviewDocumento({ tag, containerId, formulario }: { tag: string; containerId: string; formulario: FormularioEnsaio }) {
-  const [pronto, setPronto] = useState(false);
-  const docs = DOCS_POR_FORMULARIO[formulario] ?? [];
-
-  useEffect(() => {
-    const container = carregarContainer(tag, containerId);
-    // Meta vazia: sem isso o cabeçalho das folhas do preview mostrava código/emissão/assinantes
-    // do último relatório aberto no visualizador (chave nr13_relatorio_meta_atual ficava suja).
-    Promise.all([
-      gravarInspecaoOrigemAtual(container?.dados ?? {}),
-      gravarMetaAtual({} as RelatorioMeta),
-    ]).then(() => setPronto(true));
-  }, [tag, containerId]);
-
-  if (!pronto) return <p style={{ padding: 20, color: '#6b7280' }}>Montando documento...</p>;
-  if (docs.length === 0) return <p style={{ padding: 20, color: '#6b7280' }}>Pré-visualização não disponível para este tipo.</p>;
-
-  return (
-    <div className="relatorio-preview">
-      {docs.map((doc, i) => (
-        <PaginaA4 key={`${doc}-${i}`}>
-          <iframe src={`/arquivos-inspecao/${doc}?tag=${encodeURIComponent(tag)}&page=${i + 1}`} scrolling="no" title={doc} />
-        </PaginaA4>
-      ))}
-    </div>
-  );
-}
 
 export default function InspecaoFormulario() {
   const { tag = '', containerId = '', formulario = '' } = useParams<{ tag: string; containerId: string; formulario: string }>();

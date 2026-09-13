@@ -86,6 +86,23 @@ describe('o componente é UM, e é ele que as telas usam', () => {
     expect(trechoCatch).toContain("setEstado('erro')");
   });
 
+  /**
+   * O efeito de ciclo de vida precisa REARMAR `vivo` na montagem.
+   *
+   * Tinha só o cleanup. Em `StrictMode` (dev) o React monta, limpa e monta de
+   * novo: `vivo.current` ficava `false` desde a primeira passagem, `executar`
+   * caía no `if (!vivo.current) return true` e o aviso travava em "Salvando…"
+   * para sempre — sucesso devolvido, check nunca mostrado. Em produção não há
+   * StrictMode, e por isso o defeito passou despercebido até 13/09/2026.
+   */
+  it('rearma `vivo` na montagem, senão o StrictMode trava o aviso em "Salvando…"', () => {
+    const efeito = fonte.slice(fonte.indexOf('useEffect(() => {'), fonte.indexOf('const agendar'));
+    const iSetup = efeito.indexOf('vivo.current = true');
+    const iCleanup = efeito.indexOf('vivo.current = false');
+    expect(iSetup).toBeGreaterThan(-1);
+    expect(iCleanup).toBeGreaterThan(iSetup);
+  });
+
   it('os cinco formulários de campo usam o componente único', () => {
     const forms = [
       'FormularioUltrassom',

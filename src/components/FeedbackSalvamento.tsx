@@ -39,13 +39,27 @@ export function useSalvamento() {
   const vivo = useRef(true);
   const timers = useRef<number[]>([]);
 
-  useEffect(
-    () => () => {
+  /**
+   * `vivo` volta a TRUE na montagem — e essa linha não é decorativa.
+   *
+   * O efeito tinha só o cleanup. Em `StrictMode` (dev) o React monta, limpa e
+   * monta de novo; sem o setup, `vivo.current` ficava `false` desde a primeira
+   * passagem e nunca mais voltava. Consequência: `executar` caía no
+   * `if (!vivo.current) return true` e devolvia sucesso **sem nunca mostrar o
+   * check** — o aviso ficava preso em "Salvando…" para sempre.
+   *
+   * Em produção não há StrictMode, então o cleanup só roda no unmount de
+   * verdade e o defeito não aparecia. Achado em 13/09/2026, ao ligar o aviso na
+   * tela de Certificados e vê-lo travado no desenvolvimento.
+   */
+  useEffect(() => {
+    vivo.current = true;
+    const agendados = timers.current;
+    return () => {
       vivo.current = false;
-      for (const t of timers.current) window.clearTimeout(t);
-    },
-    [],
-  );
+      for (const t of agendados) window.clearTimeout(t);
+    };
+  }, []);
 
   const agendar = useCallback((fn: () => void, ms: number) => {
     timers.current.push(window.setTimeout(fn, ms));
