@@ -85,10 +85,37 @@ describe('o card mostra o estado e dá acesso ao PDF', () => {
     expect(TELA.slice(i - 400, i)).toContain('{completo && (');
   });
 
-  it('o visualizador usa blob, não data:, e revoga a URL ao sair', () => {
-    expect(VER).toContain('URL.createObjectURL');
-    expect(VER).toContain('URL.revokeObjectURL');
-    expect(VER).not.toMatch(/src=\{dataUrl\}|src=\{`data:/);
+  /**
+   * O PDF é desenhado pelo visualizador DO SISTEMA.
+   *
+   * A primeira versão punha o arquivo num `<iframe>` e deixava o Chrome
+   * desenhar: barra cinza do navegador, tipografia e miniaturas que não são
+   * deste sistema, no meio de uma tela que é. O mesmo documento em /relatorios
+   * tinha outra cara.
+   */
+  it('usa o mesmo visualizador do relatório, não um iframe cru', () => {
+    expect(VER).toContain('VisualizadorPdfBytes');
+    // Sem o comentário de cabeçalho: ele cita `<iframe>` de propósito, para
+    // registrar o que saiu daqui e por quê.
+    const codigo = VER.slice(VER.indexOf('export default'));
+    expect(codigo).not.toContain('<iframe');
+    // `paginas={0}`: o total sai do próprio documento depois de carregado.
+    expect(VER).toContain('paginas={0}');
+  });
+
+  it('entrega BYTES ao visualizador, não a dataURL crua', () => {
+    // `fetch(data:)` é bloqueado por alguns navegadores; o base64 já está na
+    // mão e é decodificado aqui.
+    expect(VER).toContain('atob(base64)');
+    expect(VER).toMatch(/bytes=\{bytes\}/);
+  });
+
+  it('o blob e a revogação continuam existindo — dentro do visualizador', () => {
+    // A invariante não sumiu, mudou de dono: quem cria e revoga a URL agora é
+    // o componente compartilhado.
+    const viewer = readFileSync('src/components/VisualizadorPdf.tsx', 'utf8');
+    expect(viewer).toContain('URL.createObjectURL');
+    expect(viewer).toContain('URL.revokeObjectURL');
   });
 
   it('o visualizador diz quando o PDF não pôde ser aberto', () => {

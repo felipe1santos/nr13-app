@@ -93,10 +93,17 @@
   color: var(--blue-deep);
 }
 
+/* VERDE, por decisão do dono (13/09/2026).
+
+   Este badge era AZUL, e o comentário acima explica por quê: o verde do sistema
+   é reservado à aprovação de ensaio, e "cadastrado" não é aprovação de nada. O
+   dono pediu verde com check explicitamente — a tela dele, a chamada dele. Fica
+   o registro de que é exceção consciente a essa convenção, não descuido: se o
+   verde voltar a doer em alguma leitura, é aqui que se desfaz. */
 .cert-badge-ok {
-  background: var(--blue-bg);
-  color: var(--blue2);
-  border: 1px solid var(--blue-line);
+  background: var(--ok-bg, #E7F6EF);
+  color: #0F7A52;
+  border: 1px solid var(--ok-line, #BFE9D6);
 }
 
 .cert-card-tit {
@@ -162,13 +169,6 @@
   margin: 0;
   font-size: 13px;
   overflow-wrap: anywhere;
-}
-
-.cert-card-vazio {
-  margin: 0;
-  font-size: 12.5px;
-  color: var(--text-muted);
-  font-style: italic;
 }
 
 /* Caixinha de injeção: só aparece quando há certificado — marcar injeção de um
@@ -251,72 +251,6 @@
   font-size: 12.5px;
 }
 
-/* ── Formulário do padrão selecionado ───────────────────────────────── */
-.cert-form {
-  background: var(--bg-card);
-  border: 1px solid var(--accent);
-  border-radius: var(--radius);
-  padding: 18px;
-}
-
-.cert-form-cab {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding-bottom: 12px;
-  margin-bottom: 14px;
-  border-bottom: 1px solid var(--border-solid);
-}
-
-.cert-form-cab > div {
-  display: flex;
-  flex-direction: column;
-}
-
-.cert-form-cab strong {
-  font-size: 15px;
-}
-
-.cert-form-cab span {
-  font-size: 11.5px;
-  color: var(--text-muted);
-}
-
-.cert-form-secao {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--accent-2);
-  margin: 18px 0 10px;
-}
-
-.cert-form-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-  gap: 12px;
-}
-
-.cert-upload {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-/* Aviso do limite: precisa ser lido ANTES do usuário escolher o arquivo. */
-.cert-limite {
-  flex: 1 1 260px;
-  font-size: 11.5px;
-  line-height: 1.5;
-  color: var(--text-muted);
-  background: var(--warn-bg);
-  border: 1px solid var(--warn-line);
-  border-radius: var(--radius);
-  padding: 8px 10px;
-}
-
 .cert-erro {
   margin: 12px 0 0;
   font-size: 12.5px;
@@ -327,12 +261,6 @@
   border: 1px solid var(--crit-line);
   border-radius: var(--radius);
   padding: 10px 12px;
-}
-
-.cert-form-acoes {
-  display: flex;
-  gap: 10px;
-  margin-top: 18px;
 }
 
 /* ── Mobile ─────────────────────────────────────────────────────────── */
@@ -349,18 +277,6 @@
   .cert-card-dados {
     grid-template-columns: 1fr;
     gap: 8px;
-  }
-
-  .cert-form {
-    padding: 14px;
-  }
-
-  .cert-form-acoes {
-    flex-direction: column;
-  }
-
-  .cert-form-acoes button {
-    width: 100%;
   }
 }
 
@@ -536,7 +452,6 @@
 }
 
 .certm-rodape,
-.certv-rodape,
 .doc-rodape {
   flex: 0 0 auto;
   display: flex;
@@ -547,20 +462,35 @@
   background: var(--bg-faint, #FBFAF7);
 }
 .certm-espaco,
-.certv-espaco,
 .doc-espaco { flex: 1 1 auto; }
 
-/* ── Modal de visualização do certificado ──────────────────────────────── */
+/* ── Modal de visualização do certificado ──────────────────────────────────
+   O PDF é desenhado pelo visualizador DO SISTEMA (VisualizadorPdfBytes), o
+   mesmo de /relatorios — mesma barra, mesma moldura de página. A versão
+   anterior usava um <iframe> e herdava a barra cinza do Chrome, que não é
+   deste sistema e destoava no meio da tela. */
 .certv-corpo {
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
+  flex-direction: column;
   background: var(--steel, #F6F5F2);
 }
-.certv-frame {
-  flex: 1;
-  width: 100%;
-  border: 0;
+/* O visualizador traz a própria barra e a própria área de rolagem: ele ocupa o
+   corpo inteiro, e por isso este modal não tem rodapé — fechar está no × do
+   cabeçalho e no botão "Voltar", que entra como `extras` da barra dele. */
+.certv-corpo > * { flex: 1 1 auto; min-height: 0; }
+
+.certv-cab-ic {
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: var(--blue2-bg, #E4EDF9);
+  color: var(--blue2, #0C4F9B);
 }
 .certv-aviso {
   margin: auto;
@@ -591,8 +521,7 @@
   /* Uma coluna: dois campos lado a lado em 386px deixam cada um com ~170px,
      estreito demais para uma data ou um número de série. */
   .certm-grid { grid-template-columns: minmax(0, 1fr); }
-  .certm-rodape,
-  .certv-rodape { padding: 11px 14px; }
+  .certm-rodape { padding: 11px 14px; }
   .certm-rodape .btn-primario,
   .certm-rodape .btn-secundario {
     flex: 1 1 auto;

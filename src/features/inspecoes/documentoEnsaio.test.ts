@@ -44,7 +44,31 @@ describe('a folha montada com os dados do container', () => {
     const iGrava = PREVIEW.indexOf('gravarInspecaoOrigemAtual');
     const iFrame = PREVIEW.indexOf('<iframe');
     expect(iGrava).toBeLessThan(iFrame);
-    expect(PREVIEW).toContain('if (!pronto) return');
+  });
+
+  /**
+   * O PALCO só pode ser montado DEPOIS da gravação (§2-ter).
+   *
+   * Na v2 o `localStorage` é só o palco: as chaves são materializadas por
+   * `usePalcoDocumento` na montagem. Montá-lo antes de a gravação confirmar
+   * encena o valor ANTERIOR da chave — e a folha sai com "--" em todo campo,
+   * sem erro nenhum. Foi exatamente o defeito medido em produção em 13/09/2026.
+   */
+  it('monta o palco SÓ depois de a gravação confirmar', () => {
+    expect(PREVIEW).toContain('usePalcoDocumento');
+    // A guarda que segura a renderização até a gravação terminar.
+    expect(PREVIEW).toContain('if (!gravado) return');
+    // E o hook do palco NÃO pode estar no componente que faz a gravação: ele
+    // roda na montagem, que é antes de qualquer `await`.
+    const iGuarda = PREVIEW.indexOf('if (!gravado) return');
+    const iHook = PREVIEW.indexOf('usePalcoDocumento(');
+    expect(iHook).toBeGreaterThan(iGuarda);
+  });
+
+  it('os iframes levam os parâmetros do palco', () => {
+    // Sem `paramsIframe` o template não sabe de qual documento é o palco.
+    expect(PREVIEW).toContain('${palco.paramsIframe}');
+    expect(PREVIEW).toContain('RecusaPalco');
   });
 
   it('zera a meta, senão o cabeçalho sai com dados de OUTRO relatório', () => {

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icone } from '../../components/Icone';
+import { VisualizadorPdfBytes } from '../../components/VisualizadorPdf';
 import { useFocoPreso } from '../../components/useFocoPreso';
 import { resolverPdf } from '../relatorios/rastreabilidadeService';
 import type { Rastreabilidade } from '../relatorios/rastreabilidadeService';
@@ -11,16 +12,20 @@ import type { Rastreabilidade } from '../relatorios/rastreabilidadeService';
  *
  * Conferir o certificado é parte de decidir se ele ainda serve — validade,
  * instrumento, se é mesmo o documento certo. Abrir numa aba tira a pessoa da
- * tela onde estão os outros padrões, que é justamente a comparação que ela
- * está fazendo.
+ * tela onde estão os outros padrões, que é justamente a comparação que ela está
+ * fazendo.
  *
- * ## Blob, não data:
+ * ## Por que o visualizador do SISTEMA, e não um `<iframe>`
  *
- * `resolverPdf` devolve uma dataURL. Chrome trata `data:` como navegação de
- * topo em alguns caminhos e recusa; um `blob:` de `URL.createObjectURL` é
- * servido pelo visualizador nativo sem essa ressalva. A URL é revogada na
- * desmontagem — sem isso cada abertura deixa um PDF inteiro preso na memória
- * da aba.
+ * A primeira versão punha o PDF num `<iframe>` e deixava o Chrome desenhar: o
+ * resultado era a barra cinza do navegador, com tipografia, ícones e barra de
+ * miniaturas que não são deste sistema — no meio de uma tela que é. O mesmo
+ * documento aberto em /relatorios tem outra cara, e o usuário nota.
+ *
+ * Agora usa `VisualizadorPdfBytes`, o mesmo componente do relatório: mesma
+ * barra (Páginas, contador, zoom), mesma moldura de página, mesmo
+ * comportamento. `paginas={0}` porque o total sai do próprio documento depois
+ * de carregado — o parâmetro é só o palpite inicial de quem já o conhece.
  */
 export default function ModalVerCertificado({
   registro,
@@ -37,44 +42,45 @@ export default function ModalVerCertificado({
   /**
    * O resultado, CARIMBADO com o id que o produziu.
    *
-   * Guardar o id junto é o que dispensa um `setEstado('carregando')` no corpo do
-   * efeito: enquanto o resultado é de outro registro (ou não existe), o estado
-   * derivado já é "carregando", sem um render extra só para voltar a bandeira.
+   * Guardar o id junto dispensa um `setEstado('carregando')` no corpo do efeito:
+   * enquanto o resultado é de outro registro (ou não existe), o estado derivado
+   * já é "carregando", sem um render extra só para voltar a bandeira.
    */
-  const [resultado, setResultado] = useState<{ id: string; url: string | null } | null>(null);
-  const url = resultado?.id === registro.id ? resultado.url : null;
+  const [resultado, setResultado] = useState<{ id: string; bytes: Uint8Array | null } | null>(null);
+  const bytes = resultado?.id === registro.id ? resultado.bytes : null;
   const estado: 'carregando' | 'pronto' | 'falhou' =
-    resultado?.id !== registro.id ? 'carregando' : url ? 'pronto' : 'falhou';
+    resultado?.id !== registro.id ? 'carregando' : bytes ? 'pronto' : 'falhou';
 
   useEffect(() => {
     let vivo = true;
-    let objeto: string | null = null;
 
     void resolverPdf(registro)
       .then((dataUrl) => {
         if (!vivo) return;
         if (!dataUrl) {
-          setResultado({ id: registro.id, url: null });
+          setResultado({ id: registro.id, bytes: null });
           return;
         }
-        // dataURL → Blob, sem depender de fetch(data:) que alguns navegadores
-        // bloqueiam: o base64 já está na mão, basta decodificá-lo.
+        // dataURL → bytes sem `fetch(data:)`, que alguns navegadores bloqueiam:
+        // o base64 já está na mão, basta decodificá-lo.
         const base64 = dataUrl.slice(dataUrl.indexOf(',') + 1);
         const bin = atob(base64);
-        const bytes = new Uint8Array(bin.length);
-        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-        objeto = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
-        setResultado({ id: registro.id, url: objeto });
+        const arr = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+        setResultado({ id: registro.id, bytes: arr });
       })
       .catch(() => {
-        if (vivo) setResultado({ id: registro.id, url: null });
+        if (vivo) setResultado({ id: registro.id, bytes: null });
       });
 
     return () => {
       vivo = false;
-      if (objeto) URL.revokeObjectURL(objeto);
     };
   }, [registro]);
+
+  const nomeArquivo = `certificado-${(registro.certificadoPadrao || registro.nome || 'padrao')
+    .replace(/[^\w.-]+/g, '-')
+    .slice(0, 60)}.pdf`;
 
   return (
     <div className="certv-overlay" onClick={onFechar}>
@@ -88,6 +94,9 @@ export default function ModalVerCertificado({
         onClick={(e) => e.stopPropagation()}
       >
         <header className="certv-cab">
+          <div className="certv-cab-ic">
+            <Icone nome="pdf" tam={18} />
+          </div>
           <div className="certv-cab-txt">
             <h3>{titulo}</h3>
             <p>
@@ -108,17 +117,20 @@ export default function ModalVerCertificado({
               Verifique a conexão — o arquivo pode estar só no servidor.
             </p>
           )}
-          {estado === 'pronto' && url && (
-            <iframe src={url} title={`Certificado de ${titulo}`} className="certv-frame" />
+          {estado === 'pronto' && bytes && (
+            <VisualizadorPdfBytes
+              bytes={bytes}
+              nomeArquivo={nomeArquivo}
+              paginas={0}
+              selo="Certificado do instrumento padrão"
+              extras={
+                <button type="button" className="vpdf-btn" onClick={onFechar}>
+                  <Icone nome="arrowleft" tam={13} /> Voltar
+                </button>
+              }
+            />
           )}
         </div>
-
-        <footer className="certv-rodape">
-          <span className="certv-espaco" />
-          <button type="button" className="btn-secundario" onClick={onFechar}>
-            Fechar
-          </button>
-        </footer>
       </div>
     </div>
   );
