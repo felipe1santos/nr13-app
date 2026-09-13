@@ -60,7 +60,7 @@ describe('"Como funciona" é um botão, e abre uma segunda camada', () => {
   it('o foco fica preso no diálogo de cima, e o Esc fecha só ele', () => {
     expect(AJUDA).toContain('useFocoPreso(caixa, onFechar)');
     expect(AJUDA).toContain('aria-modal="true"');
-    const hook = readFileSync('src/features/relatorios/predefinicoes/useFocoPreso.ts', 'utf8');
+    const hook = readFileSync('src/components/useFocoPreso.ts', 'utf8');
     expect(hook).toContain("e.key === 'Escape'");
     expect(hook).toContain('e.stopPropagation()');
   });

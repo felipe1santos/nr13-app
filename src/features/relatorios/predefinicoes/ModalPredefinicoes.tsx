@@ -26,7 +26,7 @@ import { campoPredefinivel } from './camposPredefiniveis';
 import ComoFunciona from './ComoFunciona';
 import EditorPredefinicao from './EditorPredefinicao';
 import RevisaoAplicacao from './RevisaoAplicacao';
-import { useFocoPreso } from './useFocoPreso';
+import { useFocoPreso } from '../../../components/useFocoPreso';
 
 /**
  * O GERENCIADOR DE PREDEFINIÇÕES DO RELATÓRIO (12/09/2026).

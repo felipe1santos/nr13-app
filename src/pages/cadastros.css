@@ -947,3 +947,238 @@
 @media (max-width: 480px) {
   .modelo-opcoes { grid-template-columns: 1fr; }
 }
+
+/* ── VER FUNCIONÁRIO — modal de leitura (13/09/2026) ───────────────────────
+   O olho no card abre isto. Só leitura: nenhum input, nenhum Salvar. Conferir
+   quem assina o quê não pode exigir abrir a tela que altera quem assina. */
+
+/* Os dois ícones do card (olho e lápis) com o mesmo alvo. O `.btn-editar-pencil`
+   nasceu com `padding: 4px` (~22px de alvo); aqui, onde eles ficam lado a lado,
+   22px é pequeno para o dedo e desalinha o olho do lápis. Escopo restrito ao
+   card: nenhuma outra tela muda. */
+.cad-item-acoes .btn-editar-pencil {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 8px;
+}
+.cad-item-acoes .btn-editar-pencil:hover { background: var(--menu-hover, #F2EFE7); }
+
+.verfunc-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 16px;
+  background: rgba(20, 24, 28, .55);
+}
+
+.verfunc-modal {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 560px;
+  /* O teto é da JANELA: é o que mantém o rodapé visível com o corpo rolando
+     por dentro, mesmo num engenheiro que assina as 21 folhas. */
+  max-height: min(88vh, 820px);
+  background: var(--panel, #fff);
+  border: 1px solid var(--line, #E4E1D8);
+  border-radius: 14px;
+  box-shadow: 0 24px 60px rgba(20, 24, 28, .28);
+  overflow: hidden;
+}
+
+.verfunc-cab {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--line, #E4E1D8);
+  background: var(--bg-faint, #FBFAF7);
+}
+/* `min-width: 0` porque este é o item flex que pode espremer: sem ele um nome
+   longo empurra o × para fora do cabeçalho. */
+.verfunc-cab-txt { flex: 1; min-width: 0; }
+.verfunc-cab-txt h3 {
+  margin: 0;
+  font-size: 15.5px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--ink, #14181C);
+  overflow-wrap: anywhere;
+}
+.verfunc-cab-txt p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--muted, #7A8790);
+  overflow-wrap: anywhere;
+}
+.verfunc-x {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted, #7A8790);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+.verfunc-x:hover { background: var(--menu-hover, #F2EFE7); color: var(--ink, #14181C); }
+
+.verfunc-corpo {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 16px 18px;
+}
+
+.verfunc-secao { margin-bottom: 18px; }
+.verfunc-secao:last-child { margin-bottom: 0; }
+.verfunc-secao h4 {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--border-dashed, #D8D5CC);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--muted, #7A8790);
+}
+.verfunc-contagem {
+  margin-left: auto;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--steel, #F6F5F2);
+  border: 1px solid var(--line, #E4E1D8);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text, #2D3339);
+  white-space: nowrap;
+}
+
+.verfunc-rubrica {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  border: 1px solid var(--line, #E4E1D8);
+  border-radius: 10px;
+  background: var(--panel, #fff);
+}
+/* A rubrica é uma imagem de proporção desconhecida: teto de altura e largura
+   fluida, nunca dimensão fixa — fixar uma das duas distorce a assinatura. */
+.verfunc-rubrica img {
+  max-width: 100%;
+  max-height: 110px;
+  object-fit: contain;
+}
+
+.verfunc-dados { margin: 0; display: grid; gap: 8px; }
+.verfunc-dados > div {
+  padding: 8px 10px;
+  border: 1px solid var(--line, #E4E1D8);
+  border-left: 3px solid var(--blue2-line, #C4D9F0);
+  border-radius: 9px;
+  background: var(--bg-faint, #FBFAF7);
+}
+.verfunc-dados dt {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  color: var(--muted, #7A8790);
+}
+.verfunc-dados dd {
+  margin: 3px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text, #2D3339);
+  overflow-wrap: anywhere;
+}
+.verfunc-dados dd.e-vazio { color: var(--muted, #7A8790); font-style: italic; }
+
+.verfunc-folhas { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
+.verfunc-folhas li {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--text, #2D3339);
+  overflow-wrap: anywhere;
+}
+.verfunc-folhas li svg { flex: 0 0 auto; margin-top: 2px; color: var(--ok, #1FA971); }
+
+.verfunc-vazio {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted, #7A8790);
+}
+
+/* Azul de informação, não âmbar de alerta: não há nada errado num cadastro que
+   segue a regra padrão — há uma origem que o leitor precisa conhecer. */
+.verfunc-nota {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--blue2-line, #C4D9F0);
+  border-radius: 9px;
+  background: var(--blue2-bg, #E4EDF9);
+  color: var(--blue2, #0C4F9B);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+.verfunc-nota svg { flex: 0 0 auto; margin-top: 1px; }
+
+.verfunc-rodape {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--line, #E4E1D8);
+  background: var(--bg-faint, #FBFAF7);
+}
+.verfunc-espaco { flex: 1 1 auto; }
+.verfunc-rodape .btn-primario { display: inline-flex; align-items: center; gap: 6px; }
+
+@media (max-width: 640px) {
+  .verfunc-overlay { padding: 0; align-items: flex-end; }
+  .verfunc-modal {
+    max-width: 100%;
+    max-height: 94vh;
+    border-radius: 14px 14px 0 0;
+    border-bottom: 0;
+  }
+  .verfunc-cab { padding: 14px; }
+  .verfunc-corpo { padding: 14px; }
+  .verfunc-rodape { padding: 11px 14px; }
+  /* Alvo de dedo no rodapé, e os dois botões dividindo a linha. */
+  .verfunc-rodape .btn-primario,
+  .verfunc-rodape .btn-secundario {
+    flex: 1 1 auto;
+    min-height: 44px;
+    justify-content: center;
+  }
+  .verfunc-cab-txt h3 { font-size: 15px; }
+}

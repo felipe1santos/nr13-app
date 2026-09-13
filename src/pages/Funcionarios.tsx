@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Icone } from '../components/Icone';
 import AvatarPessoa from '../features/cadastros/AvatarPessoa';
+import ModalVerFuncionario from '../features/cadastros/ModalVerFuncionario';
 import { listarFuncionarios, salvarFuncionario, excluirFuncionario } from '../features/cadastros/cadastroService';
 import type { Funcionario } from '../features/cadastros/tipos';
 import { PAGINAS_PRONTUARIO } from '../features/prontuarios/tipos';
@@ -59,6 +60,8 @@ export default function Funcionarios() {
   const [funcionarios, setFuncionarios] = useState<Funcionario[]>(() => listarFuncionarios());
   const [form, setForm] = useState<Funcionario>({ id: '', ...VAZIO });
   const [confirmarExcluir, setConfirmarExcluir] = useState<string | null>(null);
+  /** O profissional aberto em LEITURA (botão do olho). `null` = nenhum. */
+  const [vendo, setVendo] = useState<Funcionario | null>(null);
   const [editandoExistente, setEditandoExistente] = useState(false);
   // Enquanto o usuário não mexer nos checkboxes, trocar o Tipo re-aplica a regra padrão de folhas.
   const [folhasTocadas, setFolhasTocadas] = useState(false);
@@ -392,6 +395,13 @@ export default function Funcionarios() {
               </div>
               </div>
               <div className="cad-item-acoes">
+                {/* VER antes de EDITAR, e à esquerda do lápis: conferir é o gesto
+                    mais frequente, e fazê-lo pelo formulário significa abrir uma
+                    tela de escrita para uma pergunta de leitura — um clique numa
+                    caixa de folha ali muda quem carimba o próximo documento. */}
+                <button type="button" className="btn-editar-pencil" onClick={() => setVendo(f)} title="Ver dados cadastrados">
+                  <Icone nome="eye" tam={14} />
+                </button>
                 <button type="button" className="btn-editar-pencil" onClick={() => editarFuncionario(f)} title="Editar">
                   <Icone nome="pencil" tam={14} />
                 </button>
@@ -413,6 +423,24 @@ export default function Funcionarios() {
             </div>
           ))}
         </div>
+      )}
+
+      {vendo && (
+        <ModalVerFuncionario
+          funcionario={vendo}
+          folhasProntuario={PAGINAS_PRONTUARIO}
+          folhasRelatorio={FOLHAS_RELATORIO_ASSINAVEIS}
+          rotulosProntuario={ROTULOS_PRONTUARIO}
+          rotulosRelatorio={ROTULOS_RELATORIO}
+          onFechar={() => setVendo(null)}
+          // Ver → Editar sem passar pela lista: é o caminho de quem abriu para
+          // conferir e achou o que corrigir.
+          onEditar={() => {
+            const alvo = vendo;
+            setVendo(null);
+            editarFuncionario(alvo);
+          }}
+        />
       )}
     </div>
   );

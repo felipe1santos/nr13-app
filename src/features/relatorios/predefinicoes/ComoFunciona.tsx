@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { Icone } from '../../../components/Icone';
-import { useFocoPreso } from './useFocoPreso';
+import { useFocoPreso } from '../../../components/useFocoPreso';
 
 /**
  * O modal de AJUDA, por cima do gerenciador.
