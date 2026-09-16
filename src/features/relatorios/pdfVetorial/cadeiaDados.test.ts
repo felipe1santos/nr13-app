@@ -180,7 +180,14 @@ describe('pressões: a ADOTADA da documentação vence a calculada', () => {
     expect(pressao(m, 'PTH').kgf).toBe('10.61');
     expect(pressao(m, 'PMO').kgf).toBe('6.12');
     // A PLACA reconstruída lê das MESMAS pressões — tabela e placa não podem divergir.
-    expect(m.categorizacaoFolha.pmta).toBe('8.16 kgf/cm²');
+    //
+    // 16/09/2026 · era `'8.16 kgf/cm²'`, fixo. Agora sai na UNIDADE DO
+    // EQUIPAMENTO, e a fixture não grava `nr13_pref_unidade_` — o que cai em SI
+    // pelo mesmo recuo de sempre, logo MPa com 3 casas. O valor canônico não
+    // mudou: `kgf` acima continua 8.16, e é dele que a conversão sai.
+    expect(m.categorizacaoFolha.pmta).toBe('0.800 MPa');
+    expect(m.unidade).toBe('SI');
+    expect(m.unidadeLabel).toBe('MPa');
   });
 
   it('sem adotada, a calculada continua valendo (nenhuma regressão)', () => {

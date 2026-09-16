@@ -463,18 +463,24 @@ export function folhaIdentificacao(doc: Documento, m: ModeloRelatorio): void {
 
   doc.faixa('PRESSÕES');
   doc.tabela({
-    colunas: [0.36, 0.16, 0.16, 0.16, 0.16],
-    cabecalho: ['GRANDEZA', 'MPa', 'psi', 'kgf/cm²', 'bar'],
+    // UMA coluna, na unidade do EQUIPAMENTO (16/09/2026). Eram quatro — MPa,
+    // psi, kgf/cm² e bar —, copiadas da referência física. Ver o cabeçalho de
+    // `unidadeDoEquipamento.test.ts` para o porquê da troca.
+    colunas: [0.6, 0.4],
+    cabecalho: ['GRANDEZA', m.unidadeLabel],
     // Pressão é campo CALCULADO, e mesmo assim recebe override: a revisão
     // integral antes da emissão é o requisito. O cálculo do sistema não muda —
     // o override vive na chave do relatório e só altera o que este documento
     // imprime.
+    //
+    // O `id` do override perdeu o sufixo de unidade e virou `pressoes.<rótulo>`.
+    // É mudança DELIBERADA: um override digitado na coluna kgf valia 22,43, e
+    // reaproveitá-lo numa célula que agora imprime MPa poria 22,43 MPa no
+    // papel — dez vezes a pressão real, num documento assinado. Override antigo
+    // fica inerte e a célula volta ao valor calculado, que é o certo.
     linhas: m.pressoes.map((p) => [
       { texto: p.rotulo, rotulo: true },
-      { texto: textoOu(p.mpa), centro: true, valor: true, id: idCampo('pressoes', p.rotulo + ' MPa'), rotuloCampo: `${p.rotulo} (MPa)` },
-      { texto: textoOu(p.psi), centro: true, valor: true, id: idCampo('pressoes', p.rotulo + ' psi'), rotuloCampo: `${p.rotulo} (psi)` },
-      { texto: textoOu(p.kgf), centro: true, valor: true, id: idCampo('pressoes', p.rotulo + ' kgf'), rotuloCampo: `${p.rotulo} (kgf/cm²)` },
-      { texto: textoOu(p.bar), centro: true, valor: true, id: idCampo('pressoes', p.rotulo + ' bar'), rotuloCampo: `${p.rotulo} (bar)` },
+      { texto: textoOu(p.valor), centro: true, valor: true, id: idCampo('pressoes', p.rotulo), rotuloCampo: `${p.rotulo} (${m.unidadeLabel})` },
     ]),
   });
 
@@ -576,7 +582,12 @@ function desenharPlacaReconstruida(
   alturaTotal: number,
   largura: number,
 ): void {
-  const fileiras = layoutDaPlaca(m.equipamento, m.pressoes, { execucao: m.execucao, validade: m.validade });
+  const fileiras = layoutDaPlaca(
+    m.equipamento,
+    m.pressoes,
+    { execucao: m.execucao, validade: m.validade },
+    m.unidadeLabel,
+  );
   const x = CAIXA.x + (CAIXA.largura - largura) / 2;
   const y0 = topo;
 
@@ -1122,19 +1133,16 @@ export function folhaDadosTecnicos(doc: Documento, m: ModeloRelatorio): void {
     ],
   });
 
-  // ASPECTOS OPERACIONAIS — MPa · psi · kgf/cm², as unidades da referência.
-  // Os três valores saem convertidos do MESMO número em MPa; nenhuma coluna é
-  // apenas renomeada.
+  // ASPECTOS OPERACIONAIS — na UNIDADE DO EQUIPAMENTO (16/09/2026). Eram três
+  // colunas (MPa · psi · kgf/cm²), as unidades da referência.
   doc.faixa('ASPECTOS OPERACIONAIS');
   doc.tabela({
     esticavel: true,
-    colunas: [0.4, 0.2, 0.2, 0.2],
-    cabecalho: ['GRANDEZA', 'MPa', 'psi', 'kgf/cm²'],
+    colunas: [0.6, 0.4],
+    cabecalho: ['GRANDEZA', m.unidadeLabel],
     linhas: m.operacionais.map((o) => [
       { texto: o.rotulo, rotulo: true },
-      { texto: textoOu(o.mpa), centro: true, valor: true, id: idCampo('operacionais', o.rotulo + ' MPa'), rotuloCampo: `${o.rotulo} (MPa)` },
-      { texto: textoOu(o.psi), centro: true, valor: true, id: idCampo('operacionais', o.rotulo + ' psi'), rotuloCampo: `${o.rotulo} (psi)` },
-      { texto: textoOu(o.kgf), centro: true, valor: true, id: idCampo('operacionais', o.rotulo + ' kgf'), rotuloCampo: `${o.rotulo} (kgf/cm²)` },
+      { texto: textoOu(o.valor), centro: true, valor: true, id: idCampo('operacionais', o.rotulo), rotuloCampo: `${o.rotulo} (${m.unidadeLabel})` },
     ]),
   });
   doc.texto(
@@ -1190,13 +1198,13 @@ export function folhaResumoCalculos(doc: Documento, m: ModeloRelatorio): void {
   doc.novaFolha();
   doc.banner('6. RESUMO DE CÁLCULOS DA PMTA E ESPESSURA MÍNIMA');
   doc.tabela({
-    colunas: [0.4, 0.2, 0.2, 0.2],
-    cabecalho: ['GRANDEZA', 'MPa', 'kgf/cm²', 'bar'],
+    // Mesma unidade da folha 3 — é o MESMO número, e vê-lo em unidades
+    // diferentes em duas folhas do mesmo documento é o que confunde quem lê.
+    colunas: [0.6, 0.4],
+    cabecalho: ['GRANDEZA', m.unidadeLabel],
     linhas: m.pressoes.map((pr) => [
       { texto: pr.rotulo, rotulo: true },
-      { texto: textoOu(pr.mpa), centro: true, valor: true, id: idCampo('pressoes', pr.rotulo + ' MPa'), rotuloCampo: `${pr.rotulo} (MPa)` },
-      { texto: textoOu(pr.kgf), centro: true, valor: true, id: idCampo('pressoes', pr.rotulo + ' kgf'), rotuloCampo: `${pr.rotulo} (kgf/cm²)` },
-      { texto: textoOu(pr.bar), centro: true, valor: true, id: idCampo('pressoes', pr.rotulo + ' bar'), rotuloCampo: `${pr.rotulo} (bar)` },
+      { texto: textoOu(pr.valor), centro: true, valor: true, id: idCampo('pressoes', pr.rotulo), rotuloCampo: `${pr.rotulo} (${m.unidadeLabel})` },
     ]),
   });
 

@@ -209,12 +209,24 @@ export const PROPORCAO_PLACA = 0.92;
 
 export function layoutDaPlaca(
   equipamento: Record<string, string | null>,
-  pressoes: { rotulo: string; mpa?: string | null; psi?: string | null; kgf: string | null }[],
+  pressoes: { rotulo: string; valor?: string | null; mpa?: string | null; psi?: string | null; kgf: string | null }[],
   datas: { execucao?: string | null; validade?: string | null } = {},
+  /**
+   * O rótulo da unidade do EQUIPAMENTO (16/09/2026).
+   *
+   * Ausente = comportamento antigo, com as três colunas da referência. O
+   * default existe porque esta é função pura e testada isoladamente: os testes
+   * de geometria que não falam de unidade continuam valendo sem alteração.
+   */
+  unidadeLabel?: string,
 ): FileiraPlaca[] {
   const eq = (chave: string) => equipamento[chave] ?? null;
   const pressao = (inicio: string): { unidade: string; valor: string | null }[] => {
     const p = pressoes.find((x) => x.rotulo.toUpperCase().startsWith(inicio));
+    // UMA unidade, a do equipamento. O quadro da placa não muda de tamanho — ele
+    // reparte a largura pelo número de colunas —, e com uma só o valor sai
+    // maior, que é como se lê uma placa de verdade.
+    if (unidadeLabel) return [{ unidade: unidadeLabel, valor: p?.valor ?? null }];
     return [
       { unidade: 'MPa', valor: p?.mpa ?? null },
       { unidade: 'psi', valor: p?.psi ?? null },

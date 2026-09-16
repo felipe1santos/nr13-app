@@ -1,4 +1,5 @@
 import { ler } from '../../../services/storage';
+import { rotuloPressao, unidadeValida, valorNaUnidade, type SistemaUnidade } from '../../../calc/unidades';
 import { REGIOES, carregarMedicoes, type Regiao } from '../medicoesEspessura';
 import { linhasMemorial } from '../relatoriosService';
 import { padraoDoEnsaio, type Rastreabilidade, type TipoInstrumento } from '../rastreabilidadeService';
@@ -141,7 +142,30 @@ export interface ModeloRelatorio {
    * MPa — nenhuma coluna é rótulo trocado. E a linha da PMO existe mesmo
    * vazia: a referência a tem, e PMO ausente é informação.
    */
-  pressoes: { rotulo: string; mpa: string | null; psi: string | null; kgf: string | null; bar: string | null }[];
+  pressoes: {
+    rotulo: string;
+    /** O valor na UNIDADE DO EQUIPAMENTO — é o que o documento imprime. */
+    valor: string | null;
+    mpa: string | null;
+    psi: string | null;
+    kgf: string | null;
+    bar: string | null;
+  }[];
+  /**
+   * A unidade do EQUIPAMENTO (`nr13_pref_unidade_<TAG>`), escolhida na criação.
+   *
+   * Desde 16/09/2026 o relatório inteiro imprime UMA unidade — a deste campo —
+   * no lugar das tabelas de três e quatro colunas que copiavam a referência.
+   * As colunas `mpa/psi/kgf/bar` continuam no modelo porque a CONFERÊNCIA campo
+   * a campo (`conferencia.ts`) compara contra o canônico, e porque é delas que
+   * `valor` deriva — não são rótulo trocado.
+   *
+   * A CATEGORIZAÇÃO é a exceção e não passa por aqui: enquadramento em kPa·m³ e
+   * grupo em MPa·m³ são as unidades que DEFINEM a categoria (§4 do CLAUDE.md).
+   */
+  unidade: SistemaUnidade;
+  /** O rótulo impresso da unidade acima — `MPa`, `kgf/cm²` ou `bar`. */
+  unidadeLabel: string;
   categoria: { catFinal: string | null; grupo: string | null; volume: string | null; enquadramento: string | null };
   /**
    * Bloco 1 · os parâmetros de cada componente, como a referência os imprime.
@@ -190,8 +214,11 @@ export interface ModeloRelatorio {
     temperaturaProjeto: string | null;
     descricaoResumida: string | null;
   };
-  /** PMO / PMTA / PTH em MPa, psi e kgf/cm² — as unidades da referência. */
-  operacionais: { rotulo: string; mpa: string | null; psi: string | null; kgf: string | null }[];
+  /**
+   * PMO / PMTA / PTH. `valor` é o que a folha imprime (unidade do equipamento);
+   * `mpa/psi/kgf` seguem para a conferência campo a campo.
+   */
+  operacionais: { rotulo: string; valor: string | null; mpa: string | null; psi: string | null; kgf: string | null }[];
   /** A conta do enquadramento e a do grupo de risco, como a referência as mostra. */
   categorizacaoDetalhe: {
     pvKpa: string | null;
@@ -720,12 +747,22 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
   // O que NÃO se faz aqui: derivar PTH de PMTA. Vaso usa 1,3 e caldeira 1,5
   // (§3), e o fator é do motor do memorial. Multiplicar aqui criaria uma
   // segunda verdade, errada para caldeira, dentro de um documento assinado.
-  const pmta = converterPressao(numeroDoStorage(info.pmtaAdotadaMpa) ?? numeroDoStorage(calc.pmta));
-  const pth = converterPressao(numeroDoStorage(info.pthAdotadaMpa) ?? numeroDoStorage(calc.pth));
+  // A unidade do EQUIPAMENTO, escolhida na criação. Ausente = SI, que é o
+  // recuo que o sistema já usava em `carregarUnidade` e `montarResumo` — e a base
+  // do cálculo (MPa). Ver `unidadeValida`.
+  const unidade = unidadeValida(ler<string>(`nr13_pref_unidade_${tag}`));
+  const naUnidade = (mpa: number | null) => valorNaUnidade(mpa, unidade);
+
+  const pmtaMpaCanon = numeroDoStorage(info.pmtaAdotadaMpa) ?? numeroDoStorage(calc.pmta);
+  const pthMpaCanon = numeroDoStorage(info.pthAdotadaMpa) ?? numeroDoStorage(calc.pth);
+  const pmoMpaCanon = numeroDoStorage(info.pmoAdotadaMpa);
+
+  const pmta = { ...converterPressao(pmtaMpaCanon), valor: naUnidade(pmtaMpaCanon) };
+  const pth = { ...converterPressao(pthMpaCanon), valor: naUnidade(pthMpaCanon) };
   // PMO é DECLARADA na ficha (pressão máxima de OPERAÇÃO), não calculada: o
   // memorial calcula PMTA e PTH. Sem valor declarado, a linha sai vazia — e
   // vazia é a resposta honesta, não a PMTA repetida.
-  const pmo = converterPressao(numeroDoStorage(info.pmoAdotadaMpa));
+  const pmo = { ...converterPressao(pmoMpaCanon), valor: naUnidade(pmoMpaCanon) };
 
   // O memorial do vaso guarda os dados construtivos por componente. Ler daqui
   // é ler a MESMA verdade que gerou o cálculo — nada é recalculado.
@@ -810,6 +847,8 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
       'CATEGORIA DO VASO': txt(cat.catFinal),
       'LOCAL DA INSTALAÇÃO': txt(info.localizacao),
     },
+    unidade,
+    unidadeLabel: rotuloPressao(unidade),
     pressoes: [
       { rotulo: 'PMO — Pressão Máxima de Operação', ...pmo },
       { rotulo: 'PMTA — Pressão Máxima de Trabalho Admissível', ...pmta },
@@ -863,15 +902,21 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
       materialTampo2: dadoDe(tampos[1] ?? null, "mat"),
       volume: numeroBr(info.volume) ?? numeroBr(cat.volInput),
       // A pressão de PROJETO é a que o memorial usou (`nr13_vaso_.P`, em MPa).
-      pressaoProjeto: numeroDoStorage(vaso.P) !== null ? `${numeroDoStorage(vaso.P)!.toFixed(3)} MPa` : null,
+      // A pressão de PROJETO na unidade do equipamento (16/09/2026). Era fixa
+      // em MPa; o valor guardado (`nr13_vaso_.P`) continua canônico em MPa e é
+      // ele que as fórmulas usam — só a APRESENTAÇÃO converte.
+      pressaoProjeto: (() => {
+        const v = naUnidade(numeroDoStorage(vaso.P));
+        return v === null ? null : `${v} ${rotuloPressao(unidade)}`;
+      })(),
       margemCorrosao: dadoDe(casco, "ca"),
       temperaturaProjeto: dadoDe(casco, "temp"),
       descricaoResumida: txt(info.descricaoResumida) ?? txt(info.descricao),
     },
     operacionais: [
-      { rotulo: "PMO", mpa: pmo.mpa, psi: pmo.psi, kgf: pmo.kgf },
-      { rotulo: "PMTA", mpa: pmta.mpa, psi: pmta.psi, kgf: pmta.kgf },
-      { rotulo: "PTH", mpa: pth.mpa, psi: pth.psi, kgf: pth.kgf },
+      { rotulo: "PMO", valor: pmo.valor, mpa: pmo.mpa, psi: pmo.psi, kgf: pmo.kgf },
+      { rotulo: "PMTA", valor: pmta.valor, mpa: pmta.mpa, psi: pmta.psi, kgf: pmta.kgf },
+      { rotulo: "PTH", valor: pth.valor, mpa: pth.mpa, psi: pth.psi, kgf: pth.kgf },
     ],
     categorizacaoDetalhe: {
       // `PV_enq` e `PV_cat` são gravados por `calcularESalvarCategoria`; ler
@@ -893,7 +938,13 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
     categorizacaoFolha: {
       fluidoTrabalho: fluidoSemClasse(cat.fluidoInput) ?? fluidoSemClasse(info.fluido),
       codigoProjeto: txt(info.codigoProjeto),
-      pmta: pmta.kgf ? `${pmta.kgf} kgf/cm²` : null,
+      // Na unidade do equipamento (16/09/2026). Era fixa em kgf/cm².
+      //
+      // Este campo está NA folha de categorização e mesmo assim converte: ele é
+      // EXIBIÇÃO da PMTA, não entra na conta da categoria. O que define a
+      // categoria — `pvKpa` (kPa·m³) e `pvMpa` (MPa·m³), logo abaixo — continua
+      // exatamente como estava, e é isso que o §4 do CLAUDE.md protege.
+      pmta: pmta.valor ? `${pmta.valor} ${rotuloPressao(unidade)}` : null,
       volumeGeometrico: numeroBr(info.volume) ?? numeroBr(cat.volInput),
       aplicaNr13: rotuloEnquadramento(cat.isEnquadrado),
       // A NR-13 exige operador treinado para as categorias I e II (Anexo I-B).
