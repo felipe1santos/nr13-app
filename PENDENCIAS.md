@@ -13,6 +13,41 @@
 > cada família de chave, o que já foi resolvido e o que falta, em ordem de risco. Consultar
 > antes de mexer em qualquer coisa que grave arquivo.
 
+## 0-SEXIES. AUDITORIA DE "CONFIGURAÇÕES DO RELATÓRIO" (15/09/2026) — 3 lacunas
+
+Auditoria ponta a ponta dos 11 controles do modal, com sentinela única por campo e o
+texto REAL extraído do PDF gerado (pdfjs, 12 páginas, relatório ZZ-FASE3 no laboratório).
+**Oito chegam inteiros**: Código, Validade, Execução, Próx. interna, Próx. externa,
+Nº da A.R.T., Engenheiro e Técnico (assinante). O mapa campo→destino está travado por
+`src/features/relatorios/configuracoesRelatorio.test.ts`, que quebra se um binding sumir.
+
+As três lacunas abaixo NÃO foram corrigidas de propósito: cada uma exige mudar o
+DOCUMENTO (linha nova na folha, seção nova ou campo novo), e isso é decisão do dono,
+não conserto de binding.
+
+1. **"Emissão" não tem linha própria no Modelo Novo.** Medido: com a Execução
+   preenchida, a sentinela `01/02/2031` não aparece em nenhuma das 12 páginas;
+   apagando a Execução, ela assume a "DATA DA INSPEÇÃO" da capa. Ou seja, o campo só
+   vale como RESERVA de outro (`folhas.ts`: `textoOu(m.execucao ?? m.emissao)`), e a
+   folha de datas nem essa reserva tem — ali a Execução vazia imprime "—" com a Emissão
+   preenchida. Decidir: dar linha própria à emissão na capa, ou tirar o campo do modal.
+
+2. **A linha "TESTE HIDROSTÁTICO" da seção 11 (próxima inspeção) não tem quem a
+   preencha.** Ela lê `meta.validadeValvula` (`modelo.ts`: `th: txt(meta?.validadeValvula)`),
+   e NENHUM controle do sistema escreve essa chave — nasce `''` em `metaPadrao` e fica.
+   A linha sai sempre "—" num documento que promete três prazos. Decidir se o prazo vem
+   de um campo novo no modal ou do lote de calibração (é de lá que a coluna
+   "Val. válvula" do histórico já tira o dado).
+
+3. **"Quem assina o Termo do Livro de Registro" não aparece no Modelo Novo.** A escolha
+   é gravada e congelada na meta, e quem a lê é `LIVRO-REGISTRO.html` — mas o gerador
+   vetorial não emite o Livro nem o Termo (limitação DECLARADA da Fase 11: "o Livro, os
+   certificados e o termo de abertura não são tocados"). Consequência visível: as folhas
+   `LIVRO-REGISTRO` e `TERMO-ABERTURA` marcadas no assistente não saem no PDF. Não é
+   defeito do modal; é a seção que falta no gerador.
+
+---
+
 ## 0-QUATER. INTERFACE (12-13/08/2026) — no ar e validado em produção
 
 Marca própria na sidebar, no favicon e no ícone do PWA (cache do SW em v8, senão o atalho
