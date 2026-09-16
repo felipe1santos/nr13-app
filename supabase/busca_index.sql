@@ -98,6 +98,23 @@ create table if not exists public.equipamentos_index (
   -- Continuam sendo FATOS, não regra: nenhum cálculo do sistema é refeito aqui.
   pmta_mpa          numeric,
   pth_mpa           numeric,
+
+  -- As pressões ADOTADAS da ficha (`nr13_info_.pmtaAdotadaMpa`/`.pthAdotadaMpa`,
+  -- seção "Pressões da Documentação"). São COLUNAS PRÓPRIAS, e não uma troca de
+  -- significado das duas acima, porque as duas acima seguem alimentando os
+  -- cartões de Inspeções, Prontuários, Relatórios e Calibrações — que mostram o
+  -- valor CALCULADO e não foram objeto desta mudança.
+  --
+  -- NULO = o engenheiro ainda não adotou. O cartão de `/equipamentos` escreve
+  -- "—" nesse caso e NÃO cai no calculado: "não definido" é informação, e
+  -- exibir o cálculo no lugar faria o resumo afirmar uma adoção que não houve.
+  -- (O resto do sistema — PLACA, PRONTUARIO, INSPECOES, PDF vetorial — mantém
+  -- a precedência `adotada ?? calculada`; esta regra é só do resumo da lista.)
+  --
+  -- Guardadas em MPa, como na ficha. A conversão para a unidade do cartão é do
+  -- front (`formatarValor`), igual a `pmta_mpa`.
+  pmta_adotada_mpa  numeric,
+  pth_adotada_mpa   numeric,
   resultado         text,
   volume_m3         numeric,
   fluido            text,
@@ -319,3 +336,11 @@ alter table public.equipamentos_index add column if not exists calibracoes   int
 -- por TAG, ao abrir o livro — ver §5 do registro da 9F.4.
 alter table public.equipamentos_index add column if not exists livro_entradas integer;
 alter table public.equipamentos_index add column if not exists livro_ultima   date;
+-- Pressões ADOTADAS (seção "Pressões da Documentação" da ficha) — nascem NULAS
+-- em toda linha já projetada, e assim ficam até a reprojeção. Diferente das
+-- colunas de contagem acima, aqui NULO e "não adotado" significam a mesma coisa
+-- para a tela: o cartão escreve "—" e não inventa o valor calculado no lugar.
+-- Por isso a reprojeção não é pré-condição de correção — é só o que faz o valor
+-- já adotado aparecer.
+alter table public.equipamentos_index add column if not exists pmta_adotada_mpa numeric;
+alter table public.equipamentos_index add column if not exists pth_adotada_mpa  numeric;

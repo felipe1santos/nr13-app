@@ -238,6 +238,37 @@ prefixos a `CAMPOS_PESADOS`.
   `nr13_calc_gv_<TAG>` **na leitura** (nunca na gravação — ver bug documentado em
   `vasoMemorialService.ts`), exibindo o cálculo do GV logo abaixo do memorial principal.
 
+### §3-bis — PRESSÃO CALCULADA ≠ PRESSÃO ADOTADA (15/09/2026)
+
+> **REGRA QUE NÃO SE QUEBRA:** o cartão e a linha de `/equipamentos` mostram a
+> pressão **ADOTADA** pelo engenheiro na ficha. Sem adoção, escrevem "—" e
+> **nunca** caem na calculada.
+
+O memorial CALCULA (`nr13_calc_<TAG>.pmta`/`.pth`); o engenheiro ADOTA, na seção
+"Pressões da Documentação" da ficha (`nr13_info_<TAG>.pmtaAdotadaMpa` /
+`.pmoAdotadaMpa` / `.pthAdotadaMpa`, sempre em MPa). São coisas diferentes, e o
+cartão — que é o RESUMO DA FICHA — vinha mostrando a primeira com o rótulo da
+segunda: 2,33 MPa no cartão onde a ficha dizia 2,2.
+
+Aqui NÃO há queda para a calculada. Um `?? pmtaMpa` faria o resumo afirmar uma
+adoção que não houve e esconderia o sinal de que falta definir o valor. **Fora
+do cartão a precedência oficial continua sendo `adotada ?? calculada`** — PLACA,
+PRONTUARIO, INSPECOES e `pdfVetorial/modelo.ts` não mudaram. O rótulo do PTH no
+cartão perdeu o "(1,3×)": o fator descreve a derivação do cálculo, e a adotada
+não é obrigada a segui-lo (em caldeira nem seria 1,3×, e sim 1,5×).
+
+Como o cartão lê da PROJEÇÃO (Fase 9) e não do cache, a mudança desceu ao banco
+em **colunas próprias** — `equipamentos_index.pmta_adotada_mpa` /
+`.pth_adotada_mpa`, devolvidas por `buscar_equipamentos` e mapeadas em
+`ItemCatalogo.pmtaAdotadaMpa`/`.pthAdotadaMpa`. `pmta_mpa`/`pth_mpa` seguem
+sendo as CALCULADAS e seguem alimentando os cartões de Inspeções, Prontuários,
+Relatórios e Calibrações — trocar o significado delas mudaria as cinco listas de
+uma vez. Aplicar: `busca_index.sql` → `busca_manutencao.sql` →
+`busca_consulta.sql` → `pressoes_adotadas_catalogo.sql` (o backfill; sem ele o
+valor já adotado só aparece na próxima gravação da ficha, porque
+`auditar_projecao` compara `source_version` e não enxerga coluna nova).
+Travado por `pressoesAdotadasCartao.test.ts`.
+
 ---
 
 ## 4. Unidades de medida

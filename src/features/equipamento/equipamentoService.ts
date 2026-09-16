@@ -184,6 +184,19 @@ export async function carregarEquipamento(tag: string): Promise<void> {
   if (porId.length) await semearEquipamento(porId);
 }
 
+/**
+ * Pressão adotada da ficha → número, ou `null`.
+ *
+ * A ficha grava as pressões adotadas como STRING em MPa
+ * (`PressoesDocumentacao.salvarPressoes`). Espelha o `f9_num` do SQL: vazio,
+ * ausente e texto ilegível viram `null` — que aqui significa "não adotada", e
+ * não "erro".
+ */
+function numeroMpa(v: string | undefined): number | null {
+  const n = Number(String(v ?? '').replace(',', '.').trim());
+  return String(v ?? '').trim() !== '' && Number.isFinite(n) ? n : null;
+}
+
 /** Os ids de uma lista lida do cache, ignorando o que não for id. */
 function idsDe(lista: unknown): string[] {
   if (!Array.isArray(lista)) return [];
@@ -234,6 +247,13 @@ export function equipamentosPendentesLocais(): ItemCatalogo[] {
         fotoRef: (fotos.find((f) => f.isCapa) ?? fotos[0])?.ref ?? null,
         pmtaMpa: calc?.pmta ? Number(calc.pmta) : null,
         pthMpa: calc?.pth ? Number(calc.pth) : null,
+        // As ADOTADAS saem da PRÓPRIA ficha que este caminho já leu (`info`) —
+        // zero parse a mais. Sem elas o equipamento recém-salvo mostraria "—"
+        // em PMTA/PTH e ganharia o valor ao sincronizar, que é o cartão
+        // TROCANDO de número sozinho — o defeito que este bloco existe para
+        // evitar. Sem adoção continua "—", igual à projeção.
+        pmtaAdotadaMpa: numeroMpa(info?.pmtaAdotadaMpa),
+        pthAdotadaMpa: numeroMpa(info?.pthAdotadaMpa),
         resultado: calc?.resultado ?? null,
         volumeM3: typeof cat?.volInput === 'number' ? cat.volInput : null,
         fluido: cat?.fluidoInput ?? null,

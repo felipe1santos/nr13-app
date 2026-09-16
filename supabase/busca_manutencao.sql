@@ -151,7 +151,9 @@ begin
       fabricante = null, numero_serie = null, localizacao = null, ano = null,
       cliente_nome = null, cliente_cidade = null,
       proxima_inspecao = null, tem_foto = false, foto_ref = null,
-      pmta_mpa = null, pth_mpa = null, resultado = null, volume_m3 = null,
+      pmta_mpa = null, pth_mpa = null,
+      pmta_adotada_mpa = null, pth_adotada_mpa = null,
+      resultado = null, volume_m3 = null,
       fluido = null, classe_fluido = null, vida_anos = null, tem_cliente = false,
       unidade = null, inspecoes = null, tem_prontuario = null, calibracoes = null,
       livro_entradas = null, livro_ultima = null,
@@ -322,7 +324,8 @@ begin
   insert into public.equipamentos_index as e (
     org_id, tag, descricao, tipo, subtipo, categoria, fabricante, numero_serie,
     localizacao, ano, cliente_nome, cliente_cidade, proxima_inspecao, tem_foto, foto_ref,
-    pmta_mpa, pth_mpa, resultado, volume_m3, fluido, classe_fluido, vida_anos,
+    pmta_mpa, pth_mpa, pmta_adotada_mpa, pth_adotada_mpa,
+    resultado, volume_m3, fluido, classe_fluido, vida_anos,
     tem_cliente, unidade, inspecoes, tem_prontuario, calibracoes,
     livro_entradas, livro_ultima, vida_base, vida_prox_anos,
     source_version, source_updated_at, projected_at
@@ -358,6 +361,15 @@ begin
       limit 1),
     public.f9_num(v_calc ->> 'pmta'),
     public.f9_num(v_calc ->> 'pth'),
+    -- As pressões ADOTADAS, da FICHA (`v_info`) e não do memorial (`v_calc`).
+    -- Gravadas sempre em MPa pela seção "Pressões da Documentação", como string
+    -- — daí `f9_num`, que devolve null para vazio e para texto ilegível em vez
+    -- de derrubar a projeção do equipamento inteiro.
+    --
+    -- NÃO há `coalesce` com o calculado aqui, e é a regra desta coluna: vazio
+    -- significa "o engenheiro não adotou", e o cartão precisa poder dizer isso.
+    public.f9_num(v_info ->> 'pmtaAdotadaMpa'),
+    public.f9_num(v_info ->> 'pthAdotadaMpa'),
     nullif(btrim(coalesce(v_calc ->> 'resultado', '')), ''),
     public.f9_num(v_cat ->> 'volInput'),
     nullif(btrim(coalesce(v_cat ->> 'fluidoInput', '')), ''),
@@ -394,6 +406,8 @@ begin
     proxima_inspecao = excluded.proxima_inspecao,
     tem_foto = excluded.tem_foto,         foto_ref = excluded.foto_ref,
     pmta_mpa = excluded.pmta_mpa,         pth_mpa = excluded.pth_mpa,
+    pmta_adotada_mpa = excluded.pmta_adotada_mpa,
+    pth_adotada_mpa  = excluded.pth_adotada_mpa,
     resultado = excluded.resultado,       volume_m3 = excluded.volume_m3,
     fluido = excluded.fluido,             classe_fluido = excluded.classe_fluido,
     vida_anos = excluded.vida_anos,       tem_cliente = excluded.tem_cliente,

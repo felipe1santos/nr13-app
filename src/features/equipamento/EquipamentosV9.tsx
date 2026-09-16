@@ -491,8 +491,13 @@ function LinhaCatalogo({ item, aoAbrir }: { item: ItemCatalogo; aoAbrir: () => v
           <span className="eq-value">{item.categoria ?? '—'}</span>
         </div>
         <div className="eq-col">
+          {/* A ADOTADA da ficha, pelo mesmo motivo do cartão — esta linha é a
+              MESMA lista, só na forma compacta. Ver o cabeçalho de
+              `CardCatalogo.tsx`. Sem adoção: "—", nunca a calculada. */}
           <span className="eq-label">PMTA</span>
-          <span className="eq-value">{item.pmtaMpa != null ? formatarValor(item.pmtaMpa, unidade) : '—'}</span>
+          <span className="eq-value">
+            {item.pmtaAdotadaMpa != null ? formatarValor(item.pmtaAdotadaMpa, unidade) : '—'}
+          </span>
         </div>
         <div className="eq-col eq-col-empresa">
           <span className="eq-label">Empresa</span>

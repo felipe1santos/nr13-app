@@ -43,8 +43,26 @@ export interface ItemCatalogo {
   temFoto: boolean;
   /** REFERÊNCIA da capa no bucket (nunca a imagem). `FotoImg` resolve. */
   fotoRef: RefFoto | null;
+  /** PMTA **calculada** pelo memorial (`nr13_calc_<TAG>.pmta`). */
   pmtaMpa: number | null;
+  /** PTH **calculada** pelo memorial (`nr13_calc_<TAG>.pth`). */
   pthMpa: number | null;
+  /**
+   * PMTA **adotada** pelo engenheiro na ficha, seção "Pressões da Documentação"
+   * (`nr13_info_<TAG>.pmtaAdotadaMpa`), em MPa.
+   *
+   * `null` = **não adotada**, e é o cartão de `/equipamentos` que precisa dessa
+   * diferença: ele escreve "—" em vez de mostrar a calculada, porque o resumo
+   * não pode afirmar uma adoção que o engenheiro não fez. Campo SEPARADO de
+   * `pmtaMpa` de propósito — as outras listas (Inspeções, Prontuários,
+   * Relatórios, Calibrações) continuam mostrando a calculada.
+   *
+   * Fora do cartão, a precedência oficial do sistema segue sendo
+   * `adotada ?? calculada` (PLACA, PRONTUARIO, INSPECOES, PDF vetorial).
+   */
+  pmtaAdotadaMpa: number | null;
+  /** PTH **adotada** na ficha (`nr13_info_<TAG>.pthAdotadaMpa`). Ver `pmtaAdotadaMpa`. */
+  pthAdotadaMpa: number | null;
   resultado: string | null;
   volumeM3: number | null;
   fluido: string | null;
@@ -258,6 +276,13 @@ interface LinhaRpc {
   livro_entradas?: number | string | null;
   /** `date` do Postgres chega como `AAAA-MM-DD`. */
   livro_ultima?: string | null;
+  /**
+   * Pressões adotadas — opcionais porque banco sem esta migração simplesmente
+   * não devolve as colunas, e `undefined` precisa virar `null` ("não adotada"),
+   * que é exatamente o que o cartão já sabe desenhar como "—".
+   */
+  pmta_adotada_mpa?: number | string | null;
+  pth_adotada_mpa?: number | string | null;
 }
 
 /** `numeric` do Postgres chega como STRING no PostgREST — nunca como número. */
@@ -285,6 +310,10 @@ function daLinha(l: LinhaRpc): ItemCatalogo {
     fotoRef: l.foto_ref ?? null,
     pmtaMpa: num(l.pmta_mpa),
     pthMpa: num(l.pth_mpa),
+    // `num` já devolve `null` para ausente/vazio/ilegível — e aqui `null` é a
+    // resposta CERTA: "o engenheiro não adotou". Nada de cair na calculada.
+    pmtaAdotadaMpa: num(l.pmta_adotada_mpa),
+    pthAdotadaMpa: num(l.pth_adotada_mpa),
     resultado: l.resultado,
     volumeM3: num(l.volume_m3),
     fluido: l.fluido,

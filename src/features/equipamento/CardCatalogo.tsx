@@ -14,6 +14,29 @@
  * gravação reprojeta a TAG pela RPC. Por isso `nr13_pref_unidade_` entrou no
  * despachante da 9B: sem ele o usuário trocaria a unidade e a lista voltaria à
  * antiga no próximo carregamento.
+ *
+ * ## PMTA e PTH aqui são as ADOTADAS, não as calculadas (15/09/2026)
+ *
+ * O cartão é o RESUMO DA FICHA daquele equipamento, e na ficha quem manda sobre
+ * pressão para documentação é a seção "Pressões da Documentação": o valor que o
+ * engenheiro ADOTOU (`nr13_info_.pmtaAdotadaMpa`/`.pthAdotadaMpa`). O memorial
+ * calcula, o engenheiro adota — e eram duas coisas diferentes aparecendo com o
+ * mesmo rótulo: o cartão mostrava 2,33 MPa calculada onde a ficha dizia 2,2 MPa
+ * adotada.
+ *
+ * NÃO HÁ QUEDA PARA A CALCULADA. Sem valor adotado o cartão escreve "—". Um
+ * `?? pmtaMpa` faria o resumo afirmar uma adoção que não houve, e o usuário
+ * perderia justamente o sinal de que falta definir aquele valor. (Fora daqui a
+ * precedência oficial do sistema segue sendo `adotada ?? calculada` — PLACA,
+ * PRONTUARIO, INSPECOES e o PDF vetorial não mudaram.)
+ *
+ * O rótulo do PTH perdeu o "(1,3×)": o multiplicador descreve a DERIVAÇÃO do
+ * cálculo, e a pressão adotada não é obrigada a segui-la (nem seria 1,3× numa
+ * caldeira, onde a regra é 1,5×). Anunciar um fator que este número não usa
+ * seria o rótulo mentindo sobre o valor ao lado.
+ *
+ * `item.pmtaMpa`/`item.pthMpa` (as calculadas) CONTINUAM existindo e continuam
+ * sendo o que Inspeções, Prontuários, Relatórios e Calibrações mostram.
  */
 import { useState, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -99,8 +122,8 @@ export default function CardCatalogo({ item }: { item: ItemCatalogo }) {
         <div className="plate-meta-grid">
           <div>
             <div className="plate-meta-k">PMTA</div>
-            <div className={`plate-meta-v${item.pmtaMpa == null ? ' dash' : ''}`}>
-              {item.pmtaMpa != null ? formatarValor(item.pmtaMpa, unidade) : '—'}
+            <div className={`plate-meta-v${item.pmtaAdotadaMpa == null ? ' dash' : ''}`}>
+              {item.pmtaAdotadaMpa != null ? formatarValor(item.pmtaAdotadaMpa, unidade) : '—'}
             </div>
           </div>
           <div>
@@ -120,9 +143,9 @@ export default function CardCatalogo({ item }: { item: ItemCatalogo }) {
             </div>
           </div>
           <div>
-            <div className="plate-meta-k">PTH (1,3×)</div>
-            <div className={`plate-meta-v${item.pthMpa == null ? ' dash' : ''}`}>
-              {item.pthMpa != null ? formatarValor(item.pthMpa, unidade) : '—'}
+            <div className="plate-meta-k">PTH</div>
+            <div className={`plate-meta-v${item.pthAdotadaMpa == null ? ' dash' : ''}`}>
+              {item.pthAdotadaMpa != null ? formatarValor(item.pthAdotadaMpa, unidade) : '—'}
             </div>
           </div>
           <div>

@@ -86,6 +86,26 @@ begin
       message = 'equipamentos_index.livro_ultima nao existe',
       hint    = 'Aplique supabase/busca_index.sql (9F.4.1) antes deste arquivo.';
   end if;
+  -- Pressoes adotadas · as colunas desta etapa, pela MESMA razao: falhar ANTES
+  -- de derrubar a RPC com os `drop` logo abaixo.
+  if not exists (
+    select 1 from information_schema.columns
+     where table_schema = 'public' and table_name = 'equipamentos_index'
+       and column_name = 'pmta_adotada_mpa'
+  ) then
+    raise exception using
+      message = 'equipamentos_index.pmta_adotada_mpa nao existe',
+      hint    = 'Aplique supabase/busca_index.sql (pressoes adotadas) antes deste arquivo.';
+  end if;
+  if not exists (
+    select 1 from information_schema.columns
+     where table_schema = 'public' and table_name = 'equipamentos_index'
+       and column_name = 'pth_adotada_mpa'
+  ) then
+    raise exception using
+      message = 'equipamentos_index.pth_adotada_mpa nao existe',
+      hint    = 'Aplique supabase/busca_index.sql (pressoes adotadas) antes deste arquivo.';
+  end if;
 end $guarda$;
 
 drop function if exists public.buscar_equipamentos(text, text, text, text, integer);
@@ -246,7 +266,13 @@ returns table (
   -- olhou. São CATÁLOGO: o conteúdo, o lacre e a cadeia continuam vindo da
   -- verdade, por TAG, ao abrir o livro.
   livro_entradas   integer,
-  livro_ultima     date
+  livro_ultima     date,
+  -- As pressões ADOTADAS na ficha (seção "Pressões da Documentação"). Nulo =
+  -- não adotada, e o cartão de `/equipamentos` escreve "—". `pmta_mpa`/`pth_mpa`
+  -- acima continuam sendo as CALCULADAS e continuam alimentando os outros
+  -- cartões — as duas coisas viajam juntas de propósito.
+  pmta_adotada_mpa numeric,
+  pth_adotada_mpa  numeric
 )
 language plpgsql
 stable
@@ -286,7 +312,8 @@ begin
          e.pmta_mpa, e.pth_mpa, e.resultado, e.volume_m3, e.fluido,
          e.classe_fluido, e.vida_anos, e.tem_cliente, e.unidade, e.source_version,
          e.inspecoes, e.tem_prontuario, e.calibracoes,
-         e.livro_entradas, e.livro_ultima
+         e.livro_entradas, e.livro_ultima,
+         e.pmta_adotada_mpa, e.pth_adotada_mpa
     from public.equipamentos_index e
    where e.org_id = v_org
      and (p_cursor is null or e.tag > p_cursor)
