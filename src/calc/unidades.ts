@@ -37,9 +37,20 @@ export const FATORES_CONVERSAO: Record<SistemaUnidade, FatorUnidade> = {
  * não deixa nem abrir a tela.
  */
 export function unidadeValida(v: unknown): SistemaUnidade {
-  return typeof v === 'string' && Object.prototype.hasOwnProperty.call(FATORES_CONVERSAO, v)
-    ? (v as SistemaUnidade)
-    : 'SI';
+  return ehSistemaUnidade(v) ? v : 'SI';
+}
+
+/**
+ * É uma das três unidades oficiais? ESTRITO — sem recuo.
+ *
+ * `unidadeValida` serve à LEITURA: valor ruim vira SI para a tela não cair.
+ * Na CRIAÇÃO o recuo seria o defeito: um valor inválido viraria SI em silêncio
+ * e o equipamento nasceria com uma unidade que ninguém escolheu. Quem cria
+ * (cadastro manual, importação, demonstração) confere com esta função e recusa
+ * antes de gravar qualquer chave.
+ */
+export function ehSistemaUnidade(v: unknown): v is SistemaUnidade {
+  return typeof v === 'string' && Object.prototype.hasOwnProperty.call(FATORES_CONVERSAO, v);
 }
 
 export function paraExibicao(valorMpa: number, sistema: SistemaUnidade): number {

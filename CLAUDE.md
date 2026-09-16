@@ -147,7 +147,7 @@ Tudo que o usuário salva pode ser fonte de injeção. Chaves por TAG do equipam
 | `nr13_emp_<TAG>` | Empresa/cliente do equipamento | Cadastro de cliente |
 | `nr13_fotos_<TAG>` | Fotos da capa/equipamento | Ficha |
 | `nr13_med_esp_<TAG>` | Medição de espessura (ultrassom/ME) | Inspeção |
-| `nr13_pref_unidade_<TAG>` | Unidade de medida do EQUIPAMENTO (`SI`/`TECNICO`/`PETROBRAS`; ausente = SI) | **Só na criação**: modal Criar equipamento → `criarEquipamento`, ou importação de planilha → `importarLinhas` (unidade do LOTE). Não se altera depois (§4) |
+| `nr13_pref_unidade_<TAG>` | Unidade de medida do EQUIPAMENTO (`SI`/`TECNICO`/`PETROBRAS`; ausente = SI) | **Só na criação**, pelos TRÊS fluxos que criam equipamento: modal Criar → `criarEquipamento`; planilha → `importarLinhas` (unidade do LOTE); trial → `injetarDadosDemo` (SI, o default oficial). Sempre ANTES do `nr13_info_`. Não se altera depois (§4) |
 | `nr13_minha_empresa` | Dados + logo da empresa executante | "Minha Empresa" |
 | `nr13_lista_phs` | Profissionais habilitados / engenheiros (assinatura) | Funcionários |
 | `nr13_calibracao_item_<id>` | Certificado de calibração | Calibrações |
@@ -322,9 +322,17 @@ link numa aba nova ou dava F5 dentro dele é que caía na lista.
 
 - **A unidade é característica do EQUIPAMENTO e se escolhe SOMENTE NA CRIAÇÃO (16/09/2026).** Depois
   disso nenhuma tela a altera: cartão e ficha a mostram como TEXTO (sem select, sem select desabilitado,
-  sem botão). Só os dois fluxos de CRIAÇÃO escrevem `nr13_pref_unidade_<TAG>`: `criarEquipamento`
-  (manual) e `importarLinhas` (planilha) — travado por `unidadeSomenteNaCriacao.test.ts`, que varre
-  `src/` e `public/` e quebra com um terceiro escritor.
+  sem botão). Só os TRÊS fluxos que CRIAM equipamento escrevem `nr13_pref_unidade_<TAG>`:
+  `criarEquipamento` (manual), `importarLinhas` (planilha) e `injetarDadosDemo` (trial) — travado por
+  `unidadeSomenteNaCriacao.test.ts`, que varre `src/` e `public/` e quebra com um quarto escritor.
+- **TODO EQUIPAMENTO NOVO NASCE COM A UNIDADE GRAVADA.** O recuo SI é só para LEGADO. Nos três fluxos a
+  unidade é conferida com `ehSistemaUnidade` (estrito, sem recuo) antes de qualquer gravação, e gravada
+  **antes** do `nr13_info_` — que é o que faz o equipamento existir. O storage não tem escrita atômica
+  entre chaves; é a ORDEM que garante o invariante: falha na unidade não cria nada; falha no info deixa
+  só uma chave de unidade sem equipamento, e repetir a criação conclui. `criarEquipamento` exige a
+  unidade (sem default) e recusa TAG já existente sem gravar. `criacaoComUnidade.test.ts` (22) prova
+  as falhas artificiais em cada etapa e varre o projeto: só três arquivos gravam `nr13_info_`, e toda
+  gravação de criação tem a unidade na linha imediatamente anterior.
 - Ela decide APRESENTAÇÃO e ENTRADA (a ficha recebe pressões nela) e a unidade em que o relatório sai.
   O valor técnico continua canônico em **MPa**. Equipamento sem a chave (anterior a 16/09/2026) = SI.
   **Importação de planilha:** a unidade é do LOTE, escolhida na revisão (`Unidade de medida dos

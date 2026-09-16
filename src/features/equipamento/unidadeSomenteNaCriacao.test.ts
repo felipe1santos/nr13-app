@@ -82,9 +82,11 @@ describe('a criação é o fluxo que grava a unidade', () => {
     });
   }
 
-  it('sem unidade informada, o default da criação é SI — o recuo de sempre', async () => {
-    await criarEquipamento('ZZ-CRIA-PADRAO', 'vaso');
-    expect(gravacoes.lista).toContainEqual(['nr13_pref_unidade_ZZ-CRIA-PADRAO', 'SI']);
+  it('sem unidade informada a criação é RECUSADA — o recuo SI é só do legado', async () => {
+    await expect(
+      criarEquipamento('ZZ-CRIA-PADRAO', 'vaso', '', undefined as unknown as SistemaUnidade),
+    ).rejects.toThrow(/unidade de medida/i);
+    expect(gravacoes.lista).toEqual([]);
   });
 });
 
@@ -101,12 +103,13 @@ describe('só a CRIAÇÃO escreve `nr13_pref_unidade_` no sistema inteiro', () =
       .filter((l) => l.linha.includes('pref_unidade') && ESCRITA.test(l.linha)),
   );
 
-  it('dois escritores, os dois de CRIAÇÃO: cadastro manual e importação', () => {
-    // A importação entrou em 16/09/2026: equipamento importado também nasce com a
-    // unidade gravada (a do lote), em vez de depender do recuo SI dos leitores.
-    expect(escritores.map((e) => e.arq).sort()).toEqual([
+  it('só os três fluxos de CRIAÇÃO escrevem: manual, importação e demonstração', () => {
+    // A importação e a demonstração entraram em 16/09/2026: todo equipamento novo
+    // nasce com a unidade gravada, em vez de depender do recuo SI dos leitores.
+    expect([...new Set(escritores.map((e) => e.arq))].sort()).toEqual([
       'src/features/equipamento/equipamentoService.ts',
       'src/features/equipamento/importarPlanilhaService.ts',
+      'src/services/demoSeed.ts',
     ]);
   });
 

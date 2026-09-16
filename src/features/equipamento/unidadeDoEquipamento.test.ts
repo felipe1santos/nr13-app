@@ -209,8 +209,9 @@ describe('a criação grava a unidade, e o parque antigo tem recuo provado', () 
     const s = fonte('src/features/equipamento/equipamentoService.ts');
     expect(s).toContain('await salvar(`nr13_pref_unidade_${tag}`, unidade);');
     // Grava SEMPRE, inclusive SI: é o que distingue "escolheu SI" de "nunca
-    // escolheu", e sem essa distinção não há migração honesta depois.
-    expect(s).toContain("unidade: SistemaUnidade = 'SI'");
+    // escolheu", e sem essa distinção não há migração honesta depois. E sem
+    // default na assinatura desde 16/09/2026: quem cria, escolhe.
+    expect(s).toMatch(/unidade: SistemaUnidade,\r?\n\): Promise<void>/);
   });
 
   it('o formulário de criação oferece as três, e só elas', () => {

@@ -13,6 +13,22 @@
 > cada família de chave, o que já foi resolvido e o que falta, em ordem de risco. Consultar
 > antes de mexer em qualquer coisa que grave arquivo.
 
+## 0-SEPTIES. ESCALA — a importação de planilha e o cadastro hidratam a organização inteira (16/09/2026)
+
+Problema de **escala/performance**, não de unidade — registrado separado de propósito.
+
+`analisarPlanilha` (`features/equipamento/importarPlanilhaService.ts`) chama `await lerTudo()`
+antes de conferir TAG existente, e `tagJaExiste` (`equipamentoService.ts`, usado pelo modal Criar
+equipamento) faz o mesmo. `lerTudo()` baixa a ORGANIZAÇÃO INTEIRA — o caminho que o boot leve da
+Fase 9 existe para evitar (a Fase 8 mediu ~4 min e 1,63 GB com 51.000 equipamentos). Hoje, numa
+organização grande, abrir a revisão da importação ou criar um equipamento dispara essa hidratação.
+
+A checagem precisa ser só "esta TAG existe?". Caminho provável: consultar a existência das TAGs
+pelo servidor (projeção `equipamentos_index` ou `app_storage` filtrado por `nr13_info_<TAG>`), em
+lote para a planilha. Cuidado ao trocar: a guarda de TAG existente é o que impede importar/criar por
+cima de um equipamento — e, com a unidade imutável, por cima da UNIDADE dele. Sem rede, a checagem
+não pode responder "não existe".
+
 ## 0-SEXIES. AUDITORIA DE "CONFIGURAÇÕES DO RELATÓRIO" (15/09/2026) — 3 lacunas
 
 Auditoria ponta a ponta dos 11 controles do modal, com sentinela única por campo e o

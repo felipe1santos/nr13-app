@@ -6,7 +6,7 @@ import {
   semearEquipamentoDetalhado,
 } from '../../services/storage';
 import type { ResultadoSemeadura } from '../../services/storageV2';
-import type { SistemaUnidade } from '../../calc/unidades';
+import { ehSistemaUnidade, type SistemaUnidade } from '../../calc/unidades';
 import * as buscaIndex from '../../services/buscaIndex';
 import type { FiltrosBusca, ItemCatalogo, PaginaCatalogo } from '../../services/buscaIndex';
 import { POR_TAG } from '../../services/familiasChave';
@@ -116,13 +116,14 @@ export async function criarEquipamento(
    * mexesse no seletor do cartão. Agora ela é característica do equipamento,
    * definida na hora em que ele nasce — e o seletor do cartão deixou de existir.
    *
-   * O default `'SI'` aqui NÃO é escolha nova: é o mesmo recuo de sempre,
-   * agora escrito uma vez só e no lugar certo. O modal de criação sempre passa
-   * a unidade escolhida. (A importação de planilha NÃO passa por aqui: grava a
-   * unidade do LOTE em `importarLinhas`, com a unidade obrigatória na
-   * assinatura.)
+   * OBRIGATÓRIA, sem default (16/09/2026). Havia `= 'SI'` aqui, e com ele um
+   * chamador que não passasse unidade criava o equipamento em SI em silêncio —
+   * o recuo de LEITURA fazendo papel de escolha. O recuo SI fica para o
+   * legado; equipamento novo nasce com a unidade que alguém escolheu. O modal
+   * de criação sempre a passa. (A importação de planilha não passa por aqui:
+   * grava a unidade do LOTE em `importarLinhas`, também obrigatória.)
    */
-  unidade: SistemaUnidade = 'SI',
+  unidade: SistemaUnidade,
 ): Promise<void> {
   // O teto do trial é checado AQUI, no serviço, e não só no botão: a criação
   // tem mais de um ponto de entrada (tela de equipamentos e importação de
@@ -131,8 +132,32 @@ export async function criarEquipamento(
   // A versão ASSÍNCRONA porque sob `boot_v9` o cache não tem a organização: a
   // contagem local daria zero e o teto sumiria em silêncio. Fora do boot leve
   // ela não vai à rede — devolve o mesmo resultado síncrono de sempre.
+  // ── ORDEM DA CRIAÇÃO (16/09/2026) ──────────────────────────────────────
+  // Antes, `nr13_info_` era gravado PRIMEIRO e a unidade depois: uma falha entre
+  // as duas deixava um equipamento criado sem unidade, que só "era SI" pelo
+  // recuo dos leitores. Agora, e nesta ordem:
+  //   1. a unidade é conferida ANTES de qualquer E/S — inválida não grava nada;
+  //   2. teto do trial;
+  //   3. TAG já existente é recusada ANTES de gravar — criar de novo nunca
+  //      troca a unidade de um equipamento que existe;
+  //   4. a UNIDADE é gravada;
+  //   5. só então `nr13_info_`, que é o que faz o equipamento existir.
+  // Falha em 4: nada foi criado. Falha em 5: sobra só uma chave de unidade sem
+  // equipamento, e repetir a criação conclui (o passo 3 não a enxerga como
+  // equipamento, porque `nr13_info_` não existe). O storage não tem escrita em
+  // lote atômica entre chaves; a ORDEM é o que garante o invariante.
+  if (!ehSistemaUnidade(unidade)) {
+    throw new Error('Escolha a unidade de medida do equipamento (SI, Técnico ou Petrobras).');
+  }
+
   const limite = await podeCriarEquipamentoAgora();
   if (!limite.permitido) throw new ErroLimiteTrial(limite.motivo);
+
+  // O modal já confere com `tagJaExiste` (que hidrata antes de ler); esta
+  // guarda é a do SERVIÇO, para nenhum outro chamador conseguir sobrescrever.
+  if (ler<InfoEquipamento>(`nr13_info_${tag}`) !== null) {
+    throw new Error(`Já existe um equipamento com a TAG "${tag}".`);
+  }
 
   const info: InfoEquipamento = {
     tag,
@@ -140,11 +165,11 @@ export async function criarEquipamento(
     // mantém o subtipo escolhido para autoclave E caldeira; vaso não tem subtipo.
     subtipo: tipo === 'autoclave' || tipo === 'caldeira' ? subtipo : '',
   };
-  await salvar(`nr13_info_${tag}`, info);
   // A unidade é gravada SEMPRE, inclusive quando é SI. Gravar só o que foge do
   // padrão deixaria "nunca escolheu" e "escolheu SI" indistinguíveis — e é essa
   // diferença que permite migrar o parque antigo sem chutar.
   await salvar(`nr13_pref_unidade_${tag}`, unidade);
+  await salvar(`nr13_info_${tag}`, info);
 }
 
 // ── Fase 9 · lista leve e carregamento sob demanda ──────────────────────────

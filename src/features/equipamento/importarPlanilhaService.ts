@@ -5,7 +5,7 @@ import { MSG_BLOQUEIO_IMPORTACAO } from '../../services/trial';
 import { emitirAviso } from '../../services/eventos';
 import type { EmpresaEquipamento, InfoEquipamento, TipoEquipamento } from './tipos';
 import { normalizarTag } from './tagNormalizada';
-import { FATORES_CONVERSAO, type SistemaUnidade } from '../../calc/unidades';
+import { ehSistemaUnidade, type SistemaUnidade } from '../../calc/unidades';
 
 /**
  * Importação de equipamentos por planilha (.xlsx / .xls / .ods / .csv).
@@ -345,7 +345,7 @@ function respirar(): Promise<void> {
 
 /** A unidade do lote é uma das três oficiais? (A tela só oferece essas; o serviço confere.) */
 export function unidadeDeLoteValida(unidade: unknown): unidade is SistemaUnidade {
-  return typeof unidade === 'string' && Object.prototype.hasOwnProperty.call(FATORES_CONVERSAO, unidade);
+  return ehSistemaUnidade(unidade);
 }
 
 /**

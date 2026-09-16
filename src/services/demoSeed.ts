@@ -11,10 +11,25 @@ import type {
   InfoEquipamento,
 } from '../features/equipamento/tipos';
 import type { ContainerInspecao } from '../features/inspecoes/tipos';
+import type { SistemaUnidade } from '../calc/unidades';
 
 const MARCADOR = 'nr13_demo_seed';
 const TAG_VASO = 'DEMO-VP-01';
 const TAG_COMP = 'DEMO-CP-01';
+
+/**
+ * A unidade dos equipamentos de demonstração (16/09/2026).
+ *
+ * Todo equipamento NOVO nasce com `nr13_pref_unidade_<TAG>` gravada. Aqui não
+ * há quem escolha, então vai o DEFAULT OFICIAL do sistema, que é SI: é o recuo
+ * de `unidadeValida` (e de todo leitor), o valor inicial dos dois formulários de
+ * criação e o default de `criarEquipamento`. `criacaoComUnidade.test.ts` quebra
+ * se esta constante e o recuo oficial divergirem.
+ *
+ * SI é também o que a demonstração SEMPRE mostrou — os valores do memorial
+ * de exemplo estão em MPa e apareciam em SI pelo recuo. Nada muda na tela.
+ */
+export const UNIDADE_DEMO: SistemaUnidade = 'SI';
 
 const CLIENTE_DEMO: Cliente = {
   id: 'demo-cli-01',
@@ -202,7 +217,11 @@ export async function injetarDadosDemo(empresaNome: string): Promise<void> {
     await salvar('nr13_lista_phs', [...phs, PH_DEMO]);
   }
 
+  // Em cada equipamento, a UNIDADE vai antes do `nr13_info_` (que é o que faz o
+  // equipamento existir): falha no meio nunca deixa equipamento sem unidade, e
+  // como o marcador só é gravado no fim, a próxima entrada conclui o que faltou.
   if (!ler(`nr13_info_${TAG_VASO}`)) {
+    await salvar(`nr13_pref_unidade_${TAG_VASO}`, UNIDADE_DEMO);
     await salvar(`nr13_info_${TAG_VASO}`, infoVaso());
     await salvar(`nr13_emp_${TAG_VASO}`, empresaDoEquip());
     await salvar(`nr13_cat_${TAG_VASO}`, categoriaVaso());
@@ -212,6 +231,7 @@ export async function injetarDadosDemo(empresaNome: string): Promise<void> {
   }
 
   if (!ler(`nr13_info_${TAG_COMP}`)) {
+    await salvar(`nr13_pref_unidade_${TAG_COMP}`, UNIDADE_DEMO);
     await salvar(`nr13_info_${TAG_COMP}`, infoCompressor());
     await salvar(`nr13_emp_${TAG_COMP}`, empresaDoEquip());
     await salvar(`nr13_cat_${TAG_COMP}`, categoriaCompressor());
