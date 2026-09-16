@@ -157,7 +157,9 @@ describe('carregarEquipamento — a ponte que dispensa reescrever os templates',
   it('sem rede, NÃO lança e NÃO apaga o que já estava no cache', async () => {
     await carregarEquipamento(TAG);
     servidor.falhar = true;
-    await expect(carregarEquipamento(TAG)).resolves.toBeUndefined();
+    // Não lança — e AVISA que o servidor não respondeu. É esse `falhou` que
+    // deixa a ficha dizer "sem conexão" em vez de "não encontrado".
+    await expect(carregarEquipamento(TAG)).resolves.toEqual({ postas: 0, falhou: true });
     // Derrubar a navegação por causa da rede transformaria uma tela degradada
     // numa tela quebrada.
     expect(ler<{ tag: string }>(`nr13_info_${TAG}`)?.tag).toBe(TAG);

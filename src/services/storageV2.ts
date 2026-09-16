@@ -685,12 +685,31 @@ export function limparCacheDados(): void {
  * o Portal, somente leitura). Fixar 1 aqui faria a próxima edição do usuário
  * nascer com versão errada e voltar `conflito` da RPC.
  */
+export interface ResultadoSemeadura {
+  /** Quantas chaves o servidor devolveu e entraram no cache. */
+  postas: number;
+  /**
+   * O servidor NÃO respondeu — offline, erro do PostgREST, cache não iniciado
+   * ou escopo de organização indisponível.
+   *
+   * Existe porque `postas: 0` sozinho é AMBÍGUO: vale tanto para "a TAG não
+   * existe" quanto para "não deu para perguntar". Quem abre a ficha precisa
+   * distinguir os dois — dizer "equipamento não encontrado" a quem está sem
+   * rede é afirmar uma exclusão que ninguém fez.
+   */
+  falhou: boolean;
+}
+
 export async function semearEquipamento(chaves: string[]): Promise<number> {
-  if (!iniciado && !(await iniciar())) return 0;
-  if (!chaves.length) return 0;
+  return (await semearEquipamentoDetalhado(chaves)).postas;
+}
+
+export async function semearEquipamentoDetalhado(chaves: string[]): Promise<ResultadoSemeadura> {
+  if (!iniciado && !(await iniciar())) return { postas: 0, falhou: true };
+  if (!chaves.length) return { postas: 0, falhou: false };
   try {
     const escopo = await escopoStorageAtual();
-    if (!escopo) return 0;
+    if (!escopo) return { postas: 0, falhou: true };
 
     let postas = 0;
     // Em blocos: a lista de chaves de uma TAG é pequena, mas `in()` vira query
@@ -702,7 +721,7 @@ export async function semearEquipamento(chaves: string[]): Promise<number> {
         .select('chave, valor, versao, atualizado_em, dispositivo, deletado_em')
         .eq(escopo.coluna, escopo.id)
         .in('chave', bloco);
-      if (error) return postas; // offline: fica com o que já havia no cache
+      if (error) return { postas, falhou: true }; // offline: fica com o que já havia no cache
 
       for (const linha of (data ?? []) as Array<Record<string, unknown>>) {
         const chave = String(linha.chave);
@@ -720,8 +739,8 @@ export async function semearEquipamento(chaves: string[]): Promise<number> {
         postas++;
       }
     }
-    return postas;
+    return { postas, falhou: false };
   } catch {
-    return 0; // offline: o que já estiver no cache continua valendo
+    return { postas: 0, falhou: true }; // offline: o que já estiver no cache continua valendo
   }
 }

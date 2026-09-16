@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import type { CalculoSalvo, CategoriaSalva, FotoEquipamento, InfoEquipamento } from '../features/equipamento/tipos';
 import { carregarInfo, carregarUnidade, salvarUnidade } from '../features/equipamento/equipamentoService';
+import { aberturaDoCache, abrirFicha, type AberturaFicha } from '../features/equipamento/aberturaFicha';
 import { excluirVaso, ler } from '../services/storage';
 import SeletorUnidade from '../features/equipamento/SeletorUnidade';
 import DadosEquipamento from '../features/equipamento/DadosEquipamento';
@@ -26,11 +27,108 @@ const ROTULO_TIPO: Record<string, string> = {
   caldeira: 'Caldeira',
 };
 
+/**
+ * A PORTA DE ENTRADA DA FICHA (16/09/2026).
+ *
+ * Aqui não se navega para lugar nenhum. O componente antigo fazia
+ * `if (!info) navigate('/equipamentos')` num efeito: com o boot leve (9G.3) o
+ * cache nasce SEM nenhuma `nr13_info_`, então todo clique num cartão abria a
+ * ficha e voltava para a lista — o "piscou e voltou". O cache virou atalho, e
+ * quem resolve a ficha é `abrirFicha` (ver `aberturaFicha.ts`).
+ *
+ * Os quatro estados são desenhados, e nenhum deles é um redirecionamento:
+ * carregando, encontrado, ausente e indisponível. Redirecionar em silêncio é o
+ * que fazia o usuário achar que o clique não funcionou.
+ */
 export default function Equipamento() {
   const { tag = '' } = useParams<{ tag: string }>();
-  // key={tag} força remontar tudo ao trocar de equipamento, então o estado abaixo
-  // pode usar inicialização lazy em vez de useEffect+setState.
-  return <EquipamentoView key={tag} tag={tag} />;
+  // key={tag}: trocar de equipamento REMONTA a porta, e o estado abaixo nasce
+  // do cache daquela TAG. Sem isso, a ficha anterior ficaria na tela enquanto a
+  // nova carrega — e pior, um `setState` dentro do efeito para consertar isso.
+  return <PortaFicha key={tag} tag={tag} />;
+}
+
+function PortaFicha({ tag }: { tag: string }) {
+  const [abertura, setAbertura] = useState<AberturaFicha>(() => aberturaDoCache(tag));
+  const [tentativa, setTentativa] = useState(0);
+
+  useEffect(() => {
+    // Já em cache (inclusive OFFLINE): nada a buscar.
+    if (abertura.estado === 'encontrado') return;
+    let vivo = true;
+    void abrirFicha(tag).then((r) => {
+      if (vivo) setAbertura(r);
+    });
+    return () => {
+      vivo = false;
+    };
+    // `abertura` de propósito FORA das dependências: ela é o RESULTADO deste
+    // efeito, e reagir a ela faria a busca recomeçar a cada resposta.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tag, tentativa]);
+
+  if (abertura.estado === 'carregando') {
+    return (
+      <div className="equipamento-page">
+        <div className="fj-empty">
+          <div className="fj-empty-ic">
+            <Icone nome="box" tam={22} />
+          </div>
+          <div className="fj-empty-title">Carregando equipamento…</div>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5 }}>TAG: {tag}</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (abertura.estado === 'ausente') {
+    return (
+      <div className="equipamento-page">
+        <div className="fj-empty">
+          <div className="fj-empty-ic">
+            <Icone nome="search" tam={22} />
+          </div>
+          <div className="fj-empty-title">Equipamento não encontrado</div>
+          <div style={{ marginBottom: 10 }}>
+            Nenhum equipamento com a TAG <b>{tag}</b> nesta organização.
+          </div>
+          <Link to="/equipamentos" className="fj-link">
+            Voltar para a lista de equipamentos
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (abertura.estado === 'indisponivel') {
+    return (
+      <div className="equipamento-page">
+        <div className="fj-empty">
+          <div className="fj-empty-ic">
+            <Icone nome="cloudoff" tam={22} />
+          </div>
+          <div className="fj-empty-title">Sem conexão com o servidor</div>
+          <div style={{ marginBottom: 10 }}>
+            O equipamento <b>{tag}</b> não está neste aparelho e não foi possível buscá-lo agora.
+          </div>
+          <button
+            type="button"
+            className="fj-btn fj-btn-ghost"
+            onClick={() => {
+              setAbertura({ estado: 'carregando' });
+              setTentativa((n) => n + 1);
+            }}
+          >
+            <Icone nome="refresh" tam={14} /> Tentar de novo
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // key={tag} força remontar tudo ao trocar de equipamento — e garante que a
+  // inicialização lazy do estado abaixo leia o cache JÁ semeado.
+  return <EquipamentoView key={abertura.tag} tag={abertura.tag} />;
 }
 
 function EquipamentoView({ tag }: { tag: string }) {
@@ -51,10 +149,6 @@ function EquipamentoView({ tag }: { tag: string }) {
   const categoria = ler<CategoriaSalva>(`nr13_cat_${tag}`);
   const fotos = ler<FotoEquipamento[]>(`nr13_fotos_${tag}`) || [];
   const fotoCapa = fotos.find((f) => f.isCapa) || fotos[0] || null;
-
-  useEffect(() => {
-    if (!info) navigate('/equipamentos');
-  }, [info, navigate]);
 
   useEffect(() => {
     function atualizarCalculo() {
@@ -102,7 +196,10 @@ function EquipamentoView({ tag }: { tag: string }) {
     }
   }
 
-  if (!info) return <p>Carregando...</p>;
+  // Guarda defensiva: quem monta esta view é a porta de entrada acima, que só o
+  // faz com a ficha já no cache. Sem navegação — a ficha não devolve ninguém
+  // para a lista por causa de cache.
+  if (!info) return <p>Carregando…</p>;
 
   const pmtaMpaRaw = calculo ? parseFloat(calculo.pmta) : NaN;
   const pmtaMpa = Number.isFinite(pmtaMpaRaw) ? pmtaMpaRaw : null;

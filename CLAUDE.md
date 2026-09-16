@@ -271,6 +271,45 @@ Travado por `pressoesAdotadasCartao.test.ts`.
 
 ---
 
+### §3-ter — A FICHA ABRE SEM O CACHE (16/09/2026)
+
+> **REGRA QUE NÃO SE QUEBRA:** cache vazio **não** é motivo para fechar uma
+> tela. `/equipamento/:tag` nunca redireciona para `/equipamentos` por não ter
+> achado a TAG no cache — busca no servidor e, só então, diz o que houve.
+
+A ficha lia `nr13_info_<TAG>` do cache e, não achando, fazia
+`navigate('/equipamentos')` dentro de um efeito. Isso funcionou enquanto o boot
+hidratava a organização inteira; desde a 9G.3 o **boot leve é o único caminho**
+e `nr13_info_` não está — nem pode estar — em `essencial.ts`, cuja regra é não
+crescer com o parque. Num aparelho novo, numa aba nova e depois de um F5 o cache
+não tem ficha nenhuma: a lista (que vem da projeção) mostrava os cartões e todo
+clique voltava para a lista. Na tela: "piscou e voltou".
+
+Todas as outras telas por equipamento — inspeções, prontuários, calibrações,
+livro, relatórios — já semeavam com `carregarEquipamento(tag)` antes de ler. A
+ficha foi a única que ficou para trás.
+
+`features/equipamento/aberturaFicha.ts` é a regra: cache (atalho, e o caminho
+OFFLINE) → `carregarEquipamento(tag)` (as chaves de UMA TAG, filtradas por
+organização e sob RLS) → quatro estados DESENHADOS, nenhum deles um
+redirecionamento: `carregando`, `encontrado`, `ausente`, `indisponivel`.
+
+`ausente` e `indisponivel` são separados de propósito, e é por isso que
+`semearEquipamentoDetalhado` devolve `{ postas, falhou }`: `postas: 0` sozinho
+vale tanto para "a TAG não existe" quanto para "não deu para perguntar", e dizer
+"equipamento não encontrado" a quem está sem rede é afirmar uma exclusão que
+ninguém fez. TAG de outra organização responde `ausente` igual a uma TAG
+inexistente — "sem permissão" confirmaria a existência do equipamento alheio.
+
+URL escrita à mão resolve pela **segunda** tentativa, com `normalizarTag`; a
+tentativa EXATA vem primeiro porque equipamento antigo pode ter TAG fora dessa
+forma, e normalizar antes de perguntar o deixaria inalcançável para sempre.
+
+Travado por `fichaSobDemanda.test.ts` (21), que roda com o cache VAZIO e confere
+também **o que foi pedido ao servidor** — as chaves de uma TAG, nunca o catálogo.
+
+---
+
 ## 4. Unidades de medida
 
 - A unidade é definida **dentro da ficha** e reflete em todo o sistema, convertendo onde necessário.

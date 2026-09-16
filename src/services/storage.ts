@@ -166,6 +166,23 @@ export async function semearEquipamento(chaves: string[]): Promise<number> {
 }
 
 /**
+ * A mesma semeadura, dizendo se o SERVIDOR RESPONDEU.
+ *
+ * `semearEquipamento` devolve só a contagem, e zero é ambíguo: vale para "esta
+ * TAG não existe" e para "não deu para perguntar". Quem abre a ficha decide
+ * entre "Equipamento não encontrado" e "sem conexão" com esta resposta — e a
+ * diferença entre as duas é a diferença entre informar e mentir.
+ *
+ * No caminho v1 é no-op, como a função acima: lá o cache É o `localStorage` do
+ * aparelho e não existe semeadura por TAG. `falhou: false` mantém o v1 com o
+ * significado que sempre teve — não achou no cache, não tem.
+ */
+export async function semearEquipamentoDetalhado(chaves: string[]): Promise<v2.ResultadoSemeadura> {
+  if (!v2Ativo()) return { postas: 0, falhou: false };
+  return v2.semearEquipamentoDetalhado(chaves);
+}
+
+/**
  * Fase 9 · 9D — o boot baixa só o essencial (ver `essencial.ts`).
  *
  * No caminho v1 é no-op, e por isso `bootV9Ativo()` já exige a v2: lá o cache

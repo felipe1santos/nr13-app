@@ -1,4 +1,11 @@
-import { ler, lerTudo, listarChavesComPrefixo, salvar, semearEquipamento } from '../../services/storage';
+import {
+  ler,
+  lerTudo,
+  listarChavesComPrefixo,
+  salvar,
+  semearEquipamentoDetalhado,
+} from '../../services/storage';
+import type { ResultadoSemeadura } from '../../services/storageV2';
 import type { SistemaUnidade } from '../../calc/unidades';
 import * as buscaIndex from '../../services/buscaIndex';
 import type { FiltrosBusca, ItemCatalogo, PaginaCatalogo } from '../../services/buscaIndex';
@@ -187,9 +194,13 @@ export function chavesDoEquipamento(tag: string): string[] {
  * Não lança: sem rede, o que já estiver no cache continua valendo, e a tela de
  * detalhe decide o que dizer. Derrubar a navegação por causa da rede seria
  * transformar uma tela degradada numa tela quebrada.
+ *
+ * DEVOLVE `{ falhou }` — se o servidor respondeu. Quem só semeia ignora; quem
+ * precisa dizer ao usuário por que a tela está vazia (a ficha, 16/09/2026)
+ * depende disso para não chamar de "não encontrado" o que é falta de rede.
  */
-export async function carregarEquipamento(tag: string): Promise<void> {
-  await semearEquipamento(chavesDoEquipamento(tag));
+export async function carregarEquipamento(tag: string): Promise<ResultadoSemeadura> {
+  const primeira = await semearEquipamentoDetalhado(chavesDoEquipamento(tag));
 
   const porId: string[] = [];
 
@@ -199,7 +210,12 @@ export async function carregarEquipamento(tag: string): Promise<void> {
   const indice = ler<Array<{ id?: unknown }>>(chaveIndice(tag));
   for (const id of idsDe(indice)) porId.push(chaveRelatorio(id, tag));
 
-  if (porId.length) await semearEquipamento(porId);
+  const segunda = porId.length ? await semearEquipamentoDetalhado(porId) : null;
+
+  return {
+    postas: primeira.postas + (segunda?.postas ?? 0),
+    falhou: primeira.falhou || (segunda?.falhou ?? false),
+  };
 }
 
 /**
