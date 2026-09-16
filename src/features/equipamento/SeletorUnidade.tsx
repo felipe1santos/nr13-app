@@ -1,10 +1,10 @@
-import { FATORES_CONVERSAO, type SistemaUnidade } from '../../calc/unidades';
+import { FATORES_CONVERSAO, rotuloSistemaCompleto, type SistemaUnidade } from '../../calc/unidades';
 
-const OPCOES: { value: SistemaUnidade; label: string }[] = [
-  { value: 'SI', label: `SI (${FATORES_CONVERSAO.SI.labelPressao})` },
-  { value: 'TECNICO', label: `Técnico (${FATORES_CONVERSAO.TECNICO.labelPressao})` },
-  { value: 'PETROBRAS', label: `Petrobras (${FATORES_CONVERSAO.PETROBRAS.labelPressao})` },
-];
+// Os nomes vivem em `unidades.ts` desde 16/09/2026: o cadastro, o cartão e esta
+// ficha mostram o mesmo rótulo, e três cópias divergiriam na primeira mudança.
+const OPCOES: { value: SistemaUnidade; label: string }[] = (
+  Object.keys(FATORES_CONVERSAO) as SistemaUnidade[]
+).map((value) => ({ value, label: rotuloSistemaCompleto(value) }));
 
 export default function SeletorUnidade({
   unidade,

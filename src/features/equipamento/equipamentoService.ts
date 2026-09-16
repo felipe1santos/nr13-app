@@ -1,4 +1,5 @@
 import { ler, lerTudo, listarChavesComPrefixo, salvar, semearEquipamento } from '../../services/storage';
+import type { SistemaUnidade } from '../../calc/unidades';
 import * as buscaIndex from '../../services/buscaIndex';
 import type { FiltrosBusca, ItemCatalogo, PaginaCatalogo } from '../../services/buscaIndex';
 import { POR_TAG } from '../../services/familiasChave';
@@ -96,6 +97,19 @@ export async function criarEquipamento(
   tag: string,
   tipo: TipoEquipamento,
   subtipo: InfoEquipamento['subtipo'] = '',
+  /**
+   * A unidade de medida do equipamento, escolhida na CRIAÇÃO (16/09/2026).
+   *
+   * Antes desta data a criação não gravava nada: a unidade nascia do recuo
+   * `|| 'SI'` espalhado pelos leitores, e só passava a existir se alguém
+   * mexesse no seletor do cartão. Agora ela é característica do equipamento,
+   * definida na hora em que ele nasce — e o seletor do cartão deixou de existir.
+   *
+   * O default `'SI'` aqui NÃO é escolha nova: é o mesmo recuo de sempre,
+   * agora escrito uma vez só e no lugar certo. Ele serve à importação de
+   * planilha, que cria equipamento sem passar por formulário.
+   */
+  unidade: SistemaUnidade = 'SI',
 ): Promise<void> {
   // O teto do trial é checado AQUI, no serviço, e não só no botão: a criação
   // tem mais de um ponto de entrada (tela de equipamentos e importação de
@@ -114,6 +128,10 @@ export async function criarEquipamento(
     subtipo: tipo === 'autoclave' || tipo === 'caldeira' ? subtipo : '',
   };
   await salvar(`nr13_info_${tag}`, info);
+  // A unidade é gravada SEMPRE, inclusive quando é SI. Gravar só o que foge do
+  // padrão deixaria "nunca escolheu" e "escolheu SI" indistinguíveis — e é essa
+  // diferença que permite migrar o parque antigo sem chutar.
+  await salvar(`nr13_pref_unidade_${tag}`, unidade);
 }
 
 // ── Fase 9 · lista leve e carregamento sob demanda ──────────────────────────
