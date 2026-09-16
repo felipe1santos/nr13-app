@@ -5,6 +5,7 @@ import { MSG_BLOQUEIO_IMPORTACAO } from '../../services/trial';
 import { emitirAviso } from '../../services/eventos';
 import type { EmpresaEquipamento, InfoEquipamento, TipoEquipamento } from './tipos';
 import { normalizarTag } from './tagNormalizada';
+import { FATORES_CONVERSAO, type SistemaUnidade } from '../../calc/unidades';
 
 /**
  * Importação de equipamentos por planilha (.xlsx / .xls / .ods / .csv).
@@ -342,16 +343,55 @@ function respirar(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
+/** A unidade do lote é uma das três oficiais? (A tela só oferece essas; o serviço confere.) */
+export function unidadeDeLoteValida(unidade: unknown): unidade is SistemaUnidade {
+  return typeof unidade === 'string' && Object.prototype.hasOwnProperty.call(FATORES_CONVERSAO, unidade);
+}
+
 /**
  * Grava as linhas já validadas, uma por vez, reportando o progresso real
  * (cada `salvar()` fala com o Supabase — o await é o que faz a barra andar de verdade).
+ *
+ * ## A UNIDADE DO LOTE (16/09/2026)
+ *
+ * Todo equipamento NOVO nasce com `nr13_pref_unidade_<TAG>` gravada — igual à
+ * criação manual (`criarEquipamento`). Até aqui a importação não gravava a
+ * chave, e o equipamento importado só "era SI" pelo recuo `|| 'SI'` dos
+ * leitores: indistinguível de um equipamento legado que nunca escolheu nada.
+ *
+ * A unidade é do LOTE, escolhida na etapa de revisão, e é OBRIGATÓRIA na
+ * assinatura — sem default aqui, para nenhum chamador esquecer. Valor fora das
+ * três oficiais é recusado ANTES de gravar qualquer linha.
+ *
+ * Ela NÃO converte nada: a coluna `pmta` continua declarada em MPa (o canônico),
+ * seja qual for a unidade do lote.
+ *
+ * ## Ordem das gravações, e por quê
+ *
+ * A unidade vai PRIMEIRO. O que faz um equipamento existir é `nr13_info_<TAG>`;
+ * gravando a unidade antes, uma falha no meio da linha deixa no máximo uma
+ * chave de unidade sem equipamento (inofensiva, e sobrescrita por quem criar
+ * aquela TAG depois) — nunca um equipamento sem unidade.
+ *
+ * ## Repetir não duplica nem troca a unidade
+ *
+ * Linha cuja TAG já existe no momento da gravação é PULADA, sem tocar em chave
+ * nenhuma. A análise já filtra TAG existente; esta segunda guarda cobre a
+ * repetição com a mesma análise (retry) — sem ela, repetir com outra unidade
+ * regravaria a unidade de um equipamento que já existe, e a unidade é imutável
+ * depois da criação.
  */
 export async function importarLinhas(
   linhas: LinhaPreparada[],
+  unidade: SistemaUnidade,
   aoProgredir: (feitos: number, total: number, tag: string) => void,
 ): Promise<ResultadoImportacao> {
   // Defesa em profundidade: além da UI, o próprio serviço recusa no trial.
   if (isTrial()) throw new Error(MSG_BLOQUEIO_IMPORTACAO);
+  // Antes de QUALQUER gravação: lote sem unidade válida não cria nada.
+  if (!unidadeDeLoteValida(unidade)) {
+    throw new Error('Escolha a unidade de medida dos equipamentos deste lote (SI, Técnico ou Petrobras).');
+  }
   const criados: string[] = [];
   const falhas: LinhaProblema[] = [];
 
@@ -359,7 +399,12 @@ export async function importarLinhas(
     const item = linhas[i];
     aoProgredir(i, linhas.length, item.tag);
     await respirar();
+    if (ler<InfoEquipamento>(`nr13_info_${item.tag}`) !== null) {
+      falhas.push({ linha: item.linha, tag: item.tag, motivo: 'TAG já cadastrada no sistema' });
+      continue;
+    }
     try {
+      await salvar(`nr13_pref_unidade_${item.tag}`, unidade);
       await salvar(`nr13_info_${item.tag}`, item.info);
       if (item.empresa) await salvar(`nr13_emp_${item.tag}`, item.empresa);
       criados.push(item.tag);

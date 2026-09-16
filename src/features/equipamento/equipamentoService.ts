@@ -117,8 +117,10 @@ export async function criarEquipamento(
    * definida na hora em que ele nasce — e o seletor do cartão deixou de existir.
    *
    * O default `'SI'` aqui NÃO é escolha nova: é o mesmo recuo de sempre,
-   * agora escrito uma vez só e no lugar certo. Ele serve à importação de
-   * planilha, que cria equipamento sem passar por formulário.
+   * agora escrito uma vez só e no lugar certo. O modal de criação sempre passa
+   * a unidade escolhida. (A importação de planilha NÃO passa por aqui: grava a
+   * unidade do LOTE em `importarLinhas`, com a unidade obrigatória na
+   * assinatura.)
    */
   unidade: SistemaUnidade = 'SI',
 ): Promise<void> {

@@ -8,6 +8,7 @@ import {
   type AnalisePlanilha,
   type LinhaProblema,
 } from './importarPlanilhaService';
+import { FATORES_CONVERSAO, rotuloSistemaCompleto, type SistemaUnidade } from '../../calc/unidades';
 import './equipamento.css';
 import './importar.css';
 
@@ -146,6 +147,10 @@ export default function ModalImportarPlanilha({ arquivoInicial, onClose, onImpor
   const [progresso, setProgresso] = useState({ feitos: 0, total: 0, tag: '' });
   const [criados, setCriados] = useState<string[]>([]);
   const [falhas, setFalhas] = useState<LinhaProblema[]>([]);
+  // Unidade do LOTE (16/09/2026): todo equipamento importado nasce com ela
+  // gravada, como na criação manual. SI aparece pré-selecionado, mas é o valor
+  // deste campo — escolhido e visível na revisão — que vai para cada equipamento.
+  const [unidadeLote, setUnidadeLote] = useState<SistemaUnidade>('SI');
   const inputRef = useRef<HTMLInputElement>(null);
   const iniciadoRef = useRef(false);
 
@@ -194,7 +199,7 @@ export default function ModalImportarPlanilha({ arquivoInicial, onClose, onImpor
     if (!analise) return;
     setFase('importando');
     setProgresso({ feitos: 0, total: analise.validas.length, tag: analise.validas[0]?.tag ?? '' });
-    const resultado = await importarLinhas(analise.validas, (feitos, total, tag) => {
+    const resultado = await importarLinhas(analise.validas, unidadeLote, (feitos, total, tag) => {
       setProgresso({ feitos, total, tag });
     });
     setCriados(resultado.criados);
@@ -323,6 +328,24 @@ export default function ModalImportarPlanilha({ arquivoInicial, onClose, onImpor
                 </div>
               )}
 
+              <label>
+                Unidade de medida dos equipamentos deste lote *
+                <select
+                  value={unidadeLote}
+                  onChange={(e) => setUnidadeLote(e.target.value as SistemaUnidade)}
+                >
+                  {(Object.keys(FATORES_CONVERSAO) as SistemaUnidade[]).map((u) => (
+                    <option key={u} value={u}>
+                      {rotuloSistemaCompleto(u)}
+                    </option>
+                  ))}
+                </select>
+                <small className="campo-ajuda">
+                  Fica gravada em cada equipamento criado por este lote e não pode ser alterada
+                  depois. A coluna <b>pmta</b> continua sendo lida em MPa.
+                </small>
+              </label>
+
               <div className="imp-resumo">
                 <div className="imp-chip imp-chip-ok">
                   <strong>{analise.validas.length}</strong>
@@ -385,6 +408,12 @@ export default function ModalImportarPlanilha({ arquivoInicial, onClose, onImpor
                   <span>rejeitados</span>
                 </div>
               </div>
+
+              {criados.length > 0 && (
+                <p className="imp-legenda">
+                  Unidade de medida gravada nos equipamentos criados: <b>{rotuloSistemaCompleto(unidadeLote)}</b>
+                </p>
+              )}
 
               <ListaProblemas titulo="Pulados por TAG duplicada" itens={analise.duplicadas} />
               <ListaProblemas titulo="Rejeitados" itens={[...analise.rejeitadas, ...falhas]} />

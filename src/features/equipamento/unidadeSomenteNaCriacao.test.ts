@@ -18,7 +18,8 @@
  * ## O que este arquivo trava
  *
  *   · a criação grava as três unidades (comportamento, não só texto);
- *   · existe UM escritor da chave no sistema inteiro — `criarEquipamento`;
+ *   · só os fluxos de CRIAÇÃO gravam a chave — `criarEquipamento` (manual) e
+ *     `importarLinhas` (planilha, com a unidade do lote), e nenhum outro;
  *   · a ficha mostra a unidade como TEXTO: sem select, sem select desabilitado,
  *     sem botão;
  *   · o componente do seletor e a função de gravar não existem mais.
@@ -87,7 +88,7 @@ describe('a criação é o fluxo que grava a unidade', () => {
   });
 });
 
-describe('UM escritor de `nr13_pref_unidade_` no sistema inteiro', () => {
+describe('só a CRIAÇÃO escreve `nr13_pref_unidade_` no sistema inteiro', () => {
   const candidatos = [
     ...arquivos(resolve(RAIZ, 'src'), ['.ts', '.tsx']),
     ...arquivos(resolve(RAIZ, 'public'), ['.html', '.js']),
@@ -100,8 +101,23 @@ describe('UM escritor de `nr13_pref_unidade_` no sistema inteiro', () => {
       .filter((l) => l.linha.includes('pref_unidade') && ESCRITA.test(l.linha)),
   );
 
-  it('só `equipamentoService.ts` grava a chave, e uma vez', () => {
-    expect(escritores.map((e) => e.arq)).toEqual(['src/features/equipamento/equipamentoService.ts']);
+  it('dois escritores, os dois de CRIAÇÃO: cadastro manual e importação', () => {
+    // A importação entrou em 16/09/2026: equipamento importado também nasce com a
+    // unidade gravada (a do lote), em vez de depender do recuo SI dos leitores.
+    expect(escritores.map((e) => e.arq).sort()).toEqual([
+      'src/features/equipamento/equipamentoService.ts',
+      'src/features/equipamento/importarPlanilhaService.ts',
+    ]);
+  });
+
+  it('a gravação da importação está DENTRO de `importarLinhas`, depois da guarda de TAG existente', () => {
+    const s = fonte('src/features/equipamento/importarPlanilhaService.ts');
+    const ini = s.indexOf('export async function importarLinhas(');
+    const corpo = s.slice(ini, s.indexOf('\n}', ini));
+    const guarda = corpo.indexOf("if (ler<InfoEquipamento>(`nr13_info_${item.tag}`) !== null)");
+    const grava = corpo.indexOf('await salvar(`nr13_pref_unidade_${item.tag}`, unidade);');
+    expect(guarda).toBeGreaterThan(0);
+    expect(grava).toBeGreaterThan(guarda);
   });
 
   it('e essa gravação está DENTRO de `criarEquipamento`', () => {
