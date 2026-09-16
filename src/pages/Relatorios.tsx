@@ -1837,7 +1837,9 @@ function RelatoriosLegado() {
 
           {/* Modal de configurações: todas as datas/campos + Atualizar + Baixar PDF */}
           {modalConfig && (
-            <div className="rel-modal-overlay no-print" onClick={() => setModalConfig(false)}>
+            // O fundo NAO fecha: sao as Configuracoes do Relatorio, com datas e textos
+            // digitados. Ver `modaisComEdicao.test.ts`.
+            <div className="rel-modal-overlay no-print">
               <div className="rel-modal" onClick={(e) => e.stopPropagation()}>
                 <div className="rel-modal-header">
                   <span>Configurações do Relatório</span>

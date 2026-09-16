@@ -252,6 +252,8 @@ export default function Agenda() {
 
       {/* ===== MODAL DO DIA ===== */}
       {diaAberto && (
+        // fecha-pelo-fundo: LISTA do dia, sem campo nenhum. Nada se perde, e
+        // fechar pelo fundo é o gesto que se espera de um painel de leitura.
         <div
           className="fj-modal-overlay"
           onClick={(e) => e.target === e.currentTarget && setDiaAberto(null)}
@@ -297,10 +299,9 @@ export default function Agenda() {
 
       {/* ===== FORMULÁRIO ===== */}
       {rascunho && (
-        <div
-          className="fj-modal-overlay"
-          onClick={(e) => e.target === e.currentTarget && setRascunho(null)}
-        >
+        // O fundo NÃO fecha: é o formulário do serviço, digitado. Ver
+        // `modaisComEdicao.test.ts`.
+        <div className="fj-modal-overlay">
           <div className="fj-modal-box ag-form-box">
             <div className="fj-modal-head">
               <div>

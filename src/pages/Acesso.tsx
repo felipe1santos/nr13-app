@@ -443,7 +443,9 @@ export default function Acesso() {
 
       {/* ── Modal de permissões ── */}
       {editandoPermissoes && (
-        <div className="fj-modal-overlay" onClick={(e) => e.target === e.currentTarget && setEditandoPermissoes(null)}>
+        // O fundo NAO fecha: as permissoes marcadas se perdiam. Ver
+        // `modaisComEdicao.test.ts`.
+        <div className="fj-modal-overlay">
           <div className="fj-modal-box" style={{ maxWidth: 520 }}>
             <div className="fj-modal-head">
               <div>

@@ -124,9 +124,11 @@ export default function ModalNovoLote({
   }
 
   return (
+    // O fundo NÃO fecha: há cadastro sendo digitado aqui, e clique fora
+    // descartava tudo. Fecha pelo X, Cancelar ou Salvar. Ver
+    // `modaisComEdicao.test.ts`.
     <div
       className="fj-modal-overlay"
-      onClick={(e) => e.target === e.currentTarget && !salvando && aoFechar()}
       role="dialog"
       aria-modal="true"
       aria-label={lote ? 'Editar lote de calibração' : 'Criar lote de calibração'}

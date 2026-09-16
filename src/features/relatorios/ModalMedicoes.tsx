@@ -82,7 +82,9 @@ export default function ModalMedicoes({
   }
 
   return (
-    <div className="modal-overlay" onClick={onFechar}>
+    // O fundo NAO fecha: e a grade de espessuras medidas em campo. Ver
+    // `modaisComEdicao.test.ts`.
+    <div className="modal-overlay">
       <div className="modal-content med-modal" style={{ maxWidth: 860 }} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h3>Medições de espessura — {tag}</h3>

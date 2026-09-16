@@ -48,7 +48,8 @@ export default function ModalCriarEquipamento({ onClose, onCriado }: Props) {
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    // O fundo NAO fecha: cadastro sendo digitado. Ver `modaisComEdicao.test.ts`.
+    <div className="modal-overlay">
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h3>Criar Equipamento</h3>

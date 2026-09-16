@@ -54,7 +54,11 @@ export default function ModalCertificado({
         : 'Ex: Manômetro padrão MP-01';
 
   return (
-    <div className="certm-overlay" onClick={() => !ocupado && onFechar()}>
+    // O fundo NÃO fecha. Aqui se digita um cadastro inteiro, e um clique fora —
+    // para sair de um select, arrastar uma seleção de texto ou simplesmente
+    // errar a mira — jogava tudo fora sem perguntar. Fecha pelo X, pelo
+    // Cancelar ou pelo Salvar. Ver `modaisComEdicao.test.ts`.
+    <div className="certm-overlay">
       <div
         ref={caixa}
         className="certm-modal"

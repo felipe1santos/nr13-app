@@ -28,9 +28,10 @@ export default function ModalRenomear({
   const vazio = nome.trim() === '';
 
   return (
+    // O fundo NÃO fecha: o nome digitado se perdia. Ver
+    // `modaisComEdicao.test.ts`.
     <div
       className="fj-modal-overlay"
-      onClick={(e) => e.target === e.currentTarget && !ocupado && aoFechar()}
       role="dialog"
       aria-modal="true"
       aria-label="Editar nome do relatório"

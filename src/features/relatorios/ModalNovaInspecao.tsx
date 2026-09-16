@@ -240,7 +240,9 @@ export default function ModalNovaInspecao({ onClose, onGerar, tag = '', resumo, 
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    // O fundo NAO fecha: selecao de documentos ja feita se perdia. Ver
+    // `modaisComEdicao.test.ts`.
+    <div className="modal-overlay">
       <div className="modal-content mni-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header mni-header">
           <h3>Configurar Novo Relatório</h3>

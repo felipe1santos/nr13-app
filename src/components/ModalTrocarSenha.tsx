@@ -78,7 +78,9 @@ export default function ModalTrocarSenha({ email, onClose }: { email: string; on
   }
 
   return (
-    <div className="fj-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    // O fundo NAO fecha: formulario de senha meio preenchido nao pode sumir por
+    // um clique fora. Ver `modaisComEdicao.test.ts`.
+    <div className="fj-modal-overlay">
       <div className="fj-modal-box mts-box">
         <div className="fj-modal-head">
           <h2>Trocar Senha</h2>

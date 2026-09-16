@@ -39,9 +39,10 @@ export default function ModalFinalizar({
   const { obrigatorios, opcionais, podeFinalizar } = validacao;
 
   return (
+    // O fundo NÃO fecha: há campo preenchido aqui e a finalização é o passo
+    // caro. Ver `modaisComEdicao.test.ts`.
     <div
       className="fj-modal-overlay"
-      onClick={(e) => e.target === e.currentTarget && !ocupado && aoFechar()}
       role="dialog"
       aria-modal="true"
       aria-label="Finalizar relatório"

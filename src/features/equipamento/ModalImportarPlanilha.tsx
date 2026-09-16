@@ -211,7 +211,9 @@ export default function ModalImportarPlanilha({ arquivoInicial, onClose, onImpor
   const ocupado = fase === 'analisando' || fase === 'importando';
 
   return (
-    <div className="modal-overlay" onClick={ocupado ? undefined : fechar}>
+    // O fundo NAO fecha: o arquivo escolhido e o que ja foi conferido se
+    // perdiam. Ver `modaisComEdicao.test.ts`.
+    <div className="modal-overlay">
       <div className="modal-content imp-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h3>Importar equipamentos por planilha</h3>

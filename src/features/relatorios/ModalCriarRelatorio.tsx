@@ -223,7 +223,9 @@ export default function ModalCriarRelatorio({ tag, resumo, aoVoltar, onClose, on
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    // O fundo NAO fecha: sao as 3 etapas do assistente, e um clique fora voltava
+    // ao zero. Ver `modaisComEdicao.test.ts`.
+    <div className="modal-overlay">
       <div className="modal-content mni-modal wz-modal" ref={caixa} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header mni-header">
           <h3>Configurar novo relatório</h3>

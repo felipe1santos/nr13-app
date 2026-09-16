@@ -135,9 +135,11 @@ export default function ModalResultados({
   const podeConfirmar = tipo === 'psv' ? true : resumo.feitos > 0 || resumo.total === 0;
 
   return (
+    // O fundo NÃO fecha: são os pontos medidos da calibração, digitados um a
+    // um. Clique fora perdia a rodada inteira. Fecha pelo X, Cancelar ou
+    // Confirmar. Ver `modaisComEdicao.test.ts`.
     <div
       className="fj-modal-overlay"
-      onClick={(e) => e.target === e.currentTarget && aoFechar()}
       role="dialog"
       aria-modal="true"
       aria-label="Resultados obtidos na calibração"

@@ -214,7 +214,9 @@ export default function ModalPredefinicoes({
           : 'Crie conjuntos reutilizáveis para preencher automaticamente campos recorrentes deste relatório.';
 
   return (
-    <div className="predef-overlay" onClick={() => !ocupado && onFechar()}>
+    // O fundo NAO fecha: aqui se edita o conjunto de recomendacoes. Ver
+    // `modaisComEdicao.test.ts`.
+    <div className="predef-overlay">
       <div
         ref={caixa}
         className="predef-modal"
@@ -579,6 +581,8 @@ function ConfirmarExclusao({
   const caixa = useRef<HTMLDivElement>(null);
   useFocoPreso(caixa, onCancelar);
   return (
+    // fecha-pelo-fundo: CONFIRMACAO de exclusao, sem campo. Fechar pelo fundo
+    // e o mesmo que Cancelar, e cancelar aqui e o lado seguro.
     <div className="predef-overlay predef-overlay-topo" onClick={onCancelar}>
       <div
         ref={caixa}
