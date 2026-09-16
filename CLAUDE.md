@@ -305,8 +305,16 @@ URL escrita à mão resolve pela **segunda** tentativa, com `normalizarTag`; a
 tentativa EXATA vem primeiro porque equipamento antigo pode ter TAG fora dessa
 forma, e normalizar antes de perguntar o deixaria inalcançável para sempre.
 
-Travado por `fichaSobDemanda.test.ts` (21), que roda com o cache VAZIO e confere
+Travado por `fichaSobDemanda.test.ts` (22), que roda com o cache VAZIO e confere
 também **o que foi pedido ao servidor** — as chaves de uma TAG, nunca o catálogo.
+
+O MEMORIAL (`/equipamento/:tag/memorial`) tinha o mesmo padrão e entrou na
+mesma porta em 16/09/2026: `PortaEquipamento.tsx` (os três estados desenhados)
++ `usarAberturaEquipamento.ts` (o estado da busca) servem as DUAS telas — ficha
+e memorial —, e `memorialSobDemanda.test.ts` (11) quebra se alguma delas ganhar
+cópia própria ou recolocar o redirecionamento. Chegando pela ficha o memorial
+funcionava, porque a ficha já havia semeado a TAG; quem abria a URL direta, o
+link numa aba nova ou dava F5 dentro dele é que caía na lista.
 
 ---
 

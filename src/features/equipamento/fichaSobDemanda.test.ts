@@ -295,10 +295,25 @@ describe('A PÁGINA não devolve ninguém para a lista por causa de cache', () =
     expect(fonte).not.toMatch(/if \(!info\) navigate/);
   });
 
-  it('os quatro estados da abertura estão desenhados', () => {
-    expect(bruto).toContain('Carregando equipamento');
-    expect(bruto).toContain('Equipamento não encontrado');
-    expect(bruto).toContain('Sem conexão com o servidor');
-    expect(bruto).toContain('Tentar de novo');
+  it('a página usa a PORTA compartilhada, e não uma cópia dos estados', () => {
+    // Os estados desenhados saíram daqui em 16/09/2026, quando o Memorial
+    // precisou da mesma porta (`PortaEquipamento.tsx`). Duas cópias da mesma
+    // decisão divergem na primeira mudança.
+    expect(fonte).toContain('TelaAbertura');
+    expect(fonte).toContain('useAberturaEquipamento');
+  });
+
+  it('os quatro estados da abertura estão desenhados na porta', () => {
+    const porta = readFileSync(
+      join(process.cwd(), 'src/features/equipamento/PortaEquipamento.tsx'),
+      'utf8',
+    );
+    expect(porta).toContain('Carregando equipamento');
+    expect(porta).toContain('Equipamento não encontrado');
+    expect(porta).toContain('Sem conexão com o servidor');
+    expect(porta).toContain('Tentar de novo');
+    // E a porta também não navega para lugar nenhum.
+    expect(porta).not.toContain('useNavigate');
+    expect(porta.includes('navigate(')).toBe(false);
   });
 });

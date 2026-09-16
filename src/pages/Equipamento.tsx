@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import type { CalculoSalvo, CategoriaSalva, FotoEquipamento, InfoEquipamento } from '../features/equipamento/tipos';
 import { carregarInfo, carregarUnidade, salvarUnidade } from '../features/equipamento/equipamentoService';
-import { aberturaDoCache, abrirFicha, type AberturaFicha } from '../features/equipamento/aberturaFicha';
+import { TelaAbertura } from '../features/equipamento/PortaEquipamento';
+import { useAberturaEquipamento } from '../features/equipamento/usarAberturaEquipamento';
 import { excluirVaso, ler } from '../services/storage';
 import SeletorUnidade from '../features/equipamento/SeletorUnidade';
 import DadosEquipamento from '../features/equipamento/DadosEquipamento';
@@ -49,85 +50,23 @@ export default function Equipamento() {
 }
 
 function PortaFicha({ tag }: { tag: string }) {
-  const [abertura, setAbertura] = useState<AberturaFicha>(() => aberturaDoCache(tag));
-  const [tentativa, setTentativa] = useState(0);
+  // A porta é a MESMA do Memorial (`PortaEquipamento.tsx`): a lógica de
+  // resolver a TAG e os estados desenhados moram num lugar só.
+  const { abertura, tentarDeNovo } = useAberturaEquipamento(tag);
 
-  useEffect(() => {
-    // Já em cache (inclusive OFFLINE): nada a buscar.
-    if (abertura.estado === 'encontrado') return;
-    let vivo = true;
-    void abrirFicha(tag).then((r) => {
-      if (vivo) setAbertura(r);
-    });
-    return () => {
-      vivo = false;
-    };
-    // `abertura` de propósito FORA das dependências: ela é o RESULTADO deste
-    // efeito, e reagir a ela faria a busca recomeçar a cada resposta.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tag, tentativa]);
-
-  if (abertura.estado === 'carregando') {
+  if (abertura.estado !== 'encontrado') {
     return (
-      <div className="equipamento-page">
-        <div className="fj-empty">
-          <div className="fj-empty-ic">
-            <Icone nome="box" tam={22} />
-          </div>
-          <div className="fj-empty-title">Carregando equipamento…</div>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5 }}>TAG: {tag}</div>
-        </div>
-      </div>
+      <TelaAbertura
+        abertura={abertura}
+        tag={tag}
+        onTentar={tentarDeNovo}
+        classeDaPagina="equipamento-page"
+      />
     );
   }
 
-  if (abertura.estado === 'ausente') {
-    return (
-      <div className="equipamento-page">
-        <div className="fj-empty">
-          <div className="fj-empty-ic">
-            <Icone nome="search" tam={22} />
-          </div>
-          <div className="fj-empty-title">Equipamento não encontrado</div>
-          <div style={{ marginBottom: 10 }}>
-            Nenhum equipamento com a TAG <b>{tag}</b> nesta organização.
-          </div>
-          <Link to="/equipamentos" className="fj-link">
-            Voltar para a lista de equipamentos
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  if (abertura.estado === 'indisponivel') {
-    return (
-      <div className="equipamento-page">
-        <div className="fj-empty">
-          <div className="fj-empty-ic">
-            <Icone nome="cloudoff" tam={22} />
-          </div>
-          <div className="fj-empty-title">Sem conexão com o servidor</div>
-          <div style={{ marginBottom: 10 }}>
-            O equipamento <b>{tag}</b> não está neste aparelho e não foi possível buscá-lo agora.
-          </div>
-          <button
-            type="button"
-            className="fj-btn fj-btn-ghost"
-            onClick={() => {
-              setAbertura({ estado: 'carregando' });
-              setTentativa((n) => n + 1);
-            }}
-          >
-            <Icone nome="refresh" tam={14} /> Tentar de novo
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // key={tag} força remontar tudo ao trocar de equipamento — e garante que a
-  // inicialização lazy do estado abaixo leia o cache JÁ semeado.
+  // A TAG RESOLVIDA, não a da URL: `abrirFicha` pode ter casado pela forma
+  // normalizada, e as chaves da ficha se montam com a chave real.
   return <EquipamentoView key={abertura.tag} tag={abertura.tag} />;
 }
 
