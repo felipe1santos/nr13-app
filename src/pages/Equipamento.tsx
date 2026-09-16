@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import type { CalculoSalvo, CategoriaSalva, FotoEquipamento, InfoEquipamento } from '../features/equipamento/tipos';
-import { carregarInfo, carregarUnidade, salvarUnidade } from '../features/equipamento/equipamentoService';
+import { carregarInfo, carregarUnidade } from '../features/equipamento/equipamentoService';
 import { TelaAbertura } from '../features/equipamento/PortaEquipamento';
 import { useAberturaEquipamento } from '../features/equipamento/usarAberturaEquipamento';
 import { excluirVaso, ler } from '../services/storage';
-import SeletorUnidade from '../features/equipamento/SeletorUnidade';
 import DadosEquipamento from '../features/equipamento/DadosEquipamento';
 import DadosEmpresa from '../features/equipamento/DadosEmpresa';
 import FotoIdentificacao from '../features/equipamento/FotoIdentificacao';
@@ -14,7 +13,7 @@ import BadgeTipoEquipamento from '../features/equipamento/BadgeTipoEquipamento';
 import VidaRemanescente from '../features/equipamento/VidaRemanescente';
 import PressoesDocumentacao from '../features/equipamento/PressoesDocumentacao';
 import ProntuarioFabricante from '../features/equipamento/ProntuarioFabricante';
-import { formatarValor } from '../calc/unidades';
+import { formatarValor, rotuloSistemaCompleto } from '../calc/unidades';
 import type { SistemaUnidade } from '../calc/unidades';
 import MemorialLog from '../features/memorial/MemorialLog';
 import { Icone } from '../components/Icone';
@@ -73,12 +72,13 @@ function PortaFicha({ tag }: { tag: string }) {
 function EquipamentoView({ tag }: { tag: string }) {
   const navigate = useNavigate();
   const [info, setInfo] = useState<InfoEquipamento | null>(() => carregarInfo(tag));
-  // `unidade` = unidade em PRÉ-VISUALIZAÇÃO (converte toda a ficha ao vivo).
-  // `unidadeSalva` = unidade fixada/persistida. Só persiste ao clicar em "Salvar".
-  const [unidade, setUnidade] = useState<SistemaUnidade>(() => carregarUnidade(tag));
-  const [unidadeSalva, setUnidadeSalva] = useState<SistemaUnidade>(() => carregarUnidade(tag));
-  const [salvandoUnidade, setSalvandoUnidade] = useState(false);
-  const [unidadeToast, setUnidadeToast] = useState(false);
+  // A unidade do EQUIPAMENTO, escolhida na CRIAÇÃO e nunca mais trocada
+  // (16/09/2026). Havia aqui uma "pré-visualização" com select e um botão
+  // "Salvar" que regravava `nr13_pref_unidade_<TAG>` — o único caminho de UI
+  // que alterava a unidade depois de criado o equipamento, e com ele a unidade
+  // em que a ficha RECEBE pressões e o relatório SAI. Sem prévia, existe uma
+  // unidade só: a gravada.
+  const unidade: SistemaUnidade = carregarUnidade(tag);
   const [excluindo, setExcluindo] = useState(false);
   const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
   const [modalMemorial, setModalMemorial] = useState(false);
@@ -98,25 +98,8 @@ function EquipamentoView({ tag }: { tag: string }) {
     return () => window.removeEventListener('focus', atualizarCalculo);
   }, [tag]);
 
-  // Trocar a unidade só pré-visualiza (converte toda a ficha ao vivo). Não persiste até "Salvar".
-  function trocarUnidade(u: SistemaUnidade) {
-    setUnidade(u);
-  }
-
   function abrirMemorialCompleto() {
     setModalMemorial(true);
-  }
-
-  async function salvarUnidadeSelecionada() {
-    setSalvandoUnidade(true);
-    try {
-      await salvarUnidade(tag, unidade);
-      setUnidadeSalva(unidade);
-      setUnidadeToast(true);
-      window.setTimeout(() => setUnidadeToast(false), 1800);
-    } finally {
-      setSalvandoUnidade(false);
-    }
   }
 
   // O confirm NATIVO do navegador saiu daqui (14/08/2026): era a única
@@ -155,20 +138,11 @@ function EquipamentoView({ tag }: { tag: string }) {
               </h1>
               <BadgeTipoEquipamento tipo={info.tipo} label={rotuloTipo} />
             </div>
-            <div className="seletor-unidade-box">
-              <label>Unidade de Medida:</label>
-              <SeletorUnidade unidade={unidade} onChange={trocarUnidade} />
-              {unidade !== unidadeSalva && (
-                <button
-                  type="button"
-                  className={`btn-primario btn-salvar-unidade ${salvandoUnidade ? 'is-loading' : ''}`}
-                  onClick={salvarUnidadeSelecionada}
-                  disabled={salvandoUnidade}
-                >
-                  {salvandoUnidade ? 'Salvando...' : 'Salvar'}
-                </button>
-              )}
-              {unidadeToast && <span className="unidade-salva-ok">✓ Unidade fixada</span>}
+            {/* INFORMAÇÃO, não controle (16/09/2026): nem select, nem select
+                desabilitado, nem botão. A unidade se escolhe no cadastro. */}
+            <div className="unidade-equip-box">
+              <span className="unidade-equip-rotulo">Unidade de medida</span>
+              <span className="unidade-equip-valor">{rotuloSistemaCompleto(unidade)}</span>
             </div>
           </div>
 
@@ -268,9 +242,10 @@ function EquipamentoView({ tag }: { tag: string }) {
       </div>
 
       <section className="equipamento-secao">
-        {/* Categoria de risco NUNCA segue o preview de unidade — usa a unidade fixada (regra NR-13:
-            o enquadramento exige a base de unidade própria). */}
-        <CategoriaNR13 tag={tag} unidade={unidadeSalva} />
+        {/* Categoria de risco recebe a unidade GRAVADA do equipamento (regra NR-13:
+            o enquadramento exige a base de unidade própria). Desde 16/09/2026 não
+            existe mais prévia de unidade na ficha — a gravada é a única. */}
+        <CategoriaNR13 tag={tag} unidade={unidade} />
       </section>
 
       <section className="equipamento-secao">
@@ -335,15 +310,11 @@ function EquipamentoView({ tag }: { tag: string }) {
 
       <section className="equipamento-secao">
         {/* Pressões adotadas da documentação — logo abaixo do card Memorial. Exibe/edita na
-            unidade em pré-visualização da ficha; grava em MPa dentro de nr13_info_<TAG>. */}
-        {/* `unidadeSalva`, e não a prévia (16/09/2026): este bloco não só EXIBE,
-            ele RECEBE o número que o engenheiro digita e o converte para MPa
-            antes de gravar. Ligado à prévia, o rótulo dizia "(kgf/cm²)" por
-            causa de uma escolha que ainda não foi salva, e a entrada era
-            interpretada nessa unidade. A unidade de ENTRADA de um valor que
-            fica gravado tem de ser a do equipamento — a mesma regra que a
-            Categoria NR-13 já seguia na linha acima. */}
-        <PressoesDocumentacao tag={tag} info={info} unidade={unidadeSalva} onSalvo={setInfo} />
+            unidade do equipamento; grava em MPa dentro de nr13_info_<TAG>. Este bloco
+            RECEBE o número que o engenheiro digita e o converte para MPa antes de
+            gravar — por isso a unidade de ENTRADA tem de ser a gravada do
+            equipamento, a mesma que a Categoria NR-13 recebe na linha acima. */}
+        <PressoesDocumentacao tag={tag} info={info} unidade={unidade} onSalvo={setInfo} />
       </section>
 
       <section className="equipamento-secao">

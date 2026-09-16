@@ -147,7 +147,7 @@ Tudo que o usuário salva pode ser fonte de injeção. Chaves por TAG do equipam
 | `nr13_emp_<TAG>` | Empresa/cliente do equipamento | Cadastro de cliente |
 | `nr13_fotos_<TAG>` | Fotos da capa/equipamento | Ficha |
 | `nr13_med_esp_<TAG>` | Medição de espessura (ultrassom/ME) | Inspeção |
-| `nr13_pref_unidade_<TAG>` | Unidade de medida da ficha | Ficha (Seletor de Unidade) |
+| `nr13_pref_unidade_<TAG>` | Unidade de medida do EQUIPAMENTO (`SI`/`TECNICO`/`PETROBRAS`; ausente = SI) | **Só na criação** (modal Criar equipamento → `criarEquipamento`). Não se altera depois (§4) |
 | `nr13_minha_empresa` | Dados + logo da empresa executante | "Minha Empresa" |
 | `nr13_lista_phs` | Profissionais habilitados / engenheiros (assinatura) | Funcionários |
 | `nr13_calibracao_item_<id>` | Certificado de calibração | Calibrações |
@@ -320,9 +320,13 @@ link numa aba nova ou dava F5 dentro dele é que caía na lista.
 
 ## 4. Unidades de medida
 
-- A unidade é definida **dentro da ficha** e reflete em todo o sistema, convertendo onde necessário.
-- Alterar o grupo de unidade na ficha reconverte os dados em "Ver Memorial Completo" e em tudo salvo
-  na ficha.
+- **A unidade é característica do EQUIPAMENTO e se escolhe SOMENTE NA CRIAÇÃO (16/09/2026).** Depois
+  disso nenhuma tela a altera: cartão e ficha a mostram como TEXTO (sem select, sem select desabilitado,
+  sem botão). O único escritor de `nr13_pref_unidade_<TAG>` é `criarEquipamento` — travado por
+  `unidadeSomenteNaCriacao.test.ts`, que varre `src/` e `public/` e quebra com um segundo escritor.
+- Ela decide APRESENTAÇÃO e ENTRADA (a ficha recebe pressões nela) e a unidade em que o relatório sai.
+  O valor técnico continua canônico em **MPa**. Equipamento sem a chave (anterior a 16/09/2026) = SI.
+  Importação de planilha não grava a chave: o equipamento importado nasce em SI por esse recuo.
 - **REGRA ABSOLUTA (exceção):** NUNCA converter as unidades do **cálculo da Categoria de Risco**.
   - **Enquadramento: (kPa) × (m³) > 8** — base confirmada (decisão de engenharia, mesma base do
     texto do checklist). NÃO usar kgf/cm² aqui.

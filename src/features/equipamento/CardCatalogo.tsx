@@ -18,8 +18,8 @@
  * cartão de lista mudava, num clique e sem confirmação, a unidade em que o
  * relatório daquele equipamento sai.
  *
- * Aqui virou INFORMAÇÃO — texto, não controle. Quem precisa mesmo mudar usa a
- * ficha, que tem select e botão "Salvar" explícito. `nr13_pref_unidade_`
+ * Aqui virou INFORMAÇÃO — texto, não controle. E desde 16/09/2026 a ficha
+ * também não troca mais: a unidade só se escolhe no cadastro. `nr13_pref_unidade_`
  * continua no despachante da 9B e na projeção: o cartão a LÊ de `item.unidade`.
  *
  * ## PMTA e PTH aqui são as ADOTADAS, não as calculadas (15/09/2026)

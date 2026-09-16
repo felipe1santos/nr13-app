@@ -18,7 +18,8 @@ export const FATORES_CONVERSAO: Record<SistemaUnidade, FatorUnidade> = {
 /**
  * A unidade GUARDADA vira uma unidade VÁLIDA (09/09/2026).
  *
- * `nr13_pref_unidade_<TAG>` é gravada por `salvarUnidade(tag, unidade: string)`
+ * `nr13_pref_unidade_<TAG>` é gravada por `criarEquipamento(…, unidade)` (antes de
+ * 16/09/2026 também por `salvarUnidade(tag, unidade: string)`, já removida)
  * — string livre — e volta do servidor na projeção do catálogo como
  * `unidade: string | null`. Quem consome fazia `item.unidade as SistemaUnidade`:
  * um CAST, que não verifica coisa nenhuma.

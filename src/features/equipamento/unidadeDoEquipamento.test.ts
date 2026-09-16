@@ -8,8 +8,9 @@
  * em que a ficha e a DOCUMENTAÇÃO daquele equipamento saem. Trocá-la num cartão
  * de lista mudava, num clique e sem confirmação, a unidade do relatório.
  *
- * Agora: escolhida na CRIAÇÃO, exibida como informação no cartão, e alterável
- * só na ficha — que já tinha select + botão "Salvar" explícito.
+ * Agora: escolhida na CRIAÇÃO e exibida como informação no cartão E na ficha.
+ * Não se altera mais depois de criado o equipamento (a ficha perdeu o select e o
+ * botão "Salvar" no mesmo dia — ver `unidadeSomenteNaCriacao.test.ts`).
  *
  * ## O que NÃO mudou, e é o que este arquivo mais protege
  *
@@ -157,10 +158,12 @@ describe('CATEGORIA NR-13 — a exceção, e ela não se move', () => {
     );
   });
 
-  it('a ficha passa à Categoria a unidade FIXADA, nunca a prévia', () => {
-    // Trocar o seletor sem salvar não pode reinterpretar a pressão da
-    // categorização — o resultado mudaria sem ninguém ter salvo nada.
-    expect(fonte('src/pages/Equipamento.tsx')).toContain('<CategoriaNR13 tag={tag} unidade={unidadeSalva} />');
+  it('a ficha passa à Categoria a unidade GRAVADA do equipamento', () => {
+    // Não existe mais prévia de unidade na ficha: a única unidade é a gravada
+    // na criação, e é ela que a categorização recebe.
+    const ficha = fonte('src/pages/Equipamento.tsx');
+    expect(ficha).toContain('<CategoriaNR13 tag={tag} unidade={unidade} />');
+    expect(ficha).toContain('const unidade: SistemaUnidade = carregarUnidade(tag);');
   });
 
   it('o relatório NÃO converte os produtos da categorização', () => {

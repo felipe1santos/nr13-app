@@ -88,9 +88,13 @@ export function carregarUnidade(tag: string): import('../../calc/unidades').Sist
   return (ler<string>(`nr13_pref_unidade_${tag}`) as import('../../calc/unidades').SistemaUnidade) || 'SI';
 }
 
-export async function salvarUnidade(tag: string, unidade: string): Promise<void> {
-  await salvar(`nr13_pref_unidade_${tag}`, unidade);
-}
+// `salvarUnidade` SAIU em 16/09/2026. A unidade é característica do
+// equipamento, escolhida na CRIAÇÃO: o único escritor de
+// `nr13_pref_unidade_<TAG>` é `criarEquipamento`, abaixo. A ficha tinha um
+// select com botão "Salvar" que regravava a chave depois de criado o
+// equipamento — mudando, num clique, a unidade em que a ficha recebe pressões e
+// o relatório sai. `unidadeSomenteNaCriacao.test.ts` quebra se um segundo
+// escritor aparecer.
 
 /** Recusa do teto do trial. Mensagem já pronta para a tela. */
 export class ErroLimiteTrial extends Error {
