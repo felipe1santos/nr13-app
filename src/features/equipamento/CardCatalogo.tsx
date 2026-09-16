@@ -10,10 +10,17 @@
  * `IntersectionObserver`, então uma lista de 50 cartões não dispara 50
  * downloads — só os que aparecem na tela.
  *
- * O SELETOR DE UNIDADE continua gravando de verdade (`salvarUnidade`), e a
- * gravação reprojeta a TAG pela RPC. Por isso `nr13_pref_unidade_` entrou no
- * despachante da 9B: sem ele o usuário trocaria a unidade e a lista voltaria à
- * antiga no próximo carregamento.
+ * ## A UNIDADE NÃO SE TROCA AQUI (16/09/2026)
+ *
+ * Havia um `<select>` neste cartão que gravava na hora. Unidade de medida não é
+ * preferência de visualização: ela é característica do equipamento, escolhida na
+ * CRIAÇÃO, e é a referência da ficha e da documentação inteira. Trocá-la num
+ * cartão de lista mudava, num clique e sem confirmação, a unidade em que o
+ * relatório daquele equipamento sai.
+ *
+ * Aqui virou INFORMAÇÃO — texto, não controle. Quem precisa mesmo mudar usa a
+ * ficha, que tem select e botão "Salvar" explícito. `nr13_pref_unidade_`
+ * continua no despachante da 9B e na projeção: o cartão a LÊ de `item.unidade`.
  *
  * ## PMTA e PTH aqui são as ADOTADAS, não as calculadas (15/09/2026)
  *
@@ -38,12 +45,9 @@
  * `item.pmtaMpa`/`item.pthMpa` (as calculadas) CONTINUAM existindo e continuam
  * sendo o que Inspeções, Prontuários, Relatórios e Calibrações mostram.
  */
-import { useState, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { textoCliente, type ItemCatalogo } from '../../services/buscaIndex';
-import type { SistemaUnidade } from '../../calc/unidades';
-import { FATORES_CONVERSAO, formatarValor, unidadeValida } from '../../calc/unidades';
-import { salvarUnidade } from './equipamentoService';
+import { formatarValor, rotuloSistemaCompleto, unidadeValida } from '../../calc/unidades';
 import { Icone } from '../../components/Icone';
 import FotoImg from '../../components/FotoImg';
 import { rotaEquipamento } from '../../app/rotas';
@@ -64,7 +68,9 @@ export default function CardCatalogo({ item }: { item: ItemCatalogo }) {
   const navigate = useNavigate();
   // `unidadeValida`, e não um cast: a projeção devolve `unidade` como string
   // livre, e um valor fora do domínio quebrava o render do cartão inteiro.
-  const [unidade, setUnidade] = useState<SistemaUnidade>(() => unidadeValida(item.unidade));
+  // Ausente (equipamento anterior a 16/09/2026, que nunca teve preferência
+  // gravada) também cai em SI — o MESMO recuo que o sistema já aplicava.
+  const unidade = unidadeValida(item.unidade);
 
   const tipo = item.tipo ?? 'vaso';
   const rotuloTipo =
@@ -73,13 +79,6 @@ export default function CardCatalogo({ item }: { item: ItemCatalogo }) {
   const vida = vidaDaBarra(item.vidaAnos);
   // MESMO texto do cartão antigo: nome (razão social primeiro) · cidade.
   const empresaTxt = textoCliente(item);
-
-  async function trocarUnidade(e: ChangeEvent<HTMLSelectElement>) {
-    e.stopPropagation();
-    const u = e.target.value as SistemaUnidade;
-    setUnidade(u);
-    await salvarUnidade(item.tag, u);
-  }
 
   return (
     <div className="plate-card" onClick={() => navigate(rotaEquipamento(item.tag))} style={{ cursor: 'pointer' }}>
@@ -98,15 +97,10 @@ export default function CardCatalogo({ item }: { item: ItemCatalogo }) {
       </div>
 
       <div className="plate-body">
-        <div className="plate-uom-row" onClick={(e) => e.stopPropagation()}>
+        {/* INFORMAÇÃO, não controle (16/09/2026). Ver o cabeçalho do arquivo. */}
+        <div className="plate-uom-row">
           <span className="plate-uom-label">Unidade de medida</span>
-          <select className="plate-uom-select" value={unidade} onChange={trocarUnidade} title="Selecionar unidade de medida">
-            {(Object.keys(FATORES_CONVERSAO) as SistemaUnidade[]).map((k) => (
-              <option key={k} value={k}>
-                {k} ({FATORES_CONVERSAO[k].labelPressao})
-              </option>
-            ))}
-          </select>
+          <span className="plate-uom-valor">{rotuloSistemaCompleto(unidade)}</span>
         </div>
 
         <div className="plate-name">{item.descricao || rotuloTipo}</div>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { SubtipoAutoclave, SubtipoCaldeira, TipoEquipamento } from './tipos';
 import { criarEquipamento, tagJaExiste } from './equipamentoService';
+import { FATORES_CONVERSAO, rotuloSistemaCompleto, type SistemaUnidade } from '../../calc/unidades';
 import './equipamento.css';
 import { normalizarTag } from './tagNormalizada';
 
@@ -13,6 +14,10 @@ export default function ModalCriarEquipamento({ onClose, onCriado }: Props) {
   const [tag, setTag] = useState('');
   const [tipo, setTipo] = useState<TipoEquipamento>('vaso');
   const [subtipoAutoclave, setSubtipoAutoclave] = useState<SubtipoAutoclave>('cilindrica');
+  // A unidade nasce com o equipamento (16/09/2026) e deixa de ser trocável no
+  // cartão. O valor inicial é SI porque era o recuo que o sistema já aplicava a
+  // todo equipamento sem preferência gravada — não é opção nova.
+  const [unidade, setUnidade] = useState<SistemaUnidade>('SI');
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
 
@@ -36,7 +41,7 @@ export default function ModalCriarEquipamento({ onClose, onCriado }: Props) {
         setErro(`Já existe um equipamento com a TAG "${tagLimpa}".`);
         return;
       }
-      await criarEquipamento(tagLimpa, tipo, resolverSubtipo());
+      await criarEquipamento(tagLimpa, tipo, resolverSubtipo(), unidade);
       onCriado(tagLimpa);
     } catch (e) {
       // O teto do trial chega como erro do serviço e vira mensagem na própria
@@ -127,6 +132,20 @@ export default function ModalCriarEquipamento({ onClose, onCriado }: Props) {
               </label>
             </fieldset>
           )}
+
+          <label>
+            Unidade de medida *
+            <select value={unidade} onChange={(e) => setUnidade(e.target.value as SistemaUnidade)}>
+              {(Object.keys(FATORES_CONVERSAO) as SistemaUnidade[]).map((u) => (
+                <option key={u} value={u}>
+                  {rotuloSistemaCompleto(u)}
+                </option>
+              ))}
+            </select>
+            <small className="campo-ajuda">
+              Define como as grandezas técnicas deste equipamento aparecem na ficha e na documentação.
+            </small>
+          </label>
 
           {erro && <p className="erro-form">{erro}</p>}
 

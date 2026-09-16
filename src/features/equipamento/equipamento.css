@@ -804,16 +804,17 @@
   font-weight: 600;
   text-transform: uppercase;
 }
-.plate-uom-select {
-  background: #FFF1E6;
-  color: var(--amber-deep);
-  font-size: 11px;
+/* A unidade do equipamento — INFORMAÇÃO, não controle (16/09/2026).
+   Era um `<select>` âmbar clicável; virou texto. Sem fundo de pílula, sem
+   cursor de mão e sem borda: um campo desabilitado ainda PARECE campo, e o que
+   se quer aqui é que pareça o que é — um dado da ficha, como TAG ou fabricante.
+   Mesmo corpo e peso dos valores da grade abaixo, para ler como parte do card. */
+.plate-uom-valor {
+  font-size: 11.5px;
   font-weight: 700;
-  padding: 3px 9px;
-  border-radius: 20px;
-  border: none;
-  cursor: pointer;
+  color: var(--amber-deep);
   font-family: var(--font-base);
+  white-space: nowrap;
 }
 
 .plate-name {

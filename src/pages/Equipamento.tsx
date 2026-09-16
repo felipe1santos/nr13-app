@@ -300,7 +300,14 @@ function EquipamentoView({ tag }: { tag: string }) {
       <section className="equipamento-secao">
         {/* Pressões adotadas da documentação — logo abaixo do card Memorial. Exibe/edita na
             unidade em pré-visualização da ficha; grava em MPa dentro de nr13_info_<TAG>. */}
-        <PressoesDocumentacao tag={tag} info={info} unidade={unidade} onSalvo={setInfo} />
+        {/* `unidadeSalva`, e não a prévia (16/09/2026): este bloco não só EXIBE,
+            ele RECEBE o número que o engenheiro digita e o converte para MPa
+            antes de gravar. Ligado à prévia, o rótulo dizia "(kgf/cm²)" por
+            causa de uma escolha que ainda não foi salva, e a entrada era
+            interpretada nessa unidade. A unidade de ENTRADA de um valor que
+            fica gravado tem de ser a do equipamento — a mesma regra que a
+            Categoria NR-13 já seguia na linha acima. */}
+        <PressoesDocumentacao tag={tag} info={info} unidade={unidadeSalva} onSalvo={setInfo} />
       </section>
 
       <section className="equipamento-secao">

@@ -1,9 +1,6 @@
-import { useState, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { EmpresaEquipamento, EquipamentoResumo } from './tipos';
-import type { SistemaUnidade } from '../../calc/unidades';
-import { FATORES_CONVERSAO, formatarValor } from '../../calc/unidades';
-import { salvarUnidade } from './equipamentoService';
+import { formatarValor, rotuloSistemaCompleto, unidadeValida } from '../../calc/unidades';
 import { ler } from '../../services/storage';
 import { Icone } from '../../components/Icone';
 import './equipamento.css';
@@ -49,7 +46,7 @@ function vidaInfo(tag: string): VidaBarra | null {
 export default function CardEquipamento({ item }: { item: EquipamentoResumo }) {
   const navigate = useNavigate();
   const { tag, info, categoria, calculo, fotoCapa } = item;
-  const [unidade, setUnidade] = useState<SistemaUnidade>(item.unidade);
+  const unidade = unidadeValida(item.unidade);
 
   const rotuloTipo =
     ROTULO_TIPO[info.tipo] + (info.subtipo && info.subtipo !== 'flamotubular' ? ` (${info.subtipo})` : '');
@@ -60,13 +57,6 @@ export default function CardEquipamento({ item }: { item: EquipamentoResumo }) {
   const empresaTxt = [emp?.razaoSocial || emp?.nomeFantasia, emp?.cidade].filter(Boolean).join(' · ');
   const vida = vidaInfo(tag);
   const resultado = calculo?.resultado ?? null;
-
-  async function handleUnidadeChange(e: ChangeEvent<HTMLSelectElement>) {
-    e.stopPropagation();
-    const u = e.target.value as SistemaUnidade;
-    setUnidade(u);
-    await salvarUnidade(tag, u);
-  }
 
   return (
     <div className="plate-card" onClick={() => navigate(rotaEquipamento(tag))} style={{ cursor: 'pointer' }}>
@@ -80,20 +70,10 @@ export default function CardEquipamento({ item }: { item: EquipamentoResumo }) {
       </div>
 
       <div className="plate-body">
-        <div className="plate-uom-row" onClick={(e) => e.stopPropagation()}>
+        {/* INFORMAÇÃO, não controle — mesma regra do `CardCatalogo` (16/09/2026). */}
+        <div className="plate-uom-row">
           <span className="plate-uom-label">Unidade de medida</span>
-          <select
-            className="plate-uom-select"
-            value={unidade}
-            onChange={handleUnidadeChange}
-            title="Selecionar unidade de medida"
-          >
-            {(Object.keys(FATORES_CONVERSAO) as SistemaUnidade[]).map((key) => (
-              <option key={key} value={key}>
-                {key} ({FATORES_CONVERSAO[key].labelPressao})
-              </option>
-            ))}
-          </select>
+          <span className="plate-uom-valor">{rotuloSistemaCompleto(unidade)}</span>
         </div>
 
         <div className="plate-name">{info.descricao || rotuloTipo}</div>
