@@ -938,13 +938,20 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
     categorizacaoFolha: {
       fluidoTrabalho: fluidoSemClasse(cat.fluidoInput) ?? fluidoSemClasse(info.fluido),
       codigoProjeto: txt(info.codigoProjeto),
-      // Na unidade do equipamento (16/09/2026). Era fixa em kgf/cm².
+      // FIXO EM kgf/cm², e não na unidade do equipamento.
       //
-      // Este campo está NA folha de categorização e mesmo assim converte: ele é
-      // EXIBIÇÃO da PMTA, não entra na conta da categoria. O que define a
-      // categoria — `pvKpa` (kPa·m³) e `pvMpa` (MPa·m³), logo abaixo — continua
-      // exatamente como estava, e é isso que o §4 do CLAUDE.md protege.
-      pmta: pmta.valor ? `${pmta.valor} ${rotuloPressao(unidade)}` : null,
+      // A folha de CATEGORIZAÇÃO é exceção INTEIRA à unidade por equipamento
+      // (decisão do dono, 16/09/2026). Em 16/09 este campo chegou a converter,
+      // sob o argumento de que é exibição e não entra na conta da categoria —
+      // argumento correto sobre a fórmula e errado sobre o limite pedido: a
+      // regra é a SEÇÃO, não só as fórmulas dentro dela.
+      //
+      // Vale a pena dizer por que o limite é a seção. Esta folha é lida como um
+      // conjunto: PMTA, produto em kPa·m³, produto em MPa·m³ e a matriz classe ×
+      // grupo, um embaixo do outro. Com a PMTA em bar e os produtos em kPa e
+      // MPa, quem confere a categoria teria de converter de cabeça para
+      // verificar a conta que está impressa ao lado.
+      pmta: pmta.kgf ? `${pmta.kgf} kgf/cm²` : null,
       volumeGeometrico: numeroBr(info.volume) ?? numeroBr(cat.volInput),
       aplicaNr13: rotuloEnquadramento(cat.isEnquadrado),
       // A NR-13 exige operador treinado para as categorias I e II (Anexo I-B).

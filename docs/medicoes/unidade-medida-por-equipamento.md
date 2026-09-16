@@ -99,8 +99,16 @@ Não muda, sob nenhuma unidade:
 `CategoriaNR13` a unidade **fixada**, nunca a prévia. No relatório, `pvKpa` e
 `pvMpa` saem crus do que a categorização gravou.
 
-O único campo daquela folha que passou a converter é `categorizacaoFolha.pmta`:
-ele é **exibição** da PMTA e não entra na conta da categoria.
+**A folha inteira é exceção, não só as fórmulas.** Em 16/09/2026 o campo
+`categorizacaoFolha.pmta` chegou a converter, sob o argumento de que é exibição
+e não entra na conta da categoria — argumento correto sobre a fórmula e errado
+sobre o limite pedido. Revertido no mesmo dia: a PMTA daquela folha sai sempre
+em **kgf/cm²**, seja qual for a unidade do equipamento.
+
+O limite é a seção porque a folha é lida como um conjunto: PMTA, produto em
+kPa·m³, produto em MPa·m³ e a matriz classe × grupo, um embaixo do outro. Com a
+PMTA em bar e os produtos em kPa e MPa, quem confere a categoria teria de
+converter de cabeça para verificar a conta impressa ao lado.
 
 Travado por `unidadeDoEquipamento.test.ts`: a mesma pressão física declarada nas
 três unidades produz produto, grupo e categoria idênticos.
@@ -151,7 +159,7 @@ um dia for preciso, migrar o parque antigo com honestidade.
 | PMO / PMTA / PTH (resumo) | idem | MPa | 3 colunas: MPa, kgf/cm², bar | **1 coluna, do equipamento** | 6 — Resumo de cálculos |
 | PMTA / PTH na placa desenhada | idem | MPa | 3 mini-colunas | **1, do equipamento** | 3 — Identificação/Placa |
 | Pressão de projeto | `nr13_vaso_.P` | MPa | fixo `MPa` | **do equipamento** | Dados técnicos |
-| PMTA da caracterização | `info.pmtaAdotadaMpa` ?? `calc.pmta` | MPa | fixo `kgf/cm²` | **do equipamento** | Caracterização |
+| PMTA da caracterização | `info.pmtaAdotadaMpa` ?? `calc.pmta` | MPa | fixo `kgf/cm²` | **fixo `kgf/cm²` (inalterado)** | Caracterização |
 | Produto P.V. enquadramento | `cat.PV_enq` | — | `kPa·m³` | **`kPa·m³` (inalterado)** | Categorização |
 | Produto P.V. risco | `cat.PV_cat` | — | `MPa·m³` | **`MPa·m³` (inalterado)** | Categorização |
 | Categoria, grupo, classe | `cat.*` | — | — | **inalterados** | Categorização |
@@ -228,3 +236,55 @@ sem janela de incompatibilidade — o bundle novo lê uma coluna que já existe.
    equipamento costuma trazer mais de uma; o desenho aqui é reconstruído a
    partir da ficha, não uma foto — quando existe foto real da placa, é ela que
    o documento usa.
+
+
+---
+
+## 19. Overrides antigos — medição em produção (16/09/2026)
+
+A troca do `id` das células de pressão (item 13) foi MEDIDA antes do rollout,
+com consulta somente-leitura em produção.
+
+| | |
+|---|---|
+| mapas de override (`nr13_ovr_`) | **44** |
+| campos com override, no total | **332** |
+| mapas que tocam pressão | **1** |
+| campos de pressão com override | **1** |
+| ids que ficariam inertes | **1** |
+
+O único é:
+
+```
+chave  nr13_ovr_REL-1788658262213_ZZ-FASE3
+campo  pressoes.pmta-pressao-maxima-de-trabalho-admissivel-kgf
+modo   manual · digitado 22,90 sobre o automático 22.94 · 06/09/2026
+```
+
+E o relatório dele está **FINALIZADO** (`pdfRef` presente, SHA
+`4e9f34ee…fb6cd74`). Relatório finalizado serve os bytes arquivados e nunca é
+remontado (§7-quater), então o override não é aplicado nem consultado: o
+`22,90` já está impresso no PDF que foi emitido.
+
+**Rascunhos afetados: ZERO. Perda silenciosa: NÃO.**
+
+### A borda que sobra, e a compatibilidade proposta
+
+`copiarOverrides` faz com que DUPLICAR um relatório leve os overrides junto. Se
+alguém duplicar aquele relatório finalizado, a cópia nasce com o id antigo, que
+o código novo não reconhece, e a célula volta ao valor calculado — perdendo a
+correção de 0,04 kgf sem avisar.
+
+Não foi implementado nada, porque não há caso hoje e a regra do pedido é
+"medir antes". Se um dia for preciso, a migração SEGURA é:
+
+```
+pressoes.<campo>-<u>  →  pressoes.<campo>
+   SOMENTE quando <u> é a unidade ATUAL do equipamento
+```
+
+Nunca incondicionalmente: um override de `22,90` digitado na coluna kgf, levado
+para uma célula que imprime MPa, poria 22,90 MPa no papel — dez vezes a pressão
+real. Quando as unidades não casam, o certo é NÃO migrar; e para não ser
+silencioso, o campo deveria ser marcado na prévia como "override descartado por
+troca de unidade".

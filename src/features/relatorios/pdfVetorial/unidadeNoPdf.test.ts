@@ -125,7 +125,17 @@ function montar(eq: { tag: string; unidade: SistemaUnidade }) {
   gravar(`nr13_cat_${eq.tag}`, categoria);
   gravar(`nr13_emp_${eq.tag}`, { razaoSocial: 'CLIENTE-UNID LTDA', cidade: 'CIDADE-UNID' });
   gravar(`nr13_calc_${eq.tag}`, { pmta: '2.33', pth: '3.02', memorialHTML: '', componentes: [] });
-  gravar(`nr13_vaso_${eq.tag}`, { tag: eq.tag, P: 1.9, D: 1000, componentes: [] });
+  // COM componentes: `memorialDoEquipamento` descarta o memorial cujo array
+  // está vazio, e sem ele a PRESSÃO DE PROJETO sai travessão — o campo não
+  // seria exercitado por este gate.
+  gravar(`nr13_vaso_${eq.tag}`, {
+    tag: eq.tag,
+    P: 1.9,
+    D: 1000,
+    componentes: [
+      { id: 'casco', nome: 'Casco Cilíndrico', tipo: 'cilindrico', dados: { mat: 'MATERIAL-UNID', ca: '1,6', temp: '120' } },
+    ],
+  });
   // A CHAVE DESTA RODADA.
   gravar(`nr13_pref_unidade_${eq.tag}`, eq.unidade);
 }
@@ -211,6 +221,12 @@ describe('cada documento sai na unidade do SEU equipamento', () => {
     expect(papelAlt).toContain('kgf/cm²');
   });
 
+  it('a PRESSÃO DE PROJETO também segue a unidade do equipamento', () => {
+    // 1,9 MPa = 19,37 kgf/cm². Estava fixa em MPa antes de 16/09/2026.
+    expect(papelSi).toContain('1.900 MPa');
+    expect(papelAlt).toContain('19.37 kgf/cm²');
+  });
+
   it('a pressão é a MESMA fisicamente — só a unidade muda', () => {
     // 2.200 MPa e 22.43 kgf/cm² são o mesmo número. Se o teste passasse por os
     // dados serem diferentes, ele não diria nada sobre unidade.
@@ -220,9 +236,16 @@ describe('cada documento sai na unidade do SEU equipamento', () => {
 
 describe('uma unidade não vaza para o outro equipamento', () => {
   it('o documento em MPa não traz nenhum valor em kgf/cm²', () => {
-    expect(papelSi).not.toContain(ESPERADO.TECNICO.pmta);
-    expect(papelSi).not.toContain(ESPERADO.TECNICO.pth);
-    expect(papelSi).not.toContain(ESPERADO.TECNICO.pmo);
+    // FORA a folha de categorização, que é exceção declarada: a PMTA dela sai
+    // em kgf/cm² nos DOIS documentos, e é por isso que ela fica de fora desta
+    // conta. Ver `categoriaIntacta.test.ts`.
+    const semCategorizacao = papelSi
+      .split('\n')
+      .filter((pagina) => !pagina.includes('CATEGORIZAÇÃO DE RISCO'))
+      .join('\n');
+    expect(semCategorizacao).not.toContain(ESPERADO.TECNICO.pmta);
+    expect(semCategorizacao).not.toContain(ESPERADO.TECNICO.pth);
+    expect(semCategorizacao).not.toContain(ESPERADO.TECNICO.pmo);
   });
 
   it('o documento em kgf/cm² não traz nenhum valor em MPa', () => {

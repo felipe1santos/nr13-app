@@ -181,11 +181,10 @@ describe('pressões: a ADOTADA da documentação vence a calculada', () => {
     expect(pressao(m, 'PMO').kgf).toBe('6.12');
     // A PLACA reconstruída lê das MESMAS pressões — tabela e placa não podem divergir.
     //
-    // 16/09/2026 · era `'8.16 kgf/cm²'`, fixo. Agora sai na UNIDADE DO
-    // EQUIPAMENTO, e a fixture não grava `nr13_pref_unidade_` — o que cai em SI
-    // pelo mesmo recuo de sempre, logo MPa com 3 casas. O valor canônico não
-    // mudou: `kgf` acima continua 8.16, e é dele que a conversão sai.
-    expect(m.categorizacaoFolha.pmta).toBe('0.800 MPa');
+    // A PMTA da folha de CATEGORIZAÇÃO continua fixa em kgf/cm², seja qual for
+    // a unidade do equipamento: aquela folha inteira é exceção à unidade por
+    // equipamento. Ver `categoriaIntacta.test.ts`.
+    expect(m.categorizacaoFolha.pmta).toBe('8.16 kgf/cm²');
     expect(m.unidade).toBe('SI');
     expect(m.unidadeLabel).toBe('MPa');
   });
