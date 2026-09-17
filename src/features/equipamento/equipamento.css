@@ -1141,6 +1141,105 @@
   .equip-barra-titulo { display: none; }
 }
 
+/* ============================================================================
+   CELULAR · o topo de /equipamentos numa LINHA SÓ (16/09/2026)
+
+   Eram três a quatro faixas antes da lista: a busca com `flex: 1 1 100%`
+   empurrava tudo para baixo e os botões esticavam (`flex: 1 1 auto`, regra
+   compartilhada de `buscaLista.css`). Agora: [grade|lista] [busca] [funil] [+].
+   Escopado em `.equip-topo` — as outras telas que usam a mesma busca não mudam.
+   ============================================================================ */
+@media (max-width: 640px) {
+  .equip-topo { margin-bottom: 10px; }
+  /* Especificidade acima da regra compartilhada `.busca-lista-linha > :not(...)`,
+     que tem o mesmo peso de uma regra simples daqui — sem isto, quem venceria
+     seria a ordem em que o bundle junta os CSS. */
+  .equip-topo .busca-lista .busca-lista-linha { gap: 6px; flex-wrap: wrap; }
+  .equip-topo .busca-lista .busca-lista-linha > * { flex: 0 0 auto; }
+  .equip-topo .busca-lista .busca-lista-linha > .busca-lista-campo { flex: 1 1 0; min-width: 0; }
+  .equip-topo .busca-lista-campo input { min-width: 0; }
+  /* Os botões mantêm o alvo de toque da regra abaixo (44 px no funil e no
+     criar); o que cede espaço é o campo de busca, que encolhe. */
+
+  /* A contagem sai da tela (continua para o leitor de tela, que é quem o
+     `aria-live` atende). O selo de SEM CONEXÃO não pode sumir: quando ele
+     existe, a faixa volta, numa linha própria. */
+  .equip-topo .busca-lista-info {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .equip-topo .busca-lista-info:has(.busca-lista-selo) {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip: auto;
+    flex: 1 1 100%;
+    order: 3;
+  }
+}
+
+/* ============================================================================
+   CELULAR · a lista pequena em DUAS linhas (16/09/2026)
+
+   Linha 1: TAG e tipo. Linha 2: categoria e PMTA. A empresa sai — no celular
+   ela era a linha mais longa do cartão e o assunto desta lista é o equipamento.
+   No computador a linha continua com a coluna da empresa.
+   ============================================================================ */
+@media (max-width: 640px) {
+  .equip-lista { gap: 6px; }
+  .equip-lista .card-equipamento-horiz {
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+  }
+  .equip-lista .card-eq-img { width: 40px; height: 40px; }
+  .equip-lista .card-eq-info {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2px 12px;
+  }
+  .equip-lista .eq-col-empresa { display: none; }
+  .equip-lista .card-eq-info .eq-col:first-child {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+  }
+  .equip-lista .eq-tag {
+    font-size: 13.5px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .equip-lista .eq-tipo { font-size: 10px; white-space: nowrap; }
+  .equip-lista .eq-col-cat,
+  .equip-lista .eq-col-pmta {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 5px;
+    min-width: 0;
+  }
+  .equip-lista .eq-col-cat .eq-label,
+  .equip-lista .eq-col-pmta .eq-label { font-size: 9.5px; }
+  .equip-lista .eq-col-cat .eq-value,
+  .equip-lista .eq-col-pmta .eq-value {
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+
 @media (max-width: 640px) {
   /* Os rótulos saem e ficam os ícones, com o alvo de toque de sempre. */
   .equip-btn-rotulo { display: none; }

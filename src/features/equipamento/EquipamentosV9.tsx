@@ -301,6 +301,9 @@ export default function EquipamentosV9() {
         equipamento. Agora: contexto e visualização à esquerda, busca no meio,
         funil e criar à direita — o mesmo arranjo de /relatorios e /prontuarios.
       */}
+      {/* `equip-topo`: escopo do layout de celular desta tela (tudo numa linha).
+          O CSS da busca é compartilhado com /relatorios, /inspecoes etc. */}
+      <div className="equip-topo">
       <BuscaLista
         valor={termo}
         aoMudar={(t) => trocarParam('q', t)}
@@ -348,6 +351,7 @@ export default function EquipamentosV9() {
           <Icone nome="plus" tam={14} /> <span className="equip-btn-rotulo">Criar equipamento</span>
         </button>
       </BuscaLista>
+      </div>
 
       {filtroAberto && (
         <ModalFiltrosEquipamentos
@@ -486,11 +490,11 @@ function LinhaCatalogo({ item, aoAbrir }: { item: ItemCatalogo; aoAbrir: () => v
           <span className="eq-tag">{item.tag}</span>
           <span className="eq-tipo">{ROTULO_TIPO[item.tipo ?? ''] ?? item.tipo ?? '—'}</span>
         </div>
-        <div className="eq-col">
+        <div className="eq-col eq-col-cat">
           <span className="eq-label">Categoria</span>
           <span className="eq-value">{item.categoria ?? '—'}</span>
         </div>
-        <div className="eq-col">
+        <div className="eq-col eq-col-pmta">
           {/* A ADOTADA da ficha, pelo mesmo motivo do cartão — esta linha é a
               MESMA lista, só na forma compacta. Ver o cabeçalho de
               `CardCatalogo.tsx`. Sem adoção: "—", nunca a calculada. */}
