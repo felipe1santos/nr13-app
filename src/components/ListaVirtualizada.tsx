@@ -26,7 +26,7 @@
  */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { faixaVisivel } from './faixaVisivel';
-import { alturaAceita, alturaDeLinha } from './alturaDeLinha';
+import { alturaAposTrocarEstimativa, alturaDeLinha, alturaInicial, proximaAltura } from './alturaDeLinha';
 
 export interface PropsListaVirtualizada<T> {
   itens: T[];
@@ -70,9 +70,23 @@ export default function ListaVirtualizada<T>({
 }: PropsListaVirtualizada<T>) {
   const raiz = useRef<HTMLDivElement | null>(null);
   const grade = useRef<HTMLDivElement | null>(null);
-  const [altura, setAltura] = useState(alturaEstimada);
+  // A altura da linha e se ela já foi medida — ver `EstadoAltura`.
+  const [estadoAltura, setEstadoAltura] = useState(() => alturaInicial(alturaEstimada));
+  const altura = estadoAltura.px;
   const [colunas, setColunas] = useState(1);
   const [faixa, setFaixa] = useState({ de: 0, ate: 1 });
+
+  // TROCAR A VISÃO RECOMEÇA A ALTURA (16/09/2026). Ver
+  // `alturaAposTrocarEstimativa`: a grade de /equipamentos mede ~706 px por linha
+  // no celular e a lista ~76; sem isto a lista herdava 706 e desenhava duas ou
+  // três linhas. Ajuste DURANTE o render, comparando com a estimativa já vista —
+  // o padrão do React para estado que depende de uma prop que mudou; num efeito
+  // haveria um quadro com a faixa errada antes da correção.
+  const [estimadaVista, setEstimadaVista] = useState(alturaEstimada);
+  if (estimadaVista !== alturaEstimada) {
+    setEstimadaVista(alturaEstimada);
+    setEstadoAltura((atual) => alturaAposTrocarEstimativa(atual, estimadaVista, alturaEstimada));
+  }
 
   /**
    * QUEM ROLA NÃO É A JANELA — é o `<main class="main-content">` do Layout.
@@ -150,7 +164,7 @@ export default function ListaVirtualizada<T>({
     // A altura medida é MONÓTONA (ver `alturaAceita`), então ela precisa de um
     // ponto de recomeço: outra lista tem outros itens, e a maior altura da
     // anterior não descreve mais nada.
-    setAltura(alturaEstimada);
+    setEstadoAltura(alturaInicial(alturaEstimada));
     recalcular();
   }, [chaveDoConjunto, rolador, recalcular, alturaEstimada]);
 
@@ -165,7 +179,7 @@ export default function ListaVirtualizada<T>({
     // isto, girar o telefone deixaria a lista com o espaçador da orientação
     // anterior — e, sendo monótona, ela nunca encolheria de volta.
     const aoRedimensionar = () => {
-      setAltura(alturaEstimada);
+      setEstadoAltura(alturaInicial(alturaEstimada));
       recalcular();
     };
     window.addEventListener('resize', aoRedimensionar);
@@ -230,7 +244,9 @@ export default function ListaVirtualizada<T>({
     // fazia a altura oscilar entre dois valores (cartões de alturas diferentes
     // na mesma lista) e realimentar a faixa até o React cortar com
     // "Maximum update depth exceeded".
-    setAltura((antes) => alturaAceita(antes, medida));
+    // A primeira medição substitui a estimativa, para mais ou para menos; as
+    // seguintes só podem crescer. Ver `EstadoAltura` e `alturaAceita`.
+    setEstadoAltura((antes) => proximaAltura(antes, medida));
   }, []);
 
   // A CADA RENDER, sem lista de dependências — de propósito.

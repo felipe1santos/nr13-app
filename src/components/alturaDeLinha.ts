@@ -114,6 +114,65 @@ export function alturaDeLinha({
  * redimensionada (ver `chaveDoConjunto` e o `resize` em `ListaVirtualizada`):
  * aí a medida antiga não descreve mais nada, e mantê-la é que seria errado.
  */
+/**
+ * A altura quando a ESTIMATIVA muda — ou seja, quando muda o LAYOUT das linhas.
+ *
+ * ## O defeito que isto fecha (16/09/2026)
+ *
+ * `/equipamentos` alterna entre grade de cartões grandes e lista pequena, e a
+ * tela passa `alturaEstimada` diferente para cada uma. A altura aceita, sendo
+ * monótona, só voltava ao ponto de partida com LISTA nova ou redimensionamento:
+ * trocar de visão herdava a altura da outra. No celular a grade mede ~706 px por
+ * linha e a lista ~76 — com 706 valendo, a lista desenhava duas ou três linhas
+ * e deixava o resto da tela em branco. "A quantidade de cartões muda conforme
+ * a visão", como foi relatado.
+ *
+ * Estimativa diferente = outro layout de linha = a medida antiga não descreve
+ * mais nada, exatamente como no `resize`. Estimativa igual (render comum) não
+ * mexe: voltar ao estimado a cada render reabriria o laço de medição.
+ */
+export function alturaAposTrocarEstimativa(
+  atual: EstadoAltura,
+  estimadaAnterior: number,
+  estimadaNova: number,
+): EstadoAltura {
+  return estimadaNova !== estimadaAnterior ? alturaInicial(estimadaNova) : atual;
+}
+
+/**
+ * A altura da linha e se ela já foi MEDIDA ou ainda é a estimativa.
+ *
+ * ## Por que a distinção (16/09/2026)
+ *
+ * `alturaAceita` só deixa crescer, e crescia a partir da ESTIMATIVA. Quando a
+ * linha real é MENOR que a estimada, a altura nunca chegava nela: a janela
+ * calculava a posição de cada linha com o valor maior, as linhas reais ficavam
+ * mais baixas que o previsto e, ao rolar, abria-se um vão sem item — o mesmo
+ * sintoma de "cartões faltando". Com a lista compacta do celular (~60 px contra
+ * 92 estimados) isso deixava de ser teórico.
+ *
+ * A estimativa é um palpite, não uma medida: a PRIMEIRA medição real a
+ * substitui, para mais ou para menos. Daí em diante vale a regra monótona, que
+ * é o que impede o laço de medição de 09/09/2026 — ele nasce da oscilação ENTRE
+ * medidas, e não da troca do palpite pela primeira delas.
+ */
+export interface EstadoAltura {
+  px: number;
+  medida: boolean;
+}
+
+export function alturaInicial(estimada: number): EstadoAltura {
+  return { px: estimada, medida: false };
+}
+
+/** Aplica uma medição. Devolve o MESMO objeto quando nada muda (o React não re-renderiza). */
+export function proximaAltura(atual: EstadoAltura, medida: number): EstadoAltura {
+  if (!(medida > 0)) return atual;
+  if (!atual.medida) return { px: medida, medida: true };
+  const px = alturaAceita(atual.px, medida);
+  return px === atual.px ? atual : { px, medida: true };
+}
+
 export function alturaAceita(anterior: number, medida: number): number {
   if (!(medida > 0)) return anterior;
   // Tolerância de 1 px: arredondamento sub-pixel não é mudança.
