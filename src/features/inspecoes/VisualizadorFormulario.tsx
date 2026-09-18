@@ -2,6 +2,15 @@ import type { FormularioEnsaio } from './tipos';
 import FotoImg from '../../components/FotoImg';
 import { ehSistemaUnidade, rotuloPressao } from '../../calc/unidades';
 import { UNIDADE_TH_LEGADA } from './formularios/unidadeTh';
+import { ITENS_VISUAL_EXTERNO } from './formularios/FormularioVisualExterno';
+import { ITENS_VISUAL_INTERNO } from './formularios/FormularioVisualInterno';
+import {
+  PERGUNTA_NC,
+  SIGNIFICADO_NC,
+  listaDeItens,
+  precisaConfirmarSemantica,
+  resultadoNcDerivado,
+} from './formularios/semanticaNc';
 
 // ── tipos locais (mirrors das interfaces em cada formulário) ─────────────────
 
@@ -27,6 +36,7 @@ interface DadosVisual {
   observacoes: string;
   conclusao: string;
   fotos: { base64: string; descricao: string }[];
+  semanticaNc?: number;
 }
 
 interface DadosUltrassom {
@@ -233,41 +243,39 @@ function ViewChecklist({ dados }: { dados: DadosChecklist }) {
 
 // ── VISUAL EXTERNO / INTERNO ─────────────────────────────────────────────────
 
-const ITENS_VE = [
-  'Juntas, conexões e vedações',
-  'Elementos de fixação',
-  'Cordões de solda',
-  'Estruturas de apoio, suporte e içamento',
-  'Estrutura física do equipamento',
-  'Dispositivo(s) de drenagem',
-  'Acúmulo residual ou material',
-  'Proteção contra eletricidade estática',
-  'Iluminação',
-  'Dispositivo(s) de alívio de pressão',
-  'Indicador(es) de pressão',
-  'Sistema contra bloqueio inadvertido de dispositivo(s) de segurança',
-  'Placa de identificação',
-  'Acessibilidade e localização do equipamento',
-  'Ventilação',
-];
+// Os itens vêm dos FORMULÁRIOS (18/09/2026). Havia uma terceira cópia das duas
+// listas aqui — e a ordem é o identificador do item (`{ "3": "sim" }`): uma
+// cópia divergente mostraria a resposta de um item ao lado da pergunta de outro.
+const ITENS_VE = ITENS_VISUAL_EXTERNO;
+const ITENS_VI = ITENS_VISUAL_INTERNO;
 
-const ITENS_VI = [
-  'Condição geral das paredes internas',
-  'Presença de trincas ou fissuras',
-  'Incrustações ou depósitos internos',
-  'Erosão ou desgaste da superfície interna',
-  'Integridade das soldas internas',
-  'Estado das conexões e bocais internos',
-  'Revestimento interno (quando aplicável)',
-  'Corrosão sob tensão (SCC)',
-  'Suportes e estruturas internas',
-  'Limpeza interna',
-  'Marcas de desgaste ou abrasão',
-  'Pontos de corrosão localizada (pite)',
-  'Integridade do fundo e tampos internos',
-  'Bocas de inspeção e tampas de acesso',
-  'Iluminação interna para inspeção',
-];
+/**
+ * Badge dos EXAMES VISUAIS: a resposta é a da pergunta "Foi encontrada alguma
+ * não conformidade?". SIM é problema (vermelho), NÃO é conforme (verde).
+ *
+ * O `BadgeResposta` do checklist pinta SIM de verde — lá as perguntas são
+ * positivas ("Possui placa?"). Usá-lo aqui (o que esta tela fazia) mostrava
+ * a não conformidade como se fosse aprovação.
+ */
+function BadgeNc({ val }: { val: string }) {
+  const cor =
+    val === 'sim'
+      ? { bg: 'var(--crit-bg)', color: 'var(--crit-deep)' }
+      : val === 'nao'
+        ? { bg: 'var(--ok-bg)', color: 'var(--ok)' }
+        : { bg: '#f1f5f9', color: '#475569' };
+  const rotulo = val === 'sim' ? 'SIM' : val === 'nao' ? 'NÃO' : val === 'na' ? 'N.A.' : val;
+  const significado = SIGNIFICADO_NC[val as 'sim' | 'nao' | 'na'];
+  return (
+    <span
+      title={significado}
+      aria-label={significado ? `${rotulo} — ${significado}` : rotulo}
+      style={{ background: cor.bg, color: cor.color, fontWeight: 700, fontSize: 11, padding: '2px 8px', borderRadius: 4 }}
+    >
+      {rotulo}
+    </span>
+  );
+}
 
 function ViewVisual({ dados, titulo, itens }: { dados: DadosVisual; titulo: string; itens: string[] }) {
   return (
@@ -285,12 +293,30 @@ function ViewVisual({ dados, titulo, itens }: { dados: DadosVisual; titulo: stri
       </SecaoViz>
 
       <SecaoViz titulo={`Itens de Verificação — ${titulo}`}>
+        {precisaConfirmarSemantica(dados) && (
+          <p
+            role="note"
+            style={{ fontSize: 12, margin: '0 0 8px', padding: '8px 10px', borderRadius: 6, background: 'var(--warn-bg)', border: '1px solid var(--warn-line)' }}
+          >
+            Preenchido antes de a pergunta aparecer na tela de campo — as respostas SIM/NÃO
+            precisam ser revisadas no formulário antes de finalizar um relatório.
+          </p>
+        )}
+        <p style={{ fontSize: 12, margin: '0 0 6px', color: '#374151' }}>
+          <strong>{PERGUNTA_NC}</strong>{' '}
+          {(() => {
+            const r = resultadoNcDerivado(itens.map((_, i) => dados.itens?.[String(i + 1)] ?? ''));
+            return r.resposta === 'SIM'
+              ? `SIM — ${listaDeItens(r.itensNc)}`
+              : (r.resposta ?? `${r.respondidos} de ${r.total} itens respondidos`);
+          })()}
+        </p>
         <table className="viz-table">
           <thead>
             <tr>
               <th style={{ width: 28 }}>Nº</th>
               <th>Item</th>
-              <th style={{ width: 60 }}>Resultado</th>
+              <th style={{ width: 60 }}>Não conf.?</th>
               <th>Obs.</th>
             </tr>
           </thead>
@@ -304,7 +330,7 @@ function ViewVisual({ dados, titulo, itens }: { dados: DadosVisual; titulo: stri
                   <td style={{ textAlign: 'center', color: '#6b7280', fontSize: 11 }}>{n}</td>
                   <td style={{ fontSize: 12 }}>{item}</td>
                   <td style={{ textAlign: 'center' }}>
-                    {val ? <BadgeResposta val={val} /> : <span style={{ color: '#d1d5db' }}>—</span>}
+                    {val ? <BadgeNc val={val} /> : <span style={{ color: '#d1d5db' }}>—</span>}
                   </td>
                   <td style={{ fontSize: 11, color: '#374151' }}>{obs}</td>
                 </tr>

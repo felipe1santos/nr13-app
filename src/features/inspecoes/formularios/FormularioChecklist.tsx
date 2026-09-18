@@ -150,6 +150,15 @@ interface DadosChecklist {
   // Parecer livre sobre a documentação analisada — injetado no rodapé
   // ("Comentários sobre a documentação") da folha VERIFICACAO-DOCUMENTACAO.
   comentariosDocumentacao?: string;
+  /**
+   * "Observações — checklist" das folhas 7.1.1 e 7.1.2 do relatório
+   * (18/09/2026). O documento sempre teve os dois quadros, mas nenhum
+   * formulário os preenchia: só dava para escrever DENTRO do documento, um
+   * relatório por vez, sem voltar para a inspeção. O documento separa por
+   * PARTE (não por externo/interno), e os campos seguem o documento.
+   */
+  observacoesParte1?: string;
+  observacoesParte2?: string;
 }
 
 function dadosPadrao(): DadosChecklist {
@@ -162,6 +171,8 @@ function dadosPadrao(): DadosChecklist {
     fotosDocumentacao: [],
     fotos: [],
     comentariosDocumentacao: '',
+    observacoesParte1: '',
+    observacoesParte2: '',
   };
 }
 
@@ -361,6 +372,40 @@ export default function FormularioChecklist({ tag, containerId }: { tag: string;
               />
             </div>
           ))}
+        </div>
+      </details>
+
+      {/* Os quadros livres das duas folhas do checklist no relatório. Ficam aqui,
+          juntos, porque a PARTE 1 do documento reúne seções que no formulário
+          estão separadas (resultados, prontuário, exame externo e instrumentos),
+          e a PARTE 2 as demais (exame interno, ensaio hidrostático e as
+          considerações finais). Nº de certificado e validade NÃO são texto livre:
+          têm lugar estruturado no quadro de instrumentos. */}
+      <details className="formulario-secao-collapse">
+        <summary>Observações do Checklist</summary>
+        <div className="formulario-secao-collapse-body">
+          <div className="pergunta-checklist">
+            <label htmlFor="obs-checklist-parte1">Observações — checklist (parte 1)</label>
+            <span className="th-dica-campo">Resultados da inspeção, prontuário, exame externo e instrumentos</span>
+            <textarea
+              id="obs-checklist-parte1"
+              rows={3}
+              value={dados.observacoesParte1 ?? ''}
+              onChange={(e) => setDados((d) => ({ ...d, observacoesParte1: e.target.value }))}
+              style={{ ...estiloInputObs, resize: 'vertical' }}
+            />
+          </div>
+          <div className="pergunta-checklist">
+            <label htmlFor="obs-checklist-parte2">Observações — checklist (parte 2)</label>
+            <span className="th-dica-campo">Exame interno, ensaio hidrostático e considerações finais</span>
+            <textarea
+              id="obs-checklist-parte2"
+              rows={3}
+              value={dados.observacoesParte2 ?? ''}
+              onChange={(e) => setDados((d) => ({ ...d, observacoesParte2: e.target.value }))}
+              style={{ ...estiloInputObs, resize: 'vertical' }}
+            />
+          </div>
         </div>
       </details>
 

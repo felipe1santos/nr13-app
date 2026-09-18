@@ -134,6 +134,16 @@ export class Documento {
     return opcional ? 'opcional' : 'critica';
   }
 
+  /**
+   * O que o campo `id` VAI MOSTRAR — o automático com o override aplicado —,
+   * sem registrar nada. Para quem precisa derivar um valor de outros campos
+   * editáveis (o resultado de não conformidade do exame visual sai das marcas
+   * que a folha realmente imprime, inclusive as corrigidas no documento).
+   */
+  valorEfetivo(id: string, auto: string): string {
+    return this.resolver(id, auto);
+  }
+
   /** O texto que a célula/parágrafo deve mostrar, já com o override aplicado. */
   private resolver(id: string | undefined, auto: string): string {
     if (!id) return auto;

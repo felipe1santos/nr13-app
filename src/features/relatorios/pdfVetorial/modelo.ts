@@ -271,6 +271,12 @@ export interface ModeloRelatorio {
   /** Instrumentos e dispositivos de segurança conferidos em campo. */
   instrumentos: InstrumentoModelo[];
   comentariosDocumentacao: string | null;
+  /**
+   * Os quadros "Observações — checklist" das partes 1 e 2 (18/09/2026), do
+   * formulário de campo (`checklist.observacoesParte1/2`). Antes nasciam
+   * vazios por construção: nenhum formulário os preenchia.
+   */
+  observacoesChecklist: { parte1: string | null; parte2: string | null };
   fotosDocumentacao: FotoModelo[];
   fotosChecklist: FotoModelo[];
 
@@ -739,6 +745,8 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
     fotos?: FotoBruta[];
     fotosDocumentacao?: FotoBruta[];
     comentariosDocumentacao?: string;
+    observacoesParte1?: string;
+    observacoesParte2?: string;
   };
   const us = (inj.ultrassom ?? {}) as Record<string, unknown>;
   const th = (inj.th ?? {}) as Record<string, unknown>;
@@ -1043,6 +1051,7 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
       certificado: null,
     })),
     comentariosDocumentacao: txt(chk.comentariosDocumentacao),
+    observacoesChecklist: { parte1: txt(chk.observacoesParte1), parte2: txt(chk.observacoesParte2) },
     fotosDocumentacao: fotos(chk.fotosDocumentacao),
     fotosChecklist: fotos(chk.fotos),
 

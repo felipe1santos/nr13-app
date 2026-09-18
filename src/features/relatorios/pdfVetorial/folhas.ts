@@ -9,6 +9,7 @@ import { rotuloLaudo } from './rotulos';
 import { DESCRICAO_VARIAVEL, prepararFormula, variaveisDaFormula } from './formulaMatematica';
 import { formulaDoLatex } from './latexMemorial';
 import { textoOu, type ExameVisual, type FotoModelo, type ItemChecklist, type ModeloRelatorio } from './modelo';
+import { listaDeItens, resultadoNcDerivado } from '../../inspecoes/formularios/semanticaNc';
 
 /**
  * Fase 11 · as 21 folhas do relatório, na ordem da referência.
@@ -189,6 +190,36 @@ function blocoExame(
         { texto: obs, valor: true, id: `${base}.obs`, rotuloCampo: `${i + 1}. ${it.titulo} — observação`, multilinha: true },
       ];
     }),
+  });
+
+  // ── A RESPOSTA GERAL, DERIVADA DAS LINHAS (18/09/2026) ────────────────────
+  //
+  // Não é campo gravado nem editável: é a leitura das marcas que ESTA folha
+  // imprime — inclusive as corrigidas no documento (`valorEfetivo`). Um
+  // booleano próprio poderia dizer "NÃO" com o item 3 marcado SIM ao lado.
+  const efetivas = exame.itens.map((it, i) => {
+    const m = marcasSimNaoNa(it.resposta);
+    const base = `${prefixo}.item-${i + 1}`;
+    const marcada = (col: string, auto: boolean) => doc.valorEfetivo(`${base}.${col}`, auto ? 'X' : '').trim() !== '';
+    if (marcada('sim', m.sim)) return 'sim';
+    if (marcada('nao', m.nao)) return 'nao';
+    if (marcada('na', m.na)) return 'na';
+    return '';
+  });
+  const nc = resultadoNcDerivado(efetivas);
+  doc.tabela({
+    compacta: true,
+    colunas: [0.5, 0.5],
+    linhas: [
+      [
+        { texto: 'NÃO CONFORMIDADE ENCONTRADA? (resultado dos itens)', rotulo: true },
+        {
+          texto: nc.resposta === 'SIM' ? `SIM — ${listaDeItens(nc.itensNc)}` : (nc.resposta ?? '—'),
+          valor: true,
+          semDestaque: true,
+        },
+      ],
+    ],
   });
 
   doc.secao(`Conclusão técnica — ${nomeDoExame}`);
@@ -1603,7 +1634,16 @@ export function folhasChecklist(doc: Documento, m: ModeloRelatorio): void {
     ]),
   });
 
-  doc.blocoAteOFim('checklist1.observacoes', 'Observações do checklist (parte 1)', 'Observações — checklist (parte 1)', 16, 52);
+  // O texto vem do formulário de campo (18/09/2026); o override do documento
+  // continua vencendo. Antes o quadro nascia vazio: nenhum formulário o preenchia.
+  doc.blocoAteOFim(
+    'checklist1.observacoes',
+    'Observações do checklist (parte 1)',
+    'Observações — checklist (parte 1)',
+    16,
+    52,
+    textoOu(m.observacoesChecklist.parte1, ''),
+  );
   doc.fecharSecaoElastica();
 
   // ── 7.1.2 · CHECKLIST, PARTE 2 ───────────────────────────────────────────
@@ -1612,7 +1652,14 @@ export function folhasChecklist(doc: Documento, m: ModeloRelatorio): void {
   doc.banner('7.1.2 CHECKLIST NR-13 — VASO SOB PRESSÃO (PARTE 2)');
   parte2.forEach((secao, i) => tabelaChecklist(doc, secao, `checklist2.${i}`));
 
-  doc.blocoAteOFim('checklist2.observacoes', 'Observações do checklist (parte 2)', 'Observações do checklist', 16, 52);
+  doc.blocoAteOFim(
+    'checklist2.observacoes',
+    'Observações do checklist (parte 2)',
+    'Observações — checklist (parte 2)',
+    16,
+    52,
+    textoOu(m.observacoesChecklist.parte2, ''),
+  );
   doc.fecharSecaoElastica();
 }
 

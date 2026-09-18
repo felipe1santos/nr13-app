@@ -1168,6 +1168,7 @@ function RelatoriosLegado() {
         documentos,
         laudo: ler<LaudoConclusao>(`nr13_laudo_${tag}`),
         dadosContainer,
+        overrides,
       }),
     );
   }

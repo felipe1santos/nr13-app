@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { carregarDadosFormulario, salvarDadosFormulario } from '../inspecaoService';
 import { useAutosaveFormulario } from '../useAutosaveFormulario';
-import RespostaSegmentada from './RespostaSegmentada';
+import { AvisoRevisaoNc, CabecalhoNaoConformidade, ItemNaoConformidade } from './ExameNaoConformidade';
+import { SEMANTICA_NC_ATUAL, carimboInicial, precisaConfirmarSemantica, type RespostaNc } from './semanticaNc';
 import { mesclarPreenchimento, prefillVisual } from './autoPreencher';
 import ResultadoEnsaio, { type ResultadoEnsaioValor } from './ResultadoEnsaio';
 import { salvarFoto, type RefFoto } from '../../../services/fotos';
@@ -55,6 +56,12 @@ interface DadosVisual {
   conclusao: string;
   resultado: ResultadoEnsaioValor;
   fotos: { base64?: string; ref?: RefFoto; descricao: string }[];
+  /**
+   * Carimbo da semântica "SIM = não conformidade encontrada" (18/09/2026).
+   * Presente = respondido com a pergunta na tela. Ausente num registro COM
+   * respostas = preenchido antes; fica para revisão. Ver `semanticaNc.ts`.
+   */
+  semanticaNc?: number;
 }
 
 function dadosPadrao(): DadosVisual {
@@ -76,16 +83,15 @@ function dadosPadrao(): DadosVisual {
 }
 
 export default function FormularioVisualExterno({ tag, containerId }: { tag: string; containerId: string }) {
-  const [dados, setDados] = useState<DadosVisual>(
+  const [dados, setDados] = useState<DadosVisual>(() => {
     // Merge com o padrão pra inspeções antigas (sem `resultado`) não quebrarem.
     // Precedência: o que o usuário digitou > auto-preenchimento do cadastro > padrão.
-    () =>
-      mesclarPreenchimento(
-        dadosPadrao(),
-        prefillVisual(tag),
-        carregarDadosFormulario<DadosVisual>(tag, containerId, 'visual_externo'),
-      ),
-  );
+    const salvo = carregarDadosFormulario<DadosVisual>(tag, containerId, 'visual_externo');
+    const mesclado = mesclarPreenchimento(dadosPadrao(), prefillVisual(tag), salvo);
+    // O carimbo NÃO vem do padrão: registro antigo com respostas fica sem ele
+    // até a revisão explícita (`AvisoRevisaoNc`).
+    return { ...mesclado, semanticaNc: carimboInicial(salvo) };
+  });
   useAutosaveFormulario(tag, containerId, 'visual_externo', dados);
   // 10/09/2026 · o aviso de salvamento passou a ser UM componente do sistema
   // (`FeedbackSalvamento`). Antes cada formulário tinha a sua cópia — quatro
@@ -95,6 +101,10 @@ export default function FormularioVisualExterno({ tag, containerId }: { tag: str
 
   function set<K extends keyof DadosVisual>(k: K, v: DadosVisual[K]) {
     setDados((d) => ({ ...d, [k]: v }));
+  }
+
+  function confirmarSemantica() {
+    setDados((d) => ({ ...d, semanticaNc: SEMANTICA_NC_ATUAL }));
   }
 
   function setItem(n: number, val: 'sim' | 'nao' | 'na' | '') {
@@ -155,35 +165,24 @@ export default function FormularioVisualExterno({ tag, containerId }: { tag: str
 
       <div className="formulario-secao">
         <h3>Itens de Verificação — Inspeção Visual Externa</h3>
+        {/* A PERGUNTA que as três colunas respondem — a mesma do documento (7.2/7.3).
+            Sem ela, SIM se lia "está ok"; no laudo, SIM é não conformidade. */}
+        {precisaConfirmarSemantica(dados) && <AvisoRevisaoNc aoConfirmar={confirmarSemantica} />}
+        <CabecalhoNaoConformidade
+          respostas={ITENS.map((_, idx) => (dados.itens[String(idx + 1)] ?? '') as RespostaNc)}
+        />
         {ITENS.map((item, idx) => {
           const n = idx + 1;
-          const val = dados.itens[String(n)] ?? '';
           return (
-            <div
+            <ItemNaoConformidade
               key={n}
-              style={{ borderBottom: '1px solid var(--border-solid)', padding: '10px 0', marginBottom: 2 }}
-            >
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 11, color: 'var(--text-muted)', minWidth: 22, paddingTop: 4, fontWeight: 700 }}>{n}.</span>
-                <span style={{ flex: 1, fontSize: 13, fontWeight: 500, lineHeight: 1.4 }}>{item}</span>
-                <RespostaSegmentada
-                  opcoes={[
-                    { value: 'sim', label: 'SIM' },
-                    { value: 'nao', label: 'NÃO' },
-                    { value: 'na', label: 'N.A.' },
-                  ]}
-                  valor={val}
-                  onChange={(v) => setItem(n, v as 'sim' | 'nao' | 'na' | '')}
-                />
-              </div>
-              <input
-                type="text"
-                placeholder="Observação (opcional)"
-                value={dados.itemObs[String(n)] ?? ''}
-                onChange={(e) => setItemObs(n, e.target.value)}
-                style={{ marginTop: 6, marginLeft: 30, width: 'calc(100% - 34px)', padding: '6px 10px', fontSize: 12, border: '1px solid var(--border-solid)', borderRadius: 6 }}
-              />
-            </div>
+              n={n}
+              texto={item}
+              valor={(dados.itens[String(n)] ?? '') as RespostaNc}
+              observacao={dados.itemObs[String(n)] ?? ''}
+              aoResponder={(v) => setItem(n, v)}
+              aoObservar={(v) => setItemObs(n, v)}
+            />
           );
         })}
       </div>

@@ -1,4 +1,8 @@
 import type { RelatorioMeta } from './tipos';
+import { resolverValor, type MapaOverrides } from './overridesRelatorio';
+import { listaDeItens, precisaConfirmarSemantica } from '../inspecoes/formularios/semanticaNc';
+import { ITENS_VISUAL_EXTERNO } from '../inspecoes/formularios/FormularioVisualExterno';
+import { ITENS_VISUAL_INTERNO } from '../inspecoes/formularios/FormularioVisualInterno';
 
 /**
  * Fase 10B.1 · o que se confere ANTES de finalizar — e a diferença entre
@@ -51,6 +55,11 @@ export interface EntradaValidacao {
   laudo: LaudoConclusao | null;
   /** `container.dados` da inspeção de origem, quando o relatório veio de uma. */
   dadosContainer?: Record<string, unknown> | null;
+  /**
+   * Os overrides do documento aberto. A observação de uma não conformidade
+   * pode ter sido escrita DENTRO do documento, e não no formulário — ela vale.
+   */
+  overrides?: MapaOverrides;
 }
 
 function vazio(v: string | undefined | null): boolean {
@@ -143,17 +152,50 @@ export function validarParaFinalizar(e: EntradaValidacao): ResultadoValidacao {
   }
 
   // Exames visuais: a observação em branco é o exemplo que o dono deu.
-  for (const [arquivo, chave, rotulo] of [
-    ['VISUAL-EXTERNO.html', 'visual_externo', 'exame externo'],
-    ['VISUAL-INTERNO.html', 'visual_interno', 'exame interno'],
+  for (const [arquivo, chave, rotulo, prefixo, itens] of [
+    ['VISUAL-EXTERNO.html', 'visual_externo', 'exame externo', 'exameExterno', ITENS_VISUAL_EXTERNO],
+    ['VISUAL-INTERNO.html', 'visual_interno', 'exame interno', 'exameInterno', ITENS_VISUAL_INTERNO],
   ] as const) {
     if (!tem(e.documentos, arquivo)) continue;
     const v = bloco<Record<string, unknown>>(e.dadosContainer, chave);
+    const onde = `Inspeção · Visual ${chave === 'visual_externo' ? 'externo' : 'interno'}`;
+
+    // ── 18/09/2026 · a pergunta de não conformidade ─────────────────────────
+    // (1) Exame respondido ANTES de a pergunta aparecer na tela: SIM podia
+    //     significar "está ok". Não se reinterpreta — bloqueia até alguém
+    //     conferir no formulário e confirmar. Relatório já finalizado não passa
+    //     por aqui (é arquivo, §7-quater).
+    if (precisaConfirmarSemantica(v)) {
+      obrigatorios.push({
+        campo: `${chave}.semanticaNc`,
+        texto: `Respostas do ${rotulo} precisam de revisão: foram marcadas antes de a pergunta "Foi encontrada alguma não conformidade?" aparecer na tela`,
+        onde,
+      });
+    }
+    // (2) Não conformidade marcada sem descrição. Conta o que a FOLHA imprime:
+    //     marca e observação corrigidas no documento valem.
+    const ovr = e.overrides ?? {};
+    const semDescricao: number[] = [];
+    itens.forEach((_, i) => {
+      const n = i + 1;
+      const resposta = texto((v?.itens as Record<string, unknown> | undefined)?.[String(n)]).trim().toLowerCase();
+      const sim = (resolverValor(resposta === 'sim' ? 'X' : '', ovr[`${prefixo}.item-${n}.sim`]) ?? '').trim() !== '';
+      const obsAuto = texto((v?.itemObs as Record<string, unknown> | undefined)?.[String(n)]);
+      const obs = resolverValor(obsAuto, ovr[`${prefixo}.item-${n}.obs`]) ?? '';
+      if (sim && obs.trim() === '') semDescricao.push(n);
+    });
+    if (semDescricao.length > 0) {
+      obrigatorios.push({
+        campo: `${chave}.ncSemObservacao`,
+        texto: `${rotulo[0].toUpperCase()}${rotulo.slice(1)}: não conformidade sem descrição (${listaDeItens(semDescricao)})`,
+        onde,
+      });
+    }
     if (vazio(texto(v?.observacoes))) {
-      opcionais.push({ campo: `${chave}.observacoes`, texto: `Observação do ${rotulo} em branco`, onde: `Inspeção · Visual ${chave === 'visual_externo' ? 'externo' : 'interno'}` });
+      opcionais.push({ campo: `${chave}.observacoes`, texto: `Observação do ${rotulo} em branco`, onde });
     }
     if (vazio(texto(v?.resultado))) {
-      opcionais.push({ campo: `${chave}.resultado`, texto: `Resultado do ${rotulo} não informado`, onde: `Inspeção · Visual ${chave === 'visual_externo' ? 'externo' : 'interno'}` });
+      opcionais.push({ campo: `${chave}.resultado`, texto: `Resultado do ${rotulo} não informado`, onde });
     }
   }
 

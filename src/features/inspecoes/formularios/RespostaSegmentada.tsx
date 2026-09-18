@@ -3,6 +3,14 @@
 export interface OpcaoSegmentada {
   value: string;
   label: string;
+  /**
+   * O que a opção SIGNIFICA quando marcada (18/09/2026). Nos exames visuais,
+   * SIM responde "foi encontrada não conformidade?" — é problema, e não pode
+   * acender com a mesma cor de "conforme". Sem `tom`, o destaque é o de sempre.
+   */
+  tom?: 'perigo' | 'ok' | 'neutro';
+  /** Texto para leitor de tela quando o rótulo sozinho é ambíguo ("SIM"). */
+  descricao?: string;
 }
 
 export default function RespostaSegmentada({
@@ -25,7 +33,8 @@ export default function RespostaSegmentada({
             type="button"
             role="radio"
             aria-checked={ativa}
-            className={`resposta-seg-btn${ativa ? ' ativa' : ''}`}
+            className={`resposta-seg-btn${ativa ? ' ativa' : ''}${o.tom ? ` tom-${o.tom}` : ''}`}
+            aria-label={o.descricao ? `${o.label} — ${o.descricao}` : undefined}
             onClick={() => onChange(ativa ? '' : o.value)}
           >
             {o.label}
