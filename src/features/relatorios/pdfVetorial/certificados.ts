@@ -6,7 +6,7 @@ import {
   garantirFonteInterHost,
   normalizarCloneParaCanvas,
 } from '../printService';
-import { comFolhaIsolada } from './hostCertificado';
+import { comFolhaIsolada, empresaTemLogo, logoAusenteNaFolha } from './hostCertificado';
 
 /**
  * Fase 11 · os CERTIFICADOS dentro do relatório vetorial.
@@ -85,20 +85,29 @@ export async function anexarFolhasDeCertificado(
   bytes: Uint8Array,
   documentos: string[],
   tag: string,
-): Promise<{ bytes: Uint8Array; anexadas: number; falhas: string[] }> {
+): Promise<{ bytes: Uint8Array; anexadas: number; falhas: string[]; semLogo: string[] }> {
   const indices = indicesDeCertificado(documentos);
-  if (indices.length === 0) return { bytes, anexadas: 0, falhas: [] };
+  if (indices.length === 0) return { bytes, anexadas: 0, falhas: [], semLogo: [] };
 
   const doc = await PDFDocument.load(bytes);
   await garantirFonteInterHost();
 
   let anexadas = 0;
   const falhas: string[] = [];
+  // Folhas que foram anexadas SEM a logo que a empresa tem — o defeito de
+  // 18/09/2026 (`hostCertificado.materializarChaves`). Não impede o anexo: a
+  // folha é o certificado; mas o silêncio é que não pode voltar.
+  const semLogo: string[] = [];
+  const esperaLogo = empresaTemLogo();
 
   for (const i of indices) {
     try {
       const jpgUrl = await comFolhaIsolada(documentos[i], tag, async (alvo, docFolha) => {
         await aguardarRecursosIframe(docFolha);
+        if (logoAusenteNaFolha(docFolha, esperaLogo)) {
+          console.error(`Certificado "${documentos[i]}": a empresa tem logo e a folha montou sem ela.`);
+          semLogo.push(documentos[i]);
+        }
         const canvas = await html2canvas(alvo, {
           scale: 2,
           useCORS: true,
@@ -122,5 +131,5 @@ export async function anexarFolhasDeCertificado(
     await new Promise((r) => setTimeout(r, 0));
   }
 
-  return { bytes: await doc.save(), anexadas, falhas };
+  return { bytes: await doc.save(), anexadas, falhas, semLogo };
 }

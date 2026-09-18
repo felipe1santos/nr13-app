@@ -217,7 +217,9 @@
             <tr>
                 <td class="col-logo">
                      <div class="logo-placeholder editable-image" onclick="document.getElementById('inputLogo').click()" title="Clique para alterar a Logo">
-                        <img id="imgLogo" src="logo.webp" alt="Logo">
+                        <!-- Sem logo cadastrada: pixel transparente, e não o antigo "logo.webp" (arquivo que não
+                             existe aqui — 404 e canto vazio no PDF). A logo real chega por dados.logo. -->
+                        <img id="imgLogo" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="">
                      </div>
                 </td>
                 <td class="col-title" contenteditable="true" spellcheck="false">

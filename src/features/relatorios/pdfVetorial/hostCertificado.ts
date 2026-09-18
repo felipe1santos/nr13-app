@@ -1,4 +1,5 @@
 import { ler } from '../../../services/storage';
+import { hidratarFotosDoBucket, refsNoLugarDaChave, type ItemPalco } from '../../../services/palco';
 import { ALTURA_A4_PX, aguardarRecursosIframe } from '../printService';
 
 /**
@@ -32,10 +33,11 @@ import { ALTURA_A4_PX, aguardarRecursosIframe } from '../printService';
  * estamos nos livrando —, ele materializa **as poucas chaves que a folha lê**,
  * guarda os valores anteriores e os restaura ao terminar.
  *
- * Isso NÃO usa `palco.ts`: aquele módulo tem trava por aba, manifesto e
- * orçamento de 3.368 KB para um documento inteiro. Aqui são quatro chaves e uma
- * folha, e reaproveitar a maquinaria do palco significaria disputar a trava com
- * o documento que talvez esteja aberto.
+ * Isso NÃO monta o palco: `palco.ts` tem trava por aba, manifesto e orçamento
+ * de 3.368 KB para um documento inteiro. Aqui são quatro chaves e uma folha, e
+ * montar o palco significaria disputar a trava com o documento que talvez esteja
+ * aberto. Do palco vem só a função PURA que troca referência por imagem
+ * (`hidratarFotosDoBucket`) — ver `materializarChaves`.
  */
 
 /** As chaves globais que qualquer folha `CERTIFICADO-CAL-*` lê. */
@@ -61,16 +63,47 @@ export function chavesDaFolha(documento: string): string[] {
  * Chave que **já existe** no `localStorage` não é tocada: no caminho v1, e com o
  * palco do documento montado, o valor que está lá é o certo — reescrevê-lo
  * arriscaria trocar um dado bom por uma releitura.
+ *
+ * ## A LOGO (revisão do engenheiro, 18/09/2026)
+ *
+ * Esta função gravava o valor CRU. Desde a Fase 7B o snapshot da empresa na
+ * meta do relatório guarda só `logoRef` (a dataURL sai — `snapshotEmpresa`), e
+ * quem trocava a referência pela imagem era o PALCO. O template da folha lê
+ * `dados.logo`: não achava, e ficava com o placeholder `logo.webp`, que não
+ * existe em `/arquivos-inspecao/` — 404, e o canto superior esquerdo do
+ * certificado saía vazio SÓ quando ele era anexado ao relatório. Na tela de
+ * Calibrações (que monta pelo palco) a logo aparecia.
+ *
+ * Agora as chaves com referência resolvida-no-lugar passam pela MESMA função do
+ * palco (`hidratarFotosDoBucket` + `refsNoLugarDaChave`): um caminho só para a
+ * logo do certificado avulso e do anexado, com a regra dele — só preenche campo
+ * VAZIO, e sem imagem o campo fica como estava (nunca a logo de hoje num
+ * documento de ontem). As demais chaves (`nr13_injecao_atual`, o item da
+ * calibração) seguem cruas: hidratá-las baixaria as fotos de campo do container
+ * inteiro para uma folha que não imprime nenhuma.
  */
-function materializarChaves(documento: string): () => void {
+export async function materializarChaves(documento: string): Promise<() => void> {
   const anteriores: { chave: string; valor: string | null }[] = [];
+  const itens: ItemPalco[] = [];
   for (const chave of chavesDaFolha(documento)) {
     if (localStorage.getItem(chave) !== null) continue;
     const dado = ler<unknown>(chave);
     if (dado === null || dado === undefined) continue;
+    itens.push({ chave, valor: JSON.stringify(dado) });
+  }
+  const comRef = itens.filter((i) => refsNoLugarDaChave(i.chave).length > 0);
+  const semRef = itens.filter((i) => refsNoLugarDaChave(i.chave).length === 0);
+  let hidratadas: ItemPalco[] = comRef;
+  try {
+    hidratadas = await hidratarFotosDoBucket(comRef);
+  } catch {
+    // Falha de rede não impede a folha: ela sai com o que havia, e a ausência da
+    // logo é detectada depois (`logoAusenteNaFolha`).
+  }
+  for (const { chave, valor } of [...hidratadas, ...semRef]) {
     anteriores.push({ chave, valor: null });
     try {
-      localStorage.setItem(chave, JSON.stringify(dado));
+      localStorage.setItem(chave, valor);
     } catch {
       // Cota estourada aqui não pode derrubar a emissão: a folha sai com o que
       // conseguir ler, e a falha aparece em `falhas` se ela vier vazia.
@@ -82,6 +115,31 @@ function materializarChaves(documento: string): () => void {
       else localStorage.setItem(a.chave, a.valor);
     }
   };
+}
+
+/** O pixel transparente que os templates de certificado usam como "sem logo". */
+export const LOGO_VAZIA = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
+
+/**
+ * A folha de certificado montada ficou SEM a logo que a empresa tem?
+ *
+ * É o detector do defeito acima: `esperada` diz se o cadastro (ou o snapshot)
+ * tem logo; a folha "falhou" se, mesmo assim, o `<img id="imgLogo">` não recebeu
+ * uma imagem de verdade — continua no placeholder, vazio ou no `logo.webp`.
+ */
+export function logoAusenteNaFolha(docFolha: Document | null | undefined, esperada: boolean): boolean {
+  if (!esperada) return false;
+  const img = docFolha?.getElementById('imgLogo') as HTMLImageElement | null;
+  if (!img) return true;
+  const src = img.getAttribute('src') ?? '';
+  return src === '' || src === LOGO_VAZIA || /(^|\/)logo\.webp$/i.test(src);
+}
+
+/** O cadastro/snapshot que a folha vai ler tem logo (dataURL ou referência)? */
+export function empresaTemLogo(): boolean {
+  const meta = ler<{ empresa?: { logo?: string; logoRef?: { path?: string } } }>('nr13_relatorio_meta_atual');
+  const emp = meta?.empresa ?? ler<{ logo?: string; logoRef?: { path?: string } }>('nr13_minha_empresa');
+  return !!(emp?.logo || emp?.logoRef?.path);
 }
 
 /** Largura A4 em px CSS a 96 dpi — o par de `ALTURA_A4_PX`. */
@@ -98,7 +156,7 @@ export async function comFolhaIsolada<T>(
   tag: string,
   usar: (alvo: HTMLElement, doc: Document) => Promise<T>,
 ): Promise<T> {
-  const desfazer = materializarChaves(documento);
+  const desfazer = await materializarChaves(documento);
   const caixa = document.createElement('div');
   caixa.setAttribute('data-nr13-host-certificado', '');
   caixa.style.cssText = `position:fixed;left:-20000px;top:0;width:${LARGURA_A4_PX}px;height:${ALTURA_A4_PX}px;overflow:hidden;z-index:-1;`;
