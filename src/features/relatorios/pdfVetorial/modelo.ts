@@ -1,5 +1,14 @@
 import { ler } from '../../../services/storage';
-import { rotuloPressao, unidadeValida, valorNaUnidade, type SistemaUnidade } from '../../../calc/unidades';
+import {
+  CASAS_POR_UNIDADE,
+  rotuloPressao,
+  unidadeValida,
+  valorDigitadoNaUnidade,
+  valorNaUnidade,
+  type SistemaUnidade,
+} from '../../../calc/unidades';
+import { pressaoDeProjetoMpa } from '../../memorial/pressaoProjeto';
+import { fluidoEhOperacional, unidadeDoRegistroTh } from '../../inspecoes/formularios/unidadeTh';
 import { REGIOES, carregarMedicoes, type Regiao } from '../medicoesEspessura';
 import { linhasMemorial } from '../relatoriosService';
 import { padraoDoEnsaio, type Rastreabilidade, type TipoInstrumento } from '../rastreabilidadeService';
@@ -326,9 +335,19 @@ export interface ModeloRelatorio {
     tag: string | null;
     equipamento: string | null;
     fluido: string | null;
+    /**
+     * As três pressões JÁ NA UNIDADE DO EQUIPAMENTO (`unidadeLabel`), sem rótulo
+     * — o rótulo vai na coluna do nome do campo (18/09/2026). Até ali elas eram
+     * o texto cru do formulário, digitado sob "(kgf/cm²)" fixo, e o documento as
+     * imprimia sem unidade nenhuma.
+     *
+     * Projeto vem do MEMORIAL (`pressaoDeProjetoMpa`), nunca da PMTA.
+     */
     pressaoProjeto: string | null;
     pressaoTrabalho: string | null;
     pressaoTeste: string | null;
+    /** Casas da unidade do equipamento — o gráfico escreve os pontos com elas. */
+    casas: number;
     dataTeste: string | null;
     /**
      * Campos que a referência imprime e que o FORMULÁRIO de campo ainda não
@@ -801,6 +820,29 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
   const dadoDe = (c: { dados?: Record<string, unknown> } | null, campo: string) =>
     c ? txt((c.dados ?? {})[campo]) : null;
 
+  // ── TESTE HIDROSTÁTICO NA UNIDADE DO EQUIPAMENTO (18/09/2026) ───────────────
+  //
+  // O registro do TH guarda o que o técnico digitou, NA unidade em que digitou
+  // (`th.unidade`; ausente = kgf/cm², o rótulo fixo de antes). Nada é regravado:
+  // a conversão acontece aqui, na apresentação, pelos helpers oficiais.
+  // Texto sem número nenhum passa como veio — apagar o que o inspetor escreveu é
+  // pior do que imprimi-lo.
+  const unidadeTh = unidadeDoRegistroTh(inj.th ?? null, unidade);
+  const thNaUnidade = (v: unknown): string | null =>
+    valorDigitadoNaUnidade(v, unidadeTh, unidade) ?? txt(v);
+  // PRESSÃO DE PROJETO: o memorial é a fonte. Sem memorial, vale o digitado —
+  // EXCETO o número que o prefill antigo punha ali, que era a PMTA convertida
+  // para kgf/cm² (`mpaParaKgf`, até 18/09/2026). Registro antigo com exatamente
+  // esse número não tem pressão de projeto: tem a PMTA com o nome errado.
+  const pmtaPrefillLegado = [numeroDoStorage(info.pmtaAdotadaMpa), numeroDoStorage(calc.pmta)]
+    .filter((v): v is number => v !== null && v > 0)
+    .map((v) => valorNaUnidade(v, 'TECNICO'));
+  const projetoDigitado = txt(th.pressaoProj);
+  const projetoEhPmtaLegada =
+    !(th as { unidade?: unknown }).unidade && projetoDigitado !== null && pmtaPrefillLegado.includes(projetoDigitado);
+  const thPressaoProjeto =
+    naUnidade(pressaoDeProjetoMpa(tag)) ?? (projetoEhPmtaLegada ? null : thNaUnidade(projetoDigitado));
+
   return {
     tag,
     empresa: {
@@ -905,8 +947,13 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
       // A pressão de PROJETO na unidade do equipamento (16/09/2026). Era fixa
       // em MPa; o valor guardado (`nr13_vaso_.P`) continua canônico em MPa e é
       // ele que as fórmulas usam — só a APRESENTAÇÃO converte.
+      //
+      // 18/09/2026 · a fonte passou a ser `pressaoDeProjetoMpa`, a MESMA do
+      // teste hidrostático: ela conhece as chaves de caldeira e de autoclave
+      // (`nr13_vaso_cald_.P`, `nr13_autoclave_dados_<subtipo>_.pressao`), que a
+      // leitura de `nr13_vaso_.P` sozinha deixava em branco.
       pressaoProjeto: (() => {
-        const v = naUnidade(numeroDoStorage(vaso.P));
+        const v = naUnidade(pressaoDeProjetoMpa(tag));
         return v === null ? null : `${v} ${rotuloPressao(unidade)}`;
       })(),
       margemCorrosao: dadoDe(casco, "ca"),
@@ -1044,10 +1091,14 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
       docNumero: txt(th.docNum),
       tag,
       equipamento: txt(th.equipamento),
-      fluido: txt(th.fluido),
-      pressaoProjeto: txt(th.pressaoProj),
-      pressaoTrabalho: txt(th.pressaoTrabalho),
-      pressaoTeste: txt(th.pressaoTeste),
+      // O fluido do ENSAIO. Se o registro traz o fluido de OPERAÇÃO que o prefill
+      // antigo copiava da categoria, ele não é informação do teste: sai como não
+      // informado (travessão + pendência), nunca como fluido de teste.
+      fluido: fluidoEhOperacional(th.fluido, cat.fluidoInput) ? null : txt(th.fluido),
+      pressaoProjeto: thPressaoProjeto,
+      pressaoTrabalho: thNaUnidade(th.pressaoTrabalho),
+      pressaoTeste: thNaUnidade(th.pressaoTeste),
+      casas: CASAS_POR_UNIDADE[unidade],
       dataTeste: dataBr(th.dataTeste),
       duracao: txt(th.duracao),
       tempFluido: txt(th.tempFluido),
@@ -1068,9 +1119,11 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
         /man[oô]metro|press[aã]o/i,
       ),
       resultado: rotuloResultado(th.resultado as string),
+      // As leituras, na MESMA unidade das pressões acima — o gráfico e a tabela
+      // desenham estes números, então os dois concordam por construção.
       curva: ((th.curva ?? []) as { tempo?: string; pressao?: string }[])
         .filter((l) => txt(l.tempo) || txt(l.pressao))
-        .map((l) => ({ tempo: textoOu(txt(l.tempo)), pressao: textoOu(txt(l.pressao)) })),
+        .map((l) => ({ tempo: textoOu(txt(l.tempo)), pressao: textoOu(thNaUnidade(l.pressao)) })),
       fotos: fotos(th.fotos as FotoBruta[]),
     },
 

@@ -122,3 +122,41 @@ export function valorNaUnidade(valorMpa: number | null, sistema: SistemaUnidade)
   const u = unidadeValida(sistema);
   return paraExibicao(valorMpa, u).toFixed(CASAS_POR_UNIDADE[u]);
 }
+
+/**
+ * Um número DIGITADO numa unidade → o número na unidade do documento.
+ *
+ * Existe para os valores de campo que NÃO são canônicos em MPa — hoje, as
+ * pressões do teste hidrostático, que o técnico digita lendo o manômetro. O que
+ * foi digitado continua sendo o dado; esta função só decide como imprimi-lo.
+ *
+ * Não há fórmula nova: é `paraMpa` seguido de `paraExibicao`. Quando as duas
+ * unidades são a mesma, o número NÃO passa pela conversão (evita o
+ * arredondamento de ida e volta) — só ganha as casas da unidade, que é regra
+ * de apresentação (`CASAS_POR_UNIDADE`).
+ *
+ * Aceita vírgula ("13,7") e texto com o número na frente ("13,7 kgf/cm²").
+ * Sem número nenhum devolve `null`: o texto cru é decisão de quem chama.
+ */
+export function valorDigitadoNaUnidade(
+  digitado: unknown,
+  de: SistemaUnidade,
+  para: SistemaUnidade,
+): string | null {
+  const n = numeroDigitado(digitado);
+  if (n === null) return null;
+  const origem = unidadeValida(de);
+  const destino = unidadeValida(para);
+  const valor = origem === destino ? n : paraExibicao(paraMpa(n, origem), destino);
+  return valor.toFixed(CASAS_POR_UNIDADE[destino]);
+}
+
+/** O primeiro número de um texto digitado, com vírgula ou ponto decimal. */
+export function numeroDigitado(v: unknown): number | null {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  if (typeof v !== 'string') return null;
+  const m = v.trim().match(/^-?\d+(?:[.,]\d+)?/);
+  if (!m) return null;
+  const n = Number(m[0].replace(',', '.'));
+  return Number.isFinite(n) ? n : null;
+}

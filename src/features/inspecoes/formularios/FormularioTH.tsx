@@ -2,6 +2,10 @@ import { useRef, useState } from 'react';
 import { carregarDadosFormulario, salvarDadosFormulario } from '../inspecaoService';
 import { useAutosaveFormulario } from '../useAutosaveFormulario';
 import { mesclarPreenchimento, prefillTH } from './autoPreencher';
+import { ler } from '../../../services/storage';
+import { rotuloPressao, valorNaUnidade, type SistemaUnidade } from '../../../calc/unidades';
+import { pressaoDeProjetoMpa } from '../../memorial/pressaoProjeto';
+import { unidadeDoRegistroTh, unidadeDoEquipamento, fluidoEhOperacional } from './unidadeTh';
 import ResultadoEnsaio, { type ResultadoEnsaioValor } from './ResultadoEnsaio';
 import { salvarFoto, type RefFoto } from '../../../services/fotos';
 import FotoImg from '../../../components/FotoImg';
@@ -72,9 +76,15 @@ interface DadosTH {
   resultado: ResultadoEnsaioValor;
   curva: LinhaCurva[];
   fotos: Foto[];
+  /**
+   * Em que unidade as pressões DESTE registro foram digitadas (18/09/2026).
+   * Carimbada pelo formulário com a unidade do equipamento. Ausente = registro
+   * antigo, digitado sob o rótulo fixo "(kgf/cm²)" — ver `unidadeTh.ts`.
+   */
+  unidade?: SistemaUnidade;
 }
 
-function dadosPadrao(): DadosTH {
+function dadosPadrao(unidade: SistemaUnidade): DadosTH {
   return {
     cliente: '',
     docNum: '',
@@ -83,7 +93,11 @@ function dadosPadrao(): DadosTH {
     pressaoProj: '',
     pressaoTrabalho: '',
     pressaoTeste: '',
-    fluido: 'Água Potável',
+    // SEM valor padrão: o fluido do ENSAIO é informação do técnico. O antigo
+    // "Água Potável" era sobrescrito pelo fluido de operação da categoria e,
+    // quando não era, afirmava um fluido que ninguém conferiu.
+    fluido: '',
+    unidade,
     duracao: '',
     tempFluido: '',
     // O mesmo texto que a folha antiga trazia impresso: é a norma que este
@@ -101,10 +115,26 @@ function dadosPadrao(): DadosTH {
 export default function FormularioTH({ tag, containerId }: { tag: string; containerId: string }) {
   // Merge com o padrão pra inspeções antigas (sem `resultado`) não quebrarem.
   // Precedência: o que o usuário digitou > auto-preenchimento do cadastro > padrão.
-  const [dados, setDados] = useState<DadosTH>(() =>
-    mesclarPreenchimento(dadosPadrao(), prefillTH(tag), carregarDadosFormulario<DadosTH>(tag, containerId, 'th')),
-  );
+  //
+  // A UNIDADE vem antes de tudo: o prefill precisa sair na unidade do REGISTRO.
+  // Registro novo → a do equipamento; registro antigo sem carimbo → kgf/cm²,
+  // que é o que o rótulo dizia quando ele foi digitado. Nada é convertido nem
+  // regravado aqui — o formulário só mostra o rótulo certo para o número que já
+  // está lá.
+  const [dados, setDados] = useState<DadosTH>(() => {
+    const salvo = carregarDadosFormulario<DadosTH>(tag, containerId, 'th');
+    const unidade = unidadeDoRegistroTh(salvo, unidadeDoEquipamento(tag));
+    const mesclado = mesclarPreenchimento(dadosPadrao(unidade), prefillTH(tag, unidade), salvo);
+    // `mesclarPreenchimento` herdaria o carimbo do PADRÃO num registro antigo.
+    return { ...mesclado, unidade };
+  });
   useAutosaveFormulario(tag, containerId, 'th', dados);
+  const rotuloP = rotuloPressao(dados.unidade ?? unidadeDoEquipamento(tag));
+  // A pressão de PROJETO é dado do equipamento, do MEMORIAL — não se redigita.
+  // Com memorial, o campo só mostra; sem ele, fica aberto (e o documento usa o
+  // digitado). Nunca a PMTA.
+  const projetoDoMemorial = valorNaUnidade(pressaoDeProjetoMpa(tag), dados.unidade ?? unidadeDoEquipamento(tag));
+  const fluidoSuspeito = fluidoEhOperacional(dados.fluido, ler<{ fluidoInput?: string }>(`nr13_cat_${tag}`)?.fluidoInput);
   // 10/09/2026 · o aviso de salvamento passou a ser UM componente do sistema
   // (`FeedbackSalvamento`). Antes cada formulário tinha a sua cópia — quatro
   // versões da mesma ideia, e o ultrassom sem nenhuma.
@@ -185,20 +215,38 @@ export default function FormularioTH({ tag, containerId }: { tag: string; contai
             <input type="date" value={dados.dataTeste} onChange={(e) => set('dataTeste', e.target.value)} />
           </label>
           <label>
-            Pressão de Projeto (kgf/cm²)
-            <input type="text" inputMode="decimal" value={dados.pressaoProj} onChange={(e) => set('pressaoProj', e.target.value)} />
+            Pressão de Projeto ({rotuloP})
+            {projetoDoMemorial !== null ? (
+              <>
+                <input type="text" value={projetoDoMemorial} disabled aria-describedby="th-projeto-dica" />
+                <span id="th-projeto-dica" className="th-dica-campo">Do memorial de cálculo</span>
+              </>
+            ) : (
+              <input type="text" inputMode="decimal" value={dados.pressaoProj} onChange={(e) => set('pressaoProj', e.target.value)} />
+            )}
           </label>
           <label>
-            Pressão de Trabalho (kgf/cm²)
+            Pressão de Trabalho ({rotuloP})
             <input type="text" inputMode="decimal" value={dados.pressaoTrabalho} onChange={(e) => set('pressaoTrabalho', e.target.value)} />
           </label>
           <label>
-            Pressão de Teste (kgf/cm²)
+            Pressão de Teste ({rotuloP})
             <input type="text" inputMode="decimal" value={dados.pressaoTeste} onChange={(e) => set('pressaoTeste', e.target.value)} />
           </label>
           <label>
-            Fluido Utilizado
-            <input type="text" value={dados.fluido} onChange={(e) => set('fluido', e.target.value)} />
+            Fluido de Teste
+            <input
+              type="text"
+              placeholder="Ex.: água"
+              value={dados.fluido}
+              onChange={(e) => set('fluido', e.target.value)}
+              aria-invalid={fluidoSuspeito || undefined}
+            />
+            {fluidoSuspeito && (
+              <span className="th-dica-campo th-dica-alerta" role="alert">
+                Este é o fluido de OPERAÇÃO (veio da categoria). Informe o fluido usado no teste.
+              </span>
+            )}
           </label>
         </div>
       </div>
@@ -268,7 +316,7 @@ export default function FormularioTH({ tag, containerId }: { tag: string; contai
                 <input type="text" inputMode="decimal" value={linha.tempo} onChange={(e) => setLinha(i, 'tempo', e.target.value)} />
               </label>
               <label>
-                Pressão (kgf/cm²)
+                Pressão ({rotuloP})
                 <input type="text" inputMode="decimal" value={linha.pressao} onChange={(e) => setLinha(i, 'pressao', e.target.value)} />
               </label>
             </div>

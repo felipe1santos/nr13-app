@@ -475,7 +475,12 @@ describe('ultrassom: pontos, ângulos e instrumento', () => {
 
 // ── 8 · TESTE HIDROSTÁTICO ──────────────────────────────────────────────────
 describe('teste hidrostático', () => {
+  // 18/09/2026 · o registro diz em que unidade foi digitado, e o equipamento
+  // tem a sua (§4). Aqui as duas são kgf/cm²: o teste é sobre o CAMINHO dos
+  // campos, não sobre conversão — essa tem arquivo próprio (thUnidades.test.ts).
+  beforeEach(() => gravar(`nr13_pref_unidade_${TAG}`, 'TECNICO'));
   const TH = {
+    unidade: 'TECNICO',
     cliente: 'CLIENTE-TH-E2E',
     docNum: 'DOC-TH-E2E',
     equipamento: 'EQUIP-TH-E2E',
@@ -495,8 +500,9 @@ describe('teste hidrostático', () => {
     expect(t.docNumero).toBe('DOC-TH-E2E');
     expect(t.equipamento).toBe('EQUIP-TH-E2E');
     expect(t.dataTeste).toBe('07/09/2026');
-    expect(t.pressaoProjeto).toBe('12,75');
-    expect(t.pressaoTeste).toBe('16,60');
+    // Sem memorial gravado, vale o digitado — na formatação do documento.
+    expect(t.pressaoProjeto).toBe('12.75');
+    expect(t.pressaoTeste).toBe('16.60');
     expect(t.fluido).toBe('Água Potável');
     expect(t.resultado).toBe('APROVADO');
     expect(t.curva).toHaveLength(2);
@@ -554,7 +560,9 @@ describe('nenhum campo em branco em silêncio', () => {
  * num documento assinado.
  */
 describe('TH: os campos novos do formulário chegam ao documento', () => {
+  beforeEach(() => gravar(`nr13_pref_unidade_${TAG}`, 'TECNICO'));
   const COMPLETO = {
+    unidade: 'TECNICO',
     cliente: 'CLIENTE-TH-E2E',
     docNum: 'DOC-TH-E2E',
     equipamento: 'EQUIP-TH-E2E',
@@ -577,7 +585,7 @@ describe('TH: os campos novos do formulário chegam ao documento', () => {
   it('os sete campos que faltavam saem preenchidos', () => {
     gravar('nr13_injecao_atual', { th: COMPLETO });
     const t = montarModeloRelatorio(TAG).th;
-    expect(t.pressaoTrabalho).toBe('8,16');
+    expect(t.pressaoTrabalho).toBe('8.16');
     expect(t.duracao).toBe('30 min');
     expect(t.tempFluido).toBe('22 °C');
     expect(t.normas).toBe('ASME VIII Div.1 / NR-13');
@@ -603,7 +611,7 @@ describe('TH: os campos novos do formulário chegam ao documento', () => {
     const t = montarModeloRelatorio(TAG).th;
     expect(t.cliente).toBe('CLIENTE-TH-E2E');
     expect(t.docNumero).toBe('DOC-TH-E2E');
-    expect(t.pressaoTeste).toBe('16,60');
+    expect(t.pressaoTeste).toBe('16.60');
     expect(t.resultado).toBe('APROVADO');
   });
 

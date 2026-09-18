@@ -331,9 +331,9 @@
             <div>
                 <table class="content-table" style="margin-bottom: 5px;">
                     <tr class="bg-light-grey">
-                        <td width="33%">PRESSÃO DE ABERTURA</td>
-                        <td width="33%">PRESSÃO DE AJUSTE</td>
-                        <td width="34%">FECHAMENTO</td>
+                        <td width="33%">PRESSÃO DE ABERTURA<span class="inj-unid-psv"></span></td>
+                        <td width="33%">PRESSÃO DE AJUSTE<span class="inj-unid-psv"></span></td>
+                        <td width="34%">FECHAMENTO<span class="inj-unid-psv"></span></td>
                     </tr>
                     <tr>
                         <td id="inj-abertura" class="data-blue" contenteditable="true">----</td>
@@ -441,6 +441,13 @@
                     inj('inj-fechamento', c.fechamento);
                     inj('inj-incerteza', c.incerteza);
                     inj('inj-coef', c.coef);
+                    // A unidade da válvula é escolhida no cadastro do componente e
+                    // coletada em "Resultados" — e não chegava ao certificado: as
+                    // três pressões saíam sem unidade (revisão de 18/09/2026).
+                    // Registro sem unidade (anterior a 10/09/2026) fica como estava.
+                    if (c.unidade) {
+                        document.querySelectorAll('.inj-unid-psv').forEach(function (el) { el.textContent = ' (' + c.unidade + ')'; });
+                    }
                     if (c.statusConclusao) {
                         var spanSt = document.getElementById('texto-status');
                         var spanMot = document.getElementById('texto-motivo');

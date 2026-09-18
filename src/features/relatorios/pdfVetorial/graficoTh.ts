@@ -9,7 +9,7 @@ import { BORDA_FINA, CAIXA, COR, PT } from './documentoA4';
  *
  * Da folha `public/arquivos-inspecao/TESTE-HIDROSTATICO.html`, que desenha o
  * mesmo gráfico com Chart.js. **Nada aqui é fórmula nova**: os pontos são os de
- * `injecao.th.curva` (tempo em minutos, pressão em kgf/cm²), a pressão de teste
+ * `injecao.th.curva` (tempo em minutos, pressão na unidade do equipamento), a pressão de teste
  * é lida do mesmo campo e pelo mesmo regex (`/[\d.]+/`), as faixas de cor são
  * os mesmos 50% e 80% da PT do plugin `pressurePlugin`, e a escala de calor é a
  * mesma `getHeatColor` com os mesmos cinco cortes e as mesmas cinco cores.
@@ -38,14 +38,25 @@ import { BORDA_FINA, CAIXA, COR, PT } from './documentoA4';
 /** Um ponto da curva, já lido do modelo. */
 export interface PontoCurva {
   tempo: string;
-  /** kgf/cm² — `null` quando o usuário deixou a pressão em branco. */
+  /** Na unidade do gráfico (`DadosGraficoTh.unidade`); `null` = pressão em branco. */
   pressao: number | null;
 }
 
 export interface DadosGraficoTh {
   pontos: PontoCurva[];
-  /** Pressão de teste em kgf/cm², ou `null` quando não informada. */
+  /** Pressão de teste na unidade do gráfico, ou `null` quando não informada. */
   pressaoTeste: number | null;
+  /**
+   * O rótulo da unidade — `MPa`, `kgf/cm²` ou `bar` (18/09/2026).
+   *
+   * Até esta data o gráfico tinha "kgf/cm²" escrito no código em três lugares
+   * (eixo, etiqueta da PT e rótulo de cada ponto), e o equipamento podia ter sido
+   * criado em MPa ou bar. Os NÚMEROS chegam aqui já convertidos pelo modelo
+   * (`valorDigitadoNaUnidade`); o gráfico só escreve a unidade que recebe.
+   */
+  unidade: string;
+  /** Casas decimais da unidade (`CASAS_POR_UNIDADE`) — as mesmas da tabela. */
+  casas?: number;
 }
 
 /** O primeiro número de um texto — a MESMA leitura do template (`/[\d.]+/`). */
@@ -169,6 +180,10 @@ export const ALTURA_GRAFICO_TH = ALTURA;
 export function desenharGraficoTh(pdf: jsPDF, y: number, dados: DadosGraficoTh): number {
   const comValor = dados.pontos.filter((p) => p.pressao !== null);
   if (comValor.length === 0) return y;
+  // As MESMAS casas da tabela de leituras: o ponto e a linha da tabela dizem o
+  // mesmo número. A etiqueta da PT usava 1 casa e os pontos 2 — o mesmo valor
+  // aparecia com precisões diferentes no mesmo quadro.
+  const casas = dados.casas ?? 2;
 
   const x0 = CAIXA.x;
   const larg = CAIXA.largura;
@@ -281,7 +296,7 @@ export function desenharGraficoTh(pdf: jsPDF, y: number, dados: DadosGraficoTh):
     pdf.line(plot.x, yPt, plot.x + plot.largura, yPt);
     pdf.setLineDashPattern([], 0);
 
-    const etiqueta = `PT: ${dados.pressaoTeste.toFixed(1)} kgf/cm²`;
+    const etiqueta = `PT: ${dados.pressaoTeste.toFixed(casas)} ${dados.unidade}`;
     pdf.setFont(FAMILIA, 'bold');
     pdf.setFontSize(5.5);
     const largEtiq = pdf.getTextWidth(etiqueta) + 2;
@@ -297,7 +312,7 @@ export function desenharGraficoTh(pdf: jsPDF, y: number, dados: DadosGraficoTh):
     const px = paraX(p.i);
     const py = paraY(p.v);
 
-    const rotulo = `${p.v.toFixed(2)} kgf/cm²`;
+    const rotulo = `${p.v.toFixed(casas)} ${dados.unidade}`;
     pdf.setFont(FAMILIA, 'bold');
     pdf.setFontSize(5.5);
     const largRot = pdf.getTextWidth(rotulo) + 2.2;
@@ -336,7 +351,7 @@ export function desenharGraficoTh(pdf: jsPDF, y: number, dados: DadosGraficoTh):
   pdf.setFontSize(6.5);
   pdf.setTextColor(COR.texto);
   pdf.text('Tempo (minutos)', plot.x + plot.largura / 2, base + 7.4, { align: 'center' });
-  pdf.text('Pressão (kgf/cm²)', x0 + 3.2, plot.y + plot.altura / 2, {
+  pdf.text(`Pressão (${dados.unidade})`, x0 + 3.2, plot.y + plot.altura / 2, {
     align: 'center',
     angle: 90,
   });

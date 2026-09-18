@@ -1278,25 +1278,40 @@ export function folhaResumoCalculos(doc: Documento, m: ModeloRelatorio): void {
     // símbolos; aqui eles aparecem com o RÓTULO documental, que é o que um
     // fiscal procura na folha.
     doc.secao(`Parâmetros e resultados: ${c.nome.toUpperCase()}`);
-    const rotuloRaio = /tampo/i.test(c.nome) ? 'RAIO DA COROA (L)' : 'RAIO INTERNO (Ri)';
+    // ── AS UNIDADES DESTA TABELA SÃO AS DO CÁLCULO (18/09/2026) ─────────────
+    //
+    // Classificação (decisão D-6 da revisão do engenheiro): esta tabela é a
+    // MEMÓRIA DE CÁLCULO do componente, não a apresentação documental do
+    // equipamento. Evidência: (1) os números são as variáveis do motor —
+    // `nr13_calc_.componentes[].pmtaMpa`, `tReqMm`, `S` —, gravados em MPa/mm;
+    // (2) as fórmulas impressas logo acima substituem esses valores em MPa e mm
+    // (ASME VIII, dimensionalmente coerentes só nessas unidades); (3) a legenda
+    // "Dados utilizados" já declara MPa/mm por símbolo (`DESCRICAO_VARIAVEL`);
+    // (4) a memória 6.1 é texto do motor, em MPa. Converter só a PMTA daqui para
+    // bar deixaria um resultado em bar ao lado da equação que o produziu em MPa.
+    //
+    // Então a unidade é a do cálculo — e passa a estar ESCRITA. Até aqui estas
+    // oito células eram números nus. A tabela do topo desta folha (PMO/PMTA/PTH)
+    // é documental e segue a unidade do equipamento, como antes.
+    const rotuloRaio = /tampo/i.test(c.nome) ? 'RAIO DA COROA (L) — mm' : 'RAIO INTERNO (Ri) — mm';
     doc.tabela({
       compacta: true,
       colunas: [0.3, 0.2, 0.3, 0.2],
       linhas: [
         [
-          { texto: 'ESPESSURA MÍN. CALCULADA (t)', rotulo: true },
+          { texto: 'ESPESSURA MÍN. CALCULADA (t) — mm', rotulo: true },
           { texto: textoOu(c.espReq), centro: true, valor: true, id: `${pref}.esp-min-calculada`, rotuloCampo: `${c.nome} — espessura mínima calculada` },
-          { texto: 'PMTA CALCULADA (P)', rotulo: true },
+          { texto: 'PMTA CALCULADA (P) — MPa', rotulo: true },
           { texto: textoOu(c.pmta), centro: true, valor: true, id: `${pref}.pmta`, rotuloCampo: `${c.nome} — PMTA calculada` },
         ],
         [
           { texto: 'EFICIÊNCIA DA JUNTA (E)', rotulo: true },
           { texto: textoOu(c.e), centro: true, valor: true, id: `${pref}.eficiencia`, rotuloCampo: `${c.nome} — eficiência da junta` },
-          { texto: 'ESP. MÍN. MEDIDA (t)', rotulo: true },
+          { texto: 'ESP. MÍN. MEDIDA (t) — mm', rotulo: true },
           { texto: textoOu(c.espNom), centro: true, valor: true, id: `${pref}.esp-medida`, rotuloCampo: `${c.nome} — espessura medida` },
         ],
         [
-          { texto: 'MARGEM DE CORROSÃO (c)', rotulo: true },
+          { texto: 'MARGEM DE CORROSÃO (c) — mm', rotulo: true },
           { texto: textoOu(c.ca), centro: true, valor: true, id: `${pref}.margem`, rotuloCampo: `${c.nome} — margem de corrosão` },
           { texto: rotuloRaio, rotulo: true },
           { texto: textoOu(c.raio), centro: true, valor: true, id: `${pref}.raio`, rotuloCampo: `${c.nome} — ${rotuloRaio.toLowerCase()}` },
@@ -1304,7 +1319,7 @@ export function folhaResumoCalculos(doc: Documento, m: ModeloRelatorio): void {
         [
           { texto: /tampo/i.test(c.nome) ? 'MATERIAL DO TAMPO' : 'MATERIAL DO CASCO', rotulo: true },
           { texto: textoOu(c.material), centro: true, valor: true, id: `${pref}.material`, rotuloCampo: `${c.nome} — material` },
-          { texto: 'TENSÃO ADMISSÍVEL (S)', rotulo: true },
+          { texto: 'TENSÃO ADMISSÍVEL (S) — MPa', rotulo: true },
           { texto: textoOu(c.s), centro: true, valor: true, id: `${pref}.tensao`, rotuloCampo: `${c.nome} — tensão admissível` },
         ],
       ],
@@ -1685,7 +1700,7 @@ export function folhaUltrassom(doc: Documento, m: ModeloRelatorio): void {
         { texto: textoOu(m.ultrassom.area), valor: true, id: 'ultrassom.area', rotuloCampo: 'Área avaliada' },
       ],
       [
-        { texto: 'ESPESSURA NOMINAL', rotulo: true },
+        { texto: 'ESPESSURA NOMINAL (mm)', rotulo: true },
         { texto: textoOu(m.ultrassom.espessuraNominal), valor: true, id: 'ultrassom.espessura-nominal', rotuloCampo: 'Espessura nominal' },
         { texto: 'MATERIAL', rotulo: true },
         { texto: textoOu(m.ultrassom.material), valor: true, id: 'ultrassom.material', rotuloCampo: 'Material (ultrassom)' },
@@ -1715,7 +1730,7 @@ export function folhaUltrassom(doc: Documento, m: ModeloRelatorio): void {
       [
         { texto: 'CABEÇOTE', rotulo: true },
         { texto: textoOu(m.ultrassom.cabecote), valor: true, id: 'ultrassom.cabecote', rotuloCampo: 'Cabeçote' },
-        { texto: 'VELOCIDADE SÔNICA', rotulo: true },
+        { texto: 'VELOCIDADE SÔNICA (m/s)', rotulo: true },
         { texto: textoOu(m.ultrassom.velSonica), valor: true, id: 'ultrassom.velocidade', rotuloCampo: 'Velocidade sônica' },
       ],
     ],
@@ -1895,10 +1910,18 @@ export function folhasTesteHidrostatico(doc: Documento, m: ModeloRelatorio, comF
         { texto: textoOu(m.th.equipamento), valor: true, id: 'th.equipamento', rotuloCampo: 'Equipamento (TH)' },
       ],
       [
-        { texto: 'PRESSÃO DE PROJETO', rotulo: true },
-        { texto: textoOu(m.th.pressaoProjeto), valor: true, id: 'th.pressao-projeto', rotuloCampo: 'Pressão de projeto (TH)' },
-        { texto: 'PRESSÃO DE TRABALHO', rotulo: true },
-        { texto: textoOu(m.th.pressaoTrabalho), valor: true, id: 'th.pressao-trabalho', rotuloCampo: 'Pressão de trabalho (TH)' },
+        // A UNIDADE vai no RÓTULO (18/09/2026), como nas tabelas chave-valor das
+        // folhas 3, 5 e 6: `PRESSÃO DE TESTE (bar)` | `13.70`.
+        //
+        // Os ids ganharam `-u` de propósito — a mesma decisão de 16/09 nas
+        // pressões da folha 3: um override digitado quando a célula não tinha
+        // unidade (e o formulário pedia kgf/cm²) exibido sob "(bar)" ou "(MPa)"
+        // seria um número errado num documento assinado. O override antigo fica
+        // inerte e a célula volta ao valor do registro.
+        { texto: `PRESSÃO DE PROJETO (${m.unidadeLabel})`, rotulo: true },
+        { texto: textoOu(m.th.pressaoProjeto), valor: true, id: 'th.pressao-projeto-u', rotuloCampo: `Pressão de projeto (TH, ${m.unidadeLabel})` },
+        { texto: `PRESSÃO DE TRABALHO (${m.unidadeLabel})`, rotulo: true },
+        { texto: textoOu(m.th.pressaoTrabalho), valor: true, id: 'th.pressao-trabalho-u', rotuloCampo: `Pressão de trabalho (TH, ${m.unidadeLabel})` },
       ],
     ],
   });
@@ -1916,8 +1939,8 @@ export function folhasTesteHidrostatico(doc: Documento, m: ModeloRelatorio, comF
       [
         { texto: 'FLUIDO DE TESTE', rotulo: true },
         { texto: textoOu(m.th.fluido), valor: true, id: 'th.fluido', rotuloCampo: 'Fluido de teste' },
-        { texto: 'PRESSÃO DE TESTE', rotulo: true },
-        { texto: textoOu(m.th.pressaoTeste), valor: true, id: 'th.pressao-teste', rotuloCampo: 'Pressão de teste' },
+        { texto: `PRESSÃO DE TESTE (${m.unidadeLabel})`, rotulo: true },
+        { texto: textoOu(m.th.pressaoTeste), valor: true, id: 'th.pressao-teste-u', rotuloCampo: `Pressão de teste (${m.unidadeLabel})` },
       ],
       [
         { texto: 'DURAÇÃO DO TESTE', rotulo: true },
@@ -1958,6 +1981,8 @@ export function folhasTesteHidrostatico(doc: Documento, m: ModeloRelatorio, comF
       doc.y = desenharGraficoTh(doc.pdf, doc.y, {
         pontos,
         pressaoTeste: numeroDoTexto(m.th.pressaoTeste),
+        unidade: m.unidadeLabel,
+        casas: m.th.casas,
       });
       doc.y += 2.4;
     }
@@ -1969,7 +1994,7 @@ export function folhasTesteHidrostatico(doc: Documento, m: ModeloRelatorio, comF
     doc.tabela({
       compacta: true,
       colunas: [0.5, 0.5],
-      cabecalho: ['TEMPO', 'PRESSÃO'],
+      cabecalho: ['TEMPO (min)', `PRESSÃO (${m.unidadeLabel})`],
       linhas: m.th.curva.map((l) => [
         { texto: l.tempo, centro: true },
         { texto: l.pressao, centro: true, valor: true },

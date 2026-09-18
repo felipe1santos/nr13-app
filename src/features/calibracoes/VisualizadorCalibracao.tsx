@@ -1,5 +1,6 @@
 import type { DadosCalibracao, DadosManometro, DadosPSV, LinhaResultado } from './tipos';
 import '../inspecoes/visualizador.css';
+import { UNIDADE_PADRAO } from './preencherCalibracao';
 
 function Campo({ label, valor }: { label: string; valor?: string }) {
   if (!valor) return null;
@@ -54,6 +55,12 @@ export default function VisualizadorCalibracao({ dados }: { dados: DadosCalibrac
   const isMano = dados.tipo === 'manometro';
   const mano = dados as DadosManometro;
   const psv = dados as DadosPSV;
+  // A unidade é do INSTRUMENTO (cadastro do componente), não do equipamento:
+  // é a escala em que a leitura foi feita. Estava escrita "(kgf/cm²)" à mão nos
+  // dois títulos. Registro anterior a 10/09/2026 não tem unidade — o certificado
+  // desses registros sempre saiu com kgf/cm², e é o que continua aparecendo.
+  const u = dados.unidade?.trim() || UNIDADE_PADRAO;
+  const comU = (v?: string) => (v && v.trim() && dados.unidade?.trim() ? `${v} ${u}` : v);
 
   return (
     <div>
@@ -106,8 +113,8 @@ export default function VisualizadorCalibracao({ dados }: { dados: DadosCalibrac
         {isMano ? (
           <>
             <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-              <TabelaResultados titulo="Sentido Crescente (kgf/cm²)" linhas={mano.crescente} />
-              <TabelaResultados titulo="Sentido Decrescente (kgf/cm²)" linhas={mano.decrescente} />
+              <TabelaResultados titulo={`Sentido Crescente (${u})`} linhas={mano.crescente} />
+              <TabelaResultados titulo={`Sentido Decrescente (${u})`} linhas={mano.decrescente} />
             </div>
             <div className="viz-grid-2" style={{ marginTop: 8 }}>
               <Campo label="Incerteza (Crescente)" valor={mano.incertezaC} />
@@ -118,9 +125,9 @@ export default function VisualizadorCalibracao({ dados }: { dados: DadosCalibrac
           </>
         ) : (
           <div className="viz-grid-2">
-            <Campo label="Pressão de Abertura" valor={psv.pressaoAbertura} />
-            <Campo label="Pressão de Ajuste" valor={psv.pressaoAjuste} />
-            <Campo label="Fechamento" valor={psv.fechamento} />
+            <Campo label="Pressão de Abertura" valor={comU(psv.pressaoAbertura)} />
+            <Campo label="Pressão de Ajuste" valor={comU(psv.pressaoAjuste)} />
+            <Campo label="Fechamento" valor={comU(psv.fechamento)} />
             <Campo label="Incerteza de Medição" valor={psv.incerteza} />
             <Campo label="Coeficiente k" valor={psv.coef} />
           </div>

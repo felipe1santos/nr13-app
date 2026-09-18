@@ -135,6 +135,11 @@ export function validarParaFinalizar(e: EntradaValidacao): ResultadoValidacao {
     if (vazio(texto(th?.resultado))) {
       opcionais.push({ campo: 'th.resultado', texto: 'Resultado do teste hidrostático não informado', onde: 'Inspeção · Teste hidrostático' });
     }
+    // 18/09/2026 · o fluido do TESTE deixou de ter padrão ("Água Potável") e de
+    // ser copiado do fluido de operação. Sem ele, avisa — não bloqueia.
+    if (vazio(texto(th?.fluido))) {
+      opcionais.push({ campo: 'th.fluido', texto: 'Fluido do teste hidrostático não informado', onde: 'Inspeção · Teste hidrostático' });
+    }
   }
 
   // Exames visuais: a observação em branco é o exemplo que o dono deu.

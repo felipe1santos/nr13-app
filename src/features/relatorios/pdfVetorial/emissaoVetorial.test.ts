@@ -462,7 +462,10 @@ describe('emissão vetorial: o documento sai com o que o usuário salvou', () =>
 describe('os campos que o formulário passou a coletar (07/09/2026) chegam ao PAPEL', () => {
   it('os sete campos do teste hidrostático são desenhados na folha', async () => {
     const { editaveis } = await gerarRelatorioVetorial(TAG, { documentos: DOCUMENTOS, certificados: false });
-    expect(campo(editaveis, 'th.pressao-trabalho')).toBe('8,16');
+    // 18/09/2026 · o registro deste teste não tem `unidade` (é o formato antigo,
+    // digitado sob "(kgf/cm²)"), e o equipamento é SI: 8,16 kgf/cm² sai
+    // convertido para MPa. O id ganhou `-u` com a unidade no rótulo.
+    expect(campo(editaveis, 'th.pressao-trabalho-u')).toBe('0.800');
     expect(campo(editaveis, 'th.duracao')).toBe('30 min');
     expect(campo(editaveis, 'th.temp-fluido')).toBe('22 °C');
     expect(campo(editaveis, 'th.normas')).toBe('ASME VIII Div.1 / NR-13');

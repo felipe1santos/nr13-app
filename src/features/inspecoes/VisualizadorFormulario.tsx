@@ -1,5 +1,7 @@
 import type { FormularioEnsaio } from './tipos';
 import FotoImg from '../../components/FotoImg';
+import { ehSistemaUnidade, rotuloPressao } from '../../calc/unidades';
+import { UNIDADE_TH_LEGADA } from './formularios/unidadeTh';
 
 // ── tipos locais (mirrors das interfaces em cada formulário) ─────────────────
 
@@ -48,8 +50,11 @@ interface DadosTH {
   equipamento: string;
   dataTeste: string;
   pressaoProj: string;
+  pressaoTrabalho?: string;
   pressaoTeste: string;
   fluido: string;
+  /** Unidade em que as pressões foram digitadas; ausente = kgf/cm² (ver unidadeTh.ts). */
+  unidade?: string;
   curva: { tempo: string; pressao: string }[];
   fotos: { base64: string; descricao: string }[];
 }
@@ -398,6 +403,10 @@ function ViewUltrassom({ dados }: { dados: DadosUltrassom }) {
 
 function ViewTH({ dados }: { dados: DadosTH }) {
   const curvaPreenchida = (dados.curva ?? []).filter((l) => l.tempo || l.pressao);
+  // O que se vê aqui é o REGISTRO, na unidade em que foi digitado — sem
+  // conversão. Quem converte para a unidade do equipamento é o documento.
+  const u = rotuloPressao(ehSistemaUnidade(dados.unidade) ? dados.unidade : UNIDADE_TH_LEGADA);
+  const comU = (v?: string) => (v && v.trim() ? `${v} ${u}` : v);
   return (
     <>
       <SecaoViz titulo="Dados do Teste">
@@ -406,9 +415,10 @@ function ViewTH({ dados }: { dados: DadosTH }) {
           <Campo label="Nº Documento" valor={dados.docNum} />
           <Campo label="Equipamento" valor={dados.equipamento} />
           <Campo label="Data do Teste" valor={dados.dataTeste} />
-          <Campo label="Pressão de Projeto" valor={dados.pressaoProj} />
-          <Campo label="Pressão de Teste" valor={dados.pressaoTeste} />
-          <Campo label="Fluido" valor={dados.fluido} />
+          <Campo label="Pressão de Projeto" valor={comU(dados.pressaoProj)} />
+          <Campo label="Pressão de Trabalho" valor={comU(dados.pressaoTrabalho)} />
+          <Campo label="Pressão de Teste" valor={comU(dados.pressaoTeste)} />
+          <Campo label="Fluido de Teste" valor={dados.fluido} />
         </div>
       </SecaoViz>
 
@@ -418,7 +428,7 @@ function ViewTH({ dados }: { dados: DadosTH }) {
             <thead>
               <tr>
                 <th>Tempo (min)</th>
-                <th>Pressão</th>
+                <th>Pressão ({u})</th>
               </tr>
             </thead>
             <tbody>

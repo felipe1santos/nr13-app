@@ -7,12 +7,12 @@
 //  - Nunca devolvem `undefined` num campo tipado como string — a chave simplesmente não vem.
 //  - O valor digitado pelo usuário SEMPRE vence (ver `mesclarPreenchimento`).
 import { ler } from '../../../services/storage';
-import type { CategoriaSalva, EmpresaEquipamento, InfoEquipamento } from '../../equipamento/tipos';
+import type { EmpresaEquipamento, InfoEquipamento } from '../../equipamento/tipos';
 import type { ComponenteResumo } from '../../memorial/tiposMemorial';
 import type { VasoSalvo } from '../../memorial/vasoMemorialService';
 import { aplicaAoEquipamento, listarRastreabilidades, type Rastreabilidade } from '../../relatorios/rastreabilidadeService';
-
-const MPA_PARA_KGFCM2 = 10.19716;
+import { pressaoDeProjetoMpa } from '../../memorial/pressaoProjeto';
+import { valorNaUnidade, type SistemaUnidade } from '../../../calc/unidades';
 
 /** Lê uma chave sem nunca lançar (localStorage corrompido / JSON inválido). */
 function lerSeguro<T>(chave: string): T | null {
@@ -36,13 +36,19 @@ function por<T extends object>(alvo: T, chave: keyof T, valor: string | null): v
   if (valor !== null) (alvo as Record<string, unknown>)[chave as string] = valor;
 }
 
-/** MPa (string ou número) => kgf/cm² com 2 casas. */
-function mpaParaKgf(valor: unknown): string | null {
+/**
+ * MPa (string ou número) => texto na unidade pedida, pelo helper OFICIAL.
+ *
+ * Até 18/09/2026 esta função se chamava `mpaParaKgf` e tinha a sua própria
+ * constante 10,19716: o teste hidrostático saía em kgf/cm² fosse qual fosse a
+ * unidade escolhida na criação do equipamento.
+ */
+function mpaNaUnidade(valor: unknown, unidade: SistemaUnidade): string | null {
   const bruto = texto(valor);
   if (bruto === null) return null;
   const n = Number(bruto.replace(',', '.'));
   if (!Number.isFinite(n) || n <= 0) return null;
-  return (n * MPA_PARA_KGFCM2).toFixed(2);
+  return valorNaUnidade(n, unidade);
 }
 
 function lerInfo(tag: string): InfoEquipamento | null {
@@ -212,20 +218,31 @@ export function prefillVisual(tag: string): PrefillVisual {
 export interface PrefillTH {
   cliente?: string;
   equipamento?: string;
+  /**
+   * PRESSÃO DE PROJETO — o `P` do MEMORIAL (`pressaoDeProjetoMpa`). Nunca a
+   * PMTA: até 18/09/2026 este campo era pré-preenchido com a PMTA, e o laudo
+   * imprimia um número com o nome de outro. Sem memorial, fica vazio.
+   */
   pressaoProj?: string;
   /**
    * Pressão de TRABALHO. Não é campo novo em lugar nenhum: é a PMO que o
-   * usuário já declarou no card "Pressões da Documentação" da ficha, convertida
-   * para kgf/cm² como as outras duas desta folha. Criar uma fonte própria para
-   * ela seria pedir o mesmo número duas vezes.
+   * usuário já declarou no card "Pressões da Documentação" da ficha. Criar uma
+   * fonte própria para ela seria pedir o mesmo número duas vezes.
    */
   pressaoTrabalho?: string;
+  /** Sugestão: a PTH adotada ?? calculada. O técnico corrige para a que aplicou. */
   pressaoTeste?: string;
-  fluido?: string;
+  // SEM `fluido`, de propósito. O fluido do TESTE é o que encheu o vaso no
+  // ensaio; `nr13_cat_.fluidoInput` é o fluido de OPERAÇÃO com a classe de
+  // risco ("A - Hidrogênio"). Pré-preencher um com o outro punha no laudo o
+  // fluido errado. O técnico informa.
 }
 
-/** Teste hidrostático: cliente + ficha; PMTA/PTH em kgf/cm² (adotadas vencem as calculadas). */
-export function prefillTH(tag: string): PrefillTH {
+/**
+ * Teste hidrostático: cliente + ficha + memorial, com as pressões NA UNIDADE
+ * pedida — a do equipamento num teste novo, a do próprio registro num antigo.
+ */
+export function prefillTH(tag: string, unidade: SistemaUnidade): PrefillTH {
   const saida: PrefillTH = {};
   if (!tag) return saida;
 
@@ -235,14 +252,12 @@ export function prefillTH(tag: string): PrefillTH {
   const info = lerInfo(tag);
   por(saida, 'equipamento', descricaoEquipamento(info));
 
-  // Pressões adotadas na ficha têm prioridade sobre as calculadas no memorial (ambas em MPa).
+  // Cada grandeza da SUA fonte (ver `memorial/pressaoProjeto.ts`). Adotada
+  // vence calculada onde as duas existem; a de projeto só existe no memorial.
   const calc = lerSeguro<CalculoComComponentes>(`nr13_calc_${tag}`);
-  por(saida, 'pressaoProj', mpaParaKgf(info?.pmtaAdotadaMpa) ?? mpaParaKgf(calc?.pmta));
-  por(saida, 'pressaoTrabalho', mpaParaKgf(info?.pmoAdotadaMpa));
-  por(saida, 'pressaoTeste', mpaParaKgf(info?.pthAdotadaMpa) ?? mpaParaKgf(calc?.pth));
-
-  const cat = lerSeguro<CategoriaSalva>(`nr13_cat_${tag}`);
-  por(saida, 'fluido', texto(cat?.fluidoInput));
+  por(saida, 'pressaoProj', valorNaUnidade(pressaoDeProjetoMpa(tag), unidade));
+  por(saida, 'pressaoTrabalho', mpaNaUnidade(info?.pmoAdotadaMpa, unidade));
+  por(saida, 'pressaoTeste', mpaNaUnidade(info?.pthAdotadaMpa, unidade) ?? mpaNaUnidade(calc?.pth, unidade));
 
   return saida;
 }
