@@ -13,6 +13,25 @@
 > cada família de chave, o que já foi resolvido e o que falta, em ordem de risco. Consultar
 > antes de mexer em qualquer coisa que grave arquivo.
 
+## 0-OCTIES. REVISÃO DO ENGENHEIRO — o que ficou para as próximas rodadas (18/09/2026)
+
+Plano: `docs/PLANO-AJUSTES-REVISAO-ENGENHEIRO.md`. Feitas nesta data (branch local, sem deploy):
+Etapa B (TH/unidades), C.1 (logo do certificado anexado), A (pergunta de não conformidade +
+observações do checklist). Pendentes, por decisão do dono:
+
+- [ ] **C.2 — assinatura do Certificado de Calibração** (responsável com snapshot na calibração).
+- [ ] **C.3 — certificado como arquivo imutável** (pdfRef/SHA na emissão; D-13 aprovado em conceito).
+- [ ] **D — calibração de terceiro, tipos de instrumento (termômetro, vacuômetro, pressostato,
+      transmissor), quadro 7.1.1 alimentado pelas calibrações e congelado na meta.**
+- [ ] **Prontuário: "pressão de projeto" e "pressão máx. de operação" pré-preenchidas com a PMTA**
+      (`Prontuarios.tsx`, bloco "Cálculo (PMTA / PTH)"). Mesmo defeito corrigido no TH; usar
+      `pressaoDeProjetoMpa` e a PMO adotada. Prontuário vetorial ainda imprime 4 colunas de
+      unidade (D-10).
+- [ ] **Duração e temperatura do TH estruturadas** (min / °C) — D-9, texto livre por enquanto.
+- [ ] **Conflito em `nr13_relatorio_meta_atual`** observado no E2E com duas instâncias do app
+      abertas (aba + iframe). Investigar se acontece com uma instância só.
+- [ ] **Boot com servidor fora do ar** fica em "Carregando…" até a conexão voltar (E2E 18/09).
+
 ## 0-SEPTIES. ESCALA — a importação de planilha e o cadastro hidratam a organização inteira (16/09/2026)
 
 Problema de **escala/performance**, não de unidade — registrado separado de propósito.

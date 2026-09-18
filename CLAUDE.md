@@ -346,6 +346,35 @@ link numa aba nova ou dava F5 dentro dele é que caía na lista.
   - Grupo de risco: (MPa) × (m³).
   - Ver `src/calc/categoria.ts` — recebe MPa/m³ e nunca toca nas unidades de exibição.
 
+### §4-bis — Revisão do engenheiro: TH, pressões e exames visuais (18/09/2026)
+
+Plano e auditoria: `docs/PLANO-AJUSTES-REVISAO-ENGENHEIRO.md`. Medição do E2E:
+`docs/medicoes/2026-09-18-revisao-engenheiro-b-c1-a.md`.
+
+- **TESTE HIDROSTÁTICO NA UNIDADE DO EQUIPAMENTO.** O registro do TH (`container.dados.th`)
+  guarda o que o técnico DIGITOU e passa a dizer em que unidade (`th.unidade`, carimbada pelo
+  formulário). Registro SEM carimbo = kgf/cm² (o único rótulo que existiu). Nada é regravado: o
+  documento converte na apresentação por `valorDigitadoNaUnidade` (`calc/unidades.ts`). Campos,
+  eixo, PT, pontos e leituras saem na unidade do equipamento; unidade no RÓTULO
+  (`PRESSÃO DE TESTE (bar)` | `28.60`). Ids de override do TH ganharam `-u`.
+- **CADA PRESSÃO DA SUA FONTE — nenhuma substitui outra.** PMTA = `pmtaAdotadaMpa ?? calc.pmta`;
+  PRESSÃO DE PROJETO = `pressaoDeProjetoMpa(tag)` (`features/memorial/pressaoProjeto.ts`: o `P` do
+  memorial de vaso, corpo do autoclave, caldeira ou autoclave por subtipo); TRABALHO = PMO adotada;
+  TESTE = a aplicada (sugerida da PTH). **Nunca a PMTA como pressão de projeto** —
+  `thFontes.test.ts` quebra se voltar.
+- **FLUIDO DE TESTE ≠ FLUIDO DE OPERAÇÃO.** Sem padrão e sem prefill de `nr13_cat_.fluidoInput`;
+  valor antigo idêntico ao da categoria (com prefixo de classe) sai como não informado.
+- **FOLHA 6 POR COMPONENTE = UNIDADE DO CÁLCULO (MPa/mm), ESCRITA.** É memória de cálculo, não
+  apresentação do equipamento; a tabela do topo (PMO/PMTA/PTH) é documental e segue o equipamento.
+- **EXAMES VISUAIS: SIM = NÃO CONFORMIDADE ENCONTRADA.** A pergunta "Foi encontrada alguma não
+  conformidade?" é CABEÇALHO (tela e PDF), nunca um booleano gravado; a resposta geral é derivada
+  das linhas (`semanticaNc.ts`). SIM em tom `--crit`, NÃO em `--ok`. Registro antigo com respostas
+  e sem `semanticaNc` NÃO é reinterpretado: pede revisão no formulário e BLOQUEIA a finalização;
+  NC sem descrição também bloqueia (a descrição escrita no documento vale).
+- **LOGO DO CERTIFICADO ANEXADO.** O host isolado (`hostCertificado.materializarChaves`) resolve
+  `logoRef → logo` pela mesma `hidratarFotosDoBucket` do palco. Templates de certificado sem o
+  placeholder `logo.webp` (arquivo inexistente).
+
 ---
 
 ## 5. Layout, responsividade e impressão (todas as folhas)
