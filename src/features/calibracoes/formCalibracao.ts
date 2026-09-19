@@ -11,6 +11,7 @@ import {
 import { padraoInicial, snapshotPadrao } from './padraoCalibracao';
 import { listarResponsaveis, snapshotResponsavel } from './responsavelCalibracao';
 import type { DadosCalibracao, DadosManometro, DadosPSV } from './tipos';
+import type { RefFoto } from '../../services/fotos';
 
 /**
  * Reestruturação de Calibrações (19/09/2026) · O FORMULÁRIO DE UMA CALIBRAÇÃO,
@@ -53,6 +54,8 @@ export interface FormDados {
   padraoSerie: string;
   padraoCert: string;
   padraoVal: string;
+  /** O PDF exato do certificado do padrão escolhido (snapshot). */
+  padraoPdfRef?: RefFoto;
   statusConclusao: 'aprovado' | 'reprovado' | '';
   textoMotivo: string;
   /** Unidade das medições — vem do cadastro do componente. */
@@ -115,6 +118,7 @@ export function formPadrao(tipo: 'manometro' | 'psv' = 'manometro', tag = ''): F
     padraoSerie: snap?.padraoSerie ?? '',
     padraoCert: snap?.padraoCert ?? '',
     padraoVal: snap?.padraoVal ?? '',
+    ...(snap?.padraoPdfRef ? { padraoPdfRef: snap.padraoPdfRef } : {}),
     statusConclusao: '',
     textoMotivo: '',
     unidade: 'kgf/cm²',
@@ -207,6 +211,7 @@ function doRegistro(cal: DadosManometro | DadosPSV, tag: string): FormDados {
     padraoSerie: cal.padraoSerie,
     padraoCert: cal.padraoCert,
     padraoVal: cal.padraoVal,
+    padraoPdfRef: cal.padraoPdfRef,
     statusConclusao: cal.statusConclusao,
     textoMotivo: cal.textoMotivo,
     unidade: cal.unidade ?? base.unidade,
@@ -285,6 +290,7 @@ export function converterForm(form: FormDados, tag: string, id: string): DadosCa
     umidade: form.umidade,
     local: form.local,
     ...(form.padraoId ? { padraoId: form.padraoId } : {}),
+    ...(form.padraoId && form.padraoPdfRef?.path ? { padraoPdfRef: form.padraoPdfRef } : {}),
     padraoInst: form.padraoInst,
     padraoSerie: form.padraoSerie,
     padraoCert: form.padraoCert,

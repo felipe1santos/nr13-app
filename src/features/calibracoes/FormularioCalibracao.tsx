@@ -99,8 +99,8 @@ export default function FormularioCalibracao({
     const r = padroes.find((p) => p.id === id);
     setForm((f) =>
       r
-        ? { ...f, ...snapshotPadrao(r) }
-        : { ...f, padraoId: '', padraoInst: '', padraoSerie: '', padraoCert: '', padraoVal: '' },
+        ? { ...f, padraoPdfRef: undefined, ...snapshotPadrao(r) }
+        : { ...f, padraoId: '', padraoInst: '', padraoSerie: '', padraoCert: '', padraoVal: '', padraoPdfRef: undefined },
     );
   }
 

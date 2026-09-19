@@ -75,23 +75,98 @@ export function tipoPadraoDoCertificado(tipoCalibracao: string): TipoInstrumento
   return tipoCalibracao === 'psv' ? 'valvula' : 'manometro';
 }
 
+/** O que o relatório precisa saber de uma calibração para achar o PADRÃO dela. */
+interface PadraoNaCalibracao {
+  tipo?: string;
+  origem?: string;
+  padraoId?: string;
+  padraoPdfRef?: RefFoto;
+  padraoInst?: string;
+  padraoCert?: string;
+  padraoVal?: string;
+}
+
 /**
- * Tipos de padrão exigidos por um relatório, derivados da lista de documentos:
- * cada folha de certificado de calibração (`?calibId=`) pede o padrão do seu tipo
- * (manômetro/válvula) e a folha de ultrassom pede o padrão de ME.
+ * Calibrações · rodada final (19/09/2026) — O PADRÃO EXATO.
+ *
+ * A calibração guarda QUAL versão do padrão foi usada (`padraoId` — cada
+ * gravação em Certificados é uma versão nova, a anterior fica `substituidoEm`
+ * e continua resolvível) e o `pdfRef` daquele arquivo. O relatório anexa
+ * ESSE certificado. Nunca "o manômetro padrão ativo de hoje": com dois padrões
+ * do mesmo tipo, ou depois de uma renovação, o "por tipo" anexava o documento
+ * errado.
+ *
+ * - `padraoId` resolve → a versão (mesmo substituída);
+ * - não resolve, mas há `padraoPdfRef` → um registro mínimo com aquele arquivo;
+ * - calibração NOVA sem `padraoId` (padrão informado à mão) → nenhum PDF: não
+ *   se sabe qual arquivo é, e chutar é o defeito que esta função existe para
+ *   impedir;
+ * - registro LEGADO (sem `origem`, anterior a esta regra) → o recuo antigo,
+ *   por tipo (`tiposPadraoDoRelatorio`).
+ */
+export function padraoExatoDaCalibracao(
+  cal: PadraoNaCalibracao | null | undefined,
+  porId: Map<string, Rastreabilidade> = new Map(listarRastreabilidades().map((r) => [r.id, r])),
+): Rastreabilidade | null {
+  if (!cal?.padraoId) return null;
+  const r = porId.get(cal.padraoId);
+  if (r) return r;
+  if (!cal.padraoPdfRef?.path) return null;
+  return {
+    id: cal.padraoId,
+    nome: cal.padraoInst ?? '',
+    certificadoPadrao: cal.padraoCert ?? '',
+    validade: cal.padraoVal ?? '',
+    pdfBase64: '',
+    pdfRef: cal.padraoPdfRef,
+    temPdf: true,
+    injetarNoRelatorio: true,
+    criadoEm: '',
+  };
+}
+
+/** A calibração de uma folha `?calibId=` — o snapshot da meta vence o registro vivo (§7-bis). */
+function calibracaoDaFolha(doc: string, certCalibracoes?: Record<string, PadraoNaCalibracao>): PadraoNaCalibracao | null {
+  const m = /[?&]calibId=([^&]+)/.exec(doc);
+  if (!m) return null;
+  return certCalibracoes?.[m[1]] ?? ler<PadraoNaCalibracao>(`nr13_calibracao_item_${m[1]}`);
+}
+
+/** A calibração só é resolvida "por tipo" se for anterior à regra do padrão exato. */
+function ehLegadoSemPadrao(cal: PadraoNaCalibracao): boolean {
+  return !cal.padraoId && !cal.origem;
+}
+
+/**
+ * Tipos de padrão resolvidos PELO TIPO — só o que não tem padrão exato: a
+ * folha de ultrassom (padrão de ME) e calibração LEGADA, anterior à regra do
+ * padrão exato. Calibração nova nunca entra aqui.
  */
 export function tiposPadraoDoRelatorio(documentos: string[]): TipoInstrumento[] {
   const tipos = new Set<TipoInstrumento>();
   for (const doc of documentos) {
-    const m = /[?&]calibId=([^&]+)/.exec(doc);
-    if (m) {
-      const item = ler<{ tipo?: string }>(`nr13_calibracao_item_${m[1]}`);
-      if (item?.tipo) tipos.add(tipoPadraoDoCertificado(item.tipo));
+    const cal = calibracaoDaFolha(doc);
+    if (cal) {
+      if (ehLegadoSemPadrao(cal) && cal.tipo) tipos.add(tipoPadraoDoCertificado(cal.tipo));
     } else if (doc.split('?')[0] === 'ULTRASSOM.html') {
       tipos.add('ultrassom');
     }
   }
   return [...tipos];
+}
+
+/** Os padrões EXATOS das calibrações do relatório (um por versão, sem repetir). */
+export function padroesExatosDoRelatorio(
+  documentos: string[],
+  certCalibracoes?: Record<string, PadraoNaCalibracao>,
+): Rastreabilidade[] {
+  const porId = new Map(listarRastreabilidades().map((r) => [r.id, r]));
+  const exatos = new Map<string, Rastreabilidade>();
+  for (const doc of documentos) {
+    const r = padraoExatoDaCalibracao(calibracaoDaFolha(doc, certCalibracoes), porId);
+    if (r && injetaNoRelatorio(r)) exatos.set(r.id, r);
+  }
+  return [...exatos.values()];
 }
 
 const tsCriadoEm = (r: Rastreabilidade): number => {
@@ -104,8 +179,9 @@ const tsCriadoEm = (r: Rastreabilidade): number => {
  * Duplicatas do mesmo tipo (registros antigos): vence quem tem PDF; empate, o mais recente.
  */
 export function rastreabilidadesParaRelatorio(documentos: string[]): Rastreabilidade[] {
+  const exatos = padroesExatosDoRelatorio(documentos);
   const tipos = new Set(tiposPadraoDoRelatorio(documentos));
-  if (tipos.size === 0) return [];
+  if (tipos.size === 0) return exatos;
   const porTipo = new Map<TipoInstrumento, Rastreabilidade>();
   for (const r of listarRastreabilidadesAtivas()) {
     if (!r.tipoInstrumento || !tipos.has(r.tipoInstrumento)) continue;
@@ -119,7 +195,8 @@ export function rastreabilidadesParaRelatorio(documentos: string[]): Rastreabili
       porTipo.set(r.tipoInstrumento, r);
     }
   }
-  return [...porTipo.values()];
+  const ids = new Set(exatos.map((r) => r.id));
+  return [...exatos, ...[...porTipo.values()].filter((r) => !ids.has(r.id))];
 }
 
 const PREFIXO = 'nr13_rastreab_';
@@ -274,11 +351,19 @@ function base64ParaBytes(b64: string): Uint8Array {
  */
 export function rastreabilidadesDoRelatorioAberto(documentos: string[]): Rastreabilidade[] {
   try {
-    const meta = ler<{ rastreabIds?: unknown }>('nr13_relatorio_meta_atual');
+    const meta = ler<{ rastreabIds?: unknown; certCalibracoes?: Record<string, PadraoNaCalibracao> }>(
+      'nr13_relatorio_meta_atual',
+    );
     if (meta && Array.isArray(meta.rastreabIds)) {
       const porId = new Map(listarRastreabilidades().map((r) => [r.id, r]));
+      // Id congelado que não resolve mais: o arquivo exato vem do snapshot da calibração.
+      const doSnapshot = new Map<string, Rastreabilidade>();
+      for (const cal of Object.values(meta.certCalibracoes ?? {})) {
+        const r = padraoExatoDaCalibracao(cal, new Map());
+        if (r) doSnapshot.set(r.id, r);
+      }
       return (meta.rastreabIds as unknown[])
-        .map((id) => porId.get(String(id)))
+        .map((id) => porId.get(String(id)) ?? doSnapshot.get(String(id)))
         .filter((r): r is Rastreabilidade => !!r);
     }
   } catch {

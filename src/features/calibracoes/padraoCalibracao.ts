@@ -1,3 +1,4 @@
+import type { RefFoto } from '../../services/fotos';
 import {
   listarRastreabilidadesAtivas,
   listarRastreabilidades,
@@ -31,6 +32,8 @@ export interface SnapshotPadrao {
   padraoSerie: string;
   padraoCert: string;
   padraoVal: string;
+  /** O PDF exato daquela versão do certificado, quando ele está no bucket. */
+  padraoPdfRef?: RefFoto;
 }
 
 /** Padrões ATIVOS compatíveis com o certificado (manômetro → manômetro, PSV → válvula). */
@@ -52,6 +55,7 @@ export function snapshotPadrao(r: Rastreabilidade): SnapshotPadrao {
     padraoSerie: r.numeroSerie ?? '',
     padraoCert: r.certificadoPadrao ?? '',
     padraoVal: dataBr(r.validade),
+    ...(r.pdfRef?.path ? { padraoPdfRef: r.pdfRef } : {}),
   };
 }
 

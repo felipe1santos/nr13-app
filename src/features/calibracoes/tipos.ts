@@ -99,6 +99,13 @@ interface DadosCalibracaoBase {
    * informado à mão.
    */
   padraoId?: string;
+  /**
+   * O ARQUIVO do certificado do padrão usado — a referência exata no bucket,
+   * congelada junto com o snapshot. O relatório anexa por `padraoId` e, se o
+   * registro não for encontrado, por esta referência. Nunca "algum padrão do
+   * mesmo tipo".
+   */
+  padraoPdfRef?: RefFoto;
   statusConclusao: 'aprovado' | 'reprovado' | '';
   textoMotivo: string;
   /**
