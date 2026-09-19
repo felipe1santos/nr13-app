@@ -1,4 +1,4 @@
-import { ehEmitido, ehInterna, ehTerceiro, type DadosCalibracao } from './tipos';
+import { ehCongelada, ehEmitido, ehInterna, ehTerceiro, type DadosCalibracao } from './tipos';
 import { ler, salvar, excluirChave } from '../../services/storage';
 
 const chaveListar = (tag: string) => `nr13_calibracoes_${tag}`;
@@ -11,7 +11,9 @@ export function listarCalibracoes(tag: string): DadosCalibracao[] {
 /**
  * Certificado EMITIDO não se reescreve (fase 2, C.3). A correção é uma
  * calibração NOVA que aponta `substitui` para esta — a emitida continua
- * existindo, com os mesmos bytes, para todo relatório que a anexou.
+ * existindo, com os mesmos bytes, para todo relatório que a anexou. O registro
+ * de LABORATÓRIO EXTERNO também congela no "Registrar" (`ehCongelada`,
+ * 19/09/2026) — e o banco recusa os dois mesmo sem passar por aqui.
  *
  * A única escrita permitida sobre um id já existente é a própria EMISSÃO
  * (rascunho → emitido), feita por `emissaoCertificado.ts` com
@@ -19,7 +21,7 @@ export function listarCalibracoes(tag: string): DadosCalibracao[] {
  */
 export class CertificadoEmitidoImutavel extends Error {
   constructor(id: string) {
-    super(`O certificado ${id} já foi emitido e não pode ser alterado. Para corrigir, emita uma revisão.`);
+    super(`O certificado ${id} é oficial (emitido ou de laboratório externo) e não pode ser alterado nem excluído. Para corrigir, registre uma revisão.`);
     this.name = 'CertificadoEmitidoImutavel';
   }
 }
@@ -32,7 +34,7 @@ export async function salvarCalibracao(
   const lista = listarCalibracoes(tag);
   const idx = lista.findIndex((c) => c.id === dados.id);
   const anterior = idx >= 0 ? lista[idx] : (ler<DadosCalibracao>(chaveItem(dados.id)) ?? null);
-  if (anterior && ehEmitido(anterior)) throw new CertificadoEmitidoImutavel(dados.id);
+  if (anterior && ehCongelada(anterior)) throw new CertificadoEmitidoImutavel(dados.id);
   if (anterior && !opcoes.permitirEmissao && ehEmitido(dados)) throw new CertificadoEmitidoImutavel(dados.id);
   if (idx >= 0) lista[idx] = dados;
   else lista.push(dados);
@@ -42,7 +44,7 @@ export async function salvarCalibracao(
 
 export async function excluirCalibracao(tag: string, id: string): Promise<void> {
   const alvo = listarCalibracoes(tag).find((c) => c.id === id) ?? ler<DadosCalibracao>(chaveItem(id));
-  if (alvo && ehEmitido(alvo)) throw new CertificadoEmitidoImutavel(id);
+  if (alvo && ehCongelada(alvo)) throw new CertificadoEmitidoImutavel(id);
   const lista = listarCalibracoes(tag).filter((c) => c.id !== id);
   await salvar(chaveListar(tag), lista);
   await excluirChave(chaveItem(id));

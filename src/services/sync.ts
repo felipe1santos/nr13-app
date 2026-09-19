@@ -471,11 +471,12 @@ async function enviarItem(item: ItemFila): Promise<boolean> {
       // Exclusão recusada: o registro continua vivo no servidor, então a marca
       // local de exclusão precisa sair para a hidratação repô-lo.
       if (item.op === 'del') await removerTombstone(item.chave);
-      // Alteração recusada: o valor local (a versão que o servidor nunca vai
-      // aceitar — ex.: certificado emitido editado num aparelho atrasado) volta
-      // a ser o do servidor. Sem isto, o aparelho mostraria um documento que não
-      // existe em lugar nenhum além dele.
-      if (item.op === 'set') await restaurarDoServidor(item.chave);
+      // Alteração OU exclusão recusada: o valor local (a versão que o servidor
+      // nunca vai aceitar — ex.: certificado emitido editado num aparelho
+      // atrasado, ou relatório finalizado apagado) volta a ser o do servidor.
+      // Sem isto, o aparelho mostraria um documento que não existe em lugar
+      // nenhum além dele — ou esconderia, até a próxima hidratação, um que existe.
+      await restaurarDoServidor(item.chave);
       return false;
     }
     if (cat && DEFINITIVAS.has(cat)) await marcarEstado(item.mutationId, 'falha_definitiva');

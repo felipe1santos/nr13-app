@@ -185,6 +185,19 @@ export function ehEmitido(c: DadosCalibracao | null | undefined): boolean {
 }
 
 /**
+ * O registro está CONGELADO? (19/09/2026) — espelho de `nr13_calibracao_oficial`
+ * no banco (`documentos_emitidos_imutaveis.sql`): o certificado interno EMITIDO e
+ * o registro de LABORATÓRIO EXTERNO (oficial desde o "Registrar"; um rascunho de
+ * terceiro, se um dia existir, fica livre). Nenhum dos dois se edita nem se
+ * exclui; corrigir é registrar outro.
+ */
+export function ehCongelada(c: DadosCalibracao | null | undefined): boolean {
+  if (!c) return false;
+  if (ehEmitido(c)) return true;
+  return ehTerceiro(c) && (c as { status?: unknown }).status !== 'rascunho';
+}
+
+/**
  * A calibração vale OFICIALMENTE? (19/09/2026)
  *
  * Rascunho não é calibração realizada: aparece no histórico, mas não alimenta

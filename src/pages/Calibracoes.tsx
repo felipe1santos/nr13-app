@@ -12,6 +12,7 @@ import {
   salvarCalibracao,
 } from '../features/calibracoes/calibracaoService';
 import {
+  ehCongelada,
   ehEmitido,
   ehInterna,
   ehTerceiro,
@@ -853,7 +854,7 @@ export default function Calibracoes() {
                     <Icone nome="pencil" tam={13} /> {ehEmitido(calAtual) ? 'Corrigir (nova revisão)' : 'Criar revisão para emitir'}
                   </button>
                 )}
-                {ehEmitido(calAtual) ? null : confirmandoId === calAtual.id ? (
+                {ehCongelada(calAtual) ? null : confirmandoId === calAtual.id ? (
                   <>
                     <button type="button" className="btn-remover" onClick={() => excluir(calAtual.id)}>
                       Confirmar Exclusão

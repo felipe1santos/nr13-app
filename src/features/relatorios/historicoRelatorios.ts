@@ -309,10 +309,28 @@ export async function salvarRascunho(r: RelatorioSalvo): Promise<void> {
 }
 
 /**
+ * Relatório FINALIZADO não se exclui (19/09/2026). O banco recusa por conta
+ * própria (`documentos_emitidos_imutaveis.sql`): o registro, a entrada do índice
+ * e a do array legado. Recusar aqui, antes da fila, é o que evita o aparelho
+ * apagar localmente um documento que continua existindo no servidor.
+ */
+export class RelatorioFinalizadoImutavel extends Error {
+  constructor(id: string) {
+    super(`O relatório ${id} já foi finalizado e não pode ser excluído. Para tirá-lo da lista, arquive-o.`);
+    this.name = 'RelatorioFinalizadoImutavel';
+  }
+}
+
+/**
  * Remove o relatório: o registro, a entrada do índice e a cópia dentro do array
- * legado, se houver.
+ * legado, se houver. SÓ RASCUNHO — finalizado é recusado.
  */
 export async function excluirRelatorio(id: string, tag: string): Promise<void> {
+  const registro = ler<RelatorioSalvo>(chaveRelatorio(id, tag));
+  const noIndice = listarIndice(tag).some((i) => i.id === id);
+  if ((registro && !ehRascunho(registro.status)) || (!registro && noIndice)) {
+    throw new RelatorioFinalizadoImutavel(id);
+  }
   await excluirChave(chaveRelatorio(id, tag));
   await removerDoLegado(id, tag);
   const restante = listarIndice(tag).filter((i) => i.id !== id);

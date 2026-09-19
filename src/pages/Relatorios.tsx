@@ -37,7 +37,6 @@ import ModalNovaInspecao from '../features/relatorios/ModalNovaInspecao';
 import ModalSelecionarContainer from '../features/relatorios/ModalSelecionarContainer';
 import { carregarContainer } from '../features/inspecoes/inspecaoService';
 import {
-  excluirDoHistorico,
   expandirFolhasFoto,
   expandirMemorial,
   filtrarDocumentosValidos,
@@ -116,12 +115,6 @@ const IconeDuplicar = (
 const IconeLapis = (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-  </svg>
-);
-
-const IconeLixeira = (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6" />
   </svg>
 );
 
@@ -348,7 +341,6 @@ function RelatoriosLegado() {
   const [validacao, setValidacao] = useState<ResultadoValidacao | null>(null);
   const [renomeandoId, setRenomeandoId] = useState<string | null>(null);
   const [nomeRenomeando, setNomeRenomeando] = useState('');
-  const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
   const [modalConfig, setModalConfig] = useState(false);
   /**
    * Qual campo das Configurações a barra de pendências pediu para focar.
@@ -614,7 +606,6 @@ function RelatoriosLegado() {
     );
     setDocumentos(null);
     setMeta(null);
-    setSelecionados(new Set());
     // NÃO decide a tela. Quem chama sabe por que está abrindo o equipamento —
     // criar um documento, continuar um, ou consultar o histórico legado —, e
     // misturar as três decisões aqui dentro foi o que fez a rota do editor
@@ -984,29 +975,9 @@ function RelatoriosLegado() {
     setTela('visualizador');
   }
 
-  async function excluirHistorico(id: string) {
-    await excluirDoHistorico(id, tag);
-    setHistorico(listarHistorico(tag));
-  }
-
-  async function excluirSelecionados() {
-    for (const id of selecionados) await excluirDoHistorico(id, tag);
-    setSelecionados(new Set());
-    setHistorico(listarHistorico(tag));
-  }
-
-  function toggleSelecionado(id: string) {
-    setSelecionados((s) => {
-      const novo = new Set(s);
-      if (novo.has(id)) novo.delete(id);
-      else novo.add(id);
-      return novo;
-    });
-  }
-
-  function toggleSelecionarTodos() {
-    setSelecionados((s) => (s.size === historico.length ? new Set() : new Set(historico.map((r) => r.id))));
-  }
+  // Sem "excluir" aqui (19/09/2026): toda linha desta lista é relatório
+  // FINALIZADO, e finalizado não se exclui — o banco recusa
+  // (`documentos_emitidos_imutaveis.sql`) e `excluirRelatorio` também.
 
   function iniciarRenome(r: RelatorioIndiceItem) {
     setRenomeandoId(r.id);
@@ -1391,11 +1362,6 @@ function RelatoriosLegado() {
           <div className="meta-card-header">
             <h3>Histórico de Relatórios</h3>
             <div style={{ display: 'flex', gap: 10, position: 'relative' }}>
-              {selecionados.size > 0 && (
-                <button type="button" className="btn-secundario" onClick={excluirSelecionados}>
-                  Excluir Selecionados ({selecionados.size})
-                </button>
-              )}
               <button type="button" className="btn-filtrar" onClick={() => setFiltroAberto((a) => !a)}>
                 <Icone nome="filter" tam={14} /> Filtrar <Icone nome="chevdown" tam={12} />
               </button>
@@ -1443,9 +1409,6 @@ function RelatoriosLegado() {
             <table className="meta-table">
               <thead>
                 <tr>
-                  <th style={{ width: 30 }}>
-                    <input type="checkbox" checked={selecionados.size === historico.length} onChange={toggleSelecionarTodos} />
-                  </th>
                   {/* Rótulos curtos, iguais aos `data-rot` do cartão do celular:
                       "Próx. Insp. Interna" quebrava em três linhas na coluna e
                       deixava o cabeçalho três vezes mais alto que o conteúdo. */}
@@ -1464,9 +1427,6 @@ function RelatoriosLegado() {
               <tbody>
                 {historicoVisivel.map((r) => (
                   <tr key={r.id}>
-                    <td className="cel-check" data-rot="Selecionar">
-                      <input type="checkbox" checked={selecionados.has(r.id)} onChange={() => toggleSelecionado(r.id)} />
-                    </td>
                     <td className="cel-nome" data-rot="Relatório">
                       <span className="nome-relatorio-cel">
                         <span className="icone-pdf-cel">{IconePdf}</span>
@@ -1517,9 +1477,6 @@ function RelatoriosLegado() {
                           </button>
                           <button type="button" className="btn-icone cor-roxo" title="Duplicar" onClick={() => duplicar(r)}>
                             {IconeDuplicar}
-                          </button>
-                          <button type="button" className="btn-icone cor-vermelho" title="Deletar" onClick={() => excluirHistorico(r.id)}>
-                            {IconeLixeira}
                           </button>
                         </>
                       )}
