@@ -113,9 +113,8 @@ export default function ModalComponente({
 
         <div className="mcomp-corpo">
           <p className="mcomp-ajuda">
-            Cadastre cada instrumento (manômetro, PSV, termômetro, vacuômetro, pressostato ou
-            transmissor) uma única vez. A cada inspeção, abra um lote e
-            calibre os mesmos componentes — o histórico de cada um fica junto dele.
+            Só os dados do instrumento — cadastrados uma vez, aparecem prontos em toda calibração.
+            Datas, ambiente, resultados e conclusão ficam na calibração.
           </p>
 
           <div className="mcomp-grid">
@@ -171,67 +170,65 @@ export default function ModalComponente({
               <span>Nº de série</span>
               <input value={c.serie ?? ''} onChange={(e) => set('serie', e.target.value)} />
             </label>
+            <label className="mcomp-campo">
+              <span>{definicaoDe(c.tipo).grandeza === 'temperatura' ? 'Faixa de temperatura' : 'Faixa / referência'}</span>
+              <input
+                value={c.referencia ?? ''}
+                onChange={(e) => set('referencia', e.target.value)}
+                placeholder={definicaoDe(c.tipo).grandeza === 'temperatura' ? 'Ex: 0 a 150' : 'Ex: 0 a 10'}
+              />
+            </label>
+            <label className="mcomp-campo">
+              <span>Unidade</span>
+              <select value={unidadeDoComponente(c)} onChange={(e) => set('unidade', e.target.value)}>
+                {unidadeDoComponente(c) === '' && <option value="">Selecione…</option>}
+                {unidadesDoInstrumento(c.tipo).map((u) => (
+                  <option key={u} value={u}>
+                    {u}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
 
-          {/* ── O QUE SE REPETE EM TODA CALIBRAÇÃO ──────────────────────────
-              Guardado aqui, some do formulário de calibração: ele passa a
-              nascer preenchido. Tudo opcional — quem não quiser cadastrar
-              continua digitando na hora, como antes. */}
-          <div className="mcomp-bloco">
-            <div className="mcomp-bloco-titulo">
-              <Icone nome="refresh" tam={13} />
-              <span>Preenchimento automático das calibrações</span>
+          {/* ── ESPECÍFICO DO TIPO (progressive disclosure) ──────────────────
+              Só manômetro e PSV têm dado técnico além da faixa: os PONTOS
+              padrão (default — cada calibração registra os que executou) e a
+              pressão de ajuste da válvula. Os outros tipos não mostram nada. */}
+          {(c.tipo === 'manometro' || c.tipo === 'psv') && (
+            <div className="mcomp-bloco">
+              <div className="mcomp-bloco-titulo">
+                <Icone nome="sliders" tam={13} />
+                <span>Dados técnicos — {definicaoDe(c.tipo).rotulo}</span>
+              </div>
+              <div className="mcomp-grid">
+                {c.tipo === 'manometro' ? (
+                  <label className="mcomp-campo mcomp-campo-full">
+                    <span>Pontos de calibração (padrão)</span>
+                    <input
+                      value={textoDePontos(c.pontos)}
+                      onChange={(e) => set('pontos', pontosDeTexto(e.target.value))}
+                      placeholder="Ex: 0, 2, 4, 6, 8, 10"
+                    />
+                    <em className="mcomp-dica">
+                      {(c.pontos ?? []).length > PONTOS_NA_FOLHA
+                        ? `O certificado imprime ${PONTOS_NA_FOLHA} pontos — os demais não entram no documento.`
+                        : 'Separe por vírgula. Viram a coluna “valor do padrão” de cada calibração, que ainda pode ajustar os pontos executados.'}
+                    </em>
+                  </label>
+                ) : (
+                  <label className="mcomp-campo">
+                    <span>Pressão de ajuste</span>
+                    <input
+                      value={c.pressaoAjuste ?? ''}
+                      onChange={(e) => set('pressaoAjuste', e.target.value)}
+                      placeholder="Ex: 8,5"
+                    />
+                  </label>
+                )}
+              </div>
             </div>
-            <p className="mcomp-bloco-ajuda">
-              Estes dados não mudam de uma calibração para a outra. Preenchidos uma vez, aparecem
-              prontos em todo certificado deste componente.
-            </p>
-            <div className="mcomp-grid">
-              <label className="mcomp-campo">
-                <span>Faixa / referência</span>
-                <input
-                  value={c.referencia ?? ''}
-                  onChange={(e) => set('referencia', e.target.value)}
-                  placeholder="Ex: 0 a 10 kgf/cm²"
-                />
-              </label>
-              <label className="mcomp-campo">
-                <span>Unidade</span>
-                <select value={unidadeDoComponente(c)} onChange={(e) => set('unidade', e.target.value)}>
-                  {unidadeDoComponente(c) === '' && <option value="">Selecione…</option>}
-                  {unidadesDoInstrumento(c.tipo).map((u) => (
-                    <option key={u} value={u}>
-                      {u}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {c.tipo === 'manometro' ? (
-                <label className="mcomp-campo mcomp-campo-full">
-                  <span>Pontos de calibração</span>
-                  <input
-                    value={textoDePontos(c.pontos)}
-                    onChange={(e) => set('pontos', pontosDeTexto(e.target.value))}
-                    placeholder="Ex: 0, 2, 4, 6, 8, 10"
-                  />
-                  <em className="mcomp-dica">
-                    {(c.pontos ?? []).length > PONTOS_NA_FOLHA
-                      ? `O certificado imprime ${PONTOS_NA_FOLHA} pontos — os demais não entram no documento.`
-                      : 'Separe por vírgula. É a coluna “valor do padrão” do certificado — vinha em branco e era digitada duas vezes, uma para cada sentido.'}
-                  </em>
-                </label>
-              ) : c.tipo === 'psv' ? (
-                <label className="mcomp-campo">
-                  <span>Pressão de ajuste</span>
-                  <input
-                    value={c.pressaoAjuste ?? ''}
-                    onChange={(e) => set('pressaoAjuste', e.target.value)}
-                    placeholder="Ex: 8,5"
-                  />
-                </label>
-              ) : null}
-            </div>
-          </div>
+          )}
 
           <div className="mcomp-foto">
             <input

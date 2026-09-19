@@ -116,7 +116,13 @@ export async function emitirCertificado(tag: string, cal: DadosCalibracao): Prom
   const motivos = pendenciasEmissao(cal);
   if (motivos.length) throw new EmissaoRecusada(motivos);
 
-  const aEmitir: DadosCalibracaoInterna = { ...cal, origem: 'interna', status: 'emitido' };
+  // A data de emissão É a da emissão — não se digita (reestruturação 19/09/2026).
+  const aEmitir: DadosCalibracaoInterna = {
+    ...cal,
+    origem: 'interna',
+    status: 'emitido',
+    dataEmissao: new Date().toLocaleDateString('pt-BR'),
+  };
   delete (aEmitir as { emissao?: unknown }).emissao;
   const { bytes, paginas } = await gerarPdfCertificado(aEmitir, tag);
   const sha256 = await sha256Hex(bytes);

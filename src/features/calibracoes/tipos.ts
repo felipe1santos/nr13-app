@@ -92,6 +92,13 @@ interface DadosCalibracaoBase {
   padraoSerie: string;
   padraoCert: string;
   padraoVal: string;
+  /**
+   * Reestruturação (19/09/2026) · o padrão ESCOLHIDO: id da versão em
+   * `nr13_rastreab_` (cada gravação lá é uma versão nova). Os quatro campos
+   * acima são o snapshot dele na data. Ausente = registro anterior ou padrão
+   * informado à mão.
+   */
+  padraoId?: string;
   statusConclusao: 'aprovado' | 'reprovado' | '';
   textoMotivo: string;
   /**
