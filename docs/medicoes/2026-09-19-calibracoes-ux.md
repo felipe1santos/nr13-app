@@ -183,3 +183,9 @@ ausentes. Com perfil já usado, os novos NÃO apareciam — cache semeado com ve
 únicos escritores são `publicarArtefato` (finalização de relatório/prontuário e a bancada
 `?piloto=1`), `salvarRastreabilidade`/`recuperacaoArquivos` (padrão cadastrado), a emissão e o
 "Registrar" do terceiro; todos com caminho novo (uuid); ninguém remove.
+
+**Arquivo para produção** (conferir no SQL Editor por hash, §13): `supabase/documentos_emitidos_imutaveis.sql`
+do commit `a70c6fd`, 17.701 bytes, fim de linha LF —
+SHA-256 `fb2fe5b4522ff5a7427f8e62e717d84ad8987dff84a316601f236bf083c653c4`.
+Rollback `documentos_emitidos_imutaveis_rollback.sql` —
+SHA-256 `72aa9ea5e17a86baa1f94778c4c42abd2966ace363aac771962767750b837d8b`.
