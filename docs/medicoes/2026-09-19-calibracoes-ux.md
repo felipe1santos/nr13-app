@@ -140,3 +140,46 @@ E2E remapeia o host (não é defeito do código).
 
 **Regressão do padrão exato.** Relatório com CERT-1789792476106 → págs. 14–18 = PDF LAB-B-9002;
 padrão A ausente.
+
+## Último hardening: terceiro, relatório finalizado, listas e bypass (19/09/2026)
+
+A guarda virou UMA regra para três documentos (interno emitido, terceiro, relatório
+finalizado) e suas listas (`nr13_calibracoes_`, `nr13_historico_indice_`,
+`nr13_historico_relatorios`). Migration aplicada no lab populado 2× (e mais uma vez, por
+engano do gerador de teste, rollback + 2× em autocommit — estado final idêntico, nenhuma linha
+apagada), e em banco ZERADO: rollback → 64 linhas apagadas → migration 2× → casos-chave →
+ROLLBACK. md5 dos registros históricos e SHA dos arquivos: idênticos.
+
+**Bateria SQL (73/73)** como `authenticated` pela RPC: A (6), B (10), C (13, com relatório
+legado e retrofit), D rascunhos (12), lista de calibrações (9), índice (8), legado (2), bypass
+com GUC ligado (3), outra org (3), anon/service_role/DBA (7).
+
+**Pelo PostgREST (14/14)**, com JWT real: terceiro e relatório recusados (400
+`nr13_documento_emitido`); `rpc/set_config` 404; `coletar_tombstones` 403; anon em
+`purgar_dados_por_email`/`reconciliar_versoes_org` 401; service_role DELETE direto recusado;
+outra org lê 0 linhas.
+
+**Bypass.** Quem liga o GUC: sessão direta (DBA) e quatro rotinas SECURITY DEFINER que exigem
+claims `service_role` antes. `anon` tinha EXECUTE nelas (default privilege do Supabase; os
+`revoke` originais só tiravam de `public, authenticated`) — sem efeito, porque elas recusam,
+mas o grant saiu. PostgREST não expõe `set_config` (pg_catalog fora dos schemas) e pg_graphql
+não está instalado no lab. Sessão `authenticator` real + GUC: negado para `authenticated` e
+sem claims; autorizado só com `service_role`.
+
+**Fila (§11)**, pelo app, para interno, terceiro e relatório: rascunho → edição offline na fila →
+outro aparelho oficializa → rede volta → conflito → "Manter a minha" → `encerrado` /
+`recusa_definitiva`, 1 tentativa, e mais duas drenagens não gastam outra; cache volta ao oficial;
+servidor intacto. `del` cru de relatório finalizado pela fila: recusado e restaurado (SHA igual).
+
+**Fluxos legítimos pela UI**: finalizar relatório (rascunho → Aprovado, PDF + SHA, índice);
+renomear (passa); adulterar validade pelo app (recusado, restaurado); emitir certificado pela
+janela; registrar terceiro com PDF (lista aceita a entrada nova e mantém a antiga).
+
+**Portal**, perfil limpo: emitido novo e terceiro novo abrem o arquivo, SHA = registro; rascunhos
+ausentes. Com perfil já usado, os novos NÃO apareciam — cache semeado com versão fixa
+(pré-existente, registrado em PENDENCIAS).
+
+**Storage**: nenhuma das quatro pastas recebe rascunho, temporário ou upload não emitido — os
+únicos escritores são `publicarArtefato` (finalização de relatório/prontuário e a bancada
+`?piloto=1`), `salvarRastreabilidade`/`recuperacaoArquivos` (padrão cadastrado), a emissão e o
+"Registrar" do terceiro; todos com caminho novo (uuid); ninguém remove.

@@ -18,15 +18,28 @@
 Branch `calibracoes-ux`. Medição: `docs/medicoes/2026-09-19-calibracoes-ux.md`. Ficou:
 
 - [ ] **ROLLOUT: aplicar `supabase/documentos_emitidos_imutaveis.sql` em produção ANTES (ou
-      junto) do deploy do front.** Trava no banco o certificado emitido e as pastas de arquivo
-      final do bucket (as políticas de UPDATE/DELETE valem para TODAS as organizações). Conferir
-      por hash (§13) e depois por `pg_trigger`/`pg_policies`. Rollback:
+      junto) do deploy do front.** Trava no banco os documentos oficiais (certificado emitido,
+      terceiro, relatório finalizado e listas) e as pastas de arquivo final do bucket (as
+      políticas de UPDATE/DELETE valem para TODAS as organizações). Conferir por hash (§13) —
+      SHA-256 na medição `docs/medicoes/2026-09-19-calibracoes-ux.md` — e depois por
+      `pg_trigger`/`pg_policies`/`has_function_privilege`. Rollback:
       `documentos_emitidos_imutaveis_rollback.sql`.
-- [ ] **Registro de calibração de TERCEIRO não é travado no banco** — o PDF do laboratório é
-      (pasta `certificados-externos/` sem UPDATE/DELETE), mas o registro `origem: 'terceiro'`
-      segue editável/excluível pela RPC, como no app. Decidir se ele vira imutável ao registrar.
-- [ ] **Registro `nr13_rel_<id>_<TAG>` do relatório salvo** também não tem trava de banco (só
-      o arquivo, agora sem UPDATE/DELETE no bucket). Mesmo desenho, se decidir travar.
+- [ ] **Portal: cache do navegador não vê documento novo** (pré-existente, Fase 0-B).
+      `storageV2.semearCache` grava o que a Edge devolve com `versao: 1` fixo, e
+      `cacheLocal.aplicarRemoto` ignora remoto com versão ≤ à local — no navegador que já abriu o
+      Portal, certificado/relatório emitido depois não aparece (a Edge devolve certo; perfil limpo
+      mostra). Medido no lab em 19/09/2026.
+- [ ] **A Edge `portal_cliente` entrega a lista `nr13_calibracoes_<TAG>` com os rascunhos
+      dentro** — a tela filtra (`ehOficial`), mas o dado chega ao navegador do cliente. Filtrar
+      na Edge se isso importar.
+- [ ] **Excluir equipamento deixa os documentos oficiais no servidor** (o banco recusa o `del`
+      deles, como já fazia com o livro). O equipamento some da lista; os registros ficam órfãos.
+- [ ] **Admin `delete_user` com org v2**: a guarda da v2 (`nr13_escrita_direta_bloqueada`)
+      já recusava o `delete` direto do service_role e a cascata do Auth — pré-existente. O
+      caminho que funciona é `purgar_dados_por_email` antes de excluir a conta.
+- [ ] **`livro_imutavel` e `guardar_app_storage` ainda leem o GUC `nr13.manutencao` cru.**
+      Hoje sem caminho de usuário até ele (auditado em 19/09); trocar por
+      `nr13_manutencao_autorizada()` seria só defesa em profundidade.
 - [ ] **Lab: a Edge local assina URL com `http://kong:8000`** (host interno do Docker) e o
       navegador não abre o arquivo no Portal. Só laboratório — o E2E remapeia o host. Em
       produção a URL é pública.

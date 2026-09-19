@@ -34,6 +34,7 @@ import {
   idSeguro,
   listarIndice,
   migrarHistoricoRelatorios,
+  RelatorioFinalizadoImutavel,
   resumir,
   salvarRelatorio,
   zerarCacheLegado,
@@ -248,17 +249,25 @@ describe('migração do array legado', () => {
     expect(listarIndice(TAG)).toEqual([]);
   });
 
-  it('excluir tira do índice E do legado — senão o relatório volta', async () => {
+  // Até 19/09/2026 excluir tirava o finalizado do índice e do legado. Agora
+  // relatório FINALIZADO não se exclui — o banco recusa, e o serviço recusa
+  // antes, para o aparelho não apagar localmente o que segue no servidor.
+  it('excluir relatório finalizado é recusado — registro, índice e legado intactos', async () => {
     semearLegado([rel('REL-1'), rel('REL-2')]);
     await migrarHistoricoRelatorios();
 
-    await excluirRelatorio('REL-1', TAG);
+    await expect(excluirRelatorio('REL-1', TAG)).rejects.toBeInstanceOf(RelatorioFinalizadoImutavel);
 
-    expect(listarIndice(TAG).map((i) => i.id)).toEqual(['REL-2']);
-    expect(carregarRelatorio('REL-1', TAG)).toBeNull();
-    // Releitura do zero (outra sessão): continua excluído.
+    expect(listarIndice(TAG).map((i) => i.id).sort()).toEqual(['REL-1', 'REL-2']);
+    expect(carregarRelatorio('REL-1', TAG)).not.toBeNull();
     zerarCacheLegado();
-    expect(listarIndice(TAG).map((i) => i.id)).toEqual(['REL-2']);
+    expect(listarIndice(TAG).map((i) => i.id).sort()).toEqual(['REL-1', 'REL-2']);
+  });
+
+  it('excluir RASCUNHO continua valendo', async () => {
+    await salvarRelatorio({ ...rel('REL-R'), status: 'Rascunho' });
+    await excluirRelatorio('REL-R', TAG);
+    expect(carregarRelatorio('REL-R', TAG)).toBeNull();
   });
 });
 

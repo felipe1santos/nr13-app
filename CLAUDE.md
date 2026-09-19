@@ -432,30 +432,41 @@ Medição: `docs/medicoes/2026-09-19-calibracoes-ux.md`.
   quase tela cheia no celular), nunca numa página; clique fora não fecha e alteração não salva
   pede confirmação. Lote é opcional e discreto. O clique no acessório abre o histórico dele.
 
-### §4-quinquies — Emitido trava NO BANCO; rascunho não é calibração (19/09/2026)
+### §4-quinquies — Documento oficial trava NO BANCO; rascunho não é calibração (19/09/2026)
 
-> **REGRA QUE NÃO SE QUEBRA:** certificado de calibração emitido não se altera nem se exclui
-> por caminho nenhum — nem pela RPC, nem pelo PostgREST, nem trocando o arquivo no bucket.
-> E RASCUNHO não conta como calibração: não gera vencimento, não aparece no Portal.
+> **REGRA QUE NÃO SE QUEBRA:** documento oficial não se altera nem se exclui por caminho
+> nenhum — RPC, PostgREST ou bucket. Arquivo imutável sozinho não basta: os METADADOS que o
+> descrevem também congelam, senão o Portal mostraria o PDF antigo com dados novos. E
+> RASCUNHO não conta como calibração: não gera vencimento, não aparece no Portal.
 
-- **Banco** (`supabase/documentos_emitidos_imutaveis.sql`, desenho de `livro_imutavel.sql`):
-  trigger `trg_guardar_documento_emitido` BEFORE UPDATE/DELETE em `app_storage`. Emitido =
-  `status:'emitido'` + `emissao.pdfRef.path`. No registro (`nr13_calibracao_item_`) só passa
-  regravar o MESMO valor; na lista (`nr13_calibracoes_<TAG>`, a que o Portal lê) toda entrada
-  emitida do valor antigo precisa estar no novo, idêntica. Passa: a emissão (rascunho →
-  emitido), `set local nr13.manutencao = '1'` e DELETE físico pelo `service_role`. Erro
-  `nr13_documento_emitido` = recusa DEFINITIVA (`errosSync`); a fila encerra o item e
-  `sync.restaurarDoServidor` devolve ao cache o valor do servidor.
+- **UMA guarda** (`supabase/documentos_emitidos_imutaveis.sql`, desenho de
+  `livro_imutavel.sql`): trigger `trg_guardar_documento_emitido` BEFORE UPDATE/DELETE em
+  `app_storage`, três documentos:
+  - **A · certificado interno emitido** — `status:'emitido'` + `emissao.pdfRef`;
+  - **B · calibração de terceiro** — `origem:'terceiro'` e status ≠ `'rascunho'` (nasce oficial
+    no "Registrar"); A e B em `nr13_calibracao_oficial`, só regravação IDÊNTICA passa (nada de
+    trocar PDF, SHA, laboratório, validade, nem terceiro ↔ interno);
+  - **C · relatório finalizado** — `nr13_rel_` com status ≠ `'Rascunho'` (ausente = finalizado).
+    Passa só o rótulo `nome` (renomear) e, em relatório LEGADO sem `pdfRef`, o retrofit do
+    §7-bis que ACRESCENTA snapshot ausente (`meta.assinantes/empresa/certCalibracoes/rastreabIds`).
+- **Representação nas listas**, só a entrada oficial é conferida (rascunho e item novo da mesma
+  lista seguem livres): `nr13_calibracoes_<TAG>` (idêntica), `nr13_historico_indice_<TAG>`
+  (mesmos dados, vazio = vazio, rótulo livre) e `nr13_historico_relatorios` (idêntica).
+- **Bypass**: `nr13_manutencao_autorizada()` — o GUC `nr13.manutencao = '1'` SOZINHO não basta:
+  claims `authenticated`/`anon` nunca passam, e pela API (sessão `authenticator`) só
+  `service_role`. Na prática: SQL Editor/pg_cron (DBA) e as rotinas `purgar_dados_*`,
+  `coletar_tombstones`, `reconciliar_versoes_org` — que perderam o EXECUTE de `anon`.
+  Não existe mais DELETE livre do service_role fora dessas rotinas.
+- **Cliente**: `ehCongelada` (calibração) e `excluirRelatorio` recusam ANTES da fila; a tela não
+  oferece excluir para registro congelado nem na lista legada de relatórios. Erro
+  `nr13_documento_emitido` = recusa DEFINITIVA (`errosSync`): a fila encerra o item e
+  `sync.restaurarDoServidor` devolve ao cache o valor do servidor — em `set` e em `del`.
 - **Bucket**: `relatorios/`, `certificados/`, `certificados-calibracao/` e
-  `certificados-externos/` sem UPDATE/DELETE por usuário (políticas `inspecao_atualizacao` /
-  `inspecao_remocao`). Upload dessas pastas vai com `upsert: false` (`ehPastaDeDocumentoFinal`,
-  `fotos.ts`); "já existe" = o nosso, enviado antes.
-- **Rascunho fora**: `ehOficial(c)` (`status !== 'rascunho'`; terceiro e legado contam) em
-  `listarVencimentos`, `validadesPorRelatorio`, detalhe do equipamento e Portal; a projeção
-  `projetar_calibracoes` (servidor, `busca_manutencao.sql`) filtra igual. O quadro 7.1.1 já não
-  deixava selecionar rascunho. Travado por `documentoEmitidoImutavel.test.ts`.
-- **Não travado no banco (ainda):** o registro de TERCEIRO e o `nr13_rel_` — só os arquivos
-  deles (ver PENDENCIAS).
+  `certificados-externos/` sem UPDATE/DELETE por usuário. Só recebem arquivo no momento oficial,
+  sempre em caminho novo (uuid), e ninguém os remove; upload com `upsert: false`.
+- **Rascunho fora**: `ehOficial(c)` em `listarVencimentos`, `validadesPorRelatorio`, detalhe do
+  equipamento e Portal; `projetar_calibracoes` filtra igual. Travado por
+  `documentoEmitidoImutavel.test.ts`.
 
 ---
 
