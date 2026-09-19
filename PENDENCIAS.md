@@ -17,15 +17,14 @@
 
 Branch `calibracoes-ux`. Medição: `docs/medicoes/2026-09-19-calibracoes-ux.md`. Ficou:
 
-- [ ] **PDF do padrão anexado ao relatório** ainda é escolhido "um por tipo"
-      (`rastreabilidadesParaRelatorio`), não pelo `padraoId` da calibração. Hoje coincidem
-      (a tela Certificados mantém um ativo por tipo); divergem se isso mudar.
-- [ ] **Folha da PSV com "Local" em 2 linhas**: o bloco do responsável encosta no rodapé.
-- [ ] **Lista de /calibracoes** não atualiza a contagem logo depois de salvar (vem da projeção
-      do servidor; atualiza na próxima consulta).
 - [ ] **Prévia do certificado dentro da janela**: hoje a prévia fica em "Ver certificado" do
       histórico/lote.
 - [ ] **Faixa e referência** continuam um campo só (a folha tem uma coluna "Referência").
+- [ ] **Imutabilidade do certificado emitido é só no cliente** (a RPC aceita sobrescrever o
+      registro; os bytes não mudam) — mesmo item do §0-OCTIES.
+- [ ] **Certificados mantém UM padrão ativo por tipo** (salvar marca os outros como
+      substituídos). A calibração já sabe escolher entre vários; a tela de cadastro não permite
+      criá-los. Decidir se deve.
 
 ## 0-OCTIES. REVISÃO DO ENGENHEIRO — o que ficou para as próximas rodadas (18/09/2026)
 
