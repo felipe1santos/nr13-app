@@ -22,6 +22,8 @@ export async function carregarDadosPortal(): Promise<{ tags: string[]; falhasDeC
   if (error) throw new Error(error.message || 'Falha ao carregar o portal');
   if (data?.erro) throw new Error(String(data.erro));
   const chaves = (data?.chaves ?? {}) as Record<string, string>;
+  const versoes = (data?.versoes ?? {}) as Record<string, number>;
+  const tags = (data?.tags as string[]) ?? [];
 
   // 1. CACHE — é daqui que TODA tela do Portal lê, via `ler()`.
   //
@@ -29,7 +31,11 @@ export async function carregarDadosPortal(): Promise<{ tags: string[]; falhasDeC
   // baixava a organização INTEIRA. Agora o cliente não hidrata (ver o comentário
   // lá) e o que ele enxerga é exatamente o que a Edge devolveu — filtrado no
   // servidor pelos ativos vinculados a ele.
-  await semearCachePortal(chaves);
+  //
+  // A resposta é o RETRATO COMPLETO (19/09/2026): substitui o que o cache tinha,
+  // sem comparar versão, e o que não veio nela sai. Antes a versão fixa 1 congelava
+  // o cache na primeira visita — documento novo só aparecia em navegador limpo.
+  await semearCachePortal(chaves, { versoes, retratoCompleto: true });
 
   // 2. localStorage — para os templates HTML em iframe, que leem de forma
   // síncrona no DOMContentLoaded e não sabem nada de `Map`.
@@ -38,6 +44,9 @@ export async function carregarDadosPortal(): Promise<{ tags: string[]; falhasDeC
   // chaves seguintes sumirem sem erro, sem log e sem aviso, e o cliente via um
   // ativo pela metade. Agora ela é contada e reportada — documento incompleto é
   // pior que documento recusado (mesma regra do palco, I-23).
+  // As cópias da carga ANTERIOR que esta não trouxe saem primeiro — senão um
+  // template leria, do localStorage, o que o servidor deixou de entregar.
+  limparCopiasQueSairam(chaves, tags);
   const falhas: string[] = [];
   for (const [chave, valor] of Object.entries(chaves)) {
     try {
@@ -60,7 +69,52 @@ export async function carregarDadosPortal(): Promise<{ tags: string[]; falhasDeC
     throw new ErroCotaPortal(falhas.length);
   }
 
-  return { tags: (data?.tags as string[]) ?? [], falhasDeCota: 0 };
+  registrarCopias(Object.keys(chaves));
+  return { tags, falhasDeCota: 0 };
+}
+
+/**
+ * Quais chaves ESTE Portal pôs no localStorage na última carga. Sem a lista não
+ * há como saber, no localStorage da origem inteira, o que é cópia do Portal.
+ */
+const CHAVE_COPIAS = 'nr13_portal_copias';
+
+function lerCopias(): string[] {
+  try {
+    const v = JSON.parse(localStorage.getItem(CHAVE_COPIAS) ?? '[]');
+    return Array.isArray(v) ? v.filter((c): c is string => typeof c === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function registrarCopias(chaves: string[], acrescentar = false): void {
+  try {
+    const lista = acrescentar ? [...new Set([...lerCopias(), ...chaves])] : chaves;
+    localStorage.setItem(CHAVE_COPIAS, JSON.stringify(lista));
+  } catch {
+    // sem lista, a próxima carga ainda limpa pelas TAGs do cliente
+  }
+}
+
+/**
+ * Remove do localStorage as cópias que a resposta atual NÃO trouxe: as da lista
+ * da carga anterior e, para navegador que ainda não tem a lista (carga anterior a
+ * 19/09/2026), as chaves `nr13_…_<TAG>` das TAGs deste cliente.
+ */
+function limparCopiasQueSairam(chaves: Record<string, string>, tags: string[]): void {
+  try {
+    const candidatas = new Set(lerCopias());
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith('nr13_') && tags.some((t) => k.endsWith(`_${t}`))) candidatas.add(k);
+    }
+    for (const k of candidatas) {
+      if (!Object.prototype.hasOwnProperty.call(chaves, k)) localStorage.removeItem(k);
+    }
+  } catch {
+    // localStorage indisponível: nada a limpar
+  }
 }
 
 /** Cota do navegador estourou ao materializar as chaves para os templates. */
@@ -96,15 +150,18 @@ export async function buscarChaveSobDemanda(chave: string): Promise<string | nul
   });
   if (error) throw new Error(error.message || 'Falha ao carregar o documento');
   const achadas = (data?.chaves ?? {}) as Record<string, string>;
+  const versoes = (data?.versoes ?? {}) as Record<string, number>;
   const valor = achadas[chave];
   if (typeof valor !== 'string') return null;
   // Deposita no cache para que `ler()` e os templates enxerguem, igual à carga inicial.
-  await semearCachePortal({ [chave]: valor });
+  // Não é retrato completo: só esta chave, e nada sai do cache.
+  await semearCachePortal({ [chave]: valor }, { versoes });
   try {
     localStorage.setItem(chave, valor);
   } catch {
     throw new ErroCotaPortal(1);
   }
+  registrarCopias([chave], true);
   return valor;
 }
 

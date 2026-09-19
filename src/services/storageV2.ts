@@ -599,23 +599,64 @@ async function adotarHerancaV1(): Promise<number> {
  * enfileira nada e não gera tombstone. É o oposto do `lerTudo` — recebe o que já
  * foi decidido lá fora e apenas deposita.
  *
- * Versão fixa em 1 e `aplicarRemoto` na frente: se por algum motivo já houver
- * registro local mais novo, ele vence. O Portal é somente leitura, então esse
- * caso não deveria existir; deixar `aplicarRemoto` decidir é mais barato que
- * confiar que não existe.
+ * ── O SERVIDOR É A VERDADE; O CACHE SÓ ACELERA (19/09/2026) ─────────────────
+ *
+ * Até aqui cada chave entrava com versão FIXA 1 por `aplicarRemoto`, que só aceita
+ * o que for MAIS NOVO que o local. Como tudo era 1, a primeira visita congelava o
+ * cache: o navegador que já tinha aberto o Portal nunca mais via certificado ou
+ * relatório emitido depois — só um perfil limpo via. E chave que o servidor
+ * deixava de mandar ficava para sempre.
+ *
+ * Agora, sem comparar versão: o que veio da Edge SUBSTITUI o que está no cache.
+ * O Portal é somente leitura — não há edição local a proteger, que era a única
+ * razão do `aplicarRemoto`. A versão gravada é a REAL (`app_storage.versao`, em
+ * `opcoes.versoes`); na falta dela (Edge anterior a 19/09) fica 0, que não é
+ * comparada com nada.
+ *
+ * `retratoCompleto` (a carga inicial do Portal): a resposta é TUDO que o cliente
+ * pode ver, então o que está no cache e não veio nela sai — um documento que
+ * deixou de ser dele, uma chave apagada, um valor que vinha com rascunho dentro.
+ * É a exceção declarada à regra da v2 "nada é apagado por não ter voltado do
+ * servidor": aquela protege edição local; a conta de cliente não edita, só roda
+ * depois de uma resposta COMPLETA da Edge (erro de rede lança antes daqui) e só
+ * para `papel = cliente`.
  */
-export async function semearCache(chaves: Record<string, string>): Promise<number> {
+export interface OpcoesSemeadura {
+  /** `app_storage.versao` real de cada chave, como a Edge devolveu. */
+  versoes?: Record<string, number>;
+  /** A resposta é o retrato completo do que o cliente pode ver (carga inicial). */
+  retratoCompleto?: boolean;
+}
+
+export async function semearCache(chaves: Record<string, string>, opcoes: OpcoesSemeadura = {}): Promise<number> {
   if (!iniciado && !(await iniciar())) return 0;
   const agora = new Date().toISOString();
   let postas = 0;
   for (const [chave, valor] of Object.entries(chaves)) {
     if (typeof valor !== 'string') continue;
+    const v = Number(opcoes.versoes?.[chave]);
+    const versao = Number.isFinite(v) && v > 0 ? v : 0;
+    const local = cache.obterRegistro(chave);
+    if (local && local.valor === valor && local.versao === versao) {
+      postas++; // idêntico: não reescreve o IndexedDB à toa
+      continue;
+    }
     try {
-      await cache.aplicarRemoto(chave, { valor, versao: 1, atualizadoEm: agora, dispositivo: null });
+      await cache.gravarAtomico([{ chave, registro: { valor, versao, atualizadoEm: agora, dispositivo: null } }]);
       postas++;
     } catch {
       // uma chave que falhe não pode custar as demais: o Portal precisa abrir
       // com o que deu para depositar
+    }
+  }
+  if (opcoes.retratoCompleto && ehCliente()) {
+    const sairam = cache.chaves().filter((c) => !Object.prototype.hasOwnProperty.call(chaves, c));
+    if (sairam.length > 0) {
+      try {
+        await cache.gravarAtomico(sairam.map((chave) => ({ chave, remover: true as const })));
+      } catch {
+        // não conseguir limpar não pode derrubar o Portal; a próxima carga tenta de novo
+      }
     }
   }
   return postas;

@@ -149,9 +149,12 @@ export function aguardarArmazenamento(): Promise<void> {
  * No caminho v1 é no-op: lá o cache É o `localStorage`, e o `portalService` já
  * escreve nele — semear seria gravar a mesma coisa duas vezes.
  */
-export async function semearCachePortal(chaves: Record<string, string>): Promise<number> {
+export async function semearCachePortal(
+  chaves: Record<string, string>,
+  opcoes: v2.OpcoesSemeadura = {},
+): Promise<number> {
   if (!v2Ativo()) return 0;
-  return v2.semearCache(chaves);
+  return v2.semearCache(chaves, opcoes);
 }
 
 /**
