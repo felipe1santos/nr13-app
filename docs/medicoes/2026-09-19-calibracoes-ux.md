@@ -189,3 +189,38 @@ do commit `a70c6fd`, 17.701 bytes, fim de linha LF —
 SHA-256 `fb2fe5b4522ff5a7427f8e62e717d84ad8987dff84a316601f236bf083c653c4`.
 Rollback `documentos_emitidos_imutaveis_rollback.sql` —
 SHA-256 `72aa9ea5e17a86baa1f94778c4c42abd2966ace363aac771962767750b837d8b`.
+
+## Portal: rascunho não sai do servidor; cache segue o servidor (19/09/2026)
+
+**Fonte do vazamento.** `portal_cliente` montava o payload com `chaves[row.chave] = row.valor`
+— `nr13_calibracoes_<TAG>` inteira, rascunhos dentro — e o modo sob demanda servia
+`nr13_rel_<id>_<TAG>` de relatório em rascunho. `portal_arquivo` autorizava qualquer `path`
+achado em qualquer chave `_<TAG>`, inclusive dentro de rascunho. A tela filtrava com
+`ehOficial`; o dado já estava no navegador.
+
+**Correção na fonte.** `sanearParaPortal` (mesma regra de `ehOficial`) em toda leitura que
+serializa, nas duas Edges. Nenhuma mudança na migration (SHA `fb2fe5b4…c653c4` mantido).
+
+**Payload bruto (17/17)**, cliente `portal-zz` da org A, lab com: rascunhos internos, um
+terceiro em rascunho com PDF próprio no bucket, um relatório em rascunho, e a org B com a
+MESMA TAG e o MESMO `clienteId`. Sai: B (emitido), C (terceiro), legado. Não sai: nenhum
+rascunho, nenhum `"status":"rascunho"`, o path do PDF do rascunho, o relatório em rascunho
+(nem sob demanda), nada da org B. Arquivos: emitido e terceiro servidos com SHA = registro;
+PDF do rascunho e arquivo da org B → 404 idêntico ao de arquivo inexistente.
+**Com o código anterior (HEAD) o mesmo script deu 8 falhas** — inclusive URL assinada (200)
+para o PDF do rascunho.
+
+**Cache.** Causa: `semearCache` gravava versão fixa 1 via `aplicarRemoto`, que só aceita o mais
+novo; e nunca tirava do cache o que o servidor deixava de mandar. Agora a carga é o retrato
+completo: substitui sem comparar versão, grava a versão real (`versoes` da Edge) e remove o
+que saiu, no IndexedDB e nas cópias do `localStorage`.
+
+**E2E no MESMO perfil** (o `perfil-portal`, que antes não mostrava CERT-1789829059104 nem
+EXT-HARD-777): passou a mostrar os dois e perdeu os rascunhos do cache; certificado novo
+CERT-1789833357394 emitido pela janela → Portal reaberto sem limpar nada → aparece (tela e
+cache); F5 → mantém; fechar e reabrir o navegador → mantém; offline → o Portal mostra erro
+(não abre offline, como antes), mas o cache no disco continua com os 10 itens; online de novo →
+normal.
+
+**Regressão:** bateria SQL 73/73, PostgREST 14/14, storage e outra org iguais; Portal:
+emitido e terceiro com SHA, relatório antigo `5cf9d3b2…` confere, legado abre pelo template.

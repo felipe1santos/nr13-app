@@ -24,14 +24,15 @@ Branch `calibracoes-ux`. Medição: `docs/medicoes/2026-09-19-calibracoes-ux.md`
       SHA-256 na medição `docs/medicoes/2026-09-19-calibracoes-ux.md` — e depois por
       `pg_trigger`/`pg_policies`/`has_function_privilege`. Rollback:
       `documentos_emitidos_imutaveis_rollback.sql`.
-- [ ] **Portal: cache do navegador não vê documento novo** (pré-existente, Fase 0-B).
-      `storageV2.semearCache` grava o que a Edge devolve com `versao: 1` fixo, e
-      `cacheLocal.aplicarRemoto` ignora remoto com versão ≤ à local — no navegador que já abriu o
-      Portal, certificado/relatório emitido depois não aparece (a Edge devolve certo; perfil limpo
-      mostra). Medido no lab em 19/09/2026.
-- [ ] **A Edge `portal_cliente` entrega a lista `nr13_calibracoes_<TAG>` com os rascunhos
-      dentro** — a tela filtra (`ehOficial`), mas o dado chega ao navegador do cliente. Filtrar
-      na Edge se isso importar.
+- [ ] **ROLLOUT: publicar as Edges `portal_cliente` (`index.ts`, `prefixos.ts`,
+      `oficialidade.ts`) e `portal_arquivo` (`index.ts`, `oficialidade.ts`)** — sem elas o
+      rascunho continua saindo do servidor (a tela filtra). Ordem livre em relação ao front: o
+      campo `versoes` é aditivo e o front novo substitui o cache mesmo sem ele.
+- [ ] **Portal não abre offline** (pré-existente): sem a Edge, `PortalLayout` mostra o erro e
+      não usa o cache — que continua no disco, intacto. Decidir se o Portal deve abrir com a
+      última versão conhecida.
+- [ ] **Tela de Calibrações quebra com registro sem `dataCalibracao`** (`parseDateBR` em
+      `Calibracoes.tsx`). O app sempre grava a data; achado com dado de teste montado à mão.
 - [ ] **Excluir equipamento deixa os documentos oficiais no servidor** (o banco recusa o `del`
       deles, como já fazia com o livro). O equipamento some da lista; os registros ficam órfãos.
 - [ ] **Admin `delete_user` com org v2**: a guarda da v2 (`nr13_escrita_direta_bloqueada`)

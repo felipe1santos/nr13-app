@@ -467,6 +467,18 @@ Medição: `docs/medicoes/2026-09-19-calibracoes-ux.md`.
 - **Rascunho fora**: `ehOficial(c)` em `listarVencimentos`, `validadesPorRelatorio`, detalhe do
   equipamento e Portal; `projetar_calibracoes` filtra igual. Travado por
   `documentoEmitidoImutavel.test.ts`.
+- **Portal: o rascunho não sai do servidor.** `sanearParaPortal`
+  (`supabase/functions/portal_*/oficialidade.ts`, uma cópia idêntica por Edge — deploy é por
+  função) é a mesma regra de `ehOficial`: `portal_cliente` tira rascunho de
+  `nr13_calibracoes_<TAG>` e não serve relatório em rascunho (nem sob demanda);
+  `portal_arquivo` não autoriza arquivo citado só por rascunho. O `ehOficial` da tela fica
+  como segunda camada. Travado por `oficialidadePortal.test.ts`.
+- **Portal: o servidor é a verdade, o cache só acelera.** A carga do Portal é o RETRATO
+  COMPLETO: substitui o cache sem comparar versão (a antiga versão fixa 1 congelava o cache na
+  primeira visita) e tira o que não veio — do IndexedDB e das cópias do `localStorage`
+  (`nr13_portal_copias`). A versão gravada é a real (`versoes` da Edge). É a exceção declarada
+  à regra da v2 de nunca apagar por ausência: só conta de cliente, só após resposta completa.
+  Travado por `cachePortal.test.ts` e `copiasPortal.test.ts`.
 
 ---
 
