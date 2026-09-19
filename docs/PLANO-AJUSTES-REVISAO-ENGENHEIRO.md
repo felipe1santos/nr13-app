@@ -2,8 +2,12 @@
 
 > **STATUS (18/09/2026, branch local `revisao-engenheiro-b-c1-a`, sem push/deploy):**
 > Etapa B, C.1 e A **implementadas e provadas em E2E local** —
-> `docs/medicoes/2026-09-18-revisao-engenheiro-b-c1-a.md`. C.2, C.3 e D pendentes
-> (`PENDENCIAS.md` §0-OCTIES).
+> `docs/medicoes/2026-09-18-revisao-engenheiro-b-c1-a.md` (em produção desde 18/09).
+>
+> **FASE 2 (18/09/2026, branch local `revisao-engenheiro-fase2`, sem push/deploy):** prontuário
+> (pressão de projeto), C.2, C.3, D e quadro 7.1.1 implementados e provados em E2E local —
+> `docs/medicoes/2026-09-18-revisao-engenheiro-fase2.md`; regras em `CLAUDE.md` §4-ter; o que
+> sobrou em `PENDENCIAS.md` §0-OCTIES.
 >
 > Decisões aplicadas:
 > - **D-2** — registro antigo com respostas e sem `semanticaNc` pede revisão e bloqueia a finalização.

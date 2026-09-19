@@ -375,6 +375,43 @@ Plano e auditoria: `docs/PLANO-AJUSTES-REVISAO-ENGENHEIRO.md`. Medição do E2E:
   `logoRef → logo` pela mesma `hidratarFotosDoBucket` do palco. Templates de certificado sem o
   placeholder `logo.webp` (arquivo inexistente).
 
+### §4-ter — Revisão do engenheiro, fase 2: certificado de calibração e quadro 7.1.1 (18/09/2026)
+
+Medição do E2E: `docs/medicoes/2026-09-18-revisao-engenheiro-fase2.md`.
+
+- **PRONTUÁRIO: CADA PRESSÃO DA SUA FONTE.** `features/prontuarios/pressoesProntuario.ts`:
+  projeto = `pressaoDeProjetoMpa`, máx. de operação = PMO adotada, PMTA = adotada ?? calculada.
+  Rascunho antigo com a PMTA no campo de projeto (texto idêntico ao preenchimento antigo) é
+  reconhecido e substituído; o que o usuário digitou vence.
+- **CERTIFICADO INTERNO: RASCUNHO → EMISSÃO → ARQUIVO.** Calibração interna nasce
+  `status: 'rascunho'` com o RESPONSÁVEL congelado (`responsavel`: snapshot de
+  `nr13_lista_phs`, rubrica por `assinaturaRef`, sem dataURL). Emitir
+  (`calibracoes/emissaoCertificado.ts`) monta a folha no host isolado em modo AVULSO
+  (`fonte=registro`, sem a meta de relatório), confere que logo e rubrica chegaram, gera 1 página
+  A4, SHA-256, grava em `<org>/certificados-calibracao/<uuid>.pdf` pela fila das fotos e só então
+  carimba `status: 'emitido'` + `emissao{pdfRef, sha256, emitidoEm, pendente, logoRef,
+  assinaturaRef}`. Sem responsável NÃO emite; sem imagem no cadastro sai nome/registro e nunca
+  rubrica inventada. Registro sem `status` é LEGADO: abre pelo template, como sempre.
+- **EMITIDO NÃO SE REGERA.** Visualizar, baixar, imprimir, Portal e anexo ao relatório servem os
+  bytes (`artefatoDaCalibracao`); o anexo copia as páginas com pdf-lib e confere o SHA
+  (`bytesArquivadosDaFolha`) — arquivo ausente/divergente vira falha NOMEADA, nunca re-render.
+  `salvarCalibracao`/`excluirCalibracao` recusam emitido; corrigir = REVISÃO (registro novo com
+  `substitui`). Rascunho não entra em relatório (`folhaDoRelatorio`).
+- **SEIS INSTRUMENTOS** (`calibracoes/instrumentos.ts`): manômetro, PSV, termômetro, vacuômetro,
+  pressostato, transmissor. Unidade é do INSTRUMENTO, por grandeza (pressão × temperatura), nunca
+  convertida nem chutada. Só manômetro e PSV têm folha interna.
+- **CALIBRAÇÃO DE TERCEIRO** (`origem: 'terceiro'`, `ModalCalibracaoTerceiro`): laboratório,
+  responsável externo, nº, datas, instrumento, faixa/unidade, PDF ORIGINAL intacto em
+  `<org>/certificados-externos/` com SHA-256. **Nunca gera certificado interno, logo ou
+  assinatura nossa para ela.** Registro antigo sem `origem` = "origem não informada".
+- **QUADRO 7.1.1 PELA CALIBRAÇÃO VINCULADA.** No checklist, cada linha aponta para uma calibração
+  (`checklist.instrumentosRef[id] = {calibracaoId, componenteId, snapshot}`); o relatório lê o
+  SNAPSHOT (`quadroInstrumentos.linhaQuadro`), nunca o registro vivo. CALIBRADO é derivado:
+  reprovada ou vencida na data da inspeção = NÃO. Terceiro sai com o laboratório "(externo)".
+  Inspeção sem vínculo mantém as marcações manuais.
+- **O ASSISTENTE DE RELATÓRIO SEMEIA A TAG** (`carregarEquipamento`) antes do passo 2 — em
+  aparelho novo ele não oferecia nem a inspeção nem os certificados.
+
 ---
 
 ## 5. Layout, responsividade e impressão (todas as folhas)

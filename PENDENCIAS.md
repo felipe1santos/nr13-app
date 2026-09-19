@@ -15,22 +15,37 @@
 
 ## 0-OCTIES. REVISÃO DO ENGENHEIRO — o que ficou para as próximas rodadas (18/09/2026)
 
-Plano: `docs/PLANO-AJUSTES-REVISAO-ENGENHEIRO.md`. Feitas nesta data (branch local, sem deploy):
-Etapa B (TH/unidades), C.1 (logo do certificado anexado), A (pergunta de não conformidade +
-observações do checklist). Pendentes, por decisão do dono:
+Plano: `docs/PLANO-AJUSTES-REVISAO-ENGENHEIRO.md`. Fase 1 (B, C.1, A) em produção em 18/09.
+Fase 2 (prontuário, C.2, C.3, D, quadro 7.1.1) feita LOCAL em 18/09 — branch
+`revisao-engenheiro-fase2`, sem push/deploy. Medição:
+`docs/medicoes/2026-09-18-revisao-engenheiro-fase2.md`. O que ficou:
 
-- [ ] **C.2 — assinatura do Certificado de Calibração** (responsável com snapshot na calibração).
-- [ ] **C.3 — certificado como arquivo imutável** (pdfRef/SHA na emissão; D-13 aprovado em conceito).
-- [ ] **D — calibração de terceiro, tipos de instrumento (termômetro, vacuômetro, pressostato,
-      transmissor), quadro 7.1.1 alimentado pelas calibrações e congelado na meta.**
-- [ ] **Prontuário: "pressão de projeto" e "pressão máx. de operação" pré-preenchidas com a PMTA**
-      (`Prontuarios.tsx`, bloco "Cálculo (PMTA / PTH)"). Mesmo defeito corrigido no TH; usar
-      `pressaoDeProjetoMpa` e a PMO adotada. Prontuário vetorial ainda imprime 4 colunas de
-      unidade (D-10).
+- [ ] **Anexar ao relatório o PDF ORIGINAL do laboratório** (calibração de terceiro). Hoje o
+      relatório CITA (quadro 7.1.1: nº, validade, laboratório "(externo)") e o PDF fica no
+      bucket intacto, com SHA-256 — mas não entra no arquivo do relatório. Caminho: copiar as
+      páginas com pdf-lib, como `anexarRastreabilidades`, sem carimbo nenhum.
+- [ ] **Trava NO BANCO para certificado emitido.** A recusa de editar/excluir um emitido está no
+      cliente (`salvarCalibracao`/`excluirCalibracao`); a RPC `aplicar_mutacao_storage` ainda
+      aceita sobrescrever `nr13_calibracao_item_<id>`. Os BYTES não mudam (pdfRef por uuid, SHA
+      conferido na reabertura), mas o registro sim. Mesmo desenho de `livro_imutavel.sql`.
+- [ ] **Folha interna para termômetro, vacuômetro, pressostato e transmissor.** Hoje só
+      manômetro e PSV têm modelo; os outros quatro registram calibração de laboratório externo.
+- [ ] **Portal do Cliente com certificado emitido/externo**: o código serve o arquivo
+      (`artefatoDaCalibracao`), mas não foi exercitado no E2E local.
+- [ ] **Rascunho de calibração conta para vencimentos** (acessório usa a última calibração).
+      Decidir se rascunho deve contar.
+- [ ] **Catálogo de Calibrações com busca e resultado PARCIAL**: se a busca acha um equipamento
+      com calibração e outro sem, o sem continua escondido pelo filtro padrão sem aviso. O caso
+      "nenhum resultado" (o do ZZ-UNID-BAR) foi corrigido.
+- [ ] **Folha do manômetro sem folga vertical** (medido: conteúdo termina ~4 px acima do
+      rodapé). Motivo/conclusão muito longo pode empurrar o rodapé — pré-existente.
+- [ ] **Prontuário vetorial ainda imprime 4 colunas de unidade** (D-10).
 - [ ] **Duração e temperatura do TH estruturadas** (min / °C) — D-9, texto livre por enquanto.
 - [ ] **Conflito em `nr13_relatorio_meta_atual`** observado no E2E com duas instâncias do app
-      abertas (aba + iframe). Investigar se acontece com uma instância só.
-- [ ] **Boot com servidor fora do ar** fica em "Carregando…" até a conexão voltar (E2E 18/09).
+      abertas (aba + iframe). Investigar se acontece com uma instância só. No lab ainda há 1
+      mutação antiga dessa chave na fila.
+- [ ] **Boot com servidor fora do ar** fica ~40 s em "Carregando…" antes de abrir com os dados
+      do aparelho (E2E 18/09, de novo na fase 2).
 
 ## 0-SEPTIES. ESCALA — a importação de planilha e o cadastro hidratam a organização inteira (16/09/2026)
 
