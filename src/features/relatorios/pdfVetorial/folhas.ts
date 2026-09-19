@@ -1624,7 +1624,11 @@ export function folhasChecklist(doc: Documento, m: ModeloRelatorio): void {
     linhas: m.instrumentos.map((inst, i) => [
       { texto: inst.nome, rotulo: true },
       celulaMarca(inst.possui === 'SIM', `instrumentos.${i}.possui`, `${inst.nome} — possui`),
-      celulaMarca(inst.calibrado === 'SIM', `instrumentos.${i}.calibrado`, `${inst.nome} — calibrado`),
+      // Fase 2 (D) · calibração vencida ou reprovada na data da inspeção sai
+      // escrita "NÃO" — um X ausente não diria se faltou marcar ou se não vale.
+      inst.calibrado === 'NÃO'
+        ? { texto: 'NÃO', centro: true, valor: true, semDestaque: true, id: `instrumentos.${i}.calibrado`, rotuloCampo: `${inst.nome} — calibrado` }
+        : celulaMarca(inst.calibrado === 'SIM', `instrumentos.${i}.calibrado`, `${inst.nome} — calibrado`),
       {
         texto: textoOu(inst.certificado, ''),
         valor: true,

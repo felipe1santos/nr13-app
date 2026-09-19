@@ -5,6 +5,9 @@ import RespostaSegmentada from './RespostaSegmentada';
 import { salvarFoto, type RefFoto } from '../../../services/fotos';
 import FotoImg from '../../../components/FotoImg';
 import FeedbackSalvamento, { useSalvamento } from '../../../components/FeedbackSalvamento';
+import SeletorCalibracaoInstrumento from './SeletorCalibracaoInstrumento';
+import { tipoDaLinhaChecklist } from '../../calibracoes/instrumentos';
+import { situacaoCalibracao, type RefInstrumentoChecklist } from '../../calibracoes/quadroInstrumentos';
 
 const OPCOES_EXISTE = ['Existe', 'Não identificado', 'Não aplica'];
 const OPCOES_SIM_NAO = ['Sim', 'Não'];
@@ -143,6 +146,11 @@ interface DadosChecklist {
   // OBSERVAÇÃO das folhas VERIFICACAO-DOCUMENTACAO/checklist1-3.
   observacoes: Record<string, string>;
   instrumentos: Record<string, boolean>;
+  /**
+   * Fase 2 (D) · a calibração escolhida para cada linha do quadro 7.1.1
+   * (referência + snapshot). Ausente = inspeção anterior, só com as marcações.
+   */
+  instrumentosRef?: Record<string, RefInstrumentoChecklist>;
   // Dois grupos de foto distintos: `fotosDocumentacao` vira a folha "Fotos da Documentação"
   // (FOTOS-DOCUMENTACAO.html) e `fotos` vira "Fotos do Checklist" (CHECKLIST-FOTOS.html).
   fotosDocumentacao: Foto[];
@@ -257,6 +265,26 @@ export default function FormularioChecklist({ tag, containerId }: { tag: string;
     setDados((d) => ({ ...d, instrumentos: { ...d.instrumentos, [id]: valor } }));
   }
 
+  /**
+   * Fase 2 (D) · vincular (ou desvincular) a calibração de uma linha. As
+   * marcações "possui"/"calibrado" acompanham o vínculo — CALIBRADO é derivado
+   * da validade e da conclusão, não marcado à mão.
+   */
+  function vincularCalibracao(inst: { id: string; calId: string }, ref: RefInstrumentoChecklist | null) {
+    setDados((d) => {
+      const refs = { ...(d.instrumentosRef ?? {}) };
+      const marc = { ...d.instrumentos };
+      if (ref) {
+        refs[inst.id] = ref;
+        marc[inst.id] = true;
+        marc[inst.calId] = situacaoCalibracao(ref.snapshot, d.dataInspecao) === 'valida';
+      } else {
+        delete refs[inst.id];
+      }
+      return { ...d, instrumentos: marc, instrumentosRef: refs };
+    });
+  }
+
   type CampoFoto = 'fotos' | 'fotosDocumentacao';
 
   async function adicionarFoto(campo: CampoFoto, e: React.ChangeEvent<HTMLInputElement>) {
@@ -333,22 +361,44 @@ export default function FormularioChecklist({ tag, containerId }: { tag: string;
       <details className="formulario-secao-collapse">
         <summary>Instrumentos de Controle Instalados</summary>
         <div className="formulario-secao-collapse-body">
-          {INSTRUMENTOS.map((i) => (
-            <div key={i.id} className="instrumento-item">
-              <label>
-                <input type="checkbox" checked={!!dados.instrumentos[i.id]} onChange={(e) => setInstrumento(i.id, e.target.checked)} />
-                {i.nome}
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={!!dados.instrumentos[i.calId]}
-                  onChange={(e) => setInstrumento(i.calId, e.target.checked)}
-                />
-                Calibrado dentro da validade
-              </label>
-            </div>
-          ))}
+          {INSTRUMENTOS.map((i) => {
+            const ref = dados.instrumentosRef?.[i.id];
+            const tipo = tipoDaLinhaChecklist(i.id);
+            return (
+              <div key={i.id} className="instrumento-item">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={!!dados.instrumentos[i.id]}
+                    disabled={!!ref}
+                    onChange={(e) => setInstrumento(i.id, e.target.checked)}
+                  />
+                  {i.nome}
+                </label>
+                {/* Com calibração vinculada, CALIBRADO é derivado (validade e
+                    conclusão na data da inspeção) — a caixa manual some. */}
+                {!ref && (
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={!!dados.instrumentos[i.calId]}
+                      onChange={(e) => setInstrumento(i.calId, e.target.checked)}
+                    />
+                    Calibrado dentro da validade
+                  </label>
+                )}
+                {tipo && (dados.instrumentos[i.id] || ref) && (
+                  <SeletorCalibracaoInstrumento
+                    tag={tag}
+                    tipo={tipo}
+                    valor={ref}
+                    dataInspecao={dados.dataInspecao}
+                    aoMudar={(r) => vincularCalibracao(i, r)}
+                  />
+                )}
+              </div>
+            );
+          })}
           <div className="instrumento-item">
             <label>
               <input

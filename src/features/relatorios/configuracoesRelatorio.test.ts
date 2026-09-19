@@ -57,7 +57,7 @@ const CAMPOS: Array<{ controle: string; chave: string; leituras: number; onde: s
   { controle: 'codigo', chave: 'codigo', leituras: 2, onde: 'capa + folha de exames' },
   { controle: 'emissao', chave: 'emissao', leituras: 1, onde: 'capa (só como reserva da execução)' },
   { controle: 'validade', chave: 'validade', leituras: 1, onde: 'capa + folha de datas' },
-  { controle: 'execucaoInspecao', chave: 'execucaoInspecao', leituras: 3, onde: 'capa + datas + exames (início e término)' },
+  { controle: 'execucaoInspecao', chave: 'execucaoInspecao', leituras: 4, onde: 'capa + datas + exames (início e término) + validade das calibrações do quadro 7.1.1' },
   { controle: 'proximaInterna', chave: 'proximaInspecaoInterna', leituras: 1, onde: 'próxima inspeção (exame interno)' },
   { controle: 'proximaExterna', chave: 'proximaInspecaoExterna', leituras: 1, onde: 'próxima inspeção (exame externo)' },
   { controle: 'tecnicoNome', chave: 'tecnicoNome', leituras: 1, onde: 'assinaturas, atrás do assinante escolhido' },

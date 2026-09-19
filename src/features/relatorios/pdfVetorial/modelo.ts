@@ -13,6 +13,7 @@ import { REGIOES, carregarMedicoes, type Regiao } from '../medicoesEspessura';
 import { linhasMemorial } from '../relatoriosService';
 import { padraoDoEnsaio, type Rastreabilidade, type TipoInstrumento } from '../rastreabilidadeService';
 import { INSTRUMENTOS_CHECKLIST, SECOES_CHECKLIST } from '../../inspecoes/formularios/FormularioChecklist';
+import { linhaQuadro, type RefInstrumentoChecklist } from '../../calibracoes/quadroInstrumentos';
 import { ITENS_VISUAL_EXTERNO } from '../../inspecoes/formularios/FormularioVisualExterno';
 import { ITENS_VISUAL_INTERNO } from '../../inspecoes/formularios/FormularioVisualInterno';
 import type { RefFoto } from '../../../services/fotos';
@@ -85,8 +86,11 @@ export interface ExameVisual {
 export interface InstrumentoModelo {
   nome: string;
   possui: string;
+  /** 'SIM' | 'NÃO' | '' — derivado da calibração escolhida, ou a marcação manual (legado). */
   calibrado: string;
   certificado: string | null;
+  /** Fase 2 (D) · de onde veio a linha — ver `quadroInstrumentos.linhaQuadro`. */
+  fonte?: 'calibracao' | 'manual';
 }
 
 export interface ModeloRelatorio {
@@ -741,6 +745,7 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
     respostas?: Record<string, string>;
     observacoes?: Record<string, string>;
     instrumentos?: Record<string, boolean>;
+    instrumentosRef?: Record<string, RefInstrumentoChecklist>;
     dataInspecao?: string;
     fotos?: FotoBruta[];
     fotosDocumentacao?: FotoBruta[];
@@ -1044,12 +1049,13 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
     },
 
     checklist: secoesChecklist(chk.respostas ?? {}, chk.observacoes ?? {}),
-    instrumentos: INSTRUMENTOS_CHECKLIST.map((i) => ({
-      nome: i.nome,
-      possui: (chk.instrumentos ?? {})[i.id] ? 'SIM' : '',
-      calibrado: (chk.instrumentos ?? {})[i.calId] ? 'SIM' : '',
-      certificado: null,
-    })),
+    // Fase 2 (D) · o quadro 7.1.1 lê o SNAPSHOT que a inspeção guardou da
+    // calibração escolhida (nunca o registro vivo); sem escolha, as marcações
+    // manuais de sempre. CALIBRADO é derivado na data da inspeção.
+    instrumentos: INSTRUMENTOS_CHECKLIST.map((i) => {
+      const l = linhaQuadro(i, chk, meta?.execucaoInspecao || chk.dataInspecao);
+      return { nome: l.nome, possui: l.possui, calibrado: l.calibrado, certificado: l.certificado, fonte: l.fonte };
+    }),
     comentariosDocumentacao: txt(chk.comentariosDocumentacao),
     observacoesChecklist: { parte1: txt(chk.observacoesParte1), parte2: txt(chk.observacoesParte2) },
     fotosDocumentacao: fotos(chk.fotosDocumentacao),
