@@ -295,6 +295,13 @@ async function sha256Hex(buf: ArrayBuffer): Promise<string> {
   return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+/** Pastas de documento final: imutáveis no bucket (sem UPDATE/DELETE por usuário). */
+export const PASTAS_DOCUMENTO_FINAL = ['relatorios', 'certificados', 'certificados-calibracao', 'certificados-externos'];
+
+export function ehPastaDeDocumentoFinal(path: string): boolean {
+  return PASTAS_DOCUMENTO_FINAL.includes(path.split('/')[1] ?? '');
+}
+
 /** Sobe UMA foto pendente. Só marca como enviada depois da confirmação. */
 async function enviarPendente(path: string): Promise<boolean> {
   const local = await cofre.obter(path);
@@ -302,9 +309,18 @@ async function enviarPendente(path: string): Promise<boolean> {
   if (!local.pendente) return true;
 
   try {
+    // Documento FINAL (relatório, certificados): o bucket recusa UPDATE nessas
+    // pastas (`documentos_emitidos_imutaveis.sql`). Sobe sem upsert; se o objeto
+    // já existe, é o NOSSO — o caminho é um uuid gerado por este aparelho, e a
+    // tentativa anterior subiu mas não chegou a marcar como enviada.
+    const final = ehPastaDeDocumentoFinal(path);
     const { error } = await supabase.storage
       .from(BUCKET)
-      .upload(path, local.blob, { contentType: local.mimeType, upsert: true });
+      .upload(path, local.blob, { contentType: local.mimeType, upsert: !final });
+    if (error && final && /exist|duplicate|409/i.test(`${error.message} ${(error as { statusCode?: string }).statusCode ?? ''}`)) {
+      await cofre.marcarEnviada(path);
+      return true;
+    }
     if (error) {
       await cofre.registrarFalha(path, error.message);
       return false;

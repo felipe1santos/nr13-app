@@ -411,6 +411,29 @@ const DEFINITIVAS = new Set(['permissao', 'cota', 'sessao', 'desconhecido']);
  */
 const RECUSAS_DEFINITIVAS = new Set(['recusa_definitiva']);
 
+/** Regrava no cache local o valor VIGENTE do servidor para uma chave. Falha de rede: fica como está. */
+async function restaurarDoServidor(chave: string): Promise<void> {
+  try {
+    const org = orgAtual();
+    if (!org) return;
+    const { data, error } = await supabase
+      .from('app_storage')
+      .select('valor, versao, atualizado_em, dispositivo, deletado_em')
+      .eq('org_id', org)
+      .eq('chave', chave)
+      .maybeSingle();
+    if (error || !data || data.deletado_em || typeof data.valor !== 'string') return;
+    await gravarAtomico([
+      {
+        chave,
+        registro: { valor: data.valor, versao: data.versao, atualizadoEm: data.atualizado_em, dispositivo: data.dispositivo },
+      },
+    ]);
+  } catch {
+    // sem rede: a próxima hidratação alinha
+  }
+}
+
 /**
  * Envia UM item. Só remove da fila depois que a RPC confirma — 'aplicado' ou
  * 'repetido'. Qualquer outra coisa mantém a pendência.
@@ -448,6 +471,11 @@ async function enviarItem(item: ItemFila): Promise<boolean> {
       // Exclusão recusada: o registro continua vivo no servidor, então a marca
       // local de exclusão precisa sair para a hidratação repô-lo.
       if (item.op === 'del') await removerTombstone(item.chave);
+      // Alteração recusada: o valor local (a versão que o servidor nunca vai
+      // aceitar — ex.: certificado emitido editado num aparelho atrasado) volta
+      // a ser o do servidor. Sem isto, o aparelho mostraria um documento que não
+      // existe em lugar nenhum além dele.
+      if (item.op === 'set') await restaurarDoServidor(item.chave);
       return false;
     }
     if (cat && DEFINITIVAS.has(cat)) await marcarEstado(item.mutationId, 'falha_definitiva');

@@ -130,6 +130,9 @@ function categorizar(d: Extraido): CategoriaErro {
   // assinatura. Precisa vir antes de `nr13_escrita_direta_bloqueada` e do teste
   // de RLS porque é mais específico.
   if (m.includes('nr13_livro_imutavel')) return 'recusa_definitiva';
+  // `nr13_documento_emitido` vem de `supabase/documentos_emitidos_imutaveis.sql`:
+  // certificado de calibração emitido não se altera nem se exclui. Mesma natureza.
+  if (m.includes('nr13_documento_emitido')) return 'recusa_definitiva';
   if (m.includes('nr13_versao_obsoleta')) return 'obsoleto';
   if (m.includes('nr13_escrita_direta_bloqueada')) return 'permissao';
   if (d.codigo === 'nr13_conflito') return 'conflito';
