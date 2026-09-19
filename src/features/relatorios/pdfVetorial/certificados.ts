@@ -122,7 +122,7 @@ export async function anexarFolhasDeCertificado(
     // Fase 2 (C.3) · certificado EMITIDO entra com os BYTES arquivados, páginas
     // copiadas pelo pdf-lib — nunca remontado. Arquivo indisponível ou com hash
     // divergente vira falha NOMEADA; cair no template regeneraria o documento.
-    let arquivado: Uint8Array | null = null;
+    let arquivado: Uint8Array | null;
     try {
       arquivado = await bytesArquivadosDaFolha(documentos[i]);
     } catch (e) {

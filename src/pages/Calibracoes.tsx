@@ -324,6 +324,11 @@ function formDeRevisao(cal: DadosManometro | DadosPSV, tag: string): FormDados {
   };
 }
 
+/** Id novo de calibração — fora do componente (a regra de pureza do React). */
+function novoIdCalibracao(): string {
+  return `cal-${Date.now()}`;
+}
+
 function parseDateBR(d: string): number {
   const p = d.split('/');
   if (p.length !== 3) return 0;
@@ -635,7 +640,7 @@ export default function Calibracoes() {
   }
 
   async function salvar(voltarParaLista = false) {
-    const id = `cal-${Date.now()}`;
+    const id = novoIdCalibracao();
     const dados: DadosCalibracao = { ...converterForm(form, tag, id), ...(vinculoCalibracao.current ?? {}) };
     try {
       await salvarCalibracao(tag, dados);

@@ -17,7 +17,7 @@ import {
   textoCertificado,
   type RefInstrumentoChecklist,
 } from '../quadroInstrumentos';
-import { montarTerceiro } from '../ModalCalibracaoTerceiro';
+import { montarTerceiro } from '../terceiro';
 import type { DadosManometro } from '../tipos';
 
 /**

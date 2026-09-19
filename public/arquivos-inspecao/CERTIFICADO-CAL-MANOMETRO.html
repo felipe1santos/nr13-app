@@ -208,11 +208,18 @@
         /* Fase 2 (C.2) · RESPONSÁVEL PELA CALIBRAÇÃO — tabela, nunca flex/grid
            (html2canvas). Oculto por padrão: registro legado sem responsável
            continua com a folha exatamente como era. */
-        .cal-resp { margin: 8px auto 0 auto; border-collapse: collapse; width: 78mm; }
-        .cal-resp td { text-align: center; padding: 0; font-size: 10px; line-height: 1.35; }
-        .cal-resp .cal-resp-rubrica { height: 15mm; vertical-align: bottom; }
-        .cal-resp .cal-resp-rubrica img { max-height: 15mm; max-width: 70mm; visibility: hidden; }
-        .cal-resp .cal-resp-linha { border-top: 1px solid #000; padding-top: 3px; font-weight: 700; font-size: 10.5px; }
+        /* A folha do manômetro não tem folga (medido: conteúdo termina 4px acima do
+           rodapé). O bloco vai AO LADO da conclusão, e o topo da página perde 5mm
+           só quando ele existe — a folha legada não muda. */
+        .cal-concl-resp { width: 100%; border-collapse: collapse; }
+        .cal-concl-resp td { vertical-align: top; padding: 0; }
+        .cal-concl-resp td.c2 { width: 62mm; padding-left: 6px; }
+        body.com-resp .page { padding-top: 10mm !important; }
+        .cal-resp { margin: 0; border-collapse: collapse; width: 100%; }
+        .cal-resp td { text-align: center; padding: 0; font-size: 9px; line-height: 1.25; }
+        .cal-resp .cal-resp-rubrica { height: 11mm; vertical-align: bottom; }
+        .cal-resp .cal-resp-rubrica img { max-height: 11mm; max-width: 60mm; visibility: hidden; }
+        .cal-resp .cal-resp-linha { border-top: 1px solid #000; padding-top: 2px; font-weight: 700; font-size: 10px; }
         .cal-resp .cal-resp-rotulo { font-size: 8.5px; letter-spacing: .4px; color: #374151; font-weight: 700; }
         .cal-resp-falta { color: #b91c1c !important; }
         .cal-rascunho { display: none; position: absolute; top: 118mm; left: 0; right: 0; text-align: center;
@@ -526,6 +533,18 @@
                         var box = document.getElementById('cal-resp');
                         if (!box || (!r && status !== 'rascunho')) return;
                         box.style.display = '';
+                        // Ao lado da conclusão (sem espaço vertical na folha).
+                        var blocos = document.querySelectorAll('.content-container > .text-block');
+                        var concl = blocos[blocos.length - 1];
+                        if (concl) {
+                            var t = document.createElement('table');
+                            t.className = 'cal-concl-resp';
+                            t.innerHTML = '<tr><td class="c1"></td><td class="c2"></td></tr>';
+                            concl.parentNode.insertBefore(t, concl);
+                            t.querySelector('.c1').appendChild(concl);
+                            t.querySelector('.c2').appendChild(box);
+                        }
+                        document.body.className += ' com-resp';
                         var nome = document.getElementById('cal-resp-nome');
                         if (!r || !r.nome) {
                             nome.textContent = 'RESPONSÁVEL NÃO DEFINIDO';

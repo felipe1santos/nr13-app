@@ -161,7 +161,9 @@ export default function ModalCriarRelatorio({ tag, resumo, aoVoltar, onClose, on
         lote,
       }));
     const avulsas: ItemCalibracao[] = cals
-      .filter((c) => !c.loteId)
+      // Avulsa sem folha (terceiro, rascunho) não entra aqui: não viraria folha
+      // nenhuma — a de laboratório é citada no quadro 7.1.1.
+      .filter((c) => !c.loteId && folhaDoRelatorio(c) !== null)
       .map((c) => ({
         id: c.id,
         rotulo: `${definicaoDe(c.tipo).curto} — ${c.nome} (${c.dataCalibracao || c.criadoEm})`,

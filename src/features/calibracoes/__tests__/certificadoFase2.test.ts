@@ -84,7 +84,7 @@ import {
 } from '../calibracaoService';
 import { bytesArquivadosDaFolha, emitirCertificado, EmissaoRecusada } from '../emissaoCertificado';
 import { avisosEmissao, pendenciasEmissao, snapshotResponsavel } from '../responsavelCalibracao';
-import { montarTerceiro, faltasTerceiro } from '../ModalCalibracaoTerceiro';
+import { montarTerceiro, faltasTerceiro } from '../terceiro';
 import { artefatoDaCalibracao } from '../artefatoCalibracao';
 import type { DadosManometro, DadosTerceiro } from '../tipos';
 import type { Funcionario } from '../../cadastros/tipos';

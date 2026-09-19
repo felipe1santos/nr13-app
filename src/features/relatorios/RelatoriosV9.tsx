@@ -73,6 +73,7 @@ import CatalogoRelatoriosV9, { ROTULO_TIPO } from './CatalogoRelatoriosV9';
 import ModalCriarRelatorio from './ModalCriarRelatorio';
 import ModalRenomear from './ModalRenomear';
 import ModalSelecionarEquipamento from './ModalSelecionarEquipamento';
+import { carregarEquipamento } from '../equipamento/equipamentoService';
 import ModalRemocao from './ModalRemocao';
 import type { TipoInspecao } from './tipos';
 import '../../pages/relatorios.css';
@@ -775,14 +776,21 @@ export default function RelatoriosV9({ aoAbrir, aoEscolherEquipamento, aoContinu
             modo="selecao"
             termo={termoCriacao}
             aoMudarTermo={setTermoCriacao}
-            aoEscolher={(tag, item) =>
+            aoEscolher={async (tag, item) => {
+              // Revisão do engenheiro, fase 2 · SEMEIA ANTES DE LER. O assistente
+              // lê containers, lotes e calibrações do cache; num aparelho novo
+              // (ou depois de um F5 sem passar por Calibrações) a TAG não estava
+              // lá e o assistente não oferecia nem a inspeção nem os
+              // certificados. Mesma porta de Calibrações e da ficha. Offline,
+              // segue com o que o aparelho tem.
+              await carregarEquipamento(tag).catch(() => undefined);
               setCriacao({
                 passo: 2,
                 tag,
                 descricao: item?.descricao ?? null,
                 tipoEq: item?.tipo ? (ROTULO_TIPO[item.tipo] ?? item.tipo) : null,
-              })
-            }
+              });
+            }}
           />
         </ModalSelecionarEquipamento>
       )}

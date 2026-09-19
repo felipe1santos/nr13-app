@@ -191,6 +191,7 @@ export function opcoesParaLinha(tag: string, tipo: TipoInstrumento): OpcaoCalibr
 /** Rótulo curto de uma opção, para a lista do celular. */
 export function rotuloOpcao(o: OpcaoCalibracao): string {
   const c = o.calibracao;
-  const quem = ehTerceiro(c) ? c.laboratorio : 'interna';
+  // Legado não é 'interna' por dedução — pode ter sido digitado de um laboratório.
+  const quem = ehTerceiro(c) ? c.laboratorio : c.origem === 'interna' ? 'interna' : 'origem não informada';
   return `${o.componente?.nome || c.nome || definicaoDe(c.tipo).curto} · ${c.numeroCertificado || 's/ nº'} · ${quem}`;
 }

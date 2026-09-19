@@ -223,6 +223,15 @@ export default function CatalogoCalibracoesV9({
     () => filtrarCatalogo(itens, recorte, (i) => i.calibracoes),
     [itens, recorte],
   );
+  /**
+   * Revisão do engenheiro, fase 2 · o "bug do ZZ-UNID-BAR". Equipamento com 0
+   * calibrações existe, a busca o encontra, e o recorte PADRÃO ("só com
+   * calibração") o esconde — a tela dizia "Nenhum equipamento encontrado",
+   * que é falso, e é exatamente o equipamento em que se registra a PRIMEIRA
+   * calibração (interna ou de laboratório). Agora a tela diz quantos o filtro
+   * escondeu e mostra-os com um toque.
+   */
+  const escondidosPeloFiltro = recorte.soComDocumento ? itens.length - visiveis.length : 0;
   const contagemNaTela: Contagem | null = precisaVarrerTudo(recorte)
     ? { total: visiveis.length, exato: !temMais }
     : contagem;
@@ -294,7 +303,23 @@ export default function CatalogoCalibracoesV9({
       <div className="bloco-dados">
         {!carregando && !varrendo && visiveis.length === 0 && !erro ? (
           <p className="dashboard-vazio">
-            {termo
+            {escondidosPeloFiltro > 0 ? (
+              <>
+                {escondidosPeloFiltro === 1
+                  ? '1 equipamento encontrado ainda não tem calibração e está escondido pelo filtro “Com calibração”. '
+                  : `${escondidosPeloFiltro} equipamentos encontrados ainda não têm calibração e estão escondidos pelo filtro “Com calibração”. `}
+                <button
+                  type="button"
+                  className="fj-btn fj-btn-ghost"
+                  onClick={() => {
+                    setFiltroUi((v) => ({ ...v, situacao: '' }));
+                    setRecorte((r) => ({ ...r, soComDocumento: false, soSemDocumento: false }));
+                  }}
+                >
+                  Mostrar
+                </button>
+              </>
+            ) : termo
               ? `Nenhum equipamento encontrado para ${termo}.`
               : recorte.soComDocumento
                 ? 'Nenhum equipamento com calibração registrada. Desmarque "Só equipamentos com calibração" para cadastrar a primeira.'
