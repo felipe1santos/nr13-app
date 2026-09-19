@@ -225,6 +225,21 @@
         .cal-rascunho { display: none; position: absolute; top: 118mm; left: 0; right: 0; text-align: center;
             font-size: 46px; font-weight: 900; color: rgba(185, 28, 28, .16); transform: rotate(-24deg);
             letter-spacing: 6px; pointer-events: none; z-index: 900; }
+    /* Rodada final (19/09/2026) · CABER NA FOLHA. Local longo, conclusão longa:
+           a folha passava do A4 e o rodapé saía cortado na rasterização. A rotina
+           `caberNaFolha` aplica estes passos SÓ quando precisa — folha que já cabe
+           não muda. Espaçamento primeiro; fonte (10,5 px) só no último passo. */
+        body.aperto-1 .content-table th, body.aperto-1 .content-table td { padding: 2px 5px; }
+        body.aperto-1 .section-title { margin-top: 4px; padding: 3px 8px; }
+        body.aperto-1 .text-block { line-height: 1.4; margin-bottom: 6px; padding: 4px 8px; }
+        body.aperto-2 .text-block ul { margin-top: 2px; margin-bottom: 2px; }
+        body.aperto-2 .header-table { margin-bottom: 5px; }
+        body.aperto-2 .col-logo img { max-height: 60px; }
+        body.aperto-2 .content-table { margin-bottom: 4px; }
+        body.aperto-2 .cal-resp .cal-resp-rubrica { height: 9mm; }
+        body.aperto-2 .cal-resp .cal-resp-rubrica img { max-height: 9mm; }
+        body.aperto-3 .text-block, body.aperto-3 .content-table, body.aperto-3 .data-blue { font-size: 10.5px; }
+        body.aperto-3 .text-block { line-height: 1.32; }
     </style>
     <script src="/rel-empresa.js?v=7"></script>
 </head>
@@ -780,5 +795,31 @@
         })();
     </script>
 
+<script>
+        // Rodada final (19/09/2026) · CABER NA FOLHA — ver o CSS `aperto-*`.
+        // Margem mínima de 6 mm entre o último conteúdo e o rodapé, e a página
+        // inteira dentro do A4. Idempotente: roda de novo quando fontes/imagens
+        // terminam de carregar e só acrescenta passo se ainda não couber.
+        (function () {
+            var PASSOS = ['aperto-1', 'aperto-2', 'aperto-3'];
+            function px(mm) { var d = document.createElement('div'); d.style.height = mm; document.body.appendChild(d); var h = d.getBoundingClientRect().height; d.remove(); return h; }
+            function cabe() {
+                var pag = document.querySelector('.page');
+                var foot = document.querySelector('.pgr-footer-new');
+                var itens = document.querySelectorAll('.content-container > *');
+                if (!pag || !foot || !itens.length) return true;
+                var ultimo = itens[itens.length - 1].getBoundingClientRect().bottom;
+                return pag.offsetHeight <= px('297mm') + 0.5 && foot.getBoundingClientRect().top - ultimo >= px('6mm');
+            }
+            function caberNaFolha() {
+                for (var i = 0; i < PASSOS.length && !cabe(); i++) document.body.classList.add(PASSOS[i]);
+                document.body.setAttribute('data-cabe', cabe() ? 'sim' : 'nao');
+            }
+            window.caberNaFolha = caberNaFolha;
+            document.addEventListener('DOMContentLoaded', function () { setTimeout(caberNaFolha, 0); });
+            window.addEventListener('load', caberNaFolha);
+            if (document.fonts && document.fonts.ready) document.fonts.ready.then(caberNaFolha);
+        })();
+    </script>
 </body>
 </html>

@@ -14,8 +14,28 @@
  * `window.confirm`, que congela a aba — ver memória do projeto).
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useBlocker, useInRouterContext } from 'react-router-dom';
 import { Icone } from '../../components/Icone';
 import './janelaCalibracao.css';
+
+/**
+ * Navegação DENTRO do app (voltar do celular, um link) com alteração não salva:
+ * segura a troca de rota e usa a mesma faixa de confirmação. Componente à parte
+ * porque `useBlocker` exige o data router — fora dele (testes) não é montado.
+ */
+function BloqueioDeRota({ sujo, aoBloquear }: { sujo: boolean; aoBloquear: (seguir: () => void, ficar: () => void) => void }) {
+  const bloqueio = useBlocker(({ currentLocation, nextLocation }) => sujo && currentLocation.key !== nextLocation.key);
+  const aviso = useRef(aoBloquear);
+  useEffect(() => {
+    aviso.current = aoBloquear;
+  });
+  const { state, proceed, reset } = bloqueio;
+  useEffect(() => {
+    // Uma vez por bloqueio (o estado só volta a 'blocked' numa nova tentativa).
+    if (state === 'blocked' && proceed && reset) aviso.current(proceed, reset);
+  }, [state, proceed, reset]);
+  return null;
+}
 
 export default function JanelaCalibracao({
   titulo,
@@ -40,6 +60,9 @@ export default function JanelaCalibracao({
 }) {
   const [cheia, setCheia] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
+  /** Troca de rota segurada: o que fazer em Descartar / Continuar editando. */
+  const [rotaPendente, setRotaPendente] = useState<{ seguir: () => void; ficar: () => void } | null>(null);
+  const temRouter = useInRouterContext();
   const caixa = useRef<HTMLDivElement>(null);
 
   function pedirFechar() {
@@ -53,6 +76,19 @@ export default function JanelaCalibracao({
   useEffect(() => {
     pedirRef.current = pedirFechar;
   });
+  // Sair da página (F5, fechar a aba, trocar de endereço) com alteração não
+  // salva: o navegador pergunta. A calibração só existe no estado da janela até
+  // o "Salvar rascunho" — é ele que a grava no aparelho e na fila.
+  useEffect(() => {
+    if (!sujo) return;
+    function aoSair(e: BeforeUnloadEvent) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+    window.addEventListener('beforeunload', aoSair);
+    return () => window.removeEventListener('beforeunload', aoSair);
+  }, [sujo]);
+
   useEffect(() => {
     function aoTeclar(e: KeyboardEvent) {
       // Um modal por cima (resultados, componente) cuida do próprio ESC.
@@ -105,14 +141,40 @@ export default function JanelaCalibracao({
           </button>
         </header>
 
+        {temRouter && (
+          <BloqueioDeRota
+            sujo={sujo}
+            aoBloquear={(seguir, ficar) => {
+              setRotaPendente({ seguir, ficar });
+              setConfirmando(true);
+            }}
+          />
+        )}
         {confirmando && (
           <div className="jcal-confirma" role="alertdialog" aria-label="Descartar alterações?">
             <span>Há alterações não salvas nesta calibração.</span>
             <div>
-              <button type="button" className="fj-btn fj-btn-ghost" onClick={() => setConfirmando(false)}>
+              <button
+                type="button"
+                className="fj-btn fj-btn-ghost"
+                onClick={() => {
+                  rotaPendente?.ficar();
+                  setRotaPendente(null);
+                  setConfirmando(false);
+                }}
+              >
                 Continuar editando
               </button>
-              <button type="button" className="fj-btn fj-btn-danger jcal-descartar" onClick={aoFechar}>
+              <button
+                type="button"
+                className="fj-btn fj-btn-danger jcal-descartar"
+                onClick={() => {
+                  const r = rotaPendente;
+                  setRotaPendente(null);
+                  aoFechar();
+                  r?.seguir();
+                }}
+              >
                 Descartar
               </button>
             </div>

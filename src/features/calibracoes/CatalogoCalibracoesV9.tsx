@@ -92,6 +92,13 @@ export interface PropsCatalogoCalibracoes {
    * o que precisa da primeira.
    */
   modo?: 'lista' | 'selecao';
+  /**
+   * Rodada final (19/09/2026) · contagem que ESTE aparelho já conhece, por TAG.
+   * A projeção do servidor só muda quando a fila drena — sem isto, salvar uma
+   * calibração deixava "Nenhuma calibração" no cartão até um F5. Só as TAGs
+   * tocadas nesta sessão entram; o resto segue a projeção.
+   */
+  contagensLocais?: Record<string, number>;
 }
 
 export default function CatalogoCalibracoesV9({
@@ -100,6 +107,7 @@ export default function CatalogoCalibracoesV9({
   aoEscolher,
   acoes,
   modo = 'lista',
+  contagensLocais,
 }: PropsCatalogoCalibracoes) {
   const [itens, setItens] = useState<ItemCatalogo[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -231,8 +239,15 @@ export default function CatalogoCalibracoesV9({
 
   const empresas = useMemo(() => empresasDoCatalogo(itens), [itens]);
   const visiveis = useMemo(
-    () => filtrarCatalogo(itens, recorte, (i) => i.calibracoes),
-    [itens, recorte],
+    () =>
+      filtrarCatalogo(
+        contagensLocais
+          ? itens.map((i) => (contagensLocais[i.tag] !== undefined ? { ...i, calibracoes: contagensLocais[i.tag] } : i))
+          : itens,
+        recorte,
+        (i) => i.calibracoes,
+      ),
+    [itens, recorte, contagensLocais],
   );
   /**
    * Revisão do engenheiro, fase 2 · o "bug do ZZ-UNID-BAR". Equipamento com 0

@@ -166,7 +166,7 @@ export default function ModalCriarRelatorio({ tag, resumo, aoVoltar, onClose, on
       .filter((c) => !c.loteId && folhaDoRelatorio(c) !== null)
       .map((c) => ({
         id: c.id,
-        rotulo: `${definicaoDe(c.tipo).curto} — ${c.nome} (${c.dataCalibracao || c.criadoEm})`,
+        rotulo: `${definicaoDe(c.tipo).curto} — ${c.nome} · ${c.numeroCertificado || 's/ nº'} (${c.dataCalibracao || c.criadoEm})`,
         certs: [c],
       }));
     return [...doLote, ...avulsas].sort((a, b) => tsDoId(b.id) - tsDoId(a.id)).slice(0, 3);

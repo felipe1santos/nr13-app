@@ -118,6 +118,10 @@ export default function Calibracoes() {
   const [cals, setCals] = useState<DadosCalibracao[]>([]);
   const [calAtual, setCalAtual] = useState<DadosCalibracao | null>(null);
   const [calibrando, setCalibrando] = useState<Calibrando | null>(null);
+  /** Contagem por TAG que este aparelho já conhece (ver `CatalogoCalibracoesV9.contagensLocais`). */
+  const [contagensLocais, setContagensLocais] = useState<Record<string, number>>({});
+  const atualizarContagem = (t: string) =>
+    setContagensLocais((c) => ({ ...c, [t]: listarCalibracoes(t).length }));
   /** Busca do seletor de equipamento da Nova calibração (a da lista não é tocada). */
   const [termoNova, setTermoNova] = useState('');
   const [novaCal, setNovaCal] = useState<NovaCal | null>(null);
@@ -305,6 +309,7 @@ export default function Calibracoes() {
     }
     const lista = listarCalibracoes(tag);
     setCals([...lista].sort((a, b) => parseDateBR(b.dataCalibracao || b.criadoEm) - parseDateBR(a.dataCalibracao || a.criadoEm)));
+    atualizarContagem(tag);
     setConfirmandoId(null);
     if (tela === 'visualizador') setTela('historico');
   }
@@ -374,6 +379,7 @@ export default function Calibracoes() {
       }
     }
     if (tag === c.tag) recarregarLista();
+    atualizarContagem(c.tag);
     setCalibrando(null);
     mostrarToast(aviso);
   }
@@ -472,6 +478,7 @@ export default function Calibracoes() {
             termo={termoBusca}
             aoMudarTermo={setTermoBusca}
             aoEscolher={(t) => void abrirPorTag(t)}
+            contagensLocais={contagensLocais}
             acoes={
               <>
                 {/* Reestruturação (19/09/2026) · o caminho óbvio: equipamento
@@ -1008,6 +1015,7 @@ export default function Calibracoes() {
             termo={termoNova}
             aoMudarTermo={setTermoNova}
             aoEscolher={(t) => void escolherEquipamentoNova(t)}
+            contagensLocais={contagensLocais}
           />
         </ModalSelecionarEquipamento>
       )}
@@ -1062,6 +1070,7 @@ export default function Calibracoes() {
           aoFechar={() => setTerceiroPara(null)}
           aoSalvar={(cal) => {
             if ((terceiroPara.tag ?? tag) === tag) recarregarLista();
+            atualizarContagem(terceiroPara.tag ?? tag);
             setTerceiroPara(null);
             mostrarToast(`✓ Certificado ${cal.numeroCertificado} de ${cal.laboratorio} registrado`);
           }}
