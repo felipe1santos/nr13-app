@@ -182,7 +182,7 @@ export default function ModalDetalhesLote({
                       {cal && ehInterna(cal) && cal.status === 'rascunho' ? (
                         <>
                           <button type="button" className="fj-btn fj-btn-primary" onClick={() => aoRevisar(cal)}>
-                            <Icone nome="checkcircle" tam={13} /> Revisar e emitir
+                            <Icone nome="pencil" tam={13} /> Continuar calibração
                           </button>
                           <button type="button" className="fj-btn fj-btn-ghost" onClick={() => aoVerDados(cal)}>
                             <Icone nome="eye" tam={13} /> Abrir calibração
@@ -263,7 +263,7 @@ export default function ModalDetalhesLote({
  * O palco é materializado aqui (`usePalcoDocumento`): o template lê as chaves
  * do `localStorage` e, na v2, elas só existem enquanto o documento está aberto.
  */
-function VisorCertificado({
+export function VisorCertificado({
   cal,
   tag,
   aoFechar,

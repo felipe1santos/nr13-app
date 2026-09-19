@@ -1,14 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Icone } from '../components/Icone';
 import ModalComponente from '../features/calibracoes/ModalComponente';
 import AjudaCalibracoes from '../features/calibracoes/AjudaCalibracoes';
 import '../features/calibracoes/ilustracoes.css';
 import type { EquipamentoResumo } from '../features/equipamento/tipos';
-import { mascararData } from '../services/mascaras';
 import { rotuloTipoEquipamento } from '../features/relatorios/pdfVetorial/rotulos';
 import {
   arquivoCalibracao,
-  calcularErro,
   excluirCalibracao,
   listarCalibracoes,
   salvarCalibracao,
@@ -19,8 +17,6 @@ import {
   ehTerceiro,
   rotuloOrigem,
   type DadosCalibracao,
-  type DadosManometro,
-  type DadosPSV,
 } from '../features/calibracoes/tipos';
 import { definicaoDe } from '../features/calibracoes/instrumentos';
 import {
@@ -33,12 +29,13 @@ import { emitirCertificado } from '../features/calibracoes/emissaoCertificado';
 import { artefatoDaCalibracao, nomeArquivoCalibracao } from '../features/calibracoes/artefatoCalibracao';
 import ModalCalibracaoTerceiro from '../features/calibracoes/ModalCalibracaoTerceiro';
 import VisualizadorPdf, { baixarPdfArquivado, imprimirPdfArquivado } from '../components/VisualizadorPdf';
-import ModalResultados from '../features/calibracoes/ModalResultados';
 import ModalNovoLote from '../features/calibracoes/ModalNovoLote';
 import ModalDetalhesLote from '../features/calibracoes/ModalDetalhesLote';
 import {
   FILTRO_LOTES_VAZIO,
+  calibracaoDoItem,
   dataDoLote,
+  itensDoLote,
   filtrarLotes,
   ordenarLotes,
   podeExcluirLote,
@@ -47,24 +44,17 @@ import {
   type SituacaoLote,
 } from '../features/calibracoes/lote';
 import {
-  ROTULO_ACESSORIO,
-  clienteDoEquipamento,
-  comecaEditando,
-  motivoPadrao,
-  padraoSugerido,
-  pontosDoComponente,
-  proximaCalibracao,
-  resumoAcessorio,
-  unidadeDoComponente,
-  type CampoAcessorio,
-} from '../features/calibracoes/preencherCalibracao';
-import {
-  maiorErro,
-  paraLinhas,
-  paraPontos,
-  resumoPontos,
-  type PontoCal,
-} from '../features/calibracoes/resultadosCalibracao';
+  converterForm,
+  formDeRascunho,
+  formDeRevisao,
+  formDoComponente,
+  novoIdCalibracao,
+  type FormDados,
+} from '../features/calibracoes/formCalibracao';
+import FormularioCalibracao, { type AcaoSalvar } from '../features/calibracoes/FormularioCalibracao';
+import ModalEscolherComponente from '../features/calibracoes/ModalEscolherComponente';
+import ModalHistoricoComponente from '../features/calibracoes/ModalHistoricoComponente';
+import ModalSelecionarEquipamento from '../features/relatorios/ModalSelecionarEquipamento';
 import VisualizadorCalibracao from '../features/calibracoes/VisualizadorCalibracao';
 // 9F.3 · a lista pela projeção e o contrato de semeadura da TAG.
 import CatalogoCalibracoesV9 from '../features/calibracoes/CatalogoCalibracoesV9';
@@ -92,242 +82,28 @@ import FotoImg from '../components/FotoImg';
 import RecusaPalco from '../components/RecusaPalco';
 import { usePalcoDocumento } from '../features/documentos/usePalcoDocumento';
 
-type Tela = 'equipamentos' | 'historico' | 'formulario' | 'visualizador' | 'verDados';
-
-interface FormDados {
-  tipo: 'manometro' | 'psv';
-  nome: string;
-  numeroCertificado: string;
-  dataEmissao: string;
-  empresa: string;
-  endereco: string;
-  instrumento: string;
-  fabricante: string;
-  modelo: string;
-  serie: string;
-  referencia: string;
-  dataCalibracao: string;
-  dataProxCalibracao: string;
-  tempAr: string;
-  umidade: string;
-  local: string;
-  padraoInst: string;
-  padraoSerie: string;
-  padraoCert: string;
-  padraoVal: string;
-  statusConclusao: 'aprovado' | 'reprovado' | '';
-  textoMotivo: string;
-  /** Unidade das medições — vem do cadastro do componente. */
-  unidade: string;
-  /**
-   * Quem forneceu o padrão do bloco 5, para a tela poder DIZER isso.
-   *
-   * Preencher quatro campos sozinho e não avisar é pior do que não preencher:
-   * o usuário não sabe se aquilo veio do cadastro ou de uma calibração antiga,
-   * e passa a conferir tudo à mão de qualquer jeito.
-   */
-  padraoOrigem: string | null;
-  crescente: Array<{ vc: string; vi: string }>;
-  incertezaC: string;
-  coefC: string;
-  decrescente: Array<{ vc: string; vi: string }>;
-  incertezaD: string;
-  coefD: string;
-  pressaoAbertura: string;
-  pressaoAjuste: string;
-  fechamento: string;
-  incerteza: string;
-  coef: string;
-  /**
-   * Fase 2 (C.2) · id em `nr13_lista_phs` do RESPONSÁVEL PELA CALIBRAÇÃO. O
-   * registro guarda o SNAPSHOT (nome, função, registro, rubrica), não o id.
-   */
-  responsavelId: string;
-  /** Fase 2 (C.3) · esta calibração é a REVISÃO (correção) daquela emitida. */
-  substitui?: string;
-}
+type Tela = 'equipamentos' | 'historico' | 'visualizador' | 'verDados';
 
 /**
- * O formulário nasce com o que o sistema já sabe.
- *
- * O que estava aqui lia `localStorage.getItem('nr13_minha_empresa')` DIRETO.
- * Numa organização v2 o `localStorage` é só o palco (§2-ter): a chave não está
- * lá, a leitura devolvia `{}` e o bloco "DADOS DO CLIENTE / SOLICITANTE" do
- * certificado saía `----` em toda calibração — sem erro nenhum na tela.
- * Ver `preencherCalibracao.ts`.
+ * Reestruturação (19/09/2026) · a calibração aberta na JANELA (modal ⇄ tela
+ * cheia). A página por trás não muda de estado: fechar devolve o usuário
+ * exatamente onde estava.
  */
-function formPadrao(tipo: 'manometro' | 'psv' = 'manometro', tag = ''): FormDados {
-  const { empresa, endereco } = tag ? clienteDoEquipamento(tag) : { empresa: '', endereco: '' };
-  const padrao = tag ? padraoSugerido(tipo, tag) : null;
-  const hoje = new Date().toLocaleDateString('pt-BR');
-  return {
-    tipo,
-    nome: '',
-    numeroCertificado: `CERT-${Date.now()}`,
-    dataEmissao: hoje,
-    empresa,
-    endereco,
-    instrumento: '',
-    fabricante: '',
-    modelo: '',
-    serie: '',
-    referencia: '',
-    dataCalibracao: hoje,
-    // Sem valor aqui, o template mantém o próprio texto de exemplo e o
-    // certificado emitido imprime literalmente "DD/MM/AAAA" como se fosse data.
-    dataProxCalibracao: proximaCalibracao(hoje),
-    tempAr: '',
-    umidade: '',
-    local: '',
-    padraoInst: padrao?.padraoInst ?? '',
-    padraoSerie: padrao?.padraoSerie ?? '',
-    padraoCert: padrao?.padraoCert ?? '',
-    padraoVal: padrao?.padraoVal ?? '',
-    statusConclusao: '',
-    textoMotivo: '',
-    unidade: 'kgf/cm²',
-    padraoOrigem: padrao?.origem ?? null,
-    crescente: Array.from({ length: 5 }, () => ({ vc: '', vi: '' })),
-    incertezaC: '',
-    coefC: '',
-    decrescente: Array.from({ length: 5 }, () => ({ vc: '', vi: '' })),
-    incertezaD: '',
-    coefD: '',
-    pressaoAbertura: '',
-    pressaoAjuste: '',
-    fechamento: '',
-    incerteza: '',
-    coef: '',
-    responsavelId: '',
-  };
+interface Calibrando {
+  tag: string;
+  titulo: string;
+  form: FormDados;
+  componente: ComponenteCal | null;
+  lotes: LoteCal[];
+  loteId: string;
+  /** Rascunho sendo continuado: grava no MESMO id. */
+  idExistente?: string;
 }
 
-function converterForm(form: FormDados, tag: string, id: string): DadosCalibracao {
-  const base = {
-    id,
-    tag,
-    nome: form.nome || (form.tipo === 'manometro' ? 'Manômetro' : 'Válvula de Segurança'),
-    criadoEm: new Date().toLocaleDateString('pt-BR'),
-    numeroCertificado: form.numeroCertificado,
-    dataEmissao: form.dataEmissao,
-    empresa: form.empresa,
-    endereco: form.endereco,
-    instrumento: form.instrumento || form.nome,
-    fabricante: form.fabricante,
-    modelo: form.modelo,
-    serie: form.serie,
-    referencia: form.referencia,
-    dataCalibracao: form.dataCalibracao,
-    dataProxCalibracao: form.dataProxCalibracao,
-    tempAr: form.tempAr,
-    umidade: form.umidade,
-    local: form.local,
-    padraoInst: form.padraoInst,
-    padraoSerie: form.padraoSerie,
-    padraoCert: form.padraoCert,
-    padraoVal: form.padraoVal,
-    statusConclusao: form.statusConclusao,
-    // Status escolhido e motivo em branco fechava a frase da conclusão em "o
-    // mesmo", sem ponto final — o template costura status e motivo numa frase
-    // só. O texto padrão é o MESMO do seletor da folha.
-    textoMotivo: form.textoMotivo.trim() || motivoPadrao(form.statusConclusao),
-    unidade: form.unidade,
-    // Fase 2 (C.2/C.3) · toda calibração interna nova nasce RASCUNHO, com o
-    // responsável congelado. Emitir é um passo à parte (`emitirCertificado`).
-    origem: 'interna' as const,
-    status: 'rascunho' as const,
-    ...(responsavelDoForm(form) ? { responsavel: responsavelDoForm(form)! } : {}),
-    ...(form.substitui ? { substitui: form.substitui } : {}),
-  };
-
-  if (form.tipo === 'manometro') {
-    return {
-      ...base,
-      tipo: 'manometro',
-      crescente: form.crescente.map((r) => ({ vc: r.vc, vi: r.vi, erro: calcularErro(r.vc, r.vi) })),
-      incertezaC: form.incertezaC,
-      coefC: form.coefC,
-      decrescente: form.decrescente.map((r) => ({ vc: r.vc, vi: r.vi, erro: calcularErro(r.vc, r.vi) })),
-      incertezaD: form.incertezaD,
-      coefD: form.coefD,
-    } as DadosManometro;
-  }
-  return {
-    ...base,
-    tipo: 'psv',
-    pressaoAbertura: form.pressaoAbertura,
-    pressaoAjuste: form.pressaoAjuste,
-    fechamento: form.fechamento,
-    incerteza: form.incerteza,
-    coef: form.coef,
-  } as DadosPSV;
-}
-
-function responsavelDoForm(form: FormDados) {
-  const f = listarResponsaveis().find((x) => x.id === form.responsavelId);
-  return f ? snapshotResponsavel(f) : null;
-}
-
-/**
- * Fase 2 (C.3) · o formulário de uma REVISÃO: parte do certificado emitido, que
- * continua intacto. Só o que é da rodada vem copiado; o nº ganha sufixo de
- * revisão e a data de emissão volta a ser hoje.
- */
-function formDeRevisao(cal: DadosManometro | DadosPSV, tag: string): FormDados {
-  const base = formPadrao(cal.tipo, tag);
-  const n = (cal.numeroCertificado || 'CERT').replace(/-R\d+$/, '');
-  const rev = Number(/-R(\d+)$/.exec(cal.numeroCertificado || '')?.[1] ?? 0) + 1;
-  const comum = {
-    ...base,
-    nome: cal.nome,
-    numeroCertificado: `${n}-R${rev}`,
-    empresa: cal.empresa,
-    endereco: cal.endereco,
-    instrumento: cal.instrumento,
-    fabricante: cal.fabricante,
-    modelo: cal.modelo,
-    serie: cal.serie,
-    referencia: cal.referencia,
-    dataCalibracao: cal.dataCalibracao,
-    dataProxCalibracao: cal.dataProxCalibracao,
-    tempAr: cal.tempAr,
-    umidade: cal.umidade,
-    local: cal.local,
-    padraoInst: cal.padraoInst,
-    padraoSerie: cal.padraoSerie,
-    padraoCert: cal.padraoCert,
-    padraoVal: cal.padraoVal,
-    statusConclusao: cal.statusConclusao,
-    textoMotivo: cal.textoMotivo,
-    unidade: cal.unidade ?? base.unidade,
-    responsavelId: cal.responsavel?.id ?? '',
-    substitui: cal.id,
-  };
-  if (cal.tipo === 'manometro') {
-    return {
-      ...comum,
-      crescente: cal.crescente.map((r) => ({ vc: r.vc, vi: r.vi })),
-      incertezaC: cal.incertezaC,
-      coefC: cal.coefC,
-      decrescente: cal.decrescente.map((r) => ({ vc: r.vc, vi: r.vi })),
-      incertezaD: cal.incertezaD,
-      coefD: cal.coefD,
-    };
-  }
-  return {
-    ...comum,
-    pressaoAbertura: cal.pressaoAbertura,
-    pressaoAjuste: cal.pressaoAjuste,
-    fechamento: cal.fechamento,
-    incerteza: cal.incerteza,
-    coef: cal.coef,
-  };
-}
-
-/** Id novo de calibração — fora do componente (a regra de pureza do React). */
-function novoIdCalibracao(): string {
-  return `cal-${Date.now()}`;
-}
+/** Nova calibração: escolher o equipamento, depois o componente. */
+type NovaCal =
+  | { passo: 'equipamento' }
+  | { passo: 'componente'; tag: string; componentes: ComponenteCal[]; calibracoes: DadosCalibracao[]; lotes: LoteCal[] };
 
 function parseDateBR(d: string): number {
   const p = d.split('/');
@@ -341,11 +117,16 @@ export default function Calibracoes() {
   const [tag, setTag] = useState('');
   const [cals, setCals] = useState<DadosCalibracao[]>([]);
   const [calAtual, setCalAtual] = useState<DadosCalibracao | null>(null);
-  const [form, setForm] = useState<FormDados>(formPadrao());
+  const [calibrando, setCalibrando] = useState<Calibrando | null>(null);
+  /** Busca do seletor de equipamento da Nova calibração (a da lista não é tocada). */
+  const [termoNova, setTermoNova] = useState('');
+  const [novaCal, setNovaCal] = useState<NovaCal | null>(null);
+  /** Histórico de UM componente (clique no acessório). */
+  const [historicoComp, setHistoricoComp] = useState<ComponenteCal | null>(null);
   const [confirmandoId, setConfirmandoId] = useState<string | null>(null);
   const [versao, setVersao] = useState(0);
   /** Fase 2 (D) · o acessório para o qual se registra certificado de laboratório. */
-  const [terceiroPara, setTerceiroPara] = useState<{ comp: ComponenteCal; loteId?: string; dataLote?: string } | null>(null);
+  const [terceiroPara, setTerceiroPara] = useState<{ comp: ComponenteCal; loteId?: string; dataLote?: string; tag?: string } | null>(null);
   /** Fase 2 (C.3) · emissão em curso / o que a recusou. */
   const [emitindo, setEmitindo] = useState(false);
   const [erroEmissao, setErroEmissao] = useState<string[] | null>(null);
@@ -379,42 +160,11 @@ export default function Calibracoes() {
   const [compForm, setCompForm] = useState<ComponenteCal | null>(null);
   /** "Como funciona" — o texto que era faixa fixa no topo da tela. */
   const [ajudaAberta, setAjudaAberta] = useState(false);
-  const [resultadosAbertos, setResultadosAbertos] = useState(false);
-  /**
-   * A seção do acessório abre FECHADA (resumo) quando o cadastro do componente
-   * já respondeu por ela. Ver `comecaEditando`.
-   */
-  const [editandoAcessorio, setEditandoAcessorio] = useState(false);
   const [loteAberto, setLoteAberto] = useState<string | null>(null);
   /** Criação (`lote: null`) ou edição de um lote; `null` = modal fechado. */
   const [loteEditando, setLoteEditando] = useState<{ novo: boolean; lote: LoteCal | null } | null>(null);
   const [filtroLotes, setFiltroLotes] = useState<FiltroLotes>(FILTRO_LOTES_VAZIO);
-  /**
-   * De onde a calibração veio: o lote e o acessório.
-   *
-   * A tela dizia só "Nova Calibração — Manômetro". Quem chega nela depois de
-   * navegar pelo lote precisa ver EM QUE lote está gravando — e ter como
-   * voltar para ele, não para a lista.
-   */
-  const [contextoForm, setContextoForm] = useState<{
-    loteId: string;
-    loteNome: string;
-    loteData: string;
-    componente: string;
-  } | null>(null);
-  /**
-   * UX · nomear o lote SEM `window.prompt`.
-   *
-   * Criar e renomear um lote passavam por um diálogo do navegador: fora do
-   * design do sistema, sem foco controlado, e no celular ele é uma folha do
-   * SO que cobre a tela e não mostra o que está sendo nomeado. Agora o campo
-   * nasce na própria lista, já preenchido com o nome sugerido e com o texto
-   * selecionado — Enter confirma, Esc cancela.
-   *
-   * `null` = nenhum campo aberto; `{ id: null }` = criando; `{ id }` =
-   * renomeando aquele lote.
-   */
-  const vinculoCalibracao = useRef<{ componenteId: string; loteId: string } | null>(null);
+
 
 
 
@@ -474,64 +224,64 @@ export default function Calibracoes() {
     setTela('historico');
   }
 
-  // Calibração SEMPRE parte de um componente cadastrado dentro de um lote:
-  // pré-preenche o formulário com os dados do instrumento e vincula os ids.
-  function novaForm(
-    tipo: DadosCalibracao['tipo'],
-    comp?: ComponenteCal,
-    loteId?: string,
-    /**
-     * A data de EXECUÇÃO do lote semeia a do certificado.
-     *
-     * Calibração de acessório é lançada dias depois de feita, e o formulário
-     * nascia com "hoje" — a data do registro, não a do ensaio. O lote passou a
-     * ter a data certa (§7), e é dela que cada certificado parte; continua
-     * editável item a item, porque nem sempre os acessórios são calibrados no
-     * mesmo dia.
-     */
-    dataLote?: string,
+  /**
+   * Abrir a JANELA de calibração para um componente. Instrumento sem folha
+   * nossa vai para o registro de laboratório externo. O lote é discreto: vem
+   * pré-escolhido quando a calibração nasce de um lote; senão, o mais recente
+   * em andamento que cobre o componente e ainda não o calibrou; senão, avulsa.
+   */
+  function iniciarCalibracao(
+    tagAlvo: string,
+    comp: ComponenteCal,
+    ctx: { lotes: LoteCal[]; calibracoes: DadosCalibracao[]; loteId?: string; dataLote?: string },
   ) {
-    // Instrumento sem folha nossa: a calibração é de laboratório externo.
-    const modelo = definicaoDe(tipo).modeloInterno;
-    if (!modelo) {
-      if (comp) setTerceiroPara({ comp, loteId, dataLote });
+    if (!definicaoDe(comp.tipo).modeloInterno) {
+      setTerceiroPara({ comp, loteId: ctx.loteId, dataLote: ctx.dataLote, tag: tagAlvo });
       return;
     }
-    const base = formPadrao(modelo, tag);
-    if (dataLote && dataLote.trim() !== '') {
-      base.dataCalibracao = dataLote;
-      base.dataProxCalibracao = proximaCalibracao(dataLote);
-    }
-    if (comp) {
-      base.nome = comp.nome;
-      base.instrumento = comp.nome;
-      base.fabricante = comp.fabricante ?? '';
-      base.modelo = comp.modelo ?? '';
-      base.serie = comp.serie ?? '';
-      base.referencia = comp.referencia ?? '';
-      base.unidade = unidadeDoComponente(comp);
-      // Os pontos de calibração são do INSTRUMENTO. Vindos do cadastro, a
-      // coluna "valor do padrão" das duas tabelas já nasce preenchida — era
-      // ela que se redigitava dez vezes por certificado.
-      const pontos = pontosDoComponente(comp);
-      base.crescente = pontos.map((vc) => ({ vc, vi: '' }));
-      base.decrescente = pontos.map((vc) => ({ vc, vi: '' }));
-      if (comp.tipo === 'psv') base.pressaoAjuste = comp.pressaoAjuste ?? '';
-    }
-    vinculoCalibracao.current = comp && loteId ? { componenteId: comp.id, loteId } : null;
-    setContextoForm(
-      comp && loteId
-        ? {
-            loteId,
-            loteNome: lotes.find((l) => l.id === loteId)?.descricao ?? '',
-            loteData: dataLote ?? '',
-            componente: comp.nome,
-          }
-        : null,
+    const lotesDoComp = ordenarLotes(ctx.lotes).filter((l) =>
+      itensDoLote(l, [comp]).some((c) => c.id === comp.id),
     );
-    setEditandoAcessorio(comecaEditando(base));
-    setForm(base);
-    setTela('formulario');
+    const sugerido =
+      ctx.loteId ??
+      lotesDoComp.find((l) => !l.relatorioId && !calibracaoDoItem(l.id, comp.id, ctx.calibracoes))?.id ??
+      '';
+    const loteSug = ctx.lotes.find((l) => l.id === sugerido);
+    setCalibrando({
+      tag: tagAlvo,
+      titulo: 'Nova calibração',
+      form: formDoComponente(comp, tagAlvo, ctx.dataLote ?? (loteSug ? dataDoLote(loteSug) : undefined)),
+      componente: comp,
+      lotes: lotesDoComp,
+      loteId: sugerido,
+    });
+  }
+
+  /** Nova calibração, passo 1 → 2: semeia a TAG (sem hidratar a organização) e lista os componentes. */
+  async function escolherEquipamentoNova(t: string) {
+    const aberto = await abrirEquipamentoParaCalibracoes(t);
+    setNovaCal({
+      passo: 'componente',
+      tag: t,
+      componentes: aberto.componentes,
+      calibracoes: aberto.calibracoes,
+      lotes: aberto.lotes,
+    });
+  }
+
+  /** Continuar um RASCUNHO na janela (mesmo id, mesmo nº reservado). */
+  function continuarRascunho(cal: DadosCalibracao, contexto: { componentes: ComponenteCal[]; lotes: LoteCal[] }) {
+    if (!ehInterna(cal)) return;
+    const comp = contexto.componentes.find((c) => c.id === cal.componenteId) ?? null;
+    setCalibrando({
+      tag: cal.tag,
+      titulo: 'Continuar calibração (rascunho)',
+      form: formDeRascunho(cal, cal.tag),
+      componente: comp,
+      lotes: comp ? ordenarLotes(contexto.lotes).filter((l) => itensDoLote(l, [comp]).length > 0) : contexto.lotes,
+      loteId: cal.loteId ?? '',
+      idExistente: cal.id,
+    });
   }
 
   function abrirVisualizador(cal: DadosCalibracao) {
@@ -557,48 +307,6 @@ export default function Calibracoes() {
     setCals([...lista].sort((a, b) => parseDateBR(b.dataCalibracao || b.criadoEm) - parseDateBR(a.dataCalibracao || a.criadoEm)));
     setConfirmandoId(null);
     if (tela === 'visualizador') setTela('historico');
-  }
-
-  function set<K extends keyof FormDados>(campo: K, valor: FormDados[K]) {
-    setForm((f) => ({ ...f, [campo]: valor }));
-  }
-
-  /**
-   * As duas tabelas da folha, vistas como uma lista de PONTOS.
-   *
-   * O formulário guarda `crescente[]` e `decrescente[]` porque é assim que o
-   * certificado imprime e é assim que `DadosManometro` grava. Quem preenche,
-   * porém, trabalha por ponto: um valor no padrão, duas leituras. A conversão
-   * fica aqui, e o formato gravado não muda — ver `resultadosCalibracao.ts`.
-   */
-  const pontos: PontoCal[] = paraPontos(form.crescente, form.decrescente);
-  const resumoResultados = resumoPontos(pontos);
-  const piorErro = maiorErro(pontos);
-  const temResultados =
-    form.tipo === 'manometro'
-      ? resumoResultados.feitos > 0
-      : [form.pressaoAbertura, form.pressaoAjuste, form.fechamento].some((v) => v.trim() !== '');
-
-  function aplicarResultados(v: {
-    manometro: { pontos: PontoCal[]; incertezaC: string; coefC: string; incertezaD: string; coefD: string };
-    psv: { pressaoAbertura: string; pressaoAjuste: string; fechamento: string; incerteza: string; coef: string };
-  }) {
-    const linhas = paraLinhas(v.manometro.pontos);
-    setForm((f) => ({
-      ...f,
-      crescente: linhas.crescente.map((l) => ({ vc: l.vc, vi: l.vi })),
-      decrescente: linhas.decrescente.map((l) => ({ vc: l.vc, vi: l.vi })),
-      incertezaC: v.manometro.incertezaC,
-      coefC: v.manometro.coefC,
-      incertezaD: v.manometro.incertezaD,
-      coefD: v.manometro.coefD,
-      pressaoAbertura: v.psv.pressaoAbertura,
-      pressaoAjuste: v.psv.pressaoAjuste,
-      fechamento: v.psv.fechamento,
-      incerteza: v.psv.incerteza,
-      coef: v.psv.coef,
-    }));
-    setResultadosAbertos(false);
   }
 
   // Os lotes que a lista mostra: ordenados pela data de EXECUÇÃO (não pela de
@@ -639,28 +347,35 @@ export default function Calibracoes() {
     window.setTimeout(() => setToast(''), 2600);
   }
 
-  async function salvar(voltarParaLista = false) {
-    const id = novoIdCalibracao();
-    const dados: DadosCalibracao = { ...converterForm(form, tag, id), ...(vinculoCalibracao.current ?? {}) };
-    try {
-      await salvarCalibracao(tag, dados);
-    } catch (e) {
-      mostrarToast(e instanceof Error ? e.message : 'Não foi possível salvar.');
-      return;
+  /**
+   * Gravar a calibração da JANELA. `emitir` = grava o rascunho e emite na
+   * sequência (C.3). Depois, a página por trás é atualizada no lugar — o
+   * usuário continua onde estava.
+   */
+  async function salvarDaJanela(c: Calibrando, form: FormDados, loteId: string, acao: AcaoSalvar) {
+    const id = c.idExistente ?? novoIdCalibracao();
+    const vinculo = {
+      ...(c.componente ? { componenteId: c.componente.id } : {}),
+      ...(loteId ? { loteId } : {}),
+    };
+    const dados: DadosCalibracao = { ...converterForm(form, c.tag, id), ...vinculo };
+    await salvarCalibracao(c.tag, dados);
+    let aviso = `✓ Rascunho salvo — ${dados.numeroCertificado}`;
+    if (acao === 'emitir') {
+      try {
+        const final = await emitirCertificado(c.tag, dados);
+        aviso = final.status === 'emitido' && 'emissao' in final && final.emissao?.pendente
+          ? '✓ Certificado emitido — o arquivo sobe quando a conexão voltar'
+          : `✓ Certificado ${final.numeroCertificado} emitido e arquivado`;
+      } catch (e) {
+        // O rascunho JÁ foi gravado; a janela continua aberta nele, com o motivo.
+        setCalibrando({ ...c, form, loteId, idExistente: id });
+        throw e;
+      }
     }
-    const lista = listarCalibracoes(tag);
-    setCals([...lista].sort((a, b) => parseDateBR(b.dataCalibracao || b.criadoEm) - parseDateBR(a.dataCalibracao || a.criadoEm)));
-    if (voltarParaLista) {
-      // confirma o salvamento, fecha o formulário e volta à lista — usuário adiciona outro manualmente
-      const nome = dados.nome || definicaoDe(dados.tipo).curto;
-      mostrarToast(`✓ "${nome}" salvo como rascunho — revise e emita o certificado`);
-      setTela('historico');
-    } else {
-      setCalAtual(dados);
-      setErroEmissao(null);
-      setVersao((v) => v + 1);
-      setTela('visualizador');
-    }
+    if (tag === c.tag) recarregarLista();
+    setCalibrando(null);
+    mostrarToast(aviso);
   }
 
   function recarregarLista() {
@@ -721,13 +436,15 @@ export default function Calibracoes() {
   /** Fase 2 (C.3) · corrigir um emitido = abrir uma REVISÃO (registro novo). */
   function abrirRevisao(cal: DadosCalibracao) {
     if (!ehInterna(cal)) return;
-    const f = formDeRevisao(cal, tag);
-    vinculoCalibracao.current =
-      cal.componenteId && cal.loteId ? { componenteId: cal.componenteId, loteId: cal.loteId } : null;
-    setContextoForm(null);
-    setEditandoAcessorio(false);
-    setForm(f);
-    setTela('formulario');
+    const comp = componentes.find((c) => c.id === cal.componenteId) ?? null;
+    setCalibrando({
+      tag,
+      titulo: 'Revisão do certificado',
+      form: formDeRevisao(cal, tag),
+      componente: comp,
+      lotes: comp ? ordenarLotes(lotes).filter((l) => itensDoLote(l, [comp]).length > 0) : lotes,
+      loteId: cal.loteId ?? '',
+    });
   }
 
 
@@ -756,17 +473,29 @@ export default function Calibracoes() {
             aoMudarTermo={setTermoBusca}
             aoEscolher={(t) => void abrirPorTag(t)}
             acoes={
-              /* [i] Informações na barra da SESSÃO: a explicação do fluxo com a
-                 ilustração, sem ocupar área fixa acima da lista. */
-              <button
-                type="button"
-                className="fj-btn fj-btn-ghost cal-btn-info"
-                aria-haspopup="dialog"
-                onClick={() => setAjudaAberta(true)}
-              >
-                <Icone nome="alerttri" tam={13} />{" "}
-                <span className="pront-btn-rotulo">Informações</span>
-              </button>
+              <>
+                {/* Reestruturação (19/09/2026) · o caminho óbvio: equipamento
+                    → componente → calibração, sem passar por lote. */}
+                <button
+                  type="button"
+                  className="fj-btn fj-btn-primary cal-btn-nova"
+                  aria-haspopup="dialog"
+                  onClick={() => setNovaCal({ passo: 'equipamento' })}
+                >
+                  <Icone nome="plus" tam={14} /> Nova calibração
+                </button>
+                {/* [i] Informações na barra da SESSÃO: a explicação do fluxo com a
+                    ilustração, sem ocupar área fixa acima da lista. */}
+                <button
+                  type="button"
+                  className="fj-btn fj-btn-ghost cal-btn-info"
+                  aria-haspopup="dialog"
+                  onClick={() => setAjudaAberta(true)}
+                >
+                  <Icone nome="alerttri" tam={13} />{" "}
+                  <span className="pront-btn-rotulo">Informações</span>
+                </button>
+              </>
             }
           />
         </div>
@@ -811,6 +540,16 @@ export default function Calibracoes() {
                 </span>
               </div>
 
+              <button
+                type="button"
+                className="fj-btn fj-btn-primary cal-btn-nova"
+                onClick={() =>
+                  setNovaCal({ passo: 'componente', tag, componentes, calibracoes: cals, lotes })
+                }
+              >
+                <Icone nome="plus" tam={14} /> Nova calibração
+              </button>
+
               {/* Os acessórios em LINHA, não numa coluna à direita. São três a
                   seis por equipamento, e a faixa rola na horizontal em vez de
                   empurrar os lotes para baixo. */}
@@ -824,13 +563,18 @@ export default function Calibracoes() {
                         <Icone nome={definicaoDe(c.tipo).icone} tam={16} />
                       )}
                     </span>
-                    <span className="cal-acess-txt">
+                    <button
+                      type="button"
+                      className="cal-acess-txt cal-acess-abrir"
+                      title="Ver o histórico de calibrações"
+                      onClick={() => setHistoricoComp(c)}
+                    >
                       <strong>{c.nome}</strong>
                       <em>
                         {definicaoDe(c.tipo).curto}
                         {c.serie ? ` · S/N ${c.serie}` : ''}
                       </em>
-                    </span>
+                    </button>
                     <button
                       type="button"
                       className="btn-icone cor-cinza cal-acess-editar"
@@ -1014,21 +758,6 @@ export default function Calibracoes() {
             />
           )}
 
-          {terceiroPara && (
-            <ModalCalibracaoTerceiro
-              tag={tag}
-              componente={terceiroPara.comp}
-              loteId={terceiroPara.loteId}
-              dataLote={terceiroPara.dataLote}
-              aoFechar={() => setTerceiroPara(null)}
-              aoSalvar={(cal) => {
-                recarregarLista();
-                setTerceiroPara(null);
-                mostrarToast(`✓ Certificado ${cal.numeroCertificado} de ${cal.laboratorio} registrado`);
-              }}
-            />
-          )}
-
           {loteAbertoObj && (
             <ModalDetalhesLote
               lote={loteAbertoObj}
@@ -1036,17 +765,20 @@ export default function Calibracoes() {
               componentes={componentes}
               calibracoes={cals}
               aoFechar={() => setLoteAberto(null)}
-              aoCalibrar={(c) => {
-                setLoteAberto(null);
-                novaForm(c.tipo, c, loteAbertoObj.id, dataDoLote(loteAbertoObj));
-              }}
+              aoCalibrar={(c) =>
+                // O lote continua aberto por trás: fechar a janela devolve o
+                // usuário a ele, com o progresso já atualizado.
+                iniciarCalibracao(tag, c, {
+                  lotes,
+                  calibracoes: cals,
+                  loteId: loteAbertoObj.id,
+                  dataLote: dataDoLote(loteAbertoObj),
+                })
+              }
               aoRegistrarTerceiro={(c) => {
                 setTerceiroPara({ comp: c, loteId: loteAbertoObj.id, dataLote: dataDoLote(loteAbertoObj) });
               }}
-              aoRevisar={(cal) => {
-                setLoteAberto(null);
-                abrirVisualizador(cal);
-              }}
+              aoRevisar={(cal) => continuarRascunho(cal, { componentes, lotes })}
               aoVerDados={(cal) => {
                 setLoteAberto(null);
                 abrirVerDados(cal);
@@ -1055,345 +787,6 @@ export default function Calibracoes() {
             />
           )}
         </>
-      )}
-
-      {/* ── FORMULÁRIO ───────────────────────────────── */}
-      {tela === 'formulario' && (
-        <div className="bloco-dados">
-          <div className="meta-breadcrumb">
-            <button
-              type="button"
-              className="btn-secundario"
-              onClick={() => {
-                // Voltar ao LOTE de onde se veio, não à lista: é de lá que o
-                // usuário saiu, e é lá que ele vê o que ainda falta calibrar.
-                const volta = contextoForm?.loteId ?? null;
-                setTela('historico');
-                setLoteAberto(volta);
-              }}
-            >
-              ← {contextoForm ? 'Voltar ao lote' : 'Voltar'}
-            </button>
-            <strong>{tag}</strong>
-          </div>
-          <div className="meta-card-header" style={{ marginBottom: 12 }}>
-            <h3>
-              {form.substitui ? 'Revisão do certificado' : 'Nova Calibração'} — {definicaoDe(form.tipo).rotulo}
-            </h3>
-          </div>
-          {contextoForm && (
-            <div className="cal-ctx" role="note">
-              <span>
-                <em>Lote</em>
-                <strong>{contextoForm.loteNome || '—'}</strong>
-              </span>
-              <span>
-                <em>Data</em>
-                <strong>{contextoForm.loteData || form.dataCalibracao}</strong>
-              </span>
-              <span>
-                <em>Acessório</em>
-                <strong>{contextoForm.componente}</strong>
-              </span>
-            </div>
-          )}
-
-          {/* Identificação */}
-          <div className="cal-form-secao">
-            <div className="cal-form-secao-titulo">Identificação do Item</div>
-            <div className="cal-form-grid cols-3">
-              <div className="cal-campo cal-campo-full">
-                <label>Nome / Identificação do Instrumento *</label>
-                <input
-                  value={form.nome}
-                  onChange={(e) => set('nome', e.target.value)}
-                  placeholder={form.tipo === 'manometro' ? 'Ex: Manômetro Principal, Manômetro 1...' : 'Ex: Válvula de Segurança 1, PSV-001...'}
-                />
-              </div>
-              <div className="cal-campo">
-                <label>Nº do Certificado</label>
-                <input value={form.numeroCertificado} onChange={(e) => set('numeroCertificado', e.target.value)} />
-              </div>
-              <div className="cal-campo">
-                <label>Data de Emissão</label>
-                <input value={form.dataEmissao} onChange={(e) => set('dataEmissao', mascararData(e.target.value))} placeholder="DD/MM/AAAA" inputMode="numeric" />
-              </div>
-            </div>
-          </div>
-
-          {/* ── O ACESSÓRIO ───────────────────────────────────────────────
-              Fabricante, modelo, série e faixa são característica do
-              instrumento: não mudam de uma calibração para a outra, e já vêm
-              do cadastro do componente. Continuavam desenhados como cinco
-              caixas abertas — e campo editável parece trabalho a fazer mesmo
-              quando está preenchido. Viram resumo; a edição fica atrás de um
-              botão, para a correção pontual daquele certificado. */}
-          <div className="cal-form-secao">
-            <div className="cal-form-secao-titulo">
-              Dados do Item Calibrado
-              <span className="cal-secao-fonte">cadastro do acessório</span>
-            </div>
-
-            {!editandoAcessorio ? (
-              <div className="cal-acessorio">
-                <dl className="cal-acessorio-lista">
-                  {resumoAcessorio(form).itens.map((i) => (
-                    <div key={i.campo}>
-                      <dt>{i.rotulo}</dt>
-                      <dd className={i.valor === '' ? 'vazio' : undefined}>{i.valor || '—'}</dd>
-                    </div>
-                  ))}
-                </dl>
-                <div className="cal-acessorio-pe">
-                  <span>
-                    <Icone nome="checkcircle" tam={13} /> Do cadastro do componente — para mudar
-                    sempre, edite o componente em <strong>Componentes do Equipamento</strong>.
-                  </span>
-                  <button
-                    type="button"
-                    className="btn-secundario"
-                    onClick={() => setEditandoAcessorio(true)}
-                  >
-                    <Icone nome="pencil" tam={13} /> Ajustar só neste certificado
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <div className="cal-form-grid cols-3">
-                  {(Object.keys(ROTULO_ACESSORIO) as CampoAcessorio[]).map((campo) => (
-                    <div className="cal-campo" key={campo}>
-                      <label>{ROTULO_ACESSORIO[campo]}</label>
-                      <input
-                        value={form[campo]}
-                        onChange={(e) => set(campo, e.target.value)}
-                        placeholder={campo === 'instrumento' ? form.nome : undefined}
-                      />
-                    </div>
-                  ))}
-                </div>
-                <p className="cal-auto-aviso cal-auto-aviso-falta">
-                  <Icone nome="alerttri" tam={13} />
-                  <span>
-                    O que for digitado aqui vale <strong>só para este certificado</strong>. Para
-                    valer em todas as calibrações, edite o componente.
-                  </span>
-                </p>
-              </>
-            )}
-
-            {/* As datas são da RODADA, não do acessório — ficam sempre abertas. */}
-            <div className="cal-form-grid cols-3">
-              <div className="cal-campo">
-                <label>Data da Calibração</label>
-                <input value={form.dataCalibracao} onChange={(e) => set('dataCalibracao', mascararData(e.target.value))} placeholder="DD/MM/AAAA" inputMode="numeric" />
-              </div>
-              <div className="cal-campo">
-                <label>Data da Próxima Calibração</label>
-                <input value={form.dataProxCalibracao} onChange={(e) => set('dataProxCalibracao', mascararData(e.target.value))} placeholder="DD/MM/AAAA" inputMode="numeric" />
-              </div>
-            </div>
-          </div>
-
-          {/* Condições Ambientais */}
-          <div className="cal-form-secao">
-            <div className="cal-form-secao-titulo">
-              Condições Ambientais
-              <span className="cal-secao-fonte execucao">desta calibração</span>
-            </div>
-            <div className="cal-form-grid cols-3">
-              <div className="cal-campo">
-                <label>Temperatura do Ar</label>
-                <input value={form.tempAr} onChange={(e) => set('tempAr', e.target.value)} placeholder="Ex: 23°C" />
-              </div>
-              <div className="cal-campo">
-                <label>Umidade Relativa</label>
-                <input value={form.umidade} onChange={(e) => set('umidade', e.target.value)} placeholder="Ex: 60%" />
-              </div>
-              <div className="cal-campo">
-                <label>Local</label>
-                <input value={form.local} onChange={(e) => set('local', e.target.value)} />
-              </div>
-            </div>
-          </div>
-
-          {/* Padrões — preenchidos do cadastro de Certificados (ver
-              `padraoSugerido`). Continuam editáveis: o cadastro é a fonte
-              usual, não uma trava. */}
-          <div className="cal-form-secao">
-            <div className="cal-form-secao-titulo">Padrões Utilizados e Rastreabilidade</div>
-            {form.padraoOrigem ? (
-              <p className="cal-auto-aviso">
-                <Icone nome="checkcircle" tam={13} />
-                <span>
-                  Preenchido a partir do certificado <strong>{form.padraoOrigem}</strong>, cadastrado
-                  em Certificados. Pode ser editado aqui sem alterar o cadastro.
-                </span>
-              </p>
-            ) : (
-              <p className="cal-auto-aviso cal-auto-aviso-falta">
-                <Icone nome="alerttri" tam={13} />
-                <span>
-                  Nenhum padrão de {form.tipo === 'manometro' ? 'manômetro' : 'válvula'} cadastrado em{' '}
-                  <strong>Certificados</strong> — estes campos saem em branco no documento se não
-                  forem preenchidos.
-                </span>
-              </p>
-            )}
-            <div className="cal-form-grid cols-4">
-              <div className="cal-campo">
-                <label>Instrumento Padrão</label>
-                <input value={form.padraoInst} onChange={(e) => set('padraoInst', e.target.value)} />
-              </div>
-              <div className="cal-campo">
-                <label>Nº Série</label>
-                <input value={form.padraoSerie} onChange={(e) => set('padraoSerie', e.target.value)} />
-              </div>
-              <div className="cal-campo">
-                <label>Nº Certificado</label>
-                <input value={form.padraoCert} onChange={(e) => set('padraoCert', e.target.value)} />
-              </div>
-              <div className="cal-campo">
-                <label>Validade</label>
-                <input value={form.padraoVal} onChange={(e) => set('padraoVal', mascararData(e.target.value))} placeholder="DD/MM/AAAA" inputMode="numeric" />
-              </div>
-            </div>
-          </div>
-
-          {/* ── RESULTADOS OBTIDOS ────────────────────────────────────────
-              Vinte células nuas no meio do formulário viraram um RESUMO com um
-              botão. O preenchimento mora no modal, onde cabe uma linha por
-              ponto, o erro ao vivo e o progresso — ver `ModalResultados`. */}
-          <div className="cal-form-secao">
-            <div className="cal-form-secao-titulo">
-              Resultados Obtidos ({form.tipo === 'manometro' ? 'Manômetro' : 'PSV'})
-              <span className="cal-secao-fonte execucao">desta calibração</span>
-            </div>
-            <div className="cal-resultados-cartao">
-              <div className="cal-resultados-resumo">
-                {form.tipo === 'manometro' ? (
-                  <>
-                    <span className="cal-res-num">
-                      <strong>{resumoResultados.feitos}</strong> de {resumoResultados.total || 0}
-                    </span>
-                    <span className="cal-res-rot">pontos medidos</span>
-                    {piorErro !== null && (
-                      <span className="cal-res-erro">
-                        maior erro <strong>{piorErro}</strong> {form.unidade}
-                      </span>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <span className="cal-res-num">
-                      <strong>{[form.pressaoAbertura, form.pressaoAjuste, form.fechamento].filter((v) => v.trim() !== '').length}</strong> de 3
-                    </span>
-                    <span className="cal-res-rot">pressões registradas</span>
-                  </>
-                )}
-              </div>
-              <button
-                type="button"
-                className="btn-primario cal-res-botao"
-                onClick={() => setResultadosAbertos(true)}
-              >
-                <Icone nome="sliders" tam={14} />
-                {temResultados ? 'Revisar resultados' : 'Preencher resultados'}
-              </button>
-            </div>
-            {!temResultados && (
-              <p className="cal-auto-aviso cal-auto-aviso-falta">
-                <Icone nome="alerttri" tam={13} />
-                <span>Sem medições, as tabelas do certificado saem com travessões.</span>
-              </p>
-            )}
-          </div>
-
-          {/* Fase 2 (C.2) · quem responde pela calibração. Sem ele o rascunho
-              salva, mas NÃO emite — e a folha mostra a falta, nunca um nome
-              inventado. A fonte é o cadastro de Funcionários. */}
-          <div className="cal-form-secao">
-            <div className="cal-form-secao-titulo">Responsável pela Calibração</div>
-            <div className="cal-form-grid">
-              <div className="cal-campo">
-                <label>Responsável *</label>
-                <select value={form.responsavelId} onChange={(e) => set('responsavelId', e.target.value)}>
-                  <option value="">Selecione…</option>
-                  {responsaveis.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.nome}
-                      {r.crea ? ` — ${r.crea}` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            {responsaveis.length === 0 && (
-              <p className="cal-auto-aviso cal-auto-aviso-falta">
-                <Icone nome="alerttri" tam={13} />
-                <span>
-                  Nenhum funcionário cadastrado. Cadastre em <strong>Funcionários</strong> (nome, CREA e
-                  assinatura) para poder emitir o certificado.
-                </span>
-              </p>
-            )}
-          </div>
-
-          {/* Conclusão */}
-          <div className="cal-form-secao">
-            <div className="cal-form-secao-titulo">Conclusão Técnica</div>
-            <div className="cal-form-grid">
-              <div className="cal-campo">
-                <label>Status</label>
-                <select value={form.statusConclusao} onChange={(e) => set('statusConclusao', e.target.value as FormDados['statusConclusao'])}>
-                  <option value="">Selecione...</option>
-                  <option value="aprovado">Aprovado</option>
-                  <option value="reprovado">Reprovado</option>
-                </select>
-              </div>
-              <div className="cal-campo">
-                <label>Motivo / Complemento</label>
-                <input value={form.textoMotivo} onChange={(e) => set('textoMotivo', e.target.value)} />
-              </div>
-            </div>
-          </div>
-
-          <div className="cal-acoes-form">
-            <button type="button" className="btn-secundario" onClick={() => setTela('historico')}>
-              Cancelar
-            </button>
-            <button type="button" className="btn-secundario" onClick={() => void salvar(true)}>
-              Salvar rascunho
-            </button>
-            <button type="button" className="btn-primario" onClick={() => void salvar(false)}>
-              Salvar e revisar para emissão
-            </button>
-          </div>
-
-          {resultadosAbertos && (
-            <ModalResultados
-              tipo={form.tipo}
-              unidade={form.unidade}
-              nome={form.nome}
-              manometro={{
-                pontos,
-                incertezaC: form.incertezaC,
-                coefC: form.coefC,
-                incertezaD: form.incertezaD,
-                coefD: form.coefD,
-              }}
-              psv={{
-                pressaoAbertura: form.pressaoAbertura,
-                pressaoAjuste: form.pressaoAjuste,
-                fechamento: form.fechamento,
-                incerteza: form.incerteza,
-                coef: form.coef,
-              }}
-              aoConfirmar={aplicarResultados}
-              aoFechar={() => setResultadosAbertos(false)}
-            />
-          )}
-        </div>
       )}
 
       {/* ── VISUALIZADOR ─────────────────────────────── */}
@@ -1582,6 +975,97 @@ export default function Calibracoes() {
           </div>
           <VisualizadorCalibracao dados={calAtual} />
         </div>
+      )}
+
+      {/* O histórico vem ANTES da janela no DOM: "Continuar" e "Nova calibração"
+          abrem a janela POR CIMA dele, e fechá-la devolve ao histórico. */}
+      {historicoComp && (
+        <ModalHistoricoComponente
+          tag={tag}
+          componente={historicoComp}
+          calibracoes={cals}
+          aoFechar={() => setHistoricoComp(null)}
+          aoNovaCalibracao={() => iniciarCalibracao(tag, historicoComp, { lotes, calibracoes: cals })}
+          aoContinuar={(cal) => continuarRascunho(cal, { componentes, lotes })}
+          aoVerDados={(cal) => {
+            setHistoricoComp(null);
+            abrirVerDados(cal);
+          }}
+          aoEditarComponente={() => setCompForm({ ...historicoComp })}
+          aoBaixarPdf={baixarPdfCalibracao}
+        />
+      )}
+
+      {/* ── NOVA CALIBRAÇÃO · passo 1: equipamento ────────────────────── */}
+      {novaCal?.passo === 'equipamento' && (
+        <ModalSelecionarEquipamento
+          titulo="Qual equipamento?"
+          sobre="Nova calibração"
+          aoFechar={() => setNovaCal(null)}
+        >
+          <CatalogoCalibracoesV9
+            modo="selecao"
+            termo={termoNova}
+            aoMudarTermo={setTermoNova}
+            aoEscolher={(t) => void escolherEquipamentoNova(t)}
+          />
+        </ModalSelecionarEquipamento>
+      )}
+
+      {/* ── NOVA CALIBRAÇÃO · passo 2: componente ───────────────────────── */}
+      {novaCal?.passo === 'componente' && !calibrando && !terceiroPara && (
+        <ModalEscolherComponente
+          tag={novaCal.tag}
+          componentes={novaCal.componentes}
+          calibracoes={novaCal.calibracoes}
+          aoCadastrar={async (c) => {
+            await salvarComponente(novaCal.tag, c);
+            const lista = listarComponentes(novaCal.tag);
+            setNovaCal({ ...novaCal, componentes: lista });
+            if (novaCal.tag === tag) setComponentes(lista);
+          }}
+          aoEscolher={(c) => {
+            const ctx = novaCal;
+            setNovaCal(null);
+            iniciarCalibracao(ctx.tag, c, { lotes: ctx.lotes, calibracoes: ctx.calibracoes });
+          }}
+          aoVoltar={() => setNovaCal({ passo: 'equipamento' })}
+          aoFechar={() => setNovaCal(null)}
+        />
+      )}
+
+      {/* ── A JANELA DA CALIBRAÇÃO (modal ⇄ tela cheia) ────────────────── */}
+      {calibrando && (
+        <FormularioCalibracao
+          key={`${calibrando.tag}-${calibrando.idExistente ?? calibrando.form.numeroCertificado}`}
+          tag={calibrando.tag}
+          titulo={calibrando.titulo}
+          inicial={calibrando.form}
+          componente={calibrando.componente}
+          lotes={calibrando.lotes}
+          loteInicial={calibrando.loteId}
+          aoSalvar={(form, loteId, acao) => salvarDaJanela(calibrando, form, loteId, acao)}
+          aoComponenteSalvo={async (c) => {
+            await salvarComponente(calibrando.tag, c);
+            if (calibrando.tag === tag) setComponentes(listarComponentes(tag));
+          }}
+          aoFechar={() => setCalibrando(null)}
+        />
+      )}
+
+      {terceiroPara && (
+        <ModalCalibracaoTerceiro
+          tag={terceiroPara.tag ?? tag}
+          componente={terceiroPara.comp}
+          loteId={terceiroPara.loteId}
+          dataLote={terceiroPara.dataLote}
+          aoFechar={() => setTerceiroPara(null)}
+          aoSalvar={(cal) => {
+            if ((terceiroPara.tag ?? tag) === tag) recarregarLista();
+            setTerceiroPara(null);
+            mostrarToast(`✓ Certificado ${cal.numeroCertificado} de ${cal.laboratorio} registrado`);
+          }}
+        />
       )}
 
       {ajudaAberta && <AjudaCalibracoes aoFechar={() => setAjudaAberta(false)} />}

@@ -1,0 +1,228 @@
+/* Reestruturação de Calibrações (19/09/2026) — janela de trabalho da
+   calibração (modal ⇄ tela cheia) e o formulário simplificado. */
+
+.jcal {
+  background: var(--panel, #fff);
+  border-radius: 14px;
+  width: min(880px, 100%);
+  max-height: calc(100vh - 60px);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+  min-width: 0;
+}
+.jcal.jcal-cheia {
+  width: calc(100vw - 24px);
+  max-width: none;
+  height: calc(100vh - 24px);
+  max-height: none;
+}
+.jcal-fundo:has(.jcal-cheia) { padding: 12px; }
+
+.jcal-cabeca {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--line, #e4e1d8);
+  flex: 0 0 auto;
+}
+.jcal-titulo { flex: 1 1 auto; min-width: 0; }
+.jcal-titulo h2 { margin: 2px 0 2px; font-size: 18px; line-height: 1.25; }
+.jcal-sub { font-size: 12.5px; color: var(--muted, #6b7280); overflow-wrap: anywhere; }
+.jcal-expandir { min-height: 36px; white-space: nowrap; }
+
+.jcal-confirma {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 20px;
+  background: #fffbeb;
+  border-bottom: 1px solid #fde68a;
+  color: #78350f;
+  font-size: 13px;
+  font-weight: 600;
+}
+.jcal-confirma > div { display: flex; gap: 8px; }
+
+.jcal-corpo {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 16px 20px 20px;
+}
+
+.jcal-rodape {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 20px 14px;
+  border-top: 1px solid var(--line, #e4e1d8);
+  background: var(--panel, #fff);
+}
+.jcal-rodape .fj-btn { min-height: 44px; }
+.jcal-rodape .jcal-rodape-aviso {
+  flex: 1 1 100%;
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--crit, #b91c1c);
+  font-weight: 600;
+}
+
+/* ── Blocos do formulário ─────────────────────────────────────────────── */
+.jcal-bloco {
+  border: 1px solid var(--line, #e4e1d8);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  min-width: 0;
+}
+.jcal-bloco-titulo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted, #6b7280);
+}
+.jcal-bloco-titulo .fonte {
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 11px;
+  color: var(--ok, #047857);
+}
+.jcal-bloco.derivado { background: var(--surface-2, #f7f7f5); }
+
+/* Resumo somente leitura (item, padrão, certificado) */
+.jcal-resumo-nome { font-size: 15px; font-weight: 700; margin: 0 0 6px; overflow-wrap: anywhere; }
+.jcal-dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 6px 14px;
+  margin: 0;
+}
+.jcal-dl > div { min-width: 0; }
+.jcal-dl dt { font-size: 10.5px; font-weight: 700; color: var(--muted, #6b7280); text-transform: uppercase; letter-spacing: 0.04em; }
+.jcal-dl dd { margin: 1px 0 0; font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.jcal-dl dd.vazio { color: var(--muted, #9ca3af); font-weight: 400; }
+
+/* Campos digitados (evento) */
+.jcal-campos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 10px 12px;
+}
+.jcal-campo { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.jcal-campo > span { font-size: 11px; font-weight: 700; color: var(--text-main, #2d3339); }
+.jcal-campo input,
+.jcal-campo select,
+.jcal-campo textarea {
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 11px;
+  border: 1px solid var(--border-solid, #e4e1d8);
+  border-radius: 8px;
+  background: var(--panel, #fff);
+  font: inherit;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+.jcal-campo textarea { min-height: 70px; resize: vertical; }
+.jcal-campo.largo { grid-column: 1 / -1; }
+
+.jcal-selo {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+}
+.jcal-selo.valido { background: #ecfdf5; color: #047857; }
+.jcal-selo.vence_em_breve { background: #fffbeb; color: #92400e; }
+.jcal-selo.vencido { background: #fef2f2; color: #b91c1c; }
+.jcal-selo.sem_validade { background: #f3f4f6; color: #4b5563; }
+
+.jcal-aviso {
+  display: flex;
+  gap: 7px;
+  align-items: flex-start;
+  margin: 8px 0 0;
+  padding: 8px 11px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #78350f;
+}
+.jcal-aviso.erro { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+.jcal-acoes-linha { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.jcal-acoes-linha .fj-btn { min-height: 40px; }
+
+.jcal-resultados {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.jcal-resultados strong { font-size: 18px; }
+
+@media (max-width: 640px) {
+  /* No celular a janela já nasce praticamente em tela cheia. */
+  .jcal-fundo { padding: 0 !important; align-items: stretch; }
+  .jcal,
+  .jcal.jcal-cheia {
+    width: 100vw;
+    height: 100dvh;
+    max-height: none;
+    border-radius: 0;
+  }
+  .jcal-cabeca { padding: 12px 14px 10px; }
+  .jcal-corpo { padding: 12px 14px 16px; }
+  .jcal-rodape { padding: 10px 14px 12px; }
+  .jcal-rodape .fj-btn { flex: 1 1 auto; }
+  .jcal-expandir-rotulo { display: none; }
+  .jcal-campos { grid-template-columns: 1fr; }
+  .jcal-dl { grid-template-columns: 1fr 1fr; }
+}
+
+/* ── Nova calibração · escolher o componente ─────────────────────────── */
+.escolha-comp { list-style: none; margin: 0 0 6px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.escolha-comp-item {
+  width: 100%;
+  min-height: 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-solid, #e4e1d8);
+  border-radius: 10px;
+  background: var(--panel, #fff);
+  text-align: left;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.escolha-comp-item > span:not(.escolha-comp-linha) { font-size: 12px; color: var(--muted, #6b7280); }
+.escolha-comp-item.atual { border-color: var(--amber-deep, #d9640c); box-shadow: 0 0 0 3px rgba(255, 122, 26, 0.18); }
+.escolha-comp-linha { display: flex; align-items: center; gap: 8px; }
+.escolha-comp-foto {
+  width: 30px; height: 30px; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 7px; background: var(--surface-2, #f6f7f9); overflow: hidden; color: var(--muted, #6b7280);
+}
+.escolha-comp-foto img { width: 100%; height: 100%; object-fit: cover; }

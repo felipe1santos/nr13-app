@@ -943,3 +943,20 @@
 .cal-emissao-erro ul { margin: 4px 0 0 18px; padding: 0; }
 .cal-emissao-selo { margin: 10px 0; font-size: 12px; color: #1d4ed8; overflow-wrap: anywhere; }
 .cal-preview-arquivo { margin-top: 10px; }
+
+/* ── Reestruturação (19/09/2026) · Nova calibração e histórico por acessório ── */
+.cal-btn-nova { min-height: 40px; white-space: nowrap; }
+.cal-faixa .cal-btn-nova { margin-left: auto; }
+.cal-acess-abrir {
+  background: none;
+  border: 0;
+  padding: 0;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.cal-acess-abrir:hover strong { text-decoration: underline; }
+@media (max-width: 640px) {
+  .cal-faixa .cal-btn-nova { margin-left: 0; width: 100%; min-height: 44px; }
+}

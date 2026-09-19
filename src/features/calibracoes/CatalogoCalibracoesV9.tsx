@@ -86,6 +86,12 @@ export interface PropsCatalogoCalibracoes {
   aoEscolher: (tag: string) => void;
   /** O que vai à DIREITA da barra — o [i] Informações da sessão. */
   acoes?: React.ReactNode;
+  /**
+   * `selecao` = escolher o equipamento de uma NOVA calibração. Sem o recorte
+   * "só com calibração": o equipamento que ainda não tem nenhuma é exatamente
+   * o que precisa da primeira.
+   */
+  modo?: 'lista' | 'selecao';
 }
 
 export default function CatalogoCalibracoesV9({
@@ -93,6 +99,7 @@ export default function CatalogoCalibracoesV9({
   aoMudarTermo,
   aoEscolher,
   acoes,
+  modo = 'lista',
 }: PropsCatalogoCalibracoes) {
   const [itens, setItens] = useState<ItemCatalogo[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -109,9 +116,13 @@ export default function CatalogoCalibracoesV9({
   // **0 calibrações**; quem tem `null` (ninguém contou) continua na lista.
   const [fTipo, setFTipo] = useState('');
   /** O que o modal edita — traduzido para `fTipo` + `recorte` no Aplicar. */
-  const [filtroUi, setFiltroUi] = useState<ValoresFiltroPront>(FILTRO_PRONT_PADRAO);
+  const [filtroUi, setFiltroUi] = useState<ValoresFiltroPront>(
+    modo === 'selecao' ? { ...FILTRO_PRONT_PADRAO, situacao: '' } : FILTRO_PRONT_PADRAO,
+  );
   const [filtroAberto, setFiltroAberto] = useState(false);
-  const [recorte, setRecorte] = useState<RecorteCatalogo>(RECORTE_PADRAO);
+  const [recorte, setRecorte] = useState<RecorteCatalogo>(
+    modo === 'selecao' ? { ...RECORTE_PADRAO, soComDocumento: false } : RECORTE_PADRAO,
+  );
   /** Quantas páginas já vieram — o teto da varredura automática. */
   const [paginas, setPaginas] = useState(1);
 
