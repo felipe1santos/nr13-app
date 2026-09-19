@@ -17,11 +17,22 @@
 
 Branch `calibracoes-ux`. Medição: `docs/medicoes/2026-09-19-calibracoes-ux.md`. Ficou:
 
+- [ ] **ROLLOUT: aplicar `supabase/documentos_emitidos_imutaveis.sql` em produção ANTES (ou
+      junto) do deploy do front.** Trava no banco o certificado emitido e as pastas de arquivo
+      final do bucket (as políticas de UPDATE/DELETE valem para TODAS as organizações). Conferir
+      por hash (§13) e depois por `pg_trigger`/`pg_policies`. Rollback:
+      `documentos_emitidos_imutaveis_rollback.sql`.
+- [ ] **Registro de calibração de TERCEIRO não é travado no banco** — o PDF do laboratório é
+      (pasta `certificados-externos/` sem UPDATE/DELETE), mas o registro `origem: 'terceiro'`
+      segue editável/excluível pela RPC, como no app. Decidir se ele vira imutável ao registrar.
+- [ ] **Registro `nr13_rel_<id>_<TAG>` do relatório salvo** também não tem trava de banco (só
+      o arquivo, agora sem UPDATE/DELETE no bucket). Mesmo desenho, se decidir travar.
+- [ ] **Lab: a Edge local assina URL com `http://kong:8000`** (host interno do Docker) e o
+      navegador não abre o arquivo no Portal. Só laboratório — o E2E remapeia o host. Em
+      produção a URL é pública.
 - [ ] **Prévia do certificado dentro da janela**: hoje a prévia fica em "Ver certificado" do
       histórico/lote.
 - [ ] **Faixa e referência** continuam um campo só (a folha tem uma coluna "Referência").
-- [ ] **Imutabilidade do certificado emitido é só no cliente** (a RPC aceita sobrescrever o
-      registro; os bytes não mudam) — mesmo item do §0-OCTIES.
 - [ ] **Certificados mantém UM padrão ativo por tipo** (salvar marca os outros como
       substituídos). A calibração já sabe escolher entre vários; a tela de cadastro não permite
       criá-los. Decidir se deve.
@@ -37,16 +48,8 @@ Fase 2 (prontuário, C.2, C.3, D, quadro 7.1.1) feita LOCAL em 18/09 — branch
       relatório CITA (quadro 7.1.1: nº, validade, laboratório "(externo)") e o PDF fica no
       bucket intacto, com SHA-256 — mas não entra no arquivo do relatório. Caminho: copiar as
       páginas com pdf-lib, como `anexarRastreabilidades`, sem carimbo nenhum.
-- [ ] **Trava NO BANCO para certificado emitido.** A recusa de editar/excluir um emitido está no
-      cliente (`salvarCalibracao`/`excluirCalibracao`); a RPC `aplicar_mutacao_storage` ainda
-      aceita sobrescrever `nr13_calibracao_item_<id>`. Os BYTES não mudam (pdfRef por uuid, SHA
-      conferido na reabertura), mas o registro sim. Mesmo desenho de `livro_imutavel.sql`.
 - [ ] **Folha interna para termômetro, vacuômetro, pressostato e transmissor.** Hoje só
       manômetro e PSV têm modelo; os outros quatro registram calibração de laboratório externo.
-- [ ] **Portal do Cliente com certificado emitido/externo**: o código serve o arquivo
-      (`artefatoDaCalibracao`), mas não foi exercitado no E2E local.
-- [ ] **Rascunho de calibração conta para vencimentos** (acessório usa a última calibração).
-      Decidir se rascunho deve contar.
 - [ ] **Catálogo de Calibrações com busca e resultado PARCIAL**: se a busca acha um equipamento
       com calibração e outro sem, o sem continua escondido pelo filtro padrão sem aviso. O caso
       "nenhum resultado" (o do ZZ-UNID-BAR) foi corrigido.

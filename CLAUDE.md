@@ -432,6 +432,31 @@ Medição: `docs/medicoes/2026-09-19-calibracoes-ux.md`.
   quase tela cheia no celular), nunca numa página; clique fora não fecha e alteração não salva
   pede confirmação. Lote é opcional e discreto. O clique no acessório abre o histórico dele.
 
+### §4-quinquies — Emitido trava NO BANCO; rascunho não é calibração (19/09/2026)
+
+> **REGRA QUE NÃO SE QUEBRA:** certificado de calibração emitido não se altera nem se exclui
+> por caminho nenhum — nem pela RPC, nem pelo PostgREST, nem trocando o arquivo no bucket.
+> E RASCUNHO não conta como calibração: não gera vencimento, não aparece no Portal.
+
+- **Banco** (`supabase/documentos_emitidos_imutaveis.sql`, desenho de `livro_imutavel.sql`):
+  trigger `trg_guardar_documento_emitido` BEFORE UPDATE/DELETE em `app_storage`. Emitido =
+  `status:'emitido'` + `emissao.pdfRef.path`. No registro (`nr13_calibracao_item_`) só passa
+  regravar o MESMO valor; na lista (`nr13_calibracoes_<TAG>`, a que o Portal lê) toda entrada
+  emitida do valor antigo precisa estar no novo, idêntica. Passa: a emissão (rascunho →
+  emitido), `set local nr13.manutencao = '1'` e DELETE físico pelo `service_role`. Erro
+  `nr13_documento_emitido` = recusa DEFINITIVA (`errosSync`); a fila encerra o item e
+  `sync.restaurarDoServidor` devolve ao cache o valor do servidor.
+- **Bucket**: `relatorios/`, `certificados/`, `certificados-calibracao/` e
+  `certificados-externos/` sem UPDATE/DELETE por usuário (políticas `inspecao_atualizacao` /
+  `inspecao_remocao`). Upload dessas pastas vai com `upsert: false` (`ehPastaDeDocumentoFinal`,
+  `fotos.ts`); "já existe" = o nosso, enviado antes.
+- **Rascunho fora**: `ehOficial(c)` (`status !== 'rascunho'`; terceiro e legado contam) em
+  `listarVencimentos`, `validadesPorRelatorio`, detalhe do equipamento e Portal; a projeção
+  `projetar_calibracoes` (servidor, `busca_manutencao.sql`) filtra igual. O quadro 7.1.1 já não
+  deixava selecionar rascunho. Travado por `documentoEmitidoImutavel.test.ts`.
+- **Não travado no banco (ainda):** o registro de TERCEIRO e o `nr13_rel_` — só os arquivos
+  deles (ver PENDENCIAS).
+
 ---
 
 ## 5. Layout, responsividade e impressão (todas as folhas)

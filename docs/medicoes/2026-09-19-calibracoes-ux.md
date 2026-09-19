@@ -96,3 +96,47 @@ em PENDENCIAS), não é das calibrações.
 **Imutabilidade.** md5 do relatório REL-1789756839955 e dos registros de certificado emitidos
 (CAL-F2-001, CERT-1789788759749, CERT-1789789169335) + o legado cal-e2e-pb: idênticos antes e
 depois; SHA dos 4 arquivos no bucket = SHA gravado.
+
+## Pré-rollout: imutabilidade no servidor, rascunho fora, Portal (19/09/2026)
+
+Migration `supabase/documentos_emitidos_imutaveis.sql` aplicada no laboratório (duas vezes —
+idempotente). Todas as tentativas abaixo como o usuário logado, pela RPC
+`aplicar_mutacao_storage`, contra um certificado emitido:
+
+| tentativa | resultado |
+|---|---|
+| mudar serviço / data / responsável / resultado | recusada `nr13_documento_emitido` |
+| trocar `emissao.pdfRef` / `emissao.sha256` | recusada |
+| voltar `status` para rascunho | recusada |
+| `del` (tombstone) | recusada |
+| tirar / alterar / excluir a entrada emitida da lista `nr13_calibracoes_<TAG>` | recusada |
+| UPDATE direto pelo PostgREST | recusada |
+| regravar o MESMO valor (re-sincronização) | aceita |
+| editar rascunho | aceita |
+| emitir (rascunho → emitido) pelo fluxo normal | aceita |
+
+**Fila.** Mutação adulterada posta na fila do aparelho → servidor recusa → item encerrado como
+recusa definitiva e o cache local volta ao valor do servidor. Conflito + "Manter a minha" →
+servidor intacto. Mutação atrasada com versão antiga → `conflito`, nada gravado.
+
+**Bucket.** upsert/update recusados em `certificados-calibracao/`, `certificados-externos/`,
+`relatorios/` e `certificados/`; remove afeta 0 arquivos; SHA dos arquivos inalterado. Foto:
+upload e remoção seguem funcionando. Outra organização (`lab2-outra-org`): download "Object not
+found", listagem 0, registros 0, delete 0.
+
+**Migration em banco zerado** (transação, 54 linhas apagadas, aplicada 2×, rollback) e em banco
+populado (2×): `calibracoes_index` de ZZ-CAL-UX 7 → 5 (os 2 rascunhos saíram); md5 do relatório
+REL-1789756839955 e dos certificados emitidos idênticos antes/depois.
+
+**Vencimento.** Rascunho ZZ-MAN-VENC com próxima 20/09/2026 → painel sem prazo; emitido → "vence
+20/09/2026 · warn".
+
+**Portal (cliente `portal-zz`).** ZZ-CAL-UX lista os emitidos e EXT-UX-321 "Laboratório externo:
+Laboratório Metrologia UX Ltda"; rascunhos ausentes. Emitido CERT-1789792476106: "Documento
+arquivado", 0 iframes de template, SHA dos bytes = SHA do registro, logo/data/padrão LAB-B-9002 na
+imagem. Terceiro: SHA = arquivo enviado. Relatório antigo REL-1789756839955: arquivado, SHA
+confere. Legado CAL-E2E-001: abre pelo template. No lab a Edge assina a URL com `kong:8000` — o
+E2E remapeia o host (não é defeito do código).
+
+**Regressão do padrão exato.** Relatório com CERT-1789792476106 → págs. 14–18 = PDF LAB-B-9002;
+padrão A ausente.
