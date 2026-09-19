@@ -184,6 +184,22 @@ export function ehEmitido(c: DadosCalibracao | null | undefined): boolean {
   return ehInterna(c) && c.status === 'emitido' && !!c.emissao?.pdfRef?.path;
 }
 
+/**
+ * A calibração vale OFICIALMENTE? (19/09/2026)
+ *
+ * Rascunho não é calibração realizada: aparece no histórico, mas não alimenta
+ * vencimento, próxima calibração, "calibrado" do quadro 7.1.1, validade no
+ * histórico de relatórios nem o Portal do Cliente. Valem: o certificado
+ * interno EMITIDO, o registro de LABORATÓRIO EXTERNO e o registro anterior à
+ * emissão imutável (legado, sem `status` — sempre valeu).
+ *
+ * Aceita o formato mínimo que os leitores de chave crua usam.
+ */
+export function ehOficial(c: { status?: unknown; origem?: unknown } | null | undefined): boolean {
+  if (!c) return false;
+  return c.status !== 'rascunho';
+}
+
 /** Rótulo da origem para a tela — legado diz que NÃO SABE, em vez de chutar. */
 export function rotuloOrigem(c: DadosCalibracao): string {
   if (c.origem === 'terceiro') return 'Laboratório externo';

@@ -499,6 +499,9 @@ begin
     now()
   from jsonb_array_elements(v_lista) c
   where coalesce(c ->> 'id', '') <> ''
+    -- 19/09/2026 · RASCUNHO não é calibração realizada: não gera prazo no
+    -- painel. Vale o emitido, o de laboratório externo e o legado (sem status).
+    and coalesce(c ->> 'status', '') <> 'rascunho'
   on conflict (org_id, calibracao_id) do update set
     tag = excluded.tag, componente_id = excluded.componente_id,
     nome = excluded.nome, tipo = excluded.tipo, serie = excluded.serie,

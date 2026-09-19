@@ -17,7 +17,7 @@ import { artefatoDaCalibracao } from '../../features/calibracoes/artefatoCalibra
 import { definicaoDe } from '../../features/calibracoes/instrumentos';
 import type { FotoArmazenada } from '../../services/fotos';
 import { listarCalibracoes, arquivoCalibracao, hidratarItemLocal } from '../../features/calibracoes/calibracaoService';
-import type { DadosCalibracao } from '../../features/calibracoes/tipos';
+import { ehOficial, ehTerceiro, type DadosCalibracao } from '../../features/calibracoes/tipos';
 import { carregarProntuario, materializarProntuarioAtual } from '../../features/prontuarios/prontuarioService';
 import {
   abrirProntuarioFabricante,
@@ -101,7 +101,8 @@ export default function PortalAtivo() {
   const relatorios = useMemo(() => listarHistorico(tag), [tag]);
   const containers = useMemo(() => listarContainers(tag), [tag]);
   const componentes = useMemo(() => listarComponentes(tag), [tag]);
-  const calibracoes = useMemo(() => listarCalibracoes(tag), [tag]);
+  // O Portal mostra só o OFICIAL: rascunho não é documento para o cliente.
+  const calibracoes = useMemo(() => listarCalibracoes(tag).filter(ehOficial), [tag]);
   const prontuario = useMemo(() => carregarProntuario(tag), [tag]);
   // PDF do prontuário original do fabricante (nr13_pront_fab_<TAG>) — não é template
   // HTML, então NÃO passa por abrirProntuario()/abrirRegistro(): abre o PDF direto.
@@ -434,6 +435,7 @@ export default function PortalAtivo() {
                   {cal.dataCalibracao || cal.dataEmissao || '—'}
                   {cal.dataProxCalibracao ? ` · próxima ${cal.dataProxCalibracao}` : ''}
                   {cal.statusConclusao ? ` · ${cal.statusConclusao === 'aprovado' ? 'Aprovado' : 'Reprovado'}` : ''}
+                  {ehTerceiro(cal) ? ` · Laboratório externo: ${cal.laboratorio}` : ''}
                 </span>
               </div>
             </div>
@@ -707,6 +709,7 @@ export default function PortalAtivo() {
                               {cal.dataCalibracao || cal.dataEmissao || '—'}
                               {cal.dataProxCalibracao ? ` · próxima ${cal.dataProxCalibracao}` : ''}
                               {cal.statusConclusao ? ` · ${cal.statusConclusao === 'aprovado' ? 'Aprovado' : 'Reprovado'}` : ''}
+                  {ehTerceiro(cal) ? ` · Laboratório externo: ${cal.laboratorio}` : ''}
                             </span>
                           </div>
                         </div>

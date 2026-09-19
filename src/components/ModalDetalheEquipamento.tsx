@@ -6,7 +6,7 @@ import { parseDataFlex, textoPrazo } from '../services/vencimentos';
 import type { ItemVencimento } from '../services/vencimentos';
 import { listarHistorico } from '../features/relatorios/relatoriosService';
 import { listarCalibracoes } from '../features/calibracoes/calibracaoService';
-import type { DadosCalibracao } from '../features/calibracoes/tipos';
+import { ehOficial, type DadosCalibracao } from '../features/calibracoes/tipos';
 import { definicaoDe } from '../features/calibracoes/instrumentos';
 import type { CategoriaSalva, InfoEquipamento } from '../features/equipamento/tipos';
 import './modal-detalhe-equipamento.css';
@@ -59,7 +59,8 @@ export default function ModalDetalheEquipamento({ tag, itens, onClose }: Props) 
   // o relatório completo não é carregado.
   const ultimoRel = useMemo(() => listarHistorico(tag)[0] ?? null, [tag]);
 
-  const acessorios = useMemo(() => agruparAcessorios(listarCalibracoes(tag)), [tag]);
+  // Só calibração oficial define prazo e aparece como documento (rascunho não).
+  const acessorios = useMemo(() => agruparAcessorios(listarCalibracoes(tag).filter(ehOficial)), [tag]);
 
   const itemEquip = itens.find((i) => i.origem === 'inspecao' && i.tag === tag);
   const itemDoAcessorio = (cal: DadosCalibracao): ItemVencimento | undefined =>

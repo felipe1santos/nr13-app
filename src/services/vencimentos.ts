@@ -2,7 +2,7 @@ import { ler, listarChavesComPrefixo } from './storage';
 import { definicaoDe } from '../features/calibracoes/instrumentos';
 import { listarIndice } from '../features/relatorios/historicoRelatorios';
 import type { InfoEquipamento } from '../features/equipamento/tipos';
-import type { DadosCalibracao } from '../features/calibracoes/tipos';
+import { ehOficial, type DadosCalibracao } from '../features/calibracoes/tipos';
 
 /**
  * Motor de vencimentos: deriva prazos SOMENTE de dados já salvos no sistema.
@@ -326,7 +326,8 @@ export function listarVencimentos(hoje: Date = new Date()): ItemVencimento[] {
       // ── Acessórios do equipamento (calibrações) ──
       // Com lotes, o mesmo componente acumula certificados a cada inspeção:
       // só a calibração MAIS RECENTE de cada componente conta para o prazo.
-      const todas = ler<DadosCalibracao[]>(`nr13_calibracoes_${tag}`) ?? [];
+      // Rascunho não é calibração realizada: não gera prazo (19/09/2026).
+      const todas = (ler<DadosCalibracao[]>(`nr13_calibracoes_${tag}`) ?? []).filter(ehOficial);
       const porComponente = new Map<string, DadosCalibracao>();
       for (const cal of todas) {
         const chaveComp = (cal as { componenteId?: string }).componenteId ?? `nome:${cal.nome ?? cal.id}`;

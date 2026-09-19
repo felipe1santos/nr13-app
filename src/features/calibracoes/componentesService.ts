@@ -194,9 +194,12 @@ export function validadesPorRelatorio(tag: string): Map<string, { valvula?: stri
   const mapa = new Map<string, { valvula?: string; manometro?: string }>();
   const lotes = listarLotes(tag).filter((l) => l.relatorioId);
   if (lotes.length === 0) return mapa;
-  const cals = ler<Array<{ loteId?: string; tipo: TipoInstrumento; dataProxCalibracao?: string }>>(
-    `nr13_calibracoes_${tag}`,
-  ) ?? [];
+  // Rascunho não dá validade a relatório nenhum (19/09/2026).
+  const cals = (
+    ler<Array<{ loteId?: string; tipo: TipoInstrumento; dataProxCalibracao?: string; status?: string }>>(
+      `nr13_calibracoes_${tag}`,
+    ) ?? []
+  ).filter((c) => c.status !== 'rascunho');
   const ts = (d: string) => {
     const p = d.split('/');
     return p.length === 3 ? new Date(Number(p[2]), Number(p[1]) - 1, Number(p[0])).getTime() : NaN;
