@@ -13,6 +13,20 @@
 > cada família de chave, o que já foi resolvido e o que falta, em ordem de risco. Consultar
 > antes de mexer em qualquer coisa que grave arquivo.
 
+## 0-NONIES. CALIBRAÇÕES — reestruturação de UX (19/09/2026, local, sem push)
+
+Branch `calibracoes-ux`. Medição: `docs/medicoes/2026-09-19-calibracoes-ux.md`. Ficou:
+
+- [ ] **PDF do padrão anexado ao relatório** ainda é escolhido "um por tipo"
+      (`rastreabilidadesParaRelatorio`), não pelo `padraoId` da calibração. Hoje coincidem
+      (a tela Certificados mantém um ativo por tipo); divergem se isso mudar.
+- [ ] **Folha da PSV com "Local" em 2 linhas**: o bloco do responsável encosta no rodapé.
+- [ ] **Lista de /calibracoes** não atualiza a contagem logo depois de salvar (vem da projeção
+      do servidor; atualiza na próxima consulta).
+- [ ] **Prévia do certificado dentro da janela**: hoje a prévia fica em "Ver certificado" do
+      histórico/lote.
+- [ ] **Faixa e referência** continuam um campo só (a folha tem uma coluna "Referência").
+
 ## 0-OCTIES. REVISÃO DO ENGENHEIRO — o que ficou para as próximas rodadas (18/09/2026)
 
 Plano: `docs/PLANO-AJUSTES-REVISAO-ENGENHEIRO.md`. Fase 1 (B, C.1, A) em produção em 18/09.

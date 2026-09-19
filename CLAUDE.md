@@ -412,6 +412,26 @@ Medição do E2E: `docs/medicoes/2026-09-18-revisao-engenheiro-fase2.md`.
 - **O ASSISTENTE DE RELATÓRIO SEMEIA A TAG** (`carregarEquipamento`) antes do passo 2 — em
   aparelho novo ele não oferecia nem a inspeção nem os certificados.
 
+### §4-quater — Calibrações: cadastre uma vez, reutilize sempre (19/09/2026)
+
+Medição: `docs/medicoes/2026-09-19-calibracoes-ux.md`.
+
+- **TRÊS CAMADAS** (`calibracoes/formCalibracao.ts`): ITEM ← componente
+  (`nr13_componentes_cal_`); PADRÃO ← cadastro de Certificados (`nr13_rastreab_`, escolhido
+  por `padraoId` = id da VERSÃO; série, certificado e validade derivados); EVENTO ← o usuário
+  (datas, ambiente, resultados, conclusão). O registro grava o snapshot nos mesmos campos de
+  sempre (`fabricante`, `padraoSerie`…) — mudar componente ou renovar o padrão depois não
+  altera calibração nenhuma.
+- **NADA DERIVADO É INPUT.** Item, padrão e nº do certificado são resumo somente leitura;
+  corrigir o item é "Editar componente" (cadastro mestre). Nº gerado (`CERT-<timestamp>`,
+  reservado no rascunho), data de emissão carimbada NA EMISSÃO. Sem padrão cadastrado, o
+  formulário manda cadastrar (entrada manual só por "Informar manualmente").
+  `novaCalibracaoUx.test.ts` renderiza o formulário e quebra se algum volta a ser input.
+- **FLUXO**: "+ Nova calibração" → equipamento (catálogo em modo seleção) → componente
+  (cadastra sem sair) → JANELA. A calibração abre em `JanelaCalibracao` (modal ⇄ tela cheia,
+  quase tela cheia no celular), nunca numa página; clique fora não fecha e alteração não salva
+  pede confirmação. Lote é opcional e discreto. O clique no acessório abre o histórico dele.
+
 ---
 
 ## 5. Layout, responsividade e impressão (todas as folhas)
