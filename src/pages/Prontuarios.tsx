@@ -14,7 +14,6 @@ import type { DocumentoProntuario } from '../features/prontuarios/indiceProntuar
 import ModalSelecionarEquipamento from '../features/relatorios/ModalSelecionarEquipamento';
 import ModalExcluirProntuario from '../features/prontuarios/ModalExcluirProntuario';
 import { abrirEquipamentoParaProntuario } from '../features/prontuarios/catalogoProntuarios';
-import { formatarValor } from '../calc/unidades';
 import {
   carregarProntuario,
   excluirProntuario,
@@ -73,6 +72,7 @@ import { MSG_BLOQUEIO_DOCS, documentosBloqueados } from '../services/trial';
 import { emitirAviso } from '../services/eventos';
 import '../pages/relatorios.css';
 import './prontuarios.css';
+import { ehPmtaDoPreenchimentoAntigo, pressoesDoProntuario } from '../features/prontuarios/pressoesProntuario';
 import PaginaA4 from '../components/PaginaA4';
 
 /**
@@ -593,15 +593,14 @@ export default function Prontuarios() {
         pb('grupoPotencialRisco', String(cat.grupo));
       }
 
-      // ─── Cálculo (PMTA / PTH) ───
-      if (eq.calculo) {
-        const pmtaNum = parseFloat(eq.calculo.pmta);
-        const pthNum = parseFloat(eq.calculo.pth || '0');
-        pb('pmta', formatarValor(pmtaNum, eq.unidade));
-        pb('pressaoProjeto', formatarValor(pmtaNum, eq.unidade));
-        pb('pressaoMaxOp', formatarValor(pmtaNum, eq.unidade));
-        if (pthNum > 0) pb('pressaoTH', formatarValor(pthNum, eq.unidade));
-      }
+      // ─── Pressões: cada uma da SUA fonte (18/09/2026) ───
+      // Pressão de projeto e pressão máx. de operação eram preenchidas com a PMTA
+      // calculada. Ver `features/prontuarios/pressoesProntuario.ts`.
+      const pressoes = pressoesDoProntuario(eq.tag, eq.info, eq.calculo, eq.unidade);
+      pb('pmta', pressoes.pmta);
+      pb('pressaoProjeto', pressoes.pressaoProjeto);
+      pb('pressaoMaxOp', pressoes.pressaoMaxOp);
+      pb('pressaoTH', pressoes.pressaoTH);
 
       // ─── Minha empresa (emissora) ───
       const minhaEmp = carregarMinhaEmpresa();
@@ -718,6 +717,9 @@ export default function Prontuarios() {
         (Object.keys(existente) as (keyof ProntuarioDados)[]).forEach((k) => {
           if (k === 'dimensoes') return;
           const val = existente[k];
+          // O texto que o preenchimento antigo punha (a PMTA) não é informação
+          // do usuário: não vence o valor da fonte correta.
+          if (ehPmtaDoPreenchimentoAntigo(k, val, pressoes)) return;
           if (val != null && val !== '') (finais as unknown as Record<string, unknown>)[k] = val;
         });
         const dimsTemDado = existente.dimensoes?.some((l) =>
