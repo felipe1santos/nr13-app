@@ -353,9 +353,12 @@ describe('as regras ficam no código', () => {
   });
 
   it('o que é fixo do acessório não é mais cinco caixas abertas', () => {
-    // Campo editável parece trabalho a fazer mesmo quando já está preenchido.
-    expect(pagina).toContain('cal-acessorio-lista');
-    expect(pagina).toContain('Ajustar só neste certificado');
+    // Reestruturação 19/09/2026: o item é RESUMO somente leitura, e a correção
+    // vai para o cadastro mestre — sem ajuste silencioso só neste certificado.
+    const janela = readFileSync('src/features/calibracoes/FormularioCalibracao.tsx', 'utf8');
+    expect(janela).toContain('aria-label="Item calibrado"');
+    expect(janela).toContain('Editar componente');
+    expect(janela).not.toContain('Ajustar só neste certificado');
   });
 
   it('a folha tem uma linha com id para CADA ponto que o modal aceita', () => {
@@ -377,7 +380,7 @@ describe('as regras ficam no código', () => {
   });
 
   it('os resultados são preenchidos pelo modal, não por vinte células soltas', () => {
-    expect(pagina).toContain('<ModalResultados');
+    expect(readFileSync('src/features/calibracoes/FormularioCalibracao.tsx', 'utf8')).toContain('<ModalResultados');
     expect(pagina).not.toContain('function setCrescente');
     expect(pagina).not.toContain('cal-tabela-resultados');
   });
