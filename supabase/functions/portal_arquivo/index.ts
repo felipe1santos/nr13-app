@@ -40,6 +40,7 @@
 // rede e cache é esperada e não constitui vazamento.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { sanearParaPortal } from './oficialidade.ts';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -176,11 +177,16 @@ Deno.serve(async (req) => {
     // fabricante, foto de componente, rubrica do livro, e — quando a Fase 7
     // chegar — `assinaturaRef` e `logoRef` dentro de `meta`. Sem precisar de
     // deploy novo desta função.
+    //
+    // RASCUNHO NÃO AUTORIZA ARQUIVO (19/09/2026): cada valor passa pela MESMA
+    // `sanearParaPortal` do `portal_cliente` antes de contribuir com path. Um
+    // arquivo citado só por um rascunho não é servido ao cliente.
     const autorizados = new Set<string>();
-    for (const { valor } of chaves) {
-      if (!valor) continue;
+    for (const { chave, valor } of chaves) {
+      const oficial = sanearParaPortal(chave, valor);
+      if (!oficial) continue;
       try {
-        coletarPaths(JSON.parse(valor), autorizados);
+        coletarPaths(JSON.parse(oficial), autorizados);
       } catch {
         // valor não-JSON: não contribui com path nenhum
       }

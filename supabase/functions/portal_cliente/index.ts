@@ -7,10 +7,17 @@
 // feito com service_role e o cliente só recebe o que é dele.
 //
 // POST (Bearer token do usuário papel='cliente'):
-//   { }  ->  { chaves: { 'nr13_info_<TAG>': '<json>', ... }, tags: ['TAG1', ...] }
+//   { }  ->  { chaves: { 'nr13_info_<TAG>': '<json>', ... }, versoes: { '<chave>': <n> }, tags: ['TAG1', ...] }
+//
+// OFICIALIDADE NO SERVIDOR (19/09/2026): todo valor passa por `sanearParaPortal`
+// antes de ser serializado — rascunho de calibração sai da lista, relatório em
+// rascunho não é servido. O navegador do cliente nunca recebe o rascunho.
+// `versoes` é a `app_storage.versao` REAL de cada chave (o Portal deixou de gravar
+// versão fixa no cache).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { chaveAutorizadaSobDemanda, chavesDoCliente, PREFIXO_RASTREABILIDADE } from './prefixos.ts';
+import { sanearParaPortal } from './oficialidade.ts';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -105,20 +112,23 @@ Deno.serve(async (req) => {
       // enumeração, o mesmo motivo da D-26 em `portal_arquivo`. Chave não autorizada
       // simplesmente não vem no resultado.
       const achadas: Record<string, string> = {};
+      const versoesAchadas: Record<string, number> = {};
       if (autorizadas.length > 0) {
         const { data, error } = await admin
           .from('app_storage')
-          .select('chave, valor')
+          .select('chave, valor, versao')
           .eq('org_id', perfil.org_id)
           .is('deletado_em', null)
           .in('chave', autorizadas);
         if (error) return json({ erro: error.message }, 400);
         for (const row of data ?? []) {
-          if (row.valor == null) continue;
-          achadas[row.chave as string] = row.valor as string;
+          const valor = sanearParaPortal(row.chave as string, row.valor as string | null);
+          if (valor == null) continue;
+          achadas[row.chave as string] = valor;
+          versoesAchadas[row.chave as string] = Number(row.versao) || 0;
         }
       }
-      return json({ chaves: achadas, tags });
+      return json({ chaves: achadas, versoes: versoesAchadas, tags });
     }
 
     // 3. LEITURA DIRIGIDA PELA AUTORIZAÇÃO (Fase 4, achado A-02).
@@ -138,6 +148,7 @@ Deno.serve(async (req) => {
     // queries". Verdade — e é por isso que aqui não há LIKE nem N queries: é UMA consulta por
     // igualdade sobre uma lista fechada.
     const chaves: Record<string, string> = {};
+    const versoes: Record<string, number> = {};
 
     // Lote generoso, mas com teto: PostgREST manda a lista na URL, e uma lista sem limite
     // viraria 414 numa organização com muitos ativos por cliente.
@@ -147,7 +158,7 @@ Deno.serve(async (req) => {
       const fatia = alvo.slice(i, i + LOTE);
       const { data, error } = await admin
         .from('app_storage')
-        .select('chave, valor')
+        .select('chave, valor, versao')
         .eq('org_id', perfil.org_id)
         .is('deletado_em', null)
         .in('chave', fatia);
@@ -155,8 +166,10 @@ Deno.serve(async (req) => {
       // documento e concluiria que não existe. Erro explícito, como o palco faz (I-23).
       if (error) return json({ erro: error.message }, 400);
       for (const row of data ?? []) {
-        if (row.valor == null) continue;
-        chaves[row.chave as string] = row.valor as string;
+        const valor = sanearParaPortal(row.chave as string, row.valor as string | null);
+        if (valor == null) continue;
+        chaves[row.chave as string] = valor;
+        versoes[row.chave as string] = Number(row.versao) || 0;
       }
     }
 
@@ -166,18 +179,20 @@ Deno.serve(async (req) => {
     {
       const { data, error } = await admin
         .from('app_storage')
-        .select('chave, valor')
+        .select('chave, valor, versao')
         .eq('org_id', perfil.org_id)
         .is('deletado_em', null)
         .like('chave', `${PREFIXO_RASTREABILIDADE.replace(/_/g, '\\_')}%`);
       if (error) return json({ erro: error.message }, 400);
       for (const row of data ?? []) {
-        if (row.valor == null) continue;
-        chaves[row.chave as string] = row.valor as string;
+        const valor = sanearParaPortal(row.chave as string, row.valor as string | null);
+        if (valor == null) continue;
+        chaves[row.chave as string] = valor;
+        versoes[row.chave as string] = Number(row.versao) || 0;
       }
     }
 
-    return json({ chaves, tags });
+    return json({ chaves, versoes, tags });
   } catch (e) {
     return json({ erro: String(e) }, 500);
   }
