@@ -171,3 +171,7 @@
   line-height: 1.45;
   color: var(--text-faint, #9ca3af);
 }
+
+/* Fase 2 (D) · calibração de terceiro */
+.terc-erro { color: var(--crit, #b91c1c); font-weight: 600; margin-top: 8px; }
+.terc-arquivo { margin-top: 6px; word-break: break-all; }

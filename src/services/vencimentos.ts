@@ -1,4 +1,5 @@
 import { ler, listarChavesComPrefixo } from './storage';
+import { definicaoDe } from '../features/calibracoes/instrumentos';
 import { listarIndice } from '../features/relatorios/historicoRelatorios';
 import type { InfoEquipamento } from '../features/equipamento/tipos';
 import type { DadosCalibracao } from '../features/calibracoes/tipos';
@@ -223,7 +224,8 @@ export function itemDeCalibracao(f: FatosCalibracao, hoje: Date): ItemVencimento
   const venc = parseDataPrazo(f.proxCalibracao ?? null);
   if (!venc) return null;
 
-  const tipoAc = f.tipo === 'psv' ? 'Válvula de Segurança' : 'Manômetro';
+  // Fase 2 (D): seis instrumentos. Tipo desconhecido segue como manômetro (legado).
+  const tipoAc = f.tipo === 'psv' ? 'Válvula de Segurança' : definicaoDe(f.tipo).rotulo;
   const nome = f.nome?.trim() || tipoAc;
   const { dias, status } = statusPrazo(venc, hojeZero);
   return {

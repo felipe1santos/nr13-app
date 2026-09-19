@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { arquivoCalibracao, listarCalibracoes } from '../calibracoes/calibracaoService';
+import { definicaoDe } from '../calibracoes/instrumentos';
+import { contagemParaRelatorio, folhaDoRelatorio, listarCalibracoes } from '../calibracoes/calibracaoService';
 import type { DadosCalibracao } from '../calibracoes/tipos';
 import { listarLotes, salvarLote, type LoteCal } from '../calibracoes/componentesService';
 import { listarContainers } from '../inspecoes/inspecaoService';
@@ -101,14 +102,7 @@ interface ItemAutomatico {
 
 const tsDoId = (id: string) => Number(/-(\d+)$/.exec(id)?.[1] ?? 0);
 
-function contagemPorTipo(certs: DadosCalibracao[]): string {
-  const man = certs.filter((c) => c.tipo === 'manometro').length;
-  const psv = certs.filter((c) => c.tipo === 'psv').length;
-  const partes: string[] = [];
-  if (man) partes.push(`${man} manômetro${man > 1 ? 's' : ''}`);
-  if (psv) partes.push(`${psv} válvula${psv > 1 ? 's' : ''}`);
-  return partes.join(', ');
-}
+const contagemPorTipo = contagemParaRelatorio;
 
 /** O documento do relatório → o formulário de campo que o alimenta. */
 const FORM_DO_DOC = new Map<string, FormularioEnsaio>(
@@ -165,7 +159,7 @@ export default function ModalNovaInspecao({ onClose, onGerar, tag = '', resumo, 
       .filter((c) => !c.loteId)
       .map((c) => ({
         id: c.id,
-        rotulo: `${c.tipo === 'manometro' ? 'Manômetro' : 'PSV'} — ${c.nome} (${c.dataCalibracao || c.criadoEm})`,
+        rotulo: `${definicaoDe(c.tipo).curto} — ${c.nome} (${c.dataCalibracao || c.criadoEm})`,
         certs: [c],
       }));
     return [...doLote, ...avulsas].sort((a, b) => tsDoId(b.id) - tsDoId(a.id)).slice(0, 3);
@@ -225,7 +219,7 @@ export default function ModalNovaInspecao({ onClose, onGerar, tag = '', resumo, 
     // Lote marcado = TODAS as calibrações dele viram folhas no fim do relatório; os PDFs
     // dos certificados padrão (por tipo presente) são anexados no export/impressão.
     const calibDocs = selecionados.flatMap((i) =>
-      i.certs.map((c) => `${arquivoCalibracao(c.tipo)}?calibId=${c.id}`),
+      i.certs.map(folhaDoRelatorio).filter((d): d is string => d !== null),
     );
     // Lote entra na fila de vínculo: salvarHistorico captura via vincularLotesPendentes
     // (alimenta as colunas de validade de válvula/manômetro no histórico).

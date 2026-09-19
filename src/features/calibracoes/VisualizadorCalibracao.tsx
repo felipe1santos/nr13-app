@@ -1,4 +1,5 @@
-import type { DadosCalibracao, DadosManometro, DadosPSV, LinhaResultado } from './tipos';
+import { ehInterna, ehTerceiro, rotuloOrigem, type DadosCalibracao, type DadosManometro, type DadosPSV, type DadosTerceiro, type LinhaResultado } from './tipos';
+import { definicaoDe } from './instrumentos';
 import '../inspecoes/visualizador.css';
 import { UNIDADE_PADRAO } from './preencherCalibracao';
 
@@ -51,7 +52,44 @@ function TabelaResultados({ titulo, linhas }: { titulo: string; linhas: LinhaRes
 
 const STATUS_LABEL: Record<string, string> = { aprovado: 'Aprovado', reprovado: 'Reprovado', '': 'Pendente' };
 
+/** Fase 2 (D) · o registro de uma calibração de laboratório externo — só dados, nenhuma folha nossa. */
+function VisualizadorTerceiro({ dados }: { dados: DadosTerceiro }) {
+  return (
+    <div>
+      <Secao titulo="Certificado do laboratório externo">
+        <div className="viz-grid-2">
+          <Campo label="Laboratório" valor={dados.laboratorio} />
+          <Campo label="Responsável no laboratório" valor={dados.responsavelExterno} />
+          <Campo label="Nº do Certificado" valor={dados.numeroCertificado} />
+          <Campo label="Data da Calibração" valor={dados.dataCalibracao} />
+          <Campo label="Validade" valor={dados.dataProxCalibracao} />
+          <Campo label="Conclusão" valor={dados.statusConclusao ? STATUS_LABEL[dados.statusConclusao] : 'Não informada'} />
+          <Campo label="PDF original" valor={dados.pdfExternoRef?.path ? (dados.pdfExternoNome || 'anexado') : 'não anexado'} />
+          <Campo label="SHA-256 do PDF" valor={dados.pdfExternoSha256} />
+        </div>
+      </Secao>
+      <Secao titulo="Instrumento">
+        <div className="viz-grid-2">
+          <Campo label="Tipo" valor={definicaoDe(dados.tipo).rotulo} />
+          <Campo label="Identificação" valor={dados.instrumento} />
+          <Campo label="Fabricante" valor={dados.fabricante} />
+          <Campo label="Modelo" valor={dados.modelo} />
+          <Campo label="Nº de série" valor={dados.serie} />
+          <Campo label="Faixa" valor={dados.referencia} />
+          <Campo label="Unidade" valor={dados.unidade} />
+        </div>
+      </Secao>
+      <Secao titulo="Observações">
+        <div className="viz-grid-2">
+          <Campo label="Observações" valor={dados.observacoes || '—'} />
+        </div>
+      </Secao>
+    </div>
+  );
+}
+
 export default function VisualizadorCalibracao({ dados }: { dados: DadosCalibracao }) {
+  if (ehTerceiro(dados)) return <VisualizadorTerceiro dados={dados} />;
   const isMano = dados.tipo === 'manometro';
   const mano = dados as DadosManometro;
   const psv = dados as DadosPSV;
@@ -69,9 +107,28 @@ export default function VisualizadorCalibracao({ dados }: { dados: DadosCalibrac
           <Campo label="Nome / Item" valor={dados.nome} />
           <Campo label="Nº do Certificado" valor={dados.numeroCertificado} />
           <Campo label="Data de Emissão" valor={dados.dataEmissao} />
-          <Campo label="Tipo" valor={isMano ? 'Manômetro' : 'Válvula de Segurança (PSV)'} />
+          <Campo label="Tipo" valor={definicaoDe(dados.tipo).rotulo} />
+          <Campo label="Origem" valor={rotuloOrigem(dados)} />
+          <Campo
+            label="Situação"
+            valor={ehInterna(dados) ? (dados.status === 'emitido' ? 'Emitido' : dados.status === 'rascunho' ? 'Rascunho' : 'Registro anterior à emissão') : ''}
+          />
         </div>
       </Secao>
+
+      {ehInterna(dados) && (
+        <Secao titulo="Responsável pela calibração">
+          <div className="viz-grid-2">
+            <Campo label="Nome" valor={dados.responsavel?.nome || 'Não definido'} />
+            <Campo label="Função" valor={dados.responsavel?.funcao} />
+            <Campo label="Registro profissional" valor={dados.responsavel?.registro} />
+            <Campo
+              label="Assinatura"
+              valor={dados.responsavel ? (dados.responsavel.assinaturaRef?.path || dados.responsavel.assinatura ? 'cadastrada' : 'sem imagem no cadastro') : ''}
+            />
+          </div>
+        </Secao>
+      )}
 
       <Secao titulo="1. Cliente / Solicitante">
         <div className="viz-grid-2">

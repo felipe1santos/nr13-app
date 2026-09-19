@@ -906,3 +906,40 @@
   vertical-align: middle;
 }
 .cal-secao-fonte.execucao { background: #ecfdf5; color: #047857; }
+
+/* ── Fase 2 (C.2/C.3) · rascunho → emissão ─────────────────────────────── */
+.cal-status-cert {
+  display: inline-block;
+  margin-left: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: middle;
+  background: #f3f4f6;
+  color: #374151;
+}
+.cal-status-cert.rascunho { background: #fffbeb; color: #92400e; }
+.cal-status-cert.emitido { background: #eff6ff; color: #1d4ed8; }
+.cal-status-cert.externo { background: #f5f3ff; color: #6d28d9; }
+.cal-emissao { margin-top: 10px; }
+.cal-emissao-linha { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+.cal-emissao-resp { flex: 1 1 240px; min-width: 0; }
+.cal-emissao-resp > span { display: block; font-size: 11px; font-weight: 700; margin-bottom: 4px; }
+.cal-emissao-resp select { width: 100%; min-height: 44px; }
+.cal-emissao-btn { min-height: 44px; }
+.cal-emissao-ajuda { margin: 8px 0; font-size: 12px; color: var(--muted, #6b7280); }
+.cal-emissao-erro {
+  margin-top: 8px;
+  padding: 8px 11px;
+  border-radius: 8px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  font-size: 12.5px;
+}
+.cal-emissao-erro ul { margin: 4px 0 0 18px; padding: 0; }
+.cal-emissao-selo { margin: 10px 0; font-size: 12px; color: #1d4ed8; overflow-wrap: anywhere; }
+.cal-preview-arquivo { margin-top: 10px; }

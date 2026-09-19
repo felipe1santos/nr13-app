@@ -12,7 +12,9 @@ import { listarContainers, carregarContainer } from '../../features/inspecoes/in
 import { fotoDoComponente, listarComponentes } from '../../features/calibracoes/componentesService';
 import FotoImg from '../../components/FotoImg';
 import VisualizadorPdf, { baixarPdfArquivado, imprimirPdfArquivado } from '../../components/VisualizadorPdf';
-import { artefatoDe } from '../../features/relatorios/artefatoRelatorio';
+import { artefatoDe, type PdfArtefato } from '../../features/relatorios/artefatoRelatorio';
+import { artefatoDaCalibracao } from '../../features/calibracoes/artefatoCalibracao';
+import { definicaoDe } from '../../features/calibracoes/instrumentos';
 import type { FotoArmazenada } from '../../services/fotos';
 import { listarCalibracoes, arquivoCalibracao, hidratarItemLocal } from '../../features/calibracoes/calibracaoService';
 import type { DadosCalibracao } from '../../features/calibracoes/tipos';
@@ -69,6 +71,8 @@ function IframeDocumento({ src, titulo }: { src: string; titulo: string }) {
 interface DocumentoSimples {
   titulo: string;
   paginas: string[]; // URLs prontas do iframe (já com ?tag=...&page=...)
+  /** Certificado emitido / PDF de laboratório: serve o ARQUIVO, sem template. */
+  artefato?: PdfArtefato;
 }
 
 // Detalhe do ativo no portal: resumo à esquerda, abas à direita (Documentação /
@@ -254,10 +258,20 @@ export default function PortalAtivo() {
   // chave que o portal_cliente não entrega (não termina em _<TAG>) — hidratamos do
   // objeto que já veio dentro de nr13_calibracoes_<TAG>.
   function abrirCertificado(cal: DadosCalibracao) {
+    const titulo = `Certificado de Calibração — ${cal.nome || cal.instrumento}`;
+    // Emitido ou de laboratório: o arquivo. Nunca remontar um certificado
+    // emitido, e nunca desenhar folha nossa para uma calibração de terceiro.
+    const arte = artefatoDaCalibracao(cal);
+    if (arte) {
+      setDocumentoSimples({ titulo, paginas: [], artefato: arte });
+      return;
+    }
+    const arquivo = arquivoCalibracao(cal);
+    if (!arquivo) return;
     hidratarItemLocal(cal);
     setDocumentoSimples({
-      titulo: `Certificado de Calibração — ${cal.nome || cal.instrumento}`,
-      paginas: [`/arquivos-inspecao/${arquivoCalibracao(cal.tipo)}?calibId=${cal.id}&tag=${encodeURIComponent(tag)}&page=1`],
+      titulo,
+      paginas: [`/arquivos-inspecao/${arquivo}?calibId=${cal.id}&tag=${encodeURIComponent(tag)}&page=1`],
     });
   }
 
@@ -295,7 +309,7 @@ export default function PortalAtivo() {
       // somente-leitura, trocar "Aprovado" por "Reprovado" e imprimir um
       // documento falso com a logo e a assinatura do engenheiro. Servindo o
       // arquivo não há DOM a adulterar.
-      const arte = artefatoDe(relatorioAberto);
+      const arte = artefatoDe(relatorioAberto) ?? documentoSimples?.artefato ?? null;
       if (arte) {
         await imprimirPdfArquivado(arte);
         return;
@@ -316,6 +330,10 @@ export default function PortalAtivo() {
       const arte = artefatoDe(relatorioAberto);
       if (arte && relatorioAberto) {
         await baixarPdfArquivado(arte, relatorioAberto.nome);
+        return;
+      }
+      if (documentoSimples?.artefato) {
+        await baixarPdfArquivado(documentoSimples.artefato, `${titulo.replace(/s+/g, '_')}_${tag}.pdf`);
         return;
       }
       // Certificados de rastreabilidade só acompanham RELATÓRIO (documentos simples saem sem).
@@ -378,7 +396,9 @@ export default function PortalAtivo() {
           </div>
         </div>
         <h2 style={{ margin: '12px 0' }}>{tituloAtivo}</h2>
-        {artefatoDe(relatorioAberto) ? (
+        {documentoSimples?.artefato && !relatorioAberto ? (
+          <VisualizadorPdf artefato={documentoSimples.artefato} nomeArquivo={tituloAtivo} />
+        ) : artefatoDe(relatorioAberto) ? (
           // Relatório finalizado: o cliente vê o ARQUIVO da emissão. Nenhum
           // template é montado, então não há DOM para o DevTools alterar antes
           // de imprimir ou baixar.
@@ -630,7 +650,7 @@ export default function PortalAtivo() {
                       <div key={c.id} className="portal-acessorio">
                         <div className="cal-comp-item">
                           <div className="cal-comp-foto">
-                            {fotoDoComponente(c) ? <FotoImg foto={fotoDoComponente(c)} alt={c.nome} placeholder="" variante="thumb" /> : <Icone nome={c.tipo === 'psv' ? 'valvula-psv' : 'manometro'} tam={26} />}
+                            {fotoDoComponente(c) ? <FotoImg foto={fotoDoComponente(c)} alt={c.nome} placeholder="" variante="thumb" /> : <Icone nome={definicaoDe(c.tipo).icone} tam={26} />}
                           </div>
                           <div className="cal-comp-nome">
                             <strong>{c.nome}</strong>
@@ -679,7 +699,7 @@ export default function PortalAtivo() {
                     {calibracoesCronologicas.map(({ cal, acessorio }) => (
                       <li key={cal.id}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <Icone nome={cal.tipo === 'psv' ? 'valvula-psv' : 'manometro'} tam={18} style={{ color: '#1e3a8a' }} />
+                          <Icone nome={definicaoDe(cal.tipo).icone} tam={18} style={{ color: '#1e3a8a' }} />
                           <div>
                             <b>{acessorio}</b>
                             <span className="portal-doc-meta">

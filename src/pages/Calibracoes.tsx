@@ -13,7 +13,26 @@ import {
   listarCalibracoes,
   salvarCalibracao,
 } from '../features/calibracoes/calibracaoService';
-import type { DadosCalibracao, DadosManometro, DadosPSV } from '../features/calibracoes/tipos';
+import {
+  ehEmitido,
+  ehInterna,
+  ehTerceiro,
+  rotuloOrigem,
+  type DadosCalibracao,
+  type DadosManometro,
+  type DadosPSV,
+} from '../features/calibracoes/tipos';
+import { definicaoDe } from '../features/calibracoes/instrumentos';
+import {
+  avisosEmissao,
+  listarResponsaveis,
+  pendenciasEmissao,
+  snapshotResponsavel,
+} from '../features/calibracoes/responsavelCalibracao';
+import { emitirCertificado } from '../features/calibracoes/emissaoCertificado';
+import { artefatoDaCalibracao, nomeArquivoCalibracao } from '../features/calibracoes/artefatoCalibracao';
+import ModalCalibracaoTerceiro from '../features/calibracoes/ModalCalibracaoTerceiro';
+import VisualizadorPdf, { baixarPdfArquivado, imprimirPdfArquivado } from '../components/VisualizadorPdf';
 import ModalResultados from '../features/calibracoes/ModalResultados';
 import ModalNovoLote from '../features/calibracoes/ModalNovoLote';
 import ModalDetalhesLote from '../features/calibracoes/ModalDetalhesLote';
@@ -119,6 +138,13 @@ interface FormDados {
   fechamento: string;
   incerteza: string;
   coef: string;
+  /**
+   * Fase 2 (C.2) · id em `nr13_lista_phs` do RESPONSÁVEL PELA CALIBRAÇÃO. O
+   * registro guarda o SNAPSHOT (nome, função, registro, rubrica), não o id.
+   */
+  responsavelId: string;
+  /** Fase 2 (C.3) · esta calibração é a REVISÃO (correção) daquela emitida. */
+  substitui?: string;
 }
 
 /**
@@ -172,6 +198,7 @@ function formPadrao(tipo: 'manometro' | 'psv' = 'manometro', tag = ''): FormDado
     fechamento: '',
     incerteza: '',
     coef: '',
+    responsavelId: '',
   };
 }
 
@@ -205,6 +232,12 @@ function converterForm(form: FormDados, tag: string, id: string): DadosCalibraca
     // só. O texto padrão é o MESMO do seletor da folha.
     textoMotivo: form.textoMotivo.trim() || motivoPadrao(form.statusConclusao),
     unidade: form.unidade,
+    // Fase 2 (C.2/C.3) · toda calibração interna nova nasce RASCUNHO, com o
+    // responsável congelado. Emitir é um passo à parte (`emitirCertificado`).
+    origem: 'interna' as const,
+    status: 'rascunho' as const,
+    ...(responsavelDoForm(form) ? { responsavel: responsavelDoForm(form)! } : {}),
+    ...(form.substitui ? { substitui: form.substitui } : {}),
   };
 
   if (form.tipo === 'manometro') {
@@ -230,6 +263,67 @@ function converterForm(form: FormDados, tag: string, id: string): DadosCalibraca
   } as DadosPSV;
 }
 
+function responsavelDoForm(form: FormDados) {
+  const f = listarResponsaveis().find((x) => x.id === form.responsavelId);
+  return f ? snapshotResponsavel(f) : null;
+}
+
+/**
+ * Fase 2 (C.3) · o formulário de uma REVISÃO: parte do certificado emitido, que
+ * continua intacto. Só o que é da rodada vem copiado; o nº ganha sufixo de
+ * revisão e a data de emissão volta a ser hoje.
+ */
+function formDeRevisao(cal: DadosManometro | DadosPSV, tag: string): FormDados {
+  const base = formPadrao(cal.tipo, tag);
+  const n = (cal.numeroCertificado || 'CERT').replace(/-R\d+$/, '');
+  const rev = Number(/-R(\d+)$/.exec(cal.numeroCertificado || '')?.[1] ?? 0) + 1;
+  const comum = {
+    ...base,
+    nome: cal.nome,
+    numeroCertificado: `${n}-R${rev}`,
+    empresa: cal.empresa,
+    endereco: cal.endereco,
+    instrumento: cal.instrumento,
+    fabricante: cal.fabricante,
+    modelo: cal.modelo,
+    serie: cal.serie,
+    referencia: cal.referencia,
+    dataCalibracao: cal.dataCalibracao,
+    dataProxCalibracao: cal.dataProxCalibracao,
+    tempAr: cal.tempAr,
+    umidade: cal.umidade,
+    local: cal.local,
+    padraoInst: cal.padraoInst,
+    padraoSerie: cal.padraoSerie,
+    padraoCert: cal.padraoCert,
+    padraoVal: cal.padraoVal,
+    statusConclusao: cal.statusConclusao,
+    textoMotivo: cal.textoMotivo,
+    unidade: cal.unidade ?? base.unidade,
+    responsavelId: cal.responsavel?.id ?? '',
+    substitui: cal.id,
+  };
+  if (cal.tipo === 'manometro') {
+    return {
+      ...comum,
+      crescente: cal.crescente.map((r) => ({ vc: r.vc, vi: r.vi })),
+      incertezaC: cal.incertezaC,
+      coefC: cal.coefC,
+      decrescente: cal.decrescente.map((r) => ({ vc: r.vc, vi: r.vi })),
+      incertezaD: cal.incertezaD,
+      coefD: cal.coefD,
+    };
+  }
+  return {
+    ...comum,
+    pressaoAbertura: cal.pressaoAbertura,
+    pressaoAjuste: cal.pressaoAjuste,
+    fechamento: cal.fechamento,
+    incerteza: cal.incerteza,
+    coef: cal.coef,
+  };
+}
+
 function parseDateBR(d: string): number {
   const p = d.split('/');
   if (p.length !== 3) return 0;
@@ -245,6 +339,15 @@ export default function Calibracoes() {
   const [form, setForm] = useState<FormDados>(formPadrao());
   const [confirmandoId, setConfirmandoId] = useState<string | null>(null);
   const [versao, setVersao] = useState(0);
+  /** Fase 2 (D) · o acessório para o qual se registra certificado de laboratório. */
+  const [terceiroPara, setTerceiroPara] = useState<{ comp: ComponenteCal; loteId?: string; dataLote?: string } | null>(null);
+  /** Fase 2 (C.3) · emissão em curso / o que a recusou. */
+  const [emitindo, setEmitindo] = useState(false);
+  const [erroEmissao, setErroEmissao] = useState<string[] | null>(null);
+  const responsaveis = listarResponsaveis();
+  // Emitido ou de laboratório: a tela serve o ARQUIVO, sem palco.
+  const artefatoAtual = artefatoDaCalibracao(calAtual);
+  const arquivoAtual = calAtual ? arquivoCalibracao(calAtual) : null;
 
   // Palco: a folha CERTIFICADO-CAL-* lê `nr13_calibracao_item_<id>` e
   // `nr13_minha_empresa` do localStorage no DOMContentLoaded. Esta tela montava o
@@ -253,7 +356,7 @@ export default function Calibracoes() {
   // visualizador: nas outras não há iframe e segurar a trava do palco à toa
   // impediria o relatório de abrir em seguida.
   const palco = usePalcoDocumento(tag, `cal-${calAtual?.id ?? 'nenhuma'}-${versao}`, {
-    pular: tela !== 'visualizador',
+    pular: tela !== 'visualizador' || !!artefatoAtual || !arquivoAtual,
   });
   /**
    * 9F.3.5 · qual lista responde. Lido UMA vez, no primeiro render: trocar a
@@ -369,7 +472,7 @@ export default function Calibracoes() {
   // Calibração SEMPRE parte de um componente cadastrado dentro de um lote:
   // pré-preenche o formulário com os dados do instrumento e vincula os ids.
   function novaForm(
-    tipo: 'manometro' | 'psv',
+    tipo: DadosCalibracao['tipo'],
     comp?: ComponenteCal,
     loteId?: string,
     /**
@@ -383,7 +486,13 @@ export default function Calibracoes() {
      */
     dataLote?: string,
   ) {
-    const base = formPadrao(tipo, tag);
+    // Instrumento sem folha nossa: a calibração é de laboratório externo.
+    const modelo = definicaoDe(tipo).modeloInterno;
+    if (!modelo) {
+      if (comp) setTerceiroPara({ comp, loteId, dataLote });
+      return;
+    }
+    const base = formPadrao(modelo, tag);
     if (dataLote && dataLote.trim() !== '') {
       base.dataCalibracao = dataLote;
       base.dataProxCalibracao = proximaCalibracao(dataLote);
@@ -431,8 +540,14 @@ export default function Calibracoes() {
     setTela('verDados');
   }
 
-  function excluir(id: string) {
-    excluirCalibracao(tag, id);
+  async function excluir(id: string) {
+    try {
+      await excluirCalibracao(tag, id);
+    } catch (e) {
+      mostrarToast(e instanceof Error ? e.message : 'Não foi possível excluir.');
+      setConfirmandoId(null);
+      return;
+    }
     const lista = listarCalibracoes(tag);
     setCals([...lista].sort((a, b) => parseDateBR(b.dataCalibracao || b.criadoEm) - parseDateBR(a.dataCalibracao || a.criadoEm)));
     setConfirmandoId(null);
@@ -499,6 +614,14 @@ export default function Calibracoes() {
    * visor dentro do modal do lote — por isso o seletor é o do visor.
    */
   async function baixarPdfCalibracao(cal: DadosCalibracao) {
+    // Emitido / laboratório: o ARQUIVO. Nunca uma regeração.
+    const arte = artefatoDaCalibracao(cal);
+    if (arte) {
+      if (!(await baixarPdfArquivado(arte, nomeArquivoCalibracao(cal)))) {
+        mostrarToast('Arquivo indisponível agora — tente com conexão.');
+      }
+      return;
+    }
     const nome = `${cal.numeroCertificado || 'certificado'}-${cal.nome || cal.tipo}`.replace(
       /[^\w.-]+/g,
       '-',
@@ -511,22 +634,95 @@ export default function Calibracoes() {
     window.setTimeout(() => setToast(''), 2600);
   }
 
-  function salvar(voltarParaLista = false) {
+  async function salvar(voltarParaLista = false) {
     const id = `cal-${Date.now()}`;
     const dados: DadosCalibracao = { ...converterForm(form, tag, id), ...(vinculoCalibracao.current ?? {}) };
-    salvarCalibracao(tag, dados);
+    try {
+      await salvarCalibracao(tag, dados);
+    } catch (e) {
+      mostrarToast(e instanceof Error ? e.message : 'Não foi possível salvar.');
+      return;
+    }
     const lista = listarCalibracoes(tag);
     setCals([...lista].sort((a, b) => parseDateBR(b.dataCalibracao || b.criadoEm) - parseDateBR(a.dataCalibracao || a.criadoEm)));
     if (voltarParaLista) {
       // confirma o salvamento, fecha o formulário e volta à lista — usuário adiciona outro manualmente
-      const nome = dados.nome || (dados.tipo === 'manometro' ? 'Manômetro' : 'PSV');
-      mostrarToast(`✓ "${nome}" salvo com sucesso`);
+      const nome = dados.nome || definicaoDe(dados.tipo).curto;
+      mostrarToast(`✓ "${nome}" salvo como rascunho — revise e emita o certificado`);
       setTela('historico');
     } else {
       setCalAtual(dados);
+      setErroEmissao(null);
       setVersao((v) => v + 1);
       setTela('visualizador');
     }
+  }
+
+  function recarregarLista() {
+    const lista = listarCalibracoes(tag);
+    setCals([...lista].sort((a, b) => parseDateBR(b.dataCalibracao || b.criadoEm) - parseDateBR(a.dataCalibracao || a.criadoEm)));
+    return lista;
+  }
+
+  /**
+   * Fase 2 (C.2) · trocar o responsável de um RASCUNHO direto na revisão. O
+   * rascunho ainda é editável; o emitido, não (`salvarCalibracao` recusa).
+   */
+  async function definirResponsavel(idFunc: string) {
+    if (!calAtual || !ehInterna(calAtual) || calAtual.status !== 'rascunho') return;
+    const f = responsaveis.find((x) => x.id === idFunc);
+    const novo = { ...calAtual };
+    if (f) novo.responsavel = snapshotResponsavel(f);
+    else delete novo.responsavel;
+    try {
+      await salvarCalibracao(tag, novo);
+      setCalAtual(novo);
+      recarregarLista();
+      setErroEmissao(null);
+      setVersao((v) => v + 1);
+    } catch (e) {
+      mostrarToast(e instanceof Error ? e.message : 'Não foi possível salvar.');
+    }
+  }
+
+  /** Fase 2 (C.3) · EMITIR: gera, arquiva (SHA-256 + bucket) e só então carimba. */
+  async function emitir() {
+    if (!calAtual || emitindo) return;
+    const faltas = pendenciasEmissao(calAtual);
+    if (faltas.length) {
+      setErroEmissao(faltas);
+      return;
+    }
+    setEmitindo(true);
+    setErroEmissao(null);
+    try {
+      const emitido = await emitirCertificado(tag, calAtual);
+      setCalAtual(emitido);
+      recarregarLista();
+      setVersao((v) => v + 1);
+      mostrarToast(
+        emitido.emissao?.pendente
+          ? '✓ Certificado emitido — o arquivo sobe quando a conexão voltar'
+          : '✓ Certificado emitido e arquivado',
+      );
+    } catch (e) {
+      const motivos = (e as { motivos?: string[] }).motivos;
+      setErroEmissao(motivos ?? [e instanceof Error ? e.message : 'Falha ao emitir o certificado.']);
+    } finally {
+      setEmitindo(false);
+    }
+  }
+
+  /** Fase 2 (C.3) · corrigir um emitido = abrir uma REVISÃO (registro novo). */
+  function abrirRevisao(cal: DadosCalibracao) {
+    if (!ehInterna(cal)) return;
+    const f = formDeRevisao(cal, tag);
+    vinculoCalibracao.current =
+      cal.componenteId && cal.loteId ? { componenteId: cal.componenteId, loteId: cal.loteId } : null;
+    setContextoForm(null);
+    setEditandoAcessorio(false);
+    setForm(f);
+    setTela('formulario');
   }
 
 
@@ -620,13 +816,13 @@ export default function Calibracoes() {
                       {fotoDoComponente(c) ? (
                         <FotoImg foto={fotoDoComponente(c)} alt="" placeholder="" variante="thumb" />
                       ) : (
-                        <Icone nome={c.tipo === 'psv' ? 'valvula-psv' : 'manometro'} tam={16} />
+                        <Icone nome={definicaoDe(c.tipo).icone} tam={16} />
                       )}
                     </span>
                     <span className="cal-acess-txt">
                       <strong>{c.nome}</strong>
                       <em>
-                        {c.tipo === 'psv' ? 'Válvula PSV' : 'Manômetro'}
+                        {definicaoDe(c.tipo).curto}
                         {c.serie ? ` · S/N ${c.serie}` : ''}
                       </em>
                     </span>
@@ -813,6 +1009,21 @@ export default function Calibracoes() {
             />
           )}
 
+          {terceiroPara && (
+            <ModalCalibracaoTerceiro
+              tag={tag}
+              componente={terceiroPara.comp}
+              loteId={terceiroPara.loteId}
+              dataLote={terceiroPara.dataLote}
+              aoFechar={() => setTerceiroPara(null)}
+              aoSalvar={(cal) => {
+                recarregarLista();
+                setTerceiroPara(null);
+                mostrarToast(`✓ Certificado ${cal.numeroCertificado} de ${cal.laboratorio} registrado`);
+              }}
+            />
+          )}
+
           {loteAbertoObj && (
             <ModalDetalhesLote
               lote={loteAbertoObj}
@@ -823,6 +1034,13 @@ export default function Calibracoes() {
               aoCalibrar={(c) => {
                 setLoteAberto(null);
                 novaForm(c.tipo, c, loteAbertoObj.id, dataDoLote(loteAbertoObj));
+              }}
+              aoRegistrarTerceiro={(c) => {
+                setTerceiroPara({ comp: c, loteId: loteAbertoObj.id, dataLote: dataDoLote(loteAbertoObj) });
+              }}
+              aoRevisar={(cal) => {
+                setLoteAberto(null);
+                abrirVisualizador(cal);
               }}
               aoVerDados={(cal) => {
                 setLoteAberto(null);
@@ -854,7 +1072,9 @@ export default function Calibracoes() {
             <strong>{tag}</strong>
           </div>
           <div className="meta-card-header" style={{ marginBottom: 12 }}>
-            <h3>Nova Calibração — {form.tipo === 'manometro' ? 'Manômetro' : 'Válvula de Segurança (PSV)'}</h3>
+            <h3>
+              {form.substitui ? 'Revisão do certificado' : 'Nova Calibração'} — {definicaoDe(form.tipo).rotulo}
+            </h3>
           </div>
           {contextoForm && (
             <div className="cal-ctx" role="note">
@@ -1084,6 +1304,36 @@ export default function Calibracoes() {
             )}
           </div>
 
+          {/* Fase 2 (C.2) · quem responde pela calibração. Sem ele o rascunho
+              salva, mas NÃO emite — e a folha mostra a falta, nunca um nome
+              inventado. A fonte é o cadastro de Funcionários. */}
+          <div className="cal-form-secao">
+            <div className="cal-form-secao-titulo">Responsável pela Calibração</div>
+            <div className="cal-form-grid">
+              <div className="cal-campo">
+                <label>Responsável *</label>
+                <select value={form.responsavelId} onChange={(e) => set('responsavelId', e.target.value)}>
+                  <option value="">Selecione…</option>
+                  {responsaveis.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.nome}
+                      {r.crea ? ` — ${r.crea}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            {responsaveis.length === 0 && (
+              <p className="cal-auto-aviso cal-auto-aviso-falta">
+                <Icone nome="alerttri" tam={13} />
+                <span>
+                  Nenhum funcionário cadastrado. Cadastre em <strong>Funcionários</strong> (nome, CREA e
+                  assinatura) para poder emitir o certificado.
+                </span>
+              </p>
+            )}
+          </div>
+
           {/* Conclusão */}
           <div className="cal-form-secao">
             <div className="cal-form-secao-titulo">Conclusão Técnica</div>
@@ -1107,11 +1357,11 @@ export default function Calibracoes() {
             <button type="button" className="btn-secundario" onClick={() => setTela('historico')}>
               Cancelar
             </button>
-            <button type="button" className="btn-secundario" onClick={() => salvar(true)}>
-              Salvar e Voltar à Lista
+            <button type="button" className="btn-secundario" onClick={() => void salvar(true)}>
+              Salvar rascunho
             </button>
-            <button type="button" className="btn-primario" onClick={() => salvar(false)}>
-              Salvar e Visualizar
+            <button type="button" className="btn-primario" onClick={() => void salvar(false)}>
+              Salvar e revisar para emissão
             </button>
           </div>
 
@@ -1155,20 +1405,50 @@ export default function Calibracoes() {
             </div>
             <div className="meta-card-header">
               <h3>
-                {calAtual.tipo === 'manometro' ? 'Certificado de Calibração — Manômetro' : 'Certificado de Calibração — PSV'}
+                {ehTerceiro(calAtual) ? 'Certificado do laboratório' : 'Certificado de Calibração'} —{' '}
+                {definicaoDe(calAtual.tipo).rotulo}
+                <span className={`cal-status-cert ${ehTerceiro(calAtual) ? 'externo' : ehEmitido(calAtual) ? 'emitido' : ehInterna(calAtual) && calAtual.status === 'rascunho' ? 'rascunho' : 'legado'}`}>
+                  {ehTerceiro(calAtual)
+                    ? 'Laboratório externo'
+                    : ehEmitido(calAtual)
+                      ? 'Emitido'
+                      : ehInterna(calAtual) && calAtual.status === 'rascunho'
+                        ? 'Rascunho'
+                        : rotuloOrigem(calAtual)}
+                </span>
               </h3>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <button type="button" className="btn-secundario" onClick={() => abrirVerDados(calAtual)}>
                   Ver preenchido
                 </button>
-                <button
-                  type="button"
-                  className={`btn-secundario${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
-                  onClick={() => void imprimirRelatorio('.cal-preview')}
-                >
-                  {documentosBloqueados() && <Icone nome="cadeado" tam={13} />} Imprimir
-                </button>
-                {confirmandoId === calAtual.id ? (
+                {artefatoAtual ? (
+                  <>
+                    <button type="button" className="btn-secundario" onClick={() => void baixarPdfCalibracao(calAtual)}>
+                      <Icone nome="download" tam={13} /> Baixar PDF
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn-secundario${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
+                      onClick={() => void imprimirPdfArquivado(artefatoAtual)}
+                    >
+                      Imprimir
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    className={`btn-secundario${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
+                    onClick={() => void imprimirRelatorio('.cal-preview')}
+                  >
+                    {documentosBloqueados() && <Icone nome="cadeado" tam={13} />} Imprimir
+                  </button>
+                )}
+                {ehInterna(calAtual) && calAtual.status !== 'rascunho' && (
+                  <button type="button" className="btn-secundario" onClick={() => abrirRevisao(calAtual)}>
+                    <Icone nome="pencil" tam={13} /> {ehEmitido(calAtual) ? 'Corrigir (nova revisão)' : 'Criar revisão para emitir'}
+                  </button>
+                )}
+                {ehEmitido(calAtual) ? null : confirmandoId === calAtual.id ? (
                   <>
                     <button type="button" className="btn-remover" onClick={() => excluir(calAtual.id)}>
                       Confirmar Exclusão
@@ -1186,19 +1466,93 @@ export default function Calibracoes() {
             </div>
           </div>
 
-          {palco.estado !== 'pronto' && <RecusaPalco estado={palco.estado} falha={palco.falha} />}
+          {/* Fase 2 (C.3) · RASCUNHO → revisão → EMITIR. */}
+          {ehInterna(calAtual) && calAtual.status === 'rascunho' && (
+            <div className="bloco-dados cal-emissao">
+              <div className="cal-emissao-linha">
+                <label className="cal-campo cal-emissao-resp">
+                  <span>Responsável pela calibração</span>
+                  <select
+                    value={calAtual.responsavel?.id ?? ''}
+                    onChange={(e) => void definirResponsavel(e.target.value)}
+                    disabled={emitindo}
+                  >
+                    <option value="">Selecione…</option>
+                    {responsaveis.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.nome}
+                        {r.crea ? ` — ${r.crea}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  className={`btn-primario cal-emissao-btn${emitindo ? ' is-loading' : ''}`}
+                  onClick={() => void emitir()}
+                  disabled={emitindo}
+                >
+                  <Icone nome="checkcircle" tam={14} /> {emitindo ? 'Emitindo…' : 'Emitir certificado'}
+                </button>
+              </div>
+              <p className="cal-emissao-ajuda">
+                Emitir gera o PDF definitivo, calcula o SHA-256 e arquiva o arquivo. Depois disso o
+                certificado não muda — corrigir exige uma revisão.
+              </p>
+              {avisosEmissao(calAtual).map((a) => (
+                <p key={a} className="cal-auto-aviso cal-auto-aviso-falta">
+                  <Icone nome="alerttri" tam={13} />
+                  <span>{a}</span>
+                </p>
+              ))}
+              {erroEmissao && (
+                <div className="cal-emissao-erro" role="alert">
+                  <strong>Não emitido:</strong>
+                  <ul>
+                    {erroEmissao.map((m) => (
+                      <li key={m}>{m}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+          {ehEmitido(calAtual) && ehInterna(calAtual) && calAtual.emissao && (
+            <p className="cal-emissao-selo">
+              Emitido em {new Date(calAtual.emissao.emitidoEm).toLocaleString('pt-BR')} · SHA-256{' '}
+              <code>{calAtual.emissao.sha256.slice(0, 16)}…</code>
+              {calAtual.emissao.pendente ? ' · arquivo aguardando conexão para subir' : ''}
+            </p>
+          )}
 
-          <div className="cal-preview">
-            {palco.estado === 'pronto' && (
-              <PaginaA4 key={`${calAtual.id}-${versao}`}>
-                <iframe
-                  src={`/arquivos-inspecao/${arquivoCalibracao(calAtual.tipo)}?calibId=${calAtual.id}&tag=${encodeURIComponent(tag)}&page=1${palco.paramsIframe}`}
-                  scrolling="no"
-                  title="Certificado de Calibração"
-                />
-              </PaginaA4>
-            )}
-          </div>
+          {artefatoAtual ? (
+            <div className="cal-preview-arquivo">
+              <VisualizadorPdf artefato={artefatoAtual} nomeArquivo={nomeArquivoCalibracao(calAtual)} />
+            </div>
+          ) : !arquivoAtual ? (
+            <p className="cal-auto-aviso cal-auto-aviso-falta">
+              <Icone nome="alerttri" tam={13} />
+              <span>
+                Esta calibração não tem folha de certificado nem PDF anexado — o relatório cita os
+                dados do registro.
+              </span>
+            </p>
+          ) : (
+            <>
+              {palco.estado !== 'pronto' && <RecusaPalco estado={palco.estado} falha={palco.falha} />}
+              <div className="cal-preview">
+                {palco.estado === 'pronto' && (
+                  <PaginaA4 key={`${calAtual.id}-${versao}`}>
+                    <iframe
+                      src={`/arquivos-inspecao/${arquivoAtual}?calibId=${calAtual.id}&tag=${encodeURIComponent(tag)}&page=1${palco.paramsIframe}`}
+                      scrolling="no"
+                      title="Certificado de Calibração"
+                    />
+                  </PaginaA4>
+                )}
+              </div>
+            </>
+          )}
         </>
       )}
 
@@ -1215,7 +1569,7 @@ export default function Calibracoes() {
           </div>
           <div className="meta-card-header">
             <h3>
-              {calAtual.tipo === 'manometro' ? 'Calibração — Manômetro' : 'Calibração — PSV'} (dados preenchidos)
+              Calibração — {definicaoDe(calAtual.tipo).rotulo} (dados preenchidos)
             </h3>
             <button type="button" className="btn-primario" onClick={() => abrirVisualizador(calAtual)}>
               <Icone nome="eye" tam={14} /> Ver como fica o documento

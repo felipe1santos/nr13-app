@@ -51,10 +51,38 @@ export function calibIdDoDocumento(documento: string): string | null {
   return id && id.trim() !== '' ? id : null;
 }
 
+/**
+ * As chaves globais da folha AVULSA (emissão do certificado, fase 2 · C.3).
+ *
+ * Sem `nr13_relatorio_meta_atual`: ela é a meta do ÚLTIMO relatório montado
+ * nesta aba, e a folha a prefere ao registro (`certCalibracoes[calibId]`) — um
+ * certificado emitido fora de relatório sairia com o snapshot de outro
+ * documento. Sem `nr13_injecao_atual` pelo mesmo motivo (motor do avulso).
+ */
+const GLOBAIS_DA_FOLHA_AVULSA = ['nr13_minha_empresa'];
+
 /** As chaves que precisam existir no `localStorage` para a folha se preencher. */
-export function chavesDaFolha(documento: string): string[] {
+export function chavesDaFolha(documento: string, avulsa = false): string[] {
   const id = calibIdDoDocumento(documento);
-  return id ? [...GLOBAIS_DA_FOLHA, `nr13_calibracao_item_${id}`] : [...GLOBAIS_DA_FOLHA];
+  const globais = avulsa ? GLOBAIS_DA_FOLHA_AVULSA : GLOBAIS_DA_FOLHA;
+  return id ? [...globais, `nr13_calibracao_item_${id}`] : [...globais];
+}
+
+/** Opções do host. Sem nenhuma, é o comportamento do anexo ao relatório. */
+export interface OpcoesFolhaIsolada {
+  /**
+   * Folha FORA do relatório (emissão do certificado): sem `ctx=rel`, sem a
+   * meta do relatório, e com `fonte=registro` para o template ler o registro
+   * da calibração e nada mais.
+   */
+  avulsa?: boolean;
+  /**
+   * Valores que a folha TEM de ler, gravados mesmo que a chave já exista (e
+   * restaurados depois). É o que garante que a emissão imprime exatamente o
+   * registro que será carimbado como emitido — e não uma cópia que o palco de
+   * outra tela deixou no `localStorage`.
+   */
+  sobrepor?: Record<string, unknown>;
 }
 
 /**
@@ -82,13 +110,21 @@ export function chavesDaFolha(documento: string): string[] {
  * calibração) seguem cruas: hidratá-las baixaria as fotos de campo do container
  * inteiro para uma folha que não imprime nenhuma.
  */
-export async function materializarChaves(documento: string): Promise<() => void> {
+export async function materializarChaves(
+  documento: string,
+  opcoes: OpcoesFolhaIsolada = {},
+): Promise<() => void> {
   const anteriores: { chave: string; valor: string | null }[] = [];
   const itens: ItemPalco[] = [];
-  for (const chave of chavesDaFolha(documento)) {
+  const sobrepor = opcoes.sobrepor ?? {};
+  for (const chave of chavesDaFolha(documento, !!opcoes.avulsa)) {
+    if (chave in sobrepor) continue;
     if (localStorage.getItem(chave) !== null) continue;
     const dado = ler<unknown>(chave);
     if (dado === null || dado === undefined) continue;
+    itens.push({ chave, valor: JSON.stringify(dado) });
+  }
+  for (const [chave, dado] of Object.entries(sobrepor)) {
     itens.push({ chave, valor: JSON.stringify(dado) });
   }
   const comRef = itens.filter((i) => refsNoLugarDaChave(i.chave).length > 0);
@@ -101,7 +137,7 @@ export async function materializarChaves(documento: string): Promise<() => void>
     // logo é detectada depois (`logoAusenteNaFolha`).
   }
   for (const { chave, valor } of [...hidratadas, ...semRef]) {
-    anteriores.push({ chave, valor: null });
+    anteriores.push({ chave, valor: localStorage.getItem(chave) });
     try {
       localStorage.setItem(chave, valor);
     } catch {
@@ -155,8 +191,9 @@ export async function comFolhaIsolada<T>(
   documento: string,
   tag: string,
   usar: (alvo: HTMLElement, doc: Document) => Promise<T>,
+  opcoes: OpcoesFolhaIsolada = {},
 ): Promise<T> {
-  const desfazer = await materializarChaves(documento);
+  const desfazer = await materializarChaves(documento, opcoes);
   const caixa = document.createElement('div');
   caixa.setAttribute('data-nr13-host-certificado', '');
   caixa.style.cssText = `position:fixed;left:-20000px;top:0;width:${LARGURA_A4_PX}px;height:${ALTURA_A4_PX}px;overflow:hidden;z-index:-1;`;
@@ -167,7 +204,8 @@ export async function comFolhaIsolada<T>(
   const sep = documento.includes('?') ? '&' : '?';
   // `ro=1`: a folha nasce somente-leitura. Ela não deveria gravar nada, e um
   // host invisível é o último lugar onde uma escrita acidental seria notada.
-  iframe.src = `/arquivos-inspecao/${documento}${sep}tag=${encodeURIComponent(tag)}&page=1&ctx=rel&ro=1`;
+  const contexto = opcoes.avulsa ? '&fonte=registro' : '&ctx=rel';
+  iframe.src = `/arquivos-inspecao/${documento}${sep}tag=${encodeURIComponent(tag)}&page=1${contexto}&ro=1`;
 
   caixa.appendChild(iframe);
   document.body.appendChild(caixa);

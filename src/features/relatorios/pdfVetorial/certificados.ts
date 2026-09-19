@@ -7,6 +7,7 @@ import {
   normalizarCloneParaCanvas,
 } from '../printService';
 import { comFolhaIsolada, empresaTemLogo, logoAusenteNaFolha } from './hostCertificado';
+import { bytesArquivadosDaFolha } from '../../calibracoes/emissaoCertificado';
 
 /**
  * Fase 11 · os CERTIFICADOS dentro do relatório vetorial.
@@ -37,7 +38,24 @@ import { comFolhaIsolada, empresaTemLogo, logoAusenteNaFolha } from './hostCerti
  */
 
 /** A4 em pontos PostScript — a unidade do pdf-lib. */
-const A4_PT = { largura: 595.28, altura: 841.89 } as const;
+export const A4_PT = { largura: 595.28, altura: 841.89 } as const;
+
+/**
+ * A folha montada vira UMA imagem A4 (JPEG 0,95, escala 2) — o mesmo raster
+ * do anexo ao relatório e da emissão do certificado avulso (fase 2 · C.3).
+ */
+export async function folhaParaJpeg(alvo: HTMLElement): Promise<string> {
+  const canvas = await html2canvas(alvo, {
+    scale: 2,
+    useCORS: true,
+    allowTaint: true,
+    logging: false,
+    height: ALTURA_A4_PX,
+    windowHeight: ALTURA_A4_PX,
+    onclone: normalizarCloneParaCanvas,
+  });
+  return canvas.toDataURL('image/jpeg', 0.95);
+}
 
 /** Uma folha de certificado de calibração dentro da lista de documentos. */
 export function ehFolhaDeCertificado(documento: string): boolean {
@@ -101,6 +119,29 @@ export async function anexarFolhasDeCertificado(
   const esperaLogo = empresaTemLogo();
 
   for (const i of indices) {
+    // Fase 2 (C.3) · certificado EMITIDO entra com os BYTES arquivados, páginas
+    // copiadas pelo pdf-lib — nunca remontado. Arquivo indisponível ou com hash
+    // divergente vira falha NOMEADA; cair no template regeneraria o documento.
+    let arquivado: Uint8Array | null = null;
+    try {
+      arquivado = await bytesArquivadosDaFolha(documentos[i]);
+    } catch (e) {
+      console.error(`Certificado "${documentos[i]}": arquivo emitido indisponível.`, e);
+      falhas.push(documentos[i]);
+      continue;
+    }
+    if (arquivado) {
+      try {
+        const origem = await PDFDocument.load(arquivado);
+        const copiadas = await doc.copyPages(origem, origem.getPageIndices());
+        for (const p of copiadas) doc.addPage(p);
+        anexadas++;
+      } catch (e) {
+        console.error(`Certificado "${documentos[i]}": falha ao copiar o arquivo emitido.`, e);
+        falhas.push(documentos[i]);
+      }
+      continue;
+    }
     try {
       const jpgUrl = await comFolhaIsolada(documentos[i], tag, async (alvo, docFolha) => {
         await aguardarRecursosIframe(docFolha);
@@ -108,16 +149,7 @@ export async function anexarFolhasDeCertificado(
           console.error(`Certificado "${documentos[i]}": a empresa tem logo e a folha montou sem ela.`);
           semLogo.push(documentos[i]);
         }
-        const canvas = await html2canvas(alvo, {
-          scale: 2,
-          useCORS: true,
-          allowTaint: true,
-          logging: false,
-          height: ALTURA_A4_PX,
-          windowHeight: ALTURA_A4_PX,
-          onclone: normalizarCloneParaCanvas,
-        });
-        return canvas.toDataURL('image/jpeg', 0.95);
+        return folhaParaJpeg(alvo);
       });
       const jpg = await doc.embedJpg(jpgUrl);
       const pagina = doc.addPage([A4_PT.largura, A4_PT.altura]);

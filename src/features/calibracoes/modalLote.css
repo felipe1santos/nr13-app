@@ -272,3 +272,9 @@
   .mlote-visor-barra { flex-wrap: wrap; }
   .mlote-visor-cert { width: 100%; margin: 0; order: 3; }
 }
+
+/* Fase 2 (C.3/D) · situação do certificado ao lado da conclusão. */
+.mlote-selos { display: inline-flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+.mlote-selo.emitido { background: #eff6ff; color: #1d4ed8; }
+.mlote-selo.externo { background: #f5f3ff; color: #6d28d9; }
+.mlote-visor-arquivo { padding: 0; background: transparent; }

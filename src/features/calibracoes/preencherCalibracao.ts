@@ -1,4 +1,5 @@
 import { ler } from '../../services/storage';
+import { definicaoDe } from './instrumentos';
 import { padraoDoEnsaio, tipoPadraoDoCertificado } from '../relatorios/rastreabilidadeService';
 import type { ComponenteCal } from './componentesService';
 import { PONTOS_NA_FOLHA } from './resultadosCalibracao';
@@ -198,9 +199,15 @@ export function comecaEditando(valores: Record<CampoAcessorio, string>): boolean
 export const UNIDADE_PADRAO = 'kgf/cm²';
 export const UNIDADES = [UNIDADE_PADRAO, 'bar', 'MPa', 'psi'];
 
+/**
+ * A unidade do instrumento. Sem cadastro, só os de PRESSÃO recuam para
+ * kgf/cm² (o rótulo que o certificado sempre teve). Termômetro sem unidade
+ * devolve '' — o sistema não inventa °C: a tela pede.
+ */
 export function unidadeDoComponente(comp?: ComponenteCal | null): string {
   const u = (comp?.unidade ?? '').trim();
-  return u !== '' ? u : UNIDADE_PADRAO;
+  if (u !== '') return u;
+  return definicaoDe(comp?.tipo).grandeza === 'pressao' ? UNIDADE_PADRAO : '';
 }
 
 /**

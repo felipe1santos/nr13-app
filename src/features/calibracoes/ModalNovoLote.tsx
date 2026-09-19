@@ -18,6 +18,7 @@
  * aqui, de uma vez, antes de o lote existir.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { definicaoDe } from './instrumentos';
 import FeedbackSalvamento, { useSalvamento } from '../../components/FeedbackSalvamento';
 import FotoImg from '../../components/FotoImg';
 import { Icone } from '../../components/Icone';
@@ -219,13 +220,13 @@ export default function ModalNovoLote({
                         {fotoDoComponente(c) ? (
                           <FotoImg foto={fotoDoComponente(c)} alt="" placeholder="" variante="thumb" />
                         ) : (
-                          <Icone nome={c.tipo === 'psv' ? 'valvula-psv' : 'manometro'} tam={18} />
+                          <Icone nome={definicaoDe(c.tipo).icone} tam={18} />
                         )}
                       </span>
                       <span className="mlote-item-txt">
                         <strong>{c.nome}</strong>
                         <em>
-                          {c.tipo === 'psv' ? 'Válvula de segurança' : 'Manômetro'}
+                          {definicaoDe(c.tipo).rotulo}
                           {[c.fabricante, c.modelo, c.serie && `S/N ${c.serie}`]
                             .filter(Boolean)
                             .map((p) => ` · ${p}`)

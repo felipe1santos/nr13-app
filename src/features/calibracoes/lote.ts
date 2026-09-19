@@ -67,17 +67,27 @@ export function progressoLote(
   return { feitos, total: itens.length, completo: itens.length > 0 && feitos >= itens.length };
 }
 
-/** A calibração daquele componente dentro daquele lote, se já existir. */
+/**
+ * A calibração daquele componente dentro daquele lote, se já existir.
+ *
+ * Fase 2 (C.3) · com REVISÕES pode haver mais de uma: vale a que nenhuma
+ * outra substitui (`substitui`). A substituída continua existindo — é o
+ * documento que os relatórios antigos anexaram —, só deixa de ser a vigente.
+ */
 export function calibracaoDoItem(
   loteId: string,
   componenteId: string,
   calibracoes: DadosCalibracao[],
 ): DadosCalibracao | null {
-  return (
-    calibracoes.find(
-      (c) => c.loteId === loteId && (c as { componenteId?: string }).componenteId === componenteId,
-    ) ?? null
+  const doItem = calibracoes.filter(
+    (c) => c.loteId === loteId && (c as { componenteId?: string }).componenteId === componenteId,
   );
+  if (doItem.length <= 1) return doItem[0] ?? null;
+  const substituidas = new Set(
+    doItem.map((c) => (c as { substitui?: string }).substitui).filter((x): x is string => !!x),
+  );
+  const vigentes = doItem.filter((c) => !substituidas.has(c.id));
+  return vigentes[vigentes.length - 1] ?? doItem[doItem.length - 1];
 }
 
 /** `dd/mm/aaaa` → número comparável; `0` quando a data não presta. */

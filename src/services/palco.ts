@@ -702,6 +702,9 @@ const REF_RESOLVIDA_NO_LUGAR: { prefixo: string; de: string; para: string }[] = 
   // O snapshot congelado que as folhas leem com `ctx=rel` durante a montagem.
   { prefixo: 'nr13_relatorio_meta_atual', de: 'logoRef', para: 'logo' },
   { prefixo: 'nr13_relatorio_meta_atual', de: 'assinaturaRef', para: 'assinatura' },
+  // Fase 2 (C.2) · o responsável pela calibração congelado no registro
+  // (`responsavel.assinaturaRef`). A mesma regra: só preenche campo vazio.
+  { prefixo: 'nr13_calibracao_item_', de: 'assinaturaRef', para: 'assinatura' },
 ];
 
 export function refsNoLugarDaChave(chave: string): { de: string; para: string }[] {

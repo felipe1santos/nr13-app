@@ -1,5 +1,6 @@
 import { ler, salvar } from '../../services/storage';
 import { salvarArquivo, type RefFoto, type FotoArmazenada } from '../../services/fotos';
+import type { TipoInstrumento } from './instrumentos';
 
 /**
  * Componentes de calibração do equipamento (válvulas de segurança e manômetros).
@@ -11,7 +12,8 @@ import { salvarArquivo, type RefFoto, type FotoArmazenada } from '../../services
  */
 export interface ComponenteCal {
   id: string;
-  tipo: 'manometro' | 'psv';
+  /** Fase 2 (D): os seis instrumentos do quadro 7.1.1 — ver `instrumentos.ts`. */
+  tipo: TipoInstrumento;
   nome: string;          // ex.: "Manômetro principal", "PSV-01"
   fabricante?: string;
   modelo?: string;
@@ -192,7 +194,7 @@ export function validadesPorRelatorio(tag: string): Map<string, { valvula?: stri
   const mapa = new Map<string, { valvula?: string; manometro?: string }>();
   const lotes = listarLotes(tag).filter((l) => l.relatorioId);
   if (lotes.length === 0) return mapa;
-  const cals = ler<Array<{ loteId?: string; tipo: 'manometro' | 'psv'; dataProxCalibracao?: string }>>(
+  const cals = ler<Array<{ loteId?: string; tipo: TipoInstrumento; dataProxCalibracao?: string }>>(
     `nr13_calibracoes_${tag}`,
   ) ?? [];
   const ts = (d: string) => {
@@ -204,6 +206,9 @@ export function validadesPorRelatorio(tag: string): Map<string, { valvula?: stri
     const atual = mapa.get(relId) ?? {};
     for (const cal of cals) {
       if (cal.loteId !== lote.id || !cal.dataProxCalibracao) continue;
+      // O histórico tem duas colunas (válvula, manômetro): os outros instrumentos
+      // não entram nelas — pô-los em 'manômetro' afirmaria uma validade que não é dele.
+      if (cal.tipo !== 'psv' && cal.tipo !== 'manometro') continue;
       const campo = cal.tipo === 'psv' ? 'valvula' : 'manometro';
       const antiga = atual[campo];
       if (!antiga || (!isNaN(ts(cal.dataProxCalibracao)) && ts(cal.dataProxCalibracao) < ts(antiga))) {

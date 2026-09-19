@@ -204,6 +204,20 @@
             }
             [contenteditable="true"]:hover { background-color: transparent !important; outline: none !important; }
         }
+
+        /* Fase 2 (C.2) · RESPONSÁVEL PELA CALIBRAÇÃO — tabela, nunca flex/grid
+           (html2canvas). Oculto por padrão: registro legado sem responsável
+           continua com a folha exatamente como era. */
+        .cal-resp { margin: 8px auto 0 auto; border-collapse: collapse; width: 78mm; }
+        .cal-resp td { text-align: center; padding: 0; font-size: 10px; line-height: 1.35; }
+        .cal-resp .cal-resp-rubrica { height: 15mm; vertical-align: bottom; }
+        .cal-resp .cal-resp-rubrica img { max-height: 15mm; max-width: 70mm; visibility: hidden; }
+        .cal-resp .cal-resp-linha { border-top: 1px solid #000; padding-top: 3px; font-weight: 700; font-size: 10.5px; }
+        .cal-resp .cal-resp-rotulo { font-size: 8.5px; letter-spacing: .4px; color: #374151; font-weight: 700; }
+        .cal-resp-falta { color: #b91c1c !important; }
+        .cal-rascunho { display: none; position: absolute; top: 118mm; left: 0; right: 0; text-align: center;
+            font-size: 46px; font-weight: 900; color: rgba(185, 28, 28, .16); transform: rotate(-24deg);
+            letter-spacing: 6px; pointer-events: none; z-index: 900; }
     </style>
     <script src="/rel-empresa.js?v=7"></script>
 </head>
@@ -400,8 +414,16 @@
     De acordo com os resultados obtidos na calibração, o equipamento no qual este relatório faz referência está <span id="texto-status" style="color: #9CA3AF; font-weight: 900; font-size: 11px;">--</span>, pois durante o processo, o mesmo <span id="texto-motivo" contenteditable="true" spellcheck="false"></span>
 </div>
 
-
+            <!-- Fase 2 (C.2) · preenchido por calibId quando o registro tem responsável (ou é rascunho). -->
+            <table class="cal-resp" id="cal-resp" style="display:none">
+                <tr><td class="cal-resp-rubrica"><img id="cal-resp-assinatura" alt=""></td></tr>
+                <tr><td class="cal-resp-linha" id="cal-resp-nome">&nbsp;</td></tr>
+                <tr><td id="cal-resp-funcao"></td></tr>
+                <tr><td id="cal-resp-registro"></td></tr>
+                <tr><td class="cal-resp-rotulo">RESPONSÁVEL PELA CALIBRAÇÃO</td></tr>
+            </table>
         </div>
+        <div class="cal-rascunho" id="cal-rascunho">RASCUNHO — NÃO EMITIDO</div>
 
         <div class="pgr-footer-new">
             <div class="footer-line-wrapper">
@@ -435,8 +457,11 @@
                 // Snapshot congelado na meta (relatório salvo é imutável — editar a calibração
                 // depois não muda a folha). Sem snapshot (relatório antigo), lê o dado vivo.
                 var rawCal = null;
+                // fonte=registro: EMISSÃO do certificado (fase 2 · C.3). Lê só o registro da
+                // calibração — a meta é do último relatório montado nesta aba, não deste documento.
+                var fonteRegistro = new URLSearchParams(window.location.search).get('fonte') === 'registro';
                 try {
-                    var metaRel = JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || 'null');
+                    var metaRel = fonteRegistro ? null : JSON.parse(localStorage.getItem('nr13_relatorio_meta_atual') || 'null');
                     if (metaRel && metaRel.certCalibracoes && metaRel.certCalibracoes[calibId]) {
                         rawCal = JSON.stringify(metaRel.certCalibracoes[calibId]);
                     }
@@ -492,6 +517,33 @@
                         var spanMot = document.getElementById('texto-motivo');
                         if (spanSt) { spanSt.textContent = c.statusConclusao === 'aprovado' ? 'APROVADO' : 'REPROVADO'; spanSt.style.color = c.statusConclusao === 'aprovado' ? 'green' : 'red'; }
                         if (spanMot) spanMot.textContent = c.textoMotivo || '';
+                    }
+
+                    // Fase 2 (C.2) · RESPONSÁVEL PELA CALIBRAÇÃO. Legado (sem responsável e
+                    // sem status) não ganha bloco: a folha segue igual. Rascunho sem
+                    // responsável mostra a FALTA — nunca um nome ou uma rubrica inventados.
+                    (function(r, status) {
+                        var box = document.getElementById('cal-resp');
+                        if (!box || (!r && status !== 'rascunho')) return;
+                        box.style.display = '';
+                        var nome = document.getElementById('cal-resp-nome');
+                        if (!r || !r.nome) {
+                            nome.textContent = 'RESPONSÁVEL NÃO DEFINIDO';
+                            nome.className += ' cal-resp-falta';
+                        } else {
+                            nome.textContent = r.nome;
+                            document.getElementById('cal-resp-funcao').textContent = r.funcao || '';
+                            document.getElementById('cal-resp-registro').textContent = r.registro ? ('Registro profissional: ' + r.registro) : '';
+                            var img = document.getElementById('cal-resp-assinatura');
+                            if (r.assinatura && String(r.assinatura).indexOf('data:') === 0) {
+                                img.src = r.assinatura;
+                                img.style.visibility = 'visible';
+                            }
+                        }
+                    })(c.responsavel, c.status);
+                    if (c.status === 'rascunho') {
+                        var marca = document.getElementById('cal-rascunho');
+                        if (marca) marca.style.display = 'block';
                     }
                 } catch(e) {}
             })();

@@ -7,6 +7,7 @@ import type { ItemVencimento } from '../services/vencimentos';
 import { listarHistorico } from '../features/relatorios/relatoriosService';
 import { listarCalibracoes } from '../features/calibracoes/calibracaoService';
 import type { DadosCalibracao } from '../features/calibracoes/tipos';
+import { definicaoDe } from '../features/calibracoes/instrumentos';
 import type { CategoriaSalva, InfoEquipamento } from '../features/equipamento/tipos';
 import './modal-detalhe-equipamento.css';
 import { rotaEquipamento } from '../app/rotas';
@@ -139,11 +140,11 @@ export default function ModalDetalheEquipamento({ tag, itens, onClose }: Props) 
                   <div key={atual.componenteId ?? atual.id} className="det-acessorio">
                     <div className="det-ac-head">
                       <div className="det-ac-ico">
-                        <Icone nome={atual.tipo === 'psv' ? 'valvula-psv' : 'manometro'} tam={16} />
+                        <Icone nome={definicaoDe(atual.tipo).icone} tam={16} />
                       </div>
                       <div className="det-ac-main">
                         <div className="det-ac-nome">
-                          {atual.nome?.trim() || (atual.tipo === 'psv' ? 'Válvula de Segurança' : 'Manômetro')}
+                          {atual.nome?.trim() || definicaoDe(atual.tipo).rotulo}
                           {atual.serie && <span className="mono det-ac-serie"> · SN {atual.serie}</span>}
                         </div>
                         <div className="det-ac-sub">

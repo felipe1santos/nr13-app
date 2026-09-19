@@ -22,8 +22,8 @@ import { Icone } from '../../components/Icone';
 import FotoImg from '../../components/FotoImg';
 import type { ComponenteCal } from './componentesService';
 import { PONTOS_NA_FOLHA } from './resultadosCalibracao';
+import { INSTRUMENTOS, TIPOS_INSTRUMENTO, definicaoDe, unidadesDoInstrumento, type TipoInstrumento } from './instrumentos';
 import {
-  UNIDADES,
   pontosDeTexto,
   textoDePontos,
   unidadeDoComponente,
@@ -113,17 +113,39 @@ export default function ModalComponente({
 
         <div className="mcomp-corpo">
           <p className="mcomp-ajuda">
-            Cadastre a válvula ou o manômetro uma única vez. A cada inspeção, abra um lote e
+            Cadastre cada instrumento (manômetro, PSV, termômetro, vacuômetro, pressostato ou
+            transmissor) uma única vez. A cada inspeção, abra um lote e
             calibre os mesmos componentes — o histórico de cada um fica junto dele.
           </p>
 
           <div className="mcomp-grid">
             <label className="mcomp-campo">
               <span>Tipo</span>
-              <select value={c.tipo} onChange={(e) => set('tipo', e.target.value as 'manometro' | 'psv')}>
-                <option value="manometro">Manômetro</option>
-                <option value="psv">Válvula de Segurança (PSV)</option>
+              <select
+                value={c.tipo}
+                onChange={(e) => {
+                  const tipo = e.target.value as TipoInstrumento;
+                  // Trocar de pressão para temperatura invalida a unidade: ela
+                  // volta a ser escolhida, nunca convertida nem chutada.
+                  setC((atual) => ({
+                    ...atual,
+                    tipo,
+                    unidade: unidadesDoInstrumento(tipo).includes(atual.unidade ?? '') ? atual.unidade : undefined,
+                  }));
+                }}
+              >
+                {TIPOS_INSTRUMENTO.map((t) => (
+                  <option key={t} value={t}>
+                    {INSTRUMENTOS[t].rotulo}
+                  </option>
+                ))}
               </select>
+              {!definicaoDe(c.tipo).modeloInterno && (
+                <em className="mcomp-dica">
+                  Sem modelo de certificado interno: a calibração deste instrumento é registrada como
+                  de laboratório externo, com o PDF original.
+                </em>
+              )}
             </label>
             <label className="mcomp-campo">
               <span>Nome / identificação *</span>
@@ -176,7 +198,8 @@ export default function ModalComponente({
               <label className="mcomp-campo">
                 <span>Unidade</span>
                 <select value={unidadeDoComponente(c)} onChange={(e) => set('unidade', e.target.value)}>
-                  {UNIDADES.map((u) => (
+                  {unidadeDoComponente(c) === '' && <option value="">Selecione…</option>}
+                  {unidadesDoInstrumento(c.tipo).map((u) => (
                     <option key={u} value={u}>
                       {u}
                     </option>
@@ -197,7 +220,7 @@ export default function ModalComponente({
                       : 'Separe por vírgula. É a coluna “valor do padrão” do certificado — vinha em branco e era digitada duas vezes, uma para cada sentido.'}
                   </em>
                 </label>
-              ) : (
+              ) : c.tipo === 'psv' ? (
                 <label className="mcomp-campo">
                   <span>Pressão de ajuste</span>
                   <input
@@ -206,7 +229,7 @@ export default function ModalComponente({
                     placeholder="Ex: 8,5"
                   />
                 </label>
-              )}
+              ) : null}
             </div>
           </div>
 
@@ -234,7 +257,7 @@ export default function ModalComponente({
               ) : c.fotoRef ? (
                 <FotoImg foto={{ ref: c.fotoRef }} alt={c.nome} placeholder="" variante="thumb" />
               ) : (
-                <Icone nome={c.tipo === 'psv' ? 'valvula-psv' : 'manometro'} tam={22} />
+                <Icone nome={definicaoDe(c.tipo).icone} tam={22} />
               )}
             </div>
             <button type="button" className="fj-btn fj-btn-ghost" onClick={() => arquivo.current?.click()}>

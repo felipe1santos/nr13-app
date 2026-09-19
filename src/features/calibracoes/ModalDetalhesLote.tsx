@@ -24,10 +24,13 @@ import { Icone } from '../../components/Icone';
 import PaginaA4 from '../../components/PaginaA4';
 import RecusaPalco from '../../components/RecusaPalco';
 import { usePalcoDocumento } from '../documentos/usePalcoDocumento';
+import VisualizadorPdf from '../../components/VisualizadorPdf';
 import { arquivoCalibracao } from './calibracaoService';
+import { artefatoDaCalibracao, nomeArquivoCalibracao } from './artefatoCalibracao';
+import { definicaoDe } from './instrumentos';
 import { fotoDoComponente, type ComponenteCal, type LoteCal } from './componentesService';
 import { calibracaoDoItem, dataDoLote, itensDoLote, progressoLote } from './lote';
-import type { DadosCalibracao } from './tipos';
+import { ehEmitido, ehInterna, ehTerceiro, type DadosCalibracao } from './tipos';
 import '../relatorios/modalFiltrosRelatorios.css';
 import './modalLote.css';
 
@@ -43,6 +46,8 @@ export default function ModalDetalhesLote({
   componentes,
   calibracoes,
   aoCalibrar,
+  aoRegistrarTerceiro,
+  aoRevisar,
   aoVerDados,
   aoBaixarPdf,
   aoFechar,
@@ -52,6 +57,10 @@ export default function ModalDetalhesLote({
   componentes: ComponenteCal[];
   calibracoes: DadosCalibracao[];
   aoCalibrar: (c: ComponenteCal) => void;
+  /** Fase 2 (D) · registrar certificado de laboratório externo para o acessório. */
+  aoRegistrarTerceiro: (c: ComponenteCal) => void;
+  /** Fase 2 (C.3) · abrir o rascunho para revisar e emitir. */
+  aoRevisar: (cal: DadosCalibracao) => void;
   aoVerDados: (cal: DadosCalibracao) => void;
   aoBaixarPdf: (cal: DadosCalibracao) => void | Promise<void>;
   aoFechar: () => void;
@@ -123,16 +132,25 @@ export default function ModalDetalhesLote({
                         {fotoDoComponente(c) ? (
                           <FotoImg foto={fotoDoComponente(c)} alt="" placeholder="" variante="thumb" />
                         ) : (
-                          <Icone nome={c.tipo === 'psv' ? 'valvula-psv' : 'manometro'} tam={18} />
+                          <Icone nome={definicaoDe(c.tipo).icone} tam={18} />
                         )}
                       </span>
                       <div className="mlote-det-nome">
                         <strong>{c.nome}</strong>
-                        <em>{c.tipo === 'psv' ? 'Válvula de segurança' : 'Manômetro'}</em>
+                        <em>{definicaoDe(c.tipo).rotulo}</em>
                       </div>
                       {cal ? (
-                        <span className={`mlote-selo ${cal.statusConclusao || 'sem'}`}>
-                          {ROTULO_STATUS[cal.statusConclusao] ?? 'Sem conclusão'}
+                        <span className="mlote-selos">
+                          <span className={`mlote-selo ${cal.statusConclusao || 'sem'}`}>
+                            {ROTULO_STATUS[cal.statusConclusao] ?? 'Sem conclusão'}
+                          </span>
+                          {ehTerceiro(cal) ? (
+                            <span className="mlote-selo externo">Lab. externo</span>
+                          ) : ehEmitido(cal) ? (
+                            <span className="mlote-selo emitido">Emitido</span>
+                          ) : ehInterna(cal) && cal.status === 'rascunho' ? (
+                            <span className="mlote-selo pendente">Rascunho</span>
+                          ) : null}
                         </span>
                       ) : (
                         <span className="mlote-selo pendente">Pendente</span>
@@ -148,6 +166,8 @@ export default function ModalDetalhesLote({
                         ['Calibração', cal?.dataCalibracao],
                         ['Próxima', cal?.dataProxCalibracao],
                         ['Certificado', cal?.numeroCertificado],
+                        ['Laboratório', cal && ehTerceiro(cal) ? cal.laboratorio : ''],
+                        ['Responsável', cal && ehInterna(cal) ? cal.responsavel?.nome : ''],
                       ]
                         .filter(([, v]) => (v ?? '').toString().trim() !== '')
                         .map(([r, v]) => (
@@ -159,13 +179,26 @@ export default function ModalDetalhesLote({
                     </dl>
 
                     <div className="mlote-det-acoes">
-                      {cal ? (
+                      {cal && ehInterna(cal) && cal.status === 'rascunho' ? (
                         <>
+                          <button type="button" className="fj-btn fj-btn-primary" onClick={() => aoRevisar(cal)}>
+                            <Icone nome="checkcircle" tam={13} /> Revisar e emitir
+                          </button>
                           <button type="button" className="fj-btn fj-btn-ghost" onClick={() => aoVerDados(cal)}>
                             <Icone nome="eye" tam={13} /> Abrir calibração
                           </button>
+                        </>
+                      ) : cal && ehTerceiro(cal) && !cal.pdfExternoRef?.path ? (
+                        <button type="button" className="fj-btn fj-btn-ghost" onClick={() => aoVerDados(cal)}>
+                          <Icone nome="eye" tam={13} /> Abrir registro
+                        </button>
+                      ) : cal ? (
+                        <>
+                          <button type="button" className="fj-btn fj-btn-ghost" onClick={() => aoVerDados(cal)}>
+                            <Icone nome="eye" tam={13} /> {ehTerceiro(cal) ? 'Abrir registro' : 'Abrir calibração'}
+                          </button>
                           <button type="button" className="fj-btn fj-btn-ghost" onClick={() => setVendo(cal)}>
-                            <Icone nome="filetext" tam={13} /> Visualizar PDF
+                            <Icone nome="filetext" tam={13} /> {ehTerceiro(cal) ? 'PDF do laboratório' : 'Visualizar PDF'}
                           </button>
                           <button
                             type="button"
@@ -185,9 +218,16 @@ export default function ModalDetalhesLote({
                           </button>
                         </>
                       ) : (
-                        <button type="button" className="fj-btn fj-btn-primary" onClick={() => aoCalibrar(c)}>
-                          <Icone nome="sliders" tam={13} /> Calibrar
-                        </button>
+                        <>
+                          {definicaoDe(c.tipo).modeloInterno && (
+                            <button type="button" className="fj-btn fj-btn-primary" onClick={() => aoCalibrar(c)}>
+                              <Icone nome="sliders" tam={13} /> Calibrar
+                            </button>
+                          )}
+                          <button type="button" className="fj-btn fj-btn-ghost" onClick={() => aoRegistrarTerceiro(c)}>
+                            <Icone nome="building" tam={13} /> Laboratório externo
+                          </button>
+                        </>
                       )}
                     </div>
                   </li>
@@ -236,7 +276,10 @@ function VisorCertificado({
 }) {
   // O id do "relatório" aqui é o do próprio certificado: o palco materializa
   // as chaves daquela TAG e identifica o documento aberto.
-  const palco = usePalcoDocumento(tag, cal.id);
+  // Emitido ou de laboratório: o ARQUIVO — sem palco, sem template.
+  const arte = artefatoDaCalibracao(cal);
+  const arquivo = arquivoCalibracao(cal);
+  const palco = usePalcoDocumento(tag, cal.id, { pular: !!arte || !arquivo });
 
   return (
     <div
@@ -257,13 +300,19 @@ function VisorCertificado({
             <Icone nome="download" tam={13} /> Baixar PDF
           </button>
         </div>
-        {palco.estado !== 'pronto' ? (
+        {arte ? (
+          <div className="mlote-visor-folha mlote-visor-arquivo">
+            <VisualizadorPdf artefato={arte} nomeArquivo={nomeArquivoCalibracao(cal)} />
+          </div>
+        ) : !arquivo ? (
+          <p className="mlote-vazio">Esta calibração não tem folha de certificado nem PDF anexado.</p>
+        ) : palco.estado !== 'pronto' ? (
           <RecusaPalco estado={palco.estado} falha={palco.falha} />
         ) : (
           <div className="cal-preview mlote-visor-folha">
             <PaginaA4>
               <iframe
-                src={`/arquivos-inspecao/${arquivoCalibracao(cal.tipo)}?calibId=${cal.id}&tag=${encodeURIComponent(tag)}&page=1${palco.paramsIframe}`}
+                src={`/arquivos-inspecao/${arquivo}?calibId=${cal.id}&tag=${encodeURIComponent(tag)}&page=1${palco.paramsIframe}`}
                 scrolling="no"
                 title="Certificado de calibração"
               />
