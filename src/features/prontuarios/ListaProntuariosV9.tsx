@@ -183,23 +183,30 @@ function LinhaDocumento({
   aoAbrir: (d: DocumentoProntuario) => void;
 }) {
   const emitido = doc.situacao === 'emitido';
+  const anexado = doc.origem === 'anexado';
   const nome = doc.equipamento?.trim() || doc.tag;
   return (
     <div className={`pront-linha pront-linha-${doc.situacao}`} role="row">
       <span className="pront-linha-icone" aria-hidden>
-        <Icone nome={emitido ? 'filetext' : 'pencil'} tam={15} />
+        <Icone nome={anexado ? 'pdf' : emitido ? 'filetext' : 'pencil'} tam={15} />
       </span>
       <span className="pront-linha-nome" title={nome}>
         <strong>{nome}</strong>
-        <span className="pront-linha-sub">{doc.numero ?? 'sem número'}</span>
+        {/* No anexo, o NOME DO ARQUIVO: é o que identifica um PDF entre vários
+            do mesmo equipamento, e "sem número" ali não diz nada. */}
+        <span className="pront-linha-sub">
+          {(anexado ? doc.arquivoNome : null) ?? doc.numero ?? 'sem número'}
+        </span>
       </span>
       <span className="pront-linha-col">{doc.tag}</span>
       <span className="pront-linha-col" title={doc.cliente ?? ''}>{doc.cliente ?? '—'}</span>
       <span className="pront-linha-col pront-linha-data">{rotuloRevisao(doc)}</span>
       <span className="pront-linha-col pront-linha-data">{dataDoc(doc.atualizadoEm)}</span>
       <span className="pront-linha-situacao">
-        <span className={`pront-selo pront-selo-${doc.situacao}`}>
-          {emitido ? 'EMITIDO' : 'RASCUNHO'}
+        {/* Diferenciação DISCRETA: o PDF anexado é documento de outro
+            emitente, e a lista continua sendo uma só. */}
+        <span className={`pront-selo ${anexado ? 'pront-selo-anexado' : `pront-selo-${doc.situacao}`}`}>
+          {anexado ? 'PDF ANEXADO' : emitido ? 'EMITIDO' : 'RASCUNHO'}
         </span>
         {/* Upload ainda não confirmado: a lista precisa poder dizer isso, senão
             o documento parece entregue e está só no aparelho. */}
@@ -213,7 +220,7 @@ function LinhaDocumento({
         <button
           type="button"
           className="btn-icone cor-azul"
-          title={emitido ? 'Abrir o documento emitido' : 'Continuar editando'}
+          title={anexado ? 'Abrir o PDF anexado' : emitido ? 'Abrir o documento emitido' : 'Continuar editando'}
           aria-label={`${emitido ? 'Abrir' : 'Continuar'} o prontuário de ${doc.tag}`}
           onClick={() => aoAbrir(doc)}
         >

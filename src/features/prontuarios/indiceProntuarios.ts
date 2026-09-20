@@ -37,7 +37,7 @@
  * registro custaria o documento — e por isso o índice nunca é a única cópia.
  */
 import { ler, listarChavesComPrefixo, salvar } from '../../services/storage';
-import { listarEmissoes, type EmissaoProntuario } from './emissaoProntuario';
+import { ehAnexado, listarEmissoes, type EmissaoProntuario } from './emissaoProntuario';
 import type { ProntuarioDados } from './tipos';
 
 export const CHAVE_INDICE_PRONT = 'nr13_pront_indice';
@@ -99,10 +99,28 @@ export interface DocumentoProntuario {
   tipo?: string | null;
   categoria?: string | null;
   situacao: SituacaoDocumento;
-  /** Número da revisão, base 1. `null` no rascunho: ele ainda não é revisão. */
+  /**
+   * De onde vem o documento (19/09/2026). Ausente = `'sistema'`, que é o que
+   * toda linha anterior a esta data significa. `'anexado'` é o PDF existente
+   * que o usuário subiu — ver `anexoProntuario.ts`.
+   */
+  origem?: 'sistema' | 'anexado';
+  /**
+   * Número da revisão, base 1. `null` no rascunho (ainda não é revisão) e no
+   * PDF anexado (é documento de outro emitente, não revisão do nosso).
+   */
   revisao: number | null;
   /** Número impresso no documento (`meta.numero`). */
   numero: string | null;
+  /**
+   * Nome do arquivo como o usuário o enviou — só no PDF anexado.
+   *
+   * A linha precisa dele: dois anexos do MESMO equipamento saem com o mesmo
+   * rótulo (a descrição do equipamento) e "sem número" embaixo, e viram duas
+   * linhas indistinguíveis de documentos diferentes. O nome do arquivo é o que
+   * o usuário reconhece — foi ele que o escolheu no computador dele.
+   */
+  arquivoNome?: string | null;
   /** ISO. Emissão: quando o PDF foi gerado. Rascunho: última gravação. */
   atualizadoEm: string;
   /**
@@ -146,6 +164,24 @@ export const idRascunho = (tag: string) => `rascunho:${tag}`;
 export async function registrarDocumento(doc: DocumentoProntuario): Promise<void> {
   const atual = lerIndice().filter((d) => d.id !== doc.id);
   await salvar(CHAVE_INDICE_PRONT, ordenar([...atual, doc]));
+}
+
+/**
+ * Tira o "aguardando sincronização" das linhas cujo arquivo já subiu.
+ *
+ * O par de `confirmarEnvios` (emissaoProntuario.ts): lá o registro da TAG, aqui
+ * a linha da lista. São duas chaves, e deixar uma para trás faria as duas telas
+ * do mesmo documento discordarem sobre o mesmo upload.
+ */
+export async function confirmarEnvioNoIndice(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const atual = lerIndice();
+  const alvo = new Set(ids);
+  if (!atual.some((d) => alvo.has(d.id) && d.pdfPendente)) return;
+  await salvar(
+    CHAVE_INDICE_PRONT,
+    atual.map((d) => (alvo.has(d.id) ? { ...d, pdfPendente: false } : d)),
+  );
 }
 
 /**
@@ -204,16 +240,21 @@ export function docDeEmissao(
   tipo: string | null = null,
   categoria: string | null = null,
 ): DocumentoProntuario {
+  const anexado = ehAnexado(e);
   return {
     id: e.id,
     tag: e.tag,
-    equipamento,
+    // O anexo mostra o NOME DO ARQUIVO quando a tela não tem descrição do
+    // equipamento: é o que o usuário reconhece do documento que ele subiu.
+    equipamento: equipamento ?? (anexado ? e.arquivoNome?.replace(/\.pdf$/i, '') ?? null : null),
     cliente,
     tipo,
     categoria,
     situacao: 'emitido',
-    revisao,
+    origem: anexado ? 'anexado' : 'sistema',
+    revisao: anexado ? null : revisao,
     numero: e.numero,
+    arquivoNome: anexado ? e.arquivoNome ?? null : null,
     atualizadoEm: e.geradoEm,
     temArquivo: !!e.pdfRef,
     paginas: e.paginas ?? null,
@@ -246,9 +287,12 @@ export async function reconciliar(): Promise<number> {
     const equipamento = dados?.descricao?.trim() || null;
     const cliente = dados?.empresaRazaoSocial?.trim() || null;
     const emissoes = listarEmissoes(tag);
-    emissoes.forEach((e, i) => {
+    let revisao = 0;
+    emissoes.forEach((e) => {
+      // O anexo não consome número de revisão — a mesma regra de `revisaoDe`.
+      if (!ehAnexado(e)) revisao += 1;
       if (conhecidos.has(e.id)) return;
-      novos.push(docDeEmissao(e, i + 1, equipamento, cliente, null, dados?.categoria?.trim() || null));
+      novos.push(docDeEmissao(e, revisao, equipamento, cliente, null, dados?.categoria?.trim() || null));
     });
   }
 

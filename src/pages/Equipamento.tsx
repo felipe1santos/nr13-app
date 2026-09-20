@@ -13,6 +13,7 @@ import BadgeTipoEquipamento from '../features/equipamento/BadgeTipoEquipamento';
 import VidaRemanescente from '../features/equipamento/VidaRemanescente';
 import PressoesDocumentacao from '../features/equipamento/PressoesDocumentacao';
 import ProntuarioFabricante from '../features/equipamento/ProntuarioFabricante';
+import ProntuarioDoEquipamento from '../features/prontuarios/ProntuarioDoEquipamento';
 import { formatarValor, rotuloSistemaCompleto } from '../calc/unidades';
 import type { SistemaUnidade } from '../calc/unidades';
 import MemorialLog from '../features/memorial/MemorialLog';
@@ -322,7 +323,15 @@ function EquipamentoView({ tag }: { tag: string }) {
       </section>
 
       <section className="equipamento-secao">
-        {/* PDF do prontuário original do fabricante (nr13_pront_fab_<TAG>) */}
+        {/* Prontuário NR-13 do equipamento: os documentos gerados aqui e os PDFs
+            existentes anexados. Fonte: nr13_pront_emitido_<TAG>, a mesma da
+            lista de /prontuarios — um registro, dois pontos de visualização. */}
+        <ProntuarioDoEquipamento tag={tag} descricao={info?.descricao} />
+      </section>
+
+      <section className="equipamento-secao">
+        {/* PDF do prontuário original do FABRICANTE (nr13_pront_fab_<TAG>) —
+            documento do fabricante, distinto do prontuário NR-13 acima. */}
         <ProntuarioFabricante tag={tag} />
       </section>
 

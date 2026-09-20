@@ -1,0 +1,111 @@
+/* Prontuário NR-13 na ficha do equipamento: lista curta de documentos + CTA. */
+.pde-cabecalho {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.pde-cabecalho h3 {
+  margin: 0;
+}
+
+.pde-sub {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--txt-fraco, #5b6570);
+}
+
+.pde-btn-anexar {
+  min-height: 40px;
+  white-space: nowrap;
+}
+
+.pde-vazio {
+  margin: 12px 0 0;
+}
+
+.pde-lista {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pde-item {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--borda, #dfe3e8);
+  border-radius: 8px;
+  background: var(--fundo-suave, #f7f8fa);
+}
+
+.pde-nome {
+  display: flex;
+  flex-direction: column;
+  min-width: 0; /* sem isto o nome longo estica a linha e cria rolagem */
+}
+
+.pde-nome strong {
+  overflow-wrap: anywhere;
+}
+
+.pde-meta {
+  font-size: 12px;
+  color: var(--txt-fraco, #5b6570);
+}
+
+.pde-selo {
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  padding: 3px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.pde-selo-sistema {
+  background: #e8f1ff;
+  color: #14508c;
+}
+
+.pde-selo-anexo {
+  background: #f1ece2;
+  color: #7a5a17;
+}
+
+.pde-erro {
+  margin-top: 10px;
+}
+
+@media (max-width: 560px) {
+  .pde-btn-anexar {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .pde-item {
+    grid-template-columns: 20px minmax(0, 1fr) auto;
+    row-gap: 6px;
+  }
+
+  .pde-selo {
+    grid-column: 2 / -1;
+    justify-self: start;
+  }
+
+  /* Abrir é a ação principal desta linha e vinha com 28px de alvo — abaixo do
+     dedo. O ícone continua do mesmo tamanho; o que cresce é a área de toque. */
+  .pde-item .btn-icone {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}

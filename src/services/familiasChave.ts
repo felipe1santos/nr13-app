@@ -136,6 +136,10 @@ const GLOBAIS = new Set([
   // Global porque a tela mostra relatório de todos os equipamentos — e guarda
   // ids, nunca documentos: arquivar não apaga PDF, SHA nem pdfRef.
   'nr13_relatorios_arquivados',
+  // 19/09/2026 · índice dos DOCUMENTOS de prontuário (gerados e PDFs
+  // anexados). Global pelo mesmo motivo do de relatórios: /prontuarios e a
+  // ficha listam documentos de qualquer equipamento.
+  'nr13_pront_indice',
   // Fase 11 · qual motor gera o PDF de uma finalização NOVA. Global porque é
   // decisão da ORGANIZAÇÃO, não do equipamento — e não alcança documento já
   // emitido, que abre sempre pelo seu próprio pdfRef.

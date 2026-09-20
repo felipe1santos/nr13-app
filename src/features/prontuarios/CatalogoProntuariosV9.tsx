@@ -115,8 +115,15 @@ export interface PropsCatalogoProntuarios {
   /** Termo aplicado — mora na URL, no pai. */
   termo: string;
   aoMudarTermo: (termo: string) => void;
-  /** Escolher um equipamento: o pai semeia a TAG e abre o formulário. */
-  aoEscolher: (tag: string) => void;
+  /**
+   * Escolher um equipamento: o pai semeia a TAG e abre o formulário.
+   *
+   * O ITEM do catálogo vem junto (19/09/2026) porque quem escolhe daqui pode
+   * estar num aparelho que ainda não hidratou aquela TAG — sob boot leve, a
+   * descrição e o cliente só existem aqui, na projeção que acabou de responder.
+   * É opcional: no modo `lista` quem recebe só quer a TAG.
+   */
+  aoEscolher: (tag: string, item?: ItemCatalogo) => void;
   /**
    * UX · o mesmo catálogo serve a dois momentos, e eles não são a mesma tela.
    *
@@ -408,7 +415,7 @@ export default function CatalogoProntuariosV9({
               <button
                 type="button"
                 className="card-equipamento-horiz"
-                onClick={() => aoEscolher(item.tag)}
+                onClick={() => aoEscolher(item.tag, item)}
               >
                 <div className="card-eq-img">
                   {item.fotoRef ? (

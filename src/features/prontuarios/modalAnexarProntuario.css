@@ -1,0 +1,141 @@
+/* Anexar prontuário existente — modal enxuto: equipamento + arquivo.
+   Largura contida no desktop e tela quase cheia no celular, como a janela de
+   calibração; nada de rolagem horizontal em 390 px. */
+.map-box {
+  width: min(560px, 96vw);
+  max-height: min(88vh, 760px);
+}
+
+.map-corpo {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.map-explica {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--txt-fraco, #5b6570);
+}
+
+.map-secao h3 {
+  margin: 0 0 6px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--txt-fraco, #5b6570);
+}
+
+.map-equip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--borda, #dfe3e8);
+  border-radius: 8px;
+  background: var(--fundo-suave, #f7f8fa);
+  min-width: 0;
+}
+
+.map-equip strong {
+  font-size: 15px;
+}
+
+.map-equip span {
+  font-size: 13px;
+  color: var(--txt-fraco, #5b6570);
+  overflow-wrap: anywhere;
+}
+
+.map-trocar {
+  margin-left: auto;
+  padding: 2px 10px;
+  font-size: 12px;
+}
+
+/* O catálogo dentro do modal: altura própria para a lista rolar sozinha, sem
+   empurrar o botão Anexar para fora da tela. */
+.map-catalogo {
+  min-height: 220px;
+  max-height: 46vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.map-file {
+  display: none;
+}
+
+.map-btn-arquivo {
+  min-height: 44px; /* alvo de toque no celular */
+}
+
+.map-arquivo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0 0;
+  font-size: 13px;
+  min-width: 0;
+  overflow-wrap: anywhere; /* nome comprido não estoura o modal */
+}
+
+.map-arquivo-tam {
+  color: var(--txt-fraco, #5b6570);
+  white-space: nowrap;
+}
+
+.map-ajuda {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--txt-fraco, #5b6570);
+}
+
+.map-estado {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.map-estado-ok {
+  color: var(--ok, #1f8a4c);
+}
+
+@media (max-width: 560px) {
+  .map-box {
+    width: 100vw;
+    max-width: 100vw;
+    max-height: 92vh;
+  }
+
+  .map-btn-arquivo,
+  .map-box .mf-acoes .fj-btn {
+    width: 100%;
+  }
+
+  /* No celular o catálogo comia a tela e a seção do ARQUIVO ficava escondida
+     atrás do rodapé — medido em 390 px: o botão "Selecionar PDF" não aparecia.
+     A lista de equipamentos passa a caber em pouco mais de um terço da altura,
+     e o corpo do modal continua rolando. */
+  .map-catalogo {
+    min-height: 160px;
+    max-height: 34vh;
+  }
+
+  /* A seção do arquivo é o passo final e não pode ficar rente ao rodapé. */
+  .map-corpo {
+    padding-bottom: 8px;
+  }
+
+  .map-box .mf-acoes {
+    flex-direction: column-reverse;
+    gap: 8px;
+  }
+}

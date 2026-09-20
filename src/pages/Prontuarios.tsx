@@ -5,6 +5,7 @@ import { Icone } from '../components/Icone';
 import type { EquipamentoResumo } from '../features/equipamento/tipos';
 import CatalogoProntuariosV9 from '../features/prontuarios/CatalogoProntuariosV9';
 import ListaProntuariosV9 from '../features/prontuarios/ListaProntuariosV9';
+import ModalAnexarProntuario from '../features/prontuarios/ModalAnexarProntuario';
 import MaisAcoesProntuario from '../features/prontuarios/MaisAcoesProntuario';
 import CampoProntuario from '../features/prontuarios/CampoProntuario';
 import type { DocumentoProntuario } from '../features/prontuarios/indiceProntuarios';
@@ -37,10 +38,12 @@ import { gerarPdfBytes } from '../features/relatorios/pdfService';
 import { publicarArtefato, artefatoDe, baixarArtefato } from '../features/relatorios/artefatoRelatorio';
 import {
   emissaoAtual,
+  revisaoDe,
   listarEmissoes,
   registrarEmissao,
   bytesDaEmissao,
 } from '../features/prontuarios/emissaoProntuario';
+import { reservarAba } from '../features/prontuarios/abrirArquivo';
 import {
   docDeEmissao,
   docDeRascunho,
@@ -253,6 +256,8 @@ export default function Prontuarios() {
   const [tela, setTela] = useState<Tela>('equipamentos');
   /** O modal de escolher o equipamento para um prontuário NOVO. */
   const [criando, setCriando] = useState(false);
+  /** Modal de ANEXAR prontuário existente, aberto pela lista (sem TAG ainda). */
+  const [anexando, setAnexando] = useState(false);
   /** Termo do catálogo DENTRO do modal — separado do da lista, que fica atrás. */
   const [termoCriacao, setTermoCriacao] = useState('');
   // Decisão de SESSÃO (memoizada em `flag.ts`), lida uma vez: qual lista
@@ -314,7 +319,7 @@ export default function Prontuarios() {
   // A emissão vigente do prontuário deste equipamento — `null` = nunca emitido.
   const [emissao, setEmissao] = useState<ReturnType<typeof emissaoAtual>>(null);
   /** Qual revisão está aberta — a posição da emissão vigente na lista da TAG. */
-  const revisaoAtual = emissao ? listarEmissoes(tag).findIndex((x) => x.id === emissao.id) + 1 : 0;
+  const revisaoAtual = emissao ? revisaoDe(tag, emissao.id) : 0;
   // Recomputado a cada render — o bump de `versao` no onSalvo do modelador atualiza o indicador.
   const croquiSalvo = tag !== '' && localStorage.getItem(`nr13_croqui2d_${tag}`) !== null;
   // Caldeira e autoclave não têm croqui: as duas folhas que dependem dele saem
@@ -405,7 +410,7 @@ export default function Prontuarios() {
       setEmissao(emitida);
       // UMA LINHA POR REVISÃO. `registrarEmissao` acrescenta e nunca
       // sobrescreve, então a posição na lista É o número da revisão.
-      const revisao = listarEmissoes(tag).findIndex((x) => x.id === emitida.id) + 1;
+      const revisao = revisaoDe(tag, emitida.id);
       await registrarDocumento(
         docDeEmissao(
           emitida,
@@ -537,6 +542,37 @@ export default function Prontuarios() {
    * emissão (§7-quater): documento emitido não é remontado.
    */
   async function abrirDocumento(doc: DocumentoProntuario) {
+    // PDF ANEXADO não tem visualizador nosso: ele é o arquivo do cliente, e
+    // abrir significa servir os bytes guardados. Mandá-lo para a tela do
+    // prontuário montaria as seis folhas com os dados de HOJE — parecendo o
+    // documento anexado sem sê-lo, que é o defeito que o §7-quater corrigiu.
+    if (doc.origem === 'anexado') {
+      // A aba é reservada dentro do CLIQUE. Tudo que vem depois é assíncrono
+      // (semear a TAG, baixar do bucket), e abrir a janela lá na frente é o
+      // que o bloqueador de popup mata em silêncio — ver `abrirArquivo.ts`.
+      const aba = reservarAba();
+      try {
+        // A lista vem do ÍNDICE global; a emissão mora na chave da TAG, que
+        // num aparelho novo ainda não foi hidratada. Sem esta semeadura o
+        // clique não fazia nada — nem abria, nem avisava.
+        let emissao = listarEmissoes(doc.tag).find((e) => e.id === doc.id);
+        if (!emissao) {
+          await abrirEquipamentoParaProntuario(doc.tag);
+          emissao = listarEmissoes(doc.tag).find((e) => e.id === doc.id);
+        }
+        if (!emissao) throw new Error('O registro deste documento não chegou a este aparelho. Verifique a conexão e tente de novo.');
+        const blob = await bytesDaEmissao(emissao, { artefatoDe, baixarArtefato });
+        aba.entregar(blob, emissao.arquivoNome ?? `${doc.tag}.pdf`);
+      } catch (e) {
+        aba.descartar();
+        emitirAviso({
+          variante: 'erro',
+          titulo: 'Não foi possível abrir o PDF',
+          texto: e instanceof Error ? e.message : 'Tente novamente em instantes.',
+        });
+      }
+      return;
+    }
     await abrirPorTag(doc.tag, { editar: doc.situacao === 'rascunho' });
   }
 
@@ -874,15 +910,28 @@ export default function Prontuarios() {
           versao={versaoLista}
           aoAbrir={(doc) => void abrirDocumento(doc)}
           acoes={
-            <button
-              type="button"
-              className="fj-btn fj-btn-primary pront-btn-criar"
-              aria-haspopup="dialog"
-              onClick={() => setCriando(true)}
-            >
-              <Icone nome="plus" tam={14} />{' '}
-              <span className="pront-btn-rotulo">Criar prontuário</span>
-            </button>
+            <>
+              {/* ANEXAR o PDF que o cliente já tem. Fica ao lado de "Criar":
+                  são os dois jeitos de um prontuário entrar no sistema. */}
+              <button
+                type="button"
+                className="fj-btn pront-btn-criar"
+                aria-haspopup="dialog"
+                onClick={() => setAnexando(true)}
+              >
+                <Icone nome="upload" tam={14} />{' '}
+                <span className="pront-btn-rotulo">Anexar prontuário existente</span>
+              </button>
+              <button
+                type="button"
+                className="fj-btn fj-btn-primary pront-btn-criar"
+                aria-haspopup="dialog"
+                onClick={() => setCriando(true)}
+              >
+                <Icone nome="plus" tam={14} />{' '}
+                <span className="pront-btn-rotulo">Criar prontuário</span>
+              </button>
+            </>
           }
         />
       )}
@@ -903,6 +952,16 @@ export default function Prontuarios() {
             setExcluindoTag(null);
             // A lista relê sozinha: a projeção é a fonte, e o selo daquela
             // linha passa a sair do que o servidor souber na próxima busca.
+            setVersaoLista((v) => v + 1);
+          }}
+        />
+      )}
+
+      {anexando && (
+        <ModalAnexarProntuario
+          aoFechar={() => setAnexando(false)}
+          aoConcluir={() => {
+            setAnexando(false);
             setVersaoLista((v) => v + 1);
           }}
         />

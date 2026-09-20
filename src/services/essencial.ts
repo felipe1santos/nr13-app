@@ -31,6 +31,12 @@
  *   · `nr13_demo_seed`      — marcador do seed do trial, conferido na entrada;
  *   · `nr13_uso_contadores` — contador de uso; minúsculo, e some se não vier;
  *   · `nr13_agenda_notas`   — os serviços da Agenda;
+ *   · `nr13_pront_indice`  — o índice de DOCUMENTOS de prontuário (uma linha por
+ *                             documento, ~200 bytes). Entra porque /prontuarios e a
+ *                             ficha do equipamento listam documentos de QUALQUER TAG,
+ *                             e sob boot leve nenhuma TAG está no cache para ser
+ *                             varrida — sem ele, um navegador novo abre a lista vazia
+ *                             mesmo com os documentos no servidor (19/09/2026);
  *   · `nr13_rascunhos`      — a lista dos relatórios EM RASCUNHO (10B.1). Cresce
  *                             com o número de rascunhos ABERTOS, nunca com o
  *                             parque nem com o histórico, e some quando o
@@ -65,6 +71,7 @@ export const CHAVES_ESSENCIAIS: string[] = [
   'nr13_uso_contadores',
   'nr13_agenda_notas',
   'nr13_rascunhos',
+  'nr13_pront_indice',
   'nr13_relatorios_arquivados',
   'nr13_motor_pdf',
   'nr13_motor_prontuario',
