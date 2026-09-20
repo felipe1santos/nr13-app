@@ -1,8 +1,10 @@
 # Anexar prontuário existente em PDF — implementação e E2E local
 
-**Data:** 20/09/2026 · **Ambiente:** Supabase LOCAL (`npx supabase start`) + Vite 5199 +
-Chromium headless (Playwright). **Produção: intocada** — nenhum push, nenhum deploy, nenhuma
-migration aplicada fora do laboratório.
+**Data:** 20/09/2026 · **Ambiente do desenvolvimento e do E2E:** Supabase LOCAL
+(`npx supabase start`) + Vite 5199 + Chromium headless (Playwright).
+
+> **SUBIDA PARA PRODUÇÃO — 20/09/2026**, autorizada pelo dono depois desta medição.
+> O registro do rollout está no §15, no fim deste arquivo.
 
 Organização A: `lab@local.test` (`02cb1a15-…`). Organização B: `lab2-outra-org@local.test`
 (`32eb9b7f-…`). Equipamentos de teste: `ZZ-PRONT-01`, `ZZ-PRONT-02`.
@@ -230,3 +232,85 @@ lint (vs 5f89f06)→ nenhuma regressão; os 6 arquivos novos em 0 erros / 0 avis
 ```
 
 Testes novos: `__tests__/anexoProntuario.test.ts` (18) e `__tests__/abrirArquivo.test.ts` (4).
+
+---
+
+## 15 · Rollout para produção (20/09/2026)
+
+Projeto de produção `qqsesrntfvmdxqxrfvmw`. Ordem executada: **push → SQL → deploy**. O SQL
+foi antes do front de propósito: ele é inofensivo sem a tela nova (só passa a aceitar uma
+segunda chave), e o contrário abriria uma janela em que alguém anexa um PDF e o catálogo
+escreve "Sem Prontuário".
+
+### 15.1 · Push
+
+`5f89f06..fd06b87  main -> main` — 4 commits (feature, testes, SQL, documentação).
+
+### 15.2 · SQL, conferido por HASH antes de rodar (§13)
+
+O texto foi carregado no editor a partir do **raw do commit** (`raw.githubusercontent.com/
+…/fd06b87/…`), com `setEOL(LF)`, e o SHA-256 **do que estava no editor** foi comparado com o
+do arquivo do commit. Só então rodou.
+
+| arquivo | bytes | SHA-256 no editor | confere |
+|---|---|---|---|
+| `supabase/busca_manutencao.sql` | 44.088 | `1ce03338…dc62479d` | **sim** |
+| `supabase/prontuario_anexado_badge.sql` | 4.398 | `7c142b64…9149dba4` | **sim** |
+
+O dashboard pediu confirmação no primeiro ("destructive operations" — o arquivo tem
+`drop function if exists` e `revoke`), confirmada.
+
+**Verificação por ESTRUTURA, não pela mensagem "Success":**
+
+```
+proname                   le_emissao le_dados  acl
+projetar_equipamento      true       true      postgres=X, service_role=X
+projetar_calibracoes      false      false     postgres=X, service_role=X
+projetar_relatorios       false      false     postgres=X, service_role=X
+reconstruir_indice_busca  false      false     postgres=X, service_role=X
+auditar_projecao          false      false     postgres=X, service_role=X
+reparar_divergencias      false      false     postgres=X, service_role=X
+```
+
+Só `projetar_equipamento` mudou, e passou a olhar as DUAS chaves. `anon`/`authenticated`
+seguem sem EXECUTE.
+
+**Backfill:** `linhas 95 · com_prontuario 10 · nao_projetadas 11 · divergentes 0`.
+
+### 15.3 · Sentinelas — nenhum dado tocado
+
+| | antes | depois |
+|---|---|---|
+| `app_storage` | 1.372 | **1.372** |
+| `equipamentos_index` | 95 | **95** |
+| com prontuário | 10 | **10** |
+| não projetadas (`null`) | 11 | **11** |
+| chaves `nr13_pront_emitido_` | 1 | **1** |
+
+O único equipamento com documento de prontuário em produção já tinha `nr13_prontuario_`, então
+o badge dele já era `true` e o backfill não precisou mudar nada — o `UPDATE 0` esperado.
+
+### 15.4 · Deploy
+
+Coolify → **Redeploy** na aplicação "NOVO - APP - NR13"; build acompanhado até o fim.
+Bundle servido em `https://app.nr13sistema.com.br/`: **`index-xJSSRUKk.js` → `index-C3LnP57q.js`**
+(3.667.417 bytes).
+
+Conferido pelo CONTEÚDO (string literal sobrevive à minificação; identificador não):
+
+```
+Anexar prontuário existente        2   nr13_pront_indice                    2
+PDF ANEXADO                        2   O PDF é guardado como está           1
+Este arquivo não é um PDF válido   1   Prontuário NR-13                     1
+aguardando sincronização           1   não substitui                        3
+Abrindo o documento                2   O arquivo está vazio                 2
+Documentos deste equipamento       1   Escolha o equipamento antes…         1
+```
+
+12 de 12 marcadores presentes.
+
+### 15.5 · O que NÃO foi feito em produção
+
+Nenhum anexo foi criado lá: não havia autorização para gravar dado de teste nesta subida, e a
+sessão aberta no navegador é a da organização real do dono. Os dois fluxos seguem provados no
+laboratório (§2 e §3); em produção a prova é estrutural (§15.2/§15.3) e do bundle (§15.4).

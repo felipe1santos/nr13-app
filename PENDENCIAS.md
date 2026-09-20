@@ -13,17 +13,16 @@
 > cada família de chave, o que já foi resolvido e o que falta, em ordem de risco. Consultar
 > antes de mexer em qualquer coisa que grave arquivo.
 
-## 0-DECIES. PRONTUÁRIO ANEXADO EM PDF — pronto LOCALMENTE (20/09/2026)
+## 0-DECIES. PRONTUÁRIO ANEXADO EM PDF — EM PRODUÇÃO (20/09/2026)
 
-**NÃO está em produção.** Implementado e exercitado no laboratório; nenhum push, nenhum deploy,
-nenhuma migration aplicada fora do local. Medição: `docs/medicoes/2026-09-20-anexar-prontuario.md`;
-regra em `CLAUDE.md` §8-bis. Para subir, além do deploy do front:
+**No ar desde 20/09/2026**: `main` = `fd06b87`, bundle `index-C3LnP57q.js`, e os dois SQL
+aplicados no projeto `qqsesrntfvmdxqxrfvmw` (conferidos por SHA-256 antes de rodar, §13).
+Medição: `docs/medicoes/2026-09-20-anexar-prontuario.md`; regra em `CLAUDE.md` §8-bis. Ficou:
 
-- [ ] **SQL do badge do catálogo**, nesta ordem: `supabase/busca_manutencao.sql` (a projeção
-      passa a aceitar `nr13_pront_emitido_<TAG>` além de `nr13_prontuario_<TAG>`) e depois
-      `supabase/prontuario_anexado_badge.sql` (backfill dirigido; devolve `divergentes = 0`).
-      Sem eles o front funciona, mas o catálogo escreve "Sem Prontuário" sobre equipamento que
-      só tem PDF anexado. Conferir por HASH antes de rodar (§13 do CLAUDE.md).
+- [ ] **Não exercitado em produção**: nenhum anexo foi criado lá. A verificação foi por
+      estrutura (projeção lendo as duas chaves, backfill com `divergentes = 0`, sentinelas
+      idênticas antes/depois) e pelo conteúdo do bundle servido. Os fluxos foram exercitados
+      no laboratório.
 - [ ] **Decidir a política de EXCLUSÃO do anexo.** Hoje não existe: `relatorios/` não tem
       UPDATE/DELETE e a lista de emissões é append-only. Excluir exigiria enfraquecer as duas
       coisas — decisão do dono, não efeito colateral.
