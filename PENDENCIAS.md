@@ -13,21 +13,19 @@
 > cada família de chave, o que já foi resolvido e o que falta, em ordem de risco. Consultar
 > antes de mexer em qualquer coisa que grave arquivo.
 
-## 0-NONIES. CALIBRAÇÕES — reestruturação de UX (19/09/2026, local, sem push)
+## 0-NONIES. CALIBRAÇÕES — o que ficou depois do rollout (19/09/2026)
 
-Branch `calibracoes-ux`. Medição: `docs/medicoes/2026-09-19-calibracoes-ux.md`. Ficou:
+**EM PRODUÇÃO desde 19/09/2026** (`main` = `6b559d0`, bundle `index-xJSSRUKk.js`): fase 2, UX de
+Calibrações, imutabilidade no banco e Portal saneado. Medições:
+`docs/medicoes/2026-09-19-calibracoes-ux.md` (laboratório) e
+`docs/medicoes/2026-09-19-rollout-producao.md` (produção). Ficou:
 
-- [ ] **ROLLOUT: aplicar `supabase/documentos_emitidos_imutaveis.sql` em produção ANTES (ou
-      junto) do deploy do front.** Trava no banco os documentos oficiais (certificado emitido,
-      terceiro, relatório finalizado e listas) e as pastas de arquivo final do bucket (as
-      políticas de UPDATE/DELETE valem para TODAS as organizações). Conferir por hash (§13) —
-      SHA-256 na medição `docs/medicoes/2026-09-19-calibracoes-ux.md` — e depois por
-      `pg_trigger`/`pg_policies`/`has_function_privilege`. Rollback:
-      `documentos_emitidos_imutaveis_rollback.sql`.
-- [ ] **ROLLOUT: publicar as Edges `portal_cliente` (`index.ts`, `prefixos.ts`,
-      `oficialidade.ts`) e `portal_arquivo` (`index.ts`, `oficialidade.ts`)** — sem elas o
-      rascunho continua saindo do servidor (a tela filtra). Ordem livre em relação ao front: o
-      campo `versoes` é aditivo e o front novo substitui o cache mesmo sem ele.
+- [ ] **Exercitar em produção quadro 7.1.1, prontuário e TH**: a TAG de teste não tem memorial
+      nem inspeção com instrumento vinculado, então o rollout não pôde exercitá-los lá. Cobertos
+      por teste e pelo E2E do laboratório.
+- [ ] **Offline e "falha da Edge não apaga o cache" não foram forçados em produção** — provados
+      no laboratório e por teste.
+
 - [ ] **Portal não abre offline** (pré-existente): sem a Edge, `PortalLayout` mostra o erro e
       não usa o cache — que continua no disco, intacto. Decidir se o Portal deve abrir com a
       última versão conhecida.
