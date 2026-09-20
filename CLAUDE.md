@@ -813,6 +813,54 @@ material e bocais do `nr13_vaso_<TAG>`, preservando comprimento/virolas/suporte 
 comprimento sugerido pelo volume de `nr13_cat_<TAG>` quando vazio). Sem croqui salvo, as folhas
 do prontuário usam os fallbacks ("Croqui não gerado" / desenho genérico).
 
+### §8-bis — PRONTUÁRIO EXISTENTE ANEXADO EM PDF (20/09/2026)
+
+> **REGRA QUE NÃO SE QUEBRA:** o PDF que o cliente já tinha entra como ele é. Nada de OCR,
+> de extrair campos, de converter para o modelo interno, de rasterizar ou de remontar — e
+> ele **não se passa** pelo prontuário que o sistema gera. `origem: 'anexado'` no registro,
+> `PDF ANEXADO` na tela. Medição: `docs/medicoes/2026-09-20-anexar-prontuario.md`.
+
+Um prontuário passa a entrar por dois caminhos, e os dois convivem no mesmo equipamento:
+**A ·** montado aqui (formulário → prévia → Emitir) e **B ·** o PDF existente, anexado.
+
+- **Nenhuma família de chave nova.** O anexo é um documento da MESMA lista append-only da
+  Fase 12A (`nr13_pront_emitido_<TAG>`) e uma linha do MESMO índice (`nr13_pront_indice`).
+  Um segundo catálogo significaria duas listas para conciliar e duas regras de
+  imutabilidade. O arquivo vai para `<org>/relatorios/<uuid>.pdf` pela mesma
+  `publicarArtefato` — a pasta imutável do §4-quinquies —, com SHA-256 dos bytes ENVIADOS.
+- **DOIS pontos de entrada, UM serviço** (`features/prontuarios/anexoProntuario.ts`) e UM
+  modal (`ModalAnexarProntuario`): da FICHA o equipamento já vem decidido (`tag` fixa, bloco
+  só leitura); da LISTA o primeiro passo é escolher o equipamento pelo catálogo da projeção
+  (`buscar_equipamentos`) — nunca `lerTudo`.
+- **O anexo não é revisão do nosso documento.** `emissaoAtual` devolve a última emissão
+  GERADA aqui; `revisaoDe` conta só as geradas (anexo = 0) e a linha do índice nasce com
+  `revisao: null`. Anexar não apaga nem substitui o documento emitido, e emitir não apaga o
+  anexo.
+- **Validação em camadas, e a que importa é a última:** extensão, MIME declarado, vazio,
+  tamanho (8 MB) e a **assinatura real dos bytes** (`%PDF-`) — é a única que um `.docx`
+  renomeado não engana. Arquivo inválido não gera registro NEM upload.
+- **Ordem que importa:** validar → publicar o arquivo → gravar o registro → indexar. Falha no
+  upload não grava nada; registro apontando para arquivo inexistente seria pior. Órfão no
+  bucket é possível (processo morto no meio) e é inofensivo: ninguém o lista e o Portal só
+  autoriza path CITADO em chave do cliente.
+- **Duplo clique não duplica:** `registrarEmissao` deduplica por `sha256` — a tela também
+  trava o botão, mas a garantia está no serviço, onde o teste alcança.
+- **Offline:** usa a fila das fotos. O registro nasce `pdfPendente` (de `arquivoPendente`,
+  nunca de `navigator.onLine`) e a tela escreve "aguardando sincronização".
+  `confirmarEnvios` + `confirmarEnvioNoIndice` apagam esse aviso quando o arquivo sobe —
+  aviso que não some deixa de ser aviso. Quem dispara é o SERVIÇO
+  (`agendarConfirmacaoDeEnvios`), não um efeito do React.
+- **Abrir serve o ARQUIVO** (`bytesDaEmissao`), nunca uma remontagem. A aba é RESERVADA na
+  mesma pilha do clique (`features/prontuarios/abrirArquivo.ts`): `window.open` depois do
+  `await` da busca dos bytes é barrado como popup em aparelho que ainda não tem o arquivo no
+  cofre — e some em silêncio. Bloqueador que recusa até a reserva vira download por âncora.
+- **Badge do catálogo:** `equipamentos_index.tem_prontuario` passou a aceitar também
+  `nr13_pront_emitido_<TAG>` (`supabase/busca_manutencao.sql` + o backfill
+  `supabase/prontuario_anexado_badge.sql`). Sem isso o catálogo escrevia "Sem Prontuário"
+  sobre um equipamento cuja lista de `/prontuarios` mostra um documento.
+- **Portal não mudou:** `nr13_pront_emitido_` segue em `FORA_DO_PORTAL`.
+- Travado por `__tests__/anexoProntuario.test.ts` e `__tests__/abrirArquivo.test.ts`.
+
 ---
 
 ## 9. Pendências conhecidas (gaps vs. esta estrutura)

@@ -13,6 +13,26 @@
 > cada família de chave, o que já foi resolvido e o que falta, em ordem de risco. Consultar
 > antes de mexer em qualquer coisa que grave arquivo.
 
+## 0-DECIES. PRONTUÁRIO ANEXADO EM PDF — pronto LOCALMENTE (20/09/2026)
+
+**NÃO está em produção.** Implementado e exercitado no laboratório; nenhum push, nenhum deploy,
+nenhuma migration aplicada fora do local. Medição: `docs/medicoes/2026-09-20-anexar-prontuario.md`;
+regra em `CLAUDE.md` §8-bis. Para subir, além do deploy do front:
+
+- [ ] **SQL do badge do catálogo**, nesta ordem: `supabase/busca_manutencao.sql` (a projeção
+      passa a aceitar `nr13_pront_emitido_<TAG>` além de `nr13_prontuario_<TAG>`) e depois
+      `supabase/prontuario_anexado_badge.sql` (backfill dirigido; devolve `divergentes = 0`).
+      Sem eles o front funciona, mas o catálogo escreve "Sem Prontuário" sobre equipamento que
+      só tem PDF anexado. Conferir por HASH antes de rodar (§13 do CLAUDE.md).
+- [ ] **Decidir a política de EXCLUSÃO do anexo.** Hoje não existe: `relatorios/` não tem
+      UPDATE/DELETE e a lista de emissões é append-only. Excluir exigiria enfraquecer as duas
+      coisas — decisão do dono, não efeito colateral.
+- [ ] **Arquivo órfão no bucket** se o processo morrer entre o upload e a gravação do registro.
+      Inofensivo (ninguém lista, o Portal só autoriza path citado em chave do cliente); não há
+      rotina de varredura.
+- [ ] **Ficha não abre offline** se a rede já estava fora ANTES de carregar a tela — fica em
+      "Carregando…". Pré-existente (gate de sessão), fora do escopo desta rodada.
+
 ## 0-NONIES. CALIBRAÇÕES — o que ficou depois do rollout (19/09/2026)
 
 **EM PRODUÇÃO desde 19/09/2026** (`main` = `6b559d0`, bundle `index-xJSSRUKk.js`): fase 2, UX de
