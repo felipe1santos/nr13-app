@@ -260,8 +260,10 @@ describe('rascunho e emitido, na tela', () => {
     expect(pagina).toContain('docDeEmissao(');
     expect(pagina).toContain('          revisao,');
     expect(pagina).toContain('await encerrarRascunho(tag);');
-    // A posição na lista É a revisão — `registrarEmissao` nunca sobrescreve.
-    expect(pagina).toContain('listarEmissoes(tag).findIndex((x) => x.id === emitida.id) + 1');
+    // A revisão sai de `revisaoDe`, que conta só o que o sistema GEROU: desde
+    // 19/09/2026 a mesma lista guarda também PDFs anexados, e contá-los faria a
+    // próxima emissão pular de número por causa de um arquivo de outro emitente.
+    expect(pagina).toContain('revisaoDe(tag, emitida.id)');
   });
 
   it('abrir da lista respeita o estado: rascunho edita, emitido serve o arquivo', () => {
