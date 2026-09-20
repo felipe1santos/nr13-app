@@ -231,9 +231,23 @@ begin
   -- emissao, criados ao ABRIR o visualizador. Confundir as duas marcaria como
   -- "tem prontuario" quem so espiou o documento. A comparacao e por igualdade
   -- exata da chave, entao o prefixo mais longo nao interfere.
+  --
+  -- PDF EXISTENTE ANEXADO (19/09/2026). O prontuario tambem pode ter entrado
+  -- pronto, em PDF: `nr13_pront_emitido_<TAG>` guarda os documentos daquele
+  -- equipamento, e um anexo cria essa chave sem criar `nr13_prontuario_<TAG>`
+  -- — que sao os DADOS do documento que o sistema monta, e o anexo nao os tem
+  -- (nao ha OCR, nao ha extracao; ver `anexoProntuario.ts`).
+  --
+  -- Sem esta segunda condicao o catalogo escrevia "Sem Prontuario" sobre um
+  -- equipamento cuja lista de `/prontuarios` mostra um documento — duas telas
+  -- do mesmo sistema afirmando coisas opostas sobre o mesmo equipamento.
+  --
+  -- A lista NAO e inspecionada: basta a chave existir. Ler o JSON aqui para
+  -- contar elementos e o parse por TAG que a 9F.2.2 tirou do render.
   select exists (
     select 1 from public.app_storage
-     where org_id = p_org and chave = 'nr13_prontuario_' || p_tag and deletado_em is null
+     where org_id = p_org and deletado_em is null
+       and chave in ('nr13_prontuario_' || p_tag, 'nr13_pront_emitido_' || p_tag)
   ) into v_pront;
 
   -- proxima_inspecao: FATO derivado só da vida remanescente. A consolidação com
