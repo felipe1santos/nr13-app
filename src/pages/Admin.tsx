@@ -30,12 +30,21 @@ import {
 import {
   MENSALIDADE_PADRAO,
   calcularFaturamento,
+  fmtBRL,
   serieDiaria,
   type PontoSerie,
 } from '../features/admin/painelAdmin';
 import PainelVisaoGeral from '../features/admin/PainelVisaoGeral';
 import PainelFaturamento from '../features/admin/PainelFaturamento';
-import { classificarConta } from '../features/admin/classificarConta';
+import {
+  tagDaConta,
+  tagEhManual,
+  tagSomaNoFaturamento,
+  somarMensalidades,
+  ROTULO_TAG,
+  TAGS,
+  type TagConta,
+} from '../features/admin/classificarConta';
 import { gravarTema, lerTema, proximoTema, type TemaAdmin } from '../features/admin/temaAdmin';
 import { lerInfra, type InfraSupabase } from '../features/admin/infraSupabase';
 import './admin.css';
@@ -78,6 +87,10 @@ interface Profile {
   // não traz as colunas, e o rótulo/badge tratam null como 'trial', ver rotuloStatusAssinatura).
   assinatura_status?: string | null;
   assinatura_ate?: string | null;
+  // Painel de clientes (painel_clientes.sql; ausentes antes da migração — a
+  // tag cai na dedução e a mensalidade, no valor padrão).
+  classificacao?: string | null;
+  valor_mensal?: number | null;
   kiwify_email?: string | null;
   kiwify_subscription_id?: string | null;
 }
@@ -300,9 +313,6 @@ export default function Admin() {
   // Série diária de atividade (admin_series_uso). `null` = admin_series.sql
   // ainda não rodou neste ambiente.
   const [serieUso, setSerieUso] = useState<LinhaSerieUso[] | null>(null);
-  // Flag global do cadastro automático de trial (config_global; null = migração não rodou)
-  const [cadastroAuto, setCadastroAuto] = useState<boolean | null>(null);
-  const [salvandoFlag, setSalvandoFlag] = useState(false);
   // Leads do trial: seleção + compositor de e-mail
   const [selLeads, setSelLeads] = useState<Set<string>>(new Set());
   // Leads importados (tabela leads_importados; null = leads_setup.sql não rodou)
@@ -400,16 +410,6 @@ export default function Admin() {
       setLeadsImp(await listarLeadsImportados());
 
       // Flag do cadastro automático (trial). Antes de rodar trial_setup.sql a tabela
-      // não existe: o toggle mostra aviso de migração pendente.
-      const { data: flagData, error: flagErr } = await supabase
-        .from('config_global')
-        .select('valor')
-        .eq('chave', 'cadastro_automatico')
-        .maybeSingle();
-      setCadastroAuto(
-        flagErr || !flagData ? null : (flagData.valor as { ativo?: boolean } | null)?.ativo === true,
-      );
-
       // Eventos Kiwify sem conta vinculada (Task 10). Antes de rodar
       // supabase/assinatura_setup.sql a tabela não existe: a consulta erra e a seção some
       // (null), em vez de derrubar o resto do painel.
@@ -494,7 +494,11 @@ export default function Admin() {
       // As duas listas são complementares e cobrem todo mundo: quem não é
       // pagante cai obrigatoriamente na de teste/expirados, para nenhuma conta
       // sumir do painel por causa de um critério que não previu seu caso.
-      return aba === 'trial' ? !ehPagante(p) : ehPagante(p);
+      // 21/09/2026 · conta que NUNCA saiu do trial não aparece no painel: o
+      // teste de 48 h saiu do produto e ela não é cliente. Quem veio do trial
+      // e foi liberado (plano != 'trial') continua listado, com a sua tag — é
+      // o caso de engyuricesar e guibsonengenharia.
+      return p.plano !== 'trial';
     });
     if (q) lista = lista.filter((p) => (p.email ?? '').toLowerCase().includes(q));
     const score = (p: Profile) =>
@@ -702,22 +706,31 @@ export default function Admin() {
     const cortesia: Profile[] = [];
     const internas: Profile[] = [];
     for (const p of mestres) {
-      const tipo = classificarConta(p);
-      if (tipo === 'pagante') pagantes.push(p);
-      else if (tipo === 'cortesia') cortesia.push(p);
-      else if (tipo === 'interna') internas.push(p);
-      // 'inativa' fica de fora dos três baldes de propósito: são os trials e
-      // expirados, que já têm aba própria e não dizem nada sobre receita.
+      // 21/09/2026 · a TAG manda. Sem marcação manual ela é a dedução de
+      // `classificarConta`, que é exatamente o que este laço fazia antes.
+      const tag = tagDaConta(p);
+      if (tag === 'pagante') pagantes.push(p);
+      else if (tag === 'vitalicio') cortesia.push(p);
+      else if (tag === 'interna') internas.push(p);
+      // 'suspenso' fica de fora dos três baldes de propósito: bloqueado,
+      // vencido ou em trial não diz nada sobre receita.
     }
     return { pagantes, cortesia, internas };
   }, [profiles]);
 
   const assinantes = contas.pagantes;
 
-  const faturamento = useMemo(
-    () => calcularFaturamento(assinantes.length, MENSALIDADE_PADRAO),
-    [assinantes],
-  );
+  /**
+   * O MRR é a SOMA das mensalidades de cada pagante, não pagantes × valor
+   * único: com preços diferentes por cliente, o número antigo não era o
+   * faturamento de ninguém. Quem está sem valor informado entra pelo padrão —
+   * zerar em silêncio encolheria a receita sem ninguém mexer em preço.
+   */
+  const faturamento = useMemo(() => {
+    const { mrr } = somarMensalidades(assinantes, MENSALIDADE_PADRAO);
+    const base = calcularFaturamento(assinantes.length, MENSALIDADE_PADRAO);
+    return { ...base, mrr, anual: mrr * 12 };
+  }, [assinantes]);
 
   /**
    * Séries dos gráficos.
@@ -822,26 +835,42 @@ export default function Admin() {
     }
   }
 
-  // Liga/desliga o cadastro automático de leads (interruptor global do trial).
-  async function alternarCadastroAuto() {
-    if (cadastroAuto === null || salvandoFlag) return;
-    const novo = !cadastroAuto;
-    setSalvandoFlag(true);
-    setErro(null);
-    setAviso(null);
-    try {
-      const { error } = await supabase
-        .from('config_global')
-        .update({ valor: { ativo: novo }, atualizado_em: new Date().toISOString() })
-        .eq('chave', 'cadastro_automatico');
-      if (error) throw error;
-      setCadastroAuto(novo);
-      setAviso(novo ? 'Cadastro automático LIGADO — leads podem se cadastrar sozinhos.' : 'Cadastro automático desligado.');
-    } catch (e: unknown) {
-      setErro(e instanceof Error ? e.message : 'Falha ao alterar a configuração.');
-    } finally {
-      setSalvandoFlag(false);
+  /**
+   * A TAG da conta — `pagante` | `vitalicio` | `interna` | `suspenso`.
+   *
+   * Grava só `classificacao`. Nenhuma coluna de ACESSO é tocada: a tag é um
+   * rótulo de painel, e mexer em `plano`/`ativo`/validade para marcar um
+   * rótulo poderia derrubar o acesso de um cliente pagante — o mesmo cuidado
+   * que `alternarPagante` já registrava logo abaixo.
+   */
+  function definirTag(p: Profile, tag: TagConta) {
+    if (tagDaConta(p) === tag && tagEhManual(p)) return;
+    void atualizarPerfil(
+      p.id,
+      { classificacao: tag } as Partial<Profile>,
+      `${p.email}: ${ROTULO_TAG[tag]}.`,
+    );
+  }
+
+  /**
+   * Quanto aquele cliente paga por mês.
+   *
+   * Campo vazio grava NULO — "não informado" —, e o painel volta a usar o valor
+   * padrão. Gravar zero faria a conta sumir do MRR parecendo cliente de graça.
+   */
+  function definirMensalidade(p: Profile, bruto: string) {
+    const texto = bruto.trim().replace(',', '.');
+    const n = texto === '' ? null : Number(texto);
+    if (n !== null && (!Number.isFinite(n) || n < 0)) {
+      setErro('Valor inválido. Use apenas números, como 197 ou 149.90.');
+      return;
     }
+    if ((p.valor_mensal ?? null) === n) return;
+    void atualizarPerfil(
+      p.id,
+      { valor_mensal: n } as Partial<Profile>,
+      n === null ? `${p.email}: mensalidade em branco (usa o padrão).` : `${p.email}: ${fmtBRL(n)}/mês.`,
+    );
   }
 
   /**
@@ -1219,14 +1248,7 @@ export default function Admin() {
           className={`admin-aba${aba === 'clientes' ? ' ativa' : ''}`}
           onClick={() => setAba('clientes')}
         >
-          Clientes pagantes
-        </button>
-        <button
-          type="button"
-          className={`admin-aba${aba === 'trial' ? ' ativa' : ''}`}
-          onClick={() => setAba('trial')}
-        >
-          Testes e expirados
+          Clientes
         </button>
         <button
           type="button"
@@ -1234,13 +1256,6 @@ export default function Admin() {
           onClick={() => setAba('acessos')}
         >
           Sub-logins
-        </button>
-        <button
-          type="button"
-          className={`admin-aba${aba === 'leads' ? ' ativa' : ''}`}
-          onClick={() => setAba('leads')}
-        >
-          Leads{leads.length > 0 ? ` · ${leads.length}` : ''}
         </button>
       </div>
 
@@ -1266,33 +1281,6 @@ export default function Admin() {
           <span className="admin-card-num">{resumo.vencendo}</span>
           <span className="admin-card-label">Vencendo em 30 dias</span>
         </div>
-      </div>
-
-      {/* Interruptor global do cadastro automático de leads (teste 48h) */}
-      <div className="admin-novo" style={{ alignItems: 'center' }}>
-        <span className="admin-novo-titulo">Cadastro automático (teste 48h)</span>
-        {cadastroAuto === null ? (
-          <span className="adm-inline-aviso">
-            Rode <code>supabase/trial_setup.sql</code> no SQL Editor para habilitar esta opção.
-          </span>
-        ) : (
-          <>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 }}>
-              <input
-                type="checkbox"
-                checked={cadastroAuto}
-                disabled={salvandoFlag}
-                onChange={() => void alternarCadastroAuto()}
-              />
-              Permitir cadastro automático
-            </label>
-            <span className="adm-inline-muted">
-              {cadastroAuto
-                ? 'LIGADO: o botão "Testar gratuitamente por 2 dias" aparece na tela de login.'
-                : 'Desligado: novos leads veem "cadastro temporariamente indisponível".'}
-            </span>
-          </>
-        )}
       </div>
 
       {/* Eventos Kiwify sem conta vinculada (Task 10): pagamento chegou mas o webhook não achou
@@ -1560,6 +1548,8 @@ export default function Admin() {
             {aba === 'clientes' || aba === 'trial' ? (
             <tr>
               <th>E-mail</th>
+              <th title="Como esta conta entra no faturamento">Tag</th>
+              <th title="Quanto este cliente paga por mês. Só a tag Pagante soma.">Mensalidade</th>
               <th>Status</th>
               <th>Assinatura</th>
               <th>Dias restantes</th>
@@ -1685,6 +1675,44 @@ export default function Admin() {
                     )}
                     {infoLead && (
                       <div className="adm-inline-sub">{infoLead}</div>
+                    )}
+                  </td>
+                  {/* A TAG manda no faturamento: só "Pagante" soma. Ela é
+                      escolhida aqui porque o banco não distingue pagante de
+                      vitalício — os campos são os mesmos. Sem escolha, o painel
+                      deduz, e o seletor mostra qual dedução foi feita. */}
+                  <td data-label="Tag">
+                    <select
+                      className="admin-sel-tag"
+                      value={tagDaConta(p)}
+                      disabled={ocupado}
+                      title={tagEhManual(p) ? 'Definida manualmente' : 'Deduzida dos dados da conta'}
+                      onChange={(e) => void definirTag(p, e.target.value as TagConta)}
+                    >
+                      {TAGS.map((tg) => (
+                        <option key={tg} value={tg}>
+                          {ROTULO_TAG[tg]}
+                        </option>
+                      ))}
+                    </select>
+                    {!tagEhManual(p) && <span className="adm-inline-sub">automático</span>}
+                  </td>
+                  <td data-label="Mensalidade">
+                    {tagSomaNoFaturamento(tagDaConta(p)) ? (
+                      <input
+                        className="admin-inp-valor"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        inputMode="decimal"
+                        placeholder={String(MENSALIDADE_PADRAO)}
+                        defaultValue={p.valor_mensal ?? ''}
+                        disabled={ocupado}
+                        title="Em branco = usa o valor padrão do painel"
+                        onBlur={(e) => void definirMensalidade(p, e.target.value)}
+                      />
+                    ) : (
+                      <span className="adm-inline-muted" title="Só a tag Pagante entra na soma">—</span>
                     )}
                   </td>
                   <td data-label="Status">

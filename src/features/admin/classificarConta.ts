@@ -116,3 +116,89 @@ export const ROTULO_TIPO: Record<TipoConta, string> = {
   interna: 'Interna',
   inativa: 'Sem acesso',
 };
+
+// ── TAG MANUAL DO PAINEL (21/09/2026) ───────────────────────────────────────
+
+/**
+ * As tags que o dono escolhe na tela, gravadas em `profiles.classificacao`.
+ *
+ * Elas existem porque a derivação não consegue responder tudo: "pagante" e
+ * "vitalício" têm exatamente os mesmos campos no banco (plano completo, sem
+ * vencimento), e só o dono sabe qual é qual. Enquanto isso era deduzido, uma
+ * cortesia entrava no MRR — ou um cliente real ficava fora dele.
+ */
+export type TagConta = 'pagante' | 'vitalicio' | 'interna' | 'suspenso';
+
+export const TAGS: readonly TagConta[] = ['pagante', 'vitalicio', 'interna', 'suspenso'];
+
+export const ROTULO_TAG: Record<TagConta, string> = {
+  pagante: 'Pagante',
+  vitalicio: 'Vitalício',
+  interna: 'Interna',
+  suspenso: 'Suspenso',
+};
+
+/** Só o pagante entra na soma — as outras três aparecem e não somam. */
+export function tagSomaNoFaturamento(tag: TagConta): boolean {
+  return tag === 'pagante';
+}
+
+/** Da classificação derivada para a tag da tela. */
+const TAG_DO_TIPO: Record<TipoConta, TagConta> = {
+  pagante: 'pagante',
+  cortesia: 'vitalicio',
+  interna: 'interna',
+  inativa: 'suspenso',
+};
+
+function tagValida(v: unknown): TagConta | null {
+  const t = String(v ?? '').trim().toLowerCase();
+  return (TAGS as readonly string[]).includes(t) ? (t as TagConta) : null;
+}
+
+/**
+ * A tag EFETIVA de uma conta: a escolhida à mão, ou a derivada.
+ *
+ * A manual vence sempre — é uma decisão do dono sobre o próprio negócio, e o
+ * sistema não tem como saber mais do que ele sobre isso. Sem marcação, o
+ * comportamento é exatamente o de antes desta camada existir, então nenhuma
+ * conta muda de balde só porque a coluna passou a existir.
+ */
+export function tagDaConta(
+  c: ContaClassificavel & { classificacao?: string | null },
+): TagConta {
+  return tagValida(c.classificacao) ?? TAG_DO_TIPO[classificarConta(c)];
+}
+
+/** A tag foi escolhida à mão, ou está sendo deduzida? (a tela mostra a diferença) */
+export function tagEhManual(c: { classificacao?: string | null }): boolean {
+  return tagValida(c.classificacao) !== null;
+}
+
+/**
+ * A mensalidade daquela conta, em reais.
+ *
+ * `valor_mensal` nulo é "não informado", e aí vale o padrão do painel — nunca
+ * zero: zerar em silêncio faria o MRR encolher sem ninguém mexer em preço.
+ * Conta que não soma (vitalício, interna, suspenso) vale 0 por definição.
+ */
+export function mensalidadeDaConta(
+  c: { valor_mensal?: number | string | null; classificacao?: string | null } & ContaClassificavel,
+  padrao: number,
+): number {
+  if (!tagSomaNoFaturamento(tagDaConta(c))) return 0;
+  const n = Number(c.valor_mensal);
+  return Number.isFinite(n) && n > 0 ? n : padrao;
+}
+
+/** O MRR real: a soma das mensalidades de quem paga. */
+export function somarMensalidades(
+  contas: (ContaClassificavel & { valor_mensal?: number | string | null; classificacao?: string | null })[],
+  padrao: number,
+): { pagantes: number; mrr: number } {
+  const pagantes = contas.filter((c) => tagSomaNoFaturamento(tagDaConta(c)));
+  return {
+    pagantes: pagantes.length,
+    mrr: pagantes.reduce((s, c) => s + mensalidadeDaConta(c, padrao), 0),
+  };
+}

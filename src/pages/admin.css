@@ -1024,3 +1024,33 @@
 .admin-tabela-consumo td:not(:first-child) {
   font-variant-numeric: tabular-nums;
 }
+
+/* ── TAG E MENSALIDADE POR CLIENTE (21/09/2026) ─────────────────────────────
+   Duas colunas editáveis na lista: a tag decide se a conta soma no
+   faturamento, e a mensalidade diz quanto. Campos discretos de propósito — a
+   tabela já é larga, e eles não podem roubar a leitura das métricas de uso. */
+.admin-sel-tag {
+  font: inherit;
+  font-size: 12px;
+  padding: 3px 6px;
+  border: 1px solid var(--borda, #dfe3e8);
+  border-radius: 6px;
+  background: #fff;
+  max-width: 120px;
+}
+
+.admin-inp-valor {
+  font: inherit;
+  font-size: 12px;
+  padding: 3px 6px;
+  width: 84px;
+  text-align: right;
+  border: 1px solid var(--borda, #dfe3e8);
+  border-radius: 6px;
+}
+
+.admin-inp-valor:focus,
+.admin-sel-tag:focus {
+  outline: 2px solid var(--acento, #e8842c);
+  outline-offset: 1px;
+}
