@@ -2,31 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { mensagemDeErroEdge } from '../services/edgeErro';
-import { Icone } from '../components/Icone';
 import { logout } from '../services/auth';
-import { rotuloStatusAssinatura, rotuloEventoKiwify } from '../services/assinatura';
-import {
-  DIAS_CICLO,
-  camposVinculoManual,
-  camposAssinaturaAdmin,
-  COLUNAS_ASSINATURA,
-} from '../features/assinatura/maquinaEstados';
+import { camposAssinaturaAdmin, COLUNAS_ASSINATURA } from '../features/assinatura/maquinaEstados';
 import BotaoInstalarPWA from '../app/BotaoInstalarPWA';
-import ModalLeadForm from '../features/admin/ModalLeadForm';
-import ModalImportarLeads from '../features/admin/ModalImportarLeads';
-import {
-  excluirLeadImportado,
-  listarLeadsImportados,
-  type LeadImportado,
-} from '../services/leadsImportados';
-import {
-  fmtBytes,
-  fracaoBase64,
-  fmtPercentual,
-  ordenarPorConsumo,
-  type UsoStats,
-  type StorageStats,
-} from './adminMetricas';
+import type { UsoStats, StorageStats } from './adminMetricas';
 import {
   MENSALIDADE_PADRAO,
   calcularFaturamento,
@@ -35,14 +14,13 @@ import {
   type PontoSerie,
 } from '../features/admin/painelAdmin';
 import PainelVisaoGeral from '../features/admin/PainelVisaoGeral';
-import PainelFaturamento from '../features/admin/PainelFaturamento';
+import PainelClientes, { type ContaCliente } from '../features/admin/PainelClientes';
+import ModalNovoCliente, { type DadosNovoCliente } from '../features/admin/ModalNovoCliente';
 import {
   tagDaConta,
   tagEhManual,
-  tagSomaNoFaturamento,
   somarMensalidades,
   ROTULO_TAG,
-  TAGS,
   type TagConta,
 } from '../features/admin/classificarConta';
 import { gravarTema, lerTema, proximoTema, type TemaAdmin } from '../features/admin/temaAdmin';
@@ -95,15 +73,6 @@ interface Profile {
   kiwify_subscription_id?: string | null;
 }
 
-// Evento de pagamento Kiwify sem `profile_id` (webhook não conseguiu casar com nenhuma conta —
-// ex.: e-mail do checkout diferente do e-mail de cadastro). Vínculo manual pelo admin (Task 10).
-interface EventoKiwifyOrfao {
-  id: string;
-  recebido_em: string;
-  evento: string;
-  email: string | null;
-  subscription_id: string | null;
-}
 
 interface LoginEvent {
   user_id: string;
@@ -134,17 +103,6 @@ function fmtData(iso: string | null): string {
   return d.toLocaleString('pt-BR');
 }
 
-// "Último acesso em ..." — fuso de São Paulo, horário AM/PM (pedido do dono do painel).
-function fmtUltimoAcessoSP(iso: string | null): string | null {
-  if (!iso) return null;
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return null;
-  const data = d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-  const hora = d
-    .toLocaleTimeString('en-US', { timeZone: 'America/Sao_Paulo', hour: 'numeric', minute: '2-digit', hour12: true })
-    .toUpperCase();
-  return `Último acesso em ${data}, ${hora}`;
-}
 
 function fmtSomenteData(iso: string | null): string {
   if (!iso) return '—';
@@ -159,23 +117,6 @@ function ehHoje(iso: string): boolean {
   return d.getFullYear() === h.getFullYear() && d.getMonth() === h.getMonth() && d.getDate() === h.getDate();
 }
 
-// Espelho da formatação aplicada pela Edge Function no e-mail dos leads:
-// **negrito**, ==marca-texto==, [texto](link), !img(url). Usado só no preview.
-function previewEmailHtml(texto: string): string {
-  return texto
-    .replaceAll('{nome}', 'Fulano da Silva')
-    .replaceAll('{empresa}', 'Empresa Exemplo')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replace(/!img\((https?:[^\s)]+)\)/g, '<img src="$1" style="max-width:100%;border-radius:8px;margin:8px 0;display:block;" />')
-    .replace(/\[([^\]]+)\]\((https?:[^\s)]+)\)/g, '<a href="$2" style="color:#0a5a6e;font-weight:bold;">$1</a>')
-    .replace(/==([^=\n]+)==/g, '<mark style="background:#fde68a;padding:0 4px;border-radius:3px;">$1</mark>')
-    .replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>')
-    .split('\n')
-    .map((l) => `<p style="margin:0 0 10px;">${l || '&nbsp;'}</p>`)
-    .join('');
-}
 
 // Dias restantes do acesso (null = sem expiração; negativo = expirado).
 function diasRestantes(acessoExpiraEm: string | null): number | null {
@@ -225,21 +166,6 @@ function calcularMetricas(eventos: LoginEvent[]): Map<string, Metricas> {
   return out;
 }
 
-// Linha unificada da aba Leads: lead do trial 48h (conta em profiles) ou lead
-// importado/cadastrado manualmente (tabela leads_importados — sem conta de acesso).
-interface LeadRow {
-  id: string;
-  tipo: 'trial' | 'importado';
-  nome: string;
-  email: string;
-  telefone: string;
-  empresa: string;
-  origem: string;
-  criadoEm: string | null;
-  trialFim: string | null;
-  profile?: Profile;
-  imp?: LeadImportado;
-}
 
 /**
  * Cliente pagante = conta que o dono do produto LIBEROU e que segue valendo.
@@ -272,14 +198,6 @@ function statusUsuario(p: Profile): { label: string; cls: string } {
   return { label: 'Ativo', cls: 'ativo' };
 }
 
-function BadgeDias({ expiraEm }: { expiraEm: string | null }) {
-  const dias = diasRestantes(expiraEm);
-  if (dias === null) return <span className="admin-dias sem">—</span>;
-  if (dias < 0) return <span className="admin-dias expirado">Expirado</span>;
-  if (dias <= 30) return <span className="admin-dias critico">{dias} dia{dias === 1 ? '' : 's'}</span>;
-  return <span className="admin-dias ok">{dias} dias</span>;
-}
-
 export default function Admin() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [eventos, setEventos] = useState<LoginEvent[]>([]);
@@ -291,12 +209,9 @@ export default function Admin() {
   const [aviso, setAviso] = useState<string | null>(null);
   const [busca, setBusca] = useState('');
   const [acaoEmAndamento, setAcaoEmAndamento] = useState<string | null>(null);
-  const [novoEmail, setNovoEmail] = useState('');
-  const [novaSenhaUser, setNovaSenhaUser] = useState('');
-  const [novoDias, setNovoDias] = useState('');
   const [criando, setCriando] = useState(false);
+  const [modalNovo, setModalNovo] = useState(false);
   // Menu "Ações": posição fixa (viewport) para não ser cortado pelo overflow da tabela.
-  const [menuAcoes, setMenuAcoes] = useState<{ id: string; x: number; y: number } | null>(null);
   const [superAberto, setSuperAberto] = useState(false);
   const [aba, setAba] = useState<Aba>('visao');
   // Tema do painel. Inicializado do localStorage no primeiro render (e não num
@@ -314,33 +229,11 @@ export default function Admin() {
   // ainda não rodou neste ambiente.
   const [serieUso, setSerieUso] = useState<LinhaSerieUso[] | null>(null);
   // Leads do trial: seleção + compositor de e-mail
-  const [selLeads, setSelLeads] = useState<Set<string>>(new Set());
   // Leads importados (tabela leads_importados; null = leads_setup.sql não rodou)
-  const [leadsImp, setLeadsImp] = useState<LeadImportado[] | null>(null);
   // Eventos Kiwify sem conta vinculada (tabela kiwify_eventos; null = assinatura_setup.sql não
   // rodou — a seção fica escondida em vez de quebrar a página).
-  const [orfaos, setOrfaos] = useState<EventoKiwifyOrfao[] | null>(null);
   // Usuário escolhido no <select> de cada linha de evento órfão, por id do evento.
-  const [selOrfao, setSelOrfao] = useState<Record<string, string>>({});
-  const [filtroOrigem, setFiltroOrigem] = useState<'todos' | 'trial' | 'importado'>('todos');
-  const [leadForm, setLeadForm] = useState<{ lead: LeadImportado | null } | null>(null);
-  const [importarAberto, setImportarAberto] = useState(false);
-  const [emailAberto, setEmailAberto] = useState(false);
-  const [emAssunto, setEmAssunto] = useState('');
-  const [emCorpo, setEmCorpo] = useState('');
-  const [enviandoEmail, setEnviandoEmail] = useState(false);
-  const corpoRef = useRef<HTMLTextAreaElement>(null);
 
-  // Envolve a seleção do textarea com marcadores de formatação (ou insere no cursor).
-  function envolverSelecao(esq: string, dir: string, exemplo: string) {
-    const ta = corpoRef.current;
-    if (!ta) return;
-    const s = ta.selectionStart ?? emCorpo.length;
-    const e = ta.selectionEnd ?? emCorpo.length;
-    const sel = emCorpo.slice(s, e) || exemplo;
-    setEmCorpo(emCorpo.slice(0, s) + esq + sel + dir + emCorpo.slice(e));
-    window.setTimeout(() => ta.focus(), 0);
-  }
   const superRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
@@ -405,21 +298,6 @@ export default function Admin() {
       // Nunca lança e nunca bloqueia: sem a função publicada, devolve null.
       setInfra(await lerInfra());
 
-      // Leads importados (planilha/cadastro manual). Antes de rodar leads_setup.sql
-      // a tabela não existe: a aba mostra aviso de migração pendente.
-      setLeadsImp(await listarLeadsImportados());
-
-      // Flag do cadastro automático (trial). Antes de rodar trial_setup.sql a tabela
-      // Eventos Kiwify sem conta vinculada (Task 10). Antes de rodar
-      // supabase/assinatura_setup.sql a tabela não existe: a consulta erra e a seção some
-      // (null), em vez de derrubar o resto do painel.
-      const { data: orfaosData, error: orfaosErr } = await supabase
-        .from('kiwify_eventos')
-        .select('id, recebido_em, evento, email, subscription_id')
-        .is('profile_id', null)
-        .order('recebido_em', { ascending: false })
-        .limit(50);
-      setOrfaos(orfaosErr ? null : ((orfaosData as EventoKiwifyOrfao[] | null) ?? []));
     } catch (e: unknown) {
       setErro(e instanceof Error ? e.message : 'Falha ao carregar dados.');
     } finally {
@@ -433,243 +311,26 @@ export default function Admin() {
     carregar();
   }, [carregar]);
 
-  // Fecha o painel do superadmin / menus de ações ao clicar fora.
+  // Fecha o painel do superadmin ao clicar fora.
   useEffect(() => {
     function aoClicarFora(e: MouseEvent) {
       if (superRef.current && !superRef.current.contains(e.target as Node)) setSuperAberto(false);
-      if (!(e.target as HTMLElement).closest('.admin-acoes-drop')) setMenuAcoes(null);
-    }
-    function aoRolar() {
-      setMenuAcoes(null); // menu é position:fixed — fecha ao rolar para não ficar deslocado
     }
     document.addEventListener('mousedown', aoClicarFora);
-    document.addEventListener('scroll', aoRolar, true);
-    return () => {
-      document.removeEventListener('mousedown', aoClicarFora);
-      document.removeEventListener('scroll', aoRolar, true);
-    };
+    return () => document.removeEventListener('mousedown', aoClicarFora);
   }, []);
 
   const metricas = useMemo(() => calcularMetricas(eventos), [eventos]);
 
-  // Superadmin (a conta logada, role admin) sai da tabela — dados dela ficam no canto superior.
+  // Superadmin (a conta logada, role admin) sai da lista — os dados dela ficam
+  // no canto superior.
   const meuPerfil = useMemo(
     () => profiles.find((p) => (p.email ?? '').toLowerCase() === emailLogado) ?? null,
     [profiles, emailLogado],
   );
 
-  // E-mail da conta pagante dona de cada org (para a aba de sub-logins).
-  const emailPorId = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const p of profiles) if (p.email) m.set(p.id, p.email);
-    return m;
-  }, [profiles]);
-
-  // Candidatos ao vínculo manual de evento Kiwify órfão: contas pagantes (mestre/pré-migração),
-  // sem superadmin nem sub-logins (esses não têm assinatura própria). NÃO filtra por `ativo`
-  // (fix round 1, IMPORTANT 3): antes do fix do CRITICAL 1 abaixo, vincular uma conta bloqueada
-  // era uma armadilha (o admin achava que tinha liberado, mas `ativo` continuava false e o login
-  // recusava mesmo assim). Agora `camposVinculoManual` grava `ativo: true` junto — vincular UMA
-  // conta bloqueada passa a ser um jeito válido de reativá-la (mesma lógica de
-  // `liberarAcessoCompleto`), então mantemos todas na lista; o rótulo abaixo avisa quando isso
-  // vai acontecer, para o admin nunca ser surpreendido.
-  const contasPagantes = useMemo(
-    () =>
-      profiles
-        .filter((p) => p.role !== 'admin' && (!p.papel || p.papel === 'mestre') && p.email)
-        .slice()
-        .sort((a, b) => (a.email ?? '').localeCompare(b.email ?? '')),
-    [profiles],
-  );
-
-  // Aba "Clientes": contas pagantes (mestres/pré-migração), ordenadas por atividade —
-  // frequência de acesso + relatórios gerados; empate: último login mais recente primeiro.
-  const filtrados = useMemo(() => {
-    const q = busca.trim().toLowerCase();
-    const ehSubLogin = (p: Profile) => !!p.papel && p.papel !== 'mestre';
-    let lista = profiles.filter((p) => {
-      if (p.role === 'admin') return false;
-      if (aba === 'acessos') return ehSubLogin(p);
-      if (ehSubLogin(p)) return false;
-      // As duas listas são complementares e cobrem todo mundo: quem não é
-      // pagante cai obrigatoriamente na de teste/expirados, para nenhuma conta
-      // sumir do painel por causa de um critério que não previu seu caso.
-      // 21/09/2026 · conta que NUNCA saiu do trial não aparece no painel: o
-      // teste de 48 h saiu do produto e ela não é cliente. Quem veio do trial
-      // e foi liberado (plano != 'trial') continua listado, com a sua tag — é
-      // o caso de engyuricesar e guibsonengenharia.
-      return p.plano !== 'trial';
-    });
-    if (q) lista = lista.filter((p) => (p.email ?? '').toLowerCase().includes(q));
-    const score = (p: Profile) =>
-      (metricas.get(p.id)?.sessoesTotal ?? 0) + (uso.get(p.id)?.relatorios ?? 0);
-    const ultimoLogin = (p: Profile) => {
-      const iso = metas.get(p.id)?.last_sign_in_at;
-      return iso ? new Date(iso).getTime() : 0;
-    };
-    return [...lista].sort((a, b) => score(b) - score(a) || ultimoLogin(b) - ultimoLogin(a));
-  }, [profiles, busca, aba, metricas, uso, metas]);
-
-  // Leads = cadastros do teste 48h (profiles) + importados/manuais (leads_importados),
-  // numa lista única — mais recentes primeiro, com filtro por origem e busca.
-  const leads = useMemo<LeadRow[]>(() => {
-    const doTrial: LeadRow[] = profiles
-      .filter((p) => p.origem_cadastro === 'trial' && p.role !== 'admin')
-      .map((p) => ({
-        id: p.id,
-        tipo: 'trial',
-        nome: p.nome ?? '',
-        email: p.email ?? '',
-        telefone: p.telefone ?? '',
-        empresa: p.empresa_nome ?? '',
-        origem: 'Teste 48h',
-        criadoEm: p.criado_em,
-        trialFim: p.trial_fim ?? null,
-        profile: p,
-      }));
-    const importados: LeadRow[] = (leadsImp ?? []).map((l) => ({
-      id: l.id,
-      tipo: 'importado',
-      nome: l.nome,
-      email: l.email,
-      telefone: l.telefone,
-      empresa: l.empresa,
-      origem: l.origem || 'Importado',
-      criadoEm: l.criado_em,
-      trialFim: null,
-      imp: l,
-    }));
-    let lista = [...doTrial, ...importados];
-    if (filtroOrigem !== 'todos') lista = lista.filter((l) => l.tipo === filtroOrigem);
-    const q = busca.trim().toLowerCase();
-    if (q) {
-      lista = lista.filter((l) =>
-        [l.email, l.nome, l.empresa, l.telefone, l.origem].some((v) => v.toLowerCase().includes(q)),
-      );
-    }
-    return lista.sort(
-      (a, b) => new Date(b.criadoEm ?? 0).getTime() - new Date(a.criadoEm ?? 0).getTime(),
-    );
-  }, [profiles, leadsImp, busca, filtroOrigem]);
-
-  const emailsSelecionados = useMemo(
-    () => leads.filter((l) => selLeads.has(l.id) && l.email).map((l) => l.email),
-    [leads, selLeads],
-  );
-
-  function alternarLead(id: string) {
-    setSelLeads((s) => {
-      const n = new Set(s);
-      if (n.has(id)) n.delete(id);
-      else n.add(id);
-      return n;
-    });
-  }
-
-  function alternarTodosLeads() {
-    setSelLeads((s) => (s.size === leads.length ? new Set() : new Set(leads.map((p) => p.id))));
-  }
-
-  // CSV com BOM (abre certo no Excel BR, separador ;)
-  function baixarCsvLeads() {
-    const cab = ['nome', 'email', 'telefone', 'empresa', 'origem', 'status', 'cadastro', 'fim_do_teste'];
-    const linhas = leads.map((l) => [
-      l.nome, l.email, l.telefone, l.empresa, l.origem,
-      l.profile ? statusUsuario(l.profile).label : 'Lead',
-      fmtSomenteData(l.criadoEm), fmtSomenteData(l.trialFim),
-    ]);
-    const csv =
-      String.fromCharCode(0xFEFF) +
-      [cab, ...linhas].map((l) => l.map((c) => `"${String(c).replaceAll('"', '""')}"`).join(';')).join('\r\n');
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'leads-nr13.csv';
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  async function copiarLeads(campo: 'email' | 'telefone') {
-    const valores = leads.map((l) => (campo === 'email' ? l.email : l.telefone)).filter(Boolean);
-    try {
-      await navigator.clipboard.writeText(valores.join('; '));
-      setAviso(`${valores.length} ${campo === 'email' ? 'e-mails copiados' : 'telefones copiados'} para a área de transferência.`);
-    } catch {
-      setErro('Não foi possível copiar. Use o Exportar CSV.');
-    }
-  }
-
-  function abrirCompositor() {
-    setEmAssunto('Como foi seu teste do NR13 Sistema, {nome}?');
-    setEmCorpo(
-      'Olá {nome},\n\n' +
-        'Vimos que você testou o NR13 Sistema na {empresa}. O que achou?\n\n' +
-        'Se ficou alguma dúvida sobre memorial de cálculo, inspeções em campo, prontuários ou relatórios, é só responder este e-mail — a gente te ajuda.\n\n' +
-        'Para contratar e liberar o acesso completo (incluindo download e impressão dos documentos), responda este e-mail ou fale com a nossa equipe.\n\n' +
-        'Abraço,\nEquipe NR13 Sistema',
-    );
-    setEmailAberto(true);
-  }
-
-  async function enviarEmailLeads() {
-    const destinatarios =
-      emailsSelecionados.length > 0
-        ? emailsSelecionados
-        : leads.map((l) => l.email).filter(Boolean);
-    if (destinatarios.length === 0) {
-      setErro('Nenhum lead com e-mail para enviar.');
-      return;
-    }
-    if (!window.confirm(`Enviar este e-mail para ${destinatarios.length} lead(s)?`)) return;
-    setEnviandoEmail(true);
-    setErro(null);
-    setAviso(null);
-    try {
-      const { data, error } = await supabase.functions.invoke('admin', {
-        body: { action: 'enviar_email_leads', assunto: emAssunto, corpo: emCorpo, destinatarios },
-      });
-      const falha = await mensagemDeErroEdge(error, data, 'envio dos e-mails');
-      if (falha) throw new Error(falha);
-      setEmailAberto(false);
-      setAviso(
-        `E-mail enviado para ${data.enviados} lead(s).` +
-          (data.falhas?.length ? ` Falhou para: ${data.falhas.join(', ')}.` : ''),
-      );
-    } catch (e: unknown) {
-      setErro(e instanceof Error ? e.message : 'Falha ao enviar os e-mails.');
-    } finally {
-      setEnviandoEmail(false);
-    }
-  }
-
-  // E-mails já no sistema (qualquer conta + leads importados) — dedup da importação.
-  const emailsExistentes = useMemo(() => {
-    const s = new Set<string>();
-    for (const p of profiles) if (p.email) s.add(p.email.toLowerCase());
-    for (const l of leadsImp ?? []) s.add(l.email.toLowerCase());
-    return s;
-  }, [profiles, leadsImp]);
-
-  async function excluirLeadImp(l: LeadImportado) {
-    if (!window.confirm(`Excluir o lead ${l.email}?\n\nEle sai da lista e dos próximos disparos de e-mail.`)) return;
-    setErro(null);
-    setAviso(null);
-    try {
-      await excluirLeadImportado(l.id);
-      setLeadsImp((ls) => (ls ?? []).filter((x) => x.id !== l.id));
-      setSelLeads((s) => {
-        const n = new Set(s);
-        n.delete(l.id);
-        return n;
-      });
-      setAviso(`Lead ${l.email} excluído.`);
-    } catch (e: unknown) {
-      setErro(e instanceof Error ? e.message : 'Falha ao excluir o lead.');
-    }
-  }
-
+  /** Os números do topo da Visão geral. */
   const resumo = useMemo(() => {
-    // Cards focam os clientes PAGANTES (sub-logins ficam na aba própria).
     const visiveis = profiles.filter((p) => p.role !== 'admin' && (!p.papel || p.papel === 'mestre'));
     const total = visiveis.length;
     const pendentes = visiveis.filter((p) => !p.ativo).length;
@@ -683,22 +344,11 @@ export default function Admin() {
     return { total, pendentes, ativosHoje, vencendo };
   }, [profiles, eventos]);
 
-  // ── Visão Geral e Faturamento ─────────────────────────────────────────────
-
-  /** Abas de gestão de conta — as que usam a busca, os formulários e a tabela. */
-  const ehGestao = aba !== 'visao' && aba !== 'faturamento';
-
   /**
-   * Contas separadas por tipo para o Faturamento (ver `classificarConta.ts`).
+   * Os três baldes do faturamento, pela TAG de cada conta.
    *
-   * Só entram os MESTRES: sub-login não tem assinatura própria — ele usa a do
-   * cliente que o criou, e contá-lo dobraria a receita daquela conta.
-   *
-   * Conferido contra a Kiwify em 01/09/2026: das 7 assinaturas ativas da conta,
-   * só 3 são do produto NR13-Solutions. As demais são de outros produtos do
-   * mesmo vendedor e nunca deveriam aparecer aqui. Somado a isso há uma conta
-   * vitalícia e a conta interna do dono — as três coisas separadas em baldes
-   * distintos, todas VISÍVEIS, nenhuma apagada.
+   * 'suspenso' fica de fora de propósito: bloqueado, vencido ou em teste não
+   * diz nada sobre receita.
    */
   const contas = useMemo(() => {
     const mestres = profiles.filter((p) => !p.papel || p.papel === 'mestre');
@@ -706,14 +356,10 @@ export default function Admin() {
     const cortesia: Profile[] = [];
     const internas: Profile[] = [];
     for (const p of mestres) {
-      // 21/09/2026 · a TAG manda. Sem marcação manual ela é a dedução de
-      // `classificarConta`, que é exatamente o que este laço fazia antes.
       const tag = tagDaConta(p);
       if (tag === 'pagante') pagantes.push(p);
       else if (tag === 'vitalicio') cortesia.push(p);
       else if (tag === 'interna') internas.push(p);
-      // 'suspenso' fica de fora dos três baldes de propósito: bloqueado,
-      // vencido ou em trial não diz nada sobre receita.
     }
     return { pagantes, cortesia, internas };
   }, [profiles]);
@@ -795,11 +441,17 @@ export default function Admin() {
     return { banco, bucket, base64, equipamentos, relatorios, arquivos };
   }, [uso, storage]);
 
-  async function criarUsuario(e: React.FormEvent) {
-    e.preventDefault();
-    const email = novoEmail.trim().toLowerCase();
-    const dias = parseInt(novoDias, 10);
-    if (!email || novaSenhaUser.length < 6) {
+  /**
+   * Cria a conta a partir do MODAL (21/09/2026).
+   *
+   * Grava de uma vez a TAG e a MENSALIDADE: antes o cliente nascia sem as duas
+   * e alguém precisava lembrar de voltar na lista — e enquanto não voltasse,
+   * ele não entrava no MRR.
+   */
+  async function criarUsuario(d: DadosNovoCliente) {
+    const email = d.email.trim().toLowerCase();
+    const dias = parseInt(d.dias, 10);
+    if (!email || d.senha.length < 6) {
       setErro('Informe e-mail e senha de no mínimo 6 caracteres.');
       return;
     }
@@ -808,31 +460,114 @@ export default function Admin() {
     setAviso(null);
     try {
       const { data, error } = await supabase.functions.invoke('admin', {
-        body: { action: 'create_user', email, senha: novaSenhaUser, liberar: true },
+        body: { action: 'create_user', email, senha: d.senha, liberar: true },
       });
       const falha = await mensagemDeErroEdge(error, data, 'criação da conta');
       if (falha) throw new Error(falha);
-      // Dias de acesso definidos já no cadastro (campo opcional).
-      if (data?.id && !isNaN(dias) && dias > 0) {
-        const expira = new Date();
-        expira.setDate(expira.getDate() + dias);
-        expira.setHours(23, 59, 59, 0);
-        await supabase.from('profiles').update({ acesso_expira_em: expira.toISOString() }).eq('id', data.id);
+      // Dias de acesso, tag e mensalidade — tudo na mesma criação.
+      if (data?.id) {
+        const patch: Record<string, unknown> = { classificacao: d.tag };
+        if (!isNaN(dias) && dias > 0) {
+          const expira = new Date();
+          expira.setDate(expira.getDate() + dias);
+          expira.setHours(23, 59, 59, 0);
+          patch.acesso_expira_em = expira.toISOString();
+        }
+        const valor = Number(String(d.valorMensal).replace(',', '.'));
+        if (d.tag === 'pagante' && Number.isFinite(valor) && valor > 0) patch.valor_mensal = valor;
+        await supabase.from('profiles').update(patch).eq('id', data.id);
       }
       setAviso(
         !isNaN(dias) && dias > 0
           ? `Usuário ${email} criado com ${dias} dias de acesso.`
           : `Usuário ${email} criado e liberado (sem expiração).`,
       );
-      setNovoEmail('');
-      setNovaSenhaUser('');
-      setNovoDias('');
+      setModalNovo(false);
       await carregar();
     } catch (err: unknown) {
       setErro(err instanceof Error ? err.message : 'Falha ao criar usuário.');
     } finally {
       setCriando(false);
     }
+  }
+
+  /**
+   * As contas que a aba de Clientes lista.
+   *
+   * Mestres (sub-login é acesso dentro da organização do cliente, não um
+   * cliente) e sem quem nunca saiu do trial. A TAG vem calculada daqui, para o
+   * painel não precisar conhecer a regra.
+   */
+  const contasCliente = useMemo<ContaCliente[]>(
+    () =>
+      profiles
+        .filter((p) => (!p.papel || p.papel === 'mestre') && p.role !== 'admin' && p.plano !== 'trial')
+        .map((p) => ({
+          id: p.id,
+          email: p.email,
+          criado_em: p.criado_em,
+          ativo: p.ativo,
+          assinatura_status: p.assinatura_status,
+          acesso_expira_em: p.acesso_expira_em,
+          classificacao: p.classificacao,
+          valor_mensal: p.valor_mensal,
+          tag: tagDaConta(p),
+        }))
+        .sort(
+          (a, b) =>
+            (uso.get(b.id)?.relatorios ?? 0) - (uso.get(a.id)?.relatorios ?? 0) ||
+            (a.email ?? '').localeCompare(b.email ?? ''),
+        ),
+    [profiles, uso],
+  );
+
+  /** A linha da tabela de volta ao perfil — as ações trabalham com o perfil. */
+  function perfilDe(c: ContaCliente): Profile {
+    const achado = profiles.find((p) => p.id === c.id);
+    if (achado) return achado;
+    // Não acontece na prática (a lista sai de `profiles`); o recuo evita um
+    // `!` que esconderia uma dessincronia entre os dois.
+    return {
+      id: c.id,
+      email: c.email,
+      plano: null,
+      ativo: c.ativo,
+      role: 'user',
+      acesso_expira_em: c.acesso_expira_em ?? null,
+      criado_em: c.criado_em,
+      aprovado_em: null,
+      aprovado_por: null,
+    };
+  }
+
+  /**
+   * As AÇÕES de uma conta, no fim da linha.
+   *
+   * Ficavam num menu suspenso posicionado por coordenada de tela. Aqui são
+   * botões diretos: o que se faz no dia a dia é suspender, ajustar prazo e
+   * (raramente) excluir.
+   */
+  function acoesDaConta(p: Profile) {
+    const travado = acaoEmAndamento === p.id;
+    return (
+      <div className="adm-acoes-linha">
+        {p.ativo ? (
+          <button type="button" className="b b-acoes" disabled={travado} onClick={() => bloquear(p)}>
+            Suspender
+          </button>
+        ) : (
+          <button type="button" className="b b-acoes destaque" disabled={travado} onClick={() => liberar(p)}>
+            Liberar
+          </button>
+        )}
+        <button type="button" className="b b-acoes" disabled={travado} onClick={() => definirValidade(p)}>
+          Validade
+        </button>
+        <button type="button" className="b b-acoes perigo" disabled={travado} onClick={() => void excluir(p)}>
+          Excluir
+        </button>
+      </div>
+    );
   }
 
   /**
@@ -873,60 +608,6 @@ export default function Admin() {
     );
   }
 
-  /**
-   * Marca (ou desmarca) uma conta como PAGANTE, para o MRR do Faturamento.
-   *
-   * Grava um campo só: `kiwify_email`. A escolha é deliberada e vale registrar,
-   * porque a alternativa óbvia é perigosa. Marcar pagante gravando
-   * `assinatura_ate`/`acesso_expira_em` — que é o que o vínculo manual de evento
-   * órfão faz — mexeria nas colunas que a RLS usa (`assinatura_permite_escrita`,
-   * `acesso_vigente`): no dia em que a data vencesse, um cliente pagante viraria
-   * somente-leitura por causa de um rótulo de painel. `kiwify_email` não é lido
-   * por gate nenhum, e ainda tem efeito colateral bom — é por e-mail que o
-   * webhook procura o perfil quando um pagamento chega.
-   *
-   * A trigger `proteger_campos_assinatura` reverteria esta escrita para usuário
-   * comum; ela abre exceção para `is_admin()`, que é quem está nesta tela.
-   */
-  async function alternarPagante(conta: { id: string; email: string | null }, pagante: boolean) {
-    setAcaoEmAndamento(conta.id);
-    setErro(null);
-    setAviso(null);
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ kiwify_email: pagante ? conta.email : null })
-        .eq('id', conta.id);
-      if (error) throw error;
-      setAviso(
-        pagante
-          ? `${conta.email} marcada como PAGANTE — passa a entrar no MRR. Acesso não foi alterado.`
-          : `${conta.email} passou para VITALÍCIA — sai do MRR. Acesso não foi alterado.`,
-      );
-      await carregar();
-    } catch (e: unknown) {
-      setErro(e instanceof Error ? e.message : 'Falha ao alterar a cobrança da conta.');
-    } finally {
-      setAcaoEmAndamento(null);
-    }
-  }
-
-  // Reenvia o e-mail de confirmação de cadastro (código) para conta ainda não confirmada.
-  async function reenviarConfirmacao(p: Profile) {
-    if (!p.email) return;
-    setAcaoEmAndamento(p.id);
-    setErro(null);
-    setAviso(null);
-    try {
-      const { error } = await supabase.auth.resend({ type: 'signup', email: p.email });
-      if (error) throw error;
-      setAviso(`Confirmação reenviada para ${p.email}.`);
-    } catch (e: unknown) {
-      setErro(e instanceof Error ? e.message : 'Falha ao reenviar confirmação.');
-    } finally {
-      setAcaoEmAndamento(null);
-    }
-  }
 
   // ---- Ações ----
   async function atualizarPerfil(id: string, patch: Partial<Profile>, msg: string) {
@@ -958,66 +639,6 @@ export default function Admin() {
     }
   }
 
-  // Vincula manualmente um evento Kiwify órfão (pagamento sem conta identificada) a um usuário:
-  // ativa a assinatura por um novo ciclo (camposVinculoManual — inclui as colunas LEGADAS que o
-  // login() de fato usa, ver comentário na função) e marca o evento como processado, para não
-  // aparecer de novo na lista nem ser reprocessado por engano.
-  async function vincularOrfao(evento: EventoKiwifyOrfao, usuarioId: string) {
-    if (!usuarioId) {
-      setErro('Escolha um usuário antes de vincular.');
-      return;
-    }
-    // fix round 1, IMPORTANT 2a: confirmação explícita (padrão de liberarAcessoCompleto) — os
-    // dois updates abaixo não são atômicos e não têm desfazer por aqui, então o admin precisa
-    // ver com clareza QUAL conta vai receber QUAL pagamento antes de agir.
-    const destino = profiles.find((p) => p.id === usuarioId);
-    const confirmar = window.confirm(
-      `Vincular o pagamento de "${evento.email ?? 'e-mail não informado'}" ` +
-        `(evento: ${rotuloEventoKiwify(evento.evento)}, recebido em ${fmtData(evento.recebido_em)}) ` +
-        `à conta ${destino?.email ?? usuarioId}?\n\n` +
-        `Isso ativa a assinatura dessa conta por ${DIAS_CICLO} dias` +
-        (destino && !destino.ativo ? ' e REATIVA o acesso (a conta está bloqueada hoje)' : '') +
-        `. Não há como desfazer por aqui — confira o e-mail antes de confirmar.`,
-    );
-    if (!confirmar) return;
-
-    setAcaoEmAndamento(evento.id);
-    setErro(null);
-    setAviso(null);
-    try {
-      const campos = camposVinculoManual(new Date(), evento.email, evento.subscription_id);
-      const { error: e1 } = await supabase.from('profiles').update(campos).eq('id', usuarioId);
-      if (e1) throw e1;
-
-      // A partir daqui o perfil JÁ foi atualizado. Se o update abaixo falhar, o evento continua
-      // "órfão" na tela — um novo clique vincularia o MESMO pagamento a OUTRA conta. Por isso
-      // (fix round 1, IMPORTANT 2b) esse caso vira um aviso explícito em vez de cair no catch
-      // genérico "Falha ao vincular evento" (que sugeriria que nada aconteceu).
-      const { error: e2 } = await supabase
-        .from('kiwify_eventos')
-        .update({ profile_id: usuarioId, processado: true })
-        .eq('id', evento.id);
-
-      setProfiles((ps) => ps.map((p) => (p.id === usuarioId ? { ...p, ...campos } : p)));
-
-      if (e2) {
-        setErro(
-          `A conta ${destino?.email ?? usuarioId} JÁ foi ativada, mas o evento não pôde ser marcado ` +
-            `como vinculado (${e2.message}). NÃO repita o vínculo — ele voltaria a aparecer na lista ` +
-            `e poderia ser aplicado a outra conta por engano; corrija direto no banco se persistir.`,
-        );
-        return;
-      }
-
-      setOrfaos((os) => (os ?? []).filter((o) => o.id !== evento.id));
-      setSelOrfao((s) => Object.fromEntries(Object.entries(s).filter(([id]) => id !== evento.id)));
-      setAviso(`Evento vinculado — assinatura ativada para ${destino?.email ?? usuarioId}.`);
-    } catch (e: unknown) {
-      setErro(e instanceof Error ? e.message : 'Falha ao vincular evento.');
-    } finally {
-      setAcaoEmAndamento(null);
-    }
-  }
 
   function liberar(p: Profile) {
     void atualizarPerfil(
@@ -1036,19 +657,6 @@ export default function Admin() {
     );
   }
 
-  // Converte a conta de teste em assinante: remove os bloqueios do trial e (opcional) a validade.
-  function liberarAcessoCompleto(p: Profile) {
-    const manter = window.confirm(
-      `Liberar acesso COMPLETO para ${p.email}?\n\nOK = libera e REMOVE a expiração.\nCancelar = não faz nada (use "Definir validade" para ajustar o prazo antes/depois).`,
-    );
-    if (!manter) return;
-    void atualizarPerfil(
-      p.id,
-      // assinatura_ate null = sem vencimento (nunca rebaixa) — o par exato de acesso_expira_em null.
-      { ativo: true, plano: 'completo', acesso_expira_em: null, ...camposAssinaturaAdmin(null) },
-      `${p.email} agora tem acesso completo, sem expiração.`,
-    );
-  }
 
   function bloquear(p: Profile) {
     void atualizarPerfil(p.id, { ativo: false }, `Acesso bloqueado para ${p.email}.`);
@@ -1135,18 +743,6 @@ export default function Admin() {
     }
   }
 
-  // Célula "Equipamentos": total + composição por tipo (V=vaso, C=caldeira, A=autoclave).
-  function celEquip(s: UsoStats | undefined): string {
-    if (!s) return '—';
-    const total = s.equip_vaso + s.equip_caldeira + s.equip_autoclave;
-    if (total === 0) return '0';
-    const partes = [
-      s.equip_vaso > 0 ? `${s.equip_vaso}V` : '',
-      s.equip_caldeira > 0 ? `${s.equip_caldeira}C` : '',
-      s.equip_autoclave > 0 ? `${s.equip_autoclave}A` : '',
-    ].filter(Boolean);
-    return `${total} (${partes.join(' · ')})`;
-  }
 
   const meuMeta = meuPerfil ? metas.get(meuPerfil.id) : undefined;
   const minhasMetricas = meuPerfil ? metricas.get(meuPerfil.id) : undefined;
@@ -1238,157 +834,15 @@ export default function Admin() {
         </button>
         <button
           type="button"
-          className={`admin-aba${aba === 'faturamento' ? ' ativa' : ''}`}
-          onClick={() => setAba('faturamento')}
-        >
-          Faturamento
-        </button>
-        <button
-          type="button"
-          className={`admin-aba${aba === 'clientes' ? ' ativa' : ''}`}
+          className={`admin-aba${aba !== 'visao' ? ' ativa' : ''}`}
           onClick={() => setAba('clientes')}
         >
           Clientes
-        </button>
-        <button
-          type="button"
-          className={`admin-aba${aba === 'acessos' ? ' ativa' : ''}`}
-          onClick={() => setAba('acessos')}
-        >
-          Sub-logins
         </button>
       </div>
 
       {erro && <p className="admin-erro">{erro}</p>}
       {aviso && <p className="admin-aviso">{aviso}</p>}
-
-      {ehGestao && (
-      <>
-      <div className="admin-cards">
-        <div className="admin-card">
-          <span className="admin-card-num">{resumo.total}</span>
-          <span className="admin-card-label">Usuários</span>
-        </div>
-        <div className="admin-card pendente">
-          <span className="admin-card-num">{resumo.pendentes}</span>
-          <span className="admin-card-label">Pendentes</span>
-        </div>
-        <div className="admin-card ativo">
-          <span className="admin-card-num">{resumo.ativosHoje}</span>
-          <span className="admin-card-label">Ativos hoje</span>
-        </div>
-        <div className="admin-card vencendo">
-          <span className="admin-card-num">{resumo.vencendo}</span>
-          <span className="admin-card-label">Vencendo em 30 dias</span>
-        </div>
-      </div>
-
-      {/* Eventos Kiwify sem conta vinculada (Task 10): pagamento chegou mas o webhook não achou
-          o perfil (e-mail do checkout diferente do e-mail de cadastro, por ex.). `orfaos === null`
-          = supabase/assinatura_setup.sql ainda não rodou nesse ambiente — some em vez de quebrar. */}
-      {orfaos === null ? null : (
-        <div className="admin-orfaos">
-          <div className="admin-orfaos-head">
-            <span className="admin-novo-titulo">Eventos Kiwify sem conta ({orfaos.length})</span>
-            <span className="admin-orfaos-sub">
-              Pagamento recebido sem casar com nenhum usuário — vincule manualmente abaixo.
-            </span>
-          </div>
-          {orfaos.length === 0 ? (
-            <p className="admin-nota">Nenhum evento pendente de vínculo.</p>
-          ) : (
-            <div className="admin-tabela-wrap">
-              <table className="admin-tabela">
-                <thead>
-                  <tr>
-                    <th>Recebido em</th>
-                    <th>Evento</th>
-                    <th>E-mail do pagamento</th>
-                    <th>Vincular a</th>
-                    <th>Ação</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {orfaos.map((ev) => {
-                    const ocupado = acaoEmAndamento === ev.id;
-                    return (
-                      <tr key={ev.id} className={ocupado ? 'ocupado' : ''}>
-                        <td data-label="Recebido em">{fmtData(ev.recebido_em)}</td>
-                        <td data-label="Evento">{rotuloEventoKiwify(ev.evento)}</td>
-                        <td data-label="E-mail do pagamento">{ev.email ?? '—'}</td>
-                        <td data-label="Vincular a">
-                          <select
-                            value={selOrfao[ev.id] ?? ''}
-                            disabled={ocupado}
-                            onChange={(e) => setSelOrfao((s) => ({ ...s, [ev.id]: e.target.value }))}
-                          >
-                            <option value="">Selecione o usuário…</option>
-                            {contasPagantes.map((p) => (
-                              <option key={p.id} value={p.id}>
-                                {p.email}
-                                {p.ativo ? '' : ' (bloqueada — será reativada)'}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-                        <td data-label="Ação">
-                          <button
-                            type="button"
-                            className="b b-acoes"
-                            disabled={ocupado || !selOrfao[ev.id]}
-                            onClick={() => void vincularOrfao(ev, selOrfao[ev.id] ?? '')}
-                          >
-                            {ocupado ? 'Vinculando…' : 'Vincular'}
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
-
-      <form className="admin-novo" onSubmit={criarUsuario}>
-        <span className="admin-novo-titulo">Criar novo usuário</span>
-        <input
-          type="email"
-          placeholder="e-mail do usuário"
-          value={novoEmail}
-          onChange={(e) => setNovoEmail(e.target.value)}
-          autoComplete="off"
-        />
-        <input
-          type="text"
-          placeholder="senha (mín. 6)"
-          value={novaSenhaUser}
-          onChange={(e) => setNovaSenhaUser(e.target.value)}
-          autoComplete="new-password"
-        />
-        <input
-          type="number"
-          min={1}
-          className="admin-novo-dias"
-          placeholder="dias de acesso (vazio = sem prazo)"
-          value={novoDias}
-          onChange={(e) => setNovoDias(e.target.value)}
-        />
-        <button type="submit" className="admin-novo-btn" disabled={criando}>
-          {criando ? 'Criando…' : '+ Criar e liberar'}
-        </button>
-      </form>
-
-      <input
-        className="admin-busca"
-        type="search"
-        placeholder={aba === 'leads' ? 'Buscar por nome, e-mail, empresa ou telefone…' : 'Buscar por e-mail…'}
-        value={busca}
-        onChange={(e) => setBusca(e.target.value)}
-      />
-      </>
-      )}
 
       {aba === 'visao' ? (
         <PainelVisaoGeral
@@ -1401,582 +855,41 @@ export default function Admin() {
           assinantes={assinantes.length}
           serieUsoAusente={serieUso === null}
         />
-      ) : aba === 'faturamento' ? (
-        <PainelFaturamento
+      ) : (
+        <PainelClientes
           faturamento={faturamento}
-          assinantes={assinantes}
-          cortesia={contas.cortesia}
-          internas={contas.internas}
+          contas={contasCliente}
           uso={uso}
           storage={storage}
           metas={metas}
           metricas={metricas}
           ocupado={acaoEmAndamento}
-          onAlternarPagante={(c, pagante) => void alternarPagante(c, pagante)}
+          busca={busca}
+          onBusca={setBusca}
+          onTag={(c, tag) => definirTag(perfilDe(c), tag)}
+          onMensalidade={(c, v) => definirMensalidade(perfilDe(c), v)}
+          onNovoCliente={() => setModalNovo(true)}
+          acoes={(c) => acoesDaConta(perfilDe(c))}
         />
-      ) : aba === 'leads' ? (
-        <>
-          {leadsImp === null && (
-            <p className="admin-nota">
-              Cadastro manual e importação de leads exigem rodar
-              <code> supabase/leads_setup.sql</code> no SQL Editor do Supabase (uma vez).
-            </p>
-          )}
-          <div className="admin-leads-bar">
-            <span className="admin-leads-info">
-              {selLeads.size > 0
-                ? `${selLeads.size} selecionado(s) — o disparo vai só para eles`
-                : 'Nenhum selecionado — ações valem para TODOS os leads listados'}
-            </span>
-            <div className="admin-leads-acoes">
-              <select
-                className="admin-leads-filtro"
-                value={filtroOrigem}
-                onChange={(e) => setFiltroOrigem(e.target.value as typeof filtroOrigem)}
-                title="Filtrar por origem do lead"
-              >
-                <option value="todos">Todas as origens</option>
-                <option value="trial">Teste 48h</option>
-                <option value="importado">Importados / manuais</option>
-              </select>
-              <button
-                type="button"
-                onClick={() => setLeadForm({ lead: null })}
-                disabled={leadsImp === null}
-                title={leadsImp === null ? 'Rode supabase/leads_setup.sql para habilitar' : undefined}
-              >
-                + Cadastrar lead
-              </button>
-              <button
-                type="button"
-                onClick={() => setImportarAberto(true)}
-                disabled={leadsImp === null}
-                title={leadsImp === null ? 'Rode supabase/leads_setup.sql para habilitar' : undefined}
-              >
-                ⬆ Importar planilha
-              </button>
-              <button type="button" onClick={baixarCsvLeads} disabled={leads.length === 0}>
-                ⬇ Exportar CSV
-              </button>
-              <button type="button" onClick={() => void copiarLeads('email')} disabled={leads.length === 0}>
-                Copiar e-mails
-              </button>
-              <button type="button" onClick={() => void copiarLeads('telefone')} disabled={leads.length === 0}>
-                Copiar telefones
-              </button>
-              <button type="button" className="principal" onClick={abrirCompositor} disabled={leads.length === 0}>
-                ✉ Enviar e-mail {selLeads.size > 0 ? `(${selLeads.size})` : '(todos)'}
-              </button>
-            </div>
-          </div>
-          <div className="admin-tabela-wrap">
-            <table className="admin-tabela">
-              <thead>
-                <tr>
-                  <th style={{ width: 34 }}>
-                    <input
-                      type="checkbox"
-                      checked={leads.length > 0 && selLeads.size === leads.length}
-                      onChange={alternarTodosLeads}
-                      title="Selecionar todos"
-                    />
-                  </th>
-                  <th>Nome</th>
-                  <th>E-mail</th>
-                  <th>Telefone</th>
-                  <th>Empresa</th>
-                  <th>Origem</th>
-                  <th>Status</th>
-                  <th>Cadastro</th>
-                  <th>Fim do teste</th>
-                  <th>Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {leads.map((l) => {
-                  const st = l.profile ? statusUsuario(l.profile) : null;
-                  return (
-                    <tr key={l.id} className={selLeads.has(l.id) ? 'lead-sel' : ''}>
-                      <td data-label="Selecionar">
-                        <input type="checkbox" checked={selLeads.has(l.id)} onChange={() => alternarLead(l.id)} />
-                      </td>
-                      <td data-label="Nome" className="admin-email">{l.nome || '—'}</td>
-                      <td data-label="E-mail">{l.email}</td>
-                      <td data-label="Telefone">{l.telefone || '—'}</td>
-                      <td data-label="Empresa">{l.empresa || '—'}</td>
-                      <td data-label="Origem">
-                        <span className={`admin-badge-origem ${l.tipo}`}>{l.origem}</span>
-                      </td>
-                      <td data-label="Status">
-                        {st ? <span className={`admin-badge ${st.cls}`}>{st.label}</span> : '—'}
-                      </td>
-                      <td data-label="Cadastro">{fmtSomenteData(l.criadoEm)}</td>
-                      <td data-label="Fim do teste">{fmtSomenteData(l.trialFim)}</td>
-                      <td data-label="Ações" className="admin-lead-acoes-cel">
-                        {l.imp ? (
-                          <>
-                            <button type="button" title="Editar lead" onClick={() => setLeadForm({ lead: l.imp! })}>
-                              ✎
-                            </button>
-                            <button type="button" className="perigo" title="Excluir lead" onClick={() => void excluirLeadImp(l.imp!)}>
-                              🗑
-                            </button>
-                          </>
-                        ) : (
-                          '—'
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-                {leads.length === 0 && !carregando && (
-                  <tr>
-                    <td colSpan={10} className="admin-vazio">
-                      Nenhum lead ainda — cadastre manualmente, importe uma planilha ou aguarde
-                      cadastros pelo teste de 48h.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </>
-      ) : (
-      <div className="admin-tabela-wrap">
-        <table className="admin-tabela">
-          <thead>
-            {aba === 'clientes' || aba === 'trial' ? (
-            <tr>
-              <th>E-mail</th>
-              <th title="Como esta conta entra no faturamento">Tag</th>
-              <th title="Quanto este cliente paga por mês. Só a tag Pagante soma.">Mensalidade</th>
-              <th>Status</th>
-              <th>Assinatura</th>
-              <th>Dias restantes</th>
-              <th>Cadastro</th>
-              <th>Último acesso</th>
-              <th>Sessões (hoje/total)</th>
-              <th>Equipamentos</th>
-              <th>Inspeções</th>
-              <th>Relatórios</th>
-              <th>PDFs</th>
-              <th>Impressões</th>
-              <th>Acessos criados</th>
-              <th>Dados</th>
-              <th>Arquivos</th>
-              <th title="profiles.ultima_sync — do USUÁRIO, não do aparelho">Última sync</th>
-              <th>Ações</th>
-            </tr>
-            ) : (
-            <tr>
-              <th>E-mail</th>
-              <th>Papel</th>
-              <th>Conta pagante (dona)</th>
-              <th>Status</th>
-              <th>Último acesso</th>
-              <th>Ações</th>
-            </tr>
-            )}
-          </thead>
-          <tbody>
-            {filtrados.map((p) => {
-              const st = statusUsuario(p);
-              const m = metricas.get(p.id);
-              const meta = metas.get(p.id);
-              const s = uso.get(p.id);
-              const sto = storage.get(p.id);
-              const ocupado = acaoEmAndamento === p.id;
-              const ultimoAcesso = fmtUltimoAcessoSP(meta?.last_sign_in_at ?? null);
-              const celAcoes = (
-                <td data-label="Ações" className="admin-acoes">
-                  <div className="admin-acoes-drop">
-                    <button
-                      type="button"
-                      className="b b-acoes"
-                      disabled={ocupado}
-                      onClick={(e) => {
-                        if (menuAcoes?.id === p.id) {
-                          setMenuAcoes(null);
-                          return;
-                        }
-                        const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                        setMenuAcoes({ id: p.id, x: r.right, y: r.bottom + 4 });
-                      }}
-                    >
-                      Ações ▾
-                    </button>
-                    {menuAcoes?.id === p.id && (
-                      <div className="admin-menu" style={{ top: menuAcoes.y, left: menuAcoes.x - 190 }}>
-                        {p.ativo ? (
-                          <button type="button" onClick={() => { setMenuAcoes(null); bloquear(p); }}>
-                            Bloquear acesso
-                          </button>
-                        ) : (
-                          <button type="button" className="destaque" onClick={() => { setMenuAcoes(null); liberar(p); }}>
-                            Liberar acesso
-                          </button>
-                        )}
-                        <button type="button" onClick={() => { setMenuAcoes(null); definirValidade(p); }}>
-                          Definir validade (dias)
-                        </button>
-                        {p.plano === 'trial' && (
-                          <button type="button" className="destaque" onClick={() => { setMenuAcoes(null); liberarAcessoCompleto(p); }}>
-                            Liberar acesso completo
-                          </button>
-                        )}
-                        {meta && !meta.email_confirmed_at && (
-                          <button type="button" onClick={() => { setMenuAcoes(null); void reenviarConfirmacao(p); }}>
-                            Reenviar confirmação de e-mail
-                          </button>
-                        )}
-                        <button type="button" onClick={() => { setMenuAcoes(null); void resetarSenha(p); }}>
-                          Resetar senha
-                        </button>
-                        <button type="button" className="perigo" onClick={() => { setMenuAcoes(null); void excluir(p); }}>
-                          Excluir usuário
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </td>
-              );
-              if (aba === 'acessos') {
-                const rotulo =
-                  p.papel === 'cliente' ? 'Cliente (portal)' : p.papel === 'gerente' ? 'Gerente' : 'Inspetor';
-                return (
-                  <tr key={p.id} className={ocupado ? 'ocupado' : ''}>
-                    <td data-label="E-mail" className="admin-email">
-                      {p.email}
-                    </td>
-                    <td data-label="Papel"><span className={`admin-badge-papel ${p.papel}`}>{rotulo}</span></td>
-                    <td data-label="Conta pagante">{(p.org_id && emailPorId.get(p.org_id)) ?? '—'}</td>
-                    <td data-label="Status">
-                      <span className={`admin-badge ${st.cls}`}>{st.label}</span>
-                    </td>
-                    <td data-label="Último acesso">
-                      {ultimoAcesso ? <span className="admin-ultimo-acesso">{ultimoAcesso}</span> : '—'}
-                    </td>
-                    {celAcoes}
-                  </tr>
-                );
-              }
-              const infoLead = [p.nome, p.empresa_nome, p.telefone].filter(Boolean).join(' · ');
-              return (
-                <tr key={p.id} className={ocupado ? 'ocupado' : ''}>
-                  <td data-label="E-mail" className="admin-email">
-                    {ehPagante(p) && (
-                      <span className="admin-selo-pagante" title="Cliente pagante">
-                        <Icone nome="shield" tam={14} />
-                      </span>
-                    )}
-                    {p.email}
-                    {p.origem_cadastro === 'trial' && (
-                      <span className="admin-badge-trial" title="Conta criada pelo cadastro automático (teste 48h)"> TRIAL</span>
-                    )}
-                    {infoLead && (
-                      <div className="adm-inline-sub">{infoLead}</div>
-                    )}
-                  </td>
-                  {/* A TAG manda no faturamento: só "Pagante" soma. Ela é
-                      escolhida aqui porque o banco não distingue pagante de
-                      vitalício — os campos são os mesmos. Sem escolha, o painel
-                      deduz, e o seletor mostra qual dedução foi feita. */}
-                  <td data-label="Tag">
-                    <select
-                      className="admin-sel-tag"
-                      value={tagDaConta(p)}
-                      disabled={ocupado}
-                      title={tagEhManual(p) ? 'Definida manualmente' : 'Deduzida dos dados da conta'}
-                      onChange={(e) => void definirTag(p, e.target.value as TagConta)}
-                    >
-                      {TAGS.map((tg) => (
-                        <option key={tg} value={tg}>
-                          {ROTULO_TAG[tg]}
-                        </option>
-                      ))}
-                    </select>
-                    {!tagEhManual(p) && <span className="adm-inline-sub">automático</span>}
-                  </td>
-                  <td data-label="Mensalidade">
-                    {tagSomaNoFaturamento(tagDaConta(p)) ? (
-                      <input
-                        className="admin-inp-valor"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        inputMode="decimal"
-                        placeholder={String(MENSALIDADE_PADRAO)}
-                        defaultValue={p.valor_mensal ?? ''}
-                        disabled={ocupado}
-                        title="Em branco = usa o valor padrão do painel"
-                        onBlur={(e) => void definirMensalidade(p, e.target.value)}
-                      />
-                    ) : (
-                      <span className="adm-inline-muted" title="Só a tag Pagante entra na soma">—</span>
-                    )}
-                  </td>
-                  <td data-label="Status">
-                    <span className={`admin-badge ${st.cls}`}>{st.label}</span>
-                  </td>
-                  <td data-label="Assinatura">
-                    <span className={`admin-badge-assinatura ${p.assinatura_status ?? 'trial'}`}>
-                      {rotuloStatusAssinatura(p.assinatura_status)}
-                    </span>
-                  </td>
-                  <td data-label="Dias restantes"><BadgeDias expiraEm={p.acesso_expira_em} /></td>
-                  <td data-label="Cadastro">{fmtSomenteData(p.criado_em)}</td>
-                  <td data-label="Último acesso">
-                    {ultimoAcesso ? <span className="admin-ultimo-acesso">{ultimoAcesso}</span> : '—'}
-                  </td>
-                  <td data-label="Sessões">
-                    {m ? `${m.sessoesHoje} / ${m.sessoesTotal}` : '0 / 0'}
-                    {m?.duracaoMediaMin != null ? ` · ${m.duracaoMediaMin} min` : ''}
-                  </td>
-                  <td data-label="Equipamentos">{celEquip(s)}</td>
-                  <td data-label="Inspeções">{s ? s.inspecoes : '—'}</td>
-                  <td data-label="Relatórios">{s ? s.relatorios : '—'}</td>
-                  <td data-label="PDFs">{s ? s.pdf_gerados : '—'}</td>
-                  <td data-label="Impressões">{s ? s.impressoes : '—'}</td>
-                  <td data-label="Acessos criados">{s ? s.subusuarios : '—'}</td>
-                  <td data-label="Dados" title={s ? `${s.chaves_total} chaves · ${s.chaves_base64} com base64` : ''}>
-                    {s ? fmtBytes(s.bytes_total) : '—'}
-                  </td>
-                  <td data-label="Arquivos" title={sto ? `${sto.arquivos} arquivos no bucket` : ''}>
-                    {sto ? fmtBytes(sto.bytes) : '—'}
-                  </td>
-                  <td data-label="Última sync">{s?.ultima_sync ? fmtSomenteData(s.ultima_sync) : '—'}</td>
-                  {celAcoes}
-                </tr>
-              );
-            })}
-            {filtrados.length === 0 && !carregando && (
-              <tr>
-                <td colSpan={17} className="admin-vazio">
-                  {aba === 'acessos' ? 'Nenhum sub-login criado pelos clientes ainda.' : 'Nenhum usuário encontrado.'}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-        </div>
       )}
-        {ehGestao && aba !== 'leads' && uso.size === 0 && !carregando && (
-          <p className="admin-nota">
-            Métricas de uso (equipamentos, inspeções, relatórios…) exibem "—" até rodar
-            <code> supabase/admin_stats.sql</code> no SQL Editor do Supabase.
-          </p>
-        )}
-        {ehGestao && aba !== 'leads' && uso.size > 0 && storage.size === 0 && !carregando && (
-          <p className="admin-nota">
-            As colunas de arquivos exibem "—" até rodar
-            <code> supabase/admin_storage_stats.sql</code> no SQL Editor do Supabase.
-          </p>
-        )}
 
-        {aba === 'clientes' && uso.size > 0 && !carregando && <PainelCrescimento uso={uso} storage={storage} emailPorId={emailPorId} />}
+      {uso.size === 0 && !carregando && (
+        <p className="admin-nota">
+          Métricas de uso (equipamentos, inspeções, relatórios…) exibem "—" até rodar
+          <code> supabase/admin_stats.sql</code> no SQL Editor do Supabase.
+        </p>
+      )}
+
+      {modalNovo && (
+        <ModalNovoCliente
+          ocupado={criando}
+          erro={erro}
+          onFechar={() => setModalNovo(false)}
+          onCriar={(d) => void criarUsuario(d)}
+        />
+      )}
       </div>
-
-      {/* Cadastro manual / edição de lead importado */}
-      {leadForm && (
-        <ModalLeadForm
-          lead={leadForm.lead}
-          onClose={() => setLeadForm(null)}
-          onSalvo={(msg) => {
-            setLeadForm(null);
-            setAviso(msg);
-            void carregar();
-          }}
-        />
-      )}
-
-      {/* Importação de leads por planilha */}
-      {importarAberto && (
-        <ModalImportarLeads
-          emailsExistentes={emailsExistentes}
-          onClose={() => setImportarAberto(false)}
-          onImportado={(msg) => {
-            setAviso(msg);
-            void carregar();
-          }}
-        />
-      )}
-
-      {/* Compositor de e-mail para os leads ({nome} e {empresa} são substituídos por destinatário) */}
-      {emailAberto && (
-        <div className="admin-email-overlay" role="dialog" aria-modal="true">
-          <div className="admin-email-modal">
-            <h3>Enviar e-mail para os leads</h3>
-            <p className="admin-email-sub">
-              Destinatários: <strong>
-                {emailsSelecionados.length > 0 ? `${emailsSelecionados.length} selecionado(s)` : `todos os ${leads.length} leads`}
-              </strong>
-              {' '}· Use <code>{'{nome}'}</code> e <code>{'{empresa}'}</code> para personalizar.
-            </p>
-            <label className="admin-email-label">Assunto</label>
-            <input
-              type="text"
-              value={emAssunto}
-              onChange={(e) => setEmAssunto(e.target.value)}
-              className="admin-email-assunto"
-            />
-            <label className="admin-email-label">Mensagem</label>
-            <div className="admin-email-toolbar">
-              <button type="button" title="Negrito" onClick={() => envolverSelecao('**', '**', 'texto em destaque')}>
-                <b>B</b>
-              </button>
-              <button type="button" title="Marca-texto" onClick={() => envolverSelecao('==', '==', 'palavra destacada')}>
-                <mark>ab</mark>
-              </button>
-              <button type="button" title="Link" onClick={() => envolverSelecao('[', '](https://seulink.com.br)', 'clique aqui')}>
-                🔗 Link
-              </button>
-              <button type="button" title="Imagem" onClick={() => envolverSelecao('!img(', ')', 'https://url-da-imagem.jpg')}>
-                🖼 Imagem
-              </button>
-            </div>
-            <textarea
-              ref={corpoRef}
-              value={emCorpo}
-              onChange={(e) => setEmCorpo(e.target.value)}
-              className="admin-email-corpo"
-              rows={10}
-            />
-            <p className="admin-email-dica">
-              Formatação: <code>**negrito**</code> · <code>==marca-texto==</code> ·{' '}
-              <code>[texto](https://link)</code> · <code>!img(https://url-da-imagem)</code>. A logo do
-              sistema entra automaticamente no topo quando o <code>app_url</code> estiver configurado.
-            </p>
-            {emCorpo.trim() && (
-              <>
-                <label className="admin-email-label">Pré-visualização</label>
-                <div
-                  className="admin-email-preview"
-                  // preview local do próprio texto do admin, com HTML escapado (mesma regra da edge)
-                  dangerouslySetInnerHTML={{ __html: previewEmailHtml(emCorpo) }}
-                />
-              </>
-            )}
-            <div className="admin-email-acoes">
-              <button type="button" className="cancelar" onClick={() => setEmailAberto(false)} disabled={enviandoEmail}>
-                Cancelar
-              </button>
-              <button
-                type="button"
-                className="enviar"
-                onClick={() => void enviarEmailLeads()}
-                disabled={enviandoEmail || !emAssunto.trim() || !emCorpo.trim()}
-              >
-                {enviandoEmail ? 'Enviando…' : 'Enviar agora'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
-/**
- * Crescimento e armazenamento (Fase 2, 16/08/2026).
- *
- * O que esta seção existe para responder, e que o painel não respondia:
- * quem consome, em quê, e quanto do consumo é blob que ainda mora no banco.
- * Cada número aqui dimensiona uma fase seguinte — por isso o rótulo diz o que
- * o número É, e não só quanto ele vale.
- */
-function PainelCrescimento({
-  uso,
-  storage,
-  emailPorId,
-}: {
-  uso: Map<string, UsoStats>;
-  storage: Map<string, StorageStats>;
-  emailPorId: Map<string, string>;
-}) {
-  const linhas = [...uso.values()];
-  const ranking = ordenarPorConsumo(linhas, storage).slice(0, 10);
-
-  const somaBanco = linhas.reduce((a, u) => a + (u.bytes_total ?? 0), 0);
-  const somaBase64 = linhas.reduce((a, u) => a + (u.bytes_base64 ?? 0), 0);
-  const somaLegado = linhas.reduce((a, u) => a + (u.bytes_legado ?? 0), 0);
-  const legadoPendente = linhas.reduce((a, u) => a + (u.relatorios_legado ?? 0), 0);
-  const arquivos = [...storage.values()];
-  const somaBucket = arquivos.reduce((a, s) => a + (s.bytes ?? 0), 0);
-  const pdfs = arquivos.reduce((a, s) => a + (s.pdfs ?? 0), 0);
-  const bytesPdf = arquivos.reduce((a, s) => a + (s.pdfs ?? 0) * (s.pdf_bytes_medio ?? 0), 0);
-  const fotos = arquivos.reduce((a, s) => a + (s.fotos ?? 0), 0);
-  const bytesFoto = arquivos.reduce((a, s) => a + (s.fotos ?? 0) * (s.foto_bytes_medio ?? 0), 0);
-
-  return (
-    <section className="admin-crescimento">
-      <h2>Crescimento e armazenamento</h2>
-
-      <div className="admin-cards-metricas">
-        <div className="admin-card-metrica">
-          <span className="rot">Dados no banco</span>
-          <strong>{fmtBytes(somaBanco)}</strong>
-          <small>{linhas.length} organizações</small>
-        </div>
-        <div className="admin-card-metrica">
-          <span className="rot">Arquivos no bucket</span>
-          <strong>{fmtBytes(somaBucket)}</strong>
-          <small>{arquivos.length} organizações com arquivo</small>
-        </div>
-        <div className="admin-card-metrica">
-          <span className="rot">Ainda em base64 no banco</span>
-          <strong>{fmtBytes(somaBase64)}</strong>
-          {/* PISO: conta chaves com marcador `base64,`. Serve para dimensionar
-              a migração das fotos para o bucket, não para declarar que acabou. */}
-          <small>{fmtPercentual(somaBanco ? somaBase64 / somaBanco : null)} do banco · piso</small>
-        </div>
-        <div className="admin-card-metrica">
-          <span className="rot">Histórico legado</span>
-          <strong>{fmtBytes(somaLegado)}</strong>
-          <small>{legadoPendente} relatório(s) só no legado</small>
-        </div>
-        <div className="admin-card-metrica">
-          <span className="rot">PDFs de relatório</span>
-          <strong>{pdfs}</strong>
-          <small>{fmtBytes(pdfs ? bytesPdf / pdfs : null)} em média</small>
-        </div>
-        <div className="admin-card-metrica">
-          <span className="rot">Fotos</span>
-          <strong>{fotos}</strong>
-          <small>{fmtBytes(fotos ? bytesFoto / fotos : null)} em média</small>
-        </div>
-      </div>
-
-      <table className="admin-tabela-consumo">
-        <thead>
-          <tr>
-            <th>Organização</th>
-            <th>Banco</th>
-            <th>Bucket</th>
-            <th>Total</th>
-            <th>Base64 no banco</th>
-          </tr>
-        </thead>
-        <tbody>
-          {ranking.map((r) => {
-            const u = uso.get(r.escopo);
-            return (
-              <tr key={r.escopo}>
-                <td>{emailPorId.get(r.escopo) ?? r.escopo.slice(0, 8)}</td>
-                <td>{fmtBytes(r.bytesBanco)}</td>
-                <td>{fmtBytes(r.bytesBucket)}</td>
-                <td>{fmtBytes(r.total)}</td>
-                <td>{u ? fmtPercentual(fracaoBase64(u)) : '—'}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-
-      <p className="admin-nota">
-        "Última sync" na tabela acima é de <code>profiles.ultima_sync</code>: ela é do{' '}
-        <strong>usuário</strong>, não do aparelho. Quem usa celular e computador grava ali o mais
-        recente dos dois — um aparelho parado com trabalho dentro não aparece nessa coluna.
-      </p>
-    </section>
-  );
-}

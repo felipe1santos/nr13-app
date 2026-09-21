@@ -1054,3 +1054,139 @@
   outline: 2px solid var(--acento, #e8842c);
   outline-offset: 1px;
 }
+
+/* ── ABA ÚNICA DE CLIENTES (21/09/2026) ─────────────────────────────────────
+   O topo junta receita e a porta de entrada do cliente novo; a faixa de
+   ocupação resume o enchimento do servidor sem roubar a tela; as ações são
+   botões diretos no fim da linha. */
+.adm-clientes-topo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.adm-clientes-topo .adm-kpis {
+  flex: 1 1 420px;
+  min-width: 0;
+}
+
+.adm-btn-novo {
+  flex: 0 0 auto;
+  font: inherit;
+  font-weight: 600;
+  padding: 10px 16px;
+  min-height: 44px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--acento, #e8842c);
+  color: #fff;
+  cursor: pointer;
+}
+
+.adm-btn-novo:hover {
+  filter: brightness(1.06);
+}
+
+.adm-ocupacao {
+  margin: 14px 0 10px;
+}
+
+.adm-ocupacao-rot {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--txt-fraco, #5b6570);
+  margin-bottom: 6px;
+}
+
+.adm-ocupacao-quadros {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.adm-quadro {
+  border: 1px solid var(--borda, #dfe3e8);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--fundo-suave, #f7f8fa);
+  min-width: 0;
+}
+
+.adm-quadro span {
+  display: block;
+  font-size: 11px;
+  color: var(--txt-fraco, #5b6570);
+}
+
+.adm-quadro strong {
+  display: block;
+  font-size: 15px;
+  margin: 2px 0;
+  overflow-wrap: anywhere;
+}
+
+.adm-quadro small {
+  font-size: 10px;
+  color: var(--txt-fraco, #5b6570);
+}
+
+.adm-acoes-linha {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.adm-acoes-linha .b-acoes.perigo {
+  color: #b03a2e;
+}
+
+/* O modal do consumo e o de novo cliente compartilham a caixa. */
+.adm-modal {
+  width: min(680px, 96vw);
+  max-height: min(88vh, 760px);
+}
+
+.adm-modal-corpo {
+  padding: 4px 2px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.adm-form-novo label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.adm-form-novo input,
+.adm-form-novo select {
+  font: inherit;
+  padding: 8px 10px;
+  min-height: 40px;
+  border: 1px solid var(--borda, #dfe3e8);
+  border-radius: 8px;
+}
+
+.adm-form-linha {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.adm-linha-alvo {
+  background: #fff6e8;
+  font-weight: 600;
+}
+
+@media (max-width: 560px) {
+  .adm-btn-novo {
+    width: 100%;
+  }
+}
