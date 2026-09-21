@@ -84,3 +84,31 @@ export function motorPossivel(fluxo: FluxoDocumento, motorEscolhido: MotorPdf): 
 export function papelDaPrevia(fluxo: FluxoDocumento): 'previa-vetorial' | 'raster-da-tela' {
   return fluxo === 'vetorial' ? 'previa-vetorial' : 'raster-da-tela';
 }
+
+/**
+ * O painel do LAUDO precisa estar na barra? (21/09/2026)
+ *
+ * O APTO/INAPTO tem duas superfícies possíveis: a folha `CONCLUSAO.html`
+ * (clique no SIM/NÃO, fluxo antigo) e o painel React (`ModalLaudo`). A 13C
+ * amarrou o botão da barra à chave `nr13_edicao_react`, que nasce em
+ * `iframe` — e naquele momento isso bastava, porque com `iframe` a folha
+ * estava na tela e resolvia.
+ *
+ * A 13E tirou os iframes do caminho padrão. Desde então, a organização que
+ * nunca mexeu em nenhuma das duas chaves (a configuração PADRÃO) caía no pior
+ * cruzamento possível:
+ *
+ * | prévia | edição | onde marcar o laudo |
+ * |---|---|---|
+ * | vetorial (padrão) | iframe (padrão) | **em lugar nenhum** |
+ *
+ * Sem folha e sem botão, o laudo não tinha como ser gravado; a validação o
+ * exige para finalizar; e o documento ficava travado em "Voltar e revisar".
+ * Medido em produção num cliente, com três relatórios parados.
+ *
+ * A regra: **sem folha para clicar, o painel é obrigatório.** Ele continua
+ * aparecendo quando a organização escolheu a edição React de propósito.
+ */
+export function precisaPainelDeLaudo(fluxo: FluxoDocumento, superficie: 'iframe' | 'react'): boolean {
+  return superficie === 'react' || !montaIframes(fluxo);
+}

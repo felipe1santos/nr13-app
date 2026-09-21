@@ -5,6 +5,7 @@ import { textoDoErro } from '../../services/textoDoErro';
 import { gerarPreviaRelatorio } from './pdfVetorial/gerarRelatorio';
 import type { CampoEditavel } from './pdfVetorial/documento';
 import { oQueFalta, type DestinoEdicao, type ItemFaltante } from './oQueFalta';
+import { DESTINO_POR_CAMPO, editaSoPeloPainel } from './destinoPendencia';
 import { agruparPendencias, proximoDoGrupo, type GrupoPendencia } from './agruparPendencias';
 import EditorCampoDocumento from './EditorCampoDocumento';
 import ModalPredefinicoes from './predefinicoes/ModalPredefinicoes';
@@ -410,7 +411,18 @@ export default function PreviaVetorial({
                         width: `${(c.larg / A4.largura) * largura}px`,
                         height: `${(c.alt / A4.altura) * altura}px`,
                       }}
-                      onClick={() => setEmEdicao(c)}
+                      onClick={() => {
+                        // O APTO/INAPTO não se escreve como texto: ele é dado
+                        // técnico e tem painel próprio. Digitar por cima fazia
+                        // o documento dizer APTO com `nr13_laudo_` vazio — e
+                        // o botão de finalizar sumia sem explicação.
+                        const so = DESTINO_POR_CAMPO[c.id];
+                        if (editaSoPeloPainel(c.id) && so?.onde) {
+                          onIrPara?.(so.onde as Exclude<DestinoEdicao, null>, so.campo);
+                          return;
+                        }
+                        setEmEdicao(c);
+                      }}
                     />
                   ))}
                 </div>

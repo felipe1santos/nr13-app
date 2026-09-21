@@ -67,6 +67,31 @@ export const DESTINO_POR_CAMPO: Record<string, DestinoCampo> = {
 };
 
 /**
+ * Campos que NÃO podem ser escritos como texto no documento (21/09/2026).
+ *
+ * ## O defeito que isto conserta, medido num cliente
+ *
+ * O APTO/INAPTO é DADO TÉCNICO: mora em `nr13_laudo_<TAG>`, alimenta o selo do
+ * Livro de Registro, os vencimentos e a validação da finalização. O texto
+ * impresso na folha é só o reflexo dele.
+ *
+ * Como qualquer campo do documento, ele era clicável para edição livre. Um
+ * engenheiro clicou no quadro do parecer e digitou "APTO": o PDF passou a
+ * mostrar APTO — e `nr13_laudo_` continuou vazio. A partir daí o botão
+ * "Finalizar relatório" some (a validação exige o laudo) e o campo deixa de
+ * aparecer em "O que falta" (para a barra, ele está preenchido). O usuário
+ * ficou com um documento que diz APTO, sem nenhum caminho para finalizar e sem
+ * nenhuma explicação — três relatórios travados assim, 19 e 21/09/2026.
+ *
+ * Então o clique nestes campos ABRE O PAINEL que grava o dado de verdade, em
+ * vez do editor de texto. Escrever por cima seguiria produzindo um documento
+ * que afirma o que o sistema não sabe.
+ */
+export function editaSoPeloPainel(id: string): boolean {
+  return DESTINO_POR_CAMPO[id]?.onde === 'laudo';
+}
+
+/**
  * A SEÇÃO do campo, para o agrupamento discreto da barra lateral.
  *
  * Sai do prefixo do id — que é semântico e escolhido no gerador, não do rótulo.
@@ -120,3 +145,13 @@ export function secaoDoCampo(id: string): string {
   const prefixo = id.split('.')[0].split('-')[0];
   return SECAO_POR_PREFIXO[prefixo] ?? 'Documento';
 }
+
+/**
+ * Os campos que o PAINEL grava — e que, por isso, não podem ficar com um
+ * override de texto por cima.
+ *
+ * Ao salvar pelo painel, a tela limpa estes ids do mapa de overrides: o texto
+ * escrito à mão antes desta correção deixaria o documento afirmando uma
+ * conclusão diferente da que o engenheiro acabou de marcar.
+ */
+export const CAMPOS_SO_DO_PAINEL: string[] = Object.keys(DESTINO_POR_CAMPO).filter(editaSoPeloPainel);

@@ -17,13 +17,18 @@ import CardPlacaIdentificacao from '../features/relatorios/CardPlacaIdentificaca
 import MenuMais from '../components/MenuMais';
 import ModalMedicoes from '../features/relatorios/ModalMedicoes';
 import ModalLaudo from '../features/relatorios/ModalLaudo';
+import { CAMPOS_SO_DO_PAINEL } from '../features/relatorios/destinoPendencia';
 import { edicaoAtual, folhaTravadaPelaEdicaoReact } from '../features/relatorios/edicaoReact';
 import PreviaVetorial from '../features/relatorios/PreviaVetorial';
 import { previaAtual } from '../features/relatorios/previaDocumento';
-import { fluxoDaTela, montaIframes, motorPossivel, papelDaPrevia, precisaPalco } from '../features/relatorios/fluxoDocumento';
+import { fluxoDaTela, montaIframes, motorPossivel, papelDaPrevia,
+  precisaPainelDeLaudo, precisaPalco } from '../features/relatorios/fluxoDocumento';
 import {
   carregarOverrides,
+  contarOverrides,
   copiarOverrides,
+  gravarOverrides,
+  semOverride,
   type MapaOverrides,
 } from '../features/relatorios/overridesRelatorio';
 import { drenarPonte } from '../services/ponteTemplates';
@@ -1538,17 +1543,19 @@ function RelatoriosLegado() {
                 de novo o que já veio do campo convidava a duas verdades para o
                 mesmo número. O botão continua no rollback `?previa=iframe`,
                 onde a grade vive dentro do iframe. */}
-            {superficieEdicao === 'react' && !somenteLeitura && fonteDeImpressao(relatorioArquivado) !== 'arquivo' && (
-              <>
-                {papelDaPrevia(fluxo) !== 'previa-vetorial' && (
-                  <button type="button" className="btn-secundario barra-btn" onClick={() => setModalMedicoes(true)}>
-                    <Icone nome="sliders" tam={14} /> Medições
-                  </button>
-                )}
-                <button type="button" className="btn-secundario barra-btn" onClick={() => setModalLaudo(true)}>
-                  <Icone nome="filetext" tam={14} /> Laudo
-                </button>
-              </>
+            {superficieEdicao === 'react' && !somenteLeitura && fonteDeImpressao(relatorioArquivado) !== 'arquivo' && papelDaPrevia(fluxo) !== 'previa-vetorial' && (
+              <button type="button" className="btn-secundario barra-btn" onClick={() => setModalMedicoes(true)}>
+                <Icone nome="sliders" tam={14} /> Medições
+              </button>
+            )}
+            {/* O LAUDO não depende da chave de edição: sem os iframes montados
+                não existe folha CONCLUSAO para clicar o SIM/NÃO, e sem este
+                botão o APTO/INAPTO não teria onde ser marcado — que é o que
+                travava a finalização na configuração padrão (13E). */}
+            {precisaPainelDeLaudo(fluxo, superficieEdicao) && !somenteLeitura && fonteDeImpressao(relatorioArquivado) !== 'arquivo' && (
+              <button type="button" className="btn-secundario barra-btn" onClick={() => setModalLaudo(true)}>
+                <Icone nome="filetext" tam={14} /> Laudo
+              </button>
             )}
             <div className="meta-barra-acoes">
               {/* `gerando`: enquanto o contador de folhas está na cara do botão, ele ocupa a
@@ -1670,7 +1677,22 @@ function RelatoriosLegado() {
               tag={tag}
               codigoRelatorio={meta?.codigo ?? ''}
               onFechar={() => setModalLaudo(false)}
-              onSalvou={() => { setVersao((v) => v + 1); setAplicadoEm(Date.now()); }}
+              onSalvou={() => {
+                // O PAINEL MANDA NO CAMPO. Quem escreveu "APTO" à mão no
+                // documento antes desta correção deixou um override de texto;
+                // sem limpá-lo, marcar INAPTO aqui produziria um PDF dizendo
+                // APTO com o laudo gravado como INAPTO — o documento mentindo
+                // sobre a conclusão do engenheiro. Ver `editaSoPeloPainel`.
+                void (async () => {
+                  const limpo = CAMPOS_SO_DO_PAINEL.reduce((mapa, id) => semOverride(mapa, id), overrides);
+                  if (meta?.codigo && tag && contarOverrides(limpo) !== contarOverrides(overrides)) {
+                    await gravarOverrides(meta.codigo, tag, limpo);
+                    setOverrides(limpo);
+                  }
+                  setVersao((v) => v + 1);
+                  setAplicadoEm(Date.now());
+                })();
+              }}
             />
           )}
 

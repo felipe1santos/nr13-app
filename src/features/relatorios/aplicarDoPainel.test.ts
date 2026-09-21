@@ -30,8 +30,18 @@ describe('gate · painel que grava refaz a prévia', () => {
   });
 
   it('Medições e Laudo fazem o mesmo', () => {
-    const salvou = tela.match(/onSalvou=\{\(\) => \{ setVersao\(\(v\) => v \+ 1\); setAplicadoEm\(Date\.now\(\)\); \}\}/g) ?? [];
+    // Ancorado no COMPORTAMENTO (os dois painéis marcam versão e carimbo), e
+    // não na forma escrita: o `onSalvou` do Laudo virou um bloco — ele também
+    // limpa o override de texto do campo, para o documento não continuar
+    // dizendo "APTO" depois de o engenheiro marcar INAPTO (21/09/2026).
+    const salvou = tela.match(/onSalvou=\{\(\) => \{[\s\S]*?\}\}/g) ?? [];
     expect(salvou).toHaveLength(2);
+    for (const bloco of salvou) {
+      expect(bloco).toContain('setVersao((v) => v + 1)');
+      expect(bloco).toContain('setAplicadoEm(Date.now())');
+    }
+    // E o do Laudo é o que apaga o texto escrito à mão naquele campo.
+    expect(salvou.some((b) => b.includes('CAMPOS_SO_DO_PAINEL'))).toBe(true);
   });
 
   it('a prévia regera quando o carimbo muda — e NÃO na montagem', () => {
