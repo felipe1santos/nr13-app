@@ -188,7 +188,8 @@ export default function PainelFaturamento({
             {linhas.length === 0 && (
               <tr>
                 <td colSpan={11} className="admin-vazio">
-                  Nenhuma conta ativa. Testes e expirados ficam na aba "Testes e expirados".
+                  Nenhuma conta ativa. Contas suspensas e de teste aparecem na aba "Clientes",
+                  com a sua tag.
                 </td>
               </tr>
             )}
