@@ -1190,3 +1190,155 @@
     width: 100%;
   }
 }
+
+/* ── CORES DO PAINEL (21/09/2026) ───────────────────────────────────────────
+   Cor aqui AFIRMA alguma coisa, e por isso é sempre a mesma:
+
+     verde    = entra no MRR (pagante) · folga de capacidade
+     roxo     = ativo e fora da conta (vitalício)
+     azul     = conta do próprio dono (interna)
+     vermelho = sem acesso (suspenso) · cota quase no teto
+     âmbar    = atenção, começando a apertar
+
+   As duas escalas moram em `coresPainel.ts`; aqui é só a pintura. */
+
+.adm-tag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.adm-tag-pagante {
+  background: #e6f6ec;
+  color: #14683a;
+  border-color: #b7e2c8;
+}
+
+.adm-tag-vitalicio {
+  background: #f1ecfb;
+  color: #5b3ca8;
+  border-color: #d8cbf3;
+}
+
+.adm-tag-interna {
+  background: #e8f1fd;
+  color: #17518c;
+  border-color: #c2dbf7;
+}
+
+.adm-tag-suspenso {
+  background: #fdeceb;
+  color: #a5342a;
+  border-color: #f4c8c4;
+}
+
+/* O ponto discreto ao lado do rótulo: "isto foi deduzido, não escolhido". */
+.adm-tag-auto {
+  font-style: normal;
+  font-size: 10px;
+  opacity: 0.6;
+  margin-left: 4px;
+}
+
+.adm-valor {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.adm-btn-editar {
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 12px;
+  min-height: 32px;
+  border: 1px solid var(--borda, #dfe3e8);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--txt, #1f2933);
+  cursor: pointer;
+}
+
+.adm-btn-editar:hover:not(:disabled) {
+  border-color: var(--acento, #e8842c);
+  color: var(--acento, #e8842c);
+}
+
+.adm-btn-perigo {
+  color: #a5342a;
+  border-color: #f4c8c4;
+}
+
+.adm-btn-perigo:hover:not(:disabled) {
+  background: #fdeceb;
+}
+
+/* ── Quadros de ocupação: tom de repouso e nível de alarme ───────────────── */
+.adm-quadro.tom-azul    { border-color: #c2dbf7; background: #f4f9ff; }
+.adm-quadro.tom-roxo    { border-color: #d8cbf3; background: #f9f6ff; }
+.adm-quadro.tom-verde   { border-color: #b7e2c8; background: #f4fbf7; }
+.adm-quadro.tom-ambar   { border-color: #f0dcae; background: #fffaf0; }
+.adm-quadro.tom-neutro  { border-color: var(--borda, #dfe3e8); background: var(--fundo-suave, #f7f8fa); }
+
+.adm-quadro.nivel-ok       { border-color: #b7e2c8; background: #f4fbf7; }
+.adm-quadro.nivel-atencao  { border-color: #e9c46a; background: #fff8e8; }
+/* Crítico é o único que muda o PESO do texto: perto do teto, o número tem de
+   saltar antes da legenda ser lida. */
+.adm-quadro.nivel-critico  { border-color: #e28b83; background: #fdeeec; }
+.adm-quadro.nivel-critico strong { color: #a5342a; }
+.adm-quadro.nivel-critico small  { color: #a5342a; font-weight: 600; }
+
+.adm-barra {
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  margin: 5px 0 3px;
+}
+
+.adm-barra i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: #2f9e5f;
+}
+
+.nivel-atencao .adm-barra i  { background: #d99a12; }
+.nivel-critico .adm-barra i  { background: #c0392b; }
+.tom-azul .adm-barra i       { background: #2f6fbf; }
+.tom-roxo .adm-barra i       { background: #6b46c1; }
+.tom-ambar .adm-barra i      { background: #d99a12; }
+
+.adm-modal-secao {
+  border-top: 1px solid var(--borda, #dfe3e8);
+  padding-top: 10px;
+}
+
+.adm-modal-secao-rot {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--txt-fraco, #5b6570);
+  margin-bottom: 6px;
+}
+
+/* No escuro os fundos claros das etiquetas ficariam ofuscantes. */
+[data-tema='escuro'] .adm-tag-pagante   { background: #12301f; color: #7fd3a3; border-color: #1f5236; }
+[data-tema='escuro'] .adm-tag-vitalicio { background: #241c3a; color: #b9a3f0; border-color: #3b2f5e; }
+[data-tema='escuro'] .adm-tag-interna   { background: #10263d; color: #8fbdf0; border-color: #1d4066; }
+[data-tema='escuro'] .adm-tag-suspenso  { background: #351817; color: #f0a49c; border-color: #5c2a26; }
+[data-tema='escuro'] .adm-quadro.tom-azul   { background: #10202f; border-color: #1d4066; }
+[data-tema='escuro'] .adm-quadro.tom-roxo   { background: #1c1730; border-color: #3b2f5e; }
+[data-tema='escuro'] .adm-quadro.tom-verde  { background: #10241a; border-color: #1f5236; }
+[data-tema='escuro'] .adm-quadro.tom-ambar  { background: #2b2210; border-color: #5a4718; }
+[data-tema='escuro'] .adm-quadro.nivel-ok      { background: #10241a; border-color: #1f5236; }
+[data-tema='escuro'] .adm-quadro.nivel-atencao { background: #2b2210; border-color: #5a4718; }
+[data-tema='escuro'] .adm-quadro.nivel-critico { background: #301513; border-color: #5c2a26; }
+[data-tema='escuro'] .adm-quadro.nivel-critico strong,
+[data-tema='escuro'] .adm-quadro.nivel-critico small { color: #f0a49c; }
+[data-tema='escuro'] .adm-btn-editar { background: transparent; color: inherit; }

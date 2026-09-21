@@ -2,7 +2,9 @@ import { useMemo, useState } from 'react';
 import { rotuloStatusAssinatura } from '../../services/assinatura';
 import { fmtBytes, fmtPercentual, fracaoBase64, ordenarPorConsumo, type StorageStats, type UsoStats } from '../../pages/adminMetricas';
 import { fmtBRL, type Faturamento } from './painelAdmin';
-import { ROTULO_TAG, TAGS, type TagConta } from './classificarConta';
+import { ROTULO_TAG, type TagConta } from './classificarConta';
+import { fracaoDaBarra, nivelDeOcupacao, rotuloDeOcupacao } from './coresPainel';
+import type { InfraSupabase } from './infraSupabase';
 
 /**
  * A ABA ÚNICA DE CLIENTES (21/09/2026).
@@ -74,10 +76,9 @@ export default function PainelClientes({
   ocupado,
   busca,
   onBusca,
-  onTag,
-  onMensalidade,
+  onEditar,
   onNovoCliente,
-  acoes,
+  infra,
 }: {
   faturamento: Faturamento;
   contas: ContaCliente[];
@@ -88,11 +89,11 @@ export default function PainelClientes({
   ocupado: string | null;
   busca: string;
   onBusca: (v: string) => void;
-  onTag: (c: ContaCliente, tag: TagConta) => void;
-  onMensalidade: (c: ContaCliente, valor: string) => void;
+  /** Abre o modal daquela conta — a lista é só leitura. */
+  onEditar: (c: ContaCliente) => void;
   onNovoCliente: () => void;
-  /** As ações daquela linha (suspender, validade, excluir…), montadas na página. */
-  acoes: (c: ContaCliente) => React.ReactNode;
+  /** Cotas REAIS do plano, para a ocupação ter cor. `null` = sem a Edge. */
+  infra: InfraSupabase | null;
 }) {
   const [consumoDe, setConsumoDe] = useState<ContaCliente | null>(null);
 
@@ -146,42 +147,62 @@ export default function PainelClientes({
         </button>
       </div>
 
-      {/* ── OCUPAÇÃO DO SERVIDOR: só os números do enchimento ──────────────── */}
+      {/* ── OCUPAÇÃO DO SERVIDOR ───────────────────────────────────────────
+          A cor sai da COTA REAL do plano (Management API), nunca de um teto
+          inventado aqui: âmbar a partir de 75%, vermelho a partir de 90%. Sem
+          cota conhecida o quadro fica no seu tom de repouso — pintar de
+          vermelho um número sem referência é inventar um alarme. */}
       <div className="adm-ocupacao">
-        <span className="adm-ocupacao-rot">Ocupação</span>
+        <span className="adm-ocupacao-rot">Ocupação do servidor</span>
         <div className="adm-ocupacao-quadros">
-          <div className="adm-quadro">
-            <span>Banco</span>
-            <strong>{fmtBytes(ocupacao.banco)}</strong>
-            <small>{ocupacao.organizacoes} org.</small>
-          </div>
-          <div className="adm-quadro">
-            <span>Bucket</span>
-            <strong>{fmtBytes(ocupacao.bucket)}</strong>
-            <small>{ocupacao.pdfs} PDFs</small>
-          </div>
-          <div className="adm-quadro">
-            <span>Base64 no banco</span>
-            <strong>{fmtBytes(ocupacao.base64)}</strong>
-            {/* PISO: conta chaves com marcador `base64,`. Dimensiona a migração
-                das fotos, não declara que ela acabou. */}
-            <small>{fmtPercentual(ocupacao.banco ? ocupacao.base64 / ocupacao.banco : null)} · piso</small>
-          </div>
-          <div className="adm-quadro">
-            <span>Histórico legado</span>
-            <strong>{fmtBytes(ocupacao.legado)}</strong>
-            <small>{ocupacao.legadoPendente} relatório(s)</small>
-          </div>
-          <div className="adm-quadro">
-            <span>Fotos</span>
-            <strong>{ocupacao.fotos}</strong>
-            <small>no bucket</small>
-          </div>
-          <div className="adm-quadro">
-            <span>Total</span>
-            <strong>{fmtBytes(ocupacao.banco + ocupacao.bucket)}</strong>
-            <small>banco + bucket</small>
-          </div>
+          <Quadro
+            rotulo="Banco"
+            valor={fmtBytes(infra?.dbBytes ?? ocupacao.banco)}
+            usado={infra?.dbBytes ?? ocupacao.banco}
+            cota={infra?.dbCotaBytes ?? null}
+            nota={`${ocupacao.organizacoes} organizações`}
+            tom="azul"
+          />
+          <Quadro
+            rotulo="Arquivos (bucket)"
+            valor={fmtBytes(infra?.storageBytes ?? ocupacao.bucket)}
+            usado={infra?.storageBytes ?? ocupacao.bucket}
+            cota={infra?.storageCotaBytes ?? null}
+            nota={`${ocupacao.pdfs} PDFs · ${ocupacao.fotos} fotos`}
+            tom="roxo"
+          />
+          <Quadro
+            rotulo="Egress do ciclo"
+            valor={fmtBytes(infra?.egressBytes ?? null)}
+            usado={infra?.egressBytes ?? null}
+            cota={infra?.egressCotaBytes ?? null}
+            nota="tráfego de saída"
+            tom="ambar"
+          />
+          <Quadro
+            rotulo="Base64 no banco"
+            valor={fmtBytes(ocupacao.base64)}
+            usado={ocupacao.base64}
+            cota={ocupacao.banco || null}
+            nota="piso · migração para o bucket"
+            tom="roxo"
+          />
+          <Quadro
+            rotulo="Histórico legado"
+            valor={fmtBytes(ocupacao.legado)}
+            usado={null}
+            cota={null}
+            nota={`${ocupacao.legadoPendente} relatório(s)`}
+            tom="neutro"
+          />
+          <Quadro
+            rotulo="Total em uso"
+            valor={fmtBytes(ocupacao.banco + ocupacao.bucket)}
+            usado={null}
+            cota={null}
+            nota="banco + arquivos"
+            tom="verde"
+          />
         </div>
       </div>
 
@@ -222,37 +243,29 @@ export default function PainelClientes({
                     {c.email}
                     {!c.ativo && <span className="adm-inline-sub">acesso bloqueado</span>}
                   </td>
+                  {/* ETIQUETA, não seletor: a lista é lida muito mais do que
+                      alterada, e um clique errado no seletor trocava a
+                      classificação de um cliente direto no banco. */}
                   <td data-label="Tag">
-                    <select
-                      className="admin-sel-tag"
-                      value={c.tag}
-                      disabled={ocupado === c.id}
+                    <span
+                      className={`adm-tag adm-tag-${c.tag}`}
                       title={c.classificacao ? 'Definida manualmente' : 'Deduzida dos dados da conta'}
-                      onChange={(e) => onTag(c, e.target.value as TagConta)}
                     >
-                      {TAGS.map((t) => (
-                        <option key={t} value={t}>
-                          {ROTULO_TAG[t]}
-                        </option>
-                      ))}
-                    </select>
+                      {ROTULO_TAG[c.tag]}
+                    </span>
                   </td>
                   {/* Só quem paga mostra valor. "R$ 197,00" ao lado de uma conta
                       vitalícia é a linha exata que faria alguém somar errado. */}
                   <td data-label="Mensalidade">
                     {c.tag === 'pagante' ? (
-                      <input
-                        className="admin-inp-valor"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        inputMode="decimal"
-                        placeholder={String(faturamento.mensalidade)}
-                        defaultValue={c.valor_mensal ?? ''}
-                        disabled={ocupado === c.id}
-                        title="Em branco = usa o valor padrão"
-                        onBlur={(e) => onMensalidade(c, e.target.value)}
-                      />
+                      <span className="adm-valor">
+                        {fmtBRL(c.valor_mensal ?? faturamento.mensalidade)}
+                        {c.valor_mensal == null && (
+                          <i className="adm-tag-auto" title="usando o valor padrão do painel">
+                            padrão
+                          </i>
+                        )}
+                      </span>
                     ) : (
                       <span className="adm-inline-muted">—</span>
                     )}
@@ -274,7 +287,14 @@ export default function PainelClientes({
                     </button>
                   </td>
                   <td data-label="Ações" className="admin-acoes">
-                    {acoes(c)}
+                    <button
+                      type="button"
+                      className="adm-btn-editar"
+                      disabled={ocupado === c.id}
+                      onClick={() => onEditar(c)}
+                    >
+                      {ocupado === c.id ? 'Salvando…' : 'Editar'}
+                    </button>
                   </td>
                 </tr>
               );
@@ -299,6 +319,49 @@ export default function PainelClientes({
         />
       )}
     </section>
+  );
+}
+
+/**
+ * Um quadro da faixa de ocupação.
+ *
+ * `tom` é a cor de repouso — a identidade daquele número. O NÍVEL (âmbar,
+ * vermelho) VENCE o tom quando o consumo se aproxima da cota: alarme precisa
+ * ganhar da decoração.
+ */
+function Quadro({
+  rotulo,
+  valor,
+  usado,
+  cota,
+  nota,
+  tom,
+}: {
+  rotulo: string;
+  valor: string;
+  usado: number | null;
+  cota: number | null;
+  nota: string;
+  tom: 'azul' | 'roxo' | 'verde' | 'ambar' | 'neutro';
+}) {
+  const nivel = nivelDeOcupacao(usado, cota);
+  const fracao = fracaoDaBarra(usado, cota);
+  const classe = nivel === 'desconhecido' ? `tom-${tom}` : `nivel-${nivel}`;
+  return (
+    <div className={`adm-quadro ${classe}`}>
+      <span>{rotulo}</span>
+      <strong>{valor}</strong>
+      {fracao !== null ? (
+        <>
+          <div className="adm-barra" aria-hidden>
+            <i style={{ width: `${Math.round(fracao * 100)}%` }} />
+          </div>
+          <small>{rotuloDeOcupacao(usado, cota)}</small>
+        </>
+      ) : (
+        <small>{nota}</small>
+      )}
+    </div>
   );
 }
 

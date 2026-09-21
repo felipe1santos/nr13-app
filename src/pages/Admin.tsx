@@ -16,9 +16,9 @@ import {
 import PainelVisaoGeral from '../features/admin/PainelVisaoGeral';
 import PainelClientes, { type ContaCliente } from '../features/admin/PainelClientes';
 import ModalNovoCliente, { type DadosNovoCliente } from '../features/admin/ModalNovoCliente';
+import ModalEditarCliente from '../features/admin/ModalEditarCliente';
 import {
   tagDaConta,
-  tagEhManual,
   somarMensalidades,
   ROTULO_TAG,
   type TagConta,
@@ -29,10 +29,8 @@ import './admin.css';
 // DEPOIS do admin.css de propósito: o tema escuro sobrescreve as cores claras
 // daquele arquivo, e em empate de especificidade quem vem por último vence.
 import './admin-tema.css';
-
 /** Abas do painel. As duas primeiras são leitura; as outras, gestão de contas. */
 type Aba = 'visao' | 'faturamento' | 'clientes' | 'trial' | 'acessos' | 'leads';
-
 /** Uma linha de `admin_series_uso()` — ver `supabase/admin_series.sql`. */
 interface LinhaSerieUso {
   dia: string;
@@ -41,7 +39,6 @@ interface LinhaSerieUso {
   inspecoes: number;
   fotos: number;
 }
-
 interface Profile {
   id: string;
   email: string | null;
@@ -72,52 +69,41 @@ interface Profile {
   kiwify_email?: string | null;
   kiwify_subscription_id?: string | null;
 }
-
-
 interface LoginEvent {
   user_id: string;
   tipo: string; // 'login' | 'logout'
   sessao_id: string | null;
   criado_em: string;
 }
-
 interface AuthMeta {
   id: string;
   last_sign_in_at: string | null;
   email_confirmed_at: string | null;
 }
-
 interface Metricas {
   sessoesHoje: number;
   sessoesTotal: number;
   duracaoMediaMin: number | null;
 }
-
 // Métricas de uso e de armazenamento. Os tipos e as funções puras moram em
 // `adminMetricas.ts`, que é onde o contrato com o SQL é testado.
-
 function fmtData(iso: string | null): string {
   if (!iso) return '—';
   const d = new Date(iso);
   if (isNaN(d.getTime())) return '—';
   return d.toLocaleString('pt-BR');
 }
-
-
 function fmtSomenteData(iso: string | null): string {
   if (!iso) return '—';
   const d = new Date(iso);
   if (isNaN(d.getTime())) return '—';
   return d.toLocaleDateString('pt-BR');
 }
-
 function ehHoje(iso: string): boolean {
   const d = new Date(iso);
   const h = new Date();
   return d.getFullYear() === h.getFullYear() && d.getMonth() === h.getMonth() && d.getDate() === h.getDate();
 }
-
-
 // Dias restantes do acesso (null = sem expiração; negativo = expirado).
 function diasRestantes(acessoExpiraEm: string | null): number | null {
   if (!acessoExpiraEm) return null;
@@ -125,7 +111,6 @@ function diasRestantes(acessoExpiraEm: string | null): number | null {
   if (isNaN(d.getTime())) return null;
   return Math.ceil((d.getTime() - Date.now()) / 86_400_000);
 }
-
 // Calcula métricas de uso por usuário a partir dos eventos login/logout.
 function calcularMetricas(eventos: LoginEvent[]): Map<string, Metricas> {
   const porUsuario = new Map<string, LoginEvent[]>();
@@ -139,7 +124,6 @@ function calcularMetricas(eventos: LoginEvent[]): Map<string, Metricas> {
     const logins = evs.filter((e) => e.tipo === 'login');
     const sessoesHoje = logins.filter((e) => ehHoje(e.criado_em)).length;
     const sessoesTotal = logins.length;
-
     // Duração média: pareia login/logout por sessao_id.
     const duracoes: number[] = [];
     const porSessao = new Map<string, { login?: string; logout?: string }>();
@@ -160,13 +144,10 @@ function calcularMetricas(eventos: LoginEvent[]): Map<string, Metricas> {
       duracoes.length > 0
         ? Math.round(duracoes.reduce((a, b) => a + b, 0) / duracoes.length / 60000)
         : null;
-
     out.set(userId, { sessoesHoje, sessoesTotal, duracaoMediaMin });
   }
   return out;
 }
-
-
 /**
  * Cliente pagante = conta que o dono do produto LIBEROU e que segue valendo.
  *
@@ -187,7 +168,6 @@ export function ehPagante(p: Profile): boolean {
   const venceu = p.acesso_expira_em && new Date(p.acesso_expira_em).getTime() < Date.now();
   return !venceu;
 }
-
 function statusUsuario(p: Profile): { label: string; cls: string } {
   const trial = p.origem_cadastro === 'trial';
   if (!p.ativo) return { label: 'Pendente', cls: 'pendente' };
@@ -197,7 +177,6 @@ function statusUsuario(p: Profile): { label: string; cls: string } {
   if (p.plano === 'trial') return { label: 'Trial ativo', cls: 'ativo' };
   return { label: 'Ativo', cls: 'ativo' };
 }
-
 export default function Admin() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [eventos, setEventos] = useState<LoginEvent[]>([]);
@@ -211,6 +190,8 @@ export default function Admin() {
   const [acaoEmAndamento, setAcaoEmAndamento] = useState<string | null>(null);
   const [criando, setCriando] = useState(false);
   const [modalNovo, setModalNovo] = useState(false);
+  /** A conta aberta no modal de edição — a lista em si é só leitura. */
+  const [editando, setEditando] = useState<ContaCliente | null>(null);
   // Menu "Ações": posição fixa (viewport) para não ser cortado pelo overflow da tabela.
   const [superAberto, setSuperAberto] = useState(false);
   const [aba, setAba] = useState<Aba>('visao');
@@ -233,17 +214,13 @@ export default function Admin() {
   // Eventos Kiwify sem conta vinculada (tabela kiwify_eventos; null = assinatura_setup.sql não
   // rodou — a seção fica escondida em vez de quebrar a página).
   // Usuário escolhido no <select> de cada linha de evento órfão, por id do evento.
-
   const superRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
-
   const emailLogado = (localStorage.getItem('nr13_usuario_logado') ?? '').toLowerCase();
-
   async function sair() {
     await logout();
     navigate('/login');
   }
-
   const carregar = useCallback(async () => {
     setCarregando(true);
     setErro(null);
@@ -255,7 +232,6 @@ export default function Admin() {
       if (resProfiles.error) throw resProfiles.error;
       setProfiles((resProfiles.data as Profile[]) ?? []);
       setEventos((resEventos.data as LoginEvent[]) ?? []);
-
       // Metadados do Auth (último login real, e-mail confirmado) via Edge Function.
       const { data: metaData, error: metaErr } = await supabase.functions.invoke('admin', {
         body: { action: 'auth_meta' },
@@ -265,7 +241,6 @@ export default function Admin() {
         for (const meta of metaData.metas as AuthMeta[]) m.set(meta.id, meta);
         setMetas(m);
       }
-
       // Métricas de uso (equipamentos/inspeções/relatórios/PDF/sub-logins) via RPC.
       // Antes de rodar supabase/admin_stats.sql a função não existe: colunas ficam "—".
       const { data: usoData, error: usoErr } = await supabase.rpc('admin_usage_stats');
@@ -274,7 +249,6 @@ export default function Admin() {
         for (const s of usoData as UsoStats[]) m.set(s.escopo, s);
         setUso(m);
       }
-
       // Peso do BUCKET por organização. Função separada porque lê
       // `storage.objects`, que é outro schema — e porque uma delas pode existir
       // sem a outra durante o deploy. Ausente = a seção de armazenamento não
@@ -285,7 +259,6 @@ export default function Admin() {
         for (const s of stData as StorageStats[]) m.set(s.escopo, s);
         setStorage(m);
       }
-
       // Série diária de atividade para os gráficos. Antes de rodar
       // supabase/admin_series.sql a função não existe: os gráficos que dependem
       // dela mostram "sem dados" e os que vêm de login_events seguem normais.
@@ -293,24 +266,20 @@ export default function Admin() {
         dias: 90,
       });
       setSerieUso(serieErr || !Array.isArray(serieData) ? null : (serieData as LinhaSerieUso[]));
-
       // Infra do projeto (egress, requisições, CPU/RAM) via Edge `admin_infra`.
       // Nunca lança e nunca bloqueia: sem a função publicada, devolve null.
       setInfra(await lerInfra());
-
     } catch (e: unknown) {
       setErro(e instanceof Error ? e.message : 'Falha ao carregar dados.');
     } finally {
       setCarregando(false);
     }
   }, []);
-
   useEffect(() => {
     // carregar() liga o spinner e busca os dados no mount; setState aqui é intencional.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     carregar();
   }, [carregar]);
-
   // Fecha o painel do superadmin ao clicar fora.
   useEffect(() => {
     function aoClicarFora(e: MouseEvent) {
@@ -319,16 +288,13 @@ export default function Admin() {
     document.addEventListener('mousedown', aoClicarFora);
     return () => document.removeEventListener('mousedown', aoClicarFora);
   }, []);
-
   const metricas = useMemo(() => calcularMetricas(eventos), [eventos]);
-
   // Superadmin (a conta logada, role admin) sai da lista — os dados dela ficam
   // no canto superior.
   const meuPerfil = useMemo(
     () => profiles.find((p) => (p.email ?? '').toLowerCase() === emailLogado) ?? null,
     [profiles, emailLogado],
   );
-
   /** Os números do topo da Visão geral. */
   const resumo = useMemo(() => {
     const visiveis = profiles.filter((p) => p.role !== 'admin' && (!p.papel || p.papel === 'mestre'));
@@ -343,7 +309,6 @@ export default function Admin() {
     ).size;
     return { total, pendentes, ativosHoje, vencendo };
   }, [profiles, eventos]);
-
   /**
    * Os três baldes do faturamento, pela TAG de cada conta.
    *
@@ -363,9 +328,7 @@ export default function Admin() {
     }
     return { pagantes, cortesia, internas };
   }, [profiles]);
-
   const assinantes = contas.pagantes;
-
   /**
    * O MRR é a SOMA das mensalidades de cada pagante, não pagantes × valor
    * único: com preços diferentes por cliente, o número antigo não era o
@@ -377,7 +340,6 @@ export default function Admin() {
     const base = calcularFaturamento(assinantes.length, MENSALIDADE_PADRAO);
     return { ...base, mrr, anual: mrr * 12 };
   }, [assinantes]);
-
   /**
    * Séries dos gráficos.
    *
@@ -419,7 +381,6 @@ export default function Admin() {
       requisicoes: infra?.serieRequisicoes ?? null,
     };
   }, [eventos, profiles, serieUso, janela, infra]);
-
   /** Totais do parque, para os cartões de status no alto da Visão Geral. */
   const totais = useMemo(() => {
     let banco = 0;
@@ -440,7 +401,6 @@ export default function Admin() {
     }
     return { banco, bucket, base64, equipamentos, relatorios, arquivos };
   }, [uso, storage]);
-
   /**
    * Cria a conta a partir do MODAL (21/09/2026).
    *
@@ -490,7 +450,6 @@ export default function Admin() {
       setCriando(false);
     }
   }
-
   /**
    * As contas que a aba de Clientes lista.
    *
@@ -520,7 +479,6 @@ export default function Admin() {
         ),
     [profiles, uso],
   );
-
   /** A linha da tabela de volta ao perfil — as ações trabalham com o perfil. */
   function perfilDe(c: ContaCliente): Profile {
     const achado = profiles.find((p) => p.id === c.id);
@@ -539,76 +497,34 @@ export default function Admin() {
       aprovado_por: null,
     };
   }
-
   /**
-   * As AÇÕES de uma conta, no fim da linha.
+   * Grava TAG e MENSALIDADE de uma vez, a partir do modal de edição.
    *
-   * Ficavam num menu suspenso posicionado por coordenada de tela. Aqui são
-   * botões diretos: o que se faz no dia a dia é suspender, ajustar prazo e
-   * (raramente) excluir.
-   */
-  function acoesDaConta(p: Profile) {
-    const travado = acaoEmAndamento === p.id;
-    return (
-      <div className="adm-acoes-linha">
-        {p.ativo ? (
-          <button type="button" className="b b-acoes" disabled={travado} onClick={() => bloquear(p)}>
-            Suspender
-          </button>
-        ) : (
-          <button type="button" className="b b-acoes destaque" disabled={travado} onClick={() => liberar(p)}>
-            Liberar
-          </button>
-        )}
-        <button type="button" className="b b-acoes" disabled={travado} onClick={() => definirValidade(p)}>
-          Validade
-        </button>
-        <button type="button" className="b b-acoes perigo" disabled={travado} onClick={() => void excluir(p)}>
-          Excluir
-        </button>
-      </div>
-    );
-  }
-
-  /**
-   * A TAG da conta — `pagante` | `vitalicio` | `interna` | `suspenso`.
+   * Num `update` só: em duas chamadas, uma falha na segunda deixaria a conta
+   * com a classificação nova e o valor velho — e ninguém veria, porque a
+   * primeira teria dado certo.
    *
-   * Grava só `classificacao`. Nenhuma coluna de ACESSO é tocada: a tag é um
-   * rótulo de painel, e mexer em `plano`/`ativo`/validade para marcar um
-   * rótulo poderia derrubar o acesso de um cliente pagante — o mesmo cuidado
-   * que `alternarPagante` já registrava logo abaixo.
+   * Nenhuma coluna de ACESSO é tocada aqui. Tag é rótulo de painel; mexer em
+   * `plano`/`ativo`/validade para gravar um rótulo poderia derrubar o acesso
+   * de um cliente pagante.
    */
-  function definirTag(p: Profile, tag: TagConta) {
-    if (tagDaConta(p) === tag && tagEhManual(p)) return;
-    void atualizarPerfil(
-      p.id,
-      { classificacao: tag } as Partial<Profile>,
-      `${p.email}: ${ROTULO_TAG[tag]}.`,
-    );
-  }
-
-  /**
-   * Quanto aquele cliente paga por mês.
-   *
-   * Campo vazio grava NULO — "não informado" —, e o painel volta a usar o valor
-   * padrão. Gravar zero faria a conta sumir do MRR parecendo cliente de graça.
-   */
-  function definirMensalidade(p: Profile, bruto: string) {
+  async function salvarClassificacao(p: Profile, tag: TagConta, bruto: string) {
     const texto = bruto.trim().replace(',', '.');
     const n = texto === '' ? null : Number(texto);
     if (n !== null && (!Number.isFinite(n) || n < 0)) {
       setErro('Valor inválido. Use apenas números, como 197 ou 149.90.');
       return;
     }
-    if ((p.valor_mensal ?? null) === n) return;
-    void atualizarPerfil(
+    const patch: Partial<Profile> = { classificacao: tag } as Partial<Profile>;
+    // Só quem paga tem mensalidade: manter o valor numa conta que virou
+    // vitalícia deixaria um número pronto para voltar ao MRR sem querer.
+    (patch as Record<string, unknown>).valor_mensal = tag === 'pagante' ? n : null;
+    await atualizarPerfil(
       p.id,
-      { valor_mensal: n } as Partial<Profile>,
-      n === null ? `${p.email}: mensalidade em branco (usa o padrão).` : `${p.email}: ${fmtBRL(n)}/mês.`,
+      patch,
+      `${p.email}: ${ROTULO_TAG[tag]}${tag === 'pagante' && n !== null ? ` · ${fmtBRL(n)}/mês` : ''}.`,
     );
   }
-
-
   // ---- Ações ----
   async function atualizarPerfil(id: string, patch: Partial<Profile>, msg: string) {
     setAcaoEmAndamento(id);
@@ -638,8 +554,6 @@ export default function Admin() {
       setAcaoEmAndamento(null);
     }
   }
-
-
   function liberar(p: Profile) {
     void atualizarPerfil(
       p.id,
@@ -656,12 +570,9 @@ export default function Admin() {
       `Acesso liberado para ${p.email}.`,
     );
   }
-
-
   function bloquear(p: Profile) {
     void atualizarPerfil(p.id, { ativo: false }, `Acesso bloqueado para ${p.email}.`);
   }
-
   // Validade em DIAS a partir de hoje (vazio = remove a expiração).
   function definirValidade(p: Profile) {
     const atual = diasRestantes(p.acesso_expira_em);
@@ -693,7 +604,6 @@ export default function Admin() {
       `Acesso de ${p.email} válido por ${dias} dias (até ${fmtSomenteData(d.toISOString())}).`,
     );
   }
-
   async function resetarSenha(p: Profile) {
     const nova = window.prompt(`Nova senha para ${p.email} (mín. 6 caracteres):`);
     if (nova === null) return;
@@ -717,7 +627,6 @@ export default function Admin() {
       setAcaoEmAndamento(null);
     }
   }
-
   async function excluir(p: Profile) {
     if (
       !window.confirm(
@@ -742,11 +651,8 @@ export default function Admin() {
       setAcaoEmAndamento(null);
     }
   }
-
-
   const meuMeta = meuPerfil ? metas.get(meuPerfil.id) : undefined;
   const minhasMetricas = meuPerfil ? metricas.get(meuPerfil.id) : undefined;
-
   return (
     <div className="admin-standalone" data-tema={tema}>
       <header className="admin-topbar">
@@ -821,7 +727,6 @@ export default function Admin() {
             {carregando ? 'Carregando…' : '↻ Atualizar'}
           </button>
         </div>
-
       {/* Abas. As duas primeiras são leitura (dashboard e receita); as outras
           são gestão de conta e trazem junto os formulários e a busca. */}
       <div className="admin-abas">
@@ -840,10 +745,8 @@ export default function Admin() {
           Clientes
         </button>
       </div>
-
       {erro && <p className="admin-erro">{erro}</p>}
       {aviso && <p className="admin-aviso">{aviso}</p>}
-
       {aba === 'visao' ? (
         <PainelVisaoGeral
           series={series}
@@ -866,20 +769,47 @@ export default function Admin() {
           ocupado={acaoEmAndamento}
           busca={busca}
           onBusca={setBusca}
-          onTag={(c, tag) => definirTag(perfilDe(c), tag)}
-          onMensalidade={(c, v) => definirMensalidade(perfilDe(c), v)}
+          onEditar={(c) => setEditando(c)}
           onNovoCliente={() => setModalNovo(true)}
-          acoes={(c) => acoesDaConta(perfilDe(c))}
+          infra={infra}
         />
       )}
-
       {uso.size === 0 && !carregando && (
         <p className="admin-nota">
           Métricas de uso (equipamentos, inspeções, relatórios…) exibem "—" até rodar
           <code> supabase/admin_stats.sql</code> no SQL Editor do Supabase.
         </p>
       )}
-
+      {editando && (
+        <ModalEditarCliente
+          conta={editando}
+          ocupado={acaoEmAndamento === editando.id}
+          mensalidadePadrao={faturamento.mensalidade}
+          onFechar={() => setEditando(null)}
+          onSalvar={(tag, valor) => {
+            const p = perfilDe(editando);
+            // Tag e mensalidade saem numa gravação só: duas chamadas
+            // deixariam a conta meio salva se a segunda falhasse.
+            void salvarClassificacao(p, tag, valor).then(() => setEditando(null));
+          }}
+          onAlternarAcesso={() => {
+            const p = perfilDe(editando);
+            setEditando(null);
+            if (p.ativo) bloquear(p);
+            else liberar(p);
+          }}
+          onValidade={() => {
+            const p = perfilDe(editando);
+            setEditando(null);
+            definirValidade(p);
+          }}
+          onExcluir={() => {
+            const p = perfilDe(editando);
+            setEditando(null);
+            void excluir(p);
+          }}
+        />
+      )}
       {modalNovo && (
         <ModalNovoCliente
           ocupado={criando}
@@ -892,4 +822,3 @@ export default function Admin() {
     </div>
   );
 }
-

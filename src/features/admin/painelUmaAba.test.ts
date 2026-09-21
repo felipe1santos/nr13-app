@@ -49,23 +49,54 @@ describe('a aba de Clientes concentra o que estava espalhado', () => {
     expect(CLIENTES).toContain('<table className="admin-tabela">');
   });
 
-  it('a tag e a mensalidade se editam na própria linha', () => {
-    expect(CLIENTES).toContain('admin-sel-tag');
-    expect(CLIENTES).toContain('admin-inp-valor');
-    expect(CLIENTES).toContain('onTag(c, e.target.value as TagConta)');
-    expect(CLIENTES).toContain('onMensalidade(c, e.target.value)');
+  it('a lista é LEITURA: tag como etiqueta, valor como texto', () => {
+    // 21/09/2026 · o seletor na linha saiu. Com 16 contas a tela virava um
+    // formulário de 32 campos, e um clique errado trocava a classificação de
+    // um cliente direto no banco, sem confirmação nenhuma.
+    expect(CLIENTES).toContain('className={`adm-tag adm-tag-${c.tag}`}');
+    expect(CLIENTES).not.toContain('admin-sel-tag');
+    expect(CLIENTES).not.toContain('admin-inp-valor');
+    expect(CLIENTES).toContain('adm-btn-editar');
+    expect(CLIENTES).toContain('onEditar(c)');
   });
 
-  it('as ações de cada conta ficam na mesma tela', () => {
-    const i = TELA.indexOf('function acoesDaConta(');
-    expect(i).toBeGreaterThan(0);
-    const bloco = TELA.slice(i, i + 1600);
-    for (const acao of ['Suspender', 'Liberar', 'Validade', 'Excluir']) {
-      expect(bloco).toContain(acao);
+  it('cada tag tem a sua cor, e a classe carrega o nome dela', () => {
+    const css = readFileSync('src/pages/admin.css', 'utf8');
+    for (const tag of ['pagante', 'vitalicio', 'interna', 'suspenso']) {
+      expect(css).toContain(`.adm-tag-${tag}`);
     }
-    expect(bloco).toContain('bloquear(p)');
-    expect(bloco).toContain('void excluir(p)');
-    expect(CLIENTES).toContain('acoes(c)');
+  });
+
+  it('a ocupação muda de cor pela COTA REAL, não por teto inventado', () => {
+    expect(CLIENTES).toContain('nivelDeOcupacao(usado, cota)');
+    expect(CLIENTES).toContain('infra?.dbCotaBytes');
+    expect(CLIENTES).toContain('infra?.egressCotaBytes');
+    const css = readFileSync('src/pages/admin.css', 'utf8');
+    for (const nivel of ['nivel-ok', 'nivel-atencao', 'nivel-critico']) {
+      expect(css).toContain(`.adm-quadro.${nivel}`);
+    }
+  });
+
+  it('as ações de cada conta vivem no modal de edição', () => {
+    const editar = readFileSync('src/features/admin/ModalEditarCliente.tsx', 'utf8');
+    for (const acao of ['Suspender acesso', 'Liberar acesso', 'Definir validade', 'Excluir cliente']) {
+      expect(editar).toContain(acao);
+    }
+    // E a página liga cada uma na função que já existia.
+    expect(TELA).toContain('<ModalEditarCliente');
+    expect(TELA).toContain('onAlternarAcesso=');
+    expect(TELA).toContain('void excluir(p)');
+  });
+
+  it('tag e mensalidade são gravadas numa chamada só', () => {
+    // Em dois `update`, uma falha na segunda deixaria a conta com a
+    // classificação nova e o valor velho — e ninguém veria.
+    expect(TELA).toContain('async function salvarClassificacao(');
+    const i = TELA.indexOf('async function salvarClassificacao(');
+    const bloco = TELA.slice(i, i + 1200);
+    expect((bloco.match(/await atualizarPerfil\(/g) ?? []).length).toBe(1);
+    expect(bloco).toContain('classificacao: tag');
+    expect(bloco).toContain('valor_mensal');
   });
 
   it('o consumo por conta abre em MODAL, não em coluna', () => {
