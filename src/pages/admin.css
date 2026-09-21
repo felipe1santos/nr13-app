@@ -1336,6 +1336,8 @@
 [data-tema='escuro'] .adm-quadro.tom-roxo   { background: #1c1730; border-color: #3b2f5e; }
 [data-tema='escuro'] .adm-quadro.tom-verde  { background: #10241a; border-color: #1f5236; }
 [data-tema='escuro'] .adm-quadro.tom-ambar  { background: #2b2210; border-color: #5a4718; }
+/* O neutro herdava o fundo claro e virava o único quadro branco da faixa. */
+[data-tema='escuro'] .adm-quadro.tom-neutro { background: #1b1f24; border-color: #2c333b; }
 [data-tema='escuro'] .adm-quadro.nivel-ok      { background: #10241a; border-color: #1f5236; }
 [data-tema='escuro'] .adm-quadro.nivel-atencao { background: #2b2210; border-color: #5a4718; }
 [data-tema='escuro'] .adm-quadro.nivel-critico { background: #301513; border-color: #5c2a26; }
