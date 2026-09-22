@@ -40,11 +40,22 @@
  * (§4-quinquies) e não são listas.
  */
 
-/** Um item de coleção, do ponto de vista do merge. */
+/**
+ * Um item de coleção, do ponto de vista do merge.
+ *
+ * SEM index signature de propósito: com ela, nenhuma interface de negócio real
+ * (`DocumentoProntuario`, `RascunhoItem`…) satisfaria a constraint, e cada
+ * chamador precisaria de um cast. O merge lê campos arbitrários por acesso
+ * indexado interno, que é onde o `unknown` deve ficar.
+ */
 export interface ItemColecao {
   /** Marca de EXCLUSÃO. Presente = removido; o item continua na lista. */
   removidoEm?: string;
-  [campo: string]: unknown;
+}
+
+/** Leitura de um campo qualquer do item, sem espalhar cast pelos chamadores. */
+function campo(item: object, nome: string): unknown {
+  return (item as unknown as Record<string, unknown>)?.[nome];
 }
 
 export interface DefinicaoColecao {
@@ -59,13 +70,13 @@ export interface DefinicaoColecao {
    * estável entre aparelhos: um índice de array não serve (foi exatamente o
    * defeito dos ids posicionais do quadro 7.1.1).
    */
-  id: (item: ItemColecao) => string | null;
+  id: (item: object) => string | null;
   /** Para diagnóstico e mensagem de tela. */
   rotulo: string;
 }
 
-const porId = (campo: string) => (i: ItemColecao) => {
-  const v = i?.[campo];
+const porId = (nome: string) => (i: object) => {
+  const v = campo(i, nome);
   return typeof v === 'string' && v !== '' ? v : null;
 };
 
@@ -109,8 +120,9 @@ export function ehColecao(chave: string): boolean {
 }
 
 /** O item está marcado como removido? */
-export function removido(item: ItemColecao): boolean {
-  return typeof item?.removidoEm === 'string' && item.removidoEm !== '';
+export function removido(item: object): boolean {
+  const v = campo(item, 'removidoEm');
+  return typeof v === 'string' && v !== '';
 }
 
 /**
@@ -121,16 +133,16 @@ export function removido(item: ItemColecao): boolean {
  * da versão do servidor); este campo serve para o merge saber que houve uma
  * remoção deliberada, não para decidir quem ganhou.
  */
-export function marcarRemovido(item: ItemColecao, quando: string): ItemColecao {
+export function marcarRemovido<T extends object>(item: T, quando: string): T {
   return { ...item, removidoEm: quando };
 }
 
 /** A lista como as telas a leem: sem os tombstones. */
-export function visiveis<T extends ItemColecao>(lista: T[]): T[] {
+export function visiveis<T extends object>(lista: T[]): T[] {
   return (lista ?? []).filter((i) => !removido(i));
 }
 
-export interface ResultadoMerge<T extends ItemColecao = ItemColecao> {
+export interface ResultadoMerge<T extends object = ItemColecao> {
   lista: T[];
   /** Itens presentes nos dois lados e DIFERENTES — o caso que ainda é do usuário. */
   ambiguos: string[];
@@ -162,10 +174,10 @@ export interface ResultadoMerge<T extends ItemColecao = ItemColecao> {
  * conta como ambíguo. Descartar um item porque o catálogo não sabe identificá-lo
  * seria o merge apagando dado por ignorância.
  */
-export function mesclarColecao<T extends ItemColecao>(
+export function mesclarColecao<T extends object>(
   local: T[],
   servidor: T[],
-  idDe: (i: ItemColecao) => string | null,
+  idDe: (i: object) => string | null,
   /**
    * A BASE: a versão da coleção que este aparelho conhecia quando começou a
    * editar. Opcional, e é ela que separa os dois casos que, de fora, parecem
@@ -231,7 +243,7 @@ export function mesclarColecao<T extends ItemColecao>(
     // TOMBSTONE de qualquer lado vence: quem excluiu tomou uma decisão, e o
     // outro lado só tem uma cópia anterior a ela.
     if (removido(doLocal) || removido(doServidor)) {
-      const carimbo = (removido(doLocal) ? doLocal.removidoEm : doServidor.removidoEm) as string;
+      const carimbo = campo(removido(doLocal) ? doLocal : doServidor, 'removidoEm') as string;
       saida.push({ ...doServidor, ...doLocal, removidoEm: carimbo });
       removidos.push(id);
       continue;

@@ -15,6 +15,8 @@
  * contra 5 do servidor, dois deles prontuários emitidos.
  */
 import { describe, expect, it } from 'vitest';
+type RegistroTeste = Record<string, unknown>;
+
 import {
   COLECOES,
   colecaoDaChave,
@@ -24,12 +26,14 @@ import {
   mesclarColecao,
   removido,
   visiveis,
-  type ItemColecao,
 } from './colecoes';
 
-const ID = (i: ItemColecao) => (typeof i.id === 'string' ? i.id : null);
-const item = (id: string, extra: Record<string, unknown> = {}): ItemColecao => ({ id, ...extra });
-const ids = (l: ItemColecao[]) => l.map((i) => i.id);
+const ID = (i: object) => {
+  const id = (i as RegistroTeste).id;
+  return typeof id === 'string' ? id : null;
+};
+const item = (id: string, extra: Record<string, unknown> = {}): RegistroTeste => ({ id, ...extra });
+const ids = (l: RegistroTeste[]) => l.map((i) => i.id);
 
 describe('o CATÁLOGO é explícito — nada de heurística', () => {
   it('reconhece chave exata e chave por prefixo', () => {
