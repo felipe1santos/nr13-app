@@ -296,3 +296,37 @@ describe('o TH do avulso segue a unidade do equipamento, como no relatório', ()
     }
   });
 });
+
+/**
+ * O QUADRO 7.1.1 filtrado sai igual nos dois (22/09/2026).
+ *
+ * A fixture declara só manômetro e PSV. As outras quatro linhas não podem
+ * aparecer em documento nenhum — e a regra tem de ser a MESMA no avulso e no
+ * relatório, senão o técnico confere uma tabela em campo e o cliente recebe
+ * outra.
+ */
+describe('quadro 7.1.1 · o filtro é o mesmo no avulso e no relatório', () => {
+  const doQuadro = (texto: string) => {
+    const i = texto.indexOf('INSTRUMENTOS E DISPOSITIVOS DE SEGURANÇA INSTALADOS');
+    if (i < 0) return '';
+    const j = texto.indexOf('Observações', i);
+    return texto.slice(i, j < 0 ? i + 1200 : j);
+  };
+
+  it('manômetro e PSV aparecem nos dois', () => {
+    for (const p of [juntar(docs.checklist!), juntar(relatorio)]) {
+      const q = doQuadro(p);
+      expect(q).toContain('Manômetro');
+      expect(q).toContain('Válvula de segurança (PSV)');
+    }
+  });
+
+  it('termômetro, vacuômetro, pressostato e transmissor NÃO aparecem em nenhum', () => {
+    for (const p of [juntar(docs.checklist!), juntar(relatorio)]) {
+      const q = doQuadro(p);
+      for (const fora of ['Termômetro', 'Vacuômetro', 'Pressostato', 'Transmissor de pressão']) {
+        expect(q).not.toContain(fora);
+      }
+    }
+  });
+});
