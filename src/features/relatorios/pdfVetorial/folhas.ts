@@ -4,7 +4,7 @@ import { ALTURA_GRAFICO_TH, desenharGraficoTh, numeroDoTexto, pontosDaCurva } fr
 // A semântica das leituras de espessura vive num módulo só: a tabela (aqui) e o
 // croqui (7.4.1) precisam apontar o MESMO ponto como o crítico.
 import { destaqueDaMedida, extremosDaRegiao } from './destaqueMedida';
-import { ALTURA_CROQUI, desenharCroquiEspessura, modeloCroqui } from './croquiEspessura';
+import { alturaDoCroqui, desenharCroquiEspessura, modeloCroqui } from './croquiEspessura';
 export { extremosDaRegiao } from './destaqueMedida';
 import { foto, imagemEncaixada } from './primitivas';
 import { FAMILIA } from './carlito';
@@ -1939,7 +1939,10 @@ export function folhaCroquiUltrassom(doc: Documento, m: ModeloRelatorio): boolea
     ],
   });
 
-  doc.garantirEspaco(ALTURA_CROQUI);
+  // A altura sai do MODELO: um costado de 12 níveis ocupa mais papel do que um
+  // de 2, e reservar um número fixo ou desperdiçaria meia folha ou deixaria o
+  // desenho cruzar o rodapé.
+  doc.garantirEspaco(alturaDoCroqui(modelo));
   doc.y = desenharCroquiEspessura(doc.pdf, doc.y + 1, { modelo });
   doc.fecharSecaoElastica();
   return true;

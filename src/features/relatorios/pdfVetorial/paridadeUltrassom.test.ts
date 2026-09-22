@@ -257,31 +257,40 @@ describe('a folha 7.4.1 — o croqui — existe nos dois e é a mesma', () => {
     }
   });
 
-  it('traz as três vistas e os identificadores de ponto do dado', () => {
+  it('traz as três vistas, e o costado com um nível por linha da tabela', () => {
     for (const d of [avulso, relatorio]) {
       const p = paginaDoCroqui(d);
       expect(p).toContain('TAMPO SUPERIOR');
       expect(p).toContain('COSTADO');
       expect(p).toContain('TAMPO INFERIOR');
       // Quatro regiões de casco no dado → C1..C4 no desenho, e nenhum C5.
-      for (const id of ['TS-0', 'C1-0', 'C2-90', 'C3-180', 'C4-270', 'TI-90']) {
-        expect(p).toContain(id);
-      }
-      expect(p).not.toContain('C5-');
+      for (const s of ['C1', 'C2', 'C3', 'C4']) expect(p).toContain(s);
+      expect(p).not.toContain('C5');
+      // Os ângulos da malha aparecem; o ponto é o cruzamento nível × ângulo.
+      for (const a of ['0°', '90°', '180°', '270°']) expect(p).toContain(a);
     }
   });
 
-  it('o ponto sem leitura aparece como NÃO MEDIDO, e não como zero', () => {
+  it('NÃO repete os valores da folha anterior (21/09/2026 · 2ª rodada)', () => {
+    // A lista "PONTOS E LEITURAS" saiu: ela reimprimia, ponto a ponto, os
+    // mesmos números que a tabela 7.4 imprime uma página antes. O croqui
+    // localiza o ponto; quem diz quanto ele mediu é a tabela.
+    const compacto = (s: string) => s.replace(/\s+/g, '');
     for (const d of [avulso, relatorio]) {
-      expect(paginaDoCroqui(d)).toContain('não medido');
-      expect(paginaDoCroqui(d)).not.toContain('0,00 mm');
+      const p = paginaDoCroqui(d);
+      expect(p).not.toContain('PONTOS E LEITURAS');
+      expect(p).not.toContain('não medido');
+      for (const v of [...MEDIDAS.ts, ...MEDIDAS.casco, ...MEDIDAS.ti].flat().filter(Boolean)) {
+        expect(compacto(p)).not.toContain(compacto(v));
+      }
     }
   });
 
-  it('a legenda explica a convenção dos identificadores', () => {
+  it('a legenda explica a convenção, e distingue medido de sem medição', () => {
     const p = paginaDoCroqui(avulso);
     expect(p).toContain('TS = tampo superior');
-    expect(p).toContain('ponto vazado');
+    expect(p).toContain('níveis do costado');
+    expect(p).toContain('sem medição (não é zero)');
   });
 });
 
