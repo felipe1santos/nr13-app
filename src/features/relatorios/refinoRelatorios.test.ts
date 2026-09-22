@@ -323,8 +323,20 @@ describe('`rel=` aponta para um documento, e o destino é o documento', () => {
     // histórico por TAG. Uma lista que aparece quando algo falha é pior do que
     // um erro — ela parece um destino.
     expect(editor).toContain('async function abrirDocumentoDaUrl(tagAlvo: string, rel: string)');
-    expect(editor).toContain('if (item && (await visualizar(item))) return;');
+    expect(editor).toContain('if (noIndice && (await visualizar(noIndice))) return;');
     expect(editor).toContain("navegar('/relatorios', { replace: true });");
+  });
+
+  it('antes de desistir, PERGUNTA AO SERVIDOR (22/09/2026)', () => {
+    // O registro do rascunho não é semeado por ninguém — ele não entra no
+    // índice (10B.1). Sem esta busca, todo rascunho fora do cache daquele
+    // aparelho voltava para a lista. Ver `aberturaRelatorio.ts`.
+    expect(editor).toContain('await abrirRelatorio(rel, tagAlvo)');
+  });
+
+  it('e o retorno à lista deixa de ser MUDO', () => {
+    // Um retorno sem motivo é o que fez este defeito passar meses despercebido.
+    expect(editor).toContain('setErroSalvar(avisoDaAbertura(abertura.estado))');
   });
 
   it('`visualizar` informa quando o registro não existe', () => {

@@ -66,6 +66,7 @@ import PainelPiloto from '../features/relatorios/pdfVetorial/PainelPiloto';
 import { validarParaFinalizar, type LaudoConclusao, type ResultadoValidacao } from '../features/relatorios/validacaoFinalizacao';
 import { salvarRascunho as gravarRascunho } from '../features/relatorios/historicoRelatorios';
 import { ehRascunhoConhecido } from '../features/relatorios/rascunhos';
+import { abrirRelatorio, avisoDaAbertura } from '../features/relatorios/aberturaRelatorio';
 import { ultimaLacrada, type LivroEntrada } from '../features/relatorios/livroLacre';
 import { listarFuncionarios } from '../features/cadastros/cadastroService';
 import type { Funcionario } from '../features/cadastros/tipos';
@@ -583,18 +584,32 @@ function RelatoriosLegado() {
     // nem aparecer no Portal (10B.1). Procurar só no índice deixava o link de
     // "continuar editando" sem abrir nada. O registro existe na mesma chave de
     // sempre, e é o que `visualizar` lê: ele só usa `id` e `tagVaso`.
-    const item =
-      listarHistorico(tagAlvo).find((i) => i.id === rel) ??
-      (carregarRelatorio(rel, tagAlvo)
-        ? ({ id: rel, tagVaso: tagAlvo } as RelatorioIndiceItem)
-        : undefined);
-    if (item && (await visualizar(item))) return;
+    const noIndice = listarHistorico(tagAlvo).find((i) => i.id === rel);
+    if (noIndice && (await visualizar(noIndice))) return;
+
+    // 22/09/2026 · O CACHE VAZIO NÃO PODE FECHAR A TELA.
+    //
+    // Antes, o registro era procurado só em `carregarRelatorio` — leitura
+    // SÍNCRONA do cache. Não achando, caía-se no `navegar('/relatorios')` lá
+    // embaixo: a URL do editor piscava e a tela voltava para a lista sem dizer
+    // nada. Em produção isso acontecia com todo RASCUNHO que não estivesse no
+    // cache daquele aparelho — e rascunho não é semeado por `carregarEquipamento`
+    // porque ele não entra no índice (10B.1). Ver `aberturaRelatorio.ts`.
+    const abertura = await abrirRelatorio(rel, tagAlvo);
+    if (abertura.relatorio) {
+      const achado = { id: rel, tagVaso: tagAlvo } as RelatorioIndiceItem;
+      if (await visualizar(achado)) return;
+    }
+
     if (papel.current === 'legado') {
       // No legado o histórico da TAG é o lugar certo para procurar: o documento
       // pode estar lá com outro id, e não existe projeção que o encontre.
       setTela('historico');
       return;
     }
+    // Voltar para a lista continua sendo o destino — mas COM O MOTIVO na tela.
+    // Um retorno mudo é o que fez este defeito passar despercebido.
+    setErroSalvar(avisoDaAbertura(abertura.estado));
     navegar('/relatorios', { replace: true });
   }
 
