@@ -270,13 +270,41 @@ const TIPO = {
   aviso: 7.5,
 } as const;
 
+/** `#rrggbb` → o trio que o jsPDF pede. */
+function doHex(hex: string): [number, number, number] {
+  const n = Number.parseInt(hex.replace('#', ''), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+/**
+ * As cores do croqui SÃO as da tabela 7.4 (21/09/2026 · 3ª rodada).
+ *
+ * A 1ª paleta era inventada aqui — azul `#1F57A0`, verde `#167A48`, vermelho
+ * `#B03A2E`. Saturadas demais para um documento técnico assinado, e, pior,
+ * DIFERENTES das cores que a tabela usa uma página antes para dizer a mesma
+ * coisa: a folha 7.4 pinta a maior leitura em `textoMaiorEspessura` e a menor
+ * em `textoMenorEspessura`. Duas paletas para uma semântica só é o mesmo
+ * defeito que `destaqueMedida.ts` existe para não deixar acontecer, só que na
+ * cor em vez de na regra.
+ *
+ * Agora tudo deriva de `COR`: mudar a paleta do documento move as duas folhas
+ * juntas, e o croqui não tem cor própria para divergir.
+ */
 const CORES = {
   linha: [64, 72, 82] as [number, number, number],
   guia: [168, 177, 188] as [number, number, number],
-  ponto: [31, 87, 160] as [number, number, number],
-  menor: [176, 58, 46] as [number, number, number],
-  maior: [22, 122, 72] as [number, number, number],
-  critico: [176, 58, 46] as [number, number, number],
+  /**
+   * Leitura normal: GRAFITE, não azul.
+   *
+   * O ponto comum não precisa de cor — precisa não competir. Deixá-lo azul
+   * punha dois azuis escuros lado a lado (o dele e o `textoMaiorEspessura`, que
+   * é azul-petróleo) e o extremo deixava de saltar. Na tabela isso não acontece
+   * porque lá o destaque tem FUNDO colorido; aqui só existe o marcador.
+   */
+  ponto: doHex(COR.nota),
+  menor: doHex(COR.textoMenorEspessura),
+  maior: doHex(COR.textoMaiorEspessura),
+  critico: doHex(COR.textoMenorEspessura),
   rotulo: [48, 55, 64] as [number, number, number],
 };
 
