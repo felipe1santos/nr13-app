@@ -2,7 +2,8 @@ import { ler } from '../../../services/storage';
 import { linhasMemorial } from '../relatoriosService';
 import { obterAssinantes } from '../../prontuarios/prontuarioService';
 import type { ProntuarioDados } from '../../prontuarios/tipos';
-import { converterPressao, numeroBr, numeroDoStorage, pontosUltrassom, textoOu, type FotoModelo } from './modelo';
+import { numeroBr, numeroDoStorage, pontosUltrassom, textoOu, type FotoModelo } from './modelo';
+import { FATORES_CONVERSAO, formatarValor, unidadeValida } from '../../../calc/unidades';
 import type { RelatorioMeta } from '../tipos';
 import { rotuloClasseFluido, rotuloTipoEquipamento } from './rotulos';
 
@@ -155,8 +156,22 @@ export interface ModeloProntuario {
     categoria: string | null;
   };
 
-  /** PMO, PMTA e PTH nas quatro unidades — as mesmas colunas do relatório. */
-  pressoes: { rotulo: string; mpa: string | null; psi: string | null; kgf: string | null; bar: string | null }[];
+  /**
+   * PMO, PMTA e PTH na unidade FIXA do equipamento (22/09/2026).
+   *
+   * Até aqui a folha imprimia as QUATRO unidades lado a lado (MPa, psi, kgf/cm²,
+   * bar), como uma tabela de conversão. O prontuário é documentação normal do
+   * equipamento e segue a unidade escolhida na criação (§4) — a mesma regra que
+   * o relatório e o teste hidrostático já seguem, e a mesma que o formulário do
+   * prontuário (`pressoesProntuario.ts`) já usava. Ter as duas coisas no mesmo
+   * documento era a divergência que o cliente apontou.
+   *
+   * O valor canônico continua em MPa; quem converte é `formatarValor`, o helper
+   * oficial — nenhuma multiplicação escrita aqui.
+   */
+  pressoes: { rotulo: string; valor: string | null }[];
+  /** O rótulo da unidade do equipamento (`MPa` | `kgf/cm²` | `bar`), para o cabeçalho. */
+  unidadePressao: string;
   /** A capa: quem assina e a foto do equipamento. */
   responsavel: { nome: string | null; registro: string | null };
   fotoCapa: string | null;
@@ -314,8 +329,18 @@ export function montarModeloProntuario(tag: string): ModeloProntuario {
   const metaRel = ler<RelatorioMeta>('nr13_relatorio_meta_atual');
 
   const tipo = textoOu(txt(info.tipo), 'vaso');
-  const pmta = converterPressao(typeof calc.pmta === 'number' ? calc.pmta : null);
-  const pth = converterPressao(typeof calc.pth === 'number' ? calc.pth : null);
+
+  // ── PRESSÕES DO PRONTUÁRIO (22/09/2026) ───────────────────────────────────
+  // A unidade é a FIXA do equipamento (§4) e a conversão é do helper oficial.
+  // A precedência do VALOR é a do §3-bis — `adotada ?? calculada` —, a mesma que
+  // `pressoesProntuario.ts` já aplicava no formulário: até aqui esta folha
+  // imprimia só a CALCULADA, então o mesmo prontuário podia mostrar a PMTA
+  // adotada num campo e a calculada na tabela, sem nada dizendo qual era qual.
+  const unidade = unidadeValida(ler<string>(`nr13_pref_unidade_${tag}`));
+  const naUnidade = (mpa: number | null): string | null =>
+    mpa === null ? null : formatarValor(mpa, unidade);
+  const pmtaMpa = numeroDoStorage(info.pmtaAdotadaMpa) ?? (typeof calc.pmta === 'number' ? calc.pmta : null);
+  const pthMpa = numeroDoStorage(info.pthAdotadaMpa) ?? (typeof calc.pth === 'number' ? calc.pth : null);
 
   // As folhas que este equipamento realmente tem — o mesmo filtro da tela.
   const folhas: readonly string[] = [
@@ -407,10 +432,11 @@ export function montarModeloProntuario(tag: string): ModeloProntuario {
     },
 
     pressoes: [
-      { rotulo: 'PMO — Pressão Máxima de Operação', ...converterPressao(numeroDoStorage(info.pmoAdotadaMpa)) },
-      { rotulo: 'PMTA — Pressão Máxima de Trabalho Admissível', ...pmta },
-      { rotulo: 'PTH — Pressão de Teste Hidrostático', ...pth },
+      { rotulo: 'PMO — Pressão Máxima de Operação', valor: naUnidade(numeroDoStorage(info.pmoAdotadaMpa)) },
+      { rotulo: 'PMTA — Pressão Máxima de Trabalho Admissível', valor: naUnidade(pmtaMpa) },
+      { rotulo: 'PTH — Pressão de Teste Hidrostático', valor: naUnidade(pthMpa) },
     ],
+    unidadePressao: FATORES_CONVERSAO[unidade].labelPressao,
     // A capa do prontuário traz o responsável e a foto do equipamento, como a
     // do relatório. A fonte é a mesma: o snapshot da meta quando existe, o
     // cadastro vivo quando não.

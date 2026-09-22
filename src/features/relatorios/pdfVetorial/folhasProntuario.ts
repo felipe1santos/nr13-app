@@ -151,17 +151,19 @@ export function folhaProntDadosTecnicos(doc: Documento, m: ModeloProntuario): vo
   doc.faixa('ASPECTOS CONSTRUTIVOS');
   tabelaChaveValor(doc, Object.entries(m.construtivos) as [string, string | null][]);
 
+  // PRESSÕES na unidade FIXA do equipamento (22/09/2026). Eram quatro colunas
+  // — MPa, psi, kgf/cm², bar —, uma tabela de conversão. O prontuário é
+  // documentação normal do equipamento e segue a unidade da criação (§4), como
+  // o relatório e o TH. O valor já chega formatado do modelo, pelo helper
+  // oficial; aqui não se converte nada.
   doc.faixa('PRESSÕES');
   doc.tabela({
     compacta: true,
-    colunas: [0.36, 0.16, 0.16, 0.16, 0.16],
-    cabecalho: ['GRANDEZA', 'MPa', 'psi', 'kgf/cm²', 'bar'],
+    colunas: [0.6, 0.4],
+    cabecalho: ['GRANDEZA', m.unidadePressao],
     linhas: m.pressoes.map((p) => [
       { texto: p.rotulo, rotulo: true },
-      { texto: textoOu(p.mpa), centro: true, valor: true },
-      { texto: textoOu(p.psi), centro: true, valor: true },
-      { texto: textoOu(p.kgf), centro: true, valor: true },
-      { texto: textoOu(p.bar), centro: true, valor: true },
+      { texto: textoOu(p.valor), centro: true, valor: true },
     ]),
   });
 

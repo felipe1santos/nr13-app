@@ -47,9 +47,13 @@ export function conferirCamposProntuario(m: ModeloProntuario): ConferenciaProntu
     ['categoria · classe do fluido', m.categoria.classeFluido],
     ['categoria · categoria final', m.categoria.categoria],
 
-    ['PMTA (MPa)', m.pressoes[0]?.mpa],
-    ['PMTA (kgf/cm²)', m.pressoes[0]?.kgf],
-    ['PTH (MPa)', m.pressoes[1]?.mpa],
+    // 22/09/2026 · uma unidade só, a do equipamento. Os índices seguem a ordem
+    // de `modeloProntuario.pressoes`: 0 = PMO, 1 = PMTA, 2 = PTH — os rótulos
+    // aqui diziam PMTA para o índice 0, que é a PMO.
+    ['PMO', m.pressoes[0]?.valor],
+    ['PMTA', m.pressoes[1]?.valor],
+    ['PTH', m.pressoes[2]?.valor],
+    ['unidade das pressões', m.unidadePressao],
     ['componentes do memorial', m.componentes.length ? m.componentes : null],
     ['linhas da memória de cálculo', m.memorial.length ? m.memorial : null],
 

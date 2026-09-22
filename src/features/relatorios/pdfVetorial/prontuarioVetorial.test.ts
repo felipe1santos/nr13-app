@@ -69,7 +69,7 @@ describe('o modelo LÊ — não calcula', () => {
     const m = montarModeloProntuario(TAG);
     expect(m.tag).toBe(TAG);
     expect(m.identificacao['FABRICANTE']).toBeNull();
-    expect(m.pressoes[0].mpa).toBeNull();
+    expect(m.pressoes[0].valor).toBeNull();
     expect(m.ultrassom.pontos).toEqual([]);
     expect(m.croqui.longitudinal).toBeNull();
     expect(m.assinantes).toEqual([]);
@@ -93,7 +93,12 @@ describe('o modelo LÊ — não calcula', () => {
     // Conversão de pressão: o MESMO fator do relatório, sem recálculo local.
     // A tabela tem TRÊS linhas desde 06/09/2026 (PMO, PMTA, PTH) — por isso a
     // busca é pelo rótulo, e não pela posição.
-    expect(m.pressoes.find((p) => p.rotulo.startsWith('PMTA'))!.kgf).toBe('12.24');
+    //
+    // 22/09/2026 · uma unidade só, a do equipamento. Sem `nr13_pref_unidade_`
+    // o recuo é SI, então a PMTA de 1,2 MPa sai "1.20 MPa" — com a unidade
+    // JUNTO do número, que é o que `formatarValor` devolve.
+    expect(m.pressoes.find((p) => p.rotulo.startsWith('PMTA'))!.valor).toBe('1.20 MPa');
+    expect(m.unidadePressao).toBe('MPa');
     expect(m.numero).toBe('REL-9');
     expect(m.revisao).toBe('02');
   });
@@ -107,8 +112,7 @@ describe('o modelo LÊ — não calcula', () => {
   it('ausente continua ausente — nunca vira zero', () => {
     localStorage.setItem(`nr13_calc_${TAG}`, JSON.stringify({}));
     const m = montarModeloProntuario(TAG);
-    expect(m.pressoes[0].mpa).toBeNull();
-    expect(m.pressoes[0].kgf).toBeNull();
+    for (const p of m.pressoes) expect(p.valor).toBeNull();
   });
 });
 
