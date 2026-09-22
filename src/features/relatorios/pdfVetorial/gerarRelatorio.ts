@@ -18,6 +18,7 @@ import {
   folhaResumoCalculos,
   folhaSumario,
   folhaUltrassom,
+  folhaCroquiUltrassom,
   folhasChecklist,
   folhasExameExterno,
   folhasExameInterno,
@@ -200,6 +201,10 @@ function emitir(
   if (tem.ultrassom) {
     folhaUltrassom(doc, m);
     marcar('Medição de espessura por ultrassom');
+    // 7.4.1 · o MAPA dos pontos, logo depois da tabela que os lista. Ele se
+    // recusa a sair quando não há nenhuma leitura — e por isso a página do
+    // sumário só é marcada se a folha realmente existiu.
+    if (folhaCroquiUltrassom(doc, m)) marcar('Mapa dos pontos de medição de espessura');
   }
   if (tem.th) {
     const antes = doc.pdf.getNumberOfPages();

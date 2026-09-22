@@ -1,6 +1,11 @@
 import { BORDA_FINA, CAIXA, COR, FONTE, LIMITE_CORPO, PT, alturaLinha } from './documentoA4';
 import { secoesPresentes, type SecaoRelatorio } from './composicao';
 import { ALTURA_GRAFICO_TH, desenharGraficoTh, numeroDoTexto, pontosDaCurva } from './graficoTh';
+// A semântica das leituras de espessura vive num módulo só: a tabela (aqui) e o
+// croqui (7.4.1) precisam apontar o MESMO ponto como o crítico.
+import { destaqueDaMedida, extremosDaRegiao } from './destaqueMedida';
+import { ALTURA_CROQUI, desenharCroquiEspessura, modeloCroqui } from './croquiEspessura';
+export { extremosDaRegiao } from './destaqueMedida';
 import { foto, imagemEncaixada } from './primitivas';
 import { FAMILIA } from './carlito';
 import { PROPORCAO_PLACA, layoutDaPlaca } from '../placaIdentificacao';
@@ -1695,40 +1700,6 @@ export function folhasExameInterno(doc: Documento, m: ModeloRelatorio, comFotos 
 }
 
 // ── 17. ULTRASSOM ───────────────────────────────────────────────────────────
-/** O número de uma leitura de espessura — aceita "6,32" e "6.32". */
-function medidaNumero(v: string | null | undefined): number | null {
-  const n = Number(String(v ?? '').trim().replace(',', '.'));
-  return Number.isFinite(n) && n > 0 ? n : null;
-}
-
-/**
- * A MAIOR e a MENOR leitura de uma região.
- *
- * A comparação é por região, e não pela folha inteira: é dentro do costado, do
- * tampo, que a diferença entre pontos significa desgaste. Só as leituras dos
- * ângulos entram — a coluna MENOR VALOR é derivada delas e repetiria o
- * destaque no lugar errado.
- */
-export function extremosDaRegiao(
-  linhas: { medidas: string[] }[],
-): { maior: number | null; menor: number | null } {
-  const valores = linhas.flatMap((l) => l.medidas.map(medidaNumero)).filter((n): n is number => n !== null);
-  if (valores.length < 2) return { maior: null, menor: null };
-  return { maior: Math.max(...valores), menor: Math.min(...valores) };
-}
-
-function destaqueDaMedida(
-  valor: string | null | undefined,
-  maior: number | null,
-  menor: number | null,
-): { destaque?: 'maior' | 'menor' } {
-  const n = medidaNumero(valor);
-  if (n === null) return {};
-  if (menor !== null && n === menor) return { destaque: 'menor' };
-  if (maior !== null && n === maior) return { destaque: 'maior' };
-  return {};
-}
-
 export function folhaUltrassom(doc: Documento, m: ModeloRelatorio): void {
   doc.novaFolha();
   doc.abrirSecaoElastica('ultrassom');
@@ -1903,6 +1874,75 @@ export function folhaUltrassom(doc: Documento, m: ModeloRelatorio): void {
     textoOu(m.ultrassom.observacoes, ''),
   );
   doc.fecharSecaoElastica();
+}
+
+/**
+ * 7.4.1 · O MAPA DOS PONTOS DE MEDIÇÃO — a segunda folha do ensaio.
+ *
+ * A 7.4 diz QUANTO cada ponto mediu; esta diz ONDE ele fica. O desenho é
+ * derivado do MESMO array que a tabela imprime (`m.ultrassom.pontos`), então
+ * não existe o caso de a tabela mostrar quatro níveis e o croqui três — ver
+ * `croquiEspessura.ts`.
+ *
+ * ## Folha própria, e por quê
+ *
+ * O croqui poderia ser um bloco no fim da 7.4. Ele ocupa ~13 cm de altura e
+ * cairia partido entre duas páginas na maioria dos relatórios — e meio croqui
+ * não identifica ponto nenhum. Folha inteira também é o que o pedido descreve,
+ * e é o que permite imprimir o mapa sozinho para levar a campo.
+ *
+ * ## Identificação (§6 do pedido)
+ *
+ * O cabeçalho do documento traz logo, número e paginação, mas não diz de QUAL
+ * equipamento é a folha. Por isso a faixa de identificação logo abaixo do
+ * banner: impressa isolada, esta página precisa responder "de que equipamento e
+ * de que inspeção é este croqui".
+ *
+ * ## Quando ela não sai
+ *
+ * Sem nenhum ponto MEDIDO não há folha. Uma malha inteira de círculos vazios é
+ * papel afirmando que houve ensaio onde não houve leitura nenhuma.
+ */
+export function folhaCroquiUltrassom(doc: Documento, m: ModeloRelatorio): boolean {
+  const modelo = modeloCroqui(m.ultrassom.pontos);
+  if (!modelo.temAlgo) return false;
+
+  doc.novaFolha();
+  doc.abrirSecaoElastica('ultrassom');
+  doc.banner('7.4.1 MAPA DOS PONTOS DE MEDIÇÃO DE ESPESSURA');
+
+  doc.faixa('IDENTIFICAÇÃO');
+  doc.tabela({
+    compacta: true,
+    colunas: [0.14, 0.24, 0.1, 0.18, 0.14, 0.2],
+    linhas: [
+      [
+        { texto: 'EQUIPAMENTO', rotulo: true },
+        { texto: textoOu(m.ultrassom.equipamento ?? m.equipamento.descricao) },
+        { texto: 'TAG', rotulo: true },
+        { texto: textoOu(m.tag) },
+        { texto: 'Nº DE SÉRIE', rotulo: true },
+        { texto: textoOu(m.ultrassom.serie ?? m.equipamento.numeroSerie) },
+      ],
+      [
+        { texto: 'CLIENTE', rotulo: true },
+        { texto: textoOu(m.cliente) },
+        { texto: 'ENSAIO', rotulo: true },
+        { texto: 'Medição de espessura por ultrassom' },
+        { texto: 'DATA', rotulo: true },
+        { texto: textoOu(m.ultrassom.data) },
+      ],
+      [
+        { texto: 'APARELHO', rotulo: true },
+        { texto: textoOu(m.ultrassom.aparelho), colspan: 5 },
+      ],
+    ],
+  });
+
+  doc.garantirEspaco(ALTURA_CROQUI);
+  doc.y = desenharCroquiEspessura(doc.pdf, doc.y + 1, { modelo });
+  doc.fecharSecaoElastica();
+  return true;
 }
 
 /**
@@ -2283,6 +2323,10 @@ export function secoesDoRelatorio(
   push(tem.exameExterno, '7.2', 'Exame externo');
   push(tem.exameInterno, '7.3', 'Exame interno');
   push(tem.ultrassom, '7.4', 'Medição de espessura por ultrassom');
+  // 7.4.1 só existe quando há leitura: a folha do mapa não é emitida numa
+  // malha sem nenhuma medição, e um sumário que a anuncia apontaria para uma
+  // página que não está no documento.
+  push(tem.ultrassom && modeloCroqui(m.ultrassom.pontos).temAlgo, '7.4.1', 'Mapa dos pontos de medição de espessura');
   push(tem.th, '7.5', 'Teste hidrostático');
   push(tem.fotosDocumentacao && m.fotosDocumentacao.length > 0, '8', 'Registro fotográfico — documentação');
   push(tem.fotosChecklist && m.fotosChecklist.length > 0, '8.0', 'Registro fotográfico — checklist');

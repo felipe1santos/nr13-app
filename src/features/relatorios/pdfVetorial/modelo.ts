@@ -313,6 +313,20 @@ export interface ModeloRelatorio {
      */
     pontos: {
       regiao: string;
+      /**
+       * A região CANÔNICA (`ts` | `casco` | `ti`), ao lado do título impresso.
+       *
+       * O croqui (folha 7.5) precisa saber a geometria — tampo, costado, tampo
+       * — e `regiao` é o título em português que a tabela imprime. Casar por
+       * texto ("Tampo superior") faria o desenho depender do rótulo, que é
+       * apresentação: mudar a maiúscula de uma palavra apagaria o tampo do
+       * croqui sem erro nenhum.
+       *
+       * Opcional porque o modelo é serializado dentro de relatórios salvos:
+       * documento antigo reaberto não tem o campo, e quem lê precisa aguentar
+       * a ausência em vez de quebrar.
+       */
+      regiaoId?: Regiao;
       ponto: string;
       angulos: string[];
       medidas: string[];
@@ -1238,6 +1252,7 @@ export function pontosUltrassom(
       const numeros = medidas.map((v) => Number(String(v).replace(',', '.'))).filter((n) => Number.isFinite(n));
       linhas.push({
         regiao: TITULO_REGIAO[regiao],
+        regiaoId: regiao,
         ponto: ponto.rotulo,
         angulos: g.angulos,
         medidas,
