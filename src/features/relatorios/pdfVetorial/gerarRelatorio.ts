@@ -6,6 +6,7 @@ import { anexarRastreabilidades, contarPaginasRastreabilidades } from '../rastre
 import { anexarFolhasDeCertificado, contarFolhasDeCertificado } from './certificados';
 import { secoesPresentes, type SecaoRelatorio } from './composicao';
 import type { MapaOverrides } from '../overridesRelatorio';
+import { comIdsEstaveis } from '../../calibracoes/idsInstrumentos';
 import { resolverImagem } from '../imagensDoDocumento';
 import {
   secoesDoRelatorio,
@@ -344,7 +345,11 @@ export async function gerarRelatorioVetorial(
   // O override guarda o caminho do arquivo no cofre; aqui ele vira a imagem.
   // `branco` (o usuário removeu de propósito) resolve para 'sem imagem' e a
   // área fica vazia — a foto do cadastro NÃO volta sozinha.
-  const ovr = opcoes.overrides ?? {};
+  // Os ids do quadro 7.1.1 deixaram de ser posicionais (22/09/2026). A tradução
+  // oficial mora em `sanear`, por onde passa quem carrega do storage; aqui ela é
+  // repetida porque o gerador aceita um mapa vindo de QUALQUER chamador, e um
+  // mapa não traduzido imprimiria o override de um instrumento em outro.
+  const ovr = comIdsEstaveis(opcoes.overrides ?? {});
   const fotoDoRelatorio = await resolverImagem(ovr['capa.foto']?.modo === 'manual' ? ovr['capa.foto'].valor : null);
   if (fotoDoRelatorio) modelo.fotoCapa = fotoDoRelatorio.dataUrl;
   else if (ovr['capa.foto']?.modo === 'branco') modelo.fotoCapa = null;
@@ -394,7 +399,7 @@ export async function gerarRelatorioVetorial(
   // escreve um número provisório que ninguém verá — este PDF é descartado.
   const contagem = novoPdf();
   await registrarCarlito(contagem);
-  const rascunho = new Documento(contagem, cab, 0, opcoes.modo ?? 'final', opcoes.overrides ?? {});
+  const rascunho = new Documento(contagem, cab, 0, opcoes.modo ?? 'final', ovr);
   const tem = secoesPresentes(opcoes.documentos);
   const paginasDasSecoes = new Map<string, number>();
   const respiro: RespiroMedido = {};
@@ -421,7 +426,7 @@ export async function gerarRelatorioVetorial(
   const desenhar = async (totalDoRodape: number) => {
     const p = novoPdf();
     await registrarCarlito(p);
-    const d = new Documento(p, cab, totalDoRodape, opcoes.modo ?? 'final', opcoes.overrides ?? {}, respiro);
+    const d = new Documento(p, cab, totalDoRodape, opcoes.modo ?? 'final', ovr, respiro);
     emitir(d, modelo, tem, paginasDasSecoes);
     return d;
   };

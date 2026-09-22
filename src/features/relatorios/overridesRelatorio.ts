@@ -1,4 +1,5 @@
 import { ler, salvar } from '../../services/storage';
+import { comIdsEstaveis } from '../calibracoes/idsInstrumentos';
 
 /**
  * Fase 13D-bis · O DOCUMENTO EDITÁVEL, POR RELATÓRIO.
@@ -180,5 +181,9 @@ export function sanear(bruto: unknown): MapaOverrides {
     else if (o.modo === 'manual' && typeof o.valor === 'string')
       saida[id] = { modo: 'manual', valor: o.valor, auto, em, ...(por ? { por } : {}) };
   }
-  return saida;
+  // 22/09/2026 · os ids do quadro 7.1.1 deixaram de ser posicionais. A tradução
+  // acontece na LEITURA, aqui, para valer nos dois consumidores (a tela e o
+  // gerador) com um caminho só — e para o documento antigo abrir certo sem que
+  // nada seja regravado em massa. Ver `calibracoes/idsInstrumentos.ts`.
+  return comIdsEstaveis(saida);
 }

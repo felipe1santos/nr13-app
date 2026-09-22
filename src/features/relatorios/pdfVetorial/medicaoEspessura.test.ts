@@ -95,8 +95,9 @@ describe('o respiro das folhas curtas', () => {
   it('a sobra é medida na 1ª passagem e distribuída na 2ª — sem passagem nova', () => {
     expect(gerador).toContain('aoFecharSecaoElastica');
     expect(gerador).toContain('respiro');
-    // A 2ª passagem recebe o que a 1ª mediu.
-    expect(gerador).toContain("opcoes.overrides ?? {}, respiro)");
+    // A 2ª passagem recebe o que a 1ª mediu. (22/09/2026 · o mapa de overrides
+    // virou a constante `ovr`, normalizada uma vez — ver `idsInstrumentos.ts`.)
+    expect(gerador).toContain("opcoes.modo ?? 'final', ovr, respiro)");
   });
 
   it('a distribuição é conservadora: reserva o espaço da próxima tabela e tem teto por linha', () => {

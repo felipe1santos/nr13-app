@@ -12,6 +12,10 @@ import { fluidoEhOperacional, unidadeDoRegistroTh } from '../../inspecoes/formul
 import { REGIOES, carregarMedicoes, type Regiao } from '../medicoesEspessura';
 import { linhasMemorial } from '../relatoriosService';
 import { padraoDoEnsaio, type Rastreabilidade, type TipoInstrumento } from '../rastreabilidadeService';
+import {
+  tipoDaLinhaChecklist,
+  type TipoInstrumento as TipoInstrumentoQuadro,
+} from '../../calibracoes/instrumentos';
 import { INSTRUMENTOS_CHECKLIST, SECOES_CHECKLIST } from '../../inspecoes/formularios/FormularioChecklist';
 import { linhaQuadro, type RefInstrumentoChecklist } from '../../calibracoes/quadroInstrumentos';
 import { ITENS_VISUAL_EXTERNO } from '../../inspecoes/formularios/FormularioVisualExterno';
@@ -84,6 +88,21 @@ export interface ExameVisual {
 
 /** Um instrumento conferido em campo (folha do checklist, parte 1). */
 export interface InstrumentoModelo {
+  /**
+   * O TIPO canônico (`manometro`, `psv`, `termometro`…) — a identidade da linha.
+   *
+   * É dele que sai o id estável do campo editável (`instrumentos.<tipo>.<campo>`)
+   * e é ele que decide se a linha aparece. Antes de 22/09/2026 a identidade era
+   * a POSIÇÃO no array, e esconder uma linha deslocava os overrides das outras.
+   *
+   * `null` só para uma linha de checklist sem tipo correspondente — hoje não
+   * existe, mas o mapa é por id e não se pode assumir que sempre casará.
+   *
+   * Cuidado com o nome: `TipoInstrumento` de `rastreabilidadeService` é OUTRA
+   * coisa (o instrumento PADRÃO da rastreabilidade — bloco de ultrassom,
+   * manômetro padrão…). Aqui é o dispositivo instalado no equipamento.
+   */
+  tipo: TipoInstrumentoQuadro | null;
   nome: string;
   possui: string;
   /** 'SIM' | 'NÃO' | '' — derivado da calibração escolhida, ou a marcação manual (legado). */
@@ -1068,7 +1087,17 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
     // manuais de sempre. CALIBRADO é derivado na data da inspeção.
     instrumentos: INSTRUMENTOS_CHECKLIST.map((i) => {
       const l = linhaQuadro(i, chk, meta?.execucaoInspecao || chk.dataInspecao);
-      return { nome: l.nome, possui: l.possui, calibrado: l.calibrado, certificado: l.certificado, fonte: l.fonte };
+      return {
+        // O TIPO canônico acompanha a linha desde 22/09/2026: é ele que dá o id
+        // estável do campo editável e o que decide a visibilidade. Sem ele a
+        // folha voltaria a depender da posição.
+        tipo: tipoDaLinhaChecklist(i.id),
+        nome: l.nome,
+        possui: l.possui,
+        calibrado: l.calibrado,
+        certificado: l.certificado,
+        fonte: l.fonte,
+      };
     }),
     comentariosDocumentacao: txt(chk.comentariosDocumentacao),
     observacoesChecklist: { parte1: txt(chk.observacoesParte1), parte2: txt(chk.observacoesParte2) },

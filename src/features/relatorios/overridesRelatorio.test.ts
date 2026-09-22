@@ -187,11 +187,16 @@ describe('H · a emissão usa o mesmo mapa da prévia', () => {
   });
 
   it('o gerador entrega os overrides ao Documento nas DUAS passagens', () => {
-    // As duas passagens (contar páginas e desenhar) recebem o mesmo mapa; a
-    // terceira ocorrência é a resolução das IMAGENS de override, feita uma vez
-    // antes das duas.
+    // 22/09/2026 · o mapa é normalizado UMA vez (`ovr = comIdsEstaveis(...)`)
+    // e as três usuárias passam a ler dessa constante: a resolução das IMAGENS
+    // de override e as duas passagens do Documento. Antes cada uma repetia
+    // `opcoes.overrides ?? {}` — o que também as fazia divergir na normalização.
+    expect(gerador).toContain('const ovr = comIdsEstaveis(opcoes.overrides ?? {})');
     const usos = gerador.match(/opcoes\.overrides \?\? \{\}/g) ?? [];
-    expect(usos.length).toBe(3);
+    expect(usos.length).toBe(1);
+    // E os dois `new Documento` recebem exatamente esse mapa, não outro.
+    expect(gerador).toMatch(/new Documento\(contagem, cab, 0, opcoes\.modo \?\? 'final', ovr\)/);
+    expect(gerador).toMatch(/new Documento\(p, cab, totalDoRodape, opcoes\.modo \?\? 'final', ovr, respiro\)/);
     expect(gerador).toContain('new Documento(contagem, cab, 0');
     // A passagem de desenho virou função (`desenhar`): o gerador a repete
     // quando o total do rodapé não bate, e ali o mapa tem de ser o mesmo.

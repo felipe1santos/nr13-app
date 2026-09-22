@@ -6,7 +6,7 @@ import {
   resolverValor,
   type MapaOverrides,
 } from '../overridesRelatorio';
-import type { OrigemValor } from '../overridesRelatorio';
+import type { OrigemValor, Override } from '../overridesRelatorio';
 import {
   BORDA_FINA,
   CAIXA,
@@ -142,6 +142,19 @@ export class Documento {
    */
   valorEfetivo(id: string, auto: string): string {
     return this.resolver(id, auto);
+  }
+
+  /**
+   * O override CRU daquele campo, ou `undefined`.
+   *
+   * Existe porque o quadro 7.1.1 precisa decidir se a linha aparece ANTES de
+   * desenhá-la: uma linha sem instrumento declarado some, mas não se o
+   * engenheiro escreveu algo nela à mão (22/09/2026). `valorEfetivo` não serve
+   * para isso — ele já devolve o automático quando não há override, e a
+   * pergunta aqui é justamente "houve override?".
+   */
+  overrideDe(id: string): Override | undefined {
+    return this.overrides[id];
   }
 
   /** O texto que a célula/parágrafo deve mostrar, já com o override aplicado. */
