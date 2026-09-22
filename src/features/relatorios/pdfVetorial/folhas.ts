@@ -13,7 +13,20 @@ import type { CelulaDoc, Documento } from './documento';
 import { rotuloLaudo } from './rotulos';
 import { DESCRICAO_VARIAVEL, prepararFormula, variaveisDaFormula } from './formulaMatematica';
 import { formulaDoLatex } from './latexMemorial';
-import { textoOu, type ExameVisual, type FotoModelo, type ItemChecklist, type ModeloRelatorio } from './modelo';
+import {
+  textoOu,
+  type ExameVisual,
+  type FotoModelo,
+  type InstrumentoModelo,
+  type ItemChecklist,
+  type ModeloRelatorio,
+} from './modelo';
+import {
+  CAMPOS_QUADRO,
+  idCampoInstrumento,
+  overrideComConteudo,
+  type CampoQuadro,
+} from '../../calibracoes/idsInstrumentos';
 import { listaDeItens, resultadoNcDerivado } from '../../inspecoes/formularios/semanticaNc';
 
 /**
@@ -1551,6 +1564,98 @@ export function folhaDadosInspecao(doc: Documento, m: ModeloRelatorio): void {
 // checklist e escondia todo item sem resposta.
 
 /** Uma seção do checklist, com as marcas SIM / NÃO / N.A. da referência. */
+/**
+ * O quadro 7.1.1 — SÓ os instrumentos declarados (22/09/2026).
+ *
+ * ## O defeito que isto conserta
+ *
+ * A tabela imprimia as SEIS linhas sempre, e num equipamento com manômetro e
+ * PSV saíam quatro linhas em branco — termômetro, vacuômetro, pressostato e
+ * transmissor — num documento assinado por engenheiro. Foi a queixa do cliente
+ * na revisão (pág. 11 de "Modelo Melhorias Vasos").
+ *
+ * ## Quando a linha aparece
+ *
+ * Basta UMA destas, e cada uma existe por um motivo diferente:
+ *
+ * 1. **POSSUI marcado** — o inspetor declarou que o equipamento tem;
+ * 2. **calibração vinculada** (`fonte === 'calibracao'`) — há snapshot
+ *    estruturado, então o dispositivo existe mesmo que o POSSUI não tenha sido
+ *    marcado à mão;
+ * 3. **CALIBRADO respondido** — inclusive o `NÃO` derivado de calibração
+ *    vencida ou reprovada, que é informação, não ausência;
+ * 4. **certificado preenchido** pela fonte estruturada;
+ * 5. **override manual com conteúdo em qualquer campo da linha** — é a regra que
+ *    impede o filtro de apagar a manifestação do engenheiro. Em produção havia
+ *    "Não instalado — não aplicável" escrito à mão em linhas que, sem esta
+ *    condição, sumiriam levando o texto junto.
+ *
+ * O override conta com QUALQUER texto: `'0'` e `'-'` valem. Quem escreveu quis
+ * dizer algo, e o sistema não interpreta isso como vazio.
+ *
+ * ## Nenhuma linha visível ≠ seção ausente
+ *
+ * Sem nenhum instrumento a seção CONTINUA, com a frase de que nada foi
+ * declarado. "Não possui" seria uma inferência do sistema sobre o mundo físico;
+ * o documento só pode afirmar o que a inspeção registrou.
+ */
+function quadroInstrumentosInstalados(doc: Documento, m: ModeloRelatorio): void {
+  doc.faixa('INSTRUMENTOS E DISPOSITIVOS DE SEGURANÇA INSTALADOS');
+
+  // O id do campo é ESTÁVEL (`instrumentos.<tipo>.<campo>`): esconder uma linha
+  // não pode mudar a identidade das outras. Ver `calibracoes/idsInstrumentos.ts`.
+  const idDe = (inst: InstrumentoModelo, campo: CampoQuadro) =>
+    inst.tipo ? idCampoInstrumento(inst.tipo, campo) : `instrumentos.sem-tipo.${campo}`;
+
+  const visivel = (inst: InstrumentoModelo): boolean => {
+    if (inst.possui === 'SIM') return true;
+    if (inst.fonte === 'calibracao') return true;
+    if (inst.calibrado === 'SIM' || inst.calibrado === 'NÃO') return true;
+    if ((inst.certificado ?? '').trim() !== '') return true;
+    return CAMPOS_QUADRO.some((c) => overrideComConteudo(doc.overrideDe(idDe(inst, c))));
+  };
+
+  const linhas = m.instrumentos.filter(visivel);
+
+  if (linhas.length === 0) {
+    doc.texto('Nenhum instrumento/dispositivo foi declarado como encontrado nesta inspeção.', {
+      tamanho: FONTE.nota,
+      cor: COR.nota,
+      espacoAntes: 1.2,
+    });
+    doc.y += 1.2;
+    return;
+  }
+
+  doc.tabela({
+    compacta: true,
+    colunas: [0.34, 0.13, 0.13, 0.4],
+    cabecalho: ['INSTRUMENTO', 'POSSUI', 'CALIBRADO', 'Nº DO CERTIFICADO / VALIDADE'],
+    linhas: linhas.map((inst) => [
+      { texto: inst.nome, rotulo: true },
+      celulaMarca(inst.possui === 'SIM', idDe(inst, 'possui'), `${inst.nome} — possui`),
+      // Fase 2 (D) · calibração vencida ou reprovada na data da inspeção sai
+      // escrita "NÃO" — um X ausente não diria se faltou marcar ou se não vale.
+      inst.calibrado === 'NÃO'
+        ? {
+            texto: 'NÃO',
+            centro: true,
+            valor: true,
+            semDestaque: true,
+            id: idDe(inst, 'calibrado'),
+            rotuloCampo: `${inst.nome} — calibrado`,
+          }
+        : celulaMarca(inst.calibrado === 'SIM', idDe(inst, 'calibrado'), `${inst.nome} — calibrado`),
+      {
+        texto: textoOu(inst.certificado, ''),
+        valor: true,
+        id: idDe(inst, 'certificado'),
+        rotuloCampo: `${inst.nome} — nº do certificado / validade`,
+      },
+    ]),
+  });
+}
+
 function tabelaChecklist(doc: Documento, secao: { titulo: string; itens: ItemChecklist[] }, prefixo: string): void {
   doc.faixa(secao.titulo.toUpperCase());
   doc.tabela({
@@ -1621,27 +1726,7 @@ export function folhasChecklist(doc: Documento, m: ModeloRelatorio): void {
   doc.banner('7.1.1 CHECKLIST NR-13 — VASO SOB PRESSÃO (PARTE 1)');
   parte1.forEach((secao, i) => tabelaChecklist(doc, secao, `checklist1.${i}`));
 
-  doc.faixa('INSTRUMENTOS E DISPOSITIVOS DE SEGURANÇA INSTALADOS');
-  doc.tabela({
-    compacta: true,
-    colunas: [0.34, 0.13, 0.13, 0.4],
-    cabecalho: ['INSTRUMENTO', 'POSSUI', 'CALIBRADO', 'Nº DO CERTIFICADO / VALIDADE'],
-    linhas: m.instrumentos.map((inst, i) => [
-      { texto: inst.nome, rotulo: true },
-      celulaMarca(inst.possui === 'SIM', `instrumentos.${i}.possui`, `${inst.nome} — possui`),
-      // Fase 2 (D) · calibração vencida ou reprovada na data da inspeção sai
-      // escrita "NÃO" — um X ausente não diria se faltou marcar ou se não vale.
-      inst.calibrado === 'NÃO'
-        ? { texto: 'NÃO', centro: true, valor: true, semDestaque: true, id: `instrumentos.${i}.calibrado`, rotuloCampo: `${inst.nome} — calibrado` }
-        : celulaMarca(inst.calibrado === 'SIM', `instrumentos.${i}.calibrado`, `${inst.nome} — calibrado`),
-      {
-        texto: textoOu(inst.certificado, ''),
-        valor: true,
-        id: `instrumentos.${i}.certificado`,
-        rotuloCampo: `${inst.nome} — nº do certificado / validade`,
-      },
-    ]),
-  });
+  quadroInstrumentosInstalados(doc, m);
 
   // O texto vem do formulário de campo (18/09/2026); o override do documento
   // continua vencendo. Antes o quadro nascia vazio: nenhum formulário o preenchia.
