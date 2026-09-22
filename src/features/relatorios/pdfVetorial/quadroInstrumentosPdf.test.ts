@@ -356,6 +356,81 @@ describe('interna e terceiro chegam à linha sem digitação', () => {
   });
 });
 
+/**
+ * O RASCUNHO REAL `REL-1789004119133_ZZ-FASE3`, com os dados do banco.
+ *
+ * Copiados da auditoria somente-leitura de 22/09/2026:
+ *
+ * - checklist declara manômetro, pressostato e PSV;
+ * - o mapa de overrides tem certificado nas SEIS posições antigas, três delas
+ *   com "Não instalado — não aplicável" — escritas à mão justamente nas linhas
+ *   que o filtro removeria.
+ *
+ * É o pior caso da mudança, e o que o cliente vai reabrir: se a tradução ou o
+ * filtro errarem, ou some texto do engenheiro, ou um certificado aparece no
+ * instrumento errado.
+ */
+describe('rascunho real ZZ-FASE3 · 6 overrides posicionais + 3 declarados', () => {
+  let texto = '';
+
+  beforeAll(async () => {
+    texto = await gerar(
+      {
+        // Exatamente o que está em `nr13_docs_ZZ-FASE3`, container "Inspeção da IA".
+        instrumentos: {
+          'inst-man': true,
+          'inst-man-cal': true,
+          'inst-press': true,
+          'inst-press-cal': true,
+          'inst-psv': true,
+          'inst-psv-cal': true,
+        },
+      },
+      // Exatamente o que está em `nr13_ovr_REL-1789004119133_ZZ-FASE3`.
+      {
+        'instrumentos.0.certificado': manual('CAL-2026/1187 — validade 12/03/2027'),
+        'instrumentos.1.certificado': manual('Não instalado — não aplicável'),
+        'instrumentos.2.certificado': manual('Não instalado — não aplicável'),
+        'instrumentos.3.certificado': manual('CAL-2026/1188 — validade 12/03/2027'),
+        'instrumentos.4.certificado': manual('Não instalado — não aplicável'),
+        'instrumentos.5.certificado': manual('CAL-PSV-2026/0442 — validade 20/05/2027'),
+      } as unknown as MapaOverrides,
+    );
+  }, 120_000);
+
+  it('as SEIS linhas continuam — nenhuma sumiu levando texto junto', () => {
+    const q = quadro(texto);
+    for (const n of Object.values(NOMES)) expect(q).toContain(n);
+  });
+
+  it('cada certificado no SEU instrumento, sem deslocamento', () => {
+    const q = quadro(texto);
+    const pos = (s: string) => q.indexOf(s);
+    // manômetro < termômetro < vacuômetro < pressostato < transmissor < PSV
+    expect(pos('CAL-2026/1187')).toBeGreaterThan(pos(NOMES.manometro));
+    expect(pos('CAL-2026/1187')).toBeLessThan(pos(NOMES.termometro));
+    expect(pos('CAL-2026/1188')).toBeGreaterThan(pos(NOMES.pressostato));
+    expect(pos('CAL-2026/1188')).toBeLessThan(pos(NOMES.transmissor));
+    expect(pos('CAL-PSV-2026/0442')).toBeGreaterThan(pos(NOMES.psv));
+  });
+
+  it('os três "Não instalado — não aplicável" continuam no papel', () => {
+    const q = quadro(texto);
+    expect((q.match(/Não instalado — não aplicável/g) ?? []).length).toBe(3);
+  });
+
+  it('e o documento não perdeu nenhum dos seis valores', () => {
+    const q = quadro(texto);
+    for (const v of [
+      'CAL-2026/1187 — validade 12/03/2027',
+      'CAL-2026/1188 — validade 12/03/2027',
+      'CAL-PSV-2026/0442 — validade 20/05/2027',
+    ]) {
+      expect(q).toContain(v);
+    }
+  });
+});
+
 describe('nada de lixo no papel', () => {
   it.each([
     ['A', () => a],
