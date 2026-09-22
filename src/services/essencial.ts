@@ -78,6 +78,11 @@ export const CHAVES_ESSENCIAIS: string[] = [
   'nr13_modelo_relatorio',
   'nr13_edicao_react',
   'nr13_previa_documento',
+  // 22/09/2026 · a biblioteca de PREDEFINIÇÕES da empresa é uma chave-LISTA
+  // global e editável em dois aparelhos, e estava fora daqui: um aparelho sem
+  // ela gravava a lista do zero e disputava com o servidor. Mesma classe do
+  // conflito de `nr13_pront_indice`.
+  'nr13_predef_relatorio',
 ];
 
 /**

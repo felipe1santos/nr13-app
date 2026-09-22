@@ -1,4 +1,5 @@
 import { ler, salvar } from '../../services/storage';
+import { gravarNaColecao } from '../../services/colecaoSync';
 import type { RelatorioSalvo, TipoInspecao } from './tipos';
 
 /**
@@ -138,8 +139,13 @@ export function filtrarRascunhos(
 /** Grava (ou substitui) o item de índice do rascunho. */
 export async function registrarRascunho(r: RelatorioSalvo): Promise<void> {
   const item = resumirRascunho(r);
-  const resto = lerCru().filter((i) => i.id !== item.id);
-  await salvar(CHAVE_RASCUNHOS, [item, ...resto]);
+  // 22/09/2026 · o cache pode não ter a chave (boot leve, ou boot que falhou):
+  // gravar por cima de uma lista vazia criaria o índice do zero, com este item
+  // só, contra um servidor que tem os outros. Ver `colecaoSync.lerColecao`.
+  await gravarNaColecao<RascunhoItem>(CHAVE_RASCUNHOS, (atual) => [
+    item,
+    ...atual.filter((i) => i.id !== item.id),
+  ]);
 }
 
 /**

@@ -1,4 +1,5 @@
 import { ler, salvar } from '../../services/storage';
+import { gravarNaColecao } from '../../services/colecaoSync';
 
 /**
  * Anotações da agenda — o caderno do usuário dentro do calendário.
@@ -105,11 +106,15 @@ export function notasDoDia(iso: string, notas = listarNotas()): NotaAgenda[] {
 
 /** Grava uma nota nova ou substitui a de mesmo id. */
 export function salvarNota(nota: NotaAgenda): Promise<void> {
-  const lista = listarNotas();
-  const idx = lista.findIndex((n) => n.id === nota.id);
-  if (idx >= 0) lista[idx] = nota;
-  else lista.push(nota);
-  return salvar(CHAVE, lista);
+  // 22/09/2026 · mesma regra das demais coleções: o cache vazio não é prova
+  // de que a lista não existe no servidor (ver `colecaoSync`).
+  return gravarNaColecao<NotaAgenda>(CHAVE, (atual) => {
+    const lista = [...atual];
+    const idx = lista.findIndex((n) => n.id === nota.id);
+    if (idx >= 0) lista[idx] = nota;
+    else lista.push(nota);
+    return lista;
+  }).then(() => undefined);
 }
 
 export function excluirNota(id: string): Promise<void> {

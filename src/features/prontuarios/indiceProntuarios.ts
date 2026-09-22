@@ -37,6 +37,7 @@
  * registro custaria o documento — e por isso o índice nunca é a única cópia.
  */
 import { ler, listarChavesComPrefixo, salvar } from '../../services/storage';
+import { gravarNaColecao } from '../../services/colecaoSync';
 import { ehAnexado, listarEmissoes, type EmissaoProntuario } from './emissaoProntuario';
 import type { ProntuarioDados } from './tipos';
 
@@ -161,9 +162,21 @@ export const idRascunho = (tag: string) => `rascunho:${tag}`;
  * Substitui pelo `id`: emitir duas vezes a mesma revisão não duplica a linha, e
  * salvar o rascunho dez vezes continua sendo uma linha só.
  */
-export async function registrarDocumento(doc: DocumentoProntuario): Promise<void> {
-  const atual = lerIndice().filter((d) => d.id !== doc.id);
-  await salvar(CHAVE_INDICE_PRONT, ordenar([...atual, doc]));
+export async function registrarDocumento(doc: DocumentoProntuario): Promise<boolean> {
+  // 22/09/2026 · CACHE MISS NÃO É AUSÊNCIA.
+  //
+  // Esta função lia `lerIndice()` — o cache — e gravava por cima. Num aparelho
+  // que não tinha a chave hidratada, "o cache está vazio" virava "o índice não
+  // existe", e a gravação saía com UM item e `versaoBase: 0` contra um servidor
+  // que tinha cinco. Foi o conflito medido em produção em 22/09/2026, com dois
+  // prontuários EMITIDOS entre os que sumiriam.
+  //
+  // `gravarNaColecao` faz o lookup dirigido (só esta chave) antes de decidir se
+  // é criação. Sem resposta do servidor ele NÃO grava — uma lista parcial seria
+  // o mesmo defeito com outro nome.
+  return gravarNaColecao<DocumentoProntuario>(CHAVE_INDICE_PRONT, (atual) =>
+    ordenar([...atual.filter((d) => d.id !== doc.id), doc]),
+  );
 }
 
 /**
