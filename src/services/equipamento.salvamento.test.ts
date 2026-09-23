@@ -111,9 +111,19 @@ vi.mock('./cacheLocal', async (importarOriginal) => {
 vi.mock('./supabase', () => {
   const construir = () => {
     let corte: string | null = null;
+    let chaveFiltro: string | null = null;
     const api = {
       select: () => api,
-      eq: () => api,
+      eq: (coluna?: string, valor?: string) => {
+        if (coluna === 'chave') chaveFiltro = valor ?? null;
+        return api;
+      },
+      // Leitura dirigida de UMA chave (`leituraDirigida.ts`), como o servidor real.
+      maybeSingle: async () => {
+        if (!rede) return { data: null, error: { message: 'offline' } };
+        const l = chaveFiltro ? SERVIDOR.get(chaveFiltro) : undefined;
+        return { data: l ? { ...l } : null, error: null };
+      },
       gt: (_c: string, v: string) => {
         corte = v;
         return api;

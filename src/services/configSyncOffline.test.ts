@@ -134,6 +134,7 @@ function consulta(tabela: string) {
         const l = orgSync.get(String(f.org_id));
         return { data: l ? { ...l } : null, error: null };
       }
+      if (tabela === 'app_storage' && f.chave) log.push(`leitura:${String(f.chave)}`);
       const r = linhas();
       return { data: r.data?.[0] ?? null, error: null };
     },
@@ -157,6 +158,7 @@ import { sincronizarFlagDoServidor, zerarFlagEmMemoria, CHAVE_CONFIG_SYNC, type 
 import { flagsSync, origemConfigSync } from './flagsSync';
 import { iniciar, atualizarDoServidor, limparCacheDados } from './storageV2';
 import { gravarNaColecao, removerDaColecao, baseDe } from './colecaoSync';
+import { salvar } from './storage';
 import { obterRegistro } from './cacheLocal';
 import { obter, aplicarAtomico, fecharDb } from './db';
 import * as sync from './sync';
@@ -699,5 +701,119 @@ describe('F · ACK perdido + retry com a configuração nova', () => {
     expect(srv.get(k(ORG_ZZ, CH))?.versao).toBe(2); // não reaplicou
     expect(sync.listarFila()).toHaveLength(0);
     expect((await baseDe(CH))?.versao).toBe(2);
+  });
+});
+
+// ===========================================================================
+// CHAVES SINGLETON FORA DO CACHE — "não achei" não é "não existe" (Fase 2)
+// ===========================================================================
+describe('singleton fora do cache: leitura dirigida antes de escrever', () => {
+  const ATUAL = 'nr13_prontuario_atual';
+  const ASSIN = 'nr13_assinantes_pront_ZZ-FASE3';
+  const linhaSrv = (valor: string | null, versao: number) =>
+    ({ valor, versao, em: '2026-09-13T02:58:40Z', disp: 'outro-aparelho' });
+  const conflitosDe = (chave: string) => sync.listarConflitos().filter((c) => c.chave === chave && !c.resolucao);
+  const leituras = (chave: string) => log.filter((l) => l === `leitura:${chave}`).length;
+
+  it('A/E · servidor tem v99, cache não: base 99, sem conflito (o smoke do prontuário)', async () => {
+    srv.set(k(ORG_ZZ, ATUAL), linhaSrv('{"tag":"ZZ-TESTE-VISUAL"}', 99));
+    await ligar(novoAparelho('A'), { online: true });
+    log = [];
+    await salvar(ATUAL, { tag: 'ZZ-FASE3' });
+
+    expect(leituras(ATUAL)).toBe(1);
+    expect(srv.get(k(ORG_ZZ, ATUAL))).toMatchObject({ versao: 100, valor: '{"tag":"ZZ-FASE3"}' });
+    expect(conflitosDe(ATUAL)).toHaveLength(0);
+    expect(sync.listarFila()).toHaveLength(0);
+  });
+
+  it('F · assinantes EXCLUÍDA no servidor (v2): a base é a da exclusão, recria sem conflito', async () => {
+    srv.set(k(ORG_ZZ, ASSIN), linhaSrv(null, 2));
+    await ligar(novoAparelho('A'), { online: true });
+    await salvar(ASSIN, { engenheiroId: 'eng-1', tecnicoId: null });
+
+    expect(srv.get(k(ORG_ZZ, ASSIN))).toMatchObject({ versao: 3 });
+    expect(sync.listarFila()).toHaveLength(0);
+    expect(sync.pendenciasSemComparacao()).toHaveLength(0);
+  });
+
+  it('B · servidor CONFIRMA ausência: a chave nasce na v1', async () => {
+    await ligar(novoAparelho('A'), { online: true });
+    await salvar(ATUAL, { tag: 'NOVA' });
+    expect(srv.get(k(ORG_ZZ, ATUAL))).toMatchObject({ versao: 1 });
+    expect(sync.listarFila()).toHaveLength(0);
+  });
+
+  it('D/H · chave já no cache (inclusive depois de F5): nenhuma leitura extra', async () => {
+    srv.set(k(ORG_ZZ, ATUAL), linhaSrv('{"tag":"X"}', 99));
+    const ap = novoAparelho('A');
+    await ligar(ap, { online: true });
+    await salvar(ATUAL, { tag: 'Y' }); // 1ª: lê
+    log = [];
+    await salvar(ATUAL, { tag: 'Z' });
+    expect(leituras(ATUAL)).toBe(0);
+
+    await ligar(ap, { online: true }); // F5
+    log = [];
+    await salvar(ATUAL, { tag: 'W' });
+    expect(leituras(ATUAL)).toBe(0);
+    expect(srv.get(k(ORG_ZZ, ATUAL))).toMatchObject({ versao: 102, valor: '{"tag":"W"}' });
+  });
+
+  it('C · offline com a chave no servidor: base DESCONHECIDA, nunca 0 afirmado; ao voltar, conflito — sem sobrescrever', async () => {
+    srv.set(k(ORG_ZZ, ATUAL), linhaSrv('{"tag":"DO-SERVIDOR"}', 99));
+    await ligar(novoAparelho('A'), { online: false });
+    await salvar(ATUAL, { tag: 'OFFLINE' });
+    const item = sync.listarFila()[0];
+    expect(item.baseDesconhecida).toBe(true);
+    expect(JSON.parse(obterRegistro(ATUAL)!.valor)).toEqual({ tag: 'OFFLINE' }); // o trabalho local vale
+
+    rede = true;
+    await sync.drenar();
+    expect(srv.get(k(ORG_ZZ, ATUAL))).toMatchObject({ versao: 99, valor: '{"tag":"DO-SERVIDOR"}' }); // intacto
+    expect(conflitosDe(ATUAL)).toHaveLength(1); // as duas versões preservadas
+    expect(log.filter((l) => l.startsWith(`rpc:${ATUAL}`))).toHaveLength(0); // nada enviado às cegas
+  });
+
+  it('C · offline, e o servidor tem o MESMO valor: adota a versão e sai da fila', async () => {
+    srv.set(k(ORG_ZZ, ATUAL), linhaSrv('{"tag":"IGUAL"}', 99));
+    await ligar(novoAparelho('A'), { online: false });
+    await salvar(ATUAL, { tag: 'IGUAL' });
+    rede = true;
+    await sync.drenar();
+    expect(sync.listarFila()).toHaveLength(0);
+    expect(obterRegistro(ATUAL)!.versao).toBe(99);
+    expect(srv.get(k(ORG_ZZ, ATUAL))!.versao).toBe(99);
+  });
+
+  it('C · offline e o servidor confirma ausência ao voltar: envia como chave nova', async () => {
+    await ligar(novoAparelho('A'), { online: false });
+    await salvar(ATUAL, { tag: 'SO-AQUI' });
+    rede = true;
+    await sync.drenar();
+    expect(srv.get(k(ORG_ZZ, ATUAL))).toMatchObject({ versao: 1, valor: '{"tag":"SO-AQUI"}' });
+    expect(sync.listarFila()).toHaveLength(0);
+  });
+
+  it('G · base desconhecida e OUTRO aparelho criou a chave nesse meio-tempo: conflito, nunca overwrite', async () => {
+    await ligar(novoAparelho('A'), { online: false });
+    await salvar(ATUAL, { tag: 'DESTE-APARELHO' });
+    srv.set(k(ORG_ZZ, ATUAL), linhaSrv('{"tag":"DO-OUTRO"}', 1)); // o outro aparelho gravou
+    rede = true;
+    await sync.drenar();
+    expect(srv.get(k(ORG_ZZ, ATUAL))).toMatchObject({ versao: 1, valor: '{"tag":"DO-OUTRO"}' });
+    expect(conflitosDe(ATUAL)).toHaveLength(1);
+  });
+
+  it('G · base desconhecida e o servidor EXCLUIU a chave: vira "excluído em outro aparelho"', async () => {
+    srv.set(k(ORG_ZZ, ASSIN), linhaSrv(null, 2));
+    await ligar(novoAparelho('A'), { online: false });
+    await salvar(ASSIN, { engenheiroId: 'eng-1', tecnicoId: null });
+    rede = true;
+    await sync.drenar();
+    const presos = sync.pendenciasSemComparacao();
+    expect(presos.map((i) => i.chave)).toEqual([ASSIN]);
+    expect(presos[0].versaoServidor).toBe(2);
+    expect(srv.get(k(ORG_ZZ, ASSIN))).toMatchObject({ versao: 2, valor: null });
   });
 });

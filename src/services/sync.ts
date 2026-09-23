@@ -28,6 +28,7 @@ import { registrarPendencias, removerPendencia, substituirManifesto } from './ma
 import { colecaoDaChave, ehColecao, marcarRemovido, removido } from './colecoes';
 import { configPermiteColecao, flagsSync, marcarParaRevalidar, origemConfigSync } from './flagsSync';
 import { revalidarConfigSync } from './flag';
+import { lerLinhaDoServidor } from './leituraDirigida';
 
 export type EstadoItem =
   | 'salvo_local'
@@ -65,6 +66,13 @@ export interface ItemFila {
    * precisa de id NOVO; este campo é o vínculo com o original, para auditoria.
    */
   resolveDe?: string;
+  /**
+   * A base desta mutação NÃO foi confirmada pelo servidor: a chave não estava
+   * no cache e a leitura dirigida não teve resposta (offline). `versaoBase`
+   * vale 0 aqui só por formato — não é a afirmação "a chave não existe".
+   * Antes de enviar, a drenagem pergunta ao servidor (`resolverBaseDesconhecida`).
+   */
+  baseDesconhecida?: boolean;
   /**
    * Versão que o SERVIDOR informou ao RECUSAR por versão.
    *
@@ -178,6 +186,9 @@ export function montarItem(
     criadoEm: anterior ? anterior.criadoEm : new Date().toISOString(),
     tentativas: identico ? anterior.tentativas : 0,
     estado: 'aguardando',
+    // A base continua a da PRIMEIRA edição — e, com ela, o fato de não ter
+    // sido confirmada.
+    ...(anterior?.baseDesconhecida ? { baseDesconhecida: true } : {}),
   };
 }
 
@@ -527,7 +538,76 @@ async function resolverColecaoAutomaticamente(
  * Envia UM item. Só remove da fila depois que a RPC confirma — 'aplicado' ou
  * 'repetido'. Qualquer outra coisa mantém a pendência.
  */
+/**
+ * Base DESCONHECIDA: a escrita aconteceu com a chave fora do cache e sem
+ * resposta do servidor (offline). Antes de enviar, pergunta — e só então
+ * decide. Nunca manda `versaoBase: 0` como se o servidor tivesse confirmado a
+ * ausência, e nunca sobrescreve em silêncio o que o servidor tem.
+ *
+ * | servidor | decisão |
+ * |---|---|
+ * | sem resposta | espera (item fica na fila, marcado como rede) |
+ * | confirmou ausência | base 0 é verdade: envia |
+ * | tem o MESMO valor | a escrita já está lá: adota a versão, sai da fila |
+ * | tem outro valor | conflito — merge para coleção, decisão manual para o resto |
+ * | excluiu a chave | "excluído em outro aparelho": recriar ou descartar é do usuário |
+ */
+async function resolverBaseDesconhecida(item: ItemFila): Promise<'enviar' | 'resolvido' | 'esperar'> {
+  const r = await lerLinhaDoServidor(item.chave);
+  if (r.estado === 'indisponivel') {
+    await marcarEstado(item.mutationId, 'aguardando', new TypeError('Failed to fetch'));
+    return 'esperar';
+  }
+  if (r.estado === 'ausente') {
+    item.baseDesconhecida = false;
+    item.versaoBase = 0;
+    await persistir(item);
+    return 'enviar';
+  }
+
+  const { linha } = r;
+  const mesmoValor =
+    (item.op === 'set' && !linha.excluida && linha.valor === (item.valor ?? null)) ||
+    (item.op === 'del' && linha.excluida);
+  if (mesmoValor) {
+    const local = obterRegistro(item.chave);
+    if (local && item.op === 'set') await gravarAtomico([{ chave: item.chave, registro: { ...local, versao: linha.versao } }]);
+    await removerDaFila(item.mutationId);
+    return 'resolvido';
+  }
+
+  if (linha.excluida) {
+    item.versaoServidor = linha.versao;
+    await marcarEstado(item.mutationId, 'conflito', {
+      code: 'P0001',
+      message: 'nr13_versao_obsoleta: base desconhecida e a chave foi excluída no servidor',
+    });
+    return 'esperar';
+  }
+
+  const conflito: Extract<RespostaMutacao, { status: 'conflito' }> = {
+    status: 'conflito',
+    versao: linha.versao,
+    valor: linha.valor,
+    atualizadoEm: linha.atualizadoEm,
+    dispositivo: linha.dispositivo,
+  };
+  if (await resolverColecaoAutomaticamente(item, conflito)) return 'resolvido';
+  await guardarConflito(
+    item.chave,
+    { valor: linha.valor ?? '', versao: linha.versao, atualizadoEm: linha.atualizadoEm, dispositivo: linha.dispositivo },
+    item.mutationId,
+  );
+  await marcarEstado(item.mutationId, 'conflito', { code: 'nr13_conflito', message: 'base desconhecida e valor divergente' });
+  return 'esperar';
+}
+
 async function enviarItem(item: ItemFila): Promise<boolean> {
+  if (item.baseDesconhecida) {
+    const decisao = await resolverBaseDesconhecida(item);
+    if (decisao === 'resolvido') return true;
+    if (decisao === 'esperar') return false;
+  }
   if (item.tentativas === 0) await semMarcasParaEnvio(item);
   item.tentativas += 1;
 

@@ -17,6 +17,7 @@ import * as cache from './cacheLocal';
 import * as sync from './sync';
 import type { ItemFila } from './sync';
 import { fecharDb } from './db';
+import { lerLinhaDoServidor } from './leituraDirigida';
 import { carregarConfigConfirmada, configRecente, revalidarConfigSync } from './flag';
 import { marcarParaRevalidar } from './flagsSync';
 import { bloqueadoParaEscrita, ErroBloqueado } from './gateEscrita';
@@ -138,10 +139,43 @@ export async function salvar(chave: string, objeto: unknown): Promise<void> {
   await sync.drenar();
 }
 
+/**
+ * A versão do servidor sobre a qual esta escrita se apoia.
+ *
+ * Cache first. No cache miss SEM pendência para a chave, pergunta ao servidor
+ * — só esta chave (`leituraDirigida`). Até 23/09/2026 o miss virava `0`, e a
+ * mutação afirmava que a chave não existia: foi o conflito do prontuário na
+ * Fase 2. Sem resposta do servidor a base fica DESCONHECIDA, e é a drenagem que
+ * pergunta de novo antes de enviar (`sync.resolverBaseDesconhecida`).
+ */
+async function baseDaEscrita(chave: string): Promise<{ versao: number; desconhecida: boolean }> {
+  const anterior = cache.obterRegistro(chave);
+  if (anterior) return { versao: anterior.versao, desconhecida: false };
+  // Com pendência, a base é a da primeira edição — `montarItem` a preserva.
+  if (sync.itemDaChave(chave)) return { versao: 0, desconhecida: false };
+
+  const r = await lerLinhaDoServidor(chave);
+  if (r.estado === 'ausente') return { versao: 0, desconhecida: false };
+  if (r.estado === 'indisponivel') return { versao: 0, desconhecida: true };
+  if (!r.linha.excluida && r.linha.valor !== null) {
+    // Entra no cache como qualquer leitura do servidor: a próxima escrita já
+    // não pergunta, e o F5 não perde a base.
+    await cache.aplicarRemoto(chave, {
+      valor: r.linha.valor,
+      versao: r.linha.versao,
+      atualizadoEm: r.linha.atualizadoEm,
+      dispositivo: r.linha.dispositivo,
+    });
+  }
+  // Excluída no servidor: a versão da exclusão é a base. Escrever por cima é
+  // recriar — o mesmo que a RPC chama de "recriação legítima".
+  return { versao: r.linha.versao, desconhecida: false };
+}
+
 /** Dado + item de fila na mesma transação. Sem gates: quem chama já os aplicou. */
 async function gravarComFila(chave: string, valor: string): Promise<void> {
-  const anterior = cache.obterRegistro(chave);
-  const versaoServidor = anterior?.versao ?? 0;
+  const base = await baseDaEscrita(chave);
+  const versaoServidor = base.versao;
 
   const registro: cache.Registro = {
     valor,
@@ -151,6 +185,7 @@ async function gravarComFila(chave: string, valor: string): Promise<void> {
   };
 
   const item = sync.montarItem('set', chave, valor, versaoServidor);
+  if (base.desconhecida) item.baseDesconhecida = true;
   const antigo = sync.itemDaChave(chave);
 
   await cache.gravarAtomico([{ chave, registro }], [item]);
@@ -159,10 +194,11 @@ async function gravarComFila(chave: string, valor: string): Promise<void> {
 }
 
 async function excluirUma(chave: string): Promise<void> {
-  const anterior = cache.obterRegistro(chave);
-  const versaoServidor = anterior?.versao ?? 0;
+  const base = await baseDaEscrita(chave);
+  const versaoServidor = base.versao;
 
   const item = sync.montarItem('del', chave, undefined, versaoServidor);
+  if (base.desconhecida) item.baseDesconhecida = true;
   const antigo = sync.itemDaChave(chave);
   const tomb = {
     chave,

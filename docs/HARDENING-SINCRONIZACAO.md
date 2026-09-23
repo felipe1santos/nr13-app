@@ -1195,3 +1195,45 @@ não abre offline até a próxima carga online (os dados continuam no
 IndexedDB). A correção mínima, se um dia for necessária, é precachear o bundle
 de entrada no `install` (lista gerada no build) — mudança de SW, a fazer com
 medição própria.
+
+# RODADA 10 — CHAVES SINGLETON FORA DO CACHE (23/09/2026)
+
+**Achado da Fase 2:** pré-visualizar um prontuário gravou `nr13_prontuario_atual`
+(v99 no servidor) e `nr13_assinantes_pront_ZZ-FASE3` (excluída, v2) com
+`versaoBase: 0` e criou dois conflitos manuais. Servidor intacto.
+
+**Causa:** `storageV2.gravarComFila` (e `excluirUma`) calculava
+`cache.obterRegistro(chave)?.versao ?? 0`: cache miss afirmava ao servidor que a
+chave não existia. É uma CLASSE, não dois casos:
+
+| família | chega ao cache por | risco de base 0 |
+|---|---|---|
+| `nr13_*_atual` (prontuário, inspeção, injeção, meta do relatório) | nada — fora do boot leve | **sim** — sempre fora do cache num aparelho recém-aberto |
+| por TAG viva (`nr13_info_`, `nr13_assinantes_pront_`…) | `carregarEquipamento` | baixo |
+| por TAG EXCLUÍDA no servidor | nada — a semeadura pula linhas excluídas | **sim** — a exclusão tem versão |
+| globais do boot leve (`essencial.ts`) | boot | não |
+| coleções | `colecaoSync.lerColecao` já semeava | não |
+
+O aparelho do dono já tinha conflitos antigos em `nr13_inspecao_atual`,
+`nr13_injecao_atual` e `nr13_relatorio_meta_atual` — a mesma causa.
+
+**Correção (uma porta, na camada de storage — `leituraDirigida.ts`):**
+- escrita com cache miss e sem pendência → leitura dirigida DAQUELA chave
+  (timeout de 4 s). Valor → entra no cache e a versão vira a base; ausência
+  confirmada → 0; excluída → a versão da exclusão; sem resposta → o item vai
+  `baseDesconhecida` (nunca base 0 afirmado);
+- na drenagem, `baseDesconhecida` pergunta antes de enviar: mesmo valor →
+  adota a versão; ausente → envia como nova; valor diferente → o conflito de
+  sempre (merge para coleção, manual para o resto); excluída → "excluído em
+  outro aparelho". Nunca overwrite silencioso.
+
+**Pré-visualizar grava?** Sim, e as duas escritas têm motivo: `nr13_prontuario_atual`
+é a cópia que as folhas `PRONT-*.html` leem (a prévia VETORIAL não a lê — é
+necessária só para o caminho por template); `nr13_assinantes_pront_<TAG>` é a
+pré-seleção do único engenheiro, feita ao abrir. Nenhuma foi removida; o que
+mudou é a base com que elas sobem. Sincronizar uma cópia de trabalho global
+(`nr13_*_atual`) continua sendo desenho questionável — dois aparelhos se
+sobrescrevem nela — e fica como proposta, não como mudança desta rodada.
+
+Travado por 9 testes em `configSyncOffline.test.ts` ("singleton fora do
+cache"); sem a leitura dirigida, 6 falham.
