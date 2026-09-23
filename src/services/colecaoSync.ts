@@ -1,4 +1,5 @@
 import { obterRegistro } from './cacheLocal';
+import { PADRAO_SYNC } from './flagsSync';
 import { baseDe, registrarBase } from './baseColecao';
 import { colecaoDaChave, excluirDaLista, mesclarColecao, visiveis, type ResultadoMerge } from './colecoes';
 import { ler, salvar, semearEquipamentoDetalhado } from './storage';
@@ -200,4 +201,4 @@ export async function resolverAutomaticamente(
  * O 3 antes do 1 faria item excluído reaparecer na tela; o 4 antes do 3 é o que
  * ressuscita item excluído, porque o merge só sabe unir.
  */
-export const MERGE_AUTOMATICO_ATIVO = false;
+export const MERGE_AUTOMATICO_ATIVO = PADRAO_SYNC.mergeAutomatico;

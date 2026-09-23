@@ -1,3 +1,5 @@
+import { flagsSync, PADRAO_SYNC } from './flagsSync';
+
 /**
  * AS CHAVES-LISTA, E COMO SE JUNTAM DUAS VERSÕES DELAS (22/09/2026).
  *
@@ -172,19 +174,16 @@ export function visiveis<T extends object>(lista: T[]): T[] {
 }
 
 /**
- * O INTERRUPTOR DO TOMBSTONE.
+ * O PADRÃO do interruptor do tombstone — o que vai para produção.
  *
- * Mora aqui, e não em `colecaoSync`, porque os escritores síncronos (clientes,
- * funcionários, calibrações…) precisam dele sem arrastar o storage inteiro.
- * `colecaoSync.MERGE_AUTOMATICO_ATIVO` é o interruptor do MERGE e lê este —
- * marcar sem mesclar é seguro (o leitor filtra); mesclar sem marcar é o que
- * ressuscita item excluído, então o tombstone nunca pode estar atrás do merge.
+ * O valor VIGENTE é `flagsSync().tombstone`, e é ele que `excluirDaLista` lê:
+ * um `const` não se simula, e esta rodada precisa provar o comportamento
+ * LIGADO sem entregar código ligado. Ver `flagsSync.ts`.
  *
- * Desligado nesta rodada: a exclusão continua tirando o item da lista, como
- * sempre fez. Ligar troca o `filter` por `map` em TODOS os escritores de uma
- * vez — é por isso que a decisão é um valor só.
+ * Marcar sem mesclar é seguro (o leitor filtra); mesclar sem marcar ressuscita
+ * item excluído. Por isso `definirFlagsSync` recusa `mergeAutomatico` sem este.
  */
-export const TOMBSTONE_ATIVO = false;
+export const TOMBSTONE_ATIVO = PADRAO_SYNC.tombstone;
 
 /**
  * Exclui um item de uma lista BRUTA pela regra central.
@@ -204,7 +203,7 @@ export function excluirDaLista<T extends object>(
   quando: string = new Date().toISOString(),
 ): T[] {
   const alvo = (i: T) => idDe(i) === id;
-  return TOMBSTONE_ATIVO
+  return flagsSync().tombstone
     ? (lista ?? []).map((i) => (alvo(i) ? marcarRemovido(i, quando) : i))
     : (lista ?? []).filter((i) => !alvo(i));
 }

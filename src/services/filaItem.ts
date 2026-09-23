@@ -32,9 +32,10 @@
  * chave.
  */
 import { colecaoDaChave, marcarRemovido, removido } from './colecoes';
+import { PADRAO_SYNC } from './flagsSync';
 
 /** O INTERRUPTOR. Desligado, e o produto sequer chama este módulo. */
-export const FILA_POR_ITEM_ATIVA = false;
+export const FILA_POR_ITEM_ATIVA = PADRAO_SYNC.filaPorItem;
 
 export type OpItem = 'upsert' | 'remove';
 

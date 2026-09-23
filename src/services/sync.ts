@@ -20,7 +20,8 @@ import {
 } from './cacheLocal';
 import { deveGuardarBase, esquecerBase, registrarBase } from './baseColecao';
 import { classificar, type ErroSync } from './errosSync';
-import { interpretarResposta } from './contratoRpc';
+import { interpretarResposta, type RespostaMutacao } from './contratoRpc';
+import { mergeDeConflito } from './mergeColecao';
 import { supabase } from './supabase';
 import { registrarPendencias, removerPendencia, substituirManifesto } from './manifesto';
 
@@ -436,6 +437,79 @@ async function restaurarDoServidor(chave: string): Promise<void> {
 }
 
 /**
+ * Troca a mutação em conflito pelo MERGE das duas versões — quando dá.
+ *
+ * Devolve `true` se resolveu. `false` significa "isto é do usuário", e o
+ * chamador segue para `guardarConflito` como sempre fez.
+ *
+ * A troca vai numa transação só (I-01): remover a original e depois criar a
+ * mesclada deixaria uma janela em que a alteração do usuário não está em fila
+ * nenhuma — fechar o navegador ali a perderia. É a mesma transação de
+ * `resolverMantendoLocal`, pelo mesmo motivo.
+ *
+ * `versaoBase` é a do SERVIDOR: o merge foi calculado EM CIMA dela, e mandar a
+ * base antiga seria recusado para sempre.
+ *
+ * A base NÃO avança aqui. O merge é uma proposta deste aparelho até o servidor
+ * confirmá-la; avançar agora afirmaria um estado que ninguém confirmou.
+ */
+async function resolverColecaoAutomaticamente(
+  item: ItemFila,
+  r: Extract<RespostaMutacao, { status: 'conflito' }>,
+): Promise<boolean> {
+  // Exclusão de CHAVE inteira não é merge de lista: quem apagou a chave não
+  // está propondo itens, e unir aqui recriaria o que o usuário mandou sumir.
+  if (item.op !== 'set') return false;
+
+  const local = obterRegistro(item.chave);
+  const auto = await mergeDeConflito(item.chave, item.valor ?? local?.valor, r.valor);
+  if (!auto) return false;
+
+  const novo: ItemFila = {
+    mutationId: crypto.randomUUID(),
+    resolveDe: item.mutationId,
+    op: 'set',
+    chave: item.chave,
+    valor: auto.valor,
+    versaoBase: r.versao,
+    dispositivo: idDispositivo(),
+    criadoEm: new Date().toISOString(),
+    tentativas: 0,
+    estado: 'aguardando',
+  };
+
+  await gravarAtomico(
+    [
+      {
+        chave: item.chave,
+        registro: {
+          valor: auto.valor,
+          // A versão do SERVIDOR: é o que este aparelho passou a conhecer. A
+          // versão da mutação mesclada só existirá quando ela for aplicada.
+          versao: r.versao,
+          atualizadoEm: r.atualizadoEm,
+          dispositivo: r.dispositivo,
+        },
+      },
+    ],
+    [novo],
+    [],
+    [{ store: 'fila', acao: 'delete', chave: item.mutationId }],
+  );
+
+  fila.delete(item.mutationId);
+  removerPendencia(item.mutationId);
+  fila.set(novo.mutationId, novo);
+  registrarPendencias([novo]);
+
+  console.info(
+    `[sync] conflito de coleção resolvido sozinho em "${item.chave}": ` +
+      `+${auto.merge.adicionados.length} item(ns), ${auto.merge.removidos.length} excluído(s).`,
+  );
+  return true;
+}
+
+/**
  * Envia UM item. Só remove da fila depois que a RPC confirma — 'aplicado' ou
  * 'repetido'. Qualquer outra coisa mantém a pendência.
  */
@@ -514,6 +588,18 @@ async function enviarItem(item: ItemFila): Promise<boolean> {
   }
 
   if (r.status === 'conflito') {
+    // MERGE AUTOMÁTICO DE COLEÇÃO — desligado em produção (`flagsSync`).
+    //
+    // Quando ligado, a lista das duas versões é unida por item ANTES de o
+    // conflito existir para o usuário: criação offline dos dois lados, itens
+    // diferentes alterados, subconjunto estrito e exclusão deixam de ser
+    // pergunta. Só divergência no MESMO item continua descendo para a tela.
+    //
+    // Não é atalho e não pula etapa: o resultado sobe como mutação NOVA, com
+    // `versaoBase` = a versão que o servidor acabou de informar, e passa pelo
+    // mesmo ACK de todas as outras — é lá, e só lá, que a base avança.
+    if (await resolverColecaoAutomaticamente(item, r)) return false;
+
     // As DUAS sobrevivem: a do servidor vai para a store `conflitos`, a local
     // segue na fila marcada, e o usuário escolhe em /pendencias.
     await guardarConflito(

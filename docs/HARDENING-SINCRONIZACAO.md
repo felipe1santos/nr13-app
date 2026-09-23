@@ -437,3 +437,197 @@ A tela manual de conflito não foi tocada. Nenhum conflito real foi resolvido.
 
 *22/09/2026. Base ligada ao ACK real; leitores filtrados; exclusão, poda, fila
 por item e merge automático seguem desligados, aguardando sua revisão.*
+
+---
+
+# RODADA 4 — ENSAIO DE ATIVAÇÃO, SEM PUBLICAR (22/09/2026)
+
+Objetivo: provar que `tombstone` e `mergeAutomatico` podem ser ligados. **Nada
+foi ligado.** O código entregue continua com os três interruptores no padrão
+desligado.
+
+## 1 · Interruptores viraram estado, num lugar só
+
+`services/flagsSync.ts`. Antes eram três `const` espalhados, e um `const` não
+se simula: ou o teste mocka o módulo inteiro (e aí não testa o módulo) ou o
+código de produção nasce ligado.
+
+```
+PADRAO_SYNC = { tombstone: false, mergeAutomatico: false, filaPorItem: false }
+```
+
+Quem liga é `definirFlagsSync`, e ela **recusa `mergeAutomatico` sem
+`tombstone`** — é a única combinação capaz de apagar dado do usuário: o merge
+une, o aparelho atrasado manda o item excluído de volta, e a exclusão é desfeita
+sem ninguém pedir. Recusar na função é mais barato do que descobrir em produção.
+
+Não há leitura de `localStorage`, de URL nem de variável de ambiente. Um
+interruptor que se liga por parâmetro de query é o que se liga por engano.
+
+## 2 · O merge automático foi INTEGRADO ao caminho real (e ficou desligado)
+
+Até esta rodada `resolverAutomaticamente` existia e ninguém a chamava — ou seja,
+não havia o que ensaiar. Agora o ramo `conflito` de `sync.enviarItem` chama
+`resolverColecaoAutomaticamente` **antes** de `guardarConflito`.
+
+Quando resolve: troca a mutação em conflito por uma NOVA, com o blob mesclado e
+`versaoBase` = a versão que o servidor acabou de informar, numa transação só
+(remover a velha e depois criar a nova deixaria uma janela em que a alteração do
+usuário não está em fila nenhuma). Quando não resolve, devolve `false` e o fluxo
+segue exatamente como hoje.
+
+`services/mergeColecao.ts` é o módulo leve que decide — só `colecoes` e
+`baseColecao`, para `sync.ts` não fechar o ciclo `sync → storage → storageV2 →
+sync`. Devolve `null` (= "chame o usuário") em cinco situações: flag desligada,
+chave fora do catálogo, lado não-array, item alterado nos dois lados, ou merge
+que não mudaria nada.
+
+**A base NÃO avança no merge.** O resultado é uma proposta deste aparelho até o
+servidor confirmá-la; ela avança no ACK da mutação mesclada, como qualquer outra.
+
+## 3 · O ensaio: dois aparelhos contra um servidor simulado
+
+`services/ensaioAtivacao.test.ts` (38 testes). O servidor de teste reproduz
+`aplicar_mutacao_storage` nas partes que decidem o desfecho — incluindo o
+mascaramento `resultado || {'status':'repetido'}`. Um servidor de teste mais
+gentil que o real prova a coisa errada.
+
+"Trocar de aparelho" zera memória, fila, conflitos e IndexedDB, e semeia o cache
+com o que aquele aparelho conhecia. O servidor sobrevive à troca.
+
+| caso | cenário | resultado |
+|---|---|---|
+| **A** | servidor A B C; celular offline edita C | **A B C2**, sem conflito, base em v2 |
+| **B** | PC edita A, celular edita C, ambos da base v1 | **A2 B C2**, sem pergunta |
+| **C** | criação offline dos dois lados | **A B C D**, nunca "C sozinho" |
+| **D** | PC exclui C; celular atrasado edita B | **A B2**, C não volta |
+| **E** | mesmo item, mesmo campo | **conflito manual**, as duas versões guardadas |
+| **F** | mesmo item, campos disjuntos | **conflito manual** — P2 declarado |
+
+No caso D, testados também: F5, nova aba, segundo ciclo de sincronização, um
+TERCEIRO aparelho que nunca soube da exclusão, e a sobrevivência do tombstone no
+blob do servidor. Nenhum ressuscita C.
+
+**O merge sobe no CICLO SEGUINTE de drenagem**, não no mesmo: `drenar` itera um
+instantâneo da fila, e a mutação mesclada nasce durante a iteração. É o
+comportamento correto (a drenagem seguinte é imediata), e está explícito no
+helper `sincronizar`.
+
+## 4 · `interpretarResposta` com a fila real
+
+| situação | resultado |
+|---|---|
+| ACK aplicado | base avança, fila esvazia |
+| ACK perdido + retry (mesmo `mutationId`) | `repetido` genuíno; servidor **não reaplica** (versão fica em 2), base avança, um único id usado |
+| conflito | não é lido como repetido; item fica `conflito`, base intacta, não é retentado |
+| recusa por permissão | `falha_definitiva`, pendência **não some**, base intacta |
+| recusa MASCARADA de `repetido` | idem — desmascarada pelo campo `motivo` |
+| `falha_definitiva` na drenagem seguinte | não gasta requisição |
+
+## 5 · Tombstone ligado × telas
+
+`leituraVisivel.test.ts` subiu para 52 testes. Com `tombstone: true`, exclusão
+pelos escritores REAIS (`excluirCliente`, `excluirFuncionario`,
+`removerContainer`, `excluirComponente`, `excluirLote`, `excluirCalibracao`):
+
+- o item some de lista, contador, busca, selector e de `carregarContainer`;
+- o bruto continua com 2 itens e o excluído carrega `removidoEm`;
+- excluir duas vezes não duplica; salvar OUTRO item não ressuscita o excluído.
+
+## 6 · As três coleções com histórico de problema real
+
+`nr13_pront_indice`, `nr13_rascunhos` e `nr13_historico_indice_<TAG>` foram
+testadas com o defeito ORIGINAL reproduzido: cache vazio, alguém conclui "não
+existe" e grava um item só com `versaoBase: 0` contra um servidor na versão 6.
+
+Com o merge ligado o desfecho deixa de ser "escolha entre perder quatro e perder
+nada": os cinco continuam lá, o novo entra, e o ciclo seguinte já usa a base
+confirmada — sem repetir o conflito.
+
+## 7 · Offline com persistência real
+
+Rede caída (a requisição não sai), criação + edição + exclusão offline,
+`zerarMemoria` + `hidratarDoDisco` + `carregarFilaDoDisco` simulando fechar e
+reabrir, e então a rede volta. A pendência e o dado sobrevivem ao reload, e a
+conciliação fecha em **A B D** com a fila vazia.
+
+Não foi exercitado num navegador real — o ensaio roda sobre o IndexedDB de
+teste, que é o mesmo código do app, mas não é o mesmo ambiente.
+
+## 8 · Dois achados do próprio ensaio
+
+**1. Falso positivo de ressurreição, causado pelo harness.** `rpc.mockClear()`
+zera chamadas e PRESERVA implementações — inclusive um `mockImplementationOnce`
+que o teste anterior enfileirou e não consumiu. O "offline" de um teste vazava
+para o seguinte e produzia um C ressuscitado que não existia. Corrigido com
+`mockReset()` + reinstalação da implementação.
+
+**2. O helper de teste não espelhava a produção.** `storageV2.salvarUma` remove
+da fila a mutação CONDENSADA (`removerDaFila(antigo.mutationId)`); o helper do
+ensaio não. Num "fechar e reabrir", as duas linhas voltavam do IndexedDB e a
+antiga subia primeiro, publicando um valor desatualizado. **A produção está
+correta**; o teste é que estava. Fica registrado porque a distância entre
+harness e produção é o que faz um ensaio mentir.
+
+## 9 · A fila por item é necessária?
+
+**NÃO.** Todos os seis casos fecham com a fila atual de blob por chave. O merge
+é calculado no CLIENTE, sobre a versão que o servidor devolveu no conflito, e o
+resultado sobe como um `set` comum — a RPC não precisa saber de nada e nenhuma
+migration é necessária.
+
+A fila por item reduziria o TRÁFEGO desse envio (mandar o item em vez da lista
+inteira) e permitiria compor intenções localmente. É **otimização de
+performance**, classificada como tal, para uma rodada própria.
+
+## 10 · Compatibilidade antigo × novo
+
+| cenário | resultado |
+|---|---|
+| novo exclui (marca), antigo edita outro item | exclusão respeitada, edição do antigo preservada |
+| antigo exclui (sumindo com o item), novo atrasado ainda o tem | **o item volta** |
+| ciclos repetidos de sincronização | fila esvazia, sem laço de conflito |
+| criações simultâneas | nada some |
+
+A segunda linha é a **limitação estrutural declarada**, e é a razão de o
+tombstone existir: sem marca, o merge não distingue "foi excluído" de "ainda não
+chegou aqui" — e "ausente de um lado" significa "criado no outro". Consequência
+prática para a ativação: **enquanto houver aparelho no bundle antigo, exclusão
+feita nele pode ser desfeita**. Não há perda de dado (o item volta, não some), e
+o efeito desaparece quando todos os aparelhos estiverem no bundle novo.
+
+## 11 · Regressão com as flags no padrão
+
+Com os três desligados: a exclusão continua tirando o item da lista; o conflito
+de itens diferentes — que o merge resolveria — continua indo para a tela manual;
+o ACK continua avançando a base (isso é da rodada 3 e ficou ligado de
+propósito); e os leitores continuam filtrando tombstone, o que é inócuo enquanto
+não existe tombstone nenhum.
+
+## 12 · Pendências desta rodada
+
+- **P1 · aparelho antigo que exclui sem marcar desfaz-se sozinho no merge.** É o
+  bloqueador da ativação ampla; não é bloqueador de ativação controlada numa
+  organização cujos aparelhos estejam todos atualizados.
+- **P2 · field merge** (caso F): campos disjuntos do mesmo item seguem manuais.
+- **P2 · aba velha reescrevendo item excluído.** O escritor grava o objeto que
+  recebeu e, com ele, apaga a marca. Não é ressurreição por SINCRONIZAÇÃO — o
+  merge respeita o tombstone —, é uma aba aberta antes da exclusão. A tela fecha
+  esse caminho ao não oferecer o item.
+- Poda: sem mudança. Continua desligada e apenas medida.
+
+## 13 · Estado dos interruptores no código entregue
+
+```
+PADRAO_SYNC.tombstone        = false
+PADRAO_SYNC.mergeAutomatico  = false
+PADRAO_SYNC.filaPorItem      = false
+colecoes.PODA_AUTOMATICA_ATIVA = false
+```
+
+Verificado por teste (`ensaioAtivacao.test.ts` → "o PADRÃO — o que vai para
+produção — tem os três desligados").
+
+---
+
+*22/09/2026. Ensaio concluído; nada ativado, nada publicado.*
