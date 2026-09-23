@@ -1237,3 +1237,13 @@ sobrescrevem nela — e fica como proposta, não como mudança desta rodada.
 
 Travado por 9 testes em `configSyncOffline.test.ts` ("singleton fora do
 cache"); sem a leitura dirigida, 6 falham.
+
+**Ajuste antes do deploy (mesmo dia):** a primeira versão desta correção
+adotava a versão do servidor para QUALQUER chave viva encontrada na leitura
+dirigida. Isso trocava um conflito barulhento por uma sobrescrita silenciosa
+nos caminhos "não achei, então crio" — `obterOuCriarMeta` geraria um número de
+prontuário novo por cima do existente. Agora a adoção vale só para as
+`COPIAS_DE_TRABALHO` (`nr13_*_atual`, regeneradas da fonte a cada abertura) e
+para a chave excluída no servidor (recriação). Toda outra chave viva entra no
+cache e a escrita sobe com base desconhecida: valor igual, adota; diferente,
+conflito com as duas versões. Travado por 2 testes.

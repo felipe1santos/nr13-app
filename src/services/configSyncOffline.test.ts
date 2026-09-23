@@ -805,6 +805,28 @@ describe('singleton fora do cache: leitura dirigida antes de escrever', () => {
     expect(conflitosDe(ATUAL)).toHaveLength(1);
   });
 
+  it('chave VIVA que não é cópia de trabalho ("não achei, então crio"): nunca sobrescreve — conflito', async () => {
+    // O padrão de `obterOuCriarMeta`: a tela não achou o número no cache e
+    // criou outro. Adotar a versão do servidor apagaria o número existente.
+    const META = 'nr13_prontuario_meta_ZZ-X';
+    srv.set(k(ORG_ZZ, META), linhaSrv('{"numero":"REL-EXISTENTE"}', 5));
+    await ligar(novoAparelho('A'), { online: true });
+    await salvar(META, { numero: 'REL-NOVO' });
+
+    expect(srv.get(k(ORG_ZZ, META))).toMatchObject({ versao: 5, valor: '{"numero":"REL-EXISTENTE"}' });
+    expect(conflitosDe(META)).toHaveLength(1); // as duas versões preservadas, decisão do usuário
+  });
+
+  it('a mesma chave viva, gravada com o MESMO valor: adota a versão, sem conflito', async () => {
+    const META = 'nr13_prontuario_meta_ZZ-X';
+    srv.set(k(ORG_ZZ, META), linhaSrv('{"numero":"REL-EXISTENTE"}', 5));
+    await ligar(novoAparelho('A'), { online: true });
+    await salvar(META, { numero: 'REL-EXISTENTE' });
+    expect(sync.listarFila()).toHaveLength(0);
+    expect(conflitosDe(META)).toHaveLength(0);
+    expect(obterRegistro(META)!.versao).toBe(5);
+  });
+
   it('G · base desconhecida e o servidor EXCLUIU a chave: vira "excluído em outro aparelho"', async () => {
     srv.set(k(ORG_ZZ, ASSIN), linhaSrv(null, 2));
     await ligar(novoAparelho('A'), { online: false });

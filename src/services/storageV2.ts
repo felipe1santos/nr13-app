@@ -17,7 +17,7 @@ import * as cache from './cacheLocal';
 import * as sync from './sync';
 import type { ItemFila } from './sync';
 import { fecharDb } from './db';
-import { lerLinhaDoServidor } from './leituraDirigida';
+import { COPIAS_DE_TRABALHO, lerLinhaDoServidor } from './leituraDirigida';
 import { carregarConfigConfirmada, configRecente, revalidarConfigSync } from './flag';
 import { marcarParaRevalidar } from './flagsSync';
 import { bloqueadoParaEscrita, ErroBloqueado } from './gateEscrita';
@@ -157,19 +157,23 @@ async function baseDaEscrita(chave: string): Promise<{ versao: number; desconhec
   const r = await lerLinhaDoServidor(chave);
   if (r.estado === 'ausente') return { versao: 0, desconhecida: false };
   if (r.estado === 'indisponivel') return { versao: 0, desconhecida: true };
-  if (!r.linha.excluida && r.linha.valor !== null) {
-    // Entra no cache como qualquer leitura do servidor: a próxima escrita já
-    // não pergunta, e o F5 não perde a base.
-    await cache.aplicarRemoto(chave, {
-      valor: r.linha.valor,
-      versao: r.linha.versao,
-      atualizadoEm: r.linha.atualizadoEm,
-      dispositivo: r.linha.dispositivo,
-    });
-  }
   // Excluída no servidor: a versão da exclusão é a base. Escrever por cima é
   // recriar — o mesmo que a RPC chama de "recriação legítima".
-  return { versao: r.linha.versao, desconhecida: false };
+  if (r.linha.excluida || r.linha.valor === null) return { versao: r.linha.versao, desconhecida: false };
+
+  // Viva no servidor: entra no cache como qualquer leitura — a próxima escrita
+  // já não pergunta, e o F5 não perde a base.
+  await cache.aplicarRemoto(chave, {
+    valor: r.linha.valor,
+    versao: r.linha.versao,
+    atualizadoEm: r.linha.atualizadoEm,
+    dispositivo: r.linha.dispositivo,
+  });
+  // Cópia de trabalho: a escrita nova vale por cima (ver `COPIAS_DE_TRABALHO`).
+  // Qualquer outra: quem decidiu o valor não viu o do servidor, então a base
+  // fica DESCONHECIDA e a drenagem resolve — igual, adota; diferente, conflito.
+  if (COPIAS_DE_TRABALHO.has(chave)) return { versao: r.linha.versao, desconhecida: false };
+  return { versao: 0, desconhecida: true };
 }
 
 /** Dado + item de fila na mesma transação. Sem gates: quem chama já os aplicou. */

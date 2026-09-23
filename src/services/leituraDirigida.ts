@@ -33,6 +33,27 @@ import { supabase, escopoStorageAtual, TABELA_STORAGE } from './supabase';
  * Uma chave só. Nunca a organização inteira.
  */
 
+/**
+ * CÓPIAS DE TRABALHO: chaves que o app REGENERA a partir de outros dados a
+ * cada abertura de documento (a meta do relatório em montagem, os dados de
+ * campo injetados, o prontuário materializado para as folhas). Ninguém as lê
+ * para decidir o que gravar — então, quando o servidor tem uma versão que o
+ * aparelho não tinha, a escrita nova vale por cima dela (base = versão do
+ * servidor) sem que nada do usuário se perca.
+ *
+ * Para TODA outra chave a regra é conservadora: um valor vivo que só apareceu
+ * na leitura dirigida pode ter sido ignorado por quem decidiu o que gravar
+ * (padrão "não achei, então crio" — `obterOuCriarMeta`, pré-seleção de
+ * assinantes). Ali a base fica desconhecida e a divergência vira conflito,
+ * nunca sobrescrita silenciosa.
+ */
+export const COPIAS_DE_TRABALHO: ReadonlySet<string> = new Set([
+  'nr13_prontuario_atual',
+  'nr13_inspecao_atual',
+  'nr13_injecao_atual',
+  'nr13_relatorio_meta_atual',
+]);
+
 export interface LinhaServidor {
   valor: string | null;
   versao: number;
