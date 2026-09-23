@@ -18,6 +18,7 @@ import {
   removerDaMemoria,
   type Registro,
 } from './cacheLocal';
+import { deveGuardarBase, esquecerBase, registrarBase } from './baseColecao';
 import { classificar, type ErroSync } from './errosSync';
 import { interpretarResposta } from './contratoRpc';
 import { supabase } from './supabase';
@@ -489,6 +490,22 @@ async function enviarItem(item: ItemFila): Promise<boolean> {
     // Alinha a versão local à do servidor ANTES de soltar a pendência.
     const local = obterRegistro(item.chave);
     if (local) await gravarAtomico([{ chave: item.chave, registro: { ...local, versao: r.versao } }]);
+    // A BASE CONFIRMADA, e este é o ÚNICO lugar do produto que a avança por
+    // ACK. A ordem importa e é a do contrato: versão alinhada → base gravada →
+    // só então a mutação sai da fila. Se o processo morrer entre a base e a
+    // remoção, o reenvio do mesmo `mutationId` volta `repetido` e regrava a
+    // MESMA base — idempotente. Se a ordem fosse inversa, morrer no meio
+    // deixaria uma mutação confirmada sem base nenhuma, e o próximo merge
+    // devolveria ao usuário uma decisão que o servidor já tinha tomado.
+    //
+    // `repetido` aqui é o genuíno: `interpretarResposta` desmascara o
+    // `repetido` que carrega conflito ou recusa guardada. Conflito, recusa,
+    // timeout e erro de rede não passam por este ramo — nenhum deles avança a
+    // base, que é o requisito.
+    if (deveGuardarBase(item.chave)) {
+      if (item.op === 'set') await registrarBase(item.chave, { versao: r.versao, valor: item.valor ?? '' });
+      else await esquecerBase(item.chave);
+    }
     await removerDaFila(item.mutationId);
     // O valor deste aparelho é agora o do servidor: um conflito ainda aberto
     // nesta chave virou pergunta sem resposta possível.

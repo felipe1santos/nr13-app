@@ -48,8 +48,46 @@ export function interpretarResposta(bruto: unknown): RespostaMutacao {
 
   switch (r.status) {
     case 'aplicado':
-    case 'repetido':
-      return { status: r.status, versao };
+      return { status: 'aplicado', versao };
+
+    // REPETIDO MASCARA O RESULTADO ANTERIOR (22/09/2026).
+    //
+    // O caminho rápido de idempotência da RPC devolve
+    // `resultado || {'status':'repetido'}` — o `||` do jsonb SOBRESCREVE o
+    // status guardado. Um `mutationId` que da primeira vez deu CONFLITO ou
+    // RECUSA volta, no reenvio, dizendo `repetido`, e o cliente tratava isso
+    // como ACK: removia da fila e carimbava a versão do servidor sobre o valor
+    // local que o servidor nunca aceitou.
+    //
+    // O código se defende disso hoje NÃO retentando item em conflito
+    // (`tentarNovamente`), mas isso é uma trava por estado do cliente — e
+    // `falha_definitiva` não tem trava nenhuma. Aqui a resposta é lida pelo que
+    // ela CARREGA, que é prova e não convenção:
+    //
+    //   aplicado guardado → `{status, versao}` e mais nada
+    //   conflito guardado → `valor` / `atualizado_em` / `dispositivo`
+    //   recusado guardado → `motivo`
+    //
+    // Desmascarar aqui é o que torna seguro avançar a BASE no ACK: só o
+    // `repetido` genuíno confirma o que este aparelho enviou.
+    case 'repetido': {
+      if (r.motivo !== undefined) {
+        const motivo = MOTIVOS.includes(r.motivo as MotivoRecusa)
+          ? (r.motivo as MotivoRecusa)
+          : 'sem_permissao';
+        return { status: 'recusado', motivo, versao };
+      }
+      if (r.atualizado_em !== undefined || r.valor !== undefined || r.dispositivo !== undefined) {
+        return {
+          status: 'conflito',
+          versao,
+          valor: r.valor == null ? null : String(r.valor),
+          atualizadoEm: String(r.atualizado_em ?? ''),
+          dispositivo: r.dispositivo == null ? null : String(r.dispositivo),
+        };
+      }
+      return { status: 'repetido', versao };
+    }
 
     case 'conflito':
       return {
