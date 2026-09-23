@@ -1109,3 +1109,41 @@ correção.
 **Nota de UX:** o cabeçalho de Pendências diz "A mesma informação foi alterada
 em mais de um aparelho" também quando a única decisão é "Exclusão para
 refazer".
+
+
+# RODADA 8 — P1 NO AR E FECHAMENTO NO CANÁRIO (23/09/2026)
+
+`81e36d4` publicado: bundle `index-BTMyhJwA.js` (17:53:36Z), idêntico ao build
+do HEAD fora hash de asset e env, e diferente do anterior. ZZ segue a única
+organização ativa (true/true). Dois aparelhos headless novos (A `c1afa2cd`,
+B `793182c2`). Massa `ZZ-SYNCV2-P1-*`.
+
+**Merge na mesma drenagem.** Um gatilho só (a rede voltando):
+`CONFIG → MUTACAO (conflito) → [merge] → MUTACAO (mesclada) → LEITURA`.
+A mesclada saiu 1 ms depois do merge e ANTES de qualquer leitura de
+`app_storage` — ou seja, dentro da mesma `drenar()`, não pela hidratação.
+Servidor A2 · B · C2, fila 0, conflitos 0.
+
+**Exclusão reconstruída na mesma drenagem.** Exclusão sem marca gravada na
+fila de B (lista sem P1-B, versão base 43), um gatilho só:
+`CONFIG → MUTACAO (recusada) → CONFIG → LEITURA (a prova) → MUTACAO
+(reconstruída) → LEITURA (hidratação)`. Servidor com P1-B marcado, fila 0.
+
+**Por que 3 passadas bastam, e o que encerra antes.** Cada passada só envia
+`mutationId` que ainda não viu; a drenagem para assim que uma passada não
+encontra nada novo. As cadeias conhecidas têm dois elos (o item original e o
+que ele gerou: merge ou exclusão reconstruída); a terceira passada cobre o
+caso raro de a mutação gerada também voltar em conflito e ser mesclada. O
+teto existe para uma cadeia que ninguém previu não virar laço — e mesmo que
+ele seja atingido, nada se perde: o que sobrou fica na fila para o próximo
+gatilho. Medido: 2 passadas com trabalho nos dois casos acima; fila vazia não
+faz nenhuma. Travado por quatro testes em `configSyncOffline.test.ts`
+("passadas da drenagem"): fila vazia sem rede; exatamente 2 envios com ids
+distintos e versão +1 no merge; falha definitiva contada uma vez e fora da
+rede; exclusão sem prova com um envio e nenhum reenvio na drenagem seguinte.
+
+**Observação do harness.** O controlador caiu uma vez (ECONNRESET não
+tratado no proxy) e o Chrome morreu sem fechar; o índice da CacheStorage não
+foi gravado e o boot offline seguinte abriu em branco (`#root` vazio). O app
+não tem culpa, mas o efeito é real: um navegador morto à força pode perder o
+cache do service worker e não abrir offline até a próxima carga online.

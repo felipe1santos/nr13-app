@@ -32,6 +32,8 @@ const orgSync = new Map<string, { v2_ativa: boolean; sync_tombstone: boolean; sy
 let rede = true;
 let orgDaSessao = ORG_ZZ;
 let log: string[] = [];
+/** Cada mutation_id que chegou à RPC, na ordem — para provar que nada se repete. */
+let idsEnviados: string[] = [];
 let perderProximaResposta = false;
 /** Roda logo depois de a guarda recusar — para simular a corrida recusa × leitura. */
 let aposRecusa: (() => void) | null = null;
@@ -54,6 +56,7 @@ async function rpcFake(nome: string, p: Record<string, unknown>) {
   const chave = String(p.p_chave);
   const id = `${org}|${String(p.p_mutation_id)}`;
   log.push(`rpc:${chave}`);
+  idsEnviados.push(String(p.p_mutation_id));
 
   const guardado = mutacoes.get(id);
   if (guardado) return { data: { ...guardado, status: 'repetido' }, error: null };
@@ -226,6 +229,7 @@ beforeEach(() => {
   orgSync.set(ORG_Y, { v2_ativa: true, sync_tombstone: false, sync_merge_automatico: false });
   rede = true;
   log = [];
+  idsEnviados = [];
   perderProximaResposta = false;
   aposRecusa = null;
   localStorage.clear();
@@ -581,6 +585,68 @@ describe('K · app_desatualizado é recuperável', () => {
     await sync.descartarERestaurar(presas[0].mutationId);
     expect(sync.listarFila()).toHaveLength(0);
     expect(localLista().map((n) => n.id)).toEqual(['a', 'b', 'c']); // visível de novo para excluir
+  });
+});
+
+// ===========================================================================
+describe('passadas da drenagem — o teto de 3 não vira laço', () => {
+  it('fila vazia: nenhuma passada chega à rede', async () => {
+    await ligar(novoAparelho('A'), { online: true });
+    log = [];
+    expect(await sync.drenar()).toEqual({ enviados: 0, falhas: 0 });
+    expect(log.filter((l) => l.startsWith('rpc:'))).toHaveLength(0);
+  });
+
+  it('merge: exatamente DOIS envios numa drenagem — o original e o mesclado, ids distintos, versão +1', async () => {
+    const apA = novoAparelho('A');
+    const apB = novoAparelho('B');
+    await baseABC(apB);
+    desligar();
+    await ligar(apA, { online: true });
+    await editar('a', 'A2');
+    const versaoAntes = srv.get(k(ORG_ZZ, CH))!.versao;
+
+    await ligar(apB, { online: false });
+    await editar('c', 'C2');
+    rede = true;
+    idsEnviados = [];
+    await sync.drenar();
+
+    expect(idsEnviados).toHaveLength(2); // conflito + mesclado; nenhuma 3ª passada com trabalho
+    expect(new Set(idsEnviados).size).toBe(2);
+    expect(srv.get(k(ORG_ZZ, CH))!.versao).toBe(versaoAntes + 1);
+  });
+
+  it('falha definitiva é contada UMA vez por drenagem e não vai à rede', async () => {
+    const ap = novoAparelho('A');
+    await baseABC(ap);
+    const item = { ...sync.montarItem('set', 'nr13_info_X', '{}', 0), estado: 'falha_definitiva' as const };
+    await aplicarAtomico(ORG_ZZ, [{ store: 'fila', acao: 'put', chave: item.mutationId, valor: item }]);
+    await ligar(ap, { online: true });
+    log = [];
+    const r = await sync.drenar();
+    expect(r.falhas).toBe(1);
+    expect(log.filter((l) => l.startsWith('rpc:'))).toHaveLength(0);
+  });
+
+  it('exclusão sem marca SEM prova: um envio, vai para decisão, e a drenagem seguinte não reenvia', async () => {
+    orgSync.set(ORG_ZZ, { v2_ativa: true, sync_tombstone: false, sync_merge_automatico: false });
+    const ap = novoAparelho('B');
+    await baseABC(ap);
+    await ligar(ap, { online: false });
+    await removerDaColecao(CH, 'c');
+    orgSync.set(ORG_ZZ, { v2_ativa: true, sync_tombstone: true, sync_merge_automatico: true });
+    aposRecusa = () => srv.set(k(ORG_ZZ, CH), { valor: null, versao: 5, em: '', disp: null });
+
+    rede = true;
+    idsEnviados = [];
+    await atualizarDoServidor({ reconectou: true });
+    expect(idsEnviados).toHaveLength(1);
+    expect(sync.exclusoesSemMarca()).toHaveLength(1);
+
+    idsEnviados = [];
+    await sync.drenar();
+    expect(idsEnviados).toHaveLength(0);
   });
 });
 
