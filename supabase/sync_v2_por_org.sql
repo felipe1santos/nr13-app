@@ -154,6 +154,24 @@ declare
 begin
   if not public.eh_chave_colecao(new.chave) then return new; end if;
 
+  -- EXCLUIR A CHAVE INTEIRA NAO E EXCLUIR UM ITEM.
+  --
+  -- Achado na reauditoria de 23/09/2026, ANTES de aplicar. Sem esta linha a
+  -- guarda recusaria apagar o equipamento inteiro: a RPC faz
+  -- `set valor = null, deletado_em = now()`, `ids_da_lista(null)` devolve
+  -- conjunto vazio, e `x not in (<vazio>)` e VERDADEIRO para todo id — entao
+  -- TODO id contaria como derrubado.
+  --
+  -- E a excecao esta certa por merito, nao so por conveniencia: apagar a chave
+  -- e outra operacao, com outra prova. A RPC registra o piso permanente em
+  -- `app_storage_excluidos`, o cliente tem tombstone DE CHAVE para ela, e o
+  -- merge de lista nunca a reinterpreta — nao existe o risco de ressurreicao
+  -- que esta guarda evita. `excluirVaso` e `coletar_tombstones` passam por
+  -- aqui.
+  --
+  -- Esvaziar a lista para `[]` continua sendo derrubada de itens, e e recusado.
+  if new.deletado_em is not null or new.valor is null then return new; end if;
+
   select o.sync_tombstone into v_ligado
     from public.org_sync o
    where o.org_id = new.org_id;

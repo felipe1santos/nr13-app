@@ -308,3 +308,87 @@ describe('a guarda do servidor espelha o catálogo do cliente', () => {
     expect(sql).toContain('revoke all on function public.definir_sync_v2(uuid, boolean, boolean) from public, anon, authenticated');
   });
 });
+
+// ===========================================================================
+// REAUDITORIA DE 23/09/2026 — antes de aplicar em produção
+// ===========================================================================
+describe('a guarda não pode barrar operação legítima', () => {
+  const sql = readFileSync('supabase/sync_v2_por_org.sql', 'utf8');
+
+  /**
+   * O ACHADO que travou a aplicação da migration.
+   *
+   * A RPC apaga uma chave com `set valor = null, deletado_em = now()`. Em SQL,
+   * `x not in (<conjunto vazio>)` é VERDADEIRO — então, sem tratamento, TODO id
+   * da lista antiga contaria como derrubado e a guarda recusaria apagar o
+   * equipamento inteiro (`excluirVaso`) e a coleta de tombstones.
+   *
+   * O espelho em TypeScript já estava certo (`ids(null)` devolve `null` e a
+   * função responde `false`), e é essa divergência que o espelho existe para
+   * expor.
+   */
+  it('apagar a CHAVE inteira não conta como derrubar item — no espelho TS', () => {
+    const antes = JSON.stringify([{ id: 'a' }, { id: 'b' }]);
+    expect(mutacaoDerrubaItem(antes, null)).toBe(false);
+    expect(mutacaoDerrubaItem(antes, undefined)).toBe(false);
+  });
+
+  it('…e a mesma exceção existe no SQL', () => {
+    expect(sql).toContain('if new.deletado_em is not null or new.valor is null then return new; end if;');
+  });
+
+  it('esvaziar a lista para `[]` CONTINUA sendo derrubada', () => {
+    // Não é exclusão de chave: é exclusão de todos os itens, sem marca.
+    expect(mutacaoDerrubaItem(JSON.stringify([{ id: 'a' }]), '[]')).toBe(true);
+  });
+
+  it('a guarda sai cedo para chave que não é coleção, antes de consultar org_sync', () => {
+    const corpo = sql.slice(sql.indexOf('guardar_exclusao_sem_marca()'));
+    const saidaCedo = corpo.indexOf('eh_chave_colecao(new.chave) then return new');
+    const consulta = corpo.indexOf('from public.org_sync');
+    expect(saidaCedo).toBeGreaterThan(-1);
+    expect(saidaCedo).toBeLessThan(consulta); // custo zero para o resto do sistema
+  });
+
+  it('organização sem linha em org_sync passa (é o estado de todas hoje)', () => {
+    expect(sql).toContain('if v_ligado is distinct from true then return new; end if;');
+  });
+
+  it('a porta de manutenção do DBA continua aberta', () => {
+    expect(sql).toContain('if public.nr13_manutencao_autorizada() then return new; end if;');
+  });
+
+  it('a trigger é BEFORE UPDATE — criar uma chave nunca derruba nada', () => {
+    expect(sql).toContain('before update on public.app_storage');
+    expect(sql).not.toContain('before insert or update on public.app_storage');
+  });
+
+  it('org_dispositivos tem RLS e nenhuma policy de escrita', () => {
+    expect(sql).toContain('alter table public.org_dispositivos enable row level security');
+    expect(sql).toContain('create policy org_dispositivos_select on public.org_dispositivos');
+    expect(sql).not.toMatch(/create policy \w+ on public\.org_dispositivos\s+for (insert|update|delete)/);
+  });
+
+  it('o protocolo de um dispositivo nunca desce', () => {
+    expect(sql).toContain('greatest(public.org_dispositivos.protocolo, excluded.protocolo)');
+  });
+
+  it('`sync_v2_prontidao` não é executável por usuário comum', () => {
+    expect(sql).toContain(
+      'revoke all on function public.sync_v2_prontidao(uuid, timestamptz) from public, anon, authenticated',
+    );
+  });
+
+  it('é idempotente: toda criação usa `if not exists` ou `or replace`', () => {
+    const criacoes = sql.match(/^(create|alter) (table|policy|trigger|function|index)[^\n]*/gim) ?? [];
+    for (const linha of criacoes) {
+      const ok =
+        /if not exists/i.test(linha) ||
+        /or replace/i.test(linha) ||
+        /^alter table/i.test(linha) || // as colunas usam `add column if not exists`
+        /^create policy/i.test(linha) || // precedidas de `drop policy if exists`
+        /^create trigger/i.test(linha); // precedida de `drop trigger if exists`
+      expect(ok, linha).toBe(true);
+    }
+  });
+});
