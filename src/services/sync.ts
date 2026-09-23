@@ -22,6 +22,7 @@ import { deveGuardarBase, esquecerBase, registrarBase } from './baseColecao';
 import { classificar, type ErroSync } from './errosSync';
 import { interpretarResposta, type RespostaMutacao } from './contratoRpc';
 import { mergeDeConflito } from './mergeColecao';
+import { PROTOCOLO_SYNC } from './protocoloSync';
 import { supabase } from './supabase';
 import { registrarPendencias, removerPendencia, substituirManifesto } from './manifesto';
 
@@ -711,6 +712,25 @@ function registrarSync(): void {
       const uid = data.session?.user?.id;
       if (!uid) return;
       await supabase.from('profiles').update({ ultima_sync: new Date().toISOString() }).eq('id', uid);
+      // QUAL PROTOCOLO ESTE APARELHO FALA.
+      //
+      // Pega carona no mesmo throttle e na mesma condição do `ultima_sync`:
+      // "este aparelho conseguiu ENTREGAR alguma coisa". É o que torna a leitura
+      // confiável — um aparelho que só abriu a tela e não escreveu nada não
+      // precisa entrar na conta de prontidão da organização.
+      //
+      // O bundle ANTIGO não chama isto, e é justamente essa ausência que o
+      // torna visível: `sync_v2_prontidao` cruza quem ESCREVEU (a coluna
+      // `app_storage.dispositivo`, que ele alimenta sem saber) com quem se
+      // REGISTROU aqui. A diferença são os aparelhos presumidos antigos.
+      //
+      // Best-effort como o resto desta função: falha (banco sem
+      // `sync_v2_por_org.sql`, offline) não pode derrubar uma drenagem que deu
+      // certo. Isto é telemetria; a SEGURANÇA é a trava do servidor.
+      await supabase.rpc('registrar_dispositivo_sync', {
+        p_dispositivo: idDispositivo(),
+        p_protocolo: PROTOCOLO_SYNC,
+      });
     } catch {
       ultimaSyncRegistradaEm = 0; // sem marcar: tenta de novo na próxima drenagem
     }

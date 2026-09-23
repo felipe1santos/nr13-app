@@ -631,3 +631,252 @@ produção — tem os três desligados").
 ---
 
 *22/09/2026. Ensaio concluído; nada ativado, nada publicado.*
+
+---
+
+# RODADA 5 — ATIVAÇÃO CONTROLADA POR ORGANIZAÇÃO (22/09/2026)
+
+Sai de "flags globais em memória" para "configuração persistente por
+organização". **Nada foi ativado, nada foi aplicado em produção.**
+
+## 1 · Onde a flag mora, e por que ali
+
+`org_sync`, duas colunas novas: `sync_tombstone` e `sync_merge_automatico`.
+SQL em `supabase/sync_v2_por_org.sql` — **não aplicado**.
+
+A auditoria pedida no §2 encontrou o mecanismo já pronto, e ele atende os
+requisitos sem nada novo:
+
+| requisito | `org_sync` |
+|---|---|
+| por organização | chave primária é `org_id` |
+| fonte controlada | policy só de SELECT, e só da própria linha; **não existe policy de INSERT/UPDATE** |
+| usuário não liga | não há caminho de escrita exposto ao `authenticated` |
+| sem round-trip novo | o app já lê `org_sync` uma vez por boot |
+| provado | oito flags da Fase 9 rodaram por aqui |
+
+Quem liga é `definir_sync_v2(org, tombstone, merge)`, `SECURITY DEFINER`, com
+EXECUTE revogado de `anon` e `authenticated` — sobram o SQL Editor (DBA) e o
+`service_role`. Mesma porta de `definir_v2_org` e `definir_boot_v9`.
+
+Uma tabela dedicada daria o mesmo resultado com uma migração, uma RLS e uma
+consulta a mais. `localStorage`, URL e query param estão fora por definição.
+
+**A regra `merge ⇒ tombstone` também vive no banco**, como CHECK constraint. O
+cliente já a recusa (`definirFlagsSync`), mas o cliente pode ser trocado; a
+linha da tabela, não.
+
+## 2 · Default seguro, e o que acontece no deploy
+
+As colunas nascem `not null default false`. Organização sem linha, coluna
+ausente (banco sem o SQL) e consulta que falhou caem **todas** no mesmo lugar:
+o comportamento de hoje.
+
+O caso que mais importa é "bundle publicado, SQL ainda não aplicado": o
+PostgREST recusa a consulta inteira quando uma coluna pedida não existe, e esse
+erro cai no ramo que restaura o padrão. Testado
+(`sincronizacaoPorOrg.test.ts` → "BANCO SEM A MIGRAÇÃO").
+
+Note a assimetria deliberada com a `v2_ativa`: ela **preserva** a decisão de
+sessão quando a consulta falha, porque rebaixá-la mostraria a conta vazia. Aqui
+o lado barato é o desligado.
+
+## 3 · Quando a flag é carregada
+
+Uma vez por boot, dentro de `flag.sincronizarFlagDoServidor()` — que
+`carregarPerfil()` chama logo depois de gravar `nr13_org_id`, ou seja, no login
+e em todo boot pelo `verificarAcesso()` do `RotaProtegida`. As **três** flags
+saem na mesma consulta.
+
+Nenhuma requisição por operação de sync.
+
+**Não há cache em disco desta flag, e é de propósito.** A `v2_ativa` é
+espelhada no `localStorage` porque precisa de leitura SÍNCRONA antes do primeiro
+`ler()`. Estas duas não: a primeira decisão que depende delas é uma exclusão ou
+um conflito, ambos bem depois do boot. Sem espelho em disco não há o que forjar
+pelo DevTools, e o custo é zero.
+
+`zerarFlagEmMemoria()` (logout e troca de conta) devolve as flags ao padrão. Sem
+isso, entrar na organização canário e depois numa conta de cliente ligaria o
+tombstone na segunda.
+
+## 4 · Protocolo do dispositivo
+
+`services/protocoloSync.ts`. `PROTOCOLO_SYNC = 2`.
+
+| versão | o que muda |
+|---|---|
+| 1 | exclusão em coleção TIRA o item da lista, sem marca |
+| 2 | exclusão em coleção MARCA (`removidoEm`); leitura filtra |
+
+Sobe quando uma mudança torna o cliente antigo perigoso para o novo — não a cada
+release.
+
+**Como o dispositivo é identificado:** `nr13_dispositivo_id`, que já existe e já
+viaja em toda mutação (`app_storage.dispositivo`). Nada novo.
+
+**Como a versão é registrada:** `registrar_dispositivo_sync(dispositivo,
+protocolo)` → tabela `org_dispositivos(org_id, dispositivo, protocolo,
+visto_em)`. Chamada de dentro de `registrarSync()`, pegando carona no throttle
+de 60 s e na mesma condição: "este aparelho conseguiu ENTREGAR alguma coisa".
+Best-effort — é telemetria, não pode derrubar uma drenagem que deu certo.
+
+`protocolo` sobe por `greatest`, nunca desce: um bundle servido de cache velho
+não pode rebaixar a leitura e fazer a organização parecer menos pronta do que
+está.
+
+**Como o bundle ANTIGO fica visível sem nunca chamar nada:**
+`sync_v2_prontidao(org, desde)` cruza quem **escreveu** (`app_storage.dispositivo`,
+que o bundle antigo alimenta sem saber) com quem **se registrou** no protocolo 2.
+A diferença são os aparelhos presumidos antigos.
+
+## 5 · Critério de ativação
+
+Uma organização pode ligar quando:
+
+1. está explicitamente na allowlist — decisão humana, nenhuma automação a
+   substitui; **e**
+2. `sync_v2_prontidao(org, <data do deploy>)` não devolve nenhuma linha com
+   `compativel = false`; **e**
+3. devolveu pelo menos uma linha — lista vazia prova que ninguém sincronizou,
+   não que todos estão em dia. Sem isso, a organização "mais pronta" do sistema
+   seria a que ninguém usa.
+
+### "Ativo recente" — o número, e de onde ele sai
+
+Não existe prazo derivável de primeiros princípios para "há quanto tempo o
+aparelho mais atrasado pode reaparecer": o sistema é offline-first por desenho e
+o inspetor passa dias em campo. Qualquer "N dias" seria chute, e o dono pediu
+para não inventar um.
+
+O que É derivável: **o aparelho que sincronizou depois da publicação do bundle
+carrega o bundle novo**. A cadeia é causal — sincronizar exige a página aberta,
+a página vem de `index.html`, e o service worker só serve `/assets/` do cache
+(memória `sw-cache-first-stale`). Então o corte honesto não é um prazo: é **a
+data do deploy**, e é ela que `sync_v2_prontidao` recebe como `p_desde`.
+
+**E o critério não é o que garante a segurança.** Ele responde "quantas pessoas
+vão esbarrar no aviso de atualizar", não "é seguro?". A segurança é a guarda do
+§6, que não depende de janela nenhuma.
+
+## 6 · Dispositivo antigo depois da ativação — a guarda
+
+O caso crítico do §9: org ativada, e aparece um celular no bundle antigo.
+
+**A guarda não pergunta quem enviou.** Numa organização com tombstone ligado,
+nenhum cliente correto derruba um id — o protocolo 2 marca. Então a condição é
+sobre o EFEITO da escrita:
+
+> chave é coleção **e** a org tem `sync_tombstone` **e** o valor novo perdeu um
+> id que o valor antigo tinha → recusa `nr13_exclusao_sem_marca`.
+
+Trigger própria (`trg_guardar_exclusao_sem_marca`), `BEFORE UPDATE` em
+`app_storage`. Três consequências que valem dizer:
+
+- **imune a cliente que minta** sobre a própria versão, porque não pergunta a
+  versão;
+- **não mexe em `aplicar_mutacao_storage`** — alterar a única porta de escrita
+  do sistema exigiria `drop function` + `create`, o risco do §13 do CLAUDE.md,
+  que esta mudança não precisa correr;
+- **estreita de propósito**: acrescentar, editar e reordenar passam. Só sumir
+  com um id é recusado. Uma guarda que barra o caso normal é desligada no
+  primeiro incidente.
+
+`nr13_manutencao_autorizada()` passa — é a porta do DBA, a mesma do §4-quinquies.
+
+### A UX
+
+A mutação é RECUSADA, e nada é apagado: ela continua na fila, no aparelho. A
+categoria de erro é nova — `app_desatualizado` (`errosSync.ts`), separada de
+`recusa_definitiva` porque ali não existe estado futuro em que a operação passe,
+e aqui existe:
+
+> **Atualize o aplicativo para concluir**
+> Esta organização passou a registrar exclusões de um jeito novo, e este
+> aparelho ainda usa a versão anterior. A alteração continua guardada aqui —
+> nada foi perdido. Recarregue a página para atualizar e refaça a exclusão.
+> *[Recarregar para atualizar]*
+
+Leitura e as demais escritas seguem funcionando: o aparelho antigo continua
+preenchendo inspeção, anexando foto e salvando relatório. Só a mutação
+incompatível para. Bloquear o sync inteiro deixaria trabalho de campo preso por
+causa de uma exclusão.
+
+**Pode corromper ou ressuscitar exclusão? NÃO**, com a guarda aplicada. A
+exclusão feita no aparelho antigo não chega ao servidor; depois de atualizar, o
+usuário a refaz e ela vira tombstone. O que se perde é **a exclusão pendente**,
+e o usuário é avisado — nunca em silêncio.
+
+## 7 · Canário ZZ
+
+Pronto, **não habilitado**. O procedimento está no rodapé do SQL:
+
+```sql
+-- 1. conferir a prontidão, com o corte na data do deploy:
+select * from public.sync_v2_prontidao('<ORG_ZZ>', '<data do deploy>');
+-- 2. só se nenhuma linha vier com compativel = false:
+select public.definir_sync_v2('<ORG_ZZ>', true, true);
+```
+
+Rollback instantâneo e sem converter dado: `definir_sync_v2('<ORG_ZZ>', false,
+false)`. Tombstone já gravado continua na lista e é inofensivo — o cliente com a
+flag desligada não cria novos, mas os leitores continuam filtrando `removidoEm`,
+então o item excluído segue invisível, que é o que o usuário pediu ao excluí-lo.
+
+## 8 · Roteiro do teste canário (para depois do deploy)
+
+Pré-condições: SQL aplicado; bundle novo no ar; `definir_sync_v2(ZZ, true,
+true)`; dois perfis de navegador (A e B) logados na org ZZ; DevTools aberto.
+
+| # | passo | esperado |
+|---|---|---|
+| **A** | A: offline no DevTools → editar um cliente → online → aguardar o selo | sobe sem conflito; item com o texto novo |
+| **B** | A cria cliente X offline; B cria Y online; A volta | ambos aparecem; **nenhuma tela de conflito** |
+| **C** | A exclui X; B (que ainda tinha X) edita Y e sincroniza | X não volta; edição de Y preservada |
+| **D** | B: F5, aba nova, fechar/reabrir o navegador | X continua ausente nas três |
+| **E** | A e B editam o MESMO cliente, campo `nome`, offline os dois; reconectar | tela manual de conflito, as duas versões visíveis |
+| **F** | A: `Network → Offline` **durante** a requisição (não antes); voltar online | pendência preservada; ao voltar, sobe sem duplicar (mesmo `mutationId`) |
+| **G** | abrir a org ZZ num bundle antigo (aba com o app aberto desde antes do deploy) e excluir um item | recusa com "Atualize o aplicativo"; o item continua na fila |
+| **H** | nesse mesmo aparelho, F5 → refazer a exclusão | exclusão conclui; `sync_v2_prontidao` passa a mostrar `compativel = true` |
+
+Conferir no banco ao fim: `select * from org_dispositivos where org_id = ZZ`
+(dois aparelhos, protocolo 2) e o `valor` de uma chave-lista contendo
+`removidoEm`.
+
+Verificações que **não** valem: "Success" no SQL Editor (§13) e hash de bundle
+(memória `auditoria-ux-set-2026`) — conferir por conteúdo.
+
+## 9 · O que continua fora
+
+```
+FILA_POR_ITEM_ATIVA            = false   (Plano Mestre / performance)
+PODA_AUTOMATICA_ATIVA          = false   (sem prazo por dias, por decisão)
+PADRAO_SYNC.tombstone          = false
+PADRAO_SYNC.mergeAutomatico    = false
+```
+
+A tela manual de conflito **não foi tocada** e continua sendo o destino de
+divergência real no mesmo item (§12 do pedido). Ela deixa de ser o caminho comum
+e vira o fallback — que é o desenho.
+
+O conflito real `nr13_pront_indice` segue intocado.
+
+## 10 · Riscos e pendências
+
+- **Migration não aplicada.** Enquanto `sync_v2_por_org.sql` não rodar, a guarda
+  do §6 não existe. Ativar o canário antes de aplicar o SQL seria ativar sem a
+  rede de proteção — a ordem é: aplicar SQL → publicar bundle → conferir
+  prontidão → ligar.
+- **A guarda SQL não tem teste de banco.** Não há Supabase local rodando nesta
+  sessão, e produção não recebe massa (§12 do CLAUDE.md). O que existe é o
+  espelho em TypeScript (`mutacaoDerrubaItem`) com teste, e um gate que quebra
+  se uma coleção do catálogo faltar em `eh_chave_colecao`. A conferência do
+  comportamento real do trigger fica para o laboratório local.
+- **P2 · aba velha reescrevendo item excluído** (da rodada anterior): o escritor
+  grava o objeto que recebeu e apaga a marca. Não é sincronização.
+- **P2 · field merge**: campos disjuntos do mesmo item seguem manuais.
+
+---
+
+*22/09/2026. Infraestrutura de ativação por organização pronta; canário
+preparado e NÃO habilitado; SQL escrito e NÃO aplicado.*

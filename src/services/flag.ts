@@ -34,6 +34,7 @@
  * permanece a que já estava em memória.
  */
 import { supabase, escopoStorageAtual } from './supabase';
+import { aplicarFlagsDoServidor, restaurarFlagsSync } from './flagsSync';
 
 const CHAVE = 'nr13_armazenamento_v2';
 
@@ -68,9 +69,17 @@ export function definirArmazenamentoV2(ativo: boolean): void {
   }
 }
 
-/** Logout: a próxima sessão relê do servidor. */
+/**
+ * Logout e troca de conta: a próxima sessão relê do servidor.
+ *
+ * As flags de sincronização voltam ao PADRÃO aqui, e não só a da v2. Elas são
+ * por ORGANIZAÇÃO: herdar as da conta anterior ligaria o tombstone numa
+ * organização que não o habilitou — e o dono opera contas diferentes no mesmo
+ * navegador o tempo todo.
+ */
 export function zerarFlagEmMemoria(): void {
   emMemoria = null;
+  restaurarFlagsSync();
 }
 
 /**
@@ -90,9 +99,11 @@ export async function sincronizarFlagDoServidor(): Promise<boolean> {
     const escopo = await escopoStorageAtual();
     if (!escopo) return armazenamentoV2Ativo();
 
+    // As TRÊS flags na MESMA consulta — nenhum round-trip novo. Foi assim que
+    // as oito flags da Fase 9 rodaram, e é por isso que `org_sync` é a porta.
     const { data, error } = await supabase
       .from('org_sync')
-      .select('v2_ativa')
+      .select('v2_ativa, sync_tombstone, sync_merge_automatico')
       .eq('org_id', escopo.id)
       .maybeSingle();
 
@@ -100,7 +111,14 @@ export async function sincronizarFlagDoServidor(): Promise<boolean> {
     // decisão de sessão permanece a que já estava em memória: rebaixar aqui
     // mostraria a conta VAZIA para quem está na v2, que é o sumiço que este
     // projeto conserta.
-    if (error) return armazenamentoV2Ativo();
+    // Sem resposta, as flags de sincronização ficam no PADRÃO: a consulta
+    // falhou, então não há autorização de organização nenhuma a honrar. É o
+    // oposto da `v2_ativa`, que preserva a decisão de sessão porque rebaixá-la
+    // mostraria a conta vazia.
+    if (error) {
+      restaurarFlagsSync();
+      return armazenamentoV2Ativo();
+    }
 
     // AUSÊNCIA DE LINHA = ORGANIZAÇÃO NOVA = v2 (11/08/2026).
     //
@@ -113,8 +131,18 @@ export async function sincronizarFlagDoServidor(): Promise<boolean> {
     // consulta `v2_ativa`, então org que o servidor ainda considera v1 grava
     // normal pela RPC. O erro caro é o inverso — bundle v1 contra servidor v2,
     // que foi o bug do `cmam`.
-    const linha = data as { v2_ativa?: boolean } | null;
+    const linha = data as { v2_ativa?: boolean; sync_tombstone?: boolean; sync_merge_automatico?: boolean } | null;
     definirArmazenamentoV2(linha ? linha.v2_ativa === true : true);
+
+    // TOMBSTONE E MERGE: o default é DESLIGADO, e aqui não há a inversão da
+    // `v2_ativa`. Organização sem linha, coluna ausente (banco sem
+    // `sync_v2_por_org.sql`) e valor nulo caem todos no mesmo lugar: o
+    // comportamento de hoje. Publicar o bundle não pode mudar o comportamento
+    // de nenhum cliente existente — é o requisito não-negociável desta rodada.
+    aplicarFlagsDoServidor({
+      tombstone: linha?.sync_tombstone === true,
+      mergeAutomatico: linha?.sync_merge_automatico === true,
+    });
     return armazenamentoV2Ativo();
   } catch {
     return armazenamentoV2Ativo();

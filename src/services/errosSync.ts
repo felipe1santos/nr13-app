@@ -27,9 +27,30 @@ export type CategoriaErro =
    * resiliência, é ruído.
    */
   | 'recusa_definitiva'
+  /**
+   * O SERVIDOR recusou porque ESTE aparelho está com o aplicativo desatualizado
+   * para o modo de sincronização da organização.
+   *
+   * Caso concreto (`nr13_exclusao_sem_marca`, `supabase/sync_v2_por_org.sql`):
+   * a organização passou a MARCAR exclusões (tombstone) e esta mutação sumiu
+   * com um item da lista em vez de marcá-lo. Aceitar seria deixar o merge
+   * DESFAZER a exclusão depois, em silêncio — que é exatamente o bloqueador
+   * medido no ensaio de ativação.
+   *
+   * Não é `recusa_definitiva`: ali não existe estado futuro em que a operação
+   * passe, e aqui existe — atualizar o aplicativo. A alteração continua
+   * guardada, nada é apagado, e o usuário recarrega e refaz a exclusão.
+   */
+  | 'app_desatualizado'
   | 'desconhecido';
 
-export type TipoAcao = 'regularizar' | 'entrar' | 'liberar_espaco' | 'comparar' | 'tentar';
+export type TipoAcao =
+  | 'regularizar'
+  | 'entrar'
+  | 'liberar_espaco'
+  | 'comparar'
+  | 'tentar'
+  | 'atualizar_app';
 
 export interface ContextoErro {
   chave: string;
@@ -92,6 +113,12 @@ const TEXTOS: Record<CategoriaErro, Texto> = {
       'O servidor não permite esta alteração — registro de Livro de Segurança já emitido não pode ser apagado nem editado. A operação foi encerrada; nada mais será tentado.',
     acao: null,
   },
+  app_desatualizado: {
+    titulo: 'Atualize o aplicativo para concluir',
+    explicacao:
+      'Esta organização passou a registrar exclusões de um jeito novo, e este aparelho ainda usa a versão anterior. A alteração continua guardada aqui — nada foi perdido. Recarregue a página para atualizar e refaça a exclusão.',
+    acao: { rotulo: 'Recarregar para atualizar', tipo: 'atualizar_app' },
+  },
   desconhecido: {
     titulo: 'Não foi possível salvar no servidor',
     explicacao:
@@ -133,6 +160,12 @@ function categorizar(d: Extraido): CategoriaErro {
   // `nr13_documento_emitido` vem de `supabase/documentos_emitidos_imutaveis.sql`:
   // certificado de calibração emitido não se altera nem se exclui. Mesma natureza.
   if (m.includes('nr13_documento_emitido')) return 'recusa_definitiva';
+  // `nr13_exclusao_sem_marca` vem de `supabase/sync_v2_por_org.sql`: a
+  // organização ligou o tombstone e este aparelho tentou sumir com um item sem
+  // marcá-lo. Fica ANTES do teste de RLS porque é mais específico, e é
+  // categoria PRÓPRIA — `recusa_definitiva` encerraria a mutação dizendo que
+  // nada mais será tentado, e aqui atualizar o aplicativo resolve.
+  if (m.includes('nr13_exclusao_sem_marca')) return 'app_desatualizado';
   if (m.includes('nr13_versao_obsoleta')) return 'obsoleto';
   if (m.includes('nr13_escrita_direta_bloqueada')) return 'permissao';
   if (d.codigo === 'nr13_conflito') return 'conflito';

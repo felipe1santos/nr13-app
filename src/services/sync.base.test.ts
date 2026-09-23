@@ -152,7 +152,13 @@ describe('ACK repetido — idempotência depois do ACK perdido', () => {
     expect(await baseDe(COLECAO)).toEqual({ versao: 5, valor: LISTA_AB });
     expect(listarFila()).toHaveLength(0);
     // O mesmo id foi reenviado — nenhuma mutação nova foi criada.
-    expect(rpc.mock.calls.every((c) => (c[1] as { p_mutation_id: string }).p_mutation_id === item.mutationId)).toBe(true);
+    //
+    // Filtrado por `aplicar_mutacao_storage`: a drenagem bem-sucedida também
+    // chama `registrar_dispositivo_sync` (telemetria de protocolo), e ela não
+    // carrega mutationId nenhum.
+    const mutacoes = rpc.mock.calls.filter((c) => c[0] === 'aplicar_mutacao_storage');
+    expect(mutacoes.length).toBeGreaterThan(0);
+    expect(mutacoes.every((c) => (c[1] as { p_mutation_id: string }).p_mutation_id === item.mutationId)).toBe(true);
   });
 
   it('repetir o ACK duas vezes deixa a MESMA base (idempotente)', async () => {

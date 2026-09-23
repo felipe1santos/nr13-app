@@ -13,15 +13,27 @@
  *
  * ## Quem tem permissão de ligar
  *
+ * - o SERVIDOR, via `aplicarFlagsDoServidor`, chamada por
+ *   `flag.sincronizarFlagDoServidor()` com o que veio de `org_sync`. É a fonte
+ *   da verdade, e é por organização;
  * - os TESTES, via `definirFlagsSync`, sempre com `restaurarFlagsSync` no
- *   `beforeEach` — um teste que liga e não desliga contamina os seguintes;
- * - uma futura ATIVAÇÃO CONTROLADA por organização, que é o destino desta
- *   infraestrutura: a v2 já provou (§2-ter do CLAUDE.md) que virar uma chave
- *   para todo mundo de uma vez é o caminho caro.
+ *   `beforeEach` — um teste que liga e não desliga contamina os seguintes.
  *
  * Nada mais. Não há leitura de `localStorage`, de URL nem de variável de
  * ambiente: um interruptor que se liga sozinho por um parâmetro de query é o
- * que se liga por engano.
+ * que se liga por engano, e este é de arquitetura de dados.
+ *
+ * ## Por que NÃO há cache em disco desta flag
+ *
+ * `armazenamentoV2Ativo` espelha `v2_ativa` no `localStorage` porque ela
+ * precisa ser lida SÍNCRONA, antes do primeiro `ler()`. Estas duas não: a
+ * primeira decisão que dependem delas é uma exclusão ou um conflito, ambos bem
+ * depois do boot. Sem espelho em disco não há como forjá-las pelo DevTools — e
+ * o custo é zero, porque elas vêm na MESMA consulta a `org_sync` que já
+ * acontece.
+ *
+ * Enquanto o boot não responde, valem os padrões: desligadas. Errar para o lado
+ * desligado é o lado barato — o comportamento é o de hoje.
  *
  * ## A ORDEM, que não se inverte
  *
@@ -84,7 +96,33 @@ export function definirFlagsSync(parcial: Partial<FlagsSync>): void {
   atual = proposto;
 }
 
-/** Volta ao padrão de produção. Todo teste que liga alguma coisa chama isto. */
+/**
+ * Aplica o que o SERVIDOR informou para esta organização.
+ *
+ * CLAMPA em vez de lançar, ao contrário de `definirFlagsSync`. A constraint
+ * `org_sync_merge_exige_tombstone` já impede a combinação inválida no banco;
+ * se ela chegar aqui mesmo assim (banco sem a migração, linha adulterada), o
+ * certo é desligar o merge e seguir — derrubar o login por causa de uma flag
+ * deixaria a conta inteira inacessível por um campo que só decide como um
+ * conflito é resolvido.
+ */
+export function aplicarFlagsDoServidor(parcial: Partial<FlagsSync>): void {
+  const proposto = { ...PADRAO_SYNC, ...parcial, filaPorItem: false };
+  if (proposto.mergeAutomatico && !proposto.tombstone) {
+    console.warn('[sync] org com mergeAutomatico sem tombstone: merge desligado por segurança.');
+    proposto.mergeAutomatico = false;
+  }
+  atual = proposto;
+}
+
+/**
+ * Volta ao padrão de produção.
+ *
+ * Chamada no LOGOUT e na troca de organização (`flag.zerarFlagEmMemoria`): as
+ * flags são POR ORGANIZAÇÃO, e herdar as da conta anterior ligaria o tombstone
+ * numa organização que não o habilitou. Todo teste que liga alguma coisa também
+ * chama isto.
+ */
 export function restaurarFlagsSync(): void {
   atual = { ...PADRAO_SYNC };
 }
