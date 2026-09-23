@@ -260,6 +260,11 @@ begin
 end;
 $$;
 
+-- REVOKE explicito: sem ele a funcao herdava EXECUTE de PUBLIC (padrao do
+-- Postgres) e de `anon` (default privilege do schema no Supabase). Inofensivo
+-- — org_atual() e null para anon e a funcao sai sem gravar —, mas o desenho e
+-- authenticated-only. Corrigido em producao em 23/09/2026.
+revoke execute on function public.registrar_dispositivo_sync(text, integer) from public, anon;
 grant execute on function public.registrar_dispositivo_sync(text, integer) to authenticated;
 
 -- ── 5. A organizacao esta pronta? ───────────────────────────────────────────
