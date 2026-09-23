@@ -1147,3 +1147,51 @@ tratado no proxy) e o Chrome morreu sem fechar; o índice da CacheStorage não
 foi gravado e o boot offline seguinte abriu em branco (`#root` vazio). O app
 não tem culpa, mas o efeito é real: um navegador morto à força pode perder o
 cache do service worker e não abrir offline até a próxima carga online.
+
+# RODADA 9 — O "BRANCO OFFLINE DEPOIS DO KILL": AUDITORIA DO SERVICE WORKER (23/09/2026)
+
+**Pergunta:** na rodada 8 um aparelho do harness abriu em branco offline depois
+de o Chrome morrer. É o nosso PWA, o Chromium, ou o harness?
+
+**Arquitetura atual (`public/sw.js`, `nr13-cache-v8`):**
+- `install`: precache de `/`, `/index.html`, manifest e ícones — **o bundle
+  JS/CSS NÃO entra no precache**; `skipWaiting`.
+- `activate`: apaga caches de outra versão; `clients.claim`.
+- `fetch`: navegação = rede primeiro (`no-cache`), grava `/index.html`, offline
+  cai no cache; `/assets/` = cache primeiro, gravado na primeira vez que passa
+  pelo SW; templates e demais arquivos da origem = rede primeiro com fallback;
+  Supabase e externos não são interceptados.
+- Registro no evento `load` (`main.tsx`): na PRIMEIRA carga o SW nasce depois
+  que a página já baixou o próprio bundle, então o bundle não vai para a
+  CacheStorage nessa carga (medido: 11 entradas, sem JS/CSS). Ele entra na
+  próxima carga — ou no próprio boot offline, quando o `fetch` do SW acha o
+  arquivo no cache HTTP do navegador (medido: o reload offline depois de uma
+  única carga abriu e completou o cache para 14).
+
+**Medições (Chrome com janela e headless, `taskkill /F /T`, reabertura offline):**
+
+| cenário | tentativas | resultado |
+|---|---|---|
+| cache assentado (2ª carga), kill, reabre offline — com janela | 2 | abre; IndexedDB, fila, recibo e edição offline intactos |
+| gravação de cache em voo (kill 1,2 s após navegar) — com janela | 1 | abre; entradas novas preservadas |
+| cache assentado, kill ×3 seguidos — headless | 3 | abre |
+| `Browser.close` interrompido por kill (50/150/400 ms) — headless | 3 | fechou sozinho antes; abre |
+| **uma única carga** + kill + reabre offline — com janela | 2 | abre (cache HTTP sobreviveu) |
+| **uma única carga** + kill + reabre offline — headless | 2 | abre |
+
+Nenhuma das 13 tentativas reproduziu o branco. O caso original foi um evento
+composto do harness: o controlador caiu (ECONNRESET não tratado no proxy)
+**durante** um `Browser.close`, num aparelho com uma única carga do app, e a
+CacheStorage voltou ao estado da instalação (2 entradas). Mesmo ali, IndexedDB,
+fila e recibo estavam íntegros — só o shell não abriu.
+
+**Classificação:** limitação do harness; não reproduzida em Chrome real nem em
+headless por kill direto. O SW não foi alterado.
+
+**Fragilidade estrutural registrada (P3, sem ação agora):** o shell offline
+depende de o bundle ter passado pelo SW pelo menos uma vez — na primeira carga
+ele só existe no cache HTTP do navegador. Se os dois se perderem juntos, o app
+não abre offline até a próxima carga online (os dados continuam no
+IndexedDB). A correção mínima, se um dia for necessária, é precachear o bundle
+de entrada no `install` (lista gerada no build) — mudança de SW, a fazer com
+medição própria.
