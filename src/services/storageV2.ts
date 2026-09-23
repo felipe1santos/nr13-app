@@ -17,6 +17,8 @@ import * as cache from './cacheLocal';
 import * as sync from './sync';
 import type { ItemFila } from './sync';
 import { fecharDb } from './db';
+import { carregarConfigConfirmada, configRecente, revalidarConfigSync } from './flag';
+import { marcarParaRevalidar } from './flagsSync';
 import { bloqueadoParaEscrita, ErroBloqueado } from './gateEscrita';
 import { tagDaChave } from './familiasChave';
 import { bloqueadoParaUso } from './sessaoArmazenamento';
@@ -94,6 +96,11 @@ export async function iniciar(): Promise<boolean> {
   if (!escopo) return false;
 
   cache.definirOrg(escopo.id);
+  // A configuração de sync ANTES da fila: nenhuma decisão de exclusão ou de
+  // merge pode acontecer com a flag errada. No boot online o servidor já
+  // respondeu (`carregarPerfil`) e isto não faz nada; no offline, vale o
+  // último recibo desta organização.
+  await carregarConfigConfirmada(escopo.id);
   await cache.hidratarDoDisco();
   await sync.carregarFilaDoDisco();
   await sync.carregarTombstonesDoDisco();
@@ -298,9 +305,18 @@ export function zerarThrottleAtualizacao(): void {
  * com dado de outro, impressa sem ninguém perceber. Enquanto houver dono VIVO
  * do palco, a atualização espera; trava vencida é aba morta e não segura nada.
  */
-export async function atualizarDoServidor(): Promise<void> {
+export async function atualizarDoServidor(opcoes: { reconectou?: boolean } = {}): Promise<void> {
   if (!iniciado) return;
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+
+  // ORDEM OBRIGATÓRIA (23/09/2026): configuração de sync → SÓ DEPOIS a fila.
+  // Voltar da rede com a configuração de antes da queda e drenar com ela é o
+  // que o canário da ZZ mediu. Reconexão SEMPRE pergunta; a volta de aba só
+  // pergunta se a última resposta tem mais de uma janela.
+  if (opcoes.reconectou || !configRecente(JANELA_ATUALIZACAO_MS)) {
+    marcarParaRevalidar();
+    await revalidarConfigSync();
+  }
 
   await sync.drenar();
 
@@ -317,12 +333,11 @@ let listenersRegistrados = false;
 function registrarSincronizacaoAutomatica(): void {
   if (listenersRegistrados || typeof window === 'undefined') return;
   listenersRegistrados = true;
-  const sincronizar = () => {
-    void atualizarDoServidor();
-  };
-  window.addEventListener('online', sincronizar);
+  window.addEventListener('online', () => {
+    void atualizarDoServidor({ reconectou: true });
+  });
   document.addEventListener?.('visibilitychange', () => {
-    if (document.visibilityState === 'visible') sincronizar();
+    if (document.visibilityState === 'visible') void atualizarDoServidor();
   });
 }
 registrarSincronizacaoAutomatica();

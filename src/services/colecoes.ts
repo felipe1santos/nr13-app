@@ -1,4 +1,4 @@
-import { flagsSync, PADRAO_SYNC } from './flagsSync';
+import { flagsSync, origemConfigSync, PADRAO_SYNC } from './flagsSync';
 
 /**
  * AS CHAVES-LISTA, E COMO SE JUNTAM DUAS VERSÕES DELAS (22/09/2026).
@@ -203,9 +203,25 @@ export function excluirDaLista<T extends object>(
   quando: string = new Date().toISOString(),
 ): T[] {
   const alvo = (i: T) => idDe(i) === id;
-  return flagsSync().tombstone
+  return deveMarcarExclusao()
     ? (lista ?? []).map((i) => (alvo(i) ? marcarRemovido(i, quando) : i))
     : (lista ?? []).filter((i) => !alvo(i));
+}
+
+/**
+ * Marcar ou tirar? Marca quando a organização tem tombstone — e TAMBÉM quando
+ * este aparelho não sabe se tem (boot offline sem recibo; ver
+ * `flagsSync.marcarConfigDesconhecida`).
+ *
+ * Por que marcar no desconhecido, e não tirar: tirar é a exclusão antiga, que
+ * numa organização com tombstone ligado a guarda do servidor recusa e o merge
+ * não enxerga. Marcar preserva a estrutura e adia a decisão para quando o
+ * servidor responder — se ele disser que o tombstone está DESLIGADO, a marca
+ * sai no envio (`sync.semMarcasParaEnvio`) e a exclusão vira a de sempre.
+ * Nenhum dos dois lados perde a exclusão.
+ */
+export function deveMarcarExclusao(): boolean {
+  return flagsSync().tombstone || origemConfigSync() === 'desconhecida';
 }
 
 /** Atalho para as coleções cujo id é o campo `id` — a maioria do catálogo. */

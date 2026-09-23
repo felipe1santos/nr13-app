@@ -34,7 +34,17 @@
  * permanece a que já estava em memória.
  */
 import { supabase, escopoStorageAtual } from './supabase';
-import { aplicarFlagsDoServidor, restaurarFlagsSync } from './flagsSync';
+import {
+  aplicarFlagsDoCache,
+  aplicarFlagsDoServidor,
+  configConfirmadaEm,
+  marcarConfigDesconhecida,
+  origemConfigSync,
+  orgConfigSync,
+  restaurarFlagsSync,
+} from './flagsSync';
+import { aplicarAtomico, obter } from './db';
+import { PROTOCOLO_SYNC } from './protocoloSync';
 
 const CHAVE = 'nr13_armazenamento_v2';
 
@@ -108,15 +118,23 @@ export async function sincronizarFlagDoServidor(): Promise<boolean> {
       .maybeSingle();
 
     // ERRO PODE SER OFFLINE **OU** BANCO SEM A MIGRAÇÃO. Nos dois casos a
-    // decisão de sessão permanece a que já estava em memória: rebaixar aqui
-    // mostraria a conta VAZIA para quem está na v2, que é o sumiço que este
-    // projeto conserta.
-    // Sem resposta, as flags de sincronização ficam no PADRÃO: a consulta
-    // falhou, então não há autorização de organização nenhuma a honrar. É o
-    // oposto da `v2_ativa`, que preserva a decisão de sessão porque rebaixá-la
-    // mostraria a conta vazia.
+    // decisão v1/v2 de sessão permanece a que já estava em memória: rebaixar
+    // aqui mostraria a conta VAZIA para quem está na v2, que é o sumiço que
+    // este projeto conserta.
+    //
+    // As flags de sincronização distinguem os dois (23/09/2026):
+    //  · o servidor RESPONDEU que as colunas não existem → a Sync V2 não
+    //    existe nesse banco, e isso é uma confirmação: desligadas;
+    //  · o servidor NÃO respondeu → vale a última configuração CONFIRMADA
+    //    desta organização, do disco. Até o canário da ZZ este ramo zerava as
+    //    flags, e um aparelho que abria offline excluía sem tombstone numa
+    //    organização com tombstone ligado.
     if (error) {
-      restaurarFlagsSync();
+      if (ehColunaAusente(error)) {
+        await confirmarConfigSync(escopo.id, { tombstone: false, mergeAutomatico: false });
+      } else {
+        await carregarConfigConfirmada(escopo.id);
+      }
       return armazenamentoV2Ativo();
     }
 
@@ -139,13 +157,133 @@ export async function sincronizarFlagDoServidor(): Promise<boolean> {
     // `sync_v2_por_org.sql`) e valor nulo caem todos no mesmo lugar: o
     // comportamento de hoje. Publicar o bundle não pode mudar o comportamento
     // de nenhum cliente existente — é o requisito não-negociável desta rodada.
-    aplicarFlagsDoServidor({
+    await confirmarConfigSync(escopo.id, {
       tombstone: linha?.sync_tombstone === true,
       mergeAutomatico: linha?.sync_merge_automatico === true,
     });
     return armazenamentoV2Ativo();
   } catch {
+    // Exceção = transporte: mesmo caminho do erro de rede acima.
+    try {
+      const escopo = await escopoStorageAtual();
+      if (escopo) await carregarConfigConfirmada(escopo.id);
+    } catch {
+      // nem o escopo: fica o que está em memória
+    }
     return armazenamentoV2Ativo();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// A ÚLTIMA CONFIGURAÇÃO DE SYNC CONFIRMADA PELO SERVIDOR (23/09/2026)
+// ---------------------------------------------------------------------------
+
+/** Chave na store `meta` do IndexedDB DA ORGANIZAÇÃO (`nr13_dados_<org>`). */
+export const CHAVE_CONFIG_SYNC = 'sync-config';
+
+/**
+ * O que fica em disco. Não é configuração editável: é o RECIBO do que o
+ * servidor respondeu. Mudá-lo pelo DevTools não autoriza nada — a guarda
+ * `trg_guardar_exclusao_sem_marca` e a CHECK `merge ⇒ tombstone` continuam no
+ * banco, e o próximo boot online sobrescreve.
+ */
+export interface ConfigSyncConfirmada {
+  org: string;
+  tombstone: boolean;
+  mergeAutomatico: boolean;
+  /** O protocolo deste bundle quando a confirmação foi gravada. */
+  protocolo: number;
+  confirmadoEm: string;
+}
+
+function ehColunaAusente(error: unknown): boolean {
+  const e = error as { code?: string; message?: string } | null;
+  return e?.code === '42703' || /column .* does not exist/i.test(e?.message ?? '');
+}
+
+/**
+ * O servidor respondeu: memória e disco passam a ser isso, nesta ordem. Falha
+ * ao gravar no disco NÃO desfaz a memória — a sessão segue certa, só o próximo
+ * boot offline é que não terá o recibo.
+ */
+async function confirmarConfigSync(
+  org: string,
+  flags: { tombstone: boolean; mergeAutomatico: boolean },
+): Promise<void> {
+  const quando = new Date().toISOString();
+  aplicarFlagsDoServidor(flags, org, quando);
+  const registro: ConfigSyncConfirmada = {
+    org,
+    // o que ficou em memória depois do `normalizar` (merge sem tombstone cai)
+    tombstone: flags.tombstone,
+    mergeAutomatico: flags.mergeAutomatico && flags.tombstone,
+    protocolo: PROTOCOLO_SYNC,
+    confirmadoEm: quando,
+  };
+  try {
+    await aplicarAtomico(org, [{ store: 'meta', acao: 'put', chave: CHAVE_CONFIG_SYNC, valor: registro }]);
+  } catch {
+    // sem IndexedDB: a sessão continua certa em memória
+  }
+  avisarServidorRespondeu();
+}
+
+/**
+ * Boot sem resposta do servidor: carrega o recibo DESTA organização.
+ *
+ * Não faz nada se a memória já tem uma resposta do servidor para a mesma org —
+ * o disco é mais velho que ela por definição. Sem recibo, a origem vira
+ * `desconhecida` (ver `flagsSync.marcarConfigDesconhecida`).
+ *
+ * O recibo de OUTRA organização nunca é aplicado: cada org tem o seu banco, e
+ * o campo `org` é conferido mesmo assim.
+ */
+export async function carregarConfigConfirmada(org: string): Promise<void> {
+  if (origemConfigSync() === 'servidor' && orgConfigSync() === org) return;
+  let recibo: ConfigSyncConfirmada | null;
+  try {
+    recibo = await obter<ConfigSyncConfirmada>(org, 'meta', CHAVE_CONFIG_SYNC);
+  } catch {
+    recibo = null;
+  }
+  if (recibo && recibo.org === org && typeof recibo.tombstone === 'boolean') {
+    aplicarFlagsDoCache(
+      { tombstone: recibo.tombstone, mergeAutomatico: recibo.mergeAutomatico === true },
+      org,
+      recibo.confirmadoEm ?? null,
+    );
+  } else {
+    marcarConfigDesconhecida(org);
+  }
+}
+
+/**
+ * Pergunta ao servidor AGORA. Devolve se a resposta veio — é o que a drenagem
+ * de coleção espera antes de subir (`sync.drenar`) e o que o evento `online`
+ * faz antes de drenar (`storageV2.atualizarDoServidor`).
+ */
+export async function revalidarConfigSync(): Promise<boolean> {
+  await sincronizarFlagDoServidor();
+  return origemConfigSync() === 'servidor';
+}
+
+/** A confirmação mais recente tem menos de `ms`? */
+export function configRecente(ms: number): boolean {
+  const em = configConfirmadaEm();
+  return origemConfigSync() === 'servidor' && em !== null && Date.now() - Date.parse(em) < ms;
+}
+
+/**
+ * O servidor voltou a responder. A barra "Sem resposta do servidor" do
+ * `RotaProtegida` escuta isto — antes ela era desenhada no boot e nunca saía.
+ */
+export const EVENTO_SERVIDOR_RESPONDEU = 'nr13:servidor-respondeu';
+
+function avisarServidorRespondeu(): void {
+  try {
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event(EVENTO_SERVIDOR_RESPONDEU));
+  } catch {
+    // ambiente sem window: nada a avisar
   }
 }
 

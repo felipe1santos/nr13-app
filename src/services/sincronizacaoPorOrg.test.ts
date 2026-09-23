@@ -51,7 +51,7 @@ vi.mock('./supabase', () => ({
 }));
 
 import { sincronizarFlagDoServidor, zerarFlagEmMemoria } from './flag';
-import { flagsSync, restaurarFlagsSync, definirFlagsSync, PADRAO_SYNC, CombinacaoDeFlagsInvalida } from './flagsSync';
+import { flagsSync, restaurarFlagsSync, definirFlagsSync, PADRAO_SYNC, CombinacaoDeFlagsInvalida, origemConfigSync } from './flagsSync';
 import { excluirPorId, COLECOES } from './colecoes';
 import {
   PROTOCOLO_SYNC,
@@ -165,7 +165,11 @@ describe('bordas do deploy', () => {
     expect(flagsSync()).toEqual(PADRAO_SYNC);
   });
 
-  it('consulta falha (offline): fica no padrão, não herda da sessão anterior', async () => {
+  it('consulta falha (offline): vale a última configuração CONFIRMADA desta org', async () => {
+    // ATÉ 23/09/2026 este teste afirmava o contrário ("fica no padrão"), e era
+    // exatamente o defeito que o canário da ZZ mediu: boot offline → flags
+    // desligadas → exclusão sem tombstone numa organização que marca. Sem
+    // resposta, o que vale é o recibo do servidor — não a invenção de um padrão.
     escopo = { coluna: 'org_id', id: ORG_ZZ };
     orgSync.set(ORG_ZZ, { v2_ativa: true, sync_tombstone: true, sync_merge_automatico: true });
     await sincronizarFlagDoServidor();
@@ -174,10 +178,12 @@ describe('bordas do deploy', () => {
     consultaFalha = true;
     await sincronizarFlagDoServidor();
 
-    // Ao contrário da `v2_ativa` — que preserva a decisão de sessão porque
-    // rebaixá-la mostraria a conta vazia —, aqui o lado barato é o desligado:
-    // o comportamento volta a ser o de hoje.
-    expect(flagsSync()).toEqual(PADRAO_SYNC);
+    expect(flagsSync().tombstone).toBe(true);
+    expect(flagsSync().mergeAutomatico).toBe(true);
+    // A falha isolada não rebaixa a confirmação que ESTA sessão já tinha. Quem
+    // rebaixa é a reconexão (`marcarParaRevalidar`), e aí coleção espera e o
+    // merge não roda até o servidor responder de novo — configSyncOffline.test.ts.
+    expect(origemConfigSync()).toBe('servidor');
   });
 
   it('sem escopo (sessão ainda não resolvida): padrão', async () => {

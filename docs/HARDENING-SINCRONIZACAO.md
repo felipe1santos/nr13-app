@@ -880,3 +880,178 @@ O conflito real `nr13_pront_indice` segue intocado.
 
 *22/09/2026. Infraestrutura de ativação por organização pronta; canário
 preparado e NÃO habilitado; SQL escrito e NÃO aplicado.*
+
+
+# RODADA 6 — CANÁRIO ZZ E A CONFIGURAÇÃO QUE NÃO SOBREVIVIA AO BOOT OFFLINE (23/09/2026)
+
+## 0 · O que o canário encontrou
+
+SQL aplicado (a guarda provada no banco real: 6 casos, bloco com rollback
+garantido), bundle `index-BSPZBbVH.js` no ar desde 05:39Z. ZZ ativada às
+16:00:42Z e **revertida às 16:08:56Z** (`definir_sync_v2(ZZ, false, false)`).
+Dois aparelhos Chrome headless reais, cada um com perfil, IndexedDB,
+`localStorage` e proxy de rede próprios.
+
+- **Caso A** (edição offline, reload offline, volta online): passou.
+- **Caso B** (itens diferentes em dois aparelhos): virou conflito MANUAL.
+- **Demonstração que parou o canário**: no bundle novo, boot offline → exclusão
+  SEM `removidoEm` → a guarda recusou (`nr13_exclusao_sem_marca`) e o aparelho
+  a tratou como cliente antigo. Nenhuma perda, nenhuma ressurreição — a guarda
+  segurou —, mas a exclusão ficou presa: `/pendencias` não tinha a ação que a
+  mensagem prometia, e a hidratação pula chave com pendência.
+
+Evidência: JSONs de estado dos dois aparelhos e logs, fora do repositório
+(scratchpad da sessão). Os perfis e as sessões administrativas foram
+destruídos (logout 204).
+
+## 1 · Auditoria do fluxo (antes da correção)
+
+| momento | o que acontecia com `sync_tombstone` / `sync_merge_automatico` |
+|---|---|
+| login online | `carregarPerfil` → `sincronizarFlagDoServidor` → memória |
+| boot online | `RotaProtegida` → `verificarAcesso` → `carregarPerfil` → idem, ANTES de `hidratarNoBoot` (fila, drenagem) |
+| **boot offline** | `carregarPerfil` sai com `indisponivel` ANTES de consultar `org_sync`; memória fica no PADRÃO (desligado) |
+| consulta com erro | `restaurarFlagsSync()` — zerava mesmo o que estava certo |
+| evento `online` / volta de aba | `atualizarDoServidor` → `drenar` direto; **ninguém relia a configuração** |
+| troca de org / logout | `zerarFlagEmMemoria` → padrão |
+| F5, fechar, reiniciar | memória some; nada em disco |
+| service worker | irrelevante para a flag (só serve o shell) |
+| IndexedDB `meta` | já existia (`base:<chave>`), por organização |
+
+Causa raiz: a configuração tinha **uma única fonte, a memória**, e a memória
+só era preenchida com o servidor respondendo. Para um sistema cujo caso normal
+é abrir o app sem rede, isso inverte o fail-safe.
+
+## 2 · A correção
+
+**Fonte da verdade continua o servidor.** O que muda é que a última resposta
+dele vira um RECIBO no IndexedDB da própria organização:
+
+```
+nr13_dados_<org_id> · store meta · chave "sync-config"
+{ org, tombstone, mergeAutomatico, protocolo, confirmadoEm }
+```
+
+Nada no `localStorage`. Não é configuração editável: forjar o recibo não
+autoriza nada (a guarda e a CHECK continuam no banco, e o boot online
+sobrescreve — teste "manipular o recibo local").
+
+A origem de cada valor em memória passa a ser rastreada (`flagsSync.ts`):
+
+| origem | quando | coleção sobe? | merge automático? |
+|---|---|---|---|
+| `padrao` | nada carregado | sim (comportamento antigo) | se ligado |
+| `desconhecida` | boot offline sem recibo | não | não |
+| `cache` | recibo do disco, ou reconexão ainda não revalidada | não | não |
+| `servidor` | respondido nesta conexão | sim | se ligado |
+
+- **Boot online**: o servidor responde em `carregarPerfil` → memória + recibo;
+  `storageV2.iniciar` carrega o recibo SÓ se a memória não tem resposta do
+  servidor para a mesma org. A fila é carregada depois disso.
+- **Boot offline**: `iniciar` aplica o recibo daquela org ANTES da fila.
+  Sobrevive a F5, fechar o navegador e reiniciar — é disco.
+- **Evento `online`**: `atualizarDoServidor({ reconectou: true })` marca a
+  configuração para revalidar, pergunta ao servidor e **só depois** drena.
+- **Qualquer drenagem** (inclusive a disparada por uma gravação sem evento
+  `online`): se há coleção na fila e a origem não é `servidor`, pergunta
+  primeiro; sem resposta, a coleção ESPERA (não é falha, não sai da fila).
+- **Erro da consulta**: coluna ausente (banco sem a migração) é resposta —
+  desligado, confirmado. Falta de resposta mantém o recibo.
+
+### Primeiro boot offline sem recibo (política fail-safe)
+
+Não se inventa que a Sync V2 está ligada — as flags ficam desligadas. Mas a
+exclusão MARCA (`colecoes.deveMarcarExclusao`), e a coleção só sobe depois que
+o servidor responder:
+
+- servidor diz tombstone LIGADO → a marca sobe como está;
+- servidor diz DESLIGADO → a marca sai no primeiro envio
+  (`sync.semMarcasParaEnvio`) e vira a exclusão de sempre; o valor local é
+  reescrito igual ao enviado.
+
+A exclusão nunca some do blob antes de a configuração ser conhecida, nunca
+vira exclusão antiga irreversível, e nunca fica presa.
+
+## 3 · Rollback true → false com aparelho offline — a análise
+
+Cenário: o aparelho guardou `true/true`, ficou offline, o administrador fez
+`definir_sync_v2(org, false, false)`.
+
+**Tombstones criados offline com o recibo true.** O leitor de todo bundle de
+protocolo 2 filtra `removidoEm` (`visiveis`), então a marca é invisível em
+qualquer org. Ao reconectar, a drenagem revalida, recebe `false` e as marcas
+saem no envio: a exclusão chega ao servidor como exclusão clássica, que é o
+que aquela organização espera. Teste J1.
+
+**Merge automático com recibo true.** Não roda: `mergeDeConflito` exige origem
+`servidor`, e a coleção só é enviada depois da revalidação. Depois do
+rollback, o conflito volta para a tela manual com as duas versões
+preservadas. Teste J2.
+
+**Por que o merge precisa dessa trava e o tombstone não.** Marca a mais é
+inofensiva (é filtrada). Merge a mais é perigoso: com o tombstone desligado,
+outros aparelhos voltam a excluir sem marca, e o merge — que só sabe unir —
+ressuscitaria esses itens. A regra que decorre:
+
+> **merge exige confirmação do servidor NESTA conexão; tombstone pode vir do
+> recibo.**
+
+**Reativar depois de um rollback.** Itens excluídos classicamente durante o
+período desligado são ausências. Um aparelho com a cópia velha e o merge
+religado poderia trazê-los de volta — é o mesmo risco da ativação inicial, e a
+resposta é a mesma: `sync_v2_prontidao` antes de ligar. Somado a isso, o
+merge agora marca as exclusões clássicas pela BASE antes de mesclar
+(`mergeColecao.comExclusoesClassicasMarcadas`): id na base e ausente na lista
+local saiu AQUI. Teste K2.
+
+**Recomendação operacional.** O rollback de menor risco é
+`definir_sync_v2(org, true, false)` — desliga o merge e mantém a marca. O
+`false, false` continua seguro com as travas acima, e exige a prontidão de novo
+antes de religar o merge. Nenhuma mudança de SQL foi necessária.
+
+## 4 · `app_desatualizado` — o caminho completo
+
+Dois casos que o canário confundiu, agora separados:
+
+- **cliente realmente antigo** (protocolo 1): não muda de código. A guarda do
+  servidor continua recusando (teste L1). Quando ele atualiza, o item herdado
+  (que o bundle antigo classificava como `falha_definitiva`) volta a ser
+  tentado no boot (`carregarFilaDoDisco`) e cai no caminho abaixo (teste L2);
+- **cliente novo com exclusão antiga na fila** (recibo velho, ou fila herdada):
+  `recuperarExclusaoSemMarca` refaz a exclusão com a marca, com PROVA — a
+  guarda só roda com a versão conferida, então se o servidor ainda está em
+  `versaoBase`, todo id que está lá e falta aqui saiu aqui (teste K1). Se a
+  lista mudou, o próximo envio é conflito de versão e o merge marca pela base
+  (teste K2). Sem prova possível (a chave sumiu do servidor), o item vai para
+  "Exclusão para refazer" em Pendências, com "Usar a versão do servidor", que
+  tira a pendência e REGRAVA o valor do servidor no cache — sem isso a
+  hidratação incremental não o traria de volta (teste K3).
+
+Nenhum retry infinito: o item ou é refeito, ou vira conflito de versão, ou
+para em decisão do usuário. Nenhum descarte silencioso.
+
+## 5 · Testes
+
+`src/services/configSyncOffline.test.ts` — 21 testes, pelo caminho real
+(`flag` → `storageV2.iniciar`/`atualizarDoServidor` → `colecaoSync` → `sync`),
+com IndexedDB e `localStorage` separados por aparelho e um servidor que
+reproduz versão, idempotência e a guarda. Checagem de mutação: sem a leitura
+do recibo no boot, 10 falham; sem a marcação pela base, o K2 falha.
+
+`sincronizacaoPorOrg.test.ts`: o teste "consulta falha (offline): fica no
+padrão" afirmava o defeito e foi reescrito para a regra nova.
+
+## 6 · Achado secundário
+
+A barra "Sem resposta do servidor" era desenhada no boot e nunca saía. Agora
+some quando o servidor volta a responder (`EVENTO_SERVIDOR_RESPONDEU`,
+disparado por `flag.confirmarConfigSync`).
+
+## 7 · O que continua fora
+
+Fila por item, poda, field merge e `nr13_pront_indice` — intocados. Nenhuma
+organização ativada.
+
+---
+
+*23/09/2026. Correção local, testada; ZZ desligada; canário A–H a repetir.*

@@ -25,6 +25,9 @@ import { mergeDeConflito } from './mergeColecao';
 import { PROTOCOLO_SYNC } from './protocoloSync';
 import { supabase } from './supabase';
 import { registrarPendencias, removerPendencia, substituirManifesto } from './manifesto';
+import { colecaoDaChave, ehColecao, marcarRemovido, removido } from './colecoes';
+import { configPermiteColecao, flagsSync, marcarParaRevalidar, origemConfigSync } from './flagsSync';
+import { revalidarConfigSync } from './flag';
 
 export type EstadoItem =
   | 'salvo_local'
@@ -236,12 +239,22 @@ export async function removerDaFila(mutationId: string): Promise<void> {
   await aplicarAtomico(org, [{ store: 'fila', acao: 'delete', chave: mutationId }]);
 }
 
+function recusadaSemMarca(item: ItemFila): boolean {
+  return (item.erro?.detalhe?.mensagemOriginal ?? '').includes('nr13_exclusao_sem_marca');
+}
+
 /** Recarrega a fila do disco. É o que faz a pendência sobreviver a fechar o navegador. */
 export async function carregarFilaDoDisco(): Promise<void> {
   const org = orgAtual();
   if (!org) return;
   for (const { valor } of await listarTudo<ItemFila>(org, 'fila')) {
-    if (valor?.mutationId) fila.set(valor.mutationId, valor);
+    if (!valor?.mutationId) continue;
+    // Herança de um bundle anterior: a exclusão sem marca recusada virou
+    // `falha_definitiva` (lá ela era "desconhecido") e nunca mais seria
+    // tentada. Aqui ela volta à fila, e a recusa seguinte passa por
+    // `recuperarExclusaoSemMarca` — que este bundle tem e aquele não tinha.
+    if (valor.estado === 'falha_definitiva' && recusadaSemMarca(valor)) valor.estado = 'aguardando';
+    fila.set(valor.mutationId, valor);
   }
   // O IndexedDB é compartilhado entre as abas da organização, então o que veio
   // dele é a visão AUTORITATIVA — é o único momento em que o manifesto pode ser
@@ -515,6 +528,7 @@ async function resolverColecaoAutomaticamente(
  * 'repetido'. Qualquer outra coisa mantém a pendência.
  */
 async function enviarItem(item: ItemFila): Promise<boolean> {
+  if (item.tentativas === 0) await semMarcasParaEnvio(item);
   item.tentativas += 1;
 
   let bruto: unknown;
@@ -556,6 +570,7 @@ async function enviarItem(item: ItemFila): Promise<boolean> {
       return false;
     }
     if (cat && DEFINITIVAS.has(cat)) await marcarEstado(item.mutationId, 'falha_definitiva');
+    if (cat === 'app_desatualizado') await recuperarExclusaoSemMarca(item);
     return false;
   }
 
@@ -653,6 +668,179 @@ async function enviarItem(item: ItemFila): Promise<boolean> {
   return false;
 }
 
+function temColecaoAEnviar(): boolean {
+  for (const i of fila.values()) {
+    if (ehColecao(i.chave) && i.estado !== 'conflito' && i.estado !== 'encerrado') return true;
+  }
+  return false;
+}
+
+/**
+ * O servidor confirmou, NESTA conexão, que a organização NÃO usa tombstone:
+ * as marcas saem da lista antes do primeiro envio e a exclusão vira a de
+ * sempre.
+ *
+ * É o outro lado de `colecoes.deveMarcarExclusao`: quem excluiu sem saber a
+ * configuração (boot offline sem recibo) ou com um recibo que o administrador
+ * já desfez MARCOU; aqui, com a resposta do servidor na mão, a marca vira a
+ * remoção que aquela organização espera. Nada é excluído a mais — o item
+ * marcado já estava fora de todas as telas.
+ *
+ * Só na PRIMEIRA tentativa: um reenvio do mesmo `mutationId` precisa levar o
+ * MESMO conteúdo, senão um ACK perdido registraria como base algo diferente do
+ * que o servidor guardou. O valor local é reescrito junto, para que aparelho e
+ * servidor fiquem iguais depois do ACK.
+ */
+async function semMarcasParaEnvio(item: ItemFila): Promise<void> {
+  if (item.op !== 'set' || !item.valor) return;
+  if (origemConfigSync() !== 'servidor' || flagsSync().tombstone) return;
+  if (!ehColecao(item.chave)) return;
+  let lista: unknown;
+  try {
+    lista = JSON.parse(item.valor);
+  } catch {
+    return;
+  }
+  const marcado = (i: unknown) => !!i && typeof i === 'object' && removido(i as object);
+  if (!Array.isArray(lista) || !lista.some(marcado)) return;
+
+  const valor = JSON.stringify(lista.filter((i) => !marcado(i)));
+  item.valor = valor;
+  const local = obterRegistro(item.chave);
+  if (local) {
+    await gravarAtomico([{ chave: item.chave, registro: { ...local, valor } }], [item]);
+  } else {
+    await persistir(item);
+  }
+}
+
+/**
+ * `nr13_exclusao_sem_marca` num aparelho que JÁ fala o protocolo 2.
+ *
+ * Acontece quando a exclusão foi gravada antes de o aparelho saber que a
+ * organização passou a marcar — recibo velho, ou fila herdada de um bundle
+ * anterior. Até o canário, o item ficava "aguardando" para sempre: cada
+ * drenagem era recusada, a hidratação pulava a chave por haver pendência, e o
+ * usuário não conseguia nem ver o item para refazer a exclusão.
+ *
+ * O conserto usa uma PROVA, não uma suposição: a guarda só roda quando a
+ * versão confere (`aplicar_mutacao_storage` compara versões ANTES do UPDATE).
+ * Então, se o servidor ainda está em `item.versaoBase`, a lista dele é
+ * exatamente a lista que este aparelho editou — e todo id que está lá e não
+ * está aqui foi excluído AQUI. Esses voltam à lista com `removidoEm`, a
+ * mutação sai de novo e passa.
+ *
+ * Se a versão do servidor já é outra, "ausente aqui" deixa de ser prova (pode
+ * ser item criado por outro aparelho). Aí a decisão é do usuário: o item vai
+ * para `conflito`, sai da drenagem e aparece em Pendências com a ação
+ * "Usar a versão do servidor" (`descartarERestaurar`).
+ */
+async function recuperarExclusaoSemMarca(item: ItemFila): Promise<void> {
+  const def = colecaoDaChave(item.chave);
+  const org = orgAtual();
+  if (!def || !org || item.op !== 'set' || !item.valor) {
+    await marcarEstado(item.mutationId, 'conflito');
+    return;
+  }
+
+  // O servidor evidentemente marca: esta sessão precisa saber disso já.
+  marcarParaRevalidar();
+  try {
+    await revalidarConfigSync();
+  } catch {
+    // sem resposta: segue com a prova abaixo, que não depende dela
+  }
+
+  type LinhaServidor = { valor: string | null; versao: number; deletado_em: string | null };
+  let servidor: LinhaServidor | null;
+  try {
+    const { data, error } = await supabase
+      .from('app_storage')
+      .select('valor, versao, deletado_em')
+      .eq('org_id', org)
+      .eq('chave', item.chave)
+      .maybeSingle();
+    if (error) return; // sem leitura: tenta na próxima drenagem, nada decidido
+    servidor = (data ?? null) as LinhaServidor | null;
+  } catch {
+    return;
+  }
+
+  const paraUsuario = () => marcarEstado(item.mutationId, 'conflito');
+  // A lista mudou no servidor entre a recusa e esta leitura: a prova não vale
+  // mais, mas também não há o que decidir aqui. O próximo envio volta como
+  // CONFLITO de versão (não mais como recusa), e o merge — que marca as
+  // exclusões clássicas pela base (`mergeColecao`) — resolve; com o merge
+  // desligado, vira a tela de conflito com as duas versões.
+  if (servidor && !servidor.deletado_em && servidor.versao !== item.versaoBase) return;
+  if (!servidor || servidor.deletado_em || typeof servidor.valor !== 'string') {
+    await paraUsuario();
+    return;
+  }
+
+  let local: unknown;
+  let doServidor: unknown;
+  try {
+    local = JSON.parse(item.valor);
+    doServidor = JSON.parse(servidor.valor);
+  } catch {
+    await paraUsuario();
+    return;
+  }
+  if (!Array.isArray(local) || !Array.isArray(doServidor)) {
+    await paraUsuario();
+    return;
+  }
+
+  const aqui = new Set(
+    (local as object[]).map((i) => def.id(i)).filter((x): x is string => x !== null),
+  );
+  const excluidosAqui = (doServidor as object[]).filter((i) => {
+    const id = def.id(i);
+    return id !== null && !aqui.has(id) && !removido(i);
+  });
+  if (excluidosAqui.length === 0) {
+    await paraUsuario();
+    return;
+  }
+
+  const quando = new Date().toISOString();
+  const valor = JSON.stringify([...(local as object[]), ...excluidosAqui.map((i) => marcarRemovido(i, quando))]);
+  const novo: ItemFila = {
+    mutationId: crypto.randomUUID(),
+    resolveDe: item.mutationId,
+    op: 'set',
+    chave: item.chave,
+    valor,
+    versaoBase: item.versaoBase,
+    dispositivo: idDispositivo(),
+    criadoEm: new Date().toISOString(),
+    tentativas: 0,
+    estado: 'aguardando',
+  };
+
+  // Dado e fila na MESMA transação: sair da fila a original e entrar a nova
+  // em dois passos abriria uma janela sem a exclusão em fila nenhuma.
+  const reg = obterRegistro(item.chave);
+  await gravarAtomico(reg ? [{ chave: item.chave, registro: { ...reg, valor } }] : [], [novo]);
+  await removerDaFila(item.mutationId);
+  fila.set(novo.mutationId, novo);
+  registrarPendencias([novo]);
+}
+
+/**
+ * "Usar a versão do servidor" para uma exclusão sem marca que não pôde ser
+ * refeita sozinha. Tira a pendência e regrava o valor do servidor no cache —
+ * sem isso a hidratação incremental não traria a chave de volta (ela não mudou
+ * no servidor), e o usuário continuaria sem ver o item para excluí-lo de novo.
+ */
+export async function descartarERestaurar(mutationId: string): Promise<void> {
+  const item = fila.get(mutationId);
+  if (!item || item.estado !== 'conflito') return;
+  await removerDaFila(mutationId);
+  await restaurarDoServidor(item.chave);
+}
+
 /**
  * Drena a fila. Uma falha NÃO interrompe as demais: cada item é independente, e
  * travar a fila inteira por causa de um item sem permissão seguraria dados de
@@ -662,8 +850,29 @@ export async function drenar(): Promise<{ enviados: number; falhas: number }> {
   let enviados = 0;
   let falhas = 0;
 
+  // COLEÇÃO SÓ SOBE COM A CONFIGURAÇÃO CONFIRMADA NESTA CONEXÃO (23/09/2026).
+  //
+  // Subir uma lista decide duas coisas que dependem da configuração da
+  // organização: se as marcas de exclusão viajam ou saem (`semMarcasParaEnvio`)
+  // e se um conflito se resolve sozinho (`mergeDeConflito`). Com um recibo de
+  // disco — boot offline, ou reconexão ainda não revalidada — nenhuma das duas
+  // pode ser tomada: o administrador pode ter mudado a configuração enquanto o
+  // aparelho estava fora. Então a drenagem PERGUNTA primeiro e, sem resposta,
+  // a coleção espera na fila. Esperar não é falha: nada sai da fila, e a
+  // próxima drenagem tenta de novo.
+  if (!configPermiteColecao() && temColecaoAEnviar()) {
+    if (typeof navigator === 'undefined' || navigator.onLine !== false) {
+      try {
+        await revalidarConfigSync();
+      } catch {
+        // sem resposta: a coleção espera
+      }
+    }
+  }
+
   for (const item of [...fila.values()]) {
     if (item.estado === 'conflito') continue; // aguarda decisão do usuário
+    if (ehColecao(item.chave) && !configPermiteColecao()) continue; // espera a confirmação
     // Encerrada pelo servidor: não existe tentativa que passe, e ela também não
     // é falha a corrigir. Fica listada, fora da contagem e fora da rede.
     if (item.estado === 'encerrado') continue;
@@ -1004,7 +1213,19 @@ export async function descartarEncerrada(mutationId: string): Promise<void> {
  * de Pendências precisa desenhar com card próprio.
  */
 export function pendenciasSemComparacao(): ItemFila[] {
-  return listarFila().filter((i) => i.estado === 'conflito' && !conflitos.has(i.chave));
+  return listarFila().filter(
+    (i) => i.estado === 'conflito' && !conflitos.has(i.chave) && i.erro?.categoria !== 'app_desatualizado',
+  );
+}
+
+/**
+ * Exclusões sem marca que `recuperarExclusaoSemMarca` não conseguiu refazer
+ * sozinha — a decisão é do usuário, com a ação "Usar a versão do servidor"
+ * (`descartarERestaurar`). Separadas de `pendenciasSemComparacao` porque lá o
+ * texto é "excluído em outro aparelho", que aqui seria falso.
+ */
+export function exclusoesSemMarca(): ItemFila[] {
+  return listarFila().filter((i) => i.estado === 'conflito' && i.erro?.categoria === 'app_desatualizado');
 }
 
 /**

@@ -38,8 +38,12 @@ export type CategoriaErro =
    * medido no ensaio de ativação.
    *
    * Não é `recusa_definitiva`: ali não existe estado futuro em que a operação
-   * passe, e aqui existe — atualizar o aplicativo. A alteração continua
-   * guardada, nada é apagado, e o usuário recarrega e refaz a exclusão.
+   * passe, e aqui existe. A alteração continua guardada, nada é apagado.
+   *
+   * Num aparelho de protocolo 2 (23/09/2026) a recuperação é AUTOMÁTICA quando
+   * há prova — `sync.recuperarExclusaoSemMarca` refaz a exclusão com a marca —
+   * e, sem prova, vira decisão do usuário em Pendências ("Usar a versão do
+   * servidor"). Nunca fica retentando a mesma recusa.
    */
   | 'app_desatualizado'
   | 'desconhecido';
@@ -114,10 +118,10 @@ const TEXTOS: Record<CategoriaErro, Texto> = {
     acao: null,
   },
   app_desatualizado: {
-    titulo: 'Atualize o aplicativo para concluir',
+    titulo: 'Exclusão sendo refeita no formato da organização',
     explicacao:
-      'Esta organização passou a registrar exclusões de um jeito novo, e este aparelho ainda usa a versão anterior. A alteração continua guardada aqui — nada foi perdido. Recarregue a página para atualizar e refaça a exclusão.',
-    acao: { rotulo: 'Recarregar para atualizar', tipo: 'atualizar_app' },
+      'Esta organização registra exclusões com uma marca, e esta foi gravada sem ela. O aplicativo refaz a exclusão com a marca assim que conseguir conferir a lista no servidor — nada foi perdido. Se não for possível conferir, ela aparece em "Exclusão para refazer".',
+    acao: { rotulo: 'Tentar de novo', tipo: 'tentar' },
   },
   desconhecido: {
     titulo: 'Não foi possível salvar no servidor',

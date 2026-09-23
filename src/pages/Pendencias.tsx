@@ -11,6 +11,8 @@ import {
   pendenciasSemComparacao,
   descartarPendencia,
   recriarNoServidor,
+  exclusoesSemMarca,
+  descartarERestaurar,
   type ItemFila,
   type RegistroConflito,
 } from '../services/sync';
@@ -42,15 +44,17 @@ export default function Pendencias() {
   // aparelho, então não há duas versões para comparar. Sem esta lista, ele
   // entrava na contagem do selo e não aparecia em lugar nenhum da tela.
   const [semComparacao, setSemComparacao] = useState<ItemFila[]>(() => pendenciasSemComparacao());
+  const [semMarca, setSemMarca] = useState<ItemFila[]>(() => exclusoesSemMarca());
 
   const recarregar = () => {
     setItens(listarFila());
     setConflitos(conflitosPendentes());
     setSubstituidas(conflitosResolvidos());
     setSemComparacao(pendenciasSemComparacao());
+    setSemMarca(exclusoesSemMarca());
   };
 
-  const decisoes = conflitos.length + semComparacao.length;
+  const decisoes = conflitos.length + semComparacao.length + semMarca.length;
 
   // Encerradas ficam SEPARADAS: não têm "tentar de novo" (o servidor não muda de
   // ideia) e não entram na contagem do selo. Ficam listadas porque a alteração
@@ -100,6 +104,19 @@ export default function Pendencias() {
     try {
       await recriarNoServidor(mutationId);
       await flushFila().catch(() => undefined);
+    } finally {
+      setOcupado(false);
+      recarregar();
+    }
+  };
+
+  // Exclusão sem marca que o aplicativo não conseguiu refazer sozinho: volta a
+  // lista do servidor para este aparelho, e o usuário exclui de novo — agora
+  // com a marca.
+  const usarServidor = async (mutationId: string) => {
+    setOcupado(true);
+    try {
+      await descartarERestaurar(mutationId);
     } finally {
       setOcupado(false);
       recarregar();
@@ -301,6 +318,30 @@ export default function Pendencias() {
                   </dd>
                 </dl>
               </details>
+            </article>
+          ))}
+        </section>
+      )}
+
+      {semMarca.length > 0 && (
+        <section className="pendencias__conflitos">
+          <h2>Exclusão para refazer</h2>
+          <p>
+            Uma exclusão feita neste aparelho não pôde ser enviada no formato que a organização usa, e a
+            lista mudou no servidor desde então — o aplicativo não tem como refazê-la sozinho sem arriscar
+            apagar o que outra pessoa criou. Use a versão do servidor e exclua o item de novo.
+          </p>
+          {semMarca.map((item) => (
+            <article key={item.mutationId} className="conflito conflito--sem-lado">
+              <h3 className="conflito__titulo">{rotuloDaChave(item.chave)}</h3>
+              <p className="conflito__resumo">{resumoDoValor(item.valor)}</p>
+              <p className="conflito__meta">
+                {item.criadoEm}
+                {item.dispositivo ? ` · ${item.dispositivo}` : ''}
+              </p>
+              <button type="button" disabled={ocupado} onClick={() => void usarServidor(item.mutationId)}>
+                Usar a versão do servidor
+              </button>
             </article>
           ))}
         </section>

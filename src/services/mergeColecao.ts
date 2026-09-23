@@ -32,8 +32,8 @@
  * TRÁFEGO desse envio; não é ela que torna o merge correto.
  */
 import { baseDe } from './baseColecao';
-import { colecaoDaChave, mesclarColecao, type ResultadoMerge } from './colecoes';
-import { flagsSync } from './flagsSync';
+import { colecaoDaChave, marcarRemovido, mesclarColecao, removido, type ResultadoMerge } from './colecoes';
+import { configPermiteColecao, flagsSync } from './flagsSync';
 
 /** Um item de coleção como o merge o vê. */
 type Registro = Record<string, unknown>;
@@ -55,6 +55,37 @@ function comoLista(bruto: string | null | undefined): Registro[] | null {
 }
 
 /**
+ * Uma exclusão CLÁSSICA (o item tirado da lista, sem `removidoEm`) vira marca
+ * antes do merge.
+ *
+ * Achado ao projetar o rollback (23/09/2026): a organização estava com o
+ * tombstone desligado, o aparelho excluiu offline do jeito antigo, o
+ * administrador ligou tombstone+merge, e o aparelho reconectou. Para
+ * `mesclarColecao` o item que falta aqui é "só no servidor" — e fica. A
+ * exclusão do usuário seria desfeita em silêncio.
+ *
+ * A BASE é a prova: ela é a última lista que este aparelho confirmou com o
+ * servidor. Um id que está nela e não está na lista local saiu AQUI. Voltar
+ * com ele marcado é exatamente o que o protocolo 2 teria gravado. Se o
+ * servidor também já não o tem, o item marcado entra como tombstone de um item
+ * ausente — invisível e inofensivo. Sem base não há prova, e nada é inventado.
+ */
+function comExclusoesClassicasMarcadas(
+  aqui: Registro[],
+  base: Registro[] | null,
+  idDe: (i: object) => string | null,
+): Registro[] {
+  if (!base) return aqui;
+  const presentes = new Set(aqui.map((i) => idDe(i)).filter((x): x is string => x !== null));
+  const quando = new Date().toISOString();
+  const saidas = base.filter((i) => {
+    const id = idDe(i);
+    return id !== null && !presentes.has(id) && !removido(i);
+  });
+  return saidas.length ? [...aqui, ...saidas.map((i) => marcarRemovido(i, quando))] : aqui;
+}
+
+/**
  * Tenta resolver sozinho um conflito de coleção.
  *
  * `local` é o que ESTE aparelho quer gravar (o valor da mutação em conflito, ou
@@ -65,7 +96,11 @@ export async function mergeDeConflito(
   local: string | null | undefined,
   servidor: string | null | undefined,
 ): Promise<MergeDeConflito | null> {
-  if (!flagsSync().mergeAutomatico) return null;
+  // Mesclar sozinho exige que o SERVIDOR tenha dito, nesta conexão, que o
+  // merge está ligado. Um recibo em disco não basta: se o administrador
+  // desligou enquanto o aparelho estava offline, é aqui que a decisão dele
+  // precisa valer (ver a análise de rollback em docs/HARDENING-SINCRONIZACAO.md).
+  if (!flagsSync().mergeAutomatico || !configPermiteColecao()) return null;
 
   const def = colecaoDaChave(chave);
   if (!def) return null;
@@ -79,7 +114,12 @@ export async function mergeDeConflito(
   // de errar.
   const base = comoLista((await baseDe(chave))?.valor);
 
-  const merge = mesclarColecao<Registro>(aqui, la, def.id, base ?? undefined);
+  const merge = mesclarColecao<Registro>(
+    comExclusoesClassicasMarcadas(aqui, base, def.id),
+    la,
+    def.id,
+    base ?? undefined,
+  );
   if (merge.ambiguos.length > 0) return null;
 
   const valor = JSON.stringify(merge.lista);

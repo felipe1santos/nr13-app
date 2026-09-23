@@ -3,6 +3,7 @@ import { Navigate, Outlet } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { hidratarNoBoot, migracoesDeSegundoPlano } from './bootArmazenamento';
 import { verificarAcesso } from '../services/auth';
+import { EVENTO_SERVIDOR_RESPONDEU } from '../services/flag';
 import './layout.css';
 
 // Gate de sessão: confere a sessão Supabase, valida liberação/expiração do perfil e hidrata o cache
@@ -48,6 +49,15 @@ export default function RotaProtegida() {
     return () => {
       vivo = false;
     };
+  }, []);
+
+  // A barra é do BOOT, mas não pode sobreviver a ele: quando a conexão volta e
+  // o servidor responde (`flag.revalidarConfigSync`, disparada pelo evento
+  // `online`), ela sai. Antes ficava na tela com a fila já sincronizada.
+  useEffect(() => {
+    const sumir = () => setSemServidor(false);
+    window.addEventListener(EVENTO_SERVIDOR_RESPONDEU, sumir);
+    return () => window.removeEventListener(EVENTO_SERVIDOR_RESPONDEU, sumir);
   }, []);
 
   if (estado === 'carregando') {
