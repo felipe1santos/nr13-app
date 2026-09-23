@@ -201,7 +201,6 @@ async function ligar(ap: Aparelho, opcoes: { online: boolean; org?: string }): P
 async function reconectar(): Promise<void> {
   rede = true;
   await atualizarDoServidor({ reconectou: true });
-  await sync.drenar(); // o merge sobe como mutação nova; a drenagem seguinte a envia
 }
 
 const nota = (id: string, titulo = id.toUpperCase()) => ({ id, titulo, data: '2026-09-30', tipo: 'lembrete' });
@@ -337,6 +336,27 @@ describe('E · o Caso B do canário: itens diferentes em dois aparelhos', () => 
   });
 });
 
+  it('UMA drenagem entrega o merge que ela mesma gerou (canário, caso C)', async () => {
+    // Medido no canário R2: a mutação mesclada nascia DURANTE a drenagem e só
+    // subia no próximo gatilho — o boot leve não drena e a retentativa
+    // periódica só pega item com erro de rede. Aqui não há `lerTudo` para
+    // drenar de novo: é uma chamada só.
+    const apA = novoAparelho('A');
+    const apB = novoAparelho('B');
+    await baseABC(apB);
+    desligar();
+    await ligar(apA, { online: true });
+    await editar('a', 'A2');
+
+    await ligar(apB, { online: false });
+    await editar('c', 'C2');
+    rede = true;
+    await sync.drenar();
+
+    expect(titulosVisiveis(servidorLista())).toEqual(['A2', 'B', 'C2']);
+    expect(sync.listarFila()).toHaveLength(0);
+  });
+
 // ===========================================================================
 describe('F · exclusão offline com o recibo tombstone=true', () => {
   it('C fica MARCADO no dado bruto antes do ACK, e continua excluído depois', async () => {
@@ -464,6 +484,25 @@ describe('J · rollback true → false com o aparelho offline', () => {
     expect(sync.listarFila()).toHaveLength(0);
   });
 
+  it('marca que JÁ foi tentada antes da confirmação sobe marcada — segura, e continua invisível', async () => {
+    // Medido no canário R2 (rollback false/false): a exclusão foi gravada com
+    // a sessão ainda confirmada (true), a 1ª tentativa falhou por rede, e o
+    // descarte da marca só age na 1ª tentativa — reescrever o conteúdo de um
+    // mutationId que talvez já tenha chegado arriscaria base divergente.
+    const ap = novoAparelho('B');
+    await baseABC(ap);
+    rede = false; // caiu sem o aparelho reiniciar: a sessão segue "servidor"
+    await removerDaColecao(CH, 'c');
+    expect(sync.listarFila()[0].tentativas).toBeGreaterThan(0);
+
+    orgSync.set(ORG_ZZ, { v2_ativa: true, sync_tombstone: false, sync_merge_automatico: false });
+    await reconectar();
+
+    expect(servidorLista().find((n) => n.id === 'c')?.removidoEm).toBeTruthy(); // marca subiu
+    expect(titulosVisiveis(servidorLista())).toEqual(['A', 'B']); // e C segue excluído
+    expect(sync.listarFila()).toHaveLength(0);
+  });
+
   it('recibo merge=true, servidor desligou o merge: o conflito NÃO se resolve sozinho', async () => {
     const apA = novoAparelho('A');
     const apB = novoAparelho('B');
@@ -500,7 +539,6 @@ describe('K · app_desatualizado é recuperável', () => {
   it('versão confere: a exclusão é refeita COM a marca e passa pela guarda', async () => {
     await exclusaoClassicaPendente();
     await reconectar(); // recusa → prova pela versão → reenvio marcado
-    await sync.drenar();
 
     expect(servidorLista().find((n) => n.id === 'c')?.removidoEm).toBeTruthy();
     expect(titulosVisiveis(servidorLista())).toEqual(['A', 'B']);
@@ -515,7 +553,6 @@ describe('K · app_desatualizado é recuperável', () => {
     srv.set(k(ORG_ZZ, CH), { ...atual, valor: JSON.stringify([...JSON.parse(atual.valor!), nota('d')]), versao: atual.versao + 1 });
 
     await reconectar();
-    await sync.drenar();
 
     expect(titulosVisiveis(servidorLista())).toEqual(['A', 'B', 'D']); // C NÃO voltou
     expect(servidorLista().find((n) => n.id === 'c')?.removidoEm).toBeTruthy();
@@ -575,7 +612,6 @@ describe('L · o cliente antigo verdadeiro continua barrado', () => {
 
     await ligar(ap, { online: true }); // bundle novo
     expect(sync.listarFila()[0].estado).toBe('aguardando');
-    await sync.drenar();
     await sync.drenar();
 
     expect(servidorLista().find((n) => n.id === 'c')?.removidoEm).toBeTruthy();

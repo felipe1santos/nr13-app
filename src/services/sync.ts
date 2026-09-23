@@ -870,21 +870,34 @@ export async function drenar(): Promise<{ enviados: number; falhas: number }> {
     }
   }
 
-  for (const item of [...fila.values()]) {
-    if (item.estado === 'conflito') continue; // aguarda decisão do usuário
-    if (ehColecao(item.chave) && !configPermiteColecao()) continue; // espera a confirmação
-    // Encerrada pelo servidor: não existe tentativa que passe, e ela também não
-    // é falha a corrigir. Fica listada, fora da contagem e fora da rede.
-    if (item.estado === 'encerrado') continue;
-    // Já sabemos que não passa sozinha: retentar a cada drenagem só gasta
-    // requisição e mantém o selo em falha. Sai daqui por `tentarNovamente`,
-    // que é ação explícita do usuário.
-    if (item.estado === 'falha_definitiva') {
-      falhas += 1;
-      continue;
+  // PASSADAS (canário ZZ, 23/09/2026): o merge automático e a exclusão
+  // refeita com marca criam uma mutação NOVA durante a drenagem. Iterando só
+  // a foto da fila tirada no início, essa mutação ficava parada até o
+  // próximo gatilho — medido: 90 s sem envio, e nem o reload a subia (o boot
+  // leve não drena, e a retentativa periódica só pega item com erro de rede).
+  // Cada passada envia só o que a anterior ainda não viu; o teto impede que
+  // uma cadeia inesperada vire laço.
+  const vistos = new Set<string>();
+  for (let passada = 0; passada < 3; passada++) {
+    const lote = [...fila.values()].filter((i) => !vistos.has(i.mutationId));
+    if (lote.length === 0) break;
+    for (const item of lote) {
+      vistos.add(item.mutationId);
+      if (item.estado === 'conflito') continue; // aguarda decisão do usuário
+      if (ehColecao(item.chave) && !configPermiteColecao()) continue; // espera a confirmação
+      // Encerrada pelo servidor: não existe tentativa que passe, e ela também não
+      // é falha a corrigir. Fica listada, fora da contagem e fora da rede.
+      if (item.estado === 'encerrado') continue;
+      // Já sabemos que não passa sozinha: retentar a cada drenagem só gasta
+      // requisição e mantém o selo em falha. Sai daqui por `tentarNovamente`,
+      // que é ação explícita do usuário.
+      if (item.estado === 'falha_definitiva') {
+        falhas += 1;
+        continue;
+      }
+      if (await enviarItem(item)) enviados += 1;
+      else falhas += 1;
     }
-    if (await enviarItem(item)) enviados += 1;
-    else falhas += 1;
   }
 
   if (enviados > 0) registrarSync();

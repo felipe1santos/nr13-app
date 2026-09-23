@@ -983,6 +983,15 @@ qualquer org. Ao reconectar, a drenagem revalida, recebe `false` e as marcas
 saem no envio: a exclusão chega ao servidor como exclusão clássica, que é o
 que aquela organização espera. Teste J1.
 
+**Correção medida no canário R2 (ver rodada 7):** isso vale quando a PRIMEIRA
+tentativa acontece depois da confirmação. Se a exclusão foi gravada com a
+sessão ainda confirmada e a 1ª tentativa falhou por rede, a marca sobe como
+está — o descarte só age em `tentativas === 0`, porque reescrever o conteúdo
+de um `mutationId` que talvez já tenha chegado (ACK perdido) arriscaria base
+divergente. O resultado é seguro (marca filtrada por todo leitor de protocolo
+2; sem perda, sem ressurreição, sem merge), só não é a exclusão clássica.
+Teste "marca que JÁ foi tentada".
+
 **Merge automático com recibo true.** Não roda: `mergeDeConflito` exige origem
 `servidor`, e a coleção só é enviada depois da revalidação. Depois do
 rollback, o conflito volta para a tela manual com as duas versões
@@ -1055,3 +1064,48 @@ organização ativada.
 ---
 
 *23/09/2026. Correção local, testada; ZZ desligada; canário A–H a repetir.*
+
+
+# RODADA 7 — CANÁRIO R2 NA ZZ, COM A CORREÇÃO NO AR (23/09/2026)
+
+`04f2918` publicado (bundle `index-Ch50oqIZ.js`, 17:01:33Z; idêntico ao build
+do HEAD fora hash de asset e env). ZZ ativada às 17:13Z. Três aparelhos Chrome
+headless independentes (A `547f7821`, B `3916628a`, C `494f76b6`), perfis em
+caminho curto, proxy liga/desliga por aparelho, sessões da conta de teste
+revogadas ao fim. Massa `ZZ-SYNCV2-R2-*` em `nr13_agenda_notas`.
+
+| caso | resultado |
+|---|---|
+| recibo · F5 · fechar/reabrir offline | origem = recibo provada pelo formato da exclusão (false → tira; desconhecida marcaria); CONFIG antes de MUTACAO nos dois aparelhos |
+| A · edição offline + F5 + reabertura | PASS |
+| B · itens diferentes, B com boot OFFLINE | PASS — merge automático pelo recibo, sem conflito manual |
+| C · criação offline | dados PASS; a mutação mesclada só subiu com "Sincronizar" (achado 1) |
+| D · exclusão + aparelho atrasado | PASS — C marcado no RAW antes do ACK; não reaparece em nenhum lugar |
+| E · conflito verdadeiro | PASS — manual, as duas versões preservadas |
+| F · ACK perdido | PASS — mesmo mutationId, `repetido`, versão não sobe, base avança |
+| G · cliente antigo | PASS — guarda recusa; fila herdada se recupera com marca; "Exclusão para refazer" → "Usar a versão do servidor" → usuário refaz com marca |
+| H · reinício offline real | PASS — SW, recibo, dado, fila e tombstone sobrevivem |
+| rollback true/true → true/false | PASS — recibo atualizado antes da MUTACAO; conflito manual |
+| rollback true/true → false/false | seguro; marca subiu em vez de virar exclusão clássica (achado 2) |
+| primeiro boot offline sem recibo | PASS nas duas regras da org |
+
+**Achado 1 — merge gerado na drenagem não era enviado nela.** A mutação nova
+(merge, ou exclusão refeita com marca) nascia durante a iteração de uma foto
+da fila e ficava parada: 90 s sem envio, e nem o reload a subia (o boot leve
+não drena; a retentativa periódica só pega erro de rede). Sem perda — estava
+na fila e o botão "Sincronizar" a enviava. Corrigido: `drenar` faz até 3
+passadas, cada uma só com o que a anterior não viu. Os testes tinham uma
+segunda `drenar()` que mascarava isso; foram retiradas, e o teste "UMA
+drenagem entrega o merge" quebra sem a correção.
+
+**Achado 2 — descarte da marca só na 1ª tentativa.** Ver a correção na seção
+3 da rodada 6. Seguro; documentado e travado por teste.
+
+**Achado 3 (pré-existente, P2) — boot offline lento.** 20–40 s em
+"Carregando…": o supabase-js retenta cada GET com falha de rede (1 s, 2 s,
+4 s) e o boot faz várias em sequência (perfil, hidratação). Não é desta
+correção.
+
+**Nota de UX:** o cabeçalho de Pendências diz "A mesma informação foi alterada
+em mais de um aparelho" também quando a única decisão é "Exclusão para
+refazer".
