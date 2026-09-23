@@ -78,6 +78,14 @@ export default function InspecoesV9() {
 
   const [containers, setContainers] = useState<ContainerInspecao[]>([]);
   const [abrindo, setAbrindo] = useState(false);
+  /**
+   * A TAG cuja lista de containers JÁ foi carregada. Até ela bater com a TAG da
+   * URL, a tela está carregando — `abrindo` sozinho vira `true` só dentro do
+   * efeito, DEPOIS da primeira pintura, e esse primeiro quadro afirmava
+   * "Nenhum container de inspeção criado ainda" para um equipamento que tinha
+   * três (medido em produção, Fase 2).
+   */
+  const [carregadoPara, setCarregadoPara] = useState<string | null>(null);
   const [modalAberto, setModalAberto] = useState(false);
   // 10/09/2026 · renomear a rodada e a ajuda da sessão.
   const [renomeando, setRenomeando] = useState<ContainerInspecao | null>(null);
@@ -177,7 +185,10 @@ export default function InspecoesV9() {
         if (vivo) setContainers(lista);
       })
       .finally(() => {
-        if (vivo) setAbrindo(false);
+        if (vivo) {
+          setAbrindo(false);
+          setCarregadoPara(tag);
+        }
       });
     return () => {
       vivo = false;
@@ -255,7 +266,7 @@ export default function InspecoesV9() {
             </button>
           </div>
 
-          {abrindo ? (
+          {abrindo || carregadoPara !== tag ? (
             <p className="dashboard-vazio">Carregando as inspeções deste equipamento…</p>
           ) : containers.length === 0 ? (
             <p className="dashboard-vazio">Nenhum container de inspeção criado ainda para este equipamento.</p>
