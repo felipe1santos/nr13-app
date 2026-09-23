@@ -1,4 +1,5 @@
 import { ler } from '../../../services/storage';
+import { visiveis } from '../../../services/colecoes';
 import { linhasMemorial } from '../relatoriosService';
 import { obterAssinantes } from '../../prontuarios/prontuarioService';
 import type { ProntuarioDados } from '../../prontuarios/tipos';
@@ -229,7 +230,7 @@ interface Funcionario {
  */
 function assinantesDe(tag: string, folhas: readonly string[]): AssinanteProntuario[] {
   const escolha = obterAssinantes(tag);
-  const lista = ler<Funcionario[]>('nr13_lista_phs') ?? [];
+  const lista = visiveis(ler<Funcionario[]>('nr13_lista_phs') ?? []);
   const achar = (id: string | null) => (id ? lista.find((f) => f.id === id) : undefined);
 
   const montar = (f: Funcionario | undefined, padraoTodas: boolean): AssinanteProntuario | null => {

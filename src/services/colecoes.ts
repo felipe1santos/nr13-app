@@ -137,9 +137,81 @@ export function marcarRemovido<T extends object>(item: T, quando: string): T {
   return { ...item, removidoEm: quando };
 }
 
+/**
+ * ONDE O TOMBSTONE MORA — a resposta ao §5 da rodada (22/09/2026).
+ *
+ * | pergunta | resposta |
+ * |---|---|
+ * | store | **nenhuma nova**: ele é um campo DO ITEM, dentro do array da chave |
+ * | cliente | IndexedDB `nr13_dados_<org_id>`, store `dados`, chave da coleção |
+ * | servidor | `app_storage.valor` da mesma chave — texto, como o resto da lista |
+ * | formato | `removidoEm: string` ISO, no objeto do item |
+ * | itemId | o id que o CATÁLOGO declara (`DefinicaoColecao.id`), não a posição |
+ * | versão/base | a da CHAVE, em `baseColecao` — o item não tem versão própria |
+ *
+ * **Por que não uma store separada.** O IndexedDB já tem uma store
+ * `tombstones` (`db.ts`), e ela é de outra coisa: a exclusão de uma CHAVE
+ * inteira, que a RPC conhece e registra em `app_storage_excluidos`. Pôr o
+ * tombstone de item lá criaria uma segunda fonte de verdade que o servidor não
+ * recebe, que o merge precisaria consultar à parte, e que ficaria para trás do
+ * dado na primeira falha parcial de transação.
+ *
+ * Dentro do item, o tombstone **viaja pelo mesmo caminho do resto**: a mesma
+ * chave, a mesma mutação, a mesma versão, a mesma hidratação. É por isso que
+ * NÃO existe migration a aplicar — nem local nem no servidor. `removidoEm` é
+ * campo novo num objeto JSON; lista antiga simplesmente não o tem, e `removido`
+ * responde `false`, que é a leitura correta de "este item nunca foi excluído".
+ *
+ * O custo é o acúmulo, e é ele que a seção PODA trata — sem apagar nada.
+ */
+export const ONDE_MORA_O_TOMBSTONE = 'no próprio item, dentro do array da chave da coleção';
+
 /** A lista como as telas a leem: sem os tombstones. */
 export function visiveis<T extends object>(lista: T[]): T[] {
   return (lista ?? []).filter((i) => !removido(i));
+}
+
+/**
+ * O INTERRUPTOR DO TOMBSTONE.
+ *
+ * Mora aqui, e não em `colecaoSync`, porque os escritores síncronos (clientes,
+ * funcionários, calibrações…) precisam dele sem arrastar o storage inteiro.
+ * `colecaoSync.MERGE_AUTOMATICO_ATIVO` é o interruptor do MERGE e lê este —
+ * marcar sem mesclar é seguro (o leitor filtra); mesclar sem marcar é o que
+ * ressuscita item excluído, então o tombstone nunca pode estar atrás do merge.
+ *
+ * Desligado nesta rodada: a exclusão continua tirando o item da lista, como
+ * sempre fez. Ligar troca o `filter` por `map` em TODOS os escritores de uma
+ * vez — é por isso que a decisão é um valor só.
+ */
+export const TOMBSTONE_ATIVO = false;
+
+/**
+ * Exclui um item de uma lista BRUTA pela regra central.
+ *
+ * Com o tombstone ligado, marca; desligado, tira. Nenhum escritor decide isso
+ * sozinho — foi a proliferação de `filter((x) => x.id !== id)` que tornou a
+ * exclusão irrastreável para o merge.
+ *
+ * O `quando` é do chamador (relógio do dispositivo não é autoridade; ver
+ * `marcarRemovido`), com o agora como conveniência de quem não tem um instante
+ * melhor a oferecer.
+ */
+export function excluirDaLista<T extends object>(
+  lista: T[],
+  id: string,
+  idDe: (i: object) => string | null,
+  quando: string = new Date().toISOString(),
+): T[] {
+  const alvo = (i: T) => idDe(i) === id;
+  return TOMBSTONE_ATIVO
+    ? (lista ?? []).map((i) => (alvo(i) ? marcarRemovido(i, quando) : i))
+    : (lista ?? []).filter((i) => !alvo(i));
+}
+
+/** Atalho para as coleções cujo id é o campo `id` — a maioria do catálogo. */
+export function excluirPorId<T extends object>(lista: T[], id: string, quando?: string): T[] {
+  return excluirDaLista(lista, id, porId('id'), quando);
 }
 
 export interface ResultadoMerge<T extends object = ItemColecao> {
@@ -294,4 +366,97 @@ export function mesclarColecao<T extends object>(
  */
 export function mergeResolveSozinho(r: ResultadoMerge): boolean {
   return r.ambiguos.length === 0;
+}
+
+// ---------------------------------------------------------------------------
+// PODA — telemetria agora, remoção nunca (22/09/2026)
+// ---------------------------------------------------------------------------
+/**
+ * O tombstone é um item que continua na lista. Ele não some sozinho, e esta
+ * seção é a resposta a "quando ele pode sumir".
+ *
+ * ## Por que NÃO existe poda automática aqui
+ *
+ * A regra tentadora — "tombstone com mais de N dias sai" — é insegura neste
+ * sistema, e a razão é estrutural, não de gosto:
+ *
+ * 1. **O relógio não é autoridade.** `removidoEm` é carimbado pelo dispositivo
+ *    que excluiu. Um aparelho com a data errada produz tombstone "antigo" no
+ *    instante em que nasce, e a poda o apagaria na primeira drenagem.
+ * 2. **Não existe piso de versão POR ITEM.** A RPC mantém
+ *    `app_storage_excluidos.versao_final` por CHAVE — é o que impede uma chave
+ *    excluída de voltar com versão antiga. Dentro da lista não há nada
+ *    equivalente: o item é conteúdo, não linha. Sem piso por item, apagar o
+ *    tombstone devolve a coleção ao estado anterior a esta rodada, em que um
+ *    aparelho offline com a cópia velha reenvia o item e o merge o ressuscita.
+ * 3. **Não existe piso de TEMPO conhecido.** O sistema é offline-first por
+ *    desenho: o inspetor passa dias em campo sem rede. Não há limite superior
+ *    demonstrável para "há quanto tempo o aparelho mais atrasado está sem
+ *    sincronizar" — e a poda precisaria exatamente desse número.
+ *
+ * O usuário foi explícito: *"Prefiro tombstone acumulado a ressurreição
+ * silenciosa."* Então a poda fica como PENDÊNCIA declarada, e o que entra é a
+ * medição que dirá se ela chega a ser necessária.
+ *
+ * ## O que tornaria a poda segura (o desenho, para quando houver decisão)
+ *
+ * Um CORTE por coleção, confirmado pelo servidor: a versão da chave a partir da
+ * qual todo aparelho ativo já sincronizou. Um tombstone cuja versão de origem
+ * seja menor que o corte não pode mais ser contradito por ninguém, e só esse
+ * pode sair. Isso exige duas coisas que hoje não existem:
+ *
+ * - o tombstone guardar a VERSÃO em que nasceu (não só a data);
+ * - o servidor saber a menor versão sincronizada entre os dispositivos da
+ *   organização (tabela de dispositivos com a última versão vista por chave).
+ *
+ * Nenhuma das duas é mudança local, e nenhuma é aplicada nesta rodada.
+ */
+export const PODA_AUTOMATICA_ATIVA = false;
+
+export interface EstatisticaTombstones {
+  /** Quantos itens a lista tem, tombstones inclusive. */
+  total: number;
+  /** Quantos estão marcados como removidos. */
+  removidos: number;
+  /** Bytes que os tombstones ocupam no JSON da lista. */
+  bytes: number;
+  /** O carimbo mais antigo entre eles, ou `null`. */
+  maisAntigo: string | null;
+}
+
+/**
+ * Mede o que a poda economizaria — e é só isso que se faz com o número por
+ * enquanto. Serve para responder, com dado em vez de suposição, se o acúmulo
+ * chega a ser um problema antes de o corte seguro existir.
+ */
+export function estatisticaTombstones(lista: object[]): EstatisticaTombstones {
+  const mortos = (lista ?? []).filter((i) => removido(i));
+  let maisAntigo: string | null = null;
+  for (const i of mortos) {
+    const q = campo(i, 'removidoEm');
+    if (typeof q === 'string' && (maisAntigo === null || q < maisAntigo)) maisAntigo = q;
+  }
+  return {
+    total: (lista ?? []).length,
+    removidos: mortos.length,
+    bytes: mortos.length === 0 ? 0 : JSON.stringify(mortos).length,
+    maisAntigo,
+  };
+}
+
+/**
+ * A poda, quando houver corte seguro.
+ *
+ * `corte` é a versão confirmada a partir da qual nenhum aparelho pode mais
+ * contradizer a exclusão. Enquanto `PODA_AUTOMATICA_ATIVA` for `false` ou o
+ * corte não for informado, devolve a lista **inalterada** — fail-closed, como a
+ * trava de produção do §12: a versão que não sabe se pode apagar, não apaga.
+ */
+export function podar<T extends object>(lista: T[], corte?: number): T[] {
+  if (!PODA_AUTOMATICA_ATIVA || corte === undefined) return lista ?? [];
+  return (lista ?? []).filter((i) => {
+    if (!removido(i)) return true;
+    const v = campo(i, 'removidoNaVersao');
+    return !(typeof v === 'number' && v <= corte);
+  });
 }

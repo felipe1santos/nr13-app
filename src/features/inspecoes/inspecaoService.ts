@@ -1,12 +1,23 @@
 import { ler, salvar } from '../../services/storage';
+import { excluirPorId, visiveis } from '../../services/colecoes';
 import { FORM_POR_ENSAIO, type ContainerInspecao, type FormularioEnsaio, type TipoEnsaio } from './tipos';
 
 function chave(tag: string): string {
   return `nr13_docs_${tag}`;
 }
 
-export function listarContainers(tag: string): ContainerInspecao[] {
+/**
+ * A lista COMO ESTA, tombstones inclusive — e o que os ESCRITORES usam.
+ * Regravar a visao filtrada apagaria a marca de exclusao, e o container
+ * voltaria no proximo merge com um aparelho que ainda o tem.
+ */
+function containersBrutos(tag: string): ContainerInspecao[] {
   return ler<ContainerInspecao[]>(chave(tag)) || [];
+}
+
+export function listarContainers(tag: string): ContainerInspecao[] {
+  // `visiveis` e a porta UNICA do tombstone (services/colecoes.ts).
+  return visiveis(containersBrutos(tag));
 }
 
 export async function criarContainer(tag: string, ensaios: TipoEnsaio[], nome?: string): Promise<ContainerInspecao> {
@@ -18,18 +29,18 @@ export async function criarContainer(tag: string, ensaios: TipoEnsaio[], nome?: 
     ensaios,
     dados: {},
   };
-  const atuais = listarContainers(tag);
+  const atuais = containersBrutos(tag);
   await salvar(chave(tag), [...atuais, novo]);
   return novo;
 }
 
 export async function removerContainer(tag: string, id: string): Promise<void> {
-  const atuais = listarContainers(tag);
-  await salvar(chave(tag), atuais.filter((c) => c.id !== id));
+  const atuais = containersBrutos(tag);
+  await salvar(chave(tag), excluirPorId(atuais, id));
 }
 
 export async function adicionarEnsaiosContainer(tag: string, containerId: string, novosEnsaios: TipoEnsaio[]): Promise<void> {
-  const atuais = listarContainers(tag);
+  const atuais = containersBrutos(tag);
   const atualizados = atuais.map((c) => {
     if (c.id !== containerId) return c;
     const ensaios = [...c.ensaios];
@@ -42,7 +53,7 @@ export async function adicionarEnsaiosContainer(tag: string, containerId: string
 // Remove do container todos os ensaios cujo FORM_POR_ENSAIO aponta pro formulário indicado.
 // (visual_externo e visual_interno têm formulários distintos; cada um é removido pelo seu próprio.)
 export async function removerFormularioContainer(tag: string, containerId: string, formulario: FormularioEnsaio): Promise<void> {
-  const atuais = listarContainers(tag);
+  const atuais = containersBrutos(tag);
   const atualizados = atuais.map((c) =>
     c.id === containerId ? { ...c, ensaios: c.ensaios.filter((e) => FORM_POR_ENSAIO[e] !== formulario) } : c,
   );
@@ -69,7 +80,7 @@ export function carregarContainer(tag: string, id: string): ContainerInspecao | 
 export async function renomearContainer(tag: string, id: string, nome: string): Promise<void> {
   const limpo = nome.trim();
   if (!limpo) throw new Error('O nome do container não pode ficar vazio.');
-  const atuais = listarContainers(tag);
+  const atuais = containersBrutos(tag);
   // Mesma guarda de `salvarDadosFormulario`: com o cache ainda não hidratado,
   // gravar a lista sem o container apagaria os outros no servidor.
   if (!atuais.some((c) => c.id === id)) {
@@ -103,7 +114,7 @@ export async function salvarDadosFormulario(
   formulario: FormularioEnsaio,
   dados: unknown,
 ): Promise<void> {
-  const atuais = listarContainers(tag);
+  const atuais = containersBrutos(tag);
   // Se o container alvo não está na lista carregada (ex.: cache ainda não hidratado / offline no
   // 1º load), NÃO grava: senão escreveríamos a lista sem ele (ou []) e apagaríamos os containers
   // reais no Supabase ao ressincronizar.

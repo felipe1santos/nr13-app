@@ -1,4 +1,5 @@
 import { ler } from '../../services/storage';
+import { visiveis } from '../../services/colecoes';
 import type { Funcionario } from '../cadastros/tipos';
 import type { DadosCalibracao, ResponsavelCalibracao } from './tipos';
 import { ehInterna } from './tipos';
@@ -11,7 +12,9 @@ import { ehInterna } from './tipos';
  * rubrica (`assinaturaRef`, endereçada pelo conteúdo no bucket).
  */
 export function listarResponsaveis(): Funcionario[] {
-  return (ler<Funcionario[]>('nr13_lista_phs') ?? []).filter((f) => (f?.nome ?? '').trim() !== '');
+  // SELECTOR: passa por `visiveis`, a porta unica do tombstone. Funcionario
+  // excluido nao pode continuar oferecido como responsavel.
+  return visiveis(ler<Funcionario[]>('nr13_lista_phs') ?? []).filter((f) => (f?.nome ?? '').trim() !== '');
 }
 
 /**

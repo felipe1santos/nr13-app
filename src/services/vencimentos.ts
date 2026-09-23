@@ -1,4 +1,5 @@
 import { ler, listarChavesComPrefixo } from './storage';
+import { visiveis } from './colecoes';
 import { definicaoDe } from '../features/calibracoes/instrumentos';
 import { listarIndice } from '../features/relatorios/historicoRelatorios';
 import type { InfoEquipamento } from '../features/equipamento/tipos';
@@ -327,7 +328,7 @@ export function listarVencimentos(hoje: Date = new Date()): ItemVencimento[] {
       // Com lotes, o mesmo componente acumula certificados a cada inspeção:
       // só a calibração MAIS RECENTE de cada componente conta para o prazo.
       // Rascunho não é calibração realizada: não gera prazo (19/09/2026).
-      const todas = (ler<DadosCalibracao[]>(`nr13_calibracoes_${tag}`) ?? []).filter(ehOficial);
+      const todas = visiveis(ler<DadosCalibracao[]>(`nr13_calibracoes_${tag}`) ?? []).filter(ehOficial);
       const porComponente = new Map<string, DadosCalibracao>();
       for (const cal of todas) {
         const chaveComp = (cal as { componenteId?: string }).componenteId ?? `nome:${cal.nome ?? cal.id}`;

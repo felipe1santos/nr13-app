@@ -53,6 +53,7 @@
  * Com o id por último, os relatórios sumiriam do Portal até um deploy da Edge.
  */
 import { ler, lerCru, salvar, excluirChave, listarChavesDaTag, bloqueadoParaEscrita } from '../../services/storage';
+import { excluirPorId, removido, visiveis } from '../../services/colecoes';
 import { ehRascunho, type RelatorioSalvo, type RelatorioIndiceItem } from './tipos';
 import { esquecerRascunho, registrarRascunho } from './rascunhos';
 
@@ -189,9 +190,14 @@ export function legadoDaTag(tag: string): RelatorioSalvo[] {
  * ter efeito colateral, senão abrir a tela num aparelho offline enfileiraria
  * escritas que o usuário não pediu.
  */
-export function listarIndice(tag: string): RelatorioIndiceItem[] {
+function indiceReconciliado(tag: string): RelatorioIndiceItem[] {
   if (!tag) return [];
   const porId = new Map<string, RelatorioIndiceItem>();
+  // Os ids SEPULTADOS. O reparo abaixo é exatamente onde a ressurreição
+  // aconteceria: o registro `nr13_rel_` continua no cache depois de a linha
+  // sair do índice, e sem este conjunto o próprio reparo recolocaria o item
+  // que o usuário excluiu.
+  const sepultados = new Set(lerIndiceCru(tag).filter((i) => removido(i)).map((i) => i.id));
   // O filtro por status é defensivo: nenhum caminho de escrita põe rascunho no
   // índice, e nada deve depender disso continuar sendo verdade por acidente.
   for (const item of lerIndiceCru(tag)) if (!ehRascunho(item.status)) porId.set(item.id, item);
@@ -204,14 +210,26 @@ export function listarIndice(tag: string): RelatorioIndiceItem[] {
   // vencimento, Portal e contagens.
   for (const chave of chavesDeRegistro(tag)) {
     const r = ler<RelatorioSalvo>(chave);
-    if (r?.id && !ehRascunho(r.status) && !porId.has(r.id)) porId.set(r.id, resumir(r));
+    if (r?.id && !ehRascunho(r.status) && !porId.has(r.id) && !sepultados.has(r.id)) porId.set(r.id, resumir(r));
   }
 
   // Legado: ainda não migrado (ou migração parcial). O registro novo VENCE — na
   // migração ele é cópia fiel, e depois dela é o único que recebe edições.
-  for (const r of legadoDaTag(tag)) if (!porId.has(r.id)) porId.set(r.id, resumir(r));
+  for (const r of legadoDaTag(tag)) if (!porId.has(r.id) && !sepultados.has(r.id)) porId.set(r.id, resumir(r));
 
   return [...porId.values()].sort((a, b) => ts(b) - ts(a));
+}
+
+/**
+ * A lista como as telas a leem: reconciliada e SEM os tombstones.
+ *
+ * `indiceReconciliado` fica separado porque quem GRAVA o índice precisa da
+ * lista completa — regravar a visão filtrada apagaria a marca de exclusão, e o
+ * relatório voltaria no próximo merge com um aparelho que ainda o tem.
+ */
+export function listarIndice(tag: string): RelatorioIndiceItem[] {
+  // `visiveis` é a porta ÚNICA do tombstone (services/colecoes.ts).
+  return visiveis(indiceReconciliado(tag));
 }
 
 export function listarIndiceDeTodasAsTags(tags: string[]): Map<string, RelatorioIndiceItem[]> {
@@ -266,7 +284,7 @@ export async function salvarRelatorio(r: RelatorioSalvo): Promise<void> {
 
   await salvar(chaveRelatorio(r.id, r.tagVaso), r);
 
-  const atual = listarIndice(r.tagVaso).filter((i) => i.id !== r.id);
+  const atual = indiceReconciliado(r.tagVaso).filter((i) => i.id !== r.id);
   await salvar(chaveIndice(r.tagVaso), [resumir(r), ...atual].sort((a, b) => ts(b) - ts(a)));
 
   // Finalizou: some do índice de rascunhos. Sem isto o mesmo relatório
@@ -333,7 +351,9 @@ export async function excluirRelatorio(id: string, tag: string): Promise<void> {
   }
   await excluirChave(chaveRelatorio(id, tag));
   await removerDoLegado(id, tag);
-  const restante = listarIndice(tag).filter((i) => i.id !== id);
+  // Do índice COMPLETO, pela porta única — os tombstones das exclusões
+  // anteriores precisam sobreviver a esta regravação.
+  const restante = excluirPorId(indiceReconciliado(tag), id);
   await salvar(chaveIndice(tag), restante);
   // Rascunho excluído sai do índice de rascunhos junto. Sem isto a tela
   // continuaria oferecendo "continuar editando" um registro que não existe.
@@ -381,7 +401,7 @@ export async function migrarHistoricoDaTag(tag: string): Promise<number> {
     await salvar(chaveRelatorio(r.id, tag), r);
     convertidos++;
   }
-  if (convertidos > 0) await salvar(chaveIndice(tag), listarIndice(tag));
+  if (convertidos > 0) await salvar(chaveIndice(tag), indiceReconciliado(tag));
   return convertidos;
 }
 

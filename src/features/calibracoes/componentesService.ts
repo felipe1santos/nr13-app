@@ -1,4 +1,5 @@
 import { ler, salvar } from '../../services/storage';
+import { excluirPorId, visiveis } from '../../services/colecoes';
 import { salvarArquivo, type RefFoto, type FotoArmazenada } from '../../services/fotos';
 import type { TipoInstrumento } from './instrumentos';
 
@@ -105,8 +106,22 @@ export interface LoteCal {
 const chaveComp = (tag: string) => `nr13_componentes_cal_${tag}`;
 const chaveLotes = (tag: string) => `nr13_lotes_cal_${tag}`;
 
-export function listarComponentes(tag: string): ComponenteCal[] {
+/**
+ * As listas COMO ESTÃO, tombstones inclusive — é o que os ESCRITORES usam.
+ * Gravar de volta a visão filtrada apagaria a marca de exclusão, e o item
+ * ressuscitaria no próximo merge com um aparelho que ainda o tem.
+ */
+function componentesBrutos(tag: string): ComponenteCal[] {
   return ler<ComponenteCal[]>(chaveComp(tag)) ?? [];
+}
+
+function lotesBrutos(tag: string): LoteCal[] {
+  return ler<LoteCal[]>(chaveLotes(tag)) ?? [];
+}
+
+export function listarComponentes(tag: string): ComponenteCal[] {
+  // `visiveis` é a porta ÚNICA do tombstone (services/colecoes.ts).
+  return visiveis(componentesBrutos(tag));
 }
 
 export async function salvarComponente(tag: string, comp: ComponenteCal): Promise<void> {
@@ -128,7 +143,7 @@ export async function salvarComponente(tag: string, comp: ComponenteCal): Promis
     }
   }
 
-  const lista = listarComponentes(tag);
+  const lista = componentesBrutos(tag);
   const i = lista.findIndex((c) => c.id === final.id);
   if (i >= 0) lista[i] = final;
   else lista.push(final);
@@ -136,15 +151,15 @@ export async function salvarComponente(tag: string, comp: ComponenteCal): Promis
 }
 
 export async function excluirComponente(tag: string, id: string): Promise<void> {
-  await salvar(chaveComp(tag), listarComponentes(tag).filter((c) => c.id !== id));
+  await salvar(chaveComp(tag), excluirPorId(componentesBrutos(tag), id));
 }
 
 export function listarLotes(tag: string): LoteCal[] {
-  return ler<LoteCal[]>(chaveLotes(tag)) ?? [];
+  return visiveis(lotesBrutos(tag));
 }
 
 export async function criarLote(tag: string, descricao?: string): Promise<LoteCal> {
-  const lotes = listarLotes(tag);
+  const lotes = lotesBrutos(tag);
   const agora = new Date();
   const lote: LoteCal = {
     id: `lote-${Date.now()}`,
@@ -157,11 +172,11 @@ export async function criarLote(tag: string, descricao?: string): Promise<LoteCa
 }
 
 export async function excluirLote(tag: string, id: string): Promise<void> {
-  await salvar(chaveLotes(tag), listarLotes(tag).filter((l) => l.id !== id));
+  await salvar(chaveLotes(tag), excluirPorId(lotesBrutos(tag), id));
 }
 
 export async function salvarLote(tag: string, lote: LoteCal): Promise<void> {
-  const lotes = listarLotes(tag);
+  const lotes = lotesBrutos(tag);
   const i = lotes.findIndex((l) => l.id === lote.id);
   if (i >= 0) lotes[i] = lote;
   else lotes.unshift(lote);
@@ -173,7 +188,7 @@ export async function salvarLote(tag: string, lote: LoteCal): Promise<void> {
  * relatório recém-salvo e saem da fila. Chamado por salvarHistorico() em Relatórios.
  */
 export async function vincularLotesPendentes(tag: string, relatorioId: string): Promise<void> {
-  const lotes = listarLotes(tag);
+  const lotes = lotesBrutos(tag);
   let mudou = false;
   for (const l of lotes) {
     if (l.vincularProximoRelatorio) {
@@ -195,10 +210,10 @@ export function validadesPorRelatorio(tag: string): Map<string, { valvula?: stri
   const lotes = listarLotes(tag).filter((l) => l.relatorioId);
   if (lotes.length === 0) return mapa;
   // Rascunho não dá validade a relatório nenhum (19/09/2026).
-  const cals = (
+  const cals = visiveis(
     ler<Array<{ loteId?: string; tipo: TipoInstrumento; dataProxCalibracao?: string; status?: string }>>(
       `nr13_calibracoes_${tag}`,
-    ) ?? []
+    ) ?? [],
   ).filter((c) => c.status !== 'rascunho');
   const ts = (d: string) => {
     const p = d.split('/');

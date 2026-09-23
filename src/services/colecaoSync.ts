@@ -1,7 +1,10 @@
-import { aplicarAtomico, obter } from './db';
-import { obterRegistro, orgAtual } from './cacheLocal';
-import { colecaoDaChave, marcarRemovido, mesclarColecao, visiveis, type ResultadoMerge } from './colecoes';
+import { obterRegistro } from './cacheLocal';
+import { baseDe, registrarBase } from './baseColecao';
+import { colecaoDaChave, excluirDaLista, mesclarColecao, visiveis, type ResultadoMerge } from './colecoes';
 import { ler, salvar, semearEquipamentoDetalhado } from './storage';
+
+export { baseDe, registrarBase, esquecerBase, deveGuardarBase } from './baseColecao';
+export type { BaseColecao } from './baseColecao';
 
 /** Um item de coleção como o merge o vê: objeto de campos livres. */
 type Registro = Record<string, unknown>;
@@ -26,26 +29,12 @@ type Registro = Record<string, unknown>;
  *
  * ## 2 · a BASE
  *
- * Merge de três vias precisa saber o que este aparelho **reconheceu do
- * servidor** antes de editar. Sem isso, "eu alterei" e "eu tenho a cópia velha"
- * são indistinguíveis.
+ * Mora em `baseColecao.ts` (módulo separado só para `sync.ts` poder importá-la
+ * sem ciclo). A tabela completa de quando ela avança está lá; o que importa
+ * aqui é que existem DOIS escritores e só dois:
  *
- * A base mora na store `meta` do IndexedDB, chave `base:<chave>`, com
- * `{ versao, valor }` — a versão monotônica DO SERVIDOR e o conteúdo daquela
- * versão. Nada de relógio: quem ordena é a versão.
- *
- * **Quando ela muda, e quando não muda:**
- *
- * | evento | base |
- * |---|---|
- * | hidratação/lookup traz a chave | **passa a ser** o que veio do servidor |
- * | edição local | **NÃO muda** — é o ponto inteiro |
- * | ACK de uma mutação | passa a ser o estado confirmado |
- * | conflito | **NÃO muda** até a resolução |
- *
- * A linha 2 é a crítica: se a base virasse o valor local depois da edição, o
- * sistema perderia a capacidade de detectar que os dois lados mexeram — que é
- * exatamente o caso que ainda precisa do usuário.
+ * - `lerColecao`, quando o lookup traz a chave do servidor;
+ * - o ACK real da fila, em `sync.enviarItem`.
  *
  * ## 3 · tombstone respeitado na leitura
  *
@@ -59,39 +48,6 @@ type Registro = Record<string, unknown>;
  * módulo acrescenta é a base ao lado, que é o que uma operação por item exigiria
  * para ser resolvida. Ver "COMPATIBILIDADE" no fim.
  */
-
-/** O que o aparelho reconheceu do servidor, por chave. */
-export interface BaseColecao {
-  /** A versão monotônica do servidor. `0` = a chave não existia lá. */
-  versao: number;
-  /** O conteúdo daquela versão, serializado como veio. */
-  valor: string;
-}
-
-const chaveBase = (chave: string) => `base:${chave}`;
-
-/** A base guardada desta chave, ou `null`. */
-export async function baseDe(chave: string): Promise<BaseColecao | null> {
-  const org = orgAtual();
-  if (!org) return null;
-  try {
-    return await obter<BaseColecao>(org, 'meta', chaveBase(chave));
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Registra a base CONFIRMADA de uma chave.
- *
- * Só quem tem confirmação do servidor chama isto: a hidratação (que recebeu o
- * valor) e o ACK (que soube a versão aplicada). A edição local **nunca** chama.
- */
-export async function registrarBase(chave: string, base: BaseColecao): Promise<void> {
-  const org = orgAtual();
-  if (!org) return;
-  await aplicarAtomico(org, [{ store: 'meta', acao: 'put', chave: chaveBase(chave), valor: base }]);
-}
 
 /**
  * Lê uma coleção, buscando no servidor quando o cache não a tem.
@@ -182,15 +138,14 @@ export async function gravarNaColecao<T extends object = Registro>(
 export async function removerDaColecao(
   chave: string,
   itemId: string,
-  quando: string,
+  quando: string = new Date().toISOString(),
 ): Promise<boolean> {
   const def = colecaoDaChave(chave);
   if (!def) return false;
-  return gravarNaColecao(chave, (atual) =>
-    MERGE_AUTOMATICO_ATIVO
-      ? atual.map((i) => (def.id(i) === itemId ? marcarRemovido(i, quando) : i))
-      : atual.filter((i) => def.id(i) !== itemId),
-  );
+  // A decisão marcar-ou-tirar é UMA só, e mora em `colecoes.excluirDaLista`
+  // (`TOMBSTONE_ATIVO`). Os escritores síncronos usam a mesma função; este é o
+  // caminho assíncrono, que ainda passa pelo lookup dirigido antes de gravar.
+  return gravarNaColecao(chave, (atual) => excluirDaLista(atual, itemId, def.id, quando));
 }
 
 /**
@@ -235,7 +190,14 @@ export async function resolverAutomaticamente(
  * continua exatamente como está, e a exclusão continua removendo o item da
  * lista como sempre fez.
  *
- * Ligar exige, nesta ordem: todos os leitores das coleções passando por
- * `lerColecaoVisivel`, e a base sendo registrada também no ACK da fila.
+ * Ordem de ativação, e ela não se inverte:
+ *
+ * 1. os leitores enxergando a visão filtrada — FEITO (22/09/2026);
+ * 2. a base registrada no ACK real da fila — FEITO (22/09/2026);
+ * 3. `colecoes.TOMBSTONE_ATIVO` ligado, para a exclusão passar a MARCAR;
+ * 4. só então este interruptor.
+ *
+ * O 3 antes do 1 faria item excluído reaparecer na tela; o 4 antes do 3 é o que
+ * ressuscita item excluído, porque o merge só sabe unir.
  */
 export const MERGE_AUTOMATICO_ATIVO = false;

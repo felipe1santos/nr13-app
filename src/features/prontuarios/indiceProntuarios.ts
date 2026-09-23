@@ -38,6 +38,7 @@
  */
 import { ler, listarChavesComPrefixo, salvar } from '../../services/storage';
 import { gravarNaColecao } from '../../services/colecaoSync';
+import { excluirDaLista, visiveis } from '../../services/colecoes';
 import { ehAnexado, listarEmissoes, type EmissaoProntuario } from './emissaoProntuario';
 import type { ProntuarioDados } from './tipos';
 
@@ -150,7 +151,10 @@ function ordenar(lista: DocumentoProntuario[]): DocumentoProntuario[] {
 }
 
 export function listarDocumentos(): DocumentoProntuario[] {
-  return ordenar(lerIndice());
+  // Visao FILTRADA: `visiveis` e a porta unica do tombstone. Os escritores
+  // usam `lerIndice`, que traz a lista bruta — regravar a filtrada apagaria a
+  // marca de exclusao e o item voltaria no proximo merge.
+  return ordenar(visiveis(lerIndice()));
 }
 
 /** O id da linha de rascunho de um equipamento — um por TAG, por construção. */
@@ -206,16 +210,21 @@ export async function confirmarEnvioNoIndice(ids: string[]): Promise<void> {
  */
 export async function encerrarRascunho(tag: string): Promise<void> {
   const atual = lerIndice();
-  const restante = atual.filter((d) => d.id !== idRascunho(tag));
-  if (restante.length === atual.length) return;
+  const restante = excluirDaLista(atual, idRascunho(tag), (d) => (d as DocumentoProntuario).id ?? null);
+  if (JSON.stringify(restante) === JSON.stringify(atual)) return;
   await salvar(CHAVE_INDICE_PRONT, restante);
 }
 
 /** Remove tudo daquele equipamento — usado quando o prontuário é excluído. */
 export async function removerDoIndice(tag: string): Promise<void> {
   const atual = lerIndice();
-  const restante = atual.filter((d) => d.tag !== tag);
-  if (restante.length === atual.length) return;
+  // A exclusao e por TAG (varias linhas de uma vez), entao passa item a item
+  // pela mesma porta em vez de um `filter` proprio.
+  let restante = atual;
+  for (const d of atual.filter((x) => x.tag === tag)) {
+    restante = excluirDaLista(restante, d.id, (i) => (i as DocumentoProntuario).id ?? null);
+  }
+  if (JSON.stringify(restante) === JSON.stringify(atual)) return;
   await salvar(CHAVE_INDICE_PRONT, restante);
 }
 

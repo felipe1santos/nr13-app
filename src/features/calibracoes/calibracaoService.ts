@@ -1,11 +1,22 @@
 import { ehCongelada, ehEmitido, ehInterna, ehTerceiro, type DadosCalibracao } from './tipos';
 import { ler, salvar, excluirChave } from '../../services/storage';
+import { excluirPorId, visiveis } from '../../services/colecoes';
 
 const chaveListar = (tag: string) => `nr13_calibracoes_${tag}`;
 const chaveItem = (id: string) => `nr13_calibracao_item_${id}`;
 
-export function listarCalibracoes(tag: string): DadosCalibracao[] {
+/**
+ * A lista COMO ESTÁ, tombstones inclusive — é o que o ESCRITOR usa. Gravar de
+ * volta a visão filtrada apagaria a marca de exclusão, e o item ressuscitaria
+ * no próximo merge com um aparelho que ainda o tem.
+ */
+function calibracoesBrutas(tag: string): DadosCalibracao[] {
   return ler<DadosCalibracao[]>(chaveListar(tag)) ?? [];
+}
+
+export function listarCalibracoes(tag: string): DadosCalibracao[] {
+  // `visiveis` é a porta ÚNICA do tombstone (services/colecoes.ts).
+  return visiveis(calibracoesBrutas(tag));
 }
 
 /**
@@ -31,7 +42,7 @@ export async function salvarCalibracao(
   dados: DadosCalibracao,
   opcoes: { permitirEmissao?: boolean } = {},
 ): Promise<void> {
-  const lista = listarCalibracoes(tag);
+  const lista = calibracoesBrutas(tag);
   const idx = lista.findIndex((c) => c.id === dados.id);
   const anterior = idx >= 0 ? lista[idx] : (ler<DadosCalibracao>(chaveItem(dados.id)) ?? null);
   if (anterior && ehCongelada(anterior)) throw new CertificadoEmitidoImutavel(dados.id);
@@ -43,9 +54,9 @@ export async function salvarCalibracao(
 }
 
 export async function excluirCalibracao(tag: string, id: string): Promise<void> {
-  const alvo = listarCalibracoes(tag).find((c) => c.id === id) ?? ler<DadosCalibracao>(chaveItem(id));
+  const alvo = calibracoesBrutas(tag).find((c) => c.id === id) ?? ler<DadosCalibracao>(chaveItem(id));
   if (alvo && ehCongelada(alvo)) throw new CertificadoEmitidoImutavel(id);
-  const lista = listarCalibracoes(tag).filter((c) => c.id !== id);
+  const lista = excluirPorId(calibracoesBrutas(tag), id);
   await salvar(chaveListar(tag), lista);
   await excluirChave(chaveItem(id));
 }

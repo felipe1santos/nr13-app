@@ -1,5 +1,6 @@
-import { ler, salvar } from '../../services/storage';
-import { gravarNaColecao } from '../../services/colecaoSync';
+import { ler } from '../../services/storage';
+import { gravarNaColecao, removerDaColecao } from '../../services/colecaoSync';
+import { visiveis } from '../../services/colecoes';
 
 /**
  * Anotações da agenda — o caderno do usuário dentro do calendário.
@@ -94,10 +95,20 @@ export function dataDeISO(iso: string): Date {
   return new Date(ano, (mes ?? 1) - 1, dia ?? 1);
 }
 
-export function listarNotas(): NotaAgenda[] {
+/**
+ * A lista COMO ESTÁ, tombstones inclusive. É o que o ESCRITOR precisa: gravar
+ * de volta a visão filtrada apagaria a marca de exclusão e o item ressuscitaria
+ * no próximo merge.
+ */
+function notasBrutas(): NotaAgenda[] {
   const lista = ler<NotaAgenda[]>(CHAVE);
-  if (!Array.isArray(lista)) return [];
-  return [...lista].sort((a, b) => a.data.localeCompare(b.data));
+  return Array.isArray(lista) ? lista : [];
+}
+
+export function listarNotas(): NotaAgenda[] {
+  // `visiveis` é a porta ÚNICA do tombstone (services/colecoes.ts). Nenhum
+  // filtro por `removidoEm` escrito à mão aqui — a regra mora num lugar só.
+  return visiveis(notasBrutas()).sort((a, b) => a.data.localeCompare(b.data));
 }
 
 export function notasDoDia(iso: string, notas = listarNotas()): NotaAgenda[] {
@@ -118,7 +129,9 @@ export function salvarNota(nota: NotaAgenda): Promise<void> {
 }
 
 export function excluirNota(id: string): Promise<void> {
-  return salvar(CHAVE, listarNotas().filter((n) => n.id !== id));
+  // Porta única de exclusão: marca o tombstone quando o merge estiver ligado e
+  // continua tirando da lista enquanto não estiver (ver `removerDaColecao`).
+  return removerDaColecao(CHAVE, id, new Date().toISOString()).then(() => undefined);
 }
 
 export function novaNota(data: string): NotaAgenda {

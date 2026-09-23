@@ -1,5 +1,6 @@
 import { ler, salvar } from '../../services/storage';
 import { gravarNaColecao } from '../../services/colecaoSync';
+import { excluirPorId, visiveis } from '../../services/colecoes';
 import type { RelatorioSalvo, TipoInspecao } from './tipos';
 
 /**
@@ -80,7 +81,9 @@ function lerCru(): RascunhoItem[] {
 
 /** Mais recentes primeiro — a mesma ordem da lista de relatórios. */
 export function listarRascunhos(): RascunhoItem[] {
-  return [...lerCru()].sort((a, b) => (b.atualizadoEm ?? '').localeCompare(a.atualizadoEm ?? ''));
+  // Visao FILTRADA: `visiveis` e a porta unica do tombstone. O escritor usa
+  // `lerCru`, que traz a lista bruta — regravar a filtrada apagaria a marca.
+  return visiveis(lerCru()).sort((a, b) => (b.atualizadoEm ?? '').localeCompare(a.atualizadoEm ?? ''));
 }
 
 export function rascunhosDaTag(tag: string, lista = listarRascunhos()): RascunhoItem[] {
@@ -156,7 +159,8 @@ export async function registrarRascunho(r: RelatorioSalvo): Promise<void> {
  * uma como rascunho editável e outra como documento imutável.
  */
 export async function esquecerRascunho(id: string): Promise<void> {
-  const resto = lerCru().filter((i) => i.id !== id);
-  if (resto.length === lerCru().length) return; // nada a fazer: não escreve à toa
+  const antes = lerCru();
+  const resto = excluirPorId(antes, id);
+  if (JSON.stringify(resto) === JSON.stringify(antes)) return; // nada a fazer: não escreve à toa
   await salvar(CHAVE_RASCUNHOS, resto);
 }

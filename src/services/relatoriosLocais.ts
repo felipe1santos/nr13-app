@@ -22,6 +22,7 @@
  * subconjunto que o aparelho já tem — e ele se anuncia como tal.
  */
 import { ler, listarChavesComPrefixo } from './storage';
+import { visiveis } from './colecoes';
 import type { RelatorioIndiceItem } from '../features/relatorios/tipos';
 import type { FiltrosRelatorios, ItemRelatorio } from './buscaRelatorios';
 
@@ -145,8 +146,10 @@ export function relatoriosLocais(filtros: FiltrosRelatorios = {}): ItemRelatorio
 
   for (const chave of listarChavesComPrefixo(PREFIXO)) {
     const tag = chave.slice(PREFIXO.length);
-    const lista = ler<RelatorioIndiceItem[]>(chave);
-    if (!Array.isArray(lista)) continue;
+    const bruta = ler<RelatorioIndiceItem[]>(chave);
+    if (!Array.isArray(bruta)) continue;
+    // A LISTA de /relatorios passa pela porta unica do tombstone.
+    const lista = visiveis(bruta);
     const ativo = catalogo === null || catalogo.has(tag);
     for (const r of lista) {
       if (!r?.id) continue;
