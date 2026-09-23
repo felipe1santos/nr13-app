@@ -449,7 +449,17 @@ async function restaurarDoServidor(chave: string): Promise<void> {
       .eq('org_id', org)
       .eq('chave', chave)
       .maybeSingle();
-    if (error || !data || data.deletado_em || typeof data.valor !== 'string') return;
+    if (error) return; // sem resposta: nada decidido, a cópia local fica
+    // O servidor diz que a chave NÃO existe (excluída ou nunca criada): a cópia
+    // local sai também. Até 23/09/2026 este ramo não fazia nada e deixava a
+    // leitura para "a hidratação seguinte" — que é incremental e nunca traz de
+    // volta uma exclusão antiga. Resultado medido: depois de "Descartar a
+    // minha", o valor que o servidor excluíra continuava no aparelho, sobrevivia
+    // ao F5 e voltava a dar conflito na próxima edição.
+    if (!data || data.deletado_em || typeof data.valor !== 'string') {
+      if (obterRegistro(chave)) await gravarAtomico([{ chave, remover: true }]);
+      return;
+    }
     await gravarAtomico([
       {
         chave,
@@ -1324,14 +1334,19 @@ export function exclusoesSemMarca(): ItemFila[] {
 /**
  * "Descartar a minha alteração": tira a pendência da fila.
  *
- * O dado local NÃO é apagado aqui. Quem apaga é a hidratação seguinte, ao ver
- * o `deletado_em` do servidor — e ela só consegue fazer isso depois que a
- * chave deixa de ter pendência. Apagar por conta própria aqui seria decidir
- * pelo servidor sem ter lido o servidor.
+ * O dado local é alinhado ao servidor LENDO o servidor (`restaurarDoServidor`),
+ * nunca por suposição: excluída ou inexistente lá, a cópia local sai; viva lá,
+ * a cópia local vira a do servidor; sem resposta, fica como está. Até 23/09/2026
+ * este passo era deixado para "a hidratação seguinte", que é incremental e não
+ * traz de volta uma exclusão antiga — a cópia descartada ficava para sempre.
  */
 export async function descartarPendencia(mutationId: string): Promise<void> {
-  if (fila.get(mutationId)?.estado !== 'conflito') return;
+  const item = fila.get(mutationId);
+  if (item?.estado !== 'conflito') return;
   await removerDaFila(mutationId);
+  // "Descartar a minha" = ficar com o que o SERVIDOR tem. Sem a chave na fila,
+  // o aparelho lê o servidor e se alinha — inclusive quando ele diz "excluída".
+  await restaurarDoServidor(item.chave);
 }
 
 /**

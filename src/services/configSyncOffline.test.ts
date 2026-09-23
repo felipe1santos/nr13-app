@@ -839,3 +839,83 @@ describe('singleton fora do cache: leitura dirigida antes de escrever', () => {
     expect(srv.get(k(ORG_ZZ, ASSIN))).toMatchObject({ versao: 2, valor: null });
   });
 });
+
+// ===========================================================================
+// "DESCARTAR A MINHA" / "USAR A DO SERVIDOR" ALINHAM O CACHE AO SERVIDOR
+// ===========================================================================
+describe('resolver conflito deixa o aparelho igual ao servidor', () => {
+  const ASSIN = 'nr13_assinantes_pront_ZZ-FASE3';
+  const META = 'nr13_prontuario_meta_ZZ-X';
+  const OUTRA = 'nr13_prontuario_meta_ZZ-OUTRA';
+  const linhaSrv = (valor: string | null, versao: number) =>
+    ({ valor, versao, em: '2026-08-19T13:24:30Z', disp: 'outro-aparelho' });
+
+  /** O estado exato do smoke da Fase 2: a chave está EXCLUÍDA no servidor. */
+  async function pendenciaComServidorExcluido(ap: Aparelho) {
+    srv.set(k(ORG_ZZ, ASSIN), linhaSrv(null, 2));
+    srv.set(k(ORG_ZZ, OUTRA), linhaSrv('{"numero":"REL-OUTRA"}', 3));
+    await ligar(ap, { online: true });
+    await salvar(OUTRA, { numero: 'REL-OUTRA' }); // outra chave no cache, igual ao servidor
+    rede = false;
+    await salvar(ASSIN, { engenheiroId: 'eng-1', tecnicoId: null });
+    rede = true;
+    await sync.drenar();
+    const [item] = sync.pendenciasSemComparacao();
+    expect(item?.chave).toBe(ASSIN);
+    return item;
+  }
+
+  it('B · servidor EXCLUÍDO + "Descartar a minha": a cópia local sai do cache', async () => {
+    const ap = novoAparelho('A');
+    const item = await pendenciaComServidorExcluido(ap);
+    expect(obterRegistro(ASSIN)).toBeTruthy(); // antes: o fantasma
+    await sync.descartarPendencia(item.mutationId);
+    expect(obterRegistro(ASSIN)).toBeNull();
+    expect(sync.listarFila()).toHaveLength(0);
+    expect(srv.get(k(ORG_ZZ, ASSIN))).toMatchObject({ versao: 2, valor: null }); // servidor intacto
+  });
+
+  it('C · F5 depois de descartar: o valor não reaparece', async () => {
+    const ap = novoAparelho('A');
+    const item = await pendenciaComServidorExcluido(ap);
+    await sync.descartarPendencia(item.mutationId);
+    await ligar(ap, { online: true });
+    expect(obterRegistro(ASSIN)).toBeNull();
+  });
+
+  it('D · reabrir OFFLINE depois de descartar: o valor não reaparece', async () => {
+    const ap = novoAparelho('A');
+    const item = await pendenciaComServidorExcluido(ap);
+    await sync.descartarPendencia(item.mutationId);
+    await ligar(ap, { online: false });
+    expect(obterRegistro(ASSIN)).toBeNull();
+  });
+
+  it('F · descartar uma chave não toca em nenhuma outra', async () => {
+    const ap = novoAparelho('A');
+    const item = await pendenciaComServidorExcluido(ap);
+    await sync.descartarPendencia(item.mutationId);
+    expect(JSON.parse(obterRegistro(OUTRA)!.valor)).toEqual({ numero: 'REL-OUTRA' });
+    expect(obterRegistro(OUTRA)!.versao).toBe(3);
+  });
+
+  it('sem resposta do servidor, descartar não decide nada: a cópia local fica', async () => {
+    const ap = novoAparelho('A');
+    const item = await pendenciaComServidorExcluido(ap);
+    rede = false;
+    await sync.descartarPendencia(item.mutationId);
+    expect(obterRegistro(ASSIN)).toBeTruthy();
+  });
+
+  it('A/E · conflito com valor VIVO + "Usar a do servidor": o cache recebe o valor do servidor (inalterado)', async () => {
+    srv.set(k(ORG_ZZ, META), linhaSrv('{"numero":"REL-EXISTENTE"}', 5));
+    await ligar(novoAparelho('A'), { online: true });
+    await salvar(META, { numero: 'REL-NOVO' });
+    expect(sync.listarConflitos().filter((c) => c.chave === META && !c.resolucao)).toHaveLength(1);
+
+    await sync.resolverUsandoServidor(META);
+    expect(JSON.parse(obterRegistro(META)!.valor)).toEqual({ numero: 'REL-EXISTENTE' });
+    expect(obterRegistro(META)!.versao).toBe(5);
+    expect(sync.listarFila()).toHaveLength(0);
+  });
+});
