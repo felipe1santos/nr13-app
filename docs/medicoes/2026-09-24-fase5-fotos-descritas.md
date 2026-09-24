@@ -182,3 +182,47 @@ TH e o Relatório de Imagens. 23 POSTs no período, **0** com meta/injeção (o 
 Servidor antes = depois: `meta_atual v17`, `inspecao_atual v26`, `injecao_atual v20`, mesmos md5.
 Aba A "Sincronizado". Retrato do histórico (relatórios, índices, prontuários, arquivos finais):
 0 diferenças.
+
+## 9. Fase 5.2 — Relatório de Imagens no relatório NR-13 completo (seção 8.4)
+
+### Auditoria (antes de alterar)
+
+- **Seleção:** dois assistentes usam `DOCUMENTOS_DISPONIVEIS` — `ModalCriarRelatorio` (tela
+  principal, 3 etapas: folhas → container → revisão) e o antigo `ModalNovaInspecao`. As folhas
+  de ensaio (`ENSAIOS`) nascem DESMARCADAS; a revisão oferece o ensaio só se o container tem
+  dado salvo (`ensaiosRevisaveis` ← `DOC_DO_ENSAIO`), e é marcar/desmarcar a mesma lista.
+- **Composição:** `documentosFinais` ordena pela lista canônica; vai para `meta.documentos` e
+  para `RelatorioSalvo.documentos` (a composição do rascunho). O motor vetorial decide cada
+  seção por `secoesPresentes(documentos)` (`composicao.FOLHA_DA_SECAO`).
+- **Container de origem:** `meta.containerOrigemId`; os dados de campo entram por
+  `nr13_inspecao_atual`/`nr13_injecao_atual` gravadas ao ABRIR o rascunho (§2) — o rascunho
+  usa a versão ATUAL do ensaio a cada abertura, sem snapshot; o finalizado é o arquivo (§7-quater).
+- **Ordem:** o vetorial emite … 7.2, 7.3, 7.4, 7.5 (+8.3) e só então o parecer (9). O bloco 8 é
+  "registro fotográfico" com números fixos 8, 8.0–8.3.
+
+### Integração
+
+- Folha `RELATORIO-IMAGENS.html` em `DOCUMENTOS_DISPONIVEIS` (depois do TH), marcada como
+  ensaio nos dois assistentes; `DOC_DO_ENSAIO`/`DOCS_POR_FORMULARIO` apontam o ensaio para ela;
+  a revisão só a oferece para container COM foto.
+- **Só vetorial** (`FOLHAS_SO_VETORIAIS`/`temTemplateHtml`): os caminhos de iframe (rollback
+  `?previa=iframe`/raster e Portal legado) a pulam; fora do carimbo por folha.
+- Seção **8.4 RELATÓRIO DE IMAGENS**, depois do TH e antes do parecer, com linha no sumário.
+  Dado: `modelo.relatorioImagens.fotos = normalizarFotos(inj.imagens.fotos)` — a MESMA fonte e
+  a MESMA normalização do avulso. Desenho: `prepararFotosDescritas` → `secaoRelatorioImagens` →
+  `desenharFotosDescritas` — o MESMO do avulso; muda só o título e a moldura (cabeçalho, rodapé
+  e paginação do relatório). Sem capa do avulso.
+- Regra de emissão também no relatório: com a 8.4 escolhida, finalizar exige ≥1 foto e todas
+  descritas (pendência obrigatória em `validarParaFinalizar` + trava em `salvarHistorico`).
+
+### Provas
+
+- `integracaoRelatorioImagens.test.ts` (22): paridade pelos BYTES (espião no `addImage`) para
+  1/6/31 fotos e descrição gigante; sem a seção = mesmo documento de um container sem imagens;
+  mutante (reordenar + re-descrever no ensaio muda os dois juntos); validação; fiação.
+- E2E lab `scratchpad/e2e5/e2e52.mjs`: **25/25** — opção real no passo 1 (desmarcada, selo de
+  ensaio), oferecida na revisão, composição persistida no rascunho; avulso × integrado com as
+  mesmas 6 fotos na mesma ordem (SHA das imagens no content stream); sem a 8.4 = 2 folhas a
+  menos e nenhuma foto; reorder + reabrir o rascunho → os dois na nova ordem; finalizado com
+  pdfRef/SHA (`5aa6cb09…`) e, depois de alterar o ensaio, o MESMO SHA e os mesmos bytes; 390 px
+  sem overflow no assistente (itens 59/44 px). Duas abas (5.1) repetido: 12/12.

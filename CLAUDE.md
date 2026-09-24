@@ -556,8 +556,14 @@ são **auto-injetados** por `montarListaComTermoAbertura()` logo após sua folha
   data + observação; equipamento/cliente/empresa vêm da ficha na geração. Rascunho livre;
   Baixar/Imprimir exigem ≥1 foto e todas descritas (regra SÓ deste ensaio). PDF HÍBRIDO próprio
   (`pdfVetorial/relatorioImagens.ts`): capa + 2 colunas com altura medida, descrição nunca
-  cortada. Não entra em `DOCUMENTOS_DISPONIVEIS` (não é folha do relatório NR-13);
-  `desenharFotosDescritas` é o ponto de composição para uma integração futura.
+  cortada.
+- **Seção 8.4 do relatório completo (5.2).** Folha `RELATORIO-IMAGENS.html` em
+  `DOCUMENTOS_DISPONIVEIS`, escolhida como os outros ensaios (desmarcada; revisão só com foto).
+  SÓ VETORIAL (`FOLHAS_SO_VETORIAIS`: iframes de rollback a pulam). MESMA fonte
+  (`normalizarFotos(inj.imagens.fotos)`) e MESMO desenho (`prepararFotosDescritas` →
+  `desenharFotosDescritas`) do avulso; sem capa própria, na paginação do relatório; entre o TH e
+  o parecer. Com a 8.4 escolhida, finalizar exige ≥1 foto e todas descritas.
+  `integracaoRelatorioImagens.test.ts` (paridade pelos bytes + mutante).
 - **DOCUMENTO AVULSO É LEITURA PURA (5.1).** `gerarDocumentoDoEnsaio` e `gerarDocumentoImagens` NÃO
   gravam `nr13_relatorio_meta_atual`, `nr13_inspecao_atual` nem `nr13_injecao_atual` (chaves VIVAS do
   relatório em montagem noutra aba): entregam `fontes` ao gerador (`FontesDoModelo`). Sem `fontes`, o
