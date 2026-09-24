@@ -328,12 +328,15 @@ export default function Prontuarios() {
     setErroEmissao('');
     try {
       const motor = motorProntuarioAtual(window.location.search);
+      // A meta ANTES do PDF: o número impresso tem de ser o número registrado.
+      // Criada depois, prontuário sem meta saía com "—" no papel e um número no
+      // registro da emissão.
+      const meta = await obterOuCriarMeta(tag);
       const r =
         motor === 'vetorial'
           ? await gerarProntuarioVetorial(tag, { espessura })
           : await gerarPdfBytes('.prontuario-preview', { rastreabilidades: false });
       const artefato = await publicarArtefato(r.bytes, r.paginas);
-      const meta = await obterOuCriarMeta(tag);
       const emitida = await registrarEmissao(tag, {
         numero: meta.numero ?? null,
         emissao: meta.emissao ?? null,
@@ -716,9 +719,12 @@ export default function Prontuarios() {
       );
       setDados(finais);
       setMostrarModelador(false);
-      // Grava/reusa a meta (nº do relatório + data de emissão) na chave por TAG que as folhas
-      // PRONT-*.html leem — precisa acontecer antes de montar os iframes.
-      await obterOuCriarMeta(eq.tag);
+      // ABRIR NÃO CRIA a meta (nº + data de emissão) — Fase 6.1. Ela nascia aqui
+      // "antes de montar os iframes", e abrir a TAG de um equipamento SEM
+      // prontuário deixava no servidor a meta de um documento que ninguém
+      // iniciou. Quem precisa do número a cria na AÇÃO: Visualizar (formulário),
+      // Salvar e Emitir. Prontuário salvo já tem a sua; sem ela, a prévia mostra
+      // "—" até a emissão.
       // A espessura do ensaio escolhido NÃO é gravada aqui (Fase 6.1): o gerador
       // a recebe de `espessura` (derivada de `dados.containerEnsaioId`).
       if (existente) {

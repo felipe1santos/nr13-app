@@ -297,6 +297,27 @@ describe('a página não tem mais caminho de escrita da medição', () => {
     expect(modelo).not.toMatch(/ler[^;]*_atual['`]/);
   });
 
+  it('ABRIR não cria a meta do prontuário; as AÇÕES criam (Visualizar, Salvar, Emitir)', () => {
+    const abrir = pagina.slice(pagina.indexOf('async function abrirEquipamento('), pagina.indexOf('function set<K'));
+    expect(abrir.length).toBeGreaterThan(500);
+    expect(abrir).not.toContain('obterOuCriarMeta(');
+    for (const acao of ['async function visualizar()', 'async function salvar()', 'async function emitirProntuario()']) {
+      const i = pagina.indexOf(acao);
+      expect(i, acao).toBeGreaterThan(0);
+      expect(pagina.slice(i, i + 1500), acao).toContain('obterOuCriarMeta(tag)');
+    }
+  });
+
+  it('EMITIR cria a meta ANTES de gerar: o número do papel é o do registro', () => {
+    const i = pagina.indexOf('async function emitirProntuario()');
+    const corpo = pagina.slice(i, pagina.indexOf('async function abrirEmitido()'));
+    const iMeta = corpo.indexOf('obterOuCriarMeta(tag)');
+    const iGerar = corpo.indexOf('gerarProntuarioVetorial(tag, { espessura })');
+    expect(iMeta).toBeGreaterThan(0);
+    expect(iGerar).toBeGreaterThan(iMeta);
+    expect(corpo.match(/obterOuCriarMeta\(/g)).toHaveLength(1);
+  });
+
   it('prévia, impressão e emissão entregam a MESMA espessura', () => {
     expect(pagina.match(/gerarProntuarioVetorial\(tag, \{ espessura \}\)/g)).toHaveLength(2);
     expect(pagina).toContain('espessura={espessura}');
