@@ -158,11 +158,48 @@ describe('regra do vigente — mais atual vale, origem é só metadado', () => {
     expect(ROTULO_ORIGEM.fabricante).toBe('PDF DO FABRICANTE · LEGADO');
   });
 
-  it('K · fonte principal + legado: a principal vence; o legado fica no histórico, sem virar emissão', () => {
-    const a = em('2026-08-01T10:00:00Z', 'anexado'); // mais antigo que o legado, e vence mesmo assim
+  it('LEGADO · A: só o PDF do fabricante → ocupa o slot, e não se passa por versão (legado: null)', () => {
+    const v = resolverProntuarioVigente([], FAB as never)!;
+    expect([v.origem, v.outros, v.historico.length, v.legado]).toEqual(['fabricante', 0, 0, null]);
+  });
+
+  it('LEGADO · B: 1 gerado + legado → gerado vigente, histórico 0, legado À PARTE', () => {
+    const r1 = em('2026-09-04T10:00:00Z');
+    const v = resolverProntuarioVigente([r1], FAB as never)!;
+    expect(v.emissao!.id).toBe(r1.id);
+    expect([v.outros, v.historico.length]).toEqual([0, 0]);
+    expect(v.legado).toEqual(FAB);
+  });
+
+  it('LEGADO · C: Rev. 01 + Rev. 02 + legado → Histórico (1), NÃO (2)', () => {
+    const r1 = em('2026-09-04T10:00:00Z');
+    const r2 = em('2026-09-07T10:00:00Z');
+    const v = resolverProntuarioVigente([r1, r2], FAB as never)!;
+    expect(v.emissao!.id).toBe(r2.id);
+    expect(v.outros).toBe(1);
+    expect(v.historico.map((h) => h.origem)).toEqual(['gerado']); // nenhum 'fabricante' no histórico
+    expect(v.legado).toEqual(FAB);
+  });
+
+  it('LEGADO · D: anexado vigente + legado → anexado vigente (mesmo mais antigo que o legado), legado à parte', () => {
+    const a = em('2026-08-01T10:00:00Z', 'anexado');
     const v = resolverProntuarioVigente([a], FAB as never)!;
-    expect(v.origem).toBe('anexado');
-    expect(v.historico.map((h) => h.origem)).toEqual(['fabricante']);
+    expect([v.origem, v.outros]).toEqual(['anexado', 0]);
+    expect(v.legado).toEqual(FAB);
+  });
+
+  it('LEGADO · E: sem legado → legado null (a tela não desenha seção vazia)', () => {
+    expect(resolverProntuarioVigente([em('2026-09-04T10:00:00Z')], null)!.legado).toBeNull();
+    const modal = readFileSync('src/features/prontuarios/ModalHistoricoProntuario.tsx', 'utf8');
+    expect(modal).toContain('{estado.vigente?.legado && (');
+  });
+
+  it('LEGADO · o registro do fabricante não é alterado nem convertido', () => {
+    const fab = structuredClone(FAB);
+    resolverProntuarioVigente([em('2026-09-04T10:00:00Z')], fab as never);
+    expect(fab).toEqual(FAB);
+    // Sem classificação de conteúdo: o resolvedor nem lê o NOME do arquivo.
+    expect(readFileSync('src/features/prontuarios/prontuarioVigente.ts', 'utf8')).not.toContain('.nome');
   });
 });
 
@@ -315,6 +352,23 @@ describe('o slot na ficha', () => {
     expect(h).toContain('PDF DO FABRICANTE · LEGADO');
     expect(h).toContain('PRONTUARIO CALDEIRA.pdf');
     expect(h).toContain('Atualizar prontuário');
+    expect(h).not.toContain('Documento legado'); // é ele o que está no slot
+  });
+
+  it('LEGADO · C na ficha: Rev. 01 + Rev. 02 + legado → "Ver histórico (1)" e, à parte, "Documento legado"', () => {
+    banco.set(`nr13_pront_emitido_${TAG}`, [em('2026-09-04T10:00:00Z'), em('2026-09-07T10:00:00Z', undefined, { numero: 'REL-02' })]);
+    banco.set(`nr13_pront_fab_${TAG}`, FAB);
+    const h = slot();
+    expect(h).toContain('REL-02');
+    expect(h).toContain('Ver histórico (1)');
+    expect(h).not.toContain('Ver histórico (2)');
+    expect(h).toContain('Documento legado');
+    expect(h).not.toContain('PDF DO FABRICANTE'); // o selo do slot é o do vigente
+  });
+
+  it('LEGADO · E na ficha: sem legado, nenhum link de documento legado', () => {
+    banco.set(`nr13_pront_emitido_${TAG}`, [em('2026-09-04T10:00:00Z')]);
+    expect(slot()).not.toContain('Documento legado');
   });
 });
 

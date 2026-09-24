@@ -905,8 +905,11 @@ Um prontuário passa a entrar por dois caminhos, e os dois convivem no mesmo equ
   contar pela cronologia — contando pela posição, a ficha chamava de "Rev. 01" o que o índice
   chama de "Rev. 02". A origem (gerado/anexado) é só metadado: o mais recente vence. Rascunho
   NUNCA é vigente (a linha `rascunho` do índice é "Continuar nova revisão"); item com
-  `removidoEm` não conta; `nr13_pront_fab_<TAG>` é LEGADO ("PDF DO FABRICANTE · LEGADO"),
-  só ocupa o slot sem emissão, nunca vira emissão, e com emissão vai para o histórico.
+  `removidoEm` não conta; `nr13_pront_fab_<TAG>` é DOCUMENTO LEGADO, NÃO versão do prontuário
+  (dos 8 auditados, 1 parece manual de compressor, e o sistema não classifica conteúdo): só
+  ocupa o slot sem emissão ("PDF DO FABRICANTE · LEGADO"), nunca vira emissão, e com
+  prontuário na fonte principal fica em `legado` — FORA do histórico e da contagem, na seção
+  "Documentos legados" do modal (link "Documento legado" no slot).
   **Atualizar prontuário** = anexar como nova versão (o modal diz que o atual vai para o
   histórico); mesmo SHA do vigente → "já é o prontuário vigente"; SHA de versão antiga → "já
   está no histórico" (sem duplicar nem promover). `/prontuarios` mostra UMA linha por TAG

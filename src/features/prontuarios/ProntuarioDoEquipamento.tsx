@@ -160,11 +160,18 @@ export default function ProntuarioDoEquipamento({
             {temRascunho ? 'Prontuário ainda não emitido.' : 'Nenhum prontuário neste equipamento.'}
           </span>
         )}
-        {vigente && (vigente.outros > 0 || temRascunho) && (
+        {vigente && (vigente.outros > 0 || !!vigente.legado || temRascunho) && (
           <span className="pde-slot-links">
             {vigente.outros > 0 && (
               <button type="button" className="pde-slot-historico" onClick={() => setVendoHistorico(true)}>
                 Ver histórico ({vigente.outros})
+              </button>
+            )}
+            {/* O PDF do fabricante, quando há prontuário principal, NÃO é versão:
+                não conta no histórico e abre na seção "Documentos legados". */}
+            {vigente.legado && (
+              <button type="button" className="pde-slot-historico" onClick={() => setVendoHistorico(true)}>
+                Documento legado
               </button>
             )}
             {temRascunho && (

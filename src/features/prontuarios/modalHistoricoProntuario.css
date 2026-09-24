@@ -99,3 +99,30 @@
     min-height: 44px;
   }
 }
+
+/* Documentos legados: seção à parte, mais discreta que o histórico. */
+.mhp-legados {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line, #E4E1D8);
+}
+/* Especificidade dobrada: o título herdava o h3 de seção do modal (filete
+   laranja, sublinhado, tamanho de cabeçalho) — alto demais para uma nota. */
+.mhp-legados .mhp-legados-titulo {
+  display: block;
+  padding: 0;
+  border: none;
+  margin: 0 0 8px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-muted, #7A8790);
+}
+.mhp-item-legado {
+  background: var(--steel, #F6F5F2);
+}
+.mhp-legados .mhp-legados-titulo::before,
+.mhp-legados .mhp-legados-titulo::after {
+  display: none;
+}

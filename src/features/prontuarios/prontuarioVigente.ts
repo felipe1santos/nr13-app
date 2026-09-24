@@ -43,9 +43,15 @@ import type { ProntuarioFabricanteSalvo } from '../equipamento/ProntuarioFabrica
  *   documento: nunca é vigente. Com Rev. 02 emitida e a Rev. 03 em edição, o
  *   vigente segue a Rev. 02.
  * - **Item removido** (`removidoEm`, tombstone da Sync V2) não conta.
- * - **PDF do fabricante** (`nr13_pront_fab_<TAG>`) é LEGADO: só ocupa o slot
- *   quando a fonte principal está vazia, e nunca é convertido em emissão.
- *   Com emissão, ele fica preservado e aparece no histórico.
+ * - **PDF do fabricante** (`nr13_pront_fab_<TAG>`) é DOCUMENTO LEGADO, não
+ *   versão do prontuário. A auditoria de 24/09/2026 achou 8 desses PDFs; 7
+ *   parecem prontuários e 1 parece manual de compressor — e o sistema NÃO
+ *   classifica conteúdo (nem por nome, nem por texto). Por isso ele:
+ *   - só ocupa o slot quando a fonte principal está VAZIA (fallback, com o
+ *     selo LEGADO — preserva a experiência de quem só tinha ele);
+ *   - com prontuário na fonte principal, NÃO entra no histórico nem na
+ *     contagem de versões: vai em `legado`, uma seção à parte;
+ *   - nunca é convertido em emissão nem regravado.
  */
 export type OrigemVigente = 'gerado' | 'anexado' | 'fabricante';
 
@@ -63,10 +69,19 @@ export interface VersaoProntuario {
 }
 
 export interface ProntuarioVigente extends VersaoProntuario {
-  /** Versões que ficaram para trás, da mais recente para a mais antiga. */
+  /**
+   * Versões ANTERIORES do prontuário — só da fonte principal
+   * (`nr13_pront_emitido_<TAG>`), da mais recente para a mais antiga.
+   */
   historico: VersaoProntuario[];
-  /** `historico.length` — atalho para a tela. */
+  /** `historico.length` — a contagem de "Ver histórico (N)". O legado NÃO entra. */
   outros: number;
+  /**
+   * O PDF do fabricante quando há prontuário na fonte principal: documento
+   * legado, exibido em seção SEPARADA. `null` quando não existe — e também
+   * quando é ele mesmo que ocupa o slot (`origem: 'fabricante'`).
+   */
+  legado: ProntuarioFabricanteSalvo | null;
 }
 
 /** Milissegundos de um ISO; `NaN` quando ilegível. */
@@ -124,12 +139,11 @@ export function resolverProntuarioVigente(
     (e) => e.geradoEm,
   );
   if (ordem.length === 0) {
-    return fabricante ? { origem: 'fabricante', fabricante, historico: [], outros: 0 } : null;
+    return fabricante ? { origem: 'fabricante', fabricante, historico: [], outros: 0, legado: null } : null;
   }
   const [atual, ...anteriores] = ordem;
   const historico = anteriores.map(versaoDaEmissao);
-  if (fabricante) historico.push({ origem: 'fabricante', fabricante });
-  return { ...versaoDaEmissao(atual), historico, outros: historico.length };
+  return { ...versaoDaEmissao(atual), historico, outros: historico.length, legado: fabricante };
 }
 
 /** Um equipamento em `/prontuarios`: UMA linha principal. */

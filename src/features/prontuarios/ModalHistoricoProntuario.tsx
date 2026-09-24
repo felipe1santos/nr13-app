@@ -190,6 +190,57 @@ export default function ModalHistoricoProntuario({ tag, aoFechar }: { tag: strin
               ))}
             </ul>
           )}
+
+          {/* DOCUMENTOS LEGADOS — seção à parte, só quando existem. O PDF do
+              fabricante NÃO é versão do prontuário (não classificamos conteúdo:
+              pode ser um prontuário antigo ou um manual); fica acessível, sem
+              entrar no histórico nem na contagem. */}
+          {estado.vigente?.legado && (
+            <section className="mhp-legados" data-teste="documentos-legados">
+              <h3 className="mhp-legados-titulo">Documentos legados</h3>
+              <ul className="mhp-lista">
+                {(() => {
+                  const v: VersaoProntuario = { origem: 'fabricante', fabricante: estado.vigente.legado };
+                  return (
+                    <li className="mhp-item mhp-item-legado" data-teste="documento-legado">
+                      <span className="mhp-icone" aria-hidden>
+                        <Icone nome="pdf" tam={16} />
+                      </span>
+                      <span className="mhp-nome">
+                        <strong title={titulo(v)}>{titulo(v)}</strong>
+                        <span className="mhp-meta">
+                          {['PDF do fabricante', data(v), tamanho(v)].filter(Boolean).join(' · ')}
+                        </span>
+                      </span>
+                      <span className="mhp-status mhp-status-historico">LEGADO</span>
+                      <span className="mhp-acoes">
+                        <button
+                          type="button"
+                          className="btn-icone cor-azul"
+                          title="Abrir"
+                          aria-label={`Abrir ${titulo(v)}`}
+                          disabled={ocupado === chave(v)}
+                          onClick={() => void abrir(v)}
+                        >
+                          <Icone nome="eye" tam={14} />
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-icone cor-azul"
+                          title="Baixar"
+                          aria-label={`Baixar ${titulo(v)}`}
+                          disabled={ocupado === chave(v)}
+                          onClick={() => void baixar(v)}
+                        >
+                          <Icone nome="download" tam={14} />
+                        </button>
+                      </span>
+                    </li>
+                  );
+                })()}
+              </ul>
+            </section>
+          )}
           {erroAcao && <p className="erro-form">{erroAcao}</p>}
         </div>
       </div>
