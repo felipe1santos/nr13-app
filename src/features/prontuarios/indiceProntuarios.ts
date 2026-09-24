@@ -215,13 +215,23 @@ export async function encerrarRascunho(tag: string): Promise<void> {
   await salvar(CHAVE_INDICE_PRONT, restante);
 }
 
-/** Remove tudo daquele equipamento — usado quando o prontuário é excluído. */
+/**
+ * Tira do índice o que a exclusão do prontuário realmente apagou — o RASCUNHO
+ * daquele equipamento.
+ *
+ * Até 23/09/2026 removia TODAS as linhas da TAG, inclusive as dos documentos
+ * EMITIDOS e dos PDFs ANEXADOS. Só que `excluirProntuario` não apaga
+ * `nr13_pront_emitido_<TAG>` (documento arquivado é imutável): a ficha seguia
+ * mostrando o anexo e `/prontuarios` deixava de mostrá-lo — duas telas da
+ * MESMA fonte discordando, até um `reconciliar` num aparelho que tivesse a
+ * lista em cache. A linha de documento arquivado não sai por aqui.
+ */
 export async function removerDoIndice(tag: string): Promise<void> {
   const atual = lerIndice();
   // A exclusao e por TAG (varias linhas de uma vez), entao passa item a item
   // pela mesma porta em vez de um `filter` proprio.
   let restante = atual;
-  for (const d of atual.filter((x) => x.tag === tag)) {
+  for (const d of atual.filter((x) => x.tag === tag && x.situacao === 'rascunho')) {
     restante = excluirDaLista(restante, d.id, (i) => (i as DocumentoProntuario).id ?? null);
   }
   if (JSON.stringify(restante) === JSON.stringify(atual)) return;

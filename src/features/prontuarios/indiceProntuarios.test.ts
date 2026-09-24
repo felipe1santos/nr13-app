@@ -156,11 +156,17 @@ describe('reconciliação: o índice nasce preenchido', () => {
 });
 
 describe('remoção e busca', () => {
-  it('remover tira todas as linhas daquele equipamento', async () => {
+  it('excluir o prontuário tira o RASCUNHO e preserva documento emitido/anexado', async () => {
     await registrarDocumento(docDeEmissao(emissao('P-1', 'A', '2026-09-01'), 1, null, null));
     await registrarDocumento(docDeEmissao(emissao('P-2', 'B', '2026-09-02'), 1, null, null));
+    await salvar('nr13_prontuario_A', { tag: 'A', descricao: 'Vaso', empresaRazaoSocial: '' });
+    await registrarDocumento(docDeRascunho('A', { descricao: 'Vaso' }, null, '2026-09-03'));
+    expect(listarDocumentos().filter((d) => d.tag === 'A')).toHaveLength(2);
     await removerDoIndice('A');
-    expect(listarDocumentos().map((d) => d.tag)).toEqual(['B']);
+    const a = listarDocumentos().filter((d) => d.tag === 'A');
+    expect(a.map((d) => d.situacao)).toEqual(['emitido']);
+    expect(a[0].id).toBe('P-1');
+    expect(listarDocumentos().map((d) => d.tag).sort()).toEqual(['A', 'B']);
   });
 
   it('a busca alcança TAG, equipamento, cliente e número', () => {
