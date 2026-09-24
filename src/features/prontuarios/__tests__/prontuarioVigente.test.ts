@@ -397,3 +397,13 @@ describe('a ficha tem UM slot, no card do topo', () => {
     expect(modal).toContain('O documento atual será preservado no');
   });
 });
+
+describe('alvo de toque do slot no celular', () => {
+  it('a regra de 44px do celular vence a regra "quieta" de 32px do desktop', () => {
+    const css = readFileSync('src/features/prontuarios/prontuarioDoEquipamento.css', 'utf8').replace(/\r\n/g, '\n');
+    const movel = css.slice(css.indexOf('@media (max-width: 560px)'));
+    // mesma especificidade (dois seletores de classe), e vem DEPOIS no arquivo
+    expect(movel).toMatch(/\.pde-slot \.pde-slot-btn \{[^}]*min-height: 44px/);
+    expect(css.indexOf('@media (max-width: 560px)')).toBeGreaterThan(css.indexOf('.pde-slot .pde-slot-btn {'));
+  });
+});

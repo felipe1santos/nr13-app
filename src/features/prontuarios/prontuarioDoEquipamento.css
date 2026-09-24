@@ -153,7 +153,10 @@
     grid-column: 1 / -1;
     justify-content: stretch;
   }
-  .pde-slot-btn {
+  /* Mesma especificidade da regra "quieta" do desktop (.pde-slot .pde-slot-btn,
+     32px): com um seletor só, o celular perdia e o alvo de toque ficava com
+     32px — medido em produção em 24/09/2026. */
+  .pde-slot .pde-slot-btn {
     flex: 1 1 0;
     min-height: 44px;
     justify-content: center;
