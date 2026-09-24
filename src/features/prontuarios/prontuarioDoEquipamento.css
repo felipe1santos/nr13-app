@@ -166,4 +166,13 @@
     text-align: center;
     padding: 6px 0;
   }
+  /* Links do slot (Ver histórico, Documento legado, Continuar, Atualizar):
+     texto pequeno, mas o alvo do dedo é 44px (medidos com 13–25px em 24/09). */
+  .pde-slot .pde-slot-historico,
+  .pde-slot .pde-slot-link {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
 }

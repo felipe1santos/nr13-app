@@ -451,9 +451,31 @@
      quatro faixas custariam 60px por cartão sem dizer mais nada. */
   /* Os quatro campos numa área só se SOBREPUNHAM (24/09/2026): agora é o
      contêiner que ocupa a área, e os campos correm dentro dele. */
-  .pront-linha-meta { grid-area: meta; display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .pront-linha-col { display: inline; }
-  .pront-linha-col + .pront-linha-col::before { content: ' · '; color: var(--border-solid, #d1d5db); }
+  /* 24/09/2026 · numa linha só (nowrap + overflow hidden), um CLIENTE longo
+     ("TERCAL - INSPEÇÕES NR13 NR12 | CALDEIRAS | …", 777px) empurrava a REVISÃO
+     e a DATA para fora do recorte: sumiam da tela, sem rolagem e sem aviso.
+     Agora são duas linhas: TAG · Rev. · data (curtos, sempre inteiros) e, embaixo,
+     o cliente com reticências — o nome inteiro fica no \`title\` da célula. */
+  .pront-linha-meta {
+    grid-area: meta;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    min-width: 0;
+    overflow: hidden;
+  }
+  /* Sem "·" entre os campos: quando a data quebra de linha, o separador ficava
+     pendurado no começo dela. O espaçamento faz o papel dele. */
+  .pront-linha-meta { column-gap: 10px; }
+  .pront-linha-col { display: inline; white-space: nowrap; }
+  .pront-linha-meta .pront-linha-col::before { content: none; }
+  .pront-linha-meta .pront-linha-col:nth-child(2) {
+    order: 9;
+    flex: 1 1 100%;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
   /* Alinhadas à direita e HORIZONTAIS, no fim da linha da meta. */
   .pront-linha-acoes { grid-area: acoes; justify-content: flex-end; align-self: center; margin-top: 0; }
   /* O alvo do dedo é 44px; o desenho do ícone continua pequeno (a área
@@ -461,7 +483,7 @@
   .pront-linha-acoes .btn-icone { width: 44px; height: 44px; }
   /* Grupo (24/09/2026): até quatro ações — quebram em vez de estourar. */
   .pront-linha-acoes { flex-wrap: wrap; }
-  .pront-btn-historico { padding: 0 8px; }
+  .pront-btn-historico { padding: 0 8px; min-width: 44px; }
 }
 
 @media (max-width: 640px) {

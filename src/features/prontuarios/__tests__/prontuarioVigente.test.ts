@@ -407,3 +407,24 @@ describe('alvo de toque do slot no celular', () => {
     expect(css.indexOf('@media (max-width: 560px)')).toBeGreaterThan(css.indexOf('.pde-slot .pde-slot-btn {'));
   });
 });
+
+describe('mobile · /prontuarios e alvos de toque do topo da ficha', () => {
+  const css = (p: string) => readFileSync(p, 'utf8').replace(/\r\n/g, '\n');
+
+  it('a meta da linha quebra: o cliente longo não empurra revisão e data para fora do recorte', () => {
+    const lista = css('src/pages/prontuarios.css');
+    const movel = lista.slice(lista.indexOf('numa linha só (nowrap + overflow hidden), um CLIENTE longo'));
+    expect(movel).toMatch(/\.pront-linha-meta \{[^}]*flex-wrap: wrap/);
+    expect(movel).toMatch(/\.pront-linha-meta \.pront-linha-col:nth-child\(2\) \{[^}]*order: 9;[^}]*text-overflow: ellipsis/);
+    expect(movel).toContain('.pront-btn-historico { padding: 0 8px; min-width: 44px; }');
+    // o nome inteiro do cliente continua acessível
+    expect(css('src/features/prontuarios/ListaProntuariosV9.tsx')).toContain("title={principal.cliente ?? ''}");
+  });
+
+  it('links do slot, Excluir e foto de identificação com 44px no celular', () => {
+    expect(css('src/features/prontuarios/prontuarioDoEquipamento.css')).toMatch(/\.pde-slot \.pde-slot-historico,\n\s*\.pde-slot \.pde-slot-link \{\n\s*min-height: 44px;/);
+    const ficha = css('src/pages/equipamento-page.css');
+    expect(ficha).toMatch(/\.equipamento-page \.btn-excluir-equip \{\n\s*min-height: 44px;/);
+    expect(ficha).toMatch(/\.equipamento-page \.gallery-add-dropzone \{\n\s*height: 44px;/);
+  });
+});

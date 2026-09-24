@@ -919,6 +919,16 @@
   .equipamento-page .equipamento-foto-principal {
     align-self: center;
   }
+  /* Alvos de toque do topo (24/09/2026): "Excluir" media 15px de altura e a
+     foto de identificação 34px. O "×" de remover foto fica pequeno de
+     propósito: é destrutivo e mora em cima da miniatura. */
+  .equipamento-page .btn-excluir-equip {
+    min-height: 44px;
+    padding: 0 6px;
+  }
+  .equipamento-page .gallery-add-dropzone {
+    height: 44px;
+  }
   .equipamento-page .equipamento-foto-principal img {
     width: 140px;
     height: 140px;
