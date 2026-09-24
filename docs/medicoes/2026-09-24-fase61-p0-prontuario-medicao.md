@@ -87,3 +87,33 @@ Calibração (`259923b`): prévia de manômetro/PSV — 0 POST em chave viva, se
   enquanto a grade entregue segue os pontos e colunas do container. Container com mais pontos ou outro nº de
   colunas sai truncado/com cabeçalho de ângulo errado — igual antes da correção (paridade exigida). Corrigir =
   entregar também `pontos`/`colunas` do container ao `pontosUltrassom`; muda o PDF desses casos.
+
+## Checagem final · `nr13_prontuario_meta_<TAG>` (24/09/2026)
+
+**Semântica.** `{ numero: 'REL-<Date.now()>', emissao: 'dd/mm/aaaa' }`, criada por `obterOuCriarMeta` (cria se
+ausente, reusa depois). Não é rascunho nem documento: o rascunho é `nr13_prontuario_<TAG>` + linha do índice.
+Número por timestamp — não há sequência, nem reserva, nem buraco. Fora do índice (`IRMAS_COM_TAG`), fora do badge
+do catálogo (`busca_index_rpc.sql`/`busca_manutencao.sql`), fora das listas. Lida pelo gerador vetorial (nº e data
+no cabeçalho/capa), pelas folhas `PRONT-*.html` e servida ao Portal. Sincroniza pelo `salvar`.
+
+**Classificação: C na abertura, A nas ações.** A criação na ABERTURA existia "antes de montar os iframes"
+(comentário no código). Toda ação que usa o número já chamava `obterOuCriarMeta` por conta própria (Visualizar,
+Salvar, Emitir). Abrir a TAG de um equipamento SEM prontuário deixava uma meta sem documento — no lab já havia
+`nr13_prontuario_meta_ZZ-SEM-PRONT` sem `nr13_prontuario_ZZ-SEM-PRONT`. A data de emissão ficava sendo a da
+primeira visita.
+
+**Correção (commit separado):** a chamada saiu de `abrirEquipamento`; na emissão, `obterOuCriarMeta` passou para
+ANTES de gerar o PDF (antes era depois do upload — sem meta prévia, o papel saía "—" e o registro com número).
+
+**Lab (build local, perfil limpo):**
+
+| cenário | antigo (`aa25d2c`) | novo |
+|---|---|---|
+| M1 abrir TAG sem prontuário | cria `meta_ZZ-SEM-PRONT` (1 RPC) | servidor inalterado, 0 RPC |
+| M2 abrir + prévia + "Abrir em outra aba" + imprimir (prontuário sem meta) | cria `meta_ZZ-PRONT-02`; prévia `REL-…` | inalterado, 0 RPC; prévia "—" |
+| M3 trocar container (3×) no formulário | inalterado | inalterado |
+| M4 EMITIR sem meta | — | cria a meta + emissão + índice; nº do PDF emitido = nº registrado (`REL-1790293011708`) |
+| M5 abrir TAG sem assinante, 1 engenheiro | — | grava `nr13_assinantes_pront_<TAG>` (pré-seleção, METADATA) |
+
+Zero mutação técnica em M1–M3/M5 (grade, esp, `*_atual`, containers, ficha, outras TAGs): diff do servidor inteiro.
+Não há contador de uso no prontuário.
