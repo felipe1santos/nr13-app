@@ -24,6 +24,13 @@
 
 .pde-vazio {
   margin: 12px 0 0;
+  padding: 14px 16px;
+  border: 1.5px dashed var(--line, #DDD6C7);
+  border-radius: 10px;
+  background: var(--steel, #F6F5F2);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted, #7A8790);
 }
 
 .pde-lista {
@@ -35,15 +42,18 @@
   gap: 8px;
 }
 
+/* Cinco filhos: ícone, nome, selo, Visualizar, Baixar. A grade tinha quatro
+   colunas desde que o Baixar entrou (Fase 3), e o ícone de download caía numa
+   segunda linha sozinho. */
 .pde-item {
   display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) auto auto;
+  grid-template-columns: 22px minmax(0, 1fr) auto auto auto;
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
-  border: 1px solid var(--borda, #dfe3e8);
+  border: 1px solid var(--line, #E4E1D8);
   border-radius: 8px;
-  background: var(--fundo-suave, #f7f8fa);
+  background: var(--bg-card, #fff);
 }
 
 .pde-nome {
@@ -90,11 +100,14 @@
   }
 
   .pde-item {
-    grid-template-columns: 20px minmax(0, 1fr) auto;
+    grid-template-columns: 20px minmax(0, 1fr) auto auto;
     row-gap: 6px;
   }
 
+  /* O selo desce para a segunda linha; ícone, nome e as duas ações ficam na
+     primeira (`order` tira o selo do meio da ordem de encaixe). */
   .pde-selo {
+    order: 1;
     grid-column: 2 / -1;
     justify-self: start;
   }
