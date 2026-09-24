@@ -58,8 +58,8 @@ export const DOCS_POR_FORMULARIO: Record<FormularioEnsaio, string[]> = {
   th:             ['TESTE-HIDROSTATICO.html', 'TESTE-HIDROSTATICO-FOTOS.html'],
   manometro:      ['CERTIFICADO-CAL-MANOMETRO.html'],
   psv:            ['CERTIIFCADO-CAL-PSV.html'],
-  // O Relatório de Imagens não é folha do relatório NR-13 (nem template HTML):
-  // tem gerador vetorial próprio (`pdfVetorial/relatorioImagens.ts`). Lista
-  // vazia = nenhum template a montar e nenhuma folha a selecionar.
-  imagens:        [],
+  // Fase 5.2 · a seção 8.4 do relatório completo. Não tem template HTML (é só
+  // vetorial, ver `FOLHAS_SO_VETORIAIS`); o documento AVULSO do ensaio tem
+  // gerador próprio (`documentoImagens.ts`) e não passa por esta tabela.
+  imagens:        ['RELATORIO-IMAGENS.html'],
 };

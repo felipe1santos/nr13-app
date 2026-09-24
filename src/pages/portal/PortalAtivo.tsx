@@ -28,7 +28,7 @@ import {
 import { paginasProntuario } from '../../features/prontuarios/tipos';
 import { parseDataFlex, statusPrazo } from '../../services/vencimentos';
 import type { InfoEquipamento } from '../../features/equipamento/tipos';
-import { temArtefato, type RelatorioIndiceItem, type RelatorioSalvo } from '../../features/relatorios/tipos';
+import { temArtefato, temTemplateHtml, type RelatorioIndiceItem, type RelatorioSalvo } from '../../features/relatorios/tipos';
 import PaginaA4 from '../../components/PaginaA4';
 import { travarIframeSomenteLeitura } from '../../features/documentos/somenteLeituraDoc';
 import '../relatorios.css';
@@ -345,7 +345,7 @@ export default function PortalAtivo() {
   }
 
   const paginasAtivas = relatorioAberto
-    ? docsVisiveis.map((doc, i) => {
+    ? docsVisiveis.filter(temTemplateHtml).map((doc, i) => {
         const sep = doc.includes('?') ? '&' : '?';
         // &ctx=rel: relatório SALVO renderiza com os snapshots congelados da meta
         // (empresa/assinantes do §7-bis), não com o cadastro vivo — igual ao visualizador.

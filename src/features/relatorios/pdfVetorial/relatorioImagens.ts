@@ -3,6 +3,9 @@ import { FAMILIA, registrarCarlito } from './carlito';
 import { Documento } from './documento';
 import { CAIXA, COR, CORPO, FONTE, LIMITE_CORPO, alturaLinha } from './documentoA4';
 import { foto } from './primitivas';
+import { medirFotos } from './modelo';
+import { baixarFoto, blobParaDataUrl } from '../../../services/fotos';
+import { rotuloFoto, type FotoDescrita } from '../../inspecoes/fotosDescritas';
 
 /**
  * RELATÓRIO DE IMAGENS — o documento feito de fotos descritas (Fase 5, 24/09/2026).
@@ -25,9 +28,10 @@ import { foto } from './primitivas';
  * ## Reuso no relatório NR-13
  *
  * `desenharFotosDescritas` recebe um `Documento` já aberto e não sabe de capa
- * nem de cabeçalho — é a mesma função que o relatório completo chamaria numa
- * seção própria. Hoje ela NÃO está ligada ao relatório completo (ver
- * `docs/medicoes/2026-09-24-fase5-fotos-descritas.md`).
+ * nem de cabeçalho. Desde a Fase 5.2 ela desenha os DOIS: o documento avulso
+ * (`gerarRelatorioImagensPdf`, com capa própria) e a seção 8.4 do relatório
+ * NR-13 completo (`secaoRelatorioImagens`, no cabeçalho, rodapé e paginação do
+ * relatório). As fotos chegam aos dois pela mesma `prepararFotosDescritas`.
  */
 
 export interface FotoParaDocumento {
@@ -67,10 +71,6 @@ export const GRADE_IMAGENS = {
   vaoLinhas: 5,
   fonteDescricao: 9,
 } as const;
-
-function rotulo(i: number): string {
-  return `Foto ${String(i + 1).padStart(2, '0')}`;
-}
 
 function linhasDaDescricao(pdf: jsPDF, texto: string, largura: number): string[] {
   const limpo = (texto ?? '').replace(/\r\n?/g, '\n').trim();
@@ -114,7 +114,7 @@ export function desenharFotosDescritas(
     pdf.setFont(FAMILIA, 'bold');
     pdf.setFontSize(FONTE.faixa);
     pdf.setTextColor(COR.texto);
-    pdf.text(rotulo(i), x, y + 3.6);
+    pdf.text(rotuloFoto(i), x, y + 3.6);
     const yImg = y + g.alturaRotulo;
     foto(pdf, fotos[i].dataUrl, { x, y: yImg, largura: col, altura: g.alturaImagem }, fotos[i].proporcao);
     pdf.setFont(FAMILIA, 'normal');
@@ -182,6 +182,78 @@ export function desenharFotosDescritas(
     i += par ? 2 : 1;
   }
   return celulas;
+}
+
+// ── A PORTA ÚNICA das fotos descritas para o papel (Fase 5.2) ───────────────
+
+/**
+ * Foto que não carrega PARA a geração, dizendo qual.
+ *
+ * O relatório NR-13 descarta a foto de exame que não resolve e segue. Aqui não
+ * dá: "Foto 01…" é derivado da ordem, e pular uma foto renumeraria as
+ * seguintes — a descrição "Foto 04" do técnico viraria a "Foto 03" do papel.
+ * Vale igual para o avulso e para a seção 8.4 do relatório completo.
+ */
+export class FotoIndisponivelErro extends Error {
+  readonly rotulos: string[];
+  constructor(rotulos: string[]) {
+    super(
+      `${rotulos.join(', ')} do Relatório de Imagens não ${rotulos.length === 1 ? 'pôde' : 'puderam'} ser ` +
+        `carregada${rotulos.length === 1 ? '' : 's'} (sem cópia neste aparelho e sem conexão com o servidor). ` +
+        'O documento não foi gerado para não renumerar as fotos.',
+    );
+    this.name = 'FotoIndisponivelErro';
+    this.rotulos = rotulos;
+  }
+}
+
+/**
+ * As fotos descritas, prontas para desenhar: imagem (cofre → bucket), proporção
+ * medida dos bytes, descrição — NA ORDEM do registro. É a mesma função para o
+ * documento avulso e para a seção do relatório completo: não existe um segundo
+ * caminho que possa pular, reordenar ou re-legendar uma foto.
+ */
+export async function prepararFotosDescritas(fotos: FotoDescrita[]): Promise<FotoParaDocumento[]> {
+  const imagens = await Promise.all(
+    fotos.map(async (f) => {
+      if (f.base64 && f.base64.startsWith('data:image')) return f.base64;
+      if (!f.ref) return null;
+      try {
+        const blob = await baixarFoto(f.ref);
+        return blob ? await blobParaDataUrl(blob) : null;
+      } catch {
+        return null;
+      }
+    }),
+  );
+  const faltando = imagens.flatMap((img, i) => (img ? [] : [rotuloFoto(i)]));
+  if (faltando.length > 0) throw new FotoIndisponivelErro(faltando);
+
+  // Proporção dos bytes (contain sem esticar). `medirFotos` descarta a que o
+  // navegador não decodifica — o que também renumeraria, então confere.
+  const medidas = await medirFotos(fotos.map((f, i) => ({ dataUrl: imagens[i] as string, descricao: f.descricao })));
+  if (medidas.length !== fotos.length) {
+    const ok = new Set(medidas.map((m) => m.dataUrl));
+    throw new FotoIndisponivelErro(fotos.flatMap((_, i) => (ok.has(imagens[i] as string) ? [] : [rotuloFoto(i)])));
+  }
+  return medidas.map((m) => ({ dataUrl: m.dataUrl, descricao: m.descricao, proporcao: m.proporcao }));
+}
+
+/** O título da seção dentro do relatório completo — número fixo (§ sumário). */
+export const TITULO_SECAO_IMAGENS = '8.4 RELATÓRIO DE IMAGENS';
+
+/**
+ * 8.4 · a SEÇÃO dentro do relatório NR-13 completo.
+ *
+ * Sem capa própria (o relatório já tem uma), com o cabeçalho, o rodapé e a
+ * paginação GLOBAIS do `Documento` do relatório. O desenho das fotos é o MESMO
+ * `desenharFotosDescritas` do avulso — muda só o título da seção.
+ */
+export function secaoRelatorioImagens(doc: Documento, fotos: FotoParaDocumento[]): CelulaDesenhada[] {
+  if (fotos.length === 0) return [];
+  doc.novaFolha();
+  doc.banner(TITULO_SECAO_IMAGENS);
+  return desenharFotosDescritas(doc, fotos, () => doc.banner(`${TITULO_SECAO_IMAGENS} (continuação)`));
 }
 
 export interface EntradaRelatorioImagens {

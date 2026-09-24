@@ -41,6 +41,7 @@ import {
 import ModalNovaInspecao from '../features/relatorios/ModalNovaInspecao';
 import ModalSelecionarContainer from '../features/relatorios/ModalSelecionarContainer';
 import { carregarContainer } from '../features/inspecoes/inspecaoService';
+import { impedimentoRelatorioImagens } from '../features/relatorios/relatorioImagensNoRelatorio';
 import {
   expandirFolhasFoto,
   expandirMemorial,
@@ -82,7 +83,7 @@ import { modeloDaEmpresa, motorDoRelatorio } from '../features/relatorios/modelo
 import { gerarPreviaRelatorio, gerarRelatorioVetorial } from '../features/relatorios/pdfVetorial/gerarRelatorio';
 import { publicarArtefato, artefatoDe } from '../features/relatorios/artefatoRelatorio';
 import { imprimirRelatorio, prepararFolhasImpressao, limparFolhasImpressao } from '../features/relatorios/printService';
-import { ehRascunho, temArtefato, type RelatorioIndiceItem, type RelatorioMeta, type RelatorioSalvo, type TipoInspecao } from '../features/relatorios/tipos';
+import { ehRascunho, temArtefato, temTemplateHtml, type RelatorioIndiceItem, type RelatorioMeta, type RelatorioSalvo, type TipoInspecao } from '../features/relatorios/tipos';
 import VisualizadorPdf, { abrirPdfEmAba, baixarPdfArquivado, baixarPdfDeBytes, imprimirPdfArquivado } from '../components/VisualizadorPdf';
 import { fonteDeImpressao, rotuloImpressao } from '../features/documentos/fonteImpressao';
 import { Icone } from '../components/Icone';
@@ -1166,6 +1167,16 @@ function RelatoriosLegado() {
 
   async function salvarHistorico() {
     if (!meta || !documentos || somenteLeitura) return; // salvar duas vezes não reabre a edição
+    // Fase 5.2 · a seção 8.4 segue a regra de emissão do Relatório de Imagens
+    // (≥1 foto, todas descritas) — cobrada ANTES de gerar ou subir qualquer coisa.
+    const impedimentoImagens = impedimentoRelatorioImagens(
+      documentos,
+      meta.containerOrigemId ? (carregarContainer(tag, meta.containerOrigemId)?.dados ?? null) : null,
+    );
+    if (impedimentoImagens) {
+      setErroSalvar(impedimentoImagens);
+      return;
+    }
     setSalvando(true);
     setErroSalvar('');
     try {
@@ -1802,7 +1813,9 @@ function RelatoriosLegado() {
           <div className="relatorio-preview" ref={previewRef}>
             {montaIframes(fluxo) &&
               palco.estado === 'pronto' &&
-              documentos.map((doc, i) => {
+              // Folha só-vetorial (8.4, Fase 5.2) não tem template: o rollback
+              // em iframes a pula em vez de fotografar uma página de erro.
+              documentos.filter(temTemplateHtml).map((doc, i) => {
               const sep = doc.includes('?') ? '&' : '?';
               return (
                 <PaginaA4 key={`${doc}-${i}-${versao}`}>

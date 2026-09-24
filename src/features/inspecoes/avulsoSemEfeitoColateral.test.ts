@@ -270,10 +270,9 @@ describe('relatório completo · sem regressão', () => {
     expect(relatorioCompleto).not.toContain('OBS-EXTERNO-B');
   });
 
-  it('o Relatório de Imagens NÃO está no relatório completo (integração é a Fase 5.2)', () => {
+  it('relatório completo SEM a seção 8.4 escolhida não traz o Relatório de Imagens (Fase 5.2: só entra se escolhido)', () => {
     expect(relatorioCompleto).not.toContain('RELATÓRIO DE IMAGENS');
-    const tipos = readFileSync('src/features/relatorios/tipos.ts', 'utf8');
-    expect(tipos).not.toMatch(/IMAGENS/i);
+    expect(relatorioCompleto).not.toContain('DESCRICAO-IMAGEM-B');
   });
 });
 

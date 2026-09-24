@@ -19,6 +19,7 @@ const ENSAIOS = new Set<string>([
   'VISUAL-INTERNO.html',
   'ULTRASSOM.html',
   'TESTE-HIDROSTATICO.html',
+  'RELATORIO-IMAGENS.html',
 ]);
 
 const ROTULOS: Record<string, string> = {
@@ -39,6 +40,7 @@ const ROTULOS: Record<string, string> = {
   'TESTE-HIDROSTATICO.html': 'Teste Hidrostático (2 folhas — dados + fotos)',
   'VISUAL-EXTERNO.html': 'Inspeção Visual Externa (checklist + folhas de fotos)',
   'VISUAL-INTERNO.html': 'Inspeção Visual Interna (checklist + folhas de fotos)',
+  'RELATORIO-IMAGENS.html': 'Relatório de Imagens (fotos descritas do ensaio)',
   'LIVRO-REGISTRO.html': 'Livro de Registro de Segurança (NR-13)',
 };
 
@@ -55,6 +57,7 @@ const ROTULO_CURTO: Record<string, string> = {
   'VISUAL-EXTERNO.html': 'Inspeção Visual Externa',
   'VISUAL-INTERNO.html': 'Inspeção Visual Interna',
   'TESTE-HIDROSTATICO.html': 'Teste Hidrostático',
+  'RELATORIO-IMAGENS.html': 'Relatório de Imagens',
 };
 
 interface Props {

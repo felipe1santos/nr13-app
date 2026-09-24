@@ -3,6 +3,8 @@ import { resolverValor, type MapaOverrides } from './overridesRelatorio';
 import { listaDeItens, precisaConfirmarSemantica } from '../inspecoes/formularios/semanticaNc';
 import { ITENS_VISUAL_EXTERNO } from '../inspecoes/formularios/FormularioVisualExterno';
 import { ITENS_VISUAL_INTERNO } from '../inspecoes/formularios/FormularioVisualInterno';
+import { pendenciasParaEmissao } from '../inspecoes/fotosDescritas';
+import { FOLHA_RELATORIO_IMAGENS } from './relatorioImagensNoRelatorio';
 
 /**
  * Fase 10B.1 · o que se confere ANTES de finalizar — e a diferença entre
@@ -112,6 +114,19 @@ export function validarParaFinalizar(e: EntradaValidacao): ResultadoValidacao {
   // preencher o que ninguém vai ler.
   if (tem(e.documentos, 'CONCLUSAO.html') && (!e.laudo || e.laudo.apto === undefined || e.laudo.apto === null)) {
     obrigatorios.push({ campo: 'laudo', texto: 'Resultado da inspeção (APTO / INAPTO) não marcado', onde: 'Folha "Resultado da inspeção e laudo"' });
+  }
+
+  // Fase 5.2 · a seção 8.4 carrega a regra de emissão do Relatório de Imagens:
+  // ao menos uma foto e todas descritas. Só se a seção foi escolhida.
+  if (tem(e.documentos, FOLHA_RELATORIO_IMAGENS)) {
+    const pend = pendenciasParaEmissao(bloco<Record<string, unknown>>(e.dadosContainer, 'imagens')?.fotos);
+    if (pend.length > 0) {
+      obrigatorios.push({
+        campo: 'relatorioImagens',
+        texto: `Relatório de Imagens (8.4): ${pend.map((p) => p.mensagem).join(' ')}`,
+        onde: 'Inspeção · Relatório de Imagens',
+      });
+    }
   }
 
   // ── Opcionais (avisam, não bloqueiam) ────────────────────────────────────

@@ -177,12 +177,14 @@ const LEITOR: Record<FormularioEnsaio, (d: Blob) => Omit<EnsaioResumido, 'ensaio
   // honesta em vez de estourar.
   manometro: (d) => lerAvulso(d),
   psv: (d) => lerAvulso(d),
-  // Relatório de Imagens (Fase 5): o conteúdo são as fotos descritas.
+  // Relatório de Imagens (Fase 5): o conteúdo SÃO as fotos descritas. Só
+  // observação, sem foto, não é um relatório de imagens — e `salvo` é o que
+  // oferece a seção 8.4 na revisão do assistente (5.2): nada de seção vazia.
   imagens: (d) => {
     const fotos = arr(d.fotos).length;
     const conclusao = txt(d.observacoes);
     return {
-      salvo: fotos > 0 || conclusao !== null,
+      salvo: fotos > 0,
       data: dataBrDoCampo(d.dataRegistro),
       respostas: 0,
       medicoes: 0,
@@ -282,5 +284,6 @@ export const DOC_DO_ENSAIO: Record<TipoEnsaio, string | null> = {
   visual_interno: 'VISUAL-INTERNO.html',
   ultrassom: 'ULTRASSOM.html',
   teste_hidrostatico: 'TESTE-HIDROSTATICO.html',
-  relatorio_imagens: null, // documento avulso próprio, não folha do relatório NR-13
+  // Fase 5.2 · a seção 8.4 do relatório completo (só vetorial).
+  relatorio_imagens: 'RELATORIO-IMAGENS.html',
 };

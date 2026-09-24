@@ -64,6 +64,8 @@ export const FOLHA_DA_SECAO = {
   ultrassom: ['ULTRASSOM.HTML'],
   th: ['TESTE-HIDROSTATICO.HTML'],
   fotosTh: ['TESTE-HIDROSTATICO-FOTOS.HTML'],
+  // Fase 5.2 · 8.4 — as fotos descritas do ensaio Relatório de Imagens.
+  imagens: ['RELATORIO-IMAGENS.HTML'],
   parecer: ['CONCLUSAO.HTML'],
 } as const;
 

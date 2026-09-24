@@ -5,6 +5,7 @@ import { Documento, type CampoEditavel, type ModoDocumento, type RespiroMedido }
 import { anexarRastreabilidades, contarPaginasRastreabilidades } from '../rastreabilidadeService';
 import { anexarFolhasDeCertificado, contarFolhasDeCertificado } from './certificados';
 import { secoesPresentes, type SecaoRelatorio } from './composicao';
+import { prepararFotosDescritas, secaoRelatorioImagens } from './relatorioImagens';
 import type { MapaOverrides } from '../overridesRelatorio';
 import { comIdsEstaveis } from '../../calibracoes/idsInstrumentos';
 import { resolverImagem } from '../imagensDoDocumento';
@@ -227,6 +228,14 @@ function emitir(
       }
     }
   }
+  // 8.4 · Fase 5.2 — o Relatório de Imagens, pelo MESMO desenho do avulso
+  // (`secaoRelatorioImagens` → `desenharFotosDescritas`), no cabeçalho, rodapé
+  // e paginação deste documento. Depois dos ensaios e antes do parecer.
+  if (tem.imagens && m.relatorioImagens.desenho.length > 0) {
+    const antes = doc.pdf.getNumberOfPages();
+    secaoRelatorioImagens(doc, m.relatorioImagens.desenho);
+    if (registrar) registrar.set('Relatório de imagens', antes + 1);
+  }
   if (tem.parecer) {
     folhaParecer(doc, m);
     marcar('Recomendações de segurança');
@@ -408,6 +417,14 @@ export async function gerarRelatorioVetorial(
   await registrarCarlito(contagem);
   const rascunho = new Documento(contagem, cab, 0, opcoes.modo ?? 'final', ovr);
   const tem = secoesPresentes(opcoes.documentos);
+  // 8.4 · as fotos descritas só são preparadas se a seção foi ESCOLHIDA. Pela
+  // mesma porta do avulso: foto que não carrega para a geração, nomeada.
+  if (tem.imagens && modelo.relatorioImagens.fotos.length > 0) {
+    modelo.relatorioImagens = {
+      ...modelo.relatorioImagens,
+      desenho: await prepararFotosDescritas(modelo.relatorioImagens.fotos),
+    };
+  }
   const paginasDasSecoes = new Map<string, number>();
   const respiro: RespiroMedido = {};
   // A 1ª passagem também MEDE o que sobrou no pé das folhas elásticas — a de

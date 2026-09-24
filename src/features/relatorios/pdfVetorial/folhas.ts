@@ -2421,6 +2421,9 @@ export function secoesDoRelatorio(
   push(tem.fotosExterno && m.visualExterno.fotos.length > 0, '8.1', 'Registro fotográfico — exame externo');
   push(tem.fotosInterno && m.visualInterno.fotos.length > 0, '8.2', 'Registro fotográfico — exame interno');
   push(tem.fotosTh && m.th.fotos.length > 0, '8.3', 'Registro fotográfico — teste hidrostático');
+  // Fase 5.2 · só com foto: seção escolhida num container sem imagem não é
+  // anunciada (e não é emitida).
+  push(tem.imagens && m.relatorioImagens.fotos.length > 0, '8.4', 'Relatório de imagens');
   push(tem.parecer, '9', 'Recomendações de segurança');
   push(tem.parecer, '10', 'Parecer técnico conclusivo');
   push(tem.parecer, '11', 'Data para a próxima inspeção');

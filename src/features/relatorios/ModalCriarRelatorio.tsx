@@ -76,6 +76,7 @@ const ROTULOS: Record<string, string> = {
   'TESTE-HIDROSTATICO.html': 'Teste Hidrostático (2 folhas — dados + fotos)',
   'VISUAL-EXTERNO.html': 'Inspeção Visual Externa (checklist + folhas de fotos)',
   'VISUAL-INTERNO.html': 'Inspeção Visual Interna (checklist + folhas de fotos)',
+  'RELATORIO-IMAGENS.html': 'Relatório de Imagens (fotos descritas do ensaio)',
   'LIVRO-REGISTRO.html': 'Livro de Registro de Segurança (NR-13)',
 };
 
@@ -85,6 +86,7 @@ const ENSAIOS = new Set<string>([
   'VISUAL-INTERNO.html',
   'ULTRASSOM.html',
   'TESTE-HIDROSTATICO.html',
+  'RELATORIO-IMAGENS.html',
 ]);
 
 const ICONE_ENSAIO: Record<TipoEnsaio, NomeIcone> = {

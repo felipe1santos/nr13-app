@@ -24,12 +24,32 @@ export const DOCUMENTOS_DISPONIVEIS = [
   'CONCLUSAO.html',
   'ULTRASSOM.html',
   'TESTE-HIDROSTATICO.html',
+  // Fase 5.2 · seção 8.4 do Modelo Novo, com as fotos descritas do ensaio
+  // "Relatório de Imagens" do container escolhido. NÃO tem template HTML — só
+  // existe no motor vetorial (ver `FOLHAS_SO_VETORIAIS`).
+  'RELATORIO-IMAGENS.html',
   'LIVRO-REGISTRO.html',
 ] as const;
 
+/**
+ * Folhas que só o motor VETORIAL desenha — não há template em
+ * `public/arquivos-inspecao/`. Os caminhos de rollback que montam iframes
+ * (`?previa=iframe`, motor raster, Portal de relatório legado) as pulam: um
+ * iframe apontando para um arquivo inexistente seria uma página de erro
+ * fotografada dentro do documento.
+ */
+export const FOLHAS_SO_VETORIAIS: ReadonlySet<string> = new Set(['RELATORIO-IMAGENS.html']);
+
+/** A folha tem template HTML para montar em iframe? */
+export function temTemplateHtml(doc: string): boolean {
+  return !FOLHAS_SO_VETORIAIS.has(doc.split('?')[0]);
+}
+
 // Folhas do relatório que podem receber carimbo de assinatura — capa e sumário nunca recebem.
+// As só-vetoriais também não: o carimbo por folha é do `rel-assinatura.js` dos
+// templates; o vetorial assina num bloco único ao fim.
 export const FOLHAS_RELATORIO_ASSINAVEIS = DOCUMENTOS_DISPONIVEIS.filter(
-  (d) => d !== 'CAPA.html' && d !== 'SUMARIO.html',
+  (d) => d !== 'CAPA.html' && d !== 'SUMARIO.html' && !FOLHAS_SO_VETORIAIS.has(d),
 );
 
 // Snapshot de um assinante congelado na geração do relatório (motor de assinatura / carimbo).

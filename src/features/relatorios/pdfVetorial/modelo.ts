@@ -21,6 +21,7 @@ import { linhaQuadro, type RefInstrumentoChecklist } from '../../calibracoes/qua
 import { ITENS_VISUAL_EXTERNO } from '../../inspecoes/formularios/FormularioVisualExterno';
 import { ITENS_VISUAL_INTERNO } from '../../inspecoes/formularios/FormularioVisualInterno';
 import type { RefFoto } from '../../../services/fotos';
+import { normalizarFotos, type FotoDescrita } from '../../inspecoes/fotosDescritas';
 import type { RelatorioMeta } from '../tipos';
 import { rotuloClasseFluido, rotuloEnquadramento, rotuloResposta, rotuloResultado, rotuloSubtipo, rotuloTipoEquipamento } from './rotulos';
 
@@ -437,6 +438,20 @@ export interface ModeloRelatorio {
     rubricaRef: RefFoto | null;
     camposExtras: { rotulo: string; valor: string }[];
   }[];
+  /**
+   * Fase 5.2 · 8.4 RELATÓRIO DE IMAGENS — as fotos descritas do MESMO ensaio
+   * que gera o documento avulso (`container.dados.imagens.fotos`), normalizadas
+   * pela MESMA porta (`normalizarFotos`: id, ordem, descrição). Nada copiado:
+   * vem das chaves de campo do container, como os outros ensaios.
+   *
+   * `fotos` é o registro; `desenho` é a imagem pronta (dataURL + proporção),
+   * preenchida pelo gerador com `prepararFotosDescritas` — o modelo é síncrono
+   * e não baixa nada. Vazio = a seção não existe.
+   */
+  relatorioImagens: {
+    fotos: FotoDescrita[];
+    desenho: { dataUrl: string; descricao: string; proporcao?: number }[];
+  };
 }
 
 function txt(v: unknown): string | null {
@@ -1224,6 +1239,11 @@ export function montarModeloRelatorio(tag: string, fontes?: FontesDoModelo): Mod
         ...rubricaDe(meta?.assinantes?.tecnico),
       },
     ].filter((a) => a.nome !== ''),
+    // 8.4 · o MESMO ensaio do avulso, pela MESMA normalização (Fase 5.2).
+    relatorioImagens: {
+      fotos: normalizarFotos((inj.imagens as { fotos?: unknown } | undefined)?.fotos),
+      desenho: [],
+    },
   };
 }
 
