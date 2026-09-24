@@ -55,6 +55,7 @@ export default function ModalAnexarProntuario({
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [estado, setEstado] = useState<EstadoEnvio>('escolher');
   const [erro, setErro] = useState('');
+  const [jaAnexado, setJaAnexado] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const enviando = estado === 'enviando';
 
@@ -73,6 +74,7 @@ export default function ModalAnexarProntuario({
       return;
     }
     setArquivo(f);
+    setJaAnexado(false);
     setEstado('pronto');
   }
 
@@ -93,6 +95,13 @@ export default function ModalAnexarProntuario({
         cliente: rotulos.cliente,
       });
       setEstado('concluido');
+      // O mesmo PDF já estava vinculado a este equipamento: nada subiu e nada foi
+      // gravado. O modal fica aberto para DIZER isso — fechar em silêncio faria o
+      // usuário acreditar que ganhou um segundo documento.
+      if (r.jaAnexado) {
+        setJaAnexado(true);
+        return;
+      }
       aoConcluir(r);
     } catch (e) {
       setEstado('erro');
@@ -193,7 +202,13 @@ export default function ModalAnexarProntuario({
               <span className="spinner" /> Enviando o arquivo…
             </p>
           )}
-          {estado === 'concluido' && (
+          {estado === 'concluido' && jaAnexado && (
+            <p className="map-estado map-estado-ok" role="status" data-teste="ja-anexado">
+              <Icone nome="checkcircle" tam={15} /> Este PDF já está anexado a este equipamento — nenhum
+              arquivo novo foi enviado.
+            </p>
+          )}
+          {estado === 'concluido' && !jaAnexado && (
             <p className="map-estado map-estado-ok" role="status">
               <Icone nome="checkcircle" tam={15} /> Prontuário anexado.
             </p>

@@ -29,8 +29,8 @@
  * construído aqui, e emitir não apaga o anexo.
  */
 import { ler } from '../../services/storage';
-import { publicarArtefato } from '../relatorios/artefatoRelatorio';
-import { registrarEmissao, type EmissaoProntuario } from './emissaoProntuario';
+import { publicarArtefato, sha256Hex } from '../relatorios/artefatoRelatorio';
+import { carregarEmissoes, registrarEmissao, type EmissaoProntuario } from './emissaoProntuario';
 import { docDeEmissao, registrarDocumento, type DocumentoProntuario } from './indiceProntuarios';
 import type { ProntuarioDados } from './tipos';
 
@@ -119,6 +119,11 @@ function rotulosLocais(tag: string): { equipamento: string | null; cliente: stri
 export interface ResultadoAnexo {
   documento: DocumentoProntuario;
   emissao: EmissaoProntuario;
+  /**
+   * O MESMO arquivo (mesmo SHA-256) já estava anexado a este equipamento: nada
+   * foi enviado nem gravado, e o registro devolvido é o que já existia.
+   */
+  jaAnexado?: boolean;
 }
 
 /**
@@ -141,9 +146,11 @@ export interface ResultadoAnexo {
  *
  * ## Duplo clique não cria dois documentos
  *
- * `registrarEmissao` deduplica por `sha256`: dois envios do mesmo arquivo para
- * a mesma TAG devolvem o MESMO registro. A tela também trava o botão, mas a
- * garantia está aqui, onde o teste alcança.
+ * O mesmo arquivo (mesmo `sha256`) para a mesma TAG devolve o MESMO registro,
+ * marcado `jaAnexado` — e desde 23/09/2026 isso é decidido ANTES do upload, para
+ * não deixar um segundo objeto órfão no bucket. `registrarEmissao` continua
+ * deduplicando também (corrida entre dois envios simultâneos). A tela trava o
+ * botão, mas a garantia está aqui, onde o teste alcança.
  */
 export async function anexarProntuarioExistente(
   pedido: PedidoAnexo,
@@ -163,6 +170,26 @@ export async function anexarProntuarioExistente(
 
   const valido = validarPdf(pedido.arquivo, pedido.bytes);
   if (!valido.ok) throw new Error(valido.erro);
+
+  // DUPLICIDADE ANTES DO UPLOAD. `registrarEmissao` já deduplicava por SHA,
+  // mas só depois de publicar: o mesmo PDF enviado de novo (pela ficha e depois
+  // pela lista, ou um duplo clique que escapou) deixava um segundo objeto no
+  // bucket, órfão — e o bucket de documentos não aceita DELETE. A lista vem do
+  // servidor quando o cache não a tem (`carregarEmissoes`), e é a mesma leitura
+  // que decide se a TAG pode receber o anexo agora (offline sem cópia: recusa).
+  const existentes = await carregarEmissoes(tag);
+  const sha = await sha256Hex(pedido.bytes);
+  const igual = existentes.find((e) => e.sha256 === sha);
+  if (igual) {
+    const locais = rotulosLocais(tag);
+    const documento = docDeEmissao(
+      igual,
+      0,
+      pedido.equipamento?.trim() || locais.equipamento,
+      pedido.cliente?.trim() || locais.cliente,
+    );
+    return { documento, emissao: igual, jaAnexado: true };
+  }
 
   // `paginas: 0` — o anexo não é paginado por nós. Contar páginas exigiria
   // abrir o PDF do usuário com um parser, e um PDF protegido falharia ali:

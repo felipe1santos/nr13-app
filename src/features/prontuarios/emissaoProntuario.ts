@@ -1,4 +1,5 @@
 import { ler, salvar } from '../../services/storage';
+import { lerColecao } from '../../services/colecaoSync';
 import type { PdfArtefato } from '../relatorios/artefatoRelatorio';
 
 /**
@@ -95,17 +96,48 @@ export function listarAnexados(tag: string): EmissaoProntuario[] {
 }
 
 /**
+ * A lista de emissões da TAG como o SERVIDOR a tem — não só como o cache a tem.
+ *
+ * "Não está no cache" não é "não existe" (Fase 2). Anexar pela lista de
+ * `/prontuarios` escolhe o equipamento no catálogo da projeção, e a TAG pode não
+ * estar semeada neste aparelho: ler só o cache devolvia `[]`, a numeração do
+ * anexo recomeçava do 1 e a gravação ia por cima de uma lista que o servidor já
+ * tinha. Aqui a leitura é dirigida (só esta chave).
+ *
+ * Offline e sem cópia local não há como saber o que já existe — e gravar
+ * mesmo assim criaria uma lista paralela. Recusa com mensagem clara; a tela
+ * mantém o arquivo escolhido.
+ */
+export async function carregarEmissoes(tag: string): Promise<EmissaoProntuario[]> {
+  const { lista, origem } = await lerColecao<EmissaoProntuario>(chave(tag));
+  if (origem === 'indisponivel') {
+    throw new Error(
+      'Sem conexão com o servidor: não foi possível conferir os documentos deste equipamento. Tente de novo quando estiver online.',
+    );
+  }
+  return lista;
+}
+
+/**
  * Acrescenta uma emissão. **Nunca substitui** uma existente.
  *
  * Devolve a emissão gravada. Se já houver uma com o mesmo `sha256`, a lista não
  * cresce: emitir duas vezes sem mudar nada não precisa de duas linhas, e
  * duplicar o mesmo arquivo só polui o histórico.
+ *
+ * A lista vem de `lerColecao` (cache → leitura dirigida), nunca só do cache: com
+ * o cache vazio a numeração recomeçaria e a deduplicação por SHA não veria o que
+ * o servidor já tem. Aqui NÃO se recusa por falta de rede — esta função roda
+ * DEPOIS de o arquivo ter sido publicado (emissão gerada e anexo), e recusar ali
+ * perderia a emissão. Quem precisa recusar antes do upload (o anexo) chama
+ * `carregarEmissoes` primeiro. Offline, a base desconhecida fica com a camada
+ * de sincronização, que não sobrescreve a lista do servidor às cegas.
  */
 export async function registrarEmissao(
   tag: string,
   nova: Omit<EmissaoProntuario, 'id' | 'tag'>,
 ): Promise<EmissaoProntuario> {
-  const lista = listarEmissoes(tag);
+  const { lista } = await lerColecao<EmissaoProntuario>(chave(tag));
   const igual = lista.find((e) => e.sha256 === nova.sha256);
   if (igual) return igual;
 

@@ -859,6 +859,16 @@ Um prontuário passa a entrar por dois caminhos, e os dois convivem no mesmo equ
   `supabase/prontuario_anexado_badge.sql`). Sem isso o catálogo escrevia "Sem Prontuário"
   sobre um equipamento cuja lista de `/prontuarios` mostra um documento.
 - **Portal não mudou:** `nr13_pront_emitido_` segue em `FORA_DO_PORTAL`.
+- **Fase 3 (23/09/2026) — cache miss não é ausência.** A lista da TAG vem de
+  `carregarEmissoes` (cache → leitura DIRIGIDA de só aquela chave), e a duplicidade por SHA é
+  decidida **antes** do upload: o mesmo PDF na mesma TAG devolve o registro existente com
+  `jaAnexado` (o modal diz "já está anexado" e nada sobe — o bucket de documentos não tem
+  DELETE, então upload repetido seria órfão permanente). Offline **sem** cópia local da lista:
+  recusa ANTES do upload, com mensagem clara; offline **com** cópia: fila das fotos, como antes.
+  `registrarEmissao` também lê dirigido, mas nunca recusa (roda depois do upload).
+  A ficha ganhou **Baixar** (mesmos bytes do Visualizar, nome original). Excluir o prontuário
+  (`removerDoIndice`) tira só a linha de RASCUNHO — antes levava junto as linhas de emitidos e
+  anexados, e a ficha e `/prontuarios` discordavam sobre a mesma fonte.
 - Travado por `__tests__/anexoProntuario.test.ts` e `__tests__/abrirArquivo.test.ts`.
 
 ---

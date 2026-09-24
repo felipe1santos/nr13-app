@@ -12,11 +12,29 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 
+/** O CACHE deste aparelho. */
 const banco = new Map<string, unknown>();
+/** O que o SERVIDOR tem — só chega ao cache por leitura dirigida. */
+const servidor = new Map<string, unknown>();
+/** Chaves pedidas ao servidor, na ordem — prova que a leitura é dirigida. */
+const pedidas: string[][] = [];
+let redeFora = false;
 vi.mock('../../../services/storage', () => ({
   ler: (k: string) => (banco.has(k) ? structuredClone(banco.get(k)) : null),
   salvar: async (k: string, v: unknown) => void banco.set(k, structuredClone(v)),
   listarChavesComPrefixo: (p: string) => [...banco.keys()].filter((k) => k.startsWith(p)),
+  semearEquipamentoDetalhado: async (chaves: string[]) => {
+    pedidas.push([...chaves]);
+    if (redeFora) return { postas: 0, falhou: true };
+    let postas = 0;
+    for (const k of chaves) {
+      if (servidor.has(k)) {
+        banco.set(k, structuredClone(servidor.get(k)));
+        postas += 1;
+      }
+    }
+    return { postas, falhou: false };
+  },
 }));
 
 import {
@@ -36,6 +54,7 @@ import {
   type EmissaoProntuario,
 } from '../emissaoProntuario';
 import { confirmarEnvioNoIndice, docDeEmissao, listarDocumentos, registrarDocumento } from '../indiceProntuarios';
+import { sha256Hex } from '../../relatorios/artefatoRelatorio';
 
 const TAG = 'ZZ-PRONT-01';
 const PDF = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x34, 0x0a, 0x25, 0xe2, 0xe3]);
@@ -52,7 +71,7 @@ function publicadorFalso() {
       n += 1;
       return {
         pdfRef: { bucket: 'inspecao', path: `org/relatorios/anexo-${n}.pdf`, mimeType: 'application/pdf', tamanho: bytes.length },
-        sha256: `sha-de-${bytes.length}-${bytes[0]}`,
+        sha256: await sha256Hex(bytes),
         geradoEm: '2026-09-19T21:00:00.000Z',
         paginas,
         pendente: false,
@@ -61,7 +80,12 @@ function publicadorFalso() {
   };
 }
 
-beforeEach(() => banco.clear());
+beforeEach(() => {
+  banco.clear();
+  servidor.clear();
+  pedidas.length = 0;
+  redeFora = false;
+});
 
 describe('validação do arquivo', () => {
   it('aceita um PDF de verdade', () => {
@@ -97,7 +121,7 @@ describe('anexar: um registro, um arquivo, dois lugares', () => {
     // os bytes enviados são os bytes recebidos — nada é reescrito no caminho
     expect(pub.enviados).toHaveLength(1);
     expect([...pub.enviados[0]]).toEqual([...PDF]);
-    expect(emissao.sha256).toBe(`sha-de-${PDF.length}-37`);
+    expect(emissao.sha256).toBe(await sha256Hex(PDF));
     expect(emissao.origem).toBe('anexado');
     expect(emissao.arquivoNome).toBe('prontuario-antigo.pdf');
     expect(emissao.enviadoPor).toBe('eng@exemplo');
@@ -291,5 +315,229 @@ describe('os dois pontos de entrada usam a mesma arquitetura', () => {
       "export const ESCOPO_RELATORIOS = 'relatorios'",
     );
     expect(readFileSync('src/services/fotos.ts', 'utf8')).toContain("PASTAS_DOCUMENTO_FINAL = ['relatorios'");
+  });
+});
+
+/**
+ * FASE 3 (23/09/2026) — uma fonte, duas visualizações, sem cache-miss virar
+ * ausência. Letras = itens do pedido da rodada.
+ */
+describe('Fase 3 · prontuário existente', () => {
+  const CHAVE = `nr13_pront_emitido_${TAG}`;
+  const OUTRO_PDF = new Uint8Array([...PDF, 0x0a, 0x25, 0x25, 0x45, 0x4f, 0x46]);
+
+  const gerada = (sha: string): EmissaoProntuario => ({
+    id: `PRONT-1-r1`,
+    tag: TAG,
+    numero: 'PR-001',
+    emissao: '19/09/2026',
+    motor: 'vetorial',
+    pdfRef: { bucket: 'inspecao', path: `org/relatorios/${sha}.pdf`, mimeType: 'application/pdf', tamanho: 10 },
+    sha256: sha,
+    paginas: 6,
+    tamanho: 10,
+    geradoEm: '2026-09-19T20:00:00.000Z',
+    pdfPendente: false,
+  });
+
+  it('A/B · ficha e lista: mesmo id, mesmo storageRef, mesmo SHA; baixar devolve os MESMOS bytes', async () => {
+    const pub = publicadorFalso();
+    const cofre = new Map<string, Blob>();
+    const publicar = async (bytes: Uint8Array, paginas: number) => {
+      const a = await pub.publicar(bytes, paginas);
+      cofre.set(a.pdfRef.path, new Blob([bytes.slice()], { type: 'application/pdf' }));
+      return a;
+    };
+    const { documento, emissao } = await anexarProntuarioExistente({ tag: TAG, arquivo, bytes: PDF }, { publicar });
+    const naFicha = listarEmissoes(TAG).find((e) => e.id === emissao.id)!;
+    const naLista = listarDocumentos().find((d) => d.id === documento.id)!;
+    expect(naFicha.id).toBe(naLista.id);
+    // A lista não copia pdfRef/SHA: resolve a emissão PELO ID, como
+    // `Prontuarios.tsx` faz ao abrir um anexo. Uma fonte só — o mesmo registro.
+    const pelaLista = listarEmissoes(naLista.tag).find((e) => e.id === naLista.id)!;
+    expect(pelaLista).toEqual(naFicha);
+    expect(pelaLista.pdfRef.path).toBe(emissao.pdfRef.path);
+
+    // Visualizar e baixar usam `bytesDaEmissao` — o arquivo do pdfRef, intacto.
+    const { bytesDaEmissao } = await import('../emissaoProntuario');
+    const blob = await bytesDaEmissao(naFicha, {
+      artefatoDe: (r) => (r?.pdfRef ? (r as never) : null),
+      baixarArtefato: async (a) => cofre.get(a.pdfRef.path) ?? null,
+    });
+    const baixados = new Uint8Array(await blob.arrayBuffer());
+    expect(await sha256Hex(baixados)).toBe(naFicha.sha256);
+    expect([...baixados]).toEqual([...PDF]);
+  });
+
+  it('D · mesmo PDF no mesmo equipamento: nenhum upload novo, registro existente devolvido', async () => {
+    const pub = publicadorFalso();
+    const a = await anexarProntuarioExistente({ tag: TAG, arquivo, bytes: PDF }, { publicar: pub.publicar });
+    const b = await anexarProntuarioExistente(
+      { tag: TAG, arquivo: { ...arquivo, nome: 'renomeado.pdf' }, bytes: PDF },
+      { publicar: pub.publicar },
+    );
+    expect(a.jaAnexado).toBeFalsy();
+    expect(b.jaAnexado).toBe(true);
+    expect(b.emissao.id).toBe(a.emissao.id);
+    expect(pub.enviados).toHaveLength(1); // o segundo não sobe objeto órfão
+    expect(listarEmissoes(TAG)).toHaveLength(1);
+  });
+
+  it('E · PDFs DIFERENTES no mesmo equipamento convivem (anexo1, anexo2)', async () => {
+    const pub = publicadorFalso();
+    await anexarProntuarioExistente({ tag: TAG, arquivo, bytes: PDF }, { publicar: pub.publicar });
+    await anexarProntuarioExistente({ tag: TAG, arquivo, bytes: OUTRO_PDF }, { publicar: pub.publicar });
+    const lista = listarAnexados(TAG);
+    expect(lista).toHaveLength(2);
+    expect(lista.map((e) => e.id.replace(/^PRONT-\d+-/, ''))).toEqual(['anexo1', 'anexo2']);
+    expect(new Set(lista.map((e) => e.sha256)).size).toBe(2);
+  });
+
+  it('F · o mesmo PDF em OUTRO equipamento é outro documento', async () => {
+    const pub = publicadorFalso();
+    await anexarProntuarioExistente({ tag: TAG, arquivo, bytes: PDF }, { publicar: pub.publicar });
+    const b = await anexarProntuarioExistente({ tag: 'ZZ-PRONT-02', arquivo, bytes: PDF }, { publicar: pub.publicar });
+    expect(b.jaAnexado).toBeFalsy();
+    expect(pub.enviados).toHaveLength(2);
+  });
+
+  it('G · F5 / aba nova: cache SEM a lista → leitura DIRIGIDA; o servidor decide a duplicidade', async () => {
+    const sha = await sha256Hex(PDF);
+    const doServidor = { ...gerada('x'), id: 'PRONT-9-anexo1', origem: 'anexado' as const, sha256: sha };
+    servidor.set(CHAVE, [doServidor]);
+    const pub = publicadorFalso();
+    const r = await anexarProntuarioExistente({ tag: TAG, arquivo, bytes: PDF }, { publicar: pub.publicar });
+    expect(r.jaAnexado).toBe(true);
+    expect(r.emissao.id).toBe('PRONT-9-anexo1');
+    expect(pub.enviados).toHaveLength(0);
+    // Só a chave daquela TAG foi pedida — nunca o catálogo inteiro.
+    expect(pedidas[0]).toEqual([CHAVE]);
+  });
+
+  it('H · cache parcial: anexo NOVO preserva o que o servidor já tinha e numera a partir dele', async () => {
+    servidor.set(CHAVE, [gerada('g-servidor'), { ...gerada('a1'), id: 'PRONT-2-anexo1', origem: 'anexado' as const }]);
+    const { emissao } = await anexarProntuarioExistente(
+      { tag: TAG, arquivo, bytes: PDF },
+      { publicar: publicadorFalso().publicar },
+    );
+    const lista = listarEmissoes(TAG);
+    expect(lista).toHaveLength(3);
+    expect(lista[0].sha256).toBe('g-servidor');
+    expect(emissao.id).toMatch(/-anexo2$/);
+  });
+
+  it('I · offline e SEM cópia local: recusa ANTES do upload, com mensagem clara, sem gravar nada', async () => {
+    redeFora = true;
+    const pub = publicadorFalso();
+    await expect(
+      anexarProntuarioExistente({ tag: TAG, arquivo, bytes: PDF }, { publicar: pub.publicar }),
+    ).rejects.toThrow(/Sem conexão com o servidor/);
+    expect(pub.enviados).toHaveLength(0);
+    expect(banco.has(CHAVE)).toBe(false);
+    expect(listarDocumentos()).toEqual([]);
+  });
+
+  it('J · offline COM a lista em cache: anexa pela fila das fotos; registro sem Base64 nem bytes', async () => {
+    banco.set(CHAVE, []);
+    banco.set('nr13_pront_indice', []);
+    redeFora = true;
+    const pub = publicadorFalso();
+    const offline = async (bytes: Uint8Array, paginas: number) => ({ ...(await pub.publicar(bytes, paginas)), pendente: true });
+    const { emissao } = await anexarProntuarioExistente({ tag: TAG, arquivo, bytes: PDF }, { publicar: offline });
+    expect(emissao.pdfPendente).toBe(true);
+    expect(pedidas).toEqual([]); // o cache bastou — nada foi perguntado à rede
+    const gravado = JSON.stringify(banco.get(CHAVE));
+    expect(gravado).not.toContain('JVBER'); // base64 de "%PDF"
+    expect(gravado).not.toMatch(/"(bytes|pdfBase64|conteudo)"/);
+    expect(gravado.length).toBeLessThan(2048);
+  });
+
+  it('K · falha no Storage: nenhum registro, nenhuma linha no índice', async () => {
+    const indexar = vi.fn();
+    await expect(
+      anexarProntuarioExistente(
+        { tag: TAG, arquivo, bytes: PDF },
+        { publicar: async () => { throw new Error('upload recusado'); }, indexar },
+      ),
+    ).rejects.toThrow('upload recusado');
+    expect(banco.has(CHAVE)).toBe(false);
+    expect(indexar).not.toHaveBeenCalled();
+    expect(listarDocumentos()).toEqual([]);
+  });
+
+  it('L · falha ao gravar o registro: o índice NÃO ganha linha apontando para nada', async () => {
+    const indexar = vi.fn();
+    await expect(
+      anexarProntuarioExistente(
+        { tag: TAG, arquivo, bytes: PDF },
+        {
+          publicar: publicadorFalso().publicar,
+          registrar: async () => { throw new Error('banco recusou'); },
+          indexar,
+        },
+      ),
+    ).rejects.toThrow('banco recusou');
+    expect(indexar).not.toHaveBeenCalled();
+    expect(listarDocumentos()).toEqual([]);
+  });
+
+  it('M · prontuário gerado, rascunho e emissão finalizada ficam intactos', async () => {
+    const g = gerada('sha-finalizado');
+    const rascunho = { tag: TAG, descricao: 'Vaso ZZ', campo: 'valor' };
+    banco.set(CHAVE, [g]);
+    banco.set(`nr13_prontuario_${TAG}`, rascunho);
+    await anexarProntuarioExistente({ tag: TAG, arquivo, bytes: PDF }, { publicar: publicadorFalso().publicar });
+    const lista = listarEmissoes(TAG);
+    expect(lista[0]).toEqual(g); // pdfRef e SHA do finalizado, intactos
+    expect(banco.get(`nr13_prontuario_${TAG}`)).toEqual(rascunho);
+    expect(emissaoAtual(TAG)?.id).toBe(g.id);
+  });
+
+  it('N · índice fora do cache: a linha nova entra SEM apagar as do servidor (nada de base 0)', async () => {
+    const linhaServidor = docDeEmissao({ ...gerada('outro'), tag: 'ZZ-OUTRA', id: 'PRONT-X-r1' }, 1, 'Outro', null);
+    servidor.set('nr13_pront_indice', [linhaServidor]);
+    const { documento } = await anexarProntuarioExistente(
+      { tag: TAG, arquivo, bytes: PDF },
+      { publicar: publicadorFalso().publicar },
+    );
+    expect(pedidas.some((p) => p.includes('nr13_pront_indice'))).toBe(true);
+    expect(listarDocumentos().map((d) => d.id).sort()).toEqual([documento.id, 'PRONT-X-r1'].sort());
+  });
+
+  it('O · a tela diz que o PDF já estava anexado em vez de fechar calada', () => {
+    const modal = readFileSync('src/features/prontuarios/ModalAnexarProntuario.tsx', 'utf8');
+    expect(modal).toContain('r.jaAnexado');
+    expect(modal).toContain('Este PDF já está anexado a este equipamento');
+  });
+
+  it('P · a ficha tem Visualizar E Baixar, os dois pelos bytes arquivados', () => {
+    const ficha = readFileSync('src/features/prontuarios/ProntuarioDoEquipamento.tsx', 'utf8');
+    expect(ficha).toContain('title="Visualizar"');
+    expect(ficha).toContain('title="Baixar o PDF original"');
+    expect(ficha.match(/bytesDaEmissao\(e, \{ artefatoDe, baixarArtefato \}\)/g)).toHaveLength(2);
+    expect(ficha).toContain('baixarArquivo(blob');
+  });
+
+  it('Q · bucket privado e isolamento por organização na pasta do arquivo', () => {
+    const sql = readFileSync('supabase/fotos_storage.sql', 'utf8');
+    for (const pol of ['inspecao_leitura', 'inspecao_escrita']) {
+      const bloco = sql.slice(sql.indexOf(`create policy ${pol}`));
+      expect(bloco.slice(0, 400)).toContain('(storage.foldername(name))[1] = public.org_atual()::text');
+    }
+    expect(sql).toContain("select public from storage.buckets where id = 'inspecao'");
+    // e a pasta de documento final não aceita UPDATE/DELETE de usuário
+    const imut = readFileSync('supabase/documentos_emitidos_imutaveis.sql', 'utf8');
+    expect(imut).toMatch(/not in[\s\S]{0,120}'relatorios'/);
+  });
+
+  it('R · excluir o prontuário NÃO tira da lista o PDF anexado', async () => {
+    const { removerDoIndice } = await import('../indiceProntuarios');
+    const { documento } = await anexarProntuarioExistente(
+      { tag: TAG, arquivo, bytes: PDF },
+      { publicar: publicadorFalso().publicar },
+    );
+    await removerDoIndice(TAG);
+    expect(listarDocumentos().map((d) => d.id)).toEqual([documento.id]);
+    expect(listarAnexados(TAG)).toHaveLength(1);
   });
 });
