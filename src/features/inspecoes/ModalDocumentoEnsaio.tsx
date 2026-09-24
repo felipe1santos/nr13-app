@@ -3,6 +3,9 @@ import { Icone } from '../../components/Icone';
 import { useFocoPreso } from '../../components/useFocoPreso';
 import PreviewDocumento from './PreviewDocumento';
 import { ROTULO_FORMULARIO, type FormularioEnsaio } from './tipos';
+// O modal também abre de dentro do formulário (Relatório de Imagens), que não
+// carrega a folha de estilo da página do container.
+import '../../pages/inspecoes.css';
 
 /**
  * A folha do relatório daquele ensaio, no CENTRO da tela (13/09/2026).

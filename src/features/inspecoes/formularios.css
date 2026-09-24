@@ -552,3 +552,90 @@
 .seletor-cal-opcao span { font-size: 11.5px; color: var(--muted, #6b7280); }
 .seletor-cal-opcao.atual { border-color: var(--amber-deep, #d9640c); box-shadow: 0 0 0 2px rgba(255, 122, 26, 0.18); }
 .seletor-cal-opcao:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* ── Fotos descritas (Fase 5): uma grade para todos os formulários ─────────
+   Cada foto é uma linha: miniatura à esquerda, número + ordem + descrição à
+   direita. No celular a miniatura sobe e a descrição ocupa a largura toda.
+   Todo botão tem 44px de alvo de toque. */
+.efd { display: flex; flex-direction: column; gap: 10px; }
+.efd-vazio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 22px 12px;
+  border: 1px dashed var(--border-solid, #e4e1d8);
+  border-radius: var(--radius-md, 10px);
+  background: var(--steel, #f6f5f2);
+  text-align: center;
+}
+.efd-vazio p { margin: 0; font-size: 13px; color: var(--muted, #6b7280); }
+.efd-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.efd-item {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  gap: 12px;
+  padding: 10px;
+  border: 1px solid var(--border-solid, #e4e1d8);
+  border-radius: var(--radius-md, 10px);
+  background: var(--panel, #fff);
+}
+.efd-item-pendente { border-color: var(--crit, #b91c1c); }
+.efd-imagem { min-width: 0; }
+.efd-imagem img {
+  width: 100%;
+  height: 120px;
+  object-fit: contain;
+  display: block;
+  border-radius: 6px;
+  background: var(--steel, #f6f5f2);
+}
+.efd-corpo { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.efd-topo { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.efd-rotulo { font-size: 13px; }
+.efd-mover { display: flex; gap: 6px; }
+.efd-btn {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--border-solid, #e4e1d8);
+  border-radius: 8px;
+  background: var(--panel, #fff);
+  font-size: 14px;
+  cursor: pointer;
+}
+.efd-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.efd-btn-remover { align-self: flex-start; color: var(--crit, #b91c1c); font-size: 12.5px; }
+.efd-btn-perigo { background: #fee2e2; border-color: #fca5a5; color: #b91c1c; font-size: 12.5px; }
+.efd-remover-confirmar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12.5px; }
+.efd-descricao { display: flex; flex-direction: column; gap: 3px; }
+.efd-descricao-rotulo { font-size: 11px; color: var(--muted, #6b7280); text-transform: uppercase; letter-spacing: 0.04em; }
+.efd-descricao textarea {
+  width: 100%;
+  min-height: 64px;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid var(--border-solid, #e4e1d8);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 13px;
+  resize: vertical;
+}
+.efd-item-pendente .efd-descricao textarea { border-color: var(--crit, #b91c1c); }
+.efd-aviso { font-size: 11.5px; color: var(--crit, #b91c1c); }
+.efd-adicionar {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px dashed var(--amber-deep, #d9640c);
+  border-radius: 8px;
+  background: #fff8f1;
+  color: var(--amber-deep, #d9640c);
+  font-weight: 600;
+  cursor: pointer;
+}
+.efd-adicionar:disabled { opacity: 0.6; cursor: progress; }
+.efd-erro { margin: 0; font-size: 12.5px; color: var(--crit, #b91c1c); overflow-wrap: anywhere; }
+@media (max-width: 560px) {
+  .efd-item { grid-template-columns: minmax(0, 1fr); }
+  .efd-imagem img { height: 180px; }
+}

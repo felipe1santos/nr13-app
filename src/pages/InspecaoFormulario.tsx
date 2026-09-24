@@ -5,6 +5,7 @@ import FormularioChecklist from '../features/inspecoes/formularios/FormularioChe
 import FormularioVisualExterno from '../features/inspecoes/formularios/FormularioVisualExterno';
 import FormularioVisualInterno from '../features/inspecoes/formularios/FormularioVisualInterno';
 import FormularioTH from '../features/inspecoes/formularios/FormularioTH';
+import FormularioRelatorioImagens from '../features/inspecoes/formularios/FormularioRelatorioImagens';
 import VisualizadorFormulario from '../features/inspecoes/VisualizadorFormulario';
 import PreviewDocumento from '../features/inspecoes/PreviewDocumento';
 import { carregarDadosFormulario } from '../features/inspecoes/inspecaoService';
@@ -56,6 +57,7 @@ export default function InspecaoFormulario() {
             {f === 'visual_externo' && <FormularioVisualExterno tag={tag} containerId={containerId} />}
             {f === 'visual_interno' && <FormularioVisualInterno tag={tag} containerId={containerId} />}
             {f === 'th' && <FormularioTH tag={tag} containerId={containerId} />}
+            {f === 'imagens' && <FormularioRelatorioImagens tag={tag} containerId={containerId} />}
           </>
         )}
       </div>

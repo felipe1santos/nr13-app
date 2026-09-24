@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import PaginaA4 from '../../components/PaginaA4';
 import RecusaPalco from '../../components/RecusaPalco';
-import { VisualizadorPdfBytes } from '../../components/VisualizadorPdf';
+import { VisualizadorPdfBytes, abrirPdfEmAba, baixarPdfDeBytes } from '../../components/VisualizadorPdf';
+import { gerarDocumentoImagens } from './documentoImagens';
+import { pendenciasParaEmissao } from './fotosDescritas';
 import { textoDoErro } from '../../services/textoDoErro';
 import { usePalcoDocumento } from '../documentos/usePalcoDocumento';
 import { carregarContainer } from './inspecaoService';
@@ -48,10 +50,110 @@ export default function PreviewDocumento({
   containerId: string;
   formulario: FormularioEnsaio;
 }) {
+  if (formulario === 'imagens') {
+    return <DocumentoImagens tag={tag} containerId={containerId} />;
+  }
   if (temDocumentoVetorial(formulario)) {
     return <DocumentoVetorial tag={tag} containerId={containerId} formulario={formulario} />;
   }
   return <DocumentoEmIframes tag={tag} containerId={containerId} formulario={formulario} />;
+}
+
+/**
+ * Fase 5 · o RELATÓRIO DE IMAGENS — documento avulso com gerador próprio
+ * (`documentoImagens.ts`).
+ *
+ * Visualizar é sempre possível, inclusive com o rascunho incompleto: o técnico
+ * precisa ver como está ficando. Baixar e Imprimir são a EMISSÃO do avulso e
+ * exigem ao menos uma imagem e todas descritas (`pendenciasParaEmissao`);
+ * enquanto faltar, os botões ficam desligados e a tela diz o que falta.
+ */
+function DocumentoImagens({ tag, containerId }: { tag: string; containerId: string }) {
+  const chave = `${tag}|${containerId}|imagens`;
+  const [res, setRes] = useState<{
+    chave: string;
+    bytes?: Uint8Array;
+    paginas?: number;
+    erro?: string;
+  } | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
+  const container = carregarContainer(tag, containerId);
+  const pendencias = pendenciasParaEmissao((container?.dados.imagens as { fotos?: unknown } | undefined)?.fotos);
+
+  useEffect(() => {
+    let vivo = true;
+    void gerarDocumentoImagens(tag, containerId)
+      .then((r) => {
+        if (vivo) setRes({ chave, bytes: r.bytes, paginas: r.paginas });
+      })
+      .catch((e) => {
+        if (vivo) setRes({ chave, erro: textoDoErro(e) });
+      });
+    return () => {
+      vivo = false;
+    };
+  }, [tag, containerId, chave]);
+
+  if (res?.chave !== chave) return <p className="prevdoc-aviso">Montando documento…</p>;
+  if (res.erro || !res.bytes) {
+    return <p className="prevdoc-aviso">Não foi possível montar o documento. {res.erro ?? ''}</p>;
+  }
+  const bytes = res.bytes;
+  const nome = `${tag} — Relatório de Imagens.pdf`;
+  const bloqueado = pendencias.length > 0;
+  const motivo = bloqueado ? `Para emitir: ${pendencias.map((p) => p.mensagem).join(' ')}` : undefined;
+
+  return (
+    <>
+      {bloqueado && (
+        <p className="prevdoc-aviso" role="status" data-teste="imagens-pendencias">
+          {motivo}
+        </p>
+      )}
+      {aviso && (
+        <p className="prevdoc-aviso" role="status">
+          {aviso}
+        </p>
+      )}
+      <VisualizadorPdfBytes
+        bytes={bytes}
+        paginas={res.paginas ?? 1}
+        nomeArquivo={nome}
+        selo={bloqueado ? 'Rascunho — faltam itens para emitir' : 'Documento avulso — não arquivado'}
+        extras={
+          <>
+            <button
+              type="button"
+              className="vpdf-btn"
+              disabled={bloqueado}
+              title={motivo ?? 'Baixar o PDF'}
+              data-teste="imagens-baixar"
+              onClick={() => baixarPdfDeBytes(bytes, nome)}
+            >
+              Baixar
+            </button>
+            <button
+              type="button"
+              className="vpdf-btn"
+              disabled={bloqueado}
+              title={motivo ?? 'Abrir o PDF para imprimir'}
+              data-teste="imagens-imprimir"
+              onClick={() => {
+                // Imprimir = abrir o PDF no leitor do navegador, que imprime
+                // exatamente estes bytes. Bloqueador de pop-up → baixa.
+                if (!abrirPdfEmAba(bytes)) {
+                  baixarPdfDeBytes(bytes, nome);
+                  setAviso('O navegador bloqueou a nova aba; o PDF foi baixado para imprimir.');
+                }
+              }}
+            >
+              Imprimir
+            </button>
+          </>
+        }
+      />
+    </>
+  );
 }
 
 /** O ensaio desenhado pelo motor do relatório. */

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { carregarDadosFormulario, salvarDadosFormulario } from '../inspecaoService';
 import { useAutosaveFormulario } from '../useAutosaveFormulario';
 import { mesclarPreenchimento, prefillTH } from './autoPreencher';
@@ -7,8 +7,9 @@ import { rotuloPressao, valorNaUnidade, type SistemaUnidade } from '../../../cal
 import { pressaoDeProjetoMpa } from '../../memorial/pressaoProjeto';
 import { unidadeDoRegistroTh, unidadeDoEquipamento, fluidoEhOperacional } from './unidadeTh';
 import ResultadoEnsaio, { type ResultadoEnsaioValor } from './ResultadoEnsaio';
-import { salvarFoto, type RefFoto } from '../../../services/fotos';
-import FotoImg from '../../../components/FotoImg';
+import type { RefFoto } from '../../../services/fotos';
+import EditorFotosDescritas from '../EditorFotosDescritas';
+import { normalizarFotos } from '../fotosDescritas';
 import FeedbackSalvamento, { useSalvamento } from '../../../components/FeedbackSalvamento';
 
 const ESTILO_DICA = { fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 } as const;
@@ -30,6 +31,9 @@ interface LinhaCurva {
 }
 
 interface Foto {
+  /** Fase 5 · identidade e ordem explícitas (ausentes em registro antigo). */
+  id?: string;
+  ordem?: number;
   /** Referência no bucket. Fotos novas usam só isto. */
   ref?: RefFoto;
   /** LEGADO: base64 das fotos gravadas antes de 10/08/2026. */
@@ -140,7 +144,6 @@ export default function FormularioTH({ tag, containerId }: { tag: string; contai
   // versões da mesma ideia, e o ultrassom sem nenhuma.
   const salvamento = useSalvamento();
   const salvando = salvamento.salvando;
-  const inputRef = useRef<HTMLInputElement>(null);
 
   function set(chave: keyof DadosTH, valor: string) {
     setDados((d) => ({ ...d, [chave]: valor }));
@@ -156,29 +159,6 @@ export default function FormularioTH({ tag, containerId }: { tag: string; contai
 
   function removerLinha(i: number) {
     setDados((d) => ({ ...d, curva: d.curva.filter((_, idx) => idx !== i) }));
-  }
-
-  async function adicionarFoto(e: React.ChangeEvent<HTMLInputElement>) {
-    const arquivo = e.target.files?.[0];
-    if (!arquivo) return;
-    try {
-      // 800px para qualidade adequada no laudo impresso
-      const ref = await salvarFoto(arquivo, `${tag}/th`);
-      setDados((d) => ({ ...d, fotos: [...d.fotos, { ref, descricao: '' }] }));
-    } catch {
-      // Falha ao processar a imagem também é falha de salvamento aos olhos do
-      // usuário: ele anexou uma foto e ela não ficou. Mesmo aviso, mesmo lugar.
-      salvamento.falhar('Erro ao processar a imagem. Tente outra foto.');
-    }
-    if (inputRef.current) inputRef.current.value = '';
-  }
-
-  function setDescricaoFoto(i: number, descricao: string) {
-    setDados((d) => ({ ...d, fotos: d.fotos.map((f, idx) => (idx === i ? { ...f, descricao } : f)) }));
-  }
-
-  function removerFoto(i: number) {
-    setDados((d) => ({ ...d, fotos: d.fotos.filter((_, idx) => idx !== i) }));
   }
 
   async function salvar() {
@@ -358,28 +338,13 @@ export default function FormularioTH({ tag, containerId }: { tag: string; contai
           Sem limite de fotos. 4 fotos por folha no laudo. Cada foto pode ter uma legenda.
         </p>
 
-        <div className="fotos-formulario-grid">
-          {dados.fotos.map((f, i) => (
-            <div key={i} className="foto-formulario-item">
-              <FotoImg foto={f} alt={`Foto ${i + 1}`} variante="thumb" />
-              <input
-                type="text"
-                placeholder={`Legenda da Foto ${i + 1}`}
-                value={f.descricao}
-                onChange={(e) => setDescricaoFoto(i, e.target.value)}
-              />
-              <button type="button" className="btn-remover-linha" onClick={() => removerFoto(i)}>
-                Remover
-              </button>
-            </div>
-          ))}
-        </div>
-
-        {/* Botão sempre visível — sem limite */}
-        <label className="btn-add-foto" style={{ display: 'block', textAlign: 'center', marginTop: 10 }}>
-          + Adicionar Foto
-          <input ref={inputRef} type="file" accept="image/*" onChange={adicionarFoto} style={{ display: 'none' }} />
-        </label>
+        <EditorFotosDescritas
+          fotos={dados.fotos}
+          escopo={`${tag}/th`}
+          textoVazio="Nenhuma foto adicionada"
+          rotuloAdicionar="Adicionar foto"
+          alterar={(atualizar) => setDados((d) => ({ ...d, fotos: atualizar(normalizarFotos(d.fotos)) }))}
+        />
       </div>
 
       <div className="formulario-acoes-fixas">

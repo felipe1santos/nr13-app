@@ -18,6 +18,7 @@ const ICONE_FORMULARIO: Record<FormularioEnsaio, NomeIcone> = {
   th: 'cylinder',
   manometro: 'manometro',
   psv: 'valvula-psv',
+  imagens: 'camera',
 };
 
 export default function InspecaoContainer() {

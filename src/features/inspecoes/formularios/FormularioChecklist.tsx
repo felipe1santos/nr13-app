@@ -1,9 +1,10 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { carregarDadosFormulario, salvarDadosFormulario } from '../inspecaoService';
 import { useAutosaveFormulario } from '../useAutosaveFormulario';
 import RespostaSegmentada from './RespostaSegmentada';
-import { salvarFoto, type RefFoto } from '../../../services/fotos';
-import FotoImg from '../../../components/FotoImg';
+import type { RefFoto } from '../../../services/fotos';
+import EditorFotosDescritas from '../EditorFotosDescritas';
+import { normalizarFotos } from '../fotosDescritas';
 import FeedbackSalvamento, { useSalvamento } from '../../../components/FeedbackSalvamento';
 import SeletorCalibracaoInstrumento from './SeletorCalibracaoInstrumento';
 import { tipoDaLinhaChecklist } from '../../calibracoes/instrumentos';
@@ -136,7 +137,8 @@ const INSTRUMENTOS = [
 
 // `base64` só sobrevive para as fotos gravadas antes de 10/08/2026; as novas
 // carregam `ref` e a imagem mora no bucket (ver services/fotos.ts).
-type Foto = { base64?: string; ref?: RefFoto; descricao: string };
+// Fase 5 · `id` e `ordem` explícitos (ausentes em registro antigo) — ver `fotosDescritas.ts`.
+type Foto = { id?: string; ordem?: number; base64?: string; ref?: RefFoto; descricao: string };
 
 interface DadosChecklist {
   dataInspecao: string;
@@ -250,8 +252,6 @@ export default function FormularioChecklist({ tag, containerId }: { tag: string;
   // versões da mesma ideia, e o ultrassom sem nenhuma.
   const salvamento = useSalvamento();
   const salvando = salvamento.salvando;
-  const inputFotoRef = useRef<HTMLInputElement>(null);
-  const inputFotoDocRef = useRef<HTMLInputElement>(null);
 
   function setResposta(id: string, valor: string) {
     setDados((d) => ({ ...d, respostas: { ...d.respostas, [id]: valor } }));
@@ -287,20 +287,8 @@ export default function FormularioChecklist({ tag, containerId }: { tag: string;
 
   type CampoFoto = 'fotos' | 'fotosDocumentacao';
 
-  async function adicionarFoto(campo: CampoFoto, e: React.ChangeEvent<HTMLInputElement>) {
-    const arquivo = e.target.files?.[0];
-    e.target.value = '';
-    if (!arquivo) return;
-    const ref = await salvarFoto(arquivo, `${tag}/checklist`);
-    setDados((d) => ({ ...d, [campo]: [...d[campo], { ref, descricao: '' }] }));
-  }
-
-  function setDescricaoFoto(campo: CampoFoto, idx: number, desc: string) {
-    setDados((d) => ({ ...d, [campo]: d[campo].map((f, i) => (i === idx ? { ...f, descricao: desc } : f)) }));
-  }
-
-  function removerFoto(campo: CampoFoto, idx: number) {
-    setDados((d) => ({ ...d, [campo]: d[campo].filter((_, i) => i !== idx) }));
+  function alterarFotos(campo: CampoFoto, atualizar: (atual: ReturnType<typeof normalizarFotos>) => ReturnType<typeof normalizarFotos>) {
+    setDados((d) => ({ ...d, [campo]: atualizar(normalizarFotos(d[campo])) }));
   }
 
   async function salvar() {
@@ -461,58 +449,24 @@ export default function FormularioChecklist({ tag, containerId }: { tag: string;
 
       <div className="formulario-secao">
         <h3>Registro Fotográfico da Documentação</h3>
-        <input ref={inputFotoDocRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => adicionarFoto('fotosDocumentacao', e)} />
-        <div className="fotos-formulario-grid">
-          {dados.fotosDocumentacao.map((foto, idx) => (
-            <div key={idx} className="foto-formulario-item">
-              <FotoImg foto={foto} alt={`Foto documentação ${idx + 1}`} variante="thumb" />
-              <input
-                type="text"
-                value={foto.descricao}
-                placeholder="Descrição da foto..."
-                onChange={(e) => setDescricaoFoto('fotosDocumentacao', idx, e.target.value)}
-              />
-              <button
-                type="button"
-                onClick={() => removerFoto('fotosDocumentacao', idx)}
-                style={{ width: '100%', border: 'none', background: '#fee2e2', color: '#b91c1c', padding: '6px', fontSize: 12, cursor: 'pointer' }}
-              >
-                Remover
-              </button>
-            </div>
-          ))}
-          <button type="button" className="btn-add-foto" onClick={() => inputFotoDocRef.current?.click()}>
-            + Adicionar Foto
-          </button>
-        </div>
+        <EditorFotosDescritas
+          fotos={dados.fotosDocumentacao}
+          escopo={`${tag}/checklist`}
+          textoVazio="Nenhuma foto da documentação adicionada"
+          rotuloAdicionar="Adicionar foto"
+          alterar={(atualizar) => alterarFotos('fotosDocumentacao', atualizar)}
+        />
       </div>
 
       <div className="formulario-secao">
         <h3>Registro Fotográfico do Checklist</h3>
-        <input ref={inputFotoRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => adicionarFoto('fotos', e)} />
-        <div className="fotos-formulario-grid">
-          {dados.fotos.map((foto, idx) => (
-            <div key={idx} className="foto-formulario-item">
-              <FotoImg foto={foto} alt={`Foto ${idx + 1}`} variante="thumb" />
-              <input
-                type="text"
-                value={foto.descricao}
-                placeholder="Descrição da foto..."
-                onChange={(e) => setDescricaoFoto('fotos', idx, e.target.value)}
-              />
-              <button
-                type="button"
-                onClick={() => removerFoto('fotos', idx)}
-                style={{ width: '100%', border: 'none', background: '#fee2e2', color: '#b91c1c', padding: '6px', fontSize: 12, cursor: 'pointer' }}
-              >
-                Remover
-              </button>
-            </div>
-          ))}
-          <button type="button" className="btn-add-foto" onClick={() => inputFotoRef.current?.click()}>
-            + Adicionar Foto
-          </button>
-        </div>
+        <EditorFotosDescritas
+          fotos={dados.fotos}
+          escopo={`${tag}/checklist`}
+          textoVazio="Nenhuma foto do checklist adicionada"
+          rotuloAdicionar="Adicionar foto"
+          alterar={(atualizar) => alterarFotos('fotos', atualizar)}
+        />
       </div>
 
       <div className="formulario-acoes-fixas">

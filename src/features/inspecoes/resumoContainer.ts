@@ -177,6 +177,20 @@ const LEITOR: Record<FormularioEnsaio, (d: Blob) => Omit<EnsaioResumido, 'ensaio
   // honesta em vez de estourar.
   manometro: (d) => lerAvulso(d),
   psv: (d) => lerAvulso(d),
+  // Relatório de Imagens (Fase 5): o conteúdo são as fotos descritas.
+  imagens: (d) => {
+    const fotos = arr(d.fotos).length;
+    const conclusao = txt(d.observacoes);
+    return {
+      salvo: fotos > 0 || conclusao !== null,
+      data: dataBrDoCampo(d.dataRegistro),
+      respostas: 0,
+      medicoes: 0,
+      fotos,
+      resultado: null,
+      conclusao,
+    };
+  },
 };
 
 function lerVisual(d: Blob): Omit<EnsaioResumido, 'ensaio' | 'formulario' | 'rotulo' | 'atribuido'> {
@@ -268,4 +282,5 @@ export const DOC_DO_ENSAIO: Record<TipoEnsaio, string | null> = {
   visual_interno: 'VISUAL-INTERNO.html',
   ultrassom: 'ULTRASSOM.html',
   teste_hidrostatico: 'TESTE-HIDROSTATICO.html',
+  relatorio_imagens: null, // documento avulso próprio, não folha do relatório NR-13
 };

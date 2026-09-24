@@ -17,6 +17,7 @@ const ICONE_ENSAIO: Record<TipoEnsaio, NomeIcone> = {
   visual_externo: 'eye',
   visual_interno: 'search',
   teste_hidrostatico: 'cylinder',
+  relatorio_imagens: 'camera',
 };
 
 function rotuloEnsaio(e: TipoEnsaio): string {

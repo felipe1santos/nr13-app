@@ -1,5 +1,6 @@
 import type { FormularioEnsaio } from './tipos';
 import FotoImg from '../../components/FotoImg';
+import { normalizarFotos, rotuloFoto } from './fotosDescritas';
 import { ehSistemaUnidade, rotuloPressao } from '../../calc/unidades';
 import { UNIDADE_TH_LEGADA } from './formularios/unidadeTh';
 import { ITENS_VISUAL_EXTERNO } from './formularios/FormularioVisualExterno';
@@ -90,19 +91,33 @@ function SecaoViz({ titulo, children }: { titulo: string; children: React.ReactN
   );
 }
 
-function GaleriaFotos({ fotos, titulo = 'Registro Fotográfico' }: { fotos: { base64: string; descricao: string }[]; titulo?: string }) {
-  if (!fotos || fotos.length === 0) return null;
+/**
+ * Fase 5 · a galeria lê pela ORDEM gravada e identifica cada foto pelo id
+ * (`normalizarFotos`), com o número derivado da posição — o mesmo "Foto 01"
+ * da tela de edição. Foto antiga, sem id nem ordem, sai na ordem do array.
+ */
+function GaleriaFotos({ fotos, titulo = 'Registro Fotográfico' }: { fotos: unknown; titulo?: string }) {
+  const lista = normalizarFotos(fotos);
+  if (lista.length === 0) return null;
   return (
     <SecaoViz titulo={titulo}>
       <div className="fotos-formulario-grid">
-        {fotos.map((f, i) => (
-          <div key={i} className="foto-formulario-item">
-            <FotoImg foto={f} alt={f.descricao || `Foto ${i + 1}`} variante="thumb" />
-            {f.descricao && (
-              <div style={{ padding: '6px 8px', fontSize: 12, color: '#374151', borderTop: '1px solid #e5e7eb' }}>
-                {f.descricao}
-              </div>
-            )}
+        {lista.map((f, i) => (
+          <div key={f.id} className="foto-formulario-item">
+            <FotoImg foto={f} alt={f.descricao || rotuloFoto(i)} variante="thumb" />
+            <div
+              style={{
+                padding: '6px 8px',
+                fontSize: 12,
+                color: '#374151',
+                borderTop: '1px solid #e5e7eb',
+                overflowWrap: 'anywhere',
+                whiteSpace: 'pre-wrap',
+              }}
+            >
+              <strong>{rotuloFoto(i)}</strong>
+              {f.descricao ? ` — ${f.descricao}` : ''}
+            </div>
           </div>
         ))}
       </div>
@@ -496,6 +511,20 @@ export default function VisualizadorFormulario({ formulario, dados }: Props) {
       return <ViewUltrassom dados={dados as DadosUltrassom} />;
     case 'th':
       return <ViewTH dados={dados as DadosTH} />;
+    case 'imagens': {
+      const d = dados as { dataRegistro?: string; observacoes?: string; fotos?: unknown };
+      return (
+        <>
+          <SecaoViz titulo="Relatório de Imagens">
+            <p style={{ fontSize: 13, margin: 0 }}>
+              Data do registro: {d.dataRegistro ? d.dataRegistro.split('-').reverse().join('/') : '—'}
+            </p>
+            {d.observacoes && <p style={{ fontSize: 13, whiteSpace: 'pre-wrap' }}>{d.observacoes}</p>}
+          </SecaoViz>
+          <GaleriaFotos fotos={d.fotos} titulo="Imagens" />
+        </>
+      );
+    }
     default:
       return <p style={{ padding: 20, color: '#6b7280' }}>Visualização não disponível para este tipo.</p>;
   }

@@ -223,6 +223,7 @@ const ESPERADO: Record<FormularioEnsaio, string[]> = {
   ultrassom: [],
   manometro: [],
   psv: [],
+  imagens: [],
 };
 
 /** Cabeçalhos que identificam a seção daquele ensaio nos dois documentos. */
@@ -234,6 +235,7 @@ const CABECALHOS: Record<FormularioEnsaio, string[]> = {
   ultrassom: [],
   manometro: [],
   psv: [],
+  imagens: [],
 };
 
 describe.each(ENSAIOS)('%s — o avulso e o relatório dizem a mesma coisa', (ensaio) => {

@@ -3,7 +3,8 @@ export type TipoEnsaio =
   | 'ultrassom'
   | 'visual_interno'
   | 'visual_externo'
-  | 'teste_hidrostatico';
+  | 'teste_hidrostatico'
+  | 'relatorio_imagens';
 
 export const ENSAIOS_DISPONIVEIS: { value: TipoEnsaio; label: string }[] = [
   { value: 'checklist',         label: 'Checklist Completo de Inspeção (NR-13)' },
@@ -11,9 +12,10 @@ export const ENSAIOS_DISPONIVEIS: { value: TipoEnsaio; label: string }[] = [
   { value: 'visual_externo',    label: 'Inspeção Visual Externa' },
   { value: 'visual_interno',    label: 'Inspeção Visual Interna' },
   { value: 'teste_hidrostatico',label: 'Teste Hidrostático / Estanqueidade' },
+  { value: 'relatorio_imagens', label: 'Relatório de Imagens' },
 ];
 
-export type FormularioEnsaio = 'ultrassom' | 'checklist' | 'visual_externo' | 'visual_interno' | 'th' | 'manometro' | 'psv';
+export type FormularioEnsaio = 'ultrassom' | 'checklist' | 'visual_externo' | 'visual_interno' | 'th' | 'manometro' | 'psv' | 'imagens';
 
 export const FORM_POR_ENSAIO: Record<TipoEnsaio, FormularioEnsaio> = {
   checklist:          'checklist',
@@ -21,6 +23,7 @@ export const FORM_POR_ENSAIO: Record<TipoEnsaio, FormularioEnsaio> = {
   visual_interno:     'visual_interno',
   visual_externo:     'visual_externo',
   teste_hidrostatico: 'th',
+  relatorio_imagens:  'imagens',
 };
 
 export const ROTULO_FORMULARIO: Record<FormularioEnsaio, string> = {
@@ -31,6 +34,7 @@ export const ROTULO_FORMULARIO: Record<FormularioEnsaio, string> = {
   th:             'Teste Hidrostático',
   manometro:      'Calibração de Manômetro',
   psv:            'Calibração de Válvula de Segurança (PSV)',
+  imagens:        'Relatório de Imagens',
 };
 
 // Container de inspeção: agrupa os ensaios atribuídos a um equipamento numa rodada de inspeção.
@@ -54,4 +58,8 @@ export const DOCS_POR_FORMULARIO: Record<FormularioEnsaio, string[]> = {
   th:             ['TESTE-HIDROSTATICO.html', 'TESTE-HIDROSTATICO-FOTOS.html'],
   manometro:      ['CERTIFICADO-CAL-MANOMETRO.html'],
   psv:            ['CERTIIFCADO-CAL-PSV.html'],
+  // O Relatório de Imagens não é folha do relatório NR-13 (nem template HTML):
+  // tem gerador vetorial próprio (`pdfVetorial/relatorioImagens.ts`). Lista
+  // vazia = nenhum template a montar e nenhuma folha a selecionar.
+  imagens:        [],
 };

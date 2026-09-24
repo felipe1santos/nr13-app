@@ -5,8 +5,9 @@ import { AvisoRevisaoNc, CabecalhoNaoConformidade, ItemNaoConformidade } from '.
 import { SEMANTICA_NC_ATUAL, carimboInicial, precisaConfirmarSemantica, type RespostaNc } from './semanticaNc';
 import { mesclarPreenchimento, prefillVisual } from './autoPreencher';
 import ResultadoEnsaio, { type ResultadoEnsaioValor } from './ResultadoEnsaio';
-import { salvarFoto, type RefFoto } from '../../../services/fotos';
-import FotoImg from '../../../components/FotoImg';
+import type { RefFoto } from '../../../services/fotos';
+import EditorFotosDescritas from '../EditorFotosDescritas';
+import { normalizarFotos } from '../fotosDescritas';
 import FeedbackSalvamento, { useSalvamento } from '../../../components/FeedbackSalvamento';
 
 const ESTILO_DICA = { fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 } as const;
@@ -55,7 +56,9 @@ interface DadosVisual {
   observacoes: string;
   conclusao: string;
   resultado: ResultadoEnsaioValor;
-  fotos: { base64?: string; ref?: RefFoto; descricao: string }[];
+  // Fase 5 · `id` e `ordem` (opcionais: registro antigo não tem) — ver
+  // `fotosDescritas.ts`. O array é mantido na ordem de `ordem`.
+  fotos: { id?: string; ordem?: number; base64?: string; ref?: RefFoto; descricao: string }[];
   /**
    * Carimbo da semântica "SIM = não conformidade encontrada" (18/09/2026).
    * Presente = respondido com a pergunta na tela. Ausente num registro COM
@@ -113,26 +116,6 @@ export default function FormularioVisualExterno({ tag, containerId }: { tag: str
 
   function setItemObs(n: number, val: string) {
     setDados((d) => ({ ...d, itemObs: { ...d.itemObs, [String(n)]: val } }));
-  }
-
-  async function adicionarFoto(e: React.ChangeEvent<HTMLInputElement>) {
-    const arquivo = e.target.files?.[0];
-    e.target.value = '';
-    if (!arquivo) return;
-    const ref = await salvarFoto(arquivo, `${tag}/visual-externo`);
-    setDados((d) => ({ ...d, fotos: [...d.fotos, { ref, descricao: '' }] }));
-  }
-
-  function setDescricaoFoto(i: number, desc: string) {
-    setDados((d) => {
-      const fotos = [...d.fotos];
-      fotos[i] = { ...fotos[i], descricao: desc };
-      return { ...d, fotos };
-    });
-  }
-
-  function removerFoto(i: number) {
-    setDados((d) => ({ ...d, fotos: d.fotos.filter((_, idx) => idx !== i) }));
   }
 
   async function salvar() {
@@ -216,33 +199,13 @@ export default function FormularioVisualExterno({ tag, containerId }: { tag: str
         <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>
           Fotos salvas aqui serão injetadas automaticamente no documento de Inspeção Visual Externa.
         </p>
-        <div className="fotos-formulario-grid">
-          {dados.fotos.map((f, i) => (
-            <div key={i} className="foto-formulario-item">
-              <FotoImg foto={f} alt={`Foto ${i + 1}`} variante="thumb" />
-              <input
-                type="text"
-                placeholder={`Legenda — Foto ${i + 1}`}
-                value={f.descricao}
-                onChange={(e) => setDescricaoFoto(i, e.target.value)}
-              />
-              <button
-                type="button"
-                onClick={() => removerFoto(i)}
-                style={{ width: '100%', background: '#fee2e2', color: '#dc2626', border: 'none', padding: '6px', fontSize: 11, cursor: 'pointer' }}
-              >
-                Remover
-              </button>
-            </div>
-          ))}
-          <label
-            className="btn-add-foto"
-            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 80 }}
-          >
-            + Adicionar Foto
-            <input type="file" accept="image/*" style={{ display: 'none' }} onChange={adicionarFoto} />
-          </label>
-        </div>
+        <EditorFotosDescritas
+          fotos={dados.fotos}
+          escopo={`${tag}/visual-externo`}
+          textoVazio="Nenhuma foto adicionada"
+          rotuloAdicionar="Adicionar foto"
+          alterar={(atualizar) => setDados((d) => ({ ...d, fotos: atualizar(normalizarFotos(d.fotos)) }))}
+        />
       </div>
 
       <div className="formulario-acoes-fixas">
