@@ -287,6 +287,10 @@
 .selecao-dica { margin: 0 0 10px; font-size: 12.5px; color: var(--text-muted, #6b7280); }
 
 /* Mobile: a linha vira faixa em duas alturas, sem rolagem horizontal. */
+/* O contêiner dos campos de meta não existe para o desktop: cada campo segue
+   na sua coluna da grade. No celular ele vira a linha única da meta. */
+.pront-linha-meta { display: contents; }
+
 @media (max-width: 780px) {
   .pront-linha {
     grid-template-columns: 22px 1fr auto;
@@ -299,7 +303,8 @@
   .pront-linha-nome { grid-area: nome; }
   .pront-linha .badge-relatorios { grid-area: badge; }
   /* As três colunas de metadado viram uma linha só, separadas por ponto. */
-  .pront-linha-col { grid-area: meta; display: inline; }
+  .pront-linha-meta { grid-area: meta; display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pront-linha-col { display: inline; }
   .pront-linha-col + .pront-linha-col::before { content: ' · '; }
 }
 
@@ -346,7 +351,8 @@
     minmax(64px, 0.6fr)
     minmax(84px, 0.7fr)
     minmax(96px, 0.8fr)
-    96px;
+    /* Ações do GRUPO (24/09/2026): abrir, baixar, continuar e histórico. */
+    122px;
   gap: 10px;
   padding: 5px 10px;
   margin-bottom: 4px;
@@ -443,13 +449,19 @@
   .pront-linha-situacao { grid-area: situacao; justify-self: end; align-self: center; }
   /* Tipo, empresa, categoria e data viram uma linha só, com ponto médio —
      quatro faixas custariam 60px por cartão sem dizer mais nada. */
-  .pront-linha-col { grid-area: meta; display: inline; }
+  /* Os quatro campos numa área só se SOBREPUNHAM (24/09/2026): agora é o
+     contêiner que ocupa a área, e os campos correm dentro dele. */
+  .pront-linha-meta { grid-area: meta; display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pront-linha-col { display: inline; }
   .pront-linha-col + .pront-linha-col::before { content: ' · '; color: var(--border-solid, #d1d5db); }
   /* Alinhadas à direita e HORIZONTAIS, no fim da linha da meta. */
   .pront-linha-acoes { grid-area: acoes; justify-content: flex-end; align-self: center; margin-top: 0; }
   /* O alvo do dedo é 44px; o desenho do ícone continua pequeno (a área
      clicável é do botão, não do glifo). */
   .pront-linha-acoes .btn-icone { width: 44px; height: 44px; }
+  /* Grupo (24/09/2026): até quatro ações — quebram em vez de estourar. */
+  .pront-linha-acoes { flex-wrap: wrap; }
+  .pront-btn-historico { padding: 0 8px; }
 }
 
 @media (max-width: 640px) {
@@ -777,3 +789,18 @@
 /* PDF existente ANEXADO (19/09/2026): documento de outro emitente dentro da
    mesma lista. Tom neutro/âmbar para não competir com o verde de EMITIDO. */
 .pront-selo-anexado { background: #f6efe1; color: #7a5a17; border-color: #e6d7b8; }
+
+/* ── Uma linha por equipamento (24/09/2026) ────────────────────────────── */
+/* O rascunho ao lado do vigente não é notícia: é texto, sem fundo. */
+.pront-linha-situacao .pront-selo + .pront-selo { margin-left: 4px; }
+.pront-btn-historico {
+  position: relative;
+  width: auto !important;
+  padding: 0 4px;
+  gap: 2px;
+}
+.pront-historico-n {
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1;
+}

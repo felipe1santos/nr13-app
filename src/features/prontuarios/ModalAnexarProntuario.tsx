@@ -9,7 +9,8 @@ import {
   validarPdf,
   type ResultadoAnexo,
 } from './anexoProntuario';
-import { formatarTamanho } from '../equipamento/ProntuarioFabricante';
+import { formatarTamanho, lerProntuarioFabricante } from '../equipamento/ProntuarioFabricante';
+import { listarEmissoes } from './emissaoProntuario';
 import { usuarioLogado } from '../../services/auth';
 
 /**
@@ -33,6 +34,7 @@ export default function ModalAnexarProntuario({
   cliente,
   aoFechar,
   aoConcluir,
+  atualizacao,
 }: {
   /** Equipamento já definido (ficha). Vazio = a lista pede para escolher. */
   tag?: string;
@@ -40,6 +42,12 @@ export default function ModalAnexarProntuario({
   cliente?: string | null;
   aoFechar: () => void;
   aoConcluir: (r: ResultadoAnexo) => void;
+  /**
+   * O equipamento JÁ TEM prontuário vigente: o envio é uma NOVA VERSÃO
+   * ("Atualizar prontuário"). Sem a prop, o modal descobre sozinho pelo que este
+   * aparelho conhece da TAG — a lista escolhe o equipamento dentro do modal.
+   */
+  atualizacao?: boolean;
 }) {
   const [tag, setTag] = useState(tagFixa ?? '');
   /**
@@ -56,8 +64,17 @@ export default function ModalAnexarProntuario({
   const [estado, setEstado] = useState<EstadoEnvio>('escolher');
   const [erro, setErro] = useState('');
   const [jaAnexado, setJaAnexado] = useState(false);
+  /** Com `jaAnexado`: o repetido é o VIGENTE (true) ou uma versão do histórico. */
+  const [jaVigente, setJaVigente] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const enviando = estado === 'enviando';
+  // 1 equipamento = 1 prontuário vigente: com documento, anexar é ATUALIZAR.
+  const ehAtualizacaoAgora =
+    atualizacao ?? (!!tag && (listarEmissoes(tag).length > 0 || !!lerProntuarioFabricante(tag)));
+  // Congelado no envio: depois do primeiro anexo o cache já TEM a emissão, e o
+  // aviso de sucesso não pode virar "atualizado" por causa do próprio envio.
+  const [modoDoEnvio, setModoDoEnvio] = useState<boolean | null>(null);
+  const ehAtualizacao = modoDoEnvio ?? ehAtualizacaoAgora;
 
   function escolherArquivo(f: File | null) {
     setErro('');
@@ -75,6 +92,7 @@ export default function ModalAnexarProntuario({
     }
     setArquivo(f);
     setJaAnexado(false);
+    setModoDoEnvio(null);
     setEstado('pronto');
   }
 
@@ -82,6 +100,7 @@ export default function ModalAnexarProntuario({
     if (!tag || !arquivo || enviando) return; // trava o duplo clique
     setEstado('enviando');
     setErro('');
+    setModoDoEnvio(ehAtualizacaoAgora);
     try {
       const bytes = new Uint8Array(await arquivo.arrayBuffer());
       const valido = validarPdf({ nome: arquivo.name, tamanho: arquivo.size, mimeType: arquivo.type }, bytes);
@@ -100,6 +119,7 @@ export default function ModalAnexarProntuario({
       // usuário acreditar que ganhou um segundo documento.
       if (r.jaAnexado) {
         setJaAnexado(true);
+        setJaVigente(!!r.jaVigente);
         return;
       }
       aoConcluir(r);
@@ -115,13 +135,13 @@ export default function ModalAnexarProntuario({
       onClick={(e) => e.target === e.currentTarget && !enviando && aoFechar()}
       role="dialog"
       aria-modal="true"
-      aria-label="Anexar prontuário existente"
+      aria-label={ehAtualizacao ? 'Atualizar prontuário' : 'Anexar prontuário existente'}
     >
       <div className="fj-modal-box mf-box map-box">
         <div className="fj-modal-head">
           <div>
             <div className="fj-eyebrow">Prontuário</div>
-            <h2>Anexar prontuário existente</h2>
+            <h2>{ehAtualizacao ? 'Atualizar prontuário' : 'Anexar prontuário existente'}</h2>
           </div>
           {!enviando && (
             <button type="button" className="fj-modal-close" onClick={aoFechar} aria-label="Fechar">
@@ -131,10 +151,17 @@ export default function ModalAnexarProntuario({
         </div>
 
         <div className="mf-corpo map-corpo">
-          <p className="map-explica">
-            O PDF é guardado como está, sem conversão, e fica vinculado ao equipamento. Ele{' '}
-            <b>não substitui</b> um prontuário feito aqui — os dois convivem.
-          </p>
+          {ehAtualizacao ? (
+            <p className="map-explica map-explica-atualizacao" data-teste="aviso-atualizacao">
+              O novo documento se tornará o <b>prontuário vigente</b>. O documento atual será preservado no
+              histórico.
+            </p>
+          ) : (
+            <p className="map-explica">
+              O PDF é guardado como está, sem conversão, e passa a ser o <b>prontuário NR-13</b> deste
+              equipamento.
+            </p>
+          )}
 
           <section className="map-secao">
             <h3>Equipamento {tagFixa ? '' : '*'}</h3>
@@ -204,13 +231,15 @@ export default function ModalAnexarProntuario({
           )}
           {estado === 'concluido' && jaAnexado && (
             <p className="map-estado map-estado-ok" role="status" data-teste="ja-anexado">
-              <Icone nome="checkcircle" tam={15} /> Este PDF já está anexado a este equipamento — nenhum
-              arquivo novo foi enviado.
+              <Icone nome="checkcircle" tam={15} />{' '}
+              {jaVigente
+                ? 'Este documento já é o prontuário vigente deste equipamento — nenhuma nova versão foi criada.'
+                : 'Este documento já está no histórico deste equipamento — nenhuma nova versão foi criada.'}
             </p>
           )}
           {estado === 'concluido' && !jaAnexado && (
             <p className="map-estado map-estado-ok" role="status">
-              <Icone nome="checkcircle" tam={15} /> Prontuário anexado.
+              <Icone nome="checkcircle" tam={15} /> {ehAtualizacao ? 'Prontuário atualizado.' : 'Prontuário anexado.'}
             </p>
           )}
         </div>
@@ -225,7 +254,7 @@ export default function ModalAnexarProntuario({
             onClick={() => void enviar()}
             disabled={!tag || !arquivo || enviando || estado === 'concluido'}
           >
-            {enviando ? 'Enviando…' : 'Anexar prontuário'}
+            {enviando ? 'Enviando…' : ehAtualizacao ? 'Atualizar prontuário' : 'Anexar prontuário'}
           </button>
         </div>
       </div>

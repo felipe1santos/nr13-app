@@ -82,6 +82,17 @@
   text-overflow: ellipsis;
 }
 
+.pde-slot-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+}
+
+.pde-slot-rascunho {
+  border-style: dashed;
+  background: #FFFAF4;
+}
+
 .pde-slot-historico,
 .pde-slot-link {
   justify-self: start;

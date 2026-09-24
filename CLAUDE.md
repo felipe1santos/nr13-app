@@ -896,13 +896,25 @@ Um prontuário passa a entrar por dois caminhos, e os dois convivem no mesmo equ
 - **Um slot na ficha (24/09/2026).** Regra de produto: 1 equipamento = 1 prontuário VIGENTE.
   Os blocos "Prontuário NR-13" (lista) e "Prontuário do Fabricante" (área de envio) saíram do fim
   da ficha; o prontuário mora num slot compacto do card do topo (`ProntuarioDoEquipamento`).
-  Quem decide o que vai nele é `prontuarioVigente.ts`, sem regravar nada: a ÚLTIMA emissão de
-  `nr13_pront_emitido_<TAG>` (gerada ou anexada; as anteriores ficam como histórico, "+N em
-  Prontuários") e, sem emissão, o `nr13_pront_fab_<TAG>` como LEGADO — auditado em produção:
-  7 dos 8 PDFs "do fabricante" são o próprio prontuário do equipamento. O PDF do fabricante não
-  foi apagado nem movido; segue em /prontuarios, no Portal e na recuperação. Com prontuário, a
-  ficha NÃO oferece "anexar outro" (política de substituição pendente). `/prontuarios?tag=X`
-  abre a TAG (`&editar=1` vai ao formulário). Travado por `__tests__/prontuarioVigente.test.ts`.
+  Quem decide o que vai nele é `prontuarioVigente.ts`, sem regravar nada.
+- **REGRA DEFINITIVA — 1 VIGENTE + HISTÓRICO, política NOVA VERSÃO (24/09/2026).**
+  `prontuarioVigente.ts` é a PORTA ÚNICA: a ficha (`resolverProntuarioVigente`, sobre
+  `nr13_pront_emitido_<TAG>`) e `/prontuarios` (`agruparPorTag`, sobre o índice) usam o MESMO
+  `compararVersoes`: `geradoEm` → carimbo `PRONT-<ms>` do id → posição. **A ordem do array
+  sozinha não é critério** (merge da Sync V2 não promete ordem); `revisaoDe` também passou a
+  contar pela cronologia — contando pela posição, a ficha chamava de "Rev. 01" o que o índice
+  chama de "Rev. 02". A origem (gerado/anexado) é só metadado: o mais recente vence. Rascunho
+  NUNCA é vigente (a linha `rascunho` do índice é "Continuar nova revisão"); item com
+  `removidoEm` não conta; `nr13_pront_fab_<TAG>` é LEGADO ("PDF DO FABRICANTE · LEGADO"),
+  só ocupa o slot sem emissão, nunca vira emissão, e com emissão vai para o histórico.
+  **Atualizar prontuário** = anexar como nova versão (o modal diz que o atual vai para o
+  histórico); mesmo SHA do vigente → "já é o prontuário vigente"; SHA de versão antiga → "já
+  está no histórico" (sem duplicar nem promover). `/prontuarios` mostra UMA linha por TAG
+  (projeção na tela; o índice não mudou de formato) com "Histórico (N)" →
+  `ModalHistoricoProntuario` (read-only, Abrir/Baixar pelos bytes, leitura dirigida para TAG
+  fora do cache). O PDF do fabricante segue em /prontuarios, no Portal e na recuperação.
+  `/prontuarios?tag=X` abre a TAG (`&editar=1` vai ao formulário). Travado por
+  `__tests__/prontuarioVigente.test.ts`.
 - Travado por `__tests__/anexoProntuario.test.ts` e `__tests__/abrirArquivo.test.ts`.
 
 ---

@@ -2,6 +2,7 @@ import { ler, salvar, semearEquipamentoDetalhado } from '../../services/storage'
 import { lerLinhaDoServidor } from '../../services/leituraDirigida';
 import { lerColecao } from '../../services/colecaoSync';
 import type { PdfArtefato } from '../relatorios/artefatoRelatorio';
+import { compararVersoes } from './prontuarioVigente';
 
 /**
  * Fase 12A · a EMISSÃO do prontuário — o documento vira ARQUIVO.
@@ -280,7 +281,16 @@ export function revisaoDe(tag: string, id: string): number {
   // outro emitente. Contá-lo faria a próxima emissão nossa pular de "Rev. 02"
   // para "Rev. 03" por causa de um arquivo que nós não geramos.
   if (!alvo || ehAnexado(alvo)) return 0;
-  return lista.filter((e) => !ehAnexado(e)).findIndex((e) => e.id === id) + 1;
+  // Ordem CRONOLÓGICA (`compararVersoes`, a mesma do vigente), não a do array:
+  // uma lista unida pelo merge da Sync V2 não promete ordem, e contar pela
+  // posição fazia a ficha chamar de "Rev. 01" o documento que o índice chama de
+  // "Rev. 02" (medido no laboratório em 24/09/2026). Em lista normal — acréscimo
+  // em ordem — o número é exatamente o de antes.
+  const geradas = lista
+    .map((e, posicao) => ({ e, o: { id: e.id, quando: e.geradoEm, posicao } }))
+    .filter(({ e }) => !ehAnexado(e) && typeof (e as { removidoEm?: unknown }).removidoEm !== 'string')
+    .sort((a, b) => compararVersoes(a.o, b.o));
+  return geradas.findIndex(({ e }) => e.id === id) + 1;
 }
 
 /**

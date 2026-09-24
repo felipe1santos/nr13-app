@@ -32,6 +32,7 @@ import { ler } from '../../services/storage';
 import { publicarArtefato, sha256Hex } from '../relatorios/artefatoRelatorio';
 import { emissoesConferidasNoServidor, registrarEmissao, type EmissaoProntuario } from './emissaoProntuario';
 import { docDeEmissao, registrarDocumento, type DocumentoProntuario } from './indiceProntuarios';
+import { resolverProntuarioVigente } from './prontuarioVigente';
 import type { ProntuarioDados } from './tipos';
 
 /** Teto do arquivo. O mesmo do prontuário do fabricante, que é o vizinho direto. */
@@ -124,6 +125,13 @@ export interface ResultadoAnexo {
    * foi enviado nem gravado, e o registro devolvido é o que já existia.
    */
   jaAnexado?: boolean;
+  /**
+   * Com `jaAnexado`: o arquivo repetido é o documento VIGENTE (`true`) ou uma
+   * versão do HISTÓRICO (`false`). Nos dois casos nenhuma versão nova nasce —
+   * a política é NOVA VERSÃO para documento NOVO; reenviar um antigo não o
+   * promove a vigente sem uma decisão explícita.
+   */
+  jaVigente?: boolean;
 }
 
 /**
@@ -188,7 +196,8 @@ export async function anexarProntuarioExistente(
       pedido.equipamento?.trim() || locais.equipamento,
       pedido.cliente?.trim() || locais.cliente,
     );
-    return { documento, emissao: igual, jaAnexado: true };
+    const vigente = resolverProntuarioVigente(existentes, null);
+    return { documento, emissao: igual, jaAnexado: true, jaVigente: vigente?.emissao?.id === igual.id };
   }
 
   // `paginas: 0` — o anexo não é paginado por nós. Contar páginas exigiria

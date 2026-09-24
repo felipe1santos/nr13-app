@@ -1,46 +1,37 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icone } from '../../components/Icone';
-import { artefatoDe, baixarArtefato } from '../relatorios/artefatoRelatorio';
-import { agendarConfirmacaoDeEnvios, bytesDaEmissao, listarEmissoes, type EmissaoProntuario } from './emissaoProntuario';
-import { revisaoDe } from './emissaoProntuario';
+import { agendarConfirmacaoDeEnvios, listarEmissoes, revisaoDe } from './emissaoProntuario';
 import ModalAnexarProntuario from './ModalAnexarProntuario';
+import ModalHistoricoProntuario from './ModalHistoricoProntuario';
 import { baixarArquivo, reservarAba } from './abrirArquivo';
-import { confirmarEnvioNoIndice } from './indiceProntuarios';
+import { confirmarEnvioNoIndice, idRascunho, listarDocumentos } from './indiceProntuarios';
 import { resolverProntuarioVigente, ROTULO_ORIGEM, type ProntuarioVigente } from './prontuarioVigente';
+import { bytesDaVersao } from './bytesDaVersao';
 import { arquivoPendente } from '../../services/fotos';
 import { ler } from '../../services/storage';
 import { isTrial } from '../../services/auth';
 import { MSG_BLOQUEIO_DOCS } from '../../services/trial';
 import { assinarDadosAlterados, emitirAviso, emitirDadosAlterados } from '../../services/eventos';
-import {
-  baixarPdfFabricante,
-  formatarDataEnvio,
-  formatarTamanho,
-  lerProntuarioFabricante,
-  resolverPdfFabricante,
-} from '../equipamento/ProntuarioFabricante';
+import { formatarDataEnvio, formatarTamanho, lerProntuarioFabricante } from '../equipamento/ProntuarioFabricante';
 import './prontuarioDoEquipamento.css';
 
 /**
  * O PRONTUÁRIO NR-13 NO TOPO DA FICHA — UM SLOT (24/09/2026).
  *
- * Regra de produto: 1 equipamento = 1 prontuário vigente. A ficha tinha dois
- * blocos grandes no fim da página ("Prontuário NR-13", com a lista de todos os
- * documentos, e "Prontuário do Fabricante", com uma área de envio); agora há um
- * componente compacto dentro do card principal, ao lado da foto.
+ * Regra de produto: 1 equipamento = 1 prontuário VIGENTE + histórico. O slot
+ * mostra o vigente (gerado ou anexado — a origem é só o selo); quem decide qual
+ * é `resolverProntuarioVigente`, a mesma porta que `/prontuarios` usa. A fonte
+ * é a lista de emissões da TAG (e, sem nenhuma, o PDF do fabricante como
+ * legado) — gerado em `/prontuarios` aparece aqui sem upload pela ficha.
  *
- * A fonte é a MESMA de `/prontuarios`: as emissões da TAG
- * (`nr13_pront_emitido_<TAG>`) e, como legado, o PDF do fabricante
- * (`nr13_pront_fab_<TAG>`). Qual documento ocupa o slot é decisão de
- * `resolverProntuarioVigente` — aqui só se desenha. Gerado em `/prontuarios`
- * aparece aqui sem nenhum upload pela ficha.
- *
- * Com prontuário: Abrir e Baixar servem os BYTES arquivados, nunca uma
- * remontagem. Sem prontuário: "Anexar prontuário" (o fluxo da Fase 3) e o
- * atalho para criar em `/prontuarios`. Com prontuário, NÃO há "anexar outro":
- * a política de substituição ainda não foi decidida, e um segundo documento
- * não pode entrar calado.
+ * Estados:
+ * - **vigente**: Abrir · Baixar · "Atualizar prontuário" (NOVA VERSÃO: o novo
+ *   vira vigente, o atual vai para o histórico) · "Ver histórico (N)" · e,
+ *   com rascunho aberto, "Continuar nova revisão". O rascunho NÃO substitui o
+ *   vigente.
+ * - **só rascunho**: "Prontuário ainda não emitido" · Continuar · Anexar.
+ * - **nada**: Anexar prontuário · Criar em Prontuários.
  */
 export default function ProntuarioDoEquipamento({
   tag,
@@ -52,16 +43,17 @@ export default function ProntuarioDoEquipamento({
   cliente?: string | null;
 }) {
   const navigate = useNavigate();
-  const ler_ = useCallback(
+  const lerVigente = useCallback(
     () => resolverProntuarioVigente(listarEmissoes(tag), lerProntuarioFabricante(tag)),
     [tag],
   );
-  const [vigente, setVigente] = useState<ProntuarioVigente | null>(ler_);
+  const [vigente, setVigente] = useState<ProntuarioVigente | null>(lerVigente);
   const [anexando, setAnexando] = useState(false);
+  const [vendoHistorico, setVendoHistorico] = useState(false);
   const [erro, setErro] = useState('');
   const [ocupado, setOcupado] = useState(false);
 
-  const recarregar = useCallback(() => setVigente(ler_()), [ler_]);
+  const recarregar = useCallback(() => setVigente(lerVigente()), [lerVigente]);
 
   /**
    * "Aguardando sincronização" é o retrato do momento da gravação: quem anexou
@@ -79,16 +71,19 @@ export default function ProntuarioDoEquipamento({
     return assinarDadosAlterados(recarregar);
   }, [tag, recarregar]);
 
-  // Rascunho em aberto (dados salvos, nada emitido): o atalho diz "Continuar",
-  // não "Criar" — criar de novo sugeriria jogar o trabalho fora.
-  const temRascunho = ler<{ tag?: string }>(`nr13_prontuario_${tag}`)?.tag === tag;
+  /**
+   * Rascunho = TRABALHO EM ABERTO, não documento. O sinal é a linha de
+   * rascunho do índice (gravada ao salvar o formulário, apagada ao emitir):
+   * `nr13_prontuario_<TAG>` sozinho não serve depois da primeira emissão,
+   * porque os dados do formulário continuam gravados. Sem emissão e sem
+   * índice, vale a mesma regra de `reconciliar`: dados com a própria TAG.
+   */
+  const temRascunho =
+    listarDocumentos().some((d) => d.id === idRascunho(tag) && d.situacao === 'rascunho') ||
+    (!vigente?.emissao && ler<{ tag?: string }>(`nr13_prontuario_${tag}`)?.tag === tag);
   // Histórico: abre a TAG em /prontuarios. Criar/Continuar: direto no formulário.
   const irParaProntuarios = (editar = false) =>
     navigate(`/prontuarios?tag=${encodeURIComponent(tag)}${editar ? '&editar=1' : ''}`);
-
-  function nomeDaEmissao(e: EmissaoProntuario): string {
-    return e.arquivoNome ?? `${e.numero ?? 'prontuario'}.pdf`;
-  }
 
   async function abrir() {
     if (!vigente) return;
@@ -98,20 +93,8 @@ export default function ProntuarioDoEquipamento({
     // await da busca dos bytes é barrado como popup. Ver `abrirArquivo.ts`.
     const aba = reservarAba();
     try {
-      if (vigente.emissao) {
-        const e = vigente.emissao;
-        const blob = await bytesDaEmissao(e, { artefatoDe, baixarArtefato });
-        aba.entregar(blob, nomeDaEmissao(e));
-      } else if (vigente.fabricante) {
-        const dataUrl = await resolverPdfFabricante(vigente.fabricante);
-        if (!dataUrl) throw new Error('O arquivo do fabricante não voltou nem do aparelho nem do servidor.');
-        // Decodifica aqui, como `abrirPdfProntuarioFabricante`: `fetch` numa
-        // URL `data:` pode ser barrado pela CSP (connect-src).
-        const bin = atob(dataUrl.slice(dataUrl.indexOf(',') + 1));
-        const bytes = new Uint8Array(bin.length);
-        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-        aba.entregar(new Blob([bytes], { type: 'application/pdf' }), vigente.fabricante.nome || `prontuario-${tag}.pdf`);
-      }
+      const { blob, nome } = await bytesDaVersao(vigente, tag);
+      aba.entregar(blob, nome);
     } catch (err) {
       aba.descartar();
       setErro(err instanceof Error ? err.message : 'Não foi possível abrir o prontuário.');
@@ -131,13 +114,8 @@ export default function ProntuarioDoEquipamento({
     }
     setOcupado(true);
     try {
-      if (vigente.emissao) {
-        const e = vigente.emissao;
-        const blob = await bytesDaEmissao(e, { artefatoDe, baixarArtefato });
-        baixarArquivo(blob, nomeDaEmissao(e));
-      } else if (vigente.fabricante) {
-        await baixarPdfFabricante(vigente.fabricante, vigente.fabricante.nome || `prontuario-${tag}.pdf`);
-      }
+      const { blob, nome } = await bytesDaVersao(vigente, tag);
+      baixarArquivo(blob, nome);
     } catch (err) {
       setErro(err instanceof Error ? err.message : 'Não foi possível baixar o prontuário.');
     } finally {
@@ -159,8 +137,10 @@ export default function ProntuarioDoEquipamento({
     return [f.nome, formatarTamanho(f.tamanho), `enviado em ${formatarDataEnvio(f.enviadoEm)}`].filter(Boolean).join(' · ');
   }
 
+  const classe = vigente ? `pde-slot-${vigente.origem}` : temRascunho ? 'pde-slot-rascunho' : 'pde-slot-vazio';
+
   return (
-    <div className={`pde-slot ${vigente ? `pde-slot-${vigente.origem}` : 'pde-slot-vazio'}`} data-teste="prontuario-slot">
+    <div className={`pde-slot ${classe}`} data-teste="prontuario-slot">
       <span className="pde-slot-icone" aria-hidden>
         <Icone nome={vigente ? 'pdf' : 'filetext'} tam={18} />
       </span>
@@ -177,13 +157,22 @@ export default function ProntuarioDoEquipamento({
           </span>
         ) : (
           <span className="pde-slot-detalhe">
-            {temRascunho ? 'Rascunho em andamento, ainda não emitido.' : 'Nenhum prontuário neste equipamento.'}
+            {temRascunho ? 'Prontuário ainda não emitido.' : 'Nenhum prontuário neste equipamento.'}
           </span>
         )}
-        {vigente && vigente.outros > 0 && (
-          <button type="button" className="pde-slot-historico" onClick={() => irParaProntuarios()}>
-            + {vigente.outros} {vigente.outros === 1 ? 'documento anterior' : 'documentos anteriores'} em Prontuários
-          </button>
+        {vigente && (vigente.outros > 0 || temRascunho) && (
+          <span className="pde-slot-links">
+            {vigente.outros > 0 && (
+              <button type="button" className="pde-slot-historico" onClick={() => setVendoHistorico(true)}>
+                Ver histórico ({vigente.outros})
+              </button>
+            )}
+            {temRascunho && (
+              <button type="button" className="pde-slot-link" onClick={() => irParaProntuarios(true)}>
+                Continuar nova revisão
+              </button>
+            )}
+          </span>
         )}
       </div>
 
@@ -192,7 +181,7 @@ export default function ProntuarioDoEquipamento({
           <>
             <button
               type="button"
-              className="fj-btn fj-btn-primary pde-slot-btn"
+              className="fj-btn pde-slot-btn"
               onClick={() => void abrir()}
               disabled={ocupado}
               title="Abrir o prontuário"
@@ -208,14 +197,26 @@ export default function ProntuarioDoEquipamento({
             >
               <Icone nome="download" tam={13} /> Baixar
             </button>
+            <button type="button" className="pde-slot-link" onClick={() => setAnexando(true)}>
+              Atualizar prontuário
+            </button>
+          </>
+        ) : temRascunho ? (
+          <>
+            <button type="button" className="fj-btn pde-slot-btn" onClick={() => irParaProntuarios(true)}>
+              <Icone nome="pencil" tam={13} /> Continuar
+            </button>
+            <button type="button" className="pde-slot-link" onClick={() => setAnexando(true)}>
+              Anexar prontuário
+            </button>
           </>
         ) : (
           <>
-            <button type="button" className="fj-btn fj-btn-primary pde-slot-btn" onClick={() => setAnexando(true)}>
+            <button type="button" className="fj-btn pde-slot-btn" onClick={() => setAnexando(true)}>
               <Icone nome="plus" tam={13} /> Anexar prontuário
             </button>
             <button type="button" className="pde-slot-link" onClick={() => irParaProntuarios(true)}>
-              {temRascunho ? 'Continuar em Prontuários' : 'Criar em Prontuários'}
+              Criar em Prontuários
             </button>
           </>
         )}
@@ -228,13 +229,18 @@ export default function ProntuarioDoEquipamento({
           tag={tag}
           descricao={descricao}
           cliente={cliente}
-          aoFechar={() => setAnexando(false)}
+          atualizacao={!!vigente}
+          aoFechar={() => {
+            setAnexando(false);
+            recarregar();
+          }}
           aoConcluir={() => {
             recarregar();
             setAnexando(false);
           }}
         />
       )}
+      {vendoHistorico && <ModalHistoricoProntuario tag={tag} aoFechar={() => setVendoHistorico(false)} />}
     </div>
   );
 }

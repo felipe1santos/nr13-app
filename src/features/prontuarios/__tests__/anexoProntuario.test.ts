@@ -527,14 +527,18 @@ describe('Fase 3 · prontuário existente', () => {
   it('O · a tela diz que o PDF já estava anexado em vez de fechar calada', () => {
     const modal = readFileSync('src/features/prontuarios/ModalAnexarProntuario.tsx', 'utf8');
     expect(modal).toContain('r.jaAnexado');
-    expect(modal).toContain('Este PDF já está anexado a este equipamento');
+    expect(modal).toContain('Este documento já é o prontuário vigente deste equipamento');
+    expect(modal).toContain('Este documento já está no histórico deste equipamento');
   });
 
   it('P · a ficha tem Abrir E Baixar, os dois pelos bytes arquivados', () => {
     const ficha = readFileSync('src/features/prontuarios/ProntuarioDoEquipamento.tsx', 'utf8');
     expect(ficha).toContain('title="Abrir o prontuário"');
     expect(ficha).toContain('title="Baixar o PDF original"');
-    expect(ficha.match(/bytesDaEmissao\(e, \{ artefatoDe, baixarArtefato \}\)/g)).toHaveLength(2);
+    expect(ficha.match(/bytesDaVersao\(vigente, tag\)/g)).toHaveLength(2);
+    expect(readFileSync('src/features/prontuarios/bytesDaVersao.ts', 'utf8')).toContain(
+      'bytesDaEmissao(e, { artefatoDe, baixarArtefato })',
+    );
     expect(ficha).toContain('baixarArquivo(blob');
   });
 

@@ -1,5 +1,13 @@
 /**
- * A lista canônica de `/prontuarios` — uma linha por DOCUMENTO.
+ * A lista canônica de `/prontuarios` — UMA LINHA POR EQUIPAMENTO (24/09/2026).
+ *
+ * Regra de produto: 1 equipamento = 1 prontuário vigente + histórico. A linha
+ * principal mostra o VIGENTE (e o rascunho em aberto, quando há); as versões
+ * anteriores ficam atrás de "Histórico (N)". O índice NÃO mudou de formato — ele
+ * segue com uma linha por documento, e o agrupamento é uma PROJEÇÃO da tela,
+ * feita por `agruparPorTag` com o mesmo comparador que a ficha usa.
+ *
+ * ## Antes (até 24/09/2026): uma linha por DOCUMENTO
  *
  * ## O que ela substitui
  *
@@ -31,6 +39,12 @@ import {
   reconciliar,
   type DocumentoProntuario,
 } from './indiceProntuarios';
+import { agruparPorTag, type GrupoProntuario } from './prontuarioVigente';
+import ModalHistoricoProntuario from './ModalHistoricoProntuario';
+import { carregarEmissoes } from './emissaoProntuario';
+import { bytesDaVersao } from './bytesDaVersao';
+import { baixarArquivo } from './abrirArquivo';
+import { emitirAviso } from '../../services/eventos';
 import ModalFiltrosDocumentos, {
   FILTRO_DOC_VAZIO,
   passaNoFiltro,
@@ -70,6 +84,8 @@ export default function ListaProntuariosV9({ aoAbrir, acoes, versao = 0 }: Props
   const [termo, setTermo] = useState('');
   const [f, setF] = useState<FiltroDocumentos>(FILTRO_DOC_VAZIO);
   const [filtroAberto, setFiltroAberto] = useState(false);
+  /** TAG cujo histórico está aberto (modal read-only). */
+  const [historicoTag, setHistoricoTag] = useState<string | null>(null);
 
   /**
    * A reconciliação roda uma vez, ao montar: ela é o que faz o índice nascer
@@ -94,10 +110,12 @@ export default function ListaProntuariosV9({ aoAbrir, acoes, versao = 0 }: Props
      lida uma vez; ela é pequena e local. */
   const clientes = useMemo(() => listarClientes(), []);
 
-  const visiveis = useMemo(
-    () => filtrarDocumentos(docs, termo).filter((d) => passaNoFiltro(d, f)),
-    [docs, termo, f],
-  );
+  // Busca e filtro continuam valendo por DOCUMENTO (o nº de uma revisão
+  // antiga acha o equipamento); a tela mostra o GRUPO de quem passou.
+  const grupos = useMemo(() => {
+    const tags = new Set(filtrarDocumentos(docs, termo).filter((d) => passaNoFiltro(d, f)).map((d) => d.tag));
+    return agruparPorTag(docs).filter((g) => tags.has(g.tag));
+  }, [docs, termo, f]);
 
   return (
     <>
@@ -106,7 +124,7 @@ export default function ListaProntuariosV9({ aoAbrir, acoes, versao = 0 }: Props
         valor={termo}
         aoMudar={setTermo}
         placeholder="Buscar por TAG, equipamento, cliente ou nº do documento…"
-        contagem={{ total: visiveis.length, exato: true }}
+        contagem={{ total: grupos.length, exato: true }}
         compacto
         antes={
           <button
@@ -135,7 +153,7 @@ export default function ListaProntuariosV9({ aoAbrir, acoes, versao = 0 }: Props
         />
       )}
 
-      {visiveis.length === 0 ? (
+      {grupos.length === 0 ? (
         <VazioProntuarios temFiltro={!!termo || temFiltroDoc(f)} />
       ) : (
         <div className="bloco-dados painel-lista">
@@ -144,16 +162,16 @@ export default function ListaProntuariosV9({ aoAbrir, acoes, versao = 0 }: Props
               no `fj-panel-head` — nada de vocabulário novo. */}
           <div className="painel-lista-head" role="presentation">
             <span className="painel-lista-titulo">
-              <strong>Prontuários e revisões</strong>
-              <span>Cada linha é um documento — rascunho ou revisão emitida</span>
+              <strong>Prontuários</strong>
+              <span>Um prontuário vigente por equipamento; as versões anteriores ficam no histórico</span>
             </span>
             <span className="painel-lista-contagem">
-              {visiveis.length} {visiveis.length === 1 ? 'linha' : 'linhas'}
+              {grupos.length} {grupos.length === 1 ? 'equipamento' : 'equipamentos'}
             </span>
           </div>
           <div className="pront-linha pront-linha-cabecalho" role="row" aria-hidden>
             <span />
-            <span>Documento</span>
+            <span>Prontuário vigente</span>
             <span>TAG</span>
             <span>Cliente</span>
             <span>Revisão</span>
@@ -162,70 +180,132 @@ export default function ListaProntuariosV9({ aoAbrir, acoes, versao = 0 }: Props
             <span className="pront-col-acoes">Ações</span>
           </div>
           <ListaVirtualizada
-            itens={visiveis}
-            chaveDe={(d) => d.id}
+            itens={grupos}
+            chaveDe={(g) => g.tag}
             alturaEstimada={ALT_LINHA}
             classeGrade="pront-lista"
             chaveDoConjunto={`${termo}|${JSON.stringify(f)}`}
-            desenhar={(d) => <LinhaDocumento doc={d} aoAbrir={aoAbrir} />}
+            desenhar={(g) => <LinhaGrupo grupo={g} aoAbrir={aoAbrir} aoVerHistorico={setHistoricoTag} />}
           />
         </div>
       )}
+
+      {historicoTag && <ModalHistoricoProntuario tag={historicoTag} aoFechar={() => setHistoricoTag(null)} />}
     </>
   );
 }
 
-function LinhaDocumento({
-  doc,
+/** Baixa o vigente: resolve a emissão pelo id (cache ou leitura dirigida). */
+async function baixarDocumento(doc: DocumentoProntuario) {
+  try {
+    const lista = await carregarEmissoes(doc.tag);
+    const e = lista.find((x) => x.id === doc.id);
+    if (!e) throw new Error('O registro deste documento não chegou a este aparelho. Verifique a conexão e tente de novo.');
+    const { blob, nome } = await bytesDaVersao({ origem: e.origem === 'anexado' ? 'anexado' : 'gerado', emissao: e }, doc.tag);
+    baixarArquivo(blob, nome);
+  } catch (err) {
+    emitirAviso({
+      variante: 'erro',
+      titulo: 'Não foi possível baixar o PDF',
+      texto: err instanceof Error ? err.message : 'Tente novamente em instantes.',
+    });
+  }
+}
+
+function LinhaGrupo({
+  grupo,
   aoAbrir,
+  aoVerHistorico,
 }: {
-  doc: DocumentoProntuario;
+  grupo: GrupoProntuario;
   aoAbrir: (d: DocumentoProntuario) => void;
+  aoVerHistorico: (tag: string) => void;
 }) {
-  const emitido = doc.situacao === 'emitido';
-  const anexado = doc.origem === 'anexado';
-  const nome = doc.equipamento?.trim() || doc.tag;
+  const { vigente, rascunho, historico, tag } = grupo;
+  // Sem vigente, a linha é do rascunho — o equipamento continua aparecendo.
+  const principal = (vigente ?? rascunho)!;
+  const anexado = vigente?.origem === 'anexado';
+  const nome = principal.equipamento?.trim() || tag;
+  const situacao = vigente ? 'emitido' : 'rascunho';
   return (
-    <div className={`pront-linha pront-linha-${doc.situacao}`} role="row">
+    <div className={`pront-linha pront-linha-${situacao}`} role="row" data-teste="linha-prontuario">
       <span className="pront-linha-icone" aria-hidden>
-        <Icone nome={anexado ? 'pdf' : emitido ? 'filetext' : 'pencil'} tam={15} />
+        <Icone nome={!vigente ? 'pencil' : anexado ? 'pdf' : 'filetext'} tam={15} />
       </span>
       <span className="pront-linha-nome" title={nome}>
         <strong>{nome}</strong>
-        {/* No anexo, o NOME DO ARQUIVO: é o que identifica um PDF entre vários
-            do mesmo equipamento, e "sem número" ali não diz nada. */}
         <span className="pront-linha-sub">
-          {(anexado ? doc.arquivoNome : null) ?? doc.numero ?? 'sem número'}
+          {vigente ? ((anexado ? vigente.arquivoNome : null) ?? vigente.numero ?? 'sem número') : 'ainda não emitido'}
         </span>
       </span>
-      <span className="pront-linha-col">{doc.tag}</span>
-      <span className="pront-linha-col" title={doc.cliente ?? ''}>{doc.cliente ?? '—'}</span>
-      <span className="pront-linha-col pront-linha-data">{rotuloRevisao(doc)}</span>
-      <span className="pront-linha-col pront-linha-data">{dataDoc(doc.atualizadoEm)}</span>
+      {/* `display: contents` no desktop (cada campo na sua coluna); no celular
+          vira UMA linha — os quatro na mesma área da grade se sobrepunham. */}
+      <span className="pront-linha-meta">
+        <span className="pront-linha-col">{tag}</span>
+        <span className="pront-linha-col" title={principal.cliente ?? ''}>{principal.cliente ?? '—'}</span>
+        <span className="pront-linha-col pront-linha-data">{vigente ? rotuloRevisao(vigente) : '—'}</span>
+        <span className="pront-linha-col pront-linha-data">{dataDoc(principal.atualizadoEm)}</span>
+      </span>
       <span className="pront-linha-situacao">
-        {/* Diferenciação DISCRETA: o PDF anexado é documento de outro
-            emitente, e a lista continua sendo uma só. */}
-        <span className={`pront-selo ${anexado ? 'pront-selo-anexado' : `pront-selo-${doc.situacao}`}`}>
-          {anexado ? 'PDF ANEXADO' : emitido ? 'EMITIDO' : 'RASCUNHO'}
-        </span>
-        {/* Upload ainda não confirmado: a lista precisa poder dizer isso, senão
-            o documento parece entregue e está só no aparelho. */}
-        {doc.pdfPendente && (
+        {vigente ? (
+          <span className={`pront-selo ${anexado ? 'pront-selo-anexado' : 'pront-selo-emitido'}`}>
+            {anexado ? 'PDF ANEXADO' : 'EMITIDO'}
+          </span>
+        ) : null}
+        {/* Rascunho é trabalho em aberto: NÃO substitui o vigente, só avisa. */}
+        {rascunho && <span className="pront-selo pront-selo-rascunho">RASCUNHO</span>}
+        {vigente?.pdfPendente && (
           <span className="pront-selo pront-selo-pendente" title="O arquivo ainda não subiu para o servidor">
             NO APARELHO
           </span>
         )}
       </span>
       <span className="pront-linha-acoes">
-        <button
-          type="button"
-          className="btn-icone cor-azul"
-          title={anexado ? 'Abrir o PDF anexado' : emitido ? 'Abrir o documento emitido' : 'Continuar editando'}
-          aria-label={`${emitido ? 'Abrir' : 'Continuar'} o prontuário de ${doc.tag}`}
-          onClick={() => aoAbrir(doc)}
-        >
-          <Icone nome={emitido ? 'eye' : 'pencil'} tam={14} />
-        </button>
+        {vigente && (
+          <>
+            <button
+              type="button"
+              className="btn-icone cor-azul"
+              title={anexado ? 'Abrir o PDF anexado' : 'Abrir o documento emitido'}
+              aria-label={`Abrir o prontuário vigente de ${tag}`}
+              onClick={() => aoAbrir(vigente)}
+            >
+              <Icone nome="eye" tam={14} />
+            </button>
+            <button
+              type="button"
+              className="btn-icone cor-azul"
+              title="Baixar o PDF"
+              aria-label={`Baixar o prontuário vigente de ${tag}`}
+              onClick={() => void baixarDocumento(vigente)}
+            >
+              <Icone nome="download" tam={14} />
+            </button>
+          </>
+        )}
+        {rascunho && (
+          <button
+            type="button"
+            className="btn-icone cor-azul"
+            title={vigente ? 'Continuar a nova revisão' : 'Continuar editando'}
+            aria-label={`Continuar o prontuário de ${tag}`}
+            onClick={() => aoAbrir(rascunho)}
+          >
+            <Icone nome="pencil" tam={14} />
+          </button>
+        )}
+        {historico.length > 0 && (
+          <button
+            type="button"
+            className="btn-icone cor-azul pront-btn-historico"
+            title={`Ver histórico (${historico.length})`}
+            aria-label={`Ver o histórico do prontuário de ${tag} (${historico.length} anteriores)`}
+            onClick={() => aoVerHistorico(tag)}
+          >
+            <Icone nome="clock" tam={14} />
+            <span className="pront-historico-n">{historico.length}</span>
+          </button>
+        )}
       </span>
     </div>
   );

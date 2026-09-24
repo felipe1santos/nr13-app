@@ -198,7 +198,7 @@ describe('situação da linha', () => {
   });
 });
 
-describe('a lista canônica: uma linha por DOCUMENTO', () => {
+describe('a lista canônica: uma linha por EQUIPAMENTO (vigente + histórico)', () => {
   /*
    * A rodada anterior fez a lista mostrar um EQUIPAMENTO por linha, com selo
    * "Prontuário OK". Um equipamento com três revisões emitidas era uma linha
@@ -247,7 +247,7 @@ describe('a lista canônica: uma linha por DOCUMENTO', () => {
 
   it('a linha não é um <button> — ela tem botão dentro', () => {
     expect(lista).not.toContain('<button type="button" className="pront-linha"');
-    expect(lista).toContain('className={`pront-linha pront-linha-${doc.situacao}`}');
+    expect(lista).toContain('className={`pront-linha pront-linha-${situacao}`}');
   });
 });
 
