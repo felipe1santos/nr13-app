@@ -8,7 +8,7 @@ import {
   folhaProntMemorial,
   folhaProntUltrassom,
 } from './folhasProntuario';
-import { montarModeloProntuario, type ModeloProntuario } from './modeloProntuario';
+import { montarModeloProntuario, type FontesProntuario, type ModeloProntuario } from './modeloProntuario';
 
 /**
  * Fase 12 · o PRONTUÁRIO em vetor.
@@ -150,9 +150,11 @@ async function girar90(png: string): Promise<{ png: string; proporcao: number } 
   }
 }
 
-export async function gerarProntuarioVetorial(tag: string): Promise<ResultadoProntuario> {
+export async function gerarProntuarioVetorial(tag: string, fontes: FontesProntuario = {}): Promise<ResultadoProntuario> {
   const inicio = performance.now();
-  const modelo = montarModeloProntuario(tag);
+  // `fontes`: o contexto que a tela entrega (Fase 6.1) — nada é gravado em
+  // chave viva para o gerador ler.
+  const modelo = montarModeloProntuario(tag, fontes);
 
   // Croquis rasterizados uma única vez, antes das duas passagens.
   const cache = new Map<string, { png: string; proporcao: number }>();

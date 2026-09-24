@@ -230,6 +230,11 @@ export function carregarMedicoes(
    * Ausente = lê a chave viva `nr13_injecao_atual`, como o editor sempre fez.
    */
   usDoContainer?: Record<string, unknown> | null,
+  /**
+   * A grade, quando quem chama já a tem (o prontuário, Fase 6.1). Ausente = lê
+   * a chave `nr13_med_grid_<TAG>`, como o editor e o relatório sempre fizeram.
+   */
+  gradeEntregue?: (Partial<GradeMedicoes> & { containerId?: string | null }) | null,
 ): {
   pontos: PontoMedicao[];
   colunas: Record<Regiao, number>;
@@ -244,7 +249,9 @@ export function carregarMedicoes(
   const grade = montarGrade(
     pontos,
     colunas,
-    ler<Partial<GradeMedicoes> & { containerId?: string | null }>(chaveGrade(tag)),
+    gradeEntregue !== undefined
+      ? gradeEntregue
+      : ler<Partial<GradeMedicoes> & { containerId?: string | null }>(chaveGrade(tag)),
     (us?.medidas as Record<string, Record<string, unknown>>) ?? null,
     containerAtual,
   );

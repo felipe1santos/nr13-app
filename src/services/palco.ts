@@ -947,10 +947,27 @@ export async function hidratarFotosDoBucket(itens: ItemPalco[]): Promise<ItemPal
  * materializa. Só devolve `ok: true` depois de TUDO confirmado. Quem chama não
  * pode montar iframe nenhum antes disso.
  */
+/**
+ * Troca (ou acrescenta) os itens que o documento ENTREGA no lugar dos do cache.
+ *
+ * Fase 6.1: o prontuário materializava a espessura do container escolhido
+ * gravando `nr13_med_grid_<TAG>`/`nr13_med_esp_<TAG>` pelo `salvar` — e
+ * apagava a medição do editor do relatório. Aqui o valor vai só ao palco, que
+ * guarda o anterior e o restaura na limpeza. Uma entrada por chave (a última
+ * vence), pelo mesmo motivo do `Set` de `coletarItens`.
+ */
+export function sobreporItens(itens: ItemPalco[], sobrepor: ItemPalco[] | undefined): ItemPalco[] {
+  if (!sobrepor || sobrepor.length === 0) return itens;
+  const novos = new Map(sobrepor.map((i) => [i.chave, i.valor]));
+  const saida = itens.map((i) => (novos.has(i.chave) ? { chave: i.chave, valor: novos.get(i.chave)! } : i));
+  for (const [chave, valor] of novos) if (!itens.some((i) => i.chave === chave)) saida.push({ chave, valor });
+  return saida;
+}
+
 export async function montarPalcoDaTag(
   ctx: ContextoMontagem,
   foto: AdaptadorFoto,
-  opcoes: { esperaMs?: number } = {},
+  opcoes: { esperaMs?: number; sobrepor?: ItemPalco[] } = {},
 ): Promise<ResultadoPalco> {
   const trava = await adquirirTrava(ctx, opcoes);
   if (!trava.obtida) return { ok: false, falha: { tipo: 'ocupado', dono: trava.dono } };
@@ -958,7 +975,7 @@ export async function montarPalcoDaTag(
   // A hidratação vem ANTES da degradação de propósito: é ela que devolve os
   // bytes da imagem, e é sobre esses bytes que o orçamento de 3.400 KB decide
   // se precisa recomprimir.
-  const brutos = await hidratarFotosDoBucket(coletarItens(ctx.tag));
+  const brutos = await hidratarFotosDoBucket(sobreporItens(coletarItens(ctx.tag), opcoes.sobrepor));
   const degradado = await degradarAteCaber(brutos, foto);
   if (!degradado.cabe) {
     liberarTrava(ctx);

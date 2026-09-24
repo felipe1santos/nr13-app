@@ -5,6 +5,7 @@ import {
   limparPalco,
   liberarPalcoAoSair,
   type FalhaPalco,
+  type ItemPalco,
 } from '../../services/palco';
 import { renovarTrava, type ContextoMontagem } from '../../services/palcoTrava';
 import { recomprimirFotosDoValor, maiorFotoDoValor } from '../../services/recompressorFoto';
@@ -44,7 +45,17 @@ const INTERVALO_RENOVACAO_MS = 20_000;
 export function usePalcoDocumento(
   tag: string,
   relatorioId: string,
-  opcoes?: { somenteLeitura?: boolean; pular?: boolean },
+  opcoes?: {
+    somenteLeitura?: boolean;
+    pular?: boolean;
+    /**
+     * Valores que o DOCUMENTO entrega aos templates no lugar dos do cache
+     * (Fase 6.1: a espessura do container do prontuário). Só o palco os vê —
+     * cópia temporária no localStorage, restaurada na limpeza. Lidos na
+     * montagem: mudam o documento quando `relatorioId` muda.
+     */
+    sobrepor?: ItemPalco[];
+  },
 ): UsoPalco {
   const [estado, setEstado] = useState<EstadoPalco>(() =>
     armazenamentoV2Ativo() ? 'montando' : 'pronto',
@@ -62,6 +73,13 @@ export function usePalcoDocumento(
   // Documento ARQUIVADO (PDF servido do bucket) não monta template nenhum:
   // montar o palco gastaria o orçamento de 3.368 KB para nada.
   const pular = opcoes?.pular === true;
+  // Atualizado por efeito DECLARADO ANTES do de montagem: os dois rodam no
+  // mesmo commit, nesta ordem, então a montagem sempre vê o valor do render.
+  const sobrepor = opcoes?.sobrepor;
+  const sobreporRef = useRef<ItemPalco[] | undefined>(undefined);
+  useEffect(() => {
+    sobreporRef.current = sobrepor;
+  }, [sobrepor]);
 
   useEffect(() => {
     if (pular || !armazenamentoV2Ativo()) {
@@ -81,7 +99,11 @@ export function usePalcoDocumento(
     setEstado('montando');
     setFalha(null);
 
-    void montarPalcoDaTag(ctx, { recomprimir: recomprimirFotosDoValor, maiorFoto: maiorFotoDoValor })
+    void montarPalcoDaTag(
+      ctx,
+      { recomprimir: recomprimirFotosDoValor, maiorFoto: maiorFotoDoValor },
+      { sobrepor: sobreporRef.current },
+    )
       .then((r) => {
         if (!vivo) return;
         if (r.ok) setEstado('pronto');

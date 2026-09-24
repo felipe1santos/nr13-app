@@ -1299,6 +1299,8 @@ export function pontosUltrassom(
   medEsp: Record<string, unknown>,
   requeridaPorRegiao: Record<Regiao, string | null> = { ts: null, casco: null, ti: null },
   containerAtual: string | null = null,
+  /** A grade entregue (prontuário, Fase 6.1); ausente = a chave `nr13_med_grid_<TAG>`. */
+  gradeEntregue?: Parameters<typeof carregarMedicoes>[3],
 ): ModeloRelatorio['ultrassom']['pontos'] {
   const requeridaDe = (id: string, regiao: Regiao): string | null => {
     const lista = (medEsp.pontos ?? us.pontos ?? []) as Record<string, unknown>[];
@@ -1311,7 +1313,7 @@ export function pontosUltrassom(
   // equipamento sobrepõe as medições escolhidas. Ver `montarGrade`.
   // `us` é o ultrassom do container DESTE documento — entregue, não relido da
   // chave viva `nr13_injecao_atual` (Fase 5.1).
-  const { pontos, grade } = carregarMedicoes(tag, containerAtual, us);
+  const { pontos, grade } = carregarMedicoes(tag, containerAtual, us, gradeEntregue);
   const linhas: ModeloRelatorio['ultrassom']['pontos'] = [];
   for (const regiao of REGIOES) {
     const daRegiao = pontos.filter((p) => p.regiao === regiao);

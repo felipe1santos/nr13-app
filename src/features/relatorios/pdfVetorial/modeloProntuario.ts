@@ -5,7 +5,7 @@ import { obterAssinantes } from '../../prontuarios/prontuarioService';
 import type { ProntuarioDados } from '../../prontuarios/tipos';
 import { numeroBr, numeroDoStorage, pontosUltrassom, textoOu, type FotoModelo } from './modelo';
 import { FATORES_CONVERSAO, formatarValor, unidadeValida } from '../../../calc/unidades';
-import type { RelatorioMeta } from '../tipos';
+import { espessuraDoProntuarioSalvo, type EspessuraProntuario } from '../../prontuarios/espessuraProntuario';
 import { rotuloClasseFluido, rotuloTipoEquipamento } from './rotulos';
 
 /**
@@ -259,8 +259,36 @@ function assinantesDe(tag: string, folhas: readonly string[]): AssinanteProntuar
  * documentos que se contradizem — e é o relatório que já lê a grade certa
  * (`nr13_med_grid_<TAG>`, a chave que o editor grava).
  */
-function pontosEspessura(tag: string, medEsp: Record<string, unknown>): PontoEspessura[] {
-  return pontosUltrassom(tag, medEsp, medEsp);
+function pontosEspessura(tag: string, espessura: EspessuraProntuario): PontoEspessura[] {
+  // A grade vai ENTREGUE (Fase 6.1): o prontuário não lê mais
+  // `nr13_med_grid_<TAG>`, que é do editor de medições do relatório.
+  return pontosUltrassom(tag, espessura.medEsp, espessura.medEsp, undefined, null, espessura.grade);
+}
+
+/**
+ * O que o gerador do prontuário recebe de quem o chama, em vez de ler de chave
+ * viva (o padrão da Fase 5.1, aplicado ao prontuário na Fase 6.1).
+ */
+export interface FontesProntuario {
+  /**
+   * A medição de espessura do container escolhido NO FORMULÁRIO do prontuário
+   * (`espessuraDoContainer`). Ausente = a do prontuário SALVO da TAG.
+   */
+  espessura?: EspessuraProntuario;
+}
+
+/**
+ * O RESPONSÁVEL TÉCNICO da capa: o engenheiro escolhido para ASSINAR este
+ * prontuário (`nr13_assinantes_pront_<TAG>`, o mesmo das folhas).
+ *
+ * Lia `nr13_relatorio_meta_atual` — a meta do último RELATÓRIO montado, de
+ * qualquer equipamento. A capa de um prontuário podia sair com o engenheiro do
+ * relatório de outro vaso aberto antes (Fase 6, P2-5).
+ */
+function responsavelDe(tag: string): { nome: string | null; registro: string | null } {
+  const id = obterAssinantes(tag).engenheiroId;
+  const f = id ? visiveis(ler<Funcionario[]>('nr13_lista_phs') ?? []).find((x) => x.id === id) : undefined;
+  return { nome: txt(f?.nome), registro: txt(f?.crea ?? f?.registro) };
 }
 
 /**
@@ -312,7 +340,7 @@ function folhaDadosDe(bruto: Record<string, unknown>): FolhaDadosProntuario {
   };
 }
 
-export function montarModeloProntuario(tag: string): ModeloProntuario {
+export function montarModeloProntuario(tag: string, fontes: FontesProntuario = {}): ModeloProntuario {
   const dados = ler<ProntuarioDados>(`nr13_prontuario_${tag}`) ?? ({} as ProntuarioDados);
   const meta = ler<{ numero?: string; emissao?: string }>(`nr13_prontuario_meta_${tag}`);
   const info = ler<Record<string, unknown>>(`nr13_info_${tag}`) ?? {};
@@ -323,11 +351,13 @@ export function montarModeloProntuario(tag: string): ModeloProntuario {
     ) ?? {};
   const emps = ler<Record<string, unknown>>(`nr13_emp_${tag}`) ?? {};
   const empresa = ler<Record<string, unknown>>('nr13_minha_empresa') ?? {};
-  const medEsp = ler<Record<string, unknown>>(`nr13_med_esp_${tag}`) ?? {};
+  // NÃO lê `nr13_med_esp_`/`nr13_med_grid_` (Fase 6.1): a espessura é a do
+  // container do prontuário, entregue por quem chama.
+  const espessura = fontes.espessura ?? espessuraDoProntuarioSalvo(tag);
+  const medEsp = espessura.medEsp;
   const croqui = ler<{ longitudinal?: string; transversal?: string; detalheTampo?: string }>(`nr13_croqui2d_${tag}`) ?? {};
   const folhaDados = ler<Record<string, unknown>>(`nr13_folha_dados_${tag}`) ?? {};
   const fotos = ler<{ capa?: string; fotos?: { base64?: string; descricao?: string }[] }>(`nr13_fotos_${tag}`) ?? {};
-  const metaRel = ler<RelatorioMeta>('nr13_relatorio_meta_atual');
 
   const tipo = textoOu(txt(info.tipo), 'vaso');
 
@@ -439,12 +469,8 @@ export function montarModeloProntuario(tag: string): ModeloProntuario {
     ],
     unidadePressao: FATORES_CONVERSAO[unidade].labelPressao,
     // A capa do prontuário traz o responsável e a foto do equipamento, como a
-    // do relatório. A fonte é a mesma: o snapshot da meta quando existe, o
-    // cadastro vivo quando não.
-    responsavel: {
-      nome: txt(metaRel?.assinantes?.engenheiro?.nome ?? metaRel?.phNome),
-      registro: txt(metaRel?.assinantes?.engenheiro?.crea ?? metaRel?.phCrea),
-    },
+    // do relatório. O responsável é o engenheiro que ASSINA este prontuário.
+    responsavel: responsavelDe(tag),
     fotoCapa: txt(fotos.capa) ?? txt(fotos.fotos?.[0]?.base64),
     componentes: (calc.componentes ?? []).map((c) => ({
       nome: textoOu(txt(c.nome), 'Componente'),
@@ -466,7 +492,7 @@ export function montarModeloProntuario(tag: string): ModeloProntuario {
       velSonica: txt(medEsp.velSonica),
       tempSup: txt(medEsp.tempSup),
       estadoSup: txt(medEsp.estadoSup),
-      pontos: pontosEspessura(tag, medEsp),
+      pontos: pontosEspessura(tag, espessura),
       instrumento: {
         padrao: txt((medEsp.instrumento as Record<string, unknown>)?.padrao),
         serie: txt((medEsp.instrumento as Record<string, unknown>)?.serie),

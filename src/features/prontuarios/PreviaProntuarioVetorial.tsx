@@ -3,6 +3,7 @@ import { Icone } from '../../components/Icone';
 import { VisualizadorPdfBytes } from '../../components/VisualizadorPdf';
 import { textoDoErro } from '../../services/textoDoErro';
 import { gerarProntuarioVetorial } from '../relatorios/pdfVetorial/gerarProntuario';
+import type { EspessuraProntuario } from './espessuraProntuario';
 
 /**
  * A PRÉVIA do prontuário é o documento.
@@ -27,10 +28,13 @@ export default function PreviaProntuarioVetorial({
   tag,
   versao,
   nomeArquivo,
+  espessura,
 }: {
   tag: string;
   versao: number;
   nomeArquivo: string;
+  /** A medição do container escolhido no formulário — entregue, não gravada (Fase 6.1). */
+  espessura?: EspessuraProntuario;
 }) {
   const [bytes, setBytes] = useState<Uint8Array | null>(null);
   const [paginas, setPaginas] = useState(0);
@@ -42,7 +46,7 @@ export default function PreviaProntuarioVetorial({
     setGerando(true);
     setErro('');
     try {
-      const r = await gerarProntuarioVetorial(tag);
+      const r = await gerarProntuarioVetorial(tag, { espessura });
       setBytes(r.bytes);
       setPaginas(r.paginas);
       // Croqui que não converteu volta NOMEADO: o documento sai sem ele, e
@@ -53,7 +57,7 @@ export default function PreviaProntuarioVetorial({
     } finally {
       setGerando(false);
     }
-  }, [tag]);
+  }, [tag, espessura]);
 
   useEffect(() => {
     void gerar();

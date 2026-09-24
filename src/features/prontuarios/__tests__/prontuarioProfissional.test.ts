@@ -141,14 +141,14 @@ describe('a prévia da tela é o documento', () => {
   });
 
   it('com prévia vetorial a tela não monta iframe nem palco', () => {
-    expect(pagina).toContain("{ pular: previaPront === 'vetorial' }");
+    expect(pagina).toContain("pular: previaPront === 'vetorial',");
     expect(pagina).toContain("previaPront === 'vetorial' ? (");
     expect(pagina).toContain('PreviaProntuarioVetorial');
   });
 
   it('imprimir sem emissão usa o MESMO gerador da emissão', () => {
     const trecho = pagina.slice(pagina.indexOf('async function prepararEImprimir'), pagina.indexOf('EMITIR: o prontuário vira ARQUIVO'));
-    expect(trecho).toContain('gerarProntuarioVetorial(tag)');
+    expect(trecho).toContain('gerarProntuarioVetorial(tag, { espessura })');
     expect(trecho).toContain('abrirPdfEmAba');
   });
 });

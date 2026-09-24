@@ -1,6 +1,6 @@
 import { usePalcoDocumento } from '../features/documentos/usePalcoDocumento';
 import RecusaPalco from '../components/RecusaPalco';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Icone } from '../components/Icone';
 import type { EquipamentoResumo } from '../features/equipamento/tipos';
@@ -17,10 +17,10 @@ import ModalSelecionarEquipamento from '../features/relatorios/ModalSelecionarEq
 import ModalExcluirProntuario from '../features/prontuarios/ModalExcluirProntuario';
 import { abrirEquipamentoParaProntuario } from '../features/prontuarios/catalogoProntuarios';
 import {
+  CHAVE_PRONTUARIO_ATUAL,
   carregarProntuario,
   excluirProntuario,
   gravarAssinantes,
-  gravarProntuarioAtual,
   obterAssinantes,
   obterOuCriarMeta,
   salvarProntuario,
@@ -33,6 +33,7 @@ import PainelPilotoProntuario from '../features/relatorios/pdfVetorial/PainelPil
 import { motorProntuarioAtual } from '../features/relatorios/motorPdf';
 import { previaProntuarioAtual } from '../features/prontuarios/previaProntuario';
 import PreviaProntuarioVetorial from '../features/prontuarios/PreviaProntuarioVetorial';
+import { espessuraDoContainer, itensDoPalcoDaEspessura } from '../features/prontuarios/espessuraProntuario';
 import { abrirPdfEmAba } from '../components/VisualizadorPdf';
 import { gerarProntuarioVetorial } from '../features/relatorios/pdfVetorial/gerarProntuario';
 import { gerarPdfBytes } from '../features/relatorios/pdfService';
@@ -59,7 +60,7 @@ import type { Cliente, Funcionario } from '../features/cadastros/tipos';
 import { carregarVaso } from '../features/memorial/vasoMemorialService';
 import { carregarDadosAutoclave } from '../features/memorial/autoclaveMemorialService';
 import { carregarCaldeira } from '../features/memorial/caldeiraMemorialService';
-import { ler, salvar } from '../services/storage';
+import { ler } from '../services/storage';
 import { listarContainers } from '../features/inspecoes/inspecaoService';
 import type { ContainerInspecao } from '../features/inspecoes/tipos';
 import type { EmpresaEquipamento, CategoriaSalva } from '../features/equipamento/tipos';
@@ -141,107 +142,12 @@ function linhaVazia(): DimensaoProntuario {
   };
 }
 
-// ── Ensaio de espessura: extrai a grade de pontos + mínimos de um container e grava nas chaves
-// que as folhas do prontuário leem (nr13_med_grid_<TAG> e nr13_med_esp_<TAG>). ──────────────
+// ── Ensaio de espessura ─────────────────────────────────────────────────────
+// A grade e os mínimos do container escolhido NÃO são mais gravados em
+// nr13_med_grid_<TAG>/nr13_med_esp_<TAG> (Fase 6.1, P0: abrir o prontuário
+// apagava a medição do editor do relatório). Vão ENTREGUES ao gerador — ver
+// features/prontuarios/espessuraProntuario.ts.
 type MedidasUS = Record<string, Record<string, string>>;
-// Ângulos por região (colunas distribuídas em 360°). Espelho de angulosDe do
-// FormularioUltrassom; container antigo sem `colunas` cai nos 4 ângulos históricos.
-function angulosUS(n: unknown): string[] {
-  const qtd = Math.min(12, Math.max(1, Math.round(Number(n)) || 4));
-  return Array.from({ length: qtd }, (_, i) => String(Math.round((i * 360) / qtd)));
-}
-
-// Ponto de medição como salvo pelo FormularioUltrassom (PontoME). Normalização replicada de lá
-// (normalizarPontos não é exportado): região fora de 'ts'/'ti' cai no casco, ids duplicados/vazios
-// são descartados.
-type RegiaoUS = 'ts' | 'casco' | 'ti';
-const PONTOS_FIXOS_US: { id: string; regiao: RegiaoUS }[] = [
-  { id: 'ts', regiao: 'ts' },
-  { id: 'c1', regiao: 'casco' },
-  { id: 'c2', regiao: 'casco' },
-  { id: 'c3', regiao: 'casco' },
-  { id: 'c4', regiao: 'casco' },
-  { id: 'ti', regiao: 'ti' },
-];
-
-function normalizarPontosUS(bruto: unknown): { id: string; regiao: RegiaoUS }[] {
-  if (!Array.isArray(bruto)) return [];
-  const validos: { id: string; regiao: RegiaoUS }[] = [];
-  const vistos = new Set<string>();
-  for (const item of bruto) {
-    if (!item || typeof item !== 'object') continue;
-    const p = item as { id?: unknown; regiao?: unknown };
-    const id = typeof p.id === 'string' ? p.id.trim() : '';
-    if (!id || vistos.has(id)) continue;
-    vistos.add(id);
-    validos.push({ id, regiao: p.regiao === 'ts' || p.regiao === 'ti' ? p.regiao : 'casco' });
-  }
-  return validos;
-}
-
-function construirGridMinima(medidas: MedidasUS | undefined, pontos?: unknown, colunas?: unknown) {
-  const med = medidas ?? {};
-  const cols = (colunas ?? {}) as Partial<Record<RegiaoUS, unknown>>;
-  // Shape lido por PRONT-ULTRASSOM.html: { <regiao>: { angulos: string[], linhas: string[][] } }
-  // (formato antigo — array puro de linhas com 4 ângulos — segue aceito na LEITURA lá).
-  const angPorRegiao: Record<RegiaoUS, string[]> = {
-    ts: angulosUS(cols.ts),
-    casco: angulosUS(cols.casco),
-    ti: angulosUS(cols.ti),
-  };
-  const linha = (id: string, regiao: RegiaoUS) => angPorRegiao[regiao].map((a) => med[id]?.[a] ?? '');
-  // Container sem lista de pontos (dado antigo) => os 6 ids históricos.
-  const lista = normalizarPontosUS(pontos);
-  const efetivos = lista.length ? lista : PONTOS_FIXOS_US;
-  const grid: Record<RegiaoUS, { angulos: string[]; linhas: string[][] }> = {
-    ts: { angulos: angPorRegiao.ts, linhas: [] },
-    casco: { angulos: angPorRegiao.casco, linhas: [] },
-    ti: { angulos: angPorRegiao.ti, linhas: [] },
-  };
-  for (const p of efetivos) grid[p.regiao].linhas.push(linha(p.id, p.regiao));
-  const minOf = (rows: string[][]) => {
-    let m = Infinity;
-    rows.forEach((r) =>
-      r.forEach((v) => {
-        const n = parseFloat(String(v).replace(',', '.'));
-        if (Number.isFinite(n) && n > 0 && n < m) m = n;
-      }),
-    );
-    return m === Infinity ? '' : String(m).replace('.', ',');
-  };
-  const minima = { sup: minOf(grid.ts.linhas), casco: minOf(grid.casco.linhas), inf: minOf(grid.ti.linhas) };
-  return { grid, minima };
-}
-
-interface DadosUltrassomContainer {
-  medidas?: MedidasUS;
-  pontos?: unknown;
-  colunas?: unknown;
-  aparelho?: string;
-  acoplante?: string;
-  tempSup?: string;
-  estadoSup?: string;
-  cabecote?: string;
-  velSonica?: string;
-}
-
-async function aplicarEnsaioEspessura(tag: string, container: ContainerInspecao | null): Promise<void> {
-  const us = (container?.dados?.ultrassom as DadosUltrassomContainer | undefined) ?? undefined;
-  const { grid, minima } = construirGridMinima(us?.medidas, us?.pontos, us?.colunas);
-  await salvar(`nr13_med_grid_${tag}`, grid);
-  // Além dos mínimos (sup/casco/inf), grava os campos de "Informações para o Ensaio" preenchidos
-  // no FormularioUltrassom — PRONT-ULTRASSOM.html lê essas mesmas chaves (aparelho/acoplante/
-  // tempSup/estadoSup/cabecote/velSonica) de nr13_med_esp_<TAG>.
-  await salvar(`nr13_med_esp_${tag}`, {
-    ...minima,
-    aparelho: us?.aparelho ?? '',
-    acoplante: us?.acoplante ?? '',
-    tempSup: us?.tempSup ?? '',
-    estadoSup: us?.estadoSup ?? '',
-    cabecote: us?.cabecote ?? '',
-    velSonica: us?.velSonica ?? '',
-  });
-}
 
 function containerTemEspessura(c: ContainerInspecao): boolean {
   return c.ensaios.includes('ultrassom');
@@ -289,7 +195,27 @@ export default function Prontuarios() {
   // palco. O palco existe para materializar as chaves que os templates HTML
   // leem — sem template, materializar não serve a ninguém.
   const previaPront = previaProntuarioAtual(window.location.search);
-  const palco = usePalcoDocumento(tag, `pront-${tag}-${versao}`, { pular: previaPront === 'vetorial' });
+  const [containers, setContainers] = useState<ContainerInspecao[]>([]);
+  /**
+   * A medição de espessura do container escolhido NO FORMULÁRIO (salvo ou não)
+   * — o contexto que o gerador RECEBE (Fase 6.1). Antes ela era gravada em
+   * `nr13_med_grid_<TAG>`/`nr13_med_esp_<TAG>` a cada abertura. Memoizada:
+   * a prévia refaz o PDF quando ela muda.
+   */
+  const espessura = useMemo(
+    () => espessuraDoContainer(containers.find((c) => c.id === dados.containerEnsaioId) ?? null),
+    [containers, dados.containerEnsaioId],
+  );
+  // Rollback em iframe: as folhas `PRONT-*.html` leem a espessura e a cópia
+  // de trabalho `nr13_prontuario_atual` do localStorage. Elas vão SÓ ao palco
+  // (cópia temporária, restaurada ao fechar) — nunca ao `salvar`. Antes da
+  // Fase 6.1 as três eram gravadas (sincronizadas) a cada abertura.
+  const palco = usePalcoDocumento(tag, `pront-${tag}-${versao}`, {
+    pular: previaPront === 'vetorial',
+    sobrepor: tag
+      ? [...itensDoPalcoDaEspessura(tag, espessura), { chave: CHAVE_PRONTUARIO_ATUAL, valor: JSON.stringify(dados) }]
+      : undefined,
+  });
   /**
    * A TAG cujo prontuário a LISTA está pedindo para excluir.
    *
@@ -324,7 +250,6 @@ export default function Prontuarios() {
   const [tipoEquip, setTipoEquip] = useState('vaso');
   const [subtipoEquip, setSubtipoEquip] = useState('');
   const [visualizandoSemSalvar, setVisualizandoSemSalvar] = useState(false);
-  const [containers, setContainers] = useState<ContainerInspecao[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
   const [assinantes, setAssinantes] = useState<AssinantesProntuario>({ engenheiroId: null, tecnicoId: null });
@@ -374,7 +299,7 @@ export default function Prontuarios() {
       if (previaPront === 'vetorial') {
         // Sem arquivo emitido, o que se imprime é a PRÉ-VISUALIZAÇÃO — e ela
         // sai do mesmo gerador da emissão, não de uma rasterização da tela.
-        const r = await gerarProntuarioVetorial(tag);
+        const r = await gerarProntuarioVetorial(tag, { espessura });
         if (!abrirPdfEmAba(r.bytes)) {
           setErroEmissao('Não foi possível abrir a pré-visualização para impressão. Verifique o bloqueador de pop-ups.');
         }
@@ -405,7 +330,7 @@ export default function Prontuarios() {
       const motor = motorProntuarioAtual(window.location.search);
       const r =
         motor === 'vetorial'
-          ? await gerarProntuarioVetorial(tag)
+          ? await gerarProntuarioVetorial(tag, { espessura })
           : await gerarPdfBytes('.prontuario-preview', { rastreabilidades: false });
       const artefato = await publicarArtefato(r.bytes, r.paginas);
       const meta = await obterOuCriarMeta(tag);
@@ -791,13 +716,11 @@ export default function Prontuarios() {
       );
       setDados(finais);
       setMostrarModelador(false);
-      gravarProntuarioAtual(finais);
       // Grava/reusa a meta (nº do relatório + data de emissão) na chave por TAG que as folhas
       // PRONT-*.html leem — precisa acontecer antes de montar os iframes.
       await obterOuCriarMeta(eq.tag);
-      // Re-aplica a grade de espessura do ensaio escolhido (ou limpa se nenhum) para os iframes.
-      const contSel = finais.containerEnsaioId ? conts.find((c) => c.id === finais.containerEnsaioId) ?? null : null;
-      await aplicarEnsaioEspessura(eq.tag, contSel);
+      // A espessura do ensaio escolhido NÃO é gravada aqui (Fase 6.1): o gerador
+      // a recebe de `espessura` (derivada de `dados.containerEnsaioId`).
       if (existente) {
         setVersao((v) => v + 1);
         setVisualizandoSemSalvar(false);
@@ -841,19 +764,14 @@ export default function Prontuarios() {
       novo.empresaTelefone = c.telefone || '';
     }
     setDados(novo);
-    gravarProntuarioAtual(novo);
   }
 
   function selecionarEnsaio(id: string) {
+    // Só o estado: a espessura do container vai ENTREGUE ao gerador (Fase 6.1).
     set('containerEnsaioId', id || undefined);
-    const cont = id ? containers.find((c) => c.id === id) ?? null : null;
-    const novo = { ...dados, containerEnsaioId: id || undefined };
-    gravarProntuarioAtual(novo);
-    void aplicarEnsaioEspessura(tag, cont);
   }
 
   async function visualizar() {
-    gravarProntuarioAtual(dados);
     await obterOuCriarMeta(tag);
     setVersao((v) => v + 1);
     setVisualizandoSemSalvar(true);
@@ -872,7 +790,6 @@ export default function Prontuarios() {
     setSalvando(true);
     try {
       await salvarProntuario(tag, dados);
-      gravarProntuarioAtual(dados);
       const meta = await obterOuCriarMeta(tag);
       await registrarDocumento(
         docDeRascunho(tag, dados, meta.numero ?? null, undefined, ROTULO_TIPO[tipoEquip] ?? tipoEquip ?? null),
@@ -1631,6 +1548,7 @@ export default function Prontuarios() {
               tag={tag}
               versao={versao}
               nomeArquivo={`Prontuario_${tag}.pdf`}
+              espessura={espessura}
             />
           ) : (
           <div className="prontuario-preview">
