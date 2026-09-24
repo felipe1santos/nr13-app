@@ -1,6 +1,7 @@
 import { usePalcoDocumento } from '../features/documentos/usePalcoDocumento';
 import RecusaPalco from '../components/RecusaPalco';
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Icone } from '../components/Icone';
 import type { EquipamentoResumo } from '../features/equipamento/tipos';
 import CatalogoProntuariosV9 from '../features/prontuarios/CatalogoProntuariosV9';
@@ -266,6 +267,20 @@ export default function Prontuarios() {
   const [tag, setTag] = useState('');
   const [dados, setDados] = useState<ProntuarioDados>(dadosPadrao(''));
   const [versao, setVersao] = useState(0);
+
+  // LINK DIRETO (24/09/2026): `/prontuarios?tag=X` abre aquela TAG, e
+  // `&editar=1` vai direto ao formulário. É por aqui que a ficha manda o
+  // usuário "Criar/Continuar em Prontuários" sem ele ter de procurar a TAG de
+  // novo na lista. O parâmetro é CONSUMIDO: voltar à lista não reabre a TAG.
+  const [params, setParams] = useSearchParams();
+  const tagDaUrl = params.get('tag');
+  const editarDaUrl = params.get('editar') === '1';
+  useEffect(() => {
+    if (!tagDaUrl) return;
+    setParams({}, { replace: true });
+    void abrirPorTag(tagDaUrl, { editar: editarDaUrl });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só quando a URL traz uma TAG
+  }, [tagDaUrl]);
 
   // Palco: as 6 folhas do prontuário leem localStorage no DOMContentLoaded.
   // Nenhum iframe antes de `pronto` — prontuário meio montado sai impresso com
