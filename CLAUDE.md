@@ -893,6 +893,16 @@ Um prontuário passa a entrar por dois caminhos, e os dois convivem no mesmo equ
   A ficha ganhou **Baixar** (mesmos bytes do Visualizar, nome original). Excluir o prontuário
   (`removerDoIndice`) tira só a linha de RASCUNHO — antes levava junto as linhas de emitidos e
   anexados, e a ficha e `/prontuarios` discordavam sobre a mesma fonte.
+- **Um slot na ficha (24/09/2026).** Regra de produto: 1 equipamento = 1 prontuário VIGENTE.
+  Os blocos "Prontuário NR-13" (lista) e "Prontuário do Fabricante" (área de envio) saíram do fim
+  da ficha; o prontuário mora num slot compacto do card do topo (`ProntuarioDoEquipamento`).
+  Quem decide o que vai nele é `prontuarioVigente.ts`, sem regravar nada: a ÚLTIMA emissão de
+  `nr13_pront_emitido_<TAG>` (gerada ou anexada; as anteriores ficam como histórico, "+N em
+  Prontuários") e, sem emissão, o `nr13_pront_fab_<TAG>` como LEGADO — auditado em produção:
+  7 dos 8 PDFs "do fabricante" são o próprio prontuário do equipamento. O PDF do fabricante não
+  foi apagado nem movido; segue em /prontuarios, no Portal e na recuperação. Com prontuário, a
+  ficha NÃO oferece "anexar outro" (política de substituição pendente). `/prontuarios?tag=X`
+  abre a TAG (`&editar=1` vai ao formulário). Travado por `__tests__/prontuarioVigente.test.ts`.
 - Travado por `__tests__/anexoProntuario.test.ts` e `__tests__/abrirArquivo.test.ts`.
 
 ---

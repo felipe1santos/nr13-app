@@ -696,6 +696,14 @@
   font-size: 13.5px;
 }
 
+/* ── Rodapé do card do topo: foto de identificação + prontuário vigente ── */
+.equipamento-page .ficha-topo-rodape {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
 /* ── Foto de identificação: ação compacta, não um bloco de 70px ─────────── */
 .equipamento-page .galeria-fotos-row {
   margin-top: 0;

@@ -1,31 +1,46 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Icone } from '../../components/Icone';
 import { artefatoDe, baixarArtefato } from '../relatorios/artefatoRelatorio';
-import { agendarConfirmacaoDeEnvios, bytesDaEmissao, listarEmissoes, ehAnexado, type EmissaoProntuario } from './emissaoProntuario';
+import { agendarConfirmacaoDeEnvios, bytesDaEmissao, listarEmissoes, type EmissaoProntuario } from './emissaoProntuario';
 import { revisaoDe } from './emissaoProntuario';
 import ModalAnexarProntuario from './ModalAnexarProntuario';
 import { baixarArquivo, reservarAba } from './abrirArquivo';
 import { confirmarEnvioNoIndice } from './indiceProntuarios';
+import { resolverProntuarioVigente, ROTULO_ORIGEM, type ProntuarioVigente } from './prontuarioVigente';
 import { arquivoPendente } from '../../services/fotos';
-import { assinarDadosAlterados, emitirDadosAlterados } from '../../services/eventos';
-import { formatarTamanho } from '../equipamento/ProntuarioFabricante';
+import { ler } from '../../services/storage';
+import { isTrial } from '../../services/auth';
+import { MSG_BLOQUEIO_DOCS } from '../../services/trial';
+import { assinarDadosAlterados, emitirAviso, emitirDadosAlterados } from '../../services/eventos';
+import {
+  baixarPdfFabricante,
+  formatarDataEnvio,
+  formatarTamanho,
+  lerProntuarioFabricante,
+  resolverPdfFabricante,
+} from '../equipamento/ProntuarioFabricante';
 import './prontuarioDoEquipamento.css';
 
 /**
- * O PRONTUÁRIO NR-13 DENTRO DA FICHA (19/09/2026).
+ * O PRONTUÁRIO NR-13 NO TOPO DA FICHA — UM SLOT (24/09/2026).
  *
- * A ficha mostrava só o prontuário do FABRICANTE (`nr13_pront_fab_<TAG>`), que
- * é outro documento. Quem abria a ficha de um equipamento com prontuário
- * emitido não via nada disso — e, para anexar um prontuário antigo, não havia
- * caminho nenhum.
+ * Regra de produto: 1 equipamento = 1 prontuário vigente. A ficha tinha dois
+ * blocos grandes no fim da página ("Prontuário NR-13", com a lista de todos os
+ * documentos, e "Prontuário do Fabricante", com uma área de envio); agora há um
+ * componente compacto dentro do card principal, ao lado da foto.
  *
- * Esta seção lê a MESMA fonte da lista de `/prontuarios`: as emissões daquela
- * TAG (`nr13_pront_emitido_<TAG>`). Documento gerado aqui e PDF anexado
- * aparecem juntos, cada um com o seu selo — anexar não apaga nem substitui o
- * que foi gerado, e emitir não apaga o anexo.
+ * A fonte é a MESMA de `/prontuarios`: as emissões da TAG
+ * (`nr13_pront_emitido_<TAG>`) e, como legado, o PDF do fabricante
+ * (`nr13_pront_fab_<TAG>`). Qual documento ocupa o slot é decisão de
+ * `resolverProntuarioVigente` — aqui só se desenha. Gerado em `/prontuarios`
+ * aparece aqui sem nenhum upload pela ficha.
  *
- * Abrir serve os BYTES arquivados (`bytesDaEmissao`): nada é remontado a partir
- * dos dados de hoje, nem para o anexo nem para o documento emitido.
+ * Com prontuário: Abrir e Baixar servem os BYTES arquivados, nunca uma
+ * remontagem. Sem prontuário: "Anexar prontuário" (o fluxo da Fase 3) e o
+ * atalho para criar em `/prontuarios`. Com prontuário, NÃO há "anexar outro":
+ * a política de substituição ainda não foi decidida, e um segundo documento
+ * não pode entrar calado.
  */
 export default function ProntuarioDoEquipamento({
   tag,
@@ -36,22 +51,22 @@ export default function ProntuarioDoEquipamento({
   descricao?: string | null;
   cliente?: string | null;
 }) {
-  const [docs, setDocs] = useState<EmissaoProntuario[]>(() => listarEmissoes(tag));
+  const navigate = useNavigate();
+  const ler_ = useCallback(
+    () => resolverProntuarioVigente(listarEmissoes(tag), lerProntuarioFabricante(tag)),
+    [tag],
+  );
+  const [vigente, setVigente] = useState<ProntuarioVigente | null>(ler_);
   const [anexando, setAnexando] = useState(false);
   const [erro, setErro] = useState('');
-  const [abrindo, setAbrindo] = useState('');
+  const [ocupado, setOcupado] = useState(false);
 
-  // Sem efeito de carga: a lista nasce do cache no primeiro render e só é
-  // relida quando ESTA tela grava alguma coisa (o anexo). Efeito que chama
-  // setState no mount é render duplicado e é o que o lint barra.
-  const recarregar = useCallback(() => setDocs(listarEmissoes(tag)), [tag]);
+  const recarregar = useCallback(() => setVigente(ler_()), [ler_]);
 
   /**
    * "Aguardando sincronização" é o retrato do momento da gravação: quem anexou
-   * sem rede ficaria com o selo para sempre, e aviso que não some deixa de ser
-   * aviso. Quem confere é o SERVIÇO, fora do React (`setState` dentro de efeito
-   * é render duplicado, e o lint barra); esta tela só assina o barramento e
-   * relê quando alguma coisa mudou.
+   * sem rede ficaria com o selo para sempre. Quem confere é o SERVIÇO, fora do
+   * React; esta tela só assina o barramento e relê quando algo mudou.
    */
   useEffect(() => {
     agendarConfirmacaoDeEnvios(tag, {
@@ -64,105 +79,149 @@ export default function ProntuarioDoEquipamento({
     return assinarDadosAlterados(recarregar);
   }, [tag, recarregar]);
 
-  async function abrir(e: EmissaoProntuario) {
+  // Rascunho em aberto (dados salvos, nada emitido): o atalho diz "Continuar",
+  // não "Criar" — criar de novo sugeriria jogar o trabalho fora.
+  const temRascunho = ler<{ tag?: string }>(`nr13_prontuario_${tag}`)?.tag === tag;
+  // Histórico: abre a TAG em /prontuarios. Criar/Continuar: direto no formulário.
+  const irParaProntuarios = (editar = false) =>
+    navigate(`/prontuarios?tag=${encodeURIComponent(tag)}${editar ? '&editar=1' : ''}`);
+
+  function nomeDaEmissao(e: EmissaoProntuario): string {
+    return e.arquivoNome ?? `${e.numero ?? 'prontuario'}.pdf`;
+  }
+
+  async function abrir() {
+    if (!vigente) return;
     setErro('');
-    setAbrindo(e.id);
-    // A aba é reservada AQUI, dentro do clique: num aparelho que ainda não tem
-    // o arquivo no cofre, a busca vai ao bucket e um `window.open` depois do
-    // await é barrado como popup, em silêncio. Ver `abrirArquivo.ts`.
+    setOcupado(true);
+    // A aba é reservada AQUI, dentro do clique: um `window.open` depois do
+    // await da busca dos bytes é barrado como popup. Ver `abrirArquivo.ts`.
     const aba = reservarAba();
     try {
-      const blob = await bytesDaEmissao(e, { artefatoDe, baixarArtefato });
-      aba.entregar(blob, e.arquivoNome ?? `${e.numero ?? 'prontuario'}.pdf`);
+      if (vigente.emissao) {
+        const e = vigente.emissao;
+        const blob = await bytesDaEmissao(e, { artefatoDe, baixarArtefato });
+        aba.entregar(blob, nomeDaEmissao(e));
+      } else if (vigente.fabricante) {
+        const dataUrl = await resolverPdfFabricante(vigente.fabricante);
+        if (!dataUrl) throw new Error('O arquivo do fabricante não voltou nem do aparelho nem do servidor.');
+        // Decodifica aqui, como `abrirPdfProntuarioFabricante`: `fetch` numa
+        // URL `data:` pode ser barrado pela CSP (connect-src).
+        const bin = atob(dataUrl.slice(dataUrl.indexOf(',') + 1));
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        aba.entregar(new Blob([bytes], { type: 'application/pdf' }), vigente.fabricante.nome || `prontuario-${tag}.pdf`);
+      }
     } catch (err) {
       aba.descartar();
-      setErro(err instanceof Error ? err.message : 'Não foi possível abrir o documento.');
+      setErro(err instanceof Error ? err.message : 'Não foi possível abrir o prontuário.');
     } finally {
-      setAbrindo('');
+      setOcupado(false);
     }
   }
 
-  /** Os MESMOS bytes do visualizar, salvos com o nome original do arquivo. */
-  async function baixar(e: EmissaoProntuario) {
+  /** Os MESMOS bytes do Abrir, salvos com o nome original do arquivo. */
+  async function baixar() {
+    if (!vigente) return;
     setErro('');
-    setAbrindo(e.id);
-    try {
-      const blob = await bytesDaEmissao(e, { artefatoDe, baixarArtefato });
-      baixarArquivo(blob, e.arquivoNome ?? `${e.numero ?? 'prontuario'}.pdf`);
-    } catch (err) {
-      setErro(err instanceof Error ? err.message : 'Não foi possível baixar o documento.');
-    } finally {
-      setAbrindo('');
+    if (vigente.fabricante && isTrial()) {
+      // O gate do trial que o bloco antigo do fabricante já tinha.
+      emitirAviso({ variante: 'alerta', titulo: 'Recurso do plano contratado', texto: MSG_BLOQUEIO_DOCS });
+      return;
     }
+    setOcupado(true);
+    try {
+      if (vigente.emissao) {
+        const e = vigente.emissao;
+        const blob = await bytesDaEmissao(e, { artefatoDe, baixarArtefato });
+        baixarArquivo(blob, nomeDaEmissao(e));
+      } else if (vigente.fabricante) {
+        await baixarPdfFabricante(vigente.fabricante, vigente.fabricante.nome || `prontuario-${tag}.pdf`);
+      }
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : 'Não foi possível baixar o prontuário.');
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  function detalhe(v: ProntuarioVigente): string {
+    if (v.emissao && v.origem === 'gerado') {
+      const e = v.emissao;
+      const rev = String(revisaoDe(tag, e.id)).padStart(2, '0');
+      return [e.numero, `Rev. ${rev}`, e.emissao].filter(Boolean).join(' · ');
+    }
+    if (v.emissao) {
+      const e = v.emissao;
+      return [e.arquivoNome, e.tamanho ? formatarTamanho(e.tamanho) : null].filter(Boolean).join(' · ');
+    }
+    const f = v.fabricante!;
+    return [f.nome, formatarTamanho(f.tamanho), `enviado em ${formatarDataEnvio(f.enviadoEm)}`].filter(Boolean).join(' · ');
   }
 
   return (
-    <div className="bloco-dados pde-bloco">
-      <div className="pde-cabecalho">
-        <div>
-          <h3>Prontuário NR-13</h3>
-          <p className="pde-sub">
-            Documentos deste equipamento — os gerados aqui e os PDFs existentes que você anexou.
-          </p>
+    <div className={`pde-slot ${vigente ? `pde-slot-${vigente.origem}` : 'pde-slot-vazio'}`} data-teste="prontuario-slot">
+      <span className="pde-slot-icone" aria-hidden>
+        <Icone nome={vigente ? 'pdf' : 'filetext'} tam={18} />
+      </span>
+
+      <div className="pde-slot-corpo">
+        <div className="pde-slot-titulo">
+          <strong>Prontuário NR-13</strong>
+          {vigente && <span className={`pde-slot-selo pde-slot-selo-${vigente.origem}`}>{ROTULO_ORIGEM[vigente.origem]}</span>}
         </div>
-        <button type="button" className="fj-btn fj-btn-primary pde-btn-anexar" onClick={() => setAnexando(true)}>
-          <Icone nome="plus" tam={14} /> Anexar prontuário existente
-        </button>
+        {vigente ? (
+          <span className="pde-slot-detalhe" title={detalhe(vigente)}>
+            {detalhe(vigente)}
+            {vigente.emissao?.pdfPendente ? ' · aguardando sincronização' : ''}
+          </span>
+        ) : (
+          <span className="pde-slot-detalhe">
+            {temRascunho ? 'Rascunho em andamento, ainda não emitido.' : 'Nenhum prontuário neste equipamento.'}
+          </span>
+        )}
+        {vigente && vigente.outros > 0 && (
+          <button type="button" className="pde-slot-historico" onClick={() => irParaProntuarios()}>
+            + {vigente.outros} {vigente.outros === 1 ? 'documento anterior' : 'documentos anteriores'} em Prontuários
+          </button>
+        )}
       </div>
 
-      {docs.length === 0 ? (
-        <p className="dashboard-vazio pde-vazio">
-          Nenhum prontuário ainda. Crie o prontuário em <b>Prontuários</b> ou anexe aqui o PDF que o
-          cliente já tem.
-        </p>
-      ) : (
-        <ul className="pde-lista">
-          {docs.map((d) => {
-            const anexo = ehAnexado(d);
-            const rev = revisaoDe(tag, d.id);
-            return (
-              <li key={d.id} className="pde-item">
-                <span className="pde-icone" aria-hidden>
-                  <Icone nome={anexo ? 'pdf' : 'filetext'} tam={16} />
-                </span>
-                <span className="pde-nome">
-                  <strong>{anexo ? d.arquivoNome ?? 'Prontuário existente' : d.numero ?? 'Prontuário NR-13'}</strong>
-                  <span className="pde-meta">
-                    {anexo ? 'PDF anexado' : `Gerado pelo sistema · Rev. ${String(rev).padStart(2, '0')}`}
-                    {d.tamanho ? ` · ${formatarTamanho(d.tamanho)}` : ''}
-                    {d.pdfPendente ? ' · aguardando sincronização' : ''}
-                  </span>
-                </span>
-                <span className={`pde-selo ${anexo ? 'pde-selo-anexo' : 'pde-selo-sistema'}`}>
-                  {anexo ? 'PDF ANEXADO' : 'EMITIDO'}
-                </span>
-                <button
-                  type="button"
-                  className="btn-icone cor-azul"
-                  title="Visualizar"
-                  aria-label={`Visualizar o prontuário ${anexo ? d.arquivoNome ?? '' : d.numero ?? ''}`}
-                  disabled={abrindo === d.id}
-                  onClick={() => void abrir(d)}
-                >
-                  <Icone nome="eye" tam={14} />
-                </button>
-                <button
-                  type="button"
-                  className="btn-icone cor-azul"
-                  title="Baixar o PDF original"
-                  aria-label={`Baixar o prontuário ${anexo ? d.arquivoNome ?? '' : d.numero ?? ''}`}
-                  disabled={abrindo === d.id}
-                  onClick={() => void baixar(d)}
-                >
-                  <Icone nome="download" tam={14} />
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      <div className="pde-slot-acoes">
+        {vigente ? (
+          <>
+            <button
+              type="button"
+              className="fj-btn fj-btn-primary pde-slot-btn"
+              onClick={() => void abrir()}
+              disabled={ocupado}
+              title="Abrir o prontuário"
+            >
+              <Icone nome="eye" tam={13} /> Abrir
+            </button>
+            <button
+              type="button"
+              className="fj-btn pde-slot-btn"
+              onClick={() => void baixar()}
+              disabled={ocupado}
+              title="Baixar o PDF original"
+            >
+              <Icone nome="download" tam={13} /> Baixar
+            </button>
+          </>
+        ) : (
+          <>
+            <button type="button" className="fj-btn fj-btn-primary pde-slot-btn" onClick={() => setAnexando(true)}>
+              <Icone nome="plus" tam={13} /> Anexar prontuário
+            </button>
+            <button type="button" className="pde-slot-link" onClick={() => irParaProntuarios(true)}>
+              {temRascunho ? 'Continuar em Prontuários' : 'Criar em Prontuários'}
+            </button>
+          </>
+        )}
+      </div>
 
-      {erro && <p className="erro-form pde-erro">{erro}</p>}
+      {erro && <p className="erro-form pde-slot-erro">{erro}</p>}
 
       {anexando && (
         <ModalAnexarProntuario

@@ -530,9 +530,9 @@ describe('Fase 3 · prontuário existente', () => {
     expect(modal).toContain('Este PDF já está anexado a este equipamento');
   });
 
-  it('P · a ficha tem Visualizar E Baixar, os dois pelos bytes arquivados', () => {
+  it('P · a ficha tem Abrir E Baixar, os dois pelos bytes arquivados', () => {
     const ficha = readFileSync('src/features/prontuarios/ProntuarioDoEquipamento.tsx', 'utf8');
-    expect(ficha).toContain('title="Visualizar"');
+    expect(ficha).toContain('title="Abrir o prontuário"');
     expect(ficha).toContain('title="Baixar o PDF original"');
     expect(ficha.match(/bytesDaEmissao\(e, \{ artefatoDe, baixarArtefato \}\)/g)).toHaveLength(2);
     expect(ficha).toContain('baixarArquivo(blob');

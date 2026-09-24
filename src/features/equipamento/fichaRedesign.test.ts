@@ -35,7 +35,6 @@ import PressoesDocumentacao from './PressoesDocumentacao';
 import VidaRemanescente from './VidaRemanescente';
 import DadosEquipamento from './DadosEquipamento';
 import DadosEmpresa from './DadosEmpresa';
-import ProntuarioFabricante from './ProntuarioFabricante';
 import CategoriaNR13 from '../categoria/CategoriaNR13';
 import type { InfoEquipamento } from './tipos';
 
@@ -175,21 +174,6 @@ describe('leitura = dado; edição = campo', () => {
     const n = (h: string) => (h.match(/class="lbl-view"/g) ?? []).length;
     expect(n(eq)).toBe(12);
     expect(n(emp)).toBe(12);
-  });
-
-  it('Prontuário do Fabricante salvo aparece como DOCUMENTO; sem arquivo, a área de envio', () => {
-    expect(html(createElement(ProntuarioFabricante, { tag: TAG }))).toContain('pfab-dropzone');
-    banco.set(`nr13_pront_fab_${TAG}`, {
-      nome: 'fabricante.pdf',
-      tamanho: 2048,
-      enviadoEm: '2026-09-20T10:00:00.000Z',
-      pdfRef: { bucket: 'inspecao', path: 'org/docs/fab.pdf', mimeType: 'application/pdf', tamanho: 2048 },
-    });
-    const h = html(createElement(ProntuarioFabricante, { tag: TAG }));
-    expect(h).toContain('ficha-doc');
-    expect(h).toContain('fabricante.pdf');
-    expect(h).not.toContain('pfab-dropzone');
-    for (const acao of ['Visualizar', 'Baixar', 'Substituir PDF', 'Remover']) expect(h).toContain(acao);
   });
 });
 

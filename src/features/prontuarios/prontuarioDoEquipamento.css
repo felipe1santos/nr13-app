@@ -1,124 +1,155 @@
-/* Prontuário NR-13 na ficha do equipamento: lista curta de documentos + CTA. */
-.pde-cabecalho {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.pde-cabecalho h3 {
-  margin: 0;
-}
-
-.pde-sub {
-  margin: 2px 0 0;
-  font-size: 13px;
-  color: var(--txt-fraco, #5b6570);
-}
-
-.pde-btn-anexar {
-  min-height: 40px;
-  white-space: nowrap;
-}
-
-.pde-vazio {
-  margin: 12px 0 0;
-  padding: 14px 16px;
-  border: 1.5px dashed var(--line, #DDD6C7);
-  border-radius: 10px;
-  background: var(--steel, #F6F5F2);
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--text-muted, #7A8790);
-}
-
-.pde-lista {
-  list-style: none;
-  margin: 12px 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-/* Cinco filhos: ícone, nome, selo, Visualizar, Baixar. A grade tinha quatro
-   colunas desde que o Baixar entrou (Fase 3), e o ícone de download caía numa
-   segunda linha sozinho. */
-.pde-item {
+/* Prontuário NR-13 na ficha: UM slot compacto dentro do card do topo
+   (24/09/2026). Substitui o bloco grande com a lista de documentos. */
+.pde-slot {
   display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) auto auto auto;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
+  gap: 4px 10px;
+  flex: 1 1 320px;
+  min-width: 0;
+  padding: 8px 10px;
   border: 1px solid var(--line, #E4E1D8);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--bg-card, #fff);
 }
 
-.pde-nome {
+.pde-slot-vazio {
+  border-style: dashed;
+  background: var(--steel, #F6F5F2);
+}
+
+.pde-slot-icone {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--steel, #F6F5F2);
+  color: var(--text-muted, #7A8790);
+}
+.pde-slot-gerado .pde-slot-icone,
+.pde-slot-anexado .pde-slot-icone,
+.pde-slot-fabricante .pde-slot-icone {
+  background: var(--crit-bg, #FBEAE9);
+  color: var(--crit-deep, #B93A33);
+}
+
+.pde-slot-corpo {
   display: flex;
   flex-direction: column;
-  min-width: 0; /* sem isto o nome longo estica a linha e cria rolagem */
+  gap: 2px;
+  min-width: 0;
 }
 
-.pde-nome strong {
-  overflow-wrap: anywhere;
+.pde-slot-titulo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+.pde-slot-titulo strong {
+  font-size: 13px;
+  color: var(--text-main, #2D3339);
 }
 
-.pde-meta {
-  font-size: 12px;
-  color: var(--txt-fraco, #5b6570);
-}
-
-.pde-selo {
-  font-size: 10px;
-  letter-spacing: 0.05em;
-  padding: 3px 7px;
+.pde-slot-selo {
+  padding: 2px 7px;
   border-radius: 999px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   white-space: nowrap;
 }
-
-.pde-selo-sistema {
-  background: #e8f1ff;
-  color: #14508c;
+.pde-slot-selo-gerado {
+  background: var(--blue2-bg, #E4EDF9);
+  color: var(--blue2, #0C4F9B);
+}
+.pde-slot-selo-anexado {
+  background: #F1ECE2;
+  color: #7A5A17;
+}
+.pde-slot-selo-fabricante {
+  background: var(--steel, #F6F5F2);
+  color: var(--text-main, #2D3339);
 }
 
-.pde-selo-anexo {
-  background: #f1ece2;
-  color: #7a5a17;
+/* Nome de arquivo longo: uma linha com reticências, o nome inteiro no title. */
+.pde-slot-detalhe {
+  font-size: 12px;
+  color: var(--text-muted, #7A8790);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.pde-erro {
-  margin-top: 10px;
+.pde-slot-historico,
+.pde-slot-link {
+  justify-self: start;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--blue2, #0C4F9B);
+  font-size: 11.5px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.pde-slot-historico:hover,
+.pde-slot-link:hover {
+  text-decoration: underline;
+}
+
+.pde-slot-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px 10px;
+}
+
+/* Ações QUIETAS: o slot mora no card do topo e não pode disputar com a foto,
+   a TAG e o resumo. Contorno azul em vez do laranja cheio do fj-btn-primary. */
+.pde-slot .pde-slot-btn {
+  min-height: 32px;
+  padding: 5px 10px;
+  border: 1px solid var(--blue2-line, #C4D9F0);
+  background: var(--bg-card, #fff);
+  color: var(--blue2, #0C4F9B);
+  box-shadow: none;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.pde-slot .pde-slot-btn:hover:not(:disabled) {
+  background: var(--blue2-bg, #E4EDF9);
+}
+.pde-slot .pde-slot-btn:focus-visible {
+  outline: 2px solid var(--blue2, #0C4F9B);
+  outline-offset: 2px;
+}
+
+.pde-slot-erro {
+  grid-column: 1 / -1;
+  margin: 4px 0 0;
 }
 
 @media (max-width: 560px) {
-  .pde-btn-anexar {
-    width: 100%;
-    justify-content: center;
+  /* No celular as ações descem para a linha de baixo, na largura toda. */
+  .pde-slot {
+    grid-template-columns: 30px minmax(0, 1fr);
   }
-
-  .pde-item {
-    grid-template-columns: 20px minmax(0, 1fr) auto auto;
-    row-gap: 6px;
+  .pde-slot-acoes {
+    grid-column: 1 / -1;
+    justify-content: stretch;
   }
-
-  /* O selo desce para a segunda linha; ícone, nome e as duas ações ficam na
-     primeira (`order` tira o selo do meio da ordem de encaixe). */
-  .pde-selo {
-    order: 1;
-    grid-column: 2 / -1;
-    justify-self: start;
-  }
-
-  /* Abrir é a ação principal desta linha e vinha com 28px de alvo — abaixo do
-     dedo. O ícone continua do mesmo tamanho; o que cresce é a área de toque. */
-  .pde-item .btn-icone {
-    min-width: 44px;
+  .pde-slot-btn {
+    flex: 1 1 0;
     min-height: 44px;
-    display: inline-flex;
-    align-items: center;
     justify-content: center;
+  }
+  .pde-slot-link {
+    flex: 1 1 100%;
+    text-align: center;
+    padding: 6px 0;
   }
 }
