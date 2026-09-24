@@ -540,6 +540,26 @@ As folhas de fotos (CHECKLIST-FOTOS, VISUAL-*-FOTOS, TESTE-HIDROSTATICO-FOTOS) e
 são **auto-injetados** por `montarListaComTermoAbertura()` logo após sua folha-pai — não entram em
 `DOCUMENTOS_DISPONIVEIS` e não são selecionados manualmente (evita duplicação).
 
+### §6-bis — FOTO TEM IDENTIDADE; A LEGENDA É DELA, NÃO DA POSIÇÃO (Fase 5, 24/09/2026)
+
+> **REGRA QUE NÃO SE QUEBRA:** foto de campo é identificada por `id`, nunca pelo índice do
+> array. Descrição e ordem andam com o id. Medição: `docs/medicoes/2026-09-24-fase5-fotos-descritas.md`.
+
+- **Um modelo** (`features/inspecoes/fotosDescritas.ts`): `{ id, ordem, ref, base64?, descricao }`.
+  Foto antiga sem id ganha id DERIVADO de `ref.path`; normalização NA LEITURA, nada migrado.
+  `ordem` gravado **e** array mantido ordenado (templates e vetorial leem o array). "Foto 01" é
+  derivado da ordem, nunca gravado.
+- **Um editor** (`EditorFotosDescritas`) em checklist, visuais, TH e Relatório de Imagens.
+  Remover tira só a REFERÊNCIA — nenhum caminho apaga arquivo do bucket (referência pode ser
+  compartilhada com relatório emitido).
+- **Relatório de Imagens** (`relatorio_imagens` → formulário `imagens`): só fotos descritas +
+  data + observação; equipamento/cliente/empresa vêm da ficha na geração. Rascunho livre;
+  Baixar/Imprimir exigem ≥1 foto e todas descritas (regra SÓ deste ensaio). PDF HÍBRIDO próprio
+  (`pdfVetorial/relatorioImagens.ts`): capa + 2 colunas com altura medida, descrição nunca
+  cortada. Não entra em `DOCUMENTOS_DISPONIVEIS` (não é folha do relatório NR-13);
+  `desenharFotosDescritas` é o ponto de composição para uma integração futura.
+- Travado por `fotosDescritas.test.ts`, `documentoImagens.test.ts` e `relatorioImagens.test.ts`.
+
 ---
 
 ## 7. Organização do Relatório — ORDEM DE MONTAGEM E INJEÇÃO (fixa)
