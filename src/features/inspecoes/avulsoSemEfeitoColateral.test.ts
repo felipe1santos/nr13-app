@@ -277,7 +277,12 @@ describe('relatório completo · sem regressão', () => {
 });
 
 describe('gate · as portas do avulso não gravam chave viva', () => {
-  for (const arq of ['src/features/inspecoes/documentoVetorial.ts', 'src/features/inspecoes/documentoImagens.ts']) {
+  for (const arq of [
+    'src/features/inspecoes/documentoVetorial.ts',
+    'src/features/inspecoes/documentoImagens.ts',
+    // Fase 6 · a prévia de manômetro/PSV era a última porta que gravava.
+    'src/features/inspecoes/PreviewDocumento.tsx',
+  ]) {
     it(arq, () => {
       const s = readFileSync(arq, 'utf8');
       expect(s).not.toMatch(/gravarMetaAtual\s*\(/);

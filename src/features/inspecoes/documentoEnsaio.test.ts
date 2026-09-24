@@ -35,48 +35,33 @@ describe('o botão "Ver documento" no container', () => {
   });
 });
 
-describe('a folha montada com os dados do container', () => {
-  it('grava as DUAS chaves de injeção antes de montar os iframes', () => {
-    // §2 do CLAUDE.md: os templates não são uniformes — uns leem
-    // `nr13_inspecao_atual`, outros `nr13_injecao_atual`. `gravarInspecaoOrigemAtual`
-    // escreve as duas; montar o iframe antes dela mostraria a inspeção anterior.
-    expect(PREVIEW).toContain('gravarInspecaoOrigemAtual');
-    const iGrava = PREVIEW.indexOf('gravarInspecaoOrigemAtual');
-    const iFrame = PREVIEW.indexOf('<iframe');
-    expect(iGrava).toBeLessThan(iFrame);
+/**
+ * Fase 6 (24/09/2026) · a prévia de ensaio não grava estado de ninguém.
+ *
+ * Este bloco travava o contrário: a prévia de manômetro/PSV GRAVAVA as duas
+ * chaves de injeção e zerava `nr13_relatorio_meta_atual` (pelo `salvar`,
+ * sincronizado) antes de montar os templates em iframe. Reproduzido no lab:
+ * abrir `manometro?documento=1` apagava a meta de um relatório em montagem noutra
+ * aba. Calibração não é ensaio de container — o caminho saiu.
+ */
+describe('a prévia do ensaio é leitura pura', () => {
+  it('não grava meta, injeção nem nada pelo storage', () => {
+    expect(PREVIEW).not.toMatch(/gravarInspecaoOrigemAtual\s*\(/);
+    expect(PREVIEW).not.toMatch(/gravarMetaAtual\s*\(/);
+    expect(PREVIEW).not.toMatch(/\bsalvar\s*\(/);
   });
 
-  /**
-   * O PALCO só pode ser montado DEPOIS da gravação (§2-ter).
-   *
-   * Na v2 o `localStorage` é só o palco: as chaves são materializadas por
-   * `usePalcoDocumento` na montagem. Montá-lo antes de a gravação confirmar
-   * encena o valor ANTERIOR da chave — e a folha sai com "--" em todo campo,
-   * sem erro nenhum. Foi exatamente o defeito medido em produção em 13/09/2026.
-   */
-  it('monta o palco SÓ depois de a gravação confirmar', () => {
-    expect(PREVIEW).toContain('usePalcoDocumento');
-    // A guarda que segura a renderização até a gravação terminar.
-    expect(PREVIEW).toContain('if (!gravado) return');
-    // E o hook do palco NÃO pode estar no componente que faz a gravação: ele
-    // roda na montagem, que é antes de qualquer `await`.
-    const iGuarda = PREVIEW.indexOf('if (!gravado) return');
-    const iHook = PREVIEW.indexOf('usePalcoDocumento(');
-    expect(iHook).toBeGreaterThan(iGuarda);
+  it('não monta palco nem template em iframe', () => {
+    expect(PREVIEW).not.toContain('usePalcoDocumento');
+    expect(PREVIEW).not.toContain('<iframe');
+    // (o comentário do topo ainda CITA a pasta, para contar a história; o que
+    // não pode existir é um src apontando para ela)
+    expect(PREVIEW).not.toMatch(/src=\{`\/arquivos-inspecao/);
   });
 
-  it('os iframes levam os parâmetros do palco', () => {
-    // Sem `paramsIframe` o template não sabe de qual documento é o palco.
-    expect(PREVIEW).toContain('${palco.paramsIframe}');
-    expect(PREVIEW).toContain('RecusaPalco');
-  });
-
-  it('zera a meta, senão o cabeçalho sai com dados de OUTRO relatório', () => {
-    expect(PREVIEW).toContain('gravarMetaAtual({} as RelatorioMeta)');
-  });
-
-  it('não monta nada quando o tipo não tem folha', () => {
-    expect(PREVIEW).toContain('docs.length === 0');
+  it('formulário sem documento de ensaio (manômetro/PSV) cai num aviso que aponta para Calibrações', () => {
+    expect(PREVIEW).toContain('<SemDocumentoDeEnsaio');
+    expect(PREVIEW).toContain('Calibrações');
   });
 
   it('todo tipo de ensaio tem folha declarada, ou cai no aviso', () => {

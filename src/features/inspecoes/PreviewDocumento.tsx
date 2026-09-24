@@ -1,16 +1,11 @@
 import { useEffect, useState } from 'react';
-import PaginaA4 from '../../components/PaginaA4';
-import RecusaPalco from '../../components/RecusaPalco';
 import { VisualizadorPdfBytes, abrirPdfEmAba, baixarPdfDeBytes } from '../../components/VisualizadorPdf';
 import { gerarDocumentoImagens } from './documentoImagens';
 import { pendenciasParaEmissao } from './fotosDescritas';
 import { textoDoErro } from '../../services/textoDoErro';
-import { usePalcoDocumento } from '../documentos/usePalcoDocumento';
 import { carregarContainer } from './inspecaoService';
-import { DOCS_POR_FORMULARIO, ROTULO_FORMULARIO, type FormularioEnsaio } from './tipos';
+import { ROTULO_FORMULARIO, type FormularioEnsaio } from './tipos';
 import { gerarDocumentoDoEnsaio, temDocumentoVetorial } from './documentoVetorial';
-import { gravarInspecaoOrigemAtual, gravarMetaAtual } from '../relatorios/relatoriosService';
-import type { RelatorioMeta } from '../relatorios/tipos';
 
 /**
  * A FOLHA DO RELATÓRIO daquele ensaio, montada com os dados de campo.
@@ -29,12 +24,17 @@ import type { RelatorioMeta } from '../relatorios/tipos';
  * ensaio — ver `documentoVetorial.ts`. O que aparece aqui são os bytes que o
  * relatório produziria para essas folhas.
  *
- * ## O caminho antigo continua, e para quem ele é
+ * ## Calibração não é ensaio de container (Fase 6, 24/09/2026)
  *
- * `manometro` e `psv` são folhas de CALIBRAÇÃO: não têm equivalente vetorial
- * por decisão de arquitetura (§7-septies), porque o certificado é montado num
- * host isolado e rasterizado individualmente. Para eles, os iframes seguem
- * sendo o desenho correto — e por isso o componente do palco ficou inteiro.
+ * `manometro` e `psv` tinham aqui um caminho de templates em iframe que
+ * GRAVAVA as chaves vivas do relatório em montagem (`nr13_inspecao_atual`,
+ * `nr13_injecao_atual` e `nr13_relatorio_meta_atual = {}`) pelo `salvar` —
+ * sincronizado com o servidor — para o template lê-las. Era o mesmo defeito que
+ * a Fase 5.1 tirou dos avulsos dos ensaios, reproduzido no lab (10 mutações;
+ * a meta de um relatório de outra aba virava `{}`). E era inalcançável pela
+ * tela: nenhum container tem esses "ensaios" (`TipoEnsaio` não os inclui),
+ * só a URL digitada `?documento=1`. O certificado de calibração se vê, emite
+ * e imprime em Calibrações, pelo host isolado. Aqui fica só o aviso.
  *
  * ## O que ela NÃO é
  *
@@ -56,7 +56,7 @@ export default function PreviewDocumento({
   if (temDocumentoVetorial(formulario)) {
     return <DocumentoVetorial tag={tag} containerId={containerId} formulario={formulario} />;
   }
-  return <DocumentoEmIframes tag={tag} containerId={containerId} formulario={formulario} />;
+  return <SemDocumentoDeEnsaio formulario={formulario} />;
 }
 
 /**
@@ -214,95 +214,14 @@ function DocumentoVetorial({
 }
 
 /**
- * O caminho dos TEMPLATES em iframe — hoje só para as folhas de calibração.
- *
- * ## Duas etapas, e a ordem entre elas é o ponto
- *
- * Os templates leem os dados direto do `localStorage` no `DOMContentLoaded`
- * (§2 do CLAUDE.md) — eles não recebem props. E na v2 o `localStorage` é só o
- * **PALCO** (§2-ter): as chaves só existem ali enquanto o documento está
- * aberto, materializadas por `usePalcoDocumento`.
- *
- * Então: **gravar** as chaves e só então **montar o palco** e os iframes.
- * Inverter isso foi o defeito de 13/09/2026 — o palco era montado com o valor
- * anterior da chave e a folha saía com "--" em todos os campos, **sem erro
- * nenhum**, que é o pior tipo de falha deste sistema.
+ * Formulário sem documento de ensaio (hoje: `manometro`, `psv`). Não grava
+ * nada — nem as chaves vivas do relatório, nem o palco.
  */
-function DocumentoEmIframes({
-  tag,
-  containerId,
-  formulario,
-}: {
-  tag: string;
-  containerId: string;
-  formulario: FormularioEnsaio;
-}) {
-  const docs = DOCS_POR_FORMULARIO[formulario] ?? [];
-  /**
-   * Para QUAL ensaio as chaves de injeção já foram gravadas.
-   *
-   * Marcador, não booleano: trocando de ensaio a chave muda e a gravação volta
-   * a ser pendente por derivação, sem `setState` no corpo do efeito.
-   */
-  const chave = `${tag}|${containerId}|${formulario}`;
-  const [gravadoPara, setGravadoPara] = useState<string | null>(null);
-  const gravado = gravadoPara === chave;
-
-  useEffect(() => {
-    let vivo = true;
-    const container = carregarContainer(tag, containerId);
-    void Promise.all([
-      gravarInspecaoOrigemAtual(container?.dados ?? {}),
-      // A meta vai VAZIA: `nr13_relatorio_meta_atual` é chave viva e
-      // compartilhada, e sem zerá-la o cabeçalho sairia com o código e os
-      // assinantes do último relatório aberto no visualizador.
-      gravarMetaAtual({} as RelatorioMeta),
-    ]).then(() => {
-      if (vivo) setGravadoPara(chave);
-    });
-    return () => {
-      vivo = false;
-    };
-  }, [tag, containerId, chave]);
-
-  if (docs.length === 0) {
-    return <p className="prevdoc-aviso">Pré-visualização não disponível para este tipo.</p>;
-  }
-  if (!gravado) return <p className="prevdoc-aviso">Montando documento…</p>;
-
-  return <Encenado tag={tag} containerId={containerId} docs={docs} />;
-}
-
-/**
- * O palco e os iframes.
- *
- * Componente separado de propósito: `usePalcoDocumento` materializa as chaves
- * na MONTAGEM, e montá-lo só depois de a gravação confirmar é o que garante que
- * ele encene o dado deste container, e não o que estava lá antes.
- */
-function Encenado({ tag, containerId, docs }: { tag: string; containerId: string; docs: string[] }) {
-  // O "id do relatório" aqui é o do container: o palco usa isso para saber qual
-  // documento está aberto e para a trava de dono por aba (`palcoTrava`).
-  const palco = usePalcoDocumento(tag, containerId);
-
-  if (palco.estado !== 'pronto') {
-    return <RecusaPalco estado={palco.estado} falha={palco.falha} />;
-  }
-
+function SemDocumentoDeEnsaio({ formulario }: { formulario: FormularioEnsaio }) {
   return (
-    <div className="relatorio-preview">
-      {docs.map((doc, i) => {
-        const sep = doc.includes('?') ? '&' : '?';
-        return (
-          <PaginaA4 key={`${doc}-${i}`}>
-            <iframe
-              src={`/arquivos-inspecao/${doc}${sep}tag=${encodeURIComponent(tag)}&page=${i + 1}${palco.paramsIframe}`}
-              scrolling="no"
-              title={doc}
-            />
-          </PaginaA4>
-        );
-      })}
-    </div>
+    <p className="prevdoc-aviso" data-teste="sem-documento-de-ensaio">
+      {ROTULO_FORMULARIO[formulario] ?? formulario} não tem documento de ensaio. O certificado de calibração é
+      visualizado, emitido e impresso em Calibrações.
+    </p>
   );
 }

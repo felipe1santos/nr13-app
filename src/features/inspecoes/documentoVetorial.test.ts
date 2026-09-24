@@ -68,15 +68,17 @@ describe('a tela do ensaio usa o gerador do relatório', () => {
     expect(MODULO).not.toContain('folhaUltrassom');
   });
 
-  it('a prévia decide pelo tipo do ensaio, e o iframe é o caminho de exceção', () => {
+  it('a prévia decide pelo tipo do ensaio; sem documento vetorial, só o aviso (Fase 6)', () => {
     expect(PREVIEW).toContain('temDocumentoVetorial(formulario)');
     expect(PREVIEW).toContain('<VisualizadorPdfBytes');
-    // O caminho dos templates continua existindo — para os certificados.
-    expect(PREVIEW).toContain('usePalcoDocumento');
+    // O caminho dos templates em iframe saiu: ele gravava as chaves vivas do
+    // relatório em montagem para o template lê-las.
+    expect(PREVIEW).not.toContain('usePalcoDocumento');
+    expect(PREVIEW).not.toContain('DocumentoEmIframes');
     const iVetorial = PREVIEW.indexOf('temDocumentoVetorial(formulario)');
-    const iIframe = PREVIEW.indexOf('DocumentoEmIframes');
+    const iAviso = PREVIEW.indexOf('<SemDocumentoDeEnsaio');
     expect(iVetorial).toBeGreaterThan(0);
-    expect(iIframe).toBeGreaterThan(iVetorial);
+    expect(iAviso).toBeGreaterThan(iVetorial);
   });
 
   it('a prévia segue avisando que não é o documento emitido', () => {
