@@ -226,3 +226,26 @@ Aba A "Sincronizado". Retrato do histórico (relatórios, índices, prontuários
   menos e nenhuma foto; reorder + reabrir o rascunho → os dois na nova ordem; finalizado com
   pdfRef/SHA (`5aa6cb09…`) e, depois de alterar o ensaio, o MESMO SHA e os mesmos bytes; 390 px
   sem overflow no assistente (itens 59/44 px). Duas abas (5.1) repetido: 12/12.
+
+### Auditoria de visualização antes do push (24/09/2026) — nenhuma mudança de código
+
+| caminho | ativo em produção? | fonte | mostra 8.4? |
+|---|---|---|---|
+| Prévia do rascunho na tela (`PreviaVetorial` → `gerarPreviaRelatorio`) | **SIM** — padrão: `previaAtual()` = `vetorial`; nenhuma org grava `nr13_previa_documento` (consulta read-only em produção) | gerador vetorial | **SIM** (capturas `4/5/6-secao-*.png` tiradas desta tela) |
+| Baixar PDF / Imprimir do rascunho (`papelDaPrevia = previa-vetorial`) | SIM | gerador vetorial | SIM (E2E: `completo-com-imagens*.pdf`) |
+| Finalizar (`motorPossivel(fluxo vetorial) = vetorial`) | SIM — força vetorial com fluxo vetorial, qualquer que seja `nr13_motor_pdf` | gerador vetorial → `pdfRef` | SIM (arquivo `5aa6cb09…`) |
+| Relatório finalizado na tela interna (visualizar/baixar/imprimir) | SIM | ARQUIVO (`pdfRef`) — §7-quater | SIM (os bytes da emissão) |
+| Portal do Cliente, relatório com `pdfRef` | SIM | ARQUIVO pela Edge `portal_arquivo` | **SIM** — lab 7/7 (`portal52.mjs`): Visualizar = `VisualizadorPdf` (16 páginas, 0 template), Baixar e Imprimir = SHA idêntico ao da emissão |
+| Iframes/raster na tela (`?previa=iframe`, motor raster) | NÃO — só rollback por URL/chave que nenhuma org tem | templates HTML | não (folha pulada por `temTemplateHtml`) |
+| Portal, relatório SEM `pdfRef` (legado anterior a 12/08) | só para relatórios antigos | templates HTML | não se aplica — nenhum deles tem a 8.4, e todo relatório novo nasce com `pdfRef` (sem PDF não salva) |
+| `PainelPiloto` (`?piloto=1`) | bancada de desenvolvimento | ambos | fora do fluxo |
+
+- **Carimbo por folha:** existe só no caminho de templates (`public/rel-assinatura.js`, por
+  `folhasRelatorio`). No motor vetorial NENHUMA folha técnica (checklist, ultrassom, TH, fotos
+  8.x) recebe carimbo: a assinatura é UM bloco ao fim do item 11 (`assinaturas(doc, m)`, uma
+  única chamada em `folhas.ts`). A 8.4 sem carimbo é coerente; nada a acrescentar.
+- **Numeração:** "8.4" só existe na seção nova (varredura do código e dos templates); o sumário
+  (`secoesDoRelatorio`) e o corpo (`TITULO_SECAO_IMAGENS`) usam o mesmo número; vem depois da
+  8.3 (fotos do TH) na ordem de emissão; o motor vetorial não gera bookmarks.
+- Nota do lab: o Edge local assina a URL com o host interno `kong:8000`; o teste reescreve o
+  host no navegador. Em produção a URL assinada usa o domínio público.
