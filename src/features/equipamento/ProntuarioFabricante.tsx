@@ -216,16 +216,6 @@ export default function ProntuarioFabricante({ tag }: { tag: string }) {
     <div className="bloco-dados">
       <div className="bloco-header-acoes">
         <h3>Prontuário do Fabricante (PDF)</h3>
-        {doc && (
-          <button
-            type="button"
-            className="btn-secundario"
-            onClick={() => fileRef.current?.click()}
-            disabled={salvando}
-          >
-            <Icone nome="upload" tam={13} /> Substituir PDF
-          </button>
-        )}
       </div>
 
       <input
@@ -267,19 +257,19 @@ export default function ProntuarioFabricante({ tag }: { tag: string }) {
         </>
       ) : (
         <>
-          <div className="dash-grid-4">
-            <div className="resultado-item span-2">
-              <span className="lbl-view">Arquivo</span>
-              <span className="val-view">{doc.nome || '—'}</span>
-            </div>
-            <div className="resultado-item">
-              <span className="lbl-view">Tamanho</span>
-              <span className="val-view">{formatarTamanho(doc.tamanho)}</span>
-            </div>
-            <div className="resultado-item">
-              <span className="lbl-view">Enviado em</span>
-              <span className="val-view">{formatarDataEnvio(doc.enviadoEm)}</span>
-            </div>
+          {/* O arquivo salvo aparece como DOCUMENTO (Fase 4), não como um
+              formulário de metadados. Mesmos dados, mesmas ações. */}
+          <div className="ficha-doc">
+            <span className="ficha-doc-icone" aria-hidden>
+              <Icone nome="pdf" tam={18} />
+            </span>
+            <span className="ficha-doc-nome">
+              <strong>{doc.nome || '—'}</strong>
+              <span className="ficha-doc-meta">
+                {formatarTamanho(doc.tamanho)} · enviado em {formatarDataEnvio(doc.enviadoEm)}
+              </span>
+            </span>
+            <span className="ficha-doc-selo">PDF DO FABRICANTE</span>
           </div>
 
           <div className="pfab-acoes">
@@ -311,6 +301,14 @@ export default function ProntuarioFabricante({ tag }: { tag: string }) {
                 <Icone nome="download" tam={13} /> Baixar
               </button>
             )}
+            <button
+              type="button"
+              className="btn-secundario"
+              onClick={() => fileRef.current?.click()}
+              disabled={salvando}
+            >
+              <Icone nome="upload" tam={13} /> Substituir PDF
+            </button>
             {!confirmandoRemover ? (
               <button
                 type="button"

@@ -316,6 +316,24 @@ cópia própria ou recolocar o redirecionamento. Chegando pela ficha o memorial
 funcionava, porque a ficha já havia semeado a TAG; quem abria a URL direta, o
 link numa aba nova ou dava F5 dentro dele é que caía na lista.
 
+### §3-quater — A FICHA: DADO PARECE DADO, CAMPO PARECE CAMPO (Fase 4, 24/09/2026)
+
+> **REGRA QUE NÃO SE QUEBRA:** redesign da ficha é VISUAL. Nenhuma seção muda
+> de fonte, de conversão ou de regra de edição por causa de layout.
+
+- **Leitura** = rótulo pequeno + valor, fio fino, sem caixa cinza; **edição** (lápis) = os
+  campos de sempre + contorno `.ficha-editando` + Salvar/Cancelar. Todo o CSS novo é escopado
+  em `.equipamento-page` (as mesmas classes servem Minha Empresa, Inspeções e cadastros).
+- **Resumo do topo** (`features/equipamento/resumoFicha.ts`) é REPETIÇÃO VISUAL: categoria,
+  PMTA ADOTADA (§3-bis: sem adoção, "—"), vida, fabricante e volume, das mesmas chaves e com
+  o mesmo texto das seções. Antes mostrava a CALCULADA com o rótulo "PMTA". Ele reage porque
+  Categoria e Vida emitem `emitirDadosAlterados()` depois de gravar.
+- **Calculado × adotado** escrito na tela: Memorial com o selo `CALCULADO`, Pressões da
+  Documentação com `ADOTADO` e destaque. Com memorial salvo, "Ver Memorial Salvo" é a ação
+  principal e "Editar Memorial" a discreta — mesma rota, mesmo modal.
+- Travado por `fichaRedesign.test.ts` (16), inclusive um teste que falha se alguma regra do
+  bloco CSS da Fase 4 não começar por `.equipamento-page`/`.ficha-`.
+
 ---
 
 ## 4. Unidades de medida

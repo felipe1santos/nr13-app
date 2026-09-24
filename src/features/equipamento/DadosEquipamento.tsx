@@ -22,7 +22,7 @@ export default function DadosEquipamento({ info, onSalvo }: { info: InfoEquipame
   }
 
   return (
-    <div>
+    <div className={editando ? 'ficha-editando ficha-editando-sub' : undefined}>
       <div className="bloco-header-acoes">
         <h4>Dados do Equipamento</h4>
         {!editando && (
@@ -33,7 +33,8 @@ export default function DadosEquipamento({ info, onSalvo }: { info: InfoEquipame
             // montagem, e salvar a cópia velha regravava nr13_info_<TAG> apagando campos
             // salvos por outros cards (ex.: pressões adotadas da documentação).
             onClick={() => { setLocal(info); setEditando(true); }}
-            title="Editar"
+            title="Editar dados do equipamento"
+            aria-label="Editar dados do equipamento"
           >
             <Icone nome="pencil" tam={14} />
           </button>
@@ -63,7 +64,7 @@ export default function DadosEquipamento({ info, onSalvo }: { info: InfoEquipame
             />
             Ocultar datas de inspeção/validade na placa
           </label>
-          <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+          <div className="ficha-acoes-edicao">
             <button type="button" className="btn-primario" onClick={salvar} disabled={salvando}>
               {salvando ? 'Salvando...' : 'Salvar Informações'}
             </button>
@@ -73,6 +74,10 @@ export default function DadosEquipamento({ info, onSalvo }: { info: InfoEquipame
           </div>
         </>
       ) : (
+        <>
+        {/* Mesmos 12 campos de sempre, agrupados por assunto (Fase 4). */}
+        <div className="ficha-grupo">
+          <h5 className="ficha-grupo-titulo">Identificação</h5>
         <div className="dash-grid-4">
           <div className="resultado-item">
             <span className="lbl-view">TAG</span>
@@ -86,6 +91,19 @@ export default function DadosEquipamento({ info, onSalvo }: { info: InfoEquipame
             <span className="lbl-view">Descrição</span>
             <span className="val-view">{info.descricao || '—'}</span>
           </div>
+          <div className="resultado-item span-2">
+            <span className="lbl-view">Descrição Resumida</span>
+            <span className="val-view">{info.descricaoResumida || '—'}</span>
+          </div>
+          <div className="resultado-item span-2">
+            <span className="lbl-view">Localização</span>
+            <span className="val-view">{info.localizacao || '—'}</span>
+          </div>
+        </div>
+        </div>
+        <div className="ficha-grupo">
+          <h5 className="ficha-grupo-titulo">Fabricação e projeto</h5>
+        <div className="dash-grid-4">
           <div className="resultado-item">
             <span className="lbl-view">Fabricante</span>
             <span className="val-view">{info.fabricante || '—'}</span>
@@ -107,22 +125,21 @@ export default function DadosEquipamento({ info, onSalvo }: { info: InfoEquipame
             <span className="val-view">{info.adenda || '—'}</span>
           </div>
           <div className="resultado-item">
-            <span className="lbl-view">Localização</span>
-            <span className="val-view">{info.localizacao || '—'}</span>
-          </div>
-          <div className="resultado-item">
             <span className="lbl-view">Tipo de Construção</span>
             <span className="val-view">{info.tipoConstrucao || '—'}</span>
           </div>
-          <div className="resultado-item span-2">
-            <span className="lbl-view">Descrição Resumida</span>
-            <span className="val-view">{info.descricaoResumida || '—'}</span>
-          </div>
+        </div>
+        </div>
+        <div className="ficha-grupo">
+          <h5 className="ficha-grupo-titulo">Placa</h5>
+        <div className="dash-grid-4">
           <div className="resultado-item">
             <span className="lbl-view">Datas na placa</span>
             <span className="val-view">{info.placaOcultarDatas ? 'Ocultas' : 'Visíveis'}</span>
           </div>
         </div>
+        </div>
+        </>
       )}
 
       <FeedbackSalvamento

@@ -9,7 +9,6 @@ import DadosEquipamento from '../features/equipamento/DadosEquipamento';
 import DadosEmpresa from '../features/equipamento/DadosEmpresa';
 import FotoIdentificacao from '../features/equipamento/FotoIdentificacao';
 import CategoriaNR13 from '../features/categoria/CategoriaNR13';
-import BadgeTipoEquipamento from '../features/equipamento/BadgeTipoEquipamento';
 import VidaRemanescente from '../features/equipamento/VidaRemanescente';
 import PressoesDocumentacao from '../features/equipamento/PressoesDocumentacao';
 import ProntuarioFabricante from '../features/equipamento/ProntuarioFabricante';
@@ -21,6 +20,8 @@ import { Icone } from '../components/Icone';
 import './equipamento-page.css';
 import FotoImg from '../components/FotoImg';
 import { rotaMemorial } from '../app/rotas';
+import { assinarDadosAlterados } from '../services/eventos';
+import { resumoDaFicha } from '../features/equipamento/resumoFicha';
 
 const ROTULO_TIPO: Record<string, string> = {
   vaso: 'Vaso de Pressão',
@@ -86,6 +87,10 @@ function EquipamentoView({ tag }: { tag: string }) {
   const [calculo, setCalculo] = useState<CalculoSalvo | null>(() => ler<CalculoSalvo>(`nr13_calc_${tag}`));
   // GV do autoclave: memorial salvo à parte (nr13_calc_gv_<TAG>) — exibido junto no modal.
   const [calculoGv, setCalculoGv] = useState<CalculoSalvo | null>(() => ler<CalculoSalvo>(`nr13_calc_gv_${tag}`));
+  // Contador de releitura: Categoria e Vida emitem `emitirDadosAlterados`
+  // depois de gravar, e o resumo do topo relê as MESMAS chaves no próximo render.
+  const [, setReleitura] = useState(0);
+  useEffect(() => assinarDadosAlterados(() => setReleitura((n) => n + 1)), []);
   const categoria = ler<CategoriaSalva>(`nr13_cat_${tag}`);
   const fotos = ler<FotoEquipamento[]>(`nr13_fotos_${tag}`) || [];
   const fotoCapa = fotos.find((f) => f.isCapa) || fotos[0] || null;
@@ -133,28 +138,32 @@ function EquipamentoView({ tag }: { tag: string }) {
       <div className="bloco-dados equipamento-header-card">
         <div className="equipamento-header-info">
           <div className="equipamento-header-topo">
-            <div className="equipamento-tag-linha">
-              <h1 className="equipamento-tag-titulo">
-                TAG: <span>{tag}</span>
-              </h1>
-              <BadgeTipoEquipamento tipo={info.tipo} label={rotuloTipo} />
-            </div>
+            <h1 className="equipamento-tag-titulo">
+              TAG: <span>{tag}</span>
+            </h1>
+            <button
+              type="button"
+              className="btn-excluir-equip"
+              onClick={() => setConfirmandoExclusao(true)}
+              disabled={excluindo}
+            >
+              <Icone nome="trash" tam={13} /> {excluindo ? 'Excluindo...' : 'Excluir'}
+            </button>
+          </div>
+          {info.descricao?.trim() && <p className="ficha-descricao">{info.descricao}</p>}
+
+          <div className="ficha-chips">
+            <span className={`ficha-chip ficha-chip-tipo ficha-chip-tipo-${info.tipo}`}>
+              <span className="ficha-chip-rotulo">Tipo</span>
+              <span className="ficha-chip-valor">{rotuloTipo}</span>
+            </span>
             {/* INFORMAÇÃO, não controle (16/09/2026): nem select, nem select
                 desabilitado, nem botão. A unidade se escolhe no cadastro. */}
-            <div className="unidade-equip-box">
-              <span className="unidade-equip-rotulo">Unidade de medida</span>
-              <span className="unidade-equip-valor">{rotuloSistemaCompleto(unidade)}</span>
-            </div>
+            <span className="ficha-chip ficha-chip-unidade unidade-equip-box">
+              <span className="ficha-chip-rotulo unidade-equip-rotulo">Unidade</span>
+              <span className="ficha-chip-valor unidade-equip-valor">{rotuloSistemaCompleto(unidade)}</span>
+            </span>
           </div>
-
-          <button
-            type="button"
-            className="btn-excluir-equip"
-            onClick={() => setConfirmandoExclusao(true)}
-            disabled={excluindo}
-          >
-            <Icone nome="trash" tam={13} /> {excluindo ? 'Excluindo...' : 'Excluir'}
-          </button>
 
           {confirmandoExclusao && (
             <div
@@ -207,28 +216,16 @@ function EquipamentoView({ tag }: { tag: string }) {
             </div>
           )}
 
-          <div className="equipamento-quick-grid">
-            <div className="quick-item">
-              <span className="quick-label">Tipo</span>
-              <span className="quick-valor">{ROTULO_TIPO[info.tipo]}</span>
-            </div>
-            <div className="quick-item">
-              <span className="quick-label">Fabricante</span>
-              <span className="quick-valor">{info.fabricante || '—'}</span>
-            </div>
-            <div className="quick-item">
-              <span className="quick-label">Categoria</span>
-              <span className="quick-valor">{categoria?.catFinal ?? '—'}</span>
-            </div>
-            <div className="quick-item">
-              <span className="quick-label">Volume</span>
-              <span className="quick-valor">{categoria ? `${categoria.volInput} m³` : '—'}</span>
-            </div>
-            <div className="quick-item">
-              <span className="quick-label">PMTA</span>
-              <span className="quick-valor">{pmtaMpa != null ? formatarValor(pmtaMpa, unidade) : '—'}</span>
-            </div>
-          </div>
+          {/* RESUMO RÁPIDO — só REPETE o que as seções abaixo já mostram, das
+              mesmas chaves (`resumoFicha.ts`). Nenhum cálculo, nenhuma gravação. */}
+          <dl className="ficha-resumo" aria-label="Resumo do equipamento">
+            {resumoDaFicha({ info, categoria, vida: ler(`nr13_vida_${tag}`), unidade }).map((it) => (
+              <div key={it.chave} className={`ficha-resumo-item ficha-resumo-${it.chave}`}>
+                <dt>{it.rotulo}</dt>
+                <dd>{it.valor}</dd>
+              </div>
+            ))}
+          </dl>
 
           <FotoIdentificacao tag={tag} />
         </div>
@@ -251,16 +248,13 @@ function EquipamentoView({ tag }: { tag: string }) {
 
       <section className="equipamento-secao">
         <div className="bloco-dados bloco-memorial-resumo">
-          <h3>Memorial de Cálculo</h3>
+          <div className="bloco-header-acoes">
+            <h3>Memorial de Cálculo</h3>
+            <span className="ficha-natureza ficha-natureza-calculado" title="Resultado do cálculo técnico">
+              Calculado
+            </span>
+          </div>
           <div className="memorial-body">
-            <Link to={rotaMemorial(tag)} className="btn-mem-edit">
-              <span className="btn-mem-edit-icone">
-                <Icone nome="sigma" tam={24} />
-              </span>
-              <span className="txt">Editar Memorial<br />de Cálculo</span>
-              <span className="sub">Abrir calculadora</span>
-            </Link>
-
             <div className="mem-stats-wrap">
               <div className="memorial-resumo-grid">
             <div className="resultado-item">
@@ -295,21 +289,35 @@ function EquipamentoView({ tag }: { tag: string }) {
             </div>
               </div>
 
-              {calculo?.memorialHTML || calculoGv?.memorialHTML ? (
-                <button type="button" className="btn-ver-memorial" onClick={abrirMemorialCompleto}>
-                  Ver Memorial Completo →
-                </button>
-              ) : (
-                <span className="btn-ver-memorial" style={{ opacity: 0.4, cursor: 'not-allowed' }}>
-                  Ver Memorial Completo →
-                </span>
-              )}
+              {/* Hierarquia (Fase 4): com memorial salvo, ABRIR é a ação comum e
+                  ganha o destaque; editar o cálculo fica discreto. Sem memorial, a
+                  única ação possível é calcular — e ela vira a principal. O
+                  fluxo não mudou: o mesmo modal e a mesma rota. */}
+              <div className="ficha-memorial-acoes">
+                {calculo?.memorialHTML || calculoGv?.memorialHTML ? (
+                  <>
+                    <button type="button" className="btn-ver-memorial" onClick={abrirMemorialCompleto}>
+                      <Icone nome="filetext" tam={14} /> Ver Memorial Salvo
+                    </button>
+                    <Link to={rotaMemorial(tag)} className="btn-mem-edit">
+                      <Icone nome="sigma" tam={13} /> Editar Memorial
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <span className="ficha-memorial-vazio">Nenhum memorial salvo ainda.</span>
+                    <Link to={rotaMemorial(tag)} className="btn-mem-edit btn-mem-edit-principal">
+                      <Icone nome="sigma" tam={13} /> Calcular Memorial
+                    </Link>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="equipamento-secao">
+      <section className="equipamento-secao" data-secao="pressoes">
         {/* Pressões adotadas da documentação — logo abaixo do card Memorial. Exibe/edita na
             unidade do equipamento; grava em MPa dentro de nr13_info_<TAG>. Este bloco
             RECEBE o número que o engenheiro digita e o converte para MPa antes de
@@ -318,7 +326,7 @@ function EquipamentoView({ tag }: { tag: string }) {
         <PressoesDocumentacao tag={tag} info={info} unidade={unidade} onSalvo={setInfo} />
       </section>
 
-      <section className="equipamento-secao">
+      <section className="equipamento-secao" data-secao="vida">
         <VidaRemanescente tag={tag} info={info} />
       </section>
 
@@ -329,13 +337,13 @@ function EquipamentoView({ tag }: { tag: string }) {
         <ProntuarioDoEquipamento tag={tag} descricao={info?.descricao} />
       </section>
 
-      <section className="equipamento-secao">
+      <section className="equipamento-secao" data-secao="fabricante">
         {/* PDF do prontuário original do FABRICANTE (nr13_pront_fab_<TAG>) —
             documento do fabricante, distinto do prontuário NR-13 acima. */}
         <ProntuarioFabricante tag={tag} />
       </section>
 
-      <section className="equipamento-secao">
+      <section className="equipamento-secao" data-secao="dados">
         <div className="bloco-dados">
           <h3>Dados do Equipamento e Empresa</h3>
           <div className="bloco-dados-split">

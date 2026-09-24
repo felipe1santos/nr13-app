@@ -145,18 +145,31 @@ export default function PressoesDocumentacao({
     setEditando(false);
   }
 
+  // Ordem de LEITURA (Fase 4): PMO → PMTA → PTH, a ordem em que a pressão
+  // cresce. Só a apresentação mudou; as chaves e a conversão são as de sempre.
   const VIEW: { chave: Chave; mpa: string | undefined }[] = [
-    { chave: 'pmta', mpa: info.pmtaAdotadaMpa },
     { chave: 'pmo', mpa: info.pmoAdotadaMpa },
+    { chave: 'pmta', mpa: info.pmtaAdotadaMpa },
     { chave: 'pth', mpa: info.pthAdotadaMpa },
   ];
 
   return (
-    <div className="bloco-dados">
+    <div className={`bloco-dados ficha-pressoes${editando ? ' ficha-editando' : ''}`}>
       <div className="bloco-header-acoes">
-        <h3>Pressões da Documentação</h3>
+        <h3>
+          <Icone nome="manometro" tam={16} /> Pressões da Documentação
+        </h3>
+        <span className="ficha-natureza ficha-natureza-adotado" title="Valores adotados pelo engenheiro">
+          Adotado
+        </span>
         {!editando && (
-          <button type="button" className="btn-editar-pencil" onClick={() => setEditando(true)} title="Editar" aria-label="Editar">
+          <button
+            type="button"
+            className="btn-editar-pencil"
+            onClick={() => setEditando(true)}
+            title="Editar pressões adotadas"
+            aria-label="Editar pressões adotadas"
+          >
             <Icone nome="pencil" tam={14} />
           </button>
         )}
@@ -184,7 +197,7 @@ export default function PressoesDocumentacao({
             ))}
           </div>
 
-          <div className="memorial-acoes" style={{ marginTop: 10 }}>
+          <div className="memorial-acoes ficha-acoes-edicao">
             <button type="button" className="btn-secundario" onClick={usarCalculadas}>
               Usar calculadas
             </button>
@@ -199,15 +212,18 @@ export default function PressoesDocumentacao({
         </>
       ) : (
         <>
-          <div className="dash-grid-4">
+          <div className="dash-grid-4 ficha-pressoes-valores">
             {VIEW.map(({ chave, mpa }) => {
               const exib = mpaParaExib(mpa, unidade);
               return (
                 <div className="resultado-item" key={chave}>
-                  <span className="lbl-view">
-                    {ROTULOS[chave]} ({labelUnid})
+                  <span className="lbl-view">{ROTULOS[chave]}</span>
+                  <span className="val-view">
+                    {exib === '' ? '—' : exib}
+                    {/* O espaço é para o TEXTO (leitor de tela, copiar): no flex o
+                        espaçamento visual é o `gap`, e o espaço não aparece. */}
+                    {exib !== '' && <> <span className="ficha-unid">{labelUnid}</span></>}
                   </span>
-                  <span className="val-view">{exib === '' ? '—' : exib}</span>
                 </div>
               );
             })}

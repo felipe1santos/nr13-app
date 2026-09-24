@@ -7,19 +7,37 @@ import { listarClientes } from '../cadastros/cadastroService';
 import type { Cliente } from '../cadastros/tipos';
 import '../../pages/cadastros.css';
 
-const CAMPOS_VIEW: { chave: keyof EmpresaEquipamento; label: string; span2?: boolean }[] = [
-  { chave: 'razaoSocial', label: 'Razão Social', span2: true },
-  { chave: 'cnpj', label: 'CNPJ' },
-  { chave: 'nomeFantasia', label: 'Nome Fantasia' },
-  { chave: 'atividade', label: 'Atividade Principal', span2: true },
-  { chave: 'endereco', label: 'Endereço', span2: true },
-  { chave: 'bairro', label: 'Bairro' },
-  { chave: 'cep', label: 'CEP' },
-  { chave: 'cidade', label: 'Cidade' },
-  { chave: 'estado', label: 'Estado' },
-  { chave: 'telefone', label: 'Telefone' },
-  { chave: 'contato', label: 'Contato' },
-  { chave: 'email', label: 'E-mail' },
+type CampoView = { chave: keyof EmpresaEquipamento; label: string; span2?: boolean };
+
+// Os mesmos 12 campos de sempre, agrupados por assunto (Fase 4).
+const GRUPOS_VIEW: { titulo: string; campos: CampoView[] }[] = [
+  {
+    titulo: 'Empresa',
+    campos: [
+      { chave: 'razaoSocial', label: 'Razão Social', span2: true },
+      { chave: 'cnpj', label: 'CNPJ' },
+      { chave: 'nomeFantasia', label: 'Nome Fantasia' },
+      { chave: 'atividade', label: 'Atividade Principal', span2: true },
+    ],
+  },
+  {
+    titulo: 'Endereço',
+    campos: [
+      { chave: 'endereco', label: 'Endereço', span2: true },
+      { chave: 'bairro', label: 'Bairro' },
+      { chave: 'cep', label: 'CEP' },
+      { chave: 'cidade', label: 'Cidade' },
+      { chave: 'estado', label: 'Estado' },
+    ],
+  },
+  {
+    titulo: 'Contato',
+    campos: [
+      { chave: 'telefone', label: 'Telefone' },
+      { chave: 'contato', label: 'Contato' },
+      { chave: 'email', label: 'E-mail', span2: true },
+    ],
+  },
 ];
 
 export default function DadosEmpresa({ tag }: { tag: string }) {
@@ -62,6 +80,11 @@ export default function DadosEmpresa({ tag }: { tag: string }) {
     }));
   }
 
+  function cancelar() {
+    setEmpresa(ler<EmpresaEquipamento>(`nr13_emp_${tag}`) || {});
+    setEditando(false);
+  }
+
   async function salvarTudo() {
     setSalvando(true);
     try {
@@ -73,11 +96,17 @@ export default function DadosEmpresa({ tag }: { tag: string }) {
   }
 
   return (
-    <div>
+    <div className={editando ? 'ficha-editando ficha-editando-sub' : undefined}>
       <div className="bloco-header-acoes">
         <h4>Dados da Empresa</h4>
         {!editando && (
-          <button type="button" className="btn-editar-pencil" onClick={() => setEditando(true)} title="Editar">
+          <button
+            type="button"
+            className="btn-editar-pencil"
+            onClick={() => setEditando(true)}
+            title="Editar dados da empresa"
+            aria-label="Editar dados da empresa"
+          >
             <Icone nome="pencil" tam={14} />
           </button>
         )}
@@ -115,11 +144,11 @@ export default function DadosEmpresa({ tag }: { tag: string }) {
             <Campo label="Contato" type="text" value={empresa.contato ?? ''} onChange={(v) => set('contato', v)} />
             <Campo label="E-mail" type="text" value={empresa.email ?? ''} onChange={(v) => set('email', v)} />
           </div>
-          <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+          <div className="ficha-acoes-edicao">
             <button type="button" className="btn-primario" onClick={salvarTudo} disabled={salvando}>
               {salvando ? 'Salvando...' : 'Salvar Dados da Empresa'}
             </button>
-            <button type="button" className="btn-secundario" onClick={() => setEditando(false)}>
+            <button type="button" className="btn-secundario" onClick={cancelar}>
               Cancelar
             </button>
           </div>
@@ -133,14 +162,19 @@ export default function DadosEmpresa({ tag }: { tag: string }) {
               equipamento aparecer no portal do cliente.
             </p>
           )}
-          <div className="dash-grid-4">
-            {CAMPOS_VIEW.map((c) => (
-              <div key={c.chave} className={`resultado-item ${c.span2 ? 'span-2' : ''}`}>
-                <span className="lbl-view">{c.label}</span>
-                <span className="val-view">{empresa[c.chave] || '—'}</span>
+          {GRUPOS_VIEW.map((g) => (
+            <div className="ficha-grupo" key={g.titulo}>
+              <h5 className="ficha-grupo-titulo">{g.titulo}</h5>
+              <div className="dash-grid-4">
+                {g.campos.map((c) => (
+                  <div key={c.chave} className={`resultado-item ${c.span2 ? 'span-2' : ''}`}>
+                    <span className="lbl-view">{c.label}</span>
+                    <span className="val-view">{empresa[c.chave] || '—'}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </>
       )}
     </div>

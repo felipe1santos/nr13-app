@@ -8,6 +8,7 @@ import type { Categoria } from '../../calc/categoria';
 import MemorialLog from '../memorial/MemorialLog';
 import type { InfoEquipamento } from './tipos';
 import { comLoadingGlobal } from '../../app/loadingGlobal';
+import { emitirDadosAlterados } from '../../services/eventos';
 
 type MedidasUS = Record<string, Record<string, string>>;
 
@@ -129,6 +130,8 @@ export default function VidaRemanescente({ tag, info }: { tag: string; info: Inf
       await comLoadingGlobal('Salvando vida remanescente...', () => salvar(`nr13_vida_${tag}`, registro));
       setSalvo(registro);
       setEditando(false);
+      // O resumo do topo da ficha relê `nr13_vida_` quando o barramento avisa.
+      emitirDadosAlterados();
       setToast(true);
       window.setTimeout(() => setToast(false), 1800);
     } finally {
@@ -153,11 +156,17 @@ export default function VidaRemanescente({ tag, info }: { tag: string; info: Inf
     n == null ? '—' : `${n.toFixed(casas)} ${un}`;
 
   return (
-    <div className="bloco-dados">
+    <div className={`bloco-dados ficha-vida${editando ? ' ficha-editando' : ''}`}>
       <div className="bloco-header-acoes">
         <h3>Vida Remanescente (taxa de corrosão)</h3>
         {!editando && (
-          <button type="button" className="btn-editar-pencil" onClick={() => setEditando(true)} title="Editar" aria-label="Editar">
+          <button
+            type="button"
+            className="btn-editar-pencil"
+            onClick={() => setEditando(true)}
+            title="Editar vida remanescente"
+            aria-label="Editar vida remanescente"
+          >
             <Icone nome="pencil" tam={14} />
           </button>
         )}
@@ -197,7 +206,7 @@ export default function VidaRemanescente({ tag, info }: { tag: string; info: Inf
         </label>
       </div>
 
-      <div className="memorial-acoes" style={{ marginTop: 10 }}>
+      <div className="memorial-acoes ficha-acoes-edicao">
         <button type="button" className="btn-secundario" onClick={calcular}>
           Calcular
         </button>
@@ -239,6 +248,36 @@ export default function VidaRemanescente({ tag, info }: { tag: string; info: Inf
       </>
       ) : (
         <>
+          {/* RESULTADO primeiro, MEDIÇÕES depois: quem abre a ficha quer a vida,
+              e as espessuras são a justificativa dela. Mesmos campos, mesma
+              formatação. */}
+          <div className="ficha-grupo">
+            <h4 className="ficha-grupo-titulo">Resultado</h4>
+            <div className="dash-grid-4">
+              <div className="resultado-item ficha-item-destaque">
+                <span className="lbl-view">Vida remanescente</span>
+                <span className={`val-view accent ${salvo?.vidaAnos === 0 ? 'val-erro' : ''}`}>
+                  {salvo?.vidaAnos == null ? (salvo ? 'indeterminada' : '—') : fmt(salvo.vidaAnos, 'anos')}
+                </span>
+              </div>
+              <div className="resultado-item">
+                <span className="lbl-view">Taxa de corrosão</span>
+                <span className="val-view">{fmt(salvo?.taxaMmAno, 'mm/ano', 4)}</span>
+              </div>
+              <div className="resultado-item">
+                <span className="lbl-view">Sobremetal</span>
+                <span className={`val-view ${salvo != null && salvo.sobremetalMm <= 0 ? 'val-erro' : ''}`}>
+                  {fmt(salvo?.sobremetalMm, 'mm')}
+                </span>
+              </div>
+              <div className="resultado-item">
+                <span className="lbl-view">Próxima inspeção</span>
+                <span className="val-view">{fmt(salvo?.proximaInspecaoAnos, 'anos')}</span>
+              </div>
+            </div>
+          </div>
+          <div className="ficha-grupo">
+            <h4 className="ficha-grupo-titulo">Medições</h4>
           <div className="dash-grid-4">
             <div className="resultado-item">
               <span className="lbl-view">Esp. anterior</span>
@@ -261,29 +300,10 @@ export default function VidaRemanescente({ tag, info }: { tag: string; info: Inf
               <span className="val-view">{fmt(salvo?.entrada.tRequerida, 'mm')}</span>
             </div>
             <div className="resultado-item">
-              <span className="lbl-view">Taxa de corrosão</span>
-              <span className="val-view">{fmt(salvo?.taxaMmAno, 'mm/ano', 4)}</span>
-            </div>
-            <div className="resultado-item">
-              <span className="lbl-view">Sobremetal</span>
-              <span className={`val-view ${salvo != null && salvo.sobremetalMm <= 0 ? 'val-erro' : ''}`}>
-                {fmt(salvo?.sobremetalMm, 'mm')}
-              </span>
-            </div>
-            <div className="resultado-item">
-              <span className="lbl-view">Vida remanescente</span>
-              <span className={`val-view accent ${salvo?.vidaAnos === 0 ? 'val-erro' : ''}`}>
-                {salvo?.vidaAnos == null ? 'indeterminada' : fmt(salvo.vidaAnos, 'anos')}
-              </span>
-            </div>
-            <div className="resultado-item">
-              <span className="lbl-view">Próxima inspeção</span>
-              <span className="val-view">{fmt(salvo?.proximaInspecaoAnos, 'anos')}</span>
-            </div>
-            <div className="resultado-item">
               <span className="lbl-view">Calculado em</span>
               <span className="val-view">{salvo?.calculadoEm || '—'}</span>
             </div>
+          </div>
           </div>
 
           {(salvo?.avisos ?? []).map((a, i) => (

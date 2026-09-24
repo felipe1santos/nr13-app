@@ -4,6 +4,7 @@ import { calcularESalvarCategoria, carregarCategoria } from './categoriaService'
 import { FATORES_CONVERSAO, paraExibicao, paraMpa, type SistemaUnidade } from '../../calc/unidades';
 import type { CalculoSalvo, CategoriaSalva } from '../equipamento/tipos';
 import { ler } from '../../services/storage';
+import { emitirDadosAlterados } from '../../services/eventos';
 import Campo from '../memorial/Campo';
 import '../equipamento/equipamento.css';
 import './categoria.css';
@@ -92,6 +93,8 @@ export default function CategoriaNR13({ tag, unidade }: { tag: string; unidade: 
     const r = await calcularESalvarCategoria(tag, volume, pressao, unidade, fluido);
     setSalva(r);
     setEditando(false);
+    // O resumo do topo da ficha relê `nr13_cat_` quando o barramento avisa.
+    emitirDadosAlterados();
   }
 
   // Cancelar descarta as alterações dos campos e volta ao resultado salvo.
@@ -103,11 +106,17 @@ export default function CategoriaNR13({ tag, unidade }: { tag: string; unidade: 
   }
 
   return (
-    <div className="bloco-categoria">
+    <div className={`bloco-categoria${editando ? ' ficha-editando' : ''}`}>
       <div className="bloco-header-acoes">
         <h3>Categoria NR-13</h3>
         {!editando && salva && (
-          <button type="button" className="btn-editar-pencil" onClick={() => setEditando(true)} title="Editar" aria-label="Editar">
+          <button
+            type="button"
+            className="btn-editar-pencil"
+            onClick={() => setEditando(true)}
+            title="Editar categoria"
+            aria-label="Editar categoria NR-13"
+          >
             <Icone nome="pencil" tam={14} />
           </button>
         )}
@@ -132,7 +141,7 @@ export default function CategoriaNR13({ tag, unidade }: { tag: string; unidade: 
           </select>
         </div>
       </div>
-      <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
+      <div className="ficha-acoes-edicao">
         <button type="button" className="btn-primario" onClick={calcular}>
           Calcular Categoria
         </button>

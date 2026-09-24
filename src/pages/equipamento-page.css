@@ -41,13 +41,6 @@
   margin-bottom: 10px;
 }
 
-.equipamento-tag-linha {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
 /* TAG em destaque azul (design/painel_detalhe_equipamento.html .eq-tag) */
 /* Identificação do equipamento: é o dado que amarra ficha, memorial, inspeção,
    relatório e prontuário. Fundo azul claro e texto azul escuro, no tom do resto
@@ -136,44 +129,6 @@
   cursor: not-allowed;
 }
 
-.equipamento-quick-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-  gap: 10px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-solid);
-  border-radius: var(--radius-md);
-  padding: 12px;
-  margin-bottom: 0;
-}
-
-.quick-item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.quick-label {
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-faint);
-}
-
-.quick-valor {
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.quick-valor.ok {
-  color: var(--status-ok-text);
-}
-
-.quick-valor.erro {
-  color: var(--status-erro-text);
-}
-
 .equipamento-foto-principal {
   flex-shrink: 0;
 }
@@ -228,26 +183,6 @@
   background: #154e95;
   box-shadow: 0 10px 24px rgba(28, 100, 188, 0.4);
 }
-.btn-mem-edit-icone {
-  width: 46px;
-  height: 46px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.16);
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  display: grid;
-  place-items: center;
-  color: #fff;
-}
-.btn-mem-edit .txt { font-weight: 700; font-size: 13.5px; line-height: 1.3; color: #fff; }
-.btn-mem-edit .sub {
-  font-size: 10px;
-  font-weight: 500;
-  opacity: 0.85;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  color: #fff;
-}
-
 .mem-stats-wrap {
   flex: 1;
   display: flex;
@@ -420,4 +355,587 @@
   border-radius: 6px;
   font-size: 0.95rem;
   min-height: 40px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   FASE 4 · REDESIGN VISUAL DA FICHA (24/09/2026)
+
+   A regra: DADO SALVO PARECE DADO, CAMPO EM EDIÇÃO PARECE CAMPO.
+   Até aqui cada valor salvo vinha numa caixa cinza com borda (`resultado-item`)
+   — a cara de um formulário desabilitado. Na leitura, agora: rótulo pequeno,
+   valor legível, um fio fino separando as linhas e nenhuma caixa. Ao clicar no
+   lápis, a seção ganha o contorno azul (`.ficha-editando`) e os campos de
+   verdade (`Campo`, `.vida-campo`), que já tinham borda.
+
+   TUDO aqui é escopado em `.equipamento-page`: `resultado-item`, `val-view`,
+   `bloco-dados` e o lápis são usados também em Minha Empresa, Inspeções,
+   Relatórios e cadastros, e esta fase não mexe nessas telas.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.equipamento-page {
+  --ficha-fio: #ECE9E2;
+  gap: 14px;
+  padding: 20px 24px;
+}
+
+/* ── Seções ──────────────────────────────────────────────────────────────── */
+.equipamento-page .bloco-dados,
+.equipamento-page .bloco-categoria {
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px 18px;
+  box-shadow: 0 1px 2px rgba(20, 24, 28, 0.04);
+}
+
+/* Cabeçalho de seção: título + (natureza) + lápis, com o fio embaixo. */
+.equipamento-page .bloco-header-acoes {
+  flex-wrap: nowrap;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--ficha-fio);
+}
+.equipamento-page .bloco-header-acoes h3,
+.equipamento-page .bloco-categoria h3 {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text-main);
+}
+.equipamento-page .bloco-categoria h3::before {
+  content: '';
+  width: 4px;
+  height: 15px;
+  border-radius: 2px;
+  background: var(--amber);
+  flex-shrink: 0;
+}
+/* Seção sem lápis (Dados do Equipamento e Empresa, Prontuário do Fabricante):
+   o h3 solto mantém o fio que já tinha. */
+.equipamento-page .bloco-dados > h3 {
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--ficha-fio);
+}
+.equipamento-page .bloco-dados-split > div:first-child {
+  border-right-color: var(--ficha-fio);
+}
+.equipamento-page .bloco-dados-split h4 {
+  margin: 0;
+  font-size: 11.5px;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+.equipamento-page .bloco-dados-split .bloco-header-acoes {
+  border-bottom: none;
+  padding-bottom: 0;
+  margin-bottom: 6px;
+}
+
+/* ── Lápis padronizado ───────────────────────────────────────────────────── */
+.equipamento-page .btn-editar-pencil {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg-card);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.equipamento-page .btn-editar-pencil:hover {
+  color: var(--blue2);
+  border-color: var(--blue2-line);
+  background: var(--blue2-bg);
+}
+.equipamento-page .btn-editar-pencil:focus-visible {
+  outline: 2px solid var(--blue2);
+  outline-offset: 2px;
+}
+
+/* ── Modo LEITURA: dado, não campo ───────────────────────────────────────── */
+.equipamento-page .dash-grid-4 {
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 0 24px;
+}
+.equipamento-page .resultado-item,
+.equipamento-page .memorial-resumo-grid .resultado-item,
+.equipamento-page .categoria-specs-grid .resultado-item {
+  min-width: 0;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--ficha-fio);
+  border-radius: 0;
+  padding: 8px 0 9px;
+  justify-content: flex-start;
+}
+.equipamento-page .resultado-item:hover {
+  background: none;
+}
+.equipamento-page .lbl-view,
+.equipamento-page .memorial-resumo-grid .lbl-view {
+  margin-bottom: 3px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+/* Texto em sans, número em mono: `tokens.css` põe TODO `.val-view` em mono, e
+   "Av. Cliente, 100" ou "Atlas Industrial" em fonte de terminal parecia campo. */
+.equipamento-page .val-view {
+  font-family: var(--font-base);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.equipamento-page .memorial-resumo-grid .val-view,
+.equipamento-page .ficha-vida .val-view,
+.equipamento-page .categoria-specs-grid-secundaria .val-view {
+  font-family: var(--font-mono);
+}
+
+/* Grupos semânticos dentro de uma seção (Identificação, Endereço, Resultado…) */
+.equipamento-page .ficha-grupo + .ficha-grupo {
+  margin-top: 14px;
+}
+.equipamento-page .ficha-grupo-titulo {
+  margin: 0 0 2px;
+  font-family: var(--font-base);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--blue-deep);
+}
+.equipamento-page .ficha-item-destaque .val-view {
+  font-size: 18px;
+  font-family: var(--font-mono);
+}
+
+/* ── Modo EDIÇÃO: campo parece campo ─────────────────────────────────────── */
+.equipamento-page .ficha-editando {
+  border-color: var(--blue-line);
+  box-shadow: 0 0 0 3px var(--blue-bg);
+}
+.equipamento-page .ficha-editando-sub {
+  border-radius: 10px;
+  box-shadow: none;
+  outline: 2px solid var(--blue-line);
+  outline-offset: 8px;
+}
+.equipamento-page .ficha-acoes-edicao {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+}
+
+/* ── Natureza do número: CALCULADO × ADOTADO ─────────────────────────────── */
+/* Texto E cor: a diferença não pode depender só de cor. */
+.ficha-natureza {
+  flex-shrink: 0;
+  padding: 3px 8px;
+  border: 1px solid;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.ficha-natureza-calculado {
+  color: var(--text-muted);
+  border-color: var(--line);
+  background: var(--steel);
+}
+.ficha-natureza-adotado {
+  color: var(--blue2);
+  border-color: var(--blue2-line);
+  background: var(--blue2-bg);
+}
+
+/* ── Topo: TAG, chips, resumo ────────────────────────────────────────────── */
+.equipamento-page .equipamento-header-card {
+  gap: 18px;
+}
+.equipamento-page .equipamento-header-topo {
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+/* Mais compacto: o chip da TAG tinha 9px de respiro vertical e empurrava o resto. */
+.equipamento-page .equipamento-tag-titulo {
+  padding: 4px 12px;
+  gap: 6px;
+  font-size: 11px;
+}
+.equipamento-page .equipamento-tag-titulo span {
+  font-size: 19px;
+}
+.equipamento-page .btn-excluir-equip {
+  margin: 0;
+  flex-shrink: 0;
+}
+.ficha-descricao {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-main);
+}
+
+.ficha-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.equipamento-page .ficha-chip {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid;
+  border-radius: 8px;
+  line-height: 1;
+}
+.equipamento-page .ficha-chip-rotulo {
+  display: flex;
+  align-items: center;
+  padding: 6px 8px;
+  font-family: var(--font-base);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fff;
+}
+.equipamento-page .ficha-chip-valor {
+  display: flex;
+  align-items: center;
+  padding: 6px 10px;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.equipamento-page .ficha-chip-tipo-vaso { border-color: #D9D0FB; }
+.equipamento-page .ficha-chip-tipo-vaso .ficha-chip-rotulo { background: #5B45C9; }
+.equipamento-page .ficha-chip-tipo-vaso .ficha-chip-valor { background: #F3F0FE; color: #4B37B0; }
+.equipamento-page .ficha-chip-tipo-autoclave { border-color: #F6D4B8; }
+.equipamento-page .ficha-chip-tipo-autoclave .ficha-chip-rotulo { background: #B8560C; }
+.equipamento-page .ficha-chip-tipo-autoclave .ficha-chip-valor { background: #FFF1E6; color: #8F4207; }
+.equipamento-page .ficha-chip-tipo-caldeira { border-color: #F3C6C3; }
+.equipamento-page .ficha-chip-tipo-caldeira .ficha-chip-rotulo { background: #B93A33; }
+.equipamento-page .ficha-chip-tipo-caldeira .ficha-chip-valor { background: #FBEAE9; color: #9E2F29; }
+.equipamento-page .ficha-chip-unidade { border-color: var(--blue2-line); background: none; }
+.equipamento-page .ficha-chip-unidade .ficha-chip-rotulo { background: var(--blue2); color: #fff; }
+.equipamento-page .ficha-chip-unidade .ficha-chip-valor { background: var(--blue2-bg); color: var(--blue2); text-transform: none; }
+
+/* Resumo rápido: uma faixa, não cinco cartões. */
+.ficha-resumo {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 10px 20px;
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  background: var(--steel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.ficha-resumo-item {
+  min-width: 0;
+}
+.ficha-resumo dt {
+  margin: 0 0 3px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.ficha-resumo dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-main);
+  overflow-wrap: anywhere;
+}
+.ficha-resumo-categoria dd {
+  font-size: 17px;
+  color: var(--amber-deep);
+}
+.ficha-resumo-fabricante dd {
+  font-family: var(--font-base);
+  font-size: 13.5px;
+}
+
+/* ── Memorial: resultado CALCULADO; abrir > editar ───────────────────────── */
+.equipamento-page .memorial-body {
+  display: block;
+}
+.equipamento-page .memorial-resumo-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0 24px;
+}
+.equipamento-page .memorial-resumo-grid .val-view {
+  font-size: 15px;
+}
+.ficha-memorial-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+.equipamento-page .bloco-memorial-resumo .btn-ver-memorial {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: auto;
+  min-height: 40px;
+  margin: 0;
+  padding: 9px 16px;
+  border: 1px solid var(--blue2);
+  border-radius: 8px;
+  background: var(--blue2);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+}
+.equipamento-page .bloco-memorial-resumo .btn-ver-memorial:hover {
+  background: #0A4386;
+}
+.equipamento-page .btn-mem-edit {
+  width: auto;
+  min-height: 40px;
+  flex-direction: row;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid var(--blue2-line);
+  border-radius: 8px;
+  background: var(--bg-card);
+  box-shadow: none;
+  color: var(--blue2);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.equipamento-page .btn-mem-edit:hover {
+  background: var(--blue2-bg);
+  box-shadow: none;
+}
+.equipamento-page .btn-mem-edit.btn-mem-edit-principal {
+  background: var(--blue2);
+  border-color: var(--blue2);
+  color: #fff;
+}
+.equipamento-page .btn-mem-edit.btn-mem-edit-principal:hover {
+  background: #0A4386;
+}
+.equipamento-page .bloco-memorial-resumo .btn-ver-memorial:focus-visible,
+.equipamento-page .btn-mem-edit:focus-visible {
+  outline: 2px solid var(--blue2);
+  outline-offset: 2px;
+}
+.ficha-memorial-vazio {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+/* ── Pressões da Documentação: o número ADOTADO, em destaque ─────────────── */
+.equipamento-page .ficha-pressoes {
+  border-left: 4px solid var(--blue2);
+  background: #FBFCFE;
+}
+.equipamento-page .ficha-pressoes .bloco-header-acoes h3 {
+  color: var(--blue2);
+}
+.equipamento-page .ficha-pressoes .bloco-header-acoes h3::before {
+  display: none;
+}
+.equipamento-page .ficha-pressoes .vida-hint {
+  margin: 0 0 8px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+.equipamento-page .ficha-pressoes-valores {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.equipamento-page .ficha-pressoes-valores .val-view {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 5px;
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 700;
+}
+.ficha-unid {
+  font-family: var(--font-base);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* ── Categoria ───────────────────────────────────────────────────────────── */
+.equipamento-page .categoria-resultado {
+  margin-top: 0;
+  gap: 10px;
+}
+.equipamento-page .categoria-enquadramento {
+  padding: 8px 12px;
+}
+.equipamento-page .categoria-specs-grid {
+  gap: 0 24px;
+}
+.equipamento-page .categoria-specs-grid-secundaria {
+  margin-top: 0;
+  gap: 0 24px;
+}
+.equipamento-page .categoria-specs-grid-secundaria > div {
+  padding: 8px 0 9px;
+  border-bottom: 1px solid var(--ficha-fio);
+}
+
+/* ── Documento salvo (Prontuário do Fabricante) ──────────────────────────── */
+.ficha-doc {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg-card);
+}
+.ficha-doc-icone {
+  color: var(--crit-deep);
+  line-height: 0;
+}
+.ficha-doc-nome {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.ficha-doc-nome strong {
+  overflow-wrap: anywhere;
+}
+.ficha-doc-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.ficha-doc-selo {
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: var(--steel);
+  color: var(--text-main);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+/* ── Responsivo ──────────────────────────────────────────────────────────── */
+@media (max-width: 700px) {
+  .equipamento-page .memorial-resumo-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .equipamento-page {
+    padding: 12px;
+    gap: 12px;
+  }
+  .equipamento-page .bloco-dados,
+  .equipamento-page .bloco-categoria {
+    padding: 14px;
+  }
+  /* O topo empilha (foto em cima), mas o texto volta a alinhar à esquerda:
+     centralizado, o resumo virava uma coluna de números soltos. */
+  .equipamento-page .equipamento-header-card {
+    align-items: stretch;
+    text-align: left;
+  }
+  .equipamento-page .equipamento-header-topo {
+    flex-direction: row;
+  }
+  .equipamento-page .equipamento-foto-principal {
+    align-self: center;
+  }
+  .equipamento-page .equipamento-foto-principal img {
+    width: 140px;
+    height: 140px;
+  }
+  /* Sem foto, o espaço reservado não precisa de 140px de tela no celular. */
+  .equipamento-page .equipamento-foto-vazia {
+    width: 96px;
+    height: 72px;
+  }
+  .ficha-resumo {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .equipamento-page .dash-grid-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 16px;
+  }
+  /* `span 2` numa grade de duas colunas continua cabendo; numa de uma coluna
+     criaria coluna implícita e rolagem lateral. */
+  .equipamento-page .resultado-item.span-2 {
+    grid-column: 1 / -1;
+  }
+  /* As três pressões se leem juntas: seguem lado a lado (a regra genérica
+     acima as quebraria em duas colunas). */
+  .equipamento-page .ficha-pressoes-valores {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .equipamento-page .ficha-pressoes-valores .val-view {
+    font-size: 18px;
+  }
+  /* Alvo de toque: o lápis é o único caminho para editar. */
+  .equipamento-page .btn-editar-pencil {
+    width: 40px;
+    height: 40px;
+  }
+  .ficha-memorial-acoes > * {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+  .ficha-doc {
+    grid-template-columns: 20px minmax(0, 1fr);
+  }
+  .ficha-doc-selo {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
+
+@media (max-width: 380px) {
+  .equipamento-page .ficha-pressoes-valores {
+    grid-template-columns: 1fr;
+  }
 }
