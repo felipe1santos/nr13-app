@@ -4,7 +4,7 @@ import { artefatoDe, baixarArtefato } from '../relatorios/artefatoRelatorio';
 import { agendarConfirmacaoDeEnvios, bytesDaEmissao, listarEmissoes, ehAnexado, type EmissaoProntuario } from './emissaoProntuario';
 import { revisaoDe } from './emissaoProntuario';
 import ModalAnexarProntuario from './ModalAnexarProntuario';
-import { reservarAba } from './abrirArquivo';
+import { baixarArquivo, reservarAba } from './abrirArquivo';
 import { confirmarEnvioNoIndice } from './indiceProntuarios';
 import { arquivoPendente } from '../../services/fotos';
 import { assinarDadosAlterados, emitirDadosAlterados } from '../../services/eventos';
@@ -82,6 +82,20 @@ export default function ProntuarioDoEquipamento({
     }
   }
 
+  /** Os MESMOS bytes do visualizar, salvos com o nome original do arquivo. */
+  async function baixar(e: EmissaoProntuario) {
+    setErro('');
+    setAbrindo(e.id);
+    try {
+      const blob = await bytesDaEmissao(e, { artefatoDe, baixarArtefato });
+      baixarArquivo(blob, e.arquivoNome ?? `${e.numero ?? 'prontuario'}.pdf`);
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : 'Não foi possível baixar o documento.');
+    } finally {
+      setAbrindo('');
+    }
+  }
+
   return (
     <div className="bloco-dados pde-bloco">
       <div className="pde-cabecalho">
@@ -125,12 +139,22 @@ export default function ProntuarioDoEquipamento({
                 <button
                   type="button"
                   className="btn-icone cor-azul"
-                  title="Abrir o documento"
-                  aria-label={`Abrir o prontuário ${anexo ? d.arquivoNome ?? '' : d.numero ?? ''}`}
+                  title="Visualizar"
+                  aria-label={`Visualizar o prontuário ${anexo ? d.arquivoNome ?? '' : d.numero ?? ''}`}
                   disabled={abrindo === d.id}
                   onClick={() => void abrir(d)}
                 >
                   <Icone nome="eye" tam={14} />
+                </button>
+                <button
+                  type="button"
+                  className="btn-icone cor-azul"
+                  title="Baixar o PDF original"
+                  aria-label={`Baixar o prontuário ${anexo ? d.arquivoNome ?? '' : d.numero ?? ''}`}
+                  disabled={abrindo === d.id}
+                  onClick={() => void baixar(d)}
+                >
+                  <Icone nome="download" tam={14} />
                 </button>
               </li>
             );

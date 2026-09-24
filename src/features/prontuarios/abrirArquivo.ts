@@ -60,6 +60,16 @@ function baixarPorAncora(url: string, nome: string): void {
 }
 
 /**
+ * Baixa o arquivo com o nome ORIGINAL. Os bytes são os que vieram do cofre ou do
+ * bucket — nada é recomprimido nem convertido no caminho.
+ */
+export function baixarArquivo(blob: Blob, nomeArquivo: string): void {
+  const url = URL.createObjectURL(blob);
+  baixarPorAncora(url, nomeArquivo);
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+/**
  * Reserva a aba AGORA. Chamar no manipulador do clique, antes de qualquer
  * `await` — é a chamada síncrona que faz a aba contar como ação do usuário.
  */
