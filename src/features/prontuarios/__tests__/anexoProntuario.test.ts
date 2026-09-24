@@ -19,6 +19,24 @@ const servidor = new Map<string, unknown>();
 /** Chaves pedidas ao servidor, na ordem — prova que a leitura é dirigida. */
 const pedidas: string[][] = [];
 let redeFora = false;
+/**
+ * A semeadura NÃO atualiza a chave — é o que a v2 faz quando há item pendente
+ * na fila para ela (`sync.itemDaChave`): o valor local vence no cache.
+ */
+let semearIgnora = false;
+/** Chaves lidas uma a uma no servidor (`lerLinhaDoServidor`). */
+const lidasServidor: string[] = [];
+vi.mock('../../../services/leituraDirigida', () => ({
+  lerLinhaDoServidor: async (k: string) => {
+    lidasServidor.push(k);
+    if (redeFora) return { estado: 'indisponivel' };
+    if (!servidor.has(k)) return { estado: 'ausente' };
+    return {
+      estado: 'presente',
+      linha: { valor: JSON.stringify(servidor.get(k)), versao: 7, atualizadoEm: '', dispositivo: null, excluida: false },
+    };
+  },
+}));
 vi.mock('../../../services/storage', () => ({
   ler: (k: string) => (banco.has(k) ? structuredClone(banco.get(k)) : null),
   salvar: async (k: string, v: unknown) => void banco.set(k, structuredClone(v)),
@@ -28,7 +46,7 @@ vi.mock('../../../services/storage', () => ({
     if (redeFora) return { postas: 0, falhou: true };
     let postas = 0;
     for (const k of chaves) {
-      if (servidor.has(k)) {
+      if (servidor.has(k) && !semearIgnora) {
         banco.set(k, structuredClone(servidor.get(k)));
         postas += 1;
       }
@@ -84,7 +102,9 @@ beforeEach(() => {
   banco.clear();
   servidor.clear();
   pedidas.length = 0;
+  lidasServidor.length = 0;
   redeFora = false;
+  semearIgnora = false;
 });
 
 describe('validação do arquivo', () => {
@@ -539,5 +559,107 @@ describe('Fase 3 · prontuário existente', () => {
     await removerDoIndice(TAG);
     expect(listarDocumentos().map((d) => d.id)).toEqual([documento.id]);
     expect(listarAnexados(TAG)).toHaveLength(1);
+  });
+});
+
+/**
+ * HARDENING (23/09/2026) — CACHE PRESENTE PORÉM DESATUALIZADO.
+ *
+ * Upload no bucket de documentos é IRREVERSÍVEL (sem DELETE). Para decidir se
+ * sobe, o servidor é a autoridade; o cache só acelera e cobre o offline.
+ */
+describe('dedup antes do upload: servidor é a autoridade quando online', () => {
+  const CHAVE = `nr13_pront_emitido_${TAG}`;
+  const antiga = (sha: string): EmissaoProntuario => ({
+    id: 'PRONT-1-r1',
+    tag: TAG,
+    numero: 'PR-001',
+    emissao: '19/09/2026',
+    motor: 'vetorial',
+    pdfRef: { bucket: 'inspecao', path: `org/relatorios/${sha}.pdf`, mimeType: 'application/pdf', tamanho: 10 },
+    sha256: sha,
+    paginas: 6,
+    tamanho: 10,
+    geradoEm: '2026-09-19T20:00:00.000Z',
+    pdfPendente: false,
+  });
+  async function anexoDoOutroAparelho(): Promise<EmissaoProntuario> {
+    return {
+      ...antiga('x'),
+      id: 'PRONT-5-anexo1',
+      origem: 'anexado',
+      sha256: await sha256Hex(PDF),
+      pdfRef: { bucket: 'inspecao', path: 'org/relatorios/do-aparelho-a.pdf', mimeType: 'application/pdf', tamanho: PDF.length },
+    };
+  }
+
+  it('S1 · cache ANTIGO sem o SHA, servidor COM ele: nada sobe, devolve o registro existente', async () => {
+    const doA = await anexoDoOutroAparelho();
+    banco.set(CHAVE, [antiga('g1')]); // o aparelho B ficou com a lista de antes
+    servidor.set(CHAVE, [antiga('g1'), doA]); // o aparelho A já anexou o PDF
+    const pub = publicadorFalso();
+    const publicar = vi.fn(pub.publicar);
+
+    const r = await anexarProntuarioExistente({ tag: TAG, arquivo, bytes: PDF }, { publicar });
+
+    expect(lidasServidor).toContain(CHAVE); // leitura dirigida, só esta chave
+    expect(publicar).not.toHaveBeenCalled(); // nenhum objeto novo no Storage
+    expect(r.jaAnexado).toBe(true);
+    expect(r.emissao.id).toBe(doA.id);
+    expect(r.emissao.pdfRef.path).toBe(doA.pdfRef.path);
+    // o cache foi reconciliado com o servidor
+    expect(listarEmissoes(TAG).map((e) => e.id)).toEqual(['PRONT-1-r1', doA.id]);
+  });
+
+  it('S2 · mesmo quando a semeadura NÃO atualiza o cache (item local pendente), o servidor decide', async () => {
+    const doA = await anexoDoOutroAparelho();
+    banco.set(CHAVE, [antiga('g1')]);
+    servidor.set(CHAVE, [antiga('g1'), doA]);
+    semearIgnora = true;
+    const publicar = vi.fn(publicadorFalso().publicar);
+    const r = await anexarProntuarioExistente({ tag: TAG, arquivo, bytes: PDF }, { publicar });
+    expect(publicar).not.toHaveBeenCalled();
+    expect(r.jaAnexado).toBe(true);
+    expect(r.emissao.id).toBe(doA.id);
+  });
+
+  it('S3 · cache antigo e PDF NOVO: sobe, e a gravação parte da lista do SERVIDOR', async () => {
+    const doA = await anexoDoOutroAparelho();
+    banco.set(CHAVE, [antiga('g1')]);
+    servidor.set(CHAVE, [antiga('g1'), doA]);
+    const outro = new Uint8Array([...PDF, 0x0a, 0x25, 0x25, 0x45, 0x4f, 0x46]);
+    const { emissao, jaAnexado } = await anexarProntuarioExistente(
+      { tag: TAG, arquivo, bytes: outro },
+      { publicar: publicadorFalso().publicar },
+    );
+    expect(jaAnexado).toBeFalsy();
+    expect(emissao.id).toMatch(/-anexo2$/); // numerado depois do anexo de A
+    expect(listarEmissoes(TAG).map((e) => e.id)).toEqual(['PRONT-1-r1', doA.id, emissao.id]);
+  });
+
+  it('S4 · servidor não responde (offline/timeout) e o cache tem a lista: política offline de antes', async () => {
+    banco.set(CHAVE, [antiga('g1')]);
+    banco.set('nr13_pront_indice', []);
+    redeFora = true;
+    const publicar = vi.fn(async (b: Uint8Array, p: number) => ({ ...(await publicadorFalso().publicar(b, p)), pendente: true }));
+    const r = await anexarProntuarioExistente({ tag: TAG, arquivo, bytes: PDF }, { publicar });
+    expect(publicar).toHaveBeenCalledTimes(1);
+    expect(r.emissao.pdfPendente).toBe(true);
+  });
+
+  it('S5 · servidor confirma que a chave NÃO existe: anexa normalmente', async () => {
+    const publicar = vi.fn(publicadorFalso().publicar);
+    const r = await anexarProntuarioExistente({ tag: TAG, arquivo, bytes: PDF }, { publicar });
+    expect(lidasServidor).toEqual([CHAVE]);
+    expect(publicar).toHaveBeenCalledTimes(1);
+    expect(r.jaAnexado).toBeFalsy();
+  });
+});
+
+describe('excluir o prontuário não promete apagar o anexo', () => {
+  it('o modal diz que os PDFs anexados continuam', () => {
+    const modal = readFileSync('src/features/prontuarios/ModalExcluirProntuario.tsx', 'utf8');
+    expect(modal).toContain('<b>PDFs anexados</b>');
+    expect(modal).toContain('continuam na ficha do equipamento e em Prontuários');
   });
 });

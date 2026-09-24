@@ -30,7 +30,7 @@
  */
 import { ler } from '../../services/storage';
 import { publicarArtefato, sha256Hex } from '../relatorios/artefatoRelatorio';
-import { carregarEmissoes, registrarEmissao, type EmissaoProntuario } from './emissaoProntuario';
+import { emissoesConferidasNoServidor, registrarEmissao, type EmissaoProntuario } from './emissaoProntuario';
 import { docDeEmissao, registrarDocumento, type DocumentoProntuario } from './indiceProntuarios';
 import type { ProntuarioDados } from './tipos';
 
@@ -177,7 +177,7 @@ export async function anexarProntuarioExistente(
   // bucket, órfão — e o bucket de documentos não aceita DELETE. A lista vem do
   // servidor quando o cache não a tem (`carregarEmissoes`), e é a mesma leitura
   // que decide se a TAG pode receber o anexo agora (offline sem cópia: recusa).
-  const existentes = await carregarEmissoes(tag);
+  const existentes = await emissoesConferidasNoServidor(tag);
   const sha = await sha256Hex(pedido.bytes);
   const igual = existentes.find((e) => e.sha256 === sha);
   if (igual) {

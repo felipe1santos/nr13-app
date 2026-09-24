@@ -78,6 +78,10 @@ export default function ModalExcluirProntuario({
                 </li>
               )}
               <li>
+                Os <b>PDFs anexados</b> (prontuários existentes que você enviou), se houver. Eles
+                continuam na ficha do equipamento e em Prontuários.
+              </li>
+              <li>
                 O <b>croqui 2D</b> do equipamento. Refazendo o prontuário, o desenho volta junto.
               </li>
               <li>Relatórios, inspeções e o Livro de Registro do equipamento.</li>

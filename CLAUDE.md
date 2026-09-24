@@ -865,6 +865,12 @@ Um prontuário passa a entrar por dois caminhos, e os dois convivem no mesmo equ
   `jaAnexado` (o modal diz "já está anexado" e nada sobe — o bucket de documentos não tem
   DELETE, então upload repetido seria órfão permanente). Offline **sem** cópia local da lista:
   recusa ANTES do upload, com mensagem clara; offline **com** cópia: fila das fotos, como antes.
+  **Online, o SERVIDOR decide a duplicidade, mesmo com o cache presente**
+  (`emissoesConferidasNoServidor`: `lerLinhaDoServidor` só daquela chave + reconciliação do cache
+  por `semearEquipamentoDetalhado`, união com o cache local). Cache presente porém desatualizado
+  (aparelho A anexou, B tinha a lista de antes) subia o mesmo PDF de novo — provado no E2E com
+  o mutante. Corrida perfeita entre dois aparelhos (os dois leem antes de qualquer um gravar)
+  ainda pode subir dois arquivos: P3, exige caminho determinístico por SHA ou RPC.
   `registrarEmissao` também lê dirigido, mas nunca recusa (roda depois do upload).
   A ficha ganhou **Baixar** (mesmos bytes do Visualizar, nome original). Excluir o prontuário
   (`removerDoIndice`) tira só a linha de RASCUNHO — antes levava junto as linhas de emitidos e

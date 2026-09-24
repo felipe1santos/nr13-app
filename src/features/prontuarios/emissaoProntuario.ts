@@ -1,4 +1,5 @@
-import { ler, salvar } from '../../services/storage';
+import { ler, salvar, semearEquipamentoDetalhado } from '../../services/storage';
+import { lerLinhaDoServidor } from '../../services/leituraDirigida';
 import { lerColecao } from '../../services/colecaoSync';
 import type { PdfArtefato } from '../relatorios/artefatoRelatorio';
 
@@ -116,6 +117,46 @@ export async function carregarEmissoes(tag: string): Promise<EmissaoProntuario[]
     );
   }
   return lista;
+}
+
+/**
+ * A lista para decidir um UPLOAD IRREVERSÍVEL — o servidor é a autoridade.
+ *
+ * `carregarEmissoes` confia no cache quando ele tem a chave. Para escrever uma
+ * linha isso basta (a camada de sync resolve a versão); para decidir se um PDF
+ * sobe para o bucket de documentos, NÃO: o bucket não aceita DELETE, e um cache
+ * desatualizado (o aparelho A anexou, o B ainda tem a lista de antes) fazia o B
+ * subir o mesmo arquivo de novo — órfão para sempre.
+ *
+ * Online: lê SÓ esta chave no servidor e reconcilia o cache
+ * (`semearEquipamentoDetalhado`, que respeita item pendente na fila). A resposta
+ * é a UNIÃO do servidor com o cache — o cache pode ter um anexo local que
+ * ainda não subiu. Sem resposta do servidor (offline, erro, timeout): a política
+ * offline de `carregarEmissoes` (cópia local, ou recusa clara).
+ */
+export async function emissoesConferidasNoServidor(tag: string): Promise<EmissaoProntuario[]> {
+  const k = chave(tag);
+  const r = await lerLinhaDoServidor(k);
+  if (r.estado === 'indisponivel') return carregarEmissoes(tag);
+
+  let doServidor: EmissaoProntuario[] = [];
+  if (r.estado === 'presente' && !r.linha.excluida && r.linha.valor) {
+    try {
+      const v = JSON.parse(r.linha.valor);
+      if (Array.isArray(v)) doServidor = v as EmissaoProntuario[];
+    } catch {
+      /* valor ilegível: conta como lista vazia, o cache ainda entra na união */
+    }
+  }
+  // Reconciliar ANTES de gravar: a emissão nova é acrescentada sobre a lista
+  // do cache, e ela precisa ser a do servidor para a escrita não virar conflito.
+  try {
+    await semearEquipamentoDetalhado([k]);
+  } catch {
+    /* melhor esforço — a decisão abaixo já tem a lista do servidor */
+  }
+  const vistos = new Set(doServidor.map((e) => e.id));
+  return [...doServidor, ...listarEmissoes(tag).filter((e) => !vistos.has(e.id))];
 }
 
 /**
