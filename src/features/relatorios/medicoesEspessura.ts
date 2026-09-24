@@ -225,13 +225,20 @@ export function carregarMedicoes(
   tag: string,
   /** O container deste documento — ver "O DONO DA GRADE" em `montarGrade`. */
   containerAtual: string | null = null,
+  /**
+   * O ultrassom do container, quando quem chama já o tem (o gerador do PDF).
+   * Ausente = lê a chave viva `nr13_injecao_atual`, como o editor sempre fez.
+   */
+  usDoContainer?: Record<string, unknown> | null,
 ): {
   pontos: PontoMedicao[];
   colunas: Record<Regiao, number>;
   grade: GradeMedicoes;
 } {
-  const injecao = ler<{ ultrassom?: Record<string, unknown> }>('nr13_injecao_atual');
-  const us = injecao?.ultrassom ?? null;
+  const us =
+    usDoContainer !== undefined
+      ? usDoContainer
+      : (ler<{ ultrassom?: Record<string, unknown> }>('nr13_injecao_atual')?.ultrassom ?? null);
   const pontos = pontosDoContainer(us);
   const colunas = colunasDoContainer(us);
   const grade = montarGrade(

@@ -133,3 +133,52 @@ filtro porque `_` é curinga do LIKE).
 - Integração ao relatório completo + teste de paridade: pendente (§3).
 - Texto corrido de descrição gigante não repete o título "IMAGENS (continuação)" nas folhas
   de continuação do texto.
+
+## 8. Fase 5.1 — documento avulso é LEITURA pura (24/09/2026)
+
+### Root cause (matriz antes de alterar)
+
+| porta | tipos | gravava | por quê existia |
+|---|---|---|---|
+| `documentoVetorial.gerarDocumentoDoEnsaio` | checklist, ultrassom, visual externo, visual interno, TH | `nr13_inspecao_atual` + `nr13_injecao_atual` (= `container.dados`) **e** `nr13_relatorio_meta_atual = {containerOrigemId}` | `montarModeloRelatorio` só sabia ler CHAVES. As injeções levavam o dado do container; a meta levava `containerOrigemId` (grade de espessura do container certo, defeito de 10/09) e zerava código/data/assinantes/empresa para o cabeçalho não herdar o último relatório |
+| `documentoImagens.gerarDocumentoImagens` | Relatório de Imagens | `nr13_relatorio_meta_atual = {containerOrigemId}` | idem, para a empresa não sair do snapshot do último relatório |
+| `PreviewDocumento.DocumentoEmIframes` | manômetro, PSV | injeções + meta `{}` | templates HTML leem `localStorage` (palco). **Inalcançável por container** (`TipoEnsaio` não tem calibração; só por URL digitada `?documento=1`). Não alterado — P3 |
+
+As três são chaves VIVAS e sincronizadas do relatório em montagem: abrir "Ver documento" numa
+aba apagava a meta e os dados de campo de um relatório sendo montado noutra (e o sync espalhava).
+Havia também um segundo leitor escondido: `carregarMedicoes` relia `nr13_injecao_atual`.
+
+### Correção (sem estado paralelo)
+
+`montarModeloRelatorio(tag, fontes?)` e `gerarRelatorioVetorial(tag, { fontes })` recebem
+`FontesDoModelo = { meta, inspecao, injecao }`; `carregarMedicoes(tag, container, us?)` recebe o
+ultrassom. Ausente = lê as chaves, como sempre (relatório completo intocado). As duas portas do
+avulso entregam as fontes e não gravam nada. O que impede seção indevida é a COMPOSIÇÃO
+(`documentos` = folhas do ensaio), não a meta.
+
+### Prova — `avulsoSemEfeitoColateral.test.ts` (18)
+
+Aba A deixa meta (`REL-ABA-A-0042`, ART, empresa congelada, assinante) e campo nas chaves vivas;
+aba B gera os 6 avulsos de outro container. Storage inteiro idêntico chave a chave, zero chamadas
+ao servidor, cada avulso só com o seu ensaio e os dados do container dele, nenhum com a meta da
+aba A, e o relatório completo continua lendo a meta viva. **Mutante** (portas antigas): 6 falhas,
+inclusive o relatório completo perdendo a meta da aba A — o defeito reproduzido.
+
+### Achados reclassificados
+
+- **P2** — URL direta do formulário com a TAG não semeada: formulário vazio, mas salvar/autosave
+  é RECUSADO (`não encontrado no cache`) e nenhum documento é gerado (provado no mesmo teste).
+  Resíduo teórico: se a TAG fosse semeada por outro caminho com o formulário vazio ainda aberto,
+  a próxima edição salvaria o estado vazio — nenhum caminho da tela faz isso hoje.
+- **P3** — foto removida do rascunho fica órfã no bucket (sem delete nesta fase).
+- **Corrigido** — texto corrido de descrição gigante repete "IMAGENS (continuação)" em cada folha.
+
+### Duas abas no navegador real (lab, v2 + sync) — `scratchpad/e2e5/duasAbas.mjs`: 12/12
+
+Meta viva `REL-ABA-A-E2E-51` + campo gravados no servidor; aba A em `/relatorios`; aba B (mesmo
+navegador, mesma sessão) abre os avulsos de checklist, ultrassom, visual externo, visual interno,
+TH e o Relatório de Imagens. 23 POSTs no período, **0** com meta/injeção (o único
+`aplicar_mutacao_storage` foi o container, do "Visualizar documento" que salva o formulário).
+Servidor antes = depois: `meta_atual v17`, `inspecao_atual v26`, `injecao_atual v20`, mesmos md5.
+Aba A "Sincronizado". Retrato do histórico (relatórios, índices, prontuários, arquivos finais):
+0 diferenças.

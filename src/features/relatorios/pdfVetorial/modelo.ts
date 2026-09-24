@@ -757,8 +757,26 @@ function exameVisual(bloco: Record<string, unknown> | undefined, catalogo: strin
   };
 }
 
-export function montarModeloRelatorio(tag: string): ModeloRelatorio {
-  const meta = ler<RelatorioMeta>('nr13_relatorio_meta_atual');
+/**
+ * Fase 5.1 · as três fontes "do relatório em montagem", entregues DIRETAMENTE.
+ *
+ * Sem este parâmetro o modelo lê `nr13_relatorio_meta_atual`,
+ * `nr13_inspecao_atual` e `nr13_injecao_atual` — as chaves VIVAS que a tela de
+ * Relatórios grava antes de gerar. O documento AVULSO de um ensaio não é esse
+ * relatório: antes ele sobrescrevia as três chaves para o modelo ler o que ele
+ * queria, e com isso apagava a meta e os dados de campo de um relatório sendo
+ * montado noutra aba (e o sync levava a sobrescrita para os outros aparelhos).
+ * Com as fontes na mão, gerar um avulso é LEITURA pura.
+ */
+export interface FontesDoModelo {
+  meta: RelatorioMeta | null;
+  /** Dados de campo do container (`container.dados`) — o que iria nas duas chaves. */
+  inspecao: Record<string, unknown>;
+  injecao: Record<string, unknown>;
+}
+
+export function montarModeloRelatorio(tag: string, fontes?: FontesDoModelo): ModeloRelatorio {
+  const meta = fontes ? fontes.meta : ler<RelatorioMeta>('nr13_relatorio_meta_atual');
   const info = ler<Record<string, unknown>>(`nr13_info_${tag}`) ?? {};
   const cat = ler<Record<string, unknown>>(`nr13_cat_${tag}`) ?? {};
   const calc = ler<{ pmta?: number; pth?: number; componentes?: Record<string, unknown>[] }>(`nr13_calc_${tag}`) ?? {};
@@ -770,8 +788,8 @@ export function montarModeloRelatorio(tag: string): ModeloRelatorio {
 
   // Os dados de campo vivem em DUAS chaves, e a duplicação é obrigatória (§2):
   // checklist grava em `inspecao`, os ensaios em `injecao`.
-  const insp = ler<Record<string, unknown>>('nr13_inspecao_atual') ?? {};
-  const inj = ler<Record<string, unknown>>('nr13_injecao_atual') ?? {};
+  const insp = fontes ? fontes.inspecao : (ler<Record<string, unknown>>('nr13_inspecao_atual') ?? {});
+  const inj = fontes ? fontes.injecao : (ler<Record<string, unknown>>('nr13_injecao_atual') ?? {});
 
   const emp = (meta?.empresa ?? ler<Record<string, unknown>>('nr13_minha_empresa') ?? {}) as Record<string, unknown>;
   const chk = (insp.checklist ?? {}) as {
@@ -1271,7 +1289,9 @@ export function pontosUltrassom(
 
   // O container DESTE documento: sem ele, a grade de outra inspeção do mesmo
   // equipamento sobrepõe as medições escolhidas. Ver `montarGrade`.
-  const { pontos, grade } = carregarMedicoes(tag, containerAtual);
+  // `us` é o ultrassom do container DESTE documento — entregue, não relido da
+  // chave viva `nr13_injecao_atual` (Fase 5.1).
+  const { pontos, grade } = carregarMedicoes(tag, containerAtual, us);
   const linhas: ModeloRelatorio['ultrassom']['pontos'] = [];
   for (const regiao of REGIOES) {
     const daRegiao = pontos.filter((p) => p.regiao === regiao);

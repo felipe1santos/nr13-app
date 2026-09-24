@@ -19,21 +19,27 @@
  * relatório: há um gerador e dois recortes. Se a folha 7.4 mudar, muda nos dois
  * no mesmo commit, porque é o mesmo código.
  *
- * ## A ordem das três gravações, e por que cada uma existe
+ * ## As fontes vão ENTREGUES — nada é gravado (Fase 5.1, 24/09/2026)
  *
- * O modelo (`montarModeloRelatorio`) lê CHAVES, não parâmetros — é o desenho do
- * §2 do CLAUDE.md. Então, antes de gerar:
+ * Até a Fase 5.1 este módulo GRAVAVA as três chaves vivas do relatório em
+ * montagem (`nr13_inspecao_atual`, `nr13_injecao_atual` e
+ * `nr13_relatorio_meta_atual`) para o modelo lê-las. Abrir "Ver documento"
+ * apagava a meta e os dados de campo de um relatório sendo montado noutra aba —
+ * e o sync levava a sobrescrita aos outros aparelhos. Agora o gerador recebe
+ * `fontes` (`FontesDoModelo`) e gerar o avulso é LEITURA pura. O que as
+ * gravações garantiam continua garantido pelas fontes:
  *
- * 1. `gravarInspecaoOrigemAtual(container.dados)` põe os dados de campo nas duas
- *    chaves de injeção (a duplicação é obrigatória: checklist lê uma, ensaios
- *    leem a outra);
+ * 1. os dados de campo do container vão como `inspecao` e `injecao` (a mesma
+ *    duplicação das chaves: checklist lê uma, ensaios leem a outra);
  * 2. a META vai quase vazia, mas **com `containerOrigemId`** — é ele que faz
  *    `pontosUltrassom` escolher a grade DESTE container. Sem ele, a grade de
  *    outra inspeção do mesmo equipamento venceria, que é exatamente o defeito
  *    de 10/09/2026 (documento assinado com espessuras de outra rodada);
  * 3. o resto da meta fica em branco de propósito: não há relatório, e o
  *    cabeçalho precisa dizer isso em vez de herdar o código, a data e os
- *    assinantes do último relatório aberto.
+ *    assinantes do último relatório aberto;
+ * 4. a COMPOSIÇÃO (`documentos`) é só a das folhas do ensaio — é ela, e não a
+ *    meta, que impede seção de outro ensaio no avulso.
  *
  * ## O que este módulo NÃO faz
  *
@@ -42,7 +48,6 @@
  * prévia do relatório (13D).
  */
 import { gerarRelatorioVetorial } from '../relatorios/pdfVetorial/gerarRelatorio';
-import { gravarInspecaoOrigemAtual, gravarMetaAtual } from '../relatorios/relatoriosService';
 import type { RelatorioMeta } from '../relatorios/tipos';
 import { carregarContainer } from './inspecaoService';
 import { DOCS_POR_FORMULARIO, type FormularioEnsaio } from './tipos';
@@ -101,8 +106,7 @@ export async function gerarDocumentoDoEnsaio(
   }
 
   const container = carregarContainer(tag, containerId);
-  await gravarInspecaoOrigemAtual(container?.dados ?? {});
-  await gravarMetaAtual({ containerOrigemId: containerId } as RelatorioMeta);
+  const dados = (container?.dados ?? {}) as Record<string, unknown>;
 
   const r = await gerarRelatorioVetorial(tag, {
     documentos,
@@ -111,6 +115,8 @@ export async function gerarDocumentoDoEnsaio(
     // rasterização no host isolado, que a prévia de campo não precisa pagar.
     certificados: false,
     modo: 'preview',
+    // Leitura pura: meta e dados de campo entregues, nenhuma chave viva gravada.
+    fontes: { meta: { containerOrigemId: containerId } as RelatorioMeta, inspecao: dados, injecao: dados },
   });
 
   return { bytes: r.bytes, paginas: r.paginas, ms: r.ms };

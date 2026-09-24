@@ -284,7 +284,11 @@ describe('M · descrição longa nunca é cortada', () => {
     expect(c.paginaFimDescricao).toBeGreaterThan(c.pagina);
     // Tira cabeçalho e rodapé de cada folha: o texto corrido atravessa folhas,
     // e entre um pedaço e outro o pdf.js lê a moldura da folha seguinte.
-    const moldura = /RELATÓRIODEIMAGENS—T\.A\.G\.ZZ-IMG-01Página\d+de\d+ZZENGENHARIASINTÉTICALTDARuadeTeste,1\(00\)0000-0000/g;
+    const moldura = /RELATÓRIODEIMAGENS—T\.A\.G\.ZZ-IMG-01Página\d+de\d+ZZENGENHARIASINTÉTICALTDARuadeTeste,1\(00\)0000-0000(IMAGENS\(continuação\))?/g;
+    // 5.1 · toda folha em que o texto continua repete o título da seção.
+    for (let p = c.pagina + 1; p <= c.paginaFimDescricao; p++) {
+      expect(paginas[p - 1], `folha ${p}`).toContain('IMAGENS (continuação)');
+    }
     const tudo = paginas.join(' ').replace(/\s+/g, '').replace(moldura, '');
     expect(tudo.includes(DESCRICAO_GIGANTE.replace(/\s+/g, ''))).toBe(true);
     expect(tudo).not.toContain('…');

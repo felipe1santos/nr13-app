@@ -558,6 +558,10 @@ são **auto-injetados** por `montarListaComTermoAbertura()` logo após sua folha
   (`pdfVetorial/relatorioImagens.ts`): capa + 2 colunas com altura medida, descrição nunca
   cortada. Não entra em `DOCUMENTOS_DISPONIVEIS` (não é folha do relatório NR-13);
   `desenharFotosDescritas` é o ponto de composição para uma integração futura.
+- **DOCUMENTO AVULSO É LEITURA PURA (5.1).** `gerarDocumentoDoEnsaio` e `gerarDocumentoImagens` NÃO
+  gravam `nr13_relatorio_meta_atual`, `nr13_inspecao_atual` nem `nr13_injecao_atual` (chaves VIVAS do
+  relatório em montagem noutra aba): entregam `fontes` ao gerador (`FontesDoModelo`). Sem `fontes`, o
+  modelo lê as chaves — é o relatório completo. `avulsoSemEfeitoColateral.test.ts` (duas abas).
 - Travado por `fotosDescritas.test.ts`, `documentoImagens.test.ts` e `relatorioImagens.test.ts`.
 
 ---

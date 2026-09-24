@@ -27,7 +27,7 @@ import {
   folhasMemoria,
   folhasTesteHidrostatico,
 } from './folhas';
-import { medirFotos, montarModeloRelatorio, type FotoModelo, type ModeloRelatorio } from './modelo';
+import { medirFotos, montarModeloRelatorio, type FontesDoModelo, type FotoModelo, type ModeloRelatorio } from './modelo';
 import { baixarFoto, blobParaDataUrl } from '../../../services/fotos';
 import { resolverPlacaReal } from '../placaIdentificacao';
 
@@ -106,6 +106,13 @@ export interface OpcoesVetorial {
    * placa reconstruída — que é o padrão.
    */
   idRelatorio?: string;
+  /**
+   * Fase 5.1 · meta e dados de campo ENTREGUES, para o documento avulso de um
+   * ensaio. Com isto o modelo não lê as chaves vivas do relatório em montagem
+   * — e quem chama não precisa sobrescrevê-las (ver `FontesDoModelo`). Ausente
+   * = o relatório: lê as chaves, como sempre.
+   */
+  fontes?: FontesDoModelo;
 }
 
 /**
@@ -327,7 +334,7 @@ export async function gerarRelatorioVetorial(
   opcoes: OpcoesVetorial = {},
 ): Promise<ResultadoVetorial> {
   const inicio = performance.now();
-  const modelo = await comFotosMedidas(montarModeloRelatorio(tag));
+  const modelo = await comFotosMedidas(montarModeloRelatorio(tag, opcoes.fontes));
   // A foto de CAPA da ficha mora no cofre desde 10/08/2026 (`{ ref }`, sem
   // bytes) — o mesmo caminho das fotos de campo, e por isso o mesmo resolvedor.
   // Sem este passo a capa fica vazia mesmo com a foto visível na ficha.

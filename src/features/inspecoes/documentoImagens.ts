@@ -25,8 +25,6 @@
  * é cobrada na tela antes de Baixar/Imprimir (`pendenciasParaEmissao`).
  */
 import { baixarFoto, blobParaDataUrl } from '../../services/fotos';
-import { gravarMetaAtual } from '../relatorios/relatoriosService';
-import type { RelatorioMeta } from '../relatorios/tipos';
 import { montarModeloRelatorio, medirFotos, type FotoModelo } from '../relatorios/pdfVetorial/modelo';
 import {
   gerarRelatorioImagensPdf,
@@ -88,11 +86,13 @@ export async function gerarDocumentoImagens(tag: string, containerId: string): P
     throw new FotoIndisponivelErro(fotos.flatMap((_, i) => (ok.has(imagens[i] as string) ? [] : [rotuloFoto(i)])));
   }
 
-  // A meta vai VAZIA (só a origem): `nr13_relatorio_meta_atual` é chave viva, e
-  // sem isso a empresa sairia do snapshot do último relatório aberto. Mesmo
-  // cuidado de `documentoVetorial.ts`.
-  await gravarMetaAtual({ containerOrigemId: containerId } as RelatorioMeta);
-  const m = montarModeloRelatorio(tag);
+  // Fase 5.1 · LEITURA pura. As fontes do relatório em montagem vão ENTREGUES
+  // e vazias: sem meta, a empresa sai do cadastro vivo (`nr13_minha_empresa`) e
+  // não do snapshot do último relatório aberto — e nenhuma chave viva
+  // (`nr13_relatorio_meta_atual`, `nr13_inspecao_atual`, `nr13_injecao_atual`)
+  // é gravada. Antes a meta era zerada aqui, e isso apagava a de um relatório
+  // sendo montado noutra aba.
+  const m = montarModeloRelatorio(tag, { meta: null, inspecao: {}, injecao: {} });
 
   let logo = m.empresa.logo;
   if (!logo && m.empresa.logoRef) {

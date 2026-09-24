@@ -145,7 +145,17 @@ export function desenharFotosDescritas(
     const y = doc.y;
     const c = desenharCelula(i, CAIXA.x, y, []);
     doc.y = y + alturaFoto;
-    doc.texto(fotos[i].descricao.replace(/\r\n?/g, '\n').trim(), { tamanho: g.fonteDescricao });
+    // Linha a linha, pela MESMA `novaFolha` da grade: a folha de continuação
+    // ganha o título "IMAGENS (continuação)" como qualquer outra (5.1).
+    const linhas = linhasDaDescricao(pdf, fotos[i].descricao, CAIXA.largura);
+    for (const l of linhas) {
+      if (doc.y + passo > LIMITE_CORPO) novaFolha();
+      pdf.setFont(FAMILIA, 'normal');
+      pdf.setFontSize(g.fonteDescricao);
+      pdf.setTextColor(COR.texto);
+      pdf.text(l, CAIXA.x, doc.y + passo * 0.78);
+      doc.y += passo;
+    }
     celulas.push({ ...c, corrida: true, fimDescricao: doc.y, paginaFimDescricao: doc.paginaAtual });
     doc.y += g.vaoLinhas;
   };
