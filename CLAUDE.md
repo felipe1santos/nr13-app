@@ -846,6 +846,15 @@ Ao abrir o visualizador do prontuário (`Prontuarios.tsx`, antes de montar os if
 `obterOuCriarMeta(tag)` em `nr13_prontuario_meta_<TAG>` (nº do relatório + data de emissão, reusado
 entre reimpressões). O croqui vem direto de `nr13_croqui2d_<TAG>` — nada é regravado na abertura.
 
+> **ABRIR O PRONTUÁRIO NÃO GRAVA DADO TÉCNICO (Fase 6.1, 24/09/2026).** Abrir, pré-visualizar, imprimir e
+> baixar são LEITURA em relação a `nr13_med_grid_<TAG>` e `nr13_med_esp_<TAG>` — chaves do editor de medições
+> do RELATÓRIO. A espessura do container escolhido no formulário (`containerEnsaioId`) vai ENTREGUE ao gerador
+> (`FontesProntuario.espessura`, `features/prontuarios/espessuraProntuario.ts`); o rollback em iframe a recebe
+> só pelo palco (`usePalcoDocumento({ sobrepor })`), junto com `nr13_prontuario_atual`, que também deixou de ser
+> gravada. A capa usa o engenheiro que assina o prontuário, nunca `nr13_relatorio_meta_atual`. Antes, abrir
+> `/prontuarios?tag=X` sem container apagava no servidor a grade, a espessura requerida manual e o aparelho.
+> Travado por `prontuarioSemMutacao.test.ts`. Medição: `docs/medicoes/2026-09-24-fase61-p0-prontuario-medicao.md`.
+
 **Editor de Croqui 2D (ex-Modelador; render 3D removido em 11/07/2026 — sem three.js):** overlay
 com formulário (`PainelElementos`) + preview 2D ao vivo (`gerarCroquis2d`, função pura sobre
 `ModeloVaso`). O save alimenta a folha 1 (SVG longitudinal), a folha 2 (`nr13_croqui2d_<TAG>` —
