@@ -50,7 +50,7 @@ export function resumoDaFicha({
     { chave: 'categoria', rotulo: 'Categoria NR-13', valor: categoria?.catFinal ?? '—' },
     {
       chave: 'pmta',
-      rotulo: 'PMTA adotada',
+      rotulo: 'PMTA ADOTADA',
       valor: Number.isFinite(pmta) ? formatarValor(pmta, unidade) : '—',
     },
     {

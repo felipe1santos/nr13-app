@@ -12,7 +12,7 @@ type CampoView = { chave: keyof EmpresaEquipamento; label: string; span2?: boole
 // Os mesmos 12 campos de sempre, agrupados por assunto (Fase 4).
 const GRUPOS_VIEW: { titulo: string; campos: CampoView[] }[] = [
   {
-    titulo: 'Empresa',
+    titulo: 'Identificação',
     campos: [
       { chave: 'razaoSocial', label: 'Razão Social', span2: true },
       { chave: 'cnpj', label: 'CNPJ' },
@@ -21,7 +21,8 @@ const GRUPOS_VIEW: { titulo: string; campos: CampoView[] }[] = [
     ],
   },
   {
-    titulo: 'Endereço',
+    // Não 'Endereço': repetiria o rótulo do primeiro campo logo abaixo.
+    titulo: 'Localização',
     campos: [
       { chave: 'endereco', label: 'Endereço', span2: true },
       { chave: 'bairro', label: 'Bairro' },

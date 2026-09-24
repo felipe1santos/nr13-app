@@ -182,7 +182,9 @@ export default function PressoesDocumentacao({
       {editando ? (
         <>
           <div className="vida-campos-grid">
-            {(Object.keys(ROTULOS) as Chave[]).map((k) => (
+            {/* Mesma ordem da leitura (PMO → PMTA → PTH): o campo não pode
+                trocar de lugar quando o lápis é clicado. */}
+            {VIEW.map(({ chave: k }) => (
               <label className="vida-campo" key={k}>
                 <span>
                   {ROTULOS[k]} ({labelUnid})

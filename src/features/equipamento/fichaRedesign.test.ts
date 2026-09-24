@@ -83,7 +83,7 @@ describe('resumo do topo: repetição visual, mesma fonte', () => {
   it('PMTA é a ADOTADA, formatada como o cartão de /equipamentos — nunca a calculada', () => {
     const r = resumoDaFicha({ info: INFO, categoria: CAT as never, vida: VIDA, unidade: 'SI' });
     const pmta = r.find((i) => i.chave === 'pmta')!;
-    expect(pmta.rotulo).toBe('PMTA adotada');
+    expect(pmta.rotulo).toBe('PMTA ADOTADA');
     expect(pmta.valor).toBe(formatarValor(2.2, 'SI'));
     // sem adoção: travessão, sem cair na calculada (regra do §3-bis)
     const sem = resumoDaFicha({ info: { ...INFO, pmtaAdotadaMpa: undefined }, categoria: CAT as never, vida: VIDA, unidade: 'SI' });
@@ -133,6 +133,9 @@ describe('leitura = dado; edição = campo', () => {
     const h = html(createElement(PressoesDocumentacao, { tag: TAG, info: vazio, unidade: 'SI', onSalvo: () => {} }));
     expect(campos(h)).toBe(3);
     expect(h).toContain('ficha-editando');
+    // os campos seguem a ordem da leitura: PMO → PMTA → PTH
+    expect(h.indexOf('PMO Adotada')).toBeLessThan(h.indexOf('PMTA Adotada'));
+    expect(h.indexOf('PMTA Adotada')).toBeLessThan(h.indexOf('PTH Adotada'));
   });
 
   it('Categoria salva: texto, sem campo', () => {
@@ -161,7 +164,7 @@ describe('leitura = dado; edição = campo', () => {
     expect(campos(eq)).toBe(0);
     expect(campos(emp)).toBe(0);
     for (const g of ['Identificação', 'Fabricação e projeto', 'Placa']) expect(eq).toContain(g);
-    for (const g of ['Empresa', 'Endereço', 'Contato']) expect(emp).toContain(g);
+    for (const g of ['Identificação', 'Localização', 'Contato']) expect(emp).toContain(g);
     expect(eq).toContain('Atlas Industrial');
     expect(emp).toContain('CLIENTE ZZ LTDA');
   });

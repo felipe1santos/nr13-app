@@ -514,6 +514,9 @@
 .equipamento-page .ficha-grupo + .ficha-grupo {
   margin-top: 14px;
 }
+/* Neutro de propósito: o azul da ficha é da ação principal e do ADOTADO. Um
+   subtítulo azul em cada grupo diluía os dois. Distingue-se do rótulo pelo peso
+   e pela cor mais escura. */
 .equipamento-page .ficha-grupo-titulo {
   margin: 0 0 2px;
   font-family: var(--font-base);
@@ -521,7 +524,7 @@
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: var(--blue-deep);
+  color: var(--text-main);
 }
 .equipamento-page .ficha-item-destaque .val-view {
   font-size: 18px;
@@ -693,6 +696,21 @@
   font-size: 13.5px;
 }
 
+/* ── Foto de identificação: ação compacta, não um bloco de 70px ─────────── */
+.equipamento-page .galeria-fotos-row {
+  margin-top: 0;
+}
+.equipamento-page .gallery-add-dropzone {
+  width: auto;
+  height: 34px;
+  flex-direction: row;
+  gap: 6px;
+  padding: 0 12px;
+  font-size: 12px;
+  text-align: center;
+  white-space: nowrap;
+}
+
 /* ── Memorial: resultado CALCULADO; abrir > editar ───────────────────────── */
 .equipamento-page .memorial-body {
   display: block;
@@ -703,6 +721,12 @@
 }
 .equipamento-page .memorial-resumo-grid .val-view {
   font-size: 15px;
+}
+/* A calculada NÃO disputa com a adotada: no Memorial ela é dado técnico comum,
+   sem o laranja de destaque (que ficava mais chamativo que as Pressões). O
+   vermelho de REPROVADO (.val-erro) continua. */
+.equipamento-page .memorial-resumo-grid .val-view.accent {
+  color: var(--text-main);
 }
 .ficha-memorial-acoes {
   display: flex;
@@ -924,6 +948,17 @@
   .ficha-memorial-acoes > * {
     flex: 1 1 auto;
     justify-content: center;
+  }
+  /* Salvar primeiro e na linha inteira; as ações secundárias dividem a linha
+     de baixo. Sem isso, com três botões o Cancelar caía sozinho numa terceira. */
+  .equipamento-page .ficha-acoes-edicao .btn-primario {
+    order: -1;
+    flex: 1 1 100%;
+    min-height: 44px;
+  }
+  .equipamento-page .ficha-acoes-edicao .btn-secundario {
+    flex: 1 1 0;
+    min-height: 44px;
   }
   .ficha-doc {
     grid-template-columns: 20px minmax(0, 1fr);
