@@ -935,8 +935,10 @@ Um prontuário passa a entrar por dois caminhos, e os dois convivem no mesmo equ
   (`PREFIXOS_POR_TAG`; `sanearParaPortal` tira as retiradas). O vigente — gerado OU anexado, pela mesma
   `resolverProntuarioVigente` — abre pelo `pdfRef` → `portal_arquivo` → os mesmos bytes (visualizar, baixar,
   imprimir). Antes o Portal remontava as folhas `PRONT-*.html` com os dados de HOJE. Emissão sem arquivo =
-  indisponível, nunca remontagem. Sem emissão nenhuma, o formulário legado segue o caminho antigo (2 casos em
-  orgs com Portal, 25/09). O PDF do fabricante segue em item próprio. `features/portal/prontuarioPortal.ts`,
+  indisponível, nunca remontagem. **Sem emissão/anexo vigente: "Prontuário ainda não emitido", sem botão**
+  (decisão do dono, Opção B) — rascunho não é documento, e a Edge não entrega mais ao cliente
+  `nr13_prontuario_`, `nr13_prontuario_meta_` nem `nr13_assinantes_pront_` (`FORA_DO_PORTAL`). O PDF do
+  fabricante segue em item próprio e nunca vira o prontuário oficial. `features/portal/prontuarioPortal.ts`,
   travado por `prontuarioNoPortal.test.ts`. Medição: `docs/medicoes/2026-09-25-fase63-portal-prontuario.md`.
 - **Fase 3 (23/09/2026) — cache miss não é ausência.** A lista da TAG vem de
   `carregarEmissoes` (cache → leitura DIRIGIDA de só aquela chave), e a duplicidade por SHA é

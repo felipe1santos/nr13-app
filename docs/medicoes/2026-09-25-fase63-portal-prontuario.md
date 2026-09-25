@@ -100,3 +100,26 @@ agosto (engyuricesar e ZZ; 7–10 MB em `relatorios/`, anteriores à emissão de
 
 **Impacto de remover a remontagem para quem não tem emissão:** 2 equipamentos, 1 login de cliente (inativo desde
 14/07, org mestre inativa). Os outros 7 não são vistos por nenhum cliente hoje.
+
+## Decisão do dono · Opção B (`bf36205`)
+
+Sem emissão gerada ou PDF anexado vigente, o Portal mostra **"Prontuário ainda não emitido."**, sem botão.
+Nada é remontado: o caminho legado saiu da tela (`abrirProntuario` só abre artefato), e a Edge `portal_cliente`
+deixou de entregar `nr13_prontuario_`, `nr13_prontuario_meta_` e `nr13_assinantes_pront_` (`FORA_DO_PORTAL`, nem
+carga nem sob demanda) — por isso o estado não distingue "tem rascunho" de "nunca começou". O único outro leitor
+dessas chaves, a `PLACA.html` do relatório legado sem `pdfRef`, é caminho que já não abre para o papel cliente.
+Nenhum registro de produção foi alterado.
+
+Provas: `prontuarioNoPortal.test.ts` (18; mutantes: tela anterior → 3 falhas, módulo anterior → 4). E2E lab
+**29/29** com três casos no mesmo cliente:
+
+| equipamento | vigente | Portal |
+|---|---|---|
+| ZZ-SEM-PRONT (rascunho + meta) | nenhum | "Prontuário ainda não emitido.", 0 botões, 0 folhas PRONT-*, 0 iframes |
+| ZZ-FAB-LEGADO (rascunho + PDF do fabricante) | nenhum | "ainda não emitido"; o fabricante segue em item próprio |
+| ZZ-E2E-PB | GERADO | visualizar/baixar/imprimir = SHA; dados vivos alterados depois, PDF com o valor da emissão |
+| ZZ-IMG-E2E | ANEXADO | visualizar/baixar/imprimir = SHA do original |
+
+Carga do Portal sem rascunho/meta/assinantes (nem sob demanda, nem no cache do cliente); cross-org negado igual a
+inexistente; arquivo ausente → erro visível, sem remontar; app_storage da org idêntico (read-only); 0 folhas PRONT-*
+na sessão inteira; mobile 390: estado legível, sem botão, "← Todos os equipamentos" 44 px, sem overflow.
