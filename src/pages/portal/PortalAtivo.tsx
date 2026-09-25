@@ -18,7 +18,6 @@ import { definicaoDe } from '../../features/calibracoes/instrumentos';
 import type { FotoArmazenada } from '../../services/fotos';
 import { listarCalibracoes, arquivoCalibracao, hidratarItemLocal } from '../../features/calibracoes/calibracaoService';
 import { ehOficial, ehTerceiro, type DadosCalibracao } from '../../features/calibracoes/tipos';
-import { carregarProntuario, materializarProntuarioAtual } from '../../features/prontuarios/prontuarioService';
 import { prontuarioNoPortal } from '../../features/portal/prontuarioPortal';
 import {
   abrirProntuarioFabricante,
@@ -26,7 +25,6 @@ import {
   formatarTamanho as formatarTamanhoPdf,
   lerProntuarioFabricante,
 } from '../../features/equipamento/ProntuarioFabricante';
-import { paginasProntuario } from '../../features/prontuarios/tipos';
 import { parseDataFlex, statusPrazo } from '../../services/vencimentos';
 import type { InfoEquipamento } from '../../features/equipamento/tipos';
 import { temArtefato, temTemplateHtml, type RelatorioIndiceItem, type RelatorioSalvo } from '../../features/relatorios/tipos';
@@ -104,9 +102,8 @@ export default function PortalAtivo() {
   const componentes = useMemo(() => listarComponentes(tag), [tag]);
   // O Portal mostra só o OFICIAL: rascunho não é documento para o cliente.
   const calibracoes = useMemo(() => listarCalibracoes(tag).filter(ehOficial), [tag]);
-  const prontuario = useMemo(() => carregarProntuario(tag), [tag]);
   // Fase 6.3 · o que o Portal ABRE: o arquivo da emissão vigente (gerada ou
-  // anexada) quando existe; o caminho legado só sem emissão nenhuma.
+  // anexada). Sem ela, "ainda não emitido" — rascunho nunca é remontado.
   const prontPortal = useMemo(() => prontuarioNoPortal(tag), [tag]);
   // PDF do prontuário original do fabricante (nr13_pront_fab_<TAG>) — não é template
   // HTML, então NÃO passa por abrirProntuario()/abrirRegistro(): abre o PDF direto.
@@ -280,31 +277,15 @@ export default function PortalAtivo() {
     });
   }
 
-  // Prontuário: registro único por equipamento (nr13_prontuario_<TAG>), independente
-  // do histórico de relatórios — mesmo fluxo de Prontuarios.tsx (a chave 'atual'
-  // antes de montar os iframes de /arquivos-prontuario/).
+  // Prontuário do equipamento: o documento OFICIAL vigente (ver `prontuarioNoPortal`).
   async function abrirProntuario() {
-    // EMITIDO: o ARQUIVO daquela emissão, pelos mesmos bytes (§7-quater). Nada
-    // é montado, materializado nem regravado — nem com os dados de hoje.
-    if (prontPortal?.tipo === 'arquivo') {
-      setDocumentoSimples({ titulo: prontPortal.titulo, paginas: [], artefato: prontPortal.artefato });
-      return;
-    }
-    // Emissão sem arquivo: indisponível, NUNCA uma remontagem no lugar dela.
-    if (prontPortal?.tipo !== 'legado' || !prontuario) return;
-    // Materializa SÓ no localStorage: no Portal os templates leem de lá
-    // (portalService), e `salvar()` enfileiraria mutação — que o gate de
-    // escrita recusa para o papel cliente, derrubando a abertura (19/08/2026).
-    materializarProntuarioAtual(prontuario);
-    // Mesma lista do prontuário interno: caldeira e autoclave não têm croqui 2D,
-    // e o cliente não pode receber duas folhas a mais que o engenheiro não vê.
-    const folhas = paginasProntuario(info?.tipo ?? '');
-    const n = folhas.length;
-    setDocumentoSimples({
-      titulo: 'Prontuário',
-      paginas: folhas.map((doc, i) => `/arquivos-prontuario/${doc}?tag=${encodeURIComponent(tag)}&page=${i + 1}&total=${n}`),
-    });
+    // SÓ o prontuário OFICIAL abre — o ARQUIVO daquela emissão (gerada ou
+    // anexada), pelos mesmos bytes (§7-quater). Sem emissão não há o que abrir:
+    // rascunho não é documento, e nada é montado com os dados de hoje (Fase 6.3).
+    if (prontPortal.tipo !== 'arquivo') return;
+    setDocumentoSimples({ titulo: prontPortal.titulo, paginas: [], artefato: prontPortal.artefato });
   }
+
 
   function fecharVisualizador() {
     setRelatorioAberto(null);
@@ -556,52 +537,48 @@ export default function PortalAtivo() {
 
           {aba === 'prontuario' && (
             <div className="portal-aba-corpo">
-              {!prontPortal && !prontFabricante ? (
-                <p className="portal-hint">Nenhum prontuário elaborado para este equipamento ainda.</p>
-              ) : (
-                <ul className="portal-lista-docs">
-                  {prontPortal && (
-                    <li data-teste="portal-prontuario" data-origem={prontPortal.tipo}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <Icone nome="filetext" tam={18} style={{ color: '#1e3a8a' }} />
-                        <div>
-                          <b>{prontPortal.titulo}</b>
-                          <span className="portal-doc-meta">
-                            {prontPortal.tipo === 'arquivo' ? `${prontPortal.rotuloOrigem} · ` : ''}
-                            {prontPortal.descricao}
-                          </span>
-                        </div>
-                      </div>
-                      {prontPortal.tipo !== 'indisponivel' && (
-                        <button type="button" className="btn-primario" onClick={() => void abrirProntuario()}>
-                          Visualizar
-                        </button>
-                      )}
-                    </li>
+              <ul className="portal-lista-docs">
+                <li data-teste="portal-prontuario" data-origem={prontPortal.tipo}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <Icone nome="filetext" tam={18} style={{ color: '#1e3a8a' }} />
+                    <div>
+                      <b>{prontPortal.titulo}</b>
+                      <span className="portal-doc-meta">
+                        {prontPortal.tipo === 'arquivo' ? `${prontPortal.rotuloOrigem} · ` : ''}
+                        {prontPortal.descricao}
+                      </span>
+                    </div>
+                  </div>
+                  {/* Ação SÓ para o documento oficial: "ainda não emitido" e
+                      "indisponível" são estados, não documentos. */}
+                  {prontPortal.tipo === 'arquivo' && (
+                    <button type="button" className="btn-primario" onClick={() => void abrirProntuario()}>
+                      Visualizar
+                    </button>
                   )}
-                  {prontFabricante && (
-                    <li>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <Icone nome="filetext" tam={18} style={{ color: '#1e3a8a' }} />
-                        <div>
-                          <b>Prontuário do Fabricante</b>
-                          <span className="portal-doc-meta">
-                            {prontFabricante.nome} — {formatarTamanhoPdf(prontFabricante.tamanho)} — enviado em{' '}
-                            {formatarDataEnvio(prontFabricante.enviadoEm)}
-                          </span>
-                        </div>
+                </li>
+                {prontFabricante && (
+                  <li>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <Icone nome="filetext" tam={18} style={{ color: '#1e3a8a' }} />
+                      <div>
+                        <b>Prontuário do Fabricante</b>
+                        <span className="portal-doc-meta">
+                          {prontFabricante.nome} — {formatarTamanhoPdf(prontFabricante.tamanho)} — enviado em{' '}
+                          {formatarDataEnvio(prontFabricante.enviadoEm)}
+                        </span>
                       </div>
-                      <button
-                        type="button"
-                        className="btn-primario"
-                        onClick={() => void abrirProntuarioFabricante(prontFabricante)}
-                      >
-                        Visualizar
-                      </button>
-                    </li>
-                  )}
-                </ul>
-              )}
+                    </div>
+                    <button
+                      type="button"
+                      className="btn-primario"
+                      onClick={() => void abrirProntuarioFabricante(prontFabricante)}
+                    >
+                      Visualizar
+                    </button>
+                  </li>
+                )}
+              </ul>
             </div>
           )}
 

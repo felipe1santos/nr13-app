@@ -75,8 +75,8 @@ describe('paridade de prefixos entre o app e a Edge do Portal', () => {
       'nr13_livro_',
       'nr13_med_esp_',
       'nr13_med_grid_',
-      'nr13_prontuario_',
-      'nr13_prontuario_meta_',
+      // Fase 6.3 · `nr13_prontuario_` e `nr13_prontuario_meta_` saíram DE PROPÓSITO
+      // (FORA_DO_PORTAL): eram só insumo da remontagem do rascunho.
     ];
     const buscadas = new Set(PREFIXOS_POR_TAG.map((p) => `${p}${TAG}`));
     const perdidas = reaisPorTag.map((p) => `${p}${TAG}`).filter((k) => !buscadas.has(k));

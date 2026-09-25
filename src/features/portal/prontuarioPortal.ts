@@ -1,7 +1,6 @@
 import { artefatoDe, type PdfArtefato } from '../relatorios/artefatoRelatorio';
 import { listarEmissoes, ehAnexado, type EmissaoProntuario } from '../prontuarios/emissaoProntuario';
 import { resolverProntuarioVigente, ROTULO_ORIGEM } from '../prontuarios/prontuarioVigente';
-import { carregarProntuario } from '../prontuarios/prontuarioService';
 
 /**
  * Fase 6.3 · o PRONTUÁRIO no Portal do Cliente.
@@ -26,9 +25,10 @@ import { carregarProntuario } from '../prontuarios/prontuarioService';
  * O PDF do FABRICANTE (`nr13_pront_fab_<TAG>`) é documento legado e continua
  * no seu próprio item do Portal — não é promovido a prontuário aqui.
  *
- * Sem emissão nenhuma, o prontuário legado (só o formulário) segue o caminho
- * antigo: não há arquivo para servir, e gerar um agora seria carimbar dados de
- * hoje como "o documento". Classificado à parte (ver docs da 6.3).
+ * SEM emissão/anexo vigente (decisão do dono, 25/09/2026 — Opção B): estado
+ * "Prontuário ainda não emitido", sem botão. Rascunho NÃO é documento: nada é
+ * remontado, e a Edge nem entrega mais `nr13_prontuario_<TAG>` ao cliente — por
+ * isso o estado não distingue "tem rascunho" de "nunca começou" (e não vaza isso).
  */
 export type ProntuarioNoPortal =
   | {
@@ -42,10 +42,10 @@ export type ProntuarioNoPortal =
       descricao: string;
       nomeArquivo: string;
     }
-  | { tipo: 'legado'; titulo: string; descricao: string }
+  /** Sem prontuário oficial: estado explícito, sem ação. */
+  | { tipo: 'naoEmitido'; titulo: string; descricao: string }
   /** Há emissão, mas sem arquivo referenciado: nunca remontar no lugar dela. */
-  | { tipo: 'indisponivel'; titulo: string; descricao: string }
-  | null;
+  | { tipo: 'indisponivel'; titulo: string; descricao: string };
 
 const dataBr = (iso: string | null | undefined) => {
   if (!iso) return null;
@@ -83,9 +83,5 @@ export function prontuarioNoPortal(tag: string): ProntuarioNoPortal {
       descricao: 'O arquivo desta emissão não está disponível. Fale com a empresa responsável.',
     };
   }
-  const legado = carregarProntuario(tag);
-  if (legado) {
-    return { tipo: 'legado', titulo: 'Prontuário do Equipamento', descricao: `Atualizado em ${legado.criadoEm}` };
-  }
-  return null;
+  return { tipo: 'naoEmitido', titulo: 'Prontuário do Equipamento', descricao: 'Prontuário ainda não emitido.' };
 }

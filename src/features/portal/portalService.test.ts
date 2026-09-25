@@ -141,6 +141,8 @@ describe('paridade de resultado — nada que o cliente via pode sumir', () => {
     const excluidosDePropostio = new Set([
       'nr13_historico_relatorios', // legado global; migração concluída (baseline 16/08)
       'nr13_rel_REL-1787152599432_' + TAG, // registro completo → sob demanda
+      'nr13_prontuario_' + TAG, // Fase 6.3 · rascunho do prontuário: o Portal não o remonta mais
+      'nr13_prontuario_meta_' + TAG, // idem
     ]);
 
     const sumiram = [...antigo].filter((k) => !novo.has(k) && !excluidosDePropostio.has(k));

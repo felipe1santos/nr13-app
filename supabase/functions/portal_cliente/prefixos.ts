@@ -29,7 +29,6 @@
  * caro (folha silenciosamente vazia).
  */
 export const PREFIXOS_POR_TAG: string[] = [
-  'nr13_assinantes_pront_',
   'nr13_assinantes_rel_',
   'nr13_autoclave_dados_',
   'nr13_calc_',
@@ -61,8 +60,6 @@ export const PREFIXOS_POR_TAG: string[] = [
   // de remontar as folhas com os dados de hoje. Registro leve — só metadados.
   'nr13_pront_emitido_',
   'nr13_pront_fab_',
-  'nr13_prontuario_',
-  'nr13_prontuario_meta_',
   'nr13_termo_livro_',
   'nr13_vaso_',
   'nr13_vaso_ac_corpo_',
@@ -103,6 +100,19 @@ export const FORA_DO_PORTAL: string[] = [
 
   // (Fase 6.3 · `nr13_pront_emitido_` SAIU daqui: o Portal passou a servir o
   // PDF do prontuário emitido/anexado. Ver PREFIXOS_POR_TAG.)
+
+  // Fase 6.3 · o RASCUNHO do prontuário e o que só servia para remontá-lo.
+  //
+  // O Portal montava as folhas PRONT-*.html a partir destas três chaves — com os
+  // dados de HOJE, apresentando rascunho como documento. Decisão do dono
+  // (25/09/2026): sem emissão/anexo vigente, o cliente vê "Prontuário ainda não
+  // emitido" e NADA é remontado. Com emissão, o Portal serve o arquivo
+  // (`nr13_pront_emitido_` + portal_arquivo) e também não precisa delas.
+  // O único outro leitor é a PLACA.html do relatório LEGADO (sem pdfRef), caminho
+  // que já não abre para o papel cliente (P2-3 da Fase 6).
+  'nr13_prontuario_',
+  'nr13_prontuario_meta_',
+  'nr13_assinantes_pront_',
 
   // Fase 12B · a foto REAL da placa de identificação.
   //

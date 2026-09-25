@@ -123,15 +123,27 @@ describe('H · emissão sem arquivo NÃO vira remontagem', () => {
   });
 });
 
-describe('J · legado e fabricante', () => {
-  it('sem emissão nenhuma, o formulário legado segue o caminho antigo', () => {
-    expect(prontuarioNoPortal(TAG)?.tipo).toBe('legado');
+describe('C/D/E · sem prontuário oficial: "ainda não emitido", nada é remontado', () => {
+  it('C · só o rascunho → naoEmitido, sem artefato', () => {
+    const p = prontuarioNoPortal(TAG);
+    expect(p.tipo).toBe('naoEmitido');
+    expect(p.descricao).toBe('Prontuário ainda não emitido.');
+    expect('artefato' in p).toBe(false);
   });
 
-  it('o PDF do fabricante NÃO é promovido a prontuário (item próprio no Portal)', () => {
-    localStorage.clear();
+  it('D · rascunho + meta (nº e data) continua não emitido', () => {
+    g(`nr13_prontuario_meta_${TAG}`, { numero: 'REL-1', emissao: '01/09/2026' });
+    expect(prontuarioNoPortal(TAG).tipo).toBe('naoEmitido');
+  });
+
+  it('E · rascunho + PDF do fabricante: o legado NÃO vira oficial', () => {
     g(`nr13_pront_fab_${TAG}`, { nome: 'fab.pdf', pdfRef: ref('fab'), tamanho: 1, enviadoEm: '2026-01-01' });
-    expect(prontuarioNoPortal(TAG)).toBeNull();
+    expect(prontuarioNoPortal(TAG).tipo).toBe('naoEmitido');
+  });
+
+  it('nem o rascunho existir muda o estado (a Edge nem o entrega mais)', () => {
+    localStorage.clear();
+    expect(prontuarioNoPortal(TAG).tipo).toBe('naoEmitido');
   });
 });
 
@@ -143,28 +155,50 @@ describe('I · Portal read-only', () => {
     expect(retrato()).toEqual(antes);
     expect(upserts).toHaveLength(0);
   });
+});
 
-  it('a tela abre o ARTEFATO antes de qualquer materialização (e sem salvar)', () => {
-    const tela = readFileSync('src/pages/portal/PortalAtivo.tsx', 'utf8');
-    const corpo = tela.slice(tela.indexOf('async function abrirProntuario()'), tela.indexOf('function fecharVisualizador()'));
-    const iArquivo = corpo.indexOf("prontPortal?.tipo === 'arquivo'");
-    const iMaterializa = corpo.indexOf('materializarProntuarioAtual(');
-    expect(iArquivo).toBeGreaterThan(0);
-    expect(iMaterializa).toBeGreaterThan(iArquivo);
-    expect(corpo.slice(iArquivo, iMaterializa)).toContain('artefato: prontPortal.artefato');
-    expect(corpo.slice(iArquivo, iMaterializa)).toContain('return;');
-    // indisponível sai antes da remontagem
-    expect(corpo.slice(iArquivo, iMaterializa)).toContain("prontPortal?.tipo !== 'legado'");
+describe('J · a tela não tem mais caminho de remontagem', () => {
+  const tela = readFileSync('src/pages/portal/PortalAtivo.tsx', 'utf8');
+  const corpo = tela.slice(tela.indexOf('async function abrirProntuario()'), tela.indexOf('function fecharVisualizador()'));
+
+  it('abrirProntuario só abre o ARTEFATO oficial', () => {
+    expect(corpo).toContain("if (prontPortal.tipo !== 'arquivo') return;");
+    expect(corpo).toContain('artefato: prontPortal.artefato');
+    expect(corpo).not.toContain('materializarProntuarioAtual');
+    expect(corpo).not.toContain('arquivos-prontuario');
     // (o comentário cita "`salvar()`" entre crases; chamada de verdade não tem crase antes)
     expect(corpo).not.toMatch(/(^|[^`\w])salvar\s*\(/m);
   });
+
+  it('nenhuma folha PRONT-*.html nem o rascunho no Portal', () => {
+    expect(tela).not.toContain('/arquivos-prontuario/');
+    expect(tela).not.toContain('materializarProntuarioAtual');
+    expect(tela).not.toContain('carregarProntuario');
+    expect(tela).not.toContain('paginasProntuario');
+  });
+
+  it('o botão Visualizar do prontuário só existe para o documento oficial', () => {
+    const item = tela.slice(tela.indexOf('data-teste="portal-prontuario"'), tela.indexOf('{prontFabricante && ('));
+    expect(item).toContain("{prontPortal.tipo === 'arquivo' && (");
+    expect(item.match(/Visualizar/g)).toHaveLength(1);
+  });
 });
+
 
 describe('Edge · a lista de emissões chega ao Portal, sem as retiradas', () => {
   it('nr13_pront_emitido_ é buscada na carga inicial, e não está mais em FORA_DO_PORTAL', () => {
     expect(PREFIXOS_POR_TAG).toContain('nr13_pront_emitido_');
     expect(FORA_DO_PORTAL).not.toContain('nr13_pront_emitido_');
     expect(chavesDoCliente([TAG])).toContain(`nr13_pront_emitido_${TAG}`);
+  });
+
+  it('o RASCUNHO do prontuário não chega ao cliente (nem na carga, nem sob demanda)', () => {
+    for (const p of ['nr13_prontuario_', 'nr13_prontuario_meta_', 'nr13_assinantes_pront_']) {
+      expect(PREFIXOS_POR_TAG, p).not.toContain(p);
+      expect(FORA_DO_PORTAL, p).toContain(p);
+      expect(chavesDoCliente([TAG]), p).not.toContain(`${p}${TAG}`);
+      expect(chaveAutorizadaSobDemanda(`${p}${TAG}`, [TAG]), p).toBe(false);
+    }
   });
 
   it('G · só das TAGs do cliente: TAG alheia não é autorizada', () => {
