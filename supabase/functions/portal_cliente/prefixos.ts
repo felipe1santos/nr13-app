@@ -56,6 +56,10 @@ export const PREFIXOS_POR_TAG: string[] = [
   'nr13_med_grid_',
   'nr13_modelo3d_',
   'nr13_pref_unidade_',
+  // Fase 6.3 · as emissões do PRONTUÁRIO (gerado e anexado): o Portal serve o
+  // ARQUIVO da vigente (pdfRef + SHA; os bytes vêm pelo portal_arquivo), em vez
+  // de remontar as folhas com os dados de hoje. Registro leve — só metadados.
+  'nr13_pront_emitido_',
   'nr13_pront_fab_',
   'nr13_prontuario_',
   'nr13_prontuario_meta_',
@@ -97,17 +101,8 @@ export const FORA_DO_PORTAL: string[] = [
   // (`nr13_livro_rascunho_<TAG>`), fora de `nr13_livro_<TAG>`, que é o que o Portal lê.
   'nr13_livro_rascunho_',
 
-  // Fase 12A · emissões arquivadas do PRONTUÁRIO.
-  //
-  // Não é decisão de segurança: o prontuário emitido é documento do cliente e
-  // caberia bem no Portal. Fica de fora porque a tela do Portal ainda não sabe
-  // apresentá-lo — não há listagem, nem visualizador, nem lugar para a revisão.
-  // Servir a chave sem tela que a use só aumentaria o payload da carga inicial.
-  //
-  // Quando o Portal ganhar essa tela, mover para PREFIXOS_POR_TAG (ou para as
-  // buscadas sob demanda, que é o desenho certo: o registro traz pdfRef e SHA,
-  // e o arquivo em si vem pelo portal_arquivo).
-  'nr13_pront_emitido_',
+  // (Fase 6.3 · `nr13_pront_emitido_` SAIU daqui: o Portal passou a servir o
+  // PDF do prontuário emitido/anexado. Ver PREFIXOS_POR_TAG.)
 
   // Fase 12B · a foto REAL da placa de identificação.
   //

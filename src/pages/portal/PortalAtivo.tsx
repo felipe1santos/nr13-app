@@ -19,6 +19,7 @@ import type { FotoArmazenada } from '../../services/fotos';
 import { listarCalibracoes, arquivoCalibracao, hidratarItemLocal } from '../../features/calibracoes/calibracaoService';
 import { ehOficial, ehTerceiro, type DadosCalibracao } from '../../features/calibracoes/tipos';
 import { carregarProntuario, materializarProntuarioAtual } from '../../features/prontuarios/prontuarioService';
+import { prontuarioNoPortal } from '../../features/portal/prontuarioPortal';
 import {
   abrirProntuarioFabricante,
   formatarDataEnvio,
@@ -104,6 +105,9 @@ export default function PortalAtivo() {
   // O Portal mostra só o OFICIAL: rascunho não é documento para o cliente.
   const calibracoes = useMemo(() => listarCalibracoes(tag).filter(ehOficial), [tag]);
   const prontuario = useMemo(() => carregarProntuario(tag), [tag]);
+  // Fase 6.3 · o que o Portal ABRE: o arquivo da emissão vigente (gerada ou
+  // anexada) quando existe; o caminho legado só sem emissão nenhuma.
+  const prontPortal = useMemo(() => prontuarioNoPortal(tag), [tag]);
   // PDF do prontuário original do fabricante (nr13_pront_fab_<TAG>) — não é template
   // HTML, então NÃO passa por abrirProntuario()/abrirRegistro(): abre o PDF direto.
   const prontFabricante = useMemo(() => lerProntuarioFabricante(tag), [tag]);
@@ -280,7 +284,14 @@ export default function PortalAtivo() {
   // do histórico de relatórios — mesmo fluxo de Prontuarios.tsx (a chave 'atual'
   // antes de montar os iframes de /arquivos-prontuario/).
   async function abrirProntuario() {
-    if (!prontuario) return;
+    // EMITIDO: o ARQUIVO daquela emissão, pelos mesmos bytes (§7-quater). Nada
+    // é montado, materializado nem regravado — nem com os dados de hoje.
+    if (prontPortal?.tipo === 'arquivo') {
+      setDocumentoSimples({ titulo: prontPortal.titulo, paginas: [], artefato: prontPortal.artefato });
+      return;
+    }
+    // Emissão sem arquivo: indisponível, NUNCA uma remontagem no lugar dela.
+    if (prontPortal?.tipo !== 'legado' || !prontuario) return;
     // Materializa SÓ no localStorage: no Portal os templates leem de lá
     // (portalService), e `salvar()` enfileiraria mutação — que o gate de
     // escrita recusa para o papel cliente, derrubando a abertura (19/08/2026).
@@ -545,22 +556,27 @@ export default function PortalAtivo() {
 
           {aba === 'prontuario' && (
             <div className="portal-aba-corpo">
-              {!prontuario && !prontFabricante ? (
+              {!prontPortal && !prontFabricante ? (
                 <p className="portal-hint">Nenhum prontuário elaborado para este equipamento ainda.</p>
               ) : (
                 <ul className="portal-lista-docs">
-                  {prontuario && (
-                    <li>
+                  {prontPortal && (
+                    <li data-teste="portal-prontuario" data-origem={prontPortal.tipo}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <Icone nome="filetext" tam={18} style={{ color: '#1e3a8a' }} />
                         <div>
-                          <b>Prontuário do Equipamento</b>
-                          <span className="portal-doc-meta">Atualizado em {prontuario.criadoEm}</span>
+                          <b>{prontPortal.titulo}</b>
+                          <span className="portal-doc-meta">
+                            {prontPortal.tipo === 'arquivo' ? `${prontPortal.rotuloOrigem} · ` : ''}
+                            {prontPortal.descricao}
+                          </span>
                         </div>
                       </div>
-                      <button type="button" className="btn-primario" onClick={() => void abrirProntuario()}>
-                        Visualizar
-                      </button>
+                      {prontPortal.tipo !== 'indisponivel' && (
+                        <button type="button" className="btn-primario" onClick={() => void abrirProntuario()}>
+                          Visualizar
+                        </button>
+                      )}
                     </li>
                   )}
                   {prontFabricante && (

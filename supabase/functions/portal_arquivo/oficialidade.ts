@@ -33,6 +33,15 @@ export function relatorioEmRascunho(r: unknown): boolean {
   return !!r && typeof r === 'object' && (r as { status?: unknown }).status === 'Rascunho';
 }
 
+/**
+ * Emissão de prontuário que o Portal pode ver: existe e não foi retirada.
+ * Espelho de `removido` (`src/services/colecoes.ts`): `removidoEm` STRING = tombstone.
+ */
+export function emissaoVigentePortal(e: unknown): boolean {
+  if (!e || typeof e !== 'object' || Array.isArray(e)) return false;
+  return typeof (e as { removidoEm?: unknown }).removidoEm !== 'string';
+}
+
 function lerJson(valor: string): unknown {
   try {
     return JSON.parse(valor);
@@ -68,6 +77,15 @@ export function sanearParaPortal(chave: string, valor: string | null | undefined
     const r = lerJson(valor);
     if (!r || typeof r !== 'object' || Array.isArray(r)) return null;
     return relatorioEmRascunho(r) ? null : valor;
+  }
+
+  // Fase 6.3 · as emissões do prontuário: a que foi retirada (`removidoEm`) não
+  // é documento — não conta como vigente e não autoriza arquivo no portal_arquivo.
+  if (chave.startsWith('nr13_pront_emitido_')) {
+    const lista = lerJson(valor);
+    if (!Array.isArray(lista)) return null;
+    const vivas = lista.filter(emissaoVigentePortal);
+    return vivas.length === lista.length ? valor : JSON.stringify(vivas);
   }
 
   // O índice já nasce sem rascunho (Fase 10B.1); aqui é a segunda camada.
