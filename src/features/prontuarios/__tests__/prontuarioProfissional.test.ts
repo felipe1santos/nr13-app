@@ -148,7 +148,7 @@ describe('a prévia da tela é o documento', () => {
 
   it('imprimir sem emissão usa o MESMO gerador da emissão', () => {
     const trecho = pagina.slice(pagina.indexOf('async function prepararEImprimir'), pagina.indexOf('EMITIR: o prontuário vira ARQUIVO'));
-    expect(trecho).toContain('gerarProntuarioVetorial(tag, { espessura })');
+    expect(trecho).toContain('gerarProntuarioVetorial(tag, { espessura, assinantes })');
     expect(trecho).toContain('abrirPdfEmAba');
   });
 });

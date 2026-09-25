@@ -4,6 +4,7 @@ import { VisualizadorPdfBytes } from '../../components/VisualizadorPdf';
 import { textoDoErro } from '../../services/textoDoErro';
 import { gerarProntuarioVetorial } from '../relatorios/pdfVetorial/gerarProntuario';
 import type { EspessuraProntuario } from './espessuraProntuario';
+import type { AssinantesProntuario } from './prontuarioService';
 
 /**
  * A PRÉVIA do prontuário é o documento.
@@ -29,12 +30,15 @@ export default function PreviaProntuarioVetorial({
   versao,
   nomeArquivo,
   espessura,
+  assinantes,
 }: {
   tag: string;
   versao: number;
   nomeArquivo: string;
   /** A medição do container escolhido no formulário — entregue, não gravada (Fase 6.1). */
   espessura?: EspessuraProntuario;
+  /** Quem assina, como está na tela — entregue, não gravado (Fase 6.1). */
+  assinantes?: AssinantesProntuario;
 }) {
   const [bytes, setBytes] = useState<Uint8Array | null>(null);
   const [paginas, setPaginas] = useState(0);
@@ -46,7 +50,7 @@ export default function PreviaProntuarioVetorial({
     setGerando(true);
     setErro('');
     try {
-      const r = await gerarProntuarioVetorial(tag, { espessura });
+      const r = await gerarProntuarioVetorial(tag, { espessura, assinantes });
       setBytes(r.bytes);
       setPaginas(r.paginas);
       // Croqui que não converteu volta NOMEADO: o documento sai sem ele, e
@@ -57,7 +61,7 @@ export default function PreviaProntuarioVetorial({
     } finally {
       setGerando(false);
     }
-  }, [tag, espessura]);
+  }, [tag, espessura, assinantes]);
 
   useEffect(() => {
     void gerar();

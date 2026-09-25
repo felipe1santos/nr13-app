@@ -196,6 +196,7 @@ export default function Prontuarios() {
   // leem — sem template, materializar não serve a ninguém.
   const previaPront = previaProntuarioAtual(window.location.search);
   const [containers, setContainers] = useState<ContainerInspecao[]>([]);
+  const [assinantes, setAssinantes] = useState<AssinantesProntuario>({ engenheiroId: null, tecnicoId: null });
   /**
    * A medição de espessura do container escolhido NO FORMULÁRIO (salvo ou não)
    * — o contexto que o gerador RECEBE (Fase 6.1). Antes ela era gravada em
@@ -213,7 +214,15 @@ export default function Prontuarios() {
   const palco = usePalcoDocumento(tag, `pront-${tag}-${versao}`, {
     pular: previaPront === 'vetorial',
     sobrepor: tag
-      ? [...itensDoPalcoDaEspessura(tag, espessura), { chave: CHAVE_PRONTUARIO_ATUAL, valor: JSON.stringify(dados) }]
+      ? [
+          ...itensDoPalcoDaEspessura(tag, espessura),
+          { chave: CHAVE_PRONTUARIO_ATUAL, valor: JSON.stringify(dados) },
+          // A escolha da tela, salva ou não. Sem escolha nenhuma a chave fica como
+          // está no cache: ausente, a folha mantém o comportamento de sempre.
+          ...(assinantes.engenheiroId || assinantes.tecnicoId
+            ? [{ chave: `nr13_assinantes_pront_${tag}`, valor: JSON.stringify(assinantes) }]
+            : []),
+        ]
       : undefined,
   });
   /**
@@ -252,7 +261,6 @@ export default function Prontuarios() {
   const [visualizandoSemSalvar, setVisualizandoSemSalvar] = useState(false);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
-  const [assinantes, setAssinantes] = useState<AssinantesProntuario>({ engenheiroId: null, tecnicoId: null });
   const [imprimindo, setImprimindo] = useState(false);
   const [emitindo, setEmitindo] = useState(false);
   const [erroEmissao, setErroEmissao] = useState('');
@@ -299,7 +307,7 @@ export default function Prontuarios() {
       if (previaPront === 'vetorial') {
         // Sem arquivo emitido, o que se imprime é a PRÉ-VISUALIZAÇÃO — e ela
         // sai do mesmo gerador da emissão, não de uma rasterização da tela.
-        const r = await gerarProntuarioVetorial(tag, { espessura });
+        const r = await gerarProntuarioVetorial(tag, { espessura, assinantes });
         if (!abrirPdfEmAba(r.bytes)) {
           setErroEmissao('Não foi possível abrir a pré-visualização para impressão. Verifique o bloqueador de pop-ups.');
         }
@@ -332,9 +340,11 @@ export default function Prontuarios() {
       // Criada depois, prontuário sem meta saía com "—" no papel e um número no
       // registro da emissão.
       const meta = await obterOuCriarMeta(tag);
+      // Quem assina o PDF é quem fica gravado: a escolha da tela vira registro na emissão.
+      await persistirAssinantes();
       const r =
         motor === 'vetorial'
-          ? await gerarProntuarioVetorial(tag, { espessura })
+          ? await gerarProntuarioVetorial(tag, { espessura, assinantes })
           : await gerarPdfBytes('.prontuario-preview', { rastreabilidades: false });
       const artefato = await publicarArtefato(r.bytes, r.paginas);
       const emitida = await registrarEmissao(tag, {
@@ -441,26 +451,31 @@ export default function Prontuarios() {
   }, []);
 
   // Assinantes do prontuário (engenheiro + técnico): carrega a escolha salva da TAG e, por
-  // conveniência, pré-seleciona o engenheiro quando há exatamente 1 cadastrado (e persiste).
-  // O técnico NUNCA é pré-selecionado sozinho.
+  // conveniência, pré-seleciona o engenheiro quando há exatamente 1 cadastrado — SÓ EM
+  // MEMÓRIA (Fase 6.1): abrir a tela não grava nada. O técnico NUNCA é pré-selecionado sozinho.
+  // A escolha vai ENTREGUE ao gerador e é persistida nas ações: Salvar e Emitir.
   function carregarAssinantes(tagEq: string, funcs: Funcionario[]) {
     const a = obterAssinantes(tagEq);
     if (!a.engenheiroId) {
       const engs = funcs.filter((f) => f.tipo === 'Engenheiro');
-      if (engs.length === 1) {
-        a.engenheiroId = engs[0].id;
-        gravarAssinantes(tagEq, a);
-      }
+      if (engs.length === 1) a.engenheiroId = engs[0].id;
     }
     setAssinantes(a);
   }
 
-  // Grava a escolha ANTES do bump de versão — os iframes remontados leem a chave nova.
+  // Trocar no select é escolha de TELA: muda o documento (prévia e iframes, pelo bump de
+  // versão), não o servidor. Persiste em Salvar/Emitir.
   function trocarAssinante(campo: keyof AssinantesProntuario, id: string) {
     const novo: AssinantesProntuario = { ...assinantes, [campo]: id || null };
     setAssinantes(novo);
-    gravarAssinantes(tag, novo);
     setVersao((v) => v + 1);
+  }
+
+  /** Grava a escolha da tela — só nas ações (Salvar/Emitir), e só se mudou. */
+  async function persistirAssinantes() {
+    const gravada = obterAssinantes(tag);
+    if (gravada.engenheiroId === assinantes.engenheiroId && gravada.tecnicoId === assinantes.tecnicoId) return;
+    await gravarAssinantes(tag, assinantes);
   }
 
   /**
@@ -796,6 +811,7 @@ export default function Prontuarios() {
     setSalvando(true);
     try {
       await salvarProntuario(tag, dados);
+      await persistirAssinantes();
       const meta = await obterOuCriarMeta(tag);
       await registrarDocumento(
         docDeRascunho(tag, dados, meta.numero ?? null, undefined, ROTULO_TIPO[tipoEquip] ?? tipoEquip ?? null),
@@ -1482,8 +1498,8 @@ export default function Prontuarios() {
                 Eram dois selects largos numa faixa própria acima do documento,
                 sempre visíveis — e são escolhidos uma vez, não a cada abertura.
                 O resumo diz quem assina; o detalhe abre a um clique. Continuam
-                gravados em nr13_assinantes_pront_<TAG> antes do remount dos
-                iframes (as folhas leem a chave no motor de assinatura). */}
+                entregues ao gerador e, no rollback, aos iframes pelo palco; gravados
+                em nr13_assinantes_pront_<TAG> só em Salvar/Emitir (Fase 6.1). */}
             <details className="pront-assinantes-caixa">
               <summary>
                 <Icone nome="pencil" tam={13} /> Assinaturas
@@ -1555,6 +1571,7 @@ export default function Prontuarios() {
               versao={versao}
               nomeArquivo={`Prontuario_${tag}.pdf`}
               espessura={espessura}
+              assinantes={assinantes}
             />
           ) : (
           <div className="prontuario-preview">

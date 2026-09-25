@@ -232,6 +232,27 @@ describe('J · o responsável da capa é o engenheiro do PRONTUÁRIO', () => {
     expect(montarModeloProntuario(TAG).responsavel).toEqual({ nome: 'ENG DO PRONTUARIO', registro: 'CREA-111' });
   });
 
+  it('a escolha da TELA vai entregue e vence a gravada, sem gravar nada', () => {
+    semear(TAG);
+    localStorage.setItem('nr13_lista_phs', JSON.stringify(lista));
+    localStorage.setItem(`nr13_assinantes_pront_${TAG}`, JSON.stringify({ engenheiroId: 'eng-rel', tecnicoId: null }));
+    const antes = retrato();
+    const m = montarModeloProntuario(TAG, { assinantes: { engenheiroId: 'eng-pront', tecnicoId: null } });
+    expect(m.responsavel).toEqual({ nome: 'ENG DO PRONTUARIO', registro: 'CREA-111' });
+    expect(m.assinantes.map((a) => a.nome)).toEqual(['ENG DO PRONTUARIO']);
+    expect(retrato()).toEqual(antes);
+    expect(upserts).toHaveLength(0);
+  });
+
+  it('pré-seleção em memória, sem chave gravada: o PDF mostra o engenheiro', () => {
+    semear(TAG);
+    localStorage.setItem('nr13_lista_phs', JSON.stringify([lista[0]]));
+    expect(localStorage.getItem(`nr13_assinantes_pront_${TAG}`)).toBeNull();
+    const m = montarModeloProntuario(TAG, { assinantes: { engenheiroId: 'eng-pront', tecnicoId: null } });
+    expect(m.responsavel.nome).toBe('ENG DO PRONTUARIO');
+    expect(localStorage.getItem(`nr13_assinantes_pront_${TAG}`)).toBeNull();
+  });
+
   it('sem engenheiro escolhido: travessão, não o de outro documento', () => {
     semear(TAG);
     localStorage.setItem('nr13_lista_phs', JSON.stringify(lista));
@@ -308,19 +329,37 @@ describe('a página não tem mais caminho de escrita da medição', () => {
     }
   });
 
+  it('ABRIR/TROCAR não gravam assinante; só Salvar e Emitir persistem (Fase 6.1)', () => {
+    const corpo = (ini: string, fim: string) => pagina.slice(pagina.indexOf(ini), pagina.indexOf(fim, pagina.indexOf(ini) + ini.length));
+    const carregar = corpo('function carregarAssinantes(', 'function trocarAssinante(');
+    const trocar = corpo('function trocarAssinante(', 'async function persistirAssinantes(');
+    expect(carregar.length).toBeGreaterThan(100);
+    expect(carregar).not.toContain('gravarAssinantes');
+    expect(trocar).not.toContain('gravarAssinantes');
+    // A única gravação é a da ação.
+    expect(pagina.match(/gravarAssinantes\(/g)).toHaveLength(1);
+    expect(corpo('async function persistirAssinantes(', '\n  }\n')).toContain('gravarAssinantes(tag, assinantes)');
+    expect(corpo('async function salvar()', 'async function ')).toContain('await persistirAssinantes()');
+    const emitir = corpo('async function emitirProntuario()', 'async function abrirEmitido()');
+    const iPers = emitir.indexOf('await persistirAssinantes()');
+    expect(iPers).toBeGreaterThan(0);
+    expect(emitir.indexOf('gerarProntuarioVetorial(tag, { espessura, assinantes })')).toBeGreaterThan(iPers);
+  });
+
   it('EMITIR cria a meta ANTES de gerar: o número do papel é o do registro', () => {
     const i = pagina.indexOf('async function emitirProntuario()');
     const corpo = pagina.slice(i, pagina.indexOf('async function abrirEmitido()'));
     const iMeta = corpo.indexOf('obterOuCriarMeta(tag)');
-    const iGerar = corpo.indexOf('gerarProntuarioVetorial(tag, { espessura })');
+    const iGerar = corpo.indexOf('gerarProntuarioVetorial(tag, { espessura, assinantes })');
     expect(iMeta).toBeGreaterThan(0);
     expect(iGerar).toBeGreaterThan(iMeta);
     expect(corpo.match(/obterOuCriarMeta\(/g)).toHaveLength(1);
   });
 
-  it('prévia, impressão e emissão entregam a MESMA espessura', () => {
-    expect(pagina.match(/gerarProntuarioVetorial\(tag, \{ espessura \}\)/g)).toHaveLength(2);
+  it('prévia, impressão e emissão entregam a MESMA espessura e os MESMOS assinantes', () => {
+    expect(pagina.match(/gerarProntuarioVetorial\(tag, \{ espessura, assinantes \}\)/g)).toHaveLength(2);
     expect(pagina).toContain('espessura={espessura}');
+    expect(pagina).toContain('assinantes={assinantes}');
   });
 });
 

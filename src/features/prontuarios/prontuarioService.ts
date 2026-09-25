@@ -30,10 +30,8 @@ export function obterAssinantes(tag: string): AssinantesProntuario {
   };
 }
 
-export function gravarAssinantes(tag: string, a: AssinantesProntuario): void {
-  // salvar() grava o localStorage de forma síncrona antes de persistir remoto — os iframes
-  // remontados logo em seguida já leem o valor novo.
-  void salvar(chaveAssinantes(tag), a);
+export function gravarAssinantes(tag: string, a: AssinantesProntuario): Promise<void> {
+  return salvar(chaveAssinantes(tag), a);
 }
 
 export async function salvarProntuario(tag: string, dados: ProntuarioDados): Promise<void> {

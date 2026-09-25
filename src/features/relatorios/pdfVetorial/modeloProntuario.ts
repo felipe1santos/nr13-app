@@ -1,7 +1,7 @@
 import { ler } from '../../../services/storage';
 import { visiveis } from '../../../services/colecoes';
 import { linhasMemorial } from '../relatoriosService';
-import { obterAssinantes } from '../../prontuarios/prontuarioService';
+import { obterAssinantes, type AssinantesProntuario } from '../../prontuarios/prontuarioService';
 import type { ProntuarioDados } from '../../prontuarios/tipos';
 import { numeroBr, numeroDoStorage, pontosUltrassom, textoOu, type FotoModelo } from './modelo';
 import { FATORES_CONVERSAO, formatarValor, unidadeValida } from '../../../calc/unidades';
@@ -228,8 +228,7 @@ interface Funcionario {
  * assina todas, inspetor nenhuma. Mudar isso aqui faria o PDF divergir da
  * folha impressa — o mesmo dado, dois resultados.
  */
-function assinantesDe(tag: string, folhas: readonly string[]): AssinanteProntuario[] {
-  const escolha = obterAssinantes(tag);
+function assinantesDe(escolha: AssinantesProntuario, folhas: readonly string[]): AssinanteProntuario[] {
   const lista = visiveis(ler<Funcionario[]>('nr13_lista_phs') ?? []);
   const achar = (id: string | null) => (id ? lista.find((f) => f.id === id) : undefined);
 
@@ -275,6 +274,12 @@ export interface FontesProntuario {
    * (`espessuraDoContainer`). Ausente = a do prontuário SALVO da TAG.
    */
   espessura?: EspessuraProntuario;
+  /**
+   * Quem assina — a escolha da TELA, salva ou não (a pré-seleção do único
+   * engenheiro vive só em memória até Salvar/Emitir). Ausente = a gravada em
+   * `nr13_assinantes_pront_<TAG>`.
+   */
+  assinantes?: AssinantesProntuario;
 }
 
 /**
@@ -285,8 +290,8 @@ export interface FontesProntuario {
  * qualquer equipamento. A capa de um prontuário podia sair com o engenheiro do
  * relatório de outro vaso aberto antes (Fase 6, P2-5).
  */
-function responsavelDe(tag: string): { nome: string | null; registro: string | null } {
-  const id = obterAssinantes(tag).engenheiroId;
+function responsavelDe(escolha: AssinantesProntuario): { nome: string | null; registro: string | null } {
+  const id = escolha.engenheiroId;
   const f = id ? visiveis(ler<Funcionario[]>('nr13_lista_phs') ?? []).find((x) => x.id === id) : undefined;
   return { nome: txt(f?.nome), registro: txt(f?.crea ?? f?.registro) };
 }
@@ -355,6 +360,7 @@ export function montarModeloProntuario(tag: string, fontes: FontesProntuario = {
   // container do prontuário, entregue por quem chama.
   const espessura = fontes.espessura ?? espessuraDoProntuarioSalvo(tag);
   const medEsp = espessura.medEsp;
+  const escolhaAssinantes = fontes.assinantes ?? obterAssinantes(tag);
   const croqui = ler<{ longitudinal?: string; transversal?: string; detalheTampo?: string }>(`nr13_croqui2d_${tag}`) ?? {};
   const folhaDados = ler<Record<string, unknown>>(`nr13_folha_dados_${tag}`) ?? {};
   const fotos = ler<{ capa?: string; fotos?: { base64?: string; descricao?: string }[] }>(`nr13_fotos_${tag}`) ?? {};
@@ -470,7 +476,7 @@ export function montarModeloProntuario(tag: string, fontes: FontesProntuario = {
     unidadePressao: FATORES_CONVERSAO[unidade].labelPressao,
     // A capa do prontuário traz o responsável e a foto do equipamento, como a
     // do relatório. O responsável é o engenheiro que ASSINA este prontuário.
-    responsavel: responsavelDe(tag),
+    responsavel: responsavelDe(escolhaAssinantes),
     fotoCapa: txt(fotos.capa) ?? txt(fotos.fotos?.[0]?.base64),
     componentes: (calc.componentes ?? []).map((c) => ({
       nome: textoOu(txt(c.nome), 'Componente'),
@@ -528,7 +534,7 @@ export function montarModeloProntuario(tag: string, fontes: FontesProntuario = {
     dispositivos: txt(calc.dispositivos),
     atencao: txt(calc.atencao),
 
-    assinantes: assinantesDe(tag, folhas),
+    assinantes: assinantesDe(escolhaAssinantes, folhas),
     fotos: (fotos.fotos ?? [])
       .map((f) => ({ dataUrl: String(f.base64 ?? ''), descricao: String(f.descricao ?? '') }))
       .filter((f) => f.dataUrl.startsWith('data:image')),
