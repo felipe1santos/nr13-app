@@ -599,7 +599,7 @@ e a auto-injeção insere as folhas de fotos/termo nas posições indicadas.
 | 18 | ME | `ULTRASSOM.html` | medição de espessura |
 | 19 | TH | `TESTE-HIDROSTATICO.html` | gráfico do TH + dados do equipamento |
 | 20 | Fotos do TH | `TESTE-HIDROSTATICO-FOTOS.html` *(auto após TH)* | descrição breve + fotos do TH |
-| 21 | Registro Seg. | `LIVRO-REGISTRO.html` *(TERMO-ABERTURA auto antes, se 1ª inspeção)* | livro de registro |
+| 21 | Registro Seg. | `LIVRO-REGISTRO.html` *(TERMO-ABERTURA auto antes, se 1ª inspeção)* | livro de registro — no vetorial é a **seção 12** (12.1 termo, 12.2 registro; Fase 6.2) |
 | 22 | Calibrações | `CERTIFICADO-CAL-MANOMETRO.html` / `CERTIIFCADO-CAL-PSV.html` | injetado ao fim — seção "Calibrações" do Modal lista as **3 últimas** calibrações (lote = 1 item); marcar um LOTE injeta **todas** as folhas `?calibId=` dele + põe o lote na fila de vínculo (`vincularProximoRelatorio` → validades do histórico) + os PDFs dos certificados PADRÃO por tipo entram no export/impressão (ver `nr13_rastreab_`) |
 
 ### §7-bis — Motor de assinatura do RELATÓRIO (carimbo flutuante, 14/07/2026)
@@ -742,6 +742,18 @@ de origem. Falha em anexar volta NOMEADA em `falhasAnexo`.
 Folha de fotos só existe se houver foto: 0 → 0 folhas, 1–4 → 1, 5–8 → 2. Medições,
 paridade campo a campo e limitações em
 `docs/medicoes/2026-09-04-fase11-hardening.md`.
+
+> **LIVRO DE REGISTRO E TERMO DE ABERTURA SAEM NO VETORIAL (Fase 6.2, 25/09/2026).** Até aqui o
+> assistente oferecia o Livro (marcado por padrão) e o PDF o ignorava em silêncio: `FOLHA_DA_SECAO` não
+> tinha seção para `LIVRO-REGISTRO`, `TERMO-ABERTURA` nem `CAPA-LIVRO-REGISTRO`. Agora são a **seção 12**
+> (`pdfVetorial/livroRegistro.ts`), depois do parecer e antes dos anexos: **12.1 Termo de Abertura** (só
+> quando a composição o traz — `montarListaComTermoAbertura`, livro da TAG vazio, NR-13 13.4.1.9; o Termo
+> NÃO é selecionável) e **12.2 Registro de segurança desta inspeção** (a folha para colar no livro físico).
+> Mesmas fontes das outras seções — meta, laudo do parecer, ficha, assinantes congelados —; o modelo ganhou
+> só `livro` (`totalFolhas` de `nr13_livro_config_`, descrição, rascunho `nr13_termo_livro_`, quem assina o
+> termo). A capa do livro não vira segunda capa. Sem lista ("tudo" da bancada) o livro NÃO entra. Nada aqui
+> escreve no livro: o registro oficial segue manual (10B.2). Travado por `livroRegistroRelatorio.test.ts`.
+> Medição: `docs/medicoes/2026-09-25-fase62-livro-termo.md`.
 
 ### §7-ter — RELATÓRIO SALVO NÃO SE EDITA (05/08/2026)
 
