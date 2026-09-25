@@ -62,10 +62,14 @@ let seloEmCache: Promise<string | null> | null = null;
  * jsPDF só embute PNG e JPEG. Logo e rubrica podem ter chegado em WEBP (ou
  * outro formato do navegador): passam por um canvas, no tamanho natural, e
  * saem PNG — sem redimensionar (a proporção é lida dos bytes depois).
+ *
+ * `maxLado` só para o SELO (asset nosso): o arquivo tem 400 px de lado e é
+ * desenhado com ~8 mm — metade do PDF inteiro era ele. Logo e rubrica do
+ * cliente entram como foram enviadas.
  */
-async function paraImagemPdf(dataUrl: string | null | undefined): Promise<string | null> {
+async function paraImagemPdf(dataUrl: string | null | undefined, maxLado?: number): Promise<string | null> {
   if (!dataUrl || !dataUrl.startsWith('data:image')) return null;
-  if (/^data:image\/(png|jpe?g)[;,]/i.test(dataUrl)) return dataUrl;
+  if (!maxLado && /^data:image\/(png|jpe?g)[;,]/i.test(dataUrl)) return dataUrl;
   if (typeof document === 'undefined') return null;
   try {
     const img = await new Promise<HTMLImageElement>((res, rej) => {
@@ -75,11 +79,12 @@ async function paraImagemPdf(dataUrl: string | null | undefined): Promise<string
       i.src = dataUrl;
     });
     const c = document.createElement('canvas');
-    c.width = Math.max(1, img.naturalWidth);
-    c.height = Math.max(1, img.naturalHeight);
+    const escala = maxLado ? Math.min(1, maxLado / Math.max(img.naturalWidth, img.naturalHeight, 1)) : 1;
+    c.width = Math.max(1, Math.round(img.naturalWidth * escala));
+    c.height = Math.max(1, Math.round(img.naturalHeight * escala));
     const ctx = c.getContext('2d');
     if (!ctx) return null;
-    ctx.drawImage(img, 0, 0);
+    ctx.drawImage(img, 0, 0, c.width, c.height);
     return c.toDataURL('image/png');
   } catch {
     return null;
@@ -102,7 +107,8 @@ function seloInmetro(): Promise<string | null> {
       try {
         const resp = await fetch('/icon/imetro.webp');
         if (!resp.ok) return null;
-        return await paraImagemPdf(await blobParaDataUrl(await resp.blob()));
+        // 160 px em ~8 mm ≈ 500 dpi: nítido no zoom e na impressão.
+        return await paraImagemPdf(await blobParaDataUrl(await resp.blob()), 160);
       } catch {
         return null;
       }
