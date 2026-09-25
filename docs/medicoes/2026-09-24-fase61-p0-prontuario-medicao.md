@@ -117,3 +117,22 @@ ANTES de gerar o PDF (antes era depois do upload — sem meta prévia, o papel s
 
 Zero mutação técnica em M1–M3/M5 (grade, esp, `*_atual`, containers, ficha, outras TAGs): diff do servidor inteiro.
 Não há contador de uso no prontuário.
+
+## Microcorreção final · pré-seleção do engenheiro (`e2e389b`)
+
+A última gravação implícita da abertura: TAG sem engenheiro escolhido + 1 engenheiro cadastrado gravava
+`nr13_assinantes_pront_<TAG>`; trocar no select também gravava na hora. Agora a escolha vive no estado da tela,
+vai entregue ao gerador (`FontesProntuario.assinantes`) e ao palco (rollback), e é gravada só em **Salvar** e
+**Emitir** (antes do PDF). Seleção já gravada vence a pré-seleção.
+
+| caso | resultado (lab) |
+|---|---|
+| A abrir, sem seleção, 1 PH | UI e prévia com o PH; servidor idêntico, RPC 0, fila 0, chave ausente |
+| B fechar e reabrir | mesmo PH calculado; chave segue ausente |
+| C 2 PHs, trocar sem salvar | prévia refeita com o escolhido; servidor idêntico, RPC 0 |
+| D Salvar | grava `{"engenheiroId":"eng-e2e-2"}` |
+| F já gravado (2 PHs e 1 PH) | usa o gravado; servidor idêntico |
+| E Emitir | PDF e chave gravada com o mesmo engenheiro; nº do PDF = nº registrado |
+
+12/12. Regressões no bundle final: P0 76/76 (S5 agora conferido pelo SHA do arquivo — a TAG B ganhou emissão
+gerada), offline 1/1, meta 12/12, pré-seleção M5 servidor inalterado, calibração 0 POST.

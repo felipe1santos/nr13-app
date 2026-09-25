@@ -168,7 +168,7 @@ Tudo que o usuário salva pode ser fonte de injeção. Chaves por TAG do equipam
 | `nr13_relatorio_meta_atual` | Metadados do relatório em montagem | Gravado na geração |
 | `nr13_inspecao_atual` **e** `nr13_injecao_atual` | Dados de campo do container escolhido | Gravado na geração |
 | `nr13_prontuario_meta_<TAG>` | Nº do relatório (`REL-<timestamp>`) + data de emissão do prontuário; reusado entre reimpressões (`obterOuCriarMeta`) | Criado na AÇÃO: Visualizar (formulário), Salvar ou Emitir — nunca ao só abrir (Fase 6.1) |
-| `nr13_assinantes_pront_<TAG>` | Assinantes do prontuário (`{engenheiroId, tecnicoId}` de `nr13_lista_phs`) — lido por `pront-assinatura.js` nas 6 folhas | Selects Engenheiro/Técnico no visualizador do prontuário |
+| `nr13_assinantes_pront_<TAG>` | Assinantes do prontuário (`{engenheiroId, tecnicoId}` de `nr13_lista_phs`) — lido por `pront-assinatura.js` nas 6 folhas | Selects Engenheiro/Técnico no visualizador; GRAVADO só em Salvar/Emitir (Fase 6.1) |
 | `nr13_assinantes_rel_<TAG>` | Assinantes do relatório (`{engenheiroId, tecnicoId}`) — fallback LEGADO do `rel-assinatura.js` (fonte primária: snapshot `meta.assinantes`, ver §7-bis); espelhado em `meta.phNome/phCrea/tecnicoNome` | Selects no modal Configurações do Relatório |
 | `nr13_laudo_<TAG>` | Laudo da conclusão (`{apto, relatorioCodigo, atualizadoEm}`) — alimenta o selo APTO/INAPTO do livro de registro | Checkbox SIM/NÃO da CONCLUSAO.html |
 | `nr13_croqui3d_<TAG>` | **LEGADO** (render 3D removido em 11/07/2026): PNG antigo do croqui 3D; nenhum código grava mais — PRONT-ULTRASSOM só lê como fallback de dados antigos | — (só leitura de legado) |
@@ -845,8 +845,10 @@ Certificados de calibração ainda usam o fluxo antigo (ver PENDENCIAS.md).
 `obterOuCriarMeta(tag)` grava `nr13_prontuario_meta_<TAG>` (nº `REL-<timestamp>` + data de emissão, reusado
 entre reimpressões) nas AÇÕES que precisam do número: Visualizar (do formulário), Salvar e Emitir — nesta, ANTES
 de gerar o PDF, para o número do papel ser o do registro. Abrir a TAG NÃO cria a meta (Fase 6.1): criava-a até
-para equipamento sem prontuário. Sem meta, a prévia mostra "—". Única gravação que resta ao abrir: a
-pré-seleção do engenheiro (`nr13_assinantes_pront_<TAG>`) quando há exatamente 1 cadastrado e nenhum escolhido. O croqui vem direto de `nr13_croqui2d_<TAG>` — nada é regravado na abertura.
+para equipamento sem prontuário. Sem meta, a prévia mostra "—". **Abrir é 100% leitura:** a pré-seleção do
+engenheiro (exatamente 1 cadastrado e nenhum escolhido) e a troca no select vivem no estado da tela, vão ENTREGUES
+ao gerador (`FontesProntuario.assinantes`) e só são gravadas em `nr13_assinantes_pront_<TAG>` por Salvar ou Emitir
+(nesta, antes do PDF). Seleção já gravada vence a pré-seleção. O croqui vem direto de `nr13_croqui2d_<TAG>` — nada é regravado na abertura.
 
 > **ABRIR O PRONTUÁRIO NÃO GRAVA DADO TÉCNICO (Fase 6.1, 24/09/2026).** Abrir, pré-visualizar, imprimir e
 > baixar são LEITURA em relação a `nr13_med_grid_<TAG>` e `nr13_med_esp_<TAG>` — chaves do editor de medições
