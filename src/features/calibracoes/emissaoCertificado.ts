@@ -1,18 +1,16 @@
-import { PDFDocument } from 'pdf-lib';
 import { ler } from '../../services/storage';
-import { arquivoPendente, salvarArquivo, type RefFoto } from '../../services/fotos';
+import { arquivoPendente, baixarFoto, blobParaDataUrl, salvarArquivo, type RefFoto } from '../../services/fotos';
 import { baixarArtefato, sha256Hex } from '../relatorios/artefatoRelatorio';
-import { garantirFonteInterHost, aguardarRecursosIframe } from '../relatorios/printService';
+import { calibIdDoDocumento } from '../relatorios/pdfVetorial/hostCertificado';
 import {
-  calibIdDoDocumento,
-  comFolhaIsolada,
-  empresaTemLogo,
-  logoAusenteNaFolha,
-} from '../relatorios/pdfVetorial/hostCertificado';
-import { A4_PT, folhaParaJpeg } from '../relatorios/pdfVetorial/certificados';
-import { arquivoCalibracao, salvarCalibracao } from './calibracaoService';
+  gerarCertificadoCalibracaoPdf,
+  modeloCertificado,
+  type EmpresaCertificado,
+  type ImagensCertificado,
+} from '../relatorios/pdfVetorial/certificadoCalibracao';
+import { salvarCalibracao } from './calibracaoService';
 import { artefatoDaCalibracao } from './artefatoCalibracao';
-import { pendenciasEmissao, temRubrica } from './responsavelCalibracao';
+import { pendenciasEmissao } from './responsavelCalibracao';
 import { ehInterna, type DadosCalibracao, type DadosCalibracaoInterna } from './tipos';
 
 /**
@@ -23,10 +21,13 @@ import { ehInterna, type DadosCalibracao, type DadosCalibracaoInterna } from './
  * ## O fluxo
  *
  *   rascunho → revisão (a folha na tela) → EMITIR:
- *     1. monta a folha SOZINHA (host isolado, modo avulso — sem a meta de
- *        relatório nenhum) com o registro que será carimbado;
- *     2. confere que a logo e a rubrica chegaram à folha (sem isso, NÃO emite);
- *     3. rasteriza em UMA página A4 e gera o PDF (pdf-lib);
+ *     1. lê o registro que será carimbado (nada da meta de relatório nenhum);
+ *     2. resolve a logo e a rubrica (cofre → bucket); cadastro que TEM a
+ *        imagem e ela não veio = NÃO emite;
+ *     3. desenha o certificado em VETOR (Fase 7, `certificadoCalibracao.ts`):
+ *        texto real com Carlito, tabelas em linha; só logo, rubrica e selo
+ *        são imagem. Até 25/09/2026 era a folha HTML fotografada pelo
+ *        html2canvas numa página JPEG (~600 KB);
  *     4. SHA-256 dos bytes;
  *     5. grava no cofre local e sobe para `<org>/certificados-calibracao/<uuid>.pdf`
  *        (bucket privado `inspecao`, policy por organização — sem migration);
@@ -54,57 +55,120 @@ export class EmissaoRecusada extends Error {
   }
 }
 
-/** A imagem da rubrica chegou à folha? (o template marca `data-sem-rubrica` quando não) */
-function rubricaAusenteNaFolha(doc: Document | null | undefined, esperada: boolean): boolean {
-  if (!esperada) return false;
-  const img = doc?.getElementById('cal-resp-assinatura') as HTMLImageElement | null;
-  const src = img?.getAttribute('src') ?? '';
-  return !src.startsWith('data:');
+/** O selo do Inmetro da seção 5 (`/icon/imetro.webp`), convertido uma vez por sessão. */
+let seloEmCache: Promise<string | null> | null = null;
+
+/**
+ * jsPDF só embute PNG e JPEG. Logo e rubrica podem ter chegado em WEBP (ou
+ * outro formato do navegador): passam por um canvas, no tamanho natural, e
+ * saem PNG — sem redimensionar (a proporção é lida dos bytes depois).
+ */
+async function paraImagemPdf(dataUrl: string | null | undefined): Promise<string | null> {
+  if (!dataUrl || !dataUrl.startsWith('data:image')) return null;
+  if (/^data:image\/(png|jpe?g)[;,]/i.test(dataUrl)) return dataUrl;
+  if (typeof document === 'undefined') return null;
+  try {
+    const img = await new Promise<HTMLImageElement>((res, rej) => {
+      const i = new Image();
+      i.onload = () => res(i);
+      i.onerror = () => rej(new Error('imagem ilegível'));
+      i.src = dataUrl;
+    });
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, img.naturalWidth);
+    c.height = Math.max(1, img.naturalHeight);
+    const ctx = c.getContext('2d');
+    if (!ctx) return null;
+    ctx.drawImage(img, 0, 0);
+    return c.toDataURL('image/png');
+  } catch {
+    return null;
+  }
+}
+
+async function imagemDaRef(ref: RefFoto | null | undefined): Promise<string | null> {
+  if (!ref?.path) return null;
+  try {
+    const blob = await baixarFoto(ref);
+    return blob ? await paraImagemPdf(await blobParaDataUrl(blob)) : null;
+  } catch {
+    return null;
+  }
+}
+
+function seloInmetro(): Promise<string | null> {
+  if (!seloEmCache) {
+    seloEmCache = (async () => {
+      try {
+        const resp = await fetch('/icon/imetro.webp');
+        if (!resp.ok) return null;
+        return await paraImagemPdf(await blobParaDataUrl(await resp.blob()));
+      } catch {
+        return null;
+      }
+    })();
+    void seloEmCache.then((s) => {
+      if (!s) seloEmCache = null;
+    });
+  }
+  return seloEmCache;
+}
+
+type EmpresaComLogo = EmpresaCertificado & { logo?: string; logoRef?: RefFoto };
+
+/**
+ * As imagens do certificado e o que o cadastro PROMETE. Só lê: a empresa de
+ * `nr13_minha_empresa` (a mesma fonte da folha avulsa — nunca a meta de um
+ * relatório) e a rubrica congelada no `responsavel` do registro.
+ */
+export async function imagensDoCertificado(registro: DadosCalibracaoInterna): Promise<{
+  empresa: EmpresaComLogo | null;
+  imagens: ImagensCertificado;
+  esperaLogo: boolean;
+  esperaRubrica: boolean;
+}> {
+  const empresa = ler<EmpresaComLogo>('nr13_minha_empresa');
+  const esperaLogo = !!(empresa?.logo || empresa?.logoRef?.path);
+  const r = registro.responsavel;
+  const esperaRubrica = !!(r?.assinaturaRef?.path || (r?.assinatura ?? '').startsWith('data:'));
+  const [logo, rubrica, selo] = await Promise.all([
+    empresa?.logo ? paraImagemPdf(empresa.logo) : imagemDaRef(empresa?.logoRef),
+    r?.assinatura?.startsWith('data:') ? paraImagemPdf(r.assinatura) : imagemDaRef(r?.assinaturaRef),
+    seloInmetro(),
+  ]);
+  return { empresa, imagens: { logo, rubrica, selo }, esperaLogo, esperaRubrica };
 }
 
 /**
  * Os bytes do certificado, montados do REGISTRO dado. Não grava nada.
  *
- * `registro` já vem com `status: 'emitido'`: a folha não imprime a marca de
- * rascunho, e o que ela lê é exatamente o que vai ser gravado.
+ * `registro` já vem com `status: 'emitido'`: o documento não leva a marca de
+ * rascunho, e o que ele imprime é exatamente o que vai ser gravado.
  */
 export async function gerarPdfCertificado(
   registro: DadosCalibracaoInterna,
-  tag: string,
 ): Promise<{ bytes: Uint8Array; paginas: number }> {
-  const arquivo = arquivoCalibracao(registro);
-  if (!arquivo) throw new EmissaoRecusada(['Este instrumento não tem modelo de certificado interno.']);
-  const documento = `${arquivo}?calibId=${registro.id}`;
-  await garantirFonteInterHost();
-  const esperaLogo = empresaTemLogo();
-  const esperaRubrica = temRubrica(registro.responsavel);
+  if (!ehInterna(registro)) throw new EmissaoRecusada(['Este instrumento não tem modelo de certificado interno.']);
+  const { empresa, imagens, esperaLogo, esperaRubrica } = await imagensDoCertificado(registro);
+  const faltas: string[] = [];
+  if (esperaLogo && !imagens.logo) faltas.push('A logo da empresa não carregou.');
+  if (esperaRubrica && !imagens.rubrica) faltas.push('A assinatura do responsável não carregou.');
+  if (faltas.length) throw new EmissaoRecusada([...faltas, 'Nada foi emitido — tente de novo com conexão.']);
+  const r = await gerarCertificadoCalibracaoPdf(modeloCertificado(registro, empresa), imagens);
+  return { bytes: r.bytes, paginas: r.paginas };
+}
 
-  const jpg = await comFolhaIsolada(
-    documento,
-    tag,
-    async (alvo, docFolha) => {
-      await aguardarRecursosIframe(docFolha);
-      const faltas: string[] = [];
-      if (logoAusenteNaFolha(docFolha, esperaLogo)) faltas.push('A logo da empresa não carregou na folha.');
-      if (rubricaAusenteNaFolha(docFolha, esperaRubrica)) faltas.push('A assinatura do responsável não carregou na folha.');
-      if (faltas.length) throw new EmissaoRecusada([...faltas, 'Nada foi emitido — tente de novo com conexão.']);
-      return folhaParaJpeg(alvo);
-    },
-    { avulsa: true, sobrepor: { [`nr13_calibracao_item_${registro.id}`]: registro } },
-  );
-
-  const pdf = await PDFDocument.create();
-  pdf.setTitle(`Certificado de calibração ${registro.numeroCertificado}`);
-  pdf.setProducer('NR-13');
-  pdf.setCreator('NR-13');
-  // Datas fixas no PDF: o hash depende só da imagem da folha e do registro.
-  const quando = new Date(0);
-  pdf.setCreationDate(quando);
-  pdf.setModificationDate(quando);
-  const img = await pdf.embedJpg(jpg);
-  const pagina = pdf.addPage([A4_PT.largura, A4_PT.altura]);
-  pagina.drawImage(img, { x: 0, y: 0, width: A4_PT.largura, height: A4_PT.altura });
-  return { bytes: await pdf.save(), paginas: 1 };
+/**
+ * A PRÉVIA do rascunho: o MESMO desenho da emissão, com a marca "RASCUNHO —
+ * NÃO EMITIDO". Leitura pura — não grava registro, não publica arquivo e não
+ * toca `nr13_relatorio_meta_atual`, `nr13_inspecao_atual` nem
+ * `nr13_injecao_atual` (é o que a folha HTML no palco fazia). Imagem que não
+ * veio sai em branco: é prévia, e o aviso de falta fica para a emissão.
+ */
+export async function gerarPreviaCertificado(cal: DadosCalibracaoInterna): Promise<{ bytes: Uint8Array; paginas: number }> {
+  const { empresa, imagens } = await imagensDoCertificado(cal);
+  const r = await gerarCertificadoCalibracaoPdf(modeloCertificado(cal, empresa), imagens);
+  return { bytes: r.bytes, paginas: r.paginas };
 }
 
 /**
@@ -124,7 +188,7 @@ export async function emitirCertificado(tag: string, cal: DadosCalibracao): Prom
     dataEmissao: new Date().toLocaleDateString('pt-BR'),
   };
   delete (aEmitir as { emissao?: unknown }).emissao;
-  const { bytes, paginas } = await gerarPdfCertificado(aEmitir, tag);
+  const { bytes, paginas } = await gerarPdfCertificado(aEmitir);
   const sha256 = await sha256Hex(bytes);
   const blob = new Blob([bytes.slice().buffer as ArrayBuffer], { type: 'application/pdf' });
   const pdfRef = await salvarArquivo(blob, ESCOPO_CERTIFICADOS, 'pdf', 'application/pdf');

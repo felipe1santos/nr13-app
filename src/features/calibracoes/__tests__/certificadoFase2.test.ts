@@ -1,5 +1,17 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { pngSintetico } from '../../relatorios/pdfVetorial/pngSintetico.testutil';
+
+// Fontes do PDF vetorial (Carlito) lidas de `public/`; o resto (selo) não existe aqui.
+beforeAll(() => {
+  vi.stubGlobal('fetch', async (url: string) => {
+    const caminho = resolve(process.cwd(), 'public', String(url).replace(/^\//, ''));
+    if (!String(url).startsWith('/fontes/')) return { ok: false, status: 404 };
+    const buf = readFileSync(caminho);
+    return { ok: true, status: 200, arrayBuffer: async () => buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) };
+  });
+});
 
 /**
  * Revisão do engenheiro, fase 2 — C.2 (responsável/assinatura), C.3 (emissão
@@ -31,47 +43,26 @@ vi.mock('../../../services/fotos', () => ({
   },
   arquivoPendente: async () => pendenteNoCofre,
   baixarFoto: async (ref: { path: string }) => {
+    const img = imagens.get(ref.path);
+    if (img) return img === 'indisponivel' ? null : new Blob([Buffer.from(img.split(',')[1], 'base64')], { type: 'image/png' });
     const b = bucket.get(ref.path);
     return b ? new Blob([b.slice().buffer as ArrayBuffer], { type: 'application/pdf' }) : null;
   },
+  blobParaDataUrl: async (b: Blob) => `data:${b.type};base64,${Buffer.from(await b.arrayBuffer()).toString('base64')}`,
   montarPath: (org: string, escopo: string, ext: string) => `${org}/${escopo}/x.${ext}`,
 }));
 
-// ── a folha montada: um documento de mentira com logo e rubrica ─────────────
-/** JPEG 1×1 válido — o pdf-lib precisa de um JPEG de verdade para embutir. */
-const JPEG_1PX =
-  'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/9oACAEBAAA/APn+iiigD//Z';
-let folha = { logo: 'data:image/png;base64,LOGO', rubrica: 'data:image/png;base64,RUB' as string | null };
-const opcoesHost: unknown[] = [];
-vi.mock('../../relatorios/pdfVetorial/hostCertificado', async (original) => {
-  const real = await original<typeof import('../../relatorios/pdfVetorial/hostCertificado')>();
-  return {
-    ...real,
-    empresaTemLogo: () => true,
-    comFolhaIsolada: async (
-      _doc: string,
-      _tag: string,
-      usar: (a: unknown, d: unknown) => Promise<unknown>,
-      opcoes: unknown,
-    ) => {
-      opcoesHost.push(opcoes);
-      const doc = {
-        getElementById: (id: string) => ({
-          getAttribute: () => (id === 'imgLogo' ? folha.logo : id === 'cal-resp-assinatura' ? folha.rubrica : null),
-        }),
-      };
-      return usar({}, doc);
-    },
-  };
-});
-vi.mock('../../relatorios/pdfVetorial/certificados', () => ({
-  A4_PT: { largura: 595.28, altura: 841.89 },
-  folhaParaJpeg: async () => JPEG_1PX,
-}));
-vi.mock('../../relatorios/printService', () => ({
-  garantirFonteInterHost: async () => {},
-  aguardarRecursosIframe: async () => {},
-}));
+// ── as imagens do cofre (logo e rubrica) — PNG sintético; 'indisponivel' = não baixa ──
+// Fase 7 · a emissão não monta mais folha HTML: desenha em vetor e resolve a
+// logo e a rubrica pelo cofre/bucket (`baixarFoto`).
+const imagens = new Map<string, string>();
+const LOGO_PNG = pngSintetico(120, 40, 3);
+const RUB_PNG = pngSintetico(90, 30, 5);
+function imagensPadrao() {
+  imagens.clear();
+  imagens.set('org-1/logos/l1.png', LOGO_PNG);
+  imagens.set('org-1/assinaturas/abc.png', RUB_PNG);
+}
 
 import { sha256Hex } from '../../relatorios/artefatoRelatorio';
 import {
@@ -88,6 +79,17 @@ import { montarTerceiro, faltasTerceiro } from '../terceiro';
 import { artefatoDaCalibracao } from '../artefatoCalibracao';
 import type { DadosManometro, DadosTerceiro } from '../tipos';
 import type { Funcionario } from '../../cadastros/tipos';
+
+async function textoDoPdf(bytes: Uint8Array): Promise<string> {
+  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const doc = await pdfjs.getDocument({ data: bytes.slice(), useSystemFonts: true, verbosity: 0 }).promise;
+  let out = '';
+  for (let i = 1; i <= doc.numPages; i++) {
+    const t = await (await doc.getPage(i)).getTextContent();
+    out += t.items.map((x) => ('str' in x ? x.str : '')).join(' ') + ' ';
+  }
+  return out;
+}
 
 const TAG = 'ZZ-CAL';
 const REF_RUBRICA = { bucket: 'inspecao', path: 'org-1/assinaturas/abc.png', mimeType: 'image/png', tamanho: 10 };
@@ -145,9 +147,8 @@ function manometro(over: Partial<DadosManometro> = {}): DadosManometro {
 beforeEach(() => {
   banco.clear();
   bucket.clear();
-  opcoesHost.length = 0;
   pendenteNoCofre = false;
-  folha = { logo: 'data:image/png;base64,LOGO', rubrica: 'data:image/png;base64,RUB' };
+  imagensPadrao();
   banco.set('nr13_minha_empresa', {
     razao: 'Empresa ZZ',
     logoRef: { bucket: 'inspecao', path: 'org-1/logos/l1.png', mimeType: 'image/png', tamanho: 5 },
@@ -227,14 +228,17 @@ describe('C.3 · emissão imutável', () => {
     expect((banco.get(`nr13_calibracoes_${TAG}`) as DadosManometro[])[0].emissao?.sha256).toBe(emitido.emissao!.sha256);
   });
 
-  it('a folha da emissão é montada AVULSA, com o registro exato sobreposto', async () => {
+  it('a emissão imprime o REGISTRO carimbado — nunca a meta de outro relatório', async () => {
     const cal = manometro();
     await salvarCalibracao(TAG, cal);
-    await emitirCertificado(TAG, cal);
-    const op = opcoesHost[0] as { avulsa: boolean; sobrepor: Record<string, DadosManometro> };
-    expect(op.avulsa).toBe(true);
-    expect(op.sobrepor[`nr13_calibracao_item_${cal.id}`].status).toBe('emitido');
-    expect(op.sobrepor[`nr13_calibracao_item_${cal.id}`].responsavel?.nome).toBe('Eng. Ana Souza');
+    // Uma meta de relatório de OUTRO documento na mesma aba: não pode vazar.
+    banco.set('nr13_relatorio_meta_atual', { empresa: { razao: 'EMPRESA DE OUTRO RELATORIO' }, certCalibracoes: { [cal.id]: { ...cal, fabricante: 'OUTRO' } } });
+    const emitido = await emitirCertificado(TAG, cal);
+    const texto = await textoDoPdf(bucket.get(emitido.emissao!.pdfRef.path)!);
+    expect(texto).toContain('Wika');
+    expect(texto).toContain('Eng. Ana Souza');
+    expect(texto).not.toContain('OUTRO');
+    expect(texto).not.toContain('RASCUNHO');
   });
 
   it('depois de emitido: editar e excluir são RECUSADOS', async () => {
@@ -259,7 +263,7 @@ describe('C.3 · emissão imutável', () => {
       razao: 'Empresa ZZ',
       logoRef: { bucket: 'inspecao', path: 'org-1/logos/NOVA.png', mimeType: 'image/png', tamanho: 5 },
     });
-    folha.logo = 'data:image/png;base64,LOGO-NOVA';
+    imagens.set('org-1/logos/NOVA.png', pngSintetico(50, 50, 9));
 
     const depois = await bytesArquivadosDaFolha(`CERTIFICADO-CAL-MANOMETRO.html?calibId=${cal.id}`);
     expect(await sha256Hex(depois!)).toBe(await sha256Hex(antes!));
@@ -274,7 +278,7 @@ describe('C.3 · emissão imutável', () => {
     await salvarCalibracao(TAG, cal);
     const emitido = await emitirCertificado(TAG, cal);
     banco.set('nr13_lista_phs', [{ ...ENG, assinaturaRef: { ...REF_RUBRICA, path: 'org-1/assinaturas/NOVA.png' } }]);
-    folha.rubrica = 'data:image/png;base64,RUB-NOVA';
+    imagens.set('org-1/assinaturas/NOVA.png', pngSintetico(50, 20, 11));
 
     const item = banco.get(`nr13_calibracao_item_${cal.id}`) as DadosManometro;
     expect(item.responsavel?.assinaturaRef?.path).toBe(REF_RUBRICA.path);
@@ -283,12 +287,13 @@ describe('C.3 · emissão imutável', () => {
     expect(await sha256Hex(bytes!)).toBe(emitido.emissao!.sha256);
   });
 
-  it('rubrica ou logo que não chegaram à folha: NÃO emite e não grava nada', async () => {
+  it('rubrica ou logo que não carregaram: NÃO emite e não grava nada', async () => {
     const cal = manometro();
     await salvarCalibracao(TAG, cal);
-    folha.rubrica = null;
+    imagens.set('org-1/assinaturas/abc.png', 'indisponivel');
     await expect(emitirCertificado(TAG, cal)).rejects.toBeInstanceOf(EmissaoRecusada);
-    folha = { logo: '', rubrica: 'data:image/png;base64,RUB' };
+    imagensPadrao();
+    imagens.set('org-1/logos/l1.png', 'indisponivel');
     await expect(emitirCertificado(TAG, cal)).rejects.toBeInstanceOf(EmissaoRecusada);
     expect(bucket.size).toBe(0);
     expect((banco.get(`nr13_calibracao_item_${cal.id}`) as DadosManometro).status).toBe('rascunho');

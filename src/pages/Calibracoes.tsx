@@ -57,6 +57,12 @@ import ModalEscolherComponente from '../features/calibracoes/ModalEscolherCompon
 import ModalHistoricoComponente from '../features/calibracoes/ModalHistoricoComponente';
 import ModalSelecionarEquipamento from '../features/relatorios/ModalSelecionarEquipamento';
 import VisualizadorCalibracao from '../features/calibracoes/VisualizadorCalibracao';
+import PreviaCertificado from '../features/calibracoes/PreviaCertificado';
+import {
+  baixarPreviaCertificado,
+  ehRascunhoInterno,
+  imprimirPreviaCertificado,
+} from '../features/calibracoes/acoesPreviaCertificado';
 // 9F.3 · a lista pela projeção e o contrato de semeadura da TAG.
 import CatalogoCalibracoesV9 from '../features/calibracoes/CatalogoCalibracoesV9';
 import {
@@ -147,7 +153,8 @@ export default function Calibracoes() {
   // visualizador: nas outras não há iframe e segurar a trava do palco à toa
   // impediria o relatório de abrir em seguida.
   const palco = usePalcoDocumento(tag, `cal-${calAtual?.id ?? 'nenhuma'}-${versao}`, {
-    pular: tela !== 'visualizador' || !!artefatoAtual || !arquivoAtual,
+    // Fase 7 · rascunho interno sai do gerador vetorial, sem palco.
+    pular: tela !== 'visualizador' || !!artefatoAtual || !arquivoAtual || ehRascunhoInterno(calAtual),
   });
   /**
    * 9F.3.5 · qual lista responde. Lido UMA vez, no primeiro render: trocar a
@@ -345,6 +352,11 @@ export default function Calibracoes() {
       /[^\w.-]+/g,
       '-',
     );
+    // Fase 7 · rascunho: os bytes da prévia vetorial (nada publicado).
+    if (ehRascunhoInterno(cal)) {
+      await baixarPreviaCertificado(cal);
+      return;
+    }
     await exportarPdf('.mlote-visor-folha, .cal-preview', nome);
   }
 
@@ -844,7 +856,11 @@ export default function Calibracoes() {
                   <button
                     type="button"
                     className={`btn-secundario${documentosBloqueados() ? ' btn-bloqueado' : ''}`}
-                    onClick={() => void imprimirRelatorio('.cal-preview')}
+                    onClick={() =>
+                      void (ehRascunhoInterno(calAtual)
+                        ? imprimirPreviaCertificado(calAtual)
+                        : imprimirRelatorio('.cal-preview'))
+                    }
                   >
                     {documentosBloqueados() && <Icone nome="cadeado" tam={13} />} Imprimir
                   </button>
@@ -934,6 +950,10 @@ export default function Calibracoes() {
           {artefatoAtual ? (
             <div className="cal-preview-arquivo">
               <VisualizadorPdf artefato={artefatoAtual} nomeArquivo={nomeArquivoCalibracao(calAtual)} />
+            </div>
+          ) : ehRascunhoInterno(calAtual) ? (
+            <div className="cal-preview-arquivo">
+              <PreviaCertificado key={`${calAtual.id}-${versao}`} cal={calAtual} />
             </div>
           ) : !arquivoAtual ? (
             <p className="cal-auto-aviso cal-auto-aviso-falta">

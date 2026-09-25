@@ -26,6 +26,8 @@ import RecusaPalco from '../../components/RecusaPalco';
 import { usePalcoDocumento } from '../documentos/usePalcoDocumento';
 import VisualizadorPdf from '../../components/VisualizadorPdf';
 import { arquivoCalibracao } from './calibracaoService';
+import PreviaCertificado from './PreviaCertificado';
+import { ehRascunhoInterno } from './acoesPreviaCertificado';
 import { artefatoDaCalibracao, nomeArquivoCalibracao } from './artefatoCalibracao';
 import { definicaoDe } from './instrumentos';
 import { fotoDoComponente, type ComponenteCal, type LoteCal } from './componentesService';
@@ -279,7 +281,9 @@ export function VisorCertificado({
   // Emitido ou de laboratório: o ARQUIVO — sem palco, sem template.
   const arte = artefatoDaCalibracao(cal);
   const arquivo = arquivoCalibracao(cal);
-  const palco = usePalcoDocumento(tag, cal.id, { pular: !!arte || !arquivo });
+  // Fase 7 · rascunho interno: a prévia vetorial (o mesmo gerador da emissão), sem palco.
+  const rascunho = ehRascunhoInterno(cal);
+  const palco = usePalcoDocumento(tag, cal.id, { pular: !!arte || !arquivo || rascunho });
 
   return (
     <div
@@ -303,6 +307,10 @@ export function VisorCertificado({
         {arte ? (
           <div className="mlote-visor-folha mlote-visor-arquivo">
             <VisualizadorPdf artefato={arte} nomeArquivo={nomeArquivoCalibracao(cal)} />
+          </div>
+        ) : rascunho ? (
+          <div className="mlote-visor-folha mlote-visor-arquivo">
+            <PreviaCertificado cal={cal} />
           </div>
         ) : !arquivo ? (
           <p className="mlote-vazio">Esta calibração não tem folha de certificado nem PDF anexado.</p>
