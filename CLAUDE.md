@@ -931,7 +931,13 @@ Um prontuário passa a entrar por dois caminhos, e os dois convivem no mesmo equ
   `nr13_pront_emitido_<TAG>` (`supabase/busca_manutencao.sql` + o backfill
   `supabase/prontuario_anexado_badge.sql`). Sem isso o catálogo escrevia "Sem Prontuário"
   sobre um equipamento cuja lista de `/prontuarios` mostra um documento.
-- **Portal não mudou:** `nr13_pront_emitido_` segue em `FORA_DO_PORTAL`.
+- **Portal serve o ARQUIVO (Fase 6.3, 25/09/2026):** `nr13_pront_emitido_` entrou na carga do Portal
+  (`PREFIXOS_POR_TAG`; `sanearParaPortal` tira as retiradas). O vigente — gerado OU anexado, pela mesma
+  `resolverProntuarioVigente` — abre pelo `pdfRef` → `portal_arquivo` → os mesmos bytes (visualizar, baixar,
+  imprimir). Antes o Portal remontava as folhas `PRONT-*.html` com os dados de HOJE. Emissão sem arquivo =
+  indisponível, nunca remontagem. Sem emissão nenhuma, o formulário legado segue o caminho antigo (2 casos em
+  orgs com Portal, 25/09). O PDF do fabricante segue em item próprio. `features/portal/prontuarioPortal.ts`,
+  travado por `prontuarioNoPortal.test.ts`. Medição: `docs/medicoes/2026-09-25-fase63-portal-prontuario.md`.
 - **Fase 3 (23/09/2026) — cache miss não é ausência.** A lista da TAG vem de
   `carregarEmissoes` (cache → leitura DIRIGIDA de só aquela chave), e a duplicidade por SHA é
   decidida **antes** do upload: o mesmo PDF na mesma TAG devolve o registro existente com
