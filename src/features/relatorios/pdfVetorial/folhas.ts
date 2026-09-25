@@ -2427,6 +2427,12 @@ export function secoesDoRelatorio(
   push(tem.parecer, '9', 'Recomendações de segurança');
   push(tem.parecer, '10', 'Parecer técnico conclusivo');
   push(tem.parecer, '11', 'Data para a próxima inspeção');
+  // Fase 6.2 · o Livro só com a folha NA composição (o "sem lista, tudo" não o
+  // inclui — ver `secoesPresentes`). Os títulos são as chaves do mapa de
+  // páginas que `emitir` preenche.
+  push(tem.livro || tem.termoAbertura, '12', 'Livro de registro de segurança');
+  push(tem.termoAbertura, '12.1', 'Termo de abertura do livro');
+  push(tem.livro, '12.2', 'Registro de segurança desta inspeção');
   return s;
 }
 

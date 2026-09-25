@@ -141,18 +141,19 @@ describe('os achados da auditoria, travados como estão hoje', () => {
   });
 
   it('QUEM ASSINA O TERMO DO LIVRO tem destino, e ele é a folha do livro', () => {
-    // No Modelo Novo o Livro não é emitido (limitação declarada da Fase 11:
-    // "o Livro, os certificados e o termo de abertura não são tocados"), então
-    // a escolha não aparece no PDF vetorial. Ela não é inútil: fica congelada
-    // na meta e é a folha LIVRO-REGISTRO.html quem a lê.
+    // Até a Fase 6.2 o Modelo Novo não emitia o Livro, e esta escolha só
+    // chegava à folha LIVRO-REGISTRO.html (rollback). Agora a seção 12.2 do
+    // vetorial é assinada por quem ela indica, lida da meta congelada.
     expect(fonte('src/features/relatorios/relatoriosService.ts')).toContain(
       "assinanteTermoLivro: a.assinanteTermoLivro === 'tecnico' ? 'tecnico' : 'engenheiro',",
     );
     expect(fonte('public/arquivos-inspecao/LIVRO-REGISTRO.html')).toContain(
       'snap.assinanteTermoLivro',
     );
-    expect(fonte('src/features/relatorios/pdfVetorial/composicao.ts')).not.toContain(
-      'LIVRO-REGISTRO.HTML',
+    expect(fonte('src/features/relatorios/pdfVetorial/composicao.ts')).toContain("livro: ['LIVRO-REGISTRO.HTML']");
+    expect(fonte('src/features/relatorios/pdfVetorial/modelo.ts')).toContain('assinanteTermoLivro');
+    expect(fonte('src/features/relatorios/pdfVetorial/livroRegistro.ts')).toContain(
+      'porPapel(m, m.livro.assinanteTermo)',
     );
   });
 });

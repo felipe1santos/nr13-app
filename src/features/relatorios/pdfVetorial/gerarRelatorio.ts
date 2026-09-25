@@ -30,6 +30,7 @@ import {
 } from './folhas';
 import { medirFotos, montarModeloRelatorio, type FontesDoModelo, type FotoModelo, type ModeloRelatorio } from './modelo';
 import { baixarFoto, blobParaDataUrl } from '../../../services/fotos';
+import { TITULO_LIVRO, TITULO_REGISTRO, TITULO_TERMO, secaoLivroRegistro } from './livroRegistro';
 import { resolverPlacaReal } from '../placaIdentificacao';
 
 /**
@@ -48,8 +49,13 @@ import { resolverPlacaReal } from '../placaIdentificacao';
  * Desde 04/09/2026 este gerador é o PADRÃO das finalizações NOVAS
  * (`nr13_motor_pdf = vetorial`, gravado em produção). O raster
  * (`pdfService.gerarPdfBytes`) continua inteiro no bundle como rollback de um
- * passo. Nenhum PDF histórico é regenerado (§7-quater), e o Livro, os
- * certificados e o termo de abertura não são tocados.
+ * passo. Nenhum PDF histórico é regenerado (§7-quater), e os certificados
+ * entram preservados, como anexos.
+ *
+ * O Livro de Registro e o Termo de Abertura ficaram de fora até a Fase 6.2 — o
+ * assistente os oferecia e o PDF os ignorava em silêncio. Hoje são a seção 12
+ * (`livroRegistro.ts`), desenhada aqui, e NÃO escrevem no livro: o registro
+ * oficial continua sendo criado e trancado na tela do Livro (10B.2).
  */
 
 export interface ResultadoVetorial {
@@ -241,6 +247,17 @@ function emitir(
     marcar('Recomendações de segurança');
     marcar('Parecer técnico conclusivo');
     marcar('Data para a próxima inspeção');
+  }
+  // 12 · Fase 6.2 — o LIVRO DE REGISTRO DE SEGURANÇA, depois do parecer e antes
+  // dos anexos (calibrações, padrões): a ordem do §7 (21 · Registro Seg., 22 ·
+  // Calibrações). Só com a folha na composição — até aqui ela era ignorada.
+  if (tem.livro || tem.termoAbertura) {
+    const p = secaoLivroRegistro(doc, m, tem);
+    if (registrar) {
+      registrar.set(TITULO_LIVRO, (p.termo ?? p.registro)!);
+      if (p.termo) registrar.set(TITULO_TERMO, p.termo);
+      if (p.registro) registrar.set(TITULO_REGISTRO, p.registro);
+    }
   }
 }
 

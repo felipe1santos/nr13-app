@@ -431,6 +431,8 @@ export interface ModeloRelatorio {
    * do prontuário já as imprime; o do relatório as ignorava.
    */
   assinantes: {
+    /** Fase 6.2 · quem é quem — o Termo do Livro é assinado por UM dos dois. */
+    papel: 'engenheiro' | 'tecnico';
     nome: string;
     funcao: string;
     registro: string;
@@ -451,6 +453,25 @@ export interface ModeloRelatorio {
   relatorioImagens: {
     fotos: FotoDescrita[];
     desenho: { dataUrl: string; descricao: string; proporcao?: number }[];
+  };
+  /**
+   * Fase 6.2 · 12. LIVRO DE REGISTRO DE SEGURANÇA — só o que o resto do modelo
+   * ainda não tinha. Empresa proprietária, equipamento, pressões, laudo, datas
+   * e assinantes são os MESMOS campos das outras seções: a folha do livro não
+   * pode dizer uma coisa e o parecer, outra.
+   *
+   * - `totalFolhas`: `nr13_livro_config_<TAG>.totalFolhas` (padrão 50 — o do
+   *   `TERMO-ABERTURA.html`);
+   * - `termoRascunho`: `nr13_termo_livro_<TAG>`, o texto que a folha em iframe
+   *   deixava reescrever antes de salvar. Sem ele, o termo é o gerado;
+   * - `assinanteTermo`: "Quem assina o Termo do Livro de Registro"
+   *   (Configurações do Relatório), congelado na meta.
+   */
+  livro: {
+    totalFolhas: number;
+    descricaoEquipamento: string | null;
+    termoRascunho: string | null;
+    assinanteTermo: 'engenheiro' | 'tecnico';
   };
 }
 
@@ -1227,12 +1248,14 @@ export function montarModeloRelatorio(tag: string, fontes?: FontesDoModelo): Mod
     },
     assinantes: [
       {
+        papel: 'engenheiro' as const,
         nome: textoOu(meta?.assinantes?.engenheiro?.nome ?? meta?.phNome, ''),
         funcao: textoOu(meta?.assinantes?.engenheiro?.funcao, 'Engenheiro'),
         registro: textoOu(meta?.assinantes?.engenheiro?.crea ?? meta?.phCrea, ''),
         ...rubricaDe(meta?.assinantes?.engenheiro),
       },
       {
+        papel: 'tecnico' as const,
         nome: textoOu(meta?.assinantes?.tecnico?.nome ?? meta?.tecnicoNome, ''),
         funcao: textoOu(meta?.assinantes?.tecnico?.funcao, 'Inspetor'),
         registro: textoOu(meta?.assinantes?.tecnico?.crea, ''),
@@ -1244,6 +1267,25 @@ export function montarModeloRelatorio(tag: string, fontes?: FontesDoModelo): Mod
       fotos: normalizarFotos((inj.imagens as { fotos?: unknown } | undefined)?.fotos),
       desenho: [],
     },
+    livro: livroDoModelo(tag, info, meta),
+  };
+}
+
+/** Fase 6.2 · o que só a seção do Livro usa. Ver `ModeloRelatorio.livro`. */
+function livroDoModelo(tag: string, info: Record<string, unknown>, meta: RelatorioMeta | null): ModeloRelatorio['livro'] {
+  const config = ler<{ totalFolhas?: unknown }>(`nr13_livro_config_${tag}`) ?? {};
+  const folhas = Math.round(Number(config.totalFolhas));
+  const rascunho = ler<unknown>(`nr13_termo_livro_${tag}`);
+  // Congelado na meta (§7-bis); sem ele, a escolha viva — o mesmo recuo da folha
+  // `LIVRO-REGISTRO.html` (`resolverAssinanteTermo`).
+  const escolha =
+    (meta?.assinantes as { assinanteTermoLivro?: string } | undefined)?.assinanteTermoLivro ??
+    ler<{ assinanteTermoLivro?: string }>(`nr13_assinantes_rel_${tag}`)?.assinanteTermoLivro;
+  return {
+    totalFolhas: Number.isFinite(folhas) && folhas > 0 ? folhas : 50,
+    descricaoEquipamento: txt(info.descricao),
+    termoRascunho: typeof rascunho === 'string' && rascunho.trim() ? rascunho : null,
+    assinanteTermo: escolha === 'tecnico' ? 'tecnico' : 'engenheiro',
   };
 }
 

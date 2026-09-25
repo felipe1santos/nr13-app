@@ -67,15 +67,34 @@ export const FOLHA_DA_SECAO = {
   // Fase 5.2 · 8.4 — as fotos descritas do ensaio Relatório de Imagens.
   imagens: ['RELATORIO-IMAGENS.HTML'],
   parecer: ['CONCLUSAO.HTML'],
+  // Fase 6.2 · o LIVRO DE REGISTRO DE SEGURANÇA (seção 12). A folha do livro é
+  // escolhida no assistente; o TERMO DE ABERTURA (com a capa do livro) é
+  // auto-injetado por `montarListaComTermoAbertura` quando o livro da TAG
+  // ainda não tem entrada nenhuma (NR-13 13.4.1.9). Até aqui as três eram
+  // ignoradas em silêncio pelo vetorial: nenhuma chave desta tabela as casava.
+  livro: ['LIVRO-REGISTRO.HTML'],
+  termoAbertura: ['TERMO-ABERTURA.HTML', 'CAPA-LIVRO-REGISTRO.HTML'],
 } as const;
 
 export type SecaoRelatorio = keyof typeof FOLHA_DA_SECAO;
 
+/**
+ * Seções que só existem quando a folha está NA LISTA — a regra do vazio
+ * ("sem lista, tudo") não vale para elas.
+ *
+ * O Livro de Registro é outro documento legal, anexado ao relatório, e o Termo
+ * de Abertura depende da 1ª inspeção do livro. A bancada que pede "o layout
+ * inteiro" não está afirmando nem uma coisa nem outra.
+ */
+const SO_EXPLICITAS: ReadonlySet<SecaoRelatorio> = new Set<SecaoRelatorio>(['livro', 'termoAbertura']);
+
 /** Quais seções aquele relatório tem. */
 export function secoesPresentes(documentos?: string[]): Record<SecaoRelatorio, boolean> {
   const saida = {} as Record<SecaoRelatorio, boolean>;
+  const informada = !!documentos && documentos.length > 0;
   for (const chave of Object.keys(FOLHA_DA_SECAO) as SecaoRelatorio[]) {
-    saida[chave] = incluiFolha(documentos, ...FOLHA_DA_SECAO[chave]);
+    saida[chave] =
+      SO_EXPLICITAS.has(chave) && !informada ? false : incluiFolha(documentos, ...FOLHA_DA_SECAO[chave]);
   }
   return saida;
 }
