@@ -410,6 +410,14 @@ Medição do E2E: `docs/medicoes/2026-09-18-revisao-engenheiro-fase2.md`.
   carimba `status: 'emitido'` + `emissao{pdfRef, sha256, emitidoEm, pendente, logoRef,
   assinaturaRef}`. Sem responsável NÃO emite; sem imagem no cadastro sai nome/registro e nunca
   rubrica inventada. Registro sem `status` é LEGADO: abre pelo template, como sempre.
+  **Desde a Fase 7 (25/09/2026) a emissão é VETORIAL** (`pdfVetorial/certificadoCalibracao.ts`):
+  o mesmo conteúdo do template (`modeloCertificado` segue o script `calibId` campo a campo),
+  Carlito embutida, tabelas em linha, só logo/rubrica/selo raster (uma vez cada, sem esticar),
+  paginação com "Página X de Y" quando passa de uma folha — ~59 KB/pág contra ~615 KB/pág do
+  raster. A prévia do RASCUNHO usa o mesmo gerador com a marca d'água (`PreviaCertificado`,
+  sem palco, leitura pura). Emitido raster anterior continua sendo o seu arquivo; nada é
+  convertido. Travado por `certificadoCalibracao.test.ts` e `certificadoVetorialFase7.test.ts`.
+  Medição: `docs/medicoes/2026-09-25-fase7-certificado-vetorial.md`.
 - **EMITIDO NÃO SE REGERA.** Visualizar, baixar, imprimir, Portal e anexo ao relatório servem os
   bytes (`artefatoDaCalibracao`); o anexo copia as páginas com pdf-lib e confere o SHA
   (`bytesArquivadosDaFolha`) — arquivo ausente/divergente vira falha NOMEADA, nunca re-render.
@@ -737,7 +745,9 @@ documento afirmaria ensaios que o inspetor não selecionou.
 (`nr13_rastreab_`) entra com as páginas COPIADAS do PDF original pelo pdf-lib —
 a mesma `anexarRastreabilidades` do raster; a folha de calibração
 (`CERTIFICADO-CAL-*.html`) é rasterizada individualmente, porque não existe PDF
-de origem. Falha em anexar volta NOMEADA em `falhasAnexo`.
+de origem. Falha em anexar volta NOMEADA em `falhasAnexo`. (Fase 7: certificado
+interno EMITIDO entra pelos bytes arquivados — hoje vetoriais —; só a folha
+LEGADA, sem `status`, ainda é rasterizada aqui.)
 
 Folha de fotos só existe se houver foto: 0 → 0 folhas, 1–4 → 1, 5–8 → 2. Medições,
 paridade campo a campo e limitações em
