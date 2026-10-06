@@ -25,6 +25,7 @@ export default function ModalFinalizar({
   aoMudarNome,
   aoFechar,
   aoConfirmar,
+  aoResolver,
 }: {
   validacao: ResultadoValidacao;
   ocupado: boolean;
@@ -35,6 +36,12 @@ export default function ModalFinalizar({
   aoMudarNome?: (n: string) => void;
   aoFechar: () => void;
   aoConfirmar: () => void;
+  /**
+   * Leva ao painel que resolve a pendência. Sem ele o modal era um beco sem
+   * saída: listava o laudo como obrigatório, apontava uma folha que a prévia
+   * vetorial não monta e só oferecia "Voltar e revisar" (06/10/2026).
+   */
+  aoResolver?: (campo: string) => void;
 }) {
   const { obrigatorios, opcionais, podeFinalizar } = validacao;
 
@@ -103,6 +110,15 @@ export default function ModalFinalizar({
                 {obrigatorios.map((p) => (
                   <li key={p.campo}>
                     {p.texto} <span className="mf-onde">· {p.onde}</span>
+                    {aoResolver && p.campo === 'laudo' && !ocupado && (
+                      <button
+                        type="button"
+                        className="fj-btn fj-btn-primary mf-resolver"
+                        onClick={() => aoResolver(p.campo)}
+                      >
+                        Marcar laudo
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>

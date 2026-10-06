@@ -44,6 +44,7 @@
 .mf-secao ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
 .mf-secao li { font-size: 13px; line-height: 1.4; }
 .mf-onde { color: var(--muted, #7A8790); font-size: 11.5px; }
+.mf-resolver { display: block; margin-top: 8px; min-height: 36px; padding: 6px 14px; font-size: 13px; }
 
 .mf-bloqueia { border-left: 3px solid var(--crit, #D5453D); }
 .mf-bloqueia h3 { color: var(--crit, #D5453D); }

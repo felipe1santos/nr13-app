@@ -113,7 +113,7 @@ export function validarParaFinalizar(e: EntradaValidacao): ResultadoValidacao {
   // exigir a conclusão de um documento que não a imprime seria pedir para
   // preencher o que ninguém vai ler.
   if (tem(e.documentos, 'CONCLUSAO.html') && (!e.laudo || e.laudo.apto === undefined || e.laudo.apto === null)) {
-    obrigatorios.push({ campo: 'laudo', texto: 'Resultado da inspeção (APTO / INAPTO) não marcado', onde: 'Folha "Resultado da inspeção e laudo"' });
+    obrigatorios.push({ campo: 'laudo', texto: 'Resultado da inspeção (APTO / INAPTO) não marcado', onde: 'Botão "Laudo", na barra do documento' });
   }
 
   // Fase 5.2 · a seção 8.4 carrega a regra de emissão do Relatório de Imagens:

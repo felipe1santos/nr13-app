@@ -2002,6 +2002,12 @@ function RelatoriosLegado() {
           aoMudarNome={setNomeEscolhido}
           aoFechar={() => setValidacao(null)}
           aoConfirmar={() => void salvarHistorico()}
+          aoResolver={(campo) => {
+            // O laudo só se grava pelo painel: fecha a conferência e abre-o.
+            if (campo !== 'laudo') return;
+            setValidacao(null);
+            setModalLaudo(true);
+          }}
         />
       )}
 
