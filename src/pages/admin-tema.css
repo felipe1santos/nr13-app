@@ -977,3 +977,180 @@
 .admin-standalone[data-tema='claro'] .admin-tabela tr.lead-sel {
   background: rgba(22, 163, 74, 0.07);
 }
+
+/* ===========================================================================
+   ABA CLIENTES — LEGÍVEL E COMPACTA (06/10/2026)
+   ===========================================================================
+
+   Medido na tela: os quadros de ocupação eram um pastel de 4% sobre o fundo,
+   com rótulo cinza de 11px — "transparentes" no claro e manchas no escuro; as
+   linhas da lista tinham ~56px; o consumo era um botão de borda preta; e o
+   status, texto puro com o mesmo peso para "Ativa" e "Somente leitura".
+
+   Aqui: cartão SÓLIDO com uma faixa de cor à esquerda (a cor diz o que é,
+   sem lavar o fundo), rótulo na cor do tom, linhas de ~36px com zebra, status
+   em selo. Tudo por token, então os dois temas saem da mesma regra.
+   =========================================================================== */
+
+.admin-standalone .adm-clientes {
+  --adm-tom: var(--adm-txt-3);
+}
+
+/* ── KPIs: rótulo e legenda com contraste de leitura ─────────────────────── */
+.admin-standalone .adm-clientes .adm-kpi {
+  padding: 14px 16px;
+  border-left: 4px solid var(--adm-borda-forte);
+}
+.admin-standalone .adm-clientes .adm-kpi.destaque {
+  border-left-color: var(--adm-verde);
+}
+.admin-standalone .adm-clientes .adm-kpi-rot {
+  color: var(--adm-txt-2);
+  font-weight: 600;
+}
+.admin-standalone .adm-clientes .adm-kpi small {
+  color: var(--adm-txt-2);
+}
+
+/* ── Quadros de ocupação ─────────────────────────────────────────────────── */
+.admin-standalone .adm-ocupacao-rot {
+  color: var(--adm-txt-2);
+  font-weight: 600;
+}
+.admin-standalone .adm-quadro {
+  background: var(--adm-card);
+  border: 1px solid var(--adm-borda);
+  border-left: 4px solid var(--adm-tom);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.admin-standalone .adm-quadro.tom-azul   { --adm-tom: var(--adm-azul); }
+.admin-standalone .adm-quadro.tom-roxo   { --adm-tom: var(--adm-roxo); }
+.admin-standalone .adm-quadro.tom-verde  { --adm-tom: var(--adm-verde); }
+.admin-standalone .adm-quadro.tom-ambar  { --adm-tom: var(--adm-ambar); }
+.admin-standalone .adm-quadro.tom-neutro { --adm-tom: var(--adm-txt-3); }
+/* O nível vem DEPOIS do tom: alarme ganha da identidade do número. */
+.admin-standalone .adm-quadro.nivel-ok      { --adm-tom: var(--adm-verde); }
+.admin-standalone .adm-quadro.nivel-atencao { --adm-tom: var(--adm-ambar); }
+.admin-standalone .adm-quadro.nivel-critico { --adm-tom: var(--adm-vermelho); background: var(--adm-card); }
+
+.admin-standalone .adm-quadro span {
+  color: var(--adm-tom);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.admin-standalone .adm-quadro strong {
+  color: var(--adm-txt);
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+.admin-standalone .adm-quadro small {
+  color: var(--adm-txt-2);
+  font-size: 11px;
+}
+.admin-standalone .adm-quadro.nivel-critico strong,
+.admin-standalone .adm-quadro.nivel-critico small {
+  color: var(--adm-vermelho);
+}
+.admin-standalone .adm-quadro .adm-barra {
+  background: var(--adm-card-2);
+}
+.admin-standalone .adm-quadro .adm-barra i {
+  background: var(--adm-tom);
+}
+
+/* ── A lista: linhas baixas, zebra, texto que se lê ──────────────────────── */
+.admin-standalone .adm-clientes .admin-tabela {
+  font-size: 13px;
+}
+.admin-standalone .adm-clientes .admin-tabela thead th {
+  padding: 8px 12px;
+  color: var(--adm-txt-2);
+  font-weight: 700;
+}
+.admin-standalone .adm-clientes .admin-tabela td {
+  padding: 5px 12px;
+  height: 36px;
+  color: var(--adm-txt-2);
+  font-variant-numeric: tabular-nums;
+}
+.admin-standalone .adm-clientes .admin-tabela tbody tr:nth-child(even) {
+  background: var(--adm-bg);
+}
+.admin-standalone .adm-clientes .admin-tabela tbody tr:hover {
+  background: var(--adm-card-2);
+}
+.admin-standalone .adm-clientes .admin-email {
+  color: var(--adm-txt);
+  font-weight: 600;
+}
+.admin-standalone .adm-clientes .adm-inline-sub {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--adm-vermelho);
+}
+.admin-standalone .adm-clientes .admin-badge-assinatura {
+  padding: 2px 9px;
+  font-size: 11px;
+}
+.admin-standalone .adm-clientes .admin-badge-assinatura.sem {
+  background: transparent;
+  color: var(--adm-txt-3);
+}
+
+.admin-standalone .adm-tag {
+  padding: 2px 9px;
+}
+
+/* Consumo: um link de número, não um botão de borda preta. */
+.admin-standalone .adm-consumo-btn {
+  font: inherit;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--adm-azul);
+  cursor: pointer;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+.admin-standalone .adm-consumo-btn:hover {
+  background: var(--adm-card-2);
+}
+
+.admin-standalone .adm-btn-editar {
+  min-height: 28px;
+  padding: 3px 12px;
+  background: var(--adm-card-2);
+  border: 1px solid var(--adm-borda-forte);
+  color: var(--adm-txt);
+}
+.admin-standalone .adm-btn-editar:hover:not(:disabled) {
+  border-color: var(--adm-verde);
+  color: var(--adm-verde);
+}
+
+/* No celular a lista vira cartões — que no escuro saíam BRANCOS (admin.css)
+   com o texto claro do tema: ilegíveis. Cartão no token, botão no dedo. */
+@media (max-width: 860px) {
+  .admin-standalone .admin-tabela tr,
+  .admin-standalone .adm-clientes .admin-tabela tbody tr:nth-child(even) {
+    background: var(--adm-card);
+    border-color: var(--adm-borda);
+  }
+  .admin-standalone .admin-tabela td {
+    height: auto;
+  }
+  .admin-standalone .admin-tabela td::before {
+    color: var(--adm-txt-3);
+  }
+  .admin-standalone .adm-btn-editar {
+    min-height: 40px;
+  }
+}

@@ -270,7 +270,13 @@ export default function PainelClientes({
                       <span className="adm-inline-muted">—</span>
                     )}
                   </td>
-                  <td data-label="Status">{rotuloStatusAssinatura(c.assinatura_status ?? null)}</td>
+                  <td data-label="Status">
+                    {/* Selo com a cor do estado: texto puro deixava "Somente
+                        leitura" com o mesmo peso de "Ativa". */}
+                    <span className={`admin-badge-assinatura ${c.assinatura_status ?? 'sem'}`}>
+                      {rotuloStatusAssinatura(c.assinatura_status ?? null)}
+                    </span>
+                  </td>
                   <td data-label="Cliente desde">{data(c.criado_em)}</td>
                   <td data-label="Último acesso">{data(metas.get(c.id)?.last_sign_in_at ?? null)}</td>
                   <td data-label="Acessos">{metricas.get(c.id)?.sessoesTotal ?? 0}</td>
@@ -279,7 +285,7 @@ export default function PainelClientes({
                   <td data-label="Consumo">
                     <button
                       type="button"
-                      className="b b-acoes"
+                      className="adm-consumo-btn"
                       onClick={() => setConsumoDe(c)}
                       title="Ver o consumo detalhado desta conta"
                     >
@@ -348,7 +354,7 @@ function Quadro({
   const fracao = fracaoDaBarra(usado, cota);
   const classe = nivel === 'desconhecido' ? `tom-${tom}` : `nivel-${nivel}`;
   return (
-    <div className={`adm-quadro ${classe}`}>
+    <div className={`adm-quadro tom-${tom} ${classe}`}>
       <span>{rotulo}</span>
       <strong>{valor}</strong>
       {fracao !== null ? (

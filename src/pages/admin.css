@@ -1332,15 +1332,7 @@
 [data-tema='escuro'] .adm-tag-vitalicio { background: #241c3a; color: #b9a3f0; border-color: #3b2f5e; }
 [data-tema='escuro'] .adm-tag-interna   { background: #10263d; color: #8fbdf0; border-color: #1d4066; }
 [data-tema='escuro'] .adm-tag-suspenso  { background: #351817; color: #f0a49c; border-color: #5c2a26; }
-[data-tema='escuro'] .adm-quadro.tom-azul   { background: #10202f; border-color: #1d4066; }
-[data-tema='escuro'] .adm-quadro.tom-roxo   { background: #1c1730; border-color: #3b2f5e; }
-[data-tema='escuro'] .adm-quadro.tom-verde  { background: #10241a; border-color: #1f5236; }
-[data-tema='escuro'] .adm-quadro.tom-ambar  { background: #2b2210; border-color: #5a4718; }
-/* O neutro herdava o fundo claro e virava o único quadro branco da faixa. */
-[data-tema='escuro'] .adm-quadro.tom-neutro { background: #1b1f24; border-color: #2c333b; }
-[data-tema='escuro'] .adm-quadro.nivel-ok      { background: #10241a; border-color: #1f5236; }
-[data-tema='escuro'] .adm-quadro.nivel-atencao { background: #2b2210; border-color: #5a4718; }
-[data-tema='escuro'] .adm-quadro.nivel-critico { background: #301513; border-color: #5c2a26; }
-[data-tema='escuro'] .adm-quadro.nivel-critico strong,
-[data-tema='escuro'] .adm-quadro.nivel-critico small { color: #f0a49c; }
+/* Os quadros de ocupação no escuro saíram daqui (06/10/2026): agora são
+   cartão sólido + faixa de cor por token, em admin-tema.css, igual nos dois
+   temas. As regras `.adm-quadro.nivel-*` acima seguem valendo fora do painel. */
 [data-tema='escuro'] .adm-btn-editar { background: transparent; color: inherit; }
