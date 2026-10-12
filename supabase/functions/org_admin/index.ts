@@ -17,6 +17,7 @@
 //   { action: 'excluir', user_id }
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { decidirAdocao } from './adocao.ts';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -156,14 +157,24 @@ Deno.serve(async (req) => {
         if (!existente) return json({ erro: 'E-mail já registrado, mas usuário não encontrado. Tente outro e-mail.' }, 400);
         const { data: perfilExist } = await admin
           .from('profiles')
-          .select('org_id, criado_por, papel')
+          .select('org_id, papel, cliente_id')
           .eq('id', existente.id)
           .maybeSingle();
-        const adotavel =
-          !perfilExist ||
-          perfilExist.org_id === orgId ||
-          (perfilExist.criado_por === null && perfilExist.org_id === existente.id && perfilExist.papel === 'mestre');
-        if (!adotavel) return json({ erro: 'Este e-mail já pertence a outra conta. Use outro e-mail.' }, 400);
+        const { count: linhasDeDados } = await admin
+          .from('app_storage')
+          .select('chave', { count: 'exact', head: true })
+          .eq('org_id', existente.id);
+        const decisao = decidirAdocao({
+          existenteId: existente.id,
+          metadata: existente.user_metadata,
+          perfil: perfilExist ?? null,
+          chamadorId: userData.user.id,
+          orgId,
+          papel,
+          clienteId,
+          linhasDeDados: linhasDeDados ?? 0,
+        });
+        if (!decisao.adotar) return json({ erro: decisao.erro }, 400);
         const { error: pwErr } = await admin.auth.admin.updateUserById(existente.id, { password: senha, email_confirm: true });
         if (pwErr) return json({ erro: pwErr.message }, 400);
         userId = existente.id;
