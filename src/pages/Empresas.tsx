@@ -135,7 +135,7 @@ export default function Empresas() {
 
   async function buscarNoGoogle() {
     const texto = buscaTexto.trim();
-    if (!texto) return;
+    if (!texto || buscando) return;
     setBuscando(true);
     setBuscaErro(null);
     setResultados(null);
@@ -319,7 +319,7 @@ export default function Empresas() {
                   type="text"
                   value={buscaTexto}
                   onChange={(e) => setBuscaTexto(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && buscarNoGoogle()}
+                  onKeyDown={(e) => e.key === 'Enter' && !e.repeat && buscarNoGoogle()}
                   placeholder="Nome da empresa e cidade — ex.: ES Engenharia Vitória"
                 />
                 <button type="button" className="btn-primario" disabled={buscando} onClick={buscarNoGoogle}>
